@@ -8,7 +8,7 @@
 #include "vicp_hardware.h"
 #include "vicp_rdma.h"
 
-static bool is_rdma_enable;
+static u32 rdma_enable_flag;
 
 static int pps_lut_tap8[33][8] = {{0, 0, 0, 128, 0, 0, 0, 0},
 			{-1, 1, 0, 127, 2, -1, 1, -1},
@@ -126,9 +126,9 @@ void set_rdma_start(u32 input_count)
 	return vicp_reg_set_bits(VID_CMPR_INT_CTRL, input_count, 0, 8);
 }
 
-void set_rdma_enable(u32 is_enable)
+void set_rdma_flag(u32 is_enable)
 {
-	is_rdma_enable = is_enable;
+	rdma_enable_flag = is_enable;
 }
 
 void set_rdmif_enable(u32 is_enable)
@@ -928,7 +928,7 @@ void set_pre_scaler_control(struct vicp_pre_scaler_ctrl_reg_t pre_scaler_ctrl_re
 		((pre_scaler_ctrl_reg.hsc_nor_rs_bits & 0xf) << 12) |
 		((pre_scaler_ctrl_reg.prehsc_flt_num & 0xf) << 7) |
 		((pre_scaler_ctrl_reg.prevsc_flt_num & 0x7) << 4) |
-		((pre_scaler_ctrl_reg.prehsc_rate & 0x3) < 2) |
+		((pre_scaler_ctrl_reg.prehsc_rate & 0x3) << 2) |
 		((pre_scaler_ctrl_reg.prevsc_rate & 0x3) << 0);
 
 	return write_vicp_reg(VID_CMPR_PRE_SCALE_CTRL, value);
@@ -1044,7 +1044,7 @@ void set_vsc_phase_control(struct vicp_vsc_phase_ctrl_reg_t vsc_phase_ctrl_reg)
 		((vsc_phase_ctrl_reg.bot_ini_rcv_num & 0xf) << 8) |
 		((vsc_phase_ctrl_reg.top_l0_out_en & 0x1) << 7) |
 		((vsc_phase_ctrl_reg.top_rpt_l0_num & 0x3) << 5) |
-		((vsc_phase_ctrl_reg.top_ini_rcv_num & 0xf) < 0);
+		((vsc_phase_ctrl_reg.top_ini_rcv_num & 0xf) << 0);
 
 	return write_vicp_reg(VID_CMPR_VSC_PHASE_CTRL, value);
 }
@@ -1104,7 +1104,7 @@ void set_hsc_phase_control(struct vicp_hsc_phase_ctrl_reg_t hsc_phase_ctrl_reg)
 	value = ((hsc_phase_ctrl_reg.ini_rcv_num0_exp & 0x7) << 24) |
 		((hsc_phase_ctrl_reg.rpt_p0_num0 & 0xf) << 20) |
 		((hsc_phase_ctrl_reg.ini_rcv_num0 & 0xf) << 16) |
-		((hsc_phase_ctrl_reg.ini_phase0 & 0xffff) < 0);
+		((hsc_phase_ctrl_reg.ini_phase0 & 0xffff) << 0);
 
 	return write_vicp_reg(VID_CMPR_HSC_PHASE_CTRL, value);
 }
@@ -1116,21 +1116,21 @@ void set_scaler_misc(struct vicp_scaler_misc_reg_t scaler_misc_reg)
 	value = ((scaler_misc_reg.sc_din_mode & 0x1) << 27) |
 		((scaler_misc_reg.reg_l0_out_fix & 0x1) << 26) |
 		((scaler_misc_reg.hf_sep_coef_4srnet_en & 0x1) << 25) |
-		((scaler_misc_reg.repeat_last_line_en & 0x1) < 24) |
+		((scaler_misc_reg.repeat_last_line_en & 0x1) << 24) |
 		((scaler_misc_reg.old_prehsc_en & 0x1) << 23) |
 		((scaler_misc_reg.hsc_len_div2_en & 0x1) << 22) |
-		((scaler_misc_reg.prevsc_lbuf_mode & 0x1) < 21) |
+		((scaler_misc_reg.prevsc_lbuf_mode & 0x1) << 21) |
 		((scaler_misc_reg.prehsc_en & 0x1) << 20) |
 		((scaler_misc_reg.prevsc_en & 0x1) << 19) |
-		((scaler_misc_reg.vsc_en & 0x1) < 18) |
+		((scaler_misc_reg.vsc_en & 0x1) << 18) |
 		((scaler_misc_reg.hsc_en & 0x1) << 17) |
-		((scaler_misc_reg.sc_top_en & 0x1) < 16) |
+		((scaler_misc_reg.sc_top_en & 0x1) << 16) |
 		((scaler_misc_reg.sc_vd_en & 0x1) << 15) |
-		((scaler_misc_reg.hsc_nonlinear_4region_en & 0x1) < 12) |
-		((scaler_misc_reg.hsc_bank_length & 0xf) < 8) |
+		((scaler_misc_reg.hsc_nonlinear_4region_en & 0x1) << 12) |
+		((scaler_misc_reg.hsc_bank_length & 0xf) << 8) |
 		((scaler_misc_reg.vsc_phase_field_mode & 0x1) << 5) |
-		((scaler_misc_reg.vsc_nonlinear_4region_en & 0x1) < 4) |
-		((scaler_misc_reg.vsc_bank_length & 0x7) < 0);
+		((scaler_misc_reg.vsc_nonlinear_4region_en & 0x1) << 4) |
+		((scaler_misc_reg.vsc_bank_length & 0x7) << 0);
 
 	return write_vicp_reg(VID_CMPR_SC_MISC, 0x00078804);
 }
@@ -1144,7 +1144,7 @@ void write_vicp_reg(u32 reg, u32 val)
 {
 	struct rdma_buf_type_t *buf = NULL;
 
-	if (is_rdma_enable) {
+	if (rdma_enable_flag) {
 		buf = get_vicp_rdma_buf_choice();
 		vicp_rdma_wr(buf, (u64)reg, (u64)val, 0, 32);
 		return;
@@ -1157,7 +1157,7 @@ void write_vicp_reg_bits(u32 reg, const u32 value, const u32 start, const u32 le
 {
 	struct rdma_buf_type_t *buf = NULL;
 
-	if (is_rdma_enable) {
+	if (rdma_enable_flag) {
 		buf = get_vicp_rdma_buf_choice();
 		vicp_rdma_wr(buf, (u64)reg, value, (u64)start, (u64)len);
 		return;

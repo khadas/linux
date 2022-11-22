@@ -1276,6 +1276,7 @@ void set_vid_cmpr_rdma(bool rdma_en, int input_count, int input_number)
 
 	if (!rdma_en) {
 		vicp_print(VICP_RDMA, "%s: rdma disabled.\n", __func__);
+		set_rdma_flag(0);
 		vicp_rdma_enable(0, 0, 0);
 		return;
 	}
@@ -1283,10 +1284,12 @@ void set_vid_cmpr_rdma(bool rdma_en, int input_count, int input_number)
 	if (input_count <= 0 || input_count > MAX_INPUTSOURCE_COUNT ||
 		input_number < 0 || input_number >= MAX_INPUTSOURCE_COUNT) {
 		vicp_print(VICP_ERROR, "%s: invalid param.\n", __func__);
+		set_rdma_flag(0);
 		vicp_rdma_enable(0, 0, 0);
 		return;
 	}
 
+	set_rdma_flag(1);
 	if (input_count != 0 && input_number == 0) {//first enter
 		vicp_print(VICP_RDMA, "%s: %d line.\n", __func__, __LINE__);
 		vicp_rdma_enable(1, 0, 0);
@@ -1914,10 +1917,10 @@ int vicp_process_task(struct vid_cmpr_top_t *vid_cmpr_top)
 	if (!rdma_en)
 		vid_cmpr_top->rdma_enable = false;
 
-	set_rdma_enable(vid_cmpr_top->rdma_enable);
+	set_vid_cmpr_rdma(vid_cmpr_top->rdma_enable, vid_cmpr_top->src_count,
+		vid_cmpr_top->src_num);
+
 	if (vid_cmpr_top->rdma_enable) {
-		set_vid_cmpr_rdma(vid_cmpr_top->rdma_enable, vid_cmpr_top->src_count,
-			vid_cmpr_top->src_num);
 		set_vid_cmpr(vid_cmpr_top);
 		set_module_enable(1);
 		set_module_start(1);
