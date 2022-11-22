@@ -326,7 +326,7 @@ static struct vframe_s *dim_nbypass_peek(struct di_ch_s *pch)
 {
 	struct vframe_s *vframe;
 
-	vframe = nins_peekvfm(pch);
+	vframe = nins_peekvfm_ori(pch);
 	return vframe;
 }
 

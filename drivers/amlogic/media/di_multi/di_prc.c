@@ -3583,6 +3583,30 @@ struct dim_nins_s *nins_peek_pre(struct di_ch_s *pch)
 	return ins;
 }
 
+struct vframe_s *nins_peekvfm_ori(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_nins_s *ins;
+	struct vframe_s *vfm;
+	bool ret;
+
+	if (!pch || !dip_itf_is_vfm(pch)) {
+		PR_ERR("%s:\n", __func__);
+		return NULL;
+	}
+
+	pbufq = &pch->nin_qb;
+	//qbuf_peek_s(pbufq, QBF_INS_Q_IN, q_buf);
+	ret = qbufp_peek(pbufq, QBF_NINS_Q_CHECK, &q_buf);
+	if (!ret || !q_buf.qbc)
+		return NULL;
+	ins = (struct dim_nins_s *)q_buf.qbc;
+	vfm = (struct vframe_s *)ins->c.ori;
+
+	return vfm;
+}
+
 struct vframe_s *nins_peekvfm(struct di_ch_s *pch)
 {
 	struct buf_que_s *pbufq;
