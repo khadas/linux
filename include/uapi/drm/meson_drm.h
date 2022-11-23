@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: (GPL-2.0+ WITH Linux-syscall-note OR MIT) */
+/* SPDX-License-Identifier: MIT */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright © 2019-2022 Amlogic Inc.
  */
 
 #ifndef _MESON_DRM_H
