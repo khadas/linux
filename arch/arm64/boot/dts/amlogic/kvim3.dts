@@ -851,6 +851,18 @@
                 compatible = "khadas-tca6408";
                 reg = <0x20>;
        };
+	   es8316: es8316@10 {
+                compatible = "everest,es8316";
+                #sound-dai-cells = <0>;
+                reg = <0x10>;
+                status = "disabled";
+                spk-con-gpio = <&gpio GPIOA_11 0>;
+                spk-mute-gpio = <&gpio GPIOA_12 0>;
+                io-channels = <&saradc SARADC_CH3>;
+                hp_chan = <SARADC_CH3>;
+                hp_val = <784>; //val=voltage/1800mV*1023
+                hp_tolerance = <50>;
+        };
        khadas-kxtj3 {
                 compatible = "kxtj3";
                 reg = <0x0E>;
