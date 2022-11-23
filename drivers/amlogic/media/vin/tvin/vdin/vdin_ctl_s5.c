@@ -804,7 +804,6 @@ static void vdin_set_meas_mux_s5(unsigned int offset, enum tvin_port_e port_,
 	unsigned int meas_mux = MEAS_MUX_NULL;
 
 	if (is_meson_s5_cpu()) {
-		pr_info("%s %d:i am here\n", __func__, __LINE__);
 		return;
 	}
 	switch ((port_) >> 8) {
@@ -906,7 +905,7 @@ void vdin_set_top_s5(struct vdin_dev_s *devp, enum tvin_port_e port,
 	unsigned int vdin_data_bus_1 = VDIN_MAP_BPB;
 	unsigned int vdin_data_bus_2 = VDIN_MAP_RCR;
 
-	pr_info("%s %d:i am here,port:%d,input_cfmt:%d\n",
+	pr_info("%s %d:port:%d,input_cfmt:%d\n",
 		__func__, __LINE__, port, input_cfmt);
 
 	wr(offset, VDIN_TOP_SECURE1_MAX_SIZE, (3840 << 16) | (2160 << 0));
@@ -955,6 +954,10 @@ void vdin_set_top_s5(struct vdin_dev_s *devp, enum tvin_port_e port,
 		//vdin_mux = VDIN_MUX_VIU1_WB1;
 		//wr(offset, VDIN_IF_TOP_VDI9_CTRL, 0xe4);
 		break;
+	case 0xe0: /* venc0 */
+		vdin_mux = VDIN_VDI6_LOOPBACK_1;
+		wr(offset, VDIN_IF_TOP_VDI6_CTRL, 0xf4);
+		break;
 	default:
 		vdin_mux = VDIN_MUX_NULL;
 		break;
@@ -994,7 +997,7 @@ void vdin_set_top_s5(struct vdin_dev_s *devp, enum tvin_port_e port,
 		vdin_data_bus_1 = VDIN_MAP_Y_G;
 		vdin_data_bus_2 = VDIN_MAP_RCR;
 	}
-	pr_info("%s %d:i am here,vdin_mux:%d\n", __func__, __LINE__, vdin_mux);
+	pr_info("%s %d:vdin_mux:%d\n", __func__, __LINE__, vdin_mux);
 
 	wr_bits(offset, VDIN_PP_TOP_CTRL, vdin_data_bus_0,
 		PP_COMP0_SWAP_BIT, PP_COMP0_SWAP_WID);
@@ -1144,8 +1147,6 @@ void vdin_change_matrix0_s5(u32 offset, u32 matrix_csc)
 {
 	struct vdin_matrix_lup_s *matrix_tbl;
 
-	pr_info("%s %d:i am here,%d\n", __func__, __LINE__, matrix_csc);
-
 	if (matrix_csc == VDIN_MATRIX_NULL)	{
 		wr_bits(offset, VDIN_PP_TOP_CTRL, 0,
 			PP_MAT0_EN_BIT, PP_MAT0_EN_WID);
@@ -1181,8 +1182,6 @@ void vdin_change_matrix0_s5(u32 offset, u32 matrix_csc)
 void vdin_change_matrix1_s5(u32 offset, u32 matrix_csc)
 {
 	struct vdin_matrix_lup_s *matrix_tbl;
-
-	pr_info("%s %d:i am here,%d\n", __func__, __LINE__, matrix_csc);
 
 	if (matrix_csc == VDIN_MATRIX_NULL)	{
 		wr_bits(offset, VDIN_PP_TOP_CTRL, 0,
@@ -1220,8 +1219,6 @@ void vdin_change_matrix1_s5(u32 offset, u32 matrix_csc)
 void vdin_change_matrix_hdr_s5(u32 offset, u32 matrix_csc)
 {
 	struct vdin_matrix_lup_s *matrix_tbl;
-
-	pr_info("%s %d:i am here,%d\n", __func__, __LINE__, matrix_csc);
 
 	if (matrix_csc == VDIN_MATRIX_NULL)	{
 		wr_bits(offset, VDIN_PP_TOP_CTRL, 0,
@@ -1423,10 +1420,8 @@ vdin_set_color_matrix_s5(enum vdin_matrix_sel_e matrix_sel, unsigned int offset,
 		matrix_csc = VDIN_MATRIX_NULL;
 		break;
 	}
-	pr_info("%s %d:i am here\n", __func__, __LINE__);
 
 	//vdin_manual_matrix_csc_s5(&matrix_csc);
-	pr_info("%s %d:i am here\n", __func__, __LINE__);
 
 	if (matrix_sel == VDIN_SEL_MATRIX0)
 		vdin_change_matrix0_s5(offset, matrix_csc);
@@ -1436,8 +1431,6 @@ vdin_set_color_matrix_s5(enum vdin_matrix_sel_e matrix_sel, unsigned int offset,
 		vdin_change_matrix_hdr_s5(offset, matrix_csc);
 	else
 		matrix_csc = VDIN_MATRIX_NULL;
-
-	pr_info("%s %d:i am here,%d\n", __func__, __LINE__, matrix_csc);
 
 	return matrix_csc;
 }
@@ -1565,10 +1558,8 @@ void vdin_set_matrix_s5(struct vdin_dev_s *devp)
 		} else {
 			devp->csc_idx = VDIN_MATRIX_NULL;
 		}
-		pr_info("%s %d:i am here\n", __func__, __LINE__);
-		//TODO
+		//TODO:Kernel panic
 		//vdin_set_hdr_s5(devp);
-		pr_info("%s %d:i am here\n", __func__, __LINE__);
 
 //		#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 //		if (vdin_is_dolby_signal_in(devp) ||
@@ -1582,7 +1573,6 @@ void vdin_set_matrix_s5(struct vdin_dev_s *devp)
 
 	if (devp->matrix_pattern_mode)
 		vdin_set_matrix_color_s5(devp);
-	pr_info("%s %d:i am here\n", __func__, __LINE__);
 }
 
 void vdin_select_matrix_s5(struct vdin_dev_s *devp, unsigned char id,
@@ -2495,16 +2485,12 @@ static inline ulong vdin_reg_limit_s5(ulong val, ulong wid)
 
 void vdin_set_all_regs_s5(struct vdin_dev_s *devp)
 {
-	pr_info("%s %d:i am here\n", __func__, __LINE__);
 	/* matrix sub-module */
 	vdin_set_matrix_s5(devp);
-	pr_info("%s %d:i am here\n", __func__, __LINE__);
 
 	/* bbar sub-module */
 	//vdin_set_bbar_s5(devp->addr_offset, devp->v_active, devp->h_active);
-	pr_info("%s %d:i am here\n", __func__, __LINE__);
 #ifdef CONFIG_AML_LOCAL_DIMMING
-	pr_info("%s %d:i am here;h:%d,v:%d\n", __func__, __LINE__,
 		devp->h_active, devp->v_active);
 
 	/* ldim sub-module */
@@ -2513,15 +2499,12 @@ void vdin_set_all_regs_s5(struct vdin_dev_s *devp)
 			       devp->v_active,
 			       VDIN_LDIM_BLK_HNUM, VDIN_LDIM_BLK_VNUM);
 #endif
-	pr_info("%s %d:i am here\n", __func__, __LINE__);
 
 	/* hist sub-module */
 	//vdin_set_histogram_s5(devp->addr_offset, 0,
 	//		   devp->h_active - 1, 0, devp->v_active - 1);
-	pr_info("%s %d:i am here\n", __func__, __LINE__);
 	/* hist mux select */
 	vdin_set_hist_mux_s5(devp);
-	pr_info("%s %d:i am here\n", __func__, __LINE__);
 	/* write sub-module */
 	//vdin_set_wr_ctrl_s5(devp, devp->addr_offset, devp->v_active,
 	//		 devp->h_active, devp->format_convert,
@@ -2529,16 +2512,13 @@ void vdin_set_all_regs_s5(struct vdin_dev_s *devp)
 	vdin_set_wr_ctrl_s5(devp, devp->addr_offset, devp->v_active,
 			devp->h_active, devp->format_convert,
 			devp->full_pack, devp->source_bitdepth);
-	pr_info("%s %d:i am here\n", __func__, __LINE__);
 	/* top sub-module */
 	vdin_set_top_s5(devp, devp->parm.port,
 		     devp->prop.color_format,
 		     devp->bt_path);
-	pr_info("%s %d:i am here\n", __func__, __LINE__);
 
 	vdin_set_meas_mux_s5(devp->addr_offset, devp->parm.port,
 			  devp->bt_path);
-	pr_info("%s %d:i am here\n", __func__, __LINE__);
 
 //	/* for t7 vdin2 write meta data */
 //	if (devp->dtdata->hw_ver == VDIN_HW_T7) {
@@ -2620,7 +2600,7 @@ void vdin_if_default_s5(struct vdin_dev_s *devp)
 		wr(offset, VDIN_IF_TOP_VDIN0_SYNC_CTRL1, 0x4040);
 		wr(offset, VDIN_IF_TOP_VDIN0_LINE_INT_CTRL, 0x0);
 	} else {
-		wr(offset, VDIN_IF_TOP_VDIN1_SECURE_CTRL, 0x0);
+		//wr(offset, VDIN_IF_TOP_VDIN1_SECURE_CTRL, 0x0);
 		wr(offset, VDIN_IF_TOP_VDIN1_CTRL, 0x0);
 		wr(offset, VDIN_IF_TOP_VDIN1_SYNC_CTRL0, 0x1);
 		wr(offset, VDIN_IF_TOP_VDIN1_SYNC_CTRL1, 0x4040);
@@ -2639,20 +2619,20 @@ void vdin_pp_default_s5(struct vdin_dev_s *devp)
 	else
 		lfifo_buf_size = devp->dtdata->vdin0_line_buff_size;
 	//wr(offset, VDIN_PP_TOP_GCLK_CTRL,	0x0);
-	wr(offset, VDIN_PP_TOP_CTRL,		0x0);
+	wr(offset, VDIN_PP_TOP_CTRL,		0x90000000);
 	wr(offset, VDIN_PP_TOP_IN_SIZE,		0x0);
 	wr(offset, VDIN_PP_TOP_OUT_SIZE,	0x0);
 	wr(offset, VDIN_PP_TOP_H_WIN,		0x1fff);
 	wr(offset, VDIN_PP_TOP_V_WIN,		0x1fff);
 	wr(offset, VDIN_PP_LFIFO_CTRL,
-		(2 << PP_LFIFO_GCLK_CTRL_BIT) |
+		(0 << PP_LFIFO_GCLK_CTRL_BIT) |
 		(1 << PP_LFIFO_SOFT_RST_BIT) |
 		(lfifo_buf_size << PP_LFIFO_BUF_SIZE_BIT) |
 		(0 << PP_LFIFO_URG_CTRL_BIT));
 	//udelay(5);
 	//wr_bits(offset, VDIN_PP_LFIFO_CTRL, 0, PP_LFIFO_SOFT_RST_BIT, 1);
 	//wrmif
-	wr_bits(offset, VDIN_WRMIF_STRIDE_LUMA, 1, 31, 1);
+	//wr_bits(offset, VDIN_WRMIF_STRIDE_LUMA, 1, 31, 1);
 }
 
 void vdin_dw_default_s5(struct vdin_dev_s *devp)
@@ -2702,10 +2682,14 @@ void vdin_hw_disable_s5(struct vdin_dev_s *devp)
 
 	pr_info("%s: vdin[%d] VDIN_PP_TOP_CTRL:%x, offset:%d\n",
 		__func__, devp->index, VDIN_PP_TOP_CTRL, offset);
-
+	//rdma write may working now! clear req_en will not take effect
+	/* req_en */
+	wr_bits(offset, VDIN_WRMIF_CTRL, 0, WR_REQ_EN_BIT, WR_REQ_EN_WID);
+	/* req_en */
+	wr_bits(offset, VDIN_IF_TOP_VDIN1_CTRL, 0, 0, 1); /* reg_vdin1_enable */
 	//def_canvas = offset ? vdin_canvas_ids[1][0] : vdin_canvas_ids[0][0];
 	/* disable cm2 */
-	wr(offset, VDIN_PP_TOP_CTRL, 0);
+	//wr(offset, VDIN_PP_TOP_CTRL, 0);
 	//wr_bits(offset, VDIN_CM_BRI_CON_CTRL, 0, CM_TOP_EN_BIT, CM_TOP_EN_WID);
 	/* disable video data input */
 	/* [    4]  top.datapath_en  = 0 */
@@ -2716,7 +2700,7 @@ void vdin_hw_disable_s5(struct vdin_dev_s *devp)
 	/* [ 3: 0]  top.mux  = 0/(null, mpeg, 656, tvfe, cvd2, hdmi, dvin) */
 	//wr_bits(offset, VDIN_COM_CTRL0, 0, VDIN_SEL_BIT, VDIN_SEL_WID);
 	//wr(offset, VDIN_COM_CTRL0, 0x00000910);
-	vdin_delay_line_s5(devp, delay_line_num);
+	//vdin_delay_line_s5(devp, delay_line_num);
 	//if (enable_reset)
 	//	wr(offset, VDIN_WR_CTRL, 0x0b401000 | def_canvas);
 	//else
@@ -2745,7 +2729,6 @@ void vdin_hw_disable_s5(struct vdin_dev_s *devp)
 		//todo vdin_dolby_desc_to_4448bit(devp, 0);
 		//todo vdin_dolby_de_tunnel_to_44410bit(devp, 0);
 	}
-	pr_info("%s %d:i am here\n", __func__, __LINE__);
 }
 
 /* get current vsync field type 0:top 1 bottom */
@@ -2774,7 +2757,6 @@ inline int vdin_vsync_reset_mif_s5(int index)
 	if (!enable_reset || vdin_reset_flag || start_line > 0)
 		return 0;
 
-	pr_info("I am here %s %d\n", __func__, __LINE__);
 	vdin_reset_flag = 1;
 	if (index == 0) {
 		/* vdin->vdin mif wr en */
@@ -3376,7 +3358,6 @@ void vdin_set_bitdepth_s5(struct vdin_dev_s *devp)
 	enum vdin_color_deeps_e bit_dep;
 	unsigned int convert_fmt, offset;
 
-	pr_info("%s %d:i am here\n", __func__, __LINE__);
 	offset = devp->addr_offset;
 	/* yuv 422 full pack check */
 	if (devp->color_depth_support &
@@ -3558,7 +3539,7 @@ void vdin_set_cm2_s5(unsigned int offset, unsigned int w,
 
 	if (!cm_enable)
 		return;
-	pr_info("%s %d:i am here.w=%d,h=%d\n", __func__, __LINE__, w, h);
+	pr_info("%s %d,w=%d,h=%d\n", __func__, __LINE__, w, h);
 
 	//wr_bits(offset, VDIN_CM_BRI_CON_CTRL, 0, CM_TOP_EN_BIT, CM_TOP_EN_WID);
 	wr_bits(offset, VDIN_PP_TOP_CTRL, 0, PP_CM_EN_BIT, PP_CM_EN_WID);
@@ -5285,50 +5266,84 @@ void vdin_clk_on_off_s5(struct vdin_dev_s *devp, bool on_off)
 {
 	unsigned int offset = devp->addr_offset;
 
-	pr_info("%s %d:i am here, on_off:%d\n", __func__, __LINE__, on_off);
-	usleep_range(16000, 17000);
+	pr_info("%s %d:on_off:%d\n", __func__, __LINE__, on_off);
+
 	/* gclk_ctrl,00: auto, 01: off, 1x: on */
 	if (on_off) { /* on */
 		/* 8k top */
 		wr(offset, VDIN_TOP_CTRL,
-			(0xaa << TOP_GCLK_CTRL_BIT)        | /* 8k top_gclk */
-			(0x2 << LOCAL_ARB_GCLK_CTRL_BIT)   | /* local_arb_gclk  */
-			(0x2a << TIMING_MEAS_POL_CTRL_BIT) | /* timing_meas_pol */
+			(0x0 << TOP_GCLK_CTRL_BIT)        | /* 8k top_gclk */
+			(0x0 << LOCAL_ARB_GCLK_CTRL_BIT)   | /* local_arb_gclk  */
+			(0x0 << TIMING_MEAS_POL_CTRL_BIT) | /* timing_meas_pol */
 			(0x0 << TOP_RESET_BIT));             /* reset */
-		/* if top */
-		wr(offset, VDIN_IF_TOP_BUF_CTRL,
-			(0x2 << BUF_GCLK_CTRL_BIT));	/* buf_gclk */
+		/* hist */
+		wr(offset, VDIN_LUMA_HIST_GCLK_CTRL, 0x0); /* luma_hist_gclk */
+		/* lfifo */
+		wr_bits(offset, VDIN_PP_LFIFO_CTRL, 0x0, 30, 2);/* gclk */
+		wr_bits(offset, VDIN_PP_LFIFO_CTRL, 0x1, 29, 1);/* soft_rst_en */
+		/* vsc */
+		wr_bits(offset, VDIN_VSC_CTRL, 0x0, 28, 4);/* gclk */
+		/* hsc */
+		wr_bits(offset, VDIN_HSC_CTRL, 0x0, 30, 2);/* gclk */
+		/* phsc */
+		wr_bits(offset, VDIN_PHSC_CTRL, 0x0, 30, 2);/* gclk */
+		/* mat1 */
+		wr_bits(offset, VDIN_MAT1_CTRL, 0x0, 30, 2);/* gclk */
+		/* mat0 */
+		wr_bits(offset, VDIN_MAT0_CTRL, 0x0, 30, 2);/* gclk */
+		/* hist */
+		wr_bits(offset, VDIN_LUMA_HIST_GCLK_CTRL, 0x0, 30, 2);/* gclk */
 		/* pp top */
-		wr(offset, VDIN_PP_TOP_GCLK_CTRL,
-			(0xa << PP_TOP_GCLK_CTRL_BIT)); /* pp top_gclk */
+		wr(offset, VDIN_PP_TOP_GCLK_CTRL, (0x0 << 0)); /* pp top_gclk */
+		/* vsk */
+		wr_bits(offset, VDIN_VSK_CTRL, 0x0, 28, 4);/* gclk */
+		/* hsk */
+		wr_bits(offset, VDIN_HSK_CTRL, 0x0, 30, 2);/* gclk */
 		/* dw top */
-		wr(offset, VDIN_DW_TOP_GCLK_CTRL,
-			(0xa << DW_TOP_GCLK_CTRL_BIT)); /* dw top_gclk */
+		wr(offset, VDIN_DW_TOP_GCLK_CTRL, (0x0 << 0)); /* dw top_gclk */
 		/* hdr2 */
-		wr(offset, VDIN_PP_HDR2_CLK_GATE, 0xaaaaaaaa);/* hdr2 gclk */
-		/* local arbitration */
-		wr(offset, VDIN_LOCAL_ARB_CTRL, 0x8000000);/* local_arb_gclk */
+		wr(offset, VDIN_PP_HDR2_CLK_GATE, 0x0);/* hdr2 gclk */
+		/* if top buf */
+		wr_bits(offset, VDIN_IF_TOP_BUF_CTRL, 0x0, 30, 2); /* buf_gclk */
+		/* local arb */
+		wr_bits(offset, VDIN_LOCAL_ARB_CTRL, 0x0, 30, 2);   /* local_arb_gclk */
+		wr_bits(offset, VDIN_LOCAL_ARB_WR_MODE, 0x0, 30, 2);/* wr_gate_clk */
 	} else { /* off */
-		pr_info("%s %d:i am here\n", __func__, __LINE__);
-		/* 8k top */
-		wr(offset, VDIN_TOP_CTRL,
-			(0x55 << TOP_GCLK_CTRL_BIT) |      /* 8k top_gclk */
-			(0x1 << LOCAL_ARB_GCLK_CTRL_BIT)); /* local_arb_gclk */
-		/* if top */
-		wr(offset, VDIN_IF_TOP_BUF_CTRL,
-			(0x1 << BUF_GCLK_CTRL_BIT));	/* buf_gclk */
-		/* pp top */
-		wr(offset, VDIN_PP_TOP_GCLK_CTRL,
-			(0x5 << PP_TOP_GCLK_CTRL_BIT)); /* pp top_gclk */
-		/* dw top */
-		wr(offset, VDIN_DW_TOP_GCLK_CTRL,
-			(0x1 << DW_TOP_GCLK_CTRL_BIT)); /* dw top_gclk */
+		/* local arb */
+		wr_bits(offset, VDIN_LOCAL_ARB_CTRL, 0x1, 30, 2);   /* local_arb_gclk */
+		wr_bits(offset, VDIN_LOCAL_ARB_WR_MODE, 0x1, 30, 2);/* wr_gate_clk */
+		/* hist */
+		wr(offset, VDIN_LUMA_HIST_GCLK_CTRL, 0x1); /* luma_hist_gclk */
+		/* lfifo */
+		wr_bits(offset, VDIN_PP_LFIFO_CTRL, 0x1, 30, 2);/* gclk */
+		wr_bits(offset, VDIN_PP_LFIFO_CTRL, 0x1, 29, 1);/* soft_rst_en */
+		/* vsc */
+		wr_bits(offset, VDIN_VSC_CTRL, 0x5, 28, 4);/* gclk */
+		/* hsc */
+		wr_bits(offset, VDIN_HSC_CTRL, 0x1, 30, 2);/* gclk */
+		/* phsc */
+		wr_bits(offset, VDIN_PHSC_CTRL, 0x1, 30, 2);/* gclk */
+		/* mat1 */
+		wr_bits(offset, VDIN_MAT1_CTRL, 0x1, 30, 2);/* gclk */
+		/* mat0 */
+		wr_bits(offset, VDIN_MAT0_CTRL, 0x1, 30, 2);/* gclk */
+		/* hist */
+		wr_bits(offset, VDIN_LUMA_HIST_GCLK_CTRL, 0x1, 30, 2);/* gclk */
+		/* vsk */
+		wr_bits(offset, VDIN_VSK_CTRL, 0x5, 28, 4);/* gclk */
+		/* hsk */
+		wr_bits(offset, VDIN_HSK_CTRL, 0x1, 30, 2);/* gclk */
 		/* hdr2 */
 		wr(offset, VDIN_PP_HDR2_CLK_GATE, 0x55555555);/* hdr2 gclk */
-		/* local arbitration */
-		wr(offset, VDIN_LOCAL_ARB_CTRL, 0x40000000);/* local_arb_gclk */
+		/* dw top */
+		wr(offset, VDIN_DW_TOP_GCLK_CTRL,
+			(0x55555555 << 0)); /* dw top_gclk */
+		/* pp top */
+		wr(offset, VDIN_PP_TOP_GCLK_CTRL,
+			(0x55555555 << 0)); /* pp top_gclk */
+		/* if top buf */
+		wr_bits(offset, VDIN_IF_TOP_BUF_CTRL, 0x1, 30, 2); /* buf_gclk */
 	}
-	pr_info("%s %d:i am here, on_off:%d\n", __func__, __LINE__, on_off);
 }
 
 void vdin_set_matrix_color_s5(struct vdin_dev_s *devp)
@@ -5336,7 +5351,6 @@ void vdin_set_matrix_color_s5(struct vdin_dev_s *devp)
 	unsigned int offset = devp->addr_offset;
 	unsigned int mode = devp->matrix_pattern_mode;
 
-	pr_info("%s %d:i am here\n", __func__, __LINE__);
 	/*vdin bist mode RGB:black*/
 	wr(offset, VDIN_MATRIX_CTRL, 0x4);
 	wr(offset, VDIN_MATRIX_COEF00_01, 0x0);
@@ -5426,3 +5440,39 @@ void vdin_dmc_ctrl_s5(struct vdin_dev_s *devp, bool on_off)
 	}
 }
 
+void vdin_sw_reset_s5(struct vdin_dev_s *devp)
+{
+	//reg_reset[3:0]
+	wr_bits(devp->addr_offset, VDIN_TOP_CTRL, 0xf, 0, 4);
+	wr_bits(devp->addr_offset, VDIN_TOP_CTRL, 0x0, 0, 4);
+}
+
+/*
+ *[0]:enable/disable;[1~31]:pattern mode 0/1/2/...
+ */
+void vdin_bist_s5(struct vdin_dev_s *devp, unsigned int mode)
+{
+	unsigned int bist_en = 0, test_pat = 0;
+	unsigned int hblank = 0, vblank = 0, vde_start = 0;
+
+	if (!(mode & 0x1)) {
+		bist_en = 0;
+	} else {
+		bist_en = 1;
+		test_pat = (mode >> 1);
+		if (devp->h_active == 320) {
+			//320x240
+			hblank = 11;
+			vblank = 8;
+			vde_start = 2;
+		} else {
+			//1920x1080
+			hblank = 128;//280;
+			vblank = 128;//45;
+			vde_start = 2;
+		}
+	}
+	wr(devp->addr_offset, VDIN_IF_TOP_PTGEN_CTRL,
+		(bist_en << 0) | (test_pat << 1) | (hblank << 4) |
+		(vblank << 12) | (vde_start << 20));
+}

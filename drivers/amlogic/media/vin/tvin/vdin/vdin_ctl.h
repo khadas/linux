@@ -342,5 +342,7 @@ void vdin_dmc_ctrl(struct vdin_dev_s *devp, bool on_off);
 void vdin_pause_mif_write(struct vdin_dev_s *devp, unsigned int rdma_enable);
 bool vdin_check_is_spd_data(struct vdin_dev_s *devp);
 bool vdin_check_spd_data_chg(struct vdin_dev_s *devp);
+void vdin_sw_reset(struct vdin_dev_s *devp);
+void vdin_bist(struct vdin_dev_s *devp, unsigned int mode);
 #endif
 

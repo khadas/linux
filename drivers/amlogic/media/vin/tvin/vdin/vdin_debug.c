@@ -1854,6 +1854,10 @@ void vdin_dump_regs_s5(struct vdin_dev_s *devp, u32 size)
 	pr_info("0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
 	reg = VPU_VIU_VDIN_IF_MUX_CTRL;
 	pr_info("0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
+	reg = S5_VPP_POST_HOLD_CTRL;
+	pr_info("0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
+//	for (reg = 0x2700; reg <= 0x2800; reg++)
+//	pr_info("0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
 //	reg = VPP1_WR_BAK_CTRL;
 //	pr_info("VPP1,0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
 //	reg = VPP2_WR_BAK_CTRL;
@@ -3252,6 +3256,12 @@ start_chk:
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.dbg_sel_mat = temp;
 			pr_info("dbg_sel_mat:%#x\n", devp->debug.dbg_sel_mat);
+		}
+	} else if (!strcmp(parm[0], "pattern")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			devp->debug.dbg_pattern = temp;
+			pr_info("dbg_pattern:%#x\n", devp->debug.dbg_pattern);
+			vdin_bist(devp, devp->debug.dbg_pattern);
 		}
 	} else {
 		pr_info("unknown command\n");
