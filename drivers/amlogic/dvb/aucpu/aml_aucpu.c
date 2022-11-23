@@ -650,8 +650,8 @@ static int load_start_aucpu_fw(struct device *device)
 
 	aucpu_pr(LOG_DEBUG, "FW\n");
 
-	request_firmware(&my_fw, "aucpu_fw.bin", device);
-	if (!my_fw) {
+	result = request_firmware(&my_fw, "aucpu_fw.bin", device);
+	if (!my_fw || result < 0) {
 		aucpu_pr(LOG_ERROR, "load aucpu_fw.bin fail\n");
 		result = AUCPU_ERROR_NOT_IMPLEMENTED;
 		return result;

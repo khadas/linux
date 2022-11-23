@@ -121,6 +121,7 @@ ssize_t ts_setting_store(struct class *class,
 		sprintf(pname, "p_ts%d", id);
 		mode = AM_TS_PARALLEL;
 	} else {
+		memset(pname, 0, sizeof(pname));
 		mode = AM_TS_DISABLE;
 	}
 	if (mutex_lock_interruptible(&dvb->mutex))

@@ -982,24 +982,27 @@ int dsc_dump_info(char *buf)
 				ptmp =
 				    _get_dsc_pid_table(chans->index,
 						       chans->dsc_type);
-
-				r = sprintf(buf,
+				if (ptmp) {
+					r = sprintf(buf,
 					    "  slot:%d, even:%d, even iv:%d, odd:%d odd iv:%d\n",
 					    chans->index, ptmp->kte_even_00,
 					    ptmp->even_00_iv, ptmp->kte_odd,
 					    ptmp->odd_iv);
-				buf += r;
-				total += r;
+					buf += r;
+					total += r;
+				}
 			}
 			if (chans->index00 != -1) {
 				ptmp =
 				    _get_dsc_pid_table(chans->index00,
 						       chans->dsc_type);
-				r = sprintf(buf, "  slot:%d, 00:%d, 00 iv:%d\n",
+				if (ptmp) {
+					r = sprintf(buf, "  slot:%d, 00:%d, 00 iv:%d\n",
 					    chans->index, ptmp->kte_even_00,
 					    ptmp->even_00_iv);
-				buf += r;
-				total += r;
+					buf += r;
+					total += r;
+				}
 			}
 			chans = chans->next;
 		}
