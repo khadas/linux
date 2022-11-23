@@ -888,12 +888,11 @@ void evl_requeue_mutex_wait(struct evl_wait_channel *wchan,
 	 */
 	list_del(&waiter->wait_next);
 	list_add_priff(waiter, &wchan->wait_list, wprio, wait_next);
-	top_waiter = list_first_entry(&mutex->wchan.wait_list,
-				struct evl_thread, wait_next);
-
-	if (mutex->wprio != top_waiter->wprio) {
-		mutex->wprio = top_waiter->wprio;
-		if (mutex->flags & EVL_MUTEX_PIBOOST) {
+	if (mutex->flags & EVL_MUTEX_PIBOOST) {
+		top_waiter = list_first_entry(&mutex->wchan.wait_list,
+					struct evl_thread, wait_next);
+		if (mutex->wprio != top_waiter->wprio) {
+			mutex->wprio = top_waiter->wprio;
 			list_del(&mutex->next_booster);
 			list_add_priff(mutex, &owner->boosters, wprio, next_booster);
 		}
