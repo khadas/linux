@@ -28,6 +28,8 @@ struct meson_vrtc_data {
 	struct timer_list alarm;
 	bool find_mboxes;
 	bool is_mbox_data_packet;
+	/* boot time when suspend */
+	struct timespec64 sus_time;
 #else
 	unsigned long alarm_time;
 #endif
@@ -63,11 +65,41 @@ static int meson_vrtc_set_time(struct device *dev, struct rtc_time *tm)
 	vrtc_init_date = time - boot_time.tv_sec;
 	return 0;
 }
+
+static void meson_vrtc_adjust_alarm(struct meson_vrtc_data *vrtc,
+				       unsigned long time)
+{
+	struct timespec64 res_time;
+	struct timespec64 delta_alarm;
+	unsigned long delta = 0;
+
+	if (time > 0) {
+		ktime_get_boottime_ts64(&vrtc->sus_time);
+	} else {
+		ktime_get_boottime_ts64(&res_time);
+		vrtc->sus_time.tv_sec += vrtc->alarm_time;
+		delta_alarm = timespec64_sub(vrtc->sus_time, res_time);
+		if (delta_alarm.tv_sec > 0) {
+			delta = timespec64_to_jiffies(&delta_alarm);
+			mod_timer(&vrtc->alarm, jiffies + delta);
+			last_jiffies = jiffies;
+			vrtc->alarm_time = delta_alarm.tv_sec;
+		} else {
+			mod_timer(&vrtc->alarm, jiffies);
+			vrtc->alarm_time = 0;
+		}
+		dev_info(vrtc->rtc->dev.parent, "%s: remaining alarm time = %llu s\n",
+				__func__, vrtc->alarm_time);
+	}
+}
 #endif
 
 static void meson_vrtc_set_wakeup_time(struct meson_vrtc_data *vrtc,
 				       unsigned long time)
 {
+#ifdef CONFIG_AMLOGIC_MODIFY
+	meson_vrtc_adjust_alarm(vrtc, time);
+#endif
 	writel_relaxed(time, vrtc->io_alarm);
 }
 
@@ -282,8 +314,9 @@ static int __maybe_unused meson_vrtc_resume(struct device *dev)
 	struct meson_vrtc_data *vrtc = dev_get_drvdata(dev);
 
 	dev_dbg(dev, "%s\n", __func__);
-
+#ifndef CONFIG_AMLOGIC_MODIFY
 	vrtc->alarm_time = 0;
+#endif
 	meson_vrtc_set_wakeup_time(vrtc, 0);
 	return 0;
 }
