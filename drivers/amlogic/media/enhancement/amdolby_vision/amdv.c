@@ -10619,6 +10619,11 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 	struct vout_device_s *p_vout = NULL;
 	static struct vframe_s *last_vf;
 
+	if (recovery_mode && dolby_vision_on) {/*recovery mode*/
+		enable_amdv(0);
+		amdv_on_in_uboot = 0;
+	}
+
 	if (dolby_vision_flags & FLAG_CERTIFICATION) {
 		if (vf) {
 			h_size = (vf->type & VIDTYPE_COMPRESS) ?
@@ -13961,8 +13966,8 @@ unsigned int amdv_check_enable(void)
 					vinfo->vout_device->fresh_tx_vsif_pkt
 						(0, 0, NULL, true);
 				}
-				enable_amdv(0);
-				amdv_on_in_uboot = 0;
+				// enable_amdv(0);
+				// amdv_on_in_uboot = 0;
 			} else {
 				dolby_vision_enable = 1;
 				if (uboot_dv_mode == dv_mode_table[2] &&
