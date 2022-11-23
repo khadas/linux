@@ -195,6 +195,7 @@ unsigned int munlock_vma_page(struct page *page)
 /*
  * convert get_user_pages() return value to posix mlock() error
  */
+#ifndef CONFIG_AMLOGIC_PIN_LOCKED_FILE_V2
 static int __mlock_posix_error_return(long retval)
 {
 	if (retval == -EFAULT)
@@ -203,6 +204,7 @@ static int __mlock_posix_error_return(long retval)
 		retval = -EAGAIN;
 	return retval;
 }
+#endif
 
 /*
  * Prepare page for fast batched LRU putback via putback_lru_evictable_pagevec()
@@ -691,9 +693,11 @@ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t fla
 	if (error)
 		return error;
 
+#ifndef CONFIG_AMLOGIC_PIN_LOCKED_FILE_V2
 	error = __mm_populate(start, len, 0);
 	if (error)
 		return __mlock_posix_error_return(error);
+#endif
 	return 0;
 }
 

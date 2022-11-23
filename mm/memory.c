@@ -86,6 +86,9 @@
 #ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
 #include <linux/amlogic/pin_file.h>
 #endif
+#ifdef CONFIG_AMLOGIC_MEM_DEBUG
+#include <linux/amlogic/mem_debug.h>
+#endif
 
 #include "pgalloc-track.h"
 #include "internal.h"
@@ -4992,7 +4995,14 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
 
 		speculative_page_walk_end();
 
+#ifdef CONFIG_AMLOGIC_MEM_DEBUG
+		ret = handle_pte_fault(&vmf);
+		if (!ret && vma->vm_flags & VM_LOCKED)
+			mlock_fault_size++;
+		return ret;
+#else
 		return handle_pte_fault(&vmf);
+#endif
 
 	spf_fail:
 		speculative_page_walk_end();
@@ -5128,7 +5138,14 @@ retry_pud:
 	}
 	return ret;
 #endif
+#ifdef CONFIG_AMLOGIC_MEM_DEBUG
+	ret = handle_pte_fault(&vmf);
+	if (!ret && vma->vm_flags & VM_LOCKED)
+		mlock_fault_size++;
+	return ret;
+#else
 	return handle_pte_fault(&vmf);
+#endif
 }
 
 /**
