@@ -1474,7 +1474,6 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 		vid_cmpr_afbcd.rot_ocompbit = vid_cmpr_top->out_reg_compbits - 8;
 
 		set_vid_cmpr_afbcd(2, vid_cmpr_top->rdma_enable, &vid_cmpr_afbcd);
-		vicp_print(VICP_INFO, "AFBCD config done.\n");
 	} else {
 		set_afbcd_enable(0);
 		set_input_path(VICP_INPUT_PATH_RDMIF);
@@ -1540,7 +1539,6 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 		vid_cmpr_rmif.stride_cr = vid_cmpr_top->canvas_width[2];
 
 		set_vid_cmpr_rmif(&vid_cmpr_rmif, 0, 2);
-		vicp_print(VICP_INFO, "RDMIF config done.\n");
 	}
 	memset(&vid_cmpr_scaler, 0, sizeof(struct vid_cmpr_scaler_t));
 	vid_cmpr_scaler.din_hsize = vid_cmpr_top->src_hsize;
@@ -1575,7 +1573,7 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 
 	set_input_size(vid_cmpr_scaler.din_vsize, vid_cmpr_scaler.din_hsize);
 	set_vid_cmpr_scale(scaler_enable, &vid_cmpr_scaler);
-	vicp_print(VICP_INFO, "Scaler config done.\n");
+
 	memset(&vid_cmpr_hdr, 0, sizeof(struct vid_cmpr_hdr_t));
 	if (!hdr_en)
 		vid_cmpr_hdr.hdr2_en = 0;
@@ -1585,9 +1583,7 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 	vid_cmpr_hdr.hdr2_fmt_cfg = 1;
 	vid_cmpr_hdr.input_fmt = 1;
 	vid_cmpr_hdr.rgb_out_en = 0;
-
 	set_vid_cmpr_hdr(vid_cmpr_hdr.hdr2_en);
-	vicp_print(VICP_INFO, "HDR config done\n");
 
 	if (vid_cmpr_top->wrmif_en == 1) {
 		if (vid_cmpr_top->out_afbce_enable == 0)
@@ -1654,7 +1650,6 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 		vid_cmpr_wmif.output_field_num = 1;
 
 		set_vid_cmpr_wmif(&vid_cmpr_wmif, vid_cmpr_top->wrmif_en);
-		vicp_print(VICP_INFO, "WRMIF config done.\n");
 	} else {
 		set_output_path(VICP_OUTPUT_PATH_AFBCE);
 	}
@@ -1690,7 +1685,6 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 	} else {
 		set_vid_cmpr_afbce(0, &vid_cmpr_afbce, vid_cmpr_top->rdma_enable);
 	}
-	vicp_print(VICP_INFO, "AFBCE config done\n");
 
 	set_top_holdline();
 }
