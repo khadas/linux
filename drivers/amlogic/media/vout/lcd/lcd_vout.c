@@ -39,7 +39,6 @@
 #endif
 #include "lcd_reg.h"
 #include "lcd_common.h"
-#include "lcd_clk_config.h"
 #include "lcd_tcon.h"
 #ifdef CONFIG_AMLOGIC_VPU
 #include <linux/amlogic/media/vpu/vpu.h>
@@ -1570,7 +1569,7 @@ static int lcd_global_init_once(void)
 	mutex_init(&lcd_vout_mutex);
 	mutex_init(&lcd_power_mutex);
 	spin_lock_init(&lcd_reg_spinlock);
-	spin_lock_init(&lcd_clk_lock);
+	lcd_clk_config_init();
 
 	lcd_notifier_init();
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN

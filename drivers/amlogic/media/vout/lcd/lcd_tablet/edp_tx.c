@@ -18,7 +18,6 @@
 #include "edp_tx.h"
 #include "lcd_tablet.h"
 #include "../lcd_reg.h"
-#include "../lcd_clk_config.h"
 #include "../lcd_common.h"
 
 #define EDP_TX_AUX_REQ_TIMEOUT   1000

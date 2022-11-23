@@ -16,7 +16,6 @@
 #include <linux/amlogic/media/vout/lcd/lcd_extern.h>
 #endif
 #include "../lcd_reg.h"
-#include "../lcd_clk_config.h"
 #include "../lcd_common.h"
 #include "mipi_dsi_util.h"
 
