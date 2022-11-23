@@ -1249,16 +1249,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 		vdin_dolby_config(devp);
 		#ifndef VDIN_BRINGUP_NO_VF
 		if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
-			if (mutex_is_locked(&devp->fe_lock)) {
-				devp->mutex_need_lock = true;
-				mutex_unlock(&devp->fe_lock);
-			}
 			vf_reg_provider(&devp->dv.dv_vf_provider);
-			if (devp->mutex_need_lock &&
-			    !mutex_is_locked(&devp->fe_lock)) {
-				mutex_lock(&devp->fe_lock);
-				devp->mutex_need_lock = false;
-			}
 			pr_info("vdin%d provider: dv reg\n", devp->index);
 				vf_notify_receiver(VDIN_DV_NAME,
 				VFRAME_EVENT_PROVIDER_START, NULL);
@@ -1269,16 +1260,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 		vdin_dolby_mdata_write_en(devp->addr_offset, 0);
 		#ifndef VDIN_BRINGUP_NO_VF
 		if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
-			if (mutex_is_locked(&devp->fe_lock)) {
-				devp->mutex_need_lock = true;
-				mutex_unlock(&devp->fe_lock);
-			}
 			vf_reg_provider(&devp->vf_provider);
-			if (devp->mutex_need_lock &&
-			    !mutex_is_locked(&devp->fe_lock)) {
-				mutex_lock(&devp->fe_lock);
-				devp->mutex_need_lock = false;
-			}
 			pr_info("vdin%d provider: reg\n", devp->index);
 			vf_notify_receiver(devp->name,
 					   VFRAME_EVENT_PROVIDER_START, NULL);
@@ -1572,28 +1554,10 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
 		if (devp->dv.dv_config && devp->index == devp->dv.dv_path_idx) {
 			devp->dv.dv_config = 0;
-			if (mutex_is_locked(&devp->fe_lock)) {
-				devp->mutex_need_lock = true;
-				mutex_unlock(&devp->fe_lock);
-			}
 			vf_unreg_provider(&devp->dv.dv_vf_provider);
-			if (devp->mutex_need_lock &&
-			    !mutex_is_locked(&devp->fe_lock)) {
-				mutex_lock(&devp->fe_lock);
-				devp->mutex_need_lock = false;
-			}
 			pr_info("vdin%d provider: dv unreg\n", devp->index);
 		} else {
-			if (mutex_is_locked(&devp->fe_lock)) {
-				devp->mutex_need_lock = true;
-				mutex_unlock(&devp->fe_lock);
-			}
 			vf_unreg_provider(&devp->vf_provider);
-			if (devp->mutex_need_lock &&
-			    !mutex_is_locked(&devp->fe_lock)) {
-				mutex_lock(&devp->fe_lock);
-				devp->mutex_need_lock = false;
-			}
 			pr_info("vdin%d provider: unreg\n", devp->index);
 		}
 	}
@@ -4073,8 +4037,8 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					devp->vdin2_meta_wr_done_irq);
 			}
 			if (vdin_dbg_en)
-				pr_info("%s START_DEC vdin.%d enable_irq\n",
-					__func__, devp->index);
+				pr_info("%s START_DEC vdin.%d enable_irq(%d)\n",
+					__func__, devp->index, devp->irq);
 		}
 
 		if (vdin_dbg_en)

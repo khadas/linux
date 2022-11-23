@@ -2179,6 +2179,17 @@ static ssize_t attr_store(struct device *dev,
 			pr_info("cma_config_flag(%d):0x%x\n\n", devp->index,
 				devp->cma_config_flag);
 		}
+	} else if (!strcmp(parm[0], "irq_en")) {
+		if (!parm[1])
+			pr_err("miss parameters .\n");
+		if (kstrtol(parm[1], 10, &val) == 0) {
+			if (val)
+				enable_irq(devp->irq);
+			else
+				disable_irq(devp->irq);
+		}
+		pr_info("%s vdin.%d irq_num(%d)\n",
+			__func__, devp->index, devp->irq);
 	} else if  (!strcmp(parm[0], "request_irq")) {
 		snprintf(devp->irq_name, sizeof(devp->irq_name),
 			 "vdin%d-irq", devp->index);

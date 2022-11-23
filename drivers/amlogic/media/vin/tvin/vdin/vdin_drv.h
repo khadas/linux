@@ -869,7 +869,6 @@ struct vdin_dev_s {
 	unsigned int dbg_v4l_no_vdin_event;
 	struct vdin_set_canvas_addr_s st_vdin_set_canvas_addr[VDIN_CANVAS_MAX_CNT][VDIN_MAX_PLANES];
 	bool vdin_set_canvas_flag;
-	bool mutex_need_lock;
 	enum tvin_port_e v4l2_port_cur;
 	unsigned int v4l2_port_num;
 	enum tvin_port_e v4l2_port[VDIN_V4L2_INPUT_MAX];
