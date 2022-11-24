@@ -749,8 +749,10 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 	pr_dbg("%s mem_desc phy addr 0x%x, memdescs:0x%lx\n", __func__,
 	       pchan->memdescs_phy, (unsigned long)pchan->memdescs);
 
-	dma_sync_single_for_device(aml_get_device(),
-		mem_phy, mem_size, DMA_TO_DEVICE);
+	/*mem from secure os, don't operate this memory*/
+	if (pchan->sec_size == 0)
+		dma_sync_single_for_device(aml_get_device(),
+			mem_phy, mem_size, DMA_TO_DEVICE);
 
 	pchan->r_offset = 0;
 	pchan->last_w_addr = 0;
