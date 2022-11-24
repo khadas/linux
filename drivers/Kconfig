@@ -274,6 +274,15 @@ config AMLOGIC_IN_KERNEL_MODULES
 	  to in build, should enable; if want to extra
 	  build, should disable
 
+config AMLOGIC_KERNEL_VERSION
+	bool "Amlogic Kernel Version"
+	default y
+	help
+	  using as follows:
+	  #ifdef CONFIG_AMLOGIC_KERNEL_VERSION
+	  #include <linux/upstream_version.h>
+	  #endif
+
 if AMLOGIC_IN_KERNEL_MODULES
 source "$(COMMON_DRIVERS_DIR)/drivers/Kconfig"
 source "$(COMMON_DRIVERS_DIR)/sound/Kconfig"
