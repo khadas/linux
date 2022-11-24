@@ -305,7 +305,7 @@
 			<0x0 0xfe0102dc 0x0 0x4>; /*SYSCTRL_STICKY_REG7*/
 	};
 
-	aml_reboot {
+	aml_reboot: aml_reboot {
 		compatible = "aml, reboot";
 		sys_reset = <0x84000009>;
 		sys_poweroff = <0x84000008>;
@@ -1900,7 +1900,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			interrupt-map-mask = <0 0 0 0>;
-			interrupt-map = <0 0 0 0 &gic GIC_SPI 143 IRQ_TYPE_EDGE_RISING>;
+			interrupt-map = <0 0 0 0 &gic GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
 			device_type = "pci";
 			ranges = <0x81000000 0 0 0 0xf5600000 0x0 0x100000
 				/* downstream I/O */
@@ -1971,6 +1971,7 @@
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1";
 			card_type = <5>;
+			use_intf3_tuning;
 			mmc_debug_flag;
 			//resets = <&reset RESET_SD_EMMC_B>;
 		};
@@ -2321,7 +2322,7 @@
 		interrupts = <0 204 4
 			0 197 1>;
 		interrupt-names = "hdmitx_hpd", "vrr_vsync";
-		enc_idx = <0>;
+		enc_idx = <2>;
 		reg =	<0x0 0xff000000 0x0 0x40000>,
 			<0x0 0xfe380000 0x0 0x10000>,
 			<0x0 0xfe300000 0x0 0x10000>,
@@ -2571,6 +2572,7 @@
 	dummy_venc: dummy_venc {
 		compatible = "amlogic, dummy_venc_t7";
 		status = "okay";
+		default_venc_index = <2>;
 	};
 
 	vout_mux: vout_mux {
@@ -3238,7 +3240,7 @@
 		key_3:key_3{
 			keyname = "usid";
 			offset = <18>;
-			size = <16>;
+			size = <10>;
 		};
 	};
 	gpu_opp_table: gpu_opp_table {

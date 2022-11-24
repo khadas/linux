@@ -12,8 +12,8 @@
 
 / {
 	model = "Khadas";
-	amlogic-dt-id = "kvim4";
-	compatible = "khadas, vim4";
+	amlogic-dt-id = "t7_a311d2_vim4";
+	compatible = "amlogic, t7";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -66,7 +66,8 @@
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
-			pmsg-size = <0x20000>;
+			pmsg-size = <0x10000>;
+			bconsole-size = <0x10000>;
 		};
 
 		secmon_reserved:linux,secmon {
@@ -104,7 +105,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x1bc00000>;
+			size = <0x0 0x1fc00000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
@@ -132,8 +133,8 @@
 			 * 10x4736064=45.2M(0x2e) support 12bit
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
-			size = <0x0 0x0B000000>;
-			//size = <0x0 0x0>;
+			//size = <0x0 0x0B000000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -158,7 +159,16 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x0 0x1800000>;
+			size = <0x0 0x4000000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+
+		cam_cma_reserved:linux,cam_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			status = "okay";
+			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -279,7 +289,7 @@
 		 ***************************************************/
 		en_4k = <0>;
 		//keep_dec_vf = <2>;
-		//po_fmt = <6>;
+		po_fmt = <0>;
 		/***************************************************
 		 * post_nub: default is 11 (T7/T3/SC2/S4 new path)
 		 * local 7*4075520 = 28
@@ -500,7 +510,7 @@
 				<&clkc CLKID_MCLK_PLL>,
 				<&xtal>;
 		clock-names = "mclk_0","mclk_1","mclk_0_pre","mclk_1_pre","mclk_p","mclk_x";
-		power-enable = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+		pwdn = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
 		reset = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -576,7 +586,7 @@
 
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
-			mclk-fs = <512>;
+			mclk-fs = <64>;
 			continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
@@ -598,7 +608,7 @@
 							<1>;
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <16>;
-				system-clock-frequency = <256000>;
+				system-clock-frequency = <512000>;
 			};
 			tdmacodec: codec {
 				sound-dai = <&dummy_codec>;
@@ -662,7 +672,7 @@
 		aml-audio-card,dai-link@3 {
 			mclk-fs = <64>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-pdm";
+			suffix-name = "alsaPORT-pdm-builtinmic";
 			cpu {
 				sound-dai = <&pdm>;
 			};
@@ -758,7 +768,7 @@
 		compatible = "amlogic, dolby_vision_t7";
 		dev_name = "aml_amdolby_vision_driver";
 		status = "okay";
-		tv_mode = <0>;/*1:enabel ;0:disable*/
+		tv_mode = <0>;/*1:enable ;0:disable*/
 	};
 
     /* SMC */
@@ -980,7 +990,7 @@
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 0>;
-		dai-tdm-lane-slot-mask-out = <1 1>;
+		dai-tdm-lane-slot-mask-out = <0 1>;
 		dai-tdm-clk-sel = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
@@ -1019,6 +1029,9 @@
 		 */
 		samesource_sel = <3>;
 
+		/* In for ACODEC_ADC */
+		/* tdmin-src-name = "acodec_adc"; */
+		tdmin-src-name = "hdmirx";
 		/*enable default mclk(12.288M), before extern codec start*/
 		start_clk_enable = <1>;
 		ctrl_gain = <1>;
@@ -1029,7 +1042,7 @@
 		/* !!!For --TV platform-- ONLY */
 		Channel_Mask {
 			/*i2s has 4 pins, 8channel, mux output*/
-			Spdif_samesource_Channel_Mask = "i2s_2/3";
+			Spdif_samesource_Channel_Mask = "i2s_0/1";
 		};
 	};
 
@@ -1038,19 +1051,20 @@
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
-		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
+		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <2>;
 
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
 				&clkc CLKID_MPLL2>;
 		clock-names = "mclk", "clk_srcpll";
 		tdmin-src-name = "hdmirx";
+		i2s2hdmi = <1>;
 
 		status = "okay";
 	};
 
 	pdm:pdm {
-		compatible = "amlogic, tm2-snd-pdm";
+		compatible = "amlogic, tm2-revb-snd-pdm";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -1399,17 +1413,11 @@
 	status = "okay";
 };
 
-&i2c0{
-	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c0_pins1>;
-	clock-frequency = <100000>; /* default 100k */
-};
-
 &i2c0 {
 	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c0_pins1>;
+	clock-frequency = <100000>; /* default 100k */
 
 	es8316: es8316@10 {
 	    compatible = "everest,es8316";
@@ -1452,13 +1460,15 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3_pins1>;
 	clock-frequency = <100000>; /* default 100k */
+
 	ft5336@38 {
-                compatible = "edt,edt-ft5336", "ft5x06";
-                reg = <0x38>;
-                interrupt_pin = <&gpio GPIOM_8 GPIO_ACTIVE_HIGH>;
-                reset_pin = <&gpio GPIOM_9 GPIO_ACTIVE_HIGH>;
-                status = "okay";
-       };      
+	         compatible = "edt,edt-ft5336", "ft5x06";
+	         reg = <0x38>;
+	         interrupt_pin = <&gpio GPIOM_8 GPIO_ACTIVE_HIGH>;
+	         reset_pin = <&gpio GPIOM_9 GPIO_ACTIVE_HIGH>;
+	         status = "okay";
+	};
+
 };
 
 &i2c5 {
@@ -1468,7 +1478,7 @@
 	//pinctrl-1 = <&i2c2_sleep_pins2>;
 	clock-frequency = <100000>; /* default 100k */
 	bq25703@6b {
-             status = "okay";
+             status = "disable";
              compatible = "bq25703";
              reg = <0x6b>;
              irq-gpio = <&gpio GPIOD_5 IRQ_TYPE_LEVEL_LOW>;
@@ -1487,7 +1497,7 @@
              pd-charge-only = <0>;
 	};
 	cw201x@62 {
-             status = "okay";
+             status = "disable";
              compatible = "cw201x";
              reg = <0x62>;
              bat_config_info = <0x15 0x7F 0x6E 0x66 0x65 0x5C 0x5B 0x59
@@ -1608,16 +1618,36 @@
 &isp {
 	status = "okay";
 	temper-line-offset = <0x1680>;
-	temper-buf-size = <12>;
+	temper-buf-size = <6>;
 	temper-frame-num = <1>;
-	temper-frame-size = <0xBDD800>;
+	temper-frame-size = <0x5EEC00>;
+	temper-line-offset1 = <0x1680>;
+	temper-buf-size1 = <6>;
+	temper-frame-num1 = <1>;
+	temper-frame-size1 = <0x5EEC00>;
+	temper-line-offset2 = <0x1680>;
+	temper-buf-size2 = <6>;
+	temper-frame-num2 = <1>;
+	temper-frame-size2 = <0x5EEC00>;
 	memory-region = <&isp_cma_reserved>;
 };
 
 &adapter {
 	status = "okay";
-	mem_alloc = <24>;
+	mem_alloc = <32>;
+	mem_alloc1 = <16>;
+	mem_alloc2 = <16>;
 	memory-region = <&adapt_cma_reserved>;
+};
+
+&adapter0 {
+	status = "okay";
+	memory-region = <&cam_cma_reserved>;
+};
+
+&adapter2 {
+	status = "okay";
+	memory-region = <&cam_cma_reserved>;
 };
 
 &spifc {
@@ -1657,7 +1687,10 @@
 
 &amhdmitx {
 	status = "okay";
+	repeater_tx = <0>;
 	enc_idx = <2>;
+	vrr_type = <2>; /* 1: GAME-VRR, 2: QMS-VRR */
+	tv_usage = <1>;
 };
 
 /*if you want to use vdin just modify status to "ok"*/
@@ -1846,11 +1879,11 @@
 
 &amlvecm {
 	status = "okay";
-	gamma_en = <0>;/*1:enabel ;0:disable*/
-	wb_en = <0>;/*1:enabel ;0:disable*/
-	cm_en = <0>;/*1:enabel ;0:disable*/
+	gamma_en = <0>;/*1:enable ;0:disable*/
+	wb_en = <0>;/*1:enable ;0:disable*/
+	cm_en = <0>;/*1:enable ;0:disable*/
 	wb_sel = <0>;/*1:mtx ;0:gainoff*/
-	vlock_en = <1>;/*1:enable;0:disable*/
+	vlock_en = <0>;/*1:enable;0:disable*/
 	vlock_mode = <0x8>;
 	/*vlock work mode:
 	 *bit0:auto ENC
