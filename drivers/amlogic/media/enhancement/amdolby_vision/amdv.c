@@ -10635,7 +10635,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 		if (is_aml_tm2())
 			enable_tunnel_for_capture();
 	} else {
-		if (vf && vf != last_vf)
+		if (vf && vf != last_vf && tv_dovi_setting)
 			update_aoi_flag(vf, display_size);
 		last_vf = vf;
 	}
