@@ -727,6 +727,57 @@ static const struct file_operations dump_cts_enc_clk_fops = {
 	.release	= single_release,
 };
 
+static int dump_frl_status_show(struct seq_file *s, void *p)
+{
+	enum scdc_addr scdc_reg;
+	u8 val;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	static const char * const rate_string[] = {
+		[FRL_NONE] = "TMDS",
+		[FRL_3G3L] = "FRL_3G3L",
+		[FRL_6G3L] = "FRL_6G3L",
+		[FRL_6G4L] = "FRL_6G4L",
+		[FRL_8G4L] = "FRL_8G4L",
+		[FRL_10G4L] = "FRL_10G4L",
+		[FRL_12G4L] = "FRL_12G4L",
+		[FRL_INVALID] = "FRL_INVALID",
+	};
+
+	seq_puts(s, "\n--------frl status--------\n");
+	seq_printf(s, "FRL rate: %s\n", hdev->frl_rate < FRL_INVALID ?
+		rate_string[hdev->frl_rate] : rate_string[FRL_INVALID]);
+	val = hdmitx21_rd_reg(INTR5_SW_TPI_IVCTX);
+	seq_printf(s, "INTR5_SW_TPI[0x%x] 0x%x\n", INTR5_SW_TPI_IVCTX, val);
+	hdmitx21_wr_reg(INTR5_SW_TPI_IVCTX, val);
+	val = hdmitx21_rd_reg(INTR5_SW_TPI_IVCTX);
+	seq_printf(s, "INTR5_SW_TPI[0x%x] 0x%x\n", INTR5_SW_TPI_IVCTX, val);
+	hdmitx21_wr_reg(INTR5_SW_TPI_IVCTX, val);
+	val = hdmitx21_rd_reg(INTR5_SW_TPI_IVCTX);
+	seq_printf(s, "INTR5_SW_TPI[0x%x] 0x%x\n", INTR5_SW_TPI_IVCTX, val);
+	hdmitx21_wr_reg(INTR5_SW_TPI_IVCTX, val);
+
+	/* clear UPDATE_0 firstly */
+	scdc21_rd_sink(UPDATE_0, &val);
+	scdc21_wr_sink(UPDATE_0, val);
+	for (scdc_reg = SINK_VER; scdc_reg < 0x100; scdc_reg++) {
+		scdc21_rd_sink(scdc_reg, &val);
+		seq_printf(s, "SCDC[0x%02x] 0x%02x\n", scdc_reg, val);
+	}
+
+	return 0;
+}
+
+static int dump_frl_status_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dump_frl_status_show, inode->i_private);
+}
+
+static const struct file_operations dump_frl_status_fops = {
+	.open		= dump_frl_status_open,
+	.read		= seq_read,
+	.release	= single_release,
+};
+
 struct hdmitx_dbg_files_s {
 	const char *name;
 	const umode_t mode;
@@ -742,6 +793,7 @@ static struct hdmitx_dbg_files_s hdmitx_dbg_files[] = {
 	{"aud_cts", S_IFREG | 0444, &dump_audcts_fops},
 	{"hdmi_vrr", S_IFREG | 0444, &dump_hdmivrr_fops},
 	{"cts_enc_clk", S_IFREG | 0444, &dump_cts_enc_clk_fops},
+	{"frl_status", S_IFREG | 0444, &dump_frl_status_fops},
 };
 
 static struct dentry *hdmitx_dbgfs;

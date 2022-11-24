@@ -1760,6 +1760,12 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 
 		ret = kstrtoul(tmpbuf + 2, 16, &adr);
 		ret = kstrtoul(buf + i + 1, 16, &value);
+		/* scdc register write */
+		if (buf[1] == 's') {
+			scdc21_wr_sink(adr, value);
+			pr_info("scdc wr 0x%lx 0x%lx\n", adr, value);
+			return;
+		}
 		if (buf[1] == 'h') {
 			hdmitx21_wr_reg((unsigned int)adr, (unsigned int)value);
 			read_back = hdmitx21_rd_reg(adr);
@@ -1769,7 +1775,14 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		pr_info(HW "Read Back %s reg[%lx]=%lx\n", "HDMI",
 			adr, read_back);
 	} else if (tmpbuf[0] == 'r') {
+		u8 val;
 		ret = kstrtoul(tmpbuf + 2, 16, &adr);
+		/* scdc register read */
+		if (buf[1] == 's') {
+			scdc21_rd_sink(adr, &val);
+			pr_info("scdc rd 0x%lx 0x%x\n", adr, val);
+			return;
+		}
 		if (buf[1] == 'h')
 			value = hdmitx21_rd_reg(adr);
 		pr_info(HW "%s reg[%lx]=%lx\n", "HDMI", adr, value);

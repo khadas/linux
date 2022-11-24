@@ -40,6 +40,7 @@
 	"V03.00.00.00.03.03.10 [20220919] [BUG] Don't reset variables when parse a new block\n" \
 	"V03.00.00.00.03.03.11 [20221021] [BUG] not read EDID again if EDID already read done\n" \
 	"V03.00.00.00.03.03.12 [20221025] [COM] when set mode 4x3 and 16x9, return valid mode 1\n" \
-	"V03.00.00.01.03.03.12 [20221107] [AUD] fix no ddp mat audio issue\n"
+	"V03.00.00.01.03.03.12 [20221107] [AUD] fix no ddp mat audio issue\n" \
+	"V03.00.00.01.03.03.13 [20221128] [FRL] fix random no FRL output issue\n"
 
 #endif // __HDMI21_VERSION_H__

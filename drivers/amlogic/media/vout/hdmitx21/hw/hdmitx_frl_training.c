@@ -310,6 +310,9 @@ static void TX_LTS_3_READ_LTP_REQ(u16 *val)
 	ltp23 = data8;
 
 	*val = ltp01 + (ltp23 << 8);
+	if (*val == 0 || *val == 0x0001 || *val == 0x0100)
+		return;
+
 	hdmitx21_wr_reg(HT_DIG_CTL1_PHY_IVCTX, ltp01);
 	hdmitx21_wr_reg(HT_DIG_CTL2_PHY_IVCTX, ltp23);
 
@@ -532,6 +535,10 @@ void hdmitx_frl_training_main(enum frl_rate_enum frl_rate)
 		return;
 	}
 	hdmitx21_wr_reg(AON_CYP_CTL_IVCTX, 2); // 70kHz
+
+	hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 1, 2, 1);
+	hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 0, 2, 1);
+
 	scdc21_rd_sink(0x10, &data8);
 	scdc21_rd_sink(0x01, &data8);
 	pr_info("[FRL TRAINING] read sink version %x\n", data8);
@@ -554,6 +561,7 @@ void hdmitx_frl_training_main(enum frl_rate_enum frl_rate)
 		TX_LTS_3_POLL_FLT_UPDATE();
 		pr_info("[FRL TRAINING] ************** TX_LTS_3_READ_LTP_REQ************\n");
 		TX_LTS_3_READ_LTP_REQ(&ltp0123);
+		pr_info("LTPn: 0x%x\n", ltp0123);
 		pr_info("[FRL TRAINING] ************** TX_FLT_UPDATE_CLEAR************\n");
 		TX_FLT_UPDATE_CLEAR();
 	}
