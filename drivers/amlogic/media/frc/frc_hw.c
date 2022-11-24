@@ -931,7 +931,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	} else {
 		/*T3 revB*/
 		frc_v_porch = frc_vporch_cal;
-		pr_frc(2, "%s T3 revB chip validation\n", __func__);
+		pr_frc(2, "%s revB no care frc_vporch\n", __func__);
 		gst_frc_param.frc_mcfixlines =
 			mc_frm_dly + mc_hold_line - reg_mc_out_line;
 		if (mc_frm_dly + mc_hold_line < reg_mc_out_line)
@@ -975,7 +975,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	// init_bb_xyxy(frc_top->hsize, frc_top->vsize, frc_top->is_me1mc4);
 
 	/*protect mode, enable: memc delay 2 frame*/
-	/*disable: memc delay n frame, n depend on cadence, for debug*/
+	/*disable: memc delay n frame, n depend on candence, for debug*/
 	if (frc_top->frc_prot_mode) {
 		regdata_top_ctl_0009 = READ_FRC_REG(0x0009);
 		regdata_top_ctl_0017 = READ_FRC_REG(0x0017);

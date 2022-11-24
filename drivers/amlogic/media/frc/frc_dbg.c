@@ -81,7 +81,7 @@ void frc_status(struct frc_dev_s *devp)
 					fw_data->frc_top_type.frc_memc_level_1);
 	pr_frc(0, "frc_secure_mode=%d, buf secured:%d\n",
 				devp->in_sts.secure_mode, devp->buf.secured);
-	pr_frc(0, "frc_get_vd_flag=0x%X(game:0/pc:1/pic:2/hbw:3/limsz:4/vlock:5)\n",
+	pr_frc(0, "frc_get_vd_flag=0x%X(game:0/pc:1/pic:2/hbw:3/limsz:4/vlock:5/inszerr:6)\n",
 				devp->in_sts.st_flag);
 	pr_frc(0, "dc_rate:(me:%d,mc_y:%d,mc_c:%d), real total size:%d\n",
 		devp->buf.me_comprate, devp->buf.mc_y_comprate,

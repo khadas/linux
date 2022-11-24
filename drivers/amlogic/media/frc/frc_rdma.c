@@ -1001,7 +1001,7 @@ int frc_rdma_init(void)
 	   //RDMA buf ready
 		frc_rdma_enable = 0;
 		fw_data->frc_top_type.rdma_en = 0;  // init rdma on
-		pr_frc(0, "rdma ready\n");
+		pr_frc(0, "int rdma ok with off stats\n");
 	} else {
 		PR_ERR("alloc frc rdma buffer failed\n");
 		return 0;

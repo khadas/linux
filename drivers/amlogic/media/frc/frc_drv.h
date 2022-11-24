@@ -82,8 +82,9 @@
 // frc_20220919 sync 24p and frm reset check
 // frc_20220920 add frc rdma access reg
 // frc_20220927 film tell alg under hdmi
+// frc_20221102 frc clean up typo err
 
-#define FRC_FW_VER			"2022-1102 frc clean up typo err"
+#define FRC_FW_VER			"2022-1123 check input size"
 #define FRC_KERDRV_VER                  2339
 
 #define FRC_DEVNO	1
@@ -168,7 +169,8 @@ extern int frc_dbg_en;
 #define FRC_FLAG_HIGH_BW		0x08
 #define FRC_FLAG_LIMIT_SIZE		0x10
 #define FRC_FLAG_VLOCK_ST		0x20
-#define FRC_FLAG_OTHER_MODE		0x40
+#define FRC_FLAG_INSIZE_ERR		0x40
+#define FRC_FLAG_OTHER			0x80
 
 enum chip_id {
 	ID_NULL = 0,

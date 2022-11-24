@@ -358,17 +358,22 @@ const char * const frc_state_ary[] = {
 int frc_update_in_sts(struct frc_dev_s *devp, struct st_frc_in_sts *frc_in_sts,
 				struct vframe_s *vf, struct vpp_frame_par_s *cur_video_sts)
 {
-	if (!vf || !cur_video_sts)
+	if (!vf || !cur_video_sts) {
+		frc_in_sts->in_hsize = 0;
+		frc_in_sts->in_vsize = 0;
 		return -1;
-
+	}
 	frc_in_sts->vf_type = vf->type;
 	frc_in_sts->duration = vf->duration;
 	frc_in_sts->signal_type = vf->signal_type;
 	frc_in_sts->source_type = vf->source_type;
 	frc_in_sts->vf = vf;
 
-	/* for debug */
-	if (devp->dbg_force_en && devp->dbg_input_hsize && devp->dbg_input_vsize) {
+	if (!frc_in_sts->vf_sts) {
+		frc_in_sts->in_hsize = 0;
+		frc_in_sts->in_vsize = 0;
+	} else if (devp->dbg_force_en && devp->dbg_input_hsize &&
+					devp->dbg_input_vsize) {
 		frc_in_sts->in_hsize = devp->dbg_input_hsize;
 		frc_in_sts->in_vsize = devp->dbg_input_vsize;
 	} else {
@@ -389,6 +394,9 @@ int frc_update_in_sts(struct frc_dev_s *devp, struct st_frc_in_sts *frc_in_sts,
 	//	frc_in_sts->in_hsize, frc_in_sts->in_vsize,
 	//	cur_video_sts->nnhf_input_w, cur_video_sts->nnhf_input_h,
 	//	devp->dbg_input_hsize, devp->dbg_input_vsize);
+	pr_frc(4, "in size(%d,%d) vd_sr_out(%d,%d)\n",
+		frc_in_sts->in_hsize, frc_in_sts->in_vsize,
+		cur_video_sts->nnhf_input_w, cur_video_sts->nnhf_input_h);
 
 	return 0;
 }
@@ -414,8 +422,9 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 		/*need reconfig*/
 		devp->frc_sts.re_cfg_cnt = frc_re_cfg_cnt;
 		sts_change |= FRC_EVENT_VF_CHG_IN_SIZE;
+		devp->in_sts.in_hsize = cur_in_sts->in_hsize;
 	}
-	devp->in_sts.in_hsize = cur_in_sts->in_hsize;
+
 	/* check size change */
 	if (devp->in_sts.in_vsize != cur_in_sts->in_vsize) {
 		pr_frc(1, "vsize change (%d - %d)\n",
@@ -423,8 +432,8 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 		/*need reconfig*/
 		devp->frc_sts.re_cfg_cnt = frc_re_cfg_cnt;
 		sts_change |= FRC_EVENT_VF_CHG_IN_SIZE;
+		devp->in_sts.in_vsize = cur_in_sts->in_vsize;
 	}
-	devp->in_sts.in_vsize = cur_in_sts->in_vsize;
 
 	if (devp->frc_sts.out_put_mode_changed || devp->frc_sts.re_config) {
 		pr_frc(1, "out_put_mode_changed 0x%x re_config:%d\n",
@@ -469,10 +478,6 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	pr_frc(dbg_sts, "vf_sts: %d, cur_sig_in:0x%x have_cnt:%d no_cnt:%d re_cfg_cnt:%d\n",
 		devp->in_sts.vf_sts, cur_sig_in,
 		devp->in_sts.have_vf_cnt, devp->in_sts.no_vf_cnt, devp->frc_sts.re_cfg_cnt);
-
-	pr_frc(dbg_sts, "hvsize (%d,%d) cur(%d,%d)\n",
-		devp->in_sts.in_hsize, devp->in_sts.in_vsize,
-		cur_in_sts->in_hsize, cur_in_sts->in_vsize);
 
 	switch (devp->in_sts.vf_sts) {
 	case VFRAME_NO:
@@ -618,6 +623,32 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 		} else {
 			devp->in_sts.st_flag =
 				devp->in_sts.st_flag & (~FRC_FLAG_LIMIT_SIZE);
+		}
+
+		if (!cur_video_sts) {
+			pr_frc(1, "vpp_frame_par_s is NULL");
+			no_input = true;
+		} else if (cur_video_sts->nnhf_input_w == 0 ||
+				cur_video_sts->nnhf_input_h == 0) {
+			if ((devp->in_sts.st_flag & FRC_FLAG_INSIZE_ERR) !=
+						FRC_FLAG_INSIZE_ERR) {
+				devp->in_sts.st_flag =
+				devp->in_sts.st_flag | FRC_FLAG_INSIZE_ERR;
+				pr_frc(1, "video = err_insize");
+			}
+			no_input = true;
+		} else if (cur_video_sts->nnhf_input_w > 3840 + 8 ||
+				cur_video_sts->nnhf_input_h > 2160 + 8) {
+			if ((devp->in_sts.st_flag & FRC_FLAG_INSIZE_ERR) !=
+						FRC_FLAG_INSIZE_ERR) {
+				devp->in_sts.st_flag =
+				devp->in_sts.st_flag | FRC_FLAG_INSIZE_ERR;
+				pr_frc(1, "video = err_insize");
+			}
+			no_input = true;
+		} else {
+			devp->in_sts.st_flag =
+				devp->in_sts.st_flag & (~FRC_FLAG_INSIZE_ERR);
 		}
 
 		if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) ==
@@ -1198,14 +1229,13 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 				devp->frc_sts.frame_cnt++;
 				off2on_cnt++;
 			} else if (frc_check_film_mode(devp) != 0 || off2on_cnt > 50) {
-				frc_state_change_finish(devp);
 				pr_frc(log, "d-e_stat_chg %s -> %s[%d] done, used_frm:%d[%d]\n",
 						frc_state_ary[cur_state],
 						frc_state_ary[new_state],
 						frc_check_film_mode(devp),
 						off2on_cnt,
 						devp->frc_sts.frame_cnt);
-				devp->frc_sts.frame_cnt = 0;
+				frc_state_change_finish(devp);
 				off2on_cnt = 0;
 			} else if (devp->frc_sts.frame_cnt > bypasscnt + freezecnt + 1 &&
 					 (frc_check_film_mode(devp) == 0)) {
@@ -1347,14 +1377,13 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 				devp->frc_sts.frame_cnt++;
 				off2on_cnt++;
 			} else if (frc_check_film_mode(devp) != 0 || devp->frc_sts.frame_cnt > 30) {
-				frc_state_change_finish(devp);
 				pr_frc(log, "b-e_stat_chg %s -> %s[%d] done, used frm:%d[%d]\n",
 						frc_state_ary[cur_state],
 						frc_state_ary[new_state],
 						frc_check_film_mode(devp),
 						off2on_cnt,
 						devp->frc_sts.frame_cnt);
-				devp->frc_sts.frame_cnt = 0;
+				frc_state_change_finish(devp);
 				off2on_cnt = 0;
 			} else if (devp->frc_sts.frame_cnt > bypasscnt + freezecnt + 2 &&
 					  (frc_check_film_mode(devp) == 0)) {
