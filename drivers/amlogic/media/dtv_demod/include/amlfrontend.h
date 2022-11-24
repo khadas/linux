@@ -93,6 +93,7 @@
 #define THRD_TUNER_STRENTH_DVBC (-87)
 
 #define TIMEOUT_ATSC		3000
+#define TIMEOUT_ATSC_STD	1500
 #define TIMEOUT_DVBT		3000
 #define TIMEOUT_DVBS		2000
 #define TIMEOUT_DVBC		3000
@@ -586,6 +587,7 @@ unsigned int dtvdemod_get_atsc_lock_sts(struct aml_dtvdemod *demod);
 const char *dtvdemod_get_cur_delsys(enum fe_delivery_system delsys);
 void aml_dtv_demode_isr_en(struct amldtvdemod_device_s *devp, u32 en);
 u32 dvbc_get_symb_rate(struct aml_dtvdemod *demod);
+u32 dvbc_get_snr(struct aml_dtvdemod *demod);
 u32 dvbc_get_per(struct aml_dtvdemod *demod);
 unsigned int demod_is_t5d_cpu(struct amldtvdemod_device_s *devp);
 int dtmb_information(struct seq_file *seq);

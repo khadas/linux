@@ -40,7 +40,7 @@ static u32 dvbc_get_ch_power(struct aml_dtvdemod *demod)
 	return ch_power;
 }
 
-static u32 dvbc_get_snr(struct aml_dtvdemod *demod)
+u32 dvbc_get_snr(struct aml_dtvdemod *demod)
 {
 	u32 tmp, snr;
 

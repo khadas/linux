@@ -2162,6 +2162,7 @@ static void atsc_j83b_switch_qam(struct dvb_frontend *fe, enum qam_md_e qam)
 	demod_dvbc_fsm_reset(demod);
 }
 
+#define J83B_CHECK_SNR_THRESHOLD 2300
 static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status, bool re_tune)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
@@ -2173,10 +2174,12 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 	static int check_first;
 	static unsigned int time_start_qam;
 	static unsigned int timeout;
+	static bool is_signal;
 
 	if (re_tune) {
-		timeout = auto_search_std == 0 ? TIMEOUT_ATSC : TIMEOUT_ATSC / 2;
+		timeout = auto_search_std == 0 ? TIMEOUT_ATSC : TIMEOUT_ATSC_STD;
 		demod->last_lock = 0;
+		is_signal = false;
 		demod->time_start = jiffies_to_msecs(jiffies);
 		time_start_qam = 0;
 		if (c->modulation == QAM_AUTO) {
@@ -2209,12 +2212,18 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 	curTime = jiffies_to_msecs(jiffies);
 	demod->time_passed = curTime - demod->time_start;
 	s = qam_read_reg(demod, 0x31) & 0xf;
-	PR_ATSC("s=%d, demod->time_passed=%u\n", s, demod->time_passed);
 
 	if (s != 5)
 		real_para_clear(&demod->real_para);
 
+	demod->real_para.snr = dvbc_get_snr(demod);
+	PR_ATSC("fsm=%d, snr=%d.%d, demod->time_passed=%u\n", s,
+		demod->real_para.snr / 100, demod->real_para.snr % 100, demod->time_passed);
+
 	if (s == 5) {
+		is_signal = true;
+		timeout = TIMEOUT_ATSC;
+
 		*status = FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
 			FE_HAS_VITERBI | FE_HAS_SYNC;
 		demod->real_para.modulation = amdemod_qam_fe(qam);
@@ -2228,6 +2237,9 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 		if (time_passed_qam < 125) {
 			*status = 0;
 		} else {
+			is_signal = false;
+			timeout = auto_search_std == 0 ? TIMEOUT_ATSC : TIMEOUT_ATSC_STD;
+
 			if (demod->last_lock == 0 && check_first > 0) {
 				*status = 0;
 				check_first--;
@@ -2244,10 +2256,28 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 	} else if (s == 4 || s == 7) {
 		*status = 0;
 	} else {
-		if (demod->last_lock == 0 && demod->time_passed < timeout)
+		if (demod->real_para.snr > J83B_CHECK_SNR_THRESHOLD) {
+			is_signal = true;
+			timeout = TIMEOUT_ATSC;
+		}
+
+		if ((demod->last_lock == 0 || is_signal) && demod->time_passed < timeout) {
 			*status = 0;
-		else
+		} else if (demod->last_status == 0x1F) {
+			*status = 0;
+			PR_ATSC("retry fsm=0x%x, snr=%d\n",
+				qam_read_reg(demod, 0x31), dvbc_get_snr(demod));
+		} else {
 			*status = FE_TIMEDOUT;
+		}
+
+		if (demod->time_passed > TIMEOUT_ATSC_STD &&
+			(demod->time_passed % TIMEOUT_ATSC_STD) < 100) {
+			PR_ATSC("has signal but need reset\n");
+			demod_dvbc_fsm_reset(demod);
+			msleep(50);
+			time_start_qam = 0;
+		}
 	}
 
 	if (*status == 0) {
