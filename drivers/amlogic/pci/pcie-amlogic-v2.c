@@ -860,7 +860,7 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 
 	ret = tee_protect_mem_by_type(TEE_MEM_TYPE_KERNEL, tee_start,
 				      tee_end - tee_start, &handle);
-	if (!ret) {
+	if (ret) {
 		dev_err(dev, "pcie tee mem protect failed Error = 0x%x\n", ret);
 		return -ENOMEM;
 	}
