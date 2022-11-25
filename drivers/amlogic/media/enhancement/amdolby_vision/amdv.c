@@ -10281,7 +10281,6 @@ int amdv_update_src_format_v2(struct vframe_s *vf, u8 toggle_mode, enum vd_path_
 	if (vf)
 		update_src_format(check_format, vf);
 
-	/*coverity[overrun-local] layer_id<2,dv_core1[layer_id] will not be out of bounds.*/
 	if (!dv_inst[dv_id].amdv_wait_init &&
 	    !dv_core1[layer_id].core1_on &&
 	    dv_inst[dv_id].amdv_src_format != 0) {
@@ -13242,6 +13241,7 @@ static long amdolby_vision_ioctl(struct file *file,
 		}
 		break;
 	case DV_IOC_GET_DV_SINGLE_PQ_VALUE:
+		/*coverity[tainted_argument] copy same type will not pollute data.*/
 		if (copy_from_user(&pq_info, argp,
 				   sizeof(struct dv_pq_info_s)) == 0) {
 			mode_id = pq_info.pic_mode_id;
@@ -13277,6 +13277,7 @@ static long amdolby_vision_ioctl(struct file *file,
 		}
 		break;
 	case DV_IOC_SET_DV_SINGLE_PQ_VALUE:
+		/*coverity[tainted_argument] copy same type will not pollute data.*/
 		if (copy_from_user(&pq_info, argp,
 				   sizeof(struct dv_pq_info_s)) == 0) {
 			mode_id = pq_info.pic_mode_id;
