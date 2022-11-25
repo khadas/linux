@@ -5035,8 +5035,12 @@ static void di_pre_data_mif_ctrl_v3(bool enable, const struct reg_acc *op_in)
 		return;
 	}
 	if (enable) {
-		if (dim_afds() && dim_afds()->is_used())
-			dim_afds()->inp_sw(true);
+		if (dim_afds() && dim_afds()->is_used()) {
+			if (op_in)
+				dim_afds()->inp_sw_op(true, op_in);
+			else
+				dim_afds()->inp_sw(true);
+		}
 
 		if (dim_afds() && !dim_afds()->is_used_chan2())
 			op->bwr(DI_SC2_CHAN2_GEN_REG, 1, 0, 1);
@@ -5067,7 +5071,9 @@ static void di_pre_data_mif_ctrl_v3(bool enable, const struct reg_acc *op_in)
 		//if (afbc_is_used()) {
 		if (dim_afds() && dim_afds()->is_used()) {
 			//afbc_input_sw(false);
-			if (dim_afds())
+			if (op_in)
+				dim_afds()->inp_sw_op(false, op_in);
+			else
 				dim_afds()->inp_sw(false);
 		}
 	}

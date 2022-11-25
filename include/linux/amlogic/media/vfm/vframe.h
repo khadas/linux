@@ -120,9 +120,9 @@
 #define VFRAME_FLAG_PC_MODE			0x40000000
 #define VFRAME_FLAG_ALLM_MODE			0x80000000
 
-#define VFRAME_FLAG_DI_BYPASS			0x08000000
-#define VFRAME_FLAG_DI_GET			0x10000000
-#define VFRAME_FLAG_DI_PVPPLINK			0x20000000
+#define DI_FLAG_DI_BYPASS			0x08000000
+#define DI_FLAG_DI_GET			0x10000000
+#define DI_FLAG_DI_PVPPLINK			0x20000000
 
 /* need check folllowing bits when toggle frame, to trigger property change */
 /* add more bits which indicates display attr change in vf->flag */
@@ -725,6 +725,8 @@ struct vframe_s {
 	ulong fgs_table_adr;
 
 	u32 di_instance_id;
+	unsigned int di_flag;
+	void *di_hd;
 
 	int sidebind_type;
 	int sidebind_channel_id;

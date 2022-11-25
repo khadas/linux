@@ -302,16 +302,20 @@ restart:
 		task_polling_cmd();
 		di_dbg_task_flg = 3;
 		dip_chst_process_ch();
-
+#ifdef DIM_PLINK_ENABLE_CREATE
 		if (dpvpp_ops()		&&
 		    dpvpp_is_allowed()	&&
 		    (!dpvpp_is_insert() || dpvpp_is_en_polling()))
 			dpvpp_ops()->parser(NULL);
+#endif /* DIM_PLINK_ENABLE_CREATE */
 		di_dbg_task_flg = 4;
 		if (get_reg_flag_all())
 			dip_hw_process();
 
 		di_dbg_task_flg = 0;
+#ifdef DBG_TEST_CREATE
+		dbg_crt_do_polling();
+#endif
 		dip_out_ch();
 		dip_sum_post_ch();
 		task_self_trig();

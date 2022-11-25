@@ -555,7 +555,7 @@ int new_destroy_instance(int index)
 	dim_trig_unreg(ch);
 	dim_api_unreg(DIME_REG_MODE_NEW, pch);
 	mutex_unlock(&pch->itf.lock_reg);
-	PR_INF("%s:ch[%d]:end\n", __func__, ch);
+	PR_INF("%s:ch[%d]:end\n", "ins:destroy", ch);
 	return 0;
 }
 
@@ -588,11 +588,12 @@ enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer)
 		return DI_ERR_INDEX_OVERFLOW;
 	}
 	pch = get_chdata(ch);
-
+#ifdef __HIS_CODE__
 	if (pch->itf.pre_vpp_link && dpvpp_vf_ops()) {
-		dpvpp_patch_first_buffer(index, pch);
-		return dpvpp_empty_input_buffer(DIM_PRE_VPP_NUB, buffer);
+		dpvpp_patch_first_buffer(pch->itf.p_itf);
+		return dpvpp_empty_input_buffer(pch->itf.p_itf, buffer);
 	}
+#endif
 	pintf = &pch->itf;
 	if (!pintf->reg) {
 		PR_WARN("%s:ch[%d] not reg\n", __func__, ch);
@@ -787,8 +788,8 @@ enum DI_ERRORTYPE new_fill_output_buffer(int index, struct di_buffer *buffer)
 		return DI_ERR_INDEX_OVERFLOW;
 	}
 	pch = get_chdata(ch);
-	if (pch->itf.pre_vpp_link && dpvpp_vf_ops())
-		return dpvpp_fill_output_buffer(DIM_PRE_VPP_NUB, buffer);
+	if (pch->itf.pre_vpp_link/* && dpvpp_vf_ops()*/)
+		return dpvpp_fill_output_buffer(pch->itf.p_itf, buffer);
 	pintf = &pch->itf;
 	dim_print("%s:ch[%d],ptf ch[%d]\n", __func__, ch, pintf->ch);
 	if (!pintf->reg) {
@@ -820,8 +821,9 @@ int new_release_keep_buf(struct di_buffer *buffer)
 		return -1;
 	}
 
-	if (buffer->mng.ch == DIM_PRE_VPP_NUB)
-		return dpvpp_fill_output_buffer(DIM_PRE_VPP_NUB, buffer);
+	if (buffer->mng.ch == DIM_PRE_VPP_NUB) {
+		return dpvpp_fill_output_buffer2(buffer);
+	}
 
 	if (!buffer->private_data) {
 		PR_INF("%s:no di data:0x%px\n", __func__, buffer);
@@ -899,134 +901,6 @@ int new_get_input_buffer_num(int index)
 	if (pintf->tmode == EDIM_TMODE_3_PW_LOCAL)
 		ret = DIM_NINS_NUB;
 	dbg_reg("%s:end\n", __func__);
-	return ret;
-}
-
-/*di_display_pre_vpp_link*/
-int dim_pre_vpp_link_display(struct vframe_s *vfm,
-			  struct pvpp_dis_para_in_s *in_para, void *out_para)
-{
-	int ret = 0;
-	struct pvpp_dis_para_in_s *in;
-	static int last_x, last_v;
-
-	di_g_plink_dbg()->display_cnt++;
-	if (in_para && in_para->unreg_bypass) {
-		if (dpvpp_ops_api() && dpvpp_ops_api()->display_unreg_bypass)
-			ret = dpvpp_ops_api()->display_unreg_bypass();
-		else
-			PR_ERR("%s:no unreg_bypass?\n", __func__);
-		return ret;
-	}
-	if (!vfm)
-		return 0;
-	dbg_link("%s:0x%px, 0x%px:\n", __func__, vfm, in_para);
-	/* dbg only */
-	if (in_para) {
-		if (last_x != in_para->win.x_end ||
-		    last_v != in_para->win.y_end) {
-			PR_INF("itf:disp:<%d,%d><%d,%d>\n",
-				last_x,
-				last_v,
-				in_para->win.x_end,
-				in_para->win.y_end);
-			last_x = in_para->win.x_end;
-			last_v = in_para->win.y_end;
-		}
-	}
-	if (dpvpp_ops_api() && dpvpp_ops_api()->display) {
-		ret = dpvpp_ops_api()->display(vfm, in_para, out_para);
-		in = in_para;
-		dbg_link("%s:ret:0x%x:\n", "api:display", ret);
-		if (in)
-			dbg_link("\tm[%d]:\n", in->dmode);
-
-		if (di_g_plink_dbg()->display_sts != ret) {
-			PR_INF("%s:%d->%d\n", "api:display",
-			       di_g_plink_dbg()->display_sts, ret);
-			di_g_plink_dbg()->display_sts = ret;
-		}
-	}
-
-	return ret;
-}
-
-//EXPORT_SYMBOL(di_display_pre_vpp_link);
-
-int dpvpp_check_vf(struct vframe_s *vfm)
-{
-	int ret = 0;
-#if defined(DBG_QUE_IN_OUT) || defined(DBG_QUE_INTERFACE)
-	static ud vfm_last; //dbg only
-	ud vfm_cur;
-#endif
-	if (!vfm) {
-		PR_WARN("%s:no vf\n", __func__);
-		return -1;
-	}
-	if (dpvpp_ops_api() && dpvpp_ops_api()->check_vf)
-		ret = dpvpp_ops_api()->check_vf(vfm);
-
-	if (di_g_plink_dbg()->flg_check_vf != ret) { /*dbg*/
-		PR_INF("%s:%d->%d\n", "api:check vf",
-		       di_g_plink_dbg()->flg_check_vf,
-		       ret);
-		di_g_plink_dbg()->flg_check_vf = ret;
-	}
-
-#if defined(DBG_QUE_IN_OUT) || defined(DBG_QUE_INTERFACE)
-	vfm_cur = (ud)vfm;
-	if (vfm_cur != vfm_last) {
-		PR_INF("%s:0x%px:0x%x\n", "api:check",
-			vfm,
-			ret);
-		PR_INF("func:0x%px\n", vfm->process_fun);
-		vfm_last = vfm_cur;
-	}
-#endif
-	return ret;
-}
-
-int dpvpp_check_di_act(void)
-{
-	int ret = EPVPP_ERROR_DI_NOT_REG;
-
-	if (dpvpp_ops_api() && dpvpp_ops_api()->check_di_act)
-		ret = dpvpp_ops_api()->check_di_act();
-	if (di_g_plink_dbg()->flg_check_di_act != ret) {
-		PR_INF("%s:%d->%d\n", "api:check act",
-		       di_g_plink_dbg()->flg_check_di_act,
-		       ret);
-		di_g_plink_dbg()->flg_check_di_act = ret;
-	}
-
-	return ret;
-}
-
-int dpvpp_sw(bool on)
-{
-	int ret = 0;
-
-	if (dpvpp_ops_api() && dpvpp_ops_api()->vpp_sw)
-		ret = dpvpp_ops_api()->vpp_sw(on);
-	if (di_g_plink_dbg()->flg_sw != on) {
-		PR_INF("%s:%d->%d:%d\n", "api:sw",
-		       di_g_plink_dbg()->flg_sw,
-		       on, ret);
-		di_g_plink_dbg()->flg_sw = on;
-	}
-
-	return ret;
-}
-
-unsigned int dpvpp_get_ins_id(void)
-{
-	unsigned int ret = 0;
-
-	if (!get_dim_de_devp() || !get_dim_de_devp()->data_l)
-		return 0;
-
-	ret = (unsigned int)atomic_read(&get_datal()->cnt_reg_pre_link);
 	return ret;
 }
 

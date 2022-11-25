@@ -1045,6 +1045,7 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 	unsigned int sh, sv;
 	struct canvas_config_s	*pcvs;
 	struct vframe_s *vf;
+	struct dimn_itf_s *itf;
 
 	/*************************/
 	pch = get_chdata(channel);
@@ -1092,23 +1093,36 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 		di_buf = &pbuf_post[index];
 	} else if (strcmp(parm[0], "c_pvpp") == 0) {
 		/*ary add 2021-10-02 for pre vpp buffer */
-		/* use channel for buf index */
+		/* ch */
 		if (kstrtouint(parm[2], 0, &channel)) {
 			PR_ERR("c_pvpp:ch is not number\n");
 			kfree(buf_orig);
 			return 0;
 		}
-		if (channel >= 2)
-			channel = 0;
-		PR_INF("c_pvpp:index[%d]\n", channel);
-		if (!get_datal()->dvs_prevpp.ds) {
-			PR_ERR("c_pvpp:no ds do nothing\n");
+		if (kstrtouint(parm[3], 0, &index)) {
+			PR_ERR("c_pvpp:ch is not number\n");
 			kfree(buf_orig);
 			return 0;
 		}
-		mm = &get_datal()->dvs_prevpp.ds->mm;
+		if (channel >= DI_CHANNEL_MAX) {
+			PR_INF("c_pvpp:ch chg[%d:0]\n", channel);
+			channel = 0;
+		}
+		if (index >= 2)
+			index = 0;
+		if (pch->itf.pre_vpp_link && pch->itf.p_itf &&
+		    pch->itf.p_itf->ds) {
+			itf = pch->itf.p_itf;
+		} else {
+			PR_ERR("c_pvpp:ch has not pre-vpp link\n");
+			kfree(buf_orig);
+			return 0;
+		}
+		PR_INF("c_pvpp:ch[%d:%d]:index[%d]\n", channel, itf->id, index);
 
-		pcvs = &get_datal()->dvs_prevpp.ds->dbuf_wr[channel][0];
+		mm = &itf->ds->mm;
+
+		pcvs = &itf->ds->dbuf_wr[index][0];
 		dump_adr = pcvs->phy_addr;
 
 		nr_size = (unsigned long)pcvs->width *
@@ -1121,24 +1135,37 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 			pcvs->height);
 	} else if (strcmp(parm[0], "plink_in_buf") == 0) {
 		/*ary add 2021-12-23 for pre vpp's input buffer */
-		/* use channel for ndvfm nub */
 		if (kstrtouint(parm[2], 0, &channel)) {
-			PR_ERR("c_pvpp:ch is not number\n");
+			PR_ERR("plink_in_buf:ch is not number\n");
 			kfree(buf_orig);
 			return 0;
 		}
-		if (channel >= DIM_LKIN_NUB)
+		if (kstrtouint(parm[3], 0, &index)) {
+			PR_ERR("plink_in_buf:ch is not number\n");
+			kfree(buf_orig);
+			return 0;
+		}
+		if (channel >= DI_CHANNEL_MAX) {
+			PR_INF("plink_in_buf:ch chg[%d:0]\n", channel);
 			channel = 0;
-		PR_INF("c_pvpp:index[%d]\n", channel);
-		if (!get_datal()->dvs_prevpp.ds) {
-			PR_ERR("c_vfm_buf:no ds do nothing\n");
+		}
+
+		if (pch->itf.pre_vpp_link && pch->itf.p_itf &&
+		    pch->itf.p_itf->ds) {
+			itf = pch->itf.p_itf;
+		} else {
+			PR_ERR("plink_in_buf:ch has not pre-vpp link\n");
 			kfree(buf_orig);
 			return 0;
 		}
+		if (index >= DIM_LKIN_NUB)
+			index = 0;
+		PR_INF("plink_in_buf:ch[%d:%d]:index[%d]\n", channel, itf->id, index);
+
 		//mm = &get_datal()->dvs_prevpp.ds->mm;
 
 		//pcvs = &get_datal()->dvs_prevpp.ds->dbuf_wr[channel][0];
-		pcvs = &get_datal()->dvs_prevpp.ds->lk_in_bf[channel].c.ori_vf->canvas0_config[0];
+		pcvs = &itf->ds->lk_in_bf[index].c.ori_vf->canvas0_config[0];
 
 		dump_adr = pcvs->phy_addr;
 
@@ -4645,6 +4672,10 @@ static void add_dummy_vframe_type_pre(struct di_buf_s *src_buf,
 {
 	struct di_buf_s *di_buf_tmp = NULL;
 
+	if (!src_buf) {
+		PR_ERR("%s:no src_buf\n", __func__);
+		return;
+	}
 	if (!di_que_is_empty(channel, QUE_PRE_NO_BUF)) {
 		di_buf_tmp = di_que_out_to_di_buf(channel, QUE_PRE_NO_BUF);
 		if (di_buf_tmp) {
@@ -5033,7 +5064,10 @@ static struct di_buf_s *pp_pst_2_local(struct di_ch_s *pch)
 	di_buf = di_que_out_to_di_buf(ch, QUE_PRE_NO_BUF);
 //ary 2020-12-09	di_lock_irqfiq_save(irq_flag2);
 	buf_pst = di_que_out_to_di_buf(ch, QUE_POST_FREE);
-
+	if (!di_buf) {
+		PR_ERR("%s:no buf\n", __func__);
+		return NULL;
+	}
 	pp_buf_cp(di_buf, buf_pst);
 	pp_buf_clear(buf_pst);
 	memcpy(&di_buf->hf, &buf_pst->hf, sizeof(di_buf->hf));
@@ -11113,7 +11147,8 @@ void di_reg_setting_working(struct di_ch_s *pch,
 {
 	/****************************/
 	if (DIM_IS_IC(T5DB))
-		afbcd_enable_only_t5dvb();//dim_afds()->reg_sw(true);
+		afbcd_enable_only_t5dvb(&di_pre_regset, false);
+	//dim_afds()->reg_sw(true);
 }
 
 unsigned int get_intr_mode(void)

@@ -2257,7 +2257,7 @@ static void s4dw_done_config(unsigned int channel, bool flg_timeout)
 			/* set flag */
 			vfmt = ppre->di_wr_buf->vframe;
 			/* flag clear */
-			vfmt->flag &= VFMT_FLG_CHG_MASK;
+			vfmt->flag &= (~VFMT_FLG_CHG_MASK);
 
 			if (!dip_itf_is_o_linear(pch))
 				vfmt->flag &= (~VFRAME_FLAG_VIDEO_LINEAR);

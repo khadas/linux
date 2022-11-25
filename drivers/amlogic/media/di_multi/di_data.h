@@ -23,6 +23,16 @@
  * fifo for uchar
  *
  **********************************************************/
+#define UFI256_ALLOC(fifo)	\
+kfifo_alloc(fifo,		\
+	    256,		\
+	    GFP_KERNEL)
+
+#define UFI128_ALLOC(fifo)	\
+kfifo_alloc(fifo,		\
+	    128,		\
+	    GFP_KERNEL)
+
 #define UFI64_ALLOC(fifo)	\
 kfifo_alloc(fifo,		\
 	    64,			\

@@ -749,6 +749,26 @@ static int seq_hf_info(struct seq_file *seq, void *v, struct hf_info_t *hf)
 	return 0;
 }
 
+static int seq_vf_flg(struct seq_file *seq, u32 flag)
+{
+	seq_printf(seq, "%-15s:0x%x\n", "flag", flag);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DOUBLE_FRAM",
+		   (flag & VFRAME_FLAG_DOUBLE_FRAM) ? true : false);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_P_ONLY",
+		   (flag & VFRAME_FLAG_DI_P_ONLY) ? true : false);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_PW_VFM",
+		   (flag & VFRAME_FLAG_DI_PW_VFM) ? true : false);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_PW_N_LOCAL",
+		   (flag & VFRAME_FLAG_DI_PW_N_LOCAL) ? true : false);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:_DI_PW_N_EXT",
+		   (flag & VFRAME_FLAG_DI_PW_N_EXT) ? true : false);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:_HF",
+		   (flag & VFRAME_FLAG_HF) ? true : false);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:_DI_DW",
+		   (flag & VFRAME_FLAG_DI_DW) ? true : false);
+	return 0;
+}
+
 int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 {
 	int i;
@@ -778,23 +798,12 @@ int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 	seq_printf(seq, "%-15s:%d\n", "disp_pts", pvfm->disp_pts);
 	seq_printf(seq, "%-15s:%lld\n", "disp_pts_us64", pvfm->disp_pts_us64);
 	seq_printf(seq, "%-15s:%lld\n", "timestamp", pvfm->timestamp);
-	seq_printf(seq, "%-15s:0x%x\n", "flag", pvfm->flag);
-	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DOUBLE_FRAM",
-		   (pvfm->flag & VFRAME_FLAG_DOUBLE_FRAM) ? true : false);
-	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_P_ONLY",
-		   (pvfm->flag & VFRAME_FLAG_DI_P_ONLY) ? true : false);
-	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_PW_VFM",
-		   (pvfm->flag & VFRAME_FLAG_DI_PW_VFM) ? true : false);
-	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_PW_N_LOCAL",
-		   (pvfm->flag & VFRAME_FLAG_DI_PW_N_LOCAL) ? true : false);
-	seq_printf(seq, "\t%-15s:%d\n", "flag:_DI_PW_N_EXT",
-		   (pvfm->flag & VFRAME_FLAG_DI_PW_N_EXT) ? true : false);
-	seq_printf(seq, "\t%-15s:%d\n", "flag:_HF",
-		   (pvfm->flag & VFRAME_FLAG_HF) ? true : false);
-	seq_printf(seq, "\t%-15s:%d\n", "flag:_DI_DW",
-		   (pvfm->flag & VFRAME_FLAG_DI_DW) ? true : false);
+
+	seq_vf_flg(seq, pvfm->flag);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:_DI_BYPASS",
-		   (pvfm->flag & VFRAME_FLAG_DI_BYPASS) ? true : false);
+		   (pvfm->di_flag & DI_FLAG_DI_BYPASS) ? true : false);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:_DI_PVPPLINK",
+		   (pvfm->di_flag & DI_FLAG_DI_PVPPLINK) ? true : false);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:VIDTYPE_PRE_INTERLACE",
 		   (pvfm->type & VIDTYPE_PRE_INTERLACE) ? true : false);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:VIDTYPE_COMPRESS_LOSS",
@@ -1088,6 +1097,7 @@ int vf_sub_seq_file(struct seq_file *seq, struct dsub_vf_s *pvfs)
 	seq_printf(seq, "%-15s:%d\n", "width", pvfs->width);
 	seq_printf(seq, "%-15s:%d\n", "height", pvfs->height);
 	seq_printf(seq, "%-15s:%d\n", "bitdepth", pvfs->bitdepth);
+	seq_vf_flg(seq, pvfs->flag);
 	for (i = 0; i < pvfs->plane_num; i++) {
 		pcvs = &pvfs->canvas0_config[i];
 		seq_printf(seq, "%-15s:%d\n", "canvas0_cfg", i);
@@ -3120,7 +3130,7 @@ static const struct di_dbgfs_files_t di_debugfs_files_top[] = {
 	{"dct_other", S_IFREG | 0644, &dbg_dct_core_fops},
 	{"dct_preh", S_IFREG | 0644, &dct_pre_fops},
 	{"dct_pre_reg", S_IFREG | 0644, &dct_pre_reg_fops},
-	{"dpvpp_itf", S_IFREG | 0644, &dpvpp_itf_fops},
+//	{"dpvpp_itf", S_IFREG | 0644, &dpvpp_itf_fops},
 #ifdef TST_NEW_INS_INTERFACE
 	{"tst_list_in", S_IFREG | 0644, &dim_dbg_tst_in_fops},
 #endif
@@ -3150,7 +3160,8 @@ static const struct di_dbgfs_files_t di_debugfs_files[] = {
 	{"list_ndis", S_IFREG | 0644, &dbg_q_ndis_fops},
 	{"list_ndkb", S_IFREG | 0644, &dbg_q_ndkb_fops},
 	{"list_nin", S_IFREG | 0644, &dbg_q_nins_fops},
-	{"list_nin_peek", S_IFREG | 0644, &dbg_nins_peek_fops}
+	{"list_nin_peek", S_IFREG | 0644, &dbg_nins_peek_fops},
+	{"dpvpp_itf", S_IFREG | 0644, &dpvpp_itf_fops}
 };
 
 void didbg_fs_init(void)

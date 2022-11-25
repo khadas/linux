@@ -586,9 +586,12 @@ int new_get_input_buffer_num(int index);
 bool dim_get_overturn(void);
 int dim_pre_vpp_link_display(struct vframe_s *vfm,
 			  struct pvpp_dis_para_in_s *in_para, void *out_para);
-enum DI_ERRORTYPE dpvpp_fill_output_buffer(int index, struct di_buffer *buffer);
-enum DI_ERRORTYPE dpvpp_empty_input_buffer(int index, struct di_buffer *buffer);
-void dpvpp_patch_first_buffer(int index, struct di_ch_s *pch);
+enum DI_ERRORTYPE dpvpp_fill_output_buffer(struct dimn_itf_s *itf,
+					   struct di_buffer *buffer);
+enum DI_ERRORTYPE dpvpp_fill_output_buffer2(struct di_buffer *buffer);
+enum DI_ERRORTYPE dpvpp_empty_input_buffer(struct dimn_itf_s *itf,
+					   struct di_buffer *buffer);
+
 int dpvpp_destroy_instance(int index);
 int dpvpp_create_instance(struct di_init_parm *parm);
 int dpvpp_check_vf(struct vframe_s *vfm);
@@ -601,7 +604,7 @@ bool dpvpp_is_allowed(void);
 bool dpvpp_is_insert(void);
 bool dpvpp_is_en_polling(void);
 bool dpvpp_try_reg(struct di_ch_s *pch, struct vframe_s *vfm);
-int dpvpp_destroy_internal(int index);
+int dpvpp_destroy_internal(struct dimn_itf_s *itf);
 const struct vframe_operations_s *dpvpp_vf_ops(void);
 
 const struct dimn_pvpp_ops_s *dpvpp_ops(void);
@@ -612,6 +615,7 @@ bool dim_check_exit_process(void);
 bool dim_is_creat_p_vpp_link(void);
 void dvpp_dbg_trig_sw(unsigned int cmd);
 int di_ls_bypass_ch(int index, bool on);
+void afbcd_enable_only_t5dvb(const struct reg_acc *op, bool vpp_link);
 bool dim_dbg_post_crash_check(unsigned int bit_mask);
 
 /* for secure mode hf,from vlsi feijun*/

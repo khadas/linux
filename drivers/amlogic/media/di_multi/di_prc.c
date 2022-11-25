@@ -462,6 +462,17 @@ void di_cfg_top_dts(void)
 		cfgs(TB, 0);
 	}
 
+#ifdef TMP_EN_PLINK
+	//disable p-only:
+	if (cfgg(PONLY_MODE)) {
+		PR_INF("debug only: force disable p-only in dts\n");
+		cfgs(PONLY_MODE, 0);
+	}
+	if (DIM_IS_IC(T5DB) && cfgg(T5DB_AFBCD_EN)) {
+		PR_INF("debug only: force afbc disable in dts\n");
+		cfgs(T5DB_AFBCD_EN, 0);
+	}
+#endif
 }
 
 static void di_cfgt_show_item_one(struct seq_file *s, unsigned int index)
@@ -1958,8 +1969,9 @@ bool dim_process_unreg(struct di_ch_s *pch)
 
 		break;
 	case EDI_TOP_STATE_PREVPP_LINK:
-		dpvpp_destroy_internal(DIM_PRE_VPP_NUB);
+		dpvpp_destroy_internal(pch->itf.p_itf);
 		pch->itf.pre_vpp_link = false;
+		pch->itf.p_itf = NULL;
 		set_reg_flag(ch, false);
 		set_reg_setting(ch, false);	//??
 		if ((!get_reg_flag_all()) &&
@@ -1969,6 +1981,7 @@ bool dim_process_unreg(struct di_ch_s *pch)
 			dpre_init();
 			dpost_init();
 		}
+		PR_INF("%s:link to idle\n", __func__);
 		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
 		ret = true;
 		break;
@@ -5381,7 +5394,7 @@ void dip_init_pq_ops(void)
 	}
 	dbg_mem("%s:%d:%s\n", "init ops", ic_id, opl1()->info.name);
 	pq_sv_db_ini();
-	dpvpp_prob();
+	//move dpvpp_prob();
 }
 
 bool dip_is_linear(void)

@@ -744,6 +744,7 @@ struct dsub_vf_s {
 	unsigned int height;
 	unsigned int bitdepth;
 	unsigned int flag;
+	unsigned int di_flag;//new
 	void *decontour_pre;
 	unsigned int source_type;
 

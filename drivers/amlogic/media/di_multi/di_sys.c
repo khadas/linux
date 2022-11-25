@@ -3726,6 +3726,7 @@ static const struct di_meson_data  data_t3 = {
 	.ic_id	= DI_IC_ID_T3,
 	.support = IC_SUPPORT_DECONTOUR	|
 		   IC_SUPPORT_HDR	|
+		   IC_SUPPORT_PRE_VPP_LINK	|
 		   IC_SUPPORT_DW
 };
 
@@ -3979,6 +3980,7 @@ static int dim_probe(struct platform_device *pdev)
 		ret = -EEXIST;
 		return ret;
 	}
+	dpvpp_prob();
 
 	for (i = 0; i < DI_CHANNEL_NUB; i++) {
 		set_init_flag(i, false);
