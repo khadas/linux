@@ -71,8 +71,6 @@ u32 crop_en = 1;
 u32 shrink_en = 1;
 u32 debug_axis_en;
 struct output_axis_t axis;
-u32 debug_reg_addr;
-u32 debug_reg_val;
 u32 rdma_en;
 u32 debug_rdma_en;
 
@@ -82,7 +80,7 @@ struct vicp_hdr_s *vicp_hdr;
 static ssize_t print_flag_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", print_flag);
+	return sprintf(buf, "current print_flag is %d.\n", print_flag);
 }
 
 static ssize_t print_flag_store(struct class *class,
@@ -100,7 +98,7 @@ static ssize_t print_flag_store(struct class *class,
 	else
 		print_flag = 0;
 
-	pr_info("set print_flag to %d\n", print_flag);
+	pr_info("set print_flag to %d.\n", print_flag);
 	return count;
 }
 
@@ -124,19 +122,19 @@ static int parse_param(char *buf, char **parm)
 	return count;
 }
 
-static ssize_t debug_reg_show(struct class *class,
+static ssize_t reg_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
 	pr_info("usage: this node used to read or write vicp reg.\n");
 	pr_info("usage: vicp reg range from 0x0000 to 0x038d.\n");
-	pr_info("read one reg by [echo rv reg_addr > /sys/class/vicp/debug_reg].\n");
-	pr_info("read some reg by [echo rv reg_addr reg_count > /sys/class/vicp/debug_reg].\n");
-	pr_info("write one reg by [echo wv reg_addr reg_val > /sys/class/vicp/debug_reg].\n");
+	pr_info("read one reg by [echo rv reg_addr > /sys/class/vicp/reg].\n");
+	pr_info("read some reg by [echo rv reg_addr reg_count > /sys/class/vicp/reg].\n");
+	pr_info("write one reg by [echo wv reg_addr reg_val > /sys/class/vicp/reg].\n");
 
 	return 0;
 }
 
-static ssize_t debug_reg_store(struct class *class,
+static ssize_t reg_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
@@ -196,9 +194,7 @@ static ssize_t debug_reg_store(struct class *class,
 			return -EINVAL;
 		}
 		reg_val = val;
-		debug_reg_addr = reg_addr;
-		debug_reg_val = reg_val;
-		write_vicp_reg(reg_addr, reg_val);
+		vicp_reg_write(reg_addr, reg_val);
 	}
 	kfree(buf_orig);
 	buf_orig = NULL;
@@ -208,7 +204,7 @@ static ssize_t debug_reg_store(struct class *class,
 static ssize_t demo_enable_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", demo_enable);
+	return sprintf(buf, "current demo_enable is %d.\n", demo_enable);
 }
 
 static ssize_t demo_enable_store(struct class *class,
@@ -236,7 +232,7 @@ static ssize_t demo_enable_store(struct class *class,
 static ssize_t input_width_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", input_width);
+	return sprintf(buf, "current input_width is %d.\n", input_width);
 }
 
 static ssize_t input_width_store(struct class *class,
@@ -254,14 +250,14 @@ static ssize_t input_width_store(struct class *class,
 	else
 		input_width = 0;
 
-	pr_info("set input_width to %d\n", input_width);
+	pr_info("set input_width to %d.\n", input_width);
 	return count;
 }
 
 static ssize_t input_height_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", input_height);
+	return sprintf(buf, "current input_height is %d.\n", input_height);
 }
 
 static ssize_t input_height_store(struct class *class,
@@ -279,14 +275,14 @@ static ssize_t input_height_store(struct class *class,
 	else
 		input_height = 0;
 
-	pr_info("set input_height to %d\n", input_height);
+	pr_info("set input_height to %d.\n", input_height);
 	return count;
 }
 
 static ssize_t output_width_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", output_width);
+	return sprintf(buf, "current output_width is %d.\n", output_width);
 }
 
 static ssize_t output_width_store(struct class *class,
@@ -304,14 +300,14 @@ static ssize_t output_width_store(struct class *class,
 	else
 		output_width = 0;
 
-	pr_info("set output_width to %d\n", output_width);
+	pr_info("set output_width to %d.\n", output_width);
 	return count;
 }
 
 static ssize_t output_height_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", output_height);
+	return sprintf(buf, "current output_height is %d.\n", output_height);
 }
 
 static ssize_t output_height_store(struct class *class,
@@ -329,14 +325,14 @@ static ssize_t output_height_store(struct class *class,
 	else
 		output_height = 0;
 
-	pr_info("set output_height to %d\n", output_height);
+	pr_info("set output_height to %d.\n", output_height);
 	return count;
 }
 
 static ssize_t input_color_format_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", input_color_format);
+	return sprintf(buf, "current input_color_format is %d.\n", input_color_format);
 }
 
 static ssize_t input_color_format_store(struct class *class,
@@ -354,14 +350,14 @@ static ssize_t input_color_format_store(struct class *class,
 	else
 		input_color_format = 0;
 
-	pr_info("set input_color_format to %d\n", input_color_format);
+	pr_info("set input_color_format to %d.\n", input_color_format);
 	return count;
 }
 
 static ssize_t output_color_format_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", output_color_format);
+	return sprintf(buf, "current output_color_format is %d.\n", output_color_format);
 }
 
 static ssize_t output_color_format_store(struct class *class,
@@ -379,14 +375,14 @@ static ssize_t output_color_format_store(struct class *class,
 	else
 		output_color_format = 0;
 
-	pr_info("set output_color_format to %d\n", output_color_format);
+	pr_info("set output_color_format to %d.\n", output_color_format);
 	return count;
 }
 
 static ssize_t input_color_dep_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", input_color_dep);
+	return sprintf(buf, "current input_color_dep is %d.\n", input_color_dep);
 }
 
 static ssize_t input_color_dep_store(struct class *class,
@@ -404,14 +400,14 @@ static ssize_t input_color_dep_store(struct class *class,
 	else
 		input_color_dep = 0;
 
-	pr_info("set input_color_dep to %d\n", input_color_dep);
+	pr_info("set input_color_dep to %d.\n", input_color_dep);
 	return count;
 }
 
 static ssize_t output_color_dep_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", output_color_dep);
+	return sprintf(buf, "current output_color_dep is %d.\n", output_color_dep);
 }
 
 static ssize_t output_color_dep_store(struct class *class,
@@ -429,14 +425,14 @@ static ssize_t output_color_dep_store(struct class *class,
 	else
 		output_color_dep = 0;
 
-	pr_info("set output_color_dep to %d\n", output_color_dep);
+	pr_info("set output_color_dep to %d.\n", output_color_dep);
 	return count;
 }
 
 static ssize_t dump_yuv_flag_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", dump_yuv_flag);
+	return sprintf(buf, "current dump_yuv_flag is %d.\n", dump_yuv_flag);
 }
 
 static ssize_t dump_yuv_flag_store(struct class *class,
@@ -454,14 +450,14 @@ static ssize_t dump_yuv_flag_store(struct class *class,
 	else
 		dump_yuv_flag = 0;
 
-	pr_info("set dump_yuv_flag to %d\n", dump_yuv_flag);
+	pr_info("set dump_yuv_flag to %d.\n", dump_yuv_flag);
 	return count;
 }
 
 static ssize_t scaler_en_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", scaler_en);
+	return sprintf(buf, "current scaler_en is %d.\n", scaler_en);
 }
 
 static ssize_t scaler_en_store(struct class *class,
@@ -479,14 +475,14 @@ static ssize_t scaler_en_store(struct class *class,
 	else
 		scaler_en = 0;
 
-	pr_info("set scaler_en to %d\n", scaler_en);
+	pr_info("set scaler_en to %d.\n", scaler_en);
 	return count;
 }
 
 static ssize_t hdr_en_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", hdr_en);
+	return sprintf(buf, "current hdr_en is %d.\n", hdr_en);
 }
 
 static ssize_t hdr_en_store(struct class *class,
@@ -504,14 +500,14 @@ static ssize_t hdr_en_store(struct class *class,
 	else
 		hdr_en = 0;
 
-	pr_info("set hdr_en to %d\n", hdr_en);
+	pr_info("set hdr_en to %d.\n", hdr_en);
 	return count;
 }
 
 static ssize_t crop_en_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", crop_en);
+	return sprintf(buf, "current crop_en is %d.\n", crop_en);
 }
 
 static ssize_t crop_en_store(struct class *class,
@@ -529,14 +525,14 @@ static ssize_t crop_en_store(struct class *class,
 	else
 		crop_en = 0;
 
-	pr_info("set crop_en to %d\n", crop_en);
+	pr_info("set crop_en to %d.\n", crop_en);
 	return count;
 }
 
 static ssize_t shrink_en_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", shrink_en);
+	return sprintf(buf, "current shrink_en is %d.\n", shrink_en);
 }
 
 static ssize_t shrink_en_store(struct class *class,
@@ -554,14 +550,14 @@ static ssize_t shrink_en_store(struct class *class,
 	else
 		shrink_en = 0;
 
-	pr_info("set shrink_en to %d\n", shrink_en);
+	pr_info("set shrink_en to %d.\n", shrink_en);
 	return count;
 }
 
 static ssize_t debug_axis_en_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", debug_axis_en);
+	return sprintf(buf, "current debug_axis_en is %d.\n", debug_axis_en);
 }
 
 static ssize_t debug_axis_en_store(struct class *class,
@@ -579,7 +575,7 @@ static ssize_t debug_axis_en_store(struct class *class,
 	else
 		debug_axis_en = 0;
 
-	pr_info("set debug_axis_en to %d\n", debug_axis_en);
+	pr_info("set debug_axis_en to %d.\n", debug_axis_en);
 	return count;
 }
 
@@ -595,7 +591,7 @@ static ssize_t axis_store(struct class *class,
 {
 	char *token = NULL;
 	char *params, *params_base;
-	int value[4];
+	int value[4] = {0, 0, 0, 0};
 	int len = 0, number = 0;
 	int res = 0;
 	int ret = 0;
@@ -639,7 +635,7 @@ static ssize_t axis_store(struct class *class,
 static ssize_t rdma_en_show(struct class *cla, struct class_attribute *attr,
 	char *buf)
 {
-	return snprintf(buf, 80, "rdma_enable: %d.\n", rdma_en);
+	return snprintf(buf, 80, "current rdma_enable ix %d.\n", rdma_en);
 }
 
 static ssize_t rdma_en_store(struct class *cla, struct class_attribute *attr,
@@ -654,13 +650,15 @@ static ssize_t rdma_en_store(struct class *cla, struct class_attribute *attr,
 		return ret;
 	}
 	rdma_en = tmp;
+
+	pr_info("set rdma_en to %d.\n", rdma_en);
 	return count;
 }
 
 static ssize_t debug_rdma_en_show(struct class *cla, struct class_attribute *attr,
 	char *buf)
 {
-	return snprintf(buf, 80, "debug_rdma_enable: %d.\n", debug_rdma_en);
+	return snprintf(buf, 80, "current debug_rdma_enable is %d.\n", debug_rdma_en);
 }
 
 static ssize_t debug_rdma_en_store(struct class *cla, struct class_attribute *attr,
@@ -675,11 +673,13 @@ static ssize_t debug_rdma_en_store(struct class *cla, struct class_attribute *at
 		return ret;
 	}
 	debug_rdma_en = tmp;
+
+	pr_info("set debug_rdma_en to %d.\n", debug_rdma_en);
 	return count;
 }
 
 static CLASS_ATTR_RW(print_flag);
-static CLASS_ATTR_RW(debug_reg);
+static CLASS_ATTR_RW(reg);
 static CLASS_ATTR_RW(demo_enable);
 static CLASS_ATTR_RW(input_color_format);
 static CLASS_ATTR_RW(output_color_format);
@@ -701,7 +701,7 @@ static CLASS_ATTR_RW(debug_rdma_en);
 
 static struct attribute *vicp_class_attrs[] = {
 	&class_attr_print_flag.attr,
-	&class_attr_debug_reg.attr,
+	&class_attr_reg.attr,
 	&class_attr_demo_enable.attr,
 	&class_attr_input_width.attr,
 	&class_attr_input_height.attr,

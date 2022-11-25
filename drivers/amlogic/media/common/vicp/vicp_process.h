@@ -43,8 +43,6 @@ extern int cgain_lut0[65];
 extern u32 debug_axis_en;
 extern struct output_axis_t axis;
 extern struct vicp_hdr_s *vicp_hdr;
-extern u32 debug_reg_addr;
-extern u32 debug_reg_val;
 extern u32 rdma_en;
 extern u32 debug_rdma_en;
 /* *********************************************************************** */
@@ -291,5 +289,4 @@ void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_t *scaler);
 void set_vid_cmpr_afbcd(int hold_line_num, bool rdma_en, struct vid_cmpr_afbcd_t *afbcd);
 void set_vid_cmpr_hdr(int hdr2_top_en);
 void set_vid_cmpr_rdma(bool rdma_en, int input_count, int input_number);
-void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top);
 #endif //_VICP_PROCESS_H_

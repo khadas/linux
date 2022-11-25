@@ -850,7 +850,7 @@ void set_wrmif_control(struct vicp_wrmif_control_t wrmif_control)
 		((wrmif_control.rgb_mode & 0x3) << 22) |
 		((wrmif_control.h_conv & 0x3) << 20) |
 		((wrmif_control.v_conv & 0x3) << 18) |
-		((wrmif_control.swap_cbcr & 0x1) < 17) |
+		((wrmif_control.swap_cbcr & 0x1) << 17) |
 		((wrmif_control.urgent & 0x1) << 16) |
 		((wrmif_control.word_limit & 0xf) << 4) |
 		((wrmif_control.data_ext_ena & 0x1) << 3) |
