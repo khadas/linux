@@ -4026,6 +4026,28 @@ u8 rx_get_hdcp_type(void)
 	return 1;
 }
 
+/*
+ * rx_get_hdcp_auth_sts
+ */
+int rx_get_hdcp_auth_sts(void)
+{
+	bool ret = 0;
+	int hdcp22_status;
+
+	if (rx.state < FSM_SIG_READY)
+		return ret;
+
+	if (rx.chip_id <= CHIP_ID_T5D)
+		hdcp22_status = (rx.cur.hdcp22_state == 3) ? 1 : 0;
+	else
+		hdcp22_status = rx.cur.hdcp22_state & 1;
+
+	if ((rx.hdcp.hdcp_version == HDCP_VER_14 && rx.cur.hdcp14_state == 3) ||
+		(rx.hdcp.hdcp_version == HDCP_VER_22 && hdcp22_status))
+		ret = 1;
+	return ret;
+}
+
 void rx_get_avi_params(void)
 {
 	u8 data8, data8_lo, data8_up;
