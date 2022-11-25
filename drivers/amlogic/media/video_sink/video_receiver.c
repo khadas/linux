@@ -88,10 +88,6 @@ static inline struct vframe_s *common_vf_get(struct video_recv_s *ins)
 		vpp_trace_vframe("common_vf_get",
 			(void *)vf, vf->type, vf->flag,
 			ins->vpp_id, vsync_cnt[ins->vpp_id]);
-		if (!tvin_vf_disp_mode_check(vf)) {
-			vf_put(vf, ins->recv_name);
-			return NULL;
-		}
 		if (vf->type & VIDTYPE_V4L_EOS) {
 			vf_put(vf, ins->recv_name);
 			return NULL;

@@ -4055,42 +4055,6 @@ void vsync_rdma_process(void)
 
 char old_vmode[32];
 char new_vmode[32];
-bool tvin_vf_disp_mode_check(struct vframe_s *vf)
-{
-	struct provider_disp_mode_req_s req;
-	char *vdin_name = "vdin0";
-	char *dv_vdin_name = "dv_vdin";
-	char *provider_name = NULL;
-
-	if (!vf || !(vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
-		     vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
-		     vf->source_type == VFRAME_SOURCE_TYPE_TUNER))
-		return true;
-
-	if (vf->flag & VFRAME_FLAG_KEEPED)
-		return true;
-
-	if (atomic_read(&vt_unreg_flag) > 0)
-		return true;
-
-	if (vf->source_type & (1 << 30))
-		provider_name = dv_vdin_name;
-	else
-		provider_name = vdin_name;
-	req.vf = vf;
-	req.disp_mode = VFRAME_DISP_MODE_NULL;
-	req.req_mode = 1;
-
-	if (provider_name)
-		vf_notify_provider_by_name(provider_name,
-			VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
-	if (req.disp_mode == VFRAME_DISP_MODE_SKIP) {
-		pr_info("tvin need skip\n");
-		return false;
-	}
-
-	return true;
-}
 
 static inline bool video_vf_disp_mode_check(struct vframe_s *vf)
 {

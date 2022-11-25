@@ -893,7 +893,6 @@ void aisr_demo_enable(void);
 void aisr_demo_axis_set(void);
 void aisr_reshape_output(u32 enable);
 void pre_process_for_3d(struct vframe_s *vf);
-bool tvin_vf_disp_mode_check(struct vframe_s *vf);
 int get_vpu_urgent_info_t3(void);
 int set_vpu_super_urgent_t3(u32 module_id, u32 low_level, u32 high_level);
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
