@@ -298,6 +298,7 @@
 		compatible = "amlogic, pm";
 		status = "okay";
 		device_name = "aml_pm";
+		extend_resume_reason;
 		reg = <0x0 0xff8000a8 0x0 0x4>, /*SYSCTRL_STATUS_REG2*/
 			<0x0 0xff6345cc 0x0 0x4>; /*PREG_STICKY_REG3*/
 	};

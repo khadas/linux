@@ -54,7 +54,7 @@ static LIST_HEAD(early_suspend_handlers);
  */
 unsigned int sysfs_trigger;
 unsigned int early_suspend_state;
-bool is_clr_exit_reg;
+bool is_clr_resume_reason;
 /*
  * Avoid run early_suspend/late_resume repeatly.
  */
@@ -256,11 +256,11 @@ static void __iomem *debug_reg;
 static void __iomem *exit_reg;
 static suspend_state_t pm_state;
 static unsigned int suspend_reason;
-static unsigned int soc_state;
 static unsigned int resume_reason;
 static unsigned int suspend_time_out;
 static unsigned int shutdown_time_out;
 static unsigned int shutdown_set_time;
+static bool is_extd_resume_reason;
 
 /*
  * check_vrtc_device check whether there is vrtc exist.
@@ -271,21 +271,40 @@ static bool check_vrtc_device(struct device *dev)
 }
 
 /*
+ * get_resume_value return the register value that stores
+ * resume reason.
+ */
+static uint32_t get_resume_value(void)
+{
+	u32 val = 0;
+
+	if (exit_reg) {
+		/* resume reason extension support for new soc such as s4/t3/sc2/s5... */
+		if (is_extd_resume_reason)
+			val = readl_relaxed(exit_reg) & 0xff;
+		/* other soc such as tm2/axg do not support resume reason extension */
+		else
+			val = (readl_relaxed(exit_reg) >> 28) & 0xf;
+	}
+
+	return val;
+}
+
+/*
  * get_resume_reason always return last resume reason.
  */
 unsigned int get_resume_reason(void)
 {
-	unsigned int val = 0;
+	unsigned int val;
+	unsigned int reason;
 
-	/*For tm2 SoC, we need use scpi to get this reason*/
-	if (exit_reg) {
-		/* soc_state ==1 for old soc such as axg */
-		if (soc_state == 1)
-			val = (readl_relaxed(exit_reg) >> 28) & 0xf;
-		else
-			val = readl_relaxed(exit_reg) & 0xf;
-	}
-	return val;
+	val = get_resume_value();
+	if (is_extd_resume_reason)
+		reason = val & 0x7f;
+	else
+		reason = val;
+
+	return reason;
 }
 EXPORT_SYMBOL_GPL(get_resume_reason);
 
@@ -374,9 +393,11 @@ ssize_t suspend_reason_show(struct device *dev,
 			    char *buf)
 {
 	unsigned int len;
+	unsigned int val;
 
 	suspend_reason = get_resume_reason();
-	len = sprintf(buf, "%d\n", suspend_reason);
+	val = get_resume_value();
+	len = sprintf(buf, "%d\nreg val:0x%x\n", suspend_reason, val);
 
 	return len;
 }
@@ -565,7 +586,6 @@ static irqreturn_t pm_wakeup_isr(int irq, void *data __maybe_unused)
 static int meson_pm_probe(struct platform_device *pdev)
 {
 	unsigned int irq_pwrctrl;
-	unsigned int soc_state_tmp;
 	struct pm_data *p_data;
 	int err;
 	u32 ret;
@@ -577,11 +597,10 @@ static int meson_pm_probe(struct platform_device *pdev)
 		pwr_ctrl_irq_set(irq_pwrctrl, 1, 0);
 	}
 
-	if (!of_property_read_u32(pdev->dev.of_node,
-				  "soc_state", &soc_state_tmp)) {
-		if (soc_state_tmp)
-			soc_state = 1;
-	}
+	if (of_property_read_bool(pdev->dev.of_node, "extend_resume_reason"))
+		is_extd_resume_reason = true;
+	else
+		is_extd_resume_reason = false;
 
 	debug_reg = of_iomap(pdev->dev.of_node, 0);
 	if (!debug_reg)
@@ -607,10 +626,10 @@ static int meson_pm_probe(struct platform_device *pdev)
 	if (unlikely(err))
 		return err;
 #endif
-	if (of_property_read_bool(pdev->dev.of_node, "clr_reboot_mode"))
-		is_clr_exit_reg = true;
+	if (of_property_read_bool(pdev->dev.of_node, "clr_resume_reason"))
+		is_clr_resume_reason = true;
 	else
-		is_clr_exit_reg = false;
+		is_clr_resume_reason = false;
 
 	s2idle_set_ops(&meson_gx_frz_ops);
 	err = register_pm_notifier(&clr_suspend_notifier);
@@ -688,8 +707,14 @@ static const struct of_device_id amlogic_pm_dt_match[] = {
 
 static void meson_pm_shutdown(struct platform_device *pdev)
 {
-	if ((exit_reg) && (is_clr_exit_reg))
-		writel_relaxed(0, exit_reg);
+	u32 val;
+
+	if (exit_reg && is_clr_resume_reason &&
+			is_extd_resume_reason) {
+		val = readl_relaxed(exit_reg);
+		val &= (~0x7f);
+		writel_relaxed(val, exit_reg);
+	}
 }
 
 static struct platform_driver meson_pm_driver = {
