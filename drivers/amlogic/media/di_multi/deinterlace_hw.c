@@ -975,6 +975,7 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 	unsigned short chan2_hsize = 0, chan2_vsize = 0;
 	unsigned short mem_hsize = 0, mem_vsize = 0;
 	unsigned int sc2_tfbf = 0; /* DI_PRE_CTRL bit [12:11] */
+	unsigned int pd32_infor = 0; /* DI_PRE_CTRL bit [2:3] */
 	struct di_pre_stru_s *ppre = (struct di_pre_stru_s *)pre;
 	static bool last_bypass; //dbg only
 	static bool last_disable_chan2; //dbg only
@@ -1080,7 +1081,12 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 	 * from sc2 DI_PRE_CTRL 0x1700,
 	 * bit5/6/8/9/10/11/12
 	 * bit21/22 chan2 t/b reverse,check with vlsi feijun
+	 * bit2/3 enable pd32 check for i/p from vlsi feijun
 	 */
+	if (DIM_IS_IC_EF(T3) || DIM_IS_IC(T5DB))
+		pd32_infor = 0x1;
+	else
+		pd32_infor = madi_en;
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		if (madi_en) {
@@ -1110,9 +1116,9 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 				DIM_RDMA_WR(DI_PRE_CTRL,
 					    1 | /* nr wr en */
 					    (madi_en << 1) | /* mtn en */
-					    (madi_en << 2) |
+					    (pd32_infor << 2) |
 					    /*check3:2pulldown*/
-					    (madi_en << 3) |
+					    (pd32_infor << 3) |
 					    /*check2:2pulldown*/
 					    (1 << 4)	 |
 					    (madi_en << 5) |
@@ -1135,8 +1141,8 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 				DIM_RDMA_WR(DI_PRE_CTRL,
 					    1			| /* nr wr en */
 					    (madi_en << 1)	| /* mtn en */
-					    (madi_en << 2)	| /* check3:2pulldown*/
-					    (madi_en << 3)	| /* check2:2pulldown*/
+					    (pd32_infor << 2)	| /* check3:2pulldown*/
+					    (pd32_infor << 3)	| /* check2:2pulldown*/
 					    (1 << 4)		|
 					    (madi_en << 5)	| /*hist check enable*/
 					/* hist check  use chan2. */

@@ -52,6 +52,9 @@ module_param_named(nr2_en, nr2_en, uint, 0644);
 static bool dynamic_dm_chk = true;
 module_param_named(dynamic_dm_chk, dynamic_dm_chk, bool, 0644);
 
+static unsigned int autonr_en = 0x1;
+module_param_named(autonr_en, autonr_en, uint, 0644);
+
 static bool nr4ne_en;
 module_param_named(nr4ne_en, nr4ne_en, bool, 0644);
 
@@ -807,6 +810,99 @@ static void noise_meter_process_op(struct NR4_PARM_s *nr4_param_p,
 	nr4_param_p->sw_nr4_field_sad[1] = field_sad;
 }
 
+//auto global tnr
+//function : update reg_MATNR_mtn_lp/hp_Ygain,
+//           reg_MATNR_mtn_lp/hp_Cgain by motion_info and apl
+//input : diff_sum, apl
+//output : mtn_lp/hp_Ygain, mtn_lp/hp_Cgain
+static void autonr_process_op(struct AUTONR_PARM_S *autonr_param_p,
+		unsigned short input_width,
+		unsigned short input_height,
+		const struct reg_acc *op)
+{
+	unsigned int idx;
+	u64 motion_sum;
+	int apl_idx; //3bit
+	u64 diff_sum;
+
+	diff_sum = op->rd(DIPD_RO_COMB_0);
+
+	//diff_sum norm
+	motion_sum = div64_u64(diff_sum * (1920 * 1080),
+			       (input_height * input_width));
+	if (autonr_en & 0x10)
+		pr_info("%s start#### diff_sum=0x%llx,motion_sum=0x%llx\n", __func__,
+			diff_sum, motion_sum);
+
+	motion_sum = motion_sum >> 12;
+	if (autonr_en & 0x10)
+		pr_info("%s motion_sum=0x%llx\n", __func__, motion_sum);
+
+	//get mtn gain
+	apl_idx = get_lum_ave();
+	if (autonr_en & 0x10)
+		pr_info("%s lum_ave=%d\n", __func__, apl_idx);
+
+	if (apl_idx <= 0) {
+		apl_idx = 0;
+	} else {
+		apl_idx = apl_idx >> 5;
+		if (apl_idx >= 7)
+			apl_idx = 7;
+	}
+	if (autonr_en & 0x10)
+		pr_info("%s apl_idx=%d\n", __func__, apl_idx);
+	//apl control
+	motion_sum = (motion_sum * autonr_param_p->apl_gain[apl_idx] + 16) >> 5;
+	if (autonr_en & 0x10)
+		pr_info("%s end#### motion_sum=0x%llx\n", __func__, motion_sum);
+
+	if (motion_sum <= autonr_param_p->motion_th[0])
+		idx = 0;
+	else if (motion_sum <= autonr_param_p->motion_th[1])
+		idx = 1;
+	else if (motion_sum <= autonr_param_p->motion_th[2])
+		idx = 2;
+	else if (motion_sum <= autonr_param_p->motion_th[3])
+		idx = 3;
+	else if (motion_sum <= autonr_param_p->motion_th[4])
+		idx = 4;
+	else if (motion_sum <= autonr_param_p->motion_th[5])
+		idx = 5;
+	else if (motion_sum <= autonr_param_p->motion_th[6])
+		idx = 6;
+	else if (motion_sum <= autonr_param_p->motion_th[7])
+		idx = 7;
+	else if (motion_sum <= autonr_param_p->motion_th[8])
+		idx = 8;
+	else if (motion_sum <= autonr_param_p->motion_th[9])
+		idx = 9;
+	else if (motion_sum <= autonr_param_p->motion_th[10])
+		idx = 10;
+	else if (motion_sum <= autonr_param_p->motion_th[11])
+		idx = 11;
+	else if (motion_sum <= autonr_param_p->motion_th[12])
+		idx = 12;
+	else if (motion_sum <= autonr_param_p->motion_th[13])
+		idx = 13;
+	else if (motion_sum <= autonr_param_p->motion_th[14])
+		idx = 14;
+	else
+		idx = 15;
+
+	op->bwr(NR2_MATNR_MTN_GAIN,
+		autonr_param_p->motion_lp_ygain[idx], 0, 8);
+	op->bwr(NR2_MATNR_MTN_GAIN,
+		autonr_param_p->motion_lp_cgain[idx], 8, 8);
+	op->bwr(NR2_MATNR_MTN_GAIN,
+		autonr_param_p->motion_hp_ygain[idx], 16, 8);
+	op->bwr(NR2_MATNR_MTN_GAIN,
+		autonr_param_p->motion_hp_cgain[idx], 24, 8);
+	if (autonr_en & 0x10)
+		pr_info("%s idx=%d.h=%d,GAIN=%d\n", __func__,
+			idx, input_height, op->rd(NR2_MATNR_MTN_GAIN));
+}
+
 //sort from largest to smallest
 static void sort(int *data, int datanum)
 {
@@ -1490,6 +1586,10 @@ static void nr_process_in_irq_op(const struct reg_acc *op)
 	if (IS_IC(dil_get_cpuver_flag(), T3) && nr4ne_en)
 		noise_meter2_process(nr_param.pnr4_neparm, nr_param.width,
 				     nr_param.height);
+	if (((IS_IC_EF(dil_get_cpuver_flag(), T3)) ||
+	     IS_IC(dil_get_cpuver_flag(), T5DB)) && autonr_en)
+		autonr_process_op(nr_param.pautonr_parm,
+				  nr_param.width, nr_param.height, op);
 }
 
 static dnr_param_t dnr_params[] = {
@@ -1709,6 +1809,387 @@ static void nr4_param_init(struct NR4_PARM_s *nr4_parm_p)
 	nr4_parm_p->sw_nr4_noise_ctrl_dm_en = 0;
 	nr4_parm_p->sw_nr4_scene_change_thd2 = 80;
 	nr4_parm_p->sw_dm_scene_change_en = 0;
+}
+
+static autonr_param_t autonr_params[AUTONR_PARAMS_NUM];
+static void autonr_params_init_th(struct AUTONR_PARM_S *autonr_parm_p)
+{
+	autonr_params[0].name = "motion_th[0]";
+	autonr_params[0].addr = &autonr_parm_p->motion_th[0];
+	autonr_params[1].name = "motion_th[1]";
+	autonr_params[1].addr = &autonr_parm_p->motion_th[1];
+	autonr_params[2].name = "motion_th[2]";
+	autonr_params[2].addr = &autonr_parm_p->motion_th[2];
+	autonr_params[3].name = "motion_th[3]";
+	autonr_params[3].addr = &autonr_parm_p->motion_th[3];
+	autonr_params[4].name = "motion_th[4]";
+	autonr_params[4].addr = &autonr_parm_p->motion_th[4];
+	autonr_params[5].name = "motion_th[5]";
+	autonr_params[5].addr = &autonr_parm_p->motion_th[5];
+	autonr_params[6].name = "motion_th[6]";
+	autonr_params[6].addr = &autonr_parm_p->motion_th[6];
+	autonr_params[7].name = "motion_th[7]";
+	autonr_params[7].addr = &autonr_parm_p->motion_th[7];
+	autonr_params[8].name = "motion_th[8]";
+	autonr_params[8].addr = &autonr_parm_p->motion_th[8];
+	autonr_params[9].name = "motion_th[9]";
+	autonr_params[9].addr = &autonr_parm_p->motion_th[9];
+	autonr_params[10].name = "motion_th[10]";
+	autonr_params[10].addr = &autonr_parm_p->motion_th[10];
+	autonr_params[11].name = "motion_th[11]";
+	autonr_params[11].addr = &autonr_parm_p->motion_th[11];
+	autonr_params[12].name = "motion_th[12]";
+	autonr_params[12].addr = &autonr_parm_p->motion_th[12];
+	autonr_params[13].name = "motion_th[13]";
+	autonr_params[13].addr = &autonr_parm_p->motion_th[13];
+	autonr_params[14].name = "motion_th[14]";
+	autonr_params[14].addr = &autonr_parm_p->motion_th[14];
+};
+
+static void autonr_params_init_lp_ygain(struct AUTONR_PARM_S *autonr_parm_p)
+{
+	autonr_params[15].name = "motion_lp_ygain[0]";
+	autonr_params[15].addr = &autonr_parm_p->motion_lp_ygain[0];
+	autonr_params[16].name = "motion_lp_ygain[1]";
+	autonr_params[16].addr = &autonr_parm_p->motion_lp_ygain[1];
+	autonr_params[17].name = "motion_lp_ygain[2]";
+	autonr_params[17].addr = &autonr_parm_p->motion_lp_ygain[2];
+	autonr_params[18].name = "motion_lp_ygain[3]";
+	autonr_params[18].addr = &autonr_parm_p->motion_lp_ygain[3];
+	autonr_params[19].name = "motion_lp_ygain[4]";
+	autonr_params[19].addr = &autonr_parm_p->motion_lp_ygain[4];
+	autonr_params[20].name = "motion_lp_ygain[5]";
+	autonr_params[20].addr = &autonr_parm_p->motion_lp_ygain[5];
+	autonr_params[21].name = "motion_lp_ygain[6]";
+	autonr_params[21].addr = &autonr_parm_p->motion_lp_ygain[6];
+	autonr_params[22].name = "motion_lp_ygain[7]";
+	autonr_params[22].addr = &autonr_parm_p->motion_lp_ygain[7];
+	autonr_params[23].name = "motion_lp_ygain[8]";
+	autonr_params[23].addr = &autonr_parm_p->motion_lp_ygain[8];
+	autonr_params[24].name = "motion_lp_ygain[9]";
+	autonr_params[24].addr = &autonr_parm_p->motion_lp_ygain[9];
+	autonr_params[25].name = "motion_lp_ygain[10]";
+	autonr_params[25].addr = &autonr_parm_p->motion_lp_ygain[10];
+	autonr_params[26].name = "motion_lp_ygain[11]";
+	autonr_params[26].addr = &autonr_parm_p->motion_lp_ygain[11];
+	autonr_params[27].name = "motion_lp_ygain[12]";
+	autonr_params[27].addr = &autonr_parm_p->motion_lp_ygain[12];
+	autonr_params[28].name = "motion_lp_ygain[13]";
+	autonr_params[28].addr = &autonr_parm_p->motion_lp_ygain[13];
+	autonr_params[29].name = "motion_lp_ygain[14]";
+	autonr_params[29].addr = &autonr_parm_p->motion_lp_ygain[14];
+	autonr_params[30].name = "motion_lp_ygain[15]";
+	autonr_params[30].addr = &autonr_parm_p->motion_lp_ygain[15];
+};
+
+static void autonr_params_init_hp_ygain(struct AUTONR_PARM_S *autonr_parm_p)
+{
+	autonr_params[31].name = "motion_hp_ygain[0]";
+	autonr_params[31].addr = &autonr_parm_p->motion_hp_ygain[0];
+	autonr_params[32].name = "motion_hp_ygain[1]";
+	autonr_params[32].addr = &autonr_parm_p->motion_hp_ygain[1];
+	autonr_params[33].name = "motion_hp_ygain[2]";
+	autonr_params[33].addr = &autonr_parm_p->motion_hp_ygain[2];
+	autonr_params[34].name = "motion_hp_ygain[3]";
+	autonr_params[34].addr = &autonr_parm_p->motion_hp_ygain[3];
+	autonr_params[35].name = "motion_hp_ygain[4]";
+	autonr_params[35].addr = &autonr_parm_p->motion_hp_ygain[4];
+	autonr_params[36].name = "motion_hp_ygain[5]";
+	autonr_params[36].addr = &autonr_parm_p->motion_hp_ygain[5];
+	autonr_params[37].name = "motion_hp_ygain[6]";
+	autonr_params[37].addr = &autonr_parm_p->motion_hp_ygain[6];
+	autonr_params[38].name = "motion_hp_ygain[7]";
+	autonr_params[38].addr = &autonr_parm_p->motion_hp_ygain[7];
+	autonr_params[39].name = "motion_hp_ygain[8]";
+	autonr_params[39].addr = &autonr_parm_p->motion_hp_ygain[8];
+	autonr_params[40].name = "motion_hp_ygain[9]";
+	autonr_params[40].addr = &autonr_parm_p->motion_hp_ygain[9];
+	autonr_params[41].name = "motion_hp_ygain[10]";
+	autonr_params[41].addr = &autonr_parm_p->motion_hp_ygain[10];
+	autonr_params[42].name = "motion_hp_ygain[11]";
+	autonr_params[42].addr = &autonr_parm_p->motion_hp_ygain[11];
+	autonr_params[43].name = "motion_hp_ygain[12]";
+	autonr_params[43].addr = &autonr_parm_p->motion_hp_ygain[12];
+	autonr_params[44].name = "motion_hp_ygain[13]";
+	autonr_params[44].addr = &autonr_parm_p->motion_hp_ygain[13];
+	autonr_params[45].name = "motion_hp_ygain[14]";
+	autonr_params[45].addr = &autonr_parm_p->motion_hp_ygain[14];
+	autonr_params[46].name = "motion_hp_ygain[15]";
+	autonr_params[46].addr = &autonr_parm_p->motion_hp_ygain[15];
+};
+
+static void autonr_params_init_lp_cgain(struct AUTONR_PARM_S *autonr_parm_p)
+{
+	autonr_params[47].name = "motion_lp_cgain[0]";
+	autonr_params[47].addr = &autonr_parm_p->motion_lp_cgain[0];
+	autonr_params[48].name = "motion_lp_cgain[1]";
+	autonr_params[48].addr = &autonr_parm_p->motion_lp_cgain[1];
+	autonr_params[49].name = "motion_lp_cgain[2]";
+	autonr_params[49].addr = &autonr_parm_p->motion_lp_cgain[2];
+	autonr_params[50].name = "motion_lp_cgain[3]";
+	autonr_params[50].addr = &autonr_parm_p->motion_lp_cgain[3];
+	autonr_params[51].name = "motion_lp_cgain[4]";
+	autonr_params[51].addr = &autonr_parm_p->motion_lp_cgain[4];
+	autonr_params[52].name = "motion_lp_cgain[5]";
+	autonr_params[52].addr = &autonr_parm_p->motion_lp_cgain[5];
+	autonr_params[53].name = "motion_lp_cgain[6]";
+	autonr_params[53].addr = &autonr_parm_p->motion_lp_cgain[6];
+	autonr_params[54].name = "motion_lp_cgain[7]";
+	autonr_params[54].addr = &autonr_parm_p->motion_lp_cgain[7];
+	autonr_params[55].name = "motion_lp_cgain[8]";
+	autonr_params[55].addr = &autonr_parm_p->motion_lp_cgain[8];
+	autonr_params[56].name = "motion_lp_cgain[9]";
+	autonr_params[56].addr = &autonr_parm_p->motion_lp_cgain[9];
+	autonr_params[57].name = "motion_lp_cgain[10]";
+	autonr_params[57].addr = &autonr_parm_p->motion_lp_cgain[10];
+	autonr_params[58].name = "motion_lp_cgain[11]";
+	autonr_params[58].addr = &autonr_parm_p->motion_lp_cgain[11];
+	autonr_params[59].name = "motion_lp_cgain[12]";
+	autonr_params[59].addr = &autonr_parm_p->motion_lp_cgain[12];
+	autonr_params[60].name = "motion_lp_cgain[13]";
+	autonr_params[60].addr = &autonr_parm_p->motion_lp_cgain[13];
+	autonr_params[61].name = "motion_lp_cgain[14]";
+	autonr_params[61].addr = &autonr_parm_p->motion_lp_cgain[14];
+	autonr_params[62].name = "motion_lp_cgain[15]";
+	autonr_params[62].addr = &autonr_parm_p->motion_lp_cgain[15];
+};
+
+static void autonr_params_init_hp_cgain(struct AUTONR_PARM_S *autonr_parm_p)
+{
+	autonr_params[63].name = "motion_hp_cgain[0]";
+	autonr_params[63].addr = &autonr_parm_p->motion_hp_cgain[0];
+	autonr_params[64].name = "motion_hp_cgain[1]";
+	autonr_params[64].addr = &autonr_parm_p->motion_hp_cgain[1];
+	autonr_params[65].name = "motion_hp_cgain[2]";
+	autonr_params[65].addr = &autonr_parm_p->motion_hp_cgain[2];
+	autonr_params[66].name = "motion_hp_cgain[3]";
+	autonr_params[66].addr = &autonr_parm_p->motion_hp_cgain[3];
+	autonr_params[67].name = "motion_hp_cgain[4]";
+	autonr_params[67].addr = &autonr_parm_p->motion_hp_cgain[4];
+	autonr_params[68].name = "motion_hp_cgain[5]";
+	autonr_params[68].addr = &autonr_parm_p->motion_hp_cgain[5];
+	autonr_params[69].name = "motion_hp_cgain[6]";
+	autonr_params[69].addr = &autonr_parm_p->motion_hp_cgain[6];
+	autonr_params[70].name = "motion_hp_cgain[7]";
+	autonr_params[70].addr = &autonr_parm_p->motion_hp_cgain[7];
+	autonr_params[71].name = "motion_hp_cgain[8]";
+	autonr_params[71].addr = &autonr_parm_p->motion_hp_cgain[8];
+	autonr_params[72].name = "motion_hp_cgain[9]";
+	autonr_params[72].addr = &autonr_parm_p->motion_hp_cgain[9];
+	autonr_params[73].name = "motion_hp_cgain[10]";
+	autonr_params[73].addr = &autonr_parm_p->motion_hp_cgain[10];
+	autonr_params[74].name = "motion_hp_cgain[11]";
+	autonr_params[74].addr = &autonr_parm_p->motion_hp_cgain[11];
+	autonr_params[75].name = "motion_hp_cgain[12]";
+	autonr_params[75].addr = &autonr_parm_p->motion_hp_cgain[12];
+	autonr_params[76].name = "motion_hp_cgain[13]";
+	autonr_params[76].addr = &autonr_parm_p->motion_hp_cgain[13];
+	autonr_params[77].name = "motion_hp_cgain[14]";
+	autonr_params[77].addr = &autonr_parm_p->motion_hp_cgain[14];
+	autonr_params[78].name = "motion_hp_cgain[15]";
+	autonr_params[78].addr = &autonr_parm_p->motion_hp_cgain[15];
+};
+
+static void autonr_params_init_apl(struct AUTONR_PARM_S *autonr_parm_p)
+{
+	autonr_params[79].name = "apl_gain[0]";
+	autonr_params[79].addr = &autonr_parm_p->apl_gain[0];
+	autonr_params[80].name = "apl_gain[1]";
+	autonr_params[80].addr = &autonr_parm_p->apl_gain[1];
+	autonr_params[81].name = "apl_gain[2]";
+	autonr_params[81].addr = &autonr_parm_p->apl_gain[2];
+	autonr_params[82].name = "apl_gain[3]";
+	autonr_params[82].addr = &autonr_parm_p->apl_gain[3];
+	autonr_params[83].name = "apl_gain[4]";
+	autonr_params[83].addr = &autonr_parm_p->apl_gain[4];
+	autonr_params[84].name = "apl_gain[5]";
+	autonr_params[84].addr = &autonr_parm_p->apl_gain[5];
+	autonr_params[85].name = "apl_gain[6]";
+	autonr_params[85].addr = &autonr_parm_p->apl_gain[6];
+	autonr_params[86].name = "apl_gain[7]";
+	autonr_params[86].addr = &autonr_parm_p->apl_gain[7];
+};
+
+static ssize_t autonr_param_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buff, size_t count)
+{
+	long i = 0, value = 0;
+	char *parm[17] = {NULL}, *buf_orig;
+
+	buf_orig = kstrdup(buff, GFP_KERNEL);
+	parse_cmd_params(buf_orig, (char **)(&parm));
+
+	if (!strcmp(parm[0], "motion_th")) {
+		for (i = 0; i < 15; i++) {
+			if (parm[i + 1]) {
+				if (kstrtol(parm[i + 1], 10, &value) < 0)
+					pr_err("DI: input value error.\n");
+				*autonr_params[i].addr = value;
+			}
+			if (autonr_en & 0x20)
+				pr_info("%lx ,%x\n", i, *autonr_params[i].addr);
+		}
+	} else if (!strcmp(parm[0], "motion_lp_ygain")) {
+		for (i = 0; i < 16; i++) {
+			if (parm[i + 1]) {
+				if (kstrtol(parm[i + 1], 10, &value) < 0)
+					pr_err("DI: input value error.\n");
+				*autonr_params[i + 15].addr = value;
+			}
+			if (autonr_en & 0x20)
+				pr_info("%lx,%x\n", i + 15,
+					*autonr_params[i + 15].addr);
+		}
+	} else if (!strcmp(parm[0], "motion_hp_ygain")) {
+		for (i = 0; i < 16; i++) {
+			if (parm[i + 1]) {
+				if (kstrtol(parm[i + 1], 10, &value) < 0)
+					pr_err("DI: input value error.\n");
+				*autonr_params[i + 31].addr = value;
+			}
+			if (autonr_en & 0x20)
+				pr_info("%lx,%x\n", i + 31,
+					*autonr_params[i + 31].addr);
+		}
+	} else if (!strcmp(parm[0], "motion_lp_cgain")) {
+		for (i = 0; i < 16; i++) {
+			if (parm[i + 1]) {
+				if (kstrtol(parm[i + 1], 10, &value) < 0)
+					pr_err("DI: input value error.\n");
+				*autonr_params[i + 47].addr = value;
+			}
+			if (autonr_en & 0x20)
+				pr_info("%lx,%x\n", i + 47,
+					*autonr_params[i + 47].addr);
+		}
+	} else if (!strcmp(parm[0], "motion_hp_cgain")) {
+		for (i = 0; i < 16; i++) {
+			if (parm[i + 1]) {
+				if (kstrtol(parm[i + 1], 10, &value) < 0)
+					pr_err("DI: input value error.\n");
+				*autonr_params[i + 63].addr = value;
+			}
+			if (autonr_en & 0x20)
+				pr_info("%lx,%x\n", i + 63,
+					*autonr_params[i + 63].addr);
+		}
+	} else if (!strcmp(parm[0], "apl_gain")) {
+		for (i = 0; i < 8; i++) {
+			if (parm[i + 1]) {
+				if (kstrtol(parm[i + 1], 10, &value) < 0)
+					pr_err("DI: input value error.\n");
+				*autonr_params[i + 79].addr = value;
+			}
+			if (autonr_en & 0x20)
+				pr_info("%lx,%x\n", i + 79,
+					*autonr_params[i + 79].addr);
+		}
+	} else {
+		pr_info(" null\n");
+	}
+
+	kfree(buf_orig);
+	return count;
+}
+
+static ssize_t autonr_param_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buff)
+{
+	ssize_t len = 0;
+	int i = 0;
+
+	len += sprintf(buff + len, "%s=%d", "motion_th",
+			*autonr_params[0].addr);
+	for (i = 1; i < 15; i++) {
+		if (IS_ERR_OR_NULL(autonr_params[i].name) ||
+		    IS_ERR_OR_NULL(autonr_params[i].addr))
+			continue;
+		len += sprintf(buff + len, ",%d", *autonr_params[i].addr);
+	}
+
+	len += sprintf(buff + len, "\n%s=%d", "motion_lp_ygain",
+			*autonr_params[15].addr);
+	for (i = 16; i < 31; i++) {
+		if (IS_ERR_OR_NULL(autonr_params[i].name) ||
+		    IS_ERR_OR_NULL(autonr_params[i].addr))
+			continue;
+		len += sprintf(buff + len, ",%d", *autonr_params[i].addr);
+	}
+
+	len += sprintf(buff + len, "\n%s=%d", "motion_hp_ygain",
+			*autonr_params[31].addr);
+	for (i = 32; i < 47; i++) {
+		if (IS_ERR_OR_NULL(autonr_params[i].name) ||
+		    IS_ERR_OR_NULL(autonr_params[i].addr))
+			continue;
+		len += sprintf(buff + len, ",%d", *autonr_params[i].addr);
+	}
+
+	len += sprintf(buff + len, "\n%s=%d", "motion_lp_cgain",
+			*autonr_params[47].addr);
+	for (i = 48; i < 63; i++) {
+		if (IS_ERR_OR_NULL(autonr_params[i].name) ||
+		    IS_ERR_OR_NULL(autonr_params[i].addr))
+			continue;
+		len += sprintf(buff + len, ",%d", *autonr_params[i].addr);
+	}
+
+	len += sprintf(buff + len, "\n%s=%d", "motion_hp_cgain",
+			*autonr_params[63].addr);
+	for (i = 64; i < 79; i++) {
+		if (IS_ERR_OR_NULL(autonr_params[i].name) ||
+		    IS_ERR_OR_NULL(autonr_params[i].addr))
+			continue;
+		len += sprintf(buff + len, ",%d", *autonr_params[i].addr);
+	}
+
+	len += sprintf(buff + len, "\n%s=%d", "apl_gain",
+			*autonr_params[79].addr);
+	for (i = 80; i < 87; i++) {
+		if (IS_ERR_OR_NULL(autonr_params[i].name) ||
+		    IS_ERR_OR_NULL(autonr_params[i].addr))
+			continue;
+		len += sprintf(buff + len, ",%d", *autonr_params[i].addr);
+	}
+	len += sprintf(buff + len, "\n");
+	return len;
+}
+
+static DEVICE_ATTR(autonr_param, 0664, autonr_param_show, autonr_param_store);
+
+static void autonr_param_init(struct AUTONR_PARM_S *autonr_parm_p)
+{
+	int k = 0;
+
+	for (k = 0; k < 16; k++)
+		autonr_parm_p->motion_lp_ygain[k] = 64;
+	for (k = 0; k < 16; k++)
+		autonr_parm_p->motion_hp_ygain[k] = 64;
+	for (k = 0; k < 16; k++)
+		autonr_parm_p->motion_lp_cgain[k] = 64;
+	for (k = 0; k < 16; k++)
+		autonr_parm_p->motion_hp_cgain[k] = 64;
+	for (k = 0; k < 8; k++)
+		autonr_parm_p->apl_gain[k] = 32;
+
+	autonr_parm_p->motion_th[0] = 0;
+	autonr_parm_p->motion_th[1] = 1;
+	autonr_parm_p->motion_th[2] = 2;
+	autonr_parm_p->motion_th[3] = 4;
+	autonr_parm_p->motion_th[4] = 6;
+	autonr_parm_p->motion_th[5] = 8;
+	autonr_parm_p->motion_th[6] = 9;
+	autonr_parm_p->motion_th[7] = 10;
+	autonr_parm_p->motion_th[8] = 12;
+	autonr_parm_p->motion_th[9] = 14;
+	autonr_parm_p->motion_th[10] = 16;
+	autonr_parm_p->motion_th[11] = 18;
+	autonr_parm_p->motion_th[12] = 20;
+	autonr_parm_p->motion_th[13] = 34;
+	autonr_parm_p->motion_th[14] = 30;
+	pr_info("%s\n", __func__);
 }
 
 static void nr4_neparam_init(struct NR4_NEPARM_S *nr4_neparm_p)
@@ -1991,11 +2472,15 @@ void nr_drv_uninit(struct device *dev)
 		vfree(nr_param.pnr4_neparm);
 		nr_param.pnr4_neparm = NULL;
 	}
-
+	if (nr_param.pautonr_parm) {
+		vfree(nr_param.pautonr_parm);
+		nr_param.pautonr_parm = NULL;
+	}
 	device_remove_file(dev, &dev_attr_nr4_param);
 	device_remove_file(dev, &dev_attr_dnr_param);
 	device_remove_file(dev, &dev_attr_nr_debug);
 	device_remove_file(dev, &dev_attr_secam);
+	device_remove_file(dev, &dev_attr_autonr_param);
 }
 void nr_drv_init(struct device *dev)
 {
@@ -2029,7 +2514,22 @@ void nr_drv_init(struct device *dev)
 		else
 			nr4_neparam_init(nr_param.pnr4_neparm);
 	}
-
+	if (((IS_IC_EF(dil_get_cpuver_flag(), T3)) ||
+	     IS_IC(dil_get_cpuver_flag(), T5DB)) && autonr_en) {
+		nr_param.pautonr_parm = vmalloc(sizeof(struct AUTONR_PARM_S));
+		if (IS_ERR(nr_param.pautonr_parm)) {
+			pr_err("%s allocate autonr parm error.\n", __func__);
+		} else {
+			autonr_params_init_th(nr_param.pautonr_parm);
+			autonr_params_init_lp_ygain(nr_param.pautonr_parm);
+			autonr_params_init_hp_ygain(nr_param.pautonr_parm);
+			autonr_params_init_lp_cgain(nr_param.pautonr_parm);
+			autonr_params_init_hp_cgain(nr_param.pautonr_parm);
+			autonr_params_init_apl(nr_param.pautonr_parm);
+			autonr_param_init(nr_param.pautonr_parm);
+			device_create_file(dev, &dev_attr_autonr_param);
+		}
+	}
 	dnr_prm_init(&dnr_param);
 	nr_param.pdnr_parm = &dnr_param;
 	device_create_file(dev, &dev_attr_dnr_param);

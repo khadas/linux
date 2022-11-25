@@ -4265,47 +4265,52 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 		}
 		if (IS_ERR_OR_NULL(post_wr_buf))
 			return;
-		if (post_wr_buf && !ppre->cur_prog_flag &&
+		if (post_wr_buf &&
 		    !flg_timeout && ppre->di_inp_buf) {
-			dim_read_pulldown_info(&frame_motnum,
-					       &field_motnum);
-			if (dimp_get(edi_mp_pulldown_enable)) {
-				/*pulldown_detection*/
-				pd_info = get_ops_pd()->detection
-					(&post_wr_buf->pd_config,
-					 ppre->mtn_status,
-					 overturn,
-					 ppre->di_inp_buf->vframe);
-				post_wr_buf->vframe->di_pulldown = pd_info;
-			}
-			post_wr_buf->vframe->di_pulldown |= 0x08;
-
-			post_wr_buf->vframe->di_gmv = frame_motnum;
-			post_wr_buf->vframe->di_cm_cnt = dim_rd_mcdi_fldcnt();
-
-			/*if (combing_fix_en)*/
-			/*from T3 /t5db adaptive_combing_new from vlsi yanling*/
-			if (ppre->combing_fix_en) {
-				if ((DIM_IS_IC(T5DB) || DIM_IS_IC_EF(T3)) &&
-				    ppre->di_inp_buf->vframe->width == 1920 &&
-				    ppre->di_inp_buf->vframe->height == 1080) {
-					get_ops_mtn()->adaptive_combing_new
-						(field_motnum,
-						 frame_motnum);
-				} else {
-					tmp_cur_lev = /*cur_lev*/
-					get_ops_mtn()->adaptive_combing_fixing
-						(ppre->mtn_status,
-						 field_motnum,
-						 frame_motnum,
-						 dimp_get(edi_mp_di_force_bit_mode));
-					dimp_set(edi_mp_cur_lev, tmp_cur_lev);
+			if (!ppre->cur_prog_flag) {
+				dim_read_pulldown_info(&frame_motnum,
+						       &field_motnum);
+				if (dimp_get(edi_mp_pulldown_enable)) {
+					/*pulldown_detection*/
+					pd_info = get_ops_pd()->detection
+						(&post_wr_buf->pd_config,
+						 ppre->mtn_status,
+						 overturn,
+						 ppre->di_inp_buf->vframe);
+					post_wr_buf->vframe->di_pulldown = pd_info;
 				}
+				post_wr_buf->vframe->di_pulldown |= 0x08;
+
+				post_wr_buf->vframe->di_gmv = frame_motnum;
+				post_wr_buf->vframe->di_cm_cnt = dim_rd_mcdi_fldcnt();
+
+				/*if (combing_fix_en)*/
+				/*from T3 /t5db adaptive_combing_new from vlsi yanling*/
+				if (ppre->combing_fix_en) {
+					if ((DIM_IS_IC(T5DB) || DIM_IS_IC_EF(T3)) &&
+					    ppre->di_inp_buf->vframe->width == 1920 &&
+					    ppre->di_inp_buf->vframe->height == 1080) {
+						get_ops_mtn()->adaptive_combing_new
+							(field_motnum,
+							 frame_motnum);
+					} else {
+						tmp_cur_lev = /*cur_lev*/
+						get_ops_mtn()->adaptive_combing_fixing
+							(ppre->mtn_status,
+							 field_motnum,
+							 frame_motnum,
+							 dimp_get(edi_mp_di_force_bit_mode));
+						dimp_set(edi_mp_cur_lev, tmp_cur_lev);
+					}
+				}
+				if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX))
+					get_ops_nr()->adaptive_cue_adjust(frame_motnum,
+									  field_motnum);
 			}
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX))
-				get_ops_nr()->adaptive_cue_adjust(frame_motnum,
-								  field_motnum);
-			if (!(di_dbg & DBG_M_RESET_PRE))
+			/*from feijun for autonr t5db and eq/after t3 p mode*/
+			if (!(di_dbg & DBG_M_RESET_PRE) &&
+				(!ppre->cur_prog_flag ||
+				 DIM_IS_IC(T5DB) || DIM_IS_IC_EF(T3)))
 				dim_pulldown_info_clear_g12a(&di_pre_regset);
 		}
 		if (ppre->prog_proc_type == 0x10) {

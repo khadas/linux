@@ -26,9 +26,11 @@ struct nr_param_s {
 	int *addr;
 };
 
+#define AUTONR_PARAMS_NUM (90)	//87
 #define NR4_PARAMS_NUM (30)	//25
 #define dnr_param_t struct nr_param_s
 #define nr4_param_t struct nr_param_s
+#define autonr_param_t struct nr_param_s
 
 struct DNR_PARM_s {
 	int prm_sw_gbs_ctrl;
@@ -80,6 +82,15 @@ struct NR4_PARM_s {
 	unsigned int sw_nr4_scene_change_thd2;
 	/*u1, enable dm scene change check*/
 	unsigned int sw_dm_scene_change_en;
+};
+
+struct AUTONR_PARM_S {
+	int motion_th[15];
+	int motion_lp_ygain[16];
+	int motion_hp_ygain[16];
+	int motion_lp_cgain[16];
+	int motion_hp_cgain[16];
+	int apl_gain[8];
 };
 
 struct NR4_NEPARM_S {
@@ -138,6 +149,7 @@ struct NR_PARM_s {
 	bool           prog_flag;
 	struct DNR_PARM_s *pdnr_parm;
 	struct NR4_PARM_s *pnr4_parm;
+	struct AUTONR_PARM_S *pautonr_parm;
 	struct NR4_NEPARM_S *pnr4_neparm;
 	struct CUE_PARM_s *pcue_parm;
 	struct NR_CTRL_REGS_s *pnr_regs;
