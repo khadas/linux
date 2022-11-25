@@ -1693,21 +1693,27 @@ static void vd_proc_sr1_set(u32 vpp_index,
 	if (cur_dev->aisr_support)
 		rdma_wr_bits(vd_sr_reg->vd_proc_sr1_ctrl, 3, 4, 2);
 	tmp_data = rdma_rd(vd_sr_reg->srsharp1_sharp_sr2_ctrl);
-	if (vd_sr->sr_en) {
+	if (vd_sr->sr_support) {
 		if ((((tmp_data >> 5) & 0x1) !=
 			(vd_sr->v_scaleup_en & 0x1)) ||
 			(((tmp_data >> 4) & 0x1) !=
 			(vd_sr->h_scaleup_en & 0x1)) ||
+			((tmp_data & 0x1) ==
+			(vd_sr->h_scaleup_en & 0x1)) ||
 			(((tmp_data >> 2) & 0x1) != 1)) {
-			tmp_data &= ~0x34;
+			tmp_data = tmp_data & (~(1 << 5));
+			tmp_data = tmp_data & (~(1 << 4));
+			tmp_data = tmp_data & (~(1 << 2));
+			tmp_data = tmp_data & (~(1 << 0));
+
 			tmp_data |= ((vd_sr->v_scaleup_en & 0x1) << 5);
 			tmp_data |= ((vd_sr->h_scaleup_en & 0x1) << 4);
 			tmp_data |= (1 << 2);
+			tmp_data |=
+				(((~(vd_sr->h_scaleup_en & 0x1)) & 0x1) << 0);
+			rdma_wr(vd_sr_reg->srsharp1_sharp_sr2_ctrl, tmp_data);
 		}
-	} else {
-		tmp_data &= ~0x34;
 	}
-	rdma_wr(vd_sr_reg->srsharp1_sharp_sr2_ctrl, tmp_data);
 	if (debug_flag_s5 & DEBUG_VD_PROC)
 		pr_info("%s:sr_en:%d, vd_proc_s0_sr1_in_size: %x, sr support=%d\n",
 			__func__,
