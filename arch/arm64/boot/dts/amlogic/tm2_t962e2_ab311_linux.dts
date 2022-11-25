@@ -761,6 +761,7 @@
 		/* urgent_en; */
 		double_write_en;
 		v4l_support_en = <0>;
+		vdin_function_sel = <0x101>;
 	};
 
 	vdin@1 {

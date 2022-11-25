@@ -1446,6 +1446,7 @@
 	 */
 	cma_size = <300>;
 	frame_buff_num = <11>;
+	vdin_function_sel = <0x101>;
 };
 
 &vdin1 {

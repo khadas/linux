@@ -605,7 +605,7 @@
 		/* vdin_function_sel: (vdin special handle select)
 		 * bit0 -- vdin restart oneself when switch pc mode
 		 */
-		vdin_function_sel = <0x1>;
+		vdin_function_sel = <0x101>;
 	};
 
 	vdin@1 {

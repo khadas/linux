@@ -4652,6 +4652,8 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		    (devp->vdin_function_sel & VDIN_SELF_STOP_START)) {
 			if (devp->flags & VDIN_FLAG_DEC_STARTED) {
 				_video_set_disable(1);
+				/* disable video one vsync effective */
+				usleep_range(21000, 22000);
 				vdin_pc_mode = tmp;
 				devp->self_stop_start = 1;
 				vdin_self_stop_dec(devp);

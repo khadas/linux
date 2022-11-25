@@ -122,7 +122,8 @@
 /* 20221103: change pc mode variable to local */
 /* 20221109: interlace min buffer and 23.97 send event */
 /* 20221118: add path not lock and filter frame rate */
-#define VDIN_VER "20221118"
+/* 20221126: tvafe donot dynamically check aspect ratio */
+#define VDIN_VER "20221126"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -264,12 +265,15 @@ struct match_data_s {
 /* size for rdma table */
 #define RDMA_TABLE_SIZE			(PAGE_SIZE >> 3)
 /* #define VDIN_DEBUG */
+/* vdin_function_sel control bits start */
 #define VDIN_SELF_STOP_START		BIT(0)
 #define VDIN_VADJ1_TO_VD1		BIT(3)
 #define VDIN_ADJUST_VLOCK		BIT(4)
 #define VDIN_PROP_RX_UPDATE		BIT(5)
 #define VDIN_GAME_NOT_TANSFER		BIT(6) //control for tx output when game mode
 #define VDIN_FORCE_RGB_NOT_CONVERT	BIT(7) //commercial display control
+#define VDIN_NO_TVAFE_ASPECT_RATIO_CHK	BIT(8) //no tvafe aspect_ratio check
+/* vdin_function_sel control bits end */
 
 #define VDIN_2K_SIZE			0x07800438 /* 0x780 = 1920 0x438 = 1080 */
 #define VDIN_4K_SIZE			0x10000870 /* 0x1000 = 4096 0x870 = 2160 */
