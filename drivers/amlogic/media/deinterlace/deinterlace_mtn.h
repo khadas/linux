@@ -46,6 +46,7 @@ int adaptive_combing_fixing(
 	struct combing_status_s *cmb_status,
 	unsigned int field_diff, unsigned int frame_diff,
 	int bit_mode);
+void adaptive_combing_new(unsigned int field_diff, unsigned int frame_diff);
 void adpative_combing_exit(void);
 extern void mtn_int_combing_glbmot(void);
 void com_patch_pre_sw_set(unsigned int mode);

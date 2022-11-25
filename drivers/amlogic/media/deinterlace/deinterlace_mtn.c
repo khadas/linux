@@ -106,6 +106,18 @@ static int combing_dejaggy_setting[6] = {1, 1, 1, 2, 3, 3};
 module_param_array(combing_dejaggy_setting, uint,
 	&num_dejaggy_setting, 0664);
 static struct combing_param_s cmb_param;
+/*from T3 /t5db adaptive_combing_new from vlsi yanling*/
+static int combing_debug_print;
+module_param_named(combing_debug_print, combing_debug_print, int, 0664);
+static int rokuth_test = 10000;
+module_param_named(rokuth_test, rokuth_test, int, 0664);
+static int th = 200;
+module_param_named(th, th, int, 0664);
+static int th_cont = 10;
+module_param_named(th_cont, th_cont, int, 0664);
+static int change_th = 26;
+module_param_named(change_th, change_th, int, 0664);
+/*end*/
 
 static unsigned int combing_setting_masks[MAX_NUM_DI_REG] = {
 	0x0fffffff,
@@ -1040,6 +1052,84 @@ int adaptive_combing_fixing(
 	return 0;
 }
 
+void adaptive_combing_new(unsigned int field_diff,
+	unsigned int frame_diff)
+{
+	static int cont_change;
+	static int glb_mot_cont;
+
+	static int glb_mot[5] = {0, 0, 0, 0, 0};
+
+	glb_mot[1] = glb_mot[0];
+	glb_mot[0] = frame_diff;
+
+	if (glb_mot[1] - glb_mot[0] > glb_mot[0] * 10 &&
+		glb_mot[1] > rokuth_test){
+		cont_change = 1;
+		if (combing_debug_print)
+			pr_info("A mot[0]=0x%x,glb_mot[1]=0x%x,change=0x%x\n\n",
+				glb_mot[0], glb_mot[1], cont_change);
+	}
+	if (cont_change > 0) {
+		cont_change = cont_change + 1;
+		if (combing_debug_print)
+			pr_info("B mot[0]=0x%x,glb_mot[1]=0x%x,change=0x%x\n\n",
+				glb_mot[0], glb_mot[1], cont_change);
+	}
+	if (cont_change > change_th) {
+		cont_change = 0;
+		if (combing_debug_print)
+			pr_info("c mot[0]=0x%x,glb_mot[1]=0x%x,change=0x%x\n\n",
+				glb_mot[0], glb_mot[1], cont_change);
+	}
+	if (glb_mot[0] > th) {
+		glb_mot_cont  = MIN(20, glb_mot_cont  + 1);
+		if (combing_debug_print)
+			pr_info("d glb_mot[0]=0x%x,glb_mot_cont=0x%x\n\n",
+				glb_mot[0], glb_mot_cont);
+
+	} else {
+		if (combing_debug_print)
+			pr_info("e glb_mot[0]=0x%x,glb_mot_cont=0x%x\n\n",
+				glb_mot[0], glb_mot_cont);
+		glb_mot_cont = 0;
+	}
+	if ((glb_mot_cont < th_cont || glb_mot[0] < th) || cont_change > 0) {
+		DI_Wr(0x1741, 0x1A1A3A62);
+		DI_Wr(0x1742, 0x15200101);
+		DI_Wr(0x1743, 0x01200440);
+		DI_Wr(0x1744, 0x74200D0D);
+		DI_Wr(0x17ad, 0x02020606);
+		DI_Wr(0x17ae, 0x05080304);
+		DI_Wr(0x17a9, 0x0D5A1520);
+		DI_Wr(0x17aa, 0x0A0A0201);
+		DI_Wr(0x17ab, 0x1A1A2662);
+		DI_Wr(0x17ac, 0x0D200302);
+		DI_Wr(0x17af, 0x40020a04);
+		//pr_info("F TEST\n");
+	} else {
+		DI_Wr(0x1741, 0x0A0A1A22);
+		DI_Wr(0x1742, 0x0a100101);
+		DI_Wr(0x1743, 0x01020420);
+		DI_Wr(0x1744, 0x32210404);
+		DI_Wr(0x17ad, 0x04040606);
+		DI_Wr(0x17ae, 0x02030202);
+		DI_Wr(0x17a9, 0x0a100505);
+		DI_Wr(0x17aa, 0x04040101);
+		DI_Wr(0x17ab, 0x0a0a0a0a);
+		DI_Wr(0x17ac, 0x0f100101);
+		DI_Wr(0x17af, 0x60020a60);
+		//pr_info("G TEST\n");
+	}
+
+	if (combing_debug_print) {
+		pr_info("f cont=0x%x,change=0x%x\n\n",
+			glb_mot_cont, cont_change);
+		pr_info("0x17ad=0x%x,0x17ae=0x%x\n\n",
+			Rd(DI_MTN_1_CTRL10), Rd(DI_MTN_1_CTRL11));
+	}
+}
+
 #ifdef DEBUG_SUPPORT
 module_param_named(cmb_adpset_cnt, cmb_adpset_cnt, int, 0644);
 #endif
@@ -1048,6 +1138,7 @@ static const struct mtn_op_s di_ops_mtn = {
 	.adpative_combing_exit		= adpative_combing_exit,
 	.fix_tl1_1080i_patch_sel	= fix_tl1_1080i_patch_sel,
 	.adaptive_combing_fixing	= adaptive_combing_fixing,
+	.adaptive_combing_new		= adaptive_combing_new,
 	.adpative_combing_config	= adpative_combing_config,
 	.com_patch_pre_sw_set		= com_patch_pre_sw_set,
 	/*.module_para			= dim_seq_file_module_para_mtn,*/

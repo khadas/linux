@@ -148,6 +148,8 @@ struct mtn_op_s {
 		struct combing_status_s *cmb_status,
 		unsigned int field_diff, unsigned int frame_diff,
 		int bit_mode);
+	void (*adaptive_combing_new)(unsigned int field_diff,
+				unsigned int frame_diff);
 	/*adpative_combing_config*/
 	struct combing_status_s *
 		(*adpative_combing_config)(unsigned int width,
