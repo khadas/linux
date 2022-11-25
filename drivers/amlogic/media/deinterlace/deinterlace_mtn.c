@@ -367,7 +367,7 @@ static unsigned int combing_very_p_480i[] = {
 	0x0A0A0201,	/* 6 */
 	0x1A1A2662,	/* 7 */
 	0x0D200302,	/* 8 */
-	0x02020606,	/* 9 */
+	0x04040606,	/* 9 */
 	0x05080344,	/* 10 */
 	/*idea from mingliang.dong & vlsi zheng.bao begin*/
 	0x60000404, /* 0x40020a04*/
