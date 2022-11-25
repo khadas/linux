@@ -1428,6 +1428,7 @@ struct file_private_data *v4lvideo_get_file_private_data(struct file *file_vf,
 		kfree((u8 *)file_private_data);
 		return NULL;
 	}
+	memset(&info, 0, sizeof(struct uvm_hook_mod_info));
 	info.type = VF_PROCESS_V4LVIDEO;
 	info.arg = file_private_data;
 	info.free = free_fd_private;

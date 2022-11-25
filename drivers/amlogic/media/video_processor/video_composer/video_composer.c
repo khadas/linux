@@ -619,7 +619,7 @@ static int vc_init_dewarp_buffer(struct composer_dev *dev, bool is_tvp, size_t u
 static int vc_init_vicp_buffer(struct composer_dev *dev, bool is_tvp, size_t usage)
 {
 	int i, j, flags;
-	u32 buf_addr;
+	u32 buf_addr = 0;
 	u32 buf_width, buf_height, buf_size;
 	struct vinfo_s *video_composer_vinfo;
 	struct vinfo_s vinfo = {.width = 1280, .height = 720, };
@@ -1704,7 +1704,7 @@ static void vframe_composer(struct composer_dev *dev)
 	bool is_tvp = false;
 	bool need_dw = false;
 	bool is_fixtunnel = false;
-	int transform;
+	int transform = 0;
 	struct dewarp_composer_para dewarp_param;
 	struct composer_vf_para vframe_para;
 	struct vicp_data_config_t data_config;
@@ -1891,6 +1891,8 @@ static void vframe_composer(struct composer_dev *dev)
 
 		if (dev->is_dewarp_support && composer_dev_choice == 0) {
 			memset(&vframe_para, 0, sizeof(vframe_para));
+			memset(&dewarp_param, 0, sizeof(struct dewarp_composer_para));
+			/*coverity[var_deref_model] config_dewarp_vframe has null pointer judge*/
 			config_dewarp_vframe(dev->index, transform, scr_vf, dst_buf, &vframe_para);
 			dewarp_param.vf_para = &vframe_para;
 			dewarp_param.vc_index = dev->index;
@@ -1898,7 +1900,7 @@ static void vframe_composer(struct composer_dev *dev)
 			ret = dewarp_data_composer(&dewarp_param);
 			if (ret < 0)
 				vc_print(dev->index, PRINT_ERROR, "dewarp composer failed\n");
-
+			/*coverity[double_free] The code of double free cannot be reached*/
 			uninit_dewarp_composer(&dewarp_param);
 		} else if (is_vicp_supported() && composer_dev_choice == 1 && transform == 0) {
 			memset(&data_config, 0, sizeof(struct vicp_data_config_t));
