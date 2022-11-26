@@ -1002,9 +1002,28 @@ static ssize_t amvecm_frame_lock_store(struct class *cla,
 
 /* #endif */
 
+unsigned int pr_hist;
+/* return lum_ave:
+ * -1: no vframe, error ave
+ * 0~255: 8bit ave = lum_sum/pixel_sum
+ */
+static int lum_ave = -1;
+
+int get_lum_ave(void)
+{
+	return lum_ave;
+}
+EXPORT_SYMBOL(get_lum_ave);
+
+void set_lum_ave(int ave)
+{
+	lum_ave = ave;
+}
+
 static void vpp_backup_histgram(struct vframe_s *vf)
 {
 	unsigned int i = 0;
+	int ave;
 
 	vpp_hist_param.vpp_hist_pow = vf->prop.hist.hist_pow;
 	vpp_hist_param.vpp_luma_sum = vf->prop.hist.vpp_luma_sum;
@@ -1017,6 +1036,28 @@ static void vpp_backup_histgram(struct vframe_s *vf)
 		vpp_hist_param.hue_histgram[i] = vf->prop.hist.vpp_hue_gamma[i];
 	for (i = 0; i < 32; i++)
 		vpp_hist_param.sat_histgram[i] = vf->prop.hist.vpp_sat_gamma[i];
+
+	if (vpp_hist_param.vpp_pixel_sum == 0)
+		ave = 0;
+	else
+		ave = vpp_hist_param.vpp_luma_sum / vpp_hist_param.vpp_pixel_sum;
+
+	set_lum_ave(ave);
+
+	if (pr_hist) {
+		for (i = 0; i < 8; i++) {
+			pr_info("%d, %d, %d, %d, %d, %d, %d, %d\n",
+				vpp_hist_param.vpp_histgram[i * 8 + 0],
+				vpp_hist_param.vpp_histgram[i * 8 + 1],
+				vpp_hist_param.vpp_histgram[i * 8 + 2],
+				vpp_hist_param.vpp_histgram[i * 8 + 3],
+				vpp_hist_param.vpp_histgram[i * 8 + 4],
+				vpp_hist_param.vpp_histgram[i * 8 + 5],
+				vpp_hist_param.vpp_histgram[i * 8 + 6],
+				vpp_hist_param.vpp_histgram[i * 8 + 7]);
+			pr_info("ave = %d\n", ave);
+		}
+	}
 }
 
 static void vpp_dump_histgram(void)
@@ -2166,6 +2207,8 @@ EXPORT_SYMBOL(amvecm_on_vs);
 
 void refresh_on_vs(struct vframe_s *vf, struct vframe_s *rpt_vf)
 {
+	int ave = -1;
+
 	if (probe_ok == 0)
 		return;
 
@@ -2189,6 +2232,7 @@ void refresh_on_vs(struct vframe_s *vf, struct vframe_s *rpt_vf)
 		pattern_detect(vf ? vf : rpt_vf);
 	} else {
 		ve_hist_gamma_reset();
+		set_lum_ave(ave);
 	}
 }
 EXPORT_SYMBOL(refresh_on_vs);
@@ -8806,6 +8850,13 @@ static ssize_t amvecm_debug_store(struct class *cla,
 				dynamic_gamma_num, i, gt.gm_tb[dynamic_gamma_num][1].data[i],
 				dynamic_gamma_num, i, gt.gm_tb[dynamic_gamma_num][2].data[i]);
 		}
+	} else if (!strcmp(parm[0], "pr_hist")) {
+		if (parm[1]) {
+			if (kstrtoul(parm[1], 10, &val) < 0)
+				goto free_buf;
+		}
+		pr_hist = (uint)val;
+		pr_info("pr_hist = %d\n", pr_hist);
 	} else {
 		pr_info("unsupport cmd\n");
 	}
