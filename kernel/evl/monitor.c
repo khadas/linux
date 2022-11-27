@@ -418,7 +418,7 @@ static int signal_monitor_ungated(struct evl_monitor *event, s32 sigval)
 		raw_spin_lock_irqsave(&event->wait_queue.wchan.lock, flags);
 		val = set_event_mask(state, (int)sigval);
 		if (val)
-			evl_flush_wait_locked(&event->wait_queue, 0);
+			evl_wake_up_head(&event->wait_queue);
 		else
 			pollable = false;
 		raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock, flags);
