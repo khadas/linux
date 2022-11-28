@@ -759,6 +759,10 @@ static int smc_hw_set_param(struct smc_dev *smc)
 	    clk_get_rate(aml_smartcard_clk) / 1000 * DIV_SMC;
 
 	pr_error("hw set param\n");
+	if (smc->param.freq == 0 || smc->param.d == 0) {
+		pr_error("hw set param, freq or d = 0 invalid\n");
+		return 0;
+	}
 
 	v = SMC_READ_REG(REG0);
 	reg0 = (struct SMCCARD_HW_REG0 *)&v;

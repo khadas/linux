@@ -977,9 +977,8 @@ static ssize_t pins_mode_store(struct class *class,
 	if (valid) {
 		mutex_lock(&smc_lock);
 		smc = &smc_dev[0];
-		if (smc->pinctrl && pins_set(smc->pinctrl, name) == 0) {
+		if (smc->pinctrl && pins_set(smc->pinctrl, name) == 0)
 			save_pin_mode(buf);
-		}
 		mutex_unlock(&smc_lock);
 	}
 	return count;
@@ -1142,8 +1141,8 @@ static int smc_hw_set_param(struct smc_dev *smc)
 	unsigned long freq_cpu = 0;
 
 	pr_error("hw set param\n");
-	if (smc->param.freq == 0) {
-		pr_error("hw set param, freq = 0 invalid\n");
+	if (smc->param.freq == 0 || smc->param.d == 0) {
+		pr_error("hw set param, freq or d = 0 invalid\n");
 		return 0;
 	}
 
@@ -1391,7 +1390,7 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 	reg_int->cwt_expired_int_mask = 1;
 	reg_int->bwt_expired_int_mask = 1;
 	reg_int->write_full_fifo_int_mask = 1;
-	reg_int->send_and_recv_confilt_int_mask = 1;
+	reg_int->send_and_recv_conflict_int_mask = 1;
 	reg_int->recv_error_int_mask = 1;
 	reg_int->send_error_int_mask = 1;
 	reg_int->rst_expired_int_mask = 1;
@@ -1566,7 +1565,7 @@ static int smc_hw_get(struct smc_dev *smc, int cnt, int timeout)
 {
 	unsigned int sc_status;
 	unsigned int rev_status;
-	s64 char_nsec = timeout * 1000;
+	s64 char_nsec = (s64)timeout * 1000;
 	s64 prev_time_nsec;
 	int times = timeout / 10;
 	struct smc_status_reg *sc_status_reg =
