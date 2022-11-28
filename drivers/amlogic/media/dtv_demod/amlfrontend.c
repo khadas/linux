@@ -218,6 +218,7 @@ static void real_para_clear(struct aml_demod_para_real *para)
 	para->snr = 0;
 	para->plp_num = 0;
 	para->fef_info = 0;
+	para->tps_cell_id = 0;
 }
 
 //static void dtvdemod_do_8vsb_rst(void)
@@ -966,6 +967,9 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			| dvbt_t2_rdb(CHC_CIR_SNR0)) * 30 / 64;
 		demod->real_para.modulation = dvbt_t2_rdb(0x2912) & 0x3;
 		demod->real_para.coderate = dvbt_t2_rdb(0x2913) & 0x7;
+		demod->real_para.tps_cell_id =
+			(dvbt_t2_rdb(0x2916) & 0xff) |
+			((dvbt_t2_rdb(0x2915) & 0xff) << 8);
 	} else {
 		if (timer_not_enough(demod, D_TIMER_DETECT)) {
 			ilock = 0;
@@ -7241,9 +7245,11 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 			else
 				tvp->reserved[1] = 0xFF;
 
-			PR_DVBT("[id %d] get delsys:%d,modulation:%d,code_rate:%d.\n",
+			tvp->reserved[2] = demod->real_para.tps_cell_id;
+
+			PR_DVBT("[id %d] get delsys:%d,modulation:%d,code_rate:%d,cell_id:%d.\n",
 					demod->id, tvp->u.data,
-					tvp->reserved[0], tvp->reserved[1]);
+					tvp->reserved[0], tvp->reserved[1], tvp->reserved[2]);
 		} else if ((demod->last_delsys == SYS_DVBC_ANNEX_A ||
 			demod->last_delsys == SYS_DVBC_ANNEX_C) &&
 			demod->last_status == 0x1F) {

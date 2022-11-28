@@ -8,6 +8,9 @@
 #include <linux/string.h>
 #include <linux/dma-mapping.h>
 #include <linux/amlogic/aml_dtvdemod.h>
+#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
+#include <linux/amlogic/dmc_dev_access.h>
+#endif
 #include "dvbs.h"
 #include "demod_func.h"
 #include "amlfrontend.h"
@@ -18,6 +21,10 @@
 
 static unsigned int dtmb_mode;
 static unsigned int atsc_mode_para;
+
+static unsigned long demod_dmc_id;
+static unsigned int demod_ddr_addr;
+static unsigned int demod_ddr_size;
 
 MODULE_PARM_DESC(testbus_addr, "\n\t\t testbus_addr");
 static unsigned int testbus_addr = 0x1000;
@@ -780,7 +787,11 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 		front_write_bits(0x3a, 1, 13, 1);
 	else
 		front_write_bits(0x3a, 0, 13, 1);
-	start_addr = devp->mem_start;
+
+	if (!demod_ddr_addr)
+		start_addr = devp->mem_start;
+	else
+		start_addr = demod_ddr_addr;
 
 	switch (demod->last_delsys) {
 	case SYS_DTMB:
@@ -809,7 +820,11 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 		break;
 	}
 
-	size = devp->mem_size - offset;
+	if (!demod_ddr_size)
+		size = devp->mem_size - offset;
+	else
+		size = demod_ddr_size;
+
 	PR_INFO("%s: capture_mode:%d, test_mode:%d, addr offset:%dM, cap_size:%dM.\n",
 			__func__, capture_mode, test_mode, offset / SZ_1M, size / SZ_1M);
 	start_addr += offset;
@@ -1474,6 +1489,8 @@ static ssize_t attr_store(struct class *cls, struct class_attribute *attr,
 	} else if (!strcmp(parm[0], "timeout_ddr_leave")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
 			demod->timeout_ddr_leave = val;
+	} else if (!strcmp(parm[0], "register_dmc")) {
+		demod_dmc_notifier();
 	} else {
 		PR_INFO("invalid command: %s.\n", parm[0]);
 	}
@@ -1778,3 +1795,69 @@ void aml_demod_dbg_exit(void)
 		debugfs_remove_recursive(root_entry);
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
+static int demod_dmc_dev_access_notify(struct notifier_block *nb, unsigned long id, void *data)
+{
+	struct dmc_dev_access_data *dmc = (struct dmc_dev_access_data *)data;
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
+
+	if (unlikely(!devp)) {
+		PR_ERR("\n\n\n%s: devp is NULL, demod is not load!!!\n", __func__);
+		PR_ERR("%s: devp is NULL, demod is not load!!!\n", __func__);
+		PR_ERR("%s: devp is NULL, demod is not load!!!\n\n\n", __func__);
+
+		return 0;
+	}
+
+	list_for_each_entry(tmp, &devp->demod_list, list) {
+		if (tmp->id == 0) {
+			demod = tmp;
+			break;
+		}
+	}
+
+	if (!demod || demod->last_delsys == SYS_UNDEFINED) {
+		PR_ERR("\n\n\n%s: demod is not work, please scan and channel!!!\n", __func__);
+		PR_ERR("%s: demod is not work, please scan and channel!!!\n", __func__);
+		PR_ERR("%s: demod is not work, please scan and channel!!!\n\n\n", __func__);
+
+		return 0;
+	}
+
+	if (demod_dmc_id == id) {
+		PR_ERR("%s: id (%ld) == demod_dmc_id (%ld).\n", __func__, id, demod_dmc_id);
+
+		demod_ddr_addr = dmc->addr;
+		demod_ddr_size = dmc->size;
+
+		capture_adc_data_once("/data/hdcp_dump.bin", 3, 0);
+
+		demod_ddr_addr = 0;
+		demod_ddr_size = 0;
+	}
+
+	return 0;
+}
+
+static struct notifier_block demod_dmc_dev_access_nb = {
+	.notifier_call = demod_dmc_dev_access_notify,
+};
+#endif
+
+void demod_dmc_notifier(void)
+{
+	demod_dmc_id = 0;
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
+	if (is_meson_t5w_cpu())
+		demod_dmc_id = register_dmc_dev_access_notifier("DEVICE0",
+				&demod_dmc_dev_access_nb);
+	else if (is_meson_t3_cpu())
+		demod_dmc_id = register_dmc_dev_access_notifier("DEMOD",
+				&demod_dmc_dev_access_nb);
+	else
+		demod_dmc_id = register_dmc_dev_access_notifier("DEVICE",
+				&demod_dmc_dev_access_nb);
+#endif
+}

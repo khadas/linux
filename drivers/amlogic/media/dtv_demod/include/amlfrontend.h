@@ -63,6 +63,7 @@
 /*  V1.1.69  fixed atsc agc speed test */
 /*  V1.1.70  improve diseqc lnb control */
 /*  V1.1.71  fix dvbt2 ddr abnormal access */
+/*  V1.1.72  add tps cell id info and dmc notifier test */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -79,8 +80,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.71"
-#define DTVDEMOD_VER	"2022/12/06: fix dvbt2 ddr abnormal access"
+#define AMLDTVDEMOD_VER "V1.1.72"
+#define DTVDEMOD_VER	"2022/12/13: add tps cell id info and dmc notifier test"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -230,6 +231,7 @@ struct aml_demod_para_real {
 	u32_t snr;
 	u32_t plp_num;
 	u32_t fef_info;
+	u32_t tps_cell_id;
 };
 
 #define CAP_NAME_LEN	100
