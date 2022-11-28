@@ -771,6 +771,20 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 
 	raw_spin_lock_irqsave(&mutex->wchan.lock, flags);
 
+	/*
+	 * We might have acquired the lock earlier from user-space via
+	 * the fast procedure, releasing it now from kernel space -
+	 * this pattern typically happens with the event monitor,
+	 * e.g. fast_lock(x) -> signal(event) -> slow_unlock(x). In
+	 * this case, the owner field into the wait channel might be
+	 * unset if the lock was uncontended, although our caller has
+	 * checked that the atomic handle does match current's
+	 * fundle. If so, skip the PI/PP deboosting, no boost can be
+	 * in effect for such lock.
+	 */
+	if (mutex->wchan.owner == NULL)
+		goto release;
+
 	if (EVL_WARN_ON(CORE, mutex->wchan.owner != curr))
 		goto out;
 
@@ -803,6 +817,7 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 	 * Allow the first waiter in line to retry acquiring the
 	 * mutex.
 	 */
+release:
 	if (!list_empty(&mutex->wchan.wait_list)) {
 		top_waiter = list_get_entry_init(&mutex->wchan.wait_list,
 				struct evl_thread, wait_next);
