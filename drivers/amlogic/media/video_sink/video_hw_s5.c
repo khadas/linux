@@ -7925,8 +7925,11 @@ void canvas_update_for_mif_slice(struct video_layer_s *layer,
 				vf,
 				0,
 				slice);
-			layer->mif_setting.block_mode =
-				cs0[0].blkmode;
+			if (layer->mif_setting.block_mode != cs0[0].blkmode) {
+				layer->mif_setting.block_mode = cs0[0].blkmode;
+				vd_set_blk_mode_s5(layer,
+					layer->mif_setting.block_mode);
+			}
 		}
 	} else {
 		vframe_canvas_set
@@ -7940,8 +7943,13 @@ void canvas_update_for_mif_slice(struct video_layer_s *layer,
 				vf,
 				0,
 				slice);
-			layer->mif_setting.block_mode =
-				vf->canvas0_config[0].block_mode;
+			if (layer->mif_setting.block_mode !=
+				vf->canvas0_config[0].block_mode) {
+				layer->mif_setting.block_mode =
+					vf->canvas0_config[0].block_mode;
+				vd_set_blk_mode_s5(layer,
+					layer->mif_setting.block_mode);
+			}
 		}
 	}
 }

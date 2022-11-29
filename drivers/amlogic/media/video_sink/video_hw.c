@@ -8380,8 +8380,11 @@ static void canvas_update_for_mif(struct video_layer_s *layer,
 				&cs0[0], &cs1[0], &cs2[0],
 				vf,
 				0);
-			layer->mif_setting.block_mode =
-				cs0[0].blkmode;
+			if (layer->mif_setting.block_mode != cs0[0].blkmode) {
+				layer->mif_setting.block_mode = cs0[0].blkmode;
+				vd_set_blk_mode(layer,
+					layer->mif_setting.block_mode);
+			}
 		}
 	} else {
 		vframe_canvas_set
@@ -8394,8 +8397,13 @@ static void canvas_update_for_mif(struct video_layer_s *layer,
 				vf->plane_num,
 				vf,
 				0);
-			layer->mif_setting.block_mode =
-				vf->canvas0_config[0].block_mode;
+			if (layer->mif_setting.block_mode !=
+				vf->canvas0_config[0].block_mode) {
+				layer->mif_setting.block_mode =
+					vf->canvas0_config[0].block_mode;
+				vd_set_blk_mode(layer,
+					layer->mif_setting.block_mode);
+			}
 		}
 	}
 }
@@ -8433,8 +8441,13 @@ static void canvas_update_for_3d(struct video_layer_s *layer,
 					&cs0[1], &cs1[1], &cs2[1],
 					vf,
 					0);
-				vd_layer[1].mif_setting.block_mode =
-					vf->canvas1_config[0].block_mode;
+				if (vd_layer[1].mif_setting.block_mode !=
+				    cs0[1].blkmode) {
+					vd_layer[1].mif_setting.block_mode =
+						cs0[1].blkmode;
+					vd_set_blk_mode(&vd_layer[1],
+						vd_layer[1].mif_setting.block_mode);
+				}
 			}
 			set_vd_mif_linear_cs(&vd_layer[0],
 				&cs0[0], &cs1[0], &cs2[0],
@@ -8481,8 +8494,13 @@ static void canvas_update_for_3d(struct video_layer_s *layer,
 					vf->plane_num,
 					vf,
 					0);
-				vd_layer[1].mif_setting.block_mode =
-					vf->canvas1_config[0].block_mode;
+				if (vd_layer[1].mif_setting.block_mode !=
+					vf->canvas1_config[0].block_mode) {
+					vd_layer[1].mif_setting.block_mode =
+						vf->canvas1_config[0].block_mode;
+					vd_set_blk_mode(&vd_layer[1],
+						vd_layer[1].mif_setting.block_mode);
+				}
 			}
 			set_vd_mif_linear(&vd_layer[0],
 				&vf->canvas0_config[0],
@@ -8529,7 +8547,7 @@ static void canvas_update_for_3d(struct video_layer_s *layer,
 int set_layer_display_canvas_s5(struct video_layer_s *layer,
 			     struct vframe_s *vf,
 			     struct vpp_frame_par_s *cur_frame_par,
-			     struct disp_info_s *disp_info)
+			     struct disp_info_s *disp_info, u32 line)
 {
 	u32 *cur_canvas_tbl;
 	u8 cur_canvas_id;
@@ -8552,7 +8570,7 @@ int set_layer_display_canvas_s5(struct video_layer_s *layer,
 				temp_slice = slice;
 
 			set_layer_slice_display_canvas_s5(layer, vf,
-				cur_frame_par, disp_info, temp_slice);
+				cur_frame_par, disp_info, temp_slice, line);
 		}
 		return 0;
 	}
@@ -8598,6 +8616,20 @@ int set_layer_display_canvas_s5(struct video_layer_s *layer,
 
 	if (update_mif) {
 		canvas_update_for_mif(layer, vf);
+		vpp_trace_vframe("swap_vf", (void *)vf, vf->type, vf->flag, layer_id, 0);
+		if (layer->global_debug & DEBUG_FLAG_PRINT_FRAME_DETAIL) {
+			struct canvas_s tmp;
+
+			canvas_read(cur_canvas_tbl[0], &tmp);
+			pr_info("%s %d: vf:%px, y:%02x, adr:0x%lx, canvas0Addr:%x, pnum:%d, type:%x, flag:%x, afbc:0x%lx-0x%lx, vf->vf_ext:%px, line:%d\n",
+				__func__, layer_id, vf,
+				cur_canvas_tbl[0], tmp.addr,
+				vf->canvas0Addr, vf->plane_num,
+				vf->type, vf->flag,
+				vf->compHeadAddr, vf->compBodyAddr,
+				vf->vf_ext, line);
+		}
+
 		if (layer_id == 0 &&
 		    (is_mvc || process_3d_type))
 			canvas_update_for_3d(layer, vf,
@@ -8660,7 +8692,7 @@ int set_layer_slice_display_canvas_s5(struct video_layer_s *layer,
 			     struct vframe_s *vf,
 			     struct vpp_frame_par_s *cur_frame_par,
 			     struct disp_info_s *disp_info,
-			     u32 slice)
+			     u32 slice, u32 line)
 {
 	u32 *cur_canvas_tbl;
 	u8 cur_canvas_id;
@@ -8708,6 +8740,19 @@ int set_layer_slice_display_canvas_s5(struct video_layer_s *layer,
 
 	if (update_mif) {
 		canvas_update_for_mif_slice(layer, vf, slice);
+		vpp_trace_vframe("swap_vf", (void *)vf, vf->type, vf->flag, layer_id, 0);
+		if (layer->global_debug & DEBUG_FLAG_PRINT_FRAME_DETAIL) {
+			struct canvas_s tmp;
+
+			canvas_read(cur_canvas_tbl[0], &tmp);
+			pr_info("%s %d: vf:%px, y:%02x, adr:0x%lx, canvas0Addr:%x, pnum:%d, type:%x, flag:%x, afbc:0x%lx-0x%lx, vf->vf_ext:%px, line:%d\n",
+				__func__, layer_id, vf,
+				cur_canvas_tbl[0], tmp.addr,
+				vf->canvas0Addr, vf->plane_num,
+				vf->type, vf->flag,
+				vf->compHeadAddr, vf->compBodyAddr,
+				vf->vf_ext, line);
+		}
 
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_mif_reg->vd_if0_canvas0,
@@ -8756,7 +8801,7 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 
 	if (cur_dev->display_module == S5_DISPLAY_MODULE)
 		return set_layer_display_canvas_s5(layer,
-			vf, cur_frame_par, disp_info);
+			vf, cur_frame_par, disp_info, line);
 
 	layer_id = layer->layer_id;
 	if (layer_id >= MAX_VD_LAYER)

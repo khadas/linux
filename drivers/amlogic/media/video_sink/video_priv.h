@@ -722,7 +722,7 @@ int set_layer_slice_display_canvas_s5(struct video_layer_s *layer,
 			     struct vframe_s *vf,
 			     struct vpp_frame_par_s *cur_frame_par,
 			     struct disp_info_s *disp_info,
-			     u32 slice);
+			     u32 slice, u32 line);
 u32 *get_canvase_tbl(u8 layer_id);
 s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		     bool force_toggle,
