@@ -55,6 +55,10 @@ void save_iomap_info(unsigned long virt_addr, unsigned long phys_addr,
 
 bool notrace is_noret_smcid(unsigned long smcid);
 
+bool is_shutdown_reboot(void);
+
+bool is_cold_boot(void);
+
 //#define SKIP_IO_TRACE
 #if (defined CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE) && (!defined SKIP_IO_TRACE)
 #define pstore_ftrace_io_wr(reg, val)	\

@@ -571,6 +571,16 @@ static int __init reboot_mode_setup(char *s)
 }
 __setup("reboot_mode=", reboot_mode_setup);
 
+bool is_shutdown_reboot(void)
+{
+	return !strcmp(reboot_mode, "shutdown_reboot");
+}
+
+bool is_cold_boot(void)
+{
+	return !strcmp(reboot_mode, "cold_boot");
+}
+
 static void dump_reg_compatible(void)
 {
 #ifdef CONFIG_ARM64

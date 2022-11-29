@@ -31,6 +31,11 @@
  * @size:
  *	number of valid bytes stored in @data
  */
+
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#include <linux/amlogic/debug_ftrace_ramoops.h>
+#endif
+
 struct persistent_ram_buffer {
 	uint32_t    sig;
 	atomic_t    start;
@@ -295,6 +300,11 @@ void persistent_ram_save_old(struct persistent_ram_zone *prz)
 	struct persistent_ram_buffer *buffer = prz->buffer;
 	size_t size = buffer_size(prz);
 	size_t start = buffer_start(prz);
+
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	if (is_shutdown_reboot() || is_cold_boot())
+		return;
+#endif
 
 	if (!size)
 		return;
