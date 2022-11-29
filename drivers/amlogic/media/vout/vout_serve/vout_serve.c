@@ -64,7 +64,7 @@ static unsigned int vs_meas_en;
 static bool disable_modesysfs;
 static bool enable_debugmode;
 
-int vout_debug_print = 1;
+int vout_debug_print;
 
 /* **********************************************************
  * null display support
