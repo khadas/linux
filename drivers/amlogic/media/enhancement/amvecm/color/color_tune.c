@@ -27,10 +27,12 @@
 #include "../amve.h"
 
 #define CT_DRV_VER "color tune drv ver: 2022-02-24-v1"
-static int (*plut)[3];
-static unsigned int (*plut_out)[3];
+int (*plut)[3];
+unsigned int (*plut_out)[3];
 
 static struct color_param_s ct_parm = {
+	.en = 1,
+
 	.rgain_r = 614,
 	.rgain_g = -102,
 	.rgain_b = 512,
@@ -111,8 +113,42 @@ void ct_process(void)
 	struct ct_func_s *ct_func;
 
 	ct_func = get_ct_func();
+
+	if (!plut || !plut_out) {
+		pr_info("ct_func or plut_out is null,ct process ruturn!!!\n");
+		return;
+	}
+
 	ct_func->ct(ct_func->cl_par, plut, plut_out);
-	vpp_set_lut3d(0, 0, plut_out, 0);
+	//vpp_set_lut3d(0, 0, plut_out, 0);
+}
+
+void ct_parm_set(struct color_param_s *param)
+{
+	ct_parm.en = param->en;
+	ct_parm.rgain_r = param->rgain_r;
+	ct_parm.rgain_g = param->rgain_g;
+	ct_parm.rgain_b = param->rgain_b;
+
+	ct_parm.ggain_r = param->ggain_r;
+	ct_parm.ggain_g = param->ggain_g;
+	ct_parm.ggain_b = param->ggain_b;
+
+	ct_parm.bgain_r = param->bgain_r;
+	ct_parm.bgain_g = param->bgain_g;
+	ct_parm.bgain_b = param->bgain_b;
+
+	ct_parm.cgain_r = param->cgain_r;
+	ct_parm.cgain_g = param->cgain_g;
+	ct_parm.cgain_b = param->cgain_b;
+
+	ct_parm.mgain_r = param->mgain_r;
+	ct_parm.mgain_g = param->mgain_g;
+	ct_parm.mgain_b = param->mgain_b;
+
+	ct_parm.ygain_r = param->ygain_r;
+	ct_parm.ygain_g = param->ygain_g;
+	ct_parm.ygain_b = param->ygain_b;
 }
 
 int ct_dbg(char **parm)

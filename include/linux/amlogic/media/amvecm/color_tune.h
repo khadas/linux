@@ -7,6 +7,7 @@
 #define COLOR_TUNE_H
 
 struct color_param_s {
+	int en;
 	int rgain_r;
 	int rgain_g;
 	int rgain_b;
@@ -37,9 +38,14 @@ struct ct_func_s {
 	void (*ct)(struct color_param_s *parm, int (*lut3di)[3], unsigned int (*lut3do)[3]);
 };
 
+extern int (*plut)[3];
+extern unsigned int (*plut_out)[3];
+
 struct ct_func_s *get_ct_func(void);
 void color_lut_init(unsigned int en);
 int ct_dbg(char **param);
 void lut_release(void);
+void ct_process(void);
+void ct_parm_set(struct color_param_s *param);
 #endif
 

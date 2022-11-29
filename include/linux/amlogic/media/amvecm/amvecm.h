@@ -108,6 +108,7 @@ void amdv_set_toggle_flag(int flag);
  *#define VPP_VADJ1_BLMINUS_EN        (1 << 1)
  *#define VPP_VADJ1_EN                (1 << 0)
  */
+#define LUT3D_UPDATE                BIT(13)
 #define GAMMA_CRC_FAIL              BIT(12)
 #define GAMMA_CRC_PASS              BIT(11)
 #define GAMMA_READ_B                BIT(10)
@@ -788,6 +789,7 @@ extern unsigned int vecm_latch_flag2;
 
 extern enum ecm_color_type cm_cur_work_color_md;
 extern int cm2_debug;
+extern int bs_3dlut_en;
 
 extern unsigned int ct_en;
 extern enum chip_type chip_type_id;
@@ -904,5 +906,7 @@ struct demo_data_s {
 	struct demo_size_s in_size;
 	enum enable_state_e en_st[E_DEMO_MAX];
 };
+
+void bs_ct_latch(void);
 #endif /* AMVECM_H */
 

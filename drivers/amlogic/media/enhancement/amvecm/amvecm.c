@@ -90,6 +90,7 @@
 #include "frame_lock_policy.h"
 #include "amve_v2.h"
 #include "color/ai_color.h"
+#include "am_lut3d.h"
 
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
@@ -318,6 +319,11 @@ MODULE_PARM_DESC(debug_game_mode_1, "\n debug_game_mode_1\n");
 int freerun_en = GAME_MODE;/* 0:game mode;1:freerun mode */
 module_param(freerun_en, int, 0664);
 MODULE_PARM_DESC(freerun_en, "\n enable or disable freerun\n");
+
+/*blue stretch function with 3dlut*/
+int bs_3dlut_en;
+module_param(bs_3dlut_en, int, 0664);
+MODULE_PARM_DESC(bs_3dlut_en, "\n bs_3dlut_en\n");
 
 unsigned int ct_en;
 module_param(ct_en, uint, 0664);
@@ -1962,6 +1968,19 @@ void amvecm_saturation_hue_update(int offset_val)
 		sat_hue_offset_val);
 }
 
+void bs_ct_update(void)
+{
+	if (vecm_latch_flag2 & LUT3D_UPDATE) {
+		vecm_latch_flag2 &= ~LUT3D_UPDATE;
+		lut3d_set_api();
+	}
+}
+
+void bs_ct_latch(void)
+{
+	vecm_latch_flag2 |= LUT3D_UPDATE;
+}
+
 void amvecm_video_latch(void)
 {
 	unsigned int temp;
@@ -1993,6 +2012,8 @@ void amvecm_video_latch(void)
 	vpp_mtx_update(&mtx_info);
 	pre_gma_update(&pre_gamma);
 	eye_prot_update(&eye_protect);
+
+	bs_ct_update();
 }
 
 static void amvecm_overscan_process(struct vframe_s *vf,
@@ -2570,6 +2591,8 @@ static long amvecm_ioctl(struct file *file,
 	int tmp;
 	struct primary_s color_pr;
 	int cm_color = 0;
+	struct color_tune_parm_s ct_param;
+	struct color_param_s ct_parm1;
 
 	if (debug_amvecm & 2)
 		pr_info("[amvecm..] %s: cmd_nr = 0x%x\n",
@@ -3339,6 +3362,18 @@ static long amvecm_ioctl(struct file *file,
 		} else {
 			db_aad_param_set(&db_aad_param);
 			pr_amvecm_dbg("db_aad_param set success\n");
+		}
+		break;
+	case AMVECM_IOC_S_COLOR_TUNE:
+		if (copy_from_user(&ct_param, (void __user *)arg,
+				   sizeof(struct color_tune_parm_s))) {
+			pr_amvecm_dbg("set color tune failed\n");
+			ret = -EFAULT;
+		} else {
+			memcpy(&ct_parm1, &ct_param, sizeof(struct color_tune_parm_s));
+			ct_parm_set(&ct_parm1);
+			bs_ct_latch();
+			pr_amvecm_dbg("set color tune success\n");
 		}
 		break;
 	case AMVECM_IOC_S_EYE_PROT:
@@ -10154,7 +10189,8 @@ void amvecm_3dlut_init(bool en)
 		lut3d_en = 1;
 		vpp_lut3d_table_init(-1, -1, -1);
 		vpp_set_lut3d(0, 0, 0, 0);
-		color_lut_init(ct_en);
+		if (ct_en)
+			color_lut_init(ct_en);
 		vpp_enable_lut3d(ct_en);
 	} else {
 		vpp_lut3d_table_init(-1, -1, -1);

@@ -1894,9 +1894,9 @@ void amvecm_reset_overscan(void)
 	}
 }
 
+unsigned int *plut3d;
 static int P3dlut_tab[289] = {0};
 static int P3dlut_regtab[291] = {0};
-static unsigned int *plut3d;
 static unsigned char *pkeylutall;
 static unsigned int *pkeylut;
 static unsigned int max_3dlut_count = 3;
@@ -2110,6 +2110,52 @@ int vpp_set_lut3d(int bfromkey,
 	return 0;
 }
 
+void lut3d_update(unsigned int p3dlut_in[][3])
+{
+	int d0, d1, d2, index0;
+	u32 ctltemp;
+	int i;
+
+	if (p3dlut_in) {
+		for (d0 = 0; d0 < 17; d0++) {
+			for (d1 = 0; d1 < 17; d1++) {
+				for (d2 = 0; d2 < 17; d2++) {
+					index0 = d0 * 289 + d1 * 17 + d2;
+					plut3d[index0 * 3 + 0] =
+					p3dlut_in[index0][0] & 0xfff;
+					plut3d[index0 * 3 + 1] =
+					p3dlut_in[index0][1] & 0xfff;
+					plut3d[index0 * 3 + 2] =
+					p3dlut_in[index0][2] & 0xfff;
+				}
+			}
+		}
+	}
+
+	ctltemp  = READ_VPP_REG(VPP_LUT3D_CTRL);
+	VSYNC_WRITE_VPP_REG(VPP_LUT3D_CTRL, ctltemp & 0xFFFFFFFE);
+
+	VSYNC_WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 1);
+	VSYNC_WRITE_VPP_REG(VPP_LUT3D_RAM_ADDR, 0 | (0 << 31));
+	for (i = 0; i < 17 * 17 * 17; i++) {
+		//{comp0, comp1, comp2}
+		VSYNC_WRITE_VPP_REG(VPP_LUT3D_RAM_DATA,
+			      ((plut3d[i * 3 + 1] & 0xfff) << 16) |
+			      (plut3d[i * 3 + 2] & 0xfff));
+		VSYNC_WRITE_VPP_REG(VPP_LUT3D_RAM_DATA,
+			      (plut3d[i * 3 + 0] & 0xfff)); /*MSB*/
+		if (lut3d_debug == 1 && (i < 17 * 17))
+			pr_info("%d: %03x %03x %03x\n",
+				i,
+				plut3d[i * 3 + 0],
+				plut3d[i * 3 + 1],
+				plut3d[i * 3 + 2]);
+	}
+
+	VSYNC_WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 0);
+	VSYNC_WRITE_VPP_REG(VPP_LUT3D_CTRL, ctltemp);
+}
+
 int vpp_write_lut3d_section(int index, int section_len,
 			    unsigned int *p3dlut_section_in)
 {
@@ -2198,7 +2244,9 @@ void vpp_lut3d_table_init(int r, int g, int b)
 	int d0, d1, d2, step, max_val = 4095;
 	unsigned int i, index;
 
-	plut3d = kmalloc(14739 * sizeof(int), GFP_KERNEL);
+	if (!plut3d)
+		plut3d = kzalloc(14739 * sizeof(int), GFP_KERNEL);
+
 	if (!plut3d)
 		return;
 

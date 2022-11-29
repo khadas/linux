@@ -107,6 +107,7 @@ extern struct tcon_rgb_ogo_s     video_rgb_ogo;
 extern struct gm_tbl_s gt;
 extern unsigned int gamma_index;
 extern unsigned int gm_par_idx;
+extern unsigned int *plut3d;
 
 extern spinlock_t vpp_lcd_gamma_lock;
 extern struct mutex vpp_lut3d_lock;
@@ -237,5 +238,6 @@ void vpp_pst_hist_sta_config(int en,
 void vpp_pst_hist_sta_read(unsigned int *hist);
 void eye_proc(int *rgb, int mtx_on);
 void set_vpp_enh_clk(struct vframe_s *vf, struct vframe_s *rpt_vf);
+void lut3d_update(unsigned int p3dlut_in[][3]);
 #endif
 
