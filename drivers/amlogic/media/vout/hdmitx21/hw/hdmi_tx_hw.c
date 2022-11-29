@@ -742,6 +742,7 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	struct hdmi_format_para *para = hdev->para;
 	u32 data32;
 	enum hdmi_vic vic = para->timing.vic;
+	struct vinfo_s *vinfo = NULL;
 
 	if (hdev->enc_idx == 2) {
 		set_hdmitx_enc_idx(2);
@@ -952,6 +953,12 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 			hd21_set_reg_bits(VPU_HDMI_SETTING, 0, 20, 8);
 			hd21_set_reg_bits(VPU_HDMI_SETTING, 1, 8, 8);
 		}
+	}
+	vinfo = get_current_vinfo();
+	if (vinfo) {
+		vinfo->cur_enc_ppc = 1;
+		if (hdmitx21_rd_reg(HDMITX_TOP_BIST_CNTL) & (1 << 19))
+			vinfo->cur_enc_ppc = 4;
 	}
 
 	hdmitx_set_phy(hdev);
@@ -2313,6 +2320,8 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 	}
 
 	switch (cmd) {
+	case MISC_IS_FRL_MODE:
+		return !!(hdmitx21_rd_reg(HDMITX_TOP_BIST_CNTL) & (1 << 19));
 	case MISC_HPD_MUX_OP:
 		if (argv == PIN_MUX)
 			argv = HPD_MUX_HPD;

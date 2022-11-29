@@ -77,11 +77,6 @@ static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 	timing.h_back /= hpara_div;
 	timing.h_active /= hpara_div;
 
-	if (hdev->para)
-		hdev->para->hdmitx_vinfo.cur_enc_ppc = hpara_div;
-	if (vic == HDMI_117_3840x2160p100_16x9 || vic == HDMI_118_3840x2160p120_16x9)
-		hdev->para->hdmitx_vinfo.cur_enc_ppc = 4; /* hard code */
-
 	if (hdev->dsc_en) {
 		hsync_st = tp->h_front - 1;
 		vsync_st = tp->v_front - 1;
@@ -409,8 +404,6 @@ void set_tv_encp_new(struct hdmitx_dev *hdev, u32 enc_index, enum hdmi_vic vic,
 
 	if (!hdev || !hdev->para)
 		return;
-
-	hdev->para->hdmitx_vinfo.cur_enc_ppc = 1;
 
 	switch (vic) {
 	case HDMI_5_1920x1080i60_16x9:

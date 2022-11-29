@@ -5114,6 +5114,7 @@ static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
 
 static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 {
+	struct vinfo_s *vinfo = NULL;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	hdmitx_register_vrr(hdev);
@@ -5123,6 +5124,13 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 		pr_info("alread display in uboot\n");
 		update_current_para(hdev);
 		edidinfo_attach_to_vinfo(hdev);
+		vinfo = get_current_vinfo();
+		if (vinfo) {
+			vinfo->cur_enc_ppc = 1;
+			if (hdev->hwop.cntlmisc(hdev, MISC_IS_FRL_MODE, 0))
+				vinfo->cur_enc_ppc = 4;
+			pr_info("vinfo: set cur_enc_ppc as %d\n", vinfo->cur_enc_ppc);
+		}
 	}
 	return 0;
 }
