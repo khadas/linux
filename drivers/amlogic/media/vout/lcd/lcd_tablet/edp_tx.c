@@ -823,7 +823,6 @@ static void edp_tx_init(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int hpd_state = 0;
 	unsigned char auxdata[2];
-	unsigned int offset;
 	int i, index, ret;
 
 	index = pdrv->index;
@@ -832,13 +831,11 @@ static void edp_tx_init(struct aml_lcd_drv_s *pdrv)
 		return;
 	}
 
-	offset = pdrv->data->offset_venc_data[pdrv->index];
-
 	dptx_phy_reset(pdrv);
 	dptx_reset(pdrv);
 	mdelay(2);
 
-	lcd_vcbus_write(ENCL_VIDEO_EN + offset, 0);
+	lcd_venc_enable(pdrv, 0);
 
 	/* Set Aux channel clk-div: 24MHz */
 	dptx_reg_write(pdrv, EDP_TX_AUX_CLOCK_DIVIDER, 24);
@@ -883,7 +880,7 @@ static void edp_tx_init(struct aml_lcd_drv_s *pdrv)
 		dptx_dpcd_dump(pdrv);
 
 	dptx_set_msa(pdrv);
-	lcd_vcbus_write(ENCL_VIDEO_EN + offset, 1);
+	lcd_venc_enable(pdrv, 1);
 
 	dptx_reg_write(pdrv, EDP_TX_MAIN_STREAM_ENABLE, 0x1);
 	LCDPR("[%d]: edp enable main stream video\n", index);

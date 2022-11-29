@@ -690,8 +690,6 @@ struct aml_lcd_drv_s {
 	int (*driver_change)(struct aml_lcd_drv_s *pdrv);
 	void (*module_reset)(struct aml_lcd_drv_s *pdrv);
 	void (*module_tiny_reset)(struct aml_lcd_drv_s *pdrv);
-	void (*lcd_screen_black)(struct aml_lcd_drv_s *pdrv);
-	void (*lcd_screen_restore)(struct aml_lcd_drv_s *pdrv);
 	void (*phy_set)(struct aml_lcd_drv_s *pdrv, int status);
 	void (*fr_adjust)(struct aml_lcd_drv_s *pdrv, int duration);
 	int (*vbyone_vsync_handler)(struct aml_lcd_drv_s *pdrv);

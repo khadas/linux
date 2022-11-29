@@ -2036,106 +2036,6 @@ static void lcd_test_pattern_check(struct work_struct *work)
 	aml_lcd_notifier_call_chain(LCD_EVENT_TEST_PATTERN, (void *)pdrv);
 }
 
-#define LCD_ENC_TST_NUM_MAX    9
-static char *lcd_enc_tst_str[] = {
-	"0-None",        /* 0 */
-	"1-Color Bar",   /* 1 */
-	"2-Thin Line",   /* 2 */
-	"3-Dot Grid",    /* 3 */
-	"4-Gray",        /* 4 */
-	"5-Red",         /* 5 */
-	"6-Green",       /* 6 */
-	"7-Blue",        /* 7 */
-	"8-Black",       /* 8 */
-};
-
-static unsigned int lcd_enc_tst[][7] = {
-/*tst_mode,    Y,       Cb,     Cr,     tst_en,  vfifo_en  rgbin*/
-	{0,    0x200,   0x200,  0x200,   0,      1,        3},  /* 0 */
-	{1,    0x200,   0x200,  0x200,   1,      0,        1},  /* 1 */
-	{2,    0x200,   0x200,  0x200,   1,      0,        1},  /* 2 */
-	{3,    0x200,   0x200,  0x200,   1,      0,        1},  /* 3 */
-	{0,    0x1ff,   0x1ff,  0x1ff,   1,      0,        3},  /* 4 */
-	{0,    0x3ff,     0x0,    0x0,   1,      0,        3},  /* 5 */
-	{0,      0x0,   0x3ff,    0x0,   1,      0,        3},  /* 6 */
-	{0,      0x0,     0x0,  0x3ff,   1,      0,        3},  /* 7 */
-	{0,      0x0,     0x0,    0x0,   1,      0,        3},  /* 8 */
-};
-
-void lcd_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num)
-{
-	unsigned int h_active, video_on_pixel, offset;
-
-	num = (num >= LCD_ENC_TST_NUM_MAX) ? 0 : num;
-	offset = pdrv->data->offset_venc[pdrv->index];
-
-	lcd_queue_work(&pdrv->test_check_work);
-
-	h_active = pdrv->config.basic.h_active;
-	video_on_pixel = pdrv->config.timing.hstart;
-	if (num > 0)
-		lcd_gamma_debug_test_en(pdrv, 0);
-	else
-		lcd_gamma_debug_test_en(pdrv, 1);
-
-	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, lcd_enc_tst[num][6]);
-	lcd_vcbus_write(ENCL_TST_MDSEL + offset, lcd_enc_tst[num][0]);
-	lcd_vcbus_write(ENCL_TST_Y + offset, lcd_enc_tst[num][1]);
-	lcd_vcbus_write(ENCL_TST_CB + offset, lcd_enc_tst[num][2]);
-	lcd_vcbus_write(ENCL_TST_CR + offset, lcd_enc_tst[num][3]);
-	lcd_vcbus_write(ENCL_TST_CLRBAR_STRT + offset, video_on_pixel);
-	lcd_vcbus_write(ENCL_TST_CLRBAR_WIDTH + offset, (h_active / 9));
-	lcd_vcbus_write(ENCL_TST_EN + offset, lcd_enc_tst[num][4]);
-	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, lcd_enc_tst[num][5], 3, 1);
-	if (num > 0)
-		LCDPR("[%d]: show test pattern: %s\n", pdrv->index, lcd_enc_tst_str[num]);
-	else
-		LCDPR("[%d]: disable test pattern\n", pdrv->index);
-}
-
-void lcd_test_pattern_init(struct aml_lcd_drv_s *pdrv, unsigned int num)
-{
-	unsigned int h_active, video_on_pixel, offset;
-
-	num = (num >= LCD_ENC_TST_NUM_MAX) ? 0 : num;
-	offset = pdrv->data->offset_venc[pdrv->index];
-
-	h_active = pdrv->config.basic.h_active;
-	video_on_pixel = pdrv->config.timing.hstart;
-
-	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, lcd_enc_tst[num][6]);
-	lcd_vcbus_write(ENCL_TST_MDSEL + offset, lcd_enc_tst[num][0]);
-	lcd_vcbus_write(ENCL_TST_Y + offset, lcd_enc_tst[num][1]);
-	lcd_vcbus_write(ENCL_TST_CB + offset, lcd_enc_tst[num][2]);
-	lcd_vcbus_write(ENCL_TST_CR + offset, lcd_enc_tst[num][3]);
-	lcd_vcbus_write(ENCL_TST_CLRBAR_STRT + offset, video_on_pixel);
-	lcd_vcbus_write(ENCL_TST_CLRBAR_WIDTH + offset, (h_active / 9));
-	lcd_vcbus_write(ENCL_TST_EN + offset, lcd_enc_tst[num][4]);
-	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, lcd_enc_tst[num][5], 3, 1);
-	if (num > 0)
-		LCDPR("[%d]: init test pattern: %s\n", pdrv->index, lcd_enc_tst_str[num]);
-}
-
-static void lcd_screen_restore(struct aml_lcd_drv_s *pdrv)
-{
-	if (pdrv->viu_sel == 1) {
-#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
-		set_output_mute(false);
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
-#endif
-	}
-}
-
-static void lcd_screen_black(struct aml_lcd_drv_s *pdrv)
-{
-	if (pdrv->viu_sel == 1) {
-#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
-		set_output_mute(true);
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
-#endif
-	}
-}
-
 unsigned int lcd_prbs_flag = 0, lcd_prbs_performed = 0, lcd_prbs_err = 0;
 
 static ssize_t lcd_debug_prbs_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -3310,7 +3210,6 @@ static ssize_t lcd_debug_test_store(struct device *dev, struct device_attribute 
 		if (ret == 0)
 			goto lcd_debug_test_store_next;
 		spin_lock_irqsave(&pdrv->isr_lock, flags);
-		temp = (temp >= LCD_ENC_TST_NUM_MAX) ? 0 : temp;
 		pdrv->test_flag = (unsigned char)temp;
 		pdrv->test_state = (unsigned char)temp;
 		lcd_debug_test(pdrv, pdrv->test_state);
@@ -3325,7 +3224,6 @@ lcd_debug_test_store_next:
 		return -EINVAL;
 	}
 	spin_lock_irqsave(&pdrv->isr_lock, flags);
-	temp = (temp >= LCD_ENC_TST_NUM_MAX) ? 0 : temp;
 	pdrv->test_flag = (unsigned char)temp;
 	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 
@@ -6262,15 +6160,13 @@ static struct device_attribute lcd_debug_attrs_ttl[] = {
 
 static struct device_attribute lcd_debug_attrs_lvds[] = {
 	__ATTR(lvds,   0644, lcd_lvds_debug_show, lcd_lvds_debug_store),
-	__ATTR(phy,    0644,
-	       lcd_phy_debug_show, lcd_phy_debug_store),
+	__ATTR(phy,    0644, lcd_phy_debug_show, lcd_phy_debug_store),
 	__ATTR(null,   0644, NULL, NULL)
 };
 
 static struct device_attribute lcd_debug_attrs_vbyone[] = {
 	__ATTR(vbyone, 0644, lcd_vx1_debug_show, lcd_vx1_debug_store),
-	__ATTR(phy,    0644,
-		lcd_phy_debug_show, lcd_phy_debug_store),
+	__ATTR(phy,    0644, lcd_phy_debug_show, lcd_phy_debug_store),
 	__ATTR(status, 0444, lcd_vx1_status_show, NULL),
 	__ATTR(null,   0644, NULL, NULL)
 };
@@ -6304,7 +6200,7 @@ static struct device_attribute lcd_debug_attrs_mipi[] = {
 
 static struct device_attribute lcd_debug_attrs_edp[] = {
 	__ATTR(edp,   0644, lcd_edp_debug_show, lcd_edp_debug_store),
-	__ATTR(dpcd,  0644, NULL, lcd_edp_dpcd_debug_store),
+	__ATTR(dpcd,  0200, NULL, lcd_edp_dpcd_debug_store),
 	__ATTR(phy,   0644, lcd_phy_debug_show, lcd_phy_debug_store),
 	__ATTR(edid,  0644, lcd_edp_edid_debug_show, lcd_edp_edid_debug_store),
 	__ATTR(null,  0644, NULL, NULL)
@@ -6315,9 +6211,6 @@ static int lcd_debug_file_creat(struct aml_lcd_drv_s *pdrv)
 	struct lcd_debug_info_s *lcd_debug_info;
 	struct device_attribute *lcd_attr;
 	int i;
-
-	pdrv->lcd_screen_restore = lcd_screen_restore;
-	pdrv->lcd_screen_black = lcd_screen_black;
 
 	INIT_WORK(&pdrv->test_check_work, lcd_test_pattern_check);
 

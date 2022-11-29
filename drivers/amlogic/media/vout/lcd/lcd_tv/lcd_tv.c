@@ -578,7 +578,7 @@ static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv, int flag)
 	if (pdrv->config.cus_ctrl.dlg_flag == 3) {
 		if (!flag) {
 			//mute
-			pdrv->lcd_screen_black(pdrv);
+			lcd_screen_black(pdrv);
 			reinit_completion(&pdrv->vsync_done);
 			spin_lock_irqsave(&pdrv->isr_lock, flags);
 			if (pdrv->mute_count_test)

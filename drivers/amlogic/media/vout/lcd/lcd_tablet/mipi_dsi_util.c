@@ -1758,7 +1758,7 @@ static void mipi_dsi_vid_mode_config(struct lcd_config_s *pconf)
 
 static void mipi_dsi_link_on(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned int op_mode_init, op_mode_disp, offset;
+	unsigned int op_mode_init, op_mode_disp;
 	struct dsi_config_s *dconf;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 	struct lcd_extern_driver_s *edrv;
@@ -1771,7 +1771,6 @@ static void mipi_dsi_link_on(struct aml_lcd_drv_s *pdrv)
 	dconf = &pdrv->config.control.mipi_cfg;
 	op_mode_init = dconf->operation_mode_init;
 	op_mode_disp = dconf->operation_mode_display;
-	offset = pdrv->data->offset_venc[pdrv->index];
 
 	if (dconf->dsi_init_on) {
 		dsi_write_cmd(pdrv, dconf->dsi_init_on);
@@ -1804,7 +1803,7 @@ static void mipi_dsi_link_on(struct aml_lcd_drv_s *pdrv)
 				 /* DSI operation mode, video or command */
 				  op_mode_disp);
 		if (op_mode_disp == MIPI_DSI_OPERATION_MODE_VIDEO)
-			lcd_vcbus_write(ENCL_VIDEO_EN + offset, 1);
+			lcd_venc_enable(pdrv, 1);
 	}
 }
 
@@ -1943,15 +1942,13 @@ void lcd_mipi_dsi_config_post(struct aml_lcd_drv_s *pdrv)
 static void mipi_dsi_host_on(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_config_s *pconf = &pdrv->config;
-	unsigned int op_mode_init, offset;
+	unsigned int op_mode_init;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("%s\n", __func__);
 
-	offset = pdrv->data->offset_venc[pdrv->index];
-
 	/* disable encl */
-	lcd_vcbus_write(ENCL_VIDEO_EN + offset, 0);
+	lcd_venc_enable(pdrv, 0);
 	lcd_delay_us(100);
 
 	startup_mipi_dsi_host(pdrv);
@@ -1974,7 +1971,7 @@ static void mipi_dsi_host_on(struct aml_lcd_drv_s *pdrv)
 	/* Startup transfer */
 	mipi_dsi_lpclk_ctrl(pdrv);
 	if (op_mode_init == MIPI_DSI_OPERATION_MODE_VIDEO)
-		lcd_vcbus_write(ENCL_VIDEO_EN + offset, 1);
+		lcd_venc_enable(pdrv, 1);
 
 	mipi_dsi_link_on(pdrv);
 

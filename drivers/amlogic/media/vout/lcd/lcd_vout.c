@@ -517,7 +517,7 @@ static void lcd_power_screen_black(struct aml_lcd_drv_s *pdrv)
 {
 	mutex_lock(&lcd_vout_mutex);
 
-	pdrv->lcd_screen_black(pdrv);
+	lcd_screen_black(pdrv);
 
 	mutex_unlock(&lcd_vout_mutex);
 }
@@ -526,7 +526,7 @@ static void lcd_power_screen_restore(struct aml_lcd_drv_s *pdrv)
 {
 	mutex_lock(&lcd_vout_mutex);
 
-	pdrv->lcd_screen_restore(pdrv);
+	lcd_screen_restore(pdrv);
 
 	mutex_unlock(&lcd_vout_mutex);
 }
@@ -545,7 +545,7 @@ static void lcd_module_reset(struct aml_lcd_drv_s *pdrv)
 	pdrv->status |= LCD_STATUS_ON;
 	pdrv->config.change_flag = 0;
 
-	pdrv->lcd_screen_restore(pdrv);
+	lcd_screen_restore(pdrv);
 	LCDPR("[%d]: clear mute\n", pdrv->index);
 
 	mutex_unlock(&lcd_vout_mutex);
@@ -574,7 +574,7 @@ static void lcd_screen_restore_work(struct work_struct *work)
 					  msecs_to_jiffies(500));
 	if (!ret)
 		LCDPR("vmode switch: wait_for_completion_timeout\n");
-	pdrv->lcd_screen_restore(pdrv);
+	lcd_screen_restore(pdrv);
 	mutex_unlock(&lcd_power_mutex);
 	local_time[1] = sched_clock();
 	pdrv->config.cus_ctrl.unmute_time = local_time[1] - local_time[0];
@@ -1366,9 +1366,9 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 
 		if (temp)
-			pdrv->lcd_screen_black(pdrv);
+			lcd_screen_black(pdrv);
 		else
-			pdrv->lcd_screen_restore(pdrv);
+			lcd_screen_restore(pdrv);
 
 		break;
 	case LCD_IOC_GET_PHY_PARAM:
@@ -1878,20 +1878,11 @@ lcd_config_probe_work_failed:
 
 static void lcd_config_default(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_config_s *pconf;
-	unsigned int offset;
+	unsigned int init_state;
 
-	offset = pdrv->data->offset_venc[pdrv->index];
-
-	pconf = &pdrv->config;
-	pconf->basic.h_active = lcd_vcbus_read(ENCL_VIDEO_HAVON_END + offset)
-		- lcd_vcbus_read(ENCL_VIDEO_HAVON_BEGIN + offset) + 1;
-	pconf->basic.v_active = lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE + offset)
-		- lcd_vcbus_read(ENCL_VIDEO_VAVON_BLINE + offset) + 1;
-	pconf->basic.h_period = lcd_vcbus_read(ENCL_VIDEO_MAX_PXCNT + offset) + 1;
-	pconf->basic.v_period = lcd_vcbus_read(ENCL_VIDEO_MAX_LNCNT + offset) + 1;
 	pdrv->init_flag = 0;
-	if (lcd_vcbus_read(ENCL_VIDEO_EN + offset)) {
+	init_state = lcd_get_venc_init_config(pdrv);
+	if (init_state) {
 		switch (pdrv->boot_ctrl->init_level) {
 		case LCD_INIT_LEVEL_NORMAL:
 			pdrv->status = LCD_STATUS_ON;
@@ -1917,8 +1908,6 @@ static void lcd_config_default(struct aml_lcd_drv_s *pdrv)
 	}
 	LCDPR("[%d]: status: %d, init_flag: %d\n",
 	      pdrv->index, pdrv->status, pdrv->init_flag);
-
-	lcd_gamma_check_en(pdrv);
 }
 
 static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *pdev)
@@ -2042,6 +2031,7 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	pdrv->module_reset = lcd_module_reset;
 	lcd_clk_config_probe(pdrv);
 	lcd_phy_config_init(pdrv);
+	lcd_venc_probe(pdrv);
 	lcd_config_default(pdrv);
 	lcd_init_vout(pdrv);
 

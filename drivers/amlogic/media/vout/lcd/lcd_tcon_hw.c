@@ -1337,7 +1337,7 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 			lcd_tcon_bin_load(pdrv);
 	}
 
-	lcd_vcbus_write(ENCL_VIDEO_EN, 0);
+	lcd_venc_enable(pdrv, 0);
 
 	/* step 1: tcon top */
 	lcd_tcon_top_set_t5(pdrv);
@@ -1361,7 +1361,7 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 	/* step 5: tcon_intr_mask */
 	lcd_tcon_write(pdrv, TCON_INTR_MASKN, TCON_INTR_MASKN_VAL);
 
-	lcd_vcbus_write(ENCL_VIDEO_EN, 1);
+	lcd_venc_enable(pdrv, 1);
 
 	return 0;
 }
@@ -1388,7 +1388,7 @@ int lcd_tcon_reload_pre_t3(struct aml_lcd_drv_s *pdrv)
 	}
 	mdelay(20);
 	//venc off
-	lcd_vcbus_write(ENCL_VIDEO_EN, 0);
+	lcd_venc_enable(pdrv, 0);
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		LCDPR("%s: read tcon reg_width: %d, goa:0x %x\n",
@@ -1416,7 +1416,7 @@ int lcd_tcon_reload_t3(struct aml_lcd_drv_s *pdrv)
 		}
 	}
 	//venc on
-	lcd_vcbus_write(ENCL_VIDEO_EN, 1);
+	lcd_venc_enable(pdrv, 1);
 
 	local_time[1] = sched_clock();
 	if (mm_table->version)
@@ -1446,7 +1446,7 @@ int lcd_tcon_enable_t3(struct aml_lcd_drv_s *pdrv)
 			lcd_tcon_bin_load(pdrv);
 	}
 
-	lcd_vcbus_write(ENCL_VIDEO_EN, 0);
+	lcd_venc_enable(pdrv, 0);
 
 	/* step 1: tcon top */
 	lcd_tcon_top_set_t5(pdrv);
@@ -1470,7 +1470,7 @@ int lcd_tcon_enable_t3(struct aml_lcd_drv_s *pdrv)
 	/* step 5: tcon_intr_mask */
 	lcd_tcon_write(pdrv, TCON_INTR_MASKN, TCON_INTR_MASKN_VAL);
 
-	lcd_vcbus_write(ENCL_VIDEO_EN, 1);
+	lcd_venc_enable(pdrv, 1);
 
 	return 0;
 }

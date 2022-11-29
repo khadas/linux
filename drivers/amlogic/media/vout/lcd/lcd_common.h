@@ -50,7 +50,8 @@
 /* 20221123: add ioctl functions, include power, mute, phy, ss*/
 /* 20221215: remove unnecessary tcon top reset*/
 /* 20221202: optimize lcd clk code*/
-#define LCD_DRV_VERSION    "20221216"
+/* 20221229: optimize lcd venc code*/
+#define LCD_DRV_VERSION    "20221229"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
@@ -162,20 +163,24 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv);
 
 /* lcd debug */
 int lcd_debug_info_len(int num);
-void lcd_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num);
-void lcd_test_pattern_init(struct aml_lcd_drv_s *pdrv, unsigned int num);
 int lcd_debug_probe(struct aml_lcd_drv_s *pdrv);
 int lcd_debug_remove(struct aml_lcd_drv_s *pdrv);
 
 /* lcd venc */
 unsigned int lcd_get_encl_lint_cnt(struct aml_lcd_drv_s *pdrv);
+void lcd_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num);
 void lcd_wait_vsync(struct aml_lcd_drv_s *pdrv);
-void lcd_gamma_check_en(struct aml_lcd_drv_s *pdrv);
 void lcd_gamma_debug_test_en(struct aml_lcd_drv_s *pdrv, int flag);
 void lcd_set_venc_timing(struct aml_lcd_drv_s *pdrv);
 void lcd_set_venc(struct aml_lcd_drv_s *pdrv);
 void lcd_venc_change(struct aml_lcd_drv_s *pdrv);
 void lcd_venc_vrr_recovery(struct aml_lcd_drv_s *pdrv);
+int lcd_venc_probe(struct aml_lcd_drv_s *pdrv);
+void lcd_venc_enable(struct aml_lcd_drv_s *pdrv, int flag);
+void lcd_mute_set(struct aml_lcd_drv_s *pdrv, unsigned char flag);
+int lcd_get_venc_init_config(struct aml_lcd_drv_s *pdrv);
+void lcd_screen_black(struct aml_lcd_drv_s *pdrv);
+void lcd_screen_restore(struct aml_lcd_drv_s *pdrv);
 
 /* lcd clk */
 extern spinlock_t lcd_clk_lock;

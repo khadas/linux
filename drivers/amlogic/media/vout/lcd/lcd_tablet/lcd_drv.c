@@ -879,10 +879,7 @@ void lcd_tablet_driver_init_pre(struct aml_lcd_drv_s *pdrv)
 
 void lcd_tablet_driver_disable_post(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned int offset;
-
-	offset = pdrv->data->offset_venc[pdrv->index];
-	lcd_vcbus_write(ENCL_VIDEO_EN + offset, 0); /* disable encl */
+	lcd_venc_enable(pdrv, 0); /* disable encl */
 
 	lcd_disable_clk(pdrv);
 	lcd_clk_gate_switch(pdrv, 0);
