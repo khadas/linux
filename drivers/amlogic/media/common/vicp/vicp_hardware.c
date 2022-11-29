@@ -1156,7 +1156,7 @@ void write_vicp_reg(u32 reg, u32 val)
 	struct rdma_buf_type_t *buf = NULL;
 
 	if (rdma_enable_flag) {
-		buf = get_vicp_rdma_buf_choice();
+		buf = get_current_vicp_rdma_buf();
 		vicp_rdma_wr(buf, (u64)reg, (u64)val, 0, 32);
 		return;
 	} else {
@@ -1169,7 +1169,7 @@ void write_vicp_reg_bits(u32 reg, const u32 value, const u32 start, const u32 le
 	struct rdma_buf_type_t *buf = NULL;
 
 	if (rdma_enable_flag) {
-		buf = get_vicp_rdma_buf_choice();
+		buf = get_current_vicp_rdma_buf();
 		vicp_rdma_wr(buf, (u64)reg, value, (u64)start, (u64)len);
 		return;
 	} else {

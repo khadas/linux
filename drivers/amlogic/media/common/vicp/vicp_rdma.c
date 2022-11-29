@@ -89,9 +89,9 @@ void vicp_rdma_buf_load(u32 count)
 	vicp_print(VICP_RDMA, "%s: count is %d.\n", __func__, count);
 	for (i = 0; i < count; i++) {
 		if (i == 0)
-			vicp_rdma_release(&rdma_buf[0], &rdma_buf[0], 1, 0);
-		else
-			vicp_rdma_release(&rdma_buf[i - 1], &rdma_buf[i], 1, i);
+			vicp_rdma_init(&rdma_buf[0]);
+
+		vicp_rdma_cbuf_ready(i);
 	}
 }
 
@@ -106,9 +106,55 @@ void set_vicp_rdma_buf_choice(u32 buf_num)
 	rdma_buf_choice = buf_num;
 }
 
-struct rdma_buf_type_t *get_vicp_rdma_buf_choice(void)
+struct rdma_buf_type_t *get_vicp_rdma_buf_choice(u32 buf_num)
+{
+	return &rdma_buf[buf_num];
+}
+
+struct rdma_buf_type_t *get_current_vicp_rdma_buf(void)
 {
 	return &rdma_buf[rdma_buf_choice];
+}
+
+void vicp_rdma_errorflag_clear(void)
+{
+	vicp_reg_set_bits(VID_CMPR_DMA_ERR_CLR, 0xff, 0, 8);
+	return vicp_reg_set_bits(VID_CMPR_DMA_ERR_CLR, 0, 0, 8);
+}
+
+void vicp_rdma_errorflag_parser(void)
+{
+	u32 reg_val;
+
+	reg_val = vicp_reg_get_bits(VID_CMPR_DMA_ERR_FLAG, 0, 8);
+	pr_info("%s: errorflag is %d.\n", __func__, reg_val);
+
+	if (reg_val & (1 << 7))
+		pr_info("dma_err_mask.\n");
+	else if (reg_val & (1 << 6))
+		pr_info("err_cbuf_len.\n");
+	else if (reg_val & (1 << 5))
+		pr_info("err_lbuf_len.\n");
+	else if (reg_val & (1 << 4))
+		pr_info("dma_err_end.\n");
+	else if (reg_val & (1 << 3))
+		pr_info("dma_err_opc.\n");
+	else if (reg_val & (1 << 2))
+		pr_info("err_jump_cmd.\n");
+	else if (reg_val & (1 << 1))
+		pr_info("err_wint_sta.\n");
+	else if (reg_val & (1 << 0))
+		pr_info("no_jump_cmd.\n");
+	else
+		pr_info("no error.\n");
+}
+
+void vicp_rdma_cpsr_dump(void)
+{
+	int i = 0;
+
+	for (i = 0; i < 0x1ff; i++)
+		pr_info("[0x%04x] = 0x%08x\n", i, vicp_reg_read(i));
 }
 
 void vicp_rdma_buf_dump(u32 buf_count, u32 buf_num)
@@ -125,7 +171,7 @@ void vicp_rdma_buf_dump(u32 buf_count, u32 buf_num)
 		data_addr = start_addr + i;
 		command = (*data_addr >> 60) & 0xf;
 		if (command == CMD_JMP) {
-			pr_info("CMD_JMP: val:0x%16llx, len:%05lld, addr:0x%05llx.\n",
+			pr_info("CMD_JMP: val:0x%16llx, buf_len:%05lld, start_addr:0x%05llx.\n",
 				*data_addr,
 				(*data_addr >> 34) & 0xffff,
 				(*data_addr >> 0) & 0x3ffffffff);
@@ -147,7 +193,7 @@ void vicp_rdma_buf_dump(u32 buf_count, u32 buf_num)
 				*data_addr,
 				(*data_addr >> 34) & 0xffff);
 		} else if (command == CMD_WR) {
-			pr_info("CMD_WR: val:0x%16llx, msb:%02lld, lsb:%02lld, addr:0x%04llx, data:0x%09llx.\n",
+			pr_info("CMD_WR: val:0x%16llx, msb:%02lld, lsb:%02lld, reg:0x%04llx, data:0x%09llx.\n",
 				*data_addr,
 				(*data_addr >> 55) & 0x1f,
 				(*data_addr >> 50) & 0x1f,
@@ -160,10 +206,15 @@ void vicp_rdma_buf_dump(u32 buf_count, u32 buf_num)
 
 	if (rdma_buf[buf_num].cmd_buf_len != 0 && (buf_num + 1 < buf_count)) {
 		data_addr = start_addr + rdma_buf[buf_num].cmd_buf_len;
-		pr_info("CMD_JMP: val:0x%16llx, len:%05lld, addr:0x%05llx.\n",
-			*data_addr,
-			(*data_addr >> 34) & 0xffff,
-			(*data_addr >> 0) & 0x3ffffffff);
+		command = (*data_addr >> 60) & 0xf;
+		if (command == CMD_JMP) {
+			pr_info("CMD_JMP: val:0x%16llx, buf_len:%05lld, start_addr:0x%05llx.\n",
+				*data_addr,
+				(*data_addr >> 34) & 0xffff,
+				(*data_addr >> 0) & 0x3ffffffff);
+		} else {
+			vicp_print(VICP_ERROR, "%s: invalid cmd.\n", __func__);
+		}
 	}
 
 	pr_info("load_buf[%d] length: %lld.\n", buf_num, rdma_buf[buf_num].load_buf_len);
@@ -173,7 +224,7 @@ void vicp_rdma_buf_dump(u32 buf_count, u32 buf_num)
 		data_addr = start_addr + i;
 		command = (*data_addr >> 60) & 0xf;
 		if (command == CMD_JMP) {
-			pr_info("CMD_JMP: val:0x%16llx, len:%5lld, addr:0x%5llx.\n",
+			pr_info("CMD_JMP: val:0x%16llx, buf_len:%05lld, start_addr:0x%05llx.\n",
 				*data_addr,
 				(*data_addr >> 34) & 0xffff,
 				(*data_addr >> 0) & 0x3ffffffff);
@@ -195,7 +246,7 @@ void vicp_rdma_buf_dump(u32 buf_count, u32 buf_num)
 				*data_addr,
 				(*data_addr >> 34) & 0xffff);
 		} else if (command == CMD_WR) {
-			pr_info("CMD_WR: val:0x%16llx, msb:%2lld, lsb:%2lld, addr:0x%4llx, data:0x%9llx.\n",
+			pr_info("CMD_WR: val:0x%16llx, msb:%2lld, lsb:%2lld, reg:0x%4llx, data:0x%9llx.\n",
 				*data_addr,
 				(*data_addr >> 55) & 0x1f,
 				(*data_addr >> 50) & 0x1f,
@@ -208,10 +259,15 @@ void vicp_rdma_buf_dump(u32 buf_count, u32 buf_num)
 
 	if (rdma_buf[buf_num].load_buf_len != 0 && (buf_num + 1 < buf_count)) {
 		data_addr = start_addr + rdma_buf[buf_num].load_buf_len;
-		pr_info("CMD_JMP: val:0x%16llx, len:%05lld, addr:0x%05llx.\n",
-			*data_addr,
-			(*data_addr >> 34) & 0xffff,
-			(*data_addr >> 0) & 0x3ffffffff);
+		command = (*data_addr >> 60) & 0xf;
+		if (command == CMD_JMP) {
+			pr_info("CMD_JMP: val:0x%16llx, buf_len:%05lld, start_addr:0x%05llx.\n",
+				*data_addr,
+				(*data_addr >> 34) & 0xffff,
+				(*data_addr >> 0) & 0x3ffffffff);
+		} else {
+			vicp_print(VICP_ERROR, "%s: invalid cmd.\n", __func__);
+		}
 	}
 }
 
@@ -268,6 +324,8 @@ struct rdma_buf_type_t *vicp_rdma_end(struct rdma_buf_type_t *rdma_buf)
 	*data_addr = wdata;
 	rdma_buf->cmd_buf_end_addr += 8;
 	rdma_buf->cmd_buf_len += 1;
+
+	vicp_print(VICP_RDMA, "%s, rdma_buf_len is %d.\n", __func__, rdma_buf->cmd_buf_len);
 
 	return rdma_buf;
 }

@@ -936,6 +936,8 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
 		pr_info("vicp: input addr0: 0x%llx\n", rd_mif->canvas0_addr0);
 		pr_info("vicp: input addr1: 0x%llx\n", rd_mif->canvas0_addr1);
 		pr_info("vicp: input addr2: 0x%llx\n", rd_mif->canvas0_addr2);
+		pr_info("vicp: stride: y:%d, cb:%d, cr:%d.\n", rd_mif->stride_y, rd_mif->stride_cb,
+			rd_mif->stride_cr);
 		pr_info("vicp: reversion: x %d, y %d.\n", rd_mif->rev_x, rd_mif->rev_y);
 		pr_info("vicp: crop_en = %d.\n", rd_mif->buf_crop_en);
 		pr_info("vicp: hsize = %d.\n", rd_mif->buf_hsize);
@@ -1088,11 +1090,6 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
 	general_reg2.y_rev0 = rd_mif->rev_x;
 	set_rdmif_general_reg2(general_reg2);
 
-	vicp_print(VICP_INFO, "rdmif baddr=0x%llx, stride=%d, %d, %d\n",
-		rd_mif->canvas0_addr0 >> 4,
-		rd_mif->stride_y,
-		rd_mif->stride_cb,
-		rd_mif->stride_cr);
 	set_rdmif_base_addr(RDMIF_BASEADDR_TYPE_Y, rd_mif->canvas0_addr0);
 	set_rdmif_base_addr(RDMIF_BASEADDR_TYPE_CB, rd_mif->canvas0_addr1);
 	set_rdmif_base_addr(RDMIF_BASEADDR_TYPE_CR, rd_mif->canvas0_addr2);
@@ -1248,12 +1245,12 @@ void set_vid_cmpr_wmif(struct vid_cmpr_mif_t *wr_mif, int wrmif_en)
 	set_wrmif_control(wrmif_control);
 };
 
-void set_vid_cmpr_rdma(bool rdma_en, int input_count, int input_number)
+static void set_vid_cmpr_rdma_config(bool rdma_en, int input_count, int input_number)
 {
 	int i, data_size;
 	u64 cmd_buf_addr, load_buf_addr;
 
-	vicp_print(VICP_RDMA, "%s: %d line.\n", __func__, __LINE__);
+	vicp_print(VICP_INFO, "enter %s.\n", __func__);
 
 	if (print_flag & VICP_RDMA) {
 		pr_info("vicp: ##########RDMA config##########\n");
@@ -1302,6 +1299,8 @@ void set_vid_cmpr_rdma(bool rdma_en, int input_count, int input_number)
 static void set_vid_cmpr_security(bool sec_en)
 {
 	u32 dma_sec = 0, mmu_sec = 0, input_sec = 0;
+
+	vicp_print(VICP_INFO, "enter %s, sec_en = %d.\n", __func__, sec_en);
 
 	if (sec_en) {
 		input_sec = 1;
@@ -1955,50 +1954,57 @@ int vicp_process_task(struct vid_cmpr_top_t *vid_cmpr_top)
 	int buffer_size;
 	bool is_need_update_all = false;
 
-	vicp_print(VICP_INFO, "enter %s.\n", __func__);
+	vicp_print(VICP_INFO, "enter %s, rdma_en is %d.\n", __func__, vid_cmpr_top->rdma_enable);
 	if (IS_ERR_OR_NULL(vid_cmpr_top)) {
 		vicp_print(VICP_ERROR, "%s: NULL param, please check.\n", __func__);
 		return -1;
 	}
 
-	set_vid_cmpr_security(vid_cmpr_top->security_en);
-
-	set_vid_cmpr_rdma(vid_cmpr_top->rdma_enable, vid_cmpr_top->src_count,
+	set_vid_cmpr_rdma_config(vid_cmpr_top->rdma_enable, vid_cmpr_top->src_count,
 		vid_cmpr_top->src_num);
+
+	set_vid_cmpr_security(vid_cmpr_top->security_en);
 
 	if (vid_cmpr_top->rdma_enable) {
 		set_vid_cmpr_all_param(vid_cmpr_top);
 		set_module_enable(1);
 		set_module_start(1);
-		vicp_rdma_end(get_vicp_rdma_buf_choice());
+		vicp_rdma_end(get_current_vicp_rdma_buf());
 		if (vid_cmpr_top->src_num + 1 == vid_cmpr_top->src_count) {
-			init_completion(&vicp_proc_done);
 			init_completion(&vicp_rdma_done);
+			init_completion(&vicp_proc_done);
 			buffer_size = vid_cmpr_top->src_count *
 				(RDMA_CMD_BUF_LEN + RDMA_LOAD_BUF_LEN);
 			temp_addr = codec_mm_vmap(rdma_buf_phy_addr, buffer_size);
+			for (i = 1; i < vid_cmpr_top->src_count; i++) {
+				vicp_rdma_jmp(get_vicp_rdma_buf_choice(i - 1),
+					get_vicp_rdma_buf_choice(i), 1);
+			}
 			codec_mm_dma_flush(temp_addr, buffer_size, DMA_TO_DEVICE);
-			codec_mm_unmap_phyaddr(temp_addr);
 
 			vicp_rdma_buf_load(vid_cmpr_top->src_count);
 			time = wait_for_completion_timeout(&vicp_proc_done, msecs_to_jiffies(200));
 			if (!time) {
 				vicp_print(VICP_ERROR, "vicp_task wait isr timeout\n");
-				rdma_done_count = 0;
 				if (debug_rdma_en) {
-					for (i = 0; i < 0x1ff; i++)
-						pr_info("[0x%04x] = 0x%08x\n", i, read_vicp_reg(i));
+					vicp_rdma_errorflag_parser();
+					vicp_rdma_cpsr_dump();
+					for (i = 0; i < vid_cmpr_top->src_count; i++)
+						vicp_rdma_buf_dump(vid_cmpr_top->src_count, i);
 				}
 				ret = -2;
+			} else {
+				if (rdma_done_count == vid_cmpr_top->src_count)
+					vicp_print(VICP_INFO, "rdma all complete.\n");
+				else
+					vicp_print(VICP_ERROR, "wait rdma isr.\n");
 			}
 
-			if (rdma_done_count == vid_cmpr_top->src_count)
-				vicp_print(VICP_INFO, "rdma all complete.\n");
 			rdma_done_count = 0;
-			if (debug_rdma_en) {
-				for (i = 0; i < vid_cmpr_top->src_count; i++)
-					vicp_rdma_buf_dump(vid_cmpr_top->src_count, i);
-			}
+
+			vicp_rdma_errorflag_clear();
+			memset(temp_addr, 0, buffer_size);
+			codec_mm_unmap_phyaddr(temp_addr);
 			codec_mm_free_for_dma("vicp", rdma_buf_phy_addr);
 			rdma_buf_phy_addr = 0;
 		}

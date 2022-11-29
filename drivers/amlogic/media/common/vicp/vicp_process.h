@@ -288,5 +288,4 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
 void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_t *scaler);
 void set_vid_cmpr_afbcd(int hold_line_num, bool rdma_en, struct vid_cmpr_afbcd_t *afbcd);
 void set_vid_cmpr_hdr(int hdr2_top_en);
-void set_vid_cmpr_rdma(bool rdma_en, int input_count, int input_number);
 #endif //_VICP_PROCESS_H_

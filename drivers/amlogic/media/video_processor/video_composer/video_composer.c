@@ -2019,7 +2019,7 @@ static void vframe_composer(struct composer_dev *dev)
 	do_gettimeofday(&end_time);
 	cost_time = (1000000 * (end_time.tv_sec - begin_time.tv_sec)
 		+ (end_time.tv_usec - begin_time.tv_usec)) / 1000;
-	vc_print(dev->index, PRINT_PERFORMANCE, "ge2d cost: %d ms\n", cost_time);
+	vc_print(dev->index, PRINT_PERFORMANCE, "vframe composer cost: %d ms\n", cost_time);
 
 	dst_vf->flag |= (VFRAME_FLAG_VIDEO_COMPOSER | VFRAME_FLAG_COMPOSER_DONE);
 

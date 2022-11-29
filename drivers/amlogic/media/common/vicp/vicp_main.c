@@ -71,7 +71,7 @@ u32 crop_en = 1;
 u32 shrink_en = 1;
 u32 debug_axis_en;
 struct output_axis_t axis;
-u32 rdma_en;
+u32 rdma_en = 1;
 u32 debug_rdma_en;
 
 struct mutex vicp_mutex; /*used to avoid user space call at the same time*/
@@ -635,7 +635,7 @@ static ssize_t axis_store(struct class *class,
 static ssize_t rdma_en_show(struct class *cla, struct class_attribute *attr,
 	char *buf)
 {
-	return snprintf(buf, 80, "current rdma_enable ix %d.\n", rdma_en);
+	return snprintf(buf, 80, "current rdma_enable is %d.\n", rdma_en);
 }
 
 static ssize_t rdma_en_store(struct class *cla, struct class_attribute *attr,

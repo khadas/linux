@@ -44,7 +44,11 @@ struct rdma_buf_type_t {
 void vicp_rdma_buf_init(u32 buf_num, u64 cmd_buf_start_addr, u64 load_buf_start_addr);
 void vicp_rdma_buf_load(u32 count);
 void set_vicp_rdma_buf_choice(u32 buf_num);
-struct rdma_buf_type_t *get_vicp_rdma_buf_choice(void);
+struct rdma_buf_type_t *get_vicp_rdma_buf_choice(u32 buf_num);
+struct rdma_buf_type_t *get_current_vicp_rdma_buf(void);
+void vicp_rdma_errorflag_clear(void);
+void vicp_rdma_errorflag_parser(void);
+void vicp_rdma_cpsr_dump(void);
 void vicp_rdma_buf_dump(u32 buf_count, u32 buf_num);
 void vicp_rdma_init(struct rdma_buf_type_t *rdma_buf);
 void vicp_rdma_reset(void);
