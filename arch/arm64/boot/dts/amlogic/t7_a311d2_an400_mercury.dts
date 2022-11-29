@@ -940,35 +940,6 @@
 		key-gpios = <&gpio  GPIOD_3  GPIO_ACTIVE_HIGH>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
-
-	adla: adla@0xfe371000 {
-		compatible = "amlogic,adla";
-		dev_name = "adla";
-		status = "okay";
-		reg = <0x0 0xfe371000 0x0 0x200
-			0x0 0xf7048000 0x0 0x138000
-			>;
-		reg-names = "adla_reg", "adla_sram";
-		interrupt-names = "adla";
-		interrupts = <0 185 4>;
-		clocks = <&clkc CLKID_ANAKIN_CLK>;
-		clock-names = "adla_core_clk";
-		assigned-clocks =<&clkc CLKID_ANAKIN_0_MUX>,
-		      <&clkc CLKID_ANAKIN>,
-		      <&clkc CLKID_ANAKIN_CLK>;
-		assigned-clock-parentsd = <&clkc CLKID_FCLK_DIV2P5>,
-		      <&clkc CLKID_ANAKIN_0>,
-		      <0>;
-		assigned-clock-rates = <0>,
-		      <0>,
-		      <800000000>;
-		power-domains=<&pwrdm PDID_T7_NNA_TOP>;
-		smmu;
-	};
-};
-
-&nna_top_ports_wrapper_2 {
-	status = "disable";
 };
 
 &audiobus {
