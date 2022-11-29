@@ -2036,3 +2036,7 @@
 &vddcpub {
 	status = "okay";
 };
+
+&vddnpu {
+	status = "okay";
+};
