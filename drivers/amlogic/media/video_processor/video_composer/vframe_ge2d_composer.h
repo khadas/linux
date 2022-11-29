@@ -75,6 +75,7 @@ struct src_data_para {
 	struct canvas_config_s canvas1_config[3];
 	enum vframe_source_type_e source_type;
 	bool is_vframe;
+	bool is_yuv444;
 };
 
 struct dump_param {

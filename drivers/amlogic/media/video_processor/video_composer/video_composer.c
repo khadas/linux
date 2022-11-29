@@ -1712,6 +1712,7 @@ static void vframe_composer(struct composer_dev *dev)
 	ulong buf_addr[3];
 	int fbc_init_ctrl, fbc_pip_mode;
 	int mifout_en = 1, fbcout_en = 1;
+	u32 src_fmt = 0;
 
 	if (IS_ERR_OR_NULL(dev)) {
 		vc_print(dev->index, PRINT_ERROR, "%s: invalid param.\n", __func__);
@@ -1829,6 +1830,8 @@ static void vframe_composer(struct composer_dev *dev)
 
 		if (vframe_info[vf_dev[i]]->source_type == SOURCE_DTV_FIX_TUNNEL)
 			is_fixtunnel = true;
+
+		src_fmt = vframe_info[vf_dev[i]]->buffer_format;
 
 		if (vframe_info[vf_dev[i]]->type == 1) {
 			if (is_dec_vf || is_v4l_vf) {
@@ -1981,6 +1984,10 @@ static void vframe_composer(struct composer_dev *dev)
 			if (ret < 0)
 				vc_print(dev->index, PRINT_ERROR, "vicp composer failed\n");
 		} else {
+			if (src_fmt == YUV444)
+				src_data.is_yuv444 = true;
+			else
+				src_data.is_yuv444 = false;
 			ret = config_ge2d_data(scr_vf,
 				addr,
 				vframe_info[vf_dev[i]]->buffer_w,
@@ -2459,15 +2466,25 @@ static void video_composer_task(struct composer_dev *dev)
 			vf->canvas0Addr = -1;
 			vf->canvas0_config[0].phy_addr = phy_addr;
 			if (frame_info->buffer_w > frame_info->reserved[0]) {
-				vf->canvas0_config[0].width =
-						frame_info->buffer_w;
+				if (frame_info->buffer_format == YUV444) {
+					vf->canvas0_config[0].width = frame_info->buffer_w * 3;
+					vc_print(dev->index, PRINT_OTHER,
+						"frame_info->buffer_w * 3\n");
+				} else {
+					vf->canvas0_config[0].width = frame_info->buffer_w;
+				}
 				vc_print(dev->index, PRINT_PATTERN,
 					 "buffer_w(%d) > deal_w(%d)\n",
 					 frame_info->buffer_w,
 					 frame_info->reserved[0]);
 			} else {
-				vf->canvas0_config[0].width =
-						frame_info->reserved[0];
+				if (frame_info->buffer_format == YUV444) {
+					vf->canvas0_config[0].width = frame_info->reserved[0] * 3;
+					vc_print(dev->index, PRINT_OTHER,
+						"frame_info->reserved[0] * 3\n");
+				} else {
+					vf->canvas0_config[0].width = frame_info->reserved[0];
+				}
 				vc_print(dev->index, PRINT_PATTERN,
 					 "buffer_w: %d, deal_w: %d\n",
 					 frame_info->buffer_w,
@@ -2498,10 +2515,18 @@ static void video_composer_task(struct composer_dev *dev)
 				vf->canvas0_config[0].height;
 			vf->width = frame_info->buffer_w;
 			vf->height = frame_info->buffer_h;
-			vf->plane_num = 2;
-			vf->type = VIDTYPE_PROGRESSIVE
+			if (frame_info->buffer_format == YUV444) {
+				vf->plane_num = 1;
+				vf->type = VIDTYPE_VIU_SINGLE_PLANE
+					| VIDTYPE_VIU_FIELD
+					| VIDTYPE_VIU_444;
+				vc_print(dev->index, PRINT_OTHER, "buffer_format_t YUV444\n");
+			} else {
+				vf->plane_num = 2;
+				vf->type = VIDTYPE_PROGRESSIVE
 					| VIDTYPE_VIU_FIELD
 					| VIDTYPE_VIU_NV21;
+			}
 			vf->bitdepth =
 				BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
 		}
