@@ -213,6 +213,7 @@ static int am_meson_update_output_state(struct drm_atomic_state *state,
 			hdmitx_state = to_am_hdmitx_connector_state(new_conn_state);
 			convert_attrstr(hdmitx_attr, &hdmitx_state->color_attr_para);
 			hdmitx_state->pref_hdr_policy = am_hdmi_info.hdmitx_dev->get_hdr_priority();
+			hdmitx_state->frac_rate_policy = am_hdmi_info.hdmitx_dev->get_frac();
 		}
 	}
 

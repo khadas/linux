@@ -688,6 +688,9 @@ static int am_hdmitx_connector_atomic_set_property
 	} else if (property == am_hdmi->hdcp_content_type0_pri_store_prop) {
 		am_hdmi_info.hdcp_content_type0_pri = val;
 		return 0;
+	} else if (property == am_hdmi->frac_rate_policy_prop) {
+		hdmitx_state->frac_rate_policy = val;
+		return 0;
 	}
 
 	return -EINVAL;
@@ -745,8 +748,11 @@ static int am_hdmitx_connector_atomic_get_property
 	} else if (property == am_hdmi->hdcp_content_type0_pri_prop) {
 		*val = am_hdmi_info.hdcp_content_type0_pri;
 		return 0;
-	}  else if (property == am_hdmi->hdcp_content_type0_pri_store_prop) {
+	} else if (property == am_hdmi->hdcp_content_type0_pri_store_prop) {
 		*val = am_hdmi_info.hdcp_content_type0_pri;
+		return 0;
+	} else if (property == am_hdmi->frac_rate_policy_prop) {
+		*val = hdmitx_state->frac_rate_policy;
 		return 0;
 	}
 
@@ -880,6 +886,11 @@ int meson_hdmitx_atomic_check(struct drm_connector *connector,
 				old_hdmitx_state->color_attr_para.bitdepth)
 				new_crtc_state->mode_changed = true;
 		}
+
+		if (new_hdmitx_state->frac_rate_policy !=
+				old_hdmitx_state->frac_rate_policy) {
+			new_crtc_state->mode_changed = true;
+		}
 	}
 
 	return 0;
@@ -905,6 +916,7 @@ struct drm_connector_state *meson_hdmitx_atomic_duplicate_state
 	new_state->color_attr_para.bitdepth = cur_state->color_attr_para.bitdepth;
 	new_state->hdcp_force = false;
 	new_state->pref_hdr_policy = cur_state->pref_hdr_policy;
+	new_state->frac_rate_policy = cur_state->frac_rate_policy;
 
 	return &new_state->base;
 }
@@ -1610,6 +1622,7 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 
 	meson_vout_notify_mode_change(amcrtc->vout_index,
 		vmode, EVENT_MODE_SET_START);
+	am_hdmi_info.hdmitx_dev->set_frac(meson_conn_state->frac_rate_policy);
 	vout_func_set_vmode(amcrtc->vout_index, vmode);
 	meson_vout_notify_mode_change(amcrtc->vout_index,
 		vmode, EVENT_MODE_SET_FINISH);
@@ -1904,6 +1917,20 @@ static void meson_hdmitx_init_avmute_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_hdmitx_init_frac_rate_policy_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "FRAC_RATE_POLICY");
+	if (prop) {
+		am_hdmi->frac_rate_policy_prop = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to FRAC_RATE_POLICY property\n");
+	}
+}
+
 static void meson_hdmitx_hpd_cb(void *data)
 {
 	struct am_hdmi_tx *am_hdmi = (struct am_hdmi_tx *)data;
@@ -2060,6 +2087,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	}
 	meson_hdmitx_init_hdcp_content_type0_pri_property(drm, am_hdmi);
 	meson_hdmitx_init_hdcp_content_type0_pri_store_property(drm, am_hdmi);
+	meson_hdmitx_init_frac_rate_policy_property(drm, am_hdmi);
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi_info.android_path;

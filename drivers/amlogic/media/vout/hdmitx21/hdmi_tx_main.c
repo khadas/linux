@@ -4209,6 +4209,20 @@ static ssize_t frac_rate_policy_store(struct device *dev,
 	return count;
 }
 
+static void set_frac_rate_policy(int val)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	hdev->frac_rate_policy = val;
+}
+
+static int get_frac_rate_policy(void)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	return hdev->frac_rate_policy;
+}
+
 static ssize_t frac_rate_policy_show(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
@@ -7385,6 +7399,8 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_hdmi_hdr_status = hdmi_hdr_status_to_drm,
 	.set_aspect_ratio = hdmitx21_set_aspect_ratio,
 	.get_aspect_ratio = hdmitx21_get_aspect_ratio_value,
+	.set_frac = set_frac_rate_policy,
+	.get_frac = get_frac_rate_policy,
 
 	/*hdcp apis*/
 	.hdcp_init = drm_hdmitx_hdcp_init,
