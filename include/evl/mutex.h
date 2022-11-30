@@ -14,6 +14,7 @@
 #include <evl/assert.h>
 #include <evl/timer.h>
 #include <evl/wait.h>
+#include <evl/sched.h>
 #include <uapi/evl/mutex.h>
 
 struct evl_clock;
@@ -31,14 +32,18 @@ struct evl_thread;
 #define EVL_MUTEX_COUNTED	BIT(4)
 
 struct evl_mutex {
-	int wprio;
-	int flags;
-	struct evl_clock *clock;
 	atomic_t *fastlock;
+	int flags;
 	u32 *ceiling_ref;
 	struct evl_wait_channel wchan;
 	struct list_head next_booster; /* thread->boosters */
 	struct list_head next_owned;   /* thread->owned_mutexes */
+	struct {
+		struct evl_sched_class *sched_class;
+		union evl_sched_param param;
+		int wprio;
+	} boost;
+	struct evl_clock *clock;
 };
 
 void __evl_init_mutex(struct evl_mutex *mutex,
@@ -82,7 +87,7 @@ void evl_commit_mutex_ceiling(struct evl_mutex *mutex);
 
 void evl_check_no_mutex(void);
 
-void evl_requeue_mutex_wait(struct evl_wait_channel *wchan,
+bool evl_requeue_mutex_wait(struct evl_wait_channel *wchan,
 			struct evl_thread *waiter);
 
 void evl_drop_current_ownership(void);
@@ -101,7 +106,6 @@ struct evl_kmutex {
 			.clock = &evl_mono_clock,			\
 			.wchan = {					\
 				.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
-				.pi_serial = 0,				\
 				.owner = NULL,				\
 				.requeue_wait = evl_requeue_mutex_wait,	\
 				.wait_list = LIST_HEAD_INIT((__name).mutex.wchan.wait_list), \
@@ -143,6 +147,16 @@ static inline
 void evl_unlock_kmutex(struct evl_kmutex *kmutex)
 {
 	return evl_unlock_mutex(&kmutex->mutex);
+}
+
+static inline int evl_ceiling_priority(struct evl_mutex *mutex)
+{
+	/*
+	 * The ceiling priority value is stored in user-writable
+	 * memory, make sure to constrain it within valid bounds for
+	 * evl_sched_fifo before using it.
+	 */
+	return clamp(*mutex->ceiling_ref, 1U, (u32)EVL_FIFO_MAX_PRIO);
 }
 
 #endif /* !_EVL_MUTEX_H */

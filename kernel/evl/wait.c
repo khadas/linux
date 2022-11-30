@@ -20,7 +20,6 @@ void __evl_init_wait(struct evl_wait_queue *wq,
 {
 	wq->flags = wq_flags;
 	wq->clock = clock;
-	wq->wchan.pi_serial = 0;
 	wq->wchan.owner = NULL;
 	wq->wchan.requeue_wait = evl_requeue_wait;
 	wq->wchan.name = name;
@@ -148,7 +147,7 @@ wchan_to_wait_queue(struct evl_wait_channel *wchan)
 }
 
 /* wchan->lock + waiter->lock held, irqs off. */
-void evl_requeue_wait(struct evl_wait_channel *wchan, struct evl_thread *waiter)
+bool evl_requeue_wait(struct evl_wait_channel *wchan, struct evl_thread *waiter)
 {
 	struct evl_wait_queue *wq = wchan_to_wait_queue(wchan);
 
@@ -159,6 +158,8 @@ void evl_requeue_wait(struct evl_wait_channel *wchan, struct evl_thread *waiter)
 		list_del(&waiter->wait_next);
 		list_add_priff(waiter, &wq->wchan.wait_list, wprio, wait_next);
 	}
+
+	return true;
 }
 EXPORT_SYMBOL_GPL(evl_requeue_wait);
 
@@ -241,12 +242,11 @@ EXPORT_SYMBOL_GPL(evl_wait_head);
 
 /*
  * Requeue a thread which changed priority in the wait channel it
- * pends on, then propagate the change down the PI chain.
+ * pends on, then propagate the change down the lock chain.
  *
  * On entry: irqs off.
  */
-void evl_adjust_wait_priority(struct evl_thread *thread,
-			      enum evl_walk_mode mode)
+void evl_adjust_wait_priority(struct evl_thread *thread)
 {
 	struct evl_wait_channel *wchan;
 	struct evl_thread *owner;
@@ -254,21 +254,22 @@ void evl_adjust_wait_priority(struct evl_thread *thread,
 	EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled());
 
 	raw_spin_lock(&thread->lock);
+
 	wchan = evl_get_thread_wchan(thread);
-	raw_spin_unlock(&thread->lock);
-
-	if (!wchan)
+	if (!wchan) {
+		raw_spin_unlock(&thread->lock);
 		return;
+	}
 
+	/*
+	 * Careful: mere waitqueues have no owner, only mutexes may
+	 * be owned.
+	 */
 	owner = wchan->owner;
-	/* Careful: waitqueues have no owner. */
 	if (owner) {
-		evl_double_thread_lock(thread, owner);
 		wchan->requeue_wait(wchan, thread);
-		raw_spin_unlock(&owner->lock);
-		evl_walk_pi_chain(wchan, thread, mode);
+		evl_walk_lock_chain(wchan, thread, false);
 	} else {
-		raw_spin_lock(&thread->lock);
 		wchan->requeue_wait(wchan, thread);
 	}
 
@@ -277,14 +278,14 @@ void evl_adjust_wait_priority(struct evl_thread *thread,
 }
 
 /*
- * Walking the PI chain deals with the following items:
+ * Walking the lock chain deals with the following items:
  *
  * waiter := the thread which waits on wchan
  * wchan := the wait channel being processed
  * owner := the current owner of wchan
  *
  * In order to go fine-grained and escape ABBA situations, we hold
- * three locks at most while walking the PI chain, keeping a
+ * three locks at most while walking the lock chain, keeping a
  * consistent locking sequence among them as follows:
  *
  * lock(wchan)
@@ -301,158 +302,88 @@ void evl_adjust_wait_priority(struct evl_thread *thread,
  * On entry:
  * orig_wchan->lock held + orig_waiter->lock held, irqs off.
  */
-int evl_walk_pi_chain(struct evl_wait_channel *orig_wchan,
-		struct evl_thread *orig_waiter,
-		enum evl_walk_mode mode)
+int evl_walk_lock_chain(struct evl_wait_channel *orig_wchan,
+			struct evl_thread *orig_waiter,
+			bool check_only)
 {
-	static atomic64_t pi_serial;
-	struct evl_thread *waiter = orig_waiter, *curr = evl_current(), *owner;
+	struct evl_thread *waiter = orig_waiter, *owner = orig_wchan->owner;
 	struct evl_wait_channel *wchan = orig_wchan, *next_wchan;
-	s64 serial = atomic64_inc_return(&pi_serial);
-	bool do_reorder = false;
 	int ret = 0;
 
 	assert_hard_lock(&orig_wchan->lock);
 	assert_hard_lock(&orig_waiter->lock);
 
+	/* We must have a valid owner for the origin wchan. */
+	if (EVL_WARN_ON_ONCE(CORE, !owner))
+		return -EIO;
+
+	/* The chain must be sane on entry. */
+	if (EVL_WARN_ON_ONCE(CORE, owner == orig_waiter))
+		return -EDEADLK;
+
 	/*
-	 * The loop is always exited with two, and only two locks
-	 * held, namely: wchan->lock and waiter->lock. Also, *wchan
-	 * advances in lock-step with *waiter.
-	 *
-	 * Since we drop locks inside the PI walk, we might have
+	 * Since we drop locks inside the loop, we might have
 	 * concurrent walks on the same chain from different CPUs,
 	 * contradicting each other when it comes to the priority to
-	 * set for a thread. We solve this issue as follows:
-	 *
-	 * - a unique serial number is drawn at each invocation of
-	 * this routine (pi_serial). A wait channel maintains a cached
-	 * copy of this serial number, which is updated under lock.
-	 *
-	 * - before updating the priority of the owner of a wait
-	 * channel, the serial number drawn on entry (pi_serial) is
-	 * compared to the cached value: if this value is lower than
-	 * pi_serial, the change to wchan->owner can proceed, and the
-	 * cached copy is updated into the wait channel. Otherwise,
-	 * this means that a concurrent walk started later must
-	 * override the effect of the current one, in which case the
-	 * current PI walk is aborted.
-	 *
-	 * IOW, we ensure that the latest PI walk always overrides the
-	 * effect of walks started earlier. The initial serialization
-	 * is granted by orig_wchan->lock, which is held on entry to
-	 * this routine.
+	 * set for a thread. This issue is solved by
+	 * evl_adjust_thread_boost() which solely considers the
+	 * current state of a thread's booster list in order to give
+	 * it the proper priority at any point in time.
 	 */
 	for (;;) {
-		owner = wchan->owner;
-		if (!owner) /* End of PI chain, we are done. */
-			break;
-
-		if (owner == orig_waiter) {
-			ret = -EDEADLK;
-			break;
-		}
-
-		/*
-		 * Lock both the waiter and owner by increasing
-		 * address order to escape the ABBA issue.  To this
-		 * end, we have to drop waiter->lock temporarily
-		 * first, so that we can re-lock it at the right place
-		 * in the sequence. In the meantime, the waiter is
-		 * prevented to go stale by holding a reference on it.
-		 */
-		evl_get_element(&waiter->element);
 		raw_spin_unlock(&waiter->lock);
-
-		evl_double_thread_lock(waiter, owner);
-		evl_put_element(&waiter->element);
-
-		/*
-		 * Multiple PI walks may happen concurrently, detect
-		 * and abort the oldest ones based on their serial
-		 * number, ensuring the latest overrides them.
-		 */
-		if (mode != evl_pi_check && serial - wchan->pi_serial < 0)
-			break;
-
-		wchan->pi_serial = serial;
-
-		/*
-		 * Make sure the waiter did not stop waiting on wchan
-		 * while unlocked (we have been holding wchan->lock
-		 * across the unlocked section, so we know that wchan
-		 * did not go stale). If the waiter is current, it is
-		 * certainly about to block on wchan, so this check
-		 * does not apply (besides, waiter->wchan does not
-		 * point at wchan yet).
-		 */
-		if (waiter != curr && waiter->wchan != wchan)
-			break;
-
-		/*
-		 * The current wait channel may need to reorder its
-		 * internal wait queue due to a priority change for
-		 * the waiter during the previous iteration.
-		 *
-		 * This also means that for a short while, a waiter
-		 * may benefit from a priority boost not yet accounted
-		 * for in the wait queue of the channel its pends on,
-		 * which is ok since there cannot be any rescheduling
-		 * on the current CPU between both events.
-		 */
-		if (do_reorder) {
-			wchan->requeue_wait(wchan, waiter);
-			do_reorder = false;
-		}
-
-		if (mode == evl_pi_adjust) {
-			/*
-			 * If priorities already match, there is no
-			 * more change to propagate downstream. Stop
-			 * the walk now.
-			 */
-			if (waiter->wprio == owner->wprio) {
-				raw_spin_unlock(&owner->lock);
-				break;
-			}
-			/* owner.cprio <- waiter.cprio */
-			evl_track_thread_policy(owner, waiter);
-			do_reorder = true;
-		} else if (mode == evl_pi_reset) {
-			/* owner.cprio <- owner.bprio */
-			if (owner->state & EVL_T_BOOST)
-				evl_track_thread_policy(owner, owner);
-			do_reorder = true;
-		}
-
-		/*
-		 * Drop the lock on the current wait channel we don't
-		 * need anymore, so that we don't risk entering an
-		 * ABBA pattern lockdep would complain about as a
-		 * result of locking owner->wchan in
-		 * evl_get_thread_wchan().
-		 */
-		raw_spin_unlock(&waiter->lock);
+		raw_spin_lock(&owner->lock); /* Grab this before we drop wchan->lock */
 		raw_spin_unlock(&wchan->lock);
-		/* Now acquire owner->wchan if non-NULL. */
+
+		/*
+		 * If no adjustment was deemed necessary, we may stop
+		 * the walk right here, since there would be no
+		 * priority change to propagate further down the
+		 * chain.
+		 */
+		if (!check_only && !evl_adjust_thread_boost(owner)) {
+			raw_spin_unlock(&owner->lock);
+			break;
+		}
+
 		next_wchan = evl_get_thread_wchan(owner);
 		if (!next_wchan) {
 			raw_spin_unlock(&owner->lock);
-			raw_spin_lock(&orig_wchan->lock);
-			raw_spin_lock(&orig_waiter->lock);
-			return 0;
+			break;
 		}
 
+		/*
+		 * Progress down the lock chain, at this point we hold
+		 * owner->lock and next_wchan->lock.
+		 */
 		waiter = owner;
 		wchan = next_wchan;
-	}
 
-	if (waiter != orig_waiter) {
-		raw_spin_unlock(&waiter->lock);
-		raw_spin_unlock(&wchan->lock);
-		raw_spin_lock(&orig_wchan->lock);
-		raw_spin_lock(&orig_waiter->lock);
+		/*
+		 * If the priority of the last owner we visited has
+		 * changed, update its position into the wait channel
+		 * it sleeps on.
+		 */
+		if (!check_only && !wchan->requeue_wait(wchan, waiter))
+			goto unlock_out;
+
+		owner = wchan->owner;
+		if (!owner) /* End of lock chain, we are done. */
+			goto unlock_out;
+
+		if (owner == orig_waiter) {
+			ret = -EDEADLK;
+			goto unlock_out;
+		}
 	}
+out:
+	raw_spin_lock(&orig_wchan->lock);
+	raw_spin_lock(&orig_waiter->lock);
 
 	return ret;
+
+unlock_out:
+	raw_spin_unlock(&waiter->lock);
+	raw_spin_unlock(&wchan->lock);
+	goto out;
 }
