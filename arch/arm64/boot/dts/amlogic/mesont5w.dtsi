@@ -2089,14 +2089,14 @@
 				"i2c1_sda_c";
 			function = "i2c1";
 			bias-disable;
-			drive-strengtc-microamp = <3000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
 	i2c1_c_pins_slp_input:i2c1_c_slp_input {
 		mux {
 			groups = "GPIOC_13", "GPIOC_14";
-			function = "gpio_peripcs";
+			function = "gpio_periphs";
 			input-enable;
 			bias-disable;
 		};
@@ -2105,7 +2105,7 @@
 	i2c1_c_pins_slp_low:i2c1_c_slp_low {
 		mux {
 			groups = "GPIOC_13", "GPIOC_14";
-			function = "gpio_peripcs";
+			function = "gpio_periphs";
 			output-low;
 		};
 	};
@@ -2116,7 +2116,7 @@
 				"i2c2_sda_h21";
 			function = "i2c2";
 			bias-disable;
-			drive-strength-mihroamp = <3000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2143,7 +2143,7 @@
 				"i2c2_sda_h11";
 			function = "i2c2";
 			bias-disable;
-			drive-strength-mihroamp = <3000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2170,7 +2170,7 @@
 				"i2c2_sda_h25";
 			function = "i2c2";
 			bias-disable;
-			drive-strength-mihroamp = <3000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2197,7 +2197,7 @@
 				"i2c2_sda_m";
 			function = "i2c2";
 			bias-disable;
-			drive-strength-mihroamp = <3000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2224,7 +2224,7 @@
 				"i2c3_sda_h25";
 			function = "i2c3";
 			bias-disable;
-			drive-strength-mihroamp = <3000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2251,7 +2251,7 @@
 				"i2c3_sda_h23";
 			function = "i2c3";
 			bias-disable;
-			drive-strength-mihroamp = <3000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2929,7 +2929,7 @@
 				"i2c1_ao_sda";
 			function = "i2c1_ao";
 			bias-disable;
-			drive-strength-mihroamp = <3000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2956,7 +2956,7 @@
 				"i2c2_ao_sda";
 			function = "i2c2_ao";
 			bias-disable;
-			drive-strength-mihroamp = <3000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 

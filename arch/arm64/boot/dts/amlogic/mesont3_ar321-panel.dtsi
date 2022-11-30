@@ -247,7 +247,7 @@
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			p2p_attr = <
-				0x0  /* p2p_teyp:
+				0x0  /* p2p_type:
 				      *  0x0=ceds, 0x1=cmpi, 0x2=isp, 0x3=epi,
 				      *  0x10=chpi, 0x11=cspi, 0x12=usit
 				      */
@@ -296,7 +296,7 @@
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			p2p_attr = <
-				0x11  /* p2p_teyp:
+				0x11  /* p2p_type:
 				       * 0x0=ceds, 0x1=cmpi, 0x2=isp, 0x3=epi,
 				       * 0x10=chpi, 0x11=cspi, 0x12=usit
 				       */
