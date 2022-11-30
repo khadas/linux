@@ -294,7 +294,7 @@ get_rst_reg:
 	}
 
 	ret = of_property_read_u32(node, "pcie-gen2-l0-rst-bit",
-				   &amlogic->gen3_l0_rst_bit);
+				   &amlogic->gen2_l0_rst_bit);
 	if (ret) {
 		dev_err(dev, "failed to request gen2_l0_rst_bit\n");
 		return ret;

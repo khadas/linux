@@ -49,8 +49,12 @@ struct amlogic_msi {
 struct amlogic_pcie_rc {
 	struct amlogic_pcie amlogic;
 	struct pci_bus *root_bus;
-	u8 root_bus_nr;
 	struct amlogic_msi msi;
+	int inta_virq;
+	int intb_virq;
+	int intc_virq;
+	int intd_virq;
+	u8 root_bus_nr;
 };
 
 static void amlogic_pcie_free_irq_domain(struct amlogic_pcie_rc *rc);
@@ -137,10 +141,6 @@ static void amlogic_pcie_msi_handler(struct irq_desc *desc)
 
 	status = (amlogic_pcieinter_read(amlogic, ISTATUS_LOCAL) & INT_MASK);
 	while (status) {
-		/*
-		 *if (status & INT_INTX_MASK)
-		 *	amlogic_pcie_handle_intx_irq(rc, status);
-		 */
 		if (status & INT_MSI)
 			amlogic_pcie_handle_msi_irq(rc);
 
@@ -233,49 +233,87 @@ static int amlogic_pcie_host_init_port(struct amlogic_pcie *amlogic)
 	return err;
 }
 
-/*
- *static void amlogic_pcie_handle_intx_irq(struct amlogic_pcie_rc *rc,
- *					 unsigned long status)
- *{
- *	struct amlogic_pcie *amlogic = &rc->amlogic;
- *	struct device *dev = amlogic->dev;
- *	u32 bit;
- *	u32 virq;
- *
- *      status >>= INTA_OFFSET;
- *
- *	for_each_set_bit(bit, &status, INTX_NUM) {
- *		amlogic_pcieinter_write(amlogic, 1 << (bit + INTA_OFFSET),
- *				        ISTATUS_LOCAL);
- *
- *		virq = irq_find_mapping(rc->legacy_irq_domain, bit + 1);
- *		if (virq)
- *			generic_handle_irq(virq);
- *		else
- *			dev_err(dev, "unexpected IRQ, INT%d\n", bit);
- *
- *	}
- *
- *}
- */
+static void amlogic_pcie_intx_handler(struct irq_desc *desc)
+{
+	struct amlogic_pcie_rc *rc = irq_desc_get_handler_data(desc);
+	struct amlogic_pcie *amlogic = &rc->amlogic;
+	u32 mask = 0;
+	u32 reg;
 
-/*
- * static int amlogic_pcie_setup_irq(struct amlogic_pcie_rc *rc)
- *{
- *	struct amlogic_pcie *amlogic = &rc->amlogic;
- *	struct device *dev = amlogic->dev;
- *	struct platform_device *pdev = to_platform_device(dev);
- *	int err;
- *
- *	rc->irq = platform_get_irq(pdev, 0);
- *	if (rc->irq < 0) {
- *		dev_err(dev, "failed to get IRQ: %d\n", rc->irq);
- *		return rc->irq;
- *	}
- *
- *	return 0;
- *}
- */
+	if (rc->inta_virq == irq_desc_get_irq(desc))
+		mask = INTA;
+	else if (rc->intb_virq == irq_desc_get_irq(desc))
+		mask = INTB;
+	else if (rc->intc_virq == irq_desc_get_irq(desc))
+		mask = INTC;
+	else if (rc->intd_virq == irq_desc_get_irq(desc))
+		mask = INTD;
+	else
+		dev_err_once(amlogic->dev, "error number irq =%d\n", irq_desc_get_irq(desc));
+
+	reg = amlogic_pcieinter_read(amlogic, IMASK_LOCAL);
+	reg &= ~mask;
+	amlogic_pcieinter_write(amlogic, reg, IMASK_LOCAL);
+
+	handle_fasteoi_irq(desc);
+
+	amlogic_pcieinter_write(amlogic, mask, ISTATUS_LOCAL);
+
+	reg = amlogic_pcieinter_read(amlogic, IMASK_LOCAL);
+	reg |= mask;
+	amlogic_pcieinter_write(amlogic, reg, IMASK_LOCAL);
+}
+
+static int amlogic_pcie_setup_intx_irq(struct amlogic_pcie_rc *rc)
+{
+	struct amlogic_pcie *amlogic = &rc->amlogic;
+	struct device *dev = amlogic->dev;
+	struct platform_device *pdev = to_platform_device(dev);
+	u32 reg;
+
+	rc->inta_virq = platform_get_irq(pdev, 1);
+	if (rc->inta_virq < 0) {
+		dev_err(dev, "failed to get IRQ: %d\n", rc->inta_virq);
+		return rc->inta_virq;
+	}
+
+	irq_set_handler(rc->inta_virq, amlogic_pcie_intx_handler);
+	irq_set_handler_data(rc->inta_virq, rc);
+
+	rc->intb_virq = platform_get_irq(pdev, 2);
+	if (rc->intb_virq < 0) {
+		dev_err(dev, "failed to get IRQ: %d\n", rc->intb_virq);
+		return rc->intb_virq;
+	}
+
+	irq_set_handler(rc->intb_virq, amlogic_pcie_intx_handler);
+	irq_set_handler_data(rc->intb_virq, rc);
+
+	rc->intc_virq = platform_get_irq(pdev, 3);
+	if (rc->intc_virq < 0) {
+		dev_err(dev, "failed to get IRQ: %d\n", rc->intc_virq);
+		return rc->intc_virq;
+	}
+
+	irq_set_handler(rc->intc_virq, amlogic_pcie_intx_handler);
+	irq_set_handler_data(rc->intc_virq, rc);
+
+	rc->intd_virq = platform_get_irq(pdev, 4);
+	if (rc->intd_virq < 0) {
+		dev_err(dev, "failed to get IRQ: %d\n", rc->intd_virq);
+		return rc->intd_virq;
+	}
+
+	irq_set_handler(rc->intd_virq, amlogic_pcie_intx_handler);
+	irq_set_handler_data(rc->intd_virq, rc);
+
+	/* Enable INTX */
+	reg = amlogic_pcieinter_read(amlogic, IMASK_LOCAL);
+	reg |= INT_INTX_MASK;
+	amlogic_pcieinter_write(amlogic, reg, IMASK_LOCAL);
+
+	return 0;
+}
 
 static int amlogic_pcie_parse_host_dt(struct amlogic_pcie_rc *rc)
 {
@@ -294,12 +332,6 @@ static int amlogic_pcie_parse_host_dt(struct amlogic_pcie_rc *rc)
 	if (ret)
 		return ret;
 
-	/*
-	 * ret = amlogic_pcie_setup_irq(rc);
-	 *if (ret)
-	 *	return ret;
-	 */
-
 	return 0;
 }
 
@@ -312,7 +344,8 @@ static struct irq_chip amlogic_msi_irq_chip = {
 };
 
 static struct msi_domain_info amlogic_msi_domain_info = {
-	.flags = (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS),
+	.flags = (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
+		  MSI_FLAG_MULTI_PCI_MSI | MSI_FLAG_PCI_MSIX),
 	.chip = &amlogic_msi_irq_chip,
 
 };
@@ -564,7 +597,6 @@ static int amlogic_pcie_rc_probe(struct platform_device *pdev)
 	}
 
 	amlogic_pcieinter_write(amlogic, 0xffffffff, ISTATUS_LOCAL);
-	amlogic_pcieinter_write(amlogic, INT_INTX_MASK, IMASK_LOCAL);
 
 	amlogic_pcie_cfg_atr(amlogic);
 
@@ -584,6 +616,12 @@ static int amlogic_pcie_rc_probe(struct platform_device *pdev)
 
 	amlogic_pcieinter_write(amlogic, 0x0,
 				PCI_CFG_SPACE + PCI_BASE_ADDRESS_0);
+
+	err = amlogic_pcie_setup_intx_irq(rc);
+	if (err) {
+		dev_err(dev, "failed to INTX support: %d\n", err);
+		goto err_root_bus;
+	}
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		err = amlogic_pcie_enable_msi(rc);
