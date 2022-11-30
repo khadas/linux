@@ -2008,17 +2008,34 @@ int stop_tvin_service(int no)
  * port 0: capture_osd_plus_video = 0
  * port 1: capture_only_video
  */
-int start_tvin_capture_ex(int dev_num, int port, struct vdin_parm_s  *para)
+int start_tvin_capture_ex(int dev_num, enum port_vpp_e port, struct vdin_parm_s  *para)
 {
 	unsigned int loop_port;
 	unsigned int vdin_dev;
 
-	if (port == 1)/*only video*/
+	if (!para) {
+		pr_err("%s vdin%d port=0x%x,para == NULL!\n", __func__, dev_num, port);
+		return -1;
+	}
+
+	if (vdin_dbg_en)
+		pr_err("%s vdin%d port=0x%x,0x%x!\n", __func__, dev_num, port, para->port);
+
+	if (port == PORT_VPP0_VIDEO_ONLY)		/* vpp0 */
 		loop_port = TVIN_PORT_VIU1_WB0_VD1;
-	else if (port == 0)/*osd + video*/
+	else if (port == PORT_VPP0_OSD_VIDEO)
 		loop_port = TVIN_PORT_VIU1_WB0_VPP;
+	else if (port == PORT_VPP1_VIDEO_ONLY)		/* vpp1 */
+		loop_port = TVIN_PORT_VIU2_VD1;
+	else if (port == PORT_VPP1_OSD_VIDEO)
+		loop_port = TVIN_PORT_VIU2_VPP;
+	else if (port == PORT_VPP2_VIDEO_ONLY)		/* vpp2 */
+		loop_port = TVIN_PORT_VIU3_VD1;
+	else if (port == PORT_VPP2_OSD_VIDEO)
+		loop_port = TVIN_PORT_VIU3_VPP;
 	else
-		loop_port = TVIN_PORT_VIU1_WB0_VD1;
+		loop_port = para->port;
+		//loop_port = TVIN_PORT_VIU1_WB0_VD1;
 	para->port = loop_port;
 
 	if (dev_num == 0)

@@ -124,7 +124,8 @@
 /* 20221118: add path not lock and filter frame rate */
 /* 20221126: tvafe donot dynamically check aspect ratio */
 /* 20221129: memory free and id name optimize */
-#define VDIN_VER "20221129"
+/* 20221209: support aux screen capture */
+#define VDIN_VER "20221209"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -979,7 +980,7 @@ struct vframe_provider_s *vf_get_provider_by_name(const
 						  char *provider_name);
 char *vf_get_receiver_name(const char *provider_name);
 int start_tvin_service(int no, struct vdin_parm_s *para);
-int start_tvin_capture_ex(int dev_num, int port, struct vdin_parm_s  *para);
+int start_tvin_capture_ex(int dev_num, enum port_vpp_e port, struct vdin_parm_s  *para);
 int stop_tvin_service(int no);
 int vdin_reg_v4l2(struct vdin_v4l2_ops_s *v4l2_ops);
 void vdin_unregister_v4l2(void);

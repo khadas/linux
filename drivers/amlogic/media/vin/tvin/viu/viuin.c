@@ -672,6 +672,7 @@ static void viuin_sig_property(struct tvin_frontend_s *fe,
 	switch (devp->parm.port) {
 	case TVIN_PORT_VIU1_VIDEO:
 	case TVIN_PORT_VIU1_WB0_POST_BLEND:
+	case TVIN_PORT_VIU2_VD1:
 		prop->color_format = TVIN_YUV444;
 		break;
 	case TVIN_PORT_VIU1:
@@ -680,6 +681,16 @@ static void viuin_sig_property(struct tvin_frontend_s *fe,
 	case TVIN_PORT_VIU1_WB1_VPP:
 		vinfo = get_current_vinfo();
 		prop->color_format = (enum tvin_color_fmt_e)vinfo->viu_color_fmt;
+		break;
+	case TVIN_PORT_VIU2_VPP:
+	#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+		vinfo = get_current_vinfo2();
+		prop->color_format = (enum tvin_color_fmt_e)vinfo->viu_color_fmt;
+		pr_info("color_format:%#x\n", prop->color_format);
+	#else
+		prop->color_format = TVIN_YUV444;
+		pr_info("def color_format:%#x\n", prop->color_format);
+	#endif
 		break;
 
 	/* ENCL/ENCI/ENCP is only for viu2 loopback currently

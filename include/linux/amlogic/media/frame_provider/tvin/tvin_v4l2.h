@@ -721,6 +721,16 @@ enum cam_interface_e {
 	CAM_MIPI,
 };
 
+enum port_vpp_e {
+	PORT_VPP0_OSD_VIDEO  = 0,/* vpp0 osd+video */
+	PORT_VPP0_VIDEO_ONLY = 1,/* vpp0 video only */
+	PORT_VPP1_OSD_VIDEO  = 2,/* vpp1 osd+video */
+	PORT_VPP1_VIDEO_ONLY = 3,/* vpp2 video only */
+	PORT_VPP2_OSD_VIDEO  = 4,/* vpp2 osd+video */
+	PORT_VPP2_VIDEO_ONLY = 5,/* vpp2 video only */
+	PORT_VPP_MAX
+};
+
 #define PARAM_STATE_NULL			0x00000000
 #define PARAM_STATE_HISTGRAM		0x00000001
 #define PARAM_STATE_SCREEN_CAP		0x00000002
@@ -815,7 +825,7 @@ struct vdin_v4l2_ops_s {
 	int (*tvin_fe_func)(int no, struct fe_arg_s *arg); /* for isp command */
 	int (*tvin_vdin_func)(int no, struct vdin_arg_s *arg);
 	void *private;
-	int (*start_tvin_service_ex)(int devnum, int port, struct vdin_parm_s *para);
+	int (*start_tvin_service_ex)(int devnum, enum port_vpp_e port, struct vdin_parm_s *para);
 };
 
 #define TVIN_PIXEL_FORMAT_NUM 5
