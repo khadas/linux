@@ -133,17 +133,17 @@ static void tp_trackprio(struct evl_thread *thread,
 			const union evl_sched_param *p)
 {
 	/*
-	 * The assigned partition never changes internally due to PI
-	 * (see evl_track_thread_policy()), since this would be pretty
-	 * wrong with respect to TP scheduling: i.e. we may not allow
-	 * a thread from another partition to consume CPU time from
-	 * the current one, despite this would help enforcing PI (see
-	 * note). In any case, introducing resource contention between
-	 * threads that belong to different partitions is utterly
-	 * wrong in the first place.  Only an explicit call to
-	 * evl_set_thread_policy() may change the partition assigned
-	 * to a thread. For that reason, a policy reset action only
-	 * boils down to reinstating the base priority.
+	 * The assigned partition never changes as a result of a PI/PP
+	 * boost, since this would be pretty wrong with respect to TP
+	 * scheduling: i.e. we may not allow a thread from another
+	 * partition to consume CPU time from the current one, despite
+	 * this would help enforcing PI (see note). In any case,
+	 * introducing resource contention between threads that belong
+	 * to different partitions is utterly wrong in the first
+	 * place.  Only an explicit call to evl_set_thread_policy()
+	 * may change the partition assigned to a thread. For that
+	 * reason, a policy reset action only boils down to
+	 * reinstating the base priority.
 	 *
 	 * NOTE: we do allow threads from lower scheduling classes to
 	 * consume CPU time from the current window as a result of a

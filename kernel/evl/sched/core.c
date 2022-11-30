@@ -399,7 +399,7 @@ static void check_cpu_affinity(struct task_struct *p) /* inband, hard irqs off *
 	raw_spin_unlock(&thread->lock);
 
 	if (need_requeue)
-		evl_adjust_wait_priority(thread, evl_pi_adjust);
+		evl_adjust_wait_priority(thread);
 }
 
 #else
@@ -543,11 +543,10 @@ bool evl_set_effective_thread_priority(struct evl_thread *thread, int prio)
 		return true;
 
 	/*
-	 * We may not lower the effective/current priority of a
-	 * boosted thread when changing the base scheduling
-	 * parameters. Only evl_track_thread_policy() and
-	 * evl_protect_thread_priority() may do so when dealing with PI
-	 * and PP synchs resp.
+	 * We may not lower the effective/current priority of a thread
+	 * undergoing a priority boost when changing the base
+	 * scheduling parameters. Only evl_adjust_thread_boost() may
+	 * do so.
 	 */
 	if (wprio < thread->wprio && (thread->state & EVL_T_BOOST))
 		return false;
@@ -559,96 +558,63 @@ bool evl_set_effective_thread_priority(struct evl_thread *thread, int prio)
 	return true;
 }
 
-/* dst->lock + src->lock held, hard irqs off */
-void evl_track_thread_policy(struct evl_thread *dst,
-			struct evl_thread *src)
+/*
+ * thread->lock held, irqs off.
+ *
+ * Returns true if the operation resulted in a priority/policy update
+ * for @thread.
+ */
+bool evl_adjust_thread_boost(struct evl_thread *thread)
 {
-	union evl_sched_param param;
+	struct evl_mutex *top_booster;
+	bool ret = false;
 
-	assert_hard_lock(&dst->lock);
-	assert_hard_lock(&src->lock);
+	assert_hard_lock(&thread->lock);
 
-	evl_double_rq_lock(dst->rq, src->rq);
+	raw_spin_lock(&thread->rq->lock);
 
-	/*
-	 * We may receive redundant calls for deboosting, this is ok,
-	 * just filter them out.
-	 */
-	if (src == dst && !(dst->state & EVL_T_BOOST))
-		goto out;
+	/* Check for the deboosting case first. */
+	if (list_empty(&thread->boosters)) {
+		if (!(thread->state & EVL_T_BOOST))
+			goto out;
 
-	/*
-	 * Inherit (or reset) the effective scheduling class and
-	 * priority of a thread. Unlike evl_set_thread_policy(), this
-	 * routine is allowed to lower the weighted priority with no
-	 * restriction, even if a boost is undergoing.
-	 */
-	if (dst->state & EVL_T_READY)
-		evl_dequeue_thread(dst);
+		/* Dequeue first, _then_ update the schedparams. */
+		if (thread->state & EVL_T_READY)
+			evl_dequeue_thread(thread);
 
-	/*
-	 * Self-targeting means to reset the scheduling policy and
-	 * parameters to the base settings. Otherwise, make @dst
-	 * inherit the scheduling parameters from @src.
-	 */
-	if (src == dst) {	/* Deboosting? */
-		dst->state &= ~EVL_T_BOOST;
-		dst->sched_class = dst->base_class;
-		evl_track_priority(dst, NULL);
+		thread->state &= ~EVL_T_BOOST;
+		thread->sched_class = thread->base_class;
+		/* Tell the sched policy module about the update. */
+		evl_track_priority(thread, NULL);
+
 		/*
 		 * Per SuSv2, resetting the base scheduling parameters
 		 * should not move the thread to the tail of its
 		 * priority group, which makes sense.
 		 */
-		if (dst->state & EVL_T_READY)
-			evl_requeue_thread(dst);
+		if (thread->state & EVL_T_READY)
+			evl_requeue_thread(thread);
 	} else {
 		/*
-		 * Save the base priority at initial boost only, then
-		 * raise the EVL_T_BOOST flag so that setparam() won't be
-		 * allowed to decrease the current weighted priority
-		 * below the boost value, until deboosting occurs.
+		 * Fetch the top booster, which is the mutex queuing
+		 * the waiter with the highest priority among all
+		 * PI/PP mutexes currently held by @thread. This
+		 * booster might have no waiter yet, if current is
+		 * about to wait on it.
 		 */
-		if (src->wprio > dst->wprio && !(dst->state & EVL_T_BOOST)) {
-			dst->bprio = dst->cprio;
-			dst->state |= EVL_T_BOOST;
-		}
-		evl_get_schedparam(src, &param);
-		dst->sched_class = src->sched_class;
-		evl_track_priority(dst, &param);
-		if (dst->state & EVL_T_READY)
-			evl_enqueue_thread(dst);
-	}
+		top_booster = list_first_entry(&thread->boosters,
+					struct evl_mutex, next_booster);
 
-	trace_evl_thread_set_current_prio(dst);
+		/*
+		 * top_booster->boost.wprio stores the policy-weighted
+		 * priority of the top waiter sleeping on
+		 * top_booster. IOW, the priority the owner should
+		 * have when boosted.
+		 */
+		if (top_booster->boost.wprio == thread->wprio)
+			goto out;
 
-	evl_set_resched(dst->rq);
-out:
-	evl_double_rq_unlock(dst->rq, src->rq);
-}
-
-/* thread->lock, hard irqs off */
-void evl_protect_thread_priority(struct evl_thread *thread, int prio)
-{
-	assert_hard_lock(&thread->lock);
-
-	raw_spin_lock(&thread->rq->lock);
-
-	/*
-	 * Apply a PP boost by changing the effective priority of a
-	 * thread, forcing it to the FIFO class. Like
-	 * evl_track_thread_policy(), this routine is allowed to lower
-	 * the weighted priority with no restriction, even if a boost
-	 * is undergoing. However, we prevent spurious round-robin
-	 * effects in the runqueue by ignoring requests to re-apply
-	 * the same priority.
-	 *
-	 * This routine only deals with active boosts, resetting the
-	 * base priority when leaving a PP boost is obtained by a call
-	 * to evl_track_thread_policy().
-	 */
-	if (thread->sched_class != &evl_sched_fifo ||
-	    evl_calc_weighted_prio(&evl_sched_fifo, prio) != thread->wprio) {
+		/* Save the base priority at initial boost (only). */
 		if (!(thread->state & EVL_T_BOOST)) {
 			thread->bprio = thread->cprio;
 			thread->state |= EVL_T_BOOST;
@@ -657,18 +623,26 @@ void evl_protect_thread_priority(struct evl_thread *thread, int prio)
 		if (thread->state & EVL_T_READY)
 			evl_dequeue_thread(thread);
 
-		thread->sched_class = &evl_sched_fifo;
-		evl_ceil_priority(thread, prio);
+		if (top_booster->flags & EVL_MUTEX_PP) {
+			thread->sched_class = &evl_sched_fifo;
+			evl_ceil_priority(thread,
+					evl_ceiling_priority(top_booster));
+		} else {
+			thread->sched_class = top_booster->boost.sched_class;
+			evl_track_priority(thread, &top_booster->boost.param);
+		}
 
 		if (thread->state & EVL_T_READY)
 			evl_enqueue_thread(thread);
-
-		trace_evl_thread_set_current_prio(thread);
-
-		evl_set_resched(thread->rq);
 	}
 
+	trace_evl_thread_set_current_prio(thread);
+	evl_set_resched(thread->rq);
+	ret = true;
+out:
 	raw_spin_unlock(&thread->rq->lock);
+
+	return ret;
 }
 
 #ifdef CONFIG_EVL_SCHED_SCALABLE

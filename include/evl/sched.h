@@ -420,10 +420,10 @@ static inline bool evl_cannot_block(void)
 	do {								\
 		bool __need_requeue = (__thread)->info & EVL_T_WCHAN;	\
 		if (__need_requeue)					\
-			(__thread)->info &= ~EVL_T_WCHAN;			\
+			(__thread)->info &= ~EVL_T_WCHAN;		\
 		evl_put_thread_rq_noirq(__thread, __rq);		\
 		if (__need_requeue)					\
-			evl_adjust_wait_priority(__thread, evl_pi_adjust); \
+			evl_adjust_wait_priority(__thread);		\
 	} while (0)
 
 bool evl_set_effective_thread_priority(struct evl_thread *thread,
@@ -442,11 +442,7 @@ int evl_set_thread_policy(struct evl_thread *thread,
 			  struct evl_sched_class *sched_class,
 			  const union evl_sched_param *p);
 
-void evl_track_thread_policy(struct evl_thread *thread,
-			     struct evl_thread *target);
-
-void evl_protect_thread_priority(struct evl_thread *thread,
-				 int prio);
+bool evl_adjust_thread_boost(struct evl_thread *thread);
 
 static inline int evl_init_rq_thread(struct evl_thread *thread)
 {

@@ -21,19 +21,11 @@ struct evl_thread;
 struct evl_wait_channel {
 	hard_spinlock_t lock;
 	struct lock_class_key lock_key;	/* lockdep disambiguation */
-	s64 pi_serial;
 	struct evl_thread *owner;
-	void (*requeue_wait)(struct evl_wait_channel *wchan,
-			     struct evl_thread *waiter);
+	bool (*requeue_wait)(struct evl_wait_channel *wchan,
+			struct evl_thread *waiter);
 	struct list_head wait_list;
 	const char *name;
-};
-
-/* Modes for PI chain walk. */
-enum evl_walk_mode {
-	evl_pi_adjust,		/* Adjust priority of members. */
-	evl_pi_reset,		/* Revert members to their base priority. */
-	evl_pi_check,		/* Check the PI chain (no change). */
 };
 
 #ifdef CONFIG_LOCKDEP
@@ -164,14 +156,13 @@ struct evl_thread *evl_wake_up_head(struct evl_wait_queue *wq)
 	return evl_wake_up(wq, NULL, 0);
 }
 
-void evl_requeue_wait(struct evl_wait_channel *wchan,
+bool evl_requeue_wait(struct evl_wait_channel *wchan,
 		struct evl_thread *waiter);
 
-void evl_adjust_wait_priority(struct evl_thread *thread,
-			      enum evl_walk_mode mode);
+void evl_adjust_wait_priority(struct evl_thread *thread);
 
-int evl_walk_pi_chain(struct evl_wait_channel *orig_wchan,
-		struct evl_thread *orig_waiter,
-		enum evl_walk_mode mode);
+int evl_walk_lock_chain(struct evl_wait_channel *orig_wchan,
+			struct evl_thread *orig_waiter,
+			bool check_only);
 
 #endif /* !_EVL_WAIT_H_ */

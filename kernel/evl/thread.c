@@ -1065,8 +1065,8 @@ EXPORT_SYMBOL_GPL(evl_set_thread_schedparam);
 /*
  * Update the priority and/or scheduling policy of @thread. This
  * routine is NOT involved in PI/PP management for mutexes in any way,
- * specific calls exist for this instead, see
- * evl_track_thread_policy(), evl_protect_thread_priority().
+ * a specific calls exists for this instead, see
+ * evl_adjust_thread_boost().
  *
  * On entry: thread->lock + thread->rq->lock held, irqs off.
  */
