@@ -1235,7 +1235,7 @@ static ssize_t edid_store(struct device *dev,
 
 PROCESS_END:
 	kfree(p);
-	return 16;
+	return count;
 }
 
 /* rawedid attr */
