@@ -380,6 +380,7 @@
 		power-domains=<&pwrdm PDID_S5_NNA_4T>;
 		//memory-region = <&nna_cma_reserved>;
 		smmu;
+		regulator_nn;
 	};
 
 	nna_top_ports_wrapper_0: nna_top_ports_wrapper@fe370000 {
