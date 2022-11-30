@@ -85,9 +85,5 @@ int tee_vp9_prob_malloc(u32 *prob_addr);
 
 int tee_vp9_prob_free(u32 prob_addr);
 
-#ifdef CONFIG_AMLOGIC_PCIE
-extern int keep_init;
-#endif
-
 #endif /* __TEE_H__ */
 
