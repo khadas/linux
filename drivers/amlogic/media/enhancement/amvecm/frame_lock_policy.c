@@ -190,7 +190,7 @@ int flock_vrr_nfy_callback(struct notifier_block *block, unsigned long cmd,
 
 u16 frame_lock_get_vrr_status(void)
 {
-	return frame_sts.vrr_en;
+	return frame_sts.vrr_policy;//0:fixed frame rate,1:variable frame rate
 }
 
 u32 frame_lock_chk_is_small_win(struct vpp_frame_par_s *cur_video_sts, struct vinfo_s *vinfo)
