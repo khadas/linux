@@ -1303,11 +1303,15 @@ static int dtvdemod_dvbs_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return 0;
 }
 
-static int dtvdemod_dvbs_read_signal_strength(struct dvb_frontend *fe,
-		s16 *strength)
+static int dtvdemod_dvbs_read_signal_strength(struct dvb_frontend *fe, s16 *strength)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	unsigned int agc_level = 0;
+
+	if (demod->last_status != 0x1F) {
+		*strength = -100;
+		return 0;
+	}
 
 	if (tuner_find_by_name(fe, "av2018")) {
 		agc_level = dvbs_rd_byte(DVBS_AGC_LEVEL_ADDR);
@@ -4323,6 +4327,8 @@ static int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *st
 		}
 	}
 
+	demod->last_status = *status;
+
 	if (demod->last_lock != ilock) {
 		memset(buf, 0, 32);
 		snprintf(buf, sizeof(buf), "%d", c->frequency);
@@ -6612,7 +6618,7 @@ static int aml_dtvdm_read_status(struct dvb_frontend *fe,
 	switch (delsys) {
 	case SYS_DVBS:
 	case SYS_DVBS2:
-		ret = dtvdemod_dvbs_read_status(fe, status, fe->dtv_property_cache.frequency);
+		*status = demod->last_status;
 		break;
 
 	case SYS_DVBC_ANNEX_A:
