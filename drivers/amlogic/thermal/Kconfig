@@ -71,7 +71,7 @@ config AMLOGIC_DDR_THERMAL
 		If you want this support, you should say Y here.
 
 config AMLOGIC_GX_TEMP_SENSOR
-	bool "Amlgoic temperature sensor Support for GX chips"
+	bool "Amlogic temperature sensor Support for GX chips"
 	depends on AMLOGIC_THERMAL
 	depends on ARM64 || ARM64_A32
 	default n
