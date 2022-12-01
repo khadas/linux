@@ -2998,11 +2998,15 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	if (!timing)
 		return 0;
 	/* tx_frl_bandwidth = timing->pixel_freq / 1000 * 24 * 1.122 */
-	if (hdev->data->chip_type < MESON_CPU_ID_S5)	//todo, not in parse
+	if (hdev->data->chip_type < MESON_CPU_ID_S5) { //todo, not in parse
 		tx_frl_bandwidth = 0;
-	else
+	} else {
 		tx_frl_bandwidth = calc_frl_bandwidth(timing->pixel_freq / 1000,
 			para->cs, para->cd);
+		if (tx_frl_bandwidth > get_frl_bandwidth(hdev->tx_max_frl_rate))
+			return 0;
+	}
+
 	if (calc_tmds_clk < rx_max_tmds_clk || tx_frl_bandwidth <= rx_frl_bandwidth)
 		valid = 1;
 	else

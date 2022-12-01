@@ -737,6 +737,10 @@ static void set_hdmitx_enc_idx(unsigned int val)
 	arm_smccc_smc(HDCPTX_IOOPR, CONF_ENC_IDX, 1, !!val, 0, 0, 0, 0, &res);
 }
 
+static int dfm_type = 2;
+module_param(dfm_type, int, 0644);
+MODULE_PARM_DESC(dfm_type, "for dfm debug");
+
 static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 {
 	struct hdmi_format_para *para = hdev->para;
@@ -964,12 +968,31 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 	hdmitx_set_phy(hdev);
 	if (hdev->data->chip_type >= MESON_CPU_ID_S5) {
 		hdmitx_set_clkdiv(hdev);
-		if (!hdev->frl_rate)
-			hdmitx_dfm_cfg(0, 0);
-		else
-			hdmitx_dfm_cfg(1, 0);
+		hdmitx_dfm_cfg(0, 0);
+		if (hdev->frl_rate) {
+			struct hdmi_format_para *para = hdev->para;
+			enum hdmi_colorspace cs = para->cs;
+			enum hdmi_color_depth cd = para->cd;
+			u32 tribytes_per_line = para->timing.h_active;
+
+			if (cs == HDMI_COLORSPACE_YUV420)
+				tribytes_per_line = tribytes_per_line / 2;
+			if (cs != HDMI_COLORSPACE_YUV422) {
+				if (cd == COLORDEPTH_30B)
+					tribytes_per_line = tribytes_per_line * 5 / 4;
+				else if (cd == COLORDEPTH_36B)
+					tribytes_per_line = tribytes_per_line * 3 / 2;
+				else /* 8bit */
+					tribytes_per_line = tribytes_per_line * 1;
+			}
+			tribytes_per_line = tribytes_per_line * 3 / 2 + 3;
+			if (dfm_type == 1)
+				hdmitx_dfm_cfg(1, tribytes_per_line);
+			if (dfm_type == 2)
+				hdmitx_dfm_cfg(2, 0);
+		}
 		if (hdev->rxcap.max_frl_rate)
-			hdmitx_frl_training_main(hdev->frl_rate);
+			frl_tx_training_handler(hdev);
 	}
 	return 0;
 }
@@ -1582,7 +1605,8 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		hdmitx21_set_clk(hdev);
 		return;
 	} else if (strncmp(tmpbuf, "frl", 3) == 0) {
-		hdmitx_frl_training_main(hdev->frl_rate);
+		hdev->manual_frl_rate = tmpbuf[3] - '0';
+		frl_tx_training_handler(hdev);
 		return;
 	} else if (strncmp(tmpbuf, "clkmsr", 6) == 0) {
 		struct _hdmi_clkmsr {

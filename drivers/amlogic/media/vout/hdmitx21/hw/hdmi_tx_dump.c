@@ -105,35 +105,45 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 	dumptop(s, HDMITX_TOP_SW_RESET, HDMITX_TOP_SECURE_DATA);
 	// 0x00000000 - 0x00000018
 	dumpcor(s, INTR3_IVCTX, AON_CYP_CTL_IVCTX);
+	// 0x000000a0 - 0x000000a1
+	dumpcor(s, RST_CNTL_IVCTX, AON_MISC_IVCTX);
 	// 0x00000100 - 0x00000130
 	dumpcor(s, VND_IDL_IVCTX, TOP_INTR_IVCTX);
 	// 0x00000200 - 0x000002d5
 	dumpcor(s, DEBUG_MODE_EN_IVCTX, DROP_GEN_TYPE_5_IVCTX);
 	// 0x00000300 - 0x0000031a
 	dumpcor(s, TX_ZONE_CTL0_IVCTX, FIFO_10TO20_CTRL_IVCTX);
-	// 0x00000400 - 0x000004a0
-	dumpcor(s, BIST_RST_IVCTX, CR_BLACK_HIGH_IVCTX);
+	// 0x00000330 - 0x00000334
+	dumpcor(s, MHLHDMITXTOP_INTR_IVCTX, EMSC_ADCTC_LD_SEL_IVCTX);
+	// 0x00000400 - 0x000004a1
+	dumpcor(s, BIST_RST_IVCTX, REG_DUAL_ALIGN_CTRL_IVCTX);
 	// 0x00000607 - 0x000006ff
 	dumpcor(s, TPI_MISC_IVCTX, RSVD11_HW_TPI_IVCTX);
 	// 0x00000700 - 0x00000777
 	dumpcor(s, HT_TOP_CTL_PHY_IVCTX, HT_LTP_ST_PHY_IVCTX);
-	// 0x00000800 - 0x00000876
-	dumpcor(s, CP2TX_CTRL_0_IVCTX, CP2TX_GP1_IVCTX);
+	// 0x00000800 - 0x00000879
+	dumpcor(s, CP2TX_CTRL_0_IVCTX, CP2TX_IPT_CTR_39TO32_IVCTX);
 	// 0x000008a0 - 0x000008d0
 	dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);
-	// 0x00000900 - 0x00000934
-	dumpcor(s, SCRCTL_IVCTX, RSVD1_HDMI2_IVCTX);
-	// 0x00000a00 - 0x00000a6e
-	dumpcor(s, RSVD0_AIP_IVCTX, AUDIO_CLK_DIV_IVCTX);
-	// 0x00000b00 - 0x00000be1
-	dumpcor(s, VP_FEATURES_IVCTX, VP_EMBD_SYNC_ENC_CONFIG_IVCTX);
+	// 0x00000900 - 0x00000933
+	dumpcor(s, SCRCTL_IVCTX, FRL_LTP_OVR_VAL1_IVCTX);
+	// 0x00000934 - 0x0000097a
+	dumpcor(s, RSVD1_HDMI2_IVCTX, H21TXSB_SPARE_9_IVCTX);
+	// 0x00000980 - 0x00000985
+	dumpcor(s, H21TX_SB_TOP0_IVCTX, H21TX_SB_TOP_INS_DISP_CTRL_1_IVCTX);
+	// 0x00000a00 - 0x00000a70
+	dumpcor(s, RSVD0_AIP_IVCTX, SPDIF_ORG_FS_IVCTX);
+	// 0x00000b00 - 0x00000bec
+	dumpcor(s, VP_FEATURES_IVCTX, VP_INTERLACE_FIELD_IVCTX);
+	// 0x00000c00 - 0x00000cdc
+	dumpcor(s, VP_CMS_FEATURES_IVCTX, VP_CMS_DEMO_BAR_DATA_CR_IVCTX);
 	// 0x00000d00 - 0x00000d3c
 	dumpcor(s, VP_CMS_CSC0_FEATURES_IVCTX,
 		VP_CMS_CSC0_MULTI_CSC_OUT_RCR_OFFSET_IVCTX);
 	//0x00000d80 - 0x00000ddc
 	dumpcor(s, VP_CMS_CSC1_FEATURES_IVCTX, VP_CMS_CSC1_PIXCAP_OUT_CR_IVCTX);
-	// 0x00000f00 - 0x00000f26
-	dumpcor(s, D_HDR_GEN_CTL_IVCTX, D_HDR_SPARE_9_IVCTX);
+	// 0x00000f00 - 0x00000f27
+	dumpcor(s, D_HDR_GEN_CTL_IVCTX, D_HDR_FIFO_MEM_CTL_IVCTX);
 	// 0x00000f80 - 0x00000fa9
 	dumpcor(s, DSC_PKT_GEN_CTL_IVCTX, DSC_PKT_SPARE_9_IVCTX);
 	dump_infoframe_packets(s);
@@ -613,11 +623,15 @@ static void dump_clkctrl_regs(struct seq_file *s, const u32 *val)
 		TO21_PHY_ADDR(CLKCTRL_VID_CLK0_CTRL2), val[3]);
 	seq_printf(s, "VIID_CLK0_DIV[0x%x]=0x%x\n",
 		TO21_PHY_ADDR(CLKCTRL_VIID_CLK0_DIV), val[4]);
+	seq_printf(s, "CLKCTRL_ENC_HDMI_CLK_CTRL[0x%x]=0x%x\n",
+		TO21_PHY_ADDR(CLKCTRL_ENC_HDMI_CLK_CTRL), val[5]);
+	seq_printf(s, "CLKCTRL_VID_CLK0_DIV[0x%x]=0x%x\n",
+		TO21_PHY_ADDR(CLKCTRL_VID_CLK0_DIV), val[6]);
 }
 
 static int hdmitx_dump_cts_enc_clk_status(struct seq_file *s, void *p)
 {
-	u32 val[5];
+	u32 val[7];
 	u32 div;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	const char *crt_video_src_des[8] = {
@@ -639,6 +653,8 @@ static int hdmitx_dump_cts_enc_clk_status(struct seq_file *s, void *p)
 	val[2] = hd21_read_reg(CLKCTRL_ENC0_HDMI_CLK_CTRL);
 	val[3] = hd21_read_reg(CLKCTRL_VID_CLK0_CTRL2);
 	val[4] = hd21_read_reg(CLKCTRL_VIID_CLK0_DIV);
+	val[5] = hd21_read_reg(CLKCTRL_ENC_HDMI_CLK_CTRL);
+	val[6] = hd21_read_reg(CLKCTRL_VID_CLK0_DIV);
 
 	seq_puts(s, "cts_enc_clk: ");
 	if ((val[3] & BIT(3)) == 0) {
@@ -653,14 +669,16 @@ static int hdmitx_dump_cts_enc_clk_status(struct seq_file *s, void *p)
 			seq_puts(s, "\nCLKCTRL_VID_CLK0_CTRL[19] gate is 0\n");
 			dump_clkctrl_regs(s, val);
 		}
-		seq_printf(s, "%s ", crt_video_src_des[(val[0] >> 16) & 0x7]);
+		seq_printf(s, "%s clk_div%d ", crt_video_src_des[(val[0] >> 16) & 0x7],
+			(val[6] & 0xff) + 1);
 	} else {
 		seq_puts(s, "v2_master_clk ");
 		if ((val[1] & BIT(19)) == 0) {
 			seq_puts(s, "\nCLKCTRL_VIID_CLK0_CTRL[19] gate is 0\n");
 			dump_clkctrl_regs(s, val);
 		}
-		seq_printf(s, "%s ", crt_video_src_des[(val[1] >> 16) & 0x7]);
+		seq_printf(s, "%s clk_div%d ", crt_video_src_des[(val[1] >> 16) & 0x7],
+			(val[4] & 0xff) + 1);
 	}
 	switch (div) {
 	case 0:
@@ -756,10 +774,10 @@ static int dump_frl_status_show(struct seq_file *s, void *p)
 	seq_printf(s, "INTR5_SW_TPI[0x%x] 0x%x\n", INTR5_SW_TPI_IVCTX, val);
 	hdmitx21_wr_reg(INTR5_SW_TPI_IVCTX, val);
 
-	/* clear UPDATE_0 firstly */
-	scdc21_rd_sink(UPDATE_0, &val);
-	scdc21_wr_sink(UPDATE_0, val);
-	for (scdc_reg = SINK_VER; scdc_reg < 0x100; scdc_reg++) {
+	/* clear SCDC_UPDATE_0 firstly */
+	scdc21_rd_sink(SCDC_UPDATE_0, &val);
+	scdc21_wr_sink(SCDC_UPDATE_0, val);
+	for (scdc_reg = SCDC_SINK_VER; scdc_reg < 0x100; scdc_reg++) {
 		scdc21_rd_sink(scdc_reg, &val);
 		seq_printf(s, "SCDC[0x%02x] 0x%02x\n", scdc_reg, val);
 	}

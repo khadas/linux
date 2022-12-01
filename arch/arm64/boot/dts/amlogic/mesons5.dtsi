@@ -2086,6 +2086,7 @@
 			0 115 1>;
 		interrupt-names = "hdmitx_hpd", "vrr_vsync";
 		enc_idx = <0>;
+		tx_max_frl_rate = <5>; /* max FRL_10G4L */
 		reg =	<0x0 0xff800000 0x0 0x40000>,
 			<0x0 0xfe3a0000 0x0 0x10000>,
 			<0x0 0xfe390000 0x0 0x10000>,

@@ -336,6 +336,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
 	usleep_range(10000, 10010);
 	pr_info("HDMITX: Early Suspend\n");
+	frl_tx_stop(hdev);
 	hdmitx21_disable_hdcp(hdev);
 	hdmitx21_rst_stream_type(hdev->am_hdcp);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
@@ -799,9 +800,13 @@ static int set_disp_mode_auto(void)
 	/* nothing */
 	}
 
-	if (hdev->rxcap.max_frl_rate)
+	if (hdev->rxcap.max_frl_rate) {
 		hdev->frl_rate = hdmitx21_select_frl_rate(hdev->dsc_en, vic,
 			hdev->para->cs, hdev->para->cd);
+		if (hdev->frl_rate > hdev->tx_max_frl_rate)
+			pr_info("Current frl_rate %d is larger than tx_max_frl_rate %d\n",
+				hdev->frl_rate, hdev->tx_max_frl_rate);
+	}
 	/* if manual_frl_rate is true, set to force frl_rate */
 	if (hdev->manual_frl_rate)
 		hdev->frl_rate = hdev->manual_frl_rate;
@@ -4579,11 +4584,8 @@ static ssize_t frl_rate_store(struct device *dev,
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	/* if rx don't support FRL, return */
-	if (!hdev->rxcap.max_frl_rate) {
-		hdev->manual_frl_rate = 0;
-		pr_info("rx not support FRL\n");
-		return count;
-	}
+	if (!hdev->rxcap.max_frl_rate)
+		pr_warning("rx not support FRL\n");
 
 	/* forced FRL rate setting */
 	if (buf[0] == 'f' && isdigit(buf[1])) {
@@ -4593,8 +4595,10 @@ static ssize_t frl_rate_store(struct device *dev,
 			return count;
 		}
 		hdev->manual_frl_rate = val;
-		pr_info("set frl_rate as %d\n", val);
+		pr_info("set tx frl_rate as %d\n", val);
 	}
+	if (hdev->manual_frl_rate > hdev->rxcap.max_frl_rate)
+		pr_info("larger than rx max_frl_rate %d\n", hdev->rxcap.max_frl_rate);
 
 	return count;
 }
@@ -5194,6 +5198,7 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data)
 
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_AVI_PACKET, 0);
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_VSDB_PACKET, 0);
+	frl_tx_stop(hdev);
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	/* hdmitx21_disable_clk(hdev); */
 	hdev->para = hdmitx21_get_fmtpara("invalid", hdev->fmt_attr);
@@ -5831,6 +5836,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	if (hdev->cedst_policy)
 		cancel_delayed_work(&hdev->work_cedst);
 	edidinfo_detach_to_vinfo(hdev);
+	frl_tx_stop(hdev);
 	rx_hdcp2_ver = 0;
 	is_passthrough_switch = 0;
 	pr_info("plugout\n");
@@ -6321,6 +6327,14 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 					   "cedst_en", &val);
 		if (!ret)
 			hdev->cedst_en = !!val;
+		hdev->tx_max_frl_rate = FRL_10G4L; /* default */
+		ret = of_property_read_u32(pdev->dev.of_node, "tx_max_frl_rate", &val);
+		if (!ret) {
+			if (val > FRL_12G4L || val == FRL_NONE)
+				pr_info("wrong tx_max_frl_rate %d\n", val);
+			else
+				hdev->tx_max_frl_rate = val;
+		}
 		ret = of_property_read_u32(pdev->dev.of_node,
 					   "hdcp_type_policy", &val);
 		if (!ret) {

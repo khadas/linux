@@ -94,9 +94,6 @@ void hdmi_drm_infoframe_rawset(u8 *hb, u8 *pb);
 void hdmi_emp_infoframe_set(struct emp_packet_st *info);
 void hdmi_emp_frame_set_member(struct emp_packet_st *info,
 	enum vrr_component_conf conf, u32 val);
-enum frl_rate_enum hdmitx21_select_frl_rate(bool dsc_en, enum hdmi_vic vic,
-	enum hdmi_colorspace cs, enum hdmi_color_depth cd);
-void hdmitx_frl_training_main(enum frl_rate_enum frl_rate);
 
 enum vrr_type {
 	T_VRR_NONE,
@@ -426,8 +423,17 @@ void hdcptx1_query_aksv(struct hdcp_ksv_t *p_val);
 void hdmitx_top_intr_handler(struct work_struct *work);
 void hdmitx_setupirqs(struct hdmitx_dev *phdev);
 void ddc_toggle_sw_tpi(void);
-bool hdmitx_ddcm_read(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 *p_buf, uint16_t len);
+bool hdmitx_ddcm_read(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 *p_buf, u16 len);
+bool hdmitx_ddcm_write(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 data);
 bool is_cur_mode_hdmi(void);
+
+extern unsigned long hdcp_reauth_dbg;
+extern unsigned long streamtype_dbg;
+extern unsigned long en_fake_rcv_id;
+
+void pr_hdcp_info(const char *fmt, ...);
+void set_hdcp2_topo(u32 topo_type);
+bool get_hdcp2_topo(void);
 
 /* VRR parts */
 irqreturn_t hdmitx_vrr_vsync_handler(struct hdmitx_dev *hdev);
@@ -461,5 +467,77 @@ extern unsigned long vid_mute_ms;
 bool hdmitx21_edid_only_support_sd(struct hdmitx_dev *hdev);
 bool is_4k_sink(struct hdmitx_dev *hdev);
 void hdmitx21_av_mute_op(u32 flag, unsigned int path);
-#endif /* __HDMI_TX_H__ */
 
+/* FRL */
+struct frl_work {
+	u32 delay_ms;
+	u32 period_ms;
+	const char *name;
+	struct delayed_work dwork;
+};
+
+struct frl_train_t {
+	struct workqueue_struct *frl_wq;
+	struct frl_work timer_frl_flt;
+	u8 src_test_cfg;
+	u8 lane_count;
+	u8 update_flags;
+	enum flt_tx_states flt_tx_state;
+	enum flt_tx_states last_state;
+	enum frl_rate_enum max_frl_rate;
+	enum frl_rate_enum max_edid_frl_rate;
+	enum frl_rate_enum user_max_frl_rate;
+	enum frl_rate_enum min_frl_rate;
+	enum frl_rate_enum frl_rate;
+	enum ffe_levels max_ffe_level;
+	enum ffe_levels ffe_level[4];
+	bool ds_frl_support;
+	bool req_legacy_mode;
+	bool frl_rate_no_change;
+	bool req_frl_mode;
+	bool txffe_pre_shoot_only;
+	bool txffe_de_emphasis_only;
+	bool txffe_no_ffe;
+	bool flt_no_timeout;
+	bool flt_timeout;
+	bool auto_ffe_update;
+	bool auto_pattern_update;
+	bool flt_running; /* if flt_running is false, return */
+};
+
+#define LT_TX_CMD_TXFFE_UPDATE 0x02
+#define LT_TX_CMD_LTP_UPDATE   0x03
+void scdc_bus_stall_set(bool en);
+u16 scdc_tx_ltp0123_get(void);
+bool scdc_tx_frl_cfg1_set(u8 cfg1);
+u8 scdc_tx_update_flags_get(void);
+bool scdc_tx_update_flags_set(u8 update_flags);
+u8 scdc_tx_flt_ready_status_get(void);
+u8 scdc_tx_sink_version_get(void);
+void scdc_tx_source_version_set(u8 src_ver);
+u8 scdc_tx_source_test_cfg_get(void);
+bool flt_tx_cmd_execute(u8 lt_cmd);
+void flt_tx_ltp_req_write(u8 ltp01, u8 ltp23);
+void flt_tx_update_set(void);
+void frl_tx_start_mod(bool start);
+bool flt_tx_update_cleared_wait(void);
+bool frl_tx_rate_written(void);
+u8 flt_tx_cfg1_get(void);
+u8 frl_tx_tx_get_rate(void);
+void frl_tx_tx_enable(bool enable);
+void frl_tx_av_enable(bool enable);
+void frl_tx_sb_enable(bool enable, enum frl_rate_enum frl_rate);
+bool frl_tx_pattern_init(u16 patterns);
+void frl_tx_pattern_stop(void);
+void frl_tx_pin_swap_set(bool en);
+bool frl_tx_pattern_set(enum ltp_patterns frl_pat, u8 lane);
+bool frl_tx_ffe_set(enum ffe_levels ffe_level, u8 lane);
+bool frl_tx_tx_phy_init(bool disable_ffe);
+void frl_tx_tx_init(void);
+void frl_tx_tx_phy_set(void);
+void tmds_tx_phy_set(void);
+enum frl_rate_enum hdmitx21_select_frl_rate(bool dsc_en, enum hdmi_vic vic,
+	enum hdmi_colorspace cs, enum hdmi_color_depth cd);
+void frl_tx_training_handler(struct hdmitx_dev *hdev);
+void frl_tx_stop(struct hdmitx_dev *hdev);
+#endif /* __HDMI_TX_H__ */

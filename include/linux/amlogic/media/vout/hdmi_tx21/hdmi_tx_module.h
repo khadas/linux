@@ -8,6 +8,7 @@
 #include "hdmi_info_global.h"
 #include "hdmi_config.h"
 #include "hdmi_hdcp.h"
+#include "hdmi_tx_ddc.h"
 #include <linux/wait.h>
 #include <linux/clk.h>
 #include <linux/cdev.h>
@@ -85,17 +86,6 @@ struct hdr_dynamic_struct {
 	u32 hd_len;/*hdr_dynamic_length*/
 	u8 support_flags;
 	u8 optional_fields[20];
-};
-
-enum frl_rate_enum {
-	FRL_NONE = 0,
-	FRL_3G3L = 1,
-	FRL_6G3L = 2,
-	FRL_6G4L = 3,
-	FRL_8G4L = 4,
-	FRL_10G4L = 5,
-	FRL_12G4L = 6,
-	FRL_INVALID = 7,
 };
 
 /* get the corresponding bandwidth of current FRL_RATE, Unit: MHz */
@@ -427,8 +417,9 @@ struct hdmitx_dev {
 	u8 force_audio_flag;
 	u8 mux_hpd_if_pin_high_flag;
 	int aspect_ratio;	/* 1, 4:3; 2, 16:9 */
-	u8 frl_rate;
-	u8 manual_frl_rate;
+	u8 manual_frl_rate; /* for manual setting */
+	u8 frl_rate; /* for mode setting */
+	u8 tx_max_frl_rate; /* configure in dts file */
 	u8 dsc_en;
 	struct hdmitx_info hdmi_info;
 	u32 log;

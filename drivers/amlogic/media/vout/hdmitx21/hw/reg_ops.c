@@ -330,45 +330,12 @@ u32 hdmitx21_rd_check_reg(u32 addr, u32 exp_data,
 }
 EXPORT_SYMBOL(hdmitx21_rd_check_reg);
 
-struct mask_reg_val_t {
-	u16 reg;
-	u8 val;
-};
-
-static struct mask_reg_val_t addrs[] = {
-	{INTR1_IVCTX, 0x00,},
-	{TPI_INTR_ST0_IVCTX, 0x00,},
-	{CP2TX_INTR0_IVCTX, 0x00,},
-	{CP2TX_INTR1_IVCTX, 0x00,},
-	{CP2TX_INTR2_IVCTX, 0x00,},
-	{CP2TX_INTR3_IVCTX, 0x00,},
-	{CP2TX_INTR3_IVCTX, 0x01,},
-	{DDC_STATUS_IVCTX, 0x04,},
-	{DDC_STATUS_IVCTX, 0x14,},
-	{DDC_STATUS_IVCTX, 0x15,},
-	{DDC_STATUS_IVCTX, 0x00,},
-	{TPI_KSV_FIFO_STAT_IVCTX, 0x00},
-	{0xffff, 0xff},
-};
-
-static bool mask_printf(u16 add, u8 val)
-{
-	int i;
-
-	for (i = 0; addrs[i].reg != 0xffff; i++)
-		if (add == addrs[i].reg && val == addrs[i].val)
-			return 1;
-	return 0;
-}
-
 void hdmitx21_seq_rd_reg(u16 offset, u8 *buf, u16 cnt)
 {
 	int i = 0;
 
 	while (cnt--) {
 		buf[i] = hdmitx21_rd_reg(offset + i);
-		if (!mask_printf(offset + i, buf[i]))
-			pr_info("rd[0x%04x] 0x%02x\n", offset + i, buf[i]);
 		i++;
 	}
 }
@@ -380,12 +347,8 @@ void hdmitx21_fifo_read(u16 offset, u8 *buf, u16 cnt)
 
 	if (!buf)
 		return;
-	for (i = 0; i < cnt; i++) {
+	for (i = 0; i < cnt; i++)
 		buf[i] = hdmitx21_rd_reg(offset);
-		i++;
-		usleep_range(5000, 5000 + 10);
-		pr_info("%02x\n", buf[i]);
-	}
 }
 EXPORT_SYMBOL(hdmitx21_fifo_read);
 

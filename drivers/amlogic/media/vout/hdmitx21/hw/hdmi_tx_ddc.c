@@ -32,163 +32,33 @@
 #define LEN_TPI_DDC_FIFO_SIZE          16
 
 static DEFINE_MUTEX(ddc_mutex);
-static u32 ddc_write_1byte(u8 slave, u8 offset_addr, u8 data)
-{
-	u32 st = 0;
-
-	mutex_lock(&ddc_mutex);
-	// Programe I2C operation
-	//SCDC slave addr
-	hdmitx21_wr_reg(DDC_ADDR_IVCTX, 0xa8);
-	//SCDC slave offset
-	hdmitx21_wr_reg(DDC_OFFSET_IVCTX, offset_addr & 0xff);
-	//SCDC slave offset data to ddc fifo
-	hdmitx21_wr_reg(DDC_DATA_AON_IVCTX, data & 0xff);
-	hdmitx21_wr_reg(DDC_DIN_CNT1_IVCTX, 0x01); //data length lo
-	hdmitx21_wr_reg(DDC_DIN_CNT2_IVCTX, 0x00); //data length hi
-	hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x06); //DDC Write CMD
-	// Wait until I2C done
-	hdmitx21_poll_reg(DDC_STATUS_IVCTX, 1 << 4, ~(1 << 4), 0xffffffff); //i2c process
-	hdmitx21_poll_reg(DDC_STATUS_IVCTX, 0 << 4, ~(1 << 4), 0xffffffff); //i2c done
-
-	mutex_unlock(&ddc_mutex);
-	return st;
-}
-
-u32 ddc_read_8byte(u8 slave, u8 offset_addr, u8 *data)
-{
-	u32 st = 0;
-
-	mutex_lock(&ddc_mutex);
-	mutex_unlock(&ddc_mutex);
-	return st;
-}
-
-static u32 ddc_read_1byte(u8 slave, u8 offset_addr, u8 *rd_data)
-{
-	u32 st = 0;
-
-	mutex_lock(&ddc_mutex);
-
-	// Programe I2C operation
-	hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x09); //clear fifo
-	hdmitx21_wr_reg(DDC_ADDR_IVCTX, 0xa8); //SCDC slave addr
-	hdmitx21_wr_reg(DDC_OFFSET_IVCTX, offset_addr & 0xff); //SCDC slave offset
-	hdmitx21_wr_reg(DDC_DIN_CNT1_IVCTX, 0x01); //data length lo
-	hdmitx21_wr_reg(DDC_DIN_CNT2_IVCTX, 0x00); //data length hi
-	hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x02); //DDC Write CMD
-	// Wait until I2C done
-	hdmitx21_poll_reg(DDC_STATUS_IVCTX, 1 << 4, ~(1 << 4), 0xffffffff); //i2c process
-	hdmitx21_poll_reg(DDC_STATUS_IVCTX, 0 << 4, ~(1 << 4), 0xffffffff); //i2c done
-	// Read back 1 byte
-	*rd_data = hdmitx21_rd_reg(DDC_DATA_AON_IVCTX);
-
-	mutex_unlock(&ddc_mutex);
-
-	return st;
-}
-
-static u32 hdcp_rd_bksv(u8 *data)
-{
-	return 0;
-//	return ddc_read_8byte(DDC_HDCP_ADDR, HDCP14_BKSV, data);
-}
 
 void scdc21_rd_sink(u8 adr, u8 *val)
 {
-	hdmitx21_ddc_hw_op(DDC_MUX_DDC);
-	ddc_read_1byte(DDC_SCDC_ADDR, adr, val);
+	hdmitx_ddcm_read(0, DDC_SCDC_ADDR, adr, val, 1);
 }
 
 void scdc21_wr_sink(u8 adr, u8 val)
 {
-	hdmitx21_ddc_hw_op(DDC_MUX_DDC);
-	ddc_write_1byte(DDC_SCDC_ADDR, adr, val);
-}
-
-u32 hdcp21_rd_hdcp14_ver(void)
-{
-	int ret = 0;
-	u8 bksv[8] = {0};
-
-	hdmitx21_ddc_hw_op(DDC_MUX_DDC);
-	ret = hdcp_rd_bksv(&bksv[0]);
-	if (ret)
-		return 1;
-	ret = hdcp_rd_bksv(&bksv[0]);
-	if (ret)
-		return 1;
-
-	return 0;
-}
-
-u32 hdcp21_rd_hdcp22_ver(void)
-{
-	u32 ret;
-	u8 ver;
-
-	hdmitx21_ddc_hw_op(DDC_MUX_DDC);
-	ret = ddc_read_1byte(DDC_HDCP_ADDR, DDC_HDCP_REG_VERSION, &ver);
-	if (ret)
-		return ver == 0x04;
-	ret = ddc_read_1byte(DDC_HDCP_ADDR, DDC_HDCP_REG_VERSION, &ver);
-	if (ret)
-		return ver == 0x04;
-
-	return 0;
-}
-
-/* only for I2C reactive using */
-void edid21_read_head_8bytes(void)
-{
-//	u8 head[8] = {0};
-
-	hdmitx21_ddc_hw_op(DDC_MUX_DDC);
-//	ddc_read_8byte(EDID_SLAVE, 0x00, head);
+	hdmitx_ddcm_write(0, DDC_SCDC_ADDR, adr, val);
 }
 
 void hdmitx21_read_edid(u8 *_rx_edid)
 {
-	u32 i;
-	u32 byte_num = 0;
-	u8 edid_extension = 1;
+	u32 blk_idx = 0;
+	u8 edid_extension = 0;
 	u8 *rx_edid = _rx_edid;
 
-	// Program SLAVE/SEGMENT/ADDR
-	hdmitx21_wr_reg(LM_DDC_IVCTX, 0x80); //sel edid
-	hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x09); //clear fifo
-	hdmitx21_wr_reg(DDC_ADDR_IVCTX, DDC_EDID_ADDR & BIT_DDC_ADDR_REG); //edid slave addr
-
 	// Read complete EDID data sequentially
-	while (byte_num < (128 * (1 + edid_extension))) {
-		if ((byte_num % 256) == 0)
-			hdmitx21_wr_reg(DDC_SEGM_IVCTX, byte_num >> 8); //segment
-		hdmitx21_wr_reg(DDC_OFFSET_IVCTX, byte_num & 0xff); //offset
-		hdmitx21_wr_reg(DDC_DIN_CNT1_IVCTX, 1 << 3); //data length lo
-		hdmitx21_wr_reg(DDC_DIN_CNT2_IVCTX, 0x00); //data length hi
-		hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x04); //CMD
-		// Wait until I2C done
-		hdmitx21_poll_reg(DDC_STATUS_IVCTX, 1 << 4, ~(1 << 4), HZ / 50); //i2c process
-		hdmitx21_poll_reg(DDC_STATUS_IVCTX, 0 << 4, ~(1 << 4), HZ / 50); //i2c done
-		// Read back 8 bytes
-		for (i = 0; i < 8; i++) {
-			if (byte_num == 126) {
-				edid_extension  = hdmitx21_rd_reg(DDC_DATA_AON_IVCTX);
-				rx_edid[byte_num] = edid_extension;
-			} else {
-				rx_edid[byte_num] = hdmitx21_rd_reg(DDC_DATA_AON_IVCTX);
-			}
-			byte_num++;
+	while (blk_idx < (1 + edid_extension)) {
+		hdmitx_ddcm_read(blk_idx >> 1, DDC_EDID_ADDR, (blk_idx * 128) & 0xff,
+			&rx_edid[blk_idx * 128], 128);
+		if (blk_idx == 0) {
+			edid_extension = rx_edid[126];
+			if (edid_extension > 7)
+				edid_extension = 7; /* Max extended block */
 		}
-		if (byte_num > 127 && byte_num < 256)
-			if (rx_edid[128 + 4] == 0xe2 && rx_edid[128 + 5] == 0x78)
-				edid_extension = rx_edid[128 + 6];
-		if (edid_extension > 7) {
-			pr_info(HW "edid extension block number:");
-			pr_info(HW " %d, reset to MAX 7\n",
-				edid_extension);
-			edid_extension = 7; /* Max extended block */
-		}
+		blk_idx++;
 	}
 } /* hdmi20_tx_read_edid */
 
@@ -281,6 +151,15 @@ static void ddc_tx_read(u8 seg_index, u16 length)
 	hdmitx21_wr_reg(DDC_CMD_IVCTX, read_cmd);
 }
 
+static void ddc_tx_write(u8 data)
+{
+	hdmitx21_wr_reg(DDC_DIN_CNT2_IVCTX, 0);
+	hdmitx21_wr_reg(DDC_DIN_CNT1_IVCTX, 1);
+	hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_CLR_FIFO | 0x30);
+	hdmitx21_wr_reg(DDC_DATA_AON_IVCTX, data);
+	hdmitx21_wr_reg(DDC_CMD_IVCTX, DDC_CMD_SEQ_RW_IGNORE_ACK | 0x30);
+}
+
 static u8 ddc_tx_fifo_size_read(void)
 {
 	return hdmitx21_rd_reg(DDC_DOUT_CNT_IVCTX) & BIT_DDC_DOUT_CNT_DATA_OUT_CNT;
@@ -316,7 +195,7 @@ static void ddc_tx_error_check(enum ddc_err_t ds_ddc_error)
 
 static void ddc_tx_fifo_read(u8 *p_buf, u16 fifo_size)
 {
-	hdmitx21_seq_rd_reg(DDC_DATA_AON_IVCTX, p_buf, fifo_size);
+	hdmitx21_fifo_read(DDC_DATA_AON_IVCTX, p_buf, fifo_size);
 }
 
 static void ddc_tx_disable(void)
@@ -330,16 +209,17 @@ static enum ddc_err_t _hdmitx_ddcm_read_(u8 seg_index,
 	enum ddc_err_t ds_ddc_error = DDC_ERR_NONE;
 	u16 fifo_size;
 	u16 timeout_ms;
-	u8 val;
+	u8 val = ddc_tx_hdcp2x_check();
 
-	val = ddc_tx_hdcp2x_check();
-
+	mutex_lock(&ddc_mutex);
 	do {
 		if (length == 0 || !p_buf)
 			break;
 
-		if (!ddc_wait_free())
+		if (!ddc_wait_free()) {
+			mutex_unlock(&ddc_mutex);
 			return DDC_ERR_BUSY;
+		}
 
 		ddc_tx_en(seg_index, slave_addr, reg_addr);
 		ddc_tx_read(seg_index, length);
@@ -356,12 +236,13 @@ static enum ddc_err_t _hdmitx_ddcm_read_(u8 seg_index,
 				} else if (fifo_size > LEN_TPI_DDC_FIFO_SIZE) {
 					ds_ddc_error = DDC_ERR_LIM_EXCEED;
 					break;
-				}
-				/* read fifo_size bytes */
-				ddc_tx_fifo_read(p_buf, fifo_size);
+				} else {
+					/* read fifo_size bytes */
+					ddc_tx_fifo_read(p_buf, fifo_size);
 
-				length -= fifo_size;
-				p_buf += fifo_size;
+					length -= fifo_size;
+					p_buf += fifo_size;
+				}
 			} else {
 				usleep_range(1000, 1500);
 				timeout_ms--;
@@ -381,6 +262,35 @@ static enum ddc_err_t _hdmitx_ddcm_read_(u8 seg_index,
 
 	/* disable the DDC master */
 	ddc_tx_disable();
+	mutex_unlock(&ddc_mutex);
+	return ds_ddc_error;
+}
+
+static enum ddc_err_t _hdmitx_ddcm_write_(u8 seg_index,
+	u8 slave_addr, u8 reg_addr, u8 data)
+{
+	enum ddc_err_t ds_ddc_error = DDC_ERR_NONE;
+	u8 val = ddc_tx_hdcp2x_check();
+
+	mutex_lock(&ddc_mutex);
+	if (!ddc_wait_free()) {
+		mutex_unlock(&ddc_mutex);
+		return DDC_ERR_BUSY;
+	}
+
+	ddc_tx_en(seg_index, slave_addr, reg_addr);
+	ddc_tx_write(data);
+
+	usleep_range(2000, 3000);
+	if (ddc_tx_err_check())
+		ds_ddc_error = DDC_ERR_NACK;
+
+	ddc_tx_scdc_clr(val);
+	ddc_tx_error_check(ds_ddc_error);
+
+	/* disable the DDC master */
+	ddc_tx_disable();
+	mutex_unlock(&ddc_mutex);
 	return ds_ddc_error;
 }
 
@@ -395,6 +305,14 @@ bool hdmitx_ddcm_read(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 *p_buf, u16 l
 	enum ddc_err_t ddc_err;
 
 	ddc_err = _hdmitx_ddcm_read_(seg_index, slave_addr, reg_addr, p_buf, len);
+	return (ddc_err == DDC_ERR_NONE) ? false : true;
+}
+
+bool hdmitx_ddcm_write(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 data)
+{
+	enum ddc_err_t ddc_err;
+
+	ddc_err = _hdmitx_ddcm_write_(seg_index, slave_addr, reg_addr, data);
 	return (ddc_err == DDC_ERR_NONE) ? false : true;
 }
 
