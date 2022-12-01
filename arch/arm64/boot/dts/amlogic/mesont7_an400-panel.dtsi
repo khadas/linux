@@ -1137,9 +1137,13 @@
 				1250 630 /*h_period, v_period*/
 				8 /*lcd_bits*/
 				154 86>; /*screen_widht, screen_height*/
+			range_setting = <
+				1250 1250 /*h_period min, max*/
+				630 788 /*v_period min, max*/
+				47250000 47250000>; /*pclk_min, max*/
 			lcd_timing = <80 100 0 /*hs_width, hs_bp, hs_pol*/
 				5 20 0>; /*vs_width, vs_bp, vs_pol*/
-			clk_attr = <0 /*fr_adj_type(0=clk, 1=htotal, 2=vtotal)*/
+			clk_attr = <2 /*fr_adj_type(0=clk, 1=htotal, 2=vtotal)*/
 				0 /*clk_ss_level */
 				1 /*clk_auto_generate*/
 				47250000>; /*pixel_clk(unit in Hz)*/

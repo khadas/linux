@@ -49,17 +49,19 @@
 /* 20221116: enable lcd clk for drm resume*/
 /* 20221123: add ioctl functions, include power, mute, phy, ss*/
 /* 20221215: remove unnecessary tcon top reset*/
-/* 20221202: optimize lcd clk code*/
-/* 20221229: optimize lcd venc code*/
+/* 20221202: optimize clk code*/
+/* 20221229: optimize venc code*/
 /* 20230105: update clk ss support*/
 /* 20230110: optimize config probe workqueue*/
 /* 20230112: support drm display mode timing for different frame rate*/
 /* 20230222: update tcon tee memory debug info*/
 /* 20230303: fix hdmi mode 47hz & 95hz timing*/
 /* 20230313: update tcon debug info print*/
-#define LCD_DRV_VERSION    "20230313"
+/* 20230119: optimize phy code*/
+#define LCD_DRV_VERSION    "20230319"
 
 extern struct mutex lcd_vout_mutex;
+
 extern spinlock_t lcd_reg_spinlock;
 extern int lcd_vout_serve_bypass;
 
