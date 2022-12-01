@@ -2344,6 +2344,10 @@ static int hdmitx_tmds_rxsense(void)
 		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 3, 20, 3);
 		ret = hd21_read_reg(ANACTRL_HDMIPHY_CTRL2) & 0x1;
 		return ret;
+	case MESON_CPU_ID_S5:
+		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL0, 1, 19, 1);
+		ret = !!(hd21_read_reg(ANACTRL_HDMIPHY_CTRL2) & 0xf);
+		return ret;
 	default:
 		break;
 	}
