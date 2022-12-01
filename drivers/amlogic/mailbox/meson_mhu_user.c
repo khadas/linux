@@ -119,7 +119,7 @@ static ssize_t mbox_message_write(struct file *filp,
 		mhu_dev->r_size = rx_size;
 		break;
 	default:
-		pr_err("desitation error %d\n", dest);
+		pr_err("destination error %d\n", dest);
 		ret = -EINVAL;
 		break;
 	};
