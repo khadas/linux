@@ -862,18 +862,6 @@ void cm_latch_process(void)
 	} while (0);
 	if (cm_en && cm_level_last != cm_level) {
 		cm_level_last = cm_level;
-		if ((!is_meson_gxtvbb_cpu()) &&
-		    (!is_meson_txl_cpu()) &&
-			(!is_meson_txlx_cpu()) &&
-			(!is_meson_tl1_cpu()) &&
-			(!is_meson_tm2_cpu()) &&
-			(get_cpu_type() != MESON_CPU_MAJOR_ID_SC2) &&
-			(get_cpu_type() != MESON_CPU_MAJOR_ID_T5) &&
-			(get_cpu_type() != MESON_CPU_MAJOR_ID_T5D) &&
-			(get_cpu_type() != MESON_CPU_MAJOR_ID_T7) &&
-			(get_cpu_type() != MESON_CPU_MAJOR_ID_T3) &&
-			(chip_type_id != chip_s5))
-			amcm_level_sel(cm_level);
 		amcm_enable(WR_DMA);
 		pr_amcm_dbg("\n[amcm..] set cm2 load OK!!!\n");
 	} else if ((cm_en == 0) && (cm_level_last != 0xff)) {
