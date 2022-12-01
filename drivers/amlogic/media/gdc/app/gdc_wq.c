@@ -359,6 +359,17 @@ bool is_aml_gdc_supported(void)
 }
 EXPORT_SYMBOL(is_aml_gdc_supported);
 
+int get_gdc_fw_version(void)
+{
+	int version = ARMGDC_FW_V1;
+
+	if (is_aml_gdc_supported())
+		version = GDC_DEV_T(AML_GDC)->fw_version;
+
+	return version;
+}
+EXPORT_SYMBOL(get_gdc_fw_version);
+
 struct gdc_context_s *create_gdc_work_queue(u32 dev_type)
 {
 	int  i;

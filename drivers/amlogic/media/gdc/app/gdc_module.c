@@ -60,6 +60,8 @@ int gdc_smmu_enable;
 struct gdc_manager_s gdc_manager;
 static int kthread_created;
 static struct gdc_irq_handle_wq irq_handle_wq[CORE_NUM];
+static struct gdc_fw_func_ptr *g_fw_func_ptr;
+static int fw_size_alloc = 100 * 1024; /* 100KB */
 
 #define DEF_CLK_RATE 800000000
 #define WAIT_THRESHOLD 1000
@@ -1107,6 +1109,72 @@ release:
 	return ret;
 }
 EXPORT_SYMBOL(load_firmware_by_name);
+
+int rotation_calc_and_load_firmware(struct firmware_rotate_s *fw_param,
+				    struct firmware_load_s *fw_load)
+{
+	int ret = -1, fw_size = -1;
+	void __iomem *virt_addr = NULL;
+	phys_addr_t phys_addr = 0;
+	struct device *dev = NULL;
+
+	if (!fw_param || !fw_load) {
+		gdc_log(LOG_ERR, "NULL param, %s (%d)\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	if (is_aml_gdc_supported()) {
+		dev = GDC_DEVICE(AML_GDC);
+	} else if (is_gdc_supported()) {
+		dev = GDC_DEVICE(ARM_GDC);
+	} else {
+		gdc_log(LOG_ERR, "HW is not supported %s (%d)\n",
+			__func__, __LINE__);
+		return -ENODEV;
+	}
+
+	gdc_log(LOG_DEBUG, "Try to calculate and load firmware\n");
+	gdc_log(LOG_DEBUG, "format:%d in w:%d h:%d, out w:%d h:%d, rotate:%d\n",
+		fw_param->format, fw_param->in_width, fw_param->in_height,
+		fw_param->out_width, fw_param->out_height,
+		fw_param->degree);
+
+	virt_addr = dma_alloc_coherent(dev, fw_size_alloc,
+				       &phys_addr, GFP_DMA | GFP_KERNEL);
+	if (!virt_addr) {
+		gdc_log(LOG_ERR, "alloc config buffer failed\n");
+		return -ENOMEM;
+	}
+	if (!g_fw_func_ptr) {
+		gdc_log(LOG_ERR, "g_fw_func_ptr is NULL, gdc_fw.ko is not installed\n");
+		ret = -EPERM;
+		goto release;
+	}
+
+	fw_size = g_fw_func_ptr->calculate_rotate_fw(fw_param, virt_addr);
+	if (fw_size <= 0) {
+		gdc_log(LOG_ERR, "calculate config buffer failed\n");
+		ret = -EINVAL;
+		goto release;
+	}
+
+	fw_load->size_32bit = fw_size_alloc / 4;
+	fw_load->phys_addr = phys_addr;
+	fw_load->virt_addr = virt_addr;
+
+	gdc_log(LOG_DEBUG, "current firmware virt_addr: 0x%p.\n", virt_addr);
+	gdc_log(LOG_DEBUG, "load firmware size : %d.\n", fw_size);
+
+	return fw_size;
+release:
+	dma_free_coherent(dev, fw_size_alloc, virt_addr, phys_addr);
+	fw_load->size_32bit = 0;
+	fw_load->phys_addr = 0;
+	fw_load->virt_addr = NULL;
+
+	return ret;
+}
+EXPORT_SYMBOL(rotation_calc_and_load_firmware);
 
 int gdc_process_with_fw(struct gdc_context_s *context,
 			struct gdc_settings_with_fw *gs_with_fw)
@@ -2400,6 +2468,29 @@ static struct platform_driver amlgdc_platform_driver = {
 	.probe	= gdc_platform_probe,
 	.remove	= gdc_platform_remove,
 };
+
+int register_gdc_fw_funcs(struct gdc_fw_func_ptr *func_ptr, char *version)
+{
+	if (!func_ptr || !version) {
+		gdc_log(LOG_ERR, "func_ptr:%p version:%p\n",
+			 func_ptr, version);
+		return -1;
+	}
+
+	gdc_log(LOG_INFO, "%s, func_ptr:%p version:%s\n", __func__,
+		func_ptr, version);
+	g_fw_func_ptr = func_ptr;
+
+	return 0;
+}
+EXPORT_SYMBOL(register_gdc_fw_funcs);
+
+void unregister_gdc_fw_funcs(void)
+{
+	gdc_log(LOG_INFO, "%s\n", __func__);
+	g_fw_func_ptr = NULL;
+}
+EXPORT_SYMBOL(unregister_gdc_fw_funcs);
 
 int __init gdc_driver_init(void)
 {

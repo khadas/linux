@@ -202,6 +202,27 @@ struct firmware_load_s {
 	void __iomem *virt_addr;
 };
 
+struct firmware_rotate_s {
+	u32 format;
+	u32 in_width;
+	u32 in_height;
+	u32 out_width;
+	u32 out_height;
+	u32 degree;    /* rotation degree, 90,180,270 */
+};
+
+struct gdc_fw_func_ptr {
+	int (*calculate_rotate_fw)(struct firmware_rotate_s *fw_param,
+				   void *fw_vaddr);
+	int (*reserved0)(void);
+	int (*reserved1)(void);
+	int (*reserved2)(void);
+	int (*reserved3)(void);
+	int (*reserved4)(void);
+	int (*reserved5)(void);
+	int (*reserved6)(void);
+};
+
 bool is_gdc_supported(void);
 bool is_aml_gdc_supported(void);
 struct gdc_context_s *create_gdc_work_queue(u32 dev_type);
@@ -209,6 +230,14 @@ int gdc_process_phys(struct gdc_context_s *context,
 		     struct gdc_phy_setting *gs);
 int destroy_gdc_work_queue(struct gdc_context_s *gdc_work_queue);
 void release_config_firmware(struct firmware_load_s *fw_load);
+/* load builtin firmware by fw_name */
 int load_firmware_by_name(char *fw_name, struct firmware_load_s *fw_load);
+/* load builtin firmware by calculation for rotaion */
+int rotation_calc_and_load_firmware(struct firmware_rotate_s *fw_param,
+				    struct firmware_load_s *fw_load);
+
+int register_gdc_fw_funcs(struct gdc_fw_func_ptr *func_ptr, char *version);
+void unregister_gdc_fw_funcs(void);
+int get_gdc_fw_version(void);
 
 #endif
