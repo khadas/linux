@@ -212,7 +212,8 @@ static unsigned int combing_bias_motion_setting[MAX_NUM_DI_REG] = {
 	/*idea from mingliang.dong & vlsi zheng.bao begin*/
 	0x0001FF12, /* 0x0001ff0c */
 	0x00200204, /* 0x00400204 */
-	0x00012002, /* 0x00016404 */
+	/* change 0x00012002 to 0x00016404(idea from VLSI yanling.liu)*/
+	0x00016404, /*22-12-09*/
 	/*idea from mingliang.dong & vlsi zheng.bao end*/
 	0x00000142
 };
@@ -233,7 +234,8 @@ static unsigned int combing_very_motion_setting[MAX_NUM_DI_REG] = {
 	0x60000404, /* 0x40020a04*/
 	0x0001FF12, /* 0x0001ff0c */
 	0x00200204, /* 0x00400204 */
-	0x00012002, /* 0x00016404 */
+	/* change 0x00012002 to 0x00016404(idea from VLSI yanling.liu)*/
+	0x00016404, /*22-12-09*/
 	/*idea from mingliang.dong & vlsi zheng.bao end*/
 	0x00000131
 };
@@ -259,7 +261,8 @@ static const unsigned int combing_bias_p_ori[] = {
 	/*idea from mingliang.dong & vlsi zheng.bao begin*/
 	0x0001FF12, /* 0x0001ff0c */
 	0x00200204, /* 0x00400204 */
-	0x00012002, /* 0x00016404 */
+	/* change 0x00012002 to 0x00016404(idea from VLSI yanling.liu)*/
+	0x00016404, /*22-12-09*/
 	/*idea from mingliang.dong & vlsi zheng.bao end*/
 	0x00000142
 };
@@ -280,7 +283,8 @@ static const unsigned int combing_very_p_ori[] = {
 	0x60000404, /* 0x40020a04*/
 	0x0001FF12, /* 0x0001ff0c */
 	0x00200204, /* 0x00400204 */
-	0x00012002, /* 0x00016404 */
+	/* change 0x00012002 to 0x00016404(idea from VLSI yanling.liu)*/
+	0x00016404, /*22-12-09*/
 	/*idea from mingliang.dong & vlsi zheng.bao end*/
 	0x00000131
 };
