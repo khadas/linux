@@ -9,5 +9,5 @@ config AMLOGIC_MEDIA_RESMANAGE
 	default n
 	help
 		Select to enable AMLOGIC RESMANAGE driver to
-		manage decord resource
+		manage decoder resource
 endmenu

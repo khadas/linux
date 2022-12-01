@@ -36,7 +36,7 @@ module_param(dma_buf_debug, int, 0644);
 #define pr_enter()			pr_inf("enter")
 
 #define SECURE_DMA_BLOCK_PADDING_SIZE		(64 * 1024)
-#define SECURE_DMA_BLOCK_MIN_SZIE			(16 * 1024)
+#define SECURE_DMA_BLOCK_MIN_SIZE			(16 * 1024)
 #define SECURE_DMA_BLOCK_ALIGN_2N			12
 
 struct secure_block_info {
@@ -220,14 +220,14 @@ static int secure_heap_mmap(struct dma_buf *dmabuf,
 		block = buffer->block;
 		switch (block->state) {
 		case 1:
-			if (block->allocsize < SECURE_DMA_BLOCK_MIN_SZIE)
-				len = SECURE_DMA_BLOCK_MIN_SZIE;
+			if (block->allocsize < SECURE_DMA_BLOCK_MIN_SIZE)
+				len = SECURE_DMA_BLOCK_MIN_SIZE;
 			else
 				len = secure_align_up2n(block->allocsize,
 					SECURE_DMA_BLOCK_ALIGN_2N);
 			len += SECURE_DMA_BLOCK_PADDING_SIZE;
 			if (block->size < len ||
-				(block->size - len >= SECURE_DMA_BLOCK_MIN_SZIE)) {
+				(block->size - len >= SECURE_DMA_BLOCK_MIN_SIZE)) {
 				if (block->size && block->phyaddr) {
 					if (secure_block_free(block->phyaddr, block->size))
 						pr_err("Secure buffer free err please fix it");
