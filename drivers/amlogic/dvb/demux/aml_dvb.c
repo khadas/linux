@@ -166,9 +166,18 @@ ssize_t dsc_setting_show(struct class *class, struct class_attribute *attr,
 	return total;
 }
 
+static unsigned int get_dmx_version(void)
+{
+	unsigned int value;
+
+	value = (unsigned int)aml_read_self(0x2c04);
+	return value >> 16;
+}
+
 static ssize_t get_chip_version(char *buf)
 {
 	int total = 0;
+	unsigned int version = get_dmx_version();
 
 	if (cpu_type == MESON_CPU_MAJOR_ID_SC2)
 		total = sprintf(buf, "sc2-%x\n", minor_type);
@@ -183,8 +192,7 @@ static ssize_t get_chip_version(char *buf)
 	else if (cpu_type == MESON_CPU_MAJOR_ID_T5W)
 		total = sprintf(buf, "t5w-%x\n", minor_type);
 	else
-		total = sprintf(buf, "%x-%x\n", cpu_type, minor_type);
-
+		total = sprintf(buf, "chip:%x-%x, dmx:%d\n", cpu_type, minor_type, version);
 	dprint("version:%s", buf);
 
 	return total;
@@ -452,6 +460,48 @@ ssize_t dmc_mem_store(struct class *class,
 	return count;
 }
 
+ssize_t demod_out_show(struct class *class,
+			struct class_attribute *attr, char *buf)
+{
+	int r, total = 0;
+	u32 val = 0;
+	int ret = 0;
+
+	if (cpu_type == MESON_CPU_MAJOR_ID_T5W)
+		ret = tee_read_reg_bits(0xff610320, &val, 3, 1);
+	else
+		ret = tee_read_reg_bits(0xfe440320, &val, 3, 1);
+
+	r = sprintf(buf, "demod out:%d, ret:%d\n", val, ret);
+	buf += r;
+	total += r;
+	return total;
+}
+
+ssize_t demod_out_store(struct class *class,
+			 struct class_attribute *attr,
+			 const char *buf, size_t count)
+{
+	unsigned int version = get_dmx_version();
+	unsigned int value;
+	int ret;
+
+	if (version < 5) {
+		dprint("can't set demod out version:%d\n", version);
+		return count;
+	}
+	if (buf[0] == '0') {
+		value = 0;
+		ret = tee_write_reg_bits(0xfe440320, value, 3, 1);
+		pr_dbg("value:0x%0x, ret:%d\n", value, ret);
+	} else if (buf[0] == '1') {
+		value = 1;
+		ret = tee_write_reg_bits(0xfe440320, value, 3, 1);
+		pr_dbg("value:0x%0x, ret:%d\n", value, ret);
+	}
+	return count;
+}
+
 static CLASS_ATTR_RW(ts_setting);
 static CLASS_ATTR_RW(get_pcr);
 static CLASS_ATTR_RO(dmx_setting);
@@ -463,6 +513,7 @@ static CLASS_ATTR_RW(tso_source);
 static CLASS_ATTR_RW(tsn_loop);
 static CLASS_ATTR_RW(dmc_mem);
 static CLASS_ATTR_RW(dmx_mutex);
+static CLASS_ATTR_RW(demod_out);
 
 static struct attribute *aml_stb_class_attrs[] = {
 	&class_attr_ts_setting.attr,
@@ -475,6 +526,7 @@ static struct attribute *aml_stb_class_attrs[] = {
 	&class_attr_dmc_mem.attr,
 	&class_attr_dmx_ver.attr,
 	&class_attr_dmx_mutex.attr,
+	&class_attr_demod_out.attr,
 	NULL
 };
 
@@ -598,14 +650,18 @@ static int get_first_valid_ts(struct aml_dvb *advb)
 
 int get_demux_feature(int support_feature)
 {
+	unsigned int version = get_dmx_version();
+
 	if (support_feature == SUPPORT_ES_HEADER_NEED_AUCPU) {
 		if (cpu_type == MESON_CPU_MAJOR_ID_SC2 ||
 			cpu_type == MESON_CPU_MAJOR_ID_S4 ||
-			cpu_type == MESON_CPU_MAJOR_ID_T7 ||
-			cpu_type == MESON_CPU_MAJOR_ID_S5)
+			cpu_type == MESON_CPU_MAJOR_ID_T7)
 			return 1;
 		else
-			return 0;
+			if (version >= 3)
+				return 0;
+			else
+				return 1;
 	} else if (support_feature == SUPPORT_TSD) {
 		if (cpu_type == MESON_CPU_MAJOR_ID_SC2)
 			return 1;
@@ -615,12 +671,11 @@ int get_demux_feature(int support_feature)
 		else
 			return 0;
 	} else if (support_feature == SUPPORT_PSCP) {
-		if (cpu_type >= MESON_CPU_MAJOR_ID_T5W)
+		if (version >= 4)
 			return 1;
 		return 0;
 	} else if (support_feature == SUPPORT_TEMI) {
-		if ((cpu_type == MESON_CPU_MAJOR_ID_T7 && minor_type == 0xc) ||
-			(cpu_type == MESON_CPU_MAJOR_ID_S5 && minor_type == 0xa))
+		if (version >= 4)
 			return 1;
 		else
 			return 0;
@@ -643,7 +698,6 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	memset(&buf, 0, sizeof(buf));
 	cpu_type = get_cpu_type();
 	minor_type = get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR);
-	get_chip_version(buf);
 
 	advb = &aml_dvb_device;
 	memset(advb, 0, sizeof(aml_dvb_device));
@@ -664,6 +718,8 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	ret = init_demux_addr(pdev);
 	if (ret != 0)
 		return ret;
+
+	get_chip_version(buf);
 
 	frontend_probe(pdev);
 	dmx_dev_num = dmx_get_dev_num(pdev);
