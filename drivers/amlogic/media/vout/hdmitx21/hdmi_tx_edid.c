@@ -2938,6 +2938,8 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	prxcap = &hdev->rxcap;
 
 	/* exclude such as: 2160p60hz YCbCr444 10bit */
+	if (hdev->data->chip_type < MESON_CPU_ID_S5)	//todo, not in parse
+		prxcap->max_frl_rate = 0;	//t7 not support frl
 	switch (para->timing.vic) {
 	case HDMI_96_3840x2160p50_16x9:
 	case HDMI_97_3840x2160p60_16x9:
@@ -2988,13 +2990,19 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	}
 
 	calc_tmds_clk = para->tmds_clk / 1000;
-	rx_frl_bandwidth = get_frl_bandwidth(prxcap->max_frl_rate);
+	if (hdev->data->chip_type < MESON_CPU_ID_S5)	//todo, not in parse
+		rx_frl_bandwidth = 0;
+	else
+		rx_frl_bandwidth = get_frl_bandwidth(prxcap->max_frl_rate);
 	timing = hdmitx21_gettiming_from_vic(para->timing.vic);
 	if (!timing)
 		return 0;
 	/* tx_frl_bandwidth = timing->pixel_freq / 1000 * 24 * 1.122 */
-	tx_frl_bandwidth = calc_frl_bandwidth(timing->pixel_freq / 1000,
-		para->cs, para->cd);
+	if (hdev->data->chip_type < MESON_CPU_ID_S5)	//todo, not in parse
+		tx_frl_bandwidth = 0;
+	else
+		tx_frl_bandwidth = calc_frl_bandwidth(timing->pixel_freq / 1000,
+			para->cs, para->cd);
 	if (calc_tmds_clk < rx_max_tmds_clk || tx_frl_bandwidth <= rx_frl_bandwidth)
 		valid = 1;
 	else
