@@ -7933,7 +7933,7 @@ void vpp1_blend_update(u32 vpp_index)
 	bool force_flush = false;
 	u32 vd_path_start_sel;
 	u32 vd_path_msic_ctrl;
-	u32 vpp1_blend_ctrl = 0;
+	u32 vpp1_blend_ctrl = 0, vpp1_blend_ctrl_save = 0;
 	u32 blend_en, vd1_premult = 1, osd1_premult = 0;
 	u32 layer_id;
 	static u32 bld_src1_sel;
@@ -8043,13 +8043,15 @@ void vpp1_blend_update(u32 vpp_index)
 				vd_path_start_sel, 8, 4);
 
 	}
+	vpp1_blend_ctrl_save =
+		cur_dev->rdma_func[vpp_index].rdma_rd
+			(vppx_blend_reg_array[0].vpp_bld_ctrl);
+
 	if (update_osd_vpp1_bld_ctrl) {
 		vpp1_blend_ctrl = bld_src1_sel;
 		vpp1_blend_ctrl |= osd_vpp1_bld_ctrl;
 	} else {
-		vpp1_blend_ctrl =
-			cur_dev->rdma_func[vpp_index].rdma_rd
-				(vppx_blend_reg_array[0].vpp_bld_ctrl);
+		vpp1_blend_ctrl = vpp1_blend_ctrl_save;
 		/*should reset video control.*/
 		vpp1_blend_ctrl &= 0xfffe;
 		vpp1_blend_ctrl |= bld_src1_sel;
@@ -8061,8 +8063,9 @@ void vpp1_blend_update(u32 vpp_index)
 		(vd_layer_vpp[0].layer_alpha & 0x1ff) << 20 |
 		1 << 31;
 
-	cur_dev->rdma_func[vpp_index].rdma_wr(vppx_blend_reg_array[0].vpp_bld_ctrl,
-		vpp1_blend_ctrl);
+	if (vpp1_blend_ctrl_save != vpp1_blend_ctrl)
+		cur_dev->rdma_func[vpp_index].rdma_wr(vppx_blend_reg_array[0].vpp_bld_ctrl,
+			vpp1_blend_ctrl);
 
 	blend_en_status_save = vd_layer_vpp[0].vppx_blend_en;
 	if (vd_layer_vpp[0].vpp_index != VPP0 &&
@@ -8081,7 +8084,7 @@ void vpp2_blend_update(u32 vpp_index)
 	bool force_flush = false;
 	u32 vd_path_start_sel;
 	u32 vd_path_msic_ctrl;
-	u32 vpp2_blend_ctrl = 0;
+	u32 vpp2_blend_ctrl = 0, vpp2_blend_ctrl_save = 0;
 	u32 blend_en, vd1_premult = 1, osd1_premult = 0;
 	u32 layer_id;
 	static u32 bld_src1_sel;
@@ -8182,14 +8185,15 @@ void vpp2_blend_update(u32 vpp_index)
 			vd_path_start_sel, 8, 4);
 	}
 
+	vpp2_blend_ctrl_save =
+		cur_dev->rdma_func[vpp_index].rdma_rd
+			(vppx_blend_reg_array[1].vpp_bld_ctrl);
+
 	if (update_osd_vpp2_bld_ctrl) {
 		vpp2_blend_ctrl = bld_src1_sel;
 		vpp2_blend_ctrl |= osd_vpp2_bld_ctrl;
 	} else {
-		vpp2_blend_ctrl =
-			cur_dev->rdma_func[vpp_index].rdma_rd
-				(vppx_blend_reg_array[1].vpp_bld_ctrl);
-
+		vpp2_blend_ctrl = vpp2_blend_ctrl_save;
 		/*should reset video control.*/
 		vpp2_blend_ctrl &= 0xfffe;
 		vpp2_blend_ctrl |= bld_src1_sel;
@@ -8201,8 +8205,9 @@ void vpp2_blend_update(u32 vpp_index)
 		(vd_layer_vpp[1].layer_alpha & 0x1ff) << 20 |
 		1 << 31;
 
-	cur_dev->rdma_func[vpp_index].rdma_wr(vppx_blend_reg_array[1].vpp_bld_ctrl,
-		vpp2_blend_ctrl);
+	if (vpp2_blend_ctrl_save != vpp2_blend_ctrl)
+		cur_dev->rdma_func[vpp_index].rdma_wr(vppx_blend_reg_array[1].vpp_bld_ctrl,
+			vpp2_blend_ctrl);
 
 	blend_en_status_save = vd_layer_vpp[1].vppx_blend_en;
 	if (vd_layer_vpp[1].vpp_index != VPP0 &&
