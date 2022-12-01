@@ -617,7 +617,7 @@ static int hifi4dsp_driver_dsp_start(struct hifi4dsp_dsp *dsp)
 	pr_debug("%s\n", __func__);
 	info = (struct  hifi4dsp_info_t *)dsp->info;
 	pr_debug("dsp_id: %d\n", dsp->id);
-	pr_debug("dsp_freqence: %d Hz\n", dsp->freq);
+	pr_debug("dsp_frequence: %d Hz\n", dsp->freq);
 	pr_debug("dsp_start_addr: 0x%llx\n",
 		 (unsigned long long)dsp->dsp_fw->paddr);
 

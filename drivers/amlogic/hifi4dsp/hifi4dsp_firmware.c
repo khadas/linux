@@ -135,7 +135,7 @@ int hifi4dsp_fw_copy_to_ddr(const struct firmware *fw,
 	fw_dst = dsp_fw->buf;
 	hifi4dsp_dump_memory(fw_src, 32, 16);
 	hifi4dsp_dump_memory(fw_src + fw_bytes - 32, 32, 16);
-	pr_debug("%s fw_src:0x%p, pdata_dst=0x%p, szie=%d bytes\n",
+	pr_debug("%s fw_src:0x%p, pdata_dst=0x%p, size=%d bytes\n",
 		 __func__, fw_src, fw_dst, fw_bytes);
 	//memcpy(fw_dst, fw_src, fw_bytes);
 	memcpy_toio(fw_dst, fw_src, fw_bytes);
@@ -168,7 +168,7 @@ int hifi4dsp_fw_copy_to_sram(const struct firmware *fw,
 	fw_dst = dsp_fw->dsp->id ? g_regbases.sram_base_b : g_regbases.sram_base;
 	hifi4dsp_dump_memory(fw_src, 32, 16);
 	hifi4dsp_dump_memory(fw_src + fw_bytes - 32, 32, 16);
-	pr_debug("%s fw_src:0x%p, pdata_dst=0x%p, szie=%d bytes\n",
+	pr_debug("%s fw_src:0x%p, pdata_dst=0x%p, size=%d bytes\n",
 		 __func__, fw_src, fw_dst, fw_bytes);
 
 	/*copy firmware to sram*/

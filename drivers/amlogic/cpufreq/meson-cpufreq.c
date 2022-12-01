@@ -451,7 +451,7 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 
 	meson_dsu_volt_freq_vote(cpufreq_data, &freqs, volt_new);
 
-	pr_debug("[cluster%d:%d]Scalling from %lu MHz, %u mV --> %lu MHz, %u mV[%u %u][%u %u]\n",
+	pr_debug("[cluster%d:%d]scaling from %lu MHz, %u mV --> %lu MHz, %u mV[%u %u][%u %u]\n",
 		 cur_cluster, reg_use_buck[cur_cluster],
 		 freq_old / 1000000, (volt_old > 0) ? volt_old / 1000 : -1,
 		 freq_new / 1000000, volt_new ? volt_new / 1000 : -1,
