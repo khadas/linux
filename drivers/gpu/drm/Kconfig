@@ -199,6 +199,13 @@ config DRM_SCHED
 	tristate
 	depends on DRM
 
+config AMLOGIC_DRM_NONROOT
+	bool "support drm whether require root privileges"
+	default n
+	depends on DRM && AMLOGIC_MODIFY
+	help
+		drmSetMaster and drmDropMaster whether require root privileges
+
 source "drivers/gpu/drm/i2c/Kconfig"
 
 source "drivers/gpu/drm/arm/Kconfig"
