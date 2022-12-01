@@ -3398,7 +3398,7 @@ void rx_main_state_machine(void)
 			one_frame_cnt = (1000 * 100 / rx.pre.frame_rate / 12) + 1;
 			if (rx.skip > 0) {
 				rx.skip--;
-			} else if (video_mute_enabled()) {
+			} else if (vpp_mute_enable) {
 				/* clear vpp mute after signal stable */
 				if (get_video_mute()) {
 					if (rx.var.mute_cnt++ < one_frame_cnt + 1)
