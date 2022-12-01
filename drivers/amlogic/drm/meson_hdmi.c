@@ -1056,10 +1056,7 @@ static int meson_hdmitx_get_hdcp_request(struct am_hdmi_tx *tx,
 	struct meson_hdmitx_dev *tx_dev = tx->hdmitx_dev;
 	int type;
 	unsigned int hdcp_tx_type = tx_dev->get_tx_hdcp_cap();
-	unsigned int hdcp_rx_type = tx_dev->get_rx_hdcp_cap();
-
-	/*if currently hdcp not enabled, drm should delay getting hdcp_ver here*/
-	am_hdmi_info.hdcp_rx_type = hdcp_rx_type;
+	unsigned int hdcp_rx_type = am_hdmi_info.hdcp_rx_type;
 
 	DRM_INFO("%s usr_type: %d, hdcp cap: %d,%d\n",
 			__func__, request_type_mask,
@@ -1216,14 +1213,18 @@ static void meson_hdmitx_hdcp_notify(void *data, int type, int result)
 	if (!locked_outer)
 		drm_modeset_lock(mode_lock, NULL);
 
-	if (!am_hdmi_info.hdmitx_on)
-		goto end;
-
 	if (type == HDCP_KEY_UPDATE && result == HDCP_AUTH_UNKNOWN) {
-		DRM_ERROR("HDCP statue changed, need re-run hdcp\n");
+		DRM_INFO("HDCP statue changed, need re-run hdcp\n");
+		if (am_hdmi_info.hdmitx_dev->detect())
+			am_hdmi_info.hdcp_rx_type = am_hdmi_info.hdmitx_dev->get_rx_hdcp_cap();
+		if (!am_hdmi_info.hdmitx_on)
+			goto end;
 		meson_hdmitx_update_hdcp();
 		goto end;
 	}
+
+	if (!am_hdmi_info.hdmitx_on)
+		goto end;
 
 	if (type != am_hdmi_info.hdcp_mode) {
 		DRM_DEBUG("notify type is mismatch[%d]-[%d]\n",
@@ -1658,6 +1659,7 @@ void meson_hdmitx_encoder_atomic_disable(struct drm_encoder *encoder,
 
 	am_hdmi_info.hdmitx_on = 0;
 	am_hdmi_info.hdmitx_dev->avmute(1);
+	msleep(100);
 	meson_hdmitx_stop_hdcp();
 	msleep(100);
 }
@@ -1948,7 +1950,7 @@ static void meson_hdmitx_hpd_cb(void *data)
 	/*get hdcp ver property immediately after plugin in case hdcp14
 	 *authentication snow screen issue
 	 */
-	if (am_hdmi->hdmitx_dev->detect() == 1)
+	if (am_hdmi->hdmitx_dev->detect())
 		am_hdmi_info.hdcp_rx_type = am_hdmi_info.hdmitx_dev->get_rx_hdcp_cap();
 
 #ifdef CONFIG_CEC_NOTIFIER
