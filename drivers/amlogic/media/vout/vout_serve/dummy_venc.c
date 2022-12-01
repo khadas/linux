@@ -23,6 +23,9 @@
 #ifdef CONFIG_AMLOGIC_VPU
 #include <linux/amlogic/media/vpu/vpu.h>
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+#include <linux/amlogic/media/video_sink/video.h>
+#endif
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/gki_module.h>
 
@@ -300,6 +303,18 @@ static void dummy_encp_venc_set(struct dummy_venc_driver_s *venc_drv)
 		venc_drv->vdata->venc_sel(venc_drv, DUMMY_SEL_ENCP);
 }
 
+static void dummy_panel_clear_mute(struct dummy_venc_driver_s *venc_drv)
+{
+	if (venc_drv->viu_sel == 1) {
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+		if (get_output_mute()) {
+			set_output_mute(false);
+			VOUTPR("%s: clr mute for dummy_panel\n", __func__);
+		}
+#endif
+	}
+}
+
 static void dummy_encp_clk_ctrl(struct dummy_venc_driver_s *venc_drv, int flag)
 {
 	struct venc_config_s *vconf;
@@ -468,6 +483,9 @@ static int dummy_encp_set_current_vmode(enum vmode_e mode, void *data)
 		dummy_encp_clk_ctrl(venc_drv, 1);
 		dummy_encp_venc_set(venc_drv);
 	}
+
+	if (venc_drv->vinfo_index == 1)
+		dummy_panel_clear_mute(venc_drv);
 
 	venc_drv->status = 1;
 	venc_drv->vout_valid = 1;
