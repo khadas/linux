@@ -31,6 +31,7 @@
 #include "dmc_monitor.h"
 #include "ddr_port.h"
 #include <linux/amlogic/gki_module.h>
+#include <linux/amlogic/dmc_dev_access.h>
 
 struct dmc_monitor *dmc_mon;
 
@@ -499,11 +500,37 @@ static ssize_t debug_show(struct class *cla,
 }
 static CLASS_ATTR_RW(debug);
 
+static ssize_t dev_access_store(struct class *cla,
+			  struct class_attribute *attr,
+			  const char *buf, size_t count)
+{
+	int ret;
+	unsigned long addr = 0, size = 0;
+	int id = 0;
+
+	ret = sscanf(buf, "%d %lx %lx", &id, &addr, &size);
+	if (ret != 3) {
+		pr_info("input param num should be 3 (id addr size)\n");
+		return count;
+	}
+	dmc_dev_access(id, addr, size);
+
+	return count;
+}
+
+static ssize_t dev_access_show(struct class *cla,
+			 struct class_attribute *attr, char *buf)
+{
+	return show_dmc_notifier_list(buf);
+}
+static CLASS_ATTR_RW(dev_access);
+
 static struct attribute *dmc_monitor_attrs[] = {
 	&class_attr_range.attr,
 	&class_attr_device.attr,
 	&class_attr_dump.attr,
 	&class_attr_debug.attr,
+	&class_attr_dev_access.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(dmc_monitor);
