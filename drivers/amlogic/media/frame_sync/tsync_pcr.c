@@ -666,10 +666,14 @@ void tsync_pcr_pcrscr_set(void)
 		} else {
 			tsync_set_pcr_mode(1, ref_pcr);
 			tsync_pcr_inited_mode = INIT_PRIORITY_PCR;
+			if (cur_pcr > first_vpts) {
+				timestamp_additional_latency_set(cur_pcr - first_vpts);
+				pr_info("additional latency set.\n");
+			}
 		}
-		pr_info("1-tsync_set:pcrsrc %x,vpts %x,mode:%d\n",
+		pr_info("1-tsync_set:pcrsrc %x,vpts %x,mode:%d, addi_latency:%d.\n",
 			timestamp_pcrscr_get(), timestamp_firstvpts_get(),
-			tsync_use_demux_pcr);
+			tsync_use_demux_pcr, timestamp_additional_latency_get());
 		tsync_get_demux_pcr(&init_check_first_demuxpcr);
 		return;
 	}
@@ -1320,6 +1324,7 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 		tsync_set_av_state(0, 2);
 		/*tsync_pcr_inited_mode = INIT_MODE_VIDEO;*/
 		tsync_pcr_vstart_flag = 1;
+		timestamp_additional_latency_set(0);
 
 		if (first_apts == 0 &&
 			cur_checkin_apts == 0xffffffff &&

@@ -76,4 +76,8 @@ u32 timestamp_firstapts_get(void);
 
 u32 timestamp_tsdemux_pcr_get(void);
 
+void timestamp_additional_latency_set(u32 pts);
+
+u32 timestamp_additional_latency_get(void);
+
 #endif /* TIMESTAMP_H */

@@ -28,6 +28,7 @@ static u32 first_checkin_vpts;
 static u32 first_checkin_apts;
 static u32 first_apts;
 static u32 pcrscr_lantcy = 200 * 90;
+static u32 pcrscr_additional_lantency;
 static u32 video_pts;
 static u64 video_pts_u64;
 static u32 audio_pts;
@@ -158,9 +159,9 @@ u32 timestamp_pcrscr_get(void)
 			return system_time;
 		} else {
 			if (tsync_get_demux_pcr(&tmp_pcr)) {
-				if (tmp_pcr > pcrscr_lantcy)
+				if (tmp_pcr > (pcrscr_lantcy + pcrscr_additional_lantency))
 					return
-					tmp_pcr - pcrscr_lantcy;
+					tmp_pcr - pcrscr_lantcy - pcrscr_additional_lantency;
 				else
 					return 0;
 			} else {
@@ -451,6 +452,22 @@ u32 timestamp_pcrscr_enable_state(void)
 	return system_time_up;
 }
 EXPORT_SYMBOL(timestamp_pcrscr_enable_state);
+
+void timestamp_additional_latency_set(u32 pts)
+{
+	if (pts < 3000 * 90)
+		pcrscr_additional_lantency = pts;
+	else
+		pcrscr_additional_lantency = 3000 * 90;
+	pr_info("pcrscr_additional_lantency = %x\n", pcrscr_additional_lantency);
+}
+EXPORT_SYMBOL(timestamp_additional_latency_set);
+
+u32 timestamp_additional_latency_get(void)
+{
+	return pcrscr_additional_lantency;
+}
+EXPORT_SYMBOL(timestamp_additional_latency_get);
 
 //MODULE_DESCRIPTION("AMLOGIC time sync management driver");
 //MODULE_LICENSE("GPL");
