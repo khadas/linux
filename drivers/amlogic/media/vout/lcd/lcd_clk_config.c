@@ -670,6 +670,47 @@ static void lcd_set_pll_ss_level_t7(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
+static void lcd_set_pll_ss_level_t5w(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_clk_config_s *cconf;
+	unsigned int pll_ctrl2;
+	unsigned int level, dep_sel, str_m;
+	unsigned int data[2] = {0, 0};
+	int ret;
+
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf)
+		return;
+
+	level = cconf->ss_level;
+	pll_ctrl2 = lcd_ana_read(HHI_TCON_PLL_CNTL2);
+	pll_ctrl2 &= ~((1 << 15) | (0xf << 16) | (0xf << 28));
+
+	if (level > 0) {
+		cconf->ss_en = 1;
+		ret = lcd_pll_ss_level_generate(data, level, 500);
+		if (ret == 0) {
+			dep_sel = data[0];
+			str_m = data[1];
+			dep_sel = (dep_sel > 10) ? 10 : dep_sel;
+			str_m = (str_m > 10) ? 10 : str_m;
+			pll_ctrl2 |= ((1 << 15) | (dep_sel << 28) |
+				     (str_m << 16));
+		}
+	} else {
+		cconf->ss_en = 0;
+	}
+
+	lcd_ana_write(HHI_TCON_PLL_CNTL2, pll_ctrl2);
+
+	if (level > 0) {
+		LCDPR("[%d]: set pll spread spectrum: %dppm\n",
+		      pdrv->index, (level * 1000));
+	} else {
+		LCDPR("[%d]: set pll spread spectrum: disable\n", pdrv->index);
+	}
+}
+
 static void lcd_set_pll_ss_advance_t7(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
@@ -5135,7 +5176,7 @@ static struct lcd_clk_data_s lcd_clk_data_t5w = {
 
 	.clk_generate_parameter = lcd_clk_generate_tl1,
 	.pll_frac_generate = lcd_pll_frac_generate_dft,
-	.set_ss_level = lcd_set_pll_ss_level_tl1,
+	.set_ss_level = lcd_set_pll_ss_level_t5w,
 	.set_ss_advance = lcd_set_pll_ss_advance_tl1,
 	.clk_ss_enable = lcd_pll_ss_enable_tl1,
 	.clk_set = lcd_clk_set_t5w,
