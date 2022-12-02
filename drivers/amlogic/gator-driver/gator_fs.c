@@ -7,7 +7,7 @@
  * @author John Levon
  *
  * A simple filesystem for configuration and
- * access of oprofile.
+ * access of profile.
  */
 
 #include <linux/init.h>
