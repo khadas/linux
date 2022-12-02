@@ -200,8 +200,8 @@ static int startsync_mode = 2;
  *(AMASTER S)<-->(D VMASTER)<--> (S VMASTER)
  *(D VMASTER)--time out->(A AMASTER)--time out->((AMASTER S))
  */
-unsigned int tsync_av_threshold_min = AV_DISCONTINUE_THREDHOLD_MIN;
-unsigned int tsync_av_threshold_max = AV_DISCONTINUE_THREDHOLD_MAX;
+unsigned int tsync_av_threshold_min = AV_DISCONTINUE_THRESHOLD_MIN;
+unsigned int tsync_av_threshold_max = AV_DISCONTINUE_THRESHOLD_MAX;
 #define TSYNC_STATE_S  ('S')
 #define TSYNC_STATE_A ('A')
 #define TSYNC_STATE_D  ('D')

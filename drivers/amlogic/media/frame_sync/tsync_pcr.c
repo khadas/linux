@@ -1150,7 +1150,7 @@ void tsync_pcr_check_checinpts(void)
 		    last_pcr_checkin_apts != 0 &&
 		    last_pcr_checkin_apts != 0xffffffff) {
 			if (abs(last_pcr_checkin_apts - checkin_apts)
-				> AV_DISCONTINUE_THREDHOLD_MIN) {
+				> AV_DISCONTINUE_THRESHOLD_MIN) {
 				tsync_pcr_tsdemuxpcr_discontinue |=
 				AUDIO_DISCONTINUE;
 				tsync_audio_discontinue = 1;
