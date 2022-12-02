@@ -1,5 +1,5 @@
 #
-# Kyeboard device configuration
+# Keyboard device configuration
 #
 
 menuconfig AMLOGIC_INPUT_KEYBOARD
@@ -20,7 +20,7 @@ config AMLOGIC_ADC_KEYPADS
 	  Say Y here if you want to use the Meson ADC keypad.
 
 config AMLOGIC_GPIO_KEY
-        tristate "Amlogic gpio key device surport"
+        tristate "Amlogic gpio key device support"
         depends on AMLOGIC_INPUT_KEYBOARD
 	default n
         help
