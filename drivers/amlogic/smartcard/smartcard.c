@@ -937,7 +937,7 @@ static int smc_hw_setup(struct smc_dev *smc)
 	reg_int->cwt_expired_int_mask = 1;
 	reg_int->bwt_expired_int_mask = 1;
 	reg_int->write_full_fifo_int_mask = 1;
-	reg_int->send_and_recv_confilt_int_mask = 1;
+	reg_int->send_and_recv_conflict_int_mask = 1;
 	reg_int->recv_error_int_mask = 1;
 	reg_int->send_error_int_mask = 1;
 	reg_int->rst_expired_int_mask = 1;

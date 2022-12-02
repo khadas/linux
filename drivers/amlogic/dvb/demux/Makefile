@@ -4,8 +4,6 @@
 
 obj-$(CONFIG_AMLOGIC_DVB_DMX) += dvb_demux.o
 
-#ccflags-y += -I$(srctree)/drivers/media/dvb-core -I$(srctree)/drivers/gpio -I$(srctree)/include -fno-tree-scev-cprop
-#ccflags-y += -I$(srctree)/drivers/media/dvb-core -fno-tree-scev-cprop
 ccflags-y += -I$(srctree)/include/media
 ccflags-y += -I$(srctree)/include
 

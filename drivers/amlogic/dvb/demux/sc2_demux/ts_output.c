@@ -1906,7 +1906,7 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 			dprint("compute len:%d, es len:%d\n", pheader->len, len);
 			//re read header data again
 			if (pout->aucpu_pts_start) {
-				goto error_hande;
+				goto error_handle;
 			} else {
 				SC2_bufferid_read_header_again(pout->pchan1, &pheader_again);
 				if (memcmp(pcur_header, pheader_again, 0x10) != 0) {
@@ -1926,10 +1926,10 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 					if (pheader->len > len) {
 						dprint("two compute len:%d, es len:%d\n",
 							pheader->len, len);
-						goto error_hande;
+						goto error_handle;
 					}
 				} else {
-					goto error_hande;
+					goto error_handle;
 				}
 			}
 		}
@@ -1980,7 +1980,7 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 		}
 	}
 	return -1;
-error_hande:
+error_handle:
 	memcpy(&es_params->last_last_header,
 		&es_params->last_header, 16);
 	memcpy(&es_params->last_header, pcur_header,
@@ -2239,7 +2239,7 @@ static void ts_output_free_remap_entry(int sid, int pid)
 /**
  * remap pid
  * \param sid: stream id
- * \param pid: orginal pid
+ * \param pid: original pid
  * \param new_pid: replace pid
  * \retval 0:success.
  * \retval -1:fail.

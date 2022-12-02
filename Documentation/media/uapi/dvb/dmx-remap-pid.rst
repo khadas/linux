@@ -33,7 +33,7 @@ Arguments
     File descriptor returned by :c:func:`open() <dvb-dmx-open>`.
 
 ``__u16[2]``
-    __u16[0] orginal pid, __u16[1] is new pid
+    __u16[0] original pid, __u16[1] is new pid
 
 
 Description

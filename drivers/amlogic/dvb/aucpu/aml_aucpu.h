@@ -86,7 +86,7 @@ struct dma_link_des {
  *		struct dma_link_des
  **/
 struct aml_aucpu_strm_buf {
-	ulong phy_start; /* PHY addess of the buffer (32bit-alignment) */
+	ulong phy_start; /* PHY address of the buffer (32bit-alignment) */
 	u32 buf_size; /* bytes, shall be multiply of 8 */
 	u32 buf_flags; /* bit 0: 0:the buffer is normal ring buffer */
 				 /* 1: it is link list */
@@ -97,14 +97,14 @@ struct aml_aucpu_strm_buf {
  *
  * give the updates of a buffer
  *
- * @phy_cur_ptr: Physical addess of the current buffer pointer,
+ * @phy_cur_ptr: Physical address of the current buffer pointer,
  *		read pointer or write pointer based on the context that
  *		it is acted as consumer or producer
  * @byte_cnt: The total bytes count of the buffer was inputed (producer)
  *		or used (consumer)
  **/
 struct aml_aucpu_buf_upd {
-	ulong phy_cur_ptr; /* Physical addess of the current buffer pointer */
+	ulong phy_cur_ptr; /* Physical address of the current buffer pointer */
 			   /* (write pointer or read pointer)               */
 	u32 byte_cnt; /* input/out bytes count(lower 32bits)           */
 			   /*  of the buffer from start or reset            */
@@ -155,7 +155,7 @@ enum aml_aucpu_stream_type {
 enum aml_aucpu_states {
 	AUCPU_STA_NONE = 0, /* NONE */
 	AUCPU_STA_IDLE = 1, /*created but no start */
-	AUCPU_STA_RUNNING = 2, /* normal running afte start */
+	AUCPU_STA_RUNNING = 2, /* normal running after start */
 	AUCPU_STA_FLUSHING = 3, /* in FLUSHING before finish*/
 	AUCPU_STA_MAX,
 };
@@ -177,7 +177,7 @@ enum aml_aucpu_report {
  * extern s32 aml_aucpu_strm_create()
  * create a stream instance with input output buffers and configurations
  *
- * @aml_aucpu_strm_buf *src:	input sourece content buffer(s) pointer
+ * @aml_aucpu_strm_buf *src:	input source content buffer(s) pointer
  * @aml_aucpu_strm_buf *dst:	output destination buffer(s) pointer
  * @aml_aucpu_inst_config *cfg:  configuration of settins of the instance
 
@@ -211,7 +211,7 @@ s32 aml_aucpu_strm_stop(s32 handle);
 /**
  * s32 aml_aucpu_strm_flush(s32 handle)
  *flushing the content of the stream instance
- * it will proceess the left content of the stream
+ * it will process the left content of the stream
  * then go to stop stage after finished
  *
  * @handle:The handle of the created instance
@@ -238,7 +238,7 @@ s32 aml_aucpu_strm_remove(s32 handle);
  *
  * @handle:The handle of steam instance
  * @upd: The pointer of struct aml_aucpu_buf_upd to give the current stream
- *		soure buffer currrent write pointer and the total
+ *		soure buffer current write pointer and the total
  *		bytes (lower 32bits) has been written into.
  * @return:	0:success
  *		error code <0 if errors on the operation

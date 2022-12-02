@@ -187,7 +187,7 @@ struct aucpu_inst_t {
 	u32 work_state; // the working  status of the instance
 	u32 src_wrptr; //source buffer wrptr
 	u32 src_rdptr; //source rdprt
-	u32 src_byte_cnt; // source totol processed bytes shadow
+	u32 src_byte_cnt; // source total processed bytes shadow
 	u32 dst_wrptr;  // dst wrptr shadow
 	u32 dst_byte_cnt; // dst total processed bytes shadow
 

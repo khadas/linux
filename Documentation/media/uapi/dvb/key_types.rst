@@ -23,7 +23,7 @@ user_id
     enum user_id {
 	    DSC_LOC_DEC,    /* local descramble module */
     	DSC_NETWORK,    /* network descramble module */
-	    DSC_LOC_ENC,    /* local cramble module */
+	    DSC_LOC_ENC,    /* local scramble module */
 
     	CRYPTO_T0 = 0x100,  /* m2m en/decrypt */
     };

@@ -1,5 +1,5 @@
 #
-# Amlogic AUCPU driver configuation
+# Amlogic AUCPU driver configuration
 #
 config AMLOGIC_AUCPU
 	tristate "Amlogic Aucpu driver"

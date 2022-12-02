@@ -178,7 +178,7 @@ static int tuner_pre_init(struct dvb_tuner *tuner)
 			continue;
 
 		/* In some cases, pre-init is required. */
-		/* 1. Loop thorugh is enabled. */
+		/* 1. Loop through is enabled. */
 		if (ops->cfg.lt_out && ops->fe.ops.tuner_ops.set_config) {
 			ret = ops->fe.ops.tuner_ops.set_config(&ops->fe, NULL);
 
@@ -375,7 +375,7 @@ static int tuner_resume(struct dvb_frontend *fe)
 	return 0;
 }
 
-/* This is the recomended way to set the tuner */
+/* This is the recommended way to set the tuner */
 static int tuner_set_params(struct dvb_frontend *fe)
 {
 	struct tuner_ops *match = tuner_fe_type_match(fe);

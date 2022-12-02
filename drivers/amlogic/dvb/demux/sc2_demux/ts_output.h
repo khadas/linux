@@ -52,7 +52,7 @@ int ts_output_destroy(void);
 /**
  * remap pid
  * \param sid: stream id
- * \param pid: orginal pid
+ * \param pid: original pid
  * \param new_pid: replace pid
  * \retval 0:success.
  * \retval -1:fail.
