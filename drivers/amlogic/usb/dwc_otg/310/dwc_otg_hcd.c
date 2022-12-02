@@ -502,7 +502,7 @@ static void dwc_otg_hcd_power_save(dwc_otg_hcd_t *hcd, int power_on)
 	DWC_WRITE_REG32(hcd->core_if->pcgcctl, pcgcctl.d32);
 	if (!hcd->auto_pm_suspend_flag) {
 		DWC_WRITE_REG32(&hcd->core_if->usb_peri_reg->dbg_uart, uart.d32);
-		if (hcd->core_if->swicth_int_reg) {
+		if (hcd->core_if->switch_int_reg) {
 			if (power_on) {
 				dwc_otg_enable_host_interrupts(hcd->core_if);
 				dwc_otg_enable_global_interrupts(hcd->core_if);
@@ -2244,7 +2244,7 @@ int dwc_otg_hcd_hub_control(dwc_otg_hcd_t *dwc_otg_hcd,
 			break;
 		case UHF_PORT_INDICATOR:
 			DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD HUB CONTROL - ClearPortFeature USB_PORT_FEAT_INDICATOR\n");
-			/* Port inidicator not supported */
+			/* Port indicator not supported */
 			break;
 		case UHF_C_PORT_CONNECTION:
 			/* Clears drivers internal connect status change
@@ -2444,7 +2444,7 @@ int dwc_otg_hcd_hub_control(dwc_otg_hcd_t *dwc_otg_hcd,
 					dwc_mdelay(1);
 				} while (--timeout);
 				if (!timeout)
-					DWC_WARN("Suspend wasn't genereted\n");
+					DWC_WARN("Suspend wasn't generated\n");
 
 				dwc_udelay(10);
 

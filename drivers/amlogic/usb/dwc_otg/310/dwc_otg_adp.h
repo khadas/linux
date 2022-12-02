@@ -48,7 +48,7 @@
 
 #define DWC_OTG_ADP_UNATTACHED	0
 #define DWC_OTG_ADP_ATTACHED	1
-#define DWC_OTG_ADP_UNKOWN	2
+#define DWC_OTG_ADP_UNKNOWN	2
 
 typedef struct dwc_otg_adp {
 	uint32_t adp_started;

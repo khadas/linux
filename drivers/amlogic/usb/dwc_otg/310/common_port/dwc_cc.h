@@ -97,7 +97,7 @@ extern void dwc_cc_clear(void *mem_ctx, dwc_cc_if_t *cc_if);
  * @param cdid A pointer to the 16-byte CDID.  This value will be copied.
  * @param name An optional host friendly name as defined in the association model
  * spec.  Must be a UTF16-LE unicode string.  Can be NULL to indicated no name.
- * @param length The length othe unicode string.
+ * @param length The length of the unicode string.
  * @return A unique identifier used to refer to this context that is valid for
  * as long as this context is still in the list. */
 extern int32_t dwc_cc_add(void *mem_ctx, dwc_cc_if_t *cc_if, uint8_t *chid,

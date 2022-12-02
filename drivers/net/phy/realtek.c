@@ -539,7 +539,7 @@ int rtl8211f_resume(struct phy_device *phydev)
 		/*reset wol*/
 		value = phy_read(phydev, 0x11);
 		phy_write(phydev, 0x11, value & ~(0x1 << 15));
-		/*pad isolantion*/
+		/*pad isolation*/
 		value = phy_read(phydev, 0x13);
 		phy_write(phydev, 0x13, value & ~(0x1 << 15));
 

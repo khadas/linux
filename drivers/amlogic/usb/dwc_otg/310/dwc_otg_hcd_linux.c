@@ -275,7 +275,7 @@ static int _complete(dwc_otg_hcd_t *hcd, void *urb_handle,
 		break;
 	default:
 		if (status)
-			DWC_PRINTF("Uknown urb status %d\n", status);
+			DWC_PRINTF("Unknown urb status %d\n", status);
 	}
 
 	if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS) {
@@ -692,7 +692,7 @@ static int urb_enqueue(struct usb_hcd *hcd,
 						   !(usb_pipein(urb->pipe))));
 
 	buf = urb->transfer_buffer;
-	/*phys_to_virt api can not geting virt address,we can not use it.*/
+	/*phys_to_virt api can not get virt address,we can not use it.*/
 #if 0
 	if (hcd->self.uses_dma)
 		/*

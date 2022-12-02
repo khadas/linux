@@ -9,4 +9,4 @@ config AMLOGIC_INTERNAL_PHY
 	  This module implements the amlogic internal phy,
 	  modify the dts file to switch internal external phy.
 
-	  if in doube, ask yizhou.
+	  if in doubt, ask yizhou.

@@ -599,7 +599,7 @@ extern uint32_t dwc_otg_get_core_state(dwc_otg_core_if_t *core_if);
 extern void dwc_otg_set_prtpower(dwc_otg_core_if_t *core_if, uint32_t val);
 
 /**
- * Get value of prtsusp field from the HPRT0 regsiter
+ * Get value of prtsusp field from the HPRT0 register
  */
 extern uint32_t dwc_otg_get_prtsuspend(dwc_otg_core_if_t *core_if);
 /**
@@ -608,20 +608,20 @@ extern uint32_t dwc_otg_get_prtsuspend(dwc_otg_core_if_t *core_if);
 extern void dwc_otg_set_prtsuspend(dwc_otg_core_if_t *core_if, uint32_t val);
 
 /**
- * Get value of ModeChTimEn field from the HCFG regsiter
+ * Get value of ModeChTimEn field from the HCFG register
  */
 extern uint32_t dwc_otg_get_mode_ch_tim(dwc_otg_core_if_t *core_if);
 /**
- * Set value of ModeChTimEn field from the HCFG regsiter
+ * Set value of ModeChTimEn field from the HCFG register
  */
 extern void dwc_otg_set_mode_ch_tim(dwc_otg_core_if_t *core_if, uint32_t val);
 
 /**
- * Get value of Fram Interval field from the HFIR regsiter
+ * Get value of Fram Interval field from the HFIR register
  */
 extern uint32_t dwc_otg_get_fr_interval(dwc_otg_core_if_t *core_if);
 /**
- * Set value of Frame Interval field from the HFIR regsiter
+ * Set value of Frame Interval field from the HFIR register
  */
 extern void dwc_otg_set_fr_interval(dwc_otg_core_if_t *core_if, uint32_t val);
 

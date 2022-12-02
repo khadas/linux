@@ -243,7 +243,7 @@ extern int dwc_otg_pcd_get_frame_number(dwc_otg_pcd_t *pcd);
 
 /**
  * Start isochronous transfers on the endpoint referenced by ep_handle.
- * For isochronous transfers duble buffering is used.
+ * For isochronous transfers double buffering is used.
  * After processing each of buffers complete callback will be called with
  * status for each transaction.
  *
@@ -326,10 +326,10 @@ extern int dwc_otg_pcd_is_lpm_enabled(dwc_otg_pcd_t *pcd);
 /** This function returns 1 if LPM Errata support is enabled, and 0 otherwise. */
 extern int dwc_otg_pcd_is_besl_enabled(dwc_otg_pcd_t *pcd);
 
-/** This function returns baseline_besl module parametr. */
+/** This function returns baseline_besl module parameter. */
 extern int dwc_otg_pcd_get_param_baseline_besl(dwc_otg_pcd_t *pcd);
 
-/** This function returns deep_besl module parametr. */
+/** This function returns deep_besl module parameter. */
 extern int dwc_otg_pcd_get_param_deep_besl(dwc_otg_pcd_t *pcd);
 
 /** This function returns 1 if remote wakeup is allowed and 0, otherwise. */

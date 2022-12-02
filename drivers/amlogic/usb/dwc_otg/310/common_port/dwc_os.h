@@ -793,7 +793,7 @@ extern char *DWC_STRDUP(char const *str);
  * "0x" prefix if base 16.  The remaining characters must be valid digits for
  * the number and end with a NULL character.  If any invalid characters are
  * encountered or it returns with a negative error code and the results of the
- * conversion are undefined.  On sucess it returns 0.  Overflow conditions are
+ * conversion are undefined.  On success it returns 0.  Overflow conditions are
  * undefined.  An example implementation using atoi() can be referenced from the
  * Linux implementation. */
 extern int DWC_ATOI(const char *str, int32_t *value);

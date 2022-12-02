@@ -1726,7 +1726,7 @@ static int cfi_ep_get_concat_val(uint8_t *buf, struct dwc_otg_pcd *pcd,
 	buf += BS_CONCAT_VAL_HDR_LEN;
 
 	desc_count = ep->bm_concat->hdr.bDescCount;
-	/* Copy alll the wTxBytes to the buffer */
+	/* Copy all the wTxBytes to the buffer */
 	dwc_memcpy(buf, ep->bm_concat->wTxBytes, sizeof(uid16_t) * desc_count);
 
 	retval = BS_CONCAT_VAL_HDR_LEN + sizeof(uid16_t) * desc_count;

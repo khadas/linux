@@ -53,7 +53,7 @@
  * @file
  *
  * This file contains the structures, constants, and interfaces for
- * the Host Contoller Driver (HCD).
+ * the Host Controller Driver (HCD).
  *
  * The Host Controller Driver (HCD) is responsible for translating requests
  * from the USB Driver into the appropriate actions on the DWC_otg controller.

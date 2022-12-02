@@ -909,7 +909,7 @@ struct dwc_otg_core_if {
 	hcfg_data_t hcfg;
 	dcfg_data_t dcfg;
 
-	/** The operational State, during transations
+	/** The operational State, during transactions
 	 * (a_host>>a_peripherial and b_device=>b_host) this may not
 	 * match the core but allows the software to determine
 	 * transitions.
@@ -950,7 +950,7 @@ struct dwc_otg_core_if {
 	int vbus_power_pin_work_mask;
 	struct gpio_desc *usb_gpio_desc;
 
-	int swicth_int_reg;
+	int switch_int_reg;
 
 	/* Charger Detect Call back*/
 	int charger_detect;
@@ -1051,7 +1051,7 @@ struct dwc_otg_core_if {
 	 * active, 0xff otherwise */
 	uint8_t nextep_seq[MAX_EPS_CHANNELS];
 
-	/** Index of fisrt EP in nextep_seq array which should be re-enabled **/
+	/** Index of first EP in nextep_seq array which should be re-enabled **/
 	uint8_t first_in_nextep_seq;
 
 	/** Frame number while entering to ISR - needed for ISOCs **/

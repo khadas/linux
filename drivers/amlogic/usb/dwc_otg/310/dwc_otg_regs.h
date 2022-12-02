@@ -946,7 +946,7 @@ typedef union glpmctl_data {
 		 * configures to drive the HSIC Idle state on the bus.
 		 * It then waits for the  device to initiate the Connect sequence.
 		 * In device mode once this bit is set, the device waits for
-		 * the HSIC Idle line state on the bus. Upon receving the Idle
+		 * the HSIC Idle line state on the bus. Upon receiving the Idle
 		 * line state, it initiates the HSIC Connect sequence.
 		 */
 		unsigned hsic_connect:1;
@@ -1316,7 +1316,7 @@ typedef union doepint_data {
 		unsigned epdisabled:1;
 		/** AHB Error */
 		unsigned ahberr:1;
-		/** Setup Phase Done (contorl EPs) */
+		/** Setup Phase Done (control EPs) */
 		unsigned setup:1;
 		/** OUT Token Received when Endpoint Disabled */
 		unsigned outtknepdis:1;
@@ -1807,8 +1807,8 @@ typedef struct dwc_otg_dev_if {
 
 	/* Device configuration information */
 	uint8_t speed;				 /**< Device Speed	0: Unknown, 1: LS, 2:FS, 3: HS */
-	uint8_t num_in_eps;		 /**< Number # of Tx EP range: 0-15 exept ep0 */
-	uint8_t num_out_eps;		 /**< Number # of Rx EP range: 0-15 exept ep 0*/
+	uint8_t num_in_eps;		 /**< Number # of Tx EP range: 0-15 except ep0 */
+	uint8_t num_out_eps;		 /**< Number # of Rx EP range: 0-15 except ep 0*/
 
 	/** Size of periodic FIFOs (Bytes) */
 	uint16_t perio_tx_fifo_size[MAX_PERIO_FIFOS];

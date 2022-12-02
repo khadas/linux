@@ -206,7 +206,7 @@ void dwc_otg_request_done(dwc_otg_pcd_ep_t *ep, dwc_otg_pcd_request_t *req,
 }
 
 /**
- * This function terminates all the requsts in the EP request queue.
+ * This function terminates all the requests in the EP request queue.
  */
 void dwc_otg_request_nuke(dwc_otg_pcd_ep_t *ep)
 {

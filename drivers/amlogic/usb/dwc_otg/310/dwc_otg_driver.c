@@ -1370,7 +1370,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	dwc_otg_device->core_if->charger_detect = charger_detect;
 	dwc_otg_device->core_if->non_normal_usb_charger_detect_delay = non_normal_usb_charger_detect_delay;
 	if (host_only_core && pmu_apply_power)
-		dwc_otg_device->core_if->swicth_int_reg = 1;
+		dwc_otg_device->core_if->switch_int_reg = 1;
 
 	if (port_type == USB_PORT_TYPE_HOST) {
 		/*

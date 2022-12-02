@@ -228,7 +228,7 @@ static int amlogic_crg_otg_v2_probe(struct platform_device *pdev)
 	int retval;
 	int len, otg = 0;
 	int controller_type = USB_NORMAL;
-	int regulator_contorl_flag = 0;
+	int regulator_control_flag = 0;
 	const char *udc_name = NULL;
 	const char *gpio_name = NULL;
 	int gpio_vbus_power_pin = -1;
@@ -300,9 +300,9 @@ static int amlogic_crg_otg_v2_probe(struct platform_device *pdev)
 
 	prop = of_get_property(dev->of_node, "regulator", NULL);
 	if (prop)
-		regulator_contorl_flag = of_read_ulong(prop, 1);
+		regulator_control_flag = of_read_ulong(prop, 1);
 
-	if (regulator_contorl_flag) {
+	if (regulator_control_flag) {
 		usb_regulator_ao1v8 = devm_regulator_get(dev, "usb1v8");
 		retval = PTR_ERR_OR_ZERO(usb_regulator_ao1v8);
 		if (retval) {

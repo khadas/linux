@@ -257,7 +257,7 @@ dwc_otg_core_if_t *dwc_otg_cil_init(const uint32_t *reg_base_addr, int host_only
 		    core_if->hwcfg3.b.xfer_size_cntr_width);
 
 	/*
-	 * Set the SRP sucess bit for FS-I2c
+	 * Set the SRP success bit for FS-I2c
 	 */
 	core_if->srp_success = 0;
 	core_if->srp_timer_started = 0;
@@ -388,7 +388,7 @@ void dwc_otg_disable_global_interrupts(dwc_otg_core_if_t *core_if)
 }
 
 /**
- * This function initializes the commmon interrupts, used in both
+ * This function initializes the common interrupts, used in both
  * device and host modes.
  *
  * @param core_if Programming view of the DWC_otg controller
@@ -1525,7 +1525,7 @@ void dwc_otg_core_init(dwc_otg_core_if_t *core_if)
 	/* Enable common interrupts */
 	dwc_otg_enable_common_interrupts(core_if);
 
-	/* Do device or host intialization based on mode during PCD
+	/* Do device or host initialization based on mode during PCD
 	 * and HCD initialization  */
 	if (dwc_otg_is_host_mode(core_if)) {
 		DWC_DEBUGPL(DBG_ANY, "Host Mode\n");
@@ -1865,7 +1865,7 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t *core_if)
 
 	/* Clear all pending Device Interrupts */
 	/** @todo - if the condition needed to be checked
-	 *  or in any case all pending interrutps should be cleared?
+	 *  or in any case all pending interrupts should be cleared?
      */
 	if (core_if->multiproc_int_enable) {
 		for (i = 0; i < core_if->dev_if->num_in_eps; ++i)
@@ -2011,7 +2011,7 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t *core_if)
 		/*
 		 *	In 2.94a, pull_up is disabled after reset/power on.
 		 *    Gadget must call pull_up() to enable the connection.
-		 *    Here is the workarond code for BC detection changes
+		 *    Here is the workaround code for BC detection changes
 		 */
 		usb_peri_reg_t *peri;
 		usb_adp_bc_data_t adp_bc;
@@ -2029,7 +2029,7 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t *core_if)
 			/*
 			 * At this point, pull up must be disabled.
 			 *
-			 * This workarond detection only for boot with a charger,
+			 * This workaround detection only for boot with a charger,
 			 *  SW BC detection can't sense this issue. So we need
 			 *  use HW BC detection.
 			 */
@@ -2487,7 +2487,7 @@ void dwc_otg_hc_init(dwc_otg_core_if_t *core_if, dwc_hc_t *hc)
  *
  * In slave mode, checks for a free request queue entry, then sets the Channel
  * Enable and Channel Disable bits of the Host Channel Characteristics
- * register of the specified channel to intiate the halt. If there is no free
+ * register of the specified channel to initiate the halt. If there is no free
  * request queue entry, sets only the Channel Disable bit of the HCCHARn
  * register to flush requests for this channel. In the latter case, sets a
  * flag to indicate that the host channel needs to be halted when a request
@@ -3844,7 +3844,7 @@ void dwc_otg_ep_start_transfer(dwc_otg_core_if_t *core_if, dwc_ep_t *ep)
 			if (ep->type != DWC_OTG_EP_TYPE_ISOC) {
 				/**
 				 * Enable the Non-Periodic Tx FIFO empty interrupt,
-				 * or the Tx FIFO epmty interrupt in dedicated Tx FIFO mode,
+				 * or the Tx FIFO empty interrupt in dedicated Tx FIFO mode,
 				 * the data will be written into the fifo by the ISR.
 				 */
 				if (core_if->en_multiple_tx_fifo == 0) {
@@ -4073,7 +4073,7 @@ void dwc_otg_ep_start_zl_transfer(dwc_otg_core_if_t *core_if, dwc_ep_t *ep)
 			DWC_WRITE_REG32(&in_regs->dieptsiz, deptsiz.d32);
 			/**
 			 * Enable the Non-Periodic Tx FIFO empty interrupt,
-			 * or the Tx FIFO epmty interrupt in dedicated Tx FIFO mode,
+			 * or the Tx FIFO empty interrupt in dedicated Tx FIFO mode,
 			 * the data will be written into the fifo by the ISR.
 			 */
 			if (core_if->en_multiple_tx_fifo == 0) {
@@ -4595,7 +4595,7 @@ void dwc_otg_ep_write_packet(dwc_otg_core_if_t *core_if, dwc_ep_t *ep,
 #endif
 
 	/**@todo NGS Where are the Periodic Tx FIFO addresses
-	 * intialized?	What should this be? */
+	 * initialized?	What should this be? */
 
 	fifo = core_if->data_fifo[ep->num];
 
@@ -7300,7 +7300,7 @@ uint16_t dwc_otg_get_otg_version(dwc_otg_core_if_t *core_if)
  * Start the SRP timer to detect when the SRP does not complete within
  * 6 seconds.
  *
- * @param core_if the pointer to core_if strucure.
+ * @param core_if the pointer to core_if structure.
  */
 void dwc_otg_pcd_start_srp_timer(dwc_otg_core_if_t *core_if)
 {
@@ -7321,7 +7321,7 @@ void dwc_otg_initiate_srp(void *p)
 		return;
 	}
 
-	DWC_INFO("Session Request Initated\n");
+	DWC_INFO("Session Request Initiated\n");
 	mem.d32 = DWC_READ_REG32(addr);
 	mem.b.sesreq = 1;
 	DWC_WRITE_REG32(addr, mem.d32);

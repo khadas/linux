@@ -51,7 +51,7 @@ struct cfiobject;
  * @file
  *
  * This file contains the structures, constants, and interfaces for
- * the Perpherial Contoller Driver (PCD).
+ * the Peripheral Controller Driver (PCD).
  *
  * The Peripheral Controller Driver (PCD) for Linux will implement the
  * Gadget API, so that the existing Gadget drivers can be used. For

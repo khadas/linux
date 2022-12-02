@@ -190,7 +190,7 @@ static void adp_vbuson_timeout(void *ptr)
  * Start the ADP Initial Probe timer to detect if Port Connected interrupt is
  * not asserted within 1.1 seconds.
  *
- * @param core_if the pointer to core_if strucure.
+ * @param core_if the pointer to core_if structure.
  */
 void dwc_otg_adp_vbuson_timer_start(dwc_otg_core_if_t *core_if)
 {
@@ -353,7 +353,7 @@ uint32_t dwc_otg_adp_probe_start(dwc_otg_core_if_t *core_if)
  * Starts the ADP Sense timer to detect if ADP Sense interrupt is not asserted
  * within 3 seconds.
  *
- * @param core_if the pointer to core_if strucure.
+ * @param core_if the pointer to core_if structure.
  */
 void dwc_otg_adp_sense_timer_start(dwc_otg_core_if_t *core_if)
 {
@@ -364,7 +364,7 @@ void dwc_otg_adp_sense_timer_start(dwc_otg_core_if_t *core_if)
 /**
  * Starts the ADP Sense
  *
- * @param core_if the pointer to core_if strucure.
+ * @param core_if the pointer to core_if structure.
  */
 uint32_t dwc_otg_adp_sense_start(dwc_otg_core_if_t *core_if)
 {
@@ -399,7 +399,7 @@ uint32_t dwc_otg_adp_sense_start(dwc_otg_core_if_t *core_if)
 /**
  * Stops the ADP Probing
  *
- * @param core_if the pointer to core_if strucure.
+ * @param core_if the pointer to core_if structure.
  */
 uint32_t dwc_otg_adp_probe_stop(dwc_otg_core_if_t *core_if)
 {
@@ -422,7 +422,7 @@ uint32_t dwc_otg_adp_probe_stop(dwc_otg_core_if_t *core_if)
 /**
  * Stops the ADP Sensing
  *
- * @param core_if the pointer to core_if strucure.
+ * @param core_if the pointer to core_if structure.
  */
 uint32_t dwc_otg_adp_sense_stop(dwc_otg_core_if_t *core_if)
 {
@@ -521,7 +521,7 @@ void dwc_otg_adp_init(dwc_otg_core_if_t *core_if)
 	core_if->adp.vbuson_timer_started = 0;
 	core_if->adp.probe_counter = 0;
 	core_if->adp.gpwrdn = 0;
-	core_if->adp.attached = DWC_OTG_ADP_UNKOWN;
+	core_if->adp.attached = DWC_OTG_ADP_UNKNOWN;
 	/* Initialize timers */
 	core_if->adp.sense_timer =
 	    DWC_TIMER_ALLOC("ADP SENSE TIMER", adp_sense_timeout, core_if);

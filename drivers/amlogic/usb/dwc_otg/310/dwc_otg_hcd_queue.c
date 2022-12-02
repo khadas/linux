@@ -324,12 +324,12 @@ dwc_otg_qh_t *dwc_otg_hcd_qh_create(dwc_otg_hcd_t *hcd,
 /**
  * Checks that a channel is available for a periodic transfer.
  *
- * @return 0 if successful, negative error code otherise.
+ * @return 0 if successful, negative error code otherwise.
  */
 static int periodic_channel_available(dwc_otg_hcd_t *hcd)
 {
 	/*
-	 * Currently assuming that there is a dedicated host channnel for each
+	 * Currently assuming that there is a dedicated host channel for each
 	 * periodic transaction plus at least one host channel for
 	 * non-periodic transactions.
 	 */
