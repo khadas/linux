@@ -62,9 +62,9 @@ void amdv_set_toggle_flag(int flag);
 			typeof(x) _x = x; \
 			typeof(y) _y = y; \
 			typeof(z) _z = z; \
-			MAX(MIN(100, MAX(0, (_x * 1000) / (_x + _y + _z))), \
-			MIN(100, MAX(0, (_x + _y) * 1000 / \
-			(_x + _y + _z) / 3))); \
+			MAX(MIN(100, (_x * 1000) / (_x + _y + _z)), \
+			MIN(100, (_x + _y) * 1000 / \
+			(_x + _y + _z) / 3)); \
 			})
 #endif // FMETER_SCORE
 

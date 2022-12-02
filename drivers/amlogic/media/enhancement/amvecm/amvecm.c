@@ -3182,13 +3182,15 @@ static long amvecm_ioctl(struct file *file,
 				cm_color = cm_color_mode.cm_14_color_md;
 
 			cm_cur_work_color_md = cm_color_mode.color_type;
-			cm2_luma_array[cm_color][0] = cm_color_mode.color_value;
-			cm2_luma_array[cm_color][1] = 0;
-			cm2_luma_array[cm_color][2] = 1;
-			cm2_luma(cm_color_mode,
-				 cm2_luma_array[cm_color][0],
-				 cm2_luma_array[cm_color][1]);
-			pq_user_latch_flag |= PQ_USER_CMS_CURVE_LUMA;
+			if (cm_color >= 0 && cm_color <= (cm_14_ecm2colormode_max - 1)) {
+				cm2_luma_array[cm_color][0] = cm_color_mode.color_value;
+				cm2_luma_array[cm_color][1] = 0;
+				cm2_luma_array[cm_color][2] = 1;
+				cm2_luma(cm_color_mode,
+					cm2_luma_array[cm_color][0],
+					cm2_luma_array[cm_color][1]);
+				pq_user_latch_flag |= PQ_USER_CMS_CURVE_LUMA;
+			}
 		}
 		break;
 	case AMVECM_IOC_S_CMS_SAT:
@@ -3202,13 +3204,15 @@ static long amvecm_ioctl(struct file *file,
 				cm_color = cm_color_mode.cm_14_color_md;
 
 			cm_cur_work_color_md = cm_color_mode.color_type;
-			cm2_sat_array[cm_color][0] = cm_color_mode.color_value;
-			cm2_sat_array[cm_color][1] = 0;
-			cm2_sat_array[cm_color][2] = 1;
-			cm2_sat(cm_color_mode,
-				cm2_sat_array[cm_color][0],
-				cm2_sat_array[cm_color][1]);
-			pq_user_latch_flag |= PQ_USER_CMS_CURVE_SAT;
+			if (cm_color >= 0 && cm_color <= (cm_14_ecm2colormode_max - 1)) {
+				cm2_sat_array[cm_color][0] = cm_color_mode.color_value;
+				cm2_sat_array[cm_color][1] = 0;
+				cm2_sat_array[cm_color][2] = 1;
+				cm2_sat(cm_color_mode,
+					cm2_sat_array[cm_color][0],
+					cm2_sat_array[cm_color][1]);
+				pq_user_latch_flag |= PQ_USER_CMS_CURVE_SAT;
+			}
 		}
 		break;
 	case AMVECM_IOC_S_CMS_HUE:
@@ -3222,13 +3226,15 @@ static long amvecm_ioctl(struct file *file,
 				cm_color = cm_color_mode.cm_14_color_md;
 
 			cm_cur_work_color_md = cm_color_mode.color_type;
-			cm2_hue_array[cm_color][0] = cm_color_mode.color_value;
-			cm2_hue_array[cm_color][1] = 0;
-			cm2_hue_array[cm_color][2] = 1;
-			cm2_hue(cm_color_mode,
-				cm2_hue_array[cm_color][0],
-				cm2_hue_array[cm_color][1]);
-			pq_user_latch_flag |= PQ_USER_CMS_CURVE_HUE;
+			if (cm_color >= 0 && cm_color <= (cm_14_ecm2colormode_max - 1)) {
+				cm2_hue_array[cm_color][0] = cm_color_mode.color_value;
+				cm2_hue_array[cm_color][1] = 0;
+				cm2_hue_array[cm_color][2] = 1;
+				cm2_hue(cm_color_mode,
+					cm2_hue_array[cm_color][0],
+					cm2_hue_array[cm_color][1]);
+				pq_user_latch_flag |= PQ_USER_CMS_CURVE_HUE;
+			}
 		}
 		break;
 	case AMVECM_IOC_S_CMS_HUE_HS:
@@ -3242,14 +3248,16 @@ static long amvecm_ioctl(struct file *file,
 				cm_color = cm_color_mode.cm_14_color_md;
 
 			cm_cur_work_color_md = cm_color_mode.color_type;
-			cm2_hue_by_hs_array[cm_color][0] =
-			cm_color_mode.color_value;
-			cm2_hue_by_hs_array[cm_color][1] = 0;
-			cm2_hue_by_hs_array[cm_color][2] = 1;
-			cm2_hue_by_hs(cm_color_mode,
-				      cm2_hue_by_hs_array[cm_color][0],
-				      cm2_hue_by_hs_array[cm_color][1]);
-			pq_user_latch_flag |= PQ_USER_CMS_CURVE_HUE_HS;
+			if (cm_color >= 0 && cm_color <= (cm_14_ecm2colormode_max - 1)) {
+				cm2_hue_by_hs_array[cm_color][0] =
+				cm_color_mode.color_value;
+				cm2_hue_by_hs_array[cm_color][1] = 0;
+				cm2_hue_by_hs_array[cm_color][2] = 1;
+				cm2_hue_by_hs(cm_color_mode,
+					      cm2_hue_by_hs_array[cm_color][0],
+					      cm2_hue_by_hs_array[cm_color][1]);
+				pq_user_latch_flag |= PQ_USER_CMS_CURVE_HUE_HS;
+			}
 		}
 		break;
 	case AMVECM_IOC_S_MTX_COEF:
@@ -3349,6 +3357,10 @@ static long amvecm_ioctl(struct file *file,
 			ret = -EFAULT;
 			pr_amvecm_dbg("db_cabc_param copy from user fail\n");
 		} else {
+			/*
+			 * the same structure code db_aad_param_set is normal
+			 */
+			/* coverity[tainted_data:SUPPRESS] */
 			db_cabc_param_set(&db_cabc_param);
 			pr_amvecm_dbg("db_cabc_param set success\n");
 		}

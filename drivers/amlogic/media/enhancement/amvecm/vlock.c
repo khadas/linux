@@ -3098,7 +3098,9 @@ void vlock_fsm_monitor(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 		break;
 
 	default:
-		dprintk(0, "err state %d\n", pvlock->fsm_sts);
+		if (vlock_debug & VLOCK_DEBUG_INFO)
+			pr_info("vlcok: err state %d\n", pvlock->fsm_sts);
+		//dprintk(0, "err state %d\n", pvlock->fsm_sts);
 		break;
 	}
 
@@ -3139,10 +3141,16 @@ u32 vlock_chk_is_small_win(struct vpp_frame_par_s *cur_video_sts)
 
 	if (scaler_vout < panel_vout &&
 	    cur_video_sts->VPP_vsc_endp > cur_video_sts->VPP_vsc_startp) {
-		dprintk(3, "vtotal:%d\n", vinfo->vtotal);
-		dprintk(3, "scaler_vout:%d\n", scaler_vout);
-		dprintk(3, "VPP_vsc_endp:%d\n", cur_video_sts->VPP_vsc_endp);
-		dprintk(3, "VPP_vsc_startp:%d\n", cur_video_sts->VPP_vsc_startp);
+		if (vlock_debug & VLOCK_DEBUG_INFO)
+			pr_info("%s: vtotal:%d scaler_vout:%d VPP_vsc_endp:%d VPP_vsc_startp:%d\n",
+				__func__,
+				vinfo->vtotal, scaler_vout,
+				cur_video_sts->VPP_vsc_endp,
+				cur_video_sts->VPP_vsc_startp);
+		//dprintk(3, "vtotal:%d\n", vinfo->vtotal);
+		//dprintk(3, "scaler_vout:%d\n", scaler_vout);
+		//dprintk(3, "VPP_vsc_endp:%d\n", cur_video_sts->VPP_vsc_endp);
+		//dprintk(3, "VPP_vsc_startp:%d\n", cur_video_sts->VPP_vsc_startp);
 		return 1;
 	}
 	return 0;
@@ -3406,7 +3414,9 @@ void vdin_vlock_input_sel(struct stvlock_sig_sts *vlock, unsigned int type,
 
 	//if (pvlock->dtdata->vlk_hwver >= vlock_hw_ver2)
 	//	return;
-	dprintk(2, "%s vf type:0x%x, src:0x%x", __func__, type, source_type);
+	if (vlock_debug & VLOCK_DEBUG_INFO)
+		pr_info("%s: vf type:0x%x, src:0x%x\n", __func__, type, source_type);
+	//dprintk(2, "%s vf type:0x%x, src:0x%x", __func__, type, source_type);
 	vlock_intput_type = type & VIDTYPE_TYPEMASK;
 	//if (vlock_intput_type == VIDTYPE_PROGRESSIVE ||
 	//    (vlock_mode & VLOCK_MODE_MANUAL_SOFT_ENC))
@@ -3566,7 +3576,10 @@ int phlock_phase_config(char *str)
 	u32 i;
 
 	vlock_dev_param_init();
-	dprintk(0, "%s: from bootargs is %s.\n", __func__, str);
+
+	if (vlock_debug & VLOCK_DEBUG_INFO)
+		pr_info("%s: from bootargs is %s.\n", __func__, str);
+	//dprintk(0, "%s: from bootargs is %s.\n", __func__, str);
 	for (i = VLOCK_ENC0; i <= VLOCK_ENC2; i++) {
 		pvlock = vlock_tab[i];
 		if (strstr(ptr, "1")) {

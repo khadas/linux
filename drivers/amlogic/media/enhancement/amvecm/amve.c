@@ -1981,7 +1981,7 @@ int vpp_set_lut3d(int bfromkey,
 
 		size = (4914 * 9) / 2;
 		key_count = key_len / size;
-		if (keyindex >= key_count) {
+		if (keyindex >= key_count || keyindex <= INT_MIN) {
 			pr_info("warn: key index out of range");
 			kfree(pkeylutall);
 			kfree(pkeylut);
@@ -3041,7 +3041,11 @@ void set_vpp_enh_clk(struct vframe_s *vf, struct vframe_s *rpt_vf)
 			pr_amve_dbg("PW_OFF: pre_state: %d\n", pre_state);
 		}
 		break;
-	case PW_MAX:
+	//case PW_MAX:
+	/*
+	 * missing the default will caused build error
+	 */
+	/* coverity[dead_error_begin:SUPPRESS] */
 	default:
 		pre_state = PW_MAX;
 		break;
