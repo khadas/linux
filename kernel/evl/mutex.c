@@ -728,14 +728,6 @@ bool evl_requeue_mutex_wait(struct evl_wait_channel *wchan,
 	assert_hard_lock(&waiter->lock);
 
 	/*
-	 * To prevent ABBA, we may drop the waiter lock prior to
-	 * reacquiring it in a double locking sequence along with
-	 * wchan->owner->lock which we need to requeue the booster.
-	 */
-	raw_spin_unlock(&waiter->lock);
-	evl_double_thread_lock(waiter, owner);
-
-	/*
 	 * Make sure the waiter did not abort wait on wchan while
 	 * unlocked; this might happen since evl_wakeup_thread() would
 	 * be allowed to run, clearing waiter->wchan when called upon
@@ -746,14 +738,30 @@ bool evl_requeue_mutex_wait(struct evl_wait_channel *wchan,
 	 * We have been holding wchan->lock across the unlocked
 	 * section, so we know that wchan did not go stale though.
 	 */
-	if (waiter->wchan != wchan) {
-		ret = false;
-		goto out;
+	if (waiter->wchan != wchan)
+		return false;
+
+	/*
+	 * __evl_unlock_mutex() may run concurrently to us, dropping
+	 * ownership. Make sure we still have an owner.
+	 */
+	if (owner == NULL) {
+		list_del(&waiter->wait_next);
+		list_add_priff(waiter, &wchan->wait_list, wprio, wait_next);
+		return false;
 	}
 
 	/*
+	 * To prevent ABBA, we may drop the waiter lock prior to
+	 * reacquiring it in a double locking sequence along with
+	 * wchan->owner->lock which we need to requeue the booster.
+	 */
+	raw_spin_unlock(&waiter->lock);
+	evl_double_thread_lock(waiter, owner);
+
+	/*
 	 * Reorder the wait list according to the (updated) priority
-	 * of the waiter.
+	 * of the waiter, then requeue the booster accordingly.
 	 */
 	list_del(&waiter->wait_next);
 	list_add_priff(waiter, &wchan->wait_list, wprio, wait_next);
@@ -766,7 +774,7 @@ bool evl_requeue_mutex_wait(struct evl_wait_channel *wchan,
 			enqueue_booster(mutex, top_waiter);
 		}
 	}
-out:
+
 	raw_spin_unlock(&owner->lock);
 
 	return ret;
