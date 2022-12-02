@@ -30,5 +30,7 @@ int vpp_module_meter_hist_en(bool enable);
 void vpp_module_meter_fetch_hist_report(void);
 struct vpp_hist_report_s *vpp_module_meter_get_hist_report(void);
 
+void vpp_module_meter_dump_info(enum vpp_dump_module_info_e info_type);
+
 #endif
 

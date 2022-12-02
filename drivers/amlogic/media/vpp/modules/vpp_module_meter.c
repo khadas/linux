@@ -126,6 +126,50 @@ static void _set_hist_pic_size(unsigned int height, unsigned int width)
 			hist_bit_cfg.bit_hist_pic_width.len);
 }
 
+static void _dump_meter_reg_info(void)
+{
+	PR_DRV("hist_reg_cfg info:\n");
+	PR_DRV("page = %x\n", hist_reg_cfg.page);
+	PR_DRV("reg_hist_ctrl = %x\n", hist_reg_cfg.reg_hist_ctrl);
+	PR_DRV("reg_hist_h_start_end = %x\n",
+		hist_reg_cfg.reg_hist_h_start_end);
+	PR_DRV("reg_hist_v_start_end = %x\n",
+		hist_reg_cfg.reg_hist_v_start_end);
+	PR_DRV("reg_hist_max_min = %x\n",
+		hist_reg_cfg.reg_hist_max_min);
+	PR_DRV("reg_hist_spl_val = %x\n",
+		hist_reg_cfg.reg_hist_spl_val);
+	PR_DRV("reg_hist_spl_pix_cnt = %x\n",
+		hist_reg_cfg.reg_hist_spl_pix_cnt);
+	PR_DRV("reg_hist_chroma_sum = %x\n",
+		hist_reg_cfg.reg_hist_chroma_sum);
+	PR_DRV("reg_hist_dnlp_0 = %x\n",
+		hist_reg_cfg.reg_hist_dnlp[0]);
+	PR_DRV("reg_hist_pic_size = %x\n",
+		hist_reg_cfg.reg_hist_pic_size);
+	PR_DRV("reg_hist_blk_wht_val = %x\n",
+		hist_reg_cfg.reg_hist_blk_wht_val);
+	PR_DRV("reg_hist_gclk_ctrl = %x\n",
+		hist_reg_cfg.reg_hist_gclk_ctrl);
+
+	PR_DRV("vpp_reg_cfg info:\n");
+	PR_DRV("page = %x\n", vpp_reg_cfg.page);
+	PR_DRV("reg_vpp_in_size = %x\n",
+		vpp_reg_cfg.reg_vpp_in_size);
+	PR_DRV("reg_vpp_chroma_addr = %x\n",
+		vpp_reg_cfg.reg_vpp_chroma_addr);
+	PR_DRV("reg_vpp_chroma_data = %x\n",
+		vpp_reg_cfg.reg_vpp_chroma_data);
+}
+
+static void _dump_meter_data_info(void)
+{
+	PR_DRV("pre_hist_height = %d\n", pre_hist_height);
+	PR_DRV("pre_hist_width = %x\n", pre_hist_width);
+	PR_DRV("hue_hist_bin0_addr = %d\n", hue_hist_bin0_addr);
+	PR_DRV("sat_hist_bin0_addr = %d\n", sat_hist_bin0_addr);
+}
+
 /*External functions*/
 int vpp_module_meter_init(struct vpp_dev_s *pdev)
 {
@@ -161,6 +205,8 @@ int vpp_module_meter_init(struct vpp_dev_s *pdev)
 
 int vpp_module_meter_hist_en(bool enable)
 {
+	pr_vpp(PR_DEBUG_METER, "[%s] enable = %d\n", __func__, enable);
+
 	return _set_hist_ctrl(enable,
 		hist_bit_cfg.bit_hist_ctrl_en.start,
 		hist_bit_cfg.bit_hist_ctrl_en.len);
@@ -250,5 +296,13 @@ void vpp_module_meter_fetch_hist_report(void)
 struct vpp_hist_report_s *vpp_module_meter_get_hist_report(void)
 {
 	return &vpp_hist_report;
+}
+
+void vpp_module_meter_dump_info(enum vpp_dump_module_info_e info_type)
+{
+	if (info_type == EN_DUMP_INFO_REG)
+		_dump_meter_reg_info();
+	else
+		_dump_meter_data_info();
 }
 

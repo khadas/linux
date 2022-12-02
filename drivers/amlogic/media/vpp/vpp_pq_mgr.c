@@ -665,12 +665,16 @@ int vpp_pq_mgr_set_lc_curve(struct vpp_lc_curve_s *pdata)
 		return RET_POINT_FAIL;
 
 	if (vpp_module_lc_get_support()) {
+		pr_vpp(PR_DEBUG, "[%s] set data\n", __func__);
+
 		vpp_module_lc_write_lut(EN_LC_SAT, &pdata->lc_saturation[0]);
 		vpp_module_lc_write_lut(EN_LC_YMIN_LMT, &pdata->lc_yminval_lmt[0]);
 		vpp_module_lc_write_lut(EN_LC_YPKBV_YMAX_LMT, &pdata->lc_ypkbv_ymaxval_lmt[0]);
 		vpp_module_lc_write_lut(EN_LC_YMAX_LMT, &pdata->lc_ymaxval_lmt[0]);
 		vpp_module_lc_write_lut(EN_LC_YPKBV_LMT, &pdata->lc_ypkbv_lmt[0]);
 		vpp_module_lc_write_lut(EN_LC_YPKBV_RAT, &pdata->lc_ypkbv_ratio[0]);
+	} else {
+		pr_vpp(PR_DEBUG, "[%s] not support\n", __func__);
 	}
 
 	return 0;
@@ -682,10 +686,13 @@ int vpp_pq_mgr_set_lc_param(struct vpp_lc_param_s *pdata)
 	if (!pdata)
 		return RET_POINT_FAIL;
 
-	pr_vpp(PR_DEBUG, "[%s] set data\n", __func__);
+	if (vpp_module_lc_get_support()) {
+		pr_vpp(PR_DEBUG, "[%s] set data\n", __func__);
 
-	if (vpp_module_lc_get_support())
 		vpp_data_updata_reg_lc(pdata);
+	} else {
+		pr_vpp(PR_DEBUG, "[%s] not support\n", __func__);
+	}
 
 	return 0;
 }
@@ -693,6 +700,9 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_lc_param);
 
 int vpp_pq_mgr_set_module_status(enum vpp_module_e module, bool enable)
 {
+	pr_vpp(PR_DEBUG, "[%s] module = %d, enable = %d\n",
+		__func__, module, enable);
+
 	switch (module) {
 	case EN_MODULE_VADJ1:
 		vpp_module_vadj_en(enable);

@@ -481,6 +481,27 @@ static int _get_cm2_curve_by_index(enum _cm2_curve_type_e type,
 	return data_len;
 }
 
+static void _dump_cm_reg_info(void)
+{
+	PR_DRV("chroma_reg_cfg info:\n");
+	PR_DRV("page = %x\n", chroma_reg_cfg.page);
+	PR_DRV("reg_misc = %x\n", chroma_reg_cfg.reg_misc);
+	PR_DRV("reg_addr_port = %x\n", chroma_reg_cfg.reg_addr_port);
+	PR_DRV("reg_data_port = %x\n", chroma_reg_cfg.reg_data_port);
+}
+
+static void _dump_cm_data_info(void)
+{
+	int i = 0;
+
+	PR_DRV("cur_cm2_luma data info:\n");
+	for (i = 0; i < CM2_CURVE_SIZE; i++) {
+		PR_DRV("%d\t", cur_cm2_luma[i]);
+		if (i % 8 == 0)
+			PR_DRV("\n");
+	}
+}
+
 /*External functions*/
 int vpp_module_cm_init(struct vpp_dev_s *pdev)
 {
@@ -517,6 +538,8 @@ int vpp_module_cm_en(bool enable)
 	unsigned char start = 0;
 	unsigned char len = 0;
 	int val = 0;
+
+	pr_vpp(PR_DEBUG_CM, "[%s] enable = %d\n", __func__, enable);
 
 	if (enable) {
 		addr = ADDR_PARAM(chroma_reg_cfg.page,
@@ -572,6 +595,8 @@ void vpp_module_cm_set_cm2_luma(int *pdata)
 	if (!pdata)
 		return;
 
+	pr_vpp(PR_DEBUG_CM, "[%s] set data\n", __func__);
+
 	for (i = 0; i < CM2_CURVE_SIZE; i++) {
 		tmp = pdata[i] + cur_cm2_offset_luma[i];
 		cur_cm2_luma[i] = vpp_check_range(tmp, (-128), 127);
@@ -588,6 +613,8 @@ void vpp_module_cm_set_cm2_sat(int *pdata)
 
 	if (!pdata)
 		return;
+
+	pr_vpp(PR_DEBUG_CM, "[%s] set data\n", __func__);
 
 	for (i = 0; i < CM2_CURVE_SIZE * 3; i++) {
 		tmp = pdata[i] + cur_cm2_offset_sat[i] + cm_ai_pq_offset.sat[i];
@@ -607,6 +634,8 @@ void vpp_module_cm_set_cm2_sat_by_l(int *pdata)
 
 	if (!pdata)
 		return;
+
+	pr_vpp(PR_DEBUG_CM, "[%s] set data\n", __func__);
 
 	for (i = 0; i < 9; i++)
 		cur_cm2_sat_l[i] = pdata[i] & 0x000000ff;
@@ -638,6 +667,8 @@ void vpp_module_cm_set_cm2_sat_by_hl(int *pdata)
 	if (!pdata)
 		return;
 
+	pr_vpp(PR_DEBUG_CM, "[%s] set data\n", __func__);
+
 	for (i = 0; i < CM2_CURVE_SIZE * 5; i++)
 		cur_cm2_sat_hl[i] = pdata[i];
 
@@ -652,6 +683,8 @@ void vpp_module_cm_set_cm2_hue(int *pdata)
 
 	if (!pdata)
 		return;
+
+	pr_vpp(PR_DEBUG_CM, "[%s] set data\n", __func__);
 
 	for (i = 0; i < CM2_CURVE_SIZE; i++) {
 		tmp = pdata[i] + cur_cm2_offset_hue[i];
@@ -670,6 +703,8 @@ void vpp_module_cm_set_cm2_hue_by_hs(int *pdata)
 	if (!pdata)
 		return;
 
+	pr_vpp(PR_DEBUG_CM, "[%s] set data\n", __func__);
+
 	for (i = 0; i < CM2_CURVE_SIZE * 5; i++) {
 		tmp = pdata[i] + cur_cm2_offset_hue_hs[i];
 		cur_cm2_hue_hs[i] = vpp_check_range(tmp, (-128), 127);
@@ -686,6 +721,8 @@ void vpp_module_cm_set_cm2_hue_by_hl(int *pdata)
 	if (!pdata)
 		return;
 
+	pr_vpp(PR_DEBUG_CM, "[%s] set data\n", __func__);
+
 	for (i = 0; i < CM2_CURVE_SIZE * 5; i++)
 		cur_cm2_hue_hl[i] = pdata[i];
 
@@ -698,6 +735,9 @@ void vpp_module_cm_set_demo_mode(bool enable, bool left_side)
 	int tmp = 0;
 	int height = 0;
 	int width = 0;
+
+	pr_vpp(PR_DEBUG_CM, "[%s] enable = %d, left_side = %d\n",
+		__func__, enable, left_side);
 
 	if (enable) {
 		tmp = _get_cm_reg_by_addr(cm_addr_cfg.addr_frm_size);
@@ -726,6 +766,9 @@ void vpp_module_cm_set_demo_mode(bool enable, bool left_side)
 		val = 0x0;
 	}
 
+	pr_vpp(PR_DEBUG_CM, "[%s] addr_ifo_mode = %x, val = %x\n",
+		__func__, cm_addr_cfg.addr_ifo_mode, val);
+
 	_set_cm_reg_by_addr(cm_addr_cfg.addr_ifo_mode, val);
 }
 
@@ -738,6 +781,10 @@ void vpp_module_cm_set_cfg_param(struct cm_cfg_param_s *pparam)
 
 	val = (pparam->frm_width & 0x00001fff) |
 		((pparam->frm_height & 0x00001fff) << 16);
+
+	pr_vpp(PR_DEBUG_CM, "[%s] addr_frm_size = %x, val = %x\n",
+		__func__, cm_addr_cfg.addr_frm_size, val);
+
 	_set_cm_reg_by_addr(cm_addr_cfg.addr_frm_size, val);
 }
 
@@ -755,6 +802,12 @@ void vpp_module_cm_set_tuning_param(enum cm_tuning_param_e type,
 		start = cm_bit_cfg.bit_cm_glb_gain_hue.start;
 		len = cm_bit_cfg.bit_cm_glb_gain_hue.len;
 		val = *pdata;
+
+		pr_vpp(PR_DEBUG_CM, "[%s] start = %d, len = %d\n",
+			__func__, start, len);
+		pr_vpp(PR_DEBUG_CM, "[%s] addr_cm_global_gain = %x, val = %x\n",
+			__func__, addr, val);
+
 		_set_cm_bit_by_addr(addr, val, start, len);
 		break;
 	case EN_PARAM_GLB_SAT:
@@ -762,6 +815,12 @@ void vpp_module_cm_set_tuning_param(enum cm_tuning_param_e type,
 		start = cm_bit_cfg.bit_cm_glb_gain_sat.start;
 		len = cm_bit_cfg.bit_cm_glb_gain_sat.len;
 		val = *pdata;
+
+		pr_vpp(PR_DEBUG_CM, "[%s] start = %d, len = %d\n",
+			__func__, start, len);
+		pr_vpp(PR_DEBUG_CM, "[%s] addr_cm_global_gain = %x, val = %x\n",
+			__func__, addr, val);
+
 		_set_cm_bit_by_addr(addr, val, start, len);
 		break;
 	default:
@@ -775,6 +834,9 @@ void vpp_module_cm_sub_module_en(enum cm_sub_module_e sub_module,
 	unsigned int addr = 0;
 	unsigned char start = 0;
 	unsigned char len = 0;
+
+	pr_vpp(PR_DEBUG_CM, "[%s] sub_module = %d, enable = %d\n",
+		__func__, sub_module, enable);
 
 	switch (sub_module) {
 	case EN_SUB_MD_LUMA_ADJ:
@@ -808,6 +870,8 @@ void vpp_module_cm_set_cm2_offset_luma(char *pdata)
 	if (!pdata)
 		return;
 
+	pr_vpp(PR_DEBUG_CM, "[%s] set data\n", __func__);
+
 	for (i = 0; i < CM2_CURVE_SIZE; i++)
 		cur_cm2_offset_luma[i] = pdata[i];
 }
@@ -819,6 +883,8 @@ void vpp_module_cm_set_cm2_offset_sat(char *pdata)
 
 	if (!pdata)
 		return;
+
+	pr_vpp(PR_DEBUG_CM, "[%s] set data\n", __func__);
 
 	for (i = 0; i < CM2_CURVE_SIZE * 3; i++)
 		cur_cm2_offset_sat[i] = pdata[i];
@@ -832,6 +898,8 @@ void vpp_module_cm_set_cm2_offset_hue(char *pdata)
 	if (!pdata)
 		return;
 
+	pr_vpp(PR_DEBUG_CM, "[%s] set data\n", __func__);
+
 	for (i = 0; i < CM2_CURVE_SIZE; i++)
 		cur_cm2_offset_hue[i] = pdata[i];
 }
@@ -843,6 +911,8 @@ void vpp_module_cm_set_cm2_offset_hue_by_hs(char *pdata)
 
 	if (!pdata)
 		return;
+
+	pr_vpp(PR_DEBUG_CM, "[%s] set data\n", __func__);
 
 	for (i = 0; i < CM2_CURVE_SIZE * 5; i++)
 		cur_cm2_offset_hue_hs[i] = pdata[i];
@@ -969,10 +1039,20 @@ void vpp_module_cm_set_ai_pq_offset(struct cm_ai_pq_param_s *pparam)
 	if (!pparam)
 		return;
 
+	pr_vpp(PR_DEBUG_CM, "[%s] set data\n", __func__);
+
 	for (i = 0; i < CM2_CURVE_SIZE * 3; i++)
 		if (cm_ai_pq_offset.sat[i] != pparam->sat[i]) {
 			cm_ai_pq_offset.sat[i] = pparam->sat[i];
 			cm_ai_pq_update = true;
 		}
+}
+
+void vpp_module_cm_dump_info(enum vpp_dump_module_info_e info_type)
+{
+	if (info_type == EN_DUMP_INFO_REG)
+		_dump_cm_reg_info();
+	else
+		_dump_cm_data_info();
 }
 

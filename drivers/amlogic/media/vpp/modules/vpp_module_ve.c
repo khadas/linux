@@ -152,6 +152,37 @@ static void _set_ve_demo_center_bar(int val,
 	WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, val, start, len);
 }
 
+static void _dump_ve_reg_info(void)
+{
+	PR_DRV("ve_reg_cfg info:\n");
+	PR_DRV("page = %x\n", ve_reg_cfg.page);
+	PR_DRV("reg_ve_enable_ctrl = %x\n",
+		ve_reg_cfg.reg_ve_enable_ctrl);
+	PR_DRV("reg_ve_blkext_ctrl = %x\n",
+		ve_reg_cfg.reg_ve_blkext_ctrl);
+	PR_DRV("reg_ve_ccoring_ctrl = %x\n",
+		ve_reg_cfg.reg_ve_ccoring_ctrl);
+	PR_DRV("reg_ve_demo_center_bar = %x\n",
+		ve_reg_cfg.reg_ve_demo_center_bar);
+	PR_DRV("reg_ve_demo_left_top_screen_width = %x\n",
+		ve_reg_cfg.reg_ve_demo_left_top_screen_width);
+	PR_DRV("reg_ve_blue_stretch_ctrl = %x\n",
+		ve_reg_cfg.reg_ve_blue_stretch_ctrl);
+	PR_DRV("reg_ve_blue_stretch_err_cr = %x\n",
+		ve_reg_cfg.reg_ve_blue_stretch_err_cr);
+	PR_DRV("reg_ve_blue_stretch_err_cb = %x\n",
+		ve_reg_cfg.reg_ve_blue_stretch_err_cb);
+	PR_DRV("reg_ve_clip_misc0 = %x\n", ve_reg_cfg.reg_ve_clip_misc0);
+	PR_DRV("reg_ve_clip_misc1 = %x\n", ve_reg_cfg.reg_ve_clip_misc1);
+	PR_DRV("reg_ve_gclk_ctrl0 = %x\n", ve_reg_cfg.reg_ve_gclk_ctrl0);
+	PR_DRV("reg_ve_gclk_ctrl1 = %x\n", ve_reg_cfg.reg_ve_gclk_ctrl1);
+}
+
+static void _dump_ve_data_info(void)
+{
+	PR_DRV("No more data\n");
+}
+
 /*External functions*/
 int vpp_module_ve_init(struct vpp_dev_s *pdev)
 {
@@ -160,6 +191,8 @@ int vpp_module_ve_init(struct vpp_dev_s *pdev)
 
 void vpp_module_ve_blkext_en(bool enable)
 {
+	pr_vpp(PR_DEBUG_VE, "[%s] enable = %d\n", __func__, enable);
+
 	_set_ve_enable_ctrl(enable,
 		ve_bit_cfg.bit_blkext_en.start, ve_bit_cfg.bit_blkext_en.len);
 }
@@ -226,6 +259,8 @@ void vpp_module_ve_set_blkext_param(enum ve_blkext_param_e type,
 
 void vpp_module_ve_ccoring_en(bool enable)
 {
+	pr_vpp(PR_DEBUG_VE, "[%s] enable = %d\n", __func__, enable);
+
 	_set_ve_enable_ctrl(enable,
 		ve_bit_cfg.bit_ccoring_en.start, ve_bit_cfg.bit_ccoring_en.len);
 }
@@ -284,6 +319,8 @@ void vpp_module_ve_set_ccoring_param(enum ve_ccoring_param_e type,
 
 void vpp_module_ve_demo_center_bar_en(bool enable)
 {
+	pr_vpp(PR_DEBUG_VE, "[%s] enable = %d\n", __func__, enable);
+
 	_set_ve_demo_center_bar(enable,
 		ve_bit_cfg.bit_demo_center_bar_en.start,
 		ve_bit_cfg.bit_demo_center_bar_en.len);
@@ -303,6 +340,8 @@ void vpp_module_ve_blue_stretch_en(bool enable)
 {
 	unsigned int addr = 0;
 	enum io_mode_e io_mode = EN_MODE_DIR;
+
+	pr_vpp(PR_DEBUG_VE, "[%s] enable = %d\n", __func__, enable);
 
 	addr = ADDR_PARAM(ve_reg_cfg.page,
 		ve_reg_cfg.reg_ve_blue_stretch_ctrl);
@@ -523,6 +562,8 @@ void vpp_module_ve_clip_range_en(bool enable)
 	unsigned int val[2] = {0};
 	enum io_mode_e io_mode = EN_MODE_DIR;
 
+	pr_vpp(PR_DEBUG_VE, "[%s] enable = %d\n", __func__, enable);
+
 	addr[0] = ADDR_PARAM(ve_reg_cfg.page,
 		ve_reg_cfg.reg_ve_clip_misc0);
 	addr[1] = ADDR_PARAM(ve_reg_cfg.page,
@@ -566,6 +607,9 @@ void vpp_module_ve_set_clock_ctrl(enum ve_clock_type_e type,
 	unsigned char start = 0;
 	unsigned char len = 0;
 
+	pr_vpp(PR_DEBUG_VE, "[%s] type = %d, val = %d\n",
+		__func__, type, val);
+
 	addr = ADDR_PARAM(ve_reg_cfg.page,
 		ve_reg_cfg.reg_ve_enable_ctrl);
 
@@ -595,5 +639,13 @@ void vpp_module_ve_set_clock_ctrl(enum ve_clock_type_e type,
 	}
 
 	WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, val, start, len);
+}
+
+void vpp_module_ve_dump_info(enum vpp_dump_module_info_e info_type)
+{
+	if (info_type == EN_DUMP_INFO_REG)
+		_dump_ve_reg_info();
+	else
+		_dump_ve_data_info();
 }
 

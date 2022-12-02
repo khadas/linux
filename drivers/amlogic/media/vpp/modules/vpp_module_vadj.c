@@ -150,6 +150,27 @@ static int _set_vadj_mc_md(enum _vadj_mode_e mode, int val)
 	return 0;
 }
 
+static void _dump_vadj_reg_info(void)
+{
+	PR_DRV("vadj_reg_cfg info:\n");
+	PR_DRV("page = %x\n", vadj_reg_cfg.page);
+	PR_DRV("reg_vadj1_ctrl = %x\n", vadj_reg_cfg.reg_vadj1_ctrl);
+	PR_DRV("reg_vadj1_y = %x\n", vadj_reg_cfg.reg_vadj1_y);
+	PR_DRV("reg_vadj1_ma_mb = %x\n", vadj_reg_cfg.reg_vadj1_ma_mb);
+	PR_DRV("reg_vadj1_mc_md = %x\n", vadj_reg_cfg.reg_vadj1_mc_md);
+	PR_DRV("reg_vadj2_ctrl = %x\n", vadj_reg_cfg.reg_vadj2_ctrl);
+	PR_DRV("reg_vadj2_y = %x\n", vadj_reg_cfg.reg_vadj2_y);
+	PR_DRV("reg_vadj2_ma_mb = %x\n", vadj_reg_cfg.reg_vadj2_ma_mb);
+	PR_DRV("reg_vadj2_mc_md = %x\n", vadj_reg_cfg.reg_vadj2_mc_md);
+	PR_DRV("reg_vd1_rgb_ctrst = %x\n", vadj_reg_cfg.reg_vd1_rgb_ctrst);
+	PR_DRV("reg_post_rgb_ctrst = %x\n", vadj_reg_cfg.reg_post_rgb_ctrst);
+}
+
+static void _dump_vadj_data_info(void)
+{
+	PR_DRV("No more data\n");
+}
+
 /*External functions*/
 int vpp_module_vadj_init(struct vpp_dev_s *pdev)
 {
@@ -186,12 +207,16 @@ int vpp_module_vadj_init(struct vpp_dev_s *pdev)
 
 int vpp_module_vadj_en(bool enable)
 {
+	pr_vpp(PR_DEBUG_VADJ, "[%s] enable = %d\n", __func__, enable);
+
 	return _set_vadj_ctrl(EN_MODE_VADJ_01, enable,
 		vadj_bit_cfg.bit_vadj1_ctrl_en.start, vadj_bit_cfg.bit_vadj1_ctrl_en.len);
 }
 
 int vpp_module_vadj_post_en(bool enable)
 {
+	pr_vpp(PR_DEBUG_VADJ, "[%s] enable = %d\n", __func__, enable);
+
 	return _set_vadj_ctrl(EN_MODE_VADJ_02, enable,
 		vadj_bit_cfg.bit_vadj2_ctrl_en.start, vadj_bit_cfg.bit_vadj2_ctrl_en.len);
 }
@@ -202,6 +227,9 @@ void vpp_module_vadj_set_param(enum vadj_param_e index, int val)
 	unsigned char start = 0;
 	unsigned char len = 0;
 	enum io_mode_e io_mode = EN_MODE_DIR;
+
+	pr_vpp(PR_DEBUG_VADJ, "[%s] index = %d, val = %d\n",
+		__func__, index, val);
 
 	switch (index) {
 	case EN_VADJ_VD1_RGBBST_EN:
@@ -223,24 +251,32 @@ void vpp_module_vadj_set_param(enum vadj_param_e index, int val)
 
 int vpp_module_vadj_set_brightness(int val)
 {
+	pr_vpp(PR_DEBUG_VADJ, "[%s] val = %d\n", __func__, val);
+
 	return _set_vadj_y(EN_MODE_VADJ_01, val,
 		vadj_bit_cfg.bit_vadj_brightness.start, vadj_bit_cfg.bit_vadj_brightness.len);
 }
 
 int vpp_module_vadj_set_brightness_post(int val)
 {
+	pr_vpp(PR_DEBUG_VADJ, "[%s] val = %d\n", __func__, val);
+
 	return _set_vadj_y(EN_MODE_VADJ_02, val,
 		vadj_bit_cfg.bit_vadj_brightness.start, vadj_bit_cfg.bit_vadj_brightness.len);
 }
 
 int vpp_module_vadj_set_contrast(int val)
 {
+	pr_vpp(PR_DEBUG_VADJ, "[%s] val = %d\n", __func__, val);
+
 	return _set_vadj_y(EN_MODE_VADJ_01, val,
 		vadj_bit_cfg.bit_vadj_contrast.start, vadj_bit_cfg.bit_vadj_contrast.len);
 }
 
 int vpp_module_vadj_set_contrast_post(int val)
 {
+	pr_vpp(PR_DEBUG_VADJ, "[%s] val = %d\n", __func__, val);
+
 	return _set_vadj_y(EN_MODE_VADJ_02, val,
 		vadj_bit_cfg.bit_vadj_contrast.start, vadj_bit_cfg.bit_vadj_contrast.len);
 }
@@ -252,6 +288,8 @@ int vpp_module_vadj_set_sat_hue(int val)
 	int mab = 0;
 	int mcd = 0;
 
+	pr_vpp(PR_DEBUG_VADJ, "[%s] val = %d\n", __func__, val);
+
 	vadj_ai_pq_base.sat_hue_mad = val;
 
 	mab = (val + vadj_ai_pq_offset.sat_hue_mad) & 0x03ff03ff;
@@ -260,6 +298,9 @@ int vpp_module_vadj_set_sat_hue(int val)
 	mc = vpp_check_range(mc, (-512), 511);
 	md = (short)((val & 0x03ff0000) >> 16);  /* md =  ma; */
 	mcd = ((mc & 0x03ff) << 16) | (md & 0x03ff);
+
+	pr_vpp(PR_DEBUG_VADJ, "[%s] mab = %x, mcd = %x\n",
+		__func__, mab, mcd);
 
 	_set_vadj_ma_mb(EN_MODE_VADJ_01, mab);
 	_set_vadj_mc_md(EN_MODE_VADJ_01, mcd);
@@ -274,12 +315,17 @@ int vpp_module_vadj_set_sat_hue_post(int val)
 	int mab = 0;
 	int mcd = 0;
 
+	pr_vpp(PR_DEBUG_VADJ, "[%s] val = %d\n", __func__, val);
+
 	mab = val & 0x03ff03ff;
 
 	mc = (0 - (short)(val & 0x000003ff));    /* mc = -mb */
 	mc = vpp_check_range(mc, (-512), 511);
 	md = (short)((val & 0x03ff0000) >> 16);  /* md =  ma; */
 	mcd = ((mc & 0x03ff) << 16) | (md & 0x03ff);
+
+	pr_vpp(PR_DEBUG_VADJ, "[%s] mab = %x, mcd = %x\n",
+		__func__, mab, mcd);
 
 	_set_vadj_ma_mb(EN_MODE_VADJ_02, mab);
 	_set_vadj_mc_md(EN_MODE_VADJ_02, mcd);
@@ -313,5 +359,13 @@ void vpp_module_vadj_set_ai_pq_offset(struct vadj_ai_pq_param_s *pparam)
 		vadj_ai_pq_offset.sat_hue_mad = pparam->sat_hue_mad;
 		vadj_ai_pq_update = true;
 	}
+}
+
+void vpp_module_vadj_dump_info(enum vpp_dump_module_info_e info_type)
+{
+	if (info_type == EN_DUMP_INFO_REG)
+		_dump_vadj_reg_info();
+	else
+		_dump_vadj_data_info();
 }
 

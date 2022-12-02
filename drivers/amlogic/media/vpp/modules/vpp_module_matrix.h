@@ -32,5 +32,7 @@ int vpp_module_matrix_set_coef_3x5(enum matrix_mode_e mode, int *pdata);
 int vpp_module_matrix_set_contrast_uv(int val_u, int val_v);
 void vpp_module_matrix_on_vs(void);
 
+void vpp_module_matrix_dump_info(enum vpp_dump_module_info_e info_type);
+
 #endif
 

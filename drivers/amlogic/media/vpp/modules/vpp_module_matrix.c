@@ -257,6 +257,49 @@ static void _set_matrix_default_data(enum matrix_mode_e mode)
 	}
 }
 
+static void _dump_matrix_reg_info(void)
+{
+	int i = 0;
+
+	PR_DRV("mtrx_reg_cfg info:\n");
+	for (i = 0; i < EN_MTRX_MODE_MAX; i++) {
+		PR_DRV("matrix type = %d\n", i);
+		PR_DRV("page = %x\n", mtrx_reg_cfg[i].page);
+		PR_DRV("reg_mtrx_coef00_01 = %x\n",
+			mtrx_reg_cfg[i].reg_mtrx_coef00_01);
+		PR_DRV("reg_mtrx_coef22 = %x\n",
+			mtrx_reg_cfg[i].reg_mtrx_coef22);
+		PR_DRV("reg_mtrx_coef13_14 = %x\n",
+			mtrx_reg_cfg[i].reg_mtrx_coef13_14);
+		PR_DRV("reg_mtrx_clip = %x\n",
+			mtrx_reg_cfg[i].reg_mtrx_clip);
+		PR_DRV("reg_mtrx_offset0_1 = %x\n",
+			mtrx_reg_cfg[i].reg_mtrx_offset0_1);
+		PR_DRV("reg_mtrx_pre_offset2 = %x\n",
+			mtrx_reg_cfg[i].reg_mtrx_pre_offset2);
+		PR_DRV("reg_mtrx_en_ctrl = %x\n",
+			mtrx_reg_cfg[i].reg_mtrx_en_ctrl);
+	}
+}
+
+static void _dump_matrix_data_info(void)
+{
+	int i = 0;
+	int j = 0;
+
+	PR_DRV("cur_mtrx_data data info:\n");
+	for (i = 0; i < EN_MTRX_MODE_MAX; i++) {
+		for (j = 0; j < MTRX_OFFSET_CNT; j++)
+			PR_DRV("%d\t", cur_mtrx_data[i].pre_offset[j]);
+		PR_DRV("\n");
+		for (j = 0; j < 15; j++)
+			PR_DRV("%d\t", cur_mtrx_data[i].coef[j]);
+		PR_DRV("\n");
+		for (j = 0; j < MTRX_OFFSET_CNT; j++)
+			PR_DRV("%d\t", cur_mtrx_data[i].offset[j]);
+	}
+}
+
 /*External functions*/
 int vpp_module_matrix_init(struct vpp_dev_s *pdev)
 {
@@ -326,6 +369,9 @@ int vpp_module_matrix_en(enum matrix_mode_e mode, bool enable)
 	unsigned char start = mtrx_bit_cfg.bit_mtrx_en.start;
 	unsigned char len = mtrx_bit_cfg.bit_mtrx_en.len;
 
+	pr_vpp(PR_DEBUG_MATRIX, "[%s] mode = %d, enable = %d\n",
+		__func__, mode, enable);
+
 	if (mode == EN_MTRX_MODE_CMPT)
 		start = 6;
 
@@ -336,6 +382,9 @@ int vpp_module_matrix_sel(enum matrix_mode_e mode, int val)
 {
 	int ret = 0;
 
+	pr_vpp(PR_DEBUG_MATRIX, "[%s] mode = %d, val = %d\n",
+		__func__, mode, val);
+
 	if (mode == EN_MTRX_MODE_CMPT)
 		ret = _set_matrix_ctrl(mode, val, 8, 2);
 
@@ -344,12 +393,18 @@ int vpp_module_matrix_sel(enum matrix_mode_e mode, int val)
 
 int vpp_module_matrix_clmod(enum matrix_mode_e mode, int val)
 {
+	pr_vpp(PR_DEBUG_MATRIX, "[%s] mode = %d, val = %d\n",
+		__func__, mode, val);
+
 	return _set_matrix_clip(mode, val,
 		mtrx_bit_cfg.bit_mtrx_clmod.start, mtrx_bit_cfg.bit_mtrx_clmod.len);
 }
 
 int vpp_module_matrix_rs(enum matrix_mode_e mode, int val)
 {
+	pr_vpp(PR_DEBUG_MATRIX, "[%s] mode = %d, val = %d\n",
+		__func__, mode, val);
+
 	return _set_matrix_clip(mode, val,
 		mtrx_bit_cfg.bit_mtrx_rs.start, mtrx_bit_cfg.bit_mtrx_rs.len);
 }
@@ -359,6 +414,8 @@ int vpp_module_matrix_set_offset(enum matrix_mode_e mode,
 {
 	if (mode == EN_MTRX_MODE_MAX || !pdata)
 		return 0;
+
+	pr_vpp(PR_DEBUG_MATRIX, "[%s] mode = %d\n", __func__, mode);
 
 	memcpy(&cur_mtrx_data[mode].offset[0], pdata,
 		sizeof(int) * MTRX_OFFSET_CNT);
@@ -373,6 +430,8 @@ int vpp_module_matrix_set_pre_offset(enum matrix_mode_e mode,
 	if (mode == EN_MTRX_MODE_MAX || !pdata)
 		return 0;
 
+	pr_vpp(PR_DEBUG_MATRIX, "[%s] mode = %d\n", __func__, mode);
+
 	memcpy(&cur_mtrx_data[mode].pre_offset[0], pdata,
 		sizeof(int) * MTRX_OFFSET_CNT);
 	cur_mtrx_data[mode].changed = true;
@@ -385,6 +444,8 @@ int vpp_module_matrix_set_coef_3x3(enum matrix_mode_e mode, int *pdata)
 	if (mode == EN_MTRX_MODE_MAX || !pdata)
 		return 0;
 
+	pr_vpp(PR_DEBUG_MATRIX, "[%s] mode = %d\n", __func__, mode);
+
 	memcpy(&cur_mtrx_data[mode].coef[0], pdata, sizeof(int) * 9);
 	cur_mtrx_data[mode].changed = true;
 
@@ -395,6 +456,8 @@ int vpp_module_matrix_set_coef_3x5(enum matrix_mode_e mode, int *pdata)
 {
 	if (mode == EN_MTRX_MODE_MAX || !pdata)
 		return 0;
+
+	pr_vpp(PR_DEBUG_MATRIX, "[%s] mode = %d\n", __func__, mode);
 
 	memcpy(&cur_mtrx_data[mode].coef[0], pdata, sizeof(int) * 15);
 	cur_mtrx_data[mode].changed = true;
@@ -409,6 +472,9 @@ int vpp_module_matrix_set_contrast_uv(int val_u, int val_v)
 	enum io_mode_e io_mode = EN_MODE_DIR;
 	enum matrix_mode_e mode = EN_MTRX_MODE_VD1;
 	enum _matrix_size_e size = EN_MTRX_SIZE_3X3;
+
+	pr_vpp(PR_DEBUG_MATRIX, "[%s] val_u = %d, val_v = %d\n",
+		__func__, val_u, val_v);
 
 	for (i = 0; i < 9; i++)
 		data[i] = mtrx_coef_3x3_yuv_bypass.coef[i];
@@ -438,5 +504,13 @@ void vpp_module_matrix_on_vs(void)
 
 		cur_mtrx_data[i].changed = false;
 	}
+}
+
+void vpp_module_matrix_dump_info(enum vpp_dump_module_info_e info_type)
+{
+	if (info_type == EN_DUMP_INFO_REG)
+		_dump_matrix_reg_info();
+	else
+		_dump_matrix_data_info();
 }
 

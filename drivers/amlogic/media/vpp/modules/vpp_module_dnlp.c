@@ -237,6 +237,42 @@ static void _set_dnlp_data(enum _dnlp_mode_e mode, int *pdata)
 	}
 }
 
+static void _dump_dnlp_reg_info(void)
+{
+	int i = 0;
+
+	PR_DRV("dnlp_reg_cfg info:\n");
+	for (i = 0; i < EN_MODE_DNLP_MAX; i++) {
+		PR_DRV("dnlp type = %d\n", i);
+		PR_DRV("page = %x\n", dnlp_reg_cfg[i].page);
+		PR_DRV("reg_dnlp_ctrl = %x\n", dnlp_reg_cfg[i].reg_dnlp_ctrl);
+		PR_DRV("reg_dnlp_p00 = %x\n", dnlp_reg_cfg[i].reg_dnlp_p00);
+	}
+}
+
+static void _dump_dnlp_data_info(void)
+{
+	int i = 0;
+
+	PR_DRV("cur_mode = %d\n", cur_mode);
+	PR_DRV("dnlp_bypass = %d\n", dnlp_bypass);
+	PR_DRV("dnlp_rt = %d\n", dnlp_rt);
+
+	PR_DRV("dnlp_lpf data info:\n");
+	for (i = 0; i < DNLP_LPF_SIZE; i++) {
+		PR_DRV("%d\t", dnlp_lpf[i]);
+		if (i % 8 == 0)
+			PR_DRV("\n");
+	}
+
+	PR_DRV("dnlp_reg data info:\n");
+	for (i = 0; i < DNLP_REG_SIZE; i++) {
+		PR_DRV("%d\t", dnlp_reg[i]);
+		if (i % 8 == 0)
+			PR_DRV("\n");
+	}
+}
+
 static void _calculate_dnlp_tgtx(int hist_luma_sum,
 	unsigned short *phist_data)
 {
@@ -347,6 +383,11 @@ void _calculate_dnlp_sat_compensation(bool *psat_comp, int *psat_val)
 	satur_max = pdnlp_alg_node_param->dnlp_satur_max;
 	set_saturtn = pdnlp_alg_node_param->dnlp_set_saturtn;
 
+	/*pr_vpp(PR_DEBUG_DNLP, "[%s] t0 = %d, t1 = %d\n", __func__, t0, t1);*/
+	/*pr_vpp(PR_DEBUG_DNLP,*/
+	/*	"[%s] satur_rat = %d, satur_max = %d, set_saturtn = %d\n",*/
+	/*	__func__, satur_rat, satur_max, set_saturtn);*/
+
 	tmp = (t0 * satur_rat + (t1 >> 1)) / (t1 + 1);
 	tmp0 = (tmp + 4) >> 3;
 
@@ -364,11 +405,11 @@ void _calculate_dnlp_sat_compensation(bool *psat_comp, int *psat_val)
 	} else {
 		if (pre_sat != set_saturtn) {
 			do_comp = true;
+			pre_sat = set_saturtn;
 			if (set_saturtn < 512)
 				val = set_saturtn + 512;
 			else
 				val = set_saturtn;
-			pre_sat = set_saturtn;
 		} else {
 			do_comp = false;
 		}
@@ -673,6 +714,8 @@ void vpp_module_dnlp_en(bool enable)
 	else
 		dnlp_bypass = false;
 
+	pr_vpp(PR_DEBUG_DNLP, "[%s] enable = %d\n", __func__, enable);
+
 	_set_dnlp_ctrl(cur_mode, enable,
 		dnlp_bit_cfg.bit_dnlp_ctrl_en.start,
 		dnlp_bit_cfg.bit_dnlp_ctrl_en.len);
@@ -707,6 +750,8 @@ void vpp_module_dnlp_set_default(void)
 	if (!dnlp_alg_insmod_ok || dnlp_bypass)
 		return;
 
+	pr_vpp(PR_DEBUG_DNLP, "[%s] set dnlp_reg_def_16p data\n", __func__);
+
 	_set_dnlp_data(EN_MODE_DNLP_VPP, &dnlp_reg_def_16p[0]);
 }
 
@@ -714,6 +759,8 @@ void vpp_module_dnlp_set_param(struct vpp_dnlp_curve_param_s *pdata)
 {
 	if (!dnlp_alg_insmod_ok || dnlp_bypass || !pdata)
 		return;
+
+	pr_vpp(PR_DEBUG_DNLP, "[%s] set data\n", __func__);
 
 	/*load static curve*/
 	memcpy(pdnlp_dbg_rw_param->dnlp_scurv_low, pdata->dnlp_scurv_low,
@@ -951,10 +998,20 @@ void vpp_module_dnlp_set_ai_pq_offset(struct dnlp_ai_pq_param_s *pparam)
 	if (!pparam)
 		return;
 
+	pr_vpp(PR_DEBUG_DNLP, "[%s] set data\n", __func__);
+
 	offset = pparam->final_gain;
 	if (dnlp_ai_pq_offset.final_gain != offset) {
 		dnlp_ai_pq_offset.final_gain = offset;
 		pdnlp_alg_node_param->dnlp_final_gain += offset;
 	}
+}
+
+void vpp_module_dnlp_dump_info(enum vpp_dump_module_info_e info_type)
+{
+	if (info_type == EN_DUMP_INFO_REG)
+		_dump_dnlp_reg_info();
+	else
+		_dump_dnlp_data_info();
 }
 

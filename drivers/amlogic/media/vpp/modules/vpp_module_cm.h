@@ -63,5 +63,7 @@ int vpp_module_cm_get_reg(unsigned int addr);
 void vpp_module_cm_get_ai_pq_base(struct cm_ai_pq_param_s *pparam);
 void vpp_module_cm_set_ai_pq_offset(struct cm_ai_pq_param_s *pparam);
 
+void vpp_module_cm_dump_info(enum vpp_dump_module_info_e info_type);
+
 #endif
 

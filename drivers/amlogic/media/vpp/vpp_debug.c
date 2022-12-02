@@ -14,6 +14,9 @@ static const char *vpp_debug_usage_str = {
 	"Usage:\n"
 	"echo dbg_lvl value > /sys/class/aml_vpp/vpp_debug\n"
 	"echo dbg_dump > /sys/class/aml_vpp/vpp_debug\n"
+	"echo dbg_dump_reg module_index > /sys/class/aml_vpp/vpp_debug\n"
+	"echo dbg_dump_data module_index > /sys/class/aml_vpp/vpp_debug\n"
+	"--> 0~11: vadj/gamma/go/ve/meter/matrix/cm/sr/lc/dnlp/lut3d/hdr\n"
 	"echo value > /sys/class/aml_vpp/vpp_brightness\n"
 	"echo value > /sys/class/aml_vpp/vpp_brightness_post\n"
 	"echo value > /sys/class/aml_vpp/vpp_contrast\n"
@@ -185,6 +188,39 @@ static void _dump_pq_mgr_settings(void)
 		psettings->video_rgb_ogo.b_post_offset);
 }
 
+static void _dump_reg_by_addr(unsigned int start, unsigned int end)
+{
+	unsigned int addr;
+	int reg_value;
+	enum io_mode_e io_mode = EN_MODE_DIR;
+
+	if (end < start) {
+		PR_DRV("reg start and end address not fit.\n");
+		return;
+	}
+
+	for (addr = start; addr < end + 1; addr++) {
+		reg_value = READ_VPP_REG_BY_MODE(io_mode, addr);
+		PR_DRV("0x%x=0x%x\n", addr, reg_value);
+	}
+}
+
+static void _dump_cm_reg_by_addr(unsigned int start, unsigned int end)
+{
+	unsigned int addr;
+	int reg_value;
+
+	if (end < start) {
+		PR_DRV("reg start and end address not fit.\n");
+		return;
+	}
+
+	for (addr = start; addr < end + 1; addr++) {
+		reg_value = vpp_module_cm_get_reg(addr);
+		PR_DRV("0x%x=0x%x\n", addr, reg_value);
+	}
+}
+
 /*External functions*/
 int vpp_debug_init(struct vpp_dev_s *pdev)
 {
@@ -199,6 +235,7 @@ ssize_t vpp_debug_reg_show(struct class *class,
 	PR_DRV("echo w addr value > /sys/class/aml_vpp/vpq_reg_rw\n");
 	PR_DRV("echo bw addr value start length > /sys/class/aml_vpp/vpq_reg_rw\n");
 	PR_DRV("echo r addr > /sys/class/aml_vpp/vpq_reg_rw\n");
+	PR_DRV("echo re addr_start addr_end > /sys/class/aml_vpp/vpq_reg_rw\n");
 	PR_DRV("--> addr and value must be hex.\n");
 
 	return 0;
@@ -209,6 +246,7 @@ ssize_t vpp_debug_reg_store(struct class *class,
 	const char *buf, size_t count)
 {
 	unsigned int addr, bit_start, bit_len;
+	unsigned int addr_start, addr_end;
 	int reg_value;
 	char *buf_org;
 	char *param[5];
@@ -249,6 +287,14 @@ ssize_t vpp_debug_reg_store(struct class *class,
 
 		WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr,
 			reg_value, bit_start, bit_len);
+	} else if (!strncmp(param[0], "re", 2)) {
+		if (kstrtouint(param[1], 16, &addr_start) < 0)
+			goto free_buf;
+
+		if (kstrtoint(param[2], 16, &addr_end) < 0)
+			goto free_buf;
+
+		_dump_reg_by_addr(addr_start, addr_end);
 	} else {
 		PR_DRV("[%s] param[0] = %s, param[1] = %s\n",
 			__func__, param[0], param[1]);
@@ -268,6 +314,7 @@ ssize_t vpp_debug_cm_reg_show(struct class *class,
 	PR_DRV("Usage:\n");
 	PR_DRV("echo w addr value > /sys/class/aml_vpp/vpq_cm_reg_rw\n");
 	PR_DRV("echo r addr > /sys/class/aml_vpp/vpq_cm_reg_rw\n");
+	PR_DRV("echo re addr_start addr_end > /sys/class/aml_vpp/vpq_cm_reg_rw\n");
 	PR_DRV("--> addr and value must be hex.\n");
 
 	return 0;
@@ -278,6 +325,7 @@ ssize_t vpp_debug_cm_reg_store(struct class *class,
 	const char *buf, size_t count)
 {
 	unsigned int addr;
+	unsigned int addr_start, addr_end;
 	int reg_value;
 	char *buf_org;
 	char *param[5];
@@ -302,6 +350,14 @@ ssize_t vpp_debug_cm_reg_store(struct class *class,
 			goto free_buf;
 
 		vpp_module_cm_set_reg(addr, reg_value);
+	} else if (!strncmp(param[0], "re", 2)) {
+		if (kstrtouint(param[1], 16, &addr_start) < 0)
+			goto free_buf;
+
+		if (kstrtoint(param[2], 16, &addr_end) < 0)
+			goto free_buf;
+
+		_dump_cm_reg_by_addr(addr_start, addr_end);
 	} else {
 		PR_DRV("[%s] param[0] = %s, param[1] = %s\n",
 			__func__, param[0], param[1]);
@@ -329,6 +385,8 @@ ssize_t vpp_debug_store(struct class *class,
 {
 	char *buf_org;
 	char *param[8];
+	unsigned int val;
+	enum vpp_dump_module_info_e info_type;
 
 	buf_org = kstrdup(buf, GFP_KERNEL);
 	if (!buf_org)
@@ -343,6 +401,100 @@ ssize_t vpp_debug_store(struct class *class,
 		PR_DRV("pr_lvl = %d\n", pr_lvl);
 	} else if (!strcmp(param[0], "dbg_dump")) {
 		_dump_pq_mgr_settings();
+	} else if (!strcmp(param[0], "dbg_dump_reg")) {
+		if (kstrtouint(param[1], 10, &val) < 0)
+			goto fr_bf;
+
+		info_type = EN_DUMP_INFO_REG;
+
+		switch (val) {
+		case 0:
+			vpp_module_vadj_dump_info(info_type);
+			break;
+		case 1:
+			vpp_module_gamma_dump_info(info_type);
+			break;
+		case 2:
+			vpp_module_go_dump_info(info_type);
+			break;
+		case 3:
+			vpp_module_ve_dump_info(info_type);
+			break;
+		case 4:
+			vpp_module_meter_dump_info(info_type);
+			break;
+		case 5:
+			vpp_module_matrix_dump_info(info_type);
+			break;
+		case 6:
+			vpp_module_cm_dump_info(info_type);
+			break;
+		case 7:
+			vpp_module_sr_dump_info(info_type);
+			break;
+		case 8:
+			vpp_module_lc_dump_info(info_type);
+			break;
+		case 9:
+			vpp_module_dnlp_dump_info(info_type);
+			break;
+		case 10:
+			vpp_module_lut3d_dump_info(info_type);
+			break;
+		case 11:
+			vpp_module_hdr_dump_info(info_type);
+			break;
+		default:
+			PR_DRV("module index not fit.\n");
+			break;
+		}
+	} else if (!strcmp(param[0], "dbg_dump_data")) {
+		if (kstrtouint(param[1], 10, &val) < 0)
+			goto fr_bf;
+
+		info_type = EN_DUMP_INFO_DATA;
+
+		switch (val) {
+		case 0:
+			vpp_module_vadj_dump_info(info_type);
+			break;
+		case 1:
+			vpp_module_gamma_dump_info(info_type);
+			break;
+		case 2:
+			vpp_module_go_dump_info(info_type);
+			break;
+		case 3:
+			vpp_module_ve_dump_info(info_type);
+			break;
+		case 4:
+			vpp_module_meter_dump_info(info_type);
+			break;
+		case 5:
+			vpp_module_matrix_dump_info(info_type);
+			break;
+		case 6:
+			vpp_module_cm_dump_info(info_type);
+			break;
+		case 7:
+			vpp_module_sr_dump_info(info_type);
+			break;
+		case 8:
+			vpp_module_lc_dump_info(info_type);
+			break;
+		case 9:
+			vpp_module_dnlp_dump_info(info_type);
+			break;
+		case 10:
+			vpp_module_lut3d_dump_info(info_type);
+			break;
+		case 11:
+			vpp_module_hdr_dump_info(info_type);
+			break;
+		default:
+			PR_DRV("module index not fit.\n");
+			break;
+		}
 	}
 
 fr_bf:

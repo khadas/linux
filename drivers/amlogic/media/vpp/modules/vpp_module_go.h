@@ -12,5 +12,7 @@ void vpp_module_go_set_gain(unsigned char idx, int val);
 void vpp_module_go_set_offset(unsigned char idx, int val);
 void vpp_module_go_set_pre_offset(unsigned char idx, int val);
 
+void vpp_module_go_dump_info(enum vpp_dump_module_info_e info_type);
+
 #endif
 

@@ -418,6 +418,48 @@ static void _get_sr_fmeter_hcnt(enum sr_mode_e mode)
 		fm_report.hcnt[mode][1], fm_report.hcnt[mode][2]);
 }
 
+static void _dump_sr_reg_info(void)
+{
+	int i = 0;
+
+	PR_DRV("sr_reg_cfg info:\n");
+	for (i = 0; i < 5; i++)
+		PR_DRV("page[%d] = %x\n", i, sr_reg_cfg.page[i]);
+
+	PR_DRV("reg_srscl_gclk_ctrl = %x\n",
+		sr_reg_cfg.reg_srscl_gclk_ctrl);
+	PR_DRV("reg_srsharp0_ctrl = %x\n",
+		sr_reg_cfg.reg_srsharp0_ctrl);
+	PR_DRV("reg_srsharp1_ctrl = %x\n",
+		sr_reg_cfg.reg_srsharp1_ctrl);
+	PR_DRV("reg_pk_con_2cirhpgain_lmt = %x\n",
+		sr_reg_cfg.reg_pk_con_2cirhpgain_lmt);
+	PR_DRV("reg_pk_con_2cirbpgain_lmt = %x\n",
+		sr_reg_cfg.reg_pk_con_2cirbpgain_lmt);
+	PR_DRV("reg_pk_final_gain = %x\n",
+		sr_reg_cfg.reg_pk_final_gain);
+	PR_DRV("reg_pk_os_static = %x\n",
+		sr_reg_cfg.reg_pk_os_static);
+}
+
+static void _dump_sr_data_info(void)
+{
+	int i = 0;
+
+	PR_DRV("fm_support = %d\n", fm_support);
+	PR_DRV("fm_enable = %x\n", fm_enable);
+	PR_DRV("fm_flag = %d\n", fm_flag);
+	PR_DRV("cur_sr_level = %d\n", cur_sr_level);
+	PR_DRV("pre_fm_level = %d\n", pre_fm_level);
+	PR_DRV("cur_fm_level = %d\n", cur_fm_level);
+	PR_DRV("fm_count = %d\n", fm_count);
+
+	PR_DRV("pre_fm_size_cfg sr_w/h data info:\n");
+	for (i = 0; i < EN_MODE_SR_MAX; i++)
+		PR_DRV("%d\t%d\n", pre_fm_size_cfg[i].sr_w,
+			pre_fm_size_cfg[i].sr_h);
+}
+
 static void _sr_fmeter_init(enum sr_mode_e mode)
 {
 	int i = 0;
@@ -532,6 +574,9 @@ void vpp_module_sr_en(enum sr_mode_e mode, bool enable)
 	unsigned int addr = 0;
 	enum io_mode_e io_mode = EN_MODE_DIR;
 
+	pr_vpp(PR_DEBUG_SR, "[%s] mode = %d, enable = %d\n",
+		__func__, mode, enable);
+
 	if (enable)
 		gating_clock = 0x05;
 	else
@@ -580,6 +625,10 @@ void vpp_module_sr_sub_module_en(enum sr_mode_e mode,
 	unsigned int addr = 0;
 	enum io_mode_e io_mode = EN_MODE_DIR;
 	unsigned int val = enable;
+
+	pr_vpp(PR_DEBUG_SR,
+		"[%s] mode = %d, sub_module = %d, enable = %d\n",
+		__func__, mode, sub_module, enable);
 
 	switch (mode) {
 	case EN_MODE_SR_0:
@@ -707,6 +756,9 @@ void vpp_module_sr_set_demo_mode(bool enable, bool left_side)
 	unsigned int addr = 0;
 	enum io_mode_e io_mode = EN_MODE_DIR;
 
+	pr_vpp(PR_DEBUG_SR, "[%s] enable = %d, left_side = %d\n",
+		__func__, enable, left_side);
+
 	addr = ADDR_PARAM(sr_reg_cfg.page[0],
 		sr_reg_cfg.reg_demo_ctrl);
 	WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, 0x3c0,
@@ -736,6 +788,10 @@ void vpp_module_sr_set_demo_mode(bool enable, bool left_side)
 void vpp_module_sr_set_osd_gain(enum sr_mode_e mode,
 	int hp_val, int bp_val)
 {
+	pr_vpp(PR_DEBUG_SR,
+		"[%s] mode = %d, hp_val = %d, bp_val = %d\n",
+		__func__, mode, hp_val, bp_val);
+
 	sr_ai_pq_base.hp_final_gain[mode] = hp_val;
 	sr_ai_pq_base.bp_final_gain[mode] = bp_val;
 
@@ -829,6 +885,8 @@ void vpp_module_sr_set_ai_pq_offset(struct sr_ai_pq_param_s *pparam)
 	if (!pparam)
 		return;
 
+	pr_vpp(PR_DEBUG_SR, "[%s] set data\n", __func__);
+
 	if (sr_ai_pq_offset.hp_final_gain[EN_MODE_SR_0] !=
 			pparam->hp_final_gain[EN_MODE_SR_0] ||
 		sr_ai_pq_offset.bp_final_gain[EN_MODE_SR_0] !=
@@ -849,5 +907,13 @@ void vpp_module_sr_set_ai_pq_offset(struct sr_ai_pq_param_s *pparam)
 		sr_ai_pq_offset.bp_final_gain[EN_MODE_SR_1] =
 			pparam->bp_final_gain[EN_MODE_SR_1];
 	}
+}
+
+void vpp_module_sr_dump_info(enum vpp_dump_module_info_e info_type)
+{
+	if (info_type == EN_DUMP_INFO_REG)
+		_dump_sr_reg_info();
+	else
+		_dump_sr_data_info();
 }
 

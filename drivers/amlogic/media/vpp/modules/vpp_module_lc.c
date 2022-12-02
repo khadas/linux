@@ -1141,6 +1141,58 @@ static int _get_sr1_lc_sat_lut(int *pdata, int len)
 	return ret;
 }
 
+static void _dump_lc_reg_info(void)
+{
+	PR_DRV("lc_reg_cfg info:\n");
+	PR_DRV("page = %x\n", lc_reg_cfg.page);
+	PR_DRV("reg_curve_ctrl = %x\n", lc_reg_cfg.reg_curve_ctrl);
+	PR_DRV("reg_curve_hv_num = %x\n", lc_reg_cfg.reg_curve_hv_num);
+	PR_DRV("reg_curve_lmt_rat = %x\n", lc_reg_cfg.reg_curve_lmt_rat);
+	PR_DRV("reg_curve_contrast_lh = %x\n",
+		lc_reg_cfg.reg_curve_contrast_lh);
+	PR_DRV("reg_gamma_ctrl = %x\n",
+		lc_reg_cfg.reg_curve_contrast_lmt_lh);
+
+	PR_DRV("sr1_reg_cfg info:\n");
+	PR_DRV("page = %x\n", sr1_reg_cfg.page);
+	PR_DRV("reg_lc_input_mux = %x\n", sr1_reg_cfg.reg_lc_input_mux);
+	PR_DRV("reg_lc_top_ctrl = %x\n", sr1_reg_cfg.reg_lc_top_ctrl);
+	PR_DRV("reg_lc_hv_num = %x\n", sr1_reg_cfg.reg_lc_hv_num);
+	PR_DRV("reg_lc_sat_lut_0_1 = %x\n", sr1_reg_cfg.reg_lc_sat_lut_0_1);
+	PR_DRV("reg_lc_sat_lut_62 = %x\n", sr1_reg_cfg.reg_lc_sat_lut_62);
+	PR_DRV("reg_lc_curve_blk_hidx_0_1 = %x\n",
+		sr1_reg_cfg.reg_lc_curve_blk_hidx_0_1);
+	PR_DRV("reg_lc_curve_blk_vidx_0_1 = %x\n",
+		sr1_reg_cfg.reg_lc_curve_blk_vidx_0_1);
+}
+
+static void _dump_lc_data_info(void)
+{
+	int i = 0;
+
+	PR_DRV("lc_curve_isr_defined = %d\n", lc_curve_isr_defined);
+	PR_DRV("lc_curve_isr_used = %x\n", lc_curve_isr_used);
+	PR_DRV("lc_demo_mode = %d\n", lc_demo_mode);
+	PR_DRV("lc_support = %d\n", lc_support);
+	PR_DRV("lc_bypass = %d\n", lc_bypass);
+	PR_DRV("lc_malloc_ok = %d\n", lc_malloc_ok);
+	PR_DRV("lc_lmt_type = %d\n", lc_lmt_type);
+	PR_DRV("lc_tune_mode = %d\n", lc_tune_mode);
+	PR_DRV("video_scene_change_flag_en = %d\n",
+		video_scene_change_flag_en);
+	PR_DRV("video_scene_change_flag = %d\n",
+		video_scene_change_flag);
+
+	if (refresh_alpha) {
+		PR_DRV("refresh_alpha data info:\n");
+		for (i = 0; i < LC_ALPHA_SIZE; i++) {
+			PR_DRV("%d\t", refresh_alpha[i]);
+			if (i % 8 == 0)
+				PR_DRV("\n");
+		}
+	}
+}
+
 static void _lc_tune_correct(int *omap, int *ihistogram, int i, int j)
 {
 	int yminv_org, minbv_org, pkbv_org;
@@ -2179,6 +2231,8 @@ int vpp_module_lc_en(bool enable)
 {
 	unsigned int addr = 0;
 
+	pr_vpp(PR_DEBUG_LC, "[%s] enable = %d\n", __func__, enable);
+
 	_set_sr1_lc_top_ctrl(enable,
 		sr1_bit_cfg.bit_lc_en.start,
 		sr1_bit_cfg.bit_lc_en.len);
@@ -2225,6 +2279,8 @@ void vpp_module_lc_write_lut(enum lc_lut_type_e type, int *pdata)
 	if (!pdata)
 		return;
 
+	pr_vpp(PR_DEBUG_LC, "[%s] type = %d\n", __func__, type);
+
 	switch (type) {
 	case EN_LC_SAT:
 		_set_sr1_lc_sat_lut(pdata);
@@ -2257,6 +2313,9 @@ void vpp_module_lc_write_lut(enum lc_lut_type_e type, int *pdata)
 
 void vpp_module_lc_set_demo_mode(bool enable, bool left_side)
 {
+	pr_vpp(PR_DEBUG_LC, "[%s] enable = %d, left_side = %d\n",
+		__func__, enable, left_side);
+
 	if (enable)
 		if (left_side)
 			lc_demo_mode = 1;
@@ -2277,6 +2336,9 @@ void vpp_module_lc_set_tune_param(enum lc_curve_tune_param_e index,
 	if (index == EN_LC_CURVE_TUNE_PARAM_MAX)
 		return;
 
+	pr_vpp(PR_DEBUG_LC, "[%s] index = %d, val = %d\n",
+		__func__, index, val);
+
 	lc_tune_curve[index] = val;
 }
 
@@ -2286,6 +2348,9 @@ void vpp_module_lc_set_cfg_param(enum lc_config_param_e index,
 	if (index == EN_LC_CFG_PARAM_MAX)
 		return;
 
+	pr_vpp(PR_DEBUG_LC, "[%s] index = %d, val = %d\n",
+		__func__, index, val);
+
 	lc_top_cfg[index] = val;
 }
 
@@ -2294,6 +2359,9 @@ void vpp_module_lc_set_alg_param(enum lc_algorithm_param_e index,
 {
 	if (index == EN_LC_ALG_PARAM_MAX)
 		return;
+
+	pr_vpp(PR_DEBUG_LC, "[%s] index = %d, val = %d\n",
+		__func__, index, val);
 
 	lc_alg_cfg[index] = val;
 }
@@ -2415,5 +2483,13 @@ void vpp_module_lc_on_vs(unsigned short *pdata_hist,
 
 	/*set curve data*/
 	_set_sr1_lc_curve(EN_MODE_RDMA, 0, lc_wrcurve);
+}
+
+void vpp_module_lc_dump_info(enum vpp_dump_module_info_e info_type)
+{
+	if (info_type == EN_DUMP_INFO_REG)
+		_dump_lc_reg_info();
+	else
+		_dump_lc_data_info();
 }
 

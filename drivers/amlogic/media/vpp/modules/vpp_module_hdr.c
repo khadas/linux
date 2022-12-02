@@ -723,6 +723,106 @@ static void _set_hdr_hist_cfg_init(enum hdr_module_type_e type)
 	WRITE_VPP_REG_BY_MODE(io_mode, addr, 0x0);
 }
 
+static void _dump_hdr_reg_info(void)
+{
+	int i = 0;
+
+	PR_DRV("hdr_reg_cfg info:\n");
+	for (i = 0; i < EN_MODULE_TYPE_MAX; i++) {
+		PR_DRV("hdr type = %d\n", i);
+		PR_DRV("page = %x\n", hdr_reg_cfg[i].page);
+		PR_DRV("reg_adps_ctrl = %x\n", hdr_reg_cfg[i].reg_adps_ctrl);
+		PR_DRV("reg_clk_gate = %x\n", hdr_reg_cfg[i].reg_clk_gate);
+		PR_DRV("reg_mtrxi_coef00_01 = %x\n",
+			hdr_reg_cfg[i].reg_mtrxi_coef00_01);
+		PR_DRV("reg_mtrxi_coef22 = %x\n",
+			hdr_reg_cfg[i].reg_mtrxi_coef22);
+		PR_DRV("reg_mtrxi_coef30_31 = %x\n",
+			hdr_reg_cfg[i].reg_mtrxi_coef30_31);
+		PR_DRV("reg_mtrxi_offset0_1 = %x\n",
+			hdr_reg_cfg[i].reg_mtrxi_offset0_1);
+		PR_DRV("reg_mtrxi_pre_offset0_1 = %x\n",
+			hdr_reg_cfg[i].reg_mtrxi_pre_offset0_1);
+		PR_DRV("reg_mtrxo_coef00_01 = %x\n",
+			hdr_reg_cfg[i].reg_mtrxo_coef00_01);
+		PR_DRV("reg_mtrxo_coef22 = %x\n",
+			hdr_reg_cfg[i].reg_mtrxo_coef22);
+		PR_DRV("reg_mtrxo_coef30_31 = %x\n",
+			hdr_reg_cfg[i].reg_mtrxo_coef30_31);
+		PR_DRV("reg_mtrxo_offset0_1 = %x\n",
+			hdr_reg_cfg[i].reg_mtrxo_offset0_1);
+		PR_DRV("reg_mtrxo_pre_offset0_1 = %x\n",
+			hdr_reg_cfg[i].reg_mtrxo_pre_offset0_1);
+		PR_DRV("reg_mtrxi_clip = %x\n",
+			hdr_reg_cfg[i].reg_mtrxi_clip);
+		PR_DRV("reg_mtrxo_clip = %x\n",
+			hdr_reg_cfg[i].reg_mtrxo_clip);
+		PR_DRV("reg_cgain_offset = %x\n",
+			hdr_reg_cfg[i].reg_cgain_offset);
+		PR_DRV("reg_hist_rd_2 = %x\n",
+			hdr_reg_cfg[i].reg_hist_rd_2);
+		PR_DRV("reg_oetf_lut_addr_port = %x\n",
+			hdr_reg_cfg[i].reg_oetf_lut_addr_port);
+		PR_DRV("reg_eotf_lut_data_port = %x\n",
+			hdr_reg_cfg[i].reg_eotf_lut_data_port);
+		PR_DRV("reg_oetf_lut_addr_port = %x\n",
+			hdr_reg_cfg[i].reg_oetf_lut_addr_port);
+		PR_DRV("reg_oetf_lut_data_port = %x\n",
+			hdr_reg_cfg[i].reg_oetf_lut_data_port);
+		PR_DRV("reg_cgain_lut_addr_port = %x\n",
+			hdr_reg_cfg[i].reg_cgain_lut_addr_port);
+		PR_DRV("reg_cgain_lut_data_port = %x\n",
+			hdr_reg_cfg[i].reg_cgain_lut_data_port);
+		PR_DRV("reg_cgain_coef0 = %x\n",
+			hdr_reg_cfg[i].reg_cgain_coef0);
+		PR_DRV("reg_ogain_lut_addr_port = %x\n",
+			hdr_reg_cfg[i].reg_ogain_lut_addr_port);
+		PR_DRV("reg_ogain_lut_data_port = %x\n",
+			hdr_reg_cfg[i].reg_ogain_lut_data_port);
+		PR_DRV("reg_adps_ctrl = %x\n",
+			hdr_reg_cfg[i].reg_adps_ctrl);
+		PR_DRV("reg_gmut_ctrl = %x\n",
+			hdr_reg_cfg[i].reg_gmut_ctrl);
+		PR_DRV("reg_cgain_lut_data_port = %x\n",
+			hdr_reg_cfg[i].reg_gmut_coef0);
+		PR_DRV("reg_pipe_ctrl1 = %x\n",
+			hdr_reg_cfg[i].reg_pipe_ctrl1);
+		PR_DRV("reg_proc_win1 = %x\n",
+			hdr_reg_cfg[i].reg_proc_win1);
+		PR_DRV("reg_matrixi_en_ctrl = %x\n",
+			hdr_reg_cfg[i].reg_matrixi_en_ctrl);
+		PR_DRV("reg_matrixo_en_ctrl = %x\n",
+			hdr_reg_cfg[i].reg_matrixo_en_ctrl);
+		PR_DRV("reg_hist_ctrl = %x\n",
+			hdr_reg_cfg[i].reg_hist_ctrl);
+		PR_DRV("reg_hist_h_start_end = %x\n",
+			hdr_reg_cfg[i].reg_hist_h_start_end);
+		PR_DRV("reg_hist_v_start_end = %x\n",
+			hdr_reg_cfg[i].reg_hist_v_start_end);
+		PR_DRV("reg_hist_rd = %x\n",
+			hdr_reg_cfg[i].reg_hist_rd);
+	}
+}
+
+static void _dump_hdr_data_info(void)
+{
+	int i = 0;
+	int j = 0;
+
+	PR_DRV("support_vpp_sel = %d\n", support_vpp_sel);
+	PR_DRV("max_rgb = %d\n", max_rgb);
+
+	PR_DRV("cur_cgain_offset data info:\n");
+	for (i = 0; i < 3; i++) {
+		PR_DRV("i = %d\n", i);
+		for (j = 0; j < EN_MODULE_TYPE_MAX; j++)
+			PR_DRV("%d\t%d\t%d\n",
+				cur_cgain_offset[i][j][0],
+				cur_cgain_offset[i][j][1],
+				cur_cgain_offset[i][j][2]);
+	}
+}
+
 static void _hdr_default_data_init(enum vpp_chip_type_e chip_id)
 {
 	_set_hdr_hist_cfg_init(EN_MODULE_TYPE_VD1);
@@ -930,6 +1030,12 @@ int vpp_module_hdr_init(struct vpp_dev_s *pdev)
 int vpp_module_hdr_en(enum hdr_module_type_e type, bool enable,
 	enum hdr_vpp_type_e vpp_sel)
 {
+	pr_vpp(PR_DEBUG_HDR, "[%s] support_vpp_sel = %d\n",
+		__func__, support_vpp_sel);
+	pr_vpp(PR_DEBUG_HDR,
+		"[%s] type = %d, enable = %d, vpp_sel = %d\n",
+		__func__, type, enable, vpp_sel);
+
 	if (!support_vpp_sel) {
 		return _set_hdr_ctrl(type, vpp_sel, enable,
 			hdr_bit_cfg.bit_top_en.start, hdr_bit_cfg.bit_top_en.len);
@@ -948,6 +1054,12 @@ void vpp_module_hdr_sub_module_en(enum hdr_module_type_e type,
 	enum hdr_sub_module_e sub_module, bool enable,
 	enum hdr_vpp_type_e vpp_sel)
 {
+	pr_vpp(PR_DEBUG_HDR, "[%s] support_vpp_sel = %d\n",
+		__func__, support_vpp_sel);
+	pr_vpp(PR_DEBUG_HDR,
+		"[%s] type = %d, sub_module = %d, enable = %d, vpp_sel = %d\n",
+		__func__, type, sub_module, enable, vpp_sel);
+
 	if (!support_vpp_sel) {
 		_set_hdr_sub_module_en(type, sub_module, enable, vpp_sel);
 	} else {
@@ -968,6 +1080,12 @@ void vpp_module_hdr_set_lut(enum hdr_module_type_e type,
 		sub_module == EN_SUB_MODULE_MAX ||
 		vpp_sel == EN_TYPE_VPP_MAX)
 		return;
+
+	pr_vpp(PR_DEBUG_HDR, "[%s] support_vpp_sel = %d\n",
+		__func__, support_vpp_sel);
+	pr_vpp(PR_DEBUG_HDR,
+		"[%s] type = %d, sub_module = %d, vpp_sel = %d\n",
+		__func__, type, sub_module, vpp_sel);
 
 	if (!support_vpp_sel)
 		vpp_sel = EN_TYPE_VPP0;
@@ -1010,6 +1128,12 @@ void vpp_module_hdr_set_matrix(enum hdr_module_type_e type,
 		vpp_sel == EN_TYPE_VPP_MAX)
 		return;
 
+	pr_vpp(PR_DEBUG_HDR, "[%s] support_vpp_sel = %d\n",
+		__func__, support_vpp_sel);
+	pr_vpp(PR_DEBUG_HDR,
+		"[%s] type = %d, sub_module = %d, vpp_sel = %d\n",
+		__func__, type, sub_module, vpp_sel);
+
 	if (!support_vpp_sel)
 		vpp_sel = EN_TYPE_VPP0;
 
@@ -1037,6 +1161,10 @@ void vpp_module_hdr_set_gamut(enum hdr_module_type_e type,
 		vpp_sel == EN_TYPE_VPP_MAX)
 		return;
 
+	pr_vpp(PR_DEBUG_HDR,
+		"[%s] support_vpp_sel = %d, type = %d, vpp_sel = %d\n",
+		__func__, support_vpp_sel, type, vpp_sel);
+
 	if (!support_vpp_sel)
 		vpp_sel = EN_TYPE_VPP0;
 
@@ -1049,6 +1177,9 @@ void vpp_module_hdr_set_gamut(enum hdr_module_type_e type,
 void vpp_module_hdr_hist_en(enum hdr_module_type_e type, bool enable)
 {
 	enum io_mode_e io_mode = EN_MODE_DIR;
+
+	pr_vpp(PR_DEBUG_HDR, "[%s] type = %d, enable = %d\n",
+		__func__, type, enable);
 
 	switch (type) {
 	case EN_MODULE_TYPE_VDIN0:
@@ -1307,5 +1438,13 @@ void vpp_module_hdr_on_vs(void)
 			}
 		}
 	}
+}
+
+void vpp_module_hdr_dump_info(enum vpp_dump_module_info_e info_type)
+{
+	if (info_type == EN_DUMP_INFO_REG)
+		_dump_hdr_reg_info();
+	else
+		_dump_hdr_data_info();
 }
 

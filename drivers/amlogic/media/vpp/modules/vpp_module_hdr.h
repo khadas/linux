@@ -103,5 +103,7 @@ void vpp_module_hdr_get_lut(enum hdr_module_type_e type,
 	enum hdr_vpp_type_e vpp_sel);
 void vpp_module_hdr_on_vs(void);
 
+void vpp_module_hdr_dump_info(enum vpp_dump_module_info_e info_type);
+
 #endif
 

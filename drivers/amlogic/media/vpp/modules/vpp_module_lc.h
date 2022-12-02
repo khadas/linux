@@ -95,5 +95,7 @@ int vpp_module_lc_get_cfg_param(enum lc_config_param_e index);
 int vpp_module_lc_get_alg_param(enum lc_algorithm_param_e index);
 void vpp_module_lc_on_vs(unsigned short *pdata_hist, struct lc_vs_param_s *pvs_param);
 
+void vpp_module_lc_dump_info(enum vpp_dump_module_info_e info_type);
+
 #endif
 

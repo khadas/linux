@@ -71,5 +71,7 @@ void vpp_module_ve_get_clip_range(int *top, int *bottom);
 void vpp_module_ve_set_clock_ctrl(enum ve_clock_type_e type,
 	int val);
 
+void vpp_module_ve_dump_info(enum vpp_dump_module_info_e info_type);
+
 #endif
 

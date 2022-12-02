@@ -47,9 +47,22 @@
 #include "vpp_drv.h"
 
 /* Commom define */
-#define PR_SYS    (0x0)
-#define PR_IOC    (0x1)
-#define PR_DEBUG  (0x2)
+#define PR_SYS          (0x01)
+#define PR_IOC          (0x02)
+#define PR_DEBUG        (0x04)
+#define PR_DEBUG_CM     (0x08)
+#define PR_DEBUG_DNLP   (0x10)
+#define PR_DEBUG_GAMMA  (0x20)
+#define PR_DEBUG_GO     (0x40)
+#define PR_DEBUG_HDR    (0x80)
+#define PR_DEBUG_LC     (0x100)
+#define PR_DEBUG_LUT3D  (0x200)
+#define PR_DEBUG_MATRIX (0x400)
+#define PR_DEBUG_METER  (0x800)
+#define PR_DEBUG_SR     (0x1000)
+#define PR_DEBUG_VADJ   (0x2000)
+#define PR_DEBUG_VE     (0x4000)
+#define PR_DEBUG_AI     (0x8000)
 
 #define LUT_SIZE_EOTF      (33)
 #define LUT_SIZE_OETF_OSD  (41)
@@ -88,6 +101,11 @@ extern unsigned int pr_lvl;
 	(y & (~x)) + ((~y) & x);\
 	})
 #endif
+
+enum vpp_dump_module_info_e {
+	EN_DUMP_INFO_REG = 0,
+	EN_DUMP_INFO_DATA,
+};
 
 /*ai detected scenes*/
 enum vpp_detect_scene_e {

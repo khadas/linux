@@ -31,5 +31,7 @@ void vpp_module_vadj_on_vs(void);
 void vpp_module_vadj_get_ai_pq_base(struct vadj_ai_pq_param_s *pparam);
 void vpp_module_vadj_set_ai_pq_offset(struct vadj_ai_pq_param_s *pparam);
 
+void vpp_module_vadj_dump_info(enum vpp_dump_module_info_e info_type);
+
 #endif
 

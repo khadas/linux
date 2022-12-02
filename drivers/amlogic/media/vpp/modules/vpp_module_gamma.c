@@ -248,6 +248,42 @@ static void _get_lcd_gamma_data_combine(int *pr_data, int *pg_data, int *pb_data
 	}
 }
 
+static void _dump_gamma_reg_info(void)
+{
+	PR_DRV("pre_gamma_reg_cfg info:\n");
+	PR_DRV("page = %x\n", pre_gamma_reg_cfg.page);
+	PR_DRV("reg_gamma_ctrl = %x\n", pre_gamma_reg_cfg.reg_gamma_ctrl);
+	PR_DRV("reg_gamma_addr = %x\n", pre_gamma_reg_cfg.reg_gamma_addr);
+	PR_DRV("reg_gamma_data = %x\n", pre_gamma_reg_cfg.reg_gamma_data);
+
+	PR_DRV("lcd_gamma_reg_cfg info:\n");
+	PR_DRV("page = %x\n", lcd_gamma_reg_cfg.page);
+	PR_DRV("reg_gamma_ctrl = %x\n", lcd_gamma_reg_cfg.reg_gamma_ctrl);
+	PR_DRV("reg_gamma_addr = %x\n", lcd_gamma_reg_cfg.reg_gamma_addr);
+	PR_DRV("reg_gamma_data = %x\n", lcd_gamma_reg_cfg.reg_gamma_data);
+}
+
+static void _dump_gamma_data_info(void)
+{
+	int i = 0;
+
+	PR_DRV("viu_sel = %d\n", viu_sel);
+	PR_DRV("add_offset = %x\n", add_offset);
+	PR_DRV("combine_mode = %d\n", combine_mode);
+	PR_DRV("pregm_tp_flag = %d\n", pregm_tp_flag);
+	PR_DRV("lcdgm_tp_flag = %d\n", lcdgm_tp_flag);
+
+	PR_DRV("cur_pregm_tbl data info:\n");
+	for (i = 0; i < VPP_PRE_GAMMA_TABLE_LEN; i++)
+		PR_DRV("%d\t%d\t%d\n", cur_pregm_tbl[0][i],
+			cur_pregm_tbl[1][i], cur_pregm_tbl[2][i]);
+
+	PR_DRV("cur_lcdgm_tbl data info:\n");
+	for (i = 0; i < VPP_GAMMA_TABLE_LEN; i++)
+		PR_DRV("%d\t%d\t%d\n", cur_lcdgm_tbl[0][i],
+			cur_lcdgm_tbl[1][i], cur_lcdgm_tbl[2][i]);
+}
+
 /*External functions*/
 int vpp_module_gamma_init(struct vpp_dev_s *pdev)
 {
@@ -257,7 +293,7 @@ int vpp_module_gamma_init(struct vpp_dev_s *pdev)
 
 	if (chip_id >= CHIP_T7) {
 		combine_mode = 1;
-		lcd_gamma_reg_cfg.page           = 0x14;
+		lcd_gamma_reg_cfg.page = 0x14;
 		lcd_gamma_reg_cfg.reg_gamma_ctrl = 0xb4;
 		lcd_gamma_reg_cfg.reg_gamma_addr = 0xb6;
 		lcd_gamma_reg_cfg.reg_gamma_data = 0xb5;
@@ -273,6 +309,8 @@ int vpp_module_gamma_init(struct vpp_dev_s *pdev)
 
 void vpp_module_gamma_set_viu_sel(int val)
 {
+	pr_vpp(PR_DEBUG_GAMMA, "[%s] viu_sel = %d\n", __func__, val);
+
 	viu_sel = val;
 
 	if (viu_sel == 1) {         /*venc1*/
@@ -286,6 +324,8 @@ void vpp_module_gamma_set_viu_sel(int val)
 
 int vpp_module_pre_gamma_en(bool enable)
 {
+	pr_vpp(PR_DEBUG_GAMMA, "[%s] enable = %d\n", __func__, enable);
+
 	return _set_gamma_ctrl(EN_MODE_GAMMA_PRE, enable,
 		gamma_bit_cfg.bit_gamma_ctrl_en.start, gamma_bit_cfg.bit_gamma_ctrl_en.len);
 }
@@ -297,6 +337,9 @@ int vpp_module_pre_gamma_write_single(enum vpp_rgb_mode_e mode,
 
 	if (!pdata || mode == EN_MODE_RGB_MAX)
 		return 0;
+
+	pr_vpp(PR_DEBUG_GAMMA, "[%s] set data, mode = %d\n",
+		__func__, mode);
 
 	for (i = 0; i < VPP_PRE_GAMMA_TABLE_LEN; i++)
 		cur_pregm_tbl[mode][i] = pdata[i];
@@ -313,6 +356,8 @@ int vpp_module_pre_gamma_write(unsigned int *pr_data,
 
 	if (!pr_data || !pg_data || !pb_data)
 		return 0;
+
+	pr_vpp(PR_DEBUG_GAMMA, "[%s] set data\n", __func__);
 
 	for (i = 0; i < VPP_PRE_GAMMA_TABLE_LEN; i++) {
 		cur_pregm_tbl[EN_MODE_R][i] = pr_data[i];
@@ -351,6 +396,10 @@ int vpp_module_pre_gamma_pattern(bool enable,
 	int *pb_data;
 	unsigned int addr;
 	enum io_mode_e io_mode = EN_MODE_DIR;
+
+	pr_vpp(PR_DEBUG_GAMMA,
+		"[%s] enable = %d, r/g/b = %d\t%d\t%d\n",
+		__func__, enable, r_val, g_val, b_val);
 
 	pregm_tp_flag = enable;
 
@@ -402,6 +451,8 @@ void vpp_module_pre_gamma_on_vs(void)
 
 int vpp_module_lcd_gamma_en(bool enable)
 {
+	pr_vpp(PR_DEBUG_GAMMA, "[%s] enable = %d\n", __func__, enable);
+
 	return _set_gamma_ctrl(EN_MODE_GAMMA_LCD, enable,
 		gamma_bit_cfg.bit_gamma_ctrl_en.start, gamma_bit_cfg.bit_gamma_ctrl_en.len);
 }
@@ -415,6 +466,9 @@ int vpp_module_lcd_gamma_write_single(enum vpp_rgb_mode_e mode,
 
 	if (!pdata || mode == EN_MODE_RGB_MAX)
 		return 0;
+
+	pr_vpp(PR_DEBUG_GAMMA, "[%s] set data, mode = %d\n",
+		__func__, mode);
 
 	for (i = 0; i < VPP_GAMMA_TABLE_LEN; i++)
 		cur_lcdgm_tbl[mode][i] = pdata[i];
@@ -440,6 +494,8 @@ int vpp_module_lcd_gamma_write(unsigned int *pr_data,
 
 	if (!pr_data || !pg_data || !pb_data)
 		return 0;
+
+	pr_vpp(PR_DEBUG_GAMMA, "[%s] set data\n", __func__);
 
 	for (i = 0; i < VPP_GAMMA_TABLE_LEN; i++) {
 		cur_lcdgm_tbl[EN_MODE_R][i] = pr_data[i];
@@ -486,6 +542,10 @@ int vpp_module_lcd_gamma_pattern(bool enable,
 	int *pg_data;
 	int *pb_data;
 	enum io_mode_e io_mode = EN_MODE_DIR;
+
+	pr_vpp(PR_DEBUG_GAMMA,
+		"[%s] enable = %d, r/g/b = %d\t%d\t%d\n",
+		__func__, enable, r_val, g_val, b_val);
 
 	lcdgm_tp_flag = enable;
 
@@ -548,5 +608,13 @@ void vpp_module_lcd_gamma_on_vs(void)
 
 		lcdgm_update_flag = false;
 	}
+}
+
+void vpp_module_gamma_dump_info(enum vpp_dump_module_info_e info_type)
+{
+	if (info_type == EN_DUMP_INFO_REG)
+		_dump_gamma_reg_info();
+	else
+		_dump_gamma_data_info();
 }
 

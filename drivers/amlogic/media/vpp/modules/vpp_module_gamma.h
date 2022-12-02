@@ -30,5 +30,7 @@ int vpp_module_lcd_gamma_pattern(bool enable,
 void vpp_module_lcd_gamma_notify(void);
 void vpp_module_lcd_gamma_on_vs(void);
 
+void vpp_module_gamma_dump_info(enum vpp_dump_module_info_e info_type);
+
 #endif
 

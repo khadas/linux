@@ -1093,7 +1093,7 @@ static void _set_hdr10p_gamut_param(enum hdr_module_type_e module,
 		hdr_gamut_data.cgain_coef[i] =
 			phdr_mtrx_param->mtrx_cgain[i] << 2;
 
-	/*0: adptive scaler mode(Ys); 1: max linear(RGB max)*/
+	/*0: adaptive scaler mode(Ys); 1: max linear(RGB max)*/
 	/*2: none linear Ys -- Do NOT use it*/
 	hdr_gamut_data.adpscl_mode = 1;
 

@@ -29,5 +29,7 @@ struct dnlp_dbg_parse_cmd_s *vpp_module_dnlp_get_dbg_cv_info(void);
 void vpp_module_dnlp_get_ai_pq_base(struct dnlp_ai_pq_param_s *pparam);
 void vpp_module_dnlp_set_ai_pq_offset(struct dnlp_ai_pq_param_s *pparam);
 
+void vpp_module_dnlp_dump_info(enum vpp_dump_module_info_e info_type);
+
 #endif
 

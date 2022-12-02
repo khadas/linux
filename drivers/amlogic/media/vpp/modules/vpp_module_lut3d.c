@@ -57,8 +57,6 @@ static void _set_lut3d_data(int *pdata)
 	enum io_mode_e io_mode = EN_MODE_DIR;
 	int i = 0;
 	unsigned int tmp = 0;
-	int data_size = LUT3D_UNIT_DATA_LEN *
-		LUT3D_UNIT_DATA_LEN * LUT3D_UNIT_DATA_LEN * 3;
 
 	addr = ADDR_PARAM(lut3d_reg_cfg.page,
 		lut3d_reg_cfg.reg_lut3d_ctrl);
@@ -81,7 +79,7 @@ static void _set_lut3d_data(int *pdata)
 	addr = ADDR_PARAM(lut3d_reg_cfg.page,
 		lut3d_reg_cfg.reg_lut3d_ram_data);
 
-	for (i = 0; i < data_size; i++) {/*write data, order RGB*/
+	for (i = 0; i < LUT3D_DATA_SIZE; i++) {/*write data, order RGB*/
 		WRITE_VPP_REG_BY_MODE(io_mode, addr,
 			((pdata[i * 3 + 1] & 0xfff) << 16) |
 			(pdata[i * 3 + 2] & 0xfff));
@@ -98,6 +96,25 @@ static void _set_lut3d_data(int *pdata)
 	WRITE_VPP_REG_BY_MODE(io_mode, addr, tmp);
 }
 
+static void _dump_lut3d_reg_info(void)
+{
+	PR_DRV("lut3d_reg_cfg info:\n");
+	PR_DRV("page = %x\n", lut3d_reg_cfg.page);
+	PR_DRV("reg_lut3d_ctrl = %x\n",
+		lut3d_reg_cfg.reg_lut3d_ctrl);
+	PR_DRV("reg_lut3d_cbus2ram_ctrl = %x\n",
+		lut3d_reg_cfg.reg_lut3d_cbus2ram_ctrl);
+	PR_DRV("reg_lut3d_ram_addr = %x\n",
+		lut3d_reg_cfg.reg_lut3d_ram_addr);
+	PR_DRV("reg_lut3d_ram_data = %x\n",
+		lut3d_reg_cfg.reg_lut3d_ram_data);
+}
+
+static void _dump_lut3d_data_info(void)
+{
+	PR_DRV("No more data\n");
+}
+
 /*External functions*/
 int vpp_module_lut3d_init(struct vpp_dev_s *pdev)
 {
@@ -107,6 +124,8 @@ int vpp_module_lut3d_init(struct vpp_dev_s *pdev)
 void vpp_module_lut3d_en(bool enable)
 {
 	unsigned int addr = 0;
+
+	pr_vpp(PR_DEBUG_LUT3D, "[%s] enable = %d\n", __func__, enable);
 
 	addr = ADDR_PARAM(lut3d_reg_cfg.page,
 		lut3d_reg_cfg.reg_lut3d_cbus2ram_ctrl);
@@ -126,6 +145,16 @@ void vpp_module_lut3d_set_data(int *pdata)
 	if (!pdata)
 		return;
 
+	pr_vpp(PR_DEBUG_LUT3D, "[%s] set data\n", __func__);
+
 	_set_lut3d_data(pdata);
+}
+
+void vpp_module_lut3d_dump_info(enum vpp_dump_module_info_e info_type)
+{
+	if (info_type == EN_DUMP_INFO_REG)
+		_dump_lut3d_reg_info();
+	else
+		_dump_lut3d_data_info();
 }
 
