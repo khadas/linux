@@ -1090,9 +1090,9 @@ int evl_set_thread_schedparam_locked(struct evl_thread *thread,
 	 * Only if the (weighted) priority actually changed - so that
 	 * we do not cause any spurious RR side effect - and the
 	 * thread is sleeping on a wait channel, tell the caller to
-	 * requeue it its wait list at the first opportunity. We
-	 * cannot do that here since this would trigger ABBA locking
-	 * issues with wchan->lock and/or thread->lock.
+	 * reorder the wait list at the first opportunity. We cannot
+	 * do that here since this would trigger ABBA locking issues
+	 * with wchan->lock and/or thread->lock.
 	 *
 	 * CAVEAT: This must be done prior to rescheduling or
 	 * re-enabling irqs in order to prevent priority inversion.
