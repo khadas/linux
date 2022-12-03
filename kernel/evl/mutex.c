@@ -200,7 +200,7 @@ static int fast_grab_mutex(struct evl_mutex *mutex, fundle_t *oldh)
 }
 
 /* mutex->wchan.lock held (temporarily dropped), irqs off */
-static void drop_booster(struct evl_mutex *mutex)
+static void drop_booster(struct evl_mutex *mutex, bool release)
 {
 	struct evl_thread *owner;
 	bool adjusted;
@@ -217,6 +217,9 @@ static void drop_booster(struct evl_mutex *mutex)
 	 * holds.
 	 */
 	evl_get_element(&owner->element);
+
+	if (release)	/* Drop upon release sequence? */
+		untrack_mutex_owner(mutex);
 
 	raw_spin_lock(&owner->lock);
 	list_del(&mutex->next_booster);	/* owner->boosters */
@@ -303,7 +306,7 @@ static void flush_mutex_locked(struct evl_mutex *mutex, int reason)
 
 		if (mutex->flags & EVL_MUTEX_PIBOOST) {
 			mutex->flags &= ~EVL_MUTEX_PIBOOST;
-			drop_booster(mutex);
+			drop_booster(mutex, false);
 		}
 	}
 }
@@ -369,7 +372,7 @@ static void undo_pi_walk(struct evl_mutex *mutex)
 	if (owner && mutex->flags & EVL_MUTEX_PIBOOST) {
 		if (list_empty(&mutex->wchan.wait_list)) {
 			mutex->flags &= ~EVL_MUTEX_PIBOOST;
-			drop_booster(mutex);
+			drop_booster(mutex, false);
 		} else {
 			raw_spin_lock(&owner->lock);
 			raw_spin_unlock(&mutex->wchan.lock);
@@ -616,15 +619,15 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 	if (mutex->flags & EVL_MUTEX_CEILING) {
 		EVL_WARN_ON(CORE, mutex->flags & EVL_MUTEX_PIBOOST);
 		mutex->flags &= ~EVL_MUTEX_CEILING;
-		drop_booster(mutex);
+		drop_booster(mutex, true);
 	} else if (mutex->flags & EVL_MUTEX_PIBOOST) {
 		EVL_WARN_ON(CORE, mutex->flags & EVL_MUTEX_CEILING);
 		mutex->flags &= ~EVL_MUTEX_PIBOOST;
-		drop_booster(mutex);
+		drop_booster(mutex, true);
+	} else {
+		/* Clear the owner information only. */
+		untrack_mutex_owner(mutex);
 	}
-
-	/* Clear the owner information. */
-	untrack_mutex_owner(mutex);
 
 	/*
 	 * Allow the first waiter in line to retry acquiring the
