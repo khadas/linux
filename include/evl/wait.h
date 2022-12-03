@@ -32,10 +32,10 @@ struct evl_wait_channel {
 struct evl_lock_key_addr {
 	struct lock_class_key *addr;
 };
-#define __EVL_LOCK_KEY_ADDR_INITIALIZER  (struct foo){ .addr = NULL }
+#define __EVL_LOCK_KEY_ADDR_INITIALIZER  (struct evl_lock_key_addr){ .addr = NULL }
 #else
 struct evl_lock_key_addr { };
-#define __EVL_LOCK_KEY_ADDR_INITIALIZER  (struct foo){ }
+#define __EVL_LOCK_KEY_ADDR_INITIALIZER  (struct evl_lock_key_addr){ }
 #endif
 
 struct evl_wait_queue {
