@@ -5,6 +5,7 @@
  * Copyright (C) 2008, 2018 Philippe Gerum  <rpm@xenomai.org>
  */
 
+#include <linux/err.h>
 #include <evl/sched.h>
 #include <evl/memory.h>
 #include <uapi/evl/sched.h>
@@ -276,32 +277,35 @@ static struct evl_tp_schedule *
 set_tp_schedule(struct evl_rq *rq, struct evl_tp_schedule *gps)
 {
 	struct evl_sched_tp *tp = &rq->tp;
-	struct evl_thread *thread, *tmp;
 	struct evl_tp_schedule *old_gps;
-	union evl_sched_param param;
-
-	assert_hard_lock(&rq->lock);
+	unsigned long flags;
 
 	if (EVL_WARN_ON(CORE, gps != NULL &&
 		(gps->pwin_nr <= 0 || gps->pwins[0].w_offset != 0)))
 		return tp->gps;
 
-	stop_tp_schedule(rq);
+	/*
+	 * Changing the TP schedule on a runqueue is a twofold
+	 * operation which happens atomically: first we stop the
+	 * per-CPU timer driving the time slicing, next the new
+	 * scheduling table is swapped with the old one.
+	 */
+	raw_spin_lock_irqsave(&rq->lock, flags);
 
 	/*
-	 * Move all TP threads on this scheduler to the FIFO class,
-	 * until we call evl_set_thread_schedparam_locked() for them again.
+	 * We deny the change if some thread undergoing the TP policy
+	 * is currently attached to the target runqueue.
 	 */
-	if (list_empty(&tp->threads))
-		goto done;
-
-	list_for_each_entry_safe(thread, tmp, &tp->threads, tp_link) {
-		param.fifo.prio = thread->cprio;
-		evl_set_thread_schedparam_locked(thread, &evl_sched_fifo, &param);
+	if (!list_empty(&tp->threads)) {
+		raw_spin_unlock_irqrestore(&rq->lock, flags);
+		return ERR_PTR(-EBUSY);
 	}
-done:
+
+	stop_tp_schedule(rq);
 	old_gps = tp->gps;
 	tp->gps = gps;
+
+	raw_spin_unlock_irqrestore(&rq->lock, flags);
 
 	return old_gps;
 }
@@ -333,19 +337,17 @@ static ssize_t tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 	struct evl_tp_ctlparam *pt = &ctlp->tp;
 	ktime_t offset, duration, next_offset;
 	struct evl_tp_schedule *gps, *ogps;
+	int n, nr_windows, ret = -EINVAL;
 	struct __evl_tp_window *p, *pp;
 	struct evl_tp_window *w, *pw;
 	struct evl_tp_ctlinfo *it;
 	unsigned long flags;
 	struct evl_rq *rq;
-	int n, nr_windows;
 
 	if (cpu < 0 || !cpu_present(cpu) || !is_threading_cpu(cpu))
 		return -EINVAL;
 
 	rq = evl_cpu_rq(cpu);
-
-	raw_spin_lock_irqsave(&rq->lock, flags);
 
 	switch (pt->op) {
 	case evl_tp_install:
@@ -356,23 +358,27 @@ static ssize_t tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 		gps = NULL;
 		goto switch_schedule;
 	case evl_tp_start:
+		raw_spin_lock_irqsave(&rq->lock, flags);
 		start_tp_schedule(rq);
 		raw_spin_unlock_irqrestore(&rq->lock, flags);
 		goto done;
 	case evl_tp_stop:
+		raw_spin_lock_irqsave(&rq->lock, flags);
 		stop_tp_schedule(rq);
 		raw_spin_unlock_irqrestore(&rq->lock, flags);
 		goto done;
 	case evl_tp_get:
+		raw_spin_lock_irqsave(&rq->lock, flags);
+		gps = get_tp_schedule(rq);
+		raw_spin_unlock_irqrestore(&rq->lock, flags);
+		if (gps == NULL)
+			goto done;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	gps = get_tp_schedule(rq);
-	raw_spin_unlock_irqrestore(&rq->lock, flags);
-	if (gps == NULL)
-		goto done;
+	/* evl_tp_get */
 
 	if (infp == NULL) {
 		put_tp_schedule(gps);
@@ -398,8 +404,7 @@ static ssize_t tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 
 	return evl_tp_infolen(nr_windows);
 
-install_schedule:
-	raw_spin_unlock_irqrestore(&rq->lock, flags);
+install_schedule:	/* evl_tp_install */
 
 	gps = evl_alloc(sizeof(*gps) + pt->nr_windows * sizeof(*w));
 	if (gps == NULL)
@@ -433,11 +438,14 @@ install_schedule:
 	atomic_set(&gps->refcount, 1);
 	gps->pwin_nr = n;
 	gps->tf_duration = next_offset;
-	raw_spin_lock_irqsave(&rq->lock, flags);
-switch_schedule:
-	ogps = set_tp_schedule(rq, gps);
-	raw_spin_unlock_irqrestore(&rq->lock, flags);
 
+switch_schedule:	/* evl_tp_{un}install */
+
+	ogps = set_tp_schedule(rq, gps);
+	if (IS_ERR(ogps)) {
+		ret = PTR_ERR(ogps);
+		goto fail;
+	}
 	if (ogps)
 		put_tp_schedule(ogps);
 done:
@@ -447,7 +455,7 @@ done:
 fail:
 	evl_free(gps);
 
-	return -EINVAL;
+	return ret;
 }
 
 struct evl_sched_class evl_sched_tp = {
