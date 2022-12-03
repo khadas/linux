@@ -1479,6 +1479,9 @@ struct mminit_pfnnid_cache {
 
 void memory_present(int nid, unsigned long start, unsigned long end);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define pfn_valid_within(pfn) pfn_valid(pfn)
+#else
 /*
  * If it is possible to have holes within a MAX_ORDER_NR_PAGES, then we
  * need to check pfn validity within that MAX_ORDER_NR_PAGES block.
@@ -1489,6 +1492,7 @@ void memory_present(int nid, unsigned long start, unsigned long end);
 #define pfn_valid_within(pfn) pfn_valid(pfn)
 #else
 #define pfn_valid_within(pfn) (1)
+#endif
 #endif
 
 #endif /* !__GENERATING_BOUNDS.H */
