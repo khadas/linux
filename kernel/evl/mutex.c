@@ -485,9 +485,9 @@ retry:
 	 * therefore we need to reconcile the in-kernel descriptor
 	 * with the shared handle which has the accurate value. If
 	 * both match though, evl_get_factory_element_by_fundle() got
-	 * us a reference on @owner which the original call to
-	 * track_mutex_owner() already obtained for that thread, so we
-	 * need to drop it to rebalance the refcount.
+	 * us another reference on @owner like set_mutex_owner()
+	 * already obtained earlier for that thread, so we need to
+	 * drop it to rebalance the refcount.
 	 *
 	 * The consistency of this information is guaranteed, because
 	 * we just raised the claim bit atomically for this contended
@@ -522,8 +522,7 @@ retry:
 		check_dep_only = false; /* Adjust priorities too. */
 	}
 
-	raw_spin_unlock(&owner->lock);
-
+	/* Walking the chain drops owner->lock. */
 	ret = evl_walk_lock_chain(&mutex->wchan, curr, check_dep_only);
 	assert_hard_lock(&mutex->wchan.lock);
 	assert_hard_lock(&curr->lock);
