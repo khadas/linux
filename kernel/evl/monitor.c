@@ -968,17 +968,23 @@ static ssize_t state_show(struct device *dev,
 		}
 	} else {
 		fun = atomic_read(&state->u.gate.owner);
-		if (fun != EVL_NO_HANDLE)
+		if (fun != EVL_NO_HANDLE) {
 			owner = evl_get_factory_element_by_fundle(&evl_thread_factory,
 						evl_get_index(fun),
 						struct evl_thread);
-		ret = snprintf(buf, PAGE_SIZE, "%d %u %u\n",
-			owner ? evl_get_inband_pid(owner) : -1,
-			state->u.gate.ceiling,
-			owner ? (state->u.gate.recursive ?
-				state->u.gate.nesting : 1) : 0);
-		if (owner)
+			if (!owner)
+				goto no_owner;
+			ret = snprintf(buf, PAGE_SIZE, "%s(%d) %u %u\n",
+				evl_element_name(&owner->element),
+				evl_get_inband_pid(owner),
+				state->u.gate.ceiling,
+				state->u.gate.recursive ? state->u.gate.nesting : 1);
 			evl_put_element(&owner->element);
+		} else {
+		no_owner:
+			ret = snprintf(buf, PAGE_SIZE, "-1 %u 0\n",
+				state->u.gate.ceiling);
+		}
 	}
 
 	evl_put_element(&mon->element);
