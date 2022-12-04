@@ -582,9 +582,30 @@ fail:
 }
 EXPORT_SYMBOL_GPL(evl_lock_mutex_timeout);
 
+/* wchan->lock held, irqs off. */
+static void wakeup_and_release(struct evl_mutex *mutex)
+{
+	struct evl_thread *top_waiter;
+
+	/*
+	 * Allow the top waiter in line to retry acquiring the mutex.
+	 */
+	if (!list_empty(&mutex->wchan.wait_list)) {
+		top_waiter = list_get_entry_init(&mutex->wchan.wait_list,
+						struct evl_thread, wait_next);
+		evl_wakeup_thread(top_waiter, EVL_T_PEND, 0);
+	}
+
+	/*
+	 * Make the change visible to everyone including user-space
+	 * once the kernel state is in sync.
+	 */
+	atomic_set(mutex->fastlock, EVL_NO_HANDLE);
+}
+
 void __evl_unlock_mutex(struct evl_mutex *mutex)
 {
-	struct evl_thread *curr = evl_current(), *top_waiter;
+	struct evl_thread *curr = evl_current();
 	unsigned long flags;
 
 	trace_evl_mutex_unlock(mutex);
@@ -602,8 +623,10 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 	 * fundle. If so, skip the PI/PP deboosting, no boost can be
 	 * in effect for such lock.
 	 */
-	if (mutex->wchan.owner == NULL)
-		goto release;
+	if (mutex->wchan.owner == NULL) {
+		wakeup_and_release(mutex);
+		goto out;
+	}
 
 	if (EVL_WARN_ON(CORE, mutex->wchan.owner != curr))
 		goto out;
@@ -618,32 +641,19 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 	if (mutex->flags & EVL_MUTEX_CEILING) {
 		EVL_WARN_ON(CORE, mutex->flags & EVL_MUTEX_PIBOOST);
 		mutex->flags &= ~EVL_MUTEX_CEILING;
+		wakeup_and_release(mutex);
 		drop_booster(mutex, true);
 	} else if (mutex->flags & EVL_MUTEX_PIBOOST) {
 		EVL_WARN_ON(CORE, mutex->flags & EVL_MUTEX_CEILING);
 		mutex->flags &= ~EVL_MUTEX_PIBOOST;
+		wakeup_and_release(mutex);
 		drop_booster(mutex, true);
 	} else {
 		/* Clear the owner information only. */
 		untrack_mutex_owner(mutex);
+		wakeup_and_release(mutex);
 	}
 
-	/*
-	 * Allow the first waiter in line to retry acquiring the
-	 * mutex.
-	 */
-release:
-	if (!list_empty(&mutex->wchan.wait_list)) {
-		top_waiter = list_get_entry_init(&mutex->wchan.wait_list,
-				struct evl_thread, wait_next);
-		evl_wakeup_thread(top_waiter, EVL_T_PEND, 0);
-	}
-
-	/*
-	 * Make the change visible to everyone including user-space
-	 * once the kernel state is in sync.
-	 */
-	atomic_set(mutex->fastlock, EVL_NO_HANDLE);
 out:
 	raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
 
