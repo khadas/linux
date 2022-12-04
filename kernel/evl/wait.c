@@ -254,7 +254,6 @@ void evl_adjust_wait_priority(struct evl_thread *thread)
 	EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled());
 
 	raw_spin_lock(&thread->lock);
-
 	wchan = evl_get_thread_wchan(thread);
 	if (!wchan) {
 		raw_spin_unlock(&thread->lock);
@@ -268,6 +267,9 @@ void evl_adjust_wait_priority(struct evl_thread *thread)
 	owner = wchan->owner;
 	if (owner) {
 		wchan->requeue_wait(wchan, thread);
+		raw_spin_unlock(&thread->lock);
+		evl_double_thread_lock(thread, owner);
+		/* Walking the chain drops owner->lock. */
 		evl_walk_lock_chain(wchan, thread, false);
 	} else {
 		wchan->requeue_wait(wchan, thread);
@@ -300,7 +302,10 @@ void evl_adjust_wait_priority(struct evl_thread *thread)
  * 3. there is no rule #3.
  *
  * On entry:
- * orig_wchan->lock held + orig_waiter->lock held, irqs off.
+ *
+ * (orig_wchan->lock + orig_wchan->owner->lock + orig_waiter->lock)
+ * held, irqs off. All these locks may be dropped temporarily during
+ * the walk. orig_wchan->owner->lock is NOT reacquired at exit.
  */
 int evl_walk_lock_chain(struct evl_wait_channel *orig_wchan,
 			struct evl_thread *orig_waiter,
@@ -310,16 +315,23 @@ int evl_walk_lock_chain(struct evl_wait_channel *orig_wchan,
 	struct evl_wait_channel *wchan = orig_wchan, *next_wchan;
 	int ret = 0;
 
-	assert_hard_lock(&orig_wchan->lock);
-	assert_hard_lock(&orig_waiter->lock);
+	assert_hard_lock(&wchan->lock);
+	assert_hard_lock(&waiter->lock);
 
 	/* We must have a valid owner for the origin wchan. */
 	if (EVL_WARN_ON_ONCE(CORE, !owner))
 		return -EIO;
 
+	assert_hard_lock(&owner->lock);
+
 	/* The chain must be sane on entry. */
-	if (EVL_WARN_ON_ONCE(CORE, owner == orig_waiter))
+	if (EVL_WARN_ON_ONCE(CORE, owner == orig_waiter)) {
+		raw_spin_unlock(&owner->lock);
 		return -EDEADLK;
+	}
+
+	evl_get_element(&orig_waiter->element);
+	raw_spin_unlock(&orig_waiter->lock);
 
 	/*
 	 * Since we drop locks inside the loop, we might have
@@ -331,8 +343,10 @@ int evl_walk_lock_chain(struct evl_wait_channel *orig_wchan,
 	 * it the proper priority at any point in time.
 	 */
 	for (;;) {
-		raw_spin_unlock(&waiter->lock);
-		raw_spin_lock(&owner->lock); /* Grab this before we drop wchan->lock */
+		/*
+		 * We already hold wchan->owner->lock, so dropping
+		 * wchan->lock is safe.
+		 */
 		raw_spin_unlock(&wchan->lock);
 
 		/*
@@ -375,10 +389,18 @@ int evl_walk_lock_chain(struct evl_wait_channel *orig_wchan,
 			ret = -EDEADLK;
 			goto unlock_out;
 		}
+
+		raw_spin_unlock(&waiter->lock);
+		/*
+		 * We must grab this lock before we drop wchan->lock
+		 * at the next iteration.
+		 */
+		raw_spin_lock(&owner->lock);
 	}
 out:
 	raw_spin_lock(&orig_wchan->lock);
 	raw_spin_lock(&orig_waiter->lock);
+	evl_put_element(&orig_waiter->element);
 
 	return ret;
 
