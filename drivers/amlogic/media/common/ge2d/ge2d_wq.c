@@ -520,7 +520,7 @@ static void ge2d_update_matrix(struct ge2d_queue_item_s *pitem)
 		}
 
 		/* if customized matrix is used
-		 * skip internal matrix params, use externel directly
+		 * skip internal matrix params, use external directly
 		 */
 		if ((format_src & GE2D_MATRIX_CUSTOM) ||
 		    (format_dst & GE2D_MATRIX_CUSTOM)) {

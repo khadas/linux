@@ -211,7 +211,7 @@ static int video_provider_creat_path(void)
 		&vp_vfm_ops, NULL);
 	ret = vf_reg_provider(&vp_vfm_prov);
 	if (ret < 0)
-		vp_info("vfm path is aleady created\n");
+		vp_info("vfm path is already created\n");
 	ret = vf_notify_receiver(VIDEO_PROVIDER_NAME,
 					VFRAME_EVENT_PROVIDER_START, NULL);
 	if (ret < 0) {

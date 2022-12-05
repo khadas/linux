@@ -458,7 +458,7 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 	int cap_mask = 0;
 	int index = 0, dma_fd;
 	enum ge2d_data_type_e data_type;
-	struct ge2d_dmabuf_attach_s attatch;
+	struct ge2d_dmabuf_attach_s attach;
 	void __user *argp = (void __user *)args;
 
 	ge2d_config_ex = kzalloc(sizeof(*ge2d_config_ex), GFP_KERNEL);
@@ -841,7 +841,7 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		}
 		break;
 	case GE2D_ATTACH_DMA_FD:
-		ret = copy_from_user(&attatch, argp,
+		ret = copy_from_user(&attach, argp,
 				     sizeof(struct ge2d_dmabuf_attach_s));
 		if (ret < 0) {
 			pr_err("Error user param\n");
@@ -1092,7 +1092,7 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		ge2d_buffer_cache_flush(dma_fd);
 		break;
 	case GE2D_ATTACH_DMA_FD:
-		ge2d_ioctl_attach_dma_fd(context, &attatch);
+		ge2d_ioctl_attach_dma_fd(context, &attach);
 		break;
 	case GE2D_DETACH_DMA_FD:
 		ge2d_ioctl_detach_dma_fd(context, data_type);

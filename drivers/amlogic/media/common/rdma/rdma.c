@@ -550,7 +550,7 @@ s32 VSYNC_ADD_RD_REG(u32 adr)
 	if (enable_ != 0 && handle > 0)
 		return rdma_add_read_reg(handle, adr);
 
-	pr_info("%s: VSYNC_RDMA_READ is diabled\n", __func__);
+	pr_info("%s: VSYNC_RDMA_READ is disabled\n", __func__);
 	return -1;
 }
 EXPORT_SYMBOL(VSYNC_ADD_RD_REG);

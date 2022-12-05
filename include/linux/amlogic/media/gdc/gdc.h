@@ -93,7 +93,7 @@ struct gdc_cmd_s {
 	struct gdc_config_s gdc_config;
 	/* update this index for new config */
 	/* int gdc_config_total; */
-	/* start memory to write gdc output framse */
+	/* start memory to write gdc output frames */
 	u32 buffer_addr;
 	/* size of memory output frames to determine */
 	/* if it is enough and can do multiple write points */

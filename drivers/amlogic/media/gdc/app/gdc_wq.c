@@ -452,7 +452,7 @@ int destroy_gdc_work_queue(struct gdc_context_s *gdc_work_queue)
 	int core_index;
 
 	if (gdc_work_queue) {
-		/* first detatch it from the process queue,then delete it . */
+		/* first detach it from the process queue,then delete it . */
 		/* maybe process queue is changing .so we lock it. */
 		spin_lock(&gdc_manager.event.sem_lock);
 		list_del(&gdc_work_queue->list);
