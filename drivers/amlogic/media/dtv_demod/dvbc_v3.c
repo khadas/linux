@@ -458,7 +458,7 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	qam_write_reg(demod, SR_OFFSET_ACC, 0x61b53e54);
 	/*modified by qiancheng by raymond 20121208  0x63b53e54 for cci */
 	/*  dvbc_write_reg(QAM_BASE+0x020, 0x6192bfe2);*/
-	/* //modifed by ligg 20130613 auto symb_rate scan*/
+	/* //modified by ligg 20130613 auto symb_rate scan*/
 	if (adc_freq == 0)
 		phs_cfg = 0;
 	else

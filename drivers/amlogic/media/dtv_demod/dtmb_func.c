@@ -445,7 +445,7 @@ int dtmb_bch_check(struct dvb_frontend *fe)
 			}
 			if (i % 2 == 0) {
 				strength = tuner_get_ch_power(fe);
-				if (strength < THRD_TUNER_STRENTH_DTMB) {
+				if (strength < THRD_TUNER_STRENGTH_DTMB) {
 					/*weak signal,return*/
 					PR_DTMB("%s strength=%d, return\n",
 						 __func__, strength);

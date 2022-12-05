@@ -603,9 +603,9 @@ void ofdm_initial(int bandwidth,
 	dvbt_isdbt_wr_reg((0x4e << 2), 0x0f0f1d09);
 	/* CCI_CTRL */
 	dvbt_isdbt_wr_reg((0x4f << 2), 0x00000000);
-	/* CCI DET_INDX1 */
+	/* CCI DET_INDEX1 */
 	dvbt_isdbt_wr_reg((0x50 << 2), 0x00000000);
-	/* CCI DET_INDX2 */
+	/* CCI DET_INDEX2 */
 	dvbt_isdbt_wr_reg((0x51 << 2), 0x00000000);
 	/* CCI_NOTCH1_A1 */
 	dvbt_isdbt_wr_reg((0x52 << 2), 0x00000000);
