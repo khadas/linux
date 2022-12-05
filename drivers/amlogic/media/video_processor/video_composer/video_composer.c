@@ -2665,7 +2665,6 @@ static int video_composer_thread(void *data)
 	struct composer_dev *dev = data;
 
 	vc_print(dev->index, PRINT_OTHER, "thread: started\n");
-	init_waitqueue_head(&dev->wq);
 
 	dev->thread_stopped = 0;
 	while (1) {
@@ -2780,7 +2779,7 @@ static int video_composer_open(struct inode *inode, struct file *file)
 		pr_err("video_composer_thread creat failed\n");
 		return -ENOMEM;
 	}
-
+	init_waitqueue_head(&dev->wq);
 	if (sched_setscheduler(dev->kthread, SCHED_FIFO, &param))
 		pr_err("vc:Could not set realtime priority.\n");
 
