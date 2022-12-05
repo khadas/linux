@@ -45,7 +45,8 @@
 	"V03.00.00.01.03.03.14 [20221129] [FRL] update the cur_enc_ppc on FRL TMDS modes\n" \
 	"V03.00.00.01.03.03.15 [20221202] [FRL] T7 not support FRL\n" \
 	"V03.00.00.01.03.03.16 [20221212] [FRL] add FRL link training procedure\n" \
-	"V03.00.00.01.03.03.17 [20221219] [PHY] refine phy setting sequence\n" \
-	"V03.00.00.01.03.03.18 [20221226] [CLK] refine clock setting sequence\n"
+	"V03.01.00.01.03.03.16 [20221219] [PHY] refine phy setting sequence\n" \
+	"V03.01.00.01.03.03.17 [20221226] [CLK] refine clock setting sequence\n" \
+	"V03.02.00.01.03.03.17 [20221221] [PHY] test pixel clkmsr and adjust phy reg for 70hz issue\n"
 
 #endif // __HDMI21_VERSION_H__

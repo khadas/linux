@@ -131,7 +131,7 @@ void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk)
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0x3b0004e9);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0x0000aaab);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x00000000);
-		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x0a691c00);/*test*/
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);/*test*/
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x33771290);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL5, 0x3927000a);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL6, 0x50540000);
@@ -146,7 +146,7 @@ void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk)
 		else
 			hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0x00007333);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x00000000);
-		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x0a691c00);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x33771290);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL5, 0x3927000a);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL6, 0x50540000);
@@ -188,7 +188,7 @@ void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk)
 		else
 			hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0x00005c29);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x00000000);
-		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x0a691c00);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x33771290);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL5, 0x3927000a);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL6, 0x50540000);
@@ -215,7 +215,7 @@ void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk)
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0x3b00048f);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0x00018000);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x00000000);
-		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x0a691c00);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x33771290);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL5, 0x3927000a);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL6, 0x50540000);
@@ -230,7 +230,7 @@ void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk)
 		else
 			hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0x0000451f);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x00000000);
-		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x0a691c00);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x33771290);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL5, 0x3927000a);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL6, 0x50540000);
@@ -242,7 +242,7 @@ void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk)
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0x3b000485);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0x00007555);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x00000000);
-		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x0a691c00);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x33771290);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL5, 0x3927000a);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL6, 0x50540000);
@@ -257,7 +257,7 @@ void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk)
 		else
 			hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0x00018000);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x00000000);
-		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x0a691c00);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x33771290);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL5, 0x3927000a);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL6, 0x50540000);
@@ -269,7 +269,7 @@ void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk)
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0x3b0004a8);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0x00000000);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x00000000);
-		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x0a691c00);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x33771290);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL5, 0x3927000a);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL6, 0x50540000);

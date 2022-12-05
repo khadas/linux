@@ -137,7 +137,7 @@ void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b0004e9);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x0000aaab);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
-		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x0a691c00);/*test*/
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);/*test*/
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);
@@ -152,7 +152,7 @@ void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		else
 			hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00007333);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
-		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x0a691c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);
@@ -209,7 +209,7 @@ void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		else
 			hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00005c29);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
-		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x0a691c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);
@@ -236,7 +236,7 @@ void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b00048f);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00018000);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
-		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x0a691c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);
@@ -251,7 +251,7 @@ void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		else
 			hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x0000451f);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
-		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x0a691c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);
@@ -263,7 +263,7 @@ void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b000485);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00007555);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
-		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x0a691c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);
@@ -278,7 +278,7 @@ void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		else
 			hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00018000);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
-		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x0a691c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);
@@ -290,7 +290,7 @@ void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b0004a8);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00000000);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
-		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x0a691c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);

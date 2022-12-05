@@ -7,6 +7,7 @@
 #include <linux/printk.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
+#include <linux/amlogic/clk_measure.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include "common.h"
 #include "mach_reg.h"
@@ -15,6 +16,9 @@
 #ifdef CONFIG_AMLOGIC_VPU
 #include <linux/amlogic/media/vpu/vpu.h>
 #endif
+
+#define SET_CLK_MAX_TIMES 10
+#define CLK_TOLERANCE 2 /* Unit: MHz */
 
 /* local frac_rate flag */
 static u32 frac_rate;
@@ -910,7 +914,8 @@ static void set_hdmitx_fe_clk(struct hdmitx_dev *hdev)
 	hd_set_reg_bits(hdmi_clk_cntl, tmp, 20, 4);
 }
 
-static void hdmitx_set_clk_(struct hdmitx_dev *hdev)
+static void hdmitx_set_clk_(struct hdmitx_dev *hdev,
+		struct hw_enc_clk_val_group *test_clk)
 {
 	int i = 0;
 	int j = 0;
@@ -918,6 +923,9 @@ static void hdmitx_set_clk_(struct hdmitx_dev *hdev)
 	enum hdmi_vic vic = hdev->cur_VIC;
 	enum hdmi_color_space cs = hdev->para->cs;
 	enum hdmi_color_depth cd = hdev->para->cd;
+
+	if (!test_clk)
+		return;
 
 	/* YUV 422 always use 24B mode */
 	if (cs == COLORSPACE_YUV422)
@@ -988,6 +996,7 @@ static void hdmitx_set_clk_(struct hdmitx_dev *hdev)
 		return;
 	}
 next:
+	*test_clk = p_enc[j];
 	hdmitx_set_cts_sys_clk(hdev);
 	set_hpll_clk_out(p_enc[j].hpll_clk_out);
 	if (cd == COLORDEPTH_24B && hdev->sspll)
@@ -1036,11 +1045,122 @@ static void hdmitx_check_frac_rate(struct hdmitx_dev *hdev)
 	pr_info("frac_rate = %d\n", hdev->frac_rate_policy);
 }
 
+/*
+ * calculate the pixel clock with current clock parameters
+ * and measure the pixel clock from hardware clkmsr
+ * then compare above 2 clocks
+ */
+static bool test_pixel_clk(struct hdmitx_dev *hdev, const struct hw_enc_clk_val_group *t)
+{
+	u32 idx;
+	u32 calc_pixel_clk;
+	u32 msr_pixel_clk;
+
+	if (!hdev || !t)
+		return 0;
+
+	/* refer to meson-clk-measure.c, here can see that before SC2,
+	 * the pixel index is 36, and since or after SC2, the index is 59
+	 * the index may change in later chips
+	 */
+	idx = 59;
+
+	/* calculate the pixel_clk firstly */
+	calc_pixel_clk = t->hpll_clk_out;
+	if (frac_rate)
+		calc_pixel_clk = calc_pixel_clk - calc_pixel_clk / 1001;
+	calc_pixel_clk /= (t->od1 > 0) ? t->od1 : 1;
+	calc_pixel_clk /= (t->od2 > 0) ? t->od2 : 1;
+	calc_pixel_clk /= (t->od3 > 0) ? t->od3 : 1;
+	switch (t->vid_pll_div) {
+	case VID_PLL_DIV_2:
+		calc_pixel_clk /= 2;
+		break;
+	case VID_PLL_DIV_2p5:
+		calc_pixel_clk = calc_pixel_clk * 2 / 5;
+		break;
+	case VID_PLL_DIV_3:
+		calc_pixel_clk /= 3;
+		break;
+	case VID_PLL_DIV_3p25:
+		calc_pixel_clk = calc_pixel_clk * 4 / 13;
+		break;
+	case VID_PLL_DIV_3p5:
+		calc_pixel_clk = calc_pixel_clk * 2 / 7;
+		break;
+	case VID_PLL_DIV_3p75:
+		calc_pixel_clk = calc_pixel_clk * 4 / 15;
+		break;
+	case VID_PLL_DIV_4:
+		calc_pixel_clk /= 4;
+		break;
+	case VID_PLL_DIV_5:
+		calc_pixel_clk /= 5;
+		break;
+	case VID_PLL_DIV_6:
+		calc_pixel_clk /= 6;
+		break;
+	case VID_PLL_DIV_6p25:
+		calc_pixel_clk = calc_pixel_clk * 4 / 25;
+		break;
+	case VID_PLL_DIV_7:
+		calc_pixel_clk /= 7;
+		break;
+	case VID_PLL_DIV_7p5:
+		calc_pixel_clk = calc_pixel_clk * 2 / 15;
+		break;
+	case VID_PLL_DIV_12:
+		calc_pixel_clk /= 12;
+		break;
+	case VID_PLL_DIV_14:
+		calc_pixel_clk /= 14;
+		break;
+	case VID_PLL_DIV_15:
+		calc_pixel_clk /= 15;
+		break;
+	case VID_PLL_DIV_1:
+	default:
+		calc_pixel_clk /= 1;
+		break;
+	}
+	calc_pixel_clk /= (t->vid_clk_div > 0) ? t->vid_clk_div : 1;
+	calc_pixel_clk /= (t->hdmi_tx_pixel_div > 0) ? t->hdmi_tx_pixel_div : 1;
+
+	/* measure the current HW pixel_clk */
+	msr_pixel_clk = meson_clk_measure_with_precision(idx, 32);
+
+	/* convert both unit to MHz and compare */
+	calc_pixel_clk /= 1000;
+	msr_pixel_clk /= 1000000;
+	if (calc_pixel_clk == msr_pixel_clk)
+		return 1;
+	if (calc_pixel_clk > msr_pixel_clk && ((calc_pixel_clk - msr_pixel_clk) <= CLK_TOLERANCE))
+		return 1;
+	if (calc_pixel_clk < msr_pixel_clk && ((msr_pixel_clk - calc_pixel_clk) <= CLK_TOLERANCE))
+		return 1;
+	pr_info("calc_pixel_clk %dMHz msr_pixel_clk %dMHz\n", calc_pixel_clk, msr_pixel_clk);
+	return 0;
+}
+
 void hdmitx_set_clk(struct hdmitx_dev *hdev)
 {
+	int i = 0;
+	struct hw_enc_clk_val_group test_clks = {0};
+
 	hdmitx_check_frac_rate(hdev);
 
-	hdmitx_set_clk_(hdev);
+	if (hdev->data->chip_type == MESON_CPU_ID_SC2) {
+		/* set the clock and test the pixel clock */
+		for (i = 0; i < SET_CLK_MAX_TIMES; i++) {
+			hdmitx_set_clk_(hdev, &test_clks);
+			if (test_pixel_clk(hdev, &test_clks))
+				break;
+		}
+		if (i == SET_CLK_MAX_TIMES)
+			pr_info("need check hdmitx clocks\n");
+	} else {
+		hdmitx_set_clk_(hdev, &test_clks);
+	}
 }
 
 void hdmitx_disable_clk(struct hdmitx_dev *hdev)

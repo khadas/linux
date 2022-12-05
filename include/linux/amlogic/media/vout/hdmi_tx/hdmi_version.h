@@ -34,16 +34,17 @@
 	"V03.00.01.00.01.03.05 [20220903] [BUG] add DDC reset before do EDID transaction\n" \
 	"V03.00.01.00.01.03.06 [20220919] [BUG] Don't reset variables when parse a new block\n" \
 	"V03.00.01.00.01.03.07 [20220926] [BUG] enable null packt for special TV\n" \
-	"V01.01.01.00.01.03.07 [20221018] [AUD] optimise the audio setting flow\n" \
-	"V03.01.01.00.01.03.08 [20221021] [BUG] not read EDID again if EDID already read done\n" \
-	"V03.01.01.00.01.03.09 [20221025] [COM] when set mode 4x3 and 16x9, return valid mode 1\n" \
-	"V03.01.01.00.01.03.10 [20221031] [NEW] add new format 2560x1440p60hz\n" \
-	"V03.01.01.00.01.04.10 [20221102] [EDID] adjust edid parsing for tv_ts\n" \
-	"V03.01.01.00.01.04.11 [20221111] [HPD] add hpd GPI status\n" \
-	"V03.01.01.00.01.04.12 [20221117] [BUG] remove audio mute when adaptive from sdr to hdr\n" \
-	"V03.01.01.00.01.04.13 [20221121] [NEW] add dump_debug_reg for debug\n" \
-	"V03.01.01.00.02.04.13 [20221130] [HDCP] optimise drm hdcp flow when switch mode\n" \
-	"V03.01.01.00.02.05.13 [20221214] [EDID] Adjust the maximum supported TMDS clk\n" \
-	"V03.01.01.00.03.05.13 [20221215] [HDCP] dma map and sync for allocat for hdcp22 panic\n"
+	"V03.00.02.00.01.03.07 [20221018] [AUD] optimise the audio setting flow\n" \
+	"V03.00.02.00.01.03.08 [20221021] [BUG] not read EDID again if EDID already read done\n" \
+	"V03.00.02.00.01.03.09 [20221025] [COM] when set mode 4x3 and 16x9, return valid mode 1\n" \
+	"V03.00.02.00.01.03.10 [20221031] [NEW] add new format 2560x1440p60hz\n" \
+	"V03.00.02.00.01.04.10 [20221102] [EDID] adjust edid parsing for tv_ts\n" \
+	"V03.00.02.00.01.04.11 [20221111] [HPD] add hpd GPI status\n" \
+	"V03.00.02.00.01.04.12 [20221117] [BUG] remove audio mute when adaptive from sdr to hdr\n" \
+	"V03.00.02.00.01.04.13 [20221121] [NEW] add dump_debug_reg for debug\n" \
+	"V03.00.02.00.02.04.13 [20221130] [HDCP] optimise drm hdcp flow when switch mode\n" \
+	"V03.00.02.00.02.05.13 [20221214] [EDID] Adjust the maximum supported TMDS clk\n" \
+	"V03.00.02.00.03.05.13 [20221215] [HDCP] dma map and sync for allocat for hdcp22 panic\n" \
+	"V03.01.02.00.03.05.13 [20221221] [PHY] test pixel clkmsr and adjust phy reg for 70hz issue\n"
 
 #endif // __HDMI20_VERSION_H__
