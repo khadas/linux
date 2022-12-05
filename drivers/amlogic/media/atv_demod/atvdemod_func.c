@@ -2210,7 +2210,7 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 			p->frequency <= ATV_SECAM_LC_100MHZ) {
 			retrieve_vpll_carrier_audio_power(
 					&carrier_power, 100);
-			if (carrier_power < AUIDO_CARRIER_POWER_MIN) {
+			if (carrier_power < AUDIO_CARRIER_POWER_MIN) {
 				broad_std =
 				AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_LC;
 				pr_err("%s,carrier %d too low, set L to LC.\n",
@@ -2343,7 +2343,7 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 	pr_err("%s:broad_std:%d,carrier_power_average_max:%lu\n",
 			__func__, broad_std, carrier_power_average_max);
 
-	if (carrier_power_average_max < AUIDO_CARRIER_POWER_MIN) {
+	if (carrier_power_average_max < AUDIO_CARRIER_POWER_MIN) {
 		pr_err("%s,carrier too low error\n", __func__);
 		if (secam_signal) {
 			broad_std =

@@ -9,7 +9,7 @@
 struct v4l2_frontend;
 struct atv_demod_priv;
 
-#define AUIDO_CARRIER_POWER_MIN    150
+#define AUDIO_CARRIER_POWER_MIN    150
 
 #define HHI_ATV_DMD_SYS_CLK_CNTL		0x10f3
 #define HHI_ATV_DMD_SYS_CLK_CNTL_T3		0x1086
