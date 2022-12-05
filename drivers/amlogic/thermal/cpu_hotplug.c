@@ -15,16 +15,16 @@
 #define CPU_HOTPLUG_NONE	0
 #define CPU_HOTPLUG_PLUG	1
 #define CPU_HOTPLUG_UNPLUG	2
-#define MAX_CLUSTRS		2
+#define MAX_CLUSTERS		2
 
 struct cpu_hotplug_s {
 	int clusters;
-	unsigned int flags[MAX_CLUSTRS];
-	unsigned int max_num[MAX_CLUSTRS];
-	cpumask_t cpumask[MAX_CLUSTRS];
-	unsigned int cpunum[MAX_CLUSTRS];
-	unsigned int min_num[MAX_CLUSTRS];
-	const char *compatible[MAX_CLUSTRS];
+	unsigned int flags[MAX_CLUSTERS];
+	unsigned int max_num[MAX_CLUSTERS];
+	cpumask_t cpumask[MAX_CLUSTERS];
+	unsigned int cpunum[MAX_CLUSTERS];
+	unsigned int min_num[MAX_CLUSTERS];
+	const char *compatible[MAX_CLUSTERS];
 	struct work_struct work;
 	struct mutex mutex; /* define a mutex */
 };
@@ -74,7 +74,7 @@ static int cpu_hotplug_cpumask_init(void)
 	int cpu, cluster;
 
 	hpg.clusters = 0;
-	for (cluster = 0; cluster < MAX_CLUSTRS; cluster++) {
+	for (cluster = 0; cluster < MAX_CLUSTERS; cluster++) {
 		hpg.cpunum[cluster] = 0;
 		cpumask_clear(&hpg.cpumask[cluster]);
 	}
@@ -89,7 +89,7 @@ static int cpu_hotplug_cpumask_init(void)
 		hpg.cpunum[cluster]++;
 	}
 
-	for (cluster = 0; cluster < MAX_CLUSTRS; cluster++) {
+	for (cluster = 0; cluster < MAX_CLUSTERS; cluster++) {
 		hpg.max_num[cluster] = hpg.cpunum[cluster];
 		hpg.flags[cluster] = CPU_HOTPLUG_NONE;
 		hpg.min_num[cluster] = 0;
