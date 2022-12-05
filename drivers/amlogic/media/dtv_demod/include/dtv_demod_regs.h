@@ -19,6 +19,7 @@
 #define DC_ARB_EN_WID		1
 
 #define TEST_BUS_VLD		(0x3b)
+#define TEST_BUS_DC_ADDR	(0x3f)
 
 /* j.83b fec */
 #define J83B_FEC_TS_CLK		(0x84)

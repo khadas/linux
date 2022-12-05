@@ -62,6 +62,7 @@
 /*  V1.1.68  add a function to invert the spectrum in dvbs blind scan */
 /*  V1.1.69  fixed atsc agc speed test */
 /*  V1.1.70  improve diseqc lnb control */
+/*  V1.1.71  fix dvbt2 ddr abnormal access */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -78,8 +79,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.70"
-#define DTVDEMOD_VER	"2022/11/17: improve diseqc lnb control"
+#define AMLDTVDEMOD_VER "V1.1.71"
+#define DTVDEMOD_VER	"2022/12/06: fix dvbt2 ddr abnormal access"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

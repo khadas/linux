@@ -611,6 +611,7 @@ void dvbt_t2_wr_word_bits(u32 addr, const u32 data, const u32 start, const u32 l
 unsigned int dvbt_t2_read_w(unsigned int addr);
 char dvbt_t2_rdb(unsigned int addr);
 void riscv_ctl_write_reg(unsigned int addr, unsigned int data);
+unsigned int riscv_ctl_read_reg(unsigned int addr);
 void dvbs_write_bits(u32 reg_addr, const u32 reg_data,
 		    const u32 start, const u32 len);
 void dvbs_wr_byte(unsigned int addr, unsigned char data);

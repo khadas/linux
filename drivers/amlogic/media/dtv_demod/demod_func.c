@@ -804,6 +804,11 @@ void riscv_ctl_write_reg(unsigned int addr, unsigned int data)
 	dvbt_t2_write_w(addr, data);
 }
 
+unsigned int riscv_ctl_read_reg(unsigned int addr)
+{
+	return dvbt_t2_read_w(addr);
+}
+
 void dvbs_wr_byte(unsigned int addr, unsigned char data)
 {
 	if (!get_dtvpll_init_flag())
