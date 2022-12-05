@@ -189,7 +189,7 @@ static int resample_clk_set(struct audioresample *p_resample, int output_sr)
 		else
 			clk_set_rate(p_resample->pll, 1806336 * 1000);
 	} else {
-		/* defaule tdm out mclk to resample clk */
+		/* default tdm out mclk to resample clk */
 		/* for same with earctx, so need *5 */
 		clk_set_rate(p_resample->pll, output_sr * CLK_RATIO * 2 * 20);
 	}

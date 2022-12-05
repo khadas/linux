@@ -935,7 +935,7 @@ static void spdifin_status_event(struct aml_spdif *p_spdif)
 		if (mode == 0x7 || (((intrpt_status >> 18) & 0x3ff) == 0x3ff)) {
 			p_spdif->in_err_cnt++;
 			if (p_spdif->in_err_cnt > SPDIFIN_ERR_CNT) {
-				pr_err("Not detect sample rate, spdifin may be disconneted\n");
+				pr_err("Not detect sample rate, spdifin may be disconnected\n");
 				p_spdif->in_err_cnt = 0;
 			}
 			extcon_set_state(p_spdif->edev,

@@ -489,7 +489,7 @@ int audiodsp_probe(void)
 	}
 	res = register_chrdev(AUDIODSP_MAJOR, DSP_NAME, &audiodsp_fops);
 	if (res < 0) {
-		DSP_PRNT("Can't register  char devie for " DSP_NAME "\n");
+		DSP_PRNT("Can't register  char device for " DSP_NAME "\n");
 		goto error1;
 	} else {
 		DSP_PRNT("register " DSP_NAME " to char device(%d)\n",

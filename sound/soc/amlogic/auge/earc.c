@@ -284,7 +284,7 @@ static void earctx_init(int earc_port, bool st)
 	st = st && p_earc->tx_ui_flag;
 	if (!st) {
 		schedule_work(&p_earc->send_uevent);
-		/* set discnnect when cable plugout */
+		/* set disconnect when cable plugout */
 		p_earc->earctx_connected_device_type = ATNDTYP_DISCNCT;
 		/* release earctx same source when cable plug out */
 		aml_check_and_release_sharebuffer(NULL, EARCTX_DMAC);

@@ -540,7 +540,7 @@ struct userdata_meta_info_t {
 	u32 flags;
 	u32 vpts;			/*video frame pts*/
 	/*
-	 * 0: pts is invalid, please use duration to calcuate
+	 * 0: pts is invalid, please use duration to calculate
 	 * 1: pts is valid
 	 */
 	u32 vpts_valid;
