@@ -1250,6 +1250,7 @@ static const struct freq_ref_s freq_ref[] = {
 	{0,	0,	0,	1280,	720,	HDMI_720p50},
 	{0,	0,	1,	1280,	1470,	HDMI_720p_FRAMEPACKING},
 
+	{1,	0,	0,	1920,	1080,	HDMI_1920_1080_INTERLACED},
 	{0,	0,	0,	1920,	1080,	HDMI_1080p50},
 	{0,	0,	2,	1920,	2160,	HDMI_1080p_ALTERNATIVE},
 	{0,	0,	1,	1920,	2205,	HDMI_1080p_FRAMEPACKING},
@@ -1473,6 +1474,7 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 	case HDMI_1080p100_64x27:	/* 77 */
 	case HDMI_1080p120_64x27:	/* 78 */
 	case HDMI_1080p_420:
+	case HDMI_1920_1080_INTERLACED:
 		if (get_fps_index() == E_24HZ)
 			fmt = TVIN_SIG_FMT_HDMI_1920X1080P_24HZ;
 		else if (get_fps_index() == E_25HZ)
@@ -3360,7 +3362,6 @@ void rx_main_state_machine(void)
 			//rx_sw_reset(2);
 			hdmirx_top_irq_en(0, 0);
 			hdmirx_output_en(false);
-			hdmirx_hbr2spdif(0);
 			rx.state = FSM_WAIT_CLK_STABLE;
 			vic_check_en = false;
 			rx.skip = 0;
@@ -3391,7 +3392,6 @@ void rx_main_state_machine(void)
 				//rx_sw_reset(2);
 				hdmirx_top_irq_en(0, 0);
 				hdmirx_output_en(false);
-				hdmirx_hbr2spdif(0);
 				rx.state = FSM_WAIT_CLK_STABLE;
 				vic_check_en = false;
 				rx.skip = 0;
