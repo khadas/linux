@@ -1432,6 +1432,7 @@
 }; /* end of audiobus */
 
 &earc {
+	suspend-clk-off = <1>;
 	status = "okay";
 };
 

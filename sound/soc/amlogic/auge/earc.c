@@ -26,6 +26,7 @@
 #include <sound/tlv.h>
 #include <linux/workqueue.h>
 #include <linux/amlogic/iomap.h>
+#include <linux/clk-provider.h>
 
 #include <linux/amlogic/media/sound/hdmi_earc.h>
 #include "resample.h"
@@ -182,6 +183,7 @@ struct earc {
 	/* get from hdmirx */
 	int earctx_5v;
 	unsigned int standard_tx_dmac;
+	int suspend_clk_off;
 };
 
 static struct earc *s_earc;
@@ -2676,6 +2678,11 @@ static int earc_platform_probe(struct platform_device *pdev)
 			}
 		}
 
+		ret = of_property_read_u32(node, "suspend-clk-off",
+				&p_earc->suspend_clk_off);
+		if (ret < 0)
+			dev_err(&pdev->dev, "Can't retrieve suspend-clk-off\n");
+
 		p_earc->irq_earc_tx =
 			platform_get_irq_byname(pdev, "earc_tx");
 		if (p_earc->irq_earc_tx < 0)
@@ -2749,6 +2756,7 @@ int earc_platform_remove(struct platform_device *pdev)
 static int earc_platform_resume(struct platform_device *pdev)
 {
 	struct earc *p_earc = dev_get_drvdata(&pdev->dev);
+	int ret = 0;
 
 	/* earc device, and the state is arc, need recovery earc */
 	if (!IS_ERR(p_earc->tx_cmdc_map) &&
@@ -2757,6 +2765,72 @@ static int earc_platform_resume(struct platform_device *pdev)
 	    earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map) == ATNDTYP_ARC)
 		schedule_work(&p_earc->tx_resume_work);
 
+	if (p_earc->suspend_clk_off) {
+		pr_info("%s begin\n", __func__);
+		if (!IS_ERR(p_earc->clk_tx_cmdc) && !IS_ERR(p_earc->clk_tx_cmdc_srcpll)) {
+			clk_set_parent(p_earc->clk_tx_cmdc, NULL);
+			ret = clk_set_parent(p_earc->clk_tx_cmdc, p_earc->clk_tx_cmdc_srcpll);
+			if (ret)
+				dev_err(p_earc->dev, "Can't resume set clk_tx_cmdc parent clock\n");
+		}
+		if (!IS_ERR(p_earc->clk_tx_dmac) && !IS_ERR(p_earc->clk_tx_dmac_srcpll)) {
+			clk_set_parent(p_earc->clk_tx_dmac, NULL);
+			ret = clk_set_parent(p_earc->clk_tx_dmac, p_earc->clk_tx_dmac_srcpll);
+			if (ret)
+				dev_err(p_earc->dev, "Can't resume set clk_tx_dmac parent clock\n");
+			ret = clk_prepare_enable(p_earc->clk_tx_dmac);
+			if (ret)
+				dev_err(p_earc->dev, "Can't resume enable earc clk_tx_dmac\n");
+			ret = clk_prepare_enable(p_earc->clk_tx_cmdc);
+			if (ret)
+				dev_err(p_earc->dev, "Can't resume enable earc clk_tx_cmdc\n");
+		}
+
+		if (!IS_ERR(p_earc->clk_rx_cmdc) && !IS_ERR(p_earc->clk_rx_cmdc_srcpll)) {
+			clk_set_parent(p_earc->clk_rx_cmdc, NULL);
+			ret = clk_set_parent(p_earc->clk_rx_cmdc, p_earc->clk_rx_cmdc_srcpll);
+			if (ret)
+				dev_err(p_earc->dev, "Can't resume set clk_rx_cmdc parent clock\n");
+		}
+		if (!IS_ERR(p_earc->clk_rx_dmac) && !IS_ERR(p_earc->clk_rx_dmac_srcpll)) {
+			clk_set_parent(p_earc->clk_rx_dmac, NULL);
+			ret = clk_set_parent(p_earc->clk_rx_dmac, p_earc->clk_rx_dmac_srcpll);
+			if (ret)
+				dev_err(p_earc->dev, "Can't resume set clk_rx_dmac parent clock\n");
+			ret = clk_prepare_enable(p_earc->clk_rx_cmdc);
+			if (ret)
+				dev_err(p_earc->dev, "Can't resume enable earc clk_rx_cmdc\n");
+			ret = clk_prepare_enable(p_earc->clk_rx_dmac);
+			if (ret)
+				dev_err(p_earc->dev, "Can't resume enable earc clk_rx_dmac\n");
+			ret = clk_prepare_enable(p_earc->clk_rx_dmac_srcpll);
+			if (ret)
+				dev_err(p_earc->dev, "Can't resume enable earc clk_rx_dmac_srcpll\n");
+		}
+	}
+	pr_info("%s done\n", __func__);
+
+	return 0;
+}
+
+static int earc_platform_suspend(struct platform_device *pdev,
+	pm_message_t state)
+{
+	struct earc *p_earc = dev_get_drvdata(&pdev->dev);
+
+	if (p_earc->suspend_clk_off) {
+		pr_info("%s begin\n", __func__);
+		if (!IS_ERR(p_earc->clk_rx_cmdc)) {
+			while (__clk_is_enabled(p_earc->clk_rx_cmdc))
+				clk_disable_unprepare(p_earc->clk_rx_cmdc);
+		}
+
+		if (!IS_ERR(p_earc->clk_rx_dmac)) {
+			while (__clk_is_enabled(p_earc->clk_rx_dmac))
+				clk_disable_unprepare(p_earc->clk_rx_dmac);
+		}
+	}
+	pr_info("%s done\n", __func__);
 	return 0;
 }
 
@@ -2766,6 +2840,7 @@ struct platform_driver earc_driver = {
 		.of_match_table = earc_device_id,
 	},
 	.probe = earc_platform_probe,
+	.suspend = earc_platform_suspend,
 	.remove = earc_platform_remove,
 	.resume  = earc_platform_resume,
 };
