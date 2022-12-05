@@ -56,7 +56,7 @@ unsigned int sysfs_trigger;
 unsigned int early_suspend_state;
 bool is_clr_resume_reason;
 /*
- * Avoid run early_suspend/late_resume repeatly.
+ * Avoid run early_suspend/late_resume repeatedly.
  */
 unsigned int already_early_suspend;
 
