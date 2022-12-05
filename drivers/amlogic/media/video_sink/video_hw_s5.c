@@ -3278,10 +3278,10 @@ static u32 get_prevsc_out_size(u32 prevsc_en,
 }
 #endif
 
-/* calcuate to din size for each slice */
+/* calculate to din size for each slice */
 
 /* 1. Calculate PPS scale ratio based on whole frame
- * Each slice's PPS scale ratios should be indentical to it.
+ * Each slice's PPS scale ratios should be identical to it.
  * 2. calculate vd1 unit slice input size :
  *    if PI/1S4P :  they are just input size;
  *    if 4SLICES4PPC or 2SLICES4PPC : get unit valid din size(without overlap)
@@ -3311,7 +3311,7 @@ static void get_slice_input_size(struct vd_proc_s *vd_proc)
 	mosaic_mode = vd_proc_vd1_info->vd1_work_mode == VD1_2_2SLICES_MODE &&
 		vd_proc_vd1_info->vd1_slices_dout_dpsel == VD1_SLICES_DOUT_4S4P;
 
-	/* caculated vd_proc_slice_info and vd_proc_pps */
+	/* calculated vd_proc_slice_info and vd_proc_pps */
 	if (vd_proc_vd1_info->vd1_slices_dout_dpsel == VD1_SLICES_DOUT_4S4P &&
 		!mosaic_mode) {
 #ifdef NEW_PRE_SCALER

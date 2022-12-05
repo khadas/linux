@@ -23,7 +23,7 @@ struct rdma_warn_array {
 	u32 addr;
 	u32 count;
 	u32 cur_line;
-	u32 cur_begine_line;
+	u32 cur_begin_line;
 };
 
 enum {

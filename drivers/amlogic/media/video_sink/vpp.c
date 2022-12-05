@@ -47,7 +47,7 @@
 #define MAX_NONLINEAR_FACTOR    0x40
 #define MAX_NONLINEAR_T_FACTOR    100
 
-/* vpp filter coefficients */
+/* vpp filter coefficient */
 #define COEF_BICUBIC         0
 #define COEF_3POINT_TRIANGLE 1
 #define COEF_4POINT_TRIANGLE 2
@@ -566,7 +566,7 @@ static uint coeff(uint *settings, uint ratio, uint phase,
 #endif
 	} else {
 		/*
-		 *gxtvbb use dejaggy in SR0 to reduce intelace combing
+		 *gxtvbb use dejaggy in SR0 to reduce interlace combing
 		 *other chip no dejaggy, need switch to more blur filter
 		 */
 		if (interlace && coeff_select < 3 && vpp_filter_fix)
@@ -1829,7 +1829,7 @@ RESTART:
 		ext_sar = false;
 	}
 
-	/* speical mode did not use ext sar mode */
+	/* special mode did not use ext sar mode */
 	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
 	    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP ||
 	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T)
@@ -2185,7 +2185,7 @@ RESTART:
 		}
 	}
 
-	/* set filter co-efficients */
+	/* set filter co-efficient */
 	tmp_ratio_y = ratio_y;
 	ratio_y <<= height_shift;
 	ratio_y = ratio_y / (next_frame_par->vscale_skip_count + 1);
@@ -2315,7 +2315,7 @@ RESTART:
 			w_in, end - start + 1,
 			next_frame_par);
 	}
-	/* speical mode did not use aisr */
+	/* special mode did not use aisr */
 	/* 3d not use aisr */
 	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
 	    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP ||
@@ -2587,7 +2587,7 @@ RESTART:
 
 	/* vscaler enable
 	 * vout 4k 50hz
-	 * video src heiht >= 2160*60%
+	 * video src height >= 2160*60%
 	 * 4tap pre-hscaler bandwidth issue, need used old pre hscaler
 	 */
 	}
@@ -2970,7 +2970,7 @@ RESTART:
 		ext_sar = false;
 	}
 
-	/* speical mode did not use ext sar mode */
+	/* special mode did not use ext sar mode */
 	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
 	    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP ||
 	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T)
@@ -3331,7 +3331,7 @@ RESTART:
 		}
 	}
 
-	/* set filter co-efficients */
+	/* set filter co-efficient */
 	tmp_ratio_y = ratio_y;
 	ratio_y <<= height_shift;
 	ratio_y = ratio_y / (next_frame_par->vscale_skip_count + 1);
@@ -3461,7 +3461,7 @@ RESTART:
 			w_in, end - start + 1,
 			next_frame_par);
 	}
-	/* speical mode did not use aisr */
+	/* special mode did not use aisr */
 	/* 3d not use aisr */
 	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
 	    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP ||
@@ -3731,7 +3731,7 @@ RESTART:
 
 	/* vscaler enable
 	 * vout 4k 50hz
-	 * video src heiht >= 2160*60%
+	 * video src height >= 2160*60%
 	 * 4tap pre-hscaler bandwidth issue, need used old pre hscaler
 	 */
 	}
@@ -4268,7 +4268,7 @@ void aisr_set_filters(struct disp_info_s *input,
 	aisr_frame_par->vscale_skip_count = 0;
 	filter = &aisr_frame_par->vpp_filter;
 
-	/* speical mode did not use ext sar mode */
+	/* special mode did not use ext sar mode */
 	/* 3d not use aisr */
 	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
 	    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP ||
@@ -4354,7 +4354,7 @@ RESTART:
 	aisr_frame_par->VPP_vsc_startp = start;
 	aisr_frame_par->VPP_vsc_endp = end;
 
-	/* set filter co-efficients */
+	/* set filter co-efficient */
 	filter->vpp_vsc_start_phase_step = ratio_y << 6;
 
 	/* horizontal */
@@ -6495,7 +6495,7 @@ RESTART:
 			(end >> 1) : end;
 	}
 
-	/* set filter co-efficients */
+	/* set filter co-efficient */
 	ratio_y <<= height_shift;
 	ratio_tmp = ratio_y / (next_frame_par->vscale_skip_count + 1);
 	ratio_y = ratio_tmp;

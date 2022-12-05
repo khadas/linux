@@ -1396,7 +1396,7 @@ static int line_threshold = 5;
 static int line_threshold_2 = 90;
 static int vsync_threshold = 10;
 static int vsync_adjust_hit;
-static int cur_begine_line[VIU_COUNT];
+static int cur_begin_line[VIU_COUNT];
 module_param_named(osd_vsync_enter_line_max, vsync_enter_line_max, uint, 0664);
 
 module_param_named(osd_vsync_exit_line_max, vsync_exit_line_max, uint, 0664);
@@ -11977,9 +11977,9 @@ void osd_secure_cb(u32 arg)
 }
 #endif
 
-u32 get_cur_begine_line(u32 output_index)
+u32 get_cur_begin_line(u32 output_index)
 {
-	return cur_begine_line[output_index];
+	return cur_begin_line[output_index];
 }
 
 static void adjust_pi_axis(void)
@@ -12183,7 +12183,7 @@ static int osd_setting_order(u32 output_index)
 			break;
 		line1 = get_enter_encp_line(VIU1);
 	}
-	cur_begine_line[VIU1] = line1;
+	cur_begin_line[VIU1] = line1;
 	if (wait_cnt > 0)
 		osd_hw.rdma_delayed_cnt1++;
 	spin_lock_irqsave(&osd_lock, lock_flags);

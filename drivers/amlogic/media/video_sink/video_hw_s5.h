@@ -277,14 +277,14 @@ struct vd_proc_s {
 	/* mosaic (sometimes input) */
 	struct vd_proc_mosaic_s vd_proc_mosaic;
 
-	/* caculated param */
-	/* slice calucated */
+	/* calculated param */
+	/* slice calculated */
 	struct vd_proc_slice_info_s vd_proc_slice_info;
-	/* proc unit calucated */
+	/* proc unit calculated */
 	struct vd_proc_unit_s vd_proc_unit[SLICE_NUM];
 	/* proc pi */
 	struct vd_proc_pi_s vd_proc_pi;
-	/* proc blend calucated */
+	/* proc blend calculated */
 	struct vd_proc_blend_s vd_proc_blend;
 
 	struct vd_proc_blend_s vd_proc_preblend;

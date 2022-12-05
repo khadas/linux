@@ -1101,7 +1101,7 @@
 //Bit   18:16     soft_rst          unsigned  , default = 4
 //Bit   15:14     reserved
 //Bit   13:12     ddr_blk_size      unsigned  , default = 1
-//Bit   11:9      cmd_blk_size      unsigend  , default = 3
+//Bit   11:9      cmd_blk_size      unsigned  , default = 3
 //Bit   8         dec_enable        unsigned  , default = 0
 //Bit   7:2       reserved
 //Bit   1         head_len_sel      unsigned  , default = 1
@@ -1444,7 +1444,7 @@
 //Bit   18:16     soft_rst          unsigned  , default = 4
 //Bit   15:14     reserved
 //Bit   13:12     ddr_blk_size      unsigned  , default = 1
-//Bit   11:9      cmd_blk_size      unsigend  , default = 3
+//Bit   11:9      cmd_blk_size      unsigned  , default = 3
 //Bit   8         dec_enable        unsigned  , default = 0
 //Bit   7:2       reserved
 //Bit   1         head_len_sel      unsigned  , default = 1
@@ -1809,7 +1809,7 @@
 //Bit   18:16     soft_rst          unsigned  , default = 4
 //Bit   15:14     reserved
 //Bit   13:12     ddr_blk_size      unsigned  , default = 1
-//Bit   11:9      cmd_blk_size      unsigend  , default = 3
+//Bit   11:9      cmd_blk_size      unsigned  , default = 3
 //Bit   8         dec_enable        unsigned  , default = 0
 //Bit   7:2       reserved
 //Bit   1         head_len_sel      unsigned  , default = 1
@@ -2147,7 +2147,7 @@
 //Bit   18:16     soft_rst          unsigned  , default = 4
 //Bit   15:14     reserved
 //Bit   13:12     ddr_blk_size      unsigned  , default = 1
-//Bit   11:9      cmd_blk_size      unsigend  , default = 3
+//Bit   11:9      cmd_blk_size      unsigned  , default = 3
 //Bit   8         dec_enable        unsigned  , default = 0
 //Bit   7:2       reserved
 //Bit   1         head_len_sel      unsigned  , default = 1
@@ -2507,7 +2507,7 @@
 //Bit   18:16     soft_rst          unsigned  , default = 4
 //Bit   15:14     reserved
 //Bit   13:12     ddr_blk_size      unsigned  , default = 1
-//Bit   11:9      cmd_blk_size      unsigend  , default = 3
+//Bit   11:9      cmd_blk_size      unsigned  , default = 3
 //Bit   8         dec_enable        unsigned  , default = 0
 //Bit   7:2       reserved
 //Bit   1         head_len_sel      unsigned  , default = 1

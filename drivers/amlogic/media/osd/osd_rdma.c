@@ -367,7 +367,7 @@ static int get_rdma_stat(struct rdma_warn_array *warn_array,
 				warn_array[i].addr,
 				warn_array[i].count,
 				warn_array[i].cur_line,
-				warn_array[i].cur_begine_line);
+				warn_array[i].cur_begin_line);
 		} else {
 			break;
 		}
@@ -408,15 +408,15 @@ static void update_warn_table(struct rdma_warn_array *warn_array,
 			warn_array[i].addr = addr;
 			warn_array[i].count++;
 			warn_array[i].cur_line = get_encp_line(vpp_index);
-			warn_array[i].cur_begine_line =
-				get_cur_begine_line(vpp_index);
+			warn_array[i].cur_begin_line =
+				get_cur_begin_line(vpp_index);
 			break;
 		} else if (warn_array[i].addr == addr) {
 			/* same addr, update count */
 			warn_array[i].count++;
 			warn_array[i].cur_line = get_encp_line(vpp_index);
-			warn_array[i].cur_begine_line =
-				get_cur_begine_line(vpp_index);
+			warn_array[i].cur_begin_line =
+				get_cur_begin_line(vpp_index);
 			break;
 		}
 	}

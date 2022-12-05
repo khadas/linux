@@ -152,7 +152,7 @@ static int lowlatency_vsync(u8 instance_id)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	/* Just a workaround to enable RDMA without any register config.
-	 * Becasuse rdma is enabled after first rdma config.
+	 * Because rdma is enabled after first rdma config.
 	 * Previously, it will write register directly and
 	 * maybe out of blanking in first irq.
 	 */
