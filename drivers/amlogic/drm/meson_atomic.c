@@ -62,26 +62,24 @@ static bool check_parallel_commit(struct drm_atomic_state *state,
 	return true;
 }
 
-static void meson_commit_reenter_inc(struct drm_atomic_state *state,
+static void meson_commit_reenter_inc(struct meson_drm *priv,
 	int crtc_index, int flag)
 {
-	struct meson_drm *priv = state->dev->dev_private;
 	struct am_meson_crtc *amcrtc;
 
 	amcrtc = priv->crtcs[crtc_index];
 	atomic_inc(&amcrtc->commit_num);
 	/* WARN_ON(atomic_read(&amcrtc->commit_num) > 1); */
 	if (atomic_read(&amcrtc->commit_num) > 1)
-		DRM_ERROR("commit reenter\n");
+		DRM_ERROR("commit re-enter\n");
 
 	DRM_DEBUG_ATOMIC("%s crtc_index%d, commit_num=%d, flag=%d\n", __func__,
 		crtc_index, atomic_read(&amcrtc->commit_num), flag);
 }
 
-static void meson_commit_reenter_dec(struct drm_atomic_state *state,
+static void meson_commit_reenter_dec(struct meson_drm *priv,
 	int crtc_index, int flag)
 {
-	struct meson_drm *priv = state->dev->dev_private;
 	struct am_meson_crtc *amcrtc;
 
 	amcrtc = priv->crtcs[crtc_index];
@@ -204,10 +202,11 @@ static void meson_commit_work(struct kthread_work *work)
 	struct drm_atomic_state *state = container_of(work_item->work,
 						      struct drm_atomic_state,
 						      commit_work);
+	struct meson_drm *priv = state->dev->dev_private;
 
-	meson_commit_reenter_inc(state, work_item->crtc_id, work_item->commit_flag);
+	meson_commit_reenter_inc(priv, work_item->crtc_id, work_item->commit_flag);
 	meson_commit_tail(state);
-	meson_commit_reenter_dec(state, work_item->crtc_id, work_item->commit_flag);
+	meson_commit_reenter_dec(priv, work_item->crtc_id, work_item->commit_flag);
 	kfree(work_item);
 }
 
@@ -521,9 +520,9 @@ int meson_atomic_commit(struct drm_device *dev,
 		worker = &priv->commit_thread[crtc_index].worker;
 		kthread_queue_work(worker, &work_item->kthread_work);
 	} else {
-		meson_commit_reenter_inc(state, crtc_index, nonblock);
+		meson_commit_reenter_inc(priv, crtc_index, nonblock);
 		commit_tail(state);
-		meson_commit_reenter_dec(state, crtc_index, nonblock);
+		meson_commit_reenter_dec(priv, crtc_index, nonblock);
 	}
 
 	return 0;
