@@ -1009,6 +1009,7 @@
 				&clkc CLKID_HIFI_PLL
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
+		src-clk-freq = <491520000>;
 
 		status = "okay";
 	};
@@ -1027,6 +1028,7 @@
 				&clkc CLKID_MPLL1>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll", "clk_src_cd";
 
+		src-clk-freq = <491520000>;
 		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
 		pinctrl-0 = </* &mclk_1_pins */
 			&tdm_b_pins
@@ -1071,6 +1073,7 @@
 				&clkc CLKID_HIFI_PLL
 				&clkc CLKID_MPLL2>;
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
+		src-clk-freq = <491520000>;
 		tdmin-src-name = "hdmirx";
 		status = "okay";
 	};
@@ -1091,7 +1094,7 @@
 			"clk_src_cd",
 			"pdm_dclk",
 			"pdm_sysclk";
-
+		src-clk-freq = <491520000>;
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
 
@@ -1114,6 +1117,7 @@
 				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
 		clock-names = "sysclk", "clk_src_cd", "fixed_clk", "gate_spdifin",
 				"gate_spdifout", "clk_spdifin", "clk_spdifout";
+		src-clk-freq = <491520000>;
 		interrupts =
 				<GIC_SPI 35 IRQ_TYPE_EDGE_RISING>;
 
@@ -1139,7 +1143,7 @@
 				&clkaudio CLKID_AUDIO_SPDIFOUT_B>;
 		clock-names = "sysclk", "clk_src_cd",
 				"gate_spdifout", "clk_spdifout";
-
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -1181,8 +1185,7 @@
 
 	asrca:resample@0 {
 		compatible = "amlogic, t5-resample-a";
-		clocks = <&clkc CLKID_HIFI_PLL
-				&clkc CLKID_MPLL1
+		clocks = <&clkc CLKID_MPLL1
 			&clkaudio CLKID_AUDIO_MCLK_B
 			&clkaudio CLKID_AUDIO_RESAMPLE_A>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
