@@ -880,11 +880,7 @@ int meson_hdmitx_atomic_check(struct drm_connector *connector,
 			new_crtc_state->connectors_changed = true;
 
 		if (new_hdmitx_state->color_force) {
-			if (new_hdmitx_state->color_attr_para.colorformat !=
-				old_hdmitx_state->color_attr_para.colorformat ||
-				new_hdmitx_state->color_attr_para.bitdepth !=
-				old_hdmitx_state->color_attr_para.bitdepth)
-				new_crtc_state->mode_changed = true;
+			new_crtc_state->mode_changed = true;
 		}
 
 		if (new_hdmitx_state->frac_rate_policy !=
