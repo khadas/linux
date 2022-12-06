@@ -195,6 +195,11 @@ static int vlock_protect_min;
 static int vlock_manual;
 static int vlock_frc_is_on;
 static int vlock_frc_status_chg;
+static int vlock_ph_opt_percent;//vlock phase optimize percent
+static int vlock_adjust = 40;
+static int vlock_ph_min = 20;
+static int vlock_phase_dbg = 1;
+static int vlock_is_ph_opt = 1;
 
 struct reg_map vlock_reg_maps[REG_MAP_END] = {0};
 
@@ -2280,8 +2285,10 @@ void vlock_set_phase(struct stvlock_sig_sts *pvlock, u32 percent)
 	data = (ia * (100 + pvlock->phlock_percent)) / 200;
 	WRITE_VPP_REG(VPU_VLOCK_LOOP1_PHSDIF_TGT + offset_vlck, data);
 
-	vlock_reset(pvlock, 1);
-	vlock_reset(pvlock, 0);
+	if (vlock_phase_dbg) {
+		vlock_reset(pvlock, 1);
+		vlock_reset(pvlock, 0);
+	}
 }
 
 void vlock_set_phase_en(struct stvlock_sig_sts *pvlock, u32 en)
@@ -2573,8 +2580,7 @@ u32 vlock_fsm_check_support(struct stvlock_sig_sts *pvlock,
 
 void vlock_vmd_input_check(struct stvlock_sig_sts *pvlock)
 {
-	if (vlock_input_pre != pvlock->input_hz && pvlock->md_support &&
-		(pvlock->output_hz == pvlock->input_hz * 2)) {
+	if (vlock_input_pre != pvlock->input_hz && pvlock->md_support) {
 		pvlock->fsm_sts = VLOCK_STATE_NULL;
 		pvlock->vmd_chg = true;
 
@@ -2699,6 +2705,8 @@ u32 vlock_fsm_to_en_func(struct stvlock_sig_sts *pvlock,
 		pvlock->phlock_percent = 25;
 	else
 		pvlock->phlock_percent = 40;
+
+	vlock_adjust = pvlock->phlock_percent;
 
 	return ret;
 }
@@ -2974,6 +2982,7 @@ void vlock_fsm_monitor(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 {
 	u32 changed;
 	u32 timeout = 0;
+	//u32 percent;
 
 	if (pvlock->fsm_pause)
 		return;
@@ -2985,6 +2994,7 @@ void vlock_fsm_monitor(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 		if (vlock_frc_is_on)
 			vlock_tune_sync(pvlock);
 		if (pvlock->vf_sts) {
+			vlock_ph_opt_percent = vlock_ph_min;
 			/*have frame in*/
 			pvlock->frame_cnt_no = 0;
 			if (pvlock->frame_cnt_in++ >= VLOCK_START_CNT) {
@@ -3063,6 +3073,23 @@ void vlock_fsm_monitor(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 						VLOCK_STATE_DISABLE_STEP1_DONE;
 					vlock_clear_frame_counter(pvlock);
 					vlock_frc_status_chg = 0;
+				} else if (((pvlock->input_hz == 60 && pvlock->output_hz == 60) ||
+					(pvlock->input_hz == 50 && pvlock->output_hz == 50)) &&
+					vlock_get_phlock_flag_ex(pvlock) &&
+					vlock_get_vlock_flag_ex(pvlock) && vlock_is_ph_opt) {
+					if (vlock_ph_opt_percent > 0) {
+						vlock_adjust = vlock_adjust - 1;
+						vlock_set_phase(pvlock, vlock_adjust);
+						vlock_ph_opt_percent--;
+					}
+
+					if (vlock_debug & VLOCK_DEBUG_PHASE_OPTIMIZE)
+						pr_info("[%s] ph_opt_prt:%d adj:%d prt:%d ph:%d vlfg:%d ph_ex:%d vlfg_ex:%d\n",
+						__func__, vlock_ph_opt_percent, vlock_adjust,
+						pvlock->phlock_percent, vlock_get_phlock_flag(),
+						vlock_get_vlock_flag(),
+						vlock_get_phlock_flag_ex(pvlock),
+						vlock_get_vlock_flag_ex(pvlock));
 				}
 			}
 		} else if (pvlock->vmd_chg) {
@@ -3857,6 +3884,23 @@ ssize_t vlock_debug_store(struct class *cla,
 			return -EINVAL;
 		vlock_manual = val;
 		pr_info("vlock_manual:%d\n", vlock_manual);
+	} else if (!strncmp(parm[0], "vlock_dbg_ph", 12)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		vlock_phase_dbg = val;
+		pr_info("vlock_phase_dbg:%d\n", vlock_phase_dbg);
+	} else if (!strncmp(parm[0], "vlock_ph_opt", 12)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		if (val > 30)
+			val = 30;
+		vlock_ph_min = val;
+		pr_info("vlock_ph_min:%d\n", vlock_ph_min);
+	} else if (!strncmp(parm[0], "vlock_is_ph_opt", 12)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		vlock_is_ph_opt = val;
+		pr_info("vlock_is_ph_opt:%d\n", vlock_is_ph_opt);
 	} else {
 		pr_info("----cmd list -----\n");
 		pr_info("vlock_mode val\n");
