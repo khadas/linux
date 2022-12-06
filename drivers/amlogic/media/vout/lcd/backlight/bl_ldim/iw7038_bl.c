@@ -857,7 +857,7 @@ static ssize_t iw7038_store(struct class *class,
 			LDIMPR("test brightness[%d] = %d\n", val, val2);
 		}
 	} else {
-		LDIMERR("LDIM argment error!\n");
+		LDIMERR("LDIM argument error!\n");
 	}
 	return count;
 }

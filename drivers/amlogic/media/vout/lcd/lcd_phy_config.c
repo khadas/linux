@@ -746,7 +746,7 @@ static void lcd_lvds_phy_set_t7(struct aml_lcd_drv_s *pdrv, int status)
 	switch (pdrv->index) {
 	case 0:
 		if (lvds_conf->dual_port) {
-			LCDERR("don't suuport lvds dual_port for drv_index %d\n",
+			LCDERR("don't support lvds dual_port for drv_index %d\n",
 			       pdrv->index);
 			return;
 		}
@@ -754,7 +754,7 @@ static void lcd_lvds_phy_set_t7(struct aml_lcd_drv_s *pdrv, int status)
 		break;
 	case 1:
 		if (lvds_conf->dual_port) {
-			LCDERR("don't suuport lvds dual_port for drv_index %d\n",
+			LCDERR("don't support lvds dual_port for drv_index %d\n",
 			       pdrv->index);
 			return;
 		}

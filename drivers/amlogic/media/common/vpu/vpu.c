@@ -32,7 +32,7 @@
 /* v20211102: add t5w support */
 /* v20220803: add axg support */
 /* v20220517: add s5 support */
-#define VPU_VERION        "v20220803"
+#define VPU_VERSION        "v20220803"
 
 int vpu_debug_print_flag;
 static spinlock_t vpu_mem_lock;
@@ -1479,7 +1479,7 @@ static ssize_t vpu_debug_info(struct class *class,
 	level_max = vpu_conf.data->clk_level_max - 1;
 
 	len = sprintf(buf, "driver version: %s(%d-%s)\n",
-		      VPU_VERION,
+		      VPU_VERSION,
 		      vpu_conf.data->chip_type,
 		      vpu_conf.data->chip_name);
 	len += sprintf(buf + len, "actual clk:     %dHz\n"
@@ -2406,7 +2406,7 @@ static int vpu_probe(struct platform_device *pdev)
 
 	vpu_dev_num = 0;
 	VPUPR("driver version: %s(%d-%s)\n",
-	      VPU_VERION,
+	      VPU_VERSION,
 	      vpu_conf.data->chip_type,
 	      vpu_conf.data->chip_name);
 

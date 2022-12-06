@@ -1561,7 +1561,7 @@ static int lcd_tcon_data_multi_update(struct aml_lcd_drv_s *pdrv,
 	frame_rate = mm_table->frame_rate;
 	for (i = 0; i < mm_table->data_multi_cnt; i++) {
 		data_multi = &mm_table->data_multi[i];
-		/* bypass LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT for multi lut swich */
+		/* bypass LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT for multi lut switch */
 		if (data_multi->block_type == LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT)
 			continue;
 		/* bypass_flag for debug */
@@ -1684,7 +1684,7 @@ static int lcd_tcon_data_multi_set(struct aml_lcd_drv_s *pdrv,
 
 	for (i = 0; i < mm_table->data_multi_cnt; i++) {
 		data_multi = &mm_table->data_multi[i];
-		/* bypass LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT for multi lut swich */
+		/* bypass LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT for multi lut switch */
 		/* bypass LCD_TCON_DATA_BLOCK_TYPE_ACC_LUT for soc gamma update */
 		if (data_multi->block_type == LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT)
 			continue;

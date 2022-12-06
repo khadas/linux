@@ -906,7 +906,7 @@ static ssize_t iw7027_store(struct class *class, struct class_attribute *attr,
 			bl_iw7027->dma_support = val;
 		LDIMPR("dma_support: %d\n", bl_iw7027->dma_support);
 	} else {
-		LDIMERR("argment error!\n");
+		LDIMERR("argument error!\n");
 	}
 	return count;
 }

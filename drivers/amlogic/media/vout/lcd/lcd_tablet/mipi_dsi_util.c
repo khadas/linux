@@ -507,7 +507,7 @@ static void dsi_phy_init(struct aml_lcd_drv_s *pdrv, struct dsi_phy_s *dphy)
 			      (dphy->hs_zero << 16) |
 			      (dphy->hs_prepare << 24)));
 	} else {
-		LCDPR("bit_rata = %d\n", pconf->timing.bit_rate);
+		LCDPR("bit_rate = %d\n", pconf->timing.bit_rate);
 		dsi_phy_write(pdrv, MIPI_DSI_HS_TIM,
 			      (dphy->hs_exit | ((dphy->hs_trail / 2) << 8) |
 			      (dphy->hs_zero << 16) |

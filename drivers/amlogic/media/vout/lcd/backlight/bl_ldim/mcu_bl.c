@@ -405,7 +405,7 @@ static ssize_t blmcu_store(struct class *class, struct class_attribute *attr,
 		}
 		LDIMPR("dma_support: %d\n", bl_mcu->dma_support);
 	} else {
-		LDIMERR("argment error!\n");
+		LDIMERR("argument error!\n");
 	}
 
 blmcu_store_end:
