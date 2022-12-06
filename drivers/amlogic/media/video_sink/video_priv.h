@@ -771,6 +771,7 @@ void adjust_vpp_filter_parm(struct vpp_frame_par_s *frame_par,
 	u32 supsc1_vert_ratio,
 	u32 horz_phase_step,
 	u32 vert_phase_step);
+struct video_layer_s *get_vd_layer(u8 layer_id);
 
 /* from video.c */
 extern u32 osd_vpp_misc;
@@ -824,6 +825,7 @@ extern u32 reference_zorder;
 extern u32 pi_enable;
 
 bool black_threshold_check(u8 id);
+bool black_threshold_check_s5(u8 id);
 extern atomic_t primary_src_fmt;
 extern atomic_t cur_primary_src_fmt;
 

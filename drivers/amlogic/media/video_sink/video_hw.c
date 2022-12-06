@@ -935,7 +935,7 @@ u32 get_videopip2_onoff_state(void)
 }
 EXPORT_SYMBOL(get_videopip2_onoff_state);
 
-static struct video_layer_s *get_vd_layer(u8 layer_id)
+struct video_layer_s *get_vd_layer(u8 layer_id)
 {
 	struct video_layer_s *layer = &vd_layer[layer_id];
 
@@ -7276,7 +7276,7 @@ static void vpp_blend_update_s5(const struct vinfo_s *vinfo)
 	}
 	if ((vd_layer[0].global_output == 0 && !vd_layer[0].force_black) ||
 	    vd_layer[0].force_disable ||
-	    black_threshold_check(0)) {
+	    black_threshold_check_s5(0)) {
 		if (vd_layer[0].enabled)
 			force_flush = true;
 		vd_layer[0].enabled = 0;
@@ -7316,7 +7316,7 @@ static void vpp_blend_update_s5(const struct vinfo_s *vinfo)
 		if (!(mode & COMPOSE_MODE_3D) &&
 		    (vd_layer[1].global_output == 0 ||
 		     vd_layer[1].force_disable ||
-		     black_threshold_check(1))) {
+		     black_threshold_check_s5(1))) {
 			if (vd_layer[1].enabled)
 				force_flush = true;
 			vd_layer[1].enabled = 0;
@@ -7353,7 +7353,7 @@ static void vpp_blend_update_s5(const struct vinfo_s *vinfo)
 	if (vd_layer[2].vpp_index == VPP0) {
 		if ((vd_layer[2].global_output == 0 ||
 		     vd_layer[2].force_disable ||
-		     black_threshold_check(2))) {
+		     black_threshold_check_s5(2))) {
 			if (vd_layer[2].enabled)
 				force_flush = true;
 			vd_layer[2].enabled = 0;

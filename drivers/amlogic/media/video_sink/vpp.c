@@ -938,7 +938,7 @@ static int vpp_process_speed_check_s5
 	u32 width_out = 0;
 	u32 vpu_clk = 0, max_height = 4320; /* 8k mode */
 	u32 slice_num, max_proc_height_s5 = 0;
-	u32 pi_enable, clk_calc = 0;
+	u32 pi_enable, clk_calc = 0, overlap_size = 0;
 
 	if (!vf)
 		return SPEED_CHECK_DONE;
@@ -980,7 +980,19 @@ static int vpp_process_speed_check_s5
 		max_proc_height_s5 = max_proc_height * 2;
 	else
 		max_proc_height_s5 = max_proc_height;
-	width_in = width_in / slice_num;
+	switch (slice_num) {
+	case 4:
+		overlap_size = 32 * 2;
+		break;
+	case 2:
+		overlap_size = 32;
+		break;
+	case 1:
+	default:
+		overlap_size = 0;
+		break;
+	}
+	width_in = width_in / slice_num + overlap_size;
 
 	if (layer_id == 0 && (vpp_flags & VPP_FLAG_FROM_TOGGLE_FRAME)) {
 		if (max_proc_height_s5 < max_height)
@@ -997,6 +1009,13 @@ static int vpp_process_speed_check_s5
 		vtotal = vinfo->vtotal / 2;
 	else
 		vtotal = vinfo->vtotal;
+	if (super_debug)
+		pr_info("%s:width_in=%d, height_in=%d, height_out=%d, height_screen=%d\n",
+			__func__,
+			width_in,
+			height_in,
+			height_out,
+			height_screen);
 
 	/*according vlsi suggest,
 	 *if di work need check mif input and vpu process speed
@@ -1068,6 +1087,12 @@ static int vpp_process_speed_check_s5
 				if (layer_id == 0 &&
 				    (vpp_flags & VPP_FLAG_FROM_TOGGLE_FRAME))
 					cur_skip_ratio = cur_ratio;
+				if (super_debug)
+					pr_info("%s:line=%d,cur_ratio=%d, min_ratio_1000=%d\n",
+						__func__,
+						__LINE__,
+						cur_ratio,
+						min_ratio_1000);
 				if (cur_ratio > min_ratio_1000 &&
 				    vf->source_type !=
 				    VFRAME_SOURCE_TYPE_TUNER &&
@@ -1085,6 +1110,12 @@ static int vpp_process_speed_check_s5
 					    height_out *
 					    sync_duration_den *
 					    bypass_ratio);
+				if (super_debug)
+					pr_info("%s:line=%d,clk_calc=%d, clk_in_pps=%d\n",
+						__func__,
+						__LINE__,
+						clk_calc,
+						clk_in_pps);
 				if (height_out == 0 ||
 				     clk_calc > clk_in_pps)
 					return SPEED_CHECK_VSKIP;
@@ -1101,6 +1132,12 @@ static int vpp_process_speed_check_s5
 					    sync_duration_den * 256);
 				if (pi_enable)
 					clk_calc /= 2;
+				if (super_debug)
+					pr_info("%s:line=%d,clk_calc=%d, clk_in_pps=%d\n",
+						__func__,
+						__LINE__,
+						clk_calc,
+						clk_in_pps);
 				if (height_out == 0 ||
 					clk_calc > clk_in_pps)
 					return SPEED_CHECK_VSKIP;
@@ -1553,6 +1590,7 @@ static void align_vd1_mif_size_for_DV(struct vpp_frame_par_s *par,
 }
 #endif
 
+#ifdef CHECK_LATER
 static bool is_8k_in_4k120hz_out(u32 width_in,
 	u32 height_in,
 	const struct vinfo_s *vinfo)
@@ -1584,6 +1622,7 @@ static bool is_8k_in_1080p120hz_out(u32 width_in,
 	}
 	return false;
 }
+#endif
 
 static int vpp_set_filters_internal_s5
 	(struct disp_info_s *input,
@@ -1732,9 +1771,6 @@ static int vpp_set_filters_internal_s5
 #endif
 	else
 		vskip_step = 1;
-	/* for 4k120hz output */
-	if (is_8k_in_4k120hz_out(width_in, height_in, vinfo))
-		next_frame_par->vscale_skip_count++;
 
 	if (cur_super_debug)
 		pr_info("sar_width=%d, sar_height = %d, %d\n",
@@ -1755,6 +1791,13 @@ RESTART_ALL:
 	crop_right = video_source_crop_right / crop_ratio;
 	crop_top = video_source_crop_top / crop_ratio;
 	crop_bottom = video_source_crop_bottom / crop_ratio;
+
+	if (get_pi_enabled(input->layer_id)) {
+		width_out >>= 1;
+		height_out >>= 1;
+		video_layer_width >>= 1;
+		video_layer_height >>= 1;
+	}
 
 	slice_num = get_slice_num(input->layer_id);
 	if (slice_num == 2) {
@@ -2391,8 +2434,6 @@ RESTART:
 		if ((vpp_flags & VPP_FLAG_FORCE_NO_COMPRESS) ||
 		    next_frame_par->vscale_skip_count > 1 ||
 		    !afbc_support ||
-		    is_8k_in_1080p120hz_out(width_in,
-		    height_in, vinfo) ||
 		    force_no_compress)
 			no_compress = true;
 	} else {
@@ -2405,7 +2446,7 @@ RESTART:
 			pr_info
 			("layer%d: Try DW buffer for compress frame.\n",
 			input->layer_id);
-
+		adjust_video_slice_policy(input->layer_id, vf, no_compress);
 		/* for VIDTYPE_COMPRESS, check if we can use double write
 		 * buffer when primary frame can not be scaled.
 		 */
@@ -6971,23 +7012,23 @@ RERTY:
 	next_frame_par->VPP_post_blend_vd_h_end_ = vinfo->width - 1;
 	next_frame_par->VPP_post_blend_h_size_ = vinfo->width;
 
-	if (get_pi_enabled(input->layer_id)) {
-		dst_width = vinfo->width >> 1;
-		dst_height = vinfo->height >> 1;
-		local_input.layer_width >>= 1;
-		local_input.layer_height >>= 1;
-	}
-	if (local_input.pps_support)
+	if (local_input.pps_support) {
 		ret = vpp_set_filters_internal_s5
 			(&local_input, src_width, src_height,
 			dst_width, dst_height,
 			vinfo, vpp_flags, next_frame_par, vf);
-	else
+	} else {
+		if (get_pi_enabled(input->layer_id)) {
+			dst_width = vinfo->width >> 1;
+			dst_height = vinfo->height >> 1;
+			local_input.layer_width >>= 1;
+			local_input.layer_height >>= 1;
+		}
 		ret = vpp_set_filters_no_scaler_internal
 			(&local_input, src_width, src_height,
 			dst_width, dst_height,
 			vinfo, vpp_flags, next_frame_par, vf);
-
+	}
 	/* bypass sr since the input w/h may be wrong */
 	if (ret == vppfilter_changed_but_hold) {
 		bypass_sr0 = true;

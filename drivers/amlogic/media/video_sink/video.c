@@ -5312,6 +5312,67 @@ bool black_threshold_check(u8 id)
 	return ret;
 }
 
+bool black_threshold_check_s5(u8 id)
+{
+	struct video_layer_s *layer = NULL;
+	struct disp_info_s *layer_info = NULL;
+	struct vpp_frame_par_s *frame_par = NULL;
+	u32 black_threshold_width_s5 = 0;
+	u32 black_threshold_height_s5 = 0;
+	bool ret = false;
+	const struct vinfo_s *vinfo = get_current_vinfo();
+
+	if (id >= MAX_VD_LAYERS)
+		return ret;
+
+	black_threshold_width_s5 = black_threshold_width;
+	black_threshold_height_s5 = black_threshold_width;
+
+	/* check output */
+	if (vinfo) {
+		/* output: (4k-8k] */
+		if (vinfo->width >= 3840 && vinfo->height >= 2160) {
+			black_threshold_width_s5 = black_threshold_width * 4;
+			black_threshold_height_s5 = black_threshold_height * 4 + 20;
+		} else if ((vinfo->width >= 1920 && vinfo->height >= 1080 &&
+			(vinfo->sync_duration_num /
+			vinfo->sync_duration_den > 60))) {
+			/* 1080p 120hz - 4k 120hz */
+			black_threshold_width_s5 = black_threshold_width * 2;
+			black_threshold_height_s5 = black_threshold_height * 2;
+		} else {
+			black_threshold_width_s5 = black_threshold_width;
+			black_threshold_height_s5 = black_threshold_height;
+		}
+	}
+	if (black_threshold_width_s5 <= 0 ||
+	    black_threshold_height_s5 <= 0)
+		return ret;
+
+	layer = &vd_layer[id];
+	layer_info = &glayer_info[id];
+	if (layer_info->layer_top == 0 &&
+	    layer_info->layer_left == 0 &&
+	    layer_info->layer_width <= 1 &&
+	    layer_info->layer_height <= 1)
+		/* special case to do full screen display */
+		return ret;
+
+	frame_par = layer->cur_frame_par;
+	if (frame_par &&
+	    (frame_par->VPP_pic_in_height_ < 2 ||
+	     frame_par->VPP_line_in_length_ < 2))
+		return true;
+	if (layer_info->layer_width <= black_threshold_width_s5 ||
+	    layer_info->layer_height <= black_threshold_height_s5) {
+		if (frame_par &&
+		    frame_par->vscale_skip_count == 8 &&
+		    frame_par->hscale_skip_count == 1)
+			ret = true;
+	}
+	return ret;
+}
+
 void _set_video_crop(struct disp_info_s *layer, int *p)
 {
 	int last_l, last_r, last_t, last_b;

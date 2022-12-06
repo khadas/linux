@@ -6543,9 +6543,12 @@ static void vd1_scaler_setting_s5(struct video_layer_s *layer,
 			get_pre_hscaler_para(0, &ds_ratio, &flt_num);
 			if (hscaler_8tap_enable[0]) {
 				if (use_frm_horz_phase_step) {
-					hsc_init_rev_num0 =
-						slice == 0 ? 8 : 8 - (slice_x_st + 1 -
+					hsc_init_rev_num0 = (slice_x_st + 1 -
 						(slice_ini_sum >> 24));
+					if (hsc_init_rev_num0 > 8)
+						hsc_init_rev_num0 = 8;
+					hsc_init_rev_num0 =
+						slice == 0 ? 8 : 8 - hsc_init_rev_num0;
 					frame_par->hsc_rpt_p0_num0 = slice == 0 ? 3 : 2;
 				} else {
 					hsc_init_rev_num0 = 8;
@@ -9908,6 +9911,69 @@ void set_video_slice_policy(struct video_layer_s *layer,
 		layer->pi_enable = vd2_pi_enable;
 	if (g_vd1s1_vd2_prebld_en != 0xff)
 		layer->vd1s1_vd2_prebld_en = g_vd1s1_vd2_prebld_en;
+}
+
+/* for dw */
+void adjust_video_slice_policy(u32 layer_id,
+	struct vframe_s *vf, bool no_compress)
+{
+	u32 src_width = 0;
+	u32 src_height = 0;
+	u32 slice_num = 1, pi_en = 0;
+	const struct vinfo_s *vinfo = get_current_vinfo();
+	struct video_layer_s *layer = get_vd_layer(layer_id);
+
+	if (cur_dev->display_module != S5_DISPLAY_MODULE)
+		return;
+	/* check input */
+	if (!no_compress &&
+		vf->type & VIDTYPE_COMPRESS) {
+		src_width = vf->compWidth;
+		src_height = vf->compHeight;
+	} else {
+		src_width = vf->width;
+		src_height = vf->height;
+	}
+	if (layer->layer_id == 0) {
+		/* check output */
+		if (vinfo) {
+			/* output: (4k-8k], input <= 4k */
+			if ((vinfo->width > 4096 && vinfo->height > 2160) &&
+				(src_width <= 4096 && src_height <= 2160)) {
+				pi_en = 1;
+			/* 4k 120hz */
+			} else if (vinfo->width > 1920 && vinfo->height > 1080 &&
+				(vinfo->sync_duration_num /
+			    vinfo->sync_duration_den > 60)) {
+				slice_num = 2;
+				//if dv enable, vd1s1_vd2_prebld_en = 1;
+			} else {
+				slice_num = 1;
+			}
+		}
+		if (src_width > 4096 && src_height > 2160)
+			/* input: (4k-8k] */
+			slice_num = 4;
+		layer->slice_num = slice_num;
+		layer->pi_enable = pi_en;
+	} else {
+		/* check output */
+		if (vinfo) {
+			/* output: (4k-8k], 4k120, input <= 4k */
+			if ((vinfo->width > 4096 && vinfo->height > 2160) ||
+				(vinfo->width > 1920 && vinfo->height > 1080 &&
+				(vinfo->sync_duration_num /
+			    vinfo->sync_duration_den > 60)))
+				pi_en = 1;
+		}
+		slice_num = 1;
+		layer->slice_num = slice_num;
+		layer->pi_enable = pi_en;
+	}
+	if (debug_flag_s5 & DEBUG_VD_PROC)
+		pr_info("%s:slice_num=%d, pi_enable=%d\n",
+			__func__,
+			layer->slice_num, layer->pi_enable);
 }
 
 static u8 get_probe_type(u8 probe_id)
