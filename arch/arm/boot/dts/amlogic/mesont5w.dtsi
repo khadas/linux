@@ -1403,7 +1403,7 @@
 			#size-cells = <1>;
 			ranges = <0x0 0xff603000 0x1000>;
 			earc: earc@0 {
-				compatible = "amlogic, t7-snd-earc";
+				compatible = "amlogic, t3-snd-earc";
 				#sound-dai-cells = <0>;
 
 				status = "disabled";

@@ -1279,22 +1279,17 @@ static struct snd_soc_dai_ops earc_dai_ops = {
 	.shutdown	= earc_dai_shutdown,
 };
 
+static struct snd_soc_pcm_stream pcm_stream = {
+	.channels_min = 1,
+	.channels_max = 32,
+	.rates        = EARC_RATES,
+	.formats      = EARC_FORMATS,
+};
+
 static struct snd_soc_dai_driver earc_dai[] = {
 	{
 		.name     = "EARC/ARC",
 		.id       = 0,
-		.playback = {
-		      .channels_min = 1,
-		      .channels_max = 32,
-		      .rates        = EARC_RATES,
-		      .formats      = EARC_FORMATS,
-		},
-		.capture = {
-		     .channels_min = 1,
-		     .channels_max = 32,
-		     .rates        = EARC_RATES,
-		     .formats      = EARC_FORMATS,
-		},
 		.ops    = &earc_dai_ops,
 	},
 };
@@ -2275,6 +2270,13 @@ struct earc_chipinfo tm2_revb_earc_chipinfo = {
 	.tx_enable = true,
 };
 
+struct earc_chipinfo sc2_earc_chipinfo = {
+	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
+	.rx_dmac_sync_int = true,
+	.rx_enable = true,
+	.tx_enable = false,
+};
+
 struct earc_chipinfo t7_earc_chipinfo = {
 	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
 	.rx_dmac_sync_int = false,
@@ -2297,6 +2299,17 @@ struct earc_chipinfo t3_earc_chipinfo = {
 	.tx_enable = true,
 };
 
+struct earc_chipinfo s5_earc_chipinfo = {
+	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
+	.rx_dmac_sync_int = false,
+	.rterm_on = true,
+	.no_ana_auto_cal = true,
+	.chnum_mult_mode = true,
+	.unstable_tick_sel = true,
+	.rx_enable = true,
+	.tx_enable = false,
+};
+
 static const struct of_device_id earc_device_id[] = {
 	{
 		.compatible = "amlogic, sm1-snd-earc",
@@ -2311,12 +2324,20 @@ static const struct of_device_id earc_device_id[] = {
 		.data = &tm2_revb_earc_chipinfo,
 	},
 	{
+		.compatible = "amlogic, sc2-snd-earc",
+		.data = &sc2_earc_chipinfo,
+	},
+	{
 		.compatible = "amlogic, t7-snd-earc",
 		.data = &t7_earc_chipinfo,
 	},
 	{
 		.compatible = "amlogic, t3-snd-earc",
 		.data = &t3_earc_chipinfo,
+	},
+	{
+		.compatible = "amlogic, s5-snd-earc",
+		.data = &s5_earc_chipinfo,
 	},
 	{}
 };
@@ -2614,6 +2635,8 @@ static int earc_platform_probe(struct platform_device *pdev)
 			dev_err(dev, "platform get irq earc_rx failed\n");
 		else
 			dev_info(dev, "%s, irq_earc_rx:%d\n", __func__, p_earc->irq_earc_rx);
+
+		earc_dai[0].capture = pcm_stream;
 	}
 
 	/* TX */
@@ -2657,6 +2680,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 		else
 			dev_info(dev, "%s, irq_earc_tx:%d\n", __func__, p_earc->irq_earc_tx);
 		of_property_read_u32(dev->of_node, "earctx_port", &p_earc->earctx_port);
+		earc_dai[0].playback = pcm_stream;
 	}
 
 	/* defaule is mute, need HDMI ARC Switch */
