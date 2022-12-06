@@ -215,59 +215,59 @@ const static unsigned int get_hdmitx_addr(const unsigned int add)
 	return add;
 }
 
-const struct hdmitx_dbgreg_s dbg_regs_hdmitx = {
+const struct hdmitx_dbg_reg_s dbg_regs_hdmitx = {
 	.rd_reg_func = read_hdmitx_regs,
 	.get_reg_paddr = get_hdmitx_addr,
 	.name = "hdmitx regs",
 	.reg = regs_hdmitx,
 };
 
-const static unsigned int read_nonhdmitx_reg(const unsigned int add)
+const static unsigned int read_non_hdmitx_reg(const unsigned int add)
 {
 	return hd_read_reg(add);
 }
 
-const static unsigned int get_nonhdmitx_addr(const unsigned int add)
+const static unsigned int get_non_hdmitx_addr(const unsigned int add)
 {
 	return TO_PHY_ADDR(add);
 }
 
-const struct hdmitx_dbgreg_s dbg_regs_clkctrl_hhi = {
-	.rd_reg_func = read_nonhdmitx_reg,
-	.get_reg_paddr = get_nonhdmitx_addr,
+const struct hdmitx_dbg_reg_s dbg_regs_clkctrl_hhi = {
+	.rd_reg_func = read_non_hdmitx_reg,
+	.get_reg_paddr = get_non_hdmitx_addr,
 	.name = "clkctrl regs",
 	.reg = regs_clkctrl_hhi,
 };
 
-const struct hdmitx_dbgreg_s dbg_regs_clkctrl_sc2 = {
-	.rd_reg_func = read_nonhdmitx_reg,
-	.get_reg_paddr = get_nonhdmitx_addr,
+const struct hdmitx_dbg_reg_s dbg_regs_clkctrl_sc2 = {
+	.rd_reg_func = read_non_hdmitx_reg,
+	.get_reg_paddr = get_non_hdmitx_addr,
 	.name = "clkctrl regs",
 	.reg = regs_clkctrl_sc2,
 };
 
-const struct hdmitx_dbgreg_s dbg_regs_anactrl_hhi = {
-	.rd_reg_func = read_nonhdmitx_reg,
-	.get_reg_paddr = get_nonhdmitx_addr,
+const struct hdmitx_dbg_reg_s dbg_regs_anactrl_hhi = {
+	.rd_reg_func = read_non_hdmitx_reg,
+	.get_reg_paddr = get_non_hdmitx_addr,
 	.name = "anactrl regs",
 	.reg = regs_anactrl_hhi,
 };
 
-const struct hdmitx_dbgreg_s dbg_regs_anactrl_sc2 = {
-	.rd_reg_func = read_nonhdmitx_reg,
-	.get_reg_paddr = get_nonhdmitx_addr,
+const struct hdmitx_dbg_reg_s dbg_regs_anactrl_sc2 = {
+	.rd_reg_func = read_non_hdmitx_reg,
+	.get_reg_paddr = get_non_hdmitx_addr,
 	.name = "anactrl regs",
 	.reg = regs_anactrl_sc2,
 };
 
-const struct hdmitx_dbgreg_s dbg_regs_enc = {
-	.rd_reg_func = read_nonhdmitx_reg,
-	.get_reg_paddr = get_nonhdmitx_addr,
+const struct hdmitx_dbg_reg_s dbg_regs_enc = {
+	.rd_reg_func = read_non_hdmitx_reg,
+	.get_reg_paddr = get_non_hdmitx_addr,
 	.name = "enc regs",
 	.reg = regs_enc,
 };
 
-const struct hdmitx_dbgreg_s *array_hhi[] = {
+const struct hdmitx_dbg_reg_s *array_hhi[] = {
 	&dbg_regs_hdmitx,
 	&dbg_regs_clkctrl_hhi,
 	&dbg_regs_anactrl_hhi,
@@ -275,7 +275,7 @@ const struct hdmitx_dbgreg_s *array_hhi[] = {
 	NULL,
 };
 
-const struct hdmitx_dbgreg_s *array_sc2[] = {
+const struct hdmitx_dbg_reg_s *array_sc2[] = {
 	&dbg_regs_hdmitx,
 	&dbg_regs_clkctrl_sc2,
 	&dbg_regs_anactrl_sc2,
@@ -283,7 +283,7 @@ const struct hdmitx_dbgreg_s *array_sc2[] = {
 	NULL,
 };
 
-const struct hdmitx_dbgreg_s **hdmitx_get_dbgregs(enum amhdmitx_chip_e type)
+const struct hdmitx_dbg_reg_s **hdmitx_get_dbg_regs(enum amhdmitx_chip_e type)
 {
 	if (type == MESON_CPU_ID_SC2)
 		return array_sc2;

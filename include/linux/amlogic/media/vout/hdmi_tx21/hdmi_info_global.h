@@ -57,7 +57,7 @@ enum hdmi_colourimetry {
 	CC_NO_DATA = 0, CC_ITU601, CC_ITU709, CC_XVYCC601, CC_XVYCC709,
 };
 
-enum hdmi_slacing {
+enum hdmi_scaling {
 	SC_NO_UINFORM = 0,
 	/* Picture has been scaled horizontally */
 	SC_SCALE_HORIZ,
@@ -75,7 +75,7 @@ struct hdmi_videoinfo {
 	enum hdmi_aspect_ratio aspect_ratio;
 	enum hdmi_colourimetry cc;
 	enum hdmi_scan ss;
-	enum hdmi_slacing sc;
+	enum hdmi_scaling sc;
 };
 
 /* -------------------HDMI VIDEO END---------------------------- */

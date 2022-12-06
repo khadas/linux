@@ -132,7 +132,7 @@ union bit_rate_u {
 struct edid_audio_block_t {
 	unsigned char max_channel:3;
 	unsigned char format_code:4;
-	unsigned char fmt_code_resvrd:1;
+	unsigned char fmt_code_resrvd:1;
 	union u_sr {
 		unsigned char freq_list;
 		struct s_sr {
@@ -219,18 +219,18 @@ struct speaker_alloc_db_s {
 	unsigned char fc:1;
 	unsigned char lfe:1;
 	unsigned char fl_fr:1;
-	unsigned char resvd1:5;
+	unsigned char resrvd1:5;
 	unsigned char fch:1;
 	unsigned char tc:1;
 	unsigned char flh_frh:1;
-	unsigned char resvd2;
+	unsigned char resrvd2;
 };
 
 struct specific_vic_3d {
 	unsigned char _2d_vic_order:4;
 	unsigned char _3d_struct:4;
 	unsigned char _3d_detail:4;
-	unsigned char resvrd:4;
+	unsigned char resrvd:4;
 };
 
 struct vsdb_s {
@@ -283,7 +283,7 @@ struct vsdb_s {
 	unsigned char interlaced_video_latency;
 	unsigned char interlaced_audio_latency;
 	//pb10
-	unsigned char resvd3:3;
+	unsigned char resrvd3:3;
 	unsigned char image_size:2;
 	unsigned char _3d_multi_present:2;
 	unsigned char _3d_present:1;
@@ -371,7 +371,7 @@ struct colorimetry_db_s {
 	unsigned char xvycc709:1;
 	unsigned char xvycc601:1;
 
-	unsigned char resvd:4;
+	unsigned char resrvd:4;
 	/* MDX: designated for future gamut-related metadata. As yet undefined,
 	 * this metadata is carried in an interface-specific way.
 	 */
@@ -386,7 +386,7 @@ struct hdr_db_s {
 	/* ET_4 to ET_5 shall be set to 0. Future
 	 * Specifications may define other EOTFs
 	 */
-	unsigned char resvd1: 4;
+	unsigned char resrvd1: 4;
 	unsigned char eotf_hlg:1;
 	/* SMPTE ST 2084[2] */
 	unsigned char eotf_smpte_st_2084:1;
@@ -444,7 +444,7 @@ struct dv_vsvdb_s {
 	unsigned char target_min_lum:7;
 	unsigned char colormetry:1;
 
-	unsigned char resvrd;
+	unsigned char resrvd;
 	u16 Rx;
 	u16 Ry;
 	u16 Gx;
@@ -498,7 +498,7 @@ struct cta_blk_parse_info {
 	bool contain_y420_vdb;
 	unsigned char y420_vic_len;
 	unsigned char y420_vdb_vic[6];
-	/* Y420 Capability Map Data Block: 31 SVD maxmium */
+	/* Y420 Capability Map Data Block: 31 SVD maximum */
 	bool contain_y420_cmdb;
 	unsigned char y420_all_vic;
 	unsigned char y420_cmdb_vic[31];

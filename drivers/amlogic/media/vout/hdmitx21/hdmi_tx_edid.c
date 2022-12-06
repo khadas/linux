@@ -66,7 +66,7 @@
 #define EDID_DETAILED_TIMING_DES_BLOCK2_POS 0x5A
 #define EDID_DETAILED_TIMING_DES_BLOCK3_POS 0x6C
 
-/* EDID Descrptor Tag */
+/* EDID Descriptor Tag */
 #define TAG_PRODUCT_SERIAL_NUMBER 0xFF
 #define TAG_ALPHA_DATA_STRING 0xFE
 #define TAG_RANGE_LIMITS 0xFD
@@ -2156,7 +2156,7 @@ static int edid_check_valid(u8 *buf)
 	return 1;
 }
 
-/* retrun 1 valid edid */
+/* return 1 valid edid */
 int check21_dvi_hdmi_edid_valid(u8 *buf)
 {
 	u32 chksum = 0;
@@ -2252,7 +2252,7 @@ static void edid_versionparse(struct rx_cap *prxcap,
 	prxcap->edid_revision = (data[1] < 0x5) ? data[1] : 0;
 }
 
-static void Edid_PhyscialSizeParse(struct rx_cap *prxcap,
+static void Edid_PhysicalSizeParse(struct rx_cap *prxcap,
 				   u8 *data)
 {
 	if (data[0] != 0 && data[1] != 0) {
@@ -2607,7 +2607,7 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 
 	edid_versionparse(&hdmitx_device->rxcap, &EDID_buf[18]);
 
-	Edid_PhyscialSizeParse(&hdmitx_device->rxcap, &EDID_buf[21]);
+	Edid_PhysicalSizeParse(&hdmitx_device->rxcap, &EDID_buf[21]);
 
 	blockcount = EDID_buf[0x7E];
 	hdmitx_device->rxcap.blk0_chksum = EDID_buf[0x7F];
@@ -3064,7 +3064,7 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 }
 
 /* force_flag: 0 means check with RX's edid */
-/* 1 means no check wich RX's edid */
+/* 1 means no check which RX's edid */
 enum hdmi_vic hdmitx21_edid_get_VIC(struct hdmitx_dev *hdev,
 				  const char *disp_mode,
 				  char force_flag)
@@ -3251,7 +3251,7 @@ int hdmitx21_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		"Manufacture Year: %d\n", prxcap->manufacture_year + 1990);
 
 	pos += snprintf(buffer + pos, buffer_len - pos,
-		"Physcial size(mm): %d x %d\n",
+		"Physical size(mm): %d x %d\n",
 		prxcap->physical_width, prxcap->physical_height);
 
 	pos += snprintf(buffer + pos, buffer_len - pos,

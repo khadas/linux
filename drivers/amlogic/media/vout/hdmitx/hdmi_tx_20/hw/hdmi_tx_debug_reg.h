@@ -13,14 +13,14 @@
 
 #define REGS_END 0xffffffff
 
-struct hdmitx_dbgreg_s {
+struct hdmitx_dbg_reg_s {
 	const unsigned int (*rd_reg_func)(const unsigned int add);
 	const unsigned int (*get_reg_paddr)(const unsigned int add);
 	const char *name;
 	const unsigned int *reg;
 };
 
-const struct hdmitx_dbgreg_s **hdmitx_get_dbgregs(enum amhdmitx_chip_e type);
+const struct hdmitx_dbg_reg_s **hdmitx_get_dbg_regs(enum amhdmitx_chip_e type);
 
 #endif
 

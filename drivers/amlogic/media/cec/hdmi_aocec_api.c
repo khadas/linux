@@ -684,7 +684,7 @@ int cecb_trigger_tx(const unsigned char *msg, unsigned char len, unsigned char s
 		/* send is in process */
 		lock = hdmirx_cec_read(DWC_CEC_LOCK);
 		if (lock) {
-			CEC_ERR("recevie msg in tx\n");
+			CEC_ERR("receive msg in tx\n");
 			cecb_irq_handle();
 			return -1;
 		}

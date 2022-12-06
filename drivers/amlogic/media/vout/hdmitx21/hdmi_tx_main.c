@@ -5614,7 +5614,7 @@ static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 	/* TODO hdmitx21_edid_ram_buffer_clear(hdev); */
 	hdev->hwop.cntlddc(hdev, DDC_RESET_EDID, 0);
 	hdev->hwop.cntlddc(hdev, DDC_PIN_MUX_OP, PIN_MUX);
-	/* start reading edid frist time */
+	/* start reading edid first time */
 	hdev->hwop.cntlddc(hdev, DDC_EDID_READ_DATA, 0);
 	hdev->hwop.cntlddc(hdev, DDC_EDID_GET_DATA, 0);
 	if (hdmitx21_check_edid_all_zeros(hdev->EDID_buf)) {
@@ -6488,7 +6488,7 @@ static void amhdmitx_clktree_probe(struct device *hdmitx_dev)
 		hdev->hdmitx_clk_tree.venci_1_gate = venci_1_gate;
 }
 
-void amhdmitx21_vpu_dev_regiter(struct hdmitx_dev *hdev)
+void amhdmitx21_vpu_dev_register(struct hdmitx_dev *hdev)
 {
 	hdev->hdmitx_vpu_clk_gate_dev =
 	vpu_dev_register(VPU_VENCI, DEVICE_NAME);
@@ -6529,7 +6529,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	amhdmitx_clktree_probe(&pdev->dev);
 	if (0) /* TODO */
-		amhdmitx21_vpu_dev_regiter(hdev);
+		amhdmitx21_vpu_dev_register(hdev);
 
 	r = alloc_chrdev_region(&hdev->hdmitx_id, 0, HDMI_TX_COUNT,
 				DEVICE_NAME);

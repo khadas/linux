@@ -180,7 +180,7 @@ struct emp_packet_header {
 };
 
 struct emp_packet_0_body {
-	u8 sync:1; /* pb0 syncchronous metadata */
+	u8 sync:1; /* pb0 synchronous metadata */
 	u8 vfr:1; /* video format related, cs/cd/resolution */
 	u8 afr:1; /* audio format related */
 	/* 2b00: periodic pseudo-static MD

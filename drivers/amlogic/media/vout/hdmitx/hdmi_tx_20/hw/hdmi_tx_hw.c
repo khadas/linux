@@ -3118,11 +3118,11 @@ int hdmitx_debug_reg_dump(struct hdmitx_dev *hdev, char *buf, int len)
 	int i, pos = 0;
 	int cnt;
 	unsigned int val;
-	const struct hdmitx_dbgreg_s **reg;
+	const struct hdmitx_dbg_reg_s **reg;
 
 	if (!hdev || !hdev->data || !buf || !len)
 		return pos;
-	reg = hdmitx_get_dbgregs(hdev->data->chip_type);
+	reg = hdmitx_get_dbg_regs(hdev->data->chip_type);
 
 	if (!reg)
 		return pos;

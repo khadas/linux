@@ -1376,7 +1376,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 
 	// config I2S
 	//---------------
-	//some common reister config,why config this value ?? TODO
+	//some common register config,why config this value ?? TODO
 	hdmitx21_wr_reg(AIP_HDMI2MHL_IVCTX, 0x00); //AIP
 	hdmitx21_wr_reg(PKT_FILTER_0_IVCTX, 0x02); //PKT FILTER
 	hdmitx21_wr_reg(ASRC_IVCTX, 0x00); //ASRC
@@ -1651,7 +1651,7 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		hdev->hwop.cntlddc(hdev, DDC_RESET_EDID, 0);
 		hdev->hwop.cntlddc(hdev, DDC_EDID_READ_DATA, 0);
 		return;
-	} else if (strncmp(tmpbuf, "i2creactive", 11) == 0) {
+	} else if (strncmp(tmpbuf, "i2c_reactive", 11) == 0) {
 		hdev->hwop.cntlmisc(hdev, MISC_I2C_REACTIVE, 0);
 		return;
 	} else if (strncmp(tmpbuf, "bist", 4) == 0) {

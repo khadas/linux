@@ -287,7 +287,7 @@ enum cec_version_e {
 
 /*CEC UI MASK*/
 /*
- * #define CEC_FUNC_MSAK 0
+ * #define CEC_FUNC_MASK 0
  * #define ONE_TOUCH_PLAY_MASK                  1
  * #define ONE_TOUCH_STANDBY_MASK               2
  * #define AUTO_POWER_ON_MASK                   3
