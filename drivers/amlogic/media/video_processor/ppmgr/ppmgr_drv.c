@@ -662,7 +662,7 @@ static ssize_t ppmgr_receiver_store(struct class *cla,
 	int ret;
 
 	if (buf[0] != '0' && buf[0] != '1') {
-		PPMGRDRV_ERR("device to whitch the video stream decoded\n");
+		PPMGRDRV_ERR("device to which the video stream decoded\n");
 		PPMGRDRV_ERR("0: to video layer\n");
 		PPMGRDRV_ERR("1: to amlogic video4linux /dev/video10\n");
 		return 0;
@@ -948,15 +948,15 @@ static ssize_t mirror_show(struct class *cla, struct class_attribute *attr,
 {
 	if (ppmgr_device.mirror_flag == 1)
 		return snprintf(buf, 80,
-				"currnet mirror mode is l-r. value is: %d.\n",
+				"current mirror mode is l-r. value is: %d.\n",
 				ppmgr_device.mirror_flag);
 	else if (ppmgr_device.mirror_flag == 2)
 		return snprintf(buf, 80,
-				"currnet mirror mode is t-b. value is: %d.\n",
+				"current mirror mode is t-b. value is: %d.\n",
 				ppmgr_device.mirror_flag);
 	else
 		return snprintf(buf, 80,
-				"currnet is normal mode. value is: %d.\n",
+				"current is normal mode. value is: %d.\n",
 				ppmgr_device.mirror_flag);
 }
 
