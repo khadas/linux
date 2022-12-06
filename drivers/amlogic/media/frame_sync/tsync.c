@@ -908,18 +908,18 @@ void tsync_avevent_locked(enum avevent_e event, u32 param)
 		break;
 
 	/*
-	 *Note:
-	 *Video and audio PTS discontinue happens typically with a loopback
-	 *playback, with same bit stream play in loop and PTS wrap back from
-	 *start point.
-	 *When VIDEO_TSTAMP_DISCONTINUITY happens early, PCRSCR is set
-	 *immedately to make video still keep running in VMATSER mode. This
-	 *mode is restored to AMASTER mode when AUDIO_TSTAMP_DISCONTINUITY
-	 *reports, or apts is close to scr later.
-	 *When AUDIO_TSTAMP_DISCONTINUITY happens early, VMASTER mode is
-	 *set to make video still keep running w/o setting PCRSCR. This mode
-	 *is restored to AMASTER mode when VIDEO_TSTAMP_DISCONTINUITY
-	 *reports, and scr is restored along with new video time stamp also.
+	 * Note:
+	 * Video and audio PTS discontinue happens typically with a loopback
+	 * playback, with same bit stream play in loop and PTS wrap back from
+	 * start point.
+	 * When VIDEO_TSTAMP_DISCONTINUITY happens early, PCRSCR is set
+	 * immediately to make video still keep running in VMATSER mode. This
+	 * mode is restored to AMASTER mode when AUDIO_TSTAMP_DISCONTINUITY
+	 * reports, or apts is close to scr later.
+	 * When AUDIO_TSTAMP_DISCONTINUITY happens early, VMASTER mode is
+	 * set to make video still keep running w/o setting PCRSCR. This mode
+	 * is restored to AMASTER mode when VIDEO_TSTAMP_DISCONTINUITY
+	 * reports, and scr is restored along with new video time stamp also.
 	 */
 	case VIDEO_TSTAMP_DISCONTINUITY: {
 		unsigned int oldpts = timestamp_vpts_get();

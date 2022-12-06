@@ -34,7 +34,7 @@ struct codec_mm_keeper_mgr {
 	int num;
 	/* spin lock */
 	spinlock_t lock;
-	struct delayed_work dealy_work;
+	struct delayed_work delay_work;
 	int work_runs;
 	struct keep_mem_info keep_list[MAX_KEEP_FRAME];
 	int next_id;		/*id for keep & free. */
@@ -159,7 +159,7 @@ int codec_mm_keeper_unmask_keeper(int keep_id, int delayms)
 		}
 	}
 	spin_unlock_irqrestore(&mgr->lock, flags);
-	schedule_delayed_work(&mgr->dealy_work, delayms);/*do free later, */
+	schedule_delayed_work(&mgr->delay_work, delayms);/*do free later, */
 	return 0;
 }
 EXPORT_SYMBOL(codec_mm_keeper_unmask_keeper);
@@ -264,11 +264,11 @@ static void codec_mm_keeper_monitor(struct work_struct *work)
 {
 	struct codec_mm_keeper_mgr *mgr = container_of(work,
 					struct codec_mm_keeper_mgr,
-					dealy_work.work);
+					delay_work.work);
 	mgr->work_runs++;
 	codec_mm_keeper_free_all_keep(0);
 	if (mgr->num > 0) /*have some not free, run later.*/
-		schedule_delayed_work(&mgr->dealy_work, 10);
+		schedule_delayed_work(&mgr->delay_work, 10);
 }
 
 int codec_mm_keeper_mgr_init(void)
@@ -278,6 +278,6 @@ int codec_mm_keeper_mgr_init(void)
 	memset(mgr, 0, sizeof(struct codec_mm_keeper_mgr));
 	mgr->next_id = START_KEEP_ID;
 	spin_lock_init(&mgr->lock);
-	INIT_DELAYED_WORK(&mgr->dealy_work, codec_mm_keeper_monitor);
+	INIT_DELAYED_WORK(&mgr->delay_work, codec_mm_keeper_monitor);
 	return 0;
 }

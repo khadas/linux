@@ -189,7 +189,7 @@ struct codec_mm_scatter_mgt {
 	int free_100ms_up_cnt;
 
 	struct device *dev;
-	struct delayed_work dealy_work;
+	struct delayed_work delay_work;
 	int scatter_task_run_num;
 	struct codec_mm_scatter *cache_scs[2];
 	int cached_pages;
@@ -326,16 +326,16 @@ static int codec_mm_schedule_delay_work(struct codec_mm_scatter_mgt *smgt,
 {
 	bool ret;
 
-	if (!for_update && delayed_work_pending(&smgt->dealy_work))
+	if (!for_update && delayed_work_pending(&smgt->delay_work))
 		return 0;
-	if (delayed_work_pending(&smgt->dealy_work))
-		cancel_delayed_work(&smgt->dealy_work);
+	if (delayed_work_pending(&smgt->delay_work))
+		cancel_delayed_work(&smgt->delay_work);
 	if (codec_mm_scatter_wq_get()) {
 		ret = queue_delayed_work(codec_mm_scatter_wq_get(),
-					 &smgt->dealy_work,
+					 &smgt->delay_work,
 					 delay_ms * HZ / 1000);
 	} else {
-		ret = schedule_delayed_work(&smgt->dealy_work,
+		ret = schedule_delayed_work(&smgt->delay_work,
 					    delay_ms * HZ / 1000);
 	}
 	return ret;
@@ -2780,7 +2780,7 @@ static void codec_mm_scatter_monitor(struct work_struct *work)
 {
 	struct codec_mm_scatter_mgt *smgt = container_of(work,
 					struct codec_mm_scatter_mgt,
-					dealy_work.work);
+					delay_work.work);
 	int needretry = 0;
 
 	codec_mm_scatter_update_config(smgt);
@@ -2837,7 +2837,7 @@ static int codec_mm_scatter_mgt_alloc_in(struct codec_mm_scatter_mgt **psmgt)
 	INIT_LIST_HEAD(&smgt->scatter_list);
 	mutex_init(&smgt->monitor_lock);
 
-	INIT_DELAYED_WORK(&smgt->dealy_work,
+	INIT_DELAYED_WORK(&smgt->delay_work,
 			  codec_mm_scatter_monitor);
 	*psmgt = smgt;
 	return 0;

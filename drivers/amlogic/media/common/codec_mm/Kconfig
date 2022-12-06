@@ -1,5 +1,5 @@
 #
-# Codec mermory manager driver configuration
+# Codec memory manager driver configuration
 #
 
 config AMLOGIC_MEDIA_CODEC_MM
