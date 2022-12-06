@@ -27,10 +27,7 @@
 		target = <&aml_spdif>;
 
 		__overlay__ {
-			pinctrl-names = "spdif_pins",
-						"spdif_pins_mute";
 			pinctrl-0 = <&spdifout &spdifin>;
-			pinctrl-1 = <&spdifout_a_mute>;
 		};
 	};
 
