@@ -2906,7 +2906,7 @@ static int aml_cec_pm_prepare(struct device *dev)
 	}
 	//cec_dev->cec_suspend = CEC_DEEP_SUSPEND;
 	/* todo: when to notify uplayer that cec enter suspend */
-	cec_set_uevent(CEC_PWR_UEVENT, CEC_SUSPEND);
+	/* cec_set_uevent(CEC_PWR_UEVENT, CEC_SUSPEND); */
 	CEC_ERR("%s\n", __func__);
 	return 0;
 }
@@ -2926,12 +2926,12 @@ static void aml_cec_pm_complete(struct device *dev)
 		/* todo: when to notify linux/android platform
 		 * to read wakeup msg
 		 */
-		if (cec_dev->cec_wk_otp_msg[0] > 0)
-			cec_set_uevent(CEC_PWR_UEVENT, CEC_WAKEUP_OTP);
-		if (cec_dev->cec_wk_as_msg[0] > 0)
-			cec_set_uevent(CEC_PWR_UEVENT, CEC_WAKEUP_AS);
+		/* if (cec_dev->cec_wk_otp_msg[0] > 0) */
+			/* cec_set_uevent(CEC_PWR_UEVENT, CEC_WAKEUP_OTP); */
+		/* if (cec_dev->cec_wk_as_msg[0] > 0) */
+			/* cec_set_uevent(CEC_PWR_UEVENT, CEC_WAKEUP_AS); */
 	} else {
-		cec_set_uevent(CEC_PWR_UEVENT, CEC_WAKEUP_NORMAL);
+		/* cec_set_uevent(CEC_PWR_UEVENT, CEC_WAKEUP_NORMAL); */
 	}
 #endif
 	CEC_ERR("%s\n", __func__);
