@@ -5,7 +5,7 @@
 menu "Amlogic multimedia algorithm configuration"
 
 config AMLOGIC_MEDIA_ALGORITHM
-	tristate "Amlgoic Multimedia Algorithm Support"
+	tristate "Amlogic Multimedia Algorithm Support"
 	default m
 	help
 		Amlogic multimedia algorithm include:

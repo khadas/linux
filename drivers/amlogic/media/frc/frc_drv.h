@@ -390,7 +390,7 @@ struct frc_crc_data_s {
 };
 
 struct frc_ud_s {
-	unsigned inpud_dbg_en:1;
+	unsigned inp_ud_dbg_en:1;
 	unsigned meud_dbg_en:1;
 	unsigned mcud_dbg_en:1;
 	unsigned vpud_dbg_en:1;

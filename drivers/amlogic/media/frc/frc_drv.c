@@ -85,7 +85,7 @@ EXPORT_SYMBOL(frc_kerdrv_ver);
 
 // static struct frc_fw_data_s *fw_data;
 struct frc_fw_data_s fw_data;  // important 2021_0510
-static const char frc_alg_defver[] = "alg_ver:default";
+static const char frc_alg_def_ver[] = "alg_ver:default";
 
 struct frc_fw_data_s *frc_get_fw_data(void)
 {
@@ -853,8 +853,8 @@ static int frc_probe(struct platform_device *pdev)
 	// frc_devp->fw_data = kzalloc(sizeof(struct frc_fw_data_s), GFP_KERNEL);
 	frc_devp->fw_data = &fw_data;
 	memset(frc_devp->fw_data, 0, (sizeof(struct frc_fw_data_s)));
-	strncpy(&fw_data.frc_alg_ver[0], &frc_alg_defver[0],
-			strlen(frc_alg_defver));
+	strncpy(&fw_data.frc_alg_ver[0], &frc_alg_def_ver[0],
+			strlen(frc_alg_def_ver));
 	if (!frc_devp->fw_data) {
 		PR_ERR("%s: frc_dev->fw_data fail\n", __func__);
 		goto fail_alloc_fw_data_fail;

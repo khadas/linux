@@ -423,7 +423,7 @@ void inp_undone_read(struct frc_dev_s *frc_devp)
 		WRITE_FRC_REG_BY_CPU(FRC_INP_UE_CLR, 0x0);
 		frc_devp->ud_dbg.inp_undone_err = inp_ud_flag;
 		frc_devp->frc_sts.inp_undone_cnt++;
-		if (frc_devp->ud_dbg.inpud_dbg_en != 0) {
+		if (frc_devp->ud_dbg.inp_ud_dbg_en != 0) {
 			if (frc_devp->frc_sts.inp_undone_cnt % 0x30 == 0) {
 				PR_ERR("inp_ud_err=0x%x,err_cnt=%d,vs_cnt=%d\n",
 					inp_ud_flag,
@@ -807,7 +807,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	adj_mc_dly = frc_devp->out_line;    // from user debug
 
 	// reg_me_dly_vofst = reg_mc_out_line;
-	reg_me_dly_vofst = reg_mc_dly_vofst0;  // change for keep me frist run
+	reg_me_dly_vofst = reg_mc_dly_vofst0;  // change for keep me first run
 	if (frc_top->hsize <= 1920 && (frc_top->hsize * frc_top->vsize <= 1920 * 1080)) {
 		frc_top->is_me1mc4 = 0;/*me:mc 1:2*/
 		WRITE_FRC_REG_BY_CPU(FRC_INPUT_SIZE_ALIGN, 0x0);  //8*8 align
@@ -975,7 +975,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	// init_bb_xyxy(frc_top->hsize, frc_top->vsize, frc_top->is_me1mc4);
 
 	/*protect mode, enable: memc delay 2 frame*/
-	/*disable: memc delay n frame, n depend on candence, for debug*/
+	/*disable: memc delay n frame, n depend on cadence, for debug*/
 	if (frc_top->frc_prot_mode) {
 		regdata_top_ctl_0009 = READ_FRC_REG(0x0009);
 		regdata_top_ctl_0017 = READ_FRC_REG(0x0017);
@@ -1948,7 +1948,7 @@ u16 frc_check_vf_rate(u16 duration, struct frc_dev_s *frc_devp)
 void frc_get_film_base_vf(struct frc_dev_s *frc_devp)
 {
 	struct frc_fw_data_s *pfw_data;
-	u16 infrmrate = frc_devp->in_sts.frc_vf_rate;
+	u16 in_frame_rate = frc_devp->in_sts.frc_vf_rate;
 	u16 outfrmrate = frc_devp->out_sts.out_framerate;
 	// u32 vf_duration = frc_devp->in_sts.duration;
 
@@ -1960,8 +1960,8 @@ void frc_get_film_base_vf(struct frc_dev_s *frc_devp)
 	if ((pfw_data->frc_top_type.vfp & BIT_7) == BIT_7)
 		return;
 	pfw_data->frc_top_type.vfp |= 0x4;
-	pr_frc(1, "get in_rate:%d,out_rate:%d\n", infrmrate, outfrmrate);
-	switch (infrmrate) {
+	pr_frc(1, "get in_rate:%d,out_rate:%d\n", in_frame_rate, outfrmrate);
+	switch (in_frame_rate) {
 	case FRC_VD_FPS_24:
 		if (outfrmrate == 50) {
 			pfw_data->frc_top_type.film_mode = EN_FILM1123;

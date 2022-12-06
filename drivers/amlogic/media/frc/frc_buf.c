@@ -526,9 +526,9 @@ int frc_buf_alloc(struct frc_dev_s *devp)
 	}
 
 	/* The total memory size is 0xa000000 160M
-	 * buffer 8+8 relese memory size: 0x4ee0000 78M
-	 * buffer 12+4 relese memory size: 0x2770000 39M
-	 * buffer 14+2 relese memory size: 0x13b8000 19M
+	 * buffer 8+8 release memory size: 0x4ee0000 78M
+	 * buffer 12+4 release memory size: 0x2770000 39M
+	 * buffer 14+2 release memory size: 0x13b8000 19M
 	 */
 	devp->buf.cma_mem_size2 = 0x2770000;
 	devp->buf.cma_mem_size = 0xa000000 -
