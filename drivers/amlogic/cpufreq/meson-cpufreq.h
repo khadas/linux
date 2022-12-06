@@ -63,7 +63,7 @@ struct meson_cpufreq_driver_data {
 	struct cpufreq_policy *policy;
 	/* voltage tolerance in percentage */
 	unsigned int volt_tol;
-	unsigned long volt_max, volt_min;
+	unsigned int cpuvolt_last_set, dsuvolt_last_set;
 	struct clk *high_freq_clk_p;
 	struct clk *low_freq_clk_p;
 	struct clk *clk_dsu;

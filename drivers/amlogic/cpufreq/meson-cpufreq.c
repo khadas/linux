@@ -377,10 +377,11 @@ static void meson_dsuvolt_adjust(struct meson_cpufreq_driver_data *cpufreq_data)
 
 	if (cpufreq_voltage_set_skip || !dsu_reg)
 		return;
-	old_dsu_vol = meson_regulator_get_volate(dsu_reg);
+	old_dsu_vol = cpufreq_data->dsuvolt_last_set;
 	meson_regulator_set_volate(dsu_reg,
 		cpufreq_data->clusterid, old_dsu_vol,
 		dsu_voltage_vote_result[cpufreq_data->clusterid], 0);
+	cpufreq_data->dsuvolt_last_set = dsu_voltage_vote_result[cpufreq_data->clusterid];
 }
 
 static void meson_dsu_volt_freq_vote(struct meson_cpufreq_driver_data *cpufreq_data,
@@ -435,11 +436,10 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 		}
 		volt_new = dev_pm_opp_get_voltage(opp);
 		dev_pm_opp_put(opp);
-		volt_old = meson_regulator_get_volate(cpu_reg);
-		if (volt_old > cpufreq_data->volt_max)
-			volt_old = cpufreq_data->volt_max;
-		else if (volt_old < cpufreq_data->volt_min)
-			volt_old = cpufreq_data->volt_min;
+		if (cpufreq_data->reg_external_used)
+			volt_old = cpufreq_data->cpuvolt_last_set;
+		else
+			volt_old = meson_regulator_get_volate(cpu_reg);
 		volt_tol = volt_new * cpufreq_data->volt_tol / 100;
 		pr_debug("Found OPP: %lu kHz, %u, tolerance: %u\n",
 			 freq_new / 1000, volt_new, volt_tol);
@@ -507,7 +507,7 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 		}
 		meson_dsuvolt_adjust(cpufreq_data);
 	}
-
+	cpufreq_data->cpuvolt_last_set = volt_new;
 	freq_new = clk_get_rate(clk[cur_cluster]) / 1000000;
 	dsu_freq = clk_get_rate(cpufreq_data->clk_dsu) / 1000000;
 
@@ -801,6 +801,7 @@ static void meson_set_policy_volt_range(struct meson_cpufreq_driver_data *data)
 	struct opp_table *opp_table = dev_pm_opp_get_opp_table(cpu_dev);
 	struct dev_pm_opp *opp;
 	unsigned long max = 0, min = -1;
+	int oldvolt_cpu, oldvolt_dsu;
 
 	if (opp_table) {
 		mutex_lock(&opp_table->lock);
@@ -815,8 +816,26 @@ static void meson_set_policy_volt_range(struct meson_cpufreq_driver_data *data)
 		dev_pm_opp_put_opp_table(opp_table);
 		mutex_unlock(&opp_table->lock);
 	}
-	data->volt_max = max;
-	data->volt_min = min;
+
+	/*set cpu regulator voltage to a valid value in init callback*/
+	oldvolt_cpu = meson_regulator_get_volate(data->reg);
+	if (oldvolt_cpu > max)
+		oldvolt_cpu = max;
+	else if (oldvolt_cpu < min)
+		oldvolt_cpu = min;
+	regulator_set_voltage_tol(data->reg, oldvolt_cpu, oldvolt_cpu);
+	data->cpuvolt_last_set = oldvolt_cpu;
+
+	if (data->reg_dsu) {
+		oldvolt_dsu = meson_regulator_get_volate(data->reg_dsu);
+		if (oldvolt_dsu > data->dsu_opp_table[3])
+			oldvolt_dsu = data->dsu_opp_table[3];
+		else if (oldvolt_dsu < min)
+			oldvolt_dsu = min;
+		/*set regulator voltage to a valid value in init callback*/
+		regulator_set_voltage_tol(data->reg_dsu, oldvolt_dsu, oldvolt_dsu);
+		data->dsuvolt_last_set = oldvolt_dsu;
+	}
 }
 
 /* CPU initialization */
@@ -935,6 +954,7 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 		pr_err("%s:failed to get regulator, %ld\n", __func__,
 		       PTR_ERR(cpu_reg));
 		cpu_reg = NULL;
+		goto free_clk;
 	}
 
 	dsu_reg = regulator_get_optional(cpu_dev, DSU_SUPPLY);
