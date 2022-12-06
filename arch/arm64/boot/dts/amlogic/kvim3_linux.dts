@@ -1069,10 +1069,10 @@
 				<GIC_SPI 151 IRQ_TYPE_EDGE_RISING>;
 
 		interrupt-names = "irq_spdifin";
-//		pinctrl-names = "spdif_pins",
-//					"spdif_pins_mute";
-//		pinctrl-0 = <&spdifout>;
-//		pinctrl-1 = <&spdifout_a_mute>;
+		pinctrl-names = "spdif_pins",
+					"spdif_pins_mute";
+		pinctrl-0 = <&spdifout>;
+		pinctrl-1 = <&spdifout_a_mute>;
 		status = "okay";
 	};
 	aml_spdif_b: spdif_b {
