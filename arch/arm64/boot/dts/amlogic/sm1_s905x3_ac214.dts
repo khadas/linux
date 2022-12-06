@@ -15,6 +15,7 @@
 / {
 	compatible = "amlogic,sm1";
 	model = "AML AC214";
+	amlogic-dt-id = "sm1_s905x3_ac214";
 
 	aliases {
 		serial0 = &uart_AO;
