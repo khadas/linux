@@ -50,6 +50,14 @@
 #define DIM_HAVE_HDR	(1)
 
 /************************************************
+ * function:decontour use detect border
+ *	char aml_ldim_get_bbd_state(void) in
+ *	include/linux/amlogic/media/vout/lcd/aml_ldim.h
+ ************************************************/
+//#define DIM_DCT_BORDER_DETECT	(1)
+#define	DIM_DCT_BORDER_DBG	(1)
+//#define DIM_DCT_BORDER_SIMULATION	(1)
+/************************************************
  * pre-vpp link
  ************************************************/
 //#define VPP_LINK_USED_FUNC	(1)

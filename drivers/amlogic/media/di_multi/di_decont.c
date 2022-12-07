@@ -35,6 +35,9 @@
 #include "register.h"
 #include "di_prc.h"
 
+#ifdef DIM_DCT_BORDER_DETECT
+#include <linux/amlogic/media/vout/lcd/aml_ldim.h>
+#endif
 /************************************************
  * dbg_dct
  *	bit 0: disable dct pre //used for enable decontour
@@ -45,6 +48,9 @@
  *	bit 6:8: pq ?
  *		dcntr dynamic used dbg_dct BIT:6-8
  *	bit 12:13: demo mode (old is bit 8:9)
+ *	bit 14: border detect simulation only use when
+ *		DIM_DCT_BORDER_SIMULATION enable
+ *	bit 15: border detect disable
  ************************************************/
 /*bit 4: grid use fix */
 /*bit 9:8: demo left /riht */
@@ -92,6 +98,20 @@ bool dcntr_dynamic_alpha_2(void)
 bool dcntr_dynamic_disable(void)
 {
 	if (dbg_dct & DI_BIT8)
+		return true;
+	return false;
+}
+
+bool dcntr_border_simulation_have(void)
+{
+	if (dbg_dct & DI_BIT14)
+		return true;
+	return false;
+}
+
+bool dcntr_border_detect_disable(void)
+{
+	if (dbg_dct & DI_BIT15)
 		return true;
 	return false;
 }
@@ -1151,6 +1171,41 @@ void dcntr_dynamic_setting(struct dim_rpt_s *rpt)
 	op->bwr(DCTR_BLENDING2 + off, pdate[0], 16, 9);
 }
 
+#ifdef DIM_DCT_BORDER_DETECT
+static void dct_border_tune(const struct reg_acc *op, unsigned int off)
+{
+	bool have_border = false;
+	bool simulation = false;
+#ifdef	DIM_DCT_BORDER_DBG
+	static bool last;
+#endif
+	if (dcntr_border_detect_disable())
+		return;
+#ifdef DIM_DCT_BORDER_SIMULATION
+	simulation = true;
+	if (dcntr_border_simulation_have())
+		have_border = true;
+#else
+	if (aml_ldim_get_bbd_state() == 1)
+		have_border = true;
+#endif
+	if (have_border)
+		op->bwr(DCTR_PMEM_MAP1 + off, 1, 30, 1);
+	else
+		op->bwr(DCTR_PMEM_MAP1 + off, 0, 30, 1);
+#ifdef	DIM_DCT_BORDER_DBG
+	if (last != have_border) {
+		PR_INF("%s:%d->%d\n", __func__, last, have_border);
+		last = have_border;
+		PR_INF("\t:reg:0x%x=0x%x:%d\n",
+		       DCTR_PMEM_MAP1 + off, op->rd(DCTR_PMEM_MAP1 + off),
+		       simulation);
+	}
+#endif
+}
+
+#endif /* DIM_DCT_BORDER_DETECT */
+
 void dcntr_pq_tune(struct dim_rpt_s *rpt)
 {
 	const struct reg_acc *op = &di_pre_regset;
@@ -1173,6 +1228,9 @@ void dcntr_pq_tune(struct dim_rpt_s *rpt)
 	dim_print("%s:0x%x\n", __func__, rpt->dct_map_0);
 
 	dcntr_dynamic_setting(rpt);
+#ifdef DIM_DCT_BORDER_DETECT
+	dct_border_tune(op, off);
+#endif
 }
 
 void dcntr_dis(void)
