@@ -48,6 +48,7 @@
 	"V03.01.02.00.03.05.13 [20221221] [PHY] test pixel clk and adj phy reg for 70hz issue\n" \
 	"V03.01.02.00.03.05.14 [20221230] [COM] hdmitx_setup_attr slab out of bounds\n" \
 	"V03.01.02.00.03.05.15 [20230112] [COM] adjust avi packet placement\n" \
-	"V03.01.02.00.03.05.16 [20230210] [COM] not send hdmi/audio uevent under suspend\n"
+	"V03.01.02.00.03.05.16 [20230210] [COM] not send hdmi/audio uevent under suspend\n" \
+	"V03.01.02.00.03.05.17 [20230328] [NEW] optimise color depth for hdr output\n"
 
 #endif // __HDMI20_VERSION_H__

@@ -529,6 +529,7 @@ struct hdmitx_dev {
 #endif
 	struct st_debug_param debug_param;
 	bool suspend_flag;
+	bool config_csc_en;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
@@ -603,6 +604,12 @@ struct hdmitx_dev {
 #define VIDEO_UNMUTE        0x2
 #define CONF_EMP_NUMBER         (CMD_CONF_OFFSET + 0x3000 + 0x00)
 #define CONF_EMP_PHY_ADDR       (CMD_CONF_OFFSET + 0x3000 + 0x01)
+
+#define CONFIG_CSC (CMD_CONF_OFFSET + 0x1000 + 0x05)
+#define CSC_Y444_8BIT 0x1
+#define CSC_Y422_12BIT 0x2
+#define CSC_RGB_8BIT 0x3
+#define CSC_UPDATE_AVI_CS 0x10
 
 /* Audio part */
 #define CONF_CLR_AVI_PACKET     (CMD_CONF_OFFSET + 0x04)
