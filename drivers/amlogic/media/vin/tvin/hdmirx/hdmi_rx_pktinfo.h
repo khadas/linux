@@ -14,12 +14,13 @@
 
 #define K_FLAG_TAB_END			0xa0a05f5f
 
-#define VSIF_PKT_READ_FROM_PD_FIFO
+//#define VSIF_PKT_READ_FROM_PD_FIFO
 
 #define IEEE_VSI14		0x000c03
 #define IEEE_DV15		0x00d046
 #define IEEE_VSI21		0xc45dd8
 #define IEEE_HDR10PLUS		0x90848b
+#define IEEE_CUVAHDR		0x047503
 #define IEEE_DV_PLUS_ALLM 0x1
 #define IEEE_HDR10P_PLUS_ALLM 0x2
 
@@ -29,6 +30,8 @@
 #define VSIF_TYPE_HDR10P	2
 #define VSIF_TYPE_HDMI21	4
 #define VSIF_TYPE_HDMI14	8
+#define VSIF_TYPE_CUVA		16
+
 
 #define EMP_TYPE_VSIF		1
 #define EMP_TYPE_VTEM		2
@@ -39,12 +42,22 @@
 #define DV_EMP		2
 
 enum vsi_state_e {
-	E_VSI_NULL,
-	E_VSI_4K3D,
-	E_VSI_VSI21,
-	E_VSI_HDR10PLUS,
-	E_VSI_DV10,
-	E_VSI_DV15
+	E_VSI_NULL = 0,
+	E_VSI_4K3D = 0x01,
+	E_VSI_VSI21 = 0x02,
+	E_VSI_HDR10PLUS = 0x04,
+	E_VSI_DV10 = 0x08,
+	E_VSI_DV15 = 0x10,
+	E_VSI_CUVAHDR = 0x20,
+};
+
+enum vsi_type {
+	DV15,
+	CUVAHDR,
+	HDR10PLUS,
+	VSI21,
+	VSI14,
+	VSI_TYPE_MAX
 };
 
 enum pkt_length_e {
@@ -715,6 +728,17 @@ struct vsi_infoframe_st {
 			u8 data[22];
 			/*todo*/
 		} __packed vsi_st_21;
+
+		/* CUVA HDR ieee 0x047503 */
+		struct vsi_cuva_hdr {
+			/*pb4*/
+			u8 sys_start_code:8;
+			/*pb5*/
+			u8 rsvd1:2;
+			u8 transfer_char:1;
+			u8 monitor_mode_enable:1;
+			u8 version_code:4;
+		} __packed vsi_cuva_hdr;
 	} __packed sbpkt;
 } __packed;
 
@@ -1036,6 +1060,7 @@ struct pd_infoframe_s {
 struct packet_info_s {
 	/* packet type 0x81 vendor-specific */
 	struct pd_infoframe_s vs_info;
+	struct pd_infoframe_s multi_vs_info[VSI_TYPE_MAX];
 	/* packet type 0x82 AVI */
 	struct pd_infoframe_s avi_info;
 	/* packet type 0x83 source product description */

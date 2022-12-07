@@ -478,6 +478,27 @@ struct tvin_hdr10plus_info_s {
 	struct tvin_hdr10p_data_s hdr10p_data;
 };
 
+struct tvin_cuva_data_s {
+	u8 vsif_type;		//hb0
+	u8 visf_version;	//hb1
+	u8 payload_length;	//hb2
+	u8 check_sum;		//pb0
+	u32 ieee:24;		//pb1-3
+	u8 sys_start_code;	//pb4
+	/* pb5 */
+	u8 rsvd:2;
+	u8 transfer_char:1;
+	u8 monitor_mode_enable:1;
+	u8 version_code:4;
+	/* pb6-pb27 */
+	u8 reserved[22];
+};
+
+struct tvin_cuva_vsif_s {
+	bool cuva_on;
+	struct tvin_cuva_data_s cuva_data;
+};
+
 enum tvin_cn_type_e {
 	GRAPHICS,
 	PHOTO,
@@ -515,6 +536,7 @@ struct tvin_sig_property_s {
 	enum tvin_color_fmt_range_e color_fmt_range;
 	struct tvin_hdr_info_s hdr_info;
 	struct tvin_dv_vsif_s dv_vsif;/*dolby vsi info*/
+	struct tvin_cuva_vsif_s cuva_info; /* cuva hdr info */
 	struct tvin_dv_vsif_raw_s dv_vsif_raw;
 	u8 dolby_vision;/*is signal dolby version 1:vsif 2:emp */
 	bool low_latency;/*is low latency dolby mode*/

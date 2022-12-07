@@ -1035,10 +1035,53 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 		prop->trans_fmt = TVIN_TFMT_2D;
 		prop->dolby_vision = DV_NULL;
 		prop->hdr10p_info.hdr10p_on = false;
+		prop->cuva_info.cuva_on = false;
 		last_vsi_state = rx.vs_info_details.vsi_state;
 	}
 	if (rx.pre.colorspace != E_COLOR_YUV420)
 		prop->dolby_vision = rx.vs_info_details.dolby_vision_flag;
+#ifdef MULTI_VSIF_EXPORT_TO_EMP
+	if (log_level & PACKET_LOG)
+		rx_pr("vsi_state:0x%x\n", rx.vs_info_details.vsi_state);
+
+	if (rx.vs_info_details.vsi_state & E_VSI_DV10 || rx.vs_info_details.vsi_state & E_VSI_DV15)
+		rx.vs_info_details.vsi_state = E_VSI_DV15;
+	else if (rx.vs_info_details.vsi_state & E_VSI_HDR10PLUS)
+		rx.vs_info_details.vsi_state = E_VSI_HDR10PLUS;
+	else if (rx.vs_info_details.vsi_state & E_VSI_CUVAHDR)
+		rx.vs_info_details.vsi_state = E_VSI_CUVAHDR;
+	else if (rx.vs_info_details.vsi_state & E_VSI_4K3D)
+		rx.vs_info_details.vsi_state = E_VSI_4K3D;
+	else
+		rx.vs_info_details.vsi_state = E_VSI_VSI21;
+
+	switch (rx.vs_info_details.vsi_state) {
+	case E_VSI_DV10:
+	case E_VSI_DV15:
+		prop->low_latency = rx.vs_info_details.low_latency;
+		if (rx.vs_info_details.dolby_vision_flag == DV_VSIF) {
+			memcpy(&prop->dv_vsif_raw,
+			       &rx_pkt.multi_vs_info[DV15], 3);
+			memcpy((char *)(&prop->dv_vsif_raw) + 3,
+			       &rx_pkt.multi_vs_info[DV15].PB0,
+			       sizeof(struct tvin_dv_vsif_raw_s) - 4);
+		}
+		break;
+	case E_VSI_HDR10PLUS:
+		prop->hdr10p_info.hdr10p_on = rx.vs_info_details.hdr10plus;
+		memcpy(&prop->hdr10p_info.hdr10p_data, &rx_pkt.multi_vs_info[HDR10PLUS],
+			sizeof(struct tvin_hdr10p_data_s));
+		break;
+	case E_VSI_CUVAHDR:
+		prop->cuva_info.cuva_on = true;
+		if (rx.vs_info_details.cuva_hdr) {
+			memset(&prop->cuva_info.cuva_data, 0,
+				sizeof(struct tvin_cuva_data_s));
+			memcpy(&prop->cuva_info.cuva_data,
+			       &rx_pkt.multi_vs_info[CUVAHDR], sizeof(struct tvin_cuva_data_s));
+		}
+		break;
+#else
 	switch (rx.vs_info_details.vsi_state) {
 	case E_VSI_HDR10PLUS:
 		prop->hdr10p_info.hdr10p_on = rx.vs_info_details.hdr10plus;
@@ -1056,6 +1099,7 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 			       sizeof(struct tvin_dv_vsif_raw_s) - 4);
 		}
 		break;
+#endif
 	case E_VSI_4K3D:
 		if (hdmirx_hw_get_3d_structure() == 1) {
 			if (rx.vs_info_details._3d_structure == 0x1) {

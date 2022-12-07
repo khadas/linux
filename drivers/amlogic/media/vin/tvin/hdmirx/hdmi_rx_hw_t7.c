@@ -1979,16 +1979,20 @@ void rx_set_irq_t7(bool en)
 
 	if (en) {
 		data8 = 0;
+#ifndef MULTI_VSIF_EXPORT_TO_EMP
 		data8 |= 1 << 4; /* intr_new_unrec en */
 		data8 |= 1 << 2; /* intr_new_aud */
+#endif
 		data8 |= 1 << 1; /* intr_spd */
 		hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, data8);
 
+#ifndef MULTI_VSIF_EXPORT_TO_EMP
 		data8 = 0;
 		data8 |= 1 << 4; /* intr_cea_repeat_hf_vsi en */
 		data8 |= 1 << 3; /* intr_cea_new_hf_vsi en */
 		data8 |= 1 << 2; /* intr_cea_new_vsi */
 		hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, data8);
+#endif
 
 		hdmirx_wr_cor(RX_GRP_INTR1_MASK_PWD_IVCRX, 0x25);
 		hdmirx_wr_cor(RX_INTR1_MASK_PWD_IVCRX, 0x03);//register_address: 0x1050

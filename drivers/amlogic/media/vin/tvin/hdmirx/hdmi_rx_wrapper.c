@@ -1095,10 +1095,12 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 			#endif
 			if (rx.state == FSM_SIG_READY) {
 				rx.vsync_cnt++;
+#ifndef MULTI_VSIF_EXPORT_TO_EMP
 				if (rx_vsif_type) {
 					rx_pkt_handler(PKT_BUFF_SET_VSI);
 					rx_vsif_type = 0;
 				}
+#endif
 				if (rx_spd_type) {
 					rx_pkt_handler(PKT_BUFF_SET_SPD);
 					rx_spd_type = 0;
@@ -3705,6 +3707,7 @@ static void dump_video_status(void)
 	rx_pr("cnt_type = %d\n", rx.cur.cn_type);
 	rx_pr("dolby_vision = %d\n", rx.vs_info_details.dolby_vision_flag);
 	rx_pr("dv ll = %d\n", rx.vs_info_details.low_latency);
+	rx_pr("cuva hdr = %d\n", rx.vs_info_details.cuva_hdr);
 	//rx_pr("VTEM = %d\n", rx.vrr_en);
 	rx_pr("DRM = %d\n", rx_pkt_chk_attach_drm());
 	rx_pr("freesync = %d\n-bit0 supported,bit1:enabled.bit2:active", rx.free_sync_sts);

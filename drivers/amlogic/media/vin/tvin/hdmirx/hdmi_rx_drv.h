@@ -48,6 +48,14 @@
 /* reconfig phy when cable clk changed */
 #define RX_VER1 "ver.2022/11/17"
 
+/*
+ * Currently, a total of 5 VSIF packages are supported,
+ * DV/HDR10+/CUVA/HDMI2.1/HDMI1.4, but only the last one can be parsed
+ * each time. The purpose of MULTI_VSIF_EXPORT_TO_EMP is to transfer the
+ * optimal VSIF packet to VDIN when multiple VSIF packets are received.
+ */
+#define MULTI_VSIF_EXPORT_TO_EMP
+
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 
 #define TIME_1MS 1000000
@@ -495,11 +503,14 @@ struct vsi_info_s {
 	bool dv_allm;
 	bool hdmi_allm;
 	bool hdr10plus;
+	bool cuva_hdr;
 	u8 ccbpc;
-	u8 vsi_state;
+	u8 vsi_state; // bit0-5: 4K3D/VSI21/HDR10+/DV10/DV15/CUVA
 	u8 emp_pkt_cnt;
 	u8 timeout;
 	u8 max_frl_rate;
+	u8 sys_start_code;
+	u8 cuva_version_code;
 };
 
 struct vtem_info_s {

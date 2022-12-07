@@ -1638,6 +1638,7 @@ int packet_init_t7(void)
 {
 	u8 data8 = 0;
 
+#ifndef MULTI_VSIF_EXPORT_TO_EMP
 	/* vsif id check en */
 	hdmirx_wr_cor(VSI_CTRL2_DP3_IVCRX, 1);
 	/* vsif pkt id cfg, default is 000c03 */
@@ -1667,6 +1668,7 @@ int packet_init_t7(void)
 	/* use unrec to store hf-vsif */
 	hdmirx_wr_cor(RX_UNREC_CTRL_DP2_IVCRX, 1);
 	hdmirx_wr_cor(RX_UNREC_DEC_DP2_IVCRX, PKT_TYPE_INFOFRAME_VSI);
+#endif
 	/* get data 0x11c0-11de */
 
 	data8 = 0;
@@ -5358,9 +5360,17 @@ void rx_emp_to_ddr_init(void)
 			data32 |= 0 << 22;/* ddr_store_drm */
 		else
 			data32 |= 1 << 22;/* ddr_store_drm */
-		data32 |= 1 << 19;/* ddr_store_aif */
+		/* ddr_store_aif */
+		if (rx.chip_id == CHIP_ID_T7)
+			data32 |= 1 << 19;
+		else
+			data32 |= 0 << 19;
 		data32 |= 0 << 18;/* ddr_store_spd */
+#ifdef MULTI_VSIF_EXPORT_TO_EMP
+		data32 |= 1 << 16;/* ddr_store_vsi */
+#else
 		data32 |= 0 << 16;/* ddr_store_vsi */
+#endif
 		data32 |= 1 << 15;/* ddr_store_emp */
 		data32 |= 0 << 12;/* ddr_store_amp */
 		data32 |= 0 << 8;/* ddr_store_hbr */
