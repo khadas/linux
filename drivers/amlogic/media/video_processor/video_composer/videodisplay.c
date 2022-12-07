@@ -1445,8 +1445,7 @@ int video_display_setframe(int layer_index,
 
 		if ((frame_info->reserved[0] & VIDTYPE_VIU_NV12) ||
 			(frame_info->reserved[0] & VIDTYPE_VIU_NV21)) {
-			phy_addr2 = get_dma_phy_addr(frame_info->dmabuf, dev) +
-				frame_info->buffer_w * frame_info->buffer_h;
+			phy_addr2 = frame_info->phy_addr[1];
 			vf->plane_num = 2;
 			vf->canvas0_config[1].phy_addr = phy_addr2;
 			vf->canvas0_config[1].width = frame_info->buffer_w;

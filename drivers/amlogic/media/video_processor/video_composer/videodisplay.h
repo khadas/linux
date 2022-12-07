@@ -43,6 +43,7 @@ struct video_display_frame_info_t {
 	struct dma_buf *dmabuf;
 	struct dma_fence *input_fence;
 	struct dma_fence *release_fence;
+	u64 phy_addr[2];
 	u32 buffer_w;
 	u32 buffer_h;
 	u32 dst_x;
