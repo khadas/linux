@@ -99,7 +99,7 @@
 		/*};*/
 
 		logo_reserved:linux,meson-fb {
-			compatible = "shared-dma-pool";
+			compatible = "amlogic, meson-fb";
 			reusable;
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
