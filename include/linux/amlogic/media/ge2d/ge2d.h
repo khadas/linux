@@ -701,7 +701,7 @@ struct ge2d_stride_s {
 	unsigned int dst_stride[MAX_PLANE];
 };
 
-/*temporary strcut to accept data from user*/
+/*temporary struct to accept data from user*/
 struct ge2d_clut8_t {
 	u32 data[256];
 	u32 count;
