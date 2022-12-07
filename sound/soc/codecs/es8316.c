@@ -65,6 +65,14 @@ static void es8316_enable_spk(struct es8316_priv *es8316, bool enable)
 	gpio_set_value(es8316->spk_ctl_gpio, level);
 }
 
+static void es8316_enable_headset_mic(struct es8316_priv *es8316, bool enable)
+{
+	if (enable)
+		snd_soc_component_write(es8316->component, ES8316_ADC_PDN_LINSEL, 0xd0);
+	else
+		snd_soc_component_write(es8316->component, ES8316_ADC_PDN_LINSEL, 0xc0);
+}
+
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(dac_vol_tlv, -9600, 50, 1);
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(adc_vol_tlv, -9600, 50, 1);
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(alc_max_gain_tlv, -650, 150, 0);
@@ -598,10 +606,14 @@ static irqreturn_t es8316_irq(int irq, void *data)
         enable = !enable;
 
 	es8316->hp_inserted = enable ? true : false;
-	if (es8316->hp_inserted)
+	if (es8316->hp_inserted) {
         es8316_enable_spk(es8316, false);
-	else
+		es8316_enable_headset_mic(es8316, true);
+	}
+	else {
         es8316_enable_spk(es8316, true);
+		es8316_enable_headset_mic(es8316, false);
+	}
         mutex_lock(&es8316->lock);
 
 	regmap_read(es8316->regmap, ES8316_GPIO_FLAG, &flags);
