@@ -1082,11 +1082,15 @@ static int meson_cpufreq_exit(struct cpufreq_policy *policy)
 
 static int meson_cpufreq_suspend(struct cpufreq_policy *policy)
 {
+	dev_set_uevent_suppress(&policy->cdev->device, true);
+
 	return cpufreq_generic_suspend(policy);
 }
 
 static int meson_cpufreq_resume(struct cpufreq_policy *policy)
 {
+	dev_set_uevent_suppress(&policy->cdev->device, false);
+
 	return cpufreq_generic_suspend(policy);
 }
 
