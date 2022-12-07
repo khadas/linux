@@ -15,7 +15,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 
-/* moudle headers */
+/* module headers */
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include "arch/vpp_regs.h"
@@ -24,10 +24,10 @@
 #include "amve_v2.h"
 
 #define NUM_MATRIX_PARAM 7
-#define NUM_COLOR_MAX ecm2colormd_max
+#define NUM_COLOR_MAX ecm2colormode_max
 #define NUM_SMTH_PARAM 11
 
-#define NUM_CM_14_COLOR_MAX cm_14_ecm2colormd_max
+#define NUM_CM_14_COLOR_MAX cm_14_ecm2colormode_max
 
 static uint lpf_coef_matrix_param = NUM_MATRIX_PARAM;
 static uint lpf_coef[NUM_MATRIX_PARAM] = {
@@ -307,11 +307,11 @@ void cm2_curve_update_hue_by_hs(struct cm_color_md cm_color_md_hue_by_hs)
 	}
 
 	if (cm_color_md_hue_by_hs.color_type == cm_9_color &&
-		cm_color_md_hue_by_hs.cm_9_color_md == ecm2colormd_max) {
+		cm_color_md_hue_by_hs.cm_9_color_md == ecm2colormode_max) {
 		pr_info("color_type:9 clr, cm_9_color_md=9 error, return!!!\n");
 		return;
 	} else if (cm_color_md_hue_by_hs.color_type == cm_14_color &&
-		cm_color_md_hue_by_hs.cm_14_color_md == cm_14_ecm2colormd_max) {
+		cm_color_md_hue_by_hs.cm_14_color_md == cm_14_ecm2colormode_max) {
 		pr_info("color_type:14 clr, cm_14_color_md=14 error, return!!!\n");
 		return;
 	}
@@ -453,11 +453,11 @@ void cm2_curve_update_hue(struct cm_color_md cm_color_md_hue)
 	}
 
 	if (cm_color_md_hue.color_type == cm_9_color &&
-		cm_color_md_hue.cm_9_color_md == ecm2colormd_max) {
+		cm_color_md_hue.cm_9_color_md == ecm2colormode_max) {
 		pr_info("color_type:9 clr, cm_9_color_md=9 error, return!!!\n");
 		return;
 	} else if (cm_color_md_hue.color_type == cm_14_color &&
-		cm_color_md_hue.cm_14_color_md == cm_14_ecm2colormd_max) {
+		cm_color_md_hue.cm_14_color_md == cm_14_ecm2colormode_max) {
 		pr_info("color_type:14 clr, cm_14_color_md=14 error, return!!!\n");
 		return;
 	}
@@ -561,11 +561,11 @@ void cm2_curve_update_luma(struct cm_color_md cm_color_md_luma)
 	}
 
 	if (cm_color_md_luma.color_type == cm_9_color &&
-		cm_color_md_luma.cm_9_color_md == ecm2colormd_max) {
+		cm_color_md_luma.cm_9_color_md == ecm2colormode_max) {
 		pr_info("color_type:9 clr, cm_9_color_md=9 error, return!!!\n");
 		return;
 	} else if (cm_color_md_luma.color_type == cm_14_color &&
-		cm_color_md_luma.cm_14_color_md == cm_14_ecm2colormd_max) {
+		cm_color_md_luma.cm_14_color_md == cm_14_ecm2colormode_max) {
 		pr_info("color_type:14 clr, cm_14_color_md=14 error, return!!!\n");
 		return;
 	}
@@ -669,11 +669,11 @@ void cm2_curve_update_sat(struct cm_color_md cm_color_md_sat)
 	}
 
 	if (cm_color_md_sat.color_type == cm_9_color &&
-		cm_color_md_sat.cm_9_color_md == ecm2colormd_max) {
+		cm_color_md_sat.cm_9_color_md == ecm2colormode_max) {
 		pr_info("color_type:9 clr, cm_9_color_md=9 error, return!!!\n");
 		return;
 	} else if (cm_color_md_sat.color_type == cm_14_color &&
-		cm_color_md_sat.cm_14_color_md == cm_14_ecm2colormd_max) {
+		cm_color_md_sat.cm_14_color_md == cm_14_ecm2colormode_max) {
 		pr_info("color_type:14 clr, cm_14_color_md=14 error, return!!!\n");
 		return;
 	}

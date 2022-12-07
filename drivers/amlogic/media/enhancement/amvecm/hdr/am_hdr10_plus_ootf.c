@@ -56,7 +56,7 @@ void ebzcurveparametersinit(struct ebzcurveparameters *ebzcurveparameters)
 	ebzcurveparameters->sy = 0;
 	ebzcurveparameters->order = N;
 	for (i = 0; i < N; i++)
-		ebzcurveparameters->anchor[i] = PORCESSING_DATA_MAX;
+		ebzcurveparameters->anchor[i] = PROCESSING_DATA_MAX;
 }
 
 /*percentile actually obtained from metadata */
@@ -137,16 +137,16 @@ void getmetadata(struct scene2094metadata *metadata,
 void basisootf_params_init(struct basisootf_params *basisootf_params)
 {
 	int p2top9_max1_init[ORDER - 2] = {
-		0.5582 * PORCESSING_DATA_MAX, 0.6745 * PORCESSING_DATA_MAX,
-		0.7703 * PORCESSING_DATA_MAX, 0.8231 * PORCESSING_DATA_MAX,
-		0.8729 * PORCESSING_DATA_MAX, 0.9130 * PORCESSING_DATA_MAX,
-		0.9599 * PORCESSING_DATA_MAX, 0.9844 * PORCESSING_DATA_MAX
+		0.5582 * PROCESSING_DATA_MAX, 0.6745 * PROCESSING_DATA_MAX,
+		0.7703 * PROCESSING_DATA_MAX, 0.8231 * PROCESSING_DATA_MAX,
+		0.8729 * PROCESSING_DATA_MAX, 0.9130 * PROCESSING_DATA_MAX,
+		0.9599 * PROCESSING_DATA_MAX, 0.9844 * PROCESSING_DATA_MAX
 	};
 	int p2top9_max2_init[ORDER - 2] = {
-		0.4839 * PORCESSING_DATA_MAX, 0.6325 * PORCESSING_DATA_MAX,
-		0.7253 * PORCESSING_DATA_MAX, 0.7722 * PORCESSING_DATA_MAX,
-		0.8201 * PORCESSING_DATA_MAX, 0.8837 * PORCESSING_DATA_MAX,
-		0.9208 * PORCESSING_DATA_MAX, 0.9580 * PORCESSING_DATA_MAX
+		0.4839 * PROCESSING_DATA_MAX, 0.6325 * PROCESSING_DATA_MAX,
+		0.7253 * PROCESSING_DATA_MAX, 0.7722 * PROCESSING_DATA_MAX,
+		0.8201 * PROCESSING_DATA_MAX, 0.8837 * PROCESSING_DATA_MAX,
+		0.9208 * PROCESSING_DATA_MAX, 0.9580 * PROCESSING_DATA_MAX
 	};
 	int i;
 
@@ -296,29 +296,29 @@ int calcp1(int sx, int sy, int tgtL, int calcmaxl,
 	int ax, ay, k, p1_limit, k2, p1_t, p1;
 	int low_sy_g, high_k_g, high_tm_g, red_p1;
 
-	ax = min(sx, PORCESSING_DATA_MAX);
-	ay = min(sy, PORCESSING_DATA_MAX);
+	ax = min(sx, PROCESSING_DATA_MAX);
+	ay = min(sy, PROCESSING_DATA_MAX);
 
-	k = tgtL * PORCESSING_DATA_MAX / max(tgtL, calcmaxl);
+	k = tgtL * PROCESSING_DATA_MAX / max(tgtL, calcmaxl);
 	p1_limit = rampweight(basisootf_params->P1_LIMIT_V2,
 			      basisootf_params->P1_LIMIT_V1,
 		basisootf_params->P1_LIMIT_T1,
 		basisootf_params->P1_LIMIT_T2,
 		sy);
-	k2 = (PORCESSING_DATA_MAX + 1 - ax) * PORCESSING_DATA_MAX /
-		(ORDER * (PORCESSING_DATA_MAX + 1 - ay));
-	p1_t = k2 * PORCESSING_DATA_MAX / k;
+	k2 = (PROCESSING_DATA_MAX + 1 - ax) * PROCESSING_DATA_MAX /
+		(ORDER * (PROCESSING_DATA_MAX + 1 - ay));
+	p1_t = k2 * PROCESSING_DATA_MAX / k;
 	p1 = max(min(p1_t, p1_limit), 0);
-	low_sy_g = rampweight(PORCESSING_DATA_MAX + 1, 0,
+	low_sy_g = rampweight(PROCESSING_DATA_MAX + 1, 0,
 			      basisootf_params->LOW_SY_T1,
 		basisootf_params->LOW_SY_T2,
 		sy);
-	high_k_g = rampweight(PORCESSING_DATA_MAX + 1, 0,
+	high_k_g = rampweight(PROCESSING_DATA_MAX + 1, 0,
 			      basisootf_params->LOW_K_T1,
 			      basisootf_params->LOW_K_T2,
 		k);
 	high_tm_g = low_sy_g * high_k_g >> PROCESSING_MAX;
-	red_p1 = rampweight(PORCESSING_DATA_MAX + 1,
+	red_p1 = rampweight(PROCESSING_DATA_MAX + 1,
 			    basisootf_params->RED_P1_V1,
 		basisootf_params->RED_P1_T1,
 		basisootf_params->RED_P1_T2,
@@ -347,8 +347,8 @@ int basisootf(struct scene2094metadata *metadata,
 
 	getpercentile_50_99(&metadata->percentiles, &psll50, &psll99);
 
-	centerluminance = psll50 * PORCESSING_DATA_MAX / max(psll99, 1);
-	k = targetluminance * PORCESSING_DATA_MAX / sourceluminance;
+	centerluminance = psll50 * PROCESSING_DATA_MAX / max(psll99, 1);
+	k = targetluminance * PROCESSING_DATA_MAX / sourceluminance;
 
 	if (hdr10_plus_printk & 2)
 		pr_hdr("basisOOTF precision: ctrL=%d, k=%d\n",
@@ -368,7 +368,7 @@ int basisootf(struct scene2094metadata *metadata,
 			 basisootf_params->KP_G_T1,
 			 basisootf_params->KP_G_T2,
 			 centerluminance);
-	sy = (rem * sy1 + (PORCESSING_DATA_MAX + 1 - rem) * sy2) >>
+	sy = (rem * sy1 + (PROCESSING_DATA_MAX + 1 - rem) * sy2) >>
 		PROCESSING_MAX;
 	sx = sy * k;
 
@@ -387,23 +387,23 @@ int basisootf(struct scene2094metadata *metadata,
 				     basisootf_params->P2TO9_T2,
 				     centerluminance);
 		ps2to9[i] = (rem_p29 * basisootf_params->P2TOP9_MAX1[i] +
-		(PORCESSING_DATA_MAX + 1 - rem_p29) *
+		(PROCESSING_DATA_MAX + 1 - rem_p29) *
 		basisootf_params->P2TOP9_MAX2[i]) >> PROCESSING_MAX;
 		if (hdr10_plus_printk & 2)
 			pr_hdr("basisOOTF precision: g=%d ps2to9[%d] = %d\n",
 			       rem_p29, i, ps2to9[i]);
 	}
 
-	rem_ps = rampweight(PORCESSING_DATA_MAX + 1, 0,
+	rem_ps = rampweight(PROCESSING_DATA_MAX + 1, 0,
 			    basisootf_params->PS_G_T1,
 			    basisootf_params->PS_G_T2, k);
 
 	pcoeff[0] = p1;
 	for (i = 1; i < NPCOEFF; i++) {
 		coeffi = i + 1;
-		plin[i] = (coeffi * PORCESSING_DATA_MAX / order);
+		plin[i] = (coeffi * PROCESSING_DATA_MAX / order);
 		pcoeff[i] = max(min((rem_ps * ps2to9[i - 1] +
-				(PORCESSING_DATA_MAX + 1 - rem_ps) * plin[i])
+				(PROCESSING_DATA_MAX + 1 - rem_ps) * plin[i])
 				>> PROCESSING_MAX,
 				coeffi * p1),
 			plin[i]);
@@ -413,13 +413,13 @@ int basisootf(struct scene2094metadata *metadata,
 	}
 
 	/*p[1] recalc precision:0.01,bad*/
-	rem_red_p2 = rampweight(PORCESSING_DATA_MAX + 1,
+	rem_red_p2 = rampweight(PROCESSING_DATA_MAX + 1,
 				basisootf_params->RED_P2_V1,
 				basisootf_params->RED_P2_T1,
 				basisootf_params->RED_P2_T2,
 				high_tm_g);
 	pcoeff[1] = max(min((pcoeff[1] * rem_red_p2) >> PROCESSING_MAX, 2 * p1),
-			2 * PORCESSING_DATA_MAX / ORDER);
+			2 * PROCESSING_DATA_MAX / ORDER);
 
 	/*finally  pcoeff[ORDER-1],sy,sx*/
 	scenebezierparams->sx = sx;
@@ -461,7 +461,7 @@ int guidedootf(struct scene2094metadata *metadata,
 	ebzcurveparametersinit(&minbezierparams);
 
 	for (i = 0; i < nump; i++)
-		anchorlinear[i] = (i + 1) * PORCESSING_DATA_MAX / order;
+		anchorlinear[i] = (i + 1) * PROCESSING_DATA_MAX / order;
 
 	if (hdr10_plus_printk & 2) {
 		pr_hdr("order = %d, linear ps[i]:\n",
@@ -628,14 +628,14 @@ int guidedootf(struct scene2094metadata *metadata,
 }
 
 /*bezier optimise method to gen bezier function*/
-int decasteliau(u64 *beziercurve, u64 *anchory,
+int decasteliau(u64 *beziercurve, u64 *anchor_y,
 		u64 u, int order, u64 range_ebz_x)
 {
 	u64 pointy[N + 2];
 	int i, j;
 
 	for (i = 0; i < order + 1; i++)
-		pointy[i] = anchory[i];
+		pointy[i] = anchor_y[i];
 
 	for (i = 1; i <= order; i++)
 		for (j = 0; j <= order - i; j++) {
@@ -648,7 +648,7 @@ int decasteliau(u64 *beziercurve, u64 *anchory,
 	return 0;
 }
 
-#define org_anchory
+#define org_anchor_y
 
 u64 oo_lut_x[OOLUT_NUM] = {
 	1, 16, 32, 64, 128, 256, 512, 1024, 2048, 2560, 3072, 3584, 4096,
@@ -679,7 +679,7 @@ u64 oo_lut_x[OOLUT_NUM] = {
 int gen_ebzurve(u64 *curvex, u64 *curvey,
 		unsigned int *gain,
 	u64 nkx, uint64_t nky,
-	u64 *anchory, int order)
+	u64 *anchor_y, int order)
 {
 	u64 my_anchor_y[N + 2];
 	u64 temp;
@@ -704,17 +704,17 @@ int gen_ebzurve(u64 *curvex, u64 *curvey,
 	range_ebz_x = _U32_MAX - kx;
 	range_ebz_y = _U32_MAX - ky;
 
-#ifdef org_anchory
+#ifdef org_anchor_y
 	for (i = 0; i < nump; i++)/* u12-> ebz_y, u32*/
 		/*anchorY default range:PROCESSING_MAX */
-		my_anchor_y[i + 1] = anchory[i] << (U32 - PROCESSING_MAX);
+		my_anchor_y[i + 1] = anchor_y[i] << (U32 - PROCESSING_MAX);
 	my_anchor_y[0] = 0;
 	my_anchor_y[nump + 1] = _U32_MAX; /* u12 */
 #else
 	for (i = 0; i < nump; i++)/* u12-> ebz_y, u32*/
 		/*anchorY default range:PROCESSING_MAX */
 		my_anchor_y[i + 1] =
-		(anchory[i] * range_ebz_y) >> PROCESSING_MAX;
+		(anchor_y[i] * range_ebz_y) >> PROCESSING_MAX;
 	my_anchor_y[0] = 0;
 	my_anchor_y[N] = range_ebz_y; /*u12 -> U32*/
 #endif  /* org_anchory */
@@ -735,7 +735,7 @@ int gen_ebzurve(u64 *curvex, u64 *curvey,
 			/* calc each point from 1st to N-th layer*/
 			decasteliau(&beziercurve[0], my_anchor_y, step_alpha,
 				    order, range_ebz_x);
-			#ifdef org_anchory   /*range_ebz_y = _U32_MAX*/
+			#ifdef org_anchor_y   /*range_ebz_y = _U32_MAX*/
 			curvey[i] = ky +
 			((range_ebz_y * beziercurve[1] + range_ebz_y / 2)
 			>> U32);
@@ -964,7 +964,7 @@ int hdr10_plus_ootf_gen(int panel_lumin,
 	/*int referenceCurve_flag = 1;*/
 	int order, i;
 	u64 kx, ky;
-	u64 anchory[N];
+	u64 anchor_y[N];
 
 	/* bezier params obtained from metadata */
 	static struct hdr10_plus_sei_s hdr10_plus_sei;
@@ -1031,11 +1031,11 @@ int hdr10_plus_ootf_gen(int panel_lumin,
 	ky	= (uint64_t)productbezierparams.sy;
 	order = productbezierparams.order;
 	for (i = 0; i < productbezierparams.order - 1; i++)
-		anchory[i] = (uint64_t)productbezierparams.anchor[i];
+		anchor_y[i] = (uint64_t)productbezierparams.anchor[i];
 
 	/*step 5. gen bezier curve*/
 	gen_ebzurve(&curvex[0], &curvey[0], &gain[0],
-		    kx, ky, &anchory[0], order);
+		    kx, ky, &anchor_y[0], order);
 
 	/* debug */
 	if (hdr10_plus_printk & 8) {

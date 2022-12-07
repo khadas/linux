@@ -634,7 +634,7 @@ static void vlock_tune_sync(struct stvlock_sig_sts *pvlock)
 			if (!frc_is_on() || vlock_frc_is_on == VLOCK_V_FRONT_PORCH_REV_B)
 				return;
 
-			/*shdow register*/
+			/*shadow register*/
 			WRITE_VPP_REG(ENCL_SYNC_TO_LINE_EN, (1 << 13) | (max_lncnt - frc_v_porch));
 			WRITE_VPP_REG(ENCL_SYNC_PIXEL_EN, (1 << 15) | (max_pxcnt - 1));
 			WRITE_VPP_REG(ENCL_SYNC_LINE_LENGTH, max_lncnt - frc_v_porch - 1);
@@ -1331,7 +1331,7 @@ static void vlock_disable_step1(struct stvlock_sig_sts *pvlock)
 
 	if (IS_PLL_MODE(vlock_mode)) {
 		if (pvlock->dtdata->vlk_hwver >= vlock_hw_ver2) {
-			/*restore the orginal pll setting*/
+			/*restore the original pll setting*/
 			/*tmp_value = vlock_get_panel_pll_m(pvlock);*/
 			/*m_reg_value = tmp_value & 0xff;*/
 			/*if (m_reg_value != (pvlock->val_m & 0xff))*/
@@ -2750,7 +2750,7 @@ u32 vlock_fsm_en_step1_func(struct stvlock_sig_sts *pvlock,
 		/*WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL + offset_vlck, 0, 5, 1);*/
 		vlock_reset(pvlock, 0);
 		/*
-		 * tl1 auto pll,swich clk need after
+		 * tl1 auto pll,switch clk need after
 		 *several frames
 		 */
 
@@ -2852,7 +2852,7 @@ u32 vlock_fsm_check_lock_sts(struct stvlock_sig_sts *pvlock,
 			temp_vs_in, pvlock->chk_lock_sts_vs_in);
 	pvlock->chk_lock_sts_vs_in = temp_vs_in;
 
-	/*check outpu vs time*/
+	/*check output vs time*/
 	if ((diff(pvlock->chk_lock_sts_vs_out, temp_vs_out) >
 	    (((2000000000 / (pvlock->output_hz * 83)) * 2) / 10)) &&
 	    pvlock->frame_cnt_in > 2000)

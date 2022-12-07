@@ -146,7 +146,7 @@ struct cuva_md_bits_s {
 	int spline_th_enable_bits;
 	int spline_th_en_delta1_bits;
 	int spline_th_en_delta2_bits;
-	int spline_en_strengch_bits;
+	int spline_en_strength_bits;
 	int color_sat_mapping_flag_bits;
 	int color_sat_num_bits;
 	int clor_sat_gain_bits;

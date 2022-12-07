@@ -445,7 +445,7 @@ int hdr10_tmo_dynamic_proc(int *data_oo_y_lut,
 {
 	int i;
 	u32 maxl;
-	u32 primry_maxl;
+	u32 primary_maxl;
 	u32 panel_l;
 	u64 sx, sy;
 	u64 anchor[MAX_BEIZER_ORDER - 1];
@@ -462,12 +462,12 @@ int hdr10_tmo_dynamic_proc(int *data_oo_y_lut,
 	if (luminance[0] == 0)
 		luminance[0] = 1200;
 
-	primry_maxl = luminance[0];
+	primary_maxl = luminance[0];
 
 	/*use 95% maxl because of high percert flicker*/
-	maxl = (percentile[8] > primry_maxl) ? primry_maxl : percentile[8];
-	pr_hdr_tm("maxl = %d, percentile[8] = %d, primry_maxl =%d\n",
-		maxl, percentile[8], primry_maxl);
+	maxl = (percentile[8] > primary_maxl) ? primary_maxl : percentile[8];
+	pr_hdr_tm("maxl = %d, percentile[8] = %d, primary_maxl =%d\n",
+		maxl, percentile[8], primary_maxl);
 
 	if (tm_iir)
 		scn_chang_flag = time_iir(&maxl,

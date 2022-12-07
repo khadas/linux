@@ -256,7 +256,7 @@ static void _calculate_dnlp_tgtx(int hist_luma_sum,
 	*pdnlp_alg_input->RBASE = 1 << pdnlp_alg_node_param->dnlp_mvreflsh;
 
 	/*parameters refresh*/
-	pdnlp_alg_function->dnlp3_param_refrsh();
+	pdnlp_alg_function->dnlp3_param_refresh();
 
 	/*load histogram*/
 	*pdnlp_alg_input->ve_dnlp_luma_sum = hist_luma_sum;

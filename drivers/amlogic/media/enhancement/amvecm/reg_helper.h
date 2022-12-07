@@ -37,7 +37,7 @@
 #define srsharp1_lc_input_mux 0x3fb1
 #define srsharp1_lc_map_ram_data 0x3ffe
 
-/* useful inline fucntions to handle different offset */
+/* useful inline functions to handle different offset */
 static inline bool cpu_after_eq_t7(void)
 {
 	return cpu_after_eq(MESON_CPU_MAJOR_ID_T7);

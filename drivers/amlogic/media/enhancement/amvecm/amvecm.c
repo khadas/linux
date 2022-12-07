@@ -154,10 +154,10 @@ static s16 saturation_mb_shift;
 enum ecm_color_type cm_cur_work_color_md = cm_14_color;
 int cm2_debug;
 
-static int cm2_hue_array[cm_14_ecm2colormd_max][3];
-static int cm2_luma_array[cm_14_ecm2colormd_max][3];
-static int cm2_sat_array[cm_14_ecm2colormd_max][3];
-static int cm2_hue_by_hs_array[cm_14_ecm2colormd_max][3];
+static int cm2_hue_array[cm_14_ecm2colormode_max][3];
+static int cm2_luma_array[cm_14_ecm2colormode_max][3];
+static int cm2_sat_array[cm_14_ecm2colormode_max][3];
+static int cm2_hue_by_hs_array[cm_14_ecm2colormode_max][3];
 
 unsigned int sr1_reg_val[101];
 unsigned int sr1_ret_val[101];
@@ -3489,7 +3489,7 @@ static ssize_t amvecm_dnlp_debug_store(struct class *cla,
 	parse_param_amvecm(buf_orig, (char **)&parm);
 
 	if (!dnlp_insmod_ok) {
-		pr_info("dnlp insmod fial\n");
+		pr_info("dnlp insmod fail\n");
 		goto free_buf;
 	}
 
@@ -6304,7 +6304,7 @@ void pq_user_latch_process(void)
 	int i = 0;
 	int sat_hue_val = 0;
 	int input_clr_md = 0;
-	int cm_color_md_max = cm_14_ecm2colormd_max;
+	int cm_color_md_max = cm_14_ecm2colormode_max;
 	struct cm_color_md cm_clr_md;
 
 	if (pq_user_latch_flag & PQ_USER_BLK_EN) {
@@ -6372,17 +6372,17 @@ void pq_user_latch_process(void)
 		   pq_user_latch_flag & PQ_USER_CMS_CURVE_HUE_HS ||
 		   pq_user_latch_flag & PQ_USER_CMS_CURVE_HUE) {
 		if (cm_cur_work_color_md == cm_9_color) {
-			cm_color_md_max = ecm2colormd_max;
+			cm_color_md_max = ecm2colormode_max;
 			cm_clr_md.color_type = cm_9_color;
-			cm_clr_md.cm_9_color_md = ecm2colormd_purple;
-			cm_clr_md.cm_14_color_md = cm_14_ecm2colormd_max;
+			cm_clr_md.cm_9_color_md = ecm2colormode_purple;
+			cm_clr_md.cm_14_color_md = cm_14_ecm2colormode_max;
 			cm_clr_md.color_value = 0;
 		} else {
-			cm_color_md_max = cm_14_ecm2colormd_max;
+			cm_color_md_max = cm_14_ecm2colormode_max;
 			cm_clr_md.color_type = cm_14_color;
-			cm_clr_md.cm_9_color_md = ecm2colormd_max;
+			cm_clr_md.cm_9_color_md = ecm2colormode_max;
 			cm_clr_md.cm_14_color_md =
-				cm_14_ecm2colormd_blue_purple;
+				cm_14_ecm2colormode_blue_purple;
 			cm_clr_md.color_value = 0;
 		}
 
@@ -6467,7 +6467,7 @@ void pq_user_latch_process(void)
 		sat_hue_val =
 			aipq_saturation_hue_get_base_val() + sat_hue_offset_val;
 		/* ai_pq switch on, */
-		/* if satuaration val(sat_hue_val  >> 16) > max val(511), */
+		/* if saturation val(sat_hue_val  >> 16) > max val(511), */
 		/*	saturation val can not add sat offset val. */
 		if ((sat_hue_val  >> 16) > 511)
 			sat_hue_val = aipq_saturation_hue_get_base_val();
@@ -7412,10 +7412,10 @@ static ssize_t amvecm_cm2_hue_show(struct class *cla,
 {
 	int i;
 	int pos = 0;
-	int cm_color_md_max = cm_14_ecm2colormd_max;
+	int cm_color_md_max = cm_14_ecm2colormode_max;
 
 	if (cm_cur_work_color_md == cm_9_color)
-		cm_color_md_max = ecm2colormd_max;
+		cm_color_md_max = ecm2colormode_max;
 
 	for (i = 0; i < cm_color_md_max; i++)
 		pos += sprintf(buf + pos, "%d %d %d\n", i,
@@ -7456,9 +7456,9 @@ static ssize_t amvecm_cm2_hue_store(struct class *cla,
 			if (cm_color_md_dbg.color_type == cm_9_color) {
 				cm_color_md_dbg.cm_9_color_md = val;
 				cm_color_md_dbg.cm_14_color_md =
-					cm_14_ecm2colormd_max;
+					cm_14_ecm2colormode_max;
 			} else {
-				cm_color_md_dbg.cm_9_color_md = ecm2colormd_max;
+				cm_color_md_dbg.cm_9_color_md = ecm2colormode_max;
 				cm_color_md_dbg.cm_14_color_md = val;
 			}
 		}
@@ -7496,10 +7496,10 @@ static ssize_t amvecm_cm2_luma_show(struct class *cla,
 {
 	int i;
 	int pos = 0;
-	int cm_color_md_max = cm_14_ecm2colormd_max;
+	int cm_color_md_max = cm_14_ecm2colormode_max;
 
 	if (cm_cur_work_color_md == cm_9_color)
-		cm_color_md_max = ecm2colormd_max;
+		cm_color_md_max = ecm2colormode_max;
 
 	for (i = 0; i < cm_color_md_max; i++)
 		pos += sprintf(buf + pos, "%d %d %d\n", i,
@@ -7540,9 +7540,9 @@ static ssize_t amvecm_cm2_luma_store(struct class *cla,
 			if (cm_color_md_dbg.color_type == cm_9_color) {
 				cm_color_md_dbg.cm_9_color_md = val;
 				cm_color_md_dbg.cm_14_color_md =
-					cm_14_ecm2colormd_max;
+					cm_14_ecm2colormode_max;
 			} else {
-				cm_color_md_dbg.cm_9_color_md = ecm2colormd_max;
+				cm_color_md_dbg.cm_9_color_md = ecm2colormode_max;
 				cm_color_md_dbg.cm_14_color_md = val;
 			}
 		}
@@ -7580,10 +7580,10 @@ static ssize_t amvecm_cm2_sat_show(struct class *cla,
 {
 	int i;
 	int pos = 0;
-	int cm_color_md_max = cm_14_ecm2colormd_max;
+	int cm_color_md_max = cm_14_ecm2colormode_max;
 
 	if (cm_cur_work_color_md == cm_9_color)
-		cm_color_md_max = ecm2colormd_max;
+		cm_color_md_max = ecm2colormode_max;
 
 	for (i = 0; i < cm_color_md_max; i++)
 		pos += sprintf(buf + pos, "%d %d %d\n", i,
@@ -7624,9 +7624,9 @@ static ssize_t amvecm_cm2_sat_store(struct class *cla,
 			if (cm_color_md_dbg.color_type == cm_9_color) {
 				cm_color_md_dbg.cm_9_color_md = val;
 				cm_color_md_dbg.cm_14_color_md =
-					cm_14_ecm2colormd_max;
+					cm_14_ecm2colormode_max;
 			} else {
-				cm_color_md_dbg.cm_9_color_md = ecm2colormd_max;
+				cm_color_md_dbg.cm_9_color_md = ecm2colormode_max;
 				cm_color_md_dbg.cm_14_color_md = val;
 			}
 		}
@@ -7664,10 +7664,10 @@ static ssize_t amvecm_cm2_hue_by_hs_show(struct class *cla,
 {
 	int i;
 	int pos = 0;
-	int cm_color_md_max = cm_14_ecm2colormd_max;
+	int cm_color_md_max = cm_14_ecm2colormode_max;
 
 	if (cm_cur_work_color_md == cm_9_color)
-		cm_color_md_max = ecm2colormd_max;
+		cm_color_md_max = ecm2colormode_max;
 
 	for (i = 0; i < cm_color_md_max; i++)
 		pos += sprintf(buf + pos, "%d %d %d\n", i,
@@ -7708,9 +7708,9 @@ static ssize_t amvecm_cm2_hue_by_hs_store(struct class *cla,
 			if (cm_color_md_dbg.color_type == cm_9_color) {
 				cm_color_md_dbg.cm_9_color_md = val;
 				cm_color_md_dbg.cm_14_color_md =
-					cm_14_ecm2colormd_max;
+					cm_14_ecm2colormode_max;
 			} else {
-				cm_color_md_dbg.cm_9_color_md = ecm2colormd_max;
+				cm_color_md_dbg.cm_9_color_md = ecm2colormode_max;
 				cm_color_md_dbg.cm_14_color_md = val;
 			}
 		}
@@ -8067,7 +8067,7 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			pr_info("disable gamma before loading new gamma\n");
 		} else if (!strncmp(parm[1], "load_protect_dis", 16)) {
 			gamma_loadprotect_en = 0;
-			pr_info("loading new gamma without pretect");
+			pr_info("loading new gamma without protect");
 		}
 	} else if (!strncmp(parm[0], "sr", 2)) {
 		if (!strncmp(parm[1], "peaking_en", 10)) {

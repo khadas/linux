@@ -159,7 +159,7 @@ struct dnlp_alg_s {
 			      struct dnlp_dbg_ro_param_s **ro_param,
 			      struct param_for_dnlp_s **rw_node,
 			      struct dnlp_dbg_print_s **dbg_print);
-	void (*dnlp3_param_refrsh)(void);
+	void (*dnlp3_param_refresh)(void);
 };
 
 struct dnlp_alg_s *dnlp_alg_init(struct dnlp_alg_s **dnlp_alg);

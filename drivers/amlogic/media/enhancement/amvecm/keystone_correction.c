@@ -60,7 +60,7 @@ unsigned int vks_delta_bot;
 /*control parameters start*/
 unsigned int keystone_scaler_mode;
 unsigned int reg_vks_en;
-/*if scl_mode=0;4kinput,4k-outpu will underflow,*/
+/*if scl_mode=0;4kinput,4k-output will underflow,*/
 /*so vlsi suggest scl_mode=1 as default*/
 unsigned int reg_vks_scl_mode0 = 1;
 unsigned int reg_vks_scl_mode1 = 1;

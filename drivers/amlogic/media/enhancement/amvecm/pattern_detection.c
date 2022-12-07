@@ -22,7 +22,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 
-/* moudle headers */
+/* module headers */
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AFE

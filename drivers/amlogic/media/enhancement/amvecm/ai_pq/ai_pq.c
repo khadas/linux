@@ -122,14 +122,14 @@ int blue_scene_process(int offset, int enable)
 
 	if (!enable || !(aipq_en & (1 << BLUE_SCENE))) {
 		aipq_color_md.color_type	 = cm_9_color;
-		aipq_color_md.cm_9_color_md  = ecm2colormd_cyan;
-		aipq_color_md.cm_14_color_md = cm_14_ecm2colormd_max;
+		aipq_color_md.cm_9_color_md  = ecm2colormode_cyan;
+		aipq_color_md.cm_14_color_md = cm_14_ecm2colormode_max;
 		aipq_color_md.color_value	 = 0;
 
 		cm2_sat(aipq_color_md, 0, 0);
 		cm2_curve_update_sat(aipq_color_md);
 
-		aipq_color_md.cm_9_color_md  = ecm2colormd_blue;
+		aipq_color_md.cm_9_color_md  = ecm2colormode_blue;
 		cm2_sat(aipq_color_md, 0, 0);
 		cm2_curve_update_sat(aipq_color_md);
 		first_frame = 1;
@@ -170,13 +170,13 @@ int blue_scene_process(int offset, int enable)
 			(base_val + offset) : (reg_val - bld_offset));
 
 	aipq_color_md.color_type	 = cm_9_color;
-	aipq_color_md.cm_9_color_md  = ecm2colormd_cyan;
-	aipq_color_md.cm_14_color_md = cm_14_ecm2colormd_max;
+	aipq_color_md.cm_9_color_md  = ecm2colormode_cyan;
+	aipq_color_md.cm_14_color_md = cm_14_ecm2colormode_max;
 	aipq_color_md.color_value	 = reg_val;
 	cm2_sat(aipq_color_md, reg_val, 0);
 	cm2_curve_update_sat(aipq_color_md);
 
-	aipq_color_md.cm_9_color_md  = ecm2colormd_blue;
+	aipq_color_md.cm_9_color_md  = ecm2colormode_blue;
 	cm2_sat(aipq_color_md, reg_val, 0);
 	cm2_curve_update_sat(aipq_color_md);
 
@@ -201,8 +201,8 @@ int green_scene_process(int offset, int enable)
 
 	if (!enable || !(aipq_en & (1 << GREEN_SCENE))) {
 		aipq_color_md.color_type	 = cm_9_color;
-		aipq_color_md.cm_9_color_md  = ecm2colormd_green;
-		aipq_color_md.cm_14_color_md = cm_14_ecm2colormd_max;
+		aipq_color_md.cm_9_color_md  = ecm2colormode_green;
+		aipq_color_md.cm_14_color_md = cm_14_ecm2colormode_max;
 		aipq_color_md.color_value	 = 0;
 		cm2_sat(aipq_color_md, 0, 0);
 		cm2_curve_update_sat(aipq_color_md);
@@ -244,8 +244,8 @@ int green_scene_process(int offset, int enable)
 			(base_val + offset) : (reg_val - bld_offset));
 
 	aipq_color_md.color_type	 = cm_9_color;
-	aipq_color_md.cm_9_color_md  = ecm2colormd_green;
-	aipq_color_md.cm_14_color_md = cm_14_ecm2colormd_max;
+	aipq_color_md.cm_9_color_md  = ecm2colormode_green;
+	aipq_color_md.cm_14_color_md = cm_14_ecm2colormode_max;
 	aipq_color_md.color_value	 = reg_val;
 	cm2_sat(aipq_color_md, reg_val, 0);
 	cm2_curve_update_sat(aipq_color_md);
@@ -407,8 +407,8 @@ int skintone_scene_process(int offset, int enable)
 
 	if (!enable || !(aipq_en & (1 << SKIN_TONE_SCENE))) {
 		aipq_color_md.color_type	 = cm_9_color;
-		aipq_color_md.cm_9_color_md  = ecm2colormd_skin;
-		aipq_color_md.cm_14_color_md = cm_14_ecm2colormd_max;
+		aipq_color_md.cm_9_color_md  = ecm2colormode_skin;
+		aipq_color_md.cm_14_color_md = cm_14_ecm2colormode_max;
 		aipq_color_md.color_value	 = 0;
 		cm2_sat(aipq_color_md, 0, 0);
 		cm2_curve_update_sat(aipq_color_md);
@@ -450,8 +450,8 @@ int skintone_scene_process(int offset, int enable)
 			(base_val + offset) : (reg_val - bld_offset));
 
 	aipq_color_md.color_type	 = cm_9_color;
-	aipq_color_md.cm_9_color_md  = ecm2colormd_skin;
-	aipq_color_md.cm_14_color_md = cm_14_ecm2colormd_max;
+	aipq_color_md.cm_9_color_md  = ecm2colormode_skin;
+	aipq_color_md.cm_14_color_md = cm_14_ecm2colormode_max;
 	aipq_color_md.color_value	 = reg_val;
 	cm2_sat(aipq_color_md, reg_val, 0);
 	cm2_curve_update_sat(aipq_color_md);

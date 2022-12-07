@@ -497,7 +497,7 @@ void cuva_metadata_bits_parse(struct cuva_md_bits_s *md_bits)
 	md_bits->spline_th_enable_bits = 12;
 	md_bits->spline_th_en_delta1_bits = 10;
 	md_bits->spline_th_en_delta2_bits = 10;
-	md_bits->spline_en_strengch_bits = 8;
+	md_bits->spline_en_strength_bits = 8;
 	md_bits->color_sat_mapping_flag_bits = 1;
 	md_bits->color_sat_num_bits = 3;
 	md_bits->clor_sat_gain_bits = 8;
@@ -762,11 +762,11 @@ void cuva_hdr_metadata_parse(char *metadata, uint32_t size)
 
 						getbits(metadata, totbitoffset,
 							&value, size,
-							md_bits.spline_en_strengch_bits);
-						cuva_metadata.spline_en_strengch[j][i] = value;
-						totbitoffset += md_bits.spline_en_strengch_bits;
+							md_bits.spline_en_strength_bits);
+						cuva_metadata.spline_en_strength[j][i] = value;
+						totbitoffset += md_bits.spline_en_strength_bits;
 						pr_hdr("spline_en_strengch[%d][%d] = %d\n",
-						j, i, cuva_metadata.spline_en_strengch[j][i]);
+						j, i, cuva_metadata.spline_en_strength[j][i]);
 					}
 				}
 			}
@@ -1352,7 +1352,7 @@ void cuva_hdr_emds_pkt_update(struct cuva_hdr_vs_emds_para *edms_para)
 			edms_para->_3spline_data[i].th_enable_delta[1] =
 				(u16)cuva_metadata.spline_th_en_delta2[0][i];
 			edms_para->_3spline_data[i].enable_strength =
-				(u8)cuva_metadata.spline_en_strengch[0][i];
+				(u8)cuva_metadata.spline_en_strength[0][i];
 		}
 	}
 
@@ -1576,8 +1576,8 @@ void hdr10_plus_debug(int csc_type)
 					i, j, cuva_metadata.spline_th_en_delta1[i][j]);
 				pr_info("spline_th_en_delta2[%d][%d] = %d\n",
 					i, j, cuva_metadata.spline_th_en_delta2[i][j]);
-				pr_info("spline_en_strengch[%d][%d] = %d\n",
-					i, j, cuva_metadata.spline_en_strengch[i][j]);
+				pr_info("spline_en_strength[%d][%d] = %d\n",
+					i, j, cuva_metadata.spline_en_strength[i][j]);
 			}
 		}
 		pr_info("color_sat_mapping_flag = %d\n",

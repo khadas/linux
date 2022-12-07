@@ -492,7 +492,7 @@ int ve_dnlp_calculate_tgtx(struct vframe_s *vf)
 	*RBASE_copy = (1 << dnlp_alg_param.dnlp_mvreflsh);
 
 	/* parameters refresh */
-	dnlp_alg_function->dnlp3_param_refrsh();
+	dnlp_alg_function->dnlp3_param_refresh();
 
 	if (hist_sel)
 		*ve_dnlp_luma_sum_copy = p->hist.vpp_luma_sum;

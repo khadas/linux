@@ -90,7 +90,7 @@ unsigned long huff64_decode(char *in, unsigned int inlen,
 			    unsigned int *out, unsigned int outlen)
 {
 	char *inptr = in;
-	unsigned char *decbase64array;
+	unsigned char *decodebase64array;
 	unsigned long hufflen;
 	unsigned char *testver;
 	unsigned char *huffbuf;
@@ -99,31 +99,31 @@ unsigned long huff64_decode(char *in, unsigned int inlen,
 	int counter = 0, i;
 	int modval;
 
-	decbase64array =  kmalloc(inlen * 2, GFP_KERNEL);
-	if (!decbase64array)
+	decodebase64array =  kmalloc(inlen * 2, GFP_KERNEL);
+	if (!decodebase64array)
 		return 0;
 
-	hufflen = base64_decode(inptr, inlen, decbase64array);
+	hufflen = base64_decode(inptr, inlen, decodebase64array);
 	testver = kmalloc(DECHUFF_MAXLEN, GFP_KERNEL);
 	if (!testver) {
-		kfree(decbase64array);
+		kfree(decodebase64array);
 		return 0;
 	}
 	huffbuf = kmalloc(HUFFHEAP_SIZE, GFP_KERNEL);
 	if (!huffbuf) {
-		kfree(decbase64array);
+		kfree(decodebase64array);
 		kfree(testver);
 		return 0;
 	}
 
 	memset(testver, 0, DECHUFF_MAXLEN);
-	dechufflen = huffman_decompress(decbase64array, hufflen,
+	dechufflen = huffman_decompress(decodebase64array, hufflen,
 					testver, DECHUFF_MAXLEN, huffbuf);
 
 	if (dechufflen == 0) {
 		kfree(testver);
 		kfree(huffbuf);
-		kfree(decbase64array);
+		kfree(decodebase64array);
 		return 0;
 	}
 
@@ -131,7 +131,7 @@ unsigned long huff64_decode(char *in, unsigned int inlen,
 	if (!testver12bit) {
 		kfree(testver);
 		kfree(huffbuf);
-		kfree(decbase64array);
+		kfree(decodebase64array);
 		return 0;
 	}
 	counter = 0;
@@ -169,7 +169,7 @@ unsigned long huff64_decode(char *in, unsigned int inlen,
 
 	kfree(testver);
 	kfree(huffbuf);
-	kfree(decbase64array);
+	kfree(decodebase64array);
 	kfree(testver12bit);
 	return counter;
 }

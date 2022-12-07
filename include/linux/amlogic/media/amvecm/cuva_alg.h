@@ -36,7 +36,7 @@ struct cuva_hdr_dynamic_metadata_s {
 	int spline_th_enable[2][2];
 	int spline_th_en_delta1[2][2];
 	int spline_th_en_delta2[2][2];
-	int spline_en_strengch[2][2];
+	int spline_en_strength[2][2];
 	int color_sat_mapping_flag;
 	int color_sat_num;
 	int clor_sat_gain[8];

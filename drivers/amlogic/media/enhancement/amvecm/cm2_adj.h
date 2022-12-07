@@ -19,35 +19,35 @@
 #ifndef __CM2_ADJ__
 #define __CM2_ADJ__
 
-enum ecm2colormd {
-	ecm2colormd_purple = 0,
-	ecm2colormd_red,
-	ecm2colormd_skin,
-	ecm2colormd_yellow,
-	ecm2colormd_yellow_green,
-	ecm2colormd_green,
-	ecm2colormd_blue_green,
-	ecm2colormd_cyan,
-	ecm2colormd_blue,
-	ecm2colormd_max,
+enum ecm2colormode {
+	ecm2colormode_purple = 0,
+	ecm2colormode_red,
+	ecm2colormode_skin,
+	ecm2colormode_yellow,
+	ecm2colormode_yellow_green,
+	ecm2colormode_green,
+	ecm2colormode_blue_green,
+	ecm2colormode_cyan,
+	ecm2colormode_blue,
+	ecm2colormode_max,
 };
 
 enum ecm_14_color_md {
-	cm_14_ecm2colormd_blue_purple = 0,
-	cm_14_ecm2colormd_purple,
-	cm_14_ecm2colormd_purple_red,
-	cm_14_ecm2colormd_red,
-	cm_14_ecm2colormd_skin_cheeks,
-	cm_14_ecm2colormd_skin_hair_cheeks,
-	cm_14_ecm2colormd_skin_yellow,
-	cm_14_ecm2colormd_yellow,
-	cm_14_ecm2colormd_yellow_green,
-	cm_14_ecm2colormd_green,
-	cm_14_ecm2colormd_green_cyan,
-	cm_14_ecm2colormd_cyan,
-	cm_14_ecm2colormd_cyan_blue,
-	cm_14_ecm2colormd_blue,
-	cm_14_ecm2colormd_max,
+	cm_14_ecm2colormode_blue_purple = 0,
+	cm_14_ecm2colormode_purple,
+	cm_14_ecm2colormode_purple_red,
+	cm_14_ecm2colormode_red,
+	cm_14_ecm2colormode_skin_cheeks,
+	cm_14_ecm2colormode_skin_hair_cheeks,
+	cm_14_ecm2colormode_skin_yellow,
+	cm_14_ecm2colormode_yellow,
+	cm_14_ecm2colormode_yellow_green,
+	cm_14_ecm2colormode_green,
+	cm_14_ecm2colormode_green_cyan,
+	cm_14_ecm2colormode_cyan,
+	cm_14_ecm2colormode_cyan_blue,
+	cm_14_ecm2colormode_blue,
+	cm_14_ecm2colormode_max,
 };
 
 enum ecm_color_type {
@@ -58,7 +58,7 @@ enum ecm_color_type {
 
 struct cm_color_md {
 	enum ecm_color_type	color_type;//0: 9 color; 1: 14 color
-	enum ecm2colormd	cm_9_color_md;
+	enum ecm2colormode	cm_9_color_md;
 	enum ecm_14_color_md cm_14_color_md;
 	int color_value;
 };

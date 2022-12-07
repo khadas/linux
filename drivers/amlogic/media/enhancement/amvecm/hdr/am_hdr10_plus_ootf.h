@@ -25,7 +25,7 @@
 #define POINTS 149
 #define OOLUT_NUM 149
 #define PROCESSING_MAX 12
-#define PORCESSING_DATA_MAX ((1 << PROCESSING_MAX) - 1)
+#define PROCESSING_DATA_MAX ((1 << PROCESSING_MAX) - 1)
 #define PROCESSING_MAX_HALF ((1 << (PROCESSING_MAX - 1)) - 1)
 #define GAIN_BIT 6
 #define U16 16
@@ -73,7 +73,7 @@ struct hdr10_plus_sei_s {
 
 #define ORDER 10
 #define NPCOEFF (ORDER - 1)
-#define P1MIN (PORCESSING_DATA_MAX / ORDER)
+#define P1MIN (PROCESSING_DATA_MAX / ORDER)
 struct basisootf_params {
 	/*Knee-Point (KP) parameters*/
 	/*KP ramp base thresholds (two bounds KP 1 and KP 2 are computed)*/

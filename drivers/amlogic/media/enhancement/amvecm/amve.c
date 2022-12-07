@@ -2232,7 +2232,7 @@ int vpp_enable_lut3d(int enable)
 
 	temp  = READ_VPP_REG(VPP_LUT3D_CTRL);
 	temp = (temp & 0xFFFFFF8E) | (enable & 0x1) | (0x7 << 4);
-	/*reg_lut3d_extnd_en[6:4]*/
+	/*reg_lut3d_extend_en[6:4]*/
 	/*reg_lut3d_en*/
 	WRITE_VPP_REG(VPP_LUT3D_CTRL, temp);
 	return 0;
@@ -2996,7 +2996,7 @@ void eye_proc(int *rgb, int mtx_on)
 /*t3 for power consumption, disable clock
  *modules only before post blend can be disable
  *because after postblend it used for color temperature
- *or color corection
+ *or color correction
  */
 static void vpp_enhence_clk_ctl(int en)
 {

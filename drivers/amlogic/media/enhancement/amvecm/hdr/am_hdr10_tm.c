@@ -434,7 +434,7 @@ int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p)
 {
 	int i;
 	u32 maxl;
-	u32 primry_maxl;
+	u32 primary_maxl;
 	u32 panel_luma;
 	u64 sx, sy;
 	u64 anchor[MAX_BEIZER_ORDER - 1];
@@ -450,12 +450,12 @@ int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p)
 	if (p->luminance[0] == 0)
 		p->luminance[0] = 1200;
 
-	primry_maxl = p->luminance[0];
+	primary_maxl = p->luminance[0];
 
 	/*use 95% maxl because of high percert flicker*/
-	maxl = (percentile[8] > primry_maxl) ? primry_maxl : percentile[8];
-	pr_hdr_tm("maxl = %d, percentile[8] = %d, primry_maxl =%d\n",
-		  maxl, percentile[8], primry_maxl);
+	maxl = (percentile[8] > primary_maxl) ? primary_maxl : percentile[8];
+	pr_hdr_tm("maxl = %d, percentile[8] = %d, primary_maxl =%d\n",
+		  maxl, percentile[8], primary_maxl);
 
 	if (hdr_tm_iir)
 		scn_chang_flag = time_iir(&maxl);
