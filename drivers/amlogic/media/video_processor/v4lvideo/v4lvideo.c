@@ -358,10 +358,17 @@ static void video_keeper_keep_mem(void *mem_handle, int type, int *id)
 	if (have_samed) {
 		spin_unlock_irqrestore(&mgr->lock, flags);
 		*id = keep_id;
-		/* pr_info("v4lvideo: keep same mem handle=%p, keep_id=%d\n", */
-		/* mem_handle, keep_id); */
+		pr_info("v4lvideo: keep same mem handle=%p, keep_id=%d\n", mem_handle, keep_id);
 		return;
 	}
+
+	if (slot_i < 0) {
+		spin_unlock_irqrestore(&mgr->lock, flags);
+		keep_id = -1;
+		pr_info("v4lvideo: keep failed because keep_list fulled!!!\n");
+		return;
+	}
+
 	mgr->keep_list[slot_i].count++;
 	if (mgr->keep_list[slot_i].count != 1)
 		pr_err("v4lvideo: keep error mem handle=%p\n", mem_handle);
@@ -377,6 +384,14 @@ static void video_keeper_keep_mem(void *mem_handle, int type, int *id)
 			codec_mm_keeper_unmask_keeper(old_id, 0);
 		}
 		*id = ret;
+	} else {
+		spin_lock_irqsave(&mgr->lock, flags);
+		mgr->keep_list[slot_i].count--;
+		mgr->keep_list[slot_i].keep_id = -1;
+		mgr->keep_list[slot_i].handle = NULL;
+		spin_unlock_irqrestore(&mgr->lock, flags);
+		pr_err("v4lvideo: keep mask error ret=%d\n", ret);
+		return;
 	}
 	mgr->keep_list[slot_i].keep_id = *id;
 }
