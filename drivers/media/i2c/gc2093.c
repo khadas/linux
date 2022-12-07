@@ -32,6 +32,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
+#include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
 #define DRIVER_VERSION		KERNEL_VERSION(0, 0x01, 0x02)
 #define GC2093_NAME		"gc2093"
@@ -148,9 +149,13 @@ struct gc2093 {
 	const char      *module_facing;
 	const char      *module_name;
 	const char      *len_name;
-	u32		cur_vts;
 
-	bool			  has_init_exp;
+	struct v4l2_fract	cur_fps;
+	u32			cur_vts;
+
+	bool			has_init_exp;
+	bool			is_thunderboot;
+	bool			is_first_streamoff;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
 };
 
@@ -548,6 +553,14 @@ static int gc2093_set_gain(struct gc2093 *gc2093, u32 gain)
 	return ret;
 }
 
+static void gc2093_modify_fps_info(struct gc2093 *gc2093)
+{
+	const struct gc2093_mode *mode = gc2093->cur_mode;
+
+	gc2093->cur_fps.denominator = mode->max_fps.denominator * mode->vts_def /
+				      gc2093->cur_vts;
+}
+
 static int gc2093_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct gc2093 *gc2093 = container_of(ctrl->handler,
@@ -593,6 +606,8 @@ static int gc2093_set_ctrl(struct v4l2_ctrl *ctrl)
 				       (vts >> 8) & 0x3f);
 		ret |= gc2093_write_reg(gc2093, GC2093_REG_VTS_L,
 					vts & 0xff);
+		if (gc2093->cur_vts != gc2093->cur_mode->vts_def)
+			gc2093_modify_fps_info(gc2093);
 		dev_dbg(gc2093->dev, " set blank value 0x%x\n", ctrl->val);
 		break;
 	case V4L2_CID_HFLIP:
@@ -691,6 +706,8 @@ static int gc2093_initialize_controls(struct gc2093 *gc2093)
 
 	gc2093->subdev.ctrl_handler = handler;
 	gc2093->has_init_exp = false;
+	gc2093->cur_vts = mode->vts_def;
+	gc2093->cur_fps = mode->max_fps;
 
 	return 0;
 
@@ -716,6 +733,9 @@ static int __gc2093_power_on(struct gc2093 *gc2093)
 		dev_err(dev, "Failed to enable xvclk\n");
 		return ret;
 	}
+
+	if (gc2093->is_thunderboot)
+		return 0;
 
 	ret = regulator_bulk_enable(GC2093_NUM_SUPPLIES, gc2093->supplies);
 	if (ret < 0) {
@@ -744,6 +764,16 @@ disable_clk:
 
 static void __gc2093_power_off(struct gc2093 *gc2093)
 {
+	clk_disable_unprepare(gc2093->xvclk);
+	if (gc2093->is_thunderboot) {
+		if (gc2093->is_first_streamoff) {
+			gc2093->is_thunderboot = false;
+			gc2093->is_first_streamoff = false;
+		} else {
+			return;
+		}
+	}
+
 	if (!IS_ERR(gc2093->reset_gpio))
 		gpiod_set_value_cansleep(gc2093->reset_gpio, 1);
 	if (!IS_ERR(gc2093->pwdn_gpio))
@@ -755,9 +785,15 @@ static void __gc2093_power_off(struct gc2093 *gc2093)
 
 static int gc2093_check_sensor_id(struct gc2093 *gc2093)
 {
+	struct device *dev = gc2093->dev;
 	u8 id_h = 0, id_l = 0;
 	u16 id = 0;
 	int ret = 0;
+
+	if (gc2093->is_thunderboot) {
+		dev_info(dev, "Enable thunderboot mode, skip sensor id check\n");
+		return 0;
+	}
 
 	ret = gc2093_read_reg(gc2093, GC2093_REG_CHIP_ID_H, &id_h);
 	ret |= gc2093_read_reg(gc2093, GC2093_REG_CHIP_ID_L, &id_l);
@@ -899,6 +935,7 @@ static long gc2093_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 						 GC2093_VTS_MAX - gc2093->cur_mode->height,
 						 1, h);
 			gc2093->cur_vts = gc2093->cur_mode->vts_def;
+			gc2093->cur_fps = gc2093->cur_mode->max_fps;
 			dev_info(gc2093->dev, "sensor mode: %d\n",
 				 gc2093->cur_mode->hdr_mode);
 		}
@@ -933,26 +970,27 @@ static int __gc2093_start_stream(struct gc2093 *gc2093)
 {
 	int ret;
 
-	ret = regmap_multi_reg_write(gc2093->regmap,
-				     gc2093->cur_mode->reg_list,
-				     gc2093->cur_mode->reg_num);
-	if (ret)
-		return ret;
-
-	/* Apply customized control from user */
-	mutex_unlock(&gc2093->lock);
-	v4l2_ctrl_handler_setup(&gc2093->ctrl_handler);
-	mutex_lock(&gc2093->lock);
-
-	if (gc2093->has_init_exp && gc2093->cur_mode->hdr_mode != NO_HDR) {
-		ret = gc2093_ioctl(&gc2093->subdev, PREISP_CMD_SET_HDRAE_EXP,
-				   &gc2093->init_hdrae_exp);
-		if (ret) {
-			dev_err(gc2093->dev, "init exp fail in hdr mode\n");
+	if (!gc2093->is_thunderboot) {
+		ret = regmap_multi_reg_write(gc2093->regmap,
+						gc2093->cur_mode->reg_list,
+						gc2093->cur_mode->reg_num);
+		if (ret)
 			return ret;
+
+		/* Apply customized control from user */
+		mutex_unlock(&gc2093->lock);
+		v4l2_ctrl_handler_setup(&gc2093->ctrl_handler);
+		mutex_lock(&gc2093->lock);
+
+		if (gc2093->has_init_exp && gc2093->cur_mode->hdr_mode != NO_HDR) {
+			ret = gc2093_ioctl(&gc2093->subdev, PREISP_CMD_SET_HDRAE_EXP,
+					&gc2093->init_hdrae_exp);
+			if (ret) {
+				dev_err(gc2093->dev, "init exp fail in hdr mode\n");
+				return ret;
+			}
 		}
 	}
-
 	return gc2093_write_reg(gc2093, GC2093_REG_CTRL_MODE,
 				GC2093_MODE_STREAMING);
 }
@@ -960,6 +998,10 @@ static int __gc2093_start_stream(struct gc2093 *gc2093)
 static int __gc2093_stop_stream(struct gc2093 *gc2093)
 {
 	gc2093->has_init_exp = false;
+	if (gc2093->is_thunderboot) {
+		gc2093->is_first_streamoff = true;
+		pm_runtime_put(gc2093->dev);
+	}
 	return gc2093_write_reg(gc2093, GC2093_REG_CTRL_MODE,
 				GC2093_MODE_SW_STANDBY);
 }
@@ -1070,6 +1112,10 @@ static int gc2093_s_stream(struct v4l2_subdev *sd, int on)
 		goto unlock_and_return;
 
 	if (on) {
+		if (gc2093->is_thunderboot && rkisp_tb_get_state() == RKISP_TB_NG) {
+			gc2093->is_thunderboot = false;
+			__gc2093_power_on(gc2093);
+		}
 		ret = pm_runtime_get_sync(gc2093->dev);
 		if (ret < 0) {
 			pm_runtime_put_noidle(gc2093->dev);
@@ -1211,6 +1257,8 @@ static int gc2093_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(gc2093->vblank, vblank_def,
 					 GC2093_VTS_MAX - mode->height,
 					 1, vblank_def);
+		gc2093->cur_vts = mode->vts_def;
+		gc2093->cur_fps = mode->max_fps;
 	}
 
 	mutex_unlock(&gc2093->lock);
@@ -1395,17 +1443,19 @@ static int gc2093_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	gc2093->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
+
 	gc2093->xvclk = devm_clk_get(gc2093->dev, "xvclk");
 	if (IS_ERR(gc2093->xvclk)) {
 		dev_err(gc2093->dev, "Failed to get xvclk\n");
 		return -EINVAL;
 	}
 
-	gc2093->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	gc2093->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(gc2093->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
 
-	gc2093->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_HIGH);
+	gc2093->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_ASIS);
 	if (IS_ERR(gc2093->pwdn_gpio))
 		dev_warn(dev, "Failed to get pwdn-gpios\n");
 
@@ -1467,7 +1517,10 @@ static int gc2093_probe(struct i2c_client *client,
 
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
-	pm_runtime_idle(dev);
+	if (gc2093->is_thunderboot)
+		pm_runtime_get_sync(dev);
+	else
+		pm_runtime_idle(dev);
 
 	return 0;
 
@@ -1535,7 +1588,11 @@ static void __exit sensor_mod_exit(void)
 	i2c_del_driver(&gc2093_i2c_driver);
 }
 
+#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)
+subsys_initcall(sensor_mod_init);
+#else
 device_initcall_sync(sensor_mod_init);
+#endif
 module_exit(sensor_mod_exit);
 
 MODULE_DESCRIPTION("Galaxycore GC2093 Image Sensor driver");

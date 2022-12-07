@@ -164,12 +164,8 @@ static void RGA2_set_mode_ctrl(u8 *base, struct rga2_req *msg)
 
 	bRGA_MODE_CTL = (u32 *) (base + RGA2_MODE_CTRL_OFFSET);
 
-	if (msg->render_mode == 4)
-		render_mode = 3;
-
-	/* In slave mode, the current frame completion interrupt must be enabled. */
-	if (!RGA2_USE_MASTER_MODE)
-		msg->CMD_fin_int_enable = 1;
+	if (msg->render_mode == UPDATE_PALETTE_TABLE_MODE)
+		render_mode = 0x3;
 
 	reg =
 		((reg & (~m_RGA2_MODE_CTRL_SW_RENDER_MODE)) |
@@ -2066,7 +2062,7 @@ static void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 	u32 iommu_dte_addr;
 
 	if (scheduler->data->mmu == RGA_IOMMU)
-		iommu_dte_addr = rga_read(0xf00, scheduler);
+		iommu_dte_addr = rga_read(RGA_IOMMU_DTE_ADDR, scheduler);
 
 	rga_write(m_RGA2_SYS_CTRL_ACLK_SRESET_P | m_RGA2_SYS_CTRL_CCLK_SRESET_P |
 		  m_RGA2_SYS_CTRL_RST_PROTECT_P,
@@ -2083,13 +2079,16 @@ static void rga2_soft_reset(struct rga_scheduler_t *scheduler)
 	}
 
 	if (scheduler->data->mmu == RGA_IOMMU) {
-		rga_write(iommu_dte_addr, RGA2_MMU_DTE_ADDR, scheduler);
+		rga_write(iommu_dte_addr, RGA_IOMMU_DTE_ADDR, scheduler);
 		/* enable iommu */
-		rga_write(0, RGA2_MMU_COMMAND, scheduler);
+		rga_write(RGA_IOMMU_CMD_ENABLE_PAGING, RGA_IOMMU_COMMAND, scheduler);
 	}
 
 	if (i == RGA_RESET_TIMEOUT)
-		pr_err("soft reset timeout.\n");
+		pr_err("RAG2 soft reset timeout.\n");
+	else
+		pr_info("RGA2 soft reset complete.\n");
+
 }
 
 static int rga2_check_param(const struct rga_hw_data *data, const struct rga2_req *req)
@@ -2268,6 +2267,10 @@ static int rga2_init_reg(struct rga_job *job)
 		}
 	}
 
+	/* In slave mode, the current frame completion interrupt must be enabled. */
+	if (scheduler->data->mmu == RGA_IOMMU)
+		req.CMD_fin_int_enable = 1;
+
 	if (rga2_gen_reg_info((uint8_t *)job->cmd_reg, &req) == -1) {
 		pr_err("gen reg info error\n");
 		return -EINVAL;
@@ -2411,8 +2414,18 @@ static void rga2_set_reg_full_csc(struct rga_job *job, struct rga_scheduler_t *s
 static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	int i;
+	bool master_mode_en;
 	uint32_t sys_ctrl;
 	ktime_t now = ktime_get();
+
+	/*
+	 * Currently there is no iova allocated for storing cmd for the IOMMU device,
+	 * so the iommu device needs to use the slave mode.
+	 */
+	if (scheduler->data->mmu != RGA_IOMMU)
+		master_mode_en = true;
+	else
+		master_mode_en = false;
 
 	if (job->pre_intr_info.enable)
 		rga2_set_pre_intr_reg(job, scheduler);
@@ -2444,7 +2457,7 @@ static int rga2_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		   m_RGA2_SYS_CTRL_RST_PROTECT_P | m_RGA2_SYS_CTRL_DST_WR_OPT_DIS |
 		   m_RGA2_SYS_CTRL_SRC0YUV420SP_RD_OPT_DIS;
 
-	if (RGA2_USE_MASTER_MODE) {
+	if (master_mode_en) {
 		/* master mode */
 		sys_ctrl |= s_RGA2_SYS_CTRL_CMD_MODE(1);
 
@@ -2536,6 +2549,9 @@ static int rga2_irq(struct rga_scheduler_t *scheduler)
 	if (job == NULL)
 		return IRQ_HANDLED;
 
+	if (test_bit(RGA_JOB_STATE_INTR_ERR, &job->state))
+		return IRQ_WAKE_THREAD;
+
 	job->intr_status = rga_read(RGA2_INT, scheduler);
 	job->hw_status = rga_read(RGA2_STATUS2, scheduler);
 	job->cmd_status = rga_read(RGA2_STATUS1, scheduler);
@@ -2585,6 +2601,11 @@ static int rga2_isr_thread(struct rga_job *job, struct rga_scheduler_t *schedule
 		} else if (job->intr_status & m_RGA2_INT_MMU_INT_FLAG) {
 			pr_err("mmu failed, please check size of the buffer or whether the buffer has been freed.\n");
 			job->ret = -EACCES;
+		}
+
+		if (job->ret == 0) {
+			pr_err("rga intr error[0x%x]!\n", job->intr_status);
+			job->ret = -EFAULT;
 		}
 	}
 

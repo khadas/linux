@@ -202,12 +202,13 @@ static int vepu_process_reg_fd(struct mpp_session *session,
 	if (fmt == VEPU2_FMT_JPEGE) {
 		task->offset_bs = mpp_query_reg_offset_info(&task->off_inf, VEPU2_REG_OUT_INDEX);
 
-		if (task->offset_bs > 0)
-			task->dmabuf_bs = dma_buf_get(fd_bs);
+		task->dmabuf_bs = dma_buf_get(fd_bs);
 
-		if (IS_ERR_OR_NULL(task->dmabuf_bs))
+		if (IS_ERR_OR_NULL(task->dmabuf_bs)) {
 			task->dmabuf_bs = NULL;
-		else
+			return 0;
+		}
+		if (task->offset_bs > 0)
 			dma_buf_end_cpu_access_partial(task->dmabuf_bs, DMA_TO_DEVICE, 0,
 						       task->offset_bs);
 	}
@@ -318,16 +319,30 @@ fail:
 
 static void *vepu_prepare(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 {
-	unsigned long flags;
-	s32 core_id;
+	struct mpp_taskqueue *queue = mpp->queue;
 	struct vepu_dev *enc = to_vepu_dev(mpp);
 	struct vepu_ccu *ccu = enc->ccu;
+	unsigned long core_idle;
+	unsigned long flags;
+	u32 core_id_max;
+	s32 core_id;
+	u32 i;
 
 	spin_lock_irqsave(&ccu->lock, flags);
 
+	core_idle = queue->core_idle;
+	core_id_max = queue->core_id_max;
+
+	for (i = 0; i <= core_id_max; i++) {
+		struct mpp_dev *mpp = queue->cores[i];
+
+		if (mpp && mpp->disable)
+			clear_bit(i, &core_idle);
+	}
+
 	core_id = find_first_bit(&ccu->core_idle, ccu->core_num);
 
-	if (core_id >= ccu->core_num) {
+	if (core_id >= core_id_max + 1 || !queue->cores[core_id]) {
 		mpp_task = NULL;
 		mpp_dbg_core("core %d all busy %lx\n", core_id, ccu->core_idle);
 	} else {
@@ -386,6 +401,13 @@ static int vepu_run(struct mpp_dev *mpp,
 	mpp_debug_leave();
 
 	return 0;
+}
+
+static int vepu_px30_run(struct mpp_dev *mpp,
+		    struct mpp_task *mpp_task)
+{
+	mpp_iommu_flush_tlb(mpp->iommu_info);
+	return vepu_run(mpp, mpp_task);
 }
 
 static int vepu_irq(struct mpp_dev *mpp)
@@ -902,6 +924,20 @@ static struct mpp_dev_ops vepu_v2_dev_ops = {
 	.dump_session = vepu_dump_session,
 };
 
+static struct mpp_dev_ops vepu_px30_dev_ops = {
+	.alloc_task = vepu_alloc_task,
+	.run = vepu_px30_run,
+	.irq = vepu_irq,
+	.isr = vepu_isr,
+	.finish = vepu_finish,
+	.result = vepu_result,
+	.free_task = vepu_free_task,
+	.ioctl = vepu_control,
+	.init_session = vepu_init_session,
+	.free_session = vepu_free_session,
+	.dump_session = vepu_dump_session,
+};
+
 static struct mpp_dev_ops vepu_ccu_dev_ops = {
 	.alloc_task = vepu_alloc_task,
 	.prepare = vepu_prepare,
@@ -931,7 +967,7 @@ static const struct mpp_dev_var vepu_px30_data = {
 	.hw_info = &vepu_v2_hw_info,
 	.trans_info = trans_rk_vepu2,
 	.hw_ops = &vepu_px30_hw_ops,
-	.dev_ops = &vepu_v2_dev_ops,
+	.dev_ops = &vepu_px30_dev_ops,
 };
 
 static const struct mpp_dev_var vepu_ccu_data = {

@@ -8,6 +8,8 @@
 #define pr_fmt(fmt) "rga3_reg: " fmt
 
 #include "rga3_reg_info.h"
+#include "rga_dma_buf.h"
+#include "rga_iommu.h"
 #include "rga_common.h"
 #include "rga_debugger.h"
 #include "rga_hw_config.h"
@@ -1592,54 +1594,35 @@ static void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 static void rga3_soft_reset(struct rga_scheduler_t *scheduler)
 {
 	u32 i;
-	u32 reg;
-	u32 mmu_addr;
+	u32 iommu_dte_addr;
 
-	mmu_addr = rga_read(0xf00, scheduler);
+	if (scheduler->data->mmu == RGA_IOMMU)
+		iommu_dte_addr = rga_read(RGA_IOMMU_DTE_ADDR, scheduler);
 
 	rga_write(s_RGA3_SYS_CTRL_CCLK_SRESET(1) | s_RGA3_SYS_CTRL_ACLK_SRESET(1),
 		  RGA3_SYS_CTRL, scheduler);
 
-	pr_err("soft reset sys_ctrl = %x, ro_rest = %x",
-		rga_read(RGA3_SYS_CTRL, scheduler),
-		rga_read(RGA3_RO_SRST, scheduler));
-
-	mdelay(20);
-
-	pr_err("soft reset sys_ctrl = %x, ro_rest = %x",
-		rga_read(RGA3_SYS_CTRL, scheduler),
-		rga_read(RGA3_RO_SRST, scheduler));
-
-	rga_write(s_RGA3_SYS_CTRL_CCLK_SRESET(0) | s_RGA3_SYS_CTRL_ACLK_SRESET(0),
-		  RGA3_SYS_CTRL, scheduler);
-
-	pr_err("soft after reset sys_ctrl = %x, ro_rest = %x",
-		rga_read(RGA3_SYS_CTRL, scheduler),
-		rga_read(RGA3_RO_SRST, scheduler));
-
-	rga_write(m_RGA3_INT_FRM_DONE | m_RGA3_INT_CMD_LINE_FINISH | m_RGA3_INT_ERROR_MASK,
-		  RGA3_INT_CLR, scheduler);
-
-	rga_write(mmu_addr, RGA3_MMU_DTE_ADDR, scheduler);
-	rga_write(0, RGA3_MMU_COMMAND, scheduler);
-
-	if (DEBUGGER_EN(INT_FLAG))
-		pr_info("soft reset, INTR[0x%x], HW_STATUS[0x%x], CMD_STATUS[0x%x]\n",
-			rga_read(RGA3_INT_RAW, scheduler),
-			rga_read(RGA3_STATUS0, scheduler),
-			rga_read(RGA3_CMD_STATE, scheduler));
-
 	for (i = 0; i < RGA_RESET_TIMEOUT; i++) {
-		reg = rga_read(RGA3_SYS_CTRL, scheduler) & 1;
-
-		if (reg == 0)
+		if (rga_read(RGA3_RO_SRST, scheduler) & m_RGA3_RO_SRST_RO_RST_DONE)
 			break;
 
 		udelay(1);
 	}
 
+	rga_write(s_RGA3_SYS_CTRL_CCLK_SRESET(0) | s_RGA3_SYS_CTRL_ACLK_SRESET(0),
+		  RGA3_SYS_CTRL, scheduler);
+
+	if (scheduler->data->mmu == RGA_IOMMU) {
+		rga_write(iommu_dte_addr, RGA_IOMMU_DTE_ADDR, scheduler);
+		/* enable iommu */
+		rga_write(RGA_IOMMU_CMD_ENABLE_PAGING, RGA_IOMMU_COMMAND, scheduler);
+	}
+
 	if (i == RGA_RESET_TIMEOUT)
-		pr_err("soft reset timeout.\n");
+		pr_err("RGA3 soft reset timeout. SYS_CTRL[0x%x], RO_SRST[0x%x]\n",
+		       rga_read(RGA3_SYS_CTRL, scheduler), rga_read(RGA3_RO_SRST, scheduler));
+	else
+		pr_info("RGA3 soft reset complete.\n");
 }
 
 static int rga3_scale_check(const struct rga3_req *req)
@@ -1899,8 +1882,18 @@ static void rga3_dump_read_back_reg(struct rga_scheduler_t *scheduler)
 static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 {
 	int i;
+	bool master_mode_en;
 	uint32_t sys_ctrl;
 	ktime_t now = ktime_get();
+
+	/*
+	 * Currently there is no iova allocated for storing cmd for the IOMMU device,
+	 * so the iommu device needs to use the slave mode.
+	 */
+	if (scheduler->data->mmu != RGA_IOMMU)
+		master_mode_en = true;
+	else
+		master_mode_en = false;
 
 	if (DEBUGGER_EN(REG)) {
 		uint32_t *p;
@@ -1917,24 +1910,25 @@ static int rga3_set_reg(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	rga_write(m_RGA3_INT_FRM_DONE | m_RGA3_INT_CMD_LINE_FINISH | m_RGA3_INT_ERROR_MASK,
 		  RGA3_INT_EN, scheduler);
 
-#if 0
-	/* master mode */
-	sys_ctrl = s_RGA3_SYS_CTRL_CMD_MODE(1);
+	if (master_mode_en) {
+		/* master mode */
+		sys_ctrl = s_RGA3_SYS_CTRL_CMD_MODE(1);
 
-	rga_dma_flush_range(&job->cmd_reg[0], &job->cmd_reg[50], scheduler);
+		/* cmd buffer flush cache to ddr */
+		rga_dma_sync_flush_range(&job->cmd_reg[0], &job->cmd_reg[50], scheduler);
 
-	rga_write(virt_to_phys(job->cmd_reg), RGA3_CMD_ADDR, scheduler);
-	rga_write(sys_ctrl, RGA3_SYS_CTRL, scheduler);
-	rga_write(m_RGA3_CMD_CTRL_CMD_LINE_ST_P, RGA3_CMD_CTRL, scheduler);
-#else
-	/* slave mode */
-	sys_ctrl = s_RGA3_SYS_CTRL_CMD_MODE(0) | m_RGA3_SYS_CTRL_RGA_SART;
+		rga_write(virt_to_phys(job->cmd_reg), RGA3_CMD_ADDR, scheduler);
+		rga_write(sys_ctrl, RGA3_SYS_CTRL, scheduler);
+		rga_write(m_RGA3_CMD_CTRL_CMD_LINE_ST_P, RGA3_CMD_CTRL, scheduler);
+	} else {
+		/* slave mode */
+		sys_ctrl = s_RGA3_SYS_CTRL_CMD_MODE(0) | m_RGA3_SYS_CTRL_RGA_SART;
 
-	for (i = 0; i <= 50; i++)
-		rga_write(job->cmd_reg[i], 0x100 + i * 4, scheduler);
+		for (i = 0; i <= 50; i++)
+			rga_write(job->cmd_reg[i], 0x100 + i * 4, scheduler);
 
-	rga_write(sys_ctrl, RGA3_SYS_CTRL, scheduler);
-#endif
+		rga_write(sys_ctrl, RGA3_SYS_CTRL, scheduler);
+	}
 
 	if (DEBUGGER_EN(REG)) {
 		pr_info("sys_ctrl = 0x%x, int_en = 0x%x, int_raw = 0x%x\n",
@@ -1992,6 +1986,9 @@ static int rga3_irq(struct rga_scheduler_t *scheduler)
 	if (job == NULL)
 		return IRQ_HANDLED;
 
+	if (test_bit(RGA_JOB_STATE_INTR_ERR, &job->state))
+		return IRQ_WAKE_THREAD;
+
 	job->intr_status = rga_read(RGA3_INT_RAW, scheduler);
 	job->hw_status = rga_read(RGA3_STATUS0, scheduler);
 	job->cmd_status = rga_read(RGA3_CMD_STATE, scheduler);
@@ -2026,10 +2023,7 @@ static int rga3_isr_thread(struct rga_job *job, struct rga_scheduler_t *schedule
 			rga_read(RGA3_CMD_STATE, scheduler));
 
 	if (test_bit(RGA_JOB_STATE_INTR_ERR, &job->state)) {
-		if (job->intr_status & m_RGA3_INT_RGA_MMU_INTR) {
-			pr_err("iommu error, please check size of the buffer or whether the buffer has been freed.\n");
-			job->ret = -EACCES;
-		} else if (job->intr_status & m_RGA3_INT_RAG_MI_RD_BUS_ERR) {
+		if (job->intr_status & m_RGA3_INT_RAG_MI_RD_BUS_ERR) {
 			pr_err("DMA read bus error, please check size of the input_buffer or whether the buffer has been freed.\n");
 			job->ret = -EFAULT;
 		} else if (job->intr_status & m_RGA3_INT_WIN0_FBCD_DEC_ERR) {
@@ -2041,7 +2035,9 @@ static int rga3_isr_thread(struct rga_job *job, struct rga_scheduler_t *schedule
 		} else if (job->intr_status & m_RGA3_INT_RGA_MI_WR_BUS_ERR) {
 			pr_err("wr buss error, please check size of the output_buffer or whether the buffer has been freed.\n");
 			job->ret = -EFAULT;
-		} else {
+		}
+
+		if (job->ret == 0) {
 			pr_err("rga intr error[0x%x]!\n", job->intr_status);
 			job->ret = -EFAULT;
 		}

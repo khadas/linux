@@ -2722,10 +2722,10 @@ static void rkisp_global_update_mi(struct rkisp_device *dev)
 	struct rkisp_stream *stream;
 	int i;
 
+	rkisp_stats_first_ddr_config(&dev->stats_vdev);
 	if (dev->hw_dev->is_mi_update)
 		return;
 
-	rkisp_stats_first_ddr_config(&dev->stats_vdev);
 	rkisp_config_dmatx_valid_buf(dev);
 
 	force_cfg_update(dev);
@@ -2737,7 +2737,7 @@ static void rkisp_global_update_mi(struct rkisp_device *dev)
 			if (stream->id == RKISP_STREAM_VIR ||
 			    stream->id == RKISP_STREAM_LUMA)
 				continue;
-			if (stream->streaming)
+			if (stream->streaming && !stream->next_buf)
 				stream->ops->frame_end(stream);
 		}
 	}

@@ -368,6 +368,17 @@ config VIDEO_LT6911UXC
 	  To compile this driver as a module, choose M here: the
 	  module will be called lt6911uxc.
 
+config VIDEO_LT6911UXE
+	tristate "Lontium LT6911UXE decoder"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	select HDMI
+	select V4L2_FWNODE
+	help
+	  Support for the Lontium LT6911UXE series HDMI to MIPI CSI-2 bridge.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lt6911uxe.
+
 config VIDEO_LT7911D
 	tristate "Lontium LT7911D decoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
@@ -919,6 +930,17 @@ config VIDEO_GC08A3
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc08a3.
+
+config VIDEO_GC1084
+	tristate "GalaxyCore GC1084 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC1084 sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc1084.
 
 config VIDEO_GC2053
 	tristate "GalaxyCore GC2053 sensor support"

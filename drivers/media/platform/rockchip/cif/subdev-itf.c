@@ -450,7 +450,7 @@ static int sditf_channel_enable(struct sditf_priv *priv, int user)
 	if (user == 0) {
 		if (priv->toisp_inf.link_mode == TOISP_UNITE)
 			width = priv->cap_info.width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
-		rkcif_write_register_or(cif_dev, CIF_REG_TOISP0_CTRL, ctrl_val);
+		rkcif_write_register(cif_dev, CIF_REG_TOISP0_CTRL, ctrl_val);
 		if (width && height) {
 			rkcif_write_register(cif_dev, CIF_REG_TOISP0_CROP,
 				offset_x | (offset_y << 16));
@@ -464,7 +464,7 @@ static int sditf_channel_enable(struct sditf_priv *priv, int user)
 			offset_x = priv->cap_info.width / 2 - RKMOUDLE_UNITE_EXTEND_PIXEL;
 			width = priv->cap_info.width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
 		}
-		rkcif_write_register_or(cif_dev, CIF_REG_TOISP1_CTRL, ctrl_val);
+		rkcif_write_register(cif_dev, CIF_REG_TOISP1_CTRL, ctrl_val);
 		if (width && height) {
 			rkcif_write_register(cif_dev, CIF_REG_TOISP1_CROP,
 				offset_x | (offset_y << 16));
@@ -531,12 +531,22 @@ void sditf_change_to_online(struct sditf_priv *priv)
 		sditf_channel_enable(priv, 0);
 		sditf_channel_enable(priv, 1);
 	}
-	if (priv->hdr_cfg.hdr_mode == NO_HDR)
+	if (priv->hdr_cfg.hdr_mode == NO_HDR) {
 		rkcif_free_rx_buf(&cif_dev->stream[0], priv->buf_num);
-	else if (priv->hdr_cfg.hdr_mode == HDR_X2)
+		cif_dev->stream[0].is_line_wake_up = false;
+	} else if (priv->hdr_cfg.hdr_mode == HDR_X2) {
 		rkcif_free_rx_buf(&cif_dev->stream[1], priv->buf_num);
-	else if (priv->hdr_cfg.hdr_mode == HDR_X3)
+		cif_dev->stream[0].is_line_wake_up = false;
+		cif_dev->stream[1].is_line_wake_up = false;
+	} else if (priv->hdr_cfg.hdr_mode == HDR_X3) {
 		rkcif_free_rx_buf(&cif_dev->stream[2], priv->buf_num);
+		cif_dev->stream[0].is_line_wake_up = false;
+		cif_dev->stream[1].is_line_wake_up = false;
+		cif_dev->stream[2].is_line_wake_up = false;
+	}
+	cif_dev->wait_line_cache = 0;
+	cif_dev->wait_line = 0;
+	cif_dev->wait_line_bak = 0;
 }
 
 static void sditf_check_capture_mode(struct rkcif_device *cif_dev)

@@ -53,6 +53,36 @@ static bool iommu_reserve_map;
 
 static struct drm_driver rockchip_drm_driver;
 
+static unsigned int drm_debug;
+module_param_named(debug, drm_debug, int, 0600);
+
+static inline bool rockchip_drm_debug_enabled(enum rockchip_drm_debug_category category)
+{
+	return unlikely(drm_debug & category);
+}
+
+__printf(3, 4)
+void rockchip_drm_dbg(const struct device *dev, enum rockchip_drm_debug_category category,
+		      const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (!rockchip_drm_debug_enabled(category))
+		return;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	if (dev)
+		dev_printk(KERN_DEBUG, dev, "%pV", &vaf);
+	else
+		printk(KERN_DEBUG "%pV", &vaf);
+
+	va_end(args);
+}
+
 /**
  * rockchip_drm_wait_vact_end
  * @crtc: CRTC to enable line flag
@@ -1025,10 +1055,19 @@ static int rockchip_drm_init_iommu(struct drm_device *drm_dev)
 				drm_dev);
 
 	if (iommu_reserve_map) {
-		ret = iommu_map(private->domain, 0, 0, (size_t)SZ_4G,
+		/*
+		 * At 32 bit platform size_t maximum value is 0xffffffff, SZ_4G(0x100000000) will be
+		 * cliped to 0, so we split into two mapping
+		 */
+		ret = iommu_map(private->domain, 0, 0, (size_t)SZ_2G,
 				IOMMU_WRITE | IOMMU_READ | IOMMU_PRIV);
 		if (ret)
-			dev_err(drm_dev->dev, "failed to create pre mapping\n");
+			dev_err(drm_dev->dev, "failed to create 0-2G pre mapping\n");
+
+		ret = iommu_map(private->domain, SZ_2G, SZ_2G, (size_t)SZ_2G,
+				IOMMU_WRITE | IOMMU_READ | IOMMU_PRIV);
+		if (ret)
+			dev_err(drm_dev->dev, "failed to create 2G-4G pre mapping\n");
 	}
 
 	return ret;
@@ -1041,8 +1080,10 @@ static void rockchip_iommu_cleanup(struct drm_device *drm_dev)
 	if (!is_support_iommu)
 		return;
 
-	if (iommu_reserve_map)
-		iommu_unmap(private->domain, 0, (size_t)SZ_4G);
+	if (iommu_reserve_map) {
+		iommu_unmap(private->domain, 0, (size_t)SZ_2G);
+		iommu_unmap(private->domain, SZ_2G, (size_t)SZ_2G);
+	}
 	drm_mm_takedown(&private->mm);
 	iommu_domain_free(private->domain);
 }
@@ -1947,6 +1988,7 @@ static int __init rockchip_drm_init(void)
 	ADD_ROCKCHIP_SUB_DRIVER(rk3066_hdmi_driver,
 				CONFIG_ROCKCHIP_RK3066_HDMI);
 	ADD_ROCKCHIP_SUB_DRIVER(rockchip_rgb_driver, CONFIG_ROCKCHIP_RGB);
+	ADD_ROCKCHIP_SUB_DRIVER(rockchip_tve_driver, CONFIG_ROCKCHIP_DRM_TVE);
 	ADD_ROCKCHIP_SUB_DRIVER(dw_dp_driver, CONFIG_ROCKCHIP_DW_DP);
 
 #endif
