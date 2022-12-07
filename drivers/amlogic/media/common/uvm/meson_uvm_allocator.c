@@ -123,6 +123,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	struct sg_table *src_sgt = NULL;
 	struct scatterlist *sg = NULL;
 	unsigned int id = meson_ion_cma_heap_id_get();
+	size_t pre_size = 0;
 
 	buffer = container_of(obj, struct mua_buffer, base);
 	MUA_PRINTK(1, "%s. buf_scalar=%d WxH: %dx%d, commit_display = %d, tgid=%d,pid=%d",
@@ -137,12 +138,20 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 		//return -ENODEV;
 	}
 
+	pre_size = dmabuf->size;
 	if (!skip_fill_buf)
 		dmabuf->size = buffer->size * scalar * scalar;
 	else
-		dmabuf->size = buffer->byte_stride * buffer->height * 3 / 2;
-	MUA_PRINTK(1, "buffer->size:%zu realloc dmabuf->size=%zu\n",
-			buffer->size, dmabuf->size);
+		dmabuf->size = buffer->byte_stride * ALIGN(buffer->height, buffer->align) * 3 / 2;
+
+	MUA_PRINTK(1, "buffer->size:%zu realloc dmabuf->size=%zu, pre_size = %zu\n",
+			buffer->size, dmabuf->size, pre_size);
+
+	if (pre_size != dmabuf->size && buffer->idmabuf[1]) {
+		dma_buf_put(buffer->idmabuf[1]);
+		buffer->idmabuf[1] = NULL;
+	}
+
 	if (!buffer->idmabuf[1]) {
 		id = meson_ion_codecmm_heap_id_get();
 		idmabuf = ion_alloc(dmabuf->size,
