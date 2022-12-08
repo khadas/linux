@@ -159,6 +159,10 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 		pr_dbg("%s: adc set pll error %d.\n", __func__, err_code);
 
 		if (!IS_ERR_OR_NULL(amlatvdemod_devp->agc_pin)) {
+			/*
+			 * Is executed only if the pointer is not null.
+			 */
+			/* coverity[var_deref_model:SUPPRESS] */
 			devm_pinctrl_put(amlatvdemod_devp->agc_pin);
 			amlatvdemod_devp->agc_pin = NULL;
 		}
