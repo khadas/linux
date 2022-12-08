@@ -13,7 +13,7 @@ maintainers:
   - Qianggui Song <Qianggui.Song@amlogic.com>
 
 description: |
-  This file is used to depict detils of four blocks of meson global timer
+  This file is used to depict details of four blocks of meson global timer
 
 properties:
   compatible:

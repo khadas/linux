@@ -4,7 +4,7 @@ menuconfig AMLOGIC_INPUT_TOUCHSCREEN
 	help
 	  Say Y here, and a list of supported touchscreen driver will be displayed
 
-	  If say N no touchsceen is displayed
+	  If say N no touchscreen is displayed
 
 
 if AMLOGIC_INPUT_TOUCHSCREEN

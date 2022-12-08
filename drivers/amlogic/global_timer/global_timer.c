@@ -310,7 +310,7 @@ static const struct attribute_group glb_timer_attribute_group = {
 
 #ifdef GLB_TIMER_TEST_CASE
 static unsigned int test_time;
-static enum hrtimer_restart tst_hrtimer_hanlder(struct hrtimer *hrtimer)
+static enum hrtimer_restart tst_hrtimer_handler(struct hrtimer *hrtimer)
 {
 	struct meson_glb_timer *glb;
 
@@ -363,7 +363,7 @@ static int meson_glb_timer_probe(struct platform_device *pdev)
 
 #ifdef GLB_TIMER_TEST_CASE
 	hrtimer_init(&glb_timer->tst_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	glb_timer->tst_hrtimer.function = tst_hrtimer_hanlder;
+	glb_timer->tst_hrtimer.function = tst_hrtimer_handler;
 	/* 100ms */
 	hrtimer_start(&glb_timer->tst_hrtimer, ktime_set(0, 100 * 1000 * 1000), HRTIMER_MODE_REL);
 #endif

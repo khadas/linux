@@ -619,7 +619,7 @@ static void goodix_cmds_init(struct goodix_ts_cmd *ts_cmd,
  * goodix_send_command - send cmd to firmware
  *
  * @dev: pointer to device
- * @cmd: pointer to command struct which cotain command data
+ * @cmd: pointer to command struct which contain command data
  * Returns 0 - succeed, <0 - failed
  */
 int goodix_send_command(struct goodix_ts_device *dev,
@@ -1017,7 +1017,7 @@ int goodix_hw_reset(struct goodix_ts_device *dev)
  * goodix_request_handler - handle firmware request
  *
  * @dev: pointer to touch device
- * @request_data: requset information
+ * @request_data: request information
  * Returns 0 - succeed, <0 - failed
  */
 static int goodix_request_handler(struct goodix_ts_device *dev)
@@ -1623,7 +1623,7 @@ static int goodix_i2c_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	ts_device->name = "Goodix TouchDevcie";
+	ts_device->name = "Goodix Touch Device";
 	ts_device->dev = &client->dev;
 	ts_device->hw_ops = &hw_i2c_ops;
 
@@ -1698,7 +1698,7 @@ static struct i2c_driver goodix_i2c_driver = {
 	.id_table = i2c_id_table,
 };
 
-/* release manully when prob failed */
+/* release manually when prob failed */
 void goodix_ts_dev_release(void)
 {
 	if (goodix_pdev) {

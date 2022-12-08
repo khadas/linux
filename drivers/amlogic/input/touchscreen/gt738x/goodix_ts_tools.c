@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Goodix Tools Dirver Module
+ * Goodix Tools Driver Module
  *
  * Copyright (C) 2019 - 2020 Goodix, Inc.
  *
@@ -357,7 +357,7 @@ static long goodix_tools_ioctl(struct file *filp, unsigned int cmd,
 			mutex_unlock(&dev->mutex);
 			ts_info("IRQ disabled");
 		} else {
-			ts_info("Irq aready set with, arg = %ld", arg);
+			ts_info("Irq already set with, arg = %ld", arg);
 		}
 		ret = 0;
 		break;

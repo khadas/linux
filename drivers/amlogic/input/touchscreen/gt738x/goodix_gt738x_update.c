@@ -58,7 +58,7 @@
 #define SPI_STATUS_FLAG				0x02
 
 /**
- * fw_subsys_info - subsytem firmware information
+ * fw_subsys_info - subsystem firmware information
  * @type: subsystem type
  * @size: firmware size
  * @flash_addr: flash address
@@ -209,7 +209,7 @@ static int goodix_parse_firmware(struct firmware_data *fw_data)
 	/* byte order change, and check */
 	fw_info->checksum = be16_to_cpu(fw_info->checksum);
 	if (checksum != fw_info->checksum) {
-		ts_err("Bad firmware, cheksum error %x(file) != %x(cal)",
+		ts_err("Bad firmware, checksum error %x(file) != %x(cal)",
 			fw_info->checksum, checksum);
 		r = -EINVAL;
 		goto err_size;
@@ -235,7 +235,7 @@ static int goodix_parse_firmware(struct firmware_data *fw_data)
 				be16_to_cpup((__be16 *)&firmware->data[info_offset + 5]);
 
 		if (fw_offset > firmware->size) {
-			ts_err("Sybsys offset exceed Firmware size");
+			ts_err("Subsys offset exceed Firmware size");
 			goto err_size;
 		}
 
@@ -291,7 +291,7 @@ static int goodix_check_update(struct goodix_ts_device *dev,
 
 	if (fw_ver.valid) {
 		// should we compare PID before fw update?
-		// if fw patch demage the PID may unmatch but
+		// if fw patch damage the PID may unmatch but
 		// we should de update to recover it.
 		// TODO skip PID check
 		//if (memcmp(fw_ver.pid, fw_info->fw_pid, dev->reg.pid_len)) {
@@ -601,7 +601,7 @@ exit:
 /**
  * goodix_update_prepare - update prepare, loading ISP program
  *  and make sure the ISP is running.
- * @fwu_ctrl: pointer to fimrware control structure
+ * @fwu_ctrl: pointer to firmware control structure
  * return: 0 ok, <0 error
  */
 static int goodix_update_prepare(struct fw_update_ctrl *fwu_ctrl)

@@ -12,7 +12,7 @@
 #define	XMP_NIBBLE_PREFIX	760000 /* ns */
 #define	XMP_HALFFRAME_SPACE	13800000 /* ns */
 
-/* should be 80ms but not all dureation supliers can go that high */
+/* should be 80ms but not all duration suppliers can go that high */
 #define	XMP_TRAILER_SPACE	20000000
 
 enum xmp_state {

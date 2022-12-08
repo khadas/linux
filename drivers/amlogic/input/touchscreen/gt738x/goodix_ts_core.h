@@ -86,7 +86,7 @@
 /*
  * struct goodix_module - external modules container
  * @head: external modules list
- * @initilized: whether this struct is initilized
+ * @initialized: whether this struct is initialized
  * @mutex: mutex lock
  * @count: current number of registered external module
  * @wq: workqueue to do register work
@@ -94,7 +94,7 @@
  */
 struct goodix_module {
 	struct list_head head;
-	bool initilized;
+	bool initialized;
 	/*Skip CHECK: struct mutex definition without comment */
 	struct mutex mutex;
 	unsigned int count;
@@ -114,7 +114,7 @@ struct goodix_module {
  * @swap_axis: whether swaw x y axis
  * @panel_max_x/y/w/p: resolution and size
  * @panel_max_key: max supported keys
- * @pannel_key_map: key map
+ * @panel_key_map: key map
  * @fw_name: name of the firmware image
  */
 struct goodix_ts_board_data {
@@ -211,7 +211,7 @@ enum ts_event_type {
 	EVENT_REQUEST = (1 << 2),
 };
 
-/* requset event type */
+/* request event type */
 enum ts_request_type {
 	REQUEST_INVALID,
 	REQUEST_CONFIG = 1,
@@ -363,7 +363,7 @@ struct goodix_ts_device {
 };
 
 /*
- * struct goodix_ts_hw_ops -  hardware opeartions
+ * struct goodix_ts_hw_ops -  hardware operations
  * @init: hardware initialization
  * @reset: hardware reset
  * @read: read data from touch device
@@ -519,7 +519,7 @@ struct goodix_ext_module {
 };
 
 /*
- * struct goodix_ext_attribute - exteranl attribute struct
+ * struct goodix_ext_attribute - external attribute struct
  * @attr: attribute
  * @show: show interface of external attribute
  * @store: store interface of external attribute
@@ -645,7 +645,7 @@ static inline u32 checksum_be32(u8 *data, u32 size)
 
 /*
  * define event action
- * EVT_xxx macros are used in opeartions callback
+ * EVT_xxx macros are used in operations callback
  * defined in @goodix_ext_module_funcs to control
  * the behaviors of event such as suspend/resume/irq_event.
  * generally there are two types of behaviors:

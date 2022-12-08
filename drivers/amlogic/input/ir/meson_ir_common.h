@@ -25,7 +25,7 @@ union _codemap {
 /*
  *struct cursor_codemap - codemap for mouse mode
  *
- *@fn_key_scancode: scancode of fn key which used to swicth mode
+ *@fn_key_scancode: scancode of fn key which used to switch mode
  *@cursor_left_scancode: scancode of left key
  *@cursor_right_scancode: scancode of right key
  *@cursor_up_scancode: scancode of up key

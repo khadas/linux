@@ -1815,7 +1815,7 @@ static void elants_auto_update(struct work_struct *work)
 	u16 new_fw_version;
 	u16 new_hw_version;
 
-	dev_info(&client->dev, "[elan]entery %s\n", __func__);
+	dev_info(&client->dev, "[elan]entry %s\n", __func__);
 /*
  *	fw_name = kasprintf(GFP_KERNEL, "elants_i2c.bin");
  *	if (!fw_name){

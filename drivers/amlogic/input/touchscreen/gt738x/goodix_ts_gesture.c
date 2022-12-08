@@ -156,7 +156,7 @@ static ssize_t gsx_gesture_enable_store(struct goodix_ext_module *module,
 
 	if (tmp == 1) {
 		if (atomic_read(&gsx_gesture->registered)) {
-			ts_debug("Gesture module has aready registered");
+			ts_debug("Gesture module has already registered");
 			return count;
 		}
 		ret = goodix_register_ext_module(&gsx_gesture->module);
@@ -169,7 +169,7 @@ static ssize_t gsx_gesture_enable_store(struct goodix_ext_module *module,
 		}
 	} else if (tmp == 0) {
 		if (!atomic_read(&gsx_gesture->registered)) {
-			ts_debug("Gesture module has aready unregistered");
+			ts_debug("Gesture module has already unregistered");
 			return count;
 		}
 		ts_debug("Start unregistered gesture module");

@@ -6,7 +6,7 @@ menuconfig AMLOGIC_GLOBAL_TIMER
 	default n
 	help
 		This option enables meson global timer which is
-		a multi-function timer supoort gpio/mipi trigger and gpio
+		a multi-function timer support gpio/mipi trigger and gpio
 		output and includes several parts sub module
 
 if AMLOGIC_GLOBAL_TIMER

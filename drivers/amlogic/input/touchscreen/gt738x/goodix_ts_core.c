@@ -96,7 +96,7 @@ static void  __do_register_ext_module(struct work_struct *work)
 
 	ts_info("start register ext_module");
 
-	/* prority level *must* be set */
+	/* priority level *must* be set */
 	if (module->priority == EXTMOD_PRIO_RESERVED) {
 		ts_err("Priority of module [%s] needs to be set",
 		       module->name);
@@ -158,8 +158,8 @@ int goodix_register_ext_module(struct goodix_ext_module *module)
 	if (!module)
 		return -EINVAL;
 
-	if (!goodix_modules.initilized) {
-		goodix_modules.initilized = true;
+	if (!goodix_modules.initialized) {
+		goodix_modules.initialized = true;
 		INIT_LIST_HEAD(&goodix_modules.head);
 		mutex_init(&goodix_modules.mutex);
 		init_completion(&goodix_modules.core_comp);
@@ -191,7 +191,7 @@ int goodix_unregister_ext_module(struct goodix_ext_module *module)
 	if (!module)
 		return -EINVAL;
 
-	if (!goodix_modules.initilized)
+	if (!goodix_modules.initialized)
 		return -EINVAL;
 
 	if (!goodix_modules.core_data)
@@ -225,7 +225,7 @@ int goodix_unregister_ext_module(struct goodix_ext_module *module)
 	if (module->funcs && module->funcs->exit)
 		module->funcs->exit(goodix_modules.core_data, module);
 
-	ts_info("Moudle [%s] unregistered",
+	ts_info("Module [%s] unregistered",
 		module->name ? module->name : " ");
 	return 0;
 }
@@ -235,7 +235,7 @@ static void goodix_remove_all_ext_modules(void)
 {
 	struct goodix_ext_module *ext_module, *next;
 
-	if (!goodix_modules.initilized || !goodix_modules.core_data)
+	if (!goodix_modules.initialized || !goodix_modules.core_data)
 		return;
 
 	mutex_lock(&goodix_modules.mutex);
@@ -1096,7 +1096,7 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 }
 
 /**
- * goodix_ts_init_irq - Requset interrput line from system
+ * goodix_ts_init_irq - Request interrupt line from system
  * @core_data: pointer to touch core data
  * return: 0 ok, <0 failed
  */
@@ -1276,7 +1276,7 @@ static int goodix_ts_pinctrl_init(struct goodix_ts_core *core_data)
 		core_data->pin_sta_active = NULL;
 		goto exit_pinctrl_put;
 	}
-	ts_debug("success get avtive pinctrl state");
+	ts_debug("success get active pinctrl state");
 
 	/* suspend state */
 	core_data->pin_sta_suspend = pinctrl_lookup_state(core_data->pinctrl,
@@ -1302,7 +1302,7 @@ exit_pinctrl_put:
  * goodix_ts_gpio_setup - Request gpio resources from GPIO subsystem
  *	reset_gpio and irq_gpio number are obtained from goodix_ts_device
  *  which created in hardware layer driver. e.g.goodix_xx_i2c.c
- *	A goodix_ts_device should set those two fileds to right value
+ *	A goodix_ts_device should set those two fields to right value
  *	before registered to touch core driver.
  * @core_data: pointer to touch core data
  * return: 0 ok, <0 failed
@@ -1364,7 +1364,7 @@ static void goodix_ts_set_input_params(struct input_dev *input_dev,
 }
 
 /**
- * goodix_ts_input_dev_config - Requset and config a input device
+ * goodix_ts_input_dev_config - Request and config a input device
  *  then register it to input subsystem.
  *  NOTE that some hardware layer may provide a input device
  *  (ts_dev->input_dev not NULL).
@@ -1703,7 +1703,7 @@ static int goodix_ts_suspend(struct goodix_ts_core *core_data)
 	}
 #endif
 
-	/* inform exteranl modules */
+	/* inform external modules */
 	mutex_lock(&goodix_modules.mutex);
 	if (!list_empty(&goodix_modules.head)) {
 		list_for_each_entry_safe(ext_module, next,
@@ -1813,7 +1813,7 @@ out:
 #ifdef CONFIG_FB
 /**
  * goodix_ts_fb_notifier_callback - Framebuffer notifier callback
- * Called by kernel during framebuffer blanck/unblank phrase
+ * Called by kernel during framebuffer blank/unblank phrase
  */
 int goodix_ts_fb_notifier_callback(struct notifier_block *self,
 	unsigned long event, void *data)
@@ -2136,10 +2136,10 @@ static struct platform_driver goodix_ts_driver = {
 void goodix_ts_core_init(struct work_struct *work)
 {
 	ts_info("Core layer init");
-	if (!goodix_modules.initilized) {
+	if (!goodix_modules.initialized) {
 		/* this may init by outer modules register event */
 		ts_info("init modules struct");
-		goodix_modules.initilized = true;
+		goodix_modules.initialized = true;
 		INIT_LIST_HEAD(&goodix_modules.head);
 		mutex_init(&goodix_modules.mutex);
 		init_completion(&goodix_modules.core_comp);
