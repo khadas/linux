@@ -11,6 +11,7 @@ dtb-y += t7c_a311d2_an400_hdmitx_only.dtb
 dtb-y += t7_a311d2_an400_drm_hdmitx_only.dtb
 dtb-y += t7_a311d2_an400.dtb
 dtb-y += t7_a311d2_an400_mercury.dtb
+dtb-y += t7c_a311d2_an400_mercury.dtb
 dtb-y += t7_a311d2_an400_drm.dtb
 dtb-y += t7_a311d2_an400_8g.dtb
 dtb-y += t7_a311d2_an400p.dtb

@@ -13,8 +13,8 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "t7_a311d2_an400-mercury";
-	compatible = "amlogic, t7";
+	amlogic-dt-id = "t7c_a311d2_an400-mercury";
+	compatible = "amlogic, t7c";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -572,7 +572,7 @@
 				"fclk_div5";
 		hdmirx_id = <0>;
 		en_4k_2_2k = <0>;
-		hpd_low_cec_off = <1>;
+		hpd_low_cec_off = <0>;
 		arc_port = <1>;
 		/* bit4: enable feature, bit3~0: port number */
 		disable_port = <0x0>;
@@ -743,19 +743,7 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
-/*
-		aml-audio-card,dai-link@7 {
-			mclk-fs = <256>;
-			suffix-name = "alsaPORT-earc";
-			cpu {
-				sound-dai = <&earc>;
-				system-clock-frequency = <12288000>;
-			};
-			codec {
-				sound-dai = <&dummy_codec>;
-			};
-		};
-*/
+
 		aml-audio-card,dai-link@7 {
 			mclk-fs = <256>;
 			continuous-clock;
@@ -1523,6 +1511,25 @@
 			};
 		};
 	};
+
+	max96705: sensor0@40 {
+		compatible = "maxim,max96705";
+		reg = <0x40>;
+	};
+
+	max96712: sensor0@29 {
+		compatible = "maxim,max96712";
+		reg = <0x29>;
+
+		port {
+			max96712_0_ep: endpoint {
+				data-lanes = <0 1 2 3>;
+				link-frequencies = /bits/ 64 <1500000000>;
+				remote-endpoint = <&csiphy0_ep>;
+			};
+		};
+	};
+
 };
 
 &i2c3 {
