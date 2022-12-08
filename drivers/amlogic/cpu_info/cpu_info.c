@@ -82,6 +82,7 @@ void cpuinfo_get_chipid(unsigned char *cid, unsigned int size)
 {
 	memcpy(&cid[0], cpuinfo_chip_id, size);
 }
+EXPORT_SYMBOL(cpuinfo_get_chipid);
 
 static const struct of_device_id cpuinfo_dt_match[] = {
 	{ .compatible = "amlogic, cpuinfo" },
