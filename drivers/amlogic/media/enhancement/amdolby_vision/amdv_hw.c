@@ -162,6 +162,7 @@ void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 	int sync_duration_num = 60;
 
 	g_vwidth = 0x18;
+	g_htotal_add = 0x40;
 
 	if (is_aml_txlx_stbmode()) {
 		if (vinfo && vinfo->width >= 1920 &&
@@ -266,6 +267,8 @@ void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 			else
 				htotal_add = 0x140;
 
+			if (vinfo->width <= 720)
+				g_htotal_add = 0x12c;
 			if (debug_dolby & 2)
 				pr_dv_dbg("s5 vinfo %d %d %d, graphics_h %d, g_vpotch %x\n",
 					vinfo->width,
