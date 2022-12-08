@@ -1622,7 +1622,8 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 
 	meson_vout_notify_mode_change(amcrtc->vout_index,
 		vmode, EVENT_MODE_SET_START);
-	am_hdmi_info.hdmitx_dev->set_frac(meson_conn_state->frac_rate_policy);
+	if (!am_hdmi_info.android_path)
+		am_hdmi_info.hdmitx_dev->set_frac(meson_conn_state->frac_rate_policy);
 	vout_func_set_vmode(amcrtc->vout_index, vmode);
 	meson_vout_notify_mode_change(amcrtc->vout_index,
 		vmode, EVENT_MODE_SET_FINISH);
