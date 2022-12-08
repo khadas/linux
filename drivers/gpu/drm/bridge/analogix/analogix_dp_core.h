@@ -71,8 +71,8 @@ enum pattern_set {
 	TRAINING_PTN1,
 	TRAINING_PTN2,
 	TRAINING_PTN3,
-	TEST_PATTREN_80BIT,
-	TEST_PATTREN_HBR2,
+	TEST_PATTERN_80BIT,
+	TEST_PATTERN_HBR2,
 	DP_NONE
 };
 
@@ -142,6 +142,7 @@ struct video_info {
 	u32 lane_map[4];
 
 	bool video_bist_enable;
+	bool force_stream_valid;
 };
 
 struct link_train {

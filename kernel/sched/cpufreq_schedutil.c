@@ -19,6 +19,9 @@
 struct sugov_tunables {
 	struct gov_attr_set	attr_set;
 	unsigned int		rate_limit_us;
+#ifdef CONFIG_ARCH_ROCKCHIP
+	unsigned int		target_load;
+#endif
 };
 
 struct sugov_policy {
@@ -170,7 +173,11 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 	if (next_freq)
 		freq = next_freq;
 	else
+#ifdef CONFIG_ARCH_ROCKCHIP
+		freq = div64_ul((u64)(100 * freq / sg_policy->tunables->target_load) * util, max);
+#else
 		freq = map_util_freq(util, freq, max);
+#endif
 
 	if (freq == sg_policy->cached_raw_freq && !sg_policy->need_freq_update)
 		return sg_policy->next_freq;
@@ -612,15 +619,54 @@ rate_limit_us_store(struct gov_attr_set *attr_set, const char *buf, size_t count
 
 static struct governor_attr rate_limit_us = __ATTR_RW(rate_limit_us);
 
+#ifdef CONFIG_ARCH_ROCKCHIP
+static ssize_t target_load_show(struct gov_attr_set *attr_set, char *buf)
+{
+	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
+
+	return sprintf(buf, "%u\n", tunables->target_load);
+}
+
+static ssize_t
+target_load_store(struct gov_attr_set *attr_set, const char *buf, size_t count)
+{
+	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
+	unsigned int target_load;
+
+	if (kstrtouint(buf, 10, &target_load))
+		return -EINVAL;
+
+	if (!target_load || (target_load > 100))
+		return -EINVAL;
+
+	tunables->target_load = target_load;
+
+	return count;
+}
+
+static struct governor_attr target_load = __ATTR_RW(target_load);
+#endif
+
 static struct attribute *sugov_attrs[] = {
 	&rate_limit_us.attr,
+#ifdef CONFIG_ARCH_ROCKCHIP
+	&target_load.attr,
+#endif
 	NULL
 };
 ATTRIBUTE_GROUPS(sugov);
 
+static void sugov_tunables_free(struct kobject *kobj)
+{
+	struct gov_attr_set *attr_set = container_of(kobj, struct gov_attr_set, kobj);
+
+	kfree(to_sugov_tunables(attr_set));
+}
+
 static struct kobj_type sugov_tunables_ktype = {
 	.default_groups = sugov_groups,
 	.sysfs_ops = &governor_sysfs_ops,
+	.release = &sugov_tunables_free,
 };
 
 /********************** cpufreq governor interface *********************/
@@ -720,12 +766,10 @@ static struct sugov_tunables *sugov_tunables_alloc(struct sugov_policy *sg_polic
 	return tunables;
 }
 
-static void sugov_tunables_free(struct sugov_tunables *tunables)
+static void sugov_clear_global_tunables(void)
 {
 	if (!have_governor_per_policy())
 		global_tunables = NULL;
-
-	kfree(tunables);
 }
 
 static int sugov_init(struct cpufreq_policy *policy)
@@ -771,6 +815,9 @@ static int sugov_init(struct cpufreq_policy *policy)
 	}
 
 	tunables->rate_limit_us = cpufreq_policy_transition_delay_us(policy);
+#ifdef CONFIG_ARCH_ROCKCHIP
+	tunables->target_load = 80;
+#endif
 
 	policy->governor_data = sg_policy;
 	sg_policy->tunables = tunables;
@@ -788,7 +835,7 @@ out:
 fail:
 	kobject_put(&tunables->attr_set.kobj);
 	policy->governor_data = NULL;
-	sugov_tunables_free(tunables);
+	sugov_clear_global_tunables();
 
 stop_kthread:
 	sugov_kthread_stop(sg_policy);
@@ -815,7 +862,7 @@ static void sugov_exit(struct cpufreq_policy *policy)
 	count = gov_attr_set_put(&tunables->attr_set, &sg_policy->tunables_hook);
 	policy->governor_data = NULL;
 	if (!count)
-		sugov_tunables_free(tunables);
+		sugov_clear_global_tunables();
 
 	mutex_unlock(&global_tunables_lock);
 

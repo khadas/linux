@@ -161,6 +161,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RK3228
 	imply SND_SOC_RK3308
 	imply SND_SOC_RK3328
+	imply SND_SOC_RK730
 	imply SND_SOC_RK817
 	imply SND_SOC_RT274
 	imply SND_SOC_RT286
@@ -671,6 +672,7 @@ config SND_SOC_CS4349
 
 config SND_SOC_CS47L15
 	tristate
+	depends on MFD_CS47L15
 
 config SND_SOC_CS47L24
 	tristate
@@ -678,15 +680,19 @@ config SND_SOC_CS47L24
 
 config SND_SOC_CS47L35
 	tristate
+	depends on MFD_CS47L35
 
 config SND_SOC_CS47L85
 	tristate
+	depends on MFD_CS47L85
 
 config SND_SOC_CS47L90
 	tristate
+	depends on MFD_CS47L90
 
 config SND_SOC_CS47L92
 	tristate
+	depends on MFD_CS47L92
 
 # Cirrus Logic Quad-Channel ADC
 config SND_SOC_CS53L30
@@ -1095,6 +1101,10 @@ config SND_SOC_RK3308
 config SND_SOC_RK3328
 	tristate "Rockchip RK3328 audio CODEC"
 	select REGMAP_MMIO
+
+config SND_SOC_RK730
+	tristate "Rockchip RK730 CODEC"
+	select REGMAP_I2C
 
 config SND_SOC_RK817
 	tristate "Rockchip RK817 CODEC"
@@ -1869,4 +1879,5 @@ config SND_SOC_TPA6130A2
 	depends on I2C
 
 source "sound/soc/codecs/aw87xxx/Kconfig"
+source "sound/soc/codecs/aw883xx/Kconfig"
 endmenu
