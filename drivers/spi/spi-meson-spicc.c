@@ -96,7 +96,7 @@
 #define SPICC_RH_EN	BIT(4) /* RX FIFO Half-Full Interrupt */
 #define SPICC_RF_EN	BIT(5) /* RX FIFO Full Interrupt */
 #define SPICC_RO_EN	BIT(6) /* RX FIFO Overflow Interrupt */
-#define SPICC_TC_EN	BIT(7) /* Transfert Complete Interrupt */
+#define SPICC_TC_EN	BIT(7) /* Transfer Complete Interrupt */
 #define SPICC_TXFIFO_THRESHOLD_EN	BIT(8) /* TX FIFO threshold */
 #define SPICC_RXFIFO_THRESHOLD_EN	BIT(9) /* RX FIFO threshold */
 #define SPICC_RECV_TOTAL_EN		BIT(10)/* total data received */
@@ -124,7 +124,7 @@
 #define SPICC_RH	BIT(4) /* RX FIFO Half-Full Interrupt */
 #define SPICC_RF	BIT(5) /* RX FIFO Full Interrupt */
 #define SPICC_RO	BIT(6) /* RX FIFO Overflow Interrupt */
-#define SPICC_TC	BIT(7) /* Transfert Complete Interrupt */
+#define SPICC_TC	BIT(7) /* Transfer Complete Interrupt */
 #define SPICC_TXFIFO_THRESHOLD		BIT(8) /* TX FIFO threshold */
 #define SPICC_RXFIFO_THRESHOLD		BIT(9) /* RX FIFO threshold */
 #define SPICC_RECV_TOTAL_TRIG		BIT(10)/* total data received */

@@ -54,7 +54,7 @@
 #define SPICC_RH_EN	BIT(4) /* RX FIFO Half-Full Interrupt */
 #define SPICC_RF_EN	BIT(5) /* RX FIFO Full Interrupt */
 #define SPICC_RO_EN	BIT(6) /* RX FIFO Overflow Interrupt */
-#define SPICC_TC_EN	BIT(7) /* Transfert Complete Interrupt */
+#define SPICC_TC_EN	BIT(7) /* Transfer Complete Interrupt */
 
 #define SPICC_DMAREG	0x10
 #define SPICC_DMA_ENABLE		BIT(0)
@@ -77,7 +77,7 @@
 #define SPICC_RH	BIT(4) /* RX FIFO Half-Full Interrupt */
 #define SPICC_RF	BIT(5) /* RX FIFO Full Interrupt */
 #define SPICC_RO	BIT(6) /* RX FIFO Overflow Interrupt */
-#define SPICC_TC	BIT(7) /* Transfert Complete Interrupt */
+#define SPICC_TC	BIT(7) /* Transfer Complete Interrupt */
 
 #define SPICC_PERIODREG	0x18
 #define SPICC_PERIOD	GENMASK(14, 0)	/* Wait cycles */
