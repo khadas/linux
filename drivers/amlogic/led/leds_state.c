@@ -318,7 +318,7 @@ static int meson_led_state_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	/*shuld after led_classdev_register,
+	/*should after led_classdev_register,
 	 *the stateled dir should be created first
 	 */
 	meson_led_device_create(&data->cdev);
