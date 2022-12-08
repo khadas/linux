@@ -1832,6 +1832,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 		break;
 	case CEC_IOC_SET_DEBUG_EN:
 		cec_msg_dbg_en = arg & 0xff;
+		cec_dev->cec_log_en = arg & 0xff;
 		break;
 	case CEC_IOC_GET_WK_OTP_MSG:
 		memset(&wk_msg, 0x0, sizeof(wk_msg));
@@ -2648,9 +2649,9 @@ static int aml_cec_probe(struct platform_device *pdev)
 	r = of_property_read_u32(node, "cec_log_en",
 				 &cec_dev->cec_log_en);
 	if (r) {
-		/* default enable cec log */
+		/* default disable cec log */
 		dprintk(L_4, "not find cec_log_en\n");
-		cec_dev->cec_log_en = 1;
+		cec_dev->cec_log_en = 0;
 	}
 
 	cec_set_clk(&pdev->dev);
