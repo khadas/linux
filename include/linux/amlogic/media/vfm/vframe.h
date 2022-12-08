@@ -520,8 +520,18 @@ struct vf_aipq_t {
 	s32 aipq_value_index;
 };
 
+struct vf_dalton_t {
+	u32 nn_status;
+	struct timeval start_time;
+	u32 width;
+	u32 height;
+	ulong phy_addr;
+};
+
 #define VC_FLAG_AI_SR	0x1
 #define VC_FLAG_FIRST_FRAME	0x2
+#define VC_FLAG_DALTON	0x4
+
 
 struct video_composer_private {
 	u32 index;
@@ -533,6 +543,7 @@ struct video_composer_private {
 	/*used to control mbp buffer*/
 	void (*lock_buffer_cb)(void *arg);
 	void (*unlock_buffer_cb)(void *arg);
+	struct vf_dalton_t *dalton_info;
 };
 
 #define VF_UD_MAX_SIZE 5120 /* 5K size */

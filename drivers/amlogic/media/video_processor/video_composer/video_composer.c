@@ -905,6 +905,35 @@ static struct vf_nn_sr_t *vc_get_hfout_data(struct composer_dev *dev,
 	return srout_data;
 }
 
+static struct vf_dalton_t *vc_get_dalton_info(struct composer_dev *dev,
+						     struct file *file_vf)
+{
+	struct vf_dalton_t *dalton_info;
+	struct uvm_hook_mod *uhmod;
+
+	if (!file_vf) {
+		vc_print(dev->index, PRINT_ERROR, "vc get dalton_info fail\n");
+		return NULL;
+	}
+
+	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
+				 PROCESS_DALTON);
+	if (!uhmod) {
+		vc_print(dev->index, PRINT_OTHER, "dma file file_private_data is NULL 1\n");
+		return NULL;
+	}
+
+	if (IS_ERR_VALUE(uhmod) || !uhmod->arg) {
+		vc_print(dev->index, PRINT_ERROR, "dma file file_private_data is NULL 2\n");
+		return NULL;
+	}
+	dalton_info = uhmod->arg;
+	uvm_put_hook_mod((struct dma_buf *)(file_vf->private_data),
+			 PROCESS_DALTON);
+
+	return dalton_info;
+}
+
 static void frames_put_file(struct composer_dev *dev,
 			    struct received_frames_t *current_frames)
 {
@@ -2287,6 +2316,28 @@ static void video_wait_sr_fence(struct composer_dev *dev,
 	}
 }
 
+static void video_wait_dalton_ready(struct composer_dev *dev,
+				    struct vf_dalton_t *dalton_info)
+{
+	int wait_count = 0;
+	u32 nn_status;
+
+	while (1) {
+		nn_status = dalton_info->nn_status;
+		if (nn_status != NN_DONE &&
+			(nn_status == NN_WAIT_DOING || nn_status == NN_START_DOING)) {
+			usleep_range(2000, 2100);
+			wait_count++;
+			vc_print(dev->index, PRINT_PATTERN | PRINT_DALTON,
+				"dalton wait count %d, nn_status=%d\n", wait_count, nn_status);
+		} else {
+			break;
+		}
+	}
+	vc_print(dev->index, PRINT_PATTERN | PRINT_DALTON,
+		 "aiface wait %dms nn_status=%d\n", 2 * wait_count, dalton_info->nn_status);
+}
+
 static void video_composer_task(struct composer_dev *dev)
 {
 	struct vframe_s *vf = NULL;
@@ -2312,6 +2363,7 @@ static void video_composer_task(struct composer_dev *dev)
 	u64 now_time;
 	struct vd_prepare_s *vd_prepare = NULL;
 	size_t usage = 0;
+	struct vf_dalton_t *dalton_info = NULL;
 
 	if (!kfifo_peek(&dev->receive_q, &received_frames)) {
 		vc_print(dev->index, PRINT_ERROR, "task: peek failed\n");
@@ -2649,6 +2701,18 @@ static void video_composer_task(struct composer_dev *dev)
 				}
 				vc_private->src_vf = vd_prepare->src_frame;
 				vf->vc_private = vc_private;
+
+				dalton_info = vc_get_dalton_info(dev, file_vf);
+				if (dalton_info) {
+					video_wait_dalton_ready(dev, dalton_info);
+					vc_print(dev->index, PRINT_DALTON,
+						"dalton: %d * %d, phy=%ld\n",
+						dalton_info->width, dalton_info->height,
+						dalton_info->phy_addr);
+					dalton_info->nn_status = NN_DISPLAYED;
+					vf->vc_private->dalton_info = dalton_info;
+					vc_private->flag |= VC_FLAG_DALTON;
+				}
 			}
 			dev->last_file = file_vf;
 			vf->repeat_count = 0;
