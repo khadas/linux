@@ -1446,7 +1446,17 @@ int nand_isbad_bbt(struct nand_chip *this, loff_t offs, int allowbbt)
 	case BBT_BLOCK_GOOD:
 		return 0;
 	case BBT_BLOCK_WORN:
+#ifdef CONFIG_AMLOGIC_MODIFY
+		pr_info("find a bad block offs 0x%08x: (block %d) 0x%02x\n",
+			(unsigned int)offs, block, res);
+#endif
 		return 1;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	case BBT_BLOCK_FACTORY_BAD:
+		pr_info("find a factory bad block offs 0x%08x: (block %d) 0x%02x\n",
+			(unsigned int)offs, block, res);
+		return NAND_FACTORY_BAD;
+#endif
 	case BBT_BLOCK_RESERVED:
 		return allowbbt ? 0 : 1;
 	}

@@ -93,7 +93,7 @@ static int adjust_part_offset(struct mtd_info *master, u8 nr_parts,
 					master->erasesize;
 				error =
 				master->_block_isbad(master, offset);
-				if (error) {
+				if (error == NAND_FACTORY_BAD) {
 					pr_info("%s %d factory bad addr=%llx\n",
 						__func__, __LINE__, (u64)(offset >>
 						phys_erase_shift));
