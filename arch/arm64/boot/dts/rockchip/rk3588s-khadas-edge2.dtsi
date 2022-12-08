@@ -27,6 +27,14 @@
 		};
 	};
 
+	khadas_pogo_pin {
+		compatible = "khadas-pogo-pin";
+		io-channels = <&saradc 2>;
+		io-channel-names = "pogo_pin";
+		poll-interval = <10>;
+		pogo-pwr-en = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
+	};
+
 	khadas_wdt {
 		compatible = "linux,wdt-khadas";
 		status = "okay";
