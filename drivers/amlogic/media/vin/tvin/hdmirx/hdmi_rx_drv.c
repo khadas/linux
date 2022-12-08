@@ -1148,6 +1148,11 @@ void hdmirx_get_latency_info(struct tvin_sig_property_s *prop)
 static u32 emp_irq_cnt;
 void hdmirx_get_emp_info(struct tvin_sig_property_s *prop)
 {
+	//emp buffer not only stores DV_EMP packet, but also other packets.
+	//only DV_EMP is needed here
+	if (rx.vs_info_details.dolby_vision_flag != DV_EMP)
+		return;
+
 	prop->emp_data.size = rx.vs_info_details.emp_pkt_cnt;
 	if (rx.vs_info_details.emp_pkt_cnt)
 		memcpy(&prop->emp_data.empbuf,

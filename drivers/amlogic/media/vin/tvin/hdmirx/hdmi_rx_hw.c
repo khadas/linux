@@ -4236,6 +4236,52 @@ void rx_get_video_info(void)
 	rx_get_interlaced();
 }
 
+void hdmirx_set_vp_mapping(enum colorspace_e cs)
+{
+	u32 data32 = 0;
+
+	if (rx.chip_id < CHIP_ID_T7)
+		return;
+
+	switch (cs) {
+	case E_COLOR_YUV422:
+		data32 |= 3 << 9;
+		data32 |= 3 << 6;
+		data32 |= 3 << 3;
+		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX, data32 & 0xff);
+		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX + 1, (data32 >> 8) & 0xff);
+		data32 = hdmirx_rd_top(TOP_VID_CNTL);
+		data32 &= (~(0x7 << 24));
+		data32 |= 1 << 24;
+		hdmirx_wr_top(TOP_VID_CNTL, data32);
+		break;
+	case E_COLOR_YUV420:
+	case E_COLOR_RGB:
+		data32 |= 2 << 9;
+		data32 |= 1 << 6;
+		data32 |= 0 << 3;
+		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX, data32 & 0xff);
+		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX + 1, (data32 >> 8) & 0xff);
+		data32 = hdmirx_rd_top(TOP_VID_CNTL);
+		data32 &= (~(0x7 << 24));
+		data32 |= 0 << 24;
+		hdmirx_wr_top(TOP_VID_CNTL, data32);
+		break;
+	case E_COLOR_YUV444:
+	default:
+		data32 |= 2 << 9;
+		data32 |= 1 << 6;
+		data32 |= 0 << 3;
+		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX, data32 & 0xff);
+		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX + 1, (data32 >> 8) & 0xff);
+		data32 = hdmirx_rd_top(TOP_VID_CNTL);
+		data32 &= (~(0x7 << 24));
+		data32 |= 2 << 24;
+		hdmirx_wr_top(TOP_VID_CNTL, data32);
+	break;
+	}
+}
+
 /*
  * hdmirx_set_video_mute - video mute
  * @mute: mute enable or disable
@@ -4276,7 +4322,6 @@ void set_dv_ll_mode(bool en)
  */
 void hdmirx_config_video(void)
 {
-	u32 data32 = 0;
 	u32 temp = 0;
 	u8 data8;
 
@@ -4295,43 +4340,7 @@ void hdmirx_config_video(void)
 	if (rx.chip_id < CHIP_ID_T7)
 		return;
 
-	switch (temp) {
-	case E_COLOR_YUV422:
-		data32 |= 3 << 9;
-		data32 |= 3 << 6;
-		data32 |= 3 << 3;
-		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX, data32 & 0xff);
-		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX + 1, (data32 >> 8) & 0xff);
-		data32 = hdmirx_rd_top(TOP_VID_CNTL);
-		data32 &= (~(0x7 << 24));
-		data32 |= 1 << 24;
-		hdmirx_wr_top(TOP_VID_CNTL, data32);
-		break;
-	case E_COLOR_YUV420:
-	case E_COLOR_RGB:
-		data32 |= 2 << 9;
-		data32 |= 1 << 6;
-		data32 |= 0 << 3;
-		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX, data32 & 0xff);
-		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX + 1, (data32 >> 8) & 0xff);
-		data32 = hdmirx_rd_top(TOP_VID_CNTL);
-		data32 &= (~(0x7 << 24));
-		data32 |= 0 << 24;
-		hdmirx_wr_top(TOP_VID_CNTL, data32);
-		break;
-	case E_COLOR_YUV444:
-	default:
-		data32 |= 2 << 9;
-		data32 |= 1 << 6;
-		data32 |= 0 << 3;
-		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX, data32 & 0xff);
-		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX + 1, (data32 >> 8) & 0xff);
-		data32 = hdmirx_rd_top(TOP_VID_CNTL);
-		data32 &= (~(0x7 << 24));
-		data32 |= 2 << 24;
-		hdmirx_wr_top(TOP_VID_CNTL, data32);
-	break;
-	}
+	hdmirx_set_vp_mapping(temp);
 
 	if (rx.chip_id == CHIP_ID_T7) {
 		/* repetition config */

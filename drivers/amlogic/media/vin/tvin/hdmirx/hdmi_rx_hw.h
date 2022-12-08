@@ -3115,6 +3115,7 @@ extern u32 dts_debug_flag;
 extern u32 afifo_overflow_cnt;
 extern u32 afifo_underflow_cnt;
 
+void hdmirx_set_vp_mapping(enum colorspace_e cs);
 void rx_get_best_eq_setting(void);
 void wr_reg_hhi(unsigned int offset, unsigned int val);
 void wr_reg_hhi_bits(unsigned int offset, unsigned int mask,

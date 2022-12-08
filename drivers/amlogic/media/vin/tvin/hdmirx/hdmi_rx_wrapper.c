@@ -308,7 +308,7 @@ void hdmirx_fsm_var_init(void)
 		clk_unstable_max = 100;
 		esd_phy_rst_max = 4;
 		pll_unlock_max = 30;
-		stable_check_lvl = 0x17df;
+		stable_check_lvl = 0x17cf;
 		pll_lock_max = 2;
 		err_cnt_sum_max = 10;
 		hpd_wait_max = 40;
@@ -333,7 +333,9 @@ void hdmirx_fsm_var_init(void)
 		clk_unstable_max = 50;
 		esd_phy_rst_max = 16;
 		pll_unlock_max = 30;
-		stable_check_lvl = 0x7d3;
+		//do not to check colorspace changes
+		//Vdin can adapt it automatically
+		stable_check_lvl = 0x7c3;
 		pll_lock_max = 2;
 		err_cnt_sum_max = 10;
 		hpd_wait_max = 40;
@@ -1679,6 +1681,22 @@ bool rx_is_nosig(void)
 	return rx.no_signal;
 }
 
+static bool rx_is_color_space_stable(void)
+{
+	bool ret = true;
+
+	if (rx.chip_id < CHIP_ID_T7)
+		return ret;
+
+	if (rx.pre.colorspace != rx.cur.colorspace) {
+		ret = false;
+		if (log_level & VIDEO_LOG)
+			rx_pr("colorspace(%d=>%d),",
+			      rx.pre.colorspace,
+			      rx.cur.colorspace);
+	}
+	return ret;
+}
 /*
  * check timing info
  */
@@ -1728,15 +1746,6 @@ static bool rx_is_timing_stable(void)
 				rx_pr("vtotal(%d=>%d),",
 				      rx.pre.vtotal,
 				      rx.cur.vtotal);
-		}
-	}
-	if (stable_check_lvl & COLSPACE_EN) {
-		if (rx.pre.colorspace != rx.cur.colorspace) {
-			ret = false;
-			if (log_level & VIDEO_LOG)
-				rx_pr("colorspace(%d=>%d),",
-				      rx.pre.colorspace,
-				      rx.cur.colorspace);
 		}
 	}
 	if (stable_check_lvl & REFRESH_RATE_EN) {
@@ -3393,6 +3402,23 @@ void rx_main_state_machine(void)
 				rx_esm_reset(0);
 				break;
 			}
+		} else if (!rx_is_color_space_stable()) {
+			//Color space changes, no need to do EQ training
+			skip_frame(skip_frame_cnt);
+			if (++sig_unready_cnt >= sig_unready_max) {
+				/*sig_lost_lock_cnt = 0;*/
+				rx.unready_timestamp = rx.timestamp;
+				rx.err_code = ERR_TIMECHANGE;
+				rx_i2c_init();
+				rx_pr("colorspace changes from %d to %d\n",
+					  rx.pre.colorspace, rx.cur.colorspace);
+				rx.var.de_stable = false;
+				rx.hdcp.hdcp_pre_ver = rx.hdcp.hdcp_version;
+				/* need to clr to none, for dishNXT box */
+				hdmirx_output_en(false);
+				rx.state = FSM_SIG_WAIT_STABLE;
+				break;
+			}
 		} else {
 			sig_unready_cnt = 0;
 			one_frame_cnt = (1000 * 100 / rx.pre.frame_rate / 12) + 1;
@@ -4119,4 +4145,3 @@ void hdmirx_timer_handler(struct timer_list *t)
 	devp->timer.expires = jiffies + TIMER_STATE_CHECK;
 	add_timer(&devp->timer);
 }
-
