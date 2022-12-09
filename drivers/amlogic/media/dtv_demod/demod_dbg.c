@@ -732,20 +732,11 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 		break;
 
 	case 6: /* diseqc in */
-		if (devp->data->hw_ver == DTVDEMOD_HW_S4D ||
-			devp->data->hw_ver == DTVDEMOD_HW_S4) {
-			addr = 0x1000;
-			//tb_depth = 10;
-			/* sample bit width */
-			width = 9;
-			vld = 0x100000;
-		} else {
-			addr = 0x1000;
-			//tb_depth = 10;
-			/* sample bit width */
-			width = 9;
-			vld = 0x100000;
-		}
+		addr = 0x1000;
+		//tb_depth = 10;
+		/* sample bit width */
+		width = 9;
+		vld = 0x100000;
 		break;
 
 	case 7: /* user define */
