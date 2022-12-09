@@ -72,7 +72,7 @@
 #define DWC_CEC_LOCK                     0x1FC0
 #define DWC_CEC_WKUPCTRL                 0x1FC4
 
-/* cec ip irq flags bit discription */
+/* cec ip irq flags bit description */
 #define CEC_IRQ_TX_DONE			(BIT16)
 #define CEC_IRQ_RX_EOM			(BIT17)
 #define CEC_IRQ_TX_NACK			(BIT18)

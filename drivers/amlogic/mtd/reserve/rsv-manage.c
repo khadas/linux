@@ -189,7 +189,7 @@ int meson_rsv_save(struct meson_rsv_info_t *rsv_info, u_char *buf)
 	loff_t offset = 0;
 
 	pages_per_blk = mtd->erasesize / mtd->writesize;
-	/*solve these abnormals caused by power off and ecc error*/
+	/*solve these abnormalities caused by power off and ecc error*/
 	if (rsv_info->valid_node->status & POWER_ABNORMAL_FLAG ||
 	    rsv_info->valid_node->status & ECC_ABNORMAL_FLAG)
 		rsv_info->valid_node->phy_page_addr = pages_per_blk;

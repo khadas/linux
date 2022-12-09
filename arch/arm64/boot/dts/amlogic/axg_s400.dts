@@ -243,7 +243,7 @@
 		#size-cells = <2>;
 		device_type = "pci";
 		ranges = <0x82000000 0 0 0x0 0xf9c00000 0 0x00300000>;
-			/* non-prefetchable memory */
+			/* non-prefetched memory */
 		pcie-num = <1>;
 		clocks = <&clkc CLKID_CLK81_USB
 		&clkc CLKID_PCIE_PLL
@@ -282,7 +282,7 @@
 		ranges = <0x81000000 0 0 0 0xfa500000 0x0 0x10000
 			/* downstream I/O */
 			0x82000000 0 0xfa510000 0x0 0xfa510000 0 0x002f0000>;
-			/* non-prefetchable memory */
+			/* non-prefetched memory */
 		num-lanes = <1>;
 		pcie-num = <2>;
 		clocks = <&clkc CLKID_CLK81_USB

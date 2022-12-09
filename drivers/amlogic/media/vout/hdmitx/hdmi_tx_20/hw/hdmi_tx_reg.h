@@ -84,7 +84,7 @@
  *     3'b010=Output PRBS data; 3'b100=Output shift pattern.         Default 0.
  * Bit 11: 9 RW shift_pttn_repeat: 0=New pattern every clk cycle; 1=New pattern
  *     every 2 clk cycles; ...; 7=New pattern every 8 clk cycles.  Default 0.
- * Bit 8 RW shift_pttn_en: 1= Eanble shift pattern generator; 0=Disable.
+ * Bit 8 RW shift_pttn_en: 1= Enable shift pattern generator; 0=Disable.
  *     Default 0.
  * Bit 4: 3 RW prbs_pttn_mode: 0=PRBS11; 1=PRBS15; 2=PRBS7; 3=PRBS31. Default 0.
  * Bit 2: 1 RW prbs_pttn_width: 0=idle; 1=output 8-bit pattern;
@@ -517,7 +517,7 @@
 #define HDMITX_DWC_FC_DATAUTO1                  (DWC_OFFSET_MASK + 0x10B4)
 #define HDMITX_DWC_FC_DATAUTO2                  (DWC_OFFSET_MASK + 0x10B5)
 #define HDMITX_DWC_FC_DATMAN                    (DWC_OFFSET_MASK + 0x10B6)
-/* [  6] drm_auto: instert on Vsync */
+/* [  6] drm_auto: insert on Vsync */
 /* [  5] nvbi_auto: insert on Vsync */
 /* [  4] amp_auto: insert on Vsync */
 /* [  3] avi_auto: insert on Vsync */

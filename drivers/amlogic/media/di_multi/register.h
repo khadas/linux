@@ -2681,7 +2681,7 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
 /* Bit 17,    reg_mcdi_reldetfrqchken */
 /* 0: unable; 1: enable, enable mv frequency check in rel det, default = 1 */
 /* Bit 16,    reg_mcdi_qmeen */
-/* 0: unable; 1: enable, enable quarter motion estimation, defautl = 1 */
+/* 0: unable; 1: enable, enable quarter motion estimation, default = 1 */
 /* Bit 15,    reg_mcdi_refrptmven */
 /* 0: unable; 1: enable, use repeat mv in refinement, default = 1 */
 /* Bit 14,    reg_mcdi_refgmven */
@@ -2865,10 +2865,10 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
  * distance gain for sad calc while getting edges, default = 4
  */
 /* Bit     2, reg_mcdi_chkedgechkmode.
- * edge used in check mode, 0: original edge, 1: lpf edge, defautl = 1
+ * edge used in check mode, 0: original edge, 1: lpf edge, default = 1
  */
 /* Bit     1, reg_mcdi_chkedgestartedge.
- * edge mode for start edge, 0: original edge, 1: lpf edge, defautl = 0
+ * edge mode for start edge, 0: original edge, 1: lpf edge, default = 0
  */
 /* Bit     0, reg_mcdi_chkedgeedgelpf.
  * edge lpf mode, 0:[0,2,4,2,0], 1:[1,2,2,2,1], default = 0

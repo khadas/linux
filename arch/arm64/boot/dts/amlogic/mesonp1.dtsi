@@ -2007,7 +2007,7 @@
 				/*downstream I/O */
 				<0x82000000 0 0xe4000000 0x0 0xe4000000
 				0 0x8000000>;
-				/* non-prefetchable memory */
+				/* non-prefetched memory */
 			num-lanes = <1>;
 			pcie-num = <1>;
 			pinctrl-names = "default";

@@ -1529,7 +1529,7 @@ static ssize_t hdmitx_cec_read(struct file *f, char __user *buf,
 		return 0;
 	}
 
-	/* CEC off, cec IP will receive boradcast msg
+	/* CEC off, cec IP will receive broadcast msg
 	 * needn't transfer these msgs to cec framework
 	 * discard the msg
 	 */

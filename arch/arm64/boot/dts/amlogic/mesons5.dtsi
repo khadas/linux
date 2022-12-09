@@ -1468,7 +1468,7 @@
 				/*downstream I/O */
 				<0x82000000 0 0xe1000000 0x0 0xe1000000
 				0 0x4000000>;
-				/* non-prefetchable memory */
+				/* non-prefetched memory */
 			num-lanes = <1>;
 			port-num = <1>;
 			phy-type = <1>;
@@ -1546,7 +1546,7 @@
 				/*downstream I/O */
 				<0x82000000 0 0xe8200000 0x0 0xe8200000
 				0 0x7c00000>;
-				/* non-prefetchable memory */
+				/* non-prefetched memory */
 			num-lanes = <1>;
 			port-num = <0>;
 			phy-type = <1>;
@@ -2776,9 +2776,9 @@
 		status = "disable";
 		dev_name = "aml_vecm";
 		/*status = "okay";*/
-		/*gamma_en = <1>;*/ /*1:enabel ;0:disable*/
-		/*wb_en = <1>;*/ /*1:enabel ;0:disable*/
-		/*cm_en = <1>;*/ /*1:enabel ;0:disable*/
+		/*gamma_en = <1>;*/ /*1:enable ;0:disable*/
+		/*wb_en = <1>;*/ /*1:enable ;0:disable*/
+		/*cm_en = <1>;*/ /*1:enable ;0:disable*/
 		/*wb_sel = <0>;*/ /*1:mtx ;0:gainoff*/
 		/*vlock_en = <1>;*/ /*1:enable;0:disable*/
 		/*vlock_mode = <0x8>;*/

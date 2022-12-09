@@ -137,7 +137,7 @@ static void lazy_clear_work(struct work_struct *work)
 void ramdump_sync_data(void)
 {
 	/*
-	 * back port from old kernel verion for function
+	 * back port from old kernel version for function
 	 * flush_cache_all(), we need it for ram dump
 	 */
 	asm volatile (

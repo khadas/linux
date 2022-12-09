@@ -710,7 +710,7 @@ enum vlock_hw_ver_e {
 	 * tm2: have separate pll:tcon pll and hdmitx pll
 	 */
 	vlock_hw_ver2,
-	/* tm2 verion B
+	/* tm2 version B
 	 * fix some bug
 	 */
 	vlock_hw_tm2verb,

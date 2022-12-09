@@ -931,7 +931,7 @@ static void edid_parsingdolbyvsadb(struct hdmitx_dev *hdev,
 	pos += 3;
 	cap->dolby_vsadb_ver = buf[pos] & 0x7;
 	if (cap->dolby_vsadb_ver)
-		pr_info("%s[%d]: the verion is 0x%x, should be 0x0\n",
+		pr_info("%s[%d]: the version is 0x%x, should be 0x0\n",
 			__func__, __LINE__, cap->dolby_vsadb_ver);
 
 	cap->spk_center = (buf[pos] >> 4) & 1;

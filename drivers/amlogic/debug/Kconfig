@@ -13,7 +13,7 @@ config AMLOGIC_DEBUG_LOCKUP
 	depends on HARDLOCKUP_DETECTOR
 	default n
 	help
-		Debug lockup in isr and deaklock whit irq disabled.
+		Debug lockup in isr and deadlock whit irq disabled.
 		When enable this config, Watchdog should be disabled.
 
 config AMLOGIC_DEBUG_ATRACE

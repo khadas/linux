@@ -3050,7 +3050,7 @@ int  destroy_ge2d_work_queue(struct ge2d_context_s *ge2d_work_queue)
 	int empty, timeout = 0;
 
 	if (ge2d_work_queue) {
-		/* first detatch it from the process queue,then delete it . */
+		/* first detach it from the process queue,then delete it . */
 		/* maybe process queue is changing .so we lock it. */
 		spin_lock(&ge2d_manager.event.sem_lock);
 		list_del(&ge2d_work_queue->list);

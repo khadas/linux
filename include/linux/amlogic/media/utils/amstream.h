@@ -872,7 +872,7 @@ enum FRAME_FORMAT {
 };
 
 struct av_info_t {
-	/*auido info*/
+	/*audio info*/
 	int sample_rate;
 	int channels;
 	int aformat_type;

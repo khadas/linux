@@ -1759,7 +1759,7 @@
 			ranges = <0x81000000 0 0 0xfc600000 0x0 0x100000
 				/* downstream I/O */
 				0x82000000 0x0 0xfc700000 0xfc700000 0 0x1900000>;
-				/* non-prefetchable memory */
+				/* non-prefetched memory */
 			num-lanes = <1>;
 			pcie-num = <1>;
 
@@ -1804,7 +1804,7 @@
 			ranges = <0x81000000 0 0 0xfA600000 0x0 0x100000
 				/* downstream I/O */
 				0x82000000 0x0 0xfA700000 0xfA700000 0 0x1900000>;
-				/* non-prefetchable memory */
+				/* non-prefetched memory */
 			num-lanes = <1>;
 			pcie-num = <2>;
 

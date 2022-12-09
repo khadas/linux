@@ -2915,7 +2915,7 @@ u32 vlock_fsm_check_lock_sts(struct stvlock_sig_sts *pvlock,
 		}
 	}
 
-	/*pretect and enable ss*/
+	/*protect and enable ss*/
 	if (IS_PLL_MODE(vlock_mode) &&
 	    pvlock->phlock_en) {
 		/*error check*/

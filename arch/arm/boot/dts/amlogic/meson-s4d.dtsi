@@ -1321,7 +1321,7 @@
 			ranges = <0 0 0xf5600000 0x0 0x0 0x100000
 				/* downstream I/O */
 				0 0x0 0xf5700000 0 0x0 0x1900000>;
-				/* non-prefetchable memory */
+				/* non-prefetched memory */
 			num-lanes = <1>;
 			pcie-num = <1>;
 

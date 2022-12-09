@@ -85,7 +85,7 @@ u32 osd_reg_read(u32 reg)
 	unsigned int addr = 0;
 
 	/* if (get_backup_reg(reg, &ret) != 0) */
-	/* not read from bakcup */
+	/* not read from backup */
 	if (osd_reg_map.flag) {
 		addr = OSDBUS_REG_ADDR(reg);
 		ret = readl(osd_reg_map.vir_addr + addr);

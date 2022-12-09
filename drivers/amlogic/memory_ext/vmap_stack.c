@@ -198,7 +198,7 @@ unsigned long notrace pmd_check(unsigned long addr, unsigned long far)
 	 * On ARM one Linux PGD entry contains two hardware entries (see page
 	 * tables layout in pgtable.h). We normally guarantee that we always
 	 * fill both L1 entries. But create_mapping() doesn't follow the rule.
-	 * It can create inidividual L1 entries, so here we have to call
+	 * It can create individual L1 entries, so here we have to call
 	 * pmd_none() check for the entry really corresponded to address, not
 	 * for the first of pair.
 	 */
@@ -332,7 +332,7 @@ static int vmap_mmu_set(struct page *page, unsigned long addr, int set)
 #endif
 	return 0;
 nomem:
-	E("allocation page talbe failed, G:%px, U:%px, M:%px, T:%px",
+	E("allocation page table failed, G:%px, U:%px, M:%px, T:%px",
 		pgd, pud, pmd, pte);
 	return -ENOMEM;
 }
@@ -768,7 +768,7 @@ void *aml_stack_alloc(int node, struct task_struct *tsk)
 		spin_lock_irqsave(&avmap->vmap_lock, flags);
 		bitmap_clear(avmap->bitmap, bitmap_no, 1);
 		spin_unlock_irqrestore(&avmap->vmap_lock, flags);
-		E("alloction page failed\n");
+		E("allocation page failed\n");
 		return NULL;
 	}
 	/*

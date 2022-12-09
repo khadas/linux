@@ -2230,7 +2230,7 @@ static int osd_rdma_init(void)
 #ifdef OSD_RDMA_ISR
 	if (rdma_mgr_irq_request) {
 		second_rdma_irq = 1;
-		pr_info("osd rdma request irq as second interrput function!\n");
+		pr_info("osd rdma request irq as second interrupt function!\n");
 	}
 	if (request_irq(INT_RDMA, &osd_rdma_isr,
 			IRQF_SHARED, "osd_rdma", (void *)"osd_rdma")) {

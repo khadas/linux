@@ -66,5 +66,5 @@ config AMLOGIC_MEDIA_FB_OSD2_CURSOR
 		Select to enable OSD2 cursor.
 
 		This module used2 OSD2 as cursor,
-		otherwise we used OSD2 as normaly layer.
+		otherwise we used OSD2 as normally layer.
 endmenu

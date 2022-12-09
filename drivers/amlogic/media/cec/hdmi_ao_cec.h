@@ -125,7 +125,7 @@ struct cec_platform_data_s {
 	unsigned int line_bit;/*cec gpio position in reg*/
 	bool ee_to_ao;/*ee cec hw module mv to ao;ao cec delete*/
 	bool ceca_sts_reg;/*add new internal status register*/
-	enum cecbver cecb_ver;/* detail discription ref enum cecbver */
+	enum cecbver cecb_ver;/* detail description ref enum cecbver */
 	enum cecaver ceca_ver;
 	bool share_io;
 	unsigned int reg_tab_group;
@@ -200,7 +200,7 @@ struct ao_cec_dev {
 	struct completion rx_ok;
 	struct completion tx_ok;
 	spinlock_t cec_reg_lock;/*cec register access*/
-	struct mutex cec_tx_mutex;/*pretect tx cec msg*/
+	struct mutex cec_tx_mutex;/*protect tx cec msg*/
 	struct mutex cec_ioctl_mutex;
 	struct mutex cec_uevent_mutex; /* cec uevent */
 	struct cec_wakeup_t wakeup_data;
@@ -586,7 +586,7 @@ struct cec_uevent {
 	const char *env;
 };
 
-/* cec ip irq flags bit discription */
+/* cec ip irq flags bit description */
 #define EECEC_IRQ_TX_DONE		BIT(16)
 #define EECEC_IRQ_RX_EOM		BIT(17)
 #define EECEC_IRQ_TX_NACK		BIT(18)

@@ -5,6 +5,6 @@ config AMLOGIC_MCLK_GPIO
 	tristate "amlogic mclk gpio driver"
 	default n
 	help
-		This option enables meson mclk gpio dirver which is
+		This option enables meson mclk gpio driver which is
 		used to config gpioq_0-4 analog pin as gpio. Enable
 		it, if want to use, but only support for P1.
