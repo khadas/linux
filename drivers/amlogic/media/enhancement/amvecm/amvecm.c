@@ -8133,11 +8133,11 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		}
 	} else if (!strcmp(parm[0], "cm")) {
 		if (!strncmp(parm[1], "enable", 6)) {
-			amcm_enable(WR_VCB);
-			pr_info("enable cm\n");
+			cm_en = 1;
+			pr_info("enable cm_en:%d\n", cm_en);
 		} else if (!strncmp(parm[1], "disable", 7)) {
-			amcm_disable(WR_VCB);
-			pr_info("disable cm\n");
+			cm_en = 0;
+			pr_info("disable cm_en:%d\n", cm_en);
 		} else if (!strcmp(parm[1], "cur_color_md")) {
 			if (parm[2]) {
 				if (kstrtoul(parm[2], 10, &val) < 0)
