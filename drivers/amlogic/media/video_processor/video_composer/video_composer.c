@@ -99,7 +99,7 @@ static u64 nn_margin_time = 9000;
 static u32 nn_bypass;
 static u32 tv_fence_creat_count;
 static u32 dump_vframe;
-static u32 vicp_output_dev = 3; /*1 mif, 2 fbc, 3 fbc+mif*/
+static u32 vicp_output_dev = 2; /*1 mif, 2 fbc, 3 fbc+mif*/
 static u32 vicp_shrink_mode = 1; /*0 2x, 1 4x, 2 8x*/
 static u32 force_comp_w;
 static u32 force_comp_h;
@@ -663,25 +663,26 @@ static int vc_init_vicp_buffer(struct composer_dev *dev, bool is_tvp, size_t usa
 			buf_height = vicp_max_height;
 	}
 
-	if (vicp_output_dev != 1) {
-		if (composer_use_444) {
+	if (vicp_output_dev == 1) {
+		buf_size = buf_width * buf_height * 3;
+		if (composer_use_444 == 0)
+			buf_size = buf_size * 3 / 2;
+	} else {
+		if (vicp_output_dev == 3)//mif
 			dw_size = roundup(buf_width >> 2, 32) * roundup(buf_height >> 2, 2);
-			afbc_body_size = buf_width * buf_height + (1024 * 1658);
-		} else {
-			dw_size = roundup(buf_width >> 2, 32) * roundup(buf_height >> 2, 2) * 3 / 2;
-			afbc_body_size = (buf_width * buf_height + (1024 * 1658)) * 3 / 2;
+
+		afbc_body_size = buf_width * buf_height + (1024 * 1658);
+		if (composer_use_444 == 0) {
+			dw_size = dw_size * 3 / 2;
+			afbc_body_size = afbc_body_size * 3 / 2;
 		}
+
 		dw_size = PAGE_ALIGN(dw_size);
 		afbc_body_size = roundup(PAGE_ALIGN(afbc_body_size), PAGE_SIZE);
 		afbc_head_size = (roundup(buf_width, 64) * roundup(buf_height, 64)) / 32;
 		afbc_head_size = PAGE_ALIGN(afbc_head_size);
 		afbc_table_size = PAGE_ALIGN((afbc_body_size * 4) / PAGE_SIZE);
 		buf_size = dw_size + afbc_body_size + afbc_head_size;
-	} else {
-		if (composer_use_444)
-			buf_size = buf_width * buf_height * 3;
-		else
-			buf_size = buf_width * buf_height * 3 / 2;
 	}
 
 	buf_size = PAGE_ALIGN(buf_size);
@@ -1673,6 +1674,31 @@ static void check_dewarp_support_status(struct composer_dev *dev,
 		dev->is_dewarp_support = false;
 }
 
+static void check_vicp_ship_mode(struct composer_dev *dev, struct frames_info_t *frames_info,
+	enum vicp_skip_mode_e *buf)
+{
+	int i = 0, input_4k_count = 0;
+
+	if (IS_ERR_OR_NULL(dev) || IS_ERR_OR_NULL(frames_info) || IS_ERR_OR_NULL(buf)) {
+		vc_print(dev->index, PRINT_ERROR, "%s: invalid param.\n", __func__);
+		return;
+	}
+
+	for (i = 0; i < frames_info->frame_count; i++) {
+		if (frames_info->frame_info[i].buffer_w > 1920) {
+			input_4k_count++;
+			buf[i] = VICP_SKIP_MODE_ALL;
+		} else {
+			buf[i] = VICP_SKIP_MODE_OFF;
+		}
+	}
+
+	if (input_4k_count <= 2) {
+		vc_print(dev->index, PRINT_VICP, "%s: no need skip.\n", __func__);
+		memset(buf, VICP_SKIP_MODE_OFF, frames_info->frame_count);
+	}
+}
+
 static void vframe_composer(struct composer_dev *dev)
 {
 	struct received_frames_t *received_frames = NULL;
@@ -1713,6 +1739,7 @@ static void vframe_composer(struct composer_dev *dev)
 	int fbc_init_ctrl, fbc_pip_mode;
 	int mifout_en = 1, fbcout_en = 1;
 	u32 src_fmt = 0;
+	enum vicp_skip_mode_e skip_mode[MXA_LAYER_COUNT] = {VICP_SKIP_MODE_OFF};
 
 	if (IS_ERR_OR_NULL(dev)) {
 		vc_print(dev->index, PRINT_ERROR, "%s: invalid param.\n", __func__);
@@ -1825,6 +1852,8 @@ static void vframe_composer(struct composer_dev *dev)
 	}
 	min_left = vframe_info[0]->dst_x;
 	min_top = vframe_info[0]->dst_y;
+	check_vicp_ship_mode(dev, frames_info, skip_mode);
+
 	for (i = 0; i < count; i++) {
 		file_vf = received_frames->file_vf[vf_dev[i]];
 		is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
@@ -1983,6 +2012,7 @@ static void vframe_composer(struct composer_dev *dev)
 			data_config.data_option.input_source_count = count;
 			data_config.data_option.input_source_number = i;
 			data_config.data_option.security_enable = is_tvp;
+			data_config.data_option.skip_mode = skip_mode[vf_dev[i]];
 
 			ret = vicp_data_composer(&data_config);
 			if (ret < 0)
@@ -2022,8 +2052,8 @@ static void vframe_composer(struct composer_dev *dev)
 
 	do_gettimeofday(&end_time);
 	cost_time = (1000000 * (end_time.tv_sec - begin_time.tv_sec)
-		+ (end_time.tv_usec - begin_time.tv_usec)) / 1000;
-	vc_print(dev->index, PRINT_PERFORMANCE, "vframe composer cost: %d ms\n", cost_time);
+		+ (end_time.tv_usec - begin_time.tv_usec));
+	vc_print(dev->index, PRINT_PERFORMANCE, "vframe composer cost: %d us\n", cost_time);
 
 	dst_vf->flag |= (VFRAME_FLAG_VIDEO_COMPOSER | VFRAME_FLAG_COMPOSER_DONE);
 
@@ -4219,6 +4249,47 @@ static ssize_t vicp_shrink_mode_store(struct class *cla, struct class_attribute 
 	return count;
 }
 
+static ssize_t vicp_max_width_show(struct class *cla, struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "current vicp_max_width is %d.\n", vicp_max_width);
+}
+
+static ssize_t vicp_max_width_store(struct class *cla, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	vicp_max_width = tmp;
+	return count;
+}
+
+static ssize_t vicp_max_height_show(struct class *cla, struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 80, "current vicp_max_height is %d.\n", vicp_max_height);
+}
+
+static ssize_t vicp_max_height_store(struct class *cla, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	vicp_max_height = tmp;
+	return count;
+}
+
 static ssize_t composer_dev_choice_show(struct class *cla, struct class_attribute *attr,
 	char *buf)
 {
@@ -4386,6 +4457,8 @@ static CLASS_ATTR_RW(vd_dump_vframe);
 static CLASS_ATTR_RO(actual_delay_count);
 static CLASS_ATTR_RW(vicp_output_dev);
 static CLASS_ATTR_RW(vicp_shrink_mode);
+static CLASS_ATTR_RW(vicp_max_width);
+static CLASS_ATTR_RW(vicp_max_height);
 static CLASS_ATTR_RW(composer_dev_choice);
 static CLASS_ATTR_RW(force_comp_w);
 static CLASS_ATTR_RW(force_comp_h);
@@ -4434,6 +4507,8 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_actual_delay_count.attr,
 	&class_attr_vicp_output_dev.attr,
 	&class_attr_vicp_shrink_mode.attr,
+	&class_attr_vicp_max_width.attr,
+	&class_attr_vicp_max_height.attr,
 	&class_attr_composer_dev_choice.attr,
 	&class_attr_force_comp_w.attr,
 	&class_attr_force_comp_h.attr,

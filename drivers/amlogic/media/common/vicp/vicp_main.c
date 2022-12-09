@@ -71,7 +71,7 @@ u32 crop_en = 1;
 u32 shrink_en = 1;
 u32 debug_axis_en;
 struct output_axis_t axis;
-u32 rdma_en = 1;
+u32 rdma_en;
 u32 debug_rdma_en;
 
 struct mutex vicp_mutex; /*used to avoid user space call at the same time*/
@@ -882,7 +882,7 @@ static int vicp_probe(struct platform_device *pdev)
 		}
 		pr_info("clock source clk_vicp_gate %p.\n", clk_gate);
 		if (clk_cnt == 2) {
-			clk_set_rate(clk_gate, 666000000);
+			clk_set_rate(clk_gate, 666666666);
 			pr_info("vicp gate clock is %lu MHZ.\n", clk_get_rate(clk_gate) / 1000000);
 		}
 		clk_prepare_enable(clk_gate);
@@ -905,14 +905,14 @@ static int vicp_probe(struct platform_device *pdev)
 
 			if (!IS_ERR_OR_NULL(clk_vapb0)) {
 				pr_info("clock source clk_vapb_0 %p.\n", clk_vapb0);
-				vpu_rate = 666000000;
-				vapb_rate = 666000000;
+				vpu_rate = 666666666;
+				vapb_rate = 666666666;
 
 				pr_info("vicp init clock is %d HZ, VPU clock is %d HZ.\n",
 					vapb_rate, vpu_rate);
 
-				if (vpu_rate >= 666000000)
-					vapb_rate = 666000000;
+				if (vpu_rate >= 666666666)
+					vapb_rate = 666666666;
 				else if (vpu_rate == 333330000)
 					vapb_rate = 333333333;
 				else if (vpu_rate == 166660000)
@@ -929,7 +929,7 @@ static int vicp_probe(struct platform_device *pdev)
 		pr_info("vicp only one clock.\n");
 		clk_gate = devm_clk_get(&pdev->dev, "clk_vicp");
 			if (!IS_ERR_OR_NULL(clk_gate)) {
-				int clk_rate = 666000000;
+				int clk_rate = 666666666;
 
 				clk_set_rate(clk_gate, clk_rate);
 				clk_prepare_enable(clk_gate);

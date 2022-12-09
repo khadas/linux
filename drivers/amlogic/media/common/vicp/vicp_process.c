@@ -1263,6 +1263,7 @@ static void set_vid_cmpr_rdma_config(bool rdma_en, int input_count, int input_nu
 		vicp_print(VICP_RDMA, "%s: rdma disabled.\n", __func__);
 		set_rdma_flag(0);
 		vicp_rdma_enable(0, 0, 0);
+		vicp_rdma_errorflag_clear();
 		return;
 	}
 
@@ -1280,6 +1281,7 @@ static void set_vid_cmpr_rdma_config(bool rdma_en, int input_count, int input_nu
 		vicp_rdma_enable(1, 0, 0);
 		vicp_rdma_reset();
 		vicp_rdma_trigger();
+		vicp_rdma_errorflag_clear();
 		set_rdma_start(input_count);
 
 		data_size = input_count * (RDMA_CMD_BUF_LEN + RDMA_LOAD_BUF_LEN);
@@ -1488,10 +1490,32 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_t *vid_cmpr_top)
 		vid_cmpr_afbcd.rot_en = vid_cmpr_top->out_rot_en;
 		vid_cmpr_afbcd.rot_hbgn = 0;
 		vid_cmpr_afbcd.rot_vbgn = 0;
-		vid_cmpr_afbcd.h_skip_y = 0;
-		vid_cmpr_afbcd.v_skip_y = 0;
-		vid_cmpr_afbcd.h_skip_uv = 0;
-		vid_cmpr_afbcd.v_skip_uv = 0;
+		if (vid_cmpr_top->skip_mode == VICP_SKIP_MODE_OFF) {
+			vid_cmpr_afbcd.h_skip_y = 0;
+			vid_cmpr_afbcd.h_skip_uv = 0;
+			vid_cmpr_afbcd.v_skip_y = 0;
+			vid_cmpr_afbcd.v_skip_uv = 0;
+		} else if (vid_cmpr_top->skip_mode == VICP_SKIP_MODE_HORZ) {
+			vid_cmpr_afbcd.h_skip_y = 1;
+			vid_cmpr_afbcd.h_skip_uv = 1;
+			vid_cmpr_afbcd.v_skip_y = 0;
+			vid_cmpr_afbcd.v_skip_uv = 0;
+		} else if (vid_cmpr_top->skip_mode == VICP_SKIP_MODE_VERT) {
+			vid_cmpr_afbcd.h_skip_y = 0;
+			vid_cmpr_afbcd.h_skip_uv = 0;
+			vid_cmpr_afbcd.v_skip_y = 1;
+			vid_cmpr_afbcd.v_skip_uv = 1;
+		} else if (vid_cmpr_top->skip_mode == VICP_SKIP_MODE_ALL) {
+			vid_cmpr_afbcd.h_skip_y = 3;
+			vid_cmpr_afbcd.h_skip_uv = 3;
+			vid_cmpr_afbcd.v_skip_y = 3;
+			vid_cmpr_afbcd.v_skip_uv = 3;
+		} else {
+			vid_cmpr_afbcd.h_skip_y = 0;
+			vid_cmpr_afbcd.h_skip_uv = 0;
+			vid_cmpr_afbcd.v_skip_y = 0;
+			vid_cmpr_afbcd.v_skip_uv = 0;
+		}
 		vid_cmpr_afbcd.rev_mode = vid_cmpr_top->rot_rev_mode;
 		vid_cmpr_afbcd.lossy_en = 0;
 		vid_cmpr_afbcd.def_color_y = 0x00 << (vid_cmpr_top->src_compbits - 8);
@@ -1609,6 +1633,15 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_t *vid_cmpr_top)
 		scaler_enable = 0;
 	else
 		scaler_enable = 1;
+
+	if (vid_cmpr_top->skip_mode == VICP_SKIP_MODE_HORZ) {
+		vid_cmpr_scaler.din_hsize = vid_cmpr_scaler.din_hsize >> 1;
+	} else if (vid_cmpr_top->skip_mode == VICP_SKIP_MODE_VERT) {
+		vid_cmpr_scaler.din_vsize = vid_cmpr_scaler.din_vsize >> 1;
+	} else if (vid_cmpr_top->skip_mode == VICP_SKIP_MODE_ALL) {
+		vid_cmpr_scaler.din_hsize = vid_cmpr_scaler.din_hsize >> 1;
+		vid_cmpr_scaler.din_vsize = vid_cmpr_scaler.din_vsize >> 1;
+	}
 
 	set_input_size(vid_cmpr_scaler.din_vsize, vid_cmpr_scaler.din_hsize);
 	set_vid_cmpr_scale(scaler_enable, &vid_cmpr_scaler);
@@ -1893,6 +1926,7 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 	else
 		vid_cmpr_top->out_shrk_en = 0;
 	vid_cmpr_top->out_shrk_mode = data_config->data_option.shrink_mode;
+	vid_cmpr_top->skip_mode = data_config->data_option.skip_mode;
 
 	rotation = data_config->data_option.rotation_mode;
 	if (rotation == VICP_ROTATION_90) {

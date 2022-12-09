@@ -50,6 +50,14 @@ enum vicp_shrink_mode_e {
 	VICP_SHRINK_MODE_MAX,
 };
 
+enum vicp_skip_mode_e {
+	VICP_SKIP_MODE_OFF = 0,
+	VICP_SKIP_MODE_HORZ,
+	VICP_SKIP_MODE_VERT,
+	VICP_SKIP_MODE_ALL,
+	VICP_SKIP_MODE_MAX,
+};
+
 /* *********************************************************************** */
 /* ************************* struct definitions **************************.*/
 /* *********************************************************************** */
@@ -72,6 +80,7 @@ struct data_option_t {
 	enum vicp_rotation_mode_e rotation_mode;
 	struct output_axis_t output_axis;
 	enum vicp_shrink_mode_e shrink_mode;
+	enum vicp_skip_mode_e skip_mode;
 	bool rdma_enable;
 	u32 input_source_count;
 	u32 input_source_number;
