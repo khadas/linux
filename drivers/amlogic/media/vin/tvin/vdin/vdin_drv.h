@@ -127,7 +127,9 @@
 /* 20221209: support aux screen capture */
 /* 20221215: fix s5 loopback venc0 issue */
 /* 20230105: overseas project display ration control */
-#define VDIN_VER "20230105"
+/* 20230112: modify for vdin0 v4l2 */
+
+#define VDIN_VER "20230112"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -579,6 +581,10 @@ struct vdin_v4l2_stat_s {
 	unsigned int dque_cnt;
 };
 
+struct vdin_v4l2_dbg_ctl_s {
+	unsigned int dbg_pix_fmt;
+};
+
 struct vdin_frame_stat_s {
 	/* frame drop due to framerate control */
 	unsigned int write_done_check;
@@ -880,6 +886,7 @@ struct vdin_dev_s {
 	unsigned int dbg_v4l_pause;
 	unsigned int dbg_v4l_no_vdin_ioctl;
 	unsigned int dbg_v4l_no_vdin_event;
+	struct vdin_v4l2_dbg_ctl_s v4l2_dbg_ctl;
 	struct vdin_set_canvas_addr_s st_vdin_set_canvas_addr[VDIN_CANVAS_MAX_CNT][VDIN_MAX_PLANES];
 	bool vdin_set_canvas_flag;
 	enum tvin_port_e v4l2_port_cur;

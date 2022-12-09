@@ -1820,7 +1820,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		if (devp->msr_clk)
 			clk_prepare_enable(devp->msr_clk);
 
-		if (fe->dec_ops->open)
+		if (fe->dec_ops->open && !(devp->flags & VDIN_FLAG_DEC_OPENED))
 			fe->dec_ops->open(fe, fe->port);
 	} else {
 		pr_err("%s(%d): not supported port 0x%x\n",
@@ -1957,10 +1957,12 @@ int stop_tvin_service(int no)
 	if (devp->set_canvas_manual && devp->mem_protected)
 		devp->mem_protected = 0;
 	vdin_stop_dec(devp);
-	/*close fe*/
-	if (devp->frontend && devp->frontend->dec_ops &&
-		devp->frontend->dec_ops->close)
-		devp->frontend->dec_ops->close(devp->frontend);
+	if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
+		/*close fe*/
+		if (devp->frontend && devp->frontend->dec_ops &&
+			devp->frontend->dec_ops->close)
+			devp->frontend->dec_ops->close(devp->frontend);
+	}
 	/*free the memory allocated in start tvin service*/
 	if (devp->parm.info.fmt >= TVIN_SIG_FMT_MAX)
 		kfree(devp->fmt_info_p);

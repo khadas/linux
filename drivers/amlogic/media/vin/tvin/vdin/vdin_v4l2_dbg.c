@@ -102,6 +102,17 @@ static ssize_t v4l_dbg_store(struct device *dev,
 		if (kstrtol(parm[1], 0, &val) == 0)
 			devp->dbg_v4l_no_vdin_event = val;
 		pr_info("v4l dbg_v4l_no_vdin_event %d\n", devp->dbg_v4l_no_vdin_event);
+	} else if (!strcmp(parm[0], "pixfmt")) {/* for v4l2 test app */
+		if (kstrtol(parm[1], 0, &val) == 0)
+			devp->v4l2_dbg_ctl.dbg_pix_fmt = val;
+		pr_info("dbg_pix_fmt %#x\n", devp->v4l2_dbg_ctl.dbg_pix_fmt);
+		pr_info("V4L2_PIX_FMT_UYVY:%#x\n", V4L2_PIX_FMT_UYVY);
+		pr_info("V4L2_PIX_FMT_NV21:%#x\n", V4L2_PIX_FMT_NV21);
+		pr_info("V4L2_PIX_FMT_NV12:%#x\n", V4L2_PIX_FMT_NV12);
+		pr_info("V4L2_PIX_FMT_NV21M:%#x\n", V4L2_PIX_FMT_NV21M);
+		pr_info("V4L2_PIX_FMT_NV12M:%#x\n", V4L2_PIX_FMT_NV12M);
+	} else {
+		pr_info("%s unknown cmd\n", __func__);
 	}
 
 	return len;

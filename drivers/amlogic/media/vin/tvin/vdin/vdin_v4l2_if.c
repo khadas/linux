@@ -731,13 +731,13 @@ static int vdin_vidioc_g_fmt_vid_cap_mplane(struct file *file,
 	/* for test set a default value
 	 * mult-planes mode
 	 */
-	devp->v4l2_fmt.fmt.pix_mp.width = 1920;
-	devp->v4l2_fmt.fmt.pix_mp.height = 1080;
-	devp->v4l2_fmt.fmt.pix_mp.quantization = V4L2_QUANTIZATION_DEFAULT;
-	devp->v4l2_fmt.fmt.pix_mp.ycbcr_enc = V4L2_YCBCR_ENC_709;
-	devp->v4l2_fmt.fmt.pix_mp.field = V4L2_FIELD_ANY;
-	devp->v4l2_fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_YUYV;
-	devp->v4l2_fmt.fmt.pix_mp.num_planes = VDIN_NUM_PLANES;
+//	devp->v4l2_fmt.fmt.pix_mp.width = 1920;
+//	devp->v4l2_fmt.fmt.pix_mp.height = 1080;
+//	devp->v4l2_fmt.fmt.pix_mp.quantization = V4L2_QUANTIZATION_DEFAULT;
+//	devp->v4l2_fmt.fmt.pix_mp.ycbcr_enc = V4L2_YCBCR_ENC_709;
+//	devp->v4l2_fmt.fmt.pix_mp.field = V4L2_FIELD_ANY;
+//	devp->v4l2_fmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_YUYV;
+//	devp->v4l2_fmt.fmt.pix_mp.num_planes = VDIN_NUM_PLANES;
 
 	f->fmt.pix_mp.width = devp->v4l2_fmt.fmt.pix_mp.width;
 	f->fmt.pix_mp.height = devp->v4l2_fmt.fmt.pix_mp.height;
@@ -746,7 +746,12 @@ static int vdin_vidioc_g_fmt_vid_cap_mplane(struct file *file,
 	f->fmt.pix_mp.field = devp->v4l2_fmt.fmt.pix_mp.field;
 	f->fmt.pix_mp.pixelformat = devp->v4l2_fmt.fmt.pix_mp.pixelformat;
 	f->fmt.pix_mp.num_planes = devp->v4l2_fmt.fmt.pix_mp.num_planes;
-	dprintk(1, "%s num_planes=%d\n", __func__, f->fmt.pix_mp.num_planes);
+	dprintk(1, "%s:wxh:%dx%d,quant:%d,enc:%d,field:%d,pixelformat:0x%x num_planes=%d\n",
+		__func__,
+		f->fmt.pix_mp.width, f->fmt.pix_mp.height,
+		f->fmt.pix_mp.quantization, f->fmt.pix_mp.ycbcr_enc,
+		f->fmt.pix_mp.field, f->fmt.pix_mp.pixelformat,
+		f->fmt.pix_mp.num_planes);
 	return 0;
 }
 
@@ -764,13 +769,26 @@ static int vdin_vidioc_s_fmt_vid_cap_mplane(struct file *file,
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
 
-	devp->v4l2_fmt.fmt.pix_mp.width		   = fmt->fmt.pix_mp.width;
-	devp->v4l2_fmt.fmt.pix_mp.height	   = fmt->fmt.pix_mp.height;
+	dprintk(2, "%s:wxh:%dx%d,quant:%d,enc:%d,field:%d,pixelformat:0x%x num_planes=%d\n",
+		__func__,
+		fmt->fmt.pix_mp.width,	        fmt->fmt.pix_mp.height,
+		fmt->fmt.pix_mp.quantization,	fmt->fmt.pix_mp.ycbcr_enc,
+		fmt->fmt.pix_mp.field,		fmt->fmt.pix_mp.pixelformat,
+		fmt->fmt.pix_mp.num_planes);
+
+	devp->v4l2_fmt.fmt.pix_mp.width	       = fmt->fmt.pix_mp.width;
+	devp->v4l2_fmt.fmt.pix_mp.height       = fmt->fmt.pix_mp.height;
 	devp->v4l2_fmt.fmt.pix_mp.quantization = fmt->fmt.pix_mp.quantization;
 	devp->v4l2_fmt.fmt.pix_mp.ycbcr_enc    = fmt->fmt.pix_mp.ycbcr_enc;
 	devp->v4l2_fmt.fmt.pix_mp.field        = fmt->fmt.pix_mp.field;
 	devp->v4l2_fmt.fmt.pix_mp.pixelformat  = fmt->fmt.pix_mp.pixelformat;
 	devp->v4l2_fmt.fmt.pix_mp.num_planes   = fmt->fmt.pix_mp.num_planes;
+
+	if (devp->v4l2_dbg_ctl.dbg_pix_fmt) {
+		devp->v4l2_fmt.fmt.pix_mp.pixelformat = devp->v4l2_dbg_ctl.dbg_pix_fmt;
+		dprintk(2, "%s:force pixelformat to 0x%x\n", __func__,
+			devp->v4l2_fmt.fmt.pix_mp.pixelformat);
+	}
 	vdin_fill_pix_format(devp);
 	for (i = 0; i < fmt->fmt.pix_mp.num_planes; i++) {
 		fmt->fmt.pix_mp.plane_fmt[i].bytesperline =
@@ -1198,18 +1216,20 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	}
 
 	mutex_lock(&devp->fe_lock);
-	devp->parm.index    = devp->index;
-	devp->parm.port     = devp->v4l2_port[i];
-	devp->v4l2_port_cur = devp->v4l2_port[i];
-	devp->unstable_flag = false;
 
-	if (devp->flags & VDIN_FLAG_DEC_OPENED) {
+	if (devp->flags & VDIN_FLAG_DEC_OPENED &&
+		devp->v4l2_port_cur != devp->v4l2_port[i]) {
 		dprintk(0, "%s current port:%d is opened already,close it\n",
 			__func__, devp->v4l2_port_cur);
 		vdin_close_fe(devp);
 	}
 
-	if (devp->index == 0) {
+	devp->parm.index    = devp->index;
+	devp->parm.port     = devp->v4l2_port[i];
+	devp->v4l2_port_cur = devp->v4l2_port[i];
+	devp->unstable_flag = false;
+
+	if (devp->index == 0 && !(devp->flags & VDIN_FLAG_DEC_OPENED)) {
 		ret = vdin_open_fe(devp->parm.port, 0, devp);
 		if (ret) {
 			pr_err("TVIN_IOC_OPEN(%d) failed to open port 0x%x\n",
@@ -1390,11 +1410,15 @@ static int vdin_v4l2_open(struct file *file)
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
 
-	/*devp->work_mode = VDIN_WORK_MD_V4L;*/
-	if (devp->work_mode != VDIN_WORK_MD_V4L) {
-		dprintk(0, "%s err:vdin v4l mode not enabled\n", __func__);
+	if (devp->flags & VDIN_FLAG_DEC_STARTED) {
+		dprintk(0, "%s error VDIN_FLAG_DEC_STARTED\n", __func__);
 		return -EPERM;
 	}
+	devp->work_mode = VDIN_WORK_MD_V4L;
+//	if (devp->work_mode != VDIN_WORK_MD_V4L) {
+//		dprintk(0, "%s err:vdin v4l mode not enabled\n", __func__);
+//		return -EPERM;
+//	}
 	devp->afbce_flag_backup = devp->afbce_flag;
 	devp->afbce_flag = 0;
 
@@ -1440,6 +1464,7 @@ static int vdin_v4l2_release(struct file *file)
 		memset(devp->st_vdin_set_canvas_addr, 0, sizeof(devp->st_vdin_set_canvas_addr));
 	}
 	devp->afbce_flag = devp->afbce_flag_backup;
+	devp->work_mode = VDIN_WORK_MD_NORMAL;
 
 	return ret;
 }
@@ -2111,7 +2136,7 @@ void vdin_v4l2_init(struct vdin_dev_s *devp, struct platform_device *pl_dev)
 			devp->v4l2_port[i]);
 	}
 	/* default port */
-	devp->v4l2_port_cur = devp->v4l2_port[0];
+	devp->v4l2_port_cur = TVIN_PORT_MAX;//devp->v4l2_port[0];
 
 	ret = of_property_read_string(pl_dev->dev.of_node, "driver", &str);
 	if (ret == 0) {
