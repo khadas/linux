@@ -164,6 +164,9 @@ static ssize_t tuner_debug_store(struct class *class,
 	}
 
 	if (!strncmp(parm[0], "init", 4)) {
+		if (!fe)
+			goto EXIT;
+
 		if (parm[1] && !kstrtoul(parm[1], 0, &val))
 			fe->ops.info.type = val;
 		else
@@ -338,6 +341,8 @@ static ssize_t tuner_debug_store(struct class *class,
 			}
 		}
 	} else if (!strncmp(parm[0], "uninit", 6)) {
+		if (!fe)
+			goto EXIT;
 		if (fe->ops.tuner_ops.release)
 			fe->ops.tuner_ops.release(fe);
 	} else if (!strncmp(parm[0], "attach", 6)) {
@@ -596,6 +601,9 @@ static ssize_t demod_debug_store(struct class *class,
 				c->delivery_system,
 				fe_delsys_name[c->delivery_system]);
 
+		if (!fe)
+			goto EXIT;
+
 		if (fe->ops.init)
 			fe->ops.init(fe);
 
@@ -655,6 +663,9 @@ static ssize_t demod_debug_store(struct class *class,
 				c->bandwidth_hz, c->modulation,
 				c->rolloff, c->inversion);
 
+		if (!fe)
+			goto EXIT;
+
 		if (fe->ops.tune) {
 			fe->ops.tune(fe, true, 0, &delay, &s);
 
@@ -697,6 +708,9 @@ static ssize_t demod_debug_store(struct class *class,
 		c->delivery_system = SYS_ANALOG;
 		tvp.cmd = DTV_DELIVERY_SYSTEM;
 		tvp.u.data = c->delivery_system;
+
+		if (!fe)
+			goto EXIT;
 
 		if (fe->ops.set_property)
 			fe->ops.set_property(fe, &tvp);
