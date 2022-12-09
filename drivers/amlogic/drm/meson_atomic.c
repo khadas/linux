@@ -361,7 +361,7 @@ static int meson_drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 		 */
 		if (nonblock && old_conn_state->commit &&
 		    !try_wait_for_completion(&old_conn_state->commit->flip_done))
-			DRM_DEBUG_ATOMIC("connetor commit not done\n");
+			DRM_DEBUG_ATOMIC("connector commit not done\n");
 
 		/* Always track connectors explicitly for e.g. link retraining. */
 		commit = crtc_or_fake_commit(state, new_conn_state->crtc ?: old_conn_state->crtc);

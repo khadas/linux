@@ -179,7 +179,7 @@ static void video_dummy_data_set(struct am_meson_crtc_state *crtc_state)
 }
 
 /* -----------------------------------------------------------------
- *           provider opeations
+ *           provider operations
  * -----------------------------------------------------------------
  */
 static struct vframe_s *vp_vf_peek(void *op_arg)
