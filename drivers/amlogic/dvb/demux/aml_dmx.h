@@ -117,7 +117,7 @@ struct aml_dmx {
 
 };
 
-void dmx_init_hw(int sid_num, int *sid_info);
+void dmx_init_hw(void);
 int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter);
 int dmx_destroy(struct aml_dmx *pdmx);
 int dmx_regist_dmx_class(void);

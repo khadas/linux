@@ -1952,9 +1952,9 @@ static int _dmx_decode_info(struct dmx_demux *dmx, struct decoder_mem_info *info
 	return 0;
 }
 
-void dmx_init_hw(int sid_num, int *sid_info)
+void dmx_init_hw(void)
 {
-	ts_output_init(sid_num, sid_info);
+	ts_output_init();
 	ts_input_init();
 	SC2_bufferid_init();
 	memset(jiffies_pcr_record, 0, sizeof(jiffies_pcr_record));

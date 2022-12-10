@@ -35,12 +35,10 @@ enum content_type {
 
 /**
  * ts_output_init
- * \param sid_num
- * \param sid_info
  * \retval 0:success.
  * \retval -1:fail.
  */
-int ts_output_init(int sid_num, int *sid_info);
+int ts_output_init(void);
 
 /**
  * ts_output_destroy

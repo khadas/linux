@@ -38,7 +38,6 @@
 #define MAX_DVR_READ_BUF_LEN		(2 * 1024 * 1024)
 
 #define MAX_FEED_NUM				32
-static int ts_output_max_pid_num_per_sid = 16;
 /*protect cb_list/ts output*/
 static struct mutex *ts_output_mutex;
 static struct mutex es_output_mutex;
@@ -238,6 +237,10 @@ MODULE_PARM_DESC(audio_es_len_limit, "\n\t\t debug section");
 static int audio_es_len_limit = (40 * 1024);
 module_param(audio_es_len_limit, int, 0644);
 
+MODULE_PARM_DESC(ts_output_max_pid_num_per_sid, "\n\t\t max pid num per sid in si_table");
+static int ts_output_max_pid_num_per_sid = 32;
+module_param(ts_output_max_pid_num_per_sid, int, 0644);
+
 #define VIDEOES_DUMP_FILE   "/data/video_dump"
 #define AUDIOES_DUMP_FILE   "/data/audio_dump"
 #define DVR_DUMP_FILE       "/data/dvr_dump"
@@ -339,6 +342,29 @@ struct out_elem *_find_free_elem(void)
 	return NULL;
 }
 
+static int s_cur_sid_pid_index;
+
+static int _init_sid_pid(int sid)
+{
+	struct sid_entry *psid = NULL;
+
+	if (sid >= MAX_SID_NUM)
+		return -1;
+	psid = &sid_table[sid];
+	if (psid->used)
+		return 0;
+	if (s_cur_sid_pid_index + ts_output_max_pid_num_per_sid > 1024)
+		return -1;
+	psid->used = 1;
+	psid->pid_entry_begin = s_cur_sid_pid_index;
+	psid->pid_entry_num = ts_output_max_pid_num_per_sid;
+	tsout_config_sid_table(sid,
+				       psid->pid_entry_begin / 4,
+				       psid->pid_entry_num / 4);
+	s_cur_sid_pid_index += ts_output_max_pid_num_per_sid;
+	return 0;
+}
+
 static struct pid_entry *_malloc_pid_entry_slot(int sid, int pid)
 {
 	int i = 0;
@@ -351,6 +377,10 @@ static struct pid_entry *_malloc_pid_entry_slot(int sid, int pid)
 
 	if (sid >= MAX_SID_NUM) {
 		pr_dbg("%s error sid:%d\n", __func__, sid);
+		return NULL;
+	}
+	if (_init_sid_pid(sid) != 0) {
+		pr_dbg("%s error init sid:%d\n", __func__, sid);
 		return NULL;
 	}
 
@@ -2035,15 +2065,12 @@ static void remove_ts_out_list(struct out_elem *pout, struct ts_out_task *head)
 
 /**
  * ts_output_init
- * \param sid_num
- * \param sid_info
  * \retval 0:success.
  * \retval -1:fail.
  */
-int ts_output_init(int sid_num, int *sid_info)
+int ts_output_init(void)
 {
 	int i = 0;
-	struct sid_entry *psid = NULL;
 	int times = 0;
 	struct aml_dvb *advb = aml_get_dvb_device();
 
@@ -2051,21 +2078,6 @@ int ts_output_init(int sid_num, int *sid_info)
 	} while (!tsout_get_ready() && times++ < 20);
 
 	memset(&sid_table, 0, sizeof(sid_table));
-
-	ts_output_max_pid_num_per_sid = MAX_TS_PID_NUM / (sid_num * 4) * 4;
-
-	for (i = 0; i < sid_num; i++) {
-		psid = &sid_table[sid_info[i]];
-		psid->used = 1;
-		psid->pid_entry_begin = ts_output_max_pid_num_per_sid * i;
-		psid->pid_entry_num = ts_output_max_pid_num_per_sid;
-		dprint("%s sid:%d,pid start:%d, len:%d\n",
-		       __func__, sid_info[i],
-		       psid->pid_entry_begin, psid->pid_entry_num);
-		tsout_config_sid_table(sid_info[i],
-				       psid->pid_entry_begin / 4,
-				       psid->pid_entry_num / 4);
-	}
 
 	pid_table = vmalloc(sizeof(*pid_table) * MAX_TS_PID_NUM);
 	if (!pid_table) {

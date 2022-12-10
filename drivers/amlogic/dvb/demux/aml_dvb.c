@@ -63,7 +63,6 @@ static int cpu_type;
 static int minor_type;
 
 #define MAX_DMX_DEV_NUM      32
-static int sid_info[MAX_DMX_DEV_NUM];
 #define DEFAULT_DMX_DEV_NUM  3
 
 int is_security_dmx;
@@ -586,50 +585,6 @@ static int aml_dvb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int find_same_sid(int sid_num, int sid)
-{
-	int i = 0;
-
-	for (i = 0; i < sid_num; i++) {
-		if (sid_info[i] == sid)
-			return 1;
-	}
-	return 0;
-}
-
-static int get_all_sid_info(int dmx_dev_num, struct aml_dvb *advb)
-{
-	int i = 0;
-	int j = 0;
-	int count = 0;
-	int same = 0;
-
-	for (i = 0; i < dmx_dev_num; i++) {
-		sid_info[i] = i;
-		sid_info[dmx_dev_num + i] = i + 32;
-	}
-	count = dmx_dev_num * 2;
-
-	for (j = 0; j < FE_DEV_COUNT; j++) {
-		if (advb->ts[j].ts_sid != -1) {
-			same = find_same_sid(dmx_dev_num * 2, advb->ts[j].ts_sid);
-			if (same == 0) {
-				sid_info[count] = advb->ts[j].ts_sid;
-				count++;
-			}
-			if (advb->ts[j].ts_sid < 32) {
-				same = find_same_sid(dmx_dev_num * 2, advb->ts[j].ts_sid);
-				if (same == 0) {
-					sid_info[count] =
-						advb->ts[j].ts_sid + 32;
-					count++;
-				}
-			}
-		}
-	}
-	return count;
-}
-
 static int get_first_valid_ts(struct aml_dvb *advb)
 {
 	int i = 0;
@@ -681,7 +636,6 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	struct aml_dvb *advb;
 	int i, ret = 0;
 	int tsn_in_reg = 0;
-	int sid_num = 0;
 	int valid_ts = 0;
 	char buf[255];
 
@@ -724,8 +678,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	//set demod/local
 	demux_config_pipeline(tsn_in_reg, tsn_out);
 
-	sid_num  = get_all_sid_info(dmx_dev_num, advb);
-	dmx_init_hw(sid_num, (int *)&sid_info);
+	dmx_init_hw();
 
 	valid_ts = get_first_valid_ts(advb);
 	//create dmx dev
