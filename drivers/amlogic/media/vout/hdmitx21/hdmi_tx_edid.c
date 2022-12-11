@@ -186,16 +186,16 @@ static void edid_parsingidserialnumber(struct rx_cap *prxcap,
 static void store_vesa_idx(struct rx_cap *prxcap, enum hdmi_vic vesa_timing)
 {
 	int i;
+	int already = 0;
 
-	for (i = 0; i < VESA_MAX_TIMING; i++) {
-		if (!prxcap->vesa_timing[i]) {
-			prxcap->vesa_timing[i] = vesa_timing;
+	for (i = 0; i < VESA_MAX_TIMING && prxcap->vesa_timing[i]; i++) {
+		if (prxcap->vesa_timing[i] == vesa_timing) {
+			already = 1;
 			break;
 		}
-
-		if (prxcap->vesa_timing[i] == vesa_timing)
-			break;
 	}
+	if (!already && i != VESA_MAX_TIMING)
+		prxcap->vesa_timing[i] = vesa_timing;
 }
 
 static void store_cea_idx(struct rx_cap *prxcap, enum hdmi_vic vic)

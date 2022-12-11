@@ -501,6 +501,9 @@ static struct hw_enc_clk_val_group setting_enc_clk_val_24[] = {
 	  HDMI_2_720x480p60_4x3,
 	  HDMI_VIC_END},
 		4324320, 4, 4, 2, VID_PLL_DIV_5, 1, 1, 1, 1, 1},
+	{{HDMI_1_640x480p60_4x3, /* 4.028G / 16 = 251.75M */
+	  HDMI_VIC_END},
+		4028000, 4, 4, 2, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
 	{{HDMI_19_1280x720p50_16x9,
 	  HDMI_4_1280x720p60_16x9,
 	  HDMI_5_1920x1080i60_16x9,
@@ -540,72 +543,6 @@ static struct hw_enc_clk_val_group setting_enc_clk_val_24[] = {
 	{{HDMI_VIC_FAKE,
 	  HDMI_VIC_END},
 		3450000, 1, 2, 2, VID_PLL_DIV_5, 1, 1, 1, 1, 1},
-	/* pll setting for VESA modes */
-	{{HDMIV_640x480p60hz, /* 4.028G / 16 = 251.75M */
-	  HDMI_VIC_END},
-		4028000, 4, 4, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
-	{{HDMIV_800x480p60hz,
-	  HDMI_VIC_END},
-		4761600, 4, 4, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
-	{{HDMIV_800x600p60hz,
-	  HDMI_VIC_END},
-		3200000, 4, 2, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
-	{{HDMIV_852x480p60hz,
-	   HDMIV_854x480p60hz,
-	  HDMI_VIC_END},
-		4838400, 4, 4, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
-	{{HDMIV_1024x600p60hz,
-	  HDMI_VIC_END},
-		4032000, 4, 2, 1, VID_PLL_DIV_5, 1, 2, 2, 1, 1},
-	{{HDMIV_1024x768p60hz,
-	  HDMI_VIC_END},
-		5200000, 4, 2, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
-	{{HDMIV_1280x768p60hz,
-	  HDMI_VIC_END},
-		3180000, 4, 1, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
-	{{HDMIV_1280x800p60hz,
-	  HDMI_VIC_END},
-		5680000, 4, 2, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
-	{{HDMIV_1152x864p75hz,
-	  HDMIV_1280x960p60hz,
-	  HDMIV_1280x1024p60hz,
-	  HDMIV_1600x900p60hz,
-	  HDMI_VIC_END},
-		4320000, 4, 1, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
-	{{HDMIV_1600x1200p60hz,
-	  HDMI_VIC_END},
-		3240000, 2, 1, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
-	{{HDMIV_1360x768p60hz,
-	  HDMIV_1366x768p60hz,
-	  HDMI_VIC_END},
-		3420000, 4, 1, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
-	{{HDMIV_1400x1050p60hz,
-	  HDMI_VIC_END},
-		4870000, 4, 1, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
-	{{HDMIV_1440x900p60hz,
-	  HDMI_VIC_END},
-		4260000, 4, 1, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
-	{{HDMIV_1440x2560p60hz,
-	  HDMI_VIC_END},
-		4897000, 2, 1, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
-	{{HDMIV_1680x1050p60hz,
-	  HDMI_VIC_END},
-		5850000, 4, 1, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
-	{{HDMIV_1920x1200p60hz,
-	  HDMI_VIC_END},
-		3865000, 2, 1, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
-	{{HDMIV_2160x1200p90hz,
-	  HDMI_VIC_END},
-		5371100, 1, 2, 2, VID_PLL_DIV_5, 1, 1, 1, 1, 1},
-	{{HDMIV_2560x1600p60hz,
-	  HDMI_VIC_END},
-		3485000, 1, 1, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
-	{{HDMIV_3440x1440p60hz,
-	  HDMI_VIC_END},
-		3197500, 1, 1, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
-	{{HDMIV_2400x1200p90hz,
-	  HDMI_VIC_END},
-		5600000, 2, 1, 1, VID_PLL_DIV_5, 2, 1, 1, 1, 1},
 };
 
 /* For colordepth 10bits */
@@ -894,6 +831,45 @@ static void set_hdmitx_s5_htx_pll(struct hdmitx_dev *hdev)
 	set21_s5_htxpll_clk_out(htx_vco, div);
 }
 
+static void t7_calc_pixel_clk_hpll_vco_od(u32 pixel_freq, u32 *vco_out, u32 *od1, u32 *od2)
+{
+	u32 htx_vco = 5940000;
+	u32 div = 1;
+
+	if (!vco_out || !od1 || !od2)
+		return;
+
+	if (pixel_freq < 25175 || pixel_freq > 5940000) {
+		pr_err("%s[%d] not valid pixel clock %d\n", __func__, __LINE__, pixel_freq);
+		return;
+	}
+
+	pixel_freq = pixel_freq * 10; /* for tmds modes, here should multi 10 */
+	if (pixel_freq > MAX_HTXPLL_VCO) {
+		pr_err("%s[%d] base_pixel_clk %d over MAX_HTXPLL_VCO %d\n",
+			__func__, __LINE__, pixel_freq, MAX_HTXPLL_VCO);
+	}
+
+	/* the base pixel_clk range should be 250M ~ 5940M? */
+	htx_vco = pixel_freq;
+	do {
+		if (htx_vco >= MIN_HTXPLL_VCO && htx_vco < MAX_HTXPLL_VCO)
+			break;
+		div *= 2;
+		htx_vco *= 2;
+	} while (div <= 16);
+
+	*vco_out = htx_vco;
+	/* setting htxpll div */
+	if (div > 4) {
+		*od1 = 4;
+		*od2 = div / 4;
+	} else {
+		*od1 = div;
+		*od2 = 1;
+	}
+}
+
 static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev)
 {
 	int i = 0;
@@ -976,8 +952,11 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev)
 		}
 		if (j == sizeof(setting_enc_clk_val_24)
 			/ sizeof(struct hw_enc_clk_val_group)) {
-			pr_info("Not find VIC = %d for hpll setting\n", vic);
-			return;
+			/* if vic is VESA mode, then here will automatically calculate the clks */
+			if (vic < HDMITX_VESA_OFFSET) {
+				pr_info("Not find VIC = %d for hpll setting\n", vic);
+				return;
+			}
 		}
 	} else if (cd == COLORDEPTH_30B) {
 		p_enc = &setting_enc_clk_val_30[0];
@@ -1023,11 +1002,33 @@ next:
 		tmp_clk.pnx_div = 2;
 		tmp_clk.pixel_div = 2;
 	}
+
+	if (vic >= HDMITX_VESA_OFFSET) {
+		const struct hdmi_timing *timing = NULL;
+
+		timing = hdmitx21_gettiming_from_vic(vic);
+		if (!timing) {
+			pr_info("failed to find VIC %d timing\n", vic);
+			return;
+		}
+		memset(&tmp_clk, 0, sizeof(tmp_clk));
+		t7_calc_pixel_clk_hpll_vco_od(timing->pixel_freq,
+			&tmp_clk.hpll_clk_out, &tmp_clk.od1, &tmp_clk.od2);
+		tmp_clk.od3 = 2; /* fixed divider value */
+		tmp_clk.vid_pll_div = VID_PLL_DIV_5;
+		tmp_clk.vid_clk_div = 2; /* fixed divider value */
+		tmp_clk.enc_div = 1;
+		tmp_clk.fe_div = 1;
+		tmp_clk.pnx_div = 1;
+		tmp_clk.pixel_div = 1;
+	}
+
 	pr_info("hdmitx sub-clock: %d %d %d %d %d %d %d %d %d %d\n",
 		tmp_clk.hpll_clk_out, tmp_clk.od1, tmp_clk.od2, tmp_clk.od3,
 		tmp_clk.vid_pll_div, tmp_clk.vid_clk_div, tmp_clk.enc_div,
 		tmp_clk.fe_div, tmp_clk.pnx_div, tmp_clk.pixel_div);
 	set_hpll_clk_out(tmp_clk.hpll_clk_out);
+
 	if (cd == COLORDEPTH_24B && hdev->sspll)
 		set_hpll_sspll(vic);
 	set_hpll_od1(tmp_clk.od1);

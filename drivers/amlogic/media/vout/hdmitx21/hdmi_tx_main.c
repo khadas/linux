@@ -2616,8 +2616,23 @@ static ssize_t vesa_cap_show(struct device *dev,
 			     struct device_attribute *attr,
 			     char *buf)
 {
-	/* TODO */
-	return 0;
+	int i, pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct rx_cap *prxcap = &hdev->rxcap;
+	const struct hdmi_timing *timing = NULL;
+	enum hdmi_vic vic;
+
+	for (i = 0; i < VESA_MAX_TIMING && prxcap->vesa_timing[i]; i++) {
+		vic = prxcap->vesa_timing[i];
+		/* skip CEA modes */
+		if (vic < HDMITX_VESA_OFFSET)
+			continue;
+		timing = hdmitx21_gettiming_from_vic(vic);
+		if (timing)
+			pos += snprintf(buf + pos, PAGE_SIZE, "%s\n", timing->name);
+	}
+
+	return pos;
 }
 
 static void _show_pcm_ch(struct rx_cap *prxcap, int i,

@@ -116,6 +116,44 @@ static bool set_hpll_hclk_v3(u32 m, u32 frac_val)
 	return ret; /* return hpll locked status */
 }
 
+static void t7_auto_set_hpll(u32 clk)
+{
+	u32 quotient;
+	u32 remainder;
+	u32 rem_1;
+	u32 rem_2;
+
+	if (clk < 3000000 || clk >= 6000000) {
+		pr_err("%s[%d] clock should be 3~6G\n", __func__, __LINE__);
+		return;
+	}
+
+	quotient = clk / 24000;
+	remainder = clk - quotient * 24000;
+	/* remainder range: 0 ~ 99999, 0x1869f, 17bits */
+	/* convert remainder to 0 ~ 2^17 */
+	if (remainder) {
+		rem_1 = remainder / 16;
+		rem_2 = remainder - rem_1 * 16;
+		rem_1 *= 1 << 17;
+		rem_1 /= 1500;
+		rem_2 *= 1 << 13;
+		rem_2 /= 1500;
+		remainder = rem_1 + rem_2;
+	}
+
+	hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0x3b000400 | (quotient & 0x1ff));
+	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 0x3, 28, 2);
+	hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, remainder);
+	hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x00000000);
+	hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x6a685c00);
+	hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x33771290);
+	hd21_write_reg(ANACTRL_HDMIPLL_CTRL5, 0x3927200a);
+	hd21_write_reg(ANACTRL_HDMIPLL_CTRL6, 0x55540000);
+	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 0x0, 29, 1);
+	WAIT_FOR_PLL_LOCKED(ANACTRL_HDMIPLL_CTRL0);
+}
+
 void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk)
 {
 	switch (clk) {
@@ -278,7 +316,7 @@ void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk)
 		pr_info("HPLL: 0x%x\n", hd21_read_reg(ANACTRL_HDMIPLL_CTRL0));
 		break;
 	default:
-		pr_info("error hpll clk: %d\n", clk);
+		t7_auto_set_hpll(clk);
 		break;
 	}
 }

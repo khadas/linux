@@ -61,8 +61,22 @@ static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 	pr_info("%s[%d] vic = %d\n", __func__, __LINE__, tp->vic);
 
 	timing = *tp;
-	tp = &timing;
 
+	/* For some VESA timings, the Vfont is too small as 1 or 0
+	 * this will make encp wrong timing
+	 * adjust the Vfont to at least 2
+	 */
+	if (timing.vic >= HDMITX_VESA_OFFSET && (timing.v_front == 1 || timing.v_front == 0)) {
+		if (timing.v_front == 0) {
+			timing.v_front += 2;
+			timing.v_back -= 2;
+		} else if (timing.v_front == 1) {
+			timing.v_front += 1;
+			timing.v_back -= 1;
+		}
+	}
+
+	tp = &timing;
 	/* the FRL works at dual mode, so the horizon parameters will reduce to half */
 	if (hdev->frl_rate && y420_mode == 1)
 		hpara_div = 4;
