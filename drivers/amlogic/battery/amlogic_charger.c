@@ -54,8 +54,8 @@ static enum power_supply_property dummy_usb_props[] = {
 };
 
 static const struct power_supply_desc dummy_charger_desc = {
-	.name       = "usb",
-	.type       = POWER_SUPPLY_TYPE_USB,
+	.name       = "ac",
+	.type       = POWER_SUPPLY_TYPE_MAINS,
 	.properties = dummy_usb_props,
 	.num_properties = ARRAY_SIZE(dummy_usb_props),
 	.get_property   = dummy_usb_get_prop,
