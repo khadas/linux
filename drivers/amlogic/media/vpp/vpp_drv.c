@@ -130,6 +130,7 @@ const struct of_device_id vpp_dts_match[] = {
 		.compatible = "amlogic, vpp",
 		.data = &vpp_match,
 	},
+	{},
 };
 
 static int vpp_open(struct inode *inode, struct file *filp)
