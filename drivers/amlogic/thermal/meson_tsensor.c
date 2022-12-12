@@ -104,7 +104,7 @@ enum soc_type {
  * struct meson_tsensor_platform_data
  * @cal_a, b, c, d: cali data
  * @cal_type: calibration type for temperature
- * @reboot_temp: high temprature reboot soc
+ * @reboot_temp: high temperature reboot soc
  * This structure is required for configuration of exynos_tmu driver.
  */
 struct meson_tsensor_platform_data {
@@ -354,7 +354,7 @@ static int r1p1_tsensor_hw_initialize(struct platform_device *pdev)
 	int ret = 0, reboot_temp;
 	int ver;
 
-	/*frist get the r1p1 trim info*/
+	/*first get the r1p1 trim info*/
 	ver = (data->trim_info >> 24) & 0xff;
 	/*r1p1 tsensor ver to doing*/
 	if (((ver & 0xf) >> 2) == 0)

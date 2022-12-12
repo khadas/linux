@@ -6,7 +6,7 @@
 menu "Amlogic multimedia configuration"
 
 config AMLOGIC_MEDIA_MODULE
-	tristate "Amlgoic Multimedia compile support"
+	tristate "Amlogic Multimedia compile support"
 	default y
 	help
 		media module compile support
@@ -15,7 +15,7 @@ config AMLOGIC_MEDIA_MODULE
 		select n for disable
 
 config AMLOGIC_MEDIA_ENABLE
-	bool "Amlgoic Multimedia Support"
+	bool "Amlogic Multimedia Support"
 	default n
 	help
 		Amlogic multimedia framework composed of two parts,
