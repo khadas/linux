@@ -208,6 +208,7 @@ static void meson_commit_work(struct kthread_work *work)
 	meson_commit_tail(state);
 	meson_commit_reenter_dec(priv, work_item->crtc_id, work_item->commit_flag);
 	kfree(work_item);
+	work_item = NULL;
 }
 
 static int stall_checks(struct drm_crtc *crtc, bool nonblock)
@@ -528,6 +529,8 @@ int meson_atomic_commit(struct drm_device *dev,
 	return 0;
 
 err:
+	if (nonblock && work_item)
+		kfree(work_item);
 	drm_atomic_helper_cleanup_planes(dev, state);
 	return ret;
 }
