@@ -44,8 +44,10 @@ struct composer_vf_para {
 	int src_vf_height;
 	int src_vf_plane_count;
 	int src_vf_angle;
-	u32 src_buf_addr;
-	int src_buf_stride;
+	u32 src_buf_addr0;
+	int src_buf_stride0;
+	u32 src_buf_addr1;
+	int src_buf_stride1;
 	int dst_vf_format;
 	int dst_vf_width;
 	int dst_vf_height;

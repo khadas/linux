@@ -222,6 +222,7 @@ struct composer_dev {
 	struct file *last_file;
 	enum com_buffer_status buffer_status;
 	struct ge2d_composer_para ge2d_para;
+	struct dewarp_composer_para dewarp_para;
 	struct task_struct *kthread;
 	struct received_frames_t received_frames[FRAMES_INFO_POOL_SIZE];
 	unsigned long long received_count;

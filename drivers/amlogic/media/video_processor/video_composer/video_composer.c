@@ -115,7 +115,7 @@ u32 vd_test_fps;
 u32 vd_test_fps_pip;
 u64 vd_test_fps_val[MAX_VD_LAYERS];
 u64 vd_test_vsync_val[MAX_VD_LAYERS];
-
+u32 dewarp_load_flag; /*0 dynamic load, 1 load bin file*/
 #define to_dst_buf(vf)	\
 	container_of(vf, struct dst_buf_t, frame)
 
@@ -336,7 +336,7 @@ int vc_print(int index, int debug_flag, const char *fmt, ...)
 		return 0;
 
 	if ((print_flag & debug_flag) ||
-	    debug_flag == PRINT_ERROR) {
+		debug_flag == PRINT_ERROR) {
 		unsigned char buf[256];
 		int len = 0;
 		va_list args;
@@ -790,6 +790,13 @@ static int video_composer_init_buffer(struct composer_dev *dev, bool is_tvp, siz
 		vc_print(dev->index, PRINT_ERROR, "config vc buf failed!\n");
 		return -1;
 	}
+
+	if (dev->is_dewarp_support) {
+		ret = init_dewarp_composer(&dev->dewarp_para);
+		if (ret < 0)
+			vc_print(dev->index, PRINT_ERROR, "create dewarp composer fail!\n");
+	}
+
 	if (IS_ERR_OR_NULL(dev->ge2d_para.context))
 		ret = init_ge2d_composer(&dev->ge2d_para);
 	if (ret < 0)
@@ -825,6 +832,12 @@ static void video_composer_uninit_buffer(struct composer_dev *dev)
 				dev->dst_buf[i].afbc_table_addr = 0;
 			}
 		}
+	}
+
+	if (dev->is_dewarp_support) {
+		ret = uninit_dewarp_composer(&dev->dewarp_para);
+		if (ret < 0)
+			vc_print(dev->index, PRINT_ERROR, "uninit dewarp composer fail!\n");
 	}
 
 	if (dev->ge2d_para.context)
@@ -1368,13 +1381,13 @@ static u32 need_switch_buffer(struct dst_buf_t *buf, bool is_tvp, int index)
 		buf->afbc_head_addr = buf->afbc_body_addr + buf->afbc_body_size;
 
 		if (buf->afbc_table_addr > 0) {
-			vc_print(index, PRINT_OTHER, "%s: free table buffer 0x%x\n", __func__,
+			vc_print(index, PRINT_OTHER, "%s: free table buffer 0x%lx\n", __func__,
 				buf->afbc_table_addr);
 			codec_mm_free_for_dma(ports[index].name, buf->afbc_table_addr);
 		}
 		buf->afbc_table_addr = codec_mm_alloc_for_dma(ports[index].name,
 					buf->afbc_table_size / PAGE_SIZE, 0, flags);
-		vc_print(index, PRINT_ERROR, "%s: alloc buffer 0x%x\n", __func__,
+		vc_print(index, PRINT_ERROR, "%s: alloc buffer 0x%lx\n", __func__,
 			buf->afbc_table_addr);
 	}
 
@@ -1573,7 +1586,7 @@ static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
 	return vf;
 }
 
-static void dump_vf(struct vframe_s *vf, int flag)
+static void dump_vf(int vc_index, struct vframe_s *vf, int flag)
 {
 	struct file *fp = NULL;
 	char name_buf[32];
@@ -1603,7 +1616,7 @@ static void dump_vf(struct vframe_s *vf, int flag)
 	data_y = codec_mm_vmap(vf->canvas0_config[0].phy_addr, data_size_y);
 	data_uv = codec_mm_vmap(vf->canvas0_config[1].phy_addr, data_size_uv);
 	if (!data_y || !data_uv) {
-		pr_info("%s: vmap failed.\n", __func__);
+		vc_print(vc_index, PRINT_ERROR, "%s: vmap failed.\n", __func__);
 		return;
 	}
 	fs = get_fs();
@@ -1612,14 +1625,14 @@ static void dump_vf(struct vframe_s *vf, int flag)
 	vfs_write(fp, data_y, data_size_y, &pos);
 	fp->f_pos = pos;
 	vfs_fsync(fp, 0);
-	pr_info("%s: write %u size to addr%p\n",
+	vc_print(vc_index, PRINT_ERROR, "%s: write %u size to addr%p\n",
 		__func__, data_size_y, data_y);
 	codec_mm_unmap_phyaddr(data_y);
 	pos = fp->f_pos;
 	vfs_write(fp, data_uv, data_size_uv, &pos);
 	fp->f_pos = pos;
 	vfs_fsync(fp, 0);
-	pr_info("%s: write %u size to addr%p\n",
+	vc_print(vc_index, PRINT_ERROR, "%s: write %u size to addr%p\n",
 		__func__, data_size_uv, data_uv);
 	codec_mm_unmap_phyaddr(data_uv);
 	set_fs(fs);
@@ -1659,7 +1672,6 @@ static void check_dewarp_support_status(struct composer_dev *dev,
 	struct received_frames_t *received_frames)
 {
 	struct frame_info_t frame_info;
-	struct dewarp_composer_para dewarp_param;
 	struct composer_vf_para vframe_para;
 	struct vframe_s *src_vf = NULL;
 	struct file *file_vf = NULL;
@@ -1688,16 +1700,14 @@ static void check_dewarp_support_status(struct composer_dev *dev,
 			vc_print(dev->index, PRINT_ERROR, "get vf NULL\n");
 			vframe_para.src_vf_format = NV12;
 		} else {
-			vframe_para.src_vf_format = get_dewarp_format(src_vf);
+			vframe_para.src_vf_format = get_dewarp_format(dev->index, src_vf);
 		}
 	} else {
 		vframe_para.src_vf_format = NV12;
 	}
-
-	memset(&dewarp_param, 0, sizeof(struct dewarp_composer_para));
-	dewarp_param.vf_para = &vframe_para;
-	dewarp_param.vc_index = dev->index;
-	if (received_frames->frames_info.frame_count == 1 && is_dewarp_supported(&dewarp_param))
+	dev->dewarp_para.vf_para = &vframe_para;
+	if (received_frames->frames_info.frame_count == 1 &&
+		is_dewarp_supported(dev->index, dev->dewarp_para.vf_para))
 		dev->is_dewarp_support = true;
 	else
 		dev->is_dewarp_support = false;
@@ -1760,7 +1770,6 @@ static void vframe_composer(struct composer_dev *dev)
 	bool need_dw = false;
 	bool is_fixtunnel = false;
 	int transform = 0;
-	struct dewarp_composer_para dewarp_param;
 	struct composer_vf_para vframe_para;
 	struct vicp_data_config_t data_config;
 	struct crop_info_t crop_info;
@@ -1958,19 +1967,13 @@ static void vframe_composer(struct composer_dev *dev)
 
 		if (dev->is_dewarp_support && composer_dev_choice == 1) {
 			memset(&vframe_para, 0, sizeof(vframe_para));
-			memset(&dewarp_param, 0, sizeof(struct dewarp_composer_para));
-			/*coverity[var_deref_model] config_dewarp_vframe has null pointer judge*/
 			config_dewarp_vframe(dev->index, transform, scr_vf, dst_buf, &vframe_para);
-			dewarp_param.vf_para = &vframe_para;
-			dewarp_param.vc_index = dev->index;
-			init_dewarp_composer(&dewarp_param);
-			ret = dewarp_data_composer(&dewarp_param);
+			dev->dewarp_para.vf_para = &vframe_para;
+			load_dewarp_firmware(&dev->dewarp_para);
+			ret = dewarp_data_composer(&dev->dewarp_para);
 			if (ret < 0)
 				vc_print(dev->index, PRINT_ERROR, "dewarp composer failed\n");
-			/*coverity[double_free] The code of double free cannot be reached*/
-			uninit_dewarp_composer(&dewarp_param);
-			composer_device_choice = DEWARP;
-		} else if (is_vicp_supported() && composer_dev_choice == 2 && transform == 0) {
+		} else if (is_vicp_supported() && composer_dev_choice == 1 && transform == 0) {
 			memset(&data_config, 0, sizeof(struct vicp_data_config_t));
 			config_vicp_input_data(scr_vf,
 					addr,
@@ -2209,8 +2212,15 @@ static void vframe_composer(struct composer_dev *dev)
 		dst_vf->plane_num = 2;
 	}
 	vc_print(dev->index, PRINT_DEWARP,
-			 "composer:canvas_w: %d, canvas_h: %d\n",
-			 dst_vf->canvas0_config[0].width, dst_vf->canvas0_config[0].height);
+		"canvas0_addr: 0x%lx, canvas0_w: %d, canvas0_h: %d.\n",
+		dst_vf->canvas0_config[0].phy_addr,
+		dst_vf->canvas0_config[0].width,
+		dst_vf->canvas0_config[0].height);
+	vc_print(dev->index, PRINT_DEWARP,
+		"canvas1_addr:  0x%lx, canvas1_w: %d, canvas1_h: %d.\n",
+		dst_vf->canvas0_config[1].phy_addr,
+		dst_vf->canvas0_config[1].width,
+		dst_vf->canvas0_config[1].height);
 	dst_vf->repeat_count = 0;
 	dst_vf->composer_info = composer_info;
 
@@ -2223,8 +2233,8 @@ static void vframe_composer(struct composer_dev *dev)
 	dev->fake_vf = *dev->last_dst_vf;
 
 	if (dump_vframe != dev->vframe_dump_flag) {
-		dump_vf(scr_vf, 0);
-		dump_vf(dst_vf, 1);
+		dump_vf(dev->index, scr_vf, 0);
+		dump_vf(dev->index, dst_vf, 1);
 		if (fbcout_en &&
 			is_vicp_supported() &&
 			composer_dev_choice == 2 &&
@@ -2863,6 +2873,13 @@ static int video_composer_open(struct inode *inode, struct file *file)
 	dev->ge2d_para.canvas_scr[1] = -1;
 	dev->ge2d_para.canvas_scr[2] = -1;
 	dev->ge2d_para.plane_num = 2;
+
+	dev->dewarp_para.vc_index = dev->index;
+	dev->dewarp_para.context = NULL;
+	dev->dewarp_para.fw_load.size_32bit = 0;
+	dev->dewarp_para.fw_load.phys_addr = 0;
+	dev->dewarp_para.fw_load.virt_addr = NULL;
+	dev->dewarp_para.vf_para = NULL;
 
 	dev->buffer_status = UNINITIAL;
 
@@ -4493,6 +4510,28 @@ static ssize_t vd_test_fps_pip_show(struct class *cla, struct class_attribute *a
 		fps_h, fps_l, vsync_h, vsync_l);
 }
 
+static ssize_t dewarp_load_flag_show(struct class *cla, struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 80, "current dewarp_load_flag is %d.\n", dewarp_load_flag);
+}
+
+static ssize_t dewarp_load_flag_store(struct class *cla, struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	pr_info("set dewarp_load_flag to %ld.\n", tmp);
+	dewarp_load_flag = tmp;
+	return count;
+}
+
 static CLASS_ATTR_RW(debug_axis_pip);
 static CLASS_ATTR_RW(debug_crop_pip);
 static CLASS_ATTR_RW(force_composer);
@@ -4541,6 +4580,7 @@ static CLASS_ATTR_RW(force_comp_w);
 static CLASS_ATTR_RW(force_comp_h);
 static CLASS_ATTR_RW(vd_test_fps);
 static CLASS_ATTR_RW(vd_test_fps_pip);
+static CLASS_ATTR_RW(dewarp_load_flag);
 
 static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_debug_crop_pip.attr,
@@ -4591,6 +4631,7 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_force_comp_h.attr,
 	&class_attr_vd_test_fps.attr,
 	&class_attr_vd_test_fps_pip.attr,
+	&class_attr_dewarp_load_flag.attr,
 	NULL
 };
 
