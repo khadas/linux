@@ -763,7 +763,7 @@ static int am_hdmitx_connector_atomic_get_property
 static ssize_t meson_connector_attr_write(struct file *file, const char __user *ubuf,
 				size_t len, loff_t *offp)
 {
-	if (len > sizeof(attr_debugfs) - 1)
+	if (len > sizeof(attr_debugfs) - 1 || len <= 0)
 		return -EINVAL;
 
 	if (copy_from_user(attr_debugfs, ubuf, len))

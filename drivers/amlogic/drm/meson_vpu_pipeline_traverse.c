@@ -555,7 +555,7 @@ int s5_check_pipeline_path(int *combination, int num_planes,
 	struct meson_vpu_traverse *mvt;
 	struct meson_vpu_block **mvb;
 	struct meson_vpu_block *block;
-	bool have_blend, have_slice2ppc;
+	bool have_blend, have_slice2ppc = 0;
 
 	more_4k = mvps->sub_states[0].more_4k;
 	more_60 = mvps->sub_states[0].more_60;
@@ -619,7 +619,7 @@ int g12a_check_pipeline_path(int *combination, int num_planes,
 int vpu_video_pipeline_check_block(struct meson_vpu_pipeline_state *mvps,
 				   struct drm_atomic_state *state)
 {
-	int i, ret;
+	int i, ret = 0;
 	struct meson_vpu_block *block;
 	struct meson_vpu_block_state *mvbs;
 
@@ -691,15 +691,15 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 	int i;
 	u64 tmp;
 	u32 osd_in_hsize_real, osd_out_hsize_real, osd_out_hsize_raw;
-	u32 osd_pps_din_hsize[MESON_MAX_OSDS];
-	u32 osd_pps_dout_hsize[MESON_MAX_OSDS];
-	u32 osd_pps_din_vsize[MESON_MAX_OSDS];
-	u32 osd_pps_dout_vsize[MESON_MAX_OSDS];
-	u32 osd_slice_dout_hsize[MESON_MAX_OSDS];
-	u32 hwincut_bgn[MESON_MAX_OSDS];
-	u32 hwincut_end[MESON_MAX_OSDS];
-	u32 init_phase[MESON_MAX_OSDS];
-	u32 slice_st[MESON_MAX_OSDS];
+	u32 osd_pps_din_hsize[MESON_MAX_OSDS] = {0};
+	u32 osd_pps_dout_hsize[MESON_MAX_OSDS] = {0};
+	u32 osd_pps_din_vsize[MESON_MAX_OSDS] = {0};
+	u32 osd_pps_dout_vsize[MESON_MAX_OSDS] = {0};
+	u32 osd_slice_dout_hsize[MESON_MAX_OSDS] = {0};
+	u32 hwincut_bgn[MESON_MAX_OSDS] = {0};
+	u32 hwincut_end[MESON_MAX_OSDS] = {0};
+	u32 init_phase[MESON_MAX_OSDS] = {0};
+	u32 slice_st[MESON_MAX_OSDS] = {0};
 	u32 horz_phase_step, slice1_init_phase_out;
 	struct meson_vpu_sub_pipeline_state *mvsps;
 
@@ -822,8 +822,8 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 				osd_pps_dout_vsize[i] =
 					mvps->plane_info[i].dst_h;
 			}
-			horz_phase_step = (osd_pps_din_hsize[i] << 18) /
-					  osd_pps_dout_hsize[i];
+			//horz_phase_step = (osd_pps_din_hsize[i] << 18) /
+			//		  osd_pps_dout_hsize[i];
 		}
 
 		mvsps->scaler_din_hsize[i] = osd_pps_din_hsize[i];
@@ -957,7 +957,7 @@ int combinate_layer_path(int *path_num_array, int num_planes,
 	i = 0;
 	ret = -1;
 
-	for (index = MESON_MAX_OSDS; index >= 0; index--) {
+	for (index = MESON_MAX_OSDS - 1; index >= 0; index--) {
 		if (mvps->plane_info[index].enable)
 			break;
 	}

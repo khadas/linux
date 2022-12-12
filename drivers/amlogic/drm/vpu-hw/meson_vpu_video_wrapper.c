@@ -421,6 +421,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			vf_info.buffer_w = pic_w;
 			vf_info.buffer_h = pic_h;
 			vf_info.zorder = mvvs->zorder;
+			vf_info.reserved[0] = 0;
 			dma_resv_add_excl_fence(vf_info.dmabuf->resv, vf_info.release_fence);
 			DRM_DEBUG("dmabuf(%px), release_fence(%px)\n",
 				vf_info.dmabuf, vf_info.release_fence);

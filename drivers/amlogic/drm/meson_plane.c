@@ -1422,7 +1422,7 @@ static void meson_plane_add_max_fb_property(struct drm_device *drm_dev,
 static void meson_plane_get_primary_plane(struct meson_drm *priv,
 			enum drm_plane_type *type)
 {
-	int i, j, first_plane = -1;
+	int i, j, first_plane;
 
 	for (j = 0; j < MESON_MAX_OSDS; j++)
 		type[j] = DRM_PLANE_TYPE_OVERLAY;
@@ -1431,16 +1431,15 @@ static void meson_plane_get_primary_plane(struct meson_drm *priv,
 		for (j = 0; j < MESON_MAX_OSDS; j++) {
 			if (i == priv->crtcmask_osd[j] &&
 				priv->osd_occupied_index != j) {
-				first_plane = (first_plane != -1) ? first_plane : j;
+				first_plane = j;
 
-				if (first_plane != -1 && first_plane < MESON_MAX_OSDS) {
+				if (first_plane < MESON_MAX_OSDS) {
 					type[j] = DRM_PLANE_TYPE_PRIMARY;
 					priv->primary_plane_index[i] = j;
 					break;
 				}
 			}
 		}
-		first_plane = -1;
 	}
 }
 

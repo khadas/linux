@@ -158,6 +158,7 @@ int meson_writeback_capture_picture(struct drm_framebuffer *fb, u32 port)
 	vdin_pram.frame_rate = 60;
 	format = fb->format->format;
 	vdin_pram.port = (enum tvin_port_e)port;
+	vdin_pram.fmt = TVIN_SIG_FMT_NULL;
 	vdin_pram.cfmt =
 	(enum tvin_color_fmt_e)meson_writeback_format_covert2vdin(format);
 	vdin_pram.dfmt =
