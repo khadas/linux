@@ -385,12 +385,31 @@ static const struct demod_module demod_modules[] = {
 	}
 };
 
+static dm_attach_cb pt[AM_DTV_DEMOD_MAX];
+int demod_attach_register_cb(const enum dtv_demod_type type, dm_attach_cb funcb)
+{
+	if (type > 0 && type < AM_DTV_DEMOD_MAX) {
+		pr_err("[%s]:register demod type %d\n", __func__, type);
+		pt[type] = funcb;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(demod_attach_register_cb);
+
 static struct dvb_frontend *aml_attach_detach_dtvdemod(
 		enum dtv_demod_type type,
 		const struct demod_config *cfg,
 		int attch)
 {
 	struct dvb_frontend *p = 0;
+
+	if (type > 0 && type < AM_DTV_DEMOD_MAX) {
+		if (pt[type]) {
+			pr_err("%s: cb id %d\n", __func__, type);
+			return pt[type](cfg);
+		}
+	}
 
 	switch (type) {
 	case AM_DTV_DEMOD_AMLDTV:

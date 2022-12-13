@@ -40,7 +40,7 @@ struct aml_ts_input {
 
 struct aml_dvb {
 	struct dvb_device dvb_dev;
-	struct dvb_adapter dvb_adapter;
+	//struct dvb_adapter dvb_adapter;
 
 	struct device *dev;
 	struct platform_device *pdev;

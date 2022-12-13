@@ -6,6 +6,7 @@
 #include <linux/amlogic/aml_demod_common.h>
 #include <linux/amlogic/aml_dtvdemod.h>
 #include <linux/amlogic/aml_dvb_extern.h>
+#include "aml_dvb_extern_driver.h"
 
 static int demod_attach(struct dvb_demod *demod, bool attach)
 {
@@ -163,7 +164,7 @@ static int demod_register_frontend(struct dvb_demod *demod, bool regist)
 	int ret = 0;
 	struct demod_ops *ops = NULL;
 
-	if (IS_ERR_OR_NULL(demod) || IS_ERR_OR_NULL(demod->dvb_adapter))
+	if (IS_ERR_OR_NULL(demod))
 		return -EFAULT;
 
 	mutex_lock(&demod->mutex);
@@ -191,6 +192,11 @@ static int demod_register_frontend(struct dvb_demod *demod, bool regist)
 		}
 
 		if (regist) {
+			if (!demod->dvb_adapter) {
+				pr_err("Demod: adapter is null, call aml_dvb_get_adapter.\n");
+				demod->dvb_adapter = aml_dvb_get_adapter
+					(aml_get_dvb_extern_dev());
+			}
 			ret = ops->module->register_frontend(
 					demod->dvb_adapter, ops->fe);
 			if (ret)
@@ -253,18 +259,11 @@ int dvb_extern_register_frontend(struct dvb_adapter *adapter)
 {
 	struct dvb_demod *demod = NULL;
 
-	if (IS_ERR_OR_NULL(adapter)) {
-		pr_err("Demod: %s: NULL or error pointer of adapter.\n",
-				__func__);
-
-		return -EFAULT;
-	}
-
 	mutex_lock(&dvb_demods_mutex);
 
 	demod = get_dvb_demods();
 
-	demod->dvb_adapter = adapter;
+	demod->dvb_adapter = aml_dvb_get_adapter(aml_get_dvb_extern_dev());
 
 	demod->attach(demod, true);
 

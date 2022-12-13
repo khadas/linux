@@ -467,6 +467,18 @@ static const struct tuner_module tuner_modules[] = {
 	}
 };
 
+static tn_attach_cb pt[AM_TUNER_MAX];
+int tuner_attach_register_cb(const enum tuner_type type, tn_attach_cb funcb)
+{
+	if (type > 0 && type < AM_TUNER_MAX) {
+		pr_err("%s: register tuner type %d\n", __func__, type);
+		pt[type] = funcb;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(tuner_attach_register_cb);
+
 static struct dvb_frontend *aml_attach_detach_tuner(
 		const enum tuner_type type,
 		struct dvb_frontend *fe,
@@ -474,6 +486,13 @@ static struct dvb_frontend *aml_attach_detach_tuner(
 		int attach)
 {
 	struct dvb_frontend *p = NULL;
+
+	if (type > 0 && type < AM_TUNER_MAX) {
+		if (pt[type]) {
+			pr_err("%s: cb id %d\n", __func__, type);
+			return pt[type](fe, cfg);
+		}
+	}
 
 	switch (type) {
 	case AM_TUNER_SI2176:

@@ -28,6 +28,7 @@
 #include <linux/amlogic/aml_key.h>
 #include <linux/amlogic/tee_demux.h>
 #include <linux/amlogic/cpu_version.h>
+#include <media/dvb_frontend.h>
 
 #include "aml_dvb.h"
 #include "am_key.h"
@@ -589,23 +590,27 @@ struct aml_dvb *aml_get_dvb_device(void)
 }
 EXPORT_SYMBOL(aml_get_dvb_device);
 
-struct dvb_adapter *aml_get_dvb_adapter(void)
-{
-	return &aml_dvb_device.dvb_adapter;
-}
-EXPORT_SYMBOL(aml_get_dvb_adapter);
-
 struct device *aml_get_device(void)
 {
 	return aml_dvb_device.dev;
 }
 
+struct dvb_adapter *aml_get_dvb_adapter(void)
+{
+	struct device *dev = aml_get_device();
+
+	return aml_dvb_get_adapter(dev);
+}
+EXPORT_SYMBOL(aml_get_dvb_adapter);
+
 static int aml_dvb_remove(struct platform_device *pdev)
 {
 	struct aml_dvb *advb;
+	struct dvb_adapter *padapter;
 	int i;
 
 	advb = &aml_dvb_device;
+	padapter = aml_dvb_get_adapter(advb->dev);
 
 	for (i = 0; i < dmx_dev_num; i++) {
 		if (advb->tsp[i])
@@ -630,7 +635,7 @@ static int aml_dvb_remove(struct platform_device *pdev)
 	ts_output_destroy();
 
 	mutex_destroy(&advb->mutex);
-	dvb_unregister_adapter(&advb->dvb_adapter);
+	aml_dvb_put_adapter(padapter);
 	class_unregister(&aml_stb_class);
 	dmx_unregist_dmx_class();
 
@@ -693,6 +698,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	int tsn_in_reg = 0;
 	int valid_ts = 0;
 	char buf[255];
+	struct dvb_adapter *padater;
 
 	dprint("probe amlogic dvb driver [%s].\n", DVB_VERSION);
 	memset(&buf, 0, sizeof(buf));
@@ -705,10 +711,11 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	advb->dev = &pdev->dev;
 	advb->pdev = pdev;
 
-	ret = dvb_register_adapter(&advb->dvb_adapter, CARD_NAME, THIS_MODULE,
-				   advb->dev, adapter_nr);
-	if (ret < 0)
-		return ret;
+	padater = aml_dvb_get_adapter(advb->dev);
+//	ret = dvb_register_adapter(padater, CARD_NAME, THIS_MODULE,
+//				   advb->dev, adapter_nr);
+//	if (ret < 0)
+//		return ret;
 
 	mutex_init(&advb->mutex);
 
@@ -759,7 +766,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 		advb->dmx[i].ts_index = valid_ts;
 		advb->dmx[i].demod_sid = advb->ts[advb->dmx[i].ts_index].ts_sid;
 		advb->dmx[i].local_sid = i;
-		ret = dmx_init(&advb->dmx[i], &advb->dvb_adapter);
+		ret = dmx_init(&advb->dmx[i], padater);
 		if (ret)
 			goto INIT_ERR;
 
@@ -770,7 +777,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 		advb->dsc[i].demod_sid = advb->dmx[i].demod_sid;
 		advb->dsc[i].local_sid = i;
 
-		ret = dsc_init(&advb->dsc[i], &advb->dvb_adapter);
+		ret = dsc_init(&advb->dsc[i], padater);
 		if (ret)
 			goto INIT_ERR;
 	}

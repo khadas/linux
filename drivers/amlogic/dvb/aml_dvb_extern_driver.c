@@ -30,6 +30,8 @@
 #define AML_DVB_EXTERN_VERSION    "V1.09"
 
 static struct dvb_extern_device *dvb_extern_dev;
+static struct mutex dvb_extern_mutex;
+
 
 static char *fe_type_name[] = {
 	"FE_QPSK",
@@ -116,6 +118,43 @@ void aml_dvb_extern_work(struct work_struct *work)
 		else if (tops->fe.ops.tuner_ops.init)
 			tops->fe.ops.tuner_ops.init(&tops->fe);
 	}
+}
+
+void aml_attach_work(struct work_struct *work)
+{
+	struct dvb_demod *demod = get_dvb_demods();
+	struct demod_ops *demod_ops = NULL;
+	struct aml_attach_work *p = NULL;
+	int cur_id = 0;
+
+	mutex_lock(&dvb_extern_mutex);
+
+	p = container_of(work, struct aml_attach_work, work);
+	cur_id = p->cur_id;
+
+	demod->attach(demod, true);
+	demod->detect(demod);
+	demod->register_frontend(demod, true);
+	demod->pre_init(demod);
+
+	if (cur_id >= dvb_extern_dev->demod_num) {
+		pr_err("demod index %d error, the max is %d, use default %d.\n",
+				cur_id, dvb_extern_dev->demod_num - 1,
+				dvb_extern_dev->demod_cur);
+		mutex_unlock(&dvb_extern_mutex);
+		return;
+	}
+
+	dvb_extern_dev->demod_cur = cur_id;
+	demod_ops = dvb_demod_ops_get_byindex(dvb_extern_dev->demod_cur);
+	if (demod_ops && demod_ops->fe) {
+		dvb_extern_dev->demod_fe = demod_ops->fe;
+		demod->used = demod_ops;
+		pr_err("%s demod %d attach done.\n", __func__,
+			dvb_extern_dev->demod_cur);
+	}
+
+	mutex_unlock(&dvb_extern_mutex);
 }
 
 static ssize_t tuner_debug_store(struct class *class,
@@ -538,7 +577,7 @@ static ssize_t tuner_debug_show(struct class *class,
 static ssize_t demod_debug_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	int n = 0, demod_id = 0, fe_type = 0, ret = 0;
+	int n = 0, fe_type = 0, ret = 0;
 	unsigned int delay = 0;
 	char *buf_orig = NULL, *ps = NULL, *token = NULL, *name = NULL;
 	char *parm[10] = { NULL };
@@ -718,37 +757,13 @@ static ssize_t demod_debug_store(struct class *class,
 		if (fe->ops.sleep)
 			fe->ops.sleep(fe);
 	} else if (!strncmp(parm[0], "attach", 6)) {
-		demod->attach(demod, true);
+		mutex_lock(&dvb_extern_mutex);
 		if (parm[1] && !kstrtoul(parm[1], 0, &val))
-			demod_id = val;
+			dvb_extern_dev->attach_work.cur_id = val;
 		else
-			demod_id = 0;
-
-		if (demod_id >= dev->demod_num) {
-			pr_err("demod index %d error, the max is %d, use default %d.\n",
-					demod_id, dev->demod_num - 1,
-					dev->demod_cur);
-
-			goto EXIT;
-		}
-
-		dev->demod_cur = demod_id;
-		ops = dvb_demod_ops_get_byindex(dev->demod_cur);
-		if (ops && ops->fe) {
-			dev->demod_fe = ops->fe;
-			//memcpy(&fe->ops, &ops->fe->ops,
-			//		sizeof(struct dvb_frontend_ops));
-			//memcpy(&fe->dtv_property_cache,
-			//		&ops->fe->dtv_property_cache,
-			//		sizeof(struct dtv_frontend_properties));
-
-			//fe->demodulator_priv = ops->fe->demodulator_priv;
-			//fe->frontend_priv = ops->fe->frontend_priv;
-
-			demod->used = ops;
-
-			pr_err("demod %d attach done.\n", dev->demod_cur);
-		}
+			dvb_extern_dev->attach_work.cur_id = 0;
+		mutex_unlock(&dvb_extern_mutex);
+		schedule_work(&dvb_extern_dev->attach_work.work);
 	} else if (!strncmp(parm[0], "detach", 6)) {
 		demod->attach(demod, false);
 
@@ -1276,6 +1291,11 @@ static const struct of_device_id aml_dvb_extern_dt_match[] = {
 	}
 };
 
+struct device *aml_get_dvb_extern_dev(void)
+{
+	return dvb_extern_dev->dev;
+}
+
 static int aml_dvb_extern_probe(struct platform_device *pdev)
 {
 	int ret = -1, i = 0;
@@ -1329,7 +1349,7 @@ static int aml_dvb_extern_probe(struct platform_device *pdev)
 
 	cdevno_maj = register_chrdev(cdevno_maj, AML_DVB_EXTERN_DEVICE_NAME, &cfg_dev_fops);
 	dvbdev->cfgdevno = MKDEV(cdevno_maj, cdevno_min);
-	pr_err("aml_dvb_cfgdev: MAJOR Number %d, MINOR Numbe %d\n",
+	pr_debug("aml_dvb_cfgdev: MAJOR Number %d, MINOR Numbe %d\n",
 		MAJOR(dvbdev->cfgdevno), MINOR(dvbdev->cfgdevno));
 
 	pcfgdev = device_create(&dvbdev->class, NULL, dvbdev->cfgdevno,
@@ -1489,7 +1509,9 @@ PROPERTY_DEMOD:
 	aml_demod_gpio_config(&dvbdev->dvb_power, "dvb_power");
 	aml_dvb_extern_set_power(&dvbdev->dvb_power, 1);
 
+	mutex_init(&dvb_extern_mutex);
 	INIT_WORK(&dvbdev->work, aml_dvb_extern_work);
+	INIT_WORK(&dvbdev->attach_work.work, aml_attach_work);
 
 PROPERTY_DONE:
 	dvb_extern_dev = dvbdev;
