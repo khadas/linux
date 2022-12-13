@@ -414,7 +414,7 @@ extern s32 destroy_encode_work_queue(struct encode_wq_s *encode_work_queue);
 
 #define IE_ME_MB_TYPE               HCODEC_HENC_SCRATCH_D
 
-/* bit 0-4, IE_PIPPELINE_BLOCK
+/* bit 0-4, IE_PIPELINE_BLOCK
  * bit 5    me half pixel in m8
  *		disable i4x4 in gxbb
  * bit 6    me step2 sub pixel in m8

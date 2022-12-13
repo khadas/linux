@@ -307,7 +307,7 @@ struct h264_qos_data_node_t {
 
 	uint32_t b_offset;
 	int poc;
-	/* picture qos infomation*/
+	/* picture qos information*/
 	int max_qp;
 	int avg_qp;
 	int min_qp;
@@ -359,7 +359,7 @@ static int vh264_stop(int mode);
 static s32 vh264_init(void);
 
 
-#define DFS_HIGH_THEASHOLD 3
+#define DFS_HIGH_THRESHOLD 3
 
 static bool pts_discontinue;
 
@@ -1409,7 +1409,7 @@ static void load_qos_data(int pic_number, uint32_t b_offset)
 			pr_info("get a node:0x%p\n", node);
 			*/
 		} else {
-			pr_info("there is no qos data node avaible\n");
+			pr_info("there is no qos data node available\n");
 
 			return;
 		}
@@ -2898,7 +2898,7 @@ static void vh264_isr(void)
 
 			/* on second IDR frame,check the diff between pts
 			 *  compute from duration and pts from lookup ,
-			 * if large than frame_dur,we think it is uncorrect.
+			 * if large than frame_dur,we think it is incorrect.
 			 */
 			pts_lookup_save = pts;
 			pts_valid_save = pts_valid;
@@ -3237,7 +3237,7 @@ static void vh264_isr(void)
 		vh264_running = 0;
 		fatal_error_flag = DECODER_FATAL_ERROR_UNKNOWN;
 		/* this is fatal error, need restart */
-		pr_info("fatal error happend\n");
+		pr_info("fatal error happened\n");
 		amvdec_stop();
 		if (!fatal_error_reset)
 			schedule_work(&error_wd_work);
@@ -3343,7 +3343,7 @@ static void vh264_put_timer_func(struct timer_list *timer)
 	unsigned int wait_i_pass_frames;
 	unsigned int reg_val;
 
-	enum receviver_start_e state = RECEIVER_INACTIVE;
+	enum receiver_start_e state = RECEIVER_INACTIVE;
 
 	if (vh264_reset) {
 		pr_info("operation forbidden in timer !\n");
@@ -4138,7 +4138,7 @@ static void stream_switching_done(void)
 	pr_info("Leaving switching mode.\n");
 }
 
-/* construt a new frame as a copy of last frame so frame receiver can
+/* construct a new frame as a copy of last frame so frame receiver can
  * release all buffer resources to decoder.
  */
 static void stream_switching_do(struct work_struct *work)
@@ -4191,13 +4191,13 @@ static void stream_switching_do(struct work_struct *work)
 
 #if 0
 
-		pr_info("src yaddr[0x%x] index[%d] width[%d] heigth[%d]\n",
+		pr_info("src yaddr[0x%x] index[%d] width[%d] height[%d]\n",
 			buffer_spec[buffer_index].y_addr,
 			buffer_spec[buffer_index].y_canvas_index,
 			buffer_spec[buffer_index].y_canvas_width,
 			buffer_spec[buffer_index].y_canvas_height);
 
-		pr_info("src uaddr[0x%x] index[%d] width[%d] heigth[%d]\n",
+		pr_info("src uaddr[0x%x] index[%d] width[%d] height[%d]\n",
 			buffer_spec[buffer_index].u_addr,
 			buffer_spec[buffer_index].u_canvas_index,
 			buffer_spec[buffer_index].u_canvas_width,

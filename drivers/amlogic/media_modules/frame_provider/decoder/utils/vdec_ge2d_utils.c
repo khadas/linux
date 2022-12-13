@@ -42,76 +42,76 @@ enum videocom_source_type {
 	DECODER_10BIT_TOP
 };
 
-static void vdec_canvas_cache_free(struct vdec_canvas_cache *canche)
+static void vdec_canvas_cache_free(struct vdec_canvas_cache *cache)
 {
 	int i = -1;
 
-	for (i = 0; i < ARRAY_SIZE(canche->res); i++) {
-		if (canche->res[i].cid > 0) {
+	for (i = 0; i < ARRAY_SIZE(cache->res); i++) {
+		if (cache->res[i].cid > 0) {
 			if (vdec_ge2d_debug)
 				pr_info("canvas-free, name:%s, canvas id:%d\n",
-					canche->res[i].name,
-					canche->res[i].cid);
+					cache->res[i].name,
+					cache->res[i].cid);
 
-			canvas_pool_map_free_canvas(canche->res[i].cid);
+			canvas_pool_map_free_canvas(cache->res[i].cid);
 
-			canche->res[i].cid = 0;
+			cache->res[i].cid = 0;
 		}
 	}
 }
 
 static void vdec_canvas_cache_put(struct vdec_ge2d *ge2d)
 {
-	struct vdec_canvas_cache *canche = &ge2d->canche;
+	struct vdec_canvas_cache *cache = &ge2d->cache;
 
-	mutex_lock(&canche->lock);
+	mutex_lock(&cache->lock);
 
-	pr_info("canvas-put, ref:%d\n", canche->ref);
+	pr_info("canvas-put, ref:%d\n", cache->ref);
 
-	canche->ref--;
+	cache->ref--;
 
-	if (canche->ref == 0) {
-		vdec_canvas_cache_free(canche);
+	if (cache->ref == 0) {
+		vdec_canvas_cache_free(cache);
 	}
 
-	mutex_unlock(&canche->lock);
+	mutex_unlock(&cache->lock);
 }
 
 static int vdec_canvas_cache_get(struct vdec_ge2d *ge2d, char *usr)
 {
-	struct vdec_canvas_cache *canche = &ge2d->canche;
+	struct vdec_canvas_cache *cache = &ge2d->cache;
 	int i;
 
-	mutex_lock(&canche->lock);
+	mutex_lock(&cache->lock);
 
-	canche->ref++;
+	cache->ref++;
 
-	for (i = 0; i < ARRAY_SIZE(canche->res); i++) {
-		if (canche->res[i].cid <= 0) {
-			snprintf(canche->res[i].name, 32, "%s-%d", usr, i);
-			canche->res[i].cid =
-				canvas_pool_map_alloc_canvas(canche->res[i].name);
+	for (i = 0; i < ARRAY_SIZE(cache->res); i++) {
+		if (cache->res[i].cid <= 0) {
+			snprintf(cache->res[i].name, 32, "%s-%d", usr, i);
+			cache->res[i].cid =
+				canvas_pool_map_alloc_canvas(cache->res[i].name);
 		}
 
 		if (vdec_ge2d_debug)
 			pr_info("canvas-alloc, name:%s, canvas id:%d\n",
-				canche->res[i].name,
-				canche->res[i].cid);
+				cache->res[i].name,
+				cache->res[i].cid);
 
-		if (canche->res[i].cid <= 0) {
+		if (cache->res[i].cid <= 0) {
 			pr_err("canvas-fail, name:%s, canvas id:%d.\n",
-				canche->res[i].name,
-				canche->res[i].cid);
+				cache->res[i].name,
+				cache->res[i].cid);
 
-			mutex_unlock(&canche->lock);
+			mutex_unlock(&cache->lock);
 			goto err;
 		}
 	}
 
 	if (vdec_ge2d_debug)
-		pr_info("canvas-get, ref:%d\n", canche->ref);
+		pr_info("canvas-get, ref:%d\n", cache->ref);
 
-	mutex_unlock(&canche->lock);
+	mutex_unlock(&cache->lock);
 	return 0;
 err:
 	vdec_canvas_cache_put(ge2d);
@@ -120,10 +120,10 @@ err:
 
 static int vdec_canvas_cache_init(struct vdec_ge2d *ge2d)
 {
-	ge2d->canche.ref = 0;
-	mutex_init(&ge2d->canche.lock);
+	ge2d->cache.ref = 0;
+	mutex_init(&ge2d->cache.lock);
 
-	pr_info("canvas-init, ref:%d\n", ge2d->canche.ref);
+	pr_info("canvas-init, ref:%d\n", ge2d->cache.ref);
 
 	return 0;
 }
@@ -159,11 +159,11 @@ static int get_source_type(struct vframe_s *vf)
 static int get_input_format(struct vframe_s *vf)
 {
 	int format = GE2D_FORMAT_M24_YUV420;
-	enum videocom_source_type soure_type;
+	enum videocom_source_type source_type;
 
-	soure_type = get_source_type(vf);
+	source_type = get_source_type(vf);
 
-	switch (soure_type) {
+	switch (source_type) {
 	case DECODER_8BIT_NORMAL:
 		if (vf->type & VIDTYPE_VIU_422)
 			format = GE2D_FORMAT_S16_YUV422;
@@ -277,12 +277,12 @@ int vdec_ge2d_init(struct vdec_ge2d** ge2d_handle, int mode)
 
 	if (vdec_canvas_cache_get(ge2d, "vdec-ge2d-dec") < 0) {
 		pr_err("canvas pool alloc fail. src(%d, %d, %d) dst(%d, %d, %d).\n",
-			ge2d->canche.res[0].cid,
-			ge2d->canche.res[1].cid,
-			ge2d->canche.res[2].cid,
-			ge2d->canche.res[3].cid,
-			ge2d->canche.res[4].cid,
-			ge2d->canche.res[5].cid);
+			ge2d->cache.res[0].cid,
+			ge2d->cache.res[1].cid,
+			ge2d->cache.res[2].cid,
+			ge2d->cache.res[3].cid,
+			ge2d->cache.res[4].cid,
+			ge2d->cache.res[5].cid);
 		ret = -ENOMEM;
 		goto error1;
 	}
@@ -350,18 +350,18 @@ int vdec_ge2d_copy_data(struct vdec_ge2d *ge2d, struct vdec_ge2d_info *ge2d_info
 
 	ge2d_info->dst_vf->mem_sec = ge2d_info->dst_vf->flag & VFRAME_FLAG_VIDEO_SECURE ? 1 : 0;
 
-	mutex_lock(&ge2d->canche.lock);
+	mutex_lock(&ge2d->cache.lock);
 
 	/* src canvas configure. */
 	if ((ge2d_info->dst_vf->canvas0Addr == 0) ||
 		(ge2d_info->dst_vf->canvas0Addr == (u32)-1)) {
-		canvas_config_config(ge2d->canche.res[0].cid, &ge2d_info->src_canvas0_config[0]);
-		canvas_config_config(ge2d->canche.res[1].cid, &ge2d_info->src_canvas0_config[1]);
-		canvas_config_config(ge2d->canche.res[2].cid, &ge2d_info->src_canvas0_config[2]);
+		canvas_config_config(ge2d->cache.res[0].cid, &ge2d_info->src_canvas0_config[0]);
+		canvas_config_config(ge2d->cache.res[1].cid, &ge2d_info->src_canvas0_config[1]);
+		canvas_config_config(ge2d->cache.res[2].cid, &ge2d_info->src_canvas0_config[2]);
 		ge2d_config.src_para.canvas_index =
-			ge2d->canche.res[0].cid |
-			ge2d->canche.res[1].cid << 8 |
-			ge2d->canche.res[2].cid << 16;
+			ge2d->cache.res[0].cid |
+			ge2d->cache.res[1].cid << 8 |
+			ge2d->cache.res[2].cid << 16;
 
 		ge2d_config.src_planes[0].addr =
 			ge2d_info->src_canvas0_config[0].phy_addr;
@@ -400,20 +400,20 @@ int vdec_ge2d_copy_data(struct vdec_ge2d *ge2d, struct vdec_ge2d_info *ge2d_info
 		ge2d_config.src_para.height = ge2d_info->dst_vf->height;
 
 	/* dst canvas configure. */
-	canvas_config_config(ge2d->canche.res[3].cid, &ge2d_info->dst_vf->canvas0_config[0]);
+	canvas_config_config(ge2d->cache.res[3].cid, &ge2d_info->dst_vf->canvas0_config[0]);
 	if ((ge2d_config.src_para.format & 0xfffff) == GE2D_FORMAT_M24_YUV420) {
 		ge2d_info->dst_vf->canvas0_config[1].width <<= 1;
 	}
-	canvas_config_config(ge2d->canche.res[4].cid, &ge2d_info->dst_vf->canvas0_config[1]);
-	canvas_config_config(ge2d->canche.res[5].cid, &ge2d_info->dst_vf->canvas0_config[2]);
+	canvas_config_config(ge2d->cache.res[4].cid, &ge2d_info->dst_vf->canvas0_config[1]);
+	canvas_config_config(ge2d->cache.res[5].cid, &ge2d_info->dst_vf->canvas0_config[2]);
 	ge2d_config.dst_para.canvas_index =
-		ge2d->canche.res[3].cid |
-		ge2d->canche.res[4].cid << 8;
-	canvas_read(ge2d->canche.res[3].cid, &cd);
+		ge2d->cache.res[3].cid |
+		ge2d->cache.res[4].cid << 8;
+	canvas_read(ge2d->cache.res[3].cid, &cd);
 	ge2d_config.dst_planes[0].addr	= cd.addr;
 	ge2d_config.dst_planes[0].w	= cd.width;
 	ge2d_config.dst_planes[0].h	= cd.height;
-	canvas_read(ge2d->canche.res[4].cid, &cd);
+	canvas_read(ge2d->cache.res[4].cid, &cd);
 	ge2d_config.dst_planes[1].addr	= cd.addr;
 	ge2d_config.dst_planes[1].w	= cd.width;
 	ge2d_config.dst_planes[1].h	= cd.height;
@@ -443,7 +443,7 @@ int vdec_ge2d_copy_data(struct vdec_ge2d *ge2d, struct vdec_ge2d_info *ge2d_info
 
 	if (ge2d_context_config_ex(ge2d->ge2d_context, &ge2d_config) < 0) {
 		pr_err("vdec_ge2d_context_config_ex error.\n");
-		mutex_unlock(&ge2d->canche.lock);
+		mutex_unlock(&ge2d->cache.lock);
 		return -1;
 	}
 
@@ -458,7 +458,7 @@ int vdec_ge2d_copy_data(struct vdec_ge2d *ge2d, struct vdec_ge2d_info *ge2d_info
 				0, 0, ge2d_info->dst_vf->width, ge2d_info->dst_vf->height);
 		}
 	}
-	mutex_unlock(&ge2d->canche.lock);
+	mutex_unlock(&ge2d->cache.lock);
 	if (vdec_ge2d_debug)
 		pr_info("vdec_ge2d_copy_data done\n");
 

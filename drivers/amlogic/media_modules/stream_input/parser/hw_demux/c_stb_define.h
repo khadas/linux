@@ -165,13 +165,13 @@
 /* Bit 19:14 -- des_2 ts pl state   -- Read Only*/
 /* Bit 13:8 -- des ts pl state   -- Read Only*/
 /* Bit 3:0 PID index to 8 PID to get key-set*/
-/* auto increse after TS_PL_PID_DATA read/write*/
+/* auto increase after TS_PL_PID_DATA read/write*/
 /*#define TS_PL_PID_INDEX         (STB_CBUS_BASE + 0xf3) // 0x16f3*/
 /*----------- bit define -----------*/
 #define DES_TS_PL_STATE             8
 #define DES_2_TS_PL_STATE           14
 
-/* Bit 13 -- PID match disble*/
+/* Bit 13 -- PID match disable*/
 /* Bit 12:0 -- PID*/
 /*#define TS_PL_PID_DATA          (STB_CBUS_BASE + 0xf4) // 0x16f4*/
 /*----------- bit define -----------*/
@@ -274,7 +274,7 @@
 /* Bit 8 - (table_id == 0xff) means section_end*/
 /* Bit 7 - do not send uncomplete section*/
 /* Bit 6 - do not discard duplicate package*/
-/* Bit 5 - search SOP when trasport_error_indicator*/
+/* Bit 5 - search SOP when transport_error_indicator*/
 /* Bit 4 - stb demux enable*/
 /* Bit 3 - do not reset state machine on SOP*/
 /* Bit 2 - search SOP when error happened
@@ -297,19 +297,19 @@
 #define INSERT_VIDEO_PES_STRONG_SYNC            16
 #define SECTION_LENGTH_UNTRUSTY                 15
 #define OM_CMD_PUSH_EVEN_ZERO                   14
-#define OTHER_INT_AT_PES_BEGINING               12
+#define OTHER_INT_AT_PES_BEGINNING               12
 #define DISCARD_AV_PACKAGE                      11
 #define TS_RECORDER_SELECT                      10
 #define TS_RECORDER_ENABLE                      9
 #define SECTION_END_WITH_TABLE_ID               8
 #define SEND_COMPLETE_SECTION_ONLY              7
 #define KEEP_DUPLICATE_PACKAGE                  6
-#define SEACH_SOP_ON_TRANSPORT_ERROR            5
+#define SEARCH_SOP_ON_TRANSPORT_ERROR            5
 #define STB_DEMUX_ENABLE                        4
 #define NO_RESET_ON_SOP                         3
 #define SEARCH_SOP_ON_ERROR                     2
 #define NOT_USE_OF_SOP_INPUT                    1
-#define IGNORE_NONSOP_FEC_ERROR                 0
+#define IGNORE_NON_SOP_FEC_ERROR                0
 
 /* bit 15:8 demux package length - 1 ( default : 187 )*/
 /* bit 7:0 default is 0x47*/
@@ -323,7 +323,7 @@
 /****************************************
  * FM Memory Usage :
  * 0-15 (32 PID filter target) ---- 15:13-PID type 12:0-PID target or force data
- * (force data : 1 will mask corespoding bit,
+ * (force data : 1 will mask corresponding bit,
  * 0 will disable this PID filter channel)
  * advanced setting --	bit 7:0
  *                      bit 7 -- PID bit 12:11 compare result force
@@ -730,7 +730,7 @@
 #define TS_ERROR_PACKAGE           1
 #define TS_ERROR_PIN               0
 
-/* When Bit 31 - 1 write will indicate all type use sepertate endian
+/* When Bit 31 - 1 write will indicate all type use separate endian
  * (Write Only)*/
 /* When Bit 31 - 0 write will indicate all type else use Bit 8:6*/
 /* Bit 23:21 - demux om write endian control for OTHER_PES_PACKET*/
@@ -748,7 +748,7 @@
 /*#define DEMUX_ENDIAN_3
  * (STB_CBUS_BASE + DEMUX_3_OFFSET + 0x24)  // 0x16c4*/
 /*----------- bit define -----------*/
-#define SEPERATE_ENDIAN            31
+#define SEPARATE_ENDIAN            31
 #define OTHER_PES_ENDIAN           21
 #define SCR_ENDIAN                 18
 #define SUB_ENDIAN                 15

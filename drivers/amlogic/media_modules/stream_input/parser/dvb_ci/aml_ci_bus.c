@@ -312,7 +312,7 @@ static int aml_ci_bus_io(struct aml_ci_bus *ci_bus_dev,
 		if (count < aml_ci_bus_time)
 			break;
 	}
-	//enable delay reg,defalue is disable
+	//enable delay reg,default is disable
 	if (aml_ci_bus_set_delay)
 		aml_ci_bus_set_delay_time(mode);
 	//cmd vilad
@@ -339,7 +339,7 @@ static int aml_ci_bus_io(struct aml_ci_bus *ci_bus_dev,
 	WRITE_CIBUS_REG(CIPLUS_CTRL_REG, ctrl);
 	//Wwrite cmd reg
 	WRITE_CIBUS_REG(CIPLUS_CMD_REG, reg);
-	//wait cmp irq or timwout irq
+	//wait cmp irq or timeout irq
 	if (USED_IRQ == 1) {
 		ret =
 			wait_event_interruptible_timeout(wq, fetch_done != 0,
@@ -380,13 +380,13 @@ static int aml_ci_bus_init_reg(struct aml_ci_bus *ci_bus_dev)
 
 	//init ci bus reg
 	pr_dbg("aml_ci_bus_init_reg---\r\n");
-    ctrl = READ_CIBUS_REG(CIPLUS_CTRL_REG);
+	ctrl = READ_CIBUS_REG(CIPLUS_CTRL_REG);
 	ctrl = ctrl | (1 << CI_ENABLE);
 	ctrl = ctrl | (1 << ENABLE_CMP_IRQ);
 	WRITE_CIBUS_REG(CIPLUS_CTRL_REG, ctrl);
 
-    ctrl = 0;
-	ctrl = ctrl | (1 << ENABEL_TIMEOUT_IRQ);
+	ctrl = 0;
+	ctrl = ctrl | (1 << ENABLE_TIMEOUT_IRQ);
 	ctrl = ctrl | (TIMEOUT_IRQ_HOLD_TIME << WATT_TIMEOUT_TIME);
 	//timeout hold time
 	//WRITE_CIBUS_REG(CIPLUS_WAIT_TIMEOUT, ctrl);
@@ -517,12 +517,12 @@ static  int aml_ci_bus_mem_read(
 	struct aml_ci *ci_dev, int slot, int addr)
 {
 	u8  data = 0;
-	u16 addres = addr;
+	u16 address = addr;
 	int value = 0;
 	struct aml_ci_bus *ci_bus_dev = ci_dev->data;
 	mutex_lock(&(ci_bus_dev->mutex));
 	aml_ci_bus_select_gpio(ci_bus_dev, AML_GPIO_ADDR);
-	value = aml_ci_bus_io(ci_bus_dev, data, addres, AM_CI_CMD_MEMR);
+	value = aml_ci_bus_io(ci_bus_dev, data, address, AM_CI_CMD_MEMR);
 	mutex_unlock(&(ci_bus_dev->mutex));
 	return value;
 }
@@ -539,12 +539,12 @@ static int aml_ci_bus_mem_write(
 	struct aml_ci *ci_dev, int slot, int addr,  u8 val)
 {
 	u8  data = val;
-	u16 addres = addr;
+	u16 address = addr;
 	int value = 0;
 	struct aml_ci_bus *ci_bus_dev = ci_dev->data;
 	mutex_lock(&(ci_bus_dev->mutex));
 	aml_ci_bus_select_gpio(ci_bus_dev, AML_GPIO_ADDR);
-	value = aml_ci_bus_io(ci_bus_dev, data, addres, AM_CI_CMD_MEMW);
+	value = aml_ci_bus_io(ci_bus_dev, data, address, AM_CI_CMD_MEMW);
 	mutex_unlock(&(ci_bus_dev->mutex));
 	return value;
 }
@@ -560,12 +560,12 @@ static int aml_ci_bus_io_read(
 	struct aml_ci *ci_dev, int slot, int addr)
 {
 	u8  data = 0;
-	u16 addres = addr;
+	u16 address = addr;
 	int value = 0;
 	struct aml_ci_bus *ci_bus_dev = ci_dev->data;
 	mutex_lock(&(ci_bus_dev->mutex));
 	aml_ci_bus_select_gpio(ci_bus_dev, AML_GPIO_TS);
-	value = aml_ci_bus_io(ci_bus_dev, data, addres, AM_CI_CMD_IOR);
+	value = aml_ci_bus_io(ci_bus_dev, data, address, AM_CI_CMD_IOR);
 	mutex_unlock(&(ci_bus_dev->mutex));
 	return value;
 }
@@ -582,12 +582,12 @@ static int aml_ci_bus_io_write(
 	struct aml_ci *ci_dev, int slot, int addr, u8 val)
 {
 	u8  data = val;
-	u16 addres = addr;
+	u16 address = addr;
 	int value = 0;
 	struct aml_ci_bus *ci_bus_dev = ci_dev->data;
 	mutex_lock(&(ci_bus_dev->mutex));
 	aml_ci_bus_select_gpio(ci_bus_dev, AML_GPIO_TS);
-	value = aml_ci_bus_io(ci_bus_dev, data, addres, AM_CI_CMD_IOW);
+	value = aml_ci_bus_io(ci_bus_dev, data, address, AM_CI_CMD_IOW);
 	mutex_unlock(&(ci_bus_dev->mutex));
 	return value;
 }
@@ -1101,7 +1101,7 @@ int aml_ci_bus_init(struct platform_device *pdev, struct aml_ci *ci_dev)
 					IRQF_SHARED|IRQF_TRIGGER_RISING,
 					"ciplus cmp irq", ci_bus_dev);
 			if (irq == 0)
-				pr_dbg("request cmp irq sucess\r\n");
+				pr_dbg("request cmp irq success\r\n");
 			else if (irq == -EBUSY)
 				pr_err("request cmp irq busy\r\n");
 			else
@@ -1119,7 +1119,7 @@ int aml_ci_bus_init(struct platform_device *pdev, struct aml_ci *ci_dev)
 					IRQF_SHARED|IRQF_TRIGGER_RISING,
 					"ciplus timeout irq", ci_bus_dev);
 			if (irq == 0)
-				pr_err("request timeout irq sucess\r\n");
+				pr_err("request timeout irq success\r\n");
 			else if (irq == -EBUSY)
 				pr_err("request timeout irq busy\r\n");
 			else
@@ -1269,18 +1269,18 @@ end:
 
 			reg = aml_ci_bus_io_read(ci_dev, 0, COM_STA_REG);
 			if ((reg & DA) == DA) {
-				pr_dbg("Buffer negotiate size date avalible.\r\n");
+				pr_dbg("Buffer negotiate size date available.\r\n");
 				break;
 			} else {
 				/*pr_dbg("Buffer negotiate
-				size date NOT avalible\r\n");*/
+				size date NOT available\r\n");*/
 				continue;
 			}
 			mdelay(100);
 		}
 		cnt = (aml_ci_bus_io_read(ci_dev, 0, SIZE_REG_L)) +
 		((aml_ci_bus_io_read(ci_dev, 0, SIZE_REG_M)) * 256);
-		pr_dbg("Moudle have <%d> Bytes send to host.\r\n", cnt);
+		pr_dbg("Module have <%d> Bytes send to host.\r\n", cnt);
 		if (cnt != 2) {
 			pr_dbg("The Bytes will be tx is ERR!\r\n");
 			return;

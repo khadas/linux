@@ -872,7 +872,7 @@ void dvb_ca_en50221_cimax_frda_irq(struct dvb_ca_en50221_cimax *pubca,
 
 	switch (ca->slot_info[slot].slot_state) {
 	case DVB_CA_SLOTSTATE_LINKINIT:
-		flags = ca->pub->get_capbility(pubca, slot);
+		flags = ca->pub->get_capability(pubca, slot);
 		if (flags & DVB_CA_EN50221_CAP_IRQ) {
 			dprintk("CAM supports DA IRQ\n");
 			ca->slot_info[slot].da_irq_supported = 1;

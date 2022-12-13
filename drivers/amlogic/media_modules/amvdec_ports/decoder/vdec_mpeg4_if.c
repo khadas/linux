@@ -52,7 +52,7 @@ struct mpeg4_fb {
 /**
  * struct vdec_mpeg4_dec_info - decode information
  * @dpb_sz		: decoding picture buffer size
- * @resolution_changed  : resoltion change happen
+ * @resolution_changed  : resolution change happen
  * @reserved		: for 8 bytes alignment
  * @bs_dma		: Input bit-stream buffer dma address
  * @y_fb_dma		: Y frame buffer dma address
@@ -206,7 +206,7 @@ static int vdec_mpeg4_init(struct aml_vcodec_ctx *ctx, unsigned long *h_vdec)
 	if (ctx->is_drm_mode)
 		inst->vdec.port.flag |= PORT_FLAG_DRM;
 
-	/* to eable mpeg4 hw.*/
+	/* to enable mpeg4 hw.*/
 	inst->vdec.port.type	= PORT_TYPE_VIDEO;
 
 	/* probe info from the stream */

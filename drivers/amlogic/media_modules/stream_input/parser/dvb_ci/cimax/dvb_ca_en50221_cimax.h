@@ -66,7 +66,7 @@ struct dvb_ca_en50221_cimax {
 
 	int (*cam_reset)(struct dvb_ca_en50221_cimax *ca, int slot);
 	int (*read_cam_status)(struct dvb_ca_en50221_cimax *ca, int slot);
-	int (*get_capbility)(struct dvb_ca_en50221_cimax *ca, int slot);
+	int (*get_capability)(struct dvb_ca_en50221_cimax *ca, int slot);
 
 	/* Functions for controlling slots */
 	int (*slot_reset)(struct dvb_ca_en50221_cimax *ca, int slot);

@@ -61,7 +61,7 @@ typedef struct psinstance {
 	u32 mLastDoubleCheckoutPts;
 	u64 mLastDoubleCheckoutPts64;
 	u32 mDecoderDuration;
-	u32 kDoubleCheckThredhold;
+	u32 kDoubleCheckThreshold;
 	struct mutex mPtsListLock;
 	u32 mListSize;
 	u32 mLastCheckoutCurOffset;
@@ -76,7 +76,7 @@ typedef struct Pts_Server_Manage {
 typedef struct ps_alloc_para {
 	u32 mMaxCount;
 	u32 mLookupThreshold;
-	u32 kDoubleCheckThredhold;
+	u32 kDoubleCheckThreshold;
 } ptsserver_alloc_para;
 
 typedef struct checkinptssize {

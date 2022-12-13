@@ -20,7 +20,7 @@
  *
  * @brief   CIMaX+ USB Driver for linux based operating systems.
  *
- * runo Tonelli   <bruno.tonelli@smardtv.com>
+ * bruno Tonelli   <bruno.tonelli@smardtv.com>
  *                          & Franck Descours <franck.descours@smardtv.com>
  *                            for SmarDTV France, La Ciotat
  */

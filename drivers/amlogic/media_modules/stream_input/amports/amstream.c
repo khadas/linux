@@ -120,7 +120,7 @@ static int slow_input;
 
 /* #define DATA_DEBUG */
 static int use_bufferlevelx10000 = 10000;
-static int reset_canuse_buferlevel(int level);
+static int reset_canuse_bufferlevel(int level);
 
 static struct platform_device *amstream_pdev;
 struct device *amports_get_dma_device(void)
@@ -547,7 +547,7 @@ static void amstream_change_vbufsize(struct port_priv_s *priv,
 		if (priv->vdec->port_flag & PORT_FLAG_DRM)
 			pvbuf->buf_size = DEFAULT_VIDEO_BUFFER_SIZE_TVP;
 	}
-	reset_canuse_buferlevel(10000);
+	reset_canuse_bufferlevel(10000);
 }
 
 static bool port_get_inited(struct port_priv_s *priv)
@@ -3938,7 +3938,7 @@ static int show_vbuf_status_cb(struct stream_buf_s *p, char *buf)
 	if (p->flag & BUF_FLAG_IN_USE)
 		pbuf += sprintf(pbuf, "%s ", "Used");
 	else
-		pbuf += sprintf(pbuf, "%s ", "Noused");
+		pbuf += sprintf(pbuf, "%s ", "unused");
 	if (p->flag & BUF_FLAG_PARSER)
 		pbuf += sprintf(pbuf, "%s ", "Parser");
 	else
@@ -3994,7 +3994,7 @@ static ssize_t bufs_show(struct class *class, struct class_attribute *attr,
 		if (p->flag & BUF_FLAG_IN_USE)
 			pbuf += sprintf(pbuf, "%s ", "Used");
 		else
-			pbuf += sprintf(pbuf, "%s ", "Noused");
+			pbuf += sprintf(pbuf, "%s ", "unused");
 		if (p->flag & BUF_FLAG_PARSER)
 			pbuf += sprintf(pbuf, "%s ", "Parser");
 		else
@@ -4147,7 +4147,7 @@ static ssize_t vcodec_feature_show(struct class *class,
 	return vcodec_feature_read(buf);
 }
 
-static int reset_canuse_buferlevel(int levelx10000)
+static int reset_canuse_bufferlevel(int levelx10000)
 {
 	int i;
 	struct stream_buf_s *p = NULL;
@@ -4168,7 +4168,7 @@ static int reset_canuse_buferlevel(int levelx10000)
 	return 0;
 }
 
-static ssize_t canuse_buferlevel_show(struct class *class,
+static ssize_t canuse_bufferlevel_show(struct class *class,
 			struct class_attribute *attr, char *buf)
 {
 	ssize_t size = sprintf(buf,
@@ -4177,7 +4177,7 @@ static ssize_t canuse_buferlevel_show(struct class *class,
 	return size;
 }
 
-static ssize_t canuse_buferlevel_store(struct class *class,
+static ssize_t canuse_bufferlevel_store(struct class *class,
 			struct class_attribute *attr,
 			const char *buf, size_t size)
 {
@@ -4190,7 +4190,7 @@ static ssize_t canuse_buferlevel_store(struct class *class,
 	if (ret != 0)
 		return -EINVAL;
 	(void)val;
-	reset_canuse_buferlevel(val);
+	reset_canuse_bufferlevel(val);
 	return size;
 }
 
@@ -4259,7 +4259,7 @@ ssize_t dump_stream_show(struct class *class,
 {
 	char *p_buf = buf;
 
-	p_buf += sprintf(p_buf, "\nmdkir -p /data/tmp -m 777;setenforce 0;\n\n");
+	p_buf += sprintf(p_buf, "\nmkdir -p /data/tmp -m 777;setenforce 0;\n\n");
 	p_buf += sprintf(p_buf, "video:\n\t echo 0 > /sys/class/amstream/dump_stream;\n");
 	p_buf += sprintf(p_buf, "hevc :\n\t echo 4 > /sys/class/amstream/dump_stream;\n");
 
@@ -4331,7 +4331,7 @@ ssize_t dump_stream_store(struct class *class,
 		stbuf_vaddr = codec_mm_vmap(offset, vmap_size);
 		if (stbuf_vaddr == NULL) {
 			stride >>= 1;
-			pr_info("vmap fail change vmap stide size 0x%x\n", stride);
+			pr_info("vmap fail change vmap stride size 0x%x\n", stride);
 			continue;
 		}
 		codec_mm_dma_flush(stbuf_vaddr, vmap_size, DMA_FROM_DEVICE);
@@ -4368,7 +4368,7 @@ static CLASS_ATTR_RO(bufs);
 static CLASS_ATTR_RO(vcodec_profile);
 static CLASS_ATTR_RO(vcodec_feature);
 static CLASS_ATTR_RO(videobufused);
-static CLASS_ATTR_RW(canuse_buferlevel);
+static CLASS_ATTR_RW(canuse_bufferlevel);
 static CLASS_ATTR_RW(max_buffer_delay_ms);
 static CLASS_ATTR_WO(reset_audio_port);
 
@@ -4378,7 +4378,7 @@ static struct attribute *amstream_class_attrs[] = {
 	&class_attr_vcodec_profile.attr,
 	&class_attr_vcodec_feature.attr,
 	&class_attr_videobufused.attr,
-	&class_attr_canuse_buferlevel.attr,
+	&class_attr_canuse_bufferlevel.attr,
 	&class_attr_max_buffer_delay_ms.attr,
 	&class_attr_reset_audio_port.attr,
 	NULL
@@ -4520,7 +4520,7 @@ static int amstream_probe(struct platform_device *pdev)
 	tsdemux_tsync_func_init();
 	init_waitqueue_head(&amstream_sub_wait);
 	init_waitqueue_head(&amstream_userdata_wait);
-	reset_canuse_buferlevel(10000);
+	reset_canuse_bufferlevel(10000);
 	amstream_pdev = pdev;
 	amports_clock_gate_init(&amstream_pdev->dev);
 
@@ -4654,11 +4654,11 @@ MODULE_PARM_DESC(force_dv_mode,
 
 module_param(def_4k_vstreambuf_sizeM, uint, 0664);
 MODULE_PARM_DESC(def_4k_vstreambuf_sizeM,
-	"\nDefault video Stream buf size for 4K MByptes\n");
+	"\nDefault video Stream buf size for 4K MBytes\n");
 
 module_param(def_vstreambuf_sizeM, uint, 0664);
 MODULE_PARM_DESC(def_vstreambuf_sizeM,
-	"\nDefault video Stream buf size for < 1080p MByptes\n");
+	"\nDefault video Stream buf size for < 1080p MBytes\n");
 
 module_param(slow_input, uint, 0664);
 MODULE_PARM_DESC(slow_input, "\n amstream slow_input\n");

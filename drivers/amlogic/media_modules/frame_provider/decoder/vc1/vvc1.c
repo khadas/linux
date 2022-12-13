@@ -565,6 +565,10 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 				vf->plane_num = 3;
 #endif
 			}
+			if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T5D && vdec->use_vfm_path &&
+				vdec_stream_based(vdec)) {
+				vf->type |= VIDTYPE_FORCE_SIGN_IP_JOINT;
+			}
 			kfifo_put(&display_q, (const struct vframe_s *)vf);
 			ATRACE_COUNTER(MODULE_NAME, vf->pts);
 
@@ -640,6 +644,10 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 				vf->canvas0_config[2] = vc1_canvas_config[buffer_index][2];
 				vf->plane_num = 3;
 #endif
+			}
+			if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T5D && vdec->use_vfm_path &&
+				vdec_stream_based(vdec)) {
+				vf->type |= VIDTYPE_FORCE_SIGN_IP_JOINT;
 			}
 			kfifo_put(&display_q, (const struct vframe_s *)vf);
 			ATRACE_COUNTER(MODULE_NAME, vf->pts);
@@ -746,6 +754,10 @@ static irqreturn_t vvc1_isr(int irq, void *dev_id)
 				vf->canvas0_config[2] = vc1_canvas_config[buffer_index][2];
 				vf->plane_num = 3;
 #endif
+			}
+			if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T5D && vdec->use_vfm_path &&
+				vdec_stream_based(vdec)) {
+				vf->type |= VIDTYPE_FORCE_SIGN_IP_JOINT;
 			}
 			kfifo_put(&display_q, (const struct vframe_s *)vf);
 			ATRACE_COUNTER(MODULE_NAME, vf->pts);

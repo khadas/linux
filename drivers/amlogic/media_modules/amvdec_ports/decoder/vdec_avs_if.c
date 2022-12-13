@@ -42,7 +42,7 @@
 /**
  * struct vdec_avs_dec_info - decode information
  * @dpb_sz		: decoding picture buffer size
- * @resolution_changed  : resoltion change happen
+ * @resolution_changed  : resolution change happen
  * @reserved		: for 8 bytes alignment
  * @bs_dma		: Input bit-stream buffer dma address
  * @y_fb_dma		: Y frame buffer dma address
@@ -159,7 +159,7 @@ static int vdec_avs_init(struct aml_vcodec_ctx *ctx, unsigned long *h_vdec)
 	if (ctx->is_drm_mode)
 		inst->vdec.port.flag |= PORT_FLAG_DRM;
 
-	/* to eable avs hw.*/
+	/* to enable avs hw.*/
 	inst->vdec.port.type	= PORT_TYPE_VIDEO;
 
 	/* probe info from the stream */
@@ -258,7 +258,7 @@ static int parse_stream_ucode_dma(struct vdec_avs_inst *inst,
 static int parse_stream_cpu(struct vdec_avs_inst *inst, u8 *buf, u32 size)
 {
 	v4l_dbg(inst->ctx, V4L_DEBUG_CODEC_ERROR,
-		"can not suppport parse stream by cpu.\n");
+		"can not support parse stream by cpu.\n");
 
 	return -1;
 }

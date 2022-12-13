@@ -1100,7 +1100,7 @@ static void init_dpb(struct h264_dpb_stru *p_H264_Dpb, int type)
 	}
 
 	p_Dpb->num_ref_frames = active_sps->num_ref_frames;
-	/* p_Dpb->num_ref_frames initialzie in vh264.c */
+	/* p_Dpb->num_ref_frames initialize in vh264.c */
 	dpb_print(p_H264_Dpb->decoder_index, PRINT_FLAG_DPB_DETAIL,
 		  "%s dpb_size is %d  num_ref_frames = %d (%d)\n",
 		  __func__, p_Dpb->size,
@@ -1479,7 +1479,7 @@ static void insert_picture_in_dpb(struct h264_dpb_stru *p_H264_Dpb,
 	fs->is_output = p->is_output;
 	fs->pre_output = p->pre_output;
 
-	/* picture qos infomation*/
+	/* picture qos information*/
 	fs->max_mv = p->max_mv;
 	fs->avg_mv = p->avg_mv;
 	fs->min_mv = p->min_mv;
@@ -1926,7 +1926,7 @@ void bufmgr_h264_remove_unused_frame(struct h264_dpb_stru *p_H264_Dpb,
 	} else if (force_flag == 2) {
 		if (unmark_one_out_frame(p_H264_Dpb)) {
 			dpb_print(p_H264_Dpb->decoder_index,
-				0, "%s, Warnning, force unmark one frame\r\n",
+				0, "%s, Warning, force unmark one frame\r\n",
 				__func__);
 			update_ref_list(p_Dpb);
 			remove_unused_frame_from_dpb(p_H264_Dpb);
@@ -2419,18 +2419,24 @@ void dump_dpb(struct DecodedPictureBuffer *p_Dpb, u8 force)
 				DPB_STRCAT("T: poc=%d  pic_num=%d ",
 				p_Dpb->fs[i]->top_field->poc,
 				p_Dpb->fs[i]->top_field->pic_num);
-			else
+			else if (p_Dpb->fs[i]->frame != NULL) {
 				DPB_STRCAT("T: poc=%d  ",
 				p_Dpb->fs[i]->frame->top_poc);
+			}
+			else
+				DPB_STRCAT("fs[%d] frame is null ", i);
 		}
 		if (p_Dpb->fs[i]->is_used & 2) {
 			if (p_Dpb->fs[i]->bottom_field)
 				DPB_STRCAT("B: poc=%d  pic_num=%d ",
 				p_Dpb->fs[i]->bottom_field->poc,
 				p_Dpb->fs[i]->bottom_field->pic_num);
-			else
+			else if (p_Dpb->fs[i]->frame != NULL) {
 				DPB_STRCAT("B: poc=%d  ",
 				p_Dpb->fs[i]->frame->bottom_poc);
+			}
+			else
+				DPB_STRCAT("fs[%d] frame is null ", i);
 		}
 		if (p_Dpb->fs[i]->is_used == 3) {
 			if (p_Dpb->fs[i]->frame != NULL)
@@ -2661,7 +2667,7 @@ static void mm_unmark_long_term_for_reference(struct DecodedPictureBuffer
  ************************************************************************
  * \brief
  *    Mark a long-term reference frame or complementary
- *    field pair unused for referemce
+ *    field pair unused for reference
  ************************************************************************
  */
 static void unmark_long_term_frame_for_reference_by_frame_idx(
@@ -3236,6 +3242,12 @@ int store_picture_in_dpb(struct h264_dpb_stru *p_H264_Dpb,
 						update_ltref_list(p_Dpb);
 						dump_dpb(p_Dpb, 0);
 						p_Dpb->last_picture = NULL;
+
+						if (p_H264_Dpb->first_insert_frame == FirstInsertFrm_IDLE) {
+							while (output_frames(p_H264_Dpb, 0))
+								;
+						}
+
 						return 0;
 					}
 				}
@@ -4621,7 +4633,7 @@ static void reorder_short_term(struct Slice *currSlice, int cur_list,
 	}
 
 	dpb_print(p_H264_Dpb->decoder_index, PRINT_FLAG_DPB_DETAIL,
-		"%s: RefPicListX[ %d ] = pic %x (%d)\n", __func__,
+		"%s: RefPicListX[ %d ] = pic %p pic_num(%d)\n", __func__,
 		*refIdxLX, picLX, picNumLX);
 
 	RefPicListX[(*refIdxLX)++] = picLX;
@@ -4844,9 +4856,10 @@ static void reorder_lists(struct Slice *currSlice)
 				PRINT_FLAG_DPB_DETAIL,
 				"listX[0] reorder (PicNum): ");
 			for (i = 0; i < currSlice->listXsize[0]; i++) {
-				dpb_print_cont(p_H264_Dpb->decoder_index,
-					PRINT_FLAG_DPB_DETAIL, "%d  ",
-					currSlice->listX[0][i]->pic_num);
+				if (currSlice->listX[0][i])
+					dpb_print_cont(p_H264_Dpb->decoder_index,
+						PRINT_FLAG_DPB_DETAIL, "%d  ",
+						currSlice->listX[0][i]->pic_num);
 			}
 			dpb_print_cont(p_H264_Dpb->decoder_index,
 				PRINT_FLAG_DPB_DETAIL, "\n");

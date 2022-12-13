@@ -17,7 +17,7 @@
  *
  * Description:
  */
-#define LOG_LINE() pr_err("[%s:%d]\n", __FUNCTION__, __LINE__);
+//#define LOG_LINE() pr_err("[%s:%d]\n", __FUNCTION__, __LINE__);
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/mm.h>
@@ -90,7 +90,7 @@
 			printk(x); \
 	} while (0)
 
-static s32 print_level = LOG_DEBUG;
+static s32 print_level = LOG_ERROR;
 static s32 clock_level = 4;
 static s32 clock_gate_count = 0;
 static u32 set_clock_freq = 0;
@@ -203,7 +203,7 @@ static s32 dump_raw_input(struct canvas_s *cs0) {
 		file_sync(filp);
 		file_close(filp);
 	} else
-		pr_err("open encoder.yuv failed\n");
+		enc_pr(LOG_ERROR, "open encoder.yuv failed\n");
 
 	return 0;
 }
@@ -223,7 +223,7 @@ static s32 dump_data(u32 phy_addr, u32 size) {
 		file_sync(filp);
 		file_close(filp);
 	} else
-		pr_err("open encoder.es failed\n");
+		enc_pr(LOG_ERROR, "open encoder.es failed\n");
 
 	return 0;
 }
@@ -239,7 +239,7 @@ static s32 dump_data(u32 phy_addr, u32 size) {
 		file_sync(filp);
 		file_close(filp);
 	} else
-		pr_err("/data/multienc_output.es failed\n");
+		enc_pr(LOG_ERROR, "/data/multienc_output.es failed\n");
 
 	return 0;
 }*/
@@ -325,19 +325,19 @@ static void vpu_clk_enable(struct vpu_clks *clks)
 	clk_set_rate(clks->dos_apb_clk, freq * MHz);
 
 	if (clock_a > 0) {
-		pr_info("vpu_multi: desired clock_a freq %u\n", clock_a);
+		enc_pr(LOG_INFO, "vpu_multi: desired clock_a freq %u\n", clock_a);
 		clk_set_rate(clks->a_clk, clock_a);
 	} else
 		clk_set_rate(clks->a_clk, 666666666);
 
 	if (clock_b > 0) {
-		pr_info("vpu_multi: desired clock_b freq %u\n", clock_b);
+		enc_pr(LOG_INFO, "vpu_multi: desired clock_b freq %u\n", clock_b);
 		clk_set_rate(clks->b_clk, clock_b);
 	} else
 		clk_set_rate(clks->b_clk, 500 * MHz);
 
 	if (clock_c > 0) {
-		pr_info("vpu_multi: desired clock_c freq %u\n", clock_c);
+		enc_pr(LOG_INFO, "vpu_multi: desired clock_c freq %u\n", clock_c);
 		clk_set_rate(clks->c_clk, clock_c);
 	} else
 		clk_set_rate(clks->c_clk, 500 * MHz);
@@ -355,14 +355,14 @@ static void vpu_clk_enable(struct vpu_clks *clks)
 
 	/* the power on */
 	if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T7) {
-		pr_err("powering on wave521 for t7\n");
+		enc_pr(LOG_INFO, "powering on wave521 for t7\n");
 		vdec_poweron(VDEC_WAVE);
 		mdelay(5);
-		pr_err("wave power stauts after poweron: %d\n", vdec_on(VDEC_WAVE));
+		enc_pr(LOG_INFO, "wave power stauts after poweron: %d\n", vdec_on(VDEC_WAVE));
 	} else {
 		pwr_ctrl_psci_smc(PDID_T7_DOS_WAVE, true);
 		mdelay(5);
-		pr_err("wave power stauts after poweron: %lu\n", pwr_ctrl_status_psci_smc(PDID_T7_DOS_WAVE));
+		enc_pr(LOG_INFO, "wave power stauts after poweron: %lu\n", pwr_ctrl_status_psci_smc(PDID_T7_DOS_WAVE));
 	}
 
 	/* reset */
@@ -371,7 +371,7 @@ static void vpu_clk_enable(struct vpu_clks *clks)
 	hw_reset(false);
 	/* gate the clocks */
 #ifdef VPU_SUPPORT_CLOCK_CONTROL
-	pr_err("vpu_clk_enable, now gate off the clock\n");
+	enc_pr(LOG_INFO, "vpu_clk_enable, now gate off the clock\n");
 	clk_disable(clks->c_clk);
 	clk_disable(clks->b_clk);
 	clk_disable(clks->a_clk);
@@ -398,14 +398,14 @@ static void vpu_clk_disable(struct vpu_clks *clks)
 	/* the power off */
 	/* the power on */
 	if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T7) {
-		pr_err("powering off wave521 for t7\n");
+		enc_pr(LOG_INFO, "powering off wave521 for t7\n");
 		vdec_poweron(VDEC_WAVE);
 		mdelay(5);
-		pr_err("wave power stauts after poweroff: %d\n", vdec_on(VDEC_WAVE));
+		enc_pr(LOG_INFO, "wave power stauts after poweroff: %d\n", vdec_on(VDEC_WAVE));
 	} else {
 		pwr_ctrl_psci_smc(PDID_T7_DOS_WAVE, false);
 		mdelay(5);
-		pr_err("wave power stauts after poweroff: %lu\n", pwr_ctrl_status_psci_smc(PDID_T7_DOS_WAVE));
+		enc_pr(LOG_INFO, "wave power stauts after poweroff: %lu\n", pwr_ctrl_status_psci_smc(PDID_T7_DOS_WAVE));
 	}
 }
 
@@ -482,7 +482,7 @@ static void vpu_clk_config(int enable)
 			clk_disable(clks->b_clk);
 			clk_disable(clks->a_clk);
 		} else if (clock_gate_count < 0)
-			enc_pr(LOG_ERROR, "vpu clock alredy closed %d\n",
+			enc_pr(LOG_ERROR, "vpu clock already closed %d\n",
 				clock_gate_count);
 	} else {
 		clock_gate_count ++;
@@ -525,7 +525,7 @@ static void vpu_free_dma_buffer(struct vpudrv_buffer_t *vb)
 
 static s32 vpu_free_instances(struct file *filp)
 {
-	struct vpudrv_instanace_list_t *vil, *n;
+	struct vpudrv_instance_list_t *vil, *n;
 	struct vpudrv_instance_pool_t *vip;
 	void *vip_base;
 	s32 instance_pool_size_per_core;
@@ -977,7 +977,7 @@ static irqreturn_t vpu_irq_handler(s32 irq, void *dev_id)
 			       "intr_reason: 0x%08x\n", intr_reason);
 		}
 		if (reason != 0) {
-			enc_pr(LOG_ERROR, "INTERRUPT REASON REMAINED: %08x\n",
+			enc_pr(LOG_INFO, "INTERRUPT REASON REMAINED: %08x\n",
 			       reason);
 		}
 		WriteVpuRegister(VP5_VPU_INT_REASON_CLEAR, reason_clr);
@@ -1689,7 +1689,7 @@ INTERRUPT_REMAIN_IN_QUEUE:
 	case VDI_IOCTL_OPEN_INSTANCE:
 		{
 			struct vpudrv_inst_info_t inst_info;
-			struct vpudrv_instanace_list_t *vil, *n;
+			struct vpudrv_instance_list_t *vil, *n;
 
 			enc_pr(LOG_DEBUG,
 				"[+]VDI_IOCTL_OPEN_INSTANCE\n");
@@ -1762,7 +1762,7 @@ INTERRUPT_REMAIN_IN_QUEUE:
 	case VDI_IOCTL_CLOSE_INSTANCE:
 		{
 			struct vpudrv_inst_info_t inst_info;
-			struct vpudrv_instanace_list_t *vil, *n;
+			struct vpudrv_instance_list_t *vil, *n;
 			u32 found = 0;
 
 			enc_pr(LOG_ALL,
@@ -1830,7 +1830,7 @@ INTERRUPT_REMAIN_IN_QUEUE:
 	case VDI_IOCTL_GET_INSTANCE_NUM:
 		{
 			struct vpudrv_inst_info_t inst_info;
-			struct vpudrv_instanace_list_t *vil, *n;
+			struct vpudrv_instance_list_t *vil, *n;
 
 			enc_pr(LOG_ALL,
 				"[+]VDI_IOCTL_GET_INSTANCE_NUM\n");
@@ -2040,7 +2040,7 @@ INTERRUPT_REMAIN_IN_QUEUE:
 			}
 			spin_unlock(&s_vpu_lock);
 			if (find && cached) {
-				//pr_err("[%d]doing cache flush for %p~%p\n", __LINE__, (long)(buf.phys_addr), (long)(buf.phys_addr+buf.size));
+				//enc_pr(LOG_INFO, "[%d]doing cache flush for %p~%p\n", __LINE__, (long)(buf.phys_addr), (long)(buf.phys_addr+buf.size));
 				cache_flush((u32)buf.phys_addr,(u32)buf.size);
 			}
 
@@ -2085,7 +2085,7 @@ INTERRUPT_REMAIN_IN_QUEUE:
 				cache_flush((u32)buf32.phys_addr, (u32)buf32.size);
 
 				if (dump_es) {
-					pr_err("dump es frame, size=%u\n", (u32)buf32.size);
+					enc_pr(LOG_INFO, "dump es frame, size=%u\n", (u32)buf32.size);
 					dump_data((u32)buf32.phys_addr, (u32)buf32.size);
 				}
 			}
@@ -2405,7 +2405,7 @@ INTERRUPT_REMAIN_IN_QUEUE:
 		break;
 	default:
 		{
-			enc_pr(LOG_ERROR,
+			enc_pr(LOG_DEBUG,
 				"No such IOCTL, cmd is 0x%x\n", cmd);
 			ret = -EFAULT;
 		}
@@ -2523,7 +2523,7 @@ static s32 vpu_release(struct inode *inode, struct file *filp)
 		open_count = s_vpu_drv_context.open_count;
 		spin_unlock(&s_vpu_lock);
 
-		pr_err("open_count=%u\n", open_count);
+		enc_pr(LOG_INFO, "open_count=%u\n", open_count);
 
 		if (open_count == 0) {
 			for (i=0; i<MAX_NUM_INSTANCE; i++) {
@@ -3032,10 +3032,10 @@ static s32 vpu_probe(struct platform_device *pdev)
 	err = of_property_read_u32(np, "config_mm_sz_mb", &cma_cfg_size);
 
 	cma_cfg_size = 100;
-	enc_pr(LOG_ERROR, "reset cma_cfg_size to 200");
+	enc_pr(LOG_DEBUG, "reset cma_cfg_size to 200");
 
 	if (err) {
-		enc_pr(LOG_ERROR, "failed to get config_mm_sz_mb node, use default\n");
+		enc_pr(LOG_DEBUG, "failed to get config_mm_sz_mb node, use default\n");
 		cma_cfg_size = VPU_INIT_VIDEO_MEMORY_SIZE_IN_BYTE;
 		err = 0;
 	} else
@@ -3051,7 +3051,7 @@ static s32 vpu_probe(struct platform_device *pdev)
 
 	if (use_reserve == false) {
 #ifndef CONFIG_CMA
-		enc_pr(LOG_ERROR, "MultiEnc reserved memory is invaild, probe fail!\n");
+		enc_pr(LOG_ERROR, "MultiEnc reserved memory is invalid, probe fail!\n");
 		err = -EFAULT;
 		goto ERROR_PROVE_DEVICE;
 #else
@@ -3469,7 +3469,7 @@ static s32 __init vpu_init(void)
 	enc_pr(LOG_DEBUG, "vpu_init\n");
 
 	if (get_cpu_major_id() != AM_MESON_CPU_MAJOR_ID_T7) {
-		pr_err("The chip is not support multi encoder!!\n");
+		enc_pr(LOG_ERROR, "The chip is not support multi encoder!!\n");
 		return -1;
 	}
 

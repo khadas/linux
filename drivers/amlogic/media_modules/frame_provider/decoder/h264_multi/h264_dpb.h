@@ -53,7 +53,7 @@
   CANVAS_BLKMODE_LINEAR mode.
   otherwise picture will display abnormal.
   if this flag is not set, value of canvas mode
-  will be determined by the user speace config.
+  will be determined by the user space config.
   endian will be set 7 in CANVAS_BLKMODE_LINEAR mode.
 */
 #define IGNORE_PARAM_FROM_CONFIG      0x8000000
@@ -86,7 +86,7 @@
 #define H264_DECODE_OVER_SIZE       0x23
 
 #define VIDEO_SIGNAL_LOW						0x26
-#define VIDEO_SIGNAL_HIGHT						0x27
+#define VIDEO_SIGNAL_HEIGHT						0x27
 
 
 #define H264_FIND_NEXT_PIC_NAL              0x50
@@ -556,8 +556,8 @@ struct OldSliceParams {
 	unsigned int field_pic_flag;
 	unsigned int frame_num;
 	int      nal_ref_idc;
-	unsigned int pic_oder_cnt_lsb;
-	int      delta_pic_oder_cnt_bottom;
+	unsigned int pic_order_cnt_lsb;
+	int      delta_pic_order_cnt_bottom;
 	int      delta_pic_order_cnt[2];
 	unsigned char     bottom_field_flag;
 	unsigned char     idr_flag;
@@ -727,7 +727,7 @@ struct StorablePicture {
 	unsigned char data_flag;
 	int pic_struct;
 
-	/* picture qos infomation*/
+	/* picture qos information*/
 	int frame_size;
 	int max_qp;
 	int avg_qp;
@@ -803,7 +803,7 @@ struct FrameStore {
 	u64       timestamp;
 
 
-	/* picture qos infomation*/
+	/* picture qos information*/
 	int slice_type;
 	int frame_size;
 

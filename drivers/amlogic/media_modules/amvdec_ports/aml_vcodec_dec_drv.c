@@ -95,6 +95,7 @@ static int fops_vcodec_open(struct file *file)
 	mutex_init(&ctx->buff_done_lock);
 	mutex_init(&ctx->state_lock);
 	mutex_init(&ctx->comp_lock);
+	mutex_init(&ctx->compressed_buf_info_lock);
 	spin_lock_init(&ctx->slock);
 	spin_lock_init(&ctx->tsplock);
 	spin_lock_init(&ctx->dmabuff_recycle_lock);
@@ -145,6 +146,7 @@ static int fops_vcodec_open(struct file *file)
 	ctx->aux_infos.bind_sei_buffer = aml_bind_sei_buffer;
 	ctx->aux_infos.bind_dv_buffer = aml_bind_dv_buffer;
 	ctx->aux_infos.free_one_sei_buffer = aml_free_one_sei_buffer;
+	ctx->aux_infos.bind_hdr10p_buffer = aml_bind_hdr10p_buffer;
 
 	ret = aml_thread_start(ctx, aml_thread_capture_worker, AML_THREAD_CAPTURE, "cap");
 	if (ret) {
@@ -198,6 +200,7 @@ static int fops_vcodec_release(struct file *file)
 	list_del_init(&ctx->list);
 
 	kfree(ctx->empty_flush_buf);
+	aml_v4l_vpp_release_early(ctx);
 	kref_put(&ctx->ctx_ref, aml_v4l_ctx_release);
 	mutex_unlock(&dev->dev_mutex);
 	return 0;
@@ -475,6 +478,30 @@ out:
 	return pbuf - buf;
 }
 
+static ssize_t mmu_mem_info_show(struct class *cls,
+	struct class_attribute *attr, char *buf)
+{
+	struct aml_vcodec_dev *dev = container_of(cls,
+		struct aml_vcodec_dev, v4ldec_class);
+	struct aml_vcodec_ctx *ctx = NULL;
+	char *pbuf = buf;
+
+	mutex_lock(&dev->dev_mutex);
+
+	if (list_empty(&dev->ctx_list)) {
+		pbuf += sprintf(pbuf, "No v4ldec context.\n");
+		goto out;
+	}
+
+	list_for_each_entry(ctx, &dev->ctx_list, list) {
+		aml_compressed_info_show(ctx);
+	}
+out:
+	mutex_unlock(&dev->dev_mutex);
+
+	return pbuf - buf;
+}
+
 static ssize_t dump_path_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
@@ -497,11 +524,13 @@ static ssize_t dump_path_store(struct class *class,
 }
 
 static CLASS_ATTR_RO(status);
+static CLASS_ATTR_RO(mmu_mem_info);
 static CLASS_ATTR_RW(dump_path);
 
 static struct attribute *v4ldec_class_attrs[] = {
 	&class_attr_status.attr,
 	&class_attr_dump_path.attr,
+	&class_attr_mmu_mem_info.attr,
 	NULL
 };
 

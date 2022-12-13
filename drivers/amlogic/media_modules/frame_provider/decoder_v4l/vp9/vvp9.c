@@ -187,7 +187,7 @@ static u32 double_write_mode;
 #define PTS_NONE_REF_USE_DURATION 1
 
 #define PTS_MODE_SWITCHING_THRESHOLD           3
-#define PTS_MODE_SWITCHING_RECOVERY_THREASHOLD 3
+#define PTS_MODE_SWITCHING_RECOVERY_THRESHOLD 3
 
 #define DUR2PTS(x) ((x)*90/96)
 
@@ -373,6 +373,8 @@ static u32 udebug_pause_pos;
 static u32 udebug_pause_val;
 
 static u32 udebug_pause_decode_idx;
+
+static u32 disable_repeat;
 
 static u32 without_display_mode;
 
@@ -568,7 +570,7 @@ struct PIC_BUFFER_CONFIG_s {
 
 	int double_write_mode;
 
-	/* picture qos infomation*/
+	/* picture qos information*/
 	int max_qp;
 	int avg_qp;
 	int min_qp;
@@ -2422,6 +2424,24 @@ static void refresh_ref_frames(struct VP9Decoder_s *pbi)
 	return;
 }
 
+static int check_buff_has_show(struct RefCntBuffer_s *frame_buf)
+{
+	int ret = 1;
+
+	if (disable_repeat ||
+		((frame_buf->buf.vf_ref == 0) &&
+		(frame_buf->buf.index != -1) &&
+		frame_buf->buf.cma_alloc_addr)) {
+		ret = 0;
+		if (debug & VP9_DEBUG_BUFMGR)
+			pr_info("existing buff can use\n");
+	} else {
+		if (debug & VP9_DEBUG_BUFMGR)
+			pr_info("existing buff can't use\n");
+	}
+	return ret;
+}
+
 int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 {
 	struct VP9_Common_s *const cm = &pbi->common;
@@ -2515,10 +2535,12 @@ int vp9_bufmgr_process(struct VP9Decoder_s *pbi, union param_u *params)
 			return -1;
 		}
 
-		frame_bufs[frame_to_show].buf.repeat_count ++;
-		frame_bufs[frame_to_show].buf.v4l_buf_index = cm->new_fb_idx;
+		if (check_buff_has_show(&frame_bufs[frame_to_show])) {
+			frame_bufs[frame_to_show].buf.repeat_count ++;
+			frame_bufs[frame_to_show].buf.v4l_buf_index = cm->new_fb_idx;
+			frame_bufs[cm->new_fb_idx].buf.repeat_pic = &frame_bufs[frame_to_show].buf;
+		}
 		frame_bufs[frame_to_show].buf.timestamp = frame_bufs[cm->new_fb_idx].buf.timestamp;
-		frame_bufs[cm->new_fb_idx].buf.repeat_pic = &frame_bufs[frame_to_show].buf;
 		ref_cnt_fb(frame_bufs, &cm->new_fb_idx, frame_to_show);
 		update_hide_frame_timestamp(pbi);
 		unlock_buffer_pool(pool, flags);
@@ -3961,15 +3983,15 @@ static void decomp_get_hitrate(void)
 	return;
 }
 
-static void decomp_get_comprate(void)
+static void decomp_get_comp_rate(void)
 {
 	unsigned   raw_ucomp_cnt;
 	unsigned   fast_comp_cnt;
 	unsigned   slow_comp_cnt;
-	int      comprate;
+	int      comp_rate;
 
 	if (debug & VP9_DEBUG_CACHE)
-		pr_info("[cache_util.c] Entered decomp_get_comprate...\n");
+		pr_info("[cache_util.c] Entered decomp_get_comp_rate...\n");
 	WRITE_VREG(HEVCD_MPP_DECOMP_PERFMON_CTL, (unsigned int)(0x4<<1));
 	fast_comp_cnt = READ_VREG(HEVCD_MPP_DECOMP_PERFMON_DATA);
 	WRITE_VREG(HEVCD_MPP_DECOMP_PERFMON_CTL, (unsigned int)(0x5<<1));
@@ -3985,10 +4007,10 @@ static void decomp_get_comprate(void)
 		pr_info("decomp_raw_uncomp_total: %d\n", raw_ucomp_cnt);
 
 	if (raw_ucomp_cnt != 0) {
-		comprate = (fast_comp_cnt + slow_comp_cnt)
+		comp_rate = (fast_comp_cnt + slow_comp_cnt)
 		* 100 / raw_ucomp_cnt;
 		if (debug & VP9_DEBUG_CACHE)
-			pr_info("DECOMP_COMP_RATIO : %d\n", comprate);
+			pr_info("DECOMP_COMP_RATIO : %d\n", comp_rate);
 	} else {
 		if (debug & VP9_DEBUG_CACHE)
 			pr_info("DECOMP_COMP_RATIO : na\n");
@@ -5486,8 +5508,8 @@ static void config_sao_hw(struct VP9Decoder_s *pbi, union param_u *params)
 		data32 |= (1 << 8); /* NV12 */
 
 	/*
-	*  [31:24] ar_fifo1_axi_thred
-	*  [23:16] ar_fifo0_axi_thred
+	*  [31:24] ar_fifo1_axi_thread
+	*  [23:16] ar_fifo0_axi_thread
 	*  [15:14] axi_linealign, 0-16bytes, 1-32bytes, 2-64bytes
 	*  [13:12] axi_aformat, 0-Linear, 1-32x32, 2-64x32
 	*  [11:08] axi_lendian_C
@@ -6165,7 +6187,7 @@ static void dump_hit_rate(struct VP9Decoder_s *pbi)
 	if (debug & VP9_DEBUG_CACHE_HIT_RATE) {
 		mcrcc_get_hitrate(pbi->m_ins_flag);
 		decomp_get_hitrate();
-		decomp_get_comprate();
+		decomp_get_comp_rate();
 	}
 }
 
@@ -6185,7 +6207,7 @@ static void  config_mcrcc_axi_hw(struct VP9Decoder_s *pbi)
 	if (get_cpu_major_id() >= AM_MESON_CPU_MAJOR_ID_SM1) {
 		mcrcc_get_hitrate(pbi->m_ins_flag);
 		decomp_get_hitrate();
-		decomp_get_comprate();
+		decomp_get_comp_rate();
 	}
 
 	WRITE_VREG(HEVCD_MPP_ANC_CANVAS_ACCCONFIG_ADDR,
@@ -6733,9 +6755,11 @@ static void set_canvas(struct VP9Decoder_s *pbi,
 	}
 }
 
-static void set_frame_info(struct VP9Decoder_s *pbi, struct vframe_s *vf)
+static void set_frame_info(struct VP9Decoder_s *pbi, struct vframe_s *vf, struct PIC_BUFFER_CONFIG_s *pic)
 {
 	unsigned int ar;
+	struct aml_vcodec_ctx * ctx = pbi->v4l2_ctx;
+
 	vf->duration = pbi->frame_dur;
 	vf->duration_pulldown = 0;
 	vf->flag = 0;
@@ -6748,7 +6772,6 @@ static void set_frame_info(struct VP9Decoder_s *pbi, struct vframe_s *vf)
 
 	if (pbi->vf_dp.present_flag) {
 		struct aml_vdec_hdr_infos hdr;
-		struct aml_vcodec_ctx *ctx = (struct aml_vcodec_ctx *)(pbi->v4l2_ctx);
 
 		memset(&hdr, 0, sizeof(hdr));
 		hdr.signal_type = vf->signal_type;
@@ -6759,42 +6782,31 @@ static void set_frame_info(struct VP9Decoder_s *pbi, struct vframe_s *vf)
 		vdec_v4l_set_hdr_infos(ctx, &hdr);
 	}
 
-	if ((pbi->chunk != NULL) && (pbi->chunk->hdr10p_data_buf != NULL)
-		&& (pbi->chunk->hdr10p_data_size != 0)) {
-		if (pbi->chunk->hdr10p_data_size <= 128) {
-			char *new_buf;
-			int i = 0;
-			new_buf = kzalloc(pbi->chunk->hdr10p_data_size, GFP_ATOMIC);
-
-			if (new_buf) {
-				memcpy(new_buf, pbi->chunk->hdr10p_data_buf, pbi->chunk->hdr10p_data_size);
-				if (debug & VP9_DEBUG_BUFMGR_MORE) {
+	if ((pbi->chunk != NULL) && (pbi->chunk->hdr10p_data_buf != NULL) && (pbi->chunk->hdr10p_data_size > 0) &&
+		(pbi->chunk->hdr10p_data_size < HDR10P_BUF_SIZE)) {
+		ctx->aux_infos.bind_hdr10p_buffer(ctx, &pic->hdr10p_data_buf);
+		if (pic->hdr10p_data_buf != NULL) {
+			memcpy(pic->hdr10p_data_buf, pbi->chunk->hdr10p_data_buf,
+				pbi->chunk->hdr10p_data_size);
+			pic->hdr10p_data_size = pbi->chunk->hdr10p_data_size;
+			if (debug & VP9_DEBUG_BUFMGR_MORE) {
+				int i = 0;
+				vp9_print(pbi, VP9_DEBUG_BUFMGR_MORE,
+					"hdr10p data: (size %d)\n",
+					pbi->chunk->hdr10p_data_size);
+				for (i = 0; i < pbi->chunk->hdr10p_data_size; i++) {
 					vp9_print(pbi, VP9_DEBUG_BUFMGR_MORE,
-						"hdr10p data: (size %d)\n",
-						pbi->chunk->hdr10p_data_size);
-					for (i = 0; i < pbi->chunk->hdr10p_data_size; i++) {
-						vp9_print(pbi, VP9_DEBUG_BUFMGR_MORE,
-							"%02x ", pbi->chunk->hdr10p_data_buf[i]);
-						if (((i + 1) & 0xf) == 0)
-							vp9_print(pbi, VP9_DEBUG_BUFMGR_MORE, "\n");
-					}
-					vp9_print(pbi, VP9_DEBUG_BUFMGR_MORE, "\n");
+						"%02x ", pbi->chunk->hdr10p_data_buf[i]);
+					if (((i + 1) & 0xf) == 0)
+						vp9_print(pbi, VP9_DEBUG_BUFMGR_MORE, "\n");
 				}
-
-				vf->hdr10p_data_size = pbi->chunk->hdr10p_data_size;
-				vf->hdr10p_data_buf = new_buf;
-				set_meta_data_to_vf(vf, UVM_META_DATA_HDR10P_DATA, pbi->v4l2_ctx);
-			} else {
-				vp9_print(pbi, 0, "%s:hdr10p data vzalloc size(%d) fail\n",
-					__func__, pbi->chunk->hdr10p_data_size);
-				vf->hdr10p_data_size = pbi->chunk->hdr10p_data_size;
-				vf->hdr10p_data_buf = new_buf;
+				vp9_print(pbi, VP9_DEBUG_BUFMGR_MORE, "\n");
 			}
+			vf->hdr10p_data_buf = pic->hdr10p_data_buf;
+			vf->hdr10p_data_size = pic->hdr10p_data_size;
+		} else {
+			vp9_print(pbi, 0, "bind_hdr10p_buffer fail\n");
 		}
-
-		vfree(pbi->chunk->hdr10p_data_buf);
-		pbi->chunk->hdr10p_data_buf = NULL;
-		pbi->chunk->hdr10p_data_size = 0;
 	}
 
 	vf->sidebind_type = pbi->sidebind_type;
@@ -6909,12 +6921,6 @@ static void vvp9_vf_put(struct vframe_s *vf, void *op_arg)
 	if (pbi->enable_fence && vf->fence) {
 		vdec_fence_put(vf->fence);
 		vf->fence = NULL;
-	}
-
-	if (vf->hdr10p_data_buf) {
-		kfree(vf->hdr10p_data_buf);
-		vf->hdr10p_data_buf = NULL;
-		vf->hdr10p_data_size = 0;
 	}
 
 	if (vf->meta_data_buf) {
@@ -7245,7 +7251,7 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 				}
 
 			} else {
-				int p = PTS_MODE_SWITCHING_RECOVERY_THREASHOLD;
+				int p = PTS_MODE_SWITCHING_RECOVERY_THRESHOLD;
 
 				pbi->pts_mode_recovery_count++;
 				if (pbi->pts_mode_recovery_count > p) {
@@ -7369,7 +7375,7 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 		}
 		vf->compWidth = pic_config->y_crop_width;
 		vf->compHeight = pic_config->y_crop_height;
-		set_frame_info(pbi, vf);
+		set_frame_info(pbi, vf, pic_config);
 
 		if (pbi->high_bandwidth_flag) {
 			vf->flag |= VFRAME_FLAG_HIGH_BANDWIDTH;
@@ -7403,13 +7409,18 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 
 			inc_vf_ref(pbi, pic_config->v4l_buf_index);
 			vdec_vframe_ready(pvdec, vf);
-			if (pic_config->v4l_buf_index != pic_config->BUF_index)	{
+			if (pic_config->double_write_mode &&
+				(pic_config->v4l_buf_index != pic_config->BUF_index)) {
 				struct PIC_BUFFER_CONFIG_s *dst_pic =
 					&pbi->common.buffer_pool->frame_bufs[pic_config->v4l_buf_index].buf;
 				struct PIC_BUFFER_CONFIG_s *src_pic =
 					&pbi->common.buffer_pool->frame_bufs[pic_config->BUF_index].buf;
 				struct vdec_ge2d_info ge2d_info;
 
+				vp9_print(pbi, PRINT_FLAG_V4L_DETAIL,
+					"ge2d copy start v4l_buf_index:%d repeat_buff_index:%d\n",
+					pic_config->v4l_buf_index,
+					pic_config->BUF_index);
 				ge2d_info.dst_vf = vf;
 				ge2d_info.src_canvas0Addr = ge2d_info.src_canvas1Addr = 0;
 				if (dst_pic->double_write_mode) {
@@ -7450,6 +7461,7 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 					vdec_ge2d_init(&pbi->ge2d, mode);
 				}
 				vdec_ge2d_copy_data(pbi->ge2d, &ge2d_info);
+				vp9_print(pbi, PRINT_FLAG_V4L_DETAIL, "ge2d copy done\n");
 			}
 			decoder_do_frame_check(pvdec, vf);
 			kfifo_put(&pbi->display_q, (const struct vframe_s *)vf);
@@ -7497,7 +7509,7 @@ static int prepare_display_buf(struct VP9Decoder_s *pbi,
 	return 0;
 }
 
-static bool is_avaliable_buffer(struct VP9Decoder_s *pbi);
+static bool is_available_buffer(struct VP9Decoder_s *pbi);
 
 static int notify_v4l_eos(struct vdec_s *vdec)
 {
@@ -7510,7 +7522,7 @@ static int notify_v4l_eos(struct vdec_s *vdec)
 
 	if (hw->eos) {
 		expires = jiffies + msecs_to_jiffies(2000);
-		while (!is_avaliable_buffer(hw)) {
+		while (!is_available_buffer(hw)) {
 			if (time_after(jiffies, expires)) {
 				pr_err("[%d] VP9 isn't enough buff for notify eos.\n", ctx->id);
 				return 0;
@@ -7636,6 +7648,7 @@ static int recycle_mmu_buf_tail(struct VP9Decoder_s *pbi,
 {
 	struct VP9_Common_s *const cm = &pbi->common;
 	struct internal_comp_buf *ibuf;
+	struct aml_vcodec_ctx *ctx = (struct aml_vcodec_ctx *)(pbi->v4l2_ctx);
 
 	if (pbi->used_4k_num == -1) {
 		pbi->used_4k_num =
@@ -7644,6 +7657,8 @@ static int recycle_mmu_buf_tail(struct VP9Decoder_s *pbi,
 	vp9_print(pbi, VP9_DEBUG_BUFMGR_MORE,
 		"pic index %d page_start %d\n",
 		cm->cur_fb_idx_mmu, pbi->used_4k_num);
+
+	ctx->fb_ops.cal_compress_buff_info(pbi->used_4k_num, ctx);
 
 	if (check_dma)
 		hevc_mmu_dma_check(hw_to_vdec(pbi));
@@ -8375,7 +8390,7 @@ static int vvp9_get_ps_info(struct VP9Decoder_s *pbi, struct aml_vdec_ps_infos *
 	else
 		ps->dpb_frames	= 8;	/* < level 4.1 */
 	/*
-	1. curruent decoding frame is not include in dpb;
+	1. current decoding frame is not include in dpb;
 	2. for frame push out, one more buffer necessary.
 	3. Two consecutive frames cannot use the same buffer.
 	*/
@@ -8951,7 +8966,7 @@ static void vvp9_put_timer_func(struct timer_list *timer)
 {
 	struct VP9Decoder_s *pbi = container_of(timer,
 		struct VP9Decoder_s, timer);
-	enum receviver_start_e state = RECEIVER_INACTIVE;
+	enum receiver_start_e state = RECEIVER_INACTIVE;
 	uint8_t empty_flag;
 	unsigned int buf_level;
 
@@ -9876,6 +9891,7 @@ static void vp9_work(struct work_struct *work)
 			pbi->stat &= ~STAT_ISR_REG;
 		}
 	} else if (pbi->dec_result == DEC_RESULT_UNFINISH) {
+		pbi->slice_idx++;
 		pbi->frame_count++;
 		pbi->process_state = PROC_STATE_INIT;
 
@@ -9942,7 +9958,7 @@ static int vp9_hw_ctx_restore(struct VP9Decoder_s *pbi)
 	return 0;
 }
 
-static bool is_avaliable_buffer(struct VP9Decoder_s *pbi)
+static bool is_available_buffer(struct VP9Decoder_s *pbi)
 {
 	struct VP9_Common_s *const cm = &pbi->common;
 	struct RefCntBuffer_s *const frame_bufs = cm->buffer_pool->frame_bufs;
@@ -10039,7 +10055,7 @@ static unsigned long run_ready(struct vdec_s *vdec, unsigned long mask)
 
 #else
 	if (pbi->v4l_params_parsed) {
-		if (is_avaliable_buffer(pbi))
+		if (is_available_buffer(pbi))
 			ret = CORE_MASK_HEVC;
 		else
 			ret = 0;
@@ -10758,7 +10774,7 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 #ifdef MULTI_INSTANCE_SUPPORT
 		int vp9_buf_width = 0;
 		int vp9_buf_height = 0;
-		/*use ptr config for doubel_write_mode, etc*/
+		/*use ptr config for double_write_mode, etc*/
 		vp9_print(pbi, 0, "pdata->config=%s\n", pdata->config);
 		if (get_config_int(pdata->config, "vp9_double_write_mode",
 				&config_val) == 0)
@@ -11034,6 +11050,9 @@ static int ammvdec_vp9_probe(struct platform_device *pdev)
 		pdata->dec_status = NULL;
 		return -ENODEV;
 	}
+
+	ctx->aux_infos.alloc_buffer(ctx, HDR10P_TYPE);
+
 	vdec_set_prepare_level(pdata, start_decode_buf_level);
 	hevc_source_changed(VFORMAT_VP9,
 			4096, 2048, 60);
@@ -11302,6 +11321,9 @@ MODULE_PARM_DESC(error_handle_policy, "\n amvdec_vp9 error_handle_policy\n");
 
 module_param(buf_alloc_width, uint, 0664);
 MODULE_PARM_DESC(buf_alloc_width, "\n buf_alloc_width\n");
+
+module_param(disable_repeat, uint, 0664);
+MODULE_PARM_DESC(disable_repeat, "\n disable_repeat\n");
 
 module_param(buf_alloc_height, uint, 0664);
 MODULE_PARM_DESC(buf_alloc_height, "\n buf_alloc_height\n");

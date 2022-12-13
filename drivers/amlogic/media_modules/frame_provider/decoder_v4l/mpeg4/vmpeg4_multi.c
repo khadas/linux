@@ -129,9 +129,8 @@
 #define DEC_RESULT_FORCE_EXIT 4
 #define DEC_RESULT_EOS		5
 #define DEC_RESULT_UNFINISH	6
-#define DEC_RESULT_ERROR_SZIE	7
+#define DEC_RESULT_ERROR_SIZE	7
 #define DEC_RESULT_ERROR_DATA      	12
-
 #define DEC_DECODE_TIMEOUT         0x21
 #define DECODE_ID(hw) (hw_to_vdec(hw)->id)
 #define DECODE_STOP_POS         AV_SCRATCH_K
@@ -1117,12 +1116,14 @@ static irqreturn_t vmpeg4_isr_thread_handler(struct vdec_s *vdec, int irq)
 		mmpeg4_debug_print(DECODE_ID(hw), PRINT_FLAG_BUFFER_DETAIL,
 			"interlace = %d\n", interlace);
 
-		if ((frame_width <= 0) || (frame_height <= 0)) {
-			mmpeg4_debug_print(DECODE_ID(hw), 0,
-				"is_oversize w:%d h:%d\n", frame_width, frame_height);
-			hw->dec_result = DEC_RESULT_ERROR_DATA;
-			vdec_schedule_work(&hw->work);
-			return IRQ_HANDLED;
+		if (input_frame_based(vdec)) {
+			if ((frame_width <= 0) || (frame_height <= 0)) {
+				mmpeg4_debug_print(DECODE_ID(hw), 0,
+					"is_oversize w:%d h:%d\n", frame_width, frame_height);
+				hw->dec_result = DEC_RESULT_ERROR_DATA;
+				vdec_schedule_work(&hw->work);
+				return IRQ_HANDLED;
+			}
 		}
 
 		if (!v4l_res_change(hw, frame_width, frame_height, interlace)) {
@@ -1602,7 +1603,7 @@ static void flush_output(struct vdec_mpeg4_hw_s * hw)
 	}
 }
 
-static bool is_avaliable_buffer(struct vdec_mpeg4_hw_s *hw);
+static bool is_available_buffer(struct vdec_mpeg4_hw_s *hw);
 
 static int notify_v4l_eos(struct vdec_s *vdec)
 {
@@ -1615,7 +1616,7 @@ static int notify_v4l_eos(struct vdec_s *vdec)
 
 	if (hw->eos) {
 		expires = jiffies + msecs_to_jiffies(2000);
-		while (!is_avaliable_buffer(hw)) {
+		while (!is_available_buffer(hw)) {
 			if (time_after(jiffies, expires)) {
 				pr_err("[%d] MPEG4 isn't enough buff for notify eos.\n", ctx->id);
 				return 0;
@@ -1713,7 +1714,7 @@ static void vmpeg4_work(struct work_struct *work)
 		mmpeg4_debug_print(DECODE_ID(hw), 0,
 			"%s: eos flushed, frame_num %d\n",
 			__func__, hw->frame_num);
-	} else if (hw->dec_result == DEC_RESULT_ERROR_SZIE) {
+	} else if (hw->dec_result == DEC_RESULT_ERROR_SIZE) {
 		if (!vdec_has_more_input(vdec)) {
 			hw->dec_result = DEC_RESULT_EOS;
 			vdec_schedule_work(&hw->work);
@@ -1944,7 +1945,7 @@ static void vmpeg4_dump_state(struct vdec_s *vdec)
 	mmpeg4_debug_print(DECODE_ID(hw), 0,
 		"====== %s\n", __func__);
 	mmpeg4_debug_print(DECODE_ID(hw), 0,
-		"width/height (%d/%d), i_fram:%d, buffer_not_ready %d, buf_num %d\n",
+		"width/height (%d/%d), i_frame:%d, buffer_not_ready %d, buf_num %d\n",
 		hw->frame_width,
 		hw->frame_height,
 		hw->first_i_frame_ready,
@@ -2395,7 +2396,7 @@ static s32 vmmpeg4_init(struct vdec_mpeg4_hw_s *hw)
 	return 0;
 }
 
-static bool is_avaliable_buffer(struct vdec_mpeg4_hw_s *hw)
+static bool is_available_buffer(struct vdec_mpeg4_hw_s *hw)
 {
 	struct aml_vcodec_ctx *ctx =
 		(struct aml_vcodec_ctx *)(hw->v4l2_ctx);
@@ -2452,7 +2453,7 @@ static unsigned long run_ready(struct vdec_s *vdec, unsigned long mask)
 	}
 
 	if (hw->v4l_params_parsed) {
-		ret = is_avaliable_buffer(hw) ? 1 : 0;
+		ret = is_available_buffer(hw) ? 1 : 0;
 	} else {
 		ret = ctx->v4l_resolution_change ? 0 : 1;
 	}
@@ -2509,7 +2510,7 @@ static void run(struct vdec_s *vdec, unsigned long mask,
 		size = vdec_prepare_input(vdec, &hw->chunk);
 		if (size < 4) { /*less than start code size 00 00 01 xx*/
 			hw->input_empty++;
-			hw->dec_result = DEC_RESULT_ERROR_SZIE;
+			hw->dec_result = DEC_RESULT_ERROR_SIZE;
 			vdec_schedule_work(&hw->work);
 			return;
 		}

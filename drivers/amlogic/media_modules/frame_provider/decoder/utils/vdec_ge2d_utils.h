@@ -47,7 +47,7 @@ struct vdec_ge2d {
 	u32	work_mode; /* enum ge2d_work_mode */
 	struct ge2d_context_s	*ge2d_context; /* handle of GE2D */
 	struct aml_vcodec_ctx	*ctx;
-	struct vdec_canvas_cache	canche;
+	struct vdec_canvas_cache	cache;
 	void *hw;
 };
 

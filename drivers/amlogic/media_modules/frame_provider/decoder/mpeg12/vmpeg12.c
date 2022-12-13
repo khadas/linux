@@ -1316,7 +1316,7 @@ static void vmpeg12_set_clk(struct work_struct *work)
 static void vmpeg_put_timer_func(struct timer_list *timer)
 {
 	int fatal_reset = 0;
-	enum receviver_start_e state = RECEIVER_INACTIVE;
+	enum receiver_start_e state = RECEIVER_INACTIVE;
 
 	if (vf_get_receiver(PROVIDER_NAME)) {
 		state = vf_notify_receiver(PROVIDER_NAME,

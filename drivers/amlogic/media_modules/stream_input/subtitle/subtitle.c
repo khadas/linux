@@ -57,7 +57,7 @@ static int subtitle_height;
 static int subtitle_type = -1;
 static int subtitle_current;	/* no subtitle */
 /* sub_index node will be modified by libplayer; amlogicplayer will use */
-/* it to detect wheather libplayer switch sub finished or not */
+/* it to detect whether libplayer switch sub finished or not */
 static int subtitle_index;	/* no subtitle */
 /* static int subtitle_size = 0; */
 /* static int subtitle_read_pos = 0; */
@@ -66,7 +66,7 @@ static int subtitle_start_pts;
 static int subtitle_fps;
 static int subtitle_subtype;
 static int subtitle_reset;
-/* static int *subltitle_address[MAX_SUBTITLE_PACKET]; */
+/* static int *subtitle_address[MAX_SUBTITLE_PACKET]; */
 
 enum subinfo_para_e {
 	SUB_NULL = -1,
@@ -100,7 +100,7 @@ struct subinfo_para_s {
 /* info */
 /* pts */
 /* duration */
-/* color pallete */
+/* color palette */
 /* width/height */
 
 static ssize_t show_curr(struct class *class, struct class_attribute *attr,

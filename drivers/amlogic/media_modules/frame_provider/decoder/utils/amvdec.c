@@ -497,7 +497,7 @@ s32 optee_load_fw(enum vformat_e type, const char *fw_name)
 		vdec = OPTEE_VDEC_HCDEC;
 		break;
 	default:
-		pr_info("Unknow vdec format: %u\n", (u32)type);
+		pr_info("Unknown vdec format: %u\n", (u32)type);
 		break;
 	}
 
@@ -981,13 +981,18 @@ EXPORT_SYMBOL(amhevc_disable);
 #ifdef CONFIG_PM
 int amvdec_suspend(struct platform_device *dev, pm_message_t event)
 {
-	struct vdec_s *vdec = *(struct vdec_s **)dev->dev.platform_data;;
+	struct vdec_s *vdec = *(struct vdec_s **)dev->dev.platform_data;
+	unsigned long flags;
 
 	if (vdec) {
 		wait_event_interruptible_timeout(vdec->idle_wait,
 			(vdec->status != VDEC_STATUS_ACTIVE),
 			msecs_to_jiffies(100));
 	}
+
+	vdec_disconnect(vdec);
+
+	flags = vdec_power_lock(vdec);
 
 	amvdec_pg_enable(false);
 
@@ -998,13 +1003,22 @@ int amvdec_suspend(struct platform_device *dev, pm_message_t event)
 
 	if (has_hevc_vdec())
 		amhevc_pg_enable(false);
+
+	vdec->suspend = true;
+	vdec_power_unlock(vdec, flags);
 	/*vdec_set_suspend_clk(1, 0);*//*DEBUG_TMP*/
+	pr_info("%s, ok!\n", __func__);
+
 	return 0;
 }
 EXPORT_SYMBOL(amvdec_suspend);
 
 int amvdec_resume(struct platform_device *dev)
 {
+	struct vdec_s *vdec = *(struct vdec_s **)dev->dev.platform_data;
+	unsigned long flags;
+
+	flags = vdec_power_lock(vdec);
 	amvdec_pg_enable(true);
 
 	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6TVD */
@@ -1017,6 +1031,12 @@ int amvdec_resume(struct platform_device *dev)
 		amhevc_pg_enable(true);
 	/* #endif */
 	/*vdec_set_suspend_clk(0, 0);*//*DEBUG_TMP*/
+	vdec->suspend = false;
+	vdec_power_unlock(vdec, flags);
+	vdec_connect(vdec);
+
+	pr_info("%s, ok!\n", __func__);
+
 	return 0;
 }
 EXPORT_SYMBOL(amvdec_resume);

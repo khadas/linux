@@ -41,6 +41,7 @@
 
 #include <linux/amlogic/media/utils/vdec_reg.h>
 #include <linux/amlogic/media/registers/register.h>
+#include "../../../common/chips/decoder_cpu_ver_info.h"
 #include "../../../stream_input/amports/amports_priv.h"
 #include "../utils/vdec_input.h"
 #include "../utils/vdec.h"
@@ -1857,7 +1858,7 @@ static int prepare_display_buf(struct vdec_mpeg12_hw_s *hw,
 				hw->gvs.b_lost_frames++;
 			}
 			/* Though we drop it, it is still an error frame, count it.
-			 * Becase we've counted the error frame in vdec_count_info
+			 * Because we've counted the error frame in vdec_count_info
 			 * function, avoid count it twice.
 			 */
 		if (!(info & PICINFO_ERROR)) {
@@ -1924,6 +1925,10 @@ static int prepare_display_buf(struct vdec_mpeg12_hw_s *hw,
 				}
 			}
 			vdec_vframe_ready(vdec, vf);
+			if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T5D && vdec->use_vfm_path &&
+				vdec_stream_based(vdec)) {
+				vf->type |= VIDTYPE_FORCE_SIGN_IP_JOINT;
+			}
 			kfifo_put(&hw->display_q, (const struct vframe_s *)vf);
 			ATRACE_COUNTER(hw->pts_name, vf->pts);
 			ATRACE_COUNTER(hw->new_q_name, kfifo_len(&hw->newframe_q));
@@ -2011,7 +2016,7 @@ static int update_reference(struct vdec_mpeg12_hw_s *hw,
 		/* second pic do not output */
 		index = hw->buf_num;
 	} else {
-		hw->ref_use[hw->refs[0]]--;		//old ref0 ununsed
+		hw->ref_use[hw->refs[0]]--;		//old ref0 unused
 		hw->refs[0] = hw->refs[1];
 		hw->refs[1] = index;
 		index = hw->refs[0];
@@ -2215,6 +2220,12 @@ static irqreturn_t vmpeg12_isr_thread_handler(struct vdec_s *vdec, int irq)
 			debug_print(DECODE_ID(hw), PRINT_FLAG_DEC_DETAIL,
 				"profile_idc: %d  level_idc: %d\n",
 				hw->profile_idc, hw->level_idc);
+		}
+		if ((seqinfo & SEQINFO_EXT_AVAILABLE) &&
+			(seqinfo & SEQINFO_PROG) && !(info & PICINFO_PROG)) {
+			info = PICINFO_ERROR | PICINFO_PROG;
+			debug_print(DECODE_ID(hw), PRINT_FLAG_RUN_FLOW,
+				"error! info is 0\n");
 		}
 
 		if (index >= hw->buf_num) {
@@ -2635,7 +2646,7 @@ static void vmpeg12_work_implement(struct vdec_mpeg12_hw_s *hw,
 	if (from == 1) {
 		/*This is a timeout work*/
 		if (work_pending(&hw->work)) {
-			pr_err("timeout work return befor finishing.");
+			pr_err("timeout work return before finishing.");
 			/*
 			 * The vmpeg12_work arrives at the last second,
 			 * give it a chance to handle the scenario.
@@ -2678,7 +2689,7 @@ static void vmpeg12_timeout_work(struct work_struct *work)
 	struct vdec_s *vdec = hw_to_vdec(hw);
 
 	if (work_pending(&hw->work)) {
-		pr_err("timeout work return befor executing.");
+		pr_err("timeout work return before executing.");
 		return;
 	}
 
@@ -2696,7 +2707,7 @@ static struct vframe_s *vmpeg_vf_peek(void *op_arg)
 
 	if (kfifo_len(&hw->display_q) > VF_POOL_SIZE) {
 		debug_print(DECODE_ID(hw), PRINT_FLAG_RUN_FLOW,
-			"kfifo len:%d invaild, peek error\n",
+			"kfifo len:%d invalid, peek error\n",
 			kfifo_len(&hw->display_q));
 		return NULL;
 	}
@@ -2747,6 +2758,11 @@ static void vmpeg_vf_put(struct vframe_s *vf, void *op_arg)
 		debug_print(DECODE_ID(hw), PRINT_FLAG_ERROR,
 			"invalid vf: %lx\n", (ulong)vf);
 		return ;
+	}
+	if (vf->type == VIDTYPE_V4L_EOS) {
+		debug_print(DECODE_ID(hw), PRINT_FLAG_V4L_DETAIL,
+			"[%s]EOS frame, return. idx: %d\n", __func__, vf->index);
+		return;
 	}
 	spin_lock_irqsave(&hw->lock, flags);
 	hw->vfbuf_use[vf->index]--;
@@ -3038,7 +3054,7 @@ static void vmpeg2_dump_state(struct vdec_s *vdec)
 	}
 
 	if (!hw->is_used_v4l && vf_get_receiver(vdec->vf_provider_name)) {
-		enum receviver_start_e state =
+		enum receiver_start_e state =
 		vf_notify_receiver(vdec->vf_provider_name,
 			VFRAME_EVENT_PROVIDER_QUREY_STATE,
 			NULL);
@@ -3148,7 +3164,7 @@ static void timeout_process(struct vdec_mpeg12_hw_s *hw)
 	    work_busy(&hw->work) ||
 	    work_busy(&hw->timeout_work) ||
 	    work_pending(&hw->timeout_work)) {
-		pr_err("%s mpeg12[%d] timeout_process return befor do anything.\n",__func__, vdec->id);
+		pr_err("%s mpeg12[%d] timeout_process return before do anything.\n",__func__, vdec->id);
 		return;
 	}
 	reset_process_time(hw);
@@ -3165,7 +3181,7 @@ static void timeout_process(struct vdec_mpeg12_hw_s *hw)
 	 * let it to handle the scenario.
 	 */
 	if (work_pending(&hw->work)) {
-		pr_err("%s mpeg12[%d] return befor schedule.", __func__, vdec->id);
+		pr_err("%s mpeg12[%d] return before schedule.", __func__, vdec->id);
 		return;
 	}
 	vdec_schedule_work(&hw->timeout_work);

@@ -348,7 +348,7 @@ void config_cav_lut_ex(u32 index, ulong addr, u32 width,
 		datal_temp = (cav_lut.start_addr & 0x1fffffff) |
 			((cav_lut.cav_width & 0x7 ) << 29 );
 		datah_temp = ((cav_lut.cav_width  >> 3) & 0x1ff) |
-			(( cav_lut.cav_hight & 0x1fff) <<9 ) |
+			(( cav_lut.cav_height & 0x1fff) <<9 ) |
 			((cav_lut.x_wrap_en & 1) << 22 ) |
 			(( cav_lut.y_wrap_en & 1) << 23) |
 			(( cav_lut.blk_mode & 0x3) << 24);

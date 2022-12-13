@@ -45,8 +45,11 @@
 #define MD_BUF_SIZE			(1024)
 #define COMP_BUF_SIZE			(8196)
 #define SEI_BUF_SIZE			(2 * 12 * 1024)
+#define HDR10P_BUF_SIZE			(128)
+
 #define SEI_TYPE	(1)
 #define DV_TYPE		(2)
+#define HDR10P_TYPE	(4)
 
 
 /*
@@ -95,7 +98,7 @@ struct aml_video_dec_buf {
 	struct vdec_v4l2_buffer frame_buffer;
 	struct file_private_data privdata;
 	struct codec_mm_s *mem[2];
-	char mem_onwer[32];
+	char mem_owner[32];
 	bool used;
 	bool que_in_m2m;
 	bool lastframe;
@@ -134,9 +137,12 @@ void wait_vcodec_ending(struct aml_vcodec_ctx *ctx);
 void vdec_frame_buffer_release(void *data);
 void aml_vdec_dispatch_event(struct aml_vcodec_ctx *ctx, u32 changes);
 void* v4l_get_vf_handle(int fd);
+void aml_v4l_vpp_release_early(struct aml_vcodec_ctx * ctx);
 void aml_v4l_ctx_release(struct kref *kref);
 void dmabuff_recycle_worker(struct work_struct *work);
 void aml_buffer_status(struct aml_vcodec_ctx *ctx);
+void aml_compressed_info_show(struct aml_vcodec_ctx *ctx);
+
 void aml_vdec_basic_information(struct aml_vcodec_ctx *ctx);
 
 void aml_alloc_buffer(struct aml_vcodec_ctx *ctx, int flag);
@@ -144,6 +150,7 @@ void aml_free_buffer(struct aml_vcodec_ctx *ctx, int flag);
 void aml_free_one_sei_buffer(struct aml_vcodec_ctx *ctx, char **addr, int *size, int idx);
 void aml_bind_sei_buffer(struct aml_vcodec_ctx *v4l, char **addr, int *size, int *idx);
 void aml_bind_dv_buffer(struct aml_vcodec_ctx *v4l, char **comp_buf, char **md_buf);
+void aml_bind_hdr10p_buffer(struct aml_vcodec_ctx *v4l, char **addr);
 
 int aml_canvas_cache_init(struct aml_vcodec_dev *dev);
 void aml_canvas_cache_put(struct aml_vcodec_dev *dev);

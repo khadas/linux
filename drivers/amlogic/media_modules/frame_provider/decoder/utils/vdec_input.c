@@ -72,7 +72,7 @@ static int aml_copy_from_user(void *to, const void *from, ulong n)
 }
 
 static int copy_from_user_to_phyaddr(void *virts, const char __user *buf,
-		u32 size, ulong phys, u32 pading, bool is_mapped)
+		u32 size, ulong phys, u32 padding, bool is_mapped)
 {
 	u32 i, span = SZ_1M;
 	u32 count = size / PAGE_ALIGN(span);
@@ -84,10 +84,10 @@ static int copy_from_user_to_phyaddr(void *virts, const char __user *buf,
 		if (aml_copy_from_user(p, buf, size))
 			return -EFAULT;
 
-		if (pading)
-			memset(p + size, 0, pading);
+		if (padding)
+			memset(p + size, 0, padding);
 
-		codec_mm_dma_flush(p, size + pading, DMA_TO_DEVICE);
+		codec_mm_dma_flush(p, size + padding, DMA_TO_DEVICE);
 
 		return 0;
 	}
@@ -112,7 +112,7 @@ static int copy_from_user_to_phyaddr(void *virts, const char __user *buf,
 
 	span = size - remain;
 	addr = phys + span;
-	p = codec_mm_vmap(addr, remain + pading);
+	p = codec_mm_vmap(addr, remain + padding);
 	if (!p)
 		return -1;
 
@@ -121,10 +121,10 @@ static int copy_from_user_to_phyaddr(void *virts, const char __user *buf,
 		return -EFAULT;
 	}
 
-	if (pading)
-		memset(p + remain, 0, pading);
+	if (padding)
+		memset(p + remain, 0, padding);
 
-	codec_mm_dma_flush(p, remain + pading, DMA_TO_DEVICE);
+	codec_mm_dma_flush(p, remain + padding, DMA_TO_DEVICE);
 	codec_mm_unmap_phyaddr(p);
 
 	return 0;
@@ -138,7 +138,7 @@ static int vframe_chunk_fill(struct vdec_input_s *input,
 	if (block->type == VDEC_TYPE_FRAME_BLOCK) {
 		copy_from_user_to_phyaddr(p, buf, count,
 			block->start + block->wp,
-			chunk->pading_size,
+			chunk->padding_size,
 			block->is_mapped);
 	} else if (block->type == VDEC_TYPE_FRAME_CIRCULAR) {
 		size_t len = min((size_t)(block->size - block->wp), count);
@@ -162,7 +162,7 @@ static int vframe_chunk_fill(struct vdec_input_s *input,
 		if (wp >= block->size)
 			wp -= block->size;
 
-		len = min(block->size - wp, chunk->pading_size);
+		len = min(block->size - wp, chunk->padding_size);
 
 		if (!block->is_mapped) {
 			p = codec_mm_vmap(block->start + wp, len);
@@ -174,21 +174,21 @@ static int vframe_chunk_fill(struct vdec_input_s *input,
 			codec_mm_dma_flush(p, len, DMA_TO_DEVICE);
 		}
 
-		if (chunk->pading_size > len) {
+		if (chunk->padding_size > len) {
 			p = (u8 *)block->start_virt;
 
 			if (!block->is_mapped) {
 				p = codec_mm_vmap(block->start,
-					chunk->pading_size - len);
-				memset(p, 0, chunk->pading_size - len);
+					chunk->padding_size - len);
+				memset(p, 0, chunk->padding_size - len);
 				codec_mm_dma_flush(p,
-					chunk->pading_size - len,
+					chunk->padding_size - len,
 					DMA_TO_DEVICE);
 				codec_mm_unmap_phyaddr(p);
 			} else {
-				memset(p, 0, chunk->pading_size - len);
+				memset(p, 0, chunk->padding_size - len);
 				codec_mm_dma_flush(p,
-					chunk->pading_size - len,
+					chunk->padding_size - len,
 					DMA_TO_DEVICE);
 			}
 		}
@@ -211,7 +211,7 @@ static inline u32 vframe_block_space(struct vframe_block_list_s *block)
 static void vframe_block_add_chunk(struct vframe_block_list_s *block,
 				struct vframe_chunk_s *chunk)
 {
-	block->wp += chunk->size + chunk->pading_size;
+	block->wp += chunk->size + chunk->padding_size;
 	if (block->wp >= block->size)
 		block->wp -= block->size;
 	block->data_size += chunk->size;
@@ -466,7 +466,7 @@ static int vdec_input_dump_chunk_locked(
 		chunk->block,
 		chunk->offset,
 		chunk->size,
-		chunk->pading_size,
+		chunk->padding_size,
 		chunk->pts64,
 		(void *)(chunk->block->addr + chunk->offset));
 	/*
@@ -681,12 +681,12 @@ static struct vframe_block_list_s *
 }
 int vdec_input_get_duration_u64(struct vdec_input_s *input)
 {
-	int duration = (input->last_inpts_u64 - input->last_comsumed_pts_u64);
+	int duration = (input->last_inpts_u64 - input->last_consumed_pts_u64);
 	if (input->last_in_nopts_cnt > 0 &&
-		input->last_comsumed_pts_u64 > 0 &&
+		input->last_consumed_pts_u64 > 0 &&
 		input->last_duration > 0) {
 		duration += (input->last_in_nopts_cnt -
-			input->last_comsumed_no_pts_cnt) *
+			input->last_consumed_no_pts_cnt) *
 			input->last_duration;
 	}
 	if (duration > 1000 * 1000000)/*> 1000S,I think jumped.*/
@@ -724,7 +724,7 @@ static int vdec_input_have_blocks_enough(struct vdec_input_s *input)
 }
 static int	vdec_input_get_free_block(
 	struct vdec_input_s *input,
-	int size,/*frame size + pading*/
+	int size,/*frame size + padding*/
 	struct vframe_block_list_s **block_ret)
 {
 	struct vframe_block_list_s *to_freeblock = NULL;
@@ -794,7 +794,7 @@ int vdec_input_add_chunk(struct vdec_input_s *input, const char *buf,
 	struct vdec_s *vdec = input->vdec;
 	struct vframe_block_list_s *block;
 
-	int need_pading_size = MIN_FRAME_PADDING_SIZE;
+	int need_padding_size = MIN_FRAME_PADDING_SIZE;
 
 	if (vdec_secure(vdec)) {
 		block = vdec_input_alloc_new_block(input, (ulong)buf,
@@ -845,16 +845,16 @@ int vdec_input_add_chunk(struct vdec_input_s *input, const char *buf,
 			return -EINVAL;
 
 		if (count < PAGE_SIZE) {
-			need_pading_size = PAGE_ALIGN(count + need_pading_size) -
+			need_padding_size = PAGE_ALIGN(count + need_padding_size) -
 				count;
 		} else {
 			/*to 64 bytes aligned;*/
 			if (count & 0x3f)
-				need_pading_size += 64 - (count & 0x3f);
+				need_padding_size += 64 - (count & 0x3f);
 		}
 		block = input->wr_block;
 		if (block &&
-			(vframe_block_space(block) > (count + need_pading_size))) {
+			(vframe_block_space(block) > (count + need_padding_size))) {
 			/*this block have enough buffers.
 			do nothings.
 			*/
@@ -880,7 +880,7 @@ int vdec_input_add_chunk(struct vdec_input_s *input, const char *buf,
 		}
 		if (!block) {/*try new block.*/
 			int ret = vdec_input_get_free_block(input,
-				count + need_pading_size + EXTRA_PADDING_SIZE,
+				count + need_padding_size + EXTRA_PADDING_SIZE,
 				&block);
 			if (ret < 0)/*no enough block now.*/
 				return ret;
@@ -941,14 +941,19 @@ int vdec_input_add_chunk(struct vdec_input_s *input, const char *buf,
 	if (vdec_secure(vdec)) {
 		chunk->offset = 0;
 		chunk->size = count;
-		chunk->pading_size = PAGE_ALIGN(chunk->size + need_pading_size) -
+		chunk->padding_size = PAGE_ALIGN(chunk->size + need_padding_size) -
 			chunk->size;
 	} else {
 		chunk->offset = block->wp;
 		chunk->size = count;
-		chunk->pading_size = need_pading_size;
+		chunk->padding_size = need_padding_size;
 		if (vframe_chunk_fill(input, chunk, buf, count, block)) {
 			pr_err("vframe_chunk_fill failed\n");
+			if (chunk->hdr10p_data_buf != NULL) {
+				vfree(chunk->hdr10p_data_buf);
+				chunk->hdr10p_data_buf = NULL;
+				chunk->hdr10p_data_size = 0;
+			}
 			kfree(chunk);
 			return -EFAULT;
 		}
@@ -1090,14 +1095,20 @@ void vdec_input_release_chunk(struct vdec_input_s *input,
 		return;
 	}
 
+	if (chunk->hdr10p_data_buf != NULL) {
+		vfree(chunk->hdr10p_data_buf);
+		chunk->hdr10p_data_buf = NULL;
+		chunk->hdr10p_data_size = 0;
+	}
+
 	list_del(&chunk->list);
 	input->have_frame_num--;
 	ATRACE_COUNTER(input->vdec_input_name, input->have_frame_num);
 	if (chunk->pts_valid) {
-		input->last_comsumed_no_pts_cnt = 0;
-		input->last_comsumed_pts_u64 = chunk->pts64;
+		input->last_consumed_no_pts_cnt = 0;
+		input->last_consumed_pts_u64 = chunk->pts64;
 	} else
-		input->last_comsumed_no_pts_cnt++;
+		input->last_consumed_no_pts_cnt++;
 	block->rp += chunk->size;
 	if (block->rp >= block->size)
 		block->rp -= block->size;

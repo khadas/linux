@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ * Copyright (C) 2017 Amlogic, Inc. All rights RESERVED.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -159,15 +159,15 @@ static s32 vh264mvc_init(void);
 #define DECODE_STATUS           AV_SCRATCH_A
 #define SPS_STATUS              AV_SCRATCH_B
 #define PPS_STATUS              AV_SCRATCH_C
-#define SIM_RESERV_D            AV_SCRATCH_D
+#define SIM_RESERVE_D            AV_SCRATCH_D
 #define WORKSPACE_START         AV_SCRATCH_E
-#define SIM_RESERV_F            AV_SCRATCH_F
+#define SIM_RESERVE_F            AV_SCRATCH_F
 #define DECODE_ERROR_CNT        AV_SCRATCH_G
 #define CURRENT_UCODE           AV_SCRATCH_H
 #define CURRENT_SPS_PPS         AV_SCRATCH_I/* bit[15:9]-SPS, bit[8:0]-PPS */
 #define DECODE_SKIP_PICTURE     AV_SCRATCH_J
 #define UCODE_START_ADDR        AV_SCRATCH_K
-#define SIM_RESERV_L            AV_SCRATCH_L
+#define SIM_RESERVE_L            AV_SCRATCH_L
 #define REF_START_VIEW_0        AV_SCRATCH_M
 #define REF_START_VIEW_1        AV_SCRATCH_N
 

@@ -67,7 +67,7 @@ int decoder_bmmu_box_alloc_idx_wait(
 	int mem_flags,
 	int wait_flags);
 
-bool decoder_bmmu_box_valide_check(void *box);
+bool decoder_bmmu_box_valid_check(void *box);
 void decoder_bmmu_try_to_release_box(void *handle);
 
 int decoder_bmmu_box_init(void);

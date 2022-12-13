@@ -57,6 +57,7 @@ int aml_pcmcia_init(struct aml_pcmcia *pc);
 int aml_pcmcia_exit(struct aml_pcmcia *pc);
 int aml_pcmcia_reset(struct aml_pcmcia *pc);
 void aml_pcmcia_detect_cam(struct aml_pcmcia *pc);
-
+int aml_pcmcia_suspend(struct aml_pcmcia *pc);
+int aml_pcmcia_resume(struct aml_pcmcia *pc);
 #endif /*_AML_PCMCIA_*/
 

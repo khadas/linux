@@ -392,7 +392,7 @@ int waitForBitsCleared(struct device_s *bus_adap,
 
 /******************************************************************************
  * @brief
- *   retreive addr of CIMaX+ register.
+ *   receive addr of CIMaX+ register.
  *
  * @param   dev
  *   Pointer to CIMaX+ register Name.

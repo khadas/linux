@@ -53,8 +53,8 @@ struct decoder_bmmu_box {
 	int total_size;
 	int box_ref_cnt;
 	int change_size_on_need_smaller;
-	int align2n;		/*can overwite on idx alloc */
-	int mem_flags;		/*can overwite on idx alloc */
+	int align2n;		/*can overwrite on idx alloc */
+	int mem_flags;		/*can overwrite on idx alloc */
 	u32 alloc_flags;
 	struct mm_list_expand exp_mm_list;
 	struct codec_mm_s *mm_list[1];
@@ -91,24 +91,24 @@ static int decoder_bmmu_box_mgr_del_box(struct decoder_bmmu_box *box)
 	return 0;
 }
 
-bool decoder_bmmu_box_valide_check(void *box)
+bool decoder_bmmu_box_valid_check(void *box)
 {
 	struct decoder_bmmu_box_mgr *mgr = get_decoder_bmmu_box_mgr();
 	struct decoder_bmmu_box *bmmu_box = NULL;
-	bool is_valide = false;
+	bool is_valid = false;
 
 	mutex_lock(&mgr->mutex);
 	list_for_each_entry(bmmu_box, &mgr->box_list, list) {
 		if (bmmu_box && bmmu_box == box) {
-			is_valide = true;
+			is_valid = true;
 			break;
 		}
 	}
 	mutex_unlock(&mgr->mutex);
 
-	return is_valide;
+	return is_valid;
 }
-EXPORT_SYMBOL(decoder_bmmu_box_valide_check);
+EXPORT_SYMBOL(decoder_bmmu_box_valid_check);
 
 void *decoder_bmmu_box_alloc_box(const char *name,
 		int channel_id, int max_num,
@@ -455,7 +455,7 @@ int decoder_bmmu_box_alloc_idx_wait(
 		mutex_unlock(&box->mutex);
 
 		if (!keeped)
-			return 0;/*have alloced memery before.*/
+			return 0;/*have alloced memory before.*/
 	}
 	have_space = decoder_bmmu_box_check_and_wait_size(
 					size,
@@ -782,7 +782,7 @@ static ssize_t debug_store(struct class *class,
 		decoder_bmmu_box_dump_all(NULL , 0);
 		break;
 	default:
-		pr_err("unknow cmd! %d\n", val);
+		pr_err("unknown cmd! %d\n", val);
 	}
 	return size;
 

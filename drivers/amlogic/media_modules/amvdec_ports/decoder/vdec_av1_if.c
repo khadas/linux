@@ -60,7 +60,7 @@ struct av1_fb {
 /**
  * struct vdec_av1_dec_info - decode information
  * @dpb_sz		: decoding picture buffer size
- * @resolution_changed  : resoltion change happen
+ * @resolution_changed  : resolution change happen
  * @reserved		: for 8 bytes alignment
  * @bs_dma		: Input bit-stream buffer dma address
  * @y_fb_dma		: Y frame buffer dma address
@@ -321,7 +321,7 @@ static void vdec_parser_parms(struct vdec_av1_inst *inst)
 		pbuf += sprintf(pbuf, "mW.y:%d;",
 			ctx->config.parm.dec.hdr.color_parms.white_point[1]);
 		pbuf += sprintf(pbuf, "mMaxDL:%d;",
-			ctx->config.parm.dec.hdr.color_parms.luminance[0] * 1000);
+			ctx->config.parm.dec.hdr.color_parms.luminance[0]);
 		pbuf += sprintf(pbuf, "mMinDL:%d;",
 			ctx->config.parm.dec.hdr.color_parms.luminance[1]);
 		pbuf += sprintf(pbuf, "mMaxCLL:%d;",
@@ -361,7 +361,7 @@ static int vdec_av1_init(struct aml_vcodec_ctx *ctx, unsigned long *h_vdec)
 	if (ctx->is_drm_mode)
 		inst->vdec.port.flag |= PORT_FLAG_DRM;
 
-	/* to eable av1 hw.*/
+	/* to enable av1 hw.*/
 	inst->vdec.port.type	= PORT_TYPE_HEVC;
 
 	/* probe info from the stream */
@@ -450,7 +450,7 @@ static int parse_stream_ucode_dma(struct vdec_av1_inst *inst,
 static int parse_stream_cpu(struct vdec_av1_inst *inst, u8 *buf, u32 size)
 {
 	v4l_dbg(inst->ctx, V4L_DEBUG_CODEC_ERROR,
-		"can not suppport parse stream by cpu.\n");
+		"can not support parse stream by cpu.\n");
 
 	return -1;
 }
@@ -915,7 +915,7 @@ int parser_frame(int is_annexb, u8 *data, const u8 *data_end,
 					&& ((p[1] == 0x00) && (p[2] == 0x3b)) /* terminal_provider_code */
 					&& ((p[3] == 0x00) && (p[4] == 0x00) && (p[5] == 0x08) && (p[6] == 0x00))) { /* terminal_provider_oriented_code */
 					v4l_dbg(0, V4L_DEBUG_CODEC_PARSER,
-						"dolbyvison rpu\n");
+						"dolbyvision_std rpu\n");
 					meta_buf[0] = meta_buf[1] = meta_buf[2] = 0;
 					meta_buf[3] = 0x01;
 					meta_buf[4] = 0x19;

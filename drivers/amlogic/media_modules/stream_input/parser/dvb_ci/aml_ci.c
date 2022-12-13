@@ -31,7 +31,7 @@
 //#include "aml_spi.h"
 #include "aml_ci_bus.h"
 //#include "cimax/aml_cimax.h"
-
+#include "aml_pcmcia.h"
 //#include "dvb_ca_en50221.h"
 #include <dvbdev.h>
 
@@ -45,6 +45,9 @@ module_param(aml_ci_debug, int, S_IRUGO);
 			printk(args);\
 	} while (0)
 #define pr_error(fmt, args...) printk("DVBCI: " fmt, ## args)
+
+static int aml_ci_resume(struct platform_device *pdev);
+static int aml_ci_suspend(struct platform_device *pdev, pm_message_t state);
 
 /**\brief aml_ci_mem_read:mem read from cam
  * \param en50221: en50221 obj,used this data to get dvb_ci obj
@@ -374,7 +377,7 @@ static int aml_ci_write_cor(struct dvb_ca_en50221_cimax *en50221,
 	pr_error("ci_write_cor is null %s\r\n", __func__);
 	return -EINVAL;
 }
-/**\brief aml_ci_negociate: negotiate
+/**\brief aml_ci_negotiate: negotiate
  * \param en50221_max: en50221 obj,used this data to get dvb_ci obj
  * \param slot: slot index
  * \param size: suggested size
@@ -483,13 +486,13 @@ static int aml_ci_cam_reset(struct dvb_ca_en50221_cimax *en50221, int slot)
 	return -EINVAL;
 }
 
-/**\brief aml_ci_get_capbility
+/**\brief aml_ci_get_capability
  * \param en50221_max: en50221 obj,used this data to get dvb_ci obj
  * \param slot: slot index
  * \return
- *   -        : capbilities
+ *   -        : capabilities
  */
-static int aml_ci_get_capbility(struct dvb_ca_en50221_cimax *en50221, int slot)
+static int aml_ci_get_capability(struct dvb_ca_en50221_cimax *en50221, int slot)
 {
 	struct aml_ci *ci = en50221->data;
 
@@ -498,10 +501,10 @@ static int aml_ci_get_capbility(struct dvb_ca_en50221_cimax *en50221, int slot)
 		return 0;
 	}
 
-	if (ci->ci_get_capbility != NULL)
-		return ci->ci_get_capbility(ci, slot);
+	if (ci->ci_get_capability != NULL)
+		return ci->ci_get_capability(ci, slot);
 
-	pr_error("ci_get_capbility is null %s\r\n", __func__);
+	pr_error("ci_get_capability is null %s\r\n", __func__);
 	return 0;
 }
 #endif
@@ -569,7 +572,7 @@ int aml_ci_init(struct platform_device *pdev,
 		ci->en50221_cimax.write_lpdu = aml_ci_write_lpdu;
 		ci->en50221_cimax.read_cam_status = aml_ci_read_cam_status;
 		ci->en50221_cimax.cam_reset = aml_ci_cam_reset;
-		ci->en50221_cimax.get_capbility = aml_ci_get_capbility;
+		ci->en50221_cimax.get_capability = aml_ci_get_capability;
 		ci->en50221_cimax.slot_reset = aml_ci_cimax_slot_reset;
 		ci->en50221_cimax.slot_shutdown = aml_ci_cimax_slot_shutdown;
 		ci->en50221_cimax.slot_ts_enable = aml_ci_cimax_ts_control;
@@ -768,7 +771,7 @@ static int aml_ci_remove(struct platform_device *pdev)
 	if (ci_dev->io_type == AML_DVB_IO_TYPE_CIBUS)
 		aml_ci_bus_exit(ci_dev);
 	else
-		pr_dbg("---Amlogic CI remove unkown io type---\n");
+		pr_dbg("---Amlogic CI remove unknown io type---\n");
 
 	aml_ci_exit(ci_dev);
 	symbol_put_addr(aml_get_dvb_adapter);
@@ -788,9 +791,9 @@ static int aml_ci_suspend(struct platform_device *pdev, pm_message_t state)
 	else
 #endif
 	if (ci_dev->io_type == AML_DVB_IO_TYPE_CIBUS)
-		aml_ci_bus_exit(ci_dev);
+		aml_pcmcia_suspend(&(((struct aml_ci_bus *)(ci_dev->data))->pc));
 	else
-		pr_dbg("---Amlogic CI remove unkown io type---\n");
+		pr_dbg("---Amlogic CI remove unknown io type---\n");
 
 	return 0;
 }
@@ -809,9 +812,9 @@ static int aml_ci_resume(struct platform_device *pdev)
 	else
 #endif
 	if (ci_dev->io_type == AML_DVB_IO_TYPE_CIBUS)
-		aml_ci_bus_init(pdev, ci_dev);
+		aml_pcmcia_resume(&(((struct aml_ci_bus *)(ci_dev->data))->pc));
 	else
-		pr_dbg("---Amlogic CI remove unkown io type---\n");
+		pr_dbg("---Amlogic CI remove unknown io type---\n");
 	return err;
 }
 

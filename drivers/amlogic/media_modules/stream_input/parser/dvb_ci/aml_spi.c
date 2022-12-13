@@ -116,11 +116,11 @@ static int aml_init_send_buf(u8 cmd, u8 data, u16 addr)
 	sendbuf[7] = DATAEND;
 	return 0;
 }
-/**\brief aml_ci_spi_reciver
+/**\brief aml_ci_spi_receiver
 * \param[out] None
 * \param[in] value,get from spi
 * \return
-*   - 0:reciver end,-1:reciver
+*   - 0:receiver end,-1:receiver
 *   -
 */
 /*
@@ -141,7 +141,7 @@ int aml_ci_spi_paser_bit(uint8_t value)
 			G_rec_flag = AM_SPI_STEP_START1;
 		}
 	} else if (G_rec_flag == AM_SPI_STEP_START1) {
-		/* start2 type seccond */
+		/* start2 type second */
 		if (value == DATASTART) {
 			rbuf[1] = value;
 			G_rec_flag = AM_SPI_STEP_START2;
@@ -396,10 +396,10 @@ static  int aml_ci_full_test_by_spi(
 	struct aml_ci *ci_dev, int slot, int addr)
 {
 	u8  data = 0;
-	u16 addres = addr;
+	u16 address = addr;
 	int value = 0;
 	struct aml_spi *spi_dev = ci_dev->data;
-	aml_init_send_buf(AM_CI_CMD_FULLTEST, data, addres);
+	aml_init_send_buf(AM_CI_CMD_FULLTEST, data, address);
 	value = aml_spi_io_api(spi_dev,
 		sendbuf, SENDBUFLEN, AM_CI_CMD_FULLTEST);
 	pr_dbg("FULL : TEST END \r\n");
@@ -418,10 +418,10 @@ static  int aml_ci_mem_read_by_spi(
 	struct aml_ci *ci_dev, int slot, int addr)
 {
 	u8  data = 0;
-	u16 addres = addr;
+	u16 address = addr;
 	int value = 0;
 	struct aml_spi *spi_dev = ci_dev->data;
-	aml_init_send_buf(AM_CI_CMD_MEMR, data, addres);
+	aml_init_send_buf(AM_CI_CMD_MEMR, data, address);
 	value = aml_spi_io_api(spi_dev, sendbuf, SENDBUFLEN, AM_CI_CMD_MEMR);
 	/*pr_dbg("Read : mem[%d] = 0x%x\n", addr, value);*/
 	return value;
@@ -439,10 +439,10 @@ static int aml_ci_mem_write_by_spi(
 	struct aml_ci *ci_dev, int slot, int addr,  u8 val)
 {
 	u8  data = val;
-	u16 addres = addr;
+	u16 address = addr;
 	int value = 0;
 	struct aml_spi *spi_dev = ci_dev->data;
-	aml_init_send_buf(AM_CI_CMD_MEMW, data, addres);
+	aml_init_send_buf(AM_CI_CMD_MEMW, data, address);
 	value = aml_spi_io_api(spi_dev, sendbuf, SENDBUFLEN, AM_CI_CMD_MEMW);
 	/*pr_dbg("write : mem[%d] = 0x%x\n", addr, data);*/
 return value;
@@ -459,10 +459,10 @@ static int aml_ci_io_read_by_spi(
 	struct aml_ci *ci_dev, int slot, int addr)
 {
 	u8  data = 0;
-	u16 addres = addr;
+	u16 address = addr;
 	int value = 0;
 	struct aml_spi *spi_dev = ci_dev->data;
-	aml_init_send_buf(AM_CI_CMD_IOR, data, addres);
+	aml_init_send_buf(AM_CI_CMD_IOR, data, address);
 	value = aml_spi_io_api(spi_dev, sendbuf, SENDBUFLEN, AM_CI_CMD_IOR);
 	/*pr_dbg("read : io[%d] = 0x%x\n", addr, value);*/
 	return value;
@@ -480,12 +480,12 @@ static int aml_ci_io_write_by_spi(
 	struct aml_ci *ci_dev, int slot, int addr, u8 val)
 {
 	u8  data = val;
-	u16 addres = addr;
+	u16 address = addr;
 	int value = 0;
 	struct aml_spi *spi_dev = ci_dev->data;
 	/*add by chl,need add time delay*/
 	mdelay(10);
-	aml_init_send_buf(AM_CI_CMD_IOW, data, addres);
+	aml_init_send_buf(AM_CI_CMD_IOW, data, address);
 	value = aml_spi_io_api(spi_dev, sendbuf, SENDBUFLEN, AM_CI_CMD_IOW);
 	/*pr_dbg("write : ATTR[%d] = 0x%x\n", addr, data);*/
 	return value;
@@ -503,12 +503,12 @@ static int aml_ci_rst_by_spi(
 	struct aml_ci *ci_dev, int slot, int level)
 {
 	u8  data = (u8)level;
-	u16 addres = 0;
+	u16 address = 0;
 	int value = 0;
 	struct aml_spi *spi_dev = ci_dev->data;
 	/*add by chl,need add time delay*/
 	mdelay(10);
-	aml_init_send_buf(AM_CI_CMD_RESET, data, addres);
+	aml_init_send_buf(AM_CI_CMD_RESET, data, address);
 	value = aml_spi_io_api(spi_dev, sendbuf, SENDBUFLEN, AM_CI_CMD_RESET);
 	return value;
 }
@@ -525,14 +525,14 @@ static int aml_ci_power_by_spi(
 	struct aml_ci *ci_dev, int slot, int enable)
 {
 	u8  data = (u8)enable;
-	u16 addres = 0;
+	u16 address = 0;
 	int value = 0;
 	struct aml_spi *spi_dev = ci_dev->data;
 	/*add by chl,need add time delay*/
 	/*power is controled by mcu*/
 	if (0) {
 		mdelay(10);
-		aml_init_send_buf(AM_CI_CMD_POWER, data, addres);
+		aml_init_send_buf(AM_CI_CMD_POWER, data, address);
 		value = aml_spi_io_api(spi_dev, sendbuf, SENDBUFLEN, AM_CI_CMD_POWER);
 	}
 	return value;
@@ -550,12 +550,12 @@ static int aml_ci_getcd12_by_spi(
 	struct aml_ci *ci_dev, int slot, int cd12)
 {
 	u8  data = (u8)cd12;
-	u16 addres = 0;
+	u16 address = 0;
 	int value = 0;
 	struct aml_spi *spi_dev = ci_dev->data;
 	/*add by chl,need add time delay*/
 	mdelay(10);
-	aml_init_send_buf(AM_CI_CMD_GETCD12, data, addres);
+	aml_init_send_buf(AM_CI_CMD_GETCD12, data, address);
 	value = aml_spi_io_api(spi_dev, sendbuf, SENDBUFLEN, AM_CI_CMD_GETCD12);
 	return value;
 }
@@ -640,7 +640,7 @@ static int aml_ci_gio_get_irq(void)
 	else if (g_spi_dev->io_device_type == AML_DVB_IO_TYPE_SPI)
 		ret = aml_get_gpio_value(g_spi_dev->mcu_irq_pin);
 	else
-		pr_error("aml_ci_gio_get_irq io type not surport\n");
+		pr_error("aml_ci_gio_get_irq io type not support\n");
 	return ret;
 }
 #endif
@@ -776,7 +776,7 @@ static int aml_gio_get_cd1(struct aml_pcmcia *pc)
 	} else if (spi_dev->io_device_type == AML_DVB_IO_TYPE_SPI_T312) {
 		ret = aml_ci_getcd12_by_spi((struct aml_ci *)spi_dev->priv, 0, 0);
 	} else {
-		pr_dbg("aml_gio_get_cd1 not surport type [%d] \r\n", spi_dev->io_device_type);
+		pr_dbg("aml_gio_get_cd1 not support type [%d] \r\n", spi_dev->io_device_type);
 	}
 	return ret;
 }
@@ -795,7 +795,7 @@ static int aml_gio_get_cd2(struct aml_pcmcia *pc)
 	} else if (spi_dev->io_device_type == AML_DVB_IO_TYPE_SPI_T312) {
 		ret = aml_ci_getcd12_by_spi((struct aml_ci *)spi_dev->priv, 0, 1);
 	} else {
-		pr_dbg("aml_gio_get_cd2 not surport type [%d] \r\n", spi_dev->io_device_type);
+		pr_dbg("aml_gio_get_cd2 not support type [%d] \r\n", spi_dev->io_device_type);
 	}
 	return ret;
 }
@@ -1254,18 +1254,18 @@ end:
 
 			reg = aml_ci_io_read_by_spi(ci_dev, 0, COM_STA_REG);
 			if ((reg & DA) == DA) {
-				pr_dbg("Buffer negotiate size date avalible.\r\n");
+				pr_dbg("Buffer negotiate size date available.\r\n");
 				break;
 			} else {
 				/*pr_dbg("Buffer negotiate
-				size date NOT avalible\r\n");*/
+				size date NOT available\r\n");*/
 				continue;
 			}
 			mdelay(100);
 		}
 		cnt = (aml_ci_io_read_by_spi(ci_dev, 0, SIZE_REG_L)) +
 		((aml_ci_io_read_by_spi(ci_dev, 0, SIZE_REG_M)) * 256);
-		pr_dbg("Moudle have <%d> Bytes send to host.\r\n", cnt);
+		pr_dbg("Module have <%d> Bytes send to host.\r\n", cnt);
 		if (cnt != 2) {
 			pr_dbg("The Bytes will be tx is ERR!\r\n");
 			return;
@@ -1821,7 +1821,7 @@ static struct class aml_spi_class = {
 
 /**\brief aml_con_gpio_by_spi:control gpio by spi
 * \param gpio: the value is from AM_CON_GPIO def
-* \param level: 0: set low,1:set hight
+* \param level: 0: set low,1:set high
 * \return
 *   - 0:ok
 *   - -EINVAL : error
@@ -1829,12 +1829,12 @@ static struct class aml_spi_class = {
 int aml_con_gpio_by_spi(int gpio, int level)
 {
 	u8  data = gpio;
-	u16 addres = level;
+	u16 address = level;
 	int value = 0;
 	struct aml_spi *spi_dev = g_spi_dev;
 	/*add by chl,need add time delay*/
 	mdelay(10);
-	aml_init_send_buf(AM_CI_CMD_CONGPIO, data, addres);
+	aml_init_send_buf(AM_CI_CMD_CONGPIO, data, address);
 	value = aml_spi_io_api(spi_dev, sendbuf, SENDBUFLEN, AM_CI_CMD_CONGPIO);
 	return value;
 }

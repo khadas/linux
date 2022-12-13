@@ -50,11 +50,11 @@ long ptsserver_ins_init_syncinfo(ptsserver_ins* pInstance,ptsserver_alloc_para* 
 	if (allocParm != NULL) {
 		pInstance->mMaxCount = allocParm->mMaxCount; //500
 		pInstance->mLookupThreshold = allocParm->mLookupThreshold; //2500
-		pInstance->kDoubleCheckThredhold = allocParm->kDoubleCheckThredhold; //5
+		pInstance->kDoubleCheckThreshold = allocParm->kDoubleCheckThreshold; //5
 	} else {
 		pInstance->mMaxCount = 500;
 		pInstance->mLookupThreshold = 2500;
-		pInstance->kDoubleCheckThredhold = 5;
+		pInstance->kDoubleCheckThreshold = 5;
 	}
 
 	pInstance->mPtsCheckinStarted = 0;
@@ -436,7 +436,7 @@ long ptsserver_checkout_pts_offset(s32 pServerInsId,checkout_pts_offset* mChecko
 				pInstance->mDoubleCheckFrameDuration64 = FrameDur64;
 				pInstance->mDoubleCheckFrameDurationCount = 0;
 			}
-			if (pInstance->mDoubleCheckFrameDurationCount > pInstance->kDoubleCheckThredhold) {
+			if (pInstance->mDoubleCheckFrameDurationCount > pInstance->kDoubleCheckThreshold) {
 				if (ptsserver_debuglevel > 1) {
 					pts_pr_info(index,"checkout DoubleCheckFrameDurationCount(%d) DoubleCheckFrameDuration(32:%d 64:%lld)\n",
 										pInstance->mDoubleCheckFrameDurationCount,

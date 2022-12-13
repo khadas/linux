@@ -58,7 +58,7 @@ struct vframe_chunk_s {
 	u32 offset;
 	u32 size;
 	u32 pts;
-	u32 pading_size;
+	u32 padding_size;
 	u64 pts64;
 	bool pts_valid;
 	u64 timestamp;
@@ -109,9 +109,9 @@ struct vdec_input_s {
 	int prepare_level;
 /*for check frame delay.*/
 	u64 last_inpts_u64;
-	u64 last_comsumed_pts_u64;
+	u64 last_consumed_pts_u64;
 	int last_in_nopts_cnt;
-	int last_comsumed_no_pts_cnt;
+	int last_consumed_no_pts_cnt;
 	int last_duration;
 /*for check frame delay.*/
 	int have_frame_num;

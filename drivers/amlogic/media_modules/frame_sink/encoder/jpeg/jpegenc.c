@@ -17,7 +17,7 @@
  *
  * Description:
  */
-#define LOG_LINE()
+//#define LOG_LINE()
 //pr_err("[%s:%d]\n", __FUNCTION__, __LINE__);
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -93,7 +93,7 @@
 #define CLASS_NAME "jpegenc"
 #define DEVICE_NAME "jpegenc"
 
-/* #define EXTEAN_QUANT_TABLE */
+/* #define EXTERN_QUANT_TABLE */
 
 /*######### DEBUG-BRINGUP#########*/
 static u32 manual_clock;
@@ -117,7 +117,7 @@ static u32 pointer = 0;
 
 static u32 clock_level = 1;
 static u16 gQuantTable[2][DCTSIZE2];
-#ifdef EXTEAN_QUANT_TABLE
+#ifdef EXTERN_QUANT_TABLE
 static u16 *gExternalQuantTablePtr;
 static bool external_quant_table_available;
 #endif
@@ -553,7 +553,7 @@ static s32 enc_src_addr_config(struct encdrv_dma_buf_info_t *pinfo,
         struct file *filp);
 static s32 enc_free_buffers(struct file *filp);
 
-static void dump_requst(struct jpegenc_request_s *request) {
+static void dump_request(struct jpegenc_request_s *request) {
     jenc_pr(LOG_DEBUG, "jpegenc: dump request start\n");
     jenc_pr(LOG_DEBUG, "src=%u\n", request->src);
     jenc_pr(LOG_DEBUG, "encoder_width=%u\n", request->encoder_width);
@@ -632,11 +632,11 @@ static void canvas_config_proxy(u32 index, ulong addr, u32 width, u32 height,
 		cav_lut_info_store(index, addr, width, height, wrap, blkmode, 0);
 
 		if (vdec_get_debug() & 0x40000000) {
-			pr_info("(%s %2d) addr: %lx, width: %d, height: %d, blkm: %d, endian: %d\n",
+			jenc_pr(LOG_INFO, "(%s %2d) addr: %lx, width: %d, height: %d, blkm: %d, endian: %d\n",
 				__func__, index, addr, width, height, blkmode, 0);
-			pr_info("data(h,l): 0x%8lx, 0x%8lx\n", datah_temp, datal_temp);
-	    }
-	    */
+			jenc_pr(LOG_INFO, "data(h,l): 0x%8lx, 0x%8lx\n", datah_temp, datal_temp);
+		}
+		*/
 	}
 }
 
@@ -695,30 +695,30 @@ static int jpeg_enc_clk_get(struct device *dev, struct jpeg_enc_clks *clks)
 
     clks->dos_clk = devm_clk_get(dev, "clk_dos");
     if (IS_ERR(clks->dos_clk)) {
-        jenc_pr(LOG_ERROR, "cannot get clk_dos clock\n");
+        jenc_pr(LOG_DEBUG, "cannot get clk_dos clock\n");
         clks->dos_clk = NULL;
         //ret = -ENOENT;
         //goto err;
     } else
-        pr_err("jpeg_enc_clk_get: get clk_dos OK\n");
+        jenc_pr(LOG_INFO, "jpeg_enc_clk_get: get clk_dos OK\n");
 
     clks->dos_apb_clk = devm_clk_get(dev, "clk_apb_dos");
     if (IS_ERR(clks->dos_apb_clk)) {
-        jenc_pr(LOG_ERROR, "cannot get clk_apb_dos clock\n");
+        jenc_pr(LOG_DEBUG, "cannot get clk_apb_dos clock\n");
         clks->dos_apb_clk = NULL;
         //ret = -ENOENT;
         //goto err;
     } else
-        pr_err("jpeg_enc_clk_get: get clk_apb_dos OK\n");
+        jenc_pr(LOG_INFO, "jpeg_enc_clk_get: get clk_apb_dos OK\n");
 
     clks->jpeg_enc_clk = devm_clk_get(dev, "clk_jpeg_enc");
     if (IS_ERR(clks->jpeg_enc_clk)) {
-        jenc_pr(LOG_ERROR, "cannot get clk_jpeg_enc clock\n");
+        jenc_pr(LOG_DEBUG, "cannot get clk_jpeg_enc clock\n");
         clks->jpeg_enc_clk = NULL;
         //ret = -ENOENT;
         //goto err;
     } else
-        pr_err("jpeg_enc_clk_get: get clk_jpeg_enc OK\n");
+        jenc_pr(LOG_INFO, "jpeg_enc_clk_get: get clk_jpeg_enc OK\n");
 
     return 0;
 //err:
@@ -732,19 +732,19 @@ static void jpeg_enc_clk_enable(struct jpeg_enc_clks *clks, u32 frq)
     if (clks->dos_clk != NULL) {
         clk_set_rate(clks->dos_clk, 400 * MHz);
         clk_prepare_enable(clks->dos_clk);
-        pr_err("dos clk: %ld\n", clk_get_rate(clks->dos_clk));
+        jenc_pr(LOG_INFO, "dos clk: %ld\n", clk_get_rate(clks->dos_clk));
     }
 
     if (clks->dos_apb_clk != NULL) {
         clk_set_rate(clks->dos_apb_clk, 400 * MHz);
         clk_prepare_enable(clks->dos_apb_clk);
-        pr_err("apb clk: %ld\n", clk_get_rate(clks->dos_apb_clk));
+        jenc_pr(LOG_INFO, "apb clk: %ld\n", clk_get_rate(clks->dos_apb_clk));
     }
 
     if (clks->jpeg_enc_clk != NULL) {
         clk_set_rate(clks->jpeg_enc_clk, 666666666);
         clk_prepare_enable(clks->jpeg_enc_clk);
-        pr_err("jpegenc clk: %ld\n", clk_get_rate(clks->jpeg_enc_clk));
+        jenc_pr(LOG_INFO, "jpegenc clk: %ld\n", clk_get_rate(clks->jpeg_enc_clk));
     }
 
     /*
@@ -752,7 +752,7 @@ static void jpeg_enc_clk_enable(struct jpeg_enc_clks *clks, u32 frq)
     clk_prepare_enable(clks->dos_apb_clk);
     clk_prepare_enable(clks->jpeg_enc_clk);
     */
-    pr_err("dos: %ld, dos_apb: %ld, jpeg clk: %ld\n",
+    jenc_pr(LOG_INFO, "dos: %ld, dos_apb: %ld, jpeg clk: %ld\n",
         clk_get_rate(clks->dos_clk),
         clk_get_rate(clks->dos_apb_clk),
         clk_get_rate(clks->jpeg_enc_clk));
@@ -761,7 +761,7 @@ static void jpeg_enc_clk_enable(struct jpeg_enc_clks *clks, u32 frq)
 
 static void jpeg_enc_clk_disable(struct jpeg_enc_clks *clks)
 {
-    pr_err("set jpeg_enc_clk rate to 0\n");
+    jenc_pr(LOG_INFO, "set jpeg_enc_clk rate to 0\n");
     clk_set_rate(clks->jpeg_enc_clk, 0);
     clk_disable_unprepare(clks->jpeg_enc_clk);
 
@@ -1873,7 +1873,7 @@ static void write_jpeg_huffman_lut_ac(s32 table_num)
 
     lut = (u32 *)vmalloc(162 * sizeof(u32));
     if (!lut) {
-        pr_err("alloc lut failed.\n");
+        jenc_pr(LOG_ERROR, "alloc lut failed.\n");
         return;
     }
 
@@ -2128,7 +2128,7 @@ static void prepare_jpeg_header(struct jpegenc_wq_s *wq)
         /* data: V0 -- Comp0 vertical sampling factor */
         ((v_factor_comp0 + 1) << 0));
 
-    /* data: Tq0 -- Comp0 quantization table seletor */
+    /* data: Tq0 -- Comp0 quantization table selector */
     push_word(assist_buf,
         &header_bytes, (1 << 24) | (0 << 0));
     /* data: C1 -- Comp1 identifier */
@@ -2140,7 +2140,7 @@ static void prepare_jpeg_header(struct jpegenc_wq_s *wq)
         ((h_factor_comp1 + 1) << 4) |
         /* data: V1 -- Comp1 vertical sampling factor */
         ((v_factor_comp1 + 1) << 0));
-    /* data: Tq1 -- Comp1 quantization table seletor */
+    /* data: Tq1 -- Comp1 quantization table selector */
     push_word(assist_buf,
         &header_bytes, (1 << 24) |
         (((q_sel_comp0 != q_sel_comp1) ? 1 : 0) << 0));
@@ -2153,7 +2153,7 @@ static void prepare_jpeg_header(struct jpegenc_wq_s *wq)
         ((h_factor_comp2 + 1) << 4) |
         /* data: V2 -- Comp2 vertical sampling factor */
         ((v_factor_comp2 + 1) << 0));
-    /* data: Tq2 -- Comp2 quantization table seletor */
+    /* data: Tq2 -- Comp2 quantization table selector */
     push_word(assist_buf,
         &header_bytes, (1 << 24) |
         (((q_sel_comp0 != q_sel_comp2) ? 1 : 0) << 0));
@@ -2750,7 +2750,7 @@ static void mfdin_basic_jpeg(
         data32 = data32 & 0x3ff;
 
         if (jpeg_in_full_hcodec) {
-            pr_err("JPEG_IN_FULL_HCODEC\n");
+            jenc_pr(LOG_INFO, "JPEG_IN_FULL_HCODEC\n");
             data32 |= (0<<16);
 
             if(mfdin_ambus_canv_conv) {
@@ -3067,7 +3067,7 @@ static s32 set_jpeg_input_format(struct jpegenc_wq_s *wq,
                 mfdin_canvas2_addr = mfdin_canvas1_addr + mfdin_canvas1_stride * mfdin_canvas_height;
                 //mfdin_big_endian = true;
             } else {
-                pr_err("config input or output format err!\n");
+                jenc_pr(LOG_ERROR, "config input or output format err!\n");
                 return -1;
             }
 
@@ -3504,7 +3504,7 @@ static void dump_mem(u8 *addr) {
 
     for (i=0;i<dumpmem_line;i++) {
         offset += i * 8;
-        pr_err("%#x\t%#x\t%#x\t%#x\t%#x\t%#x\t%#x\t%#x\n",
+        jenc_pr(LOG_INFO, "%#x\t%#x\t%#x\t%#x\t%#x\t%#x\t%#x\t%#x\n",
             *(offset+0), *(offset+1), *(offset+2), *(offset+3),
             *(offset+4), *(offset+5), *(offset+6), *(offset+7));
     }
@@ -3553,7 +3553,7 @@ s32 jpegenc_loadmc(const char *p)
     if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T7)
         WRITE_HREG(HCODEC_IMEM_DMA_CTRL, (0x8000 | (0xf << 16))); // ucode test c is 0x8000 | (0xf << 16)
     else if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T3) {
-        pr_err("t3 HCODEC_IMEM_DMA_CTRL (0x8000 | (0 & 0xffff))\n");
+        jenc_pr(LOG_INFO, "t3 HCODEC_IMEM_DMA_CTRL (0x8000 | (0 & 0xffff))\n");
         WRITE_HREG(HCODEC_IMEM_DMA_CTRL, (0x8000 | (0 & 0xffff))); // Endian : 4'b1000);
     } else
         WRITE_HREG(HCODEC_IMEM_DMA_CTRL, (0x8000 | (0 & 0xffff))); // Endian : 4'b1000);
@@ -3589,9 +3589,9 @@ static s32 jpegenc_poweron_ex(u32 clock)
     WRITE_VREG(DOS_MEM_PD_HCODEC, 0x0);
 
     if (get_cpu_major_id() >= AM_MESON_CPU_MAJOR_ID_T7) {
-        pr_err("powering on hcodec\n");
+        jenc_pr(LOG_INFO, "powering on hcodec\n");
         vdec_poweron(VDEC_HCODEC);
-        pr_err("hcodec power status after poweron:%d\n", vdec_on(VDEC_HCODEC));
+        jenc_pr(LOG_INFO, "hcodec power status after poweron:%d\n", vdec_on(VDEC_HCODEC));
     } else {
         pwr_ctrl_psci_smc(PDID_T7_DOS_HCODEC, true);
     }
@@ -3618,9 +3618,9 @@ static s32 jpegenc_poweroff_ex(void)
     WRITE_VREG_BITS(DOS_GCLK_EN0, 0, 12, 15);
 
     if (get_cpu_major_id() >= AM_MESON_CPU_MAJOR_ID_T7) {
-        pr_err("powering off hcodec for t7\n");
+        jenc_pr(LOG_INFO, "powering off hcodec for t7\n");
         vdec_poweroff(VDEC_HCODEC);
-        pr_err("hcodec power status after poweroff:%d\n", vdec_on(VDEC_HCODEC));
+        jenc_pr(LOG_INFO, "hcodec power status after poweroff:%d\n", vdec_on(VDEC_HCODEC));
     } else
         pwr_ctrl_psci_smc(PDID_T7_DOS_HCODEC, false);
 
@@ -3764,10 +3764,10 @@ static s32 jpegenc_init(void)
     if (!legacy_load && (get_cpu_major_id() >= AM_MESON_CPU_MAJOR_ID_T7 )) {
         char *buf = vmalloc(0x1000 * 16);
         int ret = -1;
-        pr_err("load ucode\n");
+        jenc_pr(LOG_INFO, "load ucode\n");
         if (get_firmware_data(VIDEO_ENC_JPEG, buf) < 0) {
             //amvdec_disable();
-            pr_err("get firmware for jpeg enc fail!\n");
+            jenc_pr(LOG_ERROR, "get firmware for jpeg enc fail!\n");
             vfree(buf);
             return -1;
         }
@@ -3778,7 +3778,7 @@ static s32 jpegenc_init(void)
         if (ret < 0) {
             //amvdec_disable();
             vfree(buf);
-            pr_err("jpegenc: the %s fw loading failed, err: %x\n",
+            jenc_pr(LOG_ERROR, "jpegenc: the %s fw loading failed, err: %x\n",
                 tee_enabled() ? "TEE" : "local", ret);
             return -EBUSY;
         }
@@ -3927,7 +3927,7 @@ static s32 jpegenc_open(struct inode *inode, struct file *file)
 {
     struct jpegenc_wq_s *wq;
     s32 r;
-    pr_err("jpegenc open, filp=%lu\n", (unsigned long)file);
+    jenc_pr(LOG_INFO, "jpegenc open, filp=%lu\n", (unsigned long)file);
 #ifdef CONFIG_AM_ENCODER
     if (amvenc_avc_on() == true) {
         jenc_pr(LOG_ERROR, "hcodec in use for AVC Encode now.\n");
@@ -4042,7 +4042,7 @@ static s32 jpegenc_release(struct inode *inode, struct file *file)
 #endif
     wq->buf_start = 0;
     wq->buf_size = 0;
-#ifdef EXTEAN_QUANT_TABLE
+#ifdef EXTERN_QUANT_TABLE
     kfree(gExternalQuantTablePtr);
     gExternalQuantTablePtr = NULL;
     external_quant_table_available = false;
@@ -4166,7 +4166,7 @@ static long jpegenc_ioctl(struct file *file, u32 cmd, ulong arg)
             return -1;
         }
 
-        dump_requst(&(wq->cmd));
+        dump_request(&(wq->cmd));
 
         if (is_oversize(wq->cmd.encoder_width,
             wq->cmd.encoder_height,
@@ -4186,7 +4186,7 @@ static long jpegenc_ioctl(struct file *file, u32 cmd, ulong arg)
             jenc_pr(LOG_INFO, "JPEGENC_SEL_QUANT_TABLE: %d\n", wq->cmd.QuantTable_id);
         } else {
             wq->cmd.QuantTable_id = 0;
-            jenc_pr(LOG_ERROR, "JPEGENC_SEL_QUANT_TABLE invaild, use 0 instead\n");
+            jenc_pr(LOG_ERROR, "JPEGENC_SEL_QUANT_TABLE invalid, use 0 instead\n");
         }
 
         jenc_pr(LOG_INFO, "scaled jpeg_quality: %d\n", wq->cmd.jpeg_quality);
@@ -4695,34 +4695,34 @@ static s32 enc_free_buffers(struct file *filp)
 }
 
 static ssize_t power_ctrl_show(struct class *cla, struct class_attribute *attr, char *buf) {
-    pr_err("power status: %lu\n", pwr_ctrl_status_psci_smc(PDID_T7_DOS_HCODEC));
-    pr_err("jpeg clk: %ld\n", clk_get_rate(g_jpeg_enc_clks.jpeg_enc_clk));
+    jenc_pr(LOG_INFO, "power status: %lu\n", pwr_ctrl_status_psci_smc(PDID_T7_DOS_HCODEC));
+    jenc_pr(LOG_INFO, "jpeg clk: %ld\n", clk_get_rate(g_jpeg_enc_clks.jpeg_enc_clk));
     return 1;//snprintf(buf, PAGE_SIZE, "power control show done\n");
 }
 
 static ssize_t power_ctrl_store(struct class *class,struct class_attribute *attr,
         const char *buf, size_t count) {
     if (strncmp(buf, "poweron", 7) == 0) {
-        pr_err("now powering on:\n");
+        jenc_pr(LOG_INFO, "now powering on:\n");
         //pwr_ctrl_psci_smc(PM_HCODEC, true);
         //jpegenc_poweron_ex(6);
         jpegenc_init();
     } else if (strncmp(buf, "poweroff", 8) == 0) {
-        pr_err("now powering off:\n");
+        jenc_pr(LOG_INFO, "now powering off:\n");
         //pwr_ctrl_psci_smc(PM_HCODEC, false);
         jpegenc_poweroff_ex();
     } else if (strncmp(buf, "mbox0", 5) == 0) {
-        pr_err("trigger mbox0:\n");
+        jenc_pr(LOG_INFO, "trigger mbox0:\n");
 
         WRITE_HREG(HCODEC_ASSIST_MBOX0_MASK, 1);   //enable irq
         WRITE_VREG(HCODEC_ASSIST_MBOX0_IRQ_REG, 0x1);  // set irq
     } else if (strncmp(buf, "mbox1", 5) == 0) {
-        pr_err("trigger mbox1:\n");
+        jenc_pr(LOG_INFO, "trigger mbox1:\n");
 
         WRITE_HREG(HCODEC_ASSIST_MBOX1_MASK, 1);   //enable irq
         WRITE_VREG(HCODEC_ASSIST_MBOX1_IRQ_REG, 0x1);  // set irq
     } else if (strncmp(buf, "mbox2", 5) == 0) {
-        pr_err("trigger mbox2:\n");
+        jenc_pr(LOG_INFO, "trigger mbox2:\n");
 
         WRITE_HREG(HCODEC_ASSIST_MBOX2_MASK, 1);   //enable irq
         WRITE_VREG(HCODEC_ASSIST_MBOX2_IRQ_REG, 0x1);  // set irq
@@ -4834,7 +4834,7 @@ static s32 jpegenc_probe(struct platform_device *pdev)
     mfdin_ambus_canv_conv = 0;
 
     if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T3) {
-        pr_err("jpegenc_probe: jpeg_in_full_hcodec\n");
+        jenc_pr(LOG_INFO, "jpegenc_probe: jpeg_in_full_hcodec\n");
         jpeg_in_full_hcodec = 1;
         mfdin_ambus_canv_conv = 1;
     }
@@ -4891,7 +4891,7 @@ static s32 jpegenc_probe(struct platform_device *pdev)
 
     // when use_cma is false, choose JPEGENC_BUFFER_LEVEL_8M as default
     if (gJpegenc.use_cma == false) {
-        jenc_pr(LOG_ERROR, "set mem spec to JPEGENC_BUFFER_LEVEL_8M\n");
+        jenc_pr(LOG_DEBUG, "set mem spec to JPEGENC_BUFFER_LEVEL_8M\n");
         gJpegenc.mem.buf_size = jpegenc_buffspec[JPEGENC_BUFFER_LEVEL_8M].min_buffsize;
     }
 
@@ -4943,20 +4943,20 @@ static s32 jpegenc_probe(struct platform_device *pdev)
         switch (manual_irq_num) {
             case 0:
                 res_irq = platform_get_irq_byname(pdev, "dos_mbox_slow_irq0");
-                pr_err("[%s:%d] get irq dos_mbox_slow_irq0, res_irq=%d\n", __FUNCTION__, __LINE__, res_irq);
+                jenc_pr(LOG_INFO, "[%s:%d] get irq dos_mbox_slow_irq0, res_irq=%d\n", __FUNCTION__, __LINE__, res_irq);
                 break;
             case 1:
                 res_irq = platform_get_irq_byname(pdev, "dos_mbox_slow_irq1");
-                pr_err("[%s:%d] get irq dos_mbox_slow_irq1, res_irq=%d\n", __FUNCTION__, __LINE__, res_irq);
+                jenc_pr(LOG_INFO, "[%s:%d] get irq dos_mbox_slow_irq1, res_irq=%d\n", __FUNCTION__, __LINE__, res_irq);
                 break;
             case 2:
                 res_irq = platform_get_irq_byname(pdev, "dos_mbox_slow_irq2");
-                pr_err("[%s:%d] get irq dos_mbox_slow_irq2, res_irq=%d\n", __FUNCTION__, __LINE__, res_irq);
+                jenc_pr(LOG_INFO, "[%s:%d] get irq dos_mbox_slow_irq2, res_irq=%d\n", __FUNCTION__, __LINE__, res_irq);
                 break;
             default:
 
                 res_irq = platform_get_irq_byname(pdev, "dos_mbox_slow_irq0");
-                pr_err("[%s:%d] get irq dos_mbox_slow_irq0, res_irq=%d\n", __FUNCTION__, __LINE__, res_irq);
+                jenc_pr(LOG_INFO, "[%s:%d] get irq dos_mbox_slow_irq0, res_irq=%d\n", __FUNCTION__, __LINE__, res_irq);
                 break;
         }
     } else {
@@ -4967,12 +4967,12 @@ static s32 jpegenc_probe(struct platform_device *pdev)
         jenc_pr(LOG_ERROR, "[%s] get irq error!", __func__);
         return -EINVAL;
     } else
-        jenc_pr(LOG_ERROR, "[%s] get irq success: %d!, manual_irq_num=%d\n", __func__, res_irq, manual_irq_num);
+        jenc_pr(LOG_DEBUG, "[%s] get irq success: %d!, manual_irq_num=%d\n", __func__, res_irq, manual_irq_num);
 
     gJpegenc.irq_num = res_irq;
 
     jenc_pr(LOG_DEBUG,
-        "jpegenc memory config sucess, buff size is 0x%x, level: %s\n",
+        "jpegenc memory config success, buff size is 0x%x, level: %s\n",
         gJpegenc.mem.buf_size,
         glevel_str[gJpegenc.mem.cur_buf_lev]);
 
@@ -4981,7 +4981,7 @@ static s32 jpegenc_probe(struct platform_device *pdev)
 
     if (get_cpu_major_id() >= AM_MESON_CPU_MAJOR_ID_C1) {
         if (jpeg_enc_clk_get(&pdev->dev, &g_jpeg_enc_clks) != 0) {
-            pr_err("jpeg_enc_clk_get failed\n");
+            jenc_pr(LOG_ERROR, "jpeg_enc_clk_get failed\n");
             return -1;
         }
     }

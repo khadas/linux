@@ -299,7 +299,7 @@ recurse:
 
 #endif
 
-#include "av1_global.h"
+#include "av1_global_t5d.h"
 int aom_realloc_frame_buffer(AV1_COMMON *cm, PIC_BUFFER_CONFIG *pic,
   int width, int height, unsigned int order_hint);
 void dump_params(AV1Decoder *pbi, union param_u *params);
@@ -1963,7 +1963,7 @@ int av1_decode_frame_headers_and_setup(AV1Decoder *pbi, int trailing_bits_presen
       // assign_frame_buffer_p()!
       assert(!cm->cur_frame->raw_frame_buffer.data);
 
-      if (check_buff_has_show(frame_to_show)) {
+      if (check_buff_has_show(cm, frame_to_show)) {
         frame_to_show->buf.v4l_buf_index = cm->cur_frame->buf.index;
         frame_to_show->buf.repeat_count ++;
         cm->cur_frame->buf.repeat_pic = &frame_to_show->buf;

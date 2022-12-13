@@ -274,7 +274,7 @@ struct vdec_core_s {
 	unsigned long buff_flag;
 	unsigned long stream_buff_flag;
 	struct power_manager_s *pm;
-	u32 vdec_resouce_status;
+	u32 vdec_resource_status;
 	struct post_task_mgr_s post;
 	u32 inst_cnt;
 };
@@ -465,6 +465,10 @@ void vdec_data_release(struct codec_mm_s *mm, struct codec_mm_cb_s *cb)
 	if (atomic_read(&data->use_count) == 0) {
 		if (data->user_data_buf != NULL)
 			vfree(data->user_data_buf);
+		if (data->hdr10p_data_buf != NULL)
+			vfree(data->hdr10p_data_buf);
+
+		data->hdr10p_data_buf = NULL;
 		data->user_data_buf = NULL;
 		atomic_dec(&vdata->buffer_count);
 	}
@@ -532,6 +536,21 @@ void vdec_inputbuff_unlock(struct vdec_core_s *core, unsigned long flags)
 	spin_unlock_irqrestore(&core->input_lock, flags);
 }
 
+unsigned long vdec_power_lock(struct vdec_s *vdec)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&vdec->power_lock, flags);
+
+	return flags;
+}
+EXPORT_SYMBOL(vdec_power_lock);
+
+void vdec_power_unlock(struct vdec_s *vdec, unsigned long flags)
+{
+	spin_unlock_irqrestore(&vdec->power_lock, flags);
+}
+EXPORT_SYMBOL(vdec_power_unlock);
 
 static bool vdec_is_input_frame_empty(struct vdec_s *vdec) {
 	struct vdec_core_s *core = vdec_core;
@@ -737,7 +756,7 @@ static void dec_dmc_port_ctrl(bool dmc_on, u32 target)
 	}
 
 	if (dmc_on) {
-		/* dmc async on requset */
+		/* dmc async on request */
 		spin_lock_irqsave(&vdec_spin_lock, flags);
 
 		codec_dmcbus_write(DMC_REQ_CTRL,
@@ -745,7 +764,7 @@ static void dec_dmc_port_ctrl(bool dmc_on, u32 target)
 
 		spin_unlock_irqrestore(&vdec_spin_lock, flags);
 	} else {
-		/* dmc async off requset */
+		/* dmc async off request */
 		spin_lock_irqsave(&vdec_spin_lock, flags);
 
 		codec_dmcbus_write(DMC_REQ_CTRL,
@@ -1216,7 +1235,7 @@ int vdec_set_decinfo(struct vdec_s *vdec, struct dec_sysinfo *p)
 }
 EXPORT_SYMBOL(vdec_set_decinfo);
 
-/* construct vdec strcture */
+/* construct vdec structure */
 struct vdec_s *vdec_create(struct stream_port_s *port,
 			struct vdec_s *master)
 {
@@ -2518,7 +2537,7 @@ int vdec_resource_checking(struct vdec_s *vdec)
 	 * pipeline these are being released.
 	 */
 	ulong expires = jiffies + msecs_to_jiffies(2000);
-	while (is_res_locked(vdec_core->vdec_resouce_status,
+	while (is_res_locked(vdec_core->vdec_resource_status,
 		BIT(vdec->frame_base_video_path),
 		vdec->vf_receiver_inst)) {
 		if (time_after(jiffies, expires)) {
@@ -2548,7 +2567,7 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k, bool is_v4l)
 	if (vdec_stream_based(vdec))
 		max_di_count = max_supported_di_instance;
 	vdec->is_v4l = is_v4l ? 1 : 0;
-	if (is_res_locked(vdec_core->vdec_resouce_status,
+	if (is_res_locked(vdec_core->vdec_resource_status,
 		BIT(vdec->frame_base_video_path),
 		vdec->vf_receiver_inst))
 		return -EBUSY;
@@ -2558,8 +2577,14 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k, bool is_v4l)
 	if (pdev_name == NULL)
 		return -ENODEV;
 
-	snprintf(dev_name, sizeof(dev_name),
-		"%s%s", pdev_name, is_v4l ? "_v4l": "");
+	if ((get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T5D) &&
+		(vdec->format == VFORMAT_AV1) &&
+		is_support_profile("AV1-T5D-V4L")) {
+		snprintf(dev_name, sizeof(dev_name),
+			"%s%s", pdev_name, is_v4l ? "_t5d_v4l": "");
+	} else
+		snprintf(dev_name, sizeof(dev_name),
+			"%s%s", pdev_name, is_v4l ? "_v4l": "");
 
 	pr_info("vdec_init, dev_name:%s, vdec_type=%s, format: %d\n",
 		dev_name, vdec_type_str(vdec), vdec->format);
@@ -2958,6 +2983,30 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k, bool is_v4l)
 
 	}
 
+	if ((vdec->slave != NULL) &&
+		(p->frame_base_video_path == FRAME_BASE_PATH_V4LVIDEO_AMLVIDEO)){
+#ifdef CONFIG_AMLOGIC_V4L_VIDEO3
+			r = v4lvideo_assign_map(&vdec->vf_receiver_name,
+					&vdec->vf_receiver_inst);
+#else
+			r = -1;
+#endif
+			 if (r < 0) {
+				pr_err("V4lVideo frame receiver allocation failed.\n");
+				mutex_lock(&vdec_mutex);
+				inited_vcodec_num--;
+				mutex_unlock(&vdec_mutex);
+				goto error;
+			}
+#ifdef CONFIG_AMLOGIC_V4L_VIDEO3
+			snprintf(vdec->vfm_map_chain, VDEC_MAP_NAME_SIZE,
+					"%s %s", vdec->vf_provider_name,
+					vdec->vf_receiver_name);
+#endif
+		vfm_map_remove("dvblpath");
+		vfm_map_add("dvblpath", vdec->vfm_map_chain);
+	}
+
 	if (!vdec_single(vdec) && !vdec->disable_vfm) {
 		vf_reg_provider(&p->vframe_provider);
 
@@ -2993,14 +3042,14 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k, bool is_v4l)
 		p->vf_provider_name, is_cpu_tm2_revb());
 
 	mutex_lock(&vdec_mutex);
-	vdec_core->vdec_resouce_status |= BIT(p->frame_base_video_path);
+	vdec_core->vdec_resource_status |= BIT(p->frame_base_video_path);
 	if (p->frame_base_video_path == FRAME_BASE_PATH_DI_V4LVIDEO) {
 		if (p->vf_receiver_inst == 0) {
-			vdec_core->vdec_resouce_status |= BIT(FRAME_BASE_PATH_DI_V4LVIDEO_0);
+			vdec_core->vdec_resource_status |= BIT(FRAME_BASE_PATH_DI_V4LVIDEO_0);
 		} else if (p->vf_receiver_inst == 1) {
-			vdec_core->vdec_resouce_status |= BIT(FRAME_BASE_PATH_DI_V4LVIDEO_1);
+			vdec_core->vdec_resource_status |= BIT(FRAME_BASE_PATH_DI_V4LVIDEO_1);
 		} else if (p->vf_receiver_inst == 2) {
-			vdec_core->vdec_resouce_status |= BIT(FRAME_BASE_PATH_DI_V4LVIDEO_2);
+			vdec_core->vdec_resource_status |= BIT(FRAME_BASE_PATH_DI_V4LVIDEO_2);
 		}
 	}
 	if (vdec_dual(vdec) && (!(vdec->port->type & PORT_TYPE_FRAME))) {
@@ -3170,14 +3219,14 @@ void vdec_release(struct vdec_s *vdec)
 	mutex_lock(&vdec_mutex);
 	if (vdec->frame_base_video_path == FRAME_BASE_PATH_DI_V4LVIDEO) {
 		if (vdec->vf_receiver_inst == 0) {
-			vdec_core->vdec_resouce_status &= ~BIT(FRAME_BASE_PATH_DI_V4LVIDEO_0);
+			vdec_core->vdec_resource_status &= ~BIT(FRAME_BASE_PATH_DI_V4LVIDEO_0);
 		} else if (vdec->vf_receiver_inst == 1) {
-			vdec_core->vdec_resouce_status &= ~BIT(FRAME_BASE_PATH_DI_V4LVIDEO_1);
+			vdec_core->vdec_resource_status &= ~BIT(FRAME_BASE_PATH_DI_V4LVIDEO_1);
 		} else if (vdec->vf_receiver_inst == 2) {
-			vdec_core->vdec_resouce_status &= ~BIT(FRAME_BASE_PATH_DI_V4LVIDEO_2);
+			vdec_core->vdec_resource_status &= ~BIT(FRAME_BASE_PATH_DI_V4LVIDEO_2);
 		}
 	}
-	vdec_core->vdec_resouce_status &= ~BIT(vdec->frame_base_video_path);
+	vdec_core->vdec_resource_status &= ~BIT(vdec->frame_base_video_path);
 	mutex_unlock(&vdec_mutex);
 	vdec_destroy(vdec);
 
@@ -4854,7 +4903,7 @@ static ssize_t vdec_vfm_path_store(struct class *class,
 		if (strcmp("reserved", vfm_path_node[i]) == 0 ||
 			strncmp("help", buf, strlen("help")) == 0) {
 			if (strncmp("help", buf, strlen("help")) != 0) {
-				pr_info("warnning! Input parameter is invalid. set failed!\n");
+				pr_info("warning! Input parameter is invalid. set failed!\n");
 			}
 			pr_info("\nusage for example: \n");
 			pr_info("echo help > /sys/class/vdec/vfm_path \n");
@@ -6144,7 +6193,7 @@ u32 diff_pts(u32 a, u32 b)
  */
 static void cal_dur_from_pts(struct vdec_s *vdec, u32 slot)
 {
-#define DURATION_THRESHOD 10
+#define DURATION_THRESHOLD 10
 	static u32 must_send = 0, ready = 0;
 	u32 old = 0, cur, diff;
 	struct vframe_counter_s *fifo = vdec->mvfrm->fifo_buf;
@@ -6180,14 +6229,14 @@ static void cal_dur_from_pts(struct vdec_s *vdec, u32 slot)
 	}
 
 	diff = abs(cur - old);
-	if (diff > DURATION_THRESHOD) {
+	if (diff > DURATION_THRESHOLD) {
 		u32 dur, cur2;
 
 		cur2 = (cur << 4) / 15;
 		diff = abs(cur2 - fifo[slot].frame_dur);
 		if (fifo[slot].frame_dur == 3600)
 			dur = cur2;
-		else if (diff < DURATION_THRESHOD || diff > fifo[slot].frame_dur)
+		else if (diff < DURATION_THRESHOLD || diff > fifo[slot].frame_dur)
 			dur = fifo[slot].frame_dur;
 		else
 			dur = cur2;

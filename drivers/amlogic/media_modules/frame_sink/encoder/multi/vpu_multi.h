@@ -84,7 +84,7 @@ struct vpudrv_buffer_pool_t {
 };
 
 /* To track the instance index and buffer in instance pool */
-struct vpudrv_instanace_list_t {
+struct vpudrv_instance_list_t {
 	struct list_head list;
 	ulong inst_idx;
 	ulong core_idx;
@@ -294,14 +294,14 @@ struct vpudrv_dma_buf_pool_t {
 #define VP5_RET_QUEUE_CMD_DONE_INST	(VP5_REG_BASE + 0x01E8)
 #define VP5_RET_SEQ_DONE_INSTANCE_INFO	(VP5_REG_BASE + 0x01FC)
 
-/* interrrupt bits */
+/* interrupt bits */
 enum {
 	INT_INIT_VPU		= 0,
 	INT_WAKEUP_VPU		= 1,
 	INT_SLEEP_VPU		= 2,
 	INT_CREATE_INSTANCE	= 3,
 	INT_FLUSH_INSTANCE	= 4,
-	INT_DESTORY_INSTANCE	= 5,
+	INT_DESTROY_INSTANCE	= 5,
 	INT_INIT_SEQ		= 6,
 	INT_SET_FRAMEBUF	= 7,
 	INT_DEC_PIC		= 8,

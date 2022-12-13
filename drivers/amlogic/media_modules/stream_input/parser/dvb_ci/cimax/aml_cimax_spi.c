@@ -1159,7 +1159,7 @@ enum regOperation_e {
 	REG_OP_LOGICAL_AND,
 	/** Perform logical OR over register. */
 	REG_OP_LOGICAL_OR,
-	/** Wait timeout in miliseconds. */
+	/** Wait timeout in milliseconds. */
 	REG_OP_WAIT
 };
 
@@ -1207,7 +1207,7 @@ static struct regSettings_s spiRegSettings[] = {
 	/** CH0 & CH1 from CAM A & B, CAM A & B from CH0 & CH1. */
 	{ROUTER_CAM_MOD,  0x21, REG_OP_WRITE},
 	{ROUTER_CAM_CH,   0x00, REG_OP_WRITE},
-	/** Wait 200 miliseconds. */
+	/** Wait 200 milliseconds. */
 	{0x0000,          200,  REG_OP_WAIT},
 
 	/** Set In/Out. */

@@ -101,11 +101,11 @@ static int get_source_type(struct vframe_s *vf)
 static int get_input_format(struct vframe_s *vf)
 {
 	int format = GE2D_FORMAT_M24_YUV420;
-	enum videocom_source_type soure_type;
+	enum videocom_source_type source_type;
 
-	soure_type = get_source_type(vf);
+	source_type = get_source_type(vf);
 
-	switch (soure_type) {
+	switch (source_type) {
 	case DECODER_8BIT_NORMAL:
 		if (vf->type & VIDTYPE_VIU_422)
 			format = GE2D_FORMAT_S16_YUV422;
@@ -546,17 +546,17 @@ retry:
 		vf_out->mem_sec = ctx->is_drm_mode ? 1 : 0;
 		start_time = local_clock();
 
-		mutex_lock(&ctx->dev->canche.lock);
+		mutex_lock(&ctx->dev->cache.lock);
 		/* src canvas configure. */
 		if ((in_buf->vf->canvas0Addr == 0) ||
 			(in_buf->vf->canvas0Addr == (u32)-1)) {
-			canvas_config_config(ctx->dev->canche.res[0].cid, &in_buf->vf->canvas0_config[0]);
-			canvas_config_config(ctx->dev->canche.res[1].cid, &in_buf->vf->canvas0_config[1]);
-			canvas_config_config(ctx->dev->canche.res[2].cid, &in_buf->vf->canvas0_config[2]);
+			canvas_config_config(ctx->dev->cache.res[0].cid, &in_buf->vf->canvas0_config[0]);
+			canvas_config_config(ctx->dev->cache.res[1].cid, &in_buf->vf->canvas0_config[1]);
+			canvas_config_config(ctx->dev->cache.res[2].cid, &in_buf->vf->canvas0_config[2]);
 			ge2d_config.src_para.canvas_index =
-				ctx->dev->canche.res[0].cid |
-				ctx->dev->canche.res[1].cid << 8 |
-				ctx->dev->canche.res[2].cid << 16;
+				ctx->dev->cache.res[0].cid |
+				ctx->dev->cache.res[1].cid << 8 |
+				ctx->dev->cache.res[2].cid << 16;
 
 			ge2d_config.src_planes[0].addr =
 				in_buf->vf->canvas0_config[0].phy_addr;
@@ -595,20 +595,20 @@ retry:
 			ge2d_config.src_para.height = in_buf->vf->height;
 
 		/* dst canvas configure. */
-		canvas_config_config(ctx->dev->canche.res[3].cid, &vf_out->canvas0_config[0]);
+		canvas_config_config(ctx->dev->cache.res[3].cid, &vf_out->canvas0_config[0]);
 		if ((ge2d_config.src_para.format & 0xfffff) == GE2D_FORMAT_M24_YUV420) {
 			vf_out->canvas0_config[1].width <<= 1;
 		}
-		canvas_config_config(ctx->dev->canche.res[4].cid, &vf_out->canvas0_config[1]);
-		canvas_config_config(ctx->dev->canche.res[5].cid, &vf_out->canvas0_config[2]);
+		canvas_config_config(ctx->dev->cache.res[4].cid, &vf_out->canvas0_config[1]);
+		canvas_config_config(ctx->dev->cache.res[5].cid, &vf_out->canvas0_config[2]);
 		ge2d_config.dst_para.canvas_index =
-			ctx->dev->canche.res[3].cid |
-			ctx->dev->canche.res[4].cid << 8;
-		canvas_read(ctx->dev->canche.res[3].cid, &cd);
+			ctx->dev->cache.res[3].cid |
+			ctx->dev->cache.res[4].cid << 8;
+		canvas_read(ctx->dev->cache.res[3].cid, &cd);
 		ge2d_config.dst_planes[0].addr	= cd.addr;
 		ge2d_config.dst_planes[0].w	= cd.width;
 		ge2d_config.dst_planes[0].h	= cd.height;
-		canvas_read(ctx->dev->canche.res[4].cid, &cd);
+		canvas_read(ctx->dev->cache.res[4].cid, &cd);
 		ge2d_config.dst_planes[1].addr	= cd.addr;
 		ge2d_config.dst_planes[1].w	= cd.width;
 		ge2d_config.dst_planes[1].h	= cd.height;
@@ -663,7 +663,7 @@ retry:
 		if (ge2d_context_config_ex(ge2d->ge2d_context, &ge2d_config) < 0) {
 			v4l_dbg(ctx, V4L_DEBUG_CODEC_ERROR,
 				"ge2d_context_config_ex error.\n");
-			mutex_unlock(&ctx->dev->canche.lock);
+			mutex_unlock(&ctx->dev->cache.lock);
 			goto exit;
 		}
 
@@ -678,7 +678,7 @@ retry:
 					0, 0, in_buf->vf->width, in_buf->vf->height);
 			}
 		}
-		mutex_unlock(&ctx->dev->canche.lock);
+		mutex_unlock(&ctx->dev->cache.lock);
 
 		//pr_info("consume time %d us\n", div64_u64(local_clock() - start_time, 1000));
 
@@ -808,12 +808,12 @@ int aml_v4l2_ge2d_init(
 	if (aml_canvas_cache_get(ctx->dev, "v4ldec-ge2d") < 0) {
 		v4l_dbg(ctx, V4L_DEBUG_CODEC_ERROR,
 			"canvas pool alloc fail. src(%d, %d, %d) dst(%d, %d, %d).\n",
-			ctx->dev->canche.res[0].cid,
-			ctx->dev->canche.res[1].cid,
-			ctx->dev->canche.res[2].cid,
-			ctx->dev->canche.res[3].cid,
-			ctx->dev->canche.res[4].cid,
-			ctx->dev->canche.res[5].cid);
+			ctx->dev->cache.res[0].cid,
+			ctx->dev->cache.res[1].cid,
+			ctx->dev->cache.res[2].cid,
+			ctx->dev->cache.res[3].cid,
+			ctx->dev->cache.res[4].cid,
+			ctx->dev->cache.res[5].cid);
 		goto error8;
 	}
 

@@ -116,7 +116,7 @@
   /* MV derivation method 1, weighted P_skip mode */
 #define HALF_PIXEL_COMPENSATION_M1         1
   /* M1 related with mv-scaling function */
-#define HALF_PIXEL_COMPENSATION_M1_FUCTION 1
+#define HALF_PIXEL_COMPENSATION_M1_FUNCTION 1
 #define HALF_PIXEL_COMPENSATION_MVD        1 /* MV scaling from FW->BW */
 /* Chroma components */
   /* chroma MV is scaled with luma MV for 4:2:0 format */
@@ -147,7 +147,7 @@ AVS2 HIGH LEVEL SYNTAX
 #define AVS2_HDR_Tec                       1
 #if AVS2_HDR_Tec
 #define HDR_CHROMA_DELTA_QP                1 /* M3905 */
-#define HDR_ADPTIVE_UV_DELTA                  1
+#define HDR_ADAPTIVE_UV_DELTA                  1
 #endif
 /*
  *************************************
@@ -576,7 +576,7 @@ struct CopyRight_s {
 	int32_t copyright_number;
 };
 
-struct CameraParamters_s {
+struct CameraParameters_s {
 	int32_t reserved;
 	int32_t camera_id;
 	int32_t height_of_image_device;
@@ -721,7 +721,7 @@ struct avs2_frame_s {
 	byte ***ref;
 
 	int32_t imgtr_fwRefDistance;
-	int32_t refered_by_others;
+	int32_t referred_by_others;
 	int32_t is_output;
 	int32_t to_prepare_disp;
 #if M3480_TEMPORAL_SCALABLE
@@ -779,7 +779,7 @@ struct avs2_frame_s {
 	int mv_buf_index;
 #endif
 
-	/* picture qos infomation*/
+	/* picture qos information*/
 	int max_qp;
 	int avg_qp;
 	int min_qp;
@@ -833,7 +833,7 @@ struct ImageParameters_s {
 
 	int32_t **predBlock;             /* !< current best prediction mode */
 	int32_t **predBlockTmp;
-	/* !< the diff pixel values between orginal image and prediction */
+	/* !< the diff pixel values between original image and prediction */
 	int32_t **resiY;
 	/* !< Array containing square values,used for snr computation */
 	int32_t *quad;
@@ -1068,7 +1068,7 @@ int8_t str_reference_list[128];  /* reference list information */
 /*#include "commonVariables.h"*/
 
 /*
-extern struct CameraParamters_s *camera;
+extern struct CameraParameters_s *camera;
 extern struct SNRParameters_s *snr;
 extern struct ImageParameters_s *img;
  */
@@ -1156,7 +1156,7 @@ struct reference_management {
 	int32_t poc;
 	int32_t qp_offset;
 	int32_t num_of_ref;
-	int32_t referd_by_others;
+	int32_t referred_by_others;
 	int32_t ref_pic[MAXREF];
 	int32_t predict;
 	int32_t deltaRPS;
@@ -1308,8 +1308,8 @@ int32_t slice_vertical_position;
 int32_t slice_vertical_position_extension;
 int32_t fixed_slice_qp;
 int32_t slice_qp;
-int32_t slice_horizontal_positon;       /* added by mz, 2008.04 */
-int32_t slice_horizontal_positon_extension;
+int32_t slice_horizontal_position;       /* added by mz, 2008.04 */
+int32_t slice_horizontal_position_extension;
 
 int32_t StartCodePosition;
 int32_t background_pred_flag;
@@ -1563,7 +1563,7 @@ union param_u {
 		uint16_t displaydelay; /*???*/
 		uint16_t predict;     /*???*/
 		uint16_t RPS_idx;      /*???*/
-		uint16_t referd_by_others_cur;
+		uint16_t referred_by_others_cur;
 		uint16_t num_of_ref_cur;
 		uint16_t ref_pic_cur[8];
 		uint16_t num_to_remove_cur;

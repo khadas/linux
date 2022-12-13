@@ -32,6 +32,9 @@
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_VDEC
 #include <trace/events/meson_atrace.h>
+
+#include "../../../stream_input/amports/amports_priv.h"
+
 /*#define CONFIG_AM_VDEC_DV*/
 #include "../../../stream_input/amports/streambuf.h"
 #include "../../../stream_input/amports/stream_buffer_base.h"
@@ -128,7 +131,7 @@ enum e_trace_work_status {
 };
 
 
-#define VDEC_CFG_FLAG_DV_TWOLARYER (1 << 0)
+#define VDEC_CFG_FLAG_DV_TWOLAYER (1 << 0)
 #define VDEC_CFG_FLAG_DV_NEGATIVE  (1 << 1)
 #define VDEC_CFG_FLAG_HIGH_BANDWIDTH  (1 << 2)
 #define VDEC_CFG_FLAG_DIS_ERR_POLICY (1 << 11)
@@ -164,6 +167,7 @@ enum e_trace_work_status {
 #define CORE_MASK_COMBINE (1UL << 31)
 
 #define META_DATA_SIZE	(256)
+#define HDR10P_BUF_SIZE	(128)
 
 #define SEI_TYPE	(1)
 #define DV_TYPE		(2)
@@ -245,7 +249,7 @@ enum vformat_t;
 /* stream based with single instance decoder driver */
 #define VDEC_TYPE_SINGLE           0
 
-/* stream based with multi-instance decoder with HW resouce sharing */
+/* stream based with multi-instance decoder with HW resource sharing */
 #define VDEC_TYPE_STREAM_PARSER    1
 
 /* frame based with multi-instance decoder, input block list based */
@@ -287,6 +291,7 @@ struct vdec_data_s {
 	void *private_data;
 	atomic_t  use_count;
 	char *user_data_buf;
+	char *hdr10p_data_buf;
 };
 
 struct vdec_data_info_s {
@@ -429,6 +434,8 @@ struct vdec_s {
 	u32 inst_cnt;
 	wait_queue_head_t idle_wait;
 	struct vdec_data_info_s *vdata;
+	spinlock_t power_lock;
+	bool suspend;
 };
 
 #define CODEC_MODE(a, b, c, d)\
@@ -544,7 +551,7 @@ typedef struct {
 		__len = 0;				\
 	} while (0)
 
-/* construct vdec strcture */
+/* construct vdec structure */
 extern struct vdec_s *vdec_create(struct stream_port_s *port,
 				struct vdec_s *master);
 
@@ -756,5 +763,10 @@ struct vdec_data_info_s *vdec_data_get(void);
 int vdec_data_get_index(ulong data);
 
 void vdec_data_release(struct codec_mm_s *mm, struct codec_mm_cb_s *cb);
+
+unsigned long vdec_power_lock(struct vdec_s *vdec);
+
+void vdec_power_unlock(struct vdec_s *vdec, unsigned long flags);
+
 
 #endif				/* VDEC_H */

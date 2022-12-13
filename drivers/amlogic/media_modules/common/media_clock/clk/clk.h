@@ -77,7 +77,7 @@ int register_vdec_clk_mgr(int cputype[],
 int unregister_vdec_clk_mgr(enum vdec_type_e vdec_type);
 
 int register_vdec_clk_setting(int cputype[],
-	struct clk_set_setting *p_seting, int size);
+	struct clk_set_setting *p_setting, int size);
 
 int unregister_vdec_clk_setting(void);
 

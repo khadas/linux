@@ -52,6 +52,15 @@
 #define AOMMIN(x, y) (((x) < (y)) ? (x) : (y))
 #define AOMMAX(x, y) (((x) > (y)) ? (x) : (y))
 
+/*
+ *typedef char int8_t;
+ *#ifndef BUFMGR_FOR_SIM
+ *typedef unsigned char uint8_t;
+ *#endif
+ *typedef unsigned int uint32_t;
+ *typedef int int32_t;
+ *typedef long long int64_t;
+ */
 
 #ifdef AML
 #define AOM_AV1_MMU
@@ -1274,6 +1283,8 @@ typedef struct PIC_BUFFER_CONFIG_s {
     int32_t slice_idx;
     /*buffer*/
     uint32_t fgs_table_adr;
+    uint32_t sfgs_table_phy;
+    char *sfgs_table_ptr;
 #ifdef AOM_AV1_MMU
     uint32_t header_adr;
 #endif
@@ -1321,6 +1332,10 @@ typedef struct PIC_BUFFER_CONFIG_s {
   u64 timestamp;
   u32 hw_decode_time;
   u32 frame_size2; // For frame base mode
+  int ctx_buf_idx;
+  int v4l_buf_index;
+  int repeat_count;
+  struct PIC_BUFFER_CONFIG_s *repeat_pic;
 } PIC_BUFFER_CONFIG;
 
 /*
@@ -1537,7 +1552,10 @@ typedef struct RefCntBuffer_s {
 #ifdef AML
   int dec_width;
   uint8_t film_grain_reg_valid;
+  wait_queue_head_t wait_sfgs;
+  atomic_t fgs_done;
   uint32_t film_grain_reg[FILM_GRAIN_REG_SIZE];
+  uint32_t film_grain_ctrl;
 #endif
   aom_codec_frame_buffer_t raw_frame_buffer;
   PIC_BUFFER_CONFIG buf;
@@ -2225,9 +2243,12 @@ typedef union param_u {
         unsigned short seg_lf_info_c[8];
 		unsigned short video_signal_type;
 		unsigned short color_description;
-		unsigned short mmu_used_num;
-		unsigned short dw_mmu_used_num;
-		unsigned short seq_flags_2;
+
+        unsigned short mmu_used_num;
+        unsigned short dw_mmu_used_num;
+        unsigned short seq_flags_2;
+		unsigned short film_grain_present_flag;
+
         /*ucode end*/
         /*other*/
         unsigned short enable_superres;
@@ -2277,6 +2298,8 @@ void av1_raw_write_image(AV1Decoder *pbi, PIC_BUFFER_CONFIG *sd);
 
 int get_free_frame_buffer(struct AV1_Common_s *cm);
 
+int check_buff_has_show(struct AV1_Common_s *cm, struct RefCntBuffer_s *frame_buf);
+
 void av1_bufmgr_ctx_reset(AV1Decoder *pbi, BufferPool *const pool, AV1_COMMON *cm);
 
 #if 1
@@ -2295,6 +2318,7 @@ void av1_bufmgr_ctx_reset(AV1Decoder *pbi, BufferPool *const pool, AV1_COMMON *c
 #define AV1_DEBUG_BUFMGR                   0x01
 #define AV1_DEBUG_BUFMGR_MORE              0x02
 #define AV1_DEBUG_BUFMGR_DETAIL            0x04
+#define AV1_DEBUG_TIMEOUT_INFO             0x08
 #define AV1_DEBUG_OUT_PTS                  0x10
 #define AOM_DEBUG_HW_MORE                  0x20
 #define AOM_DEBUG_VFRAME                   0x40

@@ -91,7 +91,7 @@
 			printk(x); \
 	} while (0)
 
-static s32 print_level = LOG_DEBUG;
+static s32 print_level = LOG_ERROR;
 static s32 clock_level = 4;
 
 static s32 wave_clocka;
@@ -214,9 +214,9 @@ s32 vpu_clk_prepare(struct device *dev, struct vpu_clks *clks)
 	ret = clk_prepare(clks->wave_cclk);
 	CHECK_RET(ret);
 
-	enc_pr(LOG_ERROR, "wave_clk_a: %lu MHz\n", clk_get_rate(clks->wave_aclk) / 1000000);
-	enc_pr(LOG_ERROR, "wave_clk_b: %lu MHz\n", clk_get_rate(clks->wave_bclk) / 1000000);
-	enc_pr(LOG_ERROR, "wave_clk_c: %lu MHz\n", clk_get_rate(clks->wave_cclk) / 1000000);
+	enc_pr(LOG_DEBUG, "wave_clk_a: %lu MHz\n", clk_get_rate(clks->wave_aclk) / 1000000);
+	enc_pr(LOG_DEBUG, "wave_clk_b: %lu MHz\n", clk_get_rate(clks->wave_bclk) / 1000000);
+	enc_pr(LOG_DEBUG, "wave_clk_c: %lu MHz\n", clk_get_rate(clks->wave_cclk) / 1000000);
 
 	return 0;
 }
@@ -538,7 +538,7 @@ static s32 vpu_open(struct inode *inode, struct file *filp)
 		}
 
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_SC2) {
-			pr_err("consider using reset control\n");
+			enc_pr(LOG_ERROR, "consider using reset control\n");
 		} else {
 			WRITE_MPEG_REG(RESET0_REGISTER, data32 & ~(1<<21));
 			WRITE_MPEG_REG(RESET0_REGISTER, data32 | (1<<21));

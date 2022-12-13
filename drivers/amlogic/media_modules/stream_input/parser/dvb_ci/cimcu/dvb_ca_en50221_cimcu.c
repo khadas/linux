@@ -516,7 +516,7 @@ static void parseCiplusCompatibility(char *tuple, int len, int *ci_plus_enabled)
 }
 
 /**
- * @brief   Handle "ciprof" compatibilty item in compatiblity string
+ * @brief   Handle "ciprof" compatibility item in compatibility string
  * @param   identity - item's identity
  * @param   flag - compatibility flag
  * @param   ci_plus_profile - the value of ciprof

@@ -54,6 +54,7 @@
 #define FC_ERR_CRC_BLOCK_MODE	0x10
 #define FC_CHECK_CRC_LOOP_MODE	0x20
 #define AD_CHECK_CRC_LOOP_MODE	0x40
+#define DUMP_YUV_LOOP_MODE	0x200
 
 #define YUV_MASK	0x01
 #define CRC_MASK	0x02
@@ -78,8 +79,7 @@ static unsigned int size_yuv_buf = (YUV_DEF_SIZE * YUV_DEF_NUM);
 		} while(0)
 
 
-#define CRC_PATH  "/data/tmp/"
-#define YUV_PATH  "/data/tmp/"
+static char crc_yuv_path[128] = "/data/tmp/";
 static char comp_crc[128] = "name";
 static char aux_comp_crc[128] = "aux";
 
@@ -121,7 +121,7 @@ static const char *get_format_name(int format)
 	if (format < 17 && format >= 0)
 		return format_name[format];
 	else
-		return "Unknow";
+		return "Unknown";
 }
 
 
@@ -393,7 +393,7 @@ static int write_yuv_work(struct pic_check_mgr_t *mgr)
 	if (dump->dump_cnt > 0) {
 		if (!dump->yuv_fp) {
 			dump->yuv_fp = file_open(O_CREAT | O_WRONLY | O_TRUNC,
-				"%s%s-%d-%d.yuv", YUV_PATH, comp_crc, mgr->id, mgr->file_cnt);
+				"%s%s-%d-%d.yuv", crc_yuv_path, comp_crc, mgr->id, mgr->file_cnt);
 			dump->yuv_pos = 0;
 		}
 
@@ -705,7 +705,7 @@ static int do_yuv_dump(struct pic_check_mgr_t *mgr, struct vframe_s *vf)
 		/* dump for dec pic not in isr */
 		if (dump->yuv_fp == NULL) {
 			dump->yuv_fp = file_open(O_CREAT | O_WRONLY | O_TRUNC,
-				"%s%s-%d-%d.yuv", YUV_PATH, comp_crc, mgr->id, mgr->file_cnt);
+				"%s%s-%d-%d.yuv", crc_yuv_path, comp_crc, mgr->id, mgr->file_cnt);
 			if (dump->yuv_fp == NULL)
 				return -1;
 			mgr->file_cnt++;
@@ -1041,7 +1041,7 @@ static int fbc_check_prepare(struct pic_check_t *check,
 		(!check->fbc_planes[1]) ||
 		(!check->fbc_planes[2]) ||
 		(!check->fbc_planes[3])) {
-		dbg_print(0, "vmalloc staicplanes failed %lx %lx %lx %lx\n",
+		dbg_print(0, "vmalloc static_planes failed %lx %lx %lx %lx\n",
 			(ulong)check->fbc_planes[0],
 			(ulong)check->fbc_planes[1],
 			(ulong)check->fbc_planes[2],
@@ -1054,7 +1054,7 @@ static int fbc_check_prepare(struct pic_check_t *check,
 		}
 		return -1;
 	} else
-		dbg_print(FC_CRC_DEBUG, "vmalloc staicplanes sucessed\n");
+		dbg_print(FC_CRC_DEBUG, "vmalloc static_planes succeed\n");
 
 	return 0;
 }
@@ -1314,11 +1314,11 @@ int frame_check_init(struct pic_check_mgr_t *mgr, int id)
 	/* try to open compare crc32 file */
 	str_strip(comp_crc);
 	check->compare_fp = file_open(O_RDONLY,
-		"%s%s", CRC_PATH, comp_crc);
+		"%s%s", crc_yuv_path, comp_crc);
 
 	/* create crc32 log file */
 	check->check_fp = file_open(O_CREAT| O_WRONLY | O_TRUNC,
-		"%s%s-%d-%d.crc", CRC_PATH, comp_crc, id, mgr->file_cnt);
+		"%s%s-%d-%d.crc", crc_yuv_path, comp_crc, id, mgr->file_cnt);
 
 	INIT_KFIFO(check->new_chk_q);
 	INIT_KFIFO(check->wr_chk_q);
@@ -1370,11 +1370,11 @@ int aux_data_check_init(struct aux_data_check_mgr_t *mgr, int id)
 	/* try to open compare meta crc32 file */
 	str_strip(aux_comp_crc);
 	check->compare_fp = file_open(O_RDONLY,
-		"%s%s", CRC_PATH, aux_comp_crc);
+		"%s%s", crc_yuv_path, aux_comp_crc);
 
 	/* create meta crc log file */
 	check->check_fp = file_open(O_CREAT| O_WRONLY | O_TRUNC,
-		"%s%s-%d-%d.crc", CRC_PATH, aux_comp_crc, id, mgr->file_cnt);
+		"%s%s-%d-%d.crc", crc_yuv_path, aux_comp_crc, id, mgr->file_cnt);
 
 	INIT_KFIFO(check->new_chk_q);
 	INIT_KFIFO(check->wr_chk_q);
@@ -1506,10 +1506,11 @@ int vdec_frame_check_init(struct vdec_s *vdec)
 
 	if (vdec == NULL)
 		return 0;
-
+#if 0
 	if ((vdec->is_reset) &&
 		(get_cpu_major_id() != AM_MESON_CPU_MAJOR_ID_GXL))
 		return 0;
+#endif
 
 	vdec->vfc.err_crc_block = 0;
 	single_mode_vdec = (vdec_single(vdec))? vdec : NULL;
@@ -1537,9 +1538,11 @@ int vdec_frame_check_init(struct vdec_s *vdec)
 				yuv_num[id]);
 			vdec->canvas_mode = CANVAS_BLKMODE_LINEAR;
 		}
-		yuv_num[id] = 0;
-		yuv_start[id] = 0;
-		yuv_enable &= ~(0x01 << id);
+		if ((fc_debug & DUMP_YUV_LOOP_MODE) == 0) {
+			yuv_num[id] = 0;
+			yuv_start[id] = 0;
+			yuv_enable &= ~(0x01 << id);
+		}
 	}
 
 	return ret;
@@ -1657,7 +1660,7 @@ ssize_t dump_yuv_store(struct class *class,
 		const char *buf, size_t size)
 {
 	struct vdec_s *vdec = NULL;
-	unsigned int id = 0, num = 0, start = 0;
+	unsigned int id = 0, num = YUV_DUMP_NUM, start = 0;
 	int ret = -1;
 
 	ret = sscanf(buf, "%d %d %d", &id, &start, &num);
@@ -1665,9 +1668,8 @@ ssize_t dump_yuv_store(struct class *class,
 		pr_info("%s, parse failed\n", buf);
 		return size;
 	}
-	if ((num == 0) || (num > YUV_MAX_DUMP_NUM)) {
-		pr_info("requred yuv num %d, max %d\n",
-			num, YUV_MAX_DUMP_NUM);
+	if (num == 0) {
+		pr_info("required yuv num %d\n",num);
 		return size;
 	}
 	vdec = vdec_get_vdec_by_id(id);
@@ -1711,7 +1713,7 @@ ssize_t frame_check_store(struct class *class,
 	int ret = -1;
 	int on_off, id;
 
-	ret = sscanf(buf, "%d %d", &id, &on_off);
+	ret = sscanf(buf, "%d %d %s", &id, &on_off, crc_yuv_path);
 	if (ret < 0) {
 		pr_info("%s, parse failed\n", buf);
 		return size;
@@ -1740,7 +1742,8 @@ ssize_t frame_check_show(struct class *class,
 			(check_enable & (0x01 << i))?"enabled":"--");
 	}
 	pbuf += sprintf(pbuf,
-		"\nUsage:\techo [id]  [1:on/0:off] > frame_check\n\n");
+		"\nUsage:\techo [id]  [1:on/0:off] [crc_yuv_path]> frame_check\n\n");
+
 
 	if (fc_debug & FC_ERR_CRC_BLOCK_MODE) {
 		/* cat frame_check to next frame when block */

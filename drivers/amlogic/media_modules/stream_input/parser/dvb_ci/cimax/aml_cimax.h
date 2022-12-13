@@ -34,7 +34,7 @@ struct aml_cimax_ops {
 	int (*write_lpdu)(struct aml_cimax *cimax, int slot, u8 *buf, int size);
 	int (*read_cam_status)(struct aml_cimax *cimax, int slot);
 	int (*cam_reset)(struct aml_cimax *cimax, int slot);
-	int (*get_capblility)(struct aml_cimax *cimax, int slot);
+	int (*get_capability)(struct aml_cimax *cimax, int slot);
 
 	int (*slot_reset)(struct aml_cimax *cimax, int slot);
 	int (*slot_shutdown)(struct aml_cimax *cimax, int slot);

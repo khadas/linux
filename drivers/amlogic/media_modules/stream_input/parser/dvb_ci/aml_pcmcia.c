@@ -127,6 +127,26 @@ static void aml_pcmcia_work(struct work_struct *work)
 	}
 }
 
+int aml_pcmcia_suspend(struct aml_pcmcia *pc)
+{
+	disable_irq(pc->irq);
+	pc->slot_state = MODULE_XTRACTED;
+	pr_dbg("aml_pcmcia_suspend slot_state == MODULE_XTRACTED\r\n");
+
+	return 0;
+}
+EXPORT_SYMBOL(aml_pcmcia_suspend);
+
+int aml_pcmcia_resume(struct aml_pcmcia *pc)
+{
+	enable_irq(pc->irq);
+	pc->slot_state = MODULE_INSERTED;
+	pr_dbg("aml_pcmcia_resume slot_state == MODULE_INSERTED\r\n");
+
+	return 0;
+}
+EXPORT_SYMBOL(aml_pcmcia_resume);
+
 void aml_pcmcia_detect_cam(struct aml_pcmcia *pc)
 {
 	int cd1, cd2;
@@ -211,7 +231,7 @@ int aml_pcmcia_reset(struct aml_pcmcia *pc)
 		/* need change delay according cam vendor */
 		pc->rst(pc, AML_H);/*HI is reset*/
 		msleep(reset_time_h_t);
-		pc->rst(pc, AML_L);/*defaule LOW*/
+		pc->rst(pc, AML_L);/*default LOW*/
 		msleep(reset_time_l_t);
 		pr_dbg("CAM RESET--end\n");
 	return 0;

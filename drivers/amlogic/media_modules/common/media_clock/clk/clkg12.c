@@ -493,7 +493,7 @@ static int vdec_set_clk(int dec, int rate)
 		break;
 
 	default:
-		pr_info("invaild vdec type.\n");
+		pr_info("invalid vdec type.\n");
 	}
 
 	if (IS_ERR_OR_NULL(clk)) {

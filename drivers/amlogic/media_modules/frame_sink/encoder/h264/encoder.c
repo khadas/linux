@@ -121,7 +121,7 @@ static u32 ie_cur_ref_sel;
 /* static u32 avc_endian = 6; */
 static u32 clock_level = 5;
 
-static u32 encode_print_level = LOG_DEBUG;
+static u32 encode_print_level = LOG_ERROR;
 static u32 no_timeout;
 static int nr_mode = -1;
 static u32 qp_table_debug;
@@ -485,7 +485,7 @@ static void cav_lut_info_store(u32 index, ulong addr, u32 width,
 	struct canvas_config_s *pool = NULL;
 
 	if (index < 0 || index >= MDEC_CAV_LUT_MAX) {
-		pr_err("%s, error index %d\n", __func__, index);
+		enc_pr(LOG_ERROR, "%s, error index %d\n", __func__, index);
 		return;
 	}
 	if (mdec_cav_pool == NULL)
@@ -493,7 +493,7 @@ static void cav_lut_info_store(u32 index, ulong addr, u32 width,
 			* (MDEC_CAV_LUT_MAX + 1));
 
 	if (mdec_cav_pool == NULL) {
-		pr_err("%s failed, mdec_cav_pool null\n", __func__);
+		enc_pr(LOG_ERROR, "%s failed, mdec_cav_pool null\n", __func__);
 		return;
 	}
 	pool = &mdec_cav_pool[index];
@@ -615,12 +615,23 @@ static void canvas_config_proxy(u32 index, ulong addr, u32 width, u32 height,
 		cav_lut_info_store(index, addr, width, height, wrap, blkmode, 0);
 
 		if (vdec_get_debug() & 0x40000000) {
-			pr_info("(%s %2d) addr: %lx, width: %d, height: %d, blkm: %d, endian: %d\n",
+			enc_pr(LOG_INFO, "(%s %2d) addr: %lx, width: %d, height: %d, blkm: %d, endian: %d\n",
 				__func__, index, addr, width, height, blkmode, 0);
-			pr_info("data(h,l): 0x%8lx, 0x%8lx\n", datah_temp, datal_temp);
+			enc_pr(LOG_INFO, "data(h,l): 0x%8lx, 0x%8lx\n", datah_temp, datal_temp);
 	    }
 	    */
 	}
+}
+
+static int is_oversize(int w, int h, int max)
+{
+	if (w <= 0 || h <= 0)
+		return true;
+
+	if (h != 0 && (w > max / h))
+		return true;
+
+	return false;
 }
 
 s32 hcodec_hw_reset(void)
@@ -649,7 +660,7 @@ s32 hcodec_clk_prepare(struct device *dev, struct hcodec_clks *clks)
 	ret = clk_prepare(clks->hcodec_aclk);
 	CHECK_RET(ret);
 
-	enc_pr(LOG_ERROR, "hcodec_clk_a: %lu MHz\n", clk_get_rate(clks->hcodec_aclk) / 1000000);
+	enc_pr(LOG_INFO, "hcodec_clk_a: %lu MHz\n", clk_get_rate(clks->hcodec_aclk) / 1000000);
 
 	return 0;
 }
@@ -1466,7 +1477,8 @@ static int scale_frame(struct encode_wq_s *wq,
 	ge2d_config->dst_para.format =
 		GE2D_FORMAT_M24_NV21 | GE2D_LITTLE_ENDIAN;
 
-	if (wq->pic.encoder_width >= 1280 && wq->pic.encoder_height >= 720) {
+	if ((wq->pic.encoder_width >= 1280 && wq->pic.encoder_height >= 720) ||
+		(wq->pic.encoder_width >= 720 && wq->pic.encoder_height >= 1280)) {
 		ge2d_config->dst_para.format |= wq->pic.color_space;
 	}
 
@@ -1484,7 +1496,7 @@ static int scale_frame(struct encode_wq_s *wq,
 
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		pr_err("++ge2d configing error.\n");
+		enc_pr(LOG_ERROR, "++ge2d configing error.\n");
 		return -1;
 	}
 	stretchblt_noalpha(context, src_left, src_top, src_width, src_height,
@@ -1505,7 +1517,7 @@ static s32 dump_raw_input(struct encode_wq_s *wq, struct encode_request_s *reque
 			input = input & 0xffff;
 			canvas_read(input & 0xff, &cs0);
 			canvas_read((input >> 8) & 0xff, &cs1);
-			pr_err("dump raw input for canvas source\n");
+			enc_pr(LOG_INFO, "dump raw input for canvas source\n");
 			y_addr = cs0.addr;
 			uv_addr = cs1.addr;
 
@@ -1519,7 +1531,7 @@ static s32 dump_raw_input(struct encode_wq_s *wq, struct encode_request_s *reque
 				file_sync(filp);
 				file_close(filp);
 			} else
-				pr_err("open encoder.yuv failed\n");
+				enc_pr(LOG_ERROR, "open encoder.yuv failed\n");
 
 		}
 	}
@@ -1805,7 +1817,7 @@ static s32 set_input_format(struct encode_wq_s *wq,
 
 			/*
 			if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T3) {
-				pr_info("reconfig with scaler buffer\n");
+				enc_pr(LOG_INFO, "reconfig with scaler buffer\n");
 				canvas_w = ((wq->pic.encoder_width + 31) >> 5) << 5;
 				iformat = 2;
 
@@ -1832,7 +1844,7 @@ static s32 set_input_format(struct encode_wq_s *wq,
 			return -1;
 #endif
 		}
-		//pr_err("request->type=%u\n", request->type);
+		//enc_pr(LOG_INFO, "request->type=%u\n", request->type);
 		if (request->fmt == FMT_YUV422_SINGLE) {
 			iformat = 0;
 			input = input & 0xff;
@@ -1850,7 +1862,7 @@ static s32 set_input_format(struct encode_wq_s *wq,
 				u8 iformat = MAX_FRAME_FMT;
 				canvas_read(input & 0xff, &cs0);
 				canvas_read((input >> 8) & 0xff, &cs1);
-				//pr_err("t3 canvas source input reconfig\n");
+				//enc_pr(LOG_INFO, "t3 canvas source input reconfig\n");
 				y_addr = cs0.addr;
 				uv_addr = cs1.addr;
 
@@ -2796,13 +2808,13 @@ s32 amvenc_loadmc(const char *p, struct encode_wq_s *wq)
 {
 	ulong timeout;
 	s32 ret = 0;
-    if (get_cpu_major_id() >= AM_MESON_CPU_MAJOR_ID_T7) {
+    if (get_cpu_major_id() >= AM_MESON_CPU_MAJOR_ID_SC2) {
         char *buf = vmalloc(0x1000 * 16);
         int ret = -1;
-        pr_err("load firmware for t3 avc encoder\n");
+        enc_pr(LOG_INFO, "load firmware for t3 avc encoder\n");
         if (get_firmware_data(VIDEO_ENC_H264, buf) < 0) {
             //amvdec_disable();
-            pr_err("get firmware for 264 enc fail!\n");
+            enc_pr(LOG_ERROR, "get firmware for 264 enc fail!\n");
             vfree(buf);
             return -1;
         }
@@ -2814,7 +2826,7 @@ s32 amvenc_loadmc(const char *p, struct encode_wq_s *wq)
         if (ret < 0) {
             //amvdec_disable();
             vfree(buf);
-            pr_err("amvenc: the %s fw loading failed, err: %x\n",
+            enc_pr(LOG_ERROR, "amvenc: the %s fw loading failed, err: %x\n",
                 tee_enabled() ? "TEE" : "local", ret);
             return -EBUSY;
         }
@@ -2951,14 +2963,14 @@ static s32 avc_poweron(u32 clock)
 		udelay(20);
 		if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T3) {
 			vdec_poweron(VDEC_HCODEC);
-			pr_err("vdec_poweron VDEC_HCODEC\n");
+			enc_pr(LOG_INFO, "vdec_poweron VDEC_HCODEC\n");
 		} else {
 			pwr_ctrl_psci_smc(PDID_T3_DOS_HCODEC, PWR_ON);
-			pr_err("pwr_ctrl_psci_smc PDID_T3_DOS_HCODEC off\n");
+			enc_pr(LOG_INFO, "pwr_ctrl_psci_smc PDID_T3_DOS_HCODEC on\n");
 		}
 		udelay(20);
         /*
-        pr_err("hcodec powered on, hcodec clk rate:%ld, pwr_state:%d\n",
+        enc_pr(LOG_INFO, "hcodec powered on, hcodec clk rate:%ld, pwr_state:%d\n",
             clk_get_rate(s_hcodec_clks.hcodec_aclk),
             !pwr_ctrl_status_psci_smc(PDID_T3_DOS_HCODEC));
         */
@@ -3022,10 +3034,10 @@ static s32 avc_poweroff(void)
 
 		if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T3) {
 			vdec_poweroff(VDEC_HCODEC);
-			pr_err("vdec_poweroff VDEC_HCODEC\n");
+			enc_pr(LOG_INFO, "vdec_poweroff VDEC_HCODEC\n");
 		} else {
 			pwr_ctrl_psci_smc(PDID_T3_DOS_HCODEC, PWR_OFF);
-			pr_err("pwr_ctrl_psci_smc PDID_T3_DOS_HCODEC on\n");
+			enc_pr(LOG_INFO, "pwr_ctrl_psci_smc PDID_T3_DOS_HCODEC off\n");
 		}
 		udelay(20);
 	} else {
@@ -3183,8 +3195,9 @@ static s32 convert_request(struct encode_wq_s *wq, u32 *cmd_info)
 		enc_pr(LOG_INFO, "wq->pic.encoder_height:%d, request fmt=%d\n",
 		      wq->pic.encoder_height, wq->request.fmt);
 
-		if (wq->pic.encoder_width >= 1280 && wq->pic.encoder_height >= 720
-			&& wq->request.fmt == FMT_RGBA8888 && wq->pic.color_space != GE2D_FORMAT_BT601) {
+		if (((wq->pic.encoder_width >= 1280 && wq->pic.encoder_height >= 720) ||
+			(wq->pic.encoder_width >= 720 && wq->pic.encoder_height >= 1280))
+			&& wq->request.fmt == FMT_RGBA8888/* && wq->pic.color_space != GE2D_FORMAT_BT601*/) {
 			wq->request.scale_enable = 1;
 			wq->request.src_w = wq->pic.encoder_width;
 			wq->request.src_h = wq->pic.encoder_height;
@@ -3784,8 +3797,9 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 			"avc init as mode %d, wq: %px.\n",
 			wq->ucode_index, (void *)wq);
 
-		if (addr_info[2] > wq->mem.bufspec.max_width ||
-		    addr_info[3] > wq->mem.bufspec.max_height) {
+		if (is_oversize(addr_info[2],
+			addr_info[3],
+			wq->mem.bufspec.max_width * wq->mem.bufspec.max_height)) {
 			enc_pr(LOG_ERROR,
 				"avc config init- encode size %dx%d is larger than supported (%dx%d).  wq:%p.\n",
 				addr_info[2], addr_info[3],
@@ -3796,10 +3810,10 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 
 		wq->pic.encoder_width = addr_info[2];
 		wq->pic.encoder_height = addr_info[3];
-		pr_err("hwenc: AMVENC_AVC_IOC_CONFIG_INIT: w:%d, h:%d\n", wq->pic.encoder_width, wq->pic.encoder_height);
+		enc_pr(LOG_INFO, "hwenc: AMVENC_AVC_IOC_CONFIG_INIT: w:%d, h:%d\n", wq->pic.encoder_width, wq->pic.encoder_height);
 
 		wq->pic.color_space = addr_info[4];
-		pr_err("hwenc: AMVENC_AVC_IOC_CONFIG_INIT, wq->pic.color_space=%#x\n", wq->pic.color_space);
+		enc_pr(LOG_INFO, "hwenc: AMVENC_AVC_IOC_CONFIG_INIT, wq->pic.color_space=%#x\n", wq->pic.color_space);
 
 		/*
 		if (wq->pic.encoder_width *
@@ -3943,11 +3957,11 @@ static long amvenc_avc_ioctl(struct file *file, u32 cmd, ulong arg)
 		break;
 	case AMVENC_AVC_IOC_QP_MODE:
 		get_user(qp_mode, ((u32 *)arg));
-		pr_info("qp_mode %d\n", qp_mode);
+		enc_pr(LOG_INFO, "qp_mode %d\n", qp_mode);
 		break;
 	case AMVENC_AVC_IOC_GET_CPU_ID:
 		cpuid = (u32) get_cpu_major_id();
-		pr_err("AMVENC_AVC_IOC_GET_CPU_ID return %u\n", cpuid);
+		enc_pr(LOG_INFO, "AMVENC_AVC_IOC_GET_CPU_ID return %u\n", cpuid);
 		put_user(cpuid, (u32 *)arg);
 		break;
 	default:
@@ -4916,7 +4930,7 @@ static s32 amvenc_avc_probe(struct platform_device *pdev)
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_SC2) {
 		hcodec_rst = devm_reset_control_get(&pdev->dev, "hcodec_rst");
 		if (IS_ERR(hcodec_rst))
-			pr_err("amvenc probe, hcodec get reset failed: %ld\n", PTR_ERR(hcodec_rst));
+			enc_pr(LOG_ERROR, "amvenc probe, hcodec get reset failed: %ld\n", PTR_ERR(hcodec_rst));
 	}
 
 	res_irq = platform_get_irq(pdev, 0);
@@ -4977,7 +4991,7 @@ static struct codec_profile_t amvenc_avc_profile = {
 static s32 __init amvenc_avc_driver_init_module(void)
 {
 	if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T7) {
-		pr_err("T7 doesn't support hcodec avc encoder!!\n");
+		enc_pr(LOG_ERROR, "T7 doesn't support hcodec avc encoder!!\n");
 		return -1;
 	}
 

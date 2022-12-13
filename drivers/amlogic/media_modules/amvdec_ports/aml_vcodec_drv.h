@@ -88,6 +88,8 @@
 #define TRANS_ABORT		(1 << 2)
 
 #define CTX_BUF_TOTAL(ctx) (ctx->dpb_size + ctx->vpp_size + ctx->ge2d_size)
+
+#define MAX_AVBC_BUFFER_SIZE	16
 /**
  * enum aml_hw_reg_idx - AML hw register base index
  */
@@ -242,7 +244,7 @@ struct aml_enc_params {
  * @visible_width: picture width
  * @visible_height: picture height
  * @coded_width: picture buffer width (64 aligned up from pic_w)
- * @coded_height: picture buffer heiht (64 aligned up from pic_h)
+ * @coded_height: picture buffer height (64 aligned up from pic_h)
  * @y_bs_sz: Y bitstream size
  * @c_bs_sz: CbCr bitstream size
  * @y_len_sz: additional size required to store decompress information for y
@@ -276,7 +278,7 @@ struct vdec_pic_info {
 /**
  * struct vdec_comp_buf_info - compressed buffer info
  * @max_size: max size needed for MMU Box in MB
- * @header_size: contineous size for the compressed header
+ * @header_size: continuous size for the compressed header
  * @frame_buffer_size: SG page number to store the frame
  */
 struct vdec_comp_buf_info {
@@ -385,6 +387,15 @@ struct v4l_buff_pool {
 	u32 dec, vpp, ge2d;
 };
 
+struct v4l_compressed_buffer_info {
+	u64	used_page_sum;
+	u32	recycle_num;
+	u32	used_page_distributed_array[MAX_AVBC_BUFFER_SIZE];
+	u32	used_page_in_group[V4L_CAP_BUFF_MAX];
+	u32	max_avg_val_by_group;
+	u32	used_page_by_group;
+};
+
 enum aml_thread_type {
 	AML_THREAD_OUTPUT,
 	AML_THREAD_CAPTURE,
@@ -436,7 +447,7 @@ struct internal_comp_buf {
 };
 
 /*
- * struct aml_uvm_buff_ref - uvm buff is used reseve ctx ref count.
+ * struct aml_uvm_buff_ref - uvm buff is used reserve ctx ref count.
  * @index	: index of video buffer.
  * @addr	: physic address of video buffer.
  * @ref		: reference of v4ldec context.
@@ -466,6 +477,7 @@ enum aml_fb_requester {
 struct aml_fb_ops {
 	bool		(*query)(struct aml_fb_ops *, ulong *);
 	int		(*alloc)(struct aml_fb_ops *, ulong, struct vdec_v4l2_buffer **, u32);
+	void		(*cal_compress_buff_info)(ulong, struct aml_vcodec_ctx *ctx);
 };
 
 /*
@@ -498,12 +510,14 @@ struct aux_data {
 	int		sei_state;
 	char*		comp_buf;
 	char*		md_buf;
+	char*		hdr10p_buf;
 };
 
 /*
  * struct aux_info - record aux data infos
  * @sei_index:		sei data index.
  * @dv_index:		dv data index.
+ * @hdr10p_index:	hdr10p data index.
  * @sei_need_free:	sei buffer need to free.
  * @bufs:		stores aux data.
  * @alloc_buffer:	alloc aux buffer functions.
@@ -511,10 +525,12 @@ struct aux_data {
  * @free_one_sei_buffer:free sei buffer with index functions.
  * @bind_sei_buffer:	bind sei buffer functions.
  * @bind_dv_buffer:	bind dv buffer functions.
+ * @bind_hdr10p_buffer:	bind hdr10p buffer functions.
  */
 struct aux_info {
 	int	sei_index;
-	int 	dv_index;
+	int	dv_index;
+	int	hdr10p_index;
 	bool    sei_need_free;
 	struct aux_data bufs[V4L_CAP_BUFF_MAX];
 	void 	(*alloc_buffer)(struct aml_vcodec_ctx *ctx, int flag);
@@ -522,6 +538,7 @@ struct aux_info {
 	void 	(*free_one_sei_buffer)(struct aml_vcodec_ctx *ctx, char **addr, int *size, int idx);
 	void 	(*bind_sei_buffer)(struct aml_vcodec_ctx *ctx, char **addr, int *size, int *idx);
 	void	(*bind_dv_buffer)(struct aml_vcodec_ctx *ctx, char **comp_buf, char **md_buf);
+	void	(*bind_hdr10p_buffer)(struct aml_vcodec_ctx *ctx, char **addr);
 };
 
 /*
@@ -625,7 +642,7 @@ struct aml_decoder_status_info {
  * @param_change: indicate encode parameter type
  * @param_sets_from_ucode: if true indicate ps from ucode.
  * @v4l_codec_dpb_ready: queue buffer number greater than dpb.
- # @v4l_resolution_change: indicate resolution change happend.
+ # @v4l_resolution_change: indicate resolution change happened.
  * @comp: comp be used for sync picture information with decoder.
  * @config: used to set or get parms for application.
  * @picinfo: store picture info after header parsing.
@@ -760,6 +777,8 @@ struct aml_vcodec_ctx {
 	bool			film_grain_present;
 	void			*bmmu_box_dw;
 	void			*mmu_box_dw;
+	struct mutex			compressed_buf_info_lock;
+	struct v4l_compressed_buffer_info	compressed_buf_info;
 	struct aml_decoder_status_info	decoder_status_info;
 };
 
@@ -779,8 +798,8 @@ struct aml_vcodec_ctx {
  * @dec_mutex		: decoder hardware lock.
  * @queue		: waitqueue for waiting for completion of device commands.
  * @vpp_count		: count the number of open vpp.
- * @v4ldec_class	: creat class sysfs uesd to show some information.
- * @canche		: canvas pool specific used for v4ldec context.
+ * @v4ldec_class	: creat class sysfs used to show some information.
+ * @cache		: canvas pool specific used for v4ldec context.
  */
 struct aml_vcodec_dev {
 	struct v4l2_device		v4l2_dev;
@@ -799,7 +818,7 @@ struct aml_vcodec_dev {
 	wait_queue_head_t		queue;
 	atomic_t			vpp_count;
 	struct class			v4ldec_class;
-	struct canvas_cache		canche;
+	struct canvas_cache		cache;
 };
 
 static inline struct aml_vcodec_ctx *fh_to_ctx(struct v4l2_fh *fh)

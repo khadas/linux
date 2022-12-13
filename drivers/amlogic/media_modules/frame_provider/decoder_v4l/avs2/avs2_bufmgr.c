@@ -254,7 +254,7 @@ void Get_SequenceHeader(struct avs2_decoder *avs2_dec)
 	hd->temporal_id_exist_flag      =
 		get_param(rpm_param->p.temporal_id_exist_flag,
 			"temporal_id exist flag"); /*get
-		Extention Flag*/
+		Extension Flag*/
 #endif
 	input->g_uiMaxSizeInBit =
 		get_param(rpm_param->p.g_uiMaxSizeInBit,
@@ -414,9 +414,9 @@ void Get_I_Picture_Header(struct avs2_decoder *avs2_dec)
 		predict = get_param(rpm_param->p.predict, "use RCS in SPS");
 		RPS_idx = get_param(rpm_param->p.RPS_idx, "predict for RCS");
 		/*gop size16*/
-		hd->curr_RPS.referd_by_others =
-			get_param(rpm_param->p.referd_by_others_cur,
-			"refered by others");
+		hd->curr_RPS.referred_by_others =
+			get_param(rpm_param->p.referred_by_others_cur,
+			"referred by others");
 		hd->curr_RPS.num_of_ref =
 			get_param(rpm_param->p.num_of_ref_cur,
 			"num of reference picture");
@@ -558,9 +558,9 @@ void Get_PB_Picture_Header(struct avs2_decoder *avs2_dec)
 		{
 			/*gop size16*/
 			int32_t j;
-			hd->curr_RPS.referd_by_others =
-				get_param(rpm_param->p.referd_by_others_cur,
-				"refered by others");
+			hd->curr_RPS.referred_by_others =
+				get_param(rpm_param->p.referred_by_others_cur,
+				"referred by others");
 			hd->curr_RPS.num_of_ref =
 				get_param(rpm_param->p.num_of_ref_cur,
 				"num of reference picture");
@@ -692,7 +692,7 @@ int32_t avs2_init_global_buffers(struct avs2_decoder *avs2_dec)
 			refnum, avs2_dec->fref[refnum]);
 		avs2_dec->fref[refnum]->imgcoi_ref = -257;
 		avs2_dec->fref[refnum]->is_output = -1;
-		avs2_dec->fref[refnum]->refered_by_others = -1;
+		avs2_dec->fref[refnum]->referred_by_others = -1;
 		avs2_dec->fref[refnum]->imgtr_fwRefDistance = -256;
 		init_frame_t(avs2_dec->fref[refnum]);
 #ifdef AML
@@ -708,7 +708,7 @@ int32_t avs2_init_global_buffers(struct avs2_decoder *avs2_dec)
 		pr_info("[t] avs2_dec->m_bg@0x%p\n", avs2_dec->m_bg);
 	avs2_dec->m_bg->imgcoi_ref = -257;
 	avs2_dec->m_bg->is_output = -1;
-	avs2_dec->m_bg->refered_by_others = -1;
+	avs2_dec->m_bg->referred_by_others = -1;
 	avs2_dec->m_bg->imgtr_fwRefDistance = -256;
 	init_frame_t(avs2_dec->m_bg);
 	avs2_dec->m_bg->index = refnum;
@@ -744,7 +744,7 @@ static void free_unused_buffers(struct avs2_decoder *avs2_dec)
 			pr_info("%s[t] avs2_dec->fref[%d]@0x%p\n", __func__, refnum, avs2_dec->fref[refnum]);
 		avs2_dec->fref[refnum]->imgcoi_ref = -257;
 		avs2_dec->fref[refnum]->is_output = -1;
-		avs2_dec->fref[refnum]->refered_by_others = -1;
+		avs2_dec->fref[refnum]->referred_by_others = -1;
 		avs2_dec->fref[refnum]->imgtr_fwRefDistance = -256;
 		memset(avs2_dec->fref[refnum]->ref_poc, 0,
 			sizeof(avs2_dec->fref[refnum]->ref_poc));
@@ -755,7 +755,7 @@ static void free_unused_buffers(struct avs2_decoder *avs2_dec)
 		pr_info("%s[t] avs2_dec->m_bg@0x%p\n", __func__, avs2_dec->m_bg);
 	avs2_dec->m_bg->imgcoi_ref = -257;
 	avs2_dec->m_bg->is_output = -1;
-	avs2_dec->m_bg->refered_by_others = -1;
+	avs2_dec->m_bg->referred_by_others = -1;
 	avs2_dec->m_bg->imgtr_fwRefDistance = -256;
 	memset(avs2_dec->m_bg->ref_poc, 0,
 		sizeof(avs2_dec->m_bg->ref_poc));
@@ -773,7 +773,7 @@ void init_frame_t(struct avs2_frame_s *currfref)
 	memset(currfref, 0, sizeof(struct avs2_frame_s));
 	currfref->imgcoi_ref          = -257;
 	currfref->is_output           = -1;
-	currfref->refered_by_others   = -1;
+	currfref->referred_by_others   = -1;
 	currfref->imgtr_fwRefDistance = -256;
 	memset(currfref->ref_poc, 0, sizeof(currfref->ref_poc));
 }
@@ -964,7 +964,7 @@ int prepare_RefInfo(struct avs2_decoder *avs2_dec)
 	hc->f_rec->decoded_lcu = 0;
 	hc->f_rec->slice_type = img->type;
 #endif
-	hc->f_rec->refered_by_others = hd->curr_RPS.referd_by_others;
+	hc->f_rec->referred_by_others = hd->curr_RPS.referred_by_others;
 	if (is_avs2_print_bufmgr_detail())
 		pr_info(
 			"%s, set f_rec (cur_pic) <= fref[%d] img->tr %d coding_order %d img_type %d\n",
@@ -1016,11 +1016,11 @@ int prepare_RefInfo(struct avs2_decoder *avs2_dec)
 	if (is_avs2_print_bufmgr_detail()) {
 		for (ii = 0; ii < avs2_dec->ref_maxbuffer; ii++) {
 			pr_info(
-			"fref[%d]: index %d imgcoi_ref %d imgtr_fwRefDistance %d refered %d, is_out %d, bg %d, vf_ref %d ref_pos(%d,%d,%d,%d,%d,%d,%d)\n",
+			"fref[%d]: index %d imgcoi_ref %d imgtr_fwRefDistance %d referred %d, is_out %d, bg %d, vf_ref %d ref_pos(%d,%d,%d,%d,%d,%d,%d)\n",
 			ii, avs2_dec->fref[ii]->index,
 			avs2_dec->fref[ii]->imgcoi_ref,
 			avs2_dec->fref[ii]->imgtr_fwRefDistance,
-			avs2_dec->fref[ii]->refered_by_others,
+			avs2_dec->fref[ii]->referred_by_others,
 			avs2_dec->fref[ii]->is_output,
 			avs2_dec->fref[ii]->bg_flag,
 			avs2_dec->fref[ii]->vf_ref,
@@ -1126,7 +1126,7 @@ void flushDPB(struct avs2_decoder *avs2_dec)
 		avs2_dec->fref[j]->imgtr_fwRefDistance = -256;
 		avs2_dec->fref[j]->imgcoi_ref = -257;
 		avs2_dec->fref[j]->temporal_id = -1;
-		avs2_dec->fref[j]->refered_by_others = 0;
+		avs2_dec->fref[j]->referred_by_others = 0;
 	}
 }
 #endif
@@ -1285,7 +1285,7 @@ void write_frame(struct avs2_decoder *avs2_dec, int32_t pos)
 			avs2_dec->fref[j]->is_output = -1;
 			avs2_dec->fref[j]->to_prepare_disp =
 				avs2_dec->to_prepare_disp_count++;
-			if (avs2_dec->fref[j]->refered_by_others == 0 ||
+			if (avs2_dec->fref[j]->referred_by_others == 0 ||
 				avs2_dec->fref[j]->imgcoi_ref == -257) {
 				avs2_dec->fref[j]->imgtr_fwRefDistance = -256;
 				avs2_dec->fref[j]->imgcoi_ref = -257;
@@ -1670,7 +1670,7 @@ int avs2_post_process(struct avs2_decoder *avs2_dec)
 			if (j < avs2_dec->ref_maxbuffer) { /**/
 #if FIX_RPS_PICTURE_REMOVE
 /* Label new frames as "un-referenced" */
-				avs2_dec->fref[j]->refered_by_others = 0;
+				avs2_dec->fref[j]->referred_by_others = 0;
 
 				/* remove frames which have been outputted */
 				if (avs2_dec->fref[j]->is_output == -1) {

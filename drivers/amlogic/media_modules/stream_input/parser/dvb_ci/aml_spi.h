@@ -71,7 +71,7 @@ struct aml_spi {
 #define DATASTART 0xef
 #define DATAEND   0xfe
 
-enum AM_SPI_RECIVERSTEP {
+enum AM_SPI_RECEIVER_STEP {
 		AM_SPI_STEP_INIT = 0,
 		AM_SPI_STEP_START1,
 		AM_SPI_STEP_START2,

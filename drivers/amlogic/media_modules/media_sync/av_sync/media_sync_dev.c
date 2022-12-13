@@ -23,6 +23,7 @@
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <linux/compat.h>
 
 #include <linux/platform_device.h>
 #include <linux/amlogic/cpu_version.h>
@@ -49,11 +50,11 @@ typedef struct updatetime_para {
 	bool mForceUpdate;
 }mediasync_updatetime_para;
 
-typedef struct arthortime_para {
+typedef struct anchor_time_para {
 	int64_t mMediaTimeUs;
 	int64_t mSystemTimeUs;
 	int64_t mStcTimeUs;
-}mediasync_arthortime_para;
+}mediasync_anchor_time_para;
 
 typedef struct priv_s {
 	s32 mSyncInsId;
@@ -89,7 +90,7 @@ static int mediasync_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static long mediasync_ioctl(struct file *file, unsigned int cmd, ulong arg)
+static long mediasync_ioctl_inner(struct file *file, unsigned int cmd, ulong arg, unsigned int is_compat_ptr)
 {
 	long ret = 0;
 	mediasync_speed SyncSpeed = {0};
@@ -122,14 +123,13 @@ static long mediasync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	mediasync_priv_s *priv = (mediasync_priv_s *)file->private_data;
 	mediasync_ins *SyncIns = NULL;
 	mediasync_alloc_para parm = {0};
-	mediasync_arthortime_para ArthorTime = {0};
+	mediasync_anchor_time_para Anchor_Time = {0};
 	mediasync_updatetime_para UpdateTime = {0};
 	mediasync_systime_para SystemTime = {0};
 	aml_Source_Type sourceType = TS_DEMOD;
 	s64 UpdateTimeThreshold = 0;
 	s64 StartMediaTime = -1;
 	s32 PlayerInstanceId = -1;
-
 	switch (cmd) {
 		case MEDIASYNC_IOC_INSTANCE_ALLOC:
 			if (copy_from_user ((void *)&parm,
@@ -213,13 +213,13 @@ static long mediasync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 				return -EFAULT;
 			}
 			ret = mediasync_ins_get_anchor_time(priv->mSyncInsId,
-							&(ArthorTime.mMediaTimeUs),
-							&(ArthorTime.mStcTimeUs),
-							&(ArthorTime.mSystemTimeUs));
+							&(Anchor_Time.mMediaTimeUs),
+							&(Anchor_Time.mStcTimeUs),
+							&(Anchor_Time.mSystemTimeUs));
 			if (ret == 0) {
 				if (copy_to_user((void *)arg,
-						&ArthorTime,
-						sizeof(ArthorTime))) {
+						&Anchor_Time,
+						sizeof(Anchor_Time))) {
 					return -EFAULT;
 				}
 			}
@@ -1062,7 +1062,7 @@ static long mediasync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			if (priv->mSyncIns == NULL)
 				return -EFAULT;
 
-			ret = mediasync_ins_set_queueaudioinfo(priv->mSyncInsId,
+			ret = mediasync_ins_set_queue_audio_info(priv->mSyncInsId,
 								FrameInfo);
 		break;
 
@@ -1070,7 +1070,7 @@ static long mediasync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			if (priv->mSyncIns == NULL)
 				return -EFAULT;
 
-			ret = mediasync_ins_get_queueaudioinfo(priv->mSyncInsId,
+			ret = mediasync_ins_get_queue_audio_info(priv->mSyncInsId,
 								&FrameInfo);
 			if (ret == 0) {
 				if (copy_to_user((void *)arg,
@@ -1088,7 +1088,7 @@ static long mediasync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			if (priv->mSyncIns == NULL)
 				return -EFAULT;
 
-			ret = mediasync_ins_set_queuevideoinfo(priv->mSyncInsId,
+			ret = mediasync_ins_set_queue_video_info(priv->mSyncInsId,
 								FrameInfo);
 		break;
 
@@ -1096,7 +1096,7 @@ static long mediasync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			if (priv->mSyncIns == NULL)
 				return -EFAULT;
 
-			ret = mediasync_ins_get_queuevideoinfo(priv->mSyncInsId,
+			ret = mediasync_ins_get_queue_video_info(priv->mSyncInsId,
 								&FrameInfo);
 			if (ret == 0) {
 				if (copy_to_user((void *)arg,
@@ -1106,7 +1106,7 @@ static long mediasync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			}
 		break;
 
-		case  MEDIASYNC_IOC_SET_AUDIO_PACKETC_INFO :
+		case  MEDIASYNC_IOC_SET_AUDIO_PACKETS_INFO :
 			if (copy_from_user((void *)&audioPacketsInfo,
 					(void *)arg,
 					sizeof(audioPacketsInfo)))
@@ -1132,7 +1132,7 @@ static long mediasync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			}
 		break;
 
-		case  MEDIASYNC_IOC_SET_VIDEO_PACKETC_INFO :
+		case  MEDIASYNC_IOC_SET_VIDEO_PACKETS_INFO :
 			if (copy_from_user((void *)&videoPacketsInfo,
 					(void *)arg,
 					sizeof(videoPacketsInfo)))
@@ -1168,7 +1168,7 @@ static long mediasync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			if (priv->mSyncIns == NULL)
 				return -EFAULT;
 
-			ret = mediasync_ins_set_firstqueueaudioinfo(priv->mSyncInsId,
+			ret = mediasync_ins_set_first_queue_audio_info(priv->mSyncInsId,
 								FrameInfo);
 		break;
 
@@ -1176,7 +1176,7 @@ static long mediasync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			if (priv->mSyncIns == NULL)
 				return -EFAULT;
 
-			ret = mediasync_ins_get_firstqueueaudioinfo(priv->mSyncInsId,
+			ret = mediasync_ins_get_first_queue_audio_info(priv->mSyncInsId,
 								&FrameInfo);
 			if (ret == 0) {
 				if (copy_to_user((void *)arg,
@@ -1194,7 +1194,7 @@ static long mediasync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			if (priv->mSyncIns == NULL)
 				return -EFAULT;
 
-			ret = mediasync_ins_set_firstqueuevideoinfo(priv->mSyncInsId,
+			ret = mediasync_ins_set_first_queue_video_info(priv->mSyncInsId,
 								FrameInfo);
 		break;
 
@@ -1202,7 +1202,7 @@ static long mediasync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			if (priv->mSyncIns == NULL)
 				return -EFAULT;
 
-			ret = mediasync_ins_get_firstqueuevideoinfo(priv->mSyncInsId,
+			ret = mediasync_ins_get_first_queue_video_info(priv->mSyncInsId,
 								&FrameInfo);
 			if (ret == 0) {
 				if (copy_to_user((void *)arg,
@@ -1242,7 +1242,7 @@ static long mediasync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		case MEDIASYNC_IOC_GET_AVSTATE_CUR_TIME_US :
 			if (priv->mSyncIns == NULL)
 				return -EFAULT;
-			ret = mediasync_ins_get_avsyncstate_cur_time_us(priv->mSyncInsId,
+			ret = mediasync_ins_get_avsync_state_cur_time_us(priv->mSyncInsId,
 								&avSyncStatusCurTimeUs);
 			if (ret == 0) {
 				if (copy_to_user((void *)arg,
@@ -1252,6 +1252,69 @@ static long mediasync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			}
 		break;
 
+		case MEDIASYNC_IOC_SET_PAUSE_VIDEO_INFO:
+			if (copy_from_user((void *)&FrameInfo,
+					(void *)arg,
+					sizeof(FrameInfo)))
+				return -EFAULT;
+
+			if (priv->mSyncIns == NULL)
+				return -EFAULT;
+
+			ret = mediasync_ins_set_pause_video_info(priv->mSyncInsId,
+								FrameInfo);
+
+		break;
+
+		case MEDIASYNC_IOC_GET_PAUSE_VIDEO_INFO:
+			if (priv->mSyncIns == NULL)
+				return -EFAULT;
+
+			ret = mediasync_ins_get_pause_video_info(priv->mSyncInsId,
+								&FrameInfo);
+			if (ret == 0) {
+				if (copy_to_user((void *)arg,
+						&FrameInfo,
+						sizeof(FrameInfo)))
+					return -EFAULT;
+			}
+		break;
+
+		case MEDIASYNC_IOC_SET_PAUSE_AUDIO_INFO:
+			if (copy_from_user((void *)&FrameInfo,
+					(void *)arg,
+					sizeof(FrameInfo)))
+				return -EFAULT;
+
+			if (priv->mSyncIns == NULL)
+				return -EFAULT;
+
+			ret = mediasync_ins_set_pause_audio_info(priv->mSyncInsId,
+								FrameInfo);
+		break;
+
+		case MEDIASYNC_IOC_GET_PAUSE_AUDIO_INFO:
+			if (priv->mSyncIns == NULL)
+				return -EFAULT;
+
+			ret = mediasync_ins_get_pause_audio_info(priv->mSyncInsId,
+								&FrameInfo);
+			if (ret == 0) {
+				if (copy_to_user((void *)arg,
+						&FrameInfo,
+						sizeof(FrameInfo)))
+					return -EFAULT;
+			}
+		break;
+
+		case MEDIASYNC_IOC_EXT_CTRLS:
+			if (priv->mSyncIns == NULL)
+				return -EFAULT;
+
+			ret = mediasync_ins_ext_ctrls(priv->mSyncInsId,arg,is_compat_ptr);
+
+		break;
+
 		default:
 			pr_info("invalid cmd:%d\n", cmd);
 		break;
@@ -1259,6 +1322,11 @@ static long mediasync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 
 	return ret;
 }
+
+static long mediasync_ioctl(struct file *file, unsigned int cmd, ulong arg) {
+   return  mediasync_ioctl_inner(file,cmd,arg,0);
+}
+
 
 #ifdef CONFIG_COMPAT
 static long mediasync_compat_ioctl(struct file *file, unsigned int cmd, ulong arg)
@@ -1340,14 +1408,19 @@ static long mediasync_compat_ioctl(struct file *file, unsigned int cmd, ulong ar
 		case MEDIASYNC_IOC_GET_FIRST_QUEUE_AUDIO_INFO:
 		case MEDIASYNC_IOC_SET_FIRST_QUEUE_VIDEO_INFO:
 		case MEDIASYNC_IOC_GET_FIRST_QUEUE_VIDEO_INFO:
-		case MEDIASYNC_IOC_SET_AUDIO_PACKETC_INFO :
+		case MEDIASYNC_IOC_SET_AUDIO_PACKETS_INFO :
 		case MEDIASYNC_IOC_GET_AUDIO_CACHE_INFO :
-		case MEDIASYNC_IOC_SET_VIDEO_PACKETC_INFO :
+		case MEDIASYNC_IOC_SET_VIDEO_PACKETS_INFO :
 		case MEDIASYNC_IOC_GET_VIDEO_CACHE_INFO :
 		case MEDIASYNC_IOC_SET_PLAYER_INSTANCE_ID :
 		case MEDIASYNC_IOC_GET_PLAYER_INSTANCE_ID :
 		case MEDIASYNC_IOC_GET_AVSTATE_CUR_TIME_US:
-			return mediasync_ioctl(file, cmd, arg);
+		case MEDIASYNC_IOC_SET_PAUSE_VIDEO_INFO:
+		case MEDIASYNC_IOC_GET_PAUSE_VIDEO_INFO:
+		case MEDIASYNC_IOC_SET_PAUSE_AUDIO_INFO:
+		case MEDIASYNC_IOC_GET_PAUSE_AUDIO_INFO:
+		case MEDIASYNC_IOC_EXT_CTRLS:
+			return mediasync_ioctl_inner(file, cmd,(ulong)compat_ptr(arg),1);
 		default:
 			return -EINVAL;
 	}

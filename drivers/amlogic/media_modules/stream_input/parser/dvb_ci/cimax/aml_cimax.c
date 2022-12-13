@@ -31,7 +31,7 @@
 #include "aml_cimax_spi.h"
 #include "aml_cimax_usb.h"
 
-#define MODUDLE_NAME       "aml_cimax"
+#define MODULE_NAME       "aml_cimax"
 
 MODULE_PARM_DESC(cimax_debug, "enable verbose debug messages");
 static int aml_cimax_debug = 1;
@@ -131,7 +131,7 @@ static int aml_cimax_cam_reset(struct aml_ci *ci, int slot)
 	return 0;
 }
 
-static int aml_cimax_get_capbility(struct aml_ci *ci, int slot)
+static int aml_cimax_get_capability(struct aml_ci *ci, int slot)
 {
 	return 0;
 }
@@ -229,7 +229,7 @@ int aml_cimax_init(struct platform_device *pdev, struct aml_ci *ci)
 	ci->ci_write_lpdu = aml_cimax_write_lpdu;
 	ci->ci_read_cam_status = aml_cimax_read_cam_status;
 	ci->ci_cam_reset = aml_cimax_cam_reset;
-	ci->ci_get_capbility = aml_cimax_get_capbility;
+	ci->ci_get_capability = aml_cimax_get_capability;
 	ci->ci_slot_reset = aml_cimax_slot_reset;
 	ci->ci_slot_shutdown = aml_cimax_slot_shutdown;
 	ci->ci_slot_ts_enable = aml_cimax_slot_ts_enable;
@@ -250,7 +250,7 @@ int aml_cimax_exit(struct aml_ci *ci)
 	ci->ci_write_lpdu       = NULL;
 	ci->ci_read_cam_status  = NULL;
 	ci->ci_cam_reset        = NULL;
-	ci->ci_get_capbility    = NULL;
+	ci->ci_get_capability    = NULL;
 	ci->ci_slot_reset       = NULL;
 	ci->ci_slot_shutdown    = NULL;
 	ci->ci_slot_ts_enable   = NULL;

@@ -294,7 +294,7 @@ static u32 mv_buf_dynamic_alloc;
 #define PTS_NONE_REF_USE_DURATION 1
 
 #define PTS_MODE_SWITCHING_THRESHOLD           3
-#define PTS_MODE_SWITCHING_RECOVERY_THREASHOLD 3
+#define PTS_MODE_SWITCHING_RECOVERY_THRESHOLD 3
 
 #define DUR2PTS(x) ((x)*90/96)
 
@@ -2524,13 +2524,13 @@ static void dump_pic_list(struct AVS2Decoder_s *dec)
 	struct avs2_decoder *avs2_dec = &dec->avs2_dec;
 	for (ii = 0; ii < avs2_dec->ref_maxbuffer; ii++) {
 		avs2_print(dec, 0,
-		"fref[%d]: index %d decode_id %d mvbuf %d imgcoi_ref %d imgtr_fwRefDistance %d refered %d, pre %d is_out %d, bg %d, vf_ref %d error %d lcu %d ref_pos(%d,%d,%d,%d,%d,%d,%d)\n",
+		"fref[%d]: index %d decode_id %d mvbuf %d imgcoi_ref %d imgtr_fwRefDistance %d referred %d, pre %d is_out %d, bg %d, vf_ref %d error %d lcu %d ref_pos(%d,%d,%d,%d,%d,%d,%d)\n",
 		ii, avs2_dec->fref[ii]->index,
 		avs2_dec->fref[ii]->decode_idx,
 		avs2_dec->fref[ii]->mv_buf_index,
 		avs2_dec->fref[ii]->imgcoi_ref,
 		avs2_dec->fref[ii]->imgtr_fwRefDistance,
-		avs2_dec->fref[ii]->refered_by_others,
+		avs2_dec->fref[ii]->referred_by_others,
 		avs2_dec->fref[ii]->to_prepare_disp,
 		avs2_dec->fref[ii]->is_output,
 		avs2_dec->fref[ii]->bg_flag,
@@ -2592,7 +2592,7 @@ static int config_mc_buffer(struct AVS2Decoder_s *dec)
 			(0 << 8) | (0<<1) | 1);
 		for (i = 0; i < avs2_dec->img.num_of_references; i++) {
 			pic = avs2_dec->fref[i];
-			if (pic->refered_by_others != 1)
+			if (pic->referred_by_others != 1)
 				continue;
 			valid_ref_cnt++;
 			WRITE_VREG(HEVCD_MPP_ANC_CANVAS_DATA_ADDR,
@@ -2623,7 +2623,7 @@ static int config_mc_buffer(struct AVS2Decoder_s *dec)
 			(0 << 8) | (0<<1) | 1);
 		for (i = 0; i < avs2_dec->img.num_of_references; i++) {
 			pic = avs2_dec->fref[i];
-			if (pic->refered_by_others != 0)
+			if (pic->referred_by_others != 0)
 				continue;
 			valid_ref_cnt++;
 			WRITE_VREG(HEVCD_MPP_ANC_CANVAS_DATA_ADDR,
@@ -3002,8 +3002,8 @@ static void config_sao_hw(struct AVS2Decoder_s *dec)
 	data32 |= 0x1; /* [1]:dw_disable [0]:cm_disable*/
 
 	/*
-	*  [31:24] ar_fifo1_axi_thred
-	*  [23:16] ar_fifo0_axi_thred
+	*  [31:24] ar_fifo1_axi_thread
+	*  [23:16] ar_fifo0_axi_thread
 	*  [15:14] axi_linealign, 0-16bytes, 1-32bytes, 2-64bytes
 	*  [13:12] axi_aformat, 0-Linear, 1-32x32, 2-64x32
 	*  [11:08] axi_lendian_C
@@ -3090,8 +3090,8 @@ static void config_sao_hw(struct AVS2Decoder_s *dec)
 		data32 |= 0x1; /*disable cm*/
 
 	/*
-	*  [31:24] ar_fifo1_axi_thred
-	*  [23:16] ar_fifo0_axi_thred
+	*  [31:24] ar_fifo1_axi_thread
+	*  [23:16] ar_fifo0_axi_thread
 	*  [15:14] axi_linealign, 0-16bytes, 1-32bytes, 2-64bytes
 	*  [13:12] axi_aformat, 0-Linear, 1-32x32, 2-64x32
 	*  [11:08] axi_lendian_C
@@ -3420,7 +3420,7 @@ static void config_other_hw(struct AVS2Decoder_s *dec)
 }
 
 static u32 init_cuva_size;
-static int cuva_data_is_avaible(struct AVS2Decoder_s *dec)
+static int cuva_data_is_available(struct AVS2Decoder_s *dec)
 {
 	u32 reg_val;
 
@@ -3450,9 +3450,9 @@ static void set_cuva_data(struct AVS2Decoder_s *dec)
 	unsigned int cuva_count = 0;
 	int cuva_size = 0;
 	struct avs2_frame_s *pic = dec->avs2_dec.hc.cur_pic;
-	if (pic == NULL || 0 == cuva_data_is_avaible(dec)) {
+	if (pic == NULL || 0 == cuva_data_is_available(dec)) {
 		avs2_print(dec, AVS2_DBG_HDR_INFO,
-			"%s:pic 0x%p or data not avaible\n",
+			"%s:pic 0x%p or data not available\n",
 			__func__, pic);
 		return;
 	}
@@ -4106,7 +4106,7 @@ static int avs2_local_init(struct AVS2Decoder_s *dec)
 	if (dec->dw_mmu_enable) {
 		dec->dw_frame_mmu_map_addr = decoder_dma_alloc_coherent(&dec->frame_dw_mmu_map_handle,
 					get_frame_mmu_map_size(dec),
-					&dec->dw_frame_mmu_map_phy_addr, "AVS2_DWMMU_BUF");
+					&dec->dw_frame_mmu_map_phy_addr, "AVS2_DW_MMU_BUF");
 		if (dec->dw_frame_mmu_map_addr == NULL) {
 			pr_err("%s: failed to alloc count_buffer\n", __func__);
 			return -1;
@@ -4299,7 +4299,7 @@ static struct vframe_s *vavs2_vf_peek(void *op_arg)
 
 	if (kfifo_len(&dec->display_q) > VF_POOL_SIZE) {
 		avs2_print(dec, AVS2_DBG_BUFMGR,
-			"kfifo len:%d invaild, peek error\n",
+			"kfifo len:%d invalid, peek error\n",
 			kfifo_len(&dec->display_q));
 		return NULL;
 	}
@@ -4319,8 +4319,8 @@ static struct avs2_frame_s *get_pic_by_index(
 		pic = dec->avs2_dec.m_bg;
 	else if (index >= 0	&& index < dec->used_buf_num) {
 		for (i = 0; i < dec->used_buf_num; i++) {
-			if (dec->avs2_dec.fref[i]->index == index)
-				pic = dec->avs2_dec.fref[i];
+			if (dec->avs2_dec.frm_pool[i].index == index)
+				pic = &dec->avs2_dec.frm_pool[i];
 		}
 	}
 	return pic;
@@ -4637,7 +4637,7 @@ static void set_vframe(struct AVS2Decoder_s *dec,
 				}
 
 			} else {
-				int p = PTS_MODE_SWITCHING_RECOVERY_THREASHOLD;
+				int p = PTS_MODE_SWITCHING_RECOVERY_THRESHOLD;
 				dec->pts_mode_recovery_count++;
 				if (dec->pts_mode_recovery_count > p) {
 					dec->pts_mode_switching_count = 0;
@@ -5639,7 +5639,7 @@ static irqreturn_t vavs2_isr_thread_fn(int irq, void *data)
 					pic->is_output == -1 &&
 					pic->mmu_alloc_flag &&
 					pic->vf_ref == 0) {
-					if (pic->refered_by_others == 0) {
+					if (pic->referred_by_others == 0) {
 #ifdef AVS2_10B_MMU
 						pic->mmu_alloc_flag = 0;
 
@@ -6110,7 +6110,7 @@ static void vavs2_put_timer_func(struct timer_list *timer)
 	uint8_t empty_flag;
 	unsigned int buf_level;
 
-	enum receviver_start_e state = RECEIVER_INACTIVE;
+	enum receiver_start_e state = RECEIVER_INACTIVE;
 	if (dec->m_ins_flag) {
 		if (hw_to_vdec(dec)->next_status
 			== VDEC_STATUS_DISCONNECTED) {
@@ -7060,7 +7060,7 @@ static unsigned long run_ready(struct vdec_s *vdec, unsigned long mask)
 			again_threshold) {
 			int r = vdec_sync_input(vdec);
 			avs2_print(dec,
-			PRINT_FLAG_VDEC_DETAIL, "%s buf lelvel:%x\n", __func__, r);
+			PRINT_FLAG_VDEC_DETAIL, "%s buf level:%x\n", __func__, r);
 			return 0;
 		}
 	}
@@ -7276,7 +7276,7 @@ static void avs2_dump_state(struct vdec_s *vdec)
 		input_empty[dec->index]);
 
 	if (vf_get_receiver(vdec->vf_provider_name)) {
-		enum receviver_start_e state =
+		enum receiver_start_e state =
 		vf_notify_receiver(vdec->vf_provider_name,
 			VFRAME_EVENT_PROVIDER_QUREY_STATE,
 			NULL);
@@ -7479,7 +7479,7 @@ static int ammvdec_avs2_probe(struct platform_device *pdev)
 		dec->stat |= VP9_TRIGGER_FRAME_ENABLE;
 
 	if ((debug & IGNORE_PARAM_FROM_CONFIG) == 0 && pdata->config_len) {
-		/*use ptr config for doubel_write_mode, etc*/
+		/*use ptr config for double_write_mode, etc*/
 		avs2_print(dec, 0, "pdata->config=%s\n", pdata->config);
 		if (get_config_int(pdata->config, "avs2_double_write_mode",
 				&config_val) == 0)

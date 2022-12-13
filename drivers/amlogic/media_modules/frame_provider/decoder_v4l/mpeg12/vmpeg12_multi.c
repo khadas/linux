@@ -1659,7 +1659,7 @@ static int prepare_display_buf(struct vdec_mpeg12_hw_s *hw,
 				hw->gvs.b_lost_frames++;
 			}
 			/* Though we drop it, it is still an error frame, count it.
-			 * Becase we've counted the error frame in vdec_count_info
+			 * because we've counted the error frame in vdec_count_info
 			 * function, avoid count it twice.
 			 */
 		if (!(info & PICINFO_ERROR)) {
@@ -1787,7 +1787,7 @@ static int update_reference(struct vdec_mpeg12_hw_s *hw,
 		/* second pic do not output */
 		index = hw->buf_num;
 	} else {
-		hw->ref_use[hw->refs[0]]--;		//old ref0 ununsed
+		hw->ref_use[hw->refs[0]]--;		//old ref0 unused
 		hw->refs[0] = hw->refs[1];
 		hw->refs[1] = index;
 		index = hw->refs[0];
@@ -1911,12 +1911,14 @@ static irqreturn_t vmpeg12_isr_thread_handler(struct vdec_s *vdec, int irq)
 				__func__);
 		}
 
-		if ((frame_width <= 0) || (frame_height <= 0)) {
-			debug_print(DECODE_ID(hw), 0,
-				"is_oversize w:%d h:%d\n", frame_width, frame_height);
-			hw->dec_result = DEC_RESULT_ERROR_DATA;
-			vdec_schedule_work(&hw->work);
-			return IRQ_HANDLED;
+		if (input_frame_based(vdec)) {
+			if ((frame_width <= 0) || (frame_height <= 0)) {
+				debug_print(DECODE_ID(hw), 0,
+					"is_oversize w:%d h:%d\n", frame_width, frame_height);
+				hw->dec_result = DEC_RESULT_ERROR_DATA;
+				vdec_schedule_work(&hw->work);
+				return IRQ_HANDLED;
+			}
 		}
 
 		if (!v4l_res_change(hw, frame_width, frame_height, frame_prog)) {
@@ -2019,6 +2021,12 @@ static irqreturn_t vmpeg12_isr_thread_handler(struct vdec_s *vdec, int irq)
 				hw->profile_idc, hw->level_idc);
 		}
 
+		if ((seqinfo & SEQINFO_EXT_AVAILABLE) &&
+			(seqinfo & SEQINFO_PROG) && !(info & PICINFO_PROG)) {
+			info = PICINFO_ERROR | PICINFO_PROG;
+			debug_print(DECODE_ID(hw), PRINT_FLAG_RUN_FLOW,
+				"error! info is 0\n");
+		}
 		if (index >= hw->buf_num) {
 			debug_print(DECODE_ID(hw), PRINT_FLAG_ERROR,
 				"mmpeg12: invalid buf index: %d\n", index);
@@ -2256,7 +2264,7 @@ static void flush_output(struct vdec_mpeg12_hw_s *hw)
 	}
 }
 
-static bool is_avaliable_buffer(struct vdec_mpeg12_hw_s *hw);
+static bool is_available_buffer(struct vdec_mpeg12_hw_s *hw);
 
 static int notify_v4l_eos(struct vdec_s *vdec)
 {
@@ -2269,7 +2277,7 @@ static int notify_v4l_eos(struct vdec_s *vdec)
 
 	if (hw->eos) {
 		expires = jiffies + msecs_to_jiffies(2000);
-		while (!is_avaliable_buffer(hw)) {
+		while (!is_available_buffer(hw)) {
 			if (time_after(jiffies, expires)) {
 				pr_err("[%d] MPEG2 isn't enough buff for notify eos.\n", ctx->id);
 				return 0;
@@ -2443,7 +2451,7 @@ static void vmpeg12_work_implement(struct vdec_mpeg12_hw_s *hw,
 	if (from == 1) {
 		/*This is a timeout work*/
 		if (work_pending(&hw->work)) {
-			pr_err("timeout work return befor finishing.");
+			pr_err("timeout work return before finishing.");
 			/*
 			 * The vmpeg12_work arrives at the last second,
 			 * give it a chance to handle the scenario.
@@ -2482,7 +2490,7 @@ static void vmpeg12_timeout_work(struct work_struct *work)
 	struct vdec_s *vdec = hw_to_vdec(hw);
 
 	if (work_pending(&hw->work)) {
-		pr_err("timeout work return befor executing.");
+		pr_err("timeout work return before executing.");
 		return;
 	}
 
@@ -2546,7 +2554,11 @@ static void vmpeg_vf_put(struct vframe_s *vf, void *op_arg)
 			"invalid vf: %lx\n", (ulong)vf);
 		return ;
 	}
-
+	if (vf->type == VIDTYPE_V4L_EOS) {
+		debug_print(DECODE_ID(hw), PRINT_FLAG_V4L_DETAIL,
+			"[%s]EOS frame, return. idx: %d\n", __func__, vf->index);
+		return;
+	}
 	if (vf->meta_data_buf) {
 		vf->meta_data_buf = NULL;
 		vf->meta_data_size = 0;
@@ -2827,7 +2839,7 @@ static void timeout_process(struct vdec_mpeg12_hw_s *hw)
 	    work_busy(&hw->work) ||
 	    work_busy(&hw->timeout_work) ||
 	    work_pending(&hw->timeout_work)) {
-		pr_err("%s mpeg12[%d] timeout_process return befor do anything.\n",__func__, vdec->id);
+		pr_err("%s mpeg12[%d] timeout_process return before do anything.\n",__func__, vdec->id);
 		return;
 	}
 	reset_process_time(hw);
@@ -2845,7 +2857,7 @@ static void timeout_process(struct vdec_mpeg12_hw_s *hw)
 	 * let it to handle the scenario.
 	 */
 	if (work_pending(&hw->work)) {
-		pr_err("%s mpeg12[%d] return befor schedule.", __func__, vdec->id);
+		pr_err("%s mpeg12[%d] return before schedule.", __func__, vdec->id);
 		return;
 	}
 	vdec_schedule_work(&hw->timeout_work);
@@ -3155,7 +3167,7 @@ static s32 vmpeg12_init(struct vdec_mpeg12_hw_s *hw)
 	return 0;
 }
 
-static bool is_avaliable_buffer(struct vdec_mpeg12_hw_s *hw)
+static bool is_available_buffer(struct vdec_mpeg12_hw_s *hw)
 {
 	struct aml_vcodec_ctx *ctx =
 		(struct aml_vcodec_ctx *)(hw->v4l2_ctx);
@@ -3239,7 +3251,7 @@ static unsigned long run_ready(struct vdec_s *vdec, unsigned long mask)
 #endif
 
 	if (hw->v4l_params_parsed) {
-		ret = is_avaliable_buffer(hw) ? 1 : 0;
+		ret = is_available_buffer(hw) ? 1 : 0;
 	} else {
 		ret = ctx->v4l_resolution_change ? 0 : 1;
 	}

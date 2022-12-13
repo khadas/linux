@@ -189,11 +189,11 @@ enum aml_gpio_select_e {
 */
 #define CIPLUS_WAIT_TIMEOUT 0x14
 /*
-31     wait timeout irq enable,defalut 1;
+31     wait timeout irq enable,default 1;
 30:0   data read from cam;time out threshold
        if wait time > threshold,than timeout irq.
 */
-#define ENABEL_TIMEOUT_IRQ  31
+#define ENABLE_TIMEOUT_IRQ  31
 #define WATT_TIMEOUT_TIME   0
 
 

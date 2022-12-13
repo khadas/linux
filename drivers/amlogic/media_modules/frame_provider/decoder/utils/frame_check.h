@@ -30,7 +30,7 @@
 #define AUX_DATA_CRC
 
 
-#define YUV_MAX_DUMP_NUM  60
+#define YUV_DUMP_NUM  20
 
 #define SIZE_CRC	64
 #define SIZE_CHECK_Q 128

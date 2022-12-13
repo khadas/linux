@@ -17,4 +17,19 @@
  *
  * Description:
  */
+#ifndef VAV1_H
+#define VAV1_H
 
+#define DEBUG_FGS_REGS            (1 << 0)   //0x00000001
+#define DEBUG_FGS_REGS_PARSE      (1 << 1)   //0x00000002
+#define DEBUG_FGS_DETAIL          (1 << 2)   //0x00000004
+#define DEBUG_FGS_TABLE_DUMP      (1 << 3)   //0x00000008
+#define DEBUG_FGS_CONSUME_TIME    (1 << 4)   //0x00000010
+#define DEBUG_FGS_BYPASS          (1 << 5)   //0x00000020
+
+int get_debug_fgs(void);
+int pic_film_grain_run(u32 frame_count, char *fg_table_addr, u32 fgs_ctrl, u32 *fgs_data);
+
+void adapt_coef_probs(int pic_count, int prev_kf, int cur_kf, int pre_fc,
+unsigned int *prev_prob, unsigned int *cur_prob, unsigned int *count);
+#endif

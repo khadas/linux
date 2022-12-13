@@ -240,6 +240,7 @@ struct vdec_mjpeg_hw_s {
 	char pts_name[32];
 	char new_q_name[32];
 	char disp_q_name[32];
+	bool run_flag;
 };
 
 static void reset_process_time(struct vdec_mjpeg_hw_s *hw);
@@ -417,7 +418,7 @@ static struct vframe_s *vmjpeg_vf_peek(void *op_arg)
 
 	if (kfifo_len(&hw->display_q) > VF_POOL_SIZE) {
 		mmjpeg_debug_print(DECODE_ID(hw), PRINT_FLAG_RUN_FLOW,
-			"kfifo len:%d invaild, peek error\n",
+			"kfifo len:%d invalid, peek error\n",
 			kfifo_len(&hw->display_q));
 		return NULL;
 	}
@@ -739,7 +740,8 @@ static void vmjpeg_dump_state(struct vdec_s *vdec)
 		hw->frame_height,
 		hw->buf_num);
 	mmjpeg_debug_print(DECODE_ID(hw), 0,
-		"is_framebase(%d), eos %d, state 0x%x, dec_result 0x%x dec_frm %d put_frm %d run %d not_run_ready %d input_empty %d\n",
+		"is_framebase(%d), eos %d, state 0x%x, dec_result 0x%x"
+		"dec_frm %d put_frm %d run %d not_run_ready %d input_empty %d run_flag %d\n",
 		input_frame_based(vdec),
 		hw->eos,
 		hw->stat,
@@ -748,10 +750,11 @@ static void vmjpeg_dump_state(struct vdec_s *vdec)
 		hw->put_num,
 		hw->run_count,
 		hw->not_run_ready,
-		hw->input_empty
+		hw->input_empty,
+		hw->run_flag
 		);
 	if (vf_get_receiver(vdec->vf_provider_name)) {
-		enum receviver_start_e state =
+		enum receiver_start_e state =
 		vf_notify_receiver(vdec->vf_provider_name,
 			VFRAME_EVENT_PROVIDER_QUREY_STATE,
 			NULL);
@@ -1121,6 +1124,7 @@ static void run(struct vdec_s *vdec, unsigned long mask,
 		(struct vdec_mjpeg_hw_s *)vdec->private;
 	int i, ret;
 
+	hw->run_flag = 1;
 	hw->vdec_cb_arg = arg;
 	hw->vdec_cb = callback;
 
@@ -1134,6 +1138,7 @@ static void run(struct vdec_s *vdec, unsigned long mask,
 	if (i == hw->buf_num) {
 		hw->dec_result = DEC_RESULT_AGAIN;
 		vdec_schedule_work(&hw->work);
+		hw->run_flag = 0;
 		return;
 	}
 
@@ -1149,6 +1154,7 @@ static void run(struct vdec_s *vdec, unsigned long mask,
 
 		hw->dec_result = DEC_RESULT_AGAIN;
 		vdec_schedule_work(&hw->work);
+		hw->run_flag = 0;
 		return;
 	}
 	hw->input_empty = 0;
@@ -1165,6 +1171,7 @@ static void run(struct vdec_s *vdec, unsigned long mask,
 				vdec->id, tee_enabled() ? "TEE" : "local", ret);
 			hw->dec_result = DEC_RESULT_FORCE_EXIT;
 			vdec_schedule_work(&hw->work);
+			hw->run_flag = 0;
 			return;
 		}
 		vdec->mc_loaded = 1;
@@ -1176,6 +1183,7 @@ static void run(struct vdec_s *vdec, unsigned long mask,
 		mmjpeg_debug_print(DECODE_ID(hw), 0,
 			"amvdec_mmjpeg: error HW context restore\n");
 		vdec_schedule_work(&hw->work);
+		hw->run_flag = 0;
 		return;
 	}
 
@@ -1183,8 +1191,8 @@ static void run(struct vdec_s *vdec, unsigned long mask,
 	start_process_time(hw);
 	hw->last_vld_level = 0;
 	mod_timer(&hw->check_timer, jiffies + CHECK_INTERVAL);
-	vdec_enable_input(vdec);
 	amvdec_start();
+	vdec_enable_input(vdec);
 	hw->stat |= STAT_VDEC_RUN;
 	hw->init_flag = 1;
 
@@ -1202,6 +1210,7 @@ static void run(struct vdec_s *vdec, unsigned long mask,
 		READ_VREG(VLD_MEM_VIFIFO_CONTROL),
 		READ_VREG(VLD_MEM_VIFIFO_BUF_CNTL),
 		READ_VREG(VLD_MEM_VIFIFO_END_PTR));
+	hw->run_flag = 0;
 }
 static void wait_vmjpeg_search_done(struct vdec_mjpeg_hw_s *hw)
 {
@@ -1347,8 +1356,12 @@ static int vmjpeg_stop(struct vdec_mjpeg_hw_s *hw)
 	hw->init_flag = 0;
 
 	if (hw->mm_blk_handle) {
-		decoder_bmmu_box_free(hw->mm_blk_handle);
+		void *bmmu_box_tmp = hw->mm_blk_handle;
 		hw->mm_blk_handle = NULL;
+		if (hw->run_flag)
+			usleep_range(1000, 2000);
+		decoder_bmmu_box_free(bmmu_box_tmp);
+		bmmu_box_tmp= NULL;
 	}
 
 	if (hw->fw) {

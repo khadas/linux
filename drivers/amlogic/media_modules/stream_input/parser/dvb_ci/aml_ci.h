@@ -101,7 +101,7 @@ struct aml_ci {
 	//int (*ci_read_lpdu)(struct aml_ci *ca, int slot, u8 *buf, int size);
 	//int (*ci_write_lpdu)(struct aml_ci *ca, int slot, u8 *buf, int size);
 
-	//int (*ci_get_capbility)(struct aml_ci *ca, int slot);
+	//int (*ci_get_capability)(struct aml_ci *ca, int slot);
 
 	//int (*ci_cam_reset)(struct aml_ci *ca, int slot);
 	//int (*ci_read_cam_status)(struct aml_ci *ca, int slot);

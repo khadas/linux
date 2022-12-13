@@ -28,7 +28,7 @@
 #include "decoder_cpu_ver_info.h"
 
 #define DECODE_CPU_VER_ID_NODE_NAME "cpu_ver_name"
-#define AM_SUCESS 0
+#define AM_SUCCESS 0
 #define MAJOR_ID_START AM_MESON_CPU_MAJOR_ID_M6
 
 static enum AM_MESON_CPU_MAJOR_ID cpu_ver_id = AM_MESON_CPU_MAJOR_ID_MAX;
@@ -214,7 +214,7 @@ static bool get_cpu_id_from_dtb(enum AM_MESON_CPU_MAJOR_ID *pid_type, int *sub_i
 
 	*sub_id = ((*(int *)pmatch->data) & (SUB_ID_MASK)) >> 8;
 
-	return AM_SUCESS;
+	return AM_SUCCESS;
 }
 
 static void initial_cpu_id(void)
@@ -222,7 +222,7 @@ static void initial_cpu_id(void)
 	enum AM_MESON_CPU_MAJOR_ID id_type = AM_MESON_CPU_MAJOR_ID_MAX;
 	int sub_id = 0;
 
-	if (AM_SUCESS == get_cpu_id_from_dtb(&id_type, &sub_id)) {
+	if (AM_SUCCESS == get_cpu_id_from_dtb(&id_type, &sub_id)) {
 		cpu_ver_id = id_type;
 		cpu_sub_id = sub_id;
 	} else {

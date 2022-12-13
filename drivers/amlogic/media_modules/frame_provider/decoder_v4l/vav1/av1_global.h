@@ -1238,7 +1238,7 @@ typedef struct PIC_BUFFER_CONFIG_s {
   // allocated memory or external buffers.
   int use_external_reference_buffers;
   // This is needed to store y_buffer, u_buffer, and v_buffer when set reference
-  // uses an external refernece, and restore those buffer pointers after the
+  // uses an external reference, and restore those buffer pointers after the
   // external reference frame is no longer used.
   uint8_t *store_buf_adr[3];
 
@@ -1318,7 +1318,7 @@ typedef struct PIC_BUFFER_CONFIG_s {
     int aux_data_size;
     u32 pts;
   u64 pts64;
-  /* picture qos infomation*/
+  /* picture qos information*/
   int max_qp;
   int avg_qp;
   int min_qp;
@@ -1698,7 +1698,7 @@ typedef struct SequenceHeader {
   aom_bit_depth_t bit_depth;  // AOM_BITS_8 in profile 0 or 1,
                               // AOM_BITS_10 or AOM_BITS_12 in profile 2 or 3.
   uint8_t use_highbitdepth;   // If true, we need to use 16bit frame buffers.
-  uint8_t monochrome;         // Monochorme video
+  uint8_t monochrome;         // Monochrome video
   aom_color_primaries_t color_primaries;
   aom_transfer_characteristics_t transfer_characteristics;
   aom_matrix_coefficients_t matrix_coefficients;
@@ -2253,7 +2253,7 @@ typedef union param_u {
         /*other*/
         unsigned short enable_superres;
 
-        /*seqence not use*/
+        /*sequence not use*/
         unsigned short operating_points_cnt_minus_1;
         unsigned short operating_point_idc[MAX_NUM_OPERATING_POINTS];
         unsigned short seq_level_idx[MAX_NUM_OPERATING_POINTS];
@@ -2297,6 +2297,8 @@ RefCntBuffer *av1_get_primary_ref_frame_buf(
 void av1_raw_write_image(AV1Decoder *pbi, PIC_BUFFER_CONFIG *sd);
 
 int get_free_frame_buffer(struct AV1_Common_s *cm);
+
+int check_buff_has_show(struct RefCntBuffer_s *frame_buf);
 
 void av1_bufmgr_ctx_reset(AV1Decoder *pbi, BufferPool *const pool, AV1_COMMON *cm);
 

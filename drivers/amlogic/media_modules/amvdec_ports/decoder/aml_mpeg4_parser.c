@@ -1091,7 +1091,7 @@ int ff_mpeg4_decode_picture_header(struct mpeg4_dec_param *ctx, struct get_bits_
 
 	// If we have not switched to studio profile than we also did not switch bps
 	// that means something else (like a previous instance) outside set bps which
-	// would be inconsistant with the currect state, thus reset it
+	// would be inconsistent with the correct state, thus reset it
 	if (!s->studio_profile && bits_per_raw_sample != 8)
 		bits_per_raw_sample = 0;
 

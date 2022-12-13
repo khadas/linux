@@ -28,7 +28,7 @@
 #include <linux/fs.h>
 #include <linux/kthread.h>
 #include <linux/sched/clock.h>
-#include "vav1.h"
+#include "vav1_t5d.h"
 
 #define FILM_GRAIN_REG_SIZE  39
 

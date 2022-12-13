@@ -454,12 +454,12 @@ static int register_vdec_clk_setting_per_cpu(int cputype,
 }
 
 int register_vdec_clk_setting(int cputype[],
-	struct clk_set_setting *p_seting, int size)
+	struct clk_set_setting *p_setting, int size)
 {
 	int i = 0;
 
 	while (cputype[i] > 0) {
-		register_vdec_clk_setting_per_cpu(cputype[i], p_seting, size);
+		register_vdec_clk_setting_per_cpu(cputype[i], p_setting, size);
 		i++;
 	}
 	return 0;

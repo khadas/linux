@@ -241,7 +241,7 @@ static int vdec_ports_release(struct stream_port_s *port)
 	return 0;
 }
 
-static void set_vdec_properity(struct vdec_s *vdec,
+static void set_vdec_property(struct vdec_s *vdec,
 	struct aml_vdec_adapt *ada_ctx)
 {
 	vdec->sys_info	= &ada_ctx->dec_prop;
@@ -301,7 +301,7 @@ static int vdec_ports_init(struct aml_vdec_adapt *ada_ctx)
 		return -1;
 
 	vdec->disable_vfm = true;
-	set_vdec_properity(vdec, ada_ctx);
+	set_vdec_property(vdec, ada_ctx);
 
 	/* init hw and gate*/
 	ret = enable_hardware(vdec->port);
