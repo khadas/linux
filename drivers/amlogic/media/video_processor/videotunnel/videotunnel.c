@@ -307,27 +307,23 @@ static int vt_debug_limit_open(struct inode *inode, struct file *file)
 static ssize_t vt_debug_limit_write(struct file *file, const char __user *ubuf,
 				size_t len, loff_t *offp)
 {
-	char *buf = NULL;
+	char buf[8];
 	int limits = 0;
 	struct seq_file *sf = file->private_data;
 	struct vt_dev *vdev = sf->private;
 
-	if (len <= 0)
+	if (len > sizeof(buf) - 1)
 		return -EINVAL;
 
-	buf = kmalloc(len, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	if (copy_from_user(buf, ubuf, len)) {
-		kfree(buf);
+	if (copy_from_user(buf, ubuf, len))
 		return -EFAULT;
-	}
+	if (buf[len - 1] == '\n')
+		buf[len - 1] = '\0';
+	buf[len] = '\0';
 
 	if (kstrtoint(buf, 0, &limits) == 0)
 		vdev->limit = (limits > 0) ? limits : 0;
 
-	kfree(buf);
 	return len;
 }
 
