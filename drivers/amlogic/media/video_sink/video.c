@@ -20021,7 +20021,7 @@ static int amvideom_probe(struct platform_device *pdev)
 			pr_info("amvideom vsync viu2 irq: %d\n",
 				video_vsync_viu2);
 		/* vpp1 used then register rdma channel */
-		if (display_device_cnt == 2)
+		if (display_device_cnt >= 2)
 			vpp1_vsync_rdma_register();
 	}
 	if (amvideo_meson_dev.has_vpp2) {

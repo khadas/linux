@@ -1846,9 +1846,12 @@ static int __init rdma_probe(struct platform_device *pdev)
 				       NULL, rdma_table_size);
 		set_rdma_handle(VSYNC_RDMA_READ, handle);
 	}
-	handle = rdma_register(get_rdma_ops(EX_VSYNC_RDMA),
-		NULL, RDMA_TABLE_SIZE);
-	set_rdma_handle(EX_VSYNC_RDMA, handle);
+	/* T7 lack rdma channel. So do not alloc EX_VSYNC_RDMA channel for 3 vppout */
+	if (rdma_meson_dev.rdma_ver != RDMA_VER_3) {
+		handle = rdma_register(get_rdma_ops(EX_VSYNC_RDMA),
+			NULL, RDMA_TABLE_SIZE);
+		set_rdma_handle(EX_VSYNC_RDMA, handle);
+	}
 
 	if (line_n_rdma_en) {
 		handle = rdma_register(get_rdma_ops(LINE_N_INT_RDMA),
