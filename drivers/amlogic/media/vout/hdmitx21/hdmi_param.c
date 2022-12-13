@@ -833,7 +833,6 @@ bool _is_hdmi14_4k(enum hdmi_vic vic)
 
 bool _is_y420_vic(enum hdmi_vic vic)
 {
-	bool ret = 0;
 	int i;
 	enum hdmi_vic y420_vic[] = {
 		HDMI_96_3840x2160p50_16x9,
@@ -843,13 +842,23 @@ bool _is_y420_vic(enum hdmi_vic vic)
 		HDMI_106_3840x2160p50_64x27,
 		HDMI_107_3840x2160p60_64x27,
 	};
+	const struct hdmi_timing *timing;
 
 	for (i = 0; i < ARRAY_SIZE(y420_vic); i++) {
 		if (vic == y420_vic[i]) {
-			ret = 1;
-			break;
+			return 1;
 		}
 	}
 
-	return ret;
+	/* In Spec2.1 Table 7-34, greater than 2160p30hz will support y420 */
+	timing = hdmitx21_gettiming_from_vic(vic);
+	if (!timing)
+		return 0;
+
+	if (timing->v_active > 2160 && timing->v_freq > 30000)
+		return 1;
+	if (timing->v_active >= 4320)
+		return 1;
+
+	return 0;
 }
