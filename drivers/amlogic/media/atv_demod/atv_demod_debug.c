@@ -58,7 +58,7 @@
 	DEBUGFS_CREATE_NODE(aud_dmd_jilinTV, 0640, dentry, bool)\
 	DEBUGFS_CREATE_NODE(if_freq, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(if_inv, 0640, dentry, u32)\
-	DEBUGFS_CREATE_NODE(ademod_debug_en, 0640, dentry, u32)\
+	DEBUGFS_CREATE_NODE(audio_demod_debug_en, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(btsc_detect_delay, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(nicam_detect_delay, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(a2_detect_delay, 0640, dentry, u32)\

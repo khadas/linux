@@ -582,8 +582,7 @@ int aml_atvdemod_attach_demod(struct aml_atvdemod_device *dev)
 	struct v4l2_frontend *v4l2_fe = &dev->v4l2_fe;
 	struct dvb_frontend *fe = &v4l2_fe->fe;
 
-	p = v4l2_attach(aml_atvdemod_attach, fe, v4l2_fe,
-				&dev->i2c_adap, dev->i2c_addr, dev->tuner_id);
+	p = aml_atvdemod_attach(fe, v4l2_fe, &dev->i2c_adap, dev->i2c_addr, dev->tuner_id);
 	if (p) {
 		dev->analog_attached = true;
 	} else {
@@ -731,7 +730,7 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
 	if (!res) {
-		pr_err("no audiodemod memory resource.\n");
+		pr_err("no audio demod memory resource.\n");
 		dev->audiodemod_reg_base = NULL;
 	} else {
 		size_io_reg = resource_size(res);

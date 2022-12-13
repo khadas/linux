@@ -31,8 +31,8 @@
 #endif
 
 
-/* ademod_debug_en for audio demod debug */
-unsigned int ademod_debug_en;
+/* audio demod_debug_en for audio demod debug */
+unsigned int audio_demod_debug_en;
 /* btsc_detect_delay for btsc detect delay */
 unsigned int btsc_detect_delay = 10;
 unsigned int nicam_detect_delay = 10;
@@ -124,12 +124,12 @@ static char *nicam_signal_out[] = {
 #undef pr_info
 #define pr_info(args...)\
 	do {\
-		if (ademod_debug_en & 0x1)\
+		if (audio_demod_debug_en & 0x1)\
 			printk(args);\
 	} while (0)
 #define pr_carr(args...)\
 	do {\
-		if (ademod_debug_en & 0x2)\
+		if (audio_demod_debug_en & 0x2)\
 			printk(args);\
 	} while (0)
 #undef pr_dbg

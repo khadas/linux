@@ -256,7 +256,7 @@ static void atv_demod_afc_timer_handler(struct timer_list *timer)
 		return;
 	}
 
-	if ((afc_timer_en == false) || (fe->ops.info.type != FE_ANALOG))
+	if (!afc_timer_en || fe->ops.info.type != FE_ANALOG)
 		return;
 
 	if (afc->state == AFC_PAUSE)
