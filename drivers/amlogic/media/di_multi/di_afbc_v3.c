@@ -1589,7 +1589,7 @@ static void afbc_check_chg_level(struct vframe_s *vf,
 			return;
 		}
 	}
-	/* pach for not mask nv21 */
+	/* patch for not mask nv21 */
 	if ((vf->type & AFBC_VTYPE_MASK_CHG) !=
 	    (pctr->l_vtype & AFBC_VTYPE_MASK_CHG)	||
 	    vf->height != pctr->l_h		||
@@ -3794,7 +3794,7 @@ static void afbc_check_chg_level_dvfm(struct dvfm_s *vf,
 			return;
 		}
 	}
-	/* pach for not mask nv21 */
+	/* patch for not mask nv21 */
 	if ((vf->vfs.type & AFBC_VTYPE_MASK_CHG) !=
 	    (pctr->l_vtype & AFBC_VTYPE_MASK_CHG)	||
 	    vf->vfs.height != pctr->l_h		||

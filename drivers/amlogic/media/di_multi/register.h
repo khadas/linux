@@ -606,14 +606,14 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
 /* bit 15: 8,   mtn_minth */
 /* bit  7: 0,   mtn_maxth */
 #define DI_MTN_1_CTRL5                    ((0x1744)) /* << 2) + 0xd0100000) */
-/* bit 31:28,   mtn_m1b_extnd */
+/* bit 31:28,   mtn_m1b_extend */
 /* bit 27:24,   mtn_m1b_errod */
 /* bit 19:18,   mtn_replace_cbyy */
 /* bit 17:16,   mtn_replace_ybyc */
 /* bit 15: 8,   mtn_core_ykinter */
 /* bit  7: 0,   mtn_core_ckinter */
 #define DI_MTN_1_CTRL6                    ((0x17a9)) /* << 2) + 0xd0100000) */
-/* bit 31:24,   mtn_m1b_extnd */
+/* bit 31:24,   mtn_m1b_extend */
 /* bit 23:16,   mtn_m1b_errod */
 /* bit 15: 8,   mtn_core_ykinter */
 /* bit  7: 0,   mtn_core_ckinter */
@@ -662,10 +662,10 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
  */
 #define DET3D_CB_CFG                      ((0x1735)) /* << 2) + 0xd0100000) */
 /* Bit 7:4,	reg_Det3D_ChessBd_NHV_ofst
- * U4,  Noise immune offset for NON-Horizotnal or vertical combing detection.
+ * U4,  Noise immune offset for NON-Horizontal or vertical combing detection.
  *
  * Bit 3:0,	reg_Det3D_ChessBd_HV_ofst
- * U4,  Noise immune offset for Horizotnal or vertical combing detection.
+ * U4,  Noise immune offset for Horizontal or vertical combing detection.
  */
 #define DET3D_SPLT_CFG                    ((0x1736)) /* << 2) + 0xd0100000) */
 /* Bit 7:4,	reg_Det3D_SplitValid_ratio
@@ -1268,7 +1268,7 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
 /* Bit 19:16,	reg_CUE_CON_rate0	    U4,  The Krate to decide CUE by
  * relationship between CUE_diflG and CUE_difEG
  */
-/* Bit 15: 8,	reg_CUE_CON_difEG_thrd	U8,  Theshold to the difference between
+/* Bit 15: 8,	reg_CUE_CON_difEG_thrd	U8,  Threshold to the difference between
  * current Field/Frame middle line to down line color channel(CUE_difEG).
  */
 /* Bit  7: 0,	reg_CUE_CON_diflG_thrd	U8,  Threshold to the difference between
@@ -1278,7 +1278,7 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
 /* Bit 19:16,	reg_CUE_CON_rate1	    U4,  The Krate to decide CUE by
  * relationship between CUE_difnC and CUE_difEC
  */
-/* Bit 15: 8,	reg_CUE_CON_difEC_thrd	U8,  Theshold to the difference between
+/* Bit 15: 8,	reg_CUE_CON_difEC_thrd	U8,  Threshold to the difference between
  * current Field/Frame middle line to up line color channel(CUE_difEC).
  */
 /* Bit  7: 0,	reg_CUE_CON_difnC_thrd	U8,  Threshold to the difference between
@@ -2692,7 +2692,7 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
 /* 0: unable; 1: enable, use neighoring mvs in refinement, default = 1 */
 /* Bit 11,    reserved */
 /* Bit 10,    reg_mcdi_referrfrqchken */
-/* 0: unable; 1: enable, enable mv frquency
+/* 0: unable; 1: enable, enable mv frequency
  * check while finding min err in ref, default = 1
  */
 /* Bit 9,     reg_mcdi_refen */
@@ -3140,23 +3140,23 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
 #define MCDI_REF_ERR_FRQ_CHK                       ((0x2f1d))
 /* Bit 31:28, reserved */
 /* Bit 27:24, reg_mcdi_referrfrqgain.
- * gain for mv frquency, normalized to 4 as '1', default = 10
+ * gain for mv frequency, normalized to 4 as '1', default = 10
  */
 /* Bit 23:21, reserved */
 /* Bit 20:16, reg_mcdi_referrfrqmax.
- * max gain for mv frquency check, default = 31
+ * max gain for mv frequency check, default = 31
  */
 /* Bit    15, reserved */
 /* Bit 14:12, reg_mcdi_ref_errfrqmvdifthd2.
- * mv dif threshold 2 (<) for mv frquency check, default = 3
+ * mv dif threshold 2 (<) for mv frequency check, default = 3
  */
 /* Bit    11, reserved */
 /* Bit 10: 8, reg_mcdi_ref_errfrqmvdifthd1.
- * mv dif threshold 1 (<) for mv frquency check, default = 2
+ * mv dif threshold 1 (<) for mv frequency check, default = 2
  */
 /* Bit     7, reserved */
 /* Bit  6: 4, reg_mcdi_ref_errfrqmvdifthd0.
- * mv dif threshold 0 (<) for mv frquency check, default = 1
+ * mv dif threshold 0 (<) for mv frequency check, default = 1
  */
 /* Bit  3: 0, reserved */
 #define MCDI_QME_LPF_MSK                           ((0x2f1e))
@@ -4260,7 +4260,7 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
  */
 #define MCDI_RO_FLD_PD_22_PRE_CNT                  ((0x2fa8))
 /* Bit 31: 0, ro_mcdi_fldpd22precnt.
- * prevoius pd22 check count of whole pre one field (block based). initial = 0
+ * previous pd22 check count of whole pre one field (block based). initial = 0
  */
 #define MCDI_RO_FLD_PD_22_FOR_CNT                  ((0x2fa9))
 /* Bit 31: 0, ro_mcdi_fldpd22forcnt.
@@ -4273,50 +4273,50 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
 #define MCDI_RO_HIGH_VERT_FRQ_FLG                  ((0x2fab))
 /* Bit 31:16, reserved. */
 /* Bit 15: 8, ro_mcdi_highvertfrqcnt.
- * high vertical frequency count till prevoius one field. initial = 0
+ * high vertical frequency count till previous one field. initial = 0
  */
 /* Bit  7: 3, reserved. */
 /* Bit  2: 1, ro_mcdi_highvertfrqphase.
- * high vertical frequency phase of prevoius one field. initial = 2
+ * high vertical frequency phase of previous one field. initial = 2
  */
 /* Bit     0, ro_mcdi_highvertfrqflg.
- * high vertical frequency flag of prevoius one field. initial = 0
+ * high vertical frequency flag of previous one field. initial = 0
  */
 #define MCDI_RO_GMV_LOCK_FLG                       ((0x2fac))
 /* Bit 31:16, reserved. */
 /* Bit 15: 8, ro_mcdi_gmvlckcnt.
- * global mv lock count till prevoius one field. initial = 0
+ * global mv lock count till previous one field. initial = 0
  */
 /* Bit  7: 2, ro_mcdi_gmv.
- * global mv of prevoius one field. -31~31, initial = 32 (invalid value)
+ * global mv of previous one field. -31~31, initial = 32 (invalid value)
  */
 /* Bit     1, ro_mcdi_zerogmvlckflg.
- * zero global mv lock flag of prevoius one field. initial = 0
+ * zero global mv lock flag of previous one field. initial = 0
  */
 /* Bit     0, ro_mcdi_gmvlckflg.
- * global mv lock flag of prevoius one field. initial = 0
+ * global mv lock flag of previous one field. initial = 0
  */
 #define MCDI_RO_RPT_MV                             ((0x2fad))
 /* Bit 5: 0, ro_mcdi_rptmv.
- * repeate mv of prevoius one field. -31~31, initial = 32 (invalid value)
+ * repeate mv of previous one field. -31~31, initial = 32 (invalid value)
  */
 #define MCDI_RO_MOTION_PARADOX_FLG                 ((0x2fae))
 /* Bit 31:16, reserved. */
 /* Bit 15: 8, ro_mcdi_motionparadoxcnt.
- * motion paradox count till prevoius one field. initial = 0
+ * motion paradox count till previous one field. initial = 0
  */
 /* Bit  7: 1, reserved. */
 /* Bit     0, ro_mcdi_motionparadoxflg.
- * motion paradox flag of prevoius one field. initial = 0
+ * motion paradox flag of previous one field. initial = 0
  */
 #define MCDI_RO_PD_22_FLG                          ((0x2faf))
 /* Bit 31:16, reserved. */
 /* Bit 15: 8, ro_mcdi_pd22cnt.
- * pull down 22 count till prevoius one field. initial = 0
+ * pull down 22 count till previous one field. initial = 0
  */
 /* Bit  7: 1, reserved. */
 /* Bit     0, ro_mcdi_pd22flg.
- * pull down 22 flag of prevoius one field. initial = 0
+ * pull down 22 flag of previous one field. initial = 0
  */
 #define MCDI_RO_COL_CFD_0                          ((0x2fb0))
 /* Bit 31: 0, ro_mcdi_col_cfd_0.

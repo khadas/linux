@@ -336,7 +336,7 @@ void dim_post_keep_cmd_release2_local(struct vframe_s *vframe)
 	//struct di_buf_s *di_buf;
 	struct dim_ndis_s *ndis;
 
-	if (!dil_get_diffver_flag())
+	if (!dil_get_diff_ver_flag())
 		return;
 	if (!vframe) {
 		PR_ERR("%s:no vfm\n", __func__);

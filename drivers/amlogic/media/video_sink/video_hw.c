@@ -1168,7 +1168,7 @@ bool is_di_on(void)
 	bool ret = false;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
-	if ((dil_get_diffver_flag() == DI_DRV_DEINTERLACE) &&
+	if ((dil_get_diff_ver_flag() == DI_DRV_DEINTERLACE) &&
 	    (DI_POST_REG_RD(DI_IF1_GEN_REG) & 0x1))
 		ret = true;
 #endif
@@ -1180,7 +1180,7 @@ bool is_di_post_on(void)
 	bool ret = false;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
-	if ((dil_get_diffver_flag() == DI_DRV_DEINTERLACE) &&
+	if ((dil_get_diff_ver_flag() == DI_DRV_DEINTERLACE) &&
 	    (DI_POST_REG_RD(DI_POST_CTRL) & 0x100))
 		ret = true;
 #endif
@@ -1192,7 +1192,7 @@ bool is_di_post_link_on(void)
 	bool ret = false;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
-	if ((dil_get_diffver_flag() == DI_DRV_DEINTERLACE) &&
+	if ((dil_get_diff_ver_flag() == DI_DRV_DEINTERLACE) &&
 	    (DI_POST_REG_RD(DI_POST_CTRL) & 0x1000))
 		ret = true;
 #endif
@@ -1204,7 +1204,7 @@ bool is_di_post_mode(struct vframe_s *vf)
 	bool ret = false;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
-	if ((dil_get_diffver_flag() == DI_DRV_DEINTERLACE) &&
+	if ((dil_get_diff_ver_flag() == DI_DRV_DEINTERLACE) &&
 	    vf && IS_DI_POST(vf->type))
 		ret = true;
 #endif

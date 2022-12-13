@@ -243,7 +243,7 @@ static bool dpvpp_dbg_vpp_active(void)
 	return false;
 }
 
-static bool dpvpp_dbg_foce_vpp_active(void)
+static bool dpvpp_dbg_force_vpp_active(void)
 {
 	if (tst_pre_vpp & DI_BIT15)
 		return true;
@@ -2948,7 +2948,7 @@ static bool dpvpp_reg_2(struct dimn_itf_s *itf, struct dim_prevpp_ds_s *ds)
 		out_fmt = 0;
 	}
 	PR_INF("%s:out_fmt[%d]\n", __func__, out_fmt);
-	dim_dvf_type_p_chage(dvfm_dm, out_fmt);
+	dim_dvf_type_p_change(dvfm_dm, out_fmt);
 	dvfm_dm->vfs.plane_num = ds->dbuf_plan_nub;
 	dvfm_dm->buf_hsize = ds->dbuf_hsize;
 	memcpy(&dvfm_dm->vfs.canvas0_config[0],
@@ -2970,7 +2970,7 @@ static bool dpvpp_reg_2(struct dimn_itf_s *itf, struct dim_prevpp_ds_s *ds)
 	else
 		dpvpp_link_sw_by_di(true);
 
-	if (dpvpp_dbg_foce_vpp_active())
+	if (dpvpp_dbg_force_vpp_active())
 		dpvpp_link_sw_api(true);
 
 	itf->c.src_state &= (~EDVPP_SRC_NEED_REG2);
@@ -3045,7 +3045,7 @@ static int dpvpp_reg_link_sw(struct dimn_itf_s *itf, struct dim_prevpp_ds_s *ds,
 		//dimp_set(edi_mp_di_debug_flag,
 		//	 dimp_get(edi_mp_di_debug_flag) & (~DI_BIT31));
 		get_datal()->pre_vpp_active = false;/* interface */
-		PR_INF("%s:set unactive<%d, %d>\n", __func__, ton_vpp, ton_di);
+		PR_INF("%s:set inactive<%d, %d>\n", __func__, ton_vpp, ton_di);
 	}
 	return 0;
 }
@@ -3243,7 +3243,7 @@ static bool dpvpp_parser(struct dimn_itf_s *itf, struct dim_prevpp_ds_s *ds)
 
 	if (itf->etype == EDIM_NIN_TYPE_INS) {
 #ifdef HIS_CODE	// 2022-01-13
-		if (!pre_dbg_is_run()) //ppause
+		if (!pre_dbg_is_run()) //p_pause
 			return true;
 #endif
 	}
@@ -3947,7 +3947,7 @@ static bool vf_m_in(struct dimn_itf_s *itf)
 		if (!vf)
 			break;
 #ifdef pre_dbg_is_run
-		if (!pre_dbg_is_run(itf->bind_ch)) //ppause
+		if (!pre_dbg_is_run(itf->bind_ch)) //p_pause
 			break;
 #endif
 		vf = in_vf_get(itf);
@@ -4346,7 +4346,7 @@ static void dpvpph_size_change(struct dim_prevpp_ds_s *ds,
 	/*pr_info("%s:\n", __func__);*/
 	/*debug only:*/
 	/*di_pause(channel, true);*/
-	//dim_ddbg_mod_save(EDI_DBG_MOD_PRE_CHANGEB, channel, 0);
+	//dim_ddbg_mod_save(EDI_DBG_MOD_PRE_CHANGE_B, channel, 0);
 	//temp:
 	width	= ds->dis_c_para.win.x_size;
 	height	= ds->dis_c_para.win.y_size;
@@ -4753,7 +4753,7 @@ void dpvpph_nr_ddr_switch(bool sw, const struct reg_acc *op)
  *	para[0:2]: cvs id;
  *	para[3]:
  *2021-09-26: copy from mif_cfg in prepost_link.c
- *	change:delet di_buf;
+ *	change:delete di_buf;
  *	add win
  ************************************************/
 static void mif_cfg_v2(struct DI_MIF_S *di_mif,
@@ -4962,7 +4962,7 @@ static void mif_cfg_v2(struct DI_MIF_S *di_mif,
  *	para[0:2]: cvs id;
  *	para[3]:
  *2021-09-26: copy from mif_cfg in prepost_link.c
- *	change:delet di_buf;
+ *	change:delete di_buf;
  *	add win
  ************************************************/
 static void mif_cfg_v2_update_addr(struct DI_MIF_S *di_mif,
@@ -5647,7 +5647,7 @@ void dpvpph_display_update_sub_last_cvs(struct dimn_itf_s *itf,
 			return;
 		last_nub = ds->pre_done_nub;
 		if (!ndvfm_last) {
-			dim_print("cvs_updat: no last\n");
+			dim_print("cvs_update: no last\n");
 		} else {
 			dim_print("linear:%d;wr_set[%d],cvs_set[%d]\n",
 				ndvfm_last->c.set_cfg.b.en_linear_cp,
@@ -5707,8 +5707,8 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 		if (in_dvfm->vfs.canvas0Addr == (u32)-1) {
 			/* config cvs for input */
 			cvsp = &ndvfm->c.cvspara_in;
-			cvsp->plane_nub	= in_dvfm->vfs.plane_num;	////updat no need
-			cvsp->cvs_cfg		= &in_dvfm->vfs.canvas0_config[0];//updat no need
+			cvsp->plane_nub	= in_dvfm->vfs.plane_num;	////update no need
+			cvsp->cvs_cfg		= &in_dvfm->vfs.canvas0_config[0];//update no need
 			cvsp->cvs_id		= cvs + 0;
 			//cvs issue if (ds->en_pst_wr_test)
 				cvs_link(cvsp, "in_cvs");
@@ -5739,8 +5739,8 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 		/* cvs for out */
 		cvsp = &ndvfm->c.cvspara_wr;
 		out_dvfm = &ndvfm->c.out_dvfm;
-		cvsp->plane_nub = out_dvfm->vfs.plane_num;////updat no need
-		cvsp->cvs_cfg		= &out_dvfm->vfs.canvas0_config[0];//updat no need
+		cvsp->plane_nub = out_dvfm->vfs.plane_num;////update no need
+		cvsp->cvs_cfg		= &out_dvfm->vfs.canvas0_config[0];//update no need
 		cvsp->cvs_id		= cvs + 2;
 		//cvs issue if (ds->en_pst_wr_test)
 			cvs_link(cvsp, "wr");
@@ -5769,7 +5769,7 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 	if (ndvfm->c.set_cfg.b.en_mem_cvs) {
 		/* cvs for out */
 		cvsp = &ndvfm->c.cvspara_mem;
-		//updat no need
+		//update no need
 		if (ndvfm_last)
 			memcpy(&ndvfm->c.cvspara_mem,
 			       &ndvfm_last->c.cvspara_wr,
@@ -5787,7 +5787,7 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 		dpvpph_prelink_polling_check(op_in, true);
 	/* mif in*/
 	if (ndvfm->c.set_cfg.b.en_in_mif) {
-		//updat no need mif_cfg_v2(&ds->mif_in, &ndvfm->c.in_dvfm_crop, &ds->mifpara_in);
+		//update no need mif_cfg_v2(&ds->mif_in, &ndvfm->c.in_dvfm_crop, &ds->mifpara_in);
 		mif_cfg_v2_update_addr(&ds->mif_in, &ndvfm->c.in_dvfm_crop, &ds->mifpara_in);
 		opl1()->mif_rd_update_addr(&ds->mif_in, DI_MIF0_ID_INP, op_in);
 	}
@@ -5797,7 +5797,7 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 		//for (i = 0; i < ndvfm->c.out_dvfm.plane_num; i++) {
 		//	ndvfm->c.out_dvfm.canvas0_config[0].phy_addr = ds->dbuf_wr[pos][i].phy_addr;
 		//}
-		//updat no need mif_cfg_v2(&ds->mif_wr, &ndvfm->c.out_dvfm, &ds->mifpara_out);
+		//update no need mif_cfg_v2(&ds->mif_wr, &ndvfm->c.out_dvfm, &ds->mifpara_out);
 		mif_cfg_v2_update_addr(&ds->mif_wr, &ndvfm->c.out_dvfm, &ds->mifpara_out);
 
 		opl1()->wrmif_update_addr(&ds->mif_wr, op_in, EDI_MIFSM_NR);

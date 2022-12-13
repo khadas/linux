@@ -1616,7 +1616,7 @@ unsigned char dim_is_bypass(vframe_t *vf_in, unsigned int ch)
 
 /**********************************
  *diff with  dim_is_bypass
- *	delet di_vscale_skip_enable
+ *	delete di_vscale_skip_enable
  *	use vf_in replace ppre
  **********************************/
 unsigned int is_bypass2(struct vframe_s *vf_in, unsigned int ch)
@@ -2526,7 +2526,7 @@ static int di_init_buf_simple(struct di_ch_s *pch)
 
 	//dbg_reg("%s:begin\n", __func__);
 
-	/* decoder'buffer had been releae no need put */
+	/* decoder'buffer had been release no need put */
 	for (i = 0; i < MAX_IN_BUF_NUM; i++)
 		pvframe_in[i] = NULL;
 
@@ -3083,7 +3083,7 @@ void dim_uninit_buf(unsigned int disable_mirror, unsigned int channel)
 	qiat_all_back2_ready(pch);
 	bufq_ndis_unreg(pch);
 
-	/* decoder'buffer had been releae no need put */
+	/* decoder'buffer had been release no need put */
 	#ifdef VFM_ORI
 	memset(pvframe_in, 0, sizeof(*pvframe_in) * MAX_IN_BUF_NUM);
 	#else
@@ -3926,7 +3926,7 @@ void dim_pre_de_process(unsigned int channel)
 			ppre->is_disable_chan2 = 1;
 		else
 			ppre->is_disable_chan2 = 0;
-		//when p mode/frist frame ,set 0 to reset the mc vec wr,
+		//when p mode/first frame ,set 0 to reset the mc vec wr,
 		//second frame write back to 1,from vlsi feijun.fan for DMC bug
 
 		if (ppre->field_count_for_cont < 1 &&
@@ -4153,7 +4153,7 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 	unsigned int pd_info = 0;
 	struct di_pre_stru_s *ppre = get_pre_stru(channel);
 	struct di_ch_s *pch;
-	//struct di_buf_s *bufn;
+	//struct di_buf_s *buf_n;
 	//bool crc_right;
 	unsigned int afbce_used;
 
@@ -4205,13 +4205,13 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 			//ppre->di_wr_buf->flg_afbce_set = 0;
 			//afbce_sw(EAFBC_ENC0, 0);
 			#ifdef DBG_CRC
-			bufn = next_buf(ppre->di_wr_buf);
-			if (bufn) {
-				crc_right = dbg_checkcrc(bufn);
+			buf_n = next_buf(ppre->di_wr_buf);
+			if (buf_n) {
+				crc_right = dbg_checkcrc(buf_n);
 				if (!crc_right)
 					PR_ERR("pre crc next err:b[%d]nb[%d]\n",
 					       ppre->di_wr_buf->index,
-					       bufn->index);
+					       buf_n->index);
 			}
 			#endif
 		} else {
@@ -4304,7 +4304,7 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 					get_ops_nr()->adaptive_cue_adjust(frame_motnum,
 									  field_motnum);
 			}
-			/*from feijun for autonr t5db and eq/after t3 p mode*/
+			/*from feijun for auto_nr t5db and eq/after t3 p mode*/
 			if (!(di_dbg & DBG_M_RESET_PRE) &&
 				(!ppre->cur_prog_flag ||
 				 DIM_IS_IC(T5DB) || DIM_IS_IC_EF(T3)))
@@ -7079,7 +7079,7 @@ void dim_irq_pre(void)
 			//	  (data32 & 0xfffffffb) | (intr_mode << 30));
 			ppre->timeout_check = false;
 			di_unlock_irqfiq_restore(irq_flg);
-			PR_WARN("irq delet %d\n", (unsigned int)ctime);
+			PR_WARN("irq delete %d\n", (unsigned int)ctime);
 			return;
 		}
 		ppre->timeout_check = false;
@@ -10781,7 +10781,7 @@ void di_pre_size_change(unsigned short width,
 	    ppre->cur_source_type == VFRAME_SOURCE_TYPE_OTHERS &&
 	    ((width * height) <= (1920 * 1088))) {
 #ifdef DIM_TB_DETECT
-		if (cfgg(TB) && de_devp->tbflg_int)
+		if (cfgg(TB) && de_devp->tb_flag_int)
 			dim_nr_ds_hw_init(width, height, channel);
 #endif
 	} else {

@@ -109,8 +109,8 @@ static struct combing_param_s cmb_param;
 /*from T3 /t5db adaptive_combing_new from vlsi yanling*/
 static int combing_debug_print;
 module_param_named(combing_debug_print, combing_debug_print, int, 0664);
-static int rokuth_test = 10000;
-module_param_named(rokuth_test, rokuth_test, int, 0664);
+static int roku_th_test = 10000;
+module_param_named(roku_th_test, roku_th_test, int, 0664);
 static int th = 200;
 module_param_named(th, th, int, 0664);
 static int th_cont = 10;
@@ -1068,7 +1068,7 @@ void adaptive_combing_new(unsigned int field_diff,
 	glb_mot[0] = frame_diff;
 
 	if (glb_mot[1] - glb_mot[0] > glb_mot[0] * 10 &&
-		glb_mot[1] > rokuth_test){
+		glb_mot[1] > roku_th_test){
 		cont_change = 1;
 		if (combing_debug_print)
 			pr_info("A mot[0]=0x%x,glb_mot[1]=0x%x,change=0x%x\n\n",

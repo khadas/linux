@@ -474,7 +474,7 @@ int task_start(void)
 	tsk->thread = NULL;
 	/*mb();*/
 
-	fe_thread = kthread_run(di_test_thread, tsk, "aml-ditest-0");
+	fe_thread = kthread_run(di_test_thread, tsk, "aml-di-test-0");
 	if (IS_ERR(fe_thread)) {
 		ret = PTR_ERR(fe_thread);
 		PR_ERR(" failed to start kthread (%d)\n", ret);

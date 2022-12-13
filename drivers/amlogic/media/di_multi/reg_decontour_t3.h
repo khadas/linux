@@ -67,17 +67,17 @@
 //Bit 31:26        reserved
 //Bit 25:21        reg_intep_phs_x_rtl
 	// signed ,    RW, default = 0  Interpolation x phase used,
-	//could be negtive num, set by SW
+	//could be negative num, set by SW
 //Bit 20:16        reg_intep_phs_x_use
 	// signed ,    RW, default = 0  Interpolation x phase used,
-	//could be negtive num, set by SW
+	//could be negative num, set by SW
 //Bit 15:10        reserved
 //Bit  9: 5        reg_intep_phs_y_rtl
 	// signed ,    RW, default = 0  Interpolation x phase used,
-	//could be negtive num, set by SW
+	//could be negative num, set by SW
 //Bit  4: 0        reg_intep_phs_y_use
 	// signed ,    RW, default = 0  Interpolation y phase used,
-	//could be negtive num, set by SW
+	//could be negative num, set by SW
 #define DCTR_T3_BGRID_PARAM1                          (0x4b02)
 //Bit 31:26        reserved
 //Bit 25:16        reg_grd_xnum

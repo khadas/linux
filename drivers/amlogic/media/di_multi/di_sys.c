@@ -3967,7 +3967,7 @@ static int dim_probe(struct platform_device *pdev)
 	dim_vpu_dev_register(di_devp);
 
 	//set ic version need before PQ init
-	dil_set_diffver_flag(1);
+	dil_set_diff_ver_flag(1);
 	dil_set_cpuver_flag(get_datal()->mdata->ic_id);
 	if (DIM_IS_IC(SC2) || DIM_IS_IC(S4))
 		di_devp->is_crc_ic = true;
@@ -4020,7 +4020,7 @@ static int dim_probe(struct platform_device *pdev)
 
 	task_start();
 	mtask_start();
-	tbtask_start();
+	tb_task_start();
 	if (DIM_IS_IC_EF(SC2))
 		opl1()->pst_mif_sw(false, DI_MIF0_SEL_PST_ALL);
 	else
@@ -4083,7 +4083,7 @@ static int dim_remove(struct platform_device *pdev)
 
 	task_stop();
 	mtask_stop();
-	tbtask_stop();
+	tb_task_stop();
 
 	dim_rdma_exit();
 

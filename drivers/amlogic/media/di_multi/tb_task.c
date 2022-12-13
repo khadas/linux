@@ -20,9 +20,9 @@
 #include "di_dbg.h"
 
 #ifdef DIM_TB_DETECT
-void tb_polling(unsigned int ch, struct tbtsk_cmd_s *cmd)
+void tb_polling(unsigned int ch, struct tb_task_cmd_s *cmd)
 {
-	struct di_tbtask *tsk = get_tbtask();
+	struct di_tb_task *tsk = get_tb_task();
 	struct dim_fcmd_s *fcmd;
 	struct di_ch_s *pch;
 	struct vframe_tb_s cfg_data;
@@ -81,14 +81,14 @@ void tb_polling(unsigned int ch, struct tbtsk_cmd_s *cmd)
 
 	atomic_dec(&fcmd->doing);//fcmd->doing--;
 
-	tbtask_send_ready(0);
+	tb_task_send_ready(0);
 }
 
-static bool tbtask_get_cmd(unsigned int ch, struct tbtsk_cmd_s *cmd)
+static bool tb_task_get_cmd(unsigned int ch, struct tb_task_cmd_s *cmd)
 {
-	struct di_tbtask *tsk = get_tbtask();
+	struct di_tb_task *tsk = get_tb_task();
 	struct dim_fcmd_s *fcmd;
-	struct tbtsk_cmd_s val;
+	struct tb_task_cmd_s val;
 	unsigned int ret;
 
 	fcmd = &tsk->fcmd[ch];
@@ -105,24 +105,24 @@ static bool tbtask_get_cmd(unsigned int ch, struct tbtsk_cmd_s *cmd)
 	if (fcmd->flg_lock & DIM_QUE_LOCK_RD)
 		ret = kfifo_out_spinlocked(&fcmd->fifo,
 					   &val,
-					   sizeof(struct tbtsk_cmd_s),
+					   sizeof(struct tb_task_cmd_s),
 					   &fcmd->lock_r);
 	else
-		ret = kfifo_out(&fcmd->fifo, &val, sizeof(struct tbtsk_cmd_s));
-	if (ret	!= sizeof(struct tbtsk_cmd_s))
+		ret = kfifo_out(&fcmd->fifo, &val, sizeof(struct tb_task_cmd_s));
+	if (ret	!= sizeof(struct tb_task_cmd_s))
 		return false;
 
 	*cmd = val;
 	return true;
 }
 
-static void tbtask_polling_cmd(unsigned int ch)
+static void tb_task_polling_cmd(unsigned int ch)
 {
 	int i;
-	struct di_tbtask *tsk = get_tbtask();
+	struct di_tb_task *tsk = get_tb_task();
 	struct dim_fcmd_s *fcmd;
 //	union DI_L_CMD_BLK_BITS cmdbyte;
-	struct tbtsk_cmd_s blk_cmd;
+	struct tb_task_cmd_s blk_cmd;
 	struct di_ch_s *pch;
 
 	pch = get_chdata(ch);
@@ -135,7 +135,7 @@ static void tbtask_polling_cmd(unsigned int ch)
 		return;
 
 	for (i = 0; i < MAX_KFIFO_L_CMD_NUB; i++) {
-		if (!tbtask_get_cmd(ch, &blk_cmd))
+		if (!tb_task_get_cmd(ch, &blk_cmd))
 			break;
 
 		tb_polling(ch, &blk_cmd);
@@ -144,7 +144,7 @@ static void tbtask_polling_cmd(unsigned int ch)
 	}
 }
 
-static int tbtask_is_exiting(struct di_tbtask *tsk)
+static int tb_task_is_exiting(struct di_tb_task *tsk)
 {
 	if (tsk->exit)
 		return 1;
@@ -157,7 +157,7 @@ static int tbtask_is_exiting(struct di_tbtask *tsk)
 	return 0;
 }
 
-static int tbtask_should_wakeup(struct di_tbtask *tsk)
+static int tb_task_should_wakeup(struct di_tb_task *tsk)
 {
 	if (tsk->wakeup) {
 		tsk->wakeup = 0;
@@ -165,28 +165,28 @@ static int tbtask_should_wakeup(struct di_tbtask *tsk)
 		dbg_once("%s:\n", __func__);
 		return 1;
 	}
-	return tbtask_is_exiting(tsk);
+	return tb_task_is_exiting(tsk);
 }
 
-static void tbtask_wakeup(struct di_tbtask *tsk)
+static void tb_task_wakeup(struct di_tb_task *tsk)
 {
 	tsk->wakeup = 1;
 	wake_up_interruptible(&tsk->wait_queue);
 }
 
-void tbtask_send_ready(unsigned int id)
+void tb_task_send_ready(unsigned int id)
 {
-	struct di_tbtask *tsk = get_tbtask();
+	struct di_tb_task *tsk = get_tb_task();
 
-	tbtask_wakeup(tsk);
+	tb_task_wakeup(tsk);
 	//dbg_once("%s:id=0x%x\n", __func__, id);
 }
 
-bool tbtask_send_cmd(unsigned int ch, struct tbtsk_cmd_s *cmd)
+bool tb_task_send_cmd(unsigned int ch, struct tb_task_cmd_s *cmd)
 {
-	struct di_tbtask *tsk = get_tbtask();
+	struct di_tb_task *tsk = get_tb_task();
 	struct dim_fcmd_s *fcmd;
-	struct tbtsk_cmd_s val;
+	struct tb_task_cmd_s val;
 
 	fcmd = &tsk->fcmd[ch];
 	if (!fcmd->flg) {
@@ -198,7 +198,7 @@ bool tbtask_send_cmd(unsigned int ch, struct tbtsk_cmd_s *cmd)
 	cmd->block_mode = 0;
 	if (kfifo_is_full(&fcmd->fifo)) {
 		if (kfifo_out(&fcmd->fifo, &val, sizeof(unsigned int))
-		    != sizeof(struct tbtsk_cmd_s)) {
+		    != sizeof(struct tb_task_cmd_s)) {
 			//PR_ERR("%s:can't out\n", __func__);
 			return false;
 		}
@@ -208,21 +208,21 @@ bool tbtask_send_cmd(unsigned int ch, struct tbtsk_cmd_s *cmd)
 		/*return false;*/
 	}
 	if (fcmd->flg_lock & DIM_QUE_LOCK_WR)
-		kfifo_in_spinlocked(&fcmd->fifo, cmd, sizeof(struct tbtsk_cmd_s),
+		kfifo_in_spinlocked(&fcmd->fifo, cmd, sizeof(struct tb_task_cmd_s),
 				    &fcmd->lock_w);
 	else
-		kfifo_in(&fcmd->fifo, cmd, sizeof(struct tbtsk_cmd_s));
+		kfifo_in(&fcmd->fifo, cmd, sizeof(struct tb_task_cmd_s));
 
 	atomic_inc(&fcmd->doing);//fcmd->doing++;
-	tbtask_wakeup(tsk);
+	tb_task_wakeup(tsk);
 	return true;
 }
 
-bool tbtask_send_cmd_block(unsigned int ch, struct tbtsk_cmd_s *cmd)
+bool tb_task_send_cmd_block(unsigned int ch, struct tb_task_cmd_s *cmd)
 {
-	struct di_tbtask *tsk = get_tbtask();
+	struct di_tb_task *tsk = get_tb_task();
 	struct dim_fcmd_s *fcmd;
-	struct tbtsk_cmd_s val;
+	struct tb_task_cmd_s val;
 
 	fcmd = &tsk->fcmd[ch];
 	if (!fcmd->flg) {
@@ -233,7 +233,7 @@ bool tbtask_send_cmd_block(unsigned int ch, struct tbtsk_cmd_s *cmd)
 	cmd->block_mode = 1;
 	if (kfifo_is_full(&fcmd->fifo)) {
 		if (kfifo_out(&fcmd->fifo, &val, sizeof(unsigned int))
-		    != sizeof(struct tbtsk_cmd_s)) {
+		    != sizeof(struct tb_task_cmd_s)) {
 			//PR_ERR("%s:can't out\n", __func__);
 			return false;
 		}
@@ -243,20 +243,20 @@ bool tbtask_send_cmd_block(unsigned int ch, struct tbtsk_cmd_s *cmd)
 		/*return false;*/
 	}
 	if (fcmd->flg_lock & DIM_QUE_LOCK_WR)
-		kfifo_in_spinlocked(&fcmd->fifo, cmd, sizeof(struct tbtsk_cmd_s),
+		kfifo_in_spinlocked(&fcmd->fifo, cmd, sizeof(struct tb_task_cmd_s),
 				    &fcmd->lock_w);
 	else
-		kfifo_in(&fcmd->fifo, cmd, sizeof(struct tbtsk_cmd_s));
+		kfifo_in(&fcmd->fifo, cmd, sizeof(struct tb_task_cmd_s));
 
 	atomic_inc(&fcmd->doing);//fcmd->doing++;
-	tbtask_wakeup(tsk);
+	tb_task_wakeup(tsk);
 	return true;
 }
 
-bool tbtsk_alloc_block(unsigned int ch, struct tbtsk_cmd_s *cmd)
+bool tb_task_alloc_block(unsigned int ch, struct tb_task_cmd_s *cmd)
 {
 	struct dim_fcmd_s *fcmd;
-	struct di_tbtask *tsk = get_tbtask();
+	struct di_tb_task *tsk = get_tb_task();
 //	unsigned int cnt;
 	int timeout = 0;
 	struct di_ch_s *pch;
@@ -267,7 +267,7 @@ bool tbtsk_alloc_block(unsigned int ch, struct tbtsk_cmd_s *cmd)
 		return false;
 	dbg_tb("%s :s =%d\n", __func__, ch);
 
-	tbtask_send_cmd_block(ch, cmd);
+	tb_task_send_cmd_block(ch, cmd);
 	fcmd = &tsk->fcmd[ch];
 
 	timeout = wait_for_completion_timeout(&fcmd->alloc_done,
@@ -279,15 +279,15 @@ bool tbtsk_alloc_block(unsigned int ch, struct tbtsk_cmd_s *cmd)
 	return true;
 }
 
-bool tbtsk_release_block(unsigned int ch, unsigned int cmd)
+bool tb_task_release_block(unsigned int ch, unsigned int cmd)
 {
 	struct dim_fcmd_s *fcmd;
-	struct di_tbtask *tsk = get_tbtask();
+	struct di_tb_task *tsk = get_tb_task();
 	unsigned int cnt;
-	struct tbtsk_cmd_s blk_cmd;
+	struct tb_task_cmd_s blk_cmd;
 
 	blk_cmd.cmd = cmd;
-	tbtask_send_cmd(ch, &blk_cmd);
+	tb_task_send_cmd(ch, &blk_cmd);
 	fcmd = &tsk->fcmd[ch];
 	cnt = 0;
 	while ((atomic_read(&fcmd->doing) > 0) && (cnt < 200)) {
@@ -307,7 +307,7 @@ bool tbtsk_release_block(unsigned int ch, unsigned int cmd)
 
 static int tb_thread(void *data)
 {
-	struct di_tbtask *tsk = data;
+	struct di_tb_task *tsk = data;
 	bool semheld = false;
 	int i;
 	//struct di_ch_s *pch;
@@ -322,12 +322,12 @@ static int tb_thread(void *data)
 		up(&tsk->sem);/* is locked when we enter the thread... */
 mrestart:
 		wait_event_interruptible_timeout(tsk->wait_queue,
-						 tbtask_should_wakeup(tsk) ||
+						 tb_task_should_wakeup(tsk) ||
 						 kthread_should_stop()	 ||
 						 freezing(current),
 						 tsk->delay);
 
-		if (kthread_should_stop() || tbtask_is_exiting(tsk)) {
+		if (kthread_should_stop() || tb_task_is_exiting(tsk)) {
 			/* got signal or quitting */
 			if (!down_interruptible(&tsk->sem))
 				semheld = true;
@@ -344,7 +344,7 @@ mrestart:
 		/**/
 		for (i = 0; i < DI_CHANNEL_NUB; i++) {
 			//pch = get_chdata(i);
-			tbtask_polling_cmd(i);
+			tb_task_polling_cmd(i);
 			//blk_polling(i);
 			//mtask_polling_sct(pch);
 		}
@@ -360,11 +360,11 @@ mrestart:
 	if (semheld)
 		up(&tsk->sem);
 
-	tbtask_wakeup(tsk);/*?*/
+	tb_task_wakeup(tsk);/*?*/
 	return 0;
 }
 
-static void tbtask_alloc(struct di_tbtask *tsk)
+static void tb_task_alloc(struct di_tb_task *tsk)
 {
 	int i;
 	struct dim_fcmd_s *fcmd;
@@ -381,7 +381,7 @@ static void tbtask_alloc(struct di_tbtask *tsk)
 			spin_lock_init(&fcmd->lock_w);
 
 		ret = kfifo_alloc(&fcmd->fifo,
-				  sizeof(struct tbtsk_cmd_s) *
+				  sizeof(struct tb_task_cmd_s) *
 				  MAX_KFIFO_L_CMD_NUB,
 				  GFP_KERNEL);
 		if (ret < 0) {
@@ -396,7 +396,7 @@ static void tbtask_alloc(struct di_tbtask *tsk)
 	}
 }
 
-static void tbtask_release(struct di_tbtask *tsk)
+static void tb_task_release(struct di_tb_task *tsk)
 {
 	int i;
 	struct dim_fcmd_s *fcmd;
@@ -417,10 +417,10 @@ static void tbtask_release(struct di_tbtask *tsk)
 }
 #endif
 
-void tbtask_stop(void/*struct di_task *tsk*/)
+void tb_task_stop(void/*struct di_task *tsk*/)
 {
 #ifdef DIM_TB_DETECT
-	struct di_tbtask *tsk = get_tbtask();
+	struct di_tb_task *tsk = get_tb_task();
 
 	if (!IS_IC_SUPPORT(TB))
 		return;
@@ -428,7 +428,7 @@ void tbtask_stop(void/*struct di_task *tsk*/)
 	/*not use cmd*/
 	pr_info(".");
 	/*--------------------*/
-	tbtask_release(tsk);
+	tb_task_release(tsk);
 	/*--------------------*/
 
 	tsk->exit = 1;
@@ -449,12 +449,12 @@ void tbtask_stop(void/*struct di_task *tsk*/)
 #endif
 }
 
-int tbtask_start(void)
+int tb_task_start(void)
 {
 #ifdef DIM_TB_DETECT
 	int ret;
 	int flg_err;
-	struct di_tbtask *tsk = get_tbtask();
+	struct di_tb_task *tsk = get_tb_task();
 	struct task_struct *fe_thread;
 	//struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
 
@@ -466,7 +466,7 @@ int tbtask_start(void)
 	flg_err = 0;
 	/*not use cmd*/
 	/*--------------------*/
-	tbtask_alloc(tsk);
+	tb_task_alloc(tsk);
 
 	/*--------------------*/
 	sema_init(&tsk->sem, 1);
@@ -476,16 +476,16 @@ int tbtask_start(void)
 		if (!tsk->exit)
 			return 0;
 
-		tbtask_stop();
+		tb_task_stop();
 	}
 
 	if (signal_pending(current)) {
-		tbtask_release(tsk);
+		tb_task_release(tsk);
 
 		return -EINTR;
 	}
 	if (down_interruptible(&tsk->sem)) {
-		tbtask_release(tsk);
+		tb_task_release(tsk);
 
 		return -EINTR;
 	}

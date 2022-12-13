@@ -71,8 +71,8 @@
 #define DI_NRWR_SHRK_CTRL                          0x2097
 //bit   31:10     reserved
 //bit   9:8       reg_vshrk_mode
-//unsigned, default = 0, 0:1/2 horizonal
-//shrink 1:1/4 horizonal shrink 2:1/8 horizonal shrink
+//unsigned, default = 0, 0:1/2 horizontal
+//shrink 1:1/4 horizontal shrink 2:1/8 horizontal shrink
 //bit   7:6       reg_hshrk_mode
 //unsigned, default = 0, 0:1/2 vertical
 //shrink 1:1/4 vertical shrink 2:1/8 vertical shrink
@@ -159,7 +159,7 @@
 #define DI_DIWR_SHRK_CTRL                          0x20f7
 //bit   31:10     reserved
 //bit   9:8       reg_vshrk_mode        unsigned, default = 0,
-//0:1/2 horizonal shrink 1:1/4 horizonal shrink 2:1/8 horizonal shrink
+//0:1/2 horizontal shrink 1:1/4 horizontal shrink 2:1/8 horizontal shrink
 //bit   7:6       reg_hshrk_mode        unsigned, default = 0,
 //0:1/2 vertical shrink 1:1/4 vertical shrink 2:1/8 vertical shrink
 //bit   5:2       reg_gclk_ctrl         unsigned, default = 0
@@ -1502,18 +1502,18 @@
 //2: 2:1 data drop (1, 3, 5,7..) //pixels kept; 3: avg
 #define DI_AFBCE_DEFCOLOR_1                        0x2070
 //Bit 31:24        reserved
-//Bit 23:12        reg_enc_defalutcolor_3
+//Bit 23:12        reg_enc_default_color_3
 // unsigned ,
 //RW, default = 4095  Picture wise default color value in [YCbCr]
-//Bit 11: 0        reg_enc_defalutcolor_0
+//Bit 11: 0        reg_enc_default_color_0
 // unsigned ,
 //RW, default = 4095  Picture wise default color value in [YCbCr]
 #define DI_AFBCE_DEFCOLOR_2                        0x2071
 //Bit 31:24        reserved
-//Bit 23:12        reg_enc_defalutcolor_2
+//Bit 23:12        reg_enc_default_color_2
 // unsigned ,
 //RW, default = 2048  wise default color value in [Y Cb Cr]
-//Bit 11: 0        reg_enc_defalutcolor_1
+//Bit 11: 0        reg_enc_default_color_1
 // unsigned ,
 //RW, default = 2048  wise default color value in [Y Cb Cr]
 #define DI_AFBCE_QUANT_ENABLE                      0x2072
@@ -2066,17 +2066,17 @@
 // 2: 2:1 data drop (1, 3, 5,7..) pixels kept; 3: avg
 #define DI_AFBCE1_DEFCOLOR_1                       0x20d0
 //Bit 31:24        reserved
-//Bit 23:12        reg_enc_defalutcolor_3
+//Bit 23:12        reg_enc_default_color_3
 // unsigned ,    RW, default = 4095
 //Picture wise default color value in [Y Cb Cr]
-//Bit 11: 0        reg_enc_defalutcolor_0
+//Bit 11: 0        reg_enc_default_color_0
 // unsigned ,    RW, default = 4095
 //Picture wise default color value in [Y Cb Cr]
 #define DI_AFBCE1_DEFCOLOR_2                       0x20d1
 //Bit 31:24        reserved
-//Bit 23:12        reg_enc_defalutcolor_2
+//Bit 23:12        reg_enc_default_color_2
 // unsigned ,    RW, default = 2048  wise default color value in [Y Cb Cr]
-//Bit 11: 0        reg_enc_defalutcolor_1
+//Bit 11: 0        reg_enc_default_color_1
 // unsigned ,    RW, default = 2048  wise default color value in [Y Cb Cr]
 #define DI_AFBCE1_QUANT_ENABLE                     0x20d2
 //Bit 31:12        reserved

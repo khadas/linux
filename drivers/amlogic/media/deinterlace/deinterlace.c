@@ -575,7 +575,7 @@ int get_di_dump_state_flag(void)
  ********************************************/
 void di_trig_free_mirror_mem(void)
 {
-	if (dil_get_diffver_flag())
+	if (dil_get_diff_ver_flag())
 		return;
 
 	if (atomic_read(&di_flag_unreg)
@@ -598,7 +598,7 @@ u32 di_api_get_instance_id(void)
 {
 	u32 ret = 0;
 
-	if (dil_get_diffver_flag())
+	if (dil_get_diff_ver_flag())
 		return ret;
 
 	if (de_devp)
@@ -2661,7 +2661,7 @@ static int di_init_buf(int width, int height, unsigned char prog_flag)
 	frame_count = 0;
 	disp_frame_count = 0;
 	cur_post_ready_di_buf = NULL;
-	/* decoder'buffer had been releae no need put */
+	/* decoder'buffer had been release no need put */
 	for (i = 0; i < MAX_IN_BUF_NUM; i++)
 		vframe_in[i] = NULL;
 	memset(&di_pre_stru, 0, sizeof(di_pre_stru));
@@ -2970,7 +2970,7 @@ static void di_uninit_buf(unsigned int disable_mirror)
 		pr_dbg(")\n");
 	}
 	queue_init(0);
-	/* decoder'buffer had been releae no need put */
+	/* decoder'buffer had been release no need put */
 	for (i = 0; i < MAX_IN_BUF_NUM; i++)
 		vframe_in[i] = NULL;
 	di_pre_stru.pre_de_process_done = 0;
@@ -4183,7 +4183,7 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 					afbc_busy, rls_timeout);
 				return 0;
 			} else if (!afbc_busy) {
-				/*afbc_busy = di_requeset_afbc(false);*/
+				/*afbc_busy = di_request_afbc(false);*/
 				di_pre_stru.wait_afbc = false;
 				pr_info("di: afbc hw free\n");
 			} else {
@@ -5307,7 +5307,7 @@ static int de_post_disable_fun(void *arg, vframe_t *disp_vf)
 
 void di_api_post_disable(void)
 {
-	if (dil_get_diffver_flag())
+	if (dil_get_diff_ver_flag())
 		return;
 
 	di_print("%s:\n", __func__);
@@ -7496,7 +7496,7 @@ static void di_pre_process_irq(struct di_pre_stru_s *pre_stru_p)
 
 	if (active_flag) {
 		/* must wait pre de done or time out to clear the de_busy
-		 * otherwise may appear watch dog reboot probablity
+		 * otherwise may appear watch dog reboot probability
 		 * caused by disable mif in unreg_process_irq
 		 */
 		if (pre_stru_p->unreg_req_flag_irq &&
@@ -7586,7 +7586,7 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		di_pre_stru.unreg_req_flag = 1;
 		di_pre_stru.vdin_source = false;
 
-		/*di_requeset_afbc(false);*/
+		/*di_request_afbc(false);*/
 		trigger_pre_di_process(TRIGGER_PRE_BY_PROVIDER_UNREG);
 		di_pre_stru.unreg_req_flag_cnt = 0;
 		//wait 10ms:
@@ -8864,7 +8864,7 @@ static int di_probe(struct platform_device *pdev)
 	dil_attach_ext_api(&di_ext);
 	di_patch_mov_ini();
 
-	dil_set_diffver_flag(0);
+	dil_set_diff_ver_flag(0);
 
 	di_pr_info("%s:ok\n", __func__);
 	return ret;
@@ -8961,7 +8961,7 @@ static void di_shutdown(struct platform_device *pdev)
 
 	di_devp = platform_get_drvdata(pdev);
 	ret = hrtimer_cancel(&di_pre_hrtimer);
-	pr_info("di pre hrtimer canel %d.\n", ret);
+	pr_info("di pre hrtimer cancel %d.\n", ret);
 	tasklet_kill(&di_pre_tasklet);
 	tasklet_disable(&di_pre_tasklet);
 

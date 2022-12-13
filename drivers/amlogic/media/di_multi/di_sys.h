@@ -51,9 +51,9 @@ int dpst_cma_r_back_unreg(unsigned int ch);
 
 bool dim_rev_mem_check(void);
 /*--Different DI versions flag---*/
-//void dil_set_diffver_flag(unsigned int para);
+//void dil_set_diff_ver_flag(unsigned int para);
 
-//unsigned int dil_get_diffver_flag(void);
+//unsigned int dil_get_diff_ver_flag(void);
 void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd);
 
 /* blk and mem 2020-06*/

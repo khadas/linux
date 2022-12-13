@@ -67,9 +67,9 @@
 /* if score < this limit, input is sure to be not chessboard format */
 
 #define LR_SYMMETRY_LOWER_LIMIT		44
-/* if > this limit,input is translational-symmety in left half and right half */
+/* if > this limit,input is translational-symmetry in left half and right half */
 #define TB_SYMMETRY_LOWER_LIMIT		44
-/* if > this limit,input is translational-symmety in top half and bottom half */
+/* if > this limit,input is translational-symmetry in top half and bottom half */
 
 static int chessbd_vrate = 29;
 static bool det3d_debug;
@@ -329,7 +329,7 @@ Rd_reg_bits(DET3D_RO_SPLT_VL,
 + read_cbus_reg_signed_bits(DET3D_RO_MAT_MOTN_TB,
 	DET3D_MOTN_TB_SUM_BIT, DET3D_MOTN_TB_SUM_WID);
 
-	/* 8x8 statistics for being purely symetrical */
+	/* 8x8 statistics for being purely symmetrical */
 	tmp_symtc_lr = 0;
 	tmp_symtc_tb = 0;
 

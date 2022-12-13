@@ -11,5 +11,5 @@ config AMLOGIC_MEDIA_DEINTERLACE
 		Select to enable AMLOGIC DEINTERLACE driver
 		process interlace source need three continueed fields,
 		wave progressive source with two interlace fields from
-		one progreesive fields
+		one progressive fields
 endmenu

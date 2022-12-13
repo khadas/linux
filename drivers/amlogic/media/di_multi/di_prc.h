@@ -155,7 +155,7 @@ void do_table_init(struct do_table_s *pdo,
 		   const struct do_table_ops_s *ptable,
 		   unsigned int size_tab);
 /* now only call in same thread */
-void do_talbe_cmd(struct do_table_s *pdo, enum EDO_TABLE_CMD cmd);
+void do_table_cmd(struct do_table_s *pdo, enum EDO_TABLE_CMD cmd);
 void do_table_working(struct do_table_s *pdo);
 bool do_table_is_crr(struct do_table_s *pdo, unsigned int state);
 
@@ -383,7 +383,7 @@ int dim_dbg_hdr_para_show(struct seq_file *s, void *v);
 
 /* double write and dvf */
 void dim_dvf_cp(struct dvfm_s *dvfm, struct vframe_s *vfm, unsigned int index);
-void dim_dvf_type_p_chage(struct dvfm_s *dvfm, unsigned int type);
+void dim_dvf_type_p_change(struct dvfm_s *dvfm, unsigned int type);
 void dim_dvf_config_canvas(struct dvfm_s *dvfm);
 
 struct dw_s *dim_getdw(void);

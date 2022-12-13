@@ -53,7 +53,7 @@
  *	bit 15: border detect disable
  ************************************************/
 /*bit 4: grid use fix */
-/*bit 9:8: demo left /riht */
+/*bit 9:8: demo left /right */
 static unsigned int dbg_dct;
 module_param_named(dbg_dct, dbg_dct, uint, 0664);
 
@@ -409,16 +409,16 @@ static const struct reg_t rtab_t5_dcntr_bits_tab[] = {
 	/*--------------------------*/
 	{INTRP_PARAM, 21, 5, 0, "INTRP_PARAM",
 		"intep_phs_x_rtl",
-		"xphase used, could be negtive"},
+		"xphase used, could be negative"},
 	{INTRP_PARAM, 16, 5, 0, "",
 		"intep_phs_x_use",
-		"xphase used, could be negtive"},
+		"xphase used, could be negative"},
 	{INTRP_PARAM, 5, 5, 0, "",
 		"intep_phs_y_rtl",
-		"yphase used, could be negtive"},
+		"yphase used, could be negative"},
 	{INTRP_PARAM, 0, 5, 0, "",
 		"intep_phs_y_use",
-		"yphase used, could be negtive"},
+		"yphase used, could be negative"},
 	/***********************************************/
 	{DCTR_DIVR4, 28, 3, 1, "DCTR_DIVR4",
 		"divrsmap_blk0_sft",
@@ -499,16 +499,16 @@ static const struct reg_t rtab_t3_dcntr_bits_tab[] = {
 	/*--------------------------*/
 	{INTRP_T3_PARAM, 21, 5, 0, "INTRP_PARAM",
 		"intep_phs_x_rtl",
-		"xphase used, could be negtive"},
+		"xphase used, could be negative"},
 	{INTRP_T3_PARAM, 16, 5, 0, "",
 		"intep_phs_x_use",
-		"xphase used, could be negtive"},
+		"xphase used, could be negative"},
 	{INTRP_T3_PARAM, 5, 5, 0, "",
 		"intep_phs_y_rtl",
-		"yphase used, could be negtive"},
+		"yphase used, could be negative"},
 	{INTRP_T3_PARAM, 0, 5, 0, "",
 		"intep_phs_y_use",
-		"yphase used, could be negtive"},
+		"yphase used, could be negative"},
 	/***********************************************/
 	{DCTR_T3_DIVR4, 28, 3, 1, "DCTR_DIVR4",
 		"divrsmap_blk0_sft",

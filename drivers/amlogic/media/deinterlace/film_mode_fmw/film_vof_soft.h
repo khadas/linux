@@ -192,7 +192,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 int Cal32Flm01(UINT8 *pFlm01, int *nDif01, int iDx, struct sFlmSftPar *pPar);
 
 /* Film Detection Software implementation */
-/* nDif01: Fild Difference */
+/* nDif01: Field Difference */
 /* nDif02: Frame Difference */
 /* WND: The index of Window */
 int FlmDetSft(struct sFlmDatSt *pRDat, int *nDif01, int *nDif02, int WND,
@@ -201,7 +201,7 @@ int FlmDetSft(struct sFlmDatSt *pRDat, int *nDif01, int *nDif02, int WND,
 int VOFDetSub1(int *PREWV, int *nCNum, int nMod, UINT32 *nRCmb, int nROW,
 	       struct sFlmSftPar *pPar);
 
-/* Video on Film Detection Software implementaion */
+/* Video on Film Detection Software implementation */
 int VOFDetSft(int *VOFWnd, int *nCNum, int *nGCmb,
 	      UINT32 HSCMB[HISCMBNUM][ROWCMBLEN], int nMod, UINT8 *PREWV,
 	      int nROW, struct sFlmSftPar *pPar);

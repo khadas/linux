@@ -2540,7 +2540,7 @@ void do_table_init(struct do_table_s *pdo,
 
 /*if change to async?*/
 /* now only call in same thread */
-void do_talbe_cmd(struct do_table_s *pdo, enum EDO_TABLE_CMD cmd)
+void do_table_cmd(struct do_table_s *pdo, enum EDO_TABLE_CMD cmd)
 {
 	switch (cmd) {
 	case EDO_TABLE_CMD_NONE:
@@ -2799,7 +2799,7 @@ void dim_polic_cfg_local(unsigned int cmd, bool on)
 {
 	struct dim_policy_s *pp;
 
-	if (dil_get_diffver_flag() != 1)
+	if (dil_get_diff_ver_flag() != 1)
 		return;
 
 	pp = get_dpolicy();
@@ -3270,7 +3270,7 @@ void dim_pq_db_setreg(unsigned int nub, unsigned int *preg)
 	struct db_save_s *dbp;
 	unsigned int nubl;
 
-	if (dil_get_diffver_flag() != 1)
+	if (dil_get_diff_ver_flag() != 1)
 		return;
 
 	nubl = nub;
@@ -3299,7 +3299,7 @@ bool dim_pq_db_sel(unsigned int idx, unsigned int mode, unsigned int *pdate)
 	//int i;
 	bool ret = true;
 
-	if (dil_get_diffver_flag() != 1)
+	if (dil_get_diff_ver_flag() != 1)
 		return false;
 
 	if (idx >= DIM_DB_SAVE_NUB)
@@ -3379,7 +3379,7 @@ struct dim_rpt_s *dim_api_getrpt(struct vframe_s *vfm)
 {
 	struct di_buf_s *di_buf;
 
-	if (dil_get_diffver_flag() != 1)
+	if (dil_get_diff_ver_flag() != 1)
 		return NULL;
 
 	if (!vfm)
@@ -5841,7 +5841,7 @@ void dim_dvf_cp(struct dvfm_s *dvfm, struct vframe_s *vfm, unsigned int index)
 }
 
 /* 0:default; 1: nv21; 2: nv12;*/
-void dim_dvf_type_p_chage(struct dvfm_s *dvfm, unsigned int type)
+void dim_dvf_type_p_change(struct dvfm_s *dvfm, unsigned int type)
 {
 	if (!dvfm)
 		return;
@@ -6216,7 +6216,7 @@ void dim_dw_pre_para_init(struct di_ch_s *pch, struct dim_nins_s *nins)
 		wdvfm->cvs_nu[0] = cvss->pre_idx[0][4];
 		wdvfm->cvs_nu[1] = cvss->post_idx[1][2];
 	}
-	dim_dvf_type_p_chage(&ppre->dw_wr_dvfm,
+	dim_dvf_type_p_change(&ppre->dw_wr_dvfm,
 			dim_getdw()->size_info.info_in.out_format);
 }
 
@@ -7100,7 +7100,7 @@ dim_mng_hf_err:
 /*mng for hf buffer end */
 
 /* for secure mode hf,from vlsi feijun*/
-static noinline int __invoke_psci_fn_vpubsmc(u64 function_id, u64 arg0,
+static noinline int __invoke_psci_fn_vpub_smc(u64 function_id, u64 arg0,
 						u64 arg1, u64 arg2)
 {
 	struct arm_smccc_res res;
@@ -7117,9 +7117,9 @@ void di_probe_vpub_en_set(u32 enable)
 {
 	if (DIM_IS_IC(S5) && cfgg(HF)) {
 		if (enable)
-			__invoke_psci_fn_vpubsmc(0x82000080, 1, 0, 0);
+			__invoke_psci_fn_vpub_smc(0x82000080, 1, 0, 0);
 		else
-			__invoke_psci_fn_vpubsmc(0x82000080, 0, 0, 0);
+			__invoke_psci_fn_vpub_smc(0x82000080, 0, 0, 0);
 	}
 }
 

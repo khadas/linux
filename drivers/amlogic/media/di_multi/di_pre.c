@@ -945,7 +945,7 @@ bool dpre_step4_check(void)
 			      ARRAY_SIZE(pr_mode_total));
 		pre->sdt_mode.name = "mtotal";
 	}
-	do_talbe_cmd(&pre->sdt_mode, EDO_TABLE_CMD_START);
+	do_table_cmd(&pre->sdt_mode, EDO_TABLE_CMD_START);
 
 	/*state*/
 	pre->pre_st++;

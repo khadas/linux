@@ -14,7 +14,7 @@
 #define DI_DRV_DEINTERLACE	(0)
 #define DI_DRV_MULTI		(1)
 
-unsigned int dil_get_diffver_flag(void);
+unsigned int dil_get_diff_ver_flag(void);
 
 /**********************************************************
  * di new interface

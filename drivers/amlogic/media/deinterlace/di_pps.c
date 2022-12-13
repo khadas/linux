@@ -956,7 +956,7 @@ RESTART:
 		(vpp_flags & VPP_FLAG_INTERLACE_OUT) ? (end >> 1) : end;
 	}
 
-	/* set filter co-efficients */
+	/* set filter co-efficient */
 	tmp_ratio_y = ratio_y;
 	ratio_y <<= height_shift;
 	ratio_y = ratio_y / (next_frame_par->vscale_skip_count + 1);

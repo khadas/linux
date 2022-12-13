@@ -247,7 +247,7 @@ static void trace_post_peek(unsigned int index)
 	trace_dim_pst_peekx("PST-PEEK-8", index, ustime);
 }
 
-static void trace_slef_trig(unsigned int index)
+static void trace_self_trig(unsigned int index)
 {
 	u64 ustime;
 
@@ -294,7 +294,7 @@ const struct dim_tr_ops_s dim_tr_ops = {
 	.sct_alloc = trace_msct,
 	.sct_tail  = trace_msct_tail,
 	.sct_sts   = trace_msct_sts,
-	.self_trig = trace_slef_trig,
+	.self_trig = trace_self_trig,
 	.irq_aisr = trace_irq_aisr,
 	.irq_dct = trace_irq_dct,
 	.dct_set = trace_dct_set,
@@ -587,7 +587,7 @@ void dim_ddbg_mod_save(unsigned int mod, unsigned int ch, unsigned int cnt)
 		return;
 	pos = plog->pos;
 
-	dbg_mod.lable = K_DI_LAB_MOD;
+	dbg_mod.label = K_DI_LAB_MOD;
 	dbg_mod.ch = ch;
 	dbg_mod.mod = mod;
 	dbg_mod.cnt = cnt;
@@ -660,7 +660,7 @@ static int ddbg_log_reg_show(struct seq_file *seq, void *v)
 		   __func__, plog->pos, plog->overflow, plog->wsize);
 
 	for (i = 0; i < pos; i++) {
-		if (plog->log[i].mod.lable == K_DI_LAB_MOD) {
+		if (plog->log[i].mod.label == K_DI_LAB_MOD) {
 			seq_printf(seq, "%d,ch[%d]:cnt[%d]:%s\n",
 				   i,
 				   plog->log[i].mod.ch,

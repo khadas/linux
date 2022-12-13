@@ -209,7 +209,7 @@ static int s4dw_init_buf_simple(struct di_ch_s *pch)
 	pbuf_post	= get_buf_post(ch);
 	mm		= dim_mm_get(ch);
 
-	/* decoder'buffer had been releae no need put */
+	/* decoder'buffer had been release no need put */
 	for (i = 0; i < MAX_IN_BUF_NUM; i++)
 		pvframe_in[i] = NULL;
 
@@ -716,7 +716,7 @@ const struct dim_s4dw_data_s dim_s4dw_def = {
 	.fill_2_ready_bynins = s4dw_bypass_2_ready_bynins,
 };
 
-static enum DI_ERRORTYPE s4dw_empty_inputl(struct di_ch_s *pch,
+static enum DI_ERRORTYPE s4dw_empty_input_l(struct di_ch_s *pch,
 					   struct di_buffer *buffer)
 {
 //	struct dim_itf_s *pintf;
@@ -777,7 +777,7 @@ enum DI_ERRORTYPE s4dw_empty_input(struct di_ch_s *pch,
 	enum DI_ERRORTYPE ret;
 
 	mutex_lock(&pch->itf.lock_in);
-	ret = s4dw_empty_inputl(pch, buffer);
+	ret = s4dw_empty_input_l(pch, buffer);
 	mutex_unlock(&pch->itf.lock_in);
 
 	if (ret == DI_ERR_NONE)
@@ -2040,7 +2040,7 @@ static void s4dw_pre_set(unsigned int channel)
 			ppre->is_disable_chan2 = 1;
 		else
 			ppre->is_disable_chan2 = 0;
-		//when p mode/frist frame ,set 0 to reset the mc vec wr,
+		//when p mode/first frame ,set 0 to reset the mc vec wr,
 		//second frame write back to 1,from vlsi feijun.fan for DMC bug
 
 		if (ppre->field_count_for_cont < 1 &&

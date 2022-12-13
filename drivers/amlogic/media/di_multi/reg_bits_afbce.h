@@ -122,10 +122,10 @@
 #define E_AFBCE_DWSCALAR_H0	(55)
 #define E_AFBCE_DWSCALAR_W1	(56)
 #define E_AFBCE_DWSCALAR_W0	(57)
-#define E_AFBCE_ENC_DEFALUTCOLOR_0	(58)
-#define E_AFBCE_ENC_DEFALUTCOLOR_3	(59)
-#define E_AFBCE_ENC_DEFALUTCOLOR_1	(60)
-#define E_AFBCE_ENC_DEFALUTCOLOR_2	(61)
+#define E_AFBCE_ENC_DEFAULT_COLOR_0	(58)
+#define E_AFBCE_ENC_DEFAULT_COLOR_3	(59)
+#define E_AFBCE_ENC_DEFAULT_COLOR_1	(60)
+#define E_AFBCE_ENC_DEFAULT_COLOR_2	(61)
 #define E_AFBCE_QUANT_EN0	(62)
 #define E_AFBCE_QUANT_EN1	(63)
 #define E_AFBCE_BCLEAV_OFST	(64)
@@ -379,8 +379,8 @@ union AFBCE_FORMAT_BITS {
 union AFBCE_DEFCOLOR_1_BITS {
 	unsigned int d32;
 	struct {
-		unsigned int enc_defalutcolor_0:12,	/* bit[11:0] */
-		enc_defalutcolor_3:12,	/* bit[23:12] */
+		unsigned int enc_default_color_0:12,	/* bit[11:0] */
+		enc_default_color_3:12,	/* bit[23:12] */
 		reserved1:8;
 	} b;
 };
@@ -388,8 +388,8 @@ union AFBCE_DEFCOLOR_1_BITS {
 union AFBCE_DEFCOLOR_2_BITS {
 	unsigned int d32;
 	struct {
-		unsigned int enc_defalutcolor_1:12,	/* bit[11:0] */
-		enc_defalutcolor_2:12,	/* bit[23:12] */
+		unsigned int enc_default_color_1:12,	/* bit[11:0] */
+		enc_default_color_2:12,	/* bit[23:12] */
 		reserved1:8;
 	} b;
 };

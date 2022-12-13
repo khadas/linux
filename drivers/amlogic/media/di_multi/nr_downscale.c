@@ -75,7 +75,7 @@ struct tb_core_s {
 	struct dim_tb_buf_s di_detect_buf[DIM_TB_BUFFER_MAX_SIZE];
 	struct dim_tb_buf_s di_detect_wbuf[DIM_TB_BUFFER_MAX_SIZE];
 	unsigned int nr_dump_count;
-	int diinited;
+	int di_init;
 	unsigned char flg_from;
 };
 
@@ -87,13 +87,13 @@ static struct tb_core_s *dim_tbs[DI_CHANNEL_NUB];
 //	return dim_tbs;
 //}
 
-static DEFINE_MUTEX(ditb_mutex);
+static DEFINE_MUTEX(di_tb_mutex);
 
 static s32 di_tb_canvas = -1;
 static struct TB_DetectFuncPtr *digfunc;
-static struct tbff_stats *ditb_reg[DI_CHANNEL_NUB];
+static struct tbff_stats *di_tb_reg[DI_CHANNEL_NUB];
 
-//static u32 ditb_src_canvas;
+//static u32 di_tb_src_canvas;
 #endif
 
 #define NR_DETECT_DUMP_CNT 150
@@ -162,7 +162,7 @@ int dim_tb_detect(struct vframe_tb_s *vf, int data1, unsigned int ch)
 
 	pcfg = dim_tbs[ch];
 
-	if (!di_devp->tbflg_int)
+	if (!di_devp->tb_flag_int)
 		return -1;
 
 	if (unlikely(!vf))
@@ -333,7 +333,7 @@ void dim_ds_detect(struct vframe_tb_s *vf, int data1, unsigned int ch)
 
 	pch = get_chdata(ch);
 
-	if (!di_devp->tbflg_int)
+	if (!di_devp->tb_flag_int)
 		return;
 	if (!pch->en_tb) {
 		//dim_nr_ds_hw_ctrl(false);
@@ -388,7 +388,7 @@ void dim_tb_function(struct vframe_tb_s *vf, int data1, unsigned int ch)
 
 	pch = get_chdata(ch);
 
-	if (!di_devp->tbflg_int)
+	if (!di_devp->tb_flag_int)
 		return;
 	if (!pch->en_tb) {
 		//dim_nr_ds_hw_ctrl(false);
@@ -481,7 +481,7 @@ void dim_tb_function(struct vframe_tb_s *vf, int data1, unsigned int ch)
 	pcfg->last_height = vf->height;
 	dbg_tb("%s:S frame type: %x,first_frame_type %X,cur_invert=%x\n", __func__,
 		pcfg->last_type, pcfg->first_frame_type, pcfg->cur_invert);
-	if (di_devp->tbflg_int) {
+	if (di_devp->tb_flag_int) {
 		ret = 0;
 		if (pcfg->di_tb_buffer_status <= 0)
 			goto SKIP_DETECT;
@@ -622,7 +622,7 @@ int dim_tb_buffer_init(unsigned int ch)
 
 	PR_INF("%s :s\n", __func__);
 
-	if (!di_devp->tbflg_int)
+	if (!di_devp->tb_flag_int)
 		return -1;
 
 	pch = get_chdata(ch);
@@ -631,11 +631,11 @@ int dim_tb_buffer_init(unsigned int ch)
 
 	pcfg = dim_tbs[ch];
 
-	ditb_reg[ch] = kmalloc(sizeof(*ditb_reg[ch]), GFP_KERNEL);
-	if (!ditb_reg[ch])
+	di_tb_reg[ch] = kmalloc(sizeof(*di_tb_reg[ch]), GFP_KERNEL);
+	if (!di_tb_reg[ch])
 		return -1;
 
-	memset(ditb_reg[ch], 0, sizeof(struct tbff_stats));
+	memset(di_tb_reg[ch], 0, sizeof(struct tbff_stats));
 
 	if (pcfg->di_tb_buffer_status)
 		return pcfg->di_tb_buffer_status;
@@ -714,7 +714,7 @@ int dim_tb_buffer_uninit(unsigned int ch)
 	pch = get_chdata(ch);
 	pcfg = dim_tbs[ch];
 
-	if (!di_devp->tbflg_int)
+	if (!di_devp->tb_flag_int)
 		return 0;
 	if (!pch->en_tb)
 		return 0;
@@ -751,8 +751,8 @@ int dim_tb_buffer_uninit(unsigned int ch)
 	}
 	pcfg->di_tb_buffer_status = 0;
 
-	kfree(ditb_reg[ch]);
-	ditb_reg[ch] = NULL;
+	kfree(di_tb_reg[ch]);
+	di_tb_reg[ch] = NULL;
 	//di_devp->tb_detect = 0x8;
 	dbg_tb("%s :e\n", __func__);
 	return 0;
@@ -774,7 +774,7 @@ void dim_tb_reg_init(struct vframe_tb_s *vfm, unsigned int on, unsigned int ch)
 		return;
 	if ((vfm->width * vfm->height) > (1920 * 1088))
 		return;
-	if (!di_devp->tbflg_int)
+	if (!di_devp->tb_flag_int)
 		return;
 	if (!pch->en_tb)
 		return;
@@ -844,7 +844,7 @@ void dim_tb_t_release(struct di_ch_s *pch)
 
 	dbg_tb("%s :s\n", __func__);
 
-	if (!di_devp->tbflg_int)
+	if (!di_devp->tb_flag_int)
 		return;
 
 	if (!pch->en_tb)
@@ -879,7 +879,7 @@ void dim_tb_alloc(struct di_ch_s *pch)
 
 	dbg_tb("%s 0:s = %d\n", __func__, pch->ch_id);
 
-	if (!di_devp->tbflg_int)
+	if (!di_devp->tb_flag_int)
 		return;
 
 	pch->en_tb	= false;
@@ -918,7 +918,7 @@ int dim_tb_task_process(struct vframe_tb_s *vf, u32 data, unsigned int ch)
 	ulong y5fld[5] = {0};
 	int is_top = 0;
 	int i;
-	int diinter_flag = 0;
+	int di_inter_flag = 0;
 	struct di_dev_s *di_devp = get_dim_de_devp();
 	static const char * const detect_type[] = {"NC", "TFF", "BFF", "TBF"};
 	struct tb_core_s *pcfg;
@@ -926,7 +926,7 @@ int dim_tb_task_process(struct vframe_tb_s *vf, u32 data, unsigned int ch)
 
 	dbg_tb("%s :step 4 s\n", __func__);
 
-	if (!di_devp->tbflg_int)
+	if (!di_devp->tb_flag_int)
 		return 1;
 	if (vf->source_type !=
 		VFRAME_SOURCE_TYPE_OTHERS)
@@ -939,7 +939,7 @@ int dim_tb_task_process(struct vframe_tb_s *vf, u32 data, unsigned int ch)
 		return 1;
 
 	if (digfunc)
-		digfunc->stats_init(ditb_reg[ch],
+		digfunc->stats_init(di_tb_reg[ch],
 				    DIM_TB_DETECT_H, DIM_TB_DETECT_W);
 
 	pcfg = dim_tbs[ch];
@@ -950,12 +950,12 @@ int dim_tb_task_process(struct vframe_tb_s *vf, u32 data, unsigned int ch)
 
 		if (pcfg->di_tb_buff_rptr == 0) {
 			if (atomic_read(&pcfg->di_tb_reset_flag) != 0)
-				pcfg->diinited = 0;
+				pcfg->di_init = 0;
 			atomic_set(&pcfg->di_tb_reset_flag, 0);
 			if (digfunc)
-				digfunc->fwalg_init(pcfg->diinited, ch);
+				digfunc->fwalg_init(pcfg->di_init, ch);
 		}
-		pcfg->diinited = 1;
+		pcfg->di_init = 1;
 		is_top = (pcfg->di_tb_buff_rptr & 1) ? 0 : 1;
 
 	if (pcfg->di_tb_buff_rptr == 0) {
@@ -1043,29 +1043,29 @@ int dim_tb_task_process(struct vframe_tb_s *vf, u32 data, unsigned int ch)
 		y5fld[4] = pcfg->di_detect_buf[pcfg->di_tb_buff_rptr].vaddr;
 
 		if (digfunc) {
-			if (IS_ERR_OR_NULL(ditb_reg[ch])) {
-				kfree(ditb_reg[ch]);
-				PR_ERR("di:err:DI:TB ditb_reg is NULL!\n");
+			if (IS_ERR_OR_NULL(di_tb_reg[ch])) {
+				kfree(di_tb_reg[ch]);
+				PR_ERR("di:err:DI:TB di_tb_reg is NULL!\n");
 				return 1;
 			}
 			for (i = 0; i < 5; i++) {
 				if (IS_ERR_OR_NULL((void *)y5fld[i])) {
 					PR_ERR("di:err:DI:TB y5fld[%d]isNULL\n",
 					       i);
-					diinter_flag = 1;
+					di_inter_flag = 1;
 					break;
 				}
 			}
-			if (diinter_flag) {
-				diinter_flag = 0;
+			if (di_inter_flag) {
+				di_inter_flag = 0;
 				return 1;
 			}
-			digfunc->stats_get(y5fld, ditb_reg[ch]);
+			digfunc->stats_get(y5fld, di_tb_reg[ch]);
 		}
 		is_top = is_top ^ 1;
 		tbff_flag = -1;
 		if (digfunc)
-			tbff_flag = digfunc->fwalg_get(ditb_reg[ch], is_top,
+			tbff_flag = digfunc->fwalg_get(di_tb_reg[ch], is_top,
 				(pcfg->di_tb_first_frame_type == 3) ? 0 : 1,
 				pcfg->di_tb_buff_rptr,
 				atomic_read(&pcfg->di_tb_skip_flag),
@@ -1128,7 +1128,7 @@ int dim_tb_task_process(struct vframe_tb_s *vf, u32 data, unsigned int ch)
 void dim_tb_ext_cmd(struct vframe_s *vf, int data1, unsigned int ch,
 		unsigned int cmd)
 {
-	struct tbtsk_cmd_s tbblk_cmd;
+	struct tb_task_cmd_s tb_blk_cmd;
 	struct vframe_tb_s cfg_data;
 	struct vframe_tb_s *cfg = &cfg_data;
 
@@ -1143,11 +1143,11 @@ void dim_tb_ext_cmd(struct vframe_s *vf, int data1, unsigned int ch,
 	dbg_tb("%s :S\n", __func__);
 	if (cmd == ECMD_TB_REG)
 		dim_tb_alloc(get_chdata(ch));
-	tbblk_cmd.cmd = cmd;
-	tbblk_cmd.field_count = data1;
-	tbblk_cmd.ch = ch;
-	tbblk_cmd.in_buf_vf = vf;
-	tbtsk_alloc_block(ch, &tbblk_cmd);
+	tb_blk_cmd.cmd = cmd;
+	tb_blk_cmd.field_count = data1;
+	tb_blk_cmd.ch = ch;
+	tb_blk_cmd.in_buf_vf = vf;
+	tb_task_alloc_block(ch, &tb_blk_cmd);
 	if (cmd == ECMD_TB_PROC)
 		dim_ds_detect(cfg, data1, ch);
 }
@@ -1158,14 +1158,14 @@ int RegisterTB_Function(struct TB_DetectFuncPtr *func, const char *ver)
 {
 	int ret = -1;
 
-	mutex_lock(&ditb_mutex);
+	mutex_lock(&di_tb_mutex);
 	pr_info("DI:TB RegDITB digfunc %p, func: %p, ver:%s\n", digfunc,
 		func, ver);
 	if (!digfunc && func) {
 		digfunc = func;
 		ret = 0;
 	}
-	mutex_unlock(&ditb_mutex);
+	mutex_unlock(&di_tb_mutex);
 
 	return ret;
 }
@@ -1175,13 +1175,13 @@ int UnRegisterTB_Function(struct TB_DetectFuncPtr *func)
 {
 	int ret = -1;
 
-	mutex_lock(&ditb_mutex);
+	mutex_lock(&di_tb_mutex);
 	pr_info("DI:TB UnRegDITB: digfunc %p, func: %p\n", digfunc, func);
 	if (func && func == digfunc) {
 		digfunc = NULL;
 		ret = 0;
 	}
-	mutex_unlock(&ditb_mutex);
+	mutex_unlock(&di_tb_mutex);
 
 	return ret;
 }
@@ -1197,7 +1197,7 @@ void dim_nr_ds_hw_init(unsigned int width, unsigned int height, unsigned int ch)
 
 	dbg_tb("%s :s\n", __func__);
 
-	if (!di_devp->tbflg_int)
+	if (!di_devp->tb_flag_int)
 		return;
 
 	pch = get_chdata(ch);
@@ -1292,7 +1292,7 @@ void dim_nr_ds_hw_ctrl(bool enable)
 #ifdef DIM_TB_DETECT
 	struct di_dev_s *di_devp = get_dim_de_devp();
 
-	if (!di_devp->tbflg_int)
+	if (!di_devp->tb_flag_int)
 		enable = 0;
 #endif
 	op->bwr(VIUB_MISC_CTRL0, enable ? 3 : 2, 5, 2);
@@ -1307,10 +1307,10 @@ void dim_tb_prob(void)
 	struct di_dev_s *di_devp = get_dim_de_devp();
 
 	if (IS_IC_SUPPORT(TB))
-		di_devp->tbflg_int = 1;
+		di_devp->tb_flag_int = 1;
 	else
-		di_devp->tbflg_int = 0;
-	PR_INF("%s:end=%d\n", __func__, di_devp->tbflg_int);
+		di_devp->tb_flag_int = 0;
+	PR_INF("%s:end=%d\n", __func__, di_devp->tb_flag_int);
 #endif
 }
 

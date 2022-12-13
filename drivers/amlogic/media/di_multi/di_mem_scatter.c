@@ -397,7 +397,7 @@ void sct_max_check(struct di_ch_s *pch)
 	//di_que_list_count(ch, QUE_POST_READY);
 	psum->mts_pst_ready		= di_que_list_count(ch, QUE_POST_READY);
 	psum->mts_pst_back		= di_que_list_count(ch, QUE_POST_BACK);
-	psum->mts_pst_dispaly		= ndis_cnt(pch, QBF_NDIS_Q_DISPLAY);
+	psum->mts_pst_display		= ndis_cnt(pch, QBF_NDIS_Q_DISPLAY);
 	//list_count(ch, QUEUE_DISPLAY);
 }
 
@@ -732,7 +732,7 @@ static void sct_alloc_in_poling(unsigned int ch)
 
 	if (!cnt_sct_req)
 		return;
-	psct->flg_allocing = 1;
+	psct->flg_allocating = 1;
 	for (i = 0; i < cnt_sct_req; i++) {
 		/* peek */
 
@@ -761,7 +761,7 @@ static void sct_alloc_in_poling(unsigned int ch)
 			break;
 		}
 	}
-	psct->flg_allocing = 0;
+	psct->flg_allocating = 0;
 }
 
 static void pat_set_vaddr(struct dim_pat_s *pat, unsigned int buf_size)
@@ -1187,7 +1187,7 @@ int dim_dbg_sct_top_show(struct seq_file *s, void *what)
 	seq_printf(s, "\t%s:%d\n", "flg_no_buf", psct->flg_no_buf);
 	seq_printf(s, "\t%s:%d\n", "flg_act_box", psct->flg_act_box);
 	seq_printf(s, "\t%s:%d\n", "flg_trig_dis", psct->flg_trig_dis);
-	seq_printf(s, "\t%s:%d\n", "flg_allocing", psct->flg_allocing);
+	seq_printf(s, "\t%s:%d\n", "flg_allocating", psct->flg_allocating);
 	seq_printf(s, "%s:\n", "sum");
 	seq_printf(s, "\t%s:%d\n", "max_nub", psum->max_nub);
 	seq_printf(s, "\t%s:%d\n", "max_size", psum->max_size);
@@ -1198,7 +1198,7 @@ int dim_dbg_sct_top_show(struct seq_file *s, void *what)
 	seq_printf(s, "\t%s:\n", "pst");
 	seq_printf(s, "\t\t%s:%d\n", "free", psum->mts_pst_free);
 	seq_printf(s, "\t\t%s:%d\n", "back", psum->mts_pst_back);
-	seq_printf(s, "\t\t%s:%d\n", "display", psum->mts_pst_dispaly);
+	seq_printf(s, "\t\t%s:%d\n", "display", psum->mts_pst_display);
 	seq_printf(s, "\t\t%s:%d\n", "ready", psum->mts_pst_ready);
 	seq_printf(s, "\t%s:\n", "sct");
 	seq_printf(s, "\t\t%s:%d\n", "rcc", psum->mts_sct_rcc);

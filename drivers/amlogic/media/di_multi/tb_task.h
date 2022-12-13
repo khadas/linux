@@ -6,10 +6,10 @@
 #ifndef __TB_TASK_H__
 #define __TB_TASK_H__
 
-int tbtask_start(void);
-void tbtask_stop(void);
-bool tbtsk_alloc_block(unsigned int ch, struct tbtsk_cmd_s *cmd);
-void tbtask_send_ready(unsigned int id);
-void tb_polling(unsigned int ch, struct tbtsk_cmd_s *cmd);
+int tb_task_start(void);
+void tb_task_stop(void);
+bool tb_task_alloc_block(unsigned int ch, struct tb_task_cmd_s *cmd);
+void tb_task_send_ready(unsigned int id);
+void tb_polling(unsigned int ch, struct tb_task_cmd_s *cmd);
 
 #endif /*__TB_TASK_H__*/

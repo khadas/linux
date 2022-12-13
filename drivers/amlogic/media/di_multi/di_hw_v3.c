@@ -832,7 +832,7 @@ static unsigned int set_afbcd_mult_simple(int index,
 	u32 vt_rpt_fst0_en	= inp_afbcd->vt_rpt_fst0_en; // 1 bits
 
 	u32 rev_mode	= inp_afbcd->rev_mode;
-	// 2 bits [1]: vertical rev; [0]: horzontal rev
+	// 2 bits [1]: vertical rev; [0]: horizontal rev
 	u32 vert_skip_y	= inp_afbcd->v_skip_en;
 	// 2 bits 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
 	u32 horz_skip_y	= inp_afbcd->h_skip_en;
@@ -3115,7 +3115,7 @@ static void set_di_pre(struct DI_PRE_S *pcfg, const struct reg_acc *opin)
 		op->wr(DI_SC2_PRE_GL_CTRL, 0xc0200001);
 
 	//====================================//
-	// MIF configration
+	// MIF configuration
 	//====================================//
 	p1_en = pcfg->mcdi_en || pcfg->mtn_en ||
 		pcfg->pd32_check_en || pcfg->pd22_check_en ||
@@ -5183,7 +5183,7 @@ static void pst_mif_update_canvasid_v3(struct DI_MIF_S *mif,
 
 	if (mif->linear) {
 		di_mif0_linear_rd_cfg(mif, mif_index, op);
-		dbg_ic("%s:linar\n", __func__);
+		dbg_ic("%s:linear\n", __func__);
 		return;
 	}
 	switch (mif_index) {

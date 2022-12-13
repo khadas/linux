@@ -20,12 +20,12 @@
 #define DI_H
 
 /************************************************
- * dil_set_diffver_flag
- *	ref to dil_get_diffver_flag
+ * dil_set_diff_ver_flag
+ *	ref to dil_get_diff_ver_flag
  *	DI_DRV_OLD_DEINTERLACE	: old deinterlace
  *	DI_DRV_MULTI		: di_multi
  ************************************************/
-void dil_set_diffver_flag(unsigned int para);
+void dil_set_diff_ver_flag(unsigned int para);
 
 struct reg_acc {
 	void (*wr)(unsigned int adr, unsigned int val);

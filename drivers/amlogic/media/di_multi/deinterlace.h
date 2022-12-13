@@ -510,7 +510,7 @@ struct di_dev_s {
 	unsigned int tb_detect_period;
 	unsigned int tb_detect_buf_len;
 	unsigned int tb_detect_init_mute;
-	unsigned int tbflg_int;
+	unsigned int tb_flag_int;
 #endif
 };
 

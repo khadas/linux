@@ -257,7 +257,7 @@
 /* #define DET3D_RAMRD_DATA_PORT	0x179b */
 
 /* *********************************************************** */
-/* *** STRUCTURE DEFINATIONS ********************************* */
+/* *** STRUCTURE DEFINITIONS ********************************* */
 /* *********************************************************** */
 struct det3d_info_s {
 	/* Frame counter, max number is defined in FRAME_MAX macro */
@@ -279,7 +279,7 @@ struct det3d_info_s {
 	int score_3d_tb;
 
 	/* the last 8 frame score_3d_lr, tscore_3d_lr[0]
-	 * is caculated from current frame data;
+	 * is calculated from current frame data;
 	 */
 	int tscore_3d_lr[8];
 	int tscore_3d_tb[8];
@@ -291,7 +291,7 @@ struct det3d_info_s {
 	int score_3d_int;
 
 	/* the last 8 frame valid score_3d_chs, chs_valid_his[0]
-	 * is caculated from current frame data;
+	 * is calculated from current frame data;
 	 */
 	int chs_valid_his[8];
 	int int_valid_his[8];
@@ -300,7 +300,7 @@ struct det3d_info_s {
 #define det3d_info_t struct det3d_info_s
 
 /* **************************************** */
-/* ****ENUM DEFINATIONS ******************* */
+/* ****ENUM DEFINITIONS ******************* */
 /* **************************************** */
 /*@to modify if it is defined in tvin.h*/
 enum det3d_fmt_e {

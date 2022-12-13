@@ -1890,7 +1890,7 @@ static bool dct_m_check(void)
 		      ARRAY_SIZE(dct_hw_process));
 	dct->sdt_mode.name = "dct";
 
-	do_talbe_cmd(&dct->sdt_mode, EDO_TABLE_CMD_START);
+	do_table_cmd(&dct->sdt_mode, EDO_TABLE_CMD_START);
 
 	/*state*/
 	dct->state++;

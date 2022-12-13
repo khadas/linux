@@ -774,7 +774,7 @@ struct di_mtask {
 	unsigned int err_cmd_cnt;
 };
 
-struct di_tbtask {
+struct di_tb_task {
 	bool flg_init;
 	struct semaphore sem;
 	wait_queue_head_t wait_queue;
@@ -884,7 +884,7 @@ struct mtsk_cmd_s {
 	struct blk_flg_s	flg;
 };
 
-struct tbtsk_cmd_s {
+struct tb_task_cmd_s {
 	unsigned int cmd	: 4;
 	unsigned int block_mode : 1;
 	unsigned int hf_need	: 1; //
@@ -1808,7 +1808,7 @@ struct dim_msc_sum_s {
 	unsigned char max_nub;
 
 	unsigned char mts_pst_ready;
-	unsigned char mts_pst_dispaly;
+	unsigned char mts_pst_display;
 	unsigned char mts_pst_back;
 	unsigned char mts_pst_free;
 	unsigned char mts_sct_rcc;
@@ -1830,7 +1830,7 @@ struct dim_mscttop_s {
 	bool	flg_no_buf;
 	bool	flg_act_box;
 	bool	flg_trig_dis;
-	bool	flg_allocing;
+	bool	flg_allocating;
 	struct mutex lock_ready; /* for sct ready */
 	struct dim_msc_sum_s sum;
 };
@@ -2112,7 +2112,7 @@ struct di_mng_s {
 	/*task:*/
 	struct di_task		tsk;
 	struct di_mtask		mtsk;
-	struct di_tbtask	tbtsk;
+	struct di_tb_task	tb_task;
 
 	enum EDIM_TMODE		tmode_pre[DI_CHANNEL_MAX];
 	/*channel state: use enum eDI_TOP_STATE */
@@ -2188,7 +2188,7 @@ struct di_dbg_reg {
 };
 
 struct di_dbg_mod {
-	unsigned int lable;	/*0xf001: mean dbg mode*/
+	unsigned int label;	/*0xf001: mean dbg mode*/
 	unsigned int ch:8,
 		mod:8,
 		res:16;
@@ -2664,7 +2664,7 @@ struct dim_dvs_prevpp_s {
 	atomic_t sum_wk_rq;	/*debug: total cal wk */
 	atomic_t sum_wk_real_cnt; /*debug: real wk */
 	const struct vframe_operations_s *vf_ops;
-	struct dim_plink_dbg_s dbgd;
+	struct dim_plink_dbg_s dbg_d;
 };
 
 struct di_data_l_s {
@@ -3231,9 +3231,9 @@ static inline struct di_mtask *get_mtask(void)
 	return &get_bufmng()->mtsk;
 }
 
-static inline struct di_tbtask *get_tbtask(void)
+static inline struct di_tb_task *get_tb_task(void)
 {
-	return &get_bufmng()->tbtsk;
+	return &get_bufmng()->tb_task;
 }
 
 /******************************************
@@ -3338,7 +3338,7 @@ static inline unsigned int di_get_mem_size(unsigned int ch)
 
 static inline struct dim_plink_dbg_s *di_g_plink_dbg(void)
 {
-	return &get_datal()->dvs_prevpp.dbgd;
+	return &get_datal()->dvs_prevpp.dbg_d;
 }
 
 void di_tout_int(struct di_time_out_s *tout, unsigned int thd);

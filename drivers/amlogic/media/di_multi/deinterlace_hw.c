@@ -3496,7 +3496,7 @@ void dim_film_mode_win_config(unsigned int width, unsigned int height)
 }
 
 /*
- * old pulldown detction module, global field diff/num & frame
+ * old pulldown detection module, global field diff/num & frame
  * diff/numm and 5 window included
  */
 void dim_read_pulldown_info(unsigned int *glb_frm_mot_num,

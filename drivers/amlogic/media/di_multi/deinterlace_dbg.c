@@ -1337,7 +1337,7 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 		   dip_chst_get_name_curr(channel));
 	seq_printf(seq, "%-15s=%d\n", "trig_unreg",
 		   get_flag_trig_unreg(channel));
-	seq_printf(seq, "%-15s=%d\n", "bypass_compelet",
+	seq_printf(seq, "%-15s=%d\n", "bypass_complete",
 		   is_bypss2_complete(channel));
 	seq_printf(seq, "%-15s=%d\n", "reg_flag",
 		   get_reg_flag(channel));
