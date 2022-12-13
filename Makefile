@@ -2070,7 +2070,7 @@ ifdef CONFIG_AMLOGIC_DRIVER
 PHONY += FORCE
 FORCE:
 	$(Q)-cp $(srctree)/scripts/amlogic/pre-commit $(srctree)/.git/hooks/pre-commit
-	$(Q)-cp $(srctree)/scripts/amlogic/pre-commit-commn_drivers $(srctree)/$(COMMON_DRIVERS_DIR)/.git/hooks/pre-commit
+	$(Q)-cp $(srctree)/scripts/amlogic/pre-commit-common_drivers $(srctree)/$(COMMON_DRIVERS_DIR)/.git/hooks/pre-commit
 	$(Q)-chmod +x $(srctree)/$(COMMON_DRIVERS_DIR)/.git/hooks/pre-commit
 	$(Q)-mkdir -p $(srctree)/$(COMMON_DRIVERS_DIR)/scripts/amlogic
 	$(Q)-cp $(srctree)/scripts/amlogic/licence_pre.pl $(srctree)/$(COMMON_DRIVERS_DIR)/scripts/amlogic
