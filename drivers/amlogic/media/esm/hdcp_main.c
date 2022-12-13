@@ -37,12 +37,14 @@
 #include <linux/delay.h>
 #include <linux/of_device.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 
 #include "hdcp.h"
 
 #define ELP_DEBUG()	pr_info("esm %s[%d]\n", __func__, __LINE__)
 
 #define MAX_ESM_DEVICES 6
+#define MAX_ESM_SIZE 0x50000
 
 static int verbose;
 
@@ -108,6 +110,9 @@ static long load_code(struct esm_device *esm, struct esm_ioc_code __user *arg)
 	if (copy_from_user(esm->code, &arg->data, head.len) != 0)
 		return -EFAULT;
 
+	dma_sync_single_for_device(&esm->esm_code_dev, esm->code_base,
+			esm->code_size, DMA_TO_DEVICE);
+
 	/* esm->code_loaded = 1; */
 	return 0;
 }
@@ -127,6 +132,9 @@ static long write_data(struct esm_device *esm, struct esm_ioc_data __user *arg)
 
 	if (copy_from_user(esm->data + head.offset, &arg->data, head.len) != 0)
 		return -EFAULT;
+
+	dma_sync_single_for_device(&esm->esm_data_dev, esm->data_base,
+			esm->data_size, DMA_TO_DEVICE);
 
 	return 0;
 }
@@ -167,6 +175,8 @@ static long set_data(struct esm_device *esm, void __user *arg)
 		return -ENOSPC;
 
 	memset(esm->data + u.data.offset, u.data.data[0], u.data.len);
+	dma_sync_single_for_device(&esm->esm_data_dev, esm->data_base,
+			esm->data_size, DMA_TO_DEVICE);
 	return 0;
 }
 
@@ -239,15 +249,23 @@ static struct dentry *esm_debugfs;
 
 static void free_dma_areas(struct esm_device *esm)
 {
+	unsigned int order;
+
 	if (!esm->code_is_phys_mem && esm->code) {
-		dma_free_coherent(NULL, esm->code_size, esm->code,
-				  esm->code_base);
+		order = get_order(esm->code_size);
+		dma_unmap_single(&esm->esm_code_dev, (unsigned long)esm->code_base,
+							esm->code_size,
+							DMA_BIDIRECTIONAL);
+		free_pages((unsigned long)esm->code, order);
 		esm->code = NULL;
 	}
 
 	if (!esm->data_is_phys_mem && esm->data) {
-		dma_free_coherent(NULL, esm->data_size, esm->data,
-				  esm->data_base);
+		order = get_order(esm->data_size);
+		dma_unmap_single(&esm->esm_data_dev, (unsigned long)esm->data_base,
+							esm->data_size,
+							DMA_BIDIRECTIONAL);
+		free_pages((unsigned long)esm->data, order);
 		esm->data = NULL;
 	}
 
@@ -258,6 +276,7 @@ static int alloc_dma_areas(struct esm_device *esm,
 			   const struct esm_ioc_meminfo *info)
 {
 	char blobname[32];
+	unsigned int order;
 
 	esm->code_size = info->code_size;
 	esm->code_is_phys_mem = (info->code_base != 0);
@@ -272,11 +291,14 @@ static int alloc_dma_areas(struct esm_device *esm,
 			&esm->esm_code_dev.coherent_dma_mask;
 		of_dma_configure(&esm->esm_code_dev, esm->esm_code_dev.of_node,
 				 true);
-		esm->code = dma_alloc_coherent(&esm->esm_code_dev,
-					       esm->code_size,
-					       &esm->code_base,
-					       GFP_KERNEL);
-		pr_info("the esm code address is %p\n", esm->code);
+		order = get_order(esm->code_size);
+		esm->code = (u8 *)__get_free_pages(GFP_DMA32, order);
+		if (!esm->code)
+			return -ENOMEM;
+		esm->code_base = dma_map_single(&esm->esm_code_dev, (void *)esm->code,
+						esm->code_size,
+						DMA_BIDIRECTIONAL);
+		pr_info("the esm code address is %px\n", esm->code);
 		if (!esm->code) {
 			free_dma_areas(esm);
 			return -ENOMEM;
@@ -295,11 +317,14 @@ static int alloc_dma_areas(struct esm_device *esm,
 			&esm->esm_data_dev.coherent_dma_mask;
 		of_dma_configure(&esm->esm_data_dev, esm->esm_data_dev.of_node,
 				 true);
-		esm->data = dma_alloc_coherent(&esm->esm_data_dev,
-					       esm->data_size,
-					       &esm->data_base,
-					       GFP_KERNEL);
-		pr_info("the esm data address is %p\n", esm->data);
+		order = get_order(esm->data_size);
+		esm->data = (u8 *)__get_free_pages(GFP_DMA32, order);
+		if (!esm->data)
+			return -ENOMEM;
+		esm->data_base = dma_map_single(&esm->esm_data_dev, (void *)esm->data,
+						esm->data_size,
+						DMA_BIDIRECTIONAL);
+		pr_info("the esm data address is %px\n", esm->data);
 		if (!esm->data) {
 			free_dma_areas(esm);
 			return -ENOMEM;
@@ -337,6 +362,11 @@ static long init(struct file *f, void __user *arg)
 
 	if (copy_from_user(&info, arg, sizeof(info)) != 0)
 		return -EFAULT;
+
+	if (info.code_size > MAX_ESM_SIZE)
+		info.code_size = MAX_ESM_SIZE;
+	if (info.data_size > MAX_ESM_SIZE)
+		info.data_size = MAX_ESM_SIZE;
 
 	esm = alloc_esm_slot(&info);
 	if (!esm)
