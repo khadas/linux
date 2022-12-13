@@ -11,7 +11,7 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "s4d_s805c3_aq2432_512m_nand";
+	amlogic-dt-id = "s4d_s805c3_t215-512m";
 	compatible = "amlogic, s4d";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
