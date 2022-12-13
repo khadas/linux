@@ -568,7 +568,7 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
 	#else
 		/*
 		 * CMA allocation time out, for example:
-		 * 1. set isoaltion failed.
+		 * 1. set isolation failed.
 		 * 2. refcout and mapcount mismatch.
 		 * may blocked on some pages, relax CPU and try later.
 		 */
