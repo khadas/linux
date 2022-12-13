@@ -1515,12 +1515,10 @@
 
 &i2s0_8ch {
 	status = "okay";
-	rockchip,bclk-fs = <32>;
 	pinctrl-0 = <&i2s0_lrck
 		     &i2s0_sclk
 		     &i2s0_sdi0
 		     &i2s0_sdo0>;
-	rockchip,always-on;
 };
 
 &iep {
