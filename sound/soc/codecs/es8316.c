@@ -746,7 +746,7 @@ static void es8316_pcm_shutdown(struct snd_pcm_substream *substream,
 	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 
 	if (playback) {
-		snd_soc_component_write(component, ES8316_CPHP_OUTEN_REG17, 0x00);
+		/*snd_soc_component_write(component, ES8316_CPHP_OUTEN_REG17, 0x00);
 		snd_soc_component_write(component, ES8316_DAC_PDN_REG2F, 0x11);
 		snd_soc_component_write(component, ES8316_CPHP_LDOCTL_REG1B, 0x03);
 		snd_soc_component_write(component, ES8316_CPHP_PDN2_REG1A, 0x22);
@@ -759,7 +759,7 @@ static void es8316_pcm_shutdown(struct snd_pcm_substream *substream,
 		snd_soc_component_write(component, ES8316_SYS_LP2_REG0F, 0xFF);
 		snd_soc_component_update_bits(component, ES8316_CLKMGR_CLKSW_REG01,
 				    ES8316_CLKMGR_DAC_ANALOG_MASK,
-				    ES8316_CLKMGR_DAC_ANALOG_DIS);
+				    ES8316_CLKMGR_DAC_ANALOG_DIS);*/
 	} else {
 		if (es8316->hp_inserted)
 			snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL_REG22, 0xd0);
@@ -775,7 +775,7 @@ static void es8316_pcm_shutdown(struct snd_pcm_substream *substream,
 	if (--es8316->pwr_count == 0) {
 		if (!es8316->hp_inserted)
 			snd_soc_component_write(component, ES8316_SYS_PDN_REG0D, 0x3F);
-		snd_soc_component_write(component, ES8316_CLKMGR_CLKSW_REG01, 0xF3);
+		//snd_soc_component_write(component, ES8316_CLKMGR_CLKSW_REG01, 0xF3);
 	}
 }
 
@@ -1087,6 +1087,7 @@ static void hp_work(struct work_struct *work)
 		enable = !enable;
 
 	es8316->hp_inserted = enable ? true : false;
+	printk("hp irq es8316->hp_inserted=%d\n", es8316->hp_inserted);
 	if (!es8316->muted) {
 		if (es8316->hp_inserted)
 			es8316_enable_spk(es8316, false);
@@ -1133,7 +1134,7 @@ static int es8316_probe(struct snd_soc_component *component)
 					      0x3F);
 			snd_soc_component_write(component, ES8316_SYS_LP1_REG0E, 0xFF);
 			snd_soc_component_write(component, ES8316_SYS_LP2_REG0F, 0xFF);
-			snd_soc_component_write(component, ES8316_CLKMGR_CLKSW_REG01, 0xF3);
+			snd_soc_component_write(component, ES8316_CLKMGR_CLKSW_REG01, 0x77);
 			if (es8316->hp_inserted)
 				snd_soc_component_write(component, ES8316_ADC_PDN_LINSEL_REG22, 0xd0);
 			else
