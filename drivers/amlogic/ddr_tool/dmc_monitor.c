@@ -500,6 +500,7 @@ static ssize_t debug_show(struct class *cla,
 }
 static CLASS_ATTR_RW(debug);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
 static ssize_t dev_access_store(struct class *cla,
 			  struct class_attribute *attr,
 			  const char *buf, size_t count)
@@ -524,13 +525,16 @@ static ssize_t dev_access_show(struct class *cla,
 	return show_dmc_notifier_list(buf);
 }
 static CLASS_ATTR_RW(dev_access);
+#endif
 
 static struct attribute *dmc_monitor_attrs[] = {
 	&class_attr_range.attr,
 	&class_attr_device.attr,
 	&class_attr_dump.attr,
 	&class_attr_debug.attr,
+#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
 	&class_attr_dev_access.attr,
+#endif
 	NULL
 };
 ATTRIBUTE_GROUPS(dmc_monitor);

@@ -108,6 +108,14 @@ config AMLOGIC_DMC_MONITOR
 		hardware. If hardware violated R/W permission, then interrupt
 		will generated and can help to debug memory pollution.
 
+config AMLOGIC_DMC_DEV_ACCESS
+	bool "Amlogic dmc dev access"
+	depends on AMLOGIC_DMC_MONITOR
+	default n
+	help
+		DMC monitor for device dma access control.
+		set y if want to support to dmc dev access test.
+
 config AMLOGIC_DMC_MONITOR_G12
 	bool "Amlogic dmc monitor for G12"
 	depends on AMLOGIC_DMC_MONITOR
