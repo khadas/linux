@@ -91,6 +91,8 @@ struct dw9714_device {
 	struct __kernel_old_timeval end_move_tv;
 	unsigned long move_ms;
 
+	struct gpio_desc    *focus_gpio;
+
 	u32 module_index;
 	const char *module_facing;
 	struct rk_cam_vcm_cfg vcm_cfg;
@@ -1243,6 +1245,13 @@ static int dw9714_parse_dt_property(struct i2c_client *client,
 	dev_vcm->xsd_gpio = devm_gpiod_get(&client->dev, "xsd", GPIOD_OUT_HIGH);
 	if (IS_ERR(dev_vcm->xsd_gpio))
 		dev_warn(&client->dev, "Failed to get xsd-gpios\n");
+
+	dev_vcm->focus_gpio = devm_gpiod_get(&client->dev, "focus", GPIOD_ASIS);
+	if (IS_ERR(dev_vcm->focus_gpio))
+		dev_warn(&client->dev, "Failed to get focus-gpios\n");
+
+	if (!IS_ERR(dev_vcm->focus_gpio))
+		gpiod_direction_output(dev_vcm->focus_gpio, 1);
 
 	ret = of_property_read_u32(np, RKMODULE_CAMERA_MODULE_INDEX,
 				   &dev_vcm->module_index);
