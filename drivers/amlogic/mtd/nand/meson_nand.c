@@ -829,9 +829,10 @@ static int meson_nfc_read_page_sub(struct nand_chip *nand,
 	}
 
 	ret = meson_nfc_wait_dma_finish(nfc);
-	meson_nfc_check_ecc_pages_valid(nfc, nand, raw);
 
+	/* first unmap dma ,then read the info data, */
 	meson_nfc_dma_buffer_release(nand, data_len, info_len, DMA_FROM_DEVICE);
+	meson_nfc_check_ecc_pages_valid(nfc, nand, raw);
 
 	return ret;
 }
