@@ -10,9 +10,10 @@
 #define HWKEY_TAG_LEN 16
 
 struct aes_gcm_ctx {
-	int init;
-	unsigned int idx;
-	int do_encrypt;
+	s32 init;
+	u32 idx;
+	s32 do_encrypt;
+	u32 smc_call_id;
 };
 
 /*

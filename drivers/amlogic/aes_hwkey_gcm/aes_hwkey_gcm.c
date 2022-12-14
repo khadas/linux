@@ -11,6 +11,8 @@
 #include <linux/uaccess.h>
 #include <linux/amlogic/secmon.h>
 #include <linux/arm-smccc.h>
+#include <linux/platform_device.h>
+#include <linux/of_device.h>
 
 //#define AHG_TEST
 
@@ -22,7 +24,7 @@
 
 /* Must be kept in sync with bl31: */
 
-/* bl31 cmd id: */
+/* bl31 cmd id, not used directly */
 #define AES_GCM_HUK     0x82000071
 /* cmd sub-function id: */
 #define AES_HWKEY_GCM_FID_INIT   0x120
@@ -42,6 +44,10 @@
 #ifndef HWKEY_TAG_LEN
   #define HWKEY_TAG_LEN 16
 #endif
+
+struct aes_hwkey_gcm_dev {
+	u32 smc_call_id;
+};
 
 struct data_head {
 	u32 cmd;
@@ -69,6 +75,8 @@ struct tag_data {
 	u32 len;
 	u8	tag[HWKEY_TAG_LEN];
 };
+
+static struct aes_hwkey_gcm_dev aes_hwkey_gcm_device;
 
 /* /Must be kept in sync with bl31 */
 static void __iomem *sharemem_output;
@@ -112,11 +120,12 @@ int aes_hwkey_gcm_init(struct aes_gcm_ctx *ctx,
 		return -EINVAL;
 
 	memset(ctx, 0, sizeof(struct aes_gcm_ctx));
+	ctx->smc_call_id = aes_hwkey_gcm_device.smc_call_id;
 	dp = (struct init_data *)sharemem_input;
 
 	meson_sm_mutex_lock();
 	memset(dp, 0, sizeof(struct init_data));
-	dp->h.cmd = AES_GCM_HUK;
+	dp->h.cmd = ctx->smc_call_id;
 	dp->h.fid = AES_HWKEY_GCM_FID_INIT;
 	dp->h.flag = do_encrypt ? FLAG_ENCRYPT : FLAG_DECRYPT;
 	memcpy(&dp->iv[0], iv, HWKEY_IV_LEN);
@@ -162,7 +171,7 @@ int aes_hwkey_gcm_process(struct aes_gcm_ctx *ctx,
 
 	meson_sm_mutex_lock();
 	memset(dp, 0, sizeof(struct add_data));
-	dp->h.cmd = AES_GCM_HUK;
+	dp->h.cmd = ctx->smc_call_id;
 	dp->h.fid = AES_HWKEY_GCM_FID_ADD;
 	dp->h.idx = ctx->idx;
 	dp->h.flag = ctx->do_encrypt ? FLAG_ENCRYPT : FLAG_DECRYPT;
@@ -174,7 +183,7 @@ int aes_hwkey_gcm_process(struct aes_gcm_ctx *ctx,
 
 	if (r == 0) {
 		dp = (struct add_data *)sharemem_output;
-		if (dp->h.cmd == AES_GCM_HUK &&
+		if (dp->h.cmd == ctx->smc_call_id &&
 				dp->h.fid == AES_HWKEY_GCM_FID_ADD &&
 				dp->h.idx == ctx->idx)
 			memcpy(out, &dp->data[0], len);
@@ -202,7 +211,7 @@ int aes_hwkey_gcm_get_tag(struct aes_gcm_ctx *ctx, u8 *tag)
 
 	meson_sm_mutex_lock();
 	memset(dp, 0, sizeof(struct tag_data));
-	dp->h.cmd = AES_GCM_HUK;
+	dp->h.cmd = ctx->smc_call_id;
 	dp->h.fid = AES_HWKEY_GCM_FID_FINAL;
 	dp->h.idx = ctx->idx;
 	dp->h.flag = ctx->do_encrypt ? FLAG_ENCRYPT : FLAG_DECRYPT;
@@ -211,7 +220,7 @@ int aes_hwkey_gcm_get_tag(struct aes_gcm_ctx *ctx, u8 *tag)
 	memcpy(dp, sharemem_output, sizeof(struct tag_data));
 	meson_sm_mutex_unlock();
 
-	if (r || dp->h.cmd != AES_GCM_HUK ||
+	if (r || dp->h.cmd != ctx->smc_call_id ||
 			dp->h.fid != AES_HWKEY_GCM_FID_FINAL ||
 			dp->h.idx != ctx->idx)
 		return -ENOENT;
@@ -292,18 +301,51 @@ end:
 }
 #endif //AHG_TEST
 
+static int aes_hwkey_gcm_probe(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+	u32 id;
+	int ret = 0;
+
+	memset(&aes_hwkey_gcm_device, 0, sizeof(aes_hwkey_gcm_device));
+
+	if (!of_property_read_u32(np, "aes_gcm_huk_smc_id", &id))
+		aes_hwkey_gcm_device.smc_call_id = id;
+	else
+		ret = -ENODATA;
+
+	return ret;
+}
+
+static const struct of_device_id aes_hwkey_gcm_dt_match[] = {
+	{ .compatible = "amlogic, aes_hwkey_gcm" },
+	{ /* sentinel */ },
+};
+
+static  struct platform_driver aes_hwkey_gcm_platform_driver = {
+	.probe		= aes_hwkey_gcm_probe,
+	.driver		= {
+		.owner		= THIS_MODULE,
+		.name		= "aes_hwkey_gcm",
+		.of_match_table	= aes_hwkey_gcm_dt_match,
+	},
+};
+
 int __init aes_hwkey_gcm_device_init(void)
 {
+	int ret;
+
 	sharemem_output = get_meson_sm_output_base();
 	sharemem_input = get_meson_sm_input_base();
 	if (!sharemem_output || !sharemem_input) {
 		pr_err("sharemem fail\n");
 		return -ENOMEM;
 	}
+	ret = platform_driver_register(&aes_hwkey_gcm_platform_driver);
 #ifdef AHG_TEST
 	test_a();
 #endif //AHG_TEST
-	return 0;
+	return ret;
 }
 
 /* Called after secmon (module_init()) */
