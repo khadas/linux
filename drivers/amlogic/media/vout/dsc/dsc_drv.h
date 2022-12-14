@@ -9,6 +9,9 @@
 #include <linux/hdmi.h>
 #include <linux/cdev.h>
 
+/* 20221216:DSC implement 8K 444 format */
+#define DSC_DRV_VER "20221216:DSC implement 8K 444 format"
+
 #define DSC_TIMING_MAX			4
 #define DSC_TIMING_VALUE_MAX		13
 
@@ -28,9 +31,15 @@ enum dsc_chip_e {
 };
 
 enum dsc_encode_mode {
+	DSC_RGB_3840X2160_60HZ,
 	DSC_YUV444_3840X2160_60HZ,
+	DSC_RGB_3840X2160_120HZ,
+	DSC_YUV444_3840X2160_120HZ,
 	DSC_YUV422_3840X2160_120HZ,
+	DSC_YUV420_3840X2160_120HZ,
+	DSC_RGB_7680X4320_60HZ,
 	DSC_YUV444_7680X4320_60HZ,
+	DSC_YUV422_7680X4320_60HZ,
 	DSC_YUV420_7680X4320_60HZ,
 	DSC_ENCODE_MAX,
 };
@@ -107,7 +116,6 @@ struct aml_dsc_drv_s {
 	unsigned int somewhat_flat_qp_thresh;
 	unsigned int slice_num_m1;//pic_width/slice_width;
 	unsigned int clr_ssm_fifo_sts;//1 to 0 clear ro_cx_sx_cb_under_flow
-	unsigned int dsc_enc_en;
 	unsigned int dsc_enc_frm_latch_en;// need to check ucode
 	unsigned int pix_per_clk;// input 4*36 config 2^2
 	unsigned int inbuf_rd_dly0;// const value check ucode
@@ -151,9 +159,13 @@ struct aml_dsc_drv_s {
 	bool hc_active_odd_mode;
 	unsigned int hc_htotal_offs_oddline;
 	unsigned int hc_htotal_offs_evenline;
-	unsigned int fps;
+	unsigned int fps; //actual value = fps * 1000
 	enum hdmi_colorspace color_format;
 	enum dsc_encode_mode dsc_mode;
+	unsigned int h_total;
+	unsigned int v_total;
+	unsigned int enc0_clk;
+	unsigned int cts_hdmi_tx_pixel_clk;
 };
 
 //===========================================================================

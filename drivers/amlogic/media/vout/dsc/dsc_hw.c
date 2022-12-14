@@ -138,18 +138,19 @@ static void dsc_config_timing_register(struct aml_dsc_drv_s *dsc_drv)
 	W_DSC_BIT(DSC_ASIC_CTRL18, dsc_drv->hc_vtotal_m1, HC_VTOTAL_M1, HC_VTOTAL_M1_WID);
 	W_DSC_BIT(DSC_ASIC_CTRL18, dsc_drv->hc_htotal_m1, HC_HTOTAL_M1, HC_HTOTAL_M1_WID);
 
-	if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_VPU_BIST_TMG_CTRL)) {
+	if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_VPU_BIST_TMG_CTRL) ||
+	    dsc_drv->encp_timing_ctrl.encp_dvi_hso_begin != 0) {
 		//bist set
 		dsc_vcbus_reg_write(ENCP_DVI_HSO_BEGIN, encp_timing_ctrl.encp_dvi_hso_begin);
 		dsc_vcbus_reg_write(ENCP_DVI_HSO_END, encp_timing_ctrl.encp_dvi_hso_end);
 		dsc_vcbus_reg_write(ENCP_DVI_VSO_BLINE_EVN, encp_timing_ctrl.encp_vso_bline);
 		dsc_vcbus_reg_write(ENCP_DVI_VSO_ELINE_EVN, encp_timing_ctrl.encp_vso_eline);
-		dsc_vcbus_reg_write(ENCP_DVI_VSO_BEGIN_EVN, encp_timing_ctrl.encp_dvi_hso_begin);
-		dsc_vcbus_reg_write(ENCP_DVI_VSO_END_EVN, encp_timing_ctrl.encp_dvi_hso_end);
+		dsc_vcbus_reg_write(ENCP_DVI_VSO_BEGIN_EVN, encp_timing_ctrl.encp_vso_begin);
+		dsc_vcbus_reg_write(ENCP_DVI_VSO_END_EVN, encp_timing_ctrl.encp_vso_end);
 		dsc_vcbus_reg_write(ENCP_DE_H_BEGIN, encp_timing_ctrl.encp_de_h_begin);
 		dsc_vcbus_reg_write(ENCP_DE_H_END, encp_timing_ctrl.encp_de_h_end);
-		dsc_vcbus_reg_write(ENCP_DE_V_END_EVEN, encp_timing_ctrl.encp_de_v_end);
 		dsc_vcbus_reg_write(ENCP_DE_V_BEGIN_EVEN, encp_timing_ctrl.encp_de_v_begin);
+		dsc_vcbus_reg_write(ENCP_DE_V_END_EVEN, encp_timing_ctrl.encp_de_v_end);
 	}
 
 	if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_VPU_VIDEO_TMG_CTRL)) {
@@ -158,14 +159,12 @@ static void dsc_config_timing_register(struct aml_dsc_drv_s *dsc_drv)
 		dsc_vcbus_reg_write(ENCP_VIDEO_HSO_END, encp_timing_ctrl.encp_hso_end);
 		dsc_vcbus_reg_write(ENCP_VIDEO_VSO_BLINE, encp_timing_ctrl.encp_video_vso_bline);
 		dsc_vcbus_reg_write(ENCP_VIDEO_VSO_ELINE, encp_timing_ctrl.encp_video_vso_eline);
-		dsc_vcbus_reg_write(ENCP_VIDEO_VSO_BEGIN, 0);
-		dsc_vcbus_reg_write(ENCP_VIDEO_VSO_END, 0);
+		dsc_vcbus_reg_write(ENCP_VIDEO_VSO_BEGIN, encp_timing_ctrl.encp_video_vso_begin);
+		dsc_vcbus_reg_write(ENCP_VIDEO_VSO_END, encp_timing_ctrl.encp_video_vso_end);
 		dsc_vcbus_reg_write(ENCP_VIDEO_HAVON_BEGIN, encp_timing_ctrl.encp_havon_begin);
 		dsc_vcbus_reg_write(ENCP_VIDEO_HAVON_END, encp_timing_ctrl.encp_havon_end);
 		dsc_vcbus_reg_write(ENCP_VIDEO_VAVON_BLINE, encp_timing_ctrl.encp_vavon_bline);
 		dsc_vcbus_reg_write(ENCP_VIDEO_VAVON_ELINE, encp_timing_ctrl.encp_vavon_eline);
-		dsc_vcbus_reg_write(ENCP_VIDEO_MAX_PXCNT, encp_timing_ctrl.v_total);
-		dsc_vcbus_reg_write(ENCP_VIDEO_MAX_LNCNT, encp_timing_ctrl.h_total);
 	}
 }
 

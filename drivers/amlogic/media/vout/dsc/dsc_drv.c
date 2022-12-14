@@ -160,34 +160,42 @@ static inline void dsc_get_notify_value(struct aml_dsc_drv_s *dsc_drv,
 	}
 }
 
-static inline enum dsc_encode_mode dsc_select_encode_mode(struct aml_dsc_drv_s *dsc_drv)
+void hdmitx_get_dsc_data(struct dsc_offer_tx_data *dsc_data)
 {
-	if (dsc_drv->pps_data.pic_width == 3840 &&
-	    dsc_drv->pps_data.pic_height == 2160)
-		return DSC_YUV444_3840X2160_60HZ;
-	else if (dsc_drv->pps_data.pic_width == 7680 &&
-	    dsc_drv->pps_data.pic_height == 4320)
-		return DSC_YUV420_7680X4320_60HZ;
-	else
-		return DSC_ENCODE_MAX;
+	struct aml_dsc_drv_s *dsc_drv = dsc_drv_get();
+
+	if (!dsc_drv || !dsc_data) {
+		DSC_PR("dsc_drv or notifier_data is null\n");
+		return;
+	}
+	memcpy(&dsc_data->pps_data, &dsc_drv->pps_data, sizeof(dsc_drv->pps_data));
+	dsc_data->enc0_clk = dsc_drv->enc0_clk;
+	dsc_data->cts_hdmi_tx_pixel_clk = dsc_drv->cts_hdmi_tx_pixel_clk;
 }
 
-void hdmitx_get_pps_data(struct dsc_notifier_data_s *notifier_data)
+static void dsc_get_notifier_data(struct aml_dsc_drv_s *dsc_drv,
+				 struct dsc_notifier_data_s *notifier_data)
+{
+	if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_PIC_W_H)) {
+		dsc_drv->pps_data.pic_width = notifier_data->pic_width;
+		dsc_drv->pps_data.pic_height = notifier_data->pic_height;
+	}
+
+	if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_VIDEO_FPS))
+		dsc_drv->fps = notifier_data->fps;
+
+	if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_BITS_PER_COMPONENT))
+		dsc_drv->color_format = notifier_data->bits_per_component;
+
+	if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_COLOR_FORMAT))
+		dsc_drv->color_format = notifier_data->color_format;
+}
+
+int aml_set_dsc_mode(bool on_off, struct dsc_notifier_data_s *notifier_data)
 {
 	struct aml_dsc_drv_s *dsc_drv = dsc_drv_get();
 
 	if (!dsc_drv || !notifier_data) {
-		DSC_PR("dsc_drv or notifier_data is null\n");
-		return;
-	}
-	memcpy(&notifier_data->pps_data, &dsc_drv->pps_data, sizeof(dsc_drv->pps_data));
-}
-
-int aml_set_dsc_mode(bool on_off, enum hdmi_colorspace color_space)
-{
-	struct aml_dsc_drv_s *dsc_drv = dsc_drv_get();
-
-	if (!dsc_drv) {
 		DSC_ERR("%s: dsc_drv is null\n", __func__);
 		return -1;
 	}
@@ -197,28 +205,7 @@ int aml_set_dsc_mode(bool on_off, enum hdmi_colorspace color_space)
 		return 0;
 	}
 
-	if (color_space == HDMI_COLORSPACE_YUV420) {
-		dsc_drv->pps_data.pic_width = 7680;
-		dsc_drv->pps_data.pic_height = 4320;
-		dsc_drv->color_format = HDMI_COLORSPACE_YUV420;
-		dsc_drv->fps = 60;
-		dsc_drv->pps_data.slice_width = 1920;
-		dsc_drv->pps_data.slice_height = 108;
-		dsc_drv->pps_data.bits_per_pixel = 238;
-		dsc_drv->pps_data.bits_per_component = 12;
-	} else if (color_space == HDMI_COLORSPACE_YUV444) {
-		dsc_drv->pps_data.pic_width = 7680;
-		dsc_drv->pps_data.pic_height = 4320;
-		dsc_drv->color_format = HDMI_COLORSPACE_YUV444;
-		dsc_drv->fps = 60;
-		dsc_drv->pps_data.slice_width = 960;
-		dsc_drv->pps_data.slice_height = 2160;
-		dsc_drv->pps_data.bits_per_pixel = 159;
-		dsc_drv->pps_data.bits_per_component = 8;
-	} else {
-		DSC_ERR("%s: dsc_drv %x is error\n", __func__, color_space);
-	}
-
+	dsc_get_notifier_data(dsc_drv, notifier_data);
 	calculate_dsc_data(dsc_drv);
 	dsc_config_register(dsc_drv);
 	set_dsc_en(1);

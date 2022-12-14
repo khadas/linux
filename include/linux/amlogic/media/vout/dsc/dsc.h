@@ -68,38 +68,29 @@ struct dsc_pps_data_s {
 	unsigned int hc_active_bytes;
 };
 
+struct dsc_offer_tx_data {
+	struct dsc_pps_data_s pps_data;
+	unsigned int enc0_clk;
+	unsigned int cts_hdmi_tx_pixel_clk;
+};
+
 struct dsc_notifier_data_s {
 	unsigned int pic_width;
 	unsigned int pic_height;
-	unsigned int fps;
+	unsigned int fps; //actual value = fps * 1000
+	unsigned int bits_per_component; //color depth
 	enum hdmi_colorspace color_format;
-	struct dsc_pps_data_s pps_data;
 };
 
-int aml_set_dsc_mode(bool on_off, enum hdmi_colorspace color_space);
-void hdmitx_get_pps_data(struct dsc_notifier_data_s *notifier_data);
+//hdmitx inform dsc video format
+int aml_set_dsc_mode(bool on_off, struct dsc_notifier_data_s *notifier_data);
+//hdmitx get dsc data
+void hdmitx_get_dsc_data(struct dsc_offer_tx_data *dsc_data);
 
-//#ifdef CONFIG_AMLOGIC_MEDIA_VRR
 /* atomic notify */
 int aml_dsc_atomic_notifier_register(struct notifier_block *nb);
 int aml_dsc_atomic_notifier_unregister(struct notifier_block *nb);
 int aml_dsc_atomic_notifier_call_chain(unsigned long event, void *v);
-//#else
-//static inline int aml_dsc_atomic_notifier_register(struct notifier_block *nb)
-//{
-//	return 0;
-//}
-//
-//static inline int aml_dsc_atomic_notifier_unregister(struct notifier_block *nb)
-//{
-//	return 0;
-//}
-//
-//static inline int aml_dsc_atomic_notifier_call_chain(unsigned long event,
-//						     void *v)
-//{
-//	return 0;
-//}
-//#endif
+
 
 #endif
