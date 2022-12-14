@@ -249,22 +249,22 @@ void ofdm_initial(int bandwidth,
 	    IF, mode, tc_mode);
 	switch (IF) {
 	case 0:
-		ch_if = 36130;
+		ch_if = DEMOD_36_13M_IF;
 		break;
 	case 1:
-		ch_if = -5500;
+		ch_if = (-1) * DEMOD_5_5M_IF;
 		break;
 	case 2:
-		ch_if = 4570;
+		ch_if = DEMOD_4_57M_IF;
 		break;
 	case 3:
-		ch_if = 4000;
+		ch_if = DEMOD_4M_IF;
 		break;
 	case 4:
-		ch_if = 5000;
+		ch_if = DEMOD_5M_IF;
 		break;
 	default:
-		ch_if = 4000;
+		ch_if = DEMOD_4M_IF;
 		break;
 	}
 	switch (samplerate) {

@@ -319,7 +319,7 @@ int dvbc_set_ch(struct aml_dtvdemod *demod, struct aml_demod_dvbc *demod_dvbc,
 	demod->demod_status.ch_freq = ch_freq;
 	demod->demod_status.ch_bw = 8000;
 	if (demod->demod_status.ch_if == 0)
-		demod->demod_status.ch_if = 5000;
+		demod->demod_status.ch_if = DEMOD_5M_IF;
 	demod->demod_status.symb_rate = symb_rate;
 
 	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))

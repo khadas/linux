@@ -417,7 +417,13 @@ static void adc_set_dtvdemod_pll_by_delsys(struct tvin_adc_dev *devp,
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		if (chip == ADC_CHIP_S4D) {
-			adc_wr_hiu(0xd0, 0x49209007);
+			if (p_dtv_para->pga_gain == 2)
+				adc_wr_hiu(0xd0, 0x49209007);
+			else if (p_dtv_para->pga_gain == 1)
+				adc_wr_hiu(0xd0, 0x45209007);
+			else
+				adc_wr_hiu(0xd0, 0x41209007);
+
 			adc_wr_hiu(pll_addr->adc_pll_cntl_0 + reg_offset, 0x20070487);
 			adc_wr_hiu(pll_addr->adc_pll_cntl_0 + reg_offset, 0x30070487);
 			adc_wr_hiu(pll_addr->adc_pll_cntl_1 + reg_offset, 0x01000000);

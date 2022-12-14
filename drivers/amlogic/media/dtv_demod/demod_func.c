@@ -588,6 +588,11 @@ void clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk)
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
 	ddemod_pll.delsys = demod->demod_status.delsys;
 	ddemod_pll.adc_clk = adc_clk;
+	if (tuner_find_by_name(&demod->frontend, "av2018"))
+		ddemod_pll.pga_gain = 2;
+	else
+		ddemod_pll.pga_gain = 0;
+
 	sts_pll = adc_set_pll_cntl(1, ADC_DTV_DEMOD, &ddemod_pll);
 #endif
 	if (sts_pll < 0) {

@@ -5,6 +5,7 @@
 
 #include "demod_func.h"
 #include "aml_demod.h"
+#include "atsc_func.h"
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
@@ -822,7 +823,7 @@ void atsc_reset_new(void)
 	atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val_0x20.bits);
 }
 
-void cci_run_new(struct amldtvdemod_device_s *devp)
+void cci_run_new(struct aml_dtvdemod *demod)
 {
 	unsigned int result[4] = { 0 }, bin[4] = { 0 }, power[4] = { 0 };
 	unsigned int max_p[8] = { 0 }, max_b[8] = { 0 }, ck0 = 0, offset = 0;
@@ -830,6 +831,7 @@ void cci_run_new(struct amldtvdemod_device_s *devp)
 	unsigned int avg_len = 200, threshold = 0;
 	union ATSC_EQ_REG_0X92_BITS val_0x92 = { 0 };
 	unsigned int time[3] = { 0 };
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
 	time[0] = jiffies_to_msecs(jiffies);
 	PR_ATSC("%s: [atsc_time][start......]\n", __func__);
@@ -1059,7 +1061,72 @@ void cci_run_new(struct amldtvdemod_device_s *devp)
 			jiffies_to_msecs(jiffies) - time[0]);
 }
 
-void set_cr_ck_rate_new(void)
+unsigned int atsc_check_cci(struct aml_dtvdemod *demod)
+{
+	unsigned int fsm_status = 0;
+	int time[10] = { 0 }, time_table[10] = { 0 };
+	unsigned int ret = CFO_FAIL;
+	unsigned int i = 0;
+
+	fsm_status = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E);
+	PR_ATSC("fsm[%x]not lock,need to run cci\n", fsm_status);
+	time[0] = jiffies_to_msecs(jiffies);
+	set_cr_ck_rate_new(demod);
+	time[1] = jiffies_to_msecs(jiffies);
+	time_table[0] = (time[1] - time[0]);
+	fsm_status = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E);
+	PR_ATSC("fsm[%x][atsc_time]cci finish cost %d ms\n",
+		fsm_status, time_table[0]);
+	if (fsm_status >= ATSC_LOCK) {
+		goto exit;
+	} else if (fsm_status >= CR_PEAK_LOCK) {
+	//else if (fsm_status < CR_LOCK) {
+		//ret = cfo_run_new();
+	//}
+
+		ret = CFO_OK;
+		//msleep(100);
+	}
+
+	time[2] = jiffies_to_msecs(jiffies);
+	time_table[1] = (time[2] - time[1]);
+	//PR_ATSC("fsm[%x][atsc_time]cfo done,cost %d ms,\n",
+		//atsc_read_reg_v4(ATSC_CNTR_REG_0X2E), time_table[1]);
+
+	if (ret == CFO_FAIL)
+		goto exit;
+
+	cci_run_new(demod);
+	ret = 2;
+
+	for (i = 0; i < 2; i++) {
+		fsm_status = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E);
+		if (fsm_status >= ATSC_LOCK) {
+			time[3] = jiffies_to_msecs(jiffies);
+			PR_ATSC("----------------------\n");
+			time_table[2] = (time[3] - time[2]);
+			time_table[3] = (time[3] - time[0]);
+			time_table[4] = (time[3] - time[5]);
+			PR_ATSC("fsm[%x][atsc_time]fec lock cost %d ms\n",
+				fsm_status, time_table[2]);
+			PR_ATSC("fsm[%x][atsc_time]lock,one cost %d ms,\n",
+				fsm_status, time_table[3]);
+			break;
+		} else if (fsm_status <= IDLE) {
+			PR_ATSC("atsc idle,retune, and reset\n");
+			set_cr_ck_rate_new(demod);
+			atsc_reset_new();
+			break;
+		}
+
+		msleep(20);
+	}
+
+exit:
+	return ret;
+}
+
+void set_cr_ck_rate_new(struct aml_dtvdemod *demod)
 {
 	union ATSC_DEMOD_REG_0X6A_BITS val_0x6a;
 	union ATSC_EQ_REG_0XA5_BITS val_0xa5;
@@ -1069,15 +1136,19 @@ void set_cr_ck_rate_new(void)
 
 	//Read Reg
 	val_0x6a.bits = atsc_read_reg(ATSC_DEMOD_REG_0X6A);
-	val_0xa5.bits =	atsc_read_reg(ATSC_EQ_REG_0XA5);
-	val_0x54.bits =	atsc_read_reg(ATSC_DEMOD_REG_0X54);
-	val_0x55.bits =	atsc_read_reg(ATSC_DEMOD_REG_0X55);
-	val_0x6e.bits =	atsc_read_reg(ATSC_DEMOD_REG_0X6E);
+	val_0xa5.bits = atsc_read_reg(ATSC_EQ_REG_0XA5);
+	val_0x54.bits = atsc_read_reg(ATSC_DEMOD_REG_0X54);
+	val_0x55.bits = atsc_read_reg(ATSC_DEMOD_REG_0X55);
+	val_0x6e.bits = atsc_read_reg(ATSC_DEMOD_REG_0X6E);
 
 	//Set Reg
 	val_0x6a.b.peak_thd = 0x6;//Let CCFO Quality over 6
-	val_0xa5.bits =	0x8c;//increase state 2 to state 3
-	val_0x54.bits = 0x1aaaaa;//24m 5m if
+	val_0xa5.bits = 0x8c;//increase state 2 to state 3
+	if (tuner_find_by_name(&demod->frontend, "r842") &&
+		demod->demod_status.ch_if == DEMOD_4_57M_IF)
+		val_0x54.bits = 0x185F92; //4.57M IF.
+	else
+		val_0x54.bits = 0x1aaaaa; //5M IF.
 	val_0x55.bits = 0x3ae28d;//24m
 	val_0x6e.bits =	0x16e3600;
 
@@ -1110,7 +1181,7 @@ unsigned int cfo_run_new(void)
 	else
 		max_count = 1;//7;
 
-	fcent = SI2176_5M_IF * 1000;/*if*/
+	fcent = DEMOD_5M_IF;/*if khz*/
 	fs = ADC_CLK_24M;/*crystal*/
 	cfo_sta = 0;
 	cr_peak_sta = 0;
@@ -1194,7 +1265,7 @@ unsigned int cfo_run_new(void)
 int cfo_run(void)
 {
 	int cr_rate0, cr_rate1, cr_rate2, cr_rate;
-	int f_cent = SI2176_5M_IF * 1000;/* if */
+	int f_cent = DEMOD_5M_IF;/* if khz*/
 	int fs = ADC_CLK_24M;/* crystal */
 	int cfo_sta = UNLOCK, cr_peak_sta = UNLOCK;
 	unsigned int i, j;

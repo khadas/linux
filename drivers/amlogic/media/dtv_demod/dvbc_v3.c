@@ -11,9 +11,13 @@
 #include "demod_func.h"
 #include "dvbc_func.h"
 
-MODULE_PARM_DESC(dvbc_sym_agc, "\n\t\t dvbc_sym_agc");
-static unsigned int dvbc_sym_agc = 0xc;
-module_param(dvbc_sym_agc, int, 0644);
+MODULE_PARM_DESC(dvbc_agc_target, "\n\t\t dvbc_agc_target");
+static unsigned char dvbc_agc_target = 0xc;
+module_param(dvbc_agc_target, byte, 0644);
+
+MODULE_PARM_DESC(j83b_agc_target, "\n\t\t j83b_agc_target");
+static unsigned char j83b_agc_target = 0xe;
+module_param(j83b_agc_target, byte, 0644);
 
 u32 dvbc_get_status(struct aml_dtvdemod *demod)
 {
@@ -423,8 +427,13 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 		if (tuner_find_by_name(fe, "r842") ||
 			tuner_find_by_name(fe, "r836") ||
 			tuner_find_by_name(fe, "r850")) {
-			qam_write_reg(demod, 0x25,
-				(qam_read_reg(demod, 0x25) & 0xFFFFFFF0) | dvbc_sym_agc);
+			if (demod->atsc_mode == QAM_64 || demod->atsc_mode == QAM_256 ||
+				demod->atsc_mode == QAM_AUTO)
+				qam_write_reg(demod, 0x25,
+					(qam_read_reg(demod, 0x25) & 0xFFFFFFF0) | j83b_agc_target);
+			else
+				qam_write_reg(demod, 0x25,
+					(qam_read_reg(demod, 0x25) & 0xFFFFFFF0) | dvbc_agc_target);
 		}
 	}
 

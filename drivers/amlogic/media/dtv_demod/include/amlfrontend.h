@@ -64,6 +64,7 @@
 /*  V1.1.70  improve diseqc lnb control */
 /*  V1.1.71  fix dvbt2 ddr abnormal access */
 /*  V1.1.72  add tps cell id info and dmc notifier test */
+/*  V1.1.73  fix s ber and adc fga gain and atsc ch if */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -80,8 +81,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.72"
-#define DTVDEMOD_VER	"2022/12/13: add tps cell id info and dmc notifier test"
+#define AMLDTVDEMOD_VER "V1.1.73"
+#define DTVDEMOD_VER	"2022/12/28: fix s ber and adc fga gain and atsc ch if"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -101,9 +102,13 @@
 #define TIMEOUT_DVBT2		5000
 #define TIMEOUT_DDR_LEAVE   50
 
-enum Gxtv_Demod_Tuner_If {
-	SI2176_5M_IF = 5,
-	SI2176_6M_IF = 6
+enum DEMOD_TUNER_IF {
+	DEMOD_4M_IF = 4000,
+	DEMOD_4_57M_IF = 4570,
+	DEMOD_5M_IF = 5000,
+	DEMOD_5_5M_IF = 5500,
+	DEMOD_6M_IF = 6000,
+	DEMOD_36_13M_IF = 36130,
 };
 
 #define ADC_CLK_24M	24000
@@ -438,8 +443,6 @@ struct amldtvdemod_device_s {
 /*int M6_Demod_Dtmb_Init(struct aml_fe_dev *dev);*/
 int convert_snr(int in_snr);
 
-extern unsigned int ats_thread_flg;
-
 struct amldtvdemod_device_s *dtvdemod_get_dev(void);
 
 static inline void __iomem *gbase_dvbt_isdbt(void)
@@ -597,9 +600,5 @@ int dtmb_information(struct seq_file *seq);
 #ifdef MODULE
 struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config);
 #endif
-void cci_run_new(struct amldtvdemod_device_s *devp);
-void atsc_reset_new(void);
-unsigned int cfo_run_new(void);
-void set_cr_ck_rate_new(void);
 
 #endif

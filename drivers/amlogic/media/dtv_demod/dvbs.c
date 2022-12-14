@@ -1232,6 +1232,8 @@ void demod_init_local(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 			dvbs_wr_byte(0x9b0, 0x6);
 		} else if (is_blind_scan && l2a_def_val_local[reg].addr == AUTOSR_REG) {
 			dvbs_wr_byte(AUTOSR_REG, AUTOSR_OFF);
+		} else if (l2a_def_val_local[reg].addr == 0xe60) {
+			dvbs_wr_byte(0xe60, 0x75);
 		} else {
 			dvbs_wr_byte(l2a_def_val_local[reg].addr,
 					l2a_def_val_local[reg].value);

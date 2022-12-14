@@ -598,6 +598,12 @@ struct dfe_adcpll_para {
 	unsigned int atsc;
 	enum fe_delivery_system delsys;
 	unsigned int adc_clk;
+	/* adc pga gain:
+	 * x1(0): 0x41209007(default).
+	 * x1.5(1): 0x45209007.
+	 * x2.5(2): 0x49209007.
+	 */
+	unsigned int pga_gain;
 };
 
 struct rx_audio_stat_s {

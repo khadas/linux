@@ -84,4 +84,10 @@ int snr_avg_100_times(void);
 void atsc_set_version(int version);
 void atsc_check_fsm_status(void);
 
+void cci_run_new(struct aml_dtvdemod *demod);
+unsigned int atsc_check_cci(struct aml_dtvdemod *demod);
+void atsc_reset_new(void);
+unsigned int cfo_run_new(void);
+void set_cr_ck_rate_new(struct aml_dtvdemod *demod);
+
 #endif
