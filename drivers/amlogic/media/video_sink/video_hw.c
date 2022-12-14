@@ -1838,6 +1838,11 @@ static void vd_set_blk_mode(struct video_layer_s *layer, u8 block_mode)
 	u32 pic_32byte_aligned = 0;
 	u8 vpp_index;
 
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		vd_set_blk_mode_s5(layer, block_mode);
+		return;
+	}
+
 	vpp_index = layer->vpp_index;
 	cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_mif_reg->vd_if0_gen_reg3,
 		block_mode, 12, 2);

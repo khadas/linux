@@ -370,4 +370,6 @@ int get_vpu_urgent_info_s5(void);
 void set_vd_pi_input_size(void);
 void adjust_video_slice_policy(u32 layer_id,
 	struct vframe_s *vf, bool no_compress);
+void vd_set_blk_mode_s5(struct video_layer_s *layer, u8 block_mode);
+
 #endif

@@ -4818,7 +4818,7 @@ static void vd_set_blk_mode_slice_s5(struct video_layer_s *layer, u32 slice, u8 
 	}
 }
 
-static void vd_set_blk_mode_s5(struct video_layer_s *layer, u8 block_mode)
+void vd_set_blk_mode_s5(struct video_layer_s *layer, u8 block_mode)
 {
 	struct vd_mif_reg_s *vd_mif_reg = NULL;
 	struct vd_mif_linear_reg_s *vd_mif_linear_reg = NULL;
