@@ -761,7 +761,7 @@ void setup_status_trb(struct crg_gadget_dev *crg_udc,
 {
 	u32 tmp, dir = 0;
 
-	/* There are some cases where seutp_status_trb() is called with
+	/* There are some cases where setup_status_trb() is called with
 	 * usb_req set to NULL.
 	 */
 
@@ -3849,7 +3849,7 @@ queue_more_trbs:
 	return 0;
 }
 
-/*temprory solution, this function should be board specific*/
+/*temporary solution, this function should be board specific*/
 int g_dnl_board_usb_cable_connected(void)
 {
 	struct crg_gadget_dev *crg_udc;
@@ -4555,8 +4555,10 @@ static int crg_udc_remove(struct platform_device *pdev)
 {
 	struct crg_gadget_dev *crg_udc;
 	u32 tmp = 0;
+	struct crg_uccr *uccr;
 
 	crg_udc = &crg_udc_dev;
+	uccr = crg_udc->uccr;
 	CRG_DEBUG("%s %d called\n", __func__, __LINE__);
 
 	crg_udc->device_state = USB_STATE_ATTACHED;
@@ -4565,6 +4567,10 @@ static int crg_udc_remove(struct platform_device *pdev)
 	device_remove_file(&pdev->dev, &dev_attr_udc_debug);
 
 	usb_del_gadget_udc(&crg_udc->gadget);
+
+	tmp = reg_read(&uccr->control);
+	tmp |= CRG_U3DC_CTRL_SWRST;
+	reg_write(&uccr->control, tmp);
 
 	/* set controller host role*/
 	tmp = reg_read(crg_udc->mmio_virt_base + 0x20FC) & ~0x1;

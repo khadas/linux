@@ -29,7 +29,7 @@
 #define SKIP_CLK_MAX_NUM 10
 #define SKIP_CLK_MAX_NAME_LEN 16
 
-static int meson_clk_debug = 1;
+static int meson_clk_debug;
 core_param(meson_clk_debug, meson_clk_debug, int, 0644);
 
 int skip_all_clk_disable;

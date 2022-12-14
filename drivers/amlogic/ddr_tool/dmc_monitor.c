@@ -43,7 +43,7 @@ static int early_dmc_param(char *buf)
 {
 	unsigned long s_addr, e_addr, mask, config = 0;
 	/*
-	 * Patten:  dmc_montiro=[start_addr],[end_addr],[mask]
+	 * Patten:  dmc_monitor=[start_addr],[end_addr],[mask]
 	 * Example: dmc_monitor=0x00000000,0x20000000,0x7fce
 	 * config: bit 0 - exclude (t3/t7/p1/c3)
 	 *	   bit 1 - write;
@@ -328,8 +328,8 @@ int dmc_set_monitor(unsigned long start, unsigned long end,
 	dmc_mon->addr_start = start;
 	dmc_mon->addr_end   = end;
 	dmc_regulation_dev(dev_mask, en);
-	if (start < end && dmc_mon->ops && dmc_mon->ops->set_montor)
-		return dmc_mon->ops->set_montor(dmc_mon);
+	if (start < end && dmc_mon->ops && dmc_mon->ops->set_monitor)
+		return dmc_mon->ops->set_monitor(dmc_mon);
 	return -EINVAL;
 }
 EXPORT_SYMBOL(dmc_set_monitor);
@@ -419,8 +419,8 @@ static ssize_t device_store(struct class *cla,
 		}
 	}
 	if (dmc_mon->addr_start < dmc_mon->addr_end && dmc_mon->ops &&
-	     dmc_mon->ops->set_montor)
-		dmc_mon->ops->set_montor(dmc_mon);
+	     dmc_mon->ops->set_monitor)
+		dmc_mon->ops->set_monitor(dmc_mon);
 
 	return count;
 }
@@ -464,8 +464,8 @@ static ssize_t debug_store(struct class *cla,
 	if (val <= 7) {
 		dmc_mon->debug = val;
 		if (dmc_mon->addr_start < dmc_mon->addr_end && dmc_mon->ops &&
-				dmc_mon->ops->set_montor)
-			dmc_mon->ops->set_montor(dmc_mon);
+				dmc_mon->ops->set_monitor)
+			dmc_mon->ops->set_monitor(dmc_mon);
 
 	} else {
 		pr_err("Current parameters range from 0-7\n");
@@ -587,6 +587,14 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 	case DMC_TYPE_T5W:
 	case DMC_TYPE_A5:
 		mon->ops = &s4_dmc_mon_ops;
+		break;
+#endif
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_S5
+	case DMC_TYPE_S5:
+		mon->ops = &s5_dmc_mon_ops;
+		mon->configs |= POLICY_INCLUDE;
+		mon->configs |= QUAD_DMC;
+		mon->mon_number = 4;
 		break;
 #endif
 	default:
@@ -763,10 +771,6 @@ static const struct of_device_id dmc_monitor_match[] = {
 		.data = (void *)DMC_TYPE_GXLX,
 	},
 	{
-		.compatible = "amlogic,dmc_monitor-axg",
-		.data = (void *)DMC_TYPE_AXG,
-	},
-	{
 		.compatible = "amlogic,dmc_monitor-txl",
 		.data = (void *)DMC_TYPE_TXL,
 	},
@@ -787,6 +791,10 @@ static const struct of_device_id dmc_monitor_match[] = {
 		.data = (void *)DMC_TYPE_C1,
 	},
 #endif
+	{
+		.compatible = "amlogic,dmc_monitor-axg",
+		.data = (void *)DMC_TYPE_AXG,
+	},
 	{
 		.compatible = "amlogic,dmc_monitor-g12a",
 		.data = (void *)DMC_TYPE_G12A,
@@ -838,6 +846,10 @@ static const struct of_device_id dmc_monitor_match[] = {
 	{
 		.compatible = "amlogic,dmc_monitor-a5",
 		.data = (void *)DMC_TYPE_A5,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-s5",
+		.data = (void *)DMC_TYPE_S5,
 	},
 	{}
 };

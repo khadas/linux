@@ -515,7 +515,7 @@
 //Bit   18:16,    soft_rst          unsigned  , default = 4
 //Bit   15:14,    reserved
 //Bit   13:12,    ddr_blk_size      unsigned  , default = 1
-//Bit   11:9,     cmd_blk_size      unsigend  , default = 3
+//Bit   11:9,     cmd_blk_size      unsigned  , default = 3
 //Bit   8,        dec_enable        unsigned  , default = 0
 //Bit   7:2,      reserved
 //Bit   1,        head_len_sel      unsigned  , default = 1
@@ -601,7 +601,7 @@
 //  soft rst bit
 //Bit 29    reserved
 //Bit 28    chfmt_rpt_pix          uns, default = 0    ;
-//  if true, horizontal formatter use repeating to generete pixel,
+//  if true, horizontal formatter use repeating to generate pixel,
 //otherwise use bilinear interpolation
 //Bit 27:24 chfmt_ini_phase        uns, default = 0    ;
 //  horizontal formatter initial phase
@@ -617,9 +617,9 @@
 //Bit 18    cvfmt_rpt_last_dis     uns, default = 0    ;
 //if true, disable vertical formatter chroma repeat last line
 //Bit 17    cvfmt_phase0_nrpt_en   uns, default = 0    ;
-//veritcal formatter dont need repeat line on phase0, 1: enable, 0: disable
+//vertical formatter dont need repeat line on phase0, 1: enable, 0: disable
 //Bit 16    cvfmt_rpt_line0_en     uns, default = 0    ;
-//veritcal formatter repeat line 0 enable
+//vertical formatter repeat line 0 enable
 //Bit 15:12 cvfmt_skip_line_num    uns, default = 0    ;
 //vertical formatter skip line num at the beginning
 //Bit 11:8  cvfmt_ini_phase        uns, default = 0    ;
@@ -1797,7 +1797,7 @@
 // unsigned , default = 0, the canvas ver end pixel position
 //Bit 15:13 reserved
 //Bit 12: 0 reg_y_start
-// unsigned , default = 0, the canvas ver start pixel positio
+// unsigned , default = 0, the canvas ver start pixel position
 #define DI_AFBCE_MMU_RMIF_RO_STAT                  0x2086
 //Bit 15:0  reg_status        // unsigned ,
 
@@ -1827,51 +1827,51 @@
 //Bit 31:28  reserved
 //Bit 27:26  bnd_dec_rev_mode
 //unsigned , RW,default = 0
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 25:24  bnd_dec_mif_urgent
 //unsigned , RW,default = 3
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 23:22  bnd_dec_burst_len
 //unsigned , RW,default = 2
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 21:20  bnd_dec_ddr_blk_size
 //unsigned , RW,default = 1
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 19     reserved
 //Bit 18:16  bnd_dec_cmd_blk_size
 //unsigned , RW,default = 3
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 15     reserved
 //Bit 14     bnd_dec_blk_mem_mode
 //unsigned , RW,default = 0
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 13     bnd_dec_addr_link_en
 //unsigned , RW,default = 1
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 12     bnd_dec_always_body_rden
 //unsigned , RW,default = 0
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 11:0   bnd_dec_mif_lbuf_depth
 //unsigned , RW,default = 128
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 #define DI_AFBCE_RD_ARB_MISC                       0x208e
 //Bit 31:13  reserved
 //Bit 12     reg_arb_sw_rst
 //unsigned , RW,default = 0
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 11:10  reserved
 //Bit 9      reg_arb_arblk_last1
 //unsigned , RW,default = 0
-// only pip mode use those bits,ususaly don't need configure
+// only pip mode use those bits,usually don't need configure
 //Bit 8      reg_arb_arblk_last0
 //unsigned , RW,default = 0
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 7:4    reg_arb_weight_ch1
 //unsigned , RW,default = 4
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 3:0    reg_arb_weight_ch0
 //unsigned , RW,default = 10
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 /* afbce */
 
 #define DI_AFBCE1_ENABLE                           0x20c0
@@ -2329,7 +2329,7 @@
 // unsigned , default = 0, the canvas ver end pixel position
 //Bit 15:13 reserved
 //Bit 12: 0 reg_y_start
-// unsigned , default = 0, the canvas ver start pixel positio
+// unsigned , default = 0, the canvas ver start pixel position
 
 #define DI_AFBCE1_MMU_RMIF_RO_STAT                 0x20e6
 //Bit 15:0  reg_status        // unsigned ,
@@ -2356,51 +2356,51 @@
 //Bit 31:28  reserved
 //Bit 27:26  bnd_dec_rev_mode
 //unsigned , RW,default = 0
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 25:24  bnd_dec_mif_urgent
 //unsigned , RW,default = 3
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 23:22  bnd_dec_burst_len
 //unsigned , RW,default = 2
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 21:20  bnd_dec_ddr_blk_size
 //unsigned , RW,default = 1
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 19     reserved
 //Bit 18:16  bnd_dec_cmd_blk_size
 //unsigned , RW,default = 3
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 15     reserved
 //Bit 14     bnd_dec_blk_mem_mode
 //unsigned , RW,default = 0
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 13     bnd_dec_addr_link_en
 //unsigned , RW,default = 1
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 12     bnd_dec_always_body_rden
 //unsigned , RW,default = 0
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 11:0   bnd_dec_mif_lbuf_depth
 //unsigned , RW,default = 128
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 #define DI_AFBCE1_RD_ARB_MISC                      (0x20ee)
 //Bit 31:13  reserved
 //Bit 12     reg_arb_sw_rst
 //unsigned , RW,default = 0
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 11:10  reserved
 //Bit 9      reg_arb_arblk_last1
 //unsigned , RW,default = 0
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 8      reg_arb_arblk_last0
 //unsigned , RW,default = 0
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 7:4    reg_arb_weight_ch1
 //unsigned , RW,default = 4
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 //Bit 3:0    reg_arb_weight_ch0
 //unsigned , RW,default = 10
-//only pip mode use those bits,ususaly don't need configure
+//only pip mode use those bits,usually don't need configure
 
 #define DI_CRC_CHK0		((0x17c3)) /* << 2) + 0xd0100000) */
 #define DI_RO_CRC_NRWR		((0x17c0)) /* << 2) + 0xd0100000) */

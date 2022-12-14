@@ -646,19 +646,27 @@ int get_demux_feature(int support_feature)
 	if (support_feature == SUPPORT_ES_HEADER_NEED_AUCPU) {
 		if (cpu_type == MESON_CPU_MAJOR_ID_SC2 ||
 			cpu_type == MESON_CPU_MAJOR_ID_S4 ||
-			cpu_type == MESON_CPU_MAJOR_ID_T7)
+			cpu_type == MESON_CPU_MAJOR_ID_T7 ||
+			cpu_type == MESON_CPU_MAJOR_ID_S5)
 			return 1;
 		else
 			return 0;
 	} else if (support_feature == SUPPORT_TSD) {
 		if (cpu_type == MESON_CPU_MAJOR_ID_SC2)
 			return 1;
+		else if ((cpu_type == MESON_CPU_MAJOR_ID_T7 && minor_type == 0xc) ||
+				(cpu_type == MESON_CPU_MAJOR_ID_S5 && minor_type == 0xa))
+			return 0;
 		else
 			return 0;
 	} else if (support_feature == SUPPORT_PSCP) {
 		return 0;
 	} else if (support_feature == SUPPORT_TEMI) {
-		return 0;
+		if ((cpu_type == MESON_CPU_MAJOR_ID_T7 && minor_type == 0xc) ||
+			(cpu_type == MESON_CPU_MAJOR_ID_S5 && minor_type == 0xa))
+			return 1;
+		else
+			return 0;
 	} else if (support_feature == SUPPORT_PES_HEADER) {
 		return 0;
 	} else {
@@ -693,6 +701,9 @@ static int aml_dvb_probe(struct platform_device *pdev)
 		return ret;
 
 	mutex_init(&advb->mutex);
+
+	ret = tee_demux_get(TEE_DMX_GET_SECURITY_ENABLE,
+			NULL, 0, &is_security_dmx, sizeof(is_security_dmx));
 
 	ret = init_demux_addr(pdev);
 	if (ret != 0)
@@ -757,9 +768,6 @@ static int aml_dvb_probe(struct platform_device *pdev)
 
 	class_register(&aml_stb_class);
 	dmx_regist_dmx_class();
-
-	ret = tee_demux_get(TEE_DMX_GET_SECURITY_ENABLE,
-			NULL, 0, &is_security_dmx, sizeof(is_security_dmx));
 
 	dprint("probe dvb done, ret:%d, is_security_dmx:%d\n",
 			ret, is_security_dmx);

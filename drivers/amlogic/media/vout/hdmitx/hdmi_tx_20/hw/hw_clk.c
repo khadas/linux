@@ -744,6 +744,9 @@ static struct hw_enc_clk_val_group setting_enc_clk_val_24[] = {
 	{{HDMIV_3840x1080p60hz,
 	  HDMI_VIC_END},
 		5940000, 2, 1, 1, VID_PLL_DIV_5, 2, 1, 1, -1},
+	{{HDMIV_2560x1440p60hz,
+	  HDMI_VIC_END},
+		4830000, 2, 1, 1, VID_PLL_DIV_5, 2, 1, 1, -1},
 };
 
 /* For colordepth 10bits */
@@ -895,6 +898,8 @@ static void set_hdmitx_fe_clk(struct hdmitx_dev *hdev)
 	switch (vic) {
 	case HDMI_720x480i60_16x9:
 	case HDMI_720x576i50_16x9:
+	case HDMI_720x480i60_4x3:
+	case HDMI_720x576i50_4x3:
 		tmp = (hd_read_reg(vid_clk_div) >> 28) & 0xf;
 		break;
 	default:

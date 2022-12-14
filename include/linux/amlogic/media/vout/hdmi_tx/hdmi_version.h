@@ -30,6 +30,14 @@
 	"V03.00.00.00.01.03.02 [20220711] [COMP] add hdcp version protect for drm\n" \
 	"V03.00.00.00.01.03.03 [20220713] [SYSFS] add phy show sysfs\n" \
 	"V03.00.01.00.01.03.03 [20220713] [AUDIO] audio callback turn on the judgement\n" \
-	"V03.00.01.00.01.03.04 [20220803] [BUGFIX] echo 1 > /sys/class/display/bist lead to panic\n"
+	"V03.00.01.00.01.03.04 [20220803] [BUG] echo 1 > /sys/class/display/bist lead to panic\n" \
+	"V03.00.01.00.01.03.05 [20220903] [BUG] add DDC reset before do EDID transaction\n" \
+	"V03.00.01.00.01.03.06 [20220919] [BUG] Don't reset variables when parse a new block\n" \
+	"V03.00.01.00.01.03.07 [20220926] [BUG] enable null packt for special TV\n" \
+	"V01.01.01.00.01.03.07 [20221018] [AUD] optimise the audio setting flow\n" \
+	"V03.01.01.00.01.03.08 [20221021] [BUG] not read EDID again if EDID already read done\n" \
+	"V03.01.01.00.01.03.09 [20221025] [COM] when set mode 4x3 and 16x9, return valid mode 1\n" \
+	"V03.01.01.00.01.03.10 [20221031] [NEW] add new format 2560x1440p60hz\n" \
+	"V03.01.01.00.01.04.10 [20221102] [EDID] adjust edid parsing for tv_ts\n"
 
 #endif // __HDMI20_VERSION_H__

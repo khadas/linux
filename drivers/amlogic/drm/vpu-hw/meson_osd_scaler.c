@@ -140,6 +140,73 @@ static struct osd_scaler_reg_s osd_scaler_t7_reg[HW_OSD_SCALER_NUM] = {
 	}
 };
 
+static struct osd_scaler_reg_s osd_scaler_s5_reg[HW_OSD_SCALER_NUM] = {
+	{
+		OSD1_PROC_SCALE_COEF_IDX,
+		OSD1_PROC_SCALE_COEF,
+		OSD1_PROC_VSC_PHASE_STEP,
+		OSD1_PROC_VSC_INI_PHASE,
+		OSD1_PROC_VSC_CTRL0,
+		OSD1_PROC_HSC_PHASE_STEP,
+		OSD1_PROC_HSC_INI_PHASE,
+		OSD1_PROC_HSC_CTRL0,
+		OSD1_PROC_HSC_INI_PAT_CTRL,
+		OSD1_PROC_SC_DUMMY_DATA,
+		OSD1_PROC_SC_CTRL0,
+		OSD1_PROC_SCI_WH_M1,
+		OSD1_PROC_SCO_H_START_END,
+		OSD1_PROC_SCO_V_START_END,
+	},
+	{
+		OSD2_PROC_SCALE_COEF_IDX,
+		OSD2_PROC_SCALE_COEF,
+		OSD2_PROC_VSC_PHASE_STEP,
+		OSD2_PROC_VSC_INI_PHASE,
+		OSD2_PROC_VSC_CTRL0,
+		OSD2_PROC_HSC_PHASE_STEP,
+		OSD2_PROC_HSC_INI_PHASE,
+		OSD2_PROC_HSC_CTRL0,
+		OSD2_PROC_HSC_INI_PAT_CTRL,
+		OSD2_PROC_SC_DUMMY_DATA,
+		OSD2_PROC_SC_CTRL0,
+		OSD2_PROC_SCI_WH_M1,
+		OSD2_PROC_SCO_H_START_END,
+		OSD2_PROC_SCO_V_START_END,
+	},
+	{
+		OSD3_PROC_SCALE_COEF_IDX,
+		OSD3_PROC_SCALE_COEF,
+		OSD3_PROC_VSC_PHASE_STEP,
+		OSD3_PROC_VSC_INI_PHASE,
+		OSD3_PROC_VSC_CTRL0,
+		OSD3_PROC_HSC_PHASE_STEP,
+		OSD3_PROC_HSC_INI_PHASE,
+		OSD3_PROC_HSC_CTRL0,
+		OSD3_PROC_HSC_INI_PAT_CTRL,
+		OSD3_PROC_SC_DUMMY_DATA,
+		OSD3_PROC_SC_CTRL0,
+		OSD3_PROC_SCI_WH_M1,
+		OSD3_PROC_SCO_H_START_END,
+		OSD3_PROC_SCO_V_START_END,
+	},
+	{
+		OSD4_PROC_SCALE_COEF_IDX,
+		OSD4_PROC_SCALE_COEF,
+		OSD4_PROC_VSC_PHASE_STEP,
+		OSD4_PROC_VSC_INI_PHASE,
+		OSD4_PROC_VSC_CTRL0,
+		OSD4_PROC_HSC_PHASE_STEP,
+		OSD4_PROC_HSC_INI_PHASE,
+		OSD4_PROC_HSC_CTRL0,
+		OSD4_PROC_HSC_INI_PAT_CTRL,
+		OSD4_PROC_SC_DUMMY_DATA,
+		OSD4_PROC_SC_CTRL0,
+		OSD4_PROC_SCI_WH_M1,
+		OSD4_PROC_SCO_H_START_END,
+		OSD4_PROC_SCO_V_START_END,
+	},
+};
+
 static unsigned int __osd_filter_coefs_bicubic_sharp[] = {
 	0x01fa008c, 0x01fa0100, 0xff7f0200, 0xfe7f0300,
 	0xfd7e0500, 0xfc7e0600, 0xfb7d0800, 0xfb7c0900,
@@ -1017,6 +1084,18 @@ static void scaler_hw_init(struct meson_vpu_block *vblk)
 	DRM_DEBUG("%s hw_init called.\n", scaler->base.name);
 }
 
+static void s5_scaler_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
+
+	scaler->reg = &osd_scaler_s5_reg[vblk->index];
+	scaler->linebuffer = OSD_SCALE_LINEBUFFER;
+	scaler->bank_length = OSD_SCALE_BANK_LENGTH;
+
+	meson_vpu_write_reg(scaler->reg->vpp_osd_sc_ctrl0, 0);
+	DRM_DEBUG("%s hw_init called.\n", scaler->base.name);
+}
+
 struct meson_vpu_block_ops scaler_ops = {
 	.check_state = scaler_check_state,
 	.update_state = scaler_set_state,
@@ -1024,4 +1103,13 @@ struct meson_vpu_block_ops scaler_ops = {
 	.disable = scaler_hw_disable,
 	.dump_register = scaler_dump_register,
 	.init = scaler_hw_init,
+};
+
+struct meson_vpu_block_ops s5_scaler_ops = {
+	.check_state = scaler_check_state,
+	.update_state = scaler_set_state,
+	.enable = scaler_hw_enable,
+	.disable = scaler_hw_disable,
+	.dump_register = scaler_dump_register,
+	.init = s5_scaler_hw_init,
 };

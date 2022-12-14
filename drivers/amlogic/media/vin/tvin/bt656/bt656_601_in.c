@@ -320,7 +320,7 @@ static void reinit_bt656in_dec(struct am656in_dev_s *devp)
 				(1 << BT_AUTO_FMT) |
 				/* BT656 standaREAD_CBUS_REG interface. */
 				(1 << BT_MODE_BIT) |
-				(1 << BT_EN_BIT) | /* enable BT moduale. */
+				(1 << BT_EN_BIT) | /* enable BT module. */
 				/* timing reference is from bit stream. */
 				(1 << BT_REF_MODE_BIT) |
 				/* use external xclk27. */
@@ -357,7 +357,7 @@ static void reinit_bt656in_dec(struct am656in_dev_s *devp)
 			(1 << BT_AUTO_FMT) |
 				/* BT656 standaREAD_CBUS_REG interface. */
 			(1 << BT_MODE_BIT) |
-			(1 << BT_EN_BIT) |    /* enable BT moduale. */
+			(1 << BT_EN_BIT) |    /* enable BT module. */
 				/* timing reference is from bit stream. */
 			(1 << BT_REF_MODE_BIT) |
 			(1 << BT_CLK27_SEL_BIT) |    /* use external xclk27. */
@@ -435,7 +435,7 @@ static void reinit_bt601in_dec(struct am656in_dev_s *devp)
 		/* BT656 standaREAD_CBUS_REG interface. */
 		bt656_wr(offset, BT_CTRL,    (0 << BT_MODE_BIT) |
 				(1 << BT_AUTO_FMT)     |
-				 /* enable BT moduale. */
+				 /* enable BT module. */
 				(1 << BT_EN_BIT) |
 				/* timing reference is from bit stream. */
 				(0 << BT_REF_MODE_BIT) |
@@ -464,7 +464,7 @@ static void reinit_bt601in_dec(struct am656in_dev_s *devp)
 				(257 << 16));
 		bt656_wr(offset, BT_CTRL, (0 << BT_MODE_BIT) |
 				(1 << BT_AUTO_FMT)     |
-				 /* enablem656in_star BT moduale. */
+				 /* enable 656in_star BT module. */
 				(1 << BT_EN_BIT) |
 				/* timing reference is from bit stream. */
 				(0 << BT_REF_MODE_BIT) |
@@ -583,7 +583,7 @@ static void reinit_camera_dec(struct am656in_dev_s *devp)
 
 	/* enable BTR656 interface */
 	if (devp->para.isp_fe_port == TVIN_PORT_CAMERA) {
-		temp_data = (1 << BT_EN_BIT) /* enable BT moduale. */
+		temp_data = (1 << BT_EN_BIT) /* enable BT module. */
 			/* timing reference is from bit stream. */
 			| (0 << BT_REF_MODE_BIT)
 			| (0 << BT_FMT_MODE_BIT)      /* PAL */
@@ -757,7 +757,7 @@ static void start_amvdec_656_601_camera_in(struct am656in_dev_s *devp)
 	enum tvin_port_e port =  devp->para.port;
 
 	if (devp->dec_status & TVIN_AM656_RUNNING) {
-		BT656PR("%s: bt656 have started alreadly.\n", __func__);
+		BT656PR("%s: bt656 have started already.\n", __func__);
 		return;
 	}
 	devp->dec_status = TVIN_AM656_RUNNING;

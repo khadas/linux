@@ -87,7 +87,7 @@
 	0x00000010 // BIT4: //WB,DGA-4CH,POD,PCID,ODC
 #define V4L2_EXT_VPQ_BYPASS_MASK_HDR_ALL 0x00000020 // BIT5: HDR
  #define V4L2_EXT_VPQ_BYPASS_MASK_HDR_EXCEPT_PCC \
-	0x00000040 // BIT6: //HDR bypass,HDR-PCC enalbe
+	0x00000040 // BIT6: //HDR bypass,HDR-PCC enable
 
 /* Scaler */
 struct v4l2_ext_video_rect {
@@ -1166,7 +1166,7 @@ enum v4l2_ext_vbe_frc_chip {
 	V4L2_EXT_VBE_FRC_CHIP_INTERNAL,
 	V4L2_EXT_VBE_FRC_CHIP_EXTERNAL1, // Reserved1
 	V4L2_EXT_VBE_FRC_CHIP_EXTERNAL2, // Reserved2
-	V4L2_EXT_VBE_FRC_CHIP_TPYE_MAX
+	V4L2_EXT_VBE_FRC_CHIP_TYPE_MAX
 };
 
 enum v4l2_ext_vbe_lvds_colordepth {
@@ -2445,7 +2445,7 @@ struct v4l2_ext_picinfo_msg {
 
 	__u32 colour_primaries;	  // VUI info, colour_primaries
 	__u32 transfer_chareristics; // VUI info, transfer_characteristics
-	__u32 matrix_coeffs;		 // VUI info, matrix_coeffcients
+	__u32 matrix_coeffs;		 // VUI info, matrix_coefficients
 	__u32 display_primaries_x0;  // SEI info, display_primaries_x0
 	__u32 display_primaries_y0;  // SEI info, display_primaries_y0
 	__u32 display_primaries_x1;  // SEI info, display_primaries_x1
@@ -2635,9 +2635,9 @@ struct v4l2_ext_capture_physical_memory_info {
 
 /*eARC ERX_LATENCY_REQ Type*/
 #define V4L2_EXT_EARC_ERX_LATENCY_REQ_MINIMIZE	\
-	0 // 0: requeset to minimize eARC RX latency
+	0 // 0: request to minimize eARC RX latency
 #define V4L2_EXT_EARC_ERX_LATENCY_REQ_NON_SYNC	\
-	254 // 254: No syncronization required
+	254 // 254: No synchronization required
 #define V4L2_EXT_EARC_ERX_LATENCY_REQ_UNKNOWN	\
 	255 // 255: unknown eARC TX latency
 
@@ -2672,7 +2672,7 @@ struct v4l2_ext_earc_connection_info {
 	enum v4l2_ext_earc_output_port port;
 	enum v4l2_ext_earc_status status;
 	unsigned char capability[V4L2_EXT_EARC_CAPABILITY_BYTES];	// Short Audio
-	// Descriptior Max
+	// Description Max
 	// 256 byte
 	unsigned char erx_latency_req;	// 0~255
 	unsigned char erx_latency;	// 0~255

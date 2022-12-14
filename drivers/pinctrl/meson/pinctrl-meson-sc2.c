@@ -1106,7 +1106,7 @@ static const char * const nand_groups[] = {
 
 static const char * const sdcard_groups[] = {
 	"sdcard_d0_c", "sdcard_d1_c", "sdcard_d2_c", "sdcard_d3_c",
-	"sdcaed_cd_c", "sdcard_clk_c", "sdcard_cmd_c",
+	"sdcard_cd_c", "sdcard_clk_c", "sdcard_cmd_c",
 
 	"sdcard_d0_x", "sdcard_d1_x", "sdcard_d2_x", "sdcard_d3_x",
 	"sdcard_clk_x", "sdcard_cmd_x",
@@ -1218,7 +1218,7 @@ static const char * const pcieck_reqn_groups[] = {
 static const char * const iso7816_groups[] = {
 	"iso7816_clk_c", "iso7816_clk_h", "iso7816_data_c", "iso7816_clk_x",
 	"iso7816_data_x", "iso7816_data_h", "iso7816_clk_z0",
-	"iso7816_clk_z8", "iso7816_data_z1", "is7816_data_z9",
+	"iso7816_clk_z8", "iso7816_data_z1", "iso7816_data_z9",
 };
 
 static const char * const hdmitx_groups[] = {

@@ -37,8 +37,8 @@ static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 {
 	const struct hdmi_timing *tp = NULL;
 	struct hdmi_timing timing = {0};
-	const u32 hsync_st = 4; // hsync start pixel count
-	const u32 vsync_st = 1; // vsync start line count
+	u32 hsync_st = 4; // hsync start pixel count
+	u32 vsync_st = 1; // vsync start line count
 	// Latency in pixel clock from ENCP_VFIFO2VD request to data ready to HDMI
 	const u32 vfifo2vd_to_hdmi_latency = 2;
 	u32 de_h_begin = 0;
@@ -46,8 +46,12 @@ static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 	u32 de_v_begin = 0;
 	u32 de_v_end = 0;
 	bool y420_mode = 0;
+	int hpara_div = 1;
 
-	if (hdev->para && hdev->para->cs == HDMI_COLORSPACE_YUV420)
+	if (!hdev || !hdev->para)
+		return;
+
+	if (hdev->para->cs == HDMI_COLORSPACE_YUV420)
 		y420_mode = 1;
 	tp = hdmitx21_gettiming_from_vic(vic);
 	if (!tp) {
@@ -58,6 +62,30 @@ static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 
 	timing = *tp;
 	tp = &timing;
+
+	/* the FRL works at dual mode, so the horizon parameters will reduce to half */
+	if (hdev->frl_rate && y420_mode == 1)
+		hpara_div = 4;
+	if (hdev->frl_rate && y420_mode == 0)
+		hpara_div = 2;
+	timing.h_total /= hpara_div;
+	timing.h_blank /= hpara_div;
+	timing.h_front /= hpara_div;
+	if (hdev->frl_rate)
+		timing.h_front |= 3; /* For ENCP, there needs OR 3 */
+	timing.h_sync /= hpara_div;
+	timing.h_back /= hpara_div;
+	timing.h_active /= hpara_div;
+
+	if (hdev->para)
+		hdev->para->hdmitx_vinfo.cur_enc_ppc = hpara_div;
+	if (vic == HDMI_117_3840x2160p100_16x9 || vic == HDMI_118_3840x2160p120_16x9)
+		hdev->para->hdmitx_vinfo.cur_enc_ppc = 4; /* hard code */
+
+	if (hdev->dsc_en) {
+		hsync_st = tp->h_front - 1;
+		vsync_st = tp->v_front - 1;
+	}
 
 	de_h_end = tp->h_total - (tp->h_front - hsync_st);
 	de_h_begin = de_h_end - tp->h_active;
@@ -108,14 +136,6 @@ static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 	//set vtotal & htotal
 	hd21_write_reg(ENCP_VIDEO_MAX_PXCNT, tp->h_total - 1);
 	hd21_write_reg(ENCP_VIDEO_MAX_LNCNT, tp->v_total - 1);
-	// set vfifo2vd
-	// if(vfifo2vd_en) {
-		// hd21_write_reg(ENCP_VFIFO2VD_CTL, vfifo2vd_en);
-		// hd21_write_reg(ENCP_VFIFO2VD_PIXEL_START, de_h_begin - 2);
-		// hd21_write_reg(ENCP_VFIFO2VD_PIXEL_END, de_h_end - 2);
-		// hd21_write_reg(ENCP_VFIFO2VD_LINE_TOP_START, de_v_begin);
-		// hd21_write_reg(ENCP_VFIFO2VD_LINE_TOP_END, de_v_end);
-	// }
 }
 
 static unsigned long modulo(unsigned long a, unsigned long b)
@@ -387,6 +407,11 @@ void set_tv_encp_new(struct hdmitx_dev *hdev, u32 enc_index, enum hdmi_vic vic,
 	// VENC2A 0x23
 	reg_offset = enc_index == 0 ? 0 : enc_index == 1 ? 0x600 : 0x800;
 
+	if (!hdev || !hdev->para)
+		return;
+
+	hdev->para->hdmitx_vinfo.cur_enc_ppc = 1;
+
 	switch (vic) {
 	case HDMI_5_1920x1080i60_16x9:
 	case HDMI_46_1920x1080i120_16x9:
@@ -398,6 +423,11 @@ void set_tv_encp_new(struct hdmitx_dev *hdev, u32 enc_index, enum hdmi_vic vic,
 		config_tv_enc_calc(hdev, vic);
 		break;
 	}
+
+	if (hdev->frl_rate && hdev->para->cs != HDMI_COLORSPACE_YUV420)
+		hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 1, 0, 3);
+	else
+		hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 0, 3);
 } /* set_tv_encp_new */
 
 static void config_tv_enci(enum hdmi_vic vic)

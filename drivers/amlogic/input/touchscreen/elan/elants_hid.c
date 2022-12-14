@@ -209,7 +209,7 @@ struct elants_data {
 
 	/* Guards against concurrent access to the device via sysfs */
 	struct mutex sysfs_mutex;
-	/* Skip CHEHCK: watning */
+	/* Skip CHECK: warning */
 	struct mutex irq_mutex;
 
 	u8 cmd_resp[HEADER_SIZE];

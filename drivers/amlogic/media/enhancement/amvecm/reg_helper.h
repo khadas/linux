@@ -19,7 +19,7 @@
 #ifndef __REG_HELPER_H
 #define __REG_HELPER_H
 
-#include "arch/vpp_regs.h"
+//#include "arch/vpp_regs.h"
 #include "arch/ve_regs.h"
 #include "arch/cm_regs.h"
 
@@ -28,6 +28,13 @@
 #define SET_BIT(x) (0x01 << (x))
 #define GET_BIT(x) (0x01 << (x))
 #define GET_BITS(x, y) (((0x01 << (y)) - 1) << (x))
+
+#define srsharp0_sharp_hvsize 0x3e00
+#define srsharp0_pkosht_vsluma_lut_h 0x3e81
+#define srsharp1_sharp_hvsize 0x3f00
+#define srsharp1_pkosht_vsluma_lut_h 0x3f81
+#define srsharp1_lc_input_mux 0x3fb1
+#define srsharp1_lc_map_ram_data 0x3ffe
 
 /* useful inline fucntions to handle different offset */
 static inline bool cpu_after_eq_t7(void)
@@ -47,20 +54,20 @@ static inline bool cpu_after_eq_tl1(void)
 
 static inline bool is_sr0_reg(u32 addr)
 {
-	return (addr >= SRSHARP0_SHARP_HVSIZE &&
-		addr <= SRSHARP0_PKOSHT_VSLUMA_LUT_H);
+	return (addr >= srsharp0_sharp_hvsize &&
+		addr <= srsharp0_pkosht_vsluma_lut_h);
 }
 
 static inline bool is_sr1_reg(u32 addr)
 {
-	return (addr >= SRSHARP1_SHARP_HVSIZE &&
-		addr <= SRSHARP1_PKOSHT_VSLUMA_LUT_H);
+	return (addr >= srsharp1_sharp_hvsize &&
+		addr <= srsharp1_pkosht_vsluma_lut_h);
 }
 
 static inline bool is_lc_reg(u32 addr)
 {
-	return (addr >= SRSHARP1_LC_INPUT_MUX &&
-		addr <= SRSHARP1_LC_MAP_RAM_DATA);
+	return (addr >= srsharp1_lc_input_mux &&
+		addr <= srsharp1_lc_map_ram_data);
 }
 
 static inline bool is_sr0_dnlpv2_reg(u32 addr)
@@ -144,6 +151,8 @@ static inline u32 get_sr1_dnlp2_offset(void)
 
 static u32 offset_addr(u32 addr)
 {
+	if (is_meson_s5_cpu())
+		return addr; /*s5 sr lc reg change, todo*/
 	if (is_sr0_reg(addr))
 		return addr + get_sr0_offset();
 	else if (is_sr1_reg(addr))
@@ -164,9 +173,20 @@ static inline void WRITE_VPP_REG(u32 reg,
 	aml_write_vcbus_s(offset_addr(reg), value);
 }
 
+static inline void WRITE_VPP_REG_S5(u32 reg,
+				 const u32 value)
+{
+	aml_write_vcbus(offset_addr(reg), value);
+}
+
 static inline u32 READ_VPP_REG(u32 reg)
 {
 	return aml_read_vcbus_s(offset_addr(reg));
+}
+
+static inline u32 READ_VPP_REG_S5(u32 reg)
+{
+	return aml_read_vcbus(reg);
 }
 
 static inline void WRITE_VPP_REG_EX(u32 reg,
@@ -194,6 +214,16 @@ static inline void WRITE_VPP_REG_BITS(u32 reg,
 		const u32 len)
 {
 	aml_vcbus_update_bits_s(offset_addr(reg), value, start, len);
+}
+
+static inline void WRITE_VPP_REG_BITS_S5(u32 reg,
+				      const u32 value,
+		const u32 start,
+		const u32 len)
+{
+	aml_write_vcbus(reg, ((aml_read_vcbus(reg) &
+			     ~(((1L << (len)) - 1) << (start))) |
+			    (((value) & ((1L << (len)) - 1)) << (start))));
 }
 
 static inline u32 READ_VPP_REG_BITS(u32 reg,
@@ -367,12 +397,24 @@ static inline void VSYNC_WRITE_VPP_REG_BITS_VPP2(u32 reg,
 	VSYNC_WR_MPEG_REG_BITS_VPP2(offset_addr(reg), value, start, len);
 }
 
+static inline void VSYNC_WR_MPEG_REG_BITS_S5(u32 reg,
+		      const u32 value,
+		      const u32 start,
+		      const u32 len)
+{
+	aml_write_vcbus(reg, ((aml_read_vcbus(reg) &
+			     ~(((1L << (len)) - 1) << (start))) |
+			    (((value) & ((1L << (len)) - 1)) << (start))));
+}
+
 /* vsync for vpp_top_sel */
 static inline void VSYNC_WRITE_VPP_REG_VPP_SEL(u32 reg,
 				       const u32 value, int vpp_sel)
 {
 	if (vpp_sel == 0xff)
 		aml_write_vcbus_s(offset_addr(reg), value);
+	else if (vpp_sel == 0xfe)
+		aml_write_vcbus(reg, value);
 	else if (vpp_sel == 2)
 		VSYNC_WR_MPEG_REG_VPP2(offset_addr(reg), value);
 	else if (vpp_sel == 1)
@@ -385,6 +427,8 @@ static inline u32 VSYNC_READ_VPP_REG_VPP_SEL(u32 reg, int vpp_sel)
 {
 	if (vpp_sel == 0xff)
 		return aml_read_vcbus_s(offset_addr(reg));
+	else if (vpp_sel == 0xfe)
+		return aml_read_vcbus(reg);
 	else if (vpp_sel == 2)
 		return VSYNC_RD_MPEG_REG_VPP2(offset_addr(reg));
 	else if (vpp_sel == 1)
@@ -427,6 +471,8 @@ static inline void VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(u32 reg,
 {
 	if (vpp_sel == 0xff)
 		aml_vcbus_update_bits_s(offset_addr(reg), value, start, len);
+	else if (vpp_sel == 0xfe)
+		VSYNC_WR_MPEG_REG_BITS_S5(reg, value, start, len);
 	else if (vpp_sel == 2)
 		VSYNC_WR_MPEG_REG_BITS_VPP2(offset_addr(reg), value, start, len);
 	else if (vpp_sel == 1)

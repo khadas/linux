@@ -5,6 +5,7 @@
 
 #ifndef _AMLFRONTEND_H
 #define _AMLFRONTEND_H
+
 /**/
 #include "depend.h" /**/
 #include "dvbc_func.h"
@@ -16,7 +17,7 @@
 /*  V1.0.23  fixed code and dts CMA config          */
 /*  V1.0.24  dvbt2 add reset when unlocked for 3s   */
 /*  V1.0.25  add demod version and t2 fw version node*/
-/*  V1.0.26  weak signal sidplay after dvbs search*/
+/*  V1.0.26  weak signal display after dvbs search*/
 /*  V1.0.27  s4d remove dvbs blindscan fastsearch threadhold*/
 /*  V1.0.28  fix the hang when read mplp info in DVBT system*/
 /*  V1.0.29  add auto recognition t/t2 r842 config*/
@@ -50,6 +51,15 @@
 /*  V1.1.57  fix auto qam(t5w) and sr */
 /*  V1.1.58  fix delsys exit setting and r842 dvbc auto sr */
 /*  V1.1.59  fix dvbs/s2 aft range and different tuner blind window settings */
+/*  V1.1.60  support diseqc2.0 */
+/*  V1.1.61  fix T5W T and T2 channel switch unlock */
+/*  V1.1.62  implement get RSSI function for av2018 */
+/*  V1.1.63  fix dvbc 128/256qam unlock */
+/*  V1.1.64  fix atsc static echo test failed in -30us */
+/*  V1.1.65  fix locking qam64 signal failed in j83b */
+/*  V1.1.66  improve dvbs blind scan and support single cable */
+/*  V1.1.67  avoid dvbc missing channel */
+/*  V1.1.68  add a function to invert the spectrum in dvbs blind scan */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -66,14 +76,14 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.59"
-#define DTVDEMOD_VER	"2022/08/23: fix dvbs/s2 aft range and different tuner blind window settings"
+#define AMLDTVDEMOD_VER "V1.1.68"
+#define DTVDEMOD_VER	"2022/10/21: add a function to invert the spectrum in dvbs blind scan"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
 #define THRD_TUNER_STRENTH_J83 (-76)
-/* tested on BTC, sensertivity of demod is -100dBm */
+/* tested on BTC, sensitivity of demod is -100dBm */
 #define THRD_TUNER_STRENTH_DVBT (-101)
 #define THRD_TUNER_STRENTH_DVBS (-79)
 #define THRD_TUNER_STRENTH_DTMB (-100)
@@ -317,8 +327,9 @@ struct aml_dtvdemod {
 
 	struct aml_demod_para_real real_para;
 
-	struct pinctrl *pin_agc;    /*agc pintrcl*/
-	struct pinctrl *pin_diseqc; /*diseqc out pin*/
+	struct pinctrl *pin_agc;    /*agc pinctrl*/
+	struct pinctrl *pin_diseqc_out; /*diseqc out pin*/
+	struct pinctrl *pin_diseqc_in; /*diseqc in pin*/
 
 	u32 blind_result_frequency;
 	u32 blind_result_symbol_rate;
@@ -389,6 +400,7 @@ struct amldtvdemod_device_s {
 	unsigned int demod_irq_num;
 	unsigned int demod_irq_en;
 	struct mutex mutex_tx_msg;/*pretect tx cec msg*/
+	struct mutex mutex_rx_msg;/*pretect rx cec msg*/
 	unsigned int print_on;
 	int tuner_strength_limit;
 	unsigned int debug_on;
@@ -406,6 +418,10 @@ struct amldtvdemod_device_s {
 	unsigned int blind_debug_max_frc;
 	unsigned int blind_debug_min_frc;
 	unsigned int blind_same_frec;
+
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+	struct dvbsx_singlecable_parameters singlecable_param;
+#endif
 
 	bool vdac_enable;
 	bool dvbc_inited;

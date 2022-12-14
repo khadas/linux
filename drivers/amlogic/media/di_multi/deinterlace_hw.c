@@ -3870,7 +3870,7 @@ void dim_intr_control_sc2(void)
 {
 	unsigned int path_sel;
 
-	/* reseet interrupt */
+	/* reset interrupt */
 	DIM_RDMA_WR(DI_INTR_CTRL, 0xcffe0000);
 	path_sel = 1;
 	DIM_DI_WR_REG_BITS(DI_TOP_PRE_CTRL, (path_sel & 0x3), 0, 2);
@@ -4126,12 +4126,17 @@ void dim_rst_protect(bool on)/*2019-01-22 by VLSI feng.wang*/
 #define PRE_ID_MASK_TL1	(0x14500)
 
 #define PRE_ID_MASK_T5	(0x28a00) //add decontour and shift 1bit
+#define PRE_ID_MASK_S5	(0x50a00)	//add ai color
 
 static bool di_pre_idle(void)
 {
 	bool ret = false;
 
-	if (DIM_IS_IC_EF(T3) || DIM_IS_IC(T5D) || DIM_IS_IC(T5DB) ||
+	if (DIM_IS_IC_EF(S5)) {
+		if ((DIM_RDMA_RD(DI_ARB_DBG_STAT_L1C1) &
+			PRE_ID_MASK_S5) == PRE_ID_MASK_S5)
+			ret = true;
+	} else if (DIM_IS_IC_EF(T3) || DIM_IS_IC(T5D) || DIM_IS_IC(T5DB) ||
 	    DIM_IS_IC(T5)) {
 		if ((DIM_RDMA_RD(DI_ARB_DBG_STAT_L1C1) &
 			PRE_ID_MASK_T5) == PRE_ID_MASK_T5)
@@ -4358,7 +4363,7 @@ void di_post_set_flow(unsigned int post_wr_en, enum EDI_POST_FLOW step)
 	case EDI_POST_FLOW_STEP3_IRQ:
 		WR(DI_POST_GL_CTRL, 0x1);
 		/* DI_POST_CTRL
-		 *	disable wr back avoid pps sreay in g12a
+		 *	disable wr back avoid pps read in g12a
 		 *	[7]: set 0;
 		 */
 		WR(DI_POST_CTRL, 0x80000045);
@@ -4575,7 +4580,9 @@ static void di_pre_data_mif_ctrl(bool enable)
 			if (dim_afds())
 				dim_afds()->inp_sw(false);
 		}
-
+		//test for bus-crash
+		//disable afbcd:
+		disable_afbcd_t5dvb();
 	}
 }
 

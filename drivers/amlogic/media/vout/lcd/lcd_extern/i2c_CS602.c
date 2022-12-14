@@ -20,7 +20,8 @@
 
 static int lcd_extern_reg_read(struct lcd_extern_driver_s *edrv,
 			       struct lcd_extern_dev_s *edev,
-			       unsigned char reg, unsigned char *buf)
+			       unsigned char reg_byte_len,
+			       unsigned short reg, unsigned char *buf)
 {
 	int ret = 0;
 
@@ -66,7 +67,7 @@ static int lcd_extern_init_check(struct lcd_extern_driver_s *edrv,
 		kfree(chk_table);
 		return -1;
 	}
-	ret = lcd_extern_i2c_read(edev->i2c_dev[0]->client, chk_table, len);
+	ret = lcd_extern_i2c_read(edev->i2c_dev[0]->client, chk_table, 1, chk_table, len);
 	if (ret == 0) {
 		for (i = 0; i < len; i++) {
 			if (chk_table[i] != edev->config.table_init_on[i + 3]) {
@@ -185,7 +186,7 @@ static int lcd_extern_power_ctrl(struct lcd_extern_driver_s *edrv,
 
 	for (i = 0; i < 10; i++) {
 		ret = lcd_extern_i2c_read(edev->i2c_dev[0]->client,
-					  &check_data, check_len);
+					  &check_data, 1, &check_data, check_len);
 		if (ret)
 			continue;
 		if ((check_data >> 6) & 0x1)

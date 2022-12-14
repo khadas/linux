@@ -61,20 +61,38 @@
 /* fixed config mif by default */
 void vdin_mif_config_init(struct vdin_dev_s *devp)
 {
-	if (devp->index == 0) {
-		W_VCBUS_BIT(VDIN_MISC_CTRL,
-			    1, VDIN0_MIF_ENABLE_BIT, 1);
-		W_VCBUS_BIT(VDIN_MISC_CTRL,
-			    0, VDIN0_OUT_AFBCE_BIT, 1);
-		W_VCBUS_BIT(VDIN_MISC_CTRL,
-			    1, VDIN0_OUT_MIF_BIT, 1);
+	if (is_meson_s5_cpu()) {
+		if (devp->index == 0) {
+			W_VCBUS_BIT(VDIN_TOP_MISC0,
+				0, WR_MIF_FIX_DISABLE_BIT, WR_MIF_FIX_DISABLE_WID);
+			//W_VCBUS_BIT(VDIN_TOP_MISC0,
+			//		0, VDIN0_OUT_AFBCE_BIT, 1);
+			//W_VCBUS_BIT(VDIN_TOP_MISC0,
+			//		1, VDIN0_OUT_MIF_BIT, 1);
+		} else {
+			W_VCBUS_BIT(VDIN_TOP_MISC1,
+					0, WR_MIF_FIX_DISABLE_BIT, WR_MIF_FIX_DISABLE_WID);
+			//W_VCBUS_BIT(VDIN_TOP_MISC1,
+			//		0, VDIN_TOP_MISC1, 1);
+			//W_VCBUS_BIT(VDIN_TOP_MISC0,
+			//		1, VDIN_TOP_MISC1, 1);
+		}
 	} else {
-		W_VCBUS_BIT(VDIN_MISC_CTRL,
-			    1, VDIN1_MIF_ENABLE_BIT, 1);
-		W_VCBUS_BIT(VDIN_MISC_CTRL,
-			    0, VDIN1_OUT_AFBCE_BIT, 1);
-		W_VCBUS_BIT(VDIN_MISC_CTRL,
-			    1, VDIN1_OUT_MIF_BIT, 1);
+		if (devp->index == 0) {
+			W_VCBUS_BIT(VDIN_MISC_CTRL,
+				    1, VDIN0_MIF_ENABLE_BIT, 1);
+			W_VCBUS_BIT(VDIN_MISC_CTRL,
+				    0, VDIN0_OUT_AFBCE_BIT, 1);
+			W_VCBUS_BIT(VDIN_MISC_CTRL,
+				    1, VDIN0_OUT_MIF_BIT, 1);
+		} else {
+			W_VCBUS_BIT(VDIN_MISC_CTRL,
+				    1, VDIN1_MIF_ENABLE_BIT, 1);
+			W_VCBUS_BIT(VDIN_MISC_CTRL,
+				    0, VDIN1_OUT_AFBCE_BIT, 1);
+			W_VCBUS_BIT(VDIN_MISC_CTRL,
+				    1, VDIN1_OUT_MIF_BIT, 1);
+		}
 	}
 }
 
@@ -588,20 +606,27 @@ void vdin_pause_afbce_write(struct vdin_dev_s *devp, unsigned int rdma_enable)
 	vdin_afbce_clear_write_down_flag(devp);
 }
 
+/* frm_end will not pull up if using rdma IF to clear afbce flag */
 void vdin_afbce_clear_write_down_flag(struct vdin_dev_s *devp)
 {
-	rdma_write_reg(devp->rdma_handle, AFBCE_CLR_FLAG, 1);
+	/* bit0:frm_end_clr;bit1:enc_error_clr */
+	W_VCBUS_BIT(AFBCE_CLR_FLAG, 3, 0, 2);
 }
 
-/* return 1: write down*/
+/* return 1: write down */
 int vdin_afbce_read_write_down_flag(void)
 {
-	int val1, val2;
+	int frm_end = -1, wr_abort = -1;
 
-	val1 = rd_bits(0, AFBCE_STA_FLAG, 0, 1);
-	val2 = rd_bits(0, AFBCE_STA_FLAG, 2, 2);
+	frm_end = rd_bits(0, AFBCE_STA_FLAG, 0, 1);
+	//frm_end = rd_bits(0, AFBCE_STAT1, 31, 1);
+	wr_abort = rd_bits(0, AFBCE_STA_FLAG, 2, 2);
 
-	if (val1 == 1 || val2 == 0)
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE)
+		pr_info("frm_end:%#x,wr_abort:%#x\n",
+			frm_end, wr_abort);
+
+	if (frm_end == 1 && wr_abort == 0)
 		return 1;
 	else
 		return 0;
@@ -609,6 +634,9 @@ int vdin_afbce_read_write_down_flag(void)
 
 void vdin_afbce_soft_reset(void)
 {
+	if (is_meson_s5_cpu())
+		return; //TODO
+
 	W_VCBUS_BIT(AFBCE_ENABLE, 0, AFBCE_EN_BIT, AFBCE_EN_WID);
 	W_VCBUS_BIT(AFBCE_MODE, 0, 30, 1);
 	W_VCBUS_BIT(AFBCE_MODE, 1, 30, 1);
@@ -655,7 +683,8 @@ void vdin_afbce_mode_init(struct vdin_dev_s *devp)
 	 */
 	devp->afbce_mode = 0;
 	devp->afbce_mode_pre = devp->afbce_mode;
-	pr_info("vdin%d init afbce_mode: %d\n", devp->index, devp->afbce_mode);
+	if (vdin_dbg_en)
+		pr_info("vdin%d init afbce_mode: %d\n", devp->index, devp->afbce_mode);
 }
 
 void vdin_afbce_mode_update(struct vdin_dev_s *devp)

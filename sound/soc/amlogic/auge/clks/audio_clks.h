@@ -41,6 +41,7 @@
 		.shift = (_shift), \
 		.width = (_width), \
 		.lock = &aclk_lock, \
+		.flags = CLK_DIVIDER_ROUND_CLOSEST, \
 	}
 #define CLOCK_COM_GATE(_name, _reg, _bit) \
 	static struct clk_gate _name##_gate = { \
@@ -100,6 +101,9 @@ extern struct audio_clk_init t7_audio_clks_init;
 extern struct audio_clk_init t3_audio_clks_init;
 extern struct audio_clk_init p1_audio_clks_init;
 extern struct audio_clk_init a5_audio_clks_init;
+extern struct audio_clk_init axg_audio_clks_init;
+extern struct audio_clk_init s5_audio_clks_init;
+
 extern spinlock_t aclk_lock;
 
 struct clk_chipinfo {

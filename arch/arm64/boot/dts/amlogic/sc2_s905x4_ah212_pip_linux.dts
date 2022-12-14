@@ -50,6 +50,16 @@
 			status = "disabled";
 		};
 
+		/* global autoconfigured region for contiguous allocations */
+		ramoops@0x07400000 {
+			compatible = "ramoops";
+			reg = <0x0 0x07400000 0x0 0x00100000>;
+			record-size = <0x20000>;
+			console-size = <0x40000>;
+			ftrace-size = <0x80000>;
+			pmsg-size = <0x20000>;
+		};
+
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -120,15 +130,15 @@
 		};
 
 		/*  vdin0 CMA pool */
-		vdin0_cma_reserved:linux,vdin0_cma {
-			compatible = "shared-dma-pool";
-			reusable;
+		//vdin0_cma_reserved:linux,vdin0_cma {
+		//	compatible = "shared-dma-pool";
+		//	reusable;
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
-			size = <0x0 0x01400000>;
-			alignment = <0x0 0x400000>;
-		};
+		//	size = <0x0 0x01400000>;
+		//	alignment = <0x0 0x400000>;
+		//};
 		/*  vdin1 CMA pool */
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";

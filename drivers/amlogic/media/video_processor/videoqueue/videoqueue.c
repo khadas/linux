@@ -49,6 +49,7 @@
 #define P_FENCE		0X2
 #define P_SYNC		0X4
 #define P_AVSYNC	0X8
+#define P_THREAD	0X10
 
 #define UNDEQUEU_COUNT 4
 #define CHECK_DELAYE_COUNT 6
@@ -69,8 +70,8 @@ static int force_game_mode;
 static int fence_dq_count;
 static int fence_put_count;
 static int fence_null_count;
-static int low_latency_mode = 1;
 static int resync_open;
+static int unknown_check = 1;
 
 int vq_print(int debug_flag, const char *fmt, ...)
 {
@@ -265,7 +266,7 @@ static void file_pop_display_q(struct video_queue_dev *dev,
 
 static u32 get_avsync_delay_time(void)
 {
-	u32 delay_value = get_tvin_delay_min_ms();
+	u32 delay_value = get_tvin_delay_duration();
 
 	if (delay_value == 0) {
 		delay_value = get_tvin_delay_min_ms();
@@ -285,12 +286,8 @@ static void videoq_hdmi_video_sync_2(struct video_queue_dev *dev,
 	s64 diff = 0;
 	u64 actual_delay = 0;
 	u64 frc_delay = 0;
-	u32 disp_delay_count;
+	u32 disp_delay_count = 2;
 
-	if (dev->low_latency_mode)
-		disp_delay_count = 2;
-	else
-		disp_delay_count = 3;
 	audio_need_delay = get_avsync_delay_time();
 	if (audio_need_delay == 0)
 		return;
@@ -306,6 +303,11 @@ static void videoq_hdmi_video_sync_2(struct video_queue_dev *dev,
 #endif
 	actual_delay += frc_delay;
 	diff = actual_delay - audio_need_delay * 1000;
+
+	vq_print(P_AVSYNC, "audio_need=%lld,vframe_delay=%lld, actual_delay=%lld,diff=%lld\n",
+		audio_need_delay, vframe_delay,
+		actual_delay, diff);
+
 	if (diff > vdin_vsync * 1000 / 2) {
 		diff = div_u64(diff, 1000);
 		need_drop = div_u64(diff + vdin_vsync / 2, vdin_vsync);
@@ -396,15 +398,12 @@ static int do_file_thread(struct video_queue_dev *dev)
 		return -1;
 	vf = vf_peek(dev->vf_receiver_name);
 	if (!vf && !dev->game_mode) {
-		if (dev->low_latency_mode) {
 		/*if do ai_sr, 6ms for ai_sr, 3ms software scheduling*/
-			if (dev->need_aisr || !sync_start)
-				usleep_range(6000, 7000);
-			else
-				usleep_range(10000, 11000);
-		} else {
+		if (dev->need_aisr || !sync_start)
+			usleep_range(6000, 7000);
+		else
 			usleep_range(10000, 11000);
-		}
+
 		vf = vf_peek(dev->vf_receiver_name);
 		if (vf)
 			vq_print(P_SYNC, "peek 2 time ok, need_aisr=%d\n",
@@ -473,7 +472,7 @@ static int do_file_thread(struct video_queue_dev *dev)
 		vq_print(P_ERROR, "set game mode true\n");
 		if (ret < 0)
 			vq_print(P_ERROR, "set game mode true err\n");
-	} else if (dev->low_latency_mode && !sync_start) {
+	} else if (!sync_start) {
 		ret = vt_send_cmd(dev->dev_session, dev->tunnel_id,
 			VT_VIDEO_SET_GAME_MODE, 1);
 		if (ret < 0)
@@ -585,6 +584,18 @@ static int do_file_thread(struct video_queue_dev *dev)
 		return 0;
 	}
 
+	if (unknown_check && vframe_disp_mode == VFRAME_DISP_MODE_UNKNOWN &&
+		dev->frame_skip_check_cnt < 4) {
+		vq_print(P_SYNC, "unknown, need wait next vsync\n");
+		dev->frame_skip_check_cnt++;
+		return 0;
+	}
+
+	if (dev->frame_skip_check_cnt == 4)
+		vq_print(P_ERROR, "countinue 4 vsync unknown\n");
+
+	dev->frame_skip_check_cnt = 0;
+
 	if (!dev->game_mode && !sync_start) {
 		if (dev->delay_vsync_count > 0) {
 			dev->delay_vsync_count--;
@@ -608,7 +619,7 @@ static int do_file_thread(struct video_queue_dev *dev)
 	disp_time = 0;
 	display_vsync_no = 0;
 
-	if (dev->low_latency_mode && !dev->game_mode) {
+	if (!dev->game_mode) {
 		if (pts + pcr_margin <= pcr_time) {
 			vq_print(P_SYNC,
 				"delay pts= %lld, pcr=%lld,omx_index=%d\n",
@@ -797,8 +808,6 @@ static void do_fence_thread(struct video_queue_dev *dev)
 	fence_file = dq_info->fence_file;
 	dq_info->used = false;
 
-	sync_file = NULL;
-	fence_obj = NULL;
 	if (!IS_ERR_OR_NULL(fence_file))
 		sync_file = (struct sync_file *)fence_file->private_data;
 	else
@@ -877,14 +886,14 @@ static int vq_file_thread(void *data)
 		if (vf)
 			tmp_pts = DUR2PTS(vf->duration);
 
-		vq_print(P_OTHER, "tmp_pts:%d, vsync_pts_inc:%d\n", tmp_pts, vsync_pts_inc);
+		vq_print(P_OTHER, "tmp_pts:%d, vsync_pts_inc:%llu\n", tmp_pts, vsync_pts_inc);
 		if (tmp_pts > 0 && tmp_pts < vsync_pts_inc) {
 			vq_print(P_OTHER, "enter new flow.\n");
 			do
 				ret = do_file_thread(dev);
 			while (ret == 1);
 		} else {
-			vq_print(P_OTHER, "enter old flow.\n");
+			vq_print(P_THREAD, "enter old flow.\n");
 			do_file_thread(dev);
 		}
 	}
@@ -986,7 +995,6 @@ static int videoqueue_reg_provider(struct video_queue_dev *dev)
 	vframe_get_delay = 0;
 	dev->game_mode = false;
 	game_mode = 0;
-	dev->low_latency_mode = low_latency_mode;
 	dev->vdin_err_crc_count = 0;
 	is_special_fps = false;
 
@@ -1059,7 +1067,7 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 		if (ret < 0)
 			vq_print(P_ERROR, "set VT_VIDEO_SET_STATUS err\n");
 	} else {
-		vq_print(P_ERROR, "ATV source need keep frame.\n");
+		vq_print(P_OTHER, "ATV source need keep frame.\n");
 	}
 
 	if (dev->file_thread)
@@ -1086,14 +1094,12 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 			 "unreg:wait fence_thread time %d\n", time_left);
 	dev->fence_thread = NULL;
 
-	if (dev->game_mode || dev->low_latency_mode) {
-		ret = vt_send_cmd(dev->dev_session, dev->tunnel_id,
-			VT_VIDEO_SET_GAME_MODE, 0);
-		vq_print(P_ERROR, "set no game mode\n");
-		dev->game_mode = false;
-		if (ret < 0)
-			vq_print(P_ERROR, "set game mode false err\n");
-	}
+	ret = vt_send_cmd(dev->dev_session, dev->tunnel_id,
+		VT_VIDEO_SET_GAME_MODE, 0);
+	vq_print(P_ERROR, "set no game mode\n");
+	dev->game_mode = false;
+	if (ret < 0)
+		vq_print(P_ERROR, "set game mode false err\n");
 
 	ret = destroy_vt_config(dev);
 	if (ret < 0)
@@ -1446,6 +1452,31 @@ static ssize_t resync_open_store(struct class *cla,
 	return count;
 }
 
+static ssize_t unknown_check_show(struct class *cla,
+			       struct class_attribute *attr,
+			       char *buf)
+{
+	return snprintf(buf, 80,
+			"current resync_open is %d\n",
+			unknown_check);
+}
+
+static ssize_t unknown_check_store(struct class *cla,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	unknown_check = tmp;
+	return count;
+}
+
 static CLASS_ATTR_RW(print_close);
 static CLASS_ATTR_RW(print_flag);
 static CLASS_ATTR_RO(buf_count);
@@ -1459,6 +1490,7 @@ static CLASS_ATTR_RO(fence_dq_count);
 static CLASS_ATTR_RO(fence_put_count);
 static CLASS_ATTR_RO(fence_null_count);
 static CLASS_ATTR_RW(resync_open);
+static CLASS_ATTR_RW(unknown_check);
 
 static struct attribute *videoqueue_class_attrs[] = {
 	&class_attr_print_close.attr,
@@ -1474,6 +1506,7 @@ static struct attribute *videoqueue_class_attrs[] = {
 	&class_attr_fence_put_count.attr,
 	&class_attr_fence_null_count.attr,
 	&class_attr_resync_open.attr,
+	&class_attr_unknown_check.attr,
 	NULL
 };
 

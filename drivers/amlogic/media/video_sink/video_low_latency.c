@@ -187,6 +187,7 @@ static int lowlatency_vsync(u8 instance_id)
 		amdv_check_hdr10plus(vf);
 		amdv_check_hlg(vf);
 		amdv_check_primesl(vf);
+		amdv_check_cuva(vf);
 	}
 
 	if (cur_vd1_path_id != vd1_path_id) {
@@ -662,16 +663,16 @@ static int lowlatency_vsync(u8 instance_id)
 		cur_blackout = blackout_pip | force_blackout;
 	} else if ((vd1_path_id != VFM_PATH_INVALID) &&
 		   (vd1_path_id != VFM_PATH_AUTO)) {
-		/* priamry display on VD1 */
+		/* primary display on VD1 */
 		new_frame = path0_new_frame;
 		if (!new_frame) {
 			if (!cur_dispbuf) {
-				/* priamry no frame in display */
+				/* primary no frame in display */
 				if (cur_vd1_path_id != vd1_path_id)
 					safe_switch_videolayer(0, false, true);
 				vd_layer[0].dispbuf = NULL;
 			} else if (cur_dispbuf == &vf_local) {
-				/* priamry keep frame */
+				/* primary keep frame */
 				vd_layer[0].dispbuf = cur_dispbuf;
 			} else if (vd_layer[0].dispbuf
 				!= cur_dispbuf) {
@@ -791,7 +792,7 @@ static int lowlatency_vsync(u8 instance_id)
 		if (vd_layer[0].dispbuf->flag & VFRAME_FLAG_MIRROR_V)
 			mirror = V_MIRROR;
 		_set_video_mirror(&glayer_info[0], mirror);
-		set_alpha_scpxn(&vd_layer[0], vd_layer[0].dispbuf->componser_info);
+		set_alpha_scpxn(&vd_layer[0], vd_layer[0].dispbuf->composer_info);
 		glayer_info[0].zorder = vd_layer[0].dispbuf->zorder;
 	}
 
@@ -905,7 +906,9 @@ static int lowlatency_vsync(u8 instance_id)
 			VFRAME_SIGNAL_FMT_HDR10PRIME,
 			VFRAME_SIGNAL_FMT_HLG,
 			VFRAME_SIGNAL_FMT_SDR,
-			VFRAME_SIGNAL_FMT_MVC
+			VFRAME_SIGNAL_FMT_MVC,
+			VFRAME_SIGNAL_FMT_CUVA_HDR,
+			VFRAME_SIGNAL_FMT_CUVA_HLG
 		};
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -916,7 +919,7 @@ static int lowlatency_vsync(u8 instance_id)
 			new_src_fmt =
 				(int)get_cur_source_type(VD1_PATH, VPP_TOP0);
 #endif
-		if (new_src_fmt > 0 && new_src_fmt < 8)
+		if (new_src_fmt > 0 && new_src_fmt < MAX_SOURCE)
 			fmt = (enum vframe_signal_fmt_e)src_map[new_src_fmt];
 		else
 			fmt = VFRAME_SIGNAL_FMT_INVALID;
@@ -1063,7 +1066,7 @@ static int lowlatency_vsync(u8 instance_id)
 		pr_info("new_frame2=%p\n", new_frame2);
 		cur_blackout = 1;
 	} else if (vd2_path_id == VFM_PATH_AMVIDEO) {
-		/* priamry display in VD2 */
+		/* primary display in VD2 */
 		new_frame2 = path0_new_frame;
 		if (!new_frame2) {
 			if (!cur_dispbuf) {
@@ -1072,7 +1075,7 @@ static int lowlatency_vsync(u8 instance_id)
 					safe_switch_videolayer(1, false, true);
 				vd_layer[1].dispbuf = NULL;
 			} else if (cur_dispbuf == &vf_local) {
-				/* priamry keep frame */
+				/* primary keep frame */
 				vd_layer[1].dispbuf = cur_dispbuf;
 			} else if (vd_layer[1].dispbuf
 				!= cur_dispbuf) {
@@ -1166,7 +1169,7 @@ static int lowlatency_vsync(u8 instance_id)
 		if (vd_layer[1].dispbuf->flag & VFRAME_FLAG_MIRROR_V)
 			mirror = V_MIRROR;
 		_set_video_mirror(&glayer_info[1], mirror);
-		set_alpha_scpxn(&vd_layer[1], vd_layer[1].dispbuf->componser_info);
+		set_alpha_scpxn(&vd_layer[1], vd_layer[1].dispbuf->composer_info);
 		glayer_info[1].zorder = vd_layer[1].dispbuf->zorder;
 	}
 
@@ -1347,7 +1350,7 @@ static int lowlatency_vsync(u8 instance_id)
 				vd_layer[2].dispbuf_mapping = &gvideo_recv[2]->cur_buf;
 			cur_blackout = 1;
 		} else if (vd3_path_id == VFM_PATH_AMVIDEO) {
-			/* priamry display in VD3 */
+			/* primary display in VD3 */
 			new_frame3 = path0_new_frame;
 			if (!new_frame3) {
 				if (!cur_dispbuf) {
@@ -1356,7 +1359,7 @@ static int lowlatency_vsync(u8 instance_id)
 						safe_switch_videolayer(2, false, true);
 					vd_layer[2].dispbuf = NULL;
 				} else if (cur_dispbuf == &vf_local) {
-					/* priamry keep frame */
+					/* primary keep frame */
 					vd_layer[2].dispbuf = cur_dispbuf;
 				} else if (vd_layer[2].dispbuf
 					!= cur_dispbuf) {
@@ -1443,7 +1446,7 @@ static int lowlatency_vsync(u8 instance_id)
 				source_type != VFRAME_SOURCE_TYPE_TUNER &&
 				source_type != VFRAME_SOURCE_TYPE_HWC)
 				_set_video_crop(&glayer_info[2], crop);
-			set_alpha_scpxn(&vd_layer[2], vd_layer[2].dispbuf->componser_info);
+			set_alpha_scpxn(&vd_layer[2], vd_layer[2].dispbuf->composer_info);
 			glayer_info[2].zorder = vd_layer[2].dispbuf->zorder;
 		}
 

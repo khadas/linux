@@ -157,7 +157,7 @@ struct ddr_bandwidth {
 	char busy;
 	char mode;
 	char bytes_per_cycle;
-	char soc_feature;		/* some special featur of it */
+	char soc_feature;		/* some special feature of it */
 	int mali_port[2];
 	int stat_flag;
 	unsigned int ddr_priority_num;
@@ -208,6 +208,9 @@ extern struct ddr_bandwidth_ops t7_ddr_bw_ops;
 #endif
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_S4
 extern struct ddr_bandwidth_ops s4_ddr_bw_ops;
+#endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_S5
+extern struct ddr_bandwidth_ops s5_ddr_bw_ops;
 #endif
 
 unsigned int aml_get_ddr_usage(void);

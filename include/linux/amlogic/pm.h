@@ -8,7 +8,7 @@
 #include <linux/notifier.h>
 
 /* wake up reason*/
-#define	UDEFINED_WAKEUP		0
+#define	UNDEFINED_WAKEUP		0
 #define	CHARGING_WAKEUP		1
 #define	REMOTE_WAKEUP		2
 #define	RTC_WAKEUP		3

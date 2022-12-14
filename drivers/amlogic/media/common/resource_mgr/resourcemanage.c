@@ -1018,7 +1018,7 @@ static void resman_codec_mm_release(struct resman_session *sess,
 /**
  * void resman_codec_mm_probe() - probe codec mm parameters
  *
- * @resource: resorce context
+ * @resource: resource context
  */
 static void resman_codec_mm_probe(struct resman_resource *resource)
 {
@@ -1263,7 +1263,7 @@ static bool resman_create_resource(const char *name,
 
 	switch (type) {
 	default:
-		dprintk(0, "%s error, unkonw type\n", __func__);
+		dprintk(0, "%s error, unknown type\n", __func__);
 		goto error;
 	case RESMAN_TYPE_COUNTER:
 		resource->acquire = resman_counter_acquire;
@@ -2086,7 +2086,7 @@ static ssize_t extconfig_store(struct class *class,
 
 	r = kstrtoint(buf, 10, &val);
 	if (r < 0) {
-		dprintk(0, "extcofig format has error\n");
+		dprintk(0, "extconfig format has error\n");
 		return -EINVAL;
 	}
 	/*First access common config resman.json, then access custom config resmanext.json*/

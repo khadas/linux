@@ -122,6 +122,8 @@ struct bt_voice {
 #define BT_SNDMTU		12
 #define BT_RCVMTU		13
 
+__printf(2, 3)
+void bt_debug(u64 level, const char *format, ...);
 __printf(1, 2)
 void bt_info(const char *fmt, ...);
 __printf(1, 2)
@@ -130,11 +132,17 @@ __printf(1, 2)
 void bt_err(const char *fmt, ...);
 __printf(1, 2)
 void bt_err_ratelimited(const char *fmt, ...);
+void set_bt_debug_log_level(u64 level);
+u64 get_bt_debug_log_level(void);
 
-#define BT_INFO(fmt, ...)	bt_info(fmt "\n", ##__VA_ARGS__)
-#define BT_WARN(fmt, ...)	bt_warn(fmt "\n", ##__VA_ARGS__)
-#define BT_ERR(fmt, ...)	bt_err(fmt "\n", ##__VA_ARGS__)
-#define BT_DBG(fmt, ...)	pr_debug(fmt "\n", ##__VA_ARGS__)
+#define LOG_DBG  1
+#define LOG_TRACE 2
+
+#define BT_INFO(fmt, ...)	bt_info("%s: " fmt "\n", __func__, ##__VA_ARGS__)
+#define BT_WARN(fmt, ...)	bt_warn("%s: " fmt "\n", __func__, ##__VA_ARGS__)
+#define BT_ERR(fmt, ...)	bt_err("%s: " fmt "\n", __func__, ##__VA_ARGS__)
+#define BT_DBG(fmt, ...)	bt_debug(LOG_DBG, "%s: " fmt "\n", __func__, ##__VA_ARGS__)
+#define BT_TRACE(fmt, ...)	bt_debug(LOG_TRACE, "%s: " fmt "\n", __func__, ##__VA_ARGS__)
 
 #define BT_ERR_RATELIMITED(fmt, ...) bt_err_ratelimited(fmt "\n", ##__VA_ARGS__)
 

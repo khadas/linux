@@ -2764,7 +2764,7 @@ static bool is_core_symbol(const Elf_Sym *src, const Elf_Shdr *sechdrs,
 	    || !src->st_name)
 		return false;
 
-/* ignore all symbols of moulde been loaded when module_debug is not set */
+/* ignore all symbols of module been loaded when module_debug is not set */
 #ifdef CONFIG_AMLOGIC_MODIFY
 #ifdef CONFIG_KALLSYMS_ALL
 	if (src->st_shndx == pcpundx && module_debug)

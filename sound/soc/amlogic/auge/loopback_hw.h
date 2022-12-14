@@ -34,7 +34,7 @@ struct data_cfg {
 	unsigned int chmask;
 	/* combined data */
 	unsigned int type;
-	/* the msb positioin in data */
+	/* the msb position in data */
 	unsigned int m;
 	/* the lsb position in data */
 	unsigned int n;

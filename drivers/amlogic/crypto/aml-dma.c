@@ -34,10 +34,12 @@
 #include "aml-sha-dma.h"
 #include "aml-aes-dma.h"
 #include "aml-tdes-dma.h"
+#include "aml-sm4-dma.h"
 
 #define ENABLE_SHA	(1)
 #define ENABLE_AES	(1)
 #define ENABLE_TDES	(1)
+#define ENABLE_SM4	(1)
 #define ENABLE_CRYPTO_DEV (1)
 #define AML_DMA_QUEUE_LENGTH (50)
 static struct dentry *aml_dma_debug_dent;
@@ -156,6 +158,8 @@ static int aml_dma_queue_manage(void *data)
 					ret = aml_aes_process(req);
 				else if (strstr(driver_name, "des"))
 					ret = aml_tdes_process(req);
+				else if (strstr(driver_name, "sm4"))
+					ret = aml_sm4_process(req);
 				else
 					ret = -EINVAL;
 			}
@@ -294,6 +298,11 @@ static int __init aml_dma_driver_init(void)
 	if (ret)
 		goto crypto_dev_init_failed;
 #endif
+#if ENABLE_SM4
+	ret = aml_sm4_driver_init();
+	if (ret)
+		goto sm4_init_failed;
+#endif
 	ret = platform_driver_register(&aml_dma_driver);
 	if (ret)
 		goto plat_init_failed;
@@ -301,6 +310,10 @@ static int __init aml_dma_driver_init(void)
 	return ret;
 
 plat_init_failed:
+#if ENABLE_SM4
+sm4_init_failed:
+	aml_sm4_driver_exit();
+#endif
 #if ENABLE_CRYPTO_DEV
 crypto_dev_init_failed:
 	aml_crypto_device_driver_exit();
@@ -335,6 +348,9 @@ static void __exit aml_dma_driver_exit(void)
 #endif
 #if ENABLE_CRYPTO_DEV
 	aml_crypto_device_driver_exit();
+#endif
+#if ENABLE_SM4
+	aml_sm4_driver_exit();
 #endif
 }
 module_exit(aml_dma_driver_exit);

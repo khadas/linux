@@ -9,7 +9,7 @@
 
 /*
  * From GXL chips, registers names changes.
- * Added new HHI_HDMI_PLL_CNTL1 but addessed as 0xc9.
+ * Added new HHI_HDMI_PLL_CNTL1 but addressed as 0xc9.
  * It's different with HHI_HDMI_PLL_CNTL2 0xc9 in previouse chips.
  */
 #ifdef P_HHI_HDMI_PLL_CNTL2

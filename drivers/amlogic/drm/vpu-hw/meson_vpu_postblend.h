@@ -78,6 +78,23 @@
 #define VPP2_BLEND_BLEND_DUMMY_DATA                0x59e9
 #define VPP2_BLEND_DUMMY_ALPHA                     0x59ea
 
+/* S5 vpp register */
+#define VPP_OSD1_BLD_H_SCOPE_S5                       0x1d09
+#define VPP_OSD1_BLD_V_SCOPE_S5                      0x1d0a
+#define VPP_OSD2_BLD_H_SCOPE_S5                       0x1d0b
+#define VPP_OSD2_BLD_V_SCOPE_S5                       0x1d0c
+
+#define VD1_BLEND_SRC_CTRL_S5                         0x1d0d
+#define VD2_BLEND_SRC_CTRL_S5                         0x1d0e
+#define OSD1_BLEND_SRC_CTRL_S5                        0x1d10
+#define OSD2_BLEND_SRC_CTRL_S5                        0x1d11
+
+#define VPP_POST_BLEND_BLEND_DUMMY_DATA_S5            0x1d1a
+#define VPP_POST_BLEND_DUMMY_ALPHA_S5                 0x1d1b
+#define VPP_POSTBLND_CTRL_S5                          0x1d02
+
+#define VPP_INTF_OSD3_CTRL             0x4107
+
 /* vpp crc */
 #define VPP_RO_CRCSUM           0x1db2
 #define VPP_CRC_CHK             0x1db3
@@ -106,7 +123,7 @@ enum vpp_blend_src_e {
 	VPP_VD1,
 	VPP_VD2,
 	VPP_OSD1,
-	VPP_OSD2
+	VPP_OSD2,
 };
 
 struct postblend1_reg_s {
@@ -120,6 +137,15 @@ struct postblend1_reg_s {
 	u32 vpp_bld_out_size;
 	u32 vpp_bld_dummy_data;
 	u32 vpp_bld_dummy_alpha;
+};
+
+enum vpp_blend_5mux_e {
+	VPP_5MUX_NULL = 0,
+	VPP_5MUX_VD1,
+	VPP_5MUX_VD2,
+	VPP_5MUX_VD3,
+	VPP_5MUX_OSD1,
+	VPP_5MUX_OSD2,
 };
 
 void set_video_zorder(u32 zorder, u32 index);

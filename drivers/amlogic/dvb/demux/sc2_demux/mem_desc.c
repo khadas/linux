@@ -746,7 +746,7 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 	dma_sync_single_for_device(aml_get_device(),
 		pchan->memdescs_phy, sizeof(union mem_desc), DMA_TO_DEVICE);
 	pr_dbg("flush mem descs to ddr\n");
-	pr_dbg("%s mem_desc phy addr 0x%x, memdsc:0x%lx\n", __func__,
+	pr_dbg("%s mem_desc phy addr 0x%x, memdescs:0x%lx\n", __func__,
 	       pchan->memdescs_phy, (unsigned long)pchan->memdescs);
 
 	dma_sync_single_for_device(aml_get_device(),
@@ -1114,6 +1114,11 @@ int SC2_bufferid_read_newest_pts(struct chan_id *pchan, char **pread)
 	unsigned int buf_len = 16;
 	int overflow = 0;
 	int pts_mem_offset = 0;
+
+	if (!pchan || !pchan->mem_phy) {
+		dprint("pchan is null or pchan->mem_phy is 0\n");
+		return 0;
+	}
 
 	w_offset_org = wdma_get_wr_len(pchan->id, &overflow);
 	w_offset = w_offset_org % pchan->mem_size;

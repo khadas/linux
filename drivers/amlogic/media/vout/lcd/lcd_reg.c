@@ -377,6 +377,64 @@ void lcd_vcbus_clr_mask(unsigned int reg, unsigned int mask)
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 }
 
+unsigned int lcd_hiu_read(unsigned int reg)
+{
+	unsigned int temp;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_reg_spinlock, flags);
+	temp =  vclk_hiu_reg_read(reg);
+	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
+	if (lcd_debug_print_flag & LCD_DBG_PR_REG)
+		LCDPR("%s: 0x%02x = 0x%08x\n", __func__, reg, temp);
+
+	return temp;
+};
+
+void lcd_hiu_write(unsigned int reg, unsigned int val)
+{
+	unsigned long flags = 0;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_REG)
+		LCDPR("%s: 0x%02x = 0x%08x\n", __func__, reg, val);
+	spin_lock_irqsave(&lcd_reg_spinlock, flags);
+	vclk_hiu_reg_write(reg, val);
+	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
+};
+
+void lcd_hiu_setb(unsigned int reg, unsigned int val,
+		  unsigned int start, unsigned int len)
+{
+	unsigned long flags = 0;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_REG) {
+		LCDPR("%s: 0x%02x[%d:%d] = 0x%x\n",
+			__func__, reg, (start + len - 1), start, val);
+	}
+	spin_lock_irqsave(&lcd_reg_spinlock, flags);
+	vclk_hiu_reg_write(reg, ((vclk_hiu_reg_read(reg) &
+			   ~(((1L << (len)) - 1) << (start))) |
+			   (((val) & ((1L << (len)) - 1)) << (start))));
+	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
+}
+
+unsigned int lcd_hiu_getb(unsigned int reg,
+			  unsigned int start, unsigned int len)
+{
+	unsigned int temp;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&lcd_reg_spinlock, flags);
+	temp =  (vclk_hiu_reg_read(reg) >> (start)) & ((1L << (len)) - 1);
+	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
+	if (lcd_debug_print_flag & LCD_DBG_PR_REG) {
+		LCDPR("%s: 0x%02x[%d:%d] = 0x%x\n",
+			__func__, reg, (start + len - 1), start, temp);
+	}
+
+	return temp;
+}
+
 unsigned int lcd_clk_read(unsigned int reg)
 {
 	unsigned int temp;

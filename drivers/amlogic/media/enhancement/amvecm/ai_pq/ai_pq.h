@@ -58,7 +58,7 @@ int aipq_saturation_hue_get_base_val(void);
 int ai_detect_scene_init(void);
 int adaptive_param_init(void);
 
-/*temporary sulotion for base value*/
+/*temporary solution for base value*/
 int aipq_base_dnlp_param(unsigned int final_gain);
 int aipq_base_peaking_param(unsigned int reg,
 			    unsigned int mask,

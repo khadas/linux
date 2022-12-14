@@ -32,7 +32,8 @@ struct lcd_extern_i2c_dev_s *lcd_extern_get_i2c_device(unsigned char addr);
 int lcd_extern_i2c_write(struct i2c_client *i2client,
 			 unsigned char *buff, unsigned int len);
 int lcd_extern_i2c_read(struct i2c_client *i2client,
-			unsigned char *buff, unsigned int len);
+			unsigned char *wbuf, unsigned int wlen,
+			unsigned char *rbuf, unsigned int rlen);
 
 /* specific API */
 int lcd_extern_default_probe(struct lcd_extern_driver_s *edrv, struct lcd_extern_dev_s *edev);
@@ -45,6 +46,10 @@ int lcd_extern_i2c_ANX6862_7911_probe(struct lcd_extern_driver_s *edrv,
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN_I2C_CS602
 int lcd_extern_i2c_CS602_probe(struct lcd_extern_driver_s *edrv,
 			       struct lcd_extern_dev_s *edev);
+#endif
+#ifdef CONFIG_AMLOGIC_LCD_EXTERN_I2C_OLED
+int lcd_extern_i2c_oled_probe(struct lcd_extern_driver_s *edrv,
+			      struct lcd_extern_dev_s *edev);
 #endif
 
 #endif

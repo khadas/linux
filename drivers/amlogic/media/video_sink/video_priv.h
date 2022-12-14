@@ -22,6 +22,7 @@
 #include <linux/amlogic/media/video_sink/vpp.h>
 #include "video_reg.h"
 #include <linux/amlogic/media/amvecm/amvecm.h>
+#include "video_reg_s5.h"
 
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 #define ENABLE_PRE_LINK
@@ -196,6 +197,22 @@ enum VPU_MODULE_e {
 	VPU2_R,
 };
 
+enum VPU_MODULE_S5_e {
+	VPP_ARB0_S5,
+	VPP_ARB1_S5,
+	VPP_ARB2_S5,
+	VPU_SUB_READ_S5,
+	DCNTR_GRID_S5,
+	TCON_P1_S5,
+	TCON_P2_S5,
+	TCON_P3_S5
+};
+
+enum display_module_e {
+	OLD_DISPLAY_MODULE,
+	T7_DISPLAY_MODULE,
+	S5_DISPLAY_MODULE,
+};
 typedef u32 (*rdma_rd_op)(u32 reg);
 typedef int (*rdma_wr_op)(u32 reg, u32 val);
 typedef int (*rdma_wr_bits_op)(u32 reg, u32 val, u32 start, u32 len);
@@ -210,7 +227,7 @@ struct video_dev_s {
 	int vpp_off;
 	int viu_off;
 	int mif_linear;
-	int t7_display;
+	int display_module;
 	int max_vd_layers;
 	int vd2_independ_blend_ctrl;
 	int aisr_support;
@@ -380,6 +397,21 @@ enum mode_3d_e {
 	mode_3d_mvc_enable
 };
 
+struct sub_slice_s {
+	u32 slice_index;
+	u32 src_field;
+	u32 src_fmt;
+	u32 src_mode;
+	u32 src_bits;
+	ulong src_addr;
+	u32 src_hsize;
+	u32 src_vsize;
+	u32 src_x_start;
+	u32 src_x_end;
+	u32 src_y_start;
+	u32 src_y_end;
+};
+
 struct video_layer_s {
 	u8 layer_id;
 	u8 layer_support;
@@ -419,9 +451,11 @@ struct video_layer_s {
 
 	/* struct disp_info_s disp_info; */
 	struct mif_pos_s mif_setting;
+	struct mif_pos_s slice_mif_setting[SLICE_NUM];
 	struct scaler_setting_s sc_setting;
 	struct blend_setting_s bld_setting;
 	struct fgrain_setting_s fgrain_setting;
+	struct fgrain_setting_s slice_fgrain_setting[SLICE_NUM];
 	struct clip_setting_s clip_setting;
 	struct aisr_setting_s aisr_mif_setting;
 	struct scaler_setting_s aisr_sc_setting;
@@ -469,6 +503,10 @@ struct video_layer_s {
 	bool pre_link_en;
 	bool need_disable_prelink;
 	u8 prelink_skip_cnt;
+	u32 slice_num;
+	u32 pi_enable;
+	u32 vd1s1_vd2_prebld_en;
+	struct sub_slice_s sub_slice[SLICE_NUM - 1];
 };
 
 enum {
@@ -478,7 +516,7 @@ enum {
 	OLD_CORE0_CORE1,
 };
 enum cpu_type_e {
-	MESON_CPU_MAJOR_ID_COMPATIBALE = 0x1,
+	MESON_CPU_MAJOR_ID_COMPATIBLE = 0x1,
 	MESON_CPU_MAJOR_ID_TM2_REVB,
 	MESON_CPU_MAJOR_ID_SC2_,
 	MESON_CPU_MAJOR_ID_T5_,
@@ -488,6 +526,7 @@ enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_T5D_REVB_,
 	MESON_CPU_MAJOR_ID_T3_,
 	MESON_CPU_MAJOR_ID_T5W_,
+	MESON_CPU_MAJOR_ID_S5_,
 	MESON_CPU_MAJOR_ID_UNKNOWN_,
 };
 
@@ -523,7 +562,7 @@ struct amvideo_device_data_s {
 	u32 ofifo_size;
 	u32 afbc_conv_lbuf_len[MAX_VD_LAYER];
 	u8 mif_linear;
-	u8 t7_display;
+	u8 display_module;
 	u8 max_vd_layers;
 	u8 has_vpp1;
 	u8 has_vpp2;
@@ -551,6 +590,25 @@ struct pre_scaler_info {
 	u32 pre_vscaler_coef[4];
 	u32 pre_vscaler_coef_set;
 };
+
+enum {
+	VD1_PROBE = 1,
+	VD2_PROBE,
+	VD3_PROBE,
+	OSD1_PROBE,
+	OSD2_PROBE,
+	OSD3_PROBE,
+	OSD4_PROBE,
+	POST_VADJ_PROBE,
+	POSTBLEND_PROBE,
+};
+
+enum {
+	VIDEO_PROBE = 1,
+	OSD_PROBE,
+	POST_PROBE,
+};
+
 /* from video_hw.c */
 extern struct video_layer_s vd_layer[MAX_VD_LAYER];
 extern struct disp_info_s glayer_info[MAX_VD_LAYER];
@@ -660,6 +718,11 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 			     struct vframe_s *vf,
 			     struct vpp_frame_par_s *cur_frame_par,
 			     struct disp_info_s *disp_info, u32 line);
+int set_layer_slice_display_canvas_s5(struct video_layer_s *layer,
+			     struct vframe_s *vf,
+			     struct vpp_frame_par_s *cur_frame_par,
+			     struct disp_info_s *disp_info,
+			     u32 slice);
 u32 *get_canvase_tbl(u8 layer_id);
 s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		     bool force_toggle,
@@ -682,6 +745,27 @@ bool is_bandwidth_policy_hit(u8 layer_id);
 int video_hw_init(void);
 int video_early_init(struct amvideo_device_data_s *p_amvideo);
 int video_late_uninit(void);
+
+int video_hw_init_s5(void);
+int video_early_init_s5(struct amvideo_device_data_s *p_amvideo);
+void vd_scaler_setting_s5(struct video_layer_s *layer,
+		       struct scaler_setting_s *setting);
+void vd_set_dcu_s5(u8 layer_id,
+		struct video_layer_s *layer,
+		struct vpp_frame_par_s *frame_par,
+		struct vframe_s *vf);
+void proc_vd_vsc_phase_per_vsync_s5(struct video_layer_s *layer,
+				 struct vpp_frame_par_s *frame_par,
+				 struct vframe_s *vf);
+void switch_3d_view_per_vsync_s5(struct video_layer_s *layer);
+void aisr_reshape_cfg_s5(struct video_layer_s *layer,
+		     struct aisr_setting_s *aisr_mif_setting);
+void aisr_scaler_setting_s5(struct video_layer_s *layer,
+			     struct scaler_setting_s *setting);
+void vd_blend_setting_s5(struct video_layer_s *layer, struct blend_setting_s *setting);
+void vd_clip_setting_s5(u8 layer_id,
+	struct clip_setting_s *setting);
+void vpp_post_blend_update_s5(const struct vinfo_s *vinfo);
 
 /* from video.c */
 extern u32 osd_vpp_misc;
@@ -731,6 +815,8 @@ extern struct vpp_frame_par_s *curpip2_frame_par;
 extern struct video_layer_s vd_layer_vpp[2];
 extern u32 force_switch_vf_mode;
 extern u32 video_info_change_status;
+extern u32 reference_zorder;
+extern u32 pi_enable;
 
 bool black_threshold_check(u8 id);
 extern atomic_t primary_src_fmt;
@@ -763,6 +849,7 @@ bool video_is_meson_s4_cpu(void);
 bool video_is_meson_t5d_revb_cpu(void);
 bool video_is_meson_t3_cpu(void);
 bool video_is_meson_t5w_cpu(void);
+bool video_is_meson_s5_cpu(void);
 void alpha_win_set(struct video_layer_s *layer);
 void fgrain_config(struct video_layer_s *layer,
 		   struct vpp_frame_par_s *frame_par,
@@ -782,7 +869,7 @@ bool has_pre_vscaler_ntap(u8 layer_id);
 void _set_video_window(struct disp_info_s *layer, int *p);
 void _set_video_crop(struct disp_info_s *layer, int *p);
 void set_alpha_scpxn(struct video_layer_s *layer,
-			   struct componser_info_t *componser_info);
+			   struct composer_info_t *composer_info);
 void di_used_vd1_afbc(bool di_used);
 void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		    const struct vinfo_s *vinfo);
@@ -807,8 +894,8 @@ void aisr_demo_axis_set(void);
 void aisr_reshape_output(u32 enable);
 void pre_process_for_3d(struct vframe_s *vf);
 bool tvin_vf_disp_mode_check(struct vframe_s *vf);
-int get_vpu_urgent_info(void);
-int set_vpu_super_urgent(u32 module_id, u32 low_level, u32 high_level);
+int get_vpu_urgent_info_t3(void);
+int set_vpu_super_urgent_t3(u32 module_id, u32 low_level, u32 high_level);
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 void vsync_rdma_process(void);
 #endif

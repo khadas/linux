@@ -23,6 +23,9 @@
 #define KSV_V_WR_TH			500
 #define KSV_LIST_WR_MAX			5
 #define KSV_LIST_WAIT_DELAY		500/*according to the timer,5s*/
+#define STREAMTYPE_UPDATE 0x10
+#define UPSTREAM_INACTIVE 0x20
+#define UPSTREAM_ACTIVE 0x40
 
 enum repeater_state_e {
 	REPEATER_STATE_WAIT_KSV,

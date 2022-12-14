@@ -95,7 +95,7 @@ early_param("ramdump", early_ramdump_para);
 
 /*
  * clear memory to avoid large amount of memory not used.
- * for ramdom data, it's hard to compress
+ * for random data, it's hard to compress
  */
 static void lazy_clear_work(struct work_struct *work)
 {

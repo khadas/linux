@@ -292,7 +292,7 @@ static int vt_debug_limit_show(struct seq_file *sf, void *data)
 {
 	struct vt_dev *vdev = sf->private;
 
-	seq_puts(sf, "when the buffer size in vt rearch the limit size then you can dequeue\n");
+	seq_puts(sf, "when the buffer size in vt research the limit size then you can dequeue\n");
 	seq_printf(sf, "current: %d\n", vdev->limit);
 	return 0;
 }
@@ -340,24 +340,6 @@ static const struct file_operations debug_limit_fops = {
 	.write = vt_debug_limit_write,
 };
 
-static int vt_close_fd(struct vt_session *session, unsigned int fd)
-{
-	int ret;
-
-	if (!session->task)
-		return -ESRCH;
-
-	ret = __close_fd(session->task->files, fd);
-	/* can't restart close syscall because file table entry was cleared */
-	if (unlikely(ret == -ERESTARTSYS ||
-		     ret == -ERESTARTNOINTR ||
-		     ret == -ERESTARTNOHAND ||
-		     ret == -ERESTART_RESTARTBLOCK))
-		ret = -EINTR;
-
-	return ret;
-}
-
 static void vt_instance_destroy(struct kref *kref)
 {
 	struct vt_instance *instance =
@@ -379,7 +361,7 @@ static void vt_instance_destroy(struct kref *kref)
 			idr_remove(&dev->instance_idr, i);
 	}
 
-	/* destroy fifo to conusmer */
+	/* destroy fifo to consumer */
 	mutex_lock(&instance->lock);
 	if (!kfifo_is_empty(&instance->fifo_to_consumer)) {
 		while (kfifo_get(&instance->fifo_to_consumer, &buffer)) {
@@ -1106,8 +1088,18 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 
 	instance = idr_find(&dev->instance_idr, id);
 
-	if (!instance || session->role != VT_ROLE_PRODUCER)
-		return -EINVAL;
+	if (data->video_cmd == VT_VIDEO_SET_COLOR_BLACK ||
+			data->video_cmd == VT_VIDEO_SET_COLOR_BLUE ||
+			data->video_cmd == VT_VIDEO_SET_COLOR_GREEN) {
+		/* no instance or instance has no consumer */
+		if (!instance || !instance->consumer) {
+			vt_debug(VT_DEBUG_CMD, "vt [%d] set solid color, no consumer", id);
+			return -ENOTCONN;
+		}
+	} else {
+		if (!instance || session->role != VT_ROLE_PRODUCER)
+			return -EINVAL;
+	}
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
@@ -1660,7 +1652,7 @@ static int vt_acquire_buffer_process(struct vt_buffer_data *data,
 				instance->state.buffer_put++;
 
 				vt_debug(VT_DEBUG_FILE,
-					 "vt [%d] acuqirebuffer install fd error file(%p) buffer(%p) fcount=%d\n",
+					 "vt [%d] acquirebuffer install fd error file(%p) buffer(%p) fcount=%d\n",
 					 instance->id, buffer->file_buffer,
 					 buffer, instance->fcount);
 			}
@@ -1721,14 +1713,12 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 		return -EINVAL;
 	}
 
-	/* close the fd in consumer side */
-	vt_close_fd(session, buffer->buffer_fd_con);
 	instance->fcount--;
 	dev->state.buffer_close++;
 	instance->state.buffer_close++;
 
 	vt_debug(VT_DEBUG_FILE,
-		 "vt [%d] releasebuffer file(%p) buffer(%p) buffer sesion(%p) fcount=%d\n",
+		 "vt [%d] releasebuffer file(%p) buffer(%p) buffer session(%p) fcount=%d\n",
 		 instance->id, buffer->file_buffer, buffer,
 		 buffer->session_pro, instance->fcount);
 

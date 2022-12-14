@@ -1,0 +1,177 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+/ {
+	per_lcd {
+		compatible = "amlogic, peripheral_lcd";
+		status = "okay";
+
+		//interrupts-extended = <&gpio_intc 119 1>;
+		interrupt-names = "per_lcd_vsync";
+		per_lcd-gpios = <&gpio GPIOA_0 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_1 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_2 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_3 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_4 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_5 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_6 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_7 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_8 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_9 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_10 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_11 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_12 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_13 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_14 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_15 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_16 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_17 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_18 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_19 GPIO_ACTIVE_HIGH
+			&gpio GPIOA_20 GPIO_ACTIVE_HIGH
+			&gpio_ao GPIOAO_3 GPIO_ACTIVE_HIGH
+			&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
+		per_lcd_gpio_names = "GPIOA_0","GPIOA_1","GPIOA_2","GPIOA_3",
+				"GPIOA_4","GPIOA_5","GPIOA_6","GPIOA_7",
+				"GPIOA_8","GPIOA_9","GPIOA_10","GPIOA_11",
+				"GPIOA_12","GPIOA_13","GPIOA_14","GPIOA_15",
+				"GPIOA_16","GPIOA_17","GPIOA_18","GPIOA_19",
+				"GPIOA_20","HPIOAO_3","GPIOAO_10";
+		reg = <0x0 0xff634434 0x0 0xc>;
+		per_lcd_dev_index = <1>;
+
+		per_lcd_0{
+			peripheral_lcd_dev_name = "intel_8080";
+			index = <0>;
+			/*type: 0:spi*/
+			/*1~3: ireserved for special spi*/
+			/*4: mcu 8080*/
+			type = <4>;
+			max_gpio_num = <21>;
+			resolution = <240 320>; /*col, row*/
+			per_lcd_attr = <
+				2 /*data format: 0=888, 1=666, 2=565*/
+				0 /*color format: 0=rgb, 1=yuv*/
+				0 /*reserved*/
+				0 /*reserved*/
+				0 /*reserved*/
+				0>; /*reserved*/
+			/*mcu port: gpio index define*/
+			mcu_attr = <8 /*RESET*/
+				0 /*nCS*/
+				1 /*nRD*/
+				14 /*nWR*/
+				9 /*RS*/
+				4 /*data0~7*/
+				5
+				10
+				11
+				15
+				16
+				17
+				18>;
+
+			cmd_size = <0xff>;
+			/* init: (type, data...) */
+			/*   type: 0x00=cmd with delay,
+			 *         0xc0=cmd,
+			 *         0xfd=delay,
+			 *         0xff=ending
+			 */
+			/*   data: spi data, fill 0x0 for no use */
+			/*   delay: unit ms */
+			init_on = <
+				0xf0 2 8 1
+				0xf0 2 8 0
+				0xf0 2 8 1
+				0xf0 2 0 0
+				0xf0 2 1 1
+				0xf0 2 14 1
+				0xc0 1 0x11
+				0xfd 1 120
+				0xc0 6 0xb2 0x0c 0x0c 0x00 0x33 0x33
+				0xc0 2 0xb7 0x35
+				0xc0 2 0x3a 0x55
+				0xc0 2 0x36 0x00
+				0xc0 2 0xbb 0x2a
+				0xc0 2 0xc3 0x0a
+				0xc0 2 0xc4 0x20
+				0xc0 2 0xc6 0x0f
+				0xc0 3 0xd0 0xa4 0xa2
+				0xc0 15 0xe0 0xd0 0x00 0x02 0x07 0x0a 0x28 0x32
+					0x44 0x42 0x06 0x0e 0x12 0x14 0x17
+				0xc0 13 0xe1 0xd0 0x00 0x02 0x07 0x0a 0x28 0x31
+					0x54 0x47 0x0e 0x1b 0x1e
+				/*Column Address Set*/
+				0xc0 5 0x2a 0x0 0x0 0x0 0xef
+				/*Row Address Set*/
+				0xc0 5 0x2b 0x0 0x0 0x1 0x3f
+				0xc0 1 0x2c
+				0xc0 1 0x11
+				0xfd 1 0x1
+				0xc0 1 0x29
+				0xc0 1 0x2c
+				0xff 0>;
+			init_off = <0xff 0>;
+		};
+		per_lcd_1{
+			peripheral_lcd_dev_name = "spi_st7789";
+			index = <1>;
+			/*type: 0:spi*/
+			/*1~3: ireserved for special spi*/
+			/*4: mcu 8080*/
+			type = <0>;
+			resolution = <240 320>; /*col, row*/
+			per_lcd_attr = <
+				2 /*data format: 0=888, 1=666, 2=565*/
+				0 /*color format: 0=rgb, 1=yuv*/
+				0 /*reserved*/
+				0 /*reserved*/
+				0 /*reserved*/
+				0>; /*reserved*/
+			spi_bus_num = <1>;
+			spi_chip_select = <0>;
+			spi_max_frequency = <64000000>; /* unit: hz */
+			spi_mode = <0>; /* mode: 0, 1, 2, 3 */
+			spi_cs_delay = <10  /* hold_high_delay */
+				100>; /* clk_cs_delay (unit: us) */
+			cmd_size = <0xff>;
+			/* init: (type, data...) */
+			/*   type: 0x00=cmd with delay,
+			 *         0xc0=cmd,
+			 *         0xfd=delay,
+			 *         0xff=ending
+			 */
+			/*   data: spi data, fill 0x0 for no use */
+			/*   delay: unit ms */
+			init_on = <
+				0xf0 2 21 1
+				0xf0 2 21 0
+				0xf0 2 22 1
+				0xfd 1 200
+				0xf0 2 22 0
+				0xfd 1 800
+				0xc0 1 0x11
+				0xfd 1 120
+				0xc0 6 0xb2 0x0c 0x0c 0x00 0x33 0x33
+				0xc0 2 0xb7 0x35
+				0xc0 2 0xaa 0x28
+				0xc0 2 0xc3 0x25
+				0xc0 2 0xc4 0x20
+				0xc0 2 0xc6 0x0f
+				0xc0 3 0xd0 0xa4 0xa2
+				0xc0 15 0xe0 0xd0 0x03 0x08 0x0b 0x0f 0x2c 0x41
+					0x54 0x4e 0x07 0x0e 0x0c 0x1e 0x23
+				0xc0 15 0xe1 0xd0 0x03 0x09 0x0b 0x0d 0x19 0x3c
+					0x54 0x4f 0x0e 0x1d 0x1c 0x20 0x22
+				0xc0 2 0x35 0x0
+				0xc0 2 0x3a 0x55
+				0xc0 1 0x29
+				0xc0 1 0x2c
+				0xff 0>;
+			init_off = <0xff 0>;
+		};
+	};
+};

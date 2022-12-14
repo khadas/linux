@@ -73,7 +73,7 @@ const char *dip_chst_get_name(enum EDI_TOP_STATE chst);
 
 /**************************************
  *
- * summmary variable
+ * summary variable
  *
  **************************************/
 void di_sum_reg_init(unsigned int ch);
@@ -360,7 +360,7 @@ int dbg_dct_contr_show(struct seq_file *s, void *v);
 void dim_dbg_dct_info(struct dcntr_mem_s *pprecfg);
 /* dct pre */
 void dct_pre_prob(struct platform_device *pdev);
-void dct_pre_revome(struct platform_device *pdev);
+void dct_pre_remove(struct platform_device *pdev);
 
 int dct_pre_ch_show(struct seq_file *s, void *v);
 int dct_pre_reg_show(struct seq_file *s, void *v);
@@ -557,7 +557,7 @@ void config_di_pre_mc_mif(struct DI_MC_MIF_s *di_mcinfo_mif,
 
 void dpre_recyc(unsigned int ch);
 
-extern const struct do_table_ops_s s4dw_hw_processt[4];
+extern const struct do_table_ops_s s4dw_hw_process[4];
 void s4dw_parser_infor(struct di_ch_s *pch);
 void check_tvp_state(struct di_ch_s *pch);
 
@@ -585,6 +585,7 @@ int dim_pre_vpp_link_display(struct vframe_s *vfm,
 			  struct pvpp_dis_para_in_s *in_para, void *out_para);
 enum DI_ERRORTYPE dpvpp_fill_output_buffer(int index, struct di_buffer *buffer);
 enum DI_ERRORTYPE dpvpp_empty_input_buffer(int index, struct di_buffer *buffer);
+void dpvpp_patch_first_buffer(int index, struct di_ch_s *pch);
 int dpvpp_destroy_instance(int index);
 int dpvpp_create_instance(struct di_init_parm *parm);
 int dpvpp_check_vf(struct vframe_s *vfm);
@@ -608,4 +609,5 @@ bool dim_check_exit_process(void);
 bool dim_is_creat_p_vpp_link(void);
 void dvpp_dbg_trig_sw(unsigned int cmd);
 int di_ls_bypass_ch(int index, bool on);
+bool dim_dbg_post_crash_check(unsigned int bit_mask);
 #endif	/*__DI_PRC_H__*/

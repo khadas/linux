@@ -172,6 +172,21 @@ void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
 		pr_info("HPLL: 0x%x\n", hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0));
 		break;
+	case 4830000:
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b0004c9);
+		if (frac_rate)
+			hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00008000);
+		else
+			hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00001910);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x6a685c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x43231290);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x29272000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x56540028);
+		hd_set_reg_bits(P_ANACTRL_HDMIPLL_CTRL0, 0x0, 29, 1);
+		WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
+		pr_info("HPLL: 0x%x\n", hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0));
+		break;
 	case 4455000:
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b0004b9);
 		if (frac_rate)

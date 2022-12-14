@@ -1120,15 +1120,14 @@
 				<&clkc CLKID_SD_EMMC_B_CLK_SEL>,
 				 <&clkc CLKID_SD_EMMC_B_CLK>,
 				 <&xtal>,
-				 <&clkc CLKID_GP0_PLL>,
-				 <&clkc CLKID_GP0_PLL>;
+				 <&clkc CLKID_FCLK_DIV2>,
+				 <&clkc CLKID_FCLK_DIV2>;
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1","clkin2";
 			//card_type = <5>;
 			card_type = <3>;
 			cap-sdio-irq;
 			keep-power-in-suspend;
-			src_clk_rate = <1152000000>;
 			use_intf3_tuning;
 			mmc_debug_flag;
 			//resets = <&reset RESET_SD_EMMC_B>;
@@ -1209,22 +1208,24 @@
 			};
 			ddr_manager {
 				compatible =
-					"amlogic, t5-audio-ddr-manager";
+					"amlogic, t3-audio-ddr-manager";
 				interrupts = <
 					GIC_SPI 32 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 33 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 34 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 45 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 40 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 36 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 37 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 38 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 46 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 47 IRQ_TYPE_EDGE_RISING
 				>;
 				interrupt-names =
 					"toddr_a", "toddr_b", "toddr_c",
-					"toddr_d",
+					"toddr_d","toddr_e",
 					"frddr_a", "frddr_b", "frddr_c",
-					"frddr_d";
+					"frddr_d","frddr_e";
 				status = "okay";
 			};
 
@@ -1307,6 +1308,8 @@
 			 * bit7 -- afbce for smaller resolution
 			 */
 			afbce_bit_mode = <0x11>;
+			/* chk_wr_done_en: enable write done check */
+			chk_wr_done_en;
 			/* urgent_en; */
 			double_write_en;
 			/* vdin v4l2 */
@@ -2981,7 +2984,7 @@
 		};
 	};
 
-dvb_p_ts2_pins: dvb_p_ts2_pins {
+	dvb_p_ts2_pins: dvb_p_ts2_pins {
 		mux {
 			groups = "tsin_b_din0",
 			"tsin_b_din1",
@@ -3054,6 +3057,14 @@ dvb_p_ts2_pins: dvb_p_ts2_pins {
 		mux {/*only use out, don't support */
 			groups = "diseqc_out_z0";
 			function = "diseqc_out";
+			bias-pull-down;
+		};
+	};
+
+	diseqc_in: diseqc_in {
+		mux {
+			groups = "diseqc_in_z1";
+			function = "diseqc_in";
 			bias-pull-down;
 		};
 	};

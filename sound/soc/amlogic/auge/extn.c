@@ -86,7 +86,7 @@ struct extn {
 
 	/* check whether irq generating
 	 * if not, reset
-	 * 'cuase no irq from nonpcm2pcm, do it by sw.
+	 * 'cause no irq from nonpcm2pcm, do it by sw.
 	 */
 	unsigned int frhdmirx_cnt;      /* irq counter */
 	unsigned int frhdmirx_last_cnt;

@@ -120,6 +120,7 @@ struct aml_tdes_dev {
 	dma_addr_t	dma_sg_dsc_out;
 
 	struct aml_tdes_info *info;
+	u8  set_key_iv_separately;
 };
 
 struct aml_tdes_drv {
@@ -208,10 +209,15 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 	struct device *dev = dd->dev;
 	u32 *key_iv = kzalloc(DMA_KEY_IV_BUF_SIZE, GFP_ATOMIC);
 	u32 *piv = key_iv + 8;
-	u32 len = keylen;
 	dma_addr_t dma_addr_key;
 	u8 status = 0;
 	int err = 0;
+	/* Basically, 1 dsc is enough for setting both key and iv
+	 * into full internal storage(48 bytes).
+	 * If platform (ex: AXG) cannot set full internal storage with
+	 * 1 dsc, then we need 2 ~ 3(with iv) dscs to achieve this.
+	 */
+	u32 num_of_dsc = 1;
 
 	if (!key_iv) {
 		dev_err(dev, "error allocating key_iv buffer\n");
@@ -224,8 +230,6 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 	if (iv)
 		memcpy(piv, iv, 8);
 
-	len = DMA_KEY_IV_BUF_SIZE; /* full key storage */
-
 	dma_addr_key = dma_map_single(dd->parent, key_iv,
 				      DMA_KEY_IV_BUF_SIZE,
 				      DMA_TO_DEVICE);
@@ -236,15 +240,46 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 		return -EINVAL;
 	}
 
-	dsc[0].src_addr = (u32)dma_addr_key;
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = len;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.owner = 1;
-	dsc[0].dsc_cfg.b.eoc = 1;
+	if (!dd->set_key_iv_separately) {
+		dsc[0].src_addr = (u32)dma_addr_key;
+		dsc[0].tgt_addr = 0;
+		dsc[0].dsc_cfg.d32 = 0;
+		dsc[0].dsc_cfg.b.length = DMA_KEY_IV_BUF_SIZE;
+		dsc[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc[0].dsc_cfg.b.owner = 1;
+		dsc[0].dsc_cfg.b.eoc = 1;
+	} else {
+		dsc[0].src_addr = (u32)dma_addr_key;
+		dsc[0].tgt_addr = 0;
+		dsc[0].dsc_cfg.d32 = 0;
+		dsc[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc[0].dsc_cfg.b.owner = 1;
+		dsc[0].dsc_cfg.b.length = 16;
 
-	aml_dma_debug(dsc, 1, __func__, dd->thread, dd->status);
+		dsc[1].src_addr = (u32)(dma_addr_key + 16);
+		dsc[1].tgt_addr = 16;
+		dsc[1].dsc_cfg.d32 = 0;
+		dsc[1].dsc_cfg.b.mode = MODE_KEY;
+		dsc[1].dsc_cfg.b.owner = 1;
+		dsc[1].dsc_cfg.b.length = 16;
+
+		if (iv) {
+			dsc[2].src_addr = (u32)(dma_addr_key + 32);
+			dsc[2].tgt_addr = 32;
+			dsc[2].dsc_cfg.d32 = 0;
+			dsc[2].dsc_cfg.b.length = 16;
+			dsc[2].dsc_cfg.b.mode = MODE_KEY;
+			dsc[2].dsc_cfg.b.owner = 1;
+			dsc[2].dsc_cfg.b.eoc = 1;
+			num_of_dsc = 3;
+		} else {
+			/* If there is no iv, mark last dsc as EOC */
+			dsc[1].dsc_cfg.b.eoc = 1;
+			num_of_dsc = 2;
+		}
+	}
+
+	aml_dma_debug(dsc, num_of_dsc, __func__, dd->thread, dd->status);
 #if DMA_IRQ_MODE
 	aml_write_crypto_reg(dd->thread,
 			     (uintptr_t)dd->dma_descript_tab | 2);
@@ -257,9 +292,9 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 	}
 	aml_write_crypto_reg(dd->status, 0xf);
 #else
-	status = aml_dma_do_hw_crypto(dd->dma, dsc, 1, dd->dma_descript_tab,
+	status = aml_dma_do_hw_crypto(dd->dma, dsc, num_of_dsc, dd->dma_descript_tab,
 			     1, DMA_FLAG_TDES_IN_USE);
-	aml_dma_debug(dsc, 1, "end tdes keyiv", dd->thread, dd->status);
+	aml_dma_debug(dsc, num_of_dsc, "end tdes keyiv", dd->thread, dd->status);
 	if (status & DMA_STATUS_KEY_ERROR) {
 		dev_err(dev, "hw crypto failed.\n");
 		err = -EINVAL;
@@ -1168,6 +1203,93 @@ static struct crypto_alg des_tdes_algs[] = {
 	}
 };
 
+static struct crypto_alg des_tdes_algs_no_kl[] = {
+	{
+		.cra_name        = "ecb(des-aml)",
+		.cra_driver_name = "ecb-des-aml",
+		.cra_priority  =  100,
+		.cra_flags     =  CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+		.cra_blocksize =  DES_BLOCK_SIZE,
+		.cra_ctxsize   =  sizeof(struct aml_tdes_ctx),
+		.cra_alignmask =  0,
+		.cra_type      =  &crypto_ablkcipher_type,
+		.cra_module    =  THIS_MODULE,
+		.cra_init      =  aml_tdes_lite_cra_init,
+		.cra_exit      =  aml_tdes_lite_cra_exit,
+		.cra_u.ablkcipher = {
+			.min_keysize	=    DES_KEY_SIZE,
+			.max_keysize	=    DES_KEY_SIZE,
+			.setkey		=    aml_des_setkey,
+			.encrypt	=    aml_tdes_ecb_encrypt,
+			.decrypt	=    aml_tdes_ecb_decrypt,
+		}
+	},
+	{
+		.cra_name        =  "cbc(des-aml)",
+		.cra_driver_name =  "cbc-des-aml",
+		.cra_priority  =  100,
+		.cra_flags     =  CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+		.cra_blocksize =  DES_BLOCK_SIZE,
+		.cra_ctxsize   =  sizeof(struct aml_tdes_ctx),
+		.cra_alignmask =  0,
+		.cra_type      =  &crypto_ablkcipher_type,
+		.cra_module    =  THIS_MODULE,
+		.cra_init      =  aml_tdes_lite_cra_init,
+		.cra_exit      =  aml_tdes_lite_cra_exit,
+		.cra_u.ablkcipher = {
+			.min_keysize	=    DES_KEY_SIZE,
+			.max_keysize	=    DES_KEY_SIZE,
+			.ivsize		=    DES_BLOCK_SIZE,
+			.setkey		=    aml_des_setkey,
+			.encrypt	=    aml_tdes_cbc_encrypt,
+			.decrypt	=    aml_tdes_cbc_decrypt,
+		}
+	},
+	{
+		.cra_name        = "ecb(des3_ede-aml)",
+		.cra_driver_name = "ecb-tdes-aml",
+		.cra_priority   = 100,
+		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
+			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
+		.cra_blocksize  = DES_BLOCK_SIZE,
+		.cra_ctxsize    = sizeof(struct aml_tdes_ctx),
+		.cra_alignmask  = 0,
+		.cra_type       = &crypto_ablkcipher_type,
+		.cra_module     = THIS_MODULE,
+		.cra_init       = aml_tdes_lite_cra_init,
+		.cra_exit       = aml_tdes_lite_cra_exit,
+		.cra_u.ablkcipher = {
+			.min_keysize	=    2 * DES_KEY_SIZE,
+			.max_keysize	=    3 * DES_KEY_SIZE,
+			.setkey		=    aml_tdes_lite_setkey,
+			.encrypt	=    aml_tdes_ecb_encrypt,
+			.decrypt	=    aml_tdes_ecb_decrypt,
+		}
+	},
+	{
+		.cra_name        = "cbc(des3_ede-aml)",
+		.cra_driver_name = "cbc-tdes-aml",
+		.cra_priority  = 100,
+		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
+			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
+		.cra_blocksize = DES_BLOCK_SIZE,
+		.cra_ctxsize   = sizeof(struct aml_tdes_ctx),
+		.cra_alignmask = 0,
+		.cra_type      = &crypto_ablkcipher_type,
+		.cra_module    = THIS_MODULE,
+		.cra_init      = aml_tdes_lite_cra_init,
+		.cra_exit      = aml_tdes_lite_cra_exit,
+		.cra_u.ablkcipher =       {
+			.min_keysize = 2 * DES_KEY_SIZE,
+			.max_keysize = 3 * DES_KEY_SIZE,
+			.ivsize	     = DES_BLOCK_SIZE,
+			.setkey	     = aml_tdes_lite_setkey,
+			.encrypt     = aml_tdes_cbc_encrypt,
+			.decrypt     = aml_tdes_cbc_decrypt,
+		}
+	},
+};
+
 static int aml_tdes_lite_cra_init(struct crypto_tfm *tfm)
 {
 	struct aml_tdes_ctx *ctx = crypto_tfm_ctx(tfm);
@@ -1347,6 +1469,52 @@ static struct crypto_alg tdes_lite_algs[] = {
 	}
 };
 
+static struct crypto_alg tdes_lite_algs_no_kl[] = {
+	{
+		.cra_name        = "ecb(des3_ede-aml)",
+		.cra_driver_name = "ecb-tdes-lite-aml",
+		.cra_priority   = 100,
+		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
+			CRYPTO_ALG_ASYNC |  CRYPTO_ALG_NEED_FALLBACK,
+		.cra_blocksize  = DES_BLOCK_SIZE,
+		.cra_ctxsize    = sizeof(struct aml_tdes_ctx),
+		.cra_alignmask  = 0,
+		.cra_type       = &crypto_ablkcipher_type,
+		.cra_module     = THIS_MODULE,
+		.cra_init       = aml_tdes_lite_cra_init,
+		.cra_exit       = aml_tdes_lite_cra_exit,
+		.cra_u.ablkcipher = {
+			.min_keysize	=    2 * DES_KEY_SIZE,
+			.max_keysize	=    3 * DES_KEY_SIZE,
+			.setkey     =    aml_tdes_lite_setkey,
+			.encrypt    =    aml_tdes_ecb_encrypt,
+			.decrypt    =    aml_tdes_ecb_decrypt,
+		}
+	},
+	{
+		.cra_name        = "cbc(des3_ede-aml)",
+		.cra_driver_name = "cbc-tdes-lite-aml",
+		.cra_priority  = 100,
+		.cra_flags     = CRYPTO_ALG_TYPE_ABLKCIPHER |
+			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
+		.cra_blocksize = DES_BLOCK_SIZE,
+		.cra_ctxsize   = sizeof(struct aml_tdes_ctx),
+		.cra_alignmask = 0,
+		.cra_type      = &crypto_ablkcipher_type,
+		.cra_module    = THIS_MODULE,
+		.cra_init      = aml_tdes_lite_cra_init,
+		.cra_exit      = aml_tdes_lite_cra_exit,
+		.cra_u.ablkcipher =       {
+			.min_keysize = 2 * DES_KEY_SIZE,
+			.max_keysize = 3 * DES_KEY_SIZE,
+			.ivsize	     = DES_BLOCK_SIZE,
+			.setkey	     = aml_tdes_lite_setkey,
+			.encrypt     = aml_tdes_cbc_encrypt,
+			.decrypt     = aml_tdes_cbc_decrypt,
+		}
+	},
+	};
+
 #if DMA_IRQ_MODE
 static void aml_tdes_queue_task(unsigned long data)
 {
@@ -1444,18 +1612,38 @@ struct aml_tdes_info aml_des_tdes __initdata = {
 	.num_algs = ARRAY_SIZE(des_tdes_algs),
 };
 
+struct aml_tdes_info aml_des_tdes_no_kl __initdata = {
+	.algs = des_tdes_algs_no_kl,
+	.num_algs = ARRAY_SIZE(des_tdes_algs_no_kl),
+};
+
 struct aml_tdes_info aml_tdes_lite __initdata = {
 	.algs = tdes_lite_algs,
 	.num_algs = ARRAY_SIZE(tdes_lite_algs),
 };
 
+struct aml_tdes_info aml_tdes_lite_no_kl __initdata = {
+	.algs = tdes_lite_algs_no_kl,
+	.num_algs = ARRAY_SIZE(tdes_lite_algs_no_kl),
+};
+
 #ifdef CONFIG_OF
 static const struct of_device_id aml_tdes_dt_match[] = {
+	/* For platform supporting DES and KL */
 	{	.compatible = "amlogic,des_dma,tdes_dma",
 		.data = &aml_des_tdes,
 	},
+	/* For platform supporting DES */
+	{	.compatible = "amlogic,des_dma,tdes_dma,no_kl",
+		.data = &aml_des_tdes_no_kl,
+	},
+	/* For platform without DES */
 	{	.compatible = "amlogic,tdes_dma",
 		.data = &aml_tdes_lite,
+	},
+	/* For platform without DES and KL */
+	{	.compatible = "amlogic,tdes_dma,no_kl",
+		.data = &aml_tdes_lite_no_kl,
 	},
 	{},
 };
@@ -1469,6 +1657,7 @@ static int aml_tdes_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int err = -EPERM;
 	struct aml_tdes_info *tdes_info = NULL, *match;
+	u8 set_key_iv_separately = 0;
 
 	tdes_dd = devm_kzalloc(dev, sizeof(struct aml_tdes_dev), GFP_KERNEL);
 	if (!tdes_dd) {
@@ -1484,6 +1673,9 @@ static int aml_tdes_probe(struct platform_device *pdev)
 		goto tdes_dd_err;
 	}
 
+	of_property_read_u8(pdev->dev.parent->of_node, "set_key_iv_separately",
+			&set_key_iv_separately);
+
 	tdes_info = devm_kzalloc(dev, sizeof(*tdes_info), GFP_KERNEL);
 	tdes_info->algs = match->algs;
 	tdes_info->num_algs = match->num_algs;
@@ -1495,6 +1687,7 @@ static int aml_tdes_probe(struct platform_device *pdev)
 	tdes_dd->status = tdes_dd->dma->status;
 	tdes_dd->link_mode = tdes_dd->dma->link_mode;
 	tdes_dd->irq = tdes_dd->dma->irq;
+	tdes_dd->set_key_iv_separately = set_key_iv_separately;
 
 	platform_set_drvdata(pdev, tdes_dd);
 

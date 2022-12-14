@@ -5,13 +5,26 @@
 
 /* Amlogic Headers */
 #include <linux/amlogic/media/ge2d/ge2d.h>
+#include "ge2d_log.h"
 
 static void _stretchblt(struct ge2d_context_s *wq,
 			int src_x, int src_y, int src_w, int src_h,
 			int dst_x, int dst_y, int dst_w, int dst_h,
-			int block)
+			int block, int enqueue)
 {
 	struct ge2d_cmd_s *ge2d_cmd_cfg = ge2d_wq_get_cmd(wq);
+
+	if (ge2d_log_level & GE2D_LOG_DUMP_STACK)
+		dump_stack();
+
+	if (src_x < 0 || src_y < 0 || src_w < 0 || src_h < 0 ||
+	   dst_x < 0 || dst_y < 0 || dst_w < 0 || dst_h < 0) {
+		ge2d_log_err("%s wrong params, %d %d %d %d-> %d %d %d %d\n",
+			     __func__,
+			     src_x, src_y, src_w, src_h,
+			     dst_x, dst_y, dst_w, dst_h);
+		return;
+	}
 
 	ge2d_cmd_cfg->src1_x_start = src_x;
 	ge2d_cmd_cfg->src1_x_end   = src_x + src_w - 1;
@@ -41,7 +54,7 @@ static void _stretchblt(struct ge2d_context_s *wq,
 	ge2d_cmd_cfg->wait_done_flag   = block;
 	ge2d_cmd_cfg->cmd_op           = IS_STRETCHBLIT;
 
-	ge2d_wq_add_work(wq);
+	ge2d_wq_add_work(wq, enqueue);
 }
 
 void stretchblt(struct ge2d_context_s *wq,
@@ -50,7 +63,7 @@ void stretchblt(struct ge2d_context_s *wq,
 {
 	_stretchblt(wq,
 		    src_x, src_y, src_w, src_h,
-		    dst_x, dst_y, dst_w, dst_h, 1);
+		    dst_x, dst_y, dst_w, dst_h, 1, 0);
 }
 EXPORT_SYMBOL(stretchblt);
 
@@ -60,17 +73,29 @@ void stretchblt_noblk(struct ge2d_context_s *wq,
 {
 	_stretchblt(wq,
 		    src_x, src_y, src_w, src_h,
-		    dst_x, dst_y, dst_w, dst_h, 0);
+		    dst_x, dst_y, dst_w, dst_h, 0, 0);
 }
 EXPORT_SYMBOL(stretchblt_noblk);
 
 static void _stretchblt_noalpha(struct ge2d_context_s *wq,
 				int src_x, int src_y, int src_w, int src_h,
 				int dst_x, int dst_y, int dst_w, int dst_h,
-				int blk)
+				int blk, int enqueue)
 {
 	struct ge2d_cmd_s *ge2d_cmd_cfg = ge2d_wq_get_cmd(wq);
 	struct ge2d_dp_gen_s *dp_gen_cfg = ge2d_wq_get_dp_gen(wq);
+
+	if (ge2d_log_level & GE2D_LOG_DUMP_STACK)
+		dump_stack();
+
+	if (src_x < 0 || src_y < 0 || src_w < 0 || src_h < 0 ||
+	   dst_x < 0 || dst_y < 0 || dst_w < 0 || dst_h < 0) {
+		ge2d_log_err("%s wrong params, %d %d %d %d-> %d %d %d %d\n",
+			     __func__,
+			     src_x, src_y, src_w, src_h,
+			     dst_x, dst_y, dst_w, dst_h);
+		return;
+	}
 
 	if (dp_gen_cfg->alu_const_color != 0xff) {
 		dp_gen_cfg->alu_const_color = 0xff;
@@ -102,10 +127,10 @@ static void _stretchblt_noalpha(struct ge2d_context_s *wq,
 	ge2d_cmd_cfg->color_logic_op   = LOGIC_OPERATION_COPY;
 	ge2d_cmd_cfg->alpha_blend_mode = OPERATION_LOGIC;
 	ge2d_cmd_cfg->alpha_logic_op   = LOGIC_OPERATION_SET;
-	ge2d_cmd_cfg->wait_done_flag   = 1;
+	ge2d_cmd_cfg->wait_done_flag   = blk;
 	ge2d_cmd_cfg->cmd_op           = IS_STRETCHBLIT;
 
-	ge2d_wq_add_work(wq);
+	ge2d_wq_add_work(wq, enqueue);
 }
 
 void stretchblt_noalpha(struct ge2d_context_s *wq,
@@ -114,7 +139,7 @@ void stretchblt_noalpha(struct ge2d_context_s *wq,
 {
 	_stretchblt_noalpha(wq,
 			    src_x, src_y, src_w, src_h,
-			    dst_x, dst_y, dst_w, dst_h, 1);
+			    dst_x, dst_y, dst_w, dst_h, 1, 0);
 }
 EXPORT_SYMBOL(stretchblt_noalpha);
 
@@ -124,6 +149,26 @@ void stretchblt_noalpha_noblk(struct ge2d_context_s *wq,
 {
 	_stretchblt_noalpha(wq,
 			    src_x, src_y, src_w, src_h,
-			    dst_x, dst_y, dst_w, dst_h, 0);
+			    dst_x, dst_y, dst_w, dst_h, 0, 0);
 }
 EXPORT_SYMBOL(stretchblt_noalpha_noblk);
+
+void stretchblt_enqueue(struct ge2d_context_s *wq,
+			int src_x, int src_y, int src_w, int src_h,
+			int dst_x, int dst_y, int dst_w, int dst_h)
+{
+	_stretchblt(wq,
+		    src_x, src_y, src_w, src_h,
+		    dst_x, dst_y, dst_w, dst_h, 0, 1);
+}
+EXPORT_SYMBOL(stretchblt_enqueue);
+
+void stretchblt_noalpha_enqueue(struct ge2d_context_s *wq,
+				int src_x, int src_y, int src_w, int src_h,
+				int dst_x, int dst_y, int dst_w, int dst_h)
+{
+	_stretchblt_noalpha(wq,
+			    src_x, src_y, src_w, src_h,
+			    dst_x, dst_y, dst_w, dst_h, 0, 1);
+}
+EXPORT_SYMBOL(stretchblt_noalpha_enqueue);

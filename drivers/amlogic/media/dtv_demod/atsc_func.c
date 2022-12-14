@@ -510,7 +510,7 @@ if (!field_test_version) {
 	atsc_write_reg(0xf55,  0x00);
 	atsc_write_reg(0xf56,  0x00);
 	atsc_write_reg(0xf57,  0x00);
-	/*improve impluse nosie 20170820*/
+	/*improve impulse nosie 20170820*/
 	atsc_write_reg(0x546,  0xa0);
 	/*improve awgn*/
 	atsc_write_reg(0x52d,  0x04);

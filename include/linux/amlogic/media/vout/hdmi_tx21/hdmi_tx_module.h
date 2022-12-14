@@ -23,11 +23,12 @@
 #define DEVICE_NAME "amhdmitx21"
 
 /* HDMITX driver version */
-#define HDMITX_VER "20220125"
+#define HDMITX_VER "20220601"
 
 /* chip type */
 enum amhdmitx_chip_e {
 	MESON_CPU_ID_T7,
+	MESON_CPU_ID_S5,
 	MESON_CPU_ID_MAX,
 };
 
@@ -86,6 +87,23 @@ struct hdr_dynamic_struct {
 	u8 optional_fields[20];
 };
 
+enum frl_rate_enum {
+	FRL_NONE = 0,
+	FRL_3G3L = 1,
+	FRL_6G3L = 2,
+	FRL_6G4L = 3,
+	FRL_8G4L = 4,
+	FRL_10G4L = 5,
+	FRL_12G4L = 6,
+};
+
+/* get the corresponding bandwidth of current FRL_RATE, Unit: MHz */
+u32 get_frl_bandwidth(const enum frl_rate_enum rate);
+u32 calc_frl_bandwidth(u32 pixel_freq, enum hdmi_colorspace cs,
+	enum hdmi_color_depth cd);
+u32 calc_tmds_bandwidth(u32 pixel_freq, enum hdmi_colorspace cs,
+	enum hdmi_color_depth cd);
+
 #define VESA_MAX_TIMING 64
 #define Y420_VIC_MAX_NUM 6 /* only 6 4k mode for y420 */
 
@@ -120,7 +138,7 @@ struct rx_cap {
 	u32 dc_30bit_420:1;
 	u32 dc_36bit_420:1;
 	u32 dc_48bit_420:1;
-	u32 max_frl_rate:4;
+	enum frl_rate_enum max_frl_rate:4;
 	u32 cnc0:1; /* Graphics */
 	u32 cnc1:1; /* Photo */
 	u32 cnc2:1; /* Cinema */
@@ -397,6 +415,9 @@ struct hdmitx_dev {
 	u8 force_audio_flag;
 	u8 mux_hpd_if_pin_high_flag;
 	int aspect_ratio;	/* 1, 4:3; 2, 16:9 */
+	u8 frl_mode; /* TODO */
+	u8 frl_rate;
+	u8 dsc_en;
 	struct hdmitx_info hdmi_info;
 	u32 log;
 	u32 tx_aud_cfg; /* 0, off; 1, on */
@@ -418,7 +439,8 @@ struct hdmitx_dev {
 	struct ced_cnt ced_cnt;
 	struct scdc_locked_st chlocked_st;
 	u32 allm_mode; /* allm_mode: 1/on 0/off */
-	u32 ct_mode; /* 0/off 1/game, 2/graphcis, 3/photo, 4/cinema */
+	u32 ct_mode; /* 0/off 1/game, 2/graphics, 3/photo, 4/cinema */
+	bool it_content;
 	u32 sspll;
 	/* if HDMI plugin even once time, then set 1 */
 	/* if never hdmi plugin, then keep as 0 */
@@ -448,6 +470,7 @@ struct hdmitx_dev {
 	u32 flag_3dtb:1;
 	u32 flag_3dss:1;
 	u32 dongle_mode:1;
+	u32 pxp_mode:1;
 	u32 cedst_en:1; /* configure in DTS */
 	u32 hdr_priority;
 	u32 bist_lock:1;
@@ -504,6 +527,7 @@ struct hdmitx_dev {
 	#define SET_CT_GRAPHICS	2
 	#define SET_CT_PHOTO	3
 	#define SET_CT_CINEMA	4
+	#define IT_CONTENT	1
 #define CONF_VIDEO_MUTE_OP      (CMD_CONF_OFFSET + 0x1000 + 0x04)
 #define VIDEO_MUTE          0x1
 #define VIDEO_UNMUTE        0x2
@@ -590,6 +614,7 @@ void hdmitx21_edid_clear(struct hdmitx_dev *hdev);
 void hdmitx21_edid_ram_buffer_clear(struct hdmitx_dev *hdev);
 void hdmitx21_edid_buf_compare_print(struct hdmitx_dev *hdev);
 int hdmitx21_read_phy_status(void);
+void hdmitx21_dither_config(struct hdmitx_dev *hdev);
 
 /* VSIF: Vendor Specific InfoFrame
  * It has multiple purposes:
@@ -789,5 +814,5 @@ bool hdmitx21_hdr_en(void);
 bool hdmitx21_dv_en(void);
 bool hdmitx21_hdr10p_en(void);
 u32 aud_sr_idx_to_val(enum hdmi_audio_fs e_sr_idx);
-bool hdmitx21_uboot_already_display(void);
+bool hdmitx21_uboot_already_display(struct hdmitx_dev *hdev);
 #endif

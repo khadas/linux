@@ -856,7 +856,8 @@ static int aml_pdm_dai_set_sysclk(struct snd_soc_dai *cpu_dai,
 		if (dclk_srcpll_freq == 0)
 			clk_set_rate(p_pdm->dclk_srcpll, 24576000 * 20);
 	}
-	clk_set_rate(p_pdm->clk_pdm_dclk, pdm_dclkidx2rate(dclk_idx));
+	clk_set_rate(p_pdm->clk_pdm_dclk,
+			pdm_dclkidx2rate(dclk_idx));
 
 	ret = clk_prepare_enable(p_pdm->clk_pdm_dclk);
 	if (ret) {
@@ -1044,7 +1045,6 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 	struct pdm_chipinfo *p_chipinfo;
 	int ret;
 	int pdm_id = 0;
-
 	p_pdm = devm_kzalloc(&pdev->dev, sizeof(struct aml_pdm), GFP_KERNEL);
 	if (!p_pdm) {
 		/*dev_err(&pdev->dev, "Can't allocate pcm_p\n");*/
@@ -1153,7 +1153,7 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 
 	ret = of_property_read_u32(node, "filter_mode", &p_pdm->filter_mode);
 	if (ret < 0) {
-		/* defulat set 1 */
+		/* default set 1 */
 		p_pdm->filter_mode = 1;
 	}
 	pr_debug("%s pdm filter mode from dts:%d\n",

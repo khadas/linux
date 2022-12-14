@@ -45,13 +45,13 @@ int vt_free_id(struct vt_session *session, int tunnel_id);
  * @session:	the vt_session
  * @tunnel_id:	tunnel id on which to connect
  *
- * Before queue/deueue bufer, producer need connect to videotunnel.
+ * Before queue/dequeue bufer, producer need connect to videotunnel.
  * Return of a value other than 0 means an error has occurred.
  */
 int vt_producer_connect(struct vt_session *session, int tunnel_id);
 
 /**
- * vt_prodecer_disconnect - producer disconnect to a sepecific videotunnel
+ * vt_producer_disconnect - producer disconnect to a specific videotunnel
  * @session:	the vt_session
  * @tunnel_id:	tunnel id on which to disconnect
  *

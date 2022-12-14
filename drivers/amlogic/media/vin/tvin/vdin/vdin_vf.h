@@ -132,10 +132,12 @@ struct vf_pool {
 	struct list_head wr_list; /* vf_entry */
 	spinlock_t wr_lock;
 	unsigned int wr_list_size;
+	unsigned int wr_mode_size;
 	struct list_head *wr_next;
 	struct list_head rd_list; /* vf_entry */
 	spinlock_t rd_lock;
 	unsigned int rd_list_size;
+	unsigned int rd_mode_size;
 	struct list_head wt_list; /* vframe_s */
 	spinlock_t wt_lock;
 	unsigned int fz_list_size;

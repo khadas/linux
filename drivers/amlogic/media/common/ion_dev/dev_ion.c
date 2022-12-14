@@ -17,6 +17,7 @@
 #include <linux/ion.h>
 #include <linux/amlogic/tee.h>
 #include "dev_ion.h"
+#include <ion/ion_private.h>
 
 //MODULE_DESCRIPTION("AMLOGIC ION driver");
 //MODULE_LICENSE("GPL v2");
@@ -52,6 +53,7 @@ struct device *ion_dev;
 static int num_heaps;
 static struct ion_cma_heap *heaps[MESON_MAX_ION_HEAP];
 static struct ion_heap *secure_heap;
+static struct ion_device *internal_dev;
 
 struct device *meson_ion_get_dev(void)
 {
@@ -229,10 +231,68 @@ static int __init rmem_ion_secure_setup(struct reserved_mem *rmem)
 	return 0;
 }
 
+static int ion_open(struct inode *inode, struct file *filp)
+{
+	filp->private_data = internal_dev;
+	return 0;
+}
+
+static int ion_release(struct inode *inode, struct file *filp)
+{
+	return 0;
+}
+
+static const struct file_operations ion_fops = {
+	.owner          = THIS_MODULE,
+	.open           = ion_open,
+	.release        = ion_release,
+	.unlocked_ioctl = ion_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= ion_ioctl,
+#endif
+};
+
+static ssize_t ion_heap_info_show(struct device *dev,
+				  struct device_attribute *attr, char * const buf)
+{
+	ssize_t ret = 0;
+	int nr;
+
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret, "%-20s %-20s %-20s %-20s %-20s\n",
+			 "name", "heap_id", "num_of_buffers",
+			 "num_of_alloc_bytes", "alloc_bytes_wm");
+	ret += scnprintf(buf + ret, PAGE_SIZE - ret,
+			"--------------------------------------------------------------------------------------------------------\n");
+
+	for (nr = 0; nr < num_heaps; nr++)
+		ret += scnprintf(buf + ret, PAGE_SIZE - ret,
+				 "%-20s %-20u %-20llu %-20llu %-20llu\n",
+				 heaps[nr]->heap.name,
+				 heaps[nr]->heap.id,
+				 heaps[nr]->heap.num_of_buffers,
+				 heaps[nr]->heap.num_of_alloc_bytes,
+				 heaps[nr]->heap.alloc_bytes_wm);
+
+	return ret;
+}
+
+static DEVICE_ATTR_RO(ion_heap_info);
+
+static struct attribute *ion_heap_info_attrs[] = {
+	&dev_attr_ion_heap_info.attr,
+	NULL
+};
+
+static const struct attribute_group ion_heap_info_attr_group = {
+	.attrs = ion_heap_info_attrs,
+};
+
 static int dev_ion_probe(struct platform_device *pdev)
 {
 	int ret;
 	int nr = 0;
+	int err = 0;
+	struct ion_device *idev;
 	int secure_flag = 0;
 	int secure_region_index = 0;
 	struct device_node *search_target = NULL;
@@ -285,6 +345,27 @@ static int dev_ion_probe(struct platform_device *pdev)
 		}
 	}
 	ion_dev = &pdev->dev;
+
+	idev = kzalloc(sizeof(*idev), GFP_KERNEL);
+	if (!idev)
+		return -ENOMEM;
+
+	idev->dev.minor = MISC_DYNAMIC_MINOR;
+	idev->dev.name = "ion";
+	idev->dev.fops = &ion_fops;
+	idev->dev.parent = get_device(ion_dev);
+
+	err = sysfs_create_group(&ion_dev->kobj, &ion_heap_info_attr_group);
+	if (err) {
+		DION_ERROR("ion: failed to register ion_heap_info.\n");
+		sysfs_remove_group(&ion_dev->kobj, &ion_heap_info_attr_group);
+	}
+
+	ret = misc_register(&idev->dev);
+	if (ret) {
+		DION_ERROR("ion: failed to register misc device.\n");
+		kfree(idev);
+	}
 
 	return ret;
 }

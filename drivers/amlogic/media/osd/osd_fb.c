@@ -51,6 +51,7 @@
 #include "osd_sync.h"
 #include "osd_io.h"
 #include "osd_virtual.h"
+#include "osd_reg.h"
 
 #include <linux/amlogic/gki_module.h>
 
@@ -361,6 +362,8 @@ static int osd_shutdown_flag;
 unsigned int osd_log_level;
 unsigned int osd_log_module = 1;
 unsigned int osd_game_mode[VIU_COUNT];
+unsigned int osd_pi_debug, osd_pi_enable;
+unsigned int osd_slice2ppc_debug, osd_slice2ppc_enable;
 
 int int_viu_vsync = -ENXIO;
 int int_viu2_vsync = -ENXIO;
@@ -1758,7 +1761,7 @@ static ssize_t osd_read(struct fb_info *info, char __user *buf,
 			/*nocache*/
 			pgprot = pgprot_writecombine(PAGE_KERNEL);
 			if (vaddr) {
-				/*  unmap prevois vaddr */
+				/*  unmap previous vaddr */
 				vunmap(vaddr);
 				vaddr = NULL;
 			}
@@ -1789,7 +1792,7 @@ static ssize_t osd_read(struct fb_info *info, char __user *buf,
 		/*nocache*/
 		pgprot = pgprot_writecombine(PAGE_KERNEL);
 		if (vaddr) {
-			/*unmap prevois vaddr */
+			/*unmap previous vaddr */
 			vunmap(vaddr);
 			vaddr = NULL;
 		}
@@ -1887,7 +1890,7 @@ static ssize_t osd_write(struct fb_info *info,
 			/*nocache*/
 			pgprot = pgprot_writecombine(PAGE_KERNEL);
 			if (vaddr) {
-				/* unmap prevois vaddr */
+				/* unmap previous vaddr */
 				vunmap(vaddr);
 				vaddr = NULL;
 			}
@@ -1918,7 +1921,7 @@ static ssize_t osd_write(struct fb_info *info,
 		/*nocache*/
 		pgprot = pgprot_writecombine(PAGE_KERNEL);
 		if (vaddr) {
-			/*  unmap prevois vaddr */
+			/*  unmap previous vaddr */
 			vunmap(vaddr);
 			vaddr = NULL;
 		}
@@ -2136,11 +2139,13 @@ int osd_notify_callback(struct notifier_block *block,
 				osddev_update_disp_axis(fb_dev, 1);
 
 				osd_set_antiflicker_hw
-					(DEV_OSD1, vinfo,
-					gp_fbdev_list[DEV_OSD1]
+					(i, vinfo,
+					gp_fbdev_list[i]
 					->fb_info->var.yres);
-				osd_reg_write(VPP_POSTBLEND_H_SIZE,
-					      vinfo->width);
+
+				if (!osd_dev_hw.s5_display)
+					osd_reg_write(VPP_POSTBLEND_H_SIZE,
+						      vinfo->width);
 				console_unlock();
 			}
 		}
@@ -2863,7 +2868,7 @@ static ssize_t show_block_windows(struct device *device,
 				  char *buf)
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
-	u32 wins[8];
+	u32 wins[8] = {0};
 
 	osd_get_block_windows_hw(fb_info->node, wins);
 	return snprintf(buf, PAGE_SIZE,
@@ -2963,7 +2968,7 @@ static ssize_t show_antiflicker(struct device *device,
 	struct fb_info *fb_info = dev_get_drvdata(device);
 
 	osd_get_antiflicker_hw(fb_info->node, &osd_antiflicker);
-	return snprintf(buf, PAGE_SIZE, "osd_antifliter:[%s]\n",
+	return snprintf(buf, PAGE_SIZE, "osd_antiflicker:[%s]\n",
 			osd_antiflicker ? "ON" : "OFF");
 }
 
@@ -3047,6 +3052,58 @@ static ssize_t show_reset_status(struct device *device,
 	u32 status = osd_get_reset_status();
 
 	return snprintf(buf, PAGE_SIZE, "0x%x\n", status);
+}
+
+static ssize_t show_pi_test(struct device *device,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, 80, "pi_debug:%d pi_enable:%d\n",
+			osd_pi_debug, osd_pi_enable);
+}
+
+static ssize_t store_pi_test(struct device *device,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int parsed[2];
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		osd_pi_debug = parsed[0];
+		osd_pi_enable = parsed[1];
+		osd_log_info("set pi_debug:%d pi_enable:%d\n",
+			     osd_pi_debug, osd_pi_enable);
+	} else {
+		osd_log_err("usage: echo pi_debug pi_enable > pi_test\n");
+	}
+
+	return count;
+}
+
+static ssize_t show_slice2ppc_test(struct device *device,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, 80, "slice2ppc_debug:%d slice2ppc_enable:%d\n",
+			osd_slice2ppc_debug, osd_slice2ppc_enable);
+}
+
+static ssize_t store_slice2ppc_test(struct device *device,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int parsed[2];
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		osd_slice2ppc_debug = parsed[0];
+		osd_slice2ppc_enable = parsed[1];
+		osd_log_info("set slice2ppc_debug:%d slice2ppc_enable:%d\n",
+			     osd_slice2ppc_debug, osd_slice2ppc_enable);
+	} else {
+		osd_log_err("usage: echo slice2ppc_debug slice2ppc_enable > slice2ppc_test\n");
+	}
+
+	return count;
 }
 
 /* Todo: how to use uboot logo */
@@ -3213,6 +3270,15 @@ static ssize_t show_osd_background_size(struct device *device,
 	struct display_flip_info_s disp_info;
 
 	osd_get_background_size(fb_info->node, &disp_info);
+
+	if (osd_hw.osd_meson_dev.has_pi && osd_hw.pi_enable) {
+		disp_info.position_x = osd_hw.pi_out.x_start;
+		disp_info.position_y = osd_hw.pi_out.y_start;
+		disp_info.position_w = osd_hw.pi_out.x_end -
+					osd_hw.pi_out.x_start + 1;
+		disp_info.position_h = osd_hw.pi_out.y_end -
+					osd_hw.pi_out.y_start + 1;
+	}
 	return snprintf(buf, 80, "%d %d %d %d %d %d %d %d\n",
 		disp_info.background_w,
 		disp_info.background_h,
@@ -4185,6 +4251,10 @@ static struct device_attribute osd_attrs[] = {
 	       show_rdma_recovery_stat, NULL),
 	__ATTR(file_info, 0440,
 	       show_file_info, NULL),
+	__ATTR(pi_test, 0644,
+	       show_pi_test, store_pi_test),
+	__ATTR(slice2ppc_test, 0644,
+	       show_slice2ppc_test, store_slice2ppc_test),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {
@@ -4587,7 +4657,7 @@ static struct osd_device_data_s osd_axg = {
 	.has_rdma = 0,
 	.has_dolby_vision = 0,
 	 /* use iomap its self, no rdma, no canvas, no freescale */
-	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.osd_fifo_len = 32, /* fifo len 64*8 = 512 */
 	.vpp_fifo_len = 0x400,
 	.dummy_data = 0x00808000,
 	.has_viu2 = 0,
@@ -4900,6 +4970,40 @@ static struct osd_device_data_s osd_t5w = {
 	.has_vpp2 = 0,
 };
 
+static struct osd_device_data_s osd_s5 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_S5,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 2, /* OSD1 + OSD3 */
+	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 1,
+	.has_dolby_vision = 1,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 0,
+	.osd0_sc_independ = 1,
+	.mif_linear = 1,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
+	.has_pi = 1,
+	.has_slice2ppc = 1,
+};
+
+static struct osd_device_hw_s s5_dev_property = {
+	.t7_display = 0,
+	.has_8G_addr = 1,
+	.multi_afbc_core = 1,
+	.has_multi_vpp = 0,
+	.new_blend_bypass = 0,
+	.path_ctrl_independ = 0,
+	.remove_afbc = 0,
+	.remove_pps = 0,
+	.prevsync_support = 0,
+	.s5_display = 1,
+};
+
 static const struct of_device_id meson_fb_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -4987,6 +5091,10 @@ static const struct of_device_id meson_fb_dt_match[] = {
 	{
 		.compatible = "amlogic, fb-t5w",
 		.data = &osd_t5w,
+	},
+	{
+		.compatible = "amlogic, fb-s5",
+		.data = &osd_s5,
 	},
 	{},
 };
@@ -5102,6 +5210,9 @@ static int __init osd_probe(struct platform_device *pdev)
 		       sizeof(struct osd_device_hw_s));
 	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T5W)
 		memcpy(&osd_dev_hw, &t5w_dev_property,
+		       sizeof(struct osd_device_hw_s));
+	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_S5)
+		memcpy(&osd_dev_hw, &s5_dev_property,
 		       sizeof(struct osd_device_hw_s));
 	else
 		memcpy(&osd_dev_hw, &legcy_dev_property,

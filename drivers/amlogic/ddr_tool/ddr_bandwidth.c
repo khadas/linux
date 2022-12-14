@@ -422,7 +422,7 @@ static ssize_t mode_store(struct class *cla,
 		int r = request_irq(aml_db->irq_num, dmc_irq_handler,
 				IRQF_SHARED, "ddr_bandwidth", (void *)aml_db);
 		if (r < 0) {
-			pr_info("ddrbandwidth request irq failed\n");
+			pr_info("ddr bandwidth request irq failed\n");
 			return count;
 		}
 
@@ -992,6 +992,16 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		aml_db->mali_port[1] = -1;
 		break;
 #endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_S5
+	case DMC_TYPE_S5:
+		band->ops            = &s5_ddr_bw_ops;
+		band->channels     = 8;
+		band->dmc_number   = 4;
+		band->soc_feature |= QUAD_DMC;
+		band->mali_port[0] = 4;
+		band->mali_port[1] = -1;
+		break;
+#endif
 	default:
 		pr_err("%s, Can't find ops for chip:%x\n", __func__, cpu);
 		return -1;
@@ -1216,10 +1226,6 @@ static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 		.data = (void *)DMC_TYPE_GXLX,
 	},
 	{
-		.compatible = "amlogic,ddr-bandwidth-axg",
-		.data = (void *)DMC_TYPE_AXG,
-	},
-	{
 		.compatible = "amlogic,ddr-bandwidth-txl",
 		.data = (void *)DMC_TYPE_TXL,
 	},
@@ -1244,6 +1250,10 @@ static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 		.data = (void *)DMC_TYPE_C1,
 	},
 #endif
+	{
+		.compatible = "amlogic,ddr-bandwidth-axg",
+		.data = (void *)DMC_TYPE_AXG,
+	},
 	{
 		.compatible = "amlogic,ddr-bandwidth-g12a",
 		.data = (void *)DMC_TYPE_G12A,
@@ -1291,6 +1301,10 @@ static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 	{
 		.compatible = "amlogic,ddr-bandwidth-a5",
 		.data = (void *)DMC_TYPE_A5,
+	},
+	{
+		.compatible = "amlogic,ddr-bandwidth-s5",
+		.data = (void *)DMC_TYPE_S5,
 	},
 	{}
 };

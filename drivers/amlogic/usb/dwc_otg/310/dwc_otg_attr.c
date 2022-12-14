@@ -1294,7 +1294,7 @@ static ssize_t sleepstatus_show(struct device *_dev,
 }
 
 /**
- * Store the sleep_status attribure.
+ * Store the sleep_status attribute.
  */
 static ssize_t sleepstatus_store(struct device *_dev,
 				 struct device_attribute *attr,

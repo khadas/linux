@@ -28,6 +28,7 @@ struct sw_demux_ts_feed {
 	int pid;
 	int state;
 	int format;
+	int temi_index;
 };
 
 struct sw_demux_sec_filter {

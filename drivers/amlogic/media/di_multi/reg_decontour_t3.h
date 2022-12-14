@@ -82,11 +82,11 @@
 //Bit 31:26        reserved
 //Bit 25:16        reg_grd_xnum
 	// unsigned ,    RW, default = 80  number of grid in horizontal
-	//dimmension, value = [0-80]
+	//dimension, value = [0-80]
 //Bit 15:10        reserved
 //Bit  9: 0        reg_grd_ynum
 	// unsigned ,    RW, default = 45  number of grid in vertical
-	//dimmension, value = [0-45]
+	//dimension, value = [0-45]
 #define DCTR_T3_BGRID_PARAM2                          (0x4b03)
 //Bit 31:24        reg_grd_xsize
 	// unsigned ,    RW, default = 48  horizontal_size of each grid
@@ -99,16 +99,16 @@
 	//10bits value ,  value = calculated by FW
 //Bit  7: 0        reg_grd_vnum
 	// unsigned ,    RW, default = 22  number of grid in luminance
-	//dimmension, value = 22
+	//dimension, value = 22
 #define DCTR_T3_BGRID_PARAM3                          (0x4b04)
 //Bit 31:26        reserved
 //Bit 25:16        reg_grd_xnum_use
 	// unsigned ,    RW, default = 80  number of grid in horizontal
-	//dimmension, value = [0-80]
+	//dimension, value = [0-80]
 //Bit 15:10        reserved
 //Bit  9: 0        reg_grd_ynum_use
 	// unsigned ,    RW, default = 45  number of grid in vertical
-	//dimmension, value = [0-45]
+	//dimension, value = [0-45]
 #define DCTR_T3_BGRID_PARAM4                          (0x4b05)
 //Bit 31:24        reserved
 //Bit 23:16        reg_grd_xsize_ds
@@ -130,10 +130,10 @@
 //Bit 31:24        reserved
 //Bit 23:18        reserved
 //Bit 17: 8        reg_slc_prt_th
-	// unsigned ,    RW, default = 200  sclicing protection threshold
+	// unsigned ,    RW, default = 200  slicing protection threshold
 //Bit  7: 1        reserved
 //Bit  0           reg_slc_prt_en
-	// unsigned ,    RW, default = 0  sclicing protection enable bit
+	// unsigned ,    RW, default = 0  slicing protection enable bit
 #define DCTR_T3_BGRID_PARAM8_0                        (0x4b09)
 //Bit 31:27        reserved
 //Bit 26:16        reg_grd_vbin_gs_0         // unsigned ,    RW, default = 48

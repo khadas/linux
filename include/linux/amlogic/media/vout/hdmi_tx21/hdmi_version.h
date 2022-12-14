@@ -32,5 +32,13 @@
 	"V03.00.00.00.02.03.03 [20220715] [HDCP] T7 DVI 1080p60 1A-09 test fail\n" \
 	"V03.00.00.00.02.03.04 [20220726] [COMP] add avmute interface\n" \
 	"V03.00.00.00.03.03.04 [20220805] [HDCP] fix hdcp1.4 repeater cts 3C-II-07\n" \
-	"V03.00.00.00.03.03.05 [20220811] [NEWF] hdmitx21 add aspect ratio support\n"
+	"V03.00.00.00.03.03.05 [20220811] [NEWF] hdmitx21 add aspect ratio support\n" \
+	"V03.00.00.00.03.03.06 [20220829] [NEWF] support avi content type\n" \
+	"V03.00.00.00.03.03.07 [20220901] [NEWF] add dual vsif interface for allm\n" \
+	"V03.00.00.00.03.03.08 [20220903] [BUG] add DDC reset before do EDID transaction\n" \
+	"V03.00.00.00.03.03.09 [20220919] [BUG] y422 mapping and Enable the dither\n" \
+	"V03.00.00.00.03.03.10 [20220919] [BUG] Don't reset variables when parse a new block\n" \
+	"V03.00.00.00.03.03.11 [20221021] [BUG] not read EDID again if EDID already read done\n" \
+	"V03.00.00.00.03.03.12 [20221025] [COM] when set mode 4x3 and 16x9, return valid mode 1\n"
+
 #endif // __HDMI21_VERSION_H__

@@ -33,11 +33,12 @@
 #include "hdmi_rx_wrapper.h"
 
 /* FT trim flag:1-valid, 0-not valid */
-bool rterm_trim_flag_t5;
+u32 rterm_trim_flag_t5;
 /* FT trim value 4 bits */
 u32 rterm_trim_val_t5;
-
+u32 dts_debug_flag;
 /* for T5 */
+unsigned int rlevel;
 static const u32 phy_misci_t5[][4] = {
 		 /* 0x05	 0x06	 0x07	 0x08 */
 	{	 /* 24~45M */
@@ -121,6 +122,8 @@ struct apll_param apll_tab_t5[] = {
 	{PLL_BW_NULL, 40, 1, 0x3, 8,	 0x2, 8, 0},
 };
 
+u32 t5_t7_rlevel[] = {8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7};
+
 /*Decimal to Gray code */
 unsigned int decimaltogray_t5(unsigned int x)
 {
@@ -198,7 +201,8 @@ void aml_pll_bw_cfg_t5(void)
 				      MSK(2, 25), (phy_dcha_t5[idx][2] >> 25) & 0x3);
 		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2,
 				      MSK(20, 0), (phy_dchd_t5[idx][2] & 0x1fffff));
-		rx_pr("phy_bw\n");
+		if (log_level & PHY_LOG)
+			rx_pr("phy_bw\n");
 	}
 
 	/* over sample control */
@@ -281,11 +285,11 @@ void aml_pll_bw_cfg_t5(void)
 
 		usleep_range(100, 110);
 		if (pll_rst_cnt++ > pll_rst_max) {
-			if (log_level & VIDEO_LOG)
+			if (log_level & PHY_LOG)
 				rx_pr("pll rst error\n");
 			break;
 		}
-		if (log_level & VIDEO_LOG) {
+		if (log_level & PHY_LOG) {
 			//rx_pr("pll init-cableclk=%d,pixelclk=%d,\n",
 			      //rx.clk.cable_clk / MHz,
 			     // meson_clk_measure(29) / MHz);
@@ -294,7 +298,8 @@ void aml_pll_bw_cfg_t5(void)
 			      aml_phy_pll_lock());
 		}
 	} while (!is_tmds_clk_stable() && is_clk_stable() && !aml_phy_pll_lock());
-	rx_pr("pll done\n");
+	if (log_level & PHY_LOG)
+		rx_pr("pll done\n");
 	/* t5 debug */
 	/* manual VGA mode for debug */
 	if (rx.aml_phy.vga_gain <= 0xfff) {
@@ -472,7 +477,7 @@ void aml_hyper_gain_tuning(void)
 	u32 tap0, tap1, tap2;
 	u32 hyper_gain_0, hyper_gain_1, hyper_gain_2;
 
-	/* use HYPER_GAIN calibartion instead of vga */
+	/* use HYPER_GAIN calibration instead of vga */
 	wr_reg_hhi_bits(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x0);
@@ -543,7 +548,8 @@ void aml_dfe_en(void)
 		if (rx.aml_phy.dfe_hold)
 			hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2,
 					      DFE_HOLD, 1);
-		rx_pr("dfe\n");
+		if (log_level & PHY_LOG)
+			rx_pr("dfe\n");
 	}
 }
 
@@ -776,7 +782,7 @@ void get_eq_val(void)
 
 void aml_eq_cfg_t5(void)
 {
-	/* dont need to run eq if no sqo_clk or pll not lock */
+	/* do not need to run eq if no sqo_clk or pll not lock */
 	if (!aml_phy_pll_lock())
 		return;
 	/* step10 */
@@ -846,11 +852,17 @@ void aml_phy_get_trim_val_t5(void)
 {
 	u32 data32;
 
-	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_MISC_CNTL1);
-	/* bit [12: 15]*/
-	rterm_trim_val_t5 = (data32 >> 12) & 0xf;
-	/* bit'0*/
-	rterm_trim_flag_t5 = data32 & 0x1;
+	dts_debug_flag = (phy_term_lel >> 4) & 0x1;
+	if (dts_debug_flag == 0) {
+		data32 = hdmirx_rd_amlphy(HHI_RX_PHY_MISC_CNTL1);
+		rterm_trim_val_t5 = (data32 >> 12) & 0xf;
+		rterm_trim_flag_t5 = data32 & 0x1;
+	} else {
+		rlevel = phy_term_lel & 0xf;
+		if (rlevel > 15)
+			rlevel = 15;
+		rterm_trim_flag_t5 = dts_debug_flag;
+	}
 	if (rterm_trim_flag_t5)
 		rx_pr("rterm trim=0x%x\n", rterm_trim_val_t5);
 }
@@ -862,7 +874,8 @@ void aml_phy_cfg_t5(void)
 	u32 term_value = hdmirx_rd_top(TOP_HPD_PWR5V) & 0x7;
 
 	if (rx.aml_phy.pre_int) {
-		rx_pr("\nphy reg init\n");
+		if (log_level & PHY_LOG)
+			rx_pr("\nphy reg init\n");
 		if (rx.aml_phy.ofst_en)
 			aml_phy_offset_cal_t5();
 		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL1,
@@ -874,11 +887,14 @@ void aml_phy_cfg_t5(void)
 		data32 = phy_misci_t5[idx][0];
 		hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL0, data32);
 		usleep_range(5, 10);
-
 		data32 = phy_misci_t5[idx][1];
-		if (rterm_trim_flag_t5)
+		aml_phy_get_trim_val_t5();
+		if (rterm_trim_flag_t5) {
+			if (dts_debug_flag)
+				rterm_trim_val_t5 = t5_t7_rlevel[rlevel];
 			data32 = ((data32 & (~((0xf << 12) | 0x1))) |
 				(rterm_trim_val_t5 << 12) | rterm_trim_flag_t5);
+		}
 		/* step2-0xd8 */
 		hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL1, data32);
 		/*step2-0xe0*/
@@ -1238,7 +1254,7 @@ void dump_aml_phy_sts_t5(void)
 	sli1_ofst5 = (data32 >> 8) & 0x3f;
 	sli2_ofst5 = (data32 >> 16) & 0x3f;
 
-	rx_pr("\nhdmirx phy status:\n");
+	rx_pr("\n hdmirx phy status:\n");
 	rx_pr("pll_lock=%d, squelch=%d, terminal=%d\n", pll_lock, squelch, terminal);
 	rx_pr("vga_gain=[%d,%d,%d]\n",
 	      ch0_vga, ch1_vga, ch2_vga);
@@ -1303,7 +1319,7 @@ void aml_phy_short_bist_t5(void)
 		usleep_range(5, 10);
 		data32 |= 1 << 11;
 		hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL3, data32);
-		rx_pr("\nport=%x\n", rd_reg_hhi(HHI_RX_PHY_MISC_CNTL3));
+		rx_pr("\n port=%x\n", rd_reg_hhi(HHI_RX_PHY_MISC_CNTL3));
 		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL0, 0x10210fff);
 		usleep_range(5, 10);

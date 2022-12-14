@@ -651,7 +651,7 @@ static ssize_t ppmgr_receiver_show(struct class *cla,
 	if (ppmgr_device.receiver == 1)
 		return snprintf(buf, 80, "video stream out to video4linux\n");
 	else
-		return snprintf(buf, 80, "video stream out to vlayer\n");
+		return snprintf(buf, 80, "video stream out to player\n");
 }
 
 static ssize_t ppmgr_receiver_store(struct class *cla,

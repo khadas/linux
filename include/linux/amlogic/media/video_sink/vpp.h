@@ -240,6 +240,7 @@ struct disp_info_s {
 	u32 mirror;
 	u32 src_width_max;
 	u32 src_height_max;
+	u32 slice_num;
 	bool ver_coef_adjust;
 	bool afd_enable;
 	struct crop_rect_s afd_crop;
@@ -386,6 +387,8 @@ int vpp_set_super_scaler_regs
 	int reg_srscl1_vert_ratio,
 	int vpp_postblend_out_width,
 	int vpp_postblend_out_height);
+struct sr_info_s *get_super_scaler_info(void);
+bool get_super_scaler_status(void);
 void aisr_sr1_nn_enable(u32 enable);
 void aisr_sr1_nn_enable_sync(u32 enable);
 void aisr_reshape_output(u32 enable);

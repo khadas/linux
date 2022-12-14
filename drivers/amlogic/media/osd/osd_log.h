@@ -22,6 +22,7 @@
 #define MODULE_VIU2   BIT(5)
 #define MODULE_SECURE BIT(6)
 #define MODULE_ENCP_STAT  BIT(7)
+#define MODULE_2SLICE     BIT(8)
 
 extern unsigned int osd_log_level;
 extern unsigned int osd_log_module;

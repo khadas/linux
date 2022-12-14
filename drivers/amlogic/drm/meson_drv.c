@@ -224,13 +224,30 @@ static int meson_worker_thread_init(struct meson_drm *priv,
 	return 0;
 }
 
+static void meson_parse_max_config(struct device_node *node, u32 *max_width,
+				   u32 *max_height)
+{
+	int ret;
+	u32 sizes[2];
+
+	ret = of_property_read_u32_array(node, "max_sizes", sizes, 2);
+	if (ret) {
+		*max_width = 4096;
+		*max_height = 4096;
+	} else {
+		*max_width = sizes[0];
+		*max_height = sizes[1];
+	}
+}
+
 static int am_meson_drm_bind(struct device *dev)
 {
 	struct meson_drm *priv;
 	struct drm_device *drm;
 	struct platform_device *pdev = to_platform_device(dev);
 	u32 crtc_masks[ENCODER_MAX];
-	int i, ret = 0;
+	u32 max_width, max_height;
+	int i, vpu_dma_mask, ret = 0;
 
 	meson_driver.driver_features = DRIVER_HAVE_IRQ | DRIVER_GEM |
 		DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_RENDER;
@@ -265,6 +282,17 @@ static int am_meson_drm_bind(struct device *dev)
 			priv->crtc_masks[i] = crtc_masks[i];
 	}
 
+	vpu_dma_mask = 0;
+	ret = of_property_read_u32(dev->of_node, "vpu_dma_mask", &vpu_dma_mask);
+	if (!ret && vpu_dma_mask == 1) {
+		ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+		if (ret)
+			ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+
+		if (ret)
+			DRM_ERROR("drm set dma mask fail\n");
+	}
+
 	dev_set_drvdata(dev, priv);
 
 #ifdef CONFIG_DRM_MESON_USE_ION
@@ -280,8 +308,9 @@ static int am_meson_drm_bind(struct device *dev)
 	/* init meson config before bind other component,
 	 * other component may use it.
 	 */
-	drm->mode_config.max_width = 4096;
-	drm->mode_config.max_height = 4096;
+	meson_parse_max_config(dev->of_node, &max_width, &max_height);
+	drm->mode_config.max_width = max_width;
+	drm->mode_config.max_height = max_height;
 	drm->mode_config.funcs = &meson_mode_config_funcs;
 	drm->mode_config.helper_private	= &meson_mode_config_helpers;
 	drm->mode_config.allow_fb_modifiers = true;

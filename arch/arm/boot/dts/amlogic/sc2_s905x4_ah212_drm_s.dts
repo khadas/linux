@@ -41,7 +41,6 @@
 	};
 
 	reserved-memory {
-		/*swiotlb = "normal";*/ /*normal,force,noforce*/
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
@@ -62,14 +61,6 @@
 			size = <0x3400000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x05000000 0x3400000>;
-		};
-
-		pcie_reserved: linux,pcie{
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x4000000>;
-			alignment = <0x400000>;
-			alloc-ranges = <0x54c00000 0x4000000>;
 		};
 
 		logo_reserved:linux,meson-fb {
@@ -135,15 +126,15 @@
 		};
 
 		/*  vdin0 CMA pool */
-		vdin0_cma_reserved:linux,vdin0_cma {
-			compatible = "shared-dma-pool";
-			reusable;
+		//vdin0_cma_reserved:linux,vdin0_cma {
+		//	compatible = "shared-dma-pool";
+		//	reusable;
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
-			size = <0>;
-			alignment = <0x400000>;
-		};
+		//	size = <0>;
+		//	alignment = <0x400000>;
+		//};
 
 		/*  vdin1 CMA pool */
 		vdin1_cma_reserved:linux,vdin1_cma {
@@ -1323,7 +1314,6 @@
 
 &pcie {
 	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
-	memory-region = <&pcie_reserved>;
 	status = "disable";
 };
 

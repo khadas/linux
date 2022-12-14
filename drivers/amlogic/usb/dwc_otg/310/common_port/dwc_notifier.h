@@ -44,9 +44,9 @@ extern "C" {
  * be called once per each time the notification is triggered.  It will NOT be
  * called in the same process context used to trigger the notification.
  *
- * @section Limitiations
+ * @section Limitations
  *
- * Keep in mind that Notifications that can be triggered in rapid sucession may
+ * Keep in mind that Notifications that can be triggered in rapid succession may
  * schedule too many processes too handle.  Be aware of this limitation when
  * designing to use notifications, and only add notifications for appropriate
  * observable information.

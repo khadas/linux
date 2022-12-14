@@ -1619,7 +1619,7 @@ static void afbc_check_chg_level(struct vframe_s *vf,
 		 AFBC_VTYPE_MASK_SAV);
 	di_print("\t\t:body[0x%x] inf[0x%x]\n",
 		 vf->compBodyAddr, vf->compHeadAddr);
-	di_print("\tinofo:type[0x%x]\n", pctr->l_vtype);
+	di_print("\tinfo:type[0x%x]\n", pctr->l_vtype);
 
 	di_print("\t\th[%d],w[%d],b[0x%x]\n", pctr->l_h,
 		 pctr->l_w, pctr->l_bitdepth);
@@ -2121,7 +2121,24 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 
 	reg_wr(reg[EAFBC_HEAD_BADDR], vf->compHeadAddr >> 4);
 	reg_wr(reg[EAFBC_BODY_BADDR], vf->compBodyAddr >> 4);
-
+	if (pafd_ctr->fb.ver == AFBCD_V4) {
+		if (dec == EAFBC_DEC2_DI) {
+			if (vf->type & VIDTYPE_COMPRESS_LOSS)
+				reg_wr(DI_INP_AFBC_IQUANT_ENABLE, 0xc11);
+			else
+				reg_wr(DI_INP_AFBC_IQUANT_ENABLE, 0x0);
+		}
+		if (dec == EAFBC_DEC3_MEM) {
+			if (cfgg(AFBCE_LOSS_EN) == 1 ||
+			    ((vf->type & VIDTYPE_COMPRESS_LOSS) &&
+			     cfgg(AFBCE_LOSS_EN) == 2))
+				reg_wr(DI_MEM_AFBC_IQUANT_ENABLE, 0xc11);
+			else
+				reg_wr(DI_MEM_AFBC_IQUANT_ENABLE, 0x0);
+		}
+	}
+	//dim_print("dec=%d:type=0x%x,ver=0x%x,reg=0x%x\n", dec,vf->type,
+		//pafd_ctr->fb.ver,reg_rd(0X1812));
 	if (pafd_ctr->fb.ver >= AFBCD_V5 && cfg) {
 		regs_ofst = afbcd_v5_get_offset(dec);
 		reg_wrb((regs_ofst + AFBCDM_IQUANT_ENABLE),
@@ -2316,7 +2333,9 @@ static u32 enable_afbc_input(struct vframe_s *inp_vf,
 
 		if (mem_vf2 && pafd_ctr->en_set.b.mem) {
 			/* mem */
-			if (cfgg(AFBCE_LOSS_EN)) {
+			if (cfgg(AFBCE_LOSS_EN) == 1 ||
+			    ((mem_vf2->type & VIDTYPE_COMPRESS_LOSS) &&
+			     cfgg(AFBCE_LOSS_EN) == 2)) {//di loss
 				cfg.reg_lossy_en = 1;
 				nr_vf->type |= VIDTYPE_COMPRESS_LOSS;
 			} else {
@@ -2399,7 +2418,9 @@ static u32 enable_afbc_input(struct vframe_s *inp_vf,
 			afbc_update_level1(chan2_vf, pafd_ctr->fb.ch2_dec);
 
 		/*nr*/
-		if (cfgg(AFBCE_LOSS_EN))
+		if (cfgg(AFBCE_LOSS_EN) == 1 ||
+		    ((mem_vf2->type & VIDTYPE_COMPRESS_LOSS) &&
+		     cfgg(AFBCE_LOSS_EN) == 2))
 			nr_vf->type |= VIDTYPE_COMPRESS_LOSS;
 		else
 			nr_vf->type &= ~VIDTYPE_COMPRESS_LOSS;
@@ -3045,6 +3066,37 @@ static void afbc_val_reset_newformat(void)
 	pafd_ctr->pst_in_w = 0;
 }
 
+void disable_afbcd_t5dvb(void)
+{
+	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
+	const unsigned int *reg;
+	unsigned int reg_AFBC_ENABLE;
+
+	if (!afbc_is_supported() || !DIM_IS_IC(T5DB))
+		return;
+	reg = afbc_get_addrp(pafd_ctr->fb.pre_dec);
+	reg_AFBC_ENABLE = reg[EAFBC_ENABLE];
+
+	dim_print("%s:reg=0x%x:sw=off\n", __func__, reg_AFBC_ENABLE);
+	reg_wrb(reg_AFBC_ENABLE, 0, 8, 1);
+}
+
+void afbcd_enable_only_t5dvb(void)
+{
+	if (DIM_IS_IC(T5DB) && afbc_is_supported()) {
+		PR_INF("t5dvb afbcd on\n");
+		/* afbcd is shared */
+		reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 22, 1);
+		reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 10, 1);
+		reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 12, 1);
+		reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 1, 1);
+		dbg_reg("%s:t5d vb on\n 0x%x,0x%x\n",
+			__func__,
+			VD1_AFBCD0_MISC_CTRL,
+			reg_rd(VD1_AFBCD0_MISC_CTRL));
+	}
+}
+
 static void afbc_reg_sw(bool on)
 {
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
@@ -3058,6 +3110,7 @@ static void afbc_reg_sw(bool on)
 			afbc_power_sw(true, &di_normal_regset);
 		else if (pafd_ctr->fb.ver == AFBCD_V4) {
 			reg_wrb(DI_AFBCE_CTRL, 0x01, 4, 1);
+#ifdef _HIS_CODE_ //move to afbcd_enable_only_t5dvb
 			if (DIM_IS_IC(T5DB) && afbc_is_supported()) {
 				/* afbcd is shared */
 				reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 22, 1);
@@ -3069,6 +3122,7 @@ static void afbc_reg_sw(bool on)
 					VD1_AFBCD0_MISC_CTRL,
 					reg_rd(VD1_AFBCD0_MISC_CTRL));
 			}
+#endif
 		}
 	}
 	if (!on) {
@@ -3770,7 +3824,7 @@ static void afbc_check_chg_level_dvfm(struct dvfm_s *vf,
 		 AFBC_VTYPE_MASK_SAV);
 	di_print("\t\t:body[0x%x] inf[0x%x]\n",
 		 vf->vfs.compBodyAddr, vf->vfs.compHeadAddr);
-	di_print("\tinofo:type[0x%x]\n", pctr->l_vtype);
+	di_print("\tinfo:type[0x%x]\n", pctr->l_vtype);
 
 	di_print("\t\th[%d],w[%d],b[0x%x]\n", pctr->l_h,
 		 pctr->l_w, pctr->l_bitdepth);
@@ -5000,7 +5054,7 @@ static void ori_afbce_cfg(struct enc_cfg_s *cfg,
 
 	if (flg_v5) {
 		op->bwr(reg[EAFBCE_PIP_CTRL], cfg->reg_init_ctrl, 1, 1);
-		//pii_moide
+		//pii_mode
 		op->bwr(reg[EAFBCE_PIP_CTRL], cfg->reg_pip_mode, 0, 1);
 
 		op->bwr(reg[EAFBCE_ROT_CTRL], cfg->rot_en, 4, 1);
@@ -5097,7 +5151,9 @@ static void afbce_set(struct vframe_s *vf, enum EAFBC_ENC enc)
 	}
 	#endif
 	vf_set_for_com(di_buf);
-	if (cfgg(AFBCE_LOSS_EN))
+	if (cfgg(AFBCE_LOSS_EN) == 1 ||
+	    ((di_buf->vframe->type & VIDTYPE_COMPRESS_LOSS) &&
+	     cfgg(AFBCE_LOSS_EN) == 2))
 		cfg->loosy_mode = 0x3;
 #ifdef AFBCP
 	di_print("%s:buf[%d],head[0x%lx],info[0x%lx]\n",

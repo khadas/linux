@@ -524,7 +524,6 @@ void aml_toddr_set_format(struct toddr *to, struct toddr_fmt *fmt)
 		0x1 << 27 | 0x7 << 24 | 0x1fff << 3,
 		0x1 << 27 | fmt->endian << 24 | fmt->type << 13 |
 		fmt->msb << 8 | fmt->lsb << 3);
-
 	/* bit 0-7: chnum_max, same with record channels */
 	if (to->chipinfo && to->chipinfo->chnum_sync) {
 		bool chsync_enable = true;
@@ -757,7 +756,7 @@ static bool aml_toddr_check_fifo_count(struct toddr *to)
 
 		udelay(1);
 		if ((i % 20) == 0)
-			pr_info("delay:[%dus]; FRDDR_STATUS2: [0x%x] [0x%x]\n",
+			pr_info("delay:[%dus]; TODDR_STATUS2: [0x%x] [0x%x]\n",
 				i, addr_request, addr_reply);
 	}
 	pr_err("Error: 200us time out, TODDR_STATUS2: [0x%x] [0x%x]\n",
@@ -895,7 +894,8 @@ static void aml_resample_enable(struct toddr *to, struct toddr_attach *p_attach_
 	mutex_lock(&p_attach_resample->lock);
 	/* channels and bit depth for resample */
 	/*&& (to->src == SPDIFIN)*/
-	if (to->chipinfo && to->chipinfo->asrc_only_left_j && bitwidth == 32) {
+	enable = get_resample_enable(p_attach_resample->id);
+	if (enable && to->chipinfo && to->chipinfo->asrc_only_left_j && bitwidth == 32) {
 		struct aml_audio_controller *actrl = to->actrl;
 		unsigned int reg_base = to->reg_base;
 		unsigned int reg;
@@ -942,7 +942,6 @@ static void aml_resample_enable(struct toddr *to, struct toddr_attach *p_attach_
 		resample_format_set(p_attach_resample->id, to->fmt.ch_num, bitwidth);
 	}
 
-	enable = get_resample_enable(p_attach_resample->id);
 	if (p_attach_resample->resample_version >= T5_RESAMPLE &&
 	    p_attach_resample->id == RESAMPLE_A) {
 		aml_toddr_select_src(to, RESAMPLEA);
@@ -1358,7 +1357,7 @@ int aml_check_sharebuffer_valid(struct frddr *fr, int ss_sel)
 
 /* select dst for same source
  * lvl: share buffer req_sel 1~2
- * lvl 0 is aleardy used for reg_frddr_src_sel1
+ * lvl 0 is already used for reg_frddr_src_sel1
  * lvl 1 is for reg_frddr_src_sel2
  * lvl 2 is for reg_frddr_src_sel3
  */
@@ -1661,7 +1660,7 @@ void aml_frddr_select_dst(struct frddr *fr, enum frddr_dest dst)
 
 /* select dst for same source
  * sel: share buffer req_sel 1~2
- * sel 0 is aleardy used for reg_frddr_src_sel1
+ * sel 0 is already used for reg_frddr_src_sel1
  * sel 1 is for reg_frddr_src_sel2
  * sel 2 is for reg_frddr_src_sel3
  */
@@ -2143,16 +2142,6 @@ struct toddr_src_conf toddr_srcs_v4[] = {
 };
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
-static struct ddr_chipinfo axg_ddr_chipinfo = {
-	.int_start_same_addr   = true,
-	.asrc_only_left_j      = true,
-	.wakeup                = 1,
-	.toddr_num             = 3,
-	.frddr_num             = 3,
-	.fifo_depth            = FIFO_DEPTH_1K,
-	.to_srcs               = &toddr_srcs_v1[0],
-	.use_arb               = true,
-};
 
 static struct ddr_chipinfo tl1_ddr_chipinfo = {
 	.same_src_fn           = true,
@@ -2179,6 +2168,17 @@ static struct ddr_chipinfo a1_ddr_chipinfo = {
 	.use_arb               = true,
 };
 #endif
+
+static struct ddr_chipinfo axg_ddr_chipinfo = {
+	.int_start_same_addr   = true,
+	.asrc_only_left_j      = true,
+	.wakeup                = 1,
+	.toddr_num             = 3,
+	.frddr_num             = 3,
+	.fifo_depth            = FIFO_DEPTH_1K,
+	.to_srcs               = &toddr_srcs_v1[0],
+	.use_arb               = true,
+};
 
 static struct ddr_chipinfo g12a_ddr_chipinfo = {
 	.same_src_fn           = true,
@@ -2234,6 +2234,21 @@ static struct ddr_chipinfo t5_ddr_chipinfo = {
 	.use_arb               = true,
 };
 
+static struct ddr_chipinfo t3_ddr_chipinfo = {
+	.same_src_fn           = true,
+	.ugt                   = true,
+	.src_sel_ctrl          = true,
+	.asrc_src_sel_ctrl     = true,
+	.wakeup                = 2,
+	.toddr_num             = 5,
+	.frddr_num             = 5,
+	.fifo_depth            = FIFO_DEPTH_1K,
+	.chnum_sync            = true,
+	.burst_finished_flag   = true,
+	.to_srcs               = &toddr_srcs_v3[0],
+	.use_arb               = true,
+};
+
 static struct ddr_chipinfo p1_ddr_chipinfo = {
 	.same_src_fn           = true,
 	.ugt                   = true,
@@ -2261,12 +2276,24 @@ static struct ddr_chipinfo a5_ddr_chipinfo = {
 	.use_arb               = false,
 };
 
+static struct ddr_chipinfo s5_ddr_chipinfo = {
+	.same_src_fn           = true,
+	.ugt                   = true,
+	.src_sel_ctrl          = true,
+	.asrc_src_sel_ctrl     = true,
+	.wakeup                = 2,
+	.toddr_num             = 4,
+	.frddr_num             = 4,
+	.fifo_depth            = FIFO_DEPTH_1K,
+	.chnum_sync            = true,
+	.burst_finished_flag   = true,
+	.to_srcs               = &toddr_srcs_v3[0],
+	.use_arb               = false,
+};
+
 static const struct of_device_id aml_ddr_mngr_device_id[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
-	{
-		.compatible = "amlogic, axg-audio-ddr-manager",
-		.data       = &axg_ddr_chipinfo,
-	},
+
 	{
 		.compatible = "amlogic, tl1-audio-ddr-manager",
 		.data       = &tl1_ddr_chipinfo,
@@ -2276,6 +2303,10 @@ static const struct of_device_id aml_ddr_mngr_device_id[] = {
 		.data       = &a1_ddr_chipinfo,
 	},
 #endif
+	{
+		.compatible = "amlogic, axg-audio-ddr-manager",
+		.data       = &axg_ddr_chipinfo,
+	},
 	{
 		.compatible = "amlogic, g12a-audio-ddr-manager",
 		.data       = &g12a_ddr_chipinfo,
@@ -2299,6 +2330,14 @@ static const struct of_device_id aml_ddr_mngr_device_id[] = {
 	{
 		.compatible = "amlogic, a5-audio-ddr-manager",
 		.data       = &a5_ddr_chipinfo,
+	},
+	{
+		.compatible = "amlogic, s5-audio-ddr-manager",
+		.data       = &s5_ddr_chipinfo,
+	},
+	{
+		.compatible = "amlogic, t3-audio-ddr-manager",
+		.data       = &t3_ddr_chipinfo,
 	},
 	{},
 };
@@ -2345,6 +2384,7 @@ static struct ddr_info ddr_info[] = {
 	{EE_AUDIO_TODDR_B_CTRL0, EE_AUDIO_FRDDR_B_CTRL0, "toddr_b", "frddr_b"},
 	{EE_AUDIO_TODDR_C_CTRL0, EE_AUDIO_FRDDR_C_CTRL0, "toddr_c", "frddr_c"},
 	{EE_AUDIO_TODDR_D_CTRL0, EE_AUDIO_FRDDR_D_CTRL0, "toddr_d", "frddr_d"},
+	{EE_AUDIO_TODDR_E_CTRL0, EE_AUDIO_FRDDR_E_CTRL0, "toddr_e", "frddr_e"},
 };
 
 static int ddr_get_toddr_base_addr_by_idx(int idx)

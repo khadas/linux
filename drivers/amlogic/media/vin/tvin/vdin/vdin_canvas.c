@@ -435,6 +435,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 #ifdef CONFIG_AMLOGIC_TEE
 	unsigned int res = 0;
 #endif
+	struct codec_mm_s *mem = NULL;
 
 	if (devp->rdma_enable)
 		max_buffer_num++;
@@ -698,15 +699,18 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			if (devp->cma_config_flag & MEM_ALLOC_FROM_CODEC) {
 				/*add for 1g config, codec can't release mem in time*/
 				for (j = 0; j < 20; j++) {
-					devp->vf_mem_start[i] =
-						codec_mm_alloc_for_dma(vdin_name,
-								       frame_size / PAGE_SIZE, 0,
-								       flags);
+					mem = codec_mm_alloc(vdin_name,
+						(frame_size / PAGE_SIZE) << PAGE_SHIFT, 0, flags);
+					if (mem)
+						devp->vf_mem_start[i] = mem->phy_addr;
+					else
+						devp->vf_mem_start[i] = 0;
 
 					if (devp->vf_mem_start[i] == 0) {
 						msleep(50);
 						pr_err("alloc mem fail:50*%dms\n", j);
 					} else {
+						devp->vf_codec_mem[i] = mem;
 						break;
 					}
 				}
@@ -863,9 +867,10 @@ void vdin_cma_release(struct vdin_dev_s *devp)
 	if (devp->cma_config_flag & MEM_ALLOC_DISCRETE) {
 		if (devp->cma_config_flag & MEM_ALLOC_FROM_CODEC) {
 			/* canvas or afbce paddr */
-			for (i = 0; i < devp->vf_mem_max_cnt; i++)
-				codec_mm_free_for_dma(vdin_name, devp->vf_mem_start[i]);
-
+			for (i = 0; i < devp->vf_mem_max_cnt; i++) {
+				codec_mm_release(devp->vf_codec_mem[i], vdin_name);
+				devp->vf_codec_mem[i] = NULL;
+			}
 			pr_info("vdin%d codec cma release ok!\n", devp->index);
 		} else {
 			for (i = 0; i < devp->vf_mem_max_cnt; i++)

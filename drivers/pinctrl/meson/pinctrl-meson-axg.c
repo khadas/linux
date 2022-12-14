@@ -313,7 +313,7 @@ static const unsigned int pdm_din2_pins[] = {GPIOA_17};
 static const unsigned int pdm_din3_pins[] = {GPIOA_18};
 
 /* mclk */
-static const unsigned int mclk_c_pins[] = {GPIOA_0};
+static const unsigned int mclk_a_pins[] = {GPIOA_0};
 static const unsigned int mclk_b_pins[] = {GPIOA_1};
 
 /* tdm */
@@ -594,7 +594,7 @@ static struct meson_pmx_group meson_axg_periphs_groups[] = {
 	GROUP(pdm_din1, 1),
 	GROUP(pdm_din2, 1),
 	GROUP(pdm_din3, 1),
-	GROUP(mclk_c, 1),
+	GROUP(mclk_a, 1),
 	GROUP(mclk_b, 1),
 	GROUP(tdmc_sclk, 1),
 	GROUP(tdmc_sclk_slv, 2),
@@ -941,8 +941,8 @@ static const char * const jtag_ao_groups[] = {
 	"jtag_ao_tdi", "jtag_ao_tdo", "jtag_ao_clk", "jtag_ao_tms",
 };
 
-static const char * const mclk_c_groups[] = {
-	"mclk_c",
+static const char * const mclk_a_groups[] = {
+	"mclk_a",
 };
 
 static const char * const mclk_b_groups[] = {
@@ -1010,8 +1010,8 @@ static struct meson_pmx_func meson_axg_periphs_functions[] = {
 	FUNCTION(spdif_in),
 	FUNCTION(jtag_ee),
 	FUNCTION(pdm),
+	FUNCTION(mclk_a),
 	FUNCTION(mclk_b),
-	FUNCTION(mclk_c),
 	FUNCTION(tdma),
 	FUNCTION(tdmb),
 	FUNCTION(tdmc),

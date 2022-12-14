@@ -26,3 +26,5 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VPP) += vpp/modules/vpp_module_lc.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VPP) += vpp/modules/vpp_module_cm.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VPP) += vpp/modules/vpp_module_sr.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VPP) += vpp/modules/vpp_module_lut3d.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VPP) += vpp/modules/vpp_module_hdr.o
+

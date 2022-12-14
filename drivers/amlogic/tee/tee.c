@@ -348,7 +348,7 @@ bool tee_enabled(void)
 }
 EXPORT_SYMBOL(tee_enabled);
 
-u32 tee_protect_tvp_mem(u32 start, u32 size, u32 *handle)
+u32 tee_protect_tvp_mem(phys_addr_t start, size_t size, u32 *handle)
 {
 	struct arm_smccc_res res;
 
@@ -374,7 +374,7 @@ void tee_unprotect_tvp_mem(u32 handle)
 EXPORT_SYMBOL(tee_unprotect_tvp_mem);
 
 u32 tee_protect_mem_by_type(u32 type,
-		u32 start, u32 size,
+		phys_addr_t start, size_t size,
 		u32 *handle)
 {
 	struct arm_smccc_res res;
@@ -392,7 +392,7 @@ u32 tee_protect_mem_by_type(u32 type,
 EXPORT_SYMBOL(tee_protect_mem_by_type);
 
 u32 tee_protect_mem(u32 type, u32 level,
-		u32 start, u32 size, u32 *handle)
+		phys_addr_t start, size_t size, u32 *handle)
 {
 	struct arm_smccc_res res;
 
@@ -417,7 +417,7 @@ void tee_unprotect_mem(u32 handle)
 }
 EXPORT_SYMBOL(tee_unprotect_mem);
 
-int tee_check_in_mem(u32 pa, u32 size)
+int tee_check_in_mem(phys_addr_t pa, size_t size)
 {
 	struct arm_smccc_res res;
 
@@ -428,7 +428,7 @@ int tee_check_in_mem(u32 pa, u32 size)
 }
 EXPORT_SYMBOL(tee_check_in_mem);
 
-int tee_check_out_mem(u32 pa, u32 size)
+int tee_check_out_mem(phys_addr_t pa, size_t size)
 {
 	struct arm_smccc_res res;
 

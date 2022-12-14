@@ -14,4 +14,5 @@ void audio_locker_set(int enable);
 int audio_locker_get(void);
 void fratv_enable(bool enable);
 void cec_arc_enable(int src, bool enable);
+bool is_force_mpll_clk(void);
 #endif

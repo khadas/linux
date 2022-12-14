@@ -146,7 +146,7 @@ sed -i 's#[^ ]*/##g'  ${INSTALL_MOD_PATH}/target/modules.dep
 function mod_probe() {
         local ko=$1
         local loop
-        for loop in `grep "$ko:" ${INSTALL_MOD_PATH}/target/modules.dep | sed 's/.*://'`;
+        for loop in `grep "^$ko:" ${INSTALL_MOD_PATH}/target/modules.dep | sed 's/.*://'`;
         do
                 mod_probe $loop
                 echo insmod $loop >> ${INSTALL_MOD_PATH}/target/__install.sh

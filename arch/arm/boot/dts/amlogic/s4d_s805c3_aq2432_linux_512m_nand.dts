@@ -108,7 +108,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x7400000>;
+			size = <0xb000000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
 		};
@@ -840,6 +840,34 @@
 	status = "okay";
 };
 
+&CPU0 {
+	operating-points-v2 = <&cpu_opp_table0_s805c3>,
+		<&cpu_opp_table1_s805c3>,
+		<&cpu_opp_table2_s805c3>,
+		<&cpu_opp_table3_s805c3>;
+};
+
+&CPU1 {
+	operating-points-v2 = <&cpu_opp_table0_s805c3>,
+		<&cpu_opp_table1_s805c3>,
+		<&cpu_opp_table2_s805c3>,
+		<&cpu_opp_table3_s805c3>;
+};
+
+&CPU2 {
+	operating-points-v2 = <&cpu_opp_table0_s805c3>,
+		<&cpu_opp_table1_s805c3>,
+		<&cpu_opp_table2_s805c3>,
+		<&cpu_opp_table3_s805c3>;
+};
+
+&CPU3 {
+	operating-points-v2 = <&cpu_opp_table0_s805c3>,
+		<&cpu_opp_table1_s805c3>,
+		<&cpu_opp_table2_s805c3>,
+		<&cpu_opp_table3_s805c3>;
+};
+
 &audiobus {
 	tdma: tdm@0 {
 		compatible = "amlogic, t5-snd-tdma";
@@ -1407,7 +1435,7 @@
 		};
 		partition@5 {
 			label = "tee";
-			reg = <0x0 0x200000>;
+			reg = <0x0 0x800000>;
 		};
 		partition@6 {
 			label = "logo";
@@ -1423,7 +1451,7 @@
 		};
 		partition@9 {
 			label = "boot";
-			reg = <0x0 0x1000000>;
+			reg = <0x0 0x2200000>;
 		};
 		partition@10 {
 			label = "system";
@@ -1434,6 +1462,10 @@
 			reg = <0x0 0x1000000>;
 		};
 		partition@12 {
+			label = "vbmeta";
+			reg = <0x0 0x0100000>;
+		};
+		partition@13 {
 			label = "data";
 			reg = <0x0 0xffffffff>;
 		};
@@ -1586,4 +1618,9 @@
 
 &drm_subsystem {
 	fbdev_sizes = <1280 720 1280 1440 32>;
+};
+
+&amlogic_codec {
+	tocodec_inout = <1>;
+	tdmout_index = <1>;
 };

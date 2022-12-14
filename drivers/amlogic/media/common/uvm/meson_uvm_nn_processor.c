@@ -23,9 +23,11 @@ module_param(uvm_nn_debug, int, 0644);
 static int uvm_open_nn;
 module_param(uvm_open_nn, int, 0644);
 
+static int uvm_aisr_dump;
+module_param(uvm_aisr_dump, int, 0644);
+
 #define PRINT_ERROR		0X0
 #define PRINT_OTHER		0X0001
-#define PRINT_NN_DUMP		0X0002
 
 int nn_print(int debug_flag, const char *fmt, ...)
 {
@@ -336,6 +338,38 @@ int attach_nn_hook_mod_info(int shared_fd,
 	return 0;
 }
 
+static void dump_vf(struct vframe_s *vf)
+{
+	struct file *fp;
+	char name_buf[32];
+	int write_size;
+	u8 *data;
+	mm_segment_t fs;
+	loff_t pos;
+
+	if (!vf)
+		return;
+
+	snprintf(name_buf, sizeof(name_buf), "/data/DI.bin");
+	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
+	if (IS_ERR(fp))
+		return;
+	write_size = vf->canvas0_config[0].width * vf->canvas0_config[0].height
+		* 2 * 10 / 8;
+	data = codec_mm_vmap(vf->canvas0_config[0].phy_addr, write_size);
+	if (!data)
+		return;
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+	pos = 0;
+	vfs_write(fp, data, write_size, &pos);
+	vfs_fsync(fp, 0);
+	nn_print(PRINT_OTHER, "nn: write %u size to addr%p\n", write_size, data);
+	codec_mm_unmap_phyaddr(data);
+	filp_close(fp, NULL);
+	set_fs(fs);
+}
+
 int dump_hf(struct vf_nn_sr_t *nn_sr_dst)
 {
 	struct file *fp;
@@ -345,7 +379,7 @@ int dump_hf(struct vf_nn_sr_t *nn_sr_dst)
 	mm_segment_t fs;
 	loff_t pos;
 
-	snprintf(name_buf, sizeof(name_buf), "/data/tmp/hf.yuv");
+	snprintf(name_buf, sizeof(name_buf), "/data/hf.yuv");
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 	if (IS_ERR(fp))
 		return -1;
@@ -373,6 +407,7 @@ int nn_mod_setinfo(void *arg, char *buf)
 	int ret = -1;
 	size_t len;
 	phys_addr_t addr = 0;
+	struct vframe_s *vf = NULL;
 
 	nn_sr_src = (struct uvm_ai_sr_info *)buf;
 	nn_sr_dst = (struct vf_nn_sr_t *)arg;
@@ -405,6 +440,14 @@ int nn_mod_setinfo(void *arg, char *buf)
 			nn_sr_src->buf_align_h);
 		nn_sr_dst->buf_align_w = nn_sr_src->buf_align_w;
 		nn_sr_dst->buf_align_h = nn_sr_src->buf_align_h;
+
+		if (uvm_aisr_dump != 0) {
+			uvm_aisr_dump = 0;
+			vf = nn_get_vframe(nn_sr_src->shared_fd);
+			dump_vf(vf);
+			dump_hf(nn_sr_dst);
+		}
+
 		do_gettimeofday(&nn_sr_dst->start_time);
 		get_file(nn_sr_dst->nn_out_file);
 		nn_sr_dst->nn_out_file_count++;
@@ -428,10 +471,6 @@ int nn_mod_getinfo(void *arg, char *buf)
 	struct uvm_ai_sr_info *ai_sr_info = NULL;
 	struct vinfo_s *vinfo = NULL;
 	int ret = -1;
-	phys_addr_t addr = 0;
-	u8 *data_hf;
-	u8 *data_tmp;
-	int hf_size;
 	int src_interlace_flag = 0;
 
 	ai_sr_info = (struct uvm_ai_sr_info *)buf;
@@ -481,19 +520,6 @@ int nn_mod_getinfo(void *arg, char *buf)
 			vinfo->height);
 		ai_sr_info->vinfo_width = vinfo->width;
 		ai_sr_info->vinfo_height = vinfo->height;
-	}
-
-	if ((uvm_nn_debug & PRINT_NN_DUMP) &&
-		ai_sr_info->hf_phy_addr) {
-		hf_size = ai_sr_info->hf_align_w * ai_sr_info->hf_align_h;
-		data_hf = codec_mm_vmap(ai_sr_info->hf_phy_addr, hf_size);
-		data_tmp = codec_mm_vmap(addr, hf_size);
-		if (data_hf && data_tmp)
-			memcpy(data_tmp, data_hf, hf_size);
-		if (data_hf)
-			codec_mm_unmap_phyaddr(data_hf);
-		if (data_tmp)
-			codec_mm_unmap_phyaddr(data_tmp);
 	}
 
 	return 0;

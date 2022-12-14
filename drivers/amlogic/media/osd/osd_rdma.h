@@ -8,10 +8,11 @@
 
 #include <linux/types.h>
 #include "osd_io.h"
-#include "osd_reg.h"
 
 extern int rdma_reset_tigger_flag;
 extern int rdma_mgr_irq_request;
+extern u32 osd_rdma_flag_reg[];
+extern u32 rdma_detect_reg;
 
 struct rdma_table_item {
 	u32 addr;
@@ -64,9 +65,10 @@ enum {
 #define END_ADDR_MSB_VPP2	\
 	(RDMA_AHB_END_ADDR_MAN_MSB + (OSD_RDMA_CHANNEL_INDEX_VPP2 << 1))
 
-#define OSD_RDMA_FLAG_REG	    VIU_OSD2_TCOLOR_AG3
-#define OSD_RDMA_FLAG_REG_VPP1	    VIU_OSD2_TCOLOR_AG2
-#define OSD_RDMA_FLAG_REG_VPP2	    VIU_OSD2_TCOLOR_AG1
+#define OSD_RDMA_FLAG_REG           (osd_rdma_flag_reg[VPP0])
+#define OSD_RDMA_FLAG_REG_VPP1      (osd_rdma_flag_reg[VPP1])
+#define OSD_RDMA_FLAG_REG_VPP2      (osd_rdma_flag_reg[VPP2])
+#define RDMA_DETECT_REG             rdma_detect_reg
 
 #define OSD_RDMA_FLAG_REJECT	(0x99 << 0)
 /* hw rdma own this flag, change it to zero when start rdma,
@@ -132,4 +134,5 @@ void enable_vsync_rdma(u32 vpp_index);
 int get_rdma_recovery_stat(u32 vpp_index);
 int get_rdma_not_hit_recovery_stat(u32 vpp_index);
 int get_rdma_irq_done_line(u32 vpp_index);
+void osd_rdma_flag_init(void);
 #endif

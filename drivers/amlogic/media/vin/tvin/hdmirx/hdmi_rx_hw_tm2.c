@@ -201,7 +201,7 @@ bool is_dfe_sts_ok_tm2(void)
 	return ret;
 }
 
-/* detect lowemplitude sig via tap0 value for TM2B*/
+/* detect low amplitude sig via tap0 value for TM2B*/
 /* TL1:TODO...*/
 int is_low_amplitude_sig_tm2(void)
 {
@@ -212,16 +212,22 @@ int is_low_amplitude_sig_tm2(void)
 
 	if (!rx.open_fg || (hdmirx_rd_top(TOP_MISC_STAT0) & 0x1))
 		return ret;
-	if (rx.phy.phy_bw <= PHY_BW_2)
+	if (rx.phy.phy_bw <= PHY_BW_2) {
 		wr_reg_hhi_bits(HHI_HDMIRX_PHY_DCHD_CNTL2,
 				DFE_EN, 1);
+		wr_reg_hhi_bits(HHI_HDMIRX_PHY_DCHD_CNTL2,
+				DFE_RSTB, 1);
+	}
 	wr_reg_hhi_bits(HHI_HDMIRX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	wr_reg_hhi_bits(HHI_HDMIRX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x0);
 	usleep_range(100, 110);
 	data32 = rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT);
-	if (rx.phy.phy_bw <= PHY_BW_2)
+	if (rx.phy.phy_bw <= PHY_BW_2) {
 		wr_reg_hhi_bits(HHI_HDMIRX_PHY_DCHD_CNTL2,
 				DFE_EN, 0);
+		wr_reg_hhi_bits(HHI_HDMIRX_PHY_DCHD_CNTL2,
+				DFE_RSTB, 0);
+	}
 	ch0_tap0 = data32 & 0xff;
 	ch1_tap0 = (data32 >> 8) & 0xff;
 	ch2_tap0 = (data32 >> 16) & 0xff;
@@ -414,7 +420,8 @@ EQ_RUN:
 				//HHI_HDMIRX_PHY_DCHA_CNTL0,
 				//MSK(15, 0), ((data32 >> 2) & 0x3fff));
 			//}
-			rx_pr("dfe\n");
+			if (log_level & PHY_LOG)
+				rx_pr("dfe\n");
 		}
 		usleep_range(100, 110);
 
@@ -460,7 +467,8 @@ EQ_RUN:
 			usleep_range(100, 110);
 			//wr_reg_hhi_bits(HHI_HDMIRX_PHY_DCHD_CNTL2,
 				//_BIT(27), 0);
-			rx_pr("dfe\n");
+			if (log_level & PHY_LOG)
+				rx_pr("dfe\n");
 		}
 		usleep_range(100, 110);
 
@@ -506,19 +514,24 @@ void aml_phy_cfg_tm2(void)
 	u32 term_value =
 		hdmirx_rd_top(TOP_HPD_PWR5V) & 0x7;
 	if (rx.aml_phy.pre_int) {
-		rx_pr("\nphy reg init\n");
+		if (log_level & PHY_LOG)
+			rx_pr("\nphy reg init\n");
 		data32 = phy_misci_b[idx][0];
 		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data32);
 		usleep_range(5, 10);
-
 		data32 = phy_misci_b[idx][1];
+		aml_phy_get_trim_val_tl1_tm2();
 		if (phy_tdr_en) {
+			phy_trim_val = (~(0xfff << 12)) & phy_trim_val;
+			phy_trim_val = (tl1_tm2_reg360[rlevel] << 12) | phy_trim_val;
 			if (term_cal_en) {
 				data32 = (((data32 & (~(0x3ff << 12))) |
 					(term_cal_val << 12)) | (1 << 22));
 			} else {
 				data32 = phy_trim_val;
 			}
+		} else {
+			data32 = phy_trim_val;
 		}
 		/* step2-0xd8 */
 		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL1, data32);
@@ -693,7 +706,8 @@ void aml_pll_bw_cfg_tm2(void)
 			      aml_phy_pll_lock());
 		}
 	} while (!is_tmds_clk_stable() && !aml_phy_pll_lock());
-	rx_pr("pll init done\n");
+	if (log_level & PHY_LOG)
+		rx_pr("pll init done\n");
 	if (rx.aml_phy.phy_bwth) {
 		//phy config based on BW
 		/*0xd8???????*/
@@ -729,7 +743,8 @@ void aml_pll_bw_cfg_tm2(void)
 		/* 0xc6 */
 		wr_reg_hhi_bits(HHI_HDMIRX_PHY_DCHD_CNTL3, MSK(13, 17),
 				(phy_dchd_b[idx][3] >> 17) & 0x1fff);
-		rx_pr("phy_bw\n");
+		if (log_level & PHY_LOG)
+			rx_pr("phy_bw\n");
 	}
 }
 
@@ -772,7 +787,7 @@ void aml_phy_short_bist_tm2(void)
 		data32 |= (1 << port) << 3;
 		data32 |= 0x7 << 0;
 		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL3, data32);
-		rx_pr("\nport=%x\n", rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL3));
+		rx_pr("\n port=%x\n", rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL3));
 		usleep_range(5, 10);
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL0, 0x012000ff);
 		usleep_range(5, 10);
@@ -1221,7 +1236,7 @@ void dump_aml_phy_sts_tm2(void)
 	sli1_ofst5 = (data32 >> 8) & 0x1f;
 	sli2_ofst5 = (data32 >> 16) & 0x1f;
 
-	rx_pr("\nhdmirx phy status:\n");
+	rx_pr("\n hdmirx phy status:\n");
 	rx_pr("terminal=%d, vga_gain=%d, ", terminal, vga_gain);
 	rx_pr("pll_lock=%d, squelch=%d\n", pll_lock, squelch);
 	rx_pr("eq_boost=[%d,%d,%d]\n", ch0_eq_boost, ch1_eq_boost, ch2_eq_boost);

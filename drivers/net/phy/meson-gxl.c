@@ -151,7 +151,7 @@ static int custom_internal_config(struct phy_device *phydev)
 	unsigned int efuse_amp = 0;
 	unsigned int setup_amp = 0;
 
-	pr_info("custrom_internal_config\n");
+	pr_info("custom_internal_config\n");
 	/*we will setup env tx_amp first to debug,
 	 *if env tx_amp ==0 we will use the efuse
 	 */

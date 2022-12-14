@@ -145,6 +145,7 @@ struct out_elem {
 	char name[32];
 	/*get es header mutex with get newest pts*/
 	struct mutex pts_mutex;
+	u8 ts_dump;
 };
 
 struct sid_entry {
@@ -176,6 +177,9 @@ struct pcr_entry {
 	u8 turn_on;
 	u8 stream_id;
 	int pcr_pid;
+	struct out_elem *pout;
+	int ref;
+	int type;
 };
 
 static struct pid_entry *pid_table;
@@ -234,12 +238,11 @@ MODULE_PARM_DESC(audio_es_len_limit, "\n\t\t debug section");
 static int audio_es_len_limit = (40 * 1024);
 module_param(audio_es_len_limit, int, 0644);
 
-struct dump_file dvr_dump_file;
-
 #define VIDEOES_DUMP_FILE   "/data/video_dump"
 #define AUDIOES_DUMP_FILE   "/data/audio_dump"
 #define DVR_DUMP_FILE       "/data/dvr_dump"
 #define PES_DUMP_FILE		"/data/pes_dump"
+#define TS_DUMP_FILE		"/data/ts_dump"
 
 #define READ_CACHE_SIZE      (188)
 #define INVALID_DECODE_RP	(0xFFFFFFFF)
@@ -265,9 +268,12 @@ static void dump_file_open(char *path, struct dump_file *dump_file_fp,
 
 	//find new file name
 	while (i < 999) {
-		if (is_ts)
+		if (is_ts == 1)
 			snprintf((char *)&whole_path, sizeof(whole_path),
 			"%s_%03d.ts", path, i);
+		else if (is_ts == 2)
+			snprintf((char *)&whole_path, sizeof(whole_path),
+			"%s_0x%0x_%03d.ts", path, sid, i);
 		else
 			snprintf((char *)&whole_path, sizeof(whole_path),
 			"%s_0x%0x_0x%0x_%03d.es", path, sid, pid, i);
@@ -608,29 +614,100 @@ static int dvr_process(struct out_elem *pout)
 		if (flag == 0) {
 			if (pout->cb_ts_list)
 				out_ts_cb_list(pout, pread, ret, 0, 0);
-			if (dump_dvr_ts == 1) {
-				dump_file_open(DVR_DUMP_FILE, &dvr_dump_file,
-					0, 0, 1);
-				dump_file_write(pread, ret, &dvr_dump_file);
+			if (pout->ts_dump) {
+				if (!pout->dump_file.file_fp)
+					dump_file_open(TS_DUMP_FILE,
+							&pout->dump_file, pout->sid, 0, 2);
+				dump_file_write(pread, ret, &pout->dump_file);
 			} else {
-				dump_file_close(&dvr_dump_file);
+				if (dump_dvr_ts == 1) {
+					dump_file_open(DVR_DUMP_FILE, &pout->dump_file,
+						0, 0, 1);
+					dump_file_write(pread, ret, &pout->dump_file);
+				} else {
+					dump_file_close(&pout->dump_file);
+				}
 			}
 		} else if (pout->cb_ts_list && flag == 1) {
 			if (dump_dvr_ts == 1) {
-				dump_file_open(DVR_DUMP_FILE, &dvr_dump_file,
+				dump_file_open(DVR_DUMP_FILE, &pout->dump_file,
 					0, 0, 1);
 				enforce_flush_cache(pread, ret);
 				dump_file_write(pread - pout->pchan->mem_phy +
 					pout->pchan->mem, ret,
-					&dvr_dump_file);
+					&pout->dump_file);
 			} else {
-				dump_file_close(&dvr_dump_file);
+				dump_file_close(&pout->dump_file);
 			}
 			write_sec_ts_data(pout, pread, ret);
 		}
 	}
 
 	return 0;
+}
+
+static int temi_process(struct out_elem *pout)
+{
+	int ret = 0;
+	char *pread = NULL;
+	char *pts_dts = NULL;
+	char temi[204] = {0};
+	int header_len = 16;
+	int payload = 188;
+	int offset = 0;
+	struct dmx_temi_data temi_data;
+
+	while (header_len) {
+		ret = SC2_bufferid_read(pout->pchan, &pts_dts, header_len, 0);
+		if (ret != 0) {
+			memcpy((char *)(temi + offset), pts_dts, ret);
+			header_len -= ret;
+			offset += ret;
+		} else {
+			break;
+		}
+	}
+
+	if (header_len == 0) {
+		temi_data.pts_dts_flag = temi[2] & 0xF;
+		temi_data.dts = temi[3] & 0x1;
+		temi_data.dts <<= 32;
+		temi_data.dts |= ((__u64)temi[11]) << 24
+						| ((__u64)temi[10]) << 16
+						| ((__u64)temi[9]) << 8
+						| ((__u64)temi[8]);
+		temi_data.dts &= 0x1FFFFFFFF;
+
+		temi_data.pts = temi[3] >> 1 & 0x1;
+		temi_data.pts <<= 32;
+		temi_data.pts |= ((__u64)temi[15]) << 24
+						| ((__u64)temi[14]) << 16
+						| ((__u64)temi[13]) << 8
+						| ((__u64)temi[12]);
+
+		temi_data.pts &= 0x1FFFFFFFF;
+
+		while (payload) {
+			ret = SC2_bufferid_read(pout->pchan,
+						&pread, payload, 0);
+			if (ret != 0) {
+				memcpy((char *)(temi + offset), pread, ret);
+				payload -= ret;
+				offset += ret;
+			} else {
+				break;
+			}
+		}
+
+		if (payload == 0) {
+			memcpy(temi_data.temi, temi + 16, 188);
+			out_ts_cb_list(pout, (char *)&temi_data,
+								sizeof(temi_data), 0, 0);
+			return 0;
+		}
+	}
+
+	return -1;
 }
 
 static int _task_out_func(void *data)
@@ -661,6 +738,8 @@ static int _task_out_func(void *data)
 				section_process(ptmp->pout);
 			} else if (ptmp->pout->format == DVR_FORMAT) {
 				dvr_process(ptmp->pout);
+			} else if (ptmp->pout->format == TEMI_FORMAT) {
+				temi_process(ptmp->pout);
 			} else {
 				len = MAX_READ_BUF_LEN;
 				if (ptmp->pout->pchan->sec_level) {
@@ -671,21 +750,22 @@ static int _task_out_func(void *data)
 					ret = SC2_bufferid_read(ptmp->pout->pchan,
 						&pread, len, 0);
 				}
+
 				if (ret != 0) {
 					if (((dump_pes & 0xFFFF)  == ptmp->pout->es_pes->pid &&
 						((dump_pes >> 16) & 0xFFFF) == ptmp->pout->sid) ||
-						dump_pes == 0xFFFFFFFF)
+							dump_pes == 0xFFFFFFFF)
 						dump_file_open(PES_DUMP_FILE,
-							&ptmp->pout->dump_file,
-							ptmp->pout->sid,
-							ptmp->pout->es_pes->pid, 0);
+								&ptmp->pout->dump_file,
+								ptmp->pout->sid,
+								ptmp->pout->es_pes->pid, 0);
 					if (ptmp->pout->dump_file.file_fp && dump_pes == 0)
 						dump_file_close(&ptmp->pout->dump_file);
 					if (ptmp->pout->dump_file.file_fp)
 						dump_file_write(pread, ret, &ptmp->pout->dump_file);
 
 					out_ts_cb_list(ptmp->pout, pread,
-							ret, 0, 0);
+										ret, 0, 0);
 				}
 			}
 			ptmp = ptmp->pnext;
@@ -908,11 +988,15 @@ static int re_get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	return 0;
 }
 
+#ifdef CHECK_AUD_ES
 int find_audio_es_type(char *es_buf, int length)
 {
 	char *p;
 	static int count;
 	int match = 0;
+
+	if (length < 2)
+		return -1;
 
 	p = es_buf;
 
@@ -935,6 +1019,7 @@ int find_audio_es_type(char *es_buf, int length)
 	pr_dbg("es error 0x%0x, 0x%0x\n", p[0], p[1]);
 	return -1;
 }
+#endif
 
 static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 {
@@ -976,8 +1061,10 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 			if (!(es_params->header.pts_dts_flag & 0x4) ||
 				(pout->type == AUDIO_TYPE &&
 				 es_params->header.len < audio_es_len_limit)) {
+#ifdef CHECK_AUD_ES
 				if (pout->type == AUDIO_TYPE)
 					find_audio_es_type(ptmp, ret);
+#endif
 				out_ts_cb_list(pout, ptmp, ret, 0, 0);
 			} else {
 				; //do nothing
@@ -1450,7 +1537,9 @@ static int write_aucpu_es_data(struct out_elem *pout,
 			if (!(es_params->header.pts_dts_flag & 0x4) ||
 				(pout->type == AUDIO_TYPE &&
 				 es_params->header.len < audio_es_len_limit)) {
+#ifdef CHECK_AUD_ES
 				find_audio_es_type(ptmp, ret);
+#endif
 				out_ts_cb_list(pout, ptmp, ret, 0, 0);
 			} else {
 				; //do nothing
@@ -2177,7 +2266,7 @@ int ts_output_set_pcr(int sid, int pcr_num, int pcrpid)
 		dprint("%s num:%d invalid\n", __func__, pcr_num);
 		return -1;
 	}
-	if (pcrpid == -1) {
+	if (pcrpid == -1 && pcr_table[pcr_num].ref == 0) {
 		pcr_table[pcr_num].turn_on = 0;
 		pcr_table[pcr_num].stream_id = -1;
 		pcr_table[pcr_num].pcr_pid = -1;
@@ -2306,9 +2395,6 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 		pout->aucpu_pts_handle = -1;
 		pout->aucpu_pts_start = 0;
 	} else {
-		if (format == DVR_FORMAT && dump_dvr_ts)
-			dump_file_open(DVR_DUMP_FILE, &dvr_dump_file, 0, 0, 1);
-
 		ret = SC2_bufferid_alloc(&attr, &pout->pchan, NULL);
 		if (ret != 0) {
 			dprint("%s sid:%d SC2_bufferid_alloc fail\n",
@@ -2397,9 +2483,8 @@ int ts_output_close(struct out_elem *pout)
 		mutex_unlock(&es_output_mutex);
 		mutex_destroy(&pout->pts_mutex);
 	} else {
-		if (pout->format == DVR_FORMAT &&
-			dvr_dump_file.file_fp)
-			dump_file_close(&dvr_dump_file);
+		if (pout->format == DVR_FORMAT && pout->dump_file.file_fp)
+			dump_file_close(&pout->dump_file);
 		remove_ts_out_list(pout, &ts_out_task_tmp);
 		kfree(pout->cache);
 	}
@@ -2461,10 +2546,143 @@ int ts_output_close(struct out_elem *pout)
 		pout->pchan1 = NULL;
 	}
 	pout->use_external_mem = 0;
-
+	pout->ts_dump = 0;
 	pout->used = 0;
 	pr_dbg("%s exit, line:%d\n", __func__, __LINE__);
 	return 0;
+}
+
+int ts_output_alloc_pcr_temi_entry(int *pcr_index, int *temi_index, int *is_same_pid, int pid)
+{
+	int index = 0;
+
+	for (index = 0; index < MAX_PCR_NUM; index++) {
+		if (pcr_table[index].turn_on == 1 && pid == pcr_table[index].pcr_pid) {
+			pcr_table[index].ref += 1;
+			pcr_table[index].type = 3;
+			*is_same_pid = 1;
+			if (pcr_index)
+				*pcr_index = index;
+
+			if (temi_index)
+				*temi_index = index;
+
+			return 0;
+		}
+	}
+
+	for (index = 0; index < MAX_PCR_NUM; index++)
+		if (pcr_table[index].turn_on == 0)
+			break;
+
+	if (index == MAX_PCR_NUM) {
+		if (pcr_index)
+			*pcr_index = -1;
+		if (temi_index)
+			*temi_index = -1;
+		return -1;
+	}
+
+	pcr_table[index].turn_on = 1;
+	pcr_table[index].ref = 0;
+	*is_same_pid = 0;
+
+	if (pcr_index) {
+		*pcr_index = index;
+		pcr_table[index].ref += 1;
+		pcr_table[index].type = 1;
+	}
+
+	if (temi_index) {
+		*temi_index = index;
+		pcr_table[index].ref += 1;
+		pcr_table[index].type = 2;
+	}
+
+	if (temi_index && pcr_index)
+		pcr_table[index].type = 3;
+
+	return 0;
+}
+
+int ts_output_free_pcr_temi_entry(int index)
+{
+	if (index < 0 || index >= MAX_PCR_NUM)
+		return -1;
+
+	pcr_table[index].ref -= 1;
+	if (pcr_table[index].ref <= 0) {
+		pcr_table[index].turn_on = 0;
+		pcr_table[index].type = 0;
+	}
+
+	return 0;
+}
+
+static int ts_output_set_temi(int index, int pid, int sid, void *pout)
+{
+	struct out_elem *p = NULL;
+
+	if (index < 0 || index >= MAX_PCR_NUM)
+		return -1;
+
+	pcr_table[index].pcr_pid = pid;
+	pcr_table[index].stream_id = sid;
+	pcr_table[index].pout = pout;
+
+	p = pout;
+
+	if (pid != -1)
+		tsout_config_temi_table(index, pid, sid, p->pchan->id, 0);
+	else if (pid == -1 && pcr_table[index].ref == 0)
+		tsout_config_temi_table(index, -1, -1, -1, -1);
+
+	return 0;
+}
+
+int ts_output_add_temi_pid(struct out_elem *pout, int pid, int dmx_id,
+						int *cb_id, int index)
+{
+	int ret = 0;
+
+	if (!pout)
+		return -1;
+
+	if (cb_id)
+		*cb_id = 0;
+
+	if (pout->pchan)
+		SC2_bufferid_set_enable(pout->pchan, 1);
+
+	if (cb_id)
+		*cb_id = dmx_id;
+
+	if (!pout->pchan) {
+		dprint("get pout->pchan NULL error\n");
+		return -1;
+	}
+
+	ret = ts_output_set_temi(index, pid, pout->sid, pout);
+	if (ret != 0) {
+		dprint("set temi status failed\n");
+		return -1;
+	}
+
+	pout->enable = 1;
+
+	return 0;
+}
+
+int ts_output_add_remove_temi_pid(struct out_elem *pout, int index)
+{
+	int ret = 0;
+
+	ret = ts_output_set_temi(index, -1, -1, NULL);
+
+	if (pout)
+		pout->enable = 0;
+
+	return ret;
 }
 
 /**
@@ -2563,6 +2781,8 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 			break;
 		}
 	} else {
+		if (pid == 0x1fff && pid_mask == 0x1fff)
+			pout->ts_dump = 1;
 		if (cb_id)
 			*cb_id = dmx_id;
 		pid_slot = pout->pid_list;
@@ -2599,7 +2819,7 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 		pr_dbg("sid:%d, pid:0x%0x, mask:0x%0x\n",
 				pout->sid, pid_slot->pid, pid_slot->pid_mask);
 		tsout_config_ts_table(pid_slot->pid, pid_slot->pid_mask,
-				pid_slot->id, pout->pchan->id);
+					pid_slot->id, pout->pchan->id);
 	}
 	pout->enable = 1;
 	return 0;
@@ -2779,7 +2999,18 @@ int ts_output_get_mem_info(struct out_elem *pout,
 	*total_size = pout->pchan->mem_size;
 	*buf_phy_start = pout->pchan->mem_phy;
 	*wp_offset = SC2_bufferid_get_wp_offset(pout->pchan);
-	*free_size = SC2_bufferid_get_free_size(pout->pchan);
+	if (pout->aucpu_start) {
+		unsigned int now_w = 0;
+		unsigned int mem_size = pout->aucpu_mem_size;
+
+		now_w = SC2_bufferid_get_wp_offset(pout->pchan);
+		if (now_w >= pout->aucpu_read_offset)
+			*free_size = mem_size - (now_w - pout->aucpu_read_offset);
+		else
+			*free_size = pout->aucpu_read_offset - now_w;
+	} else {
+		*free_size = SC2_bufferid_get_free_size(pout->pchan);
+	}
 	if (newest_pts)
 		ts_output_get_newest_pts(pout, newest_pts);
 	return 0;
@@ -3030,7 +3261,7 @@ int ts_output_dump_info(char *buf)
 			if (pout->use_external_mem == 1)
 				r = sprintf(buf, "mem mode:secure\n");
 			else
-				r = sprintf(buf, "mem mode:noraml\n");
+				r = sprintf(buf, "mem mode:normal\n");
 			buf += r;
 			total += r;
 
@@ -3273,17 +3504,60 @@ int ts_output_dump_info(char *buf)
 			count++;
 		}
 	}
+
 	r = sprintf(buf, "********PCR********\n");
 	buf += r;
 	total += r;
 	count = 0;
 
 	for (i = 0; i < MAX_PCR_NUM; i++) {
-		if (pcr_table[i].turn_on != 1)
+		if (pcr_table[i].turn_on != 1 || pcr_table[i].type == 2)
 			continue;
 
 		r = sprintf(buf, "%d sid:0x%0x pcr pid:0x%0x\n", count,
 			pcr_table[i].stream_id, pcr_table[i].pcr_pid);
+		buf += r;
+		total += r;
+
+		count++;
+	}
+
+	r = sprintf(buf, "********TEMI********\n");
+	buf += r;
+	total += r;
+	count = 0;
+
+	for (i = 0; i < MAX_PCR_NUM; i++) {
+		unsigned int total_size = 0;
+		unsigned int buf_phy_start = 0;
+		unsigned int free_size = 0;
+		unsigned int wp_offset = 0;
+
+		if (pcr_table[i].turn_on != 1 || pcr_table[i].type == 1)
+			continue;
+
+		r = sprintf(buf, "%d sid:0x%0x temi pid:0x%0x, ", count,
+			pcr_table[i].stream_id, pcr_table[i].pcr_pid);
+
+		buf += r;
+		total += r;
+
+		ts_output_get_mem_info(pcr_table[i].pout,
+					       &total_size,
+					       &buf_phy_start,
+					       &free_size, &wp_offset, NULL);
+
+		r = sprintf(buf,
+				    "mem total:0x%0x, buf_base:0x%0x, ",
+				    total_size, buf_phy_start);
+		buf += r;
+		total += r;
+
+		r = sprintf(buf,
+					"free size:0x%0x, rp:0x%0x, wp:0x%0x\n",
+					free_size, pcr_table[i].pout->pchan->r_offset,
+					wp_offset);
+
 		buf += r;
 		total += r;
 
@@ -3309,7 +3583,7 @@ static void update_dvr_sid(struct out_elem *pout, int sid, int dmx_no)
 		tsout_config_ts_table(-1, pid_slot->pid_mask,
 		      pid_slot->id, pout->pchan->id);
 
-		/*remalloc slot and */
+		/*malloc slot and */
 		new_pid_slot = _malloc_pid_entry_slot(pout->sid, pid_slot->pid);
 		if (!new_pid_slot) {
 			pr_dbg("malloc pid entry fail\n");
@@ -3398,17 +3672,15 @@ int ts_output_update_filter(int dmx_no, int sid)
 				dprint("change dmx id:%d, filter sid:0x%0x, pid:0x%0x\n",
 					dmx_no, pout->sid, es_slot->pid);
 				tsout_config_es_table(es_slot->buff_id, es_slot->pid,
-				      pout->sid, 1, !drop_dup, pout->format);
+				      pout->sid, 0, !drop_dup, pout->format);
 			}
 		}
 	}
 	return 0;
 }
 
-int ts_output_set_dvr_dump(int flag)
+int ts_output_set_dump_timer(int flag)
 {
-	dump_dvr_ts = flag;
-
 	mod_timer(&ts_out_task_tmp.out_timer,
 	  jiffies + msecs_to_jiffies(out_flush_time));
 
@@ -3490,7 +3762,7 @@ int ts_output_check_flow_control(int sid, int percentage)
 				&total_size,
 				&buf_phy_start,
 				&free_size, &wp_offset, NULL);
-			level = total_size * percentage / 100;
+			level = (unsigned long)total_size * percentage / 100;
 
 			if (pout->type == VIDEO_TYPE) {
 				if (pout->decoder_rp_offset == INVALID_DECODE_RP)

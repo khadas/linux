@@ -45,6 +45,7 @@ struct vrr_notifier_data_s {
 
 	unsigned int vrr_mode;
 	unsigned int lfc_en;
+	unsigned int vrr_policy; /* 0:fix fps as vlock, 1:dynamic fps */
 };
 
 /* **********************************

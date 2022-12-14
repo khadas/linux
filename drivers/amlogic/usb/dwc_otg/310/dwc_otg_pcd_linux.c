@@ -64,6 +64,7 @@
 #include "dwc_otg_dbg.h"
 #include <linux/platform_device.h>
 #include <linux/usb/gadget.h>
+#include <linux/amlogic/usb-gxl.h>
 #include <linux/amlogic/usb-v2.h>
 #include <linux/of_device.h>
 
@@ -1304,7 +1305,9 @@ int pcd_init(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_AMLOGIC_USB3PHY
-	if (otg_dev->core_if->phy_interface != 1) {
+	if (otg_dev->core_if->phy_interface == 1) {
+		aml_new_usb_register_notifier(&otg_dev->nb);
+	} else {
 		if (otg_dev->core_if->phy_otg == 1)
 			aml_new_otg_register_notifier(&otg_dev->nb);
 		else
@@ -1377,7 +1380,9 @@ void pcd_remove(struct platform_device *pdev)
 	free_wrapper(gadget_wrapper);
 	dwc_otg_pcd_remove(otg_dev->pcd);
 #ifdef CONFIG_AMLOGIC_USB3PHY
-	if (otg_dev->core_if->phy_interface != 1) {
+	if (otg_dev->core_if->phy_interface == 1) {
+		aml_new_usb_unregister_notifier(&otg_dev->nb);
+	} else {
 		if (otg_dev->core_if->phy_otg == 1)
 			aml_new_otg_unregister_notifier(&otg_dev->nb);
 		else

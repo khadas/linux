@@ -110,7 +110,7 @@ struct ld_reg_s {
 		 *from last frame difference;
 		 */
 	int reg_ldfw_tf_disable_th;
-		/*u8: 4x is the threshod to disable
+		/*u8: 4x is the threshold to disable
 		 *tf to the alpha (SFB_BL_matrix from last frame difference;
 		 */
 	int reg_ldfw_blest_acmode;
@@ -169,7 +169,7 @@ struct ld_reg_s {
 	/*u8: 0: 1920~ 61*/
 	int reg_bl_matrix_avg;
 	/*u12: DC of whole picture BL to be subtract from BL_matrix
-	 *	during modeling (Set by FW daynamically)
+	 *	during modeling (Set by FW dynamically)
 	 */
 	int reg_bl_matrix_compensate;
 	/*u12: DC of whole picture BL to be compensated back to
@@ -247,7 +247,7 @@ struct ld_reg_s {
 	/* Changed to 16 Lits define 32 Bin LUT to save cost*/
 	int x_lut[3][16][32];
 	/* Changed to 16 Lits define 32 Bin LUT to save cost*/
-	/* only do the Lit modleing on the AC part*/
+	/* only do the Lit modeling on the AC part*/
 	int x_lut2[3][16][16];
 	int fw_ld_bl_est_acmode;
 	/*u2: 0: est on BLmatrix; 1: est on (BL-DC);

@@ -599,7 +599,7 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 	unsigned int tuner_id = priv->atvdemod_param.tuner_id;
 	int i = 0;
 	int try_vfmt_cnt = 300;
-	int varify_cnt = 0;
+	int verify_cnt = 0;
 	int cvbs_std = 0;
 	v4l2_std_id std_bk = 0;
 	unsigned int broad_std = 0;
@@ -629,14 +629,14 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 			}
 
 			if (cvbs_std) {
-				varify_cnt++;
-				pr_dbg("get cvbs_std varify_cnt:%d, cnt:%d, cvbs_std:0x%x\n",
-						varify_cnt, i,
+				verify_cnt++;
+				pr_dbg("get cvbs_std verify_cnt:%d, cnt:%d, cvbs_std:0x%x\n",
+						verify_cnt, i,
 						(unsigned int) cvbs_std);
-				if (((tuner_id == AM_TUNER_R840
-					|| tuner_id == AM_TUNER_R842)
-					&& varify_cnt > 0)
-					|| varify_cnt > 3)
+				if (((tuner_id == AM_TUNER_R840 ||
+					tuner_id == AM_TUNER_R842) &&
+					verify_cnt > 0) ||
+					verify_cnt > 3)
 					break;
 			}
 

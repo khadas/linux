@@ -19,8 +19,8 @@
 #define READ_AOREG(r) aml_read_aobus(r)
 #define WRITE_AOREG(r, val) aml_write_aobus(r, val)
 
-#define READ_VREG(r) aml_read_dosbus(r)
-#define WRITE_VREG(r, val) aml_write_dosbus(r, val)
+#define READ_DOSREG(r) aml_read_dosbus(r)
+#define WRITE_DOSREG(r, val) aml_write_dosbus(r, val)
 
 #define BASE_IRQ 32
 #define AM_IRQ(reg)   ((reg) + BASE_IRQ)
@@ -41,7 +41,7 @@
 
 #define INT_VDEC INT_DOS_MAILBOX_1
 #define INT_VDEC2 INT_DOS_MAILBOX_0
-
+/*
 #define WRITE_VREG_BITS(r, val, start, len) \
 	codec_set_dosbus_bits(r, val, start, len)
 #define SET_VREG_MASK(r, mask) codec_set_dosbus_mask(r, mask)
@@ -53,7 +53,7 @@
 	codec_set_dosbus_bits((r) | 0x1000, val, start, len)
 #define SET_HREG_MASK(r, mask) codec_set_dosbus_mask((r) | 0x1000, mask)
 #define CLEAR_HREG_MASK(r, mask) codec_clear_dosbus_mask((r) | 0x1000, mask)
-
+*/
 /*TODO */
 #define READ_SEC_REG(r)
 #define WRITE_SEC_REG(r, val)

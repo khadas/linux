@@ -24,7 +24,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2022/0615: fix T3 Rev B black screen"
+#define VLOCK_VER "Ref.2022/0829: fix video show abnormal with aspect raio 4:3"
 
 #define VLOCK_REG_NUM					33
 #define VLOCK_ALL_LOCK_CNT				400
@@ -291,9 +291,9 @@ enum vlock_pll_sel {
 #define VLOCK_SUP_MODE	(VLOCK_SUPPORT_HDMI | VLOCK_SUPPORT_CVBS | \
 			 VLOCK_SUPPORT_1TO2)
 
-/*10s for 60hz input,vlock pll stabel cnt limit*/
+/*10s for 60hz input,vlock pll stable cnt limit*/
 #define VLOCK_PLL_STABLE_LIMIT	600
-#define VLOCK_ENC_STABLE_CNT	180/*vlock enc stabel cnt limit*/
+#define VLOCK_ENC_STABLE_CNT	180/*vlock enc stable cnt limit*/
 #define VLOCK_PLL_ADJ_LIMIT 9/*vlock pll adj limit(0x300a default)*/
 
 /*vlock_debug mask*/

@@ -127,7 +127,7 @@ static struct clk_regmap t5w_sys_pll_dco = {
  * 2) change the return value for .round_rate, a greater many
  *   code will be modified, related to whole CCF.
  * 3) dco pll using kHZ, other clock using HZ, when calculate pll
- *    it will be a lot of mass because of unit deferentces.
+ *    it will be a lot of mass because of unit differences.
  *
  * Keep Consistent with 64bit, creat a Virtual clock for sys pll
  */
@@ -214,7 +214,7 @@ static struct clk_regmap t5w_fixed_pll_dco = {
 		},
 		.num_parents = 1,
 		/*
-		 * This clock feeds the sysytem, avoid disabling it
+		 * This clock feeds the CPU, avoid disabling it
 		 * Register has the risk of being directly operated
 		 */
 		.flags = CLK_IS_CRITICAL | CLK_GET_RATE_NOCACHE,
@@ -3699,7 +3699,7 @@ static struct clk_regmap t5w_tvfe_clk_sel = {
 		.name = "tvfe_clk_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = t5w_tvfe_parent_hws,
-		.num_parents = ARRAY_SIZE(t5w_spicc_parent_hws),
+		.num_parents = ARRAY_SIZE(t5w_tvfe_parent_hws),
 	},
 };
 
@@ -3915,7 +3915,7 @@ static MESON_T5W_SYS_GATE(t5w_clk81_vclk2_enci,		HHI_GCLK_OTHER, 8);
 static MESON_T5W_SYS_GATE(t5w_clk81_vclk2_encp,		HHI_GCLK_OTHER, 9);
 static MESON_T5W_SYS_GATE(t5w_clk81_dac_clk,		HHI_GCLK_OTHER, 10);
 static MESON_T5W_SYS_GATE(t5w_clk81_enc480p,		HHI_GCLK_OTHER, 20);
-static MESON_T5W_SYS_GATE(t5w_clk81_ramdom,		HHI_GCLK_OTHER, 21);
+static MESON_T5W_SYS_GATE(t5w_clk81_random,		HHI_GCLK_OTHER, 21);
 static MESON_T5W_SYS_GATE(t5w_clk81_vclk2_enct,		HHI_GCLK_OTHER, 22);
 static MESON_T5W_SYS_GATE(t5w_clk81_vclk2_encl,		HHI_GCLK_OTHER, 23);
 static MESON_T5W_SYS_GATE(t5w_clk81_vclk2_venclmmc,	HHI_GCLK_OTHER, 24);
@@ -4039,7 +4039,7 @@ static struct clk_hw_onecell_data t5w_hw_onecell_data = {
 		[CLKID_CLK81_VCLK2_ENCP]	= &t5w_clk81_vclk2_encp.hw,
 		[CLKID_CLK81_DAC_CLK]		= &t5w_clk81_dac_clk.hw,
 		[CLKID_CLK81_ENC480P]		= &t5w_clk81_enc480p.hw,
-		[CLKID_CLK81_RAMDOM]		= &t5w_clk81_ramdom.hw,
+		[CLKID_CLK81_RANDOM]		= &t5w_clk81_random.hw,
 		[CLKID_CLK81_VCLK2_ENCT]	= &t5w_clk81_vclk2_enct.hw,
 		[CLKID_CLK81_VCLK2_ENCL]	= &t5w_clk81_vclk2_encl.hw,
 		[CLKID_CLK81_VCLK2_VENCLMMC]	= &t5w_clk81_vclk2_venclmmc.hw,
@@ -4413,7 +4413,7 @@ static struct clk_regmap *const t5w_cpu_clk_regmaps[] __initconst = {
 	&t5w_clk81_vclk2_encp,
 	&t5w_clk81_dac_clk,
 	&t5w_clk81_enc480p,
-	&t5w_clk81_ramdom,
+	&t5w_clk81_random,
 	&t5w_clk81_vclk2_enct,
 	&t5w_clk81_vclk2_encl,
 	&t5w_clk81_vclk2_venclmmc,

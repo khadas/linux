@@ -2,13 +2,7 @@
 /*
  * Amlogic AXI PCIe host controller driver
  *
- * Copyright (c) 2016 Amlogic, Inc.
- *
- * Author: Shawn Lin <shawn.lin@rock-chips.com>
- *         Wenrui Li <wenrui.li@rock-chips.com>
- *
- * Bits taken from Synopsys DesignWare Host controller driver and
- * ARM PCI Host generic driver.
+ * Copyright (c) 2021 Amlogic, Inc.
  */
 
 #include <linux/bitrev.h>
@@ -187,8 +181,10 @@ static int amlogic_pcie_host_init_port(struct amlogic_pcie *amlogic)
 	u32 val = 0;
 
 	err = amlogic_pcie_init_port(amlogic);
-	if (err)
+	if (err) {
 		dev_err(dev, "failed init port\n");
+		return err;
+	}
 
 	/* Setup RC BARs */
 	amlogic_pcieinter_write(amlogic, 0x1,
@@ -229,10 +225,12 @@ static int amlogic_pcie_host_init_port(struct amlogic_pcie *amlogic)
 
 	amlogic_set_max_payload(amlogic, 128);
 	amlogic_set_max_rd_req_size(amlogic, 128);
+
 	return err;
 }
 
-/*static void amlogic_pcie_handle_intx_irq(struct amlogic_pcie_rc *rc,
+/*
+ *static void amlogic_pcie_handle_intx_irq(struct amlogic_pcie_rc *rc,
  *					 unsigned long status)
  *{
  *	struct amlogic_pcie *amlogic = &rc->amlogic;
@@ -278,16 +276,24 @@ static int amlogic_pcie_host_init_port(struct amlogic_pcie *amlogic)
 static int amlogic_pcie_parse_host_dt(struct amlogic_pcie_rc *rc)
 {
 	struct amlogic_pcie *amlogic = &rc->amlogic;
-	int err;
+	struct device *dev = amlogic->dev;
+	struct device_node *node = dev->of_node;
+	int ret;
 
-	err = amlogic_pcie_parse_dt(amlogic);
-	if (err)
-		return err;
+	ret = of_property_read_u32(node, "phy-type",
+				   &amlogic->phy_type);
+	if (ret)
+		amlogic->phy_type = M31_PHY;
+	dev_dbg(amlogic->dev, "PCIE phy type is %d\n", amlogic->phy_type);
+
+	ret = amlogic_pcie_parse_dt(amlogic);
+	if (ret)
+		return ret;
 
 	/*
-	 * err = amlogic_pcie_setup_irq(rc);
-	 *if (err)
-	 *	return err;
+	 * ret = amlogic_pcie_setup_irq(rc);
+	 *if (ret)
+	 *	return ret;
 	 */
 
 	return 0;
@@ -427,13 +433,16 @@ static void amlogic_pcie_cfg_atr(struct amlogic_pcie *amlogic)
 	amlogic_pcie_cfg_addr_map(amlogic, ATR_PCIE_WIN0 + ATR_TABLE_SIZE * 0,
 				  0, 0,
 				  31, ATR_TRSLID_AXIMEMORY);
+
 	amlogic_pcie_cfg_addr_map(amlogic, ATR_AXI4_SLV0 + ATR_TABLE_SIZE * 1,
 				  amlogic->mem_bus_addr, amlogic->mem_bus_addr,
-				  26, ATR_TRSLID_PCIE_MEMORY);
+				  ilog2(amlogic->mem_size) - 1,
+				  ATR_TRSLID_PCIE_MEMORY);
+
 	/*
 	 *amlogic_pcie_cfg_addr_map(amlogic, ATR_AXI4_SLV0 + ATR_TABLE_SIZE * 2,
 	 *			     amlogic->io_bus_addr, amlogic->io_bus_addr,
-	 *			     19, ATR_TRSLID_PCIE_IO);
+	 *			     ilog2(amlogic->io_size) - 1, ATR_TRSLID_PCIE_IO);
 	 */
 }
 

@@ -159,7 +159,7 @@ cfi_string_t prop_name_table[] = {
 
 /**
  * Returns the name of the feature by its ID
- * or NULL if no featute ID matches.
+ * or NULL if no feature ID matches.
  *
  */
 const uint8_t *get_prop_name(uint16_t prop_id, int *len)
@@ -1141,7 +1141,7 @@ static int cfi_handle_reset_align_val(struct dwc_otg_pcd *pcd, uint8_t addr)
 			retval = cfi_reset_align_val(cfiep);
 			if (retval < 0) {
 				CFI_INFO
-				    ("%s: Error resetting the feature Aliignment Value\n",
+				    ("%s: Error resetting the feature alignment Value\n",
 				     __func__);
 				return retval;
 			}
@@ -1421,7 +1421,7 @@ static int32_t get_txfifo_size(struct dwc_otg_pcd *pcd, uint16_t wValue)
 
 	if (!ep->dwc_ep.is_in) {
 		CFI_INFO
-		    ("%s: No Tx FIFO assingned to the Out endpoint addr=0x%02x\n",
+		    ("%s: No Tx FIFO assigned to the Out endpoint addr=0x%02x\n",
 		     __func__, wValue & 0xff);
 		return -DWC_E_INVALID;
 	}

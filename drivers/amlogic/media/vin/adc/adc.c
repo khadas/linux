@@ -217,32 +217,26 @@ int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data)
 
 	if (!on) {
 		devp->filter_flg &= ~module_sel;
-		if (devp->print_en)
-			pr_info("%s: on: %d, module: 0x%x, filter_flg: 0x%x\n",
-				__func__, on, module_sel, devp->filter_flg);
-
 		mutex_unlock(&devp->filter_mutex);
-
+		if (devp->print_en)
+			pr_info("%s:reon:%d, module:0x%x, filter_flg:0x%x\n",
+				__func__, on, module_sel, devp->filter_flg);
 		return 0;
 	}
-
-	if (devp->print_en)
-		pr_info("%s: on: %d, module: 0x%x, filter_flg: 0x%x\n",
-				__func__, on, module_sel, devp->filter_flg);
 
 	switch (module_sel) {
 	case FILTER_ATV_DEMOD:
 		if (devp->filter_flg & (FILTER_TVAFE | FILTER_DTV_DEMOD)) {
 			ret = -1;
 
-			pr_info("%s: ADEMOD fail!!!, filter_flg: %d\n",
+			pr_info("%s: DEMOD fail!!!, filter_flg: %d\n",
 					__func__, devp->filter_flg);
 			break;
 		}
 
 		if (devp->filter_flg & FILTER_ATV_DEMOD) {
 			if (devp->print_en)
-				pr_info("%s: ADEMOD ATV had done!: %d\n",
+				pr_info("%s: DEMOD ATV had done!: %d\n",
 						__func__, devp->filter_flg);
 			break;
 		}
@@ -314,7 +308,9 @@ int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data)
 					__func__, module_sel);
 		break;
 	}
-
+	if (devp->print_en)
+		pr_info("%s: on:%d, module:0x%x, filter_flg:0x%x\n",
+			__func__, on, module_sel, devp->filter_flg);
 	mutex_unlock(&devp->filter_mutex);
 
 	return 0;
@@ -483,7 +479,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		devp->pll_flg &= ~module_sel;
 		mutex_unlock(&devp->pll_mutex);
 		if (devp->print_en)
-			pr_info("%s: init flag on:%d,module:0x%x,flag:0x%x\n",
+			pr_info("%s:reinit flag on:%d,module:0x%x,flag:0x%x\n",
 				__func__, on, module_sel, devp->pll_flg);
 		return ret;
 	}
@@ -494,14 +490,14 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 			ret = -1;
 
 			if (devp->print_en)
-				pr_info("%s:ADEMOD fail!:%d\n",
+				pr_info("%s:DEMOD fail!:%d\n",
 					__func__, devp->pll_flg);
 			break;
 		}
 
 		if (devp->pll_flg & ADC_ATV_DEMOD) {
 			if (devp->print_en)
-				pr_info("%s:ADEMOD ATV had done!:%d\n",
+				pr_info("%s:DEMOD ATV had done!:%d\n",
 					__func__, devp->pll_flg);
 			break;
 		}
@@ -845,12 +841,14 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 			       __func__, module_sel);
 		break;
 	}
-
+	if (devp->print_en)
+		pr_info("%s:init flag on:%d,module:0x%x,flag:0x%x cnt:0x%x\n",
+			__func__, on, module_sel, devp->pll_flg, adc_pll_lock_cnt);
 	return ret;
 }
 EXPORT_SYMBOL(adc_set_pll_cntl);
 
-void adc_pll_down(void)
+static void adc_pll_down(void)
 {
 	if (!probe_finish || !adc_devp)
 		return;
@@ -878,7 +876,6 @@ void adc_pll_down(void)
 		adc_wr_afe(AFE_VAFE_CTRL2, 0x0);
 	}
 }
-EXPORT_SYMBOL(adc_pll_down);
 
 int adc_get_pll_flag(void)
 {
@@ -943,9 +940,12 @@ static void adc_dump_regs(void)
 	pll_addr = &adc_devp->plat_data->pll_addr;
 	chip_id = adc_devp->plat_data->chip_id;
 
-	pr_info("chip_id=0x%x, pll_flag=0x%x is_tv=0x%x\n",
-			chip_id, adc_devp->pll_flg,
-			adc_devp->plat_data->is_tv_chip);
+	pr_info("chip_id=0x%x is_tv=0x%x\n",
+		chip_id, adc_devp->plat_data->is_tv_chip);
+
+	pr_info("pll_flag=0x%x filter_flg=0x%x print_en=0x%x\n",
+		adc_devp->pll_flg, adc_devp->filter_flg,
+		adc_devp->print_en);
 
 	if (chip_id == ADC_CHIP_S4 || chip_id == ADC_CHIP_S4D) {
 		reg_offset = 0x10;
@@ -1020,7 +1020,7 @@ static ssize_t adc_store(struct device *dev, struct device_attribute *attr,
 	adc_parse_para(buf_orig, (char **)&parm);
 
 	if (parm[0] && !strcmp(parm[0], "state")) {
-		pr_info("adc state\n");
+		adc_dump_regs();
 	} else if (parm[0] && !strcmp(parm[0], "down")) {
 		adc_pll_down();
 	} else if (parm[0] && !strcmp(parm[0], "dump_reg")) {
@@ -1062,11 +1062,12 @@ static ssize_t adc_show(struct device *dev,
 		return -1;
 
 	pr_info("debug : %d\n", adc_devp->print_en);
+	pr_info("echo state > /sys/class/adc/adc/adc\n");
 	pr_info("echo dump_reg > /sys/class/adc/adc/adc\n");
 	pr_info("echo down > /sys/class/adc/adc/adc\n");
 	pr_info("echo vafe reg_addr reg_val >  /sys/class/adc/adc/adc\n");
 	pr_info("echo hiu  reg_addr reg_val >  /sys/class/adc/adc/adc\n");
-	pr_info("version : %s\n", TVDIN_ADC_VER);
+	pr_info("version : %s\n", ADC_VER);
 	return 0;
 }
 
@@ -1376,7 +1377,7 @@ static int adc_probe(struct platform_device *pdev)
 	mutex_init(&devp->pll_mutex);
 	mutex_init(&devp->filter_mutex);
 	probe_finish = true;
-	pr_info("%s ver:%s\n", __func__, TVDIN_ADC_VER);
+	pr_info("%s ver:%s\n", __func__, ADC_VER);
 	return 0;
 
 fail_get_resource_mem:

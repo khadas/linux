@@ -96,12 +96,12 @@ static struct gdc_device_data_s aml_gdc_v2 = {
 	.gamma_support = 1,
 	.core_cnt = 3,
 	.smmu_support = 1,
-	.fw_version = AMLGDC_FW_V2
+	.fw_version = AMLGDC_FW_V1
 };
 
 static struct gdc_device_data_s aml_gdc_v3 = {
 	.dev_type = AML_GDC,
-	.clk_type = GATE,
+	.clk_type = MUXGATE_MUXSEL_GATE,
 	.bit_width_ext = 1,
 	.gamma_support = 0,
 	.core_cnt = 1,
@@ -1771,6 +1771,7 @@ static long meson_gdc_ioctl(struct file *file, unsigned int cmd,
 			pr_err("Error user param\n");
 			return -EINVAL;
 		}
+		gdc_log(LOG_DEBUG, "fw_version = %d", fw_version);
 		break;
 	default:
 		gdc_log(LOG_ERR, "unsupported cmd 0x%x\n", cmd);

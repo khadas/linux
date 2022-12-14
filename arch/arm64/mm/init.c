@@ -545,19 +545,11 @@ void __init mem_init(void)
 #ifdef CONFIG_AMLOGIC_MEM_DEBUG
 	char *buf = NULL;
 #endif
-#ifdef CONFIG_AMLOGIC_MODIFY
-	if (swiotlb_force != SWIOTLB_NO_FORCE ||
-	    max_pfn > (arm64_dma_phys_limit >> PAGE_SHIFT)) {
-		swiotlb_force = SWIOTLB_NORMAL;
-		swiotlb_init(1);
-	}
-#else
 	if (swiotlb_force == SWIOTLB_FORCE ||
 	    max_pfn > (arm64_dma_phys_limit >> PAGE_SHIFT))
 		swiotlb_init(1);
 	else
 		swiotlb_force = SWIOTLB_NO_FORCE;
-#endif
 
 	set_max_mapnr(max_pfn - PHYS_PFN_OFFSET);
 

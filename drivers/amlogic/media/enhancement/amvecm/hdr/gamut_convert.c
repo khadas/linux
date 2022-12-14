@@ -458,7 +458,7 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 
 	if (force_primary) {
 		/* because of blue x,y too close to zero,
-		 * and usually have differece
+		 * and usually have difference
 		 * force blue dest primary >= src primary to avoid blue clip
 		 */
 		if (source_type[vd_path] == HDRTYPE_SDR) {

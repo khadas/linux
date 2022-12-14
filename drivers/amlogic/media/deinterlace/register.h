@@ -409,7 +409,7 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
 /* bit 26:24,   reg_demon_mux */
 /* bit 23:20,   reg_right_win */
 /* bit 19:16,   reg_left_win */
-/* bit 7:4,     reg_ei_sadm_quatize_margin */
+/* bit 7:4,     reg_ei_sadm_quantize_margin */
 /* bit 1:0,     reg_ei_sad_relative_mode */
 #define DI_EI_CTRL4                       ((0x171a)) /* << 2) + 0xd0100000) */
 /* bit 29,      reg_ei_caldrt_ambliike2_biasvertical */
@@ -1679,7 +1679,7 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
 /* Bit 31    it true, disable clock, otherwise enable clock        */
 /* Bit 30    soft rst bit */
 /* Bit 28    if true, horizontal formatter use repeating to */
-/* generete pixel, otherwise use bilinear interpolation */
+/* generate pixel, otherwise use bilinear interpolation */
 /* Bit 27:24 horizontal formatter initial phase */
 /* Bit 23    horizontal formatter repeat pixel 0 enable */
 /* Bit 22:21 horizontal Y/C ratio, 00: 1:1, 01: 2:1, 10: 4:1 */
@@ -1687,9 +1687,9 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
 /* Bit 19    if true, always use phase0 while vertical formater, */
 /* meaning always repeat data, no interpolation */
 /* Bit 18    if true, disable vertical formatter chroma repeat last line */
-/* Bit 17    veritcal formatter dont need repeat */
+/* Bit 17    vertical formatter dont need repeat */
 /* line on phase0, 1: enable, 0: disable */
-/* Bit 16    veritcal formatter repeat line 0 enable */
+/* Bit 16    vertical formatter repeat line 0 enable */
 /* Bit 15:12 vertical formatter skip line num at the beginning */
 /* Bit 11:8  vertical formatter initial phase */
 /* Bit 7:1   vertical formatter phase step (3.4) */
@@ -1720,7 +1720,7 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
  * vdb step, 0: 4, 1: 8        . unsigned  , default = 1
  */
 /* Bit 14,            reg_dnr_db_vdbprten                         ,
- * vdb protectoin enable       . unsigned  , default = 1
+ * vdb protection enable       . unsigned  , default = 1
  */
 /* Bit 13,            reg_dnr_gbs_difen                           ,
  * enable dif (between LR and LL/RR) condition for gbs stat..
@@ -2852,7 +2852,7 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
  * valid mode for lmv calc., 100b:use char det, 010b: use flt,001b: use hori flg
  */
 /* Bit 11:10, reg_mcdi_lmvgainmvmode
- * four modes of mv selection for lmv weight calucluation, default = 1
+ * four modes of mv selection for lmv weight calculation, default = 1
  */
 /* 0: cur(x-3), lst(x-1,x,x+1); 1: cur(x-4,x-3), lst(x,x+1);
  * 2: cur(x-5,x-4,x-3), lst(x-1,x,x+1,x+2,x+3);
@@ -3058,10 +3058,10 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
 /* Bit  3: 0, reserved */
 #define MCDI_REF_BS_THD_GAIN                       ((0x2f1a))
 /* Bit 31:28, reg_mcdi_refbsudgain1.
- * up & down block stregth gain1, normalized to 8 as '1', default = 2
+ * up & down block strength gain1, normalized to 8 as '1', default = 2
  */
 /* Bit 27:24, reg_mcdi_refbsudgain0.
- * up & down block stregth gain0, normalized to 8 as '1', default = 4
+ * up & down block strength gain0, normalized to 8 as '1', default = 4
  */
 /* Bit 23:19, reserved */
 /* Bit 18:16, reg_mcdi_refbslftgain.
@@ -3069,11 +3069,11 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
  */
 /* Bit 15:13, reserved */
 /* Bit 12: 8, reg_mcdi_refbsthd1.
- * threshold 1 for detect block stregth in refinment, default = 16
+ * threshold 1 for detect block strength in refinment, default = 16
  */
 /* Bit  7: 5, reserved */
 /* Bit  4: 0, reg_mcdi_refbsthd0.
- * threshold 0 for detect block stregth in refinment, default = 8
+ * threshold 0 for detect block strength in refinment, default = 8
  */
 #define MCDI_REF_ERR_GAIN0                         ((0x2f1b))
 /* Bit    31, reserved */
@@ -3583,7 +3583,7 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
 /* Bit  7: 0, reg_mcdi_reldetmaplut12.              default = 192 */
 #define MCDI_REL_DET_COL_CFD_THD                   ((0x2f42))
 /* Bit 31:24, reg_mcdi_reldetcolcfdfltthd.
- * thd for flat smaller than (<) of column cofidence, default = 5
+ * thd for flat smaller than (<) of column confidence, default = 5
  */
 /* Bit 23:16, reg_mcdi_reldetcolcfdthd1.
  * thd for rel larger than (>=) in rel calc.
@@ -3595,24 +3595,24 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
  */
 /* Bit  7: 2, reg_mcdi_reldetcolcfdbadwthd.
  * thd for badw larger than (>=) in qbadw calc.
- * mode of column cofidence, default = 16
+ * mode of column confidence, default = 16
  */
 /* Bit     1, reserved */
 /* Bit     0, reg_mcdi_reldetcolcfdcalcmode.        calc.
- * mode for column cofidence, 0: use rel, 1: use qbadw, default = 0
+ * mode for column confidence, 0: use rel, 1: use qbadw, default = 0
  */
 #define MCDI_REL_DET_COL_CFD_AVG_LUMA              ((0x2f43))
 /* Bit 31:24, reg_mcdi_reldetcolcfdavgmin1.
- * avg luma min1 (>=) for column cofidence, valid between 16~235, default = 235
+ * avg luma min1 (>=) for column confidence, valid between 16~235, default = 235
  */
 /* Bit 23:16, reg_mcdi_reldetcolcfdavgmax1.
- * avg luma max1 (<)  for column cofidence, valid between 16~235, default = 235
+ * avg luma max1 (<)  for column confidence, valid between 16~235, default = 235
  */
 /* Bit 15: 8, reg_mcdi_reldetcolcfdavgmin0.
- * avg luma min0 (>=) for column cofidence, valid between 16~235, default = 16
+ * avg luma min0 (>=) for column confidence, valid between 16~235, default = 16
  */
 /* Bit  7: 0, reg_mcdi_reldetcolcfdavgmax0.
- * avg luma max0 (<)  for column cofidence, valid between 16~235, default = 21
+ * avg luma max0 (<)  for column confidence, valid between 16~235, default = 21
  */
 #define MCDI_REL_DET_BAD_THD_0                     ((0x2f44))
 /* Bit 31:16, reserved */
@@ -3822,7 +3822,7 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
  * normalized 256 as '1', 255 is set to 256, default = 24
  */
 /* Bit 15: 8, reg_mcdi_motionparadoxbadrelrt.
- * ratio for field bad reliabilty count of motion paradox,
+ * ratio for field bad reliability count of motion paradox,
  * normalized 256 as '1', 255 is set to 256, default = 120
  */
 /* Bit  7: 0, reg_mcdi_motionparadoxmtnrt.
@@ -3852,7 +3852,7 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
 #define MCDI_REL_COL_REF_RT                        ((0x2f55))
 /* Bit 31: 8, reserved */
 /* Bit  7: 0, reg_mcdi_relcolrefrt.
- * ratio for column cofidence level against column number,
+ * ratio for column confidence level against column number,
  * for refinement, default = 135
  */
 #define MCDI_PD22_CHK_THD_RT                       ((0x2f56))
@@ -3950,7 +3950,7 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
  * 1: previous field, default = 1
  */
 /* Bit     7, reg_mcdi_mcrelrefbycolcfden.
- * enable rel refinement by column cofidence in mc blending, default = 1
+ * enable rel refinement by column confidence in mc blending, default = 1
  */
 /* Bit  6: 5, reg_mcdi_mclpfen.
  * enable mc pixles/rel lpf, 0:disable, 1: lpf rel,
@@ -4087,112 +4087,112 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
 /* Bit  7: 4, reserved. */
 /* Bit  3: 0, reg_mcdi_mcrelrefbycolcfdgain.
  * gain for rel (MC blending coef.) refinement
- * if column cofidence failed before MC
+ * if column confidence failed before MC
  * blending, normalized 8 as '1', set 15 to 16, default = 8
  */
 #define MCDI_MC_COL_CFD_0                          ((0x2f78))
-/* Bit 31: 0, mcdi_mc_col_cfd_0.
- * column cofidence value 0 read from software. initial = 0
+/* Bit 31: 0, mc_col_cfd_0.
+ * column confidence value 0 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_1                          ((0x2f79))
 /* Bit 31: 0, mcdi_mc_col_cfd_1.
- * column cofidence value 1 read from software. initial = 0
+ * column confidence value 1 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_2                          ((0x2f7a))
 /* Bit 31: 0, mcdi_mc_col_cfd_2.
- * column cofidence value 2 read from software. initial = 0
+ * column confidence value 2 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_3                          ((0x2f7b))
 /* Bit 31: 0, mcdi_mc_col_cfd_3.
- * column cofidence value 3 read from software. initial = 0
+ * column confidence value 3 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_4                          ((0x2f7c))
 /* Bit 31: 0, mcdi_mc_col_cfd_4.
- * column cofidence value 4 read from software. initial = 0
+ * column confidence value 4 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_5                          ((0x2f7d))
 /* Bit 31: 0, mcdi_mc_col_cfd_5.
- * column cofidence value 5 read from software. initial = 0
+ * column confidence value 5 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_6                          ((0x2f7e))
 /* Bit 31: 0, mcdi_mc_col_cfd_6.
- * column cofidence value 6 read from software. initial = 0
+ * column confidence value 6 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_7                          ((0x2f7f))
 /* Bit 31: 0, mcdi_mc_col_cfd_7.
- * column cofidence value 7 read from software. initial = 0
+ * column confidence value 7 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_8                          ((0x2f80))
 /* Bit 31: 0, mcdi_mc_col_cfd_8.
- * column cofidence value 8 read from software. initial = 0
+ * column confidence value 8 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_9                          ((0x2f81))
 /* Bit 31: 0, mcdi_mc_col_cfd_9.
- * column cofidence value 9 read from software. initial = 0
+ * column confidence value 9 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_10                         ((0x2f82))
 /* Bit 31: 0, mcdi_mc_col_cfd_10.
- * column cofidence value 10 read from software. initial = 0
+ * column confidence value 10 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_11                         ((0x2f83))
 /* Bit 31: 0, mcdi_mc_col_cfd_11.
- * column cofidence value 11 read from software. initial = 0
+ * column confidence value 11 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_12                         ((0x2f84))
 /* Bit 31: 0, mcdi_mc_col_cfd_12.
- * column cofidence value 12 read from software. initial = 0
+ * column confidence value 12 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_13                         ((0x2f85))
 /* Bit 31: 0, mcdi_mc_col_cfd_13.
- * column cofidence value 13 read from software. initial = 0
+ * column confidence value 13 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_14                         ((0x2f86))
 /* Bit 31: 0, mcdi_mc_col_cfd_14.
- * column cofidence value 14 read from software. initial = 0
+ * column confidence value 14 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_15                         ((0x2f87))
 /* Bit 31: 0, mcdi_mc_col_cfd_15.
- * column cofidence value 15 read from software. initial = 0
+ * column confidence value 15 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_16                         ((0x2f88))
 /* Bit 31: 0, mcdi_mc_col_cfd_16.
- * column cofidence value 16 read from software. initial = 0
+ * column confidence value 16 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_17                         ((0x2f89))
 /* Bit 31: 0, mcdi_mc_col_cfd_17.
- * column cofidence value 17 read from software. initial = 0
+ * column confidence value 17 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_18                         ((0x2f8a))
 /* Bit 31: 0, mcdi_mc_col_cfd_18.
- * column cofidence value 18 read from software. initial = 0
+ * column confidence value 18 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_19                         ((0x2f8b))
 /* Bit 31: 0, mcdi_mc_col_cfd_19.
- * column cofidence value 19 read from software. initial = 0
+ * column confidence value 19 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_20                         ((0x2f8c))
 /* Bit 31: 0, mcdi_mc_col_cfd_20.
- * column cofidence value 20 read from software. initial = 0
+ * column confidence value 20 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_21                         ((0x2f8d))
 /* Bit 31: 0, mcdi_mc_col_cfd_21.
- * column cofidence value 21 read from software. initial = 0
+ * column confidence value 21 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_22                         ((0x2f8e))
 /* Bit 31: 0, mcdi_mc_col_cfd_22.
- * column cofidence value 22 read from software. initial = 0
+ * column confidence value 22 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_23                         ((0x2f8f))
 /* Bit 31: 0, mcdi_mc_col_cfd_23.
- * column cofidence value 23 read from software. initial = 0
+ * column confidence value 23 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_24                         ((0x2f90))
 /* Bit 31: 0, mcdi_mc_col_cfd_24.
- * column cofidence value 24 read from software. initial = 0
+ * column confidence value 24 read from software. initial = 0
  */
 #define MCDI_MC_COL_CFD_25                         ((0x2f91))
 /* Bit 31: 0, mcdi_mc_col_cfd_25.
- * column cofidence value 25 read from software. initial = 0
+ * column confidence value 25 read from software. initial = 0
  */
 /* ======= PRE RO Registers ==================================== */
 #define MCDI_RO_FLD_LUMA_AVG_SUM                   ((0x2fa0))
@@ -4289,68 +4289,68 @@ void DI_VSYNC_WR_MPEG_REG_BITS(unsigned int addr,
  */
 #define MCDI_RO_COL_CFD_0                          ((0x2fb0))
 /* Bit 31: 0, ro_mcdi_col_cfd_0.
- * column cofidence value 0. initial = 0
+ * column confidence value 0. initial = 0
  */
 #define MCDI_RO_COL_CFD_1                          ((0x2fb1))
 /* Bit 31: 0, ro_mcdi_col_cfd_1.
- * column cofidence value 1. initial = 0
+ * column confidence value 1. initial = 0
  */
 #define MCDI_RO_COL_CFD_2                          ((0x2fb2))
 /* Bit 31: 0, ro_mcdi_col_cfd_2.
- * column cofidence value 2. initial = 0
+ * column confidence value 2. initial = 0
  */
 #define MCDI_RO_COL_CFD_3                          ((0x2fb3))
 /* Bit 31: 0, ro_mcdi_col_cfd_3.
- * column cofidence value 3. initial = 0
+ * column confidence value 3. initial = 0
  */
 #define MCDI_RO_COL_CFD_4                          ((0x2fb4))
 /* Bit 31: 0, ro_mcdi_col_cfd_4.
- * column cofidence value 4. initial = 0
+ * column confidence value 4. initial = 0
  */
 #define MCDI_RO_COL_CFD_5                          ((0x2fb5))
 /* Bit 31: 0, ro_mcdi_col_cfd_5.
- * column cofidence value 5. initial = 0
+ * column confidence value 5. initial = 0
  */
 #define MCDI_RO_COL_CFD_6                          ((0x2fb6))
-/* Bit 31: 0, ro_mcdi_col_cfd_6.      column cofidence value 6. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_6.      column confidence value 6. initial = 0 */
 #define MCDI_RO_COL_CFD_7                          ((0x2fb7))
-/* Bit 31: 0, ro_mcdi_col_cfd_7.      column cofidence value 7. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_7.      column confidence value 7. initial = 0 */
 #define MCDI_RO_COL_CFD_8                          ((0x2fb8))
-/* Bit 31: 0, ro_mcdi_col_cfd_8.      column cofidence value 8. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_8.      column confidence value 8. initial = 0 */
 #define MCDI_RO_COL_CFD_9                          ((0x2fb9))
-/* Bit 31: 0, ro_mcdi_col_cfd_9.      column cofidence value 9. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_9.      column confidence value 9. initial = 0 */
 #define MCDI_RO_COL_CFD_10                         ((0x2fba))
-/* Bit 31: 0, ro_mcdi_col_cfd_10.     column cofidence value 10. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_10.     column confidence value 10. initial = 0 */
 #define MCDI_RO_COL_CFD_11                         ((0x2fbb))
-/* Bit 31: 0, ro_mcdi_col_cfd_11.     column cofidence value 11. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_11.     column confidence value 11. initial = 0 */
 #define MCDI_RO_COL_CFD_12                         ((0x2fbc))
-/* Bit 31: 0, ro_mcdi_col_cfd_12.     column cofidence value 12. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_12.     column confidence value 12. initial = 0 */
 #define MCDI_RO_COL_CFD_13                         ((0x2fbd))
-/* Bit 31: 0, ro_mcdi_col_cfd_13.     column cofidence value 13. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_13.     column confidence value 13. initial = 0 */
 #define MCDI_RO_COL_CFD_14                         ((0x2fbe))
-/* Bit 31: 0, ro_mcdi_col_cfd_14.     column cofidence value 14. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_14.     column confidence value 14. initial = 0 */
 #define MCDI_RO_COL_CFD_15                         ((0x2fbf))
-/* Bit 31: 0, ro_mcdi_col_cfd_15.     column cofidence value 15. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_15.     column confidence value 15. initial = 0 */
 #define MCDI_RO_COL_CFD_16                         ((0x2fc0))
-/* Bit 31: 0, ro_mcdi_col_cfd_16.     column cofidence value 16. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_16.     column confidence value 16. initial = 0 */
 #define MCDI_RO_COL_CFD_17                         ((0x2fc1))
-/* Bit 31: 0, ro_mcdi_col_cfd_17.     column cofidence value 17. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_17.     column confidence value 17. initial = 0 */
 #define MCDI_RO_COL_CFD_18                         ((0x2fc2))
-/* Bit 31: 0, ro_mcdi_col_cfd_18.     column cofidence value 18. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_18.     column confidence value 18. initial = 0 */
 #define MCDI_RO_COL_CFD_19                         ((0x2fc3))
-/* Bit 31: 0, ro_mcdi_col_cfd_19.     column cofidence value 19. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_19.     column confidence value 19. initial = 0 */
 #define MCDI_RO_COL_CFD_20                         ((0x2fc4))
-/* Bit 31: 0, ro_mcdi_col_cfd_20.     column cofidence value 20. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_20.     column confidence value 20. initial = 0 */
 #define MCDI_RO_COL_CFD_21                         ((0x2fc5))
-/* Bit 31: 0, ro_mcdi_col_cfd_21.     column cofidence value 21. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_21.     column confidence value 21. initial = 0 */
 #define MCDI_RO_COL_CFD_22                         ((0x2fc6))
-/* Bit 31: 0, ro_mcdi_col_cfd_22.     column cofidence value 22. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_22.     column confidence value 22. initial = 0 */
 #define MCDI_RO_COL_CFD_23                         ((0x2fc7))
-/* Bit 31: 0, ro_mcdi_col_cfd_23.     column cofidence value 23. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_23.     column confidence value 23. initial = 0 */
 #define MCDI_RO_COL_CFD_24                         ((0x2fc8))
-/* Bit 31: 0, ro_mcdi_col_cfd_24.     column cofidence value 24. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_24.     column confidence value 24. initial = 0 */
 #define MCDI_RO_COL_CFD_25                         ((0x2fc9))
-/* Bit 31: 0, ro_mcdi_col_cfd_25.     column cofidence value 25. initial = 0 */
+/* Bit 31: 0, ro_mcdi_col_cfd_25.     column confidence value 25. initial = 0 */
 
 #define MCDI_RO_FLD_PD_22_PRE_CNT1                         ((0x2fca))
 #define MCDI_RO_FLD_PD_22_POR_CNT1                         ((0x2fcb))

@@ -59,6 +59,21 @@ void hdmi_vend_infoframe_rawset(u8 *hb, u8 *pb)
 	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, body);
 }
 
+/* only used for HF-VSIF */
+void hdmi_vend_infoframe2_rawset(u8 *hb, u8 *pb)
+{
+	u8 body[31] = {0};
+
+	if (!hb || !pb) {
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, NULL);
+		return;
+	}
+
+	memcpy(body, hb, 3);
+	memcpy(&body[3], pb, 28);
+	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, body);
+}
+
 void hdmi_avi_infoframe_set(struct hdmi_avi_infoframe *info)
 {
 	u8 body[31] = {0};
@@ -128,6 +143,20 @@ void hdmi_avi_infoframe_config(enum avi_component_conf conf, u8 val)
 		break;
 	case CONF_AVI_AR:
 		info->picture_aspect = val;
+		break;
+	case CONF_AVI_CT_TYPE:
+		info->itc = (val >> 4) & 0x1;
+		val = val & 0xf;
+		if (val == SET_CT_OFF)
+			info->content_type = 0;
+		else if (val == SET_CT_GRAPHICS)
+			info->content_type = 0;
+		else if (val == SET_CT_PHOTO)
+			info->content_type = 1;
+		else if (val == SET_CT_CINEMA)
+			info->content_type = 2;
+		else if (val == SET_CT_GAME)
+			info->content_type = 3;
 		break;
 	default:
 		break;

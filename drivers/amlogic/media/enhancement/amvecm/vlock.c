@@ -194,6 +194,7 @@ u32 speed_up_en = 1;
 static int vlock_protect_min;
 static int vlock_manual;
 static int vlock_frc_is_on;
+static int vlock_frc_status_chg;
 
 struct reg_map vlock_reg_maps[REG_MAP_END] = {0};
 
@@ -532,6 +533,16 @@ static void vlock_tune_sync_frc(u32 frc_vporch_cal, unsigned char frc_s2l_en)
 	WRITE_VPP_REG(ENCL_SYNC_LINE_LENGTH, max_lncnt - frc_v_porch - 1);
 }
 
+static unsigned int vlock_set_frc_status(int frc_status)
+{
+	if (vlock_frc_is_on != frc_status)
+		vlock_frc_status_chg = 1;
+	else
+		vlock_frc_status_chg = 0;
+
+	return vlock_frc_status_chg;
+}
+
 bool vlock_vsync_skip_for_frc(void)
 {
 	int ret = false;
@@ -571,6 +582,8 @@ int vlock_sync_frc_vporch(struct stvlock_frc_param frc_param)
 
 	if (!pvlock)
 		return ret;
+
+	vlock_set_frc_status(frc_param.s2l_en);
 
 	vlock_manual = frc_param.frc_mcfixlines;
 	vlock_frc_is_on = frc_param.s2l_en;
@@ -932,6 +945,9 @@ void vlock_clk_config(struct device *dev)
 	struct clk *clk;
 	/*unsigned int clk_frq;*/
 	struct stvlock_sig_sts *pvlock = vlock_tab[VLOCK_ENC0];
+
+	if (chip_type_id == chip_s5)
+		return;
 
 	if (!pvlock)
 		return;
@@ -1618,7 +1634,7 @@ static void vlock_enable_step3_enc(struct stvlock_sig_sts *pvlock)
 		if (enc_max_line >= vlock_protect_min)
 			WRITE_VPP_REG(pvlock->enc_max_line_addr + offset_enc, enc_max_line);
 		else if ((vlock_debug & VLOCK_DEBUG_FLASH))
-			pr_info("vlock:WARNING... enc_max_line:%d is limited by prt_min:%d cannot adj contiue\n",
+			pr_info("vlock:WARNING... enc_max_line:%d is limited by prt_min:%d cannot adj continue\n",
 				enc_max_line, vlock_protect_min);
 		if ((vlock_debug & VLOCK_DEBUG_FLASH)) {
 			pr_info("polity_line_num=%d line_num=%d, org_line=%d\n",
@@ -2098,6 +2114,9 @@ void vlock_status_init(void)
 	u32 offset_vlck;
 	u32 offset_enc;
 	struct vinfo_s *vinfo;
+
+	if (chip_type_id == chip_s5)
+		return;
 
 	/*config vlock mode*/
 	/*todo:txlx & g9tv support auto pll,*/
@@ -3038,10 +3057,12 @@ void vlock_fsm_monitor(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 			} else {
 				/*normal mode*/
 				pvlock->frame_cnt_no = 0;
-				if (vlock_fsm_en_step2_func(pvlock, vf) <= 0) {
+				if (vlock_fsm_en_step2_func(pvlock, vf) <= 0 ||
+					vlock_frc_status_chg) {
 					pvlock->fsm_sts =
 						VLOCK_STATE_DISABLE_STEP1_DONE;
 					vlock_clear_frame_counter(pvlock);
+					vlock_frc_status_chg = 0;
 				}
 			}
 		} else if (pvlock->vmd_chg) {
@@ -3127,7 +3148,7 @@ u32 vlock_chk_is_small_win(struct vpp_frame_par_s *cur_video_sts)
 	return 0;
 }
 
-/*new packed separeted from amvecm_on_vs,avoid the influencec of repeate call,
+/*new packed separeted from amvecm_on_vs,avoid the influence of repeate call,
  *which may affect vlock process
  */
 void vlock_process(struct vframe_s *vf,
@@ -3175,13 +3196,13 @@ void vlock_process(struct vframe_s *vf,
 		}
 	}
 
-	if (vlock_debug & VLOCK_DEBUG_FLASH)
-		pr_info("%s: idx = %d, addr = 0x%x, org_enc_line_num = %d, pre_enc_max_line = %d\n",
+	if (vlock_debug & VLOCK_DEBUG_INFO)
+		pr_info("%s: idx = %d, addr = 0x%x, org_enc_line_num = %d, pre_enc_max_line = %d vlock_frc_status_chg = %d\n",
 			__func__,
 			pvlock->idx,
 			pvlock->enc_max_line_addr + pvlock->offset_encl,
 			pvlock->org_enc_line_num,
-			pvlock->pre_enc_max_line);
+			pvlock->pre_enc_max_line, vlock_frc_status_chg);
 
 	/* todo:vlock processs only for tv chip */
 	if (pvlock->dtdata->vlk_new_fsm)

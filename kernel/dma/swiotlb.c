@@ -49,11 +49,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/swiotlb.h>
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-#include <linux/amlogic/tee.h>
-static u32 handle;
-#endif
-
 #define OFFSET(val,align) ((unsigned long)	\
 	                   ( (val) & ( (align) - 1)))
 
@@ -66,11 +61,7 @@ static u32 handle;
  */
 #define IO_TLB_MIN_SLABS ((1<<20) >> IO_TLB_SHIFT)
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-enum swiotlb_force swiotlb_force = SWIOTLB_NO_FORCE;
-#else
 enum swiotlb_force swiotlb_force;
-#endif
 
 /*
  * Used to do a quick range check in swiotlb_tbl_unmap_single and
@@ -83,11 +74,7 @@ phys_addr_t io_tlb_start, io_tlb_end;
  * The number of IO TLB blocks (in groups of 64) between io_tlb_start and
  * io_tlb_end.  This is command line adjustable via setup_io_tlb_npages.
  */
-#ifdef CONFIG_AMLOGIC_MODIFY
-unsigned long io_tlb_nslabs;
-#else
 static unsigned long io_tlb_nslabs;
-#endif
 
 /*
  * The number of used IO TLB block
@@ -133,10 +120,6 @@ setup_io_tlb_npages(char *str)
 		++str;
 	if (!strcmp(str, "force")) {
 		swiotlb_force = SWIOTLB_FORCE;
-#ifdef CONFIG_AMLOGIC_MODIFY
-	} else if (!strcmp(str, "normal")) {
-		swiotlb_force = SWIOTLB_NORMAL;
-#endif
 	} else if (!strcmp(str, "noforce")) {
 		swiotlb_force = SWIOTLB_NO_FORCE;
 		io_tlb_nslabs = 1;
@@ -218,9 +201,6 @@ int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
 {
 	unsigned long i, bytes;
 	size_t alloc_size;
-#ifdef CONFIG_AMLOGIC_MODIFY
-	int ret = 0;
-#endif
 
 	bytes = nslabs << IO_TLB_SHIFT;
 
@@ -234,23 +214,14 @@ int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
 	 * between io_tlb_start and io_tlb_end.
 	 */
 	alloc_size = PAGE_ALIGN(io_tlb_nslabs * sizeof(int));
-#ifdef CONFIG_AMLOGIC_MODIFY
-	/* align to 64K to meet hw requirement */
-	io_tlb_list = memblock_alloc(alloc_size, SZ_64K);
-#else
 	io_tlb_list = memblock_alloc(alloc_size, PAGE_SIZE);
-#endif
 
 	if (!io_tlb_list)
 		panic("%s: Failed to allocate %zu bytes align=0x%lx\n",
 		      __func__, alloc_size, PAGE_SIZE);
 
 	alloc_size = PAGE_ALIGN(io_tlb_nslabs * sizeof(phys_addr_t));
-#ifdef CONFIG_AMLOGIC_MODIFY
-	io_tlb_orig_addr = memblock_alloc(alloc_size, SZ_64K);
-#else
 	io_tlb_orig_addr = memblock_alloc(alloc_size, PAGE_SIZE);
-#endif
 	if (!io_tlb_orig_addr)
 		panic("%s: Failed to allocate %zu bytes align=0x%lx\n",
 		      __func__, alloc_size, PAGE_SIZE);
@@ -266,18 +237,6 @@ int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
 		swiotlb_print_info();
 
 	swiotlb_set_max_segment(io_tlb_nslabs << IO_TLB_SHIFT);
-
-#ifdef CONFIG_AMLOGIC_MODIFY
-	pr_info("swiotlb: tee_protect_mem %ld MiB at 0x%llx!\n",
-		(io_tlb_nslabs << IO_TLB_SHIFT) / SZ_1M, io_tlb_start);
-	ret = tee_protect_mem_by_type(TEE_MEM_TYPE_PCIE,
-		io_tlb_start,
-		io_tlb_nslabs << IO_TLB_SHIFT,
-		&handle);
-	if (ret)
-		pr_info("swiotlb: tee_protect_mem %ld MiB at 0x%llx failed! ret=%d!\n",
-		  (io_tlb_nslabs << IO_TLB_SHIFT) / SZ_1M, io_tlb_start, ret);
-#endif
 
 	return 0;
 }
@@ -301,11 +260,7 @@ swiotlb_init(int verbose)
 	bytes = io_tlb_nslabs << IO_TLB_SHIFT;
 
 	/* Get IO TLB memory from the low pages */
-#ifdef CONFIG_AMLOGIC_MODIFY
-	vstart = memblock_alloc_low(PAGE_ALIGN(bytes), SZ_64K);
-#else
 	vstart = memblock_alloc_low(PAGE_ALIGN(bytes), PAGE_SIZE);
-#endif
 	if (vstart && !swiotlb_init_with_tbl(vstart, io_tlb_nslabs, verbose))
 		return;
 
@@ -729,11 +684,7 @@ bool swiotlb_map(struct device *dev, phys_addr_t *phys, dma_addr_t *dma_addr,
 
 	/* Ensure that the address returned is DMA'ble */
 	*dma_addr = __phys_to_dma(dev, *phys);
-#ifdef CONFIG_AMLOGIC_MODIFY
-	if (dev->dma_mask && unlikely(!dma_capable(dev, *dma_addr, size))) {
-#else
 	if (unlikely(!dma_capable(dev, *dma_addr, size))) {
-#endif
 		swiotlb_tbl_unmap_single(dev, *phys, size, size, dir,
 			attrs | DMA_ATTR_SKIP_CPU_SYNC);
 		return false;

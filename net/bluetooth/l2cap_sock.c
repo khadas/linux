@@ -979,7 +979,7 @@ static int l2cap_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
 	int err;
 
-	BT_DBG("sock %p, sk %p", sock, sk);
+	BT_TRACE("sock %p, sk %p", sock, sk);
 
 	err = sock_error(sk);
 	if (err)

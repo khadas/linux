@@ -575,7 +575,7 @@ void calculate_panel_max_pq(enum signal_format_enum src_format,
 	if (use_target_lum_from_cfg &&
 	    !(src_format == FORMAT_HDR10 && force_hdr_tonemapping))
 		return;
-	if (dolby_vision_flags & FLAG_CERTIFICAION)
+	if (dolby_vision_flags & FLAG_CERTIFICATION)
 		return;
 	if (panel_max_lumin)
 		panel_max = panel_max_lumin;
@@ -1830,7 +1830,7 @@ void get_dv_bin_config(void)
 		pr_info("t_whitexy:          %d, %d\n",
 			config->ambient_config.t_whitexy[0],
 			config->ambient_config.t_whitexy[1]);
-		pr_info("t_surround_reflecti:%d\n",
+		pr_info("t_surround_reflection:%d\n",
 			config->ambient_config.t_surround_reflection);
 		pr_info("t_screen_reflection:%d\n",
 			config->ambient_config.t_screen_reflection);

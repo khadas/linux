@@ -1301,6 +1301,9 @@ static void meson_mmc_check_resampling(struct meson_host *host,
 		mmc_phase_set = &host->sdmmc.init;
 		break;
 	case MMC_TIMING_SD_HS:
+		val = readl(host->regs + SD_EMMC_V3_ADJUST);
+		val |= CFG_ADJUST_ENABLE;
+		writel(val, host->regs + SD_EMMC_V3_ADJUST);
 		mmc_phase_set = &host->sdmmc.init;
 		break;
 	default:
@@ -2499,7 +2502,7 @@ static void aml_save_tuning_para(struct mmc_host *mmc)
  *
  * if all four condition above is yes, the tuning parameter
  *		could be use directly
- * otherwise retunning and save parameter
+ * otherwise returning and save parameter
  */
 static int aml_para_is_exist(struct mmc_host *mmc)
 {
@@ -3176,9 +3179,9 @@ static int mmc_intf3_win_tuning(struct mmc_host *mmc, u32 opcode)
 
 	vclk = readl(host->regs + SD_EMMC_CLOCK);
 
-	if ((vclk & CLK_DIV_MASK) > 10) {
-		pr_err("clk div is too big.\n");
-		return -1;
+	if ((vclk & CLK_DIV_MASK) > 16) {
+		pr_err("clk div is too big, needn't tuning.\n");
+		return 0;
 	}
 
 	vclk &= ~CLK_V3_RX_DELAY_MASK;

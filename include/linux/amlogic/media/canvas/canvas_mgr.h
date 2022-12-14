@@ -15,7 +15,7 @@ struct canvas_info {
 	const char *owner;
 	unsigned long alloc_time;
 	const char *oldowner;
-	int fixed_onwer;
+	int fixed_owner;
 };
 
 struct canvas_pool {

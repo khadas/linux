@@ -276,7 +276,7 @@ struct ca_sc2_algo {
 };
 
 /**
- * struct ca_sc2_descr_ex - ca externd descriptor
+ * struct ca_sc2_descr_ex - ca extend descriptor
  *
  * @params:	command resource params
  */

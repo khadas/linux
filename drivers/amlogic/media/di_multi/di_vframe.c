@@ -50,7 +50,7 @@ const char * const di_rev_name[4] = {
 /**************************************
  * nins_m_recycle
  *	op_back_input
- *	_RECYCL -> _IDLE
+ *	_RECYCLE -> _IDLE
  *	back vfm to dec
  *	run in main
  **************************************/
@@ -69,13 +69,13 @@ static void nins_m_recycle(struct di_ch_s *pch)
 	ch = pch->ch_id;
 	pbufq = &pch->nin_qb;
 
-	cnt = qbufp_count(pbufq, QBF_NINS_Q_RECYCL);
+	cnt = qbufp_count(pbufq, QBF_NINS_Q_RECYCLE);
 
 	if (!cnt)
 		return;
 
 	for (i = 0; i < cnt; i++) {
-		ins = nins_move(pch, QBF_NINS_Q_RECYCL, QBF_NINS_Q_IDLE);
+		ins = nins_move(pch, QBF_NINS_Q_RECYCLE, QBF_NINS_Q_IDLE);
 		vfm = (struct vframe_s *)ins->c.ori;
 		if (vfm) {
 			pw_vf_put(vfm, ch);
@@ -466,7 +466,7 @@ static int di_ori_event_light_unreg(unsigned int channel)
 
 	di_block_set(1);//di_blocking = 1;
 
-	pr_dbg("%s: vf_notify_receiver ligth unreg\n", __func__);
+	pr_dbg("%s: vf_notify_receiver light unreg\n", __func__);
 
 //ary 2020-12-09	spin_lock_irqsave(&plist_lock, flags);
 	for (i = 0; i < MAX_IN_BUF_NUM; i++) {

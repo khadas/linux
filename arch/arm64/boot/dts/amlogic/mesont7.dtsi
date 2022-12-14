@@ -1843,22 +1843,24 @@
 			};
 			ddr_manager {
 				compatible =
-					"amlogic, t5-audio-ddr-manager";
+					"amlogic, t3-audio-ddr-manager";
 				interrupts = <
 					GIC_SPI 32 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 33 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 34 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 45 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 40 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 36 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 37 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 38 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 46 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 47 IRQ_TYPE_EDGE_RISING
 				>;
 				interrupt-names =
 					"toddr_a", "toddr_b", "toddr_c",
-					"toddr_d",
+					"toddr_d","toddr_e",
 					"frddr_a", "frddr_b", "frddr_c",
-					"frddr_d";
+					"frddr_d","frddr_e";
 				status = "okay";
 			};
 
@@ -2353,14 +2355,14 @@
 		assigned-clocks = <&clkc CLKID_MIPI_CSI_PHY_CLK>;
 		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
 	};
-	camera0 {
+	camera0: camera0 {
 		compatible = "amlogic, camera";
 		index = <0>;
 		csiphy = <&csiphy0>;
 		adapter = <&adapter0>;
 	};
 
-	camera1 {
+	camera1: camera1 {
 		compatible = "amlogic, camera";
 		index = <1>;
 		csiphy = <&csiphy2>;
@@ -2765,21 +2767,30 @@
 	};
 
 	vrr0: vrr0 {
-		compatible = "amlogic, vrr-t3";
+		compatible = "amlogic, vrr-t7";
 		status = "okay";
 		index = <0>;
+		line_delay = <600>;
+		interrupts = <0 197 1>;
+		interrupt-names = "vsync";
 	};
 
 	vrr1: vrr1 {
-		compatible = "amlogic, vrr-t3";
+		compatible = "amlogic, vrr-t7";
 		status = "okay";
 		index = <1>;
+		line_delay = <600>;
+		interrupts = <0 197 1>;
+		interrupt-names = "vsync";
 	};
 
 	vrr2: vrr2 {
-		compatible = "amlogic, vrr-t3";
+		compatible = "amlogic, vrr-t7";
 		status = "okay";
 		index = <2>;
+		line_delay = <600>;
+		interrupts = <0 197 1>;
+		interrupt-names = "vsync";
 	};
 
 	ir: ir@8000 {

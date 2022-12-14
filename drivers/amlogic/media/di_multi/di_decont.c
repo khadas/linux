@@ -993,9 +993,9 @@ static void dcntr_post(void)
 			(reg_grd_ysize_ds));
 
 	/*ary:??*/
-	//17bits = 7bits for original implement + 10 bit for percision
+	//17bits = 7bits for original implement + 10 bit for precision
 	reg_grd_xidx_div = (1 << 17) / (reg_grd_xsize);
-	//17bits = 7bits for original implement + 10 bit for percision
+	//17bits = 7bits for original implement + 10 bit for precision
 	reg_grd_yidx_div = (1 << 17) / (reg_grd_ysize);
 
 	op->wr(DCTR_BGRID_PARAM5 + off, reg_grd_xidx_div);

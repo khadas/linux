@@ -1758,7 +1758,7 @@ enum EDI_DCT_MT {
 	EDI_DCT_MT_WAIT_INT,
 };
 
-static const struct do_table_ops_s dct_hw_processt[] = {
+static const struct do_table_ops_s dct_hw_process[] = {
 	/*fix*/
 	[K_DO_TABLE_ID_PAUSE] = {
 	.id = K_DO_TABLE_ID_PAUSE,
@@ -1886,8 +1886,8 @@ static bool dct_m_check(void)
 
 	dct->idle_cnt = 0;
 	do_table_init(&dct->sdt_mode,
-		      &dct_hw_processt[0],
-		      ARRAY_SIZE(dct_hw_processt));
+		      &dct_hw_process[0],
+		      ARRAY_SIZE(dct_hw_process));
 	dct->sdt_mode.name = "dct";
 
 	do_talbe_cmd(&dct->sdt_mode, EDO_TABLE_CMD_START);
@@ -2047,7 +2047,7 @@ void dct_pre_prob(struct platform_device *pdev)
 	get_datal()->dct_op = NULL;
 }
 
-void dct_pre_revome(struct platform_device *pdev)
+void dct_pre_remove(struct platform_device *pdev)
 {
 	struct di_hdct_s  *dct;
 

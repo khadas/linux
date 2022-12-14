@@ -31,6 +31,7 @@ enum vpu_security_version_e {
 	VPU_SEC_V1 = 1,
 	VPU_SEC_V2,
 	VPU_SEC_V3,
+	VPU_SEC_V4,
 	VPU_SEC_MAX
 };
 
@@ -43,7 +44,7 @@ struct vpu_sec_reg_s {
 
 struct vpu_sec_bit_s {
 	u32 bit_changed; /* the changed src bit */
-	u32 current_val; /* reg val after being chagned */
+	u32 current_val; /* reg val after being changed */
 };
 
 struct sec_dev_data_s {

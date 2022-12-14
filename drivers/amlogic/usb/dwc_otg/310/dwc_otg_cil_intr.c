@@ -96,7 +96,7 @@ void charger_detect_work(void *_vp)
 		} else {
 			one_loop = 100;
 			if (core_if->non_normal_usb_charger_detect_delay != 0) {
-					/*MAX 20s,for non-normol usb charger detect*/
+					/*MAX 20s,for non-normal usb charger detect*/
 			   delay = core_if->non_normal_usb_charger_detect_delay;
 			   core_if->non_normal_usb_charger_detect_delay = 0;
 			} else {
@@ -1473,7 +1473,7 @@ static int32_t dwc_otg_handle_xhib_exit_intr(dwc_otg_core_if_t *core_if)
 
 #ifdef CONFIG_USB_DWC_OTG_LPM
 /**
- * This function hadles LPM transaction received interrupt.
+ * This function handle LPM transaction received interrupt.
  */
 static int32_t dwc_otg_handle_lpm_intr(dwc_otg_core_if_t *core_if)
 {

@@ -107,6 +107,7 @@ void qs_err_print(struct qs_err_log_s *plog)
 	unsigned int cnt_f, cnt_e;
 	const char *fname, *errname;
 	struct qs_err_msg_s *msg;
+	unsigned int err_idx;
 
 	if (!plog || !plog->pos)
 		return;
@@ -120,8 +121,9 @@ void qs_err_print(struct qs_err_log_s *plog)
 		else
 			fname = "no";
 
-		if (msg->err_id < cnt_e)
-			errname = qs_err_name[msg->err_id];
+		err_idx = msg->err_id - QS_ERR_INDEX_OVERFLOW;
+		if (err_idx < cnt_e)
+			errname = qs_err_name[err_idx];
 		else
 			errname = "no";
 

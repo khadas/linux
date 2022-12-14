@@ -1257,7 +1257,7 @@ void earctx_set_cs_info(struct regmap *dmac_map,
 	earctx_set_cs_freq(dmac_map, cs_info->sampling_freq);
 	/* audio layout */
 	earctx_update_cs_layout(dmac_map, coding_type);
-	/* channel alloacation */
+	/* channel allocation */
 	earctx_set_cs_ca(dmac_map, ca);
 }
 
@@ -1395,42 +1395,38 @@ void earctx_enable(struct regmap *top_map,
 					 val << offset);
 		}
 
+		/* first biphase work clear, and then start */
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+				 0x1 << 30,
+				 0x1 << 30);
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+				 0x3 << 28,
+				 0x0);
+
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
 				 0x1 << 29, /* afifo out reset */
 				 0x1 << 29);
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
 				 0x1 << 28, /* afifo in reset */
 				 0x1 << 28);
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+				 0x1 << 31,
+				 0x1 << 31);
 	} else {
+		/* earc tx is not disable, only mute, ensure earc outputs zero data */
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
-				 0x1 << 30, /* biphase work clear */
-				 0x1 << 30);
-
-		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
-				 0x3 << 28,
-				 0x0 << 28);
+				 0x3 << 21,
+				 0x3 << 21);
+		return;
 	}
 
-	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
-			 0x1 << 31,
-			 enable << 31);
-
-	mmio_update_bits(dmac_map, EARC_RX_CMDC_BIPHASE_CTRL1,
-			 0x1 << 30,
-			 enable << 30);
-
-	if (enable)
-		mmio_write(top_map, EARCTX_DMAC_INT_MASK,
-			   (0x1 << 4)	| /* fe_modulation c_hold_clr */
-			   (0x1 << 3)	| /* fe_modulation c_hold_start */
-			   (0x1 << 2)	| /* err_correct c_fifo_thd_less_pass */
-			   (0x1 << 1)	| /* err_correct r_fifo_overflow_set */
-			   (0x1 << 0)	  /* err_correct c_fifo_empty_set */
-			   );
-	else
-		mmio_write(top_map, EARCTX_DMAC_INT_MASK,
-			   0x0
-			   );
+	mmio_write(top_map, EARCTX_DMAC_INT_MASK,
+		   (0x1 << 4)	| /* fe_modulation c_hold_clr */
+		   (0x1 << 3)	| /* fe_modulation c_hold_start */
+		   (0x1 << 2)	| /* err_correct c_fifo_thd_less_pass */
+		   (0x1 << 1)	| /* err_correct r_fifo_overflow_set */
+		   (0x1 << 0)	  /* err_correct c_fifo_empty_set */
+		   );
 
 	earctx_compressed_enable(dmac_map,
 				 type,

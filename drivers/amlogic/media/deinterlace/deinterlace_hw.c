@@ -1162,11 +1162,11 @@ u32 enable_afbc_input(struct vframe_s *vf)
 	return true;
 }
 #if 0
-static void afbcx_power_sw(enum eAFBC_DEC decsel, bool on)	/*g12a*/
+static void afbcx_power_sw(enum eAFBC_DEC diesel, bool on)	/*g12a*/
 {
 	unsigned int reg_ctrl;
 
-	if (decsel == eAFBC_DEC0)
+	if (diesel == eAFBC_DEC0)
 		reg_ctrl = VD1_AFBCD0_MISC_CTRL;
 	else
 		reg_ctrl = VD2_AFBCD1_MISC_CTRL;

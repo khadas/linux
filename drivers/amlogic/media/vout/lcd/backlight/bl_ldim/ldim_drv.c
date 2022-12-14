@@ -175,6 +175,7 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.load_db_en = 1,
 	.db_print_flag = 0,
 	.level_update = 0,
+	.resolution_update = 0,
 
 	.state = LDIM_STATE_LD_EN,
 	.data_min = LD_DATA_MIN,
@@ -665,9 +666,6 @@ static irqreturn_t ldim_pwm_vs_isr(int irq, void *dev_id)
 	unsigned long flags;
 
 	if (ldim_driver.init_on_flag == 0)
-		return IRQ_HANDLED;
-
-	if (ldim_driver.pwm_vs_irq_cnt == ldim_driver.irq_cnt)
 		return IRQ_HANDLED;
 
 	ldim_driver.pwm_vs_irq_cnt = ldim_driver.irq_cnt;
@@ -1656,6 +1654,13 @@ static void ldim_remap_update_t3(struct ld_reg_s *nprm,
 		return;
 	}
 
+	if (ldim_driver.resolution_update) {
+		LDIMPR("%s  resolution_update = %d\n", __func__,
+			ldim_driver.resolution_update);
+		ldc_set_t7(&ldim_driver);
+		ldim_driver.resolution_update = 0;
+	}
+
 	if (ldim_config.func_en != ldim_driver.func_en) {
 		if (ldim_debug_print == 5)
 			LDIMPR("%s  func_en = %d : %d\n", __func__,
@@ -1857,6 +1862,7 @@ int aml_ldim_probe(struct platform_device *pdev)
 	if (ret)
 		return -1;
 
+	ldim_driver.resolution_update = 0;
 	ldim_driver.in_vsync_flag = 0;
 	ldim_driver.level_update = 0;
 	ldim_driver.duty_update_flag = 0;

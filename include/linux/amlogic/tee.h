@@ -53,11 +53,11 @@ bool tee_enabled(void);
 int is_secload_get(void);
 int tee_load_video_fw(u32 index, u32 vdec);
 int tee_load_video_fw_swap(u32 index, u32 vdec, bool is_swap);
-u32 tee_protect_tvp_mem(u32 start, u32 size,
+u32 tee_protect_tvp_mem(phys_addr_t start, size_t size,
 			u32 *handle);
 void tee_unprotect_tvp_mem(u32 handle);
 u32 tee_protect_mem_by_type(u32 type,
-		u32 start, u32 size,
+		phys_addr_t start, size_t size,
 		u32 *handle);
 void tee_unprotect_mem(u32 handle);
 
@@ -72,11 +72,11 @@ int tee_read_reg_bits(u32 reg, u32 *val, u32 offset, u32 length);
 int tee_write_reg_bits(u32 reg, u32 val, u32 offset, u32 length);
 
 u32 tee_protect_mem(u32 type, u32 level,
-		u32 start, u32 size, u32 *handle);
+		phys_addr_t start, size_t size, u32 *handle);
 
-int tee_check_in_mem(u32 pa, u32 size);
+int tee_check_in_mem(phys_addr_t pa, size_t size);
 
-int tee_check_out_mem(u32 pa, u32 size);
+int tee_check_out_mem(phys_addr_t pa, size_t size);
 
 int tee_vp9_prob_process(u32 cur_frame_type, u32 prev_frame_type,
 		u32 prob_status, u32 prob_addr);

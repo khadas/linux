@@ -835,7 +835,7 @@ void dump_di_buf(struct di_buf_s *di_buf)
 		di_buf->mtn_canvas_idx);
 	pr_info("cnt_adr 0x%lx, cnt_canvas_idx 0x%x\n",
 		di_buf->cnt_adr, di_buf->cnt_canvas_idx);
-	pr_info("di_cnt %d, priveated %u.\n",
+	pr_info("di_cnt %d, privated %u.\n",
 			atomic_read(&di_buf->di_cnt), di_buf->privated);
 }
 
@@ -865,7 +865,7 @@ void dump_vframe(struct vframe_s *vf)
 		vf->canvas0Addr, vf->canvas1Addr, vf->bufWidth);
 	pr_info("width %d, height %d, ratio_control 0x%x, orientation 0x%x\n",
 		vf->width, vf->height, vf->ratio_control, vf->orientation);
-	pr_info("source_type %d, phase %d, soruce_mode %d, sig_fmt %d\n",
+	pr_info("source_type %d, phase %d, source_mode %d, sig_fmt %d\n",
 		vf->source_type, vf->phase, vf->source_mode, vf->sig_fmt);
 	pr_info(
 		"trans_fmt 0x%x, lefteye(%d %d %d %d), righteye(%d %d %d %d)\n",

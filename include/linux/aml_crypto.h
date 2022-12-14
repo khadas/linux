@@ -57,6 +57,11 @@ enum aml_crypto_op_t {
 	CRYPTO_OP_S17_ECB = 8,
 	CRYPTO_OP_S17_CBC = 9,
 	CRYPTO_OP_S17_CTR = 10,
+	/* SM4 */
+	CRYPTO_OP_SM4_ECB = 11,
+	CRYPTO_OP_SM4_CBC = 12,
+	CRYPTO_OP_SM4_CTR = 13,
+
 	CRYPTO_OP_MAX
 };
 

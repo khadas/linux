@@ -1481,7 +1481,7 @@ void hci_conn_enter_active_mode(struct hci_conn *conn, __u8 force_active)
 {
 	struct hci_dev *hdev = conn->hdev;
 
-	BT_DBG("hcon %p mode %d", conn, conn->mode);
+	BT_TRACE("hcon %p mode %d", conn, conn->mode);
 
 	if (conn->mode != HCI_CM_SNIFF)
 		goto timer;

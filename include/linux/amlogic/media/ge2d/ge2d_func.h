@@ -60,6 +60,12 @@ void bitblt_noalpha(struct ge2d_context_s *wq,
 void bitblt_noalpha_noblk(struct ge2d_context_s *wq,
 			  int src_x, int src_y, int w, int h,
 			  int dst_x, int dst_y);
+void bitblt_enqueue(struct ge2d_context_s *wq,
+		    int src_x, int src_y, int w, int h,
+		    int dst_x, int dst_y);
+void bitblt_noalpha_enqueue(struct ge2d_context_s *wq,
+			    int src_x, int src_y, int w, int h,
+			    int dst_x, int dst_y);
 
 /* GE2D stretchblt functions */
 void stretchblt(struct ge2d_context_s *wq,
@@ -77,6 +83,13 @@ void stretchblt_noalpha(struct ge2d_context_s *wq,
 void stretchblt_noalpha_noblk(struct ge2d_context_s *wq,
 			      int src_x, int src_y, int src_w, int src_h,
 			      int dst_x, int dst_y, int dst_w, int dst_h);
+void stretchblt_enqueue(struct ge2d_context_s *wq,
+			int src_x, int src_y, int src_w, int src_h,
+			int dst_x, int dst_y, int dst_w, int dst_h);
+
+void stretchblt_noalpha_enqueue(struct ge2d_context_s *wq,
+				int src_x, int src_y, int src_w, int src_h,
+				int dst_x, int dst_y, int dst_w, int dst_h);
 
 /* GE2D fillrect functions */
 void fillrect(struct ge2d_context_s *wq,
@@ -84,6 +97,8 @@ void fillrect(struct ge2d_context_s *wq,
 
 void fillrect_noblk(struct ge2d_context_s *wq,
 		    int x, int y, int w, int h, unsigned int color);
+void fillrect_enqueue(struct ge2d_context_s *wq,
+		      int x, int y, int w, int h, unsigned int color);
 
 /* GE2D blend functions */
 void blend(struct ge2d_context_s *wq,
@@ -96,7 +111,7 @@ void blend_noblk(struct ge2d_context_s *wq,
 		 int src_x, int src_y, int src_w, int src_h,
 		 int src2_x, int src2_y, int src2_w, int src2_h,
 		 int dst_x, int dst_y, int dst_w, int dst_h,
-		 int op);
+		 int op, int enqueue);
 
 void blend_noalpha(struct ge2d_context_s *wq,
 		   int src_x, int src_y, int src_w, int src_h,
@@ -108,5 +123,17 @@ void blend_noalpha_noblk(struct ge2d_context_s *wq,
 			 int src_x, int src_y, int src_w, int src_h,
 			 int src2_x, int src2_y, int src2_w, int src2_h,
 			 int dst_x, int dst_y, int dst_w, int dst_h,
-			 int op);
+			 int op, int enqueue);
+void blend_enqueue(struct ge2d_context_s *wq,
+		   int src_x, int src_y, int src_w, int src_h,
+		   int src2_x, int src2_y, int src2_w, int src2_h,
+		   int dst_x, int dst_y, int dst_w, int dst_h,
+		   int op);
+void blend_noalpha_enqueue(struct ge2d_context_s *wq,
+			   int src_x, int src_y, int src_w, int src_h,
+			   int src2_x, int src2_y, int src2_w, int src2_h,
+			   int dst_x, int dst_y, int dst_w, int dst_h,
+			   int op);
+int post_queue_to_process(struct ge2d_context_s *wq, int block);
+
 #endif

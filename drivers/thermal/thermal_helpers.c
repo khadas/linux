@@ -81,10 +81,25 @@ int thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp)
 	int crit_temp = INT_MAX;
 	enum thermal_trip_type type;
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	if (!tz || IS_ERR(tz) || !tz->ops->get_temp)
 		goto exit;
 
 	mutex_lock(&tz->lock);
+#else
+	/*
+	 * Fix the issue that tz->ops->get_temp was released after check it.
+	 */
+	if (!tz || IS_ERR(tz))
+		goto exit;
+
+	mutex_lock(&tz->lock);
+
+	if (!tz->ops->get_temp) {
+		mutex_unlock(&tz->lock);
+		goto exit;
+	}
+#endif
 
 	ret = tz->ops->get_temp(tz, temp);
 

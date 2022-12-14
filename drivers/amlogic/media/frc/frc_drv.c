@@ -61,9 +61,9 @@
 #include "frc_dbg.h"
 #include "frc_buf.h"
 #include "frc_hw.h"
-#ifdef CONFIG_AMLOGIC_MEDIA_FRC_RDMA
+// #ifdef CONFIG_AMLOGIC_MEDIA_FRC_RDMA
 #include "frc_rdma.h"
-#endif
+// #endif
 
 // static struct frc_dev_s *frc_dev; // for SWPL-53056:KASAN: use-after-free
 static struct frc_dev_s frc_dev;
@@ -236,12 +236,12 @@ static long frc_ioctl(struct file *file,
 			ret = -EFAULT;
 		break;
 
-	case FRC_IOC_SET_FRC_CANDENCE:
+	case FRC_IOC_SET_FRC_CADENCE:
 		if (copy_from_user(&data, argp, sizeof(u32))) {
 			ret = -EFAULT;
 			break;
 		}
-		pr_frc(1, "SET_FRC_CANDENCE:%d\n", data);
+		pr_frc(1, "SET_FRC_CADENCE:%d\n", data);
 		break;
 
 	case FRC_IOC_GET_VIDEO_LATENCY:
@@ -315,6 +315,8 @@ static long frc_ioctl(struct file *file,
 			frc_fpp_memc_set_level(10, 0);
 		else if (fpp_state == FPP_MEMC_HIGH)
 			frc_fpp_memc_set_level(10, 1);
+		else if (fpp_state == FPP_MEMC_24PFILM)
+			frc_fpp_memc_set_level(10, 2);
 		else
 			frc_fpp_memc_set_level((u8)fpp_state, 0);
 
@@ -516,7 +518,7 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp)
 	frc_devp->rdma_irq = of_irq_get_byname(of_node, "irq_frc_rdma");
 	snprintf(frc_devp->rdma_irq_name, sizeof(frc_devp->rdma_irq_name), "frc_rdma_irq");
 	PR_FRC("%s=%d\n", frc_devp->rdma_irq_name, frc_devp->rdma_irq);
-#ifdef CONFIG_AMLOGIC_MEDIA_FRC_RDMA
+// #ifdef CONFIG_AMLOGIC_MEDIA_FRC_RDMA
 	if (frc_devp->rdma_irq > 0) {
 		ret = request_irq(frc_devp->rdma_irq, frc_rdma_isr, IRQF_SHARED,
 				  frc_devp->rdma_irq_name, (void *)frc_devp);
@@ -525,7 +527,7 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp)
 		else
 			disable_irq(frc_devp->rdma_irq);
 	}
-#endif
+// #endif
 	/*register map*/
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "frc_reg");
 	if (res) {
@@ -657,11 +659,11 @@ int frc_vd_notify_callback(struct notifier_block *block, unsigned long cmd, void
 			set_frc_bypass(true);
 			frc_change_to_state(FRC_STATE_DISABLE);
 			frc_state_change_finish(devp);
-			if (devp->frc_sts.frame_cnt) {
+			if (devp->frc_sts.frame_cnt != 0) {
 				devp->frc_sts.frame_cnt = 0;
-				pr_frc(1, "interrupt conflicts, reset frame_cnt\n");
+				pr_frc(1, "%s reset frm_cnt\n", __func__);
 			}
-			pr_frc(1, "VIDEO_SIZE_CHANGE_EVENT\n");
+			pr_frc(1, "%s VIDEO_SIZE_CHANGE_EVENT\n",  __func__);
 			devp->frc_sts.out_put_mode_changed = FRC_EVENT_VF_CHG_IN_SIZE;
 		}
 		break;
@@ -921,17 +923,19 @@ static int frc_probe(struct platform_device *pdev)
 	if (frc_buf_set(frc_devp) != 0)
 		goto fail_dev_create;
 
+	frc_internal_initial(frc_devp);
 	frc_hw_initial(frc_devp);
-	frc_internal_initial(frc_devp); /*need after frc_top_init*/
 	/*enable irq*/
 	if (frc_devp->in_irq > 0)
 		enable_irq(frc_devp->in_irq);
 	if (frc_devp->out_irq > 0)
 		enable_irq(frc_devp->out_irq);
-#ifdef CONFIG_AMLOGIC_MEDIA_FRC_RDMA
+// #ifdef CONFIG_AMLOGIC_MEDIA_FRC_RDMA
 	if (frc_devp->rdma_irq > 0)
 		enable_irq(frc_devp->rdma_irq);
-#endif
+	if (!frc_rdma_init())
+		PR_FRC("%s frc rdma init failed\n", __func__);
+// #endif
 	INIT_WORK(&frc_devp->frc_clk_work, frc_clock_workaround);
 	INIT_WORK(&frc_mem_dyc_proc, frc_mem_dynamic_proc);
 	frc_devp->clk_chg = 1;
@@ -981,6 +985,8 @@ static int __exit frc_remove(struct platform_device *pdev)
 		free_irq(frc_devp->in_irq, (void *)frc_devp);
 	if (frc_devp->out_irq > 0)
 		free_irq(frc_devp->out_irq, (void *)frc_devp);
+	if (frc_devp->rdma_irq > 0)
+		free_irq(frc_devp->rdma_irq, (void *)frc_devp);
 
 	device_destroy(frc_devp->clsp, frc_devp->devno);
 	cdev_del(&frc_devp->cdev);
@@ -1014,6 +1020,8 @@ static void frc_shutdown(struct platform_device *pdev)
 		free_irq(frc_devp->in_irq, (void *)frc_devp);
 	if (frc_devp->out_irq > 0)
 		free_irq(frc_devp->out_irq, (void *)frc_devp);
+	if (frc_devp->rdma_irq > 0)
+		free_irq(frc_devp->rdma_irq, (void *)frc_devp);
 	device_destroy(frc_devp->clsp, frc_devp->devno);
 	cdev_del(&frc_devp->cdev);
 	class_destroy(frc_devp->clsp);

@@ -254,19 +254,19 @@
 // bit[11]  -- mv_use_abs (only calculate abs)
 // bit[10]  -- mv_use_simple_mode (every size count has same weight)
 // bit[9]   -- use_simple_mode (every size count has same weight)
-// bit[8]   -- reseet_all_count // write only
+// bit[8]   -- reset_all_count // write only
 // bit[7:5] Reserved
 // bit[4:0] pic_quality_rd_idx
 #define VDEC_PIC_QUALITY_CTRL        0x0c57
 // idx  -- read out
 //   0  -- blk88_y_count // 4k will use 20 bits
 //   1  -- qp_y_sum // 4k use 27 bits
-//   2  -- intra_y_oount // 4k use 20 bits
+//   2  -- intra_y_count // 4k use 20 bits
 //   3  -- skipped_y_count // 4k use 20 bits
 //   4  -- coeff_non_zero_y_count // 4k use 20 bits
 //   5  -- blk66_c_count // 4k will use 20 bits
 //   6  -- qp_c_sum // 4k use 26 bits
-//   7  -- intra_c_oount // 4k use 20 bits
+//   7  -- intra_c_count // 4k use 20 bits
 //   8  -- skipped_cu_c_count // 4k use 20 bits
 //   9  -- coeff_non_zero_c_count // 4k use 20 bits
 //  10  -- { 1'h0, qp_c_max[6:0], 1'h0, qp_c_min[6:0],

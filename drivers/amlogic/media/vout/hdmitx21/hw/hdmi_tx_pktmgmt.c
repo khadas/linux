@@ -36,6 +36,10 @@
 #include "common.h"
 #include "../hdmi_tx.h"
 
+static int emp_verbose;
+MODULE_PARM_DESC(emp_verbose, "\n emp_verbose\n");
+module_param(emp_verbose, int, 0644);
+
 static DEFINE_SPINLOCK(tpi_lock);
 static void tpi_info_send(u8 sel, u8 *data, bool no_chksum_flag)
 {
@@ -126,7 +130,7 @@ void dump_infoframe_packets(struct seq_file *s)
 	}
 }
 
-static int _tpi_infoframe_wrrd(u8 wr, u8 info_type, u8 *body)
+static int _tpi_infoframe_wrrd(u8 wr, u16 info_type, u8 *body)
 {
 	u8 sel;
 	bool no_chksum_flag = 0;
@@ -142,6 +146,7 @@ static int _tpi_infoframe_wrrd(u8 wr, u8 info_type, u8 *body)
 	case HDMI_INFOFRAME_TYPE_SPD:
 		sel = 3;
 		break;
+	/* used for DV_VSIF / HDMI1.4b_VSIF */
 	case HDMI_INFOFRAME_TYPE_VENDOR:
 		sel = 5;
 		break;
@@ -152,8 +157,15 @@ static int _tpi_infoframe_wrrd(u8 wr, u8 info_type, u8 *body)
 		sel = 7;
 		tpi_packet_send(sel, body);
 		return 0;
-	case HDMI_INFOFRAME_TYPE_EMP:
+	/* specially for HF-VSIF
+	 * note when DV_VSIF + HF_VSIF both enabled,
+	 * DV_VSIF should come later
+	 */
+	case HDMI_INFOFRAME_TYPE_VENDOR2:
 		sel = 8;
+		break;
+	case HDMI_INFOFRAME_TYPE_EMP:
+		sel = 9;
 		no_chksum_flag = 1;
 		break;
 	default:
@@ -174,7 +186,7 @@ static int _tpi_infoframe_wrrd(u8 wr, u8 info_type, u8 *body)
 	}
 }
 
-void hdmitx_infoframe_send(u8 info_type, u8 *body)
+void hdmitx_infoframe_send(u16 info_type, u8 *body)
 {
 	_tpi_infoframe_wrrd(1, info_type, body);
 }
@@ -183,3 +195,4 @@ int hdmitx_infoframe_rawget(u8 info_type, u8 *body)
 {
 	return _tpi_infoframe_wrrd(0, info_type, body);
 }
+

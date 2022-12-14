@@ -89,17 +89,18 @@ enum lcd_mode_e {
 };
 
 enum lcd_chip_e {
-	LCD_CHIP_G12A = 0,
-	LCD_CHIP_G12B,  /* 1 */
-	LCD_CHIP_TL1,   /* 2 */
-	LCD_CHIP_SM1,	/* 3 */
-	LCD_CHIP_TM2,   /* 4 */
-	LCD_CHIP_TM2B,  /* 5 */
-	LCD_CHIP_T5,    /* 6 */
-	LCD_CHIP_T5D,   /* 7 */
-	LCD_CHIP_T7,    /* 8 */
-	LCD_CHIP_T3,	/* 9 */
-	LCD_CHIP_T5W,	/* 10 */
+	LCD_CHIP_AXG = 0,
+	LCD_CHIP_G12A,  /* 1 */
+	LCD_CHIP_G12B,  /* 2 */
+	LCD_CHIP_TL1,   /* 3 */
+	LCD_CHIP_SM1,	/* 4 */
+	LCD_CHIP_TM2,   /* 5 */
+	LCD_CHIP_TM2B,  /* 6 */
+	LCD_CHIP_T5,    /* 7 */
+	LCD_CHIP_T5D,   /* 8 */
+	LCD_CHIP_T7,    /* 9 */
+	LCD_CHIP_T3,	/* 10 */
+	LCD_CHIP_T5W,	/* 11 */
 	LCD_CHIP_MAX,
 };
 
@@ -261,6 +262,7 @@ struct vbyone_config_s {
 	unsigned int intr_en;
 	unsigned int vsync_intr_en;
 
+	unsigned int intr_state;
 	unsigned int ctrl_flag;
 		/*  bit[0]:power_on_reset_en
 		 *  bit[1]:hpd_data_delay_en
@@ -491,6 +493,12 @@ struct phy_config_s {
 	unsigned int preem_level;
 };
 
+enum lcd_phy_set_status {
+	LCD_PHY_OFF = 0,
+	LCD_PHY_ON,
+	LCD_PHY_LOCK_LANE,
+};
+
 struct cus_ctrl_config_s {
 	unsigned int flag;
 	unsigned char dlg_flag;
@@ -639,7 +647,6 @@ struct aml_lcd_drv_s {
 	unsigned char mute_count;
 	unsigned char mute_count_test;
 	unsigned char unmute_count_test;
-	unsigned char tcon_isr_type;
 	unsigned char tcon_isr_bypass;
 	unsigned char probe_done;
 	unsigned char viu_sel;
@@ -700,7 +707,6 @@ struct aml_lcd_drv_s {
 	struct resource *res_vsync_irq[3];
 	struct resource *res_vx1_irq;
 	struct resource *res_tcon_irq;
-	struct resource *res_line_n_irq;
 	struct timer_list pll_mnt_timer;
 	struct timer_list vs_none_timer;
 	struct completion vsync_done;

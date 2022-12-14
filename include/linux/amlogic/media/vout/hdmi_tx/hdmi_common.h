@@ -110,7 +110,7 @@ enum hdmi_vic {
 	HDMI_720x480p240_16x9 = 57,
 	HDMI_720x480i240_4x3 = 58,
 	HDMI_720x480i240_16x9 = 59,
-	/* Refet to CEA 861-F */
+	/* Refer to CEA 861-F */
 	HDMI_1280x720p24_16x9 = 60,
 	HDMI_1280x720p25_16x9 = 61,
 	HDMI_1280x720p30_16x9 = 62,

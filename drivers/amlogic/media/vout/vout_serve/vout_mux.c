@@ -22,7 +22,7 @@
 #include "vout_func.h"
 #include "vout_reg.h"
 
-/* must be last includ file */
+/* must be last include file */
 #include <linux/amlogic/gki_module.h>
 
 struct vout_mux_data_s {
@@ -51,15 +51,9 @@ void vout_vdo_meas_ctrl_init(void)
 
 unsigned int vout_frame_rate_measure(void)
 {
-	int clk_mux = 38;
 	unsigned int val[2], fr;
 	unsigned long long msr_clk;
 
-	if (vout_mux_data)
-		clk_mux = vout_mux_data->vdin_meas_id;
-
-	if (clk_mux == -1)
-		return 0;
 	if (vout_vdo_meas_init == 0)
 		return 0;
 
@@ -287,6 +281,12 @@ static struct vout_mux_data_s vout_mux_match_data_t5w = {
 	.clear_viu_mux = vout_viu_mux_clear_t7,
 };
 
+static struct vout_mux_data_s vout_mux_match_data_s5 = {
+	.vdin_meas_id = -1,
+	.update_viu_mux = vout_viu_mux_update_t3,
+	.clear_viu_mux = vout_viu_mux_clear_t7,
+};
+
 static const struct of_device_id vout_mux_dt_match_table[] = {
 	{
 		.compatible = "amlogic, vout_mux",
@@ -303,6 +303,10 @@ static const struct of_device_id vout_mux_dt_match_table[] = {
 	{
 		.compatible = "amlogic, vout_mux-t5w",
 		.data = &vout_mux_match_data_t5w,
+	},
+	{
+		.compatible = "amlogic, vout_mux-s5",
+		.data = &vout_mux_match_data_s5,
 	},
 	{}
 };

@@ -131,6 +131,7 @@ static void intr2_sw_handler(struct intr_t *intr)
 static void _intr_enable(struct intr_t *pint, bool en)
 {
 	hdmitx21_wr_reg(pint->intr_mask_reg, en ? pint->mask_data : 0);
+	pr_info("%s%d\n", __func__, __LINE__);
 	hdmitx21_set_bit(HDMITX_TOP_INTR_MASKN, pint->intr_top_bit, en);
 }
 
@@ -168,7 +169,7 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 		dat_top = pint->st_data;
 		pint->st_data = 0;
 		/* check HPD status */
-		if ((dat_top & (1 << 1)) && (dat_top & (1 << 2))) {
+		if (!hdev->pxp_mode && ((dat_top & (1 << 1)) && (dat_top & (1 << 2)))) {
 			if (hdmitx21_hpd_hw_op(HPD_READ_HPD_GPIO))
 				dat_top &= ~(1 << 2);
 			else
@@ -187,7 +188,8 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 			if (earc_hdmitx_hpdst)
 				earc_hdmitx_hpdst(true);
 			queue_delayed_work(hdev->hdmi_wq,
-					   &hdev->work_hpd_plugin, HZ / 2);
+				&hdev->work_hpd_plugin,
+				hdev->pxp_mode ? 0 : HZ / 2);
 		}
 		/* HPD falling */
 		if (dat_top & (1 << 2)) {
@@ -248,6 +250,7 @@ void hdmitx_setupirqs(struct hdmitx_dev *phdev)
 {
 	int r;
 
+	pr_info("%s%d\n", __func__, __LINE__);
 	hdmitx21_wr_reg(HDMITX_TOP_INTR_STAT_CLR, 0x7);
 	r = request_irq(phdev->irq_hpd, &intr_handler,
 			IRQF_SHARED, "hdmitx",

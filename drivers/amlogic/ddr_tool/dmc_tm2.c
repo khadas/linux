@@ -202,7 +202,7 @@ void tm2_dmc_mon_disable(struct dmc_monitor *mon)
 
 struct dmc_mon_ops tm2_dmc_mon_ops = {
 	.handle_irq = tm2_dmc_mon_irq,
-	.set_montor = tm2_dmc_mon_set,
+	.set_monitor = tm2_dmc_mon_set,
 	.disable    = tm2_dmc_mon_disable,
 	.dump_reg   = tm2_dmc_dump_reg,
 };

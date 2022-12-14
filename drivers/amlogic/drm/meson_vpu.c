@@ -188,6 +188,7 @@ static int am_meson_vpu_bind(struct device *dev,
 
 	vpu_data = (struct meson_vpu_data *)of_device_get_match_data(dev);
 	private->vpu_data = vpu_data;
+	pipeline->ops = private->vpu_data->pipe_ops;
 
 	vpu_topology_populate(pipeline);
 	meson_vpu_block_state_init(private, private->pipeline);
@@ -287,6 +288,7 @@ static const struct component_ops am_meson_vpu_component_ops = {
 };
 
 static const struct meson_vpu_data vpu_g12a_data = {
+	.pipe_ops = &g12a_vpu_pipeline_ops,
 	.osd_ops = &osd_ops,
 	.afbc_ops = &afbc_ops,
 	.scaler_ops = &scaler_ops,
@@ -298,6 +300,7 @@ static const struct meson_vpu_data vpu_g12a_data = {
 };
 
 static const struct meson_vpu_data vpu_t7_data = {
+	.pipe_ops = &t7_vpu_pipeline_ops,
 	.osd_ops = &t7_osd_ops,
 	.afbc_ops = &t7_afbc_ops,
 	.scaler_ops = &scaler_ops,
@@ -306,9 +309,11 @@ static const struct meson_vpu_data vpu_t7_data = {
 	.dv_ops = &db_ops,
 	.postblend_ops = &t7_postblend_ops,
 	.video_ops = &video_ops,
+	.enc_method = 1,
 };
 
 static const struct meson_vpu_data vpu_t3_data = {
+	.pipe_ops = &t7_vpu_pipeline_ops,
 	.osd_ops = &t7_osd_ops,
 	.afbc_ops = &t3_afbc_ops,
 	.scaler_ops = &scaler_ops,
@@ -317,9 +322,11 @@ static const struct meson_vpu_data vpu_t3_data = {
 	.dv_ops = &db_ops,
 	.postblend_ops = &t3_postblend_ops,
 	.video_ops = &video_ops,
+	.enc_method = 1,
 };
 
 static const struct meson_vpu_data vpu_t5w_data = {
+	.pipe_ops = &t7_vpu_pipeline_ops,
 	.osd_ops = &t7_osd_ops,
 	.afbc_ops = &t3_afbc_ops,
 	.scaler_ops = &scaler_ops,
@@ -328,6 +335,20 @@ static const struct meson_vpu_data vpu_t5w_data = {
 	.dv_ops = &db_ops,
 	.postblend_ops = &t3_postblend_ops,
 	.video_ops = &video_ops,
+	.enc_method = 1,
+};
+
+static const struct meson_vpu_data vpu_s5_data = {
+	.pipe_ops = &s5_vpu_pipeline_ops,
+	.osd_ops = &s5_osd_ops,
+	.afbc_ops = &s5_afbc_ops,
+	.scaler_ops = &s5_scaler_ops,
+	.osdblend_ops = &s5_osdblend_ops,
+	.hdr_ops = &hdr_ops,
+	.dv_ops = &db_ops,
+	.postblend_ops = &s5_postblend_ops,
+	.video_ops = &video_ops,
+	.slice2ppc_ops = &slice2ppc_ops,
 };
 
 static const struct of_device_id am_meson_vpu_driver_dt_match[] = {
@@ -360,6 +381,8 @@ static const struct of_device_id am_meson_vpu_driver_dt_match[] = {
 	 .data = &vpu_t5w_data,},
 	{.compatible = "amlogic, meson-t3-vpu",
 	 .data = &vpu_t3_data,},
+	{.compatible = "amlogic, meson-s5-vpu",
+	 .data = &vpu_s5_data,},
 	{}
 };
 

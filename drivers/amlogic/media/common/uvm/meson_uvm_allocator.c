@@ -25,6 +25,7 @@
 #include "meson_uvm_allocator.h"
 #include "meson_uvm_nn_processor.h"
 #include "meson_uvm_aipq_processor.h"
+#include "meson_uvm_buffer_info.h"
 
 static struct mua_device *mdev;
 
@@ -124,8 +125,9 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	unsigned int id = meson_ion_cma_heap_id_get();
 
 	buffer = container_of(obj, struct mua_buffer, base);
-	MUA_PRINTK(1, "%s. buf_scalar=%d WxH: %dx%d\n",
-				__func__, scalar, buffer->width, buffer->height);
+	MUA_PRINTK(1, "%s. buf_scalar=%d WxH: %dx%d, commit_display = %d, tgid=%d,pid=%d",
+				__func__, scalar, buffer->width, buffer->height,
+				buffer->commit_display, current->tgid, mdev->pid);
 	memset(&info, 0, sizeof(info));
 
 	if (!enable_screencap && current->tgid == mdev->pid &&
@@ -137,6 +139,8 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 
 	if (!skip_fill_buf)
 		dmabuf->size = buffer->size * scalar * scalar;
+	else
+		dmabuf->size = buffer->byte_stride * buffer->height * 3 / 2;
 	MUA_PRINTK(1, "buffer->size:%zu realloc dmabuf->size=%zu\n",
 			buffer->size, dmabuf->size);
 	if (!buffer->idmabuf[1]) {
@@ -196,7 +200,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 		size_t buf_size = dmabuf->size * 2 / 3;
 
 		MUA_PRINTK(1, "%s buf size=%zu\n", __func__, buf_size);
-		memset(vaddr, 0x0, buf_size);
+		memset(vaddr, 0x15, buf_size);
 		memset(vaddr + buf_size, 0x80, buf_size / 2);
 
 		vunmap(vaddr);
@@ -572,6 +576,7 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ret = meson_uvm_getinfo(dmabuf,
 						data.hook_data.mode_type,
 						data.hook_data.data_buf);
+		dma_buf_put(dmabuf);
 		if (ret < 0) {
 			MUA_PRINTK(1, "meson_uvm_getinfo fail.\n");
 			return -EINVAL;
@@ -587,6 +592,7 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ret = meson_uvm_setinfo(dmabuf,
 						data.hook_data.mode_type,
 						data.hook_data.data_buf);
+		dma_buf_put(dmabuf);
 		if (ret < 0) {
 			MUA_PRINTK(1, "meson_uvm_setinfo fail.\n");
 			return -EINVAL;
@@ -596,6 +602,11 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		MUA_PRINTK(1, "%s. original buf size:%d width:%d height:%d\n",
 					__func__, data.alloc_data.size,
 					data.alloc_data.width, data.alloc_data.height);
+
+		MUA_PRINTK(1, "scaled_buf_size:%d align=%d flags=%d\n",
+			   data.alloc_data.scaled_buf_size,
+			   data.alloc_data.align,
+			   data.alloc_data.flags);
 
 		data.alloc_data.size = PAGE_ALIGN(data.alloc_data.size);
 		data.alloc_data.scaled_buf_size =
@@ -641,7 +652,7 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case UVM_IOC_SET_FD:
 		fd = data.fd_data.fd;
-		ret = mua_set_commit_display(fd, data.fd_data.commit_display);
+		ret = mua_set_commit_display(fd, data.fd_data.data);
 
 		if (ret < 0) {
 			MUA_PRINTK(0, "invalid dmabuf fd.\n");
@@ -655,6 +666,7 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		dmabuf = dma_buf_get(fd);
 		usage = data.usage_data.uvm_data_usage;
 		ret = meson_uvm_set_usage(dmabuf, usage);
+		dma_buf_put(dmabuf);
 		if (ret < 0) {
 			MUA_PRINTK(1, "meson_uvm_set_usage fail.\n");
 			return -EINVAL;
@@ -666,6 +678,7 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EINVAL;
 		dmabuf = dma_buf_get(fd);
 		ret = meson_uvm_get_usage(dmabuf, &usage);
+		dma_buf_put(dmabuf);
 		if (ret < 0) {
 			MUA_PRINTK(1, "meson_uvm_get_usage fail.\n");
 			return -EINVAL;
@@ -680,6 +693,20 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			MUA_PRINTK(0, "get meta data fail.\n");
 			return -EINVAL;
 		}
+		break;
+	case UVM_IOC_GET_TYPE:
+		fd = data.fd_data.fd;
+		if (!mua_is_valid_dmabuf(fd))
+			return -EINVAL;
+		ret = get_uvm_video_type(fd);
+		if (ret < 0) {
+			MUA_PRINTK(1, "get video %d type fail.\n", fd);
+			return ret;
+		}
+		data.fd_data.data = ret;
+		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
+			return -EFAULT;
+		ret = 0;
 		break;
 	default:
 		return -ENOTTY;

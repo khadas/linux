@@ -40,7 +40,7 @@ void __iomem *sharemem_input_base;
 void __iomem *sharemem_output_base;
 unsigned int efuse_obj_cmd_status;
 
-#define  DEFINE_EFUEKEY_SHOW_ATTR(keyname)	\
+#define  DEFINE_EFUSEKEY_SHOW_ATTR(keyname)	\
 	static ssize_t  keyname##_show(struct class *cla, \
 					  struct class_attribute *attr,	\
 						char *buf)	\
@@ -50,13 +50,13 @@ unsigned int efuse_obj_cmd_status;
 		ret = efuse_user_attr_show(#keyname, buf); \
 		return ret; \
 	}
-DEFINE_EFUEKEY_SHOW_ATTR(mac)
-DEFINE_EFUEKEY_SHOW_ATTR(mac_bt)
-DEFINE_EFUEKEY_SHOW_ATTR(mac_wifi)
-DEFINE_EFUEKEY_SHOW_ATTR(usid)
+DEFINE_EFUSEKEY_SHOW_ATTR(mac)
+DEFINE_EFUSEKEY_SHOW_ATTR(mac_bt)
+DEFINE_EFUSEKEY_SHOW_ATTR(mac_wifi)
+DEFINE_EFUSEKEY_SHOW_ATTR(usid)
 
 #ifndef EFUSE_READ_ONLY
-#define  DEFINE_EFUEKEY_STORE_ATTR(keyname)	\
+#define  DEFINE_EFUSEKEY_STORE_ATTR(keyname)	\
 	static ssize_t  keyname##_store(struct class *cla, \
 					  struct class_attribute *attr,	\
 						const char *buf,	\
@@ -67,10 +67,10 @@ DEFINE_EFUEKEY_SHOW_ATTR(usid)
 		ret = efuse_user_attr_store(#keyname, buf, count); \
 		return ret; \
 	}
-DEFINE_EFUEKEY_STORE_ATTR(mac)
-DEFINE_EFUEKEY_STORE_ATTR(mac_bt)
-DEFINE_EFUEKEY_STORE_ATTR(mac_wifi)
-DEFINE_EFUEKEY_STORE_ATTR(usid)
+DEFINE_EFUSEKEY_STORE_ATTR(mac)
+DEFINE_EFUSEKEY_STORE_ATTR(mac_bt)
+DEFINE_EFUSEKEY_STORE_ATTR(mac_wifi)
+DEFINE_EFUSEKEY_STORE_ATTR(usid)
 #endif
 
 int efuse_getinfo(char *item, struct efusekey_info *info)
@@ -1180,7 +1180,7 @@ static CLASS_ATTR_RO(secureboot_check);
 static EFUSE_CLASS_ATTR(checkburn);
 static CLASS_ATTR_RO(checklist);
 
-static struct attribute *efuse_calss_attrs[] = {
+static struct attribute *efuse_class_attrs[] = {
 	&class_attr_userdata.attr,
 	&class_attr_mac.attr,
 	&class_attr_mac_bt.attr,
@@ -1194,7 +1194,7 @@ static struct attribute *efuse_calss_attrs[] = {
 	NULL,
 };
 
-ATTRIBUTE_GROUPS(efuse_calss);
+ATTRIBUTE_GROUPS(efuse_class);
 
 static int efuse_probe(struct platform_device *pdev)
 {
@@ -1309,7 +1309,7 @@ static int efuse_probe(struct platform_device *pdev)
 	efuse_dev->secureboot_mask = secureboot_mask;
 	efuse_dev->cls.name = EFUSE_CLASS_NAME;
 	efuse_dev->cls.owner = THIS_MODULE;
-	efuse_dev->cls.class_groups = efuse_calss_groups;
+	efuse_dev->cls.class_groups = efuse_class_groups;
 	ret = class_register(&efuse_dev->cls);
 	if (ret)
 		goto error2;

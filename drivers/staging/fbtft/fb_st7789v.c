@@ -226,7 +226,7 @@ static void write_register(struct fbtft_par *par, int len, ...)
 		/* keep DC low for all command bytes to transfer */
 		fbtft_write_buf_dc(par, par->buf, 1, 0);
 
-		/* keep DC high for all data bytes to tr:Lansfer */
+		/* keep DC high for all data bytes to transfer */
 		fbtft_write_buf_dc(par, par->buf + 1, len - 1, 1);
 	}
 	va_end(args);

@@ -490,7 +490,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 					 dev->thread_stopped != 0, HZ / 5);
 	/*
 	 * Typical driver might need to wait here until dma engine stops.
-	 * In this case we can abort imiedetly, so it's just a noop.
+	 * In this case we can abort immediately, so it's just a noop.
 	 */
 	v4l2q_init(&dev->input_queue, IONVIDEO_POOL_SIZE + 1,
 		   &dev->ionvideo_input_queue[0]);
@@ -709,7 +709,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	struct page *page = NULL;
 	void *phy_addr = NULL;
 
-	if (p->index > IONVIDEO_POOL_SIZE) {
+	if (p->index >= IONVIDEO_POOL_SIZE) {
 		pr_err("ionvideo: dbuf: err index=%d\n", p->index);
 		return -EINVAL;
 	}

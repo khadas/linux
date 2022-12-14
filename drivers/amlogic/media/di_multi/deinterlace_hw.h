@@ -1029,4 +1029,6 @@ extern const struct reg_acc di_pst_regset;
 void set_sc2overlap_table(unsigned int addr, unsigned int value,
 			  unsigned int start,
 			  unsigned int len);
+void disable_afbcd_t5dvb(void);
+
 #endif

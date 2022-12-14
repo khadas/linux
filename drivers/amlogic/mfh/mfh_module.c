@@ -33,6 +33,8 @@
 #include <linux/amlogic/scpi_protocol.h>
 #include <linux/mailbox_client.h>
 #include <linux/spinlock.h>
+#include <linux/kthread.h>
+#include <linux/freezer.h>
 #include <linux/pm_runtime.h>
 #include <linux/of_fdt.h>
 #include <linux/pm_domain.h>
@@ -76,6 +78,12 @@ struct mfh_struct {
 	struct device *devb;
 	struct device *p_dev;
 	void __iomem *vaddr;
+	void __iomem *health_reg[2];
+	unsigned int m4hang[2];
+	unsigned int health_check_period;
+	unsigned long online;
+	struct task_struct *health_monitor_task;
+	int m4_cnt;
 	int addr_offset;
 	int mem_region_configed;
 	int power_domain_configed;
@@ -386,6 +394,15 @@ static int mfh_parse_dt(struct device *dev, struct mfh_struct *mfh_struct)
 	if (ret < 0)
 		dev_err(dev, "Can't retrieve clock-configed\n");
 
+	ret = of_property_read_u32(dev->of_node, "mfh-cnt", &mfh_struct->m4_cnt);
+	if (ret < 0)
+		dev_err(dev, "Can't retrieve mfh-cnt\n");
+
+	ret = of_property_read_u32(dev->of_node, "mfh-monitor-period-ms",
+		&mfh_struct->health_check_period);
+	if (ret && ret != -EINVAL)
+		dev_err(dev, "of get mfh-monitor-period-ms property failed\n");
+
 	/* attach clocks */
 	if (mfh_struct->clock_configed != DTS_PARAM_CONFIGED_NO) {
 		mfh_struct->clkm40 = of_clk_get_by_name(dev->of_node, clk_name[0]);
@@ -426,6 +443,122 @@ static int mfh_parse_dt(struct device *dev, struct mfh_struct *mfh_struct)
 	return 0;
 }
 
+static void get_m4_health_regs(struct platform_device *pdev)
+{
+	struct mfh_struct *mfh = platform_get_drvdata(pdev);
+	struct resource *res;
+	int i;
+
+	for (i = 0; i < mfh->m4_cnt; i++) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
+		if (!res) {
+			dev_err(&pdev->dev, "failed to get m4-%d status register.\n", i);
+			return;
+		}
+		mfh->health_reg[i] = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(mfh->health_reg[i]))
+			mfh->health_reg[i] = NULL;
+	}
+
+	mfh->health_monitor_task = NULL;
+}
+
+static enum m4_health_status get_m4_health_status(struct mfh_struct *mfh)
+{
+	enum m4_health_status ret = M4_GOOD;
+	static u32 last_cnt[2] = {0};
+	u32 this_cnt[2];
+
+	switch (mfh->online & 0x03) {
+	case M4_NONE:
+		break;
+	case M4A_ONLINE:
+		this_cnt[M4A] = readl(mfh->health_reg[M4A]);
+		pr_debug("[%s]m4a[%u %u]\n", __func__, last_cnt[M4A], this_cnt[M4A]);
+		if (this_cnt[M4A] == last_cnt[M4A])
+			ret = M4A_HANG;
+		last_cnt[M4A] = this_cnt[M4A];
+		break;
+	case M4B_ONLINE:
+		this_cnt[M4B] = readl(mfh->health_reg[M4B]);
+		pr_debug("[%s]m4b[%u %u]\n", __func__, last_cnt[M4B], this_cnt[M4B]);
+		if (this_cnt[M4B] == last_cnt[M4B])
+			ret = M4B_HANG;
+		last_cnt[M4B] = this_cnt[M4B];
+		break;
+	case M4AB_ONLINE:
+		this_cnt[M4A] = readl(mfh->health_reg[M4A]);
+		this_cnt[M4B] = readl(mfh->health_reg[M4B]);
+		pr_debug("[%s]m4a[%u %u] m4b[%u %u]\n", __func__, last_cnt[M4A], this_cnt[M4A],
+			last_cnt[M4B], this_cnt[M4B]);
+		if (this_cnt[M4A] == last_cnt[M4A] && this_cnt[M4B] == last_cnt[M4B])
+			ret = M4AB_HANG;
+		else if (this_cnt[M4A] == last_cnt[M4A])
+			ret = M4A_HANG;
+		else if (this_cnt[M4B] == last_cnt[M4B])
+			ret = M4B_HANG;
+		last_cnt[M4A] = this_cnt[M4A];
+		last_cnt[M4B] = this_cnt[M4B];
+		break;
+	}
+	return ret;
+}
+
+static int health_monitor_thread(void *data)
+{
+	struct mfh_struct *mfh = data;
+	char str[20], *envp[] = { str, NULL };
+
+	set_freezable();
+	while (!kthread_should_stop()) {
+		if (!mfh->health_check_period)
+			return 0;
+		msleep(mfh->health_check_period);
+
+		switch (get_m4_health_status(mfh)) {
+		case M4_GOOD:
+			mfh->m4hang[M4A] = 0;
+			mfh->m4hang[M4B] = 0;
+			break;
+		case M4A_HANG:
+			snprintf(str, sizeof(str), "ACTION=M4_WTD_A");
+			mfh->m4hang[M4A] = 1;
+			mfh->m4hang[M4B] = 0;
+			kobject_uevent_env(&mfh->deva->kobj, KOBJ_CHANGE, envp);
+			pr_debug("[%s][M4A_HANG]\n", __func__);
+			break;
+		case M4B_HANG:
+			snprintf(str, sizeof(str), "ACTION=M4_WTD_B");
+			mfh->m4hang[M4A] = 0;
+			mfh->m4hang[M4B] = 1;
+			kobject_uevent_env(&mfh->devb->kobj, KOBJ_CHANGE, envp);
+			pr_debug("[%s][M4B_HANG]\n", __func__);
+			break;
+		case M4AB_HANG:
+			snprintf(str, sizeof(str), "ACTION=M4_WTD_WHOLE");
+			mfh->m4hang[M4A] = 1;
+			mfh->m4hang[M4B] = 1;
+			kobject_uevent_env(&mfh->deva->kobj, KOBJ_CHANGE, envp);
+			pr_debug("[%s][M4AB_HANG]\n", __func__);
+			break;
+		}
+	}
+	return 0;
+}
+
+static int create_health_monitor_task(struct mfh_struct *mfh)
+{
+	int ret = 0;
+
+	mfh->health_monitor_task = kthread_run(health_monitor_thread,
+				mfh, "m4-health-monitor");
+	if (IS_ERR(mfh->health_monitor_task)) {
+		ret = PTR_ERR(mfh->health_monitor_task);
+		pr_err("Unable to run kthread err %d\n", ret);
+	}
+	return ret;
+}
+
 void mfh_poweron(struct device *dev, int cpuid, bool poweron)
 {
 	struct mfh_struct *mfh_struct = dev_get_drvdata(dev);
@@ -446,9 +579,19 @@ void mfh_poweron(struct device *dev, int cpuid, bool poweron)
 			mfh_power_reset(cpuid, poweron);
 		mfh_load_firmware(mfh_struct, &mfh_info);
 		mfh_startup(mfh_struct, &mfh_info);
+
+		set_bit(cpuid, &mfh_struct->online);
+		if (mfh_struct->health_reg[cpuid] && !mfh_struct->health_monitor_task)
+			create_health_monitor_task(mfh_struct);
 	} else {
 		mfh_power_reset(cpuid, poweron);
 		mfh_stop(mfh_struct, &mfh_info);
+
+		clear_bit(cpuid, &mfh_struct->online);
+		if (!mfh_struct->online) {
+			kthread_stop(mfh_struct->health_monitor_task);
+			mfh_struct->health_monitor_task = NULL;
+		}
 	}
 }
 
@@ -468,7 +611,9 @@ static int mfh_platform_probe(struct platform_device *pdev)
 		pr_info("mfh probe fail\n");
 		return ret;
 	}
+
 	platform_set_drvdata(pdev, &mfh_dev);
+	get_m4_health_regs(pdev);
 	mfh_dev_create_file(dev);
 	pr_info("mfh probe end\n");
 	return ret;

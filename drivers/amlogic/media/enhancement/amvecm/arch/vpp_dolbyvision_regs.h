@@ -26,12 +26,15 @@
 #define CORETV_OFFSET            (0x1UL << 28)
 #define CORE1C_OFFSET            (0x1UL << 29) /*core1c*/
 #define CORE2C_OFFSET            (0x1UL << 30)
+#define CORE3_S1_OFFSET          (0x1UL << 21)
+#define CORE3_S2_OFFSET          (0x1UL << 22)
+#define CORE3_S3_OFFSET          (0x1UL << 23)
 
 
 #define AMDV_CORE1A_REG_START		(0x00 + CORE1A_OFFSET)
 #define AMDV_CORE1_CRC_CTRL		(0xea + CORE1A_OFFSET)
 #define AMDV_CORE1_BL_CRC		(0xeb + CORE1A_OFFSET)
-#define AMDV_CORE1_CSC_OUTPUT_CRC	(0xef + CORE3_OFFSET)
+#define AMDV_CORE1_CSC_OUTPUT_CRC	(0xef + CORE1A_OFFSET)
 
 #define AMDV_CORE1A_CLKGATE_CTRL	(0xf2 + CORE1A_OFFSET)
 #define AMDV_CORE1A_SWAP_CTRL0		(0xf3 + CORE1A_OFFSET)
@@ -108,14 +111,14 @@
 #define AMDV_CORE2C_SWAP_CTRL5		(0x38 + CORE2C_OFFSET)
 #define AMDV_CORE2C_DMA_CTRL		(0x39 + CORE2C_OFFSET)
 #define AMDV_CORE2C_DMA_STATUS		(0x3a + CORE2C_OFFSET)
-#define AMDV_CORE2C_STATUS0		(0x3b + CORE2C_OFFSET)
-#define AMDV_CORE2C_STATUS1		(0x3c + CORE2C_OFFSET)
-#define AMDV_CORE2C_STATUS2		(0x3d + CORE2C_OFFSET)
-#define AMDV_CORE2C_STATUS3		(0x3e + CORE2C_OFFSET)
+#define AMDV_CORE2C_STATUS0			(0x3b + CORE2C_OFFSET)
+#define AMDV_CORE2C_STATUS1			(0x3c + CORE2C_OFFSET)
+#define AMDV_CORE2C_STATUS2			(0x3d + CORE2C_OFFSET)
+#define AMDV_CORE2C_STATUS3			(0x3e + CORE2C_OFFSET)
 #define AMDV_CORE2C_DMA_PORT		(0x3f + CORE2C_OFFSET)
 
 #define AMDV_CORE3_REG_START		(0x00 + CORE3_OFFSET)
-#define AMDV_CORE3_CLKGATE_CTRL	(0xf0 + CORE3_OFFSET)
+#define AMDV_CORE3_CLKGATE_CTRL		(0xf0 + CORE3_OFFSET)
 #define AMDV_CORE3_SWAP_CTRL0		(0xf1 + CORE3_OFFSET)
 #define AMDV_CORE3_SWAP_CTRL1		(0xf2 + CORE3_OFFSET)
 #define AMDV_CORE3_SWAP_CTRL2		(0xf3 + CORE3_OFFSET)
@@ -124,9 +127,123 @@
 #define AMDV_CORE3_SWAP_CTRL5		(0xf6 + CORE3_OFFSET)
 #define AMDV_CORE3_SWAP_CTRL6		(0xf7 + CORE3_OFFSET)
 #define AMDV_CORE3_DIAG_CTRL		(0xf8 + CORE3_OFFSET)
-#define AMDV_CORE3_CRC_CTRL		(0xfb + CORE3_OFFSET)
+#define AMDV_CORE3_CRC_CTRL			(0xfb + CORE3_OFFSET)
 #define AMDV_CORE3_INPUT_CSC_CRC	(0xfc + CORE3_OFFSET)
 #define AMDV_CORE3_OUTPUT_CSC_CRC	(0xfd + CORE3_OFFSET)
+#define AMDV_CORE3_SWAP_CTRL7       (0xd8 + CORE3_OFFSET)
+#define AMDV_CORE3_SWAP_CTRL8       (0xd9 + CORE3_OFFSET)
+#define AMDV_CORE3_SWAP_CTRL9       (0xda + CORE3_OFFSET)
+#define AMDV_CORE3_STATUS0			(0xdb + CORE3_OFFSET)
+#define AMDV_CORE3_STATUS1			(0xdc + CORE3_OFFSET)
+#define AMDV_CORE3_STATUS2			(0xdd + CORE3_OFFSET)
+#define AMDV_CORE3_STATUS3			(0xde + CORE3_OFFSET)
+
+#define SLICE0_META_CTRL0           (0xbe + CORE3_OFFSET)
+/*Bit 31:16, hsize    default = 0x780	 the whole original hsize for total slices*/
+/*Bit 15:14, clock gate en  default = 0  clk gate control*/
+/*Bit 13:7,  reserved*/
+/*Bit 6, latch manual only default = 0  only latched by manual buf updating*/
+/*Bit 5, manual buf update default = 0*/
+/*Bit 4, meta data finished	default = 0 no affect loghic function, can check the status Bit4 */
+/*Bit 3:0, slice enable  default = 0 meta data scaramble function enable for each slice*/
+#define SLICE0_META_CTRL1           (0xbf + CORE3_OFFSET)
+/*Bit 31:16, slice1 x_end     default = 0x20f*/
+/*Bit 15:0,  slice1 x_start   default = 0*/
+#define SLICE0_META_CTRL2           (0xc0 + CORE3_OFFSET)
+/*Bit 31:16, slice2 x_end     default = 0x3ef*/
+/*Bit 15:0,  slice2 x_start   default = 0x1b0*/
+#define SLICE0_META_CTRL3           (0xc1 + CORE3_OFFSET)
+/*Bit 31:16, slice3 x_end     default = 0x390*/
+/*Bit 15:0,  slice3 x_start   default = 0x5cf*/
+#define SLICE0_META_CTRL4           (0xc2 + CORE3_OFFSET)
+/*Bit 31:16, slice4 x_end     default = 0x77f*/
+/*Bit 15:0,  slice4 x_start   default = 0x570*/
+
+#define SLICE0_META_CTRL5           (0xc3 + CORE3_OFFSET)
+/*Bit 31:16, slice4 x_end     default = 0x77f*/
+/*Bit 15:0,  slice4 x_start   default = 0x570*/
+
+#define SLICE0_META_CTRL6           (0xc4 + CORE3_OFFSET)
+/*Bit 31:0, reserved*/
+
+#define SLICE0_META_CRC0            (0xc5 + CORE3_OFFSET)
+/*Bit 31:0, meta block0 crc value default = 0xaa0e_0bf8 */
+#define SLICE0_META_CRC1            (0xc6 + CORE3_OFFSET)
+/*Bit 31:0, meta block0 crc value default = 0x1849_e5dd */
+#define SLICE0_META_CRC2            (0xc7 + CORE3_OFFSET)
+/*Bit 31:0, meta block0 crc value default = 0x6305_9575 */
+#define SLICE0_META_CRC3            (0xc8 + CORE3_OFFSET)
+/*Bit 31:0, meta block0 crc value default = 0x458a_10ef*/
+#define SLICE0_META_CRC4            (0xc9 + CORE3_OFFSET)
+/*Bit 31:0, meta block0 crc value default = 0x3014_eec2 */
+#define SLICE0_META_RO              (0xca + CORE3_OFFSET)
+/*Bit 31:5, reserved*/
+/*Bit 4, set meta for next frame*/
+/*Bit 3, set meta last frame*/
+/*Bit 2:0, reserved*/
+
+#define AMDV_CORE3_S1_REG_START			(0x00 + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_CLKGATE_CTRL		(0xf0 + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_SWAP_CTRL0		(0xf1 + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_SWAP_CTRL1		(0xf2 + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_SWAP_CTRL2		(0xf3 + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_SWAP_CTRL3		(0xf4 + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_SWAP_CTRL4		(0xf5 + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_SWAP_CTRL5		(0xf6 + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_SWAP_CTRL6		(0xf7 + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_DIAG_CTRL			(0xf8 + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_CRC_CTRL			(0xfb + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_INPUT_CSC_CRC		(0xfc + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_OUTPUT_CSC_CRC	(0xfd + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_SWAP_CTRL7        (0xd8 + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_SWAP_CTRL8        (0xd9 + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_SWAP_CTRL9        (0xda + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_STATUS0			(0xdb + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_STATUS1			(0xdc + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_STATUS2			(0xdd + CORE3_S1_OFFSET)
+#define AMDV_CORE3_S1_STATUS3			(0xde + CORE3_S1_OFFSET)
+
+#define AMDV_CORE3_S2_REG_START			(0x00 + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_CLKGATE_CTRL		(0xf0 + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_SWAP_CTRL0		(0xf1 + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_SWAP_CTRL1		(0xf2 + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_SWAP_CTRL2		(0xf3 + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_SWAP_CTRL3		(0xf4 + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_SWAP_CTRL4		(0xf5 + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_SWAP_CTRL5		(0xf6 + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_SWAP_CTRL6		(0xf7 + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_DIAG_CTRL			(0xf8 + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_CRC_CTRL			(0xfb + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_INPUT_CSC_CRC		(0xfc + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_OUTPUT_CSC_CRC	(0xfd + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_SWAP_CTRL7        (0xd8 + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_SWAP_CTRL8        (0xd9 + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_SWAP_CTRL9        (0xda + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_STATUS0			(0xdb + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_STATUS1			(0xdc + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_STATUS2			(0xdd + CORE3_S2_OFFSET)
+#define AMDV_CORE3_S2_STATUS3			(0xde + CORE3_S2_OFFSET)
+
+#define AMDV_CORE3_S3_REG_START			(0x00 + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_CLKGATE_CTRL		(0xf0 + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_SWAP_CTRL0		(0xf1 + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_SWAP_CTRL1		(0xf2 + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_SWAP_CTRL2		(0xf3 + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_SWAP_CTRL3		(0xf4 + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_SWAP_CTRL4		(0xf5 + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_SWAP_CTRL5		(0xf6 + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_SWAP_CTRL6		(0xf7 + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_DIAG_CTRL			(0xf8 + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_CRC_CTRL			(0xfb + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_INPUT_CSC_CRC		(0xfc + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_OUTPUT_CSC_CRC	(0xfd + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_SWAP_CTRL7		(0xd8 + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_SWAP_CTRL8		(0xd9 + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_SWAP_CTRL9		(0xda + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_STATUS0			(0xdb + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_STATUS1			(0xdc + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_STATUS2			(0xdd + CORE3_S3_OFFSET)
+#define AMDV_CORE3_S3_STATUS3			(0xde + CORE3_S3_OFFSET)
 
 #define AMDV_TV_REG_START		(0x00 + CORETV_OFFSET)
 #define AMDV_TV_CLKGATE_CTRL		(0xf1 + CORETV_OFFSET)

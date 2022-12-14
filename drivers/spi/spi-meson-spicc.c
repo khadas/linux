@@ -226,6 +226,7 @@ struct meson_spicc_data {
 	bool				has_linear_div;
 	bool				has_oen;
 	bool				has_async_clk;
+	bool				is_div_parent_async_clk;
 };
 #endif
 
@@ -251,6 +252,7 @@ struct meson_spicc_device {
 	unsigned int			cs2clk_ns;
 	unsigned int			clk2cs_ns;
 	bool				parent_clk_fixed;
+	bool				clk_div_none;
 	bool				toggle_cs_every_word;
 #endif
 	//struct spi_message		*message;
@@ -704,6 +706,8 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 	}
 #endif
 
+	if (spicc->clk2cs_ns)
+		udelay(DIV_ROUND_UP(spicc->clk2cs_ns, 1000));
 	/* Empty RX FIFO */
 	meson_spicc_rx(spicc);
 
@@ -1233,34 +1237,35 @@ meson_spicc_divider_clk_get(struct meson_spicc_device *spicc, bool is_linear)
 	struct clk *clk;
 	const char *parent_names[1];
 	char name[32], *which;
+	bool is_parent_async = spicc->data->is_div_parent_async_clk;
 
 	div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
 	if (!div)
 		return ERR_PTR(-ENOMEM);
 
+	div->flags = spicc->clk_div_none ? 0 : CLK_DIVIDER_ROUND_CLOSEST;
 	if (is_linear) {
 		which = "linear";
 		div->reg = spicc->base + SPICC_ENH_CTL0;
 		div->shift = SPICC_ENH_DATARATE_SHIFT;
 		div->width = SPICC_ENH_DATARATE_WIDTH;
-		div->flags = CLK_DIVIDER_ROUND_CLOSEST;
 		div->table = linear_div_table;
 	} else {
 		which = "power2";
 		div->reg = spicc->base + SPICC_CONREG;
 		div->shift = SPICC_DATARATE_SHIFT;
 		div->width = SPICC_DATARATE_WIDTH;
-		div->flags = CLK_DIVIDER_ROUND_CLOSEST;
 		div->table = power2_div_table;
 	}
 
 	/* Register clk-divider */
-	clk = spicc->data->has_async_clk ? spicc->async_clk : spicc->core;
+	clk = is_parent_async ? spicc->async_clk : spicc->core;
 	parent_names[0] = __clk_get_name(clk);
 	snprintf(name, sizeof(name), "%s_%s_div", dev_name(dev), which);
 	init.name = name;
 	init.ops = &clk_divider_ops;
-	init.flags = spicc->parent_clk_fixed ? 0 : CLK_SET_RATE_PARENT;
+	init.flags = ((!is_parent_async) || spicc->parent_clk_fixed) ?
+		     0 : CLK_SET_RATE_PARENT;
 	init.parent_names = parent_names;
 	init.num_parents = 1;
 	div->hw.init = &init;
@@ -1391,6 +1396,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	spicc->data->has_linear_div = match->has_linear_div;
 	spicc->data->has_oen = match->has_oen;
 	spicc->data->has_async_clk = match->has_async_clk;
+	spicc->data->is_div_parent_async_clk = match->is_div_parent_async_clk;
 
 	meson_spicc_hw_init(spicc);
 #else
@@ -1441,6 +1447,10 @@ static int meson_spicc_probe(struct platform_device *pdev)
 			     &spicc->clk2cs_ns);
 	spicc->cs2clk_ns *= 1000;
 	spicc->clk2cs_ns *= 1000;
+
+	spicc->clk_div_none = false;
+	if (of_property_read_bool(pdev->dev.of_node, "clk_div_none"))
+		spicc->clk_div_none = true;
 
 	if (spicc->data->has_async_clk) {
 		/* SoCs has async-clk is incapable of using full burst */
@@ -1623,6 +1633,7 @@ static struct meson_spicc_data meson_spicc_axg_data __initdata = {
 	.max_speed_hz = 80000000,
 	.has_linear_div = true,
 	.has_oen = true,
+	.has_async_clk = true,
 };
 #endif
 
@@ -1631,6 +1642,7 @@ static struct meson_spicc_data meson_spicc_g12_data __initdata = {
 	.has_linear_div = true,
 	.has_oen = true,
 	.has_async_clk = true,
+	.is_div_parent_async_clk = true,
 };
 #endif
 

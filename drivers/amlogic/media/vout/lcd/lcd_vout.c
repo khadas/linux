@@ -640,8 +640,7 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 		break;
 	case LCD_MLVDS:
 	case LCD_P2P:
-		if (pdrv->tcon_isr_type == 0)
-			lcd_tcon_vsync_isr(pdrv);
+		lcd_tcon_vsync_isr(pdrv);
 		break;
 	default:
 		break;
@@ -1900,7 +1899,6 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	pdrv->res_vsync_irq[2] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync3");
 	pdrv->res_vx1_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vbyone");
 	pdrv->res_tcon_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "tcon");
-	pdrv->res_line_n_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "line_n");
 
 	pdrv->test_state = pdrv->debug_ctrl->debug_test_pattern;
 	pdrv->test_flag = 0;
@@ -1909,7 +1907,6 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	pdrv->mute_count = 0;
 	pdrv->mute_count_test = 0;
 	pdrv->unmute_count_test = 0;
-	pdrv->tcon_isr_type = 0;
 	pdrv->tcon_isr_bypass = 0;
 	pdrv->fr_mode = 0;
 	pdrv->viu_sel = LCD_VIU_SEL_NONE;
@@ -1962,6 +1959,15 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 }
 
 #ifdef CONFIG_OF
+static struct lcd_data_s lcd_data_axg = {
+	.chip_type = LCD_CHIP_AXG,
+	.chip_name = "axg",
+	.reg_map_table = &lcd_reg_g12a[0],
+	.drv_max = 1,
+	.offset_venc = {0},
+	.offset_venc_if = {0},
+	.offset_venc_data = {0},
+};
 
 static struct lcd_data_s lcd_data_g12a = {
 	.chip_type = LCD_CHIP_G12A,
@@ -2064,6 +2070,10 @@ static struct lcd_data_s lcd_data_t5w = {
 };
 
 static const struct of_device_id lcd_dt_match_table[] = {
+	{
+		.compatible = "amlogic, lcd-axg",
+		.data = &lcd_data_axg,
+	},
 	{
 		.compatible = "amlogic, lcd-g12a",
 		.data = &lcd_data_g12a,

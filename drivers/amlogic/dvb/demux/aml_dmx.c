@@ -63,6 +63,7 @@
 #define TS_OUTPUT_CHAN_PTS_BUF_SIZE		(128 * 1024)
 #define TS_OUTPUT_CHAN_PTS_SEC_BUF_SIZE		(128 * 1024)
 #define TS_OUTPUT_CHAN_DVR_BUF_SIZE		(30 * 1024 * 188)
+#define TS_OUTPUT_CHAN_TEMI_BUF_SIZE	(204 * 1024)
 
 struct jiffies_pcr {
 	u64 last_pcr;
@@ -75,7 +76,6 @@ struct jiffies_pcr {
 //#define OPEN_REGISTER_NODE
 
 static struct jiffies_pcr jiffies_pcr_record[MAX_PCR_NUM];
-static u8 pcr_flag[MAX_PCR_NUM];
 static struct out_elem *ts_out_elem;
 
 MODULE_PARM_DESC(debug_dmx, "\n\t\t Enable demux debug information");
@@ -101,6 +101,10 @@ module_param(sec_buf_size, int, 0644);
 MODULE_PARM_DESC(dvr_buf_size, "\n\t\t set sec buf size");
 static int dvr_buf_size = TS_OUTPUT_CHAN_DVR_BUF_SIZE;
 module_param(dvr_buf_size, int, 0644);
+
+MODULE_PARM_DESC(temi_buff_size, "\n\t\t set temi buf size");
+static int temi_buff_size = TS_OUTPUT_CHAN_TEMI_BUF_SIZE;
+module_param(temi_buff_size, int, 0644);
 
 MODULE_PARM_DESC(flow_control, "\n\t\t flow control percentage");
 static int flow_control = 80;
@@ -368,6 +372,12 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	int pts_level = 0;
 	int ret = 0;
 	struct pid_node *node = NULL;
+	int is_temi = 0;
+	int is_temi_and_pcr = 0;
+	int pcr_index = -1;
+	int is_same_pid = 0;
+
+	feed->temi_index = -1;
 
 	pr_dbg("%s pid:0x%0x\n", __func__, pid);
 
@@ -408,12 +418,139 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		pr_dbg("%s tsn out loop, sid:%d\n", __func__, sid);
 	}
 
+	is_temi = ((filter->params.pes.flags >> 18) & 0x01);
+	if (!get_demux_feature(SUPPORT_TEMI) && is_temi == 1) {
+		dprint("no support temi\n");
+		mutex_unlock(demux->pmutex);
+		return -EINVAL;
+	}
+
 	if (pes_type == DMX_PES_PCR0 ||
 	    pes_type == DMX_PES_PCR1 ||
 	    pes_type == DMX_PES_PCR2 || pes_type == DMX_PES_PCR3) {
 		pr_dbg("%s PCR\n", __func__);
-		goto HANDLE_PCR;
+		if (is_temi == 1) {
+			is_temi_and_pcr = 1;
+			ret = ts_output_alloc_pcr_temi_entry(&pcr_index,
+						&feed->temi_index, &is_same_pid, pid);
+			if (ret == MAX_PCR_NUM || is_same_pid == 1) {
+				dprint("%s error pcr or temi full\n", __func__);
+				if (is_same_pid == 1)
+					ts_output_free_pcr_temi_entry(feed->temi_index);
+				mutex_unlock(demux->pmutex);
+				return -EBUSY;
+			}
+		}
+
+		if (is_temi == 0) {
+			ret = ts_output_alloc_pcr_temi_entry(&pcr_index, NULL, &is_same_pid, pid);
+			if (ret == MAX_PCR_NUM) {
+				dprint("%s error pcr full\n", __func__);
+				mutex_unlock(demux->pmutex);
+				return -EBUSY;
+			}
+
+			if (is_same_pid == 1) {
+				if (pes_type == DMX_PES_PCR0)
+					pcr_num = 0;
+				else if (pes_type == DMX_PES_PCR1)
+					pcr_num = 1;
+				else if (pes_type == DMX_PES_PCR2)
+					pcr_num = 2;
+				else
+					pcr_num = 3;
+
+				demux->pcr_index[pcr_num] = pcr_index;
+
+				mutex_unlock(demux->pmutex);
+
+				return 0;
+			}
+
+			goto HANDLE_PCR;
+		}
 	}
+
+	if (is_temi == 1) {
+		type = OTHER_TYPE;
+		format = TEMI_FORMAT;
+		feed->type = type;
+		feed->format = format;
+		mem_size = temi_buff_size;
+
+		if (is_temi_and_pcr == 0) {
+			ret = ts_output_alloc_pcr_temi_entry(NULL,
+					&feed->temi_index, &is_same_pid, pid);
+			if (ret != 0) {
+				dprint("%s error TEMI full\n", __func__);
+				mutex_unlock(demux->pmutex);
+				return -EBUSY;
+			}
+		}
+
+		feed->ts_out_elem = ts_output_open(sid, demux->id, format,
+		type, media_type, output_mode);
+		if (!feed->ts_out_elem) {
+			dprint("%s TEMI error\n", __func__);
+			ts_output_free_pcr_temi_entry(feed->temi_index);
+			if (is_temi_and_pcr == 1)
+				ts_output_free_pcr_temi_entry(pcr_index);
+			mutex_unlock(demux->pmutex);
+			return -EBUSY;
+		}
+
+		ret = ts_output_set_mem(feed->ts_out_elem,
+					mem_size, sec_level,
+					TS_OUTPUT_CHAN_PTS_BUF_SIZE, pts_level);
+
+		if (ret != 0) {
+			dprint("temi set mem failed\n");
+			ts_output_free_pcr_temi_entry(feed->temi_index);
+			if (is_temi_and_pcr == 1)
+				ts_output_free_pcr_temi_entry(pcr_index);
+			ts_output_close(feed->ts_out_elem);
+			feed->ts_out_elem = NULL;
+			mutex_unlock(demux->pmutex);
+			return -ENOMEM;
+		}
+
+		ret = ts_output_add_temi_pid(feed->ts_out_elem, feed->pid,
+				demux->id, &cb_id, feed->temi_index);
+
+		if (ret != 0) {
+			dprint("temi add pid failed\n");
+			ts_output_free_pcr_temi_entry(feed->temi_index);
+			if (is_temi_and_pcr == 1)
+				ts_output_free_pcr_temi_entry(pcr_index);
+			ts_output_close(feed->ts_out_elem);
+			feed->ts_out_elem = NULL;
+			mutex_unlock(demux->pmutex);
+			return -EBUSY;
+		}
+
+		ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed,
+			cb_id, format, 0, demux->id);
+
+		feed->cb_id = cb_id;
+
+		if (is_temi_and_pcr == 1) {
+			if (pes_type == DMX_PES_PCR0)
+				pcr_num = 0;
+			else if (pes_type == DMX_PES_PCR1)
+				pcr_num = 1;
+			else if (pes_type == DMX_PES_PCR2)
+				pcr_num = 2;
+			else
+				pcr_num = 3;
+
+			demux->pcr_index[pcr_num] = pcr_index;
+		}
+
+		mutex_unlock(demux->pmutex);
+
+		return 0;
+	}
+
 	if (pes_type == DMX_PES_AUDIO0 ||
 	    pes_type == DMX_PES_AUDIO1 ||
 	    pes_type == DMX_PES_AUDIO2 || pes_type == DMX_PES_AUDIO3) {
@@ -550,7 +687,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			ts_output_close(feed->ts_out_elem);
 			feed->ts_out_elem = NULL;
 			mutex_unlock(demux->pmutex);
-			return -1;
+			return -ENOMEM;
 		}
 		if (feed->pid == 0x2000)
 			ret = ts_output_add_pid(feed->ts_out_elem, feed->pid, 0x1fff,
@@ -562,7 +699,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			ts_output_close(feed->ts_out_elem);
 			feed->ts_out_elem = NULL;
 			mutex_unlock(demux->pmutex);
-			return -1;
+			return -EBUSY;
 		}
 		ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed,
 			cb_id, format, 0, demux->id);
@@ -586,17 +723,6 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 
 HANDLE_PCR:
 	{
-		int i = 0;
-
-		for (i = 0; i < MAX_PCR_NUM; i++) {
-			if (pcr_flag[i] == 0)
-				break;
-		}
-		if (i == MAX_PCR_NUM) {
-			dprint("%s error pcr full\n", __func__);
-			mutex_unlock(demux->pmutex);
-			return -1;
-		}
 		if (pes_type == DMX_PES_PCR0)
 			pcr_num = 0;
 		else if (pes_type == DMX_PES_PCR1)
@@ -606,11 +732,10 @@ HANDLE_PCR:
 		else
 			pcr_num = 3;
 
-		demux->pcr_index[pcr_num] = i;
-		ts_output_set_pcr(sid, i, pid);
-		jiffies_pcr_record[i].last_pcr = 0;
-		jiffies_pcr_record[i].last_time = 0;
-		pcr_flag[i] = 1;
+		demux->pcr_index[pcr_num] = pcr_index;
+		ts_output_set_pcr(sid, pcr_index, pid);
+		jiffies_pcr_record[pcr_index].last_pcr = 0;
+		jiffies_pcr_record[pcr_index].last_time = 0;
 		feed->type = OTHER_TYPE;
 	}
 	mutex_unlock(demux->pmutex);
@@ -805,7 +930,7 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 	if (start_flag != 1) {
 		dprint("%s fail\n", __func__);
 		mutex_unlock(demux->pmutex);
-		return -1;
+		return -EBUSY;
 	}
 
 	sec_feed->state = DMX_STATE_GO;
@@ -872,7 +997,7 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 			ts_output_close(sec_feed->sec_out_elem);
 			sec_feed->sec_out_elem = NULL;
 			mutex_unlock(demux->pmutex);
-			return -1;
+			return -ENOMEM;
 		}
 		ret = ts_output_add_pid(sec_feed->sec_out_elem, sec_feed->pid, 0,
 				  demux->id, &cb_id);
@@ -880,7 +1005,7 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 			ts_output_close(sec_feed->sec_out_elem);
 			sec_feed->sec_out_elem = NULL;
 			mutex_unlock(demux->pmutex);
-			return -1;
+			return -EBUSY;
 		}
 		ts_output_add_cb(sec_feed->sec_out_elem,
 				 _ts_out_sec_cb, sec_feed, cb_id,
@@ -1143,7 +1268,13 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 
 	if (feed->ts_out_elem) {
 		pr_dbg("%s pid:%d\n", __func__, feed->pid);
-		ts_output_remove_pid(feed->ts_out_elem, feed->pid);
+		if (feed->temi_index != -1) {
+			ts_output_free_pcr_temi_entry(feed->temi_index);
+			ts_output_add_remove_temi_pid(feed->ts_out_elem, feed->temi_index);
+			feed->temi_index = -1;
+		} else {
+			ts_output_remove_pid(feed->ts_out_elem, feed->pid);
+		}
 		ts_output_remove_cb(feed->ts_out_elem,
 				out_ts_elem_cb, feed, feed->cb_id, 0);
 		if (feed->format == DVR_FORMAT) {
@@ -1176,10 +1307,10 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 
 		pcr_index = demux->pcr_index[pcr_num];
 		if (pcr_index >= 0 && pcr_index < MAX_PCR_NUM) {
+			ts_output_free_pcr_temi_entry(pcr_index);
 			ts_output_set_pcr(sid, pcr_index, -1);
 			jiffies_pcr_record[pcr_index].last_pcr = 0;
 			jiffies_pcr_record[pcr_index].last_time = 0;
-			pcr_flag[pcr_index] = 0;
 			demux->pcr_index[pcr_num] = -1;
 		}
 		break;
@@ -1565,6 +1696,7 @@ int _dmx_get_mem_info(struct dmx_demux *dmx, struct dmx_filter_mem_info *info)
 			continue;
 
 		ts_feed = &demux->ts_feed[i];
+
 		if (ts_feed->type == NONE_TYPE ||
 			ts_feed->type == SEC_TYPE ||
 			ts_feed->type == OTHER_TYPE)
@@ -1596,8 +1728,8 @@ int _dmx_get_mem_info(struct dmx_demux *dmx, struct dmx_filter_mem_info *info)
 		wp_offset = 0;
 		newest_pts = 0;
 
-		if (!ts_feed || !ts_feed->ts_out_elem) {
-			dprint("ts_feed or ts_out_elem is NULL\n");
+		if (!ts_feed->ts_out_elem) {
+			dprint("ts_out_elem is NULL\n");
 			continue;
 		}
 
@@ -1638,8 +1770,8 @@ int _dmx_get_mem_info(struct dmx_demux *dmx, struct dmx_filter_mem_info *info)
 			buf_phy_start = 0;
 			wp_offset = 0;
 
-			if (!section_feed || !section_feed->sec_out_elem) {
-				dprint("section_feed or sec_out_elem is NULL\n");
+			if (!section_feed->sec_out_elem) {
+				dprint("sec_out_elem is NULL\n");
 				continue;
 			}
 
@@ -1675,9 +1807,9 @@ static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 		if (demux->local_sid != hw_source - DMA_0) {
 			demux->local_sid = hw_source - DMA_0;
 			ts_output_update_filter(demux->id, demux->local_sid);
+			dsc_set_sid(demux->id, INPUT_LOCAL, demux->local_sid);
 		}
 		demux->demod_sid = -1;
-		dsc_set_sid(demux->id, INPUT_LOCAL, demux->local_sid);
 		advb->tsn_flag &= (~(1 << demux->id));
 		if (!advb->tsn_flag)
 			tsn_set_double_out(0);
@@ -1697,14 +1829,15 @@ static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 		if (demux->local_sid != (hw_source - DMA_0_1 + 0x20)) {
 			demux->local_sid = hw_source - DMA_0_1 + 0x20;
 			ts_output_update_filter(demux->id, demux->local_sid);
+			dsc_set_sid(demux->id, INPUT_LOCAL, hw_source - DMA_0_1);
 		}
 		demux->demod_sid = -1;
-		dsc_set_sid(demux->id, INPUT_LOCAL, hw_source - DMA_0_1);
 		advb->tsn_flag |= (1 << demux->id);
 		tsn_set_double_out(1);
 	} else if (hw_source >= FRONTEND_TS0_1 && hw_source <= FRONTEND_TS7_1) {
 		demux->ts_index = hw_source - FRONTEND_TS0_1;
-		if (advb->ts[demux->ts_index].ts_sid != -1) {
+		if (advb->ts[demux->ts_index].ts_sid != -1 &&
+			demux->demod_sid != (advb->ts[demux->ts_index].ts_sid ^ 0x20)) {
 			demux->demod_sid =
 				advb->ts[demux->ts_index].ts_sid ^ 0x20;
 			ts_output_update_filter(demux->id, demux->demod_sid);
@@ -1824,7 +1957,6 @@ void dmx_init_hw(int sid_num, int *sid_info)
 	ts_output_init(sid_num, sid_info);
 	ts_input_init();
 	SC2_bufferid_init();
-	memset(pcr_flag, 0, sizeof(pcr_flag));
 	memset(jiffies_pcr_record, 0, sizeof(jiffies_pcr_record));
 }
 
@@ -2185,7 +2317,6 @@ static ssize_t dump_ts_store(struct class *class,
 	if (mutex_lock_interruptible(&advb->mutex))
 		return -ERESTARTSYS;
 	if (sid == -1 && ts_out_elem) {
-		ts_output_set_dvr_dump(0);
 		ts_output_remove_pid(ts_out_elem, 0x1fff);
 		ts_output_close(ts_out_elem);
 		ts_out_elem = NULL;
@@ -2197,7 +2328,7 @@ static ssize_t dump_ts_store(struct class *class,
 	ts_out_elem = ts_output_open(sid, 0, DVR_FORMAT, OTHER_TYPE, 0, 0);
 	if (ts_out_elem) {
 		ret = ts_output_set_mem(ts_out_elem,
-					TS_OUTPUT_CHAN_DVR_BUF_SIZE, 0,
+					dvr_buf_size, 0,
 					TS_OUTPUT_CHAN_PTS_BUF_SIZE, 0);
 		if (ret != 0) {
 			ts_output_close(ts_out_elem);
@@ -2205,7 +2336,7 @@ static ssize_t dump_ts_store(struct class *class,
 			mutex_unlock(&advb->mutex);
 			return size;
 		}
-		ts_output_set_dvr_dump(1);
+		ts_output_set_dump_timer(1);
 		ts_output_add_pid(ts_out_elem, 0x1fff, 0x1fff, 0, NULL);
 		dprint("create dump ts success\n");
 	} else {

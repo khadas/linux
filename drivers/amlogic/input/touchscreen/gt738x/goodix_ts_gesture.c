@@ -102,7 +102,7 @@ static ssize_t gsx_gesture_type_show(struct goodix_ext_module *module,
 }
 
 /**
- * gsx_gesture_type_store - set vailed gesture
+ * gsx_gesture_type_store - set valid gesture
  *
  * @module: pointer to goodix_ext_module struct
  * @buf: pointer to valid gesture type

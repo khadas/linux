@@ -11,6 +11,7 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VDIN) += vin/tvin/vdin/vdin_v4l2.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VDIN) += vin/tvin/vdin/vdin_vf.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VDIN) += vin/tvin/vdin/vdin_debug.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VDIN) += vin/tvin/vdin/vdin_drv.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VDIN) += vin/tvin/vdin/vdin_ctl_s5.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VDIN) += vin/tvin/vdin/vdin_ctl.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VDIN) += vin/tvin/vdin/vdin_screen.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VDIN) += vin/tvin/vdin/vdin_sm.o

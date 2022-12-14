@@ -258,11 +258,24 @@ static u32 rdma_current_table_addr_get(u32 vpp_index)
 }
 
 static int osd_rdma_init(void);
-static u32 osd_rdma_flag_reg[VPP_NUM] = {
-	OSD_RDMA_FLAG_REG,
-	OSD_RDMA_FLAG_REG_VPP1,
-	OSD_RDMA_FLAG_REG_VPP2
-};
+u32 osd_rdma_flag_reg[VPP_NUM];
+u32 rdma_detect_reg;
+
+void osd_rdma_flag_init(void)
+{
+	if (osd_dev_hw.s5_display) {
+		/* no OSD2 for S5 */
+		osd_rdma_flag_reg[VPP0] = S5_VIU_OSD1_TCOLOR_AG3;
+		osd_rdma_flag_reg[VPP1] = S5_VIU_OSD1_TCOLOR_AG2;
+		osd_rdma_flag_reg[VPP2] = S5_VIU_OSD1_TCOLOR_AG1;
+		rdma_detect_reg = S5_VIU_OSD1_TCOLOR_AG0;
+	} else {
+		osd_rdma_flag_reg[VPP0] = VIU_OSD2_TCOLOR_AG3;
+		osd_rdma_flag_reg[VPP1] = VIU_OSD2_TCOLOR_AG2;
+		osd_rdma_flag_reg[VPP2] = VIU_OSD2_TCOLOR_AG1;
+		rdma_detect_reg = VIU_OSD2_TCOLOR_AG0;
+	}
+}
 
 static u32 osd_rdma_status_is_reject(u32 vpp_index)
 {
@@ -2044,10 +2057,18 @@ int osd_rdma_reset_and_flush(u32 output_index, u32 reset_bit)
 		int afbc0_started = 0;
 
 		for (i = 0; i < osd_count; i++) {
+			u32 hw_index;
+
 			if (get_output_device_id(i) != output_index ||
 			    !osd_hw.osd_afbcd[i].enable)
 				continue;
-			if (i == 1 && afbc0_started)
+
+			hw_index = to_osd_hw_index(i);
+
+			/* for osd_dev_hw.multi_afbc_core,
+			 * OSD1+OSD2 uses afbc, OSD3 uses afbc1, OSD4 uses afbc2.
+			 */
+			if (hw_index == OSD2 && afbc0_started)
 				continue;
 
 			osd_reg = &hw_osd_reg_array[i];
@@ -2057,7 +2078,7 @@ int osd_rdma_reset_and_flush(u32 output_index, u32 reset_bit)
 			osd_log_dbg2(MODULE_BASE,
 				     "%s, AFBC osd%d start command\n",
 				     __func__, i);
-			if (i == 0)
+			if (hw_index == OSD1)
 				afbc0_started = 1;
 		}
 	}

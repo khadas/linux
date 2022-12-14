@@ -25,7 +25,7 @@
 
 /*
  * AED Diagram
- * DC -- ND -- MIX -- EQ -- Mutiband DRC -- LR Vol
+ * DC -- ND -- MIX -- EQ -- Multiband DRC -- LR Vol
  *    -- Fullband DRC -- Master Volume
  */
 

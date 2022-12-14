@@ -953,7 +953,7 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	spin_unlock_irqrestore(&mgt->lock, flags);
 	mem->alloced_jiffies = get_jiffies_64();
 	if (debug_mode & 0x20)
-		pr_err("%s alloc size %d at %lx from %d,2n:%d,flags:%d\n",
+		pr_err("%s alloc size %d at 0x%lx from %d,2n:%d,flags:%d\n",
 		       owner, size, mem->phy_addr,
 		       mem->from_flags,
 		       align2n,
@@ -975,7 +975,7 @@ void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 
 	spin_lock_irqsave(&mgt->lock, flags);
 	if (!codec_mm_valid_mm_locked(mem)) {
-		pr_err("codec mm not valied!\n");
+		pr_err("codec mm not invalid!\n");
 		spin_unlock_irqrestore(&mgt->lock, flags);
 		return;
 	}
@@ -1182,7 +1182,7 @@ int codec_mm_has_owner(struct codec_mm_s *mem, const char *owner)
 		spin_lock_irqsave(&mgt->lock, flags);
 		if (!codec_mm_valid_mm_locked(mem)) {
 			spin_unlock_irqrestore(&mgt->lock, flags);
-			pr_err("codec mm %p not valied!\n", mem);
+			pr_err("codec mm %p not invalid!\n", mem);
 			return 0;
 		}
 
@@ -2035,7 +2035,7 @@ static int dump_mem_infos(void *buf, int size)
 	}
 	list_for_each_entry(mem, &mgt->mem_list, list) {
 		s = snprintf(pbuf, size - tsize,
-			     "\t[%d].%d:%s.%d,addr=%ld,size=%d,from=%d,cnt=%d,",
+			     "\t[%d].%d:%s.%d,addr=0x%lx,size=%d,from=%d,cnt=%d,",
 			mem->mem_id,
 			mem->ins_id,
 			mem->owner[0] ? mem->owner[0] : "no",

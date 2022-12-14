@@ -198,7 +198,7 @@ static void nins_m_unreg_new(struct di_ch_s *pch)
 /**************************************
  * nins_m_recycle
  *	op_back_input
- *	_RECYCL -> _IDLE
+ *	_RECYCLE -> _IDLE
  *	back vfm to dec
  *	run in main
  **************************************/
@@ -219,14 +219,14 @@ static void nins_m_recycle_ins(struct di_ch_s *pch)
 	ch = pch->ch_id;
 	pbufq = &pch->nin_qb;
 
-	cnt = qbufp_count(pbufq, QBF_NINS_Q_RECYCL);
+	cnt = qbufp_count(pbufq, QBF_NINS_Q_RECYCLE);
 
 	if (!cnt)
 		return;
 	//qbuf_dbg_check_in_buffer_id(1);
 
 	for (i = 0; i < cnt; i++) {
-		ins = nins_move(pch, QBF_NINS_Q_RECYCL, QBF_NINS_Q_IDLE);
+		ins = nins_move(pch, QBF_NINS_Q_RECYCLE, QBF_NINS_Q_IDLE);
 	//	vfm = (struct vframe_s *)ins->c.ori;
 		buffer = (struct di_buffer *)ins->c.ori;
 		ins->c.ori = NULL;
@@ -324,11 +324,19 @@ void dim_dbg_buffer2(struct di_buffer *buffer, unsigned int id)
 
 static void cfg_ch_set_for_s4_cp(struct di_ch_s *pch)
 {
+	unsigned int out_format;
+
 	if (pch->itf.u.dinst.parm.work_mode != WORK_MODE_S4_DCOPY)
 		return;
 	cfgsch(pch, KEEP_DEC_VF, 0); // for all new_interface
-	/* fix out: nv21 */
-	cfgsch(pch, POUT_FMT, 1);
+	out_format = pch->itf.u.dinst.parm.output_format &
+		DIM_OUT_FORMAT_FIX_MASK;
+	/* out: nv21 */
+	if (out_format == DI_OUTPUT_NV21)
+		cfgsch(pch, POUT_FMT, 1);
+	else
+		cfgsch(pch, POUT_FMT, 2);
+	PR_INF("%s:output_format:0x%x\n", __func__, out_format);
 	cfgsch(pch, IOUT_FMT, 1);
 	cfgsch(pch, ALLOC_SCT, 0);
 	cfgsch(pch, DAT, 0);
@@ -504,7 +512,6 @@ int new_create_instance(struct di_init_parm parm)
 		pch->s4dw	= NULL;
 	}
 	//cfg_ch_set(pch);
-	itf->op_cfg_ch_set	= cfg_ch_set;
 	mutex_unlock(&pch->itf.lock_reg);
 	PR_INF("%s:ch[%d],tmode[%d]\n", "create", ch, itf->tmode);
 	PR_INF("\tout:0x%x\n", itf->u.dinst.parm.output_format);
@@ -581,8 +588,11 @@ enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer)
 		return DI_ERR_INDEX_OVERFLOW;
 	}
 	pch = get_chdata(ch);
-	if (pch->itf.pre_vpp_link && dpvpp_vf_ops())
+
+	if (pch->itf.pre_vpp_link && dpvpp_vf_ops()) {
+		dpvpp_patch_first_buffer(index, pch);
 		return dpvpp_empty_input_buffer(DIM_PRE_VPP_NUB, buffer);
+	}
 	pintf = &pch->itf;
 	if (!pintf->reg) {
 		PR_WARN("%s:ch[%d] not reg\n", __func__, ch);
@@ -863,7 +873,7 @@ int new_get_output_buffer_num(int index)
 }
 
 /**********************************************************
- * @brief  di_get_input_buffer_num  get inptut buffer num
+ * @brief  di_get_input_buffer_num  get input buffer num
  *
  * @param[in]  index   instance index
  * @param[in]  buffer  Pointer of buffer structure

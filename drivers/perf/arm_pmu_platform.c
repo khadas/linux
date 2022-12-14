@@ -464,7 +464,7 @@ static int amlpmu_init(struct platform_device *pdev, struct arm_pmu *pmu)
 
 	memset(ctx, 0, sizeof(*ctx));
 
-	/* each cpu has it's own pmu interrtup */
+	/* each cpu has it's own pmu interrupt */
 	if (of_property_read_bool(pdev->dev.of_node, "private-interrupts")) {
 		ctx->private_interrupts = 1;
 		return 0;

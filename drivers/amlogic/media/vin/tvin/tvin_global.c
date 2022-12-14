@@ -258,5 +258,10 @@ inline bool IS_TVAFE_AVIN_SRC(enum tvin_port_e port)
 	return ((port >= TVIN_PORT_CVBS0) && (port <= TVIN_PORT_CVBS2));
 }
 
+inline bool IS_HDMI_SRC(enum tvin_port_e port)
+{
+	return ((port >= TVIN_PORT_HDMI0) && (port <= TVIN_PORT_HDMI7));
+}
+
 //MODULE_LICENSE("GPL");
 

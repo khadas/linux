@@ -798,7 +798,7 @@ static int alloc_keep_buffer(void)
 
 /*
  *flags,used per bit:
- *deflaut free alloced keeper buffer.
+ *default free alloced keeper buffer.
  *0x1: free scatters keeper..
  *0x2:
  */

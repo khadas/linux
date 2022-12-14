@@ -28,7 +28,7 @@ extern bool overrun_flag;
 extern u32 vsync_pts_inc_scale;
 extern u32 vsync_pts_inc_scale_base;
 extern atomic_t axis_changed;
-extern const char *src_fmt_str[8];
+extern const char *src_fmt_str[10];
 extern int ai_pq_disable;
 extern int ai_pq_value;
 extern int ai_pq_debug;

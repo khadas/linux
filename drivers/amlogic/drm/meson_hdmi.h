@@ -60,6 +60,9 @@ struct am_hdmi_tx {
 	struct drm_property *dv_cap_property;
 	struct drm_property *hdcp_ver_prop;
 	struct drm_property *hdcp_mode_property;
+	struct drm_property *lumi_max_property;
+	struct drm_property *lumi_min_property;
+	struct drm_property *lumi_avg_property;
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier	*cec_notifier;

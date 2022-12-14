@@ -8,12 +8,22 @@
 
 /* Local Headers */
 #include "ge2dgen.h"
+#include "ge2d_log.h"
 
 static void _fillrect(struct ge2d_context_s *wq,
 		      int x, int y, int w, int h,
-		      unsigned int color, int blk)
+		      unsigned int color, int blk, int enqueue)
 {
 	struct ge2d_cmd_s *ge2d_cmd_cfg = ge2d_wq_get_cmd(wq);
+
+	if (ge2d_log_level & GE2D_LOG_DUMP_STACK)
+		dump_stack();
+
+	if (x < 0 || y < 0 || w < 0 || h < 0) {
+		ge2d_log_err("%s wrong params, %d %d %d %d\n",
+			     __func__, x, y, w, h);
+		return;
+	}
 
 	ge2dgen_src_color(wq, color);
 
@@ -43,19 +53,26 @@ static void _fillrect(struct ge2d_context_s *wq,
 	ge2d_cmd_cfg->wait_done_flag   = blk;
 	ge2d_cmd_cfg->cmd_op           = IS_FILLRECT;
 
-	ge2d_wq_add_work(wq);
+	ge2d_wq_add_work(wq, enqueue);
 }
 
 void fillrect(struct ge2d_context_s *wq,
 	      int x, int y, int w, int h, unsigned int color)
 {
-	_fillrect(wq, x, y, w, h, color, 1);
+	_fillrect(wq, x, y, w, h, color, 1, 0);
 }
 EXPORT_SYMBOL(fillrect);
 
 void fillrect_noblk(struct ge2d_context_s *wq,
 		    int x, int y, int w, int h, unsigned int color)
 {
-	_fillrect(wq, x, y, w, h, color, 0);
+	_fillrect(wq, x, y, w, h, color, 0, 0);
 }
 EXPORT_SYMBOL(fillrect_noblk);
+
+void fillrect_enqueue(struct ge2d_context_s *wq,
+		      int x, int y, int w, int h, unsigned int color)
+{
+	_fillrect(wq, x, y, w, h, color, 0, 1);
+}
+EXPORT_SYMBOL(fillrect_enqueue);

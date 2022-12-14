@@ -34,11 +34,17 @@ static spinlock_t vclk_clk_lock;
  * mem map
  * *********************************
  */
-#define VCLK_MAP_ANA       0
-#define VCLK_MAP_CLK       1
-#define VCLK_MAP_MAX       2
+#define VCLK_MAP_HIU       0
+#define VCLK_MAP_ANA       1
+#define VCLK_MAP_CLK       2
+#define VCLK_MAP_MAX       3
 
-static int vclk_reg_table[] = {
+static int vclk_reg_table_0[] = {
+	VCLK_MAP_HIU,
+	VCLK_MAP_MAX
+};
+
+static int vclk_reg_table_1[] = {
 	VCLK_MAP_ANA,
 	VCLK_MAP_CLK,
 	VCLK_MAP_MAX
@@ -53,6 +59,7 @@ struct vclk_reg_map_s {
 
 static struct vclk_reg_map_s *vclk_reg_map;
 static int vclk_ioremap_flag;
+static int vclk_ioremap_mode = 1;
 
 static int vclk_ioremap(struct platform_device *pdev)
 {
@@ -65,7 +72,10 @@ static int vclk_ioremap(struct platform_device *pdev)
 	if (!vclk_reg_map)
 		return -1;
 
-	table = vclk_reg_table;
+	if (vclk_ioremap_mode)
+		table = vclk_reg_table_1;
+	else
+		table = vclk_reg_table_0;
 	for (i = 0; i < VCLK_MAP_MAX; i++) {
 		if (table[i] == VCLK_MAP_MAX)
 			break;
@@ -83,8 +93,8 @@ static int vclk_ioremap(struct platform_device *pdev)
 			res->start, vclk_reg_map[table[i]].size);
 		if (!vclk_reg_map[table[i]].p) {
 			vclk_reg_map[table[i]].flag = 0;
-			VCLKERR("%s: reg map failed: 0x%x\n",
-				__func__,
+			VCLKERR("%s: reg bus[%d] map failed: 0x%x\n",
+				__func__, table[i],
 				vclk_reg_map[table[i]].base_addr);
 			kfree(vclk_reg_map);
 			vclk_reg_map = NULL;
@@ -92,9 +102,10 @@ static int vclk_ioremap(struct platform_device *pdev)
 		}
 		vclk_reg_map[table[i]].flag = 1;
 		/*
-		 *VCLKPR("%s: reg mapped: 0x%x -> %px\n",
-		 *      __func__, vclk_reg_map[table[i]].base_addr,
-		 *      vclk_reg_map[table[i]].p);
+		 *VCLKPR("%s: reg bus[%d] mapped: 0x%x -> 0x%px\n",
+		 *     __func__, table[i],
+		 *     vclk_reg_map[table[i]].base_addr,
+		 *     vclk_reg_map[table[i]].p);
 		 */
 	}
 
@@ -109,11 +120,15 @@ static void vclk_iounmap(struct platform_device *pdev)
 	if (!vclk_reg_map)
 		return;
 
-	table = vclk_reg_table;
+	if (vclk_ioremap_mode)
+		table = vclk_reg_table_1;
+	else
+		table = vclk_reg_table_0;
 	for (i = 0; i < VCLK_MAP_MAX; i++) {
 		if (table[i] == VCLK_MAP_MAX)
 			break;
 		devm_iounmap(&pdev->dev, vclk_reg_map[table[i]].p);
+		vclk_reg_map[table[i]].flag = 0;
 	}
 
 	kfree(vclk_reg_map);
@@ -127,11 +142,31 @@ static int check_vclk_ioremap(int n)
 	if (n >= VCLK_MAP_MAX)
 		return -1;
 	if (vclk_reg_map[n].flag == 0) {
-		VCLKERR("reg 0x%x mapped error\n",
-			vclk_reg_map[n].base_addr);
+		VCLKERR("reg bus[%d] addr: 0x%x mapped error\n",
+			n, vclk_reg_map[n].base_addr);
 		return -1;
 	}
 	return 0;
+}
+
+static inline void __iomem *check_vclk_hiu_reg(unsigned int _reg)
+{
+	void __iomem *p;
+	int reg_bus;
+	unsigned int reg_offset;
+
+	reg_bus = VCLK_MAP_HIU;
+	if (check_vclk_ioremap(reg_bus))
+		return NULL;
+
+	reg_offset = VCLK_REG_OFFSET(_reg);
+
+	if (reg_offset >= vclk_reg_map[reg_bus].size) {
+		VCLKERR("invalid hiu reg offset: 0x%04x\n", _reg);
+		return NULL;
+	}
+	p = vclk_reg_map[reg_bus].p + reg_offset;
+	return p;
 }
 
 static inline void __iomem *check_vclk_ana_reg(unsigned int _reg)
@@ -177,6 +212,94 @@ static inline void __iomem *check_vclk_clk_reg(unsigned int _reg)
 /* ********************************
  * register access api
  * **********************************/
+unsigned int vclk_hiu_reg_read(unsigned int _reg)
+{
+	unsigned long flags = 0;
+	void __iomem *p;
+	unsigned int ret = 0;
+
+	spin_lock_irqsave(&vclk_ana_lock, flags);
+	if (vclk_ioremap_flag) {
+		p = check_vclk_hiu_reg(_reg);
+		if (p)
+			ret = readl(p);
+		else
+			ret = 0;
+	} else {
+		ret = aml_read_hiubus(_reg);
+	}
+	spin_unlock_irqrestore(&vclk_ana_lock, flags);
+
+	return ret;
+};
+
+void vclk_hiu_reg_write(unsigned int _reg, unsigned int _value)
+{
+	unsigned long flags = 0;
+	void __iomem *p;
+
+	spin_lock_irqsave(&vclk_ana_lock, flags);
+	if (vclk_ioremap_flag) {
+		p = check_vclk_hiu_reg(_reg);
+		if (p)
+			writel(_value, p);
+	} else {
+		aml_write_hiubus(_reg, _value);
+	}
+	spin_unlock_irqrestore(&vclk_ana_lock, flags);
+};
+
+void vclk_hiu_reg_setb(unsigned int _reg, unsigned int _value,
+		       unsigned int _start, unsigned int _len)
+{
+	void __iomem *p;
+	unsigned int temp;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&vclk_ana_lock, flags);
+
+	if (vclk_ioremap_flag) {
+		p = check_vclk_hiu_reg(_reg);
+		if (p) {
+			temp = readl(p);
+			temp = (temp & (~(((1L << _len) - 1) << _start))) |
+				((_value & ((1L << _len) - 1)) << _start);
+			writel(temp, p);
+		}
+	} else {
+		temp = aml_read_hiubus(_reg);
+		temp = (temp & (~(((1L << _len) - 1) << _start))) |
+			((_value & ((1L << _len) - 1)) << _start);
+		aml_write_hiubus(_reg, temp);
+	}
+
+	spin_unlock_irqrestore(&vclk_ana_lock, flags);
+}
+
+unsigned int vclk_hiu_reg_getb(unsigned int _reg,
+			       unsigned int _start, unsigned int _len)
+{
+	void __iomem *p;
+	unsigned int val;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&vclk_ana_lock, flags);
+
+	if (vclk_ioremap_flag) {
+		p = check_vclk_hiu_reg(_reg);
+		if (p)
+			val = readl(p);
+		else
+			val = 0;
+	} else {
+		val = aml_read_hiubus(_reg);
+	}
+	val = (val >> _start) & ((1L << _len) - 1);
+
+	spin_unlock_irqrestore(&vclk_ana_lock, flags);
+	return val;
+}
+
 unsigned int vclk_ana_reg_read(unsigned int _reg)
 {
 	unsigned long flags = 0;
@@ -374,6 +497,8 @@ static int aml_vclk_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct vclk_data_s *vclk_data;
+	unsigned int temp;
+	int ret;
 
 	match = of_match_device(vclk_match_table, &pdev->dev);
 	if (!match) {
@@ -381,6 +506,12 @@ static int aml_vclk_probe(struct platform_device *pdev)
 		return -1;
 	}
 	vclk_data = (struct vclk_data_s *)match->data;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "mode", &temp);
+	if (ret == 0) {
+		vclk_ioremap_mode = temp;
+		VCLKPR("%s: find mode: %d\n", __func__, vclk_ioremap_mode);
+	}
 
 	if (vclk_data->ioremap_flag) {
 		vclk_ioremap_flag = 1;

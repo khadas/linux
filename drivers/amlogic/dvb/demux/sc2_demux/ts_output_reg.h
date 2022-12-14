@@ -83,13 +83,17 @@ union OUT_CFG_FIELD {
 // Bit 12  :0      pcr_pid_0                      U     RW        default = 'h0
 // Bit 18  :13     sid_0                          U     RW        default = 'h0
 // Bit 19          valid_0                        U     RW        default = 'h0
-union PCR_TAB_FIELD {
+// Bit 26  :20     buffer id                     U     RW
+// Bit 27          ext                           U     RW
+union PCR_TEMI_TAB_FIELD {
 	unsigned int data;
 	struct {
 		unsigned int pcr_pid:13;
 		unsigned int sid:6;
 		unsigned int valid:1;
-		unsigned int rsvd:12;
+		unsigned int buffer_id:7;
+		unsigned int ext:1;
+		unsigned int rsvd:4;
 	} b;
 };
 

@@ -3707,7 +3707,8 @@ static void pre_de_done_buf_config(void)
 			post_wr_buf->vframe->di_gmv = 0;
 			post_wr_buf->vframe->di_cm_cnt = 0;
 		}
-
+		if (IS_ERR_OR_NULL(post_wr_buf))
+			return;
 		if (post_wr_buf && !di_pre_stru.cur_prog_flag) {
 			read_pulldown_info(&glb_frame_mot_num,
 				&glb_field_mot_num);
@@ -5062,7 +5063,7 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 	if ((data32 & 1) == 0 && di_dbg_mask&8)
 		pr_info("irq[%d]pre|post=0 write done.\n", irq);
 	if (di_pre_stru.pre_de_busy) {
-		/* only one inetrrupr mask should be enable */
+		/* only one interrupt mask should be enable */
 		if ((data32 & 2) && !(mask32 & 2)) {
 			di_print("== MTNWR ==\n");
 			flag = 1;
@@ -5155,7 +5156,7 @@ static irqreturn_t post_irq(int irq, void *dev_instance)
 				di_post_stru.post_wr_cnt,
 				di_post_stru.irq_time);
 		DI_Wr(DI_INTR_CTRL, (data32&0xffff0004)|(intr_mode<<30));
-		/* disable wr back avoid pps sreay in g12a */
+		/* disable wr back avoid pps read in g12a */
 		DI_Wr_reg_bits(DI_POST_CTRL, 0, 7, 1);
 	}
 	ddbg_mod_save(eDI_DBG_MOD_POST_IRQE, 0, 0);
@@ -7579,7 +7580,7 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		di_pre_stru.vdin_source = false;
 
 		/*di_requeset_afbc(false);*/
-		trigger_pre_di_process(TRIGGER_PRE_BY_PROVERDER_UNREG);
+		trigger_pre_di_process(TRIGGER_PRE_BY_PROVIDER_UNREG);
 		di_pre_stru.unreg_req_flag_cnt = 0;
 		//wait 10ms:
 		if (di_pre_stru.pre_de_process_flag
@@ -7827,7 +7828,7 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		atomic_set(&di_flag_unreg, 0); //ary
 		bypass_state = 0;
 		di_pre_stru.reg_req_flag = 1;
-		trigger_pre_di_process(TRIGGER_PRE_BY_PROVERDER_REG);
+		trigger_pre_di_process(TRIGGER_PRE_BY_PROVIDER_REG);
 		/*check unreg process*/
 		di_pre_stru.reg_req_flag_cnt = 0;
 		while (di_pre_stru.reg_req_flag) {
@@ -8410,11 +8411,11 @@ static int __init rmem_di_device_init(struct reserved_mem *rmem,
 		if (!of_get_flat_dt_prop(rmem->fdt_node, "no-map", NULL))
 			di_devp->flags |= DI_MAP_FLAG;
 		#endif
-	pr_dbg("di reveser memory 0x%lx, size %uMB.\n",
+	pr_dbg("di reverse memory 0x%lx, size %uMB.\n",
 			di_devp->mem_start, (di_devp->mem_size >> 20));
 		return 0;
 	}
-/* pr_dbg("di reveser memory 0x%x, size %u B.\n",
+/* pr_dbg("di reverse memory 0x%x, size %u B.\n",
  * rmem->base, rmem->size);
  */
 	return 1;
@@ -8835,7 +8836,7 @@ static int di_probe(struct platform_device *pdev)
 	di_hw_init(pulldown_enable, mcpre_en);
 	set_di_flag();
 	atomic_set(&di_flag_unreg, 0);
-/* Disable MCDI when code does not surpport MCDI */
+/* Disable MCDI when code does not support MCDI */
 	if (!mcpre_en)
 		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 1);
 	tasklet_init(&di_pre_tasklet, pre_tasklet,

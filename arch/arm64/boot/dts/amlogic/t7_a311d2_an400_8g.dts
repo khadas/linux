@@ -152,7 +152,16 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x0 0x1800000>;
+			size = <0x0 0x4000000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+
+		cam_cma_reserved:linux,cam_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			status = "okay";
+			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -176,7 +185,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1920x1080x4x3 round up 4M align */
-			size = <0x0 0x1c00000>;
+			size = <0x0 0x6000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -313,7 +322,7 @@
 	unifykey{
 		compatible = "amlogic,unifykey";
 		status = "okay";
-		unifykey-num = <19>;
+		unifykey-num = <28>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -336,6 +345,12 @@
 		unifykey-index-19= <&keysn_19>;
 		unifykey-index-20= <&keysn_20>;
 		unifykey-index-21= <&keysn_21>;
+		unifykey-index-22= <&keysn_22>;
+		unifykey-index-23= <&keysn_23>;
+		unifykey-index-24= <&keysn_24>;
+		unifykey-index-25= <&keysn_25>;
+		unifykey-index-26= <&keysn_26>;
+		unifykey-index-27= <&keysn_27>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -450,12 +465,44 @@
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
+		keysn_22:key_22{
+			key-name = "lcd1";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_23:key_23{
+			key-name = "lcd1_extern";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_24:key_24{
+			key-name = "backlight1";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_25:key_25{
+			key-name = "lcd2";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_26:key_26{
+			key-name = "lcd2_extern";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_27:key_27{
+			key-name = "backlight2";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
 	};//End unifykey
 
 	sensor: sensor {
 		compatible = "soc, sensor";
 		status = "okay";
 		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		sensor-name-sub = "imx290sub";
+		sensor-name-ssub = "imx290ssub";
 		pinctrl-names= "default";
 		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
 		clocks = <&clkc CLKID_MCLK_0>,
@@ -466,7 +513,9 @@
 				<&xtal>;
 		clock-names = "mclk_0","mclk_1","mclk_0_pre","mclk_1_pre","mclk_p","mclk_x";
 		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
+		pwdn-sub = <&gpio GPIOM_4 GPIO_ACTIVE_HIGH>;
 		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+		reset-sub = <&gpio GPIOM_10 GPIO_ACTIVE_HIGH>;
 	};
 
 	iq: iq {
@@ -678,19 +727,19 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
-
-//		aml-audio-card,dai-link@7 {
-//			mclk-fs = <256>;
-//			suffix-name = "alsaPORT-earc";
-//			cpu {
-//				sound-dai = <&earc>;
-//				system-clock-frequency = <12288000>;
-//			};
-//			codec {
-//				sound-dai = <&dummy_codec>;
-//			};
-//		};
-
+/*
+		aml-audio-card,dai-link@7 {
+			mclk-fs = <256>;
+			suffix-name = "alsaPORT-earc";
+			cpu {
+				sound-dai = <&earc>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+*/
 		aml-audio-card,dai-link@7 {
 			mclk-fs = <256>;
 			continuous-clock;
@@ -718,6 +767,12 @@
 		status = "okay";
 	};
 
+	video_queue {
+		compatible = "amlogic, video_queue";
+		dev_name = "videoqueue";
+		status = "okay";
+	};
+
 	amdolby_vision {
 		compatible = "amlogic, dolby_vision_t7";
 		dev_name = "aml_amdolby_vision_driver";
@@ -726,39 +781,39 @@
 	};
 
     /* SMC */
-//	smartcard {
-//		compatible = "amlogic,smartcard-sc2";
-//		dev_name = "smartcard";
-//		status = "disabled";
-//
-//		reg = <0x0 0xfe000000 0x0 0x480000>;
-//		irq_trigger_type = "GPIO_IRQ_LOW";
-//
-//		reset_pin-gpios = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
-//		detect_pin-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
-//		enable_5v3v_pin-gpios = <&gpio GPIOT_11 GPIO_ACTIVE_HIGH>;
-//		enable_pin-gpios = <&gpio GPIOT_12 GPIO_ACTIVE_HIGH>;
-//
-//		interrupts = <0 174 1>;
-//		interrupt-names = "smc0_irq";
-//
-//		//Smc clock source, if change this,
-//		//you must adjust clk and divider in smartcard.c
-//
-//		smc0_clock_source = <0>;
-//		//0: high voltage on detect pin indicates card in.
-//		smc0_det_invert = <0>;
-//		smc0_5v3v_level = <0>;
-//		//Ordinarily,smartcard controller needs a enable pin.
-//		smc_need_enable_pin = "yes";
-//		reset_level = <0>;
-//		smc0_enable_level = <0>;
-//
-//		pinctrl-names = "default";
-//		pinctrl-0 = <&sd_iso7816_pins>;
-//		clocks = <&clkc CLKID_SC_CLK_GATE>;
-//		clock-names = "smartcard";
-//	};
+	smartcard {
+		compatible = "amlogic,smartcard-sc2";
+		dev_name = "smartcard";
+		status = "disabled";
+
+		reg = <0x0 0xfe000000 0x0 0x480000>;
+		irq_trigger_type = "GPIO_IRQ_LOW";
+
+		reset_pin-gpios = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
+		detect_pin-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+		enable_5v3v_pin-gpios = <&gpio GPIOT_11 GPIO_ACTIVE_HIGH>;
+		enable_pin-gpios = <&gpio GPIOT_12 GPIO_ACTIVE_HIGH>;
+
+		interrupts = <0 174 1>;
+		interrupt-names = "smc0_irq";
+		/*
+		 *Smc clock source, if change this,
+		 *you must adjust clk and divider in smartcard.c
+		 */
+		smc0_clock_source = <0>;
+		/*0: high voltage on detect pin indicates card in.*/
+		smc0_det_invert = <0>;
+		smc0_5v3v_level = <0>;
+		/*Ordinarily,smartcard controller needs a enable pin.*/
+		smc_need_enable_pin = "yes";
+		reset_level = <0>;
+		smc0_enable_level = <0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd_iso7816_pins>;
+		clocks = <&clkc CLKID_SC_CLK_GATE>;
+		clock-names = "smartcard";
+	};
 
 	dvb-extern {
 		compatible = "amlogic, dvb-extern";
@@ -938,7 +993,7 @@
 		/* !!!For --TV platform-- ONLY */
 		Channel_Mask {
 			/*i2s has 4 pins, 8channel, mux output*/
-			Spdif_samesource_Channel_Mask = "i2s_2/3";
+			Spdif_samesource_Channel_Mask = "i2s_0/1";
 		};
 	};
 
@@ -1312,6 +1367,16 @@
 	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins1>;
+	clock-frequency = <100000>; /* default 100k */
+	sensor-i2c@6c {
+		compatible = "arm, i2c-sensor-ssub";
+		reg = <0x6c>;
+		reg-names = "i2c-sensor";
+		slave-addr = <0x6c>;
+		reg-type = <2>;
+		reg-data-type = <1>;
+		link-device = <&phycsi>;
+	};
 
 	tas5707_36: tas5707_36@1b {
 		compatible = "ti,tas5707";
@@ -1344,6 +1409,120 @@
 		reg-data-type = <1>;
 		link-device = <&phycsi>;
 	};
+	imx290_0: sensor0@1a {
+		compatible = "sony, imx290";
+		index = <0>;
+		reg = <0x1a>;
+		reg-addr-type = <2>;
+		reg-data-type = <1>;
+
+		clock-frequency = <37125000>;
+		clocks = <&clkc CLKID_MCLK_0>;
+		clock-names = "mclk";
+
+		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+
+		port {
+			imx290_0_ep: endpoint {
+				data-lanes = <0 1>;
+				link-frequencies = /bits/ 64 <445500000>;
+				remote-endpoint = <&csiphy0_ep>;
+			};
+		};
+	};
+
+	ov5640_0: sensor0@3c {
+		compatible = "ov, ov5640";
+		index = <0>;
+		reg = <0x3c>;
+		reg-addr-type = <2>;
+		reg-data-type = <1>;
+
+		clock-frequency = <24000000>;
+		clocks = <&clkc CLKID_MCLK_0>,
+				<&clkc CLKID_MCLK_1>,
+				<&clkc CLKID_MCLK_0_PRE>,
+				<&clkc CLKID_MCLK_1_PRE>,
+				<&xtal>;
+		clock-names = "mclk_0","mclk_1","mclk_0_pre","mclk_1_pre","xtal";
+
+		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+
+		port {
+			ov5640_0_ep: endpoint {
+				data-lanes = <0 1>;
+				link-frequencies = /bits/ 64 <672000000>;
+				remote-endpoint = <&csiphy0_ep>;
+			};
+		};
+	};
+};
+
+&i2c3 {
+	status = "okay";
+	pinctrl-names = "default";//, "sleep"
+	pinctrl-0 = <&i2c3_pins1>;
+	clock-frequency = <100000>; /* default 100k */
+	sensor-i2c@6c {
+		compatible = "arm, i2c-sensor-sub";
+		reg = <0x6c>;
+		reg-names = "i2c-sensor";
+		slave-addr = <0x6c>;
+		reg-type = <2>;
+		reg-data-type = <1>;
+		link-device = <&phycsi>;
+	};
+	imx290_2: sensor1@1a {
+		compatible = "sony, imx290";
+		index = <1>;
+		reg = <0x1a>;
+		reg-addr-type = <2>;
+		reg-data-type = <1>;
+
+		clock-frequency = <37125000>;
+		clocks = <&clkc CLKID_MCLK_1>;
+		clock-names = "mclk";
+
+		pwdn = <&gpio GPIOM_4 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_10 GPIO_ACTIVE_HIGH>;
+
+		port {
+			imx290_2_ep: endpoint {
+				data-lanes = <0 1>;
+				link-frequencies = /bits/ 64 <445500000>;
+				remote-endpoint = <&csiphy2_ep>;
+			};
+		};
+	};
+
+	ov5640_2: sensor1@3c {
+		compatible = "ov, ov5640";
+		index = <1>;
+		reg = <0x3c>;
+		reg-addr-type = <2>;
+		reg-data-type = <1>;
+
+		clock-frequency = <24000000>;
+		clocks = <&clkc CLKID_MCLK_0>,
+				<&clkc CLKID_MCLK_1>,
+				<&clkc CLKID_MCLK_0_PRE>,
+				<&clkc CLKID_MCLK_1_PRE>,
+				<&xtal>;
+		clock-names = "mclk_0","mclk_1","mclk_0_pre","mclk_1_pre","xtal";
+
+		pwdn = <&gpio GPIOM_4 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_10 GPIO_ACTIVE_HIGH>;
+
+		port {
+			ov5640_2_ep: endpoint {
+				data-lanes = <0 1>;
+				link-frequencies = /bits/ 64 <672000000>;
+				remote-endpoint = <&csiphy2_ep>;
+			};
+		};
+	};
 };
 
 &i2c5 {
@@ -1352,6 +1531,26 @@
 	pinctrl-0 = <&i2c5_pins1>;
 	//pinctrl-1 = <&i2c2_sleep_pins2>;
 	clock-frequency = <100000>; /* default 100k */
+};
+
+&csiphy0 {
+	port {
+		csiphy0_ep: endpoint {
+			clock-lanes = <4>;
+			data-lanes = <0 1>;
+			remote-endpoint = <&ov5640_0_ep>;
+		};
+	};
+};
+
+&csiphy2 {
+	port {
+		csiphy2_ep: endpoint {
+			clock-lanes = <4>;
+			data-lanes = <0 1>;
+			remote-endpoint = <&ov5640_2_ep>;
+		};
+	};
 };
 
 /* SDIO */
@@ -1414,9 +1613,10 @@
 
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	//mmc-ddr-1_8v;
+	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
+	//mmc-hs400-enhanced-strobe;
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
@@ -1443,16 +1643,36 @@
 &isp {
 	status = "okay";
 	temper-line-offset = <0x1680>;
-	temper-buf-size = <12>;
+	temper-buf-size = <6>;
 	temper-frame-num = <1>;
-	temper-frame-size = <0xBDD800>;
+	temper-frame-size = <0x5EEC00>;
+	temper-line-offset1 = <0x1680>;
+	temper-buf-size1 = <6>;
+	temper-frame-num1 = <1>;
+	temper-frame-size1 = <0x5EEC00>;
+	temper-line-offset2 = <0x1680>;
+	temper-buf-size2 = <6>;
+	temper-frame-num2 = <1>;
+	temper-frame-size2 = <0x5EEC00>;
 	memory-region = <&isp_cma_reserved>;
 };
 
 &adapter {
 	status = "okay";
-	mem_alloc = <24>;
+	mem_alloc = <32>;
+	mem_alloc1 = <16>;
+	mem_alloc2 = <16>;
 	memory-region = <&adapt_cma_reserved>;
+};
+
+&adapter0 {
+	status = "okay";
+	memory-region = <&cam_cma_reserved>;
+};
+
+&adapter2 {
+	status = "okay";
+	memory-region = <&cam_cma_reserved>;
 };
 
 &ir {
@@ -1475,17 +1695,43 @@
 	cs-gpios = <&gpio GPIOY_3 GPIO_ACTIVE_HIGH>;
 };
 
+&spicc3 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc3_pins>;
+	cs-gpios = <&gpio GPIOT_9 0>;
+	spi-nor@0 {
+		compatible = "jedec,spi-nor";
+		status = "okay";
+		reg = <0>;
+		spi-max-frequency = <16000000>;
+	};
+};
+
 &fb {
 	status = "okay";
-	display_size_default = <1920 1080 1920 2160 32>;
-	mem_size = <0x00800000 0x1980000 0x100000 0x100000 0x100000>;
+	display_size_default = <3840 2160 3840 4320 32>;
+	mem_size = <0x00800000 0x4000000 0x100000 0x100000 0x100000>;
+	4k2k_fb = <1>;
+	display_device_cnt = <2>;
 	logo_addr = "0x3f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
+&amvideom {
+	display_device_cnt = <2>;
+	vpp0_layer_count = <2>;
+	/* number of video layer display on vpp1 */
+	vpp1_layer_count = <1>;
+};
+
 &amhdmitx {
 	status = "okay";
+	repeater_tx = <0>;
+	enc_idx = <0>;
+	vrr_type = <2>; /* 1: GAME-VRR, 2: QMS-VRR */
+	tv_usage = <1>;
 };
 
 /*if you want to use vdin just modify status to "ok"*/

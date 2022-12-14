@@ -36,7 +36,7 @@
 #define	DTB_SIZE		(DTB_BLK_CNT * DTB_BLK_SIZE)
 #define DTB_COPIES		(2)
 #define DTB_AREA_BLK_CNT	(DTB_BLK_CNT * DTB_COPIES)
-/* pertransfer for internal opearations. */
+/* pertransfer for internal operations. */
 #define MAX_TRANS_BLK		(256)
 #define	MAX_TRANS_SIZE		(MAX_TRANS_BLK * DTB_BLK_SIZE)
 #define stamp_after(a, b)	((int)(b) - (int)(a)  < 0)
@@ -723,7 +723,7 @@ int get_reserve_partition_off_from_tbl(void)
 	return -1;
 }
 
-/* static void show_mmc_patition (struct partitions *part, int part_num)
+/* static void show_mmc_partition (struct partitions *part, int part_num)
  * {
  * int i, cnt_stuff;
 
@@ -787,7 +787,7 @@ static int mmc_read_partition_tbl(struct mmc_card *card,
 	/* pr_info("Partition table stored in eMMC/TSD:\n"); */
 	/* pr_info("magic: %s, version: %s, checksum=%#x\n", */
 	/* pt_fmt->magic, pt_fmt->version, pt_fmt->checksum); */
-	/* show_mmc_patition(pt_fmt->partitions, pt_fmt->part_num); */
+	/* show_mmc_partition(pt_fmt->partitions, pt_fmt->part_num); */
 
 	if ((strncmp(pt_fmt->magic, MMC_PARTITIONS_MAGIC,
 		     sizeof(pt_fmt->magic)) == 0) && pt_fmt->part_num > 0 &&
@@ -1194,7 +1194,7 @@ int add_fake_boot_partition(struct gendisk *disk, char *name, int idx)
 		memcpy(efuse_field.data, buff, bufflen);
 		efuse_field.size = bufflen;
 	} else {
-		pr_err("Error gettting eFUSE DATA: %d\n", rc);
+		pr_err("Error getting eFUSE DATA: %d\n", rc);
 	}
 
 	if (*efuse_field.data == 0) {

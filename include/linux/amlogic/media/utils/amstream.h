@@ -306,6 +306,7 @@ enum FRAME_BASE_VIDEO_PATH {
 	FRAME_BASE_PATH_AMLVIDEO_FENCE,
 	FRAME_BASE_PATH_TUNNEL_DI_MODE,
 	FRAME_BASE_PATH_V4LVIDEO_FENCE,
+	FRAME_BASE_PATH_V4LVIDEO_AMLVIDEO,
 	FRAME_BASE_PATH_MAX
 };
 
@@ -324,6 +325,8 @@ struct buf_status {
 #define STAT_VF_HOOK        0x08
 #define STAT_TIMER_ARM      0x10
 #define STAT_VDEC_RUN       0x20
+#define STAT_TIMER_BACK_ARM 0x40
+#define STAT_TIMER_BACK_INIT 0x80
 
 /*struct vdec_status.status on error*/
 
@@ -894,7 +897,7 @@ struct av_param_qosinfo_t {
 };
 
 /*This is a versioning structure, the key member is the struct_size.
- *In the 1st version it is not used,but will have its role in fureture.
+ *In the 1st version it is not used,but will have its role in future.
  *https://bytes.com/topic/c/answers/811125-struct-versioning
  */
 struct av_param_mvdec_t {

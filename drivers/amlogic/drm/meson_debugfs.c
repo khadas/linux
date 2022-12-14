@@ -196,7 +196,7 @@ static int meson_regdump_show(struct seq_file *sf, void *data)
 	struct am_meson_crtc *amc = to_am_meson_crtc(crtc);
 	struct meson_vpu_pipeline *mvp1 = amc->pipeline;
 
-	for (i = 0; i < mvp1->num_blocks; i++) {
+	for (i = 0; i < MESON_MAX_BLOCKS; i++) {
 		mvb = mvp1->mvbs[i];
 		if (!mvb)
 			continue;
@@ -590,8 +590,14 @@ static ssize_t meson_reg_debug_write(struct file *file, const char __user *ubuf,
 	} else if (!strcmp(parm[0], "ow")) {
 		if (parm[1] && !strcmp(parm[1], "1"))
 			overwrite_enable = 1;
-		else if (parm[1] && !strcmp(parm[1], "0"))
+		else if (parm[1] && !strcmp(parm[1], "0")) {
 			overwrite_enable = 0;
+			for (i = 0; i < reg_num; i++) {
+				overwrite_val[i] = 0;
+				overwrite_val[i] = 0;
+			}
+			reg_num = 0;
+		}
 	}
 
 	return len;

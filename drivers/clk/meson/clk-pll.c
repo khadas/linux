@@ -148,6 +148,35 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 }
 #endif
 
+#if defined CONFIG_AMLOGIC_MODIFY && defined CONFIG_ARM
+static unsigned int __pll_params_with_frac(unsigned long rate,
+					   unsigned long parent_rate,
+					   unsigned int m,
+					   unsigned int n,
+					   unsigned int od,
+					   struct meson_clk_pll_data *pll)
+{
+	unsigned int frac_max;
+	u64 val = ((u64)rate * n) << od;
+
+	if (pll->new_frac)
+		frac_max = FRAC_BASE;
+	else
+		frac_max = (1 << (pll->frac.width - 2));
+	/* Bail out if we are already over the requested rate */
+	if (rate < (parent_rate * m / n) >> od)
+		return 0;
+
+	if (pll->flags & CLK_MESON_PLL_ROUND_CLOSEST)
+		val = DIV_ROUND_CLOSEST_ULL(val * frac_max, parent_rate);
+	else
+		val = div_u64(val * frac_max, parent_rate);
+
+	val -= m * frac_max;
+
+	return min((unsigned int)val, (frac_max - 1));
+}
+#else
 static unsigned int __pll_params_with_frac(unsigned long rate,
 					   unsigned long parent_rate,
 					   unsigned int m,
@@ -174,6 +203,7 @@ static unsigned int __pll_params_with_frac(unsigned long rate,
 
 	return min((unsigned int)val, (frac_max - 1));
 }
+#endif
 
 static bool meson_clk_pll_is_better(unsigned long rate,
 				    unsigned long best,
@@ -384,7 +414,7 @@ static long meson_clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	 * The rate provided by the setting is not an exact match, let's
 	 * try to improve the result using the fractional parameter
 	 */
-	frac = __pll_params_with_frac(rate, *parent_rate, m, n, pll);
+	frac = __pll_params_with_frac(rate, *parent_rate, m, n, od, pll);
 
 	return __pll_params_to_rate(*parent_rate, m, n, frac, pll, od);
 }
@@ -486,7 +516,7 @@ static int meson_clk_pcie_pll_enable(struct clk_hw *hw)
 	if (retry <= 0)
 		return -EIO;
 
-	/*pcie pll clk share use for usb phy, so add this operiaton from ASIC*/
+	/*pcie pll clk share use for usb phy, so add this operation from ASIC*/
 	do {
 		if (meson_parm_read(clk->map, &pll->pcie_hcsl)) {
 			meson_parm_write(clk->map, &pll->pcie_exen, 0);
@@ -577,15 +607,21 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	meson_parm_write(clk->map, &pll->m, m);
 #if defined CONFIG_AMLOGIC_MODIFY && defined CONFIG_ARM
 	meson_parm_write(clk->map, &pll->od, od);
-#endif
+
+	if (MESON_PARM_APPLICABLE(&pll->frac)) {
+		frac = __pll_params_with_frac(rate, parent_rate, m, n, od, pll);
+		meson_parm_write(clk->map, &pll->frac, frac);
+	}
+#else
 
 	if (MESON_PARM_APPLICABLE(&pll->frac)) {
 		frac = __pll_params_with_frac(rate, parent_rate, m, n, pll);
 		meson_parm_write(clk->map, &pll->frac, frac);
 	}
 
+#endif
 	/*
-	 * The PLL should set together requied by the
+	 * The PLL should set together required by the
 	 * PLL sequence.
 	 * This scenes will cause PLL lock failed
 	 *  clk_set_rate(pll);
@@ -842,6 +878,42 @@ const struct clk_ops meson_clk_pll_ro_ops = {
 	.is_enabled	= meson_clk_pll_is_enabled,
 };
 EXPORT_SYMBOL_GPL(meson_clk_pll_ro_ops);
+
+static unsigned long meson_clk_axg_pll_recalc_rate(struct clk_hw *hw,
+					       unsigned long parent_rate)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+	unsigned int m, n, frac;
+	u64 rate;
+
+	n = meson_parm_read(clk->map, &pll->n);
+
+	if (n == 0)
+		return 0;
+
+	m = meson_parm_read(clk->map, &pll->m);
+	rate = (u64)parent_rate * m;
+
+	frac = MESON_PARM_APPLICABLE(&pll->frac) ?
+		meson_parm_read(clk->map, &pll->frac) :
+		0;
+
+	if (frac && MESON_PARM_APPLICABLE(&pll->frac)) {
+		u64 frac_rate = (u64)parent_rate * frac;
+
+		rate += DIV_ROUND_UP_ULL(frac_rate,
+					 (1 << pll->frac.width));
+	}
+
+	return DIV_ROUND_UP_ULL(rate, n);
+}
+
+const struct clk_ops meson_clk_axg_pll_ro_ops = {
+	.recalc_rate	= meson_clk_axg_pll_recalc_rate,
+	.is_enabled	= meson_clk_pll_is_enabled,
+};
+EXPORT_SYMBOL_GPL(meson_clk_axg_pll_ro_ops);
 
 MODULE_DESCRIPTION("Amlogic PLL driver");
 MODULE_AUTHOR("Carlo Caione <carlo@endlessm.com>");

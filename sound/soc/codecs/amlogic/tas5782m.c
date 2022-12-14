@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * ALSA SoC Amlogic t9015c interenl codec driver
+ * ALSA SoC Amlogic t9015c internal codec driver
  *
  * Copyright (C) 2019 Amlogic,inc
  *
@@ -404,8 +404,10 @@ static int tas5782m_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_S24_LE:
 	case SNDRV_PCM_FORMAT_S24_BE:
 		pr_debug("24bit\n");
-	/* go through */
+		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
+		pr_debug("32bit\n");
+		break;
 	case SNDRV_PCM_FORMAT_S20_3LE:
 	case SNDRV_PCM_FORMAT_S20_3BE:
 		pr_debug("20bit\n");

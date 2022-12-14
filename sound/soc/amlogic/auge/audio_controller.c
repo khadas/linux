@@ -1,9 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (C) 2019 Amlogic, Inc. All rights reserved.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
-
 /*#define DEBUG*/
 
 #include <linux/device.h>
@@ -16,6 +14,8 @@
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/clk-provider.h>
+#include <linux/of_platform.h>
+
 
 #include "../common/iomapres.h"
 
@@ -81,8 +81,22 @@ static struct regmap_config aml_audio_regmap_config = {
 	.reg_stride = 4,
 };
 
+struct gate_info {
+	bool clk1_gate_off;
+};
+
+static struct gate_info axg_info = {
+	.clk1_gate_off = true,
+};
+
 static const struct of_device_id amlogic_audio_controller_of_match[] = {
-	{ .compatible = "amlogic, audio-controller" },
+	{
+		.compatible = "amlogic, audio-controller"
+	},
+	{
+		.compatible = "amlogic, axg-audio-controller",
+		.data       = &axg_info,
+	},
 	{},
 };
 
@@ -92,6 +106,7 @@ static int register_audio_controller(struct platform_device *pdev,
 	struct resource *res_mem;
 	void __iomem *regs;
 	struct regmap *regmap;
+	struct gate_info *info = (struct gate_info *)of_device_get_match_data(&pdev->dev);
 
 	/* get platform res from dtb */
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -115,7 +130,10 @@ static int register_audio_controller(struct platform_device *pdev,
 
 	/* gate on all clks on bringup stage, need gate separately */
 	aml_audiobus_write(actrl, EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
-	aml_audiobus_update_bits(actrl, EE_AUDIO_CLK_GATE_EN1, 0x7, 0x7);
+
+	if (info && !info->clk1_gate_off)
+		aml_audiobus_update_bits(actrl, EE_AUDIO_CLK_GATE_EN1, 0xffffffff, 0xffffffff);
+
 	return 0;
 }
 
@@ -132,7 +150,7 @@ static int aml_audio_controller_probe(struct platform_device *pdev)
 
 	ret = of_property_read_u32(node, "chip_id", &chip_id);
 	if (ret < 0)
-		/* defulat set 0 */
+		/* default set 0 */
 		chip_id = 0;
 
 	return register_audio_controller(pdev, actrl);

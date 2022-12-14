@@ -11,8 +11,6 @@
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include "../lcd_bl.h"
 
-#define LDIM_SPI_DUTY_VSYNC_DIRECT
-
 int ldim_spi_dma_cycle_align_byte(int size);
 
 /* ldim spi api*/

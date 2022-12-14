@@ -20,10 +20,13 @@
 #include <linux/types.h>
 #include <linux/io.h>
 #include <linux/printk.h>
+#include <linux/mutex.h>
 #include <linux/amlogic/iomap.h>
 
 #define DEVICE_NAME "aml_mkl"
 #define DEVICE_INSTANCES 1
+
+static DEFINE_MUTEX(aml_mkl_mutex);
 
 /* kl register */
 #define MKL_REE_RDY (0x0020 << 2)
@@ -65,44 +68,10 @@
 #define KL_STAGE_OFFSET (0)
 #define KL_STAGE_MASK (3)
 
-/* key user */
-#define KT_USER_M2M_0 (0)
-#define KT_USER_M2M_1 (1)
-#define KT_USER_M2M_2 (2)
-#define KT_USER_M2M_3 (3)
-#define KT_USER_M2M_4 (4)
-#define KT_USER_M2M_5 (5)
-#define KT_USER_M2M_ANY (7)
-#define KT_USER_TSD (8)
-#define KT_USER_TSN (9)
-#define KT_USER_TSE (10)
-
-/* key algorithm */
-#define KT_ALGO_AES (0)
-#define KT_ALGO_TDES (1)
-#define KT_ALGO_DES (2)
-#define KT_ALGO_S17 (3)
-#define KT_ALGO_NDL (7)
-#define KT_ALGO_ND (8)
-#define KT_ALGO_CSA3 (9)
-#define KT_ALGO_CSA2 (10)
-#define KT_ALGO_HMAC (13)
-
-/* key level */
-#define KT_LEVEL_0 (0)
-#define KT_LEVEL_1 (1)
-#define KT_LEVEL_2 (2)
-#define KT_LEVEL_3 (3)
-#define KT_LEVEL_4 (4)
-#define KT_LEVEL_5 (5)
-#define KT_LEVEL_6 (6)
-#define KT_LEVEL_7 (7)
-
 /* kl etc */
 #define KT_KTE_MAX (256)
 #define HANDLE_TO_KTE(h) ((h) & (KT_KTE_MAX - 1))
 #define KL_PENDING_WAIT_TIMEOUT (20000)
-#define KL_MODE_ETSI (2)
 #define KL_ETSI_MID_MSG (0)
 
 /* kl status */
@@ -166,19 +135,22 @@ static int aml_mkl_release(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static void program_key_ram(void *iobase, const uint8_t data[16])
+static int aml_mkl_program_key(void *iobase, const uint8_t *data, uint32_t len)
 {
 	int i = 0;
-	u32 tmp_data[4] = { 0 };
+	const u32 *data32 = (const u32 *)data;
 
-	memcpy(tmp_data, data, 16);
+	if (!data32 || len != 16)
+		return -1;
 
 	for (i = 0; i < 4; i++)
-		aml_mkl_iowrite32(tmp_data[i],
+		aml_mkl_iowrite32(data32[i],
 				  (iobase + MKL_REE_EK) + i * sizeof(uint32_t));
+
+	return 0;
 }
 
-static int kl_lock(void *iobase)
+static int aml_mkl_lock(void *iobase)
 {
 	int cnt = 0;
 
@@ -192,12 +164,12 @@ static int kl_lock(void *iobase)
 	return KL_STATUS_OK;
 }
 
-static void kl_unlock(void *iobase)
+static void aml_mkl_unlock(void *iobase)
 {
 	aml_mkl_iowrite32(1, iobase + MKL_REE_RDY);
 }
 
-static int aml_mkl_kl_run(void *iobase, struct amlkl_params *param)
+static int aml_mkl_etsi_run(void *iobase, struct amlkl_params *param)
 {
 	int ret;
 	int i;
@@ -206,40 +178,51 @@ static int aml_mkl_kl_run(void *iobase, struct amlkl_params *param)
 	void *reg_addr;
 	struct amlkl_usage *pu;
 
-	if (!param)
-		return KL_STATUS_ERROR_BAD_PARAM;
+	mutex_lock(&aml_mkl_mutex);
+
+	if (!param) {
+		ret = KL_STATUS_ERROR_BAD_PARAM;
+		goto exit;
+	}
 
 	pu = &param->usage;
-	pr_info("kth:%d, levels:%d, secure_level:%d, mid:%#x, kl_algo:%d, mrk:%d\n",
-		param->kt_handle, param->levels, param->secure_level,
-		param->module_id, param->kl_algo, param->mrk_cfg_index);
+	pr_info("kth:%d, levels:%d, mid:%#x, kl_algo:%d, mrk:%d\n",
+		param->kt_handle, param->levels, param->module_id,
+		param->kl_algo, param->mrk_cfg_index);
 	pr_info("kt usage, crypto:%d, algo:%d, uid:%d\n", pu->crypto, pu->algo,
 		pu->uid);
 
 	if (pu->uid & ~KL_USERID_MASK ||
-	    (pu->uid > KT_USER_M2M_5 && pu->uid < KT_USER_TSD) ||
-	    (pu->uid > KT_USER_TSE && pu->uid < KL_USERID_MASK) ||
+	    (pu->uid > AML_KT_USER_M2M_5 && pu->uid < AML_KT_USER_TSD) ||
+	    (pu->uid > AML_KT_USER_TSE && pu->uid < KL_USERID_MASK) ||
 	    pu->algo & ~KL_KEYALGO_MASK ||
-	    (pu->algo > KT_ALGO_DES && pu->algo < KT_ALGO_NDL) ||
-	    (pu->algo > KT_ALGO_CSA2 && pu->algo < KT_ALGO_HMAC) ||
-	    (pu->algo > KT_ALGO_HMAC && pu->algo < KL_KEYALGO_MASK) ||
+	    (pu->algo > AML_KT_ALGO_DES && pu->algo < AML_KT_ALGO_NDL) ||
+	    (pu->algo > AML_KT_ALGO_CSA2 && pu->algo < AML_KT_ALGO_HMAC) ||
+	    (pu->algo > AML_KT_ALGO_HMAC && pu->algo < KL_KEYALGO_MASK) ||
 	    pu->crypto & ~KL_FLAG_MASK ||
-		param->secure_level > KT_LEVEL_3 ||
-	    param->levels < 3 || param->levels > 6 ||
-	    param->kl_algo >= KL_ALGO_MAX || param->mrk_cfg_index > 3) {
-		return KL_STATUS_ERROR_BAD_PARAM;
+	    param->levels < AML_KL_LEVEL_3 || param->levels > AML_KL_LEVEL_6 ||
+	    param->kl_algo > AML_KL_ALGO_AES ||
+	    param->mrk_cfg_index > AML_KL_MRK_ETSI_3) {
+		ret = KL_STATUS_ERROR_BAD_PARAM;
+		goto exit;
 	}
 
 	/* 1. Read KL_REE_RDY to lock KL */
-	if (kl_lock(iobase) != KL_STATUS_OK) {
+	if (aml_mkl_lock(iobase) != KL_STATUS_OK) {
 		pr_err("key ladder not ready\n");
-		return KL_STATUS_ERROR_BAD_STATE;
+		ret = KL_STATUS_ERROR_BAD_STATE;
+		goto exit;
 	}
 
 	/* 2. Program Eks */
 	for (i = 0; i < param->levels; i++) {
-		program_key_ram(iobase + i * 16,
-				param->eks[param->levels - 1 - i]);
+		ret = aml_mkl_program_key(iobase + i * 16, param->eks[param->levels - 1 - i],
+						sizeof(param->eks[param->levels - 1 - i]));
+		if (ret != 0) {
+			pr_err("Error: Ek data has bad parameter\n");
+			ret = KL_STATUS_ERROR_BAD_PARAM;
+			goto exit;
+		}
 	}
 
 	/* 3. Program KL_REE_MID */
@@ -247,15 +230,14 @@ static int aml_mkl_kl_run(void *iobase, struct amlkl_params *param)
 	reg_addr = (void *)(iobase + MKL_REE_CMD);
 	reg_val = (param->module_id << KL_MID_OFFSET |
 		   KL_ETSI_MID_MSG << KL_MID_EXTRA_OFFSET |
-		   tee_priv << KL_TEE_PRIV_OFFSET |
-		   param->secure_level << KL_LEVEL_OFFSET);
+		   tee_priv << KL_TEE_PRIV_OFFSET);
 	aml_mkl_iowrite32(reg_val, reg_addr);
 
 	/* 4. Program KL_REE_CFG with KL_pending to 1 */
 	reg_val = 0;
 	reg_addr = (void *)(iobase + MKL_REE_CFG);
 	reg_val = (1 << KL_PENDING_OFFSET | param->kl_algo << KL_ALGO_OFFSET |
-		   KL_MODE_ETSI << KL_MODE_OFFSET |
+		   param->kl_mode << KL_MODE_OFFSET |
 		   param->usage.crypto << KL_FLAG_OFFSET |
 		   param->usage.algo << KL_KEYALGO_OFFSET |
 		   param->usage.uid << KL_USERID_OFFSET |
@@ -263,24 +245,133 @@ static int aml_mkl_kl_run(void *iobase, struct amlkl_params *param)
 		   param->mrk_cfg_index << KL_MRK_OFFSET | param->func_id);
 	aml_mkl_iowrite32(reg_val, reg_addr);
 
-	/* 5. Poll KL_TEE_CFG till KL_pending is 0 */
+	/* 5. Poll KL_REE_CFG till KL_pending is 0 */
 	while ((ret = aml_mkl_ioread32(iobase + MKL_REE_CFG) &
 		      (1 << KL_PENDING_OFFSET)))
 		;
 
-	/* 6.	Write KL_TEE_RDY to release KL */
-	kl_unlock(iobase);
+	/* 6.	Write KL_REE_RDY to release KL */
+	aml_mkl_unlock(iobase);
 
 	/* 7. Get final status */
 	ret = (ret >> KL_STATUS_OFFSET) & KL_STATUS_MASK;
 
 	if (ret != KL_STATUS_OK) {
 		pr_err("Error code: %d\n", ret);
-		return KL_STATUS_ERROR_BAD_STATE;
+		ret = KL_STATUS_ERROR_BAD_STATE;
+		goto exit;
 	}
 
-	pr_info("key ladder run success\n");
-	ret = 0;
+	pr_info("etsi key ladder run success\n");
+
+exit:
+	mutex_unlock(&aml_mkl_mutex);
+	return ret;
+}
+
+static int aml_mkl_run(void *iobase, struct amlkl_params *param)
+{
+	int ret;
+	int i;
+	int tee_priv = 0;
+	u32 reg_val = 0;
+	void *reg_addr;
+	struct amlkl_usage *pu;
+
+	mutex_lock(&aml_mkl_mutex);
+
+	if (!param) {
+		ret = KL_STATUS_ERROR_BAD_PARAM;
+		goto exit;
+	}
+
+	pu = &param->usage;
+	pr_info("kth:%d, levels:%d, kl_algo:%d, func_id:%d, mrk:%d\n",
+		param->kt_handle, param->levels, param->kl_algo, param->func_id,
+		param->mrk_cfg_index);
+	pr_info("kt usage, crypto:%d, algo:%d, uid:%d\n", pu->crypto, pu->algo,
+		pu->uid);
+
+	if (pu->uid & ~KL_USERID_MASK ||
+	    (pu->uid > AML_KT_USER_M2M_5 && pu->uid < AML_KT_USER_TSD) ||
+	    (pu->uid > AML_KT_USER_TSE && pu->uid < KL_USERID_MASK) ||
+	    pu->algo & ~KL_KEYALGO_MASK ||
+	    (pu->algo > AML_KT_ALGO_DES && pu->algo < AML_KT_ALGO_NDL) ||
+	    (pu->algo > AML_KT_ALGO_CSA2 && pu->algo < AML_KT_ALGO_HMAC) ||
+	    (pu->algo > AML_KT_ALGO_HMAC && pu->algo < KL_KEYALGO_MASK) ||
+	    pu->crypto & ~KL_FLAG_MASK || param->levels != AML_KL_LEVEL_3 ||
+	    param->kl_algo > AML_KL_ALGO_AES) {
+		ret = KL_STATUS_ERROR_BAD_PARAM;
+		goto exit;
+	}
+
+	/* 1. Read KL_REE_RDY to lock KL */
+	if (aml_mkl_lock(iobase) != KL_STATUS_OK) {
+		pr_err("key ladder not ready\n");
+		ret = KL_STATUS_ERROR_BAD_STATE;
+		goto exit;
+	}
+
+	/* 2. Program Eks */
+	for (i = 0; i < param->levels; i++) {
+		ret = aml_mkl_program_key(iobase + i * 16, param->eks[param->levels - 1 - i],
+						sizeof(param->eks[param->levels - 1 - i]));
+		if (ret != 0) {
+			pr_err("Error: Ek data has bad parameter\n");
+			ret = KL_STATUS_ERROR_BAD_PARAM;
+			goto exit;
+		}
+	}
+
+	/* 3. Program KL_REE_CMD */
+	reg_val = 0;
+	reg_addr = (void *)(iobase + MKL_REE_CMD);
+	reg_val = (tee_priv << KL_TEE_PRIV_OFFSET | 0 << KL_LEVEL_OFFSET |
+		   0 << KL_STAGE_OFFSET | 0 << KL_TEE_SEP_OFFSET);
+	aml_mkl_iowrite32(reg_val, reg_addr);
+
+	/* 4. Program KL_REE_CFG with KL_pending to 1 */
+	reg_val = 0;
+	reg_addr = (void *)(iobase + MKL_REE_CFG);
+	reg_val = (1 << KL_PENDING_OFFSET | param->kl_algo << KL_ALGO_OFFSET |
+		   param->kl_mode << KL_MODE_OFFSET |
+		   param->usage.crypto << KL_FLAG_OFFSET |
+		   param->usage.algo << KL_KEYALGO_OFFSET |
+		   param->usage.uid << KL_USERID_OFFSET |
+		   (HANDLE_TO_KTE(param->kt_handle)) << KL_KTE_OFFSET |
+		   param->mrk_cfg_index << KL_MRK_OFFSET |
+		   (param->func_id << KL_FUNC_ID_OFFSET));
+	aml_mkl_iowrite32(reg_val, reg_addr);
+
+	/* 5. Poll KL_REE_CFG till KL_pending is 0 */
+	while ((ret = aml_mkl_ioread32(iobase + MKL_REE_CFG) &
+		      (1 << KL_PENDING_OFFSET)))
+		;
+
+	/* 6.	Write KL_REE_RDY to release KL */
+	aml_mkl_unlock(iobase);
+
+	/* 7. Get final status */
+	ret = (ret >> KL_STATUS_OFFSET) & KL_STATUS_MASK;
+	switch (ret) {
+	case 0:
+		break;
+	case 1:
+		pr_err("Permission Denied Error code: %d\n", ret);
+		ret = KL_STATUS_ERROR_BAD_STATE;
+		goto exit;
+	case 2:
+	case 3:
+	default:
+		pr_err("OTP or KL Error code: %d\n", ret);
+		ret = KL_STATUS_ERROR_OTP;
+		goto exit;
+	}
+
+	pr_info("aml key ladder run success\n");
+
+exit:
+	mutex_unlock(&aml_mkl_mutex);
 	return ret;
 }
 
@@ -302,11 +393,22 @@ static long aml_mkl_ioctl(struct file *file, unsigned int cmd,
 				   sizeof(kl_param))) {
 			return -EFAULT;
 		}
-		ret = aml_mkl_kl_run((void *)p_mkl_hw_base, &kl_param);
-		if (ret != 0) {
-			pr_info("MKL: aml_mkl_kl_run failed retval=0x%08x\n",
-				ret);
-			return -EFAULT;
+
+		if (kl_param.kl_mode == AML_KL_MODE_ETSI) {
+			ret = aml_mkl_etsi_run((void *)p_mkl_hw_base,
+					       &kl_param);
+			if (ret != 0) {
+				pr_err("MKL: aml_mkl_etsi_run failed retval=0x%08x\n",
+				       ret);
+				return -EFAULT;
+			}
+		} else if (kl_param.kl_mode == AML_KL_MODE_AML) {
+			ret = aml_mkl_run((void *)p_mkl_hw_base, &kl_param);
+			if (ret != 0) {
+				pr_err("MKL: aml_mkl_run failed retval=0x%08x\n",
+				       ret);
+				return -EFAULT;
+			}
 		}
 		break;
 	default:

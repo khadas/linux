@@ -79,7 +79,7 @@ extern int retrieve_vpll_carrier_afc(void);
 
 extern void atv_dmd_non_std_set(bool enable);
 extern void atvdemod_video_overmodulated(void);
-extern void atvdemod_det_snr_serice(void);
+void atvdemod_det_snr_series(void);
 extern int atvdemod_get_snr_val(void);
 extern void atvdemod_mixer_tune(void);
 
@@ -196,8 +196,8 @@ enum atvdemod_snr_level_e {
 extern void aml_audio_overmodulation(int enable);
 extern void amlatvdemod_set_std(int val);
 extern void aml_fix_PWM_adjust(int enable);
-extern void aml_audio_valume_gain_set(unsigned int audio_gain);
-extern unsigned int aml_audio_valume_gain_get(void);
+void aml_audio_volume_gain_set(unsigned int audio_gain);
+unsigned int aml_audio_volume_gain_get(void);
 extern int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe);
 extern void retrieve_frequency_offset(int *freq_offset);
 extern void retrieve_field_lock(int *lock);

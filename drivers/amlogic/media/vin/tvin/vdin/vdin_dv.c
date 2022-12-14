@@ -176,7 +176,7 @@ irqreturn_t vdin_wrmif2_dv_meta_wr_done_isr(int irq, void *dev_id)
 	u32 max_pkt = 15;
 	static u32 irq_cnt;
 
-	devp->meta_wr_done_irq_cnt++;
+	devp->stats.meta_wr_done_irq_cnt++;
 
 	if (devp->dtdata->hw_ver != VDIN_HW_T7)
 		return sts;

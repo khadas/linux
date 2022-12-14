@@ -24,6 +24,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
 #include "vdin_drv.h"
+#include "vdin_ctl_s5.h"
 
 #define BIT0		0x00000001
 #define BIT1		0x00000002
@@ -73,6 +74,22 @@
 #define DV_READ_MODE_AXI		(BIT(6))
 #define DV_CRC_FORCE_TRUE		(BIT(7))
 #define DV_CRC_FORCE_FALSE		(BIT(8))
+
+#define DV_DEBUG_NORMAL			(BIT(0))
+#define DV_DEBUG_ERR_META_DATA		(BIT(3))
+#define DV_DEBUG_OK_META_DATA		(BIT(4))
+#define DV_DEBUG_META_PKT_DATA		(BIT(5))
+#define DV_DEBUG_RAW_DATA		(BIT(6))
+#define DV_DEBUG_CANVAS_NUM		(BIT(7))
+#define DV_DEBUG_EVENT_META_DATA	(BIT(8))
+
+#define CTL_DEBUG_NORMAL		(BIT(0))
+#define CTL_DEBUG_EVENT_INDEX		(BIT(2))
+#define CTL_DEBUG_EVENT_OP_ARG		(BIT(3))
+#define CTL_DEBUG_EVENT_DATA		(BIT(4))
+#define CTL_DEBUG_EVENT_DISP_MODE	(BIT(5))
+#define CTL_DEBUG_EVENT_NO_COMP		(BIT(6))
+#define CTL_DEBUG_LUMA_MAX		(BIT(8))
 
 #define MEM_ALLOC_DISCRETE	(BIT(8))
 #define MEM_ALLOC_FROM_CODEC	(BIT(0))

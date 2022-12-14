@@ -35,6 +35,7 @@ AML_DEMOD_ATTACH_FUNCTION(mxl256c);
 AML_DEMOD_ATTACH_FUNCTION(mxl258c);
 AML_DEMOD_ATTACH_FUNCTION(si2169);
 AML_DEMOD_ATTACH_FUNCTION(avl6221c);
+AML_DEMOD_ATTACH_FUNCTION(cxd2878);
 
 static struct dvb_frontend *aml_demod_attach(const struct demod_module *module,
 		const struct demod_config *cfg);
@@ -369,6 +370,18 @@ static const struct demod_module demod_modules[] = {
 		.detect = aml_demod_detect,
 		.register_frontend = aml_dvb_register_frontend,
 		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "cxd2878",
+		.id = AM_DTV_DEMOD_CXD2878,
+		.type = { FE_QPSK, FE_QAM, FE_OFDM, FE_ATSC, FE_ISDBT, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
 	}
 };
 
@@ -491,6 +504,10 @@ static struct dvb_frontend *aml_attach_detach_dtvdemod(
 	case AM_DTV_DEMOD_AVL6221C:
 		attch ? (p = aml_dvb_attach(avl6221c_attach, cfg)) :
 				aml_dvb_detach(avl6221c_attach);
+		break;
+	case AM_DTV_DEMOD_CXD2878:
+		attch ? (p = aml_dvb_attach(cxd2878_attach, cfg)) :
+				aml_dvb_detach(cxd2878_attach);
 		break;
 	default:
 		p = NULL;

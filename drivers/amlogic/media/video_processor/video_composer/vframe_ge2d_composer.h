@@ -66,8 +66,8 @@ struct src_data_para {
 	u32 canvas1Addr;
 	u32 plane_num;
 	u32 type;
-	u32 posion_x;
-	u32 posion_y;
+	u32 position_x;
+	u32 position_y;
 	u32 width;
 	u32 height;
 	u32 bitdepth;
@@ -95,6 +95,10 @@ int init_ge2d_composer(struct ge2d_composer_para *ge2d_comp_para);
 int uninit_ge2d_composer(struct ge2d_composer_para *ge2d_comp_para);
 
 int fill_vframe_black(struct ge2d_composer_para *ge2d_comp_para);
+
+int config_ge2d_data(struct vframe_s *src_vf, unsigned long addr, int buf_w, int buf_h,
+	int data_w, int data_h, int crop_x, int crop_y, int crop_w, int crop_h,
+	struct src_data_para *data);
 
 int ge2d_data_composer(struct src_data_para *src_para,
 		       struct ge2d_composer_para *ge2d_comp_para);

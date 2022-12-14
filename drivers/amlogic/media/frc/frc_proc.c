@@ -49,6 +49,7 @@
 #include "frc_drv.h"
 #include "frc_proc.h"
 #include "frc_hw.h"
+#include "frc_rdma.h"
 
 int frc_enable_cnt = 1;
 module_param(frc_enable_cnt, int, 0664);
@@ -243,7 +244,7 @@ void frc_input_tasklet_pro(unsigned long arg)
 		if (pfw_data->iplogo_ctrl)
 			pfw_data->iplogo_ctrl(pfw_data);
 		// if (!devp->power_on_flag)
-		//	devp->power_off_flag++;
+		// devp->power_off_flag++;
 		if (devp->ud_dbg.inud_time_en)
 			frc_in_task_print(sched_clock() - timestamp);
 	}
@@ -253,6 +254,7 @@ irqreturn_t frc_output_isr(int irq, void *dev_id)
 {
 	struct frc_dev_s *devp = (struct frc_dev_s *)dev_id;
 	u64 timestamp = sched_clock();
+	// struct frc_rdma_info *frc_rdma = frc_get_rdma_info();
 
 	devp->out_sts.vs_cnt++;
 	/*update vs time*/
@@ -273,6 +275,10 @@ irqreturn_t frc_output_isr(int irq, void *dev_id)
 		frc_out_reg_monitor(devp);
 
 	tasklet_schedule(&devp->output_tasklet);
+
+	// frc_rdma->rdma_item_count = 0;
+	// rdma trigger 0 manual, 1-7 auto path
+	frc_rdma_config(0, 0);
 
 	return IRQ_HANDLED;
 }
@@ -308,7 +314,7 @@ void frc_output_tasklet_pro(unsigned long arg)
 		if (pfw_data->frc_fw_ctrl_if)
 			pfw_data->frc_fw_ctrl_if(pfw_data);
 		// if (!devp->power_on_flag)
-		//	devp->power_off_flag++;
+		// devp->power_off_flag++;
 		if (devp->ud_dbg.outud_time_en)
 			frc_out_task_print(sched_clock() - timestamp);
 	}
@@ -324,18 +330,22 @@ void frc_change_to_state(enum frc_state_e state)
 		pr_frc(0, "%s %d->%d, no video, can't change\n", __func__,
 				devp->frc_sts.state, state);
 	} else if (devp->frc_sts.state_transing) {
-		pr_frc(0, "%s state_transing busy!\n", __func__);
+		pr_frc(0, "%s state_transing busy(%d:%d->%d,frm:%d)!\n", __func__,
+				devp->frc_sts.state, devp->frc_sts.new_state,
+						state, devp->frc_sts.frame_cnt);
 		if (state != devp->frc_sts.new_state) {
 			devp->frc_sts.state = devp->frc_sts.new_state;
 			devp->frc_sts.new_state = state;
 			devp->frc_sts.frame_cnt = 0;
 			devp->frc_sts.state_transing = false;
-			pr_frc(0, "busy broken:%s %d->%d\n", __func__, devp->frc_sts.state, state);
+			pr_frc(0, "busy broken:%s %d->%d\n", __func__,
+					devp->frc_sts.state, state);
 		}
 	} else if (devp->frc_sts.state != state) {
 		devp->frc_sts.new_state = state;
 		devp->frc_sts.state_transing = true;
-		pr_frc(0, "%s %d->%d\n", __func__, devp->frc_sts.state, state);
+		pr_frc(0, "%s %d->%d(frm=%d)\n", __func__, devp->frc_sts.state,
+				state, devp->frc_sts.frame_cnt);
 	}
 }
 
@@ -535,8 +545,8 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	if (!devp->probe_ok || !devp->power_on_flag)
 		return;
 
-	vd_en_flag = get_video_enabled();
-	vd_regval = vpu_reg_read(0x1dfb);
+	vd_en_flag = get_video_enabled();//=0
+	vd_regval = vpu_reg_read(0x1dfb);//=1
 	if (devp->ud_dbg.res1_dbg_en == 1)
 		pr_frc(1, "get_vd_en=%2d, 0x1dfb=0x%8x\n",
 			vd_en_flag, vd_regval);
@@ -643,6 +653,7 @@ void frc_state_change_finish(struct frc_dev_s *devp)
 {
 	devp->frc_sts.state = devp->frc_sts.new_state;
 	devp->frc_sts.state_transing = false;
+	devp->frc_sts.frame_cnt = 0;
 }
 
 void frc_test_mm_secure_set_off(struct frc_dev_s *devp)
@@ -1174,7 +1185,7 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 				frc_frame_forcebuf_count(forceidx);
 				frc_input_fid =
 				READ_FRC_REG(FRC_REG_PAT_POINTER) >> 4 & 0xF;
-				pr_frc(log, "d-e_freezeing readidx:%d, frm:%d\n",
+				pr_frc(log, "d-e_freezing readidx:%d, frm:%d\n",
 					frc_input_fid, devp->frc_sts.frame_cnt);
 				devp->frc_sts.frame_cnt++;
 				off2on_cnt++;
@@ -1393,18 +1404,12 @@ int frc_fpp_memc_set_level(u8 level, u8 num)
 		return 0;
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	pfw_data->frc_top_type.frc_memc_level = level;
-	if (num == 1) {
-		pfw_data->frc_top_type.frc_memc_level_1 = 1;
-		pr_frc(1, "fpp enhancement!\n");
-	} else {
-		pfw_data->frc_top_type.frc_memc_level_1 = 0;
-		pr_frc(1, "fpp frc_memc_level_1 0\n");
-	}
-	pr_frc(1, "fpp_set_memc_level:%d\n", level);
+	pfw_data->frc_top_type.frc_memc_level_1 = num;
+	pr_frc(1, "fpp_set_memc_level:%d[%d]\n", level, num);
 	if (pfw_data->frc_memc_level)
 		pfw_data->frc_memc_level(pfw_data);
-
 	return 1;
+
 }
 
 int frc_memc_set_demo(u8 setdemo)
@@ -1431,19 +1436,19 @@ int frc_memc_set_demo(u8 setdemo)
 	} else if (setdemo < 3) {
 		tmpstart = pfw_data->frc_top_type.hsize / 2 << 16;
 		pr_frc(1, "demo_win_start:%4d\n", tmpstart);
-		WRITE_FRC_REG(FRC_REG_DEMOWINDOW1_XYXY_ST, tmpstart);
+		WRITE_FRC_REG_BY_CPU(FRC_REG_DEMOWINDOW1_XYXY_ST, tmpstart);
 		tmpend = ((pfw_data->frc_top_type.hsize - 1) << 16) +
 				(pfw_data->frc_top_type.vsize - 1);
 		pr_frc(1, "demo_win_end:%4d\n", tmpend);
-		WRITE_FRC_REG(FRC_REG_DEMOWINDOW1_XYXY_ED, tmpend);
+		WRITE_FRC_REG_BY_CPU(FRC_REG_DEMOWINDOW1_XYXY_ED, tmpend);
 		WRITE_FRC_BITS(FRC_REG_MC_DEBUG1, (setdemo - 1), 17, 1);
 		WRITE_FRC_BITS(FRC_MC_DEMO_WINDOW, 1, 3, 1);
 	} else if (setdemo < 5) {
-		WRITE_FRC_REG(FRC_REG_DEMOWINDOW1_XYXY_ST, 0);
+		WRITE_FRC_REG_BY_CPU(FRC_REG_DEMOWINDOW1_XYXY_ST, 0);
 		tmpend = ((pfw_data->frc_top_type.hsize / 2 - 1) << 16) +
 				(pfw_data->frc_top_type.vsize - 1);
 		pr_frc(1, "demo_win_end:%4d\n", tmpend);
-		WRITE_FRC_REG(FRC_REG_DEMOWINDOW1_XYXY_ED, tmpend);
+		WRITE_FRC_REG_BY_CPU(FRC_REG_DEMOWINDOW1_XYXY_ED, tmpend);
 		WRITE_FRC_BITS(FRC_REG_MC_DEBUG1, (setdemo - 3), 17, 1);
 		WRITE_FRC_BITS(FRC_MC_DEMO_WINDOW, 1, 3, 1);
 	}

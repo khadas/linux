@@ -36,7 +36,7 @@ u32 rx_spd_type;
 u32 gpkt_fifo_pri;
 /*struct mutex pktbuff_lock;*/
 
-static struct pkt_typeregmap_st pktmaping[] = {
+static struct pkt_type_reg_map_st pkt_maping[] = {
 	/*infoframe pkt*/
 	{PKT_TYPE_INFOFRAME_VSI,	PFIFO_VS_EN},
 	{PKT_TYPE_INFOFRAME_AVI,	PFIFO_AVI_EN},
@@ -134,8 +134,8 @@ void rx_pkt_debug(void)
 	rx_pr("gamut_Meta_pkt_st size=%lu\n",
 	      sizeof(struct gamutmeta_pkt_st));
 	rx_pr("aud_3d_smppkt_st size=%lu\n",
-	      sizeof(struct a3dsmp_pkt_st));
-	rx_pr("oneb3d_smppkt_st size=%lu\n",
+	      sizeof(struct a3d_smp_pkt_st));
+	rx_pr("one b3d_smppkt_st size=%lu\n",
 	      sizeof(struct ob3d_smppkt_st));
 	rx_pr("aud_mtdata_pkt_st size=%lu\n",
 	      sizeof(struct audmtdata_pkt_st));
@@ -412,7 +412,7 @@ void rx_debug_pktinfo(char input[][20])
 			return;
 
 		packet_fifo_cfg |= sts;
-		/* not work immediately ?? meybe int is not open*/
+		/* not work immediately ?? maybe int is not open*/
 		enable = hdmirx_rd_dwc(DWC_PDEC_CTRL);
 		enable |= sts;
 		hdmirx_wr_dwc(DWC_PDEC_CTRL, enable);
@@ -427,7 +427,7 @@ void rx_debug_pktinfo(char input[][20])
 			return;
 
 		packet_fifo_cfg &= (~sts);
-		/* not work immediately ?? meybe int is not open*/
+		/* not work immediately ?? maybe int is not open*/
 		enable = hdmirx_rd_dwc(DWC_PDEC_CTRL);
 		enable &= (~sts);
 		hdmirx_wr_dwc(DWC_PDEC_CTRL, enable);
@@ -532,6 +532,52 @@ static void rx_pktdump_avi(void *pdata)
 	rx_pr("pix_num_right_bar: 0x%x\n",
 	      pktdata->pix_num_right_bar);
 	rx_pr(">------------------>end\n");
+}
+
+#define WHITE_LIST_SIZE 25
+#define DEVICE_CNT 4
+const u8 spd_white_list[DEVICE_CNT][WHITE_LIST_SIZE] = {
+	/* ps5 */
+	{0x53, 0x43, 0x45, 0x49, 0x0, 0x0, 0x0, 0x0, 0x50, 0x53, 0x35, 0x0, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x8},
+	/* xbox one*/
+	{0x4d, 0x53, 0x46, 0x54, 0x0, 0x0, 0x0, 0x0, 0x58, 0x62, 0x6f, 0x78,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x8},
+	/* ps */
+	{0x53, 0x43, 0x45, 0x49, 0x0, 0x0, 0x0, 0x0, 0x50, 0x53, 0x34, 0x0,
+		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x8},
+	/* xbox one series*/
+	{0x4d, 0x53, 0x46, 0x54, 0x0, 0x0, 0x0, 0x0, 0x58, 0x62, 0x6f, 0x78,
+		0x20, 0x4f, 0x6e, 0x65, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x8},
+	/* test dev,for debug only */
+	/*{0x41, 0x6d, 0x6c, 0x6f, 0x67, 0x69, 0x63, 0x0, 0x4d, 0x42, 0x6f, 0x78,*/
+		/*0x20, 0x4d, 0x65, 0x73, 0x6f, 0x6e, 0x20, 0x52, 0x65, 0x66, 0x0, 0x0, 0x1},*/
+};
+
+bool rx_is_specific_20_dev(void)
+{
+	struct spd_infoframe_st *spdpkt;
+	bool ret = false;
+	int i;
+
+	spdpkt = (struct spd_infoframe_st *)&rx_pkt.spd_info;
+	if (log_level & 0x1000) {
+		rx_pr("type: 0x%x\n", spdpkt->pkttype);
+		rx_pr("ver: %d\n", spdpkt->version);
+		rx_pr("length: %d\n", spdpkt->length);
+
+		rx_pr("vendor name: %s\n", spdpkt->des_u.spddata.vendor_name);
+		rx_pr("product des: %s\n", spdpkt->des_u.spddata.product_des);
+		rx_pr("source info: 0x%x\n", spdpkt->des_u.spddata.source_info);
+	}
+	for (i = 0; i < DEVICE_CNT; i++) {
+		if (!memcmp((char *)spdpkt + 5, spd_white_list[i], WHITE_LIST_SIZE)) {
+			ret = true;
+			if (log_level & 0x1000)
+				rx_pr("white dev=%d\n", i);
+		}
+	}
+	return ret;
 }
 
 static void rx_pktdump_spd(void *pdata)
@@ -757,7 +803,7 @@ void rx_pkt_dump(enum pkt_type_e typeid)
 
 u32 rx_pkt_type_mapping(enum pkt_type_e pkt_type)
 {
-	struct pkt_typeregmap_st *ptab = pktmaping;
+	struct pkt_type_reg_map_st *ptab = pkt_maping;
 	u32 i = 0;
 	u32 rt = 0;
 
@@ -1015,7 +1061,7 @@ void rx_pkt_get_vsi_ex(void *pktinfo)
 				pkt->sbpkt.vsi_dobv15.data[i] = tmp;
 			}
 			if (rx_vsif_type & VSIF_TYPE_HDMI21) {
-				tmp = hdmirx_rd_cor(RX_UNREC_BYTE9_DP2_IVCRX);
+				tmp = hdmirx_rd_cor(VSIRX_DBYTE5_DP3_IVCRX);
 				if ((tmp >> 1) & 1)
 					pkt->ieee = IEEE_DV_PLUS_ALLM;
 			}
@@ -1034,30 +1080,35 @@ void rx_pkt_get_vsi_ex(void *pktinfo)
 			pkt->pkttype = PKT_TYPE_INFOFRAME_VSI;
 			pkt->length = hdmirx_rd_cor(AUDRX_TYPE_DP2_IVCRX) & 0x1f;
 			pkt->ieee = IEEE_HDR10PLUS;
+			if (rx_vsif_type & VSIF_TYPE_HDMI21) {
+				tmp = hdmirx_rd_cor(RX_UNREC_BYTE9_DP2_IVCRX);
+				if ((tmp >> 1) & 1)
+					pkt->ieee = IEEE_DV_PLUS_ALLM;
+			}
 			for (i = 0; i < 24; i++) {
 				tmp = hdmirx_rd_cor(AUDRX_DBYTE4_DP2_IVCRX + i);
-				pkt->sbpkt.vsi_st.data[i] = tmp;
-			}
-		} else if (rx_vsif_type & VSIF_TYPE_HDMI14) {
-			pkt->pkttype = PKT_TYPE_INFOFRAME_VSI;
-			pkt->length = hdmirx_rd_cor(VSIRX_LENGTH_DP3_IVCRX) & 0x1f;
-			pkt->ver_st.version = 1;//hdmirx_rd_cor(VSIRX_VERS_DP3_IVCRX);
-			pkt->ieee = IEEE_VSI14;
-			for (i = 0; i < 24; i++) {
-				tmp = hdmirx_rd_cor(VSIRX_DBYTE4_DP3_IVCRX + i);
 				pkt->sbpkt.vsi_st.data[i] = tmp;
 			}
 		} else if (rx_vsif_type & VSIF_TYPE_HDMI21) {
 			pkt->pkttype = PKT_TYPE_INFOFRAME_VSI;
 			pkt->ieee = IEEE_VSI21;
 			pkt->sbpkt.vsi_st_21.ver = 1;
-			tmp = hdmirx_rd_cor(RX_UNREC_BYTE9_DP2_IVCRX);
+			tmp = hdmirx_rd_cor(VSIRX_DBYTE5_DP3_IVCRX);
 			pkt->sbpkt.vsi_st_21.valid_3d = tmp & 1;
 			pkt->sbpkt.vsi_st_21.allm_mode = (tmp >> 1) & 1;
 			pkt->sbpkt.vsi_st_21.ccbpc = (tmp >> 4) & 0x0f;
 			for (i = 0; i < 21; i++) {
-				tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE10_DP3_IVCRX + i);
+				tmp = hdmirx_rd_cor(VSIRX_DBYTE6_DP3_IVCRX + i);
 				pkt->sbpkt.vsi_st_21.data[i] = tmp;
+			}
+		} else if (rx_vsif_type & VSIF_TYPE_HDMI14) {
+			pkt->pkttype = PKT_TYPE_INFOFRAME_VSI;
+			pkt->length = hdmirx_rd_cor(RX_UNREC_BYTE3_DP2_IVCRX) & 0x1f;
+			pkt->ver_st.version = 1;//hdmirx_rd_cor(VSIRX_VERS_DP3_IVCRX);
+			pkt->ieee = IEEE_VSI14;
+			for (i = 0; i < 24; i++) {
+				tmp = hdmirx_rd_cor(RX_UNREC_BYTE8_DP2_IVCRX + i);
+				pkt->sbpkt.vsi_st.data[i] = tmp;
 			}
 		}
 	} else if (rx.chip_id != CHIP_ID_TXHD) {
@@ -1131,7 +1182,7 @@ void rx_pkt_get_gmd_ex(void *pktinfo)
 	/*6:4*/
 	pkt->gbd_profile = ((HB >> 4) & 0x7);
 	/*7*/
-	pkt->next_feild = ((HB >> 7) & 0x1);
+	pkt->next_field = ((HB >> 7) & 0x1);
 	/*11:8*/
 	pkt->cur_seq_num = ((HB >> 8) & 0xf);
 	/*13:12*/
@@ -1162,7 +1213,7 @@ void rx_pkt_get_gcp_ex(void *pktinfo)
 	pkt->sbpkt.clr_avmute = (gcpavmute & 0x01);
 	pkt->sbpkt.set_avmute = ((gcpavmute >> 1) & 0x01);
 	pkt->sbpkt.colordepth = ((gcpavmute >> 4) & 0xf);
-	pkt->sbpkt.pixelpkgphase = ((gcpavmute >> 8) & 0xf);
+	pkt->sbpkt.pixel_pkg_phase = ((gcpavmute >> 8) & 0xf);
 	pkt->sbpkt.def_phase = ((gcpavmute >> 12) & 0x01);
 }
 
@@ -1297,7 +1348,8 @@ void rx_get_vsi_info(void)
 	rx.vs_info_details._3d_ext_data = 0;
 	rx.vs_info_details.low_latency = false;
 	rx.vs_info_details.backlt_md_bit = false;
-	rx.vs_info_details.allm_mode = false;
+	rx.vs_info_details.dv_allm = false;
+	rx.vs_info_details.hdmi_allm = false;
 	rx.vs_info_details.dolby_vision_flag = DV_NULL;
 	rx.vs_info_details.hdr10plus = false;
 	rx.vs_info_details.emp_pkt_cnt = rx.empbuff.emppktcnt;
@@ -1331,7 +1383,7 @@ void rx_get_vsi_info(void)
 			}
 			tmp = (pkt->sbpkt.payload.data[1] >> 16 & 0xf);
 			if (tmp == 2)
-				rx.vs_info_details.allm_mode = true;
+				rx.vs_info_details.dv_allm = true;
 		}
 		break;
 	//====================for dv5.0 ====================
@@ -1360,9 +1412,11 @@ void rx_get_vsi_info(void)
 				rx.vs_info_details.eff_tmax_pq = tmp;
 			}
 		}
-		//tmp = (pkt->sbpkt.payload.data[1] >> 16 & 0xf);
-		//if (tmp == 2)
-		rx.vs_info_details.allm_mode = true;
+		tmp = (pkt->sbpkt.payload.data[1] >> 16 & 0xf);
+		if (tmp == 2)
+			rx.vs_info_details.dv_allm = true;
+		//else
+		rx.vs_info_details.hdmi_allm = true;
 		pkt->ieee = IEEE_DV15;
 		break;
 	//====================for dv5.0 end=================
@@ -1370,7 +1424,7 @@ void rx_get_vsi_info(void)
 		/* hdmi2.1 */
 		rx.vs_info_details.vsi_state = E_VSI_VSI21;
 		tmp = pkt->sbpkt.payload.data[0] & _BIT(9);
-		rx.vs_info_details.allm_mode = tmp ? true : false;
+		rx.vs_info_details.hdmi_allm = tmp ? true : false;
 		break;
 	case IEEE_HDR10PLUS:
 		/* HDR10+ */
@@ -1392,6 +1446,7 @@ void rx_get_vsi_info(void)
 			if ((pkt->sbpkt.payload.data[0] & 0xffff) == 0)
 				pkt->sbpkt.payload.data[0] = 0xffff;
 			rx.vs_info_details.vsi_state = E_VSI_DV10;
+			pkt->ver_st.version = 1;
 		} else if ((pkt->length == E_PKT_LENGTH_5) &&
 			(pkt->sbpkt.payload.data[0] & 0xffff)) {
 			rx.vs_info_details.dolby_vision_flag = DV_NULL;
@@ -1428,9 +1483,9 @@ void rx_get_vsi_info(void)
 		pkt->sbpkt.vsi_dobv15.content_type =
 			rx.empbuff.emp_content_type;
 		if (pkt->sbpkt.vsi_dobv15.content_type == 2)
-			rx.vs_info_details.allm_mode = true;
+			rx.vs_info_details.dv_allm = true;
 		if (log_level & PACKET_LOG)
-			rx_pr("dv_emp-allm-%d\n", rx.vs_info_details.allm_mode);
+			rx_pr("dv_emp-allm-%d\n", rx.vs_info_details.dv_allm);
 	} else {
 		if (num == rxpktsts.pkt_cnt_vsi)
 			pkt->ieee = 0;

@@ -510,7 +510,7 @@ iw7027_hw_init_on_retry:
 	iw7027_reg_read(dev_drv, chip_id, reg, temp, 2);
 
 	/* step 13: Set 0X78[7]=0, no need */
-	/* step 14: check if power on vaoltage exist */
+	/* step 14: check if power on voltage exist */
 	if (temp[0] || temp[1]) {
 		LDIMERR("%s: 0x85,0x86 is not zero\n", __func__);
 		if (retry_cnt++ < 3) {

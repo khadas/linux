@@ -1783,28 +1783,37 @@ void lc_init(int bitdepth)
 	h_num = 12;
 	v_num = 8;
 
-	lc_szcurve = kcalloc(LC_CURV_SIZE, sizeof(int), GFP_KERNEL);
+	if (!lc_szcurve)
+		lc_szcurve = kcalloc(LC_CURV_SIZE, sizeof(int), GFP_KERNEL);
 	if (!lc_szcurve)
 		return;
-	curve_nodes_cur = kcalloc(LC_CURV_SIZE, sizeof(int), GFP_KERNEL);
+
+	if (!curve_nodes_cur)
+		curve_nodes_cur = kcalloc(LC_CURV_SIZE, sizeof(int), GFP_KERNEL);
 	if (!curve_nodes_cur) {
 		kfree(lc_szcurve);
 		return;
 	}
-	curve_nodes_pre = kcalloc(LC_CURV_SIZE, sizeof(int), GFP_KERNEL);
+
+	if (!curve_nodes_pre)
+		curve_nodes_pre = kcalloc(LC_CURV_SIZE, sizeof(int), GFP_KERNEL);
 	if (!curve_nodes_pre) {
 		kfree(lc_szcurve);
 		kfree(curve_nodes_cur);
 		return;
 	}
-	lc_hist = kcalloc(LC_HIST_SIZE, sizeof(int), GFP_KERNEL);
+
+	if (!lc_hist)
+		lc_hist = kcalloc(LC_HIST_SIZE, sizeof(int), GFP_KERNEL);
 	if (!lc_hist) {
 		kfree(lc_szcurve);
 		kfree(curve_nodes_cur);
 		kfree(curve_nodes_pre);
 		return;
 	}
-	curve_nodes_pre_raw = kcalloc(LC_CURV_SIZE,
+
+	if (!curve_nodes_pre_raw)
+		curve_nodes_pre_raw = kcalloc(LC_CURV_SIZE,
 				      sizeof(int64_t),
 					GFP_KERNEL);
 	if (!curve_nodes_pre_raw) {
@@ -1935,6 +1944,9 @@ void lc_process(struct vframe_s *vf,
 	int blk_hnum, blk_vnum, dwtemp;
 
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1)
+		return;
+
+	if (chip_type_id == chip_s5)
 		return;
 
 	if (!lc_malloc_ok) {

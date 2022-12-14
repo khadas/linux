@@ -139,7 +139,7 @@ unsigned int DI_POST_REG_RD(unsigned int addr)
 	if (dil_api && dil_api->di_post_reg_rd)
 		return dil_api->di_post_reg_rd(addr);
 
-	PR_ERR("%s:not attach\n", __func__);
+	//PR_ERR("%s:not attach\n", __func__);
 	return 0;
 }
 EXPORT_SYMBOL(DI_POST_REG_RD);
@@ -275,8 +275,10 @@ int pvpp_display(struct vframe_s *vfm,
 {
 	int ret = -1;
 
-	if (dil_api && dil_api->pre_vpp_link_display)
+	if (dil_api && dil_api->pre_vpp_link_display) {
 		ret = dil_api->pre_vpp_link_display(vfm, in_para, out_para);
+		return ret;
+	}
 	PR_ERR("%s:not attach\n", __func__);
 	return ret;
 }

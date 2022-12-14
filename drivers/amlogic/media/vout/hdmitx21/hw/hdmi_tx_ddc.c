@@ -37,6 +37,20 @@ static u32 ddc_write_1byte(u8 slave, u8 offset_addr, u8 data)
 	u32 st = 0;
 
 	mutex_lock(&ddc_mutex);
+	// Programe I2C operation
+	//SCDC slave addr
+	hdmitx21_wr_reg(DDC_ADDR_IVCTX, 0xa8);
+	//SCDC slave offset
+	hdmitx21_wr_reg(DDC_OFFSET_IVCTX, offset_addr & 0xff);
+	//SCDC slave offset data to ddc fifo
+	hdmitx21_wr_reg(DDC_DATA_AON_IVCTX, data & 0xff);
+	hdmitx21_wr_reg(DDC_DIN_CNT1_IVCTX, 0x01); //data length lo
+	hdmitx21_wr_reg(DDC_DIN_CNT2_IVCTX, 0x00); //data length hi
+	hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x06); //DDC Write CMD
+	// Wait until I2C done
+	hdmitx21_poll_reg(DDC_STATUS_IVCTX, 1 << 4, ~(1 << 4), 0xffffffff); //i2c process
+	hdmitx21_poll_reg(DDC_STATUS_IVCTX, 0 << 4, ~(1 << 4), 0xffffffff); //i2c done
+
 	mutex_unlock(&ddc_mutex);
 	return st;
 }
@@ -50,12 +64,27 @@ u32 ddc_read_8byte(u8 slave, u8 offset_addr, u8 *data)
 	return st;
 }
 
-static u32 ddc_read_1byte(u8 slave, u8 offset_addr, u8 *data)
+static u32 ddc_read_1byte(u8 slave, u8 offset_addr, u8 *rd_data)
 {
 	u32 st = 0;
 
 	mutex_lock(&ddc_mutex);
+
+	// Programe I2C operation
+	hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x09); //clear fifo
+	hdmitx21_wr_reg(DDC_ADDR_IVCTX, 0xa8); //SCDC slave addr
+	hdmitx21_wr_reg(DDC_OFFSET_IVCTX, offset_addr & 0xff); //SCDC slave offset
+	hdmitx21_wr_reg(DDC_DIN_CNT1_IVCTX, 0x01); //data length lo
+	hdmitx21_wr_reg(DDC_DIN_CNT2_IVCTX, 0x00); //data length hi
+	hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x02); //DDC Write CMD
+	// Wait until I2C done
+	hdmitx21_poll_reg(DDC_STATUS_IVCTX, 1 << 4, ~(1 << 4), 0xffffffff); //i2c process
+	hdmitx21_poll_reg(DDC_STATUS_IVCTX, 0 << 4, ~(1 << 4), 0xffffffff); //i2c done
+	// Read back 1 byte
+	*rd_data = hdmitx21_rd_reg(DDC_DATA_AON_IVCTX);
+
 	mutex_unlock(&ddc_mutex);
+
 	return st;
 }
 

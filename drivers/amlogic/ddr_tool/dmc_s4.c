@@ -229,7 +229,7 @@ void s4_dmc_mon_disable(struct dmc_monitor *mon)
 
 struct dmc_mon_ops s4_dmc_mon_ops = {
 	.handle_irq = s4_dmc_mon_irq,
-	.set_montor = s4_dmc_mon_set,
+	.set_monitor = s4_dmc_mon_set,
 	.disable    = s4_dmc_mon_disable,
 	.dump_reg   = s4_dmc_dump_reg,
 };

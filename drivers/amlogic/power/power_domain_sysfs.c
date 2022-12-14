@@ -53,7 +53,7 @@ static ssize_t power_status_show(struct device *_dev,
 				 struct device_attribute *attr, char *buf)
 {
 	int power_status, i;
-	unsigned int len = 0, cnt = 20;
+	unsigned int len = 0, cnt = 30;
 
 	for (i = pdid_start; i < pdid_max; i++) {
 		if (!*(power_domains + i))

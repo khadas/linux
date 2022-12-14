@@ -627,7 +627,7 @@ static u32 truncate_msg(u16 *text_len, u16 *trunc_msg_len,
 static void record_buf(struct printk_log *msg, const char *text, u16 text_len)
 {
 	int len;
-	static char buf[1500];
+	static char buf[1600];
 	struct pstore_record record = {
 		.psi = psinfo,
 	};

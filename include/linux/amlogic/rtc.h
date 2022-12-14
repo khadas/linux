@@ -6,7 +6,7 @@
 /*******************************************************************/
 #include <linux/types.h>
 
-/* RTC_CTRL Bit[8]: 0 - select 32K osilator, 1 - select 24M osilator */
+/* RTC_CTRL Bit[8]: 0 - select 32K oscillator, 1 - select 24M oscillator */
 #define RTC_OSC_SEL_BIT		(8)
 /* RTC_CTRL Bit[12]: 0 - disable rtc, 1 - enable rtc */
 #define RTC_ENABLE_BIT		(12)

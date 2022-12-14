@@ -38,7 +38,7 @@
  ***********************************************/
 #define DIM_OUT_NV21	(1)
 //#define TEST_PIP	(1)
-
+//#define DBG_POST_SETTING	(1)
 /************************************************
  * vframe use ud meta data
  ************************************************/
@@ -68,9 +68,9 @@
 #define TRIGGER_PRE_BY_TIMER			't'
 #define TRIGGER_PRE_BY_FORCE_UNREG		'f'
 #define TRIGGER_PRE_BY_VFRAME_READY		'r'
-#define TRIGGER_PRE_BY_PROVERDER_UNREG		'n'
+#define TRIGGER_PRE_BY_PROVIDER_UNREG		'n'
 #define TRIGGER_PRE_BY_DEBUG_DISABLE		'd'
-#define TRIGGER_PRE_BY_PROVERDER_REG		'R'
+#define TRIGGER_PRE_BY_PROVIDER_REG		'R'
 
 #define DI_RUN_FLAG_RUN				0
 #define DI_RUN_FLAG_PAUSE			1
@@ -374,6 +374,7 @@ struct di_buf_s {
 	u32 local_ud_total_size;
 	bool hf_irq;
 	bool dw_have;
+	bool flg_dummy;
 };
 
 #define RDMA_DET3D_IRQ			0x20
@@ -570,7 +571,7 @@ struct di_pre_stru_s {
 /* set by prog_proc_config when source is vdin,0:use 2 i
  * serial buffer,1:use 1 p buffer,3:use 2 i paralleling buffer
  */
-/* ary: loacal play p mode is 0
+/* ary: local play p mode is 0
  * local play i mode is 0
  */
 /* alloc di buf as p or i;0: alloc buf as i;
@@ -943,6 +944,7 @@ void dpre_vdoing(unsigned int ch);
 //#define DBG_CLEAR_MEM	(1)
 #define DBG_BUFFER_EXT	(1)
 #define DBG_VFM_CVS	(1)
+//#define TMP_EN_PLINK	(1)
 //#define DBG_EXTBUFFER_ONLY_ADDR	(1)
 //#define S4D_OLD_SETTING_KEEP (1)
 //#define S4D_OLD_PQ_KEEP (1)

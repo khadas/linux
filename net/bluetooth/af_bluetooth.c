@@ -156,7 +156,7 @@ EXPORT_SYMBOL(bt_sock_unlink);
 
 void bt_accept_enqueue(struct sock *parent, struct sock *sk, bool bh)
 {
-	BT_DBG("parent %p, sk %p", parent, sk);
+	BT_TRACE("parent %p, sk %p", parent, sk);
 
 	sock_hold(sk);
 
@@ -196,7 +196,7 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock)
 	struct bt_sock *s, *n;
 	struct sock *sk;
 
-	BT_DBG("parent %p", parent);
+	BT_TRACE("parent %p", parent);
 
 restart:
 	list_for_each_entry_safe(s, n, &bt_sk(parent)->accept_q, accept_q) {
@@ -258,7 +258,7 @@ int bt_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	size_t skblen;
 	int err;
 
-	BT_DBG("sock %p sk %p len %zu", sock, sk, len);
+	BT_TRACE("sock %p sk %p len %zu", sock, sk, len);
 
 	if (flags & MSG_OOB)
 		return -EOPNOTSUPP;
@@ -337,7 +337,7 @@ int bt_sock_stream_recvmsg(struct socket *sock, struct msghdr *msg,
 	if (flags & MSG_OOB)
 		return -EOPNOTSUPP;
 
-	BT_DBG("sk %p size %zu", sk, size);
+	BT_TRACE("sk %p size %zu", sk, size);
 
 	lock_sock(sk);
 
@@ -453,7 +453,7 @@ __poll_t bt_sock_poll(struct file *file, struct socket *sock,
 	struct sock *sk = sock->sk;
 	__poll_t mask = 0;
 
-	BT_DBG("sock %p, sk %p", sock, sk);
+	BT_TRACE("sock %p, sk %p", sock, sk);
 
 	poll_wait(file, sk_sleep(sk), wait);
 
@@ -536,7 +536,7 @@ int bt_sock_wait_state(struct sock *sk, int state, unsigned long timeo)
 	DECLARE_WAITQUEUE(wait, current);
 	int err = 0;
 
-	BT_DBG("sk %p", sk);
+	BT_TRACE("sk %p", sk);
 
 	add_wait_queue(sk_sleep(sk), &wait);
 	set_current_state(TASK_INTERRUPTIBLE);
@@ -573,7 +573,7 @@ int bt_sock_wait_ready(struct sock *sk, unsigned long flags)
 	unsigned long timeo;
 	int err = 0;
 
-	BT_DBG("sk %p", sk);
+	BT_TRACE("sk %p", sk);
 
 	timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
 

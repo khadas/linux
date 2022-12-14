@@ -3278,7 +3278,7 @@ int ppmgr_buffer_init(int secure_mode)
 	ppmgr_buffer_status = 1;
 	ppmgr_device.vinfo = get_current_vinfo();
 	if (IS_ERR_OR_NULL(ppmgr_device.vinfo)) {
-		pr_info("PPMGRVPP: info: failed to get_currnt_vinfo! Try to MAKE one!");
+		pr_info("PPMGRVPP: info: failed to get_current_vinfo! Try to MAKE one!");
 		ppmgr_device.vinfo = &vinfo;
 	}
 

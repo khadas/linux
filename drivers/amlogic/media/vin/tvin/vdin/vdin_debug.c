@@ -114,7 +114,6 @@ static DEVICE_ATTR_RW(sig_det);
 ssize_t attr_show(struct device *dev,
 		  struct device_attribute *attr, char *buf)
 {
-	struct vdin_dev_s *devp = dev_get_drvdata(dev);
 	ssize_t len = 0;
 
 	len += sprintf(buf + len,
@@ -134,7 +133,6 @@ ssize_t attr_show(struct device *dev,
 	len += sprintf(buf + len,
 		       "cfmt/dfmt:\t0 : RGB44\t1 YUV422\t2 YUV444\t7 NV12\t8 NV21\n");
 	len += sprintf(buf + len, "scan_fmt:\t1 : PROGRESSIVE\t2 INTERLACE\n");
-	len += sprintf(buf + len, "abnormal cnt %u\n", devp->wr_done_abnormal_cnt);
 	len += sprintf(buf + len, "echo fps >/sys/class/vdin/vdinx/attr\n");
 	len += sprintf(buf + len,
 		       "echo conversion w h dest_cfmt >/sys/class/vdin/vdinx/attr\n");
@@ -1139,7 +1137,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->canvas_max_size, devp->rdma_enable);
 	pr_info("range(%d),csc_cfg:0x%x,urgent_en:%d\n",
 		devp->prop.color_fmt_range,
-		devp->csc_cfg, devp->urgent_en);
+		devp->csc_cfg, devp->dts_config.urgent_en);
 	pr_info("black_bar_enable: %d, hist_bar_enable: %d, use_frame_rate: %d\n ",
 		devp->black_bar_enable,
 		devp->hist_bar_enable, devp->use_frame_rate);
@@ -1148,16 +1146,15 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("vdin_irq_flag:%d %s\n", devp->vdin_irq_flag,
 		vdin_trans_irq_flag_to_str(devp->vdin_irq_flag));
 	pr_info("vpu crash irq cnt: %d\n", devp->vpu_crash_cnt);
-	pr_info("write done: %d\n", devp->wr_done_irq_cnt);
-	pr_info("meta write done: %d\n", devp->meta_wr_done_irq_cnt);
 	pr_info("vdin_drop_cnt: %d frame_cnt:%d ignore_frames:%d\n",
 		vdin_drop_cnt, devp->frame_cnt, devp->ignore_frames);
 	pr_info("game_mode cfg :  0x%x\n", game_mode);
 	pr_info("game_mode cur:  0x%x\n", devp->game_mode);
 	pr_info("vrr_mode:  0x%x,vdin_vrr_en_flag=%d\n", devp->vrr_mode,
 		devp->vrr_data.vdin_vrr_en_flag);
-	pr_info("vrr_en:  pre=%d,cur:%d\n",
-		devp->pre_prop.vtem_data.vrr_en, devp->prop.vtem_data.vrr_en);
+	pr_info("vrr_en:  pre=%d,cur:%d,base_fr:%d\n",
+		devp->pre_prop.vtem_data.vrr_en, devp->prop.vtem_data.vrr_en,
+		devp->prop.vtem_data.base_framerate);
 	pr_info("vdin_vrr_flag:  pre=%d,cur:%d\n", devp->pre_prop.vdin_vrr_flag,
 		devp->prop.vdin_vrr_flag);
 
@@ -1249,14 +1246,25 @@ static void vdin_dump_count(struct vdin_dev_s *devp)
 {
 	pr_info("irq_cnt: %d\n", devp->irq_cnt);
 	pr_info("vpu crash irq: %d\n", devp->vpu_crash_cnt);
-	pr_info("write done irq: %d\n", devp->wr_done_irq_cnt);
-	pr_info("wr done abnormal_cnt: %d\n", devp->wr_done_abnormal_cnt);
+	pr_info("write done irq: %d,check:%d,afbce[%d %d],wmif[%d %d]\n",
+		devp->stats.wr_done_irq_cnt, devp->stats.write_done_check,
+		devp->stats.afbce_normal_cnt, devp->stats.afbce_abnormal_cnt,
+		devp->stats.wmif_normal_cnt, devp->stats.wmif_abnormal_cnt);
 	pr_info("put_frame_cnt:%d\n", devp->put_frame_cnt);
 	pr_info("frame_cnt:%d\n", devp->frame_cnt);
 	pr_info("ignore_frames:%d\n", devp->ignore_frames);
 	pr_info("frame_drop_num:%d\n", devp->frame_drop_num);
 	pr_info("vdin_drop_cnt: %d\n", vdin_drop_cnt);
+	pr_info("dbg_fr_ctl:%d,drop_ctl_cnt:%d\n", devp->dbg_fr_ctl, devp->vdin_drop_ctl_cnt);
+
 	vdin_dump_vs_info(devp);
+}
+
+static void vdin_dump_dts_config(struct vdin_dev_s *devp)
+{
+	pr_info("chk_write_done_en: %d\n", devp->dts_config.chk_write_done_en);
+	pr_info("urgent_en: %d\n", devp->dts_config.urgent_en);
+	pr_info("v4l_en:%d\n", devp->dts_config.v4l_en);
 }
 
 /*same as vdin_dump_state*/
@@ -1355,7 +1363,7 @@ static int seq_file_vdin_state_show(struct seq_file *seq, void *v)
 		   devp->canvas_max_size, devp->rdma_enable);
 	seq_printf(seq, "range(%d),csc_cfg:0x%x,urgent_en:%d\n",
 		   devp->prop.color_fmt_range,
-		   devp->csc_cfg, devp->urgent_en);
+		   devp->csc_cfg, devp->dts_config.urgent_en);
 	seq_printf(seq, "black_bar_enable: %d, hist_bar_enable: %d, use_frame_rate: %d\n ",
 		   devp->black_bar_enable,
 		   devp->hist_bar_enable, devp->use_frame_rate);
@@ -1823,11 +1831,44 @@ static void vdin_write_back_reg(struct vdin_dev_s *devp)
 		rd(devp->addr_offset, VDIN_ASFIFO_CTRL3));
 }
 
+void vdin_dump_regs_s5(struct vdin_dev_s *devp, u32 size)
+{
+	unsigned int reg;
+	unsigned int offset = devp->addr_offset;
+
+	pr_info("vdin%d regs bank0 start----\n", devp->index);
+	for (reg = VDIN_REG_BANK0_START; reg <= VDIN_REG_BANK0_END; reg++)
+		pr_info("0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
+	pr_info("vdin%d regs bank0 end----\n\n", devp->index);
+
+	pr_info("vdin%d regs bank1 start----\n", devp->index);
+	for (reg = VDIN_REG_BANK1_START; reg <= VDIN_REG_BANK1_END; reg++)
+		pr_info("0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
+	pr_info("vdin%d regs bank1 end----\n\n", devp->index);
+
+	pr_info("vdin%d regs loopback start----\n", devp->index);
+	reg = VIU_WR_BAK_CTRL;
+	pr_info("0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
+	reg = VPU_VIU2VDIN_HDN_CTRL;
+	pr_info("0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
+	reg = VPU_VIU_VDIN_IF_MUX_CTRL;
+	pr_info("0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
+//	reg = VPP1_WR_BAK_CTRL;
+//	pr_info("VPP1,0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
+//	reg = VPP2_WR_BAK_CTRL;
+//	pr_info("VPP2,0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
+//	pr_info("vdin%d regs loopback end----\n\n", devp->index);
+}
+
 static void vdin_dump_regs(struct vdin_dev_s *devp, u32 size)
 {
 	unsigned int reg;
 	unsigned int offset = devp->addr_offset;
 
+	if (is_meson_s5_cpu()) {
+		vdin_dump_regs_s5(devp, size);
+		return;
+	}
 	if (size) {
 		pr_info("vdin dump reg value:%d\n", size);
 		if (size > 256)
@@ -2070,7 +2111,7 @@ static ssize_t attr_store(struct device *dev,
 	struct vdin_dev_s *devp;
 	unsigned int time_start, time_end, time_delta;
 	long val = 0;
-	unsigned int temp;
+	unsigned int temp, addr = 0, val_tmp;
 	unsigned int mode = 0, flag = 0;
 	unsigned int offset;
 
@@ -2728,6 +2769,22 @@ start_chk:
 			pr_info("dbg_force_one_buffer(%d):%d\n\n", devp->index,
 				devp->dbg_force_one_buffer);
 		}
+	} else if (!strcmp(parm[0], "no_wr_check")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			devp->dbg_no_wr_check = val;
+			pr_info("dbg_no_wr_check(%d):%d\n\n", devp->index,
+				devp->dbg_no_wr_check);
+		}
+	} else if (!strcmp(parm[0], "fr_ctl")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			devp->dbg_fr_ctl = val;
+			pr_info("dbg_fr_ctl(%d):%d\n\n", devp->index,
+				devp->dbg_fr_ctl);
+		}
 	} else if (!strcmp(parm[0], "full_pack")) {
 		if (!parm[1]) {
 			pr_err("miss parameters .\n");
@@ -2889,13 +2946,21 @@ start_chk:
 			pr_info("rdma_enable (%d):%d\n", devp->index,
 				devp->rdma_enable);
 		}
+	} else if (!strcmp(parm[0], "rdma_wr_reg")) {
+		if (!parm[1] || !parm[2]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtouint(parm[1], 0, &addr) == 0 &&
+			kstrtouint(parm[2], 0, &val_tmp) == 0) {
+			rdma_write_reg(devp->rdma_handle, addr, val);
+			pr_info("rdma_wr_reg (%#x):%#x\n", addr, val_tmp);
+		}
 	} else if (!strcmp(parm[0], "urgent_en")) {
 		if (!parm[1]) {
 			pr_err("miss parameters .\n");
 		} else if (kstrtoul(parm[1], 10, &val) == 0) {
-			devp->urgent_en = val;
+			devp->dts_config.urgent_en = val;
 			pr_info("urgent_en (%d):%d\n", devp->index,
-				devp->urgent_en);
+				devp->dts_config.urgent_en);
 		}
 	} else if (!strcmp(parm[0], "irq_cnt")) {
 		pr_info("vdin(%d) irq_cnt: %d\n", devp->index,	devp->irq_cnt);
@@ -3058,7 +3123,10 @@ start_chk:
 			vdin1_hist.width, vdin1_hist.height,
 			vdin1_hist.ave);
 	} else if (!strcmp(parm[0], "vf_crc")) {
-		pr_info("vf crc:0x%x\n", rd(devp->addr_offset, VDIN_RO_CRC));
+		if (is_meson_s5_cpu())
+			pr_info("s5 vf crc:0x%x\n", rd(devp->addr_offset, VDIN_TOP_CRC1_OUT));
+		else
+			pr_info("vf crc:0x%x\n", rd(devp->addr_offset, VDIN_RO_CRC));
 	} else if (!strcmp(parm[0], "game_mode")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			devp->game_mode = temp;
@@ -3145,6 +3213,10 @@ start_chk:
 			vdin_dmc_ctrl(devp, !!temp);
 			pr_info("set dmc_ctrl on_off:%d\n", !!temp);
 		}
+	} else if (!strcmp(parm[0], "manual_change_csc")) {
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+			devp->debug.manual_change_csc = temp;
+		pr_info("manual_change_csc:%d\n", devp->debug.manual_change_csc);
 	} else if (!strcmp(parm[0], "afbce_monitor")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dbg_afbce_monitor = temp;
@@ -3153,6 +3225,21 @@ start_chk:
 				vdin_kthread_start(devp);
 			else if (devp->kthread && !devp->dbg_afbce_monitor)
 				vdin_kthread_stop(devp);
+		}
+	} else if (!strcmp(parm[0], "dts_config")) {
+		vdin_dump_dts_config(devp);
+	} else if (!strcmp(parm[0], "change_get_drm")) {
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+			devp->debug.change_get_drm = temp;
+	}  else if (!strcmp(parm[0], "force_shrink")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			devp->debug.dbg_force_shrink_en = temp;
+			pr_info("dbg_force_shrink_en:%#x\n", devp->debug.dbg_force_shrink_en);
+		}
+	} else if (!strcmp(parm[0], "select_matrix")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			devp->debug.dbg_sel_mat = temp;
+			pr_info("dbg_sel_mat:%#x\n", devp->debug.dbg_sel_mat);
 		}
 	} else {
 		pr_info("unknown command\n");

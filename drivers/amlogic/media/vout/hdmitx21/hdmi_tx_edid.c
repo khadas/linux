@@ -81,6 +81,7 @@ static u8 __nosavedata edid_checkvalue[4] = {0};
 static u32 hdmitx_edid_check_valid_blocks(u8 *buf);
 static void edid_dtd_parsing(struct rx_cap *prxcap, u8 *data);
 static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev);
+static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdev);
 /* Base Block, Vendor/Product Information, byte[8]~[18] */
 struct edid_venddat_t {
 	u8 data[10];
@@ -434,7 +435,10 @@ static int edid_parse_check_hdmi_vsdb(struct hdmitx_dev *hdev,
 	blockaddr = CEA_DATA_BLOCK_COLLECTION_ADDR_1STP;
 	while (blockaddr < VSpecificBoundary) {
 		len = buff[blockaddr] & 0x1F;
-		if ((buff[blockaddr] & 0xE0) == VENDOR_TAG)
+		if (((buff[blockaddr] & 0xE0) == VENDOR_TAG) &&
+			buff[blockaddr + 1] == 0x03 &&
+			buff[blockaddr + 2] == 0x0c &&
+			buff[blockaddr + 3] == 0x00)
 			break;
 		temp_addr = blockaddr + len + 1;
 		if (temp_addr >= VSpecificBoundary)
@@ -1133,8 +1137,7 @@ static void edid_parsingvendspec(struct hdmitx_dev *hdev,
 	ieeeoui += buf[pos++] << 8;
 	ieeeoui += buf[pos++] << 16;
 
-	if ((hdev->hdr_priority == 1 && ieeeoui == DV_IEEE_OUI) ||
-		hdev->hdr_priority == 2) {
+	if ((hdev->hdr_priority == 1 && ieeeoui == DV_IEEE_OUI)) {
 		_edid_parsingvendspec(dv2, hdr10_plus2, cuva2, buf);
 		return;
 	}
@@ -1216,14 +1219,9 @@ INVALID_DRM_STATIC:
 
 static int edid_parsedrmsb(struct rx_cap *prxcap, u8 *buf)
 {
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	struct hdr_info *hdr = &prxcap->hdr_info;
 	struct hdr_info *hdr2 = &prxcap->hdr_info2;
 
-	if (hdev->hdr_priority == 2) {
-		_edid_parsedrmsb(hdr2, buf);
-		return 0;
-	}
 	_edid_parsedrmsb(hdr, buf);
 	_edid_parsedrmsb(hdr2, buf);
 	return 1;
@@ -1288,14 +1286,9 @@ INVALID_DRM_DYNAMIC:
 
 static int edid_parsedrmdb(struct rx_cap *prxcap, u8 *buf)
 {
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	struct hdr_info *hdr = &prxcap->hdr_info;
 	struct hdr_info *hdr2 = &prxcap->hdr_info2;
 
-	if (hdev->hdr_priority == 2) {
-		_edid_parsedrmdb(hdr2, buf);
-		return 0;
-	}
 	_edid_parsedrmdb(hdr, buf);
 	_edid_parsedrmdb(hdr2, buf);
 	return 1;
@@ -1748,6 +1741,10 @@ static void hdmitx21_edid_parse_hdmi14(struct rx_cap *prxcap,
 			get_ilatency(prxcap, val);
 			idx += 2;
 		}
+		prxcap->cnc0 = (tmp >> 0) & 1;
+		prxcap->cnc1 = (tmp >> 1) & 1;
+		prxcap->cnc2 = (tmp >> 2) & 1;
+		prxcap->cnc3 = (tmp >> 3) & 1;
 		if (tmp & (1 << 5)) {
 			idx += 1;
 			/* valid 4k */
@@ -1774,6 +1771,7 @@ static void hdmitx21_edid_parse_hfscdb(struct rx_cap *prxcap,
 	prxcap->scdc_present = !!(blockbuf[offset + 5] & (1 << 7));
 	prxcap->scdc_rr_capable = !!(blockbuf[offset + 5] & (1 << 6));
 	prxcap->lte_340mcsc_scramble = !!(blockbuf[offset + 5] & (1 << 3));
+	prxcap->max_frl_rate = (blockbuf[offset + 6] & 0xf0) >> 4;
 	set_vsdb_dc_420_cap(prxcap, &blockbuf[offset]);
 
 	if (count < 8)
@@ -1802,23 +1800,7 @@ static void hdmitx21_edid_parse_hfscdb(struct rx_cap *prxcap,
 /* refer to CEA-861-G 7.5.1 video data block */
 static void _store_vics(struct rx_cap *prxcap, u8 vic_dat)
 {
-	u8 vic_bit6_0 = vic_dat & (~0x80);
-	u8 vic_bit7 = !!(vic_dat & 0x80);
-
-	if (!prxcap)
-		return;
-
-	if (vic_bit6_0 >= 1 && vic_bit6_0 <= 64) {
-		store_cea_idx(prxcap, vic_bit6_0);
-		if (vic_bit7) {
-			if (prxcap->native_vic && !prxcap->native_vic2)
-				prxcap->native_vic2 = vic_bit6_0;
-			if (!prxcap->native_vic)
-				prxcap->native_vic = vic_bit6_0;
-		}
-	} else {
-		store_cea_idx(prxcap, vic_dat);
-	}
+	store_cea_idx(prxcap, vic_dat);
 }
 
 static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
@@ -1833,16 +1815,16 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 	u32 aud_flag = 0;
 
 	if (blockbuf[0] == 0x0)
-		pr_info(EDID "unkonw Extension Tag detected, continue\n");
+		pr_info(EDID "unknown Extension Tag detected, continue\n");
 	if (blockbuf[0] != 0x02)
 		return -1; /* not a CEA BLOCK. */
 	end = blockbuf[2]; /* CEA description. */
 	prxcap->native_Mode = blockbuf[3];
 	prxcap->number_of_dtd += blockbuf[3] & 0xf;
 
-	prxcap->native_vic = 0;
-	prxcap->native_vic2 = 0;
-	prxcap->AUD_count = 0;
+	/* prxcap->native_vic = 0;*/
+	/* prxcap->native_vic2 = 0;*/
+	/* prxcap->AUD_count = 0;*/
 
 	edid_y420cmdb_reset(&hdev->hdmi_info);
 	if (end > 126)
@@ -1872,8 +1854,10 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 
 		case HDMI_EDID_BLOCK_TYPE_VIDEO:
 			offset++;
-			for (i = 0; i < count ; i++)
+			for (i = 0; i < count ; i++) {
+				pr_info("i=%d VIC=%d\n", i, blockbuf[offset + i]);
 				_store_vics(prxcap, blockbuf[offset + i]);
+			}
 			offset += count;
 			break;
 
@@ -1890,8 +1874,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 				hdmitx21_edid_parse_hfscdb(prxcap, offset,
 							 blockbuf, count);
 			}
-
-			offset += count; /* ignore the remaind. */
+			offset += count; /* ignore the remains. */
 			break;
 
 		case HDMI_EDID_BLOCK_TYPE_SPEAKER:
@@ -2016,11 +1999,9 @@ static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdmitx_device)
 {
 	struct rx_cap *prxcap = &hdmitx_device->rxcap;
 
-	prxcap->VIC_count = 0x3;
-	prxcap->VIC[0] = HDMI_3_720x480p60_16x9;
-	prxcap->VIC[1] = HDMI_4_1280x720p60_16x9;
-	prxcap->VIC[2] = HDMI_16_1920x1080p60_16x9;
-	prxcap->native_vic = HDMI_3_720x480p60_16x9;
+	prxcap->VIC_count = 0x1;
+	prxcap->VIC[0] = HDMI_16_1920x1080p60_16x9;
+	prxcap->native_vic = HDMI_16_1920x1080p60_16x9;
 	hdmitx_device->vic_count = prxcap->VIC_count;
 	pr_info(EDID "set default vic\n");
 }
@@ -2750,7 +2731,6 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 	if (edid_zero_data(EDID_buf) ||
 	    (prxcap->VIC_count == 0 && prxcap->vesa_timing[0] == 0))
 		hdmitx_edid_set_default_vic(hdmitx_device);
-
 	return 0;
 }
 
@@ -2782,17 +2762,60 @@ static bool is_rx_support_y420(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 {
 	int i;
 	struct rx_cap *prxcap = &hdev->rxcap;
+	const struct hdmi_timing *timing;
 
 	for (i = 0; i < Y420_VIC_MAX_NUM; i++) {
 		if (prxcap->y420_vic[i] == vic)
 			return 1;
 	}
 
+	/* In Spec2.1 Table 7-34, greater than 2160p30hz will support y420 */
+	timing = hdmitx21_gettiming_from_vic(vic);
+	if (!timing)
+		return 0;
+
+	if (timing->v_active > 2160 && timing->v_freq > 30000)
+		return 1;
+	if (timing->v_active >= 4320)
+		return 1;
+
 	return 0;
 }
 
+static bool hdmitx_check_4x3_16x9_mode(struct hdmitx_dev *hdev,
+		enum hdmi_vic vic)
+{
+	bool flag = 0;
+	int j;
+	struct rx_cap *prxcap = NULL;
+
+	prxcap = &hdev->rxcap;
+	if (vic == HDMI_2_720x480p60_4x3 ||
+		vic == HDMI_6_720x480i60_4x3 ||
+		vic == HDMI_17_720x576p50_4x3 ||
+		vic == HDMI_21_720x576i50_4x3) {
+		for (j = 0; (j < prxcap->VIC_count) && (j < VIC_MAX_NUM); j++) {
+			if ((vic + 1) == (prxcap->VIC[j] & 0xff)) {
+				flag = 1;
+				break;
+			}
+		}
+	} else if (vic == HDMI_3_720x480p60_16x9 ||
+			vic == HDMI_7_720x480i60_16x9 ||
+			vic == HDMI_18_720x576p50_16x9 ||
+			vic == HDMI_22_720x576i50_16x9) {
+		for (j = 0; (j < prxcap->VIC_count) && (j < VIC_MAX_NUM); j++) {
+			if ((vic - 1) == (prxcap->VIC[j] & 0xff)) {
+				flag = 1;
+				break;
+			}
+		}
+	}
+	return flag;
+}
+
 /* For some TV's EDID, there maybe exist some information ambiguous.
- * Such as EDID declears support 2160p60hz(Y444 8bit), but no valid
+ * Such as EDID declare support 2160p60hz(Y444 8bit), but no valid
  * Max_TMDS_Clock2 to indicate that it can support 5.94G signal.
  */
 bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
@@ -2809,9 +2832,14 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	enum hdmi_color_depth rx_y444_max_dc = COLORDEPTH_24B;
 	enum hdmi_color_depth rx_y420_max_dc = COLORDEPTH_24B;
 	enum hdmi_color_depth rx_rgb_max_dc = COLORDEPTH_24B;
+	u32 rx_frl_bandwidth = 0;
+	u32 tx_frl_bandwidth = 0;
+	const struct hdmi_timing *timing;
 
 	if (!hdev || !para)
 		return 0;
+
+	prxcap = &hdev->rxcap;
 
 	/* exclude such as: 2160p60hz YCbCr444 10bit */
 	switch (para->timing.vic) {
@@ -2823,7 +2851,7 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	case HDMI_107_3840x2160p60_64x27:
 		if (para->cs == HDMI_COLORSPACE_RGB ||
 		    para->cs == HDMI_COLORSPACE_YUV444)
-			if (para->cd != COLORDEPTH_24B)
+			if (para->cd != COLORDEPTH_24B && !prxcap->max_frl_rate)
 				return 0;
 		break;
 	case HDMI_7_720x480i60_16x9:
@@ -2834,8 +2862,6 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 		break;
 	}
 
-	prxcap = &hdev->rxcap;
-
 	/* DVI case, only 8bit */
 	if (prxcap->ieeeoui != HDMI_IEEE_OUI) {
 		if (para->cd != COLORDEPTH_24B)
@@ -2844,8 +2870,13 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 
 	/* target mode is not contained at RX SVD */
 	for (i = 0; (i < prxcap->VIC_count) && (i < VIC_MAX_NUM); i++) {
-		if ((para->timing.vic & 0xff) == (prxcap->VIC[i] & 0xff))
+		if ((para->timing.vic & 0xff) == (prxcap->VIC[i] & 0xff)) {
 			svd_flag = 1;
+			break;
+		} else if (hdmitx_check_4x3_16x9_mode(hdev, para->timing.vic & 0xff)) {
+			svd_flag = 1;
+			break;
+		}
 	}
 	if (svd_flag == 0)
 		return 0;
@@ -2861,7 +2892,14 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	}
 
 	calc_tmds_clk = para->tmds_clk / 1000;
-	if (calc_tmds_clk < rx_max_tmds_clk)
+	rx_frl_bandwidth = get_frl_bandwidth(prxcap->max_frl_rate);
+	timing = hdmitx21_gettiming_from_vic(para->timing.vic);
+	if (!timing)
+		return 0;
+	/* tx_frl_bandwidth = timing->pixel_freq / 1000 * 24 * 1.122 */
+	tx_frl_bandwidth = calc_frl_bandwidth(timing->pixel_freq / 1000,
+		para->cs, para->cd);
+	if (calc_tmds_clk < rx_max_tmds_clk || tx_frl_bandwidth <= rx_frl_bandwidth)
 		valid = 1;
 	else
 		return 0;
@@ -3215,6 +3253,8 @@ int hdmitx21_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		prxcap->scdc_present);
 	pos += snprintf(buffer + pos, buffer_len - pos, "RR_Cap: %x\n",
 		prxcap->scdc_rr_capable);
+	pos += snprintf(buffer + pos, buffer_len - pos, "FRL_RATE: %x\n",
+		prxcap->max_frl_rate);
 	pos +=
 	snprintf(buffer + pos, buffer_len - pos, "LTE_340M_Scramble: %x\n",
 		 prxcap->lte_340mcsc_scramble);

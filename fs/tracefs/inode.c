@@ -22,7 +22,7 @@
 #include <linux/magic.h>
 #include <linux/slab.h>
 
-#define TRACEFS_DEFAULT_MODE	0700
+#define TRACEFS_DEFAULT_MODE	0755
 
 static struct vfsmount *tracefs_mount;
 static int tracefs_mount_count;

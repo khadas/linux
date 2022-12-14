@@ -111,7 +111,6 @@ void gki_module_init(void)
 	if (res < 0)
 		pr_err("read /proc/cmdline failed:%d\n", (int)res);
 
-	pr_info("/proc/cmdline= [%s]\n", cmdline);
 
 	filp_close(fp, NULL);
 	set_fs(old_fs);

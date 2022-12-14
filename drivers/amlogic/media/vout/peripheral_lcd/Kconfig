@@ -1,0 +1,12 @@
+
+menu "Amlogic Peripheral_lcd Support"
+
+config AMLOGIC_PERIPHERAL_LCD
+	bool "Amlogic peripheral_lcd support"
+	default n
+	help
+		Say Y here if you want to use the Amlogic peripheral_lcd management.
+		Peripheral_lcd include spi_lcd and other peripheral_lcd that you want
+		to add.
+
+endmenu

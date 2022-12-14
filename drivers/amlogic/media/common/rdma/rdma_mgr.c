@@ -629,14 +629,14 @@ int rdma_config(int handle, u32 trigger_type)
 			WRITE_VCBUS_REG
 			(RDMA_ACCESS_MAN,
 			 READ_VCBUS_REG(RDMA_ACCESS_MAN) & (~1));
-			if (debug_flag & 2) {
-				pr_info("%s: handle=%d trigger_type %d : %d buffer_lock:%d\r\n",
-					__func__,
-					handle,
-					trigger_type_backup,
-					ins->rdma_item_count,
-					buffer_lock);
-			}
+		if (debug_flag & 2) {
+			pr_info("%s: handle=%d trigger_type %d : %d buffer_lock:%d\r\n",
+				__func__,
+				handle,
+				trigger_type_backup,
+				ins->rdma_item_count,
+				buffer_lock);
+		}
 		WRITE_VCBUS_REG_BITS
 		(ins->rdma_regadr->trigger_mask_reg,
 		 0, ins->rdma_regadr->trigger_mask_reg_bitpos,
@@ -1828,7 +1828,7 @@ static int __init rdma_probe(struct platform_device *pdev)
 
 	rdma_mgr_irq_request = 1;
 	data32  = 0;
-	data32 |= 1 << 7; /* wrtie ddr urgent */
+	data32 |= 1 << 7; /* write ddr urgent */
 	data32 |= 1 << 6; /* read ddr urgent */
 	data32 |= ctrl_ahb_wr_burst_size << 4;
 	data32 |= ctrl_ahb_rd_burst_size << 2;

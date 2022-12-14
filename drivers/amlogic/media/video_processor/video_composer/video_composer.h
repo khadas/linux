@@ -47,6 +47,7 @@
 #include <linux/amlogic/media/video_sink/video.h>
 #include "vframe_ge2d_composer.h"
 #include "vframe_dewarp_composer.h"
+#include "vframe_vicp_composer.h"
 
 #define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_VIDEO_COMPOSER
 #ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
@@ -78,7 +79,9 @@
 #define PRINT_PATTERN	        0X0020
 #define PRINT_OTHER		0X0040
 #define PRINT_NN		0X0080
-#define PRINT_DEWARP	0X0100
+#define PRINT_DEWARP		0X0100
+#define PRINT_VICP		0X0200
+
 
 #define SOURCE_DTV_FIX_TUNNEL		0x1
 #define SOURCE_HWC_CREAT_ION		0x2
@@ -256,6 +259,16 @@ struct composer_dev {
 	u32 patten_factor[PATTEN_FACTOR_MAX];
 	u32 patten_factor_index;
 	u32 next_factor;
+	u32 last_drop_cnt;
+};
+
+struct capability_info_t {
+	u32 capability;
+	u32 min_w;
+	u32 min_h;
+	u32 max_w;
+	u32 max_h;
+	u32 reserved[10];
 };
 
 #define VIDEO_COMPOSER_IOC_MAGIC  'V'
@@ -267,6 +280,8 @@ struct composer_dev {
 	_IOW(VIDEO_COMPOSER_IOC_MAGIC, 0x02, int)
 #define VIDEO_COMPOSER_IOCTL_GET_PANEL_CAPABILITY	\
 	_IOR(VIDEO_COMPOSER_IOC_MAGIC, 0x03, int)
+#define VIDEO_COMPOSER_IOCTL_GET_LAYER_CAPABILITY	\
+	_IOR(VIDEO_COMPOSER_IOC_MAGIC, 0x04, struct capability_info_t)
 
 int video_composer_set_enable(struct composer_dev *dev, u32 val);
 struct video_composer_port_s *video_composer_get_port(u32 index);

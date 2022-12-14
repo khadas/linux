@@ -67,7 +67,7 @@ typedef struct dwc_otg_device {
 	 * require this. */
 	struct os_dependent os_dep;
 
-	/** Generic Device refercece from os_dep */
+	/** Generic Device reference from os_dep */
 	struct device *gen_dev;
 
 	const char *dev_name;

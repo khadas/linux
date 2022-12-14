@@ -134,7 +134,7 @@ bool timer_cnt(unsigned long *ptimer, unsigned int hs_nub)
  * bit [10:11] debug for only set one time;
  * bit [12]: trig update all once;
  * bit [13]: force di do nothing;
- * bit [14]: check vpp virture active
+ * bit [14]: check vpp virtue active
  * bit [15]: force vpp active
  * bit [16]: force mem bypass
  * bit [17]: force update all
@@ -1885,7 +1885,7 @@ bool dimn_que_release(struct dimn_qs_cls_s	*pq)
  * hw timer for wake up
  ************************************************/
 #define DIM_HW_TIMER_MS		(12)
-static void task_send_ready_now(unsigned int reasion)
+static void task_send_ready_now(unsigned int reason)
 {
 	struct dim_dvs_prevpp_s *dv_prevpp;
 
@@ -1895,7 +1895,7 @@ static void task_send_ready_now(unsigned int reasion)
 	atomic_set(&dv_prevpp->wk_need, 0);
 	dv_prevpp->ktimer_lst_wk = ktime_get();
 	atomic_inc(&dv_prevpp->sum_wk_real_cnt);
-	task_send_ready(reasion);
+	task_send_ready(reason);
 }
 
 static enum hrtimer_restart dpvpp_wk_hrtimer_func(struct hrtimer *timer)
@@ -1905,7 +1905,7 @@ static enum hrtimer_restart dpvpp_wk_hrtimer_func(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static void task_send_wk_timer(unsigned int reasion)
+static void task_send_wk_timer(unsigned int reason)
 {
 	struct dim_dvs_prevpp_s *dv_prevpp;
 	ktime_t ktimer_now;
@@ -1915,9 +1915,9 @@ static void task_send_wk_timer(unsigned int reasion)
 	dv_prevpp = &get_datal()->dvs_prevpp;
 	atomic_inc(&dv_prevpp->sum_wk_rq);
 
-	if (reasion & DIM_WKUP_TAG_CRITICLE) {
+	if (reason & DIM_WKUP_TAG_CRITICAL) {
 		hrtimer_cancel(&dv_prevpp->hrtimer_wk);
-		task_send_ready_now(reasion);
+		task_send_ready_now(reason);
 		return;
 	}
 
@@ -1929,7 +1929,7 @@ static void task_send_wk_timer(unsigned int reasion)
 	kdiff = ktime_ms_delta(ktimer_now, dv_prevpp->ktimer_lst_wk);
 	if (kdiff > (DIM_HW_TIMER_MS - 3)) {
 		hrtimer_cancel(&dv_prevpp->hrtimer_wk);
-		task_send_ready_now(reasion);
+		task_send_ready_now(reason);
 		return;
 	}
 
@@ -5235,7 +5235,7 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf,
 	out_dvfm->vf_ext = ndvfm->c.ori_vf;
 	out_dvfm->sum_reg_cnt = itf->sum_reg_cnt;
 	if (ndvfm->c.set_cfg.b.en_in_cvs) {
-		/* confic cvs for input */
+		/* config cvs for input */
 		cvsp = &ndvfm->c.cvspara_in;
 		cvsp->plane_nub	= in_dvfm->vfs.plane_num;
 		cvsp->cvs_cfg	= &in_dvfm->vfs.canvas0_config[0];
@@ -5243,7 +5243,7 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf,
 		//cvs_link(&cvspara, "in_cvs");
 	}
 	if (ndvfm->c.set_cfg.b.en_wr_cvs) {
-		/* confic cvs for input */
+		/* config cvs for input */
 		cvsp = &ndvfm->c.cvspara_wr;
 		cvsp->plane_nub	= out_dvfm->vfs.plane_num;
 		cvsp->cvs_cfg	= &out_dvfm->vfs.canvas0_config[0];
@@ -5252,7 +5252,7 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf,
 	}
 
 	if (ndvfm->c.set_cfg.b.en_mem_cvs) {
-		/* confic cvs for input */
+		/* config cvs for input */
 		cvsp = &ndvfm->c.cvspara_mem;
 		cvsp->plane_nub	= out_dvfm->vfs.plane_num;
 		cvsp->cvs_cfg	= &out_dvfm->vfs.canvas0_config[0];
@@ -5416,7 +5416,7 @@ static void dpvpph_display_update_all(struct dim_prevpp_ds_s *ds,
 		ds->mif_wr.tst_not_setcontr);
 	/* cfg cvs */
 	if (ndvfm->c.set_cfg.b.en_in_cvs) {
-		/* confic cvs for input */
+		/* config cvs for input */
 		if (in_dvfm->vfs.canvas0Addr == (u32)-1) {
 			cvsp = &ndvfm->c.cvspara_in;
 			cvsp->plane_nub	= in_dvfm->vfs.plane_num;
@@ -5700,7 +5700,7 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 	/* cfg cvs */
 	if (ndvfm->c.set_cfg.b.en_in_cvs) {
 		if (in_dvfm->vfs.canvas0Addr == (u32)-1) {
-			/* confic cvs for input */
+			/* config cvs for input */
 			cvsp = &ndvfm->c.cvspara_in;
 			cvsp->plane_nub	= in_dvfm->vfs.plane_num;	////updat no need
 			cvsp->cvs_cfg		= &in_dvfm->vfs.canvas0_config[0];//updat no need
@@ -6120,6 +6120,55 @@ enum DI_ERRORTYPE dpvpp_empty_input_buffer(int index, struct di_buffer *buffer)
 	task_send_wk_timer(EDIM_WKUP_REASON_IN_HAVE);
 
 	return DI_ERR_NONE;
+}
+
+void dpvpp_patch_first_buffer(int index, struct di_ch_s *pch)
+{
+	int i;
+	unsigned int cnt;
+
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_nins_s *ins;
+	bool ret;
+	unsigned int qt_in;
+	unsigned int bindex;
+	struct di_buffer *buffer;
+
+	pbufq = &pch->nin_qb;
+	//qbuf_peek_s(pbufq, QBF_INS_Q_IN, q_buf);
+	if (get_datal()->dct_op && get_datal()->dct_op->is_en(pch))
+		qt_in = QBF_NINS_Q_DCT;
+	else
+		qt_in = QBF_NINS_Q_CHECK;
+
+	cnt = nins_cnt(pch, qt_in);
+
+	if (!cnt)
+		return;
+	for (i = 0; i < cnt; i++) {
+		ret = qbuf_out(pbufq, qt_in, &bindex);
+		if (!ret) {
+			PR_ERR("%s:1:%d:can't get out\n", __func__, i);
+			continue;
+		}
+		if (bindex >= DIM_NINS_NUB) {
+			PR_ERR("%s:2:%d:%d\n", __func__, i, bindex);
+			continue;
+		}
+		q_buf = pbufq->pbuf[bindex];
+		ins = (struct dim_nins_s *)q_buf.qbc;
+		buffer = (struct di_buffer *)ins->c.ori;
+		if (!buffer) {
+			PR_ERR("%s:3:%d,%d\n", __func__, i, bindex);
+			continue;
+		}
+		memset(&ins->c, 0, sizeof(ins->c));
+		qbuf_in(pbufq, QBF_NINS_Q_IDLE, bindex);
+
+		dpvpp_empty_input_buffer(DIM_PRE_VPP_NUB, buffer);
+	}
+	PR_INF("%s:%d\n", __func__, cnt);
 }
 
 /* @ary_note: buffer alloc by di			*/

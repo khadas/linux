@@ -236,7 +236,7 @@ int configs_register_node(struct mconfig_node *parent,
 		       parent->prefix, parent->name,
 		       (int)(strlen(parent->prefix) + strlen(parent->name) + 1),
 		       MAX_PREFIX_NAME - 1);
-		return -2;	/*unsuport deep path */
+		return -2;	/*unsupport deep path */
 	}
 	if (configs_get_node_with_name(parent, new_node->name)) {
 		pr_err("have register same node[%s] on %s before\n",

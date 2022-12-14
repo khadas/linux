@@ -1210,7 +1210,7 @@ extern uint32_t DWC_TIME(void);
  * - Crypto - Used internally only.  See dwc_crypto.h
  *
  *
- * @section prereq Prerequistes For dwc_os.h
+ * @section prereq prerequisites For dwc_os.h
  * @subsection types Data Types
  *
  * The dwc_os.h file assumes that several low-level data types are pre defined for the
@@ -1234,8 +1234,8 @@ extern uint32_t DWC_TIME(void);
  * @subsection stdarg Variable Arguments
  *
  * Variable arguments are provided by a standard C header <stdarg.h>.  it is
- * available in Both the Linux and ANSI C enviornment.  An equivalent must be
- * provided in your enviornment in order to use dwc_os.h with the debug and
+ * available in Both the Linux and ANSI C environment.  An equivalent must be
+ * provided in your environment in order to use dwc_os.h with the debug and
  * tracing message functionality.
  *
  * @subsection thread Threading
@@ -1247,7 +1247,7 @@ extern uint32_t DWC_TIME(void);
  * special work.  It need not be a pre-emptive system.  Process context can
  * change upon a call to a blocking function.  The hardware interrupt context
  * that calls the module's ISR() function must be differentiable from process
- * context, even if your processes are impemented via a hardware interrupt.
+ * context, even if your processes are implemented via a hardware interrupt.
  * Further locking mechanism between process must exist (or be implemented), and
  * process context must have a way to disable interrupts for a period of time to
  * lock them out.  If all of this exists, the functions in dwc_os.h related to

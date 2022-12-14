@@ -100,7 +100,8 @@ static int lcd_extern_spi_write(struct lcd_extern_driver_s *edrv,
 
 static int lcd_extern_reg_read(struct lcd_extern_driver_s *edrv,
 			       struct lcd_extern_dev_s *edev,
-			       unsigned char reg, unsigned char *buf)
+			       unsigned char reg_byte_len,
+			       unsigned short reg, unsigned char *buf)
 {
 	struct lcd_extern_i2c_dev_s *i2c_dev;
 	unsigned char tmp;
@@ -120,7 +121,7 @@ static int lcd_extern_reg_read(struct lcd_extern_driver_s *edrv,
 			       edrv->index, __func__, edev->dev_index, edev->addr_sel);
 			return -1;
 		}
-		lcd_extern_i2c_read(i2c_dev->client, &tmp, 1);
+		lcd_extern_i2c_read(i2c_dev->client, &tmp, 1, &tmp, 1);
 		buf[0] = tmp;
 		break;
 	case LCD_EXTERN_SPI:
@@ -196,7 +197,7 @@ static void lcd_extern_init_reg_check(struct lcd_extern_dev_s *edev,
 		data_len--;
 		raw_table++;
 	}
-	ret = lcd_extern_i2c_read(i2client, chk_table, data_len);
+	ret = lcd_extern_i2c_read(i2client, chk_table, 1, chk_table, data_len);
 
 	if (!edev->check_len || edev->check_len > data_len)
 		edev->check_len = data_len;
@@ -243,7 +244,8 @@ static void lcd_extern_init_reg_check2(struct lcd_extern_dev_s *edev,
 	chk_table = kcalloc(data_len, sizeof(unsigned char), GFP_KERNEL);
 	if (!chk_table)
 		goto parameter_check2_err0;
-	ret = lcd_extern_i2c_read(i2client, chk_table, edev->check_offset + data_len);
+	ret = lcd_extern_i2c_read(i2client, chk_table, 1,
+		chk_table, edev->check_offset + data_len);
 
 	if (!edev->check_len || edev->check_len > data_len)
 		edev->check_len = data_len;

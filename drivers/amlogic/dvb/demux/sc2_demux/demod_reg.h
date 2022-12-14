@@ -73,11 +73,11 @@
 
 /*bit 28:31 --null*/
 /*bit 24:27 --The sid offset in custom header, default:0x1*/
-/*bit 16:23 --The user-defined header byte of chanenl, default:0x4b*/
+/*bit 16:23 --The user-defined header byte of channel, default:0x4b*/
 /*bit 13:15 --null*/
 /*bit 12 --1: cable card; 0: custom header, default:0x1*/
 /*bit 10:11 --null*/
-/*bit 8:9 --The length of header tag in chanen0, default:0x2
+/*bit 8:9 --The length of header tag in channel0, default:0x2
  *2'b11: 12 bytes
  *2'b10: 8 bytes
  *2'b01: 4 bytes

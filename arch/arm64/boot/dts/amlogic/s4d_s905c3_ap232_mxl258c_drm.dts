@@ -426,11 +426,12 @@
 		dev_name = "aml_dtv_demod";
 		status = "disabled";
 		diseqc_name = "sgm_41286";
-		//pinctrl-names="if_agc_pins", "if_agc2_pins", "rf_agc_pins", "diseqc";
+		//pinctrl-names="if_agc_pins", "if_agc2_pins", "rf_agc_pins", "diseqc_out";
 		//pinctrl-0=<&dtvdemod_if_agc_pins>;
 		//pinctrl-1=<&dtvdemod_if_agc2_pins>;
 		//pinctrl-2=<&dtvdemod_rf_agc_pins>;
 		//pinctrl-3=<&diseqc_out>;
+		//pinctrl-4=<&diseqc_in>;
 		lnb_en-gpios = <&gpio GPIOZ_6 GPIO_ACTIVE_HIGH>;
 		lnb_sel-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
 		interrupts = <GIC_SPI 221 IRQ_TYPE_EDGE_RISING>;

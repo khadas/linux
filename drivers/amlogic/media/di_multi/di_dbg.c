@@ -1317,7 +1317,7 @@ const struct di_vframe_type_info di_vtype_info[] = {
 	{"interlace", VIDTYPE_INTERLACE, NULL},
 	{"bottom", VIDTYPE_INTERLACE_BOTTOM, NULL},
 
-	{"interllace first", VIDTYPE_INTERLACE_FIRST, NULL},
+	{"interlace first", VIDTYPE_INTERLACE_FIRST, NULL},
 	{"mvc", VIDTYPE_MVC, NULL},
 	{"no video en", VIDTYPE_NO_VIDEO_ENABLE, NULL},
 	{"v422", VIDTYPE_VIU_422, NULL},
@@ -1629,7 +1629,7 @@ static int seq_file_curr_vframe_show(struct seq_file *seq, void *v)
 
 /**************************************
  *
- * summmary variable
+ * summary variable
  *
  **************************************/
 static int seq_file_sum_show(struct seq_file *seq, void *v)

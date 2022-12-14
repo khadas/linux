@@ -101,7 +101,7 @@ MODULE_PARM_DESC(invert_top_bot, "invert field type top or bottom");
 bool enable_reset;
 module_param(enable_reset, bool, 0664);
 MODULE_PARM_DESC(enable_reset, "enable_reset");
-static int vsync_reset_mask;
+int vsync_reset_mask;
 module_param(vsync_reset_mask, int, 0664);
 MODULE_PARM_DESC(vsync_reset_mask, "vsync_reset_mask");
 
@@ -117,7 +117,7 @@ unsigned int dv_dbg_mask = (DV_BUF_START_RESET);
 module_param(dv_dbg_mask, uint, 0664);
 MODULE_PARM_DESC(dv_dbg_mask, "enable/disable dv_dbg_mask");
 
-static int vdin_ctl_dbg;
+int vdin_ctl_dbg;
 module_param(vdin_ctl_dbg, int, 0664);
 MODULE_PARM_DESC(vdin_ctl_dbg, "vdin_ctl_dbg");
 
@@ -882,6 +882,11 @@ vdin_get_format_convert_matrix1(struct vdin_dev_s *devp)
 void vdin_prob_get_rgb(unsigned int offset,
 		       unsigned int *r, unsigned int *g, unsigned int *b)
 {
+	if (is_meson_s5_cpu()) {
+		vdin_prob_get_rgb_s5(offset, r, g, b);
+		return;
+	}
+
 	*b = rgb_info_b = rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
 				  COMPONENT2_PROBE_COLOR_BIT,
 				  COMPONENT0_PROBE_COLOR_WID);
@@ -898,6 +903,11 @@ void vdin_prob_get_yuv(unsigned int offset,
 		       unsigned int *rgb_yuv1,
 		       unsigned int *rgb_yuv2)
 {
+	if (is_meson_s5_cpu()) {
+		vdin_prob_get_yuv_s5(offset, rgb_yuv0, rgb_yuv1, rgb_yuv2);
+		return;
+	}
+
 	*rgb_yuv0 = ((rd_bits(offset, VDIN_MATRIX_PROBE_COLOR,
 			      COMPONENT2_PROBE_COLOR_BIT,
 			      COMPONENT2_PROBE_COLOR_WID) << 8) >> 10);
@@ -924,6 +934,10 @@ void vdin_prob_matrix_sel(unsigned int offset,
 {
 	unsigned int x;
 
+	if (is_meson_s5_cpu()) {
+		vdin_prob_matrix_sel_s5(offset, sel, devp);
+		return;
+	}
 	x = sel & 0x03;
 	/* 1:select matrix 1 */
 	wr_bits(offset, VDIN_MATRIX_CTRL, x,
@@ -938,6 +952,11 @@ void vdin_prob_matrix_sel(unsigned int offset,
 void vdin_prob_set_xy(unsigned int offset,
 		      unsigned int x, unsigned int y, struct vdin_dev_s *devp)
 {
+	if (is_meson_s5_cpu()) {
+		vdin_prob_set_xy_s5(offset, x, y, devp);
+		return;
+	}
+
 	/* set position */
 	rgb_info_x = x;
 	if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
@@ -981,8 +1000,7 @@ static void vdin_set_meas_mux(unsigned int offset, enum tvin_port_e port_,
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			meas_mux = MEAS_MUX_656_B;
 #endif
-		}
-		else if ((is_meson_gxl_cpu() || is_meson_gxm_cpu() ||
+		} else if ((is_meson_gxl_cpu() || is_meson_gxm_cpu() ||
 			cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) &&
 			(bt_path == BT_PATH_GPIO))
 			meas_mux = MEAS_MUX_656;
@@ -1071,6 +1089,11 @@ void vdin_set_top(struct vdin_dev_s *devp, unsigned int offset,
 	unsigned int vdin_data_bus_0 = VDIN_MAP_Y_G;
 	unsigned int vdin_data_bus_1 = VDIN_MAP_BPB;
 	unsigned int vdin_data_bus_2 = VDIN_MAP_RCR;
+
+	if (is_meson_s5_cpu()) {
+		vdin_set_top_s5(devp, port, input_cfmt, bt_path);
+		return;
+	}
 
 	/* [28:16]         top.input_width_m1   = h - 1 */
 	/* [12: 0]         top.output_width_m1  = h - 1 */
@@ -1258,6 +1281,11 @@ void vdin_set_decimation(struct vdin_dev_s *devp)
 	unsigned int new_clk = 0;
 	bool decimation_in_frontend = false;
 
+	if (is_meson_s5_cpu()) {
+		vdin_set_decimation_s5(devp);
+		return;
+	}
+
 	if (devp->prop.decimation_ratio & HDMI_DE_REPEAT_DONE_FLAG) {
 		decimation_in_frontend = true;
 		if (vdin_ctl_dbg)
@@ -1306,6 +1334,11 @@ void vdin_fix_nonstd_vsync(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
 
+	if (is_meson_s5_cpu()) {
+		vdin_fix_nonstd_vsync_s5(devp);
+		return;
+	}
+
 	/* prevent vdin enter hold status by mass vsync from hdmi rx
 	 * phenomenon: not wr any data to DDR, picture stuck
 	 */
@@ -1338,6 +1371,11 @@ void vdin_set_cutwin(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
 	unsigned int he = 0, ve = 0;
+
+	if (is_meson_s5_cpu()) {
+		vdin_set_cutwin_s5(devp);
+		return;
+	}
 
 	if ((devp->prop.hs || devp->prop.he ||
 	     devp->prop.vs || devp->prop.ve) &&
@@ -1451,7 +1489,7 @@ void vdin_change_matrix0(u32 offset, u32 matrix_csc)
 		wr_bits(offset, VDIN_MATRIX_CTRL, 1,
 			VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
 	}
-	if (vdin_dbg_en & BIT(1))
+	if (vdin_dbg_en)
 		pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 
@@ -1488,7 +1526,7 @@ void vdin_change_matrix1(u32 offset, u32 matrix_csc)
 		wr_bits(offset, VDIN_MATRIX_CTRL, 1,
 			VDIN_MATRIX1_EN_BIT, VDIN_MATRIX1_EN_WID);
 	}
-	if (vdin_dbg_en & BIT(1))
+	if (vdin_dbg_en)
 		pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 
@@ -1535,8 +1573,20 @@ void vdin_change_matrix_hdr(u32 offset, u32 matrix_csc)
 		wr_bits(offset, VDIN_MATRIX_CTRL, 1,
 			VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
 	}
-	if (vdin_dbg_en & BIT(1))
+	if (vdin_dbg_en)
 		pr_info("%s id:%d\n", __func__, matrix_csc);
+}
+
+static void vdin_manual_matrix_csc(enum vdin_matrix_csc_e *matrix_csc)
+{
+	struct vdin_dev_s *devp;
+
+	devp = vdin_get_dev(0);
+	if (!devp->debug.manual_change_csc)
+		return;
+
+	*matrix_csc = devp->debug.manual_change_csc;
+	pr_info("%s matrix_csc:%d\n", __func__, *matrix_csc);
 }
 
 static enum vdin_matrix_csc_e
@@ -1699,6 +1749,8 @@ vdin_set_color_matrix(enum vdin_matrix_sel_e matrix_sel, unsigned int offset,
 		break;
 	}
 
+	vdin_manual_matrix_csc(&matrix_csc);
+
 	if (matrix_sel == VDIN_SEL_MATRIX0)
 		vdin_change_matrix0(offset, matrix_csc);
 	else if (matrix_sel == VDIN_SEL_MATRIX1)
@@ -1801,6 +1853,11 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 	enum vdin_format_convert_e format_convert_matrix1;
 	unsigned int offset = devp->addr_offset;
 	enum vdin_matrix_sel_e matrix_sel;
+
+	if (is_meson_s5_cpu()) {
+		vdin_set_matrix_s5(devp);
+		return;
+	}
 
 	if (rgb_info_enable == 0) {
 		/* matrix1 disable */
@@ -2061,6 +2118,9 @@ static void vdin_urgent_patch(unsigned int offset, unsigned int v,
 
 void vdin_urgent_patch_resume(unsigned int offset)
 {
+	if (is_meson_s5_cpu())
+		return;
+
 	/* urgent ctr config */
 	wr(offset, VDIN_LFIFO_URG_CTRL, 0);
 	aml_write_vcbus(VPU_ARB_URG_CTRL, 0);
@@ -2199,7 +2259,7 @@ static inline void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 	/* req_en */
 	wr_bits(offset, VDIN_WR_CTRL, 1, WR_REQ_EN_BIT, WR_REQ_EN_WID);
 	/*only for vdin0*/
-	if (devp->urgent_en && devp->index == 0)
+	if (devp->dts_config.urgent_en && devp->index == 0)
 		vdin_urgent_patch(offset, v, h);
 	/* dis ctrl reg w pulse */
 	/*if (is_meson_g9tv_cpu() || is_meson_m8_cpu() ||
@@ -2353,6 +2413,11 @@ void vdin_set_wr_mif(struct vdin_dev_s *devp)
 	static unsigned int temp_height;
 	static unsigned int temp_width;
 
+	if (is_meson_s5_cpu()) {
+		vdin_set_wr_mif_s5(devp);
+		return;
+	}
+
 	height = ((rd(0, VPP_POSTBLEND_VD1_V_START_END) & 0xfff) -
 		((rd(0, VPP_POSTBLEND_VD1_V_START_END) >> 16) & 0xfff) + 1);
 	width = ((rd(0, VPP_POSTBLEND_VD1_H_START_END) & 0xfff) -
@@ -2392,6 +2457,11 @@ void vdin_set_mif_on_off(struct vdin_dev_s *devp, unsigned int rdma_enable)
 {
 	unsigned int offset = devp->addr_offset;
 
+	if (is_meson_s5_cpu()) {
+		vdin_set_mif_on_off_s5(devp, rdma_enable);
+		return;
+	}
+
 	if (devp->vframe_wr_en_pre == devp->vframe_wr_en)
 		return;
 
@@ -2418,7 +2488,10 @@ unsigned int vdin_get_meas_h_cnt64(unsigned int offset)
 
 unsigned int vdin_get_meas_v_stamp(unsigned int offset)
 {
-	return rd(offset, VDIN_MEAS_VS_COUNT_LO);
+	if (is_meson_s5_cpu())
+		return 0;//rd(offset, VDIN_MEAS_VS_COUNT_LO);
+	else
+		return rd(offset, VDIN_MEAS_VS_COUNT_LO);
 }
 
 unsigned int vdin_get_active_h(unsigned int offset)
@@ -2447,6 +2520,11 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 	u32 hsize;
 	u32 phy_addr_luma = 0, phy_addr_chroma = 0;
 
+	if (is_meson_s5_cpu()) {
+		vdin_set_frame_mif_write_addr_s5(devp,
+			devp->flags & VDIN_FLAG_RDMA_ENABLE, vfe);
+		return;
+	}
 	if (devp->vf_mem_size_small)
 		hsize = devp->h_shrink_out;
 	else
@@ -2505,6 +2583,10 @@ void vdin_set_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
 {
 	u32 canvas_id;
 
+	if (is_meson_s5_cpu()) {
+		vdin_set_canvas_id_s5(devp, rdma_enable, vfe);
+		return;
+	}
 	if (vfe) {
 		if (vfe->vf.canvas0Addr != (u32)-1)
 			canvas_id = vfe->vf.canvas0Addr;
@@ -2575,6 +2657,11 @@ void vdin_set_chroma_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable
 {
 	u32 canvas_id;
 
+	if (is_meson_s5_cpu()) {
+		vdin_set_chroma_canvas_id_s5(devp, rdma_enable, vfe);
+		return;
+	}
+
 	if (!vfe)
 		return;
 
@@ -2605,6 +2692,11 @@ unsigned int vdin_get_chroma_canvas_id(unsigned int offset)
 
 void vdin_set_crc_pulse(struct vdin_dev_s *devp)
 {
+	if (is_meson_s5_cpu()) {
+		vdin_set_crc_pulse_s5(devp);
+		return;
+	}
+
 	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_SM1) ||
 	    cpu_after_eq(MESON_CPU_MAJOR_ID_T5W))
 		return;
@@ -2626,6 +2718,9 @@ void vdin_set_def_wr_canvas(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
 	unsigned int def_canvas;
+
+	if (is_meson_s5_cpu())
+		return;
 
 	def_canvas = vdin_canvas_ids[devp->index][0];
 
@@ -2772,6 +2867,11 @@ void vdin_set_vframe_prop_info(struct vframe_s *vf,
 	unsigned int offset = devp->addr_offset;
 	u64 divisor;
 	struct vframe_bbar_s bbar = {0};
+
+	if (is_meson_s5_cpu()) {
+		vdin_set_vframe_prop_info_s5(vf, devp);
+		return;
+	}
 
 #ifdef CONFIG_AML_LOCAL_DIMMING
 	/*int i;*/
@@ -3031,7 +3131,7 @@ void vdin_set_vframe_prop_info(struct vframe_s *vf,
 	/* fetch meas info - For M2 or further chips only, not for M1 chip */
 	vf->prop.meas.vs_stamp = devp->stamp;
 	vf->prop.meas.vs_cycle = devp->cycle;
-	if ((vdin_ctl_dbg & (1 << 8)) &&
+	if ((vdin_ctl_dbg & CTL_DEBUG_LUMA_MAX) &&
 	    vdin_luma_max != vf->prop.hist.luma_max) {
 		vf->ready_clock_hist[0] = sched_clock();
 		divisor = vf->ready_clock_hist[0];
@@ -3045,6 +3145,9 @@ void vdin_set_vframe_prop_info(struct vframe_s *vf,
 void vdin_get_crc_val(struct vframe_s *vf, struct vdin_dev_s *devp)
 {
 	/* fetch CRC value of the previous frame */
+	if (is_meson_s5_cpu())
+		return;
+
 	vf->crc = rd(devp->addr_offset, VDIN_RO_CRC);
 }
 
@@ -3058,6 +3161,11 @@ static inline ulong vdin_reg_limit(ulong val, ulong wid)
 
 void vdin_set_all_regs(struct vdin_dev_s *devp)
 {
+	if (is_meson_s5_cpu()) {
+		vdin_set_all_regs_s5(devp);
+		return;
+	}
+
 	/* matrix sub-module */
 	vdin_set_matrix(devp);
 
@@ -3104,6 +3212,11 @@ void vdin_set_dv_tunnel(struct vdin_dev_s *devp)
 	unsigned int offset;
 	struct tvin_state_machine_ops_s *sm_ops;
 
+	if (is_meson_s5_cpu()) {
+		vdin_set_dv_tunnel_s5(devp);
+		return;
+	}
+
 	/* avoid null pointer oops */
 	if (!devp || !(devp->frontend) || !(devp->frontend->sm_ops) ||
 	    !(devp->frontend->sm_ops->hdmi_dv_config))
@@ -3137,6 +3250,11 @@ void vdin_set_dv_tunnel(struct vdin_dev_s *devp)
 
 static void vdin_delay_line(unsigned short num, unsigned int offset)
 {
+	if (is_meson_s5_cpu()) {
+		vdin_delay_line(num, offset);
+		return;
+	}
+
 	wr_bits(offset, VDIN_COM_CTRL0, num,
 		DLY_GO_FLD_LN_NUM_BIT, DLY_GO_FLD_LN_NUM_WID);
 	if (num)
@@ -3149,6 +3267,11 @@ static void vdin_delay_line(unsigned short num, unsigned int offset)
 
 void vdin_set_double_write_regs(struct vdin_dev_s *devp)
 {
+	if (is_meson_s5_cpu()) {
+		vdin_set_double_write_regs_s5(devp);
+		return;
+	}
+
 	if (devp->double_wr) {
 		if (devp->index == 0) {
 			/* vdin0 normal->afbce, small->mif0 */
@@ -3169,6 +3292,11 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp)
 {
 	/*unsigned int def_canvas_id;*/
 	unsigned int offset = devp->addr_offset;
+
+	if (is_meson_s5_cpu()) {
+		vdin_set_default_regmap_s5(devp);
+		return;
+	}
 
 	/* [   31]        mpeg.en               = 0 ***sub_module.enable*** */
 	/* [   30]        mpeg.even_fld         = 0/(odd, even) */
@@ -3481,6 +3609,11 @@ void vdin_hw_enable(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
 
+	if (is_meson_s5_cpu()) {
+		vdin_hw_enable_s5(devp);
+		return;
+	}
+
 	/* enable video data input */
 	/* [    4]  top.datapath_en  = 1 */
 	wr_bits(offset, VDIN_COM_CTRL0, 1,
@@ -3494,6 +3627,11 @@ void vdin_hw_disable(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
 	unsigned int def_canvas;
+
+	if (is_meson_s5_cpu()) {
+		vdin_hw_disable_s5(devp);
+		return;
+	}
 
 	def_canvas = offset ? vdin_canvas_ids[1][0] : vdin_canvas_ids[0][0];
 	/* disable cm2 */
@@ -3542,6 +3680,11 @@ void vdin_hw_close(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
 	unsigned int def_canvas;
+
+	if (is_meson_s5_cpu()) {
+		vdin_hw_disable_s5(devp);
+		return;
+	}
 
 	def_canvas = offset ? vdin_canvas_ids[1][0] : vdin_canvas_ids[0][0];
 	/* disable cm2 */
@@ -3608,10 +3751,15 @@ static unsigned int vdin_reset_flag;
 inline int vdin_vsync_reset_mif(int index)
 {
 	int i;
-	int start_line = aml_read_vcbus(VDIN_LCNT_STATUS) & 0xfff;
+	int start_line;
 
+	if (is_meson_s5_cpu())
+		return 0;
+
+	start_line = aml_read_vcbus(VDIN_LCNT_STATUS) & 0xfff;
 	if (!enable_reset || vdin_reset_flag || start_line > 0)
 		return 0;
+
 	vdin_reset_flag = 1;
 	if (index == 0) {
 		/* vdin->vdin mif wr en */
@@ -3689,6 +3837,11 @@ void vdin_enable_module(struct vdin_dev_s *devp, bool enable)
 {
 	unsigned int offset = devp->addr_offset;
 
+	if (is_meson_s5_cpu()) {
+		vdin_enable_module_s5(devp, enable);
+		return;
+	}
+
 	vdin_dmc_ctrl(devp, 1);
 	if (enable)	{
 		/* set VDIN_MEAS_CLK_CNTL, select XTAL clock */
@@ -3711,24 +3864,55 @@ void vdin_enable_module(struct vdin_dev_s *devp, bool enable)
 
 bool vdin_write_done_check(unsigned int offset, struct vdin_dev_s *devp)
 {
+	bool ret = false;
+
+	if (is_meson_s5_cpu())
+		return vdin_write_done_check_s5(offset, devp);
+
 	/*clear int status*/
 	wr_bits(offset, VDIN_WR_CTRL, 1,
 			DIRECT_DONE_CLR_BIT, DIRECT_DONE_CLR_WID);
 	wr_bits(offset, VDIN_WR_CTRL, 0,
 			DIRECT_DONE_CLR_BIT, DIRECT_DONE_CLR_WID);
 
+	devp->stats.write_done_check++;
+
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 		if (rd_bits(offset, VDIN_RO_WRMIF_STATUS,
-			    WRITE_DONE_BIT, WRITE_DONE_WID))
-			return true;
-
+				WRITE_DONE_BIT, WRITE_DONE_WID)) {
+			devp->stats.wmif_normal_cnt++;
+			ret = true;
+		} else {
+			devp->stats.wmif_abnormal_cnt++;
+		}
 	} else {
 		if (rd_bits(offset, VDIN_COM_STATUS0,
-			    DIRECT_DONE_STATUS_BIT, DIRECT_DONE_STATUS_WID))
-			return true;
+				DIRECT_DONE_STATUS_BIT, DIRECT_DONE_STATUS_WID)) {
+			devp->stats.wmif_normal_cnt++;
+			ret = true;
+		} else {
+			devp->stats.wmif_abnormal_cnt++;
+		}
 	}
-	devp->wr_done_abnormal_cnt++;
-	return false;
+
+	if (devp->afbce_valid && devp->double_wr) { /* afbce */
+		if (vdin_afbce_read_write_down_flag()) {
+			devp->stats.afbce_normal_cnt++;
+			ret = true;
+		} else {
+			devp->stats.afbce_abnormal_cnt++;
+			ret = false;
+		}
+	}
+
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE)
+		pr_info("%s vdin%d irq:%d,check:%d,afbce:%d %d mif:%d %d\n",
+			__func__, devp->index, devp->stats.wr_done_irq_cnt,
+			devp->stats.write_done_check,
+			devp->stats.afbce_normal_cnt, devp->stats.afbce_abnormal_cnt,
+			devp->stats.wmif_normal_cnt, devp->stats.wmif_abnormal_cnt);
+
+	return ret;
 }
 
 void vdin_get_duration_by_fps(struct vdin_dev_s *devp)
@@ -4140,6 +4324,11 @@ int vdin_scaling_adjust(struct vdin_dev_s *devp)
  */
 void vdin_set_hv_scale(struct vdin_dev_s *devp)
 {
+	if (is_meson_s5_cpu()) {
+		vdin_set_hv_scale_s5(devp);
+		return;
+	}
+
 	/*backup current h v size*/
 	devp->h_active_org = devp->h_active;
 	devp->v_active_org = devp->v_active;
@@ -4149,9 +4338,10 @@ void vdin_set_hv_scale(struct vdin_dev_s *devp)
 
 	vdin_scaling_adjust(devp);
 
-	pr_info("vdin%d %s h_active:%u,v_active:%u.scaling:%dx%d\n", devp->index,
-		__func__, devp->h_active, devp->v_active,
-		devp->prop.scaling4w, devp->prop.scaling4h);
+	if (vdin_dbg_en)
+		pr_info("vdin%d %s active:%ux%u.scaling:%dx%d\n",
+			devp->index, __func__, devp->h_active, devp->v_active,
+			devp->prop.scaling4w, devp->prop.scaling4h);
 
 	if (devp->prop.scaling4w < devp->h_active &&
 	    devp->prop.scaling4w > 0) {
@@ -4220,6 +4410,11 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 	unsigned int port;
 	enum vdin_color_deeps_e bit_dep;
 	unsigned int convert_fmt;
+
+	if (is_meson_s5_cpu()) {
+		vdin_set_bitdepth_s5(devp);
+		return;
+	}
 
 	/* yuv 422 full pack check */
 	if (devp->color_depth_support &
@@ -4380,6 +4575,10 @@ void vdin_set_to_vpp_parm(struct vdin_dev_s *devp)
  */
 void vdin_wr_reverse(unsigned int offset, bool h_reverse, bool v_reverse)
 {
+	if (is_meson_s5_cpu()) {
+		vdin_wr_reverse_s5(offset, h_reverse, v_reverse);
+		return;
+	}
 	if (h_reverse)
 		wr_bits(offset, VDIN_WR_H_START_END, 1,
 			HORIZONTAL_REVERSE_BIT, HORIZONTAL_REVERSE_WID);
@@ -4407,6 +4606,11 @@ void vdin_set_cm2(unsigned int offset, unsigned int w,
 		  unsigned int h, unsigned int *cm2)
 {
 	unsigned int i = 0, j = 0, start_addr = 0x100;
+
+	if (is_meson_s5_cpu()) {
+		vdin_set_cm2(offset, w, h, cm2);
+		return;
+	}
 
 	if (!cm_enable)
 		return;
@@ -4609,15 +4813,14 @@ void vdin_dolby_addr_alloc(struct vdin_dev_s *devp, unsigned int size)
 		/*	devp->vfp->dv_buf_vmem[index]);*/
 	}
 	devp->dv.dv_mem_allocated = 1;
-	pr_info("%s:dv_dma_vaddr=0x%p,dv_dma_paddr=0x%lx\n", __func__,
-		devp->dv.dv_dma_vaddr, (ulong)devp->dv.dv_dma_paddr);
+	if (vdin_dbg_en)
+		pr_info("%s:dv_dma_vaddr=0x%p,dv_dma_paddr=0x%lx\n", __func__,
+			devp->dv.dv_dma_vaddr, (ulong)devp->dv.dv_dma_paddr);
 
 	devp->dv.temp_meta_data = kmalloc(K_DV_META_TEMP_BUFF_SIZE, GFP_KERNEL);
 	if (IS_ERR_OR_NULL(devp->dv.temp_meta_data)) {
 		pr_info("malloc dv temp buffer fail\n");
 		devp->dv.temp_meta_data = NULL;
-	} else {
-		pr_info("malloc dv temp 2k buffer\n");
 	}
 
 	if (devp->dtdata->hw_ver == VDIN_HW_T7) {
@@ -4675,13 +4878,11 @@ void vdin_dolby_addr_release(struct vdin_dev_s *devp, unsigned int size)
 	if (!IS_ERR_OR_NULL(devp->dv.temp_meta_data)) {
 		kfree(devp->dv.temp_meta_data);
 		devp->dv.temp_meta_data = NULL;
-		pr_info("release dv temp buffer\n");
 	}
 
 	if (!IS_ERR_OR_NULL(devp->dv.meta_data_raw_buffer1)) {
 		kfree(devp->dv.meta_data_raw_buffer1);
 		devp->dv.meta_data_raw_buffer1 = NULL;
-		pr_info("release dv raw_buff1\n");
 	}
 }
 
@@ -4800,7 +5001,7 @@ static void vdin_dv_pr_event_meta_data(void *addr, unsigned int size, unsigned i
 
 void vdin_pr_vsif_data(struct vdin_dev_s *devp, struct vframe_s *vf)
 {
-	if (dv_dbg_log & BIT(6))
+	if (dv_dbg_log & DV_DEBUG_RAW_DATA)
 		pr_info("vsif:index:%d size:%x pk:%02x ver:%02x,len:%02x PB:0x%02x %02x %02x %02x\n",
 			vf->index, vf->vsif.size, devp->dv.dv_vsif_raw.pkttype,
 			devp->dv.dv_vsif_raw.version, devp->dv.dv_vsif_raw.length,
@@ -4810,7 +5011,7 @@ void vdin_pr_vsif_data(struct vdin_dev_s *devp, struct vframe_s *vf)
 
 static void vdin_pr_hdr_rawdata(struct vdin_dev_s *devp, struct vframe_s *vf)
 {
-	if (vdin_isr_monitor & BIT(7))
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_HDR_RAW_DATA)
 		pr_info("hdr_rawdata idx:%d size:%x data:0x%02x 0x%02x 0x%02x 0x%02x\n",
 			vf->index, vf->drm_if.size,
 			devp->prop.hdr_info.hdr_data.rawdata[0],
@@ -4821,7 +5022,7 @@ static void vdin_pr_hdr_rawdata(struct vdin_dev_s *devp, struct vframe_s *vf)
 
 void vdin_pr_emp_data(struct vdin_dev_s *devp, struct vframe_s *vf)
 {
-	if (vdin_isr_monitor & BIT(8))
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_HDR_EMP_DATA)
 		pr_info("emp idx:%d emp size:%02x id:0x02%x data:0x%02x 0x%02x 0x%02x 0x%02x\n",
 			vf->index, devp->prop.emp_data.size,
 			devp->prop.emp_data.tag_id,
@@ -4833,7 +5034,7 @@ void vdin_pr_emp_data(struct vdin_dev_s *devp, struct vframe_s *vf)
 
 static void vdin_pr_sei_hdr_data(struct vdin_dev_s *devp)
 {
-	if (vdin_isr_monitor & BIT(10))
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_HDR_SEI_DATA)
 		pr_info("sei_data idx:%d et:%d sta:%x id:%02x len:%02x data:%x %x %x %x %x %x\n",
 			devp->curr_wr_vfe->vf.index,
 			devp->prop.hdr_info.hdr_data.eotf,
@@ -4889,7 +5090,7 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 	devp->dv.dv_crc_check = true;
 	max_pkt = 15;
 	if (index >= devp->canvas_max_num) {
-		if (dv_dbg_log & BIT(7))
+		if (dv_dbg_log & DV_DEBUG_CANVAS_NUM)
 			pr_info("%s er: %d %d\n", __func__,
 				index, devp->canvas_max_num);
 		devp->dv.dv_crc_check = false;
@@ -4948,7 +5149,7 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 						max_pkt = rev_cnt;
 					}
 					if (((cnt % dv_dbg_log_du) == 0) &&
-					    (dv_dbg_log & BIT(0)))
+					    (dv_dbg_log & DV_DEBUG_NORMAL))
 						pr_info("pkt_type %d:0x%x\n", i,
 							pkt_type);
 				}
@@ -4962,7 +5163,7 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 		if (meta_size > 1024 || rev_cnt > 20 ||
 		    rpt_cnt != tail_cnt ||
 		    (meta_size > 128 && rev_cnt == 1)) {
-			if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & BIT(0)))
+			if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & DV_DEBUG_NORMAL))
 				pr_info("err size:%d rp_cnt:%d, tal_cnt:%d, rv_cnt:%d max_pkt:%d\n",
 					meta_size, rpt_cnt, tail_cnt, rev_cnt, max_pkt);
 
@@ -4990,7 +5191,7 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 					crc1_r = crc32(0, (char *)pkt_p, 124);
 					crc1_r = swap32(crc1_r);
 					if (((cnt % dv_dbg_log_du) == 0) &&
-					    (dv_dbg_log & BIT(0)))
+					    (dv_dbg_log & DV_DEBUG_NORMAL))
 						pr_info("crc:0x%x, 0x%x\n",
 							crc1, crc1_r);
 					if (crc1 == crc1_r) {
@@ -5005,7 +5206,7 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 				if (rpt_cnt == 0)
 					break;
 				if (((cnt % dv_dbg_log_du) == 0) &&
-				    (dv_dbg_log & BIT(0)))
+				    (dv_dbg_log & DV_DEBUG_NORMAL))
 					pr_info("data idx %d:0x%x\n",
 						j, c[j] & 0xc0);
 			}
@@ -5015,7 +5216,7 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 			tail_cnt = 0;
 		}
 
-		if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & BIT(0))) {
+		if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & DV_DEBUG_NORMAL)) {
 			pr_info("mult_flag=%d tail_flag=%d meta_size=%d\n",
 				multimeta_flag, multimetatail_flag, meta_size);
 			pr_info("rpt_cnt:%d tail_cnt:%d rev_cnt:%d cp_sum:%d\n",
@@ -5034,7 +5235,7 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 	}
 
 	/*meta data pkt data*/
-	if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & BIT(5)))
+	if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & DV_DEBUG_META_PKT_DATA))
 		vdin_dv_pr_meta_data(c, 128 * rev_cnt, index);
 
 	if (crc != crc_r ||
@@ -5045,7 +5246,7 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 		 */
 		devp->vfp->dv_buf[index] = &c[5];
 		devp->vfp->dv_buf_size[index] = 4;
-		if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & BIT(3))) {
+		if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & DV_DEBUG_ERR_META_DATA)) {
 			pr_err("%s:hdmi dovi meta crc error:%08x!=%08x\n",
 			       __func__, crc, crc_r);
 			pr_info("%s:index:%d dma:%x vaddr:%p size:%d\n",
@@ -5064,20 +5265,20 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 			devp->vfp->dv_buf[index] = c;
 			cp = devp->dv.temp_meta_data;
 			memcpy(c, cp, meta_size);
-			if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & BIT(0)))
+			if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & DV_DEBUG_NORMAL))
 				pr_info("cp %d meta to buff\n", meta_size);
 		} else if (meta_size > DV_META_SINGLE_PKT_SIZE) {
 			devp->dv.dv_crc_check = false;
 		}
 
-		if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & BIT(0)))
+		if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & DV_DEBUG_NORMAL))
 			pr_info("%s:index:%d dma:%x vaddr:%p size:%d crc:%x crc1:%x\n",
 				__func__, index,
 				devp->vfp->dv_buf_mem[index],
 				devp->vfp->dv_buf_vmem[index],
 				meta_size, crc, crc1);
 		/*meta data raw data*/
-		if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & BIT(4)))
+		if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & DV_DEBUG_OK_META_DATA))
 			vdin_dv_pr_meta_data(c, meta_size, index);
 	}
 
@@ -5101,7 +5302,7 @@ void vdin_dolby_addr_update(struct vdin_dev_s *devp, unsigned int index)
 		   devp->vfp->dv_buf_mem[index]);
 		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 1, 4, 1);
 		wr_bits(offset, VDIN_DOLBY_AXI_CTRL0, 0, 4, 1);
-		if (dv_dbg_log & BIT(0))
+		if (dv_dbg_log & DV_DEBUG_NORMAL)
 			pr_info("%s:index:%d dma:%x\n", __func__,
 				index, devp->vfp->dv_buf_mem[index]);
 	} else {
@@ -5117,6 +5318,11 @@ void vdin_dolby_addr_update(struct vdin_dev_s *devp, unsigned int index)
 void vdin_dolby_config(struct vdin_dev_s *devp)
 {
 	unsigned int offset = devp->addr_offset;
+
+	if (is_meson_s5_cpu()) {
+		vdin_dolby_config_s5(devp);
+		return;
+	}
 
 	devp->dv.dv_config = 1;
 	devp->dv.dv_path_idx = devp->index;
@@ -5153,6 +5359,11 @@ void vdin_dolby_config(struct vdin_dev_s *devp)
 
 void vdin_dolby_mdata_write_en(unsigned int offset, unsigned int en)
 {
+	if (is_meson_s5_cpu()) {
+		vdin_dolby_mdata_write_en_s5(offset, en);
+		return;
+	}
+
 	/*printk("=========>> wr memory %d\n", en);*/
 	if (en) {
 		/*enable write metadata to memory*/
@@ -5283,6 +5494,11 @@ void vdin_dv_de_tunnel_to_44410bit(struct vdin_dev_s *devp,
 
 void vdin_dv_tunnel_set(struct vdin_dev_s *devp)
 {
+	if (is_meson_s5_cpu()) {
+		vdin_dv_tunnel_set_s5(devp);
+		return;
+	}
+
 	if (!vdin_is_dolby_signal_in(devp))
 		return;
 
@@ -5323,12 +5539,12 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 	struct vdin_dev_s *devp = vdin_get_dev(0);
 
 	if (!op_arg) {
-		if (vdin_ctl_dbg & (1 << 3))
+		if (vdin_ctl_dbg & CTL_DEBUG_EVENT_OP_ARG)
 			pr_info("%s:op_arg is NULL!\n", __func__);
 		return -1;
 	}
 	if (!data) {
-		if (vdin_ctl_dbg & (1 << 4))
+		if (vdin_ctl_dbg & CTL_DEBUG_EVENT_DATA)
 			pr_info("%s:data is NULL!\n", __func__);
 		return -1;
 	}
@@ -5359,7 +5575,7 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 		}
 		spin_unlock_irqrestore(&p->dv_lock, flags);
 
-		if (dv_dbg_log & BIT(8)) {
+		if (dv_dbg_log & DV_DEBUG_EVENT_META_DATA) {
 			pr_info("%s(type 0x%x vf index 0x%x)=>size 0x%x\n",
 				__func__, type, index, req->aux_size);
 			vdin_dv_pr_event_meta_data(req->aux_buf,
@@ -5376,7 +5592,7 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 		}
 		index_disp = req->vf->index_disp & 0xff;
 		if (index_disp >= VFRAME_DISP_MAX_NUM) {
-			if (vdin_ctl_dbg & (1 << 2))
+			if (vdin_ctl_dbg & CTL_DEBUG_EVENT_INDEX)
 				pr_info("%s:req->vf->index_disp(%d) is overflow!\n",
 					__func__, index_disp);
 			return -1;
@@ -5387,7 +5603,7 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 			req->disp_mode = p->disp_mode[index_disp];
 		if (req->req_mode == 1 && p->skip_vf_num)
 			p->disp_mode[index_disp] = VFRAME_DISP_MODE_UNKNOWN;
-		if (vdin_ctl_dbg & BIT(5))
+		if (vdin_ctl_dbg & CTL_DEBUG_EVENT_DISP_MODE)
 			pr_info("%s(type 0x%x vf index 0x%x)=>disp_mode %d,req_mode:%d;[%d]=%d,[%d]=%d\n",
 				__func__, type, index_disp, req->disp_mode, req->req_mode,
 				p->disp_index[0], p->disp_mode[p->disp_index[0]],
@@ -5407,7 +5623,7 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 				devp->afbce_mode = 1;
 		}
 
-		if (vdin_ctl_dbg & BIT(6))
+		if (vdin_ctl_dbg & CTL_DEBUG_EVENT_NO_COMP)
 			pr_info("%s(type 0x%x vdin%d) afbce_mode: %d, vpp_cnt: %d\n",
 				__func__, type, devp->index,
 				devp->afbce_mode, *cnt);
@@ -5715,7 +5931,7 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 		else
 			devp->vrr_data.vrr_chg_cnt = 0;
 
-		if (vdin_isr_monitor & BIT(0))
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_FLAG)
 			pr_info("dv:%d, LL:%d hdr st:%d eotf:%d fg:%d allm:%d sty:0x%x spd:0x%x 0x%x\n",
 				devp->prop.dolby_vision,
 				devp->prop.low_latency,
@@ -5726,15 +5942,17 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 				devp->parm.info.signal_type,
 				devp->prop.spd_data.data[0],
 				devp->prop.spd_data.data[5]);
-		if (vdin_isr_monitor & BIT(1))
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_EMP)
 			pr_info("emp size:%d, data:0x%02x 0x%02x 0x%02x 0x%02x\n",
 				devp->prop.emp_data.size,
 				devp->prop.emp_data.empbuf[0],
 				devp->prop.emp_data.empbuf[1],
 				devp->prop.emp_data.empbuf[2],
 				devp->prop.emp_data.empbuf[3]);
-		if (vdin_isr_monitor & BIT(2))
-			pr_info("aspect_ratio=0x%x\n", devp->prop.aspect_ratio);
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_RATIO)
+			pr_info("aspect_ratio=0x%x,vrr_en:%d,fr:%d\n",
+				devp->prop.aspect_ratio, devp->prop.vtem_data.vrr_en,
+				devp->prop.vtem_data.base_framerate);
 	}
 
 	if (color_range_force)
@@ -6156,6 +6374,11 @@ void vdin_clk_on_off(struct vdin_dev_s *devp, bool on_off)
 {
 	unsigned int offset = devp->addr_offset;
 
+	if (is_meson_s5_cpu()) {
+		vdin_clk_on_off_s5(devp, on_off);
+		return;
+	}
+
 	if (on_off) {
 		wr(offset, VDIN_COM_GCLK_CTRL, 0);
 		wr(offset, VDIN_COM_GCLK_CTRL2, 0);
@@ -6211,6 +6434,11 @@ void vdin_set_bist_pattern(struct vdin_dev_s *devp, unsigned int on_off, unsigne
 	unsigned int de_start = 0x7;
 	unsigned int v_blank = 0x3f;
 	unsigned int h_blank = 0xff;
+
+	if (is_meson_s5_cpu()) {
+		vdin_set_bist_pattern_s5(devp, on_off, pat);
+		return;
+	}
 
 	if (on_off) {
 		wr_bits(offset, VDIN_ASFIFO_CTRL0, de_start,

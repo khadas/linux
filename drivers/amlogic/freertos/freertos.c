@@ -269,6 +269,7 @@ static void freertos_do_finish(int bootup)
 						   0,
 						   "free_mem");
 				call_freertos_notifiers(1, NULL);
+				break;
 			}
 		}
 //done:

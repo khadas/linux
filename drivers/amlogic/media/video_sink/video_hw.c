@@ -47,6 +47,10 @@
 #include <linux/amlogic/media/video_sink/video_keeper.h>
 #include "video_priv.h"
 #include "video_reg.h"
+#include "video_common.h"
+#include "video_hw.h"
+#include "video_hw_s5.h"
+#include "vpp_post_s5.h"
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 #include <linux/amlogic/media/amvecm/amvecm.h>
@@ -534,6 +538,62 @@ static struct vpu_dev_s *vpu_prime_dolby_ram;
 		pr_info("VIDEO: disable_video_all_layer_nodelay()\n"); \
 	} while (0)
 
+static void disable_video_layer_s5(u32 layer_id, u32 async)
+{
+	int i;
+	struct video_layer_s *layer = NULL;
+
+	if (!async) {
+		/* disable vd blend */
+		if (layer_id == 0) {
+			layer =  &vd_layer[layer_id];
+			for (i = 0; i < layer->slice_num; i++) {
+				WRITE_VCBUS_REG
+					(vd_proc_reg.vd_afbc_reg[i].afbc_enable, 0);
+				WRITE_VCBUS_REG
+					(vd_proc_reg.vd_mif_reg[i].vd_if0_gen_reg, 0);
+			}
+		} else {
+			layer_id += SLICE_NUM - 1;
+			WRITE_VCBUS_REG
+				(vd_proc_reg.vd_afbc_reg[layer_id].afbc_enable, 0);
+			WRITE_VCBUS_REG
+				(vd_proc_reg.vd_mif_reg[layer_id].vd_if0_gen_reg, 0);
+		}
+	}
+	switch (layer_id) {
+	case 0:
+		VIDEO_LAYER_OFF();
+		VD1_MEM_POWER_OFF();
+		break;
+	case 1:
+		VIDEO_LAYER2_OFF();
+		VD2_MEM_POWER_OFF();
+		break;
+	case 2:
+		VIDEO_LAYER3_OFF();
+		VD3_MEM_POWER_OFF();
+		break;
+	}
+	if (vd_layer[layer_id].global_debug & DEBUG_FLAG_BASIC_INFO)
+		pr_info("VIDEO(%d): DisableVideoLayer()\n", layer_id);
+}
+
+static void disable_video_all_layer_nodelay_s5(void)
+{
+	int i = 0;
+	struct video_layer_s *layer = NULL;
+
+	layer =  &vd_layer[0];
+
+	for (i = 0; i < layer->slice_num; i++) {
+		WRITE_VCBUS_REG(vd_proc_reg.vd_afbc_reg[i].afbc_enable, 0);
+		WRITE_VCBUS_REG(vd_proc_reg.vd_mif_reg[i].vd_if0_gen_reg, 0);
+	}
+	WRITE_VCBUS_REG(vd_proc_reg.vd_afbc_reg[SLICE_NUM].afbc_enable, 0);
+	WRITE_VCBUS_REG(vd_proc_reg.vd_mif_reg[SLICE_NUM].vd_if0_gen_reg, 0);
+}
+
 void dv_mem_power_off(enum vpu_mod_e mode)
 {
 #ifdef DV_PWR
@@ -666,8 +726,8 @@ int get_dv_vpu_mem_power_status(enum vpu_mod_e mode)
 EXPORT_SYMBOL(get_dv_vpu_mem_power_status);
 
 /*********************************************************/
-static struct vframe_pic_mode_s gpic_info[MAX_VD_LAYERS];
-static u32 reference_zorder = 128;
+struct vframe_pic_mode_s gpic_info[MAX_VD_LAYERS];
+u32 reference_zorder = 128;
 static u32 vpp_hold_line = 8;
 static unsigned int cur_vf_flag;
 static u32 vpp_ofifo_size = 0x1000;
@@ -1166,7 +1226,13 @@ bool is_afbc_enabled(u8 layer_id)
 		return -1;
 
 	layer = &vd_layer[layer_id];
-	value = READ_VCBUS_REG(layer->vd_afbc_reg.afbc_enable);
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		if (layer_id == MAX_VD_CHAN_S5 - 1)
+			layer_id += SLICE_NUM - 1;
+		value = READ_VCBUS_REG(vd_proc_reg.vd_afbc_reg[layer_id].afbc_enable);
+	} else {
+		value = READ_VCBUS_REG(layer->vd_afbc_reg.afbc_enable);
+	}
 	return (value & 0x100) ? true : false;
 }
 
@@ -1196,18 +1262,6 @@ bool is_local_vf(struct vframe_s *vf)
 	    vf == &gvideo_recv_vpp[1]->local_buf)
 		return true;
 	return false;
-}
-
-static u32 is_crop_left_odd(struct vpp_frame_par_s *frame_par)
-{
-	int crop_left_odd;
-
-	/* odd, not even aligned*/
-	if (frame_par->VPP_hd_start_lines_ & 0x01)
-		crop_left_odd = 1;
-	else
-		crop_left_odd = 0;
-	return crop_left_odd;
 }
 
 /*********************************************************
@@ -1437,24 +1491,36 @@ void safe_switch_videolayer(u8 layer_id, bool on, bool async)
 			 async ? "true" : "false");
 
 	if (layer_id == 0) {
-		if (on)
+		if (on) {
 			enable_video_layer();
-		else
-			disable_video_layer(async);
+		} else {
+			if (cur_dev->display_module == S5_DISPLAY_MODULE)
+				disable_video_layer_s5(layer_id, async);
+			else
+				disable_video_layer(async);
+		}
 	}
 
 	if (layer_id == 1) {
-		if (on)
+		if (on) {
 			enable_video_layer2();
-		else
-			disable_video_layer2(async);
+		} else {
+			if (cur_dev->display_module == S5_DISPLAY_MODULE)
+				disable_video_layer_s5(layer_id, async);
+			else
+				disable_video_layer2(async);
+		}
 	}
 
 	if (layer_id == 2 && cur_dev->max_vd_layers == 3) {
-		if (on)
+		if (on) {
 			enable_video_layer3();
-		else
-			disable_video_layer3(async);
+		} else {
+			if (cur_dev->display_module == S5_DISPLAY_MODULE)
+				disable_video_layer_s5(layer_id, async);
+			else
+				disable_video_layer3(async);
+		}
 	}
 
 	if (layer_id == 0xff) {
@@ -1464,12 +1530,22 @@ void safe_switch_videolayer(u8 layer_id, bool on, bool async)
 			if (cur_dev->max_vd_layers == 3)
 				enable_video_layer3();
 		} else  if (async) {
-			disable_video_layer(async);
-			disable_video_layer2(async);
-			if (cur_dev->max_vd_layers == 3)
-				disable_video_layer3(async);
+			if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+				int i;
+
+				for (i = 0; i < cur_dev->max_vd_layers; i++)
+					disable_video_layer_s5(i, async);
+			} else {
+				disable_video_layer(async);
+				disable_video_layer2(async);
+				if (cur_dev->max_vd_layers == 3)
+					disable_video_layer3(async);
+			}
 		} else {
-			disable_video_all_layer_nodelay();
+			if (cur_dev->display_module == S5_DISPLAY_MODULE)
+				disable_video_all_layer_nodelay_s5();
+			else
+				disable_video_all_layer_nodelay();
 		}
 	}
 }
@@ -1482,7 +1558,7 @@ static void vd1_path_select(struct video_layer_s *layer,
 	u8 vpp_index;
 
 	vpp_index = layer->vpp_index;
-	if (cur_dev->t7_display)
+	if (cur_dev->display_module == T7_DISPLAY_MODULE)
 		return;
 
 	if (!legacy_vpp && !layer->vd1_vd2_mux) {
@@ -1544,7 +1620,7 @@ static void vdx_path_select(struct video_layer_s *layer,
 	u8 vpp_index;
 
 	vpp_index = layer->vpp_index;
-	if (cur_dev->t7_display)
+	if (cur_dev->display_module == T7_DISPLAY_MODULE)
 		return;
 
 	if (!legacy_vpp) {
@@ -1582,16 +1658,6 @@ static void vdx_path_select(struct video_layer_s *layer,
 	}
 }
 
-static u32 viu_line_stride(u32 buffr_width)
-{
-	u32 line_stride;
-
-	/* input: buffer width not hsize */
-	/* 1 stride = 16 byte */
-	line_stride = (buffr_width + 15) / 16;
-	return line_stride;
-}
-
 static void set_vd_mif_linear_cs(struct video_layer_s *layer,
 				   struct canvas_s *cs0,
 				   struct canvas_s *cs1,
@@ -1608,6 +1674,10 @@ static void set_vd_mif_linear_cs(struct video_layer_s *layer,
 	u32 vd_if_baddr_y, vd_if_baddr_cb, vd_if_baddr_cr;
 	u32 vd_if_stride_0, vd_if_stride_1;
 
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		set_vd_mif_linear_cs_s5(layer, cs0, cs1, cs2, vf, lr_select);
+		return;
+	}
 	if (!lr_select) {
 		vd_if_baddr_y = vd_mif_linear_reg->vd_if0_baddr_y;
 		vd_if_baddr_cb = vd_mif_linear_reg->vd_if0_baddr_cb;
@@ -1677,6 +1747,11 @@ static void set_vd_mif_linear(struct video_layer_s *layer,
 	u8 vpp_index;
 	u32 vd_if_baddr_y, vd_if_baddr_cb, vd_if_baddr_cr;
 	u32 vd_if_stride_0, vd_if_stride_1;
+
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		set_vd_mif_linear_s5(layer, config, planes, vf, lr_select);
+		return;
+	}
 
 	vpp_index = layer->vpp_index;
 	if (!lr_select) {
@@ -1852,7 +1927,7 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 		type &= ~VIDTYPE_COMPRESS;
 
 	if (type & VIDTYPE_COMPRESS) {
-		if (cur_dev->t7_display) {
+		if (cur_dev->display_module == T7_DISPLAY_MODULE) {
 			if (conv_lbuf_len[layer->layer_id] == VIDEO_USE_4K_RAM)
 				r = 3;
 			else
@@ -1981,7 +2056,7 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 		type |= VIDTYPE_VIU_NV21;
 	}
 
-	if (cur_dev->t7_display)
+	if (cur_dev->display_module == T7_DISPLAY_MODULE)
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(vd_afbc_reg->afbc_top_ctrl,
 			0, 13, 2);
@@ -2380,7 +2455,7 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 		type &= ~VIDTYPE_COMPRESS;
 
 	if (type & VIDTYPE_COMPRESS) {
-		if (cur_dev->t7_display) {
+		if (cur_dev->display_module == T7_DISPLAY_MODULE) {
 			if (conv_lbuf_len[layer->layer_id] == VIDEO_USE_4K_RAM)
 				r = 3;
 			else
@@ -2516,7 +2591,7 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 		type |= VIDTYPE_VIU_NV21;
 	}
 
-	if (cur_dev->t7_display)
+	if (cur_dev->display_module == T7_DISPLAY_MODULE)
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(vd_afbc_reg->afbc_top_ctrl,
 			0, 13, 2);
@@ -2871,6 +2946,8 @@ void vd_mif_setting(struct video_layer_s *layer,
 
 	if (!setting)
 		return;
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return;
 	layer_id = layer->layer_id;
 	vpp_index = layer->vpp_index;
 	vd_mif_reg = setting->p_vd_mif_reg;
@@ -3054,107 +3131,6 @@ SKIP_VD1_AFBC:
 	return;
 }
 
-static void get_pre_hscaler_para(u8 layer_id, int *ds_ratio, int *flt_num)
-{
-	switch (pre_scaler[layer_id].pre_hscaler_ntap) {
-	case PRE_HSCALER_2TAP:
-		*ds_ratio = pre_scaler[layer_id].pre_hscaler_rate;
-		*flt_num = 2;
-		break;
-	case PRE_HSCALER_4TAP:
-		*ds_ratio = pre_scaler[layer_id].pre_hscaler_rate;
-		*flt_num = 4;
-		break;
-	case PRE_HSCALER_6TAP:
-		*ds_ratio = pre_scaler[layer_id].pre_hscaler_rate;
-		*flt_num = 6;
-		break;
-	case PRE_HSCALER_8TAP:
-		*ds_ratio = pre_scaler[layer_id].pre_hscaler_rate;
-		*flt_num = 8;
-		break;
-	}
-}
-
-static void get_pre_vscaler_para(u8 layer_id, int *ds_ratio, int *flt_num)
-{
-	switch (pre_scaler[layer_id].pre_vscaler_ntap) {
-	case PRE_VSCALER_2TAP:
-		*ds_ratio = pre_scaler[layer_id].pre_vscaler_rate;
-		*flt_num = 2;
-		break;
-	case PRE_VSCALER_4TAP:
-		*ds_ratio = pre_scaler[layer_id].pre_vscaler_rate;
-		*flt_num = 4;
-		break;
-	}
-}
-static void get_pre_hscaler_coef(u8 layer_id, int *pre_hscaler_table)
-{
-	if (pre_scaler[layer_id].pre_hscaler_coef_set) {
-		pre_hscaler_table[0] = pre_scaler[layer_id].pre_hscaler_coef[0];
-		pre_hscaler_table[1] = pre_scaler[layer_id].pre_hscaler_coef[1];
-		pre_hscaler_table[2] = pre_scaler[layer_id].pre_hscaler_coef[2];
-		pre_hscaler_table[3] = pre_scaler[layer_id].pre_hscaler_coef[3];
-	} else {
-		switch (pre_scaler[layer_id].pre_hscaler_ntap) {
-		case PRE_HSCALER_2TAP:
-			pre_hscaler_table[0] = 0x100;
-			pre_hscaler_table[1] = 0x0;
-			pre_hscaler_table[2] = 0x0;
-			pre_hscaler_table[3] = 0x0;
-			break;
-		case PRE_HSCALER_4TAP:
-			pre_hscaler_table[0] = 0xc0;
-			pre_hscaler_table[1] = 0x40;
-			pre_hscaler_table[2] = 0x0;
-			pre_hscaler_table[3] = 0x0;
-			break;
-		case PRE_HSCALER_6TAP:
-			pre_hscaler_table[0] = 0x9c;
-			pre_hscaler_table[1] = 0x44;
-			pre_hscaler_table[2] = 0x20;
-			pre_hscaler_table[3] = 0x0;
-			break;
-		case PRE_HSCALER_8TAP:
-			pre_hscaler_table[0] = 0x90;
-			pre_hscaler_table[1] = 0x40;
-			pre_hscaler_table[2] = 0x20;
-			pre_hscaler_table[3] = 0x10;
-			break;
-		}
-	}
-}
-
-static void get_pre_vscaler_coef(u8 layer_id, int *pre_hscaler_table)
-{
-	if (pre_scaler[layer_id].pre_vscaler_coef_set) {
-		pre_hscaler_table[0] = pre_scaler[layer_id].pre_vscaler_coef[0];
-		pre_hscaler_table[1] = pre_scaler[layer_id].pre_vscaler_coef[1];
-	} else {
-		switch (pre_scaler[layer_id].pre_vscaler_ntap) {
-		case PRE_VSCALER_2TAP:
-			if (has_pre_hscaler_8tap(0)) {
-				pre_hscaler_table[0] = 0x100;
-				pre_hscaler_table[1] = 0x0;
-			} else {
-				pre_hscaler_table[0] = 0x40;
-				pre_hscaler_table[1] = 0x0;
-			}
-			break;
-		case PRE_VSCALER_4TAP:
-			if (has_pre_hscaler_8tap(0)) {
-				pre_hscaler_table[0] = 0xc0;
-				pre_hscaler_table[1] = 0x40;
-			} else {
-				pre_hscaler_table[0] = 0xf8;
-				pre_hscaler_table[1] = 0x48;
-			}
-			break;
-		}
-	}
-}
-
 static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_setting_s *setting)
 {
 	u32 misc_off, i;
@@ -3270,11 +3246,11 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 		vpu_module_clk_disable(vpp_index, VD1_SCALER, 0);
 	}
 
-	/* horitontal filter settings */
+	/* horizontal filter settings */
 	if (setting->sc_h_enable) {
 		bit9_mode = vpp_filter->vpp_horz_coeff[1] & 0x8000;
 		s11_mode = vpp_filter->vpp_horz_coeff[1] & 0x4000;
-		if (s11_mode && cur_dev->t7_display)
+		if (s11_mode && cur_dev->display_module == T7_DISPLAY_MODULE)
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_pps_reg->vd_pre_scale_ctrl,
 					       0x199, 12, 9);
 		else
@@ -3723,7 +3699,7 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 			VPP_PHASECTL_DOUBLELINE_WID);
 		bit9_mode = vpp_filter->vpp_vert_coeff[1] & 0x8000;
 		s11_mode = vpp_filter->vpp_vert_coeff[1] & 0x4000;
-		if (s11_mode && cur_dev->t7_display)
+		if (s11_mode && cur_dev->display_module == T7_DISPLAY_MODULE)
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_pps_reg->vd_pre_scale_ctrl,
 					       0x199, 12, 9);
 		else
@@ -3799,7 +3775,7 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 
 			bit9_mode = pcoeff[1] & 0x8000;
 			s11_mode = pcoeff[1] & 0x4000;
-			if (s11_mode && cur_dev->t7_display)
+			if (s11_mode && cur_dev->display_module == T7_DISPLAY_MODULE)
 				cur_dev->rdma_func[vpp_index].rdma_wr_bits
 				(vd_pps_reg->vd_pre_scale_ctrl,
 				0x199, 12, 9);
@@ -3888,7 +3864,7 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 	cur_dev->rdma_func[vpp_index].rdma_wr
 		(VPP_LINE_IN_LENGTH + misc_off,
 		frame_par->VPP_line_in_length_);
-	if (cur_dev->t7_display)
+	if (cur_dev->display_module == T7_DISPLAY_MODULE)
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(VD1_HDR_IN_SIZE + misc_off,
 			(frame_par->VPP_pic_in_height_ << 16)
@@ -3995,11 +3971,11 @@ static void vdx_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 			vpu_module_clk_disable(vpp_index, VD2_SCALER, 0);
 	}
 
-	/* horitontal filter settings */
+	/* horizontal filter settings */
 	if (setting->sc_h_enable) {
 		bit9_mode = vpp_filter->vpp_horz_coeff[1] & 0x8000;
 		s11_mode = vpp_filter->vpp_horz_coeff[1] & 0x4000;
-		if (s11_mode && cur_dev->t7_display)
+		if (s11_mode && cur_dev->display_module == T7_DISPLAY_MODULE)
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_pps_reg->vd_pre_scale_ctrl,
 					       0x199, 12, 9);
 		else
@@ -4319,7 +4295,7 @@ static void vdx_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 			VPP_PHASECTL_DOUBLELINE_WID);
 		bit9_mode = vpp_filter->vpp_vert_coeff[1] & 0x8000;
 		s11_mode = vpp_filter->vpp_vert_coeff[1] & 0x4000;
-		if (s11_mode && cur_dev->t7_display)
+		if (s11_mode && cur_dev->display_module == T7_DISPLAY_MODULE)
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_pps_reg->vd_pre_scale_ctrl,
 					       0x199, 12, 9);
 		else
@@ -4360,7 +4336,7 @@ static void vdx_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 
 			bit9_mode = pcoeff[1] & 0x8000;
 			s11_mode = pcoeff[1] & 0x4000;
-			if (s11_mode && cur_dev->t7_display)
+			if (s11_mode && cur_dev->display_module == T7_DISPLAY_MODULE)
 				cur_dev->rdma_func[vpp_index].rdma_wr_bits
 				(vd_pps_reg->vd_pre_scale_ctrl,
 				0x199, 12, 9);
@@ -4413,7 +4389,7 @@ static void vdx_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 			vpp_filter->vpp_vsc_start_phase_step);
 	}
 	if (layer_id == 1) {
-		if (cur_dev->t7_display)
+		if (cur_dev->display_module == T7_DISPLAY_MODULE)
 			cur_dev->rdma_func[vpp_index].rdma_wr
 				(VD2_HDR_IN_SIZE + misc_off,
 				(frame_par->VPP_pic_in_height_ << 16)
@@ -4425,7 +4401,7 @@ static void vdx_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 				(frame_par->VPP_pic_in_height_ << 16)
 				| frame_par->VPP_line_in_length_);
 	} else if (layer_id == 2) {
-		if (cur_dev->t7_display)
+		if (cur_dev->display_module == T7_DISPLAY_MODULE)
 			cur_dev->rdma_func[vpp_index].rdma_wr
 				(VD3_HDR_IN_SIZE + misc_off,
 				(frame_par->VPP_pic_in_height_ << 16)
@@ -4609,6 +4585,8 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 	u8 vpp_index;
 	static bool first_set = true;
 
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return disable_vd1_blend_s5(layer);
 	if (!layer)
 		return;
 	vpp_index = layer->vpp_index;
@@ -4680,6 +4658,10 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 static void disable_vd2_blend(struct video_layer_s *layer)
 {
 	u8 vpp_index;
+
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return disable_vd2_blend_s5(layer);
+
 	if (!layer)
 		return;
 	vpp_index = layer->vpp_index;
@@ -4720,8 +4702,16 @@ static void disable_vd2_blend(struct video_layer_s *layer)
 static void disable_vd3_blend(struct video_layer_s *layer)
 {
 	u8 vpp_index;
+
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return;
+
 	if (!layer)
 		return;
+
+	if (!glayer_info[layer->layer_id].layer_support)
+		return;
+
 	vpp_index = layer->vpp_index;
 
 	if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
@@ -5325,6 +5315,10 @@ void switch_3d_view_per_vsync(struct video_layer_s *layer)
 
 	if (!layer || !layer->cur_frame_par || !layer->dispbuf)
 		return;
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		switch_3d_view_per_vsync_s5(layer);
+		return;
+	}
 
 	if (layer->switch_vf && layer->vf_ext)
 		dispbuf = layer->vf_ext;
@@ -5348,7 +5342,7 @@ void switch_3d_view_per_vsync(struct video_layer_s *layer)
 	misc_off = layer->misc_reg_offt;
 	cur_frame_par = layer->cur_frame_par;
 	if (FA_enable && toggle_3d_fa_frame == OUT_FA_A_FRAME) {
-		if (!cur_dev->t7_display) {
+		if (cur_dev->display_module == OLD_DISPLAY_MODULE) {
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 				(VPP_MISC + misc_off, 1, 14, 1);
 				/* VPP_VD1_PREBLEND disable */
@@ -5423,7 +5417,7 @@ void switch_3d_view_per_vsync(struct video_layer_s *layer)
 			}
 		}
 	} else if (FA_enable && (toggle_3d_fa_frame == OUT_FA_B_FRAME)) {
-		if (!cur_dev->t7_display) {
+		if (cur_dev->display_module == OLD_DISPLAY_MODULE) {
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 				(VPP_MISC + misc_off, 1, 14, 1);
 			/* VPP_VD1_PREBLEND disable */
@@ -5495,7 +5489,7 @@ void switch_3d_view_per_vsync(struct video_layer_s *layer)
 			}
 		}
 	} else if (FA_enable && (toggle_3d_fa_frame == OUT_FA_BANK_FRAME)) {
-		if (!cur_dev->t7_display) {
+		if (cur_dev->display_module == OLD_DISPLAY_MODULE) {
 			/* output a banking frame */
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 				(VPP_MISC + misc_off, 0, 14, 1);
@@ -5857,7 +5851,10 @@ void vd_blend_setting(struct video_layer_s *layer, struct blend_setting_s *setti
 
 	if (!setting)
 		return;
-
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		vd_blend_setting_s5(layer, setting);
+		return;
+	}
 	/* g12a change to 13 bits */
 	if (!legacy_vpp)
 		vd_size_mask = 0x1fff;
@@ -5909,6 +5906,9 @@ void vd_set_dcu(u8 layer_id,
 		struct vpp_frame_par_s *frame_par,
 		struct vframe_s *vf)
 {
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return;
+
 	if (layer_id == 0)
 		vd1_set_dcu(layer, frame_par, vf);
 	else
@@ -5923,6 +5923,9 @@ void vd_scaler_setting(struct video_layer_s *layer,
 	if (setting && !setting->support)
 		return;
 	layer_id = layer->layer_id;
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return;
+
 	if (layer_id == 0)
 		vd1_scaler_setting(layer, setting);
 	else
@@ -5934,7 +5937,11 @@ void vd_clip_setting(u8 layer_id,
 {
 	if (setting->clip_done)
 		return;
-
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		vd_clip_setting_s5(layer_id, setting);
+		setting->clip_done = true;
+		return;
+	}
 	if (layer_id == 0)
 		vd1_clip_setting(setting);
 	else if (layer_id == 1)
@@ -5952,15 +5959,19 @@ void proc_vd_vsc_phase_per_vsync(struct video_layer_s *layer,
 
 	if (!glayer_info[layer_id].pps_support)
 		return;
-	if (layer_id == 0)
-		proc_vd1_vsc_phase_per_vsync
-			(layer, frame_par, vf);
-	else if (layer_id == 1)
-		proc_vd2_vsc_phase_per_vsync
-			(layer, frame_par, vf);
-	else
-		proc_vd3_vsc_phase_per_vsync
-			(layer, frame_par, vf);
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		proc_vd_vsc_phase_per_vsync_s5(layer, frame_par, vf);
+	} else {
+		if (layer_id == 0)
+			proc_vd1_vsc_phase_per_vsync
+				(layer, frame_par, vf);
+		else if (layer_id == 1)
+			proc_vd2_vsc_phase_per_vsync
+				(layer, frame_par, vf);
+		else
+			proc_vd3_vsc_phase_per_vsync
+				(layer, frame_par, vf);
+	}
 }
 
 /*********************************************************
@@ -6219,6 +6230,7 @@ static inline void vdx_test_pattern_output(u32 index, u32 on, u32 color)
 {
 	u8 vpp_index = VPP0;
 	u32 vdx_clip_misc0, vdx_clip_misc1;
+	struct clip_setting_s setting;
 
 	switch (index) {
 	case 0:
@@ -6264,25 +6276,36 @@ static inline void vdx_test_pattern_output(u32 index, u32 on, u32 color)
 			pr_info("Y=%x, U=%x, V=%x\n", Y, U, V);
 			color = (Y << 22) | (U << 12) | V << 2; /* YUV */
 		}
-
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vdx_clip_misc0,
-			color);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vdx_clip_misc1,
-			color);
-		WRITE_VCBUS_REG(vdx_clip_misc0, color);
-		WRITE_VCBUS_REG(vdx_clip_misc1, color);
+		if (cur_dev->display_module != S5_DISPLAY_MODULE) {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vdx_clip_misc0,
+				color);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vdx_clip_misc1,
+				color);
+			WRITE_VCBUS_REG(vdx_clip_misc0, color);
+			WRITE_VCBUS_REG(vdx_clip_misc1, color);
+		} else {
+			setting.clip_min = color;
+			setting.clip_max = color;
+			vd_clip_setting_s5(index, &setting);
+		}
 	} else {
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vdx_clip_misc0,
-			(0x3ff << 20) |
-			(0x3ff << 10) |
-			0x3ff);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vdx_clip_misc1,
-			(0x0 << 20) |
-			(0x0 << 10) | 0x0);
+		if (cur_dev->display_module != S5_DISPLAY_MODULE) {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vdx_clip_misc0,
+				(0x3ff << 20) |
+				(0x3ff << 10) |
+				0x3ff);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vdx_clip_misc1,
+				(0x0 << 20) |
+				(0x0 << 10) | 0x0);
+		} else {
+			setting.clip_min = 0;
+			setting.clip_max = 0x3fffffff;
+			vd_clip_setting_s5(index, &setting);
+		}
 	}
 }
 
@@ -6544,483 +6567,6 @@ static void post_blend_dummy_data_update(u32 vpp_index)
 	}
 }
 
-void vpp_blend_update(const struct vinfo_s *vinfo)
-{
-	static u32 vd1_enabled;
-	static u32 vpp_misc_set_save;
-	u32 vpp_misc_save, vpp_misc_set, mode = 0;
-	u32 vpp_off = cur_dev->vpp_off;
-	int video1_off_req = 0;
-	int video2_off_req = 0;
-	unsigned long flags;
-	struct vpp_frame_par_s *vd1_frame_par =
-		vd_layer[0].cur_frame_par;
-	bool force_flush = false;
-	u8 vpp_index = VPP0;
-	int i;
-
-	check_video_pattern_output();
-	check_postblend_pattern_output();
-	check_video_mute();
-	check_output_mute();
-
-	if (cur_dev->t7_display) {
-		vpp_blend_update_t7(vinfo);
-		return;
-	}
-
-	if (vd_layer[0].enable_3d_mode == mode_3d_mvc_enable)
-		mode |= COMPOSE_MODE_3D;
-	else if (is_amdv_on() && last_el_status)
-		mode |= COMPOSE_MODE_DV;
-	if (bypass_cm)
-		mode |= COMPOSE_MODE_BYPASS_CM;
-
-	/* check the vpp post size first */
-	if (!legacy_vpp && vinfo) {
-		u32 read_value = cur_dev->rdma_func[vpp_index].rdma_rd
-			(VPP_POSTBLEND_H_SIZE + vpp_off);
-		if (((vinfo->field_height << 16) | vinfo->width)
-			!= read_value)
-			cur_dev->rdma_func[vpp_index].rdma_wr
-				(VPP_POSTBLEND_H_SIZE + vpp_off,
-				((vinfo->field_height << 16) | vinfo->width));
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VPP_OUT_H_V_SIZE + vpp_off,
-			vinfo->width << 16 |
-			vinfo->field_height);
-	} else if (vinfo) {
-		if (cur_dev->rdma_func[vpp_index].rdma_rd
-			(VPP_POSTBLEND_H_SIZE + vpp_off)
-			!= vinfo->width)
-			cur_dev->rdma_func[vpp_index].rdma_wr
-				(VPP_POSTBLEND_H_SIZE + vpp_off,
-				vinfo->width);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VPP_OUT_H_V_SIZE + vpp_off,
-			vinfo->width << 16 |
-			vinfo->field_height);
-	}
-
-	vpp_misc_save = READ_VCBUS_REG(VPP_MISC + vpp_off);
-
-	vpp_misc_set = vpp_misc_save;
-	if (is_amdv_on() && !is_tv_panel())
-		vpp_misc_set &= ~VPP_CM_ENABLE;
-	else if (mode & COMPOSE_MODE_BYPASS_CM)
-		vpp_misc_set &= ~VPP_CM_ENABLE;
-	else
-		vpp_misc_set |= VPP_CM_ENABLE;
-
-	if (update_osd_vpp_misc && legacy_vpp) {
-		vpp_misc_set &= ~osd_vpp_misc_mask;
-		vpp_misc_set |=
-			(osd_vpp_misc & osd_vpp_misc_mask);
-		if (vpp_misc_set &
-		    (VPP_OSD1_POSTBLEND | VPP_OSD2_POSTBLEND))
-			vpp_misc_set |= VPP_POSTBLEND_EN;
-	}
-
-	for (i = 0; i < MAX_VD_LAYERS; i++) {
-		vd_layer[i].pre_blend_en = 0;
-		vd_layer[i].post_blend_en = 0;
-	}
-	if (likely(vd_layer[0].onoff_state != VIDEO_ENABLE_STATE_IDLE)) {
-		/* state change for video layer enable/disable */
-		spin_lock_irqsave(&video_onoff_lock, flags);
-		if (vd_layer[0].onoff_state == VIDEO_ENABLE_STATE_ON_REQ) {
-			/*
-			 * the video layer is enabled one vsync later,assumming
-			 * all registers are ready from RDMA.
-			 */
-			vd_layer[0].onoff_state = VIDEO_ENABLE_STATE_ON_PENDING;
-		} else if (vd_layer[0].onoff_state ==
-			VIDEO_ENABLE_STATE_ON_PENDING) {
-			vd_layer[0].pre_blend_en = 1;
-			vd_layer[0].post_blend_en = 1;
-			vpp_misc_set |=
-				VPP_VD1_PREBLEND |
-				VPP_VD1_POSTBLEND |
-				VPP_POSTBLEND_EN;
-			vd_layer[0].onoff_state = VIDEO_ENABLE_STATE_IDLE;
-			vd_layer[0].onoff_time = jiffies_to_msecs(jiffies);
-			if (vd_layer[0].global_debug & DEBUG_FLAG_BASIC_INFO)
-				pr_info("VIDEO: VsyncEnableVideoLayer\n");
-			vpu_delay_work_flag |=
-				VPU_VIDEO_LAYER1_CHANGED;
-			force_flush = true;
-		} else if (vd_layer[0].onoff_state ==
-			VIDEO_ENABLE_STATE_OFF_REQ) {
-			vd_layer[0].pre_blend_en = 0;
-			vd_layer[0].post_blend_en = 0;
-			vpp_misc_set &= ~(VPP_VD1_PREBLEND |
-				  VPP_VD1_POSTBLEND);
-			if (mode & COMPOSE_MODE_3D)
-				vpp_misc_set &= ~(VPP_VD2_PREBLEND |
-					VPP_PREBLEND_EN);
-			vd_layer[0].onoff_state = VIDEO_ENABLE_STATE_IDLE;
-			vd_layer[0].onoff_time = jiffies_to_msecs(jiffies);
-			vpu_delay_work_flag |=
-				VPU_VIDEO_LAYER1_CHANGED;
-			if (vd_layer[0].global_debug & DEBUG_FLAG_BASIC_INFO)
-				pr_info("VIDEO: VsyncDisableVideoLayer\n");
-			video1_off_req = 1;
-			force_flush = true;
-		}
-		spin_unlock_irqrestore(&video_onoff_lock, flags);
-	} else if (vd_layer[0].enabled) {
-		vd_layer[0].pre_blend_en = 1;
-		vd_layer[0].post_blend_en = 1;
-		vpp_misc_set |=
-			VPP_VD1_PREBLEND |
-			VPP_VD1_POSTBLEND |
-			VPP_POSTBLEND_EN;
-	}
-
-	if (likely(vd_layer[1].onoff_state != VIDEO_ENABLE_STATE_IDLE)) {
-		/* state change for video layer2 enable/disable */
-		spin_lock_irqsave(&video2_onoff_lock, flags);
-		if (vd_layer[1].onoff_state == VIDEO_ENABLE_STATE_ON_REQ) {
-			/*
-			 * the video layer 2
-			 * is enabled one vsync later, assumming
-			 * all registers are ready from RDMA.
-			 */
-			vd_layer[1].onoff_state = VIDEO_ENABLE_STATE_ON_PENDING;
-		} else if (vd_layer[1].onoff_state ==
-			VIDEO_ENABLE_STATE_ON_PENDING) {
-			if (mode & COMPOSE_MODE_3D) {
-				vd_layer[1].pre_blend_en = 1;
-				vd_layer[1].post_blend_en = 0;
-				vpp_misc_set |= VPP_VD2_PREBLEND |
-					VPP_PREBLEND_EN;
-				vpp_misc_set &= ~VPP_VD2_POSTBLEND;
-			} else if (vd_layer[0].enabled &&
-				(mode & COMPOSE_MODE_DV)) {
-				vd_layer[1].pre_blend_en = 0;
-				vd_layer[1].post_blend_en = 0;
-				/* DV el case */
-				vpp_misc_set &= ~(VPP_VD2_PREBLEND |
-					VPP_VD2_POSTBLEND | VPP_PREBLEND_EN);
-			} else if (vd_layer[1].dispbuf) {
-				vd_layer[1].pre_blend_en = 0;
-				vd_layer[1].post_blend_en = 1;
-				vpp_misc_set &=
-					~(VPP_PREBLEND_EN | VPP_VD2_PREBLEND);
-				vpp_misc_set |= VPP_VD2_POSTBLEND |
-					VPP_POSTBLEND_EN;
-			} else {
-				vd_layer[1].pre_blend_en = 1;
-				vpp_misc_set |= VPP_VD2_PREBLEND |
-					VPP_PREBLEND_EN;
-			}
-			vpp_misc_set |= (vd_layer[1].layer_alpha
-				<< VPP_VD2_ALPHA_BIT);
-			vd_layer[1].onoff_state = VIDEO_ENABLE_STATE_IDLE;
-			vd_layer[1].onoff_time = jiffies_to_msecs(jiffies);
-			vpu_delay_work_flag |=
-				VPU_VIDEO_LAYER2_CHANGED;
-			if (vd_layer[1].global_debug & DEBUG_FLAG_BASIC_INFO)
-				pr_info("VIDEO: VsyncEnableVideoLayer2\n");
-			force_flush = true;
-		} else if (vd_layer[1].onoff_state ==
-			VIDEO_ENABLE_STATE_OFF_REQ) {
-			vd_layer[1].pre_blend_en = 0;
-			vd_layer[1].post_blend_en = 0;
-			vpp_misc_set &= ~(VPP_VD2_PREBLEND |
-				VPP_VD2_POSTBLEND | VPP_PREBLEND_EN
-				| (0x1ff << VPP_VD2_ALPHA_BIT));
-			vd_layer[1].onoff_state = VIDEO_ENABLE_STATE_IDLE;
-			vd_layer[1].onoff_time = jiffies_to_msecs(jiffies);
-			vpu_delay_work_flag |=
-				VPU_VIDEO_LAYER2_CHANGED;
-			if (vd_layer[1].global_debug & DEBUG_FLAG_BASIC_INFO)
-				pr_info("VIDEO: VsyncDisableVideoLayer2\n");
-			video2_off_req = 1;
-			force_flush = true;
-		}
-		spin_unlock_irqrestore(&video2_onoff_lock, flags);
-	} else if (vd_layer[1].enabled) {
-		if (mode & COMPOSE_MODE_3D) {
-			vd_layer[1].pre_blend_en = 1;
-			vd_layer[1].post_blend_en = 0;
-			vpp_misc_set |= VPP_VD2_PREBLEND |
-				VPP_PREBLEND_EN;
-			vpp_misc_set &= ~VPP_VD2_POSTBLEND;
-		} else if (vd_layer[0].enabled &&
-			(mode & COMPOSE_MODE_DV)) {
-			vd_layer[1].pre_blend_en = 0;
-			vd_layer[1].post_blend_en = 0;
-			/* DV el case */
-			vpp_misc_set &= ~(VPP_VD2_PREBLEND |
-				VPP_VD2_POSTBLEND | VPP_PREBLEND_EN);
-		} else if (vd_layer[1].dispbuf) {
-			vd_layer[1].pre_blend_en = 0;
-			vd_layer[1].post_blend_en = 1;
-			vpp_misc_set &=
-				~(VPP_PREBLEND_EN | VPP_VD2_PREBLEND);
-			vpp_misc_set |= VPP_VD2_POSTBLEND |
-				VPP_POSTBLEND_EN;
-		} else {
-			vd_layer[1].pre_blend_en = 1;
-			vpp_misc_set |= VPP_VD2_PREBLEND |
-				VPP_PREBLEND_EN;
-		}
-		vpp_misc_set |= (vd_layer[1].layer_alpha
-			<< VPP_VD2_ALPHA_BIT);
-	}
-
-	if ((vd_layer[0].global_output == 0 && !vd_layer[0].force_black) ||
-	    vd_layer[0].force_disable ||
-	    black_threshold_check(0)) {
-		if (vd_layer[0].enabled)
-			force_flush = true;
-		vd_layer[0].enabled = 0;
-		/* preblend need disable together */
-		vpp_misc_set &= ~(VPP_VD1_PREBLEND |
-			VPP_VD2_PREBLEND |
-			VPP_VD1_POSTBLEND |
-			VPP_PREBLEND_EN);
-		vd_layer[0].pre_blend_en = 0;
-		vd_layer[0].post_blend_en = 0;
-	} else {
-		if (vd_layer[0].enabled != vd_layer[0].enabled_status_saved)
-			force_flush = true;
-		vd_layer[0].enabled = vd_layer[0].enabled_status_saved;
-		if (vd_layer[0].enabled) {
-			vd_layer[0].pre_blend_en = 1;
-			vd_layer[0].post_blend_en = 1;
-		} else {
-			vd_layer[0].pre_blend_en = 0;
-			vd_layer[0].post_blend_en = 0;
-		}
-	}
-	if (!vd_layer[0].enabled &&
-	    ((vpp_misc_set & VPP_VD1_POSTBLEND) ||
-	     (vpp_misc_set & VPP_VD1_PREBLEND)))
-		vpp_misc_set &= ~(VPP_VD1_PREBLEND |
-			VPP_VD1_POSTBLEND |
-			VPP_PREBLEND_EN);
-
-	if (vd1_enabled != vd_layer[0].enabled) {
-		if (vd_layer[0].enabled) {
-			video_prop_status &= ~VIDEO_PROP_CHANGE_DISABLE;
-			video_prop_status |= VIDEO_PROP_CHANGE_ENABLE;
-		} else {
-			video_prop_status &= ~VIDEO_PROP_CHANGE_ENABLE;
-			video_prop_status |= VIDEO_PROP_CHANGE_DISABLE;
-		}
-		if (vd_layer[0].global_debug & DEBUG_FLAG_TRACE_EVENT)
-			pr_info("VD1 enable/disable status changed: %s->%s.\n",
-				vd1_enabled ? "enable" : "disable",
-				vd_layer[0].enabled ? "enable" : "disable");
-		vd1_enabled = vd_layer[0].enabled;
-	}
-
-	if (!(mode & COMPOSE_MODE_3D) &&
-	    (vd_layer[1].global_output == 0 ||
-	     vd_layer[1].force_disable ||
-	     black_threshold_check(1))) {
-		if (vd_layer[1].enabled)
-			force_flush = true;
-		vd_layer[1].enabled = 0;
-		vpp_misc_set &= ~(VPP_VD2_PREBLEND |
-			VPP_VD2_POSTBLEND);
-		vd_layer[1].pre_blend_en = 0;
-		vd_layer[1].post_blend_en = 0;
-	} else {
-		if (vd_layer[1].enabled != vd_layer[1].enabled_status_saved)
-			force_flush = true;
-		vd_layer[1].enabled = vd_layer[1].enabled_status_saved;
-		if (vd_layer[1].enabled) {
-			if (mode & COMPOSE_MODE_3D) {
-				vd_layer[1].pre_blend_en = 1;
-				vd_layer[1].post_blend_en = 0;
-			} else if (vd_layer[0].enabled &&
-				(mode & COMPOSE_MODE_DV)) {
-				vd_layer[1].pre_blend_en = 0;
-				vd_layer[1].post_blend_en = 0;
-			} else if (vd_layer[1].dispbuf) {
-				vd_layer[1].pre_blend_en = 0;
-				vd_layer[1].post_blend_en = 1;
-			} else {
-				vd_layer[1].pre_blend_en = 1;
-			}
-		} else {
-			vd_layer[1].pre_blend_en = 0;
-			vd_layer[1].post_blend_en = 0;
-		}
-	}
-	if (!vd_layer[1].enabled &&
-	    ((vpp_misc_set & VPP_VD2_POSTBLEND) ||
-	     (vpp_misc_set & VPP_VD2_PREBLEND)))
-		vpp_misc_set &= ~(VPP_VD2_PREBLEND |
-			VPP_VD2_POSTBLEND);
-
-	if (!vd_layer[0].enabled && is_local_vf(vd_layer[0].dispbuf)) {
-		safe_switch_videolayer(0, false, true);
-		if (vd_layer[0].keep_frame_id == 1)
-			video_pip_keeper_new_frame_notify();
-		else if (vd_layer[0].keep_frame_id == 0)
-			video_keeper_new_frame_notify();
-	}
-
-	if (!vd_layer[1].enabled && is_local_vf(vd_layer[1].dispbuf)) {
-		safe_switch_videolayer(1, false, true);
-		if (vd_layer[1].keep_frame_id == 1)
-			video_pip_keeper_new_frame_notify();
-		else if (vd_layer[1].keep_frame_id == 0)
-			video_keeper_new_frame_notify();
-	}
-
-	force_flush |= vpp_zorder_check();
-
-	if (!legacy_vpp) {
-		u32 set_value = 0;
-
-		/* for sr core0, put it between prebld & pps as default */
-		if (vd1_frame_par &&
-		    (vd1_frame_par->sr_core_support & SUPER_CORE0_SUPPORT))
-			if (vd1_frame_par->sr0_position)
-				vpp_misc_set |=
-					PREBLD_SR0_VD1_SCALER;
-			else /* SR0_AFTER_DNLP */
-				vpp_misc_set &=
-					~PREBLD_SR0_VD1_SCALER;
-		else
-			vpp_misc_set |=
-				PREBLD_SR0_VD1_SCALER;
-		/* for sr core1, put it before post blend as default */
-		if (vd1_frame_par &&
-		    (vd1_frame_par->sr_core_support & SUPER_CORE1_SUPPORT))
-			if (vd1_frame_par->sr1_position)
-				vpp_misc_set |=
-					DNLP_SR1_CM;
-			else /* SR1_AFTER_POSTBLEN */
-				vpp_misc_set &=
-					~DNLP_SR1_CM;
-		else
-			vpp_misc_set |=
-				DNLP_SR1_CM;
-
-		vpp_misc_set &=
-			((1 << 29) | VPP_CM_ENABLE |
-			(0x1ff << VPP_VD2_ALPHA_BIT) |
-			VPP_PREBLEND_EN |
-			VPP_POSTBLEND_EN |
-			0xf);
-
-		/* if vd2 is bottom layer, need remove alpha for vd2 */
-		/* 3d case vd2 preblend, need remove alpha for vd2 */
-		if ((!vd_layer[0].post_blend_en &&
-		    vd_layer[1].post_blend_en) ||
-		    vd_layer[1].pre_blend_en) {
-			vpp_misc_set &= ~(0x1ff << VPP_VD2_ALPHA_BIT);
-			vpp_misc_set |= (vd_layer[1].layer_alpha
-				<< VPP_VD2_ALPHA_BIT);
-		}
-
-		vpp_misc_save &=
-			((1 << 29) | VPP_CM_ENABLE |
-			(0x1ff << VPP_VD2_ALPHA_BIT) |
-			VPP_PREBLEND_EN |
-			VPP_POSTBLEND_EN |
-			0xf);
-		if (vpp_misc_set != vpp_misc_set_save || force_flush) {
-			u32 port_val[3] = {0, 0, 0};
-			u32 vd1_port, vd2_port, icnt;
-			u32 post_blend_reg[3] = {
-				VD1_BLEND_SRC_CTRL,
-				VD2_BLEND_SRC_CTRL,
-				OSD2_BLEND_SRC_CTRL
-			};
-
-			/* just reset the select port */
-			if (glayer_info[0].cur_sel_port > 2 ||
-			    glayer_info[1].cur_sel_port > 2) {
-				glayer_info[0].cur_sel_port = 0;
-				glayer_info[1].cur_sel_port = 1;
-			}
-
-			vd1_port = glayer_info[0].cur_sel_port;
-			vd2_port = glayer_info[1].cur_sel_port;
-
-			/* post bld premult*/
-			port_val[0] |= (1 << 16);
-
-			/* vd2 path sel */
-			if (vd_layer[1].post_blend_en)
-				port_val[1] |= (1 << 20);
-			else
-				port_val[1] &= ~(1 << 20);
-
-			/* osd2 path sel */
-			port_val[2] |= (1 << 20);
-
-			if (vd_layer[0].post_blend_en) {
-				 /* post src */
-				port_val[vd1_port] |= (1 << 8);
-				port_val[0] |=
-					((1 << 4) | /* pre bld premult*/
-					(1 << 0)); /* pre bld src 1 */
-			} else {
-				port_val[0] &= ~0xff;
-			}
-
-			if (vd_layer[1].post_blend_en)
-				 /* post src */
-				port_val[vd2_port] |= (2 << 8);
-			else if (vd_layer[1].pre_blend_en)
-				port_val[1] |=
-					((1 << 4) | /* pre bld premult*/
-					(2 << 0)); /* pre bld src 1 */
-
-			for (icnt = 0; icnt < 3; icnt++)
-				cur_dev->rdma_func[vpp_index].rdma_wr
-					(post_blend_reg[icnt]
-					+ vpp_off,
-					port_val[icnt]);
-
-			set_value = vpp_misc_set;
-			set_value &=
-				((1 << 29) | VPP_CM_ENABLE |
-				(0x1ff << VPP_VD2_ALPHA_BIT) |
-				VPP_POSTBLEND_EN |
-				VPP_PREBLEND_EN |
-				0xf);
-			if (mode & COMPOSE_MODE_BYPASS_CM)
-				set_value &= ~VPP_CM_ENABLE;
-			set_value |= VPP_POSTBLEND_EN;
-			set_value |= VPP_PREBLEND_EN;
-			if (osd_preblend_en) {
-				set_value |= VPP_VD1_POSTBLEND;
-				set_value |= VPP_VD1_PREBLEND;
-			}
-			/* t5d bit 9:11 used by wm ctrl, chip after g12 not used bit 9:11, mask it*/
-			set_value &= 0xfffff1ff;
-			set_value |= (vpp_misc_save & 0xe00);
-			cur_dev->rdma_func[vpp_index].rdma_wr
-				(VPP_MISC + vpp_off,
-				set_value);
-		}
-	} else if (vpp_misc_save != vpp_misc_set) {
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(VPP_MISC + vpp_off,
-			vpp_misc_set);
-	}
-	vpp_misc_set_save = vpp_misc_set;
-
-	post_blend_dummy_data_update(vpp_index);
-
-	if ((vd_layer[1].dispbuf && video2_off_req) ||
-	    (!vd_layer[1].dispbuf &&
-	     (video1_off_req || video2_off_req)))
-		disable_vd2_blend(&vd_layer[1]);
-
-	if (video1_off_req)
-		disable_vd1_blend(&vd_layer[0]);
-}
-
 void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 {
 	static u32 t7_vd1_enabled, vpp_misc_set_save;
@@ -7035,6 +6581,11 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 	bool force_flush = false;
 	int i;
 	u8 vpp_index = VPP0;
+
+	check_video_pattern_output();
+	check_postblend_pattern_output();
+	check_video_mute();
+	check_output_mute();
 
 	if (vd_layer[0].enable_3d_mode == mode_3d_mvc_enable)
 		mode |= COMPOSE_MODE_3D;
@@ -7530,23 +7081,817 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 				(VPP_MISC2 + vpp_off,
 				vd_layer[2].layer_alpha, 0, 9);
-
 		}
 	}
 	vpp_misc_set_save = vpp_misc_set;
 	post_blend_dummy_data_update(vpp_index);
 
-	if (cur_dev->max_vd_layers == 3) {
-		if (vd_layer[2].vpp_index == VPP0 &&
-		    ((vd_layer[2].dispbuf && video3_off_req) ||
-		    (!vd_layer[2].dispbuf &&
-		     (video1_off_req || video3_off_req))))
-			disable_vd3_blend(&vd_layer[2]);
-	}
+	if (vd_layer[2].vpp_index == VPP0 &&
+	    ((vd_layer[2].dispbuf && video3_off_req) ||
+	    (!vd_layer[2].dispbuf &&
+	     (video3_off_req))))
+		disable_vd3_blend(&vd_layer[2]);
+
 	if (vd_layer[1].vpp_index == VPP0 &&
 	    ((vd_layer[1].dispbuf && video2_off_req) ||
 	    (!vd_layer[1].dispbuf &&
-	     (video1_off_req || video2_off_req))))
+	     (video2_off_req))))
+		disable_vd2_blend(&vd_layer[1]);
+
+	if (video1_off_req)
+		disable_vd1_blend(&vd_layer[0]);
+}
+
+static void vpp_blend_update_s5(const struct vinfo_s *vinfo)
+{
+	static u32 t7_vd1_enabled;
+	bool force_flush = false;
+	int video1_off_req = 0;
+	int video2_off_req = 0;
+	int video3_off_req = 0;
+	unsigned long flags;
+	int mode = 0;
+
+	if (vd_layer[0].enable_3d_mode == mode_3d_mvc_enable)
+		mode |= COMPOSE_MODE_3D;
+	else if (is_amdv_on() && last_el_status)
+		mode |= COMPOSE_MODE_DV;
+	if (bypass_cm)
+		mode |= COMPOSE_MODE_BYPASS_CM;
+
+	if (likely(vd_layer[0].onoff_state != VIDEO_ENABLE_STATE_IDLE)) {
+		/* state change for video layer enable/disable */
+		spin_lock_irqsave(&video_onoff_lock, flags);
+		if (vd_layer[0].onoff_state == VIDEO_ENABLE_STATE_ON_REQ) {
+			/*
+			 * the video layer is enabled one vsync later,assumming
+			 * all registers are ready from RDMA.
+			 */
+			vd_layer[0].onoff_state = VIDEO_ENABLE_STATE_ON_PENDING;
+		} else if (vd_layer[0].onoff_state ==
+			VIDEO_ENABLE_STATE_ON_PENDING) {
+			vd_layer[0].pre_blend_en = 1;
+			vd_layer[0].post_blend_en = 1;
+			vd_layer[0].onoff_state = VIDEO_ENABLE_STATE_IDLE;
+			vd_layer[0].onoff_time = jiffies_to_msecs(jiffies);
+			if (vd_layer[0].global_debug & DEBUG_FLAG_BASIC_INFO)
+				pr_info("VIDEO: VsyncEnableVideoLayer\n");
+			vpu_delay_work_flag |=
+				VPU_VIDEO_LAYER1_CHANGED;
+			force_flush = true;
+		} else if (vd_layer[0].onoff_state ==
+			VIDEO_ENABLE_STATE_OFF_REQ) {
+			vd_layer[0].pre_blend_en = 0;
+			vd_layer[0].post_blend_en = 0;
+			if (mode & COMPOSE_MODE_3D)
+				vd_layer[1].pre_blend_en = 0;
+			vd_layer[0].onoff_state = VIDEO_ENABLE_STATE_IDLE;
+			vd_layer[0].onoff_time = jiffies_to_msecs(jiffies);
+			vpu_delay_work_flag |=
+				VPU_VIDEO_LAYER1_CHANGED;
+			if (vd_layer[0].global_debug & DEBUG_FLAG_BASIC_INFO)
+				pr_info("VIDEO: VsyncDisableVideoLayer\n");
+			video1_off_req = 1;
+			force_flush = true;
+		}
+		spin_unlock_irqrestore(&video_onoff_lock, flags);
+	} else if (vd_layer[0].enabled) {
+		vd_layer[0].pre_blend_en = 1;
+		vd_layer[0].post_blend_en = 1;
+	}
+
+	if (vd_layer[1].vpp_index == VPP0) {
+		if (likely(vd_layer[1].onoff_state != VIDEO_ENABLE_STATE_IDLE)) {
+			/* state change for video layer2 enable/disable */
+			spin_lock_irqsave(&video2_onoff_lock, flags);
+			if (vd_layer[1].onoff_state == VIDEO_ENABLE_STATE_ON_REQ) {
+				/*
+				 * the video layer 2
+				 * is enabled one vsync later, assumming
+				 * all registers are ready from RDMA.
+				 */
+				vd_layer[1].onoff_state = VIDEO_ENABLE_STATE_ON_PENDING;
+			} else if (vd_layer[1].onoff_state ==
+				VIDEO_ENABLE_STATE_ON_PENDING) {
+				if (mode & COMPOSE_MODE_3D) {
+					vd_layer[1].pre_blend_en = 1;
+					vd_layer[1].post_blend_en = 0;
+				} else if (vd_layer[0].enabled &&
+					(mode & COMPOSE_MODE_DV)) {
+					/* DV el case */
+					vd_layer[1].pre_blend_en = 0;
+					vd_layer[1].post_blend_en = 0;
+				} else if (vd_layer[1].dispbuf) {
+					vd_layer[1].pre_blend_en = 0;
+					vd_layer[1].post_blend_en = 1;
+				} else {
+					vd_layer[1].pre_blend_en = 1;
+				}
+				vd_layer[1].onoff_state = VIDEO_ENABLE_STATE_IDLE;
+				vd_layer[1].onoff_time = jiffies_to_msecs(jiffies);
+				vpu_delay_work_flag |=
+					VPU_VIDEO_LAYER2_CHANGED;
+				if (vd_layer[1].global_debug & DEBUG_FLAG_BASIC_INFO)
+					pr_info("VIDEO: VsyncEnableVideoLayer2\n");
+				force_flush = true;
+			} else if (vd_layer[1].onoff_state ==
+				VIDEO_ENABLE_STATE_OFF_REQ) {
+				vd_layer[1].pre_blend_en = 0;
+				vd_layer[1].post_blend_en = 0;
+				vd_layer[1].onoff_state = VIDEO_ENABLE_STATE_IDLE;
+				vd_layer[1].onoff_time = jiffies_to_msecs(jiffies);
+				vpu_delay_work_flag |=
+					VPU_VIDEO_LAYER2_CHANGED;
+				if (vd_layer[1].global_debug & DEBUG_FLAG_BASIC_INFO)
+					pr_info("VIDEO: VsyncDisableVideoLayer2\n");
+				video2_off_req = 1;
+				force_flush = true;
+			}
+			spin_unlock_irqrestore(&video2_onoff_lock, flags);
+		} else if (vd_layer[1].enabled) {
+			if (mode & COMPOSE_MODE_3D) {
+				vd_layer[1].pre_blend_en = 1;
+				vd_layer[1].post_blend_en = 0;
+			} else if (vd_layer[0].enabled &&
+				(mode & COMPOSE_MODE_DV)) {
+				/* DV el case */
+				vd_layer[1].pre_blend_en = 0;
+				vd_layer[1].post_blend_en = 0;
+			} else if (vd_layer[1].dispbuf) {
+				vd_layer[1].pre_blend_en = 0;
+				vd_layer[1].post_blend_en = 1;
+			} else {
+				vd_layer[1].pre_blend_en = 1;
+			}
+		}
+	}
+	if (vd_layer[2].vpp_index == VPP0) {
+		if (likely(vd_layer[2].onoff_state != VIDEO_ENABLE_STATE_IDLE)) {
+			/* state change for video layer3 enable/disable */
+			spin_lock_irqsave(&video3_onoff_lock, flags);
+			if (vd_layer[2].onoff_state == VIDEO_ENABLE_STATE_ON_REQ) {
+				/*
+				 * the video layer 3
+				 * is enabled one vsync later, assumming
+				 * all registers are ready from RDMA.
+				 */
+				vd_layer[2].onoff_state = VIDEO_ENABLE_STATE_ON_PENDING;
+			} else if (vd_layer[2].onoff_state ==
+				VIDEO_ENABLE_STATE_ON_PENDING) {
+				if (vd_layer[2].dispbuf) {
+					vd_layer[2].pre_blend_en = 0;
+					vd_layer[2].post_blend_en = 1;
+				} else {
+					vd_layer[2].pre_blend_en = 1;
+				}
+				vd_layer[2].onoff_state = VIDEO_ENABLE_STATE_IDLE;
+				vd_layer[2].onoff_time = jiffies_to_msecs(jiffies);
+				vpu_delay_work_flag |=
+					VPU_VIDEO_LAYER3_CHANGED;
+				if (vd_layer[2].global_debug & DEBUG_FLAG_BASIC_INFO)
+					pr_info("VIDEO: VsyncEnableVideoLayer3\n");
+				force_flush = true;
+			} else if (vd_layer[2].onoff_state ==
+				VIDEO_ENABLE_STATE_OFF_REQ) {
+				vd_layer[2].pre_blend_en = 0;
+				vd_layer[2].post_blend_en = 0;
+				vd_layer[2].onoff_state = VIDEO_ENABLE_STATE_IDLE;
+				vd_layer[2].onoff_time = jiffies_to_msecs(jiffies);
+				vpu_delay_work_flag |=
+					VPU_VIDEO_LAYER3_CHANGED;
+				if (vd_layer[2].global_debug & DEBUG_FLAG_BASIC_INFO)
+					pr_info("VIDEO: VsyncDisableVideoLayer2\n");
+				video3_off_req = 1;
+				force_flush = true;
+			}
+			spin_unlock_irqrestore(&video3_onoff_lock, flags);
+		} else if (vd_layer[2].enabled) {
+			if (vd_layer[2].dispbuf) {
+				vd_layer[2].pre_blend_en = 0;
+				vd_layer[2].post_blend_en = 1;
+			} else {
+				vd_layer[2].pre_blend_en = 1;
+			}
+		}
+	}
+	if ((vd_layer[0].global_output == 0 && !vd_layer[0].force_black) ||
+	    vd_layer[0].force_disable ||
+	    black_threshold_check(0)) {
+		if (vd_layer[0].enabled)
+			force_flush = true;
+		vd_layer[0].enabled = 0;
+		/* preblend need disable together */
+		vd_layer[0].pre_blend_en = 0;
+		vd_layer[0].post_blend_en = 0;
+
+	} else {
+		if (vd_layer[0].enabled != vd_layer[0].enabled_status_saved)
+			force_flush = true;
+		vd_layer[0].enabled = vd_layer[0].enabled_status_saved;
+		if (vd_layer[0].enabled) {
+			vd_layer[0].pre_blend_en = 1;
+			vd_layer[0].post_blend_en = 1;
+		} else {
+			vd_layer[0].pre_blend_en = 0;
+			vd_layer[0].post_blend_en = 0;
+		}
+	}
+
+	if (t7_vd1_enabled != vd_layer[0].enabled) {
+		if (vd_layer[0].enabled) {
+			video_prop_status &= ~VIDEO_PROP_CHANGE_DISABLE;
+			video_prop_status |= VIDEO_PROP_CHANGE_ENABLE;
+		} else {
+			video_prop_status &= ~VIDEO_PROP_CHANGE_ENABLE;
+			video_prop_status |= VIDEO_PROP_CHANGE_DISABLE;
+		}
+		if (vd_layer[0].global_debug & DEBUG_FLAG_TRACE_EVENT)
+			pr_info("VD1 enable/disable status changed: %s->%s.\n",
+				t7_vd1_enabled ? "enable" : "disable",
+				vd_layer[0].enabled ? "enable" : "disable");
+		t7_vd1_enabled = vd_layer[0].enabled;
+	}
+
+	if (vd_layer[1].vpp_index == VPP0) {
+		if (!(mode & COMPOSE_MODE_3D) &&
+		    (vd_layer[1].global_output == 0 ||
+		     vd_layer[1].force_disable ||
+		     black_threshold_check(1))) {
+			if (vd_layer[1].enabled)
+				force_flush = true;
+			vd_layer[1].enabled = 0;
+			vd_layer[1].pre_blend_en = 0;
+			vd_layer[1].post_blend_en = 0;
+		} else {
+			if (vd_layer[1].enabled != vd_layer[1].enabled_status_saved)
+				force_flush = true;
+			vd_layer[1].enabled = vd_layer[1].enabled_status_saved;
+			if (vd_layer[1].enabled) {
+				if (mode & COMPOSE_MODE_3D) {
+					vd_layer[1].pre_blend_en = 1;
+					vd_layer[1].post_blend_en = 0;
+				} else if (vd_layer[0].enabled &&
+					(mode & COMPOSE_MODE_DV)) {
+					/* DV el case */
+					vd_layer[1].pre_blend_en = 0;
+					vd_layer[1].post_blend_en = 0;
+				} else if (vd_layer[1].dispbuf) {
+					vd_layer[1].pre_blend_en = 0;
+					vd_layer[1].post_blend_en = 1;
+				} else {
+					vd_layer[1].pre_blend_en = 1;
+				}
+			} else {
+				vd_layer[1].pre_blend_en = 0;
+				vd_layer[1].post_blend_en = 0;
+			}
+		}
+	} else {
+		vd_layer[1].pre_blend_en = 0;
+		vd_layer[1].post_blend_en = 0;
+	}
+	if (vd_layer[2].vpp_index == VPP0) {
+		if ((vd_layer[2].global_output == 0 ||
+		     vd_layer[2].force_disable ||
+		     black_threshold_check(2))) {
+			if (vd_layer[2].enabled)
+				force_flush = true;
+			vd_layer[2].enabled = 0;
+			vd_layer[2].pre_blend_en = 0;
+			vd_layer[2].post_blend_en = 0;
+		} else {
+			if (vd_layer[2].enabled != vd_layer[2].enabled_status_saved)
+				force_flush = true;
+			vd_layer[2].enabled = vd_layer[2].enabled_status_saved;
+			if (vd_layer[2].enabled) {
+				if (vd_layer[2].dispbuf) {
+					vd_layer[2].pre_blend_en = 0;
+					vd_layer[2].post_blend_en = 1;
+				} else {
+					vd_layer[2].pre_blend_en = 1;
+				}
+			} else {
+				vd_layer[2].pre_blend_en = 0;
+				vd_layer[2].post_blend_en = 0;
+			}
+		}
+	} else {
+		vd_layer[2].pre_blend_en = 0;
+		vd_layer[2].post_blend_en = 0;
+	}
+	//force_flush |= vpp_zorder_check_s5();
+	force_flush |= update_vpp_input_info(vinfo);
+
+	if (force_flush)
+		vpp_post_blend_update_s5(vinfo);
+
+	if (vd_layer[2].vpp_index == VPP0 &&
+	    ((vd_layer[2].dispbuf && video3_off_req) ||
+	    (!vd_layer[2].dispbuf &&
+	     (video3_off_req))))
+		disable_vd3_blend(&vd_layer[2]);
+
+	if (vd_layer[1].vpp_index == VPP0 &&
+	    ((vd_layer[1].dispbuf && video2_off_req) ||
+	    (!vd_layer[1].dispbuf &&
+	     (video2_off_req))))
+		disable_vd2_blend(&vd_layer[1]);
+
+	if (video1_off_req)
+		disable_vd1_blend(&vd_layer[0]);
+}
+
+void vpp_blend_update(const struct vinfo_s *vinfo)
+{
+	static u32 vd1_enabled;
+	static u32 vpp_misc_set_save;
+	u32 vpp_misc_save, vpp_misc_set, mode = 0;
+	u32 vpp_off = cur_dev->vpp_off;
+	int video1_off_req = 0;
+	int video2_off_req = 0;
+	unsigned long flags;
+	struct vpp_frame_par_s *vd1_frame_par =
+		vd_layer[0].cur_frame_par;
+	bool force_flush = false;
+	u8 vpp_index = VPP0;
+	int i;
+
+	check_video_pattern_output();
+	check_postblend_pattern_output();
+	check_video_mute();
+	check_output_mute();
+
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		vpp_blend_update_s5(vinfo);
+		return;
+	}
+	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
+		vpp_blend_update_t7(vinfo);
+		return;
+	}
+
+	if (vd_layer[0].enable_3d_mode == mode_3d_mvc_enable)
+		mode |= COMPOSE_MODE_3D;
+	else if (is_amdv_on() && last_el_status)
+		mode |= COMPOSE_MODE_DV;
+	if (bypass_cm)
+		mode |= COMPOSE_MODE_BYPASS_CM;
+
+	/* check the vpp post size first */
+	if (!legacy_vpp && vinfo) {
+		u32 read_value = cur_dev->rdma_func[vpp_index].rdma_rd
+			(VPP_POSTBLEND_H_SIZE + vpp_off);
+		if (((vinfo->field_height << 16) | vinfo->width)
+			!= read_value)
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(VPP_POSTBLEND_H_SIZE + vpp_off,
+				((vinfo->field_height << 16) | vinfo->width));
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_OUT_H_V_SIZE + vpp_off,
+			vinfo->width << 16 |
+			vinfo->field_height);
+	} else if (vinfo) {
+		if (cur_dev->rdma_func[vpp_index].rdma_rd
+			(VPP_POSTBLEND_H_SIZE + vpp_off)
+			!= vinfo->width)
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(VPP_POSTBLEND_H_SIZE + vpp_off,
+				vinfo->width);
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_OUT_H_V_SIZE + vpp_off,
+			vinfo->width << 16 |
+			vinfo->field_height);
+	}
+
+	vpp_misc_save = READ_VCBUS_REG(VPP_MISC + vpp_off);
+
+	vpp_misc_set = vpp_misc_save;
+	if (is_amdv_on() && !is_tv_panel())
+		vpp_misc_set &= ~VPP_CM_ENABLE;
+	else if (mode & COMPOSE_MODE_BYPASS_CM)
+		vpp_misc_set &= ~VPP_CM_ENABLE;
+	else
+		vpp_misc_set |= VPP_CM_ENABLE;
+
+	if (update_osd_vpp_misc && legacy_vpp) {
+		vpp_misc_set &= ~osd_vpp_misc_mask;
+		vpp_misc_set |=
+			(osd_vpp_misc & osd_vpp_misc_mask);
+		if (vpp_misc_set &
+		    (VPP_OSD1_POSTBLEND | VPP_OSD2_POSTBLEND))
+			vpp_misc_set |= VPP_POSTBLEND_EN;
+	}
+
+	for (i = 0; i < MAX_VD_LAYERS; i++) {
+		vd_layer[i].pre_blend_en = 0;
+		vd_layer[i].post_blend_en = 0;
+	}
+	if (likely(vd_layer[0].onoff_state != VIDEO_ENABLE_STATE_IDLE)) {
+		/* state change for video layer enable/disable */
+		spin_lock_irqsave(&video_onoff_lock, flags);
+		if (vd_layer[0].onoff_state == VIDEO_ENABLE_STATE_ON_REQ) {
+			/*
+			 * the video layer is enabled one vsync later,assumming
+			 * all registers are ready from RDMA.
+			 */
+			vd_layer[0].onoff_state = VIDEO_ENABLE_STATE_ON_PENDING;
+		} else if (vd_layer[0].onoff_state ==
+			VIDEO_ENABLE_STATE_ON_PENDING) {
+			vd_layer[0].pre_blend_en = 1;
+			vd_layer[0].post_blend_en = 1;
+			vpp_misc_set |=
+				VPP_VD1_PREBLEND |
+				VPP_VD1_POSTBLEND |
+				VPP_POSTBLEND_EN;
+			vd_layer[0].onoff_state = VIDEO_ENABLE_STATE_IDLE;
+			vd_layer[0].onoff_time = jiffies_to_msecs(jiffies);
+			if (vd_layer[0].global_debug & DEBUG_FLAG_BASIC_INFO)
+				pr_info("VIDEO: VsyncEnableVideoLayer\n");
+			vpu_delay_work_flag |=
+				VPU_VIDEO_LAYER1_CHANGED;
+			force_flush = true;
+		} else if (vd_layer[0].onoff_state ==
+			VIDEO_ENABLE_STATE_OFF_REQ) {
+			vd_layer[0].pre_blend_en = 0;
+			vd_layer[0].post_blend_en = 0;
+			vpp_misc_set &= ~(VPP_VD1_PREBLEND |
+				  VPP_VD1_POSTBLEND);
+			if (mode & COMPOSE_MODE_3D)
+				vpp_misc_set &= ~(VPP_VD2_PREBLEND |
+					VPP_PREBLEND_EN);
+			vd_layer[0].onoff_state = VIDEO_ENABLE_STATE_IDLE;
+			vd_layer[0].onoff_time = jiffies_to_msecs(jiffies);
+			vpu_delay_work_flag |=
+				VPU_VIDEO_LAYER1_CHANGED;
+			if (vd_layer[0].global_debug & DEBUG_FLAG_BASIC_INFO)
+				pr_info("VIDEO: VsyncDisableVideoLayer\n");
+			video1_off_req = 1;
+			force_flush = true;
+		}
+		spin_unlock_irqrestore(&video_onoff_lock, flags);
+	} else if (vd_layer[0].enabled) {
+		vd_layer[0].pre_blend_en = 1;
+		vd_layer[0].post_blend_en = 1;
+		vpp_misc_set |=
+			VPP_VD1_PREBLEND |
+			VPP_VD1_POSTBLEND |
+			VPP_POSTBLEND_EN;
+	}
+
+	if (likely(vd_layer[1].onoff_state != VIDEO_ENABLE_STATE_IDLE)) {
+		/* state change for video layer2 enable/disable */
+		spin_lock_irqsave(&video2_onoff_lock, flags);
+		if (vd_layer[1].onoff_state == VIDEO_ENABLE_STATE_ON_REQ) {
+			/*
+			 * the video layer 2
+			 * is enabled one vsync later, assumming
+			 * all registers are ready from RDMA.
+			 */
+			vd_layer[1].onoff_state = VIDEO_ENABLE_STATE_ON_PENDING;
+		} else if (vd_layer[1].onoff_state ==
+			VIDEO_ENABLE_STATE_ON_PENDING) {
+			if (mode & COMPOSE_MODE_3D) {
+				vd_layer[1].pre_blend_en = 1;
+				vd_layer[1].post_blend_en = 0;
+				vpp_misc_set |= VPP_VD2_PREBLEND |
+					VPP_PREBLEND_EN;
+				vpp_misc_set &= ~VPP_VD2_POSTBLEND;
+			} else if (vd_layer[0].enabled &&
+				(mode & COMPOSE_MODE_DV)) {
+				vd_layer[1].pre_blend_en = 0;
+				vd_layer[1].post_blend_en = 0;
+				/* DV el case */
+				vpp_misc_set &= ~(VPP_VD2_PREBLEND |
+					VPP_VD2_POSTBLEND | VPP_PREBLEND_EN);
+			} else if (vd_layer[1].dispbuf) {
+				vd_layer[1].pre_blend_en = 0;
+				vd_layer[1].post_blend_en = 1;
+				vpp_misc_set &=
+					~(VPP_PREBLEND_EN | VPP_VD2_PREBLEND);
+				vpp_misc_set |= VPP_VD2_POSTBLEND |
+					VPP_POSTBLEND_EN;
+			} else {
+				vd_layer[1].pre_blend_en = 1;
+				vpp_misc_set |= VPP_VD2_PREBLEND |
+					VPP_PREBLEND_EN;
+			}
+			vpp_misc_set |= (vd_layer[1].layer_alpha
+				<< VPP_VD2_ALPHA_BIT);
+			vd_layer[1].onoff_state = VIDEO_ENABLE_STATE_IDLE;
+			vd_layer[1].onoff_time = jiffies_to_msecs(jiffies);
+			vpu_delay_work_flag |=
+				VPU_VIDEO_LAYER2_CHANGED;
+			if (vd_layer[1].global_debug & DEBUG_FLAG_BASIC_INFO)
+				pr_info("VIDEO: VsyncEnableVideoLayer2\n");
+			force_flush = true;
+		} else if (vd_layer[1].onoff_state ==
+			VIDEO_ENABLE_STATE_OFF_REQ) {
+			vd_layer[1].pre_blend_en = 0;
+			vd_layer[1].post_blend_en = 0;
+			vpp_misc_set &= ~(VPP_VD2_PREBLEND |
+				VPP_VD2_POSTBLEND | VPP_PREBLEND_EN
+				| (0x1ff << VPP_VD2_ALPHA_BIT));
+			vd_layer[1].onoff_state = VIDEO_ENABLE_STATE_IDLE;
+			vd_layer[1].onoff_time = jiffies_to_msecs(jiffies);
+			vpu_delay_work_flag |=
+				VPU_VIDEO_LAYER2_CHANGED;
+			if (vd_layer[1].global_debug & DEBUG_FLAG_BASIC_INFO)
+				pr_info("VIDEO: VsyncDisableVideoLayer2\n");
+			video2_off_req = 1;
+			force_flush = true;
+		}
+		spin_unlock_irqrestore(&video2_onoff_lock, flags);
+	} else if (vd_layer[1].enabled) {
+		if (mode & COMPOSE_MODE_3D) {
+			vd_layer[1].pre_blend_en = 1;
+			vd_layer[1].post_blend_en = 0;
+			vpp_misc_set |= VPP_VD2_PREBLEND |
+				VPP_PREBLEND_EN;
+			vpp_misc_set &= ~VPP_VD2_POSTBLEND;
+		} else if (vd_layer[0].enabled &&
+			(mode & COMPOSE_MODE_DV)) {
+			vd_layer[1].pre_blend_en = 0;
+			vd_layer[1].post_blend_en = 0;
+			/* DV el case */
+			vpp_misc_set &= ~(VPP_VD2_PREBLEND |
+				VPP_VD2_POSTBLEND | VPP_PREBLEND_EN);
+		} else if (vd_layer[1].dispbuf) {
+			vd_layer[1].pre_blend_en = 0;
+			vd_layer[1].post_blend_en = 1;
+			vpp_misc_set &=
+				~(VPP_PREBLEND_EN | VPP_VD2_PREBLEND);
+			vpp_misc_set |= VPP_VD2_POSTBLEND |
+				VPP_POSTBLEND_EN;
+		} else {
+			vd_layer[1].pre_blend_en = 1;
+			vpp_misc_set |= VPP_VD2_PREBLEND |
+				VPP_PREBLEND_EN;
+		}
+		vpp_misc_set |= (vd_layer[1].layer_alpha
+			<< VPP_VD2_ALPHA_BIT);
+	}
+
+	if ((vd_layer[0].global_output == 0 && !vd_layer[0].force_black) ||
+	    vd_layer[0].force_disable ||
+	    black_threshold_check(0)) {
+		if (vd_layer[0].enabled)
+			force_flush = true;
+		vd_layer[0].enabled = 0;
+		/* preblend need disable together */
+		vpp_misc_set &= ~(VPP_VD1_PREBLEND |
+			VPP_VD2_PREBLEND |
+			VPP_VD1_POSTBLEND |
+			VPP_PREBLEND_EN);
+		vd_layer[0].pre_blend_en = 0;
+		vd_layer[0].post_blend_en = 0;
+	} else {
+		if (vd_layer[0].enabled != vd_layer[0].enabled_status_saved)
+			force_flush = true;
+		vd_layer[0].enabled = vd_layer[0].enabled_status_saved;
+		if (vd_layer[0].enabled) {
+			vd_layer[0].pre_blend_en = 1;
+			vd_layer[0].post_blend_en = 1;
+		} else {
+			vd_layer[0].pre_blend_en = 0;
+			vd_layer[0].post_blend_en = 0;
+		}
+	}
+	if (!vd_layer[0].enabled &&
+	    ((vpp_misc_set & VPP_VD1_POSTBLEND) ||
+	     (vpp_misc_set & VPP_VD1_PREBLEND)))
+		vpp_misc_set &= ~(VPP_VD1_PREBLEND |
+			VPP_VD1_POSTBLEND |
+			VPP_PREBLEND_EN);
+
+	if (vd1_enabled != vd_layer[0].enabled) {
+		if (vd_layer[0].enabled) {
+			video_prop_status &= ~VIDEO_PROP_CHANGE_DISABLE;
+			video_prop_status |= VIDEO_PROP_CHANGE_ENABLE;
+		} else {
+			video_prop_status &= ~VIDEO_PROP_CHANGE_ENABLE;
+			video_prop_status |= VIDEO_PROP_CHANGE_DISABLE;
+		}
+		if (vd_layer[0].global_debug & DEBUG_FLAG_TRACE_EVENT)
+			pr_info("VD1 enable/disable status changed: %s->%s.\n",
+				vd1_enabled ? "enable" : "disable",
+				vd_layer[0].enabled ? "enable" : "disable");
+		vd1_enabled = vd_layer[0].enabled;
+	}
+
+	if (!(mode & COMPOSE_MODE_3D) &&
+	    (vd_layer[1].global_output == 0 ||
+	     vd_layer[1].force_disable ||
+	     black_threshold_check(1))) {
+		if (vd_layer[1].enabled)
+			force_flush = true;
+		vd_layer[1].enabled = 0;
+		vpp_misc_set &= ~(VPP_VD2_PREBLEND |
+			VPP_VD2_POSTBLEND);
+		vd_layer[1].pre_blend_en = 0;
+		vd_layer[1].post_blend_en = 0;
+	} else {
+		if (vd_layer[1].enabled != vd_layer[1].enabled_status_saved)
+			force_flush = true;
+		vd_layer[1].enabled = vd_layer[1].enabled_status_saved;
+		if (vd_layer[1].enabled) {
+			if (mode & COMPOSE_MODE_3D) {
+				vd_layer[1].pre_blend_en = 1;
+				vd_layer[1].post_blend_en = 0;
+			} else if (vd_layer[0].enabled &&
+				(mode & COMPOSE_MODE_DV)) {
+				vd_layer[1].pre_blend_en = 0;
+				vd_layer[1].post_blend_en = 0;
+			} else if (vd_layer[1].dispbuf) {
+				vd_layer[1].pre_blend_en = 0;
+				vd_layer[1].post_blend_en = 1;
+			} else {
+				vd_layer[1].pre_blend_en = 1;
+			}
+		} else {
+			vd_layer[1].pre_blend_en = 0;
+			vd_layer[1].post_blend_en = 0;
+		}
+	}
+	if (!vd_layer[1].enabled &&
+	    ((vpp_misc_set & VPP_VD2_POSTBLEND) ||
+	     (vpp_misc_set & VPP_VD2_PREBLEND)))
+		vpp_misc_set &= ~(VPP_VD2_PREBLEND |
+			VPP_VD2_POSTBLEND);
+
+	if (!vd_layer[0].enabled && is_local_vf(vd_layer[0].dispbuf)) {
+		safe_switch_videolayer(0, false, true);
+		if (vd_layer[0].keep_frame_id == 1)
+			video_pip_keeper_new_frame_notify();
+		else if (vd_layer[0].keep_frame_id == 0)
+			video_keeper_new_frame_notify();
+	}
+
+	if (!vd_layer[1].enabled && is_local_vf(vd_layer[1].dispbuf)) {
+		safe_switch_videolayer(1, false, true);
+		if (vd_layer[1].keep_frame_id == 1)
+			video_pip_keeper_new_frame_notify();
+		else if (vd_layer[1].keep_frame_id == 0)
+			video_keeper_new_frame_notify();
+	}
+
+	force_flush |= vpp_zorder_check();
+
+	if (!legacy_vpp) {
+		u32 set_value = 0;
+
+		/* for sr core0, put it between prebld & pps as default */
+		if (vd1_frame_par &&
+		    (vd1_frame_par->sr_core_support & SUPER_CORE0_SUPPORT))
+			if (vd1_frame_par->sr0_position)
+				vpp_misc_set |=
+					PREBLD_SR0_VD1_SCALER;
+			else /* SR0_AFTER_DNLP */
+				vpp_misc_set &=
+					~PREBLD_SR0_VD1_SCALER;
+		else
+			vpp_misc_set |=
+				PREBLD_SR0_VD1_SCALER;
+		/* for sr core1, put it before post blend as default */
+		if (vd1_frame_par &&
+		    (vd1_frame_par->sr_core_support & SUPER_CORE1_SUPPORT))
+			if (vd1_frame_par->sr1_position)
+				vpp_misc_set |=
+					DNLP_SR1_CM;
+			else /* SR1_AFTER_POSTBLEN */
+				vpp_misc_set &=
+					~DNLP_SR1_CM;
+		else
+			vpp_misc_set |=
+				DNLP_SR1_CM;
+
+		vpp_misc_set &=
+			((1 << 29) | VPP_CM_ENABLE |
+			(0x1ff << VPP_VD2_ALPHA_BIT) |
+			VPP_PREBLEND_EN |
+			VPP_POSTBLEND_EN |
+			0xf);
+
+		/* if vd2 is bottom layer, need remove alpha for vd2 */
+		/* 3d case vd2 preblend, need remove alpha for vd2 */
+		if ((!vd_layer[0].post_blend_en &&
+		    vd_layer[1].post_blend_en) ||
+		    vd_layer[1].pre_blend_en) {
+			vpp_misc_set &= ~(0x1ff << VPP_VD2_ALPHA_BIT);
+			vpp_misc_set |= (vd_layer[1].layer_alpha
+				<< VPP_VD2_ALPHA_BIT);
+		}
+
+		vpp_misc_save &=
+			((1 << 29) | VPP_CM_ENABLE |
+			(0x1ff << VPP_VD2_ALPHA_BIT) |
+			VPP_PREBLEND_EN |
+			VPP_POSTBLEND_EN |
+			0xf);
+		if (vpp_misc_set != vpp_misc_set_save || force_flush) {
+			u32 port_val[3] = {0, 0, 0};
+			u32 vd1_port, vd2_port, icnt;
+			u32 post_blend_reg[3] = {
+				VD1_BLEND_SRC_CTRL,
+				VD2_BLEND_SRC_CTRL,
+				OSD2_BLEND_SRC_CTRL
+			};
+
+			/* just reset the select port */
+			if (glayer_info[0].cur_sel_port > 2 ||
+			    glayer_info[1].cur_sel_port > 2) {
+				glayer_info[0].cur_sel_port = 0;
+				glayer_info[1].cur_sel_port = 1;
+			}
+
+			vd1_port = glayer_info[0].cur_sel_port;
+			vd2_port = glayer_info[1].cur_sel_port;
+
+			/* post bld premult*/
+			port_val[0] |= (1 << 16);
+
+			/* vd2 path sel */
+			if (vd_layer[1].post_blend_en)
+				port_val[1] |= (1 << 20);
+			else
+				port_val[1] &= ~(1 << 20);
+
+			/* osd2 path sel */
+			port_val[2] |= (1 << 20);
+
+			if (vd_layer[0].post_blend_en) {
+				 /* post src */
+				port_val[vd1_port] |= (1 << 8);
+				port_val[0] |=
+					((1 << 4) | /* pre bld premult*/
+					(1 << 0)); /* pre bld src 1 */
+			} else {
+				port_val[0] &= ~0xff;
+			}
+
+			if (vd_layer[1].post_blend_en)
+				 /* post src */
+				port_val[vd2_port] |= (2 << 8);
+			else if (vd_layer[1].pre_blend_en)
+				port_val[1] |=
+					((1 << 4) | /* pre bld premult*/
+					(2 << 0)); /* pre bld src 1 */
+
+			for (icnt = 0; icnt < 3; icnt++)
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(post_blend_reg[icnt]
+					+ vpp_off,
+					port_val[icnt]);
+
+			set_value = vpp_misc_set;
+			set_value &=
+				((1 << 29) | VPP_CM_ENABLE |
+				(0x1ff << VPP_VD2_ALPHA_BIT) |
+				VPP_POSTBLEND_EN |
+				VPP_PREBLEND_EN |
+				0xf);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+			if (get_force_bypass_from_prebld_to_vadj1() &&
+			    for_amdv_certification()) {
+				/* t3/t5w, 1d93 bit0 -> 1d26 bit8*/
+				set_value |= (1 << 8);
+			}
+#endif
+			if (vd_layer[0].pre_blend_en ||
+			    vd_layer[1].pre_blend_en ||
+			    vd_layer[2].pre_blend_en)
+				set_value |= VPP_PREBLEND_EN;
+			if (vd_layer[0].post_blend_en ||
+			    vd_layer[1].post_blend_en ||
+			    vd_layer[2].post_blend_en)
+				set_value |= VPP_POSTBLEND_EN;
+
+			if (mode & COMPOSE_MODE_BYPASS_CM)
+				set_value &= ~VPP_CM_ENABLE;
+			set_value |= VPP_POSTBLEND_EN;
+			set_value |= VPP_PREBLEND_EN;
+			if (osd_preblend_en) {
+				set_value |= VPP_VD1_POSTBLEND;
+				set_value |= VPP_VD1_PREBLEND;
+			}
+			/* t5d bit 9:11 used by wm ctrl, chip after g12 not used bit 9:11, mask it*/
+			set_value &= 0xfffff1ff;
+			set_value |= (vpp_misc_save & 0xe00);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(VPP_MISC + vpp_off,
+				set_value);
+		}
+	} else if (vpp_misc_save != vpp_misc_set) {
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_MISC + vpp_off,
+			vpp_misc_set);
+	}
+	vpp_misc_set_save = vpp_misc_set;
+
+	post_blend_dummy_data_update(vpp_index);
+
+	if ((vd_layer[1].dispbuf && video2_off_req) ||
+	    (!vd_layer[1].dispbuf &&
+	     (video1_off_req || video2_off_req)))
 		disable_vd2_blend(&vd_layer[1]);
 
 	if (video1_off_req)
@@ -7890,20 +8235,6 @@ void vppx_blend_update(const struct vinfo_s *vinfo, u32 vpp_index)
 /*********************************************************
  * frame canvas APIs
  *********************************************************/
-static void vframe_canvas_set
-	(struct canvas_config_s *config,
-	u32 planes,
-	u32 *index)
-{
-	int i;
-	u32 *canvas_index = index;
-
-	struct canvas_config_s *cfg = config;
-
-	for (i = 0; i < planes; i++, canvas_index++, cfg++)
-		canvas_config_config(*canvas_index, cfg);
-}
-
 static bool is_vframe_changed
 	(u8 layer_id,
 	struct vframe_s *cur_vf,
@@ -7974,6 +8305,9 @@ static bool is_sr_phase_changed(void)
 	if (!cur_dev->aisr_support ||
 	    !cur_dev->pps_auto_calc)
 		return false;
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return is_sr_phase_changed_s5();
+
 	sr = &sr_info;
 	sr0_sharp_sr2_ctrl2 =
 		cur_dev->rdma_func[VPP0].rdma_rd
@@ -7991,7 +8325,7 @@ static bool is_sr_phase_changed(void)
 	return changed;
 }
 
-int get_layer_display_canvas(u8 layer_id)
+int get_layer_display_canvas_s5(u8 layer_id)
 {
 	int ret = -1;
 	struct video_layer_s *layer = NULL;
@@ -7999,6 +8333,22 @@ int get_layer_display_canvas(u8 layer_id)
 	if (layer_id >= MAX_VD_LAYER)
 		return -1;
 
+	layer = &vd_layer[layer_id];
+	if (layer_id == MAX_VD_CHAN_S5 - 1)
+		layer_id += SLICE_NUM - 1;
+	ret = READ_VCBUS_REG(vd_proc_reg.vd_mif_reg[layer_id].vd_if0_canvas0);
+	return ret;
+}
+
+int get_layer_display_canvas(u8 layer_id)
+{
+	int ret = -1;
+	struct video_layer_s *layer = NULL;
+
+	if (layer_id >= MAX_VD_LAYER)
+		return -1;
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return get_layer_display_canvas_s5(layer_id);
 	layer = &vd_layer[layer_id];
 	ret = READ_VCBUS_REG(layer->vd_mif_reg.vd_if0_canvas0);
 	return ret;
@@ -8176,6 +8526,221 @@ static void canvas_update_for_3d(struct video_layer_s *layer,
 	}
 }
 
+int set_layer_display_canvas_s5(struct video_layer_s *layer,
+			     struct vframe_s *vf,
+			     struct vpp_frame_par_s *cur_frame_par,
+			     struct disp_info_s *disp_info)
+{
+	u32 *cur_canvas_tbl;
+	u8 cur_canvas_id;
+	bool is_mvc = false;
+	bool update_mif = true;
+	u8 vpp_index;
+	u8 layer_id, layer_index;
+	struct vd_mif_reg_s *vd_mif_reg;
+	struct vd_mif_reg_s *vd_mif_reg_mvc;
+	struct vd_afbc_reg_s *vd_afbc_reg;
+	int slice = 0, temp_slice = 0;
+
+	if (layer->layer_id == 0 && layer->slice_num > 1) {
+		for (slice = 0; slice < layer->slice_num; slice++) {
+			if (layer->vd1s1_vd2_prebld_en &&
+				layer->slice_num == 2 &&
+				slice == 1)
+				temp_slice = SLICE_NUM;
+			else
+				temp_slice = slice;
+
+			set_layer_slice_display_canvas_s5(layer, vf,
+				cur_frame_par, disp_info, temp_slice);
+		}
+		return 0;
+	}
+
+	layer_id = layer->layer_id;
+	if (layer_id > MAX_VD_CHAN_S5)
+		return -1;
+	if (layer_id != 0)
+		layer_index = layer_id + SLICE_NUM - 1;
+	else
+		layer_index = layer_id;
+	if ((vf->type & VIDTYPE_MVC) && layer_id == 0)
+		is_mvc = true;
+
+	vpp_index = layer->vpp_index;
+
+	cur_canvas_id = layer->cur_canvas_id;
+	cur_canvas_tbl =
+		&layer->canvas_tbl[cur_canvas_id][0];
+	vd_mif_reg = &vd_proc_reg.vd_mif_reg[layer_index];
+	vd_afbc_reg = &vd_proc_reg.vd_afbc_reg[layer_index];
+	vd_mif_reg_mvc = &vd_proc_reg.vd_mif_reg[SLICE_NUM];
+
+	/* switch buffer */
+	if (!glayer_info[layer_id].need_no_compress &&
+	    (vf->type & VIDTYPE_COMPRESS)) {
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd_afbc_reg->afbc_head_baddr,
+			vf->compHeadAddr >> 4);
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd_afbc_reg->afbc_body_baddr,
+			vf->compBodyAddr >> 4);
+	}
+
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+	if (layer_id == 0 &&
+	    is_di_post_mode(vf) &&
+	    is_di_post_link_on())
+		update_mif = false;
+#endif
+	if (vf->canvas0Addr == 0)
+		update_mif = false;
+
+	if (update_mif) {
+		canvas_update_for_mif(layer, vf);
+		if (layer_id == 0 &&
+		    (is_mvc || process_3d_type))
+			canvas_update_for_3d(layer, vf,
+					    cur_frame_par, disp_info,
+					    is_mvc);
+
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd_mif_reg->vd_if0_canvas0,
+			layer->disp_canvas[cur_canvas_id][0]);
+
+		if (is_mvc)
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_mif_reg_mvc->vd_if0_canvas0,
+				layer->disp_canvas[cur_canvas_id][1]);
+		if (cur_frame_par &&
+		    cur_frame_par->vpp_2pic_mode == 1) {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_mif_reg->vd_if0_canvas1,
+				layer->disp_canvas[cur_canvas_id][0]);
+			if (is_mvc)
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(vd_mif_reg_mvc->vd_if0_canvas1,
+					layer->disp_canvas[cur_canvas_id][0]);
+		} else {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_mif_reg->vd_if0_canvas1,
+				layer->disp_canvas[cur_canvas_id][1]);
+			if (is_mvc)
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(vd_mif_reg_mvc->vd_if0_canvas1,
+					layer->disp_canvas[cur_canvas_id][0]);
+		}
+		if (cur_frame_par && disp_info &&
+		    (disp_info->proc_3d_type & MODE_3D_ENABLE) &&
+		    (disp_info->proc_3d_type & MODE_3D_TO_2D_R) &&
+		    cur_frame_par->vpp_2pic_mode == VPP_SELECT_PIC1) {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_mif_reg->vd_if0_canvas0,
+				layer->disp_canvas[cur_canvas_id][1]);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_mif_reg->vd_if0_canvas1,
+				layer->disp_canvas[cur_canvas_id][1]);
+			if (is_mvc) {
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(vd_mif_reg_mvc->vd_if0_canvas0,
+					layer->disp_canvas[cur_canvas_id][1]);
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(vd_mif_reg_mvc->vd_if0_canvas1,
+					layer->disp_canvas[cur_canvas_id][1]);
+			}
+		}
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+		layer->next_canvas_id = layer->cur_canvas_id ? 0 : 1;
+#endif
+	}
+	return 0;
+}
+
+int set_layer_slice_display_canvas_s5(struct video_layer_s *layer,
+			     struct vframe_s *vf,
+			     struct vpp_frame_par_s *cur_frame_par,
+			     struct disp_info_s *disp_info,
+			     u32 slice)
+{
+	u32 *cur_canvas_tbl;
+	u8 cur_canvas_id;
+	bool update_mif = true;
+	u8 vpp_index;
+	u8 layer_id;
+	struct vd_mif_reg_s *vd_mif_reg;
+	struct vd_afbc_reg_s *vd_afbc_reg;
+
+	layer_id = layer->layer_id;
+	if (layer->layer_id != 0 || slice > SLICE_NUM)
+		return -1;
+
+	if ((vf->type & VIDTYPE_MVC) && layer_id == 0) {
+		pr_info("multi slice not support mvc\n");
+		return -1;
+	}
+	vpp_index = layer->vpp_index;
+
+	cur_canvas_id = layer->cur_canvas_id;
+	cur_canvas_tbl =
+		&layer->canvas_tbl[cur_canvas_id][0];
+	vd_mif_reg = &vd_proc_reg.vd_mif_reg[slice];
+	vd_afbc_reg = &vd_proc_reg.vd_afbc_reg[slice];
+
+	/* switch buffer */
+	if (!glayer_info[layer_id].need_no_compress &&
+	    (vf->type & VIDTYPE_COMPRESS)) {
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd_afbc_reg->afbc_head_baddr,
+			vf->compHeadAddr >> 4);
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd_afbc_reg->afbc_body_baddr,
+			vf->compBodyAddr >> 4);
+	}
+
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+	if (layer_id == 0 &&
+	    is_di_post_mode(vf) &&
+	    is_di_post_link_on())
+		update_mif = false;
+#endif
+	if (vf->canvas0Addr == 0)
+		update_mif = false;
+
+	if (update_mif) {
+		canvas_update_for_mif_slice(layer, vf, slice);
+
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd_mif_reg->vd_if0_canvas0,
+			layer->disp_canvas[cur_canvas_id][0]);
+
+		if (cur_frame_par &&
+		    cur_frame_par->vpp_2pic_mode == 1) {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_mif_reg->vd_if0_canvas1,
+				layer->disp_canvas[cur_canvas_id][0]);
+		} else {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_mif_reg->vd_if0_canvas1,
+				layer->disp_canvas[cur_canvas_id][1]);
+		}
+		if (cur_frame_par && disp_info &&
+		    (disp_info->proc_3d_type & MODE_3D_ENABLE) &&
+		    (disp_info->proc_3d_type & MODE_3D_TO_2D_R) &&
+		    cur_frame_par->vpp_2pic_mode == VPP_SELECT_PIC1) {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_mif_reg->vd_if0_canvas0,
+				layer->disp_canvas[cur_canvas_id][1]);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_mif_reg->vd_if0_canvas1,
+				layer->disp_canvas[cur_canvas_id][1]);
+		}
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+		layer->next_canvas_id = layer->cur_canvas_id ? 0 : 1;
+#endif
+	}
+	return 0;
+}
+
 int set_layer_display_canvas(struct video_layer_s *layer,
 			     struct vframe_s *vf,
 			     struct vpp_frame_par_s *cur_frame_par,
@@ -8188,6 +8753,10 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 	u8 vpp_index;
 	u8 layer_id;
 	struct hw_vd_reg_s *vd_mif_reg;
+
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return set_layer_display_canvas_s5(layer,
+			vf, cur_frame_par, disp_info);
 
 	layer_id = layer->layer_id;
 	if (layer_id >= MAX_VD_LAYER)
@@ -8527,13 +9096,13 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 			if (iret >= 0) {
 				memset(&di_in_p, 0, sizeof(struct pvpp_dis_para_in_s));
 				di_in_p.win.x_st =
-					layer->cur_frame_par->VPP_hd_start_lines_;
+					layer->next_frame_par->VPP_hd_start_lines_;
 				di_in_p.win.x_end =
-					layer->cur_frame_par->VPP_hd_end_lines_;
+					layer->next_frame_par->VPP_hd_end_lines_;
 				di_in_p.win.y_st =
-					layer->cur_frame_par->VPP_vd_start_lines_;
+					layer->next_frame_par->VPP_vd_start_lines_;
 				di_in_p.win.y_end =
-					layer->cur_frame_par->VPP_vd_end_lines_;
+					layer->next_frame_par->VPP_vd_end_lines_;
 				di_in_p.win.x_size =
 					di_in_p.win.x_end - di_in_p.win.x_st + 1;
 				di_in_p.win.y_size =
@@ -8635,7 +9204,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 			force_toggle = true;
 			if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
 				pr_info
-					("layer%d: force disable switch vf: %p\n",
+					("layer%d: force disable switch vf: %px\n",
 					layer->layer_id, vf);
 		}
 		layer->switch_vf = false;
@@ -8652,7 +9221,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		pr_info("first swap picture {%d,%d} pts:%x, switch:%d\n",
 			vf->width, vf->height, vf->pts,
 			layer->switch_vf ? 1 : 0);
-
+	set_video_slice_policy(layer, vf);
 	aisr_update = aisr_update_frame_info(layer, vf);
 	aisr_reshape_addr_set(layer, &layer->aisr_mif_setting);
 	set_layer_display_canvas
@@ -8796,7 +9365,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 					layer_info, __LINE__);
 				if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info
-						("layer%d: switch the display to vf_ext %p->%p\n",
+						("layer%d: switch to vf_ext %px->%px\n",
 						layer->layer_id, vf, vf->vf_ext);
 			}
 			layer->switch_vf = true;
@@ -8810,7 +9379,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 					layer_info, __LINE__);
 				if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info
-						("layer%d: switch the display to orig vf %p->%p\n",
+						("layer%d: switch to orig vf %px->%px\n",
 						layer->layer_id, vf->vf_ext, vf);
 			}
 			layer->switch_vf = false;
@@ -8898,13 +9467,16 @@ static void vd_set_alpha(struct video_layer_s *layer,
 			  ((alph_gen_mode & 0x3) << 1) |
 			  ((alph_gen_byps & 0x1) << 0));
 	for (i = 0; i < MAX_PIP_WINDOW; i++) {
-		cur_dev->rdma_func[vpp_index].rdma_wr(vpp_blend_reg->vd_pip_alph_scp_h + i,
-				  (alpha_win->scpxn_end_h[i] & 0x1fff) << 16 |
-				  (alpha_win->scpxn_bgn_h[i] & 0x1fff));
+		if (win_en & 1) {
+			cur_dev->rdma_func[vpp_index].rdma_wr(vpp_blend_reg->vd_pip_alph_scp_h + i,
+				(alpha_win->scpxn_end_h[i] & 0x1fff) << 16 |
+				(alpha_win->scpxn_bgn_h[i] & 0x1fff));
 
-		cur_dev->rdma_func[vpp_index].rdma_wr(vpp_blend_reg->vd_pip_alph_scp_v + i,
-				  (alpha_win->scpxn_end_v[i] & 0x1fff) << 16 |
-				  (alpha_win->scpxn_bgn_v[i] & 0x1fff));
+			cur_dev->rdma_func[vpp_index].rdma_wr(vpp_blend_reg->vd_pip_alph_scp_v + i,
+				(alpha_win->scpxn_end_v[i] & 0x1fff) << 16 |
+				(alpha_win->scpxn_bgn_v[i] & 0x1fff));
+			win_en >>= 1;
+		}
 	}
 }
 
@@ -8912,8 +9484,14 @@ void alpha_win_set(struct video_layer_s *layer)
 {
 	u8 layer_id = layer->layer_id;
 
-	if (glayer_info[layer_id].alpha_support)
-		vd_set_alpha(layer, layer->alpha_win_en, &layer->alpha_win);
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		if (glayer_info[layer_id].alpha_support)
+			vd_set_alpha_s5(layer, layer->alpha_win_en, &layer->alpha_win);
+
+	} else {
+		if (glayer_info[layer_id].alpha_support)
+			vd_set_alpha(layer, layer->alpha_win_en, &layer->alpha_win);
+	}
 }
 /*********************************************************
  * vout APIs
@@ -8922,6 +9500,8 @@ int detect_vout_type(const struct vinfo_s *vinfo)
 {
 	int vout_type = VOUT_TYPE_PROG;
 
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return 0;
 	if (vinfo && vinfo->field_height != vinfo->height) {
 		if (vinfo->height == 576 || vinfo->height == 480)
 			vout_type = (READ_VCBUS_REG(ENCI_INFO_READ) &
@@ -8952,37 +9532,11 @@ int calc_hold_line(void)
 		return READ_VCBUS_REG(ENCP_VFIFO2VD_LINE_TOP_START) >> 1;
 }
 
-u32 get_active_start_line(void)
-{
-	u32 active_line_begin = 0;
-
-	switch (READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3) {
-	case 0:
-		active_line_begin =
-			READ_VCBUS_REG(ENCL_VIDEO_VAVON_BLINE);
-		break;
-	case 1:
-		active_line_begin =
-			READ_VCBUS_REG(ENCI_VFIFO2VD_LINE_TOP_START);
-		break;
-	case 2:
-		active_line_begin =
-			READ_VCBUS_REG(ENCP_VIDEO_VAVON_BLINE);
-		break;
-	case 3:
-		active_line_begin =
-			READ_VCBUS_REG(ENCT_VIDEO_VAVON_BLINE);
-		break;
-	}
-
-	return active_line_begin;
-}
-
 static int get_venc_type(void)
 {
 	u32 venc_type = 0;
 
-	if (cur_dev->t7_display) {
+	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
 		u32 venc_mux = 3;
 		u32 venc_addr = VPU_VENC_CTRL;
 
@@ -9009,6 +9563,64 @@ static int get_venc_type(void)
 	return venc_type;
 }
 
+u32 get_active_start_line(void)
+{
+	int active_line_begin = 0;
+	u32 offset = 0;
+	u32 reg = ENCL_VIDEO_VAVON_BLINE;
+
+	if (cur_dev->display_module == T7_DISPLAY_MODULE ||
+		cur_dev->display_module == S5_DISPLAY_MODULE) {
+		u32 venc_mux = 3;
+
+		venc_mux = READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
+		venc_mux &= 0x3;
+
+		switch (venc_mux) {
+		case 0:
+			offset = 0;
+			break;
+		case 1:
+			offset = 0x600;
+			break;
+		case 2:
+			offset = 0x800;
+			break;
+		}
+		switch (get_venc_type()) {
+		case 0:
+			reg = ENCI_VFIFO2VD_LINE_TOP_START;
+			break;
+		case 1:
+			reg = ENCP_VIDEO_VAVON_BLINE;
+			break;
+		case 2:
+			reg = ENCL_VIDEO_VAVON_BLINE;
+			break;
+		}
+
+	} else {
+		switch (get_venc_type()) {
+		case 0:
+			reg = ENCL_VIDEO_VAVON_BLINE;
+			break;
+		case 1:
+			reg = ENCI_VFIFO2VD_LINE_TOP_START;
+			break;
+		case 2:
+			reg = ENCP_VIDEO_VAVON_BLINE;
+			break;
+		case 3:
+			reg = ENCT_VIDEO_VAVON_BLINE;
+			break;
+		}
+	}
+
+	active_line_begin = READ_VCBUS_REG(reg + offset);
+
+	return active_line_begin;
+}
+
 u32 get_cur_enc_line(void)
 {
 	int enc_line = 0;
@@ -9017,7 +9629,9 @@ u32 get_cur_enc_line(void)
 	u32 offset = 0;
 	u32 venc_type = get_venc_type();
 
-	if (cur_dev->t7_display) {
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return get_cur_enc_line_s5();
+	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
 		u32 venc_mux = 3;
 
 		venc_mux = READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
@@ -9077,7 +9691,9 @@ u32 get_cur_enc_num(void)
 	u32 venc_type = get_venc_type();
 	u32 bit_offest = 0;
 
-	if (cur_dev->t7_display) {
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return get_cur_enc_num_s5();
+	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
 		u32 venc_mux = 3;
 
 		bit_offest = 13;
@@ -9187,8 +9803,10 @@ static void do_vpu_delay_work(struct work_struct *work)
 		spin_lock_irqsave(&delay_work_lock, flags);
 #endif
 	}
-
-	r = READ_VCBUS_REG(VPP_MISC + cur_dev->vpp_off);
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		r = 0xffffffff;
+	else
+		r = READ_VCBUS_REG(VPP_MISC + cur_dev->vpp_off);
 
 	if (vpu_mem_power_off_count > 0) {
 		vpu_mem_power_off_count--;
@@ -9300,6 +9918,8 @@ int vpp_crc_check(u32 vpp_crc_en, u8 vpp_index)
 	int vpp_crc_result = 0;
 	static u32 val_pre, crc_cnt;
 
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return vpp_crc_check_s5(vpp_crc_en, vpp_index);
 	if (vpp_crc_en && cpu_after_eq(MESON_CPU_MAJOR_ID_SM1)) {
 		cur_dev->rdma_func[vpp_index].rdma_wr(VPP_CRC_CHK, 1);
 		if (crc_cnt >= 1) {
@@ -9321,6 +9941,8 @@ int vpp_crc_viu2_check(u32 vpp_crc_en)
 {
 	int vpp_crc_result = 0;
 
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return 0;
 	if (vpp_crc_en)
 		vpp_crc_result = READ_VCBUS_REG(VPP2_RO_CRCSUM);
 
@@ -9329,6 +9951,8 @@ int vpp_crc_viu2_check(u32 vpp_crc_en)
 
 void enable_vpp_crc_viu2(u32 vpp_crc_en)
 {
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return;
 	if (vpp_crc_en)
 		WRITE_VCBUS_REG_BITS(VPP2_CRC_CHK, 1, 0, 1);
 }
@@ -9677,8 +10301,6 @@ void dump_pps_coefs_info(u8 layer_id, u8 bit9_mode, u8 coef_type)
 /*********************************************************
  * Film Grain APIs
  *********************************************************/
-#define FGRAIN_TBL_SIZE  (498 * 16)
-
 #ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
 static void fgrain_set_config(struct video_layer_s *layer,
 				  struct fgrain_setting_s *setting, u8 vpp_index)
@@ -9700,7 +10322,7 @@ static void fgrain_set_config(struct video_layer_s *layer,
 	u32 layer_id = 0;
 	struct hw_fg_reg_s *fg_reg;
 
-	if (!glayer_info[layer_id].fgrain_support)
+	if (!glayer_info[layer->layer_id].fgrain_support)
 		return;
 	if (!setting)
 		return;
@@ -9818,6 +10440,10 @@ static void fgrain_uninit(u8 layer_id)
 {
 	u32 channel = FILM_GRAIN0_CHAN;
 
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		fgrain_uninit_s5(layer_id);
+		return;
+	}
 	if (!glayer_info[layer_id].fgrain_support)
 		return;
 
@@ -9851,7 +10477,7 @@ static int fgrain_write(u32 layer_id, ulong fgs_table_addr)
 static int get_viu_irq_source(u8 vpp_index)
 {
 	u32 venc_mux = 3;
-	u32 irq_source = ENCP_GO_FEILD;
+	u32 irq_source = ENCP_GO_FIELD;
 
 	venc_mux = READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
 	venc_mux >>= (vpp_index * 2);
@@ -9860,13 +10486,13 @@ static int get_viu_irq_source(u8 vpp_index)
 	switch (venc_mux) {
 	case 0:
 		/* venc0 */
-		irq_source = VENC0_GO_FEILD;
+		irq_source = VENC0_GO_FIELD;
 		break;
 	case 1:
-		irq_source = VENC1_GO_FEILD;
+		irq_source = VENC1_GO_FIELD;
 		break;
 	case 2:
-		irq_source = VENC2_GO_FEILD;
+		irq_source = VENC2_GO_FIELD;
 		break;
 	}
 	return irq_source;
@@ -9874,10 +10500,10 @@ static int get_viu_irq_source(u8 vpp_index)
 
 static void fgrain_update_irq_source(u8 layer_id, u8 vpp_index)
 {
-	u32 irq_source = ENCP_GO_FEILD;
+	u32 irq_source = ENCP_GO_FIELD;
 	u32 viu, channel = 0;
 
-	if (cur_dev->t7_display) {
+	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
 		/* get vpp0 irq source */
 		irq_source = get_viu_irq_source(vpp_index);
 	} else {
@@ -9885,13 +10511,13 @@ static void fgrain_update_irq_source(u8 layer_id, u8 vpp_index)
 
 		switch (viu) {
 		case 0:
-			irq_source = ENCL_GO_FEILD;
+			irq_source = ENCL_GO_FIELD;
 			break;
 		case 1:
-			irq_source = ENCI_GO_FEILD;
+			irq_source = ENCI_GO_FIELD;
 			break;
 		case 2:
-			irq_source = ENCP_GO_FEILD;
+			irq_source = ENCP_GO_FIELD;
 			break;
 		}
 	}
@@ -9914,6 +10540,8 @@ void fgrain_config(struct video_layer_s *layer,
 	u8 layer_id;
 
 	if (!vf || !mif_setting || !setting || !frame_par)
+		return;
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
 		return;
 	layer_id = layer->layer_id;
 	if (!glayer_info[layer_id].fgrain_support)
@@ -9982,6 +10610,9 @@ void fgrain_setting(struct video_layer_s *layer,
 
 	if (!vf || !setting)
 		return;
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return;
+
 	layer_id = layer->layer_id;
 	if (!glayer_info[layer_id].lut_dma_support)
 		return;
@@ -10005,6 +10636,8 @@ void fgrain_update_table(struct video_layer_s *layer,
 
 	if (!vf)
 		return;
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return fgrain_update_table_s5(layer, vf);
 	layer_id = layer->layer_id;
 	if (!glayer_info[layer_id].lut_dma_support)
 		return;
@@ -10053,14 +10686,6 @@ void fgrain_update_table(struct video_layer_s *layer,
 }
 #endif
 
-static bool is_layer_aisr_supported(struct video_layer_s *layer)
-{
-	/* only vd1 has aisr for t3 */
-	if (!layer || layer->layer_id != 0)
-		return false;
-	else
-		return true;
-}
 #define DI_HF_Y_REVERSE
 bool aisr_update_frame_info(struct video_layer_s *layer,
 			 struct vframe_s *vf)
@@ -10074,6 +10699,7 @@ bool aisr_update_frame_info(struct video_layer_s *layer,
 	    vf->vc_private->flag & VC_FLAG_AI_SR) {
 		struct vf_nn_sr_t *srout_data = NULL;
 
+		layer->slice_num = 1;
 		layer->aisr_mif_setting.aisr_enable = 1;
 		srout_data = vf->vc_private->srout_data;
 		if (srout_data) {
@@ -10145,6 +10771,10 @@ void aisr_reshape_addr_set(struct video_layer_s *layer,
 
 	if (!is_layer_aisr_supported(layer))
 		return;
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		aisr_reshape_addr_set_s5(layer, aisr_mif_setting);
+		return;
+	}
 	if (!aisr_mif_setting->aisr_enable) {
 		cur_dev->rdma_func[VPP0].rdma_wr_bits
 			(aisr_reshape_reg.aisr_post_ctrl,
@@ -10352,6 +10982,8 @@ void aisr_reshape_cfg(struct video_layer_s *layer,
 		return;
 	if (!aisr_mif_setting->aisr_enable)
 		return;
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return aisr_reshape_cfg_s5(layer, aisr_mif_setting);
 	vscale_skip_count = aisr_mif_setting->vscale_skip_count;
 	aisr_hsize = aisr_mif_setting->x_end - aisr_mif_setting->x_start + 1;
 	aisr_vsize = aisr_mif_setting->y_end - aisr_mif_setting->y_start + 1;
@@ -10514,6 +11146,11 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 	u8 vpp_index, layer_id;
 	u32 aisr_enable = layer->aisr_mif_setting.aisr_enable;
 
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		aisr_scaler_setting_s5(layer, setting);
+		return;
+	}
+
 	if (!is_layer_aisr_supported(layer) ||
 	    !setting || !setting->frame_par)
 		return;
@@ -10587,11 +11224,11 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 			VPP_SC_TOP_EN_WID);
 	}
 
-	/* horitontal filter settings */
+	/* horizontal filter settings */
 	if (setting->sc_h_enable) {
 		bit9_mode = vpp_filter->vpp_horz_coeff[1] & 0x8000;
 		s11_mode = vpp_filter->vpp_horz_coeff[1] & 0x4000;
-		if (s11_mode && cur_dev->t7_display)
+		if (s11_mode && cur_dev->display_module == T7_DISPLAY_MODULE)
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits(aisr_pps_reg->vd_pre_scale_ctrl,
 					       0x199, 12, 9);
 		else
@@ -10925,7 +11562,7 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 			VPP_PHASECTL_DOUBLELINE_WID);
 		bit9_mode = vpp_filter->vpp_vert_coeff[1] & 0x8000;
 		s11_mode = vpp_filter->vpp_vert_coeff[1] & 0x4000;
-		if (s11_mode && cur_dev->t7_display)
+		if (s11_mode && cur_dev->display_module == T7_DISPLAY_MODULE)
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits(aisr_pps_reg->vd_pre_scale_ctrl,
 					       0x199, 12, 9);
 		else
@@ -10966,7 +11603,7 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 
 			bit9_mode = pcoeff[1] & 0x8000;
 			s11_mode = pcoeff[1] & 0x4000;
-			if (s11_mode && cur_dev->t7_display)
+			if (s11_mode && cur_dev->display_module == T7_DISPLAY_MODULE)
 				cur_dev->rdma_func[vpp_index].rdma_wr_bits
 				(aisr_pps_reg->vd_pre_scale_ctrl,
 				0x199, 12, 9);
@@ -11026,6 +11663,8 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 
 void aisr_demo_enable(void)
 {
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return aisr_demo_enable_s5();
 	if (!cur_dev->aisr_support)
 		return;
 	/* reshape and aisr demo is mutex */
@@ -11039,6 +11678,8 @@ void aisr_demo_enable(void)
 
 void aisr_demo_axis_set(void)
 {
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return aisr_demo_axis_set_s5();
 	if (!cur_dev->aisr_support)
 		return;
 	WRITE_VCBUS_REG_BITS
@@ -11058,29 +11699,6 @@ void aisr_demo_axis_set(void)
 /*********************************************************
  * Init APIs
  *********************************************************/
-static void init_layer_canvas(struct video_layer_s *layer,
-			      u32 start_canvas)
-{
-	u32 i, j;
-
-	if (!layer)
-		return;
-
-	for (i = 0; i < CANVAS_TABLE_CNT; i++) {
-		for (j = 0; j < 6; j++)
-			layer->canvas_tbl[i][j] =
-				start_canvas++;
-		layer->disp_canvas[i][0] =
-			(layer->canvas_tbl[i][2] << 16) |
-			(layer->canvas_tbl[i][1] << 8) |
-			layer->canvas_tbl[i][0];
-		layer->disp_canvas[i][1] =
-			(layer->canvas_tbl[i][5] << 16) |
-			(layer->canvas_tbl[i][4] << 8) |
-			layer->canvas_tbl[i][3];
-	}
-}
-
 static noinline int __invoke_psci_fn_smc(u64 function_id, u64 arg0, u64 arg1,
 					 u64 arg2)
 {
@@ -11157,7 +11775,7 @@ void di_used_vd1_afbc(bool di_used)
 		WRITE_VCBUS_REG_BITS(VD1_AFBCD0_MISC_CTRL, 0, 1, 1);
 }
 
-int get_vpu_urgent_info(void)
+int get_vpu_urgent_info_t3(void)
 {
 	int i;
 	u32 reg = 0, value;
@@ -11229,7 +11847,7 @@ int get_vpu_urgent_info(void)
 	return 0;
 }
 
-int set_vpu_super_urgent(u32 module_id, u32 low_level, u32 high_level)
+int set_vpu_super_urgent_t3(u32 module_id, u32 low_level, u32 high_level)
 {
 	u32 reg = 0;
 
@@ -11323,7 +11941,7 @@ int video_hw_init(void)
 		WRITE_VCBUS_REG_BITS(VIU_MISC_CTRL1, 0xff, 16, 8);
 		WRITE_VCBUS_REG(VPP_AMDV_CTRL, 0x22000);
 		/*
-		 *default setting is black for dummy data1& dumy data0,
+		 *default setting is black for dummy data1& dummy data0,
 		 *for dummy data1 the y/cb/cr data width is 10bit on gxm,
 		 *for dummy data the y/cb/cr data width is 8bit but
 		 *vpp_dummy_data will be left shift 2bit auto on gxm!!!
@@ -11335,7 +11953,7 @@ int video_hw_init(void)
 		cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		/*black 10bit*/
 		WRITE_VCBUS_REG(VPP_DUMMY_DATA, 0x4080200);
-		if (cur_dev->t7_display) {
+		if (cur_dev->display_module == T7_DISPLAY_MODULE) {
 			WRITE_VCBUS_REG(T7_VD2_PPS_DUMMY_DATA, 0x4080200);
 			WRITE_VCBUS_REG(VD3_PPS_DUMMY_DATA, 0x4080200);
 		}
@@ -11400,7 +12018,7 @@ int video_hw_init(void)
 
 	/* Temp force set dmc */
 	if (!legacy_vpp) {
-		if (!cur_dev->t7_display ||
+		if (cur_dev->display_module == OLD_DISPLAY_MODULE ||
 			video_is_meson_t5w_cpu())
 			WRITE_DMCREG
 				(DMC_AM0_CHAN_CTRL,
@@ -11526,7 +12144,7 @@ static void vpp_sr_init(struct amvideo_device_data_s *p_amvideo)
 			sr->core1_v_disable_width_max = 4096;
 			sr->core1_v_enable_width_max = 2048;
 		} else if (is_meson_txhd_cpu()) {
-			/* 2k pannal */
+			/* 2k panel */
 			sr->sr_support |= SUPER_CORE0_SUPPORT;
 			sr->sr_support &= ~SUPER_CORE1_SUPPORT;
 			sr->core0_v_disable_width_max = 2048;
@@ -11571,6 +12189,11 @@ static void vpp_sr_init(struct amvideo_device_data_s *p_amvideo)
 	}
 	sr->supscl_path = p_amvideo->supscl_path;
 	sr->core_support = get_sr_core_support(p_amvideo);
+}
+
+void int_vpu_delay_work(void)
+{
+	INIT_WORK(&vpu_delay_work, do_vpu_delay_work);
 }
 
 int video_early_init(struct amvideo_device_data_s *p_amvideo)
@@ -11706,7 +12329,7 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	vd_layer[2].misc_reg_offt = 0 + cur_dev->vpp_off;
 	vd_layer[0].dummy_alpha = 0x7fffffff;
 	cur_dev->mif_linear = p_amvideo->mif_linear;
-	cur_dev->t7_display = p_amvideo->t7_display;
+	cur_dev->display_module = p_amvideo->display_module;
 	cur_dev->max_vd_layers = p_amvideo->max_vd_layers;
 	cur_dev->vd2_independ_blend_ctrl =
 		p_amvideo->dev_property.vd2_independ_blend_ctrl;
@@ -11715,7 +12338,7 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	cur_dev->sr_in_size = p_amvideo->dev_property.sr_in_size;
 	if (cur_dev->aisr_support)
 		cur_dev->pps_auto_calc = 1;
-	if (cur_dev->t7_display) {
+	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
 		for (i = 0; i < cur_dev->max_vd_layers; i++) {
 			memcpy(&vd_layer[i].vd_afbc_reg,
 			       &vd_afbc_reg_t7_array[i],
@@ -11805,7 +12428,7 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	memcpy(conv_lbuf_len, p_amvideo->afbc_conv_lbuf_len,
 	       sizeof(u32) * MAX_VD_LAYER);
 
-	INIT_WORK(&vpu_delay_work, do_vpu_delay_work);
+	int_vpu_delay_work();
 
 	init_layer_canvas(&vd_layer[0], LAYER1_CANVAS_BASE_INDEX);
 	init_layer_canvas(&vd_layer[1], LAYER2_CANVAS_BASE_INDEX);

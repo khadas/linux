@@ -253,7 +253,7 @@ struct v4l2_atvdemod_device {
 };
 
 int v4l2_resister_frontend(struct v4l2_frontend *v4l2_fe);
-int v4l2_unresister_frontend(struct v4l2_frontend *v4l2_fe);
+int v4l2_unregister_frontend(struct v4l2_frontend *v4l2_fe);
 
 void v4l2_frontend_detach(struct v4l2_frontend *v4l2_fe);
 int v4l2_frontend_shutdown(struct v4l2_frontend *v4l2_fe);

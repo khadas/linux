@@ -30,7 +30,7 @@
 struct dmc_monitor;
 struct dmc_mon_ops {
 	void (*handle_irq)(struct dmc_monitor *mon, void *data);
-	int  (*set_montor)(struct dmc_monitor *mon);
+	int  (*set_monitor)(struct dmc_monitor *mon);
 	void (*disable)(struct dmc_monitor *mon);
 	size_t (*dump_reg)(char *buf);
 };
@@ -111,6 +111,9 @@ extern struct dmc_mon_ops t7_dmc_mon_ops;
 #endif
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_S4
 extern struct dmc_mon_ops s4_dmc_mon_ops;
+#endif
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_S5
+extern struct dmc_mon_ops s5_dmc_mon_ops;
 #endif
 
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR

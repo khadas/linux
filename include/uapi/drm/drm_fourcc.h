@@ -858,7 +858,7 @@ extern "C" {
  *   superblock in default mode.
  * - a 32 bytes per 128x64 header block
  *
- * This layout is transferrable between Amlogic SoCs supporting this modifier.
+ * This layout is transferable between Amlogic SoCs supporting this modifier.
  */
 #define AMLOGIC_FBC_LAYOUT_BASIC		(1ULL)
 
@@ -870,7 +870,7 @@ extern "C" {
  *
  * In this mode, only the header memory address is needed, thus the
  * content memory organization is tied to the current producer
- * execution and cannot be saved/dumped neither transferrable between
+ * execution and cannot be saved/dumped neither transferable between
  * Amlogic SoCs supporting this modifier.
  *
  * Due to the nature of the layout, these buffers are not expected to

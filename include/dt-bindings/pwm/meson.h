@@ -19,7 +19,7 @@
  *
  *	2.there are two three pwm controllers for m8b:
  *	pwm A/B,pwm C/D,pwm E/F.
- *	each controllere has two pwm channels:
+ *	each controllers has two pwm channels:
  *	MESON_PWM_0 and MESON_PWM_1.
  */
 #define		MESON_PWM_0  0

@@ -1005,7 +1005,7 @@ struct hci_dev *hci_dev_get(int index)
 {
 	struct hci_dev *hdev = NULL, *d;
 
-	BT_DBG("%d", index);
+	BT_TRACE("%d", index);
 
 	if (index < 0)
 		return NULL;
@@ -3596,7 +3596,7 @@ static void hci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	int err;
 
-	BT_DBG("%s type %d len %d", hdev->name, hci_skb_pkt_type(skb),
+	BT_TRACE("%s type %d len %d", hdev->name, hci_skb_pkt_type(skb),
 	       skb->len);
 
 	/* Time stamp */
@@ -3631,7 +3631,7 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen,
 {
 	struct sk_buff *skb;
 
-	BT_DBG("%s opcode 0x%4.4x plen %d", hdev->name, opcode, plen);
+	BT_TRACE("%s opcode 0x%4.4x plen %d", hdev->name, opcode, plen);
 
 	skb = hci_prepare_cmd(hdev, opcode, plen, param);
 	if (!skb) {
@@ -3694,7 +3694,7 @@ void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 opcode)
 	if (hdr->opcode != cpu_to_le16(opcode))
 		return NULL;
 
-	BT_DBG("%s opcode 0x%4.4x", hdev->name, opcode);
+	BT_TRACE("%s opcode 0x%4.4x", hdev->name, opcode);
 
 	return hdev->sent_cmd->data + HCI_COMMAND_HDR_SIZE;
 }
@@ -3758,12 +3758,12 @@ static void hci_queue_acl(struct hci_chan *chan, struct sk_buff_head *queue,
 	list = skb_shinfo(skb)->frag_list;
 	if (!list) {
 		/* Non fragmented */
-		BT_DBG("%s nonfrag skb %p len %d", hdev->name, skb, skb->len);
+		BT_TRACE("%s nonfrag skb %p len %d", hdev->name, skb, skb->len);
 
 		skb_queue_tail(queue, skb);
 	} else {
 		/* Fragmented */
-		BT_DBG("%s frag %p len %d", hdev->name, skb, skb->len);
+		BT_TRACE("%s frag %p len %d", hdev->name, skb, skb->len);
 
 		skb_shinfo(skb)->frag_list = NULL;
 
@@ -3784,7 +3784,7 @@ static void hci_queue_acl(struct hci_chan *chan, struct sk_buff_head *queue,
 			hci_skb_pkt_type(skb) = HCI_ACLDATA_PKT;
 			hci_add_acl_hdr(skb, conn->handle, flags);
 
-			BT_DBG("%s frag %p len %d", hdev->name, skb, skb->len);
+			BT_TRACE("%s frag %p len %d", hdev->name, skb, skb->len);
 
 			__skb_queue_tail(queue, skb);
 		} while (list);
@@ -3797,7 +3797,7 @@ void hci_send_acl(struct hci_chan *chan, struct sk_buff *skb, __u16 flags)
 {
 	struct hci_dev *hdev = chan->conn->hdev;
 
-	BT_DBG("%s chan %p flags 0x%4.4x", hdev->name, chan, flags);
+	BT_TRACE("%s chan %p flags 0x%4.4x", hdev->name, chan, flags);
 
 	hci_queue_acl(chan, &chan->data_q, skb, flags);
 
@@ -3810,7 +3810,7 @@ void hci_send_sco(struct hci_conn *conn, struct sk_buff *skb)
 	struct hci_dev *hdev = conn->hdev;
 	struct hci_sco_hdr hdr;
 
-	BT_DBG("%s len %d", hdev->name, skb->len);
+	BT_TRACE("%s len %d", hdev->name, skb->len);
 
 	hdr.handle = cpu_to_le16(conn->handle);
 	hdr.dlen   = skb->len;
@@ -3884,7 +3884,7 @@ static struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type,
 	} else
 		*quote = 0;
 
-	BT_DBG("conn %p quote %d", conn, *quote);
+	BT_TRACE("conn %p quote %d", conn, *quote);
 	return conn;
 }
 
@@ -3918,7 +3918,7 @@ static struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
 	struct hci_conn *conn;
 	int cnt, q, conn_num = 0;
 
-	BT_DBG("%s", hdev->name);
+	BT_TRACE("%s", hdev->name);
 
 	rcu_read_lock();
 
@@ -3987,7 +3987,7 @@ static struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
 
 	q = cnt / num;
 	*quote = q ? q : 1;
-	BT_DBG("chan %p quote %d", chan, *quote);
+	BT_TRACE("chan %p quote %d", chan, *quote);
 	return chan;
 }
 
@@ -3997,7 +3997,7 @@ static void hci_prio_recalculate(struct hci_dev *hdev, __u8 type)
 	struct hci_conn *conn;
 	int num = 0;
 
-	BT_DBG("%s", hdev->name);
+	BT_TRACE("%s", hdev->name);
 
 	rcu_read_lock();
 
@@ -4029,7 +4029,7 @@ static void hci_prio_recalculate(struct hci_dev *hdev, __u8 type)
 
 			skb->priority = HCI_PRIO_MAX - 1;
 
-			BT_DBG("chan %p skb %p promoted to %d", chan, skb,
+			BT_TRACE("chan %p skb %p promoted to %d", chan, skb,
 			       skb->priority);
 		}
 
@@ -4071,7 +4071,7 @@ static void hci_sched_acl_pkt(struct hci_dev *hdev)
 	       (chan = hci_chan_sent(hdev, ACL_LINK, &quote))) {
 		u32 priority = (skb_peek(&chan->data_q))->priority;
 		while (quote-- && (skb = skb_peek(&chan->data_q))) {
-			BT_DBG("chan %p skb %p len %d priority %u", chan, skb,
+			BT_TRACE("chan %p skb %p len %d priority %u", chan, skb,
 			       skb->len, skb->priority);
 
 			/* Stop if priority has changed */
@@ -4106,7 +4106,7 @@ static void hci_sched_acl_blk(struct hci_dev *hdev)
 
 	__check_timeout(hdev, cnt);
 
-	BT_DBG("%s", hdev->name);
+	BT_TRACE("%s", hdev->name);
 
 	if (hdev->dev_type == HCI_AMP)
 		type = AMP_LINK;
@@ -4119,7 +4119,7 @@ static void hci_sched_acl_blk(struct hci_dev *hdev)
 		while (quote > 0 && (skb = skb_peek(&chan->data_q))) {
 			int blocks;
 
-			BT_DBG("chan %p skb %p len %d priority %u", chan, skb,
+			BT_TRACE("chan %p skb %p len %d priority %u", chan, skb,
 			       skb->len, skb->priority);
 
 			/* Stop if priority has changed */
@@ -4152,7 +4152,7 @@ static void hci_sched_acl_blk(struct hci_dev *hdev)
 
 static void hci_sched_acl(struct hci_dev *hdev)
 {
-	BT_DBG("%s", hdev->name);
+	BT_TRACE("%s", hdev->name);
 
 	/* No ACL link over BR/EDR controller */
 	if (!hci_conn_num(hdev, ACL_LINK) && hdev->dev_type == HCI_PRIMARY)
@@ -4180,14 +4180,14 @@ static void hci_sched_sco(struct hci_dev *hdev)
 	struct sk_buff *skb;
 	int quote;
 
-	BT_DBG("%s", hdev->name);
+	BT_TRACE("%s", hdev->name);
 
 	if (!hci_conn_num(hdev, SCO_LINK))
 		return;
 
 	while (hdev->sco_cnt && (conn = hci_low_sent(hdev, SCO_LINK, &quote))) {
 		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
-			BT_DBG("skb %p len %d", skb, skb->len);
+			BT_TRACE("skb %p len %d", skb, skb->len);
 			hci_send_frame(hdev, skb);
 
 			conn->sent++;
@@ -4203,7 +4203,7 @@ static void hci_sched_esco(struct hci_dev *hdev)
 	struct sk_buff *skb;
 	int quote;
 
-	BT_DBG("%s", hdev->name);
+	BT_TRACE("%s", hdev->name);
 
 	if (!hci_conn_num(hdev, ESCO_LINK))
 		return;
@@ -4211,7 +4211,7 @@ static void hci_sched_esco(struct hci_dev *hdev)
 	while (hdev->sco_cnt && (conn = hci_low_sent(hdev, ESCO_LINK,
 						     &quote))) {
 		while (quote-- && (skb = skb_dequeue(&conn->data_q))) {
-			BT_DBG("skb %p len %d", skb, skb->len);
+			BT_TRACE("skb %p len %d", skb, skb->len);
 			hci_send_frame(hdev, skb);
 
 			conn->sent++;
@@ -4227,7 +4227,7 @@ static void hci_sched_le(struct hci_dev *hdev)
 	struct sk_buff *skb;
 	int quote, cnt, tmp;
 
-	BT_DBG("%s", hdev->name);
+	BT_TRACE("%s", hdev->name);
 
 	if (!hci_conn_num(hdev, LE_LINK))
 		return;
@@ -4245,7 +4245,7 @@ static void hci_sched_le(struct hci_dev *hdev)
 	while (cnt && (chan = hci_chan_sent(hdev, LE_LINK, &quote))) {
 		u32 priority = (skb_peek(&chan->data_q))->priority;
 		while (quote-- && (skb = skb_peek(&chan->data_q))) {
-			BT_DBG("chan %p skb %p len %d priority %u", chan, skb,
+			BT_TRACE("chan %p skb %p len %d priority %u", chan, skb,
 			       skb->len, skb->priority);
 
 			/* Stop if priority has changed */
@@ -4277,7 +4277,7 @@ static void hci_tx_work(struct work_struct *work)
 	struct hci_dev *hdev = container_of(work, struct hci_dev, tx_work);
 	struct sk_buff *skb;
 
-	BT_DBG("%s acl %d sco %d le %d", hdev->name, hdev->acl_cnt,
+	BT_TRACE("%s acl %d sco %d le %d", hdev->name, hdev->acl_cnt,
 	       hdev->sco_cnt, hdev->le_cnt);
 
 	if (!hci_dev_test_flag(hdev, HCI_USER_CHANNEL)) {
@@ -4308,7 +4308,7 @@ static void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	flags  = hci_flags(handle);
 	handle = hci_handle(handle);
 
-	BT_DBG("%s len %d handle 0x%4.4x flags 0x%4.4x", hdev->name, skb->len,
+	BT_TRACE("%s len %d handle 0x%4.4x flags 0x%4.4x", hdev->name, skb->len,
 	       handle, flags);
 
 	hdev->stat.acl_rx++;
@@ -4342,7 +4342,7 @@ static void hci_scodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 
 	handle = __le16_to_cpu(hdr->handle);
 
-	BT_DBG("%s len %d handle 0x%4.4x", hdev->name, skb->len, handle);
+	BT_TRACE("%s len %d handle 0x%4.4x", hdev->name, skb->len, handle);
 
 	hdev->stat.sco_rx++;
 
@@ -4402,7 +4402,7 @@ void hci_req_cmd_complete(struct hci_dev *hdev, u16 opcode, u8 status,
 	struct sk_buff *skb;
 	unsigned long flags;
 
-	BT_DBG("opcode 0x%04x status 0x%02x", opcode, status);
+	BT_TRACE("opcode 0x%04x status 0x%02x", opcode, status);
 
 	/* If the completed command doesn't match the last one that was
 	 * sent we need to do special handling of it.
@@ -4465,7 +4465,7 @@ static void hci_rx_work(struct work_struct *work)
 	struct hci_dev *hdev = container_of(work, struct hci_dev, rx_work);
 	struct sk_buff *skb;
 
-	BT_DBG("%s", hdev->name);
+	BT_TRACE("%s", hdev->name);
 
 	while ((skb = skb_dequeue(&hdev->rx_q))) {
 		/* Send copy to monitor */
@@ -4501,17 +4501,17 @@ static void hci_rx_work(struct work_struct *work)
 		/* Process frame */
 		switch (hci_skb_pkt_type(skb)) {
 		case HCI_EVENT_PKT:
-			BT_DBG("%s Event packet", hdev->name);
+			BT_TRACE("%s Event packet", hdev->name);
 			hci_event_packet(hdev, skb);
 			break;
 
 		case HCI_ACLDATA_PKT:
-			BT_DBG("%s ACL data packet", hdev->name);
+			BT_TRACE("%s ACL data packet", hdev->name);
 			hci_acldata_packet(hdev, skb);
 			break;
 
 		case HCI_SCODATA_PKT:
-			BT_DBG("%s SCO data packet", hdev->name);
+			BT_TRACE("%s SCO data packet", hdev->name);
 			hci_scodata_packet(hdev, skb);
 			break;
 
@@ -4527,7 +4527,7 @@ static void hci_cmd_work(struct work_struct *work)
 	struct hci_dev *hdev = container_of(work, struct hci_dev, cmd_work);
 	struct sk_buff *skb;
 
-	BT_DBG("%s cmd_cnt %d cmd queued %d", hdev->name,
+	BT_TRACE("%s cmd_cnt %d cmd queued %d", hdev->name,
 	       atomic_read(&hdev->cmd_cnt), skb_queue_len(&hdev->cmd_q));
 
 	/* Send queued commands */

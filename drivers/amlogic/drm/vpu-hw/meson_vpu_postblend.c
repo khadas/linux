@@ -55,6 +55,18 @@ static struct postblend1_reg_s postblend1_reg[3] = {
 	},
 };
 
+static struct postblend_reg_s s5_postblend_reg = {
+	VPP_OSD1_BLD_H_SCOPE_S5,
+	VPP_OSD1_BLD_V_SCOPE_S5,
+	VPP_OSD2_BLD_H_SCOPE_S5,
+	VPP_OSD2_BLD_V_SCOPE_S5,
+	VD1_BLEND_SRC_CTRL_S5,
+	VD2_BLEND_SRC_CTRL_S5,
+	OSD1_BLEND_SRC_CTRL_S5,
+	OSD2_BLEND_SRC_CTRL_S5,
+	VPP_OSD1_IN_SIZE,
+};
+
 /*vpp post&post blend for osd1 premult flag config as 0 default*/
 static void osd1_blend_premult_set(struct meson_vpu_block *vblk,
 				   struct rdma_reg_ops *reg_ops,
@@ -107,6 +119,14 @@ static void vpp_osd1_postblend_mux_set(struct meson_vpu_block *vblk,
 				       enum vpp_blend_src_e src_sel)
 {
 	reg_ops->rdma_write_reg_bits(reg->osd1_blend_src_ctrl, src_sel, 8, 4);
+}
+
+static void vpp_osd1_postblend_5mux_set(struct meson_vpu_block *vblk,
+				       struct rdma_reg_ops *reg_ops,
+					   struct postblend_reg_s *reg,
+				       enum vpp_blend_src_e src_sel)
+{
+	reg_ops->rdma_write_reg_bits(reg->osd1_blend_src_ctrl, src_sel, 0, 4);
 }
 
 /*vpp osd2 postblend mux sel*/
@@ -365,6 +385,56 @@ static void t7_postblend_set_state(struct meson_vpu_block *vblk,
 		  scope.h_start, scope.h_end, scope.v_start, scope.v_end);
 }
 
+static void s5_postblend_set_state(struct meson_vpu_block *vblk,
+				struct meson_vpu_block_state *state,
+				struct meson_vpu_block_state *old_state)
+{
+	int crtc_index, vpp_osd1_mux;
+	struct am_meson_crtc *amc;
+	struct am_meson_crtc_state *meson_crtc_state;
+	struct meson_vpu_pipeline_state *mvps;
+	struct meson_vpu_sub_pipeline_state *mvsps;
+
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+	struct osd_scope_s scope = {0, 1919, 0, 1079};
+	struct meson_vpu_pipeline *pipeline = postblend->base.pipeline;
+	struct postblend_reg_s *reg = postblend->reg;
+	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
+
+	crtc_index = vblk->index;
+	amc = vblk->pipeline->priv->crtcs[crtc_index];
+	meson_crtc_state = to_am_meson_crtc_state(amc->base.state);
+
+	DRM_DEBUG("%s set_state called.\n", postblend->base.name);
+	mvps = priv_to_pipeline_state(pipeline->obj.state);
+	mvsps = &mvps->sub_states[0];
+
+	scope.h_start = 0;
+	scope.v_start = 0;
+	if (mvsps->more_4k) {
+		scope.h_end = mvsps->blend_dout_hsize[0] * 2 - 1;
+		scope.v_end = mvsps->blend_dout_vsize[0] * 2 - 1;
+	} else {
+		scope.h_end = mvsps->blend_dout_hsize[0] - 1;
+		scope.v_end = mvsps->blend_dout_vsize[0] - 1;
+	}
+
+	vpp_osd1_blend_scope_set(vblk, reg_ops, reg, scope);
+
+	if (amc->blank_enable) {
+		vpp_osd1_postblend_5mux_set(vblk, reg_ops, reg, VPP_NULL);
+	} else {
+		vpp_osd1_mux = VPP_5MUX_OSD1;
+		vpp_osd1_postblend_5mux_set(vblk, reg_ops, reg, vpp_osd1_mux);
+	}
+
+	osd1_blend_premult_set(vblk, reg_ops, reg);
+	reg_ops->rdma_write_reg_bits(VPP_POSTBLND_CTRL_S5, 1, 8, 1);
+
+	DRM_DEBUG("scope h/v start/end [%d,%d,%d,%d].\n",
+		  scope.h_start, scope.h_end, scope.v_start, scope.v_end);
+}
+
 static void postblend_hw_enable(struct meson_vpu_block *vblk,
 				struct meson_vpu_block_state *state)
 {
@@ -381,6 +451,15 @@ static void postblend_hw_disable(struct meson_vpu_block *vblk,
 	if (vblk->index == 0)
 		vpp_osd1_postblend_mux_set(vblk, state->sub->reg_ops, postblend->reg, VPP_NULL);
 
+	DRM_DEBUG("%s disable called.\n", postblend->base.name);
+}
+
+static void s5_postblend_hw_disable(struct meson_vpu_block *vblk,
+				    struct meson_vpu_block_state *state)
+{
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+
+	vpp_osd1_postblend_5mux_set(vblk, state->sub->reg_ops, postblend->reg, VPP_NULL);
 	DRM_DEBUG("%s disable called.\n", postblend->base.name);
 }
 
@@ -538,6 +617,28 @@ static void t3_postblend_hw_init(struct meson_vpu_block *vblk)
 	DRM_DEBUG("%s hw_init called.\n", postblend->base.name);
 }
 
+static void s5_postblend_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+	struct rdma_reg_ops *reg_ops = vblk->pipeline->subs[0].reg_ops;
+
+	postblend->reg = &s5_postblend_reg;
+
+	/* default: osd byp dolby */
+	reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x1, 0, 1);
+	reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x1, 2, 1);
+	reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x1, 4, 1);
+	reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x1, 6, 1);
+
+	/* default: osd 12bit path */
+	reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x0, 1, 1);
+	reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x0, 3, 1);
+	reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x0, 5, 1);
+	reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x0, 7, 1);
+
+	reg_ops->rdma_write_reg_bits(VPP_INTF_OSD3_CTRL, 0, 1, 1);
+}
+
 struct meson_vpu_block_ops postblend_ops = {
 	.check_state = postblend_check_state,
 	.update_state = postblend_set_state,
@@ -563,4 +664,13 @@ struct meson_vpu_block_ops t3_postblend_ops = {
 	.disable = postblend_hw_disable,
 	.dump_register = postblend_dump_register,
 	.init = t3_postblend_hw_init,
+};
+
+struct meson_vpu_block_ops s5_postblend_ops = {
+	.check_state = postblend_check_state,
+	.update_state = s5_postblend_set_state,
+	.enable = postblend_hw_enable,
+	.disable = s5_postblend_hw_disable,
+	.dump_register = postblend_dump_register,
+	.init = s5_postblend_hw_init,
 };

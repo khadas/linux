@@ -332,7 +332,7 @@ enum tvin_color_fmt_e {
 };
 
 enum tvin_color_fmt_range_e {
-	TVIN_FMT_RANGE_NULL = 0,	/* depend on vedio fromat */
+	TVIN_FMT_RANGE_NULL = 0,	/* depend on video fromat */
 	TVIN_RGB_FULL,		/* 1 */
 	TVIN_RGB_LIMIT,		/* 2 */
 	TVIN_YUV_FULL,		/* 3 */
@@ -520,6 +520,7 @@ struct tvafe_pin_mux_s {
 bool IS_TVAFE_SRC(enum tvin_port_e port);
 bool IS_TVAFE_ATV_SRC(enum tvin_port_e port);
 bool IS_TVAFE_AVIN_SRC(enum tvin_port_e port);
+bool IS_HDMI_SRC(enum tvin_port_e port);
 
 /* ************************************************************************* */
 
@@ -578,12 +579,12 @@ bool IS_TVAFE_AVIN_SRC(enum tvin_port_e port);
 #define TVIN_IOC_CALLMASTER_GET	    _IO(_TM_T, 0x1d)
 #define TVIN_IOC_G_AFE_CVBS_STD     _IOW(_TM_T, 0x1e, enum tvin_sig_fmt_e)
 #define TVIN_IOC_LOAD_REG          _IOW(_TM_T, 0x20, struct am_regs_s)
-#define TVIN_IOC_S_AFE_SONWON     _IO(_TM_T, 0x22)
-#define TVIN_IOC_S_AFE_SONWOFF     _IO(_TM_T, 0x23)
+#define TVIN_IOC_S_AFE_SNOW_ON     _IO(_TM_T, 0x22)
+#define TVIN_IOC_S_AFE_SNOW_OFF     _IO(_TM_T, 0x23)
 #define TVIN_IOC_G_VDIN_HIST       _IOW(_TM_T, 0x24, struct vdin_hist_s)
 #define TVIN_IOC_S_VDIN_V4L2START  _IOW(_TM_T, 0x25, struct vdin_v4l2_param_s)
 #define TVIN_IOC_S_VDIN_V4L2STOP   _IO(_TM_T, 0x26)
-#define TVIN_IOC_S_AFE_SONWCFG     _IOW(_TM_T, 0x27, unsigned int)
+#define TVIN_IOC_S_AFE_SNOW_CFG     _IOW(_TM_T, 0x27, unsigned int)
 #define TVIN_IOC_S_DV_DESCRAMBLE	_IOW(_TM_T, 0x28, unsigned int)
 #define TVIN_IOC_S_AFE_ATV_SEARCH  _IOW(_TM_T, 0x29, unsigned int)
 
@@ -637,7 +638,6 @@ struct rx_audio_stat_s {
 
 int get_vdin_delay_num(void);
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
-void adc_pll_down(void);
 void adc_set_pll_reset(void);
 int adc_get_pll_flag(void);
 /*ADC_EN_ATV_DEMOD	0x1*/
@@ -648,10 +648,6 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para_);
 void adc_set_ddemod_default(enum fe_delivery_system delsys);/* add for dtv demod */
 int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data);
 #else
-static inline void adc_pll_down(void)
-{
-}
-
 static inline void adc_set_pll_reset(void)
 {
 }

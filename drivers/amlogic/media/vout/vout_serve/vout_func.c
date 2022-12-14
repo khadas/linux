@@ -351,7 +351,7 @@ int vout_func_check_same_vmodeattr(int index, char *name)
 		p_server = vout3_module.curr_vout_server;
 #endif
 
-	if (!IS_ERR_OR_NULL(p_server)) {
+	if (p_server) {
 		data = p_server->data;
 		if (p_server->op.check_same_vmodeattr)
 			ret = p_server->op.check_same_vmodeattr(name, data);
@@ -491,7 +491,7 @@ int vout_func_set_vframe_rate_hint(int index, int duration)
 		p_server = vout3_module.curr_vout_server;
 #endif
 
-	if (!IS_ERR_OR_NULL(p_server)) {
+	if (p_server) {
 		data = p_server->data;
 		if (p_server->op.set_vframe_rate_hint)
 			ret = p_server->op.set_vframe_rate_hint(duration, data);
@@ -524,7 +524,7 @@ int vout_func_get_vframe_rate_hint(int index)
 		p_server = vout3_module.curr_vout_server;
 #endif
 
-	if (!IS_ERR_OR_NULL(p_server)) {
+	if (p_server) {
 		data = p_server->data;
 		if (p_server->op.get_vframe_rate_hint)
 			ret = p_server->op.get_vframe_rate_hint(data);
@@ -555,7 +555,7 @@ void vout_func_set_test_bist(int index, unsigned int bist)
 		p_server = vout3_module.curr_vout_server;
 #endif
 
-	if (!IS_ERR_OR_NULL(p_server)) {
+	if (p_server) {
 		if (p_server->op.set_bist)
 			p_server->op.set_bist(bist, p_server->data);
 	}
@@ -578,7 +578,7 @@ int vout_func_vout_suspend(int index)
 		p_server = vout2_module.curr_vout_server;
 #endif
 
-	if (!IS_ERR_OR_NULL(p_server)) {
+	if (p_server) {
 		if (p_server->op.vout_suspend)
 			ret = p_server->op.vout_suspend(p_server->data);
 	}
@@ -605,7 +605,7 @@ int vout_func_vout_resume(int index)
 		p_server = vout3_module.curr_vout_server;
 #endif
 
-	if (!IS_ERR_OR_NULL(p_server)) {
+	if (p_server) {
 		if (p_server->op.vout_resume) {
 			/* ignore error when resume. */
 			p_server->op.vout_resume(p_server->data);

@@ -161,6 +161,10 @@ struct ion_dma_buf_attachment {
 
 #ifdef CONFIG_ION
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
+#endif
+
 /**
  * __ion_device_add_heap - adds a heap to the ion device
  *

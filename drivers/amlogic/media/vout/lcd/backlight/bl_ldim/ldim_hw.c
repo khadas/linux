@@ -922,7 +922,7 @@ static void ldim_hw_stts_set_region_tm2(unsigned int resolution,
 		ldim_wr_vcbus(LDIM_STTS_HIST_SET_REGION, hist_hnum); //h region number
 		ldim_wr_vcbus(LDIM_STTS_HIST_SET_REGION, 0); // line_n_int_num
 	} else {
-		LDIMERR("unsopport resolution\n");
+		LDIMERR("unsupport resolution\n");
 		return;
 	}
 }

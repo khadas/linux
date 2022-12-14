@@ -172,6 +172,7 @@ static struct hdmitx_dev hdmitx_device = {
 
 static const struct dv_info dv_dummy;
 static int log_level;
+static bool hdmitx_edid_done;
 /* for SONY-KD-55A8F TV, need to mute more frames
  * when switch DV(LL)->HLG
  */
@@ -338,7 +339,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	/* for huawei TV, it will display green screen pattern under
 	 * 4k50/60hz y420 deep color when receive amvute. After disable
 	 * phy of box, TV will continue mute and stay in still frame
-	 * mode for a few frames, if it receives scdc clk raito change
+	 * mode for a few frames, if it receives scdc clk rate change
 	 * during this period, it may recognize it as signal unstable
 	 * instead of no signal, and keep mute pattern for several
 	 * seconds. Here keep hdmi output disabled for a few frames
@@ -387,14 +388,19 @@ static void hdmitx_late_resume(struct early_suspend *h)
 
 	pr_info("hdmitx hpd state: %d\n", hdev->hpd_state);
 
-	/*force to get EDID after resume for Amplifier Power case*/
-	if (hpd_state)
+	/*force to get EDID after resume */
+	if (hpd_state) {
+		/*add i2c soft reset before read EDID */
+		hdev->hwop.cntlddc(hdev, DDC_GLITCH_FILTER_RESET, 0);
+		if (hdev->data->chip_type >= MESON_CPU_ID_G12A)
+			hdev->hwop.cntlmisc(hdev, MISC_I2C_RESET, 0);
 		hdmitx_get_edid(hdev);
+		hdmitx_edid_done = true;
+	}
 	hdmitx_notify_hpd(hpd_state,
 			  hdev->edid_parsing ?
 			  hdev->edid_ptr : NULL);
 
-	hdev->hwop.cntlconfig(hdev, CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
 	/* recover attr (especially for HDR case) */
 	if (info && drm_hdmitx_chk_mode_attr_sup(info->name,
 	    suspend_fmt_attr))
@@ -528,8 +534,6 @@ static void hdmitx_pre_display_init(void)
 {
 	hdmitx_device.cur_VIC = HDMI_UNKNOWN;
 	hdmitx_device.auth_process_timer = AUTH_PROCESS_TIME;
-	hdmitx_device.hwop.cntlconfig(&hdmitx_device,
-		CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
 	hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_MUX_INIT, 1);
 	hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_OP, HDCP14_OFF);
 	/* msleep(10); */
@@ -571,7 +575,6 @@ static void hdrinfo_to_vinfo(struct hdr_info *hdrinfo, struct hdmitx_dev *hdev)
 {
 	memcpy(hdrinfo, &hdev->rxcap.hdr_info, sizeof(struct hdr_info));
 	hdrinfo->colorimetry_support = hdev->rxcap.colorimetry_data;
-	pr_info(SYS "update rx hdr info %x\n", hdrinfo->hdr_support);
 }
 
 static void rxlatency_to_vinfo(struct vinfo_s *info, struct rx_cap *rx)
@@ -1528,7 +1531,6 @@ static int hdmitx_check_valid_aspect_ratio(enum hdmi_vic vic, int aspect_ratio)
 int hdmitx_get_aspect_ratio(void)
 {
 	enum hdmi_vic vic = HDMI_UNKNOWN;
-	int x, y;
 	struct hdmitx_dev *hdev = &hdmitx_device;
 
 	vic = hdev->hwop.getstate(hdev, STAT_VIDEO_VIC, 0);
@@ -1536,16 +1538,6 @@ int hdmitx_get_aspect_ratio(void)
 	if (vic == HDMI_720x480p60_4x3 || vic == HDMI_720x576p50_4x3)
 		return AR_4X3;
 	if (vic == HDMI_720x480p60_16x9 || vic == HDMI_720x576p50_16x9)
-		return AR_16X9;
-
-	struct vinfo_s *info = NULL;
-
-	info = hdmitx_get_current_vinfo(NULL);
-	x = info->aspect_ratio_num;
-	y = info->aspect_ratio_den;
-	if (x == 4 && y == 3)
-		return AR_4X3;
-	if (x == 16 && y == 9)
 		return AR_16X9;
 
 	return 0;
@@ -1557,28 +1549,28 @@ struct aspect_ratio_list *hdmitx_get_support_ar_list(void)
 	int i = 0;
 
 	memset(ar_list, 0, sizeof(ar_list));
-	if (hdmitx_check_vic(HDMI_720x480p60_4x3) &&
-			hdmitx_check_vic(HDMI_720x480p60_16x9)) {
+	if (hdmitx_check_vic(HDMI_720x480p60_4x3)) {
 		ar_list[i].vic = HDMI_720x480p60_4x3;
 		ar_list[i].flag = TRUE;
 		ar_list[i].aspect_ratio_num = 4;
 		ar_list[i].aspect_ratio_den = 3;
 		i++;
-
+	}
+	if (hdmitx_check_vic(HDMI_720x480p60_16x9)) {
 		ar_list[i].vic = HDMI_720x480p60_16x9;
 		ar_list[i].flag = TRUE;
 		ar_list[i].aspect_ratio_num = 16;
 		ar_list[i].aspect_ratio_den = 9;
 		i++;
 	}
-	if (hdmitx_check_vic(HDMI_720x576p50_4x3) &&
-			hdmitx_check_vic(HDMI_720x576p50_16x9)) {
+	if (hdmitx_check_vic(HDMI_720x576p50_4x3)) {
 		ar_list[i].vic = HDMI_720x576p50_4x3;
 		ar_list[i].flag = TRUE;
 		ar_list[i].aspect_ratio_num = 4;
 		ar_list[i].aspect_ratio_den = 3;
 		i++;
-
+	}
+	if (hdmitx_check_vic(HDMI_720x576p50_16x9)) {
 		ar_list[i].vic = HDMI_720x576p50_16x9;
 		ar_list[i].flag = TRUE;
 		ar_list[i].aspect_ratio_num = 16;
@@ -1586,6 +1578,43 @@ struct aspect_ratio_list *hdmitx_get_support_ar_list(void)
 		i++;
 	}
 	return &ar_list[0];
+}
+
+int hdmitx_get_aspect_ratio_value(void)
+{
+	int i;
+	int value = 0;
+	static struct aspect_ratio_list *ar_list;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	enum hdmi_vic vic = HDMI_UNKNOWN;
+
+	ar_list = hdmitx_get_support_ar_list();
+	vic = hdev->hwop.getstate(hdev, STAT_VIDEO_VIC, 0);
+
+	if (vic == HDMI_720x480p60_4x3 || vic == HDMI_720x480p60_16x9) {
+		for (i = 0; i < 4; i++) {
+			if (ar_list[i].vic == HDMI_720x480p60_4x3)
+				value++;
+			if (ar_list[i].vic == HDMI_720x480p60_16x9)
+				value++;
+		}
+	}
+
+	if (vic == HDMI_720x576p50_4x3 || vic == HDMI_720x576p50_16x9) {
+		for (i = 0; i < 4; i++) {
+			if (ar_list[i].vic == HDMI_720x576p50_4x3)
+				value++;
+			if (ar_list[i].vic == HDMI_720x576p50_16x9)
+				value++;
+		}
+	}
+
+	if (value > 1) {
+		value = hdmitx_get_aspect_ratio();
+		return value;
+	}
+
+	return 0;
 }
 
 void hdmitx_set_aspect_ratio(int aspect_ratio)
@@ -2935,6 +2964,7 @@ static ssize_t config_store(struct device *dev,
 
 void hdmitx20_ext_set_audio_output(int enable)
 {
+	pr_info("%s[%d] enable = %d\n", __func__, __LINE__, enable);
 	hdmitx_audio_mute_op(enable);
 }
 
@@ -3144,7 +3174,7 @@ bool is_vic_over_limited_1080p(enum hdmi_vic vic)
 	struct hdmi_format_para *para = hdmi_get_fmt_paras(vic);
 
 	/* if the vic equals to HDMI_UNKNOWN or VESA,
-	 * then treate it as over limited
+	 * then treated it as over limited
 	 */
 	if (vic == HDMI_UNKNOWN || vic >= HDMITX_VESA_OFFSET)
 		return 1;
@@ -5794,7 +5824,7 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 	struct vinfo_s *vinfo;
 
 	pr_info("%s[%d]\n", __func__, __LINE__);
-	/* get current vinfo and refesh */
+	/* get current vinfo and refresh” */
 	vinfo = hdmitx_get_current_vinfo(NULL);
 	if (vinfo && vinfo->name)
 		recalc_vinfo_sync_duration(vinfo,
@@ -6035,9 +6065,7 @@ static struct notifier_block hdmitx_notifier_nb_a = {
 static int hdmitx_notify_callback_a(struct notifier_block *block,
 				    unsigned long cmd, void *para)
 {
-	int i, audio_check = 0;
 	struct hdmitx_dev *hdev = &hdmitx_device;
-	struct rx_cap *prxcap = &hdev->rxcap;
 	struct aud_para *aud_param = (struct aud_para *)para;
 	struct hdmitx_audpara *audio_param = &hdev->cur_audio_param;
 	enum hdmi_audio_fs n_rate = aud_samp_rate_map(aud_param->rate);
@@ -6075,22 +6103,6 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 		else
 			hdev->aud_output_ch = 0;
 		hdev->audio_param_update_flag = 1;
-	}
-	if (hdev->tx_aud_cfg == 2) {
-		pr_info(AUD "auto mode\n");
-		/* Detect whether Rx is support current audio format */
-		for (i = 0; i < prxcap->AUD_count; i++) {
-			if (prxcap->RxAudioCap[i].audio_format_code == cmd)
-				audio_check = 1;
-		}
-		/* sink don't support current audio mode */
-		if (!audio_check && cmd != CT_PCM) {
-			pr_info("Sink not support this audio format %lu\n",
-				cmd);
-			hdev->hwop.cntlconfig(hdev, CONF_AUDIO_MUTE_OP,
-					      AUDIO_MUTE);
-			hdev->audio_param_update_flag = 0;
-		}
 	}
 	if (hdev->audio_param_update_flag == 0)
 		;
@@ -6231,13 +6243,21 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 		queue_delayed_work(hdev->rxsense_wq, &hdev->work_rxsense, 0);
 	}
 	pr_info(SYS "plugin\n");
-	if (hdev->data->chip_type >= MESON_CPU_ID_G12A)
-		hdev->hwop.cntlmisc(hdev, MISC_I2C_RESET, 0);
+	/* there's such case: plugin irq->hdmitx resume + read EDID +
+	 * resume uevent->mode setting + hdcp auth->plugin handler read
+	 * EDID, now EDID already read done and hdcp already started,
+	 * not read EDID again.
+	 */
+	if (!hdmitx_edid_done) {
+		if (hdev->data->chip_type >= MESON_CPU_ID_G12A)
+			hdev->hwop.cntlmisc(hdev, MISC_I2C_RESET, 0);
+		hdmitx_get_edid(hdev);
+		hdmitx_edid_done = true;
+	}
 	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
 	/* start reading E-EDID */
 	if (hdev->repeater_tx)
 		rx_repeat_hpd_state(1);
-	hdmitx_get_edid(hdev);
 	hdev->cedst_policy = hdev->cedst_en & hdev->rxcap.scdc_present;
 	hdmi_physical_size_update(hdev);
 	if (hdev->rxcap.ieeeoui != HDMI_IEEEOUI)
@@ -6368,6 +6388,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		hdmitx_edid_clear(hdev);
 		hdmi_physical_size_update(hdev);
 		hdmitx_edid_ram_buffer_clear(hdev);
+		hdmitx_edid_done = false;
 		hdev->hpd_state = 0;
 		hdmitx_notify_hpd(hdev->hpd_state, NULL);
 		hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
@@ -6400,6 +6421,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdmitx_edid_clear(hdev);
 	hdmi_physical_size_update(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
+	hdmitx_edid_done = false;
 	hdev->hpd_state = 0;
 	hdmitx_notify_hpd(hdev->hpd_state, NULL);
 
@@ -7269,7 +7291,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	}
 	/* Trigger HDMITX IRQ*/
 	if (hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0)) {
-		/* When bootup mbox and TV simutanously,
+		/* When bootup mbox and TV simultaneously,
 		 * TV may not handle SCDC/DIV40
 		 */
 		if (is_cur_tmds_div40(hdev))
@@ -7700,6 +7722,43 @@ static int drm_hdmitx_get_vic_list(int **vics)
 	return count;
 }
 
+static int drm_hdmitx_get_timing_para(int vic, struct drm_hdmitx_timing_para *para)
+{
+	struct hdmi_format_para *hdmi_para;
+	struct hdmi_cea_timing *timing;
+
+	hdmi_para = hdmi_get_fmt_paras(vic);
+	if (hdmi_para->vic == HDMI_UNKNOWN)
+		return -1;
+
+	timing = &hdmi_para->timing;
+
+	strncpy(para->name, hdmi_para->hdmitx_vinfo.name, DRM_DISPLAY_MODE_LEN);
+	para->sync_dura_num = hdmi_para->hdmitx_vinfo.sync_duration_num;
+	para->sync_dura_den = hdmi_para->hdmitx_vinfo.sync_duration_den;
+	if (hdmi_para->hdmitx_vinfo.field_height !=
+		hdmi_para->hdmitx_vinfo.height)
+		para->pi_mode = 0;
+	else
+		para->pi_mode = 1;
+
+	para->pix_repeat_factor = hdmi_para->pixel_repetition_factor;
+	para->h_pol = timing->hsync_polarity;
+	para->v_pol = timing->vsync_polarity;
+	para->pixel_freq = timing->pixel_freq;
+
+	para->h_active = timing->h_active;
+	para->h_front = timing->h_front;
+	para->h_sync = timing->h_sync;
+	para->h_total = timing->h_total;
+	para->v_active = timing->v_active;
+	para->v_front = timing->v_front;
+	para->v_sync = timing->v_sync;
+	para->v_total = timing->v_total;
+
+	return 0;
+}
+
 static unsigned char *drm_hdmitx_get_raw_edid(void)
 {
 	if (hdmitx_device.edid_ptr)
@@ -7993,6 +8052,7 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.register_hpd_cb = drm_hdmitx_register_hpd_cb,
 	.get_raw_edid = drm_hdmitx_get_raw_edid,
 	.get_vic_list = drm_hdmitx_get_vic_list,
+	.get_timing_para_by_vic = drm_hdmitx_get_timing_para,
 	.get_content_types = drm_hdmitx_get_contenttypes,
 	.set_content_type = drm_hdmitx_set_contenttype,
 	.setup_attr = drm_hdmitx_setup_attr,
@@ -8005,6 +8065,8 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.set_phy = drm_hdmitx_set_phy,
 	.get_tx_device = get_hdmitx_device_to_drm,
 	.get_hdmi_hdr_status = hdmi_hdr_status_to_drm,
+	.set_aspect_ratio = hdmitx_set_aspect_ratio,
+	.get_aspect_ratio = hdmitx_get_aspect_ratio_value,
 
 	/*hdcp apis*/
 	.hdcp_init = meson_hdcp_init,

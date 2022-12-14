@@ -33,7 +33,7 @@
 #include "keystone_correction.h"
 #include "reg_helper.h"
 
-/*algotithm input parameters begin*/
+/*algorithm input parameters begin*/
 unsigned int vks_input_width = 1920;
 unsigned int vks_input_height = 1080;
 unsigned int vks_output_width = 1920;
@@ -55,7 +55,7 @@ module_param(vks_alph1_angle, int, 0664);
 MODULE_PARM_DESC(vks_alph1_angle, "\n vks_alph1_angle\n");
 
 unsigned int vks_delta_bot;
-/*algotithm input parameters end*/
+/*algorithm input parameters end*/
 
 /*control parameters start*/
 unsigned int keystone_scaler_mode;
@@ -194,7 +194,7 @@ void keystone_correction_process(void)
 	unsigned int value;
 
 	/*config input h&w*/
-	/*txlx new add,same addr,diferrent usage*/
+	/*txlx new add,same addr,different usage*/
 	value = vks_input_height & GET_BITS(0, 13);
 	value |= (vks_input_width << 16) & GET_BITS(16, 13);
 	WRITE_VPP_REG(VPP_OUT_H_V_SIZE, value);

@@ -27,14 +27,35 @@
 #include "vrr_drv.h"
 #include "vrr_reg.h"
 
-/* check viu0 mux enc index */
 static struct aml_vrr_drv_s *vrr_drv_active_sel(void)
 {
+	struct vinfo_s *vinfo = NULL;
 	struct aml_vrr_drv_s *vdrv = NULL;
 	int index = 0;
 
+	vinfo = get_current_vinfo();
+	if (!vinfo)
+		return NULL;
+
+	index = (vinfo->viu_mux >> 4) & 0xf;
 	vdrv = vrr_drv_get(index);
 	return vdrv;
+}
+
+static void vrr_drv_state_active_update(int index)
+{
+	struct aml_vrr_drv_s *vdrv = NULL;
+	int i;
+
+	for (i = 0; i < VRR_MAX_DRV; i++) {
+		vdrv = vrr_drv_get(i);
+		if (!vdrv)
+			continue;
+		if (i == index)
+			vdrv->state |= VRR_STATE_ACTIVE;
+		else
+			vdrv->state &= ~VRR_STATE_ACTIVE;
+	}
 }
 
 ssize_t vrr_active_status_show(struct device *dev,
@@ -67,12 +88,16 @@ ssize_t vrr_active_status_show(struct device *dev,
 				vdrv->vrr_dev->vline_min);
 		len += sprintf(buf + len, "dev->vfreq_max:  %d\n",
 				vdrv->vrr_dev->vfreq_max);
-		len += sprintf(buf + len, "dev->vfreq_min:  %d\n",
+		len += sprintf(buf + len, "dev->vfreq_min:  %d\n\n",
 				vdrv->vrr_dev->vfreq_min);
 	}
+	len += sprintf(buf + len, "vrr_policy:      %d\n", vdrv->policy);
+	len += sprintf(buf + len, "lfc_en:          %d\n", vdrv->lfc_en);
+	len += sprintf(buf + len, "adj_vline_max:   %d\n", vdrv->adj_vline_max);
+	len += sprintf(buf + len, "adj_vline_min:   %d\n", vdrv->adj_vline_min);
 	len += sprintf(buf + len, "line_dly:        %d\n", vdrv->line_dly);
-	len += sprintf(buf + len, "state:           0x%x\n", vdrv->state);
-	len += sprintf(buf + len, "enable:          0x%x\n", vdrv->enable);
+	len += sprintf(buf + len, "state:           0x%08x\n", vdrv->state);
+	len += sprintf(buf + len, "enable:          %d\n\n", vdrv->enable);
 
 	/** vrr reg info **/
 	len += sprintf(buf + len, "VENC_VRR_CTRL: 0x%x\n",
@@ -85,7 +110,7 @@ ssize_t vrr_active_status_show(struct device *dev,
 			vrr_reg_read(VENP_VRR_CTRL + offset));
 	len += sprintf(buf + len, "VENP_VRR_ADJ_LMT: 0x%x\n",
 			vrr_reg_read(VENP_VRR_ADJ_LMT + offset));
-	len += sprintf(buf + len, "VENP_VRR_CTRL1: 0x%x\n",
+	len += sprintf(buf + len, "VENP_VRR_CTRL1: 0x%x\n\n",
 			vrr_reg_read(VENP_VRR_CTRL1 + offset));
 
 	/** vrr timer **/
@@ -132,7 +157,7 @@ int aml_vrr_func_en(int flag)
 	return ret;
 }
 
-int aml_vrr_lfc_update(int flag, int fps)
+static int aml_vrr_lfc_update(int flag, int fps)
 {
 	struct aml_vrr_drv_s *vdrv_active = vrr_drv_active_sel();
 	int ret;
@@ -160,6 +185,7 @@ static int aml_vrr_drv_update(void)
 	if (vdrv_active->state & VRR_STATE_TRACE)
 		vrr_drv_trace(vdrv_active, "vrr drv update for mode_change\n");
 
+	vrr_drv_state_active_update(vdrv_active->index);
 	if (vdrv_active->vrr_dev) {
 		vdata.dev_vfreq_max = vdrv_active->vrr_dev->vfreq_max;
 		vdata.dev_vfreq_min = vdrv_active->vrr_dev->vfreq_min + 5;
@@ -194,8 +220,10 @@ static int aml_vrr_switch_notify_callback(struct notifier_block *block,
 		if (!para)
 			break;
 		vdata = (struct vrr_notifier_data_s *)para;
-		if (vdrv_active)
+		if (vdrv_active) {
 			vdrv_active->line_dly = vdata->line_dly;
+			vdrv_active->policy = vdata->vrr_policy;
+		}
 		aml_vrr_func_en(1);
 		break;
 	case FRAME_LOCK_EVENT_VRR_OFF_MODE:

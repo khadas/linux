@@ -29,6 +29,7 @@
 #include <linux/export.h>
 
 #include <net/bluetooth/bluetooth.h>
+static u64 bt_debug_log_level;
 
 void baswap(bdaddr_t *dst, const bdaddr_t *src)
 {
@@ -134,6 +135,37 @@ int bt_to_errno(__u16 code)
 	}
 }
 EXPORT_SYMBOL(bt_to_errno);
+
+void set_bt_debug_log_level(u64 level)
+{
+	bt_debug_log_level = level;
+}
+EXPORT_SYMBOL(set_bt_debug_log_level);
+
+u64 get_bt_debug_log_level(void)
+{
+	return bt_debug_log_level;
+}
+EXPORT_SYMBOL(get_bt_debug_log_level);
+
+void bt_debug(u64 level, const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if ((bt_debug_log_level & level) == 0)
+		return;
+
+	va_start(args, format);
+
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	pr_info("%pV", &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL(bt_debug);
 
 void bt_info(const char *format, ...)
 {

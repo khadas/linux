@@ -2450,6 +2450,14 @@
 		};
 	};
 
+	diseqc_in: diseqc_in {
+		mux {
+			groups = "diseqc_in";
+			function = "diseqc_in";
+			bias-pull-down;
+		};
+	};
+
 	eecec_a: ee_ceca {
 		mux {
 			groups = "ao_cec_a";

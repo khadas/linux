@@ -24,6 +24,7 @@ enum vformat_e {
 	VFORMAT_VP9,
 	VFORMAT_AVS2,
 	VFORMAT_AV1,
+	VFORMAT_AVS3,
 	VFORMAT_MAX
 };
 

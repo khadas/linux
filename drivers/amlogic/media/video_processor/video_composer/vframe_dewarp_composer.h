@@ -22,22 +22,6 @@
 #define DEWARP_COM_ERR(fmt, args...)	\
 	pr_err("dewarp_composer: err:" fmt "", ## args)
 
-struct composer_vf_para {
-	int src_vf_format;
-	int src_vf_width;
-	int src_vf_height;
-	int src_vf_plane_count;
-	int src_vf_angle;
-	u32 src_buf_addr;
-	int src_buf_stride;
-	int dst_vf_format;
-	int dst_vf_width;
-	int dst_vf_height;
-	int dst_vf_plane_count;
-	u32 dst_buf_addr;
-	int dst_buf_stride;
-};
-
 struct dewarp_composer_para {
 	int vc_index;
 	struct gdc_context_s *context;

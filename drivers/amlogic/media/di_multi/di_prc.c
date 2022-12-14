@@ -276,7 +276,8 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 #endif
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_AFBCE_LOSS_EN]  = {"afbce_loss_en",
-				/* 1:check the loss flag in vf and set for di */
+				/* 2:check the loss flag in vf and set for di */
+				/* 1:force di output loss*/
 				/* 0:not set loss mode for di out */
 				EDI_CFG_AFBCE_LOSS_EN,
 				0,
@@ -415,7 +416,7 @@ void di_cfg_top_dts(void)
 	pt = &di_cfg_top_ctr[EDI_CFG_DAT];
 	if (DIM_IS_IC(TM2B)	||
 	    DIM_IS_IC(SC2) || DIM_IS_IC(T5) ||
-	    DIM_IS_IC(T7) ||
+	    DIM_IS_IC(T7) || DIM_IS_IC(S5) ||
 	    DIM_IS_IC(T3)) {
 		if (!pd->b.dts_have) {
 			pd->b.val_c = 0x3;
@@ -1104,6 +1105,28 @@ void di_mp_uit_set(enum EDI_MP_UI_T idx, int val)
 	get_datal()->mp_uit[idx] = val;
 }
 
+#ifdef DBG_POST_SETTING
+static unsigned int dim_dbg_post;
+module_param_named(dim_dbg_post, dim_dbg_post, uint, 0664);
+
+bool dim_dbg_post_crash_check(unsigned int bit_mask)
+{
+	return (dim_dbg_post & bit_mask) ? true : false;
+}
+
+unsigned int dim_dbg_post_crash_get(void)
+{
+	return dim_dbg_post;
+}
+
+#else /**/
+
+bool dim_dbg_post_crash_check(unsigned int bit_mask)
+{
+	return false;
+}
+
+#endif /* DBG_POST_SETTING */
 /************************************************
  * asked by pq tune
  ************************************************/
@@ -1260,7 +1283,7 @@ void di_pause(unsigned int ch, bool on)
 
 /**************************************
  *
- * summmary variable
+ * summary variable
  *
  **************************************/
 const struct di_sum_s di_sum_tab[] = {
@@ -2544,7 +2567,7 @@ void do_table_working(struct do_table_s *pdo)
 	unsigned int ret = 0;
 	unsigned int next = 0;
 	bool flash = false;
-	unsigned int cnt = 0;	/*proction*/
+	unsigned int cnt = 0;	/*protection*/
 	unsigned int lst_id;	/*dbg only*/
 	char *name = "";	/*dbg only*/
 	bool need_pr = false;	/*dbg only*/
@@ -2702,10 +2725,11 @@ void dim_bypass_set(struct di_ch_s *pch, bool which, unsigned int reason)
 
 	if (!which) {
 		if (pch->bypass.b.lst_n != on) {
-			dbg_pl("ch[%d]:bypass change:n:%d->%d\n",
+			PR_INF("ch[%d]:bypass change:n:%d->%d:0x%x\n",
 			       pch->ch_id,
 			       pch->bypass.b.lst_n,
-			       on);
+			       on,
+			       on ? reason : 0);
 			pch->bypass.b.lst_n = on;
 		}
 		if (on) {
@@ -2718,10 +2742,11 @@ void dim_bypass_set(struct di_ch_s *pch, bool which, unsigned int reason)
 		}
 	} else {
 		if (pch->bypass.b.lst_i != on) {
-			dbg_pl("ch[%d]:bypass change:i:%d->%d\n",
+			PR_INF("ch[%d]:bypass change:i:%d->%d:0x%x\n",
 			       pch->ch_id,
 			       pch->bypass.b.lst_i,
-			       on);
+			       on,
+			       on ? reason : 0);
 			pch->bypass.b.lst_i = on;
 		}
 		if (on) {
@@ -2736,7 +2761,7 @@ void dim_bypass_set(struct di_ch_s *pch, bool which, unsigned int reason)
 }
 
 #define DIM_POLICY_STD_OLD	(125)
-#define DIM_POLICY_STD		(250)
+#define DIM_POLICY_STD		(450) //change from 250 to 450
 #define DIM_POLICY_NOT_LIMIT	(2000)
 #define DIM_POLICY_SHIFT_H	(7)
 #define DIM_POLICY_SHIFT_W	(6)
@@ -3402,8 +3427,8 @@ static const struct que_creat_s qbf_nin_cfg_q[] = {//TST_Q_IN_NUB
 		.type	= Q_T_FIFO,
 		.lock	= 0,
 	},
-	[QBF_NINS_Q_RECYCL] = {
-		.name	= "QBF_NINS_Q_RECYCL",
+	[QBF_NINS_Q_RECYCLE] = {
+		.name	= "QBF_NINS_Q_RECYCLE",
 		.type	= Q_T_FIFO,
 		.lock	= 0,
 	},
@@ -3736,7 +3761,7 @@ bool nins_used_some_to_recycle(struct di_ch_s *pch, struct dim_nins_s *ins)
 		ins->header.index,
 		ins->header.code);
 	#endif
-	ret = qbuf_in(pbufq, QBF_NINS_Q_RECYCL, ins->header.index);
+	ret = qbuf_in(pbufq, QBF_NINS_Q_RECYCLE, ins->header.index);
 	if (!ret) {
 		PR_ERR("%s:in failed\n", __func__);
 		return false;
@@ -3787,7 +3812,7 @@ unsigned int nins_cnt_used_all(struct di_ch_s *pch)
 	pbufq = &pch->nin_qb;
 	len_check	= qbufp_count(pbufq, QBF_NINS_Q_CHECK);
 	len_used	= qbufp_count(pbufq, QBF_NINS_Q_USED);
-	len_rc		= qbufp_count(pbufq, QBF_NINS_Q_RECYCL);
+	len_rc		= qbufp_count(pbufq, QBF_NINS_Q_RECYCLE);
 
 	return len_check + len_used + len_rc;
 }

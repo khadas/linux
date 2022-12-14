@@ -579,7 +579,7 @@ static int __maybe_unused cec_late_check_rx_buffer(void)
 	 * start another check if rx buffer is full
 	 */
 	if ((-1) == ceca_rx_irq_handle(rx_msg, &rx_len)) {
-		CEC_INFO("buffer got unrecorgnized msg\n");
+		CEC_INFO("buffer get unrecognized msg\n");
 		ceca_rx_buf_clear();
 		return 0;
 	}
@@ -2162,6 +2162,18 @@ static const struct cec_platform_data_s cec_t5w_data = {
 	.reg_tab_group = cec_reg_group_old,
 };
 
+static const struct cec_platform_data_s cec_s5_data = {
+	.chip_id = CEC_CHIP_S5,
+	.line_reg = 0xff,/*don't check*/
+	.line_bit = 0,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_3,
+	.share_io = true,
+	.reg_tab_group = cec_reg_group_a1,
+};
+
 static const struct of_device_id aml_cec_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -2228,6 +2240,10 @@ static const struct of_device_id aml_cec_dt_match[] = {
 	{
 		.compatible = "amlogic, aocec-t5w",
 		.data = &cec_t5w_data,
+	},
+	{
+		.compatible = "amlogic, aocec-s5",
+		.data = &cec_s5_data,
 	},
 	{}
 };

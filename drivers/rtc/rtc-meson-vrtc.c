@@ -27,6 +27,7 @@ struct meson_vrtc_data {
 	s64 alarm_time;
 	struct timer_list alarm;
 	bool find_mboxes;
+	bool is_mbox_data_packet;
 #else
 	unsigned long alarm_time;
 #endif
@@ -162,6 +163,13 @@ static int meson_vrtc_probe(struct platform_device *pdev)
 	int ret;
 #ifdef CONFIG_AMLOGIC_MODIFY
 	u32 vrtc_val;
+	u32 recv_size;
+	u32 *p_recv = NULL;
+	u32 *p_vrtc = NULL;
+	struct __pack {
+		u32 status;
+		u32 data;
+	} recv_buf;
 #endif
 
 	vrtc = devm_kzalloc(&pdev->dev, sizeof(*vrtc), GFP_KERNEL);
@@ -183,19 +191,33 @@ static int meson_vrtc_probe(struct platform_device *pdev)
 	vrtc->rtc->ops = &meson_vrtc_ops;
 
 #ifdef CONFIG_AMLOGIC_MODIFY
+	vrtc->is_mbox_data_packet = false;
+	if (of_find_property(pdev->dev.of_node, "mbox_data_packet", NULL))
+		vrtc->is_mbox_data_packet = true;
+
+	if (vrtc->is_mbox_data_packet) {
+		p_recv = &recv_buf.status;
+		p_vrtc = &recv_buf.data;
+		recv_size = sizeof(recv_buf);
+	} else {
+		p_recv = &vrtc_val;
+		p_vrtc = &vrtc_val;
+		recv_size = sizeof(vrtc_val);
+	}
+
 	vrtc->find_mboxes = false;
 	if (of_find_property(pdev->dev.of_node, "mboxes", NULL))
 		vrtc->find_mboxes = true;
 	if (vrtc->find_mboxes) {
 		if (mbox_message_send_ao_sync(&pdev->dev, SCPI_CMD_GET_RTC,
-				NULL, 0, &vrtc_val, sizeof(vrtc_val), 0) < 0) {
+				NULL, 0, p_recv, recv_size, 0) < 0) {
 			vrtc_init_date = 0;
 		} else {
-			vrtc_init_date = vrtc_val;
+			vrtc_init_date = *p_vrtc;
 		}
 	} else {
-		if (scpi_get_vrtc(&vrtc_val) == 0)
-			vrtc_init_date = vrtc_val;
+		if (scpi_get_vrtc(p_recv) == 0)
+			vrtc_init_date = *p_vrtc;
 		else
 			vrtc_init_date = 0;
 	}

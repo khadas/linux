@@ -354,6 +354,7 @@
 		pinctrl-1=<&dtvdemod_if_agc2_pins>;
 		pinctrl-2=<&dtvdemod_rf_agc_pins>;
 		/* pinctrl-3=<&diseqc_out>; */
+		/* pinctrl-4=<&diseqc_in>; */
 		/* lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>; */
 		/* lnb_sel-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>; */
 		/* interrupts = <GIC_SPI 221 IRQ_TYPE_EDGE_RISING>; */
@@ -1522,6 +1523,7 @@
 
 &aml_wifi{
 	status = "okay";
+	dhd_static_buf;
 	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
 };

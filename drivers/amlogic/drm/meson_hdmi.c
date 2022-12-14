@@ -79,6 +79,12 @@ struct hdmitx_color_attr dv_ll_color_attr_list[] = {
 	{COLORSPACE_RESERVED, COLORDEPTH_RESERVED}
 };
 
+/* this is prior selected list for 8k */
+struct hdmitx_color_attr color_8k_attr_list[] = {
+	{COLORSPACE_YUV420, 8}, //"420,8bit"
+	{COLORSPACE_RESERVED, COLORDEPTH_RESERVED}
+};
+
 /* this is prior selected list of
  * 4k2k50hz, 4k2k60hz smpte50hz, smpte60hz
  */
@@ -110,6 +116,7 @@ struct hdmitx_color_attr other_color_attr_list[] = {
 #define MODE_4K2KSMPTE30HZ              "smpte30hz"
 #define MODE_4K2KSMPTE50HZ              "smpte50hz"
 #define MODE_4K2KSMPTE60HZ              "smpte60hz"
+#define MODE_8K                         "4320p"
 
 void convert_attrstr(char *attr_str,
 	struct hdmitx_color_attr *attr_param)
@@ -208,6 +215,8 @@ static struct hdmitx_color_attr *meson_hdmitx_get_candidate_attr_list
 	    !strcmp(outputmode, MODE_4K2KSMPTE60HZ) ||
 	    !strcmp(outputmode, MODE_4K2KSMPTE50HZ)) {
 		attr_list = color_attr_list;
+	} else if (strstr(outputmode, MODE_8K)) {
+		attr_list = color_8k_attr_list;
 	} else {
 		attr_list = other_color_attr_list;
 	}
@@ -319,9 +328,9 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	int *vics;
 	int count = 0, i = 0, len = 0;
+	int ret;
 	struct drm_display_mode *mode, *pref_mode = NULL;
-	struct hdmi_format_para *hdmi_para;
-	struct hdmi_cea_timing *timing;
+	struct drm_hdmitx_timing_para para;
 	struct am_hdmi_tx *am_hdmitx = connector_to_am_hdmi(connector);
 	char *strp = NULL;
 	u32 num, den;
@@ -341,9 +350,8 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	count = am_hdmitx->hdmitx_dev->get_vic_list(&vics);
 	if (count) {
 		for (i = 0; i < count; i++) {
-			hdmi_para = hdmi_get_fmt_paras(vics[i]);
-			timing = &hdmi_para->timing;
-			if (hdmi_para->vic == HDMI_UNKNOWN) {
+			ret = am_hdmitx->hdmitx_dev->get_timing_para_by_vic(vics[i], &para);
+			if (ret < 0) {
 				DRM_ERROR("Get hdmi para by vic [%d] failed.\n", vics[i]);
 				continue;
 			}
@@ -354,7 +362,7 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 				continue;
 			}
 
-			strncpy(mode->name, hdmi_para->hdmitx_vinfo.name, DRM_DISPLAY_MODE_LEN);
+			strncpy(mode->name, para.name, DRM_DISPLAY_MODE_LEN);
 			/* remove _4x3 suffix, in case misunderstand */
 			strp = strstr(mode->name, "_4x3");
 			if (strp)
@@ -371,18 +379,18 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 			}
 
 			mode->type = DRM_MODE_TYPE_DRIVER;
-			num = hdmi_para->hdmitx_vinfo.sync_duration_num;
-			den = hdmi_para->hdmitx_vinfo.sync_duration_den;
+			num = para.sync_dura_num;
+			den = para.sync_dura_den;
 			mode->vrefresh = (int)DIV_ROUND_CLOSEST(num, den);
-			mode->clock = timing->pixel_freq;
+			mode->clock = para.pixel_freq;
 
-			mode->hdisplay = timing->h_active;
-			mode->hsync_start = mode->hdisplay + timing->h_front;
-			mode->hsync_end = timing->h_active + timing->h_front + timing->h_sync;
+			mode->hdisplay = para.h_active;
+			mode->hsync_start = para.h_active + para.h_front;
+			mode->hsync_end = para.h_active + para.h_front + para.h_sync;
 
-			mode->htotal = timing->h_total;
+			mode->htotal = para.h_total;
 			/* for 480i/576i, horizontal timing is repeated */
-			if (hdmi_para->pixel_repetition_factor == 1) {
+			if (para.pix_repeat_factor == 1) {
 				mode->hdisplay >>= 1;
 				mode->hsync_start >>= 1;
 				mode->hsync_end >>= 1;
@@ -390,22 +398,21 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 			}
 
 			mode->hskew = 0;
-			mode->flags |= timing->hsync_polarity ?
+			mode->flags |= para.h_pol ?
 				DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
 
-			mode->vdisplay = timing->v_active;
-			mode->vsync_start = mode->vdisplay + timing->v_front;
-			mode->vsync_end = mode->vdisplay + timing->v_front + timing->v_sync;
-			mode->vtotal = timing->v_total;
+			mode->vdisplay = para.v_active;
+			mode->vsync_start = para.v_active + para.v_front;
+			mode->vsync_end = para.v_active + para.v_front + para.v_sync;
+			mode->vtotal = para.v_total;
 			mode->vscan = 0;
-			mode->flags |= timing->vsync_polarity ?
+			mode->flags |= para.v_pol ?
 				DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
 
-			/* use logical display timing for drm. vidsplay
+			/* use logical display timing for drm. vdisplay
 			 * while amlogic vout use half value.
 			 */
-			if (hdmi_para->hdmitx_vinfo.field_height !=
-				hdmi_para->hdmitx_vinfo.height) {
+			if (!para.pi_mode) {
 				mode->flags |= DRM_MODE_FLAG_INTERLACE;
 				mode->vdisplay = mode->vdisplay << 1;
 				mode->vsync_start = mode->vsync_start << 1;
@@ -690,6 +697,7 @@ static int am_hdmitx_connector_atomic_get_property
 	struct am_hdmitx_connector_state *hdmitx_state =
 		to_am_hdmitx_connector_state(state);
 	char attr_force[16];
+	const struct hdr_info *hdr = am_hdmi_info.hdmitx_dev->get_hdr_info();
 
 	am_hdmi_info.hdmitx_dev->get_attr(attr_force);
 
@@ -720,7 +728,17 @@ static int am_hdmitx_connector_atomic_get_property
 	} else if (property == am_hdmi->hdcp_mode_property) {
 		*val = get_hdcp_mode();
 		return 0;
+	} else if (property == am_hdmi->lumi_max_property) {
+		*val = hdr->lumi_max;
+		return 0;
+	} else if (property == am_hdmi->lumi_min_property) {
+		*val = hdr->lumi_min;
+		return 0;
+	} else if (property == am_hdmi->lumi_avg_property) {
+		*val = hdr->lumi_avg;
+		return 0;
 	}
+
 	return -EINVAL;
 }
 
@@ -925,6 +943,7 @@ void meson_hdmitx_atomic_print_state(struct drm_printer *p,
 		hdmitx_state->color_attr_para.colorformat,
 		hdmitx_state->color_attr_para.bitdepth,
 		hdmitx_state->pref_hdr_policy);
+	drm_printf(p, "\t\t picture_aspect_ratio:[%d]\n", state->picture_aspect_ratio);
 }
 
 static bool meson_hdmitx_is_hdcp_running(void)
@@ -1115,6 +1134,14 @@ void meson_hdmitx_update(struct drm_connector_state *new_state,
 	if (am_hdmi_info.android_path)
 		return;
 
+	/*update aspect_ratio*/
+	if (new_state->picture_aspect_ratio != old_state->picture_aspect_ratio) {
+		am_hdmi_info.hdmitx_dev->set_aspect_ratio(new_state->picture_aspect_ratio);
+		new_state->picture_aspect_ratio = am_hdmi_info.hdmitx_dev->get_aspect_ratio();
+		DRM_INFO("set picture_aspect_ratio = %d by property",
+			 new_state->picture_aspect_ratio);
+	}
+
 	/*Linux only implement*/
 	if (old_state->hdcp_content_type
 			!= new_state->hdcp_content_type ||
@@ -1289,16 +1316,21 @@ static int meson_hdmitx_decide_eotf_type
 	 * Currently checking is to confirm crtc_eotf_type == dv/dv_ll mode,
 	 * we need special setting for dv.
 	 */
-	if (hdmitx_state->pref_hdr_policy == MESON_PREF_DV)
-		crtc_eotf_type = HDMI_EOTF_MESON_DOLBYVISION;
-	else if (hdmitx_state->pref_hdr_policy == MESON_PREF_HDR)
+	if (hdmitx_state->pref_hdr_policy == MESON_PREF_DV) {
+		if (meson_crtc_state->dv_mode)
+			crtc_eotf_type = HDMI_EOTF_MESON_DOLBYVISION_LL;
+		else
+			crtc_eotf_type = HDMI_EOTF_MESON_DOLBYVISION;
+	} else if (hdmitx_state->pref_hdr_policy == MESON_PREF_HDR) {
 		crtc_eotf_type = HDMI_EOTF_SMPTE_ST2084;
-	else
+	} else {
 		crtc_eotf_type = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
+	}
 
 	DRM_DEBUG_KMS("%s: default eotf [%u]\n", __func__, crtc_eotf_type);
 
-	if (crtc_eotf_type == HDMI_EOTF_MESON_DOLBYVISION) {
+	if (crtc_eotf_type == HDMI_EOTF_MESON_DOLBYVISION ||
+	    crtc_eotf_type == HDMI_EOTF_MESON_DOLBYVISION_LL) {
 		/*check if dv core valid*/
 		if (meson_crtc_state->crtc_dv_enable)
 			ret = 0;
@@ -1353,10 +1385,10 @@ static void meson_hdmitx_cal_brr(struct am_hdmi_tx *hdmitx,
 				 struct am_meson_crtc_state *crtc_state,
 				 struct drm_display_mode *adj_mode)
 {
-	int i, vic, brr = 60;
+	int i, ret, vic, brr = 60;
 	int num_group;
 	struct drm_vrr_mode_group *group;
-	struct hdmi_format_para *hdmi_para;
+	struct drm_hdmitx_timing_para para;
 	struct drm_vrr_mode_group *groups;
 
 	groups = kcalloc(MAX_VRR_MODE_GROUP, sizeof(*groups), GFP_KERNEL);
@@ -1381,12 +1413,12 @@ static void meson_hdmitx_cal_brr(struct am_hdmi_tx *hdmitx,
 		}
 	}
 
-	hdmi_para = hdmi_get_fmt_paras(vic);
-	if (hdmi_para->vic == HDMI_UNKNOWN) {
+	ret = hdmitx->hdmitx_dev->get_timing_para_by_vic(vic, &para);
+	if (ret < 0) {
 		DRM_ERROR("%s, Get hdmi para by vic [%d] failed.\n",
 			  __func__, vic);
 	} else {
-		strncpy(crtc_state->brr_mode, hdmi_para->hdmitx_vinfo.name,
+		strncpy(crtc_state->brr_mode, para.name,
 			DRM_DISPLAY_MODE_LEN);
 		crtc_state->brr_mode[DRM_DISPLAY_MODE_LEN - 1] = '\0';
 		crtc_state->valid_brr = 1;
@@ -1554,6 +1586,7 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 	}
 
 	am_hdmi_info.hdmitx_on = 1;
+	conn_state->picture_aspect_ratio = am_hdmi_info.hdmitx_dev->get_aspect_ratio();
 }
 
 void meson_hdmitx_encoder_atomic_disable(struct drm_encoder *encoder,
@@ -1709,6 +1742,54 @@ static void meson_hdmitx_init_hdr_cap_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_hdmitx_init_lumi_max_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+			"lumi_max", 0, 1023);
+
+	if (prop) {
+		am_hdmi->lumi_max_property = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to lumi_max property\n");
+	}
+}
+
+static void meson_hdmitx_init_lumi_min_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+			"lumi_min", 0, 1023);
+
+	if (prop) {
+		am_hdmi->lumi_min_property = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to lumi_min property\n");
+	}
+}
+
+static void meson_hdmitx_init_lumi_avg_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+			"lumi_avg", 0, 1023);
+
+	if (prop) {
+		am_hdmi->lumi_avg_property = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to lumi_avg property\n");
+	}
+}
+
 static void meson_hdmitx_init_dv_cap_property(struct drm_device *drm_dev,
 						  struct am_hdmi_tx *am_hdmi)
 {
@@ -1794,6 +1875,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	struct drm_encoder *encoder;
 	struct meson_connector *mesonconn;
 	struct connector_hpd_cb hpd_cb;
+	struct drm_property *aspect_ratio_property;
 	int ret;
 #ifdef CONFIG_CEC_NOTIFIER
 	struct edid *pedid;
@@ -1823,7 +1905,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 				DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
 		}
 	} else {
-		DRM_ERROR("%s no HDCP func regsitered.\n", __func__);
+		DRM_ERROR("%s no HDCP func registered.\n", __func__);
 		am_hdmi_info.android_path = true;
 	}
 
@@ -1891,6 +1973,15 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	meson_hdmitx_init_dv_cap_property(drm, am_hdmi);
 	meson_hdmitx_init_hdcp_ver_property(drm, am_hdmi);
 	meson_hdmitx_init_hdcp_mode_property(drm, am_hdmi);
+	meson_hdmitx_init_lumi_max_property(drm, am_hdmi);
+	meson_hdmitx_init_lumi_min_property(drm, am_hdmi);
+	meson_hdmitx_init_lumi_avg_property(drm, am_hdmi);
+	if (!drm_mode_create_aspect_ratio_property(connector->dev)) {
+		aspect_ratio_property = connector->dev->mode_config.aspect_ratio_property;
+		drm_object_attach_property(&connector->base,
+					   aspect_ratio_property,
+					   DRM_MODE_PICTURE_ASPECT_NONE);
+	}
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi_info.android_path;

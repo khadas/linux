@@ -51,7 +51,8 @@ static const char * const jtag_pinctrl_name[] = {
 	"jtag_a_pins",		"jtag_a_gpio_pins",
 	"jtag_b_pins",		"jtag_b_gpio_pins",
 	"swd_a_pins",		"swd_a_gpio_pins",
-	"jtag_trace_pins",	"jtag_trace_gpio_pins"
+	"jtag_trace_pins_16",	"jtag_trace_gpio_pins_16",
+	"jtag_trace_pins_32",	"jtag_trace_gpio_pins_32"
 };
 
 bool is_jtag_disable(void)
@@ -393,7 +394,7 @@ static int aml_jtag_setup(struct aml_jtag_dev *jdev, char pinctrl_state)
 	unsigned int old_select = jdev->old_select;
 	unsigned int select = jdev->select;
 	struct pinctrl_state *s;
-	int ret;
+	int trace_type, ret;
 
 	if (old_select == select && jdev->old_cluster == jdev->cluster)
 		return 0;
@@ -459,11 +460,14 @@ static int aml_jtag_setup(struct aml_jtag_dev *jdev, char pinctrl_state)
 	ret = of_property_read_bool(jdev->pdev->dev.of_node,
 				    "amlogic,support-jtag-trace");
 	if (ret && !IS_ERR_OR_NULL(s)) {
+		/* In P1, cluster arg was treated as trace type */
+		trace_type = (jdev->cluster ? 2 : 0);
+
 		s = pinctrl_lookup_state(jdev->jtag_pinctrl,
-					 jtag_pinctrl_name[6 + pinctrl_state]);
+			     jtag_pinctrl_name[6 + pinctrl_state + trace_type]);
 		if (IS_ERR_OR_NULL(s)) {
 			dev_err(&jdev->pdev->dev, "could not get %s state\n",
-				jtag_pinctrl_name[6 + pinctrl_state]);
+			     jtag_pinctrl_name[6 + pinctrl_state + trace_type]);
 			return -EINVAL;
 		}
 		ret = pinctrl_select_state(jdev->jtag_pinctrl, s);

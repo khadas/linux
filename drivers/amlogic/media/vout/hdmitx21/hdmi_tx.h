@@ -57,7 +57,7 @@ int hdmitx21_init_reg_map(struct platform_device *pdev);
 void hdmitx21_set_audioclk(u8 hdmitx_aud_clk_div);
 void hdmitx21_disable_clk(struct hdmitx_dev *hdev);
 u32 hdcp21_rd_hdcp22_ver(void);
-void hdmitx_infoframe_send(u8 info_type, u8 *body);
+void hdmitx_infoframe_send(u16 info_type, u8 *body);
 
 /* there are 2 ways to send out infoframes
  * xxx_infoframe_set() will take use of struct xxx_infoframe_set
@@ -66,6 +66,7 @@ void hdmitx_infoframe_send(u8 info_type, u8 *body);
  */
 void hdmi_vend_infoframe_set(struct hdmi_vendor_infoframe *info);
 void hdmi_vend_infoframe_rawset(u8 *hb, u8 *pb);
+void hdmi_vend_infoframe2_rawset(u8 *hb, u8 *pb);
 void hdmi_avi_infoframe_set(struct hdmi_avi_infoframe *info);
 void hdmi_avi_infoframe_rawset(u8 *hb, u8 *pb);
 void hdmi_spd_infoframe_set(struct hdmi_spd_infoframe *info);
@@ -76,6 +77,9 @@ void hdmi_drm_infoframe_rawset(u8 *hb, u8 *pb);
 void hdmi_emp_infoframe_set(struct emp_packet_st *info);
 void hdmi_emp_frame_set_member(struct emp_packet_st *info,
 	enum vrr_component_conf conf, u32 val);
+enum frl_rate_enum hdmitx21_select_frl_rate(bool dsc_en, enum hdmi_vic vic,
+	enum hdmi_colorspace cs, enum hdmi_color_depth cd);
+void hdmitx_frl_training_main(enum frl_rate_enum frl_rate);
 
 enum vrr_type {
 	T_VRR_NONE,
@@ -115,7 +119,7 @@ struct mvrr_const_st {
 	const struct mvrr_const_val *val[];
 };
 
-/* VRR parameters confugration */
+/* VRR parameters configuration */
 struct vrr_conf_para {
 	enum vrr_type type;
 	u8 vrr_enabled;
@@ -218,6 +222,7 @@ enum avi_component_conf {
 	CONF_AVI_YQ01,
 	CONF_AVI_VIC,
 	CONF_AVI_AR,
+	CONF_AVI_CT_TYPE,
 };
 
 enum vrr_component_conf {

@@ -524,7 +524,7 @@ static void ld_func_cfg_ldreg_tm2(struct ld_reg_s *reg)
 	/*u8: rate to SFB_BL_matrix from last frame difference;*/
 
 	reg->reg_ldfw_tf_disable_th = 255;
-	/* u8: 4x is the threshod to disable tf to the alpha
+	/* u8: 4x is the threshold to disable tf to the alpha
 	 *	(SFB_BL_matrix from last frame difference;
 	 */
 
@@ -566,7 +566,7 @@ static void ld_func_cfg_ldreg_tm2(struct ld_reg_s *reg)
 	/*u8:0:1920~61####((Reg->reg_ld_pic_col_max+1)/32)+1;*/
 	reg->reg_bl_matrix_avg = 3167;
 	/* u12: DC of whole picture BL to be subtract from BL_matrix
-	 *	during modeling (Set by FW daynamically)
+	 *	during modeling (Set by FW dynamically)
 	 */
 	reg->reg_bl_matrix_compensate = 3167;
 	/*	u12: DC of whole picture BL to be compensated back to

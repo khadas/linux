@@ -50,7 +50,7 @@
 
 /*
  * every vsync handle
- * vf : curret input vf
+ * vf : current input vf
  * cur_video_sts: current video state
  * called in vpp vs ir :vsync_fisr_in
  * defined(CONFIG_AMLOGIC_MEDIA_FRC)
@@ -155,7 +155,7 @@ int frc_is_on(void)
 	chip = frc_data->match_data->chip;
 
 	if (chip == ID_T3 && is_meson_rev_a() &&
-		READ_FRC_BITS(FRC_TOP_CTRL, 0, 1) == FRC_STATE_ENABLE)
+		(READ_FRC_REG(FRC_TOP_CTRL) & 0x01) == FRC_STATE_ENABLE)
 		return 1;
 
 	return 0;

@@ -938,6 +938,7 @@ static void earctx_set_dmac_freq(struct earc *p_earc, unsigned int freq)
 {
 	unsigned int mpll_freq = freq *
 		mpll2dmac_clk_ratio_by_type(p_earc->tx_audio_coding_type);
+	unsigned long flags;
 
 	/* make sure mpll_freq doesn't exceed MPLL max freq */
 	while (mpll_freq > AML_MPLL_FREQ_MAX)
@@ -958,6 +959,18 @@ static void earctx_set_dmac_freq(struct earc *p_earc, unsigned int freq)
 	clk_set_rate(p_earc->clk_tx_dmac_srcpll, mpll_freq);
 	p_earc->tx_dmac_freq = freq;
 	clk_set_rate(p_earc->clk_tx_dmac, freq);
+
+	spin_lock_irqsave(&s_earc->tx_lock, flags);
+	if (!p_earc->tx_dmac_clk_on) {
+		int ret;
+
+		ret = clk_prepare_enable(p_earc->clk_tx_dmac);
+		if (ret)
+			dev_err(p_earc->dev, "Can't enable earc clk_tx_dmac: %d\n", ret);
+		else
+			p_earc->tx_dmac_clk_on = true;
+	}
+	spin_unlock_irqrestore(&s_earc->tx_lock, flags);
 }
 
 static void earctx_update_clk(struct earc *p_earc,
@@ -1010,7 +1023,10 @@ int aml_earctx_set_audio_coding_type(enum audio_coding_types new_coding_type)
 		channels = s_earc->ss_info.channels;
 		rate = s_earc->ss_info.rate;
 	}
-	earctx_update_clk(s_earc, channels, rate);
+	if (channels > 0 && rate > 0)
+		earctx_update_clk(s_earc, channels, rate);
+	else
+		return 0;
 
 	spin_lock_irqsave(&s_earc->tx_lock, flags);
 	if (!s_earc->tx_dmac_clk_on)
@@ -1045,9 +1061,8 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 	enum attend_type earc_type;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int bit_depth = snd_pcm_format_width(runtime->format);
-	int i, ret;
+	int i;
 	unsigned int chmask = 0, swap_masks = 0;
-	unsigned long flags;
 
 	if (!s_earc)
 		return -ENOTCONN;
@@ -1060,22 +1075,6 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 
 	if (IS_ERR(s_earc->clk_tx_dmac) || IS_ERR(s_earc->clk_tx_dmac_srcpll))
 		return -ENOTCONN;
-
-	/* tx dmac clk */
-	ret = clk_prepare_enable(s_earc->clk_tx_dmac);
-	if (ret) {
-		dev_err(s_earc->dev, "Can't enable earc clk_tx_dmac: %d\n", ret);
-		return ret;
-	}
-	spin_lock_irqsave(&s_earc->tx_lock, flags);
-	s_earc->tx_dmac_clk_on = true;
-	spin_unlock_irqrestore(&s_earc->tx_lock, flags);
-
-	ret = clk_prepare_enable(s_earc->clk_tx_dmac_srcpll);
-	if (ret) {
-		dev_err(s_earc->dev, "Can't enable earc clk_tx_dmac_srcpll:%d\n", ret);
-		return ret;
-	}
 
 	/* same source channels always 2 */
 	s_earc->ss_info.channels =  2;
@@ -1212,27 +1211,8 @@ static int earc_dai_startup(struct snd_pcm_substream *substream,
 {
 	struct earc *p_earc = snd_soc_dai_get_drvdata(cpu_dai);
 	int ret;
-	unsigned long flags;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (IS_ERR(p_earc->clk_tx_dmac) || IS_ERR(p_earc->clk_tx_dmac_srcpll))
-			return -ENOTCONN;
-		/* tx dmac clk */
-		ret = clk_prepare_enable(p_earc->clk_tx_dmac);
-		if (ret) {
-			dev_err(p_earc->dev, "Can't enable earc clk_tx_dmac: %d\n", ret);
-			goto err;
-		}
-		spin_lock_irqsave(&p_earc->tx_lock, flags);
-		p_earc->tx_dmac_clk_on = true;
-		spin_unlock_irqrestore(&p_earc->tx_lock, flags);
-
-		ret = clk_prepare_enable(p_earc->clk_tx_dmac_srcpll);
-		if (ret) {
-			dev_err(p_earc->dev, "Can't enable earc clk_tx_dmac_srcpll:%d\n", ret);
-			goto err;
-		}
-	} else {
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		unsigned long flags;
 
 		if (IS_ERR(p_earc->clk_rx_dmac) || IS_ERR(p_earc->clk_rx_dmac_srcpll))
@@ -1270,19 +1250,8 @@ static void earc_dai_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai)
 {
 	struct earc *p_earc = snd_soc_dai_get_drvdata(cpu_dai);
-	unsigned long flags;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (!IS_ERR(p_earc->clk_tx_dmac)) {
-			clk_disable_unprepare(p_earc->clk_tx_dmac);
-			spin_lock_irqsave(&p_earc->tx_lock, flags);
-			p_earc->tx_dmac_clk_on = false;
-			spin_unlock_irqrestore(&p_earc->tx_lock, flags);
-			p_earc->tx_dmac_freq = 0;
-		}
-		if (!IS_ERR(p_earc->clk_tx_dmac_srcpll))
-			clk_disable_unprepare(p_earc->clk_tx_dmac_srcpll);
-	} else {
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		if (!IS_ERR(p_earc->clk_rx_dmac)) {
 			unsigned long flags;
 
@@ -1820,6 +1789,13 @@ static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode)
 		dev_info(p_earc->dev, "cable is disconnect, no need set\n");
 		return;
 	}
+#if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
+	defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
+	if (!p_earc->tx_earc_mode) {
+		rx_earc_hpd_cntl(); /* reset hpd */
+		aml_earctx_enable_d2a(false);
+	}
+#endif
 	/* set arc initiated and arc_enable */
 	earctx_cmdc_arc_connect(p_earc->tx_cmdc_map, !earc_mode);
 	/* set earc mode */
@@ -1856,7 +1832,7 @@ int earctx_earc_mode_put(struct snd_kcontrol *kcontrol,
 	p_earc->tx_earc_mode = earc_mode;
 	earctx_set_earc_mode(p_earc, earc_mode);
 	if (!earc_mode && earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map) == ATNDTYP_ARC)
-		earctx_update_attend_event(p_earc, false, true);
+		schedule_work(&p_earc->send_uevent);
 
 	return 0;
 }
@@ -2087,9 +2063,10 @@ static int earctx_clk_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct earc *p_earc = dev_get_drvdata(component->dev);
-
-	ucontrol->value.enumerated.item[0] =
-			clk_get_rate(p_earc->clk_tx_dmac);
+	if (!IS_ERR(p_earc->clk_tx_dmac)) {
+		ucontrol->value.enumerated.item[0] =
+				clk_get_rate(p_earc->clk_tx_dmac);
+	}
 	return 0;
 }
 
@@ -2422,10 +2399,13 @@ static void send_uevent_work_func(struct work_struct *p_work)
 	struct earc *p_earc = container_of(p_work, struct earc, send_uevent);
 	enum attend_type type = earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map);
 
-	if (type == ATNDTYP_ARC)
+	if (type == ATNDTYP_ARC) {
+		msleep(700);
+		aml_earctx_enable_d2a(true);
 		earctx_update_attend_event(p_earc, false, true);
-	else if (type == ATNDTYP_DISCNCT)
+	} else if (type == ATNDTYP_DISCNCT) {
 		earctx_update_attend_event(p_earc, false, false);
+	}
 }
 
 void earc_hdmirx_hpdst(int earc_port, bool st)

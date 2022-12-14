@@ -5340,6 +5340,8 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		len = real_len;
 	}
 
+	BT_TRACE("addr: %pMR, type: %d", bdaddr, type);
+
 	/* If the direct address is present, then this report is from
 	 * a LE Direct Advertising Report event. In that case it is
 	 * important to see if the address is matching the local

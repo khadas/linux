@@ -221,6 +221,14 @@
 #define HHI_DIF_CSI_PHY_CNTL8                      0xec
 #define HHI_DIF_CSI_PHY_CNTL9                      0xed
 
+/* AXG use PLL   0xff63c000 */
+#define HHI_GP0_PLL_CNTL_AXG                       0x10
+#define HHI_GP0_PLL_CNTL2_AXG                      0x11
+#define HHI_GP0_PLL_CNTL3_AXG                      0x12
+#define HHI_GP0_PLL_CNTL4_AXG                      0x13
+#define HHI_GP0_PLL_CNTL5_AXG                      0x14
+#define HHI_GP0_PLL_CNTL1_AXG                      0x16
+
 /* G12A use PLL   0xff63c000 */
 #define HHI_GP0_PLL_CNTL0                          0x10
 #define HHI_GP0_PLL_CNTL1                          0x11
@@ -1208,8 +1216,8 @@
  * Bit 12, osd1 enable for postblend
  * Bit 11, reserved
  * Bit 10, vd1 enable for postblend
- * Bit 9,  if true, osd1 is alpha premultipiled
- * Bit 8,  if true, osd2 is alpha premultipiled
+ * Bit 9,  if true, osd1 is alpha premultiplied
+ * Bit 8,  if true, osd2 is alpha premultiplied
  * Bit 7,  postblend module enable
  * Bit 6,  preblend module enable
  * Bit 5,  if true, osd2 foreground compared with osd1 in preblend
@@ -1235,8 +1243,8 @@
  * Bit 12, osd1 enable for postblend
  * Bit 11, vd2 enable for postblend
  * Bit 10, vd1 enable for postblend
- * Bit 9,  if true, osd1 is alpha premultipiled
- * Bit 8,  if true, osd2 is alpha premultipiled
+ * Bit 9,  if true, osd1 is alpha premultiplied
+ * Bit 8,  if true, osd2 is alpha premultiplied
  * Bit 7,  postblend module enable
  * Bit 6,  preblend module enable
  * Bit 5,  if true, osd2 foreground compared with osd1 in preblend
@@ -1671,6 +1679,13 @@ unsigned int lcd_vcbus_getb(unsigned int reg,
 			    unsigned int start, unsigned int len);
 void lcd_vcbus_set_mask(unsigned int reg, unsigned int mask);
 void lcd_vcbus_clr_mask(unsigned int reg, unsigned int mask);
+
+unsigned int lcd_hiu_read(unsigned int reg);
+void lcd_hiu_write(unsigned int reg, unsigned int value);
+void lcd_hiu_setb(unsigned int reg, unsigned int value,
+		  unsigned int start, unsigned int len);
+unsigned int lcd_hiu_getb(unsigned int reg,
+			  unsigned int start, unsigned int len);
 
 unsigned int lcd_clk_read(unsigned int reg);
 void lcd_clk_write(unsigned int reg, unsigned int value);

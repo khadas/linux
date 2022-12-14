@@ -118,16 +118,51 @@ struct hdr_plus_bits_s {
 	u16 len_color_saturation_weight;
 };
 
+struct cuva_md_bits_s {
+	int system_start_code_bits;
+	int min_maxrgb_pq_bits;
+	int avg_maxrgb_pq_bits;
+	int var_maxrgb_pq_bits;
+	int max_maxrgb_pq_bits;
+	int tm_enable_mode_flag_bits;
+	int tm_param_en_num_bits;
+	int tgt_system_dsp_max_luma_pq_bits;
+	int base_en_flag_bits;
+	/*if (base_en_flag)*/
+	int base_param_m_p_bits;
+	int base_param_m_m_bits;
+	int base_param_m_a_bits;
+	int base_param_m_b_bits;
+	int base_param_m_n_bits;
+	int base_param_m_k1_bits;
+	int base_param_m_k2_bits;
+	int base_param_m_k3_bits;
+	int base_param_delta_en_mode_bits;
+	int base_param_en_delta_bits;
+	int spline_en_flag_bits;
+	int spline_en_num_bits;
+	int spline_th_en_mode_bits;
+	int spline_th_en_mb_bits;
+	int spline_th_enable_bits;
+	int spline_th_en_delta1_bits;
+	int spline_th_en_delta2_bits;
+	int spline_en_strengch_bits;
+	int color_sat_mapping_flag_bits;
+	int color_sat_num_bits;
+	int clor_sat_gain_bits;
+};
 extern uint debug_hdr;
 #define HDR_PLUS_IEEE_OUI 0x90848B
 #define SEI_SYNTAX 0x4
 void hdr10_plus_hdmitx_vsif_parser(struct hdr10plus_para
 				   *hdmitx_hdr10plus_param,
 				   struct vframe_s *vf);
-void hdr10_plus_parser_metadata(struct vframe_s *vf);
+void parser_dynamic_metadata(struct vframe_s *vf);
 void hdr10_plus_process(struct vframe_s *vf);
-void hdr10_plus_debug(void);
+void hdr10_plus_debug(int csc_type);
 extern struct vframe_hdr_plus_sei hdr_plus_sei;
-
+void cuva_hdr_vsif_pkt_update(struct cuva_hdr_vsif_para *vsif_para);
+void cuva_hdr_emds_pkt_update(struct cuva_hdr_vs_emds_para *edms_para);
+extern struct cuva_hdr_dynamic_metadata_s cuva_metadata;
 #endif /* AM_HDR_H */
 

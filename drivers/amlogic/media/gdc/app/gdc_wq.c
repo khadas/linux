@@ -71,7 +71,7 @@ u8 __iomem *gdc_map_virt_from_phys(phys_addr_t phys, unsigned long total_size)
 void gdc_unmap_virt_from_phys(u8 __iomem *vaddr)
 {
 	if (vaddr) {
-		/* unmap prevois vaddr */
+		/* unmap previous vaddr */
 		vunmap(vaddr);
 		vaddr = NULL;
 	}

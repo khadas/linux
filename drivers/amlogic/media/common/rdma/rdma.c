@@ -620,6 +620,7 @@ u32 PRE_VSYNC_RD_MPEG_REG(u32 adr)
 	return read_val;
 }
 EXPORT_SYMBOL(PRE_VSYNC_RD_MPEG_REG);
+
 int VSYNC_WR_MPEG_REG(u32 adr, u32 val)
 {
 	int enable_ = cur_enable[cur_vsync_handle_id] & 0xf;
@@ -946,7 +947,7 @@ struct rdma_op_s *get_rdma_ops(int rdma_type)
 
 void set_rdma_handle(int rdma_type, int handle)
 {
-	if (rdma_type <= 6) {
+	if (rdma_type < RDMA_NUM) {
 		vsync_rdma_handle[rdma_type] = handle;
 		pr_info("%s video rdma handle = %d.\n", __func__,
 			vsync_rdma_handle[rdma_type]);
@@ -988,7 +989,7 @@ static int parse_para(const char *para, int para_num, int *result)
 			token++;
 			len--;
 		}
-		if (len == 0)
+		if (len == 0 || !token)
 			break;
 		ret = kstrtoint(token, 0, &res);
 		if (ret < 0)

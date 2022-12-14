@@ -192,7 +192,7 @@ static int vf_provider_close(struct vframe_provider_s *prov)
 		return -1;
 	ret = atomic_add_return(CLOSED_CNT, &prov->use_cnt);
 	while (ret > CLOSED_CNT && wait_max-- > 0) {
-		schedule();/*shecule and  wait for complete.*/
+		schedule();/*schedule and  wait for complete.*/
 		ret = atomic_read(&prov->use_cnt);
 	};
 	if (ret > CLOSED_CNT) {

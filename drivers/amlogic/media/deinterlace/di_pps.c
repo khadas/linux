@@ -171,7 +171,7 @@ const u32 vpp_filter_coefs_3point_triangle_sharp[] = {
 	0x0d660d00
 };
 
-const u32 vpp_filter_coefs_2point_binilear[] = {
+const u32 vpp_filter_coefs_2point_bilinear[] = {
 	2,
 	33,
 	0x80000000, 0x7e020000, 0x7c040000, 0x7a060000,
@@ -190,7 +190,7 @@ static const u32 *filter_table[] = {
 	vpp_filter_coefs_3point_triangle,
 	vpp_filter_coefs_4point_triangle,
 	vpp_filter_coefs_bilinear,
-	vpp_filter_coefs_2point_binilear,
+	vpp_filter_coefs_2point_bilinear,
 	vpp_filter_coefs_bicubic_sharp,
 	vpp_filter_coefs_3point_triangle_sharp,
 	vpp_filter_coefs_3point_bspline,

@@ -115,6 +115,8 @@
 #define VFRAME_FLAG_MIRROR_H                    0x10000000 /*mirror frame horizontally*/
 #define VFRAME_FLAG_MIRROR_V                    0x20000000 /*mirror frame vertically*/
 #define VFRAME_FLAG_PC_MODE			0x40000000
+#define VFRAME_FLAG_ALLM_MODE			0x80000000
+
 #define VFRAME_FLAG_DI_BYPASS			0x08000000
 #define VFRAME_FLAG_DI_GET			0x10000000
 #define VFRAME_FLAG_DI_PVPPLINK			0x20000000
@@ -324,7 +326,10 @@ enum vframe_signal_fmt_e {
 	VFRAME_SIGNAL_FMT_HLG = 4,
 	VFRAME_SIGNAL_FMT_DOVI = 5,
 	VFRAME_SIGNAL_FMT_DOVI_LL = 6,
-	VFRAME_SIGNAL_FMT_MVC = 7
+	VFRAME_SIGNAL_FMT_MVC = 7,
+	VFRAME_SIGNAL_FMT_CUVA_HDR = 8,
+	VFRAME_SIGNAL_FMT_CUVA_HLG = 9,
+	VFRAME_SIGNAL_FMT_MAX = 10
 };
 
 #define SEI_MAGIC_CODE 0x53656920 /* SEI */
@@ -423,7 +428,7 @@ struct vtem_data {
 #define MAX_COMPOSER_COUNT 9
 #define AXIS_INFO_COUNT    4
 
-struct componser_info_t {
+struct composer_info_t {
 	int count;
 	int axis[MAX_COMPOSER_COUNT][AXIS_INFO_COUNT];
 };
@@ -581,6 +586,7 @@ struct vframe_s {
 	u32 bitdepth;
 
 	/*
+	 * bit 31: is_cuva
 	 * bit 30: is_dv
 	 * bit 29: present_flag
 	 * bit 28-26: video_format
@@ -688,6 +694,7 @@ struct vframe_s {
 
 	/* signal format and sei data */
 	struct vframe_src_fmt_s src_fmt;
+	u32 codec_vfmt;
 	/*for di process NR and cts, storage dec vf*/
 	void *vf_ext;
 	u32 di_cm_cnt;
@@ -716,7 +723,7 @@ struct vframe_s {
 	/* currently only for keystone use */
 	unsigned int crc;
 	bool ai_pq_enable;
-	struct componser_info_t *componser_info;
+	struct composer_info_t *composer_info;
 	void *decontour_pre;
 
 	u32 hdr10p_data_size;
@@ -748,4 +755,5 @@ void *get_sei_from_src_fmt(struct vframe_s *vf, u32 *sei_size);
 enum vframe_signal_fmt_e get_vframe_src_fmt(struct vframe_s *vf);
 s32 clear_vframe_src_fmt(struct vframe_s *vf);
 int get_md_from_src_fmt(struct vframe_s *vf);
+char *find_vframe_sei(struct vframe_s *vf, void *sei, u32 size, u32 *ret_size);
 #endif /* VFRAME_H */

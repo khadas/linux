@@ -227,7 +227,8 @@ enum signal_format_enum {
 	FORMAT_HDR10PLUS = 5,
 	FORMAT_SDR_2020 = 6,
 	FORMAT_MVC = 7,
-	FORMAT_PRIMESL = 8,
+	FORMAT_CUVA = 8,
+	FORMAT_PRIMESL = 9,
 };
 
 enum priority_mode_enum  {

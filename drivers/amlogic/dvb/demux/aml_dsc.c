@@ -83,7 +83,7 @@ static int debug_dsc;
 module_param(debug_dsc, int, 0644);
 
 static int s_init_flag;
-static unsigned int gloable_ch_id;
+static unsigned int global_ch_id;
 
 static void _init_per_table(struct dsc_pid_table *head, int n)
 {
@@ -264,12 +264,12 @@ static int _dsc_chan_alloc(struct aml_dsc *dsc,
 	ch->index = index;
 	ch->index00 = -1;
 	ch->next = NULL;
-	ch->id = gloable_ch_id;
+	ch->id = global_ch_id;
 
 	_add_chan_to_list(dsc, ch);
-	*ca_index = gloable_ch_id;
+	*ca_index = global_ch_id;
 
-	gloable_ch_id++;
+	global_ch_id++;
 	return 0;
 }
 
@@ -410,7 +410,7 @@ static int _dsc_chan_set_scb(struct dsc_channel *ch, u8 scb_out, u8 scb_as_is)
 	if (ptmp->valid)
 		dsc_config_pid_table(ptmp, ch->dsc_type);
 
-	if (ch->index00) {
+	if (ch->index00 != -1) {
 		ptmp = _get_dsc_pid_table(ch->index00, ch->dsc_type);
 		if (!ptmp) {
 			dprint("%s _get_dsc_pid_table fail\n", __func__);
@@ -575,7 +575,7 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 			struct dsc_channel *ch;
 
 			ch = _get_chan_from_list(dsc,
-						 d->params.key_params.ca_index);
+						 d->params.scb_params.ca_index);
 			if (ch) {
 				pr_dbg("%s scb:%d, scb_as_is:%d\n",
 				       __func__,
@@ -890,7 +890,7 @@ int dsc_dump_info(char *buf)
 	char sid = 0;
 	char err = 0;
 
-	r = sprintf(buf, "\n pay attation: dsc connected to %s\n\n",
+	r = sprintf(buf, "\n pay attention: dsc connected to %s\n\n",
 			dvb->dsc_pipeline ? "demod" : "local");
 	buf += r;
 	total += r;

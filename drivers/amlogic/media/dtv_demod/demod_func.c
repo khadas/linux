@@ -553,6 +553,10 @@ void demod_set_mode_ts(enum fe_delivery_system delsys)
 	case SYS_DVBT:
 	case SYS_DVBT2:
 		dvbt_mode = 0x110011;
+
+		/* fix T and T2 channel switch unlock. */
+		if (is_meson_t5w_cpu())
+			cfg0.b.adc_regout = 0;
 		break;
 
 	case SYS_DVBS:
@@ -857,7 +861,7 @@ void t3_revb_set_ambus_state(bool enable, bool is_t2)
 		if (reg)
 			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0);
 
-		PR_DBG("%s: read DEMOD_TOP_CFG_REG_4(0x%x): 0x%x.\n",
+		PR_DBGL("%s: read DEMOD_TOP_CFG_REG_4(0x%x): 0x%x.\n",
 				__func__, DEMOD_TOP_CFG_REG_4, reg);
 	}
 
@@ -867,7 +871,7 @@ void t3_revb_set_ambus_state(bool enable, bool is_t2)
 	 */
 	front_write_bits(TEST_BUS_VLD, enable ? 1 : 0, 31, 1);
 
-	PR_DBG("%s: read TEST_BUS_VLD(0x%x): 0x%x.\n",
+	PR_DBGL("%s: read TEST_BUS_VLD(0x%x): 0x%x.\n",
 			__func__, TEST_BUS_VLD, front_read_reg(TEST_BUS_VLD));
 
 	if (is_t2 && reg)
@@ -1146,6 +1150,9 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 					AFIFO_NCO_RATE_WID);
 			front_write_reg(SFIFO_OUT_LENS, 0x0);
 			front_write_reg(0x22, 0x7200a06);
+
+			if (devp->data->hw_ver != DTVDEMOD_HW_S4)
+				demod_top_write_reg(DEMOD_TOP_REG0, 0x0);
 		}
 		break;
 

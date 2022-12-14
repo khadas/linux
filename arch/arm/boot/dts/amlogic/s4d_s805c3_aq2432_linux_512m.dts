@@ -109,7 +109,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x7400000>;
+			size = <0xb000000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
 		};
@@ -839,6 +839,34 @@
 
 &vddcpu0 {
 	status = "okay";
+};
+
+&CPU0 {
+	operating-points-v2 = <&cpu_opp_table0_s805c3>,
+		<&cpu_opp_table1_s805c3>,
+		<&cpu_opp_table2_s805c3>,
+		<&cpu_opp_table3_s805c3>;
+};
+
+&CPU1 {
+	operating-points-v2 = <&cpu_opp_table0_s805c3>,
+		<&cpu_opp_table1_s805c3>,
+		<&cpu_opp_table2_s805c3>,
+		<&cpu_opp_table3_s805c3>;
+};
+
+&CPU2 {
+	operating-points-v2 = <&cpu_opp_table0_s805c3>,
+		<&cpu_opp_table1_s805c3>,
+		<&cpu_opp_table2_s805c3>,
+		<&cpu_opp_table3_s805c3>;
+};
+
+&CPU3 {
+	operating-points-v2 = <&cpu_opp_table0_s805c3>,
+		<&cpu_opp_table1_s805c3>,
+		<&cpu_opp_table2_s805c3>,
+		<&cpu_opp_table3_s805c3>;
 };
 
 &audiobus {

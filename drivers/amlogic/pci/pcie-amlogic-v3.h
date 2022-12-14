@@ -109,6 +109,7 @@
 #define AMLOGIC_PCIE_EP_FUNC_BASE(fn)	(((fn) << 12) & GENMASK(19, 12))
 #define EP_FUNC_MSI_CAP_OFFSET		0x0e0
 
+#define RESETCTRL0_OFFSET	0x0
 #define RESETCTRL1_OFFSET	0x4
 #define RESETCTRL3_OFFSET	0xc
 
@@ -119,6 +120,12 @@ enum pcie_data_rate {
 	PCIE_GEN2,
 	PCIE_GEN3,
 	PCIE_GEN4
+};
+
+enum pcie_phy_type {
+	M31_PHY,
+	M31_COMBPHY,
+	AMLOGIC_PHY,
 };
 
 struct amlogic_pcie {
@@ -137,12 +144,13 @@ struct amlogic_pcie {
 	u32 mem_size;
 	phys_addr_t mem_bus_addr;
 
-	struct pcie_phy	*phy;
+	struct phy	*pcie_phy;
+	u32 phy_type;
 
 	int reset_gpio;
 	u32 gpio_type;
 
-	struct clk *pcie_400m_clk; /*CLKCTRL_USB_CLK_CTRL/1*/
+	struct clk *pcie_400m_clk;
 	struct clk *pcie_tl_clk;
 	struct clk *cts_pcie_clk;
 	struct clk *pcie_clk;
@@ -152,6 +160,7 @@ struct amlogic_pcie {
 
 	struct reset_control *m31phy_rst;/*RESETCTRL_RESET1 bit 21*/
 	struct reset_control *gen3_l0_rst; /*RESETCTRL_RESET1 bit 18*/
+	struct reset_control *gen2_l0_rst;
 	struct reset_control *pcie_apb_rst; /*RESETCTRL_RESET1 bit 14*/
 	struct reset_control *pcie_phy_rst; /*RESETCTRL_RESET1 bit 13*/
 	struct reset_control *pcie_a_rst;   /*RESETCTRL_RESET1 bit 12*/
@@ -170,6 +179,7 @@ struct amlogic_pcie {
 
 	u32 m31phy_rst_bit;
 	u32 gen3_l0_rst_bit;
+	u32 gen2_l0_rst_bit;
 	u32 apb_rst_bit;
 	u32 phy_rst_bit;
 	u32 pcie_a_rst_bit;
@@ -179,6 +189,7 @@ struct amlogic_pcie {
 	bool is_rc;
 
 	u32 lanes;
+	u32 port_num;
 
 	u8 lanes_map;
 	int link_gen;

@@ -787,19 +787,19 @@ static int meson_uart_probe(struct platform_device *pdev)
 	if (prop)
 		mup->for_bt = of_read_ulong(prop, 1);
 
-//	clk = devm_clk_get(&pdev->dev, "clk_gate");
-//	if (IS_ERR(clk)) {
+	clk = devm_clk_get(&pdev->dev, "clk_gate");
+	if (IS_ERR(clk)) {
 //		pr_err("%s: clock gate not found\n", dev_name(&pdev->dev));
 		/* return PTR_ERR(clk); */
-//	} else {
-//		ret = clk_prepare_enable(clk);
-//		if (ret) {
-//			pr_err("uart: clock failed to prepare+enable: %d\n",
-//				ret);
-//			clk_put(clk);
+	} else {
+		ret = clk_prepare_enable(clk);
+		if (ret) {
+			pr_err("uart: clock failed to prepare+enable: %d\n",
+				ret);
+			clk_put(clk);
 			/* return ret; */
-//		}
-//	}
+		}
+	}
 
 	clk = devm_clk_get(&pdev->dev, "clk_uart");
 	if (IS_ERR(clk)) {

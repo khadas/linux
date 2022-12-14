@@ -197,7 +197,7 @@ void c1_dmc_mon_disable(struct dmc_monitor *mon)
 
 struct dmc_mon_ops c1_dmc_mon_ops = {
 	.handle_irq = c1_dmc_mon_irq,
-	.set_montor = c1_dmc_mon_set,
+	.set_monitor = c1_dmc_mon_set,
 	.disable    = c1_dmc_mon_disable,
 	.dump_reg   = c1_dmc_dump_reg,
 };

@@ -58,8 +58,18 @@ struct lcd_extern_dev_s *lcd_extern_get_dev(struct lcd_extern_driver_s *edrv, in
 	if (dev_index >= LCD_EXTERN_INDEX_INVALID)
 		return NULL;
 
-	for (i = 0; i < lcd_ext_dev_cnt[edrv->index]; i++) {
-		if (edrv->dev[i] && edrv->dev[i]->dev_index == dev_index)
+	for (i = 0; i < edrv->dev_cnt; i++) {
+		if (!edrv->dev[i])
+			break;
+
+		if (lcd_debug_print_flag & LCD_DBG_PR_ADV) {
+			EXTPR("%s: dev[%d]: name: %s, dev_index:%d, get dev_index:%d\n",
+				__func__, i,
+				edrv->dev[i]->config.name,
+				edrv->dev[i]->dev_index,
+				dev_index);
+		}
+		if (edrv->dev[i]->dev_index == dev_index)
 			return edrv->dev[i];
 	}
 
@@ -1160,7 +1170,7 @@ init_table_fixed_ukey_err:
 }
 
 static int lcd_extern_get_config_unifykey(struct lcd_extern_driver_s *edrv,
-					  struct lcd_extern_dev_s *edev, char *skey)
+					  struct lcd_extern_dev_s *edev)
 {
 	struct lcd_extern_config_s *econf;
 	struct aml_lcd_unifykey_header_s ext_header;
@@ -1178,16 +1188,16 @@ static int lcd_extern_get_config_unifykey(struct lcd_extern_driver_s *edrv,
 	if (!para)
 		return -1;
 
-	ret = lcd_unifykey_get(skey, para, &key_len);
+	ret = lcd_unifykey_get(edrv->ukey_name, para, &key_len);
 	if (ret)
-		goto lcd_extern_get_config_unifykey_error;
+		goto lcd_ext_get_config_ukey_error;
 
 	/* check lcd_extern unifykey length */
 	len = 10 + 33 + 10;
 	ret = lcd_unifykey_len_check(key_len, len);
 	if (ret) {
 		EXTERR("unifykey length is not correct\n");
-		goto lcd_extern_get_config_unifykey_error;
+		goto lcd_ext_get_config_ukey_error;
 	}
 
 	/* header: 10byte */
@@ -1210,7 +1220,7 @@ static int lcd_extern_get_config_unifykey(struct lcd_extern_driver_s *edrv,
 	if (econf->index == LCD_EXTERN_INDEX_INVALID) {
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			EXTPR("index %d is invalid\n", econf->index);
-		goto lcd_extern_get_config_unifykey_error;
+		goto lcd_ext_get_config_ukey_error;
 	}
 
 	/* type: 10byte */
@@ -1305,7 +1315,7 @@ static int lcd_extern_get_config_unifykey(struct lcd_extern_driver_s *edrv,
 	kfree(para);
 	return 0;
 
-lcd_extern_get_config_unifykey_error:
+lcd_ext_get_config_ukey_error:
 	kfree(para);
 	return 0;
 }
@@ -1498,6 +1508,7 @@ static void lcd_extern_dev_free(struct lcd_extern_dev_s *edev)
 static int lcd_extern_add_dev(struct lcd_extern_driver_s *edrv,
 			      struct lcd_extern_dev_s *edev)
 {
+	struct aml_lcd_drv_s *pdrv;
 	int ret = -1;
 
 	if (edev->config.status == 0) {
@@ -1522,6 +1533,10 @@ static int lcd_extern_add_dev(struct lcd_extern_driver_s *edrv,
 	} else if (strcmp(edev->config.name, "i2c_ANX6862_7911") == 0) {
 		ret = lcd_extern_i2c_ANX6862_7911_probe(edrv, edev);
 #endif
+#ifdef CONFIG_AMLOGIC_LCD_EXTERN_I2C_OLED
+	} else if (strcmp(edev->config.name, "i2c_oled") == 0) {
+		ret = lcd_extern_i2c_oled_probe(edrv, edev);
+#endif
 	} else {
 		EXTERR("[%d]: %s: invalid dev: %s(%d)\n",
 		       edrv->index, __func__,
@@ -1535,6 +1550,12 @@ static int lcd_extern_add_dev(struct lcd_extern_driver_s *edrv,
 		return -1;
 	}
 
+	pdrv = aml_lcd_get_driver(edrv->index);
+	if (pdrv && (pdrv->status & LCD_STATUS_IF_ON)) {
+		if (edev->init)
+			edev->init(edrv, edev);
+	}
+
 	EXTPR("[%d]: %s: %s(%d) ok\n",
 	      edrv->index, __func__,
 	      edev->config.name, edev->dev_index);
@@ -1545,7 +1566,6 @@ static void lcd_extern_dev_probe_work(struct work_struct *work)
 {
 	struct lcd_extern_driver_s *edrv;
 	bool is_init;
-	char skey[15];
 	int index, i, dev_index;
 	int ret;
 
@@ -1553,9 +1573,9 @@ static void lcd_extern_dev_probe_work(struct work_struct *work)
 
 	index = edrv->index;
 	if (edrv->index == 0)
-		sprintf(skey, "lcd_extern");
+		sprintf(edrv->ukey_name, "lcd_extern");
 	else
-		sprintf(skey, "lcd%d_extern", edrv->index);
+		sprintf(edrv->ukey_name, "lcd%d_extern", edrv->index);
 
 	is_init = lcd_unifykey_init_get();
 	i = 0;
@@ -1567,35 +1587,37 @@ static void lcd_extern_dev_probe_work(struct work_struct *work)
 	}
 	if (!is_init) {
 		EXTERR("[%d]: key_init_flag=%d\n", edrv->index, is_init);
-		goto lcd_extern_dev_probe_work_err;
+		goto lcd_ext_dev_probe_work_err;
 	}
 
-	ret = lcd_unifykey_check(skey);
+	ret = lcd_unifykey_check(edrv->ukey_name);
 	if (ret)
-		goto lcd_extern_dev_probe_work_err;
+		goto lcd_ext_dev_probe_work_err;
 
 	dev_index = 0;
-	edrv->dev_cnt = 1;
-	edrv->dev[dev_index] = lcd_extern_dev_malloc(dev_index);
+
+	edrv->dev[edrv->dev_cnt] = lcd_extern_dev_malloc(dev_index);
 	EXTPR("[%d]: %s: from unifykey\n", edrv->index, __func__);
-	ret = lcd_extern_get_config_unifykey(edrv, edrv->dev[dev_index], skey);
+	ret = lcd_extern_get_config_unifykey(edrv, edrv->dev[edrv->dev_cnt]);
 	if (ret) {
-		lcd_extern_dev_free(edrv->dev[dev_index]);
-		edrv->dev[dev_index] = NULL;
-		goto lcd_extern_dev_probe_work_err;
+		lcd_extern_dev_free(edrv->dev[edrv->dev_cnt]);
+		edrv->dev[edrv->dev_cnt] = NULL;
+		goto lcd_ext_dev_probe_work_err;
 	}
 
-	lcd_extern_config_update(edrv, edrv->dev[dev_index]);
-	ret = lcd_extern_add_dev(edrv, edrv->dev[dev_index]);
+	lcd_extern_config_update(edrv, edrv->dev[edrv->dev_cnt]);
+	ret = lcd_extern_add_dev(edrv, edrv->dev[edrv->dev_cnt]);
 	if (ret) {
-		lcd_extern_dev_free(edrv->dev[dev_index]);
-		edrv->dev[dev_index] = NULL;
-		goto lcd_extern_dev_probe_work_err;
+		lcd_extern_dev_free(edrv->dev[edrv->dev_cnt]);
+		edrv->dev[edrv->dev_cnt] = NULL;
+		goto lcd_ext_dev_probe_work_err;
+	} else {
+		edrv->dev_cnt++;
 	}
 
 	return;
 
-lcd_extern_dev_probe_work_err:
+lcd_ext_dev_probe_work_err:
 	/* free drvdata */
 	platform_set_drvdata(edrv->pdev, NULL);
 	/* free drv */
@@ -1647,28 +1669,30 @@ static int lcd_extern_config_load(struct lcd_extern_driver_s *edrv)
 	} else {
 		edrv->config_load = 0;
 		EXTPR("[%d]: %s from dts\n", edrv->index, __func__);
-		for (i = 0; i < edrv->dev_cnt; i++) {
+		for (i = 0; i < lcd_ext_dev_cnt[edrv->index]; i++) {
 			dev_index = lcd_ext_index_lut[edrv->index][i];
 			if (dev_index == LCD_EXTERN_INDEX_INVALID) {
 				EXTPR("[%d]: %s: invalid dev_index\n", edrv->index, __func__);
 				continue;
 			}
-			edrv->dev[dev_index] = lcd_extern_dev_malloc(dev_index);
-			if (!edrv->dev[dev_index])
+			edrv->dev[edrv->dev_cnt] = lcd_extern_dev_malloc(dev_index);
+			if (!edrv->dev[edrv->dev_cnt])
 				continue;
 
-			ret = lcd_extern_get_config_dts(np, edrv, edrv->dev[dev_index]);
+			ret = lcd_extern_get_config_dts(np, edrv, edrv->dev[edrv->dev_cnt]);
 			if (ret) {
-				lcd_extern_dev_free(edrv->dev[dev_index]);
-				edrv->dev[dev_index] = NULL;
+				lcd_extern_dev_free(edrv->dev[edrv->dev_cnt]);
+				edrv->dev[edrv->dev_cnt] = NULL;
 				continue;
 			}
 
-			lcd_extern_config_update(edrv, edrv->dev[dev_index]);
-			ret = lcd_extern_add_dev(edrv, edrv->dev[dev_index]);
+			lcd_extern_config_update(edrv, edrv->dev[edrv->dev_cnt]);
+			ret = lcd_extern_add_dev(edrv, edrv->dev[edrv->dev_cnt]);
 			if (ret) {
-				lcd_extern_dev_free(edrv->dev[dev_index]);
-				edrv->dev[dev_index] = NULL;
+				lcd_extern_dev_free(edrv->dev[edrv->dev_cnt]);
+				edrv->dev[edrv->dev_cnt] = NULL;
+			} else {
+				edrv->dev_cnt++;
 			}
 		}
 	}
@@ -2001,8 +2025,8 @@ static ssize_t lcd_extern_debug_store(struct device *dev,
 	struct lcd_extern_dev_s *edev;
 	unsigned int ret, j;
 	unsigned int val[3];
-	unsigned char reg, value;
-	unsigned char reg_buf[2];
+	unsigned short reg;
+	unsigned char value, reg_buf[2];
 	unsigned int index = LCD_EXTERN_INDEX_INVALID;
 
 	switch (buf[0]) {
@@ -2032,9 +2056,9 @@ static ssize_t lcd_extern_debug_store(struct device *dev,
 			if (!edev)
 				return -EINVAL;
 			edev->addr_sel = (unsigned char)val[0];
-			reg = (unsigned char)val[1];
+			reg = (unsigned short)val[1];
 			if (edev->reg_read) {
-				edev->reg_read(edrv, edev, reg, &value);
+				edev->reg_read(edrv, edev, 1, reg, &value);
 				pr_info("reg read: 0x%02x = 0x%02x\n", reg, value);
 			}
 		} else {
@@ -2049,11 +2073,11 @@ static ssize_t lcd_extern_debug_store(struct device *dev,
 			if (!edev)
 				return -EINVAL;
 			edev->addr_sel = (unsigned char)val[0];
-			reg = (unsigned char)val[1];
+			reg = (unsigned short)val[1];
 			if (edev->reg_read) {
 				pr_info("reg dump:\n");
 				for (j = 0; j < val[2]; j++) {
-					edev->reg_read(edrv, edev, reg + j, &value);
+					edev->reg_read(edrv, edev, 1, reg + j, &value);
 					pr_info("  0x%02x = 0x%02x\n", reg, value);
 				}
 			}
@@ -2070,14 +2094,14 @@ static ssize_t lcd_extern_debug_store(struct device *dev,
 			if (!edev)
 				return -EINVAL;
 			edev->addr_sel = (unsigned char)val[0];
-			reg = (unsigned char)val[1];
+			reg = (unsigned short)val[1];
 			value = (unsigned char)val[2];
 			if (edev->reg_write) {
 				reg_buf[0] = (unsigned char)val[1];
 				reg_buf[1] = (unsigned char)val[2];
 				edev->reg_write(edrv, edev, reg_buf, 2);
 				if (edev->reg_read) {
-					edev->reg_read(edrv, edev, reg, &value);
+					edev->reg_read(edrv, edev, 1, reg, &value);
 					pr_info("reg write 0x%02x = 0x%02x, readback: 0x%02x\n",
 						reg, val[2], value);
 				} else {
@@ -2325,7 +2349,7 @@ static int aml_lcd_extern_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, edrv);
 	ext_cdev_add(edrv, &pdev->dev);
 	edrv->pdev = pdev;
-	edrv->dev_cnt = lcd_ext_dev_cnt[index];
+	edrv->dev_cnt = 0;
 
 	INIT_WORK(&edrv->dev_probe_work, lcd_extern_dev_probe_work);
 	ret = lcd_extern_config_load(edrv);

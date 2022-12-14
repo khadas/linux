@@ -23,7 +23,7 @@
 #include "hdmi_rx_drv_ext.h"
 
 /* repeater */
-#define RX_VER0 "ver.2022/07/26"
+#define RX_VER0 "ver.2022/09/06"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -149,6 +149,7 @@ struct hdmirx_dev_s {
 #define HDMI_IOC_HDCP22_NOT_SUPPORT _IO(HDMI_IOC_MAGIC, 0x0e)
 #define HDMI_IOC_SET_AUD_SAD	_IOW(HDMI_IOC_MAGIC, 0x0f, char*)
 #define HDMI_IOC_GET_AUD_SAD	_IOR(HDMI_IOC_MAGIC, 0x10, char*)
+#define HDMI_IOC_GET_SPD_SRC_INFO	_IOR(HDMI_IOC_MAGIC, 0x11, struct spd_infoframe_st)
 
 #define IOC_SPD_INFO  _BIT(0)
 #define IOC_AUD_INFO  _BIT(1)
@@ -354,7 +355,7 @@ struct rx_video_info {
 	bool hw_dvi;
 
 	u8 hdcp_type;
-	/** bit'0:auth start  bit'1:enc state(0:not endrypted 1:encrypted) **/
+	/** bit'0:auth start  bit'1:enc state(0:not encrypted 1:encrypted) **/
 	u8 hdcp14_state;
 	/** 1:decrypted 0:encrypted **/
 	u8 hdcp22_state;
@@ -487,7 +488,8 @@ struct vsi_info_s {
 	bool low_latency;
 	bool backlt_md_bit;
 	unsigned int eff_tmax_pq;
-	bool allm_mode;
+	bool dv_allm;
+	bool hdmi_allm;
 	bool hdr10plus;
 	u8 ccbpc;
 	u8 vsi_state;
@@ -735,6 +737,7 @@ extern struct workqueue_struct	*repeater_wq;
 extern struct tasklet_struct rx_tasklet;
 extern struct device *hdmirx_dev;
 extern struct rx_s rx;
+extern struct tvin_latency_s latency_info;
 extern struct reg_map rx_reg_maps[MAP_ADDR_MODULE_NUM];
 extern bool downstream_repeat_support;
 extern int vrr_range_dynamic_update_en;
@@ -791,6 +794,11 @@ extern bool hdcp22_stop_auth;
 extern bool hdcp22_esm_reset2;
 extern int esm_recovery_mode;
 extern u32 dbg_pkt;
+
+void hdmitx_update_latency_info(struct tvin_latency_s *latency_info);
+void __attribute__((weak))hdmitx_update_latency_info(struct tvin_latency_s *latency_info)
+{
+}
 
 int rx_set_global_variable(const char *buf, int size);
 void rx_get_global_variable(const char *buf);

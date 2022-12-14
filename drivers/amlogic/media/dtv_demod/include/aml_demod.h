@@ -94,6 +94,7 @@ struct aml_demod_sta {
 	u8_t spectrum;
 	u8_t is_blind_scan;
 	enum fe_delivery_system delsys;
+	u8_t is_singlecable;
 };
 
 struct aml_demod_dvbc {

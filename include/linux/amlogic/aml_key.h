@@ -41,7 +41,8 @@ enum key_algo {
 	KEY_ALGO_CSA3,
 	KEY_ALGO_NDL,
 	KEY_ALGO_ND,
-	KEY_ALGO_S17
+	KEY_ALGO_S17,
+	KEY_ALGO_SM4
 };
 
 struct key_descr {

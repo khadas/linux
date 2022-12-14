@@ -12,9 +12,11 @@
 #include "effects_v2.h"
 #include "vad.h"
 #include "ddr_mngr.h"
+#include "card.h"
 
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/sound/auge_utils.h>
+#include <linux/amlogic/cpu_version.h>
 
 struct snd_elem_info {
 	struct soc_enum *ee;
@@ -23,7 +25,8 @@ struct snd_elem_info {
 	u32 mask;
 };
 
-static unsigned int audio_inskew;
+/* For S4 HIFI used by EMMC/audio, we need force mpll in DTV */
+static bool force_mpll_clk;
 
 #define SND_BYTE(xname, type, func, xshift, xmask)   \
 {                                      \
@@ -371,7 +374,9 @@ static const struct soc_enum audio_inskew_enum =
 static int audio_inskew_get_enum(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.enumerated.item[0] = audio_inskew;
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = get_aml_audio_inskew(card);
 
 	return 0;
 }
@@ -379,6 +384,7 @@ static int audio_inskew_get_enum(struct snd_kcontrol *kcontrol,
 static int audio_inskew_set_enum(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	unsigned int reg_in, off_set;
 	int inskew;
 	int id;
@@ -395,7 +401,8 @@ static int audio_inskew_set_enum(struct snd_kcontrol *kcontrol,
 		return 0;
 	}
 
-	audio_inskew = inskew;
+	set_aml_audio_inskew(card, inskew);
+	set_aml_audio_inskew_index(card, id);
 	off_set = EE_AUDIO_TDMIN_B_CTRL - EE_AUDIO_TDMIN_A_CTRL;
 	reg_in = EE_AUDIO_TDMIN_A_CTRL + off_set * id;
 	pr_info("id=%d set inskew=%d\n", id, inskew);
@@ -431,6 +438,25 @@ static int tdmout_c_binv_set_enum(struct snd_kcontrol *kcontrol,
 
 	binv = ucontrol->value.enumerated.item[0];
 	audiobus_update_bits(EE_AUDIO_CLK_TDMOUT_C_CTRL, 0x1 << 29, binv << 29);
+
+	return 0;
+}
+
+static int clk_get_force_mpll(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = force_mpll_clk;
+
+	return 0;
+}
+
+static int clk_set_force_mpll(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	/* only valid for S4 */
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_S4)
+		force_mpll_clk = ucontrol->value.integer.value[0];
+	pr_info("%s: force_mpll_clk = %d\n", __func__, force_mpll_clk);
 
 	return 0;
 }
@@ -480,6 +506,10 @@ static const struct snd_kcontrol_new snd_auge_controls[] = {
 		     tdmout_c_binv_enum,
 		     tdmout_c_binv_get_enum,
 		     tdmout_c_binv_set_enum),
+	SOC_SINGLE_BOOL_EXT("DTV clk force MPLL",
+			0,
+			clk_get_force_mpll,
+			clk_set_force_mpll),
 };
 
 int snd_card_add_kcontrols(struct snd_soc_card *card)
@@ -569,7 +599,7 @@ EXPORT_SYMBOL(auge_toacodec_ctrl_ext);
 
 void fratv_enable(bool enable)
 {
-	/* Need reset firstlry ? */
+	/* Need reset firstly ? */
 	if (enable) {
 		audiobus_update_bits(EE_AUDIO_FRATV_CTRL0,
 				     0x1 << 29, 0x1 << 29);
@@ -604,4 +634,9 @@ void cec_arc_enable(int src, bool enable)
 	/* bits[1:0], 0x2: common; 0x1: single; 0x0: disabled */
 	aml_hiubus_update_bits(HHI_HDMIRX_ARC_CNTL, 0x1f << 0,
 			       src << 2 | (enable ? 0x1 : 0) << 0);
+}
+
+bool is_force_mpll_clk(void)
+{
+	return force_mpll_clk;
 }
