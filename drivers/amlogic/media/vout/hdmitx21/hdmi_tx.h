@@ -50,6 +50,7 @@ enum hdcptx_oprcmd {
 	HDCP22_SET_TOPO,
 	HDCP22_GET_TOPO,
 	CONF_ENC_IDX, /* 0: get idx; 1: set idx */
+	HDMITX_GET_RTERM, /* get the rterm value */
 };
 
 /* DDC bus error codes */

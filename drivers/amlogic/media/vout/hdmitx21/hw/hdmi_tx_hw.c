@@ -501,16 +501,16 @@ void phy_hpll_off(void)
 static void set_phy_by_mode(u32 mode)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	u32 tmds_clk = 0;
 
 	switch (hdev->data->chip_type) {
 	case MESON_CPU_ID_T7:
 		set21_phy_by_mode_t7(mode);
 		break;
 	case MESON_CPU_ID_S5:
-		if (hdev->frl_rate)
-			set21_phy_by_frl_mode_s5(hdev->frl_rate);
-		else /* for legacy mode */
-			set21_phy_by_mode_s5(mode);
+		tmds_clk = hdev->para->tmds_clk;
+		pr_info("%s[%d] tmds_clk %d\n", __func__, __LINE__, tmds_clk);
+		hdmitx_set_s5_phypara(hdev->frl_rate, tmds_clk);
 		break;
 	default:
 		pr_info("%s: Not match chip ID\n", __func__);
