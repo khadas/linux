@@ -1,0 +1,11 @@
+#
+# cabc aad algorithm configuration
+#
+
+config AMLOGIC_AAD_ALGORITHM
+	tristate "Amlogic AAD Algorithm"
+	default m
+	depends on AMLOGIC_MEDIA_ENHANCEMENT_VECM
+	help
+		AAD algorithm
+		Configure algorithm for AAD function

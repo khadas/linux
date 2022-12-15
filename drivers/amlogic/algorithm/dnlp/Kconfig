@@ -1,0 +1,12 @@
+#
+# DNLP Algorithm Driver Configuration
+#
+
+config AMLOGIC_DNLP_ALGORITHM
+	tristate "Amlogic DNLP Algorithm"
+	default m
+	depends on AMLOGIC_MEDIA_ENHANCEMENT_VECM
+	help
+		DNLP algorithm
+		Configure algorithm for DNLP function
+

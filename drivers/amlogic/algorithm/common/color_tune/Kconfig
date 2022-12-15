@@ -1,0 +1,11 @@
+#
+# blue stretch algorithm configuration
+#
+
+config AMLOGIC_COLOR_TUNE_ALGORITHM
+	tristate "Amlogic Color Tune Algorithm"
+	default m
+	depends on AMLOGIC_MEDIA_ENHANCEMENT_VECM
+	help
+		PREGM algorithm
+		Configure algorithm for blue stretch function

@@ -1,0 +1,11 @@
+#
+# hdr10_tmo algorithm configuration
+#
+
+config AMLOGIC_HDR10_TMO_ALGORITHM
+	tristate "Amlogic hdr10_tmo Algorithm"
+	default m
+	depends on AMLOGIC_MEDIA_ENHANCEMENT_VECM
+	help
+		HDR10_TMO algorithm
+		Configure algorithm for HDR10_TMO function

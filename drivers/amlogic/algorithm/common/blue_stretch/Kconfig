@@ -1,0 +1,11 @@
+#
+# blue stretch algorithm configuration
+#
+
+config AMLOGIC_BLS_ALGORITHM
+	tristate "Amlogic BLS Algorithm"
+	default m
+	depends on AMLOGIC_MEDIA_ENHANCEMENT_VECM
+	help
+		PREGM algorithm
+		Configure algorithm for blue stretch function
