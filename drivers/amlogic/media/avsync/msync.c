@@ -1342,7 +1342,7 @@ static void pcr_check(struct sync_session *session)
 	u32 checkin_vpts = AVS_INVALID_PTS;
 	u32 checkin_apts = AVS_INVALID_PTS;
 	u32 min_pts = AVS_INVALID_PTS;
-	int max_gap = 40;
+	int max_gap = sync.start_buf_thres / 900 * 4 / 3;
 	u32 flag, last_pts, gap_cnt = 0;
 
 	if (session->a_active) {
