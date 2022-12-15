@@ -1044,7 +1044,7 @@ static int lcd_tcon_top_set_t5(struct aml_lcd_drv_s *pdrv)
 		lcd_tcon_write(pdrv, TCON_TOP_CTRL, 0x8b99);
 	}
 	lcd_tcon_write(pdrv, TCON_PLLLOCK_CNTL, 0x0037);
-	lcd_tcon_write(pdrv, TCON_RST_CTRL, 0x003f);
+	//lcd_tcon_write(pdrv, TCON_RST_CTRL, 0x003f);
 	lcd_tcon_write(pdrv, TCON_RST_CTRL, 0x0000);
 	lcd_tcon_write(pdrv, TCON_DDRIF_CTRL0, 0x33fff000);
 	lcd_tcon_write(pdrv, TCON_DDRIF_CTRL1, 0x300300);
