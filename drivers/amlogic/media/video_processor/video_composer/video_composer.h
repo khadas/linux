@@ -149,6 +149,12 @@ enum com_buffer_status {
 	INIT_ERROR,
 };
 
+enum com_dev_choice {
+	GE2D = 0,
+	DEWARP = 1,
+	VICP = 2,
+};
+
 struct video_composer_port_s {
 	const char *name;
 	u32 index;
