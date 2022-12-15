@@ -73,6 +73,7 @@ obj-$(CONFIG_AMLOGIC_MCLK_GPIO) += gpio/
 obj-$(CONFIG_AMLOGIC_TEE2) += tee_driver/
 obj-y   += media_modules/
 obj-y   += isp_module/
+obj-y	+= adla/
 
 KBUILD_CFLAGS_MODULE += $(GKI_EXT_MODULE_PREDEFINE)
 
