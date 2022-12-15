@@ -305,7 +305,7 @@
 			<0x0 0xfe0102dc 0x0 0x4>; /*SYSCTRL_STICKY_REG7*/
 	};
 
-	aml_reboot {
+	aml_reboot: aml_reboot {
 		compatible = "aml, reboot";
 		sys_reset = <0x84000009>;
 		sys_poweroff = <0x84000008>;
@@ -1200,7 +1200,7 @@
 				reg = <0x0 0x48000 0x0 0x1c>;
 			};
 
-			watchdog@2100 {
+			watchdog: watchdog@2100 {
 				compatible = "amlogic,meson-sc2-wdt";
 				status = "okay";
 				/* 0:userspace, 1:kernel */
@@ -1973,6 +1973,7 @@
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1";
 			card_type = <5>;
+			use_intf3_tuning;
 			mmc_debug_flag;
 			//resets = <&reset RESET_SD_EMMC_B>;
 		};
@@ -3249,7 +3250,7 @@
 		key_3:key_3{
 			keyname = "usid";
 			offset = <18>;
-			size = <16>;
+			size = <10>;
 		};
 	};
 	gpu_opp_table: gpu_opp_table {
