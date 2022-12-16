@@ -460,13 +460,14 @@ static void sensor_set_mode( void *ctx, uint8_t mode )
     acamera_sbus_ptr_t p_sbus = &p_ctx->sbus;
     uint8_t setting_num = param->modes_table[mode].num;
 
+/*
     pwr_am_enable(p_ctx->sbp, pwr_dts_pin_name, config_sensor_idx, 1);
     sensor_hw_reset_enable();
     system_timer_usleep( 10000 );
     sensor_hw_reset_disable();
     pwr_am_enable(p_ctx->sbp, pwr_dts_pin_name, config_sensor_idx, 0);
     system_timer_usleep( 10000 );
-
+*/
     p_ctx->again[0] = 0;
     p_ctx->int_time_S = 0;
     p_ctx->int_time_L = 0;
@@ -630,35 +631,10 @@ static sensor_context_t *sensor_global_parameter(void* sbp)
     // Local sensor data structure
     int ret;
     sensor_bringup_t* sensor_bp = (sensor_bringup_t*) sbp;
-#if PLATFORM_G12B
-#if NEED_CONFIG_BSP
-    ret = pwr_am_enable(sensor_bp, pwr_dts_pin_name, config_sensor_idx, 0);
-    if (ret < 0 )
-        pr_err("set power fail\n");
-    udelay(30);
-#endif
 
-    ret = clk_am_enable(sensor_bp, "g12a_24m");
-    if (ret < 0 )
-        pr_err("set mclk fail\n");
-
-#elif PLATFORM_C308X
-    ret = pwr_am_enable(sensor_bp, pwr_dts_pin_name, config_sensor_idx, 0);
-    if (ret < 0 )
-        pr_err("set power fail\n");
-    mdelay(50);
-    ret = clk_am_enable(sensor_bp, "g12a_24m");
-    if (ret < 0 )
-        pr_err("set mclk fail\n");
-    write1_reg(0xfe000428, 0x11400400);
-
-#else
     ret = gp_pl_am_enable(sensor_bp, "mclk_0", 24000000);
     if (ret < 0 )
         pr_info("set mclk fail\n");
-#endif
-
-    udelay(30);
 
 #if NEED_CONFIG_BSP
     ret = reset_am_enable(sensor_bp, reset_dts_pin_name, config_sensor_idx, 1);
@@ -744,6 +720,7 @@ void sensor_init_ov08a10( void **ctx, sensor_control_t *ctrl, void *sbp )
 int sensor_detect_ov08a10( void* sbp)
 {
     int ret = 0;
+    int times = 10;
     sensor_ctx.sbp = sbp;
     sensor_bringup_t* sensor_bp = (sensor_bringup_t*) sbp;
 
@@ -751,11 +728,24 @@ int sensor_detect_ov08a10( void* sbp)
     if (ret < 0 )
         pr_info("set mclk fail\n");
 
-#if NEED_CONFIG_BSP
+    ret = pwr_am_enable(sensor_bp, pwr_dts_pin_name, config_sensor_idx, 1);
+    if (ret < 0 )
+        pr_err("set pwr fail\n");
+    else
+        pr_err("set pwr 1\n");
+
+    ret = reset_am_enable(sensor_bp, reset_dts_pin_name, config_sensor_idx, 0);
+    if (ret < 0 )
+        pr_err("set reset fail\n");
+
+	system_timer_usleep( 1000 );
+
     ret = reset_am_enable(sensor_bp, reset_dts_pin_name, config_sensor_idx, 1);
     if (ret < 0 )
         pr_err("set reset fail\n");
-#endif
+
+    system_timer_usleep( 5000 );
+
     sensor_ctx.sbus.mask = SBUS_MASK_SAMPLE_8BITS | SBUS_MASK_ADDR_16BITS | SBUS_MASK_ADDR_SWAP_BYTES;
     sensor_ctx.sbus.control = 0;
     sensor_ctx.sbus.bus = 0;
@@ -763,10 +753,14 @@ int sensor_detect_ov08a10( void* sbp)
     acamera_sbus_init( &sensor_ctx.sbus, sbus_i2c );
 
     ret = 0;
-    if (sensor_get_id(&sensor_ctx) == 0xFFFF)
-        ret = -1;
-    else
-        pr_info("sensor_detect_os08a10:%d\n", ret);
+    while(times--) {
+        if (sensor_get_id(&sensor_ctx) == 0xFFFF) {
+            ret = -1;
+        } else {
+            pr_info("sensor_detect_os08a10:%d\n", ret);
+            break;
+        }
+    }
 
     acamera_sbus_deinit(&sensor_ctx.sbus,  sbus_i2c);
     reset_am_disable(sensor_bp, config_sensor_idx);
