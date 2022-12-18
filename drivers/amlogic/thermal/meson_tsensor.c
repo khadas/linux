@@ -20,6 +20,7 @@
 #include <linux/amlogic/secmon.h>
 #include "../../thermal/thermal_core.h"
 #include "../../thermal/thermal_hwmon.h"
+#include <linux/reset.h>
 
 /*r1p1 thermal sensor version*/
 #define R1P1_TS_CFG_REG1	(0x1 * 4)
@@ -132,6 +133,7 @@ struct meson_tsensor_data {
 	u32	trim_info;
 	struct thermal_zone_device *tzd;
 	unsigned int ntrip;
+	struct reset_control *rst;
 	int (*tsensor_hw_initialize)(struct platform_device *pdev);
 	int (*tsensor_trips_initialize)(struct platform_device *pdev);
 	void (*tsensor_control)(struct platform_device *pdev,
@@ -646,6 +648,10 @@ static int meson_map_dt_data(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	data->rst = devm_reset_control_get(&pdev->dev, "ts_rst");
+	if (IS_ERR(data->rst))
+		dev_warn(&pdev->dev, "Does not support reset func..\n");
+
 	if (of_address_to_resource(pdev->dev.of_node, 0, &res)) {
 		dev_err(&pdev->dev, "failed to get Resource 0\n");
 		return -ENODEV;
@@ -821,12 +827,28 @@ static int __maybe_unused meson_tsensor_hw_resume(struct device *dev)
 #ifdef CONFIG_PM_SLEEP
 static int meson_tsensor_suspend(struct device *dev)
 {
+	struct meson_tsensor_data *data =
+		platform_get_drvdata(to_platform_device(dev));
+
 	meson_tsensor_control(to_platform_device(dev), false);
+	if (!IS_ERR(data->rst)) {
+		dev_warn(dev, "reset sensor...\n");
+		reset_control_assert(data->rst);
+	}
+
 	return 0;
 }
 
 static int meson_tsensor_resume(struct device *dev)
 {
+	struct meson_tsensor_data *data =
+		platform_get_drvdata(to_platform_device(dev));
+
+	if (!IS_ERR(data->rst)) {
+		dev_warn(dev, "Release sensor's reset...\n");
+		if (reset_control_deassert(data->rst))
+			dev_err(dev, "Release sensor's reset failed!!!...\n");
+	}
 	meson_tsensor_hw_resume(dev);
 
 	return 0;

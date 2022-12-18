@@ -2379,6 +2379,8 @@
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
 		power-domains = <&pwrdm PDID_S5_MALI_TOP>;
+		reset-names = "ts_rst";
+		resets = <&reset RESET_TS_GPU>;
 	};
 
 	a55_tsensor: a55_tsensor@fe022000 {
@@ -2393,6 +2395,8 @@
 		clocks = <&clkc CLKID_TS_CLK>;
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
+		reset-names = "ts_rst";
+		resets = <&reset RESET_TS_A55>;
 	};
 
 	vpu_tsensor: vpu_tsensor@fe0a2000 {
@@ -2407,6 +2411,8 @@
 		clocks = <&clkc CLKID_TS_CLK>;
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
+		reset-names = "ts_rst";
+		resets = <&reset RESET_TS_VPU>;
 	};
 
 	dos_tsensor: dos_tsensor@fe0a4000 {
@@ -2422,6 +2428,8 @@
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
 		power-domains = <&pwrdm PDID_S5_DOS_TOP_WRAP>;
+		reset-names = "ts_rst";
+		resets = <&reset RESET_TS_DOS>;
 	};
 
 	nna_tsensor: nna_tsensor@fe096000 {
@@ -2437,6 +2445,8 @@
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
 		power-domains = <&pwrdm PDID_S5_NNA_4T>;
+		reset-names = "ts_rst";
+		resets = <&reset RESET_TS_NNA>;
 	};
 
 	meson_cooldev: meson-cooldev@0 {
