@@ -1848,6 +1848,18 @@ static struct venc_config_s dummy_venc_conf_sc2 = {
 	.venc_offset = 0,
 };
 
+static struct venc_config_s dummy_venc_conf_s5 = {
+	/* ENC0 */
+	.vid_clk_ctrl_reg = CLKCTRL_VID_CLK0_CTRL,
+	.vid_clk_ctrl2_reg = CLKCTRL_VID_CLK0_CTRL2,
+	.vid_clk_div_reg = CLKCTRL_VID_CLK0_DIV,
+	.vid2_clk_ctrl_reg = CLKCTRL_VID_CLK0_CTRL,
+	.vid2_clk_div_reg = CLKCTRL_VID_CLK0_DIV,
+
+	.venc_index = 0,
+	.venc_offset = 0,
+};
+
 static struct venc_config_s dummy_venc_conf_t7_0 = {
 	/* ENC0 */
 	.vid_clk_ctrl_reg = CLKCTRL_VID_CLK0_CTRL,
@@ -1960,7 +1972,7 @@ static struct dummy_venc_data_s dummy_venc_match_data_t5w = {
 };
 
 static struct dummy_venc_data_s dummy_venc_match_data_s5 = {
-	.vconf = &dummy_venc_conf_t7_0,
+	.vconf = &dummy_venc_conf_s5,
 
 	.chip_type = DUMMY_VENC_S5,
 	.default_venc_index = 0,
