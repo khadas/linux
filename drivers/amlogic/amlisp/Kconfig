@@ -1,0 +1,9 @@
+menu "Amlogic AML ISP Support"
+
+config AMLOGIC_AML_ISP
+	tristate "amlogic AML ISP module"
+	default m
+	help
+	  Driver for AML ISP.
+
+endmenu
