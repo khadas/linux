@@ -778,6 +778,7 @@ static ssize_t pts_enforce_pulldown_write_file(struct file *file,
 	if (copy_from_user(buf, userbuf, count))
 		return -EFAULT;
 	buf[count] = 0;
+	/*coverity[tainted_data] buf from user without tainted*/
 	ret = kstrtouint(buf, 0, &write_val);
 	if (ret != 0)
 		return -EINVAL;
@@ -4555,6 +4556,7 @@ static void amdolby_vision_proc
 				v_size /=
 					(cur_frame_par_2->vscale_skip_count + 1);
 				frame_size_2 = (h_size << 16) | v_size;
+				/*coverity[dead_error_line] reserve code*/
 			} else if (disp_vf_2) {
 				h_size = (disp_vf_2->type & VIDTYPE_COMPRESS) ?
 					disp_vf_2->compWidth : disp_vf_2->width;
@@ -15285,7 +15287,7 @@ static ssize_t hist_test_show(struct class *cla,
 #define VI_HIST_SPL_PIX_CNT (0x2e05)
 #define VI_HIST_CHROMA_SUM (0x2e06)
 	ssize_t len = 0;
-	u32 hist_result[4];
+	u32 hist_result[4] = {0};
 
 	if (hist_test_flag) {
 		if (cur_dev->display_module != S5_DISPLAY_MODULE) {

@@ -575,6 +575,7 @@ static void disable_video_layer_s5(u32 layer_id, u32 async)
 		VD3_MEM_POWER_OFF();
 		break;
 	}
+	/*coverity[overrun-local] Max layer count is 3,layer_id won't be 4*/
 	if (vd_layer[layer_id].global_debug & DEBUG_FLAG_BASIC_INFO)
 		pr_info("VIDEO(%d): DisableVideoLayer()\n", layer_id);
 }
@@ -1524,6 +1525,7 @@ void safe_switch_videolayer(u8 layer_id, bool on, bool async)
 			enable_video_layer2();
 		} else {
 			if (cur_dev->display_module == S5_DISPLAY_MODULE)
+				/*coverity[overrun-call] layer_id can use u8 type*/
 				disable_video_layer_s5(layer_id, async);
 			else
 				disable_video_layer2(async);
@@ -1535,6 +1537,7 @@ void safe_switch_videolayer(u8 layer_id, bool on, bool async)
 			enable_video_layer3();
 		} else {
 			if (cur_dev->display_module == S5_DISPLAY_MODULE)
+				/*coverity[overrun-call] layer_id can use u8 type*/
 				disable_video_layer_s5(layer_id, async);
 			else
 				disable_video_layer3(async);
@@ -8625,6 +8628,7 @@ int set_layer_display_canvas_s5(struct video_layer_s *layer,
 	/* switch buffer */
 	if (!glayer_info[layer_id].need_no_compress &&
 	    (vf->type & VIDTYPE_COMPRESS)) {
+	    /*coverity[overrun-local]*/
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_afbc_reg->afbc_head_baddr,
 			vf->compHeadAddr >> 4);
