@@ -750,7 +750,36 @@ set_rst_reg:
 	return 0;
 }
 
-void amlogic_pcie_set_reset_gpio(struct amlogic_pcie *amlogic)
+static int amlogic_pcie_get_reset_gpio(struct amlogic_pcie *amlogic)
+{
+	struct device *dev = amlogic->dev;
+	struct device_node *node = dev->of_node;
+	int ret;
+
+	ret = of_property_read_u32(node, "gpio-type",
+				   &amlogic->gpio_type);
+	if (ret) {
+		dev_err(dev, "failed to request gpio-type\n");
+		return ret;
+	}
+
+	amlogic->reset_gpio = of_get_named_gpio(node, "reset-gpio", 0);
+	if (gpio_is_valid(amlogic->reset_gpio)) {
+		ret = devm_gpio_request_one(dev, amlogic->reset_gpio,
+					    GPIOF_OUT_INIT_HIGH,
+					    "pcie_perst");
+		if (ret) {
+			dev_err(dev, "unable to get reset gpio\n");
+			return ret;
+		}
+	} else {
+		dev_err(dev, "failed to get reset-gpio\n");
+		return -ENODEV;
+	}
+	return 0;
+}
+
+static int amlogic_pcie_set_reset_gpio(struct amlogic_pcie *amlogic)
 {
 	struct device *dev = amlogic->dev;
 	int ret = 0;
@@ -760,35 +789,30 @@ void amlogic_pcie_set_reset_gpio(struct amlogic_pcie *amlogic)
 		dev_info(dev, "gpio multiplex, don't reset!\n");
 	} else if (amlogic->gpio_type == 1) {
 		dev_info(dev, "pad gpio\n");
-		if (amlogic->reset_gpio >= 0)
-			ret = devm_gpio_request_one(dev,
-						    amlogic->reset_gpio,
-						    GPIOF_OUT_INIT_HIGH,
-						    "PERST");
-
-		if (!ret && gpio_is_valid(amlogic->reset_gpio)) {
+		if (gpio_is_valid(amlogic->reset_gpio)) {
 			dev_info(dev, "GPIO pad: assert reset\n");
-			gpio_direction_output(amlogic->reset_gpio, 0);
+			ret = gpio_direction_output(amlogic->reset_gpio, 0);
+			if (ret)
+				return ret;
 			usleep_range(5000, 6000);
-			gpio_direction_input(amlogic->reset_gpio);
+			ret = gpio_direction_input(amlogic->reset_gpio);
+			if (ret)
+				return ret;
 		}
 	} else {
 		dev_info(dev, "normal gpio\n");
-		if (amlogic->reset_gpio >= 0) {
-			ret = devm_gpio_request_one(dev,
-						    amlogic->reset_gpio,
-						    GPIOF_OUT_INIT_HIGH,
-						    "PERST");
-			if (!ret)
-				gpio_direction_output(amlogic->reset_gpio, 0);
-		}
 		if (gpio_is_valid(amlogic->reset_gpio)) {
 			dev_info(dev, "GPIO normal: assert reset\n");
-			gpio_set_value_cansleep(amlogic->reset_gpio, 0);
-			usleep_range(5000, 6000);
 			gpio_set_value_cansleep(amlogic->reset_gpio, 1);
+			usleep_range(500, 1000);
+			gpio_set_value_cansleep(amlogic->reset_gpio, 0);
+			usleep_range(5000, 8000);
+			gpio_set_value_cansleep(amlogic->reset_gpio, 1);
+			usleep_range(500, 1000);
 		}
 	}
+
+	return 0;
 }
 
 static int amlogic_pcie_get_clks(struct amlogic_pcie *amlogic)
@@ -848,13 +872,9 @@ int amlogic_pcie_parse_dt(struct amlogic_pcie *amlogic)
 	struct resource *res;
 	int err;
 
-	if (of_get_property(dev->of_node, "pinctrl-names", NULL))
-		amlogic->p = devm_pinctrl_get_select_default(dev);
-
-	err = of_property_read_u32(node, "gpio-type",
-				   &amlogic->gpio_type);
-
-	amlogic->reset_gpio = of_get_named_gpio(node, "reset-gpio", 0);
+	err = amlogic_pcie_get_reset_gpio(amlogic);
+	if (err)
+		return err;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					   "apb-base");
@@ -1125,13 +1145,14 @@ int amlogic_pcie_init_port(struct amlogic_pcie *amlogic)
 		val &= ~PORT_TYPE;
 	amlogic_pciectrl_write(amlogic, val, PCIE_A_CTRL0);
 
-	amlogic_pcie_set_reset_gpio(amlogic);
+	if (amlogic_pcie_set_reset_gpio(amlogic))
+		dev_err(dev, "Set pcie reset gpio faile\n");
 
 	if (!amlogic_pcie_link_up(amlogic))
 		return -ETIMEDOUT;
 	regs = amlogic_pcieinter_read(amlogic, PCIE_BASIC_STATUS);
 
-	dev_info(dev, "current linK speed is GEN%d,link width is x%d\n",
+	dev_info(dev, "current link speed is GEN%d,link width is x%d\n",
 		 ((regs >> 8) & 0x3f), (regs & 0xff));
 
 	return ret;
