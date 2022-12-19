@@ -1755,7 +1755,8 @@ static void vframe_composer(struct composer_dev *dev)
 	check_dewarp_support_status(dev, received_frames_tmp);
 	is_tvp = received_frames_tmp->is_tvp;
 	if (meson_uvm_get_usage(received_frames_tmp->file_vf[0]->private_data, &usage) < 0)
-		vc_print(dev->index, PRINT_ERROR, "meson_uvm_get_usage fail.\n");
+		vc_print(dev->index, PRINT_ERROR,
+			"%s:meson_uvm_get_usage fail.\n", __func__);
 	ret = video_composer_init_buffer(dev, is_tvp, usage);
 	if (ret != 0) {
 		vc_print(dev->index, PRINT_ERROR, "vc: init buffer failed!\n");
@@ -2069,6 +2070,8 @@ static void vframe_composer(struct composer_dev *dev)
 	} else {
 		dst_vf->type = (VIDTYPE_VIU_444 | VIDTYPE_VIU_SINGLE_PLANE | VIDTYPE_VIU_FIELD);
 	}
+	if (usage == UVM_USAGE_IMAGE_PLAY)
+		dst_vf->type |= VIDTYPE_PIC;
 
 	if (is_tvp)
 		dst_vf->flag |= VFRAME_FLAG_VIDEO_SECURE;
@@ -2308,6 +2311,7 @@ static void video_composer_task(struct composer_dev *dev)
 	u64 delay_time2;
 	u64 now_time;
 	struct vd_prepare_s *vd_prepare = NULL;
+	size_t usage = 0;
 
 	if (!kfifo_peek(&dev->receive_q, &received_frames)) {
 		vc_print(dev->index, PRINT_ERROR, "task: peek failed\n");
@@ -2553,6 +2557,9 @@ static void video_composer_task(struct composer_dev *dev)
 				vf->canvas0_config[0].height;
 			vf->width = frame_info->buffer_w;
 			vf->height = frame_info->buffer_h;
+			if (meson_uvm_get_usage(file_vf->private_data, &usage) < 0)
+				vc_print(dev->index, PRINT_ERROR,
+					"%s:meson_uvm_get_usage fail.\n", __func__);
 			if (frame_info->buffer_format == YUV444) {
 				vf->plane_num = 1;
 				vf->type = VIDTYPE_VIU_SINGLE_PLANE
@@ -2565,6 +2572,8 @@ static void video_composer_task(struct composer_dev *dev)
 					| VIDTYPE_VIU_FIELD
 					| VIDTYPE_VIU_NV21;
 			}
+			if (usage == UVM_USAGE_IMAGE_PLAY)
+				vf->type |= VIDTYPE_PIC;
 			vf->bitdepth =
 				BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
 		}
