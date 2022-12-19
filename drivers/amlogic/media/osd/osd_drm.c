@@ -95,6 +95,7 @@ static ssize_t loglevel_write_file(struct file *file,
 	if (copy_from_user(buf, userbuf, count))
 		return -EFAULT;
 	buf[count] = 0;
+	/*coverity[tainted_data] buf from user without tainted*/
 	ret = kstrtoint(buf, 0, &log_level);
 	osd_log_info("log_level: %d->%d\n", osd_log_level, log_level);
 	osd_log_level = log_level;
@@ -632,6 +633,7 @@ static ssize_t osd_hwc_enable_write_file(struct file *file,
 		kfree(buf);
 		return -EFAULT;
 	}
+	/*coverity[tainted_data] buf from user without tainted*/
 	ret = kstrtoint(buf, 0, &hwc_enable);
 	osd_log_info("hwc enable: %d\n", hwc_enable);
 	osd_set_hwc_enable(osd_id, hwc_enable);
