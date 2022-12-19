@@ -25,8 +25,7 @@ void set_cpu_type_from_media(int cpu_id);
 
 static u32 regs_cmd_debug;
 
-struct codecio_device_data_s codecio_meson_dev;
-EXPORT_SYMBOL(codecio_meson_dev);
+static struct codecio_device_data_s codecio_meson_dev;
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct codecio_device_data_s codecio_gxbb = {
