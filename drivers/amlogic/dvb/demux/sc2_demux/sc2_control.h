@@ -95,7 +95,7 @@ void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type);
 //void rdma_config_enable(u8 chan_id, int enable,
 void rdma_config_enable(struct chan_id *pchan, int enable,
 			unsigned int desc, unsigned int total_size,
-			unsigned int len);
+			unsigned int len, unsigned int pack_len);
 void rdma_config_ready(u8 chan_id);
 void rdma_clean(u8 chan_id);
 void rdma_config_cfg_fifo(unsigned int value);

@@ -57,6 +57,11 @@ MODULE_PARM_DESC(rch_sync_num, "\n\t\t Enable loop mem desc information");
 static int rch_sync_num = DEFAULT_RCH_SYNC_NUM;
 module_param(rch_sync_num, int, 0644);
 
+MODULE_PARM_DESC(pack_len,
+		 "\n\t\t Set pack length default 188 bytes");
+static unsigned int pack_len = 188;
+module_param(pack_len, int, 0644);
+
 #define BEN_LEVEL_SIZE			(512 * 1024)
 
 MODULE_PARM_DESC(dump_input_ts, "\n\t\t dump input ts packet");
@@ -846,7 +851,7 @@ static void check_packet_alignm(unsigned int start, unsigned int end)
 	unsigned long reg;
 	unsigned int detect_len = end - start;
 
-	if (detect_len % 188 != 0) {
+	if (detect_len % pack_len != 0) {
 		dprint_i("len:%d not alignm\n", detect_len);
 		return;
 	}
@@ -863,10 +868,10 @@ static void check_packet_alignm(unsigned int start, unsigned int end)
 		return;
 	}
 	//detect packet alignm
-	for (n = 0; n < detect_len / 188; n++) {
-		if (p[n * 188] != 0x47) {
+	for (n = 0; n < detect_len / pack_len; n++) {
+		if (p[n * pack_len] != 0x47) {
 			dprint_i("packet not alignm at %d,header:0x%0x\n",
-				n * 188, p[n * 188]);
+				n * pack_len, p[n * pack_len]);
 			break;
 		}
 	}
@@ -881,7 +886,7 @@ static void check_packet_alignm_virt(char *mem_start, unsigned int len)
 	char *p = mem_start;
 	unsigned int detect_len = len;
 
-	if (detect_len % 188 != 0) {
+	if (detect_len % pack_len != 0) {
 		dprint_i("len:%d not alignm\n", detect_len);
 		return;
 	}
@@ -890,10 +895,10 @@ static void check_packet_alignm_virt(char *mem_start, unsigned int len)
 		return;
 	}
 	//detect packet alignm
-	for (n = 0; n < detect_len / 188; n++) {
-		if (p[n * 188] != 0x47) {
+	for (n = 0; n < detect_len / pack_len; n++) {
+		if (p[n * pack_len] != 0x47) {
 			dprint_i("packet not alignm at %d,header:0x%0x\n",
-				n * 188, p[n * 188]);
+				n * pack_len, p[n * pack_len]);
 			break;
 		}
 	}
@@ -1296,7 +1301,7 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 			len = pchan->memdescs->bits.byte_length;
 			//rdma_config_enable(pchan->id, 1, tmp, count, len);
 
-			rdma_config_enable(pchan, 1, tmp, count, len);
+			rdma_config_enable(pchan, 1, tmp, count, len, pack_len);
 			pr_dbg("%s isphybuf\n", __func__);
 			/*it will exit write loop*/
 			r = len;
@@ -1337,7 +1342,7 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 			tmp = pchan->memdescs_phy & 0xFFFFFFFF;
 			//rdma_config_enable(pchan->id, 1, tmp,
 			rdma_config_enable(pchan, 1, tmp,
-					   pchan->mem_size, len);
+					   pchan->mem_size, len, pack_len);
 		}
 
 		do {
@@ -1359,7 +1364,7 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 
 		/*disable */
 		//rdma_config_enable(pchan->id, 0, 0, 0, 0);
-		rdma_config_enable(pchan, 0, 0, 0, 0);
+		rdma_config_enable(pchan, 0, 0, 0, 0, 0);
 		rdma_clean(pchan->id);
 
 		p += len;
@@ -1429,7 +1434,7 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 	pchan->enable = 1;
 	tmp = pchan->memdescs_phy & 0xFFFFFFFF;
 	//rdma_config_enable(pchan->id, 1, tmp,
-	rdma_config_enable(pchan, 1, tmp, len, len);
+	rdma_config_enable(pchan, 1, tmp, len, len, pack_len);
 
 	do {
 	} while (!rdma_get_done(pchan->id));
@@ -1450,7 +1455,7 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 
 	/*disable */
 	//rdma_config_enable(pchan->id, 0, 0, 0, 0);
-	rdma_config_enable(pchan, 0, 0, 0, 0);
+	rdma_config_enable(pchan, 0, 0, 0, 0, 0);
 	rdma_clean(pchan->id);
 
 	rdma_config_ready(pchan->id);

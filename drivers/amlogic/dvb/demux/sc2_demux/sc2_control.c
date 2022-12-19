@@ -411,7 +411,7 @@ void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type)
 //void rdma_config_enable(u8 chan_id, int enable,
 void rdma_config_enable(struct chan_id *pchan, int enable,
 			unsigned int desc, unsigned int total_size,
-			unsigned int len)
+			unsigned int len, unsigned int pack_len)
 {
 	u32 data = 0;
 
@@ -421,8 +421,8 @@ void rdma_config_enable(struct chan_id *pchan, int enable,
 		pr_dbg("%s desc:0x%0x\n", __func__, desc);
 		pr_dbg("%s total_size:0x%0x\n", __func__, len);
 
-		data = 188 << RCH_CFG_READ_LEN;
-		data |= 188 << RCH_CFG_PACKET_LEN;
+		data = pack_len << RCH_CFG_READ_LEN;
+		data |= pack_len << RCH_CFG_PACKET_LEN;
 		data |= 1 << RCH_CFG_ENABLE;
 		WRITE_CBUS_REG(TS_DMA_RCH_EACH_CFG(pchan->id), data);
 		pr_dbg("%s addr:0x%0x data:0x%0x\n", __func__,
