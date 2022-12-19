@@ -168,40 +168,45 @@ void *memchr(const void *s, int c, size_t n)
 static size_t log_print_text(char *buf, size_t size)
 {
 	const char *text = buf;
-	size_t text_size = size;
-	size_t len = 0;
-	char *line = line_buff;
+	int32_t remaining = size;
 
-	if (size == 0)
+	char *line = line_buff;
+	const char *next = NULL;
+	size_t line_size = 0;
+	size_t scan_size = 0;
+
+	if (!buf || !size)
 		return 0;
 
-	/* Line_size Out-of-bounds check */
-	text_size = text_size < (OPTEE_LOG_LINE_MAX - 16) ? text_size : OPTEE_LOG_LINE_MAX - 16;
-
-	do {
-		const char *next = memchr(text, '\n', text_size);
-		size_t line_size;
-
+	while (text && remaining > 0) {
+		/* Reserve 2 bytes for EOL and EOS */
+		scan_size = remaining > (OPTEE_LOG_LINE_MAX - 2)?
+			(OPTEE_LOG_LINE_MAX - 2): remaining;
+		next = memchr(text, '\n', scan_size);
 		if (next) {
-			line_size = next - text;
+			/* EOL is found */
 			next++;
-			text_size -= next - text;
-		} else
-			line_size = text_size;
-
+			line_size = next - text;
+			/* Add a extra EOS */
+			line[line_size] = '\0';
+		} else {
+			/* No EOL found.*/
+			line_size = scan_size;
+			/* Truncate string to scan_size and add EOL and EOS. */
+			line[line_size] = '\n';
+			line[line_size + 1] = '\0';
+		}
 		memcpy(line, text, line_size);
-		len += line_size;
-		if (next)
-			len++;
-		else if (line[line_size] == '\0')
-			len++;
-		line[line_size] = '\n';
-		line[line_size + 1] = '\0';
+		remaining -= line_size;
+		text += line_size;
 		pr_notice("%s", line);
-		text = next;
-	} while (text && (len < size));
-
-	return len;
+	}
+	/* All remaining should be consumed */
+	if (!text || remaining) {
+		pr_err("WARNING: text(%p) is NULL or remaining(%d) is not 0.\n",
+				text, remaining);
+	}
+	return size;
 }
 
 static ssize_t log_buff_dump(void)
