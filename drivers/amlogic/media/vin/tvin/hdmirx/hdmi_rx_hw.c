@@ -1532,7 +1532,7 @@ unsigned int hdmirx_audio_fifo_rst(void)
 {
 	int error = 0;
 
-	if (rx.chip_id > CHIP_ID_T7)
+	if (rx.chip_id >= CHIP_ID_T7)
 		return 0;
 
 	hdmirx_wr_bits_dwc(DWC_AUD_FIFO_CTRL, AFIF_INIT, 1);
@@ -3743,12 +3743,6 @@ void hdmirx_hw_probe(void)
 void rx_audio_pll_sw_update(void)
 {
 	hdmirx_wr_bits_top(TOP_ACR_CNTL_STAT, _BIT(11), 1);
-
-	if (rx.chip_id > CHIP_ID_T7) {
-		hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(1), 1);
-		udelay(1);
-		hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(1), 0);
-	}
 }
 
 /*
@@ -3757,6 +3751,9 @@ void rx_audio_pll_sw_update(void)
  */
 void rx_acr_info_sw_update(void)
 {
+	if (rx.chip_id >= CHIP_ID_T7)
+		return;
+
 	hdmirx_wr_dwc(DWC_AUD_CLK_CTRL, 0x10);
 	udelay(100);
 	hdmirx_wr_dwc(DWC_AUD_CLK_CTRL, 0x0);
