@@ -36,13 +36,13 @@ $(dst)/%.dtbo: $(obj)/%.dtbo
 	$(call cmd,dtb_install)
 
 $(dst)/%.dtbo: $(obj)/%.dtbo
-   $(call cmd,dtb_install)
+	$(call cmd,dtb_install)
 
 $(dst)/%.scr: $(obj)/%.scr
-   $(call cmd,dtb_install)
+	$(call cmd,dtb_install)
 
 $(dst)/README.meson-overlays: $(src)/README.meson-overlays
-   $(call cmd,dtb_install)
+	$(call cmd,dtb_install)
 
 PHONY += $(subdirs)
 $(subdirs):
