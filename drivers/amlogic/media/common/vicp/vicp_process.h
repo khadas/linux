@@ -234,6 +234,7 @@ struct vid_cmpr_afbcd_t {
 };
 
 struct vid_cmpr_scaler_t {
+	u32 device_index;
 	u32 din_hsize;
 	u32 din_vsize;
 	u32 dout_hsize;
@@ -251,6 +252,8 @@ struct vid_cmpr_scaler_t {
 	u32 pps_slice;
 	u32 phase_step_en;
 	u32 phase_step;
+	u32 vphase_type_top;
+	u32 vphase_type_bot;
 };
 
 struct vid_cmpr_hdr_t {

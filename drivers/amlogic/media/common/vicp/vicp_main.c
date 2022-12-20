@@ -910,15 +910,6 @@ static int vicp_probe(struct platform_device *pdev)
 
 				pr_info("vicp init clock is %d HZ, VPU clock is %d HZ.\n",
 					vapb_rate, vpu_rate);
-
-				if (vpu_rate >= 666666666)
-					vapb_rate = 666666666;
-				else if (vpu_rate == 333330000)
-					vapb_rate = 333333333;
-				else if (vpu_rate == 166660000)
-					vapb_rate = 166666667;
-				else if (vpu_rate > 0 && vapb_rate > vpu_rate)
-					vapb_rate = vpu_rate;
 				clk_set_rate(clk_vapb0, vapb_rate);
 				clk_prepare_enable(clk_vapb0);
 				vapb_rate = clk_get_rate(clk_vapb0);

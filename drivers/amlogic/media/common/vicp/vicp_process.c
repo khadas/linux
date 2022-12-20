@@ -321,15 +321,14 @@ static int get_phase_step(int presc_size, int dst_size)
 
 void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_t *scaler)
 {
-	enum f2v_vphase_type_e top_conv_type = F2V_P2P;
-	enum f2v_vphase_type_e bot_conv_type = F2V_P2P;
+	enum f2v_vphase_type_e top_conv_type;
+	enum f2v_vphase_type_e bot_conv_type;
 	struct vid_cmpr_f2v_vphase_t vphase;
 	int topbot_conv;
 	int top_conv, bot_conv;
 
 	int hsc_en = 0;
 	int vsc_en = 0;
-	int vsc_double_line_mode = 0;
 	int coef_s_bits = 0;
 	u32 p_src_w, p_src_h;
 	u32 vert_phase_step, horz_phase_step;
@@ -339,7 +338,7 @@ void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_t *scaler)
 	unsigned char is_frame;
 	int blank_len;
 	/*0:vd1_s0 1:vd1_s1 2:vd1_s2 3:vd1_s3 4:vd2 5:vid_cmp 6:RESHAPE*/
-	int index = 5;
+	int index;
 	struct vicp_pre_scaler_ctrl_reg_t pre_scaler_ctrl_reg;
 	struct vicp_vsc_phase_ctrl_reg_t vsc_phase_ctrl_reg;
 	struct vicp_hsc_phase_ctrl_reg_t hsc_phase_ctrl_reg;
@@ -375,17 +374,18 @@ void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_t *scaler)
 		pr_info("vicp: #################################.\n");
 	};
 
+	index = scaler->device_index;
 	topbot_conv = index >> 16;
 	top_conv = (topbot_conv >> 4) & 0xf;
 	bot_conv = topbot_conv & 0xf;
 	index = index & 0xffff;
+	top_conv_type = scaler->vphase_type_top;
+	bot_conv_type = scaler->vphase_type_bot;
 
 	if (top_conv != 0)
 		top_conv_type = (enum f2v_vphase_type_e)(top_conv - 1);
 	if (bot_conv != 0)
 		bot_conv_type = (enum f2v_vphase_type_e)(bot_conv - 1);
-
-	vsc_double_line_mode = 0;
 
 	if (scaler->din_hsize != scaler->dout_hsize)
 		vsc_en = 1;
@@ -462,7 +462,7 @@ void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_t *scaler)
 	set_vsc_region_phase_slope(4, 0);
 
 	memset(&vsc_phase_ctrl_reg, 0, sizeof(struct vicp_vsc_phase_ctrl_reg_t));
-	vsc_phase_ctrl_reg.double_line_mode = vsc_double_line_mode;
+	vsc_phase_ctrl_reg.double_line_mode = 0;
 	vsc_phase_ctrl_reg.prog_interlace = (!is_frame);
 	vsc_phase_ctrl_reg.bot_l0_out_en = 0;
 	vsc_phase_ctrl_reg.bot_rpt_l0_num = bot_rpt_num;
@@ -1362,9 +1362,7 @@ static int get_input_color_bitdepth(struct vframe_s *vf)
 		return -1;
 	}
 
-	if (vf->bitdepth & BITDEPTH_Y8)
-		bitdepth = 8;
-	else if (vf->bitdepth & BITDEPTH_Y9)
+	if (vf->bitdepth & BITDEPTH_Y9)
 		bitdepth = 9;
 	else if (vf->bitdepth & BITDEPTH_Y10)
 		bitdepth = 10;
@@ -1628,6 +1626,9 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_t *vid_cmpr_top)
 	vid_cmpr_scaler.high_res_coef_en = 1;
 	vid_cmpr_scaler.phase_step_en = 0;
 	vid_cmpr_scaler.phase_step = 0;
+	vid_cmpr_scaler.device_index = 5;
+	vid_cmpr_scaler.vphase_type_top = F2V_P2P;
+	vid_cmpr_scaler.vphase_type_bot = F2V_P2P;
 
 	if (!scaler_en)
 		scaler_enable = 0;

@@ -1674,7 +1674,7 @@ static void check_dewarp_support_status(struct composer_dev *dev,
 		dev->is_dewarp_support = false;
 }
 
-static void check_vicp_ship_mode(struct composer_dev *dev, struct frames_info_t *frames_info,
+static void check_vicp_skip_mode(struct composer_dev *dev, struct frames_info_t *frames_info,
 	enum vicp_skip_mode_e *buf)
 {
 	int i = 0, input_4k_count = 0;
@@ -1853,7 +1853,7 @@ static void vframe_composer(struct composer_dev *dev)
 	}
 	min_left = vframe_info[0]->dst_x;
 	min_top = vframe_info[0]->dst_y;
-	check_vicp_ship_mode(dev, frames_info, skip_mode);
+	check_vicp_skip_mode(dev, frames_info, skip_mode);
 
 	for (i = 0; i < count; i++) {
 		file_vf = received_frames->file_vf[vf_dev[i]];

@@ -325,7 +325,7 @@ struct rdma_buf_type_t *vicp_rdma_end(struct rdma_buf_type_t *rdma_buf)
 	rdma_buf->cmd_buf_end_addr += 8;
 	rdma_buf->cmd_buf_len += 1;
 
-	vicp_print(VICP_RDMA, "%s, rdma_buf_len is %d.\n", __func__, rdma_buf->cmd_buf_len);
+	vicp_print(VICP_RDMA, "%s, rdma_buf_len is %lld.\n", __func__, rdma_buf->cmd_buf_len);
 
 	return rdma_buf;
 }
