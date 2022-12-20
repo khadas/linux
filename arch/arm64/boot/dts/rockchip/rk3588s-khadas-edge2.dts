@@ -900,19 +900,19 @@
 	ir_key1 {
 		rockchip,usercode = <0xff00>;
 		rockchip,key_table =
-			<0xeb 116>,		//KEY_POWER
-			<0xec 139>,		//KEY_MENU
-			<0xfc 103>,		//KEY_UP
-			<0xfd 108>,		//KEY_DOWN
-			<0xf1 105>,		//KEY_LEFT
-			<0xe5 106>,		//KEY_RIGHT
-			<0xf8 28>, 		//KEY_Enter
-			<0xa7 114>,		//KEY_VOLUMEDOWN
+			<0xeb KEY_POWER>,
+			<0xec KEY_MENU>,
+			<0xfc KEY_UP>,
+			<0xfd KEY_DOWN>,
+			<0xf1 KEY_LEFT>,
+			<0xe5 KEY_RIGHT>,
+			<0xf8 KEY_ENTER>,
+			<0xa7 KEY_VOLUMEDOWN>,
 			<0xa3 388>,
-			<0xa4 388>,		//KEY_CURSOR
-			<0xf4 115>,		//KEY_VOLUMEUP
-			<0xfe 158>,		//KEY_BACK
-			<0xb7 172>;		//KEY_HOMEPAGE
+			<0xa4 388>,
+			<0xf4 KEY_VOLUMEUP>,
+			<0xfe KEY_BACK>,
+			<0xb7 KEY_HOMEPAGE>;
 	};
 };
 
