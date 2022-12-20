@@ -57,6 +57,8 @@ create_package() {
 		[ -f /boot/dtb/amlogic/kvim4.dtb.overlay.env ] && rm /boot/dtb/amlogic/kvim4.dtb.overlay.env
 		[ ! -L /boot/dtb/amlogic/kvim4.dtb.overlay.env ] && ln -fs ../../overlays/kvim4.dtb.overlay.env kvim4.dtb.overlay.env
 		[ ! -L /boot/dtb/amlogic/kvim4.dtb.overlays ] && ln -fs ../../overlays/kvim4.dtb.overlays kvim4.dtb.overlays
+		[ ! -L /boot/dtb/amlogic/kvim4n.dtb.overlay.env ] && ln -fs ../../overlays/kvim4.dtb.overlay.env kvim4n.dtb.overlay.env
+		[ ! -L /boot/dtb/amlogic/kvim4n.dtb.overlays ] && ln -fs ../../overlays/kvim4.dtb.overlays kvim4n.dtb.overlays
 		[ ! -L /boot/dtb/amlogic/kvim1s.dtb.overlay.env ] && ln -fs ../../overlays/kvim1s.dtb.overlay.env kvim1s.dtb.overlay.env
 		[ ! -L /boot/dtb/amlogic/kvim1s.dtb.overlays ] && ln -fs ../../overlays/kvim1s.dtb.overlays kvim1s.dtb.overlays
 		[ \`readlink /boot/dtb.img\` = "dtb/rockchip/kvim1s.dtb" ] && ln -fs dtb/amlogic/kvim1s.dtb /boot/dtb.img
