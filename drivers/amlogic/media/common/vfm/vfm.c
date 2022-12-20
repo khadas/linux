@@ -205,7 +205,7 @@ int vfm_map_add(char *id, char *name_chain)
 retry:
 	for (i = 0; i < vfm_map_num; i++) {
 		struct vfm_map_s *pi = vfm_map[i];
-
+		/*coverity[string_null] this string has terminated*/
 		if (!pi || (strcmp(pi->id, p->id))) {
 			/*not same id to next one*/
 			continue;
