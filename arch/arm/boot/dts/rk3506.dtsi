@@ -1,0 +1,302 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd.
+ */
+
+#include <dt-bindings/clock/rockchip,rk3506-cru.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	compatible = "rockchip,rk3506";
+
+	interrupt-parent = <&gic>;
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	clocks {
+		compatible = "simple-bus";
+
+		clk_rc: clk-rc {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <400000>;
+			clock-output-names = "clk_rc";
+		};
+
+		xin24m: xin24m {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <24000000>;
+			clock-output-names = "xin24m";
+		};
+
+		xin32k: xin32k {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+			clock-output-names = "xin32k";
+		};
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@f00 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a7";
+			reg = <0xf00>;
+			enable-method = "psci";
+		};
+
+		cpu1: cpu@f01 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a7";
+			reg = <0xf01>;
+			enable-method = "psci";
+		};
+
+		cpu2: cpu@f02 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a7";
+			reg = <0xf02>;
+			enable-method = "psci";
+		};
+	};
+
+	arm-pmu {
+		compatible = "arm,cortex-a7-pmu";
+		interrupts = <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>;
+	};
+
+	display_subsystem: display-subsystem {
+		compatible = "rockchip,display-subsystem";
+		ports = <&vop_out>;
+		status = "disabled";
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(3) | IRQ_TYPE_LEVEL_HIGH)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(3) | IRQ_TYPE_LEVEL_HIGH)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(3) | IRQ_TYPE_LEVEL_HIGH)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(3) | IRQ_TYPE_LEVEL_HIGH)>;
+		clock-frequency = <24000000>;
+	};
+
+	uart0: serial@ff0a0000 {
+		compatible = "rockchip,rk3506-uart", "snps,dw-apb-uart";
+		reg = <0xff0a0000 0x100>;
+		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		status = "disabled";
+	};
+
+	pwm1_8ch_0: pwm@ff170000 {
+		compatible = "rockchip,rk3506-pwm", "rockchip,rk3576-pwm";
+		reg = <0xff170000 0x200>;
+		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
+		clock-names = "pwm", "pclk";
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
+	pwm1_8ch_1: pwm@ff171000 {
+		compatible = "rockchip,rk3506-pwm", "rockchip,rk3576-pwm";
+		reg = <0xff171000 0x200>;
+		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
+		clock-names = "pwm", "pclk";
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
+	pwm1_8ch_2: pwm@ff172000 {
+		compatible = "rockchip,rk3506-pwm", "rockchip,rk3576-pwm";
+		reg = <0xff172000 0x200>;
+		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
+		clock-names = "pwm", "pclk";
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
+	pwm1_8ch_3: pwm@ff173000 {
+		compatible = "rockchip,rk3506-pwm", "rockchip,rk3576-pwm";
+		reg = <0xff173000 0x200>;
+		interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
+		clock-names = "pwm", "pclk";
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
+	pwm1_8ch_4: pwm@ff174000 {
+		compatible = "rockchip,rk3506-pwm", "rockchip,rk3576-pwm";
+		reg = <0xff174000 0x200>;
+		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
+		clock-names = "pwm", "pclk";
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
+	pwm1_8ch_5: pwm@ff175000 {
+		compatible = "rockchip,rk3506-pwm", "rockchip,rk3576-pwm";
+		reg = <0xff175000 0x200>;
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
+		clock-names = "pwm", "pclk";
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
+	pwm1_8ch_6: pwm@ff176000 {
+		compatible = "rockchip,rk3506-pwm", "rockchip,rk3576-pwm";
+		reg = <0xff176000 0x200>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
+		clock-names = "pwm", "pclk";
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
+	pwm1_8ch_7: pwm@ff177000 {
+		compatible = "rockchip,rk3506-pwm", "rockchip,rk3576-pwm";
+		reg = <0xff177000 0x200>;
+		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_PWM1>, <&cru PCLK_PWM1>;
+		clock-names = "pwm", "pclk";
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
+	grf: syscon@ff288000 {
+		compatible = "rockchip,rk3506-grf", "syscon", "simple-mfd";
+		reg = <0xff288000 0x4000>;
+
+		rgb: rgb {
+			compatible = "rockchip,rk3506-rgb";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					rgb_in_vop: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&vop_out_rgb>;
+					};
+				};
+			};
+		};
+	};
+
+	gic: interrupt-controller@ff581000 {
+		compatible = "arm,gic-400";
+		reg = <0xff581000 0x1000>,
+		      <0xff582000 0x2000>,
+		      <0xff584000 0x2000>,
+		      <0xff586000 0x2000>;
+		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		#interrupt-cells = <3>;
+		interrupt-controller;
+		#address-cells = <0>;
+	};
+
+	vop: vop@ff600000 {
+		compatible = "rockchip,rk3506-vop";
+		reg = <0xff600000 0x200>;
+		reg-names = "regs";
+		rockchip,grf = <&grf>;
+		interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+
+		vop_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vop_out_rgb: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&rgb_in_vop>;
+			};
+		};
+	};
+
+	arm-debug@ff810000 {
+		compatible = "rockchip,debug";
+		reg = <0xff810000 0x1000>,
+		      <0xff812000 0x1000>,
+		      <0xff814000 0x1000>;
+	};
+
+	pwm0_4ch_0: pwm@ff930000 {
+		compatible = "rockchip,rk3506-pwm", "rockchip,rk3576-pwm";
+		reg = <0xff930000 0x200>;
+		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
+		clock-names = "pwm", "pclk";
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
+	pwm0_4ch_1: pwm@ff931000 {
+		compatible = "rockchip,rk3506-pwm", "rockchip,rk3576-pwm";
+		reg = <0xff931000 0x200>;
+		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
+		clock-names = "pwm", "pclk";
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
+	pwm0_4ch_2: pwm@ff932000 {
+		compatible = "rockchip,rk3506-pwm", "rockchip,rk3576-pwm";
+		reg = <0xff932000 0x200>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
+		clock-names = "pwm", "pclk";
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
+	pwm0_4ch_3: pwm@ff933000 {
+		compatible = "rockchip,rk3506-pwm", "rockchip,rk3576-pwm";
+		reg = <0xff933000 0x200>;
+		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_PWM0>, <&cru PCLK_PWM0>;
+		clock-names = "pwm", "pclk";
+		#pwm-cells = <3>;
+		status = "disabled";
+	};
+
+	cru: clock-controller@ff9a0000 {
+		compatible = "rockchip,rk3506-cru";
+		reg = <0xff9a0000 0x20000>;
+		rockchip,grf = <&grf>;
+		#clock-cells = <1>;
+		#reset-cells = <1>;
+	};
+};
