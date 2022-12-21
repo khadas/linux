@@ -603,7 +603,7 @@
 			};
 			tdmbcodec: codec {
 				sound-dai = <&dummy_codec &dummy_codec
-				&amlogic_codec>;
+				&amlogic_codec &es8316>;
 			};
 		};
 
@@ -894,7 +894,7 @@
                 compatible = "everest,es8316";
                 #sound-dai-cells = <0>;
                 reg = <0x10>;
-                status = "disabled";
+                status = "okay";
                 spk-con-gpio = <&gpio GPIOA_11 0>;
                 spk-mute-gpio = <&gpio GPIOA_12 0>;
                 io-channels = <&saradc SARADC_CH3>;
