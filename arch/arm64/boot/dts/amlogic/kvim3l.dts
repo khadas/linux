@@ -988,6 +988,19 @@
 		irq-gpio = <&gpio_ao GPIOAO_9 IRQ_TYPE_EDGE_RISING>;
 		status = "okay";
 	};
+
+	es8316: es8316@10 {
+        compatible = "everest,es8316";
+        #sound-dai-cells = <0>;
+        reg = <0x10>;
+        status = "disabled";
+        spk-con-gpio = <&gpio GPIOA_11 0>;
+        spk-mute-gpio = <&gpio GPIOA_12 0>;
+        io-channels = <&saradc SARADC_CH3>;
+        hp_chan = <SARADC_CH3>;
+        hp_val = <784>; //val=voltage/1800mV*1023
+        hp_tolerance = <50>;
+    };
 };
 
 &audiobus {
@@ -1022,8 +1035,8 @@
 		clock-names = "mclk", "mclk_pad", "clk_srcpll",
 			"samesource_srcpll", "samesource_clk";
 		pinctrl-names = "tdm_pins";
-		/*pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;*/
-		pinctrl-0 = < &tdmout_b &tdmin_b>;
+		pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;
+		/*pinctrl-0 = < &tdmout_b &tdmin_b>;*/
 		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
 
 		/*
@@ -1382,13 +1395,13 @@
 		};
 	};
 
-	//tdmb_mclk: tdmb_mclk {
-	//	mux {
-	//		groups = "mclk0_a";
-	//		function = "mclk0";
-	//		drive-strength = <2>;
-	//	};
-	//};
+	tdmb_mclk: tdmb_mclk {
+		mux {
+			groups = "mclk0_a";
+			function = "mclk0";
+			drive-strength = <2>;
+		};
+	};
 	tdmout_b: tdmout_b {
 		mux { /* GPIOA_1, GPIOA_2, GPIOA_3, GPIOA_4, */
 			  /* GPIOA_5, GPIOA_6, GPIOA_7, GPIOA_8, */
