@@ -1425,6 +1425,14 @@ void dim_sumx_set(struct di_ch_s *pch)
 	} else {
 		bclr(&pch->self_trig_need, 0);
 	}
+
+	if (pch->dbg_self_trig_need != pch->self_trig_need) {//debug only
+		dbg_tsk("trig_need:ch[%d],0x%x->0x%x:<%d,%d,%d><%d,%d>\n",
+			ch, pch->dbg_self_trig_need, pch->self_trig_need,
+			psumx->b_nin, psumx->b_pst_free, psumx->b_in_free,
+			psumx->need_local, psumx->b_pre_free);
+		pch->dbg_self_trig_need	= pch->self_trig_need;
+	}
 	if (di_bypass_state_get(ch) == 1	&&
 	    psumx->b_nin			&&
 	    psumx->flg_rebuild == 0		&&

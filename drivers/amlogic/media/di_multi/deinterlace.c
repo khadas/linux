@@ -2859,7 +2859,8 @@ static int di_init_buf_new(struct di_ch_s *pch, struct vframe_s *vframe)
 			//mtask_send_cmd(ch, &blk_cmd);
 			mtsk_alloc_block2(ch, &blk_cmd);
 		}
-
+		if (mm->cfg.num_local && IS_I_SRC(vframe->type))
+			pch->sumx.need_local = true;
 		/* post */
 		if (length_keep > 8)
 			PR_ERR("%s:keep nub:%d\n", __func__, length_keep);
@@ -10626,13 +10627,14 @@ void di_unreg_variable(unsigned int channel)
 	pch->in_cnt = 0;
 	pch->crc_cnt = 0;
 	pch->sumx.need_local = 0;
+	pch->self_trig_need = 0;
 	set_bypass2_complete(channel, false);
 	init_completion(&tsk->fcmd[channel].alloc_done);
 	dbg_timer_clear(channel);
 	dbg_reg("ndis_used[%d], nout[%d],flg_realloc[%d]\n",
 		ndis_cnt(pch, QBF_NDIS_Q_USED),
 		ndrd_cnt(pch), mm->sts.flg_realloc);
-	dbg_reg("%s:end\n", __func__);
+	//PR_INF("%s:end clear trig\n", __func__);
 }
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA

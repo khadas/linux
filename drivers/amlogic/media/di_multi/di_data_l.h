@@ -1983,6 +1983,7 @@ struct di_ch_s {
 	/*@ary_note:*/
 	unsigned int self_trig_mask;
 	unsigned int self_trig_need;
+	unsigned int dbg_self_trig_need; //dbg only
 	unsigned int sum_releas;
 	unsigned int disp_frame_count;
 	struct dim_sum_s	sumx;
