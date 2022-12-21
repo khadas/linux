@@ -122,8 +122,10 @@ void packetize_md(unsigned char *p_md, int len, u32 *crc_val)
 	u32 j = 0;
 	u32 md_id;
 
-	if (!md_pkts || !crc_val || !p_md)
+	if (!md_pkts || !crc_val || !p_md) {
 		pr_info("err parameters %p %p %p\n", md_pkts, crc_val, p_md);
+		return;
+	}
 
 	md_id = p_md[0];
 	num_pkts = get_pkt_num(len, &last_pkt_len);

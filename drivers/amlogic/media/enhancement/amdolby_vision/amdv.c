@@ -1230,14 +1230,15 @@ bool need_send_emp_meta(const struct vinfo_s *vinfo)
 void update_graphic_width_height(unsigned int width,
 	unsigned int height, enum OSD_INDEX index)
 {
-	if (index >= OSD_MAX_INDEX)
+	if (index >= OSD_MAX_INDEX) {
 		pr_info("error osd index\n");
+	} else {
+		new_osd_graphic_width[index] = width;
+		new_osd_graphic_height[index] = height;
+	}
 
 	if (debug_dolby & 2)
 		pr_dv_dbg("update osd%d %d_%d\n", index + 1, width, height);
-
-	new_osd_graphic_width[index] = width;
-	new_osd_graphic_height[index] = height;
 }
 EXPORT_SYMBOL(update_graphic_width_height);
 
@@ -1830,7 +1831,7 @@ int dv_inst_map(int *inst)
 	int i;
 	int ret = 0;
 	int new_map_id = -1;
-	bool keep_last_frame = false;/*both two video keep last frame*/
+	/*bool keep_last_frame = false; both two video keep last frame*/
 
 	if (!multi_dv_mode) {
 		*inst = 0;
@@ -1864,17 +1865,25 @@ int dv_inst_map(int *inst)
 	/*		break;*/
 	/*	}*/
 	/*}*/
-	if (keep_last_frame) {
-		new_map_id = last_unmap_id;
-		pr_dv_dbg("[%s]new map id: %d\n",
-			     __func__, new_map_id);
-	} else {
-		for (i = 0; i < NUM_INST; i++) {
-			if (!dv_inst[i].mapped) {
-				new_map_id = i;
-				pr_info("[%s]map id %d\n", __func__, new_map_id);
-				break;
-			}
+
+	/*if (keep_last_frame) {*/
+	/*	new_map_id = last_unmap_id;*/
+	/*	pr_dv_dbg("[%s]new map id: %d\n",*/
+	/*		     __func__, new_map_id);*/
+	/*} else {*/
+	/*	for (i = 0; i < NUM_INST; i++) {*/
+	/*		if (!dv_inst[i].mapped) {*/
+	/*			new_map_id = i;*/
+	/*			pr_info("[%s]map id %d\n", __func__, new_map_id);*/
+	/*			break;*/
+	/*		}*/
+	/*	}*/
+	/*}*/
+	for (i = 0; i < NUM_INST; i++) {
+		if (!dv_inst[i].mapped) {
+			new_map_id = i;
+			pr_info("[%s]map id %d\n", __func__, new_map_id);
+			break;
 		}
 	}
 	if (new_map_id >= 0) {
@@ -8420,7 +8429,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 				total_comp_size = 0;
 				total_md_size = 0;
 				src_bdp = 10;
-				bypass_release = true;
+				/* bypass_release = true; */
 				req.dv_enhance_exist = 0;
 				amdv_el_disable = 1;
 				if (debug_dolby & 1)
@@ -8435,7 +8444,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 				total_comp_size = 0;
 				total_md_size = 0;
 				src_bdp = 10;
-				bypass_release = true;
+				/* bypass_release = true; */
 				req.dv_enhance_exist = 0;
 				amdv_el_disable = 1;
 				if (debug_dolby & 1)
@@ -9196,8 +9205,8 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 			dv_inst[dv_id].in_md_size = total_md_size;
 			dv_inst[dv_id].in_comp_size = total_comp_size;
 		} else {
-			dv_inst[dv_id].in_md_size = total_md_size;
-			dv_inst[dv_id].in_comp_size = total_comp_size;
+			dv_inst[dv_id].in_md_size = 0;
+			dv_inst[dv_id].in_comp_size = 0;
 		}
 
 		dv_inst[dv_id].src_format = src_format;
@@ -14412,7 +14421,7 @@ static ssize_t amdolby_vision_src_format_show
 {
 	ssize_t len = 0;
 	int i;
-	int fmt;
+	int fmt = 0;
 	int fmt_inside;
 	int dv_id;
 
@@ -14588,8 +14597,6 @@ static ssize_t amdolby_vision_inst_debug_store
 	}
 	kfree(buf_orig);
 	buf_orig = NULL;
-	return count;
-
 	return count;
 }
 
