@@ -48,6 +48,7 @@
 #define es8316_DEF_VOL			0x1e
 
 static struct snd_soc_codec *es8316_codec;
+char ext_board_exist_propname[20] = "null";
 
 static const struct reg_default es8316_reg_defaults[] = {
 	{0x00, 0x03}, {0x01, 0x03}, {0x02, 0x00}, {0x03, 0x20},
@@ -1330,14 +1331,26 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 				     &soc_codec_dev_es8316,
 				     &es8316_dai, 1);
 	printk("es8316_i2c_probe %d\n",__LINE__);
-	hpret = es8316_adc_hp_det_get_devtree_pdata(&i2c->dev,hp);
-	if(hpret == 0) {
-	INIT_DELAYED_WORK(&hp->work, hp_det_work);
-	mod_delayed_work(system_wq,&hp->work,
+	if(strncmp(ext_board_exist_propname, "1", 1) == 0) {
+		hpret = es8316_adc_hp_det_get_devtree_pdata(&i2c->dev,hp);
+		if(hpret == 0) {
+			INIT_DELAYED_WORK(&hp->work, hp_det_work);
+			mod_delayed_work(system_wq,&hp->work,
 				      msecs_to_jiffies(500));
+		}
 	}
 	return ret;
 }
+
+static int __init ext_board_exist_setup(char *str)
+{
+    if (str != NULL)
+    sprintf(ext_board_exist_propname, "%s", str);
+    printk("ext_board_exist: %s\n", ext_board_exist_propname);
+    return 0;
+}
+
+__setup("ext_board_exist=", ext_board_exist_setup);
 
 static  int es8316_i2c_remove(struct i2c_client *client)
 {
