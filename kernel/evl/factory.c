@@ -844,7 +844,7 @@ bool evl_may_access_factory(struct evl_factory *fac)
 }
 EXPORT_SYMBOL_GPL(evl_may_access_factory);
 
-static char *evl_devnode(struct device *dev, umode_t *mode)
+static char *evl_devnode(const struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "evl/%s", dev_name(dev));
 }
