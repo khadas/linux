@@ -362,6 +362,9 @@ static int mtdblock_flush(struct mtd_blktrans_dev *dev)
 static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 {
 	struct mtdblk_dev *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+#ifdef CONFIG_AMLOGIC_NAND
+	int i = 0;
+#endif
 
 	if (!dev)
 		return;
@@ -370,6 +373,16 @@ static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	dev->mbd.devnum = mtd->index;
 
 	dev->mbd.size = mtd->size >> 9;
+
+#ifdef CONFIG_AMLOGIC_NAND
+	if (!mtd_can_have_bb(mtd))
+		goto _ok;
+
+	for (i = 0; i < (mtd->size >> mtd->erasesize_shift); i++)
+		if (mtd_block_isbad(mtd, i * mtd->erasesize))
+			dev->mbd.size -= (mtd->erasesize >> 9);
+_ok:
+#endif
 	dev->mbd.tr = tr;
 
 	if (!(mtd->flags & MTD_WRITEABLE))
