@@ -1571,6 +1571,14 @@
 	status = "okay";
 };
 
+&uart_C {
+    status = "okay";
+};
+
+&saradc {
+    status = "okay";
+};
+
 /*if you want to use vdin just modify status to "ok"*/
 &vdin0 {
 	memory-region = <&vdin0_cma_reserved>;
