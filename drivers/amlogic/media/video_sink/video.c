@@ -19736,6 +19736,7 @@ static struct video_device_hw_s s5_dev_property = {
 	/* aisr reverse workaround for t3*/
 	.di_hf_y_reverse = 1,
 	.sr_in_size = 1,
+	.mosaic_support = 1,
 };
 
 static const struct of_device_id amlogic_amvideom_dt_match[] = {
@@ -19984,6 +19985,7 @@ static void video_cap_set(struct amvideo_device_data_s *p_amvideo)
 		layer_cap |= ((u32)vd_layer[0].vpp_index << LAYER0_VPP |
 			(u32)vd_layer[1].vpp_index << LAYER1_VPP |
 			(u32)vd_layer[2].vpp_index << LAYER2_VPP);
+		layer_cap |= MOSAIC_MODE;
 	}
 	pr_debug("%s cap:%x, ptype:%d\n", __func__, layer_cap, p_amvideo->cpu_type);
 }

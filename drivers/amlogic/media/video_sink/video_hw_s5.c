@@ -2347,7 +2347,7 @@ static void vd1_proc_set(u32 vpp_index, struct vd_proc_s *vd_proc)
 	vd_proc_bypass_preblend(vpp_index, vd_proc);
 
 	for (i = 0; i < vd_proc->vd_proc_vd1_info.slice_num; i++) {
-		if (vd_proc->vd_proc_vd1_info.slice_num >= SLICE_NUM)
+		if (vd_proc->vd_proc_vd1_info.slice_num > SLICE_NUM)
 			break;
 		vd_proc_unit = &vd_proc->vd_proc_unit[i];
 		vd_proc_unit->slice_index = i;

@@ -24,6 +24,7 @@
 
 #define MAX_VD_LAYERS 3
 
+#define MOSAIC_MODE   BIT(24) /* 1 bit */
 #define LAYER2_VPP    22 /* 2 bits */
 #define LAYER1_VPP    20 /* 2 bits */
 #define LAYER0_VPP    18 /* 2 bits */

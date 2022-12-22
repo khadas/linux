@@ -538,6 +538,7 @@ struct video_device_hw_s {
 	u32 frc_support;
 	u32 di_hf_y_reverse;
 	u32 sr_in_size;
+	u32 mosaic_support;
 };
 
 struct amvideo_device_data_s {
