@@ -100,6 +100,8 @@ static void dumpcor(struct seq_file *s, u32 start, u32 end)
 
 static int dump_hdmireg_show(struct seq_file *s, void *p)
 {
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
 	seq_puts(s, "\n--------HDMITX registers--------\n");
 	// 0xfe300000 ~ 0xfe300000 + (0x041 << 2)
 	dumptop(s, HDMITX_TOP_SW_RESET, HDMITX_TOP_SECURE_DATA);
@@ -113,8 +115,10 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 	dumpcor(s, DEBUG_MODE_EN_IVCTX, DROP_GEN_TYPE_5_IVCTX);
 	// 0x00000300 - 0x0000031a
 	dumpcor(s, TX_ZONE_CTL0_IVCTX, FIFO_10TO20_CTRL_IVCTX);
-	// 0x00000330 - 0x00000334
-	dumpcor(s, MHLHDMITXTOP_INTR_IVCTX, EMSC_ADCTC_LD_SEL_IVCTX);
+	if (hdev->data->chip_type >= MESON_CPU_ID_S5) {
+		// 0x00000330 - 0x00000334
+		dumpcor(s, MHLHDMITXTOP_INTR_IVCTX, EMSC_ADCTC_LD_SEL_IVCTX);
+	}
 	// 0x00000400 - 0x000004a1
 	dumpcor(s, BIST_RST_IVCTX, REG_DUAL_ALIGN_CTRL_IVCTX);
 	// 0x00000607 - 0x000006ff
@@ -127,10 +131,12 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 	dumpcor(s, HDCP2X_DEBUG_CTRL0_IVCTX, HDCP2X_DEBUG_STAT16_IVCTX);
 	// 0x00000900 - 0x00000933
 	dumpcor(s, SCRCTL_IVCTX, FRL_LTP_OVR_VAL1_IVCTX);
-	// 0x00000934 - 0x0000097a
-	dumpcor(s, RSVD1_HDMI2_IVCTX, H21TXSB_SPARE_9_IVCTX);
-	// 0x00000980 - 0x00000985
-	dumpcor(s, H21TX_SB_TOP0_IVCTX, H21TX_SB_TOP_INS_DISP_CTRL_1_IVCTX);
+	if (hdev->data->chip_type >= MESON_CPU_ID_S5) {
+		// 0x00000934 - 0x0000097a
+		dumpcor(s, RSVD1_HDMI2_IVCTX, H21TXSB_SPARE_9_IVCTX);
+		// 0x00000980 - 0x00000985
+		dumpcor(s, H21TX_SB_TOP0_IVCTX, H21TX_SB_TOP_INS_DISP_CTRL_1_IVCTX);
+	}
 	// 0x00000a00 - 0x00000a70
 	dumpcor(s, RSVD0_AIP_IVCTX, SPDIF_ORG_FS_IVCTX);
 	// 0x00000b00 - 0x00000bec

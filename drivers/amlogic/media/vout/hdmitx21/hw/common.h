@@ -152,6 +152,7 @@ void hdmitx21_phy_bandgap_en_s5(void);
 
 void set21_phy_by_mode_t7(u32 mode);
 void set21_phy_by_mode_s5(u32 mode);
+void hdmitx_s5_phy_pre_init(struct hdmitx_dev *hdev);
 void set21_phy_by_frl_mode_s5(enum frl_rate_enum frl_mode);
 
 void hdmitx21_sys_reset_t7(void);

@@ -143,15 +143,8 @@ void hdmitx21_set_default_clk(void)
 	hd21_write_reg(CLKCTRL_HTX_CLK_CTRL0, data32);
 
 	if (hdev->data->chip_type == MESON_CPU_ID_T7)
-		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 0, 0, 5);
+		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 7, 0, 3);
 
-	// wire    wr_enable = control[3];
-	// wire    fifo_enable = control[2];
-	// assign  phy_clk_en = control[1];
-	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL1, 1, 1, 1); // Enable tmds_clk
-	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL1, 1, 2, 1); // Enable the decoupling FIFO
-	// Enable enable the write/read decoupling state machine
-	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL1, 1, 3, 1);
 	// Bring HDMITX MEM output of power down
 	hd21_set_reg_bits(PWRCTRL_MEM_PD11, 0, 8, 8);
 	// Bring out of reset

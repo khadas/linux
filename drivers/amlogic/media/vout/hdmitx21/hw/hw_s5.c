@@ -317,6 +317,58 @@ void hdmitx21_phy_bandgap_en_s5(void)
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0x0b4242);
 }
 
+void hdmitx_s5_phy_pre_init(struct hdmitx_dev *hdev)
+{
+	enum frl_rate_enum frl_rate = hdev->frl_rate;
+
+	/* Stage1: reset registers */
+	hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0x0);
+	hd21_write_reg(ANACTRL_HDMIPHY_CTRL1, 0x0);
+	hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x0);
+	hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x0);
+	hd21_write_reg(ANACTRL_HDMIPHY_CTRL6, 0x0);
+	ndelay(10);
+
+	/* Stage2: enable Bandgap */
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL5, 0x03, 0, 8);
+	udelay(10);
+
+	/* Stage3: enable LDO */
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 0xbd, 24, 8);
+	udelay(10);
+
+	/* Stage4: enable dcc */
+	if (frl_rate == FRL_3G3L || frl_rate == FRL_6G3L)
+		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL6, 0x57, 8, 8); /* power down channel 4 */
+	else
+		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL6, 0x77, 8, 8);
+	ndelay(10);
+
+	/* Stage5: enable p2s */
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL6, 0x0b, 0, 8);
+	if (frl_rate == FRL_3G3L || frl_rate == FRL_6G3L)
+		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL5, 0x3f, 8, 8); /* power down channel 4 */
+	else
+		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL5, 0xff, 8, 8);
+	ndelay(10);
+
+	/* set phy ch0/1/2/3 swap as default */
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL1, 0, 18, 2);
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL1, 1, 20, 2);
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL1, 2, 22, 2);
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL1, 3, 24, 2);
+	// wire    wr_enable = control[3];
+	// wire    fifo_enable = control[2];
+	// assign  phy_clk_en = control[1];
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL1, 0, 0, 1); // Enable Soft_reset
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL1, 1, 0, 1); // Enable Soft_reset
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL1, 0, 0, 1); // Enable Soft_reset
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL1, 1, 1, 1); // Enable tmds_clk
+	// Enable enable the write/read decoupling state machine
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL1, 1, 3, 1);
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL1, 1, 2, 1); // Enable the decoupling FIFO
+}
+
 void hdmitx_set_s5_phypara(enum frl_rate_enum frl_rate, u32 tmds_clk)
 {
 	const u16 swing[] = {
@@ -348,36 +400,6 @@ void hdmitx_set_s5_phypara(enum frl_rate_enum frl_rate, u32 tmds_clk)
 	};
 	u8 rterm = 0; /* this will get from ufuse */
 	struct arm_smccc_res res;
-
-	/* Stage1: reset registers */
-	hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0x0);
-	hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x0);
-	hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x0);
-	hd21_write_reg(ANACTRL_HDMIPHY_CTRL6, 0x0);
-	ndelay(10);
-
-	/* Stage2: enable Bandgap */
-	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL5, 0x03, 0, 8);
-	usleep_range(10, 20);
-
-	/* Stage3: enable LDO */
-	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 0xbd, 24, 8);
-	usleep_range(10, 20);
-
-	/* Stage4: enable dcc */
-	if (frl_rate == FRL_3G3L || frl_rate == FRL_6G3L)
-		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL6, 0x57, 8, 8); /* power down channel 4 */
-	else
-		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL6, 0x77, 8, 8);
-	ndelay(10);
-
-	/* Stage5: enable p2s */
-	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL6, 0x0b, 0, 8);
-	if (frl_rate == FRL_3G3L || frl_rate == FRL_6G3L)
-		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL5, 0x3f, 8, 8); /* power down channel 4 */
-	else
-		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL5, 0xff, 8, 8);
-	ndelay(10);
 
 	/* Stage6: enable Rterm */
 	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL0, 0xd8, 16, 8);
