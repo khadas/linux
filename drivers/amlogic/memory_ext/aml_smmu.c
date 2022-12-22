@@ -272,8 +272,8 @@ static int aml_smmu_device_probe(struct platform_device *pdev)
 	rmem = of_reserved_mem_lookup(mem_node);
 	of_node_put(mem_node);
 	if (rmem) {
-		dev_info(dev, "tee protect memory: %lld MiB at 0x%llx\n",
-			rmem->size / SZ_1M, rmem->base);
+		dev_info(dev, "tee protect memory: %lu MiB at 0x%lx\n",
+			(unsigned long)rmem->size / SZ_1M, (unsigned long)rmem->base);
 		ret = tee_protect_mem_by_type(TEE_MEM_TYPE_PCIE,
 				rmem->base, rmem->size, &handle);
 		if (ret) {
