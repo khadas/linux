@@ -45,6 +45,7 @@
  *enable: 1
  */
 static bool remote_debug_enable;
+extern int ageing_test_flag;
 
 void remote_repeat(struct remote_dev *dev)
 {
@@ -63,13 +64,15 @@ bool remote_debug_get_enable(void)
 
 static void ir_do_keyup(struct remote_dev *dev)
 {
-	input_report_key(dev->input_device, dev->last_keycode, 0);
-	input_sync(dev->input_device);
-	if (dev->last_keycode == KEY_POWER)
-		pm_relax(dev->dev);
-	dev->keypressed = false;
-	dev->last_scancode = -1;
-	remote_dbg(dev->dev, "keyup!!\n");
+	if(!ageing_test_flag){
+		input_report_key(dev->input_device, dev->last_keycode, 0);
+		input_sync(dev->input_device);
+		if (dev->last_keycode == KEY_POWER)
+			pm_relax(dev->dev);
+		dev->keypressed = false;
+		dev->last_scancode = -1;
+		remote_dbg(dev->dev, "keyup!!\n");
+	}
 }
 
 static void ir_timer_keyup(unsigned long cookie)
@@ -97,20 +100,21 @@ static void ir_timer_keyup(unsigned long cookie)
 static void ir_do_keydown(struct remote_dev *dev, int scancode,
 			  u32 keycode)
 {
-	remote_dbg(dev->dev, "keypressed=0x%x\n", dev->keypressed);
+	if(!ageing_test_flag){
+		remote_dbg(dev->dev, "keypressed=0x%x\n", dev->keypressed);
+		if (dev->keypressed)
+			ir_do_keyup(dev);
 
-	if (dev->keypressed)
-		ir_do_keyup(dev);
-
-	if (keycode != KEY_RESERVED) {
-		dev->keypressed = true;
-		dev->last_scancode = scancode;
-		dev->last_keycode = keycode;
-		input_report_key(dev->input_device, keycode, 1);
-		input_sync(dev->input_device);
-		remote_dbg(dev->dev, "report key!!\n");
-	} else {
-		dev_err(dev->dev, "no valid key to handle");
+		if (keycode != KEY_RESERVED) {
+			dev->keypressed = true;
+			dev->last_scancode = scancode;
+			dev->last_keycode = keycode;
+			input_report_key(dev->input_device, keycode, 1);
+			input_sync(dev->input_device);
+			remote_dbg(dev->dev, "report key!!\n");
+		} else {
+			dev_err(dev->dev, "no valid key to handle");
+		}
 	}
 }
 
