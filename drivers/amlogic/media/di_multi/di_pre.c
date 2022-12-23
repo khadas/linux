@@ -539,8 +539,10 @@ void dpre_mtotal_timeout_contr(void)
 
 	dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en));
 	dcntr_dis();
-	if (di_get_dts_nrds_en())
-		dim_nr_ds_hw_ctrl(false);
+#ifdef DIM_TB_DETECT
+	//if (di_get_dts_nrds_en())
+	dim_nr_ds_hw_ctrl(false);
+#endif
 	pre->pres->pre_de_irq_timeout_count++;
 
 	pre->pres->pre_de_busy = 0;

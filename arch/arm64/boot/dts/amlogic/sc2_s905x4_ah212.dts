@@ -88,10 +88,10 @@
 			alignment = <0x0 0x400000>;
 		};
 		/*di CMA pool */
-		//di_cma_reserved:linux,di_cma {
-			//compatible = "shared-dma-pool";
-			//status = "okay";
-			//reusable;
+		di_cma_reserved:linux,di_cma {
+			compatible = "shared-dma-pool";
+			status = "okay";
+			reusable;
 			/* buffer_size = 3621952(yuv422 8bit)
 			 *  | 4736064(yuv422 10bit)
 			 *  | 4074560(yuv422 10bit full pack mode)
@@ -99,10 +99,10 @@
 			 * 10x4736064=45.2M(0x2e) support 12bit
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
-			//size = <0x0 0x0B000000>;
+			size = <0x0 0x400000>;
 			//size = <0x0 0x0>;
-			//alignment = <0x0 0x400000>;
-		//};
+			alignment = <0x0 0x400000>;
+		};
 
 		/*  POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
@@ -325,6 +325,7 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
+		tb = <2>;
 	};
 
 	gpio_keypad{

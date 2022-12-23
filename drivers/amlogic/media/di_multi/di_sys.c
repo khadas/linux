@@ -60,6 +60,7 @@
 #include "di_dbg.h"
 #include "di_vframe.h"
 #include "di_task.h"
+#include "tb_task.h"
 #include "di_prc.h"
 #include "di_sys.h"
 #include "di_api.h"
@@ -75,10 +76,12 @@ struct di_dev_s *get_dim_de_devp(void)
 	return di_pdev;
 }
 
+#ifdef MARK_TB
 unsigned int di_get_dts_nrds_en(void)
 {
 	return get_dim_de_devp()->nrds_enable;
 }
+#endif
 
 u8 *dim_vmap(ulong addr, u32 size, bool *bflg)
 {
@@ -323,8 +326,6 @@ unsigned int dim_cma_alloc_total(struct di_dev_s *de_devp)
 		return 0;
 	mmt->mem_start = omm.addr;
 	mmt->total_pages = omm.ppage;
-	if (cfgnq(MEM_FLAG, EDI_MEM_M_REV) && de_devp->nrds_enable)
-		dim_nr_ds_buf_init(cfgg(MEM_FLAG), 0, &de_devp->pdev->dev, 0);
 	return 1;
 }
 
@@ -3689,7 +3690,8 @@ static const struct di_meson_data  data_tm2_vb = {
 static const struct di_meson_data  data_sc2 = {
 	.name = "dim_sc2",//sc2c ic_sub_ver=1,DI_IC_REV_SUB
 	.ic_id	= DI_IC_ID_SC2,
-	.support = IC_SUPPORT_DW
+	.support = IC_SUPPORT_DW |
+		   IC_SUPPORT_TB
 };
 
 static const struct di_meson_data  data_t5 = {
@@ -3732,7 +3734,8 @@ static const struct di_meson_data  data_s5 = {
 	.name = "dim_s5",
 	.ic_id	= DI_IC_ID_S5,
 	.support = IC_SUPPORT_HDR	|
-		   IC_SUPPORT_DW
+		   IC_SUPPORT_DW	|
+		   IC_SUPPORT_TB
 };
 
 /* #ifdef CONFIG_USE_OF */
@@ -3869,8 +3872,8 @@ static int dim_probe(struct platform_device *pdev)
 
 	/* move to dim_mem_prob dim_rev_mem(di_devp);*/
 
-	ret = of_property_read_u32(pdev->dev.of_node,
-				   "nrds-enable", &di_devp->nrds_enable);
+	//ret = of_property_read_u32(pdev->dev.of_node,
+				//"nrds-enable", &di_devp->nrds_enable);
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "pps-enable", &di_devp->pps_enable);
 
@@ -4014,9 +4017,11 @@ static int dim_probe(struct platform_device *pdev)
 	dip_prob_ch();
 	dim_hdr_prob();
 	dim_mng_hf_prob();
+	dim_tb_prob();
 
 	task_start();
 	mtask_start();
+	tbtask_start();
 	if (DIM_IS_IC_EF(SC2))
 		opl1()->pst_mif_sw(false, DI_MIF0_SEL_PST_ALL);
 	else
@@ -4079,6 +4084,7 @@ static int dim_remove(struct platform_device *pdev)
 
 	task_stop();
 	mtask_stop();
+	tbtask_stop();
 
 	dim_rdma_exit();
 

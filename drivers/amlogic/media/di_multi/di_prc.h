@@ -351,6 +351,12 @@ void dcntr_pq_tune(struct dim_rpt_s *rpt);
 struct dim_rpt_s *dim_api_getrpt(struct vframe_s *vfm);
 void dim_pqrpt_init(struct dim_rpt_s *rpt);
 
+void dim_tb_prob(void);
+void dim_tb_t_release(struct di_ch_s *pch);
+#ifdef DIM_TB_DETECT
+void dim_tb_alloc(struct di_ch_s *pch);
+void dim_tb_reg_init(struct vframe_s *vfm, unsigned int on, unsigned int ch);
+#endif
 void di_pq_db_setting(enum DIM_DB_SV idx);
 
 int  dbg_dct_mif_show(struct seq_file *s, void *v);

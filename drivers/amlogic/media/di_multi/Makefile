@@ -38,7 +38,7 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_hw_v2.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_hw_v3.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_afbc_v3.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/di_afbc_dbg.o
-
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DEINTERLACE) += di_multi/tb_task.o
 ccflags-y += -Idrivers/amlogic/media/common/rdma/
 ccflags-y += -I$(src)/di_multi/
 ccflags-y += -I$(src)/di_multi/sc2

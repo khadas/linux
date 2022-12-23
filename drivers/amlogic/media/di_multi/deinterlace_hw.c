@@ -968,7 +968,7 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 			    unsigned char madi_en,
 			    unsigned char pre_field_num,
 			    unsigned char pre_vdin_link,
-			    void *pre)
+			    void *pre, unsigned int channel)
 {
 	bool mem_bypass = false, chan2_disable = false;
 	unsigned short nrwr_hsize = 0, nrwr_vsize = 0;
@@ -979,6 +979,7 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 	struct di_pre_stru_s *ppre = (struct di_pre_stru_s *)pre;
 	static bool last_bypass; //dbg only
 	static bool last_disable_chan2; //dbg only
+	struct di_ch_s *pch;
 
 	if (DIM_IS_IC(T5) || DIM_IS_IC(T5DB)) {
 		mem_bypass = (pre_vdin_link & 0xf0) ? true : false;
@@ -986,6 +987,8 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 	}
 
 	pre_vdin_link &= 0xf;
+
+	pch = get_chdata(channel);
 
 	if (DIM_IS_IC_EF(SC2)) {
 		di_inp_mif->urgent	= dimp_get(edi_mp_pre_urgent);
@@ -1069,12 +1072,16 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 		DIM_RDMA_WR_BITS(DI_MTN_1_CTRL1, madi_en ? 5 : 0, 29, 3);
 	}
 
-	if (DIM_IS_IC_EF(SC2))
-		sc2_tfbf = 2;
-	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
+	if (DIM_IS_IC_EF(SC2)) {
+		if (pch->en_tb)
+			sc2_tfbf = 3;
+		else
+			sc2_tfbf = 2;
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		sc2_tfbf = 1;
-	else
+	} else {
 		sc2_tfbf = 0;
+	}
 
 	/*
 	 * the bit define is not same with before ,
