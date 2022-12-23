@@ -301,7 +301,7 @@ static int tb_thread(void *data)
 	struct di_tbtask *tsk = data;
 	bool semheld = false;
 	int i;
-	struct di_ch_s *pch;
+	//struct di_ch_s *pch;
 
 	tsk->delay = HZ;
 	tsk->status = 0;
@@ -334,7 +334,7 @@ mrestart:
 
 		/**/
 		for (i = 0; i < DI_CHANNEL_NUB; i++) {
-			pch = get_chdata(i);
+			//pch = get_chdata(i);
 			tbtask_polling_cmd(i);
 			//blk_polling(i);
 			//mtask_polling_sct(pch);
