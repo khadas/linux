@@ -109,7 +109,7 @@ create_package() {
 
 	# Create the package
 	dpkg-gencontrol -p$pname -P"$pdir"
-	dpkg-deb --build "$pdir" ..
+	dpkg-deb -Zxz --build "$pdir" ..
 }
 
 deploy_kernel_headers () {
