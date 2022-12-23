@@ -115,6 +115,8 @@ static bool fg_bypass;
 #undef module_param_array
 #define module_param_array(x...)
 
+//#define DBG_TIMER	(1)
+
 static DEFINE_SPINLOCK(di_lock2);
 
 #define di_lock_irqfiq_save(irq_flag) \
@@ -10693,19 +10695,27 @@ void di_load_pq_table(void)
 {
 	struct di_pq_parm_s *pos = NULL, *tmp = NULL;
 	struct di_dev_s *de_devp = get_dim_de_devp();
+#ifdef DBG_TIMER
+	u64 ustime, udiff;
+
+	ustime = cur_to_usecs();
+#endif
 
 	if (de_devp->flags & DI_LOAD_REG_FLAG) {
-		if (atomic_read(&de_devp->pq_flag) &&
-		    atomic_dec_and_test(&de_devp->pq_flag)) {
-			list_for_each_entry_safe(pos, tmp,
-						 &de_devp->pq_table_list, list) {
-				dimh_load_regs(pos);
-				list_del(&pos->list);
-				di_pq_parm_destroy(pos);
-			}
-			de_devp->flags &= ~DI_LOAD_REG_FLAG;
-			atomic_set(&de_devp->pq_flag, 1); /* to idle*/
+		mutex_lock(&de_devp->lock_pq);
+		list_for_each_entry_safe(pos, tmp,
+					 &de_devp->pq_table_list, list) {
+			dimh_load_regs(pos);
+			list_del(&pos->list);
+			di_pq_parm_destroy(pos);
 		}
+		de_devp->flags &= ~DI_LOAD_REG_FLAG;
+		mutex_unlock(&de_devp->lock_pq);
+#ifdef DBG_TIMER
+		udiff	= cur_to_usecs();
+		udiff	-= ustime;
+		PR_INF("%s:use %u us\n", "pq h:", (unsigned int)udiff);
+#endif
 	}
 }
 
@@ -11348,34 +11358,32 @@ static void di_pq_parm_destroy(struct di_pq_parm_s *pq_ptr)
 }
 
 /*move from ioctrl*/
-long dim_pq_load_io(unsigned long arg)
+static long dim_pq_load_io_l(struct di_dev_s *de_devp, unsigned long arg)
 {
 	long ret = 0, tab_flag = 0;
-	di_dev_t *di_devp;
+	//di_dev_t *di_devp;
 	void __user *argp = (void __user *)arg;
 	size_t mm_size = 0;
 	struct am_pq_parm_s tmp_pq_s = {0};
 	struct di_pq_parm_s *di_pq_ptr = NULL;
-	struct di_dev_s *de_devp = get_dim_de_devp();
+	//struct di_dev_s *de_devp = get_dim_de_devp();
 	/*unsigned int channel = 0;*/	/*fix to channel 0*/
 
-	di_devp = de_devp;
-	/* check io busy or not*/
-	if (atomic_read(&de_devp->pq_io) < 1 ||
-	    !atomic_dec_and_test(&de_devp->pq_io)) {
-		PR_ERR("%s:busy, do nothing\n", __func__);
-		return -EBUSY;
+	//di_devp = de_devp;
+	if (!de_devp) {
+		PR_ERR("pq i:no dev\n");
+		return -EFAULT;
 	}
 	mm_size = sizeof(struct am_pq_parm_s);
 	if (copy_from_user(&tmp_pq_s, argp, mm_size)) {
-		PR_ERR("set pq parm errors\n");
-		atomic_set(&de_devp->pq_io, 1); /* idle */
+		PR_ERR("pq i:parm\n");
+		//atomic_set(&de_devp->pq_io, 1); /* idle */
 		return -EFAULT;
 	}
 	if (tmp_pq_s.table_len >= DIMTABLE_LEN_MAX) {
-		PR_ERR("load 0x%x wrong pq table_len.\n",
+		PR_ERR("pq i:0x%x table_len.\n",
 		       tmp_pq_s.table_len);
-		atomic_set(&de_devp->pq_io, 1); /* idle */
+		//atomic_set(&de_devp->pq_io, 1); /* idle */
 		return -EFAULT;
 	}
 	tab_flag = TABLE_NAME_DI | TABLE_NAME_NR | TABLE_NAME_MCDI |
@@ -11383,62 +11391,81 @@ long dim_pq_load_io(unsigned long arg)
 
 	tab_flag |= TABLE_NAME_SMOOTHPLUS;
 	if (tmp_pq_s.table_name & tab_flag) {
-		PR_INF("load 0x%x pq len %u %s.\n",
+		PR_INF("pq i:0x%x:%u:%s.\n",
 		       tmp_pq_s.table_name, tmp_pq_s.table_len,
 		       (!dim_dbg_is_force_later() && get_reg_flag_all()) ? "directly" : "later");
 	} else {
-		PR_ERR("load 0x%x wrong pq table.\n",
+		PR_ERR("pq i:0x%x name.\n",
 		       tmp_pq_s.table_name);
-		atomic_set(&de_devp->pq_io, 1); /* idle */
+		//atomic_set(&de_devp->pq_io, 1); /* idle */
 		return -EFAULT;
 	}
 	di_pq_ptr = di_pq_parm_create(&tmp_pq_s);
 	if (!di_pq_ptr) {
-		PR_ERR("allocat pq parm struct error.\n");
-		atomic_set(&de_devp->pq_io, 1); /* idle */
+		PR_ERR("pq i:allocate\n");
+		//atomic_set(&de_devp->pq_io, 1); /* idle */
 		return -EFAULT;
 	}
 	argp = (void __user *)tmp_pq_s.table_ptr;
 	mm_size = tmp_pq_s.table_len * sizeof(struct am_reg_s);
 	if (copy_from_user(di_pq_ptr->regs, argp, mm_size)) {
-		PR_ERR("user copy pq table errors\n");
-		atomic_set(&de_devp->pq_io, 1); /* idle */
+		PR_ERR("pq i:copy\n");
+		//atomic_set(&de_devp->pq_io, 1); /* idle */
 		return -EFAULT;
 	}
+#ifdef HIS_CODE
 	if (!dim_dbg_is_force_later() &&  get_reg_flag_all()) {
 		dimh_load_regs(di_pq_ptr);
 		di_pq_parm_destroy(di_pq_ptr);
 		atomic_set(&de_devp->pq_io, 1); /* idle */
 		return ret;
 	}
-	if (atomic_read(&de_devp->pq_flag) &&
-	    atomic_dec_and_test(&de_devp->pq_flag)) {
-		if (di_devp->flags & DI_LOAD_REG_FLAG) {
-			struct di_pq_parm_s *pos = NULL, *tmp = NULL;
+#endif
+	if (de_devp->flags & DI_LOAD_REG_FLAG) {
+		struct di_pq_parm_s *pos = NULL, *tmp = NULL;
 
-			list_for_each_entry_safe(pos, tmp,
-						 &di_devp->pq_table_list,
-						 list) {
-				if (di_pq_ptr->pq_parm.table_name ==
-				    pos->pq_parm.table_name) {
-					PR_INF("remove 0x%x table.\n",
-					       pos->pq_parm.table_name);
-					list_del(&pos->list);
-					di_pq_parm_destroy(pos);
-				}
+		list_for_each_entry_safe(pos, tmp,
+					 &de_devp->pq_table_list,
+					 list) {
+			if (di_pq_ptr->pq_parm.table_name ==
+			    pos->pq_parm.table_name) {
+				PR_INF("pq i:rm 0x%x\n",
+				       pos->pq_parm.table_name);
+				list_del(&pos->list);
+				di_pq_parm_destroy(pos);
 			}
 		}
-		list_add_tail(&di_pq_ptr->list,
-			      &di_devp->pq_table_list);
-		di_devp->flags |= DI_LOAD_REG_FLAG;
-		atomic_set(&de_devp->pq_flag, 1);/* to idle */
-	} else {
-		PR_ERR("please retry table name 0x%x.\n",
-		       di_pq_ptr->pq_parm.table_name);
-		di_pq_parm_destroy(di_pq_ptr);
-		ret = -EBUSY;
 	}
-	atomic_set(&de_devp->pq_io, 1); /* idle */
+	list_add_tail(&di_pq_ptr->list,
+		      &de_devp->pq_table_list);
+	de_devp->flags |= DI_LOAD_REG_FLAG;
+
+	return ret;
+}
+
+long dim_pq_load_io(unsigned long arg)
+{
+	struct di_dev_s *de_devp = get_dim_de_devp();
+	long ret;
+#ifdef DBG_TIMER
+	u64 ustime, udiff;
+
+	ustime = cur_to_usecs();
+#endif
+
+	if (!de_devp) {
+		PR_ERR("%s:no dev\n", __func__);
+		return -EFAULT;
+	}
+	mutex_lock(&de_devp->lock_pq);
+	ret = dim_pq_load_io_l(de_devp, arg);
+	mutex_unlock(&de_devp->lock_pq);
+#ifdef DBG_TIMER
+	udiff	= cur_to_usecs();
+	udiff	-= ustime;
+	PR_INF("%s:use %u us\n", "pq i", (unsigned int)udiff);
+#endif
+
 	return ret;
 }
 

@@ -4805,19 +4805,19 @@ void dimh_load_regs(struct di_pq_parm_s *di_pq_ptr)
 	if (dimp_get(edi_mp_pq_load_dbg) == 1)
 		return;
 	if (dimp_get(edi_mp_pq_load_dbg) == 2)
-		pr_info("[DI]%s hw load 0x%x pq table len %u.\n",
-			__func__, di_pq_ptr->pq_parm.table_name,
+		PR_INF("pq h: 0x%x len %u.\n",
+			di_pq_ptr->pq_parm.table_name,
 			di_pq_ptr->pq_parm.table_len);
 	if (PTR_RET(di_pq_ptr->regs)) {
 		PR_ERR("[DI] table ptr error.\n");
 		return;
 	}
-	PR_INF("load 0x%x pq table len %u.\n",
+	PR_INF("pq h: 0x%x %u.\n",
 	       di_pq_ptr->pq_parm.table_name,
 	       di_pq_ptr->pq_parm.table_len);
 	/* check len for coverity */
 	if (di_pq_ptr->pq_parm.table_len  >= DIMTABLE_LEN_MAX) {
-		PR_WARN("%s:len overflow:%d\n", __func__,
+		PR_WARN("%s:overflow:%d\n", "pq h",
 			di_pq_ptr->pq_parm.table_len);
 		return;
 	}
@@ -4831,7 +4831,7 @@ void dimh_load_regs(struct di_pq_parm_s *di_pq_ptr)
 		value = regs_p->val;
 		mask = regs_p->mask;
 		if (dimp_get(edi_mp_pq_load_dbg) == 2)
-			pr_info("[%u][0x%x] = [0x%x]&[0x%x]\n",
+			PR_INF("[%u][0x%x] = [0x%x]&[0x%x]\n",
 				i, addr, value, mask);
 
 		for (j = 0; j < SKIP_CTRE_NUM; j++) {
@@ -4846,7 +4846,7 @@ void dimh_load_regs(struct di_pq_parm_s *di_pq_ptr)
 		regs_p++;
 		if (j < SKIP_CTRE_NUM) {
 			if (dimp_get(edi_mp_pq_load_dbg) == 3)
-				pr_info("%s skip [0x%x]=[0x%x].\n",
+				PR_INF("%s skip [0x%x]=[0x%x].\n",
 					__func__, addr, value);
 			continue;
 		}
@@ -4859,7 +4859,7 @@ void dimh_load_regs(struct di_pq_parm_s *di_pq_ptr)
 		if (!ctrl_reg_flag && !save_db)
 			DIM_DI_WR(addr, value);
 		if (dimp_get(edi_mp_pq_load_dbg) == 2)
-			pr_info("[%u][0x%x] = [0x%x] %s\n", i, addr,
+			PR_INF("[%u][0x%x] = [0x%x] %s\n", i, addr,
 				value, RD(addr) != value ? "fail" : "success");
 	}
 }

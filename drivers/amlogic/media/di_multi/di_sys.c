@@ -3889,10 +3889,11 @@ static int dim_probe(struct platform_device *pdev)
 
 	/* mutex_init(&di_devp->cma_mutex); */
 	INIT_LIST_HEAD(&di_devp->pq_table_list);
-
+#ifdef HIS_CODE
 	atomic_set(&di_devp->pq_flag, 1); /* idle */
 	atomic_set(&di_devp->pq_io, 1); /* idle */
-
+#endif
+	mutex_init(&di_devp->lock_pq);
 	di_devp->pre_irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	dbg_mem("pre_irq:%d\n", di_devp->pre_irq);
 	di_devp->post_irq = irq_of_parse_and_map(pdev->dev.of_node, 1);
