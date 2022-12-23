@@ -25,7 +25,7 @@
 #define DIM_TB_BUFFER_MAX_SIZE 16
 #define DIM_TB_DETECT_W 128
 #define DIM_TB_DETECT_H 96
-#define DIM_TB_ALGO_COUNT 4
+#define DIM_TB_ALGO_COUNT 6
 
 struct dim_tb_buf_s {
 	ulong vaddr;
@@ -40,23 +40,32 @@ enum dim_tb_status {
 
 void write_file(void);
 
-void dim_tb_ext_cmd(struct vframe_s *vf, int data1, unsigned int ch,
-		unsigned int cmd);
+void dim_tb_status(void);
 
-int dim_tb_detect(struct vframe_s *vf, int data1, unsigned int ch);
+struct vframe_tb_s {
+	enum vframe_source_type_e source_type;
+	u32 width;
+	u32 height;
+	u32 type;
+	u32 omx_index;
+};
 
 int dim_tb_buffer_init(unsigned int ch);
 
 int dim_tb_buffer_uninit(unsigned int ch);
 
-void dim_tb_function(struct vframe_s *vf, int data1, unsigned int ch);
+void dim_tb_reg_init(struct vframe_tb_s *vfm, unsigned int on, unsigned int ch);
 
-void dim_ds_detect(struct vframe_s *vf, int data1, unsigned int ch);
+int dim_tb_detect(struct vframe_tb_s *vf, int data1, unsigned int ch);
 
-int dim_tb_task_process(struct vframe_s *vf, u32 data, unsigned int ch);
+void dim_tb_function(struct vframe_tb_s *vf, int data1, unsigned int ch);
 
-void dim_tb_status(void);
+void dim_ds_detect(struct vframe_tb_s *vf, int data1, unsigned int ch);
 
+int dim_tb_task_process(struct vframe_tb_s *vf, u32 data, unsigned int ch);
+
+void dim_tb_ext_cmd(struct vframe_s *vf, int data1, unsigned int ch,
+		unsigned int cmd);
 #endif
 void dim_dump_tb(unsigned int data, unsigned int ch);
 

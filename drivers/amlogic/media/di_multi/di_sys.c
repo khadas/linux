@@ -3690,8 +3690,7 @@ static const struct di_meson_data  data_tm2_vb = {
 static const struct di_meson_data  data_sc2 = {
 	.name = "dim_sc2",//sc2c ic_sub_ver=1,DI_IC_REV_SUB
 	.ic_id	= DI_IC_ID_SC2,
-	.support = IC_SUPPORT_DW |
-		   IC_SUPPORT_TB
+	.support = IC_SUPPORT_DW
 };
 
 static const struct di_meson_data  data_t5 = {

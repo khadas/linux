@@ -151,7 +151,7 @@ exit:
 	return ret;
 }
 
-int dim_tb_detect(struct vframe_s *vf, int data1, unsigned int ch)
+int dim_tb_detect(struct vframe_tb_s *vf, int data1, unsigned int ch)
 {
 	bool is_top;
 	const struct reg_acc *op = &di_pre_regset;
@@ -324,7 +324,7 @@ int dim_tb_detect(struct vframe_s *vf, int data1, unsigned int ch)
 	return 1;
 }
 
-void dim_ds_detect(struct vframe_s *vf, int data1, unsigned int ch)
+void dim_ds_detect(struct vframe_tb_s *vf, int data1, unsigned int ch)
 {
 	struct di_dev_s *di_devp = get_dim_de_devp();
 	struct tb_core_s *pcfg;
@@ -378,7 +378,7 @@ void dim_ds_detect(struct vframe_s *vf, int data1, unsigned int ch)
 	}
 }
 
-void dim_tb_function(struct vframe_s *vf, int data1, unsigned int ch)
+void dim_tb_function(struct vframe_tb_s *vf, int data1, unsigned int ch)
 {
 	int ret = 0;
 	struct di_dev_s *di_devp = get_dim_de_devp();
@@ -758,7 +758,7 @@ int dim_tb_buffer_uninit(unsigned int ch)
 	return 0;
 }
 
-void dim_tb_reg_init(struct vframe_s *vfm, unsigned int on, unsigned int ch)
+void dim_tb_reg_init(struct vframe_tb_s *vfm, unsigned int on, unsigned int ch)
 {
 	int val = 0;
 	struct di_dev_s *di_devp = get_dim_de_devp();
@@ -912,7 +912,7 @@ void dim_tb_alloc(struct di_ch_s *pch)
 		get_datal()->tb_src_cnt);
 }
 
-int dim_tb_task_process(struct vframe_s *vf, u32 data, unsigned int ch)
+int dim_tb_task_process(struct vframe_tb_s *vf, u32 data, unsigned int ch)
 {
 	int tbff_flag = 0;
 	ulong y5fld[5] = {0};
@@ -1129,15 +1129,27 @@ void dim_tb_ext_cmd(struct vframe_s *vf, int data1, unsigned int ch,
 		unsigned int cmd)
 {
 	struct tbtsk_cmd_s tbblk_cmd;
+	struct vframe_tb_s cfg_data;
+	struct vframe_tb_s *cfg = &cfg_data;
 
+	memset(cfg, 0, sizeof(struct vframe_tb_s));
+	if (!IS_ERR_OR_NULL(vf)) {
+		cfg->height = vf->height;
+		cfg->width = vf->width;
+		cfg->source_type = vf->source_type;
+		cfg->type = vf->type;
+	}
+
+	dbg_tb("%s :S\n", __func__);
+	if (cmd == ECMD_TB_REG)
+		dim_tb_alloc(get_chdata(ch));
 	tbblk_cmd.cmd = cmd;
-	if (cmd != ECMD_TB_RELEASE && (!IS_ERR_OR_NULL(vf)))
-		memcpy(&tbblk_cmd.in_buf_vf, vf, sizeof(tbblk_cmd.in_buf_vf));
 	tbblk_cmd.field_count = data1;
 	tbblk_cmd.ch = ch;
+	tbblk_cmd.in_buf_vf = vf;
 	tbtsk_alloc_block(ch, &tbblk_cmd);
 	if (cmd == ECMD_TB_PROC)
-		dim_ds_detect(vf, data1, ch);
+		dim_ds_detect(cfg, data1, ch);
 }
 #endif
 

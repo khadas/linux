@@ -14,10 +14,10 @@
 
 #include "di_prc.h"
 #include "di_sys.h"
+#include "nr_downscale.h"
 #include "tb_task.h"
 #include "di_vframe.h"
 #include "di_dbg.h"
-#include "nr_downscale.h"
 
 #ifdef DIM_TB_DETECT
 void tb_polling(unsigned int ch, struct tbtsk_cmd_s *cmd)
@@ -25,9 +25,18 @@ void tb_polling(unsigned int ch, struct tbtsk_cmd_s *cmd)
 	struct di_tbtask *tsk = get_tbtask();
 	struct dim_fcmd_s *fcmd;
 	struct di_ch_s *pch;
+	struct vframe_tb_s cfg_data;
+	struct vframe_tb_s *cfg = &cfg_data;
 
+	memset(cfg, 0, sizeof(struct vframe_tb_s));
 	pch = get_chdata(cmd->ch);
 	fcmd = &tsk->fcmd[cmd->ch];
+	if (!IS_ERR_OR_NULL(cmd->in_buf_vf)) {
+		cfg->height = cmd->in_buf_vf->height;
+		cfg->width = cmd->in_buf_vf->width;
+		cfg->source_type = cmd->in_buf_vf->source_type;
+		cfg->type = cmd->in_buf_vf->type;
+	}
 	dbg_tb("%s:cmd=0x%x,ch=0x%x,cmdch=0x%x\n", __func__,
 			cmd->cmd, ch, cmd->ch);
 	if (ch != cmd->ch)
@@ -36,8 +45,8 @@ void tb_polling(unsigned int ch, struct tbtsk_cmd_s *cmd)
 	switch (cmd->cmd) {
 	case ECMD_TB_REG:
 	#ifdef DIM_TB_DETECT
-		dim_tb_alloc(pch);
-		dim_tb_reg_init(&cmd->in_buf_vf, 1, cmd->ch);
+		//dim_tb_alloc(pch);
+		dim_tb_reg_init(cfg, 1, cmd->ch);
 		if (dim_tb_buffer_init(cmd->ch) < 0) {
 			PR_INF(" alloc tb mem ng.\n");
 			dim_tb_t_release(pch);
@@ -47,7 +56,7 @@ void tb_polling(unsigned int ch, struct tbtsk_cmd_s *cmd)
 		break;
 	case ECMD_TB_PROC:
 	#ifdef DIM_TB_DETECT
-		dim_tb_function(&cmd->in_buf_vf, cmd->field_count, cmd->ch);
+		dim_tb_function(cfg, cmd->field_count, cmd->ch);
 	#endif
 		break;
 	case ECMD_TB_RELEASE:
@@ -58,7 +67,7 @@ void tb_polling(unsigned int ch, struct tbtsk_cmd_s *cmd)
 		break;
 	case ECMD_TB_ALGORITHM:
 	#ifdef DIM_TB_DETECT
-		if (dim_tb_task_process(&cmd->in_buf_vf,
+		if (dim_tb_task_process(cfg,
 					cmd->field_count,
 					cmd->ch))
 			dbg_tb("not support tb_task\n");

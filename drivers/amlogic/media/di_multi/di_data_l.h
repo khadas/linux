@@ -891,7 +891,7 @@ struct tbtsk_cmd_s {
 	unsigned int ch	: 2;
 	unsigned int nub	: 8;
 	unsigned int rev2	: 16;
-	struct vframe_s in_buf_vf;
+	struct vframe_s *in_buf_vf;
 	int field_count;
 };
 

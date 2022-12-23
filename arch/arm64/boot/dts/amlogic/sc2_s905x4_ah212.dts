@@ -325,7 +325,6 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
-		tb = <2>;
 	};
 
 	gpio_keypad{
