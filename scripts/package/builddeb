@@ -110,7 +110,6 @@ create_package() {
 	# Create the package
 	dpkg-gencontrol -p$pname -P"$pdir"
 	dpkg-deb ${KDEB_COMPRESS:+-Z$KDEB_COMPRESS} --build "$pdir" ..
-	dpkg-deb --build "$pdir" ..
 }
 
 deploy_kernel_headers () {
