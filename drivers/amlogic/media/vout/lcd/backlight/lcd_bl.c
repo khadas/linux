@@ -1590,58 +1590,24 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 	return 0;
 }
 
-static int bl_config_load(struct aml_bl_drv_s *bdrv, struct platform_device *pdev)
+static int bl_config_load(struct aml_bl_drv_s *bdrv, struct platform_device *pdev, int load_id)
 {
-	unsigned int temp;
-	char key_name[15];
-	int load_id = 0, i;
-	bool is_init;
+	char ukey_name[15];
 	phandle pwm_phandle;
 	int ret = 0;
 
-	if (!bdrv->dev->of_node) {
-		BLERR("no backlight[%d] of_node exist\n", bdrv->index);
-		return -1;
-	}
-
-	ret = of_property_read_u32(bdrv->dev->of_node, "key_valid", &temp);
-	if (ret) {
-		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
-			BLPR("[%d]: failed to get key_valid\n", bdrv->index);
-		temp = 0;
-	}
-	bdrv->key_valid = temp;
-	BLPR("[%d]: key_valid: %d\n", bdrv->index, bdrv->key_valid);
-
-	if (bdrv->key_valid) {
-		if (bdrv->index == 0)
-			sprintf(key_name, "backlight");
-		else
-			sprintf(key_name, "backlight%d", bdrv->index);
-
-		is_init = lcd_unifykey_init_get();
-		i = 0;
-		while (!is_init) {
-			if (i++ >= LCD_UNIFYKEY_WAIT_TIMEOUT)
-				break;
-			lcd_delay_ms(LCD_UNIFYKEY_RETRY_INTERVAL);
-			is_init = lcd_unifykey_init_get();
-		}
-		if (is_init) {
-			ret = lcd_unifykey_check(key_name);
-			if (ret < 0)
-				load_id = 0;
-			else
-				load_id = 1;
-		} else {
-			load_id = 0;
-			BLERR("[%d]: key_init_flag=%d\n", bdrv->index, is_init);
-		}
-	}
 	if (load_id) {
+		if (bdrv->index == 0)
+			sprintf(ukey_name, "backlight");
+		else
+			sprintf(ukey_name, "backlight%d", bdrv->index);
+		ret = lcd_unifykey_check(ukey_name);
+		if (ret < 0)
+			return -1;
+
 		BLPR("[%d]: %s from unifykey\n", bdrv->index, __func__);
 		bdrv->config_load = 1;
-		ret = bl_config_load_from_unifykey(bdrv, key_name);
+		ret = bl_config_load_from_unifykey(bdrv, ukey_name);
 	} else {
 #ifdef CONFIG_OF
 		BLPR("[%d]: %s from dts\n", bdrv->index, __func__);
@@ -3936,29 +3902,39 @@ static void bl_init_status_update(struct aml_bl_drv_s *bdrv)
 	}
 }
 
-static void aml_bl_config_probe_work(struct work_struct *work)
+static void aml_bl_config_probe_work(struct work_struct *p_work)
 {
+	struct delayed_work *d_work;
 	struct aml_bl_drv_s *bdrv;
 	struct bl_metrics_config_s *bl_metrics_conf = NULL;
 	struct backlight_properties props;
 	struct backlight_device *bldev;
+	bool is_init;
 	char bl_name[10];
-	int index;
+	int index, load_id;
 	int ret;
 
-	bdrv = container_of(work, struct aml_bl_drv_s, config_probe_work);
+	d_work = container_of(p_work, struct delayed_work, work);
+	bdrv = container_of(d_work, struct aml_bl_drv_s, config_probe_dly_work);
 
 	index = bdrv->index;
-	bdrv->pinmux_flag = 0xff;
-	bdrv->bconf.level_default = 128;
-	bdrv->bconf.level_mid = 128;
-	bdrv->bconf.level_mid_mapping = 128;
-	bdrv->bconf.level_min = 10;
-	bdrv->bconf.level_max = 255;
-	bdrv->bconf.power_on_delay = 100;
-	bdrv->bconf.power_off_delay = 30;
-	bdrv->bconf.method = BL_CTRL_MAX;
-	ret = bl_config_load(bdrv, bdrv->pdev);
+	if (bdrv->key_valid) {
+		is_init = lcd_unifykey_init_get();
+		if (!is_init) {
+			if (bdrv->retry_cnt++ < LCD_UNIFYKEY_WAIT_TIMEOUT) {
+				lcd_queue_delayed_work(&bdrv->config_probe_dly_work,
+					LCD_UNIFYKEY_RETRY_INTERVAL);
+				return;
+			}
+			BLERR("[%d]: key_init_flag=%d\n", bdrv->index, is_init);
+			goto err;
+		}
+		load_id = 1;
+	} else {
+		load_id = 0;
+	}
+
+	ret = bl_config_load(bdrv, bdrv->pdev, load_id);
 	if (ret)
 		goto err;
 
@@ -4004,8 +3980,7 @@ static void aml_bl_config_probe_work(struct work_struct *work)
 		goto err;
 	}
 
-	memset(bl_metrics_conf->level_buf, 0,
-	       (sizeof(unsigned int)) * BL_LEVEL_CNT_MAX * 2);
+	memset(bl_metrics_conf->level_buf, 0, (sizeof(unsigned int)) * BL_LEVEL_CNT_MAX * 2);
 	bdrv->probe_done = 1;
 
 	/* init workqueue */
@@ -4027,6 +4002,36 @@ err:
 	bl_drv[index] = NULL;
 	bl_drv_init_state &= ~(1 << index);
 	BLPR("[%d]: %s: failed\n", index, __func__);
+}
+
+static void bl_base_config_init(struct aml_bl_drv_s *bdrv)
+{
+	unsigned int temp;
+	int ret;
+
+	bdrv->pinmux_flag = 0xff;
+	bdrv->bconf.level_default = 128;
+	bdrv->bconf.level_mid = 128;
+	bdrv->bconf.level_mid_mapping = 128;
+	bdrv->bconf.level_min = 10;
+	bdrv->bconf.level_max = 255;
+	bdrv->bconf.power_on_delay = 100;
+	bdrv->bconf.power_off_delay = 30;
+	bdrv->bconf.method = BL_CTRL_MAX;
+
+	if (!bdrv->dev->of_node) {
+		BLERR("no backlight[%d] of_node\n", bdrv->index);
+		return;
+	}
+
+	ret = of_property_read_u32(bdrv->dev->of_node, "key_valid", &temp);
+	if (ret) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+			BLPR("[%d]: failed to get key_valid\n", bdrv->index);
+		temp = 0;
+	}
+	bdrv->key_valid = temp;
+	BLPR("[%d]: key_valid: %d\n", bdrv->index, bdrv->key_valid);
 }
 
 int aml_bl_index_add(int drv_index, int conf_index)
@@ -4094,9 +4099,10 @@ static int aml_bl_probe(struct platform_device *pdev)
 	bdrv->pdev = pdev;
 
 	bl_pwm_init_config_probe(bdrv->data);
+	bl_base_config_init(bdrv);
 
-	INIT_WORK(&bdrv->config_probe_work, aml_bl_config_probe_work);
-	lcd_queue_work(&bdrv->config_probe_work);
+	INIT_DELAYED_WORK(&bdrv->config_probe_dly_work, aml_bl_config_probe_work);
+	lcd_queue_delayed_work(&bdrv->config_probe_dly_work, 0);
 
 	BLPR("[%d]: probe OK, init_state:0x%x\n", index, bl_drv_init_state);
 	return 0;
@@ -4120,6 +4126,7 @@ static int __exit aml_bl_remove(struct platform_device *pdev)
 	kfree(bdrv->bl_metrics_conf.level_buf);
 	kfree(bdrv->bl_metrics_conf.brightness_buf);
 	cancel_delayed_work_sync(&bdrv->delayed_on_work);
+	cancel_delayed_work(&bdrv->config_probe_dly_work);
 	backlight_device_unregister(bdrv->bldev);
 
 	bl_debug_file_remove(bdrv);

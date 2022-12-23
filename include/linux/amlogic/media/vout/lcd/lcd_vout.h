@@ -630,6 +630,7 @@ struct lcd_reg_map_s {
 struct aml_lcd_drv_s {
 	unsigned int index;
 	unsigned int status;
+	unsigned int retry_cnt;
 	unsigned char mode;
 	unsigned char lcd_pxp;
 	unsigned char key_valid;
@@ -694,8 +695,8 @@ struct aml_lcd_drv_s {
 	void (*fr_adjust)(struct aml_lcd_drv_s *pdrv, int duration);
 	int (*vbyone_vsync_handler)(struct aml_lcd_drv_s *pdrv);
 
-	struct work_struct config_probe_work;
-	struct work_struct tcon_config_work;
+	struct delayed_work config_probe_dly_work;
+	struct delayed_work tcon_config_dly_work;
 	struct work_struct test_check_work;
 	struct work_struct late_resume_work;
 	struct work_struct vx1_reset_work;

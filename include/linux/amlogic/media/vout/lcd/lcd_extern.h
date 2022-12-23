@@ -107,6 +107,7 @@ struct lcd_ext_gpio_s {
 struct lcd_extern_driver_s {
 	int index;
 	unsigned int state;
+	unsigned int retry_cnt;
 	unsigned char key_valid;
 	unsigned char config_load;
 	char ukey_name[15];
@@ -122,7 +123,7 @@ struct lcd_extern_driver_s {
 	struct cdev               cdev;
 	struct platform_device    *pdev;
 	struct device             *sub_dev;
-	struct work_struct        dev_probe_work;
+	struct delayed_work       dev_probe_dly_work;
 };
 
 struct lcd_extern_driver_s *lcd_extern_get_driver(int drv_index);

@@ -1562,34 +1562,34 @@ static int lcd_extern_add_dev(struct lcd_extern_driver_s *edrv,
 	return 0;
 }
 
-static void lcd_extern_dev_probe_work(struct work_struct *work)
+static void lcd_extern_dev_probe_work(struct work_struct *p_work)
 {
+	struct delayed_work *d_work;
 	struct lcd_extern_driver_s *edrv;
 	bool is_init;
-	int index, i, dev_index;
+	int index, dev_index;
 	int ret;
 
-	edrv = container_of(work, struct lcd_extern_driver_s, dev_probe_work);
+	d_work = container_of(p_work, struct delayed_work, work);
+	edrv = container_of(d_work, struct lcd_extern_driver_s, dev_probe_dly_work);
 
 	index = edrv->index;
+
+	is_init = lcd_unifykey_init_get();
+	if (!is_init) {
+		if (edrv->retry_cnt++ < LCD_UNIFYKEY_WAIT_TIMEOUT) {
+			lcd_queue_delayed_work(&edrv->dev_probe_dly_work,
+				LCD_UNIFYKEY_RETRY_INTERVAL);
+			return;
+		}
+		EXTERR("[%d]: %s: key_init_flag=%d, exit\n", edrv->index, __func__, is_init);
+		goto lcd_ext_dev_probe_work_err;
+	}
+
 	if (edrv->index == 0)
 		sprintf(edrv->ukey_name, "lcd_extern");
 	else
 		sprintf(edrv->ukey_name, "lcd%d_extern", edrv->index);
-
-	is_init = lcd_unifykey_init_get();
-	i = 0;
-	while (!is_init) {
-		if (i++ >= LCD_UNIFYKEY_WAIT_TIMEOUT)
-			break;
-		lcd_delay_ms(LCD_UNIFYKEY_RETRY_INTERVAL);
-		is_init = lcd_unifykey_init_get();
-	}
-	if (!is_init) {
-		EXTERR("[%d]: key_init_flag=%d\n", edrv->index, is_init);
-		goto lcd_ext_dev_probe_work_err;
-	}
-
 	ret = lcd_unifykey_check(edrv->ukey_name);
 	if (ret)
 		goto lcd_ext_dev_probe_work_err;
@@ -1665,7 +1665,7 @@ static int lcd_extern_config_load(struct lcd_extern_driver_s *edrv)
 
 	if (edrv->key_valid) {
 		edrv->config_load = 1;
-		lcd_queue_work(&edrv->dev_probe_work);
+		lcd_queue_delayed_work(&edrv->dev_probe_dly_work, 0);
 	} else {
 		edrv->config_load = 0;
 		EXTPR("[%d]: %s from dts\n", edrv->index, __func__);
@@ -2351,7 +2351,7 @@ static int aml_lcd_extern_probe(struct platform_device *pdev)
 	edrv->pdev = pdev;
 	edrv->dev_cnt = 0;
 
-	INIT_WORK(&edrv->dev_probe_work, lcd_extern_dev_probe_work);
+	INIT_DELAYED_WORK(&edrv->dev_probe_dly_work, lcd_extern_dev_probe_work);
 	ret = lcd_extern_config_load(edrv);
 	if (ret)
 		goto lcd_extern_probe_err;
@@ -2382,6 +2382,7 @@ static int aml_lcd_extern_remove(struct platform_device *pdev)
 
 	index = edrv->index;
 
+	cancel_delayed_work(&edrv->dev_probe_dly_work);
 	lcd_extern_debug_file_remove(edrv);
 	ext_cdev_remove(edrv);
 

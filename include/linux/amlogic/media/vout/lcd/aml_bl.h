@@ -187,6 +187,7 @@ struct bl_metrics_config_s {
 struct aml_bl_drv_s {
 	unsigned int index;
 	unsigned int key_valid;
+	unsigned int retry_cnt;
 	unsigned int config_load;
 	unsigned int state;
 	unsigned int level;
@@ -210,7 +211,7 @@ struct aml_bl_drv_s {
 	struct platform_device    *pdev;
 	struct device             *dev;
 	struct backlight_device   *bldev;
-	struct work_struct        config_probe_work;
+	struct delayed_work       config_probe_dly_work;
 	struct delayed_work       delayed_on_work;
 	struct resource *res_ldim_vsync_irq;
 	struct resource *res_ldim_pwm_vs_irq;

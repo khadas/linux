@@ -159,13 +159,18 @@ EXPORT_SYMBOL(aml_lcd_get_driver);
 
 inline void lcd_queue_work(struct work_struct *work)
 {
-	queue_work_on(WORK_CPU_UNBOUND, system_highpri_wq, work);
+	if (lcd_workqueue)
+		queue_work(lcd_workqueue, work);
+	else
+		schedule_work(work);
 }
 
 inline void lcd_queue_delayed_work(struct delayed_work *dwork, int ms)
 {
-	queue_delayed_work_on(WORK_CPU_UNBOUND, system_highpri_wq,
-			      dwork, msecs_to_jiffies(ms));
+	if (lcd_workqueue)
+		queue_delayed_work(lcd_workqueue, dwork, msecs_to_jiffies(ms));
+	else
+		schedule_delayed_work(dwork, msecs_to_jiffies(ms));
 }
 
 /* ********************************************************* */
@@ -1822,31 +1827,31 @@ static void lcd_vout_server_remove(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
-static void lcd_config_probe_work(struct work_struct *work)
+static void lcd_config_probe_work(struct work_struct *p_work)
 {
+	struct delayed_work *d_work;
 	struct aml_lcd_drv_s *pdrv;
 	bool is_init;
-	int i = 0;
 	int ret;
 
-	pdrv = container_of(work, struct aml_lcd_drv_s, config_probe_work);
+	d_work = container_of(p_work, struct delayed_work, work);
+	pdrv = container_of(d_work, struct aml_lcd_drv_s, config_probe_dly_work);
 
 	is_init = lcd_unifykey_init_get();
-	while (!is_init) {
-		if (i++ >= LCD_UNIFYKEY_WAIT_TIMEOUT)
-			break;
-		lcd_delay_ms(LCD_UNIFYKEY_RETRY_INTERVAL);
-		is_init = lcd_unifykey_init_get();
-	}
-	LCDPR("[%d]: key_init_flag=%d, i=%d\n", pdrv->index, is_init, i);
 	if (!is_init) {
-		ret = 1;
+		if (pdrv->retry_cnt++ < LCD_UNIFYKEY_WAIT_TIMEOUT) {
+			lcd_queue_delayed_work(&pdrv->config_probe_dly_work,
+				LCD_UNIFYKEY_RETRY_INTERVAL);
+			return;
+		}
+		LCDERR("[%d]: %s: key_init_flag=%d, exit\n", pdrv->index, __func__, is_init);
 		goto lcd_config_probe_work_failed;
 	}
+	LCDPR("[%d]: key_init_flag=%d, retry_cnt=%d\n", pdrv->index, is_init, pdrv->retry_cnt);
 
 	ret = lcd_mode_probe(pdrv);
 	if (ret) {
-		ret = 2;
+		LCDERR("[%d]: %s: mode_probe failed, exit\n", pdrv->index, __func__);
 		goto lcd_config_probe_work_failed;
 	}
 
@@ -1860,8 +1865,6 @@ static void lcd_config_probe_work(struct work_struct *work)
 	return;
 
 lcd_config_probe_work_failed:
-	LCDERR("[%d]: %s: failed: %d, probe exit\n",
-	       pdrv->index, __func__, ret);
 	lcd_vout_server_remove(pdrv);
 	lcd_driver[pdrv->index] = NULL;
 	kfree(pdrv);
@@ -2027,7 +2030,7 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	lcd_init_vout(pdrv);
 
 	if (pdrv->key_valid) {
-		lcd_queue_work(&pdrv->config_probe_work);
+		lcd_queue_delayed_work(&pdrv->config_probe_dly_work, 0);
 	} else {
 		ret = lcd_mode_probe(pdrv);
 		if (ret) {
@@ -2291,7 +2294,7 @@ static int lcd_probe(struct platform_device *pdev)
 		goto lcd_probe_err_1;
 
 	spin_lock_init(&pdrv->isr_lock);
-	INIT_WORK(&pdrv->config_probe_work, lcd_config_probe_work);
+	INIT_DELAYED_WORK(&pdrv->config_probe_dly_work, lcd_config_probe_work);
 	INIT_WORK(&pdrv->late_resume_work, lcd_lata_resume_work);
 	INIT_WORK(&pdrv->screen_restore_work, lcd_screen_restore_work);
 	INIT_DELAYED_WORK(&pdrv->test_delayed_work, lcd_auto_test_delayed);
@@ -2333,9 +2336,9 @@ static int lcd_remove(struct platform_device *pdev)
 
 	index = pdrv->index;
 
-	cancel_work_sync(&pdrv->config_probe_work);
 	cancel_work_sync(&pdrv->late_resume_work);
 	cancel_work_sync(&pdrv->screen_restore_work);
+	cancel_delayed_work(&pdrv->config_probe_dly_work);
 	if (lcd_workqueue)
 		destroy_workqueue(lcd_workqueue);
 

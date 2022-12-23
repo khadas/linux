@@ -52,7 +52,8 @@
 /* 20221202: optimize lcd clk code*/
 /* 20221229: optimize lcd venc code*/
 /* 20230105: update clk ss support*/
-#define LCD_DRV_VERSION    "20230105"
+/* 20230110: optimize config probe workqueue*/
+#define LCD_DRV_VERSION    "20230110"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;

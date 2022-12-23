@@ -3073,25 +3073,28 @@ static int lcd_tcon_get_config(struct aml_lcd_drv_s *pdrv)
 	return 0;
 }
 
-static void lcd_tcon_get_config_work(struct work_struct *work)
+static int lcd_tcon_probe_retry_cnt;
+static void lcd_tcon_get_config_work(struct work_struct *p_work)
 {
+	struct delayed_work *d_work;
 	struct aml_lcd_drv_s *pdrv;
 	bool is_init;
-	int i = 0;
 
-	pdrv = container_of(work, struct aml_lcd_drv_s, tcon_config_work);
+	d_work = container_of(p_work, struct delayed_work, work);
+	pdrv = container_of(d_work, struct aml_lcd_drv_s, config_probe_dly_work);
 
 	is_init = lcd_unifykey_init_get();
-	while (!is_init) {
-		if (i++ >= LCD_UNIFYKEY_WAIT_TIMEOUT)
-			break;
-		msleep(LCD_UNIFYKEY_RETRY_INTERVAL);
-		is_init = lcd_unifykey_init_get();
+	if (!is_init) {
+		if (lcd_tcon_probe_retry_cnt++ < LCD_UNIFYKEY_WAIT_TIMEOUT) {
+			lcd_queue_delayed_work(&pdrv->tcon_config_dly_work,
+				LCD_UNIFYKEY_RETRY_INTERVAL);
+			return;
+		}
+		LCDERR("tcon: key_init_flag=%d, exit\n", is_init);
+		return;
 	}
-	if (is_init)
-		lcd_tcon_get_config(pdrv);
-	else
-		LCDPR("tcon: key_init_flag=%d, i=%d\n", is_init, i);
+
+	lcd_tcon_get_config(pdrv);
 }
 
 /* **********************************
@@ -3379,12 +3382,12 @@ int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv)
 		LCDERR("%s: dbg_list_trave_time error\n", __func__);
 
 	spin_lock_init(&tcon_local_cfg.multi_list_lock);
-	INIT_WORK(&pdrv->tcon_config_work, lcd_tcon_get_config_work);
+	INIT_DELAYED_WORK(&pdrv->tcon_config_dly_work, lcd_tcon_get_config_work);
 
 	if (lcd_unifykey_init_get())
 		ret = lcd_tcon_get_config(pdrv);
 	else
-		lcd_queue_work(&pdrv->tcon_config_work);
+		lcd_queue_delayed_work(&pdrv->tcon_config_dly_work, 0);
 
 	return ret;
 }
@@ -3431,6 +3434,8 @@ int lcd_tcon_remove(struct aml_lcd_drv_s *pdrv)
 		tcon_rmem.rsv_mem_vaddr = NULL;
 		tcon_rmem.rsv_mem_paddr = 0;
 	}
+
+	cancel_delayed_work(&pdrv->tcon_config_dly_work);
 
 	if (lcd_tcon_conf) {
 		/* lcd_tcon_conf == NULL; */
