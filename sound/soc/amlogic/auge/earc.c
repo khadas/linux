@@ -2123,6 +2123,8 @@ static int arc_set_ui_flag(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct earc *p_earc = dev_get_drvdata(component->dev);
 
+	if (p_earc->tx_ui_flag == ucontrol->value.integer.value[0])
+		return 0;
 	p_earc->tx_ui_flag = ucontrol->value.integer.value[0];
 
 	if (p_earc->earctx_5v) {
@@ -2465,6 +2467,7 @@ void earc_hdmirx_hpdst(int earc_port, bool st)
 	dev_info(p_earc->dev, "HDMIRX cable port:%d is %s\n",
 		 earc_port,
 		 st ? "plugin" : "plugout");
+	p_earc->earctx_port = earc_port; /* get earc port id from hdmirx */
 	p_earc->earctx_5v = st;
 	earctx_init(earc_port, st);
 }
@@ -2679,7 +2682,6 @@ static int earc_platform_probe(struct platform_device *pdev)
 			dev_err(dev, "platform get irq earc_tx failed\n");
 		else
 			dev_info(dev, "%s, irq_earc_tx:%d\n", __func__, p_earc->irq_earc_tx);
-		of_property_read_u32(dev->of_node, "earctx_port", &p_earc->earctx_port);
 		earc_dai[0].playback = pcm_stream;
 	}
 
