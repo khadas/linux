@@ -128,6 +128,13 @@
 		#clock-cells = <0>;
 	};
 
+	/* This node is useless for RK3126C EVB without bluetooth.
+	 * It's just for compatibility with SDK script checks.
+	 */
+	wireless-bluetooth {
+		status = "disabled";
+	};
+
 	wireless-wlan {
 		compatible = "wlan-platdata";
 		power_ctrl_by_pmu;
@@ -719,7 +726,6 @@
 				regulator-name= "ldo5";
 				regulator-min-microvolt = <3000000>;
 				regulator-max-microvolt = <3000000>;
-				regulator-boot-on;
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
