@@ -1945,35 +1945,62 @@ static int codec_mm_get_cma_size_int_byte(struct device *dev)
 	return static_size;
 }
 
+static int codec_mm_cal_dump_buf_size(void)
+{
+	int size = PAGE_SIZE;
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	struct codec_mm_s *mem = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mgt->lock, flags);
+	if (!list_empty(&mgt->mem_list)) {
+		list_for_each_entry(mem, &mgt->mem_list, list) {
+			size += 128;
+		}
+	}
+	spin_unlock_irqrestore(&mgt->lock, flags);
+
+	return codec_mm_align_up2n(size, PAGE_SHIFT);
+}
+
 static int dump_mem_infos(void *buf, int size)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
-	struct codec_mm_s *mem;
-	unsigned long flags;
-
-	char *pbuf = buf;
-	char sbuf[512];
+	struct codec_mm_s *mem = NULL;
+	unsigned long flags = 0;
+	char *alloc_buf = NULL;
+	int alloc_size = 0;
+	int buf_size = 0;
+	char *pbuf = NULL;
 	int tsize = 0;
-	int s;
+	int s = 0;
+	int buf_full = 0;
 
-	if (!pbuf) {
-		pbuf = sbuf;
-		size = 512;
+	alloc_size = codec_mm_cal_dump_buf_size();
+	alloc_buf = kzalloc(alloc_size, GFP_KERNEL);
+	if (alloc_buf) {
+		pbuf = alloc_buf;
+		buf_size = alloc_size;
+	} else {
+		pbuf = buf;
+		alloc_size = 0;
+		buf_size = size;
 	}
-	s = snprintf(pbuf, size - tsize,
-		     "codec mem info:\n\ttotal codec mem size:%d MB\n",
+
+	s = snprintf(pbuf, buf_size - tsize,
+			"codec mem info:\n\ttotal codec mem size:%d MB\n",
 			mgt->total_codec_mem_size / SZ_1M);
 	tsize += s;
 	pbuf += s;
 
-	s = snprintf(pbuf, size - tsize,
-		     "\talloced size= %d MB\n\tmax alloced: %d MB\n",
+	s = snprintf(pbuf, buf_size - tsize,
+			"\talloced size= %d MB\n\tmax alloced: %d MB\n",
 			mgt->total_alloced_size / SZ_1M,
 			mgt->max_used_mem_size / SZ_1M);
 	tsize += s;
 	pbuf += s;
 
-	s = snprintf(pbuf, size - tsize,
+	s = snprintf(pbuf, buf_size - tsize,
 		"\tCMA:%d,RES:%d,TVP:%d,SYS:%d,COHER:%d,VMAPED:%d MB\n",
 		mgt->alloced_cma_size / SZ_1M,
 		mgt->alloced_res_size / SZ_1M,
@@ -1985,8 +2012,8 @@ static int dump_mem_infos(void *buf, int size)
 	pbuf += s;
 
 	if (mgt->res_pool) {
-		s = snprintf(pbuf, size - tsize,
-			     "\t[%d]RES size:%d MB,alloced:%d MB free:%d MB\n",
+		s = snprintf(pbuf, buf_size - tsize,
+				"\t[%d]RES size:%d MB,alloced:%d MB free:%d MB\n",
 				AMPORTS_MEM_FLAGS_FROM_GET_FROM_REVERSED,
 				(int)(gen_pool_size(mgt->res_pool) / SZ_1M),
 				(int)(mgt->alloced_res_size / SZ_1M),
@@ -1995,8 +2022,8 @@ static int dump_mem_infos(void *buf, int size)
 		pbuf += s;
 	}
 
-	s = snprintf(pbuf, size - tsize,
-		     "\t[%d]CMA size:%d MB:alloced: %d MB,free:%d MB\n",
+	s = snprintf(pbuf, buf_size - tsize,
+			"\t[%d]CMA size:%d MB:alloced: %d MB,free:%d MB\n",
 			AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA,
 			(int)(mgt->total_cma_size / SZ_1M),
 			(int)(mgt->alloced_cma_size / SZ_1M),
@@ -2006,8 +2033,8 @@ static int dump_mem_infos(void *buf, int size)
 	pbuf += s;
 
 	if (mgt->tvp_pool.slot_num > 0) {
-		s = snprintf(pbuf, size - tsize,
-			     "\t[%d]TVP size:%d MB,alloced:%d MB free:%d MB\n",
+		s = snprintf(pbuf, buf_size - tsize,
+				"\t[%d]TVP size:%d MB,alloced:%d MB free:%d MB\n",
 				AMPORTS_MEM_FLAGS_FROM_GET_FROM_TVP,
 				(int)(mgt->tvp_pool.total_size / SZ_1M),
 				(int)(mgt->tvp_pool.alloced_size / SZ_1M),
@@ -2016,9 +2043,10 @@ static int dump_mem_infos(void *buf, int size)
 		tsize += s;
 		pbuf += s;
 	}
+
 	if (mgt->cma_res_pool.slot_num > 0) {
-		s = snprintf(pbuf, size - tsize,
-			     "\t[%d]CMA_RES size:%d MB,alloced:%d MB free:%d MB\n",
+		s = snprintf(pbuf, buf_size - tsize,
+				"\t[%d]CMA_RES size:%d MB,alloced:%d MB free:%d MB\n",
 				AMPORTS_MEM_FLAGS_FROM_GET_FROM_CMA_RES,
 				(int)(mgt->cma_res_pool.total_size / SZ_1M),
 				(int)(mgt->cma_res_pool.alloced_size / SZ_1M),
@@ -2028,49 +2056,55 @@ static int dump_mem_infos(void *buf, int size)
 		pbuf += s;
 	}
 
-	if (!buf && tsize > 0) {
-		pr_info("%s", sbuf);
-		pbuf = sbuf;
-		sbuf[0] = '\0';
-		tsize = 0;
-	}
 	spin_lock_irqsave(&mgt->lock, flags);
-	if (list_empty(&mgt->mem_list)) {
-		spin_unlock_irqrestore(&mgt->lock, flags);
-		return tsize;
-	}
-	list_for_each_entry(mem, &mgt->mem_list, list) {
-		s = snprintf(pbuf, size - tsize,
-			     "\t[%d].%d:%s.%d,addr=0x%lx,size=%d,from=%d,cnt=%d,",
-			mem->mem_id,
-			mem->ins_id,
-			mem->owner[0] ? mem->owner[0] : "no",
-			mem->ins_buffer_id,
-			mem->phy_addr,
-			mem->buffer_size,
-			mem->from_flags,
-			atomic_read(&mem->use_cnt)
-			);
-		s += snprintf(pbuf + s, size - tsize,
-			"flags=%d,used:%u ms\n",
-			mem->flags, jiffies_to_msecs(get_jiffies_64() -
-			mem->alloced_jiffies));
-
-		tsize += s;
-		if (buf) {
+	if (!list_empty(&mgt->mem_list)) {
+		list_for_each_entry(mem, &mgt->mem_list, list) {
+			s = snprintf(pbuf, buf_size - tsize,
+					"\t[%d].%d:%s.%d,addr=0x%lx,size=%d,from=%d,cnt=%d,",
+				mem->mem_id,
+				mem->ins_id,
+				mem->owner[0] ? mem->owner[0] : "no",
+				mem->ins_buffer_id,
+				mem->phy_addr,
+				mem->buffer_size,
+				mem->from_flags,
+				atomic_read(&mem->use_cnt)
+				);
+			s += snprintf(pbuf + s, buf_size - tsize,
+				"flags=%d,used:%u ms\n",
+				mem->flags, jiffies_to_msecs(get_jiffies_64() -
+				mem->alloced_jiffies));
 			pbuf += s;
-			if (tsize > size - 256) {
+			tsize += s;
+			if (tsize > buf_size - 256) {
 				s = snprintf(pbuf, size - tsize,
 					"\n\t\t**NOT END**\n");
 				tsize += s;
+				buf_full = 1;
 				break;/*no memory for dump now.*/
 			}
-		} else {
-			pr_info("%s", sbuf);
-			tsize = 0;
 		}
 	}
 	spin_unlock_irqrestore(&mgt->lock, flags);
+
+	if (alloc_buf) {
+		if (buf) {
+			if (tsize > size)
+				tsize = size;
+			memcpy(buf, alloc_buf, tsize);
+			if (buf_full) {
+				pr_info("%s", alloc_buf);
+				pr_info("dump full end\n");
+				pbuf = buf;
+				pbuf[0] = '\0';
+				tsize = 0;
+			}
+		} else {
+			pr_info("%s", alloc_buf);
+			tsize = 0;
+		}
+		kfree(alloc_buf);
+	}
 
 	return tsize;
 }

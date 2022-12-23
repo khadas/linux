@@ -2178,6 +2178,26 @@ static ssize_t res_show(struct class *class,
 	return size;
 }
 
+static ssize_t res_report_show(struct class *class,
+			   struct class_attribute *attr,
+			   char *buf)
+{
+	struct resman_session *sess = NULL;
+	struct list_head *pos = NULL;
+	struct list_head *tmp = NULL;
+
+	mutex_lock(&sessions_lock);
+	list_for_each_safe(pos, tmp, &sessions_head) {
+		sess = list_entry(pos, struct resman_session, list);
+		if (sess) {
+			resman_send_event(sess, RESMAN_EVENT_RESREPORT);
+			wake_up_interruptible(&sess->wq_event);
+		}
+	}
+	mutex_unlock(&sessions_lock);
+	return 0;
+}
+
 #undef APPEND_ATTR_BUF
 
 /* ------------------------------------------------------------------
@@ -2325,6 +2345,7 @@ static struct class_attribute resman_class_attrs[] = {
 	__ATTR_RO(ver),
 	__ATTR_RW(extconfig),
 	__ATTR_RO(res),
+	__ATTR_RO(res_report),
 	__ATTR_NULL
 };
 
