@@ -8,7 +8,7 @@ config AMLOGIC_MEDIA_TVIN_AFE
 	help
 		AFE device driver,
 		process input source of av/atv/vga/ypbpr/atvdemod,
-		translate analog signal to digtal to vdin process
+		translate analog signal to digital to vdin process
 
 if AMLOGIC_MEDIA_TVIN_AFE
 config ADC_DOUBLE_SAMPLING_FOR_CVBS

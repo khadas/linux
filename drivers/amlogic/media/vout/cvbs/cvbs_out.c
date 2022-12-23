@@ -539,7 +539,7 @@ static long cvbs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			spin_unlock_irqrestore(&tvout_clk_lock, flags);
 			break;
 		}
-		/* cc standerd:nondisplay control byte + display control byte */
+		/* cc standard:nondisplay control byte + display control byte */
 		/* our chip high-low 16bits is opposite */
 		CC_2byte_data = parm.data2 << 8 | parm.data1;
 		if ((cc_ringbuf.wp + 1) % MAX_RING_BUFF_LEN != cc_ringbuf.rp) {

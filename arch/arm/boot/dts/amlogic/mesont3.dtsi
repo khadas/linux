@@ -1322,7 +1322,7 @@
 			v4l_support_en = <0>;
 			v4l_vd_num = <70>;
 			/* v4l2 capability */
-			driver   = "vdinvideo";
+			driver   = "vdin_video";
 			card     = "mesont3";
 			bus_info = "vdin0 v4l2";
 			version  = <0x20220120>;
@@ -1355,7 +1355,7 @@
 			v4l_support_en = <0>;
 			v4l_vd_num = <71>;
 			/* v4l2 capability */
-			driver   = "vdinvideo";
+			driver   = "vdin_video";
 			card     = "mesont3";
 			bus_info = "vdin1 v4l2";
 			version  = <0x20220120>;

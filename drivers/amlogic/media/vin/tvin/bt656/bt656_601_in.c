@@ -277,7 +277,7 @@ static void reinit_bt656in_dec(struct am656in_dev_s *devp)
 	bt656_wr(offset, BT_LINECTRL, 0);
 	/* there is no use anci in m2 */
 	/* ANCI is the field blanking data, like close caption.
-	 * If it connected to digital camara interface,
+	 * If it connected to digital camera interface,
 	 * the jpeg bitstream also use this ANCI FIFO.
 	 */
 	/* bt656_wr(BT_ANCISADR, devp->mem_start); */
@@ -400,7 +400,7 @@ static void reinit_bt601in_dec(struct am656in_dev_s *devp)
 			220);
 
 	/* ANCI is the field blanking data, like close caption.
-	 *  If it connected to digital camara interface,
+	 *  If it connected to digital camera interface,
 	 *   the jpeg bitstream also use this ANCI FIFO.
 	 */
 	/* wr(BT_ANCISADR, devp->mem_start); */
@@ -537,7 +537,7 @@ static void reinit_camera_dec(struct am656in_dev_s *devp)
 			(hs_bp << 1));/* horizontal active data start offset */
 
 	/* ANCI is the field blanking data, like close caption.
-	 * If it connected to digital camara interface,
+	 * If it connected to digital camera interface,
 	 *  the jpeg bitstream also use this ANCI FIFO.
 	 */
 	/* bt656_wr(BT_ANCISADR, devp->mem_start); */
@@ -587,7 +587,7 @@ static void reinit_camera_dec(struct am656in_dev_s *devp)
 			/* timing reference is from bit stream. */
 			| (0 << BT_REF_MODE_BIT)
 			| (0 << BT_FMT_MODE_BIT)      /* PAL */
-			| (0 << BT_SLICE_MODE_BIT)   /* no ancillay flag. */
+			| (0 << BT_SLICE_MODE_BIT)   /* no ancillary flag. */
 			/* BT656 standard interface. */
 			| (0 << BT_MODE_BIT)
 			| (1 << BT_CLOCK_ENABLE)	/* enable 656 clock. */

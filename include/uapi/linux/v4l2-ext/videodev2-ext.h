@@ -831,7 +831,7 @@ struct v4l2_ext_cm_info {
 };
 
 /* dynamic contrast */
-struct v4l2_ext_dynamnic_contrast_ctrl {
+struct v4l2_ext_dynamic_contrast_ctrl {
 	unsigned short uDcVal;
 	union {
 		unsigned char *pst_chip_data;
@@ -842,7 +842,7 @@ struct v4l2_ext_dynamnic_contrast_ctrl {
 
 #define MAX_DYNAMIC_CONTRAST_LUT_SIZE 16
 #define MAX_DYNAMIC_CONTRAST_SATURATION_LUT_SIZE 10
-struct v4l2_ext_dynamnic_contrast_lut {
+struct v4l2_ext_dynamic_contrast_lut {
 	signed int sLumaLutY[MAX_DYNAMIC_CONTRAST_LUT_SIZE];
 	/* if support luma LUT variable X coordination */
 	signed int sLumaLutX[MAX_DYNAMIC_CONTRAST_LUT_SIZE];
@@ -2444,7 +2444,7 @@ struct v4l2_ext_picinfo_msg {
 	__u8 three_d_info; // 3D info
 
 	__u32 colour_primaries;	  // VUI info, colour_primaries
-	__u32 transfer_chareristics; // VUI info, transfer_characteristics
+	__u32 transfer_characteristics; // VUI info, transfer_characteristics
 	__u32 matrix_coeffs;		 // VUI info, matrix_coefficients
 	__u32 display_primaries_x0;  // SEI info, display_primaries_x0
 	__u32 display_primaries_y0;  // SEI info, display_primaries_y0
@@ -2485,7 +2485,7 @@ struct v4l2_ext_picinfo_msg_ext {
 	__u8 three_d_info;
 
 	__u32 colour_primaries;
-	__u32 transfer_chareristics;
+	__u32 transfer_characteristics;
 	__u32 matrix_coeffs;
 	__u32 display_primaries_x0;
 	__u32 display_primaries_y0;

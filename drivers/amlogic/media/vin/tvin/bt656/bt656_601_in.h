@@ -151,7 +151,7 @@
 /* #define BT_CLK27_PHASE_BIT      6 */
 /* 1 : auto cover error by hardware. */
 /* #define BT_ACE_MODE_BIT         5 */
-/* 1 : no ancillay flag     0 : with ancillay flag. */
+/* 1 : no ancillary flag     0 : with ancillary flag. */
 #define BT_SLICE_MODE_BIT       4
 /* 1 : ntsc                 0 : pal. */
 #define BT_FMT_MODE_BIT         3

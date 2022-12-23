@@ -17,7 +17,7 @@
 #define ADC_CLK_24M       24000
 #define ADC_CLK_25M       25000
 
-/* afe regisgers */
+/* afe registers */
 #define AFE_VAFE_CTRL0		(0x3B0)
 #define AFE_VAFE_CTRL1		(0x3B1)
 #define AFE_VAFE_CTRL2		(0x3B2)
@@ -158,7 +158,7 @@ struct tvin_adc_dev {
 	/*struct device *cdev;*/
 
 	struct adc_platform_data_s *plat_data;
-	struct mutex ioctl_mutex;/* aviod re-entry of ioctl calling */
+	struct mutex ioctl_mutex;/* avoid re-entry of ioctl calling */
 	struct mutex pll_mutex; /* protect pll setting for multi modules */
 	struct mutex filter_mutex;
 	unsigned int pll_flg;
