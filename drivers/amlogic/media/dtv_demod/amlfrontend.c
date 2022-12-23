@@ -4386,6 +4386,7 @@ static int dtvdemod_dvbs2_init(struct aml_dtvdemod *demod)
 	}
 
 	demod_set_sys(demod, &sys);
+	demod->last_status = 0;
 	aml_diseqc_isr_en(&devp->diseqc, true);
 	/*enable diseqc irq*/
 	return 0;
