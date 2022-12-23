@@ -191,6 +191,7 @@ static unsigned int vpu_reg_27af = 0x3;
 #define DECIMATION_REAL_RANGE		0x0F
 #define VDIN_PIXEL_CLK_4K_30HZ		248832000
 #define VDIN_PIXEL_CLK_4K_60HZ		497664000
+#define VDIN_PIXEL_CLK_8K_60HZ		1990656000UL
 
 u8 *vdin_vmap(ulong addr, u32 size)
 {
@@ -1336,7 +1337,7 @@ void vdin_fix_nonstd_vsync(struct vdin_dev_s *devp)
 	unsigned int offset = devp->addr_offset;
 
 	if (is_meson_s5_cpu()) {
-		vdin_fix_nonstd_vsync_s5(devp);
+		//vdin_fix_nonstd_vsync_s5(devp);
 		return;
 	}
 
@@ -1454,6 +1455,9 @@ void vdin_set_config(struct vdin_dev_s *devp)
 		devp->vdin_max_pixel_clk =
 			VDIN_PIXEL_CLK_4K_30HZ; /* 2160p30hz*/
 #endif
+	} else if (is_meson_s5_cpu()) {
+		devp->vdin_max_pixel_clk =
+			VDIN_PIXEL_CLK_8K_60HZ; /* 4320p60hz*/
 	} else {
 		devp->vdin_max_pixel_clk =
 			VDIN_PIXEL_CLK_4K_60HZ; /* 2160p60hz*/
@@ -2585,7 +2589,7 @@ void vdin_set_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
 	u32 canvas_id;
 
 	if (is_meson_s5_cpu()) {
-		vdin_set_canvas_id_s5(devp, rdma_enable, vfe);
+		//vdin_set_canvas_id_s5(devp, rdma_enable, vfe);
 		return;
 	}
 	if (vfe) {
@@ -2659,7 +2663,7 @@ void vdin_set_chroma_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable
 	u32 canvas_id;
 
 	if (is_meson_s5_cpu()) {
-		vdin_set_chroma_canvas_id_s5(devp, rdma_enable, vfe);
+		//vdin_set_chroma_canvas_id_s5(devp, rdma_enable, vfe);
 		return;
 	}
 
@@ -6497,3 +6501,14 @@ void vdin_dmc_ctrl(struct vdin_dev_s *devp, bool on_off)
 	}
 }
 
+void vdin_sw_reset(struct vdin_dev_s *devp)
+{
+	if (is_meson_s5_cpu())
+		vdin_sw_reset_s5(devp);
+}
+
+void vdin_bist(struct vdin_dev_s *devp, unsigned int mode)
+{
+	if (is_meson_s5_cpu())
+		vdin_bist_s5(devp, mode);
+}

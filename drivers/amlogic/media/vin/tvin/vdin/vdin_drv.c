@@ -211,6 +211,7 @@ int irq_max_count;
 
 enum tvin_force_color_range_e color_range_force = COLOR_RANGE_AUTO;
 
+int vpu_dev_register_flag;
 struct vpu_dev_s *vpu_dev_clk_gate;
 struct vpu_dev_s *vpu_dev_mem_pd_vdin0;
 struct vpu_dev_s *vpu_dev_mem_pd_vdin1;
@@ -1163,6 +1164,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 		vdin_vpu_clk_gate_on_off(devp, 1);
 		/*switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_ON);*/
 #endif
+	vdin_sw_reset(devp);
 	/*enable clk*/
 	vdin_clk_on_off(devp, true);
 	vdin_set_default_regmap(devp);
@@ -1582,6 +1584,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	/*		       VPU_VIU_VDIN0,*/
 	/*		       VPU_MEM_POWER_DOWN);*/
 	vdin_vpu_clk_mem_pd(devp, 0);
+	//TBD: rdma_clear move to the below of disable_irq(devp->irq);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	rdma_clear(devp->rdma_handle);
 #endif
@@ -4929,11 +4932,12 @@ struct vdin_dev_s *vdin_get_dev(unsigned int index)
 
 void vdin_vpu_dev_register(struct vdin_dev_s *devp)
 {
-	if (devp->index == 0) {
+	if (vpu_dev_register_flag == 0) {
 		vpu_dev_clk_gate = vpu_dev_register(VPU_VPU_CLKB, VDIN_DEV_NAME);
 		vpu_dev_mem_pd_vdin0 = vpu_dev_register(VPU_VIU_VDIN0, VDIN_DEV_NAME);
 		vpu_dev_mem_pd_vdin1 = vpu_dev_register(VPU_VIU_VDIN1, VDIN_DEV_NAME);
 		vpu_dev_mem_pd_afbce = vpu_dev_register(VPU_AFBCE, VDIN_DEV_NAME);
+		vpu_dev_register_flag = 1;
 	}
 }
 

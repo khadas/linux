@@ -13,6 +13,7 @@
 #define VDIN_REG_BANK0_END       0x0167
 #define VDIN_REG_BANK1_START     0x0200
 #define VDIN_REG_BANK1_END       0x02ee
+#define S5_VPP_POST_HOLD_CTRL    0x1d1f
 
 enum vdin_vdi_x_e {
 	VDIN_VDI0_MPEG		= 0,	/* mpeg in */
