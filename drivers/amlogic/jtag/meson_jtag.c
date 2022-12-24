@@ -27,7 +27,7 @@
 #define AML_JTAG_NAME		"jtag"
 #define JTAG_IRQ_CMD		0xFFF
 
-/* store the jtag select globaly */
+/* store the jtag select globally */
 static int global_select = AMLOGIC_JTAG_DISABLE;
 
 /* whether the jtag select is setup by the boot param
