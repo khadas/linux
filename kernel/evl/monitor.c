@@ -284,186 +284,280 @@ static int exit_monitor(struct evl_monitor *gate)
 	return 0;
 }
 
-static inline bool test_event_mask(struct evl_monitor_state *state,
-				s32 *r_value)
+static int trywait_count(struct evl_monitor *event)
 {
-	int val;
+	struct evl_monitor_state *state = event->state;
+	int ret = 0, val;
 
-	/* Read and reset the event mask, unblocking if non-zero. */
-	for (;;) {
-		val = atomic_read(&state->u.event.value);
-		if (!val)
-			return false;
-		if (atomic_cmpxchg(&state->u.event.value, val, 0) == val) {
-			*r_value = val;
-			return true;
+	/* atomic_dec_unless_zero_or_negative */
+	val = atomic_read(&state->u.event.value);
+	do {
+		if (unlikely(val <= 0)) {
+			ret = -EAGAIN;
+			break;
 		}
-	}
+	} while (!atomic_try_cmpxchg(&state->u.event.value, &val, val - 1));
+
+	return ret;
 }
 
-/*
- * Special forms of the wait operation which are not protected by a
- * lock but behave either as a semaphore P operation based on the
- * signedness of the event value, or as a bitmask of discrete events.
- * Userland is expected to implement a fast atomic path if possible
- * and deal with signal-vs-wait races in its own way.
- */
-static int wait_monitor_ungated(struct file *filp,
-				struct evl_monitor_waitreq *req,
-				struct timespec64 *ts64,
-				s32 *r_value)
+static int wait_count(struct file *filp,
+		ktime_t timeout,
+		enum evl_tmode tmode)
 {
 	struct evl_monitor *event = element_of(filp, struct evl_monitor);
 	struct evl_monitor_state *state = event->state;
-	enum evl_tmode tmode;
 	unsigned long flags;
-	int ret = 0, val;
-	ktime_t timeout;
-	atomic_t *at;
+	int ret = 0;
 
-	timeout = timespec64_to_ktime(*ts64);
-	tmode = timeout ? EVL_ABS : EVL_REL;
-
-	switch (event->protocol) {
-	case EVL_EVENT_COUNT:
-		at = &state->u.event.value;
-		if (filp->f_flags & O_NONBLOCK) {
-			val = atomic_read(at);
-			/* atomic_dec_unless_zero_or_negative */
-			do {
-				if (unlikely(val <= 0)) {
+	if (filp->f_flags & O_NONBLOCK) {
+		ret = trywait_count(event);
+	} else {
+		/*
+		 * CAUTION: we must fully serialize with
+		 * post_count(). Since user-space is expected to
+		 * trywait first before branching here, we are most
+		 * likely going to wait anyway.
+		 */
+		raw_spin_lock_irqsave(&event->wait_queue.wchan.lock, flags);
+		if (atomic_dec_return(&state->u.event.value) < 0) {
+			evl_add_wait_queue(&event->wait_queue,
+					timeout, tmode);
+			raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock,
+						flags);
+			ret = evl_wait_schedule(&event->wait_queue);
+			if (ret) { /* Rollback decrement if failed. */
+				atomic_inc(&state->u.event.value);
+			} else {
+				/*
+				 * If waking up on a broadcast, we did
+				 * not actually receive a free pass,
+				 * make the caller notice by returning
+				 * -EAGAIN.
+				 */
+				if (evl_current()->info & EVL_T_BCAST)
 					ret = -EAGAIN;
-					break;
-				}
-			} while (!atomic_try_cmpxchg(at, &val, val - 1));
+			}
 		} else {
-			raw_spin_lock_irqsave(&event->wait_queue.wchan.lock, flags);
-			if (atomic_dec_return(at) < 0) {
-				evl_add_wait_queue(&event->wait_queue,
-						timeout, tmode);
-				raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock,
-							flags);
-				ret = evl_wait_schedule(&event->wait_queue);
-				if (ret) /* Rollback decrement if failed. */
-					atomic_inc(at);
-			} else
-				raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock,
-							flags);
+			raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock,
+						flags);
 		}
-		break;
-	case EVL_EVENT_MASK:
-		if (filp->f_flags & O_NONBLOCK)
-			timeout = EVL_NONBLOCK;
-		ret = evl_wait_event_timeout(&event->wait_queue,
-					timeout, tmode,
-					test_event_mask(state, r_value));
-		if (!ret) { /* POLLOUT if flags have been received. */
-			evl_signal_poll_events(&event->poll_head,
-					POLLOUT|POLLWRNORM);
-			evl_schedule();
-		}
-		break;
-	default:
-		ret = -EINVAL;	/* uh? brace for rollercoaster. */
 	}
 
 	return ret;
 }
 
-static inline s32 set_event_mask(struct evl_monitor_state *state,
-				s32 addval)
-{
-	int prev, val, next;
-
-	val = atomic_read(&state->u.event.value);
-	do {
-		prev = val;
-		next = prev | (int)addval;
-		val = atomic_cmpxchg(&state->u.event.value, prev, next);
-	} while (val != prev);
-
-	return next;
-}
-
-static int signal_monitor_ungated(struct evl_monitor *event, s32 sigval)
+static int post_count(struct evl_monitor *event, s32 sigval,
+		bool bcast)
 {
 	struct evl_monitor_state *state = event->state;
 	bool pollable = true;
 	unsigned long flags;
 	int ret = 0, val;
 
-	if (event->type != EVL_MONITOR_EVENT)
-		return -EINVAL;
-
 	/*
-	 * We might receive a null sigval for the purpose of
-	 * triggering a wakeup check and/or poll notification without
-	 * changing the event value.
+	 * We may receive a null sigval for the purpose of triggering
+	 * a poll notification without updating the count.
 	 *
-	 * In any case, we serialize against the read side not to lose
-	 * wake up events.
+	 * Otherwise, we can either post a single waiter or broadcast
+	 * the semaphore which unblocks all waiters at once, making
+	 * them know they were not granted anything in the process
+	 * though. Broadcasting here is equivalent to a flush
+	 * operation.
 	 */
-	switch (event->protocol) {
-	case EVL_EVENT_COUNT:
-		if (!sigval)
-			break;
+	if (sigval) {
 		raw_spin_lock_irqsave(&event->wait_queue.wchan.lock, flags);
-		if (atomic_inc_return(&state->u.event.value) <= 0) {
-			evl_wake_up_head(&event->wait_queue);
-			pollable = false;
+
+		if (bcast) {
+			val = evl_flush_wait_locked(&event->wait_queue, EVL_T_BCAST);
+			/*
+			 * Each waiter found sleeping on the wait
+			 * queue counts for 1 semaphore unit to be
+			 * added back to the count.
+			 */
+			if (val > 0)
+				atomic_add(val, &state->u.event.value);
+			/* Userland might have slipped in, re-check. */
+			pollable = atomic_read(&state->u.event.value) > 0;
+		} else {
+			if (atomic_inc_return(&state->u.event.value) <= 0) {
+				evl_wake_up_head(&event->wait_queue);
+				pollable = false;
+			}
 		}
+
 		raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock, flags);
-		break;
-	case EVL_EVENT_MASK:
-		raw_spin_lock_irqsave(&event->wait_queue.wchan.lock, flags);
-		val = set_event_mask(state, (int)sigval);
-		if (val)
-			evl_wake_up_head(&event->wait_queue);
-		else
-			pollable = false;
-		raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock, flags);
-		break;
-	default:
-		return -EINVAL;
 	}
 
 	if (pollable)
-		evl_signal_poll_events(&event->poll_head,
-				POLLIN|POLLRDNORM);
+		evl_signal_poll_events(&event->poll_head, POLLIN|POLLRDNORM);
 
 	evl_schedule();
 
 	return ret;
 }
 
-static int wait_monitor(struct file *filp,
-			struct evl_monitor_waitreq *req,
-			struct timespec64 *ts64,
-			s32 *r_op_ret,
+/* event->wait_queue.wchan.lock held, dropped on success, irqs off. */
+static bool __trywait_mask(struct evl_monitor *event,
+			s32 match_value,
+			bool exact_match,
+			s32 *r_value,
+			unsigned long flags)
+{
+	struct evl_monitor_state *state = event->state;
+	int testval;
+
+	*r_value = atomic_read(&state->u.event.value) & match_value;
+	testval = exact_match ? match_value : *r_value;
+	if (*r_value && *r_value == testval) {
+		atomic_andnot(*r_value, &state->u.event.value);
+		testval = atomic_read(&state->u.event.value);
+		raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock, flags);
+		if (!testval) {
+			evl_signal_poll_events(&event->poll_head, POLLOUT|POLLWRNORM);
+			evl_schedule();
+		}
+		return true;
+	}
+
+	return false;
+}
+
+static int trywait_mask(struct evl_monitor *event,
+			s32 match_value,
+			bool exact_match,
 			s32 *r_value)
 {
+	unsigned long flags;
+
+	/*
+	 * Waiting for no bit is interpreted as waiting for any/all of
+	 * them (depending on exact_match).
+	 */
+	if (match_value == 0)
+		match_value = -1;
+
+	raw_spin_lock_irqsave(&event->wait_queue.wchan.lock, flags);
+	if (!__trywait_mask(event, match_value, exact_match, r_value, flags)) {
+		raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock, flags);
+		return -EAGAIN;
+	}
+
+	return 0;
+}
+
+struct evl_mask_wait {
+	/* Value to wait for. */
+	int value;
+	/* i.e. Conjunctive/AND/ALL match */
+	bool exact_match;
+};
+
+static int wait_mask(struct file *filp,
+		ktime_t timeout,
+		enum evl_tmode tmode,
+		s32 match_value,
+		bool exact_match,
+		s32 *r_value)
+{
 	struct evl_monitor *event = element_of(filp, struct evl_monitor);
+	struct evl_thread *curr = evl_current();
+	struct evl_mask_wait w;
+	unsigned long flags;
+	int ret;
+
+	if (match_value == 0)	/* See trywait_mask(). */
+		match_value = -1;
+
+	raw_spin_lock_irqsave(&event->wait_queue.wchan.lock, flags);
+
+	if (__trywait_mask(event, match_value, exact_match, r_value, flags))
+		return 0;	/* lock already dropped. */
+
+	if (filp->f_flags & O_NONBLOCK) {
+		raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock, flags);
+		return -EAGAIN;
+	}
+
+	w.exact_match = exact_match;
+	w.value = match_value;
+	curr->wait_data = &w;
+	evl_add_wait_queue(&event->wait_queue, timeout, tmode);
+
+	raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock, flags);
+
+	ret = evl_wait_schedule(&event->wait_queue);
+	if (!ret)
+		*r_value = w.value;
+
+	return ret;
+}
+
+static int post_mask(struct evl_monitor *event, int bits, bool bcast)
+{
+	struct evl_monitor_state *state = event->state;
+	int waitval, testval, consumed = 0, val;
+	struct evl_thread *waiter, *tmp;
+	struct evl_mask_wait *w;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&event->wait_queue.wchan.lock, flags);
+
+	/*
+	 * NOTE: the only reasons we still have state->u.event.value
+	 * as an atomic value ATM is strictly for ABI preservation,
+	 * and allow for peeking at the mask value directly from
+	 * userland (which is hardly a common operation and could be
+	 * done differently anyway). We may turn this into a plain
+	 * word when an ABI jump is required from applications for
+	 * some compelling reason.
+	 */
+	atomic_or(bits, &state->u.event.value);
+
+	evl_for_each_waiter_safe(waiter, tmp, &event->wait_queue) {
+		w = waiter->wait_data;
+		waitval = w->value & atomic_read(&state->u.event.value);
+		testval = w->exact_match ? w->value : waitval;
+		if (waitval && waitval == testval) {
+			w->value = waitval;
+			consumed |= waitval;
+			evl_wake_up(&event->wait_queue, waiter, 0);
+			if (!bcast)
+				break;
+		}
+	}
+
+	if (consumed)
+		atomic_andnot(consumed, &state->u.event.value);
+
+	val = atomic_read(&state->u.event.value);
+
+	raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock, flags);
+
+	evl_signal_poll_events(&event->poll_head,
+			val ? POLLIN|POLLRDNORM : POLLOUT|POLLWRNORM);
+
+	evl_schedule();
+
+	return 0;
+}
+
+static int wait_gated_event(struct evl_monitor *event,
+			struct evl_monitor_waitreq *req,
+			ktime_t timeout,
+			enum evl_tmode tmode,
+			s32 *r_op_ret)
+{
 	struct evl_thread *curr = evl_current();
 	struct evl_monitor *gate;
 	int ret = 0, op_ret = 0;
 	struct evl_file *efilp;
-	enum evl_tmode tmode;
 	unsigned long flags;
 	struct evl_rq *rq;
-	ktime_t timeout;
 
-	if (event->type != EVL_MONITOR_EVENT) {
+	if (event->protocol != EVL_EVENT_GATED) {
 		op_ret = -EINVAL;
 		goto out;
-	}
-
-	timeout = timespec64_to_ktime(*ts64);
-	tmode = timeout ? EVL_ABS : EVL_REL;
-
-	if (req->gatefd < 0) {
-		ret = wait_monitor_ungated(filp, req, ts64, r_value);
-		*r_op_ret = ret;
-		return ret;
 	}
 
 	/* Find the gate monitor protecting us. */
@@ -572,6 +666,43 @@ out:
 	return ret;
 }
 
+static int wait_monitor(struct file *filp,
+			struct evl_monitor_waitreq *req,
+			struct timespec64 *ts64,
+			s32 *r_op_ret,
+			s32 *r_value,
+			bool exact_match)
+{
+	struct evl_monitor *event = element_of(filp, struct evl_monitor);
+	enum evl_tmode tmode;
+	ktime_t timeout;
+
+	if (event->type != EVL_MONITOR_EVENT) {
+		*r_op_ret = -EINVAL;
+		return 0;
+	}
+
+	timeout = timespec64_to_ktime(*ts64);
+	tmode = timeout ? EVL_ABS : EVL_REL;
+
+	if (req->gatefd < 0) {
+		switch (event->protocol) {
+		case EVL_EVENT_COUNT:
+			*r_op_ret = wait_count(filp, timeout, tmode);
+			break;
+		case EVL_EVENT_MASK:
+			*r_op_ret = wait_mask(filp, timeout, tmode, req->value,
+					      exact_match, r_value);
+			break;
+		default:
+			*r_op_ret = -EINVAL;
+		}
+		return *r_op_ret;
+	}
+
+	return wait_gated_event(event, req, timeout, tmode, r_op_ret);
+}
+
 static int unwait_monitor(struct evl_monitor *event,
 			struct evl_monitor_unwaitreq *req)
 {
@@ -597,15 +728,53 @@ static int unwait_monitor(struct evl_monitor *event,
 static long monitor_common_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg)
 {
-	struct evl_monitor *mon = element_of(filp, struct evl_monitor);
-	__s32 sigval;
+	struct evl_monitor *event = element_of(filp, struct evl_monitor);
+	struct evl_monitor_trywaitreq twreq, __user *u_twreq;
+	bool bcast = false, exact_match = false;
+	__s32 value;
 	int ret;
 
+	if (event->type != EVL_MONITOR_EVENT)
+		return -EINVAL;
+
 	switch (cmd) {
+	case EVL_MONIOC_BROADCAST:
+		bcast = true;
+		fallthrough;
 	case EVL_MONIOC_SIGNAL:
-		if (raw_get_user(sigval, (__s32 __user *)arg))
+		if (raw_get_user(value, (__s32 __user *)arg))
 			return -EFAULT;
-		ret = signal_monitor_ungated(mon, sigval);
+		switch (event->protocol) {
+		case EVL_EVENT_COUNT:
+			ret = post_count(event, value, bcast);
+			break;
+		case EVL_EVENT_MASK:
+			ret = post_mask(event, value, bcast);
+			break;
+		default:
+			ret = -EINVAL;
+		}
+		break;
+	case EVL_MONIOC_TRYWAIT_EXACT:
+		exact_match = true;
+		fallthrough;
+	case EVL_MONIOC_TRYWAIT:
+		u_twreq = (typeof(u_twreq))arg;
+		ret = raw_copy_from_user(&twreq, u_twreq, sizeof(twreq));
+		if (ret)
+			return -EFAULT;
+		switch (event->protocol) {
+		case EVL_EVENT_COUNT:
+			ret = trywait_count(event);
+			break;
+		case EVL_EVENT_MASK:
+			ret = trywait_mask(event, twreq.value, exact_match, &value);
+			if (!ret)
+				raw_put_user(value, &u_twreq->value);
+			break;
+		default:
+			ret = -EINVAL;
+		}
 		break;
 	default:
 		ret = -ENOTTY;
@@ -644,11 +813,16 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 		.tv_sec = 0,
 		.tv_nsec = 0,
 	};
+	bool exact_match = false;
 	struct timespec64 ts64;
 	s32 op_ret, value = 0;
 	long ret;
 
-	if (cmd == EVL_MONIOC_WAIT) {
+	switch (cmd) {
+	case EVL_MONIOC_WAIT_EXACT:
+		exact_match = true;
+		fallthrough;
+	case EVL_MONIOC_WAIT:
 		u_wreq = (typeof(u_wreq))arg;
 		ret = raw_copy_from_user(&wreq, u_wreq, sizeof(wreq));
 		if (ret)
@@ -660,22 +834,18 @@ static long monitor_oob_ioctl(struct file *filp, unsigned int cmd,
 		if ((unsigned long)uts.tv_nsec >= ONE_BILLION)
 			return -EINVAL;
 		ts64 = u_timespec_to_timespec64(uts);
-		ret = wait_monitor(filp, &wreq, &ts64, &op_ret, &value);
+		ret = wait_monitor(filp, &wreq, &ts64, &op_ret, &value, exact_match);
 		raw_put_user(op_ret, &u_wreq->status);
 		if (!ret && !op_ret)
 			raw_put_user(value, &u_wreq->value);
-		return ret;
-	}
-
-	if (cmd == EVL_MONIOC_UNWAIT) {
+		break;
+	case EVL_MONIOC_UNWAIT:
 		u_uwreq = (typeof(u_uwreq))arg;
 		ret = raw_copy_from_user(&uwreq, u_uwreq, sizeof(uwreq));
 		if (ret)
 			return -EFAULT;
-		return unwait_monitor(mon, &uwreq);
-	}
-
-	switch (cmd) {
+		ret = unwait_monitor(mon, &uwreq);
+		break;
 	case EVL_MONIOC_ENTER:
 		u_uts = (typeof(u_uts))arg;
 		ret = raw_copy_from_user(&uts, u_uts, sizeof(uts));
@@ -713,6 +883,7 @@ static __poll_t monitor_oob_poll(struct file *filp,
 	struct evl_monitor *mon = element_of(filp, struct evl_monitor);
 	struct evl_monitor_state *state = mon->state;
 	__poll_t ret = 0;
+	int val;
 
 	/*
 	 * NOTE: for ungated events, we close a race window by queuing
@@ -730,8 +901,20 @@ static __poll_t monitor_oob_poll(struct file *filp,
 			break;
 		case EVL_EVENT_MASK:
 			evl_poll_watch(&mon->poll_head, wait, monitor_unwatch);
+			/*
+			 * We need to keep the pollrefs count up to
+			 * date as long as we support legacy ABIs
+			 * (pre-32).
+			 */
 			atomic_inc(&state->u.event.pollrefs);
-			if (atomic_read(&state->u.event.value))
+			val = atomic_read(&state->u.event.value);
+			/*
+			 * Return POLLIN when some bits are present,
+			 * ready for consumption, or POLLOUT when the
+			 * mask is entirely clear, i.e. no bit to
+			 * consume.
+			 */
+			if (val)
 				ret = POLLIN|POLLRDNORM;
 			else
 				ret = POLLOUT|POLLWRNORM;
