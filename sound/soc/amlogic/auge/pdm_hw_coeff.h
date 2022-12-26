@@ -6,8 +6,8 @@
 #ifndef __PDM_HW_COEFF_H__
 #define __PDM_HW_COEFF_H__
 
-/* LPF coefficent
- * For filter 1 and filter 3, it's only relative with coefficent mode
+/* LPF coefficient
+ * For filter 1 and filter 3, it's only relative with coefficient mode
  * For filter 2, it's only relative with osr and hcic stage number
  */
 
