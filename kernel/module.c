@@ -59,6 +59,10 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/module.h>
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/kasan.h>
+#endif
+
 #ifndef ARCH_SHF_SMALL
 #define ARCH_SHF_SMALL 0
 #endif
@@ -2316,6 +2320,9 @@ static void free_module(struct module *mod)
 	/* Free lock-classes; relies on the preceding sync_rcu(). */
 	lockdep_free_key_range(mod->core_layout.base, mod->core_layout.size);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	kasan_unpoison_shadow(mod->core_layout.base, mod->core_layout.size);
+#endif
 	/* Finally, free the core (containing the module structure) */
 	module_memfree(mod->core_layout.base);
 }
