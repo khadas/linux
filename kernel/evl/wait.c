@@ -115,9 +115,10 @@ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 EXPORT_SYMBOL_GPL(evl_wake_up);
 
 /* wq->wchan.lock held, hard irqs off */
-void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
+int evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
 {
 	struct evl_thread *waiter, *tmp;
+	int ret = 0;
 
 	assert_hard_lock(&wq->wchan.lock);
 
@@ -126,17 +127,23 @@ void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
 	list_for_each_entry_safe(waiter, tmp, &wq->wchan.wait_list, wait_next) {
 		list_del_init(&waiter->wait_next);
 		evl_wakeup_thread(waiter, EVL_T_PEND, reason);
+		ret++;
 	}
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(evl_flush_wait_locked);
 
-void evl_flush_wait(struct evl_wait_queue *wq, int reason)
+int evl_flush_wait(struct evl_wait_queue *wq, int reason)
 {
 	unsigned long flags;
+	int ret;
 
 	raw_spin_lock_irqsave(&wq->wchan.lock, flags);
-	evl_flush_wait_locked(wq, reason);
+	ret = evl_flush_wait_locked(wq, reason);
 	raw_spin_unlock_irqrestore(&wq->wchan.lock, flags);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(evl_flush_wait);
 

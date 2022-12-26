@@ -140,10 +140,10 @@ void evl_destroy_wait(struct evl_wait_queue *wq);
 
 struct evl_thread *evl_wait_head(struct evl_wait_queue *wq);
 
-void evl_flush_wait_locked(struct evl_wait_queue *wq,
+int evl_flush_wait_locked(struct evl_wait_queue *wq,
 			int reason);
 
-void evl_flush_wait(struct evl_wait_queue *wq,
+int evl_flush_wait(struct evl_wait_queue *wq,
 		int reason);
 
 struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
