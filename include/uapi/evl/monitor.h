@@ -63,6 +63,10 @@ struct evl_monitor_unwaitreq {
 	__s32 gatefd;
 };
 
+struct evl_monitor_trywaitreq {
+	__s32 value;
+};
+
 struct evl_monitor_binding {
 	__u32 type : 2,
 	      protocol : 4;
@@ -71,12 +75,16 @@ struct evl_monitor_binding {
 
 #define EVL_MONITOR_IOCBASE	'm'
 
-#define EVL_MONIOC_ENTER	_IOW(EVL_MONITOR_IOCBASE, 0, struct __evl_timespec)
-#define EVL_MONIOC_TRYENTER	_IO(EVL_MONITOR_IOCBASE, 1)
-#define EVL_MONIOC_EXIT		_IO(EVL_MONITOR_IOCBASE, 2)
-#define EVL_MONIOC_WAIT		_IOWR(EVL_MONITOR_IOCBASE, 3, struct evl_monitor_waitreq)
-#define EVL_MONIOC_UNWAIT	_IOWR(EVL_MONITOR_IOCBASE, 4, struct evl_monitor_unwaitreq)
-#define EVL_MONIOC_BIND		_IOR(EVL_MONITOR_IOCBASE, 5, struct evl_monitor_binding)
-#define EVL_MONIOC_SIGNAL	_IOW(EVL_MONITOR_IOCBASE, 6, __s32)
+#define EVL_MONIOC_ENTER		_IOW(EVL_MONITOR_IOCBASE, 0, struct __evl_timespec)
+#define EVL_MONIOC_TRYENTER		_IO(EVL_MONITOR_IOCBASE, 1)
+#define EVL_MONIOC_EXIT			_IO(EVL_MONITOR_IOCBASE, 2)
+#define EVL_MONIOC_WAIT			_IOWR(EVL_MONITOR_IOCBASE, 3, struct evl_monitor_waitreq)
+#define EVL_MONIOC_UNWAIT		_IOWR(EVL_MONITOR_IOCBASE, 4, struct evl_monitor_unwaitreq)
+#define EVL_MONIOC_BIND			_IOR(EVL_MONITOR_IOCBASE, 5, struct evl_monitor_binding)
+#define EVL_MONIOC_SIGNAL		_IOW(EVL_MONITOR_IOCBASE, 6, __s32)
+#define EVL_MONIOC_BROADCAST		_IOW(EVL_MONITOR_IOCBASE, 7, __s32)
+#define EVL_MONIOC_WAIT_EXACT		_IOWR(EVL_MONITOR_IOCBASE, 8, struct evl_monitor_waitreq)
+#define EVL_MONIOC_TRYWAIT		_IOWR(EVL_MONITOR_IOCBASE, 9, struct evl_monitor_trywaitreq)
+#define EVL_MONIOC_TRYWAIT_EXACT	_IOWR(EVL_MONITOR_IOCBASE, 10, struct evl_monitor_trywaitreq)
 
 #endif /* !_EVL_UAPI_MONITOR_H */
