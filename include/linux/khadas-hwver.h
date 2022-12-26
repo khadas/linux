@@ -20,6 +20,7 @@
 #define HW_VERSION_VIM2_V14          0x24
 #define HW_VERSION_VIM3_V11          0x31
 #define HW_VERSION_VIM3_V12          0x32
+#define HW_VERSION_VIM3_V14          0x34
 
 
 int get_hwver(void);

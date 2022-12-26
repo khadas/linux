@@ -32,6 +32,7 @@
 #define HW_VERSION_VIM2_V14_STR    "VIM2.V14"
 #define HW_VERSION_VIM3_V11_STR    "VIM3.V11"
 #define HW_VERSION_VIM3_V12_STR    "VIM3.V12"
+#define HW_VERSION_VIM3_V14_STR    "VIM3.V14"
 #define HW_VERSION_UNKNOW_STR      "Unknow"
 
 static char khadas_hwver[64];
@@ -80,6 +81,8 @@ int get_hwver(void)
 		return HW_VERSION_VIM3_V11;
 	} else if (strstr(khadas_hwver, HW_VERSION_VIM3_V12_STR)) {
 		return HW_VERSION_VIM3_V12;
+	} else if (strstr(khadas_hwver, HW_VERSION_VIM3_V14_STR)) {
+		return HW_VERSION_VIM3_V14;
 	} else {
 		return HW_VERSION_UNKNOW;
 	}

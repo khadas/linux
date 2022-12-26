@@ -84,7 +84,8 @@ enum khadas_fan_hwver {
 	KHADAS_FAN_HWVER_VIM2_V13,
 	KHADAS_FAN_HWVER_VIM2_V14,
 	KHADAS_FAN_HWVER_VIM3_V11,
-	KHADAS_FAN_HWVER_VIM3_V12
+	KHADAS_FAN_HWVER_VIM3_V12,
+	KHADAS_FAN_HWVER_VIM3_V14
 };
 
 enum khadas_portmode {
@@ -224,6 +225,7 @@ static bool is_support_wol(void)
 		case HW_VERSION_VIM2_V14:
 		case HW_VERSION_VIM3_V11:
 		case HW_VERSION_VIM3_V12:
+		case HW_VERSION_VIM3_V14:
 			return true;
 		case HW_VERSION_UNKNOW:
 		case HW_VERSION_VIM1_V12:
@@ -240,6 +242,7 @@ static bool is_support_pcie(void)
 	switch (hwver) {
 		case HW_VERSION_VIM3_V11:
 		case HW_VERSION_VIM3_V12:
+		case HW_VERSION_VIM3_V14:
 			return true;
 		case HW_VERSION_UNKNOW:
 		case HW_VERSION_VIM1_V12:
@@ -779,6 +782,8 @@ static int mcu_parse_dt(struct device *dev)
                   g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_VIM3_V11;
 	}else if(hwver == 0x32){
                   g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_VIM3_V12;
+	}else if(hwver == 0x34){
+                  g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_VIM3_V14;
 	}else {
                   g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_NONE;
 	}
