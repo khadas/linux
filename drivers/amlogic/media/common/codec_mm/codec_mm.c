@@ -1557,6 +1557,10 @@ static int codec_mm_tvp_pool_alloc_by_slot(struct extpool_mgt_s *tvp_pool,
 	}
 	try_alloced_size = 0;
 alloced_finished:
+	if (try_alloced_size && !tvp_dynamic_increase_disable && !flags) {
+		pr_info("Force enable tvp, please enable it by resource manager or secmem");
+		mgt->tvp_enable = 2;
+	}
 	mutex_unlock(&tvp_pool->pool_lock);
 	return try_alloced_size;
 }
