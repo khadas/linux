@@ -32,6 +32,9 @@ static struct cpumask dead_events_mask;
 #else
 DECLARE_PER_CPU(unsigned long, hrtimer_interrupts);
 DECLARE_PER_CPU(unsigned long, hrtimer_interrupts_saved);
+#ifdef CONFIG_AMLOGIC_MODIFY
+static DEFINE_PER_CPU(unsigned long, hrtimer_interrupts_lock_cnt);
+#endif
 #endif
 
 static unsigned long __maybe_unused hardlockup_allcpu_dumped;
@@ -201,8 +204,20 @@ static int is_hardlockup_other_cpu(unsigned int cpu)
 {
 	unsigned long hrint = per_cpu(hrtimer_interrupts, cpu);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned long lock_cnt = per_cpu(hrtimer_interrupts_lock_cnt, cpu);
+
+	if (hrint ==  per_cpu(hrtimer_interrupts_saved, cpu)) {
+		per_cpu(hrtimer_interrupts_lock_cnt, cpu) = ++lock_cnt;
+		if (lock_cnt > watchdog_thresh)
+			return 1;
+	} else {
+		per_cpu(hrtimer_interrupts_lock_cnt, cpu) = 0;
+	}
+#else
 	if (per_cpu(hrtimer_interrupts_saved, cpu) == hrint)
 		return 1;
+#endif
 
 	per_cpu(hrtimer_interrupts_saved, cpu) = hrint;
 	return 0;
@@ -212,6 +227,7 @@ void watchdog_check_hardlockup_other_cpu(void)
 {
 	unsigned int next_cpu;
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	/*
 	 * Test for hardlockups every 3 samples.  The sample period is
 	 *  watchdog_thresh * 2 / 5, so 3 samples gets us back to slightly over
@@ -220,6 +236,7 @@ void watchdog_check_hardlockup_other_cpu(void)
 	if (__this_cpu_read(hrtimer_interrupts) % 3 != 0)
 		return;
 
+#endif
 	/* check for a hardlockup on the next cpu */
 	next_cpu = watchdog_next_cpu(smp_processor_id());
 	if (next_cpu >= nr_cpu_ids)

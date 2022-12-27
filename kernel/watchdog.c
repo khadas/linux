@@ -44,11 +44,7 @@ unsigned long __read_mostly watchdog_enabled;
 int __read_mostly watchdog_user_enabled = 1;
 int __read_mostly nmi_watchdog_user_enabled = NMI_WATCHDOG_DEFAULT;
 int __read_mostly soft_watchdog_user_enabled = 1;
-#ifdef CONFIG_AMLOGIC_MODIFY
-int __read_mostly watchdog_thresh = 5;
-#else
 int __read_mostly watchdog_thresh = 10;
-#endif
 static int __read_mostly nmi_watchdog_available;
 
 static struct cpumask watchdog_allowed_mask __read_mostly;
@@ -259,7 +255,11 @@ static void set_sample_period(void)
 	 * and hard thresholds) to increment before the
 	 * hardlockup detector generates a warning
 	 */
+#ifdef CONFIG_AMLOGIC_MODIFY
+	sample_period = 1 * (u64)NSEC_PER_SEC;
+#else
 	sample_period = get_softlockup_thresh() * ((u64)NSEC_PER_SEC / 5);
+#endif
 	watchdog_update_hrtimer_threshold(sample_period);
 }
 
