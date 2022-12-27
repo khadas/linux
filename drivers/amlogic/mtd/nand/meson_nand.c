@@ -201,7 +201,7 @@ static int meson_nfc_wait_cmd_finish(struct meson_nfc *nfc,
 	/* wait cmd fifo is empty */
 	ret = readl_relaxed_poll_timeout(nfc->reg_base + NFC_REG_CMD, cmd_size,
 					 !NFC_CMD_GET_SIZE(cmd_size),
-					 10, timeout_ms * 1000);
+					 50, timeout_ms * 1000);
 	if (ret)
 		dev_err(nfc->dev, "wait for empty CMD FIFO time out\n");
 
