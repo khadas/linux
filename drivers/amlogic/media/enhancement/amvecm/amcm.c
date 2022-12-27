@@ -306,18 +306,18 @@ void am_set_regmap(struct am_regs_s *p)
 		case VALUE_TYPE_CONTRAST_BRIGHTNESS:
 			break;
 		case REG_TYPE_INDEX_VPP_COEF:
-			if (((addr & 0xf) == 0) ||
-			    ((addr & 0xf) == 0x8)) {
-				if (pq_reg_wr_rdma)
-					cm_wr_api(addr, val, 0xffffffff, WR_DMA);
-				else
-					cm_wr_api(addr, val, 0xffffffff, WR_VCB);
-			} else {
-				if (pq_reg_wr_rdma)
-					cm_wr_api(addr, val, 0xffffffff, WR_DMA);
-				else
-					cm_wr_api(addr, val, 0xffffffff, WR_VCB);
-			}
+			//if (((addr & 0xf) == 0) ||
+			//    ((addr & 0xf) == 0x8)) {
+			if (pq_reg_wr_rdma)
+				cm_wr_api(addr, val, 0xffffffff, WR_DMA);
+			else
+				cm_wr_api(addr, val, 0xffffffff, WR_VCB);
+			//} else {
+			//	if (pq_reg_wr_rdma)
+			//		cm_wr_api(addr, val, 0xffffffff, WR_DMA);
+			//	else
+			//		cm_wr_api(addr, val, 0xffffffff, WR_VCB);
+			//}
 			default_sat_param(addr, val);
 			break;
 		case REG_TYPE_VCBUS:

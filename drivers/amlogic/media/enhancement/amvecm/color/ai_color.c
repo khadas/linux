@@ -156,7 +156,7 @@ void SLut_gen(struct sa_adj_param_s *reg_sat,
 	int huesum = 0;
 	int ki = 0;
 	int kx = 0;
-	int skinf = 0;
+//	int skinf = 0;
 	int posf = 0;
 	int maxgain;
 	int mingain;
@@ -186,10 +186,10 @@ void SLut_gen(struct sa_adj_param_s *reg_sat,
 	if (posf != 0) {
 		//hsy 20 - 60   hsl 110 - 140
 		for (k = 20; k <= 60; k++) {
-			skinf = k > 119 ? k - 120 : k;
-			if (midslut[skinf] > reg_fw_sat->reg_skin_th) {
-				midslut[skinf] = midslut[skinf] + reg_fw_sat->reg_skin_shift;
-				midslut[skinf] = (midslut[skinf] * reg_fw_sat->reg_skin_adj) >> 7;
+			//skinf = k > 119 ? k - 120 : k;
+			if (midslut[k] > reg_fw_sat->reg_skin_th) {
+				midslut[k] = midslut[k] + reg_fw_sat->reg_skin_shift;
+				midslut[k] = (midslut[k] * reg_fw_sat->reg_skin_adj) >> 7;
 			}
 		}
 	}

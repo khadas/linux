@@ -130,13 +130,13 @@ void hdr_vd1_off(enum vpp_index_e vpp_index)
 		cur_hdr_process =
 			hdr_func(VD1_HDR, HDR_BYPASS,
 				 NULL, NULL, vpp_index);
-	} else if (silce_mode == VD1_2SLICE) {
-		cur_hdr_process =
-			hdr_func(VD1_HDR, HDR_BYPASS,
-				 NULL, NULL, vpp_index);
-		cur_hdr_process =
-			hdr_func(S5_VD1_SLICE1, HDR_BYPASS,
-				 NULL, NULL, vpp_index);
+	//} else if (silce_mode == VD1_2SLICE) {
+	//	cur_hdr_process =
+	//		hdr_func(VD1_HDR, HDR_BYPASS,
+	//			 NULL, NULL, vpp_index);
+	//	cur_hdr_process =
+	//		hdr_func(S5_VD1_SLICE1, HDR_BYPASS,
+	//			 NULL, NULL, vpp_index);
 	} else if (silce_mode == VD1_4SLICE) {
 		cur_hdr_process =
 			hdr_func(VD1_HDR, HDR_BYPASS,

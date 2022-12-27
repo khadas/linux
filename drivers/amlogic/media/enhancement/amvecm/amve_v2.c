@@ -233,16 +233,16 @@ void vpp_mtx_config_v2(struct matrix_coef_s *coef,
 	enum wr_md_e mode, enum vpp_slice_e slice,
 	enum vpp_matrix_e mtx_sel)
 {
-	int reg_pre_offset0_1;
-	int reg_pre_offset2;
-	int reg_coef00_01;
+	int reg_pre_offset0_1 = 0;
+	int reg_pre_offset2 = 0;
+	int reg_coef00_01 = 0;
 	int reg_coef02_10;
 	int reg_coef11_12;
 	int reg_coef20_21;
 	int reg_coef22;
-	int reg_offset0_1;
-	int reg_offset2;
-	int reg_en_ctl;
+	int reg_offset0_1 = 0;
+	int reg_offset2 = 0;
+	int reg_en_ctl = 0;
 
 	if (slice >= SLICE_MAX)
 		return;
