@@ -2009,6 +2009,10 @@
 	enc_idx = <2>;
 };
 
+&dummy_venc {
+	default_venc_index = <2>;
+};
+
 /*if you want to use vdin just modify status to "ok"*/
 &vdin0 {
 	/*memory-region = <&vdin0_cma_reserved>;*/

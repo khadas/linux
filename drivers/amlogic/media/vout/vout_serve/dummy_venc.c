@@ -1402,6 +1402,28 @@ static struct vout_server_s dummy_encl_vout2_server = {
 };
 #endif
 
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+static struct vout_server_s dummy_encl_vout3_server = {
+	.name = "dummy_encl_vout3_server",
+	.op = {
+		.get_vinfo          = dummy_encl_get_current_info,
+		.set_vmode          = dummy_encl_set_current_vmode,
+		.validate_vmode     = dummy_encl_validate_vmode,
+		.vmode_is_supported = dummy_encl_vmode_is_supported,
+		.disable            = dummy_encl_disable,
+		.set_state          = dummy_encl_vout_set_state,
+		.clr_state          = dummy_encl_vout_clr_state,
+		.get_state          = dummy_encl_vout_get_state,
+		.set_bist           = NULL,
+#ifdef CONFIG_PM
+		.vout_suspend       = NULL,
+		.vout_resume        = NULL,
+#endif
+	},
+	.data = NULL,
+};
+#endif
+
 static void dummy_encl_vout_server_init(struct dummy_venc_driver_s *venc_drv)
 {
 	venc_drv->vinfo = &dummy_encl_vinfo;
@@ -1411,6 +1433,10 @@ static void dummy_encl_vout_server_init(struct dummy_venc_driver_s *venc_drv)
 	dummy_encl_vout2_server.data = (void *)venc_drv;
 	vout2_register_server(&dummy_encl_vout2_server);
 #endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	dummy_encl_vout3_server.data = (void *)venc_drv;
+	vout3_register_server(&dummy_encl_vout3_server);
+#endif
 }
 
 static void dummy_encl_vout_server_remove(void)
@@ -1418,6 +1444,9 @@ static void dummy_encl_vout_server_remove(void)
 	vout_unregister_server(&dummy_encl_vout_server);
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	vout2_unregister_server(&dummy_encl_vout2_server);
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	vout3_unregister_server(&dummy_encl_vout3_server);
 #endif
 }
 
