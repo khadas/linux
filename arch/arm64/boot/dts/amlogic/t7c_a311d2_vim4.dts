@@ -1001,7 +1001,7 @@
 
 		/* In for ACODEC_ADC */
 		/* tdmin-src-name = "acodec_adc"; */
-		tdmin-src-name = "hdmirx";
+		tdmin-src-name = "tdmin_b";
 		/*enable default mclk(12.288M), before extern codec start*/
 		start_clk_enable = <1>;
 		ctrl_gain = <1>;
