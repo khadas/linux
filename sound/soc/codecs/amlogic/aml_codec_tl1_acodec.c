@@ -33,9 +33,9 @@
 
 struct tl1_acodec_chipinfo {
 	int id;
-	bool is_bclk_cap_inv;	//default true
-	bool is_bclk_o_inv;		//default false
-	bool is_lrclk_inv;		//default false
+	bool is_bclk_cap_inv;
+	bool is_bclk_o_inv;
+	bool is_lrclk_inv;
 	bool is_dac_phase_differ_exist;
 	bool is_adc_phase_differ_exist;
 	int mclk_sel;
@@ -57,10 +57,6 @@ struct tl1_acodec_priv {
 
 	int tdmin_index;
 	int adc_output_sel;
-	//int input_data_sel;	//tdmouta,tdmoutb,
-	//tdmouta,tdmoutb,tdmoutc,tdmina,tdminb,tdminc
-	//int clk_sel;
-	//tdmouta,tdmoutb,tdmoutc,none,tdmina,tdminb,tdminc
 	int dac1_input_sel;
 	int dac2_input_sel;
 	struct reset_control *rst;
@@ -90,45 +86,36 @@ static const struct reg_default tl1_acodec_init_list_v2[] = {
 
 static struct tl1_acodec_chipinfo tl1_acodec_cinfo = {
 	.id = 0,
-	.is_bclk_cap_inv = true,	//default  true
-	.is_bclk_o_inv = false,		//default  false
+	.is_bclk_cap_inv = true,
+	.is_bclk_o_inv = false,
 	.is_lrclk_inv = false,
 
 	.is_dac_phase_differ_exist = false,
 	.is_adc_phase_differ_exist = true,
-	//if is_adc_phase_differ=true,modified tdmin_in_rev_ws,revert ws(lrclk);
-	//0 :disable; 1: enable;
-	//.mclk_sel = 1,
 	.separate_toacodec_en = false,
 	.data_sel_shift = DATA_SEL_SHIFT_VERSION0,
 };
 
 static struct tl1_acodec_chipinfo tm2_revb_acodec_cinfo = {
 	.id = 0,
-	.is_bclk_cap_inv = true,	//default  true
-	.is_bclk_o_inv = false,		//default  false
+	.is_bclk_cap_inv = true,
+	.is_bclk_o_inv = false,
 	.is_lrclk_inv = false,
 
 	.is_dac_phase_differ_exist = false,
 	.is_adc_phase_differ_exist = true,
-	//if is_adc_phase_differ=true,modified tdmin_in_rev_ws,revert ws(lrclk);
-	//0 :disable; 1: enable;
-	//.mclk_sel = 1,
 	.separate_toacodec_en = true,
 	.data_sel_shift = DATA_SEL_SHIFT_VERSION0,
 };
 
 static struct tl1_acodec_chipinfo t5w_acodec_cinfo = {
 	.id = 0,
-	.is_bclk_cap_inv = true,	//default  true
-	.is_bclk_o_inv = false,		//default  false
+	.is_bclk_cap_inv = true,
+	.is_bclk_o_inv = false,
 	.is_lrclk_inv = false,
 
 	.is_dac_phase_differ_exist = false,
 	.is_adc_phase_differ_exist = true,
-	//if is_adc_phase_differ=true,modified tdmin_in_rev_ws,revert ws(lrclk);
-	//0 :disable; 1: enable;
-	//.mclk_sel = 1,
 	.separate_toacodec_en = true,
 	.data_sel_shift = DATA_SEL_SHIFT_VERSION0,
 	.dac_count = 4,
@@ -136,15 +123,12 @@ static struct tl1_acodec_chipinfo t5w_acodec_cinfo = {
 
 static struct tl1_acodec_chipinfo t3_acodec_cinfo = {
 	.id = 0,
-	.is_bclk_cap_inv = true,	//default  true
-	.is_bclk_o_inv = false,		//default  false
+	.is_bclk_cap_inv = true,
+	.is_bclk_o_inv = false,
 	.is_lrclk_inv = false,
 
 	.is_dac_phase_differ_exist = false,
 	.is_adc_phase_differ_exist = true,
-	//if is_adc_phase_differ=true,modified tdmin_in_rev_ws,revert ws(lrclk);
-	//0 :disable; 1: enable;
-	//.mclk_sel = 1,
 	.separate_toacodec_en = true,
 	.data_sel_shift = DATA_SEL_SHIFT_VERSION1,
 };
@@ -269,6 +253,54 @@ static int aml_dac2_gain_set_enum
 	return 0;
 }
 
+static int aml_DAC_source_sel_get_enum
+	(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct tl1_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
+	u32 val = 0;
+
+	if (aml_acodec->chipinfo->data_sel_shift == DATA_SEL_SHIFT_VERSION0) {
+		val = (audiobus_read(EE_AUDIO_TOACODEC_CTRL0) >> 16) & (0xf);
+		val -= (aml_acodec->tdmout_index << 2);
+	} else {
+		val = (audiobus_read(EE_AUDIO_TOACODEC_CTRL0) >> 16) & (0x1f);
+		val -= (aml_acodec->tdmout_index << 3);
+	}
+
+	if (val < 0 || val > 3) {
+		pr_info("Warning: tdmout_index = %d, val = 0x%x\n", aml_acodec->tdmout_index, val);
+		val = 0;
+	}
+	ucontrol->value.enumerated.item[0] = val;
+	return 0;
+}
+
+static int aml_DAC_source_sel_set_enum
+		(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct tl1_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
+	u32 val = ucontrol->value.enumerated.item[0];
+
+	if (val < 0 || val > 3) {
+		pr_info("Warning: tdmout_index = %d, val = 0x%x\n", aml_acodec->tdmout_index, val);
+		return 0;
+	}
+
+	if (aml_acodec->chipinfo->data_sel_shift == DATA_SEL_SHIFT_VERSION0) {
+		val += (aml_acodec->tdmout_index << 2);
+		audiobus_update_bits(EE_AUDIO_TOACODEC_CTRL0, (0xf << 16), (val << 16));
+	} else {
+		val += (aml_acodec->tdmout_index << 3);
+		audiobus_update_bits(EE_AUDIO_TOACODEC_CTRL0, (0x1f << 16), (val << 16));
+	}
+
+	return 0;
+}
+
 static const DECLARE_TLV_DB_SCALE(pga_in_tlv, -1200, 250, 1);
 static const DECLARE_TLV_DB_SCALE(adc_vol_tlv, -29625, 375, 1);
 static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -95250, 375, 1);
@@ -276,6 +308,7 @@ static const DECLARE_TLV_DB_SCALE(dac2_vol_tlv, -95250, 375, 1);
 
 static const char *const dac_gain_texts[] = { "0dB", "6dB", "12dB", "18dB" };
 static const char *const dac2_gain_texts[] = { "0dB", "6dB", "12dB", "18dB" };
+static const char *const DAC_Src_texts[] = {"Lane0", "Lane1", "Lane2", "Lane3"};
 
 static const struct soc_enum dac_gain_enum =
 	SOC_ENUM_SINGLE
@@ -287,6 +320,10 @@ static const struct soc_enum dac2_gain_enum =
 			(SND_SOC_NOPM, 0,
 			ARRAY_SIZE(dac2_gain_texts),
 			dac2_gain_texts);
+static const struct soc_enum DAC_source_sel_enum =
+	SOC_ENUM_SINGLE
+			(SND_SOC_NOPM, 0, ARRAY_SIZE(DAC_Src_texts),
+			DAC_Src_texts);
 
 static const struct snd_kcontrol_new tl1_acodec_snd_controls[] = {
 	/*PGA_IN Gain */
@@ -315,7 +352,7 @@ static const struct snd_kcontrol_new tl1_acodec_snd_controls[] = {
 			DAC2L_VC, DAC2R_VC,
 			0xff, 0, dac2_vol_tlv),
 
-    /*DAC extra Digital Gain control */
+	/*DAC extra Digital Gain control */
 	SOC_ENUM_EXT
 			("DAC Extra Digital Gain",
 			dac_gain_enum,
@@ -328,6 +365,11 @@ static const struct snd_kcontrol_new tl1_acodec_snd_controls[] = {
 			dac2_gain_enum,
 			aml_dac2_gain_get_enum,
 			aml_dac2_gain_set_enum),
+
+	SOC_ENUM_EXT("DAC SOURCE SELECT",
+			DAC_source_sel_enum,
+			aml_DAC_source_sel_get_enum,
+			aml_DAC_source_sel_set_enum),
 };
 
 /*pgain Left Channel Input */
