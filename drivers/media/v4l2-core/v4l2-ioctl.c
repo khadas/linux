@@ -1411,6 +1411,7 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 		case V4L2_PIX_FMT_AV1:		descr = "AV1"; break;
 		case V4L2_PIX_FMT_AVS:		descr = "AVS"; break;
 		case V4L2_PIX_FMT_AVS2:		descr = "AVS2"; break;
+		case V4L2_PIX_FMT_AVS3:		descr = "AVS3"; break;
 #endif
 		default:
 			if (fmt->description[0])
