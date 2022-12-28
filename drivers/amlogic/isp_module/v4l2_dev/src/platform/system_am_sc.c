@@ -172,7 +172,7 @@ static void isp_sc_setting(
     u8 top_rpt_num, bot_rpt_num;
     u16 top_vphase, bot_vphase;
     u8 is_frame;
-    s32  vert_bank_length = 4;
+    s32  vert_bank_length = 2;
     s32 *filt_coef0 = (s32 *)&isp_filt_coef0[0];
     //s32 *filt_coef1 = (s32 *)&isp_filt_coef1[0];
     s32 *filt_coef2 = (s32 *)&isp_filt_coef2[0];
