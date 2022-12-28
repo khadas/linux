@@ -1,1 +1,1 @@
- obj-y += asr_hw.o iflyteck/lib.a
+ obj-y += asr_hw.o iflytek/lib.a

@@ -14,9 +14,9 @@
 #include <linux/amlogic/major.h>
 #include <linux/amlogic/vad_api.h>
 
-#include "iflyteck/ivw_defines.h"
-#include "iflyteck/param_module.h"
-#include "iflyteck/w_ivw.h"
+#include "iflytek/ivw_defines.h"
+#include "iflytek/param_module.h"
+#include "iflytek/w_ivw.h"
 
 #define PERIOD_FRAMES  (IVW_FIXED_WRITE_BUF_LEN / 2)
 
@@ -102,7 +102,7 @@ int aml_asr_enable(void)
 	pr_debug("PARAM_W_FEA_MLP_JUMPFREAM_NUM: %d\n", value);
 
 	wIvwGetParameter(g_ivw_inst, PARAM_W_DEC_MAX_STATE_LOOP, &value);
-	pr_debug("defaule_PARAM_W_DEC_MAX_STATE_LOOP: %d\n", value);
+	pr_debug("PARAM_W_DEC_MAX_STATE_LOOP: %d\n", value);
 	value = 50;
 	wIvwSetParameter(g_ivw_inst, PARAM_W_DEC_MAX_STATE_LOOP, value);
 	wIvwGetParameter(g_ivw_inst, PARAM_W_DEC_MAX_STATE_LOOP, &value);
