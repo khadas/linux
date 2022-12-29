@@ -25,7 +25,7 @@ enum swiotlb_force {
  * The complexity of {map,unmap}_single is linearly dependent on this value.
  */
 #ifdef CONFIG_AMLOGIC_MODIFY
-#define IO_TLB_SEGSIZE	2048
+#define IO_TLB_SEGSIZE	8192//2048
 #else
 #define IO_TLB_SEGSIZE	128
 #endif
