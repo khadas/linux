@@ -564,6 +564,8 @@ do { \
 
 	if (hdev->para->tmds_clk > 340000)
 		set_phy_by_mode(HDMI_PHYPARA_6G);
+	else if (hdev->para->tmds_clk > 290000)
+		set_phy_by_mode(HDMI_PHYPARA_3G);
 	else
 		set_phy_by_mode(HDMI_PHYPARA_DEF);
 }
