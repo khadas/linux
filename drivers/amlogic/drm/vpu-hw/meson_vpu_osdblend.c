@@ -19,6 +19,9 @@ static int align_proc = 4;
 module_param(align_proc, int, 0664);
 MODULE_PARM_DESC(align_proc, "align_proc");
 
+#define BLEND_DOUT_DEF_HSIZE 3840
+#define BLEND_DOUT_DEF_VSIZE 2160
+
 static int osd_enable[MESON_MAX_OSDS];
 
 static struct osdblend_reg_s osdblend_reg = {
@@ -709,11 +712,19 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 	mvobs->input_height[OSD_SUB_BLEND1] = max_height;
 
 	/*blend dout size */
-	mvsps->blend_dout_hsize[OSD_SUB_BLEND0] = ALIGN(max_width, 2);
-	mvsps->blend_dout_vsize[OSD_SUB_BLEND0] = max_height;
-
-	mvsps->blend_dout_hsize[OSD_SUB_BLEND1] = ALIGN(max_width, 2);
-	mvsps->blend_dout_vsize[OSD_SUB_BLEND1] = max_height;
+	if (mvsps->more_4k) {
+		mvsps->blend_dout_hsize[OSD_SUB_BLEND0] = BLEND_DOUT_DEF_HSIZE;
+		mvsps->blend_dout_vsize[OSD_SUB_BLEND0] = BLEND_DOUT_DEF_VSIZE;
+		mvsps->blend_dout_hsize[OSD_SUB_BLEND1] = BLEND_DOUT_DEF_HSIZE;
+		mvsps->blend_dout_vsize[OSD_SUB_BLEND1] = BLEND_DOUT_DEF_VSIZE;
+		mvobs->input_width[OSD_SUB_BLEND0] = BLEND_DOUT_DEF_HSIZE;
+		mvobs->input_height[OSD_SUB_BLEND0] = BLEND_DOUT_DEF_VSIZE;
+	} else {
+		mvsps->blend_dout_hsize[OSD_SUB_BLEND0] = ALIGN(max_width, 2);
+		mvsps->blend_dout_vsize[OSD_SUB_BLEND0] = max_height;
+		mvsps->blend_dout_hsize[OSD_SUB_BLEND1] = ALIGN(max_width, 2);
+		mvsps->blend_dout_vsize[OSD_SUB_BLEND1] = max_height;
+	}
 
 	osdblend_hw_update(vblk, state->sub->reg_ops, reg, mvobs);
 
