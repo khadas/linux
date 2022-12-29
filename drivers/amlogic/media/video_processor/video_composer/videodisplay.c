@@ -215,7 +215,7 @@ static void vd_display_q_uninit(struct composer_dev *dev)
 			}
 			dma_flag = vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_DMA;
 			if (vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS) {
-				repeat_count = vf->repeat_count[dev->index];
+				repeat_count = vf->repeat_count;
 				file_vf = vf->file_vf;
 				vc_print(dev->index, PRINT_FENCE,
 					 "%s: repeat_count=%d, omx_index=%d\n",
@@ -890,7 +890,7 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 			return;
 		}
 
-		repeat_count = vf->repeat_count[dev->index];
+		repeat_count = vf->repeat_count;
 		file_vf = vf->file_vf;
 
 		vf_pop_display_q(dev, vf);
@@ -1419,10 +1419,10 @@ int video_display_setframe(int layer_index,
 	vf->disp_pts = 0;
 
 	if (is_repeat_vf) {
-		vf->repeat_count[dev->index]++;
+		vf->repeat_count++;
 		vc_print(layer_index, PRINT_OTHER,
 			"%s: repeat frame, repeat_count is %d.\n",
-			__func__, vf->repeat_count[dev->index]);
+			__func__, vf->repeat_count);
 		return 0;
 	}
 
@@ -1467,7 +1467,7 @@ int video_display_setframe(int layer_index,
 	dev->last_file = (struct file *)frame_info->dmabuf;
 	vf->vc_private = vc_private_q_pop(dev);
 	vf->file_vf = (struct file *)(frame_info->dmabuf);
-	vf->repeat_count[dev->index] = 0;
+	vf->repeat_count = 0;
 	dev->vd_prepare_last = vd_prepare;
 
 	video_dispaly_push_ready(dev, vf);
@@ -1567,10 +1567,10 @@ int mbd_video_display_setframe(int layer_index,
 	vf->bitdepth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
 
 	if (is_repeat_vf) {
-		vf->repeat_count[dev->index]++;
+		vf->repeat_count++;
 		vc_print(layer_index, PRINT_OTHER,
 			"%s: repeat frame, repeat_count is %d.\n",
-			__func__, vf->repeat_count[dev->index]);
+			__func__, vf->repeat_count);
 		return 0;
 	}
 
@@ -1580,7 +1580,7 @@ int mbd_video_display_setframe(int layer_index,
 	vf->vc_private->lock_buffer_cb((void *)frame_info->buffer_info);
 	dev->last_file = (struct file *)frame_info->buffer_info;
 	vf->file_vf = (struct file *)(frame_info->buffer_info);
-	vf->repeat_count[dev->index] = 0;
+	vf->repeat_count = 0;
 	dev->vd_prepare_last = vd_prepare;
 	if (!kfifo_put(&dev->ready_q, (const struct vframe_s *)vf)) {
 		vc_print(layer_index, PRINT_ERROR,

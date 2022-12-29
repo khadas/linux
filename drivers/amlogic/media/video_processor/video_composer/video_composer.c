@@ -985,7 +985,7 @@ static void display_q_uninit(struct composer_dev *dev)
 		if (kfifo_get(&dev->display_q, &dis_vf)) {
 			if (dis_vf->flag
 			    & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS) {
-				repeat_count = dis_vf->repeat_count[dev->index];
+				repeat_count = dis_vf->repeat_count;
 				vc_print(dev->index, PRINT_FENCE,
 					 "vc: unit repeat_count=%d, omx_index=%d\n",
 					 repeat_count,
@@ -1049,7 +1049,7 @@ static void ready_q_uninit(struct composer_dev *dev)
 
 			if (dis_vf->flag
 			    & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS) {
-				repeat_count = dis_vf->repeat_count[dev->index];
+				repeat_count = dis_vf->repeat_count;
 				for (i = 0; i <= repeat_count; i++) {
 					fput(dis_vf->file_vf);
 					total_put_count++;
@@ -1209,7 +1209,7 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 	if (!vf)
 		return;
 
-	repeat_count = vf->repeat_count[dev->index];
+	repeat_count = vf->repeat_count;
 	omx_index = vf->omx_index;
 	index_disp = vf->index_disp;
 	rendered = vf->rendered;
@@ -2182,13 +2182,13 @@ static void vframe_composer(struct composer_dev *dev)
 	vc_print(dev->index, PRINT_DEWARP,
 			 "composer:canvas_w: %d, canvas_h: %d\n",
 			 dst_vf->canvas0_config[0].width, dst_vf->canvas0_config[0].height);
-	dst_vf->repeat_count[dev->index] = 0;
+	dst_vf->repeat_count = 0;
 	dst_vf->composer_info = composer_info;
 
 	if (dev->last_dst_vf)
-		dev->last_dst_vf->repeat_count[dev->index] += drop_count;
+		dev->last_dst_vf->repeat_count += drop_count;
 	else
-		dst_vf->repeat_count[dev->index] += drop_count;
+		dst_vf->repeat_count += drop_count;
 	dev->last_dst_vf = dst_vf;
 	dev->last_frames = *received_frames;
 	dev->fake_vf = *dev->last_dst_vf;
@@ -2231,7 +2231,7 @@ static void empty_ready_queue(struct composer_dev *dev)
 		if (kfifo_get(&dev->ready_q, &vf)) {
 			if (!vf)
 				break;
-			repeat_count = vf->repeat_count[dev->index];
+			repeat_count = vf->repeat_count;
 			omx_index = vf->omx_index;
 			is_composer = vf->flag & VFRAME_FLAG_COMPOSER_DONE;
 			file_vf = vf->file_vf;
@@ -2622,10 +2622,10 @@ static void video_composer_task(struct composer_dev *dev)
 		}
 
 		if (is_repeat_vf) {
-			vf->repeat_count[dev->index]++;
+			vf->repeat_count++;
 			vc_print(dev->index, PRINT_FENCE,
 				 "repeat =%d, omx_index=%d\n",
-				 vf->repeat_count[dev->index],
+				 vf->repeat_count,
 				 vf->omx_index);
 		} else {
 			if (is_dec_vf || is_v4l_vf) {
@@ -2651,7 +2651,7 @@ static void video_composer_task(struct composer_dev *dev)
 				vf->vc_private = vc_private;
 			}
 			dev->last_file = file_vf;
-			vf->repeat_count[dev->index] = 0;
+			vf->repeat_count = 0;
 			dev->vd_prepare_last = vd_prepare;
 			if (vf->flag & VFRAME_FLAG_GAME_MODE) {
 				now_time = ktime_to_us(ktime_get());

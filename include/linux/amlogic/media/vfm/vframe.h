@@ -688,7 +688,7 @@ struct vframe_s {
 	struct vtem_data vtem;
 
 	u32 zorder;
-	u32 repeat_count[2];
+	u32 repeat_count;
 	struct file *file_vf;
 	bool rendered;
 
