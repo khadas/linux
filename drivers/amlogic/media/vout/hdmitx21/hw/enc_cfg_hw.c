@@ -438,6 +438,8 @@ static void config_tv_enci(enum hdmi_vic vic)
 		hd21_write_reg(VENC_SYNC_ROUTE, 0); // Set sync route on vpins
 		// Set hsync/vsync source from interlace vencoder
 		hd21_write_reg(VENC_VIDEO_PROG_MODE, 0xf0);
+		hd21_write_reg(ENCI_VIDEO_MODE, 0x8); /* Set for 480I mode */
+		hd21_write_reg(ENCI_VIDEO_MODE_ADV, 0x26); /* Set for High Bandwidth for CBW&YBW */
 		hd21_write_reg(ENCI_YC_DELAY, 0x22); // both Y and C delay 2 clock
 		hd21_write_reg(ENCI_VFIFO2VD_PIXEL_START, 233);
 		hd21_write_reg(ENCI_VFIFO2VD_PIXEL_END, 233 + 720 * 2);
@@ -491,14 +493,249 @@ static void config_tv_enci(enum hdmi_vic vic)
 	}
 }
 
+static void adjust_enci_for_hdmi(u8 enc_index,
+	u8 interlace_mode,
+	u32 total_pixels_venc,
+	u32 active_pixels_venc,
+	u32 front_porch_venc,
+	u32 hsync_pixels_venc,
+	u32 total_lines,
+	u32 active_lines,
+	u32 lines_f0,
+	u32 lines_f1,
+	u32 eof_lines,
+	u32 sof_lines,
+	u32 vsync_lines,
+	u32 vs_adjust_420)
+{
+	u32 reg_offset;
+	// Latency in pixel clock from ENCI_VFIFO2VD request to data ready to HDMI
+	u32 vfifo2vd_to_hdmi_latency = 1;
+	u32 de_h_begin, de_h_end;
+	u32 de_v_begin_even, de_v_end_even, de_v_begin_odd, de_v_end_odd;
+	u32 hs_begin, hs_end;
+	u32 vs_adjust;
+	u32 vs_bline_evn, vs_eline_evn, vs_bline_odd, vs_eline_odd;
+	u32 vso_begin_evn, vso_begin_odd;
+	u32 vso_bline_evn_reg_wr_cnt = 0, vso_bline_odd_reg_wr_cnt = 0;
+	u32 vso_eline_evn_reg_wr_cnt = 0, vso_eline_odd_reg_wr_cnt = 0;
+
+	reg_offset = (enc_index == 0) ? 0 : (enc_index == 1) ? 0x600 : 0x800;
+
+	// Program DE timing
+	de_h_begin = modulo(hd21_read_reg(ENCI_VFIFO2VD_PIXEL_START) +
+		vfifo2vd_to_hdmi_latency, total_pixels_venc);
+	de_h_end = modulo(de_h_begin + active_pixels_venc, total_pixels_venc);
+	hd21_write_reg(ENCI_DE_H_BEGIN, de_h_begin);
+	hd21_write_reg(ENCI_DE_H_END, de_h_end);
+
+	de_v_begin_even = hd21_read_reg(ENCI_VFIFO2VD_LINE_TOP_START);
+	de_v_end_even = de_v_begin_even + active_lines;
+	de_v_begin_odd = hd21_read_reg(ENCI_VFIFO2VD_LINE_BOT_START);
+	de_v_end_odd = de_v_begin_odd + active_lines;
+	hd21_write_reg(ENCI_DE_V_BEGIN_EVEN, de_v_begin_even);
+	hd21_write_reg(ENCI_DE_V_END_EVEN, de_v_end_even);
+	hd21_write_reg(ENCI_DE_V_BEGIN_ODD, de_v_begin_odd);
+	hd21_write_reg(ENCI_DE_V_END_ODD, de_v_end_odd);
+
+	// Program Hsync timing
+	if (de_h_end + front_porch_venc >= total_pixels_venc) {
+		hs_begin = de_h_end + front_porch_venc - total_pixels_venc;
+		vs_adjust = 1;
+	} else {
+		hs_begin = de_h_end + front_porch_venc;
+		vs_adjust = 0;
+	}
+	hs_end = modulo(hs_begin + hsync_pixels_venc, total_pixels_venc);
+	hd21_write_reg(ENCI_DVI_HSO_BEGIN, hs_begin);
+	hd21_write_reg(ENCI_DVI_HSO_END, hs_end);
+
+	// Program Vsync timing for even field
+	if (de_v_end_odd - 1 + eof_lines + vs_adjust + vs_adjust_420 >= lines_f1) {
+		vs_bline_evn = de_v_end_odd - 1 + eof_lines + vs_adjust + vs_adjust_420 - lines_f1;
+		vs_eline_evn = vs_bline_evn + vsync_lines;
+		hd21_write_reg(ENCI_DVI_VSO_BLINE_EVN, vs_bline_evn);
+		vso_bline_evn_reg_wr_cnt++;
+		hd21_write_reg(ENCI_DVI_VSO_ELINE_EVN, vs_eline_evn);
+		vso_eline_evn_reg_wr_cnt++;
+		hd21_write_reg(ENCI_DVI_VSO_BEGIN_EVN, hs_begin);
+		hd21_write_reg(ENCI_DVI_VSO_END_EVN,   hs_begin);
+	} else {
+		vs_bline_odd = de_v_end_odd - 1 + eof_lines + vs_adjust + vs_adjust_420;
+		hd21_write_reg(ENCI_DVI_VSO_BLINE_ODD, vs_bline_odd);
+		vso_bline_odd_reg_wr_cnt++;
+		hd21_write_reg(ENCI_DVI_VSO_BEGIN_ODD, hs_begin);
+		if (vs_bline_odd + vsync_lines >= lines_f1) {
+			vs_eline_evn = vs_bline_odd + vsync_lines - lines_f1;
+			hd21_write_reg(ENCI_DVI_VSO_ELINE_EVN, vs_eline_evn);
+			vso_eline_evn_reg_wr_cnt++;
+			hd21_write_reg(ENCI_DVI_VSO_END_EVN, hs_begin);
+		} else {
+			vs_eline_odd = vs_bline_odd + vsync_lines;
+			hd21_write_reg(ENCI_DVI_VSO_ELINE_ODD, vs_eline_odd);
+			vso_eline_odd_reg_wr_cnt++;
+			hd21_write_reg(ENCI_DVI_VSO_END_ODD,   hs_begin);
+		}
+	}
+	// Program Vsync timing for odd field
+	if (de_v_end_even - 1 + eof_lines + 1 + vs_adjust_420 >= lines_f0) {
+		vs_bline_odd = de_v_end_even - 1 + eof_lines + 1 + vs_adjust_420 - lines_f0;
+		vs_eline_odd = vs_bline_odd + vsync_lines;
+		hd21_write_reg(ENCI_DVI_VSO_BLINE_ODD, vs_bline_odd);
+		vso_bline_odd_reg_wr_cnt++;
+		hd21_write_reg(ENCI_DVI_VSO_ELINE_ODD, vs_eline_odd);
+		vso_eline_odd_reg_wr_cnt++;
+		vso_begin_odd   = modulo(hs_begin + (total_pixels_venc >> 1), total_pixels_venc);
+		hd21_write_reg(ENCI_DVI_VSO_BEGIN_ODD, vso_begin_odd);
+		hd21_write_reg(ENCI_DVI_VSO_END_ODD,   vso_begin_odd);
+	} else {
+		vs_bline_evn = de_v_end_even - 1 + eof_lines + 1 + vs_adjust_420;
+		hd21_write_reg(ENCI_DVI_VSO_BLINE_EVN, vs_bline_evn);
+		vso_bline_evn_reg_wr_cnt++;
+		vso_begin_evn   = modulo(hs_begin + (total_pixels_venc >> 1), total_pixels_venc);
+		hd21_write_reg(ENCI_DVI_VSO_BEGIN_EVN, vso_begin_evn);
+		if (vs_bline_evn + vsync_lines >= lines_f0) {
+			vs_eline_odd = vs_bline_evn + vsync_lines - lines_f0;
+			hd21_write_reg(ENCI_DVI_VSO_ELINE_ODD, vs_eline_odd);
+			vso_eline_odd_reg_wr_cnt++;
+			hd21_write_reg(ENCI_DVI_VSO_END_ODD, vso_begin_evn);
+		} else {
+			vs_eline_evn = vs_bline_evn + vsync_lines;
+			hd21_write_reg(ENCI_DVI_VSO_ELINE_EVN, vs_eline_evn);
+			vso_eline_evn_reg_wr_cnt++;
+			hd21_write_reg(ENCI_DVI_VSO_END_EVN, vso_begin_evn);
+		}
+	}
+
+	// Check if there are duplicate or missing timing settings
+	if (vso_bline_evn_reg_wr_cnt != 1 || vso_bline_odd_reg_wr_cnt != 1 ||
+		vso_eline_evn_reg_wr_cnt != 1 || vso_eline_odd_reg_wr_cnt != 1)
+		pr_info("Multiple or missing timing settings on reg ENCI_DVI_VSO_B(E)LINE_EVN(ODD)!\n");
+}
+
 void set_tv_enci_new(struct hdmitx_dev *hdev, u32 enc_index, enum hdmi_vic vic,
 	u32 enable)
 {
 	u32 reg_offset;
+	u8 INTERLACE_MODE = 1;
+	u8 PIXEL_REPEAT_VENC = 2 - 1; // Pixel repeat factor seen in VENC
+	u8 PIXEL_REPEAT_HDMI = 2 - 1; // Pixel repeat factor seen by HDMI TX
+
+	u32 ACTIVE_PIXELS;
+	u32 ACTIVE_LINES;
+	u32 LINES_F0;
+	u32 LINES_F1;
+	u32 FRONT_PORCH;
+	u32 HSYNC_PIXELS;
+	u32 BACK_PORCH;
+	u32 EOF_LINES;
+	u32 VSYNC_LINES;
+	u32 SOF_LINES;
+	u32 TOTAL_PIXELS;
+	u32 TOTAL_LINES;
+	/* u8 input_color_format = HDMI_COLORSPACE_YUV444; */
+
+	u32 total_pixels_venc;
+	u32 active_pixels_venc;
+	u32 front_porch_venc;
+	u32 hsync_pixels_venc;
 
 	reg_offset = enc_index == 0 ? 0 : enc_index == 1 ? 0x600 : 0x800;
 
 	config_tv_enci(vic);
+	switch (vic) {
+	/* for 480i */
+	case HDMI_6_720x480i60_4x3:
+	case HDMI_7_720x480i60_16x9:
+	case HDMI_10_2880x480i60_4x3:
+	case HDMI_11_2880x480i60_16x9:
+	case HDMI_50_720x480i120_4x3:
+	case HDMI_51_720x480i120_16x9:
+	case HDMI_58_720x480i240_4x3:
+	case HDMI_59_720x480i240_16x9:
+		// Number of active pixels per line.
+		ACTIVE_PIXELS = (720 * (1 + PIXEL_REPEAT_HDMI));
+		ACTIVE_LINES = (480 / (1 + INTERLACE_MODE)); // Number of active lines per field.
+		LINES_F0 = 262; // Number of lines in the even field.
+		LINES_F1 = 263; // Number of lines in the odd field.
+
+		FRONT_PORCH = 38; // Number of pixels from DE Low to HSYNC high.
+		HSYNC_PIXELS = 124; // Number of pixels of HSYNC pulse.
+		BACK_PORCH = 114; // Number of pixels from HSYNC low to DE high.
+		EOF_LINES = 4; // HSYNC count between last line of active video and start of VSYNC
+		// a.k.a. End of Field (EOF). In interlaced mode,
+		// HSYNC count will be eof_lines at the end of even field
+		// and eof_lines+1 at the end of odd field.
+		VSYNC_LINES = 3; // HSYNC count of VSYNC assertion
+		// In interlaced mode VSYNC will be in-phase with HSYNC in the even field and
+		// out-of-phase with HSYNC in the odd field.
+		SOF_LINES = 15; // HSYNC count between VSYNC de-assertion
+		// and first line of active video
+
+		// Number of total pixels per line.
+		TOTAL_PIXELS = (FRONT_PORCH + HSYNC_PIXELS + BACK_PORCH + ACTIVE_PIXELS);
+		TOTAL_LINES = (LINES_F0 + (LINES_F1 * INTERLACE_MODE));
+		total_pixels_venc =
+			(TOTAL_PIXELS / (1 + PIXEL_REPEAT_HDMI)) * (1 + PIXEL_REPEAT_VENC);
+		active_pixels_venc =
+			(ACTIVE_PIXELS / (1 + PIXEL_REPEAT_HDMI)) * (1 + PIXEL_REPEAT_VENC);
+		front_porch_venc  =
+			(FRONT_PORCH / (1 + PIXEL_REPEAT_HDMI)) * (1 + PIXEL_REPEAT_VENC);
+		hsync_pixels_venc =
+			(HSYNC_PIXELS / (1 + PIXEL_REPEAT_HDMI)) * (1 + PIXEL_REPEAT_VENC);
+		break;
+	/* for 576i */
+	default:
+		// Number of active pixels per line.
+		ACTIVE_PIXELS = (720 * (1 + PIXEL_REPEAT_HDMI));
+		ACTIVE_LINES = (576 / (1 + INTERLACE_MODE));    // Number of active lines per field.
+		LINES_F0 = 312; // Number of lines in the even field.
+		LINES_F1 = 313; // Number of lines in the odd field.
+
+		FRONT_PORCH = 24; // Number of pixels from DE Low to HSYNC high.
+		HSYNC_PIXELS = 126; // Number of pixels of HSYNC pulse.
+		BACK_PORCH = 138; // Number of pixels from HSYNC low to DE high.
+		EOF_LINES = 2; // HSYNC count between last line of active video and start of VSYNC
+		// a.k.a. End of Field (EOF). In interlaced mode,
+		// HSYNC count will be eof_lines at the end of even field
+		// and eof_lines+1 at the end of odd field.
+		VSYNC_LINES = 3; // HSYNC count of VSYNC assertion
+		// In interlaced mode VSYNC will be in-phase with HSYNC in the even field and
+		// out-of-phase with HSYNC in the odd field.
+		SOF_LINES = 19; // HSYNC count between VSYNC de-assertion
+		// and first line of active video
+
+		// Number of total pixels per line.
+		TOTAL_PIXELS = (FRONT_PORCH + HSYNC_PIXELS + BACK_PORCH + ACTIVE_PIXELS);
+		TOTAL_LINES = (LINES_F0 + (LINES_F1 * INTERLACE_MODE));
+		total_pixels_venc =
+			(TOTAL_PIXELS / (1 + PIXEL_REPEAT_HDMI)) * (1 + PIXEL_REPEAT_VENC);
+		active_pixels_venc =
+			(ACTIVE_PIXELS / (1 + PIXEL_REPEAT_HDMI)) * (1 + PIXEL_REPEAT_VENC);
+		front_porch_venc  =
+			(FRONT_PORCH / (1 + PIXEL_REPEAT_HDMI)) * (1 + PIXEL_REPEAT_VENC);
+		hsync_pixels_venc =
+			(HSYNC_PIXELS / (1 + PIXEL_REPEAT_HDMI)) * (1 + PIXEL_REPEAT_VENC);
+		break;
+	}
+	adjust_enci_for_hdmi(enc_index,
+		INTERLACE_MODE,
+		total_pixels_venc,
+		active_pixels_venc,
+		front_porch_venc,
+		hsync_pixels_venc,
+		TOTAL_LINES,
+		ACTIVE_LINES,
+		LINES_F0,
+		LINES_F1,
+		EOF_LINES,
+		SOF_LINES,
+		VSYNC_LINES,
+		// Due to 444->420 line buffer latency, the active
+		// line output from 444->420 conversion will be delayed by 1 line.
+		// So for 420 mode, we need to delay Vsync by 1 line as well,
+		//to meet the VESA display timing spec.
+		0);
 } /* set_tv_enci_new */
 
 void hdmitx21_venc_en(bool en, bool pi_mode)

@@ -289,6 +289,7 @@ struct hdmi_timing {
 	unsigned short v_pict;
 	unsigned short h_pixel;
 	unsigned short v_pixel;
+	unsigned int pixel_repetition_factor;
 };
 
 enum hdmi_color_depth {

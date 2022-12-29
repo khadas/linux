@@ -7165,7 +7165,7 @@ static int drm_hdmitx_get_timing_para(int vic, struct drm_hdmitx_timing_para *pa
 	}
 
 	para->pi_mode = timing->pi_mode;
-	para->pix_repeat_factor = 0;
+	para->pix_repeat_factor = timing->pixel_repetition_factor;
 
 	para->h_pol = timing->h_pol;
 	para->v_pol = timing->v_pol;

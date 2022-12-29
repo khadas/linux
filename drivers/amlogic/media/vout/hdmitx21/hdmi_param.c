@@ -337,7 +337,12 @@ struct hdmi_format_para *hdmitx21_get_fmtpara(const char *mode,
 	tx_vinfo->name = timing->sname ? timing->sname : timing->name;
 	tx_vinfo->mode = VMODE_HDMI;
 	tx_vinfo->frac = 0; /* TODO */
-	tx_vinfo->width = timing->h_active;
+
+	if (timing->pixel_repetition_factor)
+		tx_vinfo->width = timing->h_active >> 1;
+	else
+		tx_vinfo->width = timing->h_active;
+
 	tx_vinfo->height = timing->v_active;
 	tx_vinfo->field_height = timing->pi_mode ?
 		timing->v_active : timing->v_active / 2;
