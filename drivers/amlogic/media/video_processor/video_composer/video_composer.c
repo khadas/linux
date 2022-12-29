@@ -988,10 +988,8 @@ void vc_private_q_recycle(struct composer_dev *dev,
 	if (!vc_private)
 		return;
 
-	vc_private->flag = 0;
-	vc_private->srout_data = NULL;
-	vc_private->src_vf = NULL;
-	vc_private->vsync_index = 0;
+	memset(vc_private, 0, sizeof(struct video_composer_private));
+
 	if (!kfifo_put(&dev->vc_private_q, vc_private))
 		vc_print(dev->index, PRINT_ERROR,
 			"vc_private_q is full!\n");
@@ -1019,14 +1017,17 @@ static void display_q_uninit(struct composer_dev *dev)
 	struct vframe_s *dis_vf = NULL;
 	int repeat_count;
 	int i;
+	bool is_mosaic_22 = false;
+	struct file *file_vf;
 
 	vc_print(dev->index, PRINT_QUEUE_STATUS, "vc: unit display_q len=%d\n",
 		 kfifo_len(&dev->display_q));
 
 	while (kfifo_len(&dev->display_q) > 0) {
 		if (kfifo_get(&dev->display_q, &dis_vf)) {
+			is_mosaic_22 = dis_vf->flag & VFRAME_FLAG_MOSAIC_22;
 			if (dis_vf->flag
-			    & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS) {
+			    & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS && !is_mosaic_22) {
 				repeat_count = dis_vf->repeat_count;
 				vc_print(dev->index, PRINT_FENCE,
 					 "vc: unit repeat_count=%d, omx_index=%d\n",
@@ -1036,6 +1037,19 @@ static void display_q_uninit(struct composer_dev *dev)
 					fput(dis_vf->file_vf);
 					total_put_count++;
 					dev->fput_count++;
+				}
+			} else if (is_mosaic_22) {
+				for (i = 0; i < 4; i++) {
+					file_vf = dis_vf->vc_private->mosaic_vf[i]->file_vf;
+					if (file_vf) {
+						fput(file_vf);
+						total_put_count++;
+						dev->fput_count++;
+					} else {
+						vc_print(dev->index, PRINT_ERROR,
+							"%s error!!!: i=%d fput fail\n",
+							__func__, i);
+					}
 				}
 			} else if (!(dis_vf->flag
 				     & VFRAME_FLAG_VIDEO_COMPOSER)) {
@@ -1244,6 +1258,7 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 	int index_disp;
 	bool rendered;
 	bool is_composer;
+	bool is_mosaic_22;
 	int i;
 	struct file *file_vf;
 	struct vd_prepare_s *vd_prepare;
@@ -1256,6 +1271,7 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 	index_disp = vf->index_disp;
 	rendered = vf->rendered;
 	is_composer = vf->flag & VFRAME_FLAG_COMPOSER_DONE;
+	is_mosaic_22 = vf->flag & VFRAME_FLAG_MOSAIC_22;
 
 	if (vf->flag & VFRAME_FLAG_FAKE_FRAME) {
 		vc_print(dev->index, PRINT_OTHER,
@@ -1268,7 +1284,7 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 			vf->vc_private->srout_data->nn_status = NN_DISPLAYED;
 	}
 
-	if (vf->vc_private) {
+	if (vf->vc_private && !is_mosaic_22) {
 		vc_private_q_recycle(dev, vf->vc_private);
 		vf->vc_private = NULL;
 	}
@@ -1287,7 +1303,7 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 			 "put: drop repeat_count=%d\n", repeat_count);
 	}
 
-	if (!is_composer) {
+	if (!is_composer && !is_mosaic_22) {
 		vd_prepare = container_of(vf, struct vd_prepare_s, dst_frame);
 		if (IS_ERR_OR_NULL(vd_prepare)) {
 			vc_print(dev->index, PRINT_ERROR,
@@ -1308,6 +1324,39 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 					vd_prepare->src_frame->omx_index,
 					vd_prepare->dst_frame.omx_index);
 			}
+		}
+		vd_prepare_data_q_put(dev, vd_prepare);
+	} else if (is_mosaic_22) {
+		for (i = 0; i < 4; i++) {
+			if (!vf->vc_private) {
+				vc_print(dev->index, PRINT_ERROR, "put mosaic no priv!!!\n");
+				break;
+			}
+			file_vf = vf->vc_private->mosaic_vf[i]->file_vf;
+			if (file_vf) {
+				fput(file_vf);
+				total_put_count++;
+				dev->fput_count++;
+			} else {
+				vc_print(dev->index, PRINT_ERROR,
+					"%s error: i=%d,src_index=%d,dst_index=%d.\n",
+					__func__,
+					i,
+					vf->vc_private->mosaic_src_vf[i]->omx_index,
+					vf->vc_private->mosaic_dst_vf[i].omx_index);
+			}
+		}
+		if (vf->vc_private) {
+			vc_private_q_recycle(dev, vf->vc_private);
+			vf->vc_private = NULL;
+		}
+
+		vd_prepare = container_of(vf, struct vd_prepare_s, dst_frame);
+		if (IS_ERR_OR_NULL(vd_prepare)) {
+			vc_print(dev->index, PRINT_ERROR,
+				"%s: prepare is NULL.\n",
+				__func__);
+			return;
 		}
 		vd_prepare_data_q_put(dev, vd_prepare);
 	} else {
@@ -1736,6 +1785,182 @@ static void check_vicp_skip_mode(struct composer_dev *dev, struct frames_info_t 
 		vc_print(dev->index, PRINT_VICP, "%s: no need skip.\n", __func__);
 		memset(buf, VICP_SKIP_MODE_OFF, frames_info->frame_count);
 	}
+}
+
+static void vframe_do_mosaic_22(struct composer_dev *dev)
+{
+	struct received_frames_t *received_frames = NULL;
+	struct vd_prepare_s *vd_prepare = NULL;
+	struct vframe_s *vf = NULL;
+	struct vframe_s *scr_vf = NULL;
+	struct vframe_s *mosaic_vf = NULL;
+	struct vframe_s *vf_ext = NULL;
+	struct frames_info_t *frames_info = NULL;
+	struct file *file_vf = NULL;
+	int i;
+	bool is_dec_vf = false, is_v4l_vf = false;
+	struct video_composer_private *vc_private;
+	struct frame_info_t *frame_info = NULL;
+	u32 pic_w;
+	u32 pic_h;
+
+	if (IS_ERR_OR_NULL(dev)) {
+		vc_print(dev->index, PRINT_ERROR, "%s: invalid param.\n", __func__);
+		return;
+	}
+
+	if (!kfifo_peek(&dev->receive_q, &received_frames))
+		return;
+
+	vd_prepare = vd_prepare_data_q_get(dev);
+	if (!vd_prepare) {
+		vc_print(dev->index, PRINT_ERROR,
+			 "%s: get prepare_data failed.\n",
+			 __func__);
+		return;
+	}
+
+	vf = &vd_prepare->dst_frame;
+	memset(vf, 0, sizeof(struct vframe_s));
+
+	if (!kfifo_get(&dev->receive_q, &received_frames)) {
+		vc_print(dev->index, PRINT_ERROR, "com: get failed\n");
+		return;
+	}
+
+	vc_private = vc_private_q_pop(dev);
+	if (!vc_private) {
+		vc_print(dev->index, PRINT_ERROR,
+			 "%s: get vc_private failed.\n",
+			 __func__);
+		return;
+	}
+
+	vc_private->flag |= VC_FLAG_MOSAIC_22;
+	vf->vc_private = vc_private;
+
+	frames_info = &received_frames->frames_info;
+
+	for (i = 0; i < 4; i++) {
+		frame_info = &frames_info->frame_info[i];
+		scr_vf = NULL;
+		file_vf = received_frames->file_vf[i];
+		is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
+		is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+
+		if (is_dec_vf || is_v4l_vf) {
+			vc_print(dev->index, PRINT_OTHER,
+				 "%s dma buffer is vf\n", __func__);
+			scr_vf = get_vf_from_file(dev, file_vf, false);
+			if (!scr_vf) {
+				vc_print(dev->index,
+					 PRINT_ERROR, "get vf NULL\n");
+				continue;
+			}
+		} else {
+			vc_print(dev->index, PRINT_ERROR, "%s dma buffer not vf\n", __func__);
+		}
+		if (!scr_vf) {
+			vc_print(dev->index, PRINT_ERROR, "%s：no vf\n", __func__);
+			return;
+		}
+		vc_private->mosaic_src_vf[i] = scr_vf;
+		vc_private->mosaic_dst_vf[i] = *scr_vf;
+		vc_private->mosaic_vf[i] = &vc_private->mosaic_dst_vf[i];
+		mosaic_vf = vc_private->mosaic_vf[i];
+
+		mosaic_vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER
+			| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
+		mosaic_vf->axis[0] = frame_info->dst_x;
+		mosaic_vf->axis[1] = frame_info->dst_y;
+		mosaic_vf->axis[2] = frame_info->dst_w + frame_info->dst_x - 1;
+		mosaic_vf->axis[3] = frame_info->dst_h + frame_info->dst_y - 1;
+		mosaic_vf->crop[0] = frame_info->crop_y;
+		mosaic_vf->crop[1] = frame_info->crop_x;
+		if ((mosaic_vf->type & VIDTYPE_COMPRESS) != 0) {
+			pic_w = mosaic_vf->compWidth;
+			pic_h = mosaic_vf->compHeight;
+		} else {
+			pic_w = mosaic_vf->width;
+			pic_h = mosaic_vf->height;
+		}
+		mosaic_vf->crop[2] = pic_h - frame_info->crop_h - frame_info->crop_y;
+		mosaic_vf->crop[3] = pic_w - frame_info->crop_w - frame_info->crop_x;
+
+		mosaic_vf->zorder = frame_info->zorder;
+		mosaic_vf->file_vf = file_vf;
+
+		if (mosaic_vf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
+			vf_ext = mosaic_vf->vf_ext;
+			if (vf_ext) {
+				vf_ext->axis[0] = mosaic_vf->axis[0];
+				vf_ext->axis[1] = mosaic_vf->axis[1];
+				vf_ext->axis[2] = mosaic_vf->axis[2];
+				vf_ext->axis[3] = mosaic_vf->axis[3];
+				vf_ext->crop[0] = mosaic_vf->crop[0];
+				vf_ext->crop[1] = mosaic_vf->crop[1];
+				vf_ext->crop[2] = mosaic_vf->crop[2];
+				vf_ext->crop[3] = mosaic_vf->crop[3];
+				vf_ext->zorder = mosaic_vf->zorder;
+				vf_ext->flag |= VFRAME_FLAG_VIDEO_COMPOSER
+					| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
+			} else {
+				vc_print(dev->index, PRINT_ERROR,
+					 "vf_ext is null\n");
+			}
+		}
+	}
+
+	vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER
+		| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS
+		| VFRAME_FLAG_MOSAIC_22;
+
+	vf->bitdepth = (BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8);
+
+	vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
+	vf->type = (VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD | VIDTYPE_VIU_NV21);
+
+	vf->axis[0] = 0;
+	vf->axis[1] = 0;
+	vf->axis[2] = dev->vinfo_w - 1;
+	vf->axis[3] = dev->vinfo_h - 1;
+
+	vf->crop[0] = 0;
+	vf->crop[1] = 0;
+	vf->crop[2] = 0;
+	vf->crop[3] = 0;
+
+	vf->zorder = frames_info->disp_zorder;
+	vf->canvas0Addr = -1;
+	vf->canvas1Addr = -1;
+
+	vf->width = dev->vinfo_w;
+	vf->height = dev->vinfo_h;
+
+	vc_print(dev->index, PRINT_DEWARP,
+			 "composer:vf_w: %d, vf_h: %d\n", vf->width, vf->height);
+
+	vf->canvas0_config[0].phy_addr = 0;
+	vf->canvas0_config[0].width = dev->vinfo_w;
+	vf->canvas0_config[0].height = dev->vinfo_h;
+	vf->canvas0_config[0].block_mode = 0;
+
+	vf->canvas0_config[1].phy_addr = 0;
+	vf->canvas0_config[1].width = dev->vinfo_w;
+	vf->canvas0_config[1].height = dev->vinfo_h >> 1;
+	vf->canvas0_config[1].block_mode = 0;
+	vf->plane_num = 2;
+
+	vf->repeat_count = 0;
+
+	dev->vd_prepare_last = vd_prepare;
+
+	dev->fake_vf = *vf;
+
+	if (!kfifo_put(&dev->ready_q, (const struct vframe_s *)vf))
+		vc_print(dev->index, PRINT_ERROR, "ready_q is full\n");
+
+	atomic_set(&received_frames->on_use, false);
 }
 
 static void vframe_composer(struct composer_dev *dev)
@@ -2348,6 +2573,117 @@ static void video_wait_dalton_ready(struct composer_dev *dev,
 		 "aiface wait %dms nn_status=%d\n", 2 * wait_count, dalton_info->nn_status);
 }
 
+static bool check_vf_has_afbc(struct composer_dev *dev, struct file *file_vf)
+{
+	struct vframe_s *vf = NULL;
+
+	vf = get_vf_from_file(dev, file_vf, false);
+	if (!vf)
+		return false;
+
+	if (vf->type & VIDTYPE_COMPRESS)
+		return true;
+
+	return false;
+}
+
+static bool check_mosaic_22(struct composer_dev *dev, struct received_frames_t *received_frames)
+{
+	struct vinfo_s *video_composer_vinfo;
+	struct vinfo_s vinfo = {.width = 1280, .height = 720, };
+	int a[4];
+	int i = 0;
+	struct frames_info_t *f = &received_frames->frames_info;
+	struct frame_info_t *frame_info;
+	int half_w;
+	int half_h;
+
+	if (!dev->support_mosaic)
+		return false;
+
+	if (received_frames->frames_info.frame_count != 4)
+		return false;
+
+	if (dev->vinfo_w == 0) {
+		video_composer_vinfo = get_current_vinfo();
+		if (IS_ERR_OR_NULL(video_composer_vinfo))
+			video_composer_vinfo = &vinfo;
+
+		dev->vinfo_w = video_composer_vinfo->width;
+		dev->vinfo_h = video_composer_vinfo->height;
+	}
+
+	if (dev->vinfo_w == 0 || dev->vinfo_h == 0)
+		return false;
+
+	half_w = dev->vinfo_w >> 1;
+	half_h = dev->vinfo_h >> 1;
+
+	for (i = 0; i < 4; i++) {
+		frame_info = &f->frame_info[i];
+		vc_print(dev->index, PRINT_AXIS,
+			"check mosaic: i=%d: %d %d %d %d\n",
+			i,
+			frame_info->dst_x,
+			frame_info->dst_y,
+			frame_info->dst_w,
+			frame_info->dst_h);
+	}
+
+	/*check all w h <= 1/2 vinfo*/
+	for (i = 0; i < 4; i++) {
+		if (f->frame_info[i].dst_w > half_w || f->frame_info[i].dst_h > half_h)
+			return false;
+		if (!check_vf_has_afbc(dev, received_frames->file_vf[i])) {
+			vc_print(dev->index, PRINT_AXIS, "vf has no afbc\n");
+			return false;
+		}
+	}
+
+	for (i = 0; i < 4; i++) {
+		if (f->frame_info[i].dst_x < half_w && f->frame_info[i].dst_y < half_h)
+			a[0] = i;
+		if (f->frame_info[i].dst_x >= half_w && f->frame_info[i].dst_y < half_h)
+			a[1] = i;
+		if (f->frame_info[i].dst_x < half_w && f->frame_info[i].dst_y >= half_h)
+			a[2] = i;
+		if (f->frame_info[i].dst_x >= half_w && f->frame_info[i].dst_y >= half_h)
+			a[3] = i;
+	}
+
+	/*check quadrant 1*/
+	frame_info = &f->frame_info[a[0]];
+	if (frame_info->dst_x * 2 + frame_info->dst_w != half_w)
+		return false;
+	if (frame_info->dst_x % 8 != 0)
+		return false;
+
+	/*check quadrant 2*/
+	frame_info = &f->frame_info[a[1]];
+	if (frame_info->dst_x * 2 + frame_info->dst_w != half_w + dev->vinfo_w)
+		return false;
+	if ((frame_info->dst_x - half_w) % 8 != 0)
+		return false;
+
+	/*check quadrant 3*/
+	frame_info = &f->frame_info[a[2]];
+	if (frame_info->dst_x * 2 + frame_info->dst_w != half_w)
+		return false;
+	if (frame_info->dst_x % 8 != 0)
+		return false;
+
+	/*check quadrant 4*/
+	frame_info = &f->frame_info[a[3]];
+	if (frame_info->dst_x * 2 + frame_info->dst_w != half_w + dev->vinfo_w)
+		return false;
+	if ((frame_info->dst_x - half_w) % 8 != 0)
+		return false;
+
+	vc_print(dev->index, PRINT_AXIS, "check mosaic ok\n");
+
+	return true;
+}
+
 static void video_composer_task(struct composer_dev *dev)
 {
 	struct vframe_s *vf = NULL;
@@ -2374,6 +2710,7 @@ static void video_composer_task(struct composer_dev *dev)
 	struct vd_prepare_s *vd_prepare = NULL;
 	size_t usage = 0;
 	struct vf_dalton_t *dalton_info = NULL;
+	bool do_mosaic_22 = false;
 
 	if (!kfifo_peek(&dev->receive_q, &received_frames)) {
 		vc_print(dev->index, PRINT_ERROR, "task: peek failed\n");
@@ -2402,9 +2739,14 @@ static void video_composer_task(struct composer_dev *dev)
 			dev->need_rotate = true;
 		}
 	} else {
-		need_composer = true;
+		if (check_mosaic_22(dev, received_frames)) {
+			need_composer = false;
+			do_mosaic_22 = true;
+		} else {
+			need_composer = true;
+		}
 	}
-	if (!need_composer) {
+	if (!need_composer && !do_mosaic_22) {
 		frames_info = &received_frames->frames_info;
 		frame_info = frames_info->frame_info;
 		phy_addr = received_frames->phy_addr[0];
@@ -2762,6 +3104,9 @@ static void video_composer_task(struct composer_dev *dev)
 		atomic_set(&received_frames->on_use, false);
 		if (use_low_latency && dev->index == 0)
 			proc_lowlatency_frame(0);
+	} else if (do_mosaic_22) {
+		vframe_do_mosaic_22(dev);
+		dev->last_file = NULL;
 	} else {
 		vframe_composer(dev);
 		dev->last_file = NULL;
@@ -2841,6 +3186,7 @@ static int video_composer_open(struct inode *inode, struct file *file)
 	struct video_composer_port_s *port = &ports[iminor(inode)];
 	int i;
 	struct sched_param param = {.sched_priority = 2};
+	u32 layer_cap = 0;
 
 	pr_info("%s iminor(inode) =%d\n", __func__, iminor(inode));
 	if (iminor(inode) >= video_composer_instance_num)
@@ -2918,6 +3264,12 @@ static int video_composer_open(struct inode *inode, struct file *file)
 		dev->received_frames[i].index = i;
 
 	video_timeline_create(dev);
+
+	if (dev->index == 0) {
+		layer_cap = video_get_layer_capability();
+		if (layer_cap & MOSAIC_MODE)
+			dev->support_mosaic = true;
+	}
 
 	return 0;
 }

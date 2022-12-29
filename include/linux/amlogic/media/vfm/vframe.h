@@ -122,6 +122,7 @@
 #define VFRAME_FLAG_DI_BYPASS			0x08000000
 #define VFRAME_FLAG_DI_GET			0x10000000
 #define VFRAME_FLAG_DI_PVPPLINK			0x20000000
+#define VFRAME_FLAG_MOSAIC_22		        0x40000000
 
 /* need check folllowing bits when toggle frame, to trigger property change */
 /* add more bits which indicates display attr change in vf->flag */
@@ -530,24 +531,6 @@ struct vf_dalton_t {
 	ulong phy_addr;
 };
 
-#define VC_FLAG_AI_SR	0x1
-#define VC_FLAG_FIRST_FRAME	0x2
-#define VC_FLAG_DALTON	0x4
-
-
-struct video_composer_private {
-	u32 index;
-	u32 flag; /*if  & VC_FLAG_AI_SR, and VPP will get AI_SR_out*/
-	struct vf_nn_sr_t *srout_data;
-	struct vframe_s *src_vf;
-	u32 last_disp_count; /*last frame disp vsync count*/
-	u32 vsync_index;
-	/*used to control mbp buffer*/
-	void (*lock_buffer_cb)(void *arg);
-	void (*unlock_buffer_cb)(void *arg);
-	struct vf_dalton_t *dalton_info;
-};
-
 #define VF_UD_MAX_SIZE 5120 /* 5K size */
 #define UD_MAGIC_CODE 0x55445020 /* UDP */
 #define is_ud_param_valid(ud) ((ud.magic_code) == UD_MAGIC_CODE)
@@ -755,6 +738,27 @@ struct vframe_s {
 	/* data address of userdata_param_t structure */
 	struct vf_ud_param_s vf_ud_param;
 } /*vframe_t */;
+
+#define VC_FLAG_AI_SR	0x1
+#define VC_FLAG_FIRST_FRAME	0x2
+#define VC_FLAG_DALTON	0x4
+#define VC_FLAG_MOSAIC_22	0x8
+
+struct video_composer_private {
+	u32 index;
+	u32 flag; /*if  & VC_FLAG_AI_SR, and VPP will get AI_SR_out*/
+	struct vf_nn_sr_t *srout_data;
+	struct vframe_s *src_vf;
+	u32 last_disp_count; /*last frame disp vsync count*/
+	u32 vsync_index;
+	/*used to control mbp buffer*/
+	void (*lock_buffer_cb)(void *arg);
+	void (*unlock_buffer_cb)(void *arg);
+	struct vf_dalton_t *dalton_info;
+	struct vframe_s *mosaic_vf[4];
+	struct vframe_s *mosaic_src_vf[4];
+	struct vframe_s mosaic_dst_vf[4];
+};
 
 int get_curren_frame_para(int *top, int *left, int *bottom, int *right);
 

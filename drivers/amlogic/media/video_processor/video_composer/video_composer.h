@@ -272,6 +272,7 @@ struct composer_dev {
 	u32 last_vsync_index;
 	u32 last_vf_index;
 	bool enable_pulldown;
+	bool support_mosaic;
 	u32 patten_factor[PATTEN_FACTOR_MAX];
 	u32 patten_factor_index;
 	u32 next_factor;
