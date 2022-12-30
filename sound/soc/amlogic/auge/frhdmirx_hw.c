@@ -240,7 +240,7 @@ static void frhdmirx_set_reg_status_sel(uint32_t sel)
  */
 static void frhdmirx_spdif_channel_status_sel(u32 sel, int version)
 {
-	/* alway select chanel A */
+	/* alway select channel A */
 	if (version == T7_FRHDMIRX)
 		audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL0, 0xf << 8, sel << 8);
 	else

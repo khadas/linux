@@ -296,7 +296,7 @@ static void aml_pdm_filters_config(int pdm_gain_index, int osr,
 
 }
 
-/* coefficent for LPF1,2,3 */
+/* coefficient for LPF1,2,3 */
 static void aml_pdm_LPF_coeff(int lpf1_len, const int *lpf1_coeff,
 	int lpf2_len, const int *lpf2_coeff,
 	int lpf3_len, const int *lpf3_coeff, int id)
@@ -355,9 +355,9 @@ void aml_pdm_filter_ctrl(int pdm_gain_index, int osr, int mode, int id)
 	int lpf1_len, lpf2_len, lpf3_len;
 	const int *lpf1_coeff, *lpf2_coeff, *lpf3_coeff;
 
-	/* select LPF coefficent
+	/* select LPF coefficient
 	 * For filter 1 and filter 3,
-	 * it's only relative with coefficent mode
+	 * it's only relative with coefficient mode
 	 * For filter 2,
 	 * it's only relative with osr and hcic stage number
 	 */

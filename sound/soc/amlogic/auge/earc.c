@@ -291,7 +291,7 @@ static void earctx_init(int earc_port, bool st)
 		/* disable arc */
 		earctx_cmdc_arc_connect(p_earc->tx_cmdc_map, st);
 	} else {
-		/* set ARC type as defaule when cable plugin */
+		/* set ARC type as default when cable plugin */
 		p_earc->earctx_connected_device_type = ATNDTYP_ARC;
 	}
 	if (!p_earc->tx_bootup_auto_cal) {
@@ -2234,7 +2234,7 @@ static const struct snd_kcontrol_new earc_controls[] = {
 			    arc_get_ui_flag,
 			    arc_set_ui_flag),
 
-	/* Status cchanel controller */
+	/* Status channel controller */
 	SND_IEC958(SNDRV_CTL_NAME_IEC958("", CAPTURE, DEFAULT),
 		   earcrx_get_iec958,
 		   NULL),
@@ -2685,7 +2685,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 		earc_dai[0].playback = pcm_stream;
 	}
 
-	/* defaule is mute, need HDMI ARC Switch */
+	/* default is mute, need HDMI ARC Switch */
 	p_earc->tx_mute = 1;
 
 	ret = snd_soc_register_component(&pdev->dev,
