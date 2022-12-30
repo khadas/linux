@@ -538,6 +538,14 @@ void v4lvideo_keep_vf(struct file *file)
 
 	if (vf_p->type & VIDTYPE_SCATTER)
 		type = MEM_TYPE_CODEC_MM_SCATTER;
+
+	/*vdin vf has VIDTYPE_SCATTER, but mem not from scatter*/
+	if ((vf_p->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+		     vf_p->source_type == VFRAME_SOURCE_TYPE_CVBS ||
+		     vf_p->source_type == VFRAME_SOURCE_TYPE_TUNER) &&
+		     !(vf_p->type_ext & VIDTYPE_EXT_VDIN_SCATTER))
+		type = MEM_TYPE_CODEC_MM;
+
 	video_keeper_keep_mem(vf_p->mem_handle, type, &keep_id);
 	video_keeper_keep_mem(vf_p->mem_handle_1, type, &keep_id_1);
 	video_keeper_keep_mem(vf_p->mem_head_handle,
