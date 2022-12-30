@@ -7182,8 +7182,10 @@ static void drm_hdmitx_set_phy(unsigned char en)
 static void drm_hdmitx_setup_attr(const char *buf)
 {
 	char attr[16] = {0};
+	int len = strlen(buf);
 
-	memcpy(attr, buf, sizeof(attr));
+	if (len <= 16)
+		memcpy(attr, buf, len);
 	memcpy(hdmitx21_device.fmt_attr, attr, sizeof(hdmitx21_device.fmt_attr));
 }
 

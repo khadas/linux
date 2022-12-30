@@ -45,6 +45,7 @@
 	"V03.00.02.00.02.04.13 [20221130] [HDCP] optimise drm hdcp flow when switch mode\n" \
 	"V03.00.02.00.02.05.13 [20221214] [EDID] Adjust the maximum supported TMDS clk\n" \
 	"V03.00.02.00.03.05.13 [20221215] [HDCP] dma map and sync for allocat for hdcp22 panic\n" \
-	"V03.01.02.00.03.05.13 [20221221] [PHY] test pixel clkmsr and adjust phy reg for 70hz issue\n"
+	"V03.01.02.00.03.05.13 [20221221] [PHY] test pixel clk and adj phy reg for 70hz issue\n" \
+	"V03.01.02.00.03.05.14 [20221230] [COM] hdmitx_setup_attr slab out of bounds\n"
 
 #endif // __HDMI20_VERSION_H__
