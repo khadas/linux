@@ -2148,6 +2148,7 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 		}
 
 		*status = 0;
+		demod->last_status = 0;
 
 		return 0;
 	}
@@ -2161,6 +2162,7 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 		PR_ATSC("%s: tuner strength [%d] no signal(%d).\n",
 				__func__, str, THRD_TUNER_STRENGTH_J83);
 		*status = FE_TIMEDOUT;
+		demod->last_status = *status;
 		real_para_clear(&demod->real_para);
 		time_start_qam = 0;
 
@@ -2237,6 +2239,8 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 			time_start_qam = 0;
 		}
 	}
+
+	demod->last_status = *status;
 
 	if (*status == 0) {
 		PR_ATSC("!! >> wait << !!\n");
@@ -2383,11 +2387,11 @@ static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 	}
 
 finish:
-	if (demod->last_status != *status && *status != 0) {
+	demod->last_status = *status;
+
+	if (demod->last_status != *status && *status != 0)
 		PR_INFO("!!  >> %s << !!, freq=%d\n", *status == FE_TIMEDOUT ? "UNLOCK" : "LOCK",
 			fe->dtv_property_cache.frequency);
-		demod->last_status = *status;
-	}
 }
 
 static int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
