@@ -509,6 +509,8 @@ static int meson_video_plane_get_fb_info(struct drm_plane *plane,
 	}
 	plane_info->pixel_format = fb->format->format;
 	plane_info->byte_stride = fb->pitches[0];
+	plane_info->fb_w = fb->width;
+	plane_info->fb_h = fb->height;
 
 	DRM_DEBUG("flags:%d pixel_format:%d,modifer=%llu\n",
 		  fb->flags, fb->format->format,
