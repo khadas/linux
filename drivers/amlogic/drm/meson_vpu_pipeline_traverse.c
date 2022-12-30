@@ -974,9 +974,6 @@ int combine_layer_path(int *path_num_array, int num_planes,
 		combination[index] = i;
 
 		for (j = index; j >= 0; j--) {
-			if (!mvps->plane_info[j].enable)
-				continue;
-
 			if (combination[j] >= path_num_array[j]) {
 				combination[j] = 0;
 				i = 0;
@@ -1001,7 +998,6 @@ int combine_layer_path(int *path_num_array, int num_planes,
 				break;
 			}
 		}
-
 	} while (is_continue);
 	if (!ret)
 		ops->set_pipeline_para(combination, num_planes, mvps, state);
