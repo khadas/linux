@@ -223,6 +223,23 @@ struct vm_area_struct *get_vma(struct mm_struct *mm, unsigned long addr)
 
 	rcu_read_lock();
 	vma = find_vma_from_tree(mm, addr);
+
+	/*
+	 * atomic_inc_unless_negative() also protects from races with
+	 * fast mremap.
+	 *
+	 * If there is a concurrent fast mremap, bail out since the entire
+	 * PMD/PUD subtree may have been remapped.
+	 *
+	 * This is usually safe for conventional mremap since it takes the
+	 * PTE locks as does SPF. However fast mremap only takes the lock
+	 * at the PMD/PUD level which is ok as it is done with the mmap
+	 * write lock held. But since SPF, as the term implies forgoes,
+	 * taking the mmap read lock and also cannot take PTL lock at the
+	 * larger PMD/PUD granualrity, since it would introduce huge
+	 * contention in the page fault path; fall back to regular fault
+	 * handling.
+	 */
 	if (vma) {
 		if (vma->vm_start > addr ||
 		    !atomic_inc_unless_negative(&vma->file_ref_count))
@@ -238,7 +255,16 @@ void put_vma(struct vm_area_struct *vma)
 	int new_ref_count;
 
 	new_ref_count = atomic_dec_return(&vma->file_ref_count);
-	if (new_ref_count < 0)
+
+	/*
+	 * Implicit smp_mb due to atomic_dec_return.
+	 *
+	 * If this is the last reference, wake up the mremap waiter
+	 * (if any).
+	 */
+	if (new_ref_count == 0 && unlikely(atomic_read(&vma_user_waiters) > 0))
+		wake_up(&vma_users_wait);
+	else if (new_ref_count < 0)
 		vm_area_free_no_check(vma);
 }
 
@@ -3718,7 +3744,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 		if (data_race(si->flags & SWP_SYNCHRONOUS_IO) &&
 		    __swap_count(entry) == 1) {
 			/* skip swapcache */
-			gfp_t flags = GFP_HIGHUSER_MOVABLE;
+			gfp_t flags = GFP_HIGHUSER_MOVABLE | __GFP_CMA;
 
 			trace_android_rvh_set_skip_swapcache_flags(&flags);
 			page = alloc_page_vma(flags, vma, vmf->address);
@@ -3745,7 +3771,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 				set_page_private(page, 0);
 			}
 		} else {
-			page = swapin_readahead(entry, GFP_HIGHUSER_MOVABLE,
+			page = swapin_readahead(entry, GFP_HIGHUSER_MOVABLE | __GFP_CMA,
 						vmf);
 			swapcache = page;
 		}
@@ -4287,9 +4313,12 @@ vm_fault_t finish_fault(struct vm_fault *vmf)
 			}
 		}
 
-		/* See comment in __handle_mm_fault() */
+		/*
+		 * See comment in handle_pte_fault() for how this scenario happens, we
+		 * need to return NOPAGE so that we drop this page.
+		 */
 		if (pmd_devmap_trans_unstable(vmf->pmd))
-			return 0;
+			return VM_FAULT_NOPAGE;
 	}
 
 	if (!pte_map_lock(vmf))
@@ -4743,6 +4772,19 @@ static vm_fault_t create_huge_pud(struct vm_fault *vmf)
 	defined(CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD)
 	/* No support for anonymous transparent PUD pages yet */
 	if (vma_is_anonymous(vmf->vma))
+		return VM_FAULT_FALLBACK;
+	if (vmf->vma->vm_ops->huge_fault)
+		return vmf->vma->vm_ops->huge_fault(vmf, PE_SIZE_PUD);
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+	return VM_FAULT_FALLBACK;
+}
+
+static vm_fault_t wp_huge_pud(struct vm_fault *vmf, pud_t orig_pud)
+{
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) &&			\
+	defined(CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD)
+	/* No support for anonymous transparent PUD pages yet */
+	if (vma_is_anonymous(vmf->vma))
 		goto split;
 	if (vmf->vma->vm_ops->huge_fault) {
 		vm_fault_t ret = vmf->vma->vm_ops->huge_fault(vmf, PE_SIZE_PUD);
@@ -4753,19 +4795,7 @@ static vm_fault_t create_huge_pud(struct vm_fault *vmf)
 split:
 	/* COW or write-notify not handled on PUD level: split pud.*/
 	__split_huge_pud(vmf->vma, vmf->pud, vmf->address);
-#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-	return VM_FAULT_FALLBACK;
-}
-
-static vm_fault_t wp_huge_pud(struct vm_fault *vmf, pud_t orig_pud)
-{
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-	/* No support for anonymous transparent PUD pages yet */
-	if (vma_is_anonymous(vmf->vma))
-		return VM_FAULT_FALLBACK;
-	if (vmf->vma->vm_ops->huge_fault)
-		return vmf->vma->vm_ops->huge_fault(vmf, PE_SIZE_PUD);
-#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE && CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD */
 	return VM_FAULT_FALLBACK;
 }
 

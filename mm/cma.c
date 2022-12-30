@@ -48,8 +48,14 @@
 
 #include "cma.h"
 
+#undef CREATE_TRACE_POINTS
+#ifndef __GENKSYMS__
+#include <trace/hooks/mm.h>
+#endif
+
 struct cma cma_areas[MAX_CMA_AREAS];
 unsigned cma_area_count;
+static DEFINE_MUTEX(cma_mutex);
 
 phys_addr_t cma_get_base(const struct cma *cma)
 {
@@ -500,6 +506,7 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
 #ifdef CONFIG_AMLOGIC_CMA
 	aml_cma_alloc_pre_hook(&dummy, count, &tick);
 #endif /* CONFIG_AMLOGIC_CMA */
+	trace_android_vh_cma_alloc_retry(cma->name, &max_retries);
 	for (;;) {
 		spin_lock_irq(&cma->lock);
 		bitmap_no = bitmap_find_next_zero_area_off(cma->bitmap,
@@ -540,6 +547,7 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
 		spin_unlock_irq(&cma->lock);
 
 		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
+		mutex_lock(&cma_mutex);
 	#ifdef CONFIG_AMLOGIC_CMA
 		ret = aml_cma_alloc_range(pfn, pfn + count, MIGRATE_CMA,
 				     GFP_KERNEL | (no_warn ? __GFP_NOWARN : 0));
@@ -547,7 +555,7 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
 		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA,
 				     GFP_KERNEL | (no_warn ? __GFP_NOWARN : 0));
 	#endif
-
+		mutex_unlock(&cma_mutex);
 		if (ret == 0) {
 			page = pfn_to_page(pfn);
 			break;

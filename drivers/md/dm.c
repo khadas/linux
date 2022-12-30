@@ -30,7 +30,7 @@
 #include <linux/part_stat.h>
 #include <linux/blk-crypto.h>
 #include <linux/keyslot-manager.h>
-
+#include <trace/hooks/dm.h>
 #define DM_MSG_PREFIX "core"
 
 /*
@@ -1292,7 +1292,7 @@ static int clone_bio(struct dm_target_io *tio, struct bio *bio,
 	int r;
 
 	__bio_clone_fast(clone, bio);
-
+	trace_android_vh_dm_update_clone_bio(clone, bio);
 	r = bio_crypt_clone(clone, bio, GFP_NOIO);
 	if (r < 0)
 		return r;
@@ -2910,6 +2910,11 @@ static int dm_call_pr(struct block_device *bdev, iterate_devices_callout_fn fn,
 	if (dm_table_get_num_targets(table) != 1)
 		goto out;
 	ti = dm_table_get_target(table, 0);
+
+	if (dm_suspended_md(md)) {
+		ret = -EAGAIN;
+		goto out;
+	}
 
 	ret = -EINVAL;
 	if (!ti->type->iterate_devices)

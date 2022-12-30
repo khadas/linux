@@ -106,7 +106,7 @@
 #include <trace/hooks/signal.h>
 #include <trace/hooks/cfg80211.h>
 #include <trace/hooks/bl_hib.h>
-
+#include <trace/hooks/dm.h>
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
  * associated with them) to allow external modules to probe them.
@@ -164,6 +164,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_freq_table_limits);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cpufreq_resolve_freq);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cpufreq_fast_switch);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cpufreq_target);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cpufreq_offline);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_skip_swapcache_flags);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_gfp_zone_flags);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_readahead_gfp_mask);
@@ -404,6 +405,12 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_save_cpu_resume);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_save_hib_resume_bdev);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_dma_buf_stats_teardown);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_madvise_cold_or_pageout);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_cma_alloc_retry);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_encrypt_page);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_init_aes_encrypt);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_skip_swap_map_write);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_post_image_save);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_dm_update_clone_bio);
 
 /*
  * For type visibility

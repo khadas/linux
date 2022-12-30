@@ -2003,6 +2003,7 @@
   __traceiter_android_rvh_override_creds
   __traceiter_android_rvh_prepare_prio_fork
   __traceiter_android_rvh_revert_creds
+  __traceiter_android_rvh_rmqueue_bulk
   __traceiter_android_rvh_rtmutex_prepare_setprio
   __traceiter_android_rvh_rto_next_cpu
   __traceiter_android_rvh_sched_newidle_balance
@@ -2031,6 +2032,7 @@
   __traceiter_android_vh_check_file_open
   __traceiter_android_vh_check_mmap_file
   __traceiter_android_vh_check_uninterruptible_tasks
+  __traceiter_android_vh_cpufreq_offline
   __traceiter_android_vh_iommu_iovad_alloc_iova
   __traceiter_android_vh_iommu_iovad_free_iova
   __traceiter_android_vh_is_fpsimd_save
@@ -2079,6 +2081,7 @@
   __tracepoint_android_rvh_override_creds
   __tracepoint_android_rvh_prepare_prio_fork
   __tracepoint_android_rvh_revert_creds
+  __tracepoint_android_rvh_rmqueue_bulk
   __tracepoint_android_rvh_rtmutex_prepare_setprio
   __tracepoint_android_rvh_rto_next_cpu
   __tracepoint_android_rvh_sched_newidle_balance
@@ -2107,6 +2110,7 @@
   __tracepoint_android_vh_check_file_open
   __tracepoint_android_vh_check_mmap_file
   __tracepoint_android_vh_check_uninterruptible_tasks
+  __tracepoint_android_vh_cpufreq_offline
   __tracepoint_android_vh_iommu_iovad_alloc_iova
   __tracepoint_android_vh_iommu_iovad_free_iova
   __tracepoint_android_vh_is_fpsimd_save
