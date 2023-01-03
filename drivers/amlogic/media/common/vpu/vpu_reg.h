@@ -7,11 +7,6 @@
 #define __VPU_REG_H__
 #include <linux/platform_device.h>
 
-#define VPU_HIU_BASE                 0xff63c000
-#define VPU_VCBUS_BASE               0xff900000
-#define VPU_CBUS_BASE                0xffd00000
-#define VPU_AOBUS_BASE               0xff800000
-
 #define VPU_REG_END                  0xffff
 
 /* ********************************
@@ -79,6 +74,11 @@
 #define VPU_RDARB_MODE_L1C2          0x2799
 #define VPU_RDARB_MODE_L2C1          0x279d
 #define VPU_WRARB_MODE_L2C1          0x27a2
+
+#define VENC_VDAC_TST_VAL            0x1b7f
+#define VPP_DUMMY_DATA               0x1d00
+#define VPU_VPU_PWM_V0               0x2730
+#define VPU_VPU_PWM_V0_T7            0x1ce0
 
 int vpu_ioremap(struct platform_device *pdev, int *reg_map_table);
 

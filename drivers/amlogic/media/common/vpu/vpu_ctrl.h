@@ -15,8 +15,6 @@
 /* VPU frequency table, important. DO NOT modify!! */
 /* ************************************************ */
 
-#define CLK_FPLL_FREQ          2000 /* MHz */
-
 /* AXG */
 /* freq max=250M, default=250M */
 #define CLK_LEVEL_DFT_AXG      3
@@ -33,18 +31,6 @@
 #define CLK_LEVEL_MAX_T5D     6
 
 /* vpu clk setting */
-enum vpu_mux_e {
-	FCLK_DIV4 = 0,
-	FCLK_DIV3,
-	FCLK_DIV5,
-	FCLK_DIV7,
-	MPLL_CLK1,
-	VID_PLL_CLK,
-	VID2_PLL_CLK,
-	GPLL_CLK,
-	FCLK_DIV_MAX,
-};
-
 static struct fclk_div_s fclk_div_table_axg[] = {
 	/* id,         mux,  div */
 	{FCLK_DIV4,    0,    4},
@@ -63,7 +49,6 @@ static struct fclk_div_s fclk_div_table_g12a[] = {
 	{FCLK_DIV_MAX, 8,    1},
 };
 
-#define VPU_CLK_TOLERANCE    1000000 /* Hz */
 static struct vpu_clk_s vpu_clk_table[] = {
 	/* frequency   clk_mux       div */
 	{100000000,    FCLK_DIV5,    3}, /* 0 */
@@ -75,10 +60,24 @@ static struct vpu_clk_s vpu_clk_table[] = {
 	{500000000,    FCLK_DIV4,    0}, /* 6 */
 	{666666667,    FCLK_DIV3,    0}, /* 7 */
 	{696000000,    GPLL_CLK,     0}, /* 8 */
-	{850000000,    GPLL_CLK,     0}, /* 9 */ /* invalid */
+	{850000000,    FCLK_DIV_MAX, 0}, /* 9 */ /* invalid */
 };
 
-/* ************************************************ */
+/* ******************************************************* */
+/*                VPU reg access test                      */
+/* ******************************************************* */
+#define VCBUS_REG_CNT_MAX    3
+static unsigned int vcbus_test_reg[VCBUS_REG_CNT_MAX] = {
+	VENC_VDAC_TST_VAL,
+	VPP_DUMMY_DATA,
+	VPU_VPU_PWM_V0
+};
+
+static unsigned int vcbus_test_reg_t7[VCBUS_REG_CNT_MAX] = {
+	VENC_VDAC_TST_VAL,
+	VPP_DUMMY_DATA,
+	VPU_VPU_PWM_V0_T7
+};
 
 /* ******************************************************* */
 /*                 VPU reset table                    */
