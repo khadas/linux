@@ -344,7 +344,7 @@ static unsigned int dv_target_graphics_LL_max[3][3] = {
 
 static unsigned int dv_target_graphics_max_26[5][3] = {
 	{ 300, 300, 370 }, /* DV => DV/HDR/SDR */
-	{ 300, 300, 300 }, /* HDR =>  DV/HDR/SDR */
+	{ 150, 300, 300 }, /* HDR =>  DV/HDR/SDR */
 	{ 300, 300, 300 }, /* SDR =>  DV/HDR/SDR */
 	{ 300, 300, 300 }, /* reserved DV LL =>  DV/HDR/SDR */
 	{ 300, 300, 300 }, /* HLG =>  DV/HDR/SDR */
@@ -352,7 +352,7 @@ static unsigned int dv_target_graphics_max_26[5][3] = {
 
 static unsigned int dv_target_graphics_LL_max_26[5][3] = {
 	{ 300, 300, 370 }, /* DV => DV/HDR/SDR */
-	{ 300, 300, 300 }, /* HDR =>  DV/HDR/SDR */
+	{ 210, 300, 300 }, /* HDR =>  DV/HDR/SDR */
 	{ 300, 300, 300 }, /* SDR =>  DV/HDR/SDR */
 	{ 300, 300, 300 }, /* reserved DV LL =>  DV/HDR/SDR */
 	{ 300, 300, 300 }, /* HLG =>  DV/HDR/SDR */
@@ -9032,8 +9032,11 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 						[tmp_fmt][dst_format];
 				}
 			}
-			if (dv_graphic_blend_test && dst_format == FORMAT_HDR10)
+			/*NTS HDR-001-TC3 is conflict with SDK test*/
+			if (dv_graphic_blend_test && (dst_format == FORMAT_HDR10 ||
+				src_format == FORMAT_HDR10))
 				graphic_max = dv_HDR10_graphics_max;
+
 		}
 	} else {
 		if (amdv_graphic_max != 0) {
