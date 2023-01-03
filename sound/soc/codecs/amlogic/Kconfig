@@ -109,6 +109,17 @@ config AMLOGIC_SND_CODEC_TL1_ACODEC
 		AML tl1 acodec,
 		this codec is internal
 
+config AMLOGIC_SND_CODEC_PA1
+	tristate "amlogic PA1 Amplifier"
+	depends on AMLOGIC_SND_SOC_CODECS
+	depends on I2C
+	default n
+	help
+		Enable support for Amlogic PA1 CODEC.
+		Select this if your PA1 is connected via an I2C bus.
+		Enable support for Amlogic PA1 CODEC.
+		Select this if your PA1 is connected via an I2C bus.
+
 #Third part codecs
 # Amlogic add codecs
 
