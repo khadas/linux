@@ -83,8 +83,9 @@
 // frc_20220920 add frc rdma access reg
 // frc_20220927 film tell alg under hdmi
 // frc_20221102 frc clean up typo err
+// frc_20221123 check input size
 
-#define FRC_FW_VER			"2022-1123 check input size"
+#define FRC_FW_VER			"2023-0104 clean up kasan log error"
 #define FRC_KERDRV_VER                  2339
 
 #define FRC_DEVNO	1

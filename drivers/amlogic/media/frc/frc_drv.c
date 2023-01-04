@@ -70,7 +70,7 @@ static struct frc_dev_s frc_dev;
 struct work_struct frc_mem_dyc_proc;
 
 int frc_dbg_en;
-EXPORT_SYMBOL(frc_dbg_en);
+//EXPORT_SYMBOL(frc_dbg_en);
 module_param(frc_dbg_en, int, 0664);
 MODULE_PARM_DESC(frc_dbg_en, "frc debug level");
 
@@ -81,7 +81,7 @@ struct frc_dev_s *get_frc_devp(void)
 }
 
 int  frc_kerdrv_ver = FRC_KERDRV_VER;
-EXPORT_SYMBOL(frc_kerdrv_ver);
+//EXPORT_SYMBOL(frc_kerdrv_ver);
 
 // static struct frc_fw_data_s *fw_data;
 struct frc_fw_data_s fw_data;  // important 2021_0510
