@@ -1446,22 +1446,13 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (ss_ctl.mode != 0xffffffff)
 			ss_mode  = ss_ctl.mode & 0xff;
 		ret = lcd_set_ss(pdrv, ss_level, ss_freq, ss_mode);
-
 		if (ret == 0) {
-			temp = pdrv->config.timing.ss_level;
-			if (ss_level <= 0xf) {
-				temp &= ~(0xff);
-				temp |= ss_level;
-			}
-			if (ss_freq <= 0xf) {
-				temp &= ~((0xf << LCD_CLK_SS_BIT_FREQ) << 8);
-				temp |= ((ss_freq << LCD_CLK_SS_BIT_FREQ) << 8);
-			}
-			if (ss_mode <= 0xf) {
-				temp &= ~((0xf << LCD_CLK_SS_BIT_MODE) << 8);
-				temp |= ((ss_mode << LCD_CLK_SS_BIT_MODE) << 8);
-			}
-			pdrv->config.timing.ss_level = temp;
+			if (ss_level <= 0xff)
+				pdrv->config.timing.ss_level = ss_level;
+			if (ss_freq <= 0xff)
+				pdrv->config.timing.ss_freq = ss_freq;
+			if (ss_mode <= 0xff)
+				pdrv->config.timing.ss_mode = ss_mode;
 		}
 
 		break;

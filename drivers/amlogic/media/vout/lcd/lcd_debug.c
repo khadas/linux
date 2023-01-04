@@ -564,12 +564,14 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
 		"lcd_clk         %u.%03uMHz\n"
-		"ss_level        0x%x\n"
+		"ss_level        %d\n"
+		"ss_freq         %d\n"
+		"ss_mode         %d\n"
 		"clk_auto        %d\n"
 		"fr_adj_type     %d\n\n",
 		(lcd_clk / 1000), (lcd_clk % 1000),
-		pconf->timing.ss_level, pconf->timing.clk_auto,
-		pconf->timing.fr_adjust_type);
+		pconf->timing.ss_level, pconf->timing.ss_freq, pconf->timing.ss_mode,
+		pconf->timing.clk_auto, pconf->timing.fr_adjust_type);
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
@@ -3068,21 +3070,17 @@ static ssize_t lcd_debug_ss_store(struct device *dev, struct device_attribute *a
 				  const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
-	unsigned int value = 0, temp;
+	unsigned int value = 0;
 	int ret = 0;
 
-	temp = pdrv->config.timing.ss_level;
 	switch (buf[0]) {
 	case 'l':
 		ret = sscanf(buf, "level %d", &value);
 		if (ret == 1) {
 			value &= 0xff;
 			ret = lcd_set_ss(pdrv, value, 0xff, 0xff);
-			if (ret == 0) {
-				temp &= ~(0xff);
-				temp |= value;
-				pdrv->config.timing.ss_level = temp;
-			}
+			if (ret == 0)
+				pdrv->config.timing.ss_level = value;
 		} else {
 			pr_info("invalid data\n");
 			return -EINVAL;
@@ -3093,11 +3091,8 @@ static ssize_t lcd_debug_ss_store(struct device *dev, struct device_attribute *a
 		if (ret == 1) {
 			value &= 0xf;
 			ret = lcd_set_ss(pdrv, 0xff, value, 0xff);
-			if (ret == 0) {
-				temp &= ~((0xf << LCD_CLK_SS_BIT_FREQ) << 8);
-				temp |= ((value << LCD_CLK_SS_BIT_FREQ) << 8);
-				pdrv->config.timing.ss_level = temp;
-			}
+			if (ret == 0)
+				pdrv->config.timing.ss_freq = value;
 		} else {
 			pr_info("invalid data\n");
 			return -EINVAL;
@@ -3108,29 +3103,15 @@ static ssize_t lcd_debug_ss_store(struct device *dev, struct device_attribute *a
 		if (ret == 1) {
 			value &= 0xf;
 			ret = lcd_set_ss(pdrv, 0xff, 0xff, value);
-			if (ret == 0) {
-				temp &= ~((0xf << LCD_CLK_SS_BIT_MODE) << 8);
-				temp |= ((value << LCD_CLK_SS_BIT_MODE) << 8);
-				pdrv->config.timing.ss_level = temp;
-			}
+			if (ret == 0)
+				pdrv->config.timing.ss_mode = value;
 		} else {
 			pr_info("invalid data\n");
 			return -EINVAL;
 		}
 		break;
 	default:
-		ret = kstrtouint(buf, 16, &value);
-		if (ret) {
-			pr_info("invalid data\n");
-			return -EINVAL;
-		}
-		value &= 0xffff;
-		temp = value >> 8;
-		ret = lcd_set_ss(pdrv, (value & 0xff),
-				 ((temp >> LCD_CLK_SS_BIT_FREQ) & 0xf),
-				 ((temp >> LCD_CLK_SS_BIT_MODE) & 0xf));
-		if (ret == 0)
-			pdrv->config.timing.ss_level = value;
+		pr_info("invalid data\n");
 		break;
 	}
 

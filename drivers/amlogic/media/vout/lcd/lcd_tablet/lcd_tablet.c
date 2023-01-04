@@ -590,9 +590,9 @@ static void lcd_config_init(struct aml_lcd_drv_s *pdrv)
 	lcd_tablet_vinfo_update(pdrv);
 
 	lcd_tablet_config_update(pdrv);
-	lcd_clk_generate_parameter(pdrv);
 
-	lcd_clk_ss_config_update(pdrv);
+	lcd_clk_ss_config_init(pdrv);
+	lcd_clk_generate_parameter(pdrv);
 
 	lcd_tablet_config_post_update(pdrv);
 }

@@ -106,7 +106,6 @@ struct lcd_clk_config_s *get_lcd_clk_config(struct aml_lcd_drv_s *pdrv)
 void lcd_clk_generate_parameter(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
-	unsigned int ss_level, ss_freq, ss_mode;
 
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf)
@@ -114,39 +113,27 @@ void lcd_clk_generate_parameter(struct aml_lcd_drv_s *pdrv)
 
 	if (cconf->data->clk_generate_parameter)
 		cconf->data->clk_generate_parameter(pdrv);
-
-	ss_level = pdrv->config.timing.ss_level;
-	cconf->ss_level = (ss_level >= ss_level_max) ? 0 : ss_level;
-	ss_freq = pdrv->config.timing.ss_freq;
-	cconf->ss_freq = (ss_freq >= ss_freq_max) ? 0 : ss_freq;
-	ss_mode = pdrv->config.timing.ss_mode;
-	cconf->ss_mode = (ss_mode >= ss_mode_max) ? 0 : ss_mode;
-	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2) {
-		LCDPR("[%d]: %s: ss_level=%d, ss_freq=%d, ss_mode=%d\n",
-		      pdrv->index, __func__,
-		      cconf->ss_level, cconf->ss_freq, cconf->ss_mode);
-	}
 }
 
 int lcd_get_ss_num(struct aml_lcd_drv_s *pdrv,
 	unsigned int *level, unsigned int *freq, unsigned int *mode)
 {
-	struct lcd_clk_config_s *clk_conf;
+	struct lcd_clk_config_s *cconf;
 
-	clk_conf = get_lcd_clk_config(pdrv);
-	if (!clk_conf || !clk_conf->data) {
-		LCDERR("[%d] %s: clk_conf or clk_conf->data is null\n", pdrv->index, __func__);
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf) {
+		LCDERR("[%d] %s: clk_conf is null\n", pdrv->index, __func__);
 		return -1;
 	}
 
 	if (level)
-		*level = (clk_conf->ss_level >= ss_level_max) ? 0 : clk_conf->ss_level;
+		*level = (cconf->ss_level >= ss_level_max) ? 0 : cconf->ss_level;
 
 	if (freq)
-		*freq = (clk_conf->ss_freq >= ss_freq_max) ? 0 : clk_conf->ss_freq;
+		*freq = (cconf->ss_freq >= ss_freq_max) ? 0 : cconf->ss_freq;
 
 	if (mode)
-		*mode = (clk_conf->ss_mode >= ss_mode_max) ? 0 : clk_conf->ss_mode;
+		*mode = (cconf->ss_mode >= ss_mode_max) ? 0 : cconf->ss_mode;
 
 	return 0;
 }
@@ -166,7 +153,7 @@ int lcd_get_ss(struct aml_lcd_drv_s *pdrv, char *buf)
 	temp = (cconf->ss_level >= ss_level_max) ? 0 : cconf->ss_level;
 	switch (cconf->data->ss_support) {
 	case 2:
-		len += sprintf(buf + len, "ss_level: %dppm\n", temp * 1000);
+		len += sprintf(buf + len, "ss_level: %d, %dppm\n", temp, temp * 1000);
 		break;
 	case 1:
 		len += sprintf(buf + len, "ss_level: %s\n", lcd_ss_level_table_tl1[temp]);
@@ -177,37 +164,19 @@ int lcd_get_ss(struct aml_lcd_drv_s *pdrv, char *buf)
 	}
 
 	temp = (cconf->ss_freq >= ss_freq_max) ? 0 : cconf->ss_freq;
-	sprintf(buf + len, "ss_freq: %s\n", lcd_ss_freq_table_tl1[temp]);
+	len += sprintf(buf + len, "ss_freq: %s\n", lcd_ss_freq_table_tl1[temp]);
 
 	temp = (cconf->ss_mode >= ss_mode_max) ? 0 : cconf->ss_mode;
-	sprintf(buf + len, "ss_mode: %s\n", lcd_ss_mode_table_tl1[temp]);
+	len += sprintf(buf + len, "ss_mode: %s\n", lcd_ss_mode_table_tl1[temp]);
 
 	return len;
-}
-
-void lcd_clk_ss_config_update(struct aml_lcd_drv_s *pdrv)
-{
-	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
-	unsigned int temp;
-
-	if (!cconf || !cconf->data)
-		return;
-
-	temp = pdrv->config.timing.ss_level & 0xff;
-	cconf->ss_level = (temp >= ss_level_max) ? 0 : temp;
-	temp = (pdrv->config.timing.ss_level >> 8) & 0xff;
-	temp = (temp >> LCD_CLK_SS_BIT_FREQ) & 0xf;
-	cconf->ss_freq = (temp >= ss_freq_max) ? 0 : temp;
-	temp = (pdrv->config.timing.ss_level >> 8) & 0xff;
-	temp = (temp >> LCD_CLK_SS_BIT_MODE) & 0xf;
-	cconf->ss_mode = (temp >= ss_mode_max) ? 0 : temp;
 }
 
 int lcd_set_ss(struct aml_lcd_drv_s *pdrv, unsigned int level, unsigned int freq, unsigned int mode)
 {
 	struct lcd_clk_config_s *cconf;
 	unsigned long flags = 0;
-	int ret = -1;
+	int ss_adv = 0, ret = 0;
 
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf)
@@ -220,54 +189,39 @@ int lcd_set_ss(struct aml_lcd_drv_s *pdrv, unsigned int level, unsigned int freq
 			LCDERR("[%d]: %s: ss_level %d is out of support (max %d)\n",
 			       pdrv->index, __func__, level,
 			       (ss_level_max - 1));
+			ret = -1;
 			goto lcd_set_ss_end;
 		}
+		cconf->ss_level = level;
+		if (cconf->data->set_ss_level)
+			cconf->data->set_ss_level(pdrv);
 	}
 	if (freq < 0xff) {
 		if (freq >= ss_freq_max) {
 			LCDERR("[%d]: %s: ss_freq %d is out of support (max %d)\n",
 			       pdrv->index, __func__, freq,
 			       (ss_freq_max - 1));
+			ret = -1;
 			goto lcd_set_ss_end;
 		}
+		cconf->ss_freq = freq;
+		ss_adv = 1;
 	}
 	if (mode < 0xff) {
 		if (mode >= ss_mode_max) {
 			LCDERR("[%d]: %s: ss_mode %d is out of support (max %d)\n",
 			       pdrv->index, __func__, mode,
 			       (ss_mode_max - 1));
+			ret = -1;
 			goto lcd_set_ss_end;
 		}
+		cconf->ss_mode = mode;
+		ss_adv = 1;
 	}
-
-	if (cconf->data->set_ss_level) {
-		if (level < 0xff) {
-			if (level > ss_level_max)
-				cconf->ss_level = ss_level_max;
-			else
-				cconf->ss_level = level;
-			cconf->data->set_ss_level(pdrv);
-		}
-	}
-
-	ret = 0;
-	if (cconf->data->set_ss_advance) {
-		if (freq == 0xff && mode == 0xff)
-			goto lcd_set_ss_end;
-		if (freq < 0xff) {
-			if (freq > ss_freq_max)
-				cconf->ss_freq = ss_freq_max;
-			else
-				cconf->ss_freq = freq;
-		}
-		if (mode < 0xff) {
-			if (mode > ss_mode_max)
-				cconf->ss_mode = ss_mode_max;
-			else
-				cconf->ss_mode = mode;
-		}
+	if (ss_adv == 0)
+		goto lcd_set_ss_end;
+	if (cconf->data->set_ss_advance)
 		cconf->data->set_ss_advance(pdrv);
-	}
 
 lcd_set_ss_end:
 	spin_unlock_irqrestore(&lcd_clk_lock, flags);
@@ -305,6 +259,31 @@ lcd_ss_enable_end:
 	spin_unlock_irqrestore(&lcd_clk_lock, flags);
 
 	return 0;
+}
+
+void lcd_clk_ss_config_init(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
+	unsigned int ss_level, ss_freq, ss_mode;
+
+	if (!cconf || !cconf->data)
+		return;
+
+	ss_level = pdrv->config.timing.ss_level;
+	cconf->ss_level = (ss_level >= ss_level_max) ? 0 : ss_level;
+	if (cconf->ss_level == 0)
+		cconf->ss_en = 0;
+	else
+		cconf->ss_en = 1;
+	ss_freq = pdrv->config.timing.ss_freq;
+	cconf->ss_freq = (ss_freq >= ss_freq_max) ? 0 : ss_freq;
+	ss_mode = pdrv->config.timing.ss_mode;
+	cconf->ss_mode = (ss_mode >= ss_mode_max) ? 0 : ss_mode;
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("[%d]: %s: ss_level=%d, ss_freq=%d, ss_mode=%d\n",
+		      pdrv->index, __func__,
+		      cconf->ss_level, cconf->ss_freq, cconf->ss_mode);
+	}
 }
 
 int lcd_encl_clk_msr(struct aml_lcd_drv_s *pdrv)

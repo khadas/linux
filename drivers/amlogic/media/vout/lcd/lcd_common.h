@@ -51,7 +51,8 @@
 /* 20221215: remove unnecessary tcon top reset*/
 /* 20221202: optimize lcd clk code*/
 /* 20221229: optimize lcd venc code*/
-#define LCD_DRV_VERSION    "20221229"
+/* 20230105: update clk ss support*/
+#define LCD_DRV_VERSION    "20230105"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
@@ -190,9 +191,9 @@ void lcd_clk_generate_parameter(struct aml_lcd_drv_s *pdrv);
 int lcd_get_ss(struct aml_lcd_drv_s *pdrv, char *buf);
 int lcd_get_ss_num(struct aml_lcd_drv_s *pdrv, unsigned int *level,
 				unsigned int *freq, unsigned int *mode);
-void lcd_clk_ss_config_update(struct aml_lcd_drv_s *pdrv);
 int lcd_set_ss(struct aml_lcd_drv_s *pdrv, unsigned int level,
 	       unsigned int freq, unsigned int mode);
+void lcd_clk_ss_config_init(struct aml_lcd_drv_s *pdrv);
 int lcd_encl_clk_msr(struct aml_lcd_drv_s *pdrv);
 void lcd_pll_reset(struct aml_lcd_drv_s *pdrv);
 void lcd_update_clk(struct aml_lcd_drv_s *pdrv);

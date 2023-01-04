@@ -1241,9 +1241,9 @@ static void lcd_config_init(struct aml_lcd_drv_s *pdrv)
 	lcd_timing_init_config(pdrv);
 	lcd_vmode_init(pdrv);
 	lcd_tv_config_update(pdrv);
-	lcd_clk_generate_parameter(pdrv);
 
-	lcd_clk_ss_config_update(pdrv);
+	lcd_clk_ss_config_init(pdrv);
+	lcd_clk_generate_parameter(pdrv);
 }
 
 /* ************************************************** *
