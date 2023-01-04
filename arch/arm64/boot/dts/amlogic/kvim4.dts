@@ -494,7 +494,7 @@
 				<&clkc CLKID_MCLK_PLL>,
 				<&xtal>;
 		clock-names = "mclk_0","mclk_1","mclk_0_pre","mclk_1_pre","mclk_p","mclk_x";
-		power-enable = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+		ir_cut_gpio = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
 		reset = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
 	};
 
