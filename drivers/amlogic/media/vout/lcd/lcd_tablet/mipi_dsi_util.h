@@ -11,7 +11,7 @@
 
 /* ********************************************************
  * MIPI DSI Data Type/ MIPI DCS Command Type Definitions
- * Pheripheral to Host
+ * Peripheral to Host
  */
 enum mipi_dsi_data_type_host_e {
 	DT_VSS                  = 0x01,
@@ -95,7 +95,7 @@ enum mipi_dsi_data_type_host_e {
 #define DCS_WRITE_MEMORY_CONTINUE    0x3c
 #define DCS_WRITE_MEMORY_START       0x2c
 
-/* Pheripheral to Host
+/* Peripheral to Host
  * normal: 0x87(LPDT), data_type, 0, 0, ecc.  (write or tearing-effect)
  * error:  0x87(LPDT), 0x02, error_code[15:0], ecc.
  * short read: 0x87, data_type, data0, data1, ecc

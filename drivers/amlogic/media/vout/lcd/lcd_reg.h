@@ -1562,7 +1562,7 @@
  * [22] register bit from chan0 rx_lp_en.
  * [21] chan0 contention detection enable control selection.
  *		1: from register. 0: from chan0 state machine.
- * [20] register bit from chan0 contention dectection enable.
+ * [20] register bit from chan0 contention detection enable.
  * [19] chan1 tx_hs_en control selection.
  *		1: from register. 0: from chan0 state machine.
  * [18] register bit for chan1 tx_hs_en.
