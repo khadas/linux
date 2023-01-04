@@ -714,6 +714,8 @@ void sensor_init_ov08a10( void **ctx, sensor_control_t *ctrl, void *sbp )
     sensor_hw_reset_disable();
     system_timer_usleep( 1000 );
 
+    sensor_ir_cut_set(*ctx, 1);
+
     LOG(LOG_ERR, "%s: Success subdev init\n", __func__);
 }
 
