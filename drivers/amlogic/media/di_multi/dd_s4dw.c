@@ -661,7 +661,7 @@ static bool s4dw_bypass_2_ready_bynins(struct di_ch_s *pch,
 {
 	void *in_ori;
 //	struct dim_nins_s	*nins =NULL;
-	struct di_buffer *buffer, *buffer_o;
+	struct di_buffer *buffer = NULL, *buffer_o;
 	struct di_buf_s *buf_pst;
 
 	if (!nins) {
@@ -683,7 +683,7 @@ static bool s4dw_bypass_2_ready_bynins(struct di_ch_s *pch,
 	if (dip_itf_is_ins_exbuf(pch)) {
 		/* get out buffer */
 		buf_pst = di_que_out_to_di_buf(pch->ch_id, QUE_POST_FREE);
-		if (!buf_pst) {
+		if (!buf_pst || !buffer) {
 			PR_ERR("%s:no post free\n", __func__);
 			return true;
 		}

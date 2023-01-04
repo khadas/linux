@@ -834,6 +834,7 @@ static void autonr_process_op(struct AUTONR_PARM_S *autonr_param_p,
 	diff_sum = op->rd(DIPD_RO_COMB_0);
 
 	//diff_sum norm
+	/*coverity[SIGN_EXTENSION] misjudgment*/
 	motion_sum = div64_u64(diff_sum * (1920 * 1080),
 			       (input_height * input_width));
 	if (autonr_en & 0x10)

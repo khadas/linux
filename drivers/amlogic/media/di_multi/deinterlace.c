@@ -5018,7 +5018,7 @@ static struct di_buf_s *pp_pst_2_local(struct di_ch_s *pch)
 		return di_buf;
 
 	ch = pch->ch_id;
-
+	/*coverity [var_deref_op] the return value is null there is no datas*/
 	di_buf = di_que_out_to_di_buf(ch, QUE_PRE_NO_BUF);
 //ary 2020-12-09	di_lock_irqfiq_save(irq_flag2);
 	buf_pst = di_que_out_to_di_buf(ch, QUE_POST_FREE);
@@ -10432,7 +10432,9 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 void di_unreg_setting(void)
 {
 	/*unsigned int mirror_disable = get_blackout_policy();*/
+#ifdef MARK_DEADCODE_HIS /* */
 	unsigned int mirror_disable = 0;
+#endif
 	struct di_dev_s *de_devp = get_dim_de_devp();
 
 	if (!get_hw_reg_flg()) {
@@ -10511,14 +10513,25 @@ void di_unreg_setting(void)
 		diext_clk_b_sw(false);
 	dbg_pl("%s disable di mirror image.\n", __func__);
 
+#ifdef MARK_DEADCODE_HIS /* */
 	if ((dimp_get(edi_mp_post_wr_en)	&&
 	     dimp_get(edi_mp_post_wr_support))	||
 	     mirror_disable) {
 		/*diwr_set_power_control(0);*/
 		hpst_mem_pd_sw(0);
 	}
+#endif
+	if (dimp_get(edi_mp_post_wr_en)	&&
+	     dimp_get(edi_mp_post_wr_support)) {
+		/*diwr_set_power_control(0);*/
+		hpst_mem_pd_sw(0);
+	}
+
+#ifdef MARK_DEADCODE_HIS /* */
+	/*mirror_disable is write dead so comment the following codes*/
 	if (mirror_disable)
 		hpst_vd1_sw(0);
+#endif
 	if (cfgg(HF))
 		di_hf_hw_release(0xff);
 

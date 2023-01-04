@@ -4552,6 +4552,8 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 						pcfg,
 						win_mem,
 						op_in);
+#ifdef MARK_DEADCODE_HIS
+		/*chan2_vf is write dead so comment the following codes*/
 		if (chan2_vf && pafd_ctr->en_set.b.chan2)
 			/* chan2 */
 			enable_afbc_input_local_dvfm(chan2_vf,
@@ -4559,7 +4561,7 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 						pcfg,
 						NULL,
 						op_in);
-
+#endif
 		/*nr*/
 		if (pafd_ctr->en_set.b.enc_nr)
 			afbce_set_dvfm(nr_vf, EAFBC_ENC0, op_in);
@@ -4587,6 +4589,8 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 						   op_in);
 		}
 
+#ifdef MARK_DEADCODE_HIS
+	/* the following codes are commented result in chan2_vf is false*/
 		if (pafd_ctr->en_set.b.chan2 && chan2_vf) {
 			if (is_cfg(EAFBC_CFG_FORCE_CHAN2))
 				enable_afbc_input_local_dvfm
@@ -4600,7 +4604,7 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 						   pafd_ctr->fb.ch2_dec,
 						   op_in);
 		}
-
+#endif
 		/*nr*/
 		if (pafd_ctr->en_set.b.enc_nr) {
 			if (is_cfg(EAFBC_CFG_FORCE_NR))
@@ -4619,9 +4623,11 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 		if (pafd_ctr->en_set.b.mem)
 			afbc_update_level1_dvfm(mem_vf2, pafd_ctr->fb.mem_dec, op_in);
 
+#ifdef MARK_DEADCODE_HIS
+		/*chan2_vf is NULL the follow condition cannot be true*/
 		if (pafd_ctr->en_set.b.chan2 && chan2_vf)
 			afbc_update_level1_dvfm(chan2_vf, pafd_ctr->fb.ch2_dec, op_in);
-
+#endif
 		/*nr*/
 		if (pafd_ctr->en_set.b.enc_nr)
 			afbce_update_level1_dvfm(nr_vf,

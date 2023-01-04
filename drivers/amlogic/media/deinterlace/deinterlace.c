@@ -3999,6 +3999,7 @@ static struct di_buf_s *get_free_linked_buf(int idx)
 				queue_out(di_buf_linked);
 			}
 		}
+		/*coverity[FORWARD_NULL] di_buf has been judged empty*/
 		if (IS_ERR_OR_NULL(di_buf))
 			return NULL;
 		di_buf->di_wr_linked_buf = di_buf_linked;
@@ -8297,6 +8298,7 @@ static long di_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case AMDI_IOC_SET_PQ_PARM:
 		mm_size = sizeof(struct am_pq_parm_s);
+	/*coverity[TAINTED_SCALAR] not a tainted data*/
 		if (copy_from_user(&tmp_pq_s, argp, mm_size)) {
 			pr_err("[DI] set pq parm errors\n");
 			return -EFAULT;

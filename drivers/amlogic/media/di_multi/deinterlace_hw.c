@@ -1266,7 +1266,7 @@ void dimh_enable_mc_di_pre(struct DI_MC_MIF_s *di_mcinford_mif,
 	if (is_meson_gxlx_cpu() || is_meson_txhd_cpu())
 		me_auto_en = false;
 #endif
-
+	/*coverity[dead_error_line] False judgment, not dead code*/
 	ctrl_mode = (me_auto_en ? 0x1bfff7ff : 0x1bfe37ff);
 	DIM_RDMA_WR(MCDI_CTRL_MODE, (mcdi_en ? ctrl_mode : 0));
 	DIM_RDMA_WR_BITS(MCDI_MOTINEN, (mcdi_en ? 3 : 0), 0, 2);

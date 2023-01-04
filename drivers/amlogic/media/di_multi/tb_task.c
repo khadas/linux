@@ -37,7 +37,7 @@ void tb_polling(unsigned int ch, struct tb_task_cmd_s *cmd)
 		cfg->source_type = cmd->in_buf_vf->source_type;
 		cfg->type = cmd->in_buf_vf->type;
 	}
-	dbg_tb("%s:cmd=0x%x,ch=0x%x,cmdch=0x%x\n", __func__,
+	dbg_tb("%s:cmd=0x%x,ch=0x%x,cmd_ch=0x%x\n", __func__,
 			cmd->cmd, ch, cmd->ch);
 	if (ch != cmd->ch)
 		return;
