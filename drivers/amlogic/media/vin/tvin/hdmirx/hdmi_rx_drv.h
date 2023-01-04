@@ -741,6 +741,7 @@ struct rx_s {
 	u8 free_sync_sts;
 	u8 afifo_sts;
 	u32 ecc_err;
+	u32 ecc_pkt_cnt;
 	u32 ecc_err_frames_cnt;
 	bool ddc_filter_en;
 #ifdef CONFIG_AMLOGIC_HDMITX

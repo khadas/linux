@@ -1111,8 +1111,8 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 				} else {
 					rx.vrr_en = false;
 				}
-				if (rx.chip_id >= CHIP_ID_T7)
-					rx_check_ecc_error();
+				//if (rx.chip_id >= CHIP_ID_T7)
+					//rx_check_ecc_error();
 				rx_update_sig_info();
 			}
 			if (log_level & 0x400)

@@ -76,7 +76,7 @@ int aud_avmute_en = 1;
 int aud_mute_sel = 2;
 int force_clk_rate;
 u32 rx_ecc_err_thres = 100;
-u32 rx_ecc_err_frames = 50;
+u32 rx_ecc_err_frames = 5;
 int md_ists_en = VIDEO_MODE;
 int pdec_ists_en;/* = AVI_CKS_CHG | DVIDET | DRM_CKS_CHG | DRM_RCV_EN;*/
 u32 packet_fifo_cfg;
@@ -3178,11 +3178,20 @@ void rx_hdcp_monitor(void)
 		return;
 	if (rx.hdcp.hdcp_version == HDCP_VER_NONE)
 		return;
-	if (rx.state != FSM_SIG_READY)
+	if (rx.state < FSM_SIG_STABLE)
 		return;
 
+	rx_get_ecc_info();
+	if (rx.ecc_err && rx.ecc_pkt_cnt == rx.ecc_err) {
+		if (log_level & VIDEO_LOG)
+			rx_pr("ecc:%d-%d\n", rx.ecc_err,
+				  rx.ecc_pkt_cnt);
+		skip_frame(1);
+		rx.ecc_err_frames_cnt++;
+	} else {
+		rx.ecc_err_frames_cnt = 0;
+	}
 	if (rx.ecc_err_frames_cnt >= rx_ecc_err_frames) {
-		skip_frame(5);
 		if (rx.hdcp.hdcp_version == HDCP_VER_22)
 			rx_hdcp_22_sent_reauth();
 		else if (rx.hdcp.hdcp_version == HDCP_VER_14)
@@ -4234,6 +4243,15 @@ void rx_get_de_sts(void)
 	}
 }
 
+void rx_get_ecc_info(void)
+{
+	if (rx.chip_id < CHIP_ID_T7)
+		return;
+
+	rx.ecc_err = rx_get_ecc_err();
+	rx.ecc_pkt_cnt = rx_get_ecc_pkt_cnt();
+}
+
 /*
  * rx_get_video_info - get current avi info
  */
@@ -4255,6 +4273,8 @@ void rx_get_video_info(void)
 	rx_get_de_sts();
 	/* interlace */
 	rx_get_interlaced();
+	//ecc
+	//rx_get_ecc_info();
 }
 
 void hdmirx_set_vp_mapping(enum colorspace_e cs)
