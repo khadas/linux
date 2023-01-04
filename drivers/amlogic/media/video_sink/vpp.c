@@ -7000,27 +7000,46 @@ RERTY:
 			local_input.layer_left + local_input.layer_width - 1,
 			local_input.layer_top + local_input.layer_height - 1);
 
-	/* TODO: mirror case */
-	if (local_input.reverse) {
+	/* reverse and mirror case */
+	if (local_input.reverse || local_input.mirror) {
 		s32 x_end, y_end;
 
-		/* reverse x/y start */
-		x_end = local_input.layer_left + local_input.layer_width - 1;
-		local_input.layer_left = vinfo->width - x_end - 1;
-		y_end = local_input.layer_top + local_input.layer_height - 1;
-		local_input.layer_top = vinfo->height - y_end - 1;
+		if (local_input.reverse) {
+			/* reverse x/y start */
+			x_end = local_input.layer_left +
+				local_input.layer_width - 1;
+			local_input.layer_left = vinfo->width - x_end - 1;
+			y_end = local_input.layer_top +
+				local_input.layer_height - 1;
+			local_input.layer_top = vinfo->height - y_end - 1;
+		} else if (local_input.mirror == H_MIRROR) {
+			/* horizontal mirror */
+			x_end = local_input.layer_left +
+				local_input.layer_width - 1;
+			local_input.layer_left = vinfo->width - x_end - 1;
+		} else if (local_input.mirror == V_MIRROR) {
+			/* vertical mirror */
+			y_end = local_input.layer_top +
+				local_input.layer_height - 1;
+			local_input.layer_top = vinfo->height - y_end - 1;
+		}
+
 		if (super_debug)
-			pr_info("layer%d: reverse:%s, pos (%d %d %d %d) -> (%d %d %d %d)\n",
+			pr_info("layer%d: reverse:%s, mirror:%s pos (%d %d %d %d) -> (%d %d %d %d)\n",
 				input->layer_id,
 				local_input.reverse ? "true" : "false",
+				local_input.mirror == 1 ? "h_mirror" :
+				local_input.mirror == 2 ? "v_mirror" : "false",
 				input->layer_left,
 				input->layer_top,
 				input->layer_left + input->layer_width - 1,
 				input->layer_top + input->layer_height - 1,
 				local_input.layer_left,
 				local_input.layer_top,
-				local_input.layer_left + local_input.layer_width - 1,
-				local_input.layer_top + local_input.layer_height - 1);
+				local_input.layer_left +
+				local_input.layer_width - 1,
+				local_input.layer_top +
+				local_input.layer_height - 1);
 	}
 
 	/* don't restore the wide mode */

@@ -679,11 +679,21 @@ void get_video_axis_offset(s32 *x_offset, s32 *y_offset)
 		return;
 	}
 
-	/* TODO: mirror case */
+	/* reverse and mirror case */
 	if (layer->reverse) {
 		/* reverse x/y start */
 		x_end = layer->layer_left + layer->layer_width - 1;
 		*x_offset = info->width - x_end - 1;
+		y_end = layer->layer_top + layer->layer_height - 1;
+		*y_offset = info->height - y_end - 1;
+	} else if (layer->mirror == H_MIRROR) {
+		/* horizontal mirror */
+		x_end = layer->layer_left + layer->layer_width - 1;
+		*x_offset = info->width - x_end - 1;
+		*y_offset = layer->layer_top;
+	} else if (layer->mirror == V_MIRROR) {
+		/* vertical mirror */
+		*x_offset = layer->layer_left;
 		y_end = layer->layer_top + layer->layer_height - 1;
 		*y_offset = info->height - y_end - 1;
 	} else {
@@ -5446,7 +5456,7 @@ void _set_video_window(struct disp_info_s *layer, int *p)
 
 	/* move the invert logic to vpp.c */
 #ifdef TMP_DISABLE /* TV_REVERSE */
-	if (reverse) {
+	if (reverse || video_mirror) {
 		int temp, temp1;
 
 		temp = parsed[0];
@@ -5502,10 +5512,6 @@ void _set_video_window(struct disp_info_s *layer, int *p)
 		if (layer->layer_id == 0) {
 			atomic_set(&axis_changed, 1);
 			vd_layer[0].property_changed = true;
-			if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
-				pr_info("VD1 axis changed: %d %d (%d %d)->%d %d (%d %d)\n",
-					last_x, last_y, last_w, last_h,
-					new_x, new_y, new_w, new_h);
 		} else if (layer->layer_id == 1) {
 			if (vd_layer[1].vpp_index == VPP0)
 				vd_layer[1].property_changed = true;
@@ -5529,6 +5535,11 @@ void _set_video_window(struct disp_info_s *layer, int *p)
 				vd_layer_vpp[1].vpp_index == VPP2)
 				vd_layer_vpp[1].property_changed = true;
 		}
+		if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
+			pr_info("VD%d axis changed: %d %d (%d %d)->%d %d (%d %d)\n",
+				layer->layer_id + 1,
+				last_x, last_y, last_w, last_h,
+				new_x, new_y, new_w, new_h);
 	}
 }
 
@@ -10266,11 +10277,19 @@ static int  get_display_info(void *data)
 	w = layer->layer_width;
 	h = layer->layer_height;
 
-	/* TODO: mirror case */
+	/* reverse and mirror case */
 	if (layer->reverse) {
 		/* reverse x/y start */
 		x_end = x + w - 1;
 		x = info->width - x_end - 1;
+		y_end = y + h - 1;
+		y = info->height - y_end - 1;
+	} else if (layer->mirror == H_MIRROR) {
+		/* horizontal mirror */
+		x_end = x + w - 1;
+		x = info->width - x_end - 1;
+	} else if (layer->mirror == V_MIRROR) {
+		/* vertical mirror */
 		y_end = y + h - 1;
 		y = info->height - y_end - 1;
 	}
