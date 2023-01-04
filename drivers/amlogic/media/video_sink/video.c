@@ -5586,12 +5586,13 @@ void _set_video_mirror(struct disp_info_s *layer, int mirror)
 	layer->reverse = revser_temp;
 
 	if (last_mirror != new_mirror ||
-		last_mirror != new_reverse) {
+		last_reverse != new_reverse) {
 		if (layer->layer_id == 0) {
 			vd_layer[0].property_changed = true;
 			if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
-				pr_info("VD1 mirror changed: %d ->%d\n",
-					last_mirror, new_mirror);
+				pr_info("VD1 mirror changed: %d->%d; reverse changed: %d->%d\n",
+					last_mirror, new_mirror,
+					last_reverse, new_reverse);
 		} else if (layer->layer_id == 1) {
 			if (vd_layer[1].vpp_index == VPP0)
 				vd_layer[1].property_changed = true;
