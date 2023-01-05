@@ -23,6 +23,9 @@
 #define RDMA_LOAD_BUF_LEN	(1024 * 7)
 #define MAX_INPUTSOURCE_COUNT	9
 
+#define VICP_IOC_MAGIC		'V'
+#define VICP_PROCESS		_IOW(VICP_IOC_MAGIC, 0x00, struct vicp_data_info_t)
+
 /* *********************************************************************** */
 /* ************************* enum definitions ****************************.*/
 /* *********************************************************************** */
@@ -44,7 +47,8 @@ enum vicp_color_format_e {
 };
 
 enum vicp_shrink_mode_e {
-	VICP_SHRINK_MODE_2X = 0,
+	VICP_SHRINK_MODE_OFF = 0,
+	VICP_SHRINK_MODE_2X,
 	VICP_SHRINK_MODE_4X,
 	VICP_SHRINK_MODE_8X,
 	VICP_SHRINK_MODE_MAX,
@@ -88,13 +92,16 @@ struct data_option_t {
 };
 
 struct dma_data_config_t {
-	u32 buf_addr;
-	u32 buf_stride;
+	ulong buf_addr;
+	u32 buf_stride_w;
+	u32 buf_stride_h;
 	u32 data_width;
 	u32 data_height;
 	u32 plane_count;
 	enum vicp_color_format_e color_format;
 	u32 color_depth;
+	u32 endian;
+	u32 need_swap_cbcr;
 };
 
 struct input_data_param_t {
@@ -108,6 +115,8 @@ struct output_data_param_t {
 	u32 stride[MAX_PLANE_MUM];
 	u32 width;
 	u32 height;
+	u32 endian;
+	u32 need_swap_cbcr;
 	u32 fbc_out_en;
 	enum vicp_color_format_e fbc_color_fmt;
 	u32 fbc_color_dep;
@@ -124,9 +133,44 @@ struct vicp_data_config_t {
 	struct data_option_t data_option;
 };
 
+struct vicp_data_info_t {
+	u32 src_buf_fd;
+	u32 src_buf_alisg_w;
+	u32 src_buf_alisg_h;
+	u32 src_data_w;
+	u32 src_data_h;
+	enum vicp_color_format_e src_color_fmt;
+	u32 src_color_depth;
+	u32 src_endian;
+	u32 src_swap_cbcr;
+	u32 dst_buf_fd;
+	u32 dst_buf_w;
+	u32 dst_buf_h;
+	enum vicp_color_format_e dst_color_fmt;
+	u32 dst_color_depth;
+	u32 dst_endian;
+	u32 dst_swap_cbcr;
+	u32 crop_x;
+	u32 crop_y;
+	u32 crop_w;
+	u32 crop_h;
+	enum vicp_rotation_mode_e rotation_mode;
+	u32 output_x;
+	u32 output_y;
+	u32 output_w;
+	u32 output_h;
+	enum vicp_shrink_mode_e shrink_mode;
+	enum vicp_skip_mode_e skip_mode;
+	u32 rdma_enable;
+	u32 input_source_count;
+	u32 input_source_number;
+	u32 security_enable;
+	u32 reserved;
+};
+
 /* *********************************************************************** */
 /* ************************* function definitions **************************.*/
 /* *********************************************************************** */
-int  vicp_process(struct vicp_data_config_t *data_config);
+int vicp_process(struct vicp_data_config_t *data_config);
 
 #endif

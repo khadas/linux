@@ -45,7 +45,7 @@ enum vicp_rotation_mode_e map_rotationmode_from_vc_to_vicp(int rotation_vc)
 }
 
 int config_vicp_input_data(struct vframe_s *vf, ulong addr, int stride, int width, int height,
-	int color_fmt, int color_depth, struct input_data_param_t *input_data)
+	int endian, int color_fmt, int color_depth, struct input_data_param_t *input_data)
 {
 	struct dma_data_config_t dma_data;
 
@@ -72,12 +72,15 @@ int config_vicp_input_data(struct vframe_s *vf, ulong addr, int stride, int widt
 
 		memset(&dma_data, 0, sizeof(struct dma_data_config_t));
 		dma_data.buf_addr = addr;
-		dma_data.buf_stride = stride;
+		dma_data.buf_stride_w = stride;
+		dma_data.buf_stride_h = stride;
 		dma_data.data_width = width;
 		dma_data.data_height = height;
 		dma_data.color_format = color_fmt;
 		dma_data.color_depth = color_depth;
 		dma_data.plane_count = 2;
+		dma_data.endian = endian;
+		dma_data.need_swap_cbcr = 0;
 
 		input_data->data_dma = &dma_data;
 	}
@@ -86,7 +89,7 @@ int config_vicp_input_data(struct vframe_s *vf, ulong addr, int stride, int widt
 }
 
 int config_vicp_output_data(int fbc_out_en, int mif_out_en, ulong *phy_addr, int stride,
-	int width, int height, enum vicp_color_format_e cfmt_mif, int cdep_mif,
+	int width, int height, int endian, enum vicp_color_format_e cfmt_mif, int cdep_mif,
 	enum vicp_color_format_e cfmt_fbc, int cdep_fbc, int init_ctrl, int pip_mode,
 	struct output_data_param_t *output_data)
 {
@@ -100,6 +103,8 @@ int config_vicp_output_data(int fbc_out_en, int mif_out_en, ulong *phy_addr, int
 	output_data->phy_addr[0] = phy_addr[0];
 	output_data->stride[0] = stride;
 	output_data->mif_out_en = mif_out_en;
+	output_data->endian = endian;
+	output_data->need_swap_cbcr = 1;
 	if (mif_out_en) {
 		output_data->mif_color_fmt = cfmt_mif;
 		output_data->mif_color_dep = cdep_mif;
