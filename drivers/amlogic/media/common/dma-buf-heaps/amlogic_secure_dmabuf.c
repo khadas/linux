@@ -35,8 +35,8 @@ module_param(dma_buf_debug, int, 0644);
 #define pr_inf(fmt, args ...)		dprintk(8, fmt, ## args)
 #define pr_enter()			pr_inf("enter")
 
-#define SECURE_DMA_BLOCK_PADDING_SIZE		(64 * 1024)
-#define SECURE_DMA_BLOCK_MIN_SIZE			(16 * 1024)
+#define SECURE_DMA_BLOCK_PADDING_SIZE		(16 * 1024)
+#define SECURE_DMA_BLOCK_MIN_SIZE			(4 * 1024)
 #define SECURE_DMA_BLOCK_ALIGN_2N			12
 
 struct secure_block_info {
@@ -211,10 +211,12 @@ static int secure_heap_mmap(struct dma_buf *dmabuf,
 	unsigned long len = 0;
 	unsigned long paddr = 0;
 	struct secure_block_info *block = NULL;
+	int ret = -1;
 
 	pr_enter();
 	if (!buffer)
-		return -1;
+		goto out;
+	mutex_lock(&buffer->lock);
 	if (buffer->block &&
 		buffer->block->version >= SECURE_HEAP_SUPPORT_DELAY_ALLOC_VERSION) {
 		block = buffer->block;
@@ -237,7 +239,7 @@ static int secure_heap_mmap(struct dma_buf *dmabuf,
 				paddr = secure_block_alloc(len, buffer->len, block->id);
 				if (!paddr) {
 					pr_err("No more secure memory can be alloc %ld", len);
-					return -1;
+					goto out_unlock;
 				}
 				sg_set_page(buffer->sg_table.sgl,
 					pfn_to_page(PFN_DOWN(paddr)), len, 0);
@@ -280,10 +282,14 @@ static int secure_heap_mmap(struct dma_buf *dmabuf,
 			break;
 		}
 	}
-	return remap_pfn_range(vma, vma->vm_start,
+	ret = remap_pfn_range(vma, vma->vm_start,
 						page_to_pfn(buffer->block_page),
 						PAGE_SIZE,
 						vma->vm_page_prot);
+out_unlock:
+	mutex_unlock(&buffer->lock);
+out:
+	return ret;
 }
 
 static void *secure_heap_vmap(struct dma_buf *dmabuf)
