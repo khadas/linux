@@ -286,6 +286,7 @@ static int aml_smmu_device_probe(struct platform_device *pdev)
 	}
 
 	pcie_swiotlb_init(dev);
+	aml_dma_atomic_pool_init(dev);
 	register_trace_android_vh_iommu_setup_dma_ops(set_dma_ops_hook, NULL);
 	//unregister_trace_android_vh_iommu_setup_dma_ops(set_dma_ops_hook, NULL);
 

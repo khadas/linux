@@ -18,6 +18,10 @@
 #include <linux/amlogic/dma_pcie_mapping.h>
 #include <linux/dma-noncoherent.h>
 #include <linux/of.h>
+#include <linux/dma-contiguous.h>
+#include <linux/genalloc.h>
+#include <linux/slab.h>
+#include <linux/vmalloc.h>
 
 /*
  * Enumeration for sync targets
@@ -457,15 +461,177 @@ void  pcie_swiotlb_init(struct device *dma_dev)
 	no_iotlb_memory = true;
 }
 
+static struct vm_struct *__dma_common_pages_remap(struct page **pages,
+			size_t size, pgprot_t prot, const void *caller)
+{
+	struct vm_struct *area;
+
+	area = get_vm_area_caller(size, VM_DMA_COHERENT, caller);
+	if (!area)
+		return NULL;
+
+	if (map_vm_area(area, prot, pages)) {
+		vunmap(area->addr);
+		return NULL;
+	}
+
+	return area;
+}
+
+/*
+ * Remaps an allocated contiguous region into another vm_area.
+ * Cannot be used in non-sleeping contexts
+ */
+static void *aml_dma_common_contiguous_remap(struct page *page, size_t size,
+			pgprot_t prot, const void *caller)
+{
+	int i;
+	struct page **pages;
+	struct vm_struct *area;
+
+	pages = kmalloc(sizeof(struct page *) << get_order(size), GFP_KERNEL);
+	if (!pages)
+		return NULL;
+
+	for (i = 0; i < (size >> PAGE_SHIFT); i++)
+		pages[i] = nth_page(page, i);
+
+	area = __dma_common_pages_remap(pages, size, prot, caller);
+
+	kfree(pages);
+
+	if (!area)
+		return NULL;
+	return area->addr;
+}
+
+/*
+ * Unmaps a range previously mapped by dma_common_*_remap
+ */
+static void aml_dma_common_free_remap(void *cpu_addr, size_t size)
+{
+	struct vm_struct *area = find_vm_area(cpu_addr);
+
+	if (!area || area->flags != VM_DMA_COHERENT) {
+		WARN(1, "trying to free invalid coherent area: %p\n", cpu_addr);
+		return;
+	}
+
+	unmap_kernel_range((unsigned long)cpu_addr, PAGE_ALIGN(size));
+	vunmap(cpu_addr);
+}
+
+static struct gen_pool *aml_atomic_pool __ro_after_init;
+
+static size_t atomic_pool_size __initdata = SZ_256K;
+
+int aml_dma_atomic_pool_init(struct device *dev)
+{
+	unsigned int pool_size_order = get_order(atomic_pool_size);
+	unsigned long nr_pages = atomic_pool_size >> PAGE_SHIFT;
+	struct page *page;
+	void *addr;
+	int ret;
+
+	page = dma_alloc_from_contiguous(dev, nr_pages,
+						 pool_size_order, false);
+	if (!page)
+		goto out;
+
+	arch_dma_prep_coherent(page, atomic_pool_size);
+
+	aml_atomic_pool = gen_pool_create(PAGE_SHIFT, -1);
+	if (!aml_atomic_pool)
+		goto free_page;
+
+	addr = aml_dma_common_contiguous_remap(page, atomic_pool_size,
+					   pgprot_dmacoherent(PAGE_KERNEL),
+					   __builtin_return_address(0));
+	if (!addr)
+		goto destroy_genpool;
+
+	ret = gen_pool_add_virt(aml_atomic_pool, (unsigned long)addr,
+				page_to_phys(page), atomic_pool_size, -1);
+	if (ret)
+		goto remove_mapping;
+	gen_pool_set_algo(aml_atomic_pool, gen_pool_first_fit_order_align, NULL);
+
+	pr_info("aml DMA: preallocated %zu KiB pool for atomic allocations\n",
+		atomic_pool_size / 1024);
+	return 0;
+
+remove_mapping:
+	aml_dma_common_free_remap(addr, atomic_pool_size);
+destroy_genpool:
+	gen_pool_destroy(aml_atomic_pool);
+	aml_atomic_pool = NULL;
+free_page:
+	dma_release_from_contiguous(dev, page, nr_pages);
+out:
+	pr_err("aml DMA: failed to allocate %zu KiB pool for atomic coherent allocation\n",
+		atomic_pool_size / 1024);
+	return -ENOMEM;
+}
+
+static bool aml_dma_in_atomic_pool(void *start, size_t size)
+{
+	if (unlikely(!aml_atomic_pool))
+		return false;
+
+	return addr_in_gen_pool(aml_atomic_pool, (unsigned long)start, size);
+}
+
+static void *aml_dma_alloc_from_pool(size_t size, struct page **ret_page, gfp_t flags)
+{
+	unsigned long val;
+	void *ptr = NULL;
+
+	if (!aml_atomic_pool) {
+		WARN(1, "coherent pool not initialised!\n");
+		return NULL;
+	}
+
+	val = gen_pool_alloc(aml_atomic_pool, size);
+	if (val) {
+		phys_addr_t phys = gen_pool_virt_to_phys(aml_atomic_pool, val);
+
+		*ret_page = pfn_to_page(__phys_to_pfn(phys));
+		ptr = (void *)val;
+		memset(ptr, 0, size);
+	}
+
+	return ptr;
+}
+
+static bool aml_dma_free_from_pool(void *start, size_t size)
+{
+	if (!aml_dma_in_atomic_pool(start, size))
+		return false;
+	gen_pool_free(aml_atomic_pool, (unsigned long)start, size);
+	return true;
+}
+
 static void *aml_dma_direct_alloc(struct device *dev, size_t size,
 		dma_addr_t *dma_handle, gfp_t gfp, unsigned long attrs)
 {
 	struct device_node *of_node = dev->of_node;
 	int count;
+	void *ret;
+	struct page *page = NULL;
 
 	count = of_property_count_elems_of_size(of_node, "memory-region", sizeof(u32));
 	if (count <= 0 && aml_dma_dev)
 		dev = aml_dma_dev;
+
+	if (!gfpflags_allow_blocking(gfp)) {
+		size = PAGE_ALIGN(size);
+		ret = aml_dma_alloc_from_pool(size, &page, gfp);
+		if (!ret)
+			return NULL;
+
+		*dma_handle = phys_to_dma(dev, page_to_phys(page));
+		return ret;
+	}
 
 	return dma_direct_alloc(dev, size, dma_handle, gfp, attrs);
 }
@@ -480,7 +646,8 @@ static void aml_dma_direct_free(struct device *dev, size_t size,
 	if (count <= 0 && aml_dma_dev)
 		dev = aml_dma_dev;
 
-	return dma_direct_free(dev, size, cpu_addr, dma_addr, attrs);
+	if (!aml_dma_free_from_pool(cpu_addr, PAGE_ALIGN(size)))
+		return dma_direct_free(dev, size, cpu_addr, dma_addr, attrs);
 }
 
 static void report_addr(struct device *dev, dma_addr_t dma_addr, size_t size)
