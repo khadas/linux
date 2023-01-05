@@ -377,7 +377,7 @@ void canvas_update_for_mif_slice(struct video_layer_s *layer,
 			     u32 slice);
 void canvas_update_for_mif_mosaic(struct video_layer_s *layer,
 			     struct vframe_s *vf,
-			     u32 slice);
+			     u32 slice, u32 frame_id);
 ssize_t video_vd_proc_state_dump(char *buf);
 void set_module_bypass_s5(u32 bypass_module);
 int get_module_bypass_s5(void);

@@ -5569,7 +5569,7 @@ void switch_3d_view_per_vsync(struct video_layer_s *layer)
 }
 #endif
 
-s32 config_vd_position(struct video_layer_s *layer,
+s32 config_vd_position_internal(struct video_layer_s *layer,
 		       struct mif_pos_s *setting)
 {
 	struct vframe_s *dispbuf = NULL;
@@ -5674,6 +5674,28 @@ s32 config_vd_position(struct video_layer_s *layer,
 #endif
 	setting->vpp_3d_mode =
 		layer->cur_frame_par->vpp_3d_mode;
+	return 0;
+}
+
+s32 config_vd_position(struct video_layer_s *layer,
+		       struct mif_pos_s *setting)
+{
+	config_vd_position_internal(layer, setting);
+
+	if (layer->mosaic_mode) {
+		int i;
+		struct mosaic_frame_s *mosaic_frame;
+		struct video_layer_s *virtual_layer;
+
+		for (i = 0; i < SLICE_NUM; i++) {
+			mosaic_frame = get_mosaic_vframe_info(i);
+			virtual_layer = &mosaic_frame->virtual_layer;
+			if (!virtual_layer)
+				return -1;
+			config_vd_position_internal(virtual_layer,
+				&virtual_layer->mif_setting);
+		}
+	}
 	return 0;
 }
 
@@ -8621,6 +8643,8 @@ int set_layer_display_canvas_s5(struct video_layer_s *layer,
 	u8 frame_id = 0;
 
 	if (layer->layer_id == 0 && layer->slice_num > 1) {
+		if (layer->mosaic_mode)
+			vd_switch_frm_idx(VPP0, frame_id);
 		for (slice = 0; slice < layer->slice_num; slice++) {
 			if (layer->vd1s1_vd2_prebld_en &&
 				layer->slice_num == 2 &&
@@ -8632,7 +8656,6 @@ int set_layer_display_canvas_s5(struct video_layer_s *layer,
 
 			if (layer->mosaic_mode) {
 				/* set pic0/1 */
-				vd_switch_frm_idx(VPP0, frame_id);
 				set_layer_mosaic_display_canvas_s5(layer, vf,
 					cur_frame_par, disp_info, temp_slice, frame_id);
 			} else {
@@ -8641,10 +8664,10 @@ int set_layer_display_canvas_s5(struct video_layer_s *layer,
 			}
 		}
 		if (layer->mosaic_mode) {
+			frame_id = 1;
+			vd_switch_frm_idx(VPP0, frame_id);
 			for (slice = 0; slice < layer->slice_num; slice++) {
 				/* switch frame, set pic2/3 */
-				frame_id = 1;
-				vd_switch_frm_idx(VPP0, frame_id);
 				set_layer_mosaic_display_canvas_s5(layer, vf,
 					cur_frame_par, disp_info, slice, frame_id);
 			}
@@ -8820,57 +8843,58 @@ static void set_mosaic_vframe_info(struct video_layer_s *layer,
 	struct vframe_s *vf)
 {
 	int i = 0;
-	int mirror = 0, axis[4];
-	int width, height;
+	int mirror = 0;
 
-	if (g_mosaic_mode) {
+	if (vf->type_ext & VIDTYPE_EXT_MOSAIC_22 && vf->vc_private) {
 		layer->slice_num = 4;
 		layer->pi_enable = 0;
 		layer->vd1s1_vd2_prebld_en = 0;
+		g_mosaic_mode = 1;
 		enable_mosaic_mode(VPP0, 1);
 	} else {
+		g_mosaic_mode = 0;
 		enable_mosaic_mode(VPP0, 0);
 	}
-	//todo
 	layer->mosaic_mode = g_mosaic_mode;
 	if (layer->mosaic_mode) {
 		for (i = 0; i < SLICE_NUM; i++) {
+			struct vframe_s *mosaic_vf;
+			int axis[4];
+
 			g_mosaic_frame[i].slice_id = i;
-			// todo
-			g_mosaic_frame[i].vf = vf;
-			vf->axis[0] = layer_info->layer_left;
-			vf->axis[1] = layer_info->layer_top;
-			vf->axis[2] = layer_info->layer_left +
-				layer_info->layer_width - 1;
-			vf->axis[3] = layer_info->layer_top +
-				layer_info->layer_height - 1;
-			width = layer_info->layer_width / 2;
-			height = layer_info->layer_height / 2;
-			axis[0] = pic_axis[i][0];
-			axis[1] = pic_axis[i][1];
-			axis[2] = pic_axis[i][2];
-			axis[3] = pic_axis[i][3];
+			mosaic_vf = vf->vc_private->mosaic_vf[i];
+			g_mosaic_frame[i].vf = mosaic_vf;
 			memcpy(&g_mosaic_frame[i].virtual_layer,
 				layer,
 				sizeof(struct video_layer_s));
 			memcpy(&g_mosaic_frame[i].virtual_layer_info,
 				layer_info,
 				sizeof(struct disp_info_s));
+
+			pic_axis[i][0] = mosaic_vf->axis[0];
+			pic_axis[i][1] = mosaic_vf->axis[1];
+			pic_axis[i][2] = mosaic_vf->axis[2];
+			pic_axis[i][3] = mosaic_vf->axis[3];
+			axis[0] = pic_axis[i][0];
+			axis[1] = pic_axis[i][1];
+			axis[2] = pic_axis[i][2];
+			axis[3] = pic_axis[i][3];
+
 			_set_video_window(&g_mosaic_frame[i].virtual_layer_info, axis);
-			if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
-				vf->source_type != VFRAME_SOURCE_TYPE_CVBS &&
-				vf->source_type != VFRAME_SOURCE_TYPE_TUNER &&
-				vf->source_type != VFRAME_SOURCE_TYPE_HWC)
-				_set_video_crop(&g_mosaic_frame[i].virtual_layer_info, vf->crop);
-			if (vf->flag & VFRAME_FLAG_MIRROR_H)
+			if (mosaic_vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
+				mosaic_vf->source_type != VFRAME_SOURCE_TYPE_CVBS &&
+				mosaic_vf->source_type != VFRAME_SOURCE_TYPE_TUNER &&
+				mosaic_vf->source_type != VFRAME_SOURCE_TYPE_HWC)
+				_set_video_crop(&g_mosaic_frame[i].virtual_layer_info,
+					mosaic_vf->crop);
+			if (mosaic_vf->flag & VFRAME_FLAG_MIRROR_H)
 				mirror = H_MIRROR;
-			if (vf->flag & VFRAME_FLAG_MIRROR_V)
+			if (mosaic_vf->flag & VFRAME_FLAG_MIRROR_V)
 				mirror = V_MIRROR;
 			_set_video_mirror(&g_mosaic_frame[i].virtual_layer_info, mirror);
 		}
+		layer->property_changed = false;
 	}
-	//just for test:
-	layer->property_changed = false;
 }
 
 struct mosaic_frame_s *get_mosaic_vframe_info(u32 slice)
@@ -8891,7 +8915,7 @@ int set_layer_mosaic_display_canvas_s5(struct video_layer_s *layer,
 	u8 layer_id;
 	struct vd_mif_reg_s *vd_mif_reg;
 	struct vd_afbc_reg_s *vd_afbc_reg;
-	struct mosaic_frame_s *mosaic_frame;
+	struct mosaic_frame_s *mosaic_frame = NULL;
 
 	layer_id = layer->layer_id;
 	if (layer->layer_id != 0 || slice > SLICE_NUM)
@@ -8907,7 +8931,19 @@ int set_layer_mosaic_display_canvas_s5(struct video_layer_s *layer,
 	vd_mif_reg = &vd_proc_reg.vd_mif_reg[slice];
 	vd_afbc_reg = &vd_proc_reg.vd_afbc_reg[slice];
 
-	mosaic_frame = get_mosaic_vframe_info(slice);
+	if (frame_id == 0) {
+		/* pic 0 & pic 1 */
+		if (slice == 0 || slice == 1)
+			mosaic_frame = get_mosaic_vframe_info(0);
+		else if (slice == 2 || slice == 3)
+			mosaic_frame = get_mosaic_vframe_info(1);
+	} else if (frame_id == 1) {
+		/* pic 2 & pic 3 */
+		if (slice == 0 || slice == 1)
+			mosaic_frame = get_mosaic_vframe_info(2);
+		else if (slice == 2 || slice == 3)
+			mosaic_frame = get_mosaic_vframe_info(3);
+	}
 	vf = mosaic_frame->vf;
 
 	/* switch buffer */
@@ -8931,7 +8967,7 @@ int set_layer_mosaic_display_canvas_s5(struct video_layer_s *layer,
 		update_mif = false;
 
 	if (update_mif) {
-		canvas_update_for_mif_mosaic(layer, vf, slice);
+		canvas_update_for_mif_mosaic(layer, vf, slice, frame_id);
 		/* not really used */
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_mif_reg->vd_if0_canvas0,
@@ -9774,6 +9810,17 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	if (first_picture || sr_phase_changed)
 		layer->new_vpp_setting = true;
 	layer->dispbuf = vf;
+	if (layer->mosaic_mode) {
+		int i;
+		struct mosaic_frame_s *mosaic_frame = NULL;
+		struct video_layer_s *virtual_layer = NULL;
+
+		for (i = 0; i < SLICE_NUM; i++) {
+			mosaic_frame = get_mosaic_vframe_info(i);
+			virtual_layer = &mosaic_frame->virtual_layer;
+			virtual_layer->dispbuf = mosaic_frame->vf;
+		}
+	}
 	if (layer->switch_vf)
 		layer->vf_ext = (struct vframe_s *)vf->vf_ext;
 	else

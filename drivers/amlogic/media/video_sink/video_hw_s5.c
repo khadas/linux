@@ -132,7 +132,7 @@ u32 g_h_padding;
 MODULE_PARM_DESC(g_h_padding, "\n g_h_padding\n");
 module_param(g_h_padding, uint, 0664);
 
-u32 g_v_padding = 8;
+u32 g_v_padding = 16;
 MODULE_PARM_DESC(g_v_padding, "\n g_v_padding\n");
 module_param(g_v_padding, uint, 0664);
 
@@ -2339,6 +2339,26 @@ static inline void vd2_proc_bypass_detunnel(u32 vpp_index,
 			!bypass, 0, 1);
 }
 
+static struct mosaic_frame_s *get_mosaic_frame(u32 slice)
+{
+	struct mosaic_frame_s *mosaic_frame = NULL;
+
+	if (mosaic_frame_idx == 0) {
+		/* pic 0 & pic 1 */
+		if (slice == 0 || slice == 1)
+			mosaic_frame = get_mosaic_vframe_info(0);
+		else if (slice == 2 || slice == 3)
+			mosaic_frame = get_mosaic_vframe_info(1);
+	} else if (mosaic_frame_idx == 1) {
+		/* pic 2 & pic 3 */
+		if (slice == 0 || slice == 1)
+			mosaic_frame = get_mosaic_vframe_info(2);
+		else if (slice == 2 || slice == 3)
+			mosaic_frame = get_mosaic_vframe_info(3);
+	}
+	return mosaic_frame;
+}
+
 static void vd1_proc_set(u32 vpp_index, struct vd_proc_s *vd_proc)
 {
 	int i;
@@ -2363,19 +2383,7 @@ static void vd1_proc_set(u32 vpp_index, struct vd_proc_s *vd_proc)
 			struct mosaic_frame_s *mosaic_frame = NULL;
 			struct video_layer_s *virtual_layer = NULL;
 
-			if (mosaic_frame_idx == 0) {
-				/* pic 0 & pic 1 */
-				if (i == 0 || i == 1)
-					mosaic_frame = get_mosaic_vframe_info(0);
-				else if (i == 2 || i == 3)
-					mosaic_frame = get_mosaic_vframe_info(1);
-			} else if (mosaic_frame_idx == 1) {
-				/* pic 2 & pic 3 */
-				if (i == 0 || i == 1)
-					mosaic_frame = get_mosaic_vframe_info(2);
-				else if (i == 2 || i == 3)
-					mosaic_frame = get_mosaic_vframe_info(3);
-			}
+			mosaic_frame = get_mosaic_frame(i);
 			if (!mosaic_frame)
 				return;
 			virtual_layer = &mosaic_frame->virtual_layer;
@@ -3296,6 +3304,17 @@ static void set_vd_src_info(struct video_layer_s *layer)
 		case VD1_2_2SLICES_MODE:
 			/* 4 pic, temp set */
 			for (slice = 0; slice < SLICE_NUM; slice++) {
+				if (layer->mosaic_mode) {
+					struct mosaic_frame_s *mosaic_frame = NULL;
+					struct video_layer_s *virtual_layer = NULL;
+
+					mosaic_frame = get_mosaic_frame(slice);
+					virtual_layer = &mosaic_frame->virtual_layer;
+					if (!virtual_layer)
+						return;
+					layer = virtual_layer;
+				}
+				mif_setting = &layer->mif_setting;
 				slice_mif_setting = &layer->slice_mif_setting[slice];
 				slice_mif_setting->id = slice;
 				slice_mif_setting->reverse = mif_setting->reverse;
@@ -3558,20 +3577,7 @@ static void set_vd_proc_info_mosaic(struct video_layer_s *layer, u32 frm_idx)
 		vd_proc_vd1_info->vd1_overlap_hsize = 32;
 		/* without overlap */
 		for (slice = 0; slice < SLICE_NUM; slice++) {
-			if (frm_idx == 0) {
-				/* pic 0 & pic 1 */
-				if (slice == 0 || slice == 1)
-					mosaic_frame = get_mosaic_vframe_info(0);
-				else if (slice == 2 || slice == 3)
-					mosaic_frame = get_mosaic_vframe_info(1);
-			} else if (frm_idx == 1) {
-				/* pic 2 & pic 3 */
-				if (slice == 0 || slice == 1)
-					mosaic_frame = get_mosaic_vframe_info(2);
-				else if (slice == 2 || slice == 3)
-					mosaic_frame = get_mosaic_vframe_info(3);
-			}
-
+			mosaic_frame = get_mosaic_frame(slice);
 			virtual_layer = &mosaic_frame->virtual_layer;
 			if (!virtual_layer)
 				return;
@@ -3640,33 +3646,85 @@ static void set_vd_proc_info_mosaic(struct video_layer_s *layer, u32 frm_idx)
 			sr1_h_scaleup_en = cur_frame_par->supsc1_enable &&
 				cur_frame_par->supsc1_hori_ratio;
 
-			vd_proc_unit->sr0_en = sr0_h_scaleup_en;
-			vd_proc_unit->sr1_en = sr1_h_scaleup_en;
-			vd_proc_unit->vd_proc_sr0.sr_en =
-				cur_frame_par->supsc0_enable;
-			vd_proc_unit->vd_proc_sr0.h_scaleup_en =
-				cur_frame_par->supsc0_hori_ratio;
-			vd_proc_unit->vd_proc_sr0.v_scaleup_en =
-				cur_frame_par->supsc0_vert_ratio;
-			vd_proc_unit->vd_proc_sr0.core_v_disable_width_max =
-				sr->core0_v_disable_width_max;
-			vd_proc_unit->vd_proc_sr0.core_v_enable_width_max =
-				sr->core0_v_enable_width_max;
-			vd_proc_unit->vd_proc_sr0.sr_support =
-				sr->sr_support & SUPER_CORE0_SUPPORT;
+			if (slice_num == 2) {
+				/* 2 slice case, move sr0 to slice1 */
+				if (slice == 0) {
+					/* slice0, used sr1, get info from sr0 */
+					vd_proc_unit->sr1_en = sr0_h_scaleup_en;
+					vd_proc_unit->vd_proc_sr1.sr_en =
+						cur_frame_par->supsc0_enable;
+					vd_proc_unit->vd_proc_sr1.h_scaleup_en =
+						cur_frame_par->supsc0_hori_ratio;
+					vd_proc_unit->vd_proc_sr1.v_scaleup_en =
+						cur_frame_par->supsc0_vert_ratio;
+					vd_proc_unit->vd_proc_sr1.core_v_disable_width_max =
+						sr->core0_v_disable_width_max;
+					vd_proc_unit->vd_proc_sr1.core_v_enable_width_max =
+						sr->core0_v_enable_width_max;
+					vd_proc_unit->vd_proc_sr1.sr_support =
+						sr->sr_support & SUPER_CORE1_SUPPORT;
+					if (debug_flag_s5 & DEBUG_VD_PROC)
+						pr_info("s0: sr1_en=%d, h/v_scaleup_en=%d,%d, phase step:%x,%x\n",
+							vd_proc_unit->vd_proc_sr1.sr_en,
+							vd_proc_unit->vd_proc_sr1.h_scaleup_en,
+							vd_proc_unit->vd_proc_sr1.v_scaleup_en,
+							vd_proc_unit->vd_proc_pps.horz_phase_step,
+							vd_proc_unit->vd_proc_pps.vert_phase_step);
+				}
+				if (slice == 1) {
+					/* slice1, used sr0, get info from sr0 */
+					vd_proc_unit->sr0_en = sr0_h_scaleup_en;
+					vd_proc_unit->vd_proc_sr0.sr_en =
+						cur_frame_par->supsc0_enable;
+					vd_proc_unit->vd_proc_sr0.h_scaleup_en =
+						cur_frame_par->supsc0_hori_ratio;
+					vd_proc_unit->vd_proc_sr0.v_scaleup_en =
+						cur_frame_par->supsc0_vert_ratio;
+					vd_proc_unit->vd_proc_sr0.core_v_disable_width_max =
+						sr->core0_v_disable_width_max;
+					vd_proc_unit->vd_proc_sr0.core_v_enable_width_max =
+						sr->core0_v_enable_width_max;
+					vd_proc_unit->vd_proc_sr0.sr_support =
+						sr->sr_support & SUPER_CORE0_SUPPORT;
+					vd_proc_unit->sr0_dpath_sel = SR0_IN_SLICE1;
+					vd_proc_unit->sr0_pps_dpsel = SR0_AFTER_PPS;
+					if (debug_flag_s5 & DEBUG_VD_PROC)
+						pr_info("s1: sr0_en=%d, h/v_scaleup_en=%d, %d, phase step:%x, %x\n",
+							vd_proc_unit->vd_proc_sr0.sr_en,
+							vd_proc_unit->vd_proc_sr0.h_scaleup_en,
+							vd_proc_unit->vd_proc_sr0.v_scaleup_en,
+							vd_proc_unit->vd_proc_pps.horz_phase_step,
+							vd_proc_unit->vd_proc_pps.vert_phase_step);
+				}
+			} else {
+				vd_proc_unit->sr0_en = sr0_h_scaleup_en;
+				vd_proc_unit->sr1_en = sr1_h_scaleup_en;
+				vd_proc_unit->vd_proc_sr0.sr_en =
+					cur_frame_par->supsc0_enable;
+				vd_proc_unit->vd_proc_sr0.h_scaleup_en =
+					cur_frame_par->supsc0_hori_ratio;
+				vd_proc_unit->vd_proc_sr0.v_scaleup_en =
+					cur_frame_par->supsc0_vert_ratio;
+				vd_proc_unit->vd_proc_sr0.core_v_disable_width_max =
+					sr->core0_v_disable_width_max;
+				vd_proc_unit->vd_proc_sr0.core_v_enable_width_max =
+					sr->core0_v_enable_width_max;
+				vd_proc_unit->vd_proc_sr0.sr_support =
+					sr->sr_support & SUPER_CORE0_SUPPORT;
 
-			vd_proc_unit->vd_proc_sr1.sr_en =
-				cur_frame_par->supsc1_enable;
-			vd_proc_unit->vd_proc_sr1.h_scaleup_en =
-				cur_frame_par->supsc1_hori_ratio;
-			vd_proc_unit->vd_proc_sr1.v_scaleup_en =
-				cur_frame_par->supsc1_vert_ratio;
-			vd_proc_unit->vd_proc_sr1.core_v_disable_width_max =
-				sr->core1_v_disable_width_max;
-			vd_proc_unit->vd_proc_sr1.core_v_enable_width_max =
-				sr->core1_v_enable_width_max;
-			vd_proc_unit->vd_proc_sr1.sr_support =
-				sr->sr_support & SUPER_CORE1_SUPPORT;
+				vd_proc_unit->vd_proc_sr1.sr_en =
+					cur_frame_par->supsc1_enable;
+				vd_proc_unit->vd_proc_sr1.h_scaleup_en =
+					cur_frame_par->supsc1_hori_ratio;
+				vd_proc_unit->vd_proc_sr1.v_scaleup_en =
+					cur_frame_par->supsc1_vert_ratio;
+				vd_proc_unit->vd_proc_sr1.core_v_disable_width_max =
+					sr->core1_v_disable_width_max;
+				vd_proc_unit->vd_proc_sr1.core_v_enable_width_max =
+					sr->core1_v_enable_width_max;
+				vd_proc_unit->vd_proc_sr1.sr_support =
+					sr->sr_support & SUPER_CORE1_SUPPORT;
+			}
 		}
 	}
 	if (debug_flag_s5 & DEBUG_VD_PROC) {
@@ -5290,7 +5348,8 @@ void vd_s5_hw_set(struct video_layer_s *layer,
 	else
 		set_vd_proc_info(layer);
 
-	vd_switch_frm_idx(vpp_index, 0);
+	if (layer->mosaic_mode)
+		vd_switch_frm_idx(vpp_index, 0);
 	vd_proc_param_set(vd_proc, 0);
 	if (dispbuf) {
 		/* adjust mif/afbc addr, scope, src_w, src_h */
@@ -5992,6 +6051,20 @@ static void vd1_set_slice_dcu_s5(struct video_layer_s *layer,
 	bool di_post = false, di_pre_link = false;
 	u8 vpp_index = layer->vpp_index;
 	u8 layer_id = layer->layer_id;
+
+	if (layer->mosaic_mode) {
+		struct mosaic_frame_s *mosaic_frame = NULL;
+		struct video_layer_s *virtual_layer = NULL;
+
+		mosaic_frame = get_mosaic_frame(slice);
+		virtual_layer = &mosaic_frame->virtual_layer;
+		if (!virtual_layer)
+			return;
+		frame_par = virtual_layer->cur_frame_par;
+		if (!frame_par)
+			return;
+		vf = mosaic_frame->vf;
+	}
 
 	if (!vf) {
 		pr_info("%s vf NULL, return\n", __func__);
@@ -8745,14 +8818,15 @@ void set_vd_mif_linear_s5(struct video_layer_s *layer,
 
 void canvas_update_for_mif_mosaic(struct video_layer_s *layer,
 			     struct vframe_s *vf,
-			     u32 slice)
+			     u32 slice,
+			     u32 frame_id)
 {
 	struct canvas_s cs0[2], cs1[2], cs2[2];
 	u32 *cur_canvas_tbl;
 	u8 cur_canvas_id;
-	struct mosaic_frame_s *mosaic_frame;
+	struct mosaic_frame_s *mosaic_frame = NULL;
 
-	mosaic_frame = &g_mosaic_frame[slice];
+	mosaic_frame = get_mosaic_frame(slice);
 	cur_canvas_id = layer->cur_canvas_id;
 	cur_canvas_tbl =
 		&mosaic_frame->canvas_tbl[cur_canvas_id][0];
@@ -9011,7 +9085,19 @@ static void _vd_mif_setting_s5(struct video_layer_s *layer,
 		if (get_vd1_work_mode() == VD1_1SLICES_MODE) {
 			vd_mif_setting_s5(layer, setting);
 		} else {
-			for (slice = 0; slice < layer->slice_num; slice++) {
+			u32 slice_num = layer->slice_num;
+
+			for (slice = 0; slice < slice_num; slice++) {
+				if (layer->mosaic_mode) {
+					struct mosaic_frame_s *mosaic_frame = NULL;
+					struct video_layer_s *virtual_layer = NULL;
+
+					mosaic_frame = get_mosaic_frame(slice);
+					virtual_layer = &mosaic_frame->virtual_layer;
+					if (!virtual_layer)
+						return;
+					layer = virtual_layer;
+				}
 				if (layer->vd1s1_vd2_prebld_en &&
 					layer->slice_num == 2 &&
 					slice == 1)
