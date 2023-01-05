@@ -280,7 +280,7 @@ unsigned int get_vdin_buffer_num(void)
 }
 EXPORT_SYMBOL(get_vdin_buffer_num);
 
-void rx_update_vdin_prop(void)
+void tvin_update_vdin_prop(void)
 {
 	struct tvin_state_machine_ops_s *sm_ops;
 	struct vframe_s *update_wr_vf = NULL;
@@ -313,14 +313,14 @@ void rx_update_vdin_prop(void)
 	spin_unlock_irqrestore(&vdin0_devp->isr_lock, flags);
 
 	if (vdin_isr_monitor & DBG_RX_UPDATE_VDIN_PROP && update_wr_vf)
-		pr_info("rx update prop index:%d game(%d)\n",
+		pr_info("tvin update prop index:%d game(%d)\n",
 			update_wr_vf->index, vdin0_devp->game_mode);
 	else if (vdin_isr_monitor & DBG_RX_UPDATE_VDIN_PROP)
-		pr_info("rx update prop game(%d)\n", vdin0_devp->game_mode);
+		pr_info("tvin update prop game(%d)\n", vdin0_devp->game_mode);
 }
-EXPORT_SYMBOL(rx_update_vdin_prop);
+EXPORT_SYMBOL(tvin_update_vdin_prop);
 
-void rx_notify_vdin_skip_frame(void)
+void tvin_notify_vdin_skip_frame(void)
 {
 	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
 	ulong flags;
@@ -336,9 +336,9 @@ void rx_notify_vdin_skip_frame(void)
 		spin_unlock_irqrestore(&vdin0_devp->isr_lock, flags);
 	}
 	vdin0_devp->frame_drop_num = 1;
-	vdin_drop_frame_info(vdin0_devp, "rx notify skip frame");
+	vdin_drop_frame_info(vdin0_devp, "tvin notify skip frame");
 }
-EXPORT_SYMBOL(rx_notify_vdin_skip_frame);
+EXPORT_SYMBOL(tvin_notify_vdin_skip_frame);
 
 /*
  * 1. find the corresponding frontend according to the port & save it.

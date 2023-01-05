@@ -2716,7 +2716,7 @@ void skip_frame(unsigned int cnt)
 		rx_pr("rx.skip = %d\n", rx.skip);
 	}
 	//do not depent on state mechine condition
-	rx_notify_vdin_skip_frame();
+	tvin_notify_vdin_skip_frame();
 }
 
 void wait_ddc_idle(void)

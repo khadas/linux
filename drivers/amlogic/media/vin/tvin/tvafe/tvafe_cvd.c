@@ -851,6 +851,17 @@ inline void tvafe_cvd2_try_format(struct tvafe_cvd2_s *cvd2,
 	}
 }
 
+// check tvafe status whether need drop frame
+static void tvafe_check_skip_frame(struct tvafe_cvd2_s *cvd2)
+{
+	if (cvd2->info.state != TVAFE_CVD2_STATE_FIND ||
+	    IS_TVAFE_ATV_SRC(cvd2->vd_port))
+		return;
+
+	if (!R_APB_REG(ACD_REG_83))
+		tvin_notify_vdin_skip_frame();
+}
+
 /*
  * tvafe cvd2 get signal status from Reg
  */
@@ -995,6 +1006,8 @@ static void tvafe_cvd2_get_signal_status(struct tvafe_cvd2_s *cvd2)
 					  FORCE_BW_WID);
 		}
 	}
+
+	tvafe_check_skip_frame(cvd2);
 
 	if (++ cvd2->hw_data_cur >= 3)
 		cvd2->hw_data_cur = 0;
@@ -1168,15 +1181,16 @@ static void tvafe_cvd2_get_signal_status(struct tvafe_cvd2_s *cvd2)
 
 	data /= 3;
 	cvd2->hw.cordic  = (unsigned char)(data & 0xff);
+
 	if (tvafe_dbg_print & TVAFE_DBG_SMR2)
 		tvafe_pr_info("%s %#x:%#x %#x:%#x %#x:%#x %#x:%#x %#x:%#x %#x:%#x %#x:%#x\n",
-			__func__, CVD2_STATUS_REGISTER1, R_APB_REG(CVD2_STATUS_REGISTER1),
-			CVD2_STATUS_REGISTER2, R_APB_REG(CVD2_STATUS_REGISTER2),
-			CVD2_STATUS_REGISTER3, R_APB_REG(CVD2_STATUS_REGISTER3),
-			CVD2_SYNC_NOISE_STATUS, R_APB_REG(CVD2_SYNC_NOISE_STATUS),
-			ACD_REG_83, R_APB_REG(ACD_REG_83),
-			ACD_REG_84, R_APB_REG(ACD_REG_84),
-			ACD_REG_3D, R_APB_REG(ACD_REG_3D));
+			__func__, CVD2_STATUS_REGISTER1 >> 2, R_APB_REG(CVD2_STATUS_REGISTER1),
+			CVD2_STATUS_REGISTER2 >> 2, R_APB_REG(CVD2_STATUS_REGISTER2),
+			CVD2_STATUS_REGISTER3 >> 2, R_APB_REG(CVD2_STATUS_REGISTER3),
+			CVD2_SYNC_NOISE_STATUS >> 2, R_APB_REG(CVD2_SYNC_NOISE_STATUS),
+			ACD_REG_83 >> 2, R_APB_REG(ACD_REG_83),
+			ACD_REG_84 >> 2, R_APB_REG(ACD_REG_84),
+			ACD_REG_3D >> 2, R_APB_REG(ACD_REG_3D));
 }
 
 /*tvafe cvd2 get cvd2 signal lock status*/
@@ -1917,6 +1931,10 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 		if (tvafe_cvd2_condition_shift(cvd2)) {
 			if (cvd2->info.non_std_enable)
 				shift_cnt *= 10;
+
+			if (IS_TVAFE_AVIN_SRC(cvd2->vd_port) &&
+			    !cvd2->info.non_std_enable)
+				tvin_notify_vdin_skip_frame();
 
 			/* if no color burst,*/
 			/*pal flag can not be trusted */
