@@ -3315,6 +3315,21 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 			dvbc_get_qam_name(demod->auto_qam_mode, qam_name);
 			PR_INFO("%s: auto_done_times %d, switch to %s.\n",
 				__func__, demod->auto_done_times, qam_name);
+		} else if (demod->auto_qam_done && demod->auto_done_times == 3 &&
+			(demod->auto_qam_mode == QAM_MODE_256 ||
+			demod->auto_qam_mode == QAM_MODE_64)) {
+			if (demod->auto_qam_mode == QAM_MODE_256) {
+				demod->auto_qam_mode = QAM_MODE_64;
+				demod_dvbc_set_qam(demod, demod->auto_qam_mode);
+				demod_dvbc_fsm_reset(demod);
+			} else if (demod->auto_qam_mode == QAM_MODE_64) {
+				demod->auto_qam_mode = QAM_MODE_256;
+				demod_dvbc_set_qam(demod, demod->auto_qam_mode);
+				demod_dvbc_fsm_reset(demod);
+			}
+			dvbc_get_qam_name(demod->auto_qam_mode, qam_name);
+			PR_INFO("%s: auto_done_times %d, switch to %s.\n",
+				__func__, demod->auto_done_times, qam_name);
 		} else if (demod->auto_qam_done &&
 			(demod->auto_done_times == 3 || demod->auto_done_times == 6)) {
 			/* If the QAM can not be locked for a long time after detection,

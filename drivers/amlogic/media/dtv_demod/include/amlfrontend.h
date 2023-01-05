@@ -65,6 +65,7 @@
 /*  V1.1.71  fix dvbt2 ddr abnormal access */
 /*  V1.1.72  add tps cell id info and dmc notifier test */
 /*  V1.1.73  fix s ber and adc fga gain and atsc ch if */
+/*  V1.1.74  optimize identification of auto qam */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -81,8 +82,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.73"
-#define DTVDEMOD_VER	"2022/12/28: fix s ber and adc fga gain and atsc ch if"
+#define AMLDTVDEMOD_VER "V1.1.74"
+#define DTVDEMOD_VER	"2023/1/5: optimize identification of auto qam"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

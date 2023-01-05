@@ -888,17 +888,12 @@ unsigned int dvbc_auto_qam_process(struct aml_dtvdemod *demod)
 		if (bb >= 60 && total_64_128_256_acc > 4) {
 			if (idx_77 < 2000) {
 				find_qam = QAM_MODE_128;
-				if (idx_00 <= 4) {
+				if (idx_00 <= 24 || idx_256_acc < 40)
 					find_qam = QAM_MODE_32;
-
-					if (aa <= 8)
-						find_qam = QAM_MODE_16;
-				}
-			} else if ((lock_flag == 1) ||
-				((idx_256_acc > 48) && (idx_77 > 2000))) {
+			} else if ((lock_flag == 1) || (idx_77 > 2000)) {
 				find_qam = QAM_MODE_256;
 			} else {
-				find_qam = QAM_MODE_64;
+				find_qam = QAM_MODE_16;
 			}
 		}
 	}
