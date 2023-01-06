@@ -1952,7 +1952,7 @@ void pre_gma_update(struct pre_gamma_table_s *pre_gma_lut)
 void eye_prot_update(struct eye_protect_s *eye_prot)
 {
 	if (vecm_latch_flag2 & VPP_EYE_PROTECT_UPDATE) {
-		eye_proc(eye_prot->rgb, eye_prot->en);
+		eye_proc(eye_prot->mtx_ep, eye_prot->en);
 		vecm_latch_flag2 &= ~VPP_EYE_PROTECT_UPDATE;
 	}
 }
@@ -3403,8 +3403,8 @@ static long amvecm_ioctl(struct file *file,
 		} else {
 			pr_amvecm_dbg("eye_protect struct cp from usr success\n");
 			eye_protect.en = eye_prot->en;
-			memcpy(eye_protect.rgb,
-				eye_prot->rgb, 3 * sizeof(int));
+			memcpy(eye_protect.mtx_ep,
+				eye_prot->mtx_ep, 16 * sizeof(int));
 			vecm_latch_flag2 |= VPP_EYE_PROTECT_UPDATE;
 		}
 		break;

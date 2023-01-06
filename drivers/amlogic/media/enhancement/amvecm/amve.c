@@ -2836,14 +2836,14 @@ int dv_pq_ctl(enum dv_pq_ctl_e ctl)
 		cfg.sharpness0_en = pq_cfg.sharpness0_en;
 		cfg.sharpness1_en = pq_cfg.sharpness1_en;
 		vpp_pq_ctrl_config(cfg, WR_DMA);
-		eye_proc(eye_protect.rgb, 0);
+		eye_proc(eye_protect.mtx_ep, 0);
 		dv_pq_bypass = 2;
 		pr_amve_dbg("dv enable, for STB pq disable, dv_pq_bypass = %d\n",
 				dv_pq_bypass);
 		break;
 	case DV_PQ_CERT:
 		vpp_pq_ctrl_config(dv_cfg_bypass, WR_DMA);
-		eye_proc(eye_protect.rgb, 0);
+		eye_proc(eye_protect.mtx_ep, 0);
 		dv_pq_bypass = 1;
 		pr_amve_dbg("dv certification mode, pq disable, dv_pq_bypass = %d\n",
 			    dv_pq_bypass);
@@ -2882,7 +2882,7 @@ int mtx_mul_mtx(int (*mtx_a)[3], int (*mtx_b)[3], int (*mtx_out)[3])
 	return 0;
 }
 
-int mtx_multi(int *rgb, int (*mtx_out)[3])
+int mtx_multi(int mtx_ep[][4], int (*mtx_out)[3])
 {
 	int i, j;
 	int mtx_rgb[3][3] = {0};
@@ -2898,26 +2898,21 @@ int mtx_multi(int *rgb, int (*mtx_out)[3])
 		{1192, 2166, 0},
 	};
 
-	mtx_in[0][0] = rgb[0];
-	mtx_in[1][1] = rgb[1];
-	mtx_in[2][2] = rgb[2];
-
-	if (mtx_in[0][0] == 0x400 &&
-		mtx_in[1][1] == 0x400 &&
-		mtx_in[2][2] == 0x400) {
-		for (i = 0; i < 3; i++) {
-			for (j = 0; j < 3; j++) {
-				if (i == j)
-					mtx_out[i][j] = 0x400;
-				else
-					mtx_out[i][j] = 0;
-			}
-		}
-
-	} else {
-		mtx_mul_mtx(mtx_in, mtx_709ltorgb, mtx_rgb);
-		mtx_mul_mtx(mtx_rgbto709l, mtx_rgb, mtx_out);
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 4; j++)
+			pr_amve_dbg("mtx_out[%d][%d] = %d\n",
+			i, j, mtx_ep[i][j]);
 	}
+
+	/* because use only one matrix, so Tr/Tg/Tb can not be used,
+	 * if add Tr/Tg/Tb in RGB out, need two matrix to workaround
+	 */
+	for (i = 0; i < 3; i++)
+		for (j = 0; j < 3; j++)
+			mtx_in[i][j] = mtx_ep[j][i];
+
+	mtx_mul_mtx(mtx_in, mtx_709ltorgb, mtx_rgb);
+	mtx_mul_mtx(mtx_rgbto709l, mtx_rgb, mtx_out);
 
 	for (i = 0; i < 3; i++) {
 		for (j = 0; j < 3; j++)
@@ -2927,7 +2922,7 @@ int mtx_multi(int *rgb, int (*mtx_out)[3])
 	return 0;
 }
 
-void eye_proc(int *rgb, int mtx_on)
+void eye_proc(int mtx_ep[][4], int mtx_on)
 {
 	unsigned int matrix_coef00_01 = 0;
 	unsigned int matrix_coef02_10 = 0;
@@ -2975,7 +2970,7 @@ void eye_proc(int *rgb, int mtx_on)
 	if (!mtx_on)
 		return;
 
-	mtx_multi(rgb, mtx_out);
+	mtx_multi(mtx_ep, mtx_out);
 	VSYNC_WRITE_VPP_REG(matrix_coef00_01,
 		((mtx_out[0][0] & 0x1fff) << 16) | (mtx_out[0][1] & 0x1fff));
 	VSYNC_WRITE_VPP_REG(matrix_coef02_10,

@@ -431,7 +431,7 @@ struct pre_gamma_table_s {
 
 struct eye_protect_s {
 	int en;
-	int rgb[3];
+	int mtx_ep[4][4];
 };
 
 /*Freerun type ioctl enum*/
