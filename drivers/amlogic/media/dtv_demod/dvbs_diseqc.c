@@ -597,6 +597,8 @@ void aml_diseqc_attach(struct device *dev, struct dvb_frontend *fe)
 			diseqc->lnbc.init(&diseqc->lnbc);
 	}
 
+	dvbs2_diseqc_init();
+
 	diseqc->attached = true;
 
 	dprintk(0, "%s: flag %d, ret %d.\n", __func__, diseqc->attached, ret);
