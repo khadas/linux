@@ -85,10 +85,10 @@
 			/* yuv420(32x3)96M + di(7x4,11x5)84M + workbuf(12M)
 			 * the sum with align 4M then is equal to 192M
 			 */
-			size = <0x9000000>;
+			size = <0xa800000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x30000000>;
 		};
 
 		/* codec shared reserved */
