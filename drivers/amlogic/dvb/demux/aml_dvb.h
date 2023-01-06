@@ -80,4 +80,5 @@ enum {
 };
 
 int get_demux_feature(int support_feature);
+unsigned int get_dmx_version(void);
 #endif

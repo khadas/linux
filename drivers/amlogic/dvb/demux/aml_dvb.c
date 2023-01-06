@@ -167,7 +167,7 @@ ssize_t dsc_setting_show(struct class *class, struct class_attribute *attr,
 	return total;
 }
 
-static unsigned int get_dmx_version(void)
+unsigned int get_dmx_version(void)
 {
 	unsigned int value;
 

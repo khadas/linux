@@ -2435,7 +2435,12 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 		pout->aucpu_pts_handle = -1;
 		pout->aucpu_pts_start = 0;
 	} else {
-		ret = SC2_bufferid_alloc(&attr, &pout->pchan, NULL);
+		if (get_dmx_version() >= 5 && format == PES_FORMAT) {
+			attr.is_es = 1;
+			ret = SC2_bufferid_alloc(&attr, &pout->pchan, &pout->pchan1);
+		} else {
+			ret = SC2_bufferid_alloc(&attr, &pout->pchan, NULL);
+		}
 		if (ret != 0) {
 			dprint("%s sid:%d SC2_bufferid_alloc fail\n",
 			       __func__, sid);
