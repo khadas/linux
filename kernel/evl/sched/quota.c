@@ -279,8 +279,9 @@ static void quota_trackprio(struct evl_thread *thread,
 			thread->base_class == &evl_sched_quota &&
 			thread->quota->tgid != p->quota.tgid);
 		thread->cprio = p->quota.prio;
-	} else
+	} else {
 		thread->cprio = thread->bprio;
+	}
 }
 
 static void quota_ceilprio(struct evl_thread *thread, int prio)
@@ -519,31 +520,53 @@ static int quota_create_group(struct evl_quota_group *tg,
 }
 
 static int quota_destroy_group(struct evl_quota_group *tg,
-			bool force, int *quota_sum_r)
+			bool force, unsigned long flags,
+			int *quota_sum_r)
 {
-	struct evl_sched_quota *qs = &tg->rq->quota;
-	struct evl_thread *thread, *tmp;
+	struct evl_rq *rq = tg->rq;
+	struct evl_sched_quota *qs = &rq->quota;
 	union evl_sched_param param;
+	struct evl_thread *thread;
 
-	assert_hard_lock(&tg->rq->lock);
+	assert_hard_lock(&rq->lock);
 
-	if (!list_empty(&tg->members)) {
-		if (!force)
-			return -EBUSY;
-		/* Move group members to the fifo class. */
-		list_for_each_entry_safe(thread, tmp,
-					&tg->members, quota_next) {
-			param.fifo.prio = thread->cprio;
-			evl_set_thread_schedparam_locked(thread,
-						&evl_sched_fifo, &param);
-		}
-	}
+	if (!list_empty(&tg->members) && !force)
+		return -EBUSY;
 
-	list_del(&tg->next);
+	/*
+	 * Unregister the group before we drop rq->lock. As a result,
+	 * it won't accept threads anymore while we are busy moving
+	 * the current members to the fifo class, and concurrent
+	 * evl_quota_remove requests would receive -EINVAL.
+	 */
 	__clear_bit(tg->tgid, group_map);
+	list_del(&tg->next);
 
 	if (list_empty(&qs->groups))
 		evl_stop_timer(&qs->refill_timer);
+
+	/*
+	 * Move group members to the fifo class. Since the correct
+	 * locking order is thread->lock => rq->lock but we already
+	 * hold rq->lock on entry, we do a trylock dance to prevent an
+	 * ABBA issue. No livelock is possible since we unregistered
+	 * that group already, so &tg->members can only be depleted
+	 * (by this loop specifically).
+	 */
+
+	while (!list_empty(&tg->members)) {
+		thread = list_first_entry(&tg->members, struct evl_thread,
+					quota_next);
+		param.fifo.prio = thread->cprio;
+		if (raw_spin_trylock(&thread->lock)) {
+			evl_set_thread_schedparam_locked(thread,
+						&evl_sched_fifo, &param);
+			raw_spin_unlock(&thread->lock);
+		}
+		raw_spin_unlock_irqrestore(&rq->lock, flags);
+		cpu_relax();
+		raw_spin_lock_irqsave(&rq->lock, flags);
+	}
 
 	*quota_sum_r = quota_sum_all(qs);
 
@@ -636,6 +659,14 @@ find_quota_group(struct evl_rq *rq, int tgid)
 
 	assert_hard_lock(&rq->lock);
 
+	/* Quick check using the global id. map first. */
+	if (!test_bit(tgid, group_map))
+		return NULL;
+
+	/*
+	 * The group does exist, we need to check whether it is
+	 * attached to the given runqueue.
+	 */
 	if (list_empty(&rq->quota.groups))
 		return NULL;
 
@@ -687,6 +718,7 @@ static ssize_t quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 		group = container_of(tg, struct evl_sched_group, quota);
 		ret = quota_destroy_group(tg,
 					pq->op == evl_quota_force_remove,
+					flags,
 					&quota_sum);
 		if (ret) {
 			raw_spin_unlock_irqrestore(&rq->lock, flags);
