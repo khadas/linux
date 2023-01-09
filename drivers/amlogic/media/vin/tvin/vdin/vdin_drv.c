@@ -184,10 +184,6 @@ unsigned int vdin_drop_cnt;
 module_param(vdin_drop_cnt, uint, 0664);
 MODULE_PARM_DESC(vdin_drop_cnt, "vdin_drop_cnt");
 
-unsigned int vdin_drop_num = 2;
-module_param(vdin_drop_num, uint, 0664);
-MODULE_PARM_DESC(vdin_drop_num, "vdin_drop_num");
-
 int vdin_isr_drop;
 module_param(vdin_isr_drop, int, 0664);
 MODULE_PARM_DESC(vdin_isr_drop, "vdin_isr_drop vdin debug");
@@ -1718,7 +1714,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		pr_info("vdin1 all reserved = 0x%x\n", devp->parm.reserved);
 
 		/* don't need drop any frame for vdin1 */
-		devp->frame_cnt = vdin_drop_num;
+		devp->frame_cnt = devp->vdin_drop_num;
 	}
 
 	devp->start_time = jiffies_to_msecs(jiffies);
@@ -2478,7 +2474,7 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 		md = VDIN_VF_RECYCLE;
 
 	/*force recycle one frame*/
-	if (devp->frame_cnt <= vdin_drop_num) {
+	if (devp->frame_cnt <= devp->vdin_drop_num) {
 		if (vfe)
 			receiver_vf_put(&vfe->vf, devp->vfp);
 		ret = -1;
@@ -3005,7 +3001,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	}
 	/* Check whether frame written done */
 	if (devp->dts_config.chk_write_done_en && !devp->dbg_no_wr_check) {
-		if (devp->frame_cnt > vdin_drop_num &&
+		if (devp->frame_cnt > devp->vdin_drop_num &&
 			!vdin_write_done_check(offset, devp)) {
 			devp->vdin_irq_flag = VDIN_IRQ_FLG_SKIP_FRAME;
 			vdin_drop_frame_info(devp, "write done check");
@@ -3494,7 +3490,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 			put_md = VDIN_VF_PUT;
 
 		vdin_vframe_put_and_recycle(devp, devp->last_wr_vfe,
-					    VDIN_VF_PUT);
+					    put_md);
 		devp->last_wr_vfe = NULL;
 
 		if (devp->set_canvas_manual != 1 &&
@@ -5925,6 +5921,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	devp->dv.dv_config = false;
 	/* Game mode 2 use one buffer by default */
 	devp->dbg_force_one_buffer = 1;
+	devp->vdin_drop_num = VDIN_DROP_FRAME_NUM_DEF;
 
 	INIT_DELAYED_WORK(&devp->dv.dv_dwork, vdin_dv_dwork);
 	INIT_DELAYED_WORK(&devp->vlock_dwork, vdin_vlock_dwork);

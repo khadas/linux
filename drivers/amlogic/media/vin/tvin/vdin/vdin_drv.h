@@ -136,7 +136,8 @@
 //#define VDIN_BRINGUP_NO_AML_VECM
 //#define VDIN_BRINGUP_BYPASS_COLOR_CN_VT
 #define K_FORCE_HV_SHRINK	0
-#define VDIN_V4L2_INPUT_MAX		7
+#define VDIN_V4L2_INPUT_MAX	7
+#define VDIN_DROP_FRAME_NUM_DEF	2
 
 enum vdin_work_mode_e {
 	VDIN_WORK_MD_NORMAL = 0,
@@ -846,6 +847,7 @@ struct vdin_dev_s {
 	unsigned int irq_cnt;
 	unsigned int vpu_crash_cnt;
 	unsigned int frame_cnt;
+	unsigned int vdin_drop_num;
 	unsigned int put_frame_cnt;
 	unsigned int rdma_irq_cnt;
 	unsigned int vdin_irq_flag;

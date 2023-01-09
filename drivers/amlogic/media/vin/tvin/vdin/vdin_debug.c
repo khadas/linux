@@ -1256,6 +1256,7 @@ static void vdin_dump_count(struct vdin_dev_s *devp)
 	pr_info("ignore_frames:%d\n", devp->ignore_frames);
 	pr_info("frame_drop_num:%d\n", devp->frame_drop_num);
 	pr_info("vdin_drop_cnt: %d\n", vdin_drop_cnt);
+	pr_info("vdin_drop_num:%d\n", devp->vdin_drop_num);
 	pr_info("dbg_fr_ctl:%d,drop_ctl_cnt:%d\n", devp->dbg_fr_ctl, devp->vdin_drop_ctl_cnt);
 
 	vdin_dump_vs_info(devp);
@@ -3285,8 +3286,13 @@ start_chk:
 			pr_info("dbg_pattern:%#x\n", devp->debug.dbg_pattern);
 			vdin_bist(devp, devp->debug.dbg_pattern);
 		}
+	} else if (!strcmp(parm[0], "vdin_drop_num")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			devp->vdin_drop_num = temp;
+			pr_info("vdin_drop_num:%d\n", devp->vdin_drop_num);
+		}
 	} else {
-		pr_info("unknown command\n");
+		pr_info("unknown command:%s\n", parm[0]);
 	}
 
 	kfree(buf_orig);
