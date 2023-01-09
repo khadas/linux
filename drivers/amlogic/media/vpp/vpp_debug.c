@@ -776,9 +776,8 @@ ssize_t vpp_debug_pre_gamma_show(struct class *class,
 	struct class_attribute *attr,
 	char *buf)
 {
-	struct vpp_pre_gamma_table_s *pdata_pre = NULL;
-	struct vpp_gamma_table_s *pdata_lcd = NULL;
-	unsigned int buf_size;
+	struct vpp_gamma_table_s *data = NULL;
+	unsigned int len = 0;
 	int i = 0;
 
 	PR_DRV("Usage set data:\n");
@@ -787,34 +786,25 @@ ssize_t vpp_debug_pre_gamma_show(struct class *class,
 	PR_DRV("--> c_type: 0=restore, 1=linear\n\n");
 
 	PR_DRV("Show pre gamma data from ioctl:\n");
-	buf_size = sizeof(struct vpp_pre_gamma_table_s);
-	pdata_pre = kmalloc(buf_size, GFP_KERNEL);
-	if (!pdata_pre)
-		return -ENOMEM;
+	len = vpp_pq_mgr_get_pre_gamma_table_len();
+	data = vpp_pq_mgr_get_pre_gamma_table();
 
-	vpp_pq_mgr_get_pre_gamma_table(pdata_pre);
-	for (i = 0; i < VPP_PRE_GAMMA_TABLE_LEN; i++)
+	for (i = 0; i < len; i++)
 		pr_info("%d:%d/%d/%d\n", i,
-			pdata_pre->r_data[i],
-			pdata_pre->g_data[i],
-			pdata_pre->b_data[i]);
-
-	kfree(pdata_pre);
+			data->r_data[i],
+			data->g_data[i],
+			data->b_data[i]);
 
 	PR_DRV("Show lcd gamma data from ioctl:\n");
-	buf_size = sizeof(struct vpp_gamma_table_s);
-	pdata_lcd = kmalloc(buf_size, GFP_KERNEL);
-	if (!pdata_lcd)
-		return -ENOMEM;
+	len = vpp_pq_mgr_get_gamma_table_len();
+	data = vpp_pq_mgr_get_gamma_table();
 
-	vpp_pq_mgr_get_gamma_table(pdata_lcd);
-	for (i = 0; i < VPP_GAMMA_TABLE_LEN; i++)
+	for (i = 0; i < len; i++)
 		pr_info("%d:%d/%d/%d\n", i,
-			pdata_lcd->r_data[i],
-			pdata_lcd->g_data[i],
-			pdata_lcd->b_data[i]);
+			data->r_data[i],
+			data->g_data[i],
+			data->b_data[i]);
 
-	kfree(pdata_lcd);
 	return 0;
 }
 
@@ -826,11 +816,12 @@ ssize_t vpp_debug_pre_gamma_store(struct class *class,
 	char *param[4];
 	unsigned int curve_type = 0;
 	unsigned int *pg_data = NULL;
-	struct vpp_pre_gamma_table_s *pdata_pre = NULL;
+	struct vpp_gamma_table_s *pdata_pre = NULL;
 	struct vpp_gamma_table_s *pdata_lcd = NULL;
 	unsigned int buf_size;
 	int i = 0;
 	int max_val = 1020;
+	unsigned int len = 0;
 
 	buf_org = kstrdup(buf, GFP_KERNEL);
 	if (!buf_org)
@@ -845,28 +836,23 @@ ssize_t vpp_debug_pre_gamma_store(struct class *class,
 		goto fr_bf;
 
 	if (!strcmp(param[0], "pre")) {
-		buf_size = VPP_PRE_GAMMA_TABLE_LEN * sizeof(unsigned int);
+		len = vpp_module_pre_gamma_get_table_len();
+		if (len == 0)
+			goto fr_bf;
+
+		buf_size = len * sizeof(unsigned int);
 		pg_data = kmalloc(buf_size, GFP_KERNEL);
 		if (!pg_data)
 			goto fr_bf;
 
 		switch (curve_type) {
 		case 0:
-			buf_size = sizeof(struct vpp_pre_gamma_table_s);
-			pdata_pre = kmalloc(buf_size, GFP_KERNEL);
-			if (!pdata_pre) {
-				kfree(pg_data);
-				goto fr_bf;
-			}
-
-			vpp_pq_mgr_get_pre_gamma_table(pdata_pre);
+			pdata_pre = vpp_pq_mgr_get_pre_gamma_table();
 			vpp_pq_mgr_set_pre_gamma_table(pdata_pre);
-
-			kfree(pdata_pre);
 			break;
 		case 1:
-			for (i = 0; i < VPP_PRE_GAMMA_TABLE_LEN; i++)
-				pg_data[i] = i * (max_val / VPP_PRE_GAMMA_TABLE_LEN);
+			for (i = 0; i < len; i++)
+				pg_data[i] = i * (max_val / len);
 
 			vpp_module_pre_gamma_write(pg_data, pg_data, pg_data);
 			break;
@@ -876,28 +862,23 @@ ssize_t vpp_debug_pre_gamma_store(struct class *class,
 
 		kfree(pg_data);
 	} else if (!strcmp(param[0], "lcd")) {
-		buf_size = VPP_GAMMA_TABLE_LEN * sizeof(unsigned int);
+		len = vpp_module_lcd_gamma_get_table_len();
+		if (len == 0)
+			goto fr_bf;
+
+		buf_size = len * sizeof(unsigned int);
 		pg_data = kmalloc(buf_size, GFP_KERNEL);
 		if (!pg_data)
 			goto fr_bf;
 
 		switch (curve_type) {
 		case 0:
-			buf_size = sizeof(struct vpp_gamma_table_s);
-			pdata_lcd = kmalloc(buf_size, GFP_KERNEL);
-			if (!pdata_lcd) {
-				kfree(pg_data);
-				goto fr_bf;
-			}
-
-			vpp_pq_mgr_get_gamma_table(pdata_lcd);
+			pdata_lcd = vpp_pq_mgr_get_gamma_table();
 			vpp_pq_mgr_set_gamma_table(pdata_lcd);
-
-			kfree(pdata_lcd);
 			break;
 		case 1:
-			for (i = 0; i < VPP_GAMMA_TABLE_LEN; i++)
-				pg_data[i] = i * (max_val / VPP_GAMMA_TABLE_LEN);
+			for (i = 0; i < len; i++)
+				pg_data[i] = i * (max_val / len);
 
 			vpp_module_lcd_gamma_write(pg_data, pg_data, pg_data);
 			break;
@@ -981,8 +962,13 @@ ssize_t vpp_debug_gamma_store(struct class *class,
 	unsigned int gamma_count;
 	unsigned int buf_size;
 	enum vpp_rgb_mode_e mode = EN_MODE_R;
+	unsigned int len = 0;
 
-	buf_size = VPP_GAMMA_TABLE_LEN * sizeof(unsigned int);
+	len = vpp_module_lcd_gamma_get_table_len();
+	if (len == 0)
+		return -ENOMEM;
+
+	buf_size = len * sizeof(unsigned int);
 
 	pg_data = kmalloc(buf_size, GFP_KERNEL);
 	if (!pg_data)
@@ -1001,11 +987,11 @@ ssize_t vpp_debug_gamma_store(struct class *class,
 
 	if (param[0][1] == 'g') {
 		if (param[0][0] == 's') {
-			memset(pg_data, 0, VPP_GAMMA_TABLE_LEN * sizeof(unsigned int));
+			memset(pg_data, 0, len * sizeof(unsigned int));
 
 			gamma_count = (strlen(param[1]) + 2) / 3;
-			if (gamma_count > VPP_GAMMA_TABLE_LEN)
-				gamma_count = VPP_GAMMA_TABLE_LEN;
+			if (gamma_count > len)
+				gamma_count = len;
 
 			for (i = 0; i < gamma_count; i++) {
 				gamma[0] = param[1][3 * i + 0];
@@ -1064,7 +1050,7 @@ ssize_t vpp_debug_gamma_store(struct class *class,
 			}
 
 			if (!strcmp(param[1], "all")) {
-				for (i = 0; i < VPP_GAMMA_TABLE_LEN; i++)
+				for (i = 0; i < len; i++)
 					PR_DRV("[%s] gamma_%d[%d] = %x\n",
 						__func__, param[0][2], i, ptmp[i]);
 			} else if (!strcmp(param[1], "all_str")) {
@@ -1075,7 +1061,7 @@ ssize_t vpp_debug_gamma_store(struct class *class,
 					goto free_buf;
 				}
 
-				for (i = 0; i < VPP_GAMMA_TABLE_LEN; i++)
+				for (i = 0; i < len; i++)
 					_d_convert_str(ptmp[i], i, pstemp, 3, 16);
 				PR_DRV("[%s] gamma_%d str: %s\n",
 					__func__, param[0][2], pstemp);
@@ -2016,6 +2002,18 @@ ssize_t vpp_debug_histogram_show(struct class *class,
 	}
 	pr_info("\n\t dump_sat_hist done\n");
 
+	if (vpp_module_meter_get_dark_hist_support()) {
+		pr_info("\n\t dump_dark_hist begin\n");
+		for (i = 0; i < VPP_HIST_BIN_COUNT; i++) {
+			pr_info("[%d]0x%-8x\t", i, pdata->dark_histgm[i]);
+			if ((i + 1) % 8 == 0)
+				pr_info("\n");
+		}
+		pr_info("\n\t dump_dark_hist done\n");
+	} else {
+		pr_info("\n\t No support dark_hist\n");
+	}
+
 	kfree(pdata);
 	return 0;
 }
@@ -2547,5 +2545,21 @@ ssize_t vpp_debug_color_curve_store(struct class *class,
 free_buf:
 	kfree(buf_org);
 	return -EINVAL;
+}
+
+ssize_t vpp_debug_overscan_show(struct class *class,
+	struct class_attribute *attr,
+	char *buf)
+{
+	vpp_vf_dump_data(EN_DUMP_DATA_OVERSCAN);
+
+	return 0;
+}
+
+ssize_t vpp_debug_overscan_store(struct class *class,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	return count;
 }
 

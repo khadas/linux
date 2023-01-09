@@ -46,6 +46,9 @@ struct _cm_addr_cfg_s {
 	unsigned int addr_sta_sat_hist0;
 	unsigned int addr_sta_sat_hist1;
 	unsigned int addr_cm2_enh_coef0_h00;
+	unsigned int addr_cm_final_gain_luma;
+	unsigned int addr_cm_final_gain_sat;
+	unsigned int addr_cm_final_gain_hue;
 };
 
 struct _cm_bit_cfg_s {
@@ -97,7 +100,10 @@ static struct _cm_addr_cfg_s cm_addr_cfg = {
 	0x223,
 	0x224,
 	0x225,
-	0x100
+	0x100,
+	0x268,
+	0x269,
+	0x26a
 };
 
 static struct _cm_bit_cfg_s cm_bit_cfg = {
@@ -132,6 +138,7 @@ static char cur_cm2_offset_luma[CM2_CURVE_SIZE] = {0};
 static char cur_cm2_offset_sat[CM2_CURVE_SIZE * 3] = {0};
 static char cur_cm2_offset_hue[CM2_CURVE_SIZE] = {0};
 static char cur_cm2_offset_hue_hs[CM2_CURVE_SIZE * 5] = {0};
+static bool support_cm_final_gain;
 
 /*For ai pq*/
 static bool cm_ai_pq_update;
@@ -488,6 +495,59 @@ static void _dump_cm_reg_info(void)
 	PR_DRV("reg_misc = %x\n", chroma_reg_cfg.reg_misc);
 	PR_DRV("reg_addr_port = %x\n", chroma_reg_cfg.reg_addr_port);
 	PR_DRV("reg_data_port = %x\n", chroma_reg_cfg.reg_data_port);
+
+	PR_DRV("cm_addr_cfg info:\n");
+	PR_DRV("addr_sat_byyb_node0 = %x\n",
+		cm_addr_cfg.addr_sat_byyb_node0);
+	PR_DRV("addr_sat_byyb_node1 = %x\n",
+		cm_addr_cfg.addr_sat_byyb_node1);
+	PR_DRV("addr_sat_byyb_node2 = %x\n",
+		cm_addr_cfg.addr_sat_byyb_node2);
+	PR_DRV("addr_sat_src_node = %x\n",
+		cm_addr_cfg.addr_sat_src_node);
+	PR_DRV("addr_cm_enh_sft_mode = %x\n",
+		cm_addr_cfg.addr_cm_enh_sft_mode);
+	PR_DRV("addr_frm_size = %x\n",
+		cm_addr_cfg.addr_frm_size);
+	PR_DRV("addr_filter_cfg = %x\n",
+		cm_addr_cfg.addr_filter_cfg);
+	PR_DRV("addr_cm_global_gain = %x\n",
+		cm_addr_cfg.addr_cm_global_gain);
+	PR_DRV("addr_cm_enh_ctl = %x\n",
+		cm_addr_cfg.addr_cm_enh_ctl);
+	PR_DRV("addr_roi_x_scope = %x\n",
+		cm_addr_cfg.addr_roi_x_scope);
+	PR_DRV("addr_roi_y_scope = %x\n",
+		cm_addr_cfg.addr_roi_y_scope);
+	PR_DRV("addr_ifo_mode = %x\n",
+		cm_addr_cfg.addr_ifo_mode);
+	PR_DRV("addr_luma_adj_lmt = %x\n",
+		cm_addr_cfg.addr_luma_adj_lmt);
+	PR_DRV("addr_sat_adj_lmt = %x\n",
+		cm_addr_cfg.addr_sat_adj_lmt);
+	PR_DRV("addr_hue_adj_lmt = %x\n",
+		cm_addr_cfg.addr_hue_adj_lmt);
+	PR_DRV("addr_hue_cfg = %x\n",
+		cm_addr_cfg.addr_hue_cfg);
+	PR_DRV("addr_luma_adj1 = %x\n",
+		cm_addr_cfg.addr_luma_adj1);
+	PR_DRV("addr_sta_cfg = %x\n",
+		cm_addr_cfg.addr_sta_cfg);
+	PR_DRV("addr_sta_sat_hist0 = %x\n",
+		cm_addr_cfg.addr_sta_sat_hist0);
+	PR_DRV("addr_sta_sat_hist1 = %x\n",
+		cm_addr_cfg.addr_sta_sat_hist1);
+	PR_DRV("addr_cm2_enh_coef0_h00 = %x\n",
+		cm_addr_cfg.addr_cm2_enh_coef0_h00);
+
+	if (support_cm_final_gain) {
+		PR_DRV("addr_cm_final_gain_luma = %x\n",
+			cm_addr_cfg.addr_cm_final_gain_luma);
+		PR_DRV("addr_cm_final_gain_sat = %x\n",
+			cm_addr_cfg.addr_cm_final_gain_sat);
+		PR_DRV("addr_cm_final_gain_hue = %x\n",
+			cm_addr_cfg.addr_cm_final_gain_hue);
+	}
 }
 
 static void _dump_cm_data_info(void)
@@ -500,6 +560,8 @@ static void _dump_cm_data_info(void)
 		if (i % 8 == 0)
 			PR_DRV("\n");
 	}
+
+	PR_DRV("support_cm_final_gain = %d\n", support_cm_final_gain);
 }
 
 /*External functions*/
@@ -514,6 +576,11 @@ int vpp_module_cm_init(struct vpp_dev_s *pdev)
 	} else {
 		_set_cm_reg_by_addr(cm_addr_cfg.addr_cm_enh_ctl, 0x1d);
 	}
+
+	if (chip_id == CHIP_T5M)
+		support_cm_final_gain = true;
+	else
+		support_cm_final_gain = false;
 
 	_set_cm_reg_by_addr(cm_addr_cfg.addr_sat_byyb_node0, 0x0);
 	_set_cm_reg_by_addr(cm_addr_cfg.addr_sat_byyb_node1, 0x0);
@@ -823,6 +890,45 @@ void vpp_module_cm_set_tuning_param(enum cm_tuning_param_e type,
 
 		_set_cm_bit_by_addr(addr, val, start, len);
 		break;
+	case EN_PARAM_FINAL_GAIN_LUMA:
+		if (support_cm_final_gain) {
+			addr = cm_addr_cfg.addr_cm_final_gain_luma;
+			val = *pdata;
+
+			pr_vpp(PR_DEBUG_CM, "[%s] addr_cm_final_gain_luma = %x, val = %x\n",
+				__func__, addr, val);
+
+			_set_cm_reg_by_addr(addr, val);
+		} else {
+			pr_vpp(PR_DEBUG_CM, "[%s] No support cm final gain\n", __func__);
+		}
+		break;
+	case EN_PARAM_FINAL_GAIN_SAT:
+		if (support_cm_final_gain) {
+			addr = cm_addr_cfg.addr_cm_final_gain_sat;
+			val = *pdata;
+
+			pr_vpp(PR_DEBUG_CM, "[%s] addr_cm_final_gain_sat = %x, val = %x\n",
+				__func__, addr, val);
+
+			_set_cm_reg_by_addr(addr, val);
+		} else {
+			pr_vpp(PR_DEBUG_CM, "[%s] No support cm final gain\n", __func__);
+		}
+		break;
+	case EN_PARAM_FINAL_GAIN_HUE:
+		if (support_cm_final_gain) {
+			addr = cm_addr_cfg.addr_cm_final_gain_hue;
+			val = *pdata;
+
+			pr_vpp(PR_DEBUG_CM, "[%s] addr_cm_final_gain_hue = %x, val = %x\n",
+				__func__, addr, val);
+
+			_set_cm_reg_by_addr(addr, val);
+		} else {
+			pr_vpp(PR_DEBUG_CM, "[%s] No support cm final gain\n", __func__);
+		}
+		break;
 	default:
 		break;
 	}
@@ -1000,6 +1106,11 @@ int vpp_module_cm_get_cm2_hue_by_hl(int *pdata)
 		return 0;
 
 	return _get_cm2_curve_by_index(EN_CM2_CURVE_HUE_Y, pdata, 0, 31);
+}
+
+bool vpp_module_cm_get_final_gain_support(void)
+{
+	return support_cm_final_gain;
 }
 
 void vpp_module_cm_on_vs(void)

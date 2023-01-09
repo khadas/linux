@@ -131,6 +131,10 @@ ssize_t vpp_debug_color_curve_show(struct class *class,
 	struct class_attribute *attr, char *buf);
 ssize_t vpp_debug_color_curve_store(struct class *class,
 	struct class_attribute *attr, const char *buf, size_t count);
+ssize_t vpp_debug_overscan_show(struct class *class,
+	struct class_attribute *attr, char *buf);
+ssize_t vpp_debug_overscan_store(struct class *class,
+	struct class_attribute *attr, const char *buf, size_t count);
 
 #endif
 

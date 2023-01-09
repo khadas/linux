@@ -23,6 +23,8 @@ enum vpp_chip_type_e {
 	CHIP_T7,
 	CHIP_S4,
 	CHIP_T3,
+	CHIP_T5W,
+	CHIP_T5M,
 	CHIP_S4D,
 	CHIP_MAX,
 };

@@ -721,7 +721,7 @@ void vpp_module_dnlp_en(bool enable)
 		dnlp_bit_cfg.bit_dnlp_ctrl_en.len);
 }
 
-void vpp_module_dnlp_update_data(int hist_luma_sum,
+void vpp_module_dnlp_on_vs(int hist_luma_sum,
 	unsigned short *phist_data)
 {
 	if (!dnlp_alg_insmod_ok)

@@ -35,6 +35,44 @@ static int _modules_init(struct vpp_dev_s *pdev)
 	return 0;
 }
 
+static void _buffer_init(void)
+{
+	unsigned int len = 0;
+	unsigned int buf_size = 0;
+
+	len = vpp_module_pre_gamma_get_table_len();
+	if (len != 0) {
+		buf_size = len * sizeof(unsigned int);
+		pq_mgr_settings.cur_pre_gamma_tbl.r_data =
+			kmalloc(buf_size, GFP_KERNEL);
+		pq_mgr_settings.cur_pre_gamma_tbl.g_data =
+			kmalloc(buf_size, GFP_KERNEL);
+		pq_mgr_settings.cur_pre_gamma_tbl.b_data =
+			kmalloc(buf_size, GFP_KERNEL);
+	}
+
+	len = vpp_module_lcd_gamma_get_table_len();
+	if (len != 0) {
+		buf_size = len * sizeof(unsigned int);
+		pq_mgr_settings.cur_gamma_tbl.r_data =
+			kmalloc(buf_size, GFP_KERNEL);
+		pq_mgr_settings.cur_gamma_tbl.g_data =
+			kmalloc(buf_size, GFP_KERNEL);
+		pq_mgr_settings.cur_gamma_tbl.b_data =
+			kmalloc(buf_size, GFP_KERNEL);
+	}
+}
+
+static void _buffer_free(void)
+{
+	kfree(pq_mgr_settings.cur_pre_gamma_tbl.r_data);
+	kfree(pq_mgr_settings.cur_pre_gamma_tbl.g_data);
+	kfree(pq_mgr_settings.cur_pre_gamma_tbl.b_data);
+	kfree(pq_mgr_settings.cur_gamma_tbl.r_data);
+	kfree(pq_mgr_settings.cur_gamma_tbl.g_data);
+	kfree(pq_mgr_settings.cur_gamma_tbl.b_data);
+}
+
 static int _set_default_settings(void)
 {
 	pq_mgr_settings.brightness = 0;
@@ -213,6 +251,7 @@ int vpp_pq_mgr_init(struct vpp_dev_s *pdev)
 	memset(&pq_mgr_settings, 0, sizeof(struct vpp_pq_mgr_settings));
 
 	_modules_init(pdev);
+	_buffer_init();
 	_set_default_settings();
 
 	lut3d_db_initial = false;
@@ -232,6 +271,8 @@ void vpp_pq_mgr_deinit(void)
 #ifdef CONFIG_AMLOGIC_LCD
 	aml_lcd_notifier_unregister(&nb_lcd_gamma);
 #endif
+
+	_buffer_free();
 }
 EXPORT_SYMBOL(vpp_pq_mgr_deinit);
 
@@ -511,20 +552,32 @@ int vpp_pq_mgr_set_whitebalance(struct vpp_white_balance_s *pdata)
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_whitebalance);
 
-int vpp_pq_mgr_set_pre_gamma_table(struct vpp_pre_gamma_table_s *pdata)
+int vpp_pq_mgr_set_pre_gamma_table(struct vpp_gamma_table_s *pdata)
 {
 	int ret = 0;
+	unsigned int len = 0;
+	unsigned int buf_size = 0;
 
-	if (!pdata)
+	if (!pdata || !pdata->r_data || !pdata->g_data || !pdata->b_data)
 		return RET_POINT_FAIL;
+
+	len = vpp_module_pre_gamma_get_table_len();
+	if (len == 0)
+		return RET_POINT_FAIL;
+
+	buf_size = len * sizeof(unsigned int);
 
 	pr_vpp(PR_DEBUG, "[%s] set data\n", __func__);
 
-	memcpy(&pq_mgr_settings.cur_pre_gamma_tbl, pdata,
-		sizeof(struct vpp_pre_gamma_table_s));
+	memcpy(&pq_mgr_settings.cur_pre_gamma_tbl.r_data,
+		pdata->r_data, buf_size);
+	memcpy(&pq_mgr_settings.cur_pre_gamma_tbl.g_data,
+		pdata->g_data, buf_size);
+	memcpy(&pq_mgr_settings.cur_pre_gamma_tbl.b_data,
+		pdata->b_data, buf_size);
 
-	ret = vpp_module_pre_gamma_write(&pdata->r_data[0],
-		&pdata->g_data[0], &pdata->b_data[0]);
+	ret = vpp_module_pre_gamma_write(pdata->r_data,
+		pdata->g_data, pdata->b_data);
 
 	return ret;
 }
@@ -533,17 +586,29 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_pre_gamma_table);
 int vpp_pq_mgr_set_gamma_table(struct vpp_gamma_table_s *pdata)
 {
 	int ret = 0;
+	unsigned int len = 0;
+	unsigned int buf_size = 0;
 
-	if (!pdata)
+	if (!pdata || !pdata->r_data || !pdata->g_data || !pdata->b_data)
 		return RET_POINT_FAIL;
+
+	len = vpp_module_lcd_gamma_get_table_len();
+	if (len == 0)
+		return RET_POINT_FAIL;
+
+	buf_size = len * sizeof(unsigned int);
 
 	pr_vpp(PR_DEBUG, "[%s] set data\n", __func__);
 
-	memcpy(&pq_mgr_settings.cur_gamma_tbl, pdata,
-		sizeof(struct vpp_gamma_table_s));
+	memcpy(&pq_mgr_settings.cur_gamma_tbl.r_data,
+		pdata->r_data, buf_size);
+	memcpy(&pq_mgr_settings.cur_gamma_tbl.g_data,
+		pdata->g_data, buf_size);
+	memcpy(&pq_mgr_settings.cur_gamma_tbl.b_data,
+		pdata->b_data, buf_size);
 
-	ret = vpp_module_lcd_gamma_write(&pdata->r_data[0],
-		&pdata->g_data[0], &pdata->b_data[0]);
+	ret = vpp_module_lcd_gamma_write(pdata->r_data,
+		pdata->g_data, pdata->b_data);
 
 	return ret;
 }
@@ -871,7 +936,7 @@ int vpp_pq_mgr_set_3dlut_data(struct vpp_lut3d_table_s *ptable)
 
 	switch (ptable->data_type) {
 	case EN_LUT3D_INPUT_PARAM:
-		vpp_module_lut3d_set_data(ptable->pdata);
+		vpp_module_lut3d_set_data(ptable->pdata, 0);
 		break;
 	case EN_LUT3D_UNIFY_KEY:
 		break;
@@ -1034,6 +1099,16 @@ int vpp_pq_mgr_set_aipq_offset_table(char *pdata_str,
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_aipq_offset_table);
 
+int vpp_pq_mgr_set_overscan_table(unsigned int length,
+	struct vpp_overscan_table_s *load_table)
+{
+	if (load_table)
+		vpp_vf_set_overscan_table(length, load_table);
+
+	return 0;
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_overscan_table);
+
 void vpp_pq_mgr_set_lc_isr(void)
 {
 	vpp_module_lc_set_isr();
@@ -1116,19 +1191,15 @@ void vpp_pq_mgr_get_whitebalance(struct vpp_white_balance_s *pdata)
 }
 EXPORT_SYMBOL(vpp_pq_mgr_get_whitebalance);
 
-void vpp_pq_mgr_get_pre_gamma_table(struct vpp_pre_gamma_table_s *pdata)
+struct vpp_gamma_table_s *vpp_pq_mgr_get_pre_gamma_table(void)
 {
-	if (pdata)
-		memcpy(pdata, &pq_mgr_settings.cur_pre_gamma_tbl,
-			sizeof(struct vpp_pre_gamma_table_s));
+	return &pq_mgr_settings.cur_pre_gamma_tbl;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_get_pre_gamma_table);
 
-void vpp_pq_mgr_get_gamma_table(struct vpp_gamma_table_s *pdata)
+struct vpp_gamma_table_s *vpp_pq_mgr_get_gamma_table(void)
 {
-	if (pdata)
-		memcpy(pdata, &pq_mgr_settings.cur_gamma_tbl,
-			sizeof(struct vpp_gamma_table_s));
+	return &pq_mgr_settings.cur_gamma_tbl;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_get_gamma_table);
 
@@ -1278,6 +1349,18 @@ enum vpp_color_primary_e vpp_pq_mgr_get_color_primary(void)
 	return vpp_vf_get_color_primary();
 }
 EXPORT_SYMBOL(vpp_pq_mgr_get_color_primary);
+
+int vpp_pq_mgr_get_pre_gamma_table_len(void)
+{
+	return vpp_module_pre_gamma_get_table_len();
+}
+EXPORT_SYMBOL(vpp_pq_mgr_get_pre_gamma_table_len);
+
+int vpp_pq_mgr_get_gamma_table_len(void)
+{
+	return vpp_module_lcd_gamma_get_table_len();
+}
+EXPORT_SYMBOL(vpp_pq_mgr_get_gamma_table_len);
 
 struct vpp_pq_mgr_settings *vpp_pq_mgr_get_settings(void)
 {
