@@ -22,6 +22,8 @@
 #define MAX_OPENED_CNT 65536
 #include "configs_priv.h"
 #define MODULE_NAME "media-configs-dev"
+#include <linux/slab.h>
+#include <linux/uaccess.h>
 
 static struct class *config_dev_class;
 static unsigned int config_major;
@@ -285,21 +287,39 @@ static int configs_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t configs_read(struct file *file, char __user *buf,
+static ssize_t configs_read(struct file *file, char __user *buf_user,
 			    size_t count, loff_t *ppos)
 {
 	struct config_file_private *priv = file->private_data;
 	struct mediaconfig_node *node = priv->node;
 	int ret;
+	void *buf;
 
 	if (*ppos > 0)
 		return 0;/*don't support seek read. read end.*/
-	if (!access_ok(buf, count))
+	if (!access_ok(buf_user, count))
 		return -EIO;
+	buf = kmalloc(count, GFP_KERNEL);
+	if (!buf)
+		return 0;
+	ret = copy_from_user(buf, buf_user, count);
+	if (ret != count) {
+		kfree(buf);
+		return 0;
+	}
+
 	ret = configs_list_nodes(&node->node, buf, count,
 				 LIST_MODE_NODE_CMDVAL_ALL);
 	if (ret > 0)
 		*ppos = ret;
+
+	ret = copy_to_user(buf_user, buf, count);
+	if (ret != count) {
+		kfree(buf);
+		return 0;
+	}
+	kfree(buf);
+
 	return ret;
 }
 
