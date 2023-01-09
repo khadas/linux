@@ -77,6 +77,12 @@ struct pts_table_s {
 	u32 last_bitrate;
 	u32 last_avg_bitrate;
 	u32 last_pts_delay_ms;
+	u32 first_discontinue_pts_before;
+	u32 first_discontinue_pts_after;
+	u32 second_discontinue_pts_before;
+	u32 second_discontinue_pts_after;
+	u32 record_last_outtime;
+	int record_discontinue_count;
 #endif
 	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 	u32 hevc;
@@ -219,6 +225,8 @@ int calculation_stream_delayed_ms(u8 type, u32 *latestbitrate,
 	u32 tmp_buf_space = 0;
 	int diff2 = 0;
 	int delay_ms = 0;
+	u32 before_diff = 0;
+	u32 after_diff = 0;
 
 	if (type >= PTS_TYPE_MAX)
 		return 0;
@@ -243,8 +251,24 @@ int calculation_stream_delayed_ms(u8 type, u32 *latestbitrate,
 	} else {
 		if (ptable->last_checkout_pts == -1 &&
 			timestamp_firstvpts_get() == 0) {
-			timestampe_delayed = (ptable->last_checkin_pts -
-				ptable->first_checkin_pts) / 90;
+			if ((ptable->first_discontinue_pts_before != -1) &&
+				(ptable->second_discontinue_pts_before != -1)) {
+				timestampe_delayed = (ptable->first_discontinue_pts_before -
+					ptable->first_checkin_pts +
+					ptable->second_discontinue_pts_before -
+					ptable->first_discontinue_pts_after +
+					ptable->last_checkin_pts -
+					ptable->second_discontinue_pts_after) / 90;
+			} else if ((ptable->first_discontinue_pts_before != -1) &&
+						(ptable->second_discontinue_pts_before == -1)) {
+				timestampe_delayed = (ptable->first_discontinue_pts_before -
+					ptable->first_checkin_pts +
+					ptable->last_checkin_pts -
+					ptable->first_discontinue_pts_after) / 90;
+			} else {
+				timestampe_delayed = (ptable->last_checkin_pts -
+					ptable->first_checkin_pts) / 90;
+			}
 			ptable->last_pts_delay_ms = timestampe_delayed;
 			return timestampe_delayed;
 		}
@@ -263,27 +287,46 @@ int calculation_stream_delayed_ms(u8 type, u32 *latestbitrate,
 	if (outtime == 0 || outtime == 0xffffffff ||
 		(type == PTS_TYPE_AUDIO && outtime > ptable->last_checkin_pts))
 		outtime = ptable->last_checkout_pts;
-	timestampe_delayed = (ptable->last_checkin_pts - outtime) / 90;
 
-	/*calc timestamp from amstream buffer when pts jumped*/
-	if ((tsync_get_buf_by_type(type, &tmp_pbuf) &&
-		tsync_get_stbuf_level(tmp_pbuf, &tmp_buf_level)) &&
-		((ptable->last_checkin_pts < ptable->last_checkout_pts &&
-		(timestampe_delayed < 10 || timestampe_delayed > (3 * 1000))) ||
-		abs(ptable->last_pts_delay_ms - timestampe_delayed) > 3000)
-		) {
-		tsync_get_buf_by_type(type, &tmp_pbuf);
-		tsync_get_stbuf_level(tmp_pbuf, &tmp_buf_level);
-		diff2 = tmp_buf_level;
-		delay_ms = diff2 * 1000 / (1 + ptable->last_avg_bitrate / 8);
-		if ((timestampe_delayed < 10 && delay_ms > timestampe_delayed) ||
-			(timestampe_delayed > (3 * 1000) &&
-			delay_ms < timestampe_delayed)) {
-			timestampe_delayed = delay_ms;
-			//ptable->last_pts_delay_ms = timestampe_delayed;
+	/*after pts discontinue,the video caching time must be calculated correctly.*/
+	if (ptable->record_last_outtime != -1 &&
+		outtime < ptable->record_last_outtime &&
+		(abs(ptable->record_last_outtime - outtime) >= 500000)) {
+		ptable->record_discontinue_count++;
+		if (ptable->record_discontinue_count <= 1) {
+			ptable->first_discontinue_pts_before = -1;
+			ptable->first_discontinue_pts_after = -1;
+		} else {
+			ptable->second_discontinue_pts_before = -1;
+			ptable->second_discontinue_pts_after = -1;
+			ptable->record_discontinue_count = 0;
 		}
 	}
+	if ((ptable->first_discontinue_pts_before != -1) &&
+		(ptable->second_discontinue_pts_before != -1)) {
+		before_diff = ptable->first_discontinue_pts_before - outtime;
+		after_diff = ptable->second_discontinue_pts_before -
+					ptable->first_discontinue_pts_after +
+					ptable->last_checkin_pts -
+					ptable->second_discontinue_pts_after;
+		timestampe_delayed = (before_diff + after_diff) / 90;
+	} else if ((ptable->first_discontinue_pts_before != -1) &&
+				(ptable->second_discontinue_pts_before == -1)) {
+		before_diff = ptable->first_discontinue_pts_before - outtime;
+		after_diff = ptable->last_checkin_pts - ptable->first_discontinue_pts_after;
+		timestampe_delayed = (before_diff + after_diff) / 90;
+	} else if ((ptable->first_discontinue_pts_before == -1) &&
+				(ptable->second_discontinue_pts_before != -1)) {
+		before_diff = ptable->second_discontinue_pts_before - outtime;
+		after_diff = ptable->last_checkin_pts -
+					ptable->second_discontinue_pts_after;
+		timestampe_delayed = (before_diff + after_diff) / 90;
+	} else {
+		timestampe_delayed = (ptable->last_checkin_pts - outtime) / 90;
+	}
+
 	ptable->last_pts_delay_ms = timestampe_delayed;
+	ptable->record_last_outtime = outtime;
 	if (tsync_get_buf_by_type(type, &tmp_pbuf) &&
 	    tsync_get_stbuf_level(tmp_pbuf, &tmp_buf_level) &&
 	    tsync_get_stbuf_space(tmp_pbuf, &tmp_buf_space)) {
@@ -468,10 +511,20 @@ static inline void pts_checkin_offset_calc_cached(u32 offset,
 			}
 			ptable->last_bitrate = newbitrate;
 		}
+		if (ptable->last_checkin_pts != -1 &&
+			val < ptable->last_checkin_pts &&
+			(abs(val - ptable->last_checkin_pts) >= 500000)) {
+			if (ptable->first_discontinue_pts_before != -1) {
+				ptable->second_discontinue_pts_before = ptable->last_checkin_pts;
+				ptable->second_discontinue_pts_after = val;
+			} else {
+				ptable->first_discontinue_pts_before = ptable->last_checkin_pts;
+				ptable->first_discontinue_pts_after = val;
+			}
+		}
 		ptable->last_checkin_offset = offset;
 		ptable->last_checkin_pts = val;
 		ptable->last_checkin_jiffies = jiffies;
-
 	}
 }
 
@@ -979,7 +1032,6 @@ static int pts_lookup_offset_inline_locked(u8 type, u32 offset, u32 *val,
 						pr_info("<0x%x:0x%x> ok!\n",
 								p2->offset,
 								p2->val);
-
 					}
 				}
 			}
@@ -1016,7 +1068,6 @@ static int pts_lookup_offset_inline_locked(u8 type, u32 offset, u32 *val,
 #ifdef CALC_CACHED_TIME
 				ptable->last_checkout_pts = *val;
 				ptable->last_checkout_offset = offset;
-
 #endif
 				ptable->lookup_cache_pts = *val;
 				ptable->lookup_cache_offset = offset;
@@ -1583,6 +1634,12 @@ int pts_start(u8 type)
 		ptable->last_checkout_offset = -1;
 		ptable->last_avg_bitrate = 0;
 		ptable->last_bitrate = 0;
+		ptable->first_discontinue_pts_before = -1;
+		ptable->first_discontinue_pts_after = -1;
+		ptable->second_discontinue_pts_before = -1;
+		ptable->second_discontinue_pts_after = -1;
+		ptable->record_discontinue_count = 0;
+		ptable->record_last_outtime = -1;
 #endif
 
 		ptable->pts_search = &ptable->valid_list;
@@ -1640,6 +1697,12 @@ int pts_stop(u8 type)
 		ptable->last_checkout_offset = -1;
 		ptable->last_avg_bitrate = 0;
 		ptable->last_bitrate = 0;
+		ptable->first_discontinue_pts_before = -1;
+		ptable->first_discontinue_pts_after = -1;
+		ptable->second_discontinue_pts_before = -1;
+		ptable->second_discontinue_pts_after = -1;
+		ptable->record_discontinue_count = 0;
+		ptable->record_last_outtime = -1;
 #endif
 		tsync_mode_reinit(type);
 		return 0;
