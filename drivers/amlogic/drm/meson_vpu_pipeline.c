@@ -875,6 +875,14 @@ int vpu_pipeline_read_scanout_pos(struct meson_vpu_pipeline *pipeline,
 			reg = VPU_VENCL_STAT;
 			break;
 		}
+
+		reg_val = aml_read_vcbus(reg + offset);
+		if (!venc_type)
+			*vpos = (reg_val >> 16) & 0xfff;
+		else
+			*vpos = (reg_val >> 16) & 0x1fff;
+
+		*hpos = (reg_val & 0x1fff);
 	} else {
 		switch (venc_type) {
 		case 0:
@@ -890,11 +898,11 @@ int vpu_pipeline_read_scanout_pos(struct meson_vpu_pipeline *pipeline,
 			reg = ENCT_INFO_READ;
 			break;
 		}
-	}
 
-	reg_val = aml_read_vcbus(reg + offset);
-	*vpos = (reg_val >> 16) & 0x1fff;
-	*hpos = (reg_val & 0x1fff);
+		reg_val = aml_read_vcbus(reg + offset);
+		*vpos = (reg_val >> 16) & 0x1fff;
+		*hpos = (reg_val & 0x1fff);
+	}
 
 	return 0;
 }
