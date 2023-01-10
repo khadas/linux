@@ -6631,7 +6631,7 @@ static int aml_dtvdm_read_status(struct dvb_frontend *fe,
 	return ret;
 }
 
-static int aml_dtvdm_read_ber(struct dvb_frontend *fe, u32 *ber)
+int aml_dtvdm_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;

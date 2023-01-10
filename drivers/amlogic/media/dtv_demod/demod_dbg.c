@@ -954,6 +954,7 @@ static void info_show(void)
 	unsigned int debug_mode = aml_demod_debug;
 	char chip_name[30];
 	struct aml_demod_sts demod_sts;
+	u32 ber;
 
 	PR_INFO("DTV DEMOD state:\n");
 	PR_INFO("demod_thread: %d.\n", devp->demod_thread);
@@ -1041,6 +1042,9 @@ static void info_show(void)
 		}
 
 		PR_INFO("tuner strength: %d, 0x%x.\n", strength, strength);
+
+		if (!aml_dtvdm_read_ber(&demod->frontend, &ber))
+			PR_INFO("ber=%d\n", ber);
 	}
 }
 

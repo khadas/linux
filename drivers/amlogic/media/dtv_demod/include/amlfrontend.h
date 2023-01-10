@@ -597,6 +597,7 @@ u32 dvbc_get_snr(struct aml_dtvdemod *demod);
 u32 dvbc_get_per(struct aml_dtvdemod *demod);
 unsigned int demod_is_t5d_cpu(struct amldtvdemod_device_s *devp);
 int dtmb_information(struct seq_file *seq);
+int aml_dtvdm_read_ber(struct dvb_frontend *fe, u32 *ber);
 
 #ifdef MODULE
 struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config);
