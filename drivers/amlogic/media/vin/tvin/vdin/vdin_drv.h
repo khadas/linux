@@ -474,6 +474,10 @@ struct vdin_v4l2_stat_s {
 	unsigned int dque_cnt;
 };
 
+struct vdin_v4l2_dbg_ctl_s {
+	unsigned int dbg_pix_fmt;
+};
+
 struct vdin_v4l2_s {
 	int divide;
 	unsigned int secure_flg:1;
@@ -759,6 +763,7 @@ struct vdin_dev_s {
 	unsigned int dbg_v4l_pause;
 	unsigned int dbg_v4l_no_vdin_ioctl;
 	unsigned int dbg_v4l_no_vdin_event;
+	struct vdin_v4l2_dbg_ctl_s v4l2_dbg_ctl;
 	struct vdin_set_canvas_addr_s st_vdin_set_canvas_addr[VDIN_CANVAS_MAX_CNT][VDIN_MAX_PLANES];
 	bool vdin_set_canvas_flag;
 	enum tvin_port_e v4l2_port_cur;

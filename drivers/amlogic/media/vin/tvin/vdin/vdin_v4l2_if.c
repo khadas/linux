@@ -308,7 +308,6 @@ static int vdin_v4l2_get_phy_addr(struct vdin_dev_s *devp,
 			vb2_dma_contig_plane_dma_addr(vb2buf, plane_no);
 		devp->st_vdin_set_canvas_addr[idx][plane_no].size  =
 			vb2buf->planes[plane_no].length;
-		devp->vfmem_start[idx] = devp->st_vdin_set_canvas_addr[idx][plane_no].paddr;
 	} else if (p->memory == V4L2_MEMORY_DMABUF) {
 		fd = p->m.planes[plane_no].m.fd;
 		if (fd <= 0) {
@@ -337,16 +336,17 @@ static int vdin_v4l2_get_phy_addr(struct vdin_dev_s *devp,
 		dprintk(2, "vdin%d,fd:%d,phy_addr:%lx,size:%#x\n", devp->index, fd,
 			devp->st_vdin_set_canvas_addr[idx][plane_no].paddr,
 			devp->st_vdin_set_canvas_addr[idx][plane_no].size);
-		if (plane_no == VDIN_PLANES_IDX_Y)
-			devp->vfmem_start[idx] =
-				devp->st_vdin_set_canvas_addr[idx][plane_no].paddr;
-		else
-			devp->vfmem_c_start[idx] =
-				devp->st_vdin_set_canvas_addr[idx][plane_no].paddr;
 	} else {
 		dprintk(0, "err.idx:%d,unsupported memory:%d\n", idx, p->memory);
 		return -1;
 	}
+
+	if (plane_no == VDIN_PLANES_IDX_Y)
+		devp->vfmem_start[idx] =
+			devp->st_vdin_set_canvas_addr[idx][plane_no].paddr;
+	else
+		devp->vfmem_c_start[idx] =
+			devp->st_vdin_set_canvas_addr[idx][plane_no].paddr;
 
 	devp->vfmem_start[idx] =
 		roundup(devp->vfmem_start[idx], devp->canvas_align);
@@ -406,6 +406,7 @@ static int vdin_vidioc_querystd(struct file *file, void *priv,
 static int vdin_vidioc_enum_input(struct file *file,
 				  void *fh, struct v4l2_input *inp)
 {
+	const char *str = NULL;
 	struct vdin_dev_s *pdev = video_drvdata(file);
 
 	if (IS_ERR_OR_NULL(pdev))
@@ -418,7 +419,10 @@ static int vdin_vidioc_enum_input(struct file *file,
 	}
 
 	inp->std = V4L2_STD_ALL;
-	strcpy(inp->name, tvin_port_str(pdev->v4l2_port[inp->index]));
+	str = tvin_port_str(pdev->v4l2_port[inp->index]);
+
+	if (str && (strlen(str) < sizeof(inp->name)))
+		strcpy(inp->name, tvin_port_str(pdev->v4l2_port[inp->index]));
 
 	dprintk(1, "%s,port[%d]:%s\n", __func__, inp->index, inp->name);
 	return 0;
@@ -447,6 +451,11 @@ static int vdin_vidioc_reqbufs(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
+	if (reqbufs->count == 0) {
+		dprintk(0, "%s type:%d count:%d\n", __func__,
+			reqbufs->type, reqbufs->count);
+		return 0;
+	}
 	if (reqbufs->count < pdev->vbqueue.min_buffers_needed ||
 		reqbufs->count > VDIN_CANVAS_MAX_CNT) {
 		dprintk(0, "%s err,count=%d,out of range[%d,%d]\n", __func__,
@@ -574,16 +583,20 @@ static int vdin_vidioc_qbuf(struct file *file, void *priv,
 static int vdin_vidioc_dqbuf(struct file *file, void *priv,
 			     struct v4l2_buffer *p)
 {
+	unsigned int ret = 0, i;
 	struct vdin_dev_s *pdev = video_drvdata(file);
 	struct vb2_v4l2_buffer *vb = NULL;
 	struct vdin_vb_buff *vdin_buf = NULL;
-	unsigned int ret = 0;
 
 	ret = vb2_ioctl_dqbuf(file, priv, p);
 	if (ret) {
 		dprintk(0, "DQ error,ret=%d,%#x\n", ret, file->f_flags);
 		return -1;
 	}
+
+	for (i = 0; i < pdev->v4lfmt.fmt.pix_mp.num_planes; i++)
+		p->m.planes[i].bytesused = p->m.planes[i].length;
+
 	/*framecnt++;*/
 	vb = to_vb2_v4l2_buffer(pdev->vbqueue.bufs[p->index]);
 	vdin_buf = to_vdin_vb_buf(vb);
@@ -718,13 +731,13 @@ static int vdin_vidioc_g_fmt_vid_cap_mplane(struct file *file,
 	/* for test set a default value
 	 * mult-planes mode
 	 */
-	pdev->v4lfmt.fmt.pix_mp.width = 1920;
-	pdev->v4lfmt.fmt.pix_mp.height = 1080;
-	pdev->v4lfmt.fmt.pix_mp.quantization = V4L2_QUANTIZATION_DEFAULT;
-	pdev->v4lfmt.fmt.pix_mp.ycbcr_enc = V4L2_YCBCR_ENC_709;
-	pdev->v4lfmt.fmt.pix_mp.field = V4L2_FIELD_ANY;
-	pdev->v4lfmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_YUYV;
-	pdev->v4lfmt.fmt.pix_mp.num_planes = VDIN_NUM_PLANES;
+//	pdev->v4lfmt.fmt.pix_mp.width = 1920;
+//	pdev->v4lfmt.fmt.pix_mp.height = 1080;
+//	pdev->v4lfmt.fmt.pix_mp.quantization = V4L2_QUANTIZATION_DEFAULT;
+//	pdev->v4lfmt.fmt.pix_mp.ycbcr_enc = V4L2_YCBCR_ENC_709;
+//	pdev->v4lfmt.fmt.pix_mp.field = V4L2_FIELD_ANY;
+//	pdev->v4lfmt.fmt.pix_mp.pixelformat = V4L2_PIX_FMT_YUYV;
+//	pdev->v4lfmt.fmt.pix_mp.num_planes = VDIN_NUM_PLANES;
 
 	f->fmt.pix_mp.width = pdev->v4lfmt.fmt.pix_mp.width;
 	f->fmt.pix_mp.height = pdev->v4lfmt.fmt.pix_mp.height;
@@ -733,7 +746,12 @@ static int vdin_vidioc_g_fmt_vid_cap_mplane(struct file *file,
 	f->fmt.pix_mp.field = pdev->v4lfmt.fmt.pix_mp.field;
 	f->fmt.pix_mp.pixelformat = pdev->v4lfmt.fmt.pix_mp.pixelformat;
 	f->fmt.pix_mp.num_planes = pdev->v4lfmt.fmt.pix_mp.num_planes;
-	dprintk(1, "%s num_planes=%d\n", __func__, f->fmt.pix_mp.num_planes);
+	dprintk(1, "%s:wxh:%dx%d,quant:%d,enc:%d,field:%d,pixelformat:0x%x num_planes=%d\n",
+		__func__,
+		f->fmt.pix_mp.width, f->fmt.pix_mp.height,
+		f->fmt.pix_mp.quantization, f->fmt.pix_mp.ycbcr_enc,
+		f->fmt.pix_mp.field, f->fmt.pix_mp.pixelformat,
+		f->fmt.pix_mp.num_planes);
 	return 0;
 }
 
@@ -745,11 +763,18 @@ static int vdin_vidioc_s_fmt_vid_cap_mplane(struct file *file,
 					    void *priv,
 					    struct v4l2_format *fmt)
 {
+	int i;
 	struct vdin_dev_s *pdev = video_drvdata(file);
 
 	if (IS_ERR_OR_NULL(pdev))
 		return -EFAULT;
 
+	dprintk(2, "%s:wxh:%dx%d,quant:%d,enc:%d,field:%d,pixelformat:0x%x num_planes=%d\n",
+		__func__,
+		fmt->fmt.pix_mp.width,	        fmt->fmt.pix_mp.height,
+		fmt->fmt.pix_mp.quantization,	fmt->fmt.pix_mp.ycbcr_enc,
+		fmt->fmt.pix_mp.field,		fmt->fmt.pix_mp.pixelformat,
+		fmt->fmt.pix_mp.num_planes);
 	pdev->v4lfmt.fmt.pix_mp.width		 = fmt->fmt.pix_mp.width;
 	pdev->v4lfmt.fmt.pix_mp.height		 = fmt->fmt.pix_mp.height;
 	pdev->v4lfmt.fmt.pix_mp.quantization = fmt->fmt.pix_mp.quantization;
@@ -757,7 +782,18 @@ static int vdin_vidioc_s_fmt_vid_cap_mplane(struct file *file,
 	pdev->v4lfmt.fmt.pix_mp.field        = fmt->fmt.pix_mp.field;
 	pdev->v4lfmt.fmt.pix_mp.pixelformat  = fmt->fmt.pix_mp.pixelformat;
 	pdev->v4lfmt.fmt.pix_mp.num_planes   = fmt->fmt.pix_mp.num_planes;
-
+	if (pdev->v4l2_dbg_ctl.dbg_pix_fmt) {
+		pdev->v4lfmt.fmt.pix_mp.pixelformat = pdev->v4l2_dbg_ctl.dbg_pix_fmt;
+		dprintk(2, "%s:force pixelformat to 0x%x\n", __func__,
+			pdev->v4lfmt.fmt.pix_mp.pixelformat);
+	}
+	vdin_fill_pix_format(pdev);
+	for (i = 0; i < fmt->fmt.pix_mp.num_planes; i++) {
+		fmt->fmt.pix_mp.plane_fmt[i].bytesperline =
+			pdev->v4lfmt.fmt.pix_mp.plane_fmt[i].bytesperline;
+		fmt->fmt.pix_mp.plane_fmt[i].sizeimage =
+			pdev->v4lfmt.fmt.pix_mp.plane_fmt[i].sizeimage;
+	}
 	dprintk(2, "width=%d height=%d,quant:%d,enc:%x,\n",
 		fmt->fmt.pix_mp.width, fmt->fmt.pix_mp.height,
 		fmt->fmt.pix_mp.quantization, fmt->fmt.pix_mp.ycbcr_enc);
@@ -1178,18 +1214,19 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	}
 
 	mutex_lock(&pdev->fe_lock);
-	pdev->parm.index    = pdev->index;
-	pdev->parm.port     = pdev->v4l2_port[i];
-	pdev->v4l2_port_cur = pdev->v4l2_port[i];
-	pdev->unstable_flag = false;
 
-	if (pdev->flags & VDIN_FLAG_DEC_OPENED) {
+
+	if (pdev->flags & VDIN_FLAG_DEC_OPENED &&
+		pdev->v4l2_port_cur != pdev->v4l2_port[i]) {
 		dprintk(0, "%s current port:%d is opened alreadly,close it\n",
 			__func__, pdev->v4l2_port_cur);
 		vdin_close_fe(pdev);
 	}
-
-	if (pdev->index == 0) {
+	pdev->parm.index    = pdev->index;
+	pdev->parm.port     = pdev->v4l2_port[i];
+	pdev->v4l2_port_cur = pdev->v4l2_port[i];
+	pdev->unstable_flag = false;
+	if (pdev->index == 0 && !(pdev->flags & VDIN_FLAG_DEC_OPENED)) {
 		ret = vdin_open_fe(pdev->parm.port, 0, pdev);
 		if (ret) {
 			pr_err("TVIN_IOC_OPEN(%d) failed to open port 0x%x\n",
@@ -1219,6 +1256,43 @@ static int vdin_vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 
 	dprintk(0, "%s index:%d pixelformat:%x\n",
 		__func__, f->index, f->pixelformat);
+
+	return 0;
+}
+
+static int vidioc_try_fmt_vid_cap_mplane(struct file *file, void *priv,
+				  struct v4l2_format *f)
+{
+	int i = 0;
+	struct vdin_dev_s *devp = video_drvdata(file);
+
+	dprintk(1, "%s width[%d] height[%d] num_planes[%ds]\n", __func__,
+		f->fmt.pix_mp.width, f->fmt.pix_mp.height, f->fmt.pix_mp.num_planes);
+
+	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		dprintk(0, "%s vdin%d v4l2 do not support type=%d\n",
+			__func__, devp->index, f->type);
+		return -EINVAL;
+	}
+	if (f->fmt.pix_mp.width > 4096 || f->fmt.pix_mp.width > 2160) {
+		dprintk(0, "%s vdin%d v4l2 do not support w=%d,h=%d\n",
+			__func__, devp->index, f->fmt.pix_mp.width, f->fmt.pix_mp.height);
+		return -EINVAL;
+	}
+	if (f->fmt.pix_mp.num_planes > 2) {
+		dprintk(0, "%s vdin%d v4l2 do not support num_planes=%d\n",
+			__func__, devp->index, f->fmt.pix_mp.num_planes);
+		return -EINVAL;
+	}
+	for (i = 0; i < ARRAY_SIZE(pix_formats); i++) {
+		if (f->fmt.pix_mp.pixelformat == pix_formats[i].fourcc)
+			break;
+	}
+	if (i >= ARRAY_SIZE(pix_formats)) {
+		dprintk(0, "%s vdin%d v4l2 do not support pixelformat=%#x\n",
+			__func__, devp->index, f->fmt.pix_mp.pixelformat);
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1284,6 +1358,7 @@ static const struct v4l2_ioctl_ops vdin_v4l2_ioctl_ops = {
 	.vidioc_s_input		= vdin_vidioc_s_input,
 	.vidioc_g_input		= vdin_vidioc_g_input,
 	.vidioc_enum_fmt_vid_cap	= vdin_vidioc_enum_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap_mplane = vidioc_try_fmt_vid_cap_mplane,
 	.vidioc_querycap			= vdin_vidioc_querycap,
 	.vidioc_enum_framesizes		= vdin_vidioc_enum_framesizes,
 	.vidioc_enum_frameintervals = vdin_vidioc_enum_frameintervals,
@@ -1332,11 +1407,15 @@ static int vdin_v4l2_open(struct file *file)
 	if (IS_ERR_OR_NULL(pdev))
 		return -EFAULT;
 
-	/*pdev->work_mode = VDIN_WORK_MD_V4L;*/
-	if (pdev->work_mode != VDIN_WORK_MD_V4L) {
-		dprintk(0, "%s err:vdin v4l mode not enabled\n", __func__);
+	if (pdev->flags & VDIN_FLAG_DEC_STARTED) {
+		dprintk(0, "%s error VDIN_FLAG_DEC_STARTED\n", __func__);
 		return -EPERM;
 	}
+	pdev->work_mode = VDIN_WORK_MD_V4L;
+//	if (pdev->work_mode != VDIN_WORK_MD_V4L) {
+//		dprintk(0, "%s err:vdin v4l mode not enabled\n", __func__);
+//		return -EPERM;
+//	}
 	pdev->afbce_flag_backup = pdev->afbce_flag;
 	pdev->afbce_flag = 0;
 
@@ -1382,6 +1461,7 @@ static int vdin_v4l2_release(struct file *file)
 		memset(pdev->st_vdin_set_canvas_addr, 0, sizeof(pdev->st_vdin_set_canvas_addr));
 	}
 	pdev->afbce_flag = pdev->afbce_flag_backup;
+	pdev->work_mode = VDIN_WORK_MD_NORMAL;
 
 	return ret;
 }
@@ -1471,12 +1551,12 @@ static int vdin_vb2ops_queue_setup(struct vb2_queue *vq,
 	for (i = 0; i < *num_planes; i++) {
 		sizes[i] = pdev->v4lfmt.fmt.pix_mp.plane_fmt[i].sizeimage;
 		dprintk(1, "plane %d, size %x\n", i, sizes[i]);
-		if (pdev->index == 0)
+		//if (pdev->index == 0)
 			alloc_devs[i] = v4l_get_dev_from_codec_mm();/* codec_mm_cma area */
 			//alloc_devs[i] = &pdev->this_pdev->dev;/* vdin0_cma area */
 			//alloc_devs[i] = &pdev->dev;/* CMA reserved area */
-		else
-			alloc_devs[i] = &pdev->this_pdev->dev;/* vdin1_cma area */
+		//else
+			//alloc_devs[i] = &pdev->this_pdev->dev;/* vdin1_cma area */
 	}
 
 	dprintk(1, "type: %d, plane: %d, buf cnt: %d, size: [Y: %x, C: %x]\n",
@@ -1655,11 +1735,11 @@ static int vdin_vb2ops_buf_init(struct vb2_buffer *vb)
 static void vdin_vb2ops_buf_finish(struct vb2_buffer *vb)
 {
 	struct vdin_dev_s *pdev = vb2_get_drv_priv(vb->vb2_queue);
-	struct vb2_queue *p_vbque = NULL;
+	//struct vb2_queue *p_vbque = NULL;
 
 	if (IS_ERR_OR_NULL(pdev))
 		return;
-	p_vbque = &pdev->vbqueue;
+	//p_vbque = &pdev->vbqueue;
 
 	/*dprintk("%s idx:%d, qued cnt:%d, vbuf:%s\n", __func__, vb->index,*/
 	/*	  p_vbque->queued_count, vb2_buf_sts_to_str(vb->state));*/
@@ -1942,7 +2022,7 @@ int vdin_v4l2_start_tvin(struct vdin_dev_s *pdevp)
 	vdin_cap_param.port         = pdevp->v4l2_port_cur;
 	vdin_cap_param.dest_hactive = pdevp->v4lfmt.fmt.pix_mp.width;
 	vdin_cap_param.dest_vactive = pdevp->v4lfmt.fmt.pix_mp.height;
-	vdin_cap_param.reserved    |= PARAM_STATE_SCREENCAP;
+	//vdin_cap_param.reserved    |= PARAM_STATE_SCREENCAP;
 
 	if (pdevp->index) {
 		vdin_cap_param.cfmt = TVIN_YUV422;
@@ -2026,9 +2106,9 @@ void vdin_v4l2_init(struct vdin_dev_s *pdevp, struct platform_device *pldev)
 			pdevp->v4l2_port[2] = TVIN_PORT_VIU1_WB0_OSD1;
 			pdevp->v4l2_port[3] = TVIN_PORT_VIU1_WB0_OSD2;
 			pdevp->v4l2_port[4] = TVIN_PORT_VIU1_WB0_VPP;
-			pdevp->v4l2_port[5] = TVIN_PORT_VIU1_WB0_VDIN_BIST;
-			pdevp->v4l2_port[6] = TVIN_PORT_VIU1_WB0_POST_BLEND;
-			pdevp->v4l2_port_num = 7;
+			//pdevp->v4l2_port[5] = TVIN_PORT_VIU1_WB0_VDIN_BIST;
+			pdevp->v4l2_port[5] = TVIN_PORT_VIU1_WB0_POST_BLEND;
+			pdevp->v4l2_port_num = 6;
 		}
 	} else {
 		pdevp->v4l2_port_num = 0;
@@ -2047,7 +2127,7 @@ void vdin_v4l2_init(struct vdin_dev_s *pdevp, struct platform_device *pldev)
 			pdevp->v4l2_port[i]);
 	}
 	/* default port */
-	pdevp->v4l2_port_cur = pdevp->v4l2_port[0];
+	pdevp->v4l2_port_cur = TVIN_PORT_MAX;
 
 	ret = of_property_read_string(pldev->dev.of_node, "driver", &str);
 	if (ret == 0) {
