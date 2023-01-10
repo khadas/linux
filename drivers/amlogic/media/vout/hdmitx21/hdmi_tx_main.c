@@ -2587,6 +2587,16 @@ static ssize_t disp_cap_show(struct device *dev,
 		}
 	}
 
+	for (i = 0; i < VESA_MAX_TIMING && prxcap->vesa_timing[i]; i++) {
+		vic = prxcap->vesa_timing[i];
+		/* skip CEA modes */
+		if (vic < HDMITX_VESA_OFFSET)
+			continue;
+		timing = hdmitx21_gettiming_from_vic(vic);
+		if (timing)
+			pos += snprintf(buf + pos, PAGE_SIZE, "%s\n", timing->name);
+	}
+
 	return pos;
 }
 
@@ -6208,16 +6218,40 @@ static int drm_hdmitx_get_vic_list(int **vics)
 	enum hdmi_vic vic;
 	const struct hdmi_timing *timing;
 	int len = prxcap->VIC_count;
+	int vesa_len = 0;
 	int i;
 	int count = 0;
 	int *viclist = 0;
 
-	if (len == 0)
+	for (i = 0; i < VESA_MAX_TIMING && prxcap->vesa_timing[i]; i++) {
+		vic = prxcap->vesa_timing[i];
+		/* skip CEA modes */
+		if (vic < HDMITX_VESA_OFFSET)
+			continue;
+		timing = hdmitx21_gettiming_from_vic(vic);
+		if (timing)
+			vesa_len++;
+	}
+
+	/* ignore EDID that only contain vesa modes */
+	if (len == 0/* && vesa_len == 0 */)
 		return 0;
 
-	viclist = kmalloc_array(len, sizeof(int), GFP_KERNEL);
+	viclist = kmalloc_array(len + vesa_len, sizeof(int), GFP_KERNEL);
 	for (i = 0; i < len; i++) {
 		vic = prxcap->VIC[i];
+		timing = hdmitx21_gettiming_from_vic(vic);
+		if (timing) {
+			viclist[count] = vic;
+			count++;
+		}
+	}
+
+	for (i = 0; i < VESA_MAX_TIMING && prxcap->vesa_timing[i]; i++) {
+		vic = prxcap->vesa_timing[i];
+		/* skip CEA modes */
+		if (vic < HDMITX_VESA_OFFSET)
+			continue;
 		timing = hdmitx21_gettiming_from_vic(vic);
 		if (timing) {
 			viclist[count] = vic;
