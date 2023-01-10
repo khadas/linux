@@ -50,6 +50,7 @@ static int am_meson_fbdev_alloc_fb_gem(struct fb_info *info)
 		vaddr = ion_heap_map_kernel(meson_gem->ionbuffer->heap,
 					meson_gem->ionbuffer);
 		info->screen_base = (char __iomem *)vaddr;
+		info->fix.smem_start = meson_gem->addr;
 
 		DRM_DEBUG("alloc memory %d done\n", (u32)size);
 	} else {
@@ -669,6 +670,9 @@ struct meson_drm_fbdev *am_meson_create_drm_fbdev(struct drm_device *dev,
 				continue;
 			}
 		}
+		//#if IS_ENABLED(CONFIG_DRM_FBDEV_LEAK_PHYS_SMEM)
+		fbinfo->flags &= ~FBINFO_HIDE_SMEM_START;
+		//#endif
 	}
 
 	fbdev->blank = false;
