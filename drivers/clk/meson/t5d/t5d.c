@@ -1254,6 +1254,7 @@ static MESON_GATE(t5d_clk81_periphs,	HHI_GCLK_MPEG0, 7);
 static MESON_GATE(t5d_clk81_spicc0,	HHI_GCLK_MPEG0, 8);
 static MESON_GATE(t5d_clk81_i2c,		HHI_GCLK_MPEG0, 9);
 static MESON_GATE(t5d_clk81_sana,		HHI_GCLK_MPEG0, 10);
+static MESON_GATE(t5d_clk81_smartcard,		HHI_GCLK_MPEG0, 11);
 static MESON_GATE(t5d_clk81_uart0,	HHI_GCLK_MPEG0, 13);
 static MESON_GATE(t5d_clk81_stream,	HHI_GCLK_MPEG0, 15);
 static MESON_GATE(t5d_clk81_async_fifo,	HHI_GCLK_MPEG0, 16);
@@ -1370,6 +1371,7 @@ static struct clk_hw_onecell_data t5d_hw_onecell_data = {
 		[CLKID_SPICC0]		= &t5d_clk81_spicc0.hw,
 		[CLKID_I2C]		= &t5d_clk81_i2c.hw,
 		[CLKID_SANA]		= &t5d_clk81_sana.hw,
+		[CLKID_SMARTCARD]	= &t5d_clk81_smartcard.hw,
 		[CLKID_UART0]		= &t5d_clk81_uart0.hw,
 		[CLKID_STREAM]		= &t5d_clk81_stream.hw,
 		[CLKID_ASYNC_FIFO]	= &t5d_clk81_async_fifo.hw,
@@ -1468,6 +1470,7 @@ static struct clk_regmap *const t5d_clk_regmaps[] __initconst = {
 	&t5d_clk81_spicc0,
 	&t5d_clk81_i2c,
 	&t5d_clk81_sana,
+	&t5d_clk81_smartcard,
 	&t5d_clk81_uart0,
 	&t5d_clk81_stream,
 	&t5d_clk81_async_fifo,
