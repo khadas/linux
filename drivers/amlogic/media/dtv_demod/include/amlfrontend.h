@@ -66,6 +66,7 @@
 /*  V1.1.72  add tps cell id info and dmc notifier test */
 /*  V1.1.73  fix s ber and adc fga gain and atsc ch if */
 /*  V1.1.74  optimize identification of auto qam */
+/*  V1.2.75  rebuild isdbt to improve signal locking performance */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -82,8 +83,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.74"
-#define DTVDEMOD_VER	"2023/1/5: optimize identification of auto qam"
+#define AMLDTVDEMOD_VER "V1.2.75"
+#define DTVDEMOD_VER	"2023/1/10: rebuild isdbt to improve signal locking performance"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -94,6 +95,7 @@
 #define THRD_TUNER_STRENGTH_DVBS (-79)
 #define THRD_TUNER_STRENGTH_DTMB (-100)
 #define THRD_TUNER_STRENGTH_DVBC (-87)
+#define THRD_TUNER_STRENGTH_ISDBT (-90)
 
 #define TIMEOUT_ATSC		3000
 #define TIMEOUT_ATSC_STD	1500
@@ -102,6 +104,7 @@
 #define TIMEOUT_DVBC		3000
 #define TIMEOUT_DVBT2		5000
 #define TIMEOUT_DDR_LEAVE   50
+#define TIMEOUT_ISDBT		3000
 
 enum DEMOD_TUNER_IF {
 	DEMOD_4M_IF = 4000,

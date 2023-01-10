@@ -73,6 +73,14 @@ MODULE_PARM_DESC(atsc_t_lost_continuous_cnt, "\n\t\t atsc-t lost signal continuo
 static unsigned int atsc_t_lost_continuous_cnt = 1;
 module_param(atsc_t_lost_continuous_cnt, int, 0644);
 
+MODULE_PARM_DESC(isdbt_lock_continuous_cnt, "\n\t\t isdbt lock signal continuous counting");
+static unsigned int isdbt_lock_continuous_cnt = 1;
+module_param(isdbt_lock_continuous_cnt, int, 0644);
+
+MODULE_PARM_DESC(isdbt_lost_continuous_cnt, "\n\t\t isdbt lost signal continuous counting");
+static unsigned int isdbt_lost_continuous_cnt = 1;
+module_param(isdbt_lost_continuous_cnt, int, 0644);
+
 /*use this flag to mark the new method for dvbc channel fast search
  *it's disabled as default, can be enabled if needed
  *we can make it always enabled after all testing are passed
@@ -879,37 +887,101 @@ static void gxtv_demod_dvbt_release(struct dvb_frontend *fe)
 
 }
 
-static int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
+#define ISDBT_TIME_CHECK_SIGNAL 400
+#define ISDBT_FSM_CHECK_SIGNAL 7
+static int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *status, bool re_tune)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
-	int ilock;
 	unsigned char s = 0;
+	unsigned int fsm;
+	int lock, strength, snr10;
+	static int has_signal;
+	int lock_continuous_cnt = isdbt_lock_continuous_cnt > 1 ? isdbt_lock_continuous_cnt : 1;
+	int lost_continuous_cnt = isdbt_lost_continuous_cnt > 1 ? isdbt_lost_continuous_cnt : 1;
+
+	if (re_tune) {
+		demod->time_start = jiffies_to_msecs(jiffies);
+		*status = 0;
+		demod->last_status = 0;
+		has_signal = 0;
+		demod->last_lock = 0;
+
+		return 0;
+	}
+
+	strength = tuner_get_ch_power(fe);
+	if (tuner_find_by_name(fe, "r842"))
+		strength += 10;
+
+	if (strength < THRD_TUNER_STRENGTH_ISDBT) {
+		*status = FE_TIMEDOUT;
+		PR_ISDBT("no signal, strength=%d, need<%d\n", strength, THRD_TUNER_STRENGTH_ISDBT);
+
+		goto finish;
+	}
+
+	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
+	fsm = dvbt_isdbt_rd_reg(0x2a << 2);
+	if ((fsm & 0xF) >= ISDBT_FSM_CHECK_SIGNAL)
+		has_signal = 1;
+	snr10 = (((dvbt_isdbt_rd_reg((0x0a << 2))) >> 20) & 0x3ff) * 10 / 8;
+	PR_ISDBT("fsm=0x%x, strength=%ddBm snr=%d.%ddB, time_passed=%dms\n",
+		fsm, strength, snr10 / 10, snr10 % 10, demod->time_passed);
 
 	s = dvbt_isdbt_rd_reg(0x0) >> 12 & 1;
+	if (s == 1)
+		lock = 1;
+	else if (demod->time_passed < ISDBT_TIME_CHECK_SIGNAL ||
+		(demod->time_passed < TIMEOUT_ISDBT && has_signal && demod->last_lock == 0))
+		lock = 0;
+	else
+		lock = -1;
 
-	if (s == 1) {
-		ilock = 1;
-		*status =
-			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-			FE_HAS_VITERBI | FE_HAS_SYNC;
-	} else {
-		if (timer_not_enough(demod, D_TIMER_DETECT)) {
-			ilock = 0;
-			*status = 0;
-			PR_TIME("timer not enough\n");
-
+	//The status is updated only when the status continuously reaches the threshold of times
+	if (lock < 0) {
+		if (demod->last_lock >= 0) {
+			demod->last_lock = -1;
+			PR_ISDBT("==> lost signal first\n");
+		} else if (demod->last_lock <= -lost_continuous_cnt) {
+			demod->last_lock = -lost_continuous_cnt;
+			PR_ISDBT("==> lost signal continue\n");
 		} else {
-			ilock = 0;
-			*status = FE_TIMEDOUT;
-			timer_disable(demod, D_TIMER_DETECT);
+			demod->last_lock--;
+			PR_ISDBT("==> lost signal times:%d\n", demod->last_lock);
 		}
+
+		if (demod->last_lock <= -lost_continuous_cnt)
+			*status = FE_TIMEDOUT;
+		else
+			*status = 0;
+	} else if (lock > 0) {
+		if (demod->last_lock <= 0) {
+			demod->last_lock = 1;
+			PR_ISDBT("==> lock signal first\n");
+		} else if (demod->last_lock >= lock_continuous_cnt) {
+			demod->last_lock = lock_continuous_cnt;
+			PR_ISDBT("==> lock signal continue\n");
+		} else {
+			demod->last_lock++;
+			PR_ISDBT("==> lock signal times:%d\n", demod->last_lock);
+		}
+
+		if (demod->last_lock >= lock_continuous_cnt)
+			*status = FE_HAS_LOCK | FE_HAS_SIGNAL |
+				FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC;
+		else
+			*status = 0;
+	} else {
+		*status = 0;
+		PR_ISDBT("==> wait\n");
 	}
 
-	if (demod->last_lock != ilock) {
-		PR_INFO("%s [id %d]: %s.\n", __func__, demod->id,
-			ilock ? "!!  >> LOCK << !!" : "!! >> UNLOCK << !!");
-		demod->last_lock = ilock;
+finish:
+	if (demod->last_status != *status && *status != 0) {
+		PR_INFO("!!  >> %s << !!, freq=%d\n", *status == FE_TIMEDOUT ? "UNLOCK" : "LOCK",
+			fe->dtv_property_cache.frequency);
 	}
+	demod->last_status = *status;
 
 	return 0;
 }
@@ -2474,16 +2546,13 @@ static int dvbt_isdbt_tune(struct dvb_frontend *fe, bool re_tune,
 	 */
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 
-	*delay = HZ/2;
+	*delay = HZ / 20;
 
 	if (re_tune) {
-
-		timer_begain(demod, D_TIMER_DETECT);
 		PR_INFO("%s [id %d]: re_tune.\n", __func__, demod->id);
 		demod->en_detect = 1; /*fist set*/
-
 		dvbt_isdbt_set_frontend(fe);
-		dvbt_isdbt_read_status(fe, status);
+		dvbt_isdbt_read_status(fe, status, re_tune);
 		return 0;
 	}
 
@@ -2491,20 +2560,9 @@ static int dvbt_isdbt_tune(struct dvb_frontend *fe, bool re_tune,
 		PR_DBGL("%s: [id %d] not enable.\n", __func__, demod->id);
 		return 0;
 	}
+
 	/*polling*/
-	dvbt_isdbt_read_status(fe, status);
-
-	if (*status & FE_HAS_LOCK) {
-		timer_disable(demod, D_TIMER_SET);
-	} else {
-		if (!timer_is_en(demod, D_TIMER_SET))
-			timer_begain(demod, D_TIMER_SET);
-	}
-
-	if (timer_is_enough(demod, D_TIMER_SET)) {
-		dvbt_isdbt_set_frontend(fe);
-		timer_disable(demod, D_TIMER_SET);
-	}
+	dvbt_isdbt_read_status(fe, status, re_tune);
 
 	return 0;
 }
@@ -6606,7 +6664,7 @@ static int aml_dtvdm_read_status(struct dvb_frontend *fe,
 		break;
 
 	case SYS_ISDBT:
-		ret = dvbt_isdbt_read_status(fe, status);
+		*status = demod->last_status;
 		break;
 
 	case SYS_ATSC:
