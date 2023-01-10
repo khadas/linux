@@ -370,7 +370,8 @@ static unsigned int aml_mpll_mclk_ratio(unsigned int freq)
 #define MPLL_CD_FIXED_FREQ    (451584000)
 
 /* normal hifi+mpll clk src each for 44.1k and 48k */
-static int aml_set_tdm_mclk_s4(struct aml_tdm *p_tdm, unsigned int freq)
+static int aml_set_tdm_mclk_s4(struct aml_tdm *p_tdm,
+		unsigned int freq, bool tune)
 {
 	int ret = -1;
 	bool force_mpll = is_force_mpll_clk();
@@ -414,14 +415,16 @@ static int aml_set_tdm_mclk_s4(struct aml_tdm *p_tdm, unsigned int freq)
 		}
 	}
 
-	clk_set_rate(p_tdm->mclk, freq);
+	if (!tune)
+		clk_set_rate(p_tdm->mclk, freq);
 	p_tdm->last_mclk_freq = freq;
 
 	return 0;
 }
 
 /* normal 1 audio clk src both for 44.1k and 48k */
-static int aml_set_tdm_mclk_1(struct aml_tdm *p_tdm, unsigned int freq)
+static int aml_set_tdm_mclk_1(struct aml_tdm *p_tdm,
+		unsigned int freq, bool tune)
 {
 	unsigned int ratio = aml_mpll_mclk_ratio(freq);
 	unsigned int mpll_freq = 0;
@@ -445,7 +448,8 @@ static int aml_set_tdm_mclk_1(struct aml_tdm *p_tdm, unsigned int freq)
 	}
 	clk_set_rate(p_tdm->mclk, freq);
 	if (freq != p_tdm->last_mclk_freq) {
-		clk_set_rate(p_tdm->mclk, freq);
+		if (!tune)
+			clk_set_rate(p_tdm->mclk, freq);
 		p_tdm->last_mclk_freq = freq;
 	}
 
@@ -459,7 +463,8 @@ static int aml_set_tdm_mclk_1(struct aml_tdm *p_tdm, unsigned int freq)
 }
 
 /* 2 audio clk src each for 44.1k and 48k */
-static int aml_set_tdm_mclk_2(struct aml_tdm *p_tdm, unsigned int freq)
+static int aml_set_tdm_mclk_2(struct aml_tdm *p_tdm,
+		unsigned int freq, bool tune)
 {
 	int ret = -1;
 	char *clk_name = (char *)__clk_get_name(p_tdm->clk);
@@ -488,7 +493,8 @@ static int aml_set_tdm_mclk_2(struct aml_tdm *p_tdm, unsigned int freq)
 		dev_warn(p_tdm->dev, "unsupport clock rate %d\n", p_tdm->setting.standard_sysclk);
 	}
 
-	clk_set_rate(p_tdm->mclk, freq);
+	if (!tune)
+		clk_set_rate(p_tdm->mclk, freq);
 	p_tdm->last_mclk_freq = freq;
 
 	pr_info("set mclk:%d, get mclk:%lu, mpll:%lu, clk_src_cd:%lu\n",
@@ -500,27 +506,28 @@ static int aml_set_tdm_mclk_2(struct aml_tdm *p_tdm, unsigned int freq)
 	return 0;
 }
 
-static int aml_set_tdm_mclk_normal(struct aml_tdm *p_tdm, unsigned int freq)
+static int aml_set_tdm_mclk_normal(struct aml_tdm *p_tdm,
+			unsigned int freq, bool tune)
 {
 	int ret = 0;
 
 	if (IS_ERR(p_tdm->clk_src_cd))
-		ret = aml_set_tdm_mclk_1(p_tdm, freq);
+		ret = aml_set_tdm_mclk_1(p_tdm, freq, tune);
 	else
-		ret = aml_set_tdm_mclk_2(p_tdm, freq);
+		ret = aml_set_tdm_mclk_2(p_tdm, freq, tune);
 
 	return ret;
 }
 
-static int aml_set_tdm_mclk(struct aml_tdm *p_tdm, unsigned int freq)
+static int aml_set_tdm_mclk(struct aml_tdm *p_tdm, unsigned int freq, bool tune)
 {
 	int ret = 0;
 	char *clk_name = (char *)__clk_get_name(p_tdm->clk);
 
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_S4 && !strcmp(clk_name, "hifi_pll"))
-		ret = aml_set_tdm_mclk_s4(p_tdm, freq);
+		ret = aml_set_tdm_mclk_s4(p_tdm, freq, tune);
 	else
-		ret = aml_set_tdm_mclk_normal(p_tdm, freq);
+		ret = aml_set_tdm_mclk_normal(p_tdm, freq, tune);
 
 	return ret;
 }
@@ -615,7 +622,7 @@ int aml_tdm_hw_setting_init(struct aml_tdm *p_tdm,
 	dump_pcm_setting(setting);
 
 	/* set pcm dai hw params */
-	aml_set_tdm_mclk(p_tdm, setting->sysclk);
+	aml_set_tdm_mclk(p_tdm, setting->sysclk, false);
 	aml_tdm_set_clkdiv(p_tdm, setting->sysclk_bclk_ratio);
 	aml_set_bclk_ratio(p_tdm, setting->bclk_lrclk_ratio);
 
@@ -745,7 +752,7 @@ static int tdm_clk_set(struct snd_kcontrol *kcontrol,
 	mclk_rate >>= 1;
 	mclk_rate <<= 1;
 
-	aml_set_tdm_mclk(p_tdm, mclk_rate);
+	aml_set_tdm_mclk(p_tdm, mclk_rate, true);
 
 	return 0;
 }
@@ -765,7 +772,7 @@ static int tdm_clk_ppm_set(struct snd_kcontrol *kcontrol,
 	}
 	mclk_rate = mclk_rate + mclk_rate * (value - 1000) / 1000000;
 
-	aml_set_tdm_mclk(p_tdm, mclk_rate);
+	aml_set_tdm_mclk(p_tdm, mclk_rate, true);
 
 	return 0;
 }
@@ -1733,7 +1740,7 @@ static int aml_dai_set_tdm_sysclk(struct snd_soc_dai *cpu_dai,
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
 	p_tdm->setting.standard_sysclk = freq;
 
-	return aml_set_tdm_mclk(p_tdm, freq);
+	return aml_set_tdm_mclk(p_tdm, freq, false);
 }
 
 static int aml_dai_set_bclk_ratio(struct snd_soc_dai *cpu_dai,

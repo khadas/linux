@@ -16,7 +16,8 @@
  */
 #define SPDIFOUT_LANE_MASK_V2 2
 
-int spdif_set_audio_clk(int id, struct clk *clk_src, int rate, int same);
+int spdif_set_audio_clk(int id,	struct clk *clk_src,
+		int rate, int same, bool tune);
 int spdifout_get_lane_mask_version(int id);
 unsigned int spdif_get_codec(void);
 unsigned int get_spdif_source_l_config(int id);
