@@ -1172,14 +1172,14 @@ bool need_skip_cvm(unsigned int is_graphic)
 
 	if (multi_dv_mode) {
 		ret = skip_cvm_tbl[is_graphic]
-			[dolby_vision_graphics_priority]
+			[pri_mode]
 			[new_m_dovi_setting.input[0].src_format == FORMAT_INVALID ?
 				FORMAT_SDR : new_m_dovi_setting.input[0].src_format]
 			[new_m_dovi_setting.dovi_ll_enable ?
 				FORMAT_DOVI_LL : new_m_dovi_setting.dst_format];
 	} else {
 		ret = skip_cvm_tbl[is_graphic]
-			[dolby_vision_graphics_priority]
+			[pri_mode]
 			[new_dovi_setting.src_format == FORMAT_INVALID ?
 				FORMAT_SDR : new_dovi_setting.src_format]
 			[new_dovi_setting.dovi_ll_enable ?
@@ -7813,11 +7813,9 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 		else
 			pri_mode = G_PRIORITY;
 		/*user debug mode*/
-		if (force_priority > 0)
-			dolby_vision_graphics_priority = force_priority;
-		if (dolby_vision_graphics_priority == 1)
+		if (force_priority == 1)
 			pri_mode = G_PRIORITY;
-		else if (dolby_vision_graphics_priority == 2)
+		else if (force_priority == 2)
 			pri_mode = V_PRIORITY;
 	}
 
@@ -9246,12 +9244,17 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 		else
 			pri_mode = G_PRIORITY;
 		/*user debug mode*/
-		if (force_priority > 0)
-			dolby_vision_graphics_priority = force_priority;
-		if (dolby_vision_graphics_priority == 1)
+		if (force_priority == 1)
 			pri_mode = G_PRIORITY;
-		else if (dolby_vision_graphics_priority == 2)
+		else if (force_priority == 2)
 			pri_mode = V_PRIORITY;
+
+		/*video priority only valid in sink-led,set to graphic pri when in other mode*/
+		if (dst_format != FORMAT_DOVI ||
+		    (dst_format == FORMAT_DOVI &&
+		    (dolby_vision_ll_policy >= DOLBY_VISION_LL_YUV422 ||
+		    (dolby_vision_flags & FLAG_FORCE_DV_LL))))
+			pri_mode = G_PRIORITY;
 	}
 
 	if (dst_format == FORMAT_DOVI) {
