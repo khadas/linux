@@ -1220,7 +1220,7 @@
 			opp-microvolt = <950000>;
 			opp-microvolt-L0 = <950000>;
 			opp-microvolt-L1 = <925000>;
-			opp-microvolt-L2 = <850000>;
+			opp-microvolt-L2 = <900000>;
 		};
 	};
 
@@ -1551,7 +1551,7 @@
 			opp-microvolt = <950000>;
 			opp-microvolt-L0 = <950000>;
 			opp-microvolt-L1 = <925000>;
-			opp-microvolt-L2 = <850000>;
+			opp-microvolt-L2 = <900000>;
 		};
 	};
 

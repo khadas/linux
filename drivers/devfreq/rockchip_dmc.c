@@ -97,7 +97,9 @@ struct share_params {
 
 	u32 freq_count;
 	u32 freq_info_mhz[6];
-	 /* if need, add parameter after */
+	u32 wait_mode;
+	u32 vop_scan_line_time_ns;
+	/* if need, add parameter after */
 };
 
 static struct share_params *ddr_psci_param;
@@ -351,6 +353,7 @@ static int rockchip_ddr_set_rate(unsigned long target_rate)
 
 	ddr_psci_param->hz = target_rate;
 	ddr_psci_param->lcdc_type = rk_drm_get_lcdc_type();
+	ddr_psci_param->vop_scan_line_time_ns = rockchip_drm_get_scan_line_time_ns();
 	ddr_psci_param->wait_flag1 = 1;
 	ddr_psci_param->wait_flag0 = 1;
 
@@ -2057,6 +2060,9 @@ static __maybe_unused int rk3588_dmc_init(struct platform_device *pdev,
 		dmcfreq->sleep_mem_volt = opp->supplies[1].u_volt;
 	dev_pm_opp_put(opp);
 
+	if (of_property_read_u32(pdev->dev.of_node, "wait-mode", &ddr_psci_param->wait_mode))
+		ddr_psci_param->wait_mode = 0;
+
 	dmcfreq->set_auto_self_refresh = rockchip_ddr_set_auto_self_refresh;
 
 	return 0;
@@ -2625,8 +2631,14 @@ static int rockchip_dmcfreq_panic_notifier(struct notifier_block *nb,
 {
 	struct rockchip_dmcfreq *dmcfreq =
 		container_of(nb, struct rockchip_dmcfreq, panic_nb);
+	struct device *dev = dmcfreq->dev;
 
-	rockchip_opp_dump_cur_state(dmcfreq->dev);
+	if (dmcfreq->regulator_count == 1)
+		dev_info(dev, "cur_freq: %lu Hz, volt: %lu uV\n",
+			 dmcfreq->rate, dmcfreq->volt);
+	else
+		dev_info(dev, "cur_freq: %lu Hz, volt_vdd: %lu uV, volt_mem: %lu uV\n",
+			 dmcfreq->rate, dmcfreq->volt, dmcfreq->mem_volt);
 
 	return 0;
 }

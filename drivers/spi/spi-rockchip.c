@@ -194,6 +194,7 @@ struct rockchip_spi {
 
 	atomic_t state;
 
+	u32 version;
 	/*depth of the FIFO buffer */
 	u32 fifo_len;
 	/* frequency of spiclk */
@@ -203,6 +204,7 @@ struct rockchip_spi {
 
 	u8 n_bytes;
 	u8 rsd;
+	u8 csm;
 
 	bool cs_asserted[ROCKCHIP_SPI_MAX_CS_NUM];
 
@@ -227,16 +229,14 @@ static inline void spi_enable_chip(struct rockchip_spi *rs, bool enable)
 static inline void wait_for_tx_idle(struct rockchip_spi *rs, bool slave_mode)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(5);
+	u32 busy = SR_BUSY;
+
+	if (slave_mode && rs->version == ROCKCHIP_SPI_VER2_TYPE2)
+		busy = SR_SLAVE_TX_BUSY;
 
 	do {
-		if (slave_mode) {
-			if (!(readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & SR_SLAVE_TX_BUSY) &&
-			    !((readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & SR_BUSY)))
-				return;
-		} else {
-			if (!(readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & SR_BUSY))
-				return;
-		}
+		if (!(readl_relaxed(rs->regs + ROCKCHIP_SPI_SR) & busy))
+			return;
 	} while (!time_after(jiffies, timeout));
 
 	dev_warn(rs->dev, "spi controller is in busy state!\n");
@@ -244,11 +244,7 @@ static inline void wait_for_tx_idle(struct rockchip_spi *rs, bool slave_mode)
 
 static u32 get_fifo_len(struct rockchip_spi *rs)
 {
-	u32 ver;
-
-	ver = readl_relaxed(rs->regs + ROCKCHIP_SPI_VERSION);
-
-	switch (ver) {
+	switch (rs->version) {
 	case ROCKCHIP_SPI_VER2_TYPE1:
 	case ROCKCHIP_SPI_VER2_TYPE2:
 		return 64;
@@ -368,7 +364,7 @@ static irqreturn_t rockchip_spi_isr(int irq, void *dev_id)
 	struct rockchip_spi *rs = spi_controller_get_devdata(ctlr);
 
 	/* When int_cs_inactive comes, spi slave abort */
-	if (rs->cs_inactive && readl_relaxed(rs->regs + ROCKCHIP_SPI_IMR) & INT_CS_INACTIVE) {
+	if (rs->cs_inactive && readl_relaxed(rs->regs + ROCKCHIP_SPI_ISR) & INT_CS_INACTIVE) {
 		ctlr->slave_abort(ctlr);
 		writel_relaxed(0, rs->regs + ROCKCHIP_SPI_IMR);
 		writel_relaxed(0xffffffff, rs->regs + ROCKCHIP_SPI_ICR);
@@ -428,6 +424,8 @@ static void rockchip_spi_dma_rxcb(void *data)
 		writel_relaxed(0, rs->regs + ROCKCHIP_SPI_IMR);
 
 	spi_enable_chip(rs, false);
+	writel_relaxed(0, rs->regs + ROCKCHIP_SPI_IMR);
+	writel_relaxed(0xffffffff, rs->regs + ROCKCHIP_SPI_ICR);
 	spi_finalize_current_transfer(ctlr);
 }
 
@@ -444,6 +442,8 @@ static void rockchip_spi_dma_txcb(void *data)
 	wait_for_tx_idle(rs, ctlr->slave);
 
 	spi_enable_chip(rs, false);
+	writel_relaxed(0, rs->regs + ROCKCHIP_SPI_IMR);
+	writel_relaxed(0xffffffff, rs->regs + ROCKCHIP_SPI_ICR);
 	spi_finalize_current_transfer(ctlr);
 }
 
@@ -555,6 +555,7 @@ static int rockchip_spi_config(struct rockchip_spi *rs,
 	rs->slave_abort = false;
 
 	cr0 |= rs->rsd << CR0_RSD_OFFSET;
+	cr0 |= rs->csm << CR0_CSM_OFFSET;
 	cr0 |= (spi->mode & 0x3U) << CR0_SCPH_OFFSET;
 	if (spi->mode & SPI_LSB_FIRST)
 		cr0 |= CR0_FBM_LSB << CR0_FBM_OFFSET;
@@ -851,7 +852,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 	struct spi_controller *ctlr;
 	struct resource *mem;
 	struct device_node *np = pdev->dev.of_node;
-	u32 rsd_nsecs, num_cs;
+	u32 rsd_nsecs, num_cs, csm;
 	bool slave_mode;
 	struct pinctrl *pinctrl = NULL;
 	const struct rockchip_spi_quirks *quirks_cfg;
@@ -961,6 +962,16 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		rs->rsd = rsd;
 	}
 
+	if (!device_property_read_u32(&pdev->dev, "csm", &csm)) {
+		if (csm > CR0_CSM_ONE)	{
+			dev_warn(rs->dev, "The csm value %u exceeds the limit, clamping at %u\n",
+				 csm, CR0_CSM_ONE);
+			csm = CR0_CSM_ONE;
+		}
+		rs->csm = csm;
+	}
+
+	rs->version = readl_relaxed(rs->regs + ROCKCHIP_SPI_VERSION);
 	rs->fifo_len = get_fifo_len(rs);
 	if (!rs->fifo_len) {
 		dev_err(&pdev->dev, "Failed to get fifo length\n");
@@ -1030,11 +1041,11 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		ctlr->can_dma = rockchip_spi_can_dma;
 	}
 
-	switch (readl_relaxed(rs->regs + ROCKCHIP_SPI_VERSION)) {
+	switch (rs->version) {
 	case ROCKCHIP_SPI_VER2_TYPE2:
 		rs->cs_high_supported = true;
 		ctlr->mode_bits |= SPI_CS_HIGH;
-		if (ctlr->can_dma && slave_mode)
+		if (slave_mode)
 			rs->cs_inactive = true;
 		else
 			rs->cs_inactive = false;

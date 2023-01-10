@@ -996,7 +996,7 @@ static void update_mi(struct rkisp_stream *stream)
 static int set_mirror_flip(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
-	u32 val = 0;
+	u32 tmp, val = 0;
 
 	if (!stream->is_mf_upd)
 		return 0;
@@ -1029,10 +1029,11 @@ static int set_mirror_flip(struct rkisp_stream *stream)
 		}
 	}
 
+	tmp = rkisp_read_reg_cache(dev, ISP32_MI_WR_VFLIP_CTRL);
 	if (stream->is_flip)
-		rkisp_set_bits(dev, ISP32_MI_WR_VFLIP_CTRL, 0, val, false);
+		rkisp_write(dev, ISP32_MI_WR_VFLIP_CTRL, tmp | val, false);
 	else
-		rkisp_clear_bits(dev, ISP32_MI_WR_VFLIP_CTRL, val, false);
+		rkisp_write(dev, ISP32_MI_WR_VFLIP_CTRL, tmp & ~val, false);
 	return 0;
 }
 
@@ -1300,12 +1301,16 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 
 	stream->stopping = true;
 	stream->is_pause = false;
-	if (dev->hw_dev->is_single && stream->ops->disable_mi)
+	if (stream->ops->disable_mi)
 		stream->ops->disable_mi(stream);
 	if (IS_HDR_RDBK(dev->rd_mode)) {
 		spin_lock_irqsave(&dev->hw_dev->rdbk_lock, lock_flags);
-		if (dev->hw_dev->cur_dev_id != dev->dev_id || dev->hw_dev->is_idle)
+		if (dev->hw_dev->cur_dev_id != dev->dev_id || dev->hw_dev->is_idle) {
 			is_wait = false;
+			/* force update to close */
+			if (dev->hw_dev->is_single)
+				stream_self_update(stream);
+		}
 		if (atomic_read(&dev->cap_dev.refcnt) == 1 && !is_wait)
 			dev->isp_state = ISP_STOP;
 		spin_unlock_irqrestore(&dev->hw_dev->rdbk_lock, lock_flags);
@@ -1482,7 +1487,7 @@ static int rkisp_create_dummy_buf(struct rkisp_stream *stream)
 	if (!dev->cap_dev.wrap_line || stream->id != RKISP_STREAM_MP)
 		return 0;
 
-	buf->size = dev->isp_sdev.in_crop.width * dev->cap_dev.wrap_line * 2;
+	buf->size = dev->cap_dev.wrap_width * dev->cap_dev.wrap_line * 2;
 	if (stream->out_isp_fmt.output_format == ISP32_MI_OUTPUT_YUV420)
 		buf->size = buf->size - buf->size / 4;
 	buf->is_need_dbuf = true;

@@ -26,6 +26,7 @@
 #define VOP2_MINOR(version)		(((version) >> 16) & 0xff)
 #define VOP2_BUILD(version)		((version) & 0xffff)
 
+#define VOP_VERSION_RK3528	VOP2_VERSION(0x50, 0x17, 0x1263)
 #define VOP_VERSION_RK3568	VOP2_VERSION(0x40, 0x15, 0x8023)
 #define VOP_VERSION_RK3588	VOP2_VERSION(0x40, 0x17, 0x6786)
 
@@ -47,6 +48,9 @@
 /* a feature to splice two windows and two vps to support resolution > 4096 */
 #define VOP_FEATURE_SPLICE		BIT(5)
 #define VOP_FEATURE_OVERSCAN		BIT(6)
+#define VOP_FEATURE_VIVID_HDR		BIT(7)
+#define VOP_FEATURE_POST_ACM		BIT(8)
+#define VOP_FEATURE_POST_CSC		BIT(9)
 
 #define VOP_FEATURE_OUTPUT_10BIT	VOP_FEATURE_OUTPUT_RGB10
 
@@ -119,10 +123,10 @@ enum vop2_win_dly_mode {
 };
 
 enum vop3_esmart_lb_mode {
-	VOP3_ESMART_ONE_8K_MODE,
-	VOP3_ESMART_TWO_4K_MODE,
-	VOP3_ESMART_ONE_4K_AND_TWO_2K_MODE,
-	VOP3_ESMART_FOUR_2K_MODE,
+	VOP3_ESMART_8K_MODE,
+	VOP3_ESMART_4K_4K_MODE,
+	VOP3_ESMART_4K_2K_2K_MODE,
+	VOP3_ESMART_2K_2K_2K_2K_MODE,
 };
 
 /*
@@ -507,6 +511,135 @@ struct vop_hdr_table {
 	const uint32_t *sdr2hdr_st2084oetf_xn;
 };
 
+#define RK_HDRVIVID_TONE_SCA_TAB_LENGTH		257
+#define RK_HDRVIVID_GAMMA_CURVE_LENGTH		81
+#define RK_HDRVIVID_GAMMA_MDFVALUE_LENGTH	9
+#define RK_SDR2HDR_INVGAMMA_CURVE_LENGTH	69
+#define RK_SDR2HDR_INVGAMMA_S_IDX_LENGTH	6
+#define RK_SDR2HDR_INVGAMMA_C_IDX_LENGTH	6
+#define RK_SDR2HDR_SMGAIN_LENGTH		64
+#define RK_HDRVIVID_TONE_SCA_AXI_TAB_LENGTH	264
+
+struct hdrvivid_regs {
+	uint32_t sdr2hdr_ctrl;
+	uint32_t sdr2hdr_coe0;
+	uint32_t sdr2hdr_coe1;
+	uint32_t sdr2hdr_csc_coe00_01;
+	uint32_t sdr2hdr_csc_coe02_10;
+	uint32_t sdr2hdr_csc_coe11_12;
+	uint32_t sdr2hdr_csc_coe20_21;
+	uint32_t sdr2hdr_csc_coe22;
+	uint32_t hdrvivid_ctrl;
+	uint32_t hdr_pq_gamma;
+	uint32_t hlg_rfix_scalefac;
+	uint32_t hlg_maxluma;
+	uint32_t hlg_r_tm_lin2non;
+	uint32_t hdr_csc_coe00_01;
+	uint32_t hdr_csc_coe02_10;
+	uint32_t hdr_csc_coe11_12;
+	uint32_t hdr_csc_coe20_21;
+	uint32_t hdr_csc_coe22;
+	uint32_t hdr_tone_sca[RK_HDRVIVID_TONE_SCA_TAB_LENGTH];
+	uint32_t hdrgamma_curve[RK_HDRVIVID_GAMMA_CURVE_LENGTH];
+	uint32_t hdrgamma_mdfvalue[RK_HDRVIVID_GAMMA_MDFVALUE_LENGTH];
+	uint32_t sdrinvgamma_curve[RK_SDR2HDR_INVGAMMA_CURVE_LENGTH];
+	uint32_t sdrinvgamma_startidx[RK_SDR2HDR_INVGAMMA_S_IDX_LENGTH];
+	uint32_t sdrinvgamma_changeidx[RK_SDR2HDR_INVGAMMA_C_IDX_LENGTH];
+	uint32_t sdr_smgain[RK_SDR2HDR_SMGAIN_LENGTH];
+	uint32_t hdr_mode;
+	uint32_t tone_sca_axi_tab[RK_HDRVIVID_TONE_SCA_AXI_TAB_LENGTH];
+};
+
+struct hdr_extend {
+	uint32_t hdr_type;
+	uint32_t length;
+	union {
+		struct hdrvivid_regs hdrvivid_data;
+	};
+};
+
+enum _vop_hdrvivid_mode {
+	PQHDR2HDR_WITH_DYNAMIC = 0,
+	PQHDR2SDR_WITH_DYNAMIC,
+	HLG2PQHDR_WITH_DYNAMIC,
+	HLG2SDR_WITH_DYNAMIC,
+	HLG2PQHDR_WITHOUT_DYNAMIC,
+	HLG2SDR_WITHOUT_DYNAMIC,
+	HDR_BYPASS,
+	HDR102SDR,
+	SDR2HDR10,
+	SDR2HLG,
+	SDR2HDR10_USERSPACE = 100,
+	SDR2HLG_USERSPACE = 101,
+};
+
+enum vop_hdr_format {
+	HDR_NONE = 0,
+	HDR_HDR10 = 1,
+	HDR_HLGSTATIC = 2,
+	RESERVED3 = 3,		/* reserved for more future static hdr format */
+	RESERVED4 = 4,		/* reserved for more future static hdr format */
+	HDR_HDRVIVID = 5,
+	RESERVED6 = 6,		/* reserved for hdr vivid */
+	RESERVED7 = 7,		/* reserved for hdr vivid */
+	HDR_HDR10PLUS = 8,
+	RESERVED9 = 9,		/* reserved for hdr hdr10+ */
+	RESERVED10 = 10,	/* reserved for hdr hdr10+ */
+	HDR_NEXT = 11,
+	RESERVED12 = 12,	/* reserved for other dynamic hdr format */
+	RESERVED13 = 13,	/* reserved for other dynamic hdr format */
+	HDR_FORMAT_MAX,
+};
+
+#define ACM_GAIN_LUT_HY_LENGTH		(9*17)
+#define ACM_GAIN_LUT_HY_TOTAL_LENGTH	(ACM_GAIN_LUT_HY_LENGTH * 3)
+#define ACM_GAIN_LUT_HS_LENGTH		(13*17)
+#define ACM_GAIN_LUT_HS_TOTAL_LENGTH (ACM_GAIN_LUT_HS_LENGTH * 3)
+#define ACM_DELTA_LUT_H_LENGTH		65
+#define ACM_DELTA_LUT_H_TOTAL_LENGTH	(ACM_DELTA_LUT_H_LENGTH * 3)
+
+struct post_acm {
+	s16 delta_lut_h[ACM_DELTA_LUT_H_TOTAL_LENGTH];
+	s16 gain_lut_hy[ACM_GAIN_LUT_HY_TOTAL_LENGTH];
+	s16 gain_lut_hs[ACM_GAIN_LUT_HS_TOTAL_LENGTH];
+	u16 y_gain;
+	u16 h_gain;
+	u16 s_gain;
+	u16 acm_enable;
+};
+
+struct post_csc {
+	u16 hue;
+	u16 saturation;
+	u16 contrast;
+	u16 brightness;
+	u16 r_gain;
+	u16 g_gain;
+	u16 b_gain;
+	u16 r_offset;
+	u16 g_offset;
+	u16 b_offset;
+	u16 csc_enable;
+};
+
+struct post_csc_coef {
+	s32 csc_coef00;
+	s32 csc_coef01;
+	s32 csc_coef02;
+	s32 csc_coef10;
+	s32 csc_coef11;
+	s32 csc_coef12;
+	s32 csc_coef20;
+	s32 csc_coef21;
+	s32 csc_coef22;
+
+	s32 csc_dc0;
+	s32 csc_dc1;
+	s32 csc_dc2;
+
+	u32 range_type;
+};
+
 enum {
 	VOP_CSC_Y2R_BT601,
 	VOP_CSC_Y2R_BT709,
@@ -589,6 +722,7 @@ struct vop2_cluster_regs {
 	struct vop_reg enable;
 	struct vop_reg afbc_enable;
 	struct vop_reg lb_mode;
+	struct vop_reg scl_lb_mode;
 
 	struct vop_reg src_color_ctrl;
 	struct vop_reg dst_color_ctrl;
@@ -708,6 +842,13 @@ struct vop2_video_port_regs {
 	struct vop_reg hdr_lut_update_en;
 	struct vop_reg hdr_lut_mode;
 	struct vop_reg hdr_lut_mst;
+	struct vop_reg hdr_lut_fetch_done;
+	struct vop_reg hdr_vivid_en;
+	struct vop_reg hdr_vivid_bypass_en;
+	struct vop_reg hdr_vivid_path_mode;
+	struct vop_reg hdr_vivid_dstgamut;
+	struct vop_reg sdr2hdr_en;
+	struct vop_reg sdr2hdr_dstmode;
 	struct vop_reg sdr2hdr_eotf_en;
 	struct vop_reg sdr2hdr_r2r_en;
 	struct vop_reg sdr2hdr_r2r_mode;
@@ -780,6 +921,30 @@ struct vop2_video_port_regs {
 	struct vop_reg mcu_bypass;
 	struct vop_reg mcu_type;
 	struct vop_reg mcu_rw_bypass_port;
+
+	/* for DCF */
+	struct vop_reg line_flag_or_en;
+	struct vop_reg dsp_hold_or_en;
+	struct vop_reg almost_full_or_en;
+
+	/* CSC */
+	struct vop_reg acm_bypass_en;
+	struct vop_reg csc_en;
+	struct vop_reg acm_r2y_en;
+	struct vop_reg csc_mode;
+	struct vop_reg acm_r2y_mode;
+	struct vop_reg csc_coe00;
+	struct vop_reg csc_coe01;
+	struct vop_reg csc_coe02;
+	struct vop_reg csc_coe10;
+	struct vop_reg csc_coe11;
+	struct vop_reg csc_coe12;
+	struct vop_reg csc_coe20;
+	struct vop_reg csc_coe21;
+	struct vop_reg csc_coe22;
+	struct vop_reg csc_offset0;
+	struct vop_reg csc_offset1;
+	struct vop_reg csc_offset2;
 };
 
 struct vop2_power_domain_regs {
@@ -882,7 +1047,6 @@ struct vop2_win_data {
 	uint8_t axi_id;
 	uint8_t axi_yrgb_id;
 	uint8_t axi_uv_id;
-	uint8_t scale_engine_num;
 	uint8_t possible_crtcs;
 
 	uint32_t base;
@@ -966,6 +1130,11 @@ struct vop2_video_port_data {
 	unsigned long dclk_max;
 	struct vop_rect max_output;
 	const u8 pre_scan_max_dly[4];
+	const u8 hdrvivid_dly[10];
+	const u8 sdr2hdr_dly;
+	const u8 layer_mix_dly;
+	const u8 hdr_mix_dly;
+	const u8 win_dly;
 	const struct vop_intr *intr;
 	const struct vop_hdr_table *hdr_table;
 	const struct vop2_video_port_regs *regs;
@@ -1042,6 +1211,9 @@ struct vop2_ctrl {
 	struct vop_reg wb_cfg_done;
 	struct vop_reg auto_gating_en;
 	struct vop_reg aclk_pre_auto_gating_en;
+	struct vop_reg dma_finish_mode;
+	struct vop_reg axi_dma_finish_and_en;
+	struct vop_reg wb_dma_finish_and_en;
 	struct vop_reg ovl_cfg_done_port;
 	struct vop_reg ovl_port_mux_cfg_done_imd;
 	struct vop_reg ovl_port_mux_cfg;
@@ -1049,6 +1221,7 @@ struct vop2_ctrl {
 	struct vop_reg version;
 	struct vop_reg standby;
 	struct vop_reg dma_stop;
+	struct vop_reg dsp_vs_t_sel;
 	struct vop_reg lut_dma_en;
 	struct vop_reg axi_outstanding_max_num;
 	struct vop_reg axi_max_outstanding_en;
@@ -1145,6 +1318,8 @@ struct vop2_ctrl {
 struct vop_dump_regs {
 	uint32_t offset;
 	const char *name;
+	struct vop_reg state;
+	bool enable_state;
 };
 
 /**

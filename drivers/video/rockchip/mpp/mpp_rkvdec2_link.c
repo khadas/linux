@@ -19,7 +19,7 @@
 #include "hack/mpp_rkvdec2_link_hack_rk3568.c"
 
 #define WORK_TIMEOUT_MS		(200)
-#define WAIT_TIMEOUT_MS		(500)
+#define WAIT_TIMEOUT_MS		(2000)
 
 /* vdpu381 link hw info for rk3588 */
 struct rkvdec_link_info rkvdec_link_v2_hw_info = {
@@ -128,6 +128,8 @@ struct rkvdec_link_info rkvdec_link_rk356x_hw_info = {
 	.tb_reg_cycle = 179,
 	.hack_setup = 1,
 };
+
+static void rkvdec2_link_free_task(struct kref *ref);
 
 static void rkvdec_link_status_update(struct rkvdec_link_dev *dev)
 {
@@ -641,6 +643,7 @@ static int rkvdec_link_isr_recv_task(struct mpp_dev *mpp,
 		set_bit(TASK_STATE_PROC_DONE, &mpp_task->state);
 		/* Wake up the GET thread */
 		wake_up(&task->wait);
+		kref_put(&mpp_task->ref, rkvdec2_link_free_task);
 	}
 
 	return 0;
@@ -1282,7 +1285,6 @@ static int mpp_session_pop_done(struct mpp_session *session,
 				struct mpp_task *task)
 {
 	set_bit(TASK_STATE_DONE, &task->state);
-	kref_put(&task->ref, rkvdec2_link_free_task);
 
 	return 0;
 }
@@ -1412,7 +1414,6 @@ again:
 		mutex_lock(&queue->pending_lock);
 		list_del_init(&task->queue_link);
 
-		kref_get(&task->ref);
 		set_bit(TASK_STATE_ABORT_READY, &task->state);
 		set_bit(TASK_STATE_PROC_DONE, &task->state);
 
@@ -1752,14 +1753,14 @@ static int rkvdec2_soft_ccu_reset(struct mpp_taskqueue *queue,
 		if (!(val & RKVDEC_BIT_BUS_IDLE))
 			mpp_err("bus busy\n");
 
-#if IS_ENABLED(CONFIG_ROCKCHIP_SIP)
-		/* sip reset */
-		rockchip_dmcfreq_lock();
-		sip_smc_vpu_reset(i, 0, 0);
-		rockchip_dmcfreq_unlock();
-#else
-		rkvdec2_reset(mpp);
-#endif
+		if (IS_REACHABLE(CONFIG_ROCKCHIP_SIP)) {
+			/* sip reset */
+			rockchip_dmcfreq_lock();
+			sip_smc_vpu_reset(i, 0, 0);
+			rockchip_dmcfreq_unlock();
+		} else {
+			rkvdec2_reset(mpp);
+		}
 		/* clear error mask */
 		writel(dec->core_mask & RKVDEC_CCU_CORE_RW_MASK,
 		       ccu->reg_base + RKVDEC_CCU_CORE_ERR_BASE);
@@ -1999,7 +2000,6 @@ get_task:
 		mutex_lock(&queue->pending_lock);
 		list_del_init(&mpp_task->queue_link);
 
-		kref_get(&mpp_task->ref);
 		set_bit(TASK_STATE_ABORT_READY, &mpp_task->state);
 		set_bit(TASK_STATE_PROC_DONE, &mpp_task->state);
 

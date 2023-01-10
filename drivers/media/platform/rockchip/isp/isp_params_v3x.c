@@ -655,6 +655,8 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 		lsc_ctrl |= ISP3X_LSC_SECTOR_16X16;
 	else
 		lsc_ctrl &= ~ISP3X_LSC_SECTOR_16X16;
+	if (!dev->hw_dev->is_single)
+		lsc_ctrl |= ISP3X_LSC_PRE_RD_ST_MODE;
 	isp3_param_write(params_vdev, lsc_ctrl, ISP3X_LSC_CTRL, id);
 }
 
@@ -2800,8 +2802,7 @@ isp_dhaz_config(struct rkisp_isp_params_vdev *params_vdev,
 	if (arg->soft_wr_en)
 		ctrl |= (arg->soft_wr_en & 0x1) << 25;
 	/* merge dual unite isp params at frame end */
-	if (arg->soft_wr_en &&
-	    (!dev->hw_dev->is_unite || !(ctrl & ISP3X_DHAZ_ENMUX))) {
+	if (arg->soft_wr_en) {
 		value = ISP_PACK_2SHORT(arg->adp_wt_wr, arg->adp_air_wr);
 		isp3_param_write(params_vdev, value, ISP3X_DHAZ_ADT_WR0, id);
 		value = ISP_PACK_2SHORT(arg->adp_tmax_wr, arg->adp_gratio_wr);
@@ -2815,7 +2816,6 @@ isp_dhaz_config(struct rkisp_isp_params_vdev *params_vdev,
 		value = arg->hist_wr[i * 3] & 0x3ff;
 		isp3_param_write(params_vdev, value, ISP3X_DHAZ_HIST_WR0 + i * 4, id);
 	}
-	isp3_param_write(params_vdev, ctrl, ISP3X_DHAZ_CTRL, id);
 
 	value = ISP_PACK_4BYTE(arg->dc_min_th, arg->dc_max_th,
 			       arg->yhist_th, arg->yblk_th);
@@ -2894,6 +2894,12 @@ isp_dhaz_config(struct rkisp_isp_params_vdev *params_vdev,
 	}
 	value = ISP_PACK_2SHORT(arg->sigma_lut[i * 2], 0);
 	isp3_param_write(params_vdev, value, ISP3X_DHAZ_GAIN_LUT0 + i * 4, id);
+
+	if (dev->hw_dev->is_unite &&
+	    dev->hw_dev->is_single &&
+	    ctrl & ISP3X_DHAZ_ENMUX)
+		ctrl |= ISP3X_SELF_FORCE_UPD;
+	isp3_param_write(params_vdev, ctrl, ISP3X_DHAZ_CTRL, id);
 }
 
 static void
@@ -4275,8 +4281,8 @@ multi_overflow:
 		 * |_________|
 		 *
 		 * case1:      bigmode               special reg cfg
-		 *  _________  max width:4672
-		 * | sensor0 | max size:3840*2160    mode=0 index=0
+		 *  _________  max width:3840
+		 * | sensor0 | max size:3840*2160    mode=1 index=0
 		 * |_________|
 		 * |_sensor1_| max size:2560*1536    mode=2 index=2
 		 * |_sensor2_| max size:2560*1536    mode=2 index=3
@@ -4304,7 +4310,7 @@ multi_overflow:
 				goto multi_overflow;
 			} else {
 				if (idx1[0] == ispdev->dev_id) {
-					ispdev->multi_mode = 0;
+					ispdev->multi_mode = 1;
 					ispdev->multi_index = 0;
 				} else {
 					ispdev->multi_mode = 2;

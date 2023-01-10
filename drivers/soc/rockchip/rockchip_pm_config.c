@@ -26,7 +26,7 @@
 #define MAX_ON_OFF_REG_NUM		30
 #define MAX_ON_OFF_REG_PROP_NAME_LEN	60
 
-#if defined(CONFIG_NO_GKI)
+#ifndef MODULE
 enum rk_pm_state {
 	RK_PM_MEM = 0,
 	RK_PM_MEM_LITE,
@@ -49,13 +49,14 @@ static const struct of_device_id pm_match_table[] = {
 	{ .compatible = "rockchip,pm-rk3328",},
 	{ .compatible = "rockchip,pm-rk3368",},
 	{ .compatible = "rockchip,pm-rk3399",},
+	{ .compatible = "rockchip,pm-rk3528",},
 	{ .compatible = "rockchip,pm-rk3568",},
 	{ .compatible = "rockchip,pm-rk3588",},
 	{ .compatible = "rockchip,pm-rv1126",},
 	{ },
 };
 
-#if defined(CONFIG_NO_GKI)
+#ifndef MODULE
 static void rockchip_pm_virt_pwroff_prepare(void)
 {
 	int error;
@@ -166,7 +167,7 @@ static int pm_config_probe(struct platform_device *pdev)
 	u32 sleep_debug_en = 0;
 	u32 apios_suspend = 0;
 	u32 io_ret_config = 0;
-#if defined(CONFIG_NO_GKI)
+#ifndef MODULE
 	u32 virtual_poweroff_en = 0;
 #endif
 	enum of_gpio_flags flags;
@@ -249,7 +250,7 @@ static int pm_config_probe(struct platform_device *pdev)
 				 ret);
 	}
 
-#if defined(CONFIG_NO_GKI)
+#ifndef MODULE
 	if (!of_property_read_u32_array(node,
 					"rockchip,virtual-poweroff",
 					&virtual_poweroff_en, 1) &&
@@ -263,7 +264,7 @@ static int pm_config_probe(struct platform_device *pdev)
 	return 0;
 }
 
-#if defined(CONFIG_NO_GKI)
+#ifndef MODULE
 static int pm_config_prepare(struct device *dev)
 {
 	int i;
@@ -301,7 +302,7 @@ static struct platform_driver pm_driver = {
 	.driver = {
 		.name = "rockchip-pm",
 		.of_match_table = pm_match_table,
-#if defined(CONFIG_NO_GKI)
+#ifndef MODULE
 		.pm = &rockchip_pm_ops,
 #endif
 	},

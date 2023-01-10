@@ -154,9 +154,6 @@ static int rockchip_clk_frac_notifier_cb(struct notifier_block *nb,
 			frac->mux_ops->set_parent(&frac_mux->hw,
 						  frac->mux_frac_idx);
 			frac->rate_change_remuxed = 1;
-			clk_hw_set_parent(&frac_mux->hw,
-					  clk_hw_get_parent_by_index(&frac_mux->hw,
-								     frac->mux_frac_idx));
 		}
 	} else if (event == POST_RATE_CHANGE) {
 		/*
@@ -168,9 +165,6 @@ static int rockchip_clk_frac_notifier_cb(struct notifier_block *nb,
 		if (frac->rate_change_remuxed) {
 			frac->mux_ops->set_parent(&frac_mux->hw,
 						  frac->rate_change_idx);
-			clk_hw_set_parent(&frac_mux->hw,
-					  clk_hw_get_parent_by_index(&frac_mux->hw,
-								     frac->rate_change_idx));
 			frac->rate_change_remuxed = 0;
 		}
 	}
@@ -557,6 +551,14 @@ void rockchip_clk_register_branches(struct rockchip_clk_provider *ctx,
 			break;
 		case branch_gate:
 			flags |= CLK_SET_RATE_PARENT;
+
+			clk = clk_register_gate(NULL, list->name,
+				list->parent_names[0], flags,
+				ctx->reg_base + list->gate_offset,
+				list->gate_shift, list->gate_flags, &ctx->lock);
+			break;
+		case branch_gate_no_set_rate:
+			flags &= ~CLK_SET_RATE_PARENT;
 
 			clk = clk_register_gate(NULL, list->name,
 				list->parent_names[0], flags,

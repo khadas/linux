@@ -891,6 +891,7 @@ static int rkvdec_run(struct mpp_dev *mpp,
 	int i;
 	u32 reg_en;
 	struct rkvdec_task *task = NULL;
+	u32 timing_en = mpp->srv->timing_en;
 
 	mpp_debug_enter();
 
@@ -922,10 +923,13 @@ static int rkvdec_run(struct mpp_dev *mpp,
 		}
 		/* init current task */
 		mpp->cur_task = mpp_task;
+		mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
 		/* Flush the register before the start the device */
 		wmb();
 		mpp_write(mpp, RKVDEC_REG_INT_EN,
 			  task->reg[reg_en] | RKVDEC_DEC_START);
+
+		mpp_task_run_end(mpp_task, timing_en);
 	} break;
 	default:
 		break;
@@ -1669,18 +1673,18 @@ static int rkvdec_reset(struct mpp_dev *mpp)
 
 static int rkvdec_sip_reset(struct mpp_dev *mpp)
 {
-	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
+	if (IS_REACHABLE(CONFIG_ROCKCHIP_SIP)) {
+		/* The reset flow in arm trustzone firmware */
+		struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 
-/* The reset flow in arm trustzone firmware */
-#if IS_ENABLED(CONFIG_ROCKCHIP_SIP)
-	mutex_lock(&dec->sip_reset_lock);
-	sip_smc_vpu_reset(0, 0, 0);
-	mutex_unlock(&dec->sip_reset_lock);
+		mutex_lock(&dec->sip_reset_lock);
+		sip_smc_vpu_reset(0, 0, 0);
+		mutex_unlock(&dec->sip_reset_lock);
 
-	return 0;
-#else
-	return rkvdec_reset(mpp);
-#endif
+		return 0;
+	} else {
+		return rkvdec_reset(mpp);
+	}
 }
 
 static struct mpp_hw_ops rkvdec_v1_hw_ops = {

@@ -532,6 +532,7 @@ struct rkcif_stream {
 	bool				is_finish_stop_dma;
 	bool				is_in_vblank;
 	bool				is_change_toisp;
+	bool				is_stop_capture;
 };
 
 struct rkcif_lvds_subdev {
@@ -903,5 +904,8 @@ void rkcif_assign_check_buffer_update_toisp(struct rkcif_stream *stream);
 struct rkcif_rx_buffer *to_cif_rx_buf(struct rkisp_rx_buf *dbufs);
 
 int rkcif_clr_unready_dev(void);
+
+const struct
+cif_output_fmt *rkcif_find_output_fmt(struct rkcif_stream *stream, u32 pixelfmt);
 
 #endif

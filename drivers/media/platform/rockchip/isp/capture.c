@@ -966,10 +966,11 @@ static int rkisp_set_cmsk(struct rkisp_stream *stream, struct rkisp_cmsk_cfg *cf
 {
 	struct rkisp_device *dev = stream->ispdev;
 	unsigned long lock_flags = 0;
-	u8 i, win_en = 0, mode = 0;
+	u16 i, win_en = 0, mode = 0;
 	u16 h_offs, v_offs, h_size, v_size;
 	u32 width = dev->isp_sdev.out_crop.width;
 	u32 height = dev->isp_sdev.out_crop.height;
+	u32 align = (dev->isp_ver == ISP_V30) ? 8 : 2;
 	bool warn = false;
 
 	if ((dev->isp_ver != ISP_V30 && dev->isp_ver != ISP_V32) ||
@@ -994,27 +995,27 @@ static int rkisp_set_cmsk(struct rkisp_stream *stream, struct rkisp_cmsk_cfg *cf
 			}
 			h_offs = cfg->win[i].h_offs & ~0x1;
 			v_offs = cfg->win[i].v_offs & ~0x1;
-			h_size = cfg->win[i].h_size & ~0x7;
-			v_size = cfg->win[i].v_size & ~0x7;
+			h_size = ALIGN_DOWN(cfg->win[i].h_size, align);
+			v_size = ALIGN_DOWN(cfg->win[i].v_size, align);
 			if (h_offs != cfg->win[i].h_offs ||
 			    v_offs != cfg->win[i].v_offs ||
 			    h_size != cfg->win[i].h_size ||
 			    v_size != cfg->win[i].v_size)
 				warn = true;
 			if (h_offs + h_size > width) {
-				h_size = (width - h_offs) & ~0x7;
+				h_size = ALIGN_DOWN(width - h_offs, align);
 				warn = true;
 			}
 			if (v_offs + v_size > height) {
-				v_size = (height - v_offs) & ~0x7;
+				v_size = ALIGN_DOWN(height - v_offs, align);
 				warn = true;
 			}
 			if (warn) {
 				warn = false;
 				v4l2_warn(&dev->v4l2_dev,
-					  "%s cmsk offs 2 align, size 8 align and offs + size < resolution\n"
+					  "%s cmsk offs 2 align, size %d align and offs + size < resolution\n"
 					  "\t cmsk win%d result to offs:%d %d, size:%d %d\n",
-					  stream->vnode.vdev.name, i, h_offs, v_offs, h_size, v_size);
+					  stream->vnode.vdev.name, i, align, h_offs, v_offs, h_size, v_size);
 			}
 			dev->cmsk_cfg.win[i].h_offs = h_offs;
 			dev->cmsk_cfg.win[i].v_offs = v_offs;
@@ -1038,6 +1039,7 @@ static int rkisp_set_cmsk(struct rkisp_stream *stream, struct rkisp_cmsk_cfg *cf
 		dev->cmsk_cfg.win[2].mode = mode;
 		break;
 	}
+	dev->cmsk_cfg.mosaic_block = cfg->mosaic_block;
 	spin_unlock_irqrestore(&dev->cmsk_lock, lock_flags);
 	return 0;
 
@@ -1090,18 +1092,19 @@ static int rkisp_set_mirror_flip(struct rkisp_stream *stream,
 	return 0;
 }
 
-static int rkisp_get_wrap_line(struct rkisp_stream *stream, int *line)
+static int rkisp_get_wrap_line(struct rkisp_stream *stream, struct rkisp_wrap_info *arg)
 {
 	struct rkisp_device *dev = stream->ispdev;
 
 	if (dev->isp_ver != ISP_V32 && stream->id != RKISP_STREAM_MP)
 		return -EINVAL;
 
-	*line = dev->cap_dev.wrap_line;
+	arg->width = dev->cap_dev.wrap_width;
+	arg->height = dev->cap_dev.wrap_line;
 	return 0;
 }
 
-static int rkisp_set_wrap_line(struct rkisp_stream *stream, int *line)
+static int rkisp_set_wrap_line(struct rkisp_stream *stream, struct rkisp_wrap_info *arg)
 {
 	struct rkisp_device *dev = stream->ispdev;
 
@@ -1112,7 +1115,8 @@ static int rkisp_set_wrap_line(struct rkisp_stream *stream, int *line)
 			 "wrap only support for single sensor and mainpath\n");
 		return -EINVAL;
 	}
-	return stream->ops->set_wrap(stream, *line);
+	dev->cap_dev.wrap_width = arg->width;
+	return stream->ops->set_wrap(stream, arg->height);
 }
 
 static int rkisp_set_fps(struct rkisp_stream *stream, int *fps)

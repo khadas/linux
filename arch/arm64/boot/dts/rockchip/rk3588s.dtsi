@@ -2300,7 +2300,8 @@
 			<&cru ACLK_LOW_TOP_ROOT>, <&cru PCLK_PMU0_ROOT>,
 			<&cru HCLK_PMU_CM0_ROOT>,
 			<&cru ACLK_BUS_ROOT>, <&cru CLK_150M_SRC>,
-			<&cru CLK_GPU>;
+			<&cru CLK_GPU>, <&cru CLK_SPDIF2_DP0>,
+			<&cru CLK_SPDIF5_DP1>;
 		assigned-clock-rates =
 			<1100000000>, <786432000>,
 			<850000000>, <1188000000>,
@@ -2310,7 +2311,8 @@
 			<400000000>, <100000000>,
 			<200000000>,
 			<375000000>, <150000000>,
-			<200000000>;
+			<200000000>, <12000000>,
+			<12000000>;
 	};
 
 	i2c0: i2c@fd880000 {
@@ -3957,7 +3959,7 @@
 		clocks = <&cru MCLK_I2S5_8CH_TX>, <&cru MCLK_I2S5_8CH_TX>, <&cru HCLK_I2S5_8CH>;
 		clock-names = "mclk_tx", "mclk_rx", "hclk";
 		assigned-clocks = <&cru CLK_I2S5_8CH_TX_SRC>;
-		assigned-clock-parents = <&cru PLL_AUPLL>;
+		assigned-clock-parents = <&cru PLL_GPLL>;
 		dmas = <&dmac2 2>;
 		dma-names = "tx";
 		power-domains = <&power RK3588_PD_VO1>;
@@ -4108,8 +4110,8 @@
 		interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru PCLK_DP0>, <&cru CLK_AUX16M_0>,
 			 <&cru MCLK_I2S4_8CH_TX>, <&cru MCLK_SPDIF2_DP0>,
-			 <&hclk_vo0>;
-		clock-names = "apb", "aux", "i2s", "spdif", "hclk";
+			 <&hclk_vo0>, <&cru CLK_DP0>;
+		clock-names = "apb", "aux", "i2s", "spdif", "hclk", "hdcp";
 		assigned-clocks = <&cru CLK_AUX16M_0>;
 		assigned-clock-rates = <16000000>;
 		resets = <&cru SRST_DP0>;

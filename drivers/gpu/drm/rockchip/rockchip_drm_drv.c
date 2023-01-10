@@ -305,6 +305,26 @@ int rockchip_drm_get_sub_dev_type(void)
 }
 EXPORT_SYMBOL(rockchip_drm_get_sub_dev_type);
 
+u32 rockchip_drm_get_scan_line_time_ns(void)
+{
+	struct rockchip_drm_sub_dev *sub_dev = NULL;
+	struct drm_display_mode *mode;
+	int linedur_ns = 0;
+
+	mutex_lock(&rockchip_drm_sub_dev_lock);
+	list_for_each_entry(sub_dev, &rockchip_drm_sub_dev_list, list) {
+		if (sub_dev->connector->encoder && sub_dev->connector->state->crtc) {
+			mode = &sub_dev->connector->state->crtc->state->adjusted_mode;
+			linedur_ns  = div_u64((u64) mode->crtc_htotal * 1000000, mode->crtc_clock);
+			break;
+		}
+	}
+	mutex_unlock(&rockchip_drm_sub_dev_lock);
+
+	return linedur_ns;
+}
+EXPORT_SYMBOL(rockchip_drm_get_scan_line_time_ns);
+
 void rockchip_drm_te_handle(struct drm_crtc *crtc)
 {
 	struct rockchip_drm_private *priv = crtc->dev->dev_private;
@@ -1125,7 +1145,47 @@ static int rockchip_drm_summary_show(struct seq_file *s, void *data)
 	return 0;
 }
 
+static int rockchip_drm_regs_dump(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct drm_minor *minor = node->minor;
+	struct drm_device *drm_dev = minor->dev;
+	struct rockchip_drm_private *priv = drm_dev->dev_private;
+	struct drm_crtc *crtc;
+
+	drm_for_each_crtc(crtc, drm_dev) {
+		int pipe = drm_crtc_index(crtc);
+
+		if (priv->crtc_funcs[pipe] &&
+		    priv->crtc_funcs[pipe]->regs_dump)
+			priv->crtc_funcs[pipe]->regs_dump(crtc, s);
+	}
+
+	return 0;
+}
+
+static int rockchip_drm_active_regs_dump(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct drm_minor *minor = node->minor;
+	struct drm_device *drm_dev = minor->dev;
+	struct rockchip_drm_private *priv = drm_dev->dev_private;
+	struct drm_crtc *crtc;
+
+	drm_for_each_crtc(crtc, drm_dev) {
+		int pipe = drm_crtc_index(crtc);
+
+		if (priv->crtc_funcs[pipe] &&
+		    priv->crtc_funcs[pipe]->active_regs_dump)
+			priv->crtc_funcs[pipe]->active_regs_dump(crtc, s);
+	}
+
+	return 0;
+}
+
 static struct drm_info_list rockchip_debugfs_files[] = {
+	{ "active_regs", rockchip_drm_active_regs_dump, 0, NULL },
+	{ "regs", rockchip_drm_regs_dump, 0, NULL },
 	{ "summary", rockchip_drm_summary_show, 0, NULL },
 	{ "mm_dump", rockchip_drm_mm_dump, 0, NULL },
 };
