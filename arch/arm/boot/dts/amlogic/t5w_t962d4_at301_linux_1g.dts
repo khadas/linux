@@ -1638,6 +1638,10 @@
 	};
 };
 
+&vdac {
+	cdac_disable = <1>;
+};
+
 &saradc {
 	status = "okay";
 };
