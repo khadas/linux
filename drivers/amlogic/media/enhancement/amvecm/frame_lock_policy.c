@@ -369,8 +369,9 @@ int frame_lock_frame_rate_check(struct vframe_s *vf, struct vinfo_s *vinfo)
 			} else {
 				ret = false;
 			}
-			frame_sts.vrr_lfc_mode = false;
+			//frame_sts.vrr_lfc_mode = false;
 		}
+		frame_sts.vrr_lfc_mode = false;
 
 		if (frame_lock_debug & VRR_POLICY_DEBUG_RANGE_FLAG)
 			framelock_pr_info("%s fps_cur:%d o_min:%d o_max:%d outof_cnt:%d f_a_t:%d lfc:%d\n",
@@ -467,6 +468,8 @@ u16 frame_lock_check_lock_type(struct vpp_frame_par_s *cur_video_sts, struct vfr
 		} else {
 			if (vrr_skip_frame_cnt != 0)
 				vrr_skip_frame_cnt--;
+			else
+				vrr_skip_frame_cnt = 5;
 			ret = FRAMELOCK_VLOCK;
 		}
 	} else {
