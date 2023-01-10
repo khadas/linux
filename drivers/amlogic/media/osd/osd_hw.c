@@ -11712,6 +11712,13 @@ static void set_vpp0_blend_reg(struct vpp0_blend_reg_s *vpp0_blend_reg)
 	}
 }
 
+static void set_osd0_scaler_before_blend(void)
+{
+	if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T3 ||
+		osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T5W)
+		VSYNCOSD_WR_MPEG_REG_BITS(VIU_OSD1_PATH_CTRL, 1, 0, 1);
+}
+
 static void set_osd_blend_reg(struct osd_blend_reg_s *osd_blend_reg)
 {
 	int i;
@@ -11731,8 +11738,11 @@ static void set_osd_blend_reg(struct osd_blend_reg_s *osd_blend_reg)
 	osd1_alpha_div = osd_blend_reg->osd_bld_out0_premult;
 	osd2_alpha_div = osd_blend_reg->osd_bld_out1_premult;
 	/* osd0 scale position before osd blend */
-	if (osd_hw.osd_meson_dev.osd0_sc_independ)
+	if (osd_hw.osd_meson_dev.osd0_sc_independ) {
 		VSYNCOSD_WR_MPEG_REG(VPP_OSD_SCALE_CTRL, 0x01);
+		set_osd0_scaler_before_blend();
+		osd_blend_reg->din_premult_en = 1;
+	}
 	if (osd_hw.blend_bypass[OSD1])
 		osd_blend_reg->din0_byp_blend = 1;
 	/* osd blend ctrl */
@@ -12254,7 +12264,7 @@ static int osd_setting_order(u32 output_index)
 			    idx <= COLOR_INDEX_32_XRGB)
 				rgbx = true;
 			if (osd_hw.premult_en[i] && !osd_hw.blend_bypass[i] &&
-			    !rgbx)
+			    !rgbx && !osd_hw.osd_meson_dev.osd0_sc_independ)
 				VSYNCOSD_WR_MPEG_REG_BITS
 					(osd_reg->osd_mali_unpack_ctrl,
 					 0x1, 28, 1);
@@ -12385,6 +12395,8 @@ static void osd_setting_default_hwc(void)
 		blend_din_en = 0x1;
 	}
 
+	if (osd_hw.osd_meson_dev.osd0_sc_independ)
+		din_premult_en = 1;
 	/* depend on din0_premult_en */
 	postbld_osd1_premult = 0;
 	/* depend on din_premult_en bit 4 */
@@ -12747,7 +12759,8 @@ static void osd_setting_viux(u32 output_index)
 			if (idx >= COLOR_INDEX_32_BGRX &&
 			    idx <= COLOR_INDEX_32_XRGB)
 				rgbx = true;
-			if (osd_hw.premult_en[index] && !rgbx)
+			if (osd_hw.premult_en[index] && !rgbx &&
+				!osd_hw.osd_meson_dev.osd0_sc_independ)
 				rdma_wr_bits(osd_reg->osd_mali_unpack_ctrl,
 					     0x1, 28, 1);
 			else
