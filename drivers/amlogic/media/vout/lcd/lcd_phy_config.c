@@ -772,7 +772,8 @@ static void lcd_lvds_phy_set_t7(struct aml_lcd_drv_s *pdrv, int status)
 	}
 
 	if (status) {
-		if (lcd_phy_ctrl->lane_lock & flag) {
+		if ((lcd_phy_ctrl->lane_lock & flag) &&
+			((lcd_phy_ctrl->lane_lock & flag) != flag)) {
 			LCDERR("phy lane already locked: 0x%x, invalid 0x%x\n",
 				lcd_phy_ctrl->lane_lock, flag);
 			return;
@@ -786,7 +787,7 @@ static void lcd_lvds_phy_set_t7(struct aml_lcd_drv_s *pdrv, int status)
 			      phy->vswing_level, phy->preem_level);
 		}
 
-		data_lane0_aux = 0x16430028;
+		data_lane0_aux = 0x06430028 | (phy->preem_level << 28);
 		data_lane1_aux = 0x0100ffff;
 		data_lane = 0x06530028 | (phy->preem_level << 28);
 		lcd_phy_cntl_set_t7(flag, data_lane0_aux, data_lane1_aux, data_lane);
@@ -830,7 +831,8 @@ static void lcd_vbyone_phy_set_t7(struct aml_lcd_drv_s *pdrv, int status)
 	}
 
 	if (status) {
-		if (lcd_phy_ctrl->lane_lock & flag) {
+		if ((lcd_phy_ctrl->lane_lock & flag) &&
+			((lcd_phy_ctrl->lane_lock & flag) != flag)) {
 			LCDERR("phy lane already locked: 0x%x, invalid 0x%x\n",
 				lcd_phy_ctrl->lane_lock, flag);
 			return;
@@ -844,7 +846,7 @@ static void lcd_vbyone_phy_set_t7(struct aml_lcd_drv_s *pdrv, int status)
 			      phy->vswing_level, phy->preem_level);
 		}
 
-		data_lane0_aux = 0x26430028;
+		data_lane0_aux = 0x06430028 | (phy->preem_level << 28);
 		data_lane1_aux = 0x0000ffff;
 		data_lane = 0x06530028 | (phy->preem_level << 28);
 		lcd_phy_cntl_set_t7(flag, data_lane0_aux, data_lane1_aux, data_lane);
@@ -887,7 +889,8 @@ static void lcd_mipi_phy_set_t7(struct aml_lcd_drv_s *pdrv, int status)
 	}
 
 	if (status) {
-		if (lcd_phy_ctrl->lane_lock & flag) {
+		if ((lcd_phy_ctrl->lane_lock & flag) &&
+			((lcd_phy_ctrl->lane_lock & flag) != flag)) {
 			LCDERR("phy lane already locked: 0x%x, invalid 0x%x\n",
 				lcd_phy_ctrl->lane_lock, flag);
 			return;
@@ -951,7 +954,8 @@ static void lcd_edp_phy_set_t7(struct aml_lcd_drv_s *pdrv, int status)
 	}
 
 	if (status) {
-		if (lcd_phy_ctrl->lane_lock & flag) {
+		if ((lcd_phy_ctrl->lane_lock & flag) &&
+			((lcd_phy_ctrl->lane_lock & flag) != flag)) {
 			LCDERR("phy lane already locked: 0x%x, invalid 0x%x\n",
 				lcd_phy_ctrl->lane_lock, flag);
 			return;
