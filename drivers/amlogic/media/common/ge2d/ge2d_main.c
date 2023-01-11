@@ -1846,6 +1846,10 @@ static int ge2d_probe(struct platform_device *pdev)
 			goto failed1;
 	}
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
+	dmc_ge2d_test_notifier();
+#endif
+
 failed1:
 	return ret;
 }

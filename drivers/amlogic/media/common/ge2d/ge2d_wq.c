@@ -19,6 +19,9 @@
 #include <linux/pm_runtime.h>
 
 /* Amlogic Headers */
+#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
+#include <linux/amlogic/dmc_dev_access.h>
+#endif
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #include <linux/amlogic/media/ge2d/ge2d.h>
@@ -3164,3 +3167,111 @@ int ge2d_wq_deinit(void)
 	return  0;
 }
 
+/* GE2D DMC access callback func */
+#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
+static int ge2d_port_id;
+static char *ge2d_port_name = "GE2D";
+
+static void ge2d_fill_bytes(unsigned long addr, unsigned int size, char val)
+{
+	struct ge2d_context_s *context = NULL;
+	struct config_para_ex_s ge2d_config;
+	int canvas = -1;
+	unsigned int w = size, h = 1;
+
+	if (!addr || !size)
+		return;
+
+	ge2d_log_dbg("%s, addr:0x%lx size:%d val:0x%x\n",
+		     __func__, addr, size, val);
+	context = create_ge2d_work_queue();
+	if (!context) {
+		ge2d_log_err("%s error\n", __func__);
+		return;
+	}
+
+	canvas = canvas_pool_map_alloc_canvas("ge2d_fill_bytes");
+	if (canvas < 0) {
+		ge2d_log_err("%s, alloc canvas error\n", __func__);
+		goto release_context;
+	}
+	canvas_config(canvas, addr, w, h,
+		      CANVAS_ADDR_NOWRAP,
+		      CANVAS_BLKMODE_LINEAR);
+
+	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
+	ge2d_config.alu_const_color = 0;
+	ge2d_config.bitmask_en = 0;
+	ge2d_config.src1_gb_alpha = 0;
+	ge2d_config.dst_xy_swap = 0;
+	ge2d_config.src_planes[0].addr = addr;
+	ge2d_config.src_planes[0].w = w;
+	ge2d_config.src_planes[0].h = h;
+	ge2d_config.dst_planes[0].addr = addr;
+	ge2d_config.dst_planes[0].w = w;
+	ge2d_config.dst_planes[0].h = h;
+	ge2d_config.src_key.key_enable = 0;
+	ge2d_config.src_key.key_mask = 0;
+	ge2d_config.src_key.key_mode = 0;
+	ge2d_config.src_para.canvas_index = canvas;
+	ge2d_config.src_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config.src_para.format = GE2D_FORMAT_S8_Y;
+	ge2d_config.src_para.fill_color_en = 0;
+	ge2d_config.src_para.fill_mode = 0;
+	ge2d_config.src_para.x_rev = 0;
+	ge2d_config.src_para.y_rev = 0;
+	ge2d_config.src_para.color = 0;
+	ge2d_config.src_para.top = 0;
+	ge2d_config.src_para.left = 0;
+	ge2d_config.src_para.width = w;
+	ge2d_config.src_para.height = h;
+	ge2d_config.src2_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config.dst_para.canvas_index = canvas;
+	ge2d_config.dst_para.mem_type = CANVAS_TYPE_INVALID;
+	ge2d_config.dst_para.format = GE2D_FORMAT_S8_Y;
+	ge2d_config.dst_para.fill_color_en = 0;
+	ge2d_config.dst_para.fill_mode = 0;
+	ge2d_config.dst_para.x_rev = 0;
+	ge2d_config.dst_para.y_rev = 0;
+	ge2d_config.dst_para.color = 0;
+	ge2d_config.dst_para.top = 0;
+	ge2d_config.dst_para.left = 0;
+	ge2d_config.dst_para.width = w;
+	ge2d_config.dst_para.height = h;
+	if (ge2d_context_config_ex(context, &ge2d_config) < 0) {
+		ge2d_log_err("%s, ge2d config error\n", __func__);
+		goto release_canvas;
+	}
+	fillrect(context, 0, 0, w, h, 0);
+
+release_canvas:
+	canvas_pool_map_free_canvas(canvas);
+release_context:
+	destroy_ge2d_work_queue(context);
+}
+
+static int ge2d_dmc_access_notify(struct notifier_block *nb,
+				 unsigned long id, void *data)
+{
+	unsigned long addr, size;
+	struct dmc_dev_access_data *tmp = (struct dmc_dev_access_data *)data;
+
+	if (ge2d_port_id == id) {
+		addr = tmp->addr;
+		size = tmp->size;
+		ge2d_fill_bytes(addr, size, 0);
+	}
+
+	return 0;
+}
+
+static struct notifier_block ge2d_dmc_access_nb = {
+	.notifier_call = ge2d_dmc_access_notify,
+};
+
+void dmc_ge2d_test_notifier(void)
+{
+	ge2d_port_id = register_dmc_dev_access_notifier(ge2d_port_name,
+							&ge2d_dmc_access_nb);
+}
+#endif

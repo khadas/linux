@@ -30,4 +30,8 @@ void ge2d_buffer_dma_flush(int dma_fd);
 void ge2d_buffer_cache_flush(int dma_fd);
 void ge2d_runtime_pwr(int enable);
 int ge2d_irq_init(int irq);
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
+void dmc_ge2d_test_notifier(void);
+#endif
 #endif
