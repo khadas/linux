@@ -476,6 +476,7 @@ int notrace unwind_frame(struct stackframe *frame)
 static void dump_backtrace_entry_fp(unsigned long where, unsigned long fp,
 				    unsigned long sp)
 {
+#ifdef CONFIG_CC_IS_CLANG
 	signed long fp_size = 0;
 
 	fp_size = fp - sp + 4;
@@ -483,6 +484,9 @@ static void dump_backtrace_entry_fp(unsigned long where, unsigned long fp,
 		fp_size = 0;
 	pr_info("[%08lx+%4ld][<%08lx>] %pS\n",
 		fp, fp_size, where, (void *)where);
+#else
+	pr_info("[<%08lx>] %pS\n", where, (void *)where);
+#endif
 }
 #endif
 
