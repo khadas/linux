@@ -47,7 +47,8 @@ static void construct_avi_packet(struct hdmitx_dev *hdev)
 	if (para->timing.vic == HDMI_95_3840x2160p30_16x9 ||
 	    para->timing.vic == HDMI_94_3840x2160p25_16x9 ||
 	    para->timing.vic == HDMI_93_3840x2160p24_16x9 ||
-	    para->timing.vic == HDMI_98_4096x2160p24_256x135)
+	    para->timing.vic == HDMI_98_4096x2160p24_256x135 ||
+	    para->timing.vic >= HDMITX_VESA_OFFSET)
 		/*HDMI Spec V1.4b P151*/
 		if (!hdev->frl_rate) /* TODO, clear under FRL */
 			info->video_code = 0;
