@@ -320,7 +320,10 @@ static int set_vout2_init_mode(void)
 		vmode = vout2_init_vmode;
 
 	if ((vmode & VMODE_MODE_BIT_MASK) < VMODE_NULL) {
-		if (vpu_clkc) {
+		if (IS_ERR_OR_NULL(vpu_clkc)) {
+			if (vout_debug_print)
+				VOUTERR("vout2: vpu_clkc\n");
+		} else {
 			if (vpu_clkc_state == 0) {
 				VOUTPR("vout2: enable vpu_clkc\n");
 				clk_prepare_enable(vpu_clkc);
@@ -947,7 +950,10 @@ static int vout2_clk_on_notifier(struct notifier_block *nb,
 	}
 	vmod = (int *)data;
 	if (*vmod < VMODE_NULL) {
-		if (vpu_clkc) {
+		if (IS_ERR_OR_NULL(vpu_clkc)) {
+			if (vout_debug_print)
+				VOUTERR("vout2: vpu_clkc\n");
+		} else {
 			if (vpu_clkc_state == 0) {
 				VOUTPR("vout2: enable vpu_clkc\n");
 				clk_prepare_enable(vpu_clkc);
@@ -977,7 +983,10 @@ static int vout2_clk_off_notifier(struct notifier_block *nb,
 	}
 	vmod = (int *)data;
 	if (*vmod >= VMODE_NULL) {
-		if (vpu_clkc) {
+		if (IS_ERR_OR_NULL(vpu_clkc)) {
+			if (vout_debug_print)
+				VOUTERR("vout2: vpu_clkc\n");
+		} else {
 			if (vpu_clkc_state) {
 				VOUTPR("vout2: disable vpu_clkc\n");
 				clk_disable_unprepare(vpu_clkc);
@@ -1023,7 +1032,11 @@ static void vout2_clktree_init(struct device *dev)
 	/* init & enable vpu_clk */
 	vpu_clkc0 = devm_clk_get(dev, "vpu_clkc0");
 	vpu_clkc = devm_clk_get(dev, "vpu_clkc");
-	if (vpu_clkc0 && vpu_clkc) {
+	if ((IS_ERR_OR_NULL(vpu_clkc0)) ||
+	    (IS_ERR_OR_NULL(vpu_clkc))) {
+		if (vout_debug_print)
+			VOUTERR("vout2: %s: vpu_clkc failed\n", __func__);
+	} else {
 		WARN_ON(clk_set_rate(vpu_clkc0, 200000000));
 		WARN_ON(clk_set_parent(vpu_clkc, vpu_clkc0));
 	}
