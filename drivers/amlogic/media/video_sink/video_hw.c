@@ -51,6 +51,7 @@
 #include "video_hw.h"
 #include "video_hw_s5.h"
 #include "vpp_post_s5.h"
+#include "video_uevent.h"
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 #include <linux/amlogic/media/amvecm/amvecm.h>
@@ -124,6 +125,7 @@ static DEFINE_SPINLOCK(videox_vpp2_onoff_lock);
 #define VPU_DELAYWORK_MEM_POWER_OFF_DOLBY2		BIT(12)
 #define VPU_DELAYWORK_MEM_POWER_OFF_DOLBY_CORE3		BIT(13)
 #define VPU_DELAYWORK_MEM_POWER_OFF_PRIME_DOLBY		BIT(14)
+#define VPU_PRIMARY_FMT_CHANGED		BIT(15)
 
 #define VPU_MEM_POWEROFF_DELAY	100
 #define DV_MEM_POWEROFF_DELAY	2
@@ -10182,6 +10184,13 @@ static void do_vpu_delay_work(struct work_struct *work)
 {
 	unsigned long flags;
 	unsigned int r;
+	enum vframe_signal_fmt_e fmt = VFRAME_SIGNAL_FMT_INVALID;
+
+	if (vpu_delay_work_flag & VPU_PRIMARY_FMT_CHANGED) {
+		vpu_delay_work_flag &= ~VPU_PRIMARY_FMT_CHANGED;
+		fmt = (enum vframe_signal_fmt_e)atomic_read(&cur_primary_src_fmt);
+		video_send_uevent(VIDEO_FMT_EVENT, fmt);
+	}
 
 	if (vpu_delay_work_flag & VPU_VIDEO_LAYER1_CHANGED)
 		vpu_delay_work_flag &= ~VPU_VIDEO_LAYER1_CHANGED;
@@ -12127,6 +12136,11 @@ void aisr_demo_axis_set(void)
 	WRITE_VCBUS_REG_BITS
 		(DEMO_MODE_WINDO_CTRL1,
 		cur_dev->aisr_demo_yend, 0, 12);
+}
+
+void update_primary_fmt_event(void)
+{
+	vpu_delay_work_flag |= VPU_PRIMARY_FMT_CHANGED;
 }
 
 /*********************************************************

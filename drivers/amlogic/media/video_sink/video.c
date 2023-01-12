@@ -7615,6 +7615,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		}
 		atomic_set(&cur_primary_src_fmt, fmt);
 		video_prop_status |= VIDEO_PROP_CHANGE_FMT;
+		update_primary_fmt_event();
 	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
@@ -8923,6 +8924,7 @@ SET_FILTER:
 			atomic_set(&cur_primary_src_fmt, fmt);
 			atomic_set(&primary_src_fmt, fmt);
 			video_prop_status |= VIDEO_PROP_CHANGE_FMT;
+			update_primary_fmt_event();
 		}
 	}
 
