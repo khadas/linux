@@ -1359,12 +1359,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	else
 		hdev->tx_aud_src = 0;
 
-	/* if current configuration is I2S, PCM, multi-channel, swap I2S CH1 */
-	if (audio_param->aud_src_if == AUD_SRC_IF_I2S && audio_param->type == CT_PCM &&
-		audio_param->channel_num > 2)
-		hdmitx21_set_reg_bits(SPDIF_SSMPL2_IVCTX, 1, 5, 1);
-	else
-		hdmitx21_set_reg_bits(SPDIF_SSMPL2_IVCTX, 0, 5, 1);
+	hdmitx21_set_reg_bits(SPDIF_SSMPL2_IVCTX, 0, 5, 1);
 
 	/* if hdev->aud_output_ch is true, select I2S as 8ch in, 2ch out */
 	//if (hdev->aud_output_ch)
