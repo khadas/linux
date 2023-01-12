@@ -36,6 +36,13 @@
 
 #define RTL8211F_INSR				0x1d
 
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+#define RTL8211F_PHYCR1                         0x18
+#define RTL8211F_ALDPS_PLL_OFF			BIT(1)
+#define RTL8211F_ALDPS_ENABLE			BIT(2)
+#define RTL8211F_ALDPS_XTAL_OFF			BIT(12)
+#endif
+
 #define RTL8211F_TX_DELAY			BIT(8)
 #define RTL8211E_TX_DELAY			BIT(1)
 #define RTL8211E_RX_DELAY			BIT(2)
@@ -187,6 +194,11 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	u16 val;
 	int ret;
 
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	/*sync with 5.15 realetk.c*/
+	val = RTL8211F_ALDPS_ENABLE | RTL8211F_ALDPS_PLL_OFF | RTL8211F_ALDPS_XTAL_OFF;
+	phy_modify_paged_changed(phydev, 0xa43, RTL8211F_PHYCR1, val, val);
+#endif
 	/* enable TX-delay for rgmii-{id,txid}, and disable it for rgmii and
 	 * rgmii-rxid. The RX-delay can be enabled by the external RXDLY pin.
 	 */
