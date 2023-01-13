@@ -1255,6 +1255,7 @@ static int unregister_frddr_l(struct device *dev, void *data)
 	free_irq(from->irq, data);
 	from->dev = NULL;
 	from->in_use = false;
+	from->dest = 0;
 	pr_info("frddrs[%d] released by device %s\n", i, dev_name(dev));
 	return 0;
 }
