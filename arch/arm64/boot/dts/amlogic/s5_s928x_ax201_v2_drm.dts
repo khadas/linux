@@ -989,6 +989,52 @@
 		key_tolerance = <40 40 40>;
 	};
 
+	vddnpu_dvodosvpu: pwm_ef-regulator {
+		compatible = "pwm-regulator";
+		pwms = <&pwm_ef MESON_PWM_0 1500 0>;
+		regulator-name = "vddnpu";
+		regulator-min-microvolt = <690000>;
+		regulator-max-microvolt = <870000>;
+		//regulator-always-on;
+		max-duty-cycle = <1500>;
+		/* Voltage Duty-Cycle */
+		voltage-table =
+				<870000 0>,
+				<860000 5>,
+				<850000 11>,
+				<840000 17>,
+				<830000 21>,
+				<820000 28>,
+				<810000 33>,
+				<800000 39>,
+				<790000 44>,
+				<780000 50>,
+				<770000 56>,
+				<760000 61>,
+				<750000 67>,
+				<740000 72>,
+				<730000 78>,
+				<720000 83>,
+				<710000 89>,
+				<700000 95>,
+				<690000 100>;
+		status = "okay";
+	};
+
+	vdd_npu_dvo_dos_vpu: fixedregulator@vdd_npu {
+		compatible = "regulator-fixed";
+		vin-supply = <&vbat>;
+		regulator-name = "vdd_npu";
+		regulator-min-microvolt = <880000>;
+		regulator-max-microvolt = <880000>;
+		pinctrl-names = "default";
+		gpio = <&gpio GPIOE_4 GPIO_ACTIVE_LOW>;
+		startup-delay-us = <70000>;
+		enable-active-low;
+		regulator-boot-on;
+		//regulator-always-on;
+	};
+
 	vddq_reg: fixedregulator@vddq {
 		compatible = "regulator-fixed";
 		vin-supply = <&vbat>;
