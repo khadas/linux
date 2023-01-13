@@ -151,9 +151,10 @@ enum com_buffer_status {
 };
 
 enum com_dev_choice {
-	GE2D = 0,
-	DEWARP = 1,
-	VICP = 2,
+	COMPOSER_WITH_GE2D = 1,
+	COMPOSER_WITH_DEWARP,
+	COMPOSER_WITH_VICP,
+	COMPOSER_WITH_MAX,
 };
 
 struct video_composer_port_s {
@@ -259,7 +260,7 @@ struct composer_dev {
 	bool composer_enabled;
 	bool thread_need_stop;
 	bool is_drm_enable;
-	bool is_dewarp_support;
+	enum com_dev_choice dev_choice;
 	u32 video_render_index;
 	u32 vframe_dump_flag;
 	u32 pre_pat_trace;

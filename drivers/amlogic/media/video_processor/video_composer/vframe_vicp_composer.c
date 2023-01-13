@@ -18,7 +18,7 @@
 
 bool is_vicp_supported(void)
 {
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_S5)
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_S5)
 		return true;
 	else
 		return false;

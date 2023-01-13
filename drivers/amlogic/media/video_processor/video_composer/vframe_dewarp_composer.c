@@ -218,12 +218,8 @@ bool is_dewarp_supported(int vc_index, struct composer_vf_para *vf_param)
 	char file_name[64];
 	struct kstat stat;
 
-	if (!is_aml_gdc_supported()) {
-		pr_info("vc:[%d] %s: hardware not support.\n",
-			vc_index,
-			__func__);
+	if (!is_aml_gdc_supported())
 		return false;
-	}
 
 	if (IS_ERR_OR_NULL(vf_param)) {
 		pr_info("vc:[%d] %s: NULL param, please check.\n",
@@ -232,13 +228,20 @@ bool is_dewarp_supported(int vc_index, struct composer_vf_para *vf_param)
 		return false;
 	}
 
-	if (vf_param->src_vf_format != NV12) {
-		pr_info("vc:[%d] %s: not support format: %d.\n",
+	if (dewarp_com_dump) {
+		pr_info("vc:[%d] %s: src:w:%d h:%d format:%d, dst:w:%d h:%d, angle:%d.\n",
 			vc_index,
 			__func__,
-			vf_param->src_vf_format);
-		return false;
+			vf_param->src_vf_width,
+			vf_param->src_vf_height,
+			vf_param->src_vf_format,
+			vf_param->dst_vf_width,
+			vf_param->dst_vf_height,
+			vf_param->src_vf_angle);
 	}
+
+	if (vf_param->src_vf_format != NV12)
+		return false;
 
 	if (dewarp_load_flag == 0) {
 		if (get_dewarp_rotation_value(vf_param->src_vf_angle) == 0)
