@@ -1455,7 +1455,7 @@
 		};
 		partition@10 {
 			label = "system";
-			reg = <0x0 0x12000000>;
+			reg = <0x0 0xE000000>;
 		};
 		partition@11 {
 			label = "vendor";
