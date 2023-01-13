@@ -61,6 +61,8 @@
 #define VIDTYPE_V4L_EOS			0x80000000
 #define VIDTYPE_FORCE_SIGN_IP_JOINT     0x400 /* add by Joy Rao */
 
+#define VIDTYPE_EXT_VDIN_SCATTER        0x1
+
 #define DISP_RATIO_FORCECONFIG          0x80000000
 #define DISP_RATIO_FORCE_NORMALWIDE     0x40000000
 #define DISP_RATIO_FORCE_FULL_STRETCH   0x20000000
@@ -560,6 +562,7 @@ struct vframe_s {
 	u32 index_disp;
 	u32 omx_index;
 	u32 type;
+	u32 type_ext;
 	u32 type_backup;
 	u32 type_original;
 	u32 blend_mode;
