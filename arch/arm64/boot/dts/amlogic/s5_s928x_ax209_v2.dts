@@ -888,20 +888,6 @@
 		status = "okay";
 	};
 
-	vdd_npu: fixedregulator@vdd_npu {
-		compatible = "regulator-fixed";
-		vin-supply = <&vbat>;
-		regulator-name = "vdd_npu";
-		regulator-min-microvolt = <910000>;
-		regulator-max-microvolt = <910000>;
-		pinctrl-names = "default";
-		gpio = <&gpio GPIOE_4 GPIO_ACTIVE_LOW>;
-		startup-delay-us = <70000>;
-		enable-active-low;
-		regulator-boot-on;
-		//regulator-always-on;
-	};
-
 	vddq_reg: fixedregulator@vddq {
 		compatible = "regulator-fixed";
 		vin-supply = <&vbat>;
