@@ -11465,7 +11465,6 @@ s32 clear_vframe_src_fmt(struct vframe_s *vf)
 	vf->src_fmt.md_buf = NULL;
 	vf->src_fmt.comp_buf = NULL;
 	vf->src_fmt.parse_ret_flags = 0;
-	vf->src_fmt.dv_id = -1;
 
 	return 0;
 }
