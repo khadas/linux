@@ -2248,17 +2248,27 @@ int rx_set_port_hpd(u8 port_id, bool val)
 	if (port_id < E_PORT_NUM) {
 		if (val) {
 			hdmirx_wr_bits_top(TOP_HPD_PWR5V, _BIT(port_id), 1);
+			if (port_id == rx.port)
+				hdmirx_wr_bits_top(TOP_PORT_SEL, _BIT(port_id), 1);
+			hdmirx_wr_bits_top(TOP_PORT_SEL, _BIT(4), 1);
 			rx_set_term_value(port_id, 1);
 		} else {
 			hdmirx_wr_bits_top(TOP_HPD_PWR5V, _BIT(port_id), 0);
+			hdmirx_wr_bits_top(TOP_PORT_SEL, _BIT(4), 0);
+			if (port_id == rx.port)
+				hdmirx_wr_bits_top(TOP_PORT_SEL, _BIT(port_id), 0);
 			rx_set_term_value(port_id, 0);
 		}
 	} else if (port_id == ALL_PORTS) {
 		if (val) {
 			hdmirx_wr_bits_top(TOP_HPD_PWR5V, MSK(4, 0), 0xF);
+			if (port_id == rx.port)
+				hdmirx_wr_bits_top(TOP_PORT_SEL, _BIT(port_id), 1);
+			hdmirx_wr_bits_top(TOP_PORT_SEL, _BIT(4), 1);
 			rx_set_term_value(port_id, 1);
 		} else {
 			hdmirx_wr_bits_top(TOP_HPD_PWR5V, MSK(4, 0), 0x0);
+			hdmirx_wr_top(TOP_PORT_SEL, 0);
 			rx_set_term_value(port_id, 0);
 		}
 	} else {
@@ -5860,10 +5870,20 @@ void rx_ddc_active_monitor(void)
 	/*0x0a, 0x15 for hengyi ops-pc. refer to 88378
 	 *0x14 for special spliter. refer to 72949
 	 *0x13 for 8268 refer to 73940
+	 *0x02,0x03 for yi xian splitter
 	 *fix edid filter setting
 	 */
-	if (temp < 0x3f && temp != 1 && temp != 8 && temp != 0x0c && temp != 0x0a &&
-		temp != 0x15 && temp != 0x14 && temp != 0x13 && temp) {
+	if (temp < 0x3f &&
+		temp != 0x1 &&
+		temp != 0x2 &&
+		temp != 0x3 &&
+		temp != 0x8 &&
+		temp != 0xa &&
+		temp != 0xc &&
+		temp != 0x13 &&
+		temp != 0x14 &&
+		temp != 0x15 &&
+		temp) {
 		rx.ddc_filter_en = true;
 		if (log_level & EDID_LOG)
 			rx_pr("port: %d, edid_status: 0x%x,\n", rx.port, temp);
