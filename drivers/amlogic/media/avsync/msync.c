@@ -1312,7 +1312,7 @@ static void session_update_apts(struct sync_session *session)
 			session->wall_adj_thres) {
 			unsigned long flags;
 
-			if (session->rate != 1000 || session->audio_switching) {
+			if (session->audio_switching) {
 				msync_dbg(LOG_DEBUG,
 					"[%d]ignore reset %u --> %u\n",
 					session->id, session->wall_clock, pts);
