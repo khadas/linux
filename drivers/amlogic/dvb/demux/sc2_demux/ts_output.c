@@ -3014,7 +3014,11 @@ int ts_output_get_newest_pts(struct out_elem *pout,
 			mutex_unlock(&pout->pts_mutex);
 			return -2;
 		}
-
+		if (newest_header[2] & 0xc) {
+			dprint("%s scrambled es, invalid\n", __func__);
+			mutex_unlock(&pout->pts_mutex);
+			return -2;
+		}
 		newest_pts_tmp = newest_header[3] >> 1 & 0x1;
 		newest_pts_tmp <<= 32;
 		newest_pts_tmp |= ((__u64)newest_header[15]) << 24
@@ -3056,7 +3060,7 @@ int ts_output_get_mem_info(struct out_elem *pout,
 	} else {
 		*free_size = SC2_bufferid_get_free_size(pout->pchan);
 	}
-	if (newest_pts)
+	if (newest_pts && pout->format == ES_FORMAT)
 		ts_output_get_newest_pts(pout, newest_pts);
 	return 0;
 }

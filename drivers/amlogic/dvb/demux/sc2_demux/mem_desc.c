@@ -1119,6 +1119,12 @@ int SC2_bufferid_read_newest_pts(struct chan_id *pchan, char **pread)
 			pts_mem_offset = pchan->mem_size - buf_len;
 		else
 			pts_mem_offset = w_offset - buf_len;
+		/*get the second to last es header, not the last es header*/
+		if (pts_mem_offset == 0)
+			pts_mem_offset = pchan->mem_size - buf_len;
+		else
+			pts_mem_offset = pts_mem_offset - buf_len;
+
 		dma_sync_single_for_cpu(aml_get_device(),
 				(dma_addr_t)(pchan->mem_phy + pts_mem_offset),
 				buf_len, DMA_FROM_DEVICE);
