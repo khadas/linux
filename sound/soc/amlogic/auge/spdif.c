@@ -52,7 +52,7 @@ struct aml_spdif *spdif_priv[2];
 static int aml_dai_set_spdif_sysclk(struct snd_soc_dai *cpu_dai,
 				int clk_id, unsigned int freq, int dir);
 
-static void aml_set_spdifclk(struct aml_spdif *p_spdif, int freq);
+static void aml_set_spdifclk(struct aml_spdif *p_spdif, int freq, bool tune);
 
 enum SPDIF_SRC {
 	SPDIFIN_PAD = 0,
@@ -288,7 +288,7 @@ static int ss_set_clk(int samesource_sel,
 
 	spdif_set_audio_clk(samesource_sel - 3,
 		clk_src,
-		rate, same);
+		rate, same, false);
 
 	ops = get_samesrc_ops(samesource_sel);
 	if (ops && ops->private) {
@@ -537,7 +537,7 @@ static int aml_spdif_platform_resume(struct platform_device *pdev)
 				dev_warn(&pdev->dev, "Can't set spdif clk_spdifout parent\n");
 			clk_prepare_enable(p_spdif->clk_spdifin);
 		}
-		aml_set_spdifclk(p_spdif, p_spdif->sysclk_freq);
+		aml_set_spdifclk(p_spdif, p_spdif->sysclk_freq, false);
 
 		if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc5v))
 			ret = regulator_enable(p_spdif->regulator_vcc5v);
@@ -697,8 +697,8 @@ int spdifin_source_set_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-int spdif_set_audio_clk(int id,
-		struct clk *clk_src, int rate, int same)
+int spdif_set_audio_clk(int id, struct clk *clk_src,
+		int rate, int same, bool tune)
 {
 	int ret = 0;
 
@@ -711,7 +711,9 @@ int spdif_set_audio_clk(int id,
 		return 0;
 
 	clk_set_parent(spdif_priv[id]->clk_spdifout, clk_src);
-	clk_set_rate(spdif_priv[id]->clk_spdifout, rate);
+	if (!tune)
+		clk_set_rate(spdif_priv[id]->clk_spdifout, rate);
+
 	ret = clk_prepare_enable(spdif_priv[id]->clk_spdifout);
 	if (ret) {
 		pr_err("%s Can't enable clk_spdifout clock, ret %d\n",
@@ -747,7 +749,7 @@ static int spdif_clk_set(struct snd_kcontrol *kcontrol,
 	value = value - 1000000;
 	sysclk += value;
 
-	aml_set_spdifclk(p_spdif, sysclk);
+	aml_set_spdifclk(p_spdif, sysclk, true);
 
 	return 0;
 }
@@ -766,7 +768,7 @@ static int spdif_clk_ppm_set(struct snd_kcontrol *kcontrol,
 	}
 	sysclk = sysclk + sysclk * (value - 1000) / 1000000;
 
-	aml_set_spdifclk(p_spdif, sysclk);
+	aml_set_spdifclk(p_spdif, sysclk, true);
 
 	return 0;
 }
@@ -1585,7 +1587,8 @@ static int aml_dai_spdif_hw_free(struct snd_pcm_substream *substream,
 #define MPLL_HBR_FIXED_FREQ   (491520000)
 #define MPLL_CD_FIXED_FREQ    (451584000)
 
-static void aml_set_spdifclk_s4(struct aml_spdif *p_spdif, int freq)
+static void aml_set_spdifclk_s4(struct aml_spdif *p_spdif,
+		int freq, bool tune)
 {
 	bool force_mpll = is_force_mpll_clk();
 
@@ -1617,7 +1620,7 @@ static void aml_set_spdifclk_s4(struct aml_spdif *p_spdif, int freq)
 	        clk_set_rate(p_spdif->clk_src_cd, freq * ratio);
 		spdif_set_audio_clk(p_spdif->id,
 			p_spdif->clk_src_cd,
-			freq, 0);
+			freq, 0, tune);
 	} else {
 		if (p_spdif->standard_sysclk % 8000 == 0) {
 			if (p_spdif->syssrc_clk_rate)
@@ -1627,13 +1630,13 @@ static void aml_set_spdifclk_s4(struct aml_spdif *p_spdif, int freq)
 
 			spdif_set_audio_clk(p_spdif->id,
 				p_spdif->sysclk,
-				freq, 0);
+				freq, 0, tune);
 		} else if (p_spdif->standard_sysclk % 11025 == 0) {
 			clk_set_rate(p_spdif->clk_src_cd, MPLL_CD_FIXED_FREQ);
 
 			spdif_set_audio_clk(p_spdif->id,
 				p_spdif->clk_src_cd,
-				freq, 0);
+				freq, 0, tune);
 		} else {
 			dev_warn(p_spdif->dev, "unsupport clock rate %d\n",
 				p_spdif->standard_sysclk);
@@ -1642,7 +1645,7 @@ static void aml_set_spdifclk_s4(struct aml_spdif *p_spdif, int freq)
 }
 
 /* normal 1 audio clk src both for 44.1k and 48k */
-static void aml_set_spdifclk_1(struct aml_spdif *p_spdif, int freq)
+static void aml_set_spdifclk_1(struct aml_spdif *p_spdif, int freq, bool tune)
 {
 	unsigned int mpll_freq = 0;
 
@@ -1676,7 +1679,7 @@ static void aml_set_spdifclk_1(struct aml_spdif *p_spdif, int freq)
 		 */
 		spdif_set_audio_clk(p_spdif->id,
 			p_spdif->sysclk,
-			freq, 0);
+			freq, 0, tune);
 		pr_debug("\t set spdifout clk:%d, mpll:%d\n",
 			freq,
 			mpll_freq);
@@ -1687,7 +1690,7 @@ static void aml_set_spdifclk_1(struct aml_spdif *p_spdif, int freq)
 }
 
 /* 2 audio clk src each for 44.1k and 48k */
-static void aml_set_spdifclk_2(struct aml_spdif *p_spdif, int freq)
+static void aml_set_spdifclk_2(struct aml_spdif *p_spdif, int freq, bool tune)
 {
 	int ratio = 0;
 
@@ -1696,7 +1699,8 @@ static void aml_set_spdifclk_2(struct aml_spdif *p_spdif, int freq)
 		return;
 	}
 
-	pr_info("%s: spdifid %d, freq = %d\n", __func__, p_spdif->id, freq);
+	pr_info("%s: spdifid %d, freq = %d, tune = %d\n",
+			__func__, p_spdif->id, freq, tune);
 
 	if (p_spdif->standard_sysclk % 8000 == 0) {
 		ratio = MPLL_HBR_FIXED_FREQ / p_spdif->standard_sysclk;
@@ -1704,36 +1708,37 @@ static void aml_set_spdifclk_2(struct aml_spdif *p_spdif, int freq)
 
 		spdif_set_audio_clk(p_spdif->id,
 			p_spdif->sysclk,
-			freq, 0);
+			freq, 0, tune);
 	} else if (p_spdif->standard_sysclk % 11025 == 0) {
 		ratio = MPLL_CD_FIXED_FREQ / p_spdif->standard_sysclk;
 		clk_set_rate(p_spdif->clk_src_cd, freq * ratio);
 
 		spdif_set_audio_clk(p_spdif->id,
 			p_spdif->clk_src_cd,
-			freq, 0);
+			freq, 0, tune);
 	} else {
 		dev_warn(p_spdif->dev, "unsupport clock rate %d\n", p_spdif->standard_sysclk);
 	}
 }
 
-static void aml_set_spdifclk_normal(struct aml_spdif *p_spdif, int freq)
+static void aml_set_spdifclk_normal(struct aml_spdif *p_spdif,
+		int freq, bool tune)
 {
 	if (IS_ERR(p_spdif->clk_src_cd))
-		aml_set_spdifclk_1(p_spdif, freq);
+		aml_set_spdifclk_1(p_spdif, freq, tune);
 	else
-		aml_set_spdifclk_2(p_spdif, freq);
+		aml_set_spdifclk_2(p_spdif, freq, tune);
 }
 
-static void aml_set_spdifclk(struct aml_spdif *p_spdif, int freq)
+static void aml_set_spdifclk(struct aml_spdif *p_spdif, int freq, bool tune)
 {
 	char *clk_name = (char *)__clk_get_name(p_spdif->sysclk);
 
 	/* S4: audio share HIFI clk with EMMC, need special method */
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_S4 && !strcmp(clk_name, "hifi_pll"))
-		aml_set_spdifclk_s4(p_spdif, freq);
+		aml_set_spdifclk_s4(p_spdif, freq, tune);
 	else
-		aml_set_spdifclk_normal(p_spdif, freq);
+		aml_set_spdifclk_normal(p_spdif, freq, tune);
 }
 
 static int aml_dai_set_spdif_sysclk(struct snd_soc_dai *cpu_dai,
@@ -1750,7 +1755,7 @@ static int aml_dai_set_spdif_sysclk(struct snd_soc_dai *cpu_dai,
 
 	p_spdif->sysclk_freq = freq;
 	p_spdif->standard_sysclk = freq;
-	aml_set_spdifclk(p_spdif, freq);
+	aml_set_spdifclk(p_spdif, freq, false);
 
 	return 0;
 }
