@@ -336,7 +336,7 @@ void set_dump_dmc_func(void *f)
 
 void _dump_dmc_reg(void)
 {
-	char buf[1024] = {0};
+	static char buf[2048] = {0};
 
 	if (!dmc_cb)
 		return;
