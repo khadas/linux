@@ -151,7 +151,7 @@ struct display_timings *of_get_display_timings(const struct device_node *np)
 	if (!np)
 		return NULL;
 //printk("hlm xx of_get_display_timings\n");
-if(1 == khadas_mipi_id){
+if(2 == khadas_mipi_id){
 	timings_np = of_get_child_by_name(np, "display-timings1");
 }
 else{
