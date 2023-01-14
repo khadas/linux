@@ -80,7 +80,7 @@ void init_reg_map(u32 type);
 #define CLKCTRL_FPLL_CTRL1            CLKCTRL_REG_ADDR(0x02c1)
 #define CLKCTRL_FPLL_CTRL2            CLKCTRL_REG_ADDR(0x02c2)
 #define CLKCTRL_FPLL_CTRL3            CLKCTRL_REG_ADDR(0x02c3)
-#define CLKCTRL_FPLL_SYS              CLKCTRL_REG_ADDR(0x02c4)
+#define CLKCTRL_FPLL_STS              CLKCTRL_REG_ADDR(0x02c4)
 //  PWR_CTRL
 #define PWRCTRL_PWR_ACK0              PWRCTRL_REG_ADDR(0x0000)
 #define PWRCTRL_MEM_PD11              PWRCTRL_REG_ADDR(0x001b)

@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/pinctrl/devinfo.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/amlogic/clk_measure.h>
 #include <linux/mutex.h>
 #include <linux/cdev.h>
 #include <linux/ctype.h>
@@ -5173,6 +5174,7 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 		set_disp_mode_auto();
 	} else {
 		pr_info("alread display in uboot\n");
+		hdev->ready = 1;
 		update_current_para(hdev);
 		edidinfo_attach_to_vinfo(hdev);
 		vinfo = get_current_vinfo();
@@ -6545,6 +6547,56 @@ static void amhdmitx_infoframe_init(struct hdmitx_dev *hdev)
 	hdmi_drm_infoframe_init(&hdev->infoframes.drm.drm);
 }
 
+static int hdmitx21_status_check(void *data)
+{
+	int clk[3];
+	int idx[3];
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (hdev->data && hdev->data->chip_type != MESON_CPU_ID_S5)
+		return 0;
+
+	/* for S5, here need check the clk index 89 & 16 */
+	idx[0] = 89; /* htx_tmds20_clk */
+	idx[1] = 16; /* vid_pll0_clk */
+	idx[2] = 92; /* cts_htx_tmds_clk */
+
+	while (1) {
+		msleep_interruptible(1000);
+		if (!hdev->ready)
+			continue;
+		/* skip FRL mode */
+		if (hdev->hwop.cntlmisc(hdev, MISC_IS_FRL_MODE, 0))
+			continue;
+		clk[0] = meson_clk_measure(idx[0]);
+		clk[1] = meson_clk_measure(idx[1]);
+		if (clk[0] && clk[1])
+			continue;
+
+		if (!clk[0]) {
+			pr_debug("the clock[%d] is %d\n", idx[0], clk[0]);
+			hdev->hwop.cntlmisc(hdev, MISC_CLK_DIV_RST, idx[0]);
+			pr_debug("reset the clock div for %d\n", idx[0]);
+			pr_info("the clock[%d] is %d\n", idx[0], meson_clk_measure(idx[0]));
+		}
+		if (!clk[1]) {
+			pr_debug("the clock[%d] is %d\n", idx[1], clk[1]);
+			hdev->hwop.cntlmisc(hdev, MISC_CLK_DIV_RST, idx[1]);
+			pr_debug("reset the clock div for %d\n", idx[1]);
+			pr_info("the clock[%d] is %d\n", idx[1], meson_clk_measure(idx[1]));
+		}
+		/* resend the SCDC/DIV40 config */
+		if (!clk[0] || !clk[1]) {
+			clk[2] = meson_clk_measure(idx[2]);
+			if (clk[2] >= 340000000)
+				hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, 1);
+			else
+				hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, 0);
+		}
+	}
+	return 0;
+}
+
 static int amhdmitx_probe(struct platform_device *pdev)
 {
 	int r, ret = 0;
@@ -6651,6 +6703,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_filter_hdcp_off_period);
 	ret = device_create_file(dev, &dev_attr_not_restart_hdcp);
 
+	hdev->task_hdmist_check = kthread_run(hdmitx21_status_check, (void *)hdev,
+				      "kthread_hdmist_check");
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&hdmitx_early_suspend_handler);
 #endif
@@ -6763,7 +6817,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	if (hdev->hwop.uninit)
 		hdev->hwop.uninit(hdev);
 	hdev->hpd_event = 0xff;
-	kthread_stop(hdev->task);
+	kthread_stop(hdev->task_hdmist_check);
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	vout_unregister_server(&hdmitx_vout_server);
 #endif

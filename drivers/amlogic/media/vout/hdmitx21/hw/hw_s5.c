@@ -9,6 +9,63 @@
 #include <linux/arm-smccc.h>
 #include "common.h"
 
+/* for HTX_PLL_CNTL0 or HTX_PLL_CNTL3
+ * [31] lock_st [2] lock_st_rst  [1] pll_rst
+ */
+#define WAIT_HDMIPLL_LOCK(_reg, _n_rst) \
+	do { \
+		typeof(_reg) reg = (_reg); \
+		typeof(_n_rst) n_rst = (_n_rst); \
+		unsigned int st = 0; \
+		int cnt = 10; \
+		while (cnt--) { \
+			usleep_range(50, 60); \
+			st = (((hd21_read_reg(reg) >> 31) & 0x1) == 1); \
+			if (st) \
+				break; \
+			else { \
+				/* reset hpll */ \
+				if (n_rst) { \
+					/* negative reset */ \
+					hd21_set_reg_bits(reg, 0, 1, 1); \
+					hd21_set_reg_bits(reg, 1, 1, 1); \
+				} else { \
+					/* normal reset */ \
+					hd21_set_reg_bits(reg, 1, 1, 1); \
+					hd21_set_reg_bits(reg, 0, 1, 1); \
+				} \
+				hd21_set_reg_bits(reg, 1, 2, 1); \
+				hd21_set_reg_bits(reg, 0, 2, 1); \
+			} \
+		} \
+		if (cnt < 9) \
+			pr_info("pll[0x%x] reset %d times\n", reg, 9 - cnt);\
+	} while (0)
+
+/* for FPLL_CTRL0 or GP2PLL_CTRL0
+ * bit[29] pll rest   PLL_ST bit[31] lock_st
+ */
+#define WAIT_FPLL_GP2PLL_LOCK(_reg_pll, _reg_st) \
+	do { \
+		typeof(_reg_pll) reg_pll = (_reg_pll); \
+		typeof(_reg_st) reg_st = (_reg_st); \
+		unsigned int st = 0; \
+		int cnt = 10; \
+		while (cnt--) { \
+			usleep_range(50, 60); \
+			st = (((hd21_read_reg(reg_st) >> 31) & 0x1) == 1); \
+			if (st) \
+				break; \
+			else { \
+				/* reset hpll */ \
+				hd21_set_reg_bits(reg_pll, 1, 29, 1); \
+				hd21_set_reg_bits(reg_pll, 0, 29, 1); \
+			} \
+		} \
+		if (cnt < 9) \
+			pr_info("pll[0x%x] reset %d times\n", reg_pll, 9 - cnt);\
+	} while (0)
+
 /*
  * in s5, there are 4 plls for hdmitx module
  * sub-pll, htx-pll, fpll, gp2pll
@@ -118,7 +175,7 @@ static void set_s5_htxpll_clk_4_5_6g(const u32 clk, const bool frl_en)
 	hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0xf00022a5);
 	hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x55813081);
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 0, 1, 1);
-	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 1, 2, 1);
+	WAIT_HDMIPLL_LOCK(ANACTRL_HDMIPLL_CTRL0, 0);
 	if (clk == 5000000) {
 		htxpll_m = 50;
 		htxpll_ref_clk_od = 1;
@@ -167,6 +224,8 @@ void set21_s5_htxpll_clk_out(const u32 clk, const u32 div)
 	else
 		set_s5_htxpll_clk_other(clk, hdev->frl_rate ? 1 : 0);
 
+	WAIT_HDMIPLL_LOCK(ANACTRL_HDMIPLL_CTRL3, 1);
+
 	/* setting htxpll div */
 	if (div > 8) {
 		div1 = 8;
@@ -179,7 +238,6 @@ void set21_s5_htxpll_clk_out(const u32 clk, const u32 div)
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, od_map[div2], 22, 2);
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, 0, 24, 2);
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL4, 0, 30, 2);
-	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 0, 2, 1);
 	if (cs == HDMI_COLORSPACE_YUV420) {
 		if (cd == COLORDEPTH_24B)
 			hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, 1, 20, 2);
@@ -247,6 +305,7 @@ void hdmitx_set_s5_fpll(u32 clk, u32 div, u32 pixel_od)
 	hd21_set_reg_bits(CLKCTRL_FPLL_CTRL0, 0, 29, 1);
 	usleep_range(20, 30);
 	hd21_set_reg_bits(CLKCTRL_FPLL_CTRL3, 1, 9, 1); /* enable pll_lock_rst */
+	WAIT_FPLL_GP2PLL_LOCK(CLKCTRL_FPLL_CTRL0, CLKCTRL_FPLL_STS);
 
 	/* setting fpll div */
 	if (div > 8) {
@@ -289,6 +348,7 @@ void hdmitx_set_s5_gp2pll(u32 clk, u32 div)
 	hd21_set_reg_bits(CLKCTRL_GP2PLL_CTRL0, 0, 29, 1);
 	usleep_range(20, 30);
 	hd21_set_reg_bits(CLKCTRL_GP2PLL_CTRL3, 1, 9, 1); /* enable pll_lock_rst */
+	WAIT_FPLL_GP2PLL_LOCK(CLKCTRL_GP2PLL_CTRL0, CLKCTRL_GP2PLL_STS);
 
 	hd21_set_reg_bits(CLKCTRL_FPLL_CTRL0, od_map[div], 23, 2); // gp2pll_tmds_od<2:0>
 }
@@ -474,5 +534,17 @@ void set21_hpll_sspll_s5(enum hdmi_vic vic)
 		break;
 	default:
 		break;
+	}
+}
+
+void hdmitx21_s5_clk_div_rst(u32 clk_idx)
+{
+	if (clk_idx == 89) {
+		hd21_set_reg_bits(CLKCTRL_HDMI_PLL_TMDS_CLK_DIV, 1, 15, 1);
+		hd21_set_reg_bits(CLKCTRL_HDMI_PLL_TMDS_CLK_DIV, 0, 15, 1);
+	}
+	if (clk_idx == 16) {
+		hd21_set_reg_bits(CLKCTRL_HDMI_VID_PLL_CLK_DIV, 1, 15, 1);
+		hd21_set_reg_bits(CLKCTRL_HDMI_VID_PLL_CLK_DIV, 0, 15, 1);
 	}
 }

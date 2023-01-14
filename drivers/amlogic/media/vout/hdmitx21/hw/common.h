@@ -179,5 +179,6 @@ void dump_infoframe_packets(struct seq_file *s);
 
 /* data flow metering config */
 void hdmitx_dfm_cfg(u8 bw_type, u16 h_active);
+void hdmitx21_s5_clk_div_rst(u32 clk_idx);
 
 #endif

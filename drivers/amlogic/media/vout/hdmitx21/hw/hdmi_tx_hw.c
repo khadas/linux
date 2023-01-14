@@ -2370,6 +2370,9 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 	switch (cmd) {
 	case MISC_IS_FRL_MODE:
 		return !!(hdmitx21_rd_reg(HDMITX_TOP_BIST_CNTL) & (1 << 19));
+	case MISC_CLK_DIV_RST:
+		hdmitx21_s5_clk_div_rst(argv);
+		break;
 	case MISC_HPD_MUX_OP:
 		if (argv == PIN_MUX)
 			argv = HPD_MUX_HPD;

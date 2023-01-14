@@ -324,7 +324,7 @@ struct hdmitx_dev {
 	struct cdev cdev; /* The cdev structure */
 	dev_t hdmitx_id;
 	struct proc_dir_entry *proc_file;
-	struct task_struct *task;
+	struct task_struct *task_hdmist_check;
 	struct task_struct *task_monitor;
 	struct task_struct *task_hdcp;
 	struct workqueue_struct *hdmi_wq;
@@ -600,6 +600,7 @@ struct hdmitx_dev {
 #define MISC_TRIGGER_HPD        (CMD_MISC_OFFSET + 0X14)
 #define MISC_SUSFLAG		(CMD_MISC_OFFSET + 0X15)
 #define MISC_IS_FRL_MODE	(CMD_MISC_OFFSET + 0X16)
+#define MISC_CLK_DIV_RST	(CMD_MISC_OFFSET + 0X17)
 
 /***********************************************************************
  *                          Get State //getstate
