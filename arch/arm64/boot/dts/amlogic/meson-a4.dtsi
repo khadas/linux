@@ -9,7 +9,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/power/s4-pd.h>
-#include <dt-bindings/power/a5-pd.h>
+#include <dt-bindings/power/a4-pd.h>
 #include <dt-bindings/clock/amlogic,a5-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-a5-gpio.h>
@@ -376,7 +376,7 @@
 	};
 
 	pwrdm: power-domains {
-		compatible = "amlogic,a5-power-domain";
+		compatible = "amlogic,a4-power-domain";
 		#power-domain-cells = <1>;
 		status = "okay";
 	};
@@ -391,7 +391,7 @@
 		      "cts_vipnanoq_core_clk_composite";
 		interrupts = <0 128 4>;
 		interrupt-names = "galcore";
-		power-domains = <&pwrdm PDID_A5_NNA>;
+		//power-domains = <&pwrdm PDID_A5_NNA>;
 		reg = <0x0 0xfdb00000 0x0 0x40000
 		      0x0 0xf7000000 0x0 0x200000
 		      0x0 0xfe00c040 0x0 0x4
@@ -465,8 +465,8 @@
 		boot_sram_addr = <0xf7030000>;
 		boot_sram_size = <0x3A0000>;
 		suspend_resume_support = <1 0>;
-		power-domains = <&pwrdm PDID_A5_DSPA>;
-		power-domain-names = "dspa";
+		//power-domains = <&pwrdm PDID_A5_DSPA>;
+		//power-domain-names = "dspa";
 		dsp_clk_freqs = <800000000>;
 		dspsrambase = <0xf7030000>;
 		dspsramsize = <0x3A0000>;
@@ -1104,7 +1104,7 @@
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xFE330000 0x0 0x3000>;
 			//chip_id = <0x37>;
-			power-domains = <&pwrdm PDID_A5_AUDIO>;
+			//power-domains = <&pwrdm PDID_A5_AUDIO>;
 			status = "okay";
 			ddr_manager {
 				compatible =
@@ -1176,7 +1176,7 @@
 		dolby_fw: dolby_fw {
 			compatible = "amlogic, dolby_fw";
 			mem_size = <0x100000>;
-			power-domains = <&pwrdm PDID_A5_RSA>;
+			//power-domains = <&pwrdm PDID_A5_RSA>;
 			status = "okay";
 		};
 
@@ -1187,7 +1187,7 @@
 				<0x0 0xfe004000 0x0 0x4>;
 			interrupts = <GIC_SPI 178 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
-			power-domains = <&pwrdm PDID_A5_EMMC>;
+			//power-domains = <&pwrdm PDID_A5_EMMC>;
 			clocks = <&clkc CLKID_SYS_CLK_SD_EMMCC>,
 				<&clkc CLKID_SD_EMMC_C_CLK_SEL>,
 				 <&clkc CLKID_SD_EMMC_C_CLK>,
@@ -1253,7 +1253,7 @@
 					<&clkc CLKID_FCLK_DIV2>;
 			clock-names = "gate", "fdiv2pll";
 			nand_clk_ctrl = <0xfe08c000>;
-			power-domains = <&pwrdm PDID_A5_EMMC>;
+			//power-domains = <&pwrdm PDID_A5_EMMC>;
 		};
 
 		ethmac: ethernet@fdc00000 {
@@ -1264,7 +1264,7 @@
 			      <0x0 0xfe024000 0x0 0x8>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-			power-domains = <&pwrdm PDID_A5_ETH>;
+			//power-domains = <&pwrdm PDID_A5_ETH>;
 			clocks = <&clkc CLKID_SYS_CLK_ETH_MAC>,
 				 <&clkc CLKID_FCLK_DIV2>,
 				 <&clkc CLKID_MPLL2>;
@@ -1382,10 +1382,10 @@
 			"mailbox_1",
 			"mailbox_2",
 			"parser_b";
-		power-domains = <&pwrdm PDID_S4_DOS_VDEC>,
-			<&pwrdm PDID_S4_DOS_HEVC>;
-		power-domain-names = "pwrc-vdec",
-			"pwrc-hevc";
+		//power-domains = <&pwrdm PDID_S4_DOS_VDEC>,
+		//<&pwrdm PDID_S4_DOS_HEVC>;
+		//power-domain-names = "pwrc-vdec",
+		//"pwrc-hevc";
 	};
 	vdec_cpu_ver: cpu_ver_name {
 		compatible = "amlogic, cpu-major-id-s4";

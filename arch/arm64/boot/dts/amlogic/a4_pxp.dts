@@ -586,7 +586,7 @@
 			"dclk_srcpll",
 			"pdm_dclk",
 			"pdm_sysclk";
-		power-domains = <&pwrdm PDID_A5_AUDIO_PDM>;
+		//power-domains = <&pwrdm PDID_A5_AUDIO_PDM>;
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
 
