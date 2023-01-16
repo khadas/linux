@@ -6883,6 +6883,14 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void hdmitx_s5_clk_ctrl(struct hdmitx_dev *hdev, bool en)
+{
+	if (!hdev)
+		return;
+
+	hdev->hwop.cntlmisc(hdev, MISC_HDMI_CLKS_CTRL, en);
+}
+
 static void amhdmitx_shutdown(struct platform_device *pdev)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
@@ -6891,12 +6899,20 @@ static void amhdmitx_shutdown(struct platform_device *pdev)
 		hdmitx21_disable_hdcp(hdev);
 		return;
 	}
+
+	if (hdev->data->chip_type >= MESON_CPU_ID_S5)
+		hdmitx_s5_clk_ctrl(hdev, 0);
 }
 
 #ifdef CONFIG_PM
 static int amhdmitx_suspend(struct platform_device *pdev,
 			    pm_message_t state)
 {
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (hdev->data->chip_type >= MESON_CPU_ID_S5)
+		hdmitx_s5_clk_ctrl(hdev, 0);
+
 	return 0;
 }
 
@@ -6904,9 +6920,10 @@ static int amhdmitx_resume(struct platform_device *pdev)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	pr_info("%s: I2C_REACTIVE\n", DEVICE_NAME);
-	hdev->hwop.cntlmisc(hdev, MISC_I2C_REACTIVE, 0);
+	pr_info("%s\n", __func__);
 
+	if (hdev->data->chip_type >= MESON_CPU_ID_S5)
+		hdmitx_s5_clk_ctrl(hdev, 1);
 	return 0;
 }
 #endif

@@ -178,11 +178,26 @@ static void set_hpll_clk_out(u32 clk)
 	switch (hdev->data->chip_type) {
 	case MESON_CPU_ID_T7:
 		set21_t7_hpll_clk_out(frac_rate, clk);
+		break;
 	default:
 		break;
 	}
 
 	pr_info("config HPLL done\n");
+}
+
+void hdmitx_clks_gate_ctrl(bool en)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	switch (hdev->data->chip_type) {
+	case MESON_CPU_ID_T7:
+		break;
+	case MESON_CPU_ID_S5:
+	default:
+		hdmitx_s5_clock_gate_ctrl(hdev, en);
+		break;
+	}
 }
 
 /* HERE MUST BE BIT OPERATION!!! */

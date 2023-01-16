@@ -468,6 +468,7 @@ extern unsigned long vid_mute_ms;
 bool hdmitx21_edid_only_support_sd(struct hdmitx_dev *hdev);
 bool is_4k_sink(struct hdmitx_dev *hdev);
 void hdmitx21_av_mute_op(u32 flag, unsigned int path);
+void hdmitx_clks_gate_ctrl(bool en);
 
 /* FRL */
 struct frl_work {

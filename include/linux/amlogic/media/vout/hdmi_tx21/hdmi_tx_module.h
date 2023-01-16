@@ -602,6 +602,7 @@ struct hdmitx_dev {
 #define MISC_SUSFLAG		(CMD_MISC_OFFSET + 0X15)
 #define MISC_IS_FRL_MODE	(CMD_MISC_OFFSET + 0X16)
 #define MISC_CLK_DIV_RST	(CMD_MISC_OFFSET + 0X17)
+#define MISC_HDMI_CLKS_CTRL     (CMD_MISC_OFFSET + 0X18)
 
 /***********************************************************************
  *                          Get State //getstate

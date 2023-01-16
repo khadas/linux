@@ -2467,6 +2467,9 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 		hdmitx21_set_reg_bits(HDMITX_TOP_SW_RESET, 0, 9, 1);
 		usleep_range(1000, 2000);
 		break;
+	case MISC_HDMI_CLKS_CTRL:
+		hdmitx_clks_gate_ctrl(!!argv);
+		break;
 	case MISC_I2C_REACTIVE:
 		break;
 	default:

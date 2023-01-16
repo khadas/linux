@@ -563,3 +563,49 @@ void hdmitx21_s5_clk_div_rst(u32 clk_idx)
 		hd21_set_reg_bits(CLKCTRL_HDMI_VID_PLL_CLK_DIV, 0, 15, 1);
 	}
 }
+
+static int gate_bit_mask = 0xfffff;
+module_param(gate_bit_mask, int, 0644);
+MODULE_PARM_DESC(gate_bit_mask, "for hdcp debug");
+
+void hdmitx_s5_clock_gate_ctrl(struct hdmitx_dev *hdev, bool en)
+{
+	if (gate_bit_mask & BIT(0))
+		hd21_set_reg_bits(CLKCTRL_FPLL_CTRL0, en, 28, 1);
+	if (gate_bit_mask & BIT(1))
+		hd21_set_reg_bits(CLKCTRL_HDMI_VID_PLL_CLK_DIV, en, 19, 1);
+	if (gate_bit_mask & BIT(2))
+		hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, en, 4, 1);
+	if (gate_bit_mask & BIT(3))
+		hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, en, 20, 1);
+	if (gate_bit_mask & BIT(4))
+		hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, en, 12, 1);
+	if (gate_bit_mask & BIT(5))
+		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL2, en, 3, 1);
+	if (gate_bit_mask & BIT(6))
+		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, en, 8, 1);
+	if (gate_bit_mask & BIT(7))
+		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL0, en, 24, 1);
+	if (gate_bit_mask & BIT(8))
+		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL0, en, 8, 1);
+	if (gate_bit_mask & BIT(9))
+		hd21_set_reg_bits(CLKCTRL_HDMI_CLK_CTRL, en, 8, 1);
+	if (gate_bit_mask & BIT(10))
+		hd21_set_reg_bits(CLKCTRL_HDMI_PLL_TMDS_CLK_DIV, en, 19, 1);
+		// hdmitx21_set_reg_bits(HDMITX_TOP_CLK_CNTL, en, 1, 1);
+	if (gate_bit_mask & BIT(11))
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL4, en, 25, 1);
+	if (gate_bit_mask & BIT(12))
+		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, en, 24, 1);
+	if (gate_bit_mask & BIT(13))
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, en, 18, 1);
+	if (gate_bit_mask & BIT(14))
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, en, 19, 1);
+	if (gate_bit_mask & BIT(15))
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, en, 0, 1);
+	if (gate_bit_mask & BIT(16))
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, en, 0, 1);
+	if (en == 0) /* this will enable during the mode setting */
+		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x0);
+}
+
