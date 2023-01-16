@@ -1477,6 +1477,10 @@
 	};
 }; /* end of audiobus */
 
+&adla {
+	regulator_nn = "gpio_regulator";
+};
+
 &earc {
 	suspend-clk-off = <1>;
 	status = "okay";

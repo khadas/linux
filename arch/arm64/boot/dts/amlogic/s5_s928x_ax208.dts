@@ -1504,6 +1504,10 @@
 	};
 }; /* end of audiobus */
 
+&adla {
+	regulator_nn = "gpio_regulator";
+};
+
 &earc {
 	status = "okay";
 };
