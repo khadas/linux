@@ -34,8 +34,7 @@
   cancel_delayed_work
   cancel_delayed_work_sync
   cancel_work_sync
-# amlogic: current kernel does not export this function
-# __cfi_slowpath_diag
+  __cfi_slowpath_diag
   __check_object_size
   __class_create
   class_destroy
@@ -235,8 +234,7 @@
   is_vmalloc_addr
   jiffies
   jiffies_to_msecs
-# amlogic: current kernel does not export this function
-# kasan_flag_enabled
+  kasan_flag_enabled
   kern_mount
   kern_unmount
   kfree
@@ -503,8 +501,7 @@
   trace_event_reg
   trace_handle_return
   trace_raw_output_prep
-# amlogic: current kernel does not export this function
-# __ubsan_handle_cfi_check_fail_abort
+  __ubsan_handle_cfi_check_fail_abort
   __udelay
   unlock_page
   unregister_blkdev

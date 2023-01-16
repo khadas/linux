@@ -122,13 +122,13 @@ static struct dentry *pstore_ftrace_dir;
 
 void pstore_register_ftrace(void)
 {
-#if !IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	/*
 	 * Amlogic reuse pstore ftrace for IO(register access) trace,
 	 * original pstore ftrace function is not so helpful, just ignore
 	 */
 	return;
-
+#else
 	if (!psinfo->write)
 		return;
 

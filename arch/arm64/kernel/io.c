@@ -7,12 +7,13 @@
 
 #include <linux/export.h>
 #include <linux/types.h>
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 #define SKIP_IO_TRACE
 #include <linux/io.h>
 #undef SKIP_IO_TRACE
-
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 #include <linux/amlogic/debug_ftrace_ramoops.h>
+#else
+#include <linux/io.h>
 #endif
 
 /*
