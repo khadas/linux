@@ -227,6 +227,7 @@ static void real_para_clear(struct aml_demod_para_real *para)
 	para->plp_num = 0;
 	para->fef_info = 0;
 	para->tps_cell_id = 0;
+	para->ber = 0;
 }
 
 //static void dtvdemod_do_8vsb_rst(void)
@@ -1367,17 +1368,12 @@ static int gxtv_demod_dvbt_read_signal_strength(struct dvb_frontend *fe,
 
 static int dtvdemod_dvbs_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
-	unsigned int value = 0;
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 
-	/* 0xe60 = 0x75 */
-	value = ((dvbs_rd_byte(0xe61) & 0x7f) << 16) +
-			((dvbs_rd_byte(0xe62) & 0xff) << 8) +
-			(dvbs_rd_byte(0xe63) & 0xff);
+	/* x e10 */
+	*ber = demod->real_para.ber;
 
-	/* x 1e7 */
-	*ber = (value * 10000000) / ((1 << 20) * 8 * 188);
-
-	PR_DVBS("%s: value %d, ber %d.\n", __func__, value, *ber);
+	PR_DVBS("%s: ber %d E-10\n", __func__, *ber);
 
 	return 0;
 }
@@ -4273,8 +4269,231 @@ static int dtvdemod_dvbs_blind_set_frontend(struct dvb_frontend *fe,
 	return ret;
 }
 
+static unsigned int dvbs_get_bitrate(int sr)
+{
+	unsigned int s2, cr_t = 1, cr_b, modu, modu_ratio = 1;
+
+	s2 = dvbs_rd_byte(0x932) & 0x60;
+	modu = dvbs_rd_byte(0x930) >> 2;
+	if (s2 == 0x40) {//bit5.6 S2
+		switch (modu) {
+		case 0x1://0x1~0xB:QPSK
+			modu_ratio = 2;
+			cr_t = 1;
+			cr_b = 4;
+			break;
+
+		case 0x2:
+			modu_ratio = 2;
+			cr_t = 1;
+			cr_b = 3;
+			break;
+
+		case 0x3:
+			modu_ratio = 2;
+			cr_t = 2;
+			cr_b = 5;
+			break;
+
+		case 0x4:
+			modu_ratio = 2;
+			cr_t = 1;
+			cr_b = 2;
+			break;
+
+		case 0x5:
+			modu_ratio = 2;
+			cr_t = 3;
+			cr_b = 5;
+			break;
+
+		case 0x6:
+			modu_ratio = 2;
+			cr_t = 2;
+			cr_b = 3;
+			break;
+
+		case 0x7:
+			modu_ratio = 2;
+			cr_t = 3;
+			cr_b = 4;
+			break;
+
+		case 0x8:
+			modu_ratio = 2;
+			cr_t = 4;
+			cr_b = 5;
+			break;
+
+		case 0x9:
+			modu_ratio = 2;
+			cr_t = 5;
+			cr_b = 6;
+			break;
+
+		case 0xA:
+			modu_ratio = 2;
+			cr_t = 8;
+			cr_b = 9;
+			break;
+
+		case 0xB:
+			modu_ratio = 2;
+			cr_t = 9;
+			cr_b = 10;
+			break;
+
+		case 0xC://0xC~0x11:8PSK
+			modu_ratio = 3;
+			cr_t = 3;
+			cr_b = 5;
+			break;
+
+		case 0xD:
+			modu_ratio = 3;
+			cr_t = 2;
+			cr_b = 3;
+			break;
+
+		case 0xE:
+			modu_ratio = 3;
+			cr_t = 3;
+			cr_b = 4;
+			break;
+
+		case 0xF:
+			modu_ratio = 3;
+			cr_t = 5;
+			cr_b = 6;
+			break;
+
+		case 0x10:
+			modu_ratio = 3;
+			cr_t = 8;
+			cr_b = 9;
+			break;
+
+		case 0x11:
+			modu_ratio = 3;
+			cr_t = 9;
+			cr_b = 10;
+			break;
+
+		case 0x12://0x12~0x17:APSK_16
+			modu_ratio = 4;
+			cr_t = 2;
+			cr_b = 3;
+			break;
+
+		case 0x13:
+			modu_ratio = 4;
+			cr_t = 3;
+			cr_b = 4;
+			break;
+
+		case 0x14:
+			modu_ratio = 4;
+			cr_t = 4;
+			cr_b = 5;
+			break;
+
+		case 0x15:
+			modu_ratio = 4;
+			cr_t = 5;
+			cr_b = 6;
+			break;
+
+		case 0x16:
+			modu_ratio = 4;
+			cr_t = 8;
+			cr_b = 9;
+			break;
+
+		case 0x17:
+			modu_ratio = 4;
+			cr_t = 9;
+			cr_b = 10;
+			break;
+
+		case 0x18://0x18~0x1C:APSK_32
+			modu_ratio = 5;
+			cr_t = 3;
+			cr_b = 4;
+			break;
+
+		case 0x19:
+			modu_ratio = 5;
+			cr_t = 4;
+			cr_b = 5;
+			break;
+
+		case 0x1A:
+			modu_ratio = 5;
+			cr_t = 5;
+			cr_b = 6;
+			break;
+
+		case 0x1B:
+			modu_ratio = 5;
+			cr_t = 8;
+			cr_b = 9;
+			break;
+
+		case 0x1C:
+			modu_ratio = 5;
+			cr_t = 9;
+			cr_b = 10;
+			break;
+
+		default:
+			return 20000000;//20M
+		};
+	} else {
+		modu_ratio = 2;
+		switch (modu) {
+		case 0x20:
+			cr_t = 1;
+			cr_b = 2;
+			break;
+
+		case 0x21:
+			cr_t = 2;
+			cr_b = 3;
+			break;
+
+		case 0x22:
+			cr_t = 3;
+			cr_b = 4;
+			break;
+
+		case 0x23:
+			cr_t = 5;
+			cr_b = 6;
+			break;
+
+		case 0x24:
+			cr_t = 6;
+			cr_b = 7;
+			break;
+
+		case 0x25:
+			cr_t = 7;
+			cr_b = 8;
+			break;
+
+		default:
+			return 20000000;//20M
+		}
+	}
+
+	PR_DVBS("DVBS%d modu_value=%d, modu=PSK_%d, cr=%d/%d\n",
+		s2 == 0x40 ? 2 : 1, modu, 1 << modu_ratio, cr_t, cr_b);
+
+	return sr * cr_b / cr_t / modu_ratio;
+}
+
 static int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status,
-		unsigned int if_freq_khz)
+		unsigned int if_freq_khz, bool re_tune)
 {
 	int ilock = 0;
 	unsigned char s = 0;
@@ -4286,9 +4505,19 @@ static int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *st
 	char buf[32] = { 0 };
 	char *polarity_name = NULL;
 	char *band = NULL;
+	unsigned int pkt_err_cnt, br;
+	static unsigned int pkt_err_cnt_last;
+
+	if (re_tune) {
+		pkt_err_cnt_last = 0;
+		real_para_clear(&demod->real_para);
+		*status = 0;
+		demod->last_status = 0;
+
+		return 0;
+	}
 
 	strength = tuner_get_ch_power(fe);
-
 	PR_DVBS("tuner strength: %d\n", strength);
 	if (strength <= -50) {
 		strength = (5 * 100) / 17;
@@ -4305,6 +4534,17 @@ static int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *st
 //			__func__, demod->id, strength, THRD_TUNER_STRENGTH_DVBS);
 //		return 0;
 //	}
+
+	br = dvbs_get_bitrate(c->symbol_rate);
+	pkt_err_cnt = ((dvbs_rd_byte(0xe61) & 0x7f) << 16) +
+		((dvbs_rd_byte(0xe62) & 0xff) << 8) + (dvbs_rd_byte(0xe63) & 0xff);
+	if (pkt_err_cnt < pkt_err_cnt_last)
+		pkt_err_cnt_last |= 0xff800000;
+	//250ms:errcnt * 10000000000 / (br / 4) >> errcnt * 10 * (4000000000 / br)
+	demod->real_para.ber = (pkt_err_cnt - pkt_err_cnt_last) * 10 * (400000000 / (br / 10));
+	PR_DVBS("sr=%d, br=%d, ber=%d.%d E-8\n", c->symbol_rate, br,
+		demod->real_para.ber / 100, demod->real_para.ber % 100);
+	pkt_err_cnt_last = pkt_err_cnt;
 
 	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
 	if (demod->time_passed >= 500) {
@@ -4419,7 +4659,7 @@ static int dtvdemod_dvbs_tune(struct dvb_frontend *fe, bool re_tune,
 		demod->en_detect = 1;
 		dtvdemod_dvbs_set_frontend(fe);
 		timer_begain(demod, D_TIMER_DETECT);
-		dtvdemod_dvbs_read_status(fe, status, fe->dtv_property_cache.frequency);
+		dtvdemod_dvbs_read_status(fe, status, fe->dtv_property_cache.frequency, re_tune);
 		PR_DVBS("[id %d] tune finish!\n", demod->id);
 		return ret;
 	}
@@ -4429,7 +4669,7 @@ static int dtvdemod_dvbs_tune(struct dvb_frontend *fe, bool re_tune,
 		return ret;
 	}
 
-	dtvdemod_dvbs_read_status(fe, status, fe->dtv_property_cache.frequency);
+	dtvdemod_dvbs_read_status(fe, status, fe->dtv_property_cache.frequency, re_tune);
 	dvbs_check_status(NULL);
 
 	return ret;
@@ -5822,7 +6062,7 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 				timer_begain(demod, D_TIMER_DETECT);
 
 				usleep_range(500000, 510000);
-				dtvdemod_dvbs_read_status(fe, &status, cur_freq);
+				dtvdemod_dvbs_read_status(fe, &status, cur_freq, false);
 			}
 
 			if (status == FE_TIMEDOUT || status == 0) {

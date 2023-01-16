@@ -242,6 +242,7 @@ struct aml_demod_para_real {
 	u32_t plp_num;
 	u32_t fef_info;
 	u32_t tps_cell_id;
+	u32_t ber;
 };
 
 #define CAP_NAME_LEN	100
