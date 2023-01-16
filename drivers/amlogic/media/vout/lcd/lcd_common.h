@@ -53,7 +53,8 @@
 /* 20221229: optimize lcd venc code*/
 /* 20230105: update clk ss support*/
 /* 20230110: optimize config probe workqueue*/
-#define LCD_DRV_VERSION    "20230110"
+/* 20230112: support drm display mode timing for different frame rate*/
+#define LCD_DRV_VERSION    "20230112"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
