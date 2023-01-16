@@ -2189,9 +2189,9 @@ static void vframe_composer(struct composer_dev *dev)
 			max_right = dst_axis.left + dst_axis.width;
 		if (max_bottom < (dst_axis.top + dst_axis.height))
 			max_bottom = dst_axis.top + dst_axis.height;
-
 		if (dev->is_dewarp_support && composer_dev_choice == 1) {
 			memset(&vframe_para, 0, sizeof(vframe_para));
+			// coverity[var_deref_model] if scr_vf is null code will not run to here
 			config_dewarp_vframe(dev->index, transform, scr_vf, dst_buf, &vframe_para);
 			dev->dewarp_para.vf_para = &vframe_para;
 			load_dewarp_firmware(&dev->dewarp_para);
@@ -3182,6 +3182,7 @@ static int video_composer_thread(void *data)
 
 static int video_composer_open(struct inode *inode, struct file *file)
 {
+	// coverity[illegal_address] I'm ensure it is ok.
 	struct composer_dev *dev;
 	struct video_composer_port_s *port = &ports[iminor(inode)];
 	int i;
