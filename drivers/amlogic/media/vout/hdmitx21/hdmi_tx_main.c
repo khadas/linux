@@ -2789,27 +2789,6 @@ static ssize_t debug_store(struct device *dev,
 	return count;
 }
 
-static bool is_vic_support_y420(enum hdmi_vic vic)
-{
-	unsigned int i = 0;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-	struct rx_cap *prxcap = &hdev->rxcap;
-	bool ret = false;
-
-	for (i = 0; i < Y420_VIC_MAX_NUM; i++) {
-		if (prxcap->y420_vic[i]) {
-			if (prxcap->y420_vic[i] == vic) {
-				ret = true;
-				break;
-			}
-		} else {
-			ret = false;
-			break;
-		}
-	}
-	return ret;
-}
-
 bool is_current_4k_format(void)
 {
 	int i;
@@ -2861,7 +2840,7 @@ static ssize_t disp_cap_show(struct device *dev,
 				pos += snprintf(buf + pos, PAGE_SIZE, "*");
 			pos += snprintf(buf + pos, PAGE_SIZE, "\n");
 		}
-		if (is_vic_support_y420(vic)) {
+		if (is_vic_support_y420(hdev, vic)) {
 			/* backup only for old android */
 			/* pos += snprintf(buf + pos, PAGE_SIZE, "%s420\n", */
 				/* timing->sname ? timing->sname : timing->name); */
@@ -6364,10 +6343,11 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 					   "cedst_en", &val);
 		if (!ret)
 			hdev->cedst_en = !!val;
-		hdev->tx_max_frl_rate = FRL_10G4L; /* default */
+		/* not support FRL by default, unless enabled in dts */
+		hdev->tx_max_frl_rate = FRL_NONE;
 		ret = of_property_read_u32(pdev->dev.of_node, "tx_max_frl_rate", &val);
 		if (!ret) {
-			if (val > FRL_12G4L || val == FRL_NONE)
+			if (val > FRL_12G4L)
 				pr_info("wrong tx_max_frl_rate %d\n", val);
 			else
 				hdev->tx_max_frl_rate = val;

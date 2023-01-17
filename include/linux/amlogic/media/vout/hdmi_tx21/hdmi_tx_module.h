@@ -96,7 +96,8 @@ u32 calc_tmds_bandwidth(u32 pixel_freq, enum hdmi_colorspace cs,
 	enum hdmi_color_depth cd);
 
 #define VESA_MAX_TIMING 64
-#define Y420_VIC_MAX_NUM 6 /* only 6 4k mode for y420 */
+/* refer to hdmi2.1 table 7-36, 32 VIC support y420 */
+#define Y420_VIC_MAX_NUM 32
 
 struct rx_cap {
 	u32 native_Mode;
@@ -629,6 +630,7 @@ int hdmitx21_edid_dump(struct hdmitx_dev *hdev, char *buffer,
 		     int buffer_len);
 bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 				  struct hdmi_format_para *para);
+bool is_vic_support_y420(struct hdmitx_dev *hdev, enum hdmi_vic vic);
 const char *hdmitx21_edid_vic_to_string(enum hdmi_vic vic);
 void hdmitx21_edid_clear(struct hdmitx_dev *hdev);
 void hdmitx21_edid_ram_buffer_clear(struct hdmitx_dev *hdev);

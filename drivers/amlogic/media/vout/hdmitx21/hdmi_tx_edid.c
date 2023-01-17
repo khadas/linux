@@ -2854,28 +2854,33 @@ const char *hdmitx21_edid_vic_to_string(enum hdmi_vic vic)
 	return disp_str;
 }
 
-static bool is_rx_support_y420(struct hdmitx_dev *hdev, enum hdmi_vic vic)
+bool is_vic_support_y420(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 {
-	int i;
+	unsigned int i = 0;
 	struct rx_cap *prxcap = &hdev->rxcap;
-	const struct hdmi_timing *timing;
+	bool ret = false;
+	const struct hdmi_timing *timing = hdmitx21_gettiming_from_vic(vic);
 
-	for (i = 0; i < Y420_VIC_MAX_NUM; i++) {
-		if (prxcap->y420_vic[i] == vic)
-			return 1;
-	}
+	if (!timing)
+		return ret;
 
 	/* In Spec2.1 Table 7-34, greater than 2160p30hz will support y420 */
-	timing = hdmitx21_gettiming_from_vic(vic);
-	if (!timing)
-		return 0;
+	if ((timing->v_active >= 2160 && timing->v_freq > 30000) ||
+		timing->v_active >= 4320) {
+		for (i = 0; i < Y420_VIC_MAX_NUM; i++) {
+			if (prxcap->y420_vic[i]) {
+				if (prxcap->y420_vic[i] == vic) {
+					ret = true;
+					break;
+				}
+			} else {
+				ret = false;
+				break;
+			}
+		}
+	}
 
-	if (timing->v_active >= 2160 && timing->v_freq > 30000)
-		return 1;
-	if (timing->v_active >= 4320)
-		return 1;
-
-	return 0;
+	return ret;
 }
 
 static bool hdmitx_check_4x3_16x9_mode(struct hdmitx_dev *hdev,
@@ -2930,6 +2935,8 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	enum hdmi_color_depth rx_rgb_max_dc = COLORDEPTH_24B;
 	u32 rx_frl_bandwidth = 0;
 	u32 tx_frl_bandwidth = 0;
+	/* maximum supported bandwidth of soc */
+	u32 tx_bandwidth_cap = 0;
 	const struct hdmi_timing *timing;
 
 	if (!hdev || !para)
@@ -2938,8 +2945,6 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	prxcap = &hdev->rxcap;
 
 	/* exclude such as: 2160p60hz YCbCr444 10bit */
-	if (hdev->data->chip_type < MESON_CPU_ID_S5)	//todo, not in parse
-		prxcap->max_frl_rate = 0;	//t7 not support frl
 	switch (para->timing.vic) {
 	case HDMI_96_3840x2160p50_16x9:
 	case HDMI_97_3840x2160p60_16x9:
@@ -2949,7 +2954,9 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	case HDMI_107_3840x2160p60_64x27:
 		if (para->cs == HDMI_COLORSPACE_RGB ||
 		    para->cs == HDMI_COLORSPACE_YUV444)
-			if (para->cd != COLORDEPTH_24B && !prxcap->max_frl_rate)
+			if (para->cd != COLORDEPTH_24B &&
+				(prxcap->max_frl_rate == FRL_NONE ||
+				hdev->tx_max_frl_rate == FRL_NONE))
 				return 0;
 		break;
 	case HDMI_7_720x480i60_16x9:
@@ -2990,27 +2997,39 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	}
 
 	calc_tmds_clk = para->tmds_clk / 1000;
-	if (hdev->data->chip_type < MESON_CPU_ID_S5)	//todo, not in parse
-		rx_frl_bandwidth = 0;
-	else
-		rx_frl_bandwidth = get_frl_bandwidth(prxcap->max_frl_rate);
+	rx_frl_bandwidth = get_frl_bandwidth(prxcap->max_frl_rate);
 	timing = hdmitx21_gettiming_from_vic(para->timing.vic);
 	if (!timing)
 		return 0;
-	/* tx_frl_bandwidth = timing->pixel_freq / 1000 * 24 * 1.122 */
-	if (hdev->data->chip_type < MESON_CPU_ID_S5) { //todo, not in parse
-		tx_frl_bandwidth = 0;
-	} else {
-		tx_frl_bandwidth = calc_frl_bandwidth(timing->pixel_freq / 1000,
-			para->cs, para->cd);
-		if (tx_frl_bandwidth > get_frl_bandwidth(hdev->tx_max_frl_rate))
-			return 0;
-	}
 
-	if (calc_tmds_clk < rx_max_tmds_clk || tx_frl_bandwidth <= rx_frl_bandwidth)
+	if (hdev->tx_max_frl_rate == FRL_NONE) {
+		/* maximum 600Mhz for tmds mode */
+		tx_bandwidth_cap = 600;
+		if (calc_tmds_clk > tx_bandwidth_cap)
+			return 0;
+		else if (calc_tmds_clk > rx_max_tmds_clk)
+			return 0;
 		valid = 1;
-	else
-		return 0;
+	} else {
+		/* maximum 600Mhz for tmds mode */
+		tx_bandwidth_cap = 600;
+		if (calc_tmds_clk <= rx_max_tmds_clk &&
+			calc_tmds_clk <= tx_bandwidth_cap) {
+			/* is able to run under TMDS mode */
+			valid = 1;
+		} else {
+			/* try to check if able to run under FRL mode */
+			/* tx_frl_bandwidth = timing->pixel_freq / 1000 * 24 * 1.122 */
+			tx_frl_bandwidth = calc_frl_bandwidth(timing->pixel_freq / 1000,
+				para->cs, para->cd);
+			tx_bandwidth_cap = get_frl_bandwidth(hdev->tx_max_frl_rate);
+			if (tx_frl_bandwidth > tx_bandwidth_cap)
+				return 0;
+			else if (tx_frl_bandwidth > rx_frl_bandwidth)
+				return 0;
+			valid = 1;
+		}
+	}
 
 	if (para->cs == HDMI_COLORSPACE_YUV444) {
 		/* Rx may not support Y444 */
@@ -3047,7 +3066,7 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 		return valid;
 	}
 	if (para->cs == HDMI_COLORSPACE_YUV420) {
-		if (!is_rx_support_y420(hdev, para->timing.vic))
+		if (!is_vic_support_y420(hdev, para->timing.vic))
 			return 0;
 		if (prxcap->dc_30bit_420)
 			rx_y420_max_dc = COLORDEPTH_30B;
