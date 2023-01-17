@@ -1023,7 +1023,8 @@ static void display_q_uninit(struct composer_dev *dev)
 
 	while (kfifo_len(&dev->display_q) > 0) {
 		if (kfifo_get(&dev->display_q, &dis_vf)) {
-			is_mosaic_22 = dis_vf->flag & VFRAME_FLAG_MOSAIC_22;
+			is_mosaic_22 = dis_vf->type_ext & VIDTYPE_EXT_MOSAIC_22;
+
 			if (dis_vf->flag
 			    & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS && !is_mosaic_22) {
 				repeat_count = dis_vf->repeat_count;
@@ -1269,7 +1270,7 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 	index_disp = vf->index_disp;
 	rendered = vf->rendered;
 	is_composer = vf->flag & VFRAME_FLAG_COMPOSER_DONE;
-	is_mosaic_22 = vf->flag & VFRAME_FLAG_MOSAIC_22;
+	is_mosaic_22 = vf->type_ext & VIDTYPE_EXT_MOSAIC_22;
 
 	if (vf->flag & VFRAME_FLAG_FAKE_FRAME) {
 		vc_print(dev->index, PRINT_OTHER,
@@ -1936,13 +1937,13 @@ static void vframe_do_mosaic_22(struct composer_dev *dev)
 	}
 
 	vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER
-		| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS
-		| VFRAME_FLAG_MOSAIC_22;
+		| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
 
 	vf->bitdepth = (BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8);
 
 	vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
 	vf->type = (VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD | VIDTYPE_VIU_NV21);
+	vf->type_ext |= VIDTYPE_EXT_MOSAIC_22;
 
 	vf->axis[0] = 0;
 	vf->axis[1] = 0;

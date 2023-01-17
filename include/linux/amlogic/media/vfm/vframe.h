@@ -62,6 +62,7 @@
 #define VIDTYPE_FORCE_SIGN_IP_JOINT     0x400 /* add by Joy Rao */
 
 #define VIDTYPE_EXT_VDIN_SCATTER        0x1
+#define VIDTYPE_EXT_MOSAIC_22           0x2
 
 #define DISP_RATIO_FORCECONFIG          0x80000000
 #define DISP_RATIO_FORCE_NORMALWIDE     0x40000000
@@ -122,7 +123,6 @@
 #define VFRAME_FLAG_DI_BYPASS			0x08000000
 #define VFRAME_FLAG_DI_GET			0x10000000
 #define VFRAME_FLAG_DI_PVPPLINK			0x20000000
-#define VFRAME_FLAG_MOSAIC_22		        0x40000000
 
 /* need check folllowing bits when toggle frame, to trigger property change */
 /* add more bits which indicates display attr change in vf->flag */
