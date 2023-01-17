@@ -465,8 +465,8 @@ static int lut_dma_enable(u32 dma_dir, u32 channel)
 	if (dma_dir == LUT_DMA_RD) {
 		/* manul wr dma mode */
 		channel = LUT_DMA_RD_CHAN_NUM + channel;
-		/*coverity[overrun-call:] channel has no overrun*/
-		set_lut_dma_rdcfg(channel);
+		if (channel <= 10)
+			set_lut_dma_rdcfg(channel);
 		/* wr_mif_enable */
 		lut_dma_reg_set_bits(VPU_DMA_WRMIF_CTRL,
 				     1, 13, 1);
