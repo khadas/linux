@@ -141,6 +141,8 @@ static void parse_vpu_node(struct device_node *child_node,
 			phandle = list++;
 			link = of_find_node_by_phandle(be32_to_cpup(phandle));
 			of_property_read_u8(link, "id", &id);
+			if (id > MESON_MAX_BLOCKS)
+				continue;
 			para->inputs[j].id = id;
 			in_mask |= 1 << id;
 		}
@@ -159,6 +161,8 @@ static void parse_vpu_node(struct device_node *child_node,
 			phandle = list++;
 			link = of_find_node_by_phandle(be32_to_cpup(phandle));
 			of_property_read_u8(link, "id", &id);
+			if (id > MESON_MAX_BLOCKS)
+				continue;
 			para->outputs[j].id = id;
 			out_mask |= 1 << id;
 		}
