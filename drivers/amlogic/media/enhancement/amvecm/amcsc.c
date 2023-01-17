@@ -179,7 +179,7 @@ void hdr_vd3_off(enum vpp_index_e vpp_index)
 
 void hdr_vd1_iptmap(enum vpp_index_e vpp_index)
 {
-	enum hdr_process_sel cur_hdr_process;
+	enum hdr_process_sel cur_hdr_process = HDR_BYPASS;
 	int s5_silce_mode = get_s5_silce_mode();
 
 	if (s5_silce_mode == VD1_1SLICE) {
@@ -4613,6 +4613,7 @@ static void N2C(s64 (*in)[3], s32 ibl, s32 obl)
 			in[i][j] =
 				(in[i][j] + (1 << (ibl - 12))) >> (ibl - 11);
 			if (in[i][j] < 0)
+				/*coverity[overflow_before_widen] obl=13,impossible overflow.*/
 				in[i][j] += 1 << obl;
 		}
 }
@@ -7374,7 +7375,7 @@ void update_hdr10_plus_pkt(bool enable,
 	if (vinfo && vinfo->mode != VMODE_HDMI)
 		return;
 
-	if (vinfo->vout_device) {
+	if (vinfo && vinfo->vout_device) {
 		vdev = vinfo->vout_device;
 		if (!vdev)
 			return;
@@ -7439,7 +7440,7 @@ void update_cuva_pkt(bool enable,
 	if (vinfo && vinfo->mode != VMODE_HDMI)
 		return;
 
-	if (vinfo->vout_device) {
+	if (vinfo && vinfo->vout_device) {
 		vdev = vinfo->vout_device;
 		if (!vdev)
 			return;
@@ -7506,7 +7507,7 @@ void send_hdr10_plus_pkt(enum vd_path_e vd_path,
 	if (vinfo && vinfo->mode != VMODE_HDMI)
 		return;
 
-	if (vinfo->vout_device) {
+	if (vinfo && vinfo->vout_device) {
 		vdev = vinfo->vout_device;
 		if (!vdev)
 			return;
@@ -7556,7 +7557,7 @@ void send_cuva_pkt(enum vd_path_e vd_path,
 	if (vinfo && vinfo->mode != VMODE_HDMI)
 		return;
 
-	if (vinfo->vout_device) {
+	if (vinfo && vinfo->vout_device) {
 		vdev = vinfo->vout_device;
 		if (!vdev)
 			return;

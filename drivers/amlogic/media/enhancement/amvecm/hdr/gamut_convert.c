@@ -311,6 +311,7 @@ static void N2C(s64 (*in)[3],
 				(in[i][j] + (1 << (ibl - (mtx_depth + 1)))) >>
 				(ibl - mtx_depth);
 			if (in[i][j] < 0)
+				/*coverity[overflow_before_widen] obl=13,impossible overflow.*/
 				in[i][j] += 1 << obl;
 		}
 }

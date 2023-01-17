@@ -7831,8 +7831,8 @@ static void pr_cm_hist(enum cm_hist_e hist_sel)
 {
 	unsigned int *hist;
 	int i;
-	int addr_port;
-	int data_port;
+	int addr_port = 0;
+	int data_port = 0;
 	//struct cm_port_s cm_port;
 
 	if (chip_type_id == chip_s5) {
