@@ -4948,20 +4948,6 @@ static void vpp_set_super_scaler_s5
 			next_frame_par->supsc1_enable = 0;
 	}
 
-	/* option add patch */
-	if (ver_sc_multiple_num <= super_scaler_v_ratio &&
-	    src_height >= core0_v_enable_width_max &&
-	    src_height <= 1088 &&
-	    ver_sc_multiple_num > SUPER_SCALER_V_FACTOR &&
-	    vinfo->height >= 2000) {
-		next_frame_par->supsc0_enable = 0;
-		next_frame_par->supsc1_enable = 1;
-		next_frame_par->supsc0_hori_ratio = 0;
-		next_frame_par->supsc1_hori_ratio = 1;
-		next_frame_par->supsc0_vert_ratio = 0;
-		next_frame_par->supsc1_vert_ratio = 1;
-	}
-
 	if (bypass_sr0 || !(sr_support & SUPER_CORE0_SUPPORT)) {
 		next_frame_par->supsc0_enable = 0;
 		next_frame_par->supsc0_hori_ratio = 0;
@@ -5573,19 +5559,6 @@ static void vpp_set_super_scaler
 			next_frame_par->supsc1_enable = 0;
 	}
 
-	/* option add patch */
-	if (ver_sc_multiple_num <= super_scaler_v_ratio &&
-	    src_height >= sr->core0_v_enable_width_max &&
-	    src_height <= 1088 &&
-	    ver_sc_multiple_num > SUPER_SCALER_V_FACTOR &&
-	    vinfo->height >= 2000) {
-		next_frame_par->supsc0_enable = 0;
-		next_frame_par->supsc1_enable = 1;
-		next_frame_par->supsc0_hori_ratio = 0;
-		next_frame_par->supsc1_hori_ratio = 1;
-		next_frame_par->supsc0_vert_ratio = 0;
-		next_frame_par->supsc1_vert_ratio = 1;
-	}
 	if (bypass_sr0 || !(sr_support & SUPER_CORE0_SUPPORT)) {
 		next_frame_par->supsc0_enable = 0;
 		next_frame_par->supsc0_hori_ratio = 0;
