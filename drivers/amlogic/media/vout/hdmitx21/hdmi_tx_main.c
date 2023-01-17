@@ -6249,8 +6249,8 @@ static int drm_hdmitx_get_vic_list(int **vics)
 	}
 
 	/* ignore EDID that only contain vesa modes */
-	if (len == 0/* && vesa_len == 0 */)
-		return 0;
+//	if (len == 0/* && vesa_len == 0 */)
+//		return 0;
 
 	viclist = kmalloc_array(len + vesa_len, sizeof(int), GFP_KERNEL);
 	for (i = 0; i < len; i++) {
