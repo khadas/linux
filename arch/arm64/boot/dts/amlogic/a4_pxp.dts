@@ -474,10 +474,10 @@
 		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
 		dai-tdm-lane-slot-mask-out = <1 1>;
 		dai-tdm-clk-sel = <2>;
-		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
-				&clkaudio CLKID_AUDIO_MCLK_PAD2
-				&clkc CLKID_MPLL0>;
-		clock-names = "mclk", "mclk_pad", "clk_srcpll";
+		//clocks = <&clkaudio CLKID_AUDIO_MCLK_A
+		//		&clkaudio CLKID_AUDIO_MCLK_PAD2
+		//		&clkc CLKID_MPLL0>;
+		//clock-names = "mclk", "mclk_pad", "clk_srcpll";
 		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
 		pinctrl-0 = <
 			&mclk_2_pins
@@ -499,10 +499,10 @@
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-out = <1 1 1 1 1 1 1 1>;
 		dai-tdm-clk-sel = <1>;
-		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
-				&clkaudio CLKID_AUDIO_MCLK_PAD1
-				&clkc CLKID_MPLL1>;
-		clock-names = "mclk", "mclk_pad", "clk_srcpll";
+		//clocks = <&clkaudio CLKID_AUDIO_MCLK_B
+		//		&clkaudio CLKID_AUDIO_MCLK_PAD1
+		//		&clkc CLKID_MPLL1>;
+		//clock-names = "mclk", "mclk_pad", "clk_srcpll";
 		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
 		pinctrl-0 = <
 			&mclk_1_pins
@@ -529,9 +529,9 @@
 		dai-tdm-lane-slot-mask-in = <1 0>;
 		// dai-tdm-lane-slot-mask-out = <0 1>;
 		dai-tdm-clk-sel = <0>;
-		clocks = <&clkaudio CLKID_AUDIO2_MCLK_VAD
-				&clkc CLKID_MPLL2>;
-		clock-names = "mclk","clk_srcpll";
+		//clocks = <&clkaudio CLKID_AUDIO2_MCLK_VAD
+		//		&clkc CLKID_MPLL2>;
+		//clock-names = "mclk","clk_srcpll";
 		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
 		pinctrl-0 = <
 			&tdmcin_pins
@@ -547,14 +547,14 @@
 	spdifa: spdif@0 {
 		compatible = "amlogic, a5-snd-spdif-a";
 		#sound-dai-cells = <0>;
-		clocks = <&clkc CLKID_MPLL0
-				&clkc CLKID_FCLK_DIV4
-				&clkaudio CLKID_AUDIO_GATE_SPDIFIN
-				&clkaudio CLKID_AUDIO_GATE_SPDIFOUT_A
-				&clkaudio CLKID_AUDIO_SPDIFIN
-				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
-		clock-names = "sysclk", "fixed_clk", "gate_spdifin",
-				"gate_spdifout", "clk_spdifin", "clk_spdifout";
+		//clocks = <&clkc CLKID_MPLL0
+		//		&clkc CLKID_FCLK_DIV4
+		//		&clkaudio CLKID_AUDIO_GATE_SPDIFIN
+		//		&clkaudio CLKID_AUDIO_GATE_SPDIFOUT_A
+		//		&clkaudio CLKID_AUDIO_SPDIFIN
+		//		&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
+		//clock-names = "sysclk", "fixed_clk", "gate_spdifin",
+		//		"gate_spdifout", "clk_spdifin", "clk_spdifout";
 		interrupts =
 				<GIC_SPI 35 IRQ_TYPE_EDGE_RISING>;
 
@@ -576,16 +576,16 @@
 		compatible = "amlogic, a5-snd-pdm";
 		#sound-dai-cells = <0>;
 
-		clocks = <&clkaudio CLKID_AUDIO2_GATE_PDM
-			&clkc CLKID_FCLK_DIV4
-			&clkc CLKID_MPLL1
-			&clkaudio CLKID_AUDIO2_PDM_DCLK
-			&clkaudio CLKID_AUDIO2_PDM_SYSCLK>;
-		clock-names = "gate",
-			"sysclk_srcpll",
-			"dclk_srcpll",
-			"pdm_dclk",
-			"pdm_sysclk";
+		//clocks = <&clkaudio CLKID_AUDIO2_GATE_PDM
+		//	&clkc CLKID_FCLK_DIV4
+		//	&clkc CLKID_MPLL1
+		//	&clkaudio CLKID_AUDIO2_PDM_DCLK
+		//	&clkaudio CLKID_AUDIO2_PDM_SYSCLK>;
+		//clock-names = "gate",
+		//	"sysclk_srcpll",
+		//	"dclk_srcpll",
+		//	"pdm_dclk",
+		//	"pdm_sysclk";
 		//power-domains = <&pwrdm PDID_A5_AUDIO_PDM>;
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
@@ -602,10 +602,10 @@
 	/* spdif use this resample */
 	asrca: resample@0 {
 		compatible = "amlogic, t5-resample-a";
-		clocks = <&clkc CLKID_MPLL2
-				&clkaudio CLKID_AUDIO_MCLK_F
-				&clkaudio CLKID_AUDIO_RESAMPLE_A>;
-		clock-names = "resample_pll", "resample_src", "resample_clk";
+		//clocks = <&clkc CLKID_MPLL2
+		//		&clkaudio CLKID_AUDIO_MCLK_F
+		//		&clkaudio CLKID_AUDIO_RESAMPLE_A>;
+		//clock-names = "resample_pll", "resample_src", "resample_clk";
 		/*same with toddr_src
 		 *	TDMIN_A, 0
 		 *	TDMIN_B, 1
@@ -623,10 +623,10 @@
 	/* loopback use this resample */
 	asrcb: resample@1 {
 		compatible = "amlogic, t5-resample-b";
-		clocks = <&clkc CLKID_MPLL2
-				&clkaudio CLKID_AUDIO_MCLK_F
-				&clkaudio CLKID_AUDIO_RESAMPLE_A>;
-		clock-names = "resample_pll", "resample_src", "resample_clk";
+		//clocks = <&clkc CLKID_MPLL2
+		//		&clkaudio CLKID_AUDIO_MCLK_F
+		//		&clkaudio CLKID_AUDIO_RESAMPLE_A>;
+		//clock-names = "resample_pll", "resample_src", "resample_clk";
 		/*this resample is only used for loopback_A.*/
 		capture_sample_rate = <16000>;
 
@@ -637,10 +637,10 @@
 		compatible = "amlogic, snd-vad-top";
 		#sound-dai-cells = <0>;
 
-		clocks = <&clkaudio CLKID_AUDIO2_GATE_TOVAD
-			&clkc CLKID_FCLK_DIV4
-			&clkaudio CLKID_AUDIO2_VAD_CLK>;
-		clock-names = "gate", "pll", "clk";
+		//clocks = <&clkaudio CLKID_AUDIO2_GATE_TOVAD
+		//	&clkc CLKID_FCLK_DIV4
+		//	&clkaudio CLKID_AUDIO2_VAD_CLK>;
+		//clock-names = "gate", "pll", "clk";
 
 		interrupts = <GIC_SPI 39 IRQ_TYPE_EDGE_RISING
 				GIC_SPI 44 IRQ_TYPE_EDGE_RISING>;
@@ -673,20 +673,20 @@
 		compatible = "amlogic, a5-loopbacka";
 		#sound-dai-cells = <0>;
 
-		clocks = <&clkaudio CLKID_AUDIO2_GATE_PDM
-			&clkc CLKID_FCLK_DIV4
-			&clkc CLKID_MPLL1
-			&clkaudio CLKID_AUDIO2_PDM_DCLK
-			&clkaudio CLKID_AUDIO2_PDM_SYSCLK
-			&clkc CLKID_MPLL1
-			&clkaudio CLKID_AUDIO_MCLK_B>;
-		clock-names = "pdm_gate",
-			"pdm_sysclk_srcpll",
-			"pdm_dclk_srcpll",
-			"pdm_dclk",
-			"pdm_sysclk",
-			"tdminlb_mpll",
-			"tdminlb_mclk";
+		//clocks = <&clkaudio CLKID_AUDIO2_GATE_PDM
+		//	&clkc CLKID_FCLK_DIV4
+		//	&clkc CLKID_MPLL1
+		//	&clkaudio CLKID_AUDIO2_PDM_DCLK
+		//	&clkaudio CLKID_AUDIO2_PDM_SYSCLK
+		//	&clkc CLKID_MPLL1
+		//	&clkaudio CLKID_AUDIO_MCLK_B>;
+		//clock-names = "pdm_gate",
+		//	"pdm_sysclk_srcpll",
+		//	"pdm_dclk_srcpll",
+		//	"pdm_dclk",
+		//	"pdm_sysclk",
+		//	"tdminlb_mpll",
+		//	"tdminlb_mclk";
 
 		/* datain src
 		 * 0: tdmin_a;
@@ -727,10 +727,10 @@
 	aed:effect {
 		compatible = "amlogic, snd-effect-v4";
 		#sound-dai-cells = <0>;
-		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
-			&clkc CLKID_FCLK_DIV4
-			&clkaudio CLKID_AUDIO_EQDRC>;
-		clock-names = "gate", "srcpll", "eqdrc";
+		//clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
+		//	&clkc CLKID_FCLK_DIV4
+		//	&clkaudio CLKID_AUDIO_EQDRC>;
+		//clock-names = "gate", "srcpll", "eqdrc";
 		/*
 		 * 0:tdmout_a
 		 * 1:tdmout_b
