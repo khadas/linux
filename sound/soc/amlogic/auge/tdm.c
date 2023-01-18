@@ -796,6 +796,9 @@ static int tdmout_gain_set(struct snd_kcontrol *kcontrol,
 
 	int value = ucontrol->value.enumerated.item[0];
 
+	pr_info("%s, id: %d, gain: 0x%x\n", __func__, p_tdm->id, value);
+	if (p_tdm->chipinfo->gain_ver == GAIN_VER3)
+		aml_tdmout_auto_gain_enable(p_tdm->id);
 	aml_tdmout_set_gain(p_tdm->id, value);
 
 	return 0;

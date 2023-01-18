@@ -958,7 +958,8 @@ void aml_tdmout_get_aed_info(int tdmout_id,
 
 void aml_tdmout_enable_gain(int tdmout_id, int en, int gain_ver)
 {
-	unsigned int reg, offset;
+	unsigned int reg, reg1, offset;
+	int i;
 
 	switch (gain_ver) {
 	case GAIN_VER1:
@@ -976,14 +977,24 @@ void aml_tdmout_enable_gain(int tdmout_id, int en, int gain_ver)
 	case GAIN_VER3:
 		if (tdmout_id == 3) {
 			reg = EE_AUDIO_TDMOUT_D_GAIN_EN;
+			reg1 = EE_AUDIO_TDMOUT_D_GAIN0;
 		} else {
 			offset = EE_AUDIO_TDMOUT_B_GAIN_EN - EE_AUDIO_TDMOUT_A_GAIN_EN;
 			reg = EE_AUDIO_TDMOUT_A_GAIN_EN + offset * tdmout_id;
+
+			offset = EE_AUDIO_TDMOUT_B_GAIN0 - EE_AUDIO_TDMOUT_A_GAIN0;
+			reg1 = EE_AUDIO_TDMOUT_A_GAIN0 + offset * tdmout_id;
 		}
-		if (en)
+		if (en) {
+			/* channel 0 - channel 7 */
+			for (i = 0; i < 2; i++)
+				audiobus_write(reg1 + i, 0x0);
 			audiobus_update_bits(reg, 0xFF << 0, 0xFF << 0);
-		else
+		} else {
+			for (i = 0; i < 2; i++)
+				audiobus_write(reg1 + i, 0xFFFFFFFF);
 			audiobus_update_bits(reg, 0xFF << 0, 0x0 << 0);
+		}
 
 		break;
 	}
@@ -1221,7 +1232,7 @@ void aml_tdmout_auto_gain_enable(unsigned int tdm_id)
 	 */
 	audiobus_update_bits(reg,
 			     0x1 << 31 | 0xFF << 16 | 0xFFFF << 0,
-			     0x1 << 31 | 0x05 << 16 | 0x000a << 0);
+			     0x1 << 31 | 0x01 << 16 | 0x0002 << 0);
 }
 
 void aml_tdmout_set_gain(int tdmout_id, int value)
