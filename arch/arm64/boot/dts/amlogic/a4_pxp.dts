@@ -1068,8 +1068,8 @@
 	max-frequency = <200000000>;
 	disable-wp;
 
-	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
-	dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
+	//cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
+	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
 	//vmmc-supply = <&vddao_3v3>;
 	//vqmmc-supply = <&emmc_1v8>;
 };
@@ -1214,8 +1214,8 @@
 &aml_bt {
 	status = "disabled";
 	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
-	btwakeup-gpios = <&gpio    GPIOX_18 GPIO_ACTIVE_HIGH>;
-	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
+	//btwakeup-gpios = <&gpio    GPIOX_18 GPIO_ACTIVE_HIGH>;
+	//hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
 };
 
 &uart_A {

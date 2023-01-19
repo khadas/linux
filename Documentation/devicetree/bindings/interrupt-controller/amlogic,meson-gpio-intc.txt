@@ -28,6 +28,7 @@ Required properties:
     "amlogic,meson-t5w-gpio-intc" for T5W SoCs (unknown yet)
     "amlogic,meson-a5-gpio-intc" for A5 SoCs (unknown yet)
     "amlogic,meson-s5-gpio-intc" for S5 SoCs (S928X)
+    "amlogic,meson-a4-gpio-intc" for A4 SoCs (S928X)
 - reg : Specifies base physical address and size of the registers.
 - interrupt-controller : Identifies the node as an interrupt controller.
 - #interrupt-cells : Specifies the number of cells needed to encode an

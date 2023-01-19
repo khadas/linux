@@ -12,8 +12,8 @@
 #include <dt-bindings/power/a4-pd.h>
 #include <dt-bindings/clock/amlogic,a5-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/gpio/meson-a5-gpio.h>
-#include <dt-bindings/reset/amlogic,meson-a5-reset.h>
+#include <dt-bindings/gpio/meson-a4-gpio.h>
+#include <dt-bindings/reset/amlogic,meson-a4-reset.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pwm/meson.h>
 #include <dt-bindings/input/input.h>
@@ -815,7 +815,7 @@
 			};
 
 			periphs_pinctrl: pinctrl@4000 {
-				compatible = "amlogic,meson-a5-periphs-pinctrl";
+				compatible = "amlogic,meson-a4-periphs-pinctrl";
 				#address-cells = <2>;
 				#size-cells = <2>;
 				ranges;
@@ -826,12 +826,12 @@
 					reg-names = "mux", "gpio";
 					gpio-controller;
 					#gpio-cells = <2>;
-					gpio-ranges = <&periphs_pinctrl 0 0 99>;
+					gpio-ranges = <&periphs_pinctrl 0 0 73>;
 				};
 			};
 
 			gpio_intc: interrupt-controller@4080 {
-				compatible = "amlogic,meson-a5-gpio-intc",
+				compatible = "amlogic,meson-a4-gpio-intc",
 					     "amlogic,meson-gpio-intc";
 				reg = <0x0 0x4080 0x0 0x20>;
 				interrupt-controller;
@@ -986,6 +986,22 @@
 			cpu_version {
 				compatible = "amlogic,meson-gx-ao-secure", "syscon";
 				reg=<0x0 0x10220 0x0 0x4>;
+			};
+		};
+
+		aobus_pinctrl: pinctrl@fe08e700 {
+			compatible = "amlogic,meson-a4-aobus-pinctrl";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+
+			ao_gpio: bank@fe08e700 {
+				reg = <0x0 0xfe08e700 0x0 0x04>,
+				      <0x0 0xfe08e704 0x0 0x60>;
+				reg-names = "mux", "gpio";
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&aobus_pinctrl 0 0 8>;
 			};
 		};
 
@@ -1285,8 +1301,8 @@
 
 						reset-assert-us = <20000>;
 						reset-deassert-us = <50000>;
-						reset-gpios = <&gpio GPIOZ_15 (GPIO_ACTIVE_LOW |
-									GPIO_OPEN_DRAIN)>;
+						//reset-gpios = <&gpio GPIOZ_15 (GPIO_ACTIVE_LOW |
+						//			GPIO_OPEN_DRAIN)>;
 				};
 			};
 		};
