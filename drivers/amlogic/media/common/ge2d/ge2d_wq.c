@@ -1505,6 +1505,8 @@ build_ge2d_addr_config_dma(struct ge2d_context_s *context,
 				return -1;
 
 			dma_cfg = kzalloc(sizeof(*dma_cfg), GFP_KERNEL);
+			if (!dma_cfg)
+				return -1;
 			dma_cfg->fd = plane[i].shared_fd;
 			dma_cfg->dev = &ge2d_manager.pdev->dev;
 			dma_cfg->dir = dir;

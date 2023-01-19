@@ -8989,6 +8989,10 @@ int set_layer_mosaic_display_canvas_s5(struct video_layer_s *layer,
 		else if (slice == 2 || slice == 3)
 			mosaic_frame = get_mosaic_vframe_info(3);
 	}
+	if (!mosaic_frame) {
+		pr_info("mosaic_frame is NULL\n");
+		return -1;
+	}
 	vf = mosaic_frame->vf;
 
 	/* switch buffer */

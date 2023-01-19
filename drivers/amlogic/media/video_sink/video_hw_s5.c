@@ -3649,6 +3649,7 @@ static void set_vd_proc_info_mosaic(struct video_layer_s *layer, u32 frm_idx)
 
 			if (slice_num == 2) {
 				/* 2 slice case, move sr0 to slice1 */
+				/*coverity[dead_error_line] reserve code*/
 				if (slice == 0) {
 					/* slice0, used sr1, get info from sr0 */
 					vd_proc_unit->sr1_en = sr0_h_scaleup_en;
