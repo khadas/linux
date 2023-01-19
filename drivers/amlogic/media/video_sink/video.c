@@ -6198,7 +6198,6 @@ s32 primary_render_frame(struct video_layer_s *layer)
 {
 	struct vpp_frame_par_s *frame_par;
 	bool force_setting = false;
-	u32 zoom_start_y, zoom_end_y, blank = 0;
 	struct scaler_setting_s local_vd2_pps = {0};
 	struct blend_setting_s local_vd2_blend = {0};
 	struct mif_pos_s local_vd2_mif = {0};
@@ -6351,29 +6350,7 @@ s32 primary_render_frame(struct video_layer_s *layer)
 	}
 	/* VPP one time settings */
 	if (dispbuf) {
-		/* progressive or decode interlace case height 1:1 */
-		/* vdin afbc and interlace case height 1:1 */
-		zoom_start_y = frame_par->VPP_vd_start_lines_;
-		zoom_end_y = frame_par->VPP_vd_end_lines_;
-		if ((dispbuf->type & VIDTYPE_INTERLACE) &&
-		    (dispbuf->type & VIDTYPE_VIU_FIELD)) {
-			/* vdin interlace non afbc frame case height/2 */
-			zoom_start_y /= 2;
-			zoom_end_y = ((zoom_end_y + 1) >> 1) - 1;
-		} else if (dispbuf->type & VIDTYPE_MVC) {
-			/* mvc case, (height - blank)/2 */
-			if (framepacking_support)
-				blank = framepacking_blank;
-			else
-				blank = 0;
-			zoom_start_y /= 2;
-			zoom_end_y = ((zoom_end_y - blank + 1) >> 1) - 1;
-		}
-
-		layer->start_x_lines = frame_par->VPP_hd_start_lines_;
-		layer->end_x_lines = frame_par->VPP_hd_end_lines_;
-		layer->start_y_lines = zoom_start_y;
-		layer->end_y_lines = zoom_end_y;
+		config_vd_param(layer, dispbuf);
 		config_vd_position
 			(layer, &layer->mif_setting);
 		config_aisr_position(layer, &layer->aisr_mif_setting);

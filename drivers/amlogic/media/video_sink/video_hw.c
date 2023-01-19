@@ -1164,6 +1164,21 @@ bool is_bandwidth_policy_hit(u8 layer_id)
 			return true;
 		}
 	}
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		const struct vinfo_s *vinfo = get_current_vinfo();
+
+		/* for mosaic mode 1080p100 1080p120hz need vskip= 1*/
+		/* for 4k120hz not supported */
+		layer = get_vd_layer(0);
+		if (layer->mosaic_mode) {
+			/* > 1080p60 output, for 1080p120hz */
+			if ((vinfo->width >= 1920 && vinfo->height >= 1080 &&
+				(vinfo->sync_duration_num /
+				vinfo->sync_duration_den > 60)) &&
+				(vinfo->width < 3840 && vinfo->height < 2160))
+				return true;
+		}
+	}
 	return false;
 }
 #endif
@@ -5677,6 +5692,59 @@ s32 config_vd_position_internal(struct video_layer_s *layer,
 	return 0;
 }
 
+static void config_vd_param_internal(struct video_layer_s *layer,
+	struct vframe_s *dispbuf)
+{
+	u32 zoom_start_y, zoom_end_y, blank = 0;
+	struct vpp_frame_par_s *frame_par = NULL;
+
+	frame_par = layer->cur_frame_par;
+
+	/* progressive or decode interlace case height 1:1 */
+	/* vdin afbc and interlace case height 1:1 */
+	zoom_start_y = frame_par->VPP_vd_start_lines_;
+	zoom_end_y = frame_par->VPP_vd_end_lines_;
+	if ((dispbuf->type & VIDTYPE_INTERLACE) &&
+		(dispbuf->type & VIDTYPE_VIU_FIELD)) {
+		/* vdin interlace non afbc frame case height/2 */
+		zoom_start_y /= 2;
+		zoom_end_y = ((zoom_end_y + 1) >> 1) - 1;
+	} else if (dispbuf->type & VIDTYPE_MVC) {
+		/* mvc case, (height - blank)/2 */
+		if (framepacking_support)
+			blank = framepacking_blank;
+		else
+			blank = 0;
+		zoom_start_y /= 2;
+		zoom_end_y = ((zoom_end_y - blank + 1) >> 1) - 1;
+	}
+
+	layer->start_x_lines = frame_par->VPP_hd_start_lines_;
+	layer->end_x_lines = frame_par->VPP_hd_end_lines_;
+	layer->start_y_lines = zoom_start_y;
+	layer->end_y_lines = zoom_end_y;
+}
+
+void config_vd_param(struct video_layer_s *layer,
+	struct vframe_s *dispbuf)
+{
+	config_vd_param_internal(layer, dispbuf);
+	if (layer->mosaic_mode) {
+		int i;
+		struct mosaic_frame_s *mosaic_frame;
+		struct video_layer_s *virtual_layer;
+
+		for (i = 0; i < SLICE_NUM; i++) {
+			mosaic_frame = get_mosaic_vframe_info(i);
+			virtual_layer = &mosaic_frame->virtual_layer;
+			if (!virtual_layer)
+				return;
+			config_vd_param_internal(virtual_layer,
+				virtual_layer->dispbuf);
+		}
+	}
+}
+
 s32 config_vd_position(struct video_layer_s *layer,
 		       struct mif_pos_s *setting)
 {
@@ -8790,29 +8858,6 @@ int set_layer_display_canvas_s5(struct video_layer_s *layer,
 #endif
 	}
 	return 0;
-}
-
-void init_mosaic_axis(void)
-{
-	pic_axis[0][0] = 0;
-	pic_axis[0][1] = 0;
-	pic_axis[0][2] = 1919;
-	pic_axis[0][3] = 1079;
-
-	pic_axis[1][0] = 1920 + 64;
-	pic_axis[1][1] = 40;
-	pic_axis[1][2] = 3839 - 64;
-	pic_axis[1][3] = 1079 - 40;
-
-	pic_axis[2][0] = 0;
-	pic_axis[2][1] = 1080;
-	pic_axis[2][2] = 1919;
-	pic_axis[2][3] = 2159;
-
-	pic_axis[3][0] = 1920;
-	pic_axis[3][1] = 1080 + 40;
-	pic_axis[3][2] = 3839;
-	pic_axis[3][3] = 2159 - 40;
 }
 
 void set_mosaic_axis(u32 pic_index, u32 x_start, u32 y_start,

@@ -3535,6 +3535,7 @@ static void set_vd_proc_info_mosaic(struct video_layer_s *layer, u32 frm_idx)
 	slice_num = layer->slice_num;
 	if (slice_num != SLICE_NUM)
 		return;
+	vd_proc->vd2_used = 0;
 	/* set some important input info for vd_proc */
 	vd_proc_vd1_info = &vd_proc->vd_proc_vd1_info;
 	vd_proc_vd2_info = &vd_proc->vd_proc_vd2_info;
@@ -11336,6 +11337,7 @@ int video_hw_init_s5(void)
 	set_frm_idx(VPP0, 1);
 	WRITE_VCBUS_REG(VD_PROC_BYPASS_CTRL, 0x21);
 	set_frm_idx(VPP0, 0);
+	enable_mosaic_mode(VPP0, 0);
 	/* hold line setting: todo */
 	/* pre vscaler default set, conflict with ve */
 	WRITE_VCBUS_REG(VPP_SLICE1_DNLP_CTRL_01, 0x1fff00);
@@ -11598,7 +11600,6 @@ int video_early_init_s5(struct amvideo_device_data_s *p_amvideo)
 	/* init mosaic layer canvas */
 	init_mosaic_layer_canvas(LAYER1_CANVAS_BASE_INDEX,
 		LAYER3_CANVAS_BASE_INDEX);
-	init_mosaic_axis();
 	/* vd_layer_vpp is for multiple vpp */
 	memcpy(&vd_layer_vpp[0], &vd_layer[1], sizeof(struct video_layer_s));
 	memcpy(&vd_layer_vpp[1], &vd_layer[2], sizeof(struct video_layer_s));

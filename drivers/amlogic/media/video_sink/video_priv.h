@@ -689,6 +689,8 @@ s32 config_3d_vd2_blend(struct video_layer_s *layer,
 void switch_3d_view_per_vsync(struct video_layer_s *layer);
 #endif
 
+void config_vd_param(struct video_layer_s *layer,
+	struct vframe_s *dispbuf);
 s32 config_vd_position(struct video_layer_s *layer,
 		       struct mif_pos_s *setting);
 s32 config_vd_pps(struct video_layer_s *layer,
@@ -788,7 +790,6 @@ struct mosaic_frame_s *get_mosaic_vframe_info(u32 slice);
 void get_mosaic_axis(void);
 void set_mosaic_axis(u32 pic_index, u32 x_start, u32 y_start,
 	u32 x_end, u32 y_end);
-void init_mosaic_axis(void);
 
 /* from video.c */
 extern u32 osd_vpp_misc;
