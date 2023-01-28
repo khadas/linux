@@ -133,6 +133,30 @@ void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		if (set_hpll_hclk_v3(0xf7, 0x10000))
 			break;
 		break;
+	case 5850000:
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b0004f3);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00018000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);
+		hd_set_reg_bits(P_ANACTRL_HDMIPLL_CTRL0, 0x0, 29, 1);
+		WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
+		pr_info("HPLL: 0x%x\n", hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0));
+		break;
+	case 5680000:
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b0004ec);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00015555);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);
+		hd_set_reg_bits(P_ANACTRL_HDMIPLL_CTRL0, 0x0, 29, 1);
+		WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
+		pr_info("HPLL: 0x%x\n", hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0));
+		break;
 	case 5600000:
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b0004e9);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x0000aaab);
@@ -151,6 +175,18 @@ void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 			hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00000000);
 		else
 			hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00007333);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);
+		hd_set_reg_bits(P_ANACTRL_HDMIPLL_CTRL0, 0x0, 29, 1);
+		WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
+		pr_info("HPLL: 0x%x\n", hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0));
+		break;
+	case 5200000:
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b0004d8);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00015555);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
@@ -217,6 +253,30 @@ void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
 		pr_info("HPLL: 0x%x\n", hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0));
 		break;
+	case 4320000:
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b0004b4);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00000000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);
+		hd_set_reg_bits(P_ANACTRL_HDMIPLL_CTRL0, 0x0, 29, 1);
+		WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
+		pr_info("HPLL: 0x%x\n", hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0));
+		break;
+	case 4260000:
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b0004b1);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00010000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);
+		hd_set_reg_bits(P_ANACTRL_HDMIPLL_CTRL0, 0x0, 29, 1);
+		WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
+		pr_info("HPLL: 0x%x\n", hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0));
+		break;
 	case 3712500:
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b00049a);
 		if (frac_rate)
@@ -244,6 +304,18 @@ void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
 		pr_info("HPLL: 0x%x\n", hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0));
 		break;
+	case 3420000:
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b00048e);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00010000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);
+		hd_set_reg_bits(P_ANACTRL_HDMIPLL_CTRL0, 0x0, 29, 1);
+		WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
+		pr_info("HPLL: 0x%x\n", hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0));
+		break;
 	case 3243240:
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b000487);
 		if (frac_rate)
@@ -259,9 +331,33 @@ void set_sc2_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
 		pr_info("HPLL: 0x%x\n", hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0));
 		break;
+	case 3200000:
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b000485);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x0000aaab);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);
+		hd_set_reg_bits(P_ANACTRL_HDMIPLL_CTRL0, 0x0, 29, 1);
+		WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
+		pr_info("HPLL: 0x%x\n", hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0));
+		break;
 	case 3197500:
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b000485);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00007555);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL5, 0x39270008);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL6, 0x50540000);
+		hd_set_reg_bits(P_ANACTRL_HDMIPLL_CTRL0, 0x0, 29, 1);
+		WAIT_FOR_PLL_LOCKED(P_ANACTRL_HDMIPLL_CTRL0);
+		pr_info("HPLL: 0x%x\n", hd_read_reg(P_ANACTRL_HDMIPLL_CTRL0));
+		break;
+	case 3180000:
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL0, 0x3b000484);
+		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL1, 0x00010000);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL2, 0x00000000);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
 		hd_write_reg(P_ANACTRL_HDMIPLL_CTRL4, 0x33771290);
