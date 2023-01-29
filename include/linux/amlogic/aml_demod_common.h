@@ -285,7 +285,13 @@ void aml_platform_driver_unregister(struct platform_driver *drv);
 int aml_platform_device_register(struct platform_device *pdev);
 void aml_platform_device_unregister(struct platform_device *pdev);
 int demod_attach_register_cb(const enum dtv_demod_type type, dm_attach_cb funcb);
+void aml_dvb_extern_attach(void);
 #else
+
+static inline __maybe_unused void aml_dvb_extern_attach(void)
+{
+}
+
 static inline __maybe_unused const char *v4l2_std_to_str(v4l2_std_id std)
 {
 	return NULL;

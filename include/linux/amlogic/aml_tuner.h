@@ -30,6 +30,8 @@ typedef struct dvb_frontend *(*tn_attach_cb)(struct dvb_frontend *fe,
 
 #if (defined CONFIG_AMLOGIC_DVB_EXTERN ||\
 		defined CONFIG_AMLOGIC_DVB_EXTERN_MODULE)
+int dvb_tuner_module_count(void);
+bool dvb_tuner_is_required(enum tuner_type type);
 enum tuner_type aml_get_tuner_type(const char *name);
 int aml_get_dts_tuner_config(struct device_node *node,
 		struct tuner_config *cfg, int index);
@@ -41,6 +43,16 @@ static inline __maybe_unused enum tuner_type aml_get_tuner_type(
 		const char *name)
 {
 	return AM_TUNER_NONE;
+}
+
+static inline __maybe_unused int dvb_tuner_module_count(void)
+{
+	return -ENODEV;
+}
+
+static inline __maybe_unused bool dvb_tuner_is_required(enum tuner_type type)
+{
+	return false;
 }
 
 static inline __maybe_unused int aml_get_dts_tuner_config(

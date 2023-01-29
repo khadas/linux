@@ -27,7 +27,7 @@
 #define AML_DVB_EXTERN_MODULE_NAME    "aml_dvb_extern"
 #define AML_DVB_EXTERN_CLASS_NAME     "aml_dvb_extern"
 
-#define AML_DVB_EXTERN_VERSION    "V1.09"
+#define AML_DVB_EXTERN_VERSION    "V1.10"
 
 static struct dvb_extern_device *dvb_extern_dev;
 static struct mutex dvb_extern_mutex;
@@ -107,7 +107,7 @@ static void aml_dvb_extern_set_power(struct gpio_config *pin_cfg, int on)
 	}
 }
 
-void aml_dvb_extern_work(struct work_struct *work)
+void aml_dvb_extern_resume_work(struct work_struct *work)
 {
 	struct tuner_ops *tops = NULL;
 	struct dvb_tuner *tuner = get_dvb_tuners();
@@ -120,7 +120,7 @@ void aml_dvb_extern_work(struct work_struct *work)
 	}
 }
 
-void aml_attach_work(struct work_struct *work)
+void aml_dvb_extern_attach_work(struct work_struct *work)
 {
 	struct dvb_demod *demod = get_dvb_demods();
 	struct demod_ops *demod_ops = NULL;
@@ -155,6 +155,18 @@ void aml_attach_work(struct work_struct *work)
 	}
 
 	mutex_unlock(&dvb_extern_mutex);
+}
+
+void aml_dvb_extern_attach(void)
+{
+	pr_err("[%s] ready to schedule work.\n", __func__);
+
+	mutex_lock(&dvb_extern_mutex);
+	dvb_extern_dev->attach_work.cur_id = 0;
+
+	mutex_unlock(&dvb_extern_mutex);
+
+	schedule_work(&dvb_extern_dev->attach_work.work);
 }
 
 static ssize_t tuner_debug_store(struct class *class,
@@ -1510,8 +1522,8 @@ PROPERTY_DEMOD:
 	aml_dvb_extern_set_power(&dvbdev->dvb_power, 1);
 
 	mutex_init(&dvb_extern_mutex);
-	INIT_WORK(&dvbdev->work, aml_dvb_extern_work);
-	INIT_WORK(&dvbdev->attach_work.work, aml_attach_work);
+	INIT_WORK(&dvbdev->work, aml_dvb_extern_resume_work);
+	INIT_WORK(&dvbdev->attach_work.work, aml_dvb_extern_attach_work);
 
 PROPERTY_DONE:
 	dvb_extern_dev = dvbdev;

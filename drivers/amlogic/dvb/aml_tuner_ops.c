@@ -600,6 +600,58 @@ int dvb_tuner_detach(void)
 }
 EXPORT_SYMBOL(dvb_tuner_detach);
 
+int dvb_tuner_module_count(void)
+{
+	struct dvb_tuner *tuner = NULL;
+	struct tuner_ops *ops = NULL;
+	int num = 0, i = 0;
+	enum tuner_type tuner_id[8];
+
+	mutex_lock(&dvb_tuners_mutex);
+
+	tuner = get_dvb_tuners();
+
+	list_for_each_entry(ops, &tuner->list, list) {
+		for (i = 0; i < 7; i++) {
+			if (ops->cfg.id == tuner_id[i])
+				break;
+
+			if (tuner_id[i] == 0) {
+				tuner_id[i] = ops->cfg.id;
+				num++;
+				break;
+			}
+		}
+	}
+
+	mutex_unlock(&dvb_tuners_mutex);
+
+	return num;
+}
+EXPORT_SYMBOL(dvb_tuner_module_count);
+
+bool dvb_tuner_is_required(enum tuner_type type)
+{
+	struct dvb_tuner *tuner = NULL;
+	struct tuner_ops *ops = NULL;
+
+	mutex_lock(&dvb_tuners_mutex);
+
+	tuner = get_dvb_tuners();
+
+	list_for_each_entry(ops, &tuner->list, list) {
+		if (ops->cfg.id == type) {
+			mutex_unlock(&dvb_tuners_mutex);
+			return true;
+		}
+	}
+
+	mutex_unlock(&dvb_tuners_mutex);
+
+	return false;
+}
+EXPORT_SYMBOL(dvb_tuner_is_required);
+
 struct tuner_ops *dvb_tuner_ops_create(void)
 {
 	struct tuner_ops *ops = NULL;

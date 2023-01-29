@@ -468,12 +468,18 @@ static const struct tuner_module tuner_modules[] = {
 };
 
 static tn_attach_cb pt[AM_TUNER_MAX];
+static int cb_num;
 int tuner_attach_register_cb(const enum tuner_type type, tn_attach_cb funcb)
 {
 	if (type > 0 && type < AM_TUNER_MAX) {
-		pr_err("%s: register tuner type %d\n", __func__, type);
 		pt[type] = funcb;
+		if (dvb_tuner_is_required(type))
+			cb_num++;
+		pr_err("%s: register type %d, current num %d\n", __func__, type, cb_num);
 	}
+
+	if (cb_num == dvb_tuner_module_count())
+		aml_dvb_extern_attach();
 
 	return 0;
 }

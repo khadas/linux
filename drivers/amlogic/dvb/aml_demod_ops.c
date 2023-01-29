@@ -21,6 +21,8 @@ static int demod_attach(struct dvb_demod *demod, bool attach)
 	list_for_each_entry(ops, &demod->list, list) {
 		if ((ops->attached && attach) ||
 			(!ops->attached && !attach)) {
+			if (attach && !ops->external)
+				dvb_tuner_attach(ops->fe);
 			pr_err("Demod: demod%d [id %d] had %s.\n",
 					ops->index, ops->cfg.id,
 					attach ? "attached" : "detached");
@@ -34,8 +36,8 @@ static int demod_attach(struct dvb_demod *demod, bool attach)
 				ops->attached = true;
 				ops->fe = fe;
 
-				if (!ops->external)
-					dvb_tuner_attach(ops->fe);
+				//if (!ops->external)
+				//	dvb_tuner_attach(ops->fe);
 
 				pr_err("Demod: attach demod%d [id %d] done.\n",
 						ops->index, ops->cfg.id);
@@ -445,6 +447,58 @@ struct demod_ops *dvb_demod_ops_get_byindex(int index)
 	return NULL;
 }
 EXPORT_SYMBOL(dvb_demod_ops_get_byindex);
+
+bool dvb_demod_is_required(enum dtv_demod_type type)
+{
+	struct dvb_demod *demod = NULL;
+	struct demod_ops *ops = NULL;
+
+	mutex_lock(&dvb_demods_mutex);
+
+	demod = get_dvb_demods();
+
+	list_for_each_entry(ops, &demod->list, list) {
+		if (ops->cfg.id == type) {
+			mutex_unlock(&dvb_demods_mutex);
+			return true;
+		}
+	}
+
+	mutex_unlock(&dvb_demods_mutex);
+
+	return false;
+}
+EXPORT_SYMBOL(dvb_demod_is_required);
+
+int dvb_demod_module_count(void)
+{
+	struct dvb_demod *demod = NULL;
+	struct demod_ops *ops = NULL;
+	int num = 0, i = 0;
+	enum dtv_demod_type demod_id[8];
+
+	mutex_lock(&dvb_demods_mutex);
+
+	demod = get_dvb_demods();
+
+	list_for_each_entry(ops, &demod->list, list) {
+		for (i = 0; i < 7; i++) {
+			if (ops->cfg.id == demod_id[i])
+				break;
+
+			if (demod_id[i] == 0) {
+				demod_id[i] = ops->cfg.id;
+				num++;
+				break;
+			}
+		}
+	}
+
+	mutex_unlock(&dvb_demods_mutex);
+
+	return num;
+}
+EXPORT_SYMBOL(dvb_demod_module_count);
 
 struct dvb_demod *get_dvb_demods(void)
 {
