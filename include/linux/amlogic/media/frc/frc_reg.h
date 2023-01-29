@@ -13048,7 +13048,7 @@ extern u32 regdata_inpholdctl_0002;     // FRC_INP_HOLD_CTRL 0x0002
 extern u32 regdata_outholdctl_0003;     // FRC_OUT_HOLD_CTRL 0x0003
 extern u32 regdata_top_ctl_0007;        // FRC_REG_TOP_CTRL7  0x0007
 extern u32 regdata_top_ctl_0009;        // FRC_REG_TOP_CTRL9
-extern u32 regdata_top_ctl_0017;        // FRC_REG_TOP_CTRL17
+extern u32 regdata_top_ctl_0011;        // FRC_REG_TOP_CTRL17
 
 extern u32 regdata_pat_pointer_0102;
 extern u32 regdata_loadorgframe[16];    // 0x0103

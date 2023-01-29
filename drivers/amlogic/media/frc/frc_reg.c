@@ -37,8 +37,8 @@ u32 regdata_top_ctl_0007;                         // FRC_REG_TOP_CTRL7  0x0007
 EXPORT_SYMBOL(regdata_top_ctl_0007);
 u32 regdata_top_ctl_0009;                         // FRC_REG_TOP_CTRL9
 EXPORT_SYMBOL(regdata_top_ctl_0009);
-u32 regdata_top_ctl_0017;                        // FRC_REG_TOP_CTRL17
-EXPORT_SYMBOL(regdata_top_ctl_0017);
+u32 regdata_top_ctl_0011;                        // FRC_REG_TOP_CTRL17
+EXPORT_SYMBOL(regdata_top_ctl_0011);
 u32 regdata_pat_pointer_0102;              // FRC_REG_PAT_POINTER  0x0102
 EXPORT_SYMBOL(regdata_pat_pointer_0102);
 u32 regdata_loadorgframe[16];                  // FRC_REG_LOAD_ORG_FRAME_0 0x103

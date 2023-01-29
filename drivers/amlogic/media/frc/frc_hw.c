@@ -978,11 +978,11 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	/*disable: memc delay n frame, n depend on cadence, for debug*/
 	if (frc_top->frc_prot_mode) {
 		regdata_top_ctl_0009 = READ_FRC_REG(0x0009);
-		regdata_top_ctl_0017 = READ_FRC_REG(0x0017);
+		regdata_top_ctl_0011 = READ_FRC_REG(0x0011);
 		frc_config_reg_value(0x01000000, 0x0F000000, &regdata_top_ctl_0009);
 		WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL9, regdata_top_ctl_0009); //dly_num =1
-		frc_config_reg_value(0x100, 0x100, &regdata_top_ctl_0017);
-		WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL17, regdata_top_ctl_0017); //buf prot open
+		frc_config_reg_value(0x100, 0x100, &regdata_top_ctl_0011);
+		WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL17, regdata_top_ctl_0011); //buf prot open
 		WRITE_FRC_REG_BY_CPU(FRC_MODE_OPT, 0x6); // set bit1/bit2
 	} else {
 		WRITE_FRC_REG_BY_CPU(FRC_MODE_OPT, 0x0); // clear bit1/bit2
@@ -1336,8 +1336,8 @@ void config_phs_lut(enum frc_ratio_mode_type frc_ratio_mode,
 		input_n          = 1;
 		output_m         = 1;
 	}
-	frc_config_reg_value(0x08, 0x18, &regdata_top_ctl_0017); //lut_cfg_en
-	WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL17, regdata_top_ctl_0017);
+	frc_config_reg_value(0x08, 0x18, &regdata_top_ctl_0011); //lut_cfg_en
+	WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL17, regdata_top_ctl_0011);
 	WRITE_FRC_REG_BY_CPU(FRC_TOP_LUT_ADDR, 0);
 	// for (i = 0; i < 256; i++) {
 	for (i = 0; i < lut_ary_size + 2; i++) {
@@ -1350,8 +1350,8 @@ void config_phs_lut(enum frc_ratio_mode_type frc_ratio_mode,
 			WRITE_FRC_REG_BY_CPU(FRC_TOP_LUT_DATA, 0xffffffff);
 		}
 	}
-	frc_config_reg_value(0x10, 0x18, &regdata_top_ctl_0017); //lut_cfg_en
-	WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL17, regdata_top_ctl_0017);
+	frc_config_reg_value(0x10, 0x18, &regdata_top_ctl_0011); //lut_cfg_en
+	WRITE_FRC_REG_BY_CPU(FRC_REG_TOP_CTRL17, regdata_top_ctl_0011);
 
 	tmpregdata = input_n << 24 | output_m << 16;
 	frc_config_reg_value(tmpregdata, 0xffff0000, &regdata_phs_tab_0116);
@@ -1796,7 +1796,7 @@ void frc_set_val_from_reg(void)
 	regdata_outholdctl_0003 = READ_FRC_REG(0x0003);
 	regdata_top_ctl_0007 = READ_FRC_REG(0x0007);
 	regdata_top_ctl_0009 = READ_FRC_REG(0x0009);
-	regdata_top_ctl_0017 =  READ_FRC_REG(0x0017);
+	regdata_top_ctl_0011 =  READ_FRC_REG(0x0011);
 
 	regdata_pat_pointer_0102 = READ_FRC_REG(0x0102);
 	// regdata_loadorgframe[16];		// 0x0103

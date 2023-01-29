@@ -84,9 +84,10 @@
 // frc_20220927 film tell alg under hdmi
 // frc_20221102 frc clean up typo err
 // frc_20221123 check input size
+// frc_20230104 clean up kasan log error
 
-#define FRC_FW_VER			"2023-0104 clean up kasan log error"
-#define FRC_KERDRV_VER                  2339
+#define FRC_FW_VER			"2023-0129 frc sync ko 2795"
+#define FRC_KERDRV_VER                  2795
 
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
