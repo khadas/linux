@@ -356,7 +356,7 @@ void aml_host_bus_fsm_show(struct mmc_host *mmc, int status);
 #define SD_EMMC_CMD_TIMEOUT 1024 /* in ms */
 #define SD_EMMC_CMD_TIMEOUT_DATA 4096 /* in ms */
 #define SD_EMMC_CFG_CMD_GAP 16 /* in clock cycles */
-#define SD_EMMC_DESC_BUF_LEN PAGE_SIZE
+#define SD_EMMC_DESC_BUF_LEN (2 * PAGE_SIZE)
 
 #define SD_EMMC_PRE_REQ_DONE BIT(0)
 #define SD_EMMC_DESC_CHAIN_MODE BIT(1)
