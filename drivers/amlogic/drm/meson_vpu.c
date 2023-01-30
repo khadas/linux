@@ -201,17 +201,17 @@ static int am_meson_vpu_bind(struct device *dev,
 	if (!ret)
 		private->osd_occupied_index = osd_occupied_index;
 
-	am_meson_vpu_get_plane_crtc_mask(private, "crtc_mask_of_osd",
+	am_meson_vpu_get_plane_crtc_mask(private, "crtcmask_of_osd",
 		pipeline->num_osds, private->crtc_mask_osd);
-	am_meson_vpu_get_plane_crtc_mask(private, "crtc_mask_of_video",
+	am_meson_vpu_get_plane_crtc_mask(private, "crtcmask_of_video",
 		pipeline->num_video, private->crtc_mask_video);
 	/* overwrite crtc mask of video&osd, these should be defined in xxx.dts,
 	 * it is mainly suitable to the board with different configurations for
 	 * the same chip.
 	 */
-	am_meson_vpu_get_plane_crtc_mask(private, "overwrite_crtc_mask_of_osd",
+	am_meson_vpu_get_plane_crtc_mask(private, "overwrite_crtcmask_of_osd",
 		pipeline->num_osds, private->crtc_mask_osd);
-	am_meson_vpu_get_plane_crtc_mask(private, "overwrite_crtc_mask_of_video",
+	am_meson_vpu_get_plane_crtc_mask(private, "overwrite_crtcmask_of_video",
 		pipeline->num_video, private->crtc_mask_video);
 
 	ret = am_meson_plane_create(private);
