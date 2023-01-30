@@ -126,6 +126,8 @@ void aml_cqe_enable(struct mmc_host *mmc)
 	//val = cqhci_readl(cq_host, CQHCI_SSC1);
 	val = CQHCI_SSC1_CBC(1) | CQHCI_SSC1_CIT(1);
 	cqhci_writel(cq_host, val, CQHCI_SSC1);
+
+	mmc->cqe_on = true;
 }
 
 void aml_cqe_disable(struct mmc_host *mmc, bool recovery)

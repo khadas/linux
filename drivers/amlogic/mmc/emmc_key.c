@@ -53,6 +53,7 @@ int32_t emmc_read_valid_key(void *buffer, int valid_flag)
 	dst = (unsigned char *)buffer;
 
 	mmc_claim_host(card->host);
+	aml_disable_mmc_cqe(card);
 	do {
 		ret = mmc_read_internal(card, blk, EMMC_BLOCK_SIZE, dst);
 		if (ret) {
@@ -65,6 +66,7 @@ int32_t emmc_read_valid_key(void *buffer, int valid_flag)
 		dst = (unsigned char *)buffer + MAX_EMMC_BLOCK_SIZE;
 	} while (cnt != 0);
 	pr_info("%s:%d, read %s\n", __func__, __LINE__, (ret) ? "error" : "ok");
+	aml_enable_mmc_cqe(card);
 	mmc_release_host(card->host);
 
 	return ret;
@@ -105,6 +107,7 @@ int32_t emmc_write_one_key(void *buffer, int valid_flag)
 	src = (unsigned char *)buffer;
 	memcpy(checksum_info, &key_infos[valid_flag - 1], sizeof(struct aml_key_info));
 	mmc_claim_host(card->host);
+	aml_disable_mmc_cqe(card);
 	do {
 		ret = mmc_write_internal(card, blk, EMMC_BLOCK_SIZE, src);
 		if (ret) {
@@ -124,6 +127,7 @@ int32_t emmc_write_one_key(void *buffer, int valid_flag)
 		pr_err("%s: block # %#llx, ERROR!\n", __func__, blk);
 
 	pr_info("%s:%d, write %s\n", __func__, __LINE__, (ret) ? "error" : "ok");
+	aml_enable_mmc_cqe(card);
 	mmc_release_host(card->host);
 
 exit_err:
@@ -170,7 +174,9 @@ static int _verify_key_checksum(struct mmc_card *mmc, void *addr, int cpy)
 		return -1;
 
 	mmc_claim_host(mmc->host);
+	aml_disable_mmc_cqe(mmc);
 	ret =  mmc_read_internal(mmc, blk, 1, checksum_info);
+	aml_enable_mmc_cqe(mmc);
 	mmc_release_host(mmc->host);
 	if (ret) {
 		pr_err("%s, block # %#llx, ERROR!\n", __func__, blk);
@@ -214,6 +220,7 @@ static int _amlmmc_read(struct mmc_card *mmc,
 
 	dst = (unsigned char *)buf;
 	mmc_claim_host(mmc->host);
+	aml_disable_mmc_cqe(mmc);
 	do {
 		ret = mmc_read_internal(mmc, blk, MAX_TRANS_BLK, dst);
 		if (ret) {
@@ -225,6 +232,7 @@ static int _amlmmc_read(struct mmc_card *mmc,
 		cnt -= MAX_TRANS_BLK;
 		dst = (unsigned char *)buf + MAX_EMMC_BLOCK_SIZE;
 	} while (cnt != 0);
+	aml_enable_mmc_cqe(mmc);
 	mmc_release_host(mmc->host);
 	return ret;
 }
@@ -345,6 +353,7 @@ int32_t emmc_key_write(u8 *buffer,
 	cnt = size >> bit;
 	src = (unsigned char *)buffer;
 	mmc_claim_host(card->host);
+	aml_disable_mmc_cqe(card);
 	do {
 		ret = mmc_write_internal(card, blk, EMMC_BLOCK_SIZE, src);
 		if (ret) {
@@ -357,6 +366,7 @@ int32_t emmc_key_write(u8 *buffer,
 		src = (unsigned char *)buffer + MAX_EMMC_BLOCK_SIZE;
 	} while (cnt != 0);
 	pr_info("%s:%d, write %s\n", __func__, __LINE__, (ret) ? "error" : "ok");
+	aml_enable_mmc_cqe(card);
 	mmc_release_host(card->host);
 	return ret;
 }
@@ -427,6 +437,7 @@ int32_t emmc_key_read(u8 *buffer,
 	cnt = size >> bit;
 	dst = (unsigned char *)buffer;
 	mmc_claim_host(card->host);
+	aml_disable_mmc_cqe(card);
 	do {
 		ret = mmc_read_internal(card, blk,
 					min(EMMC_BLOCK_SIZE, cnt), dst);
@@ -442,6 +453,7 @@ int32_t emmc_key_read(u8 *buffer,
 
 	pr_info("%s:%d, read %s\n", __func__, __LINE__, (ret) ? "error" : "ok");
 
+	aml_enable_mmc_cqe(card);
 	mmc_release_host(card->host);
 	return ret;
 }

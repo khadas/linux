@@ -2745,6 +2745,12 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 				__func__, __LINE__);
 			aml_cqhci_irq(host);
 		}
+		/*
+		 * clear invalid irq,When emmc reports an error,
+		 * error_bit and end_of_chain will not be level triggered at the same
+		 * time and many invalid interrupts will be generated
+		 */
+		writel(0x7fff, host->regs + SD_EMMC_STATUS);
 		return IRQ_HANDLED;
 	}
 
@@ -3888,9 +3894,16 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	writel(IRQ_CRC_ERR | IRQ_TIMEOUTS | IRQ_END_OF_CHAIN,
 	       host->regs + SD_EMMC_IRQ_EN);
 
-	ret = request_threaded_irq(host->irq, meson_mmc_irq,
+	if (host->enable_hwcq) {
+		irq_set_affinity_hint(host->irq, cpumask_of(1));
+		ret = request_threaded_irq(host->irq, meson_mmc_irq,
+				   meson_mmc_irq_thread, IRQF_ONESHOT | IRQF_TRIGGER_HIGH,
+				   dev_name(&pdev->dev), host);
+	} else {
+		ret = request_threaded_irq(host->irq, meson_mmc_irq,
 				   meson_mmc_irq_thread, IRQF_ONESHOT,
 				   dev_name(&pdev->dev), host);
+	}
 	if (ret)
 		goto err_init_clk;
 	if (aml_card_type_mmc(host))
@@ -4073,7 +4086,12 @@ static int meson_mmc_suspend(struct device *dev)
 	struct meson_host *host = dev_get_drvdata(dev);
 	int ret, i;
 
-	if (!host->ctrl_pwr_flag || !aml_card_type_mmc(host))
+	if (!aml_card_type_mmc(host))
+		return 0;
+	if (host->enable_hwcq)
+		disable_irq(host->irq);
+
+	if (!host->ctrl_pwr_flag)
 		return 0;
 
 	if (host->debug_flag)
@@ -4108,7 +4126,14 @@ static int meson_mmc_resume(struct device *dev)
 	struct meson_host *host = dev_get_drvdata(dev);
 	int i, ret;
 
-	if (!host->ctrl_pwr_flag || !aml_card_type_mmc(host))
+	if (!aml_card_type_mmc(host))
+		return 0;
+	if (host->enable_hwcq) {
+		irq_set_affinity_hint(host->irq, cpumask_of(1));
+		enable_irq(host->irq);
+	}
+
+	if (!host->ctrl_pwr_flag)
 		return 0;
 
 	if (host->debug_flag)

@@ -16,6 +16,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/mmc.h>
+#include <linux/mmc/emmc_partitions.h>
 
 #include "core.h"
 #include "card.h"
@@ -2057,6 +2058,7 @@ static int _mmc_suspend(struct mmc_host *host, bool is_suspend)
 	if (mmc_card_suspended(host->card))
 		goto out;
 
+	aml_disable_mmc_cqe(host->card);
 	err = mmc_flush_cache(host->card);
 	if (err)
 		goto out;
