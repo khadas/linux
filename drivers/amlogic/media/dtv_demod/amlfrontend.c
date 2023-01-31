@@ -5625,6 +5625,10 @@ static int dds_init_reg_map(struct platform_device *pdev)
 		break;
 
 	case DTVDEMOD_HW_T3:
+		devp->ddr_phy_addr = 0xfe000000;
+		devp->ddr_v_addr = devm_ioremap_nocache(&pdev->dev, 0xfe000000, 0x2000);
+		break;
+
 	case DTVDEMOD_HW_T5W:
 		break;
 

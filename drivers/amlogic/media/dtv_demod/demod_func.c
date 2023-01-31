@@ -498,6 +498,7 @@ void demod_power_switch(int pwr_cntl)
 /* 0:DVBC/J.83B, 1:DVBT/ISDBT, 2:ATSC, 3:DTMB */
 void demod_set_mode_ts(enum fe_delivery_system delsys)
 {
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 	union demod_cfg0 cfg0;
 	unsigned int dvbt_mode = 0x11;
 
@@ -555,8 +556,9 @@ void demod_set_mode_ts(enum fe_delivery_system delsys)
 		dvbt_mode = 0x110011;
 
 		/* fix T and T2 channel switch unlock. */
-		if (is_meson_t5w_cpu())
+		if (demod_is_t5d_cpu(devp) || is_meson_t3_cpu() || is_meson_t5w_cpu())
 			cfg0.b.adc_regout = 0;
+
 		break;
 
 	case SYS_DVBS:

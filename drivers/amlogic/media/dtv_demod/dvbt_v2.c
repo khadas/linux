@@ -1158,15 +1158,21 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
 	riscv_ctl_write_reg(0x30, 0);
 
+	/* close ddr clock and delay 8ms them open to fix t2 unlock issue. */
 	switch (devp->data->hw_ver) {
 	case DTVDEMOD_HW_T5D:
 	case DTVDEMOD_HW_T5D_B:
 		dtvdemod_ddr_reg_write(0x148, dtvdemod_ddr_reg_read(0x148) & 0xefffffff);
-		usleep_range(5000, 6000);
+		usleep_range(8000, 9000);
 		dtvdemod_ddr_reg_write(0x148, dtvdemod_ddr_reg_read(0x148) | 0x10000000);
 		break;
 
 	case DTVDEMOD_HW_T3:
+		dtvdemod_ddr_reg_write(0x44, dtvdemod_ddr_reg_read(0x44) & 0xffffffdf);
+		dtvdemod_ddr_reg_write(0x54, dtvdemod_ddr_reg_read(0x54) & 0xffffffdf);
+		usleep_range(8000, 9000);
+		dtvdemod_ddr_reg_write(0x44, dtvdemod_ddr_reg_read(0x44) | 0x00000020);
+		dtvdemod_ddr_reg_write(0x54, dtvdemod_ddr_reg_read(0x54) | 0x00000020);
 		break;
 
 	default:
