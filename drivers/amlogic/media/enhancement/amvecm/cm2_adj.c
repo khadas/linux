@@ -592,7 +592,7 @@ void cm2_curve_update_luma(struct cm_color_md cm_color_md_luma)
 				/*curve 0*/
 				val1[j] &= 0xffffff00;
 				temp = (s8)adj_luma_via_hue[colormode][k] +
-					(s8)def_luma_via_hue[i];
+					(s8)def_luma_via_hue[k];
 				if (temp > 127)
 					temp = 127;
 				else if (temp < -128)
