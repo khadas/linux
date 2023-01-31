@@ -3126,7 +3126,7 @@ void vlock_fsm_monitor(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 
 	default:
 		if (vlock_debug & VLOCK_DEBUG_INFO)
-			pr_info("vlcok: err state %d\n", pvlock->fsm_sts);
+			pr_info("vlock: err state %d\n", pvlock->fsm_sts);
 		//dprintk(0, "err state %d\n", pvlock->fsm_sts);
 		break;
 	}
@@ -3183,7 +3183,7 @@ u32 vlock_chk_is_small_win(struct vpp_frame_par_s *cur_video_sts)
 	return 0;
 }
 
-/*new packed separeted from amvecm_on_vs,avoid the influence of repeate call,
+/*new packed separated from amvecm_on_vs,avoid the influence of repeate call,
  *which may affect vlock process
  */
 void vlock_process(struct vframe_s *vf,
@@ -3239,7 +3239,7 @@ void vlock_process(struct vframe_s *vf,
 			pvlock->org_enc_line_num,
 			pvlock->pre_enc_max_line, vlock_frc_status_chg);
 
-	/* todo:vlock processs only for tv chip */
+	/* todo:vlock process only for tv chip */
 	if (pvlock->dtdata->vlk_new_fsm)
 		vlock_fsm_monitor(vf, pvlock);
 }
