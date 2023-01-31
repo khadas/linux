@@ -19,7 +19,6 @@ static struct meson_rsv_info_t *meson_rsv_key;
 s32 amlnf_key_read(u8 *buf, u32 len, u32 *actual_length)
 {
 	struct meson_rsv_info_t *aml_key = meson_rsv_key;
-	u8 *key_ptr = NULL;
 	u32 keysize = 0;
 
 	if (!meson_rsv_key) {
@@ -41,14 +40,8 @@ s32 amlnf_key_read(u8 *buf, u32 len, u32 *actual_length)
 		memset(buf + keysize, 0, len - keysize);
 	}
 
-	key_ptr = kzalloc(aml_key->size, GFP_KERNEL);
-	if (!key_ptr)
-		return -ENOMEM;
+	meson_rsv_key_read(buf, min_t(int, keysize, len));
 
-	meson_rsv_key_read(key_ptr, keysize);
-	memcpy(buf, key_ptr, min_t(int, keysize, len));
-
-	kfree(key_ptr);
 	return 0;
 }
 
@@ -59,7 +52,6 @@ s32 amlnf_key_write(u8 *buf, u32 len, u32 *actual_length)
 {
 	struct meson_rsv_info_t *aml_key = meson_rsv_key;
 	/*struct mtd_info *mtd = aml_chip->mtd;*/
-	u8 *key_ptr = NULL;
 	u32 keysize = 0;
 	int error = 0;
 
@@ -82,14 +74,8 @@ s32 amlnf_key_write(u8 *buf, u32 len, u32 *actual_length)
 		memset(buf + keysize, 0, len - keysize);
 	}
 
-	key_ptr = kzalloc(aml_key->size, GFP_KERNEL);
-	if (!key_ptr)
-		return -ENOMEM;
+	error = meson_rsv_key_write(buf, len);
 
-	memcpy(key_ptr, buf, keysize);
-	error = meson_rsv_key_write(key_ptr, len);
-
-	kfree(key_ptr);
 	return error;
 }
 
