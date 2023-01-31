@@ -162,11 +162,16 @@ void aml_dvb_extern_attach(void)
 	pr_err("[%s] ready to schedule work.\n", __func__);
 
 	mutex_lock(&dvb_extern_mutex);
-	dvb_extern_dev->attach_work.cur_id = 0;
+	if (IS_ERR_OR_NULL(dvb_extern_dev)) {
+		pr_err("[%s] error! dvb_extern_dev is null.\n", __func__);
+		mutex_unlock(&dvb_extern_mutex);
+	} else {
+		dvb_extern_dev->attach_work.cur_id = 0;
 
-	mutex_unlock(&dvb_extern_mutex);
+		mutex_unlock(&dvb_extern_mutex);
 
-	schedule_work(&dvb_extern_dev->attach_work.work);
+		schedule_work(&dvb_extern_dev->attach_work.work);
+	}
 }
 
 static ssize_t tuner_debug_store(struct class *class,
