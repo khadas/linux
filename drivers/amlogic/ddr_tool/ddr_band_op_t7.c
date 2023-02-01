@@ -203,11 +203,7 @@ static unsigned long t7_get_dmc_freq_quick(struct ddr_bandwidth *db)
 	od1 = (((val >> 19) & 0x1)) == 1 ? 2 : 1;
 	freq = DEFAULT_XTAL_FREQ / 1000;	/* avoid overflow */
 	if (n) {
-		if (db->cpu_type == DMC_TYPE_P1)
-			freq = ((((freq * m) / n) >> od1) / od_div) * 1000 / 2;
-		else
-
-			freq = ((((freq * m) / n) >> od1) / od_div) * 1000;
+		freq = ((((freq * m) / n) >> od1) / od_div) * 1000;
 	}
 
 	return freq;

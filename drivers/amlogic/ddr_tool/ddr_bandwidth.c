@@ -118,7 +118,14 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 	cnt  = db->clock_count;
 	if (freq) {
 		/* calculate in KB */
-		mbw  = (u64)freq * db->bytes_per_cycle * db->dmc_number;
+		/* ddr data bus width = dmc bus width * dmc number.
+		 * After s4 soc, not register to distinguish ddr data bus width,
+		 * default ereryone dmc bus width is 32, but p1 and s5 is 16.
+		 */
+		if (db->cpu_type == DMC_TYPE_P1 || db->cpu_type == DMC_TYPE_S5)
+			mbw = (u64)freq * db->bytes_per_cycle * db->dmc_number / 2;
+		else
+			mbw = (u64)freq * db->bytes_per_cycle * db->dmc_number;
 		mbw /= 1024;	/* theoretic max bandwidth */
 		mul  = dg->all_grant;
 		mul *= freq;
