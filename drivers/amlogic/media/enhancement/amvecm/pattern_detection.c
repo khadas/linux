@@ -338,26 +338,26 @@ static int colorbar_hist_checker(struct vframe_s *vf)
 	int peak_hue_bin_sum = 0, bin2021, bin2526, bin32;
 	int apl_diff, bin1, bin2, bin5, bin910, bin16;
 	int bin8, bin24, bin26, bin3132, bin17;
-	int tolerence_zero, tolerence_hue;
-	int tolerence_hue2;
-	int tolerence_hue3a, tolerence_hue3b;
-	int tolerence_hue5;
-	int tolerence_hue_all, tolerence_luma, target_apl;
+	int tolerance_zero, tolerance_hue;
+	int tolerance_hue2;
+	int tolerance_hue3a, tolerance_hue3b;
+	int tolerance_hue5;
+	int tolerance_hue_all, tolerance_luma, target_apl;
 	unsigned int tvafe_val, tolerance_tvafe, max_tvafe;
 	int bin56, bin1718, bin2122;
 	int peak_hue_bin_sum4 = 0;
 	int peak_hue_bin_sum5 = 0;
 
-	tolerence_zero = pattern_list[pattern_index].pattern_param[0];
-	tolerence_hue = pattern_list[pattern_index].pattern_param[1];
-	tolerence_hue_all = pattern_list[pattern_index].pattern_param[2];
-	tolerence_luma = pattern_list[pattern_index].pattern_param[3];
+	tolerance_zero = pattern_list[pattern_index].pattern_param[0];
+	tolerance_hue = pattern_list[pattern_index].pattern_param[1];
+	tolerance_hue_all = pattern_list[pattern_index].pattern_param[2];
+	tolerance_luma = pattern_list[pattern_index].pattern_param[3];
 	target_apl = pattern_list[pattern_index].pattern_param[4];
 	tolerance_tvafe = pattern_list[pattern_index].pattern_param[5];
-	tolerence_hue2 = pattern_list[pattern_index].pattern_param[8];
-	tolerence_hue3a = pattern_list[pattern_index].pattern_param[9];
-	tolerence_hue3b = pattern_list[pattern_index].pattern_param[10];
-	tolerence_hue5 = pattern_list[pattern_index].pattern_param[11];
+	tolerance_hue2 = pattern_list[pattern_index].pattern_param[8];
+	tolerance_hue3a = pattern_list[pattern_index].pattern_param[9];
+	tolerance_hue3b = pattern_list[pattern_index].pattern_param[10];
+	tolerance_hue5 = pattern_list[pattern_index].pattern_param[11];
 	max_tvafe = pattern_list[pattern_index].pattern_param[13];
 
 	if (vf->source_type == VFRAME_SOURCE_TYPE_TUNER &&
@@ -453,13 +453,13 @@ static int colorbar_hist_checker(struct vframe_s *vf)
 			      tvafe_val, tolerance_tvafe);
 
 	/* judge type 1, normal / mixed colorbar 7 color */
-	if (peak_hue_bin_sum >= tolerence_hue_all &&
-	    bin5 >= tolerence_hue &&
-	    bin910 >=  tolerence_hue &&
-	    bin16 >=  tolerence_hue &&
-	    bin2021 >=  tolerence_hue &&
-	    bin2526 >=  tolerence_hue &&
-	    bin32 >=  tolerence_hue) {
+	if (peak_hue_bin_sum >= tolerance_hue_all &&
+	    bin5 >= tolerance_hue &&
+	    bin910 >=  tolerance_hue &&
+	    bin16 >=  tolerance_hue &&
+	    bin2021 >=  tolerance_hue &&
+	    bin2526 >=  tolerance_hue &&
+	    bin32 >=  tolerance_hue) {
 		if (tvafe_val <= tolerance_tvafe) {
 			pr_pattern_detect_dbg("judge1 colorbar detected\n");
 			flag = 2;
@@ -476,13 +476,13 @@ static int colorbar_hist_checker(struct vframe_s *vf)
 
 	/* judge type 3, ega-64blue color */
 	pr_pattern_detect_dbg("judge3......\n");
-	if (peak_hue_bin_sum >= tolerence_hue_all &&
-	    bin5 >= tolerence_hue3a &&
-	    bin910 >=  tolerence_hue3a &&
-	    bin16 >=  tolerence_hue3a &&
-	    bin2021 >=  tolerence_hue3a &&
-	    bin2526 >=  tolerence_hue3a &&
-	    bin32 >=  tolerence_hue3b) {
+	if (peak_hue_bin_sum >= tolerance_hue_all &&
+	    bin5 >= tolerance_hue3a &&
+	    bin910 >=  tolerance_hue3a &&
+	    bin16 >=  tolerance_hue3a &&
+	    bin2021 >=  tolerance_hue3a &&
+	    bin2526 >=  tolerance_hue3a &&
+	    bin32 >=  tolerance_hue3b) {
 		pr_pattern_detect_dbg("judge3 ega-64blue pattern detected\n");
 		flag = 2;
 	}
@@ -497,13 +497,13 @@ static int colorbar_hist_checker(struct vframe_s *vf)
 			      bin2122, bin2526);
 	pr_pattern_detect_dbg("peak_hue_bin_sum4=%d\n",
 			      peak_hue_bin_sum4);
-	if (peak_hue_bin_sum4 >= tolerence_hue_all &&
-	    bin56 >= tolerence_hue &&
-	    bin910 >=  tolerence_hue &&
-	    bin1718 >=  tolerence_hue &&
-	    bin2122 >=  tolerence_hue &&
-	    bin2526 >=  tolerence_hue &&
-	    bin2 >=  tolerence_hue) {
+	if (peak_hue_bin_sum4 >= tolerance_hue_all &&
+	    bin56 >= tolerance_hue &&
+	    bin910 >=  tolerance_hue &&
+	    bin1718 >=  tolerance_hue &&
+	    bin2122 >=  tolerance_hue &&
+	    bin2526 >=  tolerance_hue &&
+	    bin2 >=  tolerance_hue) {
 		pr_pattern_detect_dbg("judge4 BDGH pattern detected\n");
 		flag = 2;
 	}
@@ -520,16 +520,16 @@ static int colorbar_hist_checker(struct vframe_s *vf)
 			      bin26, bin3132);
 	pr_pattern_detect_dbg("peak_hue_bin_sum5=%d\n",
 			      peak_hue_bin_sum5);
-	if (peak_hue_bin_sum5 >= tolerence_hue_all &&
-	    bin5 >= tolerence_hue5 &&
-	    bin8 >=  tolerence_hue5 &&
-	    bin910 >=  tolerence_hue5 &&
-	    bin16 >=  tolerence_hue5 &&
-	    bin2021 >=  tolerence_hue5 &&
-	    bin24 >= tolerence_hue5 &&
-	    bin26 >=  tolerence_hue5 &&
-	    bin3132 >=  tolerence_hue5 &&
-	    bin1 >=  tolerence_hue5) {
+	if (peak_hue_bin_sum5 >= tolerance_hue_all &&
+	    bin5 >= tolerance_hue5 &&
+	    bin8 >=  tolerance_hue5 &&
+	    bin910 >=  tolerance_hue5 &&
+	    bin16 >=  tolerance_hue5 &&
+	    bin2021 >=  tolerance_hue5 &&
+	    bin24 >= tolerance_hue5 &&
+	    bin26 >=  tolerance_hue5 &&
+	    bin3132 >=  tolerance_hue5 &&
+	    bin1 >=  tolerance_hue5) {
 		pr_pattern_detect_dbg("judge5 color BDGH pattern detected\n");
 		flag = 2;
 	}
@@ -661,9 +661,9 @@ static int face_hist_checker(struct vframe_s *vf)
 	int hue_hist[32];
 	int i, hist_total = 0;
 	int skin_tone_hue_bin_sum = 0;
-	int tolerence_face;
+	int tolerance_face;
 
-	tolerence_face = pattern_list[pattern_index].pattern_param[0];
+	tolerance_face = pattern_list[pattern_index].pattern_param[0];
 
 	if (vf->source_type != VFRAME_SOURCE_TYPE_TUNER &&
 	    vf->source_type != VFRAME_SOURCE_TYPE_CVBS)
@@ -697,7 +697,7 @@ static int face_hist_checker(struct vframe_s *vf)
 			      skin_tone_hue_bin_sum);
 
 	/* judge */
-	if (skin_tone_hue_bin_sum >= tolerence_face) {
+	if (skin_tone_hue_bin_sum >= tolerance_face) {
 		pr_pattern_detect_dbg("skin tone pattern detected\n");
 		flag = 1;
 	}
@@ -785,13 +785,13 @@ static int corn_hist_checker(struct vframe_s *vf)
 	int i, hist_total = 0, hist_sat_total = 0;
 	int hue_bin_sum = 0, diff_hue_bin14, diff_hue_bin15;
 	int diff_hue_bin16, diff_hue_bin17, diff_sat[8];
-	int tolerence_hue, tolerence_sat, tolerence_sum;
+	int tolerance_hue, tolerance_sat, tolerance_sum;
 	int hue_offset = 0; /* for pal default */
 	int sat_offset = 0; /* for pal default */
 
-	tolerence_hue = pattern_list[pattern_index].pattern_param[24];
-	tolerence_sat = pattern_list[pattern_index].pattern_param[25];
-	tolerence_sum = pattern_list[pattern_index].pattern_param[26];
+	tolerance_hue = pattern_list[pattern_index].pattern_param[24];
+	tolerance_sat = pattern_list[pattern_index].pattern_param[25];
+	tolerance_sum = pattern_list[pattern_index].pattern_param[26];
 
 	if (vf->source_mode == VFRAME_SOURCE_MODE_NTSC) {
 		hue_offset = 4;
@@ -864,7 +864,7 @@ static int corn_hist_checker(struct vframe_s *vf)
 	}
 
 	/* judge */
-	if (hue_bin_sum >= tolerence_sum) {
+	if (hue_bin_sum >= tolerance_sum) {
 		pr_pattern_detect_dbg("green corn pattern detected\n");
 		flag = 1;
 	}

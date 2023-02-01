@@ -1552,7 +1552,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 					/* VD2 source cuva_hlg */
 					if (target_format[oth_path] == BT2020_PQ ||
 					    target_format[oth_path] == BT2020_PQ_DYNAMIC) {
-						/* hdrhlg->hdr */
+						/* hdr_hlg->hdr */
 						cuva_hlg_process_mode[vd_path] =
 							PROC_CUVAHLG_TO_HDR;
 						target_format[vd_path] = BT2020_PQ;

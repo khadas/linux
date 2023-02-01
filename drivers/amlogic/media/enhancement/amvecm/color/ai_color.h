@@ -7,10 +7,10 @@
 #define AI_COLOR_H
 
 struct sa_adj_param_s {
-	int *reg_sgain_lut;// s12bit (-1276, 768) = (-2.5, 1.5)  2*768/1023 = 1.5
-	int *reg_lgain_lut;// 10bit (0, 1)
-	int reg_sat_sgain_en;// u1
-	int reg_sat_lgain_en;// u1
+	int *reg_s_gain_lut;// s12bit (-1276, 768) = (-2.5, 1.5)  2*768/1023 = 1.5
+	int *reg_l_gain_lut;// 10bit (0, 1)
+	int reg_sat_s_gain_en;// u1
+	int reg_sat_l_gain_en;// u1
 	int reg_sat_adj_a;// 10bit
 	int reg_sat_prt;// 10bit
 	int reg_sat_prt_p;// u10.10 20bit (2048~2^20)

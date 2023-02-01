@@ -281,7 +281,7 @@ struct pgm_param_s fw_pre_gma_parm = {
 	.pre_gamma_proc = NULL,
 };
 
-static int gain_pregamma_init(void)
+static int gain_pre_gamma_init(void)
 {
 	int i, j;
 
@@ -406,7 +406,7 @@ void aml_cabc_alg_bypass(struct work_struct *work)
 {
 	if (!cabc_aad_en && status_flag) {
 		pre_gam.en = 0;
-		gain_pregamma_init();
+		gain_pre_gamma_init();
 		pre_gamma_data_cp(&pre_gam);
 		set_pre_gamma_reg(&pre_gam);
 		pr_cabc_aad_dbg("%s\n", __func__);
@@ -2112,7 +2112,7 @@ int cabc_aad_debug(char **param)
 		aad_alg_state();
 	} else if (!strcmp(param[0], "cabc_print")) {
 		cabc_alg_state();
-	} else if (!strcmp(param[0], "pregamma_print")) {
+	} else if (!strcmp(param[0], "pre_gamma_print")) {
 		pre_gamma_alg_state();
 	}
 
