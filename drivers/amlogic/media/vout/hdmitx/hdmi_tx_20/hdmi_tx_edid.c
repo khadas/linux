@@ -1788,11 +1788,12 @@ static int edid_zero_data(unsigned char *buf)
 
 static void dump_dtd_info(struct dtd *t)
 {
-	if (0) {
+	if (1) {
 		pr_info(EDID "%s[%d]\n", __func__, __LINE__);
 		pr_info(EDID "pixel_clock: %d\n", t->pixel_clock);
 		pr_info(EDID "h_active: %d\n", t->h_active);
 		pr_info(EDID "v_active: %d\n", t->v_active);
+		pr_info(EDID "h_blank: %d\n", t->h_blank);
 		pr_info(EDID "v_blank: %d\n", t->v_blank);
 		pr_info(EDID "h_sync_offset: %d\n", t->h_sync_offset);
 		pr_info(EDID "h_sync: %d\n", t->h_sync);
