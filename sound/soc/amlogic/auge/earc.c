@@ -2600,6 +2600,11 @@ static int earc_platform_probe(struct platform_device *pdev)
 	if (!p_earc->rx_top_map)
 		dev_info(dev, "Can't get earcrx_top regmap!!\n");
 
+	ret = of_property_read_u32(node, "suspend-clk-off",
+			&p_earc->suspend_clk_off);
+	if (ret < 0)
+		dev_err(&pdev->dev, "Can't retrieve suspend-clk-off\n");
+
 	/* RX */
 	if (p_earc->chipinfo->rx_enable) {
 		spin_lock_init(&p_earc->rx_lock);
@@ -2677,11 +2682,6 @@ static int earc_platform_probe(struct platform_device *pdev)
 				return ret;
 			}
 		}
-
-		ret = of_property_read_u32(node, "suspend-clk-off",
-				&p_earc->suspend_clk_off);
-		if (ret < 0)
-			dev_err(&pdev->dev, "Can't retrieve suspend-clk-off\n");
 
 		p_earc->irq_earc_tx =
 			platform_get_irq_byname(pdev, "earc_tx");
