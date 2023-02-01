@@ -5008,6 +5008,9 @@ static bool ndis_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 				dim_print_hf(dis->c.vfm.hf_info);
 		}
 		/* to ready buffer */
+		dbg_ic("%s vf:%p, index:%d, pts_us64:0x%llx, video_id:%d\n",
+			__func__, &dis->c.vfm, dis->c.vfm.index,
+			dis->c.vfm.pts_us64, dis->c.vfm.vf_ud_param.ud_param.instance_id);
 		ndrd_qin(pch, &dis->c.vfm);
 	} else {
 		/* @ary_note: only for new_interface mode self buff */

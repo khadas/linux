@@ -2270,6 +2270,10 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	mutex_unlock(&dev->mutex_input);
 	//pr_err("dqbuf: frame_num=%d\n", p->sequence);
 	dq_count[inst_id]++;
+	v4l_print(dev->inst, PRINT_OTHER,
+		"v4lvideo: %s return vf:%p, index:%d, pts_us64:0x%llx video_id:%d\n",
+		__func__, vf, vf->index, vf->pts_us64,
+		vf->vf_ud_param.ud_param.instance_id);
 	return 0;
 }
 

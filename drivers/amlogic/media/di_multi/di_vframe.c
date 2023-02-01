@@ -1223,13 +1223,27 @@ static struct vframe_s *di_vf_get(void *arg)
 
 	if (is_bypss2_complete(ch)) {
 		vfm = dim_nbypass_get(pch);
-		if (vfm)
+		if (vfm) {
+			dbg_ic("%s vf:%p, index:%d, pts_us64:0x%llx, video_id:%d\n",
+				__func__, vfm, vfm->index, vfm->pts_us64,
+				vfm->vf_ud_param.ud_param.instance_id);
 			return vfm;
-		return pw_vf_get(ch);
+		}
+		vfm = pw_vf_get(ch);
+		if (vfm)
+			dbg_ic("%s vf:%p, index:%d, pts_us64:0x%llx, video_id:%d\n",
+				__func__, vfm, vfm->index, vfm->pts_us64,
+				vfm->vf_ud_param.ud_param.instance_id);
+		return vfm;
 	}
 	sum_pst_g_inc(ch);
 
-	return di_vf_l_get(ch);
+	vfm = di_vf_l_get(ch);
+	if (vfm)
+		dbg_ic("%s vf:%p, index:%d, pts_us64:0x%llx, video_id:%d, sum_pst:%d\n",
+			__func__, vfm, vfm->index, vfm->pts_us64,
+			vfm->vf_ud_param.ud_param.instance_id, get_sum_pst_g(ch));
+	return vfm;
 }
 
 static void di_vf_put(struct vframe_s *vf, void *arg)
@@ -1300,7 +1314,13 @@ static const struct vframe_operations_s deinterlace_vf_provider = {
 struct vframe_s *pw_vf_get(unsigned int ch)
 {
 	sum_g_inc(ch);
-	return vf_get(di_rev_name[ch]);
+	struct vframe_s *vf = vf_get(di_rev_name[ch]);
+
+	if (vf)
+		dbg_ic("%s bypass:%d, vf:%p, index:%d, pts_us64:0x%llx, video_id:%d\n",
+			__func__, is_bypss2_complete(ch), vf,
+			vf->index, vf->pts_us64, vf->vf_ud_param.ud_param.instance_id);
+	return vf;
 }
 
 struct vframe_s *pw_vf_peek(unsigned int ch)
