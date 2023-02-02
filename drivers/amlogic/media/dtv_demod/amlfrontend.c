@@ -44,6 +44,7 @@
 #include "demod_func.h"
 #include "demod_dbg.h"
 #include "dvbt_func.h"
+#include "isdbt_func.h"
 #include "dvbs.h"
 #include "dvbc_func.h"
 #include "dvbs_diseqc.h"
@@ -1544,6 +1545,7 @@ static int dvbt_isdbt_set_frontend(struct dvb_frontend *fe)
 	/* 3 is DTMB, 4 is ATSC */
 	param.dat0 = 1;
 	demod->last_lock = -1;
+	demod->last_status = 0;
 
 	if (is_meson_t5w_cpu() || is_meson_t3_cpu() ||
 		demod_is_t5d_cpu(devp)) {
@@ -1660,8 +1662,9 @@ int dvbt_isdbt_Init(struct aml_dtvdemod *demod)
 	PR_DBG("AML Demod DVB-T/isdbt init\r\n");
 
 	memset(&sys, 0, sizeof(sys));
-
 	memset(&demod->demod_status, 0, sizeof(demod->demod_status));
+
+	demod->last_status = 0;
 
 	demod->demod_status.delsys = SYS_ISDBT;
 	sys.adc_clk = ADC_CLK_24M;
@@ -1763,8 +1766,6 @@ static int gxtv_demod_atsc_read_status(struct dvb_frontend *fe,
 			FE_HAS_VITERBI | FE_HAS_SYNC;
 		return 0;
 	}
-	if (!get_dtvpll_init_flag())
-		return 0;
 
 	/* j83b */
 	if ((c->modulation <= QAM_AUTO) && (c->modulation != QPSK)) {
@@ -2344,17 +2345,11 @@ static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 	int strength;
 	unsigned int sys_sts;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
-	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	static int lock_status;
 	static int peak;
 	//Threshold value of times of continuous lock and lost
 	int lock_continuous_cnt = atsc_t_lock_continuous_cnt > 1 ? atsc_t_lock_continuous_cnt : 1;
 	int lost_continuous_cnt = atsc_t_lost_continuous_cnt > 1 ? atsc_t_lost_continuous_cnt : 1;
-
-	if (!unlikely(devp)) {
-		PR_ERR("%s, devp is NULL\n", __func__);
-		return;
-	}
 
 	if (re_tune) {
 		lock_status = 0;
@@ -2364,9 +2359,6 @@ static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 		*status = 0;
 		return;
 	}
-
-	if (!get_dtvpll_init_flag())
-		return;
 
 	strength = tuner_get_ch_power(fe);
 
@@ -4343,6 +4335,18 @@ static int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *st
 						offset, c->symbol_rate);
 			}
 		}
+
+		// S/S2 ber config.
+		if ((dvbs_rd_byte(0x932) & 0x60) == 0x40) {
+			// S2.
+			if (dvbs_rd_byte(0xe60) != 0x31)
+				dvbs_wr_byte(0xe60, 0x31);
+		} else {
+			// S.
+			if (dvbs_rd_byte(0xe60) != 0x75)
+				dvbs_wr_byte(0xe60, 0x75);
+		}
+
 	} else {
 		if (timer_not_enough(demod, D_TIMER_DETECT)) {
 			ilock = 0;
@@ -4869,6 +4873,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		dtvdemod_dvbs2_init(demod);
+		dvbs2_diseqc_init();
 		timer_set_max(demod, D_TIMER_DETECT, demod->timeout_dvbs_ms);
 		PR_DVBS("timeout is %dms\n", demod->timeout_dvbs_ms);
 		break;
@@ -7179,10 +7184,12 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 	unsigned char cr = 0xFF;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	struct isdbt_tmcc_info tmcc_info;
 
 	mutex_lock(&devp->lock);
 
-	if (is_not_active(fe)) {
+	if (is_not_active(fe) && tvp->cmd != DTV_TS_INPUT &&
+		tvp->cmd != DTV_ENUM_DELSYS) {
 		mutex_unlock(&devp->lock);
 
 		return -ECANCELED;
@@ -7190,8 +7197,6 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 
 	switch (tvp->cmd) {
 	case DTV_DELIVERY_SYSTEM:
-		if (!devp->demod_thread)
-			break;
 		tvp->u.data = demod->last_delsys;
 		if (demod->last_delsys == SYS_DVBS || demod->last_delsys == SYS_DVBS2) {
 			v = dvbs_rd_byte(0x932) & 0x60;//bit5.6
@@ -7297,9 +7302,6 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 		break;
 
 	case DTV_DVBT2_PLP_ID:
-		if (!devp->demod_thread)
-			break;
-
 		/* plp nums & ids */
 		tvp->u.buffer.reserved1[0] = demod->real_para.plp_num;
 		if (tvp->u.buffer.reserved2 && demod->real_para.plp_num > 0) {
@@ -7321,9 +7323,6 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 		break;
 
 	case DTV_STAT_CNR:
-		if (!devp->demod_thread)
-			break;
-
 		if (demod->last_delsys == SYS_DVBS || demod->last_delsys == SYS_DVBS2)
 			tvp->reserved[0] = dvbs_rd_byte(0xd12) / 10;
 
@@ -7336,6 +7335,16 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 			tvp->u.data = demod->id + 1; // tsin1 and tsin2.
 		else
 			tvp->u.data = 2; // tsin2.
+		break;
+
+	case DTV_ISDBT_PARTIAL_RECEPTION:
+		if (demod->last_delsys == SYS_ISDBT && demod->last_status == 0x1F) {
+			isdbt_get_tmcc_info(&tmcc_info);
+
+			tvp->u.buffer.reserved1[0] = tmcc_info.system_id;
+			tvp->u.buffer.reserved1[1] = tmcc_info.ews_flag;
+			tvp->u.buffer.reserved1[2] = tmcc_info.current_info.is_partial;
+		}
 		break;
 
 	default:

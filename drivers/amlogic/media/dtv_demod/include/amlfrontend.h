@@ -66,7 +66,8 @@
 /*  V1.1.72  add tps cell id info and dmc notifier test */
 /*  V1.1.73  fix s ber and adc fga gain and atsc ch if */
 /*  V1.1.74  optimize identification of auto qam */
-/*  V1.2.75  rebuild isdbt to improve signal locking performance */
+/*  V1.1.75  rebuild isdbt to improve signal locking performance */
+/*  V1.1.76  fix diseqc init state and add isdbt tmcc */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -83,8 +84,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.2.75"
-#define DTVDEMOD_VER	"2023/1/10: rebuild isdbt to improve signal locking performance"
+#define AMLDTVDEMOD_VER "V1.1.76"
+#define DTVDEMOD_VER	"2023/1/31: fix diseqc init state and add isdbt tmcc"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

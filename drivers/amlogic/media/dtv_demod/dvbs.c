@@ -69,7 +69,7 @@ static struct stchip_register_t l2a_def_val_local[] = {
 	{0x237,    0x80},/* REG_RL2A_DVBSX_FSK_FSKRCFG */
 	/*{0x300,    0x00},*//* REG_RL2A_DVBSX_DISEQC_DISIRQCFG */
 	/*{0x301,    0x00},*//* REG_RL2A_DVBSX_DISEQC_DISIRQSTAT */
-	/*{0x302,    0x00},*//* REG_RL2A_DVBSX_DISEQC_DISTXCFG */
+	{0x302,    0x02},/* REG_RL2A_DVBSX_DISEQC_DISTXCFG */
 	/*{0x303,    0x20},*//* REG_RL2A_DVBSX_DISEQC_DISTXSTATUS */
 	/*{0x304,    0x00},*//* REG_RL2A_DVBSX_DISEQC_DISTXBYTES */
 	/*{0x305,    0x00},*//* REG_RL2A_DVBSX_DISEQC_DISTXFIFO */
@@ -1221,6 +1221,7 @@ static struct fe_lla_lookup_t fe_l2a_s2_cn_lookup = {
 void demod_init_local(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 {
 	unsigned int reg = 0;
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 
 	do {
 		if (l2a_def_val_local[reg].addr == 0xffff)
@@ -1234,6 +1235,9 @@ void demod_init_local(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 			dvbs_wr_byte(AUTOSR_REG, AUTOSR_OFF);
 		} else if (l2a_def_val_local[reg].addr == 0xe60) {
 			dvbs_wr_byte(0xe60, 0x75);
+		} else if (l2a_def_val_local[reg].addr == DVBS_REG_DISTXCFG &&
+			devp->diseqc.lnbc.is_internal_tone) {
+			dvbs_wr_byte(DVBS_REG_DISTXCFG, l2a_def_val_local[reg].value | 0x8);
 		} else {
 			dvbs_wr_byte(l2a_def_val_local[reg].addr,
 					l2a_def_val_local[reg].value);
@@ -1400,8 +1404,14 @@ void dvbs2_diseqc_recv_en(bool onoff)
 void dvbs2_diseqc_continuous_tone(bool onoff)
 {
 	unsigned char val = 0;
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 
 	val = dvbs_rd_byte(DVBS_REG_DISTXCFG) & 0xfc;
+
+	/* DiSEqC transmission configuration 2:DiSEqC 2/3 */
+	if (devp && devp->diseqc.lnbc.is_internal_tone)
+		val |= 0x8;
+
 	if (onoff) {
 		dvbs_wr_byte(DVBS_REG_DISTXCFG, val);
 	} else {

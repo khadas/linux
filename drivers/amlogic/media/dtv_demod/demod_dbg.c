@@ -16,6 +16,7 @@
 #include "amlfrontend.h"
 #include "demod_dbg.h"
 #include "dvbt_func.h"
+#include "isdbt_func.h"
 #include "dvbs_diseqc.h"
 #include "aml_demod.h"
 
@@ -1159,6 +1160,7 @@ static ssize_t attr_store(struct class *cls, struct class_attribute *attr,
 	char *buf_orig, *parm[47] = {NULL};
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
+	struct isdbt_tmcc_info tmcc_info;
 	unsigned int capture_start = 0;
 	unsigned int val = 0;
 	unsigned int addr = 0;
@@ -1443,13 +1445,13 @@ static ssize_t attr_store(struct class *cls, struct class_attribute *attr,
 		}
 	} else if (!strcmp(parm[0], "isdbtr")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			val = dvbt_isdbt_rd_reg(addr);
+			val = dvbt_isdbt_rd_reg_new(addr);
 			PR_INFO("isdbt rd addr:0x%x, val:0x%x\n", addr, val);
 		}
 	} else if (!strcmp(parm[0], "isdbtw")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
 			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
-				dvbt_isdbt_wr_reg(addr, val);
+				dvbt_isdtb_wr_reg_new(addr, val);
 				PR_INFO("isdbt wr addr:0x%x, val:0x%x\n", addr, val);
 			}
 		}
@@ -1495,6 +1497,8 @@ static ssize_t attr_store(struct class *cls, struct class_attribute *attr,
 			demod->timeout_ddr_leave = val;
 	} else if (!strcmp(parm[0], "register_dmc")) {
 		demod_dmc_notifier();
+	} else if (!strcmp(parm[0], "tmcc")) {
+		isdbt_get_tmcc_info(&tmcc_info);
 	} else {
 		PR_INFO("invalid command: %s.\n", parm[0]);
 	}
