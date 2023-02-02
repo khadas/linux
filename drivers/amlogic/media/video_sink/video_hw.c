@@ -6198,13 +6198,7 @@ static inline bool is_tv_panel(void)
 
 	/*panel*/
 	if (vinfo->mode == VMODE_LCD &&
-	    (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1 ||
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_TM2 ||
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5D ||
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7 ||
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5W))
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_TL1 || cur_dev->is_tv_panel))
 		return true;
 	else
 		return false;
@@ -12775,6 +12769,7 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	vd_layer[1].misc_reg_offt = 0 + cur_dev->vpp_off;
 	vd_layer[2].misc_reg_offt = 0 + cur_dev->vpp_off;
 	vd_layer[0].dummy_alpha = 0x7fffffff;
+	cur_dev->is_tv_panel = p_amvideo->is_tv_panel;
 	cur_dev->mif_linear = p_amvideo->mif_linear;
 	cur_dev->display_module = p_amvideo->display_module;
 	cur_dev->max_vd_layers = p_amvideo->max_vd_layers;

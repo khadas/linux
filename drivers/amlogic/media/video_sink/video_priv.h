@@ -245,6 +245,7 @@ struct video_dev_s {
 	struct vpp_frame_par_s aisr_frame_parms;
 	struct rdma_fun_s rdma_func[RDMA_INTERFACE_NUM];
 	u32 sr_in_size;
+	u8 is_tv_panel;
 };
 
 struct video_layer_s;
@@ -570,6 +571,7 @@ struct amvideo_device_data_s {
 	u8 has_vpp1;
 	u8 has_vpp2;
 	struct video_device_hw_s dev_property;
+	u8 is_tv_panel;
 };
 
 struct path_id_s {
