@@ -68,6 +68,7 @@
 /*  V1.1.74  optimize identification of auto qam */
 /*  V1.1.75  rebuild isdbt to improve signal locking performance */
 /*  V1.1.76  fix diseqc init state and add isdbt tmcc */
+/*  V1.1.77  fix dvbc low sr and 16/32qam unlock */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -84,8 +85,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.76"
-#define DTVDEMOD_VER	"2023/1/31: fix diseqc init state and add isdbt tmcc"
+#define AMLDTVDEMOD_VER "V1.1.77"
+#define DTVDEMOD_VER	"2023/2/1: fix dvbc low sr and 16/32qam unlock"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
