@@ -63,4 +63,7 @@ struct aml_i2c_slave {
 	struct timer_list timer;
 	unsigned int time_out;
 	struct mutex *lock; /* protect i2c slave reg */
+	unsigned int reset_bit;
+	unsigned int data_recv;
+	unsigned int data_write;
 };

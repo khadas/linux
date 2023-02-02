@@ -1602,7 +1602,9 @@
 			i2c4_slave: i2c4_slave@b2000 {
 				compatible = "amlogic, meson-i2c-slave";
 				status = "disabled";
-				reg = <0x0 0xb2000 0x0 0xf>;
+				reg = <0x0 0xb2000 0x0 0xf>,
+					  <0x0 0x0200c 0x0 0x4>;
+				reset_bit = <3>;
 				interrupts = <GIC_SPI 67 IRQ_TYPE_EDGE_RISING>;
 			};
 
