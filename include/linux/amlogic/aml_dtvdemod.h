@@ -42,24 +42,13 @@ static inline __maybe_unused struct dvb_frontend *aml_dtvdm_attach(
 
 #if (defined CONFIG_AMLOGIC_DVB_EXTERN ||\
 		defined CONFIG_AMLOGIC_DVB_EXTERN_MODULE)
-int dvb_demod_module_count(void);
-bool dvb_demod_is_required(enum dtv_demod_type type);
 enum dtv_demod_type aml_get_dtvdemod_type(const char *name);
 int aml_get_dts_demod_config(struct device_node *node,
 		struct demod_config *cfg, int index);
 void aml_show_demod_config(const char *title, const struct demod_config *cfg);
 const struct demod_module *aml_get_demod_module(enum dtv_demod_type type);
+void aml_set_demod_attach_cb(const enum dtv_demod_type type, dm_attach_cb funcb);
 #else
-
-static inline __maybe_unused bool dvb_demod_is_required(enum dtv_demod_type type)
-{
-	return false;
-}
-
-static inline __maybe_unused int dvb_demod_module_count(void)
-{
-	return -ENODEV;
-}
 
 static inline __maybe_unused enum dtv_demod_type aml_get_dtvdemod_type(
 		const char *name)
@@ -82,6 +71,11 @@ static inline __maybe_unused const struct demod_module *aml_get_demod_module(
 		enum dtv_demod_type type)
 {
 	return NULL;
+}
+
+static inline __maybe_unused void aml_set_demod_attach_cb(const enum dtv_demod_type type,
+		dm_attach_cb funcb)
+{
 }
 
 #endif

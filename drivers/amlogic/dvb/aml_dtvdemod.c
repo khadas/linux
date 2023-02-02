@@ -386,22 +386,12 @@ static const struct demod_module demod_modules[] = {
 };
 
 static dm_attach_cb pt[AM_DTV_DEMOD_MAX];
-static int cb_num;
-int demod_attach_register_cb(const enum dtv_demod_type type, dm_attach_cb funcb)
+
+void aml_set_demod_attach_cb(const enum dtv_demod_type type, dm_attach_cb funcb)
 {
-	if (type > AM_DTV_DEMOD_NONE && type < AM_DTV_DEMOD_MAX) {
+	if (type > AM_DTV_DEMOD_NONE && type < AM_DTV_DEMOD_MAX && !pt[type])
 		pt[type] = funcb;
-		if (dvb_demod_is_required(type))
-			cb_num++;
-		pr_err("[%s]:register type %d, current num %d\n", __func__, type, cb_num);
-	}
-
-	if (cb_num == dvb_demod_module_count())
-		aml_dvb_extern_attach();
-
-	return 0;
 }
-EXPORT_SYMBOL(demod_attach_register_cb);
 
 static struct dvb_frontend *aml_attach_detach_dtvdemod(
 		enum dtv_demod_type type,
@@ -410,11 +400,9 @@ static struct dvb_frontend *aml_attach_detach_dtvdemod(
 {
 	struct dvb_frontend *p = 0;
 
-	if (type > 0 && type < AM_DTV_DEMOD_MAX) {
-		if (pt[type]) {
-			pr_err("%s: cb id %d\n", __func__, type);
-			return pt[type](cfg);
-		}
+	if (pt[type]) {
+		pr_err("%s: cb id %d\n", __func__, type);
+		return pt[type](cfg);
 	}
 
 	switch (type) {

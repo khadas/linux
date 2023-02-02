@@ -35,6 +35,7 @@ struct dvb_tuner {
 	struct list_head list;
 	struct mutex mutex; /* tuner ops mutex */
 	int refcount;
+	int cb_num;
 
 	int (*attach)(struct dvb_tuner *tuner, bool attach);
 	struct tuner_ops *(*match)(struct dvb_tuner *tuner, int std);
@@ -67,6 +68,7 @@ struct dvb_demod {
 	struct list_head list;
 	struct mutex mutex;  /* demod ops mutex */
 	int refcount;
+	int cb_num;
 
 	int (*attach)(struct dvb_demod *demod, bool attach);
 	struct demod_ops *(*match)(struct dvb_demod *demod, int std);

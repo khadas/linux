@@ -468,22 +468,11 @@ static const struct tuner_module tuner_modules[] = {
 };
 
 static tn_attach_cb pt[AM_TUNER_MAX];
-static int cb_num;
-int tuner_attach_register_cb(const enum tuner_type type, tn_attach_cb funcb)
+void aml_set_tuner_attach_cb(const enum tuner_type type, tn_attach_cb funcb)
 {
-	if (type > 0 && type < AM_TUNER_MAX) {
+	if (type > AM_TUNER_NONE && type < AM_TUNER_MAX && !pt[type])
 		pt[type] = funcb;
-		if (dvb_tuner_is_required(type))
-			cb_num++;
-		pr_err("%s: register type %d, current num %d\n", __func__, type, cb_num);
-	}
-
-	if (cb_num == dvb_tuner_module_count())
-		aml_dvb_extern_attach();
-
-	return 0;
 }
-EXPORT_SYMBOL(tuner_attach_register_cb);
 
 static struct dvb_frontend *aml_attach_detach_tuner(
 		const enum tuner_type type,
@@ -493,11 +482,9 @@ static struct dvb_frontend *aml_attach_detach_tuner(
 {
 	struct dvb_frontend *p = NULL;
 
-	if (type > 0 && type < AM_TUNER_MAX) {
-		if (pt[type]) {
-			pr_err("%s: cb id %d\n", __func__, type);
-			return pt[type](fe, cfg);
-		}
+	if (pt[type]) {
+		pr_err("%s: cb id %d\n", __func__, type);
+		return pt[type](fe, cfg);
 	}
 
 	switch (type) {
