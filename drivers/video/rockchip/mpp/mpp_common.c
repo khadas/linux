@@ -77,6 +77,7 @@ const char *mpp_device_name[MPP_DEVICE_BUTT] = {
 	[MPP_DEVICE_VEPU2_JPEG]		= "VEPU2",
 	[MPP_DEVICE_VEPU22]		= "VEPU22",
 	[MPP_DEVICE_IEP2]		= "IEP2",
+	[MPP_DEVICE_VDPP]		= "VDPP",
 };
 
 const char *enc_info_item_name[ENC_INFO_BUTT] = {
@@ -589,6 +590,7 @@ static void mpp_task_timeout_work(struct work_struct *work_s)
 
 	/* remove task from taskqueue running list */
 	mpp_taskqueue_pop_running(mpp->queue, task);
+	mpp_taskqueue_trigger_work(mpp);
 }
 
 static int mpp_process_task_default(struct mpp_session *session,
@@ -1029,6 +1031,7 @@ struct mpp_taskqueue *mpp_taskqueue_init(struct device *dev)
 	atomic_set(&queue->reset_request, 0);
 	atomic_set(&queue->detach_count, 0);
 	atomic_set(&queue->task_id, 0);
+	queue->dev_active_flags = 0;
 
 	return queue;
 }
@@ -1052,9 +1055,15 @@ static void mpp_attach_workqueue(struct mpp_dev *mpp,
 		goto done;
 	}
 
+	/*
+	 * multi devices with no multicores share one queue,
+	 * the core_id is default value 0.
+	 */
 	if (queue->cores[core_id]) {
-		dev_err(mpp->dev, "can not attach device with same id %d", core_id);
-		goto done;
+		if (queue->cores[core_id] == mpp)
+			goto done;
+
+		core_id = queue->core_count;
 	}
 
 	queue->cores[core_id] = mpp;
@@ -2177,7 +2186,7 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 		if (mpp->hw_ops->clk_on)
 			mpp->hw_ops->clk_on(mpp);
 
-		hw_info->hw_id = mpp_read(mpp, hw_info->reg_id);
+		hw_info->hw_id = mpp_read(mpp, hw_info->reg_id * sizeof(u32));
 		if (mpp->hw_ops->clk_off)
 			mpp->hw_ops->clk_off(mpp);
 		pm_runtime_put_sync(dev);

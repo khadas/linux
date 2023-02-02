@@ -853,7 +853,7 @@ static int rk_pcie_init_dma_trx(struct rk_pcie *rk_pcie)
 		goto out;
 	}
 
-	rk_pcie->dma_obj = pcie_dw_dmatest_register(rk_pcie->pci, true);
+	rk_pcie->dma_obj = pcie_dw_dmatest_register(rk_pcie->pci->dev, true);
 	if (IS_ERR(rk_pcie->dma_obj)) {
 		dev_err(rk_pcie->pci->dev, "failed to prepare dmatest\n");
 		return -EINVAL;
@@ -2061,9 +2061,9 @@ retry_regulator:
 			/* Unmask all legacy interrupt from INTA~INTD  */
 			rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK_LEGACY,
 					   UNMASK_ALL_LEGACY_INT);
+		} else {
+			dev_info(dev, "missing legacy IRQ resource\n");
 		}
-
-		dev_info(dev, "missing legacy IRQ resource\n");
 	}
 
 	/* Set PCIe mode */
@@ -2430,14 +2430,10 @@ err:
 static int rockchip_dw_pcie_prepare(struct device *dev)
 {
 	struct rk_pcie *rk_pcie = dev_get_drvdata(dev);
-	u32 val;
 
-	val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS);
-	if ((val & S_MAX) != S_L0) {
-		dw_pcie_dbi_ro_wr_en(rk_pcie->pci);
-		rk_pcie_downstream_dev_to_d0(rk_pcie, false);
-		dw_pcie_dbi_ro_wr_dis(rk_pcie->pci);
-	}
+	dw_pcie_dbi_ro_wr_en(rk_pcie->pci);
+	rk_pcie_downstream_dev_to_d0(rk_pcie, false);
+	dw_pcie_dbi_ro_wr_dis(rk_pcie->pci);
 
 	return 0;
 }

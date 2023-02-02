@@ -2762,7 +2762,7 @@ static void rkisp_global_update_mi(struct rkisp_device *dev)
 			if (stream->id == RKISP_STREAM_VIR ||
 			    stream->id == RKISP_STREAM_LUMA)
 				continue;
-			if (stream->streaming && !stream->next_buf)
+			if (stream->streaming && !stream->curr_buf)
 				stream->ops->frame_end(stream);
 		}
 	}
@@ -3941,6 +3941,16 @@ void rkisp_isp_isr(unsigned int isp_mis,
 			rkisp_write(dev, ISP3X_ISP_ICR, val, true);
 			v4l2_dbg(3, rkisp_debug, &dev->v4l2_dev,
 				 "left isp isr:0x%x\n", val);
+			if (isp_mis & CIF_ISP_FRAME && !(val & CIF_ISP_FRAME)) {
+				/* wait isp0 frame end */
+				int timeout = read_poll_timeout_atomic(rkisp_read,
+					val, val & CIF_ISP_FRAME, 20, 20 * 50, true, dev, ISP3X_ISP_RIS, true);
+
+				if (val)
+					rkisp_write(dev, ISP3X_ISP_ICR, val, true);
+				if (timeout)
+					dev_err(dev->dev, "wait isp end timeout\n");
+			}
 		}
 	}
 	v4l2_dbg(3, rkisp_debug, &dev->v4l2_dev,

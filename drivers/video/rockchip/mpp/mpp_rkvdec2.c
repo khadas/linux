@@ -47,6 +47,15 @@ static struct mpp_hw_info rkvdec_rk356x_hw_info = {
 	.link_info = &rkvdec_link_rk356x_hw_info,
 };
 
+static struct mpp_hw_info rkvdec_vdpu382_hw_info = {
+	.reg_num = RKVDEC_REG_NUM,
+	.reg_id = RKVDEC_REG_HW_ID_INDEX,
+	.reg_start = RKVDEC_REG_START_INDEX,
+	.reg_end = RKVDEC_REG_END_INDEX,
+	.reg_en = RKVDEC_REG_START_EN_INDEX,
+	.link_info = &rkvdec_link_vdpu382_hw_info,
+};
+
 /*
  * file handle translate information
  */
@@ -54,27 +63,27 @@ static const u16 trans_tbl_h264d[] = {
 	128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142,
 	161, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176,
 	177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191,
-	192, 193, 194, 195, 196, 197
+	192, 193, 194, 195, 196, 197, 198, 199
 };
 
 static const u16 trans_tbl_h265d[] = {
 	128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142,
 	161, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176,
 	177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191,
-	192, 193, 194, 195, 196, 197
+	192, 193, 194, 195, 196, 197, 198, 199
 };
 
 static const u16 trans_tbl_vp9d[] = {
 	128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142,
 	160, 162, 164, 165, 166, 167, 168, 169, 170, 171, 172, 180, 181, 182, 183,
-	184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197
+	184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199
 };
 
 static const u16 trans_tbl_avs2d[] = {
 	128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142,
 	161, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176,
 	177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191,
-	192, 193, 194, 195, 196, 197
+	192, 193, 194, 195, 196, 197, 198, 199
 };
 
 static struct mpp_trans_info rkvdec_v2_trans[] = {
@@ -1224,6 +1233,14 @@ static const struct mpp_dev_var rkvdec_rk3568_data = {
 	.dev_ops = &rkvdec_rk3568_dev_ops,
 };
 
+static const struct mpp_dev_var rkvdec_vdpu382_data = {
+	.device_type = MPP_DEVICE_RKVDEC,
+	.hw_info = &rkvdec_vdpu382_hw_info,
+	.trans_info = rkvdec_v2_trans,
+	.hw_ops = &rkvdec_v2_hw_ops,
+	.dev_ops = &rkvdec_v2_dev_ops,
+};
+
 static const struct of_device_id mpp_rkvdec2_dt_match[] = {
 	{
 		.compatible = "rockchip,rkv-decoder-v2",
@@ -1238,6 +1255,12 @@ static const struct of_device_id mpp_rkvdec2_dt_match[] = {
 #ifdef CONFIG_CPU_RK3588
 	{
 		.compatible = "rockchip,rkv-decoder-v2-ccu",
+	},
+#endif
+#ifdef CONFIG_CPU_RK3528
+	{
+		.compatible = "rockchip,rkv-decoder-rk3528",
+		.data = &rkvdec_vdpu382_data,
 	},
 #endif
 	{},
