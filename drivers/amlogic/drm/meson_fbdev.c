@@ -576,18 +576,25 @@ static const struct drm_fb_helper_funcs meson_drm_fb_helper_funcs = {
 static int am_meson_fbdev_parse_config(struct drm_device *dev)
 {
 	struct meson_drm *private = dev->dev_private;
-	struct drm_display_mode mode = private->primary_plane->state->crtc->state->mode;
+	struct drm_display_mode mode;
 	u32 sizes[5];
 	int ret = 0;
 
-	if ((strcmp(mode.name, "panel") == 0) || (strcmp(mode.name, "panel1") == 0)) {
-		ret = of_property_read_u32_array(dev->dev->of_node, "fbdev_sizes", sizes, 5);
-	} else if (strstr(mode.name, "hz")) {
-	    sizes[0] = mode.hdisplay;
-		sizes[1] = mode.vdisplay;
-		sizes[2] = mode.hdisplay;
-		sizes[3] = mode.vdisplay * 2;
-		sizes[4] = 32;
+	if (private->primary_plane && private->primary_plane->state && private->primary_plane->state->crtc && private->primary_plane->state->crtc->state) {
+		mode = private->primary_plane->state->crtc->state->mode;
+
+		if ((strcmp(mode.name, "panel") == 0) || (strcmp(mode.name, "panel1") == 0)) {
+			ret = of_property_read_u32_array(dev->dev->of_node, "fbdev_sizes", sizes, 5);
+		} else if (strstr(mode.name, "hz")) {
+		    sizes[0] = mode.hdisplay;
+			sizes[1] = mode.vdisplay;
+			sizes[2] = mode.hdisplay;
+			sizes[3] = mode.vdisplay * 2;
+			sizes[4] = 32;
+		}
+	} else {
+		ret = of_property_read_u32_array(dev->dev->of_node,
+                           "fbdev_sizes", sizes, 5);
 	}
 
 	if (!ret) {
