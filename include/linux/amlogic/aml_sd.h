@@ -59,6 +59,7 @@ struct para_e {
 	struct mmc_phase hs;
 	struct mmc_phase hs2;
 	struct mmc_phase hs4;
+	struct mmc_phase sdr;
 };
 
 #define LATCHING_RXPHASE 0

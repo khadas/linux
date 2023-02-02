@@ -1316,6 +1316,12 @@ static void meson_mmc_check_resampling(struct meson_host *host,
 		writel(val, host->regs + SD_EMMC_V3_ADJUST);
 		mmc_phase_set = &host->sdmmc.init;
 		break;
+	case MMC_TIMING_UHS_SDR12:
+	case MMC_TIMING_UHS_SDR25:
+	case MMC_TIMING_UHS_SDR50:
+	case MMC_TIMING_UHS_SDR104:
+		mmc_phase_set = &host->sdmmc.sdr;
+		break;
 	default:
 		mmc_phase_set = &host->sdmmc.init;
 	}
@@ -2958,8 +2964,8 @@ static void meson_mmc_cfg_init(struct meson_host *host)
 
 	writel(cfg, host->regs + SD_EMMC_CFG);
 
-	/* config sdio controller's response error mask */
-	if (aml_card_type_sdio(host))
+	/* config sdio/sdcard new controller's response error mask */
+	if (!aml_card_type_mmc(host))
 		writel(SDIO_RESP_ERR_MASK, host->regs + SD_EMMC_CQRMEM);
 }
 

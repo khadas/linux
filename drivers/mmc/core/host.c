@@ -415,7 +415,16 @@ int mmc_of_parse(struct mmc_host *host)
 			 &mmc->sdmmc.hs4.tx_phase, 0);
 	aml_dts_u32_read(dev, "src_clk_rate", &mmc->src_clk_rate, 0);
 
-	aml_dts_u32_read(dev, "src_clk_rate", &mmc->src_clk_rate, 0);
+	aml_dts_u32_read(dev, "nwr_cnt", &mmc->nwr_cnt, 0);
+
+	aml_dts_u32_read(dev, "tx_delay", &mmc->sdmmc.hs4.tx_delay, 16);
+
+	aml_dts_u32_read(dev, "sdr_tx_delay",
+			&mmc->sdmmc.sdr.tx_delay, 0);
+	aml_dts_u32_read(dev, "sdr_core_phase",
+			&mmc->sdmmc.sdr.core_phase, 2);
+	aml_dts_u32_read(dev, "sdr_tx_phase",
+			&mmc->sdmmc.sdr.tx_phase, 0);
 
 	if (device_property_read_bool(dev, "ignore_desc_busy"))
 		mmc->ignore_desc_busy = true;
@@ -431,14 +440,6 @@ int mmc_of_parse(struct mmc_host *host)
 		mmc->use_intf3_tuning = true;
 	else
 		mmc->use_intf3_tuning = false;
-
-	if (device_property_read_u32(dev, "nwr_cnt", &mmc->nwr_cnt) < 0)
-		aml_dts_u32_read(dev, "nwr_cnt", &mmc->nwr_cnt, 0);
-
-	if (device_property_read_u32(dev, "tx_delay",
-				&mmc->sdmmc.hs4.tx_delay) < 0)
-		aml_dts_u32_read(dev, "hs4_tx_delay",
-				 &mmc->sdmmc.hs4.tx_delay, 16);
 
 	device_property_read_u32(dev, "save_para", &mmc->save_para);
 	device_property_read_u32(dev, "compute_cmd_delay",
