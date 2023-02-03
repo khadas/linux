@@ -1246,6 +1246,7 @@ const char *msg2_info[] = {
 	"ro_mack_sent_rcvd",
 };
 
+#define MAX_SMNG_TIMES 15
 static void hdcp2x_process_intr(u8 int_reg[])
 {
 	int i;
@@ -1254,6 +1255,7 @@ static void hdcp2x_process_intr(u8 int_reg[])
 	u8 cp2tx_intr2_st = int_reg[2];  // 0x805
 	u8 cp2tx_intr3_st = int_reg[3];  // 0x806
 	u8 cp2tx_state = hdcp2x_get_state_st(); // 0x80d
+	static int smng_times;
 
 	pr_hdcp_info(L_2, "%s[%d] 0x%x 0x%x 0x%x 0x%x 0x%x\n", __func__, __LINE__,
 		int_reg[0], int_reg[1], int_reg[2], int_reg[3], cp2tx_state);
@@ -1332,6 +1334,7 @@ static void hdcp2x_process_intr(u8 int_reg[])
 
 	if (cp2tx_intr1_st & BIT(3)) { //BIT__HDCP2X_INTR0__SKE_SEND
 		p_hdcp->reauth_ignored = false;
+		smng_times = 0;
 		if (hdcptx_query_ds_repeater(p_hdcp)) {
 			/*
 			 * down stream is a hdcp2.2 repeater
@@ -1352,8 +1355,25 @@ static void hdcp2x_process_intr(u8 int_reg[])
 		;
 	if (cp2tx_intr0_st & BIT(3)) {
 		if (p_hdcp->cont_smng_method == 0) {
-			pr_hdcp_info(L_1, "hdcptx2: M' hash fail, restart auth\n");
-			schedule_delayed_work(&p_hdcp->req_reauth_wk, HZ);
+			/* Samsung Frame TV can't handle single RepeaterAuth_Stream_Manage message
+			 * ( with content stream type different with previous stream type), and will
+			 * cause M' hash fail.
+			 * CTS will fail when retry directly, so send the smng times, the max times
+			 * is 15 for safe, about 10 times will pass
+			 */
+			if (smng_times < MAX_SMNG_TIMES) {
+				smng_times++;
+				p_hdcp->csm_updated = true;
+				hdcp_update_csm(p_hdcp);
+				hdcptx2_rpt_smng_xfer_start();
+				pr_info("send smng_times %d\n", smng_times);
+			} else {
+				smng_times = 0;
+				pr_hdcp_info(L_1, "hdcptx2: M' hash fail, restart auth\n");
+				schedule_delayed_work(&p_hdcp->req_reauth_wk, HZ);
+			}
+		} else {
+			schedule_delayed_work(&p_hdcp->req_reauth_wk, 0);
 		}
 	}
 }

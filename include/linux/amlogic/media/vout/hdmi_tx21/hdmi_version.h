@@ -50,6 +50,7 @@
 	"V03.02.00.01.03.03.17 [20221221] [PHY] test pixel clk and adj phy reg for 70hz issue\n" \
 	"V03.02.00.01.03.03.18 [20221230] [COM] hdmitx_setup_attr slab out of bounds\n" \
 	"V03.02.00.01.03.03.19 [20230104] [COM] set the same sname and send H14b-VSIF\n" \
-	"V03.02.00.01.03.03.20 [20230111] [NEW] add support for 480i/576i\n"
+	"V03.02.00.01.03.03.20 [20230111] [NEW] add support for 480i/576i\n" \
+	"V03.02.00.01.04.03.20 [20230203] [HDCP] hdcp 1b-10 fail, need send smng times\n"
 
 #endif // __HDMI21_VERSION_H__
