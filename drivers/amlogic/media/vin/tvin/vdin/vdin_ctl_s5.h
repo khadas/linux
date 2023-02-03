@@ -150,6 +150,9 @@ void vdin_dolby_de_tunnel_to_12bit(struct vdin_dev_s *devp,
 				   unsigned int on_off);
 void vdin_wr_frame_en(unsigned int ch, unsigned int on_off);
 void vdin_set_mif_on_off_s5(struct vdin_dev_s *devp, unsigned int rdma_enable);
+unsigned int vdin_get_active_h_s5(unsigned int offset);
+unsigned int vdin_get_active_v_s5(unsigned int offset);
+unsigned int vdin_get_total_v_s5(unsigned int offset);
 void vdin_vs_proc_monitor(struct vdin_dev_s *devp);
 enum tvin_color_fmt_range_e
 	tvin_get_force_fmt_range(enum tvin_color_fmt_e color_fmt);

@@ -149,8 +149,11 @@ static inline u32 rd_bits_viu(u32 reg,
 
 static int viuin_support(struct tvin_frontend_s *fe, enum tvin_port_e port)
 {
-	if (port >= TVIN_PORT_VIU1 &&
-	    port <= TVIN_PORT_ISP)
+	if ((port >= TVIN_PORT_VIU1 && port < TVIN_PORT_VIU1_MAX) ||
+	    (port >= TVIN_PORT_VIU2 && port < TVIN_PORT_VIU2_MAX) ||
+	    (port >= TVIN_PORT_VIU3 && port < TVIN_PORT_VIU3_MAX) ||
+	    (port >= TVIN_PORT_VENC && port < TVIN_PORT_VENC_MAX) ||
+	    port == TVIN_PORT_MIPI || port == TVIN_PORT_ISP)
 		return 0;
 	else
 		return -1;

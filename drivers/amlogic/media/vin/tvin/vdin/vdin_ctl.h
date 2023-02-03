@@ -164,6 +164,8 @@ struct ldim_max_s {
 #define DV_META_SINGLE_PKT_SIZE		119
 #define DV_META_NORMAL_PKT_SIZE		121
 
+#define VDIN_INPUT_DATA_THRESHOLD	50
+
 struct dv_meta_pkt {
 	u8 head0;
 	u8 head1;

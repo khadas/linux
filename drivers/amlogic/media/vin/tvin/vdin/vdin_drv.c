@@ -3443,6 +3443,14 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		goto irq_handled;
 	}
 
+	if (vdin_get_active_h(devp->addr_offset) < VDIN_INPUT_DATA_THRESHOLD ||
+	    vdin_get_active_v(devp->addr_offset) < VDIN_INPUT_DATA_THRESHOLD) {
+		devp->vdin_irq_flag = VDIN_IRQ_FLG_FAKE_IRQ;
+		vdin_drop_frame_info(devp, "no data input");
+		if (devp->vdin_function_sel & VDIN_NOT_DATA_INPUT_DROP)
+			goto irq_handled;
+	}
+
 	/* protect mem will fail sometimes due to no res from tee module */
 	if (devp->secure_en && !devp->mem_protected && !devp->set_canvas_manual) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_SECURE_MD;

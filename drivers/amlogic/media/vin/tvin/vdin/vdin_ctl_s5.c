@@ -2065,19 +2065,19 @@ unsigned int vdin_get_meas_vstamp_s5(unsigned int offset)
 
 unsigned int vdin_get_active_h_s5(unsigned int offset)
 {
-	return rd_bits(offset, VDIN_ACTIVE_MAX_PIX_CNT_STATUS,
+	return rd_bits(offset, VDIN_IF_TOP_VDIN1_ACTIVE_MAX_PIX_CNT_STATUS,
 		       ACTIVE_MAX_PIX_CNT_SDW_BIT, ACTIVE_MAX_PIX_CNT_SDW_WID);
 }
 
 unsigned int vdin_get_active_v_s5(unsigned int offset)
 {
-	return rd_bits(offset, VDIN_LCNT_SHADOW_STATUS,
+	return rd_bits(offset, VDIN_IF_TOP_VDIN1_LINE_CNT_SHADOW_STATUS,
 		       ACTIVE_LN_CNT_SDW_BIT, ACTIVE_LN_CNT_SDW_WID);
 }
 
 unsigned int vdin_get_total_v_s5(unsigned int offset)
 {
-	return rd_bits(offset, VDIN_LCNT_SHADOW_STATUS,
+	return rd_bits(offset, VDIN_IF_TOP_VDIN1_LINE_CNT_SHADOW_STATUS,
 		       GO_LN_CNT_SDW_BIT, GO_LN_CNT_SDW_WID);
 }
 

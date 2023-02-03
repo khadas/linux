@@ -2502,18 +2502,27 @@ unsigned int vdin_get_meas_v_stamp(unsigned int offset)
 
 unsigned int vdin_get_active_h(unsigned int offset)
 {
+	if (is_meson_s5_cpu())
+		return vdin_get_active_h_s5(offset);
+
 	return rd_bits(offset, VDIN_ACTIVE_MAX_PIX_CNT_STATUS,
 		       ACTIVE_MAX_PIX_CNT_SDW_BIT, ACTIVE_MAX_PIX_CNT_SDW_WID);
 }
 
 unsigned int vdin_get_active_v(unsigned int offset)
 {
+	if (is_meson_s5_cpu())
+		return vdin_get_active_v_s5(offset);
+
 	return rd_bits(offset, VDIN_LCNT_SHADOW_STATUS,
 		       ACTIVE_LN_CNT_SDW_BIT, ACTIVE_LN_CNT_SDW_WID);
 }
 
 unsigned int vdin_get_total_v(unsigned int offset)
 {
+	if (is_meson_s5_cpu())
+		return vdin_get_total_v_s5(offset);
+
 	return rd_bits(offset, VDIN_LCNT_SHADOW_STATUS,
 		       GO_LN_CNT_SDW_BIT, GO_LN_CNT_SDW_WID);
 }

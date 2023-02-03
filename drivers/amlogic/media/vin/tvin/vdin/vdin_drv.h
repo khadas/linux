@@ -130,7 +130,8 @@
 /* 20230112: modify for vdin0 v4l2 */
 /* 20230216: add address debug info */
 /* 20230302: source clk change 25hz calculate to 24hz */
-#define VDIN_VER "20230302"
+/* 20230307: if not data input not reminder */
+#define VDIN_VER "20230307"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -282,6 +283,7 @@ struct match_data_s {
 #define VDIN_FORCE_RGB_NOT_CONVERT	BIT(7) //commercial display control
 #define VDIN_NO_TVAFE_ASPECT_RATIO_CHK	BIT(8) //no tvafe aspect_ratio check
 #define VDIN_SET_DISPLAY_RATIO		BIT(9)
+#define VDIN_NOT_DATA_INPUT_DROP	BIT(10)
 /* vdin_function_sel control bits end */
 
 #define VDIN_2K_SIZE			0x07800438 /* 0x780 = 1920 0x438 = 1080 */
