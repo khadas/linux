@@ -334,14 +334,36 @@ void set_dump_dmc_func(void *f)
 	dmc_cb =  (void *)f;
 }
 
+static size_t str_end_char(const char *s, size_t count, int c)
+{
+	size_t len = count, offset = count;
+
+	while (count--) {
+		if (*s == (char)c)
+			offset = len - count;
+		if (*s++ == '\0') {
+			offset = len - count;
+			break;
+		}
+	}
+	return offset;
+}
+
 void _dump_dmc_reg(void)
 {
 	static char buf[2048] = {0};
+	int len, i = 0, offset = 0;
 
 	if (!dmc_cb)
 		return;
-	dmc_cb(buf);
-	pr_crit("%s\n", buf);
+	len = dmc_cb(buf);
+
+	while (i < len) {
+		offset = str_end_char(buf, 512, '\n');
+		pr_crit("%.*s", offset, buf + i);
+		i += offset;
+	}
+	pr_crit("\n");
 }
 EXPORT_SYMBOL(set_dump_dmc_func);
 #endif /* CONFIG_AMLOGIC_USER_FAULT */
