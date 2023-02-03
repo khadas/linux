@@ -50,6 +50,7 @@ static unsigned int vwidth = 0x8;
 static unsigned int hwidth = 0x8;
 static unsigned int vpotch = 0x10;
 static unsigned int hpotch = 0x8;
+unsigned int debug_vpotch;
 static unsigned int g_htotal_add = 0x40;
 static unsigned int g_vtotal_add = 0x80;
 static unsigned int g_vsize_add;
@@ -281,6 +282,11 @@ void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 		}
 		g_vwidth = 0x10;
 	}
+
+	if (debug_vpotch)
+		vpotch = debug_vpotch;
+	else
+		vpotch = 0x10;
 }
 
 void adjust_vpotch_tv(void)
@@ -298,6 +304,14 @@ void adjust_vpotch_tv(void)
 				dma_start_line = 0x400;
 			else
 				dma_start_line = 0x180;
+			if (is_aml_tvmode()) {
+				if (debug_vpotch)
+					vpotch = debug_vpotch;
+				else if (vinfo->vbp >= 30)
+					vpotch = 0x10;
+				else
+					vpotch = 0x8;
+			}
 		}
 	}
 }
@@ -6320,11 +6334,11 @@ EXPORT_SYMBOL(register_osd_func);
 module_param(vtotal_add, uint, 0664);
 MODULE_PARM_DESC(vtotal_add, "\n vtotal_add\n");
 
-module_param(vpotch, uint, 0664);
+module_param(vpotch, uint, 0444);
 MODULE_PARM_DESC(vpotch, "\n vpotch\n");
 
 module_param(g_vtiming, uint, 0664);
-MODULE_PARM_DESC(g_vtiming, "\n vpotch\n");
+MODULE_PARM_DESC(g_vtiming, "\n g_vtiming\n");
 
 module_param(dma_start_line, uint, 0664);
 MODULE_PARM_DESC(dma_start_line, "\n dma_start_line\n");

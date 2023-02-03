@@ -13443,6 +13443,7 @@ static const char *amdolby_vision_debug_usage_str = {
 	"echo debug_cp_res value > /sys/class/amdolby_vision/debug; bit0~bit15 h, bit16~bit31 w\n"
 	"echo debug_disable_aoi value > /sys/class/amdolby_vision/debug; 1:disable aoi;>1 not disable\n"
 	"echo debug_dma_start_line value > /sys/class/amdolby_vision/debug;\n"
+	"echo debug_vpotch value > /sys/class/amdolby_vision/debug;\n"
 	"echo debug_ko value > /sys/class/amdolby_vision/debug;\n"
 	"echo force_unmap > /sys/class/amdolby_vision/debug;\n"
 };
@@ -13602,6 +13603,11 @@ static ssize_t amdolby_vision_debug_store
 			return -EINVAL;
 		debug_dma_start_line = val;
 		pr_info("set debug_dma_start_line %d\n", debug_dma_start_line);
+	} else if (!strcmp(parm[0], "debug_vpotch")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		debug_vpotch = val;
+		pr_info("set debug_vpotch %d\n", debug_vpotch);
 	} else if (!strcmp(parm[0], "force_runmode")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;
