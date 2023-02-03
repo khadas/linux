@@ -1890,7 +1890,7 @@ static int smc_hw_reset(struct smc_dev *smc)
 			if (smc->use_enable_pin) {
 				_gpio_out(smc->enable_pin,
 					  smc->enable_level,
-					  SMC_RESET_PIN_NAME);
+					  SMC_ENABLE_PIN_NAME);
 				usleep_range(100, 200);
 			}
 			_gpio_out(smc->reset_pin,
@@ -2011,6 +2011,13 @@ static int smc_hw_hot_reset(struct smc_dev *smc)
 			/*write again for atr count*/
 			SMC_WRITE_REG(REG0, sc_reg0);
 #ifdef RST_FROM_PIO
+			if (smc->use_enable_pin) {
+				_gpio_out(smc->enable_pin,
+					  smc->enable_level,
+					  SMC_ENABLE_PIN_NAME);
+				usleep_range(100, 200);
+			}
+
 			_gpio_out(smc->reset_pin, RESET_DISABLE,
 				  SMC_RESET_PIN_NAME);
 #endif
