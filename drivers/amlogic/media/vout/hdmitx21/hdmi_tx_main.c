@@ -5164,9 +5164,20 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 	if (!(mode & VMODE_INIT_BIT_MASK)) {
 		set_disp_mode_auto();
 	} else {
-		pr_info("alread display in uboot\n");
+		pr_info("already display in uboot\n");
 		hdev->ready = 1;
+		/* if hdmitx already output under uboot,
+		 * here get the current parameters of
+		 * output mode, which may be used later
+		 */
 		update_current_para(hdev);
+		if (hdev->rxcap.max_frl_rate) {
+			hdev->frl_rate = hdmitx21_select_frl_rate(hdev->dsc_en, hdev->cur_VIC,
+				hdev->para->cs, hdev->para->cd);
+			if (hdev->frl_rate > hdev->tx_max_frl_rate)
+				pr_info("Current frl_rate %d is larger than tx_max_frl_rate %d\n",
+					hdev->frl_rate, hdev->tx_max_frl_rate);
+		}
 		edidinfo_attach_to_vinfo(hdev);
 		vinfo = get_current_vinfo();
 		if (vinfo) {
