@@ -11,6 +11,9 @@
 enum cm_tuning_param_e {
 	EN_PARAM_GLB_HUE = 0,
 	EN_PARAM_GLB_SAT,
+	EN_PARAM_FINAL_GAIN_LUMA,
+	EN_PARAM_FINAL_GAIN_SAT,
+	EN_PARAM_FINAL_GAIN_HUE,
 };
 
 enum cm_sub_module_e {
@@ -55,6 +58,7 @@ int vpp_module_cm_get_cm2_sat_by_hl(int *pdata);
 int vpp_module_cm_get_cm2_hue(int *pdata);
 int vpp_module_cm_get_cm2_hue_by_hs(int *pdata);
 int vpp_module_cm_get_cm2_hue_by_hl(int *pdata);
+bool vpp_module_cm_get_final_gain_support(void);
 void vpp_module_cm_on_vs(void);
 
 void vpp_module_cm_set_reg(unsigned int addr, int val);

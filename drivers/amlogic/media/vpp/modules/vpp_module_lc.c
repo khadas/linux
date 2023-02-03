@@ -30,7 +30,7 @@ enum lc_csc_type_e {
 	EN_LC_CSC_YUV601L_RGB,
 	EN_LC_CSC_RGB_YUV709L,
 	EN_LC_CSC_YUV709L_RGB,
-	EN_LC_CSC_RGB_YUV709,
+	EN_LC_CSC_RGB_YUV709,  /*5*/
 	EN_LC_CSC_YUV709_RGB,
 	EN_LC_CSC_MAX,
 };
@@ -64,12 +64,12 @@ struct _lc_bit_cfg_s {
 	struct _bit_s bit_stts_mtrx_en;
 	struct _bit_s bit_stts_in_data_sel;
 	struct _bit_s bit_stts_probe_en;
-	struct _bit_s bit_stts_hist_region_rd_idx;
+	struct _bit_s bit_stts_hist_region_rd_idx;  /*5*/
 	struct _bit_s bit_stts_lpf_en;
 	struct _bit_s bit_stts_hist_mode;
 	struct _bit_s bit_stts_eol_en;
 	struct _bit_s bit_stts_pix_drop_mode;
-	struct _bit_s bit_stts_lc_max_static_en;
+	struct _bit_s bit_stts_lc_max_static_en;    /*10*/
 	struct _bit_s bit_stts_black_data_thrd;
 	struct _bit_s bit_stts_black_cnt;
 };
@@ -80,37 +80,37 @@ struct _lc_reg_cfg_s {
 	unsigned char reg_curve_hv_num;
 	unsigned char reg_curve_lmt_rat;
 	unsigned char reg_curve_contrast_lh;
-	unsigned char reg_curve_contrast_lmt_lh;
+	unsigned char reg_curve_contrast_lmt_lh;  /*5*/
 	unsigned char reg_curve_contrast_scl_lh;
 	unsigned char reg_curve_misc0;
 	unsigned char reg_curve_ypkbv_rat;
 	unsigned char reg_curve_ypkbv_slp_lmt;
-	unsigned char reg_curve_ymin_lmt_0_1;
+	unsigned char reg_curve_ymin_lmt_0_1;     /*10*/
 	unsigned char reg_curve_ypkbv_ymax_lmt_0_1;
 	unsigned char reg_curve_ymax_lmt_0_1;
 	unsigned char reg_curve_histvld_thrd;
 	unsigned char reg_curve_bb_mute_thrd;
-	unsigned char reg_curve_ram_ctrl;
+	unsigned char reg_curve_ram_ctrl;         /*15*/
 	unsigned char reg_curve_ram_addr;
 	unsigned char reg_curve_ram_data;
 	unsigned char reg_curve_ymin_lmt_12_13;
 	unsigned char reg_curve_ymax_lmt_12_13;
-	unsigned char reg_curve_ypkbv_lmt_0_1;
+	unsigned char reg_curve_ypkbv_lmt_0_1;    /*20*/
 	unsigned char reg_stts_gclk_ctrl0;
 	unsigned char reg_stts_ctrl0;
 	unsigned char reg_stts_widthm1_heightm1;
 	unsigned char reg_stts_mtrx_coef00_01;
-	unsigned char reg_stts_mtrx_coef02_10;
+	unsigned char reg_stts_mtrx_coef02_10;    /*25*/
 	unsigned char reg_stts_mtrx_coef11_12;
 	unsigned char reg_stts_mtrx_coef20_21;
 	unsigned char reg_stts_mtrx_coef22;
 	unsigned char reg_stts_mtrx_offset0_1;
-	unsigned char reg_stts_mtrx_offset2;
+	unsigned char reg_stts_mtrx_offset2;      /*30*/
 	unsigned char reg_stts_mtrx_preoffset0_1;
 	unsigned char reg_stts_mtrx_preoffset2;
 	unsigned char reg_stts_hist_region_idx;
 	unsigned char reg_stts_hist_set_region;
-	unsigned char reg_stts_hist_read_region;
+	unsigned char reg_stts_hist_read_region;  /*35*/
 	unsigned char reg_stts_hist_start_rd_region;
 	unsigned char reg_stts_black_info;
 };
@@ -121,7 +121,7 @@ struct _sr1_bit_cfg_s {
 	struct _bit_s bit_lc_blkbld_mode;
 	struct _bit_s bit_lc_en;
 	struct _bit_s bit_lc_hblank;
-	struct _bit_s bit_lc_sync_ctrl;
+	struct _bit_s bit_lc_sync_ctrl;  /*5*/
 	struct _bit_s bit_lc_vnum;
 	struct _bit_s bit_lc_hnum;
 };
@@ -132,17 +132,17 @@ struct _sr1_reg_cfg_s {
 	unsigned char reg_lc_top_ctrl;
 	unsigned char reg_lc_hv_num;
 	unsigned char reg_lc_sat_lut_0_1;
-	unsigned char reg_lc_sat_lut_62;
+	unsigned char reg_lc_sat_lut_62;     /*5*/
 	unsigned char reg_lc_curve_blk_hidx_0_1;
 	unsigned char reg_lc_curve_blk_vidx_0_1;
 	unsigned char reg_lc_y2r_mtrx_0_1;
 	unsigned char reg_lc_r2y_mtrx_0_1;
-	unsigned char reg_lc_y2r_mtrx_ofst;
+	unsigned char reg_lc_y2r_mtrx_ofst;  /*10*/
 	unsigned char reg_lc_y2r_mtrx_clip;
 	unsigned char reg_lc_r2y_mtrx_ofst;
 	unsigned char reg_lc_r2y_mtrx_clip;
 	unsigned char reg_lc_map_ram_ctrl;
-	unsigned char reg_lc_map_ram_addr;
+	unsigned char reg_lc_map_ram_addr;   /*15*/
 	unsigned char reg_lc_map_ram_data;
 };
 
@@ -153,37 +153,37 @@ static struct _lc_reg_cfg_s lc_reg_cfg = {
 	0x01,
 	0x02,
 	0x03,
-	0x04,
+	0x04,  /*5*/
 	0x05,
 	0x07,
 	0x08,
 	0x09,
-	0x0a,
+	0x0a,  /*10*/
 	0x10,
 	0x10,
 	0x16,
 	0x17,
-	0x20,
+	0x20,  /*15*/
 	0x21,
 	0x22,
 	0x40,
 	0x42,
-	0x44,
+	0x44,  /*20*/
 	0x28,
 	0x29,
 	0x2a,
 	0x2b,
-	0x2c,
+	0x2c,  /*25*/
 	0x2d,
 	0x2e,
 	0x2f,
 	0x30,
-	0x31,
+	0x31,  /*30*/
 	0x32,
 	0x33,
 	0x37,
 	0x38,
-	0x39,
+	0x39,  /*35*/
 	0x3a,
 	0x3c
 };
@@ -194,12 +194,12 @@ static struct _lc_bit_cfg_s lc_bit_cfg = {
 	{2, 1},
 	{3, 3},
 	{10, 1},
-	{14, 1},
+	{14, 1},  /*5*/
 	{21, 1},
 	{22, 2},
 	{28, 1},
 	{29, 2},
-	{31, 1},
+	{31, 1},  /*10*/
 	{0, 8},
 	{8, 24}
 };
@@ -210,17 +210,17 @@ static struct _sr1_reg_cfg_s sr1_reg_cfg = {
 	0xc0,
 	0xc1,
 	0xc2,
-	0xe1,
+	0xe1,  /*5*/
 	0xe2,
 	0xe9,
 	0xee,
 	0xf3,
-	0xf8,
+	0xf8,  /*10*/
 	0xf9,
 	0xfa,
 	0xfb,
 	0xfc,
-	0xfd,
+	0xfd,  /*15*/
 	0xfe
 };
 
@@ -230,7 +230,7 @@ static struct _sr1_bit_cfg_s sr1_bit_cfg = {
 	{0, 1},
 	{4, 1},
 	{8, 8},
-	{16, 1},
+	{16, 1},  /*5*/
 	{0, 5},
 	{8, 5}
 };
@@ -2240,6 +2240,10 @@ int vpp_module_lc_en(bool enable)
 	_set_lc_curve_ctrl(enable,
 		lc_bit_cfg.bit_curve_en.start,
 		lc_bit_cfg.bit_curve_en.len);
+
+	_set_lc_stts_ctrl(enable,
+		lc_bit_cfg.bit_stts_mtrx_en.start,
+		lc_bit_cfg.bit_stts_mtrx_en.len);
 
 	/*set curve ram*/
 	addr = ADDR_PARAM(lc_reg_cfg.page,

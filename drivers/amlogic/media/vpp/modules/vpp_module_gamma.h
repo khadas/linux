@@ -17,6 +17,7 @@ int vpp_module_pre_gamma_read(unsigned int *pr_data,
 	unsigned int *pg_data, unsigned int *pb_data);
 int vpp_module_pre_gamma_pattern(bool enable,
 	unsigned int r_val, unsigned int g_val, unsigned int b_val);
+unsigned int vpp_module_pre_gamma_get_table_len(void);
 void vpp_module_pre_gamma_on_vs(void);
 int vpp_module_lcd_gamma_en(bool enable);
 int vpp_module_lcd_gamma_write_single(enum vpp_rgb_mode_e mode,
@@ -27,6 +28,7 @@ int vpp_module_lcd_gamma_read(unsigned int *pr_data,
 	unsigned int *pg_data, unsigned int *pb_data);
 int vpp_module_lcd_gamma_pattern(bool enable,
 	unsigned int r_val, unsigned int g_val, unsigned int b_val);
+unsigned int vpp_module_lcd_gamma_get_table_len(void);
 void vpp_module_lcd_gamma_notify(void);
 void vpp_module_lcd_gamma_on_vs(void);
 

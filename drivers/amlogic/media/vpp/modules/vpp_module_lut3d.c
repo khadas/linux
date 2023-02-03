@@ -51,21 +51,17 @@ static void _set_lut3d_enable_ctrl(int val,
 	WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, val, start, len);
 }
 
-static void _set_lut3d_data(int *pdata)
+static void _set_lut3d_data(enum io_mode_e io_mode, int *pdata)
 {
-	unsigned int addr = 0;
-	enum io_mode_e io_mode = EN_MODE_DIR;
 	int i = 0;
+	unsigned int addr = 0;
 	unsigned int tmp = 0;
+	unsigned int len = 0;
 
 	addr = ADDR_PARAM(lut3d_reg_cfg.page,
 		lut3d_reg_cfg.reg_lut3d_ctrl);
 	tmp = READ_VPP_REG_BY_MODE(io_mode, addr);
-	WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, 0,
-		lut3d_bit_cfg.bit_lut3d_en.start,
-		lut3d_bit_cfg.bit_lut3d_en.len);
-
-	usleep_range(SLEEP_MIN, SLEEP_MAX);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, tmp & 0xfffffffe);
 
 	addr = ADDR_PARAM(lut3d_reg_cfg.page,
 		lut3d_reg_cfg.reg_lut3d_cbus2ram_ctrl);
@@ -79,7 +75,9 @@ static void _set_lut3d_data(int *pdata)
 	addr = ADDR_PARAM(lut3d_reg_cfg.page,
 		lut3d_reg_cfg.reg_lut3d_ram_data);
 
-	for (i = 0; i < LUT3D_DATA_SIZE; i++) {/*write data, order RGB*/
+	len = LUT3D_UNIT_DATA_LEN * LUT3D_UNIT_DATA_LEN *
+		LUT3D_UNIT_DATA_LEN;
+	for (i = 0; i < len; i++) {/*write data, order RGB*/
 		WRITE_VPP_REG_BY_MODE(io_mode, addr,
 			((pdata[i * 3 + 1] & 0xfff) << 16) |
 			(pdata[i * 3 + 2] & 0xfff));
@@ -140,14 +138,22 @@ void vpp_module_lut3d_en(bool enable)
 		lut3d_bit_cfg.bit_lut3d_en.len);
 }
 
-void vpp_module_lut3d_set_data(int *pdata)
+void vpp_module_lut3d_set_data(int *pdata, int by_vsync)
 {
+	enum io_mode_e io_mode;
+
 	if (!pdata)
 		return;
 
-	pr_vpp(PR_DEBUG_LUT3D, "[%s] set data\n", __func__);
+	pr_vpp(PR_DEBUG_LUT3D, "[%s] set data, by_vsync = %d\n",
+		__func__, by_vsync);
 
-	_set_lut3d_data(pdata);
+	if (by_vsync)
+		io_mode = EN_MODE_RDMA;
+	else
+		io_mode = EN_MODE_DIR;
+
+	_set_lut3d_data(io_mode, pdata);
 }
 
 void vpp_module_lut3d_dump_info(enum vpp_dump_module_info_e info_type)

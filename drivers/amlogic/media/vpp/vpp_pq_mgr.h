@@ -19,7 +19,7 @@ struct vpp_pq_mgr_settings {
 	int saturation_post; /*-128~127*/
 	int sharpness;       /*0~255*/
 	struct vpp_white_balance_s video_rgb_ogo;
-	struct vpp_pre_gamma_table_s cur_pre_gamma_tbl;
+	struct vpp_gamma_table_s cur_pre_gamma_tbl;
 	struct vpp_gamma_table_s cur_gamma_tbl;
 	struct vpp_mtrx_param_s matrix_param[EN_MTRX_MAX];
 	struct vpp_dnlp_curve_param_s dnlp_param;
@@ -38,7 +38,7 @@ int vpp_pq_mgr_set_hue(int hue_val);
 int vpp_pq_mgr_set_hue_post(int hue_val);
 int vpp_pq_mgr_set_sharpness(int val);
 int vpp_pq_mgr_set_whitebalance(struct vpp_white_balance_s *pdata);
-int vpp_pq_mgr_set_pre_gamma_table(struct vpp_pre_gamma_table_s *pdata);
+int vpp_pq_mgr_set_pre_gamma_table(struct vpp_gamma_table_s *pdata);
 int vpp_pq_mgr_set_gamma_table(struct vpp_gamma_table_s *pdata);
 int vpp_pq_mgr_set_cm_curve(enum vpp_cm_curve_type_e type, int *pdata);
 int vpp_pq_mgr_set_cm_offset_curve(enum vpp_cm_curve_type_e type, char *pdata);
@@ -63,6 +63,8 @@ int vpp_pq_mgr_set_aad_param(struct vpp_aad_param_s *pdata);
 int vpp_pq_mgr_set_eye_protect(struct vpp_eye_protect_s *pdata);
 int vpp_pq_mgr_set_aipq_offset_table(char *pdata_str,
 	unsigned int height, unsigned int width);
+int vpp_pq_mgr_set_overscan_table(unsigned int length,
+	struct vpp_overscan_table_s *load_table);
 void vpp_pq_mgr_set_lc_isr(void);
 
 void vpp_pq_mgr_get_status(struct vpp_pq_state_s *pstatus);
@@ -76,8 +78,8 @@ void vpp_pq_mgr_get_hue(int *pval);
 void vpp_pq_mgr_get_hue_post(int *pval);
 void vpp_pq_mgr_get_sharpness(int *pval);
 void vpp_pq_mgr_get_whitebalance(struct vpp_white_balance_s *pdata);
-void vpp_pq_mgr_get_pre_gamma_table(struct vpp_pre_gamma_table_s *pdata);
-void vpp_pq_mgr_get_gamma_table(struct vpp_gamma_table_s *pdata);
+struct vpp_gamma_table_s *vpp_pq_mgr_get_pre_gamma_table(void);
+struct vpp_gamma_table_s *vpp_pq_mgr_get_gamma_table(void);
 void vpp_pq_mgr_get_matrix_param(struct vpp_mtrx_info_s *pdata);
 void vpp_pq_mgr_get_dnlp_param(struct vpp_dnlp_curve_param_s *pdata);
 void vpp_pq_mgr_get_module_status(enum vpp_module_e module, bool *penable);
@@ -90,6 +92,8 @@ int vpp_pq_mgr_get_pc_mode(void);
 enum vpp_csc_type_e vpp_pq_mgr_get_csc_type(void);
 enum vpp_hdr_type_e vpp_pq_mgr_get_hdr_type(void);
 enum vpp_color_primary_e vpp_pq_mgr_get_color_primary(void);
+int vpp_pq_mgr_get_pre_gamma_table_len(void);
+int vpp_pq_mgr_get_gamma_table_len(void);
 
 struct vpp_pq_mgr_settings *vpp_pq_mgr_get_settings(void);
 

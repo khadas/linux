@@ -8,8 +8,6 @@
 
 #define _VPP_TYPE  'V'
 
-#define VPP_GAMMA_TABLE_LEN       (256)
-#define VPP_PRE_GAMMA_TABLE_LEN   (65)
 #define VPP_MTRX_COEF_LEN         (9)
 #define VPP_MTRX_OFFSET_LEN       (3)
 #define VPP_HIST_BIN_COUNT        (64)
@@ -171,7 +169,8 @@ enum vpp_csc_type_e {
 	EN_CSC_MATRIX_BT2020RGB_709RGB,
 	EN_CSC_MATRIX_BT2020RGB_CUSRGB,
 	EN_CSC_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC = 0x50,
-	EN_CSC_MATRIX_DEFAULT_CSCTYPE     = 0xffff,
+	EN_CSC_MATRIX_BT2020YUV_BT2020RGB_CUVA = 0x51,
+	EN_CSC_MATRIX_DEFAULT_CSCTYPE = 0xffff,
 };
 
 enum vpp_mtrx_type_e {
@@ -1280,6 +1279,45 @@ enum vpp_sr_param_e {
 	EN_SR_PARAM_MAX,
 };
 
+enum vpp_overscan_input_e {
+	EN_INPUT_INVALID = -1,
+	EN_INPUT_TV = 0,
+	EN_INPUT_AV1,
+	EN_INPUT_AV2,
+	EN_INPUT_YPBPR1,
+	EN_INPUT_YPBPR2,
+	EN_INPUT_HDMI1,
+	EN_INPUT_HDMI2,
+	EN_INPUT_HDMI3,
+	EN_INPUT_HDMI4,
+	EN_INPUT_VGA,
+	EN_INPUT_MPEG,
+	EN_INPUT_DTV,
+	EN_INPUT_SVIDEO,
+	EN_INPUT_IPTV,
+	EN_INPUT_DUMMY,
+	EN_INPUT_SPDIF,
+	EN_INPUT_ADTV,
+	EN_INPUT_MAX,
+};
+
+enum vpp_overscan_timing_e {
+	EN_TIMING_SD_480 = 0,
+	EN_TIMING_SD_576,
+	EN_TIMING_HD,
+	EN_TIMING_FHD,
+	EN_TIMING_UHD,
+	EN_TIMING_NTST_M,
+	EN_TIMING_NTST_443,
+	EN_TIMING_PAL_I,
+	EN_TIMING_PAL_M,
+	EN_TIMING_PAL_60,
+	EN_TIMING_PAL_CN,
+	EN_TIMING_SECAM,
+	EN_TIMING_NTSC_50,
+	EN_TIMING_MAX,
+};
+
 /*Commom struct*/
 struct vpp_pq_en_ctrl_s {
 	unsigned char vadj1_en; /*control video brightness contrast saturation hue*/
@@ -1317,16 +1355,10 @@ struct vpp_white_balance_s {
 	int b_post_offset;    /*s11.0, range -1024~+1023, default is 0*/
 };
 
-struct vpp_pre_gamma_table_s {
-	unsigned int r_data[VPP_PRE_GAMMA_TABLE_LEN];
-	unsigned int g_data[VPP_PRE_GAMMA_TABLE_LEN];
-	unsigned int b_data[VPP_PRE_GAMMA_TABLE_LEN];
-};
-
 struct vpp_gamma_table_s {
-	unsigned int r_data[VPP_GAMMA_TABLE_LEN];
-	unsigned int g_data[VPP_GAMMA_TABLE_LEN];
-	unsigned int b_data[VPP_GAMMA_TABLE_LEN];
+	unsigned int *r_data;
+	unsigned int *g_data;
+	unsigned int *b_data;
 };
 
 struct vpp_mtrx_param_s {
@@ -1353,6 +1385,7 @@ struct vpp_histgm_param_s {
 	unsigned int luma_sum;
 	unsigned int pixel_sum;
 	unsigned int histgm[VPP_HIST_BIN_COUNT];
+	unsigned int dark_histgm[VPP_HIST_BIN_COUNT];
 	unsigned int hue_histgm[VPP_COLOR_HIST_BIN_COUNT];
 	unsigned int sat_histgm[VPP_COLOR_HIST_BIN_COUNT];
 };
@@ -1562,6 +1595,26 @@ struct vpp_color_primary_s {/*R/G/B/W (x,y)*50000*/
 	unsigned int data_dest[VPP_COLOR_PRIMARY_LEN];
 };
 
+struct vpp_table_s {
+	unsigned int length;
+	union {
+		void *param_ptr;
+		long long param_ptr_len;
+	};
+	union {
+		void *reserved;
+		long long reserved_len;
+	};
+};
+
+struct vpp_overscan_table_s {
+	unsigned int src_timing;
+	unsigned int value1;
+	unsigned int value2;
+	unsigned int reserved1;
+	unsigned int reserved2;
+};
+
 struct vpp_pq_tuning_reg_s {
 	unsigned char reg_addr;
 	unsigned char bit_start;
@@ -1592,7 +1645,7 @@ struct vpp_pq_tuning_table_s {
 #define VPP_IOC_SET_SATURATION_POST _IOW(_VPP_TYPE, 0x08, int)
 #define VPP_IOC_SET_HUE_POST        _IOW(_VPP_TYPE, 0x09, int)
 #define VPP_IOC_SET_WB              _IOW(_VPP_TYPE, 0x0a, struct vpp_white_balance_s)
-#define VPP_IOC_SET_PRE_GAMMA_DATA  _IOW(_VPP_TYPE, 0x0b, struct vpp_pre_gamma_table_s)
+#define VPP_IOC_SET_PRE_GAMMA_DATA  _IOW(_VPP_TYPE, 0x0b, struct vpp_gamma_table_s)
 #define VPP_IOC_SET_GAMMA_DATA      _IOW(_VPP_TYPE, 0x0c, struct vpp_gamma_table_s)
 #define VPP_IOC_SET_MATRIX_PARAM    _IOW(_VPP_TYPE, 0x0d, struct vpp_mtrx_info_s)
 #define VPP_IOC_SET_MODULE_STATUS   _IOW(_VPP_TYPE, 0x0e, struct vpp_module_ctrl_s)
@@ -1619,6 +1672,8 @@ struct vpp_pq_tuning_table_s {
 #define VPP_IOC_SET_COLOR_PRIMARY_STATUS _IOW(_VPP_TYPE, 0x1e, int)
 #define VPP_IOC_SET_COLOR_PRIMARY   _IOW(_VPP_TYPE, 0x1f, struct vpp_color_primary_s)
 
+#define VPP_IOC_SET_OVERSCAN_TABLE  _IOW(_VPP_TYPE, 0x20, struct vpp_table_s)
+
 #define VPP_IOC_GET_PC_MODE         _IOR(_VPP_TYPE, 0x80, enum vpp_pc_mode_e)
 #define VPP_IOC_GET_CSC_TYPE        _IOR(_VPP_TYPE, 0x81, enum vpp_csc_type_e)
 #define VPP_IOC_GET_HDR_TYPE        _IOR(_VPP_TYPE, 0x82, enum vpp_hdr_type_e)
@@ -1628,6 +1683,8 @@ struct vpp_pq_tuning_table_s {
 #define VPP_IOC_GET_HIST_BIN        _IOR(_VPP_TYPE, 0x86, struct vpp_histgm_param_s)
 #define VPP_IOC_GET_PQ_STATE        _IOR(_VPP_TYPE, 0x87, struct vpp_pq_state_s)
 #define VPP_IOC_GET_HDR_HIST        _IOR(_VPP_TYPE, 0x88, struct vpp_hdr_histgm_param_s)
+#define VPP_IOC_GET_PRE_GAMMA_LEN   _IOR(_VPP_TYPE, 0x89, int)
+#define VPP_IOC_GET_GAMMA_LEN       _IOR(_VPP_TYPE, 0x8a, int)
 
 #endif
 

@@ -21,6 +21,7 @@ struct vpp_hist_report_s {
 	unsigned int luma_max;
 	unsigned int luma_min;
 	unsigned short gamma[HIST_GM_BIN_CNT];
+	unsigned short dark_gamma[HIST_GM_BIN_CNT];
 	unsigned int hue_gamma[HIST_HUE_GM_BIN_CNT];
 	unsigned int sat_gamma[HIST_SAT_GM_BIN_CNT];
 };
@@ -29,6 +30,7 @@ int vpp_module_meter_init(struct vpp_dev_s *pdev);
 int vpp_module_meter_hist_en(bool enable);
 void vpp_module_meter_fetch_hist_report(void);
 struct vpp_hist_report_s *vpp_module_meter_get_hist_report(void);
+bool vpp_module_meter_get_dark_hist_support(void);
 
 void vpp_module_meter_dump_info(enum vpp_dump_module_info_e info_type);
 

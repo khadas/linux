@@ -36,6 +36,18 @@
 #define SIGNAL_COLOR_PRIMARIES(type) ((type >> 16) & 0xff)
 #define SIGNAL_TRANSFER_CHARACTERISTIC(type) ((type >> 8) & 0xff)
 
+struct _overscan_data_s {
+	unsigned int load_flag;
+	unsigned int afd_enable;
+	unsigned int screen_mode;
+	enum vpp_overscan_input_e source;
+	enum vpp_overscan_timing_e timing;
+	unsigned int hs;
+	unsigned int he;
+	unsigned int vs;
+	unsigned int ve;
+};
+
 struct _signal_info_s {
 	unsigned int hdr_support;
 	unsigned int hlg_support;
@@ -78,6 +90,12 @@ static enum vframe_source_type_e cur_vf_src[EN_VD_PATH_MAX] = {
 	VFRAME_SOURCE_TYPE_COMP,
 	VFRAME_SOURCE_TYPE_COMP,
 };
+
+static int overscan_status;
+static int overscan_reset;
+static int overscan_update_flag;
+static int overscan_atv_source;
+static struct _overscan_data_s overscan_data[EN_TIMING_MAX];
 
 /*Internal functions*/
 static unsigned int _log2(unsigned int value)
@@ -1338,6 +1356,178 @@ static int _vpp_matrix_update_proc(struct vframe_s *pvf,
 	return 0;
 }
 
+static void _overscan_fresh(struct vframe_s *vf)
+{
+	unsigned int height = 0;
+	unsigned int cur_overscan_timing = 0;
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
+	unsigned int cur_fmt;
+	unsigned int offset = EN_TIMING_UHD + 1;/*av&atv*/
+#endif
+
+	if (!overscan_status || !vf)
+		return;
+
+	if (overscan_data[0].load_flag) {
+		height = (vf->type & VIDTYPE_COMPRESS) ?
+			vf->compHeight : vf->height;
+
+		if (height <= 480)
+			cur_overscan_timing = EN_TIMING_SD_480;
+		else if (height <= 576)
+			cur_overscan_timing = EN_TIMING_SD_576;
+		else if (height <= 720)
+			cur_overscan_timing = EN_TIMING_HD;
+		else if (height <= 1088)
+			cur_overscan_timing = EN_TIMING_FHD;
+		else
+			cur_overscan_timing = EN_TIMING_UHD;
+
+		vf->pic_mode.AFD_enable =
+			overscan_data[cur_overscan_timing].afd_enable;
+
+		/*local play screen mode set by decoder*/
+		if (!(vf->pic_mode.screen_mode == VIDEO_WIDEOPTION_CUSTOM &&
+			vf->pic_mode.AFD_enable)) {
+			if (overscan_data[0].source == EN_INPUT_MPEG)
+				vf->pic_mode.screen_mode = 0xff;
+			else
+				vf->pic_mode.screen_mode =
+					overscan_data[cur_overscan_timing].screen_mode;
+		}
+
+		if (vf->pic_mode.provider == PIC_MODE_PROVIDER_WSS &&
+			vf->pic_mode.AFD_enable) {
+			vf->pic_mode.hs += overscan_data[cur_overscan_timing].hs;
+			vf->pic_mode.he += overscan_data[cur_overscan_timing].he;
+			vf->pic_mode.vs += overscan_data[cur_overscan_timing].vs;
+			vf->pic_mode.ve += overscan_data[cur_overscan_timing].ve;
+		} else {
+			vf->pic_mode.hs = overscan_data[cur_overscan_timing].hs;
+			vf->pic_mode.he = overscan_data[cur_overscan_timing].he;
+			vf->pic_mode.vs = overscan_data[cur_overscan_timing].vs;
+			vf->pic_mode.ve = overscan_data[cur_overscan_timing].ve;
+		}
+
+		vf->ratio_control |= DISP_RATIO_ADAPTED_PICMODE;
+	}
+
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
+	if (overscan_data[offset].load_flag) {
+		cur_fmt = vf->sig_fmt;
+		if (cur_fmt == TVIN_SIG_FMT_CVBS_NTSC_M)
+			cur_overscan_timing = EN_TIMING_NTST_M;
+		else if (cur_fmt == TVIN_SIG_FMT_CVBS_NTSC_443)
+			cur_overscan_timing = EN_TIMING_NTST_443;
+		else if (cur_fmt == TVIN_SIG_FMT_CVBS_PAL_I)
+			cur_overscan_timing = EN_TIMING_PAL_I;
+		else if (cur_fmt == TVIN_SIG_FMT_CVBS_PAL_M)
+			cur_overscan_timing = EN_TIMING_PAL_M;
+		else if (cur_fmt == TVIN_SIG_FMT_CVBS_PAL_60)
+			cur_overscan_timing = EN_TIMING_PAL_60;
+		else if (cur_fmt == TVIN_SIG_FMT_CVBS_PAL_CN)
+			cur_overscan_timing = EN_TIMING_PAL_CN;
+		else if (cur_fmt == TVIN_SIG_FMT_CVBS_SECAM)
+			cur_overscan_timing = EN_TIMING_SECAM;
+		else if (cur_fmt == TVIN_SIG_FMT_CVBS_NTSC_50)
+			cur_overscan_timing = EN_TIMING_NTSC_50;
+		else
+			return;
+
+		vf->pic_mode.AFD_enable =
+			overscan_data[cur_overscan_timing].afd_enable;
+
+		if (!(vf->pic_mode.screen_mode == VIDEO_WIDEOPTION_CUSTOM &&
+			vf->pic_mode.AFD_enable))
+			vf->pic_mode.screen_mode =
+				overscan_data[cur_overscan_timing].screen_mode;
+
+		if (vf->pic_mode.provider == PIC_MODE_PROVIDER_WSS &&
+			vf->pic_mode.AFD_enable) {
+			vf->pic_mode.hs += overscan_data[cur_overscan_timing].hs;
+			vf->pic_mode.he += overscan_data[cur_overscan_timing].he;
+			vf->pic_mode.vs += overscan_data[cur_overscan_timing].vs;
+			vf->pic_mode.ve += overscan_data[cur_overscan_timing].ve;
+		} else {
+			vf->pic_mode.hs = overscan_data[cur_overscan_timing].hs;
+			vf->pic_mode.he = overscan_data[cur_overscan_timing].he;
+			vf->pic_mode.vs = overscan_data[cur_overscan_timing].vs;
+			vf->pic_mode.ve = overscan_data[cur_overscan_timing].ve;
+		}
+
+		vf->ratio_control |= DISP_RATIO_ADAPTED_PICMODE;
+	}
+#endif
+
+	if (overscan_reset) {
+		vf->pic_mode.AFD_enable = 0;
+		vf->pic_mode.screen_mode = 0;
+		vf->pic_mode.hs = 0;
+		vf->pic_mode.he = 0;
+		vf->pic_mode.vs = 0;
+		vf->pic_mode.ve = 0;
+		vf->ratio_control &= ~DISP_RATIO_ADAPTED_PICMODE;
+		overscan_reset = 0;
+	}
+}
+
+static void _overscan_reset(void)
+{
+	unsigned int offset = EN_TIMING_UHD + 1; /*av&atv*/
+	enum vpp_overscan_input_e src;
+
+	src = overscan_data[0].source;
+
+	if (!overscan_status)
+		return;
+
+	if (src != EN_INPUT_DTV && src != EN_INPUT_MPEG) {
+		overscan_data[0].load_flag = 0;
+	} else {
+		if (!overscan_atv_source)
+			overscan_data[offset].load_flag = 0;
+	}
+}
+
+static void _overscan_proc(struct vframe_s *vf,
+	struct vframe_s *toggle_vf, int flags,
+	enum vpp_vd_path_e vd_path)
+{
+	if (vd_path != EN_VD1_PATH)
+		return;
+
+	if (flags & 0x2) {
+		if (toggle_vf)
+			_overscan_fresh(toggle_vf);
+		else if (vf)
+			_overscan_fresh(vf);
+	} else {
+		if (!toggle_vf && !vf) {
+			_overscan_reset();
+		} else {
+			if (vf)
+				_overscan_fresh(vf);
+			else
+				_overscan_reset();
+		}
+	}
+}
+
+static void _overscan_dump_data(void)
+{
+	int i = 0;
+
+	pr_info("\n*****dump overscan_data after parsing*****\n");
+	pr_info("i, hs, he, vs, ve, screen_mode, afd, flag\n");
+	for (i = 0; i < EN_TIMING_MAX; i++)
+		pr_info("%d, %d, %d, %d, %d, %d, %d, %d\n",
+			i, overscan_data[i].hs, overscan_data[i].he,
+			overscan_data[i].vs, overscan_data[i].ve,
+			overscan_data[i].screen_mode,
+			overscan_data[i].afd_enable,
+			overscan_data[i].load_flag);
+}
+
 /*External functions*/
 int vpp_vf_init(struct vpp_dev_s *pdev)
 {
@@ -1397,6 +1587,63 @@ void vpp_vf_set_pc_mode(int val)
 	}
 }
 
+void vpp_vf_set_overscan_mode(int val)
+{
+	/*0: disable, 1: enable*/
+	overscan_status = val;
+}
+
+void vpp_vf_set_overscan_reset(int val)
+{
+	overscan_reset = val;
+}
+
+void vpp_vf_set_overscan_table(unsigned int length,
+	struct vpp_overscan_table_s *load_table)
+{
+	unsigned int i;
+	unsigned int offset = EN_TIMING_UHD + 1;
+
+	if (!load_table)
+		return;
+
+	memset(overscan_data, 0, sizeof(overscan_data));
+
+	for (i = 0; i < length; i++) {
+		overscan_data[i].load_flag =
+			(load_table[i].src_timing >> 31) & 0x1;
+		overscan_data[i].afd_enable =
+			(load_table[i].src_timing >> 30) & 0x1;
+		overscan_data[i].screen_mode =
+			(load_table[i].src_timing >> 24) & 0x3f;
+		overscan_data[i].source =
+			(load_table[i].src_timing >> 16) & 0xff;
+		overscan_data[i].timing =
+			load_table[i].src_timing & 0xffff;
+		overscan_data[i].hs =
+			load_table[i].value1 & 0xffff;
+		overscan_data[i].he =
+			(load_table[i].value1 >> 16) & 0xffff;
+		overscan_data[i].vs =
+			load_table[i].value2 & 0xffff;
+		overscan_data[i].ve =
+			(load_table[i].value2 >> 16) & 0xffff;
+	}
+
+	/*overscan reset for dtv auto afd set.*/
+	/*if auto set load_flag = 0 by user, overscan set by dtv afd*/
+	if (!overscan_data[0].load_flag &&
+		!overscan_data[offset].load_flag)
+		overscan_update_flag = 1;
+
+	/*because EN_INPUT_TV is 0, need to add flag to check ATV*/
+	if (overscan_data[offset].load_flag == 1 &&
+		overscan_data[offset].source == EN_INPUT_TV)
+		overscan_atv_source = 1;
+	else
+		overscan_atv_source = 0;
+}
+
 void vpp_vf_get_signal_info(enum vpp_vd_path_e vd_path,
 	struct vpp_vf_signal_info_s *pinfo)
 {
@@ -1448,6 +1695,17 @@ enum vpp_csc_type_e vpp_vf_get_csc_type(enum vpp_vd_path_e vd_path)
 int vpp_vf_get_vinfo_lcd_support(void)
 {
 	return _get_vinfo_lcd_support();
+}
+
+void vpp_vf_dump_data(enum vpp_dump_data_type_e type)
+{
+	switch (type) {
+	case EN_DUMP_DATA_OVERSCAN:
+		_overscan_dump_data();
+		break;
+	default:
+		break;
+	}
 }
 
 void vpp_vf_refresh(struct vframe_s *pvf, struct vframe_s *prpt_vf)
@@ -1511,7 +1769,7 @@ void vpp_vf_refresh(struct vframe_s *pvf, struct vframe_s *prpt_vf)
 		phist_data = &ptmp->prop.hist.gamma[0];
 	}
 
-	/*vpp_module_dnlp_update_data(hist_luma_sum, phist_data);*/
+	/*vpp_module_dnlp_on_vs(hist_luma_sum, phist_data);*/
 	vpp_module_dnlp_get_sat_compensation(&do_sat_comp, &sat_comp_val);
 
 	/*if (do_sat_comp) !!!maybe conflict with pq table tuning params*/
@@ -1580,5 +1838,6 @@ void vpp_vf_proc(struct vframe_s *pvf,
 	_prepare_customer_mtrx(0, NULL, NULL, NULL, NULL, false);
 	_cp_hdr_info(NULL, NULL);
 	_vpp_matrix_update_proc(NULL, NULL, 0, EN_VD1_PATH, EN_VF_TOP0);
+	_overscan_proc(pvf, ptoggle_vf, flags, vd_path);
 }
 

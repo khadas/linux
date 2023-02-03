@@ -26,6 +26,11 @@ enum vpp_pw_state_e {
 	EN_PW_MAX,
 };
 
+enum vpp_dump_data_type_e {
+	EN_DUMP_DATA_OVERSCAN = 0,
+	EN_DUMP_DATA_MAX,
+};
+
 struct vpp_vf_signal_info_s {
 	unsigned int format;
 	unsigned int range;
@@ -43,6 +48,11 @@ struct vpp_vf_param_s {
 };
 
 void vpp_vf_set_pc_mode(int val);
+void vpp_vf_set_overscan_mode(int val);
+void vpp_vf_set_overscan_reset(int val);
+void vpp_vf_set_overscan_table(unsigned int length,
+	struct vpp_overscan_table_s *load_table);
+
 void vpp_vf_get_signal_info(enum vpp_vd_path_e vd_path,
 	struct vpp_vf_signal_info_s *pinfo);
 unsigned int vpp_vf_get_signal_type(enum vpp_vd_path_e vd_path);
@@ -52,6 +62,7 @@ enum vpp_color_primary_e vpp_vf_get_color_primary(void);
 struct vpp_hdr_metadata_s *vpp_vf_get_hdr_metadata(void);
 enum vpp_csc_type_e vpp_vf_get_csc_type(enum vpp_vd_path_e vd_path);
 int vpp_vf_get_vinfo_lcd_support(void);
+void vpp_vf_dump_data(enum vpp_dump_data_type_e type);
 
 void vpp_vf_refresh(struct vframe_s *pvf, struct vframe_s *prpt_vf);
 void vpp_vf_proc(struct vframe_s *pvf,

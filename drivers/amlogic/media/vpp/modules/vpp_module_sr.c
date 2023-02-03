@@ -544,7 +544,9 @@ int vpp_module_sr_init(struct vpp_dev_s *pdev)
 
 	chip_id = pdev->pm_data->chip_id;
 
-	if (chip_id == CHIP_T3) {
+	if (chip_id == CHIP_T3 ||
+		chip_id == CHIP_T5W ||
+		chip_id == CHIP_T5M) {
 		fm_support = true;
 		_sr_fmeter_init(EN_MODE_SR_0);
 		_sr_fmeter_init(EN_MODE_SR_1);

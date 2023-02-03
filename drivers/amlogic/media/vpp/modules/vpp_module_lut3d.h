@@ -11,7 +11,7 @@
 
 int vpp_module_lut3d_init(struct vpp_dev_s *pdev);
 void vpp_module_lut3d_en(bool enable);
-void vpp_module_lut3d_set_data(int *pdata);
+void vpp_module_lut3d_set_data(int *pdata, int by_vsync);
 
 void vpp_module_lut3d_dump_info(enum vpp_dump_module_info_e info_type);
 

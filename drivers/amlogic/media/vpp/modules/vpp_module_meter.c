@@ -32,6 +32,8 @@ struct _hist_reg_cfg_s {
 	unsigned char reg_hist_pic_size;
 	unsigned char reg_hist_blk_wht_val;
 	unsigned char reg_hist_gclk_ctrl;
+	unsigned char reg_hist_ro_low_idx;
+	unsigned char reg_hist_ro_low;
 };
 
 struct _vpp_bit_cfg_s {
@@ -79,6 +81,7 @@ static unsigned int pre_hist_height;
 static unsigned int pre_hist_width;
 static unsigned int hue_hist_bin0_addr;
 static unsigned int sat_hist_bin0_addr;
+static bool support_dark_hist;
 
 /*Internal functions*/
 static void _get_vpp_in_size(unsigned int *pheight, unsigned int *pwidth)
@@ -152,6 +155,13 @@ static void _dump_meter_reg_info(void)
 	PR_DRV("reg_hist_gclk_ctrl = %x\n",
 		hist_reg_cfg.reg_hist_gclk_ctrl);
 
+	if (support_dark_hist) {
+		PR_DRV("reg_hist_ro_low_idx = %x\n",
+			hist_reg_cfg.reg_hist_ro_low_idx);
+		PR_DRV("reg_hist_ro_low = %x\n",
+			hist_reg_cfg.reg_hist_ro_low);
+	}
+
 	PR_DRV("vpp_reg_cfg info:\n");
 	PR_DRV("page = %x\n", vpp_reg_cfg.page);
 	PR_DRV("reg_vpp_in_size = %x\n",
@@ -168,6 +178,7 @@ static void _dump_meter_data_info(void)
 	PR_DRV("pre_hist_width = %x\n", pre_hist_width);
 	PR_DRV("hue_hist_bin0_addr = %d\n", hue_hist_bin0_addr);
 	PR_DRV("sat_hist_bin0_addr = %d\n", sat_hist_bin0_addr);
+	PR_DRV("support_dark_hist = %d\n", support_dark_hist);
 }
 
 /*External functions*/
@@ -199,6 +210,14 @@ int vpp_module_meter_init(struct vpp_dev_s *pdev)
 
 	hue_hist_bin0_addr = 0x226;
 	sat_hist_bin0_addr = 0x246;
+
+	if (chip_id == CHIP_T5M)
+		support_dark_hist = true;
+	else
+		support_dark_hist = false;
+
+	hist_reg_cfg.reg_hist_ro_low_idx = 0x2b;
+	hist_reg_cfg.reg_hist_ro_low     = 0x2c;
 
 	return 0;
 }
@@ -291,11 +310,28 @@ void vpp_module_meter_fetch_hist_report(void)
 		addr = ADDR_PARAM(vpp_reg_cfg.page, vpp_reg_cfg.reg_vpp_chroma_data);
 		vpp_hist_report.sat_gamma[i] = READ_VPP_REG_BY_MODE(io_mode, addr);
 	}
+
+	if (support_dark_hist) {
+		addr = ADDR_PARAM(hist_reg_cfg.page,
+			hist_reg_cfg.reg_hist_ro_low_idx);
+		WRITE_VPP_REG_BY_MODE(io_mode, addr, 1 << 6);
+
+		addr = ADDR_PARAM(hist_reg_cfg.page,
+			hist_reg_cfg.reg_hist_ro_low);
+		for (i = 0; i < HIST_GM_BIN_CNT; i++)
+			vpp_hist_report.dark_gamma[i] =
+				READ_VPP_REG_BY_MODE(io_mode, addr);
+	}
 }
 
 struct vpp_hist_report_s *vpp_module_meter_get_hist_report(void)
 {
 	return &vpp_hist_report;
+}
+
+bool vpp_module_meter_get_dark_hist_support(void)
+{
+	return support_dark_hist;
 }
 
 void vpp_module_meter_dump_info(enum vpp_dump_module_info_e info_type)

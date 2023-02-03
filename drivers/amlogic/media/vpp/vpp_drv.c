@@ -110,6 +110,9 @@ const struct class_attribute vpp_class_attr[] = {
 	__ATTR(vpp_color_curve, 0644,
 		vpp_debug_color_curve_show,
 		vpp_debug_color_curve_store),
+	__ATTR(vpp_overscan, 0644,
+		vpp_debug_overscan_show,
+		vpp_debug_overscan_store),
 	__ATTR_NULL,
 };
 
@@ -160,8 +163,8 @@ static long vpp_ioctl(struct file *filp,
 	unsigned int data_len;
 	struct vpp_pq_state_s pq_state;
 	struct vpp_white_balance_s wb_data;
-	struct vpp_pre_gamma_table_s *ppre_gamma_data = NULL;
-	struct vpp_gamma_table_s *pgamma_data = NULL;
+	struct vpp_gamma_table_s gamma_data;
+	struct vpp_gamma_table_s gamma_data_tmp;
 	struct vpp_mtrx_info_s *pmtrx_data  = NULL;
 	struct vpp_module_ctrl_s module_status;
 	struct vpp_dnlp_curve_param_s *pdnlp_data = NULL;
@@ -174,9 +177,11 @@ static long vpp_ioctl(struct file *filp,
 	struct vpp_aipq_table_s aipq_load_table;
 	struct vpp_hdr_metadata_s hdr_metadata;
 	struct vpp_histgm_ave_s hist_ave;
+	struct vpp_table_s overscan_table;
 	struct vpp_histgm_param_s *phist_data = NULL;
 	struct vpp_hdr_histgm_param_s *phist_data_hdr = NULL;
 	struct vpp_color_primary_s *pcolor_pri_data = NULL;
+	struct vpp_overscan_table_s *overscan_data_ptr = NULL;
 
 	memset(&pq_state, 0, sizeof(struct vpp_pq_state_s));
 	memset(&wb_data, 0, sizeof(struct vpp_white_balance_s));
@@ -286,37 +291,79 @@ static long vpp_ioctl(struct file *filp,
 		}
 		break;
 	case VPP_IOC_SET_PRE_GAMMA_DATA:
-		buffer_size = sizeof(struct vpp_pre_gamma_table_s);
-		ppre_gamma_data = kmalloc(buffer_size, GFP_KERNEL);
-		if (!ppre_gamma_data) {
-			pr_vpp(PR_IOC, "VPP_IOC_SET_PRE_GAMMA_DATA malloc failed\n");
-			ret = -ENOMEM;
-		} else {
-			if (copy_from_user(ppre_gamma_data, argp, buffer_size)) {
+		data_len = vpp_pq_mgr_get_pre_gamma_table_len();
+		if (data_len != 0) {
+			buffer_size = sizeof(struct vpp_gamma_table_s);
+			if (copy_from_user(&gamma_data_tmp, argp, buffer_size)) {
 				pr_vpp(PR_IOC, "VPP_IOC_SET_PRE_GAMMA_DATA failed\n");
 				ret = -EFAULT;
 			} else {
-				pr_vpp(PR_IOC, "VPP_IOC_SET_PRE_GAMMA_DATA success\n");
-				ret = vpp_pq_mgr_set_pre_gamma_table(ppre_gamma_data);
+				buffer_size = data_len * sizeof(unsigned int);
+				gamma_data.r_data = kmalloc(buffer_size, GFP_KERNEL);
+				if (copy_from_user(gamma_data.r_data, argp, buffer_size)) {
+					pr_vpp(PR_IOC, "VPP_IOC_SET_PRE_GAMMA_DATA r failed\n");
+					ret = -EFAULT;
+				}
+
+				gamma_data.g_data = kmalloc(buffer_size, GFP_KERNEL);
+				if (copy_from_user(gamma_data.g_data, argp, buffer_size)) {
+					pr_vpp(PR_IOC, "VPP_IOC_SET_PRE_GAMMA_DATA g failed\n");
+					ret = -EFAULT;
+				}
+
+				gamma_data.b_data = kmalloc(buffer_size, GFP_KERNEL);
+				if (copy_from_user(gamma_data.b_data, argp, buffer_size)) {
+					pr_vpp(PR_IOC, "VPP_IOC_SET_PRE_GAMMA_DATA b failed\n");
+					ret = -EFAULT;
+				}
+
+				if (ret != -EFAULT) {
+					pr_vpp(PR_IOC, "VPP_IOC_SET_PRE_GAMMA_DATA success\n");
+					ret = vpp_pq_mgr_set_pre_gamma_table(&gamma_data);
+				}
+
+				kfree(gamma_data.r_data);
+				kfree(gamma_data.g_data);
+				kfree(gamma_data.b_data);
 			}
-			kfree(ppre_gamma_data);
 		}
 		break;
 	case VPP_IOC_SET_GAMMA_DATA:
-		buffer_size = sizeof(struct vpp_gamma_table_s);
-		pgamma_data = kmalloc(buffer_size, GFP_KERNEL);
-		if (!pgamma_data) {
-			pr_vpp(PR_IOC, "VPP_IOC_SET_GAMMA_DATA malloc failed\n");
-			ret = -ENOMEM;
-		} else {
-			if (copy_from_user(pgamma_data, argp, buffer_size)) {
+		data_len = vpp_pq_mgr_get_gamma_table_len();
+		if (data_len != 0) {
+			buffer_size = sizeof(struct vpp_gamma_table_s);
+			if (copy_from_user(&gamma_data_tmp, argp, buffer_size)) {
 				pr_vpp(PR_IOC, "VPP_IOC_SET_GAMMA_DATA failed\n");
 				ret = -EFAULT;
 			} else {
-				pr_vpp(PR_IOC, "VPP_IOC_SET_GAMMA_DATA success\n");
-				ret = vpp_pq_mgr_set_gamma_table(pgamma_data);
+				buffer_size = data_len * sizeof(unsigned int);
+				gamma_data.r_data = kmalloc(buffer_size, GFP_KERNEL);
+				if (copy_from_user(gamma_data.r_data, argp, buffer_size)) {
+					pr_vpp(PR_IOC, "VPP_IOC_SET_GAMMA_DATA r failed\n");
+					ret = -EFAULT;
+				}
+
+				gamma_data.g_data = kmalloc(buffer_size, GFP_KERNEL);
+				if (copy_from_user(gamma_data.g_data, argp, buffer_size)) {
+					pr_vpp(PR_IOC, "VPP_IOC_SET_GAMMA_DATA g failed\n");
+					ret = -EFAULT;
+				}
+
+				gamma_data.b_data = kmalloc(buffer_size, GFP_KERNEL);
+				if (copy_from_user(gamma_data.b_data, argp, buffer_size)) {
+					pr_vpp(PR_IOC, "VPP_IOC_SET_GAMMA_DATA b failed\n");
+					ret = -EFAULT;
+				}
+
+				if (ret != -EFAULT) {
+					pr_vpp(PR_IOC, "VPP_IOC_SET_GAMMA_DATA success\n");
+					ret = vpp_pq_mgr_set_gamma_table(&gamma_data);
+				}
+
+				kfree(gamma_data.r_data);
+				kfree(gamma_data.g_data);
+				kfree(gamma_data.b_data);
 			}
-			kfree(pgamma_data);
 		}
 		break;
 	case VPP_IOC_SET_MATRIX_PARAM:
@@ -708,6 +755,42 @@ static long vpp_ioctl(struct file *filp,
 			aipq_load_table.height, aipq_load_table.width);
 		kfree(ptmp_data_char);
 		break;
+	case VPP_IOC_SET_OVERSCAN_TABLE:
+		if (copy_from_user(&overscan_table, argp,
+			sizeof(struct vpp_table_s))) {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_OVERSCAN_TABLE failed\n");
+			ret = -EFAULT;
+			break;
+		}
+
+		if (overscan_table.length > EN_TIMING_MAX ||
+			overscan_table.length <= 0) {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_OVERSCAN_TABLE length check failed\n");
+			ret = -EFAULT;
+			break;
+		}
+
+		buffer_size = overscan_table.length *
+			sizeof(struct vpp_overscan_table_s);
+		overscan_data_ptr = kmalloc(buffer_size, GFP_KERNEL);
+		if (!overscan_data_ptr) {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_OVERSCAN_TABLE kmalloc failed\n");
+			ret = -EFAULT;
+			break;
+		}
+
+		argp = (void __user *)overscan_table.param_ptr;
+		if (copy_from_user(overscan_data_ptr, argp, buffer_size)) {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_OVERSCAN_TABLE copy from user fail!!!\n");
+			kfree(overscan_data_ptr);
+			ret = -EFAULT;
+			break;
+		}
+
+		ret = vpp_pq_mgr_set_overscan_table(overscan_table.length,
+			overscan_data_ptr);
+		kfree(overscan_data_ptr);
+		break;
 	case VPP_IOC_GET_PC_MODE:
 		val = vpp_pq_mgr_get_pc_mode();
 		if (copy_to_user(argp, &val,
@@ -810,6 +893,24 @@ static long vpp_ioctl(struct file *filp,
 				pr_vpp(PR_IOC, "VPP_IOC_GET_HDR_HIST success\n");
 			}
 			kfree(phist_data_hdr);
+		}
+		break;
+	case VPP_IOC_GET_PRE_GAMMA_LEN:
+		val = vpp_pq_mgr_get_pre_gamma_table_len();
+		if (copy_to_user(argp, &val, sizeof(int))) {
+			pr_vpp(PR_IOC, "VPP_IOC_GET_PRE_GAMMA_LEN failed\n");
+			ret = -EFAULT;
+		} else {
+			pr_vpp(PR_IOC, "VPP_IOC_GET_PRE_GAMMA_LEN success\n");
+		}
+		break;
+	case VPP_IOC_GET_GAMMA_LEN:
+		val = vpp_pq_mgr_get_gamma_table_len();
+		if (copy_to_user(argp, &val, sizeof(int))) {
+			pr_vpp(PR_IOC, "VPP_IOC_GET_GAMMA_LEN failed\n");
+			ret = -EFAULT;
+		} else {
+			pr_vpp(PR_IOC, "VPP_IOC_GET_GAMMA_LEN success\n");
 		}
 		break;
 	default:
