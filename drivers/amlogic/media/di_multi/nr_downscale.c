@@ -872,7 +872,7 @@ void dim_tb_t_release(struct di_ch_s *pch)
 		get_datal()->tb_src_cnt);
 }
 
-void dim_tb_alloc(struct di_ch_s *pch)
+void dim_tb_alloc(struct vframe_tb_s *vf, struct di_ch_s *pch)
 {
 	unsigned char tb_cnt, tb_nub;
 	struct di_dev_s *di_devp = get_dim_de_devp();
@@ -884,6 +884,14 @@ void dim_tb_alloc(struct di_ch_s *pch)
 
 	pch->en_tb	= false;
 	pch->en_tb_buf	= false;
+
+	if (vf->source_type !=
+		VFRAME_SOURCE_TYPE_OTHERS)
+		return;
+	if ((vf->width * vf->height) > (1920 * 1088))
+		return;
+	if (!(vf->type & VIDTYPE_TYPEMASK))
+		return;
 
 	tb_nub = cfgg(TB);
 	if (!tb_nub)
@@ -1142,7 +1150,7 @@ void dim_tb_ext_cmd(struct vframe_s *vf, int data1, unsigned int ch,
 
 	dbg_tb("%s :S\n", __func__);
 	if (cmd == ECMD_TB_REG)
-		dim_tb_alloc(get_chdata(ch));
+		dim_tb_alloc(cfg, get_chdata(ch));
 	tb_blk_cmd.cmd = cmd;
 	tb_blk_cmd.field_count = data1;
 	tb_blk_cmd.ch = ch;
