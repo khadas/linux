@@ -348,9 +348,46 @@ late_initcall(sched_init_debug);
 static cpumask_var_t		sd_sysctl_cpus;
 static struct dentry		*sd_dentry;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_MISC)
 static int sd_flags_show(struct seq_file *m, void *v)
 {
-	unsigned long flags = *(unsigned int *)m->private;
+	unsigned int *flags = (unsigned int *)m->private;
+	int i;
+
+	seq_printf(m, "0x%x\n", *flags);
+	for (i = 0; i <	__SD_FLAG_CNT; i++) {
+		seq_printf(m, "%-30s", sd_flag_debug[i].name);
+		if (test_bit(i, (unsigned long *)flags))
+			seq_puts(m, " ON\n");
+		else
+			seq_puts(m, " OFF\n");
+	}
+
+	return 0;
+}
+
+static ssize_t sd_flags_write(struct file *file, const char __user *user_buf,
+			  size_t size, loff_t *ppos)
+{
+	char buf[32];
+	size_t buf_size = min(size, sizeof(buf) - 1);
+	unsigned int *flags = ((struct seq_file *)file->private_data)->private;
+
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+
+	if (kstrtouint(buf, 16, flags)) {
+		pr_err("bad flags:%s\n", buf);
+		return -EINVAL;
+	}
+
+	return size;
+}
+
+#else
+static int sd_flags_show(struct seq_file *m, void *v)
+{
+	unsigned int flags = *(unsigned int *)m->private;
 	int idx;
 
 	for_each_set_bit(idx, &flags, __SD_FLAG_CNT) {
@@ -361,6 +398,7 @@ static int sd_flags_show(struct seq_file *m, void *v)
 
 	return 0;
 }
+#endif
 
 static int sd_flags_open(struct inode *inode, struct file *file)
 {
@@ -372,6 +410,9 @@ static const struct file_operations sd_flags_fops = {
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_MISC)
+	.write          = sd_flags_write,
+#endif
 };
 
 static void register_sd(struct sched_domain *sd, struct dentry *parent)
@@ -389,7 +430,11 @@ static void register_sd(struct sched_domain *sd, struct dentry *parent)
 
 #undef SDM
 
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_MISC)
+	debugfs_create_file("flags", 0644, parent, &sd->flags, &sd_flags_fops);
+#else
 	debugfs_create_file("flags", 0444, parent, &sd->flags, &sd_flags_fops);
+#endif
 }
 
 void update_sched_domain_debugfs(void)

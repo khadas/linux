@@ -1406,6 +1406,12 @@ static void set_domain_attribute(struct sched_domain *sd,
 		/* Turn off idle balance on this domain: */
 		sd->flags &= ~(SD_BALANCE_WAKE|SD_BALANCE_NEWIDLE);
 	}
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_MISC)
+	else {
+		/* Turn on idle balance on this domain: */
+		sd->flags |= (SD_BALANCE_WAKE | SD_BALANCE_NEWIDLE);
+	}
+#endif
 }
 
 static void __sdt_free(const struct cpumask *cpu_map);
