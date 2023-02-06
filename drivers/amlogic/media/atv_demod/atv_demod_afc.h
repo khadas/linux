@@ -57,5 +57,6 @@ struct atv_demod_afc {
 
 extern void atv_demod_afc_init(struct atv_demod_afc *afc);
 
+extern bool afc_timer_en;
 
 #endif /* __ATV_DEMOD_AFC_H__ */

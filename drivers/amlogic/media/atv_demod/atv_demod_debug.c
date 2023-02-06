@@ -69,6 +69,7 @@
 	DEBUGFS_CREATE_NODE(freq_hz_cvrt, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(atvdemod_debug_en, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(atvdemod_agc_pinmux, 0640, dentry, u32)\
+	DEBUGFS_CREATE_NODE(atvdemod_agc_new, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(atvdemod_afc_range, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(atvdemod_afc_offset, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(atvdemod_timer_en, 0640, dentry, bool)\

@@ -145,11 +145,7 @@ static int v4l2_frontend_is_exiting(struct v4l2_frontend *v4l2_fe)
 
 	if (fepriv->exit != V4L2_FE_NO_EXIT)
 		return 1;
-#if 0
-	if (time_after_eq(jiffies, fepriv->release_jiffies +
-			v4l2_shutdown_timeout * HZ))
-		return 1;
-#endif
+
 	return 0;
 }
 
@@ -606,21 +602,18 @@ static int v4l2_property_process_set(struct v4l2_frontend *v4l2_fe,
 #endif
 	struct v4l2_analog_parameters *params = &v4l2_fe->params;
 
+	/* Allow the frontend to override outgoing properties */
+	if (v4l2_fe->ops.set_property) {
+		r = v4l2_fe->ops.set_property(v4l2_fe, tvp);
+		if (r < 0)
+			return r;
+	}
+
 	v4l2_property_dump(v4l2_fe, true, tvp);
 
 	switch (tvp->cmd) {
 	case V4L2_TUNE:
-		v4l2_set_frontend(v4l2_fe, params);
-		break;
-	case V4L2_SOUND_SYS:
-	case V4L2_SLOW_SEARCH_MODE:
-	case V4L2_SIF_OVER_MODULATION:
-		/* Allow the frontend to override outgoing properties */
-		if (v4l2_fe->ops.set_property) {
-			r = v4l2_fe->ops.set_property(v4l2_fe, tvp);
-			if (r < 0)
-				return r;
-		}
+		r = v4l2_set_frontend(v4l2_fe, params);
 		break;
 	case V4L2_FREQUENCY:
 		params->frequency = tvp->data;
@@ -653,7 +646,13 @@ static int v4l2_property_process_set(struct v4l2_frontend *v4l2_fe,
 		}
 #endif
 		break;
+	case V4L2_SOUND_SYS:
+	case V4L2_SLOW_SEARCH_MODE:
+	case V4L2_SIF_OVER_MODULATION:
 	case V4L2_TUNER_IF_FREQ:
+	case V4L2_AFC:
+	case V4L2_ENABLE_AFC:
+	case V4L2_AFC_STATE:
 		break;
 	default:
 		return -EINVAL;
@@ -669,15 +668,6 @@ static int v4l2_property_process_get(struct v4l2_frontend *v4l2_fe,
 	struct v4l2_analog_parameters *params = &v4l2_fe->params;
 
 	switch (tvp->cmd) {
-	case V4L2_SOUND_SYS:
-	case V4L2_SLOW_SEARCH_MODE:
-		/* Allow the frontend to override outgoing properties */
-		if (v4l2_fe->ops.get_property) {
-			r = v4l2_fe->ops.get_property(v4l2_fe, tvp);
-			if (r < 0)
-				return r;
-		}
-		break;
 	case V4L2_FREQUENCY:
 		tvp->data = params->frequency;
 		break;
@@ -701,15 +691,28 @@ static int v4l2_property_process_get(struct v4l2_frontend *v4l2_fe,
 		tvp->data = afc;
 	}
 		break;
+	case V4L2_SOUND_SYS:
+	case V4L2_SLOW_SEARCH_MODE:
+	case V4L2_SIF_OVER_MODULATION:
+	case V4L2_ENABLE_AFC:
+	case V4L2_AFC_STATE:
+		break;
 	default:
 		pr_dbg("%s: V4L2 property %d doesn't exist\n",
 				__func__, tvp->cmd);
 		return -EINVAL;
 	}
 
+	/* Allow the frontend to validate incoming properties */
+	if (v4l2_fe->ops.get_property) {
+		r = v4l2_fe->ops.get_property(v4l2_fe, tvp);
+		if (r < 0)
+			return r;
+	}
+
 	v4l2_property_dump(v4l2_fe, false, tvp);
 
-	return 0;
+	return r;
 }
 
 static long v4l2_frontend_ioctl_properties(struct file *filp,
@@ -1202,10 +1205,10 @@ int v4l2_frontend_resume(struct v4l2_frontend *v4l2_fe)
 	fepriv->exit = V4L2_FE_DEVICE_RESUME;
 	if (analog_ops.set_config)
 		analog_ops.set_config(fe, &priv_cfg);
-#if 0 /* dvb_extern will done */
-	if (tuner_ops.resume)
-		tuner_ops.resume(fe);
-#endif
+//#if 0 /* dvb_extern will done */
+//	if (tuner_ops.resume)
+//		tuner_ops.resume(fe);
+//#endif
 	fepriv->exit = V4L2_FE_NO_EXIT;
 	fepriv->state = V4L2FE_STATE_RETUNE;
 	v4l2_frontend_wakeup(v4l2_fe);

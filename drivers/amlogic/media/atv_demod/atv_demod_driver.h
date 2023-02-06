@@ -44,7 +44,6 @@ struct aml_atvdemod_device {
 	void __iomem *periphs_reg_base;
 	void __iomem *audio_reg_base;
 
-	unsigned int reg_23cf; /* IIR filter */
 	int btsc_sap_mode; /*0: off 1:monitor 2:auto */
 
 #define ATVDEMOD_STATE_IDEL  0

@@ -23,6 +23,7 @@ extern bool aud_reinit;
 extern bool aud_mono_only;
 extern bool atv_audio_overmodulated_en;
 extern unsigned int non_std_en;
+extern unsigned int atvdemod_agc_new;
 
 enum broadcast_standard_e {
 	ATVDEMOD_STD_NTSC = 0,

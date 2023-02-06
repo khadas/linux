@@ -90,6 +90,8 @@
 #define V4L2_TUNER_TYPE          8
 #define V4L2_TUNER_IF_FREQ       9
 #define V4L2_AFC                 10
+#define V4L2_ENABLE_AFC          11
+#define V4L2_AFC_STATE           12
 
 #define V4L2_MAX_COMMAND         V4L2_AFC
 

@@ -426,7 +426,7 @@ static void set_deem_and_gain(int standard)
 		break;
 	case AUDIO_STANDARD_NICAM_BG:
 		deem = AUDIO_DEEM_J17_2;
-		lpr_gain = 0x200;
+		lpr_gain = 0x177;
 		demod_gain = 0x233;
 		break;
 	case AUDIO_STANDARD_NICAM_L:

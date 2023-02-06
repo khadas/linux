@@ -62,7 +62,10 @@
 /* 2021/12/29 --- V2.33 --- Fix unable to find symbol aml_atvdemod_attach. */
 /* 2022/06/16 --- V2.34 --- Fix audio setting and resume. */
 /* 2022/08/27 --- V2.35 --- Fix ripples. */
-#define AMLATVDEMOD_VER "V2.35"
+/* 2023/07/04 --- V2.36 --- add afc enable and state IO control. */
+/*                          add new agc pwm config. */
+/*                          fix nicam bg output again. */
+#define AMLATVDEMOD_VER "V2.36"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
@@ -542,11 +545,14 @@ static void aml_atvdemod_dt_parse(struct aml_atvdemod_device *pdev)
 		return;
 	}
 
-	ret = of_property_read_u32(node, "reg_23cf", &val);
-	if (ret)
-		pr_err("can't find reg_23cf.\n");
-	else
-		pdev->reg_23cf = val;
+	/* use DTV agc pin and rc */
+	ret = of_property_read_u32(node, "common_agc", &val);
+	if (ret) {
+		atvdemod_agc_new = 0;
+		pr_err("can't find common_agc.\n");
+	} else {
+		atvdemod_agc_new = val;
+	}
 
 	ret = of_property_read_u32(node, "audio_gain_val", &val);
 	if (ret)

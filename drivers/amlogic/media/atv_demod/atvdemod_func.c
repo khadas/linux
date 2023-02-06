@@ -3,7 +3,7 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-/* Standard Liniux Headers */
+/* Standard Linux Headers */
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
@@ -76,6 +76,7 @@ unsigned int atvdemod_debug_en;
 
 /*1:gpio mode output low;2:pwm mode*/
 unsigned int atvdemod_agc_pinmux = 2;
+unsigned int atvdemod_agc_new;
 unsigned int atvdemod_afc_range = 5;
 unsigned int atvdemod_afc_offset = 500;
 
@@ -190,10 +191,11 @@ void atv_dmd_misc(void)
 		return;
 	}
 
-	atv_dmd_wr_byte(APB_BLOCK_ADDR_AGC_PWM, 0x08, 0x38);	/*zhuangwei*/
+	if (!atvdemod_agc_new)
+		atv_dmd_wr_byte(APB_BLOCK_ADDR_AGC_PWM, 0x08, 0x38); /*zhuangwei*/
 	/*cpu.write_byte(8'h1A,8'h0E,8'h06);//zhuangwei*/
 	/*cpu.write_byte(8'h19,8'h01,8'h7f);//zhuangwei*/
-	atv_dmd_wr_byte(APB_BLOCK_ADDR_VDAGC, 0x45, 0x90);	/*zhuangwei*/
+	atv_dmd_wr_byte(APB_BLOCK_ADDR_VDAGC, 0x45, 0x90); /*zhuangwei*/
 
 	atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x44, 0x5c8808c1);/*zhuangwei*/
 	if (tuner_id == AM_TUNER_R840 || tuner_id == AM_TUNER_R842) {
@@ -204,30 +206,35 @@ void atv_dmd_misc(void)
 			atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x3c, reg_23cf);
 		/*guanzhong@20150804a*/
 		atv_dmd_wr_byte(APB_BLOCK_ADDR_SIF_STG_2, 0x00, 0x1);
-		if (is_meson_txhd_cpu()) {
-			atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM,
-					0x10, 0x00011020);
-			atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM,
-					0x08, 0x3d170200);
-			atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM,
-					0x14, 0x01010855);
-			atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM,
-					0x1C, 0x03010855);
-		} else {
-			/* bit[0] = 0 for auto agc */
-			/* bit[0] = 1 for foce agc */
-			atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM,
-					0x08, 0x601b0200);
+		if (!atvdemod_agc_new) {
+			if (is_meson_txhd_cpu()) {
+				atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM,
+						0x10, 0x00011020);
+				atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM,
+						0x08, 0x3d170200);
+				atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM,
+						0x14, 0x01010855);
+				atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM,
+						0x1C, 0x03010855);
+			} else {
+				/* bit[0] = 0 for auto agc */
+				/* bit[0] = 1 for force agc */
+				atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM,
+						0x08, 0x601b0200);
+			}
 		}
 		/*dezhi@20150610a 0x1a maybe better?!*/
 		/* atv_dmd_wr_byte(APB_BLOCK_ADDR_AGC_PWM, 0x09, 0x19); */
 	} else {
 		/*zhuangwei*/
+		/* change hsync and blank filter to fix ripples. */
 		if (broad_std == AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG)
 			atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x3c, 0x32);
 		else
 			atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x3c, 0x88188832);
-		atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x08, 0x46170200);
+
+		if (!atvdemod_agc_new)
+			atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x08, 0x46170200);
 	}
 
 	if (tuner_id == AM_TUNER_MXL661) {
@@ -239,6 +246,9 @@ void atv_dmd_misc(void)
 	} else if (tuner_id == AM_TUNER_ATBM2040) {
 		atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS, 0x04, 0xc8fa0000);
 		atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS, 0x00, 0x704000);
+	} else if (tuner_id == AM_TUNER_ATBM253) {
+		atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS, 0x04, 0xc8fa0000);
+		atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS, 0x00, 0x604000);
 	} else {
 		/*zhuangwei 0xdafa0000*/
 		atv_dmd_wr_long(APB_BLOCK_ADDR_DAC_UPS, 0x04, 0xc8fa0000);
@@ -1355,11 +1365,18 @@ void configure_receiver(int Broadcast_Standard, unsigned int Tuner_IF_Frequency,
 	/*26 dB dynamic range*/
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_AGC_PWM, 0x09, 0xa);
 	if (tuner_id == AM_TUNER_R840 || tuner_id == AM_TUNER_R842) {
-		/*config pwm for tuner r840*/
-		atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0, 0xc80); /*10KHz*/
-		/* guanzhong for Tuner AGC shock */
-		atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x08, 0x46180200);
-		/* atv_dmd_wr_byte(APB_BLOCK_ADDR_ADC_SE,1,0xf);//Kd = 0xf */
+		if (atvdemod_agc_new) {
+			atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x10, 0x11020);
+			/* target: 0x20, kp: 8. */
+			atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x08, 0x46080200);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x1c, 0x2010855);
+		} else {
+			/*config pwm for tuner r840*/
+			atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0, 0xc80); /*10KHz*/
+			/* guanzhong for Tuner AGC shock */
+			atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x08, 0x46180200);
+			/* atv_dmd_wr_byte(APB_BLOCK_ADDR_ADC_SE,1,0xf);//Kd = 0xf */
+		}
 	}
 }
 

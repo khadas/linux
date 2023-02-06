@@ -209,8 +209,6 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 	return -1;
 #endif
 
-	adc_set_filter_ctrl(true, FILTER_ATV_DEMOD, NULL);
-
 	usleep_range(2000, 2100);
 	atvdemod_clk_init();
 	/* err_code = atvdemod_init(); */
@@ -915,25 +913,11 @@ static int atvdemod_fe_afc_closer(struct v4l2_frontend *v4l2_fe, int minafcfreq,
 	__u32 set_freq = 0;
 	int count = 25;
 	int lock_cnt = 0;
-	static int freq_success;
-	static int temp_freq, temp_afc;
-	struct timespec time_now;
-	static struct timespec success_time;
+	int temp_freq, temp_afc;
 	unsigned int tuner_id = priv->atvdemod_param.tuner_id;
 
-	pr_dbg("[%s] freq_success: %d, freq: %d, minfreq: %d, maxfreq: %d\n",
-		__func__, freq_success, p->frequency, minafcfreq, maxafcfreq);
-
-	/* avoid more search the same program, except < 45.00Mhz */
-	if (abs(p->frequency - freq_success) < 3000000
-			&& p->frequency > 45000000) {
-		ktime_get_ts(&time_now);
-		pr_err("[%s] tv_sec now:%ld,tv_sec success:%ld\n",
-				__func__, time_now.tv_sec, success_time.tv_sec);
-		/* beyond 10s search same frequency is ok */
-		if ((time_now.tv_sec - success_time.tv_sec) < 10)
-			return -1;
-	}
+	pr_dbg("[%s] freq: %d, minfreq: %d, maxfreq: %d\n",
+		__func__, p->frequency, minafcfreq, maxafcfreq);
 
 	/*do the auto afc make sure the afc < 50k or the range from api */
 	if ((fe->ops.analog_ops.get_afc || fe->ops.tuner_ops.get_afc) &&
@@ -1056,8 +1040,6 @@ static int atvdemod_fe_afc_closer(struct v4l2_frontend *v4l2_fe, int minafcfreq,
 				usleep_range(10 * 1000, 10 * 1000 + 100);
 		}
 
-		freq_success = p->frequency;
-		ktime_get_ts(&success_time);
 		pr_dbg("[%s] get afc %d khz done, freq %u.\n",
 				__func__, afc, p->frequency);
 	}
@@ -1093,6 +1075,10 @@ static int atvdemod_fe_set_property(struct v4l2_frontend *v4l2_fe,
 		priv->atvdemod_sound.sif_over_modulation = tvp->data;
 		break;
 
+	case V4L2_ENABLE_AFC:
+		afc_timer_en = tvp->data;
+		break;
+
 	default:
 		pr_dbg("%s: property %d doesn't exist\n",
 				__func__, tvp->cmd);
@@ -1118,6 +1104,10 @@ static int atvdemod_fe_get_property(struct v4l2_frontend *v4l2_fe,
 		tvp->data = slow_mode;
 		break;
 
+	case V4L2_AFC_STATE:
+		tvp->data = afc_timer_en;
+		break;
+
 	default:
 		pr_dbg("%s: property %d doesn't exist\n",
 				__func__, tvp->cmd);
@@ -1133,18 +1123,49 @@ static int atvdemod_fe_tune(struct v4l2_frontend *v4l2_fe,
 	bool lock = false;
 	int priv_cfg = 0;
 	int try_cnt = 4;
+	int auto_search_std = 0;
 	enum v4l2_status state = V4L2_TIMEDOUT;
 	struct v4l2_analog_parameters *p = &v4l2_fe->params;
 	struct dvb_frontend *fe = &v4l2_fe->fe;
+	struct atv_demod_priv *priv = fe->analog_demod_priv;
+	unsigned int tuner_id = priv->atvdemod_param.tuner_id;
 
-	/* for tune */
+	/* for scan tune */
 	if (p->flag & ANALOG_FLAG_ENABLE_AFC) {
+		if (p->std == 0) {
+			if (tuner_id == AM_TUNER_ATBM2040)
+				p->std = V4L2_COLOR_STD_PAL | V4L2_STD_PAL_DK;
+			else
+				p->std = V4L2_COLOR_STD_NTSC | V4L2_STD_NTSC_M;
+			auto_search_std = AUTO_DETECT_COLOR;
+			pr_dbg("[%s] user std is 0, so set it to %s.\n",
+				__func__, v4l2_std_to_str(p->std & 0xFF000000));
+		}
+
+		if (p->audmode == 0) {
+			if (auto_search_std) {
+				p->audmode = p->std & 0x00FFFFFF;
+			} else {
+				if (p->std & V4L2_COLOR_STD_PAL)
+					p->audmode = V4L2_STD_PAL_DK;
+				else if (p->std & V4L2_COLOR_STD_NTSC)
+					p->audmode = V4L2_STD_NTSC_M;
+				else if (p->std & V4L2_COLOR_STD_SECAM)
+					p->audmode = V4L2_STD_PAL_DK;
+
+				p->std = (p->std & 0xFF000000) | p->audmode;
+			}
+			auto_search_std |= AUTO_DETECT_AUDIO;
+			pr_dbg("[%s] user audmode is 0, so set it to %s.\n",
+				__func__, v4l2_std_to_str(p->audmode));
+		}
+
 		priv_cfg = AML_ATVDEMOD_SCAN_MODE;
 		if (fe->ops.analog_ops.set_config)
 			fe->ops.analog_ops.set_config(fe, &priv_cfg);
 
 		atvdemod_fe_try_signal(v4l2_fe, 0, &lock);
-	} else { /* for play */
+	} else { /* for play tune */
 		if (fe->ops.analog_ops.has_signal)
 			fe->ops.analog_ops.has_signal(fe, (u16 *) &state);
 

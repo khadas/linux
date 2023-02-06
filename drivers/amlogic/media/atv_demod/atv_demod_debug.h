@@ -74,7 +74,6 @@ extern unsigned int atvdemod_debug_en;
 			printk("atv_demod: "fmt, ##__VA_ARGS__);\
 	} while (0)
 
-
 #if defined(CONFIG_DEBUG_FS)
 #define AML_ATVDEMOD_DEBUGFS
 #endif
