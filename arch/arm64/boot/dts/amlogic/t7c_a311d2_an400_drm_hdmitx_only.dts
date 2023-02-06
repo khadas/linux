@@ -13,7 +13,7 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "t7c_a311d2_an400-hdmitx-only";
+	amlogic-dt-id = "t7c_a311d2_an400-hdmitx-only-4g";
 	compatible = "amlogic, t7c";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
