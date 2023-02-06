@@ -811,7 +811,7 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 	if (vsc_double_line_mode == 1) {
 		coef_h = osd_scaler_filter_table[COEFS_BICUBIC];
 		coef_v = osd_scaler_filter_table[COEFS_2POINT_BILINEAR];
-	} else if (scan_mode_out && width_out <= 720) {
+	} else if (width_out <= 720) {
 		coef_h = osd_scaler_filter_table[COEFS_4POINT_TRIANGLE];
 		coef_v = osd_scaler_filter_table[COEFS_4POINT_TRIANGLE];
 	} else if (scaler_filter_mode >= DRM_SCALING_FILTER_BICUBIC_SHARP &&
