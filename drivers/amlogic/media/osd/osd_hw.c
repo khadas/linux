@@ -4264,6 +4264,10 @@ int osd_set_scan_mode(u32 index)
 	if (vinfo && vinfo->name && (strcmp(vinfo->name, "invalid") &&
 		      strcmp(vinfo->name, "null"))) {
 		osd_hw.scale_workaround = 0;
+		if (osd_auto_adjust_filter) {
+			osd_h_filter_mode = 1;
+			osd_v_filter_mode = 1;
+		}
 
 		scale_input_w = osd_hw.free_src_data[index].x_end -
 				osd_hw.free_src_data[index].x_start + 1;
