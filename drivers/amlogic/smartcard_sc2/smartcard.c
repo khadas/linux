@@ -25,6 +25,9 @@
 #include <linux/sched/clock.h>
 #include <linux/compat.h>
 #include <linux/of.h>
+#include <linux/kthread.h>
+#include <uapi/linux/sched/types.h>
+
 #ifndef MESON_CPU_TYPE
 #define MESON_CPU_TYPE 0x50
 #endif
@@ -278,6 +281,10 @@ MODULE_PARM_DESC(atr_final_tcnt, "\n\t\t atr_final_tcnt");
 static int atr_final_tcnt = ATR_FINAL_TCNT_DEFAULT;
 module_param(atr_final_tcnt, int, 0644);
 
+MODULE_PARM_DESC(send_use_task, "\n\t\t send_use_task");
+static int send_use_task;
+module_param(send_use_task, int, 0644);
+
 #define NO_HOT_RESET
 /*#define DISABLE_RECV_INT*/
 /*#define ATR_FROM_INT*/
@@ -316,6 +323,13 @@ module_param(atr_final_tcnt, int, 0644);
 enum sc_type {
 	SC_DIRECT,
 	SC_INVERSE,
+};
+
+struct send_smc_task {
+	int running;
+	int wake_up;
+	wait_queue_head_t wait_queue;
+	struct task_struct *out_task;
 };
 
 struct smc_dev {
@@ -389,6 +403,7 @@ struct smc_dev {
 	struct pinctrl *pinctrl;
 
 	struct tasklet_struct tasklet;
+	struct send_smc_task send_task;
 };
 
 #define SMC_DEV_NAME	 "smc_sc2"
@@ -2181,6 +2196,104 @@ static int smc_hw_start_send(struct smc_dev *smc)
 	return 0;
 }
 
+static int _task_send_func(void *data)
+{
+	struct smc_dev *smc = (struct smc_dev *)data;
+	unsigned int sc_status;
+	struct smc_status_reg *sc_status_reg =
+	    (struct smc_status_reg *)&sc_status;
+	u8 byte;
+	unsigned long v = 0;
+	struct smccard_hw_reg6 *reg6;
+	int ret = 0;
+	unsigned long sc_int;
+	struct smc_interrupt_reg *sc_int_reg = (void *)&sc_int;
+	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
+
+	sched_setscheduler(current, SCHED_FIFO, &param);
+
+	while (smc->send_task.running) {
+		ret = wait_event_interruptible(smc->send_task.wait_queue, smc->send_task.wake_up);
+		smc->send_task.wake_up = 0;
+		if (!smc->send_task.running)
+			return 0;
+		v = SMC_READ_REG(REG6);
+		reg6 = (struct smccard_hw_reg6 *)&v;
+
+#ifdef FIX_NO_ACK
+		/*recovery register N_parameter*/
+		if (reg6->N_parameter != smc->param.n) {
+			reg6->N_parameter = smc->param.n;
+			SMC_WRITE_REG(REG6, v);
+		}
+#endif
+		pr_dbg("s i f [%d:%d]\n", smc->send_start, smc->send_end);
+
+		while (1) {
+			sc_status = SMC_READ_REG(STATUS);
+
+			/*write done, exit write action*/
+			if (smc->send_end == smc->send_start)
+				break;
+			if (sc_status_reg->xmit_fifo_full)
+				usleep_range(50, 100);
+
+			v = SMC_READ_REG(REG6);
+			reg6 = (struct smccard_hw_reg6 *)&v;
+
+			/*Just write one byte, set N = 0*/
+			if ((smc->send_end + 1) % SEND_BUF_SIZE == smc->send_start) {
+#ifdef FIX_NO_ACK
+				if (reg6->N_parameter != 0) {
+					reg6->N_parameter = 0;
+					SMC_WRITE_REG(REG6, v);
+				}
+#endif
+				/*trigger write done interrupt*/
+				sc_int = SMC_READ_REG(INTR);
+				sc_int_reg->send_fifo_last_byte_int_mask = 1;
+				SMC_WRITE_REG(INTR, sc_int | 0x3FF);
+			}
+
+			sc_status = SMC_READ_REG(STATUS);
+			if (smc->send_end != smc->send_start &&
+				!sc_status_reg->xmit_fifo_full) {
+				byte = smc->send_buf[smc->send_end];
+				_atomic_wrap_inc(&smc->send_end, SEND_BUF_SIZE);
+#ifdef SW_INVERT
+				if (smc->sc_type == SC_INVERSE)
+					byte = inv_table[byte];
+#endif
+				SMC_WRITE_REG(FIFO, byte);
+				pr_dbg("u s > %02x\n", byte);
+			}
+		}
+	}
+	return 0;
+}
+
+static int smc_hw_start_send_use_task(struct smc_dev *smc)
+{
+	if (smc->send_task.running == 0) {
+		smc->send_task.running = 1;
+		smc->send_task.wake_up = 0;
+		init_waitqueue_head(&smc->send_task.wait_queue);
+		smc->send_task.out_task =  kthread_run(_task_send_func,
+				(void *)smc, "smc_send_task");
+		if (!smc->send_task.out_task) {
+			pr_error("create smc send task fail\n");
+			smc->send_task.running = 0;
+			return -1;
+		}
+	}
+
+	if (smc->send_task.running) {
+		smc->send_task.wake_up = 1;
+		wake_up_interruptible(&smc->send_task.wait_queue);
+	}
+	return 0;
+}
+
 #ifdef SMC_FIQ
 static irqreturn_t smc_bridge_isr(int irq, void *dev_id)
 {
@@ -2440,6 +2553,11 @@ static void smc_dev_deinit(struct smc_dev *smc)
 		free_irq(smc->irq_num, &smc);
 		smc->irq_num = -1;
 		tasklet_kill(&smc->tasklet);
+	}
+	if (smc->send_task.running)	{
+		smc->send_task.running = 0;
+		smc->send_task.wake_up = 1;
+		wake_up_interruptible(&smc->send_task.wait_queue);
 	}
 	if (smc->use_enable_pin)
 		_gpio_free(smc->enable_pin, SMC_ENABLE_PIN_NAME);
@@ -2933,12 +3051,17 @@ static ssize_t smc_write(struct file *filp,
 		sc_int_reg->recv_fifo_bytes_threshold_int_mask = 0;
 #endif
 		sc_int_reg->recv_fifo_bytes_threshold_int_mask = 1;
-		sc_int_reg->send_fifo_last_byte_int_mask = 1;
+		if (send_use_task)
+			sc_int_reg->send_fifo_last_byte_int_mask = 0;
+		else
+			sc_int_reg->send_fifo_last_byte_int_mask = 1;
 		SMC_WRITE_REG(INTR, sc_int | 0x3FF);
 
 		pr_dbg("write %d bytes\n", ret);
-
-		smc_hw_start_send(smc);
+		if (send_use_task)
+			smc_hw_start_send_use_task(smc);
+		else
+			smc_hw_start_send(smc);
 	}
 
 	mutex_unlock(&smc->lock);
