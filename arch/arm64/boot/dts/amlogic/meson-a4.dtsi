@@ -347,7 +347,7 @@
 		compatible = "amlogic,meson-vrtc";
 		reg = <0x0 0xfe010288 0x0 0x4>;
 		status = "disabled";
-		mboxes = <&mhu_fifo A5_REE2AO>;
+		mboxes = <&mhu_fifo A4_REE2AO>;
 	};
 
 	rtc: rtc@0xfe09a000 {
@@ -355,7 +355,7 @@
 		reg = <0x0 0xfe09a000 0x0 0x38>;
 		interrupts = <GIC_SPI 131 IRQ_TYPE_EDGE_RISING>;
 		status = "okay";
-		mboxes = <&mhu_fifo A5_REE2AO>;
+		mboxes = <&mhu_fifo A4_REE2AO>;
 		//clocks = <&clkc CLKID_RTC_CLK>;
 		//clock-names = "rtc_clk";
 		osc_freq = <OSC_32KHZ>;
@@ -440,7 +440,7 @@
 		compatible = "amlogic, meson-mbox-user";
 		mbox-nums = <1>;
 		mbox-names = "ree2aocpu";
-		mboxes = <&mhu_fifo A5_REE2AO>;
+		mboxes = <&mhu_fifo A4_REE2AO>;
 		mbox-dests = <MAILBOX_AOCPU>;
 	};
 

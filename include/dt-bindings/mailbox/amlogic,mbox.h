@@ -32,4 +32,10 @@
 // S5 MAILBOX DEST
 #define S5_AO2REE       0
 #define S5_REE2AO       1
+
+// A4 MAILBOX DEST
+#define A4_AO2REE       0
+#define A4_REE2AO       1
+#define A4_DSP2REE      2
+#define A4_REE2DSP      3
 #endif /* __AMLOGIC_MBOX_H__ */
