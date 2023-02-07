@@ -98,7 +98,7 @@
 		ion_secure_reserved:linux,ion-secure {
 			compatible = "amlogic, ion-secure-mem";
 			no-map;
-			size = <0x0 0x0000000>;
+			size = <0x0 0x5000000>;
 			alignment = <0x0 0x400000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
@@ -157,6 +157,7 @@
 			//size = <0x0 0x0>;
 			size = <0x0 0x400000>; //for 4k's afbc
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
@@ -1299,7 +1300,7 @@
 		 * 4: pdmin;
 		 */
 		datain_src = <4>;
-		datain_chnum = <4>;
+		datain_chnum = <0>;
 		datain_chmask = <0xf>;
 		/* config which data pin for loopback */
 		datain-lane-mask-in = <1 0 1 0>;
@@ -1354,11 +1355,13 @@
 	 */
 	cma_size = <330>;
 	frame_buff_num = <11>;
+	v4l_support_en = <0>;
 };
 
 &vdin1 {
 	memory-region = <&vdin1_cma_reserved>;
 	status = "okay";
+	v4l_support_en = <0>;
 };
 
 /* SDIO */
@@ -1662,7 +1665,7 @@
 };
 
 &spicc1 {	//for UWB/LocalDimm
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins &spicc1_cs_pins>;
 	cs2clk-us = <2>;

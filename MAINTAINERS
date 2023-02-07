@@ -18136,3 +18136,7 @@ F:	drivers/gpu/drm/Kconfig
 F:	drivers/gpu/drm/drm_auth.c
 F:	drivers/gpu/drm/drm_ioctl.c
 F:	include/drm/drm_file.h
+
+AMLOGIC T982 DTS
+M:	yifei.wang <yifei.wang@amlogic.com>
+F:	arch/arm64/boot/dts/amlogic/t3_t982_ar311-8g.dts

@@ -1426,11 +1426,13 @@
 	 */
 	cma_size = <330>;
 	frame_buff_num = <11>;
+	v4l_support_en = <0>;
 };
 
 &vdin1 {
 	memory-region = <&vdin1_cma_reserved>;
 	status = "okay";
+	v4l_support_en = <0>;
 };
 
 /* SD wifi */
@@ -1555,7 +1557,9 @@
 	cm_en = <1>;/*1:enable ;0:disable*/
 	wb_sel = <0>;/*1:mtx ;0:gainoff*/
 	vlock_en = <1>;/*1:enable;0:disable*/
+	ct_3dlut = <0>;
 	vlock_mode = <0x8>;
+	vrr_priority = <1>;/*1:game mode vrr always on;0:vrr on depend on vrr signal*/
 	/*vlock work mode:
 	 *bit0:auto ENC
 	 *bit1:auto PLL
@@ -1564,8 +1568,8 @@
 	 *bit4:manual soft ENC
 	 *bit5:manual MIX PLL ENC
 	 */
-	vlock_pll_m_limit = <1>;
-	vlock_line_limit = <2>;
+	 vlock_pll_m_limit = <1>;
+	 vlock_line_limit = <2>;
 	interrupts = <0 207 1>;
 	interrupt-names = "lc_curve";
 };
