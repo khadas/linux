@@ -42,7 +42,7 @@ struct ldim_profile_s {
 };
 
 struct ldim_rmem_s {
-	unsigned char flag;
+	unsigned char flag; //0:none, 1:ldc_cma, 2:sys_cma_pool, 3:kmalloc
 
 	void *rsv_mem_vaddr;
 	phys_addr_t rsv_mem_paddr;

@@ -160,12 +160,13 @@
 			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
 		};
 
-		ldc_mem_reserved:linux,ldc_mem {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x400000>;
-			alignment = <0x0 0x400000>;
-		};
+		/*ldc_mem_reserved:linux,ldc_mem {
+		 *	compatible = "shared-dma-pool";
+		 *	reusable;
+		 *	size = <0x0 0x400000>;
+		 *	alignment = <0x0 0x400000>;
+		 *};
+		 */
 	};
 
 	vddio_3v3_reg: fixedregulator@5{

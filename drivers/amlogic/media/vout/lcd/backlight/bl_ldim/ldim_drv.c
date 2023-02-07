@@ -96,6 +96,7 @@ static struct ldim_config_s ldim_config = {
 };
 
 static struct ldim_rmem_s ldim_rmem = {
+	.flag = 0,
 	.rsv_mem_paddr = 0,
 	.rsv_mem_size = 0x100000,
 };
@@ -915,8 +916,7 @@ int aml_ldim_get_config_unifykey(unsigned char *buf)
 	return 0;
 }
 
-unsigned char *aml_ldim_rmem_map(unsigned long paddr, unsigned int mem_size,
-					unsigned int *flag)
+unsigned char *aml_ldim_rmem_map(unsigned long paddr, unsigned int mem_size, unsigned int *flag)
 {
 	unsigned char *vaddr = NULL;
 	unsigned int highmem_flag = 0;
@@ -951,6 +951,32 @@ void aml_ldim_rmem_unmap(unsigned char *vaddr, unsigned int flag)
 }
 EXPORT_SYMBOL(aml_ldim_rmem_unmap);
 
+static int aml_ldim_dma_alloc(struct device *dev, struct ldim_rmem_s *rmem)
+{
+	unsigned int mem_size;
+	struct page *rsv_page;
+
+	mem_size = rmem->rsv_mem_size;
+	//system default cma_pool
+	rsv_page = dma_alloc_from_contiguous(dev, mem_size >> PAGE_SHIFT, 0, 0);
+	if (rsv_page) {
+		rmem->rsv_mem_paddr = page_to_phys(rsv_page);
+		rmem->flag = 2;
+		return 0;
+	}
+
+	//malloc
+	rmem->rsv_mem_vaddr = kzalloc(mem_size, GFP_KERNEL);
+	if (rmem->rsv_mem_vaddr) {
+		rmem->rsv_mem_paddr = virt_to_phys(rmem->rsv_mem_vaddr);
+		rmem->flag = 3;
+		return 0;
+	}
+
+	LDIMERR("%s: failed! rsv_mem size: 0x%x\n", __func__, mem_size);
+	return -1;
+}
+
 static int aml_ldim_malloc_t7(struct platform_device *pdev, struct ldim_drv_data_s *data,
 			      unsigned int row, unsigned int col)
 {
@@ -961,21 +987,24 @@ static int aml_ldim_malloc_t7(struct platform_device *pdev, struct ldim_drv_data
 	/* init reserved memory */
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret) {
-		LDIMERR("init reserved memory failed\n");
-		return -1;
-	}
-	mem_size = ldim_rmem.rsv_mem_size;
-	ldim_rmem.rsv_mem_vaddr = dma_alloc_coherent(&pdev->dev, mem_size,
+		ret = aml_ldim_dma_alloc(&pdev->dev, &ldim_rmem);
+		if (ret) {
+			LDIMERR("init reserved memory failed\n");
+			return -1;
+		}
+	} else {
+		mem_size = ldim_rmem.rsv_mem_size;
+		ldim_rmem.rsv_mem_vaddr = dma_alloc_coherent(&pdev->dev, mem_size,
 					&ldim_rmem.rsv_mem_paddr, GFP_KERNEL);
-	if (!ldim_rmem.rsv_mem_vaddr) {
-		ldim_rmem.flag = 0;
-		LDIMERR("ldc resv mem failed\n");
-		return -1;
+		if (!ldim_rmem.rsv_mem_vaddr) {
+			LDIMERR("ldc resv mem failed\n");
+			return -1;
+		}
+		ldim_rmem.flag = 1;
 	}
-	ldim_rmem.rsv_mem_size = mem_size;
-	ldim_rmem.flag = 1;
-	LDIMPR("ldc resv mem paddr: 0x%lx, size: 0x%x\n",
-	       (unsigned long)ldim_rmem.rsv_mem_paddr, ldim_rmem.rsv_mem_size);
+
+	LDIMPR("ldc rsv_mem paddr: 0x%lx, size: 0x%x, flag: %d\n",
+	       (unsigned long)ldim_rmem.rsv_mem_paddr, ldim_rmem.rsv_mem_size, ldim_rmem.flag);
 
 	ldim_driver.local_bl_matrix = kcalloc(zone_num, sizeof(unsigned int),
 					      GFP_KERNEL);

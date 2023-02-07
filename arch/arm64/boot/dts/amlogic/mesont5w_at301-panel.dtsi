@@ -494,7 +494,7 @@
 		interrupts-extended = <&gic 0 3 1>,<&gpio_intc 23 1>;
 		interrupt-names = "vsync","ldim_pwm_vs";
 		bl_pwm_config = <&bl_pwm_conf>;
-		memory-region = <&ldc_mem_reserved>;
+		//memory-region = <&ldc_mem_reserved>;
 
 		/* pwm port: PWM_A, PWM_B, PWM_C, PWM_D, PWM_E, PWM_F, PWM_VS*/
 		/* power index:(point gpios_index, 0xff=invalid) */
