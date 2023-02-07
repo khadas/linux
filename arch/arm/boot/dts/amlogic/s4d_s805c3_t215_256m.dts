@@ -11,7 +11,7 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "s4d_s805c3_aq2432-512m";
+	amlogic-dt-id = "s4d_s805c3_t215-512m";
 	compatible = "amlogic, s4d";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
@@ -66,7 +66,7 @@
 			reusable;
 			size = <0x400000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0fc00000 0x400000>;
+			alloc-ranges = <0x1fc00000 0x400000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -108,7 +108,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x6000000>;
+			size = <0xb000000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
 		};
@@ -199,54 +199,15 @@
 		dvb_power_value = <1>;
 		dvb_power_dir = <0>; /* 0: out, 1: in. */
 
-		fe_num = <3>; /* internal 2 * dvb-c, extern 1 * dvb-s */
+		fe_num = <1>; /* internal 1 * dvb-s */
 		fe0_demod = "internal";
 		fe0_tuner0 = <0>; /* use tuner0 */
 
-		fe1_demod = "internal";
-		fe1_tuner0 = <1>; /* use tuner1 */
-
-		fe2_demod = "cxd2856";
-		fe2_i2c_adap_id = <&i2c4>;
-		fe2_demod_i2c_addr = <0xD8>;
-		fe2_reset_value = <0>;
-		fe2_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
-		fe2_reset_dir = <0>; /* 0: out, 1: in. */
-		fe2_ant_poweron_value = <0>;
-		fe2_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
-		fe2_ts = <0>;
-		fe2_tuner1 = <3>; /* use tuner3, only S. */
-
-		tuner_num = <4>; /* tuner number, multi tuner support */
-		tuner0_name = "r836_tuner";
+		tuner_num = <1>; /* tuner number, multi tuner support */
+		tuner0_name = "av2018_tuner";
 		tuner0_i2c_adap = <&i2c3>;
-		tuner0_i2c_addr = <0x1a>; /* 7bit */
-		tuner0_xtal = <0>; /* 0: 16MHz, 1: 24MHz */
-		tuner0_xtal_mode = <0>;
-					/* NO_SHARE_XTAL(0)
-					 * SLAVE_XTAL_SHARE(3)
-					 */
-		tuner0_xtal_cap = <16>;
-		tuner0_lt_out = <1>;
-
-		tuner1_name = "r836_tuner";
-		tuner1_i2c_adap = <&i2c3>;
-		tuner1_i2c_addr = <0x3a>; /* 7bit */
-		tuner1_xtal = <0>; /* 0: 16MHz, 1: 24MHz */
-		tuner1_xtal_mode = <0>;
-					/* NO_SHARE_XTAL(0)
-					 * SLAVE_XTAL_SHARE(3)
-					 */
-		tuner1_xtal_cap = <16>;
-		tuner1_lt_out = <1>;
-
-		tuner2_name = "av2018_tuner";
-		tuner2_i2c_adap = <&i2c3>;
-		tuner2_i2c_addr = <0xC4>; /* 8bit */
-		tuner2_lt_out = <1>;
-
-		tuner3_name = "av2018_tuner";
-		tuner3_lt_out = <1>;
+		tuner0_i2c_addr = <0xC4>; /* 8bit */
+		tuner0_lt_out = <0>;
 	};
 
 	dvb-demux {
@@ -276,8 +237,8 @@
 		ts2_control = <0x0>;
 		ts2_invert = <0>;
 
-		pinctrl-names = "s_ts0";
-		pinctrl-0 = <&dvb_s_ts0_pins>;
+		//pinctrl-names = "s_ts0";
+		//pinctrl-0 = <&dvb_s_ts0_pins>;
 	};
 
 	ionvideo {
@@ -343,22 +304,24 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
-		post_nub = <5>;
+		post_nub = <10>;
 	};
 
 	aml_dtv_demod {
-		compatible = "amlogic, ddemod-s4";
+		compatible = "amlogic, ddemod-s4d";
 		dev_name = "aml_dtv_demod";
 		status = "okay";
-		/* diseqc_name = "sgm_41286"; */
-		pinctrl-names="if_agc_pins", "if_agc2_pins";
+		diseqc_name = "sgm_41286";
+		pinctrl-names="if_agc_pins", "if_agc2_pins", "rf_agc_pins", "diseqc_out";
 		pinctrl-0=<&dtvdemod_if_agc_pins>;
 		pinctrl-1=<&dtvdemod_if_agc2_pins>;
-		/* pinctrl-2=<&diseqc_out>; */
-		/* lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>; */
-		/* lnb_sel-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>; */
-		/* interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>; */
-		/* interrupt-names = "demod_isr"; */
+		pinctrl-2=<&dtvdemod_rf_agc_pins>;
+		pinctrl-3=<&diseqc_out>;
+		//pinctrl-4=<&diseqc_in>;
+		lnb_en-gpios = <&gpio GPIOZ_6 GPIO_ACTIVE_HIGH>;
+		lnb_sel-gpios = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
+		interrupts = <GIC_SPI 221 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "demod_isr";
 
 		power-domains = <&pwrdm PDID_S4_DEMOD>;
 		/* clocks = <&clkc CLKID_DAC_CLK>; */
@@ -372,6 +335,7 @@
 
 		spectrum = <1>;
 		cma_mem_size = <0>; // MB
+		agc_pin_direction;//for S4D av2018 rf agc reverse
 	};
 
 	provisionkey {
@@ -540,7 +504,7 @@
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		/*avout mute gpio*/
-		avout_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		avout_mute-gpios = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
 		spk_mute-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_LOW>;
 
 		aml-audio-card,dai-link@0 {
@@ -730,7 +694,7 @@
 		key_name = "bluetooth", "mute";
 		key_code = <600 SW_MUTE_DEVICE>;
 		key_type = <EV_KEY EV_SW>;
-		key-gpios = <&gpio  GPIOD_2  GPIO_ACTIVE_HIGH
+		key-gpios = <&gpio  GPIOD_6  GPIO_ACTIVE_HIGH
 			     &gpio  GPIOD_3  GPIO_ACTIVE_HIGH>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
@@ -1253,15 +1217,15 @@
 		};
 	};
 
-	dvb_s_ts0_pins: dvb_s_ts0_pins {
-		tsin_a {
-			groups = "tsin_a_sop",
-				"tsin_a_valid",
-				"tsin_a_clk",
-				"tsin_a_din0";
-			function = "tsin_a";
-		};
-	};
+	//dvb_s_ts0_pins: dvb_s_ts0_pins {
+	//	tsin_a {
+	//		groups = "tsin_a_sop",
+	//			"tsin_a_valid",
+	//			"tsin_a_clk",
+	//			"tsin_a_din0";
+	//		function = "tsin_a";
+	//	};
+	//};
 }; /* end of periphs_pinctrl */
 
 &audio_data {
@@ -1271,7 +1235,7 @@
 &dwc2_a {
 	status = "okay";
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
-	controller-type = <3>;
+	controller-type = <1>;
 };
 
 &crg {
@@ -1286,7 +1250,7 @@
 &usb3_phy_v2 {
 	status = "okay";
 	portnum = <0>;
-	otg = <1>;
+	otg = <0>;
 	/*gpio-vbus-power = "GPIOH_6";*/
 	/*gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;*/
 };
