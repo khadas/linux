@@ -141,7 +141,7 @@
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT2022-PX1";
 		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
-		lens-focus = <&dw9714f>;
+		lens-focus = <&dw9714b>;
 		port {
 			imx415b_out0: endpoint {
 				remote-endpoint = <&mipi_in_dcphy0>;
