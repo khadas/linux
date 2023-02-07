@@ -192,7 +192,7 @@ struct amlogic_pcie {
 	u32 port_num;
 
 	u8 lanes_map;
-	int link_gen;
+	u32 link_gen;
 	int offset;
 	struct resource	*mem_res;
 };
@@ -279,6 +279,19 @@ static inline u32 amlogic_pcie_ep_fn_readl(struct amlogic_pcie *pcie,
 {
 	return readl(pcie->ecam_base + EP_BASE_OFFSET +
 		     AMLOGIC_PCIE_EP_FUNC_BASE(fn) + reg);
+}
+
+static inline u16 amlogic_pcieinter_readw(struct amlogic_pcie *pcie, u32 reg)
+{
+	return readw(pcie->ecam_base +
+		     PCIE_ECAM_ADDR(0, 0, 0, reg));
+}
+
+static inline void amlogic_pcieinter_writew(struct amlogic_pcie *pcie, u16 val,
+					    u32 reg)
+{
+	writew(val, pcie->ecam_base +
+	       PCIE_ECAM_ADDR(0, 0, 0, reg));
 }
 
 static inline u32 amlogic_pcieinter_read(struct amlogic_pcie *pcie, u32 reg)

@@ -37,6 +37,10 @@ static int pcie_test;
 module_param(pcie_test, int, 0444);
 MODULE_PARM_DESC(pcie_test, "Facilitate pcie hardware signal test");
 
+static int link_speed;
+module_param(link_speed, int, 0444);
+MODULE_PARM_DESC(link_speed, "select pcie link speed ");
+
 /* MSI information */
 struct amlogic_msi {
 	DECLARE_BITMAP(used, INT_PCI_MSI_NR);
@@ -327,6 +331,9 @@ static int amlogic_pcie_parse_host_dt(struct amlogic_pcie_rc *rc)
 	if (ret)
 		amlogic->phy_type = M31_PHY;
 	dev_dbg(amlogic->dev, "PCIE phy type is %d\n", amlogic->phy_type);
+
+	if (link_speed)
+		amlogic->link_gen = link_speed;
 
 	ret = amlogic_pcie_parse_dt(amlogic);
 	if (ret)

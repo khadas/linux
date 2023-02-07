@@ -17,6 +17,40 @@
 
 #include "pcie-amlogic-v3.h"
 
+static u8 __aml_pcie_find_next_cap(struct amlogic_pcie *pci, u8 cap_ptr,
+				  u8 cap)
+{
+	u8 cap_id, next_cap_ptr;
+	u16 reg;
+
+	if (!cap_ptr)
+		return 0;
+
+	reg = amlogic_pcieinter_readw(pci, cap_ptr);
+	cap_id = (reg & 0x00ff);
+
+	if (cap_id > PCI_CAP_ID_MAX)
+		return 0;
+
+	if (cap_id == cap)
+		return cap_ptr;
+
+	next_cap_ptr = (reg & 0xff00) >> 8;
+	return __aml_pcie_find_next_cap(pci, next_cap_ptr, cap);
+}
+
+u8 aml_pcie_find_capability(struct amlogic_pcie *pci, u8 cap)
+{
+	u8 next_cap_ptr;
+	u16 reg;
+
+	reg = amlogic_pcieinter_readw(pci, PCI_CAPABILITY_LIST);
+	next_cap_ptr = (reg & 0x00ff);
+
+	return __aml_pcie_find_next_cap(pci, next_cap_ptr, cap);
+}
+EXPORT_SYMBOL_GPL(aml_pcie_find_capability);
+
 static int amlogic_pcie_get_reset_for_m31_phy(struct amlogic_pcie *amlogic)
 {
 	struct device *dev = amlogic->dev;
@@ -1120,7 +1154,7 @@ int amlogic_pcie_init_port(struct amlogic_pcie *amlogic)
 {
 	struct device *dev = amlogic->dev;
 	int ret = 0;
-	u32 regs;
+	u32 reg;
 	u32 val;
 
 	switch (amlogic->phy_type) {
@@ -1148,12 +1182,53 @@ int amlogic_pcie_init_port(struct amlogic_pcie *amlogic)
 	if (amlogic_pcie_set_reset_gpio(amlogic))
 		dev_err(dev, "Set pcie reset gpio faile\n");
 
+	if (amlogic->link_gen == 1) {
+		u32 exp_cap_off = aml_pcie_find_capability(amlogic, PCI_CAP_ID_EXP);
+
+		reg = amlogic_pcieinter_read(amlogic,
+					     PCI_CFG_SPACE + exp_cap_off + PCI_EXP_LNKCAP);
+		if ((reg & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_2_5GB) {
+			reg &= ~((u32)PCI_EXP_LNKCAP_SLS);
+			reg |= PCI_EXP_LNKCAP_SLS_2_5GB;
+			amlogic_pcieinter_write(amlogic, reg,
+						PCI_CFG_SPACE + exp_cap_off + PCI_EXP_LNKCAP);
+		}
+
+		reg = amlogic_pcieinter_readw(amlogic, exp_cap_off + PCI_EXP_LNKCTL2);
+		if ((reg & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_2_5GB) {
+			reg &= ~((u32)PCI_EXP_LNKCAP_SLS);
+			reg |= PCI_EXP_LNKCAP_SLS_2_5GB;
+			amlogic_pcieinter_writew(amlogic, reg, exp_cap_off + PCI_EXP_LNKCTL2);
+		}
+	} else if (amlogic->link_gen == 2) {
+		u32 exp_cap_off = aml_pcie_find_capability(amlogic, PCI_CAP_ID_EXP);
+
+		reg = amlogic_pcieinter_read(amlogic,
+					     PCI_CFG_SPACE + exp_cap_off + PCI_EXP_LNKCAP);
+		if ((reg & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_5_0GB) {
+			reg &= ~((u32)PCI_EXP_LNKCAP_SLS);
+			reg |= PCI_EXP_LNKCAP_SLS_5_0GB;
+			amlogic_pcieinter_write(amlogic, reg,
+						PCI_CFG_SPACE + exp_cap_off + PCI_EXP_LNKCAP);
+		}
+
+		reg = amlogic_pcieinter_readw(amlogic, exp_cap_off + PCI_EXP_LNKCTL2);
+		if ((reg & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_5_0GB) {
+			reg &= ~((u32)PCI_EXP_LNKCAP_SLS);
+			reg |= PCI_EXP_LNKCAP_SLS_5_0GB;
+			amlogic_pcieinter_writew(amlogic, reg, exp_cap_off + PCI_EXP_LNKCTL2);
+		}
+	} else {
+		if (amlogic->link_gen > 3)
+			dev_err(dev, "Set pcie parameter link_speed is ERR\n");
+	}
+
 	if (!amlogic_pcie_link_up(amlogic))
 		return -ETIMEDOUT;
-	regs = amlogic_pcieinter_read(amlogic, PCIE_BASIC_STATUS);
+	reg = amlogic_pcieinter_read(amlogic, PCIE_BASIC_STATUS);
 
 	dev_info(dev, "current link speed is GEN%d,link width is x%d\n",
-		 ((regs >> 8) & 0x3f), (regs & 0xff));
+		 ((reg >> 8) & 0x3f), (reg & 0xff));
 
 	return ret;
 }
