@@ -804,6 +804,12 @@ static int lcd_power_encl_off_notifier(struct notifier_block *nb,
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: 0x%lx\n", pdrv->index, __func__, event);
+
+	if (pdrv->status & LCD_STATUS_IF_ON) {
+		LCDPR("[%d]: %s: force power off interface ahead\n", pdrv->index, __func__);
+		lcd_power_if_off(pdrv);
+	}
+
 	lcd_power_encl_off(pdrv);
 
 	return NOTIFY_OK;
@@ -935,13 +941,12 @@ static int lcd_power_if_on_notifier(struct notifier_block *nb,
 		return NOTIFY_OK;
 	}
 
-	if (pdrv->status & LCD_STATUS_ENCL_ON) {
-		lcd_power_if_on(pdrv);
-	} else {
-		LCDERR("[%d]: %s: can't power on when controller is off\n",
-		       pdrv->index, __func__);
-		return NOTIFY_DONE;
+	if ((pdrv->status & LCD_STATUS_ENCL_ON) == 0) {
+		LCDPR("[%d]: %s: force power on controller ahead\n", pdrv->index, __func__);
+		lcd_power_encl_on(pdrv);
 	}
+
+	lcd_power_if_on(pdrv);
 
 	return NOTIFY_OK;
 }
@@ -967,6 +972,7 @@ static int lcd_power_if_off_notifier(struct notifier_block *nb,
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: 0x%lx\n", pdrv->index, __func__, event);
+
 	lcd_power_if_off(pdrv);
 
 	return NOTIFY_OK;
