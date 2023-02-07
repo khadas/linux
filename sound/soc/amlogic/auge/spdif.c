@@ -478,9 +478,8 @@ static int spdifin_audio_type_get_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int aml_spdif_platform_suspend(struct platform_device *pdev, pm_message_t state)
+static int aml_spdif_suspend(struct aml_spdif *p_spdif)
 {
-	struct aml_spdif *p_spdif = dev_get_drvdata(&pdev->dev);
 	struct pinctrl_state *pstate = NULL;
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
 
@@ -508,15 +507,20 @@ static int aml_spdif_platform_suspend(struct platform_device *pdev, pm_message_t
 			pinctrl_select_state(p_spdif->pin_ctl, pstate);
 	}
 	aml_spdif_enable(p_spdif->actrl, stream, p_spdif->id, false);
+	return 0;
+}
 
+static int aml_spdif_platform_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct aml_spdif *p_spdif = dev_get_drvdata(&pdev->dev);
 
+	aml_spdif_suspend(p_spdif);
 	pr_info("%s is mute\n", __func__);
 	return 0;
 }
 
-static int aml_spdif_platform_resume(struct platform_device *pdev)
+static int aml_spdif_resume(struct aml_spdif *p_spdif)
 {
-	struct aml_spdif *p_spdif = dev_get_drvdata(&pdev->dev);
 	struct pinctrl_state *state = NULL;
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
 	int ret = 0;
@@ -526,7 +530,7 @@ static int aml_spdif_platform_resume(struct platform_device *pdev)
 			clk_set_parent(p_spdif->clk_spdifout, NULL);
 			ret = clk_set_parent(p_spdif->clk_spdifout, p_spdif->sysclk);
 			if (ret)
-				dev_warn(&pdev->dev, "Can't set spdif clk_spdifout parent\n");
+				dev_warn(p_spdif->dev, "Can't set spdif clk_spdifout parent\n");
 			clk_prepare_enable(p_spdif->clk_spdifout);
 		}
 
@@ -534,7 +538,7 @@ static int aml_spdif_platform_resume(struct platform_device *pdev)
 			clk_set_parent(p_spdif->clk_spdifin, NULL);
 			ret = clk_set_parent(p_spdif->clk_spdifin, p_spdif->fixed_clk);
 			if (ret)
-				dev_warn(&pdev->dev, "Can't set spdif clk_spdifout parent\n");
+				dev_warn(p_spdif->dev, "Can't set spdif clk_spdifout parent\n");
 			clk_prepare_enable(p_spdif->clk_spdifin);
 		}
 		aml_set_spdifclk(p_spdif, p_spdif->sysclk_freq, false);
@@ -542,14 +546,13 @@ static int aml_spdif_platform_resume(struct platform_device *pdev)
 		if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc5v))
 			ret = regulator_enable(p_spdif->regulator_vcc5v);
 		if (ret)
-			dev_err(&pdev->dev, "regulator spdif5v enable failed:   %d\n", ret);
+			dev_err(p_spdif->dev, "regulator spdif5v enable failed:   %d\n", ret);
 
 		if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc3v3))
 			ret = regulator_enable(p_spdif->regulator_vcc3v3);
 		if (ret)
-			dev_err(&pdev->dev, "regulator spdif3v3 enable failed:   %d\n", ret);
+			dev_err(p_spdif->dev, "regulator spdif3v3 enable failed:   %d\n", ret);
 	}
-
 	if (!IS_ERR_OR_NULL(p_spdif->pin_ctl)) {
 		state = pinctrl_lookup_state
 		(p_spdif->pin_ctl, "spdif_pins");
@@ -559,6 +562,14 @@ static int aml_spdif_platform_resume(struct platform_device *pdev)
 
 	aml_spdif_enable(p_spdif->actrl, stream, p_spdif->id, true);
 
+	return 0;
+}
+
+static int aml_spdif_platform_resume(struct platform_device *pdev)
+{
+	struct aml_spdif *p_spdif = dev_get_drvdata(&pdev->dev);
+
+	aml_spdif_resume(p_spdif);
 	pr_info("%s is unmute\n", __func__);
 
 	return 0;
@@ -2054,10 +2065,46 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int aml_spdif_freeze(struct device *dev)
+{
+	return 0;
+}
+
+static int aml_spdif_thaw(struct device *dev)
+{
+	return 0;
+}
+
+static int aml_spdif_poweroff(struct device *dev)
+{
+	struct aml_spdif *p_spdif = dev_get_drvdata(dev);
+
+	aml_spdif_suspend(p_spdif);
+	pr_info("%s spdif:(%d)\n", __func__, p_spdif->id);
+	return 0;
+}
+
+static int aml_spdif_restore(struct device *dev)
+{
+	struct aml_spdif *p_spdif = dev_get_drvdata(dev);
+
+	aml_spdif_resume(p_spdif);
+	pr_info("%s spdif:(%d)\n", __func__, p_spdif->id);
+	return 0;
+}
+
+const struct dev_pm_ops aml_spdif_pm_ops = {
+	.freeze = aml_spdif_freeze,
+	.thaw = aml_spdif_thaw,
+	.poweroff = aml_spdif_poweroff,
+	.restore = aml_spdif_restore,
+};
+
 struct platform_driver aml_spdif_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = aml_spdif_device_id,
+		.pm = &aml_spdif_pm_ops,
 	},
 	.probe = aml_spdif_platform_probe,
 	.suspend = aml_spdif_platform_suspend,

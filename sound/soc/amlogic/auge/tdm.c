@@ -2417,11 +2417,8 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int aml_tdm_platform_suspend(struct platform_device *pdev,
-	pm_message_t state)
+static int aml_tdm_suspend(struct aml_tdm *p_tdm)
 {
-	struct aml_tdm *p_tdm = dev_get_drvdata(&pdev->dev);
-
 	if (p_tdm->chipinfo->regulator || (p_tdm->suspend_clk_off && !is_pm_s2idle_mode())) {
 		if (!IS_ERR(p_tdm->mclk2pad)) {
 			while (__clk_is_enabled(p_tdm->mclk2pad))
@@ -2449,14 +2446,21 @@ static int aml_tdm_platform_suspend(struct platform_device *pdev,
 			pr_info("%s tdm pins disable!\n", __func__);
 		}
 	}
+	return 0;
+}
 
+static int aml_tdm_platform_suspend(struct platform_device *pdev,
+	pm_message_t state)
+{
+	struct aml_tdm *p_tdm = dev_get_drvdata(&pdev->dev);
+
+	aml_tdm_suspend(p_tdm);
 	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 	return 0;
 }
 
-static int aml_tdm_platform_resume(struct platform_device *pdev)
+static int aml_tdm_resume(struct aml_tdm *p_tdm)
 {
-	struct aml_tdm *p_tdm = dev_get_drvdata(&pdev->dev);
 	int ret = 0;
 	unsigned int out_lanes = 0, in_lanes = 0;
 
@@ -2472,14 +2476,14 @@ static int aml_tdm_platform_resume(struct platform_device *pdev)
 			clk_set_parent(p_tdm->mclk, NULL);
 			ret = clk_set_parent(p_tdm->mclk, p_tdm->clk);
 			if (ret)
-				dev_warn(&pdev->dev, "can't set tdm parent clock\n");
+				dev_warn(p_tdm->dev, "can't set tdm parent clock\n");
 		}
 
 		if (!IS_ERR(p_tdm->mclk2pad)) {
 			clk_set_parent(p_tdm->mclk2pad, NULL);
 			ret = clk_set_parent(p_tdm->mclk2pad, p_tdm->mclk);
 			if (ret)
-				dev_warn(&pdev->dev, "Can't set tdm mclk_pad parent\n");
+				dev_warn(p_tdm->dev, "Can't set tdm mclk_pad parent\n");
 			clk_prepare_enable(p_tdm->mclk2pad);
 		}
 
@@ -2495,12 +2499,12 @@ static int aml_tdm_platform_resume(struct platform_device *pdev)
 		if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc5v))
 			ret = regulator_enable(p_tdm->regulator_vcc5v);
 		if (ret)
-			dev_err(&pdev->dev, "regulator tdm5v enable failed:   %d\n", ret);
+			dev_err(p_tdm->dev, "regulator tdm5v enable failed:   %d\n", ret);
 
 		if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc3v3))
 			ret = regulator_enable(p_tdm->regulator_vcc3v3);
 		if (ret)
-			dev_err(&pdev->dev, "regulator tdm3v3 enable failed:   %d\n", ret);
+			dev_err(p_tdm->dev, "regulator tdm3v3 enable failed:   %d\n", ret);
 	}
 
 	/*set default clk for output*/
@@ -2515,6 +2519,14 @@ static int aml_tdm_platform_resume(struct platform_device *pdev)
 			pr_info("%s tdm pins enable!\n", __func__);
 		}
 	}
+	return 0;
+}
+
+static int aml_tdm_platform_resume(struct platform_device *pdev)
+{
+	struct aml_tdm *p_tdm = dev_get_drvdata(&pdev->dev);
+
+	aml_tdm_resume(p_tdm);
 
 	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 	return 0;
@@ -2543,10 +2555,46 @@ static void aml_tdm_platform_shutdown(struct platform_device *pdev)
 	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 }
 
+static int aml_tdm_freeze(struct device *dev)
+{
+	return 0;
+}
+
+static int aml_tdm_thaw(struct device *dev)
+{
+	return 0;
+}
+
+static int aml_tdm_poweroff(struct device *dev)
+{
+	struct aml_tdm *p_tdm = dev_get_drvdata(dev);
+
+	aml_tdm_suspend(p_tdm);
+	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
+	return 0;
+}
+
+static int aml_tdm_restore(struct device *dev)
+{
+	struct aml_tdm *p_tdm = dev_get_drvdata(dev);
+
+	aml_tdm_resume(p_tdm);
+	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
+	return 0;
+}
+
+const struct dev_pm_ops aml_tdm_pm_ops = {
+	.freeze = aml_tdm_freeze,
+	.thaw = aml_tdm_thaw,
+	.poweroff = aml_tdm_poweroff,
+	.restore = aml_tdm_restore,
+};
+
 struct platform_driver aml_tdm_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = aml_tdm_device_id,
+		.pm = &aml_tdm_pm_ops,
 	},
 	.probe	 = aml_tdm_platform_probe,
 	.suspend = aml_tdm_platform_suspend,
