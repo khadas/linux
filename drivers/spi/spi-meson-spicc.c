@@ -1075,6 +1075,7 @@ static int meson_spicc_hw_init(struct meson_spicc_device *spicc)
 			       spicc->base + SPICC_CONREG);
 		if (spicc->data->has_oen)
 			writel_relaxed(0xf020000, spicc->base + SPICC_ENH_CTL0);
+		spicc->bits_per_word = 0;
 	} else {
 		writel_relaxed(SPICC_ENABLE, spicc->base + SPICC_CONREG);
 		writel_relaxed((spicc->latency > 0) ? 0 :
@@ -1664,13 +1665,19 @@ static int meson_spicc_remove(struct platform_device *pdev)
 static int meson_spicc_suspend(struct device *dev)
 {
 	struct meson_spicc_device *spicc = dev_get_drvdata(dev);
+	meson_spicc_hw_clk_save(spicc);
+	meson_spicc_clk_disable(spicc);
 
+	spi_controller_put(spicc->controller);
 	return spi_controller_suspend(spicc->controller);
 }
 
 static int meson_spicc_resume(struct device *dev)
 {
 	struct meson_spicc_device *spicc = dev_get_drvdata(dev);
+	meson_spicc_hw_init(spicc);
+	meson_spicc_hw_clk_restore(spicc);
+	meson_spicc_clk_enable(spicc);
 
 	return spi_controller_resume(spicc->controller);
 }
@@ -1774,7 +1781,7 @@ static struct platform_driver meson_spicc_driver = {
 		.name = "meson-spicc",
 		.of_match_table = of_match_ptr(meson_spicc_of_match),
 #ifdef CONFIG_AMLOGIC_MODIFY
-		//.pm = &meson_spicc_pm_ops,
+		.pm = &meson_spicc_pm_ops,
 #endif
 	},
 };
