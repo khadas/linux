@@ -201,7 +201,7 @@ static int _dmx_write_from_user(struct dmx_demux *demux,
 		return -1;
 	}
 
-	ret = ts_input_write(pdmx->sc2_input, buf, count);
+	ret = ts_input_write(pdmx->sc2_input, buf, count, pdmx->id);
 	if (enable_w_mutex) {
 		usleep_range(1000, 1500);
 		mutex_unlock(pdmx->pmutex);
@@ -1452,6 +1452,7 @@ static int _dmx_connect_frontend(struct dmx_demux *dmx,
 		mutex_unlock(demux->pmutex);
 		return -EINVAL;
 	}
+	demux->last_len = 0;
 	dmx->frontend = frontend;
 	mutex_unlock(demux->pmutex);
 	return 0;

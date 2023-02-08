@@ -143,7 +143,7 @@ int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len,
  * \retval written size
  */
 int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
-		       unsigned int count, int isphybuf);
+		       unsigned int count, int isphybuf, int dmx_id);
 
 int SC2_bufferid_write_empty(struct chan_id *pchan, int pid);
 
