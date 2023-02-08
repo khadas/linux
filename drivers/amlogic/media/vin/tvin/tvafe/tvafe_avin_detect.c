@@ -1103,10 +1103,9 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 			if (s_counter1_last_state != 0)
 				s_irq_counter1_time = 0;
 			s_irq_counter1_time++;
-			if (avport_opened == TVAFE_PORT_AV2 &&
-			    !R_APB_BIT(CVD2_STATUS_REGISTER1, NO_SIGNAL_BIT,
-					NO_SIGNAL_WID) &&
-			    (av_dev->function_select & AVIN_FUNCTION_WHITE0))
+			if ((av_dev->function_select & AVIN_FUNCTION_WHITE0) &&
+			    tvafe_clk_status && avport_opened == TVAFE_PORT_AV2 &&
+			    !R_APB_BIT(CVD2_STATUS_REGISTER1, NO_SIGNAL_BIT, NO_SIGNAL_WID))
 				s_irq_counter1_time = 0;
 			if (avport_opened == TVAFE_PORT_AV2 &&
 			    (avin_detect_debug_print & TVAFE_AVIN_SIG_DEBUG))
@@ -1158,10 +1157,9 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 		if (s_counter0_last_state != 0)
 			s_irq_counter0_time = 0;
 		s_irq_counter0_time++;
-		if (avport_opened == TVAFE_PORT_AV1 &&
-		    !R_APB_BIT(CVD2_STATUS_REGISTER1, NO_SIGNAL_BIT,
-				NO_SIGNAL_WID) &&
-		    (av_dev->function_select & AVIN_FUNCTION_WHITE0))
+		if ((av_dev->function_select & AVIN_FUNCTION_WHITE0) &&
+		    tvafe_clk_status && avport_opened == TVAFE_PORT_AV1 &&
+		    !R_APB_BIT(CVD2_STATUS_REGISTER1, NO_SIGNAL_BIT, NO_SIGNAL_WID))
 			s_irq_counter0_time = 0;
 		if (avport_opened == TVAFE_PORT_AV1 &&
 		    (avin_detect_debug_print & TVAFE_AVIN_SIG_DEBUG))

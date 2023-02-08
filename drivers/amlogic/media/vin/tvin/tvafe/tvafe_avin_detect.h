@@ -168,6 +168,7 @@ extern unsigned int avport_opened;
 /*0:in, 1:out*/
 extern unsigned int av1_plugin_state;
 extern unsigned int av2_plugin_state;
+extern bool tvafe_clk_status;
 
 #endif /* TVAFE_AVIN_DETECT_H_ */
 
