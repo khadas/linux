@@ -350,14 +350,15 @@
 		mboxes = <&mhu_fifo A4_REE2AO>;
 	};
 
-	rtc: rtc@0xfe09a000 {
+	rtc: rtc@0xfe08e600 {
 		compatible = "amlogic,meson-rtc";
-		reg = <0x0 0xfe09a000 0x0 0x38>;
+		reg = <0x0 0xfe08e600 0x0 0x38>;
+		time-storage-format = "gray";
 		interrupts = <GIC_SPI 131 IRQ_TYPE_EDGE_RISING>;
 		status = "okay";
 		mboxes = <&mhu_fifo A4_REE2AO>;
-		//clocks = <&clkc CLKID_RTC_CLK>;
-		//clock-names = "rtc_clk";
+		clocks = <&clkc CLKID_RTC_CLK>;
+		clock-names = "rtc_clk";
 		osc_freq = <OSC_32KHZ>;
 	};
 

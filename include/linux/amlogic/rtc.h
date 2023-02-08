@@ -70,4 +70,5 @@ struct meson_rtc_data {
 	struct clk *clock;
 	int irq;
 	u32 freq;
+	const char *time_storage_format;
 };

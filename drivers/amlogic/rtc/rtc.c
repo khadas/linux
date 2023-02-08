@@ -45,6 +45,23 @@ static void meson_set_alarm(struct meson_rtc_data *rtc, u32 alarm_sec)
 	writel(alarm_sec, rtc->reg_base + RTC_ALARM0_REG);
 }
 
+static u32 gray_to_binary(u32 gray)
+{
+	u32 bcd = gray;
+	int size = sizeof(bcd) * 8;
+	int i;
+
+	for (i = 0; (1 << i) < size; i++)
+		bcd ^= bcd >> (1 << i);
+
+	return bcd;
+}
+
+static u32 binary_to_gray(u32 bcd)
+{
+	return bcd ^ (bcd >> 1);
+}
+
 static int meson_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct meson_rtc_data *rtc = dev_get_drvdata(dev);
@@ -52,6 +69,8 @@ static int meson_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	time64_t time64;
 
 	time_sec = meson_read_time(rtc);
+	if (!strcmp(rtc->time_storage_format, "gray"))
+		time_sec = gray_to_binary(time_sec);
 	time64 = (time64_t)time_sec;
 	dev_dbg(dev, "%s: read time = %u\n",
 		__func__, time_sec);
@@ -66,7 +85,11 @@ static int meson_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	unsigned long time_sec;
 
 	rtc_tm_to_time(tm, &time_sec);
+	if (!strcmp(rtc->time_storage_format, "gray"))
+		time_sec = binary_to_gray(time_sec);
 	meson_set_time(rtc, time_sec);
+	if (!strcmp(rtc->time_storage_format, "gray"))
+		time_sec = gray_to_binary(time_sec);
 	dev_dbg(dev, "%s: set_time = %lu\n",
 		__func__, time_sec);
 
@@ -93,6 +116,8 @@ static int meson_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		}
 
 		alarm_sec = (u32)alarm_sec64;
+		if (!strcmp(rtc->time_storage_format, "gray"))
+			alarm_sec = binary_to_gray(alarm_sec);
 		meson_set_alarm(rtc, alarm_sec);
 
 		/* Enable alarm0 */
@@ -102,7 +127,8 @@ static int meson_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	}
 
 	rtc->alarm_enabled = alarm->enabled;
-
+	if (!strcmp(rtc->time_storage_format, "gray"))
+		alarm_sec = gray_to_binary(alarm_sec);
 	dev_dbg(dev, "%s: alarm->enabled=%d alarm_set=0x%llx alarm=0x%x\n",
 		__func__, alarm->enabled, alarm_sec64, alarm_sec);
 
@@ -116,6 +142,8 @@ static int meson_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	u32 reg_val;
 
 	alarm_sec = meson_read_alarm(rtc);
+	if (!strcmp(rtc->time_storage_format, "gray"))
+		alarm_sec = gray_to_binary(alarm_sec);
 	rtc_time64_to_tm((time64_t)alarm_sec, &alarm->time);
 	dev_dbg(dev, "%s: alarm->enabled=%d alarm=0x%x\n", __func__,
 		alarm->enabled, alarm_sec);
@@ -351,6 +379,8 @@ static void meson_rtc_init(struct device *dev, struct meson_rtc_data *rtc)
 			dev_dbg(dev, "%s: mailbox get rtc time failed!\n", __func__);
 			rtc_time = 0;
 		} else {
+			if (!strcmp(rtc->time_storage_format, "gray"))
+				rtc_time = gray_to_binary(rtc_time);
 			meson_set_time(rtc, rtc_time);
 			dev_dbg(dev, "%s: Successfully restored rtc time %u\n",
 				__func__, rtc_time);
@@ -397,6 +427,11 @@ static int meson_rtc_probe(struct platform_device *pdev)
 		pr_err("resource ioremap failed\n");
 		return PTR_ERR(rtc->reg_base);
 	}
+
+	ret = of_property_read_string(pdev->dev.of_node, "time-storage-format",
+					&rtc->time_storage_format);
+	if (!ret)
+		rtc->time_storage_format = "binary";
 
 	rtc->clock = of_clk_get_by_name(pdev->dev.of_node, "rtc_clk");
 	if (IS_ERR_OR_NULL(rtc->clock)) {
@@ -501,6 +536,8 @@ static void meson_rtc_shutdown(struct platform_device *pdev)
 	/* reset by reboot, it can be removed if rtc can preserve time in reboot */
 	/* procedure */
 	rtc_time = meson_read_time(rtc);
+	if (!strcmp(rtc->time_storage_format, "gray"))
+		rtc_time = gray_to_binary(rtc_time);
 	if (rtc->find_mboxes) {
 		mbox_message_send_ao_sync(&pdev->dev, SCPI_CMD_SET_RTC,
 					  &rtc_time, sizeof(rtc_time), NULL, 0, 0);
