@@ -176,12 +176,14 @@ struct vsdb_phyaddr *get_hdmitx21_phy_addr(void)
 	return &hdmitx21_device.hdmi_info.vsdb_phy_addr;
 }
 
+/* dv_dummy always be as 0, ext_dvinfo will be used for external module */
 static const struct dv_info dv_dummy;
+static struct dv_info ext_dvinfo;
 static int log21_level;
 static bool hdmitx_edid_done;
 
 static struct vout_device_s hdmitx_vdev = {
-	.dv_info = &hdmitx21_device.rxcap.dv_info,
+	.dv_info = &ext_dvinfo,
 	.fresh_tx_hdr_pkt = hdmitx_set_drm_pkt,
 	.fresh_tx_vsif_pkt = hdmitx_set_vsif_pkt,
 	.fresh_tx_hdr10plus_pkt = hdmitx_set_hdr10plus_pkt,
@@ -607,10 +609,11 @@ static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev)
 
 	mutex_lock(&getedid_mutex);
 	hdrinfo_to_vinfo(&info->hdr_info, hdev);
+	memcpy(&ext_dvinfo, &hdev->rxcap.dv_info, sizeof(ext_dvinfo));
 	if (hdev->para && hdev->para->cd == COLORDEPTH_24B)
 		memset(&info->hdr_info, 0, sizeof(struct hdr_info));
 	rxlatency_to_vinfo(info, &hdev->rxcap);
-	hdmitx_vdev.dv_info = &hdev->rxcap.dv_info;
+	hdmitx_vdev.dv_info = &ext_dvinfo;
 	mutex_unlock(&getedid_mutex);
 }
 
@@ -1611,17 +1614,6 @@ static void hdr_work_func(struct work_struct *work)
 			pr_info("%s[%d]\n", __func__, __LINE__); \
 	} while (0)
 
-/* Init drm_db[0] from Uboot status */
-static void init_drm_db0(struct hdmitx_dev *hdev, u8 *dat)
-{
-	static int once_flag = 1;
-
-	if (once_flag) {
-		once_flag = 0;
-		*dat = hdev->hwop.getstate(hdev, STAT_HDR_TYPE, 0);
-	}
-}
-
 static bool _check_hdmi_mode(void)
 {
 	struct vinfo_s *vinfo = NULL;
@@ -1655,7 +1647,6 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		return;
 	hdmi_debug();
 	spin_lock_irqsave(&hdev->edid_spinlock, flags);
-	init_drm_db0(hdev, &drm_db[0]);
 	if (hdr_status_pos == 4) {
 		/* zero hdr10+ VSIF being sent - disable it */
 		pr_info("%s: disable hdr10+ zero vsif\n", __func__);
@@ -7378,7 +7369,7 @@ static int drm_hdmitx_set_contenttype(int content_type)
 
 static const struct dv_info *drm_hdmitx_get_dv_info(void)
 {
-	const struct dv_info *dv = &hdmitx21_device.rxcap.dv_info;
+	const struct dv_info *dv = &ext_dvinfo;
 
 	return dv;
 }
