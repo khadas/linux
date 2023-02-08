@@ -7040,6 +7040,8 @@ RERTY:
 	next_frame_par->VPP_post_blend_h_size_ = vinfo->width;
 
 	if (local_input.pps_support) {
+		dst_width = vinfo->width;
+		dst_height = vinfo->height;
 		ret = vpp_set_filters_internal_s5
 			(&local_input, src_width, src_height,
 			dst_width, dst_height,
