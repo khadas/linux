@@ -23,6 +23,7 @@
 #include <linux/amlogic/media/codec_mm/configs.h>
 #include <media/demux.h>
 #include <media/dmxdev.h>
+#include <linux/cma.h>
 
 static int dmabuf_manage_debug = 1;
 module_param(dmabuf_manage_debug, int, 0644);
@@ -854,6 +855,7 @@ static int secure_block_pool_init(void)
 	u32 max_cma_size_bytes = codec_mm_get_total_size();
 	u32 vdec_size = secure_pool_def_size_bytes;
 	u32 total_mem = totalram_pages() << PAGE_SHIFT;
+	struct codec_mm_s *mms;
 
 	if (g_vdec_info.used)
 		return 0;
@@ -880,10 +882,13 @@ static int secure_block_pool_init(void)
 	g_vdec_info.vdec_size = secure_align_up2n(vdec_size, SECURE_MM_ALIGNED_2N);
 	g_vdec_info.vdec_paddr = codec_mm_alloc_for_dma("dma-secure-buf",
 		g_vdec_info.vdec_size / PAGE_SIZE, 0, CODEC_MM_FLAGS_DMA);
-	if (!g_vdec_info.vdec_paddr) {
+	mms = codec_mm_alloc("dma-secure-buf", g_vdec_info.vdec_size,
+			0, CODEC_MM_FLAGS_DMA);
+	if (!mms || !mms->phy_addr) {
 		pr_error("allocate cma size failed %x\n", g_vdec_info.vdec_size);
 		goto error_init;
 	}
+	g_vdec_info.vdec_paddr = mms->phy_addr;
 	if (secure_addr_is_aligned(g_vdec_info.vdec_paddr, SECURE_MM_ALIGNED_2N)) {
 		g_vdec_info.vdec_align_paddr = g_vdec_info.vdec_paddr;
 		g_vdec_info.vdec_align_size = g_vdec_info.vdec_size;
@@ -895,6 +900,7 @@ static int secure_block_pool_init(void)
 		g_vdec_info.vdec_align_size = secure_align_down_2n(vdec_size,
 			SECURE_MM_ALIGNED_2N);
 	}
+	cma_mmu_op(mms->mem_handle, mms->page_count, 0);
 	ret = tee_protect_mem_by_type(TEE_MEM_TYPE_STREAM_INPUT,
 				(u32)g_vdec_info.vdec_align_paddr,
 				(u32)g_vdec_info.vdec_align_size,
@@ -916,12 +922,17 @@ static int secure_block_pool_init(void)
 	g_vdec_info.used = 1;
 	return 0;
 error_init:
-	if (g_vdec_info.vdec_handle)
+	if (g_vdec_info.vdec_handle) {
 		tee_unprotect_mem(g_vdec_info.vdec_handle);
-	if (g_vdec_info.vdec_paddr) {
-		if (codec_mm_free_for_dma("dma-secure-buf", g_vdec_info.vdec_paddr))
-			pr_error("free dma buf failed in init");
+		/*
+		 * If mms is NULL, g_vdec_info.vdec_handle must also be NULL,
+		 * the condition is not satisfied.
+		 */
+		/*coverity[var_deref_op:SUPPRESS]*/
+		cma_mmu_op(mms->mem_handle, mms->page_count, 1);
 	}
+	if (codec_mm_free_for_dma("dma-secure-buf", g_vdec_info.vdec_paddr))
+		pr_error("free dma buf failed in init");
 	memset(&g_vdec_info, 0, sizeof(struct secure_vdec_info));
 	return -1;
 }
