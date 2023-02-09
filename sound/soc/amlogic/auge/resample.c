@@ -739,13 +739,11 @@ static int resample_platform_suspend(struct platform_device *pdev,
 	struct audioresample *p_resample = dev_get_drvdata(&pdev->dev);
 
 	if (p_resample->suspend_clk_off) {
-		pr_info("%s begin\n", __func__);
 		if (!IS_ERR(p_resample->clk)) {
 			while (__clk_is_enabled(p_resample->clk))
 				clk_disable_unprepare(p_resample->clk);
 		}
 	}
-	pr_info("%s done\n", __func__);
 	return 0;
 }
 
@@ -755,15 +753,12 @@ static int resample_platform_resume(struct platform_device *pdev)
 	int ret = 0;
 
 	if (p_resample->suspend_clk_off) {
-		pr_info("%s begin\n", __func__);
 		if (!IS_ERR(p_resample->sclk) && !IS_ERR(p_resample->pll)) {
-			clk_set_parent(p_resample->sclk, NULL);
 			ret = clk_set_parent(p_resample->sclk, p_resample->pll);
 			if (ret)
 				dev_err(p_resample->dev, "Can't resume set p_resample->sclk parent clock\n");
 		}
 		if (!IS_ERR(p_resample->clk) && !IS_ERR(p_resample->sclk)) {
-			clk_set_parent(p_resample->clk, NULL);
 			ret = clk_set_parent(p_resample->clk, p_resample->sclk);
 			if (ret)
 				dev_err(p_resample->dev, "Can't resume set p_resample->clk clock\n");
@@ -772,7 +767,6 @@ static int resample_platform_resume(struct platform_device *pdev)
 				dev_err(p_resample->dev, "Can't resume enable earc clk_tx_dmac\n");
 		}
 	}
-	pr_info("%s done\n", __func__);
 
 	return 0;
 }
@@ -878,13 +872,6 @@ static int resample_platform_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = clk_prepare_enable(p_resample->clk);
-	if (ret) {
-		pr_err("Can't enable resample_clk clock: %d\n",
-			ret);
-		return ret;
-	}
-
 	p_resample->dev = dev;
 	dev_set_drvdata(dev, p_resample);
 
@@ -898,6 +885,12 @@ static int resample_platform_probe(struct platform_device *pdev)
 	else if (p_chipinfo && p_chipinfo->resample_version == AXG_RESAMPLE)
 		resample_clk_set(p_resample, DEFAULT_SPK_SAMPLERATE);
 
+	ret = clk_prepare_enable(p_resample->clk);
+	if (ret) {
+		pr_err("Can't enable resample_clk clock: %d\n",
+			ret);
+		return ret;
+	}
 	aml_set_resample(p_resample->id, p_resample->enable,
 			 p_resample->resample_module);
 
