@@ -4365,7 +4365,7 @@ void hdmirx_config_video(void)
 {
 	u32 temp = 0;
 	u8 data8;
-
+	u8 pixel_rpt_cnt;
 	int reg_clk_vp_core_div, reg_clk_vp_out_div;
 	if (dbg_cs & 0x10)
 		temp = dbg_cs & 0x0f;
@@ -4389,14 +4389,18 @@ void hdmirx_config_video(void)
 		case 1:
 			reg_clk_vp_core_div = 3;
 			reg_clk_vp_out_div = 1;
+			pixel_rpt_cnt = 1;
 		break;
 		case 3:
 			reg_clk_vp_core_div = 7;
 			reg_clk_vp_out_div = 3;
+			pixel_rpt_cnt = 2;
 		break;
+		case 7: //todo
 		default:
 			reg_clk_vp_core_div = 1;
 			reg_clk_vp_out_div = 0;
+			pixel_rpt_cnt = 0;
 		break;
 		}
 		data8 = hdmirx_rd_cor(RX_PWD0_CLK_DIV_0);
@@ -4410,7 +4414,7 @@ void hdmirx_config_video(void)
 
 		data8 = hdmirx_rd_cor(RX_VP_INPUT_FORMAT_HI);
 		data8 &= (~0x7);
-		data8 |= ((rx.cur.repeat & 0x3) << 0);
+		data8 |= ((pixel_rpt_cnt & 0x3) << 0);
 		hdmirx_wr_cor(RX_VP_INPUT_FORMAT_HI, data8);
 	}
 	rx_sw_reset_t7(2);

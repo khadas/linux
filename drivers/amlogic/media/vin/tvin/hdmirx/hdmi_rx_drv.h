@@ -22,8 +22,8 @@
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_drv_ext.h"
 
-/* repeater */
-#define RX_VER0 "ver.2022/09/06"
+/* optimize repetition setting */
+#define RX_VER0 "ver.2023/02/09"
 
 /*print type*/
 #define	LOG_EN		0x01
