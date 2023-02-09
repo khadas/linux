@@ -464,7 +464,18 @@ static const struct tuner_module tuner_modules[] = {
 		.detach = aml_tuner_detach,
 		.match = aml_tuner_match,
 		.detect = aml_tuner_detect
-	}
+	},
+	{
+		.name = "r856",
+		.id = AM_TUNER_R856,
+		.delsys = { SYS_ATSC },
+		.type = {  FE_ATSC, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_tuner_attach,
+		.detach = aml_tuner_detach,
+		.match = aml_tuner_match,
+		.detect = aml_tuner_detect
+	},
 };
 
 static tn_attach_cb pt[AM_TUNER_MAX];

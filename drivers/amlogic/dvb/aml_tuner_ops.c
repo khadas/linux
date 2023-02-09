@@ -532,8 +532,8 @@ static int tuner_set_bandwidth(struct dvb_frontend *fe, u32 bandwidth)
 static struct dvb_tuner_ops tuner_ops = {
 	.info = {
 		.name              = "tuner-useless",
-		.frequency_min_hz  = 0,
-		.frequency_max_hz  = 0,
+		.frequency_min_hz  = 42000000,
+		.frequency_max_hz  = 2300000000UL,
 		.frequency_step_hz = 0,
 		.bandwidth_min     = 0,
 		.bandwidth_max     = 0,
