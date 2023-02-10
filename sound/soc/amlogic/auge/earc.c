@@ -184,6 +184,7 @@ struct earc {
 	int earctx_5v;
 	unsigned int standard_tx_dmac;
 	int suspend_clk_off;
+	bool resumed;
 };
 
 static struct earc *s_earc;
@@ -2379,6 +2380,71 @@ static int earcrx_extcon_register(struct earc *p_earc)
 	return ret;
 }
 
+void earc_resume(void)
+{
+	struct earc *p_earc = s_earc;
+	int ret = 0;
+
+	if (!p_earc)
+		return;
+
+	if (p_earc->suspend_clk_off) {
+		if (p_earc->chipinfo->tx_enable) {
+			if (!IS_ERR(p_earc->clk_tx_cmdc) && !IS_ERR(p_earc->clk_tx_cmdc_srcpll)) {
+				ret = clk_set_parent(p_earc->clk_tx_cmdc,
+						p_earc->clk_tx_cmdc_srcpll);
+				if (ret)
+					dev_err(p_earc->dev, "Can't resume set clk_tx_cmdc parent clock\n");
+			}
+			if (!IS_ERR(p_earc->clk_tx_dmac) && !IS_ERR(p_earc->clk_tx_dmac_srcpll)) {
+				ret = clk_set_parent(p_earc->clk_tx_dmac,
+						p_earc->clk_tx_dmac_srcpll);
+				if (ret)
+					dev_err(p_earc->dev, "Can't resume set clk_tx_dmac parent clock\n");
+				ret = clk_prepare_enable(p_earc->clk_tx_dmac);
+				if (ret)
+					dev_err(p_earc->dev, "Can't resume enable earc clk_tx_dmac\n");
+				ret = clk_prepare_enable(p_earc->clk_tx_cmdc);
+				if (ret)
+					dev_err(p_earc->dev, "Can't resume enable earc clk_tx_cmdc\n");
+			}
+		}
+
+		if (p_earc->chipinfo->rx_enable) {
+			if (!IS_ERR(p_earc->clk_rx_cmdc) && !IS_ERR(p_earc->clk_rx_cmdc_srcpll)) {
+				ret = clk_set_parent(p_earc->clk_rx_cmdc,
+						p_earc->clk_rx_cmdc_srcpll);
+				if (ret)
+					dev_err(p_earc->dev, "Can't resume set clk_rx_cmdc parent clock\n");
+			}
+			if (!IS_ERR(p_earc->clk_rx_dmac) && !IS_ERR(p_earc->clk_rx_dmac_srcpll)) {
+				ret = clk_set_parent(p_earc->clk_rx_dmac,
+						p_earc->clk_rx_dmac_srcpll);
+				if (ret)
+					dev_err(p_earc->dev, "Can't resume set clk_rx_dmac parent clock\n");
+				ret = clk_prepare_enable(p_earc->clk_rx_cmdc);
+				if (ret)
+					dev_err(p_earc->dev, "Can't resume enable earc clk_rx_cmdc\n");
+				ret = clk_prepare_enable(p_earc->clk_rx_dmac);
+				if (ret)
+					dev_err(p_earc->dev, "Can't resume enable earc clk_rx_dmac\n");
+				ret = clk_prepare_enable(p_earc->clk_rx_dmac_srcpll);
+				if (ret)
+					dev_err(p_earc->dev, "Can't resume enable earc clk_rx_dmac_srcpll\n");
+			}
+		}
+	}
+
+	/* earc device, and the state is arc, need recovery earc */
+	if (!IS_ERR(p_earc->tx_cmdc_map) &&
+	    p_earc->tx_earc_mode &&
+	    p_earc->earctx_connected_device_type == ATNDTYP_EARC &&
+	    earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map) == ATNDTYP_ARC)
+		schedule_work(&p_earc->tx_resume_work);
+
+	p_earc->resumed = true;
+}
+
 void earc_hdmitx_hpdst(bool st)
 {
 	struct earc *p_earc = s_earc;
@@ -2388,6 +2454,9 @@ void earc_hdmitx_hpdst(bool st)
 
 	dev_info(p_earc->dev, "HDMITX cable is %s\n",
 		 st ? "plugin" : "plugout");
+
+	if (!p_earc->resumed)
+		earc_resume();
 
 	if (!p_earc->rx_bootup_auto_cal) {
 		p_earc->rx_bootup_auto_cal = true;
@@ -2756,61 +2825,9 @@ int earc_platform_remove(struct platform_device *pdev)
 static int earc_platform_resume(struct platform_device *pdev)
 {
 	struct earc *p_earc = dev_get_drvdata(&pdev->dev);
-	int ret = 0;
 
-	/* earc device, and the state is arc, need recovery earc */
-	if (!IS_ERR(p_earc->tx_cmdc_map) &&
-	    p_earc->tx_earc_mode &&
-	    p_earc->earctx_connected_device_type == ATNDTYP_EARC &&
-	    earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map) == ATNDTYP_ARC)
-		schedule_work(&p_earc->tx_resume_work);
-
-	if (p_earc->suspend_clk_off) {
-		if (p_earc->chipinfo->tx_enable) {
-			if (!IS_ERR(p_earc->clk_tx_cmdc) && !IS_ERR(p_earc->clk_tx_cmdc_srcpll)) {
-				ret = clk_set_parent(p_earc->clk_tx_cmdc,
-						p_earc->clk_tx_cmdc_srcpll);
-				if (ret)
-					dev_err(p_earc->dev, "Can't resume set clk_tx_cmdc parent clock\n");
-			}
-			if (!IS_ERR(p_earc->clk_tx_dmac) && !IS_ERR(p_earc->clk_tx_dmac_srcpll)) {
-				ret = clk_set_parent(p_earc->clk_tx_dmac,
-						p_earc->clk_tx_dmac_srcpll);
-				if (ret)
-					dev_err(p_earc->dev, "Can't resume set clk_tx_dmac parent clock\n");
-				ret = clk_prepare_enable(p_earc->clk_tx_dmac);
-				if (ret)
-					dev_err(p_earc->dev, "Can't resume enable earc clk_tx_dmac\n");
-				ret = clk_prepare_enable(p_earc->clk_tx_cmdc);
-				if (ret)
-					dev_err(p_earc->dev, "Can't resume enable earc clk_tx_cmdc\n");
-			}
-		}
-
-		if (p_earc->chipinfo->rx_enable) {
-			if (!IS_ERR(p_earc->clk_rx_cmdc) && !IS_ERR(p_earc->clk_rx_cmdc_srcpll)) {
-				ret = clk_set_parent(p_earc->clk_rx_cmdc,
-						p_earc->clk_rx_cmdc_srcpll);
-				if (ret)
-					dev_err(p_earc->dev, "Can't resume set clk_rx_cmdc parent clock\n");
-			}
-			if (!IS_ERR(p_earc->clk_rx_dmac) && !IS_ERR(p_earc->clk_rx_dmac_srcpll)) {
-				ret = clk_set_parent(p_earc->clk_rx_dmac,
-						p_earc->clk_rx_dmac_srcpll);
-				if (ret)
-					dev_err(p_earc->dev, "Can't resume set clk_rx_dmac parent clock\n");
-				ret = clk_prepare_enable(p_earc->clk_rx_cmdc);
-				if (ret)
-					dev_err(p_earc->dev, "Can't resume enable earc clk_rx_cmdc\n");
-				ret = clk_prepare_enable(p_earc->clk_rx_dmac);
-				if (ret)
-					dev_err(p_earc->dev, "Can't resume enable earc clk_rx_dmac\n");
-				ret = clk_prepare_enable(p_earc->clk_rx_dmac_srcpll);
-				if (ret)
-					dev_err(p_earc->dev, "Can't resume enable earc clk_rx_dmac_srcpll\n");
-			}
-		}
-	}
+	if (!p_earc->resumed)
+		earc_resume();
 
 	return 0;
 }
@@ -2845,6 +2862,8 @@ static int earc_platform_suspend(struct platform_device *pdev,
 			}
 		}
 	}
+
+	p_earc->resumed = false;
 
 	return 0;
 }
