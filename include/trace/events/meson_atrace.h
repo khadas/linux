@@ -98,6 +98,11 @@ void meson_atrace(int tag, const char *name, unsigned int flags,
 	meson_atrace(KERNEL_ATRACE_TAG, name, \
 		(1 << KERNEL_ATRACE_ASYNC_END), cookie)
 #else
+static inline void meson_atrace(int tag, const char *name, unsigned int flags,
+		  unsigned long value)
+{
+}
+
 #define ATRACE_COUNTER(name, value)
 #define ATRACE_BEGIN(name)
 #define ATRACE_END(name)
