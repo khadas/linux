@@ -275,13 +275,12 @@ config AMLOGIC_IN_KERNEL_MODULES
 	  build, should disable
 
 config AMLOGIC_KERNEL_VERSION
-	bool "Amlogic Kernel Version"
-	default y
+	int "Amlogic Kernel Version"
+	default 13515
 	help
-	  using as follows:
-	  #ifdef CONFIG_AMLOGIC_KERNEL_VERSION
-	  #include <linux/upstream_version.h>
-	  #endif
+	  kernel from android13-5.15
+	  so the default value is 13515
+	  the driver uses it to adapt different kernel versions
 
 if AMLOGIC_IN_KERNEL_MODULES
 source "$(COMMON_DRIVERS_DIR)/drivers/Kconfig"
