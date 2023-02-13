@@ -107,6 +107,13 @@ static unsigned int hdmitx_get_frame_duration(void);
  */
 /* static DEFINE_MUTEX(hdmimode_mutex); */
 
+/*
+ * When systemcontrol and the upper layer call the valid_mode node
+ * at the same time, it may cause concurrency errors.
+ * Put the judgment of valid_mode in store_valid_mode
+ */
+static DEFINE_MUTEX(valid_mode_mutex);
+
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data);
 #else
@@ -3327,9 +3334,6 @@ static ssize_t dc_cap_show(struct device *dev,
 	return pos;
 }
 
-static bool valid_mode;
-static char cvalid_mode[32];
-
 static bool pre_process_str(char *name)
 {
 	int i;
@@ -3346,43 +3350,39 @@ static bool pre_process_str(char *name)
 		return 1;
 }
 
-static ssize_t valid_mode_show(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
-{
-	int pos = 0;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-	struct hdmi_format_para *para = NULL;
-
-	if (cvalid_mode[0]) {
-		valid_mode = pre_process_str(cvalid_mode);
-		if (valid_mode == 0) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "%d\n\r",
-				valid_mode);
-			return pos;
-		}
-		para = hdmitx21_tst_fmt_name(cvalid_mode, cvalid_mode);
-		if (!para) {
-			pos += snprintf(buf + pos, PAGE_SIZE, "0\n\r");
-			return pos;
-		}
-	}
-
-	valid_mode = hdmitx21_edid_check_valid_mode(hdev, para);
-
-	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n\r", valid_mode);
-
-	return pos;
-}
-
 static ssize_t valid_mode_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
+	int ret;
+	bool valid_mode;
+	char cvalid_mode[32];
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmi_format_para *para = NULL;
+
+	mutex_lock(&valid_mode_mutex);
 	memset(cvalid_mode, 0, sizeof(cvalid_mode));
 	strncpy(cvalid_mode, buf, sizeof(cvalid_mode));
 	cvalid_mode[31] = '\0';
-	return count;
+
+	if (cvalid_mode[0]) {
+		valid_mode = pre_process_str(cvalid_mode);
+		if (valid_mode == 0) {
+			mutex_unlock(&valid_mode_mutex);
+			return -1;
+		}
+		para = hdmitx21_tst_fmt_name(cvalid_mode, cvalid_mode);
+		if (!para) {
+			mutex_unlock(&valid_mode_mutex);
+			return -1;
+		}
+	}
+	valid_mode = hdmitx21_edid_check_valid_mode(hdev, para);
+	ret = valid_mode ? count : -1;
+	mutex_unlock(&valid_mode_mutex);
+	if (log21_level)
+		pr_info("hdmitx: valid_mode_show %s  valid: %d\n", cvalid_mode, ret);
+	return ret;
 }
 
 static ssize_t allm_cap_show(struct device *dev,
@@ -5273,7 +5273,7 @@ static DEVICE_ATTR_RO(hdr_cap2);
 static DEVICE_ATTR_RO(dv_cap);
 static DEVICE_ATTR_RO(dv_cap2);
 static DEVICE_ATTR_RO(dc_cap);
-static DEVICE_ATTR_RW(valid_mode);
+static DEVICE_ATTR_WO(valid_mode);
 static DEVICE_ATTR_RO(allm_cap);
 static DEVICE_ATTR_RW(allm_mode);
 static DEVICE_ATTR_RO(contenttype_cap);
