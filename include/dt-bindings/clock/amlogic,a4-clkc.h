@@ -3,8 +3,8 @@
  * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
-#ifndef __A5_CLKC_H
-#define __A5_CLKC_H
+#ifndef __A4_CLKC_H
+#define __A4_CLKC_H
 
 /*
  * CLKID index values
@@ -189,4 +189,4 @@
 
 #define NR_CLKS				(CLKID_SYS_CLK_EN + 55)
 
-#endif /* __A5_CLKC_H */
+#endif /* __A4_CLKC_H */
