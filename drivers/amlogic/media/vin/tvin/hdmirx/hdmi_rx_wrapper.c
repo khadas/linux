@@ -1850,8 +1850,8 @@ static int get_timing_fmt(void)
 			continue;
 		if (freq_ref[i].interlace != rx.pre.interlaced)
 			continue;
-		/* if (freq_ref[i].type_3d != rx.vs_info_details._3d_structure) */
-			/* continue; */
+		if (freq_ref[i].type_3d != rx.vs_info_details._3d_structure)
+			continue;
 		break;
 	}
 	if (force_vic) {
@@ -2082,34 +2082,7 @@ void esm_recovery(void)
 		hdcp22_esm_reset2 = 1;
 }
 
-bool is_hdcp_finished(int wait_cnt)
-{
-	bool ret = true;
-
-	/*
-	 * 1.for dv_cts HDMI 40-47 switch input per 2s
-	 * cannot keep waiting hdcp.
-	 * It will cause test fail
-	 * 2.fix appletv BSOD issue.
-	 */
-	if (rx.hdcp.hdcp_version == HDCP_VER_NONE) {
-		if (dev_is_appletv_v2) {
-			if (wait_cnt == hdcp_none_wait_max * 30)
-				ret = false;
-		} else if (rx.hdcp.hdcp_pre_ver != HDCP_VER_14) {
-			if (wait_cnt == hdcp_none_wait_max)
-				ret = false;
-		} else {
-			if (wait_cnt == hdcp_none_wait_max * 10)
-				ret = false;
-		}
-		if (log_level & VIDEO_LOG)
-			rx_pr("hdcp none waiting\n");
-	}
-	return ret;
-}
-
-bool is_unnormal_format(int wait_cnt)
+bool is_unnormal_format(u8 wait_cnt)
 {
 	bool ret = false;
 
@@ -2144,6 +2117,27 @@ bool is_unnormal_format(int wait_cnt)
 				rx.err_code = ERR_NO_HDCP14_KEY;
 			ret = false;
 		}
+	}
+	/*
+	 * 1.for dv_cts HDMI 40-47 switch input per 2s
+	 * cannot keep waiting hdcp.
+	 * It will cause test fail
+	 * 2.fix appletv BSOD issue.
+	 */
+	if (rx.hdcp.hdcp_version == HDCP_VER_NONE) {
+		ret = true;
+		if (dev_is_appletv_v2) {
+			if (wait_cnt == hdcp_none_wait_max * 30)
+				ret = false;
+		} else if (rx.hdcp.hdcp_pre_ver != HDCP_VER_14) {
+			if (wait_cnt == hdcp_none_wait_max)
+				ret = false;
+		} else {
+			if (wait_cnt == hdcp_none_wait_max * 10)
+				ret = false;
+		}
+		if (log_level & VIDEO_LOG)
+			rx_pr("hdcp none waiting\n");
 	}
 	if (!ret && wait_cnt != sig_stable_max)
 		if (log_level & VIDEO_LOG)
@@ -3254,8 +3248,7 @@ void rx_main_state_machine(void)
 				/* timing stable, start count vsync and avi pkt */
 				rx.var.de_stable = true;
 				sig_unstable_cnt = 0;
-				if (is_unnormal_format(sig_stable_cnt) ||
-					is_hdcp_finished(sig_stable_cnt))
+				if (is_unnormal_format(sig_stable_cnt))
 					break;
 				/* if format vic is abnormal, do hw
 				 * reset once to try to recover.
