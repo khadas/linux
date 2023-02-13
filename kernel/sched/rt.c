@@ -1458,11 +1458,6 @@ static void yield_task_rt(struct rq *rq)
 #ifdef CONFIG_SMP
 static int find_lowest_rq(struct task_struct *task);
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-static int rt_preempt_cfs_max_prio = 106;
-core_param(rt_preempt_cfs_max_prio, rt_preempt_cfs_max_prio, int, 0644);
-#endif
-
 static int
 select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags)
 {
@@ -1514,12 +1509,6 @@ select_task_rq_rt(struct task_struct *p, int cpu, int sd_flag, int flags)
 	test = curr &&
 	       unlikely(rt_task(curr)) &&
 	       (curr->nr_cpus_allowed < 2 || curr->prio <= p->prio);
-
-#ifdef CONFIG_AMLOGIC_MODIFY
-	if (!test &&
-	    curr && curr->prio < rt_preempt_cfs_max_prio)
-		test = 1;
-#endif
 
 	if (test || !rt_task_fits_capacity(p, cpu)) {
 		int target = find_lowest_rq(p);
@@ -1745,11 +1734,6 @@ static int find_lowest_rq(struct task_struct *task)
 	int cpu      = task_cpu(task);
 	int ret;
 	int lowest_cpu = -1;
-#ifdef CONFIG_AMLOGIC_MODIFY
-	int lowest_prio_cpu = -1;
-	int lowest_prio = -1;
-	int tmp_cpu;
-#endif
 
 	trace_android_rvh_find_lowest_rq(task, lowest_mask, &lowest_cpu);
 	if (lowest_cpu >= 0)
@@ -1779,27 +1763,6 @@ static int find_lowest_rq(struct task_struct *task)
 
 	if (!ret)
 		return -1; /* No targets found */
-
-#ifdef CONFIG_AMLOGIC_MODIFY
-	for_each_cpu(tmp_cpu, lowest_mask) {
-		/*
-		 * The error is caused by using for_each_cpu type macros.
-		 */
-		/* coverity[overrun-local:SUPPRESS] */
-		struct task_struct *curr = READ_ONCE(cpu_rq(tmp_cpu)->curr);
-
-		if (curr && curr->pid == 0)
-			return tmp_cpu;
-
-		if (curr && curr->prio > lowest_prio) {
-			lowest_prio = curr->prio;
-			lowest_prio_cpu = tmp_cpu;
-		}
-	}
-
-	if (lowest_prio_cpu != -1)
-		return lowest_prio_cpu;
-#endif
 
 	/*
 	 * At this point we have built a mask of CPUs representing the
