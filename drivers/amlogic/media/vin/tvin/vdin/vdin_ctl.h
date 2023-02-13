@@ -91,8 +91,12 @@
 #define CTL_DEBUG_EVENT_NO_COMP		(BIT(6))
 #define CTL_DEBUG_LUMA_MAX		(BIT(8))
 
+#define VDIN_ADDRESS_DBG		BIT(0)
+
 #define MEM_ALLOC_DISCRETE	(BIT(8))
 #define MEM_ALLOC_FROM_CODEC	(BIT(0))
+
+#define VDIN_DBG_PRINT_CNT		20
 
 /* 8 is filter the abnormal frame rate diff */
 #define VDIN_DURATION_FILTER_VALUE	8

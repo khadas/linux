@@ -2522,7 +2522,7 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 			unsigned int rdma_enable,
 			struct vf_entry *vfe)
 {
-	u32 stride_luma, stride_chroma;
+	u32 stride_luma, stride_chroma = 0;
 	u32 hsize;
 	u32 phy_addr_luma = 0, phy_addr_chroma = 0;
 
@@ -2582,6 +2582,19 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 			   stride_chroma);
 		}
 	}
+
+	if (devp->debug.dbg_print_cntl & VDIN_ADDRESS_DBG &&
+	    devp->irq_cnt < VDIN_DBG_PRINT_CNT)
+		pr_info("%s %#x:%#x(%#x) %#x:%#x(%#x) %#x:%#x(%#x) %#x:%#x(%#x) %#x:%#x\n",
+			__func__, VDIN_WR_BADDR_LUMA, rd(devp->addr_offset, VDIN_WR_BADDR_LUMA),
+			phy_addr_luma,
+			VDIN_WR_STRIDE_LUMA, rd(devp->addr_offset, VDIN_WR_STRIDE_LUMA),
+			stride_luma,
+			VDIN_WR_BADDR_CHROMA, rd(devp->addr_offset, VDIN_WR_BADDR_CHROMA),
+			phy_addr_chroma,
+			VDIN_WR_STRIDE_CHROMA, rd(devp->addr_offset, VDIN_WR_STRIDE_CHROMA),
+			stride_chroma,
+			VDIN_WR_CTRL, rd(devp->addr_offset, VDIN_WR_CTRL));
 }
 
 void vdin_set_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,

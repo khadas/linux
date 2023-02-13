@@ -484,6 +484,14 @@ void vdin_afbce_config(struct vdin_dev_s *devp)
 		W_VCBUS_BIT(AFBCE_ENABLE, 1, AFBCE_EN_BIT, AFBCE_EN_WID);
 	else
 		W_VCBUS_BIT(AFBCE_ENABLE, 0, AFBCE_EN_BIT, AFBCE_EN_WID);
+
+	if (devp->debug.dbg_print_cntl & VDIN_ADDRESS_DBG &&
+	    devp->irq_cnt < VDIN_DBG_PRINT_CNT)
+		pr_err("%s %#x:%#x(%#lx) %#x:%#x(%#lx)\n",
+			__func__, AFBCE_HEAD_BADDR, rd(0, AFBCE_HEAD_BADDR),
+			devp->afbce_info->fm_head_paddr[0],
+			AFBCE_MMU_RMIF_CTRL4, rd(0, AFBCE_MMU_RMIF_CTRL4),
+			devp->afbce_info->table_paddr);
 }
 
 void vdin_afbce_maptable_init(struct vdin_dev_s *devp)
@@ -594,6 +602,14 @@ void vdin_afbce_set_next_frame(struct vdin_dev_s *devp,
 	}
 #endif
 	vdin_afbce_clear_write_down_flag(devp);
+
+	if (devp->debug.dbg_print_cntl & VDIN_ADDRESS_DBG &&
+	    devp->irq_cnt < VDIN_DBG_PRINT_CNT)
+		pr_err("%s %#x:%#x(%#lx) %#x:%#x(%#lx)\n",
+			__func__, AFBCE_HEAD_BADDR, rd(0, AFBCE_HEAD_BADDR),
+			devp->afbce_info->fm_head_paddr[i],
+			AFBCE_MMU_RMIF_CTRL4, rd(0, AFBCE_MMU_RMIF_CTRL4),
+			devp->afbce_info->fm_table_paddr[i]);
 }
 
 void vdin_pause_afbce_write(struct vdin_dev_s *devp, unsigned int rdma_enable)

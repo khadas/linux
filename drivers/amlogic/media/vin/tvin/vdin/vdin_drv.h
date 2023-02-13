@@ -128,8 +128,8 @@
 /* 20221215: fix s5 loopback venc0 issue */
 /* 20230105: overseas project display ration control */
 /* 20230112: modify for vdin0 v4l2 */
-
-#define VDIN_VER "20230112"
+/* 20230216: add address debug info */
+#define VDIN_VER "20230216"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -491,6 +491,7 @@ struct vdin_vf_info {
 struct vdin_debug_s {
 	struct tvin_cutwin_s cutwin;
 	unsigned int vdin_recycle_num;/* debug for vdin recycle frame by self */
+	unsigned int dbg_print_cntl;/* debug for vdin print control */
 	unsigned int dbg_pattern;
 	unsigned short scaling4h;/* for vertical scaling */
 	unsigned short scaling4w;/* for horizontal scaling */

@@ -3274,6 +3274,11 @@ start_chk:
 			devp->debug.dbg_sel_mat = temp;
 			pr_info("dbg_sel_mat:%#x\n", devp->debug.dbg_sel_mat);
 		}
+	} else if (!strcmp(parm[0], "vdin_dbg_cntl")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			devp->debug.dbg_print_cntl = temp;
+			pr_info("dbg_print_cntl:%#x\n", devp->debug.dbg_print_cntl);
+		}
 	} else if (!strcmp(parm[0], "pattern")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.dbg_pattern = temp;
