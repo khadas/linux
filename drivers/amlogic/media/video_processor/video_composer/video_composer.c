@@ -972,6 +972,34 @@ static struct vf_aiface_t *vc_get_aiface_info(struct composer_dev *dev,
 	return aiface_info;
 }
 
+static struct vf_aicolor_t *vc_get_aicolor_info(struct composer_dev *dev,
+		struct file *file_vf)
+{
+	struct vf_aicolor_t *aicolor_info;
+	struct uvm_hook_mod *uhmod;
+
+	if (!file_vf) {
+		vc_print(dev->index, PRINT_ERROR, "vc get aicolor_info fail.\n");
+		return NULL;
+	}
+	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
+				 PROCESS_AICOLOR);
+	if (!uhmod) {
+		vc_print(dev->index, PRINT_OTHER, "dma file file_private_data is NULL 1\n");
+		return NULL;
+	}
+
+	if (IS_ERR_VALUE(uhmod) || !uhmod->arg) {
+		vc_print(dev->index, PRINT_ERROR, "dma file file_private_data is NULL 2\n");
+		return NULL;
+	}
+	aicolor_info = uhmod->arg;
+	uvm_put_hook_mod((struct dma_buf *)(file_vf->private_data),
+			 PROCESS_AICOLOR);
+
+	return aicolor_info;
+}
+
 static void frames_put_file(struct composer_dev *dev,
 			    struct received_frames_t *current_frames)
 {
@@ -2770,6 +2798,28 @@ static void video_wait_dalton_ready(struct composer_dev *dev,
 		 "dalton wait %dms nn_status=%d\n", 2 * wait_count, dalton_info->nn_status);
 }
 
+static void video_wait_aicolor_ready(struct composer_dev *dev,
+				struct vf_aicolor_t *aicolor_info)
+{
+	int wait_count = 0;
+
+	while (1) {
+		if (aicolor_info->nn_status != NN_DONE &&
+			(aicolor_info->nn_status == NN_WAIT_DOING ||
+			aicolor_info->nn_status == NN_START_DOING)) {
+			usleep_range(2000, 2100);
+			wait_count++;
+			vc_print(dev->index, PRINT_PATTERN | PRINT_AIFACE,
+				"aicolor wait count %d, nn_status=%d\n",
+				wait_count, aicolor_info->nn_status);
+		} else {
+			break;
+		}
+	}
+	vc_print(dev->index, PRINT_PATTERN | PRINT_AIFACE,
+		 "aicolor wait %dms nn_status=%d\n", 2 * wait_count, aicolor_info->nn_status);
+}
+
 static bool check_vf_has_afbc(struct composer_dev *dev, struct file *file_vf)
 {
 	struct vframe_s *vf = NULL;
@@ -2909,6 +2959,7 @@ static void video_composer_task(struct composer_dev *dev)
 	struct vf_dalton_t *dalton_info = NULL;
 	bool do_mosaic_22 = false;
 	struct vf_aiface_t *aiface_info = NULL;
+	struct vf_aicolor_t *aicolor_info = NULL;
 
 	if (!kfifo_peek(&dev->receive_q, &received_frames)) {
 		vc_print(dev->index, PRINT_ERROR, "task: peek failed\n");
@@ -3277,6 +3328,16 @@ static void video_composer_task(struct composer_dev *dev)
 					vc_print(dev->index, PRINT_AIFACE,
 						"omx_index = %d, aiface_value_count = %d.\n",
 						vf->omx_index, aiface_info->aiface_value_count);
+				}
+
+				aicolor_info = vc_get_aicolor_info(dev, file_vf);
+				if (aicolor_info) {
+					video_wait_aicolor_ready(dev, aicolor_info);
+					if (aicolor_info->nn_status == NN_DONE) {
+						vf->vc_private->aicolor_info = aicolor_info;
+						aicolor_info->nn_status = NN_DISPLAYED;
+						vc_private->flag |= VC_FLAG_AI_COLOR;
+					}
 				}
 			}
 			dev->last_file = file_vf;
