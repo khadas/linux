@@ -1205,22 +1205,24 @@
 			interrupts = <GIC_SPI 178 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
 			//power-domains = <&pwrdm PDID_A5_EMMC>;
-			//clocks = <&clkc CLKID_SYS_CLK_SD_EMMCC>,
-			//	<&clkc CLKID_SD_EMMC_C_CLK_SEL>,
-			//	 <&clkc CLKID_SD_EMMC_C_CLK>,
-			//	 <&xtal>,
-			//	 <&clkc CLKID_GP0_PLL>,
-			//	 <&clkc CLKID_GP0_PLL>;
-			//clock-names = "core", "mux0", "mux1",
-			//		"clkin0", "clkin1", "clkin2";
+			clocks = <&clkc CLKID_SYS_CLK_SD_EMMCC>,
+				<&clkc CLKID_SD_EMMC_C_CLK_SEL>,
+				 <&clkc CLKID_SD_EMMC_C_CLK>,
+				 <&xtal>,
+				 //<&clkc CLKID_GP0_PLL>,
+				 //<&clkc CLKID_GP0_PLL>;
+				 <&clkc CLKID_FCLK_DIV2>,
+				 <&clkc CLKID_FCLK_DIV2>;
+			clock-names = "core", "mux0", "mux1",
+					"clkin0", "clkin1", "clkin2";
 			card_type = <1>;
 			ignore_desc_busy;
 			mmc_debug_flag;
-			src_clk_rate = <1152000000>;
-			enable-ctrl-power;
+			//src_clk_rate = <1152000000>;
+			//enable-ctrl-power;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};
-
+		/* no portB clock */
 		sd_emmc_b: sd@fe08a000 {
 			compatible = "amlogic,meson-axg-mmc";
 			reg = <0x0 0xfe08a000 0x0 0x800>,
@@ -1248,13 +1250,13 @@
 			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 			//power-domains = <&pwrdm PDID_A5_SDIOA>;
-			//clocks = <&clkc CLKID_SYS_CLK_SD_EMMCA>,
-			//	<&clkc CLKID_SD_EMMC_A_CLK_SEL>,
-			//	 <&clkc CLKID_SD_EMMC_A_CLK>,
-			//	 <&xtal>,
-			//	 <&clkc CLKID_FCLK_DIV2>;
-			//clock-names = "core", "mux0", "mux1",
-			//		"clkin0", "clkin1";
+			clocks = <&clkc CLKID_SYS_CLK_SD_EMMCA>,
+				<&clkc CLKID_SD_EMMC_A_CLK_SEL>,
+				 <&clkc CLKID_SD_EMMC_A_CLK>,
+				 <&xtal>,
+				 <&clkc CLKID_FCLK_DIV2>;
+			clock-names = "core", "mux0", "mux1",
+					"clkin0", "clkin1";
 			mmc_debug_flag;
 			//use_intf3_tuning;
 			//resets = <&reset RESET_SD_EMMC_A>;
