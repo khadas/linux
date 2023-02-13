@@ -1413,8 +1413,8 @@
 	};
 
 	ddr_bandwidth {
-		compatible = "amlogic,ddr-bandwidth-a5";
-		status = "disabled";
+		compatible = "amlogic,ddr-bandwidth-a4";
+		status = "okay";
 		reg = <0 0xfe036000 0 0x400
 			0 0xfe040000 0 0x100>;
 		interrupts = <0 78 IRQ_TYPE_EDGE_RISING>;
@@ -1422,10 +1422,10 @@
 	};
 
 	dmc_monitor {
-		compatible = "amlogic,dmc_monitor-a5";
-		status = "disabled";
+		compatible = "amlogic,dmc_monitor-a4";
+		status = "okay";
 		reg = <0 0xfe036000 0 0x400>;
-		reg_base = <0xfe037000>;
+		reg_base = <0xfe036000>;
 		interrupts = <0 62 IRQ_TYPE_EDGE_RISING>;
 	};
 

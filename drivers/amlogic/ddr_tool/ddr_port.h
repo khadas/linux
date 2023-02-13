@@ -39,6 +39,7 @@
 #define DMC_TYPE_A5			0x3C
 #define DMC_TYPE_C3			0x3D
 #define DMC_TYPE_S5			0x3E
+#define DMC_TYPE_A4                     0x40
 #define DMC_TYPE_T5M			0x41
 
 #define DUAL_DMC			BIT(0)
@@ -95,6 +96,7 @@ char *vpu_to_sub_port(char *name, char rw, int sid, char *id_str);
 /*
  * This function used only during boot
  */
+int ddr_find_port_desc_type(int cpu_type, struct ddr_port_desc **desc, int type);
 int ddr_find_port_desc(int cpu_type, struct ddr_port_desc **desc);
 unsigned long dmc_rw(unsigned long addr, unsigned long value, int rw);
 #endif /* __DDR_PORT_DESC_H__ */

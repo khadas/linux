@@ -24,7 +24,8 @@
 #define DMC_ADDR_SIZE		(0x10000)
 #define DMC_TAG			"DMC VIOLATION"
 
-/* for T7 */
+/* for configs */
+#define DMC_DEVICE_8BIT		BIT(2)
 #define POLICY_INCLUDE		BIT(1)
 
 struct dmc_monitor;
@@ -114,6 +115,9 @@ extern struct dmc_mon_ops s4_dmc_mon_ops;
 #endif
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_S5
 extern struct dmc_mon_ops s5_dmc_mon_ops;
+#endif
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_A4
+extern struct dmc_mon_ops a4_dmc_mon_ops;
 #endif
 
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR

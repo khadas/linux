@@ -107,14 +107,9 @@ unsigned long dmc_prot_rw(void  __iomem *base,
 	}
 }
 
-static inline int dual_dmc(struct dmc_monitor *mon)
+static inline int dmc_dev_is_byte(struct dmc_monitor *mon)
 {
-	return mon->configs & DUAL_DMC;
-}
-
-static inline int quad_dmc(struct dmc_monitor *mon)
-{
-	return mon->configs & QUAD_DMC;
+	return mon->configs & DMC_DEVICE_8BIT;
 }
 
 static int dev_name_to_id(const char *dev_name)
@@ -123,7 +118,7 @@ static int dev_name_to_id(const char *dev_name)
 
 	for (i = 0; i < dmc_mon->port_num; i++) {
 		if (dmc_mon->port[i].port_id >= PORT_MAJOR &&
-		    !(dual_dmc(dmc_mon) || quad_dmc(dmc_mon)))
+		    !(dmc_dev_is_byte(dmc_mon)))
 			return -1;
 		len = strlen(dmc_mon->port[i].port_name);
 		if (!strncmp(dmc_mon->port[i].port_name, dev_name, len))
@@ -159,7 +154,7 @@ char *to_sub_ports_name(int mid, int sid, char *id_str, char rw)
 	if (strstr(to_ports(mid), "DEVICE")) {
 		if (mid == 7)
 			s_port = sid + PORT_MAJOR;
-		else if (mid == 10)
+		else if (mid == 10 || mid == 6)
 			s_port = sid + PORT_MAJOR + 8;
 
 		for (i = 0; i < dmc_mon->port_num; i++) {
@@ -186,7 +181,7 @@ unsigned int get_all_dev_mask(void)
 	unsigned int ret = 0;
 	int i;
 
-	if (dual_dmc(dmc_mon) || quad_dmc(dmc_mon))	/* not supported */
+	if (dmc_dev_is_byte(dmc_mon))	/* not supported */
 		return 0;
 
 	for (i = 0; i < PORT_MAJOR; i++) {
@@ -202,7 +197,7 @@ static unsigned int get_other_dev_mask(void)
 	unsigned int ret = 0;
 	int i;
 
-	if (dual_dmc(dmc_mon) || quad_dmc(dmc_mon))	/* not supported */
+	if (dmc_dev_is_byte(dmc_mon))	/* not supported */
 		return 0;
 
 	for (i = 0; i < PORT_MAJOR; i++) {
@@ -235,11 +230,12 @@ size_t dump_dmc_reg(char *buf)
 	sz += sprintf(buf + sz, "IO_BASE:%lx\n", dmc_mon->io_base);
 	sz += sprintf(buf + sz, "RANGE:%lx - %lx\n",
 		      dmc_mon->addr_start, dmc_mon->addr_end);
-	sz += sprintf(buf + sz, "MONITOR DEVICE:\n");
+	sz += sprintf(buf + sz, "MONITOR DEVICE(%s):\n",
+		dmc_mon->configs & POLICY_INCLUDE ? "include" : "exclude");
 	if (!dmc_mon->device)
 		return sz;
 
-	if (dual_dmc(dmc_mon) || quad_dmc(dmc_mon)) {
+	if (dmc_dev_is_byte(dmc_mon)) {
 		devices = dmc_mon->device;
 		for (i = 0; i < sizeof(dmc_mon->device); i++) {
 			dev = devices & 0xff;
@@ -284,7 +280,7 @@ static int dmc_regulation_dev(unsigned long dev, int add)
 	unsigned char *p, cur;
 	int i, set;
 
-	if (dual_dmc(dmc_mon) || quad_dmc(dmc_mon)) {
+	if (dmc_dev_is_byte(dmc_mon)) {
 		/* dev is a set of 8 bit user id index */
 		while (dev) {
 			cur = dev & 0xff;
@@ -341,7 +337,7 @@ int dmc_set_monitor_by_name(unsigned long start, unsigned long end,
 	long id;
 
 	id = dev_name_to_id(port_name);
-	if (id >= 0 && (dual_dmc(dmc_mon) || quad_dmc(dmc_mon)))
+	if (id >= 0 && dmc_dev_is_byte(dmc_mon))
 		return dmc_set_monitor(start, end, id, en);
 	else if (id < 0 || id >= BITS_PER_LONG)
 		return -EINVAL;
@@ -391,7 +387,7 @@ static ssize_t device_store(struct class *cla,
 		return count;
 	}
 
-	if (dual_dmc(dmc_mon) || quad_dmc(dmc_mon)) {
+	if (dmc_dev_is_byte(dmc_mon)) {
 		if (!strncmp(buf, "exclude", 3)) {
 			dmc_mon->configs &= ~POLICY_INCLUDE;
 		} else if (!strncmp(buf, "include", 3)) {
@@ -434,7 +430,7 @@ static ssize_t device_show(struct class *cla,
 	s += sprintf(buf + s, "supported device:\n");
 	for (i = 0; i < dmc_mon->port_num; i++) {
 		if (dmc_mon->port[i].port_id >= PORT_MAJOR &&
-		   !(dual_dmc(dmc_mon) || quad_dmc(dmc_mon)))
+		   !dmc_dev_is_byte(dmc_mon))
 			break;
 		s += sprintf(buf + s, "%2d : %s\n",
 			dmc_mon->port[i].port_id,
@@ -602,14 +598,14 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 	case DMC_TYPE_T7:
 	case DMC_TYPE_T3:
 		mon->ops = &t7_dmc_mon_ops;
-		mon->configs |= DUAL_DMC;
 		mon->configs |= POLICY_INCLUDE;
+		mon->configs |= DMC_DEVICE_8BIT;
 		mon->mon_number = 2;
 		break;
 	case DMC_TYPE_P1:
 		mon->ops = &t7_dmc_mon_ops;
 		mon->configs |= POLICY_INCLUDE;
-		mon->configs |= QUAD_DMC;
+		mon->configs |= DMC_DEVICE_8BIT;
 		mon->mon_number = 4;
 		break;
 #endif
@@ -624,8 +620,16 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 	case DMC_TYPE_S5:
 		mon->ops = &s5_dmc_mon_ops;
 		mon->configs |= POLICY_INCLUDE;
-		mon->configs |= QUAD_DMC;
+		mon->configs |= DMC_DEVICE_8BIT;
 		mon->mon_number = 4;
+		break;
+#endif
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR_A4
+	case DMC_TYPE_A4:
+		mon->ops = &a4_dmc_mon_ops;
+		mon->configs |= POLICY_INCLUDE;
+		mon->configs |= DMC_DEVICE_8BIT;
+		mon->mon_number = 1;
 		break;
 #endif
 	default:
@@ -636,7 +640,7 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 
 static int __init dmc_monitor_probe(struct platform_device *pdev)
 {
-	int r = 0, irq, ports, vpu_ports;
+	int r = 0, irq, ports, vpu_ports, i;
 	unsigned int tmp;
 	struct device_node *node;
 	struct ddr_port_desc *desc = NULL;
@@ -680,29 +684,26 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 	dmc_mon->io_base = tmp;
 
 	/* for register not in secure world */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res)
-		dmc_mon->io_mem1 = ioremap(res->start, res->end - res->start);
-	if (dual_dmc(dmc_mon)) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (res)
-			dmc_mon->io_mem2 = ioremap(res->start,
-						   res->end - res->start);
-	}
-
-	if (quad_dmc(dmc_mon)) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (res)
-			dmc_mon->io_mem2 = ioremap(res->start,
-						   res->end - res->start);
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-		if (res)
-			dmc_mon->io_mem3 = ioremap(res->start,
-						   res->end - res->start);
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
-		if (res)
-			dmc_mon->io_mem4 = ioremap(res->start,
-						   res->end - res->start);
+	for (i = 0; i < dmc_mon->mon_number; i++) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
+		if (res) {
+			switch (i) {
+			case 0:
+				dmc_mon->io_mem1 = ioremap(res->start, res->end - res->start);
+				break;
+			case 1:
+				dmc_mon->io_mem2 = ioremap(res->start, res->end - res->start);
+				break;
+			case 2:
+				dmc_mon->io_mem3 = ioremap(res->start, res->end - res->start);
+				break;
+			case 3:
+				dmc_mon->io_mem4 = ioremap(res->start, res->end - res->start);
+				break;
+			default:
+				break;
+			}
+		}
 	}
 
 	irq = of_irq_get(node, 0);
@@ -717,43 +718,32 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 		dmc_mon = NULL;
 		return -EINVAL;
 	}
-	if (dual_dmc(dmc_mon)) {
-		irq = of_irq_get(node, 1);
-		r = request_irq(irq, dmc_monitor_irq_handler,
-				IRQF_SHARED, "dmc_monitor", dmc_mon->io_mem2);
-		if (r < 0) {
-			pr_err("request irq failed:%d, r:%d\n", irq, r);
-			dmc_mon = NULL;
-			return -EINVAL;
-		}
-	}
-	if (quad_dmc(dmc_mon)) {
-		irq = of_irq_get(node, 1);
-		r = request_irq(irq, dmc_monitor_irq_handler,
-				IRQF_SHARED, "dmc_monitor", dmc_mon->io_mem2);
-		if (r < 0) {
-			pr_err("request irq failed:%d, r:%d\n", irq, r);
-			dmc_mon = NULL;
-			return -EINVAL;
-		}
-		irq = of_irq_get(node, 2);
-		r = request_irq(irq, dmc_monitor_irq_handler,
-				IRQF_SHARED, "dmc_monitor", dmc_mon->io_mem3);
-		if (r < 0) {
-			pr_err("request irq failed:%d, r:%d\n", irq, r);
-			dmc_mon = NULL;
-			return -EINVAL;
-		}
-		irq = of_irq_get(node, 3);
-		r = request_irq(irq, dmc_monitor_irq_handler,
-				IRQF_SHARED, "dmc_monitor", dmc_mon->io_mem4);
-		if (r < 0) {
-			pr_err("request irq failed:%d, r:%d\n", irq, r);
-			dmc_mon = NULL;
-			return -EINVAL;
-		}
-	}
 
+	for (i = 1; i < dmc_mon->mon_number; i++) {
+		irq = of_irq_get(node, i);
+
+		switch (i) {
+		case 1:
+			r = request_irq(irq, dmc_monitor_irq_handler,
+			IRQF_SHARED, "dmc_monitor", dmc_mon->io_mem2);
+			break;
+		case 2:
+			r = request_irq(irq, dmc_monitor_irq_handler,
+			IRQF_SHARED, "dmc_monitor", dmc_mon->io_mem3);
+			break;
+		case 3:
+			r = request_irq(irq, dmc_monitor_irq_handler,
+			IRQF_SHARED, "dmc_monitor", dmc_mon->io_mem4);
+			break;
+		default:
+			break;
+		}
+		if (r < 0) {
+			pr_err("request irq failed:%d, r:%d\n", irq, r);
+			dmc_mon = NULL;
+			return -EINVAL;
+		}
+	}
 
 	r = class_register(&dmc_monitor_class);
 	if (r) {
@@ -881,6 +871,10 @@ static const struct of_device_id dmc_monitor_match[] = {
 	{
 		.compatible = "amlogic,dmc_monitor-s5",
 		.data = (void *)DMC_TYPE_S5,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-a4",
+		.data = (void *)DMC_TYPE_A4,
 	},
 	{}
 };
