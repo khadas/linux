@@ -53,10 +53,16 @@ void hdmitx21_read_edid(u8 *_rx_edid)
 	while (blk_idx < (1 + edid_extension)) {
 		hdmitx_ddcm_read(blk_idx >> 1, DDC_EDID_ADDR, (blk_idx * 128) & 0xff,
 			&rx_edid[blk_idx * 128], 128);
-		if (blk_idx == 0) {
+		if (blk_idx == 0)
 			edid_extension = rx_edid[126];
-			if (edid_extension > 7)
-				edid_extension = 7; /* Max extended block */
+		if (blk_idx == 1)
+			if (rx_edid[128 + 4] == 0xe2 && rx_edid[128 + 5] == 0x78)
+				edid_extension = rx_edid[128 + 6];
+		if (edid_extension > 7) {
+			pr_info(HW "edid extension block number:");
+			pr_info(HW " %d, reset to MAX 7\n",
+				edid_extension);
+			edid_extension = 7; /* Max extended block */
 		}
 		blk_idx++;
 	}

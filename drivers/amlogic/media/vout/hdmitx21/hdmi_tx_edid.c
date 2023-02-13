@@ -2870,7 +2870,7 @@ static bool is_rx_support_y420(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 	if (!timing)
 		return 0;
 
-	if (timing->v_active > 2160 && timing->v_freq > 30000)
+	if (timing->v_active >= 2160 && timing->v_freq > 30000)
 		return 1;
 	if (timing->v_active >= 4320)
 		return 1;
