@@ -1817,6 +1817,12 @@ static ssize_t osd_read(struct fb_info *info, char __user *buf,
 	while (count) {
 		c  = (count > PAGE_SIZE) ? PAGE_SIZE : count;
 		dst = buffer;
+
+		if ((src + c) > (vaddr + PAGE_SIZE * npages)) {
+			err = -EFAULT;
+			break;
+		}
+
 		fb_memcpy_fromfb(dst, src, c);
 		dst += c;
 		src += c;
@@ -1948,6 +1954,11 @@ static ssize_t osd_write(struct fb_info *info,
 		src = buffer;
 
 		if (copy_from_user(src, buf, c)) {
+			err = -EFAULT;
+			break;
+		}
+
+		if ((dst + c) > (vaddr + PAGE_SIZE * npages)) {
 			err = -EFAULT;
 			break;
 		}
