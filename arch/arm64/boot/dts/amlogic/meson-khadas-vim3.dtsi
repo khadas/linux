@@ -259,6 +259,13 @@
 		clock-frequency = <32768>;
 		pwms = <&pwm_ef 0 30518 0>; /* PWM_E at 32.768KHz */
 	};
+
+	onewire:onewire {
+		compatible = "w1-gpio";
+		gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+		#gpio-cells = <1>;
+		status = "disabled";
+	};
 };
 
 &arb {
