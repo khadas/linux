@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -173,21 +172,21 @@ void *wlan_static_dhd_event_ring_buf[MAX_NUM_ADAPTERS] = {NULL};
 void *wlan_static_nan_event_ring_buf[MAX_NUM_ADAPTERS] = {NULL};
 
 #if defined(BCMDHD_SDIO) || defined(BCMDHD_PCIE)
-static struct sk_buff *wlan_static_skb[MAX_NUM_ADAPTERS][WLAN_SKB_BUF_NUM] = {{NULL}};
+static struct sk_buff *wlan_static_skb[MAX_NUM_ADAPTERS][WLAN_SKB_BUF_NUM] = {NULL};
 #endif /* BCMDHD_SDIO | BCMDHD_PCIE */
 
 void *
 dhd_wlan_mem_prealloc(
-#ifdef BCMDHD_MDRIVER
+#if defined(BCMDHD_MDRIVER) && !defined(DHD_STATIC_IN_DRIVER)
 	uint bus_type, int index,
 #endif
 	int section, unsigned long size)
 {
-#ifndef BCMDHD_MDRIVER
+#if !defined(BCMDHD_MDRIVER) || defined(DHD_STATIC_IN_DRIVER)
 	int index = 0;
 #endif
 
-#ifdef BCMDHD_MDRIVER
+#if defined(BCMDHD_MDRIVER) && !defined(DHD_STATIC_IN_DRIVER)
 	DHD_STATIC_MSG("bus_type %d, index %d, sectoin %d, size %ld\n",
 		bus_type, index, section, size);
 #else
@@ -640,7 +639,6 @@ dhd_static_buf_exit(void)
 }
 
 #ifndef DHD_STATIC_IN_DRIVER
-MODULE_LICENSE("GPL");
 module_init(dhd_static_buf_init);
 module_exit(dhd_static_buf_exit);
 #endif

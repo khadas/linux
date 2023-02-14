@@ -5154,16 +5154,11 @@ wl_show_host_event(dhd_pub_t *dhd_pub, wl_event_msg_t *event, void *event_data,
 				event_name, reason, bcn_mute_miti_evnt_data->uatbtt_count));
 		}
 		break;
-
-	case WLC_E_TWT_SETUP:
-		DHD_EVENT(("MACEVENT: %s, MAC %s\n", event_name, eabuf));
+#ifdef WL_TWT
+	case WLC_E_TWT:
+		DHD_EVENT(("MACEVENT: %s, type:%d\n", event_name, reason));
 		break;
-	case WLC_E_TWT_TEARDOWN:
-		DHD_EVENT(("MACEVENT: %s, MAC %s\n", event_name, eabuf));
-		break;
-	case WLC_E_TWT_INFO_FRM:
-		DHD_EVENT(("MACEVENT: %s, MAC %s\n", event_name, eabuf));
-		break;
+#endif /* WL_TWT */
 	default:
 		DHD_EVENT(("MACEVENT: %s %d, MAC %s, status %d, reason %d, auth %d\n",
 		       event_name, event_type, eabuf, (int)status, (int)reason,
@@ -7849,7 +7844,7 @@ int dhd_get_download_buffer(dhd_pub_t	*dhd, char *file_path, download_type_t com
 				goto err;
 			} else {
 				if ((fw->size <= 0 || fw->size > *length)) {
-					DHD_ERROR(("fw->size = %zu, *length = %d\n", fw->size, *length));
+					DHD_ERROR(("fw->size = %d, *length = %d\n", fw->size, *length));
 					*length = fw->size;
 					goto err;
 				}

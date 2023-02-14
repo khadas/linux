@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /** @file dbus.c
  *
  * Hides details of USB / SDIO / SPI interfaces and OS details. It is intended to shield details and

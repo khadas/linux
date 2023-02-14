@@ -91,8 +91,12 @@ static int sdioh_probe(struct sdio_func *func)
 		adapter->bus_num = host_idx;
 		adapter->slot_num = rca;
 		adapter->sdio_func = func;
-	} else
+	} else {
 		sd_err(("can't find adapter info for this chip\n"));
+#ifdef ADAPTER_IDX
+		goto fail;
+#endif
+	}
 
 #ifdef WL_CFG80211
 	wl_cfg80211_set_parent_dev(&func->dev);

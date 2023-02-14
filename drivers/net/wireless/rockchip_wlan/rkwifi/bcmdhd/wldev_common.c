@@ -508,30 +508,16 @@ int wldev_get_mode(
 int wldev_set_country(
 	struct net_device *dev, char *country_code, bool notify, int revinfo)
 {
+	int error = 0;
 #if defined(BCMDONGLEHOST)
-	int error = -1;
-	wl_country_t cspec = {{0}, 0, {0}};
+	struct dhd_pub *dhd = dhd_get_pub(dev);
 
 	if (!country_code)
-		return error;
-
-	cspec.rev = revinfo;
-	strlcpy(cspec.country_abbrev, country_code, WL_CCODE_LEN + 1);
-	strlcpy(cspec.ccode, country_code, WL_CCODE_LEN + 1);
-	error = dhd_conf_map_country_list(dhd_get_pub(dev), &cspec);
-	if (error)
-		dhd_get_customized_country_code(dev, (char *)&cspec.country_abbrev, &cspec);
-	error = dhd_conf_set_country(dhd_get_pub(dev), &cspec);
-	if (error < 0) {
-		WLDEV_ERROR(("%s: set country for %s as %s rev %d failed\n",
-			__FUNCTION__, country_code, cspec.ccode, cspec.rev));
-		return error;
-	}
-	dhd_conf_fix_country(dhd_get_pub(dev));
-	dhd_conf_get_country(dhd_get_pub(dev), &cspec);
-	dhd_bus_country_set(dev, &cspec, notify);
+		return -1;
+	error = dhd_conf_country(dhd, "country", country_code);
+	dhd_bus_country_set(dev, &dhd->dhd_cspec, notify);
 	printf("%s: set country for %s as %s rev %d\n",
-		__FUNCTION__, country_code, cspec.ccode, cspec.rev);
+		__FUNCTION__, country_code, dhd->dhd_cspec.ccode, dhd->dhd_cspec.rev);
 #endif /* defined(BCMDONGLEHOST) */
-	return 0;
+	return error;
 }

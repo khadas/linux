@@ -1927,6 +1927,9 @@ typedef struct dhd_pub {
 	struct dhd_conf *conf;	/* Bus module handle */
 	void *adapter;			/* adapter information, interrupt, fw path etc. */
 	void *event_params;
+#ifdef WL_TIMER
+	void *timer_params;
+#endif /* WL_TIMER */
 #ifdef BCMDBUS
 	bool dhd_remove;
 #endif /* BCMDBUS */

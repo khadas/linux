@@ -640,6 +640,17 @@ exit:
 	return 0;
 }
 
+#ifdef DHD_LOSSLESS_ROAMING
+int dhd_update_sdio_data_prio_map(dhd_pub_t *dhdp)
+{
+	const uint8 prio2tid[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+
+	bcopy(prio2tid, dhdp->flow_prio_map, sizeof(uint8) * NUMPRIO);
+
+	return BCME_OK;
+}
+#endif // DHD_LOSSLESS_ROAMING
+
 int
 dhd_prot_attach(dhd_pub_t *dhd)
 {

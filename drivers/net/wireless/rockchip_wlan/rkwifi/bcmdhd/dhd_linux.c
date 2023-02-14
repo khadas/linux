@@ -65,9 +65,6 @@
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
 #include <dhd_linux_priv.h>
-#if defined(CUSTOMER_HW_ROCKCHIP) && defined(BCMPCIE)
-#include <rk_dhd_pcie_linux.h>
-#endif /* CUSTOMER_HW_ROCKCHIP && BCMPCIE */
 
 #include <epivers.h>
 #include <bcmutils.h>
@@ -370,7 +367,6 @@ extern void dhd_enable_oob_intr(struct dhd_bus *bus, bool enable);
 static void dhd_hang_process(struct work_struct *work_data);
 #endif /* OEM_ANDROID */
 MODULE_LICENSE("GPL and additional rights");
-MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
 
 #if defined(MULTIPLE_SUPPLICANT)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
@@ -11817,6 +11813,12 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen
 		goto fail;
 	}
 #endif /* WL_EVENT */
+#ifdef WL_TIMER
+	if (wl_timer_attach(net) != 0) {
+		DHD_ERROR(("wl_ext_timer_attach failed\n"));
+		goto fail;
+	}
+#endif /* WL_TIMER */
 #ifdef WL_ESCAN
 	/* Attach and link in the escan */
 	if (wl_escan_attach(net) != 0) {
@@ -12900,11 +12902,6 @@ dhd_bus_start(dhd_pub_t *dhdp)
 	/* Enable L1SS of RC and EP */
 	dhd_bus_l1ss_enable_rc_ep(dhdp->bus, TRUE);
 #endif /* BT_OVER_PCIE */
-
-#if defined(CUSTOMER_HW_ROCKCHIP) && defined(BCMPCIE)
-	if (IS_ENABLED(CONFIG_PCIEASPM_ROCKCHIP_WIFI_EXTENSION))
-		rk_dhd_bus_l1ss_enable_rc_ep(dhdp->bus, TRUE);
-#endif /* CUSTOMER_HW_ROCKCHIP && BCMPCIE */
 
 #if defined(CONFIG_ARCH_EXYNOS) && defined(BCMPCIE)
 #if !defined(CONFIG_SOC_EXYNOS8890) && !defined(SUPPORT_EXYNOS7420)
@@ -14300,6 +14297,10 @@ dhd_optimised_preinit_ioctls(dhd_pub_t * dhd)
 #if defined(BCMPCIE) && defined(EAPOL_PKT_PRIO)
 	dhd_update_flow_prio_map(dhd, DHD_FLOW_PRIO_LLR_MAP);
 #endif /* defined(BCMPCIE) && defined(EAPOL_PKT_PRIO) */
+
+#if defined(BCMSDIO) && defined(DHD_LOSSLESS_ROAMING)
+	dhd_update_sdio_data_prio_map(dhd);
+#endif /* BCMSDIO && DHD_LOSSLESS_ROAMING */
 
 #ifdef ARP_OFFLOAD_SUPPORT
 	DHD_ERROR(("arp_enable:%d arp_ol:%d\n",
@@ -15830,6 +15831,10 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 	dhd_update_flow_prio_map(dhd, DHD_FLOW_PRIO_LLR_MAP);
 #endif /* defined(BCMPCIE) && defined(EAPOL_PKT_PRIO) */
 
+#if defined(BCMSDIO) && defined(DHD_LOSSLESS_ROAMING)
+	dhd_update_sdio_data_prio_map(dhd);
+#endif /* BCMSDIO && DHD_LOSSLESS_ROAMING */
+
 #ifdef RSSI_MONITOR_SUPPORT
 	setbit(mask, WLC_E_RSSI_LQM);
 #endif /* RSSI_MONITOR_SUPPORT */
@@ -15867,6 +15872,9 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 	setbit(mask, WLC_E_DELTS_IND);
 #endif /* WL_BCNRECV */
 	setbit(mask, WLC_E_COUNTRY_CODE_CHANGED);
+#if defined(WL_TWT) || defined(WL_TWT_HAL_IF)
+	setbit(mask, WLC_E_TWT);
+#endif /* WL_TWT || WL_TWT_HAL_IF */
 
 	/* Write updated Event mask */
 	eventmask_msg->ver = EVENTMSGS_VER;
@@ -17371,6 +17379,9 @@ void dhd_detach(dhd_pub_t *dhdp)
 #ifdef WL_ESCAN
 	wl_escan_detach(dev);
 #endif /* WL_ESCAN */
+#ifdef WL_TIMER
+	wl_timer_dettach(dhdp);
+#endif /* WL_TIMER */
 #ifdef WL_EVENT
 	wl_ext_event_dettach(dhdp);
 #endif /* WL_EVENT */
@@ -21864,16 +21875,13 @@ int dhd_os_wd_wake_unlock(dhd_pub_t *pub)
 void
 dhd_os_oob_irq_wake_lock_timeout(dhd_pub_t *pub, int val)
 {
+#ifdef CONFIG_HAS_WAKELOCK
 	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
 
 	if (dhd) {
-#ifdef CONFIG_HAS_WAKELOCK
 		dhd_wake_lock_timeout(&dhd->wl_intrwake, msecs_to_jiffies(val));
-#else
-		printk("%s: =========\n",__FUNCTION__);
-		wake_lock_timeout(&dhd->rx_wakelock, 5*HZ);
-#endif /* CONFIG_HAS_WAKELOCK */
 	}
+#endif /* CONFIG_HAS_WAKELOCK */
 }
 
 void
@@ -22023,7 +22031,6 @@ void dhd_os_wake_lock_init(struct dhd_info *dhd)
 #ifdef DHD_TRACE_WAKE_LOCK
 	dhd_wk_lock_trace_init(dhd);
 #endif /* DHD_TRACE_WAKE_LOCK */
-	wake_lock_init(&dhd->rx_wakelock, WAKE_LOCK_SUSPEND, "wlan_rx_wakelock");
 }
 
 void dhd_os_wake_lock_destroy(struct dhd_info *dhd)
@@ -22056,7 +22063,6 @@ void dhd_os_wake_lock_destroy(struct dhd_info *dhd)
 		while (dhd_os_wake_unlock(&dhd->pub));
 	}
 #endif /* CONFIG_HAS_WAKELOCK */
-	wake_lock_destroy(&dhd->rx_wakelock);
 }
 
 bool dhd_os_check_if_up(dhd_pub_t *pub)

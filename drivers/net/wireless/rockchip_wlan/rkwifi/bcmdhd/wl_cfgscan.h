@@ -173,6 +173,6 @@ typedef enum {
 
 extern bool wl_cfgscan_is_dfs_set(wifi_band band);
 extern s32 wl_cfgscan_get_band_freq_list(struct bcm_cfg80211 *cfg, int band,
-        uint16 *list, uint32 *num_channels);
+        uint32 *list, uint32 *num_channels);
 #endif /* DHD_GET_VALID_CHANNELS */
 #endif /* _wl_cfgscan_h_ */

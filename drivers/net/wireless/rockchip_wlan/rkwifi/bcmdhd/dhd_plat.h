@@ -38,7 +38,7 @@ struct wifi_platform_data {
 #ifdef DHD_COREDUMP
 	int (*set_coredump)(const char *buf, int buf_len, const char *info);
 #endif /* DHD_COREDUMP */
-#ifdef BCMDHD_MDRIVER
+#if defined(BCMDHD_MDRIVER) && !defined(DHD_STATIC_IN_DRIVER)
 	void *(*mem_prealloc)(uint bus_type, int index, int section, unsigned long size);
 #else
 	void *(*mem_prealloc)(int section, unsigned long size);
