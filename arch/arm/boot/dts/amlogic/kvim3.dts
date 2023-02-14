@@ -790,7 +790,7 @@
 	sensor: sensor {
 		compatible = "soc, sensor";
 		status = "okay";
-		sensor-name = "os08a10"; /*imx415,imx290;os08a10;imx227*/
+		sensor_name = "os08a10"; /*os08a10;imx415*/
 		pinctrl-names="default";
 		pinctrl-0=<&gen_clk_ee_ao>;
 		clocks = <&clkc CLKID_GEN_CLK>;
@@ -800,7 +800,7 @@
 	iq: iq {
 		compatible = "soc, iq";
 		status = "okay";
-		sensor-name = "os08a10"; /*imx415,imx290;os08a10;imx227*/
+		sensor_name = "os08a10"; /*os08a10;imx415*/
 	};
 }; /* end of / */
 
