@@ -1156,6 +1156,17 @@
 };
 
 
+&spi1 {
+    status = "okay";
+
+	spiflash: flash@0 {
+	    compatible = "winbond,w25q128fw", "jedec,spi-nor";
+	    reg = <0>;
+	    spi-max-frequency = <50000000>;
+	};
+
+};
+
 &spi3 {
 	status = "disabled";
 
