@@ -564,6 +564,12 @@ static int aml_dwmac_resume(struct device *dev)
 void meson8b_dwmac_shutdown(struct platform_device *pdev)
 {
 	pr_info("aml_eth_shutdown\n");
+	if (support_mac_wol) {
+		mac_wol_enable = 0;
+		set_wol_flag(mac_wol_enable);
+		set_wol_notify_bl31();
+		set_wol_notify_bl30();
+	}
 	stmmac_pltfr_remove(pdev);
 	if (internal_phy != 2)
 		dwmac_meson_disable_analog(&pdev->dev);
