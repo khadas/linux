@@ -3,7 +3,7 @@
 
 / {
 	fragment@0 {
-		target = <&onewire>;
+		target = <&spicc1>;
 
 		__overlay__ {
 			status = "okay";
@@ -11,19 +11,10 @@
 	};
 
 	fragment@1 {
-		target = <&spicc1>;
-
-		__overlay__ {
-			status = "disabled";
-		};
-	};
-
-	fragment@2 {
 		target = <&uart_C>;
 
 		__overlay__ {
 			status = "disabled";
 		};
 	};
-
 };

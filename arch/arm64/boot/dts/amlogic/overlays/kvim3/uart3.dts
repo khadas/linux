@@ -2,13 +2,21 @@
 /plugin/;
 
 / {
-   fragment@0 {
-       target = <&uart_C>;
+	fragment@0 {
+		target = <&uart_C>;
 
-       __overlay__ {
-           status = "okay";
-           pinctrl-names = "default";
-           pinctrl-0 = <&uart_c_pins>;
-       };
-   };
+		__overlay__ {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart_c_pins>;
+		};
+	};
+
+	fragment@1 {
+		target = <&spicc1>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
 };
