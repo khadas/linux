@@ -121,6 +121,10 @@ extern uint dhd_prot_hdrlen(dhd_pub_t *, void *txp);
 /* Remove any protocol-specific data header. */
 extern int dhd_prot_hdrpull(dhd_pub_t *, int *ifidx, void *rxp, uchar *buf, uint *len);
 
+#ifdef DHD_LOSSLESS_ROAMING
+extern int dhd_update_sdio_data_prio_map(dhd_pub_t *dhdp);
+#endif // DHD_LOSSLESS_ROAMING
+
 /* Use protocol to issue ioctl to dongle */
 extern int dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t * ioc, void * buf, int len);
 

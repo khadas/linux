@@ -1,12 +1,14 @@
 /*
- * Copyright (C) 2020, Broadcom.
+ * BCM common config options
  *
+ * Copyright (C) 1999-2017, Broadcom Corporation
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -14,38 +16,17 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
+ * 
+ *      Notwithstanding the above, under no circumstances may you combine this
+ * software in any way with any other Broadcom software provided under a license
+ * other than the GPL, without Broadcom's express prior written consent.
  *
  *
  * <<Broadcom-WL-IPTag/Open:>>
  *
-*/
+ * $Id: bcm_cfg.h 514727 2014-11-12 03:02:48Z $
+ */
 
-#ifndef _epivers_h_
-#define _epivers_h_
-
-#define EPI_MAJOR_VERSION	101
-
-#define EPI_MINOR_VERSION	10
-
-#define EPI_RC_NUMBER		361
-
-#define EPI_INCREMENTAL_NUMBER	0
-
-#define EPI_BUILD_NUMBER	0
-
-#define EPI_VERSION		101, 10, 361, 0
-
-#define EPI_VERSION_NUM		0x650a1690
-
-#define EPI_VERSION_DEV		101.10.361
-
-/* Driver Version String, ASCII, 32 chars max */
-#if defined (WLTEST)
-#define EPI_VERSION_STR		"101.10.361 (wlan=r892223 WLTEST)"
-#elif (defined (BCMDBG_ASSERT) && !defined (BCMDBG_ASSERT_DISABLED))
-#define EPI_VERSION_STR		"101.10.361 (wlan=r892223 ASSRT)"
-#else
-#define EPI_VERSION_STR		"101.10.361.22 (wlan=r892223-20220811-2)"
-#endif /* BCMINTERNAL */
-
-#endif /* _epivers_h_ */
+#ifndef _bcm_cfg_h_
+#define _bcm_cfg_h_
+#endif /* _bcm_cfg_h_ */

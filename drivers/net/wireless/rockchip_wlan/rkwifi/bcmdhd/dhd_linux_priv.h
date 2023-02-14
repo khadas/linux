@@ -41,7 +41,6 @@
 #ifdef CONFIG_HAS_WAKELOCK
 #include <linux/pm_wakeup.h>
 #endif /* CONFIG_HAS_WAKELOCK */
-#include <linux/wakelock.h>
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <dhd_dbg.h>
@@ -145,7 +144,6 @@ typedef struct dhd_info {
 	struct wakeup_source wl_nanwake; /* NAN wakelock */
 #endif /* CONFIG_HAS_WAKELOCK */
 
-	struct wake_lock rx_wakelock;
 #if defined(OEM_ANDROID)
 	/* net_device interface lock, prevent race conditions among net_dev interface
 	 * calls and wifi_on or wifi_off

@@ -3091,6 +3091,10 @@ extern s32 wl_handle_auth_event(struct bcm_cfg80211 *cfg, struct net_device *nde
 extern bool wl_customer6_legacy_chip_check(struct bcm_cfg80211 *cfg,
 	struct net_device *ndev);
 #endif /* CUSTOMER_HW6 */
+#if !defined(WL_TWT) && defined(WL_TWT_HAL_IF)
+extern s32 wl_cfgvendor_notify_twt_event(struct bcm_cfg80211 *cfg,
+	bcm_struct_cfgdev *cfgdev, const wl_event_msg_t *e, void *data);
+#endif /* !WL_TWT && WL_TWT_HAL_IF */
 void wl_wlfc_enable(struct bcm_cfg80211 *cfg, bool enable);
 s32 wl_handle_join(struct bcm_cfg80211 *cfg, struct net_device *dev,
 	wlcfg_assoc_info_t *assoc_info);

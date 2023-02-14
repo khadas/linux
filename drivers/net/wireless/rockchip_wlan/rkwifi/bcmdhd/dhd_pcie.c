@@ -2367,11 +2367,7 @@ dhdpcie_dongle_attach(dhd_bus_t *bus)
 	bus->deep_sleep = TRUE;
 #endif
 
-#ifdef CUSTOMER_HW_ROCKCHIP
-	bus->idma_enabled = FALSE;
-#else
 	bus->idma_enabled = TRUE;
-#endif
 	bus->ifrm_enabled = TRUE;
 #ifdef BCMINTERNAL
 	bus->dma_chan = 0;

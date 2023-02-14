@@ -117,6 +117,7 @@
 #endif
 #endif	/* LINUX_VERSION_CODE > KERNEL_VERSION(2, 5, 41) */
 
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
 /*
  * TODO:
  * daemonize() API is deprecated from kernel-3.8 onwards. More debugging
@@ -931,14 +932,8 @@ static inline struct inode *file_inode(const struct file *f)
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)
-#ifdef CONFIG_NO_GKI
 #define vfs_write(fp, buf, len, pos) kernel_write(fp, buf, len, pos)
 #define vfs_read(fp, buf, len, pos) kernel_read(fp, buf, len, pos)
-#else
-#define vfs_write(fp, buf, len, pos) ({ UNUSED_PARAMETER(fp); UNUSED_PARAMETER(buf); UNUSED_PARAMETER(len); UNUSED_PARAMETER(pos); -EPERM; })
-#define vfs_read(fp, buf, len, pos) ({ UNUSED_PARAMETER(fp); UNUSED_PARAMETER(buf); UNUSED_PARAMETER(len); UNUSED_PARAMETER(pos); -EPERM; })
-#define filp_open(filename, flags, mode) ({ UNUSED_PARAMETER(filename); UNUSED_PARAMETER(flags); UNUSED_PARAMETER(mode); ERR_PTR(-EPERM); })
-#endif
 int kernel_read_compat(struct file *file, loff_t offset, char *addr, unsigned long count);
 #else /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0) */
 #define kernel_read_compat(file, offset, addr, count) kernel_read(file, offset, addr, count)

@@ -21227,6 +21227,13 @@ typedef struct wl_hwa_cnts_v1 {
  */
 
 /* TWT Setup descriptor */
+
+/* Any change to wl_twt_sdesc is not possible without affecting this ROMed structure
+ * in various current branches. Hence to use new updated structure wl_twt_sdesc_v1
+ * typecast it to wl_twt_sdesc_t and define WL_TWT_SDESC_TYPEDEF_HAS_ALIAS
+ * in required branches
+ */
+#ifndef  WL_TWT_SDESC_TYPEDEF_HAS_ALIAS
 typedef struct wl_twt_sdesc {
 	/* Setup Command. */
 	uint8 setup_cmd;		/* See TWT_SETUP_CMD_XXXX in 802.11ah.h */
@@ -21248,6 +21255,7 @@ typedef struct wl_twt_sdesc {
 	/* deprecated - to be removed */
 	uint16 li;
 } wl_twt_sdesc_t;
+#endif /* WL_TWT_SDESC_TYPEDEF_HAS_ALIAS */
 
 #define WL_TWT_SETUP_DESC_VER	1u
 
@@ -21283,7 +21291,9 @@ typedef struct wl_twt_cdesc {
 	uint16 version;		/* structure version */
 	uint16 length;		/* data length (starting after this field) */
 	uint8 negotiation_type;	/* Negotiation Type: See macros TWT_NEGO_TYPE_X */
-	uint8 PAD[3];
+	uint8 configID;		/* TWT Configuration ID */
+	uint8 flow_flags;	/* Flow Flags Configuration. See WL_TWT_FLOW_FLAG_XXXX */
+	uint8 PAD;
 	uint32 wake_time_h;	/* target wake time - BSS TSF (us) */
 	uint32 wake_time_l;
 	uint32 wake_dur;	/* target wake duration in unit of microseconds */
@@ -21293,6 +21303,7 @@ typedef struct wl_twt_cdesc {
 	uint32 wake_dur_min;	/* Min. wake duration allowed for TWT Setup */
 	uint32 wake_dur_max;	/* Max. wake duration allowed for TWT Setup */
 	uint32 avg_pkt_num;	/* Average Number of Packets per interval */
+	uint32 avg_pkt_size;	/* Average packet size for TWT SP */
 } wl_twt_cdesc_t;
 
 /* Flow flags */
@@ -21316,6 +21327,14 @@ typedef struct wl_twt_cdesc {
 
 #define WL_TWT_INV_BCAST_ID	0xFFu
 #define WL_TWT_INV_FLOW_ID	0xFFu
+#define WL_TWT_INV_CONFIG_ID	0xFFu
+#define WL_TWT_ALL_TWT_CONFIG_ID 0u	/* ConfigID 0 corresponds to All TWT */
+
+#define WL_TWT_INV_WAKE_DUR	0xFFFFFFFFu
+#define WL_TWT_INV_WAKE_INT	0xFFFFFFFFu
+#define WL_TWT_INV_PKT_NUM	0xFFFFFFFFu
+#define WL_TWT_INV_PKT_SIZE	0xFFFFFFFFu
+#define WL_TWT_INV_WAKE_TIME	0xFFFFFFFFu
 
 /* auto flow_id */
 #define WL_TWT_SETUP_FLOW_ID_AUTO	0xFFu
@@ -21332,10 +21351,11 @@ typedef struct wl_twt_cdesc {
 #define WL_TWT_STATS_MAX_BTWT	WL_TWT_MAX_BTWT
 #define WL_TWT_STATS_MAX_ITWT	WL_TWT_MAX_ITWT
 
+/* TWT States */
 #define WL_TWT_INACTIVE		0u	/* Resource is not allotted */
-#define WL_TWT_RESERVED		1u	/* Resource is allotted but HEB is not yet programmed */
-#define WL_TWT_ACTIVE		2u	/* Resource is allotted and HEB is programmed */
-#define WL_TWT_SUSPEND		3u	/* Resource is suspended and HEB released */
+#define WL_TWT_ACTIVE		1u	/* Resource is allotted and HEB is programmed */
+#define WL_TWT_SUSPEND		2u	/* Resource is suspended and HEB released */
+#define WL_TWT_RESERVED		3u	/* Resource is allotted but HEB is not yet programmed */
 
 /* Wake type */
 /* TODO: not yet finalized */
@@ -21356,7 +21376,13 @@ typedef struct wl_twt_setup {
 	uint16 length;	/* data length (starting after this field) */
 	struct ether_addr peer;	/* Peer address - leave it all 0s' for AP */
 	uint8 pad[2];
+#ifndef WL_TWT_SDESC_TYPEDEF_HAS_ALIAS	/* Use either legacy structure or
+					 * the new versioned structure
+					 */
 	wl_twt_sdesc_t desc;	/* Setup Descriptor */
+#else
+	struct wl_twt_sdesc_v1 desc;
+#endif /* WL_TWT_SDESC_TYPEDEF_HAS_ALIAS */
 	uint16 dialog;		/* Deprecated - to be removed */
 	uint8 pad1[2];
 } wl_twt_setup_t;
@@ -21392,11 +21418,13 @@ typedef struct wl_twt_teardown {
 	struct ether_addr peer;	/* leave it all 0s' for AP */
 	wl_twt_teardesc_t teardesc;	/* Teardown descriptor */
 
-	/* deprecated - to be removed */
+	/* deprecated - to be removed - Start here */
 	uint8 flow_flags;
 	uint8 flow_id;
 	uint8 bid;
-	uint8 pad;
+	/* deprecated - to be removed - End here */
+
+	uint8 configID;	/* TWT Configuration ID */
 } wl_twt_teardown_t;
 
 /* twt information descriptor */
@@ -21430,7 +21458,8 @@ typedef struct wl_twt_info {
 	uint16 length;	/* data length (starting after this field) */
 	/* peer address */
 	struct ether_addr peer;	/* leave it all 0s' for AP */
-	uint8 pad[2];
+	uint8 configID;	/* TWT Configuration ID */
+	uint8 pad[1];
 	wl_twt_infodesc_t infodesc;	/* information descriptor */
 	/* deprecated - to be removed */
 	wl_twt_idesc_t desc;
@@ -21446,10 +21475,19 @@ typedef struct wl_twt_info {
 typedef struct wl_twt_status {
 	uint8	state;		/* TWT State */
 	uint8	heb_id;		/* HEB ID */
-	uint8	PAD[2];
+	uint8	configID;		/* TWT Configuration ID */
+	uint8	PAD[1];
 	struct	ether_addr peer;
 	uint8	PAD[2];
-	wl_twt_sdesc_t desc;	/* TWT Descriptor */
+	uint32	avg_pkt_num;	/* Average Packet number per TWT SP Interval */
+	uint32	avg_pkt_size;	/* Average Packet size for TWT SP */
+#ifndef WL_TWT_SDESC_TYPEDEF_HAS_ALIAS	/* Use either legacy structure or
+					 * the new versioned structure
+					 */
+	wl_twt_sdesc_t desc;	/* Setup Descriptor */
+#else
+	struct wl_twt_sdesc_v1 desc;
+#endif /* WL_TWT_SDESC_TYPEDEF_HAS_ALIAS */
 } wl_twt_status_t;
 
 /* wl twt status output */
@@ -21468,7 +21506,8 @@ typedef struct wl_twt_status_cmd_v1 {
 	uint16	version;
 	uint16	length;
 	struct	ether_addr peer;
-	uint8	PAD[2];
+	uint8	configID;
+	uint8	PAD;
 } wl_twt_status_cmd_v1_t;
 
 #define WL_TWT_PEER_STATS_VERSION_1	1u
@@ -21501,6 +21540,40 @@ typedef struct wl_twt_stats_v1 {
 	wl_twt_peer_stats_v1_t	peer_stats_list[];
 } wl_twt_stats_v1_t;
 
+#define WL_TWT_PEER_STATS_VERSION_2	2u
+typedef struct wl_twt_peer_stats_v2 {
+	uint16	version;
+	uint16	length;
+	struct	ether_addr peer;
+	uint8	id;		/* TWT session ID */
+	uint8	flow_flags;
+	uint8	configID;		/* TWT Configuration ID */
+	uint8	PAD[3];
+	uint32	sp_seq;		/* sequence number of the service period */
+	uint32	tx_ucast_pkts;	/* Number of unicast Tx packets in TWT SPs */
+	uint32	tx_pkts_min;	/* Minimum number of Tx packets in a TWT SP */
+	uint32	tx_pkts_max;	/* Maximum number of Tx packets in a TWT SP */
+	uint32	tx_pkts_avg;	/* Average number of Tx packets in each TWT SP */
+	uint32	tx_failures;	/* Tx packets failure count */
+	uint32	rx_ucast_pkts;	/* Number of unicast Rx packets in TWT SPs */
+	uint32	rx_pkts_min;	/* Minimum number of Rx packets in a TWT SP */
+	uint32	rx_pkts_max;	/* Maximum number of Rx packets in a TWT SP */
+	uint32	rx_pkts_avg;	/* Average number of Rx packets in each TWT SP */
+	uint32	rx_pkts_retried;	/* retried Rx packets count */
+	uint32	tx_pkt_sz_avg;	/* Average Tx packet size in TWT SPs */
+	uint32	rx_pkt_sz_avg;	/* Average Rx Packet size in TWT SPs */
+	uint32	eosp_dur_avg;	/* Average Wake duration in SPs ended due to EOSP */
+	uint32	eosp_count;	/* Count of TWT SPs ended due to EOSP */
+} wl_twt_peer_stats_v2_t;
+
+#define WL_TWT_STATS_VERSION_2		2u
+typedef struct wl_twt_stats_v2 {
+	uint16	version;
+	uint16	length;
+	uint32	num_stats;	/* number of peer stats in the peer_stats_list */
+	wl_twt_peer_stats_v2_t	peer_stats_list[];
+} wl_twt_stats_v2_t;
+
 #define WL_TWT_STATS_CMD_VERSION_1	1
 #define WL_TWT_STATS_CMD_FLAGS_RESET	(1u << 0u)
 /* HE TWT stats command */
@@ -21508,7 +21581,8 @@ typedef struct wl_twt_stats_cmd_v1 {
 	uint16	version;
 	uint16	length;
 	struct ether_addr peer;
-	uint8	PAD[2];
+	uint8	configID;		/* TWT Configuration ID */
+	uint8	PAD;
 	uint16	flags;		/* see WL_TWT_STATS_CMD_FLAGS */
 	uint8	num_fid;
 	uint8	num_bid;

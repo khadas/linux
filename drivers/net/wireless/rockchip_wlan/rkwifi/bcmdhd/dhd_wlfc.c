@@ -1059,6 +1059,9 @@ _dhd_wlfc_flow_control_check(athost_wl_status_info_t* ctx, struct pktq* pq, uint
 	dhdp = (dhd_pub_t *)ctx->dhdp;
 	ASSERT(dhdp);
 
+	if (if_id >= WLFC_MAX_IFNUM)
+		return;
+
 	if (dhdp->skip_fc && dhdp->skip_fc((void *)dhdp, if_id))
 		return;
 

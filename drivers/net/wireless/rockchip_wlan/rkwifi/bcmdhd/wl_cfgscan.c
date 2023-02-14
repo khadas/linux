@@ -644,10 +644,10 @@ wl_inform_bss(struct bcm_cfg80211 *cfg)
 
 	if (cfg->autochannel && ndev) {
 #if defined(BSSCACHE)
-		wl_ext_get_best_channel(ndev, &cfg->g_bss_cache_ctrl, ioctl_version,
+		wl_ext_get_best_channel(ndev, &cfg->g_bss_cache_ctrl,
 			&cfg->best_2g_ch, &cfg->best_5g_ch, &cfg->best_6g_ch);
 #else
-		wl_ext_get_best_channel(ndev, bss_list, ioctl_version,
+		wl_ext_get_best_channel(ndev, bss_list,
 			&cfg->best_2g_ch, &cfg->best_5g_ch, &cfg->best_6g_ch);
 #endif
 	}
@@ -2644,8 +2644,14 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 #ifdef WL_EXT_IAPSTA
-	if (wl_ext_in4way_sync(ndev, STA_FAKE_SCAN_IN_CONNECT, WL_EXT_STATUS_SCANNING, NULL)) {
+	err = wl_ext_in4way_sync(ndev, STA_FAKE_SCAN_IN_CONNECT, WL_EXT_STATUS_SCANNING, NULL);
+	if (err) {
+		wl_event_msg_t msg;
 		mutex_lock(&cfg->scan_sync);
+		bzero(&msg, sizeof(wl_event_msg_t));
+		msg.event_type = hton32(WLC_E_ESCAN_RESULT);
+		msg.status = hton32(WLC_E_STATUS_SUCCESS);
+		wl_cfg80211_event(ndev, &msg, NULL);
 		goto scan_success;
 	}
 #endif
@@ -5654,7 +5660,7 @@ wl_get_assoc_channels(struct bcm_cfg80211 *cfg,
 	}
 #endif /* ESCAN_CHANNEL_CACHE */
 
-	WL_DBG_MEM(("channel cnt:%d\n", info->chan_cnt));
+	WL_SCAN(("channel cnt:%d\n", info->chan_cnt));
 	return BCME_OK;
 }
 
@@ -5676,7 +5682,7 @@ wl_cfgscan_is_dfs_set(wifi_band band)
 
 s32
 wl_cfgscan_get_band_freq_list(struct bcm_cfg80211 *cfg, int band,
-	uint16 *list, uint32 *num_channels)
+	uint32 *list, uint32 *num_channels)
 {
 	s32 err = BCME_OK;
 	uint32 i, freq, list_count, count = 0;
@@ -5698,13 +5704,16 @@ wl_cfgscan_get_band_freq_list(struct bcm_cfg80211 *cfg, int band,
 	list_count = ((wl_chanspec_list_v1_t *)list)->count;
 	for (i = 0; i < list_count; i++) {
 		chspec = dtoh32(((wl_chanspec_list_v1_t *)list)->chspecs[i].chanspec);
+		if (!CHSPEC_IS20(chspec)) {
+			continue;
+		}
 		chaninfo = dtoh32(((wl_chanspec_list_v1_t *)list)->chspecs[i].chaninfo);
 		freq = wl_channel_to_frequency(wf_chspec_ctlchan(chspec),
 			CHSPEC_BAND(chspec));
 		if (((band & WIFI_BAND_BG) && CHSPEC_IS2G(chspec)) ||
 				((band & WIFI_BAND_6GHZ) && CHSPEC_IS6G(chspec))) {
 			/* add 2g/6g channels */
-			list[i] = freq;
+			list[count] = freq;
 			count++;
 		}
 		/* handle 5g separately */
@@ -5719,7 +5728,7 @@ wl_cfgscan_get_band_freq_list(struct bcm_cfg80211 *cfg, int band,
 				continue;
 			}
 
-			list[i] = freq;
+			list[count] = freq;
 			count++;
 		}
 	}

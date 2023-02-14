@@ -313,11 +313,10 @@ typedef union bcm_event_msg_u {
 #define WLC_E_AP_BCN_DRIFT		192	/* Beacon Drift event */
 #define WLC_E_PFN_SCAN_ALLGONE_EXT	193	/* last found PFN network gets lost. */
 #define WLC_E_AUTH_START		194	/* notify upper layer to start auth */
-#define WLC_E_TWT_TEARDOWN		195	/* TWT Teardown Complete Event */
-#define WLC_E_TWT_INFO_FRM		196	/* TWT Info Event Notification */
-#define WLC_E_LAST			197	/* highest val + 1 for range checking */
-#if (WLC_E_LAST > 197)
-#error "WLC_E_LAST: Invalid value for last event; must be <= 197."
+#define WLC_E_TWT			195	/* TWT event */
+#define WLC_E_LAST			196	/* highest val + 1 for range checking */
+#if (WLC_E_LAST > 196)
+#error "WLC_E_LAST: Invalid value for last event; must be <= 196."
 #endif /* WLC_E_LAST */
 
 /* define an API for getting the string name of an event */
@@ -1238,16 +1237,46 @@ typedef struct {
  * own TWT parameter.
  */
 
+#define WL_TWT_EVENT_HDR_LEN (SIZE_OF(wl_twt_event_t, version) + SIZE_OF(wl_twt_event_t, length))
+#define WL_TWT_EVENT_BASE_LEN	sizeof(wl_twt_event_t)
+typedef enum wl_twt_event_type {
+	WL_TWT_EVENT_SETUP		= 1,
+	WL_TWT_EVENT_TEARDOWN		= 2,
+	WL_TWT_EVENT_INFOFRM		= 3,
+	WL_TWT_EVENT_NOTIFY		= 4
+} wl_twt_event_type_t;
+
+#define WL_TWT_EVENT_VER	0u
+
+/* WLC_E_TWT event Main-event */
+typedef struct wl_twt_event {
+	uint16 version;
+	uint16 length;	/* the byte count of fields from 'event_type' onwards */
+	uint8 event_type;	/* See sub event types in wl_twt_event_type_t */
+	uint8 PAD[3];
+	uint8 event_info[];
+} wl_twt_event_t;
+
+/* TWT Setup Completion is designed to notify the user of TWT Setup process
+ * status. When 'status' field is value of BCME_OK, the user must check the
+ * 'setup_cmd' field value in 'wl_twt_sdesc_t' structure that at the end of
+ * the event data to see the response from the TWT Responding STA; when
+ * 'status' field is value of BCME_ERROR or non BCME_OK, user must not use
+ * anything from 'wl_twt_sdesc_t' structure as it is the TWT Requesting STA's
+ * own TWT parameter.
+ */
+
 #define WL_TWT_SETUP_CPLT_VER	0u
 
 /* TWT Setup Reason code */
 typedef enum wl_twt_setup_rc {
-	WL_TWT_SETUP_RC_ACCEPT	= 0,	/* TWT Setup Accepted */
-	WL_TWT_SETUP_RC_REJECT	= 1,	/* TWT Setup Rejected */
-	WL_TWT_SETUP_RC_TIMEOUT	= 2,	/* TWT Setup Time-out */
-	WL_TWT_SETUP_RC_IE	= 3,	/* TWT Setup IE Validation failed */
-	WL_TWT_SETUP_RC_PARAMS	= 4,	/* TWT Setup IE Params invalid */
-	WL_TWT_SETUP_RC_ERROR	= 5,	/* Generic Error cases */
+	WL_TWT_SETUP_RC_ACCEPT	= 0u,	/* TWT Setup Accepted */
+	WL_TWT_SETUP_RC_REJECT	= 1u,	/* TWT Setup Rejected */
+	WL_TWT_SETUP_RC_TIMEOUT	= 2u,	/* TWT Setup Time-out */
+	WL_TWT_SETUP_RC_IE	= 3u,	/* TWT Setup IE Validation failed */
+	WL_TWT_SETUP_RC_PARAMS	= 4u,	/* TWT Setup IE Params invalid */
+	/* Any new reason code add before this */
+	WL_TWT_SETUP_RC_ERROR	= 255u,	/* Generic Error cases */
 } wl_twt_setup_rc_t;
 
 /* TWT Setup Completion event data */
@@ -1256,7 +1285,8 @@ typedef struct wl_twt_setup_cplt {
 	uint16 length;	/* the byte count of fields from 'dialog' onwards */
 	uint8 dialog;	/* Setup frame dialog token */
 	uint8 reason_code;	/* see WL_TWT_SETUP_RC_XXXX */
-	uint8 pad[2];
+	uint8 configID;	/* TWT Configuration ID */
+	uint8 pad[1];
 	int32 status;
 	/* wl_twt_sdesc_t desc; - defined in wlioctl.h */
 } wl_twt_setup_cplt_t;
@@ -1265,24 +1295,25 @@ typedef struct wl_twt_setup_cplt {
 
 /* TWT teardown Reason code */
 typedef enum wl_twt_td_rc {
-	WL_TWT_TD_RC_SUCCESS	= 0,	/* Teardown complete Successful */
-	WL_TWT_TD_RC_HOST	= 1,	/* Teardown triggered by Host */
-	WL_TWT_TD_RC_PEER	= 2,	/* Peer initiated teardown */
-	WL_TWT_TD_RC_MCHAN	= 3,	/* Teardown due to MCHAN Active */
-	WL_TWT_TD_RC_MCNX	= 4,	/* Teardown due to MultiConnection */
-	WL_TWT_TD_RC_SETUP_FAIL	= 5, /* Setup fail midway. Teardown all connections */
-	WL_TWT_TD_RC_SCHED	= 6,	/* Teardown by TWT Scheduler */
-	WL_TWT_TD_RC_CSA	= 7,	/* Teardown due to CSA */
-	WL_TWT_TD_RC_BTCX	= 8,	/* Teardown due to BTCX */
-	WL_TWT_TD_RC_ERROR	= 9,	/* Generic Error cases */
+	WL_TWT_TD_RC_HOST	= 0u,	/* Teardown triggered by Host */
+	WL_TWT_TD_RC_PEER	= 1u,	/* Peer initiated teardown */
+	WL_TWT_TD_RC_MCHAN	= 2u,	/* Teardown due to MCHAN Active */
+	WL_TWT_TD_RC_MCNX	= 3u,	/* Teardown due to MultiConnection */
+	WL_TWT_TD_RC_CSA	= 4u,	/* Teardown due to CSA */
+	WL_TWT_TD_RC_BTCX	= 5u,	/* Teardown due to BTCX */
+	WL_TWT_TD_RC_SETUP_FAIL	= 6u, /* Setup fail midway. Teardown all connections */
+	WL_TWT_TD_RC_SCHED	= 7u,	/* Teardown by TWT Scheduler */
+	/* Any new reason code add before this */
+	WL_TWT_TD_RC_ERROR	= 255u,	/* Generic Error cases */
 } wl_twt_td_rc_t;
 
 /* TWT Teardown complete event data */
 typedef struct wl_twt_teardown_cplt {
 	uint16 version;
-	uint16 length;	/* the byte count of fields from 'reason_code' onwards */
+	uint16 length;		/* the byte count of fields from 'reason_code' onwards */
 	uint8 reason_code;	/* WL_TWT_TD_RC_XXXX */
-	uint8 pad[3];
+	uint8 configID;		/* TWT Configuration ID */
+	uint8 pad[2];
 	int32 status;
 	/* wl_twt_teardesc_t; - defined in wlioctl.h */
 } wl_twt_teardown_cplt_t;
@@ -1291,20 +1322,38 @@ typedef struct wl_twt_teardown_cplt {
 
 /* TWT Info Reason code */
 typedef enum wl_twt_info_rc {
-	WL_TWT_INFO_RC_HOST	= 0,	/* Host initiated Info complete */
-	WL_TWT_INFO_RC_PEER	= 1,	/* Peer initiated TWT Info */
-	WL_TWT_INFO_RC_ERROR	= 2,	/* generic error conditions */
+	WL_TWT_INFO_RC_HOST	= 0u,	/* Host initiated Info complete */
+	WL_TWT_INFO_RC_PEER	= 1u,	/* Peer initiated TWT Info */
+	/* Any new reason code add before this */
+	WL_TWT_INFO_RC_ERROR	= 255u,	/* generic error conditions */
 } wl_twt_info_rc_t;
 
 /* TWT Info complete event data */
 typedef struct wl_twt_info_cplt {
 	uint16 version;
 	uint16 length;		/* the byte count of fields from 'reason_code' onwards */
-	uint8 reason_code;		/* WL_TWT_INFO_RC_XXXX */
-	uint8 pad[3];
+	uint8 reason_code;	/* WL_TWT_INFO_RC_XXXX */
+	uint8 configID;		/* TWT Configuration ID */
+	uint8 pad[2];
 	int32 status;
 	/* wl_twt_infodesc_t; - defined in wlioctl.h */
 } wl_twt_info_cplt_t;
+
+#define WL_TWT_NOTIFY_VER	0u
+#define WL_TWT_NOTIFY_LEN sizeof(wl_twt_notify_t)
+#define WL_TWT_NOTIFY_HDR_LEN (SIZE_OF(wl_twt_notify_t, version) + SIZE_OF(wl_twt_notify_t, length))
+
+typedef enum wl_twt_notification {
+	WL_TWT_NOTIF_ALLOW_TWT	= 1,	/* Dongle indication of allowing TWT setup */
+} wl_twt_notification_t;
+
+/* TWT notification event */
+typedef struct wl_twt_notify {
+	uint16 version;
+	uint16 length;		/* the byte count of fields from 'reason_code' onwards */
+	uint8 notification;
+	uint8 PAD[3];
+} wl_twt_notify_t;
 
 #define WL_INVALID_IE_EVENT_VERSION	0
 

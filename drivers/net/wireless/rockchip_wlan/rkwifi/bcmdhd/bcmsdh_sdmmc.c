@@ -83,7 +83,7 @@ static void IRQHandlerF2(struct sdio_func *func);
 #endif /* !defined(OOB_INTR_ONLY) */
 static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, uint32 regaddr);
 #if defined(ENABLE_INSMOD_NO_FW_LOAD) && !defined(BUS_POWER_RESTORE)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0) && defined(MMC_SW_RESET)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0) && defined(MMC_SW_RESET)
 extern int mmc_sw_reset(struct mmc_host *host);
 #else
 extern int sdio_reset_comm(struct mmc_card *card);
@@ -1749,12 +1749,12 @@ sdioh_sdmmc_card_regwrite(sdioh_info_t *sd, int func, uint32 regaddr, int regsiz
 #if defined(ENABLE_INSMOD_NO_FW_LOAD) && !defined(BUS_POWER_RESTORE)
 static int sdio_sw_reset(sdioh_info_t *sd)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0) && defined(MMC_SW_RESET)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0) && defined(MMC_SW_RESET)
 	struct mmc_host *host = sd->func[0]->card->host;
 #endif
 	int err = 0;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0) && defined(MMC_SW_RESET)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0) && defined(MMC_SW_RESET)
 	printf("%s: Enter\n", __FUNCTION__);
 	sdio_claim_host(sd->func[0]);
 	err = mmc_sw_reset(host);

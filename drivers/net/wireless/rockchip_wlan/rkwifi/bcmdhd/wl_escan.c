@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+
 #if defined(WL_ESCAN)
 #include <bcmendian.h>
 #include <linux/if_arp.h>
@@ -283,14 +283,14 @@ wl_escan_inform_bss(struct net_device *dev, struct wl_escan_info *escan)
 	wl_reset_bss_cache(&escan->g_bss_cache_ctrl);
 	if (escan->autochannel)
 		wl_ext_get_best_channel(dev, &escan->g_bss_cache_ctrl,
-			escan->ioctl_ver, &escan->best_2g_ch, &escan->best_5g_ch, &escan->best_6g_ch);
+			&escan->best_2g_ch, &escan->best_5g_ch, &escan->best_6g_ch);
 #else
 	bi = next_bss(bss_list, bi);
 	for_each_bss(bss_list, bi, i) {
 		wl_escan_dump_bss(dev, escan, bi);
 	}
 	if (escan->autochannel)
-		wl_ext_get_best_channel(dev, bss_list, escan->ioctl_ver,
+		wl_ext_get_best_channel(dev, bss_list,
 			&escan->best_2g_ch, &escan->best_5g_ch, &escan->best_6g_ch);
 #endif
 

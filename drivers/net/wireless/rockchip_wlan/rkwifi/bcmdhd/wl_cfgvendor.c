@@ -1210,7 +1210,7 @@ wl_cfgvendor_gscan_get_channel_list(struct wiphy *wiphy,
 {
 	int err = 0, type, band;
 	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
-	uint16 *reply = NULL;
+	uint32 *reply = NULL;
 	uint32 reply_len = 0, num_channels, mem_needed;
 	struct sk_buff *skb;
 	dhd_pub_t *dhdp;
@@ -9042,6 +9042,764 @@ exit:
 }
 #endif /* WL_SAR_TX_POWER */
 
+#if !defined(WL_TWT) && defined(WL_TWT_HAL_IF)
+static int
+wl_cfgvendor_twt_setup(struct wiphy *wiphy,
+	struct wireless_dev *wdev, const void  *data, int len)
+{
+	wl_twt_config_t val;
+	s32 bw;
+	s32 type, rem_attr;
+	u8 mybuf[WLC_IOCTL_SMLEN] = {0};
+	u8 resp_buf[WLC_IOCTL_SMLEN] = {0};
+	const struct nlattr *iter;
+	uint8 *rem = mybuf;
+	uint16 rem_len = sizeof(mybuf);
+
+	bzero(&val, sizeof(val));
+	val.version = WL_TWT_SETUP_VER;
+	val.length = sizeof(val.version) + sizeof(val.length);
+
+	/* Default values, Override Below */
+	val.desc.flow_flags = 0;
+	val.desc.wake_time_h = 0xFFFFFFFF;
+	val.desc.wake_time_l = 0xFFFFFFFF;
+	val.desc.wake_int_min = 0xFFFFFFFF;
+	val.desc.wake_int_max = 0xFFFFFFFF;
+	val.desc.wake_dur_min = 0xFFFFFFFF;
+	val.desc.wake_dur_max = 0xFFFFFFFF;
+	val.desc.avg_pkt_num  = 0xFFFFFFFF;
+	val.desc.avg_pkt_size = 0xFFFFFFFF;
+
+	nla_for_each_attr(iter, data, len, rem_attr) {
+		type = nla_type(iter);
+		switch (type) {
+			case ANDR_TWT_ATTR_CONFIG_ID:
+				/* Config ID */
+				val.desc.configID = nla_get_u8(iter);
+				break;
+			case ANDR_TWT_ATTR_NEGOTIATION_TYPE:
+				/* negotiation_type */
+				val.desc.negotiation_type  = nla_get_u8(iter);
+				break;
+			case ANDR_TWT_ATTR_TRIGGER_TYPE:
+				/* Trigger Type */
+				if (nla_get_u8(iter) == 1) {
+					val.desc.flow_flags |= WL_TWT_FLOW_FLAG_TRIGGER;
+				}
+				break;
+			case ANDR_TWT_ATTR_WAKE_DURATION:
+				/* Wake Duration */
+				val.desc.wake_dur = nla_get_u32(iter);
+				break;
+			case ANDR_TWT_ATTR_WAKE_INTERVAL:
+				/* Wake interval */
+				val.desc.wake_int = nla_get_u32(iter);
+				break;
+			case ANDR_TWT_ATTR_WAKETIME_OFFSET:
+				/* Wake Time parameter */
+				val.desc.wake_time_h = 0;
+				val.desc.wake_time_l = nla_get_u32(iter);
+				break;
+			case ANDR_TWT_ATTR_WAKE_INTERVAL_MIN:
+				/* Minimum allowed Wake interval */
+				val.desc.wake_int_min = nla_get_u32(iter);
+				break;
+			case ANDR_TWT_ATTR_WAKE_INTERVAL_MAX:
+				/* Max Allowed Wake interval */
+				val.desc.wake_int_max = nla_get_u32(iter);
+				break;
+			case ANDR_TWT_ATTR_WAKE_DURATION_MIN:
+				/* Minimum allowed Wake duration */
+				val.desc.wake_dur_min = nla_get_u32(iter);
+				break;
+			case ANDR_TWT_ATTR_WAKE_DURATION_MAX:
+				/* Maximum allowed Wake duration */
+				val.desc.wake_dur_max = nla_get_u32(iter);
+				break;
+			case ANDR_TWT_ATTR_AVG_PKT_NUM:
+				/* Average number of packets */
+				val.desc.avg_pkt_num  = nla_get_u32(iter);
+				break;
+			case ANDR_TWT_ATTR_AVG_PKT_SIZE:
+				/* Average packets size */
+				val.desc.avg_pkt_size = nla_get_u32(iter);
+				break;
+			default:
+				WL_ERR(("Invalid setup attribute type %d\n", type));
+				break;
+		}
+	}
+
+	bw = bcm_pack_xtlv_entry(&rem, &rem_len, WL_TWT_CMD_CONFIG,
+			sizeof(val), (uint8 *)&val, BCM_XTLV_OPTION_ALIGN32);
+	if (bw != BCME_OK) {
+		goto exit;
+	}
+
+	bw = wldev_iovar_setbuf(wdev_to_ndev(wdev), "twt",
+		mybuf, sizeof(mybuf) - rem_len, resp_buf, WLC_IOCTL_SMLEN, NULL);
+	if (bw < 0) {
+		WL_ERR(("twt config set failed. ret:%d\n", bw));
+	} else {
+		WL_INFORM(("twt config setup succeeded, config ID %d "
+			"Negotiation type %d flow flags %d\n", val.desc.configID,
+			val.desc.negotiation_type, val.desc.flow_flags));
+	}
+
+exit:
+	return bw;
+}
+
+static int
+wl_cfgvendor_twt_teardown(struct wiphy *wiphy,
+	struct wireless_dev *wdev, const void  *data, int len)
+{
+	wl_twt_teardown_t val;
+	s32 bw;
+	s32 type, rem_attr;
+	u8 mybuf[WLC_IOCTL_SMLEN] = {0};
+	u8 res_buf[WLC_IOCTL_SMLEN] = {0};
+	const struct nlattr *iter;
+	uint8 *rem = mybuf;
+	uint16 rem_len = sizeof(mybuf);
+
+	bzero(&val, sizeof(val));
+	val.version = WL_TWT_TEARDOWN_VER;
+	val.length = sizeof(val.version) + sizeof(val.length);
+
+	/* Default values, Override Below */
+	val.teardesc.flow_id = 0xFF;
+	val.teardesc.bid = 0xFF;
+
+	nla_for_each_attr(iter, data, len, rem_attr) {
+		type = nla_type(iter);
+		switch (type) {
+			case ANDR_TWT_ATTR_CONFIG_ID:
+				/* Config ID */
+				val.configID = nla_get_u8(iter);
+				break;
+			case ANDR_TWT_ATTR_NEGOTIATION_TYPE:
+				/* negotiation_type */
+				val.teardesc.negotiation_type  = nla_get_u8(iter);
+				break;
+			case ANDR_TWT_ATTR_ALL_TWT:
+				/* all twt */
+				val.teardesc.alltwt = nla_get_u8(iter);
+				break;
+			default:
+				WL_ERR(("Invalid teardown attribute type %d\n", type));
+			break;
+		}
+	}
+
+	bw = bcm_pack_xtlv_entry(&rem, &rem_len, WL_TWT_CMD_TEARDOWN,
+		sizeof(val), (uint8 *)&val, BCM_XTLV_OPTION_ALIGN32);
+	if (bw != BCME_OK) {
+		goto exit;
+	}
+
+	bw = wldev_iovar_setbuf(wdev_to_ndev(wdev), "twt",
+		mybuf, sizeof(mybuf) - rem_len, res_buf, WLC_IOCTL_SMLEN, NULL);
+	if (bw < 0) {
+		WL_ERR(("twt teardown failed. ret:%d\n", bw));
+	} else {
+		WL_INFORM(("twt teardown succeeded, config ID %d "
+			"Negotiation type %d alltwt %d\n", val.configID,
+			val.teardesc.negotiation_type, val.teardesc.alltwt));
+	}
+
+exit:
+	return bw;
+}
+
+static int
+wl_cfgvendor_twt_info_frame(struct wiphy *wiphy,
+	struct wireless_dev *wdev, const void  *data, int len)
+{
+	wl_twt_info_t val;
+	int bw;
+	s32 type, rem_attr;
+	const struct nlattr *iter;
+	u8 mybuf[WLC_IOCTL_SMLEN] = {0};
+	u8 res_buf[WLC_IOCTL_SMLEN] = {0};
+	uint8 *rem = mybuf;
+	uint16 rem_len = sizeof(mybuf);
+	uint32 val32 = 0;
+
+	bzero(&val, sizeof(val));
+	val.version = WL_TWT_INFO_VER;
+	val.length = sizeof(val.version) + sizeof(val.length);
+
+	/* Default values, Override Below */
+	val.infodesc.flow_id = 0xFF;
+	val.desc.next_twt_h = 0xFFFFFFFF;
+	val.desc.next_twt_l = 0xFFFFFFFF;
+
+	nla_for_each_attr(iter, data, len, rem_attr) {
+		type = nla_type(iter);
+		if (type == ANDR_TWT_ATTR_CONFIG_ID) {
+			/* Config ID */
+			val.configID = nla_get_u8(iter);
+		} else if (type == ANDR_TWT_ATTR_RESUME_TIME) {
+			/* Resume offset */
+			val32 = nla_get_u32(iter);
+			if (!((val32 == 0) || (val32 == -1))) {
+				val.infodesc.next_twt_h = 0;
+				val.infodesc.next_twt_l = val32;
+				val.infodesc.flow_flags |= WL_TWT_INFO_FLAG_RESUME;
+			}
+		} else if (type == ANDR_TWT_ATTR_ALL_TWT) {
+			/* all twt */
+			val32 = (uint32)nla_get_u8(iter);
+			if (val32) {
+				val.infodesc.flow_flags |= WL_TWT_INFO_FLAG_ALL_TWT;
+			}
+		} else {
+			WL_ERR(("Invalid info frame attribute type %d\n", type));
+		}
+	}
+
+	bw = bcm_pack_xtlv_entry(&rem, &rem_len, WL_TWT_CMD_INFO,
+		sizeof(val), (uint8 *)&val, BCM_XTLV_OPTION_ALIGN32);
+	if (bw != BCME_OK) {
+		goto exit;
+	}
+
+	bw = wldev_iovar_setbuf(wdev_to_ndev(wdev), "twt",
+		mybuf, sizeof(mybuf) - rem_len, res_buf, WLC_IOCTL_SMLEN, NULL);
+	if (bw < 0) {
+		WL_ERR(("twt info frame failed. ret:%d\n", bw));
+	} else {
+		WL_INFORM(("twt info frame succeeded, config ID %d\n", val.configID));
+	}
+
+exit:
+	return bw;
+}
+
+static int
+wl_cfgvendor_twt_stats_update_v2(struct wiphy *wiphy, wl_twt_stats_v2_t *stats)
+{
+	u32 i;
+	wl_twt_peer_stats_v2_t *peer_stats;
+	struct sk_buff *skb;
+	int32 mem_needed;
+	int ret = BCME_OK;
+
+	mem_needed = BRCM_TWT_HAL_VENDOR_EVENT_BUF_LEN;
+
+	skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, mem_needed);
+	if (unlikely(!skb)) {
+		WL_ERR(("%s: can't allocate %d bytes\n", __FUNCTION__, mem_needed));
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	ret = nla_put_u32(skb, ANDR_TWT_ATTR_NUM_PEER_STATS, stats->num_stats);
+	if (ret < 0) {
+		WL_ERR(("Failed to put ANDR_TWT_ATTR_NUM_PEER_STATS, ret:%d\n", ret));
+		goto fail;
+	}
+
+	for (i = 0; i < stats->num_stats; i++) {
+		peer_stats = &stats->peer_stats_list[i];
+
+		WL_INFORM_MEM(("%u %u %u %u %u",
+			peer_stats->eosp_dur_avg, peer_stats->tx_pkts_avg, peer_stats->rx_pkts_avg,
+			peer_stats->tx_pkt_sz_avg, peer_stats->rx_pkt_sz_avg));
+		ret = nla_put_u8(skb, ANDR_TWT_ATTR_CONFIG_ID, peer_stats->configID);
+		if (ret < 0) {
+			WL_ERR(("Failed to put ANDR_TWT_ATTR_CONFIG_ID, ret:%d\n", ret));
+			goto fail;
+		}
+		ret = nla_put_u32(skb, ANDR_TWT_ATTR_AVG_PKT_NUM_TX, peer_stats->tx_pkts_avg);
+		if (ret < 0) {
+			WL_ERR(("Failed to put ANDR_TWT_ATTR_AVG_PKT_NUM_TX, ret:%d\n", ret));
+			goto fail;
+		}
+		ret = nla_put_u32(skb, ANDR_TWT_ATTR_AVG_PKT_SIZE_TX, peer_stats->tx_pkt_sz_avg);
+		if (ret < 0) {
+			WL_ERR(("Failed to put ANDR_TWT_ATTR_AVG_PKT_SIZE_TX, ret:%d\n", ret));
+			goto fail;
+		}
+		ret = nla_put_u32(skb, ANDR_TWT_ATTR_AVG_PKT_NUM_RX, peer_stats->rx_pkts_avg);
+		if (ret < 0) {
+			WL_ERR(("Failed to put ANDR_TWT_ATTR_AVG_PKT_NUM_RX, ret:%d\n", ret));
+			goto fail;
+		}
+		ret = nla_put_u32(skb, ANDR_TWT_ATTR_AVG_PKT_SIZE_RX, peer_stats->rx_pkt_sz_avg);
+		if (ret < 0) {
+			WL_ERR(("Failed to put ANDR_TWT_ATTR_AVG_PKT_SIZE_RX, ret:%d\n", ret));
+			goto fail;
+		}
+		ret = nla_put_u32(skb, ANDR_TWT_ATTR_AVG_EOSP_DUR, peer_stats->eosp_dur_avg);
+		if (ret < 0) {
+			WL_ERR(("Failed to put ANDR_TWT_ATTR_AVG_EOSP_DUR, ret:%d\n", ret));
+			goto fail;
+		}
+		ret = nla_put_u32(skb, ANDR_TWT_ATTR_EOSP_CNT, peer_stats->eosp_count);
+		if (ret < 0) {
+			WL_ERR(("Failed to put ANDR_TWT_ATTR_EOSP_CNT, ret:%d\n", ret));
+			goto fail;
+		}
+		ret = nla_put_u32(skb, ANDR_TWT_ATTR_NUM_SP, peer_stats->sp_seq);
+		if (ret < 0) {
+			WL_ERR(("Failed to put ANDR_TWT_ATTR_NUM_SP, ret:%d\n", ret));
+			goto fail;
+		}
+	}
+
+	ret = cfg80211_vendor_cmd_reply(skb);
+	if (unlikely(ret)) {
+		WL_ERR(("vendor command reply failed, ret=%d\n", ret));
+	}
+	return ret;
+
+fail:
+	/* Free skb for failure cases */
+	if (skb) {
+		kfree_skb(skb);
+	}
+	return ret;
+}
+
+static int
+wl_cfgvendor_twt_stats(struct wiphy *wiphy,
+	struct wireless_dev *wdev, const void  *data, int len, bool clear_stats)
+{
+	wl_twt_stats_cmd_v1_t query;
+	wl_twt_stats_v2_t stats_v2;
+	s32 type, rem_attr;
+	const struct nlattr *iter;
+	int ret = BCME_OK;
+	char iovbuf[WLC_IOCTL_SMLEN] = {0, };
+	uint8 *pxtlv = NULL;
+	uint8 *iovresp = NULL;
+	uint16 buflen = 0, bufstart = 0;
+	struct bcm_cfg80211 *cfg = wl_get_cfg(wdev_to_ndev(wdev));
+
+	bzero(&query, sizeof(query));
+	query.version = WL_TWT_STATS_CMD_VERSION_1;
+	query.length = sizeof(query) - OFFSETOF(wl_twt_stats_cmd_v1_t, peer);
+
+	/* Default values, Override Below */
+	query.num_bid = 0xFF;
+	query.num_fid = 0xFF;
+
+	if (clear_stats) {
+		query.flags |= WL_TWT_STATS_CMD_FLAGS_RESET;
+	}
+	nla_for_each_attr(iter, data, len, rem_attr) {
+		type = nla_type(iter);
+		if (type == ANDR_TWT_ATTR_CONFIG_ID) {
+			/* Config ID */
+			query.configID = nla_get_u8(iter);
+		} else {
+			WL_ERR(("Invalid TWT stats attribute type %d\n", type));
+		}
+	}
+
+	iovresp = (uint8 *)MALLOCZ(cfg->osh, WLC_IOCTL_MEDLEN);
+	if (iovresp == NULL) {
+		WL_ERR(("%s: iov resp memory alloc exited\n", __FUNCTION__));
+		goto exit;
+	}
+
+	buflen = bufstart = WLC_IOCTL_SMLEN;
+	pxtlv = (uint8 *)iovbuf;
+	ret = bcm_pack_xtlv_entry(&pxtlv, &buflen, WL_TWT_CMD_STATS,
+			sizeof(query), (uint8 *)&query, BCM_XTLV_OPTION_ALIGN32);
+	if (ret != BCME_OK) {
+		WL_ERR(("%s : Error return during pack xtlv :%d\n", __FUNCTION__, ret));
+		goto exit;
+	}
+
+	if ((ret = wldev_iovar_getbuf(wdev_to_ndev(wdev), "twt", iovbuf, bufstart-buflen,
+		iovresp, WLC_IOCTL_MEDLEN, NULL))) {
+		WL_ERR(("twt status failed with err=%d \n", ret));
+		goto exit;
+	}
+
+	(void)memcpy_s(&stats_v2, sizeof(stats_v2), iovresp, sizeof(stats_v2));
+
+	if (dtoh16(stats_v2.version) == WL_TWT_STATS_VERSION_2) {
+		if (!clear_stats) {
+			WL_ERR(("stats query ver %d, \n", dtoh16(stats_v2.version)));
+			ret = wl_cfgvendor_twt_stats_update_v2(wiphy, (wl_twt_stats_v2_t*)iovresp);
+		}
+	} else {
+		ret = BCME_UNSUPPORTED;
+		WL_ERR(("Version 1 unsupported. ver %d, \n", dtoh16(stats_v2.version)));
+		goto exit;
+	}
+
+exit:
+	if (iovresp) {
+		MFREE(cfg->osh, iovresp, WLC_IOCTL_MEDLEN);
+	}
+
+	return ret;
+}
+
+static int
+wl_cfgvendor_twt_get_stats(struct wiphy *wiphy,
+	struct wireless_dev *wdev, const void  *data, int len)
+{
+	return wl_cfgvendor_twt_stats(wiphy, wdev, data, len, false);
+}
+
+static int
+wl_cfgvendor_twt_clear_stats(struct wiphy *wiphy,
+	struct wireless_dev *wdev, const void  *data, int len)
+{
+	return wl_cfgvendor_twt_stats(wiphy, wdev, data, len, true);
+}
+
+static int
+wl_cfgvendor_twt_update_cap(struct wiphy *wiphy, wl_twt_cap_t *result)
+{
+	struct sk_buff *skb;
+	int32 mem_needed;
+	int ret = BCME_OK;
+
+	WL_INFORM_MEM(("TWT Capabilites Device,Peer 0x%04x 0x%04x\n",
+		result->device_cap, result->peer_cap));
+
+	mem_needed = VENDOR_REPLY_OVERHEAD + (ATTRIBUTE_U32_LEN * 2);
+
+	skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, mem_needed);
+	if (unlikely(!skb)) {
+		WL_ERR(("%s: can't allocate %d bytes\n", __FUNCTION__, mem_needed));
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	ret = nla_put_u32(skb, ANDR_TWT_ATTR_DEVICE_CAP, result->device_cap);
+	if (ret < 0) {
+		WL_ERR(("Failed to put ANDR_TWT_ATTR_DEVICE_CAP, ret:%d\n", ret));
+		goto fail;
+	}
+	ret = nla_put_u32(skb, ANDR_TWT_ATTR_PEER_CAP, result->peer_cap);
+	if (ret < 0) {
+		WL_ERR(("Failed to put ANDR_TWT_ATTR_PEER_CAP, ret:%d\n", ret));
+		goto fail;
+	}
+
+	ret = cfg80211_vendor_cmd_reply(skb);
+	if (unlikely(ret)) {
+		WL_ERR(("vendor command reply failed, ret=%d\n", ret));
+	}
+	return ret;
+
+fail:
+	/* Free skb for failure cases */
+	if (skb) {
+		kfree_skb(skb);
+	}
+	return ret;
+}
+
+static int
+wl_cfgvendor_twt_cap(struct wiphy *wiphy,
+	struct wireless_dev *wdev, const void  *data, int len)
+{
+	int ret = BCME_OK;
+	char iovbuf[WLC_IOCTL_SMLEN] = {0, };
+	uint8 *pxtlv = NULL;
+	uint8 *iovresp = NULL;
+	wl_twt_cap_cmd_t cmd_cap;
+	wl_twt_cap_t result;
+
+	uint16 buflen = 0, bufstart = 0;
+	struct bcm_cfg80211 *cfg = wl_get_cfg(wdev_to_ndev(wdev));
+
+	bzero(&cmd_cap, sizeof(cmd_cap));
+
+	cmd_cap.version = WL_TWT_CAP_CMD_VERSION_1;
+	cmd_cap.length = sizeof(cmd_cap) - OFFSETOF(wl_twt_cap_cmd_t, peer);
+
+	iovresp = (uint8 *)MALLOCZ(cfg->osh, WLC_IOCTL_MEDLEN);
+	if (iovresp == NULL) {
+		WL_ERR(("%s: iov resp memory alloc exited\n", __FUNCTION__));
+		goto exit;
+	}
+
+	buflen = bufstart = WLC_IOCTL_SMLEN;
+	pxtlv = (uint8 *)iovbuf;
+
+	ret = bcm_pack_xtlv_entry(&pxtlv, &buflen, WL_TWT_CMD_CAP,
+			sizeof(cmd_cap), (uint8 *)&cmd_cap, BCM_XTLV_OPTION_ALIGN32);
+	if (ret != BCME_OK) {
+		WL_ERR(("%s : Error return during pack xtlv :%d\n", __FUNCTION__, ret));
+		goto exit;
+	}
+
+	if ((ret = wldev_iovar_getbuf(wdev_to_ndev(wdev), "twt", iovbuf, bufstart-buflen,
+		iovresp, WLC_IOCTL_MEDLEN, NULL))) {
+		WL_ERR(("Getting twt status failed with err=%d \n", ret));
+		goto exit;
+	}
+
+	(void)memcpy_s(&result, sizeof(result), iovresp, sizeof(result));
+
+	if (dtoh16(result.version) == WL_TWT_CAP_CMD_VERSION_1) {
+		WL_ERR(("capability ver %d, \n", dtoh16(result.version)));
+		ret = wl_cfgvendor_twt_update_cap(wiphy, &result);
+		return ret;
+	} else {
+		ret = BCME_UNSUPPORTED;
+		WL_ERR(("Version 1 unsupported. ver %d, \n", dtoh16(result.version)));
+		goto exit;
+	}
+
+exit:
+	if (iovresp) {
+		MFREE(cfg->osh, iovresp, WLC_IOCTL_MEDLEN);
+	}
+
+	return ret;
+}
+
+static int
+wl_cfgvendor_twt_update_setup_response(struct sk_buff *skb, void *event_data)
+{
+	s32 err = BCME_OK;
+	const wl_twt_setup_cplt_t *setup_cplt = (wl_twt_setup_cplt_t *)event_data;
+	const wl_twt_sdesc_t *sdesc = (const wl_twt_sdesc_t *)&setup_cplt[1];
+
+	WL_DBG(("TWT_SETUP: status %d, reason %d, configID %d, setup_cmd %d, flow_flags 0x%x,"
+		" flow_id %d, channel %d, negotiation_type %d, wake_time_h %u, wake_time_l %u,"
+		" wake_dur %u, wake_int %u\n",
+		(int)setup_cplt->status, (int)setup_cplt->reason_code, (int)setup_cplt->configID,
+		(int)sdesc->setup_cmd, sdesc->flow_flags, (int)sdesc->flow_id, (int)sdesc->channel,
+		(int)sdesc->negotiation_type, sdesc->wake_time_h, sdesc->wake_time_l,
+		sdesc->wake_dur, sdesc->wake_int));
+
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_SUB_EVENT, ANDR_TWT_EVENT_SETUP);
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 WIFI_TWT_ATTR_SUB_EVENT failed\n"));
+		goto fail;
+	}
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_CONFIG_ID, setup_cplt->configID);
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 WIFI_TWT_ATTR_CONFIG_ID failed\n"));
+		goto fail;
+	}
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_REASON_CODE, setup_cplt->reason_code);
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 WIFI_TWT_ATTR_REASON_CODE failed\n"));
+		goto fail;
+	}
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_STATUS, !!(setup_cplt->status));
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 WIFI_TWT_ATTR_STATUS failed\n"));
+		goto fail;
+	}
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_NEGOTIATION_TYPE, sdesc->negotiation_type);
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 WIFI_TWT_ATTR_NEGOTIATION_TYPE failed\n"));
+		goto fail;
+	}
+	err = nla_put_u32(skb, ANDR_TWT_ATTR_WAKE_DURATION, sdesc->wake_dur);
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u32 WIFI_TWT_ATTR_WAKE_DURATION failed\n"));
+		goto fail;
+	}
+	err = nla_put_u32(skb, ANDR_TWT_ATTR_WAKE_INTERVAL, sdesc->wake_int);
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u32 WIFI_TWT_ATTR_WAKE_INTERVAL failed\n"));
+		goto fail;
+	}
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_TRIGGER_TYPE,
+		!!(sdesc->flow_flags & WL_TWT_FLOW_FLAG_TRIGGER));
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 WIFI_TWT_ATTR_TRIGGER_TYPE failed\n"));
+		goto fail;
+	}
+
+fail:
+	return err;
+}
+
+static int
+wl_cfgvendor_twt_update_teardown_response(struct sk_buff *skb, void *event_data)
+{
+	s32 err = BCME_OK;
+	const wl_twt_teardown_cplt_t *td_cplt = (wl_twt_teardown_cplt_t *)event_data;
+	const wl_twt_teardesc_t *teardesc = (const wl_twt_teardesc_t *)&td_cplt[1];
+
+	WL_DBG(("TWT_TEARDOWN: status %d, reason %d, configID %d, flow_id %d, negotiation_type %d,"
+		" bid %d, alltwt %d\n", (int)td_cplt->status, (int)td_cplt->reason_code,
+		(int)td_cplt->configID, (int)teardesc->flow_id, (int)teardesc->negotiation_type,
+		(int)teardesc->bid, (int)teardesc->alltwt));
+
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_SUB_EVENT, ANDR_TWT_EVENT_TEARDOWN);
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 WIFI_TWT_ATTR_SUB_EVENT failed\n"));
+		goto fail;
+	}
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_REASON_CODE, td_cplt->reason_code);
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 ANDR_TWT_ATTR_REASON_CODE failed\n"));
+		goto fail;
+	}
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_STATUS, !!(td_cplt->status));
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 ANDR_TWT_ATTR_STATUS failed\n"));
+		goto fail;
+	}
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_CONFIG_ID, td_cplt->configID);
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 ANDR_TWT_ATTR_CONFIG_ID failed\n"));
+		goto fail;
+	}
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_ALL_TWT, teardesc->alltwt);
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 ANDR_TWT_ATTR_ALL_TWT failed\n"));
+		goto fail;
+	}
+
+fail:
+	return err;
+}
+
+static int
+wl_cfgvendor_twt_update_infoframe_response(struct sk_buff *skb, void *event_data)
+{
+	s32 err = BCME_OK;
+	const wl_twt_info_cplt_t *info_cplt = (wl_twt_info_cplt_t *)event_data;
+	const wl_twt_infodesc_t *infodesc = (const wl_twt_infodesc_t *)&info_cplt[1];
+
+	WL_DBG(("TWT_INFOFRM: status %d, reason %d, configID %d, flow_flags 0x%x, flow_id %d,"
+		" next_twt_h %u, next_twt_l %u\n", (int)info_cplt->status,
+		(int)info_cplt->reason_code, (int)info_cplt->configID, infodesc->flow_flags,
+		(int)infodesc->flow_id, infodesc->next_twt_h, infodesc->next_twt_l));
+
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_SUB_EVENT, ANDR_TWT_EVENT_INFO_FRM);
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 WIFI_TWT_ATTR_SUB_EVENT failed\n"));
+		goto fail;
+	}
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_REASON_CODE, info_cplt->reason_code);
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 WIFI_TWT_ATTR_REASON_CODE failed\n"));
+		goto fail;
+	}
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_STATUS, !!(info_cplt->status));
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 WIFI_TWT_ATTR_STATUS failed\n"));
+		goto fail;
+	}
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_CONFIG_ID, info_cplt->configID);
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 WIFI_TWT_ATTR_CONFIG_ID failed\n"));
+		goto fail;
+	}
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_ALL_TWT,
+			!!(infodesc->flow_flags & WL_TWT_INFO_FLAG_ALL_TWT));
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 ANDR_TWT_ATTR_TWT_RESUMED failed\n"));
+		goto fail;
+	}
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_TWT_RESUMED,
+			!!(infodesc->flow_flags & WL_TWT_INFO_FLAG_RESUME));
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 ANDR_TWT_ATTR_TWT_RESUMED failed\n"));
+		goto fail;
+	}
+
+fail:
+	return err;
+}
+
+static int
+wl_cfgvendor_twt_update_notify_response(struct sk_buff *skb, void *event_data)
+{
+	s32 err = BCME_OK;
+	const wl_twt_notify_t *notif_cplt = (wl_twt_notify_t *)event_data;
+
+	WL_DBG(("TWT_NOTIFY: notification %d\n", (int)notif_cplt->notification));
+
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_SUB_EVENT, ANDR_TWT_EVENT_NOTIFY);
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 WIFI_TWT_ATTR_SUB_EVENT failed\n"));
+		goto fail;
+	}
+
+	err = nla_put_u8(skb, ANDR_TWT_ATTR_TWT_NOTIFICATION, notif_cplt->notification);
+	if (unlikely(err)) {
+		WL_ERR(("nla_put_u8 WIFI_TWT_ATTR_NOTIFICATION failed\n"));
+		goto fail;
+	}
+
+fail:
+	return err;
+}
+
+s32
+wl_cfgvendor_notify_twt_event(struct bcm_cfg80211 *cfg,
+		bcm_struct_cfgdev *cfgdev, const wl_event_msg_t *e, void *data)
+{
+	struct sk_buff *skb = NULL;
+	gfp_t kflags;
+	struct wiphy *wiphy = bcmcfg_to_wiphy(cfg);
+	int err = BCME_OK;
+	struct net_device *ndev = bcmcfg_to_prmry_ndev(cfg);
+	const wl_twt_event_t *twt_event = (wl_twt_event_t *)data;
+
+	kflags = in_atomic() ? GFP_ATOMIC : GFP_KERNEL;
+	skb = CFG80211_VENDOR_EVENT_ALLOC(wiphy, ndev_to_wdev(ndev),
+		BRCM_TWT_HAL_VENDOR_EVENT_BUF_LEN, BRCM_VENDOR_EVENT_TWT, kflags);
+	if (!skb) {
+		WL_ERR(("skb alloc failed"));
+		err = BCME_NOMEM;
+		goto fail;
+	}
+
+	switch (twt_event->event_type) {
+		case WL_TWT_EVENT_SETUP:
+			err = wl_cfgvendor_twt_update_setup_response(skb,
+					(void*)twt_event->event_info);
+			break;
+		case WL_TWT_EVENT_TEARDOWN:
+			err = wl_cfgvendor_twt_update_teardown_response(skb,
+					(void*)twt_event->event_info);
+			break;
+		case WL_TWT_EVENT_INFOFRM:
+			err = wl_cfgvendor_twt_update_infoframe_response(skb,
+					(void*)twt_event->event_info);
+			break;
+		case WL_TWT_EVENT_NOTIFY:
+			err = wl_cfgvendor_twt_update_notify_response(skb,
+					(void*)twt_event->event_info);
+			break;
+		default:
+			WL_ERR(("Invalid TWT sub event type %d", twt_event->event_type));
+			err = BCME_UNSUPPORTED;
+			break;
+	}
+
+	if (err) {
+		goto fail;
+	}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
+	cfg80211_vendor_event(skb, kflags);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0) */
+	WL_ERR(("Successfully sent TWT vendor event type %d\n", twt_event->event_type));
+	return BCME_OK;
+
+fail:
+	/* Free skb for failure cases */
+	if (skb) {
+		kfree_skb(skb);
+	}
+
+	return err;
+}
+#endif /* !WL_TWT && WL_TWT_HAL_IF */
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
 const struct nla_policy andr_wifi_attr_policy[ANDR_WIFI_ATTRIBUTE_MAX] = {
 	[ANDR_WIFI_ATTRIBUTE_NUM_FEATURE_SET] = { .type = NLA_U32 },
@@ -9340,6 +10098,42 @@ const struct nla_policy andr_dbg_policy[DEBUG_ATTRIBUTE_MAX] = {
 	[DEBUG_ATTRIBUTE_PKT_FATE_DATA] = { .type = NLA_U64 },
 	[DEBUG_ATTRIBUTE_HANG_REASON] = { .type = NLA_BINARY },
 };
+
+#if !defined(WL_TWT) && defined(WL_TWT_HAL_IF)
+const struct nla_policy andr_twt_attr_policy[ANDR_TWT_ATTR_MAX] = {
+	[ANDR_TWT_ATTR_NONE] = { .strict_start_type = 0 },
+	[ANDR_TWT_ATTR_CONFIG_ID] = { .type = NLA_U8 },
+	[ANDR_TWT_ATTR_NEGOTIATION_TYPE] = { .type = NLA_U8 },
+	[ANDR_TWT_ATTR_TRIGGER_TYPE] = { .type = NLA_U8 },
+	[ANDR_TWT_ATTR_WAKE_DURATION] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_WAKE_INTERVAL] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_WAKE_INTERVAL_MIN] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_WAKE_INTERVAL_MAX] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_WAKE_DURATION_MIN] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_WAKE_DURATION_MAX] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_AVG_PKT_SIZE] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_AVG_PKT_NUM] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_WAKETIME_OFFSET] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_ALL_TWT] = { .type = NLA_U8 },
+	[ANDR_TWT_ATTR_RESUME_TIME] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_AVG_EOSP_DUR] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_EOSP_CNT] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_NUM_SP] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_DEVICE_CAP] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_PEER_CAP] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_STATUS] = { .type = NLA_U8 },
+	[ANDR_TWT_ATTR_REASON_CODE] = { .type = NLA_U8 },
+	[ANDR_TWT_ATTR_TWT_RESUMED] = { .type = NLA_U8 },
+	[ANDR_TWT_ATTR_TWT_NOTIFICATION] = { .type = NLA_U8 },
+	[ANDR_TWT_ATTR_SUB_EVENT] = { .type = NLA_U8 },
+	[ANDR_TWT_ATTR_NUM_PEER_STATS] = { .type = NLA_U8 },
+	[ANDR_TWT_ATTR_AVG_PKT_NUM_TX] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_AVG_PKT_SIZE_TX] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_AVG_PKT_NUM_RX] = { .type = NLA_U32 },
+	[ANDR_TWT_ATTR_AVG_PKT_SIZE_RX] = { .type = NLA_U32 },
+};
+#endif /* !WL_TWT && WL_TWT_HAL_IF */
+
 #endif /* LINUX_VERSION >= 5.3 */
 
 static struct wiphy_vendor_command wl_vendor_cmds [] = {
@@ -10266,6 +11060,80 @@ static struct wiphy_vendor_command wl_vendor_cmds [] = {
 #endif /* LINUX_VERSION >= 5.3 */
 	}
 #endif /* WL_SAR_TX_POWER */
+#if !defined(WL_TWT) && defined(WL_TWT_HAL_IF)
+	{
+		{
+			.vendor_id = OUI_GOOGLE,
+			.subcmd = ANDR_TWT_SUBCMD_SETUP
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.doit = wl_cfgvendor_twt_setup,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
+		.policy = andr_twt_attr_policy,
+		.maxattr = ANDR_TWT_ATTR_MAX
+#endif /* LINUX_VERSION >= 5.3 */
+	},
+	{
+		{
+			.vendor_id = OUI_GOOGLE,
+			.subcmd = ANDR_TWT_SUBCMD_TEARDOWN
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.doit = wl_cfgvendor_twt_teardown,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
+		.policy = andr_twt_attr_policy,
+		.maxattr = ANDR_TWT_ATTR_MAX
+#endif /* LINUX_VERSION >= 5.3 */
+	},
+	{
+		{
+			.vendor_id = OUI_GOOGLE,
+			.subcmd = ANDR_TWT_SUBCMD_INFO_FRAME
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.doit = wl_cfgvendor_twt_info_frame,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
+		.policy = andr_twt_attr_policy,
+		.maxattr = ANDR_TWT_ATTR_MAX
+#endif /* LINUX_VERSION >= 5.3 */
+	},
+	{
+		{
+			.vendor_id = OUI_GOOGLE,
+			.subcmd = ANDR_TWT_SUBCMD_GET_CAP
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.doit = wl_cfgvendor_twt_cap,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
+		.policy = andr_twt_attr_policy,
+		.maxattr = ANDR_TWT_ATTR_MAX
+#endif /* LINUX_VERSION >= 5.3 */
+	},
+	{
+		{
+			.vendor_id = OUI_GOOGLE,
+			.subcmd = ANDR_TWT_SUBCMD_GET_STATS
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.doit = wl_cfgvendor_twt_get_stats,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
+		.policy = andr_twt_attr_policy,
+		.maxattr = ANDR_TWT_ATTR_MAX
+#endif /* LINUX_VERSION >= 5.3 */
+	},
+	{
+		{
+			.vendor_id = OUI_GOOGLE,
+			.subcmd = ANDR_TWT_SUBCMD_CLR_STATS
+		},
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV | WIPHY_VENDOR_CMD_NEED_NETDEV,
+		.doit = wl_cfgvendor_twt_clear_stats,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))
+		.policy = andr_twt_attr_policy,
+		.maxattr = ANDR_TWT_ATTR_MAX
+#endif /* LINUX_VERSION >= 5.3 */
+	},
+#endif /* !WL_TWT && WL_TWT_HAL_IF */
 
 };
 
@@ -10311,7 +11179,8 @@ static const struct  nl80211_vendor_cmd_info wl_vendor_events [] = {
 		{ OUI_BRCM, BRCM_VENDOR_EVENT_CU},
 		{ OUI_BRCM, BRCM_VENDOR_EVENT_WIPS},
 		{ OUI_GOOGLE, NAN_ASYNC_RESPONSE_DISABLED},
-		{ OUI_BRCM, BRCM_VENDOR_EVENT_RCC_INFO}
+		{ OUI_BRCM, BRCM_VENDOR_EVENT_RCC_INFO},
+		{OUI_BRCM, BRCM_VENDOR_EVENT_TWT}
 };
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0))

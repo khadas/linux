@@ -1,4 +1,3 @@
-# SPDX-License-Identifier: GPL-2.0
 config BCMDHD
 	tristate "Broadcom FullMAC wireless cards support"
 	help

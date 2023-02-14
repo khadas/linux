@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <net/netlink.h>
@@ -317,9 +317,9 @@ wl_ext_chspec_to_legacy(chanspec_t chspec)
 }
 
 chanspec_t
-wl_ext_chspec_host_to_driver(int ioctl_ver, chanspec_t chanspec)
+wl_ext_chspec_host_to_driver(struct dhd_pub *dhd, chanspec_t chanspec)
 {
-	if (ioctl_ver == 1) {
+	if (dhd->conf->ioctl_ver == 1) {
 		chanspec = wl_ext_chspec_to_legacy(chanspec);
 		if (chanspec == INVCHANSPEC) {
 			return chanspec;
@@ -331,7 +331,7 @@ wl_ext_chspec_host_to_driver(int ioctl_ver, chanspec_t chanspec)
 }
 
 static void
-wl_ext_ch_to_chanspec(int ioctl_ver, int ch,
+wl_ext_ch_to_chanspec(struct dhd_pub *dhd, int ch,
 	struct wl_join_params *join_params, size_t *join_params_size)
 {
 	chanspec_t chanspec = 0;
@@ -354,7 +354,7 @@ wl_ext_ch_to_chanspec(int ioctl_ver, int ch,
 		join_params->params.chanspec_list[0]  &= WL_CHANSPEC_CHAN_MASK;
 		join_params->params.chanspec_list[0] |= chanspec;
 		join_params->params.chanspec_list[0] =
-			wl_ext_chspec_host_to_driver(ioctl_ver,
+			wl_ext_chspec_host_to_driver(dhd,
 				join_params->params.chanspec_list[0]);
 
 		join_params->params.chanspec_num =
@@ -399,10 +399,10 @@ wl_ext_chspec_from_legacy(chanspec_t legacy_chspec)
 }
 
 chanspec_t
-wl_ext_chspec_driver_to_host(int ioctl_ver, chanspec_t chanspec)
+wl_ext_chspec_driver_to_host(struct dhd_pub *dhd, chanspec_t chanspec)
 {
 	chanspec = dtohchanspec(chanspec);
-	if (ioctl_ver == 1) {
+	if (dhd->conf->ioctl_ver == 1) {
 		chanspec = wl_ext_chspec_from_legacy(chanspec);
 	}
 
@@ -413,7 +413,7 @@ wl_ext_chspec_driver_to_host(int ioctl_ver, chanspec_t chanspec)
 chanspec_band_t
 wl_ext_wlcband_to_chanspec_band(int band)
 {
-	chanspec_band_t chanspec_band = WLC_BAND_INVALID;
+	chanspec_band_t chanspec_band = INVCHANSPEC;
 
 	switch (band) {
 #ifdef WL_6G_BAND
@@ -549,28 +549,6 @@ wl_ext_wait_event_complete(struct dhd_pub *dhd, int ifidx)
 	}
 }
 
-int
-wl_ext_get_ioctl_ver(struct net_device *dev, int *ioctl_ver)
-{
-	int ret = 0;
-	s32 val = 0;
-
-	val = 1;
-	ret = wl_ext_ioctl(dev, WLC_GET_VERSION, &val, sizeof(val), 0);
-	if (ret) {
-		return ret;
-	}
-	val = dtoh32(val);
-	if (val != WLC_IOCTL_VERSION && val != 1) {
-		AEXT_ERROR(dev->name, "Version mismatch, please upgrade. Got %d, expected %d or 1\n",
-			val, WLC_IOCTL_VERSION);
-		return BCME_VERSION;
-	}
-	*ioctl_ver = val;
-
-	return ret;
-}
-
 void
 wl_ext_bss_iovar_war(struct net_device *ndev, s32 *val)
 {
@@ -611,6 +589,7 @@ int
 wl_ext_set_chanspec(struct net_device *dev, struct wl_chan_info *chan_info,
 	chanspec_t *ret_chspec)
 {
+	struct dhd_pub *dhd = dhd_get_pub(dev);
 	s32 _chan = chan_info->chan;
 	chanspec_t chspec = 0;
 	chanspec_t fw_chspec = 0;
@@ -623,7 +602,6 @@ wl_ext_set_chanspec(struct net_device *dev, struct wl_chan_info *chan_info,
 		u32 bw_cap;
 	} param = {0, 0};
 	chanspec_band_t chanspec_band = 0;
-	int ioctl_ver;
 
 	if ((chan_info->band != WLC_BAND_2G) && (chan_info->band != WLC_BAND_5G) &&
 			(chan_info->band != WLC_BAND_6G)) {
@@ -656,8 +634,7 @@ set_channel:
 	chanspec_band = wl_ext_wlcband_to_chanspec_band(chan_info->band);
 	chspec = wf_create_chspec_from_primary(chan_info->chan, bw, chanspec_band);
 	if (wf_chspec_valid(chspec)) {
-		wl_ext_get_ioctl_ver(dev, &ioctl_ver);
-		fw_chspec = wl_ext_chspec_host_to_driver(ioctl_ver, chspec);
+		fw_chspec = wl_ext_chspec_host_to_driver(dhd, chspec);
 		if (fw_chspec != INVCHANSPEC) {
 			if ((err = wl_ext_iovar_setint(dev, "chanspec", fw_chspec)) == BCME_BADCHAN) {
 				if (bw == WL_CHANSPEC_BW_80)
@@ -667,8 +644,11 @@ set_channel:
 			} else if (err) {
 				AEXT_ERROR(dev->name, "failed to set chanspec error %d\n", err);
 			} else
-				WL_MSG(dev->name, "channel %s-%d(0x%x)\n",
-					CHSPEC2BANDSTR(chspec), chan_info->chan, chspec);
+				WL_MSG(dev->name, "channel %s-%d(0x%x %sMHz)\n",
+					CHSPEC2BANDSTR(chspec), chan_info->chan, chspec,
+					CHSPEC_IS20(chspec)?"20":
+					CHSPEC_IS40(chspec)?"40":
+					CHSPEC_IS80(chspec)?"80":"160");
 		} else {
 			AEXT_ERROR(dev->name, "failed to convert host chanspec to fw chanspec\n");
 			err = BCME_ERROR;
@@ -719,6 +699,10 @@ wl_ext_channel(struct net_device *dev, char* command, int total_len)
 	else if (strnicmp(band, "band=2g", strlen("band=2g")) == 0) {
 		chan_info.band = WLC_BAND_2G;
 	}
+	else if (channel <= CH_MAX_2G_CHANNEL)
+		chan_info.band = WLC_BAND_2G;
+	else
+		chan_info.band = WLC_BAND_5G;
 
 	if (channel > 0) {
 		chan_info.chan = channel;
@@ -873,10 +857,7 @@ wl_ext_connect(struct net_device *dev, struct wl_conn_info *conn_info)
 	s32 err = 0;
 	u32 chan_cnt = 0;
 	s8 *iovar_buf = NULL;
-	int ioctl_ver = 0;
 	char sec[64];
-
-	wl_ext_get_ioctl_ver(dev, &ioctl_ver);
 
 	if (dhd->conf->chip == BCM43362_CHIP_ID)
 		goto set_ssid;
@@ -933,7 +914,7 @@ wl_ext_connect(struct net_device *dev, struct wl_conn_info *conn_info)
 		ext_join_params->assoc.chanspec_list[0]  &= WL_CHANSPEC_CHAN_MASK;
 		ext_join_params->assoc.chanspec_list[0] |= chspec;
 		ext_join_params->assoc.chanspec_list[0] =
-			wl_ext_chspec_host_to_driver(ioctl_ver,
+			wl_ext_chspec_host_to_driver(dhd,
 				ext_join_params->assoc.chanspec_list[0]);
 	}
 	ext_join_params->assoc.chanspec_num = htod32(ext_join_params->assoc.chanspec_num);
@@ -970,7 +951,7 @@ set_ssid:
 	else
 		memcpy(&join_params.params.bssid, &ether_bcast, ETH_ALEN);
 
-	wl_ext_ch_to_chanspec(ioctl_ver, conn_info->channel, &join_params, &join_params_size);
+	wl_ext_ch_to_chanspec(dhd, conn_info->channel, &join_params, &join_params_size);
 	AEXT_TRACE(dev->name, "join_param_size %zu\n", join_params_size);
 
 	if (join_params.ssid.SSID_len < IEEE80211_MAX_SSID_LEN) {
@@ -1087,6 +1068,30 @@ wl_ext_dfs_chan(struct wl_chan_info *chan_info)
 	return FALSE;
 }
 
+bool
+wl_ext_passive_chan(struct net_device *dev, struct wl_chan_info *chan_info)
+{
+	struct dhd_pub *dhd = dhd_get_pub(dev);
+	u32 chanspec;
+	s32 ret = BCME_OK;
+
+	chanspec = wf_create_chspec_from_primary(chan_info->chan,
+		WL_CHANSPEC_BW_20, wl_ext_wlcband_to_chanspec_band(chan_info->band));
+
+	chanspec = wl_ext_chspec_host_to_driver(dhd, chanspec);
+
+	ret = wldev_iovar_getint(dev, "per_chan_info", &chanspec);
+	if (!ret) {
+		if (chanspec & WL_CHAN_PASSIVE)
+			return TRUE;
+	} else {
+		if (chan_info->band == WLC_BAND_5G && chan_info->chan >= 52 && chan_info->chan <= 144)
+			return TRUE;
+	}
+
+	return FALSE;
+}
+
 uint16
 wl_ext_get_default_chan(struct net_device *dev,
 	uint16 *chan_2g, uint16 *chan_5g, bool nodfs)
@@ -1117,6 +1122,8 @@ wl_ext_get_default_chan(struct net_device *dev,
 				chan_info.band = WLC_BAND_5G;
 				chan_info.chan = chan_tmp;
 				if (wl_ext_dfs_chan(&chan_info) && nodfs)
+					continue;
+				else if (wl_ext_passive_chan(dev, &chan_info))
 					continue;
 				else
 					*chan_5g = chan_tmp;
@@ -1711,10 +1718,10 @@ static int
 wl_ext_recal(struct net_device *dev, char *data, char *command,
 	int total_len)
 {
+	struct dhd_pub *dhd = dhd_get_pub(dev);
 	int ret = 0, i, nchan, nssid = 0;
 	int params_size = WL_SCAN_PARAMS_FIXED_SIZE + WL_NUMCHANNELS * sizeof(uint16);
 	wl_scan_params_t *params = NULL;
-	int ioctl_ver;
 	char *p;
 
 	AEXT_TRACE(dev->name, "Enter\n");
@@ -1727,8 +1734,6 @@ wl_ext_recal(struct net_device *dev, char *data, char *command,
 			goto exit;
 		}
 		memset(params, 0, params_size);
-
-		wl_ext_get_ioctl_ver(dev, &ioctl_ver);
 
 		memcpy(&params->bssid, &ether_bcast, ETHER_ADDR_LEN);
 		params->bss_type = DOT11_BSSTYPE_ANY;
@@ -1750,7 +1755,7 @@ wl_ext_recal(struct net_device *dev, char *data, char *command,
 		params->home_time = htod32(params->home_time);
 
 		for (i = 0; i < nchan; i++) {
-			wl_ext_chspec_host_to_driver(ioctl_ver, params->channel_list[i]);
+			wl_ext_chspec_host_to_driver(dhd, params->channel_list[i]);
 		}
 
 		p = (char*)params->channel_list + nchan * sizeof(uint16);
@@ -2659,6 +2664,34 @@ wl_ext_get_country(struct net_device *dev, char *data, char *command,
 	return bytes_written;
 }
 
+static int
+wl_ext_disable_5g_band(struct net_device *dev, char *data, char *command,
+	int total_len)
+{
+#ifdef WL_CFG80211
+	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
+#endif
+	int ret = -1;
+	int val;
+
+	if (data) {
+		val = (int)simple_strtol(data, NULL, 0);
+		ret = wl_ext_iovar_setint(dev, "disable_5g_band", val);
+#ifdef WL_CFG80211
+		if (!ret)
+			wl_update_wiphybands(cfg, true);
+#endif
+	} else {
+		ret = wl_ext_iovar_getint(dev, "disable_5g_band", &val);
+		if (!ret) {
+			ret = snprintf(command, total_len, "%d", val);
+			AEXT_TRACE(dev->name, "command result is %s\n", command);
+		}
+	}
+
+	return ret;
+}
+
 typedef int (wl_ext_tpl_parse_t)(struct net_device *dev, char *data, char *command,
 	int total_len);
 
@@ -2711,6 +2744,7 @@ const wl_ext_iovar_tpl_t wl_ext_iovar_tpl_list[] = {
 	{WLC_GET_VAR,	WLC_SET_VAR,	"csi",				wl_ext_csi},
 #endif /* CSI_SUPPORT */
 	{WLC_GET_VAR,	WLC_SET_VAR,	"country",			wl_ext_get_country},
+	{WLC_GET_VAR,	WLC_SET_VAR,	"disable_5g_band",	wl_ext_disable_5g_band},
 };
 
 /*
@@ -2945,7 +2979,7 @@ wl_construct_ctl_chanspec_list(struct net_device *dev, wl_uint32_list_t *chan_li
 		return -ENOMEM;
 	}
 
-	err = wl_ext_iovar_getbuf(dev, "chan_info_list", NULL,
+	err = wldev_iovar_getbuf(dev, "chan_info_list", NULL,
 		0, list, LOCAL_BUF_LEN, NULL);
 	if (err == BCME_UNSUPPORTED) {
 		err = wl_ext_iovar_getbuf(dev, "chanspecs", NULL,
@@ -3060,9 +3094,11 @@ wl_ext_get_best_channel(struct net_device *net,
 #else
 	wl_scan_results_t *bss_list,
 #endif /* BSSCACHE */
-	int ioctl_ver, int *best_2g_ch, int *best_5g_ch, int *best_6g_ch)
+	int *best_2g_ch, int *best_5g_ch, int *best_6g_ch)
 {
+	struct dhd_pub *dhd = dhd_get_pub(net);
 	struct wl_bss_info *bi = NULL;	/* must be initialized */
+	struct wl_chan_info chan_info;
 	s32 i, j;
 #if defined(BSSCACHE)
 	wl_bss_cache_t *node;
@@ -3100,13 +3136,18 @@ wl_ext_get_best_channel(struct net_device *net,
 		for (i = 0; i < list->count; i++) {
 			chspec = list->element[i];
 			channel = wf_chspec_ctlchan(chspec);
+			chan_info.band = CHSPEC2WLC_BAND(chspec);
+			chan_info.chan = channel;
+			if (wl_ext_passive_chan(net, &chan_info)) {
+				continue;
+			}
 			if (CHSPEC_IS2G(chspec) && (channel >= CH_MIN_2G_CHANNEL) &&
-				(channel <= CH_MAX_2G_CHANNEL)) {
+					(channel <= CH_MAX_2G_CHANNEL)) {
 				b_band[channel-1] = 0;
 			}
 #ifdef WL_6G_BAND
 			else if (CHSPEC_IS6G(chspec) && (channel >= CH_MIN_6G_CHANNEL) &&
-				(channel <= CH_MAX_6G_CHANNEL)) {
+					(channel <= CH_MAX_6G_CHANNEL)) {
 				if (channel <= 93)
 					six_g_band5[(channel-1)/4] = 0;
 				else if (channel >= 97 && channel <= 109)
@@ -3144,7 +3185,7 @@ wl_ext_get_best_channel(struct net_device *net,
 #else
 		bi = bi ? (wl_bss_info_t *)((uintptr)bi + dtoh32(bi->length)) : bss_list->bss_info;
 #endif /* BSSCACHE */
-		chanspec = wl_ext_chspec_driver_to_host(ioctl_ver, bi->chanspec);
+		chanspec = wl_ext_chspec_driver_to_host(dhd, bi->chanspec);
 		cen_ch = CHSPEC_CHANNEL(bi->chanspec);
 		distance = 0;
 		if (CHSPEC_IS20(chanspec))
@@ -3167,25 +3208,25 @@ wl_ext_get_best_channel(struct net_device *net,
 		else if (CHSPEC_IS6G(chanspec)) {
 			distance += distance_6g;
 			if (cen_ch <= 93) {
-				for (j=0; j<ARRAYSIZE(a_band1); j++) {
+				for (j=0; j<ARRAYSIZE(six_g_band5); j++) {
 					if (six_g_band5[j] >= 0 && abs(cen_ch-(93+j*4)) <= distance)
 						six_g_band5[j] += 1;
 				}
 			}
 			else if (channel >= 97 && channel <= 109) {
-				for (j=0; j<ARRAYSIZE(a_band4); j++) {
+				for (j=0; j<ARRAYSIZE(six_g_band6); j++) {
 					if (six_g_band6[j] >= 0 && abs(cen_ch-(97+j*4)) <= distance)
 						six_g_band6[j] += 1;
 				}
 			}
 			else if (channel >= 117 && channel <= 181) {
-				for (j=0; j<ARRAYSIZE(a_band4); j++) {
+				for (j=0; j<ARRAYSIZE(six_g_band7); j++) {
 					if (six_g_band7[j] >= 0 && abs(cen_ch-(117+j*4)) <= distance)
 						six_g_band7[j] += 1;
 				}
 			}
 			else if (channel >= 189 && channel <= 221) {
-				for (j=0; j<ARRAYSIZE(a_band4); j++) {
+				for (j=0; j<ARRAYSIZE(six_g_band8); j++) {
 					if (six_g_band8[j] >= 0 && abs(cen_ch-(189+j*4)) <= distance)
 						six_g_band8[j] += 1;
 				}
@@ -3351,7 +3392,7 @@ wl_ext_fw_apcs(struct net_device *dev, uint32 band)
 	memset(reqbuf, 0, CHANSPEC_BUF_SIZE);
 
 	acs_band = wl_ext_wlcband_to_chanspec_band(band);
-	if ((uint32)acs_band == WLC_BAND_INVALID) {
+	if (acs_band == INVCHANSPEC) {
 		acs_band = WL_CHANSPEC_BAND_2G;
 	}
 
