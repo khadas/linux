@@ -49,6 +49,10 @@
 / {
 	compatible = "khadas,edge", "rockchip,rk3399";
 
+	aliases {
+		spi3 = &spi3;
+	};
+
 	/* first 64k(0xff8c0000~0xff8d0000) for ddr and suspend */
 	iram: sram@ff8d0000 {
 		compatible = "mmio-sram";
@@ -1165,8 +1169,15 @@
 &spi3 {
 	status = "disabled";
 
-	cs-gpios = <&gpio1 17 GPIO_ACTIVE_LOW>, <&gpio1 16 GPIO_ACTIVE_LOW>;
 	max-freq = <48000000>;
 
+	spidev@0 {
+		status = "okay";
+
+		compatible = "rockchip,spidev";
+		/* spi default max clock 100Mhz */
+		spi-max-frequency = <100000000>;
+		reg = <0>;
+	};
 };
 
