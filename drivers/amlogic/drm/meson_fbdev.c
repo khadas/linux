@@ -32,6 +32,11 @@ static int am_meson_fbdev_alloc_fb_gem(struct fb_info *info)
 	size_t size = info->fix.smem_len;
 	struct am_meson_gem_object *meson_gem;
 	void *vaddr;
+	int roundup_flag, ret = 0;
+
+	ret = of_property_read_u32(dev->dev->of_node, "fbdev_size_roundup_flag", &roundup_flag);
+	if (!ret && roundup_flag == 1)
+		size = roundup(size, (1024 * 1024));
 
 	if (!fbdev->fb_gem) {
 		meson_gem = am_meson_gem_object_create(dev, 0, size);

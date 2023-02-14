@@ -89,6 +89,7 @@
 		memory-region = <&logo_reserved>;
 		primary_plane_index = <0>; /* primary plane index for crtcs */
 		crtc_masks = <1 1 1>; /*for encoder: 0:hdmi 1:lcd 2:cvbs*/
+		fbdev_size_roundup_flag = <1>;
 
 		vpu_topology: vpu_topology {
 			vpu_blocks {
