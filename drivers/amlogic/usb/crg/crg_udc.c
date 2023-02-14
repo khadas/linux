@@ -32,6 +32,8 @@
 #include "crg_udc.h"
 #include <linux/amlogic/usb-v2.h>
 
+#define CRG_MTP_WR 1
+
 #define MAX_PACKET_SIZE 1024
 int g_dnl_board_usb_cable_connected(void);
 
@@ -43,7 +45,11 @@ int g_dnl_board_usb_cable_connected(void);
 
 #define TRB_MAX_BUFFER_SIZE		65536
 #define CRGUDC_CONTROL_EP_TD_RING_SIZE	16
+#if CRG_MTP_WR
+#define CRGUDC_BULK_EP_TD_RING_SIZE	512
+#else
 #define CRGUDC_BULK_EP_TD_RING_SIZE	32
+#endif
 #define CRGUDC_ISOC_EP_TD_RING_SIZE	32
 #define CRGUDC_INT_EP_TD_RING_SIZE	8
 
@@ -2187,7 +2193,21 @@ crg_udc_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 		 * Do not need to queue more trbs also.
 		 */
 	}
+#if CRG_MTP_WR
+	crg_issue_command(crg_udc, CRG_CMD_STOP_EP, 1 << DCI, 0);
+	do {
+		tmp = reg_read(&uccr->ep_running);
+	} while ((tmp & (1 << DCI)) != 0);
 
+	mdelay(10);
+	crg_udc_epcx_update_dqptr(udc_ep_ptr);
+
+	mdelay(10);
+	crg_issue_command(crg_udc, CRG_CMD_STOP_EP, 1 << DCI, 0);
+	do {
+		tmp = reg_read(&uccr->ep_running);
+	} while ((tmp & (1 << DCI)) != 0);
+#endif
 	CRG_DEBUG("End dequeue deq_pt = 0x%p, enq_pt = 0x%p\n",
 			udc_ep_ptr->deq_pt, udc_ep_ptr->enq_pt);
 
