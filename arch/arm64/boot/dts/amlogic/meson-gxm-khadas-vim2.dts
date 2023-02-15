@@ -352,6 +352,12 @@
 	clock-names = "clkin0";
 };
 
+&pwm_cd {
+	status = "disabled";
+	pinctrl-0 = <&pwm_d_pins>;
+	pinctrl-names = "default";
+};
+
 &sd_emmc_a {
 	status = "okay";
 	pinctrl-0 = <&sdio_pins>;
