@@ -1520,6 +1520,10 @@ struct task_struct {
 	ANDROID_KABI_RESERVE(6);
 	ANDROID_KABI_RESERVE(7);
 	ANDROID_KABI_RESERVE(8);
+#ifdef CONFIG_AMLOGIC_MEMORY_OPT
+	u64 android_kabi_reserved1;
+	u64 android_kabi_reserved2;
+#endif
 
 	/*
 	 * New fields for task_struct should be added above here, so that

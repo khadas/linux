@@ -37,6 +37,16 @@
  *   number: the "number" of the padding variable in the structure.  Start with
  *   1 and go up.
  */
+#ifdef CONFIG_AMLOGIC_MEMORY_OPT
+#define ANDROID_VENDOR_DATA(n)
+#define ANDROID_VENDOR_DATA_ARRAY(n, s)
+#define ANDROID_OEM_DATA(n)
+#define ANDROID_OEM_DATA_ARRAY(n, s)
+#define ANDROID_BACKPORT_RESERVED(n)
+
+#define android_init_vendor_data(p, n)
+#define android_init_oem_data(p, n)
+#else
 #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
 #define ANDROID_VENDOR_DATA(n)		u64 android_vendor_data##n
 #define ANDROID_VENDOR_DATA_ARRAY(n, s)	u64 android_vendor_data##n[s]
@@ -58,6 +68,7 @@
 
 #define android_init_vendor_data(p, n)
 #define android_init_oem_data(p, n)
+#endif
 #endif
 
 
