@@ -70,6 +70,7 @@
 /*  V1.1.76  fix diseqc init state and add isdbt tmcc */
 /*  V1.1.77  fix dvbc low sr and 16/32qam unlock */
 /*  V1.1.78  optimize 8VSB CN to 15dB */
+/*  V1.1.79  fix ATSC-T agc_target and lock signal timeout on r842 */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -86,8 +87,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.78"
-#define DTVDEMOD_VER	"2023/2/9: optimize 8VSB CN to 15dB"
+#define AMLDTVDEMOD_VER "V1.1.79"
+#define DTVDEMOD_VER	"2023/2/13: fix ATSC-T agc_target and lock signal timeout on r842"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

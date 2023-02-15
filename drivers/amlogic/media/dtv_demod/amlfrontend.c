@@ -58,6 +58,10 @@
 #include <linux/amlogic/media/vout/vdac_dev.h>
 #include <linux/amlogic/aml_dtvdemod.h>
 
+//It is a timeout which is used for check atsc signal
+#define ATSC_TIME_CHECK_SIGNAL 600
+#define ATSC_TIME_START_CCI 1500
+
 MODULE_PARM_DESC(auto_search_std, "\n\t\t atsc-c std&hrc search");
 static unsigned int auto_search_std;
 module_param(auto_search_std, int, 0644);
@@ -81,6 +85,14 @@ module_param(isdbt_lock_continuous_cnt, int, 0644);
 MODULE_PARM_DESC(isdbt_lost_continuous_cnt, "\n\t\t isdbt lost signal continuous counting");
 static unsigned int isdbt_lost_continuous_cnt = 1;
 module_param(isdbt_lost_continuous_cnt, int, 0644);
+
+MODULE_PARM_DESC(atsc_check_signal_time, "\n\t\t atsc check signal time");
+static unsigned int atsc_check_signal_time = ATSC_TIME_CHECK_SIGNAL;
+module_param(atsc_check_signal_time, int, 0644);
+
+MODULE_PARM_DESC(atsc_agc_target, "\n\t\t atsc agc target");
+static unsigned char atsc_agc_target = 0x28;
+module_param(atsc_agc_target, byte, 0644);
 
 /*use this flag to mark the new method for dvbc channel fast search
  *it's disabled as default, can be enabled if needed
@@ -2018,6 +2030,9 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 				/* adjust IF AGC bandwidth, default 0x40208007. */
 				/* for atsc agc speed test >= 85Hz. */
 				atsc_write_reg_v4(ATSC_AGC_REG_0X42, 0x40208003);
+
+				//agc target
+				atsc_write_reg_bits_v4(ATSC_AGC_REG_0X40, atsc_agc_target, 0, 8);
 			}
 
 			if (demod->demod_status.adc_freq == ADC_CLK_24M) {
@@ -2335,13 +2350,11 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 	return 0;
 }
 
-//It is a timeout which is used for check atsc signal
-#define ATSC_TIME_CHECK_SIGNAL 600
-#define ATSC_TIME_START_CCI 1500
 static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned int re_tune)
 {
 	int fsm_status;//0:none;1:lock;-1:lost
-	int strength;
+	int strength = 0;
+	u16 rf_strength = 0;
 	unsigned int sys_sts;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	static int lock_status;
@@ -2367,6 +2380,8 @@ static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 		if (strength <= -80)
 			strength = atsc_get_power_strength(atsc_read_reg_v4(0x44) & 0xfff,
 					strength);
+
+		atsc_check_signal_time = 1800;
 	}
 
 	if (strength < THRD_TUNER_STRENGTH_ATSC) {
@@ -2395,7 +2410,7 @@ static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 		if (demod->time_passed >= ATSC_TIME_START_CCI)
 			atsc_check_cci(demod);
 	} else {
-		if (demod->time_passed <= ATSC_TIME_CHECK_SIGNAL) {
+		if (demod->time_passed <= atsc_check_signal_time) {
 			fsm_status = 0;
 		} else {
 			fsm_status = -1;
@@ -2440,11 +2455,17 @@ static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 			PR_ATSC("==> lock signal times:%d\n", lock_status);
 		}
 
-		if (lock_status >= lock_continuous_cnt)
+		if (lock_status >= lock_continuous_cnt) {
 			*status = FE_HAS_LOCK | FE_HAS_SIGNAL |
 				FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC;
-		else
+
+			/* for call r842 atsc monitor */
+			if (tuner_find_by_name(fe, "r842") &&
+					fe->ops.tuner_ops.get_rf_strength)
+				fe->ops.tuner_ops.get_rf_strength(fe, &rf_strength);
+		} else {
 			*status = 0;
+		}
 	} else {
 		*status = 0;
 	}
