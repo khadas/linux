@@ -218,6 +218,13 @@
 			};
 		};
 	};
+
+	onewire:onewire {
+		compatible = "w1-gpio";
+		gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		#gpio-cells = <1>;
+		status = "disabled";
+	};
 };
 
 &aiu {
