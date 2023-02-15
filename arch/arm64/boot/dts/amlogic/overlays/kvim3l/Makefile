@@ -4,7 +4,9 @@ dtbo-$(CONFIG_ARCH_MESON) += 	ts050.dtbo \
 								uart3.dtbo \
 								i2c3.dtbo \
 								i2s.dtbo \
-								spdifout.dtbo
+								spdifout.dtbo \
+								onewire.dtbo \
+								spi1.dtbo
 
 targets += $(dtbo-y)
 
