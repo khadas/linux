@@ -494,8 +494,9 @@
 		/* power value:(0=output low, 1=output high, 2=input) */
 		/* power delay:(unit in ms) */
 		bl-gpios = <&gpio GPIOY_5 GPIO_ACTIVE_HIGH
-			&gpio GPIOY_1 GPIO_ACTIVE_HIGH>;
-		bl_gpio_names = "GPIOY_5","GPIOY_1";
+			&gpio GPIOY_1 GPIO_ACTIVE_HIGH
+			&gpio GPIOY_12 GPIO_ACTIVE_HIGH>;
+		bl_gpio_names = "GPIOY_5","GPIOY_1","GPIOY_12";
 
 		backlight_0{
 			index = <0>;
@@ -523,7 +524,7 @@
 			bl_level_attr = <255 10 /*max, min*/
 				128 128>; /*mid, mid_mapping*/
 			bl_ctrl_method = <1>; /*1=pwm,2=pwm_combo*/
-			bl_power_attr = <0 /*en_gpio_index*/
+			bl_power_attr = <2 /*en_gpio_index*/
 				1 0 /*on_value, off_value*/
 				200 200>; /*on_delay(ms), off_delay(ms)*/
 			bl_pwm_port = "PWM_E";
@@ -1263,8 +1264,9 @@
 		/* power value:(0=output low, 1=output high, 2=input) */
 		/* power delay:(unit in ms) */
 		bl-gpios = <&gpio GPIOY_9 GPIO_ACTIVE_HIGH
-			&gpio GPIOY_8 GPIO_ACTIVE_HIGH>;
-		bl_gpio_names = "GPIOY_9","GPIOY_8";
+			&gpio GPIOY_8 GPIO_ACTIVE_HIGH
+			&gpio GPIOY_13 GPIO_ACTIVE_HIGH>;
+		bl_gpio_names = "GPIOY_9","GPIOY_8","GPIOY_13";
 
 		backlight_0{
 			index = <0>;
@@ -1292,14 +1294,14 @@
 			bl_level_attr = <255 10 /*max, min*/
 				128 128>; /*mid, mid_mapping*/
 			bl_ctrl_method = <1>; /*1=pwm,2=pwm_combo*/
-			bl_power_attr = <0 /*en_gpio_index*/
+			bl_power_attr = <2 /*en_gpio_index*/
 				1 0 /*on_value, off_value*/
 				200 200>; /*on_delay(ms), off_delay(ms)*/
 			bl_pwm_port = "PWM_F";
 			bl_pwm_attr = <0 /*pwm_method(0=negative, 1=positvie)*/
 				180 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				100 25>; /*duty_max(%), duty_min(%)*/
-			bl_pwm_power = <1 0 /*pwm_gpio_index, pwm_gpio_off*/
+			bl_pwm_power = <0 0 /*pwm_gpio_index, pwm_gpio_off*/
 				10 10>; /*pwm_on_delay(ms), pwm_off_delay(ms)*/
 			en_sequence_reverse = <0>; /* 1 for reverse */
 		};
