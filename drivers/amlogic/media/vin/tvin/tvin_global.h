@@ -499,6 +499,14 @@ struct tvin_cuva_vsif_s {
 	struct tvin_cuva_data_s cuva_data;
 };
 
+struct tvin_fmm_s {
+	bool fmm_flag;
+	bool fmm_vsif_flag;
+	bool it_content;
+	enum tvin_cn_type_e cn_type;
+	struct tvin_fmm_data_s fmm_data;
+};
+
 struct tvin_sig_property_s {
 	enum tvin_trans_fmt	trans_fmt;
 	enum tvin_color_fmt_e	color_format;
@@ -530,6 +538,7 @@ struct tvin_sig_property_s {
 	u8 fps;
 	unsigned int skip_vf_num;/*skip pre vframe num*/
 	struct tvin_latency_s latency;
+	struct tvin_fmm_s filmmaker;
 	struct tvin_hdr10plus_info_s hdr10p_info;
 	struct tvin_emp_data_s emp_data;
 	struct tvin_vtem_data_s vtem_data;

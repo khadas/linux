@@ -1372,6 +1372,7 @@ void rx_get_vsi_info(void)
 	rx.vs_info_details.hdr10plus = false;
 	rx.vs_info_details.cuva_hdr = false;
 	rx.vs_info_details.emp_pkt_cnt = rx.emp_buff.emp_pkt_cnt;
+	rx.vs_info_details.filmmaker = false;
 	rx.emp_buff.emp_pkt_cnt = 0;
 #ifndef MULTI_VSIF_EXPORT_TO_EMP
 	pkt = (struct vsi_infoframe_st *)&rx_pkt.vs_info;
@@ -1472,6 +1473,19 @@ void rx_get_vsi_info(void)
 		rx.vs_info_details.hdmi_allm = true;
 		pkt->ieee = IEEE_HDR10PLUS;
 		break;
+	case IEEE_FILMMAKER:
+		if (pkt->length != E_PKT_LENGTH_5 ||
+			pkt->pkttype != 0x01 ||
+			pkt->ver_st.version != 0x01 ||
+			pkt->sbpkt.payload.data[0] != 0x01 ||
+			pkt->sbpkt.payload.data[1] != 0x00) {
+			if (log_level & PACKET_LOG)
+				rx_pr("vsi filmmaker pkt err\n");
+			break;
+		}
+		rx.vs_info_details.vsi_state = E_VSI_FILMMAKER;
+		rx.vs_info_details.filmmaker = true;
+		break;
 	case IEEE_VSI14:
 		/* dolbyvision1.0 */
 		rx.vs_info_details.vsi_state = E_VSI_4K3D;
@@ -1559,6 +1573,15 @@ void rx_get_vsi_info(void)
 			pkt->sbpkt.vsi_cuva_hdr.transfer_char = 0;
 			pkt->sbpkt.vsi_cuva_hdr.monitor_mode_enable = 1;
 			rx.vs_info_details.cuva_hdr = true;
+		} else if (pkt->ieee == IEEE_FILMMAKER) {
+			if (pkt->length != E_PKT_LENGTH_5 ||
+				pkt->pkttype != 0x01 ||
+				pkt->ver_st.version != 0x01 ||
+				pkt->sbpkt.payload.data[0] != 0x01 ||
+				pkt->sbpkt.payload.data[1] != 0x00)
+				if (log_level & PACKET_LOG)
+					rx_pr("vsi filmmaker pkt err\n");
+			rx.vs_info_details.filmmaker = true;
 		}
 
 		if (pkt->ieee == IEEE_VSI14) {
@@ -2119,6 +2142,11 @@ int rx_pkt_fifodecode(struct packet_info_s *prx,
 			memcpy(&prx->multi_vs_info[CUVAHDR], pktdata,
 				sizeof(struct pd_infoframe_s));
 			rx.vs_info_details.vsi_state |= E_VSI_CUVAHDR;
+			break;
+		case IEEE_FILMMAKER:
+			memcpy(&prx->multi_vs_info[FILMMAKER], pktdata,
+				sizeof(struct pd_infoframe_s));
+			rx.vs_info_details.vsi_state |= E_VSI_FILMMAKER;
 			break;
 		case IEEE_VSI21:
 			memcpy(&prx->multi_vs_info[VSI21], pktdata,

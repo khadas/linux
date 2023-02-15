@@ -36,7 +36,9 @@
 //add an ioctl to update single edid
 //2023.05.09
 //add extended colorimetry; mute audio for unsupported format; audio status optimized;
-#define RX_VER0 "ver.2023/05/09"
+//2023.05.11
+//support filmmaker mode
+#define RX_VER0 "ver.2023/05/11"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -528,8 +530,9 @@ struct vsi_info_s {
 	bool hdmi_allm;
 	bool hdr10plus;
 	bool cuva_hdr;
+	bool filmmaker;
 	u8 ccbpc;
-	u8 vsi_state; // bit0-5: 4K3D/VSI21/HDR10+/DV10/DV15/CUVA
+	u8 vsi_state; // bit0-6: 4K3D/VSI21/HDR10+/DV10/DV15/CUVA/filmmaker
 	u8 emp_pkt_cnt;
 	u8 timeout;
 	u8 max_frl_rate;
@@ -757,6 +760,7 @@ struct rx_s {
 	struct sbtm_info_s sbtm_info;
 	struct cuva_emds_s emp_cuva_info;
 	struct dv_info_s emp_dv_info;
+	bool vsif_fmm_flag;
 	u8 emp_dsf_cnt;
 	bool emp_pkt_rev;
 	bool new_emp_pkt;

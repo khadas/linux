@@ -5583,8 +5583,7 @@ void rx_emp_field_done_irq(void)
 					emp_pkt_cnt++;
 					/*32 bytes per emp pkt*/
 					for (k = 0; k < 32; k++) {
-						dst_addr[data_cnt] =
-						src_addr[PAGE_SIZE * i + j + k];
+						dst_addr[data_cnt] = src_addr[j + k];
 						data_cnt++;
 					}
 				//}
@@ -5597,8 +5596,7 @@ void rx_emp_field_done_irq(void)
 					emp_pkt_cnt++;
 					/*32 bytes per emp pkt*/
 					for (k = 0; k < 32; k++) {
-						dst_addr[data_cnt] =
-						src_addr[PAGE_SIZE * i + j + k];
+						dst_addr[data_cnt] = src_addr[j + k];
 						data_cnt++;
 					}
 				//}

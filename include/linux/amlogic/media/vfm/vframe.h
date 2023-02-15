@@ -204,6 +204,16 @@ struct tvin_hdr10p_data_s {
 	} __packed pb27_st;
 } __packed;
 
+/* vdin filmmaker vsif pkt*/
+struct tvin_fmm_data_s {
+	u8 pkt_type;
+	u8 visf_version;
+	u8 payload_length;
+	u32 ieee:24;
+	u32 content_type:8;
+	u8 content_subtype;
+};
+
 /*vdin dolby vsi info param*/
 struct tvin_dv_vsif_s {
 	u8 dolby_vision_signal:1;
@@ -273,6 +283,7 @@ struct vframe_prop_s {
 	struct vframe_master_display_colour_s
 	 master_display_colour;
 	struct tvin_hdr10p_data_s hdr10p_data;
+	struct tvin_fmm_data_s fmm_data;
 } /*vframe_prop_t */;
 
 struct vdisplay_info_s {

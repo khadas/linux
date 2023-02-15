@@ -21,6 +21,7 @@
 #define IEEE_VSI21		0xc45dd8
 #define IEEE_HDR10PLUS		0x90848b
 #define IEEE_CUVAHDR		0x047503
+#define IEEE_FILMMAKER		0x1ABBFB
 #define IEEE_DV_PLUS_ALLM 0x1
 #define IEEE_HDR10P_PLUS_ALLM 0x2
 
@@ -49,12 +50,14 @@ enum vsi_state_e {
 	E_VSI_DV10 = 0x08,
 	E_VSI_DV15 = 0x10,
 	E_VSI_CUVAHDR = 0x20,
+	E_VSI_FILMMAKER = 0x40,
 };
 
 enum vsi_type {
 	DV15,
 	CUVAHDR,
 	HDR10PLUS,
+	FILMMAKER,
 	VSI21,
 	VSI14,
 	VSI_TYPE_MAX
@@ -739,6 +742,14 @@ struct vsi_infoframe_st {
 			u8 monitor_mode_enable:1;
 			u8 version_code:4;
 		} __packed vsi_cuva_hdr;
+
+		/* filmmaker ieee 0x1ABBFB */
+		struct vsi_filmmaker {
+			/*pb4*/
+			u8 content_type:8;
+			/*pb5*/
+			u8 content_subtype:8;
+		} __packed vsi_filmmaker;
 	} __packed sbpkt;
 } __packed;
 
