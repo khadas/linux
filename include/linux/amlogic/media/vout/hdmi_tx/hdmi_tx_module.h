@@ -123,6 +123,7 @@ struct rx_cap {
 	unsigned int Max_TMDS_Clock2; /* HDMI2.0 TMDS_CLK */
 	/* CEA861-F, Table 56, Colorimetry Data Block */
 	unsigned int colorimetry_data;
+	unsigned int colorimetry_data2;
 	unsigned int scdc_present:1;
 	unsigned int scdc_rr_capable:1; /* SCDC read request */
 	unsigned int lte_340mcsc_scramble:1;

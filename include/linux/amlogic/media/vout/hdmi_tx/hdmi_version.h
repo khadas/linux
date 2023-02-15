@@ -53,6 +53,7 @@
 	"V03.01.02.00.03.05.18 [20230404] [COM] Extend the check time for linux hdcp\n" \
 	"V03.01.02.00.03.05.19 [20230410] [COM] Adapt to low-resolution standard display\n" \
 	"V03.01.02.00.03.05.20 [20230412] [NEW] Add more debug info of hdmitx\n" \
-	"V03.01.02.00.03.05.21 [20230418] [COM] add unmute hdr work func\n"
+	"V03.01.02.00.03.05.21 [20230418] [COM] add unmute hdr work func\n" \
+	"V03.01.02.00.03.05.22 [20230505] [COM] add hdr_priority_mode node hide or enable HDR\n"
 
 #endif // __HDMI20_VERSION_H__

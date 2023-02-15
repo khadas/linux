@@ -60,6 +60,7 @@
 	"V03.02.01.01.04.04.24 [BUG] 480p&576p colorimetry should be 601\n" \
 	"V03.02.01.01.04.04.25 [NEW] tx21 send emds pkt for cuva\n" \
 	"V03.02.01.01.04.04.26 [COM] add vic to AVI when send vsif\n" \
-	"V03.02.01.01.05.04.26 [20230506] [HDCP] scdc sequence optimise"
+	"V03.02.01.01.05.04.26 [20230506] [HDCP] scdc sequence optimise" \
+	"V03.02.01.01.05.04.27 [COM] add hdr_priority_mode node hide or enable HDR\n"
 
 #endif // __HDMI21_VERSION_H__
