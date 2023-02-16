@@ -75,24 +75,32 @@ static void _buffer_free(void)
 
 static int _set_default_settings(void)
 {
-	pq_mgr_settings.brightness = 0;
-	pq_mgr_settings.contrast = 0;
-	pq_mgr_settings.hue = 0;
-	pq_mgr_settings.saturation = 0;
-	pq_mgr_settings.brightness_post = 0;
-	pq_mgr_settings.contrast_post = 0;
-	pq_mgr_settings.hue_post = 0;
-	pq_mgr_settings.saturation_post = 0;
+	vpp_pq_mgr_set_brightness(0);
+	vpp_pq_mgr_set_contrast(0);
+	vpp_pq_mgr_set_saturation(0);
+	vpp_pq_mgr_set_hue(0);
+	vpp_pq_mgr_set_brightness_post(0);
+	vpp_pq_mgr_set_contrast_post(0);
+	vpp_pq_mgr_set_saturation_post(0);
+	vpp_pq_mgr_set_hue_post(0);
 
-	pq_mgr_settings.video_rgb_ogo.r_pre_offset = 0;
-	pq_mgr_settings.video_rgb_ogo.g_pre_offset = 0;
-	pq_mgr_settings.video_rgb_ogo.b_pre_offset = 0;
-	pq_mgr_settings.video_rgb_ogo.r_gain = 1024;
-	pq_mgr_settings.video_rgb_ogo.g_gain = 1024;
-	pq_mgr_settings.video_rgb_ogo.b_gain = 1024;
-	pq_mgr_settings.video_rgb_ogo.r_post_offset = 0;
-	pq_mgr_settings.video_rgb_ogo.g_post_offset = 0;
-	pq_mgr_settings.video_rgb_ogo.b_post_offset = 0;
+	/*WB*/
+	vpp_module_go_set_pre_offset(0, 0);
+	vpp_module_go_set_pre_offset(1, 0);
+	vpp_module_go_set_pre_offset(2, 0);
+	vpp_module_go_set_gain(0, 1024);
+	vpp_module_go_set_gain(1, 1024);
+	vpp_module_go_set_gain(2, 1024);
+	vpp_module_go_set_offset(0, 0);
+	vpp_module_go_set_offset(1, 0);
+	vpp_module_go_set_offset(2, 0);
+
+	/*Gamma*/
+	vpp_module_pre_gamma_set_default();
+	vpp_module_lcd_gamma_set_default();
+
+	/*CM*/
+	vpp_module_cm_set_default();
 
 	return 0;
 }
@@ -131,7 +139,43 @@ static int _get_mab_from_sat_hue(int sat_val, int hue_val)
 
 static void _set_pq_bypass_all(bool enable)
 {
+	struct vpp_pq_state_s *pstatus = &pq_mgr_settings.pq_status;
+
 	pr_vpp(PR_DEBUG, "[%s] pq_bypass_all = %d\n", __func__, enable);
+
+	if (enable) {
+		vpp_module_vadj_en(false);
+		vpp_module_vadj_post_en(false);
+		vpp_module_vadj_set_param(EN_VADJ_VD1_RGBBST_EN, false);
+		vpp_module_vadj_set_param(EN_VADJ_POST_RGBBST_EN, false);
+		vpp_module_pre_gamma_en(false);
+		vpp_module_lcd_gamma_en(false);
+		vpp_module_go_en(false);
+		vpp_module_dnlp_en(false);
+		vpp_module_lc_en(false);
+		vpp_module_ve_blkext_en(false);
+		vpp_module_ve_ccoring_en(false);
+		vpp_module_sr_en(EN_MODE_SR_0, false);
+		vpp_module_sr_en(EN_MODE_SR_1, false);
+		vpp_module_cm_en(false);
+		vpp_module_lut3d_en(false);
+	} else {
+		vpp_module_vadj_en(pstatus->pq_cfg.vadj1_en);
+		vpp_module_vadj_post_en(pstatus->pq_cfg.vadj2_en);
+		vpp_module_vadj_set_param(EN_VADJ_VD1_RGBBST_EN, pstatus->pq_cfg.vd1_ctrst_en);
+		vpp_module_vadj_set_param(EN_VADJ_POST_RGBBST_EN, pstatus->pq_cfg.post_ctrst_en);
+		vpp_module_pre_gamma_en(pstatus->pq_cfg.pregamma_en);
+		vpp_module_lcd_gamma_en(pstatus->pq_cfg.gamma_en);
+		vpp_module_go_en(pstatus->pq_cfg.wb_en);
+		vpp_module_dnlp_en(pstatus->pq_cfg.dnlp_en);
+		vpp_module_lc_en(pstatus->pq_cfg.lc_en);
+		vpp_module_ve_blkext_en(pstatus->pq_cfg.black_ext_en);
+		vpp_module_ve_ccoring_en(pstatus->pq_cfg.chroma_cor_en);
+		vpp_module_sr_en(EN_MODE_SR_0, pstatus->pq_cfg.sharpness0_en);
+		vpp_module_sr_en(EN_MODE_SR_1, pstatus->pq_cfg.sharpness1_en);
+		vpp_module_cm_en(pstatus->pq_cfg.cm_en);
+		vpp_module_lut3d_en(pstatus->pq_cfg.lut3d_en);
+	}
 }
 
 static void _mtrx_mul_mtrx(int (*mtrx_a)[3], int (*mtrx_b)[3], int (*mtrx_out)[3])
@@ -262,6 +306,8 @@ int vpp_pq_mgr_init(struct vpp_dev_s *pdev)
 		PR_DRV("register aml_lcd_gamma_notifier failed\n");
 #endif
 
+	pq_mgr_settings.pq_mgr_init_done = true;
+
 	return ret;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_init);
@@ -273,12 +319,23 @@ void vpp_pq_mgr_deinit(void)
 #endif
 
 	_buffer_free();
+
+	pq_mgr_settings.pq_mgr_init_done = false;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_deinit);
+
+void vpp_pq_mgr_set_default_settings(void)
+{
+	_set_default_settings();
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_default_settings);
 
 int vpp_pq_mgr_set_status(struct vpp_pq_state_s *pstatus)
 {
 	int ret = 0;
+
+	if (pq_mgr_settings.bypass_top_set)
+		return ret;
 
 	if (!pstatus)
 		return RET_POINT_FAIL;
@@ -315,6 +372,9 @@ int vpp_pq_mgr_set_brightness(int val)
 {
 	int ret = 0;
 
+	if (pq_mgr_settings.bypass_top_set)
+		return ret;
+
 	pq_mgr_settings.brightness = val;
 	val = vpp_check_range(val, (-1024), 1023);
 
@@ -332,6 +392,9 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_brightness);
 int vpp_pq_mgr_set_brightness_post(int val)
 {
 	int ret = 0;
+
+	if (pq_mgr_settings.bypass_top_set)
+		return ret;
 
 	pq_mgr_settings.brightness_post = val;
 	val = vpp_check_range(val, (-1024), 1023);
@@ -353,6 +416,9 @@ int vpp_pq_mgr_set_contrast(int val)
 	int contrast_uv = 0;
 	int contrast_u = 0;
 	int contrast_v = 0;
+
+	if (pq_mgr_settings.bypass_top_set)
+		return ret;
 
 	pq_mgr_settings.contrast = val;
 	val = vpp_check_range(val, (-1024), 1023);
@@ -387,6 +453,9 @@ int vpp_pq_mgr_set_contrast_post(int val)
 {
 	int ret = 0;
 
+	if (pq_mgr_settings.bypass_top_set)
+		return ret;
+
 	pq_mgr_settings.contrast_post = val;
 	val = vpp_check_range(val, (-1024), 1023);
 
@@ -405,6 +474,9 @@ int vpp_pq_mgr_set_saturation(int sat_val)
 	int ret = 0;
 	int val = 0;
 	int hue_val = pq_mgr_settings.hue;
+
+	if (pq_mgr_settings.bypass_top_set)
+		return ret;
 
 	pq_mgr_settings.saturation = sat_val;
 	sat_val = vpp_check_range(sat_val, (-128), 127);
@@ -427,6 +499,9 @@ int vpp_pq_mgr_set_saturation_post(int sat_val)
 	int val = 0;
 	int hue_val = pq_mgr_settings.hue_post;
 
+	if (pq_mgr_settings.bypass_top_set)
+		return ret;
+
 	pq_mgr_settings.saturation_post = sat_val;
 	sat_val = vpp_check_range(sat_val, (-128), 127);
 	hue_val = vpp_check_range(hue_val, (-25), 25);
@@ -447,6 +522,9 @@ int vpp_pq_mgr_set_hue(int hue_val)
 	int ret = 0;
 	int val = 0;
 	int sat_val = pq_mgr_settings.saturation;
+
+	if (pq_mgr_settings.bypass_top_set)
+		return ret;
 
 	pq_mgr_settings.hue = hue_val;
 	hue_val = vpp_check_range(hue_val, (-25), 25);
@@ -469,6 +547,9 @@ int vpp_pq_mgr_set_hue_post(int hue_val)
 	int val = 0;
 	int sat_val = pq_mgr_settings.saturation_post;
 
+	if (pq_mgr_settings.bypass_top_set)
+		return ret;
+
 	pq_mgr_settings.hue_post = hue_val;
 	hue_val = vpp_check_range(hue_val, (-25), 25);
 	sat_val = vpp_check_range(sat_val, (-128), 127);
@@ -486,6 +567,9 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_hue_post);
 
 int vpp_pq_mgr_set_sharpness(int val)
 {
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
+
 	pq_mgr_settings.sharpness = val;
 	val = vpp_check_range(val, 0, 255);
 
@@ -501,6 +585,9 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_sharpness);
 int vpp_pq_mgr_set_whitebalance(struct vpp_white_balance_s *pdata)
 {
 	int ret = 0;
+
+	if (pq_mgr_settings.bypass_top_set)
+		return ret;
 
 	if (!pdata)
 		return RET_POINT_FAIL;
@@ -558,6 +645,9 @@ int vpp_pq_mgr_set_pre_gamma_table(struct vpp_gamma_table_s *pdata)
 	unsigned int len = 0;
 	unsigned int buf_size = 0;
 
+	if (pq_mgr_settings.bypass_top_set)
+		return ret;
+
 	if (!pdata || !pdata->r_data || !pdata->g_data || !pdata->b_data)
 		return RET_POINT_FAIL;
 
@@ -589,6 +679,9 @@ int vpp_pq_mgr_set_gamma_table(struct vpp_gamma_table_s *pdata)
 	unsigned int len = 0;
 	unsigned int buf_size = 0;
 
+	if (pq_mgr_settings.bypass_top_set)
+		return ret;
+
 	if (!pdata || !pdata->r_data || !pdata->g_data || !pdata->b_data)
 		return RET_POINT_FAIL;
 
@@ -616,6 +709,9 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_gamma_table);
 
 int vpp_pq_mgr_set_cm_curve(enum vpp_cm_curve_type_e type, int *pdata)
 {
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
+
 	if (!pdata)
 		return RET_POINT_FAIL;
 
@@ -642,6 +738,9 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_cm_curve);
 
 int vpp_pq_mgr_set_cm_offset_curve(enum vpp_cm_curve_type_e type, char *pdata)
 {
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
+
 	if (!pdata)
 		return RET_POINT_FAIL;
 
@@ -671,6 +770,9 @@ int vpp_pq_mgr_set_matrix_param(struct vpp_mtrx_info_s *pdata)
 	int ret = 0;
 	enum matrix_mode_e mode;
 	enum vpp_mtrx_type_e mtrx_sel;
+
+	if (pq_mgr_settings.bypass_top_set)
+		return ret;
 
 	if (!pdata)
 		return RET_POINT_FAIL;
@@ -710,6 +812,9 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_matrix_param);
 
 int vpp_pq_mgr_set_dnlp_param(struct vpp_dnlp_curve_param_s *pdata)
 {
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
+
 	if (!pdata)
 		return RET_POINT_FAIL;
 
@@ -726,6 +831,9 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_dnlp_param);
 
 int vpp_pq_mgr_set_lc_curve(struct vpp_lc_curve_s *pdata)
 {
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
+
 	if (!pdata)
 		return RET_POINT_FAIL;
 
@@ -748,6 +856,9 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_lc_curve);
 
 int vpp_pq_mgr_set_lc_param(struct vpp_lc_param_s *pdata)
 {
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
+
 	if (!pdata)
 		return RET_POINT_FAIL;
 
@@ -765,6 +876,9 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_lc_param);
 
 int vpp_pq_mgr_set_module_status(enum vpp_module_e module, bool enable)
 {
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
+
 	pr_vpp(PR_DEBUG, "[%s] module = %d, enable = %d\n",
 		__func__, module, enable);
 
@@ -821,6 +935,26 @@ int vpp_pq_mgr_set_module_status(enum vpp_module_e module, bool enable)
 		vpp_module_lut3d_en(enable);
 		pq_mgr_settings.pq_status.pq_cfg.lut3d_en = enable;
 		break;
+	case EN_MODULE_DEJAGGY_SR0:
+		vpp_module_sr_sub_module_en(EN_MODE_SR_0,
+			EN_SUB_MD_DEJAGGY, enable);
+		pq_mgr_settings.pq_status.pq_cfg.dejaggy_sr0_en = enable;
+		break;
+	case EN_MODULE_DEJAGGY_SR1:
+		vpp_module_sr_sub_module_en(EN_MODE_SR_1,
+			EN_SUB_MD_DEJAGGY, enable);
+		pq_mgr_settings.pq_status.pq_cfg.dejaggy_sr1_en = enable;
+		break;
+	case EN_MODULE_DERING_SR0:
+		vpp_module_sr_sub_module_en(EN_MODE_SR_0,
+			EN_SUB_MD_DERING, enable);
+		pq_mgr_settings.pq_status.pq_cfg.dering_sr0_en = enable;
+		break;
+	case EN_MODULE_DERING_SR1:
+		vpp_module_sr_sub_module_en(EN_MODE_SR_1,
+			EN_SUB_MD_DERING, enable);
+		pq_mgr_settings.pq_status.pq_cfg.dering_sr1_en = enable;
+		break;
 	case EN_MODULE_ALL:
 		_set_pq_bypass_all(!enable);
 		break;
@@ -834,6 +968,9 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_module_status);
 
 int vpp_pq_mgr_set_pc_mode(int val)
 {
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
+
 	pr_vpp(PR_DEBUG, "[%s] pc_mode = %d\n", __func__, val);
 
 	pq_mgr_settings.pc_mode = val;
@@ -928,6 +1065,9 @@ EXPORT_SYMBOL(vpp_pq_mgr_load_3dlut_data);
 
 int vpp_pq_mgr_set_3dlut_data(struct vpp_lut3d_table_s *ptable)
 {
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
+
 	if (!ptable)
 		return RET_POINT_FAIL;
 
@@ -956,6 +1096,9 @@ int vpp_pq_mgr_set_hdr_cgain_curve(struct vpp_hdr_lut_s *pdata)
 	enum hdr_sub_module_e sub_module = EN_SUB_MODULE_CGAIN;
 	enum hdr_vpp_type_e vpp_sel = EN_TYPE_VPP0;
 
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
+
 	if (!pdata)
 		return RET_POINT_FAIL;
 
@@ -973,6 +1116,9 @@ int vpp_pq_mgr_set_hdr_oetf_curve(struct vpp_hdr_lut_s *pdata)
 	enum hdr_module_type_e type = EN_MODULE_TYPE_VDIN0;
 	enum hdr_sub_module_e sub_module = EN_SUB_MODULE_OETF;
 	enum hdr_vpp_type_e vpp_sel = EN_TYPE_VPP0;
+
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
 
 	if (!pdata)
 		return RET_POINT_FAIL;
@@ -992,6 +1138,9 @@ int vpp_pq_mgr_set_hdr_eotf_curve(struct vpp_hdr_lut_s *pdata)
 	enum hdr_sub_module_e sub_module = EN_SUB_MODULE_EOTF;
 	enum hdr_vpp_type_e vpp_sel = EN_TYPE_VPP0;
 
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
+
 	if (!pdata)
 		return RET_POINT_FAIL;
 
@@ -1009,6 +1158,9 @@ int vpp_pq_mgr_set_hdr_tmo_curve(struct vpp_hdr_lut_s *pdata)
 	enum hdr_module_type_e type = EN_MODULE_TYPE_VDIN0;
 	enum hdr_sub_module_e sub_module = EN_SUB_MODULE_OGAIN;
 	enum hdr_vpp_type_e vpp_sel = EN_TYPE_VPP0;
+
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
 
 	if (!pdata)
 		return RET_POINT_FAIL;
@@ -1047,6 +1199,9 @@ int vpp_pq_mgr_set_eye_protect(struct vpp_eye_protect_s *pdata)
 	int pre_offset[3] = {-64, -512, -512};
 	int offset[3] = {64, 512, 512};
 
+	if (pq_mgr_settings.bypass_top_set)
+		return ret;
+
 	if (!pdata)/* || vpp_vf_get_vinfo_lcd_support())*/
 		return ret;
 
@@ -1080,6 +1235,9 @@ int vpp_pq_mgr_set_aipq_offset_table(char *pdata_str,
 	unsigned int table_len = 0;
 	unsigned int size = 0;
 
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
+
 	if (!pdata_str)
 		return RET_POINT_FAIL;
 
@@ -1102,6 +1260,9 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_aipq_offset_table);
 int vpp_pq_mgr_set_overscan_table(unsigned int length,
 	struct vpp_overscan_table_s *load_table)
 {
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
+
 	if (load_table)
 		vpp_vf_set_overscan_table(length, load_table);
 
@@ -1117,6 +1278,8 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_lc_isr);
 
 void vpp_pq_mgr_get_status(struct vpp_pq_state_s *pstatus)
 {
+	if (pstatus)
+		pstatus = &pq_mgr_settings.pq_status;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_get_status);
 
@@ -1225,8 +1388,73 @@ void vpp_pq_mgr_get_dnlp_param(struct vpp_dnlp_curve_param_s *pdata)
 }
 EXPORT_SYMBOL(vpp_pq_mgr_get_dnlp_param);
 
-void vpp_pq_mgr_get_module_status(enum vpp_module_e module, bool *penable)
+void vpp_pq_mgr_get_module_status(enum vpp_module_e module,
+	unsigned char *penable)
 {
+	unsigned char enable;
+
+	if (!penable)
+		return;
+
+	switch (module) {
+	case EN_MODULE_VADJ1:
+		enable = pq_mgr_settings.pq_status.pq_cfg.vadj1_en;
+		break;
+	case EN_MODULE_VADJ2:
+		enable = pq_mgr_settings.pq_status.pq_cfg.vadj2_en;
+		break;
+	case EN_MODULE_PREGAMMA:
+		enable = pq_mgr_settings.pq_status.pq_cfg.pregamma_en;
+		break;
+	case EN_MODULE_GAMMA:
+		enable = pq_mgr_settings.pq_status.pq_cfg.gamma_en;
+		break;
+	case EN_MODULE_WB:
+		enable = pq_mgr_settings.pq_status.pq_cfg.wb_en;
+		break;
+	case EN_MODULE_DNLP:
+		enable = pq_mgr_settings.pq_status.pq_cfg.dnlp_en;
+		break;
+	case EN_MODULE_CCORING:
+		enable = pq_mgr_settings.pq_status.pq_cfg.chroma_cor_en;
+		break;
+	case EN_MODULE_SR0:
+		enable = pq_mgr_settings.pq_status.pq_cfg.sharpness0_en;
+		break;
+	case EN_MODULE_SR1:
+		enable = pq_mgr_settings.pq_status.pq_cfg.sharpness1_en;
+		break;
+	case EN_MODULE_LC:
+		enable = pq_mgr_settings.pq_status.pq_cfg.lc_en;
+		break;
+	case EN_MODULE_CM:
+		enable = pq_mgr_settings.pq_status.pq_cfg.cm_en;
+		break;
+	case EN_MODULE_BLE:
+		enable = pq_mgr_settings.pq_status.pq_cfg.black_ext_en;
+		break;
+	case EN_MODULE_LUT3D:
+		enable = pq_mgr_settings.pq_status.pq_cfg.lut3d_en;
+		break;
+	case EN_MODULE_DEJAGGY_SR0:
+		enable = pq_mgr_settings.pq_status.pq_cfg.dejaggy_sr0_en;
+		break;
+	case EN_MODULE_DEJAGGY_SR1:
+		enable = pq_mgr_settings.pq_status.pq_cfg.dejaggy_sr1_en;
+		break;
+	case EN_MODULE_DERING_SR0:
+		enable = pq_mgr_settings.pq_status.pq_cfg.dering_sr0_en;
+		break;
+	case EN_MODULE_DERING_SR1:
+		enable = pq_mgr_settings.pq_status.pq_cfg.dering_sr1_en;
+		break;
+	case EN_MODULE_ALL:
+	default:
+		enable = pq_mgr_settings.pq_status.pq_en;
+		break;
+	}
+
+	*penable = enable;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_get_module_status);
 

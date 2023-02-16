@@ -7,6 +7,8 @@
 #define __VPP_PQ_PROC_H__
 
 struct vpp_pq_mgr_settings {
+	bool pq_mgr_init_done;
+	bool bypass_top_set;
 	struct vpp_pq_state_s pq_status;
 	int pc_mode;
 	int brightness;      /*-1024~1023*/
@@ -27,6 +29,7 @@ struct vpp_pq_mgr_settings {
 
 int vpp_pq_mgr_init(struct vpp_dev_s *pdev);
 void vpp_pq_mgr_deinit(void);
+void vpp_pq_mgr_set_default_settings(void);
 int vpp_pq_mgr_set_status(struct vpp_pq_state_s *pstatus);
 int vpp_pq_mgr_set_brightness(int val);
 int vpp_pq_mgr_set_brightness_post(int val);
@@ -82,7 +85,8 @@ struct vpp_gamma_table_s *vpp_pq_mgr_get_pre_gamma_table(void);
 struct vpp_gamma_table_s *vpp_pq_mgr_get_gamma_table(void);
 void vpp_pq_mgr_get_matrix_param(struct vpp_mtrx_info_s *pdata);
 void vpp_pq_mgr_get_dnlp_param(struct vpp_dnlp_curve_param_s *pdata);
-void vpp_pq_mgr_get_module_status(enum vpp_module_e module, bool *penable);
+void vpp_pq_mgr_get_module_status(enum vpp_module_e module,
+	unsigned char *penable);
 void vpp_pq_mgr_get_hdr_tmo_param(struct vpp_tmo_param_s *pdata);
 void vpp_pq_mgr_get_hdr_metadata(struct vpp_hdr_metadata_s *pdata);
 void vpp_pq_mgr_get_hdr_histogram(struct vpp_hdr_histgm_param_s *pdata);

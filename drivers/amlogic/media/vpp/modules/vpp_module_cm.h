@@ -51,6 +51,7 @@ void vpp_module_cm_set_cm2_offset_luma(char *pdata);
 void vpp_module_cm_set_cm2_offset_sat(char *pdata);
 void vpp_module_cm_set_cm2_offset_hue(char *pdata);
 void vpp_module_cm_set_cm2_offset_hue_by_hs(char *pdata);
+void vpp_module_cm_set_default(void);
 int vpp_module_cm_get_cm2_luma(int *pdata);
 int vpp_module_cm_get_cm2_sat(int *pdata);
 int vpp_module_cm_get_cm2_sat_by_l(int *pdata);

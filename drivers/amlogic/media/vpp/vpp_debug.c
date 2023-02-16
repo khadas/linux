@@ -13,6 +13,8 @@
 static const char *vpp_debug_usage_str = {
 	"Usage:\n"
 	"echo dbg_lvl value > /sys/class/aml_vpp/vpp_debug\n"
+	"echo dbg_bypass_top_set value > /sys/class/aml_vpp/vpp_debug\n"
+	"echo dbg_restore_default > /sys/class/aml_vpp/vpp_debug\n"
 	"echo dbg_dump > /sys/class/aml_vpp/vpp_debug\n"
 	"echo dbg_dump_reg module_index > /sys/class/aml_vpp/vpp_debug\n"
 	"echo dbg_dump_data module_index > /sys/class/aml_vpp/vpp_debug\n"
@@ -399,6 +401,14 @@ ssize_t vpp_debug_store(struct class *class,
 			goto fr_bf;
 
 		PR_DRV("pr_lvl = %d\n", pr_lvl);
+	} else if (!strcmp(param[0], "dbg_bypass_top_set")) {
+		if (kstrtouint(param[1], 10, &val) < 0)
+			goto fr_bf;
+
+		vpp_pq_mgr_get_settings()->bypass_top_set = val;
+		PR_DRV("bypass_top_set = %d\n", val);
+	} else if (!strcmp(param[0], "dbg_restore_default")) {
+		vpp_pq_mgr_set_default_settings();
 	} else if (!strcmp(param[0], "dbg_dump")) {
 		_dump_pq_mgr_settings();
 	} else if (!strcmp(param[0], "dbg_dump_reg")) {
@@ -1118,7 +1128,7 @@ ssize_t vpp_debug_gamma_pattern_store(struct class *class,
 		return -ENOMEM;
 
 	PR_DRV("[%s] set value = %d/%d/%d/%d\n",
-	__func__, parsed[0], parsed[1], parsed[2], parsed[3]);
+		__func__, parsed[0], parsed[1], parsed[2], parsed[3]);
 
 	vpp_module_lcd_gamma_pattern(parsed[0], parsed[1],
 		parsed[2], parsed[3]);
@@ -1238,6 +1248,8 @@ ssize_t vpp_debug_module_ctrl_show(struct class *class,
 	PR_DRV("--> module_idx = 0:vadj1/1:vadj2/2:pregamma/3:gamma/4:wb\n");
 	PR_DRV("--> 5:dnlp/6:ccoring/7:sharpness0/8:sharpness1\n");
 	PR_DRV("--> 9:lc/10:cm/11:ble/12:bls/13:3dlut\n");
+	PR_DRV("--> 14~17:dejaggy_sr0&1/dering_sr0&1\n");
+	PR_DRV("--> 18:all\n");
 	PR_DRV("--> status = 0:disable/1:enable\n");
 
 	return 0;

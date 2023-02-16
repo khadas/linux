@@ -61,6 +61,10 @@ enum vpp_module_e {
 	EN_MODULE_BLE,
 	EN_MODULE_BLS,
 	EN_MODULE_LUT3D,
+	EN_MODULE_DEJAGGY_SR0,
+	EN_MODULE_DEJAGGY_SR1,     /*15*/
+	EN_MODULE_DERING_SR0,
+	EN_MODULE_DERING_SR1,
 	EN_MODULE_ALL,
 };
 
@@ -1335,11 +1339,15 @@ struct vpp_pq_en_ctrl_s {
 	unsigned char sharpness1_en;
 	unsigned char cm_en;
 	unsigned char lut3d_en;
+	unsigned char dejaggy_sr0_en;
+	unsigned char dejaggy_sr1_en;
+	unsigned char dering_sr0_en;
+	unsigned char dering_sr1_en;
 	unsigned char reserved;
 };
 
 struct vpp_pq_state_s {
-	int pq_en;
+	unsigned char pq_en;
 	struct vpp_pq_en_ctrl_s pq_cfg;
 };
 
