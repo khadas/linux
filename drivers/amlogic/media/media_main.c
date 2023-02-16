@@ -88,6 +88,7 @@ static int __init media_main_init(void)
 	call_sub_init(vicp_init_module);
 	call_sub_init(configs_init_devices);
 	call_sub_init(lut_dma_init);
+	call_sub_init(vdin_drv_init);
 	call_sub_init(video_init);
 	call_sub_init(aml_lcd_extern_i2c_dev_init);
 	call_sub_init(aml_bl_extern_i2c_init);
@@ -123,7 +124,6 @@ static int __init media_main_init(void)
 	call_sub_init(vbi_init);
 	call_sub_init(tvafe_avin_detect_init);
 	call_sub_init(amvdec_656in_init_module);
-	call_sub_init(vdin_drv_init);
 	call_sub_init(hdmirx_init);
 	call_sub_init(hld_init);
 	call_sub_init(viuin_init_module);
