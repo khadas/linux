@@ -115,8 +115,8 @@ static int dvb_tuner_delay = 100;
 module_param(dvb_tuner_delay, int, 0644);
 MODULE_PARM_DESC(dvb_atsc_count, "dvb_tuner_delay");
 
-static int blind_scan_new;
-module_param(blind_scan_new, int, 0644);
+static bool blind_scan_new = true;
+module_param(blind_scan_new, bool, 0644);
 MODULE_PARM_DESC(blind_scan_new, "blind_scan_new");
 
 const char *name_reg[] = {
@@ -4158,12 +4158,13 @@ int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 }
 
 static int dtvdemod_dvbs_blind_check_signal(struct dvb_frontend *fe,
-		unsigned int freq_khz, int *next_step_khz)
+		unsigned int freq_khz, int *next_step_khz,  int *signal_state)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-	int ret = 0;
+	int ret = 0, next_step_khz1 = 0, asperity = 0;
+	s16 strength = 0;
 
 #ifdef DVBS_BLIND_SCAN_DEBUG
 	unsigned int fld_value[2] = { 0 };
@@ -4195,6 +4196,7 @@ static int dtvdemod_dvbs_blind_check_signal(struct dvb_frontend *fe,
 
 	usleep_range(2 * 1000, 3 * 1000);//msleep(2);
 
+	dtvdemod_dvbs_read_signal_strength(fe, &strength);
 #ifdef DVBS_BLIND_SCAN_DEBUG
 	fld_value[0] = dvbs_rd_byte(0x91a);
 	fld_value[1] = dvbs_rd_byte(0x91b);
@@ -4213,10 +4215,22 @@ static int dtvdemod_dvbs_blind_check_signal(struct dvb_frontend *fe,
 	PR_DVBS("agc1_iq_amp: %d, agc1_iq_power: %d.\n", agc1_iq_amp, agc1_iq_power);
 #endif
 
-	if (blind_scan_new)
-		return dvbs_blind_check_AGC2_bandwidth_new(next_step_khz);
-	else
+	if (blind_scan_new) {
+		if (*signal_state == 0 || *signal_state == 1) {
+			asperity = dvbs_blind_check_AGC2_bandwidth_new(next_step_khz,
+					&next_step_khz1, signal_state);
+			if (*signal_state != 0)
+				*next_step_khz = next_step_khz1;
+
+			return asperity;
+		} else if (*signal_state == 2) {
+			return 2;
+		} else {
+			return 0;
+		}
+	} else {
 		return dvbs_blind_check_AGC2_bandwidth_old(next_step_khz);
+	}
 }
 
 static int dtvdemod_dvbs_blind_set_frontend(struct dvb_frontend *fe,
@@ -5917,13 +5931,13 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
 	struct dvb_frontend *fe = NULL;
 	struct dtv_frontend_properties *c = NULL;
-	enum fe_status status;
+	enum fe_status status = FE_NONE;
 	unsigned int last_locked_freq = 0, last_locked_sr = 0;
 	unsigned int cur_freq = 0, cur_sr = 0;
 	unsigned int freq_min = devp->blind_min_fre;
 	unsigned int freq_max = devp->blind_max_fre;
 	unsigned int freq_step = devp->blind_fre_step;
-	unsigned int freq, srate = 45000000;
+	unsigned int freq = 0, srate = 45000000;
 	unsigned int range[4] = {22, 11, 6, 3};
 	unsigned int fft_frc_range_min = 0;
 	unsigned int fft_frc_range_max = 0;
@@ -5932,9 +5946,8 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 	unsigned int range_ini = 0;
 	unsigned int polarity = 0;
 	int i = 0, j = 0, k = 0;
-	int asperity = 0, next_step_khz = 0;
+	int asperity = 0, next_step_khz = 0, signal_state = 0, freq_add = 0, freq_add_dly = 0;
 
-	status = FE_NONE;
 	PR_INFO("a new blind scan thread\n");
 
 	list_for_each_entry(tmp, &devp->demod_list, list) {
@@ -6006,9 +6019,11 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 		PR_INFO("------Search From: [%d KHz to %d KHz]-----\n",
 				freq - 20000, freq + freq_step - 20000);
 
-		asperity = dtvdemod_dvbs_blind_check_signal(fe, freq, &next_step_khz);
+		asperity = dtvdemod_dvbs_blind_check_signal(fe, freq,
+			&next_step_khz, &signal_state);
 
-		PR_INFO("get asperity: %d, next_step_khz %d.\n", asperity, next_step_khz);
+		PR_INFO("get asperity: %d, next_step_khz %d, signal_state %d.\n",
+			asperity, next_step_khz, signal_state);
 
 		fft_frc_range_min = (freq - 20000) / 1000;
 		fft_frc_range_max = ((freq - 20000) / 1000) + (freq_step / 1000);
@@ -6045,7 +6060,28 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 				dvb_frontend_add_event(fe, status);
 		}
 
-		freq = freq + (freq_step - next_step_khz);
+		if (blind_scan_new) {
+			if (asperity == 2 && signal_state == 2) {
+				signal_state = 0;
+				next_step_khz = freq_add;
+			}
+
+			if (signal_state == 1) {
+				freq = freq + freq_step;
+				freq_add_dly = next_step_khz;
+			} else if (signal_state == 2) {
+				freq_add = 40000 + 3000 + (freq_add_dly + next_step_khz) / 2;
+				freq = freq - 20000 + next_step_khz / 2 - freq_add_dly / 2;
+			} else {
+				freq = freq + next_step_khz;
+			}
+		} else {
+			freq = freq + (freq_step - next_step_khz);
+		}
+
+		PR_INFO("[signal_state %d], freq %d, next_step_khz %d",
+				signal_state, freq, next_step_khz);
+		PR_INFO("freq_add %d, freq_add_dly %d.\n", freq_add, freq_add_dly);
 	}
 
 	PR_INFO("------TOTAL FIND TP NUM: %d-----\n", total_result.tp_num);
@@ -6152,6 +6188,7 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 		status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
 		PR_INFO("%s:force 100%% to upper layer\n", __func__);
 		dvb_frontend_add_event(fe, status);
+		devp->blind_scan_stop = 1;
 	}
 }
 
@@ -6668,6 +6705,7 @@ static int aml_dtvdm_init(struct dvb_frontend *fe)
 
 	demod->suspended = false;
 	demod->last_delsys = SYS_UNDEFINED;
+	fe->ops.info.type = 0xFF; /* undefined */
 
 	PR_INFO("%s [id %d] OK.\n", __func__, demod->id);
 

@@ -11,9 +11,12 @@
 #define SR_LOW_THRD	11000000
 
 #define BLIND_SEARCH_AGC2BANDWIDTH_40 (40)
+#define BLIND_SEARCH_AGC2BANDWIDTH_60 (60)
 #define BLIND_SEARCH_AGC2BANDWIDTH_80 (80)
 #define BLIND_SEARCH_POW_TH           (25000)
+#define BLIND_SEARCH_POW_TH2          (28000)
 #define BLIND_SEARCH_BW_MIN           (6)
+#define BLIND_SEARCH_EDGE_NUM         (10)
 
 #define CNR_HIGH	0xcae
 #define CNR_LOW		0xcad
@@ -165,7 +168,8 @@ void dvbs_fft_reg_term(unsigned int reg_val[60]);
 void dvbs_blind_fft_work(struct fft_threadcontrols *spectr_ana_data,
 	int frq, struct fft_search_result *search_result);
 void dvbs_blind_fft_result_handle(struct fft_total_result *total_result);
-unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz);
+unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz,
+		int *next_step_khz1, int *signal_state);
 unsigned int dvbs_blind_check_AGC2_bandwidth_old(int *next_step_khz);
 
 #endif
