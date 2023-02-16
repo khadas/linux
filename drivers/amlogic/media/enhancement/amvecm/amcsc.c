@@ -3948,6 +3948,15 @@ uint32_t sink_dv_support(const struct vinfo_s *vinfo)
 		if (!vinfo->vout_device->dv_info->sup_2160p60hz)
 			return 0;
 	}
+	/* currently all sink not support 4k100/120 and 8k dv */
+	if (strstr(vinfo->name, "2160p100hz") ||
+	    strstr(vinfo->name, "2160p120hz") ||
+	    strstr(vinfo->name, "3840x2160p100hz") ||
+	    strstr(vinfo->name, "3840x2160p120hz") ||
+	    strstr(vinfo->name, "7680x4320p")) {
+	    /*in the future, some new flag in vsvdb will be used to judge dv cap*/
+		return 0;
+	}
 	/* for interlace output */
 	if (vinfo->height != vinfo->field_height)
 		return 0;

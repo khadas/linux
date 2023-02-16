@@ -13776,9 +13776,10 @@ static void independ_path_default_regs(void)
 static void s5_clk_default_regs(void)
 {
 	/* default: osd byp dolby */
-	osd_reg_set_bits(OSD_DOLBY_BYPASS_EN, 0x1, 0, 1);
+	/*core2a core2c dv init in uboot*/
+	/*osd_reg_set_bits(OSD_DOLBY_BYPASS_EN, 0x1, 0, 1);*/
 	osd_reg_set_bits(OSD_DOLBY_BYPASS_EN, 0x1, 2, 1);
-	osd_reg_set_bits(OSD_DOLBY_BYPASS_EN, 0x1, 4, 1);
+	/*osd_reg_set_bits(OSD_DOLBY_BYPASS_EN, 0x1, 4, 1);*/
 	osd_reg_set_bits(OSD_DOLBY_BYPASS_EN, 0x1, 6, 1);
 
 	/* default: osd 12bit path */
