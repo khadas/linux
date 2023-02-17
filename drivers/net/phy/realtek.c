@@ -231,6 +231,15 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	}
 
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	/*disable clk_out pin 35 set page 0x0a43 reg25.0 as 0*/
+	phy_write(phydev, RTL821x_PAGE_SELECT, 0x0a43);
+	val = phy_read(phydev, 0x19);
+	/*set reg25 bit0 as 0*/
+	val = phy_write(phydev, 0x19, val & 0xfffe);
+	/* switch to page 0 */
+	phy_write(phydev, RTL821x_PAGE_SELECT, 0x0);
+	/*reset phy to apply*/
+	val = phy_write(phydev, 0x0, 0x9200);
 	if (support_gpio_wol) {
 		/* config mac address for wol*/
 		pr_info("wol setmac\n");
