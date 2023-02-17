@@ -5634,14 +5634,12 @@ static ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute 
 			if (ret)
 				goto lcd_tcon_debug_store_err;
 			ret = lcd_tcon_mem_tee_protect(temp, 0);
-			pr_info("%s: tcon tee unprotect mem%d %d\n",
-				__func__, temp, ret);
+			pr_info("%s: tcon tee unprotect ret: %d\n", __func__, ret);
 		} else if (strcmp(parm[1], "on") == 0) {
 			if (!parm[2])
 				goto lcd_tcon_debug_store_err;
 			ret = lcd_tcon_mem_tee_protect(temp, 1);
-			pr_info("%s: tcon tee protect mem%d %d\n",
-				__func__, temp, ret);
+			pr_info("%s: tcon tee protect ret: %d\n", __func__, ret);
 		} else {
 			goto lcd_tcon_debug_store_err;
 		}
