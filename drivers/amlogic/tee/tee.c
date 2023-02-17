@@ -112,6 +112,10 @@ static int disable_flag;
 #define TEE_SMC_SYS_BOOT_COMPLETE \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_SYS_BOOT_COMPLETE)
 
+#define TEE_SMC_FUNCID_SYS_GET_BOOT_COMPLETE	   0xE061
+#define TEE_SMC_SYS_GET_BOOT_COMPLETE \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_SYS_GET_BOOT_COMPLETE)
+
 #define TEE_SMC_FUNCID_VP9_PROB_PROCESS            0xE070
 #define TEE_SMC_VP9_PROB_PROCESS \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_VP9_PROB_PROCESS)
@@ -181,6 +185,18 @@ static int tee_set_sys_boot_complete(void)
 	return res.a0;
 }
 
+static int tee_get_sys_boot_complete(void)
+{
+	struct arm_smccc_res res;
+
+	res.a0 = 0;
+
+	arm_smccc_smc(TEE_SMC_SYS_GET_BOOT_COMPLETE,
+			0, 0, 0, 0, 0, 0, 0, &res);
+
+	return res.a0;
+}
+
 static ssize_t os_version_show(struct class *class,
 			       struct class_attribute *attr, char *buf)
 {
@@ -227,6 +243,23 @@ static ssize_t log_level_show(struct class *class,
 	int ret = 0;
 
 	ret = sprintf(buf, " 0:NO LOG\n 1:ERROR\n 2:INFO\n 3:DEBUG\n 4:FLOW\n");
+
+	return ret;
+}
+
+static ssize_t sys_boot_complete_show(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	int ret = 0;
+
+	/* return 1 means it doesn't need to update efuse for anti-rollback.
+	 * return 0xFFFFFFFF means BL32 is not supported tee_get_sys_boot_complete
+	 */
+	ret = tee_get_sys_boot_complete();
+	if (ret == 1)
+		ret = sprintf(buf, "1\n");
+	else
+		ret = sprintf(buf, "0\n");
 
 	return ret;
 }
@@ -301,7 +334,7 @@ static ssize_t log_level_store(struct class *class,
 
 static CLASS_ATTR_RO(os_version);
 static CLASS_ATTR_RO(api_version);
-static CLASS_ATTR_WO(sys_boot_complete);
+static CLASS_ATTR_RW(sys_boot_complete);
 static CLASS_ATTR_RW(log_mode);
 static CLASS_ATTR_RW(log_level);
 
