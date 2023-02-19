@@ -1668,7 +1668,6 @@ static int meson_spicc_suspend(struct device *dev)
 	meson_spicc_hw_clk_save(spicc);
 	meson_spicc_clk_disable(spicc);
 
-	spi_controller_put(spicc->controller);
 	return spi_controller_suspend(spicc->controller);
 }
 
