@@ -119,7 +119,6 @@ bool vicp_hdr_get_setting(struct vicp_hdr_s *vicp_hdr, struct vframe_s *vf)
 		vicp_print(VICP_ERROR, "%s: invalid param.\n", __func__);
 		return false;
 	}
-	vicp_print(VICP_HDR2, "%s:\n", __func__);
 	get_hdr_setting(vicp_hdr->hdr_data.module_sel,
 			vicp_hdr->hdr_data.hdr_process_select,
 			&vicp_hdr->hdr_data.hdr_para,
@@ -566,6 +565,4 @@ void vicp_hdr_remove(struct vicp_hdr_s *vicp_hdr)
 
 	vfree(vicp_hdr);
 	vicp_hdr = NULL;
-
-	vicp_print(VICP_HDR2, "%s.\n", __func__);
 }

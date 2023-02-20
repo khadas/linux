@@ -312,5 +312,6 @@ void vc_private_q_init(struct composer_dev *dev);
 void vc_private_q_recycle(struct composer_dev *dev,
 	struct video_composer_private *vc_private);
 struct video_composer_private *vc_private_q_pop(struct composer_dev *dev);
+int vd_vframe_afbc_soft_decode(struct vframe_s *vf, int flag);
 
 #endif /* VIDEO_COMPOSER_H */

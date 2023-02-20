@@ -216,7 +216,7 @@ static void vd_dump_vf(struct vframe_s *vf)
 	filp_close(fp, NULL);
 }
 
-static int vd_vframe_afbc_soft_decode(struct vframe_s *vf, int flag)
+int vd_vframe_afbc_soft_decode(struct vframe_s *vf, int flag)
 {
 	int i, j, ret, y_size, free_cnt;
 	short *planes[4];
@@ -756,7 +756,7 @@ static int vc_init_vicp_buffer(struct composer_dev *dev, bool is_tvp, size_t usa
 				*virt_addr = ((j + temp_body_addr) >> 12) & 0x000fffff;
 				virt_addr++;
 			}
-			codec_mm_dma_flush(virt_addr,
+			codec_mm_dma_flush(codec_mm_phys_to_virt(dev->dst_buf[i].afbc_table_addr),
 				dev->dst_buf[i].afbc_table_size, DMA_TO_DEVICE);
 
 			vc_print(dev->index, PRINT_VICP, "HeadAddr = 0x%lx.\n",

@@ -24,14 +24,6 @@
 #include "vicp_hdr.h"
 
 extern u32 print_flag;
-extern u32 input_width;
-extern u32 input_height;
-extern u32 output_width;
-extern u32 output_height;
-extern u32 input_color_format;
-extern u32 output_color_format;
-extern u32 input_color_dep;
-extern u32 output_color_dep;
 extern u32 dump_yuv_flag;
 extern u32 scaler_en;
 extern u32 hdr_en;
@@ -45,6 +37,7 @@ extern struct output_axis_t axis;
 extern struct vicp_hdr_s *vicp_hdr;
 extern u32 rdma_en;
 extern u32 debug_rdma_en;
+extern u32 demo_enable;
 
 /* *********************************************************************** */
 /* ************************* enum definitions **************************.*/
@@ -283,6 +276,8 @@ struct vid_cmpr_f2v_vphase_t {
 /* *********************************************************************** */
 irqreturn_t vicp_isr_handle(int irq, void *dev_id);
 irqreturn_t vicp_rdma_handle(int irq, void *dev_id);
+int vicp_crc0_check(int check_val);
+int vicp_crc1_check(int chroma_en, int chroma_check, int lumma_check);
 int vicp_process_config(struct vicp_data_config_t *data_config,
 	struct vid_cmpr_top_t *vid_cmpr_top);
 int vicp_process_reset(void);

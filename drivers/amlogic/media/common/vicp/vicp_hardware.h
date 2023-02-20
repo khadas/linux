@@ -328,6 +328,13 @@ struct vicp_scaler_misc_reg_t {
 	u32 vsc_nonlinear_4region_en;
 	u32 vsc_bank_length;
 };
+
+struct vicp_crc_reg_t {
+	u32 crc_sec_sel;
+	u32 crc_start;
+	u32 crc_check_en;
+};
+
 /* ***********************************************************************.*/
 /* ************************* function definitions ************************.*/
 /* ***********************************************************************.*/
@@ -425,6 +432,7 @@ void set_scaler_misc(struct vicp_scaler_misc_reg_t scaler_misc_reg);
 void set_rdma_start(u32 input_count);
 void set_rdma_flag(u32 is_enable);
 void set_security_enable(u32 dma_en, u32 mmu_en, u32 input_en);
+void set_crc_control(struct vicp_crc_reg_t crc_reg);
 int read_vicp_reg(u32 reg);
 void write_vicp_reg(u32 reg, u32 val);
 void write_vicp_reg_bits(u32 reg, const u32 value, const u32 start, const u32 len);

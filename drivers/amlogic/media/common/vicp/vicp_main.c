@@ -58,15 +58,7 @@
 void __iomem *vicp_reg_map;
 
 u32 print_flag;
-static u32 demo_enable;
-u32 input_width = 1920;
-u32 input_height = 1080;
-u32 output_width = 3840;
-u32 output_height = 2160;
-u32 input_color_format = 2;    /*0:yuv444 1:yuv422 2:yuv420*/
-u32 output_color_format;
-u32 input_color_dep = 8;
-u32 output_color_dep = 8;
+u32 demo_enable;
 u32 dump_yuv_flag;
 u32 scaler_en = 1;
 u32 hdr_en = 1;
@@ -239,206 +231,6 @@ static ssize_t demo_enable_store(struct class *class,
 	if (demo_enable)
 		vicp_test();
 
-	return count;
-}
-
-static ssize_t input_width_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "current input_width is %d.\n", input_width);
-}
-
-static ssize_t input_width_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		input_width = val;
-	else
-		input_width = 0;
-
-	pr_info("set input_width to %d.\n", input_width);
-	return count;
-}
-
-static ssize_t input_height_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "current input_height is %d.\n", input_height);
-}
-
-static ssize_t input_height_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		input_height = val;
-	else
-		input_height = 0;
-
-	pr_info("set input_height to %d.\n", input_height);
-	return count;
-}
-
-static ssize_t output_width_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "current output_width is %d.\n", output_width);
-}
-
-static ssize_t output_width_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		output_width = val;
-	else
-		output_width = 0;
-
-	pr_info("set output_width to %d.\n", output_width);
-	return count;
-}
-
-static ssize_t output_height_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "current output_height is %d.\n", output_height);
-}
-
-static ssize_t output_height_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		output_height = val;
-	else
-		output_height = 0;
-
-	pr_info("set output_height to %d.\n", output_height);
-	return count;
-}
-
-static ssize_t input_color_format_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "current input_color_format is %d.\n", input_color_format);
-}
-
-static ssize_t input_color_format_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		input_color_format = val;
-	else
-		input_color_format = 0;
-
-	pr_info("set input_color_format to %d.\n", input_color_format);
-	return count;
-}
-
-static ssize_t output_color_format_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "current output_color_format is %d.\n", output_color_format);
-}
-
-static ssize_t output_color_format_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		output_color_format = val;
-	else
-		output_color_format = 0;
-
-	pr_info("set output_color_format to %d.\n", output_color_format);
-	return count;
-}
-
-static ssize_t input_color_dep_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "current input_color_dep is %d.\n", input_color_dep);
-}
-
-static ssize_t input_color_dep_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		input_color_dep = val;
-	else
-		input_color_dep = 0;
-
-	pr_info("set input_color_dep to %d.\n", input_color_dep);
-	return count;
-}
-
-static ssize_t output_color_dep_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "current output_color_dep is %d.\n", output_color_dep);
-}
-
-static ssize_t output_color_dep_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		output_color_dep = val;
-	else
-		output_color_dep = 0;
-
-	pr_info("set output_color_dep to %d.\n", output_color_dep);
 	return count;
 }
 
@@ -694,14 +486,6 @@ static ssize_t debug_rdma_en_store(struct class *cla, struct class_attribute *at
 static CLASS_ATTR_RW(print_flag);
 static CLASS_ATTR_RW(reg);
 static CLASS_ATTR_RW(demo_enable);
-static CLASS_ATTR_RW(input_color_format);
-static CLASS_ATTR_RW(output_color_format);
-static CLASS_ATTR_RW(input_color_dep);
-static CLASS_ATTR_RW(output_color_dep);
-static CLASS_ATTR_RW(input_width);
-static CLASS_ATTR_RW(input_height);
-static CLASS_ATTR_RW(output_width);
-static CLASS_ATTR_RW(output_height);
 static CLASS_ATTR_RW(dump_yuv_flag);
 static CLASS_ATTR_RW(scaler_en);
 static CLASS_ATTR_RW(hdr_en);
@@ -716,14 +500,6 @@ static struct attribute *vicp_class_attrs[] = {
 	&class_attr_print_flag.attr,
 	&class_attr_reg.attr,
 	&class_attr_demo_enable.attr,
-	&class_attr_input_width.attr,
-	&class_attr_input_height.attr,
-	&class_attr_output_width.attr,
-	&class_attr_output_height.attr,
-	&class_attr_input_color_format.attr,
-	&class_attr_output_color_format.attr,
-	&class_attr_input_color_dep.attr,
-	&class_attr_output_color_dep.attr,
 	&class_attr_dump_yuv_flag.attr,
 	&class_attr_scaler_en.attr,
 	&class_attr_hdr_en.attr,

@@ -1146,6 +1146,17 @@ void set_security_enable(u32 dma_en, u32 mmu_en, u32 input_en)
 	return write_vicp_reg(VID_CMPR_SEC_CTRL, value);
 }
 
+void set_crc_control(struct vicp_crc_reg_t crc_reg)
+{
+	u32 value = 0;
+
+	value = ((crc_reg.crc_sec_sel & 0x3) << 8) |
+		((crc_reg.crc_start & 0x3) << 4) |
+		((crc_reg.crc_check_en & 0x3) << 0);
+
+	return write_vicp_reg(VID_CMPR_CRC_CTRL, value);
+}
+
 int read_vicp_reg(u32 reg)
 {
 	return vicp_reg_read(reg);

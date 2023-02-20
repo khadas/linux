@@ -4,15 +4,20 @@
  */
 
 #include "vicp_process.h"
-extern u32 input_width;
-extern u32 input_height;
-extern u32 output_width;
-extern u32 output_height;
-extern u32 input_color_format;    //0:yuv444 1:yuv422 2:yuv420
-extern u32 output_color_format;   //0:yuv420 1:yuv422 2:yuv444
-extern u32 input_color_dep;
-extern u32 output_color_dep;
+
+#define VICP_CRC0_CHECK_FLAG0    0x517971db    //mif->mif
+#define VICP_CRC0_CHECK_FLAG1    0x12f487cf   //mif->fbc
+#define VICP_CRC0_CHECK_FLAG2    0xb1e2e03c   //fbc->mif
+
+#define VICP_CRC1_CHECK0_FLAG    0xa7d54a84
+#define VICP_CRC1_CHECK1_FLAG    0xa7d54a84
+
 /* *********************************************************************** */
 /* ************************* function definitions ****************************.*/
 /* *********************************************************************** */
 int vicp_test(void);
+int create_rgb24_colorbar(int width, int height, int bar_count);
+int rgb24_to_yuv420p(char *yuv_file, char *rgb_file, int width, int height);
+int rgb24_to_nv12(char *nv12_file, char *rgb_file, int width, int height);
+int create_nv12_colorbar_file(int width, int height, int bar_count);
+int create_nv12_colorbar_buf(u8 *addr, int width, int height, int bar_count);

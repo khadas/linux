@@ -65,8 +65,6 @@ irqreturn_t vicp_rdma_handle(int irq, void *dev_id)
 
 void set_vid_cmpr_shrink(int is_enable, int size, int mode_h, int mode_v)
 {
-	vicp_print(VICP_INFO, "enter %s.\n", __func__);
-
 	if (print_flag & VICP_SHRINK) {
 		pr_info("vicp: ##########shrink config##########\n");
 		pr_info("vicp: shrink enable = %d.\n", is_enable);
@@ -105,8 +103,6 @@ void set_vid_cmpr_afbce(int enable, struct vid_cmpr_afbce_t *afbce, bool rdma_en
 	struct vicp_afbce_mmu_rmif_control3_reg_t rmif_control3;
 	struct vicp_afbce_pip_control_reg_t pip_control;
 	struct vicp_afbce_enable_reg_t enable_reg;
-
-	vicp_print(VICP_INFO, "enter %s.\n", __func__);
 
 	if (IS_ERR_OR_NULL(afbce)) {
 		vicp_print(VICP_ERROR, "%s: invalid param,return.\n", __func__);
@@ -278,13 +274,10 @@ void f2v_get_vertical_phase(unsigned int zoom_ratio, enum f2v_vphase_type_e type
 
 void set_vid_cmpr_hdr(int hdr2_top_en)
 {
-	vicp_print(VICP_INFO, "enter %s.\n", __func__);
-
-	if (hdr2_top_en) {
+	if (hdr2_top_en)
 		vicp_hdr_set(vicp_hdr, 1);
-	} else {
+	else
 		set_hdr_enable(0);
-	}
 }
 
 static int get_presc_out_size(int presc_en, int presc_rate, int src_size)
@@ -343,8 +336,6 @@ void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_t *scaler)
 	struct vicp_vsc_phase_ctrl_reg_t vsc_phase_ctrl_reg;
 	struct vicp_hsc_phase_ctrl_reg_t hsc_phase_ctrl_reg;
 	struct vicp_scaler_misc_reg_t scaler_misc_reg;
-
-	vicp_print(VICP_INFO, "enter %s.\n", __func__);
 
 	if (IS_ERR_OR_NULL(scaler)) {
 		vicp_print(VICP_ERROR, "%s: invalid param,return.\n", __func__);
@@ -548,8 +539,6 @@ void set_vid_cmpr_afbcd(int hold_line_num, bool rdma_en, struct vid_cmpr_afbcd_t
 	struct vicp_afbcd_quant_control_reg_t quant_control;
 	struct vicp_afbcd_rotate_control_reg_t rotate_control;
 	struct vicp_afbcd_rotate_scope_reg_t rotate_scope;
-
-	vicp_print(VICP_INFO, "enter %s.\n", __func__);
 
 	if (IS_ERR_OR_NULL(afbcd)) {
 		vicp_print(VICP_ERROR, "%s: invalid param,return.\n", __func__);
@@ -786,8 +775,6 @@ void set_vid_cmpr_afbcd(int hold_line_num, bool rdma_en, struct vid_cmpr_afbcd_t
 
 void set_vid_cmpr_crop(struct vid_cmpr_crop_t *crop_param)
 {
-	vicp_print(VICP_INFO, "enter %s.\n", __func__);
-
 	if (IS_ERR_OR_NULL(crop_param)) {
 		vicp_print(VICP_ERROR, "%s: invalid param,return.\n", __func__);
 		return;
@@ -912,8 +899,6 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
 	struct vicp_rdmif_general_reg3_t general_reg3;
 	struct vicp_rdmif_rpt_loop_t rpt_loop;
 	struct vicp_rdmif_color_format_t color_format;
-
-	vicp_print(VICP_INFO, "enter %s.\n", __func__);
 
 	if (IS_ERR_OR_NULL(rd_mif)) {
 		vicp_print(VICP_ERROR, "%s: invalid param,return.\n", __func__);
@@ -1177,8 +1162,6 @@ void set_vid_cmpr_wmif(struct vid_cmpr_mif_t *wr_mif, int wrmif_en)
 	u32 stride_y, stride_cb, stride_cr, rgb_mode, bit10_mode;
 	struct vicp_wrmif_control_t wrmif_control;
 
-	vicp_print(VICP_INFO, "enter %s.\n", __func__);
-
 	if (IS_ERR_OR_NULL(wr_mif)) {
 		vicp_print(VICP_ERROR, "%s: invalid param,return.\n", __func__);
 		return;
@@ -1303,6 +1286,25 @@ static void set_vid_cmpr_security(bool sec_en)
 	}
 
 	return set_security_enable(dma_sec, mmu_sec, input_sec);
+}
+
+static void set_vid_cmpr_crc(int rotation_en)
+{
+	struct vicp_crc_reg_t crc_reg;
+
+	memset(&crc_reg, 0, sizeof(struct vicp_crc_reg_t));
+
+	if (rotation_en) {
+		crc_reg.crc_check_en = 3;
+		crc_reg.crc_start = 3;
+		crc_reg.crc_sec_sel = 0;
+	} else {
+		crc_reg.crc_check_en = 1;
+		crc_reg.crc_start = 1;
+		crc_reg.crc_sec_sel = 0;
+	}
+
+	return set_crc_control(crc_reg);
 }
 
 static void dump_dma(int flag, struct dma_data_config_t *dma_data)
@@ -1512,8 +1514,6 @@ static void set_vid_cmpr_basic_param(struct vid_cmpr_top_t *vid_cmpr_top)
 {
 	u32 buf_h, buf_v;
 
-	vicp_print(VICP_INFO, "enter %s.\n", __func__);
-
 	if (IS_ERR_OR_NULL(vid_cmpr_top)) {
 		vicp_print(VICP_ERROR, "%s: invalid param,return.\n", __func__);
 		return;
@@ -1560,8 +1560,6 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_t *vid_cmpr_top)
 	int scaler_enable;
 	u32 type;
 	bool is_interlace = false;
-
-	vicp_print(VICP_INFO, "enter %s.\n", __func__);
 
 	if (IS_ERR_OR_NULL(vid_cmpr_top)) {
 		vicp_print(VICP_ERROR, "%s: invalid param,return.\n", __func__);
@@ -1879,6 +1877,50 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_t *vid_cmpr_top)
 	set_top_holdline();
 }
 
+int vicp_crc0_check(int check_val)
+{
+	int reg_val = 0;
+
+	reg_val = read_vicp_reg(VID_CMPR_CRC0_OUT);
+	vicp_print(VICP_INFO, "%s: reg_val0 is 0x%x.\n", __func__, reg_val);
+	if (reg_val != check_val)
+		return 1;
+	else
+		return 0;
+}
+
+int vicp_crc1_check(int chroma_en, int chroma_check, int lumma_check)
+{
+	int reg_val = 0;
+	int check_val = 3;
+	int ret = 0;
+
+	if (chroma_en == 0) {
+		reg_val = read_vicp_reg(VID_CMPR_CRC1_0_OUT);
+		vicp_print(VICP_INFO, "%s: reg_val1 is 0x%x.\n", __func__, reg_val);
+		if (reg_val != lumma_check)
+			check_val &= ~(1 << 1);
+	} else if (chroma_en == 1) {
+		reg_val = read_vicp_reg(VID_CMPR_CRC1_1_OUT);
+		vicp_print(VICP_INFO, "%s: reg_val2 is 0x%x.\n", __func__, reg_val);
+		if (reg_val != chroma_check)
+			check_val &= ~(1 << 2);
+	} else {
+		vicp_print(VICP_ERROR, "%s: invalid config.\n", __func__);
+		check_val = 0;
+	}
+
+	if ((check_val & 3) != 3) {
+		pr_info("%s failed: check_val = 0x%x.\n", __func__, check_val);
+		ret = 1;
+	} else {
+		pr_info("%s success.\n", __func__);
+		ret = 0;
+	}
+
+	return ret;
+}
+
 int vicp_process_config(struct vicp_data_config_t *data_config,
 	struct vid_cmpr_top_t *vid_cmpr_top)
 {
@@ -1887,8 +1929,6 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 	enum vicp_rotation_mode_e rotation;
 	enum vframe_signal_fmt_e signal_fmt;
 	u32 canvas_width = 0;
-
-	vicp_print(VICP_INFO, "enter %s.\n", __func__);
 
 	if (IS_ERR_OR_NULL(data_config) || IS_ERR_OR_NULL(vid_cmpr_top)) {
 		vicp_print(VICP_ERROR, "%s: NULL param.\n", __func__);
@@ -2131,6 +2171,7 @@ int vicp_process_task(struct vid_cmpr_top_t *vid_cmpr_top)
 		set_vid_cmpr_all_param(vid_cmpr_top);
 		set_module_enable(1);
 		set_module_start(1);
+		set_vid_cmpr_crc(vid_cmpr_top->out_rot_en);
 		vicp_rdma_end(get_current_vicp_rdma_buf());
 		if (vid_cmpr_top->src_num + 1 == vid_cmpr_top->src_count) {
 			init_completion(&vicp_rdma_done);
@@ -2210,10 +2251,10 @@ int vicp_process_task(struct vid_cmpr_top_t *vid_cmpr_top)
 				vid_cmpr_top->out_afbce_enable,
 				vid_cmpr_top->out_reg_format_mode);
 			pr_info("vicp: output: axis:%d %d %d %d.\n",
-				vid_cmpr_top->out_win_bgn_v,
-				vid_cmpr_top->out_win_end_v,
 				vid_cmpr_top->out_win_bgn_h,
-				vid_cmpr_top->out_win_end_h);
+				vid_cmpr_top->out_win_end_h,
+				vid_cmpr_top->out_win_bgn_v,
+				vid_cmpr_top->out_win_end_v);
 			pr_info("vicp: #################################.\n");
 		};
 
@@ -2225,6 +2266,7 @@ int vicp_process_task(struct vid_cmpr_top_t *vid_cmpr_top)
 		init_completion(&vicp_proc_done);
 		set_module_enable(1);
 		set_module_start(1);
+		set_vid_cmpr_crc(vid_cmpr_top->out_rot_en);
 		time = wait_for_completion_timeout(&vicp_proc_done, msecs_to_jiffies(200));
 		if (!time) {
 			vicp_print(VICP_ERROR, "vicp_task wait isr timeout\n");
@@ -2237,7 +2279,6 @@ int vicp_process_task(struct vid_cmpr_top_t *vid_cmpr_top)
 
 int vicp_process_reset(void)
 {
-	vicp_print(VICP_INFO, "enter %s.\n", __func__);
 	return 0;
 }
 
@@ -2275,7 +2316,6 @@ int  vicp_process(struct vicp_data_config_t *data_config)
 	int ret = 0;
 	struct vid_cmpr_top_t vid_cmpr_top;
 
-	vicp_print(VICP_INFO, "enter %s.\n", __func__);
 	mutex_lock(&vicp_mutex);
 	if (IS_ERR_OR_NULL(data_config)) {
 		vicp_print(VICP_ERROR, "%s: NULL param, please check.\n", __func__);
@@ -2299,6 +2339,7 @@ int  vicp_process(struct vicp_data_config_t *data_config)
 		dump_output(&data_config->output_data);
 		current_dump_flag = dump_yuv_flag;
 	}
+
 	vicp_process_reset();
 	mutex_unlock(&vicp_mutex);
 
