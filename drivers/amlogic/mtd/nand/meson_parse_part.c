@@ -29,6 +29,8 @@ static int adjust_part_offset(struct mtd_info *master, u8 nr_parts,
 	int phys_erase_shift, error = 0;
 	loff_t adjust_offset = 0;
 	u32 fip_part_size = 0;
+	struct nand_pos pos;
+	struct nand_device *nanddev = mtd_to_nanddev(master);
 	struct nand_chip *nand = mtd_to_nand(master);
 	struct meson_nfc *nfc = nand_get_controller_data(mtd_to_nand(master));
 
@@ -91,8 +93,8 @@ static int adjust_part_offset(struct mtd_info *master, u8 nr_parts,
 			do {
 				offset = adjust_offset + start_blk *
 					master->erasesize;
-				error =
-				master->_block_isbad(master, offset);
+				nanddev_offs_to_pos(nanddev, offset, &pos);
+				error = nfc->block_status[pos.eraseblock];
 				if (error == NAND_FACTORY_BAD) {
 					pr_info("%s %d factory bad addr=%llx\n",
 						__func__, __LINE__, (u64)(offset >>

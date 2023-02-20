@@ -1445,6 +1445,13 @@ int nand_isbad_bbt(struct nand_chip *this, loff_t offs, int allowbbt)
 	switch (res) {
 	case BBT_BLOCK_GOOD:
 		return 0;
+/**
+ * During the OTA software upgrade write partition process,
+ * the code skip bad block when check bad block method return
+ * result equals to 1, in this case, we return the same result
+ * whether check result is BBT_BLOCK_WORN or BBT_BLOCK_FACTORY_BAD,
+ * otherwise, a partition write error may occur
+ */
 	case BBT_BLOCK_WORN:
 #ifdef CONFIG_AMLOGIC_MODIFY
 		pr_info("find a bad block offs 0x%08x: (block %d) 0x%02x\n",
@@ -1455,7 +1462,7 @@ int nand_isbad_bbt(struct nand_chip *this, loff_t offs, int allowbbt)
 	case BBT_BLOCK_FACTORY_BAD:
 		pr_info("find a factory bad block offs 0x%08x: (block %d) 0x%02x\n",
 			(unsigned int)offs, block, res);
-		return NAND_FACTORY_BAD;
+		return 1;
 #endif
 	case BBT_BLOCK_RESERVED:
 		return allowbbt ? 0 : 1;
