@@ -289,7 +289,9 @@ static void viuin_set_wr_bak_ctrl_s5(enum tvin_port_e port)
 	else
 		pr_info("cur_enc_ppc = %d\n", vinfo->cur_enc_ppc);
 
+	/* wr_bak use 4ppc always on S5 */
 	wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 3, 21, 2);
+	wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 2, 30, 2);
 
 	switch (port) {
 	/* wr_bak_chan1_sel wb_chan_sel*/
@@ -311,13 +313,13 @@ static void viuin_set_wr_bak_ctrl_s5(enum tvin_port_e port)
 		wr_bits_viu(VIU_WR_BAK_CTRL, 5, 0, 4);
 		if (vinfo && vinfo->cur_enc_ppc == 4) { //4 slice
 			wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 0, 26, 2);
-			wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 2, 30, 2);
+			//wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 2, 30, 2);
 		} else if (vinfo && vinfo->cur_enc_ppc == 2) { //2 slice
 			wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 1, 26, 2);
-			wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 1, 30, 2);
+			//wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 1, 30, 2);
 		} else { //1 slice
 			wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 0, 26, 2);
-			wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 2, 30, 2);
+			//wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, 2, 30, 2);
 		}
 		break;
 	case TVIN_PORT_VIU1_VIDEO:
