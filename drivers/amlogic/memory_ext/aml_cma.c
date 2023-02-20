@@ -1002,7 +1002,6 @@ static void show_task_adj(void)
 			continue;
 		oom_score_adj = p->signal->oom_score_adj;
 		tasksize = get_mm_rss(p->mm);
-		task_unlock(p);
 	#ifdef CONFIG_ZRAM
 		pr_emerg(SHOW_PRIFIX ", rswap:%5lu, task:%5d, %s\n",
 			 oom_score_adj, get_mm_rss(p->mm),
@@ -1013,6 +1012,7 @@ static void show_task_adj(void)
 			 oom_score_adj, get_mm_rss(p->mm),
 			 p->pid, p->comm);
 	#endif /* CONFIG_ZRAM */
+		task_unlock(p);
 	}
 }
 
