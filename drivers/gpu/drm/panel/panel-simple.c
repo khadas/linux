@@ -4756,8 +4756,14 @@ else{
 	of_property_read_u32(np, "unprepare-delay-ms", &desc->delay.unprepare);
 	//of_property_read_u32(np, "reset-delay-ms", &desc->delay.reset);
 	of_property_read_u32(np, "init-delay-ms", &desc->delay.init);
-
-	data = of_get_property(np, "panel-init-sequence", &len);
+	if(3 == khadas_mipi_id){//new TS050
+		printk("hlm new TS050 of_get_display_timings1\n");
+		data = of_get_property(np, "panel-init-sequence2", &len);
+	}
+	else{//old TS050
+		printk("hlm old TS050 of_get_display_timings\n");
+		data = of_get_property(np, "panel-init-sequence", &len);
+	}
 	if (data) {
 		desc->init_seq = devm_kzalloc(dev, sizeof(*desc->init_seq),
 					      GFP_KERNEL);
@@ -5330,7 +5336,9 @@ static int __init khadas_mipi_id_para_setup(char *str)
 {
         if (str != NULL)
                 sprintf(lcd_propname, "%s", str);
-		if(!strcmp(lcd_propname, "2"))
+		if(!strcmp(lcd_propname, "3"))
+			khadas_mipi_id = 3;
+		else if(!strcmp(lcd_propname, "2"))
 			khadas_mipi_id = 2;
 		else if(!strcmp(lcd_propname, "1"))
 			khadas_mipi_id = 1;
