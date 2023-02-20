@@ -25,7 +25,7 @@
 #define MODET_CLK_EN			_BIT(24)
 #define CFG_CLK_EN				_BIT(8)
 #define HHI_HDMIRX_AUD_CLK_CNTL	0x204 /* 0x1081 */
-#define HHI_AXI_CLK_CTNL		(0xb8 * 4)
+#define HHI_AXI_CLK_CNTL		(0xb8 * 4)
 #define HHI_VDAC_CNTL0			(0xbb * 4)
 #define HHI_VDAC_CNTL1			(0xbc * 4)
 #define HHI_AUD_PLL_CNTL		(0xf8 * 4)
@@ -55,7 +55,7 @@
 
 /* TXLX */
 /* unified_register.h by wujun */
-#define HHI_AUDPLL_CLK_OUT_CNTL (0x8c  <<  2)
+#define HHI_AUD_PLL_CLK_OUT_CNTL (0x8c  <<  2)
 #define HHI_VDAC_CNTL0_TXLX		(0xBD * 4)
 #define PREG_PAD_GPIO0_EN_N		(0x0c * 4)
 #define PREG_PAD_GPIO0_O		(0x0d * 4)
@@ -231,7 +231,7 @@
 #define	TOP_METER_CABLE_STAT			0x03b
 #define	TOP_CHAN_SWITCH_1				0x03c
 /* tl1 */
-#define	TOP_AUDPLL_LOCK_FILTER			0x040
+#define	TOP_AUD_PLL_LOCK_FILTER			0x040
 
 /* tl1 */
 #define	TOP_CHAN01_ERRCNT				0x041
@@ -426,7 +426,7 @@
 /* HDMI 2.0 feature registers */
 /* bit0-1  scramble ctrl */
 #define DWC_HDMI20_CONTROL				0x0800
-#define DWC_SCDC_I2CCONFIG				0x0804
+#define DWC_SCDC_I2C_CONFIG				0x0804
 #define DWC_SCDC_CONFIG					0x0808
 #define DWC_CHLOCK_CONFIG				0x080C
 #define DWC_HDCP22_CONTROL				0x081C
@@ -659,7 +659,7 @@
 /*tl1*/
 #define PFIFO_EMP_EN		_BIT(30)/*type:0x7f*/
 
-#define		GCP_GLOBAVMUTE			_BIT(15)
+#define		GCP_GLOB_AVMUTE			_BIT(15)
 /** Packet FIFO clear min/max information */
 #define		PD_FIFO_FILL_INFO_CLR	_BIT(8)
 /** Packet FIFO skip one packet */
@@ -727,7 +727,7 @@
 /** Register address: auxiliary video information info frame */
 #define DWC_PDEC_AVI_HB		(0x3A0UL)
 /** AVI content type*/
-#define CONETNT_TYPE		MSK(2, 28)
+#define CONTENT_TYPE		MSK(2, 28)
 /** PR3-0, pixel repetition factor */
 #define		PIX_REP_FACTOR			MSK(4, 24)
 /** Q1-0, YUV quantization range */
@@ -1151,7 +1151,7 @@
 #define COR_CTS_LO		0x140C
 #define COR_CTS_MI		0x140D
 #define COR_CTS_HI		0x140E
-/* h-ative (pixel per line) */
+/* h-active (pixel per line) */
 #define COR_PIXEL_CNT_LO	0x188C
 #define COR_PIXEL_CNT_HI	0x188D
 #define COR_LINE_CNT_LO		0x188E
@@ -2409,7 +2409,7 @@
 #define VP_VTG_VACTIVE_VIDEO_END_VID_IVCRX		0x00001876
 #define VP_VTG_VEND_OF_FRAME_VID_IVCRX			0x00001878
 #define VP_VTG_CFG_VID_IVCRX				0x0000187a
-#define VP_VTG_THREHOLD_VID_IVCRX			0x0000187b
+#define VP_VTG_THRESHOLD_VID_IVCRX			0x0000187b
 #define VP_VTG_CYCLE_DELAY_VID_IVCRX			0x0000187c
 #define VP_VTG_UPDATE_REQUEST_VID_IVCRX			0x0000187e
 #define VP_VTG_BANK_CFG_VID_IVCRX			0x0000187f
@@ -2451,7 +2451,7 @@
 #define VP_EMBD_SYNC_ENC_HBLANKING_PIXELS_VID_IVCRX	0x000018de
 #define VP_EMBD_SYNC_ENC_UPDATE_REQUEST_VID_IVCRX	0x000018e0
 #define VP_EMBD_SYNC_ENC_BANC_CFG_VID_IVCRX		0x000018e1
-#define VP_FRMAES_CNT_VID_IVCRX				0x000018e4
+#define VP_FRAMES_CNT_VID_IVCRX				0x000018e4
 #define VP_PIXEL_CLK_CNT_VID_IVCRX			0x000018e8
 #define VP_INTERLACE_FIELD_VID_IVCRX			0x000018ec
 
@@ -3201,8 +3201,8 @@ void hdmirx_set_video_mute(bool mute);
 void hdmirx_config_video(void);
 void hdmirx_config_audio(void);
 void set_dv_ll_mode(bool en);
-void rx_get_audinfo(struct aud_info_s *audio_info);
-bool rx_clkrate_monitor(void);
+void rx_get_aud_info(struct aud_info_s *audio_info);
+bool rx_clk_rate_monitor(void);
 void rx_ddc_calibration(bool en);
 unsigned char rx_get_hdcp14_sts(void);
 unsigned int rx_hdcp22_rd_reg_bits(unsigned int addr, unsigned int mask);

@@ -401,7 +401,7 @@ int cec_set_dev_info(u8 dev_idx)
 	if (dev_idx == 1)
 		hdcp_enc_mode = 1;
 	if (dev_idx == 2 && cec_dev_en)
-		dev_is_appletv_v2 = 1;
+		dev_is_apple_tv_v2 = 1;
 	rx_pr("cec special dev = %x", dev_idx);
 	return 0;
 }
@@ -2126,7 +2126,7 @@ bool is_unnormal_format(u8 wait_cnt)
 	 */
 	if (rx.hdcp.hdcp_version == HDCP_VER_NONE) {
 		ret = true;
-		if (dev_is_appletv_v2) {
+		if (dev_is_apple_tv_v2) {
 			if (wait_cnt == hdcp_none_wait_max * 30)
 				ret = false;
 		} else if (rx.hdcp.hdcp_pre_ver != HDCP_VER_14) {
@@ -3292,7 +3292,7 @@ void rx_main_state_machine(void)
 					/*sizeof(struct aud_info_s));*/
 				/*rx_set_eq_run_state(E_EQ_PASS);*/
 				hdmirx_config_video();
-				rx_get_audinfo(&rx.aud_info);
+				rx_get_aud_info(&rx.aud_info);
 				hdmirx_config_audio();
 				rx_aud_pll_ctl(1);
 				rx_afifo_store_all_subpkt(false);
@@ -3443,7 +3443,7 @@ void rx_main_state_machine(void)
 		hdcp_sts_update();
 		pre_auds_ch_alloc = rx.aud_info.auds_ch_alloc;
 		pre_auds_hbr = rx.aud_info.aud_hbr_rcv;
-		rx_get_audinfo(&rx.aud_info);
+		rx_get_aud_info(&rx.aud_info);
 
 		if (check_real_sr_change())
 			rx_audio_pll_sw_update();
@@ -3723,7 +3723,7 @@ static void dump_audio_status(void)
 	static struct aud_info_s a;
 	u32 val0, val1;
 
-	rx_get_audinfo(&a);
+	rx_get_aud_info(&a);
 	rx_pr("[AudioInfo]\n");
 	rx_pr(" CT=%u CC=%u", a.coding_type,
 	      a.channel_count);
@@ -3995,7 +3995,7 @@ int hdmirx_debug(const char *buf, int size)
 		if (kstrtou32(input[1], 16, &value) < 0)
 			rx_pr("error input Value\n");
 		rx_pr("set pkt cnt:0x%x\n", value);
-		rx.empbuff.tmdspktcnt = value;
+		rx.emp_buff.tmds_pkt_cnt = value;
 	} else if (strncmp(input[0], "phyinit", 7) == 0) {
 		hdmirx_phy_init();
 	} else if (strncmp(input[0], "phyeq", 5) == 0) {
@@ -4007,12 +4007,12 @@ int hdmirx_debug(const char *buf, int size)
 	} else if (strncmp(tmpbuf, "eqcal", 5) == 0) {
 		rx_phy_rt_cal();
 	} else if (strncmp(tmpbuf, "empbuf", 5) == 0) {
-		rx_pr("cnt=%d\n", rx.empbuff.emppktcnt);
-		cnt = rx.empbuff.emppktcnt;
+		rx_pr("cnt=%d\n", rx.emp_buff.emp_pkt_cnt);
+		cnt = rx.emp_buff.emp_pkt_cnt;
 		rx_pr("0x");
 		for (i = 0; i < (cnt * 32); i++)
 			rx_pr("%02x", emp_buf[i]);
-		rx_pr("\nieee=%x\n", rx.empbuff.emp_tagid);
+		rx_pr("\nieee=%x\n", rx.emp_buff.emp_tagid);
 	} else if (strncmp(tmpbuf, "muteget", 7) == 0) {
 		rx_pr("mute sts: %x\n", get_video_mute());
 	} else if (strncmp(tmpbuf, "muteset", 7) == 0) {
@@ -4126,7 +4126,7 @@ void hdmirx_timer_handler(struct timer_list *t)
 		rx_check_repeat();
 		if (!(rpt_only_mode && !rx.hdcp.repeat)) {
 			if (!sm_pause) {
-				rx_clkrate_monitor();
+				rx_clk_rate_monitor();
 				rx_afifo_monitor();
 				rx_ddc_active_monitor();
 				rx_hdcp_monitor();

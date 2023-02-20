@@ -92,8 +92,8 @@ struct delayed_work	esm_dwork;
 struct workqueue_struct	*esm_wq;
 struct delayed_work	repeater_dwork;
 struct workqueue_struct	*repeater_wq;
-struct work_struct     amlphy_dwork;
-struct workqueue_struct *amlphy_wq;
+struct work_struct     aml_phy_dwork;
+struct workqueue_struct *aml_phy_wq;
 struct work_struct     clkmsr_dwork;
 struct workqueue_struct *clkmsr_wq;
 struct work_struct     earc_hpd_dwork;
@@ -136,13 +136,13 @@ u32 en_4096_2_3840;
 int en_4k_2_2k;
 int en_4k_timing = 1;
 int cec_dev_en;
-bool dev_is_appletv_v2;
+bool dev_is_apple_tv_v2;
 bool hdmi_cec_en;
 static bool tv_auto_power_on;
 int vdin_drop_frame_cnt = 1;
 /* suspend_pddq_sel:
  * 0: keep phy on when suspend(don't need phy init when
- *   resume), it doesn't work now because phy VDDIO_3.3V
+ *   resume), it doesn't work now because phy VDD_IO_3.3V
  *   will power off when suspend, and tmds clk will be low;
  * 1&2: when CEC off there's no SDA low issue for MTK box,
  *   these workaround are not needed
@@ -372,12 +372,12 @@ static unsigned int first_bit_set(u32 data)
  */
 unsigned int rx_get_bits(unsigned int data, unsigned int mask)
 {
-	unsigned int fstbs_rtn;
+	unsigned int fst_bs_rtn;
 	unsigned int rtn_val;
 
-	fstbs_rtn = first_bit_set(mask);
-	if (fstbs_rtn < 32)
-		rtn_val = (data & mask) >> fstbs_rtn;
+	fst_bs_rtn = first_bit_set(mask);
+	if (fst_bs_rtn < 32)
+		rtn_val = (data & mask) >> fst_bs_rtn;
 	else
 		rtn_val = 0;
 	return rtn_val;
@@ -387,12 +387,12 @@ unsigned int rx_set_bits(unsigned int data,
 			 unsigned int mask,
 			 unsigned int value)
 {
-	unsigned int fstbs_rtn;
+	unsigned int fst_bs_rtn;
 	unsigned int rtn_val;
 
-	fstbs_rtn = first_bit_set(mask);
-	if (fstbs_rtn < 32)
-		rtn_val = ((value << fstbs_rtn) & mask) | (data & ~mask);
+	fst_bs_rtn = first_bit_set(mask);
+	if (fst_bs_rtn < 32)
+		rtn_val = ((value << fst_bs_rtn) & mask) | (data & ~mask);
 	else
 		rtn_val = 0;
 	return rtn_val;
@@ -493,7 +493,7 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe)
 
 	/*
 	 * txl:should disable the adc ref signal for audio pll
-	 * txlx:dont disable the adc ref signal for audio pll(not
+	 * txlx:don't disable the adc ref signal for audio pll(not
 	 *	reset the vdac) to avoid noise issue
 	 */
 	/* For txl,also need to keep bandgap always on:SWPL-1224 */
@@ -531,7 +531,7 @@ int hdmirx_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 {
 	struct hdmirx_dev_s *devp;
 	struct tvin_parm_s *parm;
-	u32 avmuteflag;
+	u32 avmute_flag;
 
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	parm = &devp->param;
@@ -539,8 +539,8 @@ int hdmirx_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 	if (!rx.var.force_pattern && rx.chip_id < CHIP_ID_T7) {
 		/*prevent spurious pops or noise when pw down*/
 		if (rx.state == FSM_SIG_READY) {
-			avmuteflag = rx_get_avmute_sts();
-			if (avmuteflag == 1) {
+			avmute_flag = rx_get_avmute_sts();
+			if (avmute_flag == 1) {
 				rx.avmute_skip += 1;
 				hdmirx_set_video_mute(1);
 				skip_frame(2);
@@ -551,7 +551,7 @@ int hdmirx_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 			}
 		}
 	}
-	/* if there is any error or overflow, do some reset, then rerurn -1;*/
+	/* if there is any error or overflow, do some reset, then return -1;*/
 	if (parm->info.status != TVIN_SIG_STATUS_STABLE ||
 	    parm->info.fmt == TVIN_SIG_FMT_NULL)
 		return -1;
@@ -1205,9 +1205,9 @@ void hdmirx_get_emp_dv_info(struct tvin_sig_property_s *prop)
 		memcpy(&prop->emp_data.empbuf,
 		       rx.emp_dv_info.dv_addr, rx.emp_dv_info.dv_size * 32);
 #ifndef HDMIRX_SEND_INFO_TO_VDIN
-	if (emp_irq_cnt == rx.empbuff.irqcnt)
+	if (emp_irq_cnt == rx.emp_buff.irq_cnt)
 		rx.vs_info_details.emp_pkt_cnt = 0;
-	emp_irq_cnt = rx.empbuff.irqcnt;
+	emp_irq_cnt = rx.emp_buff.irq_cnt;
 #endif
 }
 
@@ -1261,12 +1261,12 @@ void rx_update_sig_info(void)
  */
 void hdmirx_get_hdr_info(struct tvin_sig_property_s *prop)
 {
-	struct drm_infoframe_st *drmpkt;
+	struct drm_infoframe_st *drm_pkt;
 
 	/*check drm packet is attach every VS*/
 	u32 drm_attach = rx_pkt_chk_attach_drm();
 
-	drmpkt = (struct drm_infoframe_st *)&rx_pkt.drm_info;
+	drm_pkt = (struct drm_infoframe_st *)&rx_pkt.drm_info;
 
 	if (drm_attach) {
 		rx.hdr_info.hdr_state = HDR_STATE_SET;
@@ -1291,39 +1291,39 @@ void hdmirx_get_hdr_info(struct tvin_sig_property_s *prop)
 			if (rx_pkt_chk_busy_drm())
 				break;
 
-			prop->hdr_info.hdr_data.length = drmpkt->length;
-			prop->hdr_info.hdr_data.eotf = drmpkt->des_u.tp1.eotf;
+			prop->hdr_info.hdr_data.length = drm_pkt->length;
+			prop->hdr_info.hdr_data.eotf = drm_pkt->des_u.tp1.eotf;
 			prop->hdr_info.hdr_data.metadata_id =
-				drmpkt->des_u.tp1.meta_des_id;
+				drm_pkt->des_u.tp1.meta_des_id;
 			prop->hdr_info.hdr_data.primaries[0].x =
-				drmpkt->des_u.tp1.dis_pri_x0;
+				drm_pkt->des_u.tp1.dis_pri_x0;
 			prop->hdr_info.hdr_data.primaries[0].y =
-				drmpkt->des_u.tp1.dis_pri_y0;
+				drm_pkt->des_u.tp1.dis_pri_y0;
 			prop->hdr_info.hdr_data.primaries[1].x =
-				drmpkt->des_u.tp1.dis_pri_x1;
+				drm_pkt->des_u.tp1.dis_pri_x1;
 			prop->hdr_info.hdr_data.primaries[1].y =
-				drmpkt->des_u.tp1.dis_pri_y1;
+				drm_pkt->des_u.tp1.dis_pri_y1;
 			prop->hdr_info.hdr_data.primaries[2].x =
-				drmpkt->des_u.tp1.dis_pri_x2;
+				drm_pkt->des_u.tp1.dis_pri_x2;
 			prop->hdr_info.hdr_data.primaries[2].y =
-				drmpkt->des_u.tp1.dis_pri_y2;
+				drm_pkt->des_u.tp1.dis_pri_y2;
 			prop->hdr_info.hdr_data.white_points.x =
-				drmpkt->des_u.tp1.white_points_x;
+				drm_pkt->des_u.tp1.white_points_x;
 			prop->hdr_info.hdr_data.white_points.y =
-				drmpkt->des_u.tp1.white_points_y;
+				drm_pkt->des_u.tp1.white_points_y;
 			prop->hdr_info.hdr_data.master_lum.x =
-				drmpkt->des_u.tp1.max_dislum;
+				drm_pkt->des_u.tp1.max_dislum;
 			prop->hdr_info.hdr_data.master_lum.y =
-				drmpkt->des_u.tp1.min_dislum;
+				drm_pkt->des_u.tp1.min_dislum;
 			prop->hdr_info.hdr_data.mcll =
-				drmpkt->des_u.tp1.max_light_lvl;
+				drm_pkt->des_u.tp1.max_light_lvl;
 			prop->hdr_info.hdr_data.mfall =
-				drmpkt->des_u.tp1.max_fa_light_lvl;
+				drm_pkt->des_u.tp1.max_fa_light_lvl;
 			prop->hdr_info.hdr_data.rawdata[0] = 0x87;
 			prop->hdr_info.hdr_data.rawdata[1] = 0x1;
-			prop->hdr_info.hdr_data.rawdata[2] = drmpkt->length;
+			prop->hdr_info.hdr_data.rawdata[2] = drm_pkt->length;
 			memcpy(&prop->hdr_info.hdr_data.rawdata[3],
-				   &drmpkt->des_u.payload, 28);
+				   &drm_pkt->des_u.payload, 28);
 			/* vdin can read current hdr data */
 			prop->hdr_info.hdr_state = HDR_STATE_GET;
 		}
@@ -1438,7 +1438,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 	struct pd_infoframe_s pkt_info;
 	struct spd_infoframe_st *spdpkt;
 	unsigned int pin_status;
-	void *srcbuff;
+	void *src_buff;
 	u8 sad_data[30];
 	u8 len = 0;
 	u8 i = 0;
@@ -1447,7 +1447,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 		pr_err("%s invalid command: %u\n", __func__, cmd);
 		return -EINVAL;
 	}
-	srcbuff = &pkt_info;
+	src_buff = &pkt_info;
 	devp = file->private_data;
 	switch (cmd) {
 	case HDMI_IOC_HDCP_GET_KSV:{
@@ -1558,13 +1558,13 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 			//break;
 	//	}
 		//memset(&pkt_info, 0, sizeof(pkt_info));
-		//srcbuff = &pkt_info;
+		//src_buff = &pkt_info;
 		//size = sizeof(struct pd_infoframe_s);
 		//rx_get_pd_fifo_param(param, &pkt_info);
 
 		/*return pkt info*/
 		//if (size > 0 && !argp) {
-			//if (copy_to_user(argp, srcbuff, size)) {
+			//if (copy_to_user(argp, src_buff, size)) {
 				//pr_err("get pd fifo param err\n");
 				//ret = -EFAULT;
 			//}
@@ -2467,7 +2467,7 @@ static struct device *hdmirx_create_device(struct device *parent, int id)
 			TVHDMI_DEVICE_NAME);
 	/* @to do this after Middleware API modified */
 	/*return device_create(hdmirx_clsp, parent, devno, NULL, "%s",*/
-	  /*TVHDMI_DEVICE_NAME); */
+	  /*TV_HDMI_DEVICE_NAME); */
 }
 
 static void hdmirx_delete_device(int minor)
@@ -2577,40 +2577,40 @@ void rx_emp_resource_allocate(struct device *dev)
 {
 	if (rx.chip_id >= CHIP_ID_TL1) {
 		/* allocate buffer */
-		if (!rx.empbuff.store_a)
-			rx.empbuff.store_a =
+		if (!rx.emp_buff.store_a)
+			rx.emp_buff.store_a =
 				kmalloc(EMP_BUFFER_SIZE, GFP_KERNEL);
 		else
 			rx_pr("malloc emp buffer err\n");
 
-		if (rx.empbuff.store_a)
-			rx.empbuff.store_b =
-				rx.empbuff.store_a + (EMP_BUFFER_SIZE >> 1);
+		if (rx.emp_buff.store_a)
+			rx.emp_buff.store_b =
+				rx.emp_buff.store_a + (EMP_BUFFER_SIZE >> 1);
 		else
 			rx_pr("emp buff err-0\n");
-		rx_pr("pktbuffa=0x%p\n", rx.empbuff.store_a);
-		rx_pr("pktbuffb=0x%p\n", rx.empbuff.store_b);
-		rx.empbuff.dump_mode = DUMP_MODE_EMP;
+		rx_pr("pkt_buffa=0x%p\n", rx.emp_buff.store_a);
+		rx_pr("pkt_buffb=0x%p\n", rx.emp_buff.store_b);
+		rx.emp_buff.dump_mode = DUMP_MODE_EMP;
 		/* allocate buffer for hw access*/
-		rx.empbuff.pg_addr =
+		rx.emp_buff.pg_addr =
 			dma_alloc_from_contiguous(dev,
 						  EMP_BUFFER_SIZE >> PAGE_SHIFT, 0, 0);
-		if (rx.empbuff.pg_addr) {
+		if (rx.emp_buff.pg_addr) {
 			/* hw access */
 			/* page to real physical address*/
-			rx.empbuff.p_addr_a =
-				page_to_phys(rx.empbuff.pg_addr);
-			rx.empbuff.p_addr_b =
-				rx.empbuff.p_addr_a + (EMP_BUFFER_SIZE >> 1);
+			rx.emp_buff.p_addr_a =
+				page_to_phys(rx.emp_buff.pg_addr);
+			rx.emp_buff.p_addr_b =
+				rx.emp_buff.p_addr_a + (EMP_BUFFER_SIZE >> 1);
 			//page_address
-			rx_pr("buffa paddr=0x%p\n",
-			      (void *)rx.empbuff.p_addr_a);
-			rx_pr("buffb paddr=0x%p\n",
-			      (void *)rx.empbuff.p_addr_b);
+			rx_pr("buff_a paddr=0x%p\n",
+			      (void *)rx.emp_buff.p_addr_a);
+			rx_pr("buff_b paddr=0x%p\n",
+			      (void *)rx.emp_buff.p_addr_b);
 		} else {
 			rx_pr("emp buff err-1\n");
 		}
-		rx.empbuff.emppktcnt = 0;
+		rx.emp_buff.emp_pkt_cnt = 0;
 	}
 }
 
@@ -2648,35 +2648,35 @@ void rx_tmds_resource_allocate(struct device *dev)
 	/*struct page *pg_addr;*/
 
 	if (rx.chip_id >= CHIP_ID_TL1) {
-		if (rx.empbuff.dump_mode == DUMP_MODE_EMP) {
-			if (rx.empbuff.pg_addr) {
+		if (rx.emp_buff.dump_mode == DUMP_MODE_EMP) {
+			if (rx.emp_buff.pg_addr) {
 				dma_release_from_contiguous(dev,
-							    rx.empbuff.pg_addr,
+							    rx.emp_buff.pg_addr,
 							    EMP_BUFFER_SIZE >> PAGE_SHIFT);
 				/*free_reserved_area();*/
-				rx.empbuff.pg_addr = 0;
+				rx.emp_buff.pg_addr = 0;
 				rx_pr("release emp data buffer\n");
 			}
 		} else {
-			if (rx.empbuff.pg_addr)
+			if (rx.emp_buff.pg_addr)
 				dma_release_from_contiguous(dev,
-							    rx.empbuff.pg_addr,
+							    rx.emp_buff.pg_addr,
 							    TMDS_BUFFER_SIZE >> PAGE_SHIFT);
-			rx.empbuff.pg_addr = 0;
+			rx.emp_buff.pg_addr = 0;
 			rx_pr("release pre tmds data buffer\n");
 		}
 
 		/* allocate tmds data buffer */
-		rx.empbuff.pg_addr =
+		rx.emp_buff.pg_addr =
 			dma_alloc_from_contiguous(dev, TMDS_BUFFER_SIZE >> PAGE_SHIFT, 0, 0);
 
-		if (rx.empbuff.pg_addr)
-			rx.empbuff.p_addr_a =
-				page_to_phys(rx.empbuff.pg_addr);
+		if (rx.emp_buff.pg_addr)
+			rx.emp_buff.p_addr_a =
+				page_to_phys(rx.emp_buff.pg_addr);
 		else
 			rx_pr("allocate tmds data buff fail\n");
-		rx.empbuff.dump_mode = DUMP_MODE_TMDS;
-		rx_pr("buffa paddr=0x%p\n", (void *)rx.empbuff.p_addr_a);
+		rx.emp_buff.dump_mode = DUMP_MODE_TMDS;
+		rx_pr("buff_a paddr=0x%p\n", (void *)rx.emp_buff.p_addr_a);
 	}
 }
 
@@ -2703,9 +2703,9 @@ void rx_emp_data_capture(void)
 
 	pos += offset;
 	/*start buffer address*/
-	buf = rx.empbuff.ready;
+	buf = rx.emp_buff.ready;
 	/*write size*/
-	offset = rx.empbuff.emppktcnt * 32;
+	offset = rx.emp_buff.emp_pkt_cnt * 32;
 	vfs_write(filp, buf, offset, &pos);
 	rx_pr("write from 0x%x to 0x%x to %s.\n",
 	      0, 0 + offset, path);
@@ -2731,7 +2731,7 @@ void rx_tmds_data_capture(void)
 	unsigned int recv_byte_cnt;
 	struct page *pg_addr;
 	phys_addr_t p_addr;
-	char *tmpbuff;
+	char *tmp_buff;
 	unsigned int *paddr;
 
 	set_fs(KERNEL_DS);
@@ -2742,19 +2742,19 @@ void rx_tmds_data_capture(void)
 		return;
 	}
 
-	tmpbuff = kmalloc(PAGE_SIZE + 16, GFP_KERNEL);
-	if (!tmpbuff) {
+	tmp_buff = kmalloc(PAGE_SIZE + 16, GFP_KERNEL);
+	if (!tmp_buff) {
 		rx_pr("tmds malloc buffer err\n");
 		return;
 	}
-	memset(tmpbuff, 0, PAGE_SIZE);
-	recv_byte_cnt = rx.empbuff.tmdspktcnt * 4;
+	memset(tmp_buff, 0, PAGE_SIZE);
+	recv_byte_cnt = rx.emp_buff.tmds_pkt_cnt * 4;
 	recv_pagenum = (recv_byte_cnt >> PAGE_SHIFT) + 1;
 
 	rx_pr("total byte:%d page:%d\n", recv_byte_cnt, recv_pagenum);
 	for (i = 0; i < recv_pagenum; i++) {
 		/* one page 4k,tmds data physical address, need map v addr */
-		p_addr = rx.empbuff.p_addr_a + i * PAGE_SIZE;
+		p_addr = rx.emp_buff.p_addr_a + i * PAGE_SIZE;
 		pg_addr = phys_to_page(p_addr);
 		src_v_addr = kmap(pg_addr);
 		dma_sync_single_for_cpu(hdmirx_dev,
@@ -2764,13 +2764,13 @@ void rx_tmds_data_capture(void)
 		pos = i * PAGE_SIZE;
 		if (recv_byte_cnt >= PAGE_SIZE) {
 			offset = PAGE_SIZE;
-			memcpy(tmpbuff, src_v_addr, PAGE_SIZE);
-			vfs_write(filp, tmpbuff, offset, &pos);
+			memcpy(tmp_buff, src_v_addr, PAGE_SIZE);
+			vfs_write(filp, tmp_buff, offset, &pos);
 			recv_byte_cnt -= PAGE_SIZE;
 		} else {
 			offset = recv_byte_cnt;
-			memcpy(tmpbuff, src_v_addr, recv_byte_cnt);
-			vfs_write(filp, tmpbuff, offset, &pos);
+			memcpy(tmp_buff, src_v_addr, recv_byte_cnt);
+			vfs_write(filp, tmp_buff, offset, &pos);
 			recv_byte_cnt = 0;
 		}
 
@@ -2778,9 +2778,9 @@ void rx_tmds_data_capture(void)
 		kunmap(pg_addr);
 	}
 
-	/* for teset */
+	/* for test */
 	for (i = 0; i < recv_pagenum; i++) {
-		p_addr = rx.empbuff.p_addr_a + i * PAGE_SIZE;
+		p_addr = rx.emp_buff.p_addr_a + i * PAGE_SIZE;
 		pg_addr = phys_to_page(p_addr);
 		/* p addr map to v addr*/
 		paddr = kmap(pg_addr);
@@ -2798,7 +2798,7 @@ void rx_tmds_data_capture(void)
 		kunmap(pg_addr);
 	}
 
-	kfree(tmpbuff);
+	kfree(tmp_buff);
 	rx_pr("write to %s\n", path);
 	vfs_fsync(filp, 0);
 	filp_close(filp, NULL);
@@ -2817,7 +2817,7 @@ static int rx_vrr_notify_handler(struct notifier_block *nb,
 		memcpy(&vdata, p, sizeof(struct vrr_notifier_data_s));
 		rx.vrr_min = vdata.dev_vfreq_min;
 		rx.vrr_max = vdata.dev_vfreq_max;
-		rx_pr("%s: vrrmin=%d, vrrmax=%d\n", __func__, rx.vrr_min, rx.vrr_max);
+		rx_pr("%s: vrr_min=%d, vrr_max=%d\n", __func__, rx.vrr_min, rx.vrr_max);
 		break;
 	default:
 		ret = -EINVAL;
@@ -2889,13 +2889,13 @@ static int hdmirx_probe(struct platform_device *pdev)
 	}
 	memset(hdevp, 0, sizeof(struct hdmirx_dev_s));
 	hdevp->data = of_id->data;
-	rx.hdmirxdev = hdevp;
+	rx.hdmirx_dev = hdevp;
 
 	if (hdevp->data) {
 		rx.chip_id = hdevp->data->chip_id;
 		rx.phy_ver = hdevp->data->phy_ver;
 		rx_pr("chip id:%d\n", rx.chip_id);
-		rx_pr("phy ver:%d\n", rx.hdmirxdev->data->phy_ver);
+		rx_pr("phy ver:%d\n", rx.hdmirx_dev->data->phy_ver);
 	} else {
 		/*txlx chip for default*/
 		rx.chip_id = CHIP_ID_TXLX;
@@ -2909,7 +2909,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	}
 	hdmirx_get_base_addr(pdev->dev.of_node);
 	hdevp->index = 0; /* pdev->id; */
-	/* create cdev and reigser with sysfs */
+	/* create cdev and register with sysfs */
 	ret = hdmirx_add_cdev(&hdevp->cdev, &hdmirx_fops, hdevp->index);
 	if (ret) {
 		rx_pr("%s: failed to add cdev\n", __func__);
@@ -3074,7 +3074,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	hdevp->irq = res->start;
 	snprintf(hdevp->irq_name, sizeof(hdevp->irq_name),
 		 "hdmirx%d-irq", hdevp->index);
-	rx_pr("hdevpd irq: %d, %d\n", hdevp->index,
+	rx_pr("hdevp irq: %d, %d\n", hdevp->index,
 	      hdevp->irq);
 	if (request_irq(hdevp->irq,
 			&irq_handler,
@@ -3264,8 +3264,8 @@ static int hdmirx_probe(struct platform_device *pdev)
 		/* queue_delayed_work(eq_wq, &eq_dwork, msecs_to_jiffies(5)); */
 	}
 	/* create for aml phy init */
-	amlphy_wq = create_workqueue(hdevp->frontend.name);
-	INIT_WORK(&amlphy_dwork, aml_phy_init_handler);
+	aml_phy_wq = create_workqueue(hdevp->frontend.name);
+	INIT_WORK(&aml_phy_dwork, aml_phy_init_handler);
 
 	/* create for clk msr */
 	clkmsr_wq = create_workqueue(hdevp->frontend.name);
@@ -3491,8 +3491,8 @@ static int hdmirx_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&esm_dwork);
 	destroy_workqueue(esm_wq);
 
-	cancel_work_sync(&amlphy_dwork);
-	destroy_workqueue(amlphy_wq);
+	cancel_work_sync(&aml_phy_dwork);
+	destroy_workqueue(aml_phy_wq);
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	unregister_early_suspend(&hdmirx_early_suspend_handler);
 #endif
@@ -3592,7 +3592,7 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 		rx_phy_suspend();
 	/*
 	 * clk source changed under suspend mode,
-	 * div must change togther.
+	 * div must change together.
 	 */
 	rx_set_suspend_edid_clk(true);
 	rx_dig_clk_en(0);

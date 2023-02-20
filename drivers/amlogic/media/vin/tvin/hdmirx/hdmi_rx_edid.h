@@ -124,7 +124,7 @@ union bit_rate_u {
 		unsigned char size_16bit:1;
 		unsigned char size_20bit:1;
 		unsigned char size_24bit:1;
-		unsigned char size_reserv:5;
+		unsigned char size_reserved:5;
 	} pcm;
 	unsigned char others;
 };
@@ -132,7 +132,7 @@ union bit_rate_u {
 struct edid_audio_block_t {
 	unsigned char max_channel:3;
 	unsigned char format_code:4;
-	unsigned char fmt_code_resrvd:1;
+	unsigned char fmt_code_resvd:1;
 	union u_sr {
 		unsigned char freq_list;
 		struct s_sr {
@@ -143,7 +143,7 @@ struct edid_audio_block_t {
 			unsigned char freq_96khz:1;
 			unsigned char freq_176_4khz:1;
 			unsigned char freq_192khz:1;
-			unsigned char freq_reserv:1;
+			unsigned char freq_reserved:1;
 		} ssr;
 	} usr;
 	union bit_rate_u bit_rate;
@@ -156,7 +156,7 @@ struct edid_hdr_block_t {
 	unsigned char smtpe_2048:1;
 	unsigned char future:5;
 	unsigned char meta_des_type1:1;
-	unsigned char reserv:7;
+	unsigned char reserved:7;
 	unsigned char max_lumi;
 	unsigned char avg_lumi;
 	unsigned char min_lumi;
@@ -230,7 +230,7 @@ struct specific_vic_3d {
 	unsigned char _2d_vic_order:4;
 	unsigned char _3d_struct:4;
 	unsigned char _3d_detail:4;
-	unsigned char resrvd:4;
+	unsigned char resvd:4;
 };
 
 struct vsdb_s {
@@ -354,7 +354,7 @@ struct hf_vsdb_s {
 	unsigned char dsc_max_slices:4;
 	unsigned char dsc_max_frl_rate:4;
 	//pb10
-	unsigned char dsc_totalchunkkbytes:6;
+	unsigned char dsc_total_chunk_kbytes:6;
 	unsigned char rsv_1:2;
 	unsigned char fapa_end_extended:1;
 	//pb11-28
@@ -442,9 +442,9 @@ struct dv_vsvdb_s {
 	unsigned char sup_global_dimming:1;
 
 	unsigned char target_min_lum:7;
-	unsigned char colormetry:1;
+	unsigned char colorimetry:1;
 
-	unsigned char resrvd;
+	unsigned char resvd;
 	u16 Rx;
 	u16 Ry;
 	u16 Gx;

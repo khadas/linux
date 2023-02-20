@@ -64,8 +64,8 @@
 #define pr_var(str, index) rx_pr("%5d %-30s = %#x\n", (index), #str, (str))
 #define var_to_str(var) (#var)
 
-/* register edid notify callback for T7 */
-#define RX_VER2 "ver.2022/08/16"
+/* fix typocheck error */
+#define RX_VER2 "ver.2023/02/21"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
@@ -112,7 +112,7 @@ enum phy_ver_e {
 struct meson_hdmirx_data {
 	enum chip_id_e chip_id;
 	enum phy_ver_e phy_ver;
-	struct ctrl *phyctrl;
+	struct ctrl *phy_ctrl;
 };
 
 struct hdmirx_dev_s {
@@ -482,7 +482,7 @@ struct hdmi_rx_hdcp {
 	 * @note 0: high order, 1: low order
 	 */
 	u32 keys[HDCP_KEYS_SIZE];
-	struct extcon_dev *rx_excton_auth;
+	struct extcon_dev *rx_extcon_auth;
 	enum hdcp_version_e hdcp_version;/* 0 no hdcp;1 hdcp14;2 hdcp22 */
 	/* add for dv cts */
 	enum hdcp_version_e hdcp_pre_ver;
@@ -633,10 +633,10 @@ struct emp_buff {
 	void __iomem *store_a;
 	void __iomem *store_b;
 	void __iomem *ready;
-	unsigned long irqcnt;
-	unsigned int emppktcnt;
+	unsigned long irq_cnt;
+	unsigned int emp_pkt_cnt;
 	unsigned int pre_emp_pkt_cnt;
-	unsigned int tmdspktcnt;
+	unsigned int tmds_pkt_cnt;
 	bool end;
 	u8 ogi_id;
 	unsigned int emp_tagid;
@@ -669,7 +669,7 @@ int hdmirx_set_uevent(enum hdmirx_event type, int val);
 struct rx_s {
 	enum chip_id_e chip_id;
 	enum phy_ver_e phy_ver;
-	struct hdmirx_dev_s *hdmirxdev;
+	struct hdmirx_dev_s *hdmirx_dev;
 	/** HDMI RX received signal changed */
 	u32 skip;
 	/*avmute*/
@@ -691,8 +691,8 @@ struct rx_s {
 	/** HDMI RX controller HDCP configuration */
 	struct hdmi_rx_hdcp hdcp;
 	/*report hpd status to app*/
-	struct extcon_dev *rx_excton_rx22;
-	struct extcon_dev *rx_excton_open;
+	struct extcon_dev *rx_extcon_rx22;
+	struct extcon_dev *rx_extcon_open;
 
 	/* wrapper */
 	unsigned int state;
@@ -732,7 +732,7 @@ struct rx_s {
 	/*struct pd_infoframe_s dbg_info;*/
 	struct phy_sts phy;
 	struct clk_msr clk;
-	struct emp_buff empbuff;
+	struct emp_buff emp_buff;
 	u32 arc_port;
 	enum edid_ver_e edid_ver;
 	bool arc_5vsts;
@@ -777,8 +777,8 @@ extern struct workqueue_struct	*eq_wq;
 extern struct delayed_work	esm_dwork;
 extern struct workqueue_struct	*esm_wq;
 extern struct delayed_work	repeater_dwork;
-extern struct work_struct	amlphy_dwork;
-extern struct workqueue_struct	*amlphy_wq;
+extern struct work_struct	aml_phy_dwork;
+extern struct workqueue_struct	*aml_phy_wq;
 extern struct work_struct     clkmsr_dwork;
 extern struct workqueue_struct *clkmsr_wq;
 extern struct work_struct     earc_hpd_dwork;
@@ -818,7 +818,7 @@ extern int rgb_quant_range;
 extern int yuv_quant_range;
 extern int en_4k_timing;
 extern int cec_dev_en;
-extern bool dev_is_appletv_v2;
+extern bool dev_is_apple_tv_v2;
 extern u32 en_4096_2_3840;
 extern int en_4k_2_2k;
 extern bool hdmi_cec_en;

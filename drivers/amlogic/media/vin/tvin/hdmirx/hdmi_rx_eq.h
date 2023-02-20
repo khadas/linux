@@ -6,11 +6,11 @@
 #ifndef _HDMI_RX_EQ_H
 #define _HDMI_RX_EQ_H
 /* time mS */
-#define WAITTIMESTARTCONDITIONS	3
-/* WAIT FOR, CDR LOCK and TMDSVALID */
+#define WAIT_TIMESTART_CONDITIONS	3
+/* WAIT FOR, CDR LOCK and TMDS_VALID */
 #define SLEEP_TIME_CDR	10
 /* Maximum slope  accumulator to consider the cable as a short cable */
-#define ACCLIMIT	360
+#define ACC_LIMIT	360
 /* Minimum slope accumulator to consider the following setting */
 #define ACCMINLIMIT	0
 /* suitable for a long cable */
@@ -40,7 +40,7 @@
 /* theoretical threshold for an equalized system */
 #define EQUALIZEDCOUNTERVALUE	512
 /* theoretical threshold for an equalized system */
-#define EQUALIZEDCOUNTERVALUE_HDMI20	512
+#define EQUALIZEDCOUNTERVALUEHDMI20	512
 /* Maximum  difference between pairs */
 #define MINMAX_MAXDIFF	4
 /* Maximum  difference between pairs  under HDMI2.0 MODE */
@@ -107,15 +107,15 @@ enum eq_cable_type_e {
 
 struct st_eq_data {
 	/* Best long cable setting */
-	u16 bestlongsetting;
+	u16 best_long_setting;
 	/* long cable setting detected and valid */
-	u8 validlongsetting;
+	u8 valid_long_setting;
 	/* best short cable setting */
-	u16 bestshortsetting;
+	u16 best_short_setting;
 	/* best short cable setting detected and valid */
-	u8 validshortsetting;
+	u8 valid_short_setting;
 	/* TMDS Valid for channel */
-	u8 tmdsvalid;
+	u8 tmds_valid;
 	/* best setting to be programed */
 	u16 bestsetting;
 	/* Accumulator register */
@@ -123,7 +123,7 @@ struct st_eq_data {
 	/* Acquisition register */
 	u16 acq;
 	u16 acq_n[15];
-	u16 lastacq;
+	u16 last_acq;
 	u8 eq_ref[3];
 };
 
@@ -143,7 +143,7 @@ extern enum eq_sts_e eq_sts;
 int rx_eq_algorithm(void);
 int hdmirx_phy_start_eq(void);
 u8 settingfinder(void);
-bool eq_maxvsmin(int ch0setting, int ch1setting, int ch2setting);
+bool eq_max_vs_min(int ch0setting, int ch1setting, int ch2setting);
 /* int hdmirx_phy_suspend_eq(void); */
 bool hdmirx_phy_check_tmds_valid(void);
 void hdmirx_phy_conf_eq_setting(int rx_port_sel,

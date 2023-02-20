@@ -53,7 +53,7 @@ int eq_dbg_ch2;
 u32 phy_pddq_en;
 /*------------------------variable define end----------------------*/
 
-bool eq_maxvsmin(int ch0setting, int ch1setting, int ch2setting)
+bool eq_max_vs_min(int ch0setting, int ch1setting, int ch2setting)
 {
 	int min = ch0setting;
 	int max = ch0setting;
@@ -73,19 +73,19 @@ bool eq_maxvsmin(int ch0setting, int ch1setting, int ch2setting)
 	return 1;
 }
 
-void initvars(struct st_eq_data *ch_data)
+void init_vars(struct st_eq_data *ch_data)
 {
 	/* Slope accumulator */
 	ch_data->acc = 0;
 	/* Early Counter dataAcquisition data */
 	ch_data->acq = 0;
-	ch_data->lastacq = 0;
-	ch_data->validlongsetting = 0;
-	ch_data->validshortsetting = 0;
+	ch_data->last_acq = 0;
+	ch_data->valid_long_setting = 0;
+	ch_data->valid_short_setting = 0;
 	/* BEST Setting = short */
 	ch_data->bestsetting = SHORTCABLESETTING;
 	/* TMDS VALID not valid */
-	ch_data->tmdsvalid = 0;
+	ch_data->tmds_valid = 0;
 	memset(ch_data->acq_n, 0, sizeof(u16) * 15);
 }
 
@@ -112,17 +112,17 @@ void hdmi_rx_phy_confequalautocalib(void)
 	hdmirx_wr_phy(PHY_MAINFSM_CTL, 0x1809);
 }
 
-u16 rx_phy_rd_earlycnt_ch0(void)
+u16 rx_phy_rd_early_cnt_ch0(void)
 {
 	return hdmirx_rd_phy(PHY_EQSTAT3_CH0);
 }
 
-u16 rx_phy_rd_earlycnt_ch1(void)
+u16 rx_phy_rd_early_cnt_ch1(void)
 {
 	return hdmirx_rd_phy(PHY_EQSTAT3_CH1);
 }
 
-u16 rx_phy_rd_earlycnt_ch2(void)
+u16 rx_phy_rd_early_cnt_ch2(void)
 {
 	return hdmirx_rd_phy(PHY_EQSTAT3_CH2);
 }
@@ -172,7 +172,7 @@ void eq_dwork_handler(struct work_struct *work)
 			      eq_ch1.bestsetting,
 			      eq_ch2.bestsetting);
 
-			if (eq_maxvsmin(eq_ch0.bestsetting,
+			if (eq_max_vs_min(eq_ch0.bestsetting,
 					eq_ch1.bestsetting,
 					eq_ch2.bestsetting) == 1) {
 				eq_sts = E_EQ_PASS;
@@ -235,39 +235,39 @@ u8 testtype(u16 setting, struct st_eq_data *ch_data)
 {
 	u16 stepslope = 0;
 	/* LONG CABLE EQUALIZATION */
-	if (ch_data->acq < ch_data->lastacq &&
-	    ch_data->tmdsvalid == 1) {
-		ch_data->acc += (ch_data->lastacq - ch_data->acq);
-		if (ch_data->validlongsetting == 0 &&
+	if (ch_data->acq < ch_data->last_acq &&
+	    ch_data->tmds_valid == 1) {
+		ch_data->acc += (ch_data->last_acq - ch_data->acq);
+		if (ch_data->valid_long_setting == 0 &&
 		    ch_data->acq < EQUALIZEDCOUNTERVALUE &&
 		    ch_data->acc > ACCMINLIMIT) {
-			ch_data->bestlongsetting = setting;
-			ch_data->validlongsetting = 1;
+			ch_data->best_long_setting = setting;
+			ch_data->valid_long_setting = 1;
 		}
-		stepslope = ch_data->lastacq - ch_data->acq;
+		stepslope = ch_data->last_acq - ch_data->acq;
 	}
 	/* SHORT CABLE EQUALIZATION */
-	if (ch_data->tmdsvalid == 1 &&
-	    ch_data->validshortsetting == 0) {
+	if (ch_data->tmds_valid == 1 &&
+	    ch_data->valid_short_setting == 0) {
 		/* Short setting better than default, system over-equalized */
 		if (setting < SHORTCABLESETTING &&
 		    ch_data->acq < EQUALIZEDCOUNTERVALUE)  {
-			ch_data->validshortsetting = 1;
-			ch_data->bestshortsetting = setting;
+			ch_data->valid_short_setting = 1;
+			ch_data->best_short_setting = setting;
 		}
 		/* default Short setting is valid */
 		if (setting == SHORTCABLESETTING) {
-			ch_data->validshortsetting = 1;
-			ch_data->bestshortsetting = SHORTCABLESETTING;
+			ch_data->valid_short_setting = 1;
+			ch_data->best_short_setting = SHORTCABLESETTING;
 		}
 	}
 	/* Exit type Long cable
 	 * (early-late count curve well behaved
 	 * and 50% threshold achived)
 	 */
-	if (ch_data->validlongsetting  == 1 &&
-	    ch_data->acc > ACCLIMIT) {
-		ch_data->bestsetting = ch_data->bestlongsetting;
+	if (ch_data->valid_long_setting  == 1 &&
+	    ch_data->acc > ACC_LIMIT) {
+		ch_data->bestsetting = ch_data->best_long_setting;
 		if (ch_data->bestsetting > long_cable_best_setting)
 			ch_data->bestsetting = long_cable_best_setting;
 		if (log_level & EQ_LOG)
@@ -278,9 +278,9 @@ u8 testtype(u16 setting, struct st_eq_data *ch_data)
 	 * (early-late count curve  behaved as a short cable)
 	 */
 	if (setting == eq_max_setting &&
-	    ch_data->acc < ACCLIMIT &&
-	    ch_data->validshortsetting == 1) {
-		ch_data->bestsetting = ch_data->bestshortsetting;
+	    ch_data->acc < ACC_LIMIT &&
+	    ch_data->valid_short_setting == 1) {
+		ch_data->bestsetting = ch_data->best_short_setting;
 		if (log_level & EQ_LOG)
 			rx_pr("shortcable");
 		return E_SHORT_CABLE;
@@ -290,8 +290,8 @@ u8 testtype(u16 setting, struct st_eq_data *ch_data)
 	 * nevertheless 50% threshold not achieved
 	 */
 	if (setting == eq_max_setting &&
-	    ch_data->tmdsvalid == 1 &&
-	    ch_data->acc > ACCLIMIT &&
+	    ch_data->tmds_valid == 1 &&
+	    ch_data->acc > ACC_LIMIT &&
 	    stepslope > MINSLOPE) {
 		ch_data->bestsetting = long_cable_best_setting;
 		if (log_level & EQ_LOG)
@@ -311,7 +311,7 @@ u8 testtype(u16 setting, struct st_eq_data *ch_data)
 	return E_CABLE_NOT_FOUND;
 }
 
-u8 aquireearlycnt(u16 setting)
+u8 aquire_early_cnt(u16 setting)
 {
 	u16 stepslope = 0x0001;
 	int timeout_cnt = 10;
@@ -322,22 +322,22 @@ u8 aquireearlycnt(u16 setting)
 	/* mdelay(delay_ms_cnt); */
 	while (timeout_cnt--) {
 		mdelay(delay_ms_cnt);
-		eq_ch0.tmdsvalid =
+		eq_ch0.tmds_valid =
 			(hdmi_rx_phy_corestatusch0() & 0x0080) > 0 ? 1 : 0;
-		eq_ch1.tmdsvalid =
+		eq_ch1.tmds_valid =
 			(hdmi_rx_phy_corestatusch1() & 0x0080) > 0 ? 1 : 0;
-		eq_ch2.tmdsvalid =
+		eq_ch2.tmds_valid =
 			(hdmi_rx_phy_corestatusch2() & 0x0080) > 0 ? 1 : 0;
-		if ((eq_ch0.tmdsvalid |
-		    eq_ch1.tmdsvalid |
-		    eq_ch2.tmdsvalid) != 0)
+		if ((eq_ch0.tmds_valid |
+		    eq_ch1.tmds_valid |
+		    eq_ch2.tmds_valid) != 0)
 			break;
 	}
-	if ((eq_ch0.tmdsvalid |
-	    eq_ch1.tmdsvalid |
-	    eq_ch2.tmdsvalid) == 0) {
+	if ((eq_ch0.tmds_valid |
+	    eq_ch1.tmds_valid |
+	    eq_ch2.tmds_valid) == 0) {
 		if (log_level & EQ_LOG)
-			rx_pr("invalid-earlycnt\n");
+			rx_pr("invalid-early_cnt\n");
 		return 0;
 	}
 
@@ -350,15 +350,15 @@ u8 aquireearlycnt(u16 setting)
 	/*	by per channel basis or global pin */
 	/* TMDS VALID BY channel basis (Option #1) */
 	/* Get early counters */
-	eq_ch0.acq = rx_phy_rd_earlycnt_ch0() >> AVGACQ;
+	eq_ch0.acq = rx_phy_rd_early_cnt_ch0() >> AVGACQ;
 	eq_ch0.acq_n[setting] = eq_ch0.acq;
 	if (log_level & ERR_LOG)
 		rx_pr("eq_ch0_acq #%d = %d\n", setting, eq_ch0.acq);
-	eq_ch1.acq = rx_phy_rd_earlycnt_ch1() >> AVGACQ;
+	eq_ch1.acq = rx_phy_rd_early_cnt_ch1() >> AVGACQ;
 	eq_ch1.acq_n[setting] = eq_ch1.acq;
 	if (log_level & ERR_LOG)
 		rx_pr("eq_ch1_acq #%d = %d\n", setting, eq_ch1.acq);
-	eq_ch2.acq = rx_phy_rd_earlycnt_ch2() >> AVGACQ;
+	eq_ch2.acq = rx_phy_rd_early_cnt_ch2() >> AVGACQ;
 	eq_ch2.acq_n[setting] = eq_ch2.acq;
 	if (log_level & ERR_LOG)
 		rx_pr("eq_ch2_acq #%d = %d\n", setting, eq_ch2.acq);
@@ -374,23 +374,23 @@ u8 settingfinder(void)
 	u16 retcodech2 = 0;
 	u8 tmds_valid = 0;
 
-	initvars(&eq_ch0);
-	initvars(&eq_ch1);
-	initvars(&eq_ch2);
+	init_vars(&eq_ch0);
+	init_vars(&eq_ch1);
+	init_vars(&eq_ch2);
 
 	/* Get statistics of early-late counters for setting 0 */
-	tmds_valid = aquireearlycnt(actsetting);
+	tmds_valid = aquire_early_cnt(actsetting);
 
 	while (retcodech0 == 0 || retcodech1 == 0 || retcodech2 == 0) {
 		actsetting++;
 		/* Update last acquisition value, */
 		/* for threshold crossing detection */
-		eq_ch0.lastacq = eq_ch0.acq;
-		eq_ch1.lastacq = eq_ch1.acq;
-		eq_ch2.lastacq = eq_ch2.acq;
+		eq_ch0.last_acq = eq_ch0.acq;
+		eq_ch1.last_acq = eq_ch1.acq;
+		eq_ch2.last_acq = eq_ch2.acq;
 		/* Get statistics of early-late */
 		/* counters for next setting */
-		tmds_valid = aquireearlycnt(actsetting);
+		tmds_valid = aquire_early_cnt(actsetting);
 		/* check for cable type, stop after detection */
 		if (retcodech0 == 0) {
 			retcodech0 = testtype(actsetting, &eq_ch0);

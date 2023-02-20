@@ -1641,7 +1641,7 @@ void rx_edid_update_overlay(u_int *phy_addr_offset,
 
 /* @func: seek dd+ atmos bit
  * @param:get audio type info by cec message:
- *	request short sudio descriptor
+ *	request short audio descriptor
  */
 unsigned char rx_parse_arc_aud_type(const unsigned char *buff)
 {
@@ -3064,7 +3064,7 @@ hf_vsdb:
 	edid_info->hf_vsdb.dsc_max_slices =
 		(buff[start + 11]) & 0xf;
 	//pb10
-	edid_info->hf_vsdb.dsc_totalchunkkbytes =
+	edid_info->hf_vsdb.dsc_total_chunk_kbytes =
 		(buff[start + 11]) & 0x3f;
 	return ret;
 }
@@ -3176,7 +3176,7 @@ static void get_edid_dv_data(unsigned char *buff,
 			buff[start + 4] & 0x1;
 		edid_info->dv_vsvdb.target_min_lum =
 			(buff[start + 5] >> 1) & 0x7F;
-		edid_info->dv_vsvdb.colormetry =
+		edid_info->dv_vsvdb.colorimetry =
 			buff[start + 5] & 0x1;
 		edid_info->dv_vsvdb.Rx = buff[start + 7];
 		edid_info->dv_vsvdb.Ry = buff[start + 8];
@@ -3282,7 +3282,7 @@ static void get_edid_y420_cap_map_data(unsigned char *buff,
 	edid_info->contain_y420_cmdb = true;
 	/* When the Length field is set to L==1, the Y420CMDB does not
 	 * include a YCBCR 4:2:0 Capability Bit Map and all the SVDs in
-	 * the regular Video Data Block support YCBCR 4:2:0 samplin mode.
+	 * the regular Video Data Block support YCBCR 4:2:0 sampling mode.
 	 */
 	if (len == 0) {
 		edid_info->y420_all_vic = 1;
@@ -3854,8 +3854,8 @@ void rx_parse_print_hf_vsdb(struct hf_vsdb_s *hf_vsdb)
 	rx_pr("dsc_max_slices: %d\n",
 	      hf_vsdb->dsc_max_slices);
 	//pb10
-	rx_pr("dsc_totalchunkkbytes: %d\n",
-	      hf_vsdb->dsc_totalchunkkbytes);
+	rx_pr("dsc_total_chunk_kbytes: %d\n",
+	      hf_vsdb->dsc_total_chunk_kbytes);
 }
 
 void rx_parse_print_vcdb(struct video_cap_db_s *vcdb)
@@ -3878,7 +3878,7 @@ void rx_parse_print_vcdb(struct video_cap_db_s *vcdb)
 	rx_pr("PT Scan behavior:\n");
 	switch (vcdb->s_PT) {
 	case 0:
-		rx_pr("\trefer to CE/IT fields\n");
+		rx_pr("\transfer to CE/IT fields\n");
 		break;
 	case 1:
 		rx_pr("\tAlways Overscanned\n");
@@ -3965,8 +3965,8 @@ void rx_parse_print_vsvdb(struct dv_vsvdb_s *dv_vsvdb)
 		      dv_vsvdb->target_max_lum);
 		rx_pr("target_min_lum: 0x%x\n",
 		      dv_vsvdb->target_min_lum);
-		rx_pr("colormetry: 0x%x\n",
-		      dv_vsvdb->colormetry);
+		rx_pr("colorimetry: 0x%x\n",
+		      dv_vsvdb->colorimetry);
 	}
 }
 
@@ -4397,7 +4397,7 @@ void earc_cap_ds_index_print(struct earc_cap_ds *cap_info)
 
 	if (!cap_info)
 		return;
-	rx_pr("****eARC Cap Data Sturct Index****\n");
+	rx_pr("****eARC Cap Data Struct Index****\n");
 	rx_pr("cap_ds_len: %d\n", cap_info->cap_ds_len);
 	rx_pr("cap_ds_ver: %d\n", cap_info->cap_ds_ver);
 	if (cap_info->cap_ds_len > 1)
@@ -5042,10 +5042,10 @@ void rpt_edid_hf_vs_db_extraction(unsigned char *p_edid)
 	else
 		hf_vsdb_dest.dsc_max_slices = hf_vsdb_def.dsc_max_slices;
 
-	if (hf_vsdb_def.dsc_totalchunkkbytes > hf_vsdb_tx.dsc_totalchunkkbytes)
-		hf_vsdb_dest.dsc_totalchunkkbytes = hf_vsdb_tx.dsc_totalchunkkbytes;
+	if (hf_vsdb_def.dsc_total_chunk_kbytes > hf_vsdb_tx.dsc_total_chunk_kbytes)
+		hf_vsdb_dest.dsc_total_chunk_kbytes = hf_vsdb_tx.dsc_total_chunk_kbytes;
 	else
-		hf_vsdb_dest.dsc_totalchunkkbytes = hf_vsdb_def.dsc_totalchunkkbytes;
+		hf_vsdb_dest.dsc_total_chunk_kbytes = hf_vsdb_def.dsc_total_chunk_kbytes;
 
 	hf_vsdb_dest.fapa_end_extended =
 		hf_vsdb_tx.fapa_end_extended & hf_vsdb_def.fapa_end_extended;

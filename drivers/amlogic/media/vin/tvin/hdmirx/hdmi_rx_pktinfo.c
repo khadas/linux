@@ -1371,8 +1371,8 @@ void rx_get_vsi_info(void)
 	rx.vs_info_details.dolby_vision_flag = DV_NULL;
 	rx.vs_info_details.hdr10plus = false;
 	rx.vs_info_details.cuva_hdr = false;
-	rx.vs_info_details.emp_pkt_cnt = rx.empbuff.emppktcnt;
-	rx.empbuff.emppktcnt = 0;
+	rx.vs_info_details.emp_pkt_cnt = rx.emp_buff.emp_pkt_cnt;
+	rx.emp_buff.emp_pkt_cnt = 0;
 #ifndef MULTI_VSIF_EXPORT_TO_EMP
 	pkt = (struct vsi_infoframe_st *)&rx_pkt.vs_info;
 
@@ -1598,17 +1598,17 @@ void rx_get_vsi_info(void)
 	}
 #endif
 	if (rx.vs_info_details.emp_pkt_cnt &&
-	    rx.empbuff.emp_tagid == IEEE_DV15) {
-		//pkt->ieee = rx.empbuff.emp_tagid;
+	    rx.emp_buff.emp_tagid == IEEE_DV15) {
+		//pkt->ieee = rx.emp_buff.emp_tagid;
 		rx.vs_info_details.dolby_vision_flag = DV_EMP;
 		rx.vs_info_details.vsi_state = E_VSI_DV15;
 		pkt->sbpkt.vsi_dobv15.dv_vs10_sig_type = 1;
 		pkt->sbpkt.vsi_dobv15.ll =
-			(rx.empbuff.data_ver & 1) ? 1 : 0;
+			(rx.emp_buff.data_ver & 1) ? 1 : 0;
 		pkt->sbpkt.vsi_dobv15.bklt_md = 0;
 		pkt->sbpkt.vsi_dobv15.aux_md = 0;
 		pkt->sbpkt.vsi_dobv15.content_type =
-			rx.empbuff.emp_content_type;
+			rx.emp_buff.emp_content_type;
 		if (pkt->sbpkt.vsi_dobv15.content_type == 2)
 			rx.vs_info_details.dv_allm = true;
 		if (log_level & PACKET_LOG)
@@ -1618,7 +1618,7 @@ void rx_get_vsi_info(void)
 			pkt->ieee = 0;
 		num = rxpktsts.pkt_cnt_vsi;
 	}
-	rx.empbuff.emp_tagid = 0;
+	rx.emp_buff.emp_tagid = 0;
 	/* pkt->ieee = 0; */
 	/* memset(&rx_pkt.vs_info, 0, sizeof(struct pd_infoframe_s)); */
 }
@@ -2270,9 +2270,9 @@ static void rx_parse_dsf(unsigned char *src_addr)
 
 bool is_emp_buf_change(void)
 {
-	if (rx.empbuff.pre_emp_pkt_cnt != rx.empbuff.emppktcnt)
+	if (rx.emp_buff.pre_emp_pkt_cnt != rx.emp_buff.emp_pkt_cnt)
 		return true;
-	else if (memcmp(emp_buf, pre_emp_buf, rx.empbuff.emppktcnt * 32) != 0)
+	else if (memcmp(emp_buf, pre_emp_buf, rx.emp_buff.emp_pkt_cnt * 32) != 0)
 		return true;
 	else
 		return false;
@@ -2383,14 +2383,14 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 			return 0;
 		if (is_emp_buf_change()) {
 			rx.new_emp_pkt = true;
-			memcpy(pre_emp_buf, emp_buf, rx.empbuff.emppktcnt * 32);
-			rx.empbuff.pre_emp_pkt_cnt = rx.empbuff.emppktcnt;
+			memcpy(pre_emp_buf, emp_buf, rx.emp_buff.emp_pkt_cnt * 32);
+			rx.emp_buff.pre_emp_pkt_cnt = rx.emp_buff.emp_pkt_cnt;
 		} else {
 			rx.new_emp_pkt = false;
 		}
 		memset(pd_fifo_buf, 0, PFIFO_SIZE);
 		memset(&prx->emp_info, 0, sizeof(struct pd_infoframe_s));
-		pkt_num = rx.empbuff.emppktcnt;
+		pkt_num = rx.emp_buff.emp_pkt_cnt;
 		if (log_level & PACKET_LOG)
 			rx_pr("emp pkt=%d\n", pkt_num);
 #ifdef MULTI_VSIF_EXPORT_TO_EMP
@@ -2421,15 +2421,15 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 				rx_parse_dsf((u8 *)pd_fifo_buf);
 			if ((pd_fifo_buf[0] & 0xff) == PKT_TYPE_EMP && !find_emp_header) {
 				find_emp_header = true;
-				rx.empbuff.ogi_id =
+				rx.emp_buff.ogi_id =
 					(pd_fifo_buf[1] >> 16) & 0xff;
 				j = (((pd_fifo_buf[2] >> 24) & 0xff) +
 					((pd_fifo_buf[3] & 0xff) << 8) +
 					(((pd_fifo_buf[3] >> 8) & 0xff) << 16));
-				rx.empbuff.emp_tagid = j;
-				rx.empbuff.data_ver =
+				rx.emp_buff.emp_tagid = j;
+				rx.emp_buff.data_ver =
 					(pd_fifo_buf[3] >> 16) & 0xff;
-				rx.empbuff.emp_content_type =
+				rx.emp_buff.emp_content_type =
 					(pd_fifo_buf[5] >> 24) & 0x0f;
 			}
 			rx.irq_flag &= ~IRQ_PACKET_FLAG;
