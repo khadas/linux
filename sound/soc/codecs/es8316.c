@@ -67,10 +67,14 @@ static void es8316_enable_spk(struct es8316_priv *es8316, bool enable)
 
 static void es8316_enable_headset_mic(struct es8316_priv *es8316, bool enable)
 {
-	if (enable)
-		snd_soc_component_write(es8316->component, ES8316_ADC_PDN_LINSEL, 0xd0);
-	else
-		snd_soc_component_write(es8316->component, ES8316_ADC_PDN_LINSEL, 0xc0);
+	if (enable) {
+		if (es8316 && es8316->component)
+			snd_soc_component_write(es8316->component, ES8316_ADC_PDN_LINSEL, 0xd0);
+	}
+	else {
+		if (es8316 && es8316->component)
+			snd_soc_component_write(es8316->component, ES8316_ADC_PDN_LINSEL, 0xc0);
+	}
 }
 
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(dac_vol_tlv, -9600, 50, 1);
@@ -833,6 +837,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client,
 	int ret=-1;
 	enum of_gpio_flags flags;
 	struct device_node *np = i2c_client->dev.of_node;
+	unsigned int val;
 
 	es8316 = devm_kzalloc(&i2c_client->dev, sizeof(struct es8316_priv),
 			      GFP_KERNEL);
@@ -846,6 +851,12 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client,
 	es8316->regmap = devm_regmap_init_i2c(i2c_client, &es8316_regmap);
 	if (IS_ERR(es8316->regmap))
 		return PTR_ERR(es8316->regmap);
+
+	ret = regmap_read(es8316->regmap, ES8316_GPIO_FLAG, &val);
+	if (ret) {
+		dev_err(&i2c_client->dev, "ES8316 doesn't exist, exit of probe!\n");
+		return ret;
+	}
 
 	//es8316->irq = i2c_client->irq;
      es8316->spk_ctl_gpio = of_get_named_gpio_flags(np,
