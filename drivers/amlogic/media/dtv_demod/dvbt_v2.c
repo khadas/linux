@@ -987,7 +987,7 @@ struct st_chip_register_t reset368dvbt_val[] =	 /*init minimum setting STV368+TD
 //	{R368TER_INC_BRSTCNT0, 0x6c },/* INC_BRSTCNT0 */
 //	{R368TER_INC_BRSTCNT1, 0x0c },/* INC_BRSTCNT1 */
 	{R368TER_DCCOMP, 0x03 },/* DCCOMP */
-	{R368TER_SRC_CONF1, 0x1a },/* SRC_CONF1 */
+//	{R368TER_SRC_CONF1, 0x1a },/* SRC_CONF1 */
 	{R368TER_P1AGC_TARG, 0x64 },/* P1AGC_TARG */
 	{R368TER_CAS_CONF1, 0x94 },/* CAS_CONF1 */
 	{R368TER_CAS_CCSMU, 0x33 },/* CAS_CCSMU */
@@ -1265,7 +1265,7 @@ void dvbt_reg_initial(unsigned int bw, struct dvb_frontend *fe)
 	if (tuner_find_by_name(fe, "r842")) {
 		PR_INFO("set r842 dvbt config\n");
 		dvbt_t2_wrb(0x821, 0x70);
-		dvbt_t2_wrb(0x824, 0x40);
+		dvbt_t2_wrb(0x824, 0x5e);
 		dvbt_t2_wrb(0x825, 0x10);
 		dvbt_t2_wrb(0x827, 0x50);
 	} else {
@@ -1278,7 +1278,7 @@ void dvbt_reg_initial(unsigned int bw, struct dvb_frontend *fe)
 	dvbt_t2_wrb(0x841, 0x08);
 	dvbt_t2_wrb(0x1590, 0x80);
 	dvbt_t2_wrb(0x1593, 0x80);
-	dvbt_t2_wrb(0x1594, 0x01);
+	dvbt_t2_wrb(0x1594, 0x0);
 	//dvbt_t2_wrb(0x15b0, 0x55);
 	//dvbt_t2_wrb(0x15b1, 0x35);
 	//dvbt_t2_wrb(0x15b2, 0x30);
@@ -1404,14 +1404,14 @@ void dvbt_reg_initial(unsigned int bw, struct dvb_frontend *fe)
 	for (i = 0; i < (sizeof(reset368dvbt_val) / sizeof(struct st_chip_register_t)); i++)
 		dvbt_t2_wrb(reset368dvbt_val[i].addr, reset368dvbt_val[i].value);
 
-	dvbt_t2_wrb(0x2815, 0x03);
+//	dvbt_t2_wrb(0x2815, 0x03);
 	dvbt_t2_wrb(0x2751, 0xf0);
 	dvbt_t2_wrb(0x2752, 0x3c);
 	dvbt_t2_wrb(0x53c, 0x6f);
 	dvbt_t2_wrb(0x2906, (dvbt_t2_rdb(0x2906) & 0xfe) | (1));
 	dvbt_t2_wrb(0x28fd, 0x00);
 	dvbt_t2_wrb(0x1500, 0x00);
-	dvbt_t2_wrb(R368TER_FEPATH_CONF0, (dvbt_t2_rdb(R368TER_FEPATH_CONF0) & 0xfe) | (1));
+//	dvbt_t2_wrb(R368TER_FEPATH_CONF0, (dvbt_t2_rdb(R368TER_FEPATH_CONF0) & 0xfe) | (1));
 
 	temp_bw1 = (((1 << 11) * 100) / (914 * bandwidth));
 	temp_bw2 = 125 - (100 * bandwidth / 2);

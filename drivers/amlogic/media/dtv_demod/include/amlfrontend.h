@@ -93,6 +93,7 @@
 /*  V2.1.99  increase the speed of isdb-t re-lock */
 /*  V2.1.100 fix significant fluctuations of dvbs snr */
 /*  V2.1.101 fix the sync of shutdown and tune */
+/*  V2.1.102 improve compatibility with dvb-t signals */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -109,8 +110,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.1.101"
-#define DTVDEMOD_VER	"2023/06/19: fix the sync of shutdown and tune"
+#define AMLDTVDEMOD_VER "V2.1.102"
+#define DTVDEMOD_VER	"2023/06/20: improve compatibility with dvb-t signals"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
