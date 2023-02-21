@@ -1390,11 +1390,15 @@ static int vdin_v4l2_open(struct file *file)
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
 
-	/*devp->work_mode = VDIN_WORK_MD_V4L;*/
-	if (devp->work_mode != VDIN_WORK_MD_V4L) {
-		dprintk(0, "%s err:vdin v4l mode not enabled\n", __func__);
+	if (devp->flags & VDIN_FLAG_DEC_STARTED) {
+		dprintk(0, "%s error VDIN_FLAG_DEC_STARTED\n", __func__);
 		return -EPERM;
 	}
+	devp->work_mode = VDIN_WORK_MD_V4L;
+//	if (devp->work_mode != VDIN_WORK_MD_V4L) {
+//		dprintk(0, "%s err:vdin v4l mode not enabled\n", __func__);
+//		return -EPERM;
+//	}
 	devp->afbce_flag_backup = devp->afbce_flag;
 	devp->afbce_flag = 0;
 
@@ -1440,7 +1444,8 @@ static int vdin_v4l2_release(struct file *file)
 		memset(devp->st_vdin_set_canvas_addr, 0, sizeof(devp->st_vdin_set_canvas_addr));
 	}
 	devp->afbce_flag = devp->afbce_flag_backup;
-
+	devp->work_mode = VDIN_WORK_MD_NORMAL;
+	
 	return ret;
 }
 
