@@ -2397,12 +2397,17 @@ static ssize_t bl_status_show(struct device *dev,
 	struct bl_pwm_config_s *bl_pwm;
 	struct bl_pwm_config_s *pwm_combo0, *pwm_combo1;
 #ifdef CONFIG_AMLOGIC_BL_LDIM
-	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+	struct aml_ldim_driver_s *ldim_drv;
 #endif
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
-	struct bl_extern_driver_s *bext = bl_extern_get_driver(bdrv->index);
+	struct bl_extern_driver_s *bext;
 #endif
 	ssize_t len = 0;
+
+	if (!bdrv) {
+		BLPR("bdrv is null\n");
+		return len;
+	}
 
 	bconf = &bdrv->bconf;
 	len = sprintf(buf, "read backlight status:\n"
@@ -2438,6 +2443,7 @@ static ssize_t bl_status_show(struct device *dev,
 		      bconf->level_max, bconf->level_min,
 		      bconf->level_mid, bconf->level_mid_mapping,
 		      bl_method_type_to_str(bconf->method),
+		      (bconf->en_gpio >= BL_GPIO_NUM_MAX) ? "null" :
 		      bconf->bl_gpio[bconf->en_gpio].name,
 		      bconf->en_gpio, bconf->en_gpio_on, bconf->en_gpio_off,
 		      bconf->power_on_delay, bconf->power_off_delay);
@@ -2504,14 +2510,30 @@ static ssize_t bl_status_show(struct device *dev,
 		break;
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 	case BL_CTRL_LOCAL_DIMMING:
-		if (ldim_drv->config_print)
-			ldim_drv->config_print();
+		ldim_drv = aml_ldim_get_driver();
+		if (!ldim_drv) {
+			BLPR("[%d]: ldim is null\n", bdrv->index);
+			break;
+		}
+		if (!ldim_drv->config_print) {
+			BLPR("[%d]: ldim_drv->config_print is null\n", bdrv->index);
+			break;
+		}
+		ldim_drv->config_print();
 		break;
 #endif
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
 	case BL_CTRL_EXTERN:
-		if (bext->config_print)
-			bext->config_print(bext);
+		bext = bl_extern_get_driver(bdrv->index);
+		if (!bext) {
+			BLPR("[%d]: bext is null\n", bdrv->index);
+			break;
+		}
+		if (!bext->config_print) {
+			BLPR("[%d]: bext->config_print is null\n", bdrv->index);
+			break;
+		}
+		bext->config_print(bext);
 		break;
 #endif
 	default:
