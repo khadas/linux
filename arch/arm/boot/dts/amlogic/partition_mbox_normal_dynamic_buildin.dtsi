@@ -1,0 +1,113 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Amlogic partition set for normal
+ *
+ * Copyright (c) 2017-2017 Amlogic Ltd
+ *
+ * This file is licensed under a dual GPLv2 or BSD license.
+ *
+ */
+
+#include "firmware_avb_no_oem.dtsi"
+
+/ {
+    partitions: partitions{
+		parts = <15>;
+		part-0 = <&logo>;
+		part-1 = <&recovery>;
+		part-2 = <&tee>;
+		part-3 = <&factory>;
+		part-4 = <&misc>;
+		part-5 = <&dtbo>;
+		part-6 = <&cri_data>;
+		part-7 = <&param>;
+		part-8 = <&boot>;
+		part-9 = <&vbmeta>;
+		part-10 = <&odm_ext>;
+		part-11 = <&metadata>;
+		part-12 = <&super>;
+		part-13 = <&cache>;
+		part-14 = <&userdata>;
+
+		logo:logo{
+			pname = "logo";
+			size = <0x0 0x800000>;
+			mask = <1>;
+		};
+		recovery:recovery{
+			pname = "recovery";
+			size = <0x0 0x1800000>;
+			mask = <1>;
+		};
+		tee:tee{
+			pname = "tee";
+			size = <0x0 0x2000000>;
+			mask = <1>;
+		};
+		factory:factory{
+			pname = "factory";
+			size = <0x0 0x800000>;
+			mask = <0x11>;
+		};
+		misc:misc{
+			pname = "misc";
+			size = <0x0 0x200000>;
+			mask = <0x101>;
+		};
+		dtbo:dtbo{
+			pname = "dtbo";
+			size = <0x0 0x200000>;
+			mask = <0x101>;
+		};
+		cri_data:cri_data
+		{
+			pname = "cri_data";
+			size = <0x0 0x800000>;
+			mask = <0x102>;
+		};
+		param:param{
+			pname = "param";
+			size = <0x0 0x1000000>;
+			mask = <0x102>;
+		};
+		boot:boot
+		{
+			pname = "boot";
+			size = <0x0 0x1000000>;
+			mask = <0x101>;
+		};
+		vbmeta:vbmeta{
+			pname = "vbmeta";
+			size = <0x0 0x200000>;
+			mask = <0x101>;
+		};
+		odm_ext:odm_ext{
+			pname = "odm_ext";
+			size = <0x0 0x1000000>;
+			mask = <0x101>;
+		};
+		metadata:metadata{
+			pname = "metadata";
+			size = <0x0 0x1000000>;
+			mask = <0x101>;
+		};
+		super:super
+		{
+			pname = "super";
+			size = <0x0 0x67F00000>;
+			mask = <0x101>;
+		};
+		cache:cache
+		{
+			pname = "cache";
+			size = <0x0 0x32000000>;
+			mask = <2>;
+		};
+		userdata:userdata
+		{
+			pname = "userdata";
+			size = <0xffffffff 0xffffffff>;
+			mask = <4>;
+		};
+	};
+};/* end of / */
