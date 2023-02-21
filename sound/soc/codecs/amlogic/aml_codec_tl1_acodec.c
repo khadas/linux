@@ -69,7 +69,7 @@ struct tl1_acodec_priv {
 static const struct reg_default tl1_acodec_init_list[] = {
 	{ACODEC_0, 0x3430BFCF},
 	{ACODEC_1, 0x50503030},
-	{ACODEC_2, 0xFBFB0000},
+	{ACODEC_2, 0xFBFB7400},
 	{ACODEC_3, 0x00002222},
 	{ACODEC_4, 0x00010000},
 	{ACODEC_5, 0xFBFB0033},
@@ -80,7 +80,7 @@ static const struct reg_default tl1_acodec_init_list[] = {
 static const struct reg_default tl1_acodec_init_list_v2[] = {
 	{ACODEC_0, 0x3403BFFF},
 	{ACODEC_1, 0x50503030},
-	{ACODEC_2, 0xFBFB0000},
+	{ACODEC_2, 0xFBFB7400},
 	{ACODEC_3, 0x00002244},
 	{ACODEC_4, 0x00010000},
 	{ACODEC_5, 0xFBFB0033},
@@ -596,6 +596,10 @@ static int tl1_acodec_dai_set_bias_level
 		break;
 
 	case SND_SOC_BIAS_OFF:
+		snd_soc_component_update_bits(component, ACODEC_2, 1 << DAC_SOFT_MUTE,
+							1 << DAC_SOFT_MUTE);
+		snd_soc_component_update_bits(component, ACODEC_6, 1 << DAC2_SOFT_MUTE,
+							1 << DAC2_SOFT_MUTE);
 		snd_soc_component_write(component, ACODEC_0, 0);
 		break;
 
@@ -681,41 +685,62 @@ static int tl1_acodec_dai_mute_stream
 		(struct snd_soc_dai *dai, int mute,
 		int stream)
 {
-	struct tl1_acodec_priv *aml_acodec =
-		snd_soc_component_get_drvdata(dai->component);
-	u32 reg_val;
-	int ret;
+	struct snd_soc_component *component = dai->component;
 
 	pr_debug("%s, mute:%d\n", __func__, mute);
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		/* DAC 1 */
-		ret = regmap_read
-				(aml_acodec->regmap,
-				ACODEC_2, &reg_val);
-		if (mute)
-			reg_val |= (0x1 << DAC_SOFT_MUTE);
-		else
-			reg_val &= ~(0x1 << DAC_SOFT_MUTE);
-
-		ret = regmap_write
-				(aml_acodec->regmap,
-				ACODEC_2, reg_val);
-
-		/* DAC 2 */
-		ret = regmap_read
-				(aml_acodec->regmap,
-				ACODEC_6, &reg_val);
-		if (mute)
-			reg_val |= (0x1 << DAC2_SOFT_MUTE);
-		else
-			reg_val &= ~(0x1 << DAC2_SOFT_MUTE);
-
-		ret = regmap_write
-				(aml_acodec->regmap,
-				ACODEC_6, reg_val);
+		if (mute) {
+			/* DAC 1 */
+			snd_soc_component_update_bits(component, ACODEC_2,
+						1 << DAC_SOFT_MUTE,
+						1 << DAC_SOFT_MUTE);
+			/* DAC 2 */
+			snd_soc_component_update_bits(component, ACODEC_6,
+						1 << DAC2_SOFT_MUTE,
+						1 << DAC2_SOFT_MUTE);
+		} else {
+			snd_soc_component_update_bits(component, ACODEC_2,
+						1 << DAC_SOFT_MUTE, 0);
+			snd_soc_component_update_bits(component, ACODEC_6,
+						1 << DAC2_SOFT_MUTE, 0);
+		}
 	}
 
+	return 0;
+}
+
+static int tl1_acodec_dai_trigger(struct snd_pcm_substream *substream, int cmd,
+				   struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		switch (cmd) {
+		case SNDRV_PCM_TRIGGER_START:
+		case SNDRV_PCM_TRIGGER_RESUME:
+		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+			pr_debug("%s(), start\n", __func__);
+			snd_soc_component_update_bits(component, ACODEC_2,
+						1 << DAC_SOFT_MUTE, 0);
+			snd_soc_component_update_bits(component, ACODEC_6,
+						1 << DAC2_SOFT_MUTE, 0);
+			break;
+		case SNDRV_PCM_TRIGGER_STOP:
+		case SNDRV_PCM_TRIGGER_SUSPEND:
+		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+			pr_debug("%s(), stop\n", __func__);
+			/* DAC 1 */
+			snd_soc_component_update_bits(component, ACODEC_2,
+						1 << DAC_SOFT_MUTE,
+						1 << DAC_SOFT_MUTE);
+			/* DAC 2 */
+			snd_soc_component_update_bits(component, ACODEC_6,
+						1 << DAC2_SOFT_MUTE,
+						1 << DAC2_SOFT_MUTE);
+			break;
+		}
+	}
 	return 0;
 }
 
@@ -725,6 +750,7 @@ struct snd_soc_dai_ops tl1_acodec_dai_ops = {
 	.set_fmt = tl1_acodec_dai_set_fmt,
 	.set_sysclk = tl1_acodec_dai_set_sysclk,
 	.mute_stream = tl1_acodec_dai_mute_stream,
+	.trigger = tl1_acodec_dai_trigger,
 };
 
 static int tl1_acodec_probe(struct snd_soc_component *component)
