@@ -87,5 +87,6 @@ void hdmitx_debugfs_init(void);
 
 struct dentry *hdmitx_get_dbgfsdentry(void);
 int hdmitx_debug_reg_dump(struct hdmitx_dev *hdev, char *buf, int len);
+int hdmitx_pkt_dump(struct hdmitx_dev *hdev, char *buf, int len);
 
 #endif

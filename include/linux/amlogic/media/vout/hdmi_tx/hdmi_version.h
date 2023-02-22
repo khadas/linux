@@ -51,6 +51,7 @@
 	"V03.01.02.00.03.05.16 [20230210] [COM] not send hdmi/audio uevent under suspend\n" \
 	"V03.01.02.00.03.05.17 [20230328] [NEW] optimise color depth for hdr output\n" \
 	"V03.01.02.00.03.05.18 [20230404] [COM] Extend the check time for linux hdcp\n" \
-	"V03.01.02.00.03.05.19 [20230410] [COM] Adapt to low-resolution standard display\n"
+	"V03.01.02.00.03.05.19 [20230410] [COM] Adapt to low-resolution standard display\n" \
+	"V03.01.02.00.03.05.20 [20230412] [NEW] Add more debug info of hdmitx\n"
 
 #endif // __HDMI20_VERSION_H__
