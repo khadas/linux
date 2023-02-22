@@ -207,15 +207,15 @@ static void hdr_proc_multi_slices(struct vframe_s *vf,
 	}
 
 	if (slice_mode == VD1_1SLICE) {
-		hdr_proc(vf, VD1_HDR, hdr_process_select, vinfo, NULL, vpp_index);
+		hdr_proc(vf, VD1_HDR, hdr_process_select, vinfo, gmt_mtx, vpp_index);
 	} else if (slice_mode == VD1_2SLICE) {
-		hdr_proc(vf, VD1_HDR, hdr_process_select, vinfo, NULL, vpp_index);
-		hdr_proc(vf, S5_VD1_SLICE1, hdr_process_select, vinfo, NULL, vpp_index);
+		hdr_proc(vf, VD1_HDR, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+		hdr_proc(vf, S5_VD1_SLICE1, hdr_process_select, vinfo, gmt_mtx, vpp_index);
 	} else if (slice_mode == VD1_4SLICE) {
-		hdr_proc(vf, VD1_HDR, hdr_process_select, vinfo, NULL, vpp_index);
-		hdr_proc(vf, S5_VD1_SLICE1, hdr_process_select, vinfo, NULL, vpp_index);
-		hdr_proc(vf, S5_VD1_SLICE2, hdr_process_select, vinfo, NULL, vpp_index);
-		hdr_proc(vf, S5_VD1_SLICE3, hdr_process_select, vinfo, NULL, vpp_index);
+		hdr_proc(vf, VD1_HDR, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+		hdr_proc(vf, S5_VD1_SLICE1, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+		hdr_proc(vf, S5_VD1_SLICE2, hdr_process_select, vinfo, gmt_mtx, vpp_index);
+		hdr_proc(vf, S5_VD1_SLICE3, hdr_process_select, vinfo, gmt_mtx, vpp_index);
 	}
 }
 
