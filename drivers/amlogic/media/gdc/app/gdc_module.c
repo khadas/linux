@@ -64,7 +64,6 @@ static struct gdc_fw_func_ptr *g_fw_func_ptr;
 static int fw_size_alloc = 100 * 1024; /* 100KB */
 
 #define DEF_CLK_RATE 800000000
-#define WAIT_THRESHOLD 1000
 
 static struct gdc_device_data_s arm_gdc_clk2 = {
 	.dev_type = ARM_GDC,
@@ -2048,55 +2047,20 @@ void irq_handle_func(struct work_struct *work)
 	struct gdc_queue_item_s *current_item = irq_handle_wq->current_item;
 	u32 dev_type = current_item->cmd.dev_type;
 	u32 core_id = current_item->core_id;
-	struct gdc_context_s *current_wq = NULL;
-	u32 block_mode = 0, time_cost;
-	ktime_t diff_time = 0;
+	u32 time_cost;
 	struct meson_gdc_dev_t *gdc_dev = GDC_DEV_T(dev_type);
 	u32 trace_mode_enable = gdc_dev->trace_mode_enable;
 
 	current_item = gdc_dev->current_item[core_id];
-	current_wq = current_item->context;
-	block_mode = current_item->cmd.wait_done_flag;
 
-	diff_time = ktime_sub(ktime_get(), gdc_dev->time_stamp[core_id]);
-	time_cost = ktime_to_ms(diff_time);
-
-	if (time_cost > WAIT_THRESHOLD) {
-		if (dev_type == ARM_GDC)
-			gdc_log(LOG_ERR, "gdc timeout, status = 0x%x\n",
-				gdc_status_read());
-		else
-			gdc_log(LOG_ERR, "aml gdc timeout\n");
-
-		if (trace_mode_enable >= 2) {
-			/* dump regs */
-			dump_gdc_regs(dev_type, core_id);
-			/* dump config buffer */
-			dump_config_file(&current_item->cmd.gdc_config,
-					 dev_type);
-		}
-	} else if (trace_mode_enable == 1) {
+	time_cost = gdc_time_cost(current_item);
+	if (time_cost > GDC_WAIT_THRESHOLD)
+		gdc_timeout_dump(current_item);
+	else if (trace_mode_enable == 1)
 		gdc_log(LOG_ERR, "core%d gdc process time = %d ms\n",
 			core_id, time_cost);
-	}
 
-	recycle_resource(current_item, core_id);
-
-	/* for block mode, notify item cmd done */
-	if (block_mode) {
-		current_item->cmd.wait_done_flag = 0;
-		wake_up_interruptible(&current_wq->cmd_complete);
-	}
-
-	gdc_dev->is_idle[core_id] = 1;
-
-	/* notify thread for next process */
-	if (gdc_manager.event.cmd_in_sem.count == 0)
-		up(&gdc_manager.event.cmd_in_sem);
-
-	/* if context is tring to exit */
-	if (current_wq->gdc_request_exit)
-		complete(&gdc_manager.event.process_complete[core_id]);
+	gdc_finish_item(current_item);
 }
 
 irqreturn_t gdc_interrupt_handler(int irq, void *param)

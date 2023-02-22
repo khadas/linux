@@ -112,7 +112,7 @@ static int write_buf_to_file(char *path, char *buf, int size)
 	return w_size;
 }
 
-void dump_config_file(struct gdc_config_s *gc, u32 dev_type)
+static void dump_config_file(struct gdc_config_s *gc, u32 dev_type)
 {
 	void __iomem *config_virt_addr;
 	struct meson_gdc_dev_t *gdc_dev = GDC_DEV_T(dev_type);
@@ -177,7 +177,7 @@ static inline struct gdc_queue_item_s *find_an_item_from_pool(void)
 	if (list_empty(&gdc_manager.process_queue))
 		goto unlock;
 	list_for_each_entry(pcontext, &gdc_manager.process_queue, list) {
-		/* hold a item from work_queue */
+		/* hold an item from work_queue */
 		if (!list_empty(&pcontext->work_queue)) {
 			item = pcontext->work_queue.next;
 			break;
@@ -224,6 +224,7 @@ static inline void start_process(struct gdc_queue_item_s *pitem)
 
 	GDC_DEV_T(dev_type)->time_stamp[core_id] = ktime_get();
 
+	pitem->start_process = 1;
 	ret = gdc_run(&pitem->cmd, &pitem->dma_cfg, core_id);
 	if (ret < 0) {
 		gdc_log(LOG_ERR, "gdc process failed ret = %d\n", ret);
@@ -523,13 +524,83 @@ void *gdc_prepare_item(struct gdc_context_s *wq)
 	memcpy(&pitem->cmd, &wq->cmd, sizeof(struct gdc_cmd_s));
 	memcpy(&pitem->dma_cfg, &wq->dma_cfg, sizeof(struct gdc_dma_cfg_t));
 	pitem->context = wq;
+	pitem->start_process = 0;
 
 	return pitem;
+}
+
+void gdc_finish_item(struct gdc_queue_item_s *pitem)
+{
+	u32 dev_type = pitem->cmd.dev_type;
+	u32 core_id = pitem->core_id;
+	u32 block_mode = pitem->cmd.wait_done_flag;
+	struct meson_gdc_dev_t *gdc_dev = GDC_DEV_T(dev_type);
+	struct gdc_context_s *current_wq = pitem->context;
+
+	recycle_resource(pitem, core_id);
+
+	/* for block mode, notify item cmd done */
+	if (block_mode) {
+		pitem->cmd.wait_done_flag = 0;
+		wake_up_interruptible(&current_wq->cmd_complete);
+	}
+
+	gdc_dev->is_idle[core_id] = 1;
+
+	/* notify thread for next process */
+	if (gdc_manager.event.cmd_in_sem.count == 0)
+		up(&gdc_manager.event.cmd_in_sem);
+
+	/* if context is tring to exit */
+	if (current_wq->gdc_request_exit)
+		complete(&gdc_manager.event.process_complete[core_id]);
+}
+
+u32 gdc_time_cost(struct gdc_queue_item_s *pitem)
+{
+	u32 time_cost, core_id;
+	ktime_t start_time = 0, diff_time = 0;
+	u32 dev_type = pitem->cmd.dev_type;
+	struct meson_gdc_dev_t *gdc_dev = GDC_DEV_T(dev_type);
+
+	core_id = pitem->core_id;
+	start_time = gdc_dev->time_stamp[core_id];
+	diff_time = ktime_sub(ktime_get(), start_time);
+	time_cost = ktime_to_ms(diff_time);
+
+	return time_cost;
+}
+
+void gdc_timeout_dump(struct gdc_queue_item_s *pitem)
+{
+	u32 dev_type = pitem->cmd.dev_type;
+	u32 core_id = pitem->core_id;
+	struct meson_gdc_dev_t *gdc_dev = GDC_DEV_T(dev_type);
+	u32 trace_mode_enable = gdc_dev->trace_mode_enable;
+
+	dump_stack();
+	if (dev_type == ARM_GDC)
+		gdc_log(LOG_ERR, "gdc timeout, status = 0x%x\n",
+			gdc_status_read());
+	else
+		gdc_log(LOG_ERR, "aml gdc timeout, core%d\n", core_id);
+
+	if (trace_mode_enable >= 2) {
+		/* dump regs */
+		dump_gdc_regs(dev_type, core_id);
+		/* dump config buffer */
+		dump_config_file(&pitem->cmd.gdc_config,
+				 dev_type);
+	}
 }
 
 int gdc_wq_add_work(struct gdc_context_s *wq,
 		    struct gdc_queue_item_s *pitem)
 {
+	int polling_ms = 100;
+	int ret = -1;
+	u32 time_cost;
+
 	gdc_log(LOG_DEBUG, "gdc add work\n");
 	spin_lock(&wq->lock);
 	list_move_tail(&pitem->list, &wq->work_queue);
@@ -538,12 +609,29 @@ int gdc_wq_add_work(struct gdc_context_s *wq,
 	/* only read not need lock */
 	if (gdc_manager.event.cmd_in_sem.count == 0)
 		up(&gdc_manager.event.cmd_in_sem);/* new cmd come in */
-	/* add block mode   if() */
+
 	if (pitem->cmd.wait_done_flag) {
-		wait_event_interruptible(wq->cmd_complete,
-					 pitem->cmd.wait_done_flag == 0);
-		/* interruptible_sleep_on(&wq->cmd_complete); */
+		while (1) {
+			ret = wait_event_interruptible_timeout
+					(wq->cmd_complete,
+					 pitem->cmd.wait_done_flag == 0,
+					 msecs_to_jiffies(polling_ms));
+			/* condition is false, check processing time */
+			if (!ret) {
+				if (pitem->start_process) {
+					time_cost = gdc_time_cost(pitem);
+					if (time_cost > GDC_WAIT_THRESHOLD) {
+						gdc_timeout_dump(pitem);
+						gdc_finish_item(pitem);
+						break;
+					}
+				}
+				continue;
+			}
+			break;
+		}
 	}
+
 	return 0;
 }
 
