@@ -456,6 +456,7 @@ int demod_attach_register_cb(const enum dtv_demod_type type, dm_attach_cb funcb)
 	enum dtv_demod_type demod_id[AM_DTV_DEMOD_MAX] = {0};
 	int mod_num = 0;
 	bool found = false;
+	bool ext_demod_only = true;
 
 	if (type > AM_DTV_DEMOD_NONE && type < AM_DTV_DEMOD_MAX)
 		aml_set_demod_attach_cb(type, funcb);
@@ -475,6 +476,9 @@ int demod_attach_register_cb(const enum dtv_demod_type type, dm_attach_cb funcb)
 
 		if (ops->cfg.id == type)
 			found = true;
+
+		if (!ops->external)
+			ext_demod_only = false;
 	}
 
 	if (found)
@@ -483,7 +487,7 @@ int demod_attach_register_cb(const enum dtv_demod_type type, dm_attach_cb funcb)
 	pr_err("[%s]:register type %d, mod_num %d, cb_num %d\n",
 		__func__, type, mod_num, demod->cb_num);
 
-	if (demod->cb_num == mod_num && type != AM_DTV_DEMOD_AMLDTV) {
+	if (demod->cb_num == mod_num && ext_demod_only) {
 		mutex_unlock(&dvb_demods_mutex);
 		aml_dvb_extern_attach();
 	} else {
