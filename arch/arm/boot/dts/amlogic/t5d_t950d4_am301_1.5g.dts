@@ -113,7 +113,7 @@
 		ion_secure_reserved:linux,ion-secure {
 			compatible = "amlogic, ion-secure-mem";
 			no-map;
-			size = <0x0 0x5000000>;
+			size = <0x0 0x0000000>;
 			alignment = <0x0 0x400000>;
 		};
 
