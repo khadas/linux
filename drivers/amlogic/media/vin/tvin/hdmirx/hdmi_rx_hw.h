@@ -3094,6 +3094,7 @@ extern int phy_term_lel;
 extern bool phy_tdr_en;
 extern int hdcp_tee_path;
 extern char emp_buf[1024];
+extern char pre_emp_buf[1024];
 extern int hdcp22_on;
 extern int hdcp14_on;
 extern int hdcp22_kill_esm;

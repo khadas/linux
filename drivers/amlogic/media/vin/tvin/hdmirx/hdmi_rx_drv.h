@@ -635,6 +635,7 @@ struct emp_buff {
 	void __iomem *ready;
 	unsigned long irqcnt;
 	unsigned int emppktcnt;
+	unsigned int pre_emp_pkt_cnt;
 	unsigned int tmdspktcnt;
 	bool end;
 	u8 ogi_id;
@@ -723,6 +724,7 @@ struct rx_s {
 	struct dv_info_s emp_dv_info;
 	u8 emp_dsf_cnt;
 	bool emp_pkt_rev;
+	bool new_emp_pkt;
 	struct emp_dsf_st emp_dsf_info[EMP_DSF_CNT_MAX];
 	unsigned char edid_mix_buf[EDID_MIX_MAX_SIZE];
 	unsigned int pwr_sts;

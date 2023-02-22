@@ -128,6 +128,7 @@ int kill_esm_fail;
 
 /* emp buffer */
 char emp_buf[1024];
+char pre_emp_buf[1024];
 int i2c_err_cnt;
 u32 ddc_dbg_en;
 /*------------------------variable define end------------------------------*/

@@ -1041,7 +1041,7 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 	if (rx.pre.colorspace != E_COLOR_YUV420)
 		prop->dolby_vision = rx.vs_info_details.dolby_vision_flag;
 #ifdef MULTI_VSIF_EXPORT_TO_EMP
-	if (log_level & PACKET_LOG)
+	if (log_level & PACKET_LOG && rx.new_emp_pkt)
 		rx_pr("vsi_state:0x%x\n", rx.vs_info_details.vsi_state);
 
 	if (rx.vs_info_details.vsi_state & E_VSI_DV10 || rx.vs_info_details.vsi_state & E_VSI_DV15)
@@ -1344,8 +1344,6 @@ void hdmirx_get_hdr_info(struct tvin_sig_property_s *prop)
 void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 			     struct tvin_sig_property_s *prop)
 {
-	int i;
-
 	hdmirx_get_dvi_info(prop);
 	hdmirx_get_colordepth(prop);
 	hdmirx_get_fps_info(prop);
@@ -1364,9 +1362,6 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	hdmirx_get_hdcp_sts(prop);
 	hdmirx_get_hw_vic(prop);
 	prop->skip_vf_num = vdin_drop_frame_cnt;
-	rx.emp_dsf_cnt = 0;
-	for (i = 0; i < EMP_DSF_CNT_MAX; i++)
-		memset(&rx.emp_dsf_info[i], 0, sizeof(struct pd_infoframe_s));
 }
 
 /*

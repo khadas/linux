@@ -574,8 +574,7 @@ struct emp_pkt_st {
 		u8 data_set_tag_lo;
 		u8 data_set_length_hi;
 		u8 data_set_length_lo;
-		u32 ieee:24;
-		u8 md[18];
+		u8 md[21];
 	} __packed cnt;
 } __packed;
 
