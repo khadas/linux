@@ -273,6 +273,15 @@ struct rockchip_logo {
 	int count;
 };
 
+struct rockchip_mcu_timing {
+	int mcu_pix_total;
+	int mcu_cs_pst;
+	int mcu_cs_pend;
+	int mcu_rw_pst;
+	int mcu_rw_pend;
+	int mcu_hold_mode;
+};
+
 struct loader_cubic_lut {
 	bool enable;
 	u32 offset;
@@ -489,6 +498,7 @@ int rockchip_drm_add_modes_noedid(struct drm_connector *connector);
 void rockchip_drm_te_handle(struct drm_crtc *crtc);
 void drm_mode_convert_to_split_mode(struct drm_display_mode *mode);
 void drm_mode_convert_to_origin_mode(struct drm_display_mode *mode);
+u32 rockchip_drm_get_dclk_by_width(int width);
 #if IS_REACHABLE(CONFIG_DRM_ROCKCHIP)
 int rockchip_drm_get_sub_dev_type(void);
 u32 rockchip_drm_get_scan_line_time_ns(void);
@@ -515,6 +525,8 @@ int rockchip_drm_parse_cea_ext(struct rockchip_drm_dsc_cap *dsc_cap,
 			       const struct edid *edid);
 int rockchip_drm_parse_next_hdr(struct next_hdr_sink_data *sink_data,
 				const struct edid *edid);
+int rockchip_drm_parse_colorimetry_data_block(u8 *colorimetry, const struct edid *edid);
+
 __printf(3, 4)
 void rockchip_drm_dbg(const struct device *dev, enum rockchip_drm_debug_category category,
 		      const char *format, ...);

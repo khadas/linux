@@ -6137,9 +6137,7 @@ static int ov50c40_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov50c40 *ov50c40 = to_ov50c40(sd);
 	const struct ov50c40_mode *mode = ov50c40->cur_mode;
 
-	mutex_lock(&ov50c40->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&ov50c40->mutex);
 
 	return 0;
 }
@@ -6671,7 +6669,7 @@ static void __ov50c40_power_off(struct ov50c40 *ov50c40)
 	regulator_bulk_disable(OV50C40_NUM_SUPPLIES, ov50c40->supplies);
 }
 
-static int ov50c40_runtime_resume(struct device *dev)
+static int __maybe_unused ov50c40_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -6680,7 +6678,7 @@ static int ov50c40_runtime_resume(struct device *dev)
 	return __ov50c40_power_on(ov50c40);
 }
 
-static int ov50c40_runtime_suspend(struct device *dev)
+static int __maybe_unused ov50c40_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);

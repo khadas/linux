@@ -226,6 +226,10 @@ struct rkvenc_task {
 	u32 slice_wr_cnt;
 	u32 slice_rd_cnt;
 	DECLARE_KFIFO(slice_info, union rkvenc2_slice_len_info, RKVENC_MAX_SLICE_FIFO_LEN);
+
+	/* jpege bitstream */
+	struct mpp_dma_buffer *bs_buf;
+	u32 offset_bs;
 };
 
 #define RKVENC_MAX_RCB_NUM		(4)
@@ -911,6 +915,7 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 		u32 off;
 		const u16 *tbl;
 		struct rkvenc_hw_info *hw = task->hw_info;
+		int fd_bs = -1;
 
 		for (i = 0; i < hw->fd_class; i++) {
 			u32 class = hw->fd_reg[i].class;
@@ -920,6 +925,15 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 
 			if (!reg)
 				continue;
+
+			if (fmt == RKVENC_FMT_JPEGE && class == RKVENC_CLASS_PIC && fd_bs == -1) {
+				int bs_index;
+
+				bs_index = mpp->var->trans_info[fmt].table[2];
+				fd_bs = reg[bs_index];
+				task->offset_bs = mpp_query_reg_offset_info(&task->off_inf,
+									    bs_index + ss);
+			}
 
 			ret = mpp_translate_reg_address(session, mpp_task, fmt, reg, NULL);
 			if (ret)
@@ -931,6 +945,17 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 				off = mpp_query_reg_offset_info(&task->off_inf, tbl[j] + ss);
 				mpp_debug(DEBUG_IOMMU, "reg[%d] + offset %d\n", tbl[j] + ss, off);
 				reg[tbl[j]] += off;
+			}
+		}
+
+		if (fd_bs >= 0) {
+			struct mpp_dma_buffer *bs_buf =
+					mpp_dma_find_buffer_fd(session->dma, fd_bs);
+
+			if (bs_buf && task->offset_bs > 0) {
+				mpp_dma_buf_sync(bs_buf, 0, task->offset_bs,
+						 DMA_TO_DEVICE, false);
+				task->bs_buf = bs_buf;
 			}
 		}
 	}
@@ -1379,6 +1404,13 @@ static int rkvenc_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 		for (j = s; j < e; j++)
 			reg[j] = mpp_read_relaxed(mpp, msg.offset + j * sizeof(u32));
 
+	}
+
+	if (task->bs_buf) {
+		u32 bs_size = mpp_read(mpp, 0x4064);
+
+		mpp_dma_buf_sync(task->bs_buf, 0, bs_size / 8 + task->offset_bs,
+				 DMA_FROM_DEVICE, true);
 	}
 
 	/* revert hack for irq status */
@@ -1998,6 +2030,12 @@ static const struct of_device_id mpp_rkvenc_dt_match[] = {
 #ifdef CONFIG_CPU_RK3528
 	{
 		.compatible = "rockchip,rkv-encoder-rk3528",
+		.data = &rkvenc_540c_data,
+	},
+#endif
+#ifdef CONFIG_CPU_RK3562
+	{
+		.compatible = "rockchip,rkv-encoder-rk3562",
 		.data = &rkvenc_540c_data,
 	},
 #endif

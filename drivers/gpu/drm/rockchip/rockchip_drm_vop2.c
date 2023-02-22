@@ -562,6 +562,7 @@ struct vop2_wb_connector_state {
 
 struct vop2_video_port {
 	struct rockchip_crtc rockchip_crtc;
+	struct rockchip_mcu_timing mcu_timing;
 	struct vop2 *vop2;
 	struct reset_control *dclk_rst;
 	struct clk *dclk;
@@ -754,6 +755,14 @@ struct vop2_video_port {
 	 * @post_csc_data_prop: post csc data interaction with userspace
 	 */
 	struct drm_property *post_csc_data_prop;
+	/**
+	 * @output_width_prop: vp max output width prop
+	 */
+	struct drm_property *output_width_prop;
+	/**
+	 * @output_dclk_prop: vp max output dclk prop
+	 */
+	struct drm_property *output_dclk_prop;
 
 	/**
 	 * @primary_plane_phy_id: vp primary plane phy id, the primary plane
@@ -1277,8 +1286,23 @@ static bool vop2_fs_irq_is_pending(struct vop2_video_port *vp)
 static uint32_t vop2_read_vcnt(struct vop2_video_port *vp)
 {
 	uint32_t offset =  RK3568_SYS_STATUS0 + (vp->id << 2);
+	uint32_t vcnt0, vcnt1;
+	int i = 0;
 
-	return vop2_readl(vp->vop2, offset) >> 16;
+	for (i = 0; i < 10; i++) {
+		vcnt0 = vop2_readl(vp->vop2, offset) >> 16;
+		vcnt1 = vop2_readl(vp->vop2, offset) >> 16;
+
+		if ((vcnt1 - vcnt0) <= 1)
+			break;
+	}
+
+	if (i == 10) {
+		DRM_DEV_ERROR(vp->vop2->dev, "read VP%d vcnt error: %d %d\n", vp->id, vcnt0, vcnt1);
+		vcnt1 = vop2_readl(vp->vop2, offset) >> 16;
+	}
+
+	return vcnt1;
 }
 
 static void vop2_wait_for_irq_handler(struct drm_crtc *crtc)
@@ -2549,12 +2573,30 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 		}
 	}
 
-	if (src_h >= (4 * dst_h)) {
-		ygt4 = 1;
-		src_h >>= 2;
-	} else if (src_h >= (2 * dst_h)) {
-		ygt2 = 1;
-		src_h >>= 1;
+	/**
+	 * The rk3528 is processed as 2 pixel/cycle,
+	 * so ygt2/ygt4 needs to be triggered in advance to improve performance
+	 * when src_w is bigger than 1920.
+	 * dst_h / src_h is at [1, 0.65)     ygt2=0; ygt4=0;
+	 * dst_h / src_h is at [0.65, 0.35)  ygt2=1; ygt4=0;
+	 * dst_h / src_h is at [0.35, 0)     ygt2=0; ygt4=1;
+	 */
+	if (vop2->version == VOP_VERSION_RK3528 && src_w > 1920) {
+		if (src_h >= (100 * dst_h / 35)) {
+			ygt4 = 1;
+			src_h >>= 2;
+		} else if ((src_h >= 100 * dst_h / 65) && (src_h < 100 * dst_h / 35)) {
+			ygt2 = 1;
+			src_h >>= 1;
+		}
+	} else {
+		if (src_h >= (4 * dst_h)) {
+			ygt4 = 1;
+			src_h >>= 2;
+		} else if (src_h >= (2 * dst_h)) {
+			ygt2 = 1;
+			src_h >>= 1;
+		}
 	}
 
 	yrgb_hor_scl_mode = scl_get_scl_mode(src_w, dst_w);
@@ -2631,10 +2673,17 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 		if (!is_vop3(vop2) ||
 		    (!vpstate->afbc_en && !vpstate->tiled_en) ||
 		    win_data->vsd_pre_filter_mode == VOP3_PRE_SCALE_DOWN_GT) {
-			if (cbcr_src_h >= (4 * dst_h))
-				ygt4 = 1;
-			else if (cbcr_src_h >= (2 * dst_h))
-				ygt2 = 1;
+			if (vop2->version == VOP_VERSION_RK3528 && src_w > 1920) {
+				if (cbcr_src_h >= (100 * dst_h / 35))
+					ygt4 = 1;
+				else if ((cbcr_src_h >= 100 * dst_h / 65) && (cbcr_src_h < 100 * dst_h / 35))
+					ygt2 = 1;
+			} else {
+				if (cbcr_src_h >= (4 * dst_h))
+					ygt4 = 1;
+				else if (cbcr_src_h >= (2 * dst_h))
+					ygt2 = 1;
+			}
 
 			if (ygt4)
 				cbcr_src_h >>= 2;
@@ -3761,10 +3810,10 @@ static void vop2_initial(struct drm_crtc *crtc)
 		}
 
 		/*
-		 * This is unused and error init value for rk3528 vp1, if less of this config,
+		 * This is unused and error init value for rk3528/rk3562 vp1, if less of this config,
 		 * vp1 can't display normally.
 		 */
-		if (vop2->version == VOP_VERSION_RK3528)
+		if (vop2->version == VOP_VERSION_RK3528 || vop2->version == VOP_VERSION_RK3562)
 			vop2_mask_write(vop2, 0x700, 0x3, 4, 0, 0, true);
 
 		VOP_CTRL_SET(vop2, cfg_done_en, 1);
@@ -3965,16 +4014,19 @@ static int vop2_extend_clk_init(struct vop2 *vop2)
 
 	INIT_LIST_HEAD(&vop2->extend_clk_list_head);
 
-	if (vop2->version < VOP_VERSION_RK3588)
+	if (vop2->version != VOP_VERSION_RK3588)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(extend_clk_name); i++) {
-		clk = devm_clk_get(drm_dev->dev, extend_clk_name[i]);
+		clk = devm_clk_get_optional(drm_dev->dev, extend_clk_name[i]);
 		if (IS_ERR(clk)) {
 			dev_warn(drm_dev->dev, "failed to get %s: %ld\n",
 				 extend_clk_name[i], PTR_ERR(clk));
 			continue;
 		}
+
+		if (!clk)
+			continue;
 
 		extend_pll = devm_kzalloc(drm_dev->dev, sizeof(*extend_pll), GFP_KERNEL);
 		if (!extend_pll)
@@ -5126,6 +5178,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		VOP_CLUSTER_SET(vop2, win, lb_mode, lb_mode);
 		VOP_CLUSTER_SET(vop2, win, scl_lb_mode, lb_mode == 1 ? 3 : 0);
 		VOP_CLUSTER_SET(vop2, win, enable, 1);
+		VOP_CLUSTER_SET(vop2, win, frm_reset_en, 1);
 	}
 	spin_unlock(&vop2->reg_lock);
 }
@@ -5627,16 +5680,97 @@ static void vop2_crtc_line_flag_irq_disable(struct vop2_video_port *vp)
 	spin_unlock_irqrestore(&vop2->irq_lock, flags);
 }
 
-static void vop3_crtc_send_mcu_cmd(struct drm_crtc *crtc,  u32 type, u32 value)
+static void vop3_mcu_mode_setup(struct drm_crtc *crtc)
 {
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+
+	VOP_MODULE_SET(vop2, vp, mcu_type, 1);
+	VOP_MODULE_SET(vop2, vp, mcu_hold_mode, 1);
+	VOP_MODULE_SET(vop2, vp, mcu_pix_total, vp->mcu_timing.mcu_pix_total);
+	VOP_MODULE_SET(vop2, vp, mcu_cs_pst, vp->mcu_timing.mcu_cs_pst);
+	VOP_MODULE_SET(vop2, vp, mcu_cs_pend, vp->mcu_timing.mcu_cs_pend);
+	VOP_MODULE_SET(vop2, vp, mcu_rw_pst, vp->mcu_timing.mcu_rw_pst);
+	VOP_MODULE_SET(vop2, vp, mcu_rw_pend, vp->mcu_timing.mcu_rw_pend);
+}
+
+static void vop3_mcu_bypass_mode_setup(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+
+	VOP_MODULE_SET(vop2, vp, mcu_type, 1);
+	VOP_MODULE_SET(vop2, vp, mcu_hold_mode, 1);
+	VOP_MODULE_SET(vop2, vp, mcu_pix_total, 53);
+	VOP_MODULE_SET(vop2, vp, mcu_cs_pst, 6);
+	VOP_MODULE_SET(vop2, vp, mcu_cs_pend, 48);
+	VOP_MODULE_SET(vop2, vp, mcu_rw_pst, 12);
+	VOP_MODULE_SET(vop2, vp, mcu_rw_pend, 30);
+}
+
+static u32 vop3_mode_done(struct vop2_video_port *vp)
+{
+	return VOP_MODULE_GET(vp->vop2, vp, out_mode);
+}
+
+static void vop3_set_out_mode(struct drm_crtc *crtc, u32 out_mode)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	int ret;
+	u32 val;
+
+	VOP_MODULE_SET(vop2, vp, out_mode, out_mode);
+	vop2_cfg_done(crtc);
+	ret = readx_poll_timeout(vop3_mode_done, vp, val, val == out_mode,
+				 1000, 500 * 1000);
+	if (ret)
+		dev_err(vop2->dev, "wait mode 0x%x timeout\n", out_mode);
+}
+
+static void vop3_crtc_send_mcu_cmd(struct drm_crtc *crtc, u32 type, u32 value)
+{
+	struct drm_crtc_state *crtc_state;
+	struct drm_display_mode *adjusted_mode;
+	struct rockchip_crtc_state *vcstate;
 	struct vop2_video_port *vp;
 	struct vop2 *vop2;
 
 	if (!crtc)
 		return;
 
+	crtc_state = crtc->state;
+	adjusted_mode = &crtc_state->adjusted_mode;
+	vcstate = to_rockchip_crtc_state(crtc->state);
 	vp = to_vop2_video_port(crtc);
 	vop2 = vp->vop2;
+
+	switch (vcstate->output_mode) {
+	case ROCKCHIP_OUT_MODE_P565:
+	case ROCKCHIP_OUT_MODE_S888:
+		/*
+		 * Send cmds for both rgb3x8_m0 and rgb3x8_m1.
+		 */
+		value = (((value & 0x1f) << 3) | ((value & 0xe0) << 5)) |
+			(((value & 0x7) << 13) | ((value & 0xf8) << 16));
+		break;
+	case ROCKCHIP_OUT_MODE_P666:
+		value = ((value & 0x3f) << 2) | ((value & 0xc0) << 4);
+		break;
+	default:
+		break;
+	}
+
+	/*
+	 * 1.set output mode to AAAA when start sending cmds.
+	 * 2.set mcu bypass mode timing.
+	 * 3.set dclk rate to 150M.
+	 */
+	if ((type == MCU_SETBYPASS) && value) {
+		vop3_set_out_mode(crtc, ROCKCHIP_OUT_MODE_AAAA);
+		vop3_mcu_bypass_mode_setup(crtc);
+		clk_set_rate(vp->dclk, 150000000);
+	}
 
 	mutex_lock(&vop2->vop2_lock);
 	if (vop2 && vop2->is_enabled) {
@@ -5658,6 +5792,17 @@ static void vop3_crtc_send_mcu_cmd(struct drm_crtc *crtc,  u32 type, u32 value)
 		}
 	}
 	mutex_unlock(&vop2->vop2_lock);
+
+	/*
+	 * 1.restore output mode at the end.
+	 * 2.restore mcu data mode timing.
+	 * 3.restore dclk rate to crtc_clock.
+	 */
+	if ((type == MCU_SETBYPASS) && !value) {
+		vop3_set_out_mode(crtc, vcstate->output_mode);
+		vop3_mcu_mode_setup(crtc);
+		clk_set_rate(vp->dclk, adjusted_mode->crtc_clock * 1000);
+	}
 }
 
 static int vop2_crtc_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout)
@@ -6145,7 +6290,7 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 	if (mode->hdisplay > vp_data->max_output.width)
 		return MODE_BAD_HVALUE;
 
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK || vcstate->output_if & VOP_OUTPUT_IF_BT656)
 		request_clock *= 2;
 
 	aclk_rate = clk_get_rate(vop2->aclk) / 1000;
@@ -6379,11 +6524,19 @@ static bool vop2_crtc_mode_fixup(struct drm_crtc *crtc,
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct drm_crtc_state *new_crtc_state = container_of(mode, struct drm_crtc_state, mode);
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(new_crtc_state);
 
 	drm_mode_set_crtcinfo(adj_mode, CRTC_INTERLACE_HALVE_V | CRTC_STEREO_DOUBLE);
 
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK || vcstate->output_if & VOP_OUTPUT_IF_BT656)
 		adj_mode->crtc_clock *= 2;
+
+	if (vp->mcu_timing.mcu_pix_total) {
+		if (vcstate->output_mode == ROCKCHIP_OUT_MODE_S888)
+			adj_mode->crtc_clock *= 3;
+		else if (vcstate->output_mode == ROCKCHIP_OUT_MODE_S888_DUMMY)
+			adj_mode->crtc_clock *= 4;
+	}
 
 	drm_connector_list_iter_begin(crtc->dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
@@ -7234,6 +7387,14 @@ static void vop3_setup_pipe_dly(struct vop2_video_port *vp, const struct vop2_zp
 	}
 }
 
+static int vop2_get_vrefresh(struct vop2_video_port *vp, const struct drm_display_mode *mode)
+{
+	if (vp->mcu_timing.mcu_pix_total)
+		return drm_mode_vrefresh(mode) / vp->mcu_timing.mcu_pix_total;
+	else
+		return drm_mode_vrefresh(mode);
+}
+
 static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state *old_state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -7281,8 +7442,8 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 
 	vop2_lock(vop2);
 	DRM_DEV_INFO(vop2->dev, "Update mode to %dx%d%s%d, type: %d(if:%x) for vp%d dclk: %d\n",
-		     hdisplay, vdisplay, interlaced ? "i" : "p",
-		     drm_mode_vrefresh(adjusted_mode), vcstate->output_type, vcstate->output_if,
+		     hdisplay, adjusted_mode->vdisplay, interlaced ? "i" : "p",
+		     vop2_get_vrefresh(vp, adjusted_mode), vcstate->output_type, vcstate->output_if,
 		     vp->id, adjusted_mode->crtc_clock * 1000);
 
 	if (adjusted_mode->hdisplay > VOP2_MAX_VP_OUTPUT_WIDTH) {
@@ -7315,6 +7476,9 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	vcstate->mode_update = vop2_crtc_mode_update(crtc);
 	if (vcstate->mode_update)
 		vop2_disable_all_planes_for_crtc(crtc);
+
+	if (vp->mcu_timing.mcu_pix_total)
+		vop3_mcu_mode_setup(crtc);
 
 	dclk_inv = (vcstate->bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE) ? 1 : 0;
 	val = (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ? 0 : BIT(HSYNC_POSITIVE);
@@ -7355,7 +7519,12 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		if (ret < 0)
 			goto out;
 
-		VOP_CTRL_SET(vop2, bt656_en, 1);
+		if (vop2->version == VOP_VERSION_RK3588) {
+			VOP_CTRL_SET(vop2, bt656_en, 1);
+		} else {
+			VOP_CTRL_SET(vop2, rgb_en, 1);
+			VOP_CTRL_SET(vop2, bt656_en, 1);
+		}
 		VOP_CTRL_SET(vop2, rgb_mux, vp_data->id);
 		VOP_GRF_SET(vop2, sys_grf, grf_bt656_clk_inv, !dclk_inv);
 		VOP_CTRL_SET(vop2, bt656_dclk_pol, !dclk_inv);
@@ -7576,7 +7745,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	if (vcstate->max_refresh_rate && vcstate->min_refresh_rate)
 		VOP_MODULE_SET(vop2, vp, sw_dsp_vtotal_imd, 1);
 
-	if (vop2->version == VOP_VERSION_RK3568) {
+	if (vop2->version == VOP_VERSION_RK3568 || vop2->version == VOP_VERSION_RK3562) {
 		if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK ||
 		    vcstate->output_if & VOP_OUTPUT_IF_BT656)
 			VOP_MODULE_SET(vop2, vp, core_dclk_div, 1);
@@ -7768,6 +7937,7 @@ static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id)
 	int phys_id;
 	struct hdrvivid_regs *hdrvivid_data;
 	struct hdr_extend *hdr_data;
+	struct rockchip_gem_object *lut_gem_obj;
 	bool have_sdr_layer = false;
 	uint32_t hdr_mode;
 	int i;
@@ -7881,6 +8051,16 @@ static void vop3_setup_hdrvivid(struct vop2_video_port *vp, uint8_t win_phys_id)
 	vop2_writel(vop2, RK3528_HDR_CSC_COE11_12, hdrvivid_data->hdr_csc_coe11_12);
 	vop2_writel(vop2, RK3528_HDR_CSC_COE20_21, hdrvivid_data->hdr_csc_coe20_21);
 	vop2_writel(vop2, RK3528_HDR_CSC_COE22, hdrvivid_data->hdr_csc_coe22);
+
+	if (!vp->hdr_lut_gem_obj) {
+		lut_gem_obj = rockchip_gem_create_object(vop2->drm_dev,
+			RK_HDRVIVID_TONE_SCA_AXI_TAB_LENGTH * 4, true, 0);
+		if (IS_ERR(lut_gem_obj)) {
+			DRM_ERROR("create hdr lut obj failed\n");
+			return;
+		}
+		vp->hdr_lut_gem_obj = lut_gem_obj;
+	}
 
 	tone_lut_kvaddr = (u32 *)vp->hdr_lut_gem_obj->kvaddr;
 	tone_lut_mst = vp->hdr_lut_gem_obj->dma_addr;
@@ -9402,6 +9582,72 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 	spin_unlock(&vop2->reg_lock);
 }
 
+static void vop2_sleep_scan_line_time(struct vop2_video_port *vp, int scan_line)
+{
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_display_mode *mode = &vp->rockchip_crtc.crtc.state->adjusted_mode;
+
+	if (scan_line <= 0)
+		return;
+
+	if (IS_ENABLED(CONFIG_HIGH_RES_TIMERS) &&
+	    (!IS_ENABLED(CONFIG_NO_GKI) || (hrtimer_resolution != LOW_RES_NSEC))) {
+		u16 htotal = VOP_MODULE_GET(vop2, vp, htotal_pw) >> 16;
+		u32 linedur_ns = div_u64((u64) htotal * 1000000, mode->crtc_clock);
+		u64 sleep_time = linedur_ns * scan_line;
+
+		sleep_time = div_u64((sleep_time + 1000), 1000);
+		if (sleep_time > 200)
+			usleep_range(sleep_time, sleep_time);
+	}
+}
+
+/*
+ * return scan timing from FS to the assigned wait line
+ */
+static void vop2_wait_for_scan_timing_max_to_assigned_line(struct vop2_video_port *vp,
+							   u32 current_line,
+							   u32 wait_line)
+
+{
+	struct vop2 *vop2 = vp->vop2;
+	u32 vcnt;
+	int ret;
+	u16 vtotal = VOP_MODULE_GET(vop2, vp, dsp_vtotal);
+	int delta_line = vtotal - current_line;
+
+	vop2_sleep_scan_line_time(vp, delta_line);
+	if (vop2_read_vcnt(vp) < wait_line)
+		return;
+
+	ret = readx_poll_timeout_atomic(vop2_read_vcnt, vp, vcnt, vcnt < wait_line, 0, 50 * 1000);
+	if (ret)
+		DRM_DEV_ERROR(vop2->dev, "wait scan timing from FS to the assigned wait line: %d, vcnt:%d, ret:%d\n",
+			      wait_line, vcnt, ret);
+}
+
+/*
+ * return scan timing from the assigned wait line
+ */
+static void vop2_wait_for_scan_timing_from_the_assigned_line(struct vop2_video_port *vp,
+							     u32 current_line,
+							     u32 wait_line)
+{
+	struct vop2 *vop2 = vp->vop2;
+	u32 vcnt;
+	int ret;
+	int delta_line = wait_line - current_line;
+
+	vop2_sleep_scan_line_time(vp, delta_line);
+	if (vop2_read_vcnt(vp) > wait_line)
+		return;
+
+	ret = readx_poll_timeout_atomic(vop2_read_vcnt, vp, vcnt, vcnt > wait_line, 0, 50 * 1000);
+	if (ret)
+		DRM_DEV_ERROR(vop2->dev, "wait scan timing from the assigned wait line: %d, vcnt:%d, ret:%d\n",
+			      wait_line, vcnt, ret);
+}
+
 static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state *old_cstate)
 {
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
@@ -9412,6 +9658,21 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state 
 	struct drm_plane *plane;
 	unsigned long flags;
 	int i, ret;
+	struct vop2_wb *wb = &vop2->wb;
+	struct drm_writeback_connector *wb_conn = &wb->conn;
+	struct drm_connector_state *conn_state = wb_conn->base.state;
+
+	if (conn_state && conn_state->writeback_job && conn_state->writeback_job->fb) {
+		u16 vtotal = VOP_MODULE_GET(vop2, vp, dsp_vtotal);
+		u32 current_line = vop2_read_vcnt(vp);
+
+		if (current_line > vtotal * 7 >> 3)
+			vop2_wait_for_scan_timing_max_to_assigned_line(vp, current_line, vtotal * 7 >> 3);
+
+		current_line = vop2_read_vcnt(vp);
+		if (current_line < vtotal >> 3)
+			vop2_wait_for_scan_timing_from_the_assigned_line(vp, current_line, vtotal >> 3);
+	}
 
 	vop2_cfg_update(crtc, old_cstate);
 
@@ -9456,6 +9717,9 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_crtc_state 
 	spin_lock_irqsave(&vop2->irq_lock, flags);
 	vop2_wb_commit(crtc);
 	vop2_cfg_done(crtc);
+
+	if (vp->mcu_timing.mcu_pix_total)
+		VOP_MODULE_SET(vop2, vp, mcu_hold_mode, 0);
 
 	spin_unlock_irqrestore(&vop2->irq_lock, flags);
 
@@ -9685,14 +9949,20 @@ static int vop2_crtc_atomic_get_property(struct drm_crtc *crtc,
 		return 0;
 	}
 
-	if (property == vp->hdr_ext_data_prop)
+	if (property == vp->hdr_ext_data_prop) {
+		*val = vcstate->hdr_ext_data ? vcstate->hdr_ext_data->base.id : 0;
 		return 0;
+	}
 
-	if (property == vp->acm_lut_data_prop)
+	if (property == vp->acm_lut_data_prop) {
+		*val = vcstate->acm_lut_data ? vcstate->acm_lut_data->base.id : 0;
 		return 0;
+	}
 
-	if (property == vp->post_csc_data_prop)
+	if (property == vp->post_csc_data_prop) {
+		*val = vcstate->post_csc_data ? vcstate->post_csc_data->base.id : 0;
 		return 0;
+	}
 
 	DRM_ERROR("failed to get vop2 crtc property: %s\n", property->name);
 
@@ -10459,6 +10729,24 @@ static int vop2_crtc_create_feature_property(struct vop2 *vop2, struct drm_crtc 
 	vp->feature_prop = prop;
 	drm_object_attach_property(&crtc->base, vp->feature_prop, feature);
 
+	prop = drm_property_create_range(vop2->drm_dev, DRM_MODE_PROP_IMMUTABLE, "OUTPUT_WIDTH",
+					 0, vop2->data->vp[vp->id].max_output.width);
+	if (!prop) {
+		DRM_DEV_ERROR(vop2->dev, "create OUTPUT_WIDTH prop for vp%d failed\n", vp->id);
+		return -ENOMEM;
+	}
+	vp->output_width_prop = prop;
+	drm_object_attach_property(&crtc->base, vp->output_width_prop, 0);
+
+	prop = drm_property_create_range(vop2->drm_dev, DRM_MODE_PROP_IMMUTABLE, "OUTPUT_DCLK",
+					 0, rockchip_drm_get_dclk_by_width(vop2->data->vp[vp->id].max_output.width) * 1000);
+	if (!prop) {
+		DRM_DEV_ERROR(vop2->dev, "create OUTPUT_DCLK prop for vp%d failed\n", vp->id);
+		return -ENOMEM;
+	}
+	vp->output_dclk_prop = prop;
+	drm_object_attach_property(&crtc->base, vp->output_dclk_prop, 0);
+
 	return 0;
 }
 
@@ -10784,15 +11072,8 @@ static int vop2_create_crtc(struct vop2 *vop2)
 					  "Failed to init %s with SR helpers %d, ignoring\n",
 					  crtc->name, ret);
 
-		if (vp_data->feature & VOP_FEATURE_VIVID_HDR) {
+		if (vp_data->feature & VOP_FEATURE_VIVID_HDR)
 			vop2_crtc_create_hdr_property(vop2, crtc);
-			vp->hdr_lut_gem_obj = rockchip_gem_create_object(vop2->drm_dev,
-				RK_HDRVIVID_TONE_SCA_AXI_TAB_LENGTH * 4, true, 0);
-			if (IS_ERR(vp->hdr_lut_gem_obj)) {
-				DRM_ERROR("create hdr lut obj failed\n");
-				return -ENOMEM;
-			}
-		}
 		if (vp_data->feature & VOP_FEATURE_POST_ACM)
 			vop2_crtc_create_post_acm_property(vop2, crtc);
 		if (vp_data->feature & VOP_FEATURE_POST_CSC)
@@ -11102,6 +11383,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	int num_wins = 0;
 	int registered_num_crtcs;
 	struct device_node *vop_out_node;
+	struct device_node *mcu_timing_node;
 
 	vop2_data = of_device_get_match_data(dev);
 	if (!vop2_data)
@@ -11232,6 +11514,7 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 			u32 plane_mask = 0;
 			u32 primary_plane_phy_id = 0;
 			u32 vp_id = 0;
+			u32 val = 0;
 
 			of_property_read_u32(child, "rockchip,plane-mask", &plane_mask);
 			of_property_read_u32(child, "rockchip,primary-plane", &primary_plane_phy_id);
@@ -11249,6 +11532,22 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 			if (ret) {
 				DRM_DEV_ERROR(dev, "Failed to set clock defaults %d\n", ret);
 				return ret;
+			}
+
+			mcu_timing_node = of_get_child_by_name(child, "mcu-timing");
+			if (mcu_timing_node) {
+				if (!of_property_read_u32(mcu_timing_node, "mcu-pix-total", &val))
+					vop2->vps[vp_id].mcu_timing.mcu_pix_total = val;
+				if (!of_property_read_u32(mcu_timing_node, "mcu-cs-pst", &val))
+					vop2->vps[vp_id].mcu_timing.mcu_cs_pst = val;
+				if (!of_property_read_u32(mcu_timing_node, "mcu-cs-pend", &val))
+					vop2->vps[vp_id].mcu_timing.mcu_cs_pend = val;
+				if (!of_property_read_u32(mcu_timing_node, "mcu-rw-pst", &val))
+					vop2->vps[vp_id].mcu_timing.mcu_rw_pst = val;
+				if (!of_property_read_u32(mcu_timing_node, "mcu-rw-pend", &val))
+					vop2->vps[vp_id].mcu_timing.mcu_rw_pend = val;
+				if (!of_property_read_u32(mcu_timing_node, "mcu-hold-mode", &val))
+					vop2->vps[vp_id].mcu_timing.mcu_hold_mode = val;
 			}
 
 			DRM_DEV_INFO(dev, "vp%d assign plane mask: 0x%x, primary plane phy id: %d\n",

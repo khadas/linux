@@ -1059,9 +1059,7 @@ static int gc2053_g_frame_interval(struct v4l2_subdev *sd,
 	struct gc2053 *gc2053 = to_gc2053(sd);
 	const struct gc2053_mode *mode = gc2053->cur_mode;
 
-	mutex_lock(&gc2053->mutex);
 	fi->interval = mode->max_fps;
-	mutex_unlock(&gc2053->mutex);
 
 	return 0;
 }
@@ -1283,7 +1281,7 @@ static const struct v4l2_subdev_ops gc2053_subdev_ops = {
 	.pad    = &gc2053_pad_ops,
 };
 
-static int gc2053_runtime_resume(struct device *dev)
+static int __maybe_unused gc2053_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -1293,7 +1291,7 @@ static int gc2053_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int gc2053_runtime_suspend(struct device *dev)
+static int __maybe_unused gc2053_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);

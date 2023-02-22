@@ -176,26 +176,34 @@ static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 {
 	struct rkisp_device *dev = container_of(p, struct rkisp_device, pipe);
 	struct rkisp_hw_dev *hw_dev = dev->hw_dev;
-	u32 w = hw_dev->max_in.w ? hw_dev->max_in.w : dev->isp_sdev.in_frm.width;
 	struct v4l2_subdev *sd;
 	struct v4l2_ctrl *ctrl;
-	u64 data_rate;
-	int i;
+	u64 data_rate = 0;
+	int i, fps;
+
+	hw_dev->isp_size[dev->dev_id].is_on = true;
+	if (hw_dev->is_runing) {
+		if (dev->isp_ver >= ISP_V30 && !rkisp_clk_dbg)
+			hw_dev->is_dvfs = true;
+		return 0;
+	}
 
 	if (dev->isp_inp & (INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2)) {
-		for (i = 0; i < hw_dev->num_clk_rate_tbl; i++) {
-			if (w <= hw_dev->clk_rate_tbl[i].refer_data)
-				break;
+		if (dev->isp_ver < ISP_V30) {
+			/* isp with mipi no support dvfs, calculate max data rate */
+			for (i = 0; i < hw_dev->dev_num; i++) {
+				fps = hw_dev->isp_size[i].fps;
+				if (!fps)
+					fps = 30;
+				data_rate += (fps * hw_dev->isp_size[i].size);
+			}
+		} else {
+			i = dev->dev_id;
+			fps = hw_dev->isp_size[i].fps;
+			if (!fps)
+				fps = 30;
+			data_rate = fps * hw_dev->isp_size[i].size;
 		}
-		if (!hw_dev->is_single)
-			i++;
-
-		/* use lager clk in 4 vir-isp mode */
-		if (hw_dev->dev_num >= 4)
-			i++;
-
-		if (i > hw_dev->num_clk_rate_tbl - 1)
-			i = hw_dev->num_clk_rate_tbl - 1;
 		goto end;
 	}
 
@@ -228,6 +236,7 @@ static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 	data_rate = v4l2_ctrl_g_ctrl_int64(ctrl) *
 		    dev->isp_sdev.in_fmt.bus_width;
 	data_rate >>= 3;
+end:
 	do_div(data_rate, 1000 * 1000);
 
 	/* increase 25% margin */
@@ -239,7 +248,7 @@ static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 			break;
 	if (i == hw_dev->num_clk_rate_tbl)
 		i--;
-end:
+
 	/* set isp clock rate */
 	rkisp_set_clk_rate(hw_dev->clks[0], hw_dev->clk_rate_tbl[i].clk_rate * 1000000UL);
 	if (hw_dev->is_unite)
@@ -284,12 +293,13 @@ static int rkisp_pipeline_close(struct rkisp_pipeline *p)
 {
 	struct rkisp_device *dev = container_of(p, struct rkisp_device, pipe);
 
-	atomic_dec(&p->power_cnt);
+	if (atomic_dec_return(&p->power_cnt))
+		return 0;
 
-	if (!atomic_read(&p->power_cnt) &&
-	    (dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32))
-		rkisp_rx_buf_pool_free(dev);
-
+	rkisp_rx_buf_pool_free(dev);
+	dev->hw_dev->isp_size[dev->dev_id].is_on = false;
+	if (dev->hw_dev->is_runing && (dev->isp_ver >= ISP_V30) && !rkisp_clk_dbg)
+		dev->hw_dev->is_dvfs = true;
 	return 0;
 }
 
@@ -508,7 +518,7 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev, bool is_init)
 #endif
 	}
 
-	if (dev->isp_ver == ISP_V32) {
+	if (dev->isp_ver == ISP_V32 || dev->isp_ver == ISP_V32_L) {
 		struct v4l2_pix_format_mplane pixm = {
 			.width = width,
 			.height = height,
@@ -517,12 +527,14 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev, bool is_init)
 
 		rkisp_dmarx_set_fmt(&dev->dmarx_dev.stream[RKISP_STREAM_RAWRD0], pixm);
 		rkisp_dmarx_set_fmt(&dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2], pixm);
-		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_BP,
-					 width, height, V4L2_PIX_FMT_NV12);
-		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_MPDS,
-					 width / 4, height / 4, V4L2_PIX_FMT_NV12);
-		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_BPDS,
-					 width / 4, height / 4, V4L2_PIX_FMT_NV12);
+		if (dev->isp_ver == ISP_V32) {
+			rkisp_set_stream_def_fmt(dev, RKISP_STREAM_BP,
+						 width, height, V4L2_PIX_FMT_NV12);
+			rkisp_set_stream_def_fmt(dev, RKISP_STREAM_MPDS,
+						 width / 4, height / 4, V4L2_PIX_FMT_NV12);
+			rkisp_set_stream_def_fmt(dev, RKISP_STREAM_BPDS,
+						 width / 4, height / 4, V4L2_PIX_FMT_NV12);
+		}
 	}
 	return 0;
 }
@@ -891,9 +903,10 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	/* create & register platefom subdev (from of_node) */
 	ret = rkisp_register_platform_subdevs(isp_dev);
-	if (ret < 0)
+	if (ret < 0) {
+		v4l2_err(v4l2_dev, "Failed to register platform subdevs:%d\n", ret);
 		goto err_unreg_media_dev;
-
+	}
 	rkisp_wait_line = 0;
 	of_property_read_u32(dev->of_node, "wait-line", &rkisp_wait_line);
 

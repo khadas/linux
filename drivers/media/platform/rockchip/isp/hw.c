@@ -121,6 +121,7 @@ static void default_sw_reg_flag(struct rkisp_device *dev)
 		size = ARRAY_SIZE(v30_reg);
 		break;
 	case ISP_V32:
+	case ISP_V32_L:
 		reg = v32_reg;
 		size = ARRAY_SIZE(v32_reg);
 		break;
@@ -163,10 +164,7 @@ static irqreturn_t mipi_irq_hdl(int irq, void *ctx)
 
 		if (err1 || err2 || err3)
 			rkisp_mipi_v13_isr(err1, err2, err3, isp);
-	} else if (hw_dev->isp_ver == ISP_V20 ||
-		   hw_dev->isp_ver == ISP_V21 ||
-		   hw_dev->isp_ver == ISP_V30 ||
-		   hw_dev->isp_ver == ISP_V32) {
+	} else if (hw_dev->isp_ver >= ISP_V20) {
 		u32 phy, packet, overflow, state;
 
 		state = readl(base + CSI2RX_ERR_STAT);
@@ -252,10 +250,7 @@ static irqreturn_t isp_irq_hdl(int irq, void *ctx)
 		t = ktime_get();
 
 	mis_val = readl(base + CIF_ISP_MIS);
-	if (hw_dev->isp_ver == ISP_V20 ||
-	    hw_dev->isp_ver == ISP_V21 ||
-	    hw_dev->isp_ver == ISP_V30 ||
-	    hw_dev->isp_ver == ISP_V32)
+	if (hw_dev->isp_ver >= ISP_V20)
 		mis_3a = readl(base + ISP_ISP3A_MIS);
 	if (mis_val || mis_3a)
 		rkisp_isp_isr(mis_val, mis_3a, isp);
@@ -276,10 +271,7 @@ static irqreturn_t irq_handler(int irq, void *ctx)
 	unsigned int mis_val, mis_3a = 0;
 
 	mis_val = readl(hw_dev->base_addr + CIF_ISP_MIS);
-	if (hw_dev->isp_ver == ISP_V20 ||
-	    hw_dev->isp_ver == ISP_V21 ||
-	    hw_dev->isp_ver == ISP_V30 ||
-	    hw_dev->isp_ver == ISP_V32)
+	if (hw_dev->isp_ver >= ISP_V20)
 		mis_3a = readl(hw_dev->base_addr + ISP_ISP3A_MIS);
 	if (mis_val || mis_3a)
 		rkisp_isp_isr(mis_val, mis_3a, isp);
@@ -356,6 +348,12 @@ int rkisp_register_irq(struct rkisp_hw_dev *hw_dev)
 	return 0;
 }
 
+static const char * const rk3562_isp_clks[] = {
+	"clk_isp_core",
+	"aclk_isp",
+	"hclk_isp",
+};
+
 static const char * const rk3568_isp_clks[] = {
 	"clk_isp",
 	"aclk_isp",
@@ -394,6 +392,22 @@ static const char * const rv1126_isp_clks[] = {
 	"clk_isp",
 	"aclk_isp",
 	"hclk_isp",
+};
+
+static const struct isp_clk_info rk3562_isp_clk_rate[] = {
+	{
+		.clk_rate = 300,
+		.refer_data = 1920, //width
+	}, {
+		.clk_rate = 400,
+		.refer_data = 2688,
+	}, {
+		.clk_rate = 500,
+		.refer_data = 3072,
+	}, {
+		.clk_rate = 600,
+		.refer_data = 3840,
+	}
 };
 
 static const struct isp_clk_info rk3568_isp_clk_rate[] = {
@@ -463,6 +477,12 @@ static const struct isp_clk_info rv1126_isp_clk_rate[] = {
 	}
 };
 
+static struct isp_irqs_data rk3562_isp_irqs[] = {
+	{"isp_irq", isp_irq_hdl},
+	{"mi_irq", mi_irq_hdl},
+	{"mipi_irq", mipi_irq_hdl}
+};
+
 static struct isp_irqs_data rk3568_isp_irqs[] = {
 	{"isp_irq", isp_irq_hdl},
 	{"mi_irq", mi_irq_hdl},
@@ -509,6 +529,17 @@ static const struct isp_match_data rv1126_isp_match_data = {
 	.unite = false,
 };
 
+static const struct isp_match_data rk3562_isp_match_data = {
+	.clks = rk3562_isp_clks,
+	.num_clks = ARRAY_SIZE(rk3562_isp_clks),
+	.isp_ver = ISP_V32_L,
+	.clk_rate_tbl = rk3562_isp_clk_rate,
+	.num_clk_rate_tbl = ARRAY_SIZE(rk3562_isp_clk_rate),
+	.irqs = rk3562_isp_irqs,
+	.num_irqs = ARRAY_SIZE(rk3562_isp_irqs),
+	.unite = false,
+};
+
 static const struct isp_match_data rk3568_isp_match_data = {
 	.clks = rk3568_isp_clks,
 	.num_clks = ARRAY_SIZE(rk3568_isp_clks),
@@ -543,6 +574,12 @@ static const struct isp_match_data rk3588_isp_unite_match_data = {
 };
 
 static const struct of_device_id rkisp_hw_of_match[] = {
+#ifdef CONFIG_CPU_RK3562
+	{
+		.compatible = "rockchip,rk3562-rkisp",
+		.data = &rk3562_isp_match_data,
+	},
+#endif
 #ifdef CONFIG_CPU_RK3568
 	{
 		.compatible = "rockchip,rk3568-rkisp",
@@ -663,6 +700,8 @@ void rkisp_soft_reset(struct rkisp_hw_dev *dev, bool is_secure)
 
 		writel(0, dev->base_addr + ISP32_BLS_ISP_OB_PREDGAIN);
 		writel(0x37, dev->base_addr + ISP32_MI_WR_WRAP_CTRL);
+	} else if (dev->isp_ver == ISP_V32_L) {
+		writel(0, dev->base_addr + ISP32_BLS_ISP_OB_PREDGAIN);
 	}
 }
 
@@ -673,11 +712,12 @@ static void isp_config_clk(struct rkisp_hw_dev *dev, int on)
 		CIF_ICCL_SRSZ_CLK | CIF_ICCL_JPEG_CLK | CIF_ICCL_MI_CLK |
 		CIF_ICCL_IE_CLK | CIF_ICCL_MIPI_CLK | CIF_ICCL_DCROP_CLK;
 
-	if ((dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32) && on)
+	if ((dev->isp_ver == ISP_V20 || dev->isp_ver >= ISP_V30) && on)
 		val |= ICCL_MPFBC_CLK;
-	if (dev->isp_ver == ISP_V32) {
+	if (dev->isp_ver >= ISP_V32) {
 		val |= ISP32_BRSZ_CLK_ENABLE | BIT(0) | BIT(16);
-		rv1106_sdmmc_get_lock();
+		if (dev->isp_ver == ISP_V32)
+			rv1106_sdmmc_get_lock();
 	}
 	writel(val, dev->base_addr + CIF_ICCL);
 	if (dev->isp_ver == ISP_V32)
@@ -693,8 +733,7 @@ static void isp_config_clk(struct rkisp_hw_dev *dev, int on)
 		      CIF_CLK_CTRL_CP | CIF_CLK_CTRL_IE;
 
 		writel(val, dev->base_addr + CIF_VI_ISP_CLK_CTRL_V12);
-	} else if (dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21 ||
-		   dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32) {
+	} else if (dev->isp_ver >= ISP_V20) {
 		val = !on ? 0 :
 		      CLK_CTRL_MI_LDC | CLK_CTRL_MI_MP |
 		      CLK_CTRL_MI_JPEG | CLK_CTRL_MI_DP |
@@ -703,7 +742,7 @@ static void isp_config_clk(struct rkisp_hw_dev *dev, int on)
 		      CLK_CTRL_MI_READ | CLK_CTRL_MI_RAWRD |
 		      CLK_CTRL_ISP_RAW;
 
-		if (dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32)
+		if (dev->isp_ver >= ISP_V30)
 			val = 0;
 
 		if ((dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V30) && on)
@@ -986,6 +1025,7 @@ static int __maybe_unused rkisp_runtime_suspend(struct device *dev)
 	hw_dev->dev_link_num = 0;
 	hw_dev->is_single = true;
 	hw_dev->is_multi_overflow = false;
+	hw_dev->is_frm_buf = false;
 	disable_sys_clk(hw_dev);
 	return pinctrl_pm_select_sleep_state(dev);
 }
@@ -1001,6 +1041,9 @@ void rkisp_hw_enum_isp_size(struct rkisp_hw_dev *hw_dev)
 		hw_dev->max_in.h = 0;
 	}
 	hw_dev->dev_link_num = 0;
+	hw_dev->is_single = true;
+	hw_dev->is_multi_overflow = false;
+	hw_dev->is_frm_buf = false;
 	for (i = 0; i < hw_dev->dev_num; i++) {
 		isp = hw_dev->isp[i];
 		if (!isp || (isp && !isp->is_hw_link))

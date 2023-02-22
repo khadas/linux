@@ -54,6 +54,9 @@
 #define RK3288_LVDS_CON_CLKINV(x)	HIWORD_UPDATE(x,  8,  8)
 #define RK3288_LVDS_CON_TTL_EN(x)	HIWORD_UPDATE(x,  6,  6)
 
+#define RK3562_GRF_IOC_VO_IO_CON	0x10500
+#define RK3562_RGB_DATA_BYPASS(v)	HIWORD_UPDATE(v, 6, 6)
+
 #define RK3568_GRF_VO_CON1		0X0364
 #define RK3568_RGB_DATA_BYPASS(v)	HIWORD_UPDATE(v, 6, 6)
 
@@ -539,8 +542,15 @@ static void rockchip_drm_crtc_send_mcu_cmd(struct drm_device *drm_dev,
 	struct rockchip_drm_private *priv;
 
 	drm_for_each_crtc(crtc, drm_dev) {
-		if (of_get_parent(crtc->port) == np_crtc)
+		/*
+		 * Support to find crtc device for both vop and vop3:
+		 * vop  -> rgb out
+		 * vop3 -> vp -> rgb out
+		 */
+		if (of_get_parent(of_get_parent(crtc->port)) == np_crtc ||
+		    of_get_parent(crtc->port) == np_crtc) {
 			break;
+		}
 	}
 
 	pipe = drm_crtc_index(crtc);
@@ -974,6 +984,20 @@ static const struct rockchip_rgb_data rk3288_rgb = {
 	.funcs = &rk3288_rgb_funcs,
 };
 
+static void rk3562_rgb_enable(struct rockchip_rgb *rgb)
+{
+	regmap_write(rgb->grf, RK3562_GRF_IOC_VO_IO_CON,
+		     RK3562_RGB_DATA_BYPASS(rgb->data_sync_bypass));
+}
+
+static const struct rockchip_rgb_funcs rk3562_rgb_funcs = {
+	.enable = rk3562_rgb_enable,
+};
+
+static const struct rockchip_rgb_data rk3562_rgb = {
+	.funcs = &rk3562_rgb_funcs,
+};
+
 static void rk3568_rgb_enable(struct rockchip_rgb *rgb)
 {
 	regmap_write(rgb->grf, RK3568_GRF_VO_CON1,
@@ -1027,6 +1051,7 @@ static const struct of_device_id rockchip_rgb_dt_ids[] = {
 	{ .compatible = "rockchip,rk3288-rgb", .data = &rk3288_rgb },
 	{ .compatible = "rockchip,rk3308-rgb", },
 	{ .compatible = "rockchip,rk3368-rgb", },
+	{ .compatible = "rockchip,rk3562-rgb", .data = &rk3562_rgb },
 	{ .compatible = "rockchip,rk3568-rgb", .data = &rk3568_rgb },
 	{ .compatible = "rockchip,rk3588-rgb", },
 	{ .compatible = "rockchip,rv1106-rgb", .data = &rv1106_rgb},

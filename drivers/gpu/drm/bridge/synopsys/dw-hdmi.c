@@ -1486,14 +1486,7 @@ static void hdmi_video_packetize(struct dw_hdmi *hdmi)
 		  HDMI_VP_CONF_PR_EN_MASK |
 		  HDMI_VP_CONF_BYPASS_SELECT_MASK, HDMI_VP_CONF);
 
-	if ((color_depth == 5 && hdmi->previous_mode.htotal % 4) ||
-	    (color_depth == 6 && hdmi->previous_mode.htotal % 2))
-		hdmi_modb(hdmi, 0, HDMI_VP_STUFF_IDEFAULT_PHASE_MASK,
-			  HDMI_VP_STUFF);
-	else
-		hdmi_modb(hdmi, 1 << HDMI_VP_STUFF_IDEFAULT_PHASE_OFFSET,
-			HDMI_VP_STUFF_IDEFAULT_PHASE_MASK, HDMI_VP_STUFF);
-
+	hdmi_modb(hdmi, 0, HDMI_VP_STUFF_IDEFAULT_PHASE_MASK, HDMI_VP_STUFF);
 	hdmi_writeb(hdmi, remap_size, HDMI_VP_REMAP);
 
 	if (output_select == HDMI_VP_CONF_OUTPUT_SELECTOR_PP) {
@@ -2279,6 +2272,11 @@ static void hdmi_config_drm_infoframe(struct dw_hdmi *hdmi,
 		hdmi_writeb(hdmi, buffer[4 + i], HDMI_FC_DRM_PB0 + i);
 
 	hdmi_writeb(hdmi, 1, HDMI_FC_DRM_UP);
+	/*
+	 * avi and hdr infoframe cannot be sent at the same time
+	 * for compatibility with Huawei TV
+	 */
+	mdelay(50);
 	hdmi_modb(hdmi, HDMI_FC_PACKET_TX_EN_DRM_ENABLE,
 		  HDMI_FC_PACKET_TX_EN_DRM_MASK, HDMI_FC_PACKET_TX_EN);
 
@@ -2534,8 +2532,6 @@ static void dw_hdmi_clear_overflow(struct dw_hdmi *hdmi)
 	unsigned int i;
 	u8 val;
 
-	if (hdmi->update)
-		return;
 	/*
 	 * Under some circumstances the Frame Composer arithmetic unit can miss
 	 * an FC register write due to being busy processing the previous one.
@@ -2579,8 +2575,6 @@ static void dw_hdmi_clear_overflow(struct dw_hdmi *hdmi)
 
 static void hdmi_disable_overflow_interrupts(struct dw_hdmi *hdmi)
 {
-	if (hdmi->update)
-		return;
 	hdmi_writeb(hdmi, HDMI_IH_MUTE_FC_STAT2_OVERFLOW_MASK,
 		    HDMI_IH_MUTE_FC_STAT2);
 }
@@ -2638,6 +2632,9 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi,
 	else
 		hdmi->hdmi_data.enc_out_bus_format =
 			MEDIA_BUS_FMT_RGB888_1X24;
+
+	if (hdmi->plat_data->set_prev_bus_format)
+		hdmi->plat_data->set_prev_bus_format(data, hdmi->hdmi_data.enc_out_bus_format);
 
 	/* TOFIX: Get input encoding from plat data or fallback to none */
 	if (hdmi->plat_data->get_enc_in_encoding)
@@ -2945,6 +2942,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	struct drm_display_mode *mode;
 	struct drm_display_info *info = &connector->display_info;
+	void *data = hdmi->plat_data->phy_data;
 	int i,  ret = 0;
 
 	memset(metedata, 0, sizeof(*metedata));
@@ -2959,6 +2957,8 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 		ret = drm_add_edid_modes(connector, edid);
 		if (hdmi->plat_data->get_color_changed)
 			hdmi->plat_data->get_yuv422_format(connector, edid);
+		if (hdmi->plat_data->get_colorimetry)
+			hdmi->plat_data->get_colorimetry(data, edid);
 
 		list_for_each_entry(mode, &connector->probed_modes, head) {
 			vic = drm_match_cea_mode(mode);
@@ -2971,7 +2971,6 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 			}
 		}
 
-		dw_hdmi_update_hdr_property(connector);
 		kfree(edid);
 	} else {
 		hdmi->support_hdmi = true;
@@ -2997,6 +2996,7 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 
 		dev_info(hdmi->dev, "failed to get edid\n");
 	}
+	dw_hdmi_update_hdr_property(connector);
 	dw_hdmi_check_output_type_changed(hdmi);
 
 	return ret;
@@ -3029,9 +3029,31 @@ static bool hdr_metadata_equal(const struct drm_connector_state *old_state,
 {
 	struct drm_property_blob *old_blob = old_state->hdr_output_metadata;
 	struct drm_property_blob *new_blob = new_state->hdr_output_metadata;
+	int i;
+	u8 *data;
 
-	if (!old_blob || !new_blob)
-		return old_blob == new_blob;
+	if (!old_blob && !new_blob)
+		return true;
+
+	if (!old_blob) {
+		data = (u8 *)new_blob->data;
+
+		for (i = 0; i < new_blob->length; i++)
+			if (data[i])
+				return false;
+
+		return true;
+	}
+
+	if (!new_blob) {
+		data = (u8 *)old_blob->data;
+
+		for (i = 0; i < old_blob->length; i++)
+			if (data[i])
+				return false;
+
+		return true;
+	}
 
 	if (old_blob->length != new_blob->length)
 		return false;
@@ -3045,8 +3067,10 @@ static bool check_hdr_color_change(struct drm_connector_state *old_state,
 {
 	void *data = hdmi->plat_data->phy_data;
 
-	if (!hdr_metadata_equal(old_state, new_state))
-		return hdmi->plat_data->check_hdr_color_change(new_state, data);
+	if (!hdr_metadata_equal(old_state, new_state)) {
+		hdmi->plat_data->check_hdr_color_change(new_state, data);
+		return true;
+	}
 
 	return false;
 }
@@ -3080,6 +3104,8 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	 * drm_display_mode and set phy status to enabled.
 	 */
 	if (!vmode->mpixelclock) {
+		hdmi->curr_conn = connector;
+
 		if (hdmi->plat_data->get_enc_in_encoding)
 			hdmi->hdmi_data.enc_in_encoding =
 				hdmi->plat_data->get_enc_in_encoding(data);
@@ -3129,10 +3155,11 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 
 		if (hdmi->hdmi_data.video_mode.mpixelclock == (mode->clock * 1000) &&
 		    hdmi->hdmi_data.video_mode.mtmdsclock == (mtmdsclk * 1000) &&
-		    !hdmi->logo_plug_out) {
+		    !hdmi->logo_plug_out && !hdmi->disabled) {
 			hdmi->update = true;
 			hdmi_writeb(hdmi, HDMI_FC_GCP_SET_AVMUTE, HDMI_FC_GCP);
 			mdelay(50);
+			handle_plugged_change(hdmi, false);
 		} else {
 			hdmi->update = false;
 			crtc_state->mode_changed = true;
@@ -3196,6 +3223,7 @@ static void dw_hdmi_connector_atomic_commit(struct drm_connector *connector,
 	if (hdmi->update) {
 		dw_hdmi_setup(hdmi, hdmi->curr_conn, &hdmi->previous_mode);
 		mdelay(50);
+		handle_plugged_change(hdmi, true);
 		hdmi_writeb(hdmi, HDMI_FC_GCP_CLEAR_AVMUTE, HDMI_FC_GCP);
 		hdmi->update = false;
 	}
@@ -3793,6 +3821,7 @@ static void dw_hdmi_bridge_atomic_disable(struct drm_bridge *bridge,
 
 	mutex_lock(&hdmi->mutex);
 	hdmi->disabled = true;
+	handle_plugged_change(hdmi, false);
 	hdmi->curr_conn = NULL;
 	dw_hdmi_update_power(hdmi);
 	dw_hdmi_update_phy_mask(hdmi);
@@ -3814,6 +3843,7 @@ static void dw_hdmi_bridge_atomic_enable(struct drm_bridge *bridge,
 	hdmi->curr_conn = connector;
 	dw_hdmi_update_power(hdmi);
 	dw_hdmi_update_phy_mask(hdmi);
+	handle_plugged_change(hdmi, true);
 	mutex_unlock(&hdmi->mutex);
 }
 
