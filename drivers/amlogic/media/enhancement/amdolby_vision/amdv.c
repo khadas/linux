@@ -344,8 +344,8 @@ static unsigned int dv_target_graphics_LL_max[3][3] = {
 
 static unsigned int dv_target_graphics_max_26[5][3] = {
 	{ 300, 300, 370 }, /* DV => DV/HDR/SDR */
-	{ 150, 300, 300 }, /* HDR =>  DV/HDR/SDR */
-	{ 300, 300, 300 }, /* SDR =>  DV/HDR/SDR */
+	{ 150, 304, 300 }, /* HDR =>  DV/HDR/SDR */
+	{ 300, 305, 300 }, /* SDR =>  DV/HDR/SDR */
 	{ 300, 300, 300 }, /* reserved DV LL =>  DV/HDR/SDR */
 	{ 300, 300, 300 }, /* HLG =>  DV/HDR/SDR */
 };
