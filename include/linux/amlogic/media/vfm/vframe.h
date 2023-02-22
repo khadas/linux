@@ -531,7 +531,8 @@ struct vf_dalton_t {
 	ulong phy_addr;
 };
 
-#define AI_FACE_COUNT 5
+#define MAX_FACE_COUNT_PER_FRAME 20
+#define MAX_FACE_COUNT_PER_INPUT 10
 
 struct face_value_t {
 	u32 x;
@@ -542,9 +543,12 @@ struct face_value_t {
 };
 
 struct vf_aiface_t {
-	struct face_value_t face_value[AI_FACE_COUNT];
+	struct face_value_t face_value[MAX_FACE_COUNT_PER_FRAME];
+	u32 aiface_value_count;
 	s32 aiface_buf_index;
 	s32 aiface_value_index;
+	s32 nn_frame_width;
+	s32 nn_frame_height;
 	u32 nn_status;
 	struct timeval start_time;
 };

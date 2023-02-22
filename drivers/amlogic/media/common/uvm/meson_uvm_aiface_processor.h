@@ -14,7 +14,8 @@ enum aiface_get_info_type_e {
 struct uvm_aiface_info {
 	s32 shared_fd;
 	s32 aiface_fd;
-	struct face_value_t face_value[AI_FACE_COUNT];
+	u64 buf_phy_addr;
+	struct face_value_t face_value[MAX_FACE_COUNT_PER_INPUT];
 	s32 aiface_buf_index;
 	s32 aiface_value_index;
 	s32 get_info_type;
@@ -24,8 +25,10 @@ struct uvm_aiface_info {
 	s32 dw_height;
 	s32 nn_input_frame_width;
 	s32 nn_input_frame_height;
+	s32 nn_input_frame_format;
 	s32 nn_status;
 	s32 omx_index;
+	void *dma_buf_addr;
 };
 
 int attach_aiface_hook_mod_info(int shared_fd,

@@ -21,7 +21,10 @@
 #include <linux/amlogic/media/video_processor/video_pp_common.h>
 
 #include "meson_uvm_aiface_processor.h"
-static struct dma_buf *dmabuf_last;
+
+static int aiface_canvas[4] = {-1, -1, -1, -1};
+static struct ge2d_context_s *context;
+static struct mutex ge2d_canvas_mutex;
 
 static int uvm_aiface_debug;
 module_param(uvm_aiface_debug, int, 0644);
@@ -147,9 +150,6 @@ struct vframe_s *aiface_get_dw_vf(struct uvm_aiface_info *aiface_info)
 	dma_buf_put(dmabuf);
 	return vf;
 }
-
-static int aiface_canvas[4] = {-1, -1, -1, -1};
-static struct ge2d_context_s *context;
 
 static int get_canvas(u32 index)
 {
@@ -405,13 +405,8 @@ int attach_aiface_hook_mod_info(int shared_fd,
 
 	dma_buf_put(dmabuf);
 
-	if (dmabuf_last == dmabuf) {
-		aiface_info->repeat_frame = 1;
-	} else {
-		memset(nn_aiface, 0, sizeof(struct vf_aiface_t));
-		aiface_info->repeat_frame = 0;
-		dmabuf_last = dmabuf;
-	}
+	aiface_info->dma_buf_addr = dmabuf;
+
 	if (vf)
 		aiface_info->omx_index = vf->omx_index;
 	else
@@ -438,15 +433,20 @@ int aiface_setinfo(void *arg, char *buf)
 {
 	struct uvm_aiface_info *aiface_info = NULL;
 	struct vf_aiface_t *vf_aiface = NULL;
-	int i;
+	int i = 0;
 
 	aiface_info = (struct uvm_aiface_info *)buf;
 	vf_aiface = (struct vf_aiface_t *)arg;
+	memset(vf_aiface, 0, sizeof(*vf_aiface));
 
 	if (aiface_info->nn_status == NN_START_DOING) {
 		do_gettimeofday(&vf_aiface->start_time);
 	} else if (aiface_info->nn_status == NN_DONE) {
-		for (i = 0; i < AI_FACE_COUNT; i++) {
+		while (i < MAX_FACE_COUNT_PER_INPUT) {
+			if (aiface_info->face_value[i].w == 0 &&
+				aiface_info->face_value[i].h == 0) {
+				break;
+			}
 			vf_aiface->face_value[i].x = aiface_info->face_value[i].x;
 			vf_aiface->face_value[i].y = aiface_info->face_value[i].y;
 			vf_aiface->face_value[i].w = aiface_info->face_value[i].w;
@@ -461,10 +461,15 @@ int aiface_setinfo(void *arg, char *buf)
 				vf_aiface->face_value[i].w,
 				vf_aiface->face_value[i].h,
 				vf_aiface->face_value[i].score);
+
+			i++;
 		}
+		vf_aiface->aiface_value_count = i;
 	}
 
 	/*this must at the last line of this function*/
+	vf_aiface->nn_frame_width = aiface_info->nn_input_frame_width;
+	vf_aiface->nn_frame_height =  aiface_info->nn_input_frame_height;
 	vf_aiface->nn_status = aiface_info->nn_status;
 
 	aiface_print(PRINT_OTHER, "%s: omx_index=%d, status=%d\n",
@@ -561,14 +566,25 @@ int aiface_getinfo(void *arg, char *buf)
 		output.width = aiface_info->nn_input_frame_width;
 		output.height = aiface_info->nn_input_frame_height;
 		aiface_info->omx_index = vf->omx_index;
+		aiface_info->buf_phy_addr = addr;
 		aiface_print(PRINT_OTHER,
 			"output.width=%d, output.height=%d, addr=%lld, len=%d, aiface_fd=%d, omx_index=%d\n",
 			output.width, output.height, addr, len, aiface_fd, vf->omx_index);
 
-		output.format = GE2D_FORMAT_S8_Y;
+		if (aiface_info->nn_input_frame_format == 1)
+			output.format = GE2D_FORMAT_S24_BGR;
+		else if (aiface_info->nn_input_frame_format == 2)
+			output.format = GE2D_FORMAT_S8_Y;
+		else
+			output.format = GE2D_FORMAT_S24_BGR;
+
 		output.addr = addr;
 		do_gettimeofday(&begin_time);
+		if (!context)
+			mutex_init(&ge2d_canvas_mutex);
+		mutex_lock(&ge2d_canvas_mutex);
 		ret = ge2d_vf_process(vf, &output);
+		mutex_unlock(&ge2d_canvas_mutex);
 		if (ret < 0) {
 			aiface_print(PRINT_ERROR, "ge2d err\n");
 			return -EINVAL;

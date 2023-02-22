@@ -216,6 +216,12 @@ struct video_frame_detect_s {
 	u32 start_receive_count;
 };
 
+struct video_frame_aiface_s {
+	u32 face_count_vd0;
+	u32 face_count_vd1;
+	struct face_value_t face_value[MAX_FACE_COUNT_PER_FRAME];
+};
+
 static int tvin_source_type;
 static int tvin_delay_mode;
 static int debugflags;
@@ -250,7 +256,7 @@ static struct video_frame_detect_s video_frame_detect;
 static long long time_setomxpts;
 static long long time_setomxpts_last;
 struct nn_value_t nn_scenes_value[AI_PQ_TOP];
-struct face_value_t ai_face_value[AI_FACE_COUNT];
+struct video_frame_aiface_s ai_face_value;
 
 /*----omx_info  bit0: keep_last_frame, bit1~31: unused----*/
 static u32 omx_info = 0x1;
@@ -6937,6 +6943,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	struct timeval end3;
 	struct timeval end4;
 	u8 new_frame_mask = 0;
+	int count = 0, k = 0, l = 0;
 
 	do_gettimeofday(&start);
 	enc_line_start = get_cur_enc_line();
@@ -9618,6 +9625,7 @@ SET_FILTER:
 		di_post_process_done = true;
 	}
 
+	memset(&ai_face_value, 0, sizeof(ai_face_value));
 	if (vd_layer[0].dispbuf) {
 		pq_process_debug[0] = ai_pq_value;
 		pq_process_debug[1] = ai_pq_disable;
@@ -9636,8 +9644,45 @@ SET_FILTER:
 		       sizeof(nn_scenes_value));
 		if (vd_layer[0].dispbuf->vc_private &&
 			vd_layer[0].dispbuf->vc_private->flag & VC_FLAG_AI_FACE) {
-			memcpy(ai_face_value, vd_layer[0].dispbuf->vc_private->aiface_info,
-			       sizeof(ai_face_value));
+			count = vd_layer[0].dispbuf->vc_private->aiface_info->aiface_value_count;
+			for (k = 0; k < count; k++) {
+				ai_face_value.face_value[k] =
+					vd_layer[0].dispbuf->vc_private->aiface_info->face_value[k];
+				if (debug_flag & DEBUG_FLAG_AI_FACE) {
+					pr_info("vd0:omx_index=%d: i=%d: x=%d; y=%d; w=%d; h=%d; score=%d.\n",
+						vd_layer[0].dispbuf->omx_index,
+						k,
+						ai_face_value.face_value[k].x,
+						ai_face_value.face_value[k].y,
+						ai_face_value.face_value[k].w,
+						ai_face_value.face_value[k].h,
+						ai_face_value.face_value[k].score);
+				}
+			}
+			ai_face_value.face_count_vd0 = count;
+		}
+	}
+
+	if (vd_layer[1].dispbuf) {
+		if (vd_layer[1].dispbuf->vc_private &&
+			vd_layer[1].dispbuf->vc_private->flag & VC_FLAG_AI_FACE) {
+			count = vd_layer[1].dispbuf->vc_private->aiface_info->aiface_value_count;
+			for (k = 0; k < count; k++) {
+				l = ai_face_value.face_count_vd0 + k;
+				ai_face_value.face_value[l] =
+					vd_layer[1].dispbuf->vc_private->aiface_info->face_value[k];
+				if (debug_flag & DEBUG_FLAG_AI_FACE) {
+					pr_info("vd1:omx_index=%d: i=%d: x=%d; y=%d; w=%d; h=%d; score=%d.\n",
+						vd_layer[1].dispbuf->omx_index,
+						k,
+						ai_face_value.face_value[l].x,
+						ai_face_value.face_value[l].y,
+						ai_face_value.face_value[l].w,
+						ai_face_value.face_value[l].h,
+						ai_face_value.face_value[l].score);
+				}
+			}
+			ai_face_value.face_count_vd1 = count;
 		}
 	}
 exit:
@@ -18261,35 +18306,75 @@ static ssize_t mosaic_axis_pic_store(struct class *cla,
 static ssize_t cur_ai_face_show(struct class *cla,
 				  struct class_attribute *attr, char *buf)
 {
-	ssize_t count;
-	int i = 0;
-	int x, y, w, h;
-	struct disp_info_s *layer = &glayer_info[0];
+	ssize_t count = 0;
+	int i = 0, j = 0;
+	int x, y, w, h, score;
+	bool need_show_vd0 = true, need_show_vd1 = true;
 
-	if (!vd_layer[0].dispbuf)
-		return 0;
+	if (!vd_layer[0].dispbuf) {
+		need_show_vd0 = false;
+	} else {
+		if (vd_layer[0].disable_video == 1 ||
+		    vd_layer[0].global_output == 0) {
+			need_show_vd0 = false;
+		}
 
-	if (!vd_layer[0].dispbuf->vc_private)
-		return 0;
-
-	if ((vd_layer[0].dispbuf->vc_private->flag & VC_FLAG_AI_FACE) == 0)
-		return 0;
-
-	if (vd_layer[0].disable_video == 1 ||
-	    vd_layer[0].global_output == 0)
-		return 0;
-	count = 0;
-	while (i < AI_FACE_COUNT) {
-		x = layer->layer_width * ai_face_value[i].x / 640;
-		y = layer->layer_height * ai_face_value[i].y / 360;
-		w = layer->layer_width * ai_face_value[i].w / 640;
-		h = layer->layer_height * ai_face_value[i].h / 360;
-		count += sprintf(buf + count,
-			"omx_index=%d: i=%d: x=%d; y=%d; w=%d; h=%d; score=%d\n",
-			vd_layer[0].dispbuf->omx_index, i, x, y, w, h, ai_face_value[i].score);
-
-		i++;
+		if (!vd_layer[0].dispbuf->vc_private) {
+			need_show_vd0 = false;
+		} else {
+			if ((vd_layer[0].dispbuf->vc_private->flag & VC_FLAG_AI_FACE) == 0)
+				need_show_vd0 = false;
+		}
 	}
+
+	if (!vd_layer[1].dispbuf) {
+		need_show_vd1 = false;
+	} else {
+		if (vd_layer[1].disable_video == 1 ||
+		    vd_layer[1].global_output == 0)
+			need_show_vd1 = false;
+
+		if (!vd_layer[1].dispbuf->vc_private) {
+			need_show_vd1 = false;
+		} else {
+			if ((vd_layer[1].dispbuf->vc_private->flag & VC_FLAG_AI_FACE) == 0)
+				need_show_vd1 = false;
+		}
+	}
+
+	if (!need_show_vd0 && !need_show_vd1)
+		return 0;
+
+	if (need_show_vd0) {
+		while (i < ai_face_value.face_count_vd0) {
+			x = ai_face_value.face_value[i].x;
+			y = ai_face_value.face_value[i].y;
+			w = ai_face_value.face_value[i].w;
+			h = ai_face_value.face_value[i].h;
+			score = ai_face_value.face_value[i].score;
+			count += sprintf(buf + count,
+				"omx_index=%d: i=%d: x=%d; y=%d; w=%d; h=%d; score=%d\n",
+				vd_layer[0].dispbuf->omx_index, i, x, y, w, h, score);
+			i++;
+		}
+	}
+
+	if (need_show_vd1) {
+		i = 0;
+		while (i < ai_face_value.face_count_vd1) {
+			j = ai_face_value.face_count_vd0 + i;
+			x = ai_face_value.face_value[j].x;
+			y = ai_face_value.face_value[j].y;
+			w = ai_face_value.face_value[j].w;
+			h = ai_face_value.face_value[j].h;
+			score = ai_face_value.face_value[j].score;
+			count += sprintf(buf + count,
+				"omx_index=%d: i=%d: x=%d; y=%d; w=%d; h=%d; score=%d\n",
+				vd_layer[1].dispbuf->omx_index, j, x, y, w, h, score);
+			i++;
+		}
+	}
+
 	count += sprintf(buf + count, "\n");
 	return count;
 }

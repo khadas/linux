@@ -28,7 +28,7 @@
 #define MUA_SKIP_REALLOC     BIT(UVM_SKIP_REALLOC)
 #define MUA_DETACH           BIT(UVM_DETACH_FLAG)
 #define ION_FLAG_PROTECTED   BIT(31)
-#define META_DATA_SIZE       (256)
+#define META_DATA_SIZE       (512)
 
 struct mua_device;
 struct mua_buffer;

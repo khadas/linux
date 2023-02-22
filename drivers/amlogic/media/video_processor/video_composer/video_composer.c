@@ -946,30 +946,28 @@ static struct vf_dalton_t *vc_get_dalton_info(struct composer_dev *dev,
 }
 
 static struct vf_aiface_t *vc_get_aiface_info(struct composer_dev *dev,
-						     struct file *file_vf)
+						struct file *file_vf, int omx_index)
 {
 	struct vf_aiface_t *aiface_info;
 	struct uvm_hook_mod *uhmod;
 
 	if (!file_vf) {
-		vc_print(dev->index, PRINT_ERROR, "vc get aiface_info fail\n");
+		vc_print(dev->index, PRINT_ERROR, "NULL param: omx_index=%d.\n", omx_index);
 
 		return NULL;
 	}
-	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
-				 PROCESS_AIFACE);
+	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data), PROCESS_AIFACE);
 	if (!uhmod) {
-		vc_print(dev->index, PRINT_OTHER, "dma file file_private_data is NULL 1\n");
+		vc_print(dev->index, PRINT_OTHER, "NULL uhmod: omx_index=%d\n", omx_index);
 		return NULL;
 	}
 
 	if (IS_ERR_VALUE(uhmod) || !uhmod->arg) {
-		vc_print(dev->index, PRINT_ERROR, "dma file file_private_data is NULL 2\n");
+		vc_print(dev->index, PRINT_ERROR, "invalid uhmod param:omx_index=%d\n", omx_index);
 		return NULL;
 	}
 	aiface_info = uhmod->arg;
-	uvm_put_hook_mod((struct dma_buf *)(file_vf->private_data),
-			 PROCESS_AIFACE);
+	uvm_put_hook_mod((struct dma_buf *)(file_vf->private_data), PROCESS_AIFACE);
 
 	return aiface_info;
 }
@@ -1841,6 +1839,89 @@ static void check_vicp_skip_mode(struct composer_dev *dev, struct frames_info_t 
 	}
 }
 
+static void video_wait_aiface_ready(struct composer_dev *dev,
+				struct vf_aiface_t *aiface_info, int omx_index)
+{
+	int wait_count = 0;
+
+	while (1) {
+		if (aiface_info->nn_status != NN_DONE &&
+			(aiface_info->nn_status == NN_WAIT_DOING ||
+			aiface_info->nn_status == NN_START_DOING)) {
+			usleep_range(2000, 2100);
+			wait_count++;
+			vc_print(dev->index, PRINT_PATTERN | PRINT_AIFACE,
+				"aiface wait count %d, omx_index=%d, nn_status=%d\n",
+				wait_count, omx_index, aiface_info->nn_status);
+		} else {
+			break;
+		}
+	}
+	vc_print(dev->index, PRINT_PATTERN | PRINT_AIFACE,
+		 "aiface wait %dms, omx_index=%d, nn_status=%d\n",
+		 2 * wait_count, omx_index, aiface_info->nn_status);
+}
+
+static struct vf_aiface_t *aiface_info_adjust(struct composer_dev *dev, struct file *file_vf,
+	int omx_index, int display_x, int display_y, int display_w, int display_h)
+{
+	struct vf_aiface_t *aiface_info = NULL;
+	struct face_value_t face_value_tmp;
+	int nn_width, nn_height, count = 0;
+	int i = 0;
+
+	aiface_info = vc_get_aiface_info(dev, file_vf, omx_index);
+	if (aiface_info) {
+		nn_width = aiface_info->nn_frame_width;
+		nn_height = aiface_info->nn_frame_height;
+		video_wait_aiface_ready(dev, aiface_info, omx_index);
+		if (aiface_info->nn_status == NN_DONE) {
+			memset(&face_value_tmp, 0, sizeof(struct face_value_t));
+			count = aiface_info->aiface_value_count;
+			for (i = 0; i < count; i++) {
+				vc_print(dev->index, PRINT_AIFACE,
+					"src: omx_index=%d, x=%d, y=%d, w=%d, h=%d, score=%d.\n",
+					omx_index,
+					aiface_info->face_value[i].x,
+					aiface_info->face_value[i].y,
+					aiface_info->face_value[i].w,
+					aiface_info->face_value[i].h,
+					aiface_info->face_value[i].score);
+				face_value_tmp.x = display_x +
+					display_w * aiface_info->face_value[i].x / nn_width;
+				face_value_tmp.y = display_y +
+					display_h * aiface_info->face_value[i].y / nn_height;
+				face_value_tmp.w = display_w *
+					aiface_info->face_value[i].w / nn_width;
+				face_value_tmp.h = display_h *
+					aiface_info->face_value[i].h / nn_height;
+				face_value_tmp.score = aiface_info->face_value[i].score;
+
+				aiface_info->face_value[i] = face_value_tmp;
+				vc_print(dev->index, PRINT_AIFACE,
+					"dst: omx_index=%d, x=%d, y=%d, w=%d, h=%d, score=%d.\n",
+					omx_index,
+					aiface_info->face_value[i].x,
+					aiface_info->face_value[i].y,
+					aiface_info->face_value[i].w,
+					aiface_info->face_value[i].h,
+					aiface_info->face_value[i].score);
+			}
+
+			aiface_info->nn_status = NN_DISPLAYED;
+		} else {
+			vc_print(dev->index, PRINT_AIFACE,
+				"%s: omx_index=%d, aiface not ready.\n",
+				__func__, omx_index);
+		}
+	} else {
+		//vc_print(dev->index, PRINT_ERROR, "%s: get aiface info failed.\n", __func__);
+		aiface_info = NULL;
+	}
+
+	return aiface_info;
+}
+
 static void vframe_do_mosaic_22(struct composer_dev *dev)
 {
 	struct received_frames_t *received_frames = NULL;
@@ -2057,6 +2138,10 @@ static void vframe_composer(struct composer_dev *dev)
 	int mifout_en = 1, fbcout_en = 1;
 	u32 src_fmt = 0;
 	enum vicp_skip_mode_e skip_mode[MXA_LAYER_COUNT] = {VICP_SKIP_MODE_OFF};
+	struct vf_aiface_t *aiface_info_temp = NULL;
+	u32 num = 0, last_num = 0, size = 0;
+	struct vframe_s *input_vf[MXA_LAYER_COUNT] = {NULL};
+	struct output_axis out_axis[MXA_LAYER_COUNT] = {0};
 
 	if (IS_ERR_OR_NULL(dev)) {
 		vc_print(dev->index, PRINT_ERROR, "%s: invalid param.\n", __func__);
@@ -2245,6 +2330,9 @@ static void vframe_composer(struct composer_dev *dev)
 		if (max_bottom < (dst_axis.top + dst_axis.height))
 			max_bottom = dst_axis.top + dst_axis.height;
 
+		input_vf[i] = scr_vf;
+		out_axis[i] = display_axis;
+
 		if (dev->dev_choice == COMPOSER_WITH_DEWARP) {
 			vc_print(dev->index, PRINT_OTHER, "use dewarp composer.\n");
 			memset(&vframe_para, 0, sizeof(vframe_para));
@@ -2367,6 +2455,55 @@ static void vframe_composer(struct composer_dev *dev)
 			if (ret < 0)
 				vc_print(dev->index, PRINT_ERROR, "ge2d composer failed\n");
 		}
+	}
+
+	for (i = 0; i < count; i++) {
+		if (!input_vf[i] || out_axis[i].width == 0 || out_axis[i].height == 0) {
+			vc_print(dev->index, PRINT_ERROR, "invalid aiface param.\n");
+			break;
+		}
+
+		aiface_info_temp = aiface_info_adjust(dev,
+						received_frames->file_vf[vf_dev[i]],
+						input_vf[i]->omx_index,
+						out_axis[i].left,
+						out_axis[i].top,
+						out_axis[i].width,
+						out_axis[i].height);
+		if (aiface_info_temp) {
+			vc_print(dev->index, PRINT_AIFACE,
+				"omx_index = %d, aiface_value_count = %d.\n",
+				input_vf[i]->omx_index, aiface_info_temp->aiface_value_count);
+			if (!dev->aiface_buf) {
+				size = sizeof(struct vf_aiface_t) * MAX_FACE_COUNT_PER_FRAME;
+				dev->aiface_buf = vmalloc(size);
+				if (!dev->aiface_buf) {
+					vc_print(dev->index, PRINT_ERROR, "vmalloc failed.\n");
+					break;
+				}
+			}
+
+			for (num = 0; num < aiface_info_temp->aiface_value_count; num++)
+				dev->aiface_buf->face_value[last_num + num] =
+					aiface_info_temp->face_value[num];
+
+			last_num += num;
+			if (last_num >= MAX_FACE_COUNT_PER_FRAME) {
+				vc_print(dev->index, PRINT_ERROR, "over max face count.\n");
+				break;
+			}
+		} else {
+			vc_print(dev->index, PRINT_AIFACE, "get aiface_info failed.\n");
+		}
+	}
+
+	if (dev->aiface_buf) {
+		dev->aiface_buf->aiface_value_count = last_num;
+		dst_vf->vc_private = vc_private_q_pop(dev);
+		dst_vf->vc_private->aiface_info = dev->aiface_buf;
+		dst_vf->vc_private->flag |= VC_FLAG_AI_FACE;
+	} else {
+		vc_print(dev->index, PRINT_AIFACE, "aiface_info is NULL.\n");
 	}
 
 	frames_put_file(dev, received_frames);
@@ -2627,28 +2764,6 @@ static void video_wait_dalton_ready(struct composer_dev *dev,
 	}
 	vc_print(dev->index, PRINT_PATTERN | PRINT_DALTON,
 		 "dalton wait %dms nn_status=%d\n", 2 * wait_count, dalton_info->nn_status);
-}
-
-static void video_wait_aiface_ready(struct composer_dev *dev,
-				struct vf_aiface_t *aiface_info)
-{
-	int wait_count = 0;
-
-	while (1) {
-		if (aiface_info->nn_status != NN_DONE &&
-			(aiface_info->nn_status == NN_WAIT_DOING ||
-			aiface_info->nn_status == NN_START_DOING)) {
-			usleep_range(2000, 2100);
-			wait_count++;
-			vc_print(dev->index, PRINT_PATTERN | PRINT_AIFACE,
-				"aiface wait count %d, nn_status=%d\n",
-				wait_count, aiface_info->nn_status);
-		} else {
-			break;
-		}
-	}
-	vc_print(dev->index, PRINT_PATTERN | PRINT_AIFACE,
-		 "aiface wait %dms nn_status=%d\n", 2 * wait_count, aiface_info->nn_status);
 }
 
 static bool check_vf_has_afbc(struct composer_dev *dev, struct file *file_vf)
@@ -3145,22 +3260,19 @@ static void video_composer_task(struct composer_dev *dev)
 					vc_private->flag |= VC_FLAG_DALTON;
 				}
 
-				aiface_info = vc_get_aiface_info(dev, file_vf);
+				aiface_info = aiface_info_adjust(dev,
+								file_vf,
+								vf->omx_index,
+								frame_info->dst_x,
+								frame_info->dst_y,
+								frame_info->dst_w,
+								frame_info->dst_h);
 				if (aiface_info) {
-					video_wait_aiface_ready(dev, aiface_info);
-					if (aiface_info->nn_status == NN_DONE) {
-						vc_print(dev->index, PRINT_PATTERN | PRINT_AIFACE,
-							"omx_index=%d:x=%d,y=%d,w=%d,h=%d,%d\n",
-							vf->omx_index,
-							aiface_info->face_value[0].x,
-							aiface_info->face_value[0].y,
-							aiface_info->face_value[0].w,
-							aiface_info->face_value[0].h,
-							aiface_info->face_value[0].score);
-						aiface_info->nn_status = NN_DISPLAYED;
-						vf->vc_private->aiface_info = aiface_info;
-						vc_private->flag |= VC_FLAG_AI_FACE;
-					}
+					vf->vc_private->aiface_info = aiface_info;
+					vf->vc_private->flag |= VC_FLAG_AI_FACE;
+					vc_print(dev->index, PRINT_AIFACE,
+						"omx_index = %d, aiface_value_count = %d.\n",
+						vf->omx_index, aiface_info->aiface_value_count);
 				}
 			}
 			dev->last_file = file_vf;
@@ -3756,6 +3868,7 @@ static int video_composer_init(struct composer_dev *dev)
 	dev->select_path_done = false;
 	dev->vd_prepare_last = NULL;
 	dev->dev_choice = COMPOSER_WITH_GE2D;
+	dev->aiface_buf = NULL;
 	init_completion(&dev->task_done);
 	for (i = 0; i < MAX_VD_LAYERS; i++) {
 		for (j = 0; j < MXA_LAYER_COUNT; j++)
@@ -3827,6 +3940,11 @@ static int video_composer_uninit(struct composer_dev *dev)
 	dev->is_sideband = false;
 	dev->need_empty_ready = false;
 	video_display_para_reset(dev->index);
+
+	if (dev->aiface_buf) {
+		vfree(dev->aiface_buf);
+		dev->aiface_buf = NULL;
+	}
 	return ret;
 }
 
