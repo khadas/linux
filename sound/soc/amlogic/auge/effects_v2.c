@@ -366,7 +366,7 @@ static int mixer_set_multiband_DRC_params(struct snd_kcontrol *kcontrol,
     /*Don't update offset and gain*/
 	p_data = &tmp_data[1];
 	p = &multiband_drc_coeff[band_id * AED_SINGLE_BAND_DRC_SIZE];
-	for (i = 0; i < (AED_SINGLE_BAND_DRC_SIZE - 2) ; i++)
+	for (i = 0; i < AED_SINGLE_BAND_DRC_SIZE; i++)
 		*p++ = *p_data++;
 
 	p = &multiband_drc_coeff[0];
@@ -636,8 +636,6 @@ static int effect_platform_probe(struct platform_device *pdev)
 	struct effect_chipinfo *p_chipinfo;
 	int lane_mask = -1, channel_mask = -1, eqdrc_module = -1;
 	int ret;
-
-	pr_info("%s, line:%d\n", __func__, __LINE__);
 
 	p_effect = devm_kzalloc(&pdev->dev,
 			sizeof(struct audioeffect),

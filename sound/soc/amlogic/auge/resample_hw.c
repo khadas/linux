@@ -240,9 +240,7 @@ void new_resampleA_set_format(enum resample_idx id, int channel, int bits)
 		}
 	}
 
-	/* bit width */
-	//new_resample_update_bits(id, AUDIO_RSAMP_CTRL1, 0x1f << 13,
-	//			 msb << 13);
+	/* it should always send 24bit audio to resample module to improve SNR */
 	if (get_resample_version() >= T5_RESAMPLE)
 		get_toddr_bits_config(src, bits, &msb, &lsb);
 	resample_set_bits(id, msb, lsb);

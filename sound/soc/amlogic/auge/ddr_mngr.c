@@ -1809,19 +1809,19 @@ void get_toddr_bits_config(enum toddr_src src,
 	case FRHDMIRX:
 		if (get_hdmirx_mode() == HDMIRX_MODE_PAO) {
 			*msb = 24 - 1;
-			*lsb = (bit_depth > 24) ? 0 : 24 - bit_depth;
+			*lsb = 0;
 		} else {
 			*msb = 28 - 1;
-			*lsb = (bit_depth <= 24) ? 28 - bit_depth : 4;
+			*lsb = 4;
 		}
 		break;
 	case SPDIFIN:
 		*msb = 28 - 1;
-		*lsb = (bit_depth <= 24) ? 28 - bit_depth : 4;
+		*lsb = 4;
 		break;
 	default:
 		*msb = 31;
-		*lsb = 32 - bit_depth;
+		*lsb = 8;
 		break;
 	}
 }

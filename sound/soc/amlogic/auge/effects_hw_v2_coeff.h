@@ -129,7 +129,7 @@ static unsigned int multiband_drc_coeff[AED_MULTIBAND_DRC_SIZE] = {
 };
 
 #define AED_FULLBAND_DRC_SIZE        (18)
-#define AED_FULLBAND_DRC_BYTES       (70)
+#define AED_FULLBAND_DRC_BYTES       (72)
 #define AED_FULLBAND_DRC_OFFSET      (6)
 #define AED_FULLBAND_DRC_GROUP_SIZE  (3)
 
@@ -138,6 +138,7 @@ static unsigned int multiband_drc_coeff[AED_MULTIBAND_DRC_SIZE] = {
 /*ATTACK1:100ms, RELEASE1:100ms*/
 /*RMS:1ms*/
 /*delay: 144 sample max:255*/
+/*offset: 0dB*/
 static int fullband_drc_coeff[AED_FULLBAND_DRC_SIZE] = {
 	0x00004aea,	/* RELEASE_COEF00 */
 	0x007fb516,	/* RELEASE_COEF01 */
@@ -158,7 +159,7 @@ static int fullband_drc_coeff[AED_FULLBAND_DRC_SIZE] = {
 	0x00000090,	/* Delay time*/
 	0xdd000000,	/* THD_OUT0 */
 	0x00040000,	/* K1 */
-	0x00000000,	/* NULL */
+	0x00000000,	/* OFFSET */
 };
 
 #endif
