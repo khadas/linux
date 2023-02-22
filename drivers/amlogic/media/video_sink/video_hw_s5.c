@@ -2762,6 +2762,7 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 	u32 h_start = 0, v_start = 0;
 	u32 slice = 0, slice_num;
 	u32 crop_left = 0;
+	bool no_compress;
 	struct vd_proc_s *vd_proc = &g_vd_proc;
 	struct vpp_frame_par_s *cur_frame_par = layer->cur_frame_par;
 	struct vd_proc_vd1_info_s *vd_proc_vd1_info;
@@ -2809,6 +2810,7 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 	vpp_pre_vsc_en =
 		cur_frame_par->vpp_filter.vpp_pre_vsc_en;
 	crop_left = layer->mif_setting.start_x_lines;
+	no_compress = cur_frame_par->nocomp;
 	/* need add some logic to set this var */
 	/* todo */
 	//vd_proc->bypass_detunnel
@@ -2917,7 +2919,17 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 				/* whole vd1 output size */
 				vd_proc_vd1_info->vd1_dout_hsize[0] = dst_w;
 				vd_proc_vd1_info->vd1_dout_vsize[0] = dst_h;
-				vd_proc_vd1_info->vd1_overlap_hsize = 32;
+				if (!no_compress) {
+					/* afbc ram max 2048,(2048 - overlap * 2) * 4 = src_w */
+					if (src_w > 8064)
+						vd_proc_vd1_info->vd1_overlap_hsize = 0;
+					else if (src_w > 7936)
+						vd_proc_vd1_info->vd1_overlap_hsize = 16;
+					else
+						vd_proc_vd1_info->vd1_overlap_hsize = 32;
+				} else {
+					vd_proc_vd1_info->vd1_overlap_hsize = 32;
+				}
 				break;
 			case VD1_SLICES_DOUT_PI:
 				/* 4 pic */
@@ -3081,9 +3093,10 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 		if (vd_proc->vd1_used) {
 			pr_info("%s:vd_proc_vd1_info->slice_num=%d\n",
 				__func__, vd_proc_vd1_info->slice_num);
-			pr_info("%s:vd1_work_mode=0x%x, vd1_slices_dout_dpsel=0x%x\n",
+			pr_info("%s:vd1_work_mode=0x%x, vd1_slices_dout_dpsel=0x%x, overlap=%d\n",
 				__func__, vd_proc_vd1_info->vd1_work_mode,
-				vd_proc_vd1_info->vd1_slices_dout_dpsel);
+				vd_proc_vd1_info->vd1_slices_dout_dpsel,
+				vd_proc_vd1_info->vd1_overlap_hsize);
 		} else if (vd_proc->vd2_used) {
 			pr_info("%s: vd2_dout_dpsel=%d, vd1s0_vd2_prebld_en=%d\n",
 				__func__, vd_proc_vd2_info->vd2_dout_dpsel,
@@ -8225,6 +8238,9 @@ static void vd_afbc_setting_s5(struct video_layer_s *layer, struct mif_pos_s *se
 	crop_left = setting->start_x_lines;
 	hsize_in = round_up
 		((setting->src_w - 1) + 1, 32);
+	/* afbc h size max 8160 */
+	if (hsize_in >= 8192)
+		hsize_in = 8160;
 	mif_blk_bgn_h = crop_left / 32;
 	mif_blk_end_h = (crop_left + setting->end_x_lines -
 		setting->start_x_lines) / 32;
