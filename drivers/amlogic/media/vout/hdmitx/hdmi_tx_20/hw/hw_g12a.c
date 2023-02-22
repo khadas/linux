@@ -563,7 +563,7 @@ void set_g12a_hpll_clk_out(unsigned int frac_rate, unsigned int clk)
 		WAIT_FOR_PLL_LOCKED(P_HHI_HDMI_PLL_CNTL0);
 		printk("HPLL: 0x%x\n", hd_read_reg(P_HHI_HDMI_PLL_CNTL0));
 		break;
-	case 2686200:
+	case 3485000:
 		hd_write_reg(P_HHI_HDMI_PLL_CNTL0, 0x3b0004DF);//2560x1600
 		if (frac_rate)
 			hd_write_reg(P_HHI_HDMI_PLL_CNTL1, 0x0001ffff);
