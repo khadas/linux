@@ -622,16 +622,6 @@ void tvafe_enable_module(bool enable)
 
 	/* disable */
 	if (!enable) {
-		W_APB_BIT(TVFE_VAFE_CTRL0, 0,
-			VAFE_FILTER_EN_BIT, VAFE_FILTER_EN_WID);
-		W_APB_BIT(TVFE_VAFE_CTRL1, 0,
-			VAFE_PGA_EN_BIT, VAFE_PGA_EN_WID);
-		/*disable Vref buffer*/
-		W_APB_BIT(TVFE_VAFE_CTRL2, 0, 28, 1);
-		/*disable afe buffer*/
-		W_APB_BIT(TVFE_VAFE_CTRL2, 0, 0, 1);
-		W_APB_BIT(TVFE_VAFE_CTRL2, 0, 21, 1);
-
 		/* tvfe power down */
 		W_APB_BIT(TVFE_TOP_CTRL, 0, COMP_CLK_ENABLE_BIT,
 				COMP_CLK_ENABLE_WID);
