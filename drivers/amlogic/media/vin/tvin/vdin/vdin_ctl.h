@@ -90,12 +90,12 @@
 #define CTL_DEBUG_EVENT_DISP_MODE	(BIT(5))
 #define CTL_DEBUG_EVENT_NO_COMP		(BIT(6))
 #define CTL_DEBUG_LUMA_MAX		(BIT(8))
+/* cma_config_flag */
+#define MEM_ALLOC_CODEC_SCT		(BIT(16))
+#define MEM_ALLOC_DISCRETE		(BIT(8))
+#define MEM_ALLOC_FROM_CODEC		(BIT(0))
 
 #define VDIN_ADDRESS_DBG		BIT(0)
-
-#define MEM_ALLOC_DISCRETE	(BIT(8))
-#define MEM_ALLOC_FROM_CODEC	(BIT(0))
-
 #define VDIN_DBG_PRINT_CNT		20
 
 /* 8 is filter the abnormal frame rate diff */

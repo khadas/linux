@@ -57,6 +57,12 @@
 #include "vdin_vf.h"
 #include "vdin_canvas.h"
 #include "vdin_afbce.h"
+#include "vdin_mem_scatter.h"
+
+bool vdin_is_afbce_enabled(struct vdin_dev_s *devp)
+{
+	return (devp->afbce_mode == 1 || devp->double_wr);
+}
 
 /* fixed config mif by default */
 void vdin_mif_config_init(struct vdin_dev_s *devp)
@@ -507,18 +513,27 @@ void vdin_afbce_maptable_init(struct vdin_dev_s *devp)
 	if (!devp->afbce_info)
 		return;
 
+	if (devp->mem_type == VDIN_MEM_TYPE_SCT) {
+		pr_info("%s,use VDIN_MEM_TYPE_SCT\n", __func__);
+		return;
+	}
+
 	size = roundup(devp->afbce_info->frame_body_size, 4096);
 
 	phys_addr = devp->afbce_info->fm_table_paddr[0];
-	if (devp->cma_config_flag == 0x101)
+	if ((devp->cma_config_flag & 0xfff) == 0x101)
 		highmem_flag = PageHighMem(phys_to_page(phys_addr));
 	else
 		highmem_flag = PageHighMem(phys_to_page(phys_addr));
 
 	for (i = 0; i < devp->vf_mem_max_cnt; i++) {
 		phys_addr = devp->afbce_info->fm_table_paddr[i];
+		if (!phys_addr) {
+			pr_info("%s,i=%d,phys_addr == NULL.\n", __func__, i);
+			continue;
+		}
 		if (highmem_flag == 0) {
-			if (devp->cma_config_flag == 0x101)
+			if ((devp->cma_config_flag & 0xfff) == 0x101)
 				virt_addr = codec_mm_phys_to_virt(phys_addr);
 			else if (devp->cma_config_flag == 0)
 				virt_addr = phys_to_virt(phys_addr);
@@ -593,7 +608,7 @@ void vdin_afbce_set_next_frame(struct vdin_dev_s *devp,
 		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 1,
 				    AFBCE_START_PULSE_BIT, AFBCE_START_PULSE_WID);
 
-		if (devp->pause_dec)
+		if (devp->pause_dec || devp->msct_top.sct_pause_dec)
 			rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 0,
 					    AFBCE_EN_BIT, AFBCE_EN_WID);
 		else

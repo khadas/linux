@@ -35,6 +35,7 @@
 /* Local Headers */
 #include "vdin_vf.h"
 #include "vdin_ctl.h"
+#include "vdin_mem_scatter.h"
 
 static bool vf_log_enable = true;
 static bool vf_log_fe = true;
@@ -410,6 +411,7 @@ int vf_pool_init(struct vf_pool *p, int size)
 		}
 		master->af_num = i;
 		master->status = VF_STATUS_WL;
+		master->sct_stat = VFRAME_SCT_STATE_INIT;
 		master->flag |= VF_FLAG_NORMAL_FRAME;
 		master->flag &= (~VF_FLAG_FREEZED_FRAME);
 		spin_lock_irqsave(&p->wr_lock, flags);
@@ -883,6 +885,10 @@ void vdin_vf_put(struct vframe_s *vf, void *op_arg)
 	if (!op_arg || !vf)
 		return;
 	p = (struct vf_pool *)op_arg;
+
+	//vdin_vf_put can called from ISR,so below function only for debug!
+	vdin_sct_free_wr_list_idx(p, vf);
+
 	receiver_vf_put(vf, p);
 	/*clean dv-buf-size*/
 	if (vf && (dv_dbg_mask & DV_CLEAN_UP_MEM)) {

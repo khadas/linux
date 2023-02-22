@@ -1467,8 +1467,9 @@
 	 * dw:960x540x3 = 1.5M
 	 * total size:(27.5+1.5)x buffernumber
 	 */
+	flag_cma = <0x10101>;
 	cma_size = <300>;
-	frame_buff_num = <8>;
+	frame_buff_num = <9>;
 };
 
 &vdin1 {

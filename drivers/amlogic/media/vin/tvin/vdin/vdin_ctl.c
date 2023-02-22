@@ -2572,6 +2572,8 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 				       stride_chroma);
 		}
 	} else {
+		pr_info("%s,phy_addr_luma:%#x,stride_luma:%d\n",
+			__func__, phy_addr_luma, stride_luma);
 		wr(devp->addr_offset, VDIN_WR_BADDR_LUMA, phy_addr_luma >> 4);
 		wr(devp->addr_offset, VDIN_WR_STRIDE_LUMA, stride_luma);
 
@@ -2632,7 +2634,7 @@ void vdin_set_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
 				    VDIN_WR_CTRL + devp->addr_offset,
 				    canvas_id, WR_CANVAS_BIT, WR_CANVAS_WID);
 
-		if (devp->pause_dec)
+		if (devp->pause_dec || devp->msct_top.sct_pause_dec)
 			rdma_write_reg_bits(devp->rdma_handle, VDIN_WR_CTRL + devp->addr_offset,
 					    0, WR_REQ_EN_BIT, WR_REQ_EN_WID);
 		else
@@ -2643,7 +2645,7 @@ void vdin_set_canvas_id(struct vdin_dev_s *devp, unsigned int rdma_enable,
 		wr_bits(devp->addr_offset, VDIN_WR_CTRL, canvas_id,
 			WR_CANVAS_BIT, WR_CANVAS_WID);
 
-		if (devp->pause_dec)
+		if (devp->pause_dec || devp->msct_top.sct_pause_dec)
 			wr_bits(devp->addr_offset, VDIN_WR_CTRL, 0,
 				WR_REQ_EN_BIT, WR_REQ_EN_WID);
 		else

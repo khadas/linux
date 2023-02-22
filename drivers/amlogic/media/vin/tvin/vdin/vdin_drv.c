@@ -83,6 +83,7 @@
 #include "vdin_v4l2_dbg.h"
 #include "vdin_dv.h"
 #include "vdin_v4l2_if.h"
+#include "vdin_mem_scatter.h"
 
 #include <linux/amlogic/gki_module.h>
 
@@ -1104,7 +1105,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	u32 sts;
 
 	/* avoid null pointer oops */
-	if (IS_ERR_OR_NULL(devp) || IS_ERR_OR_NULL(devp->fmt_info_p)) {
+	if (IS_ERR_OR_NULL(devp->fmt_info_p)) {
 		pr_info("[vdin]%s null error.\n", __func__);
 		return -1;
 	}
@@ -1210,6 +1211,9 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TXL)
 		vdin_fix_nonstd_vsync(devp);
 
+	/* continuous or sct memory;should be located before vdin_set_to_vpp_parm */
+	vdin_mem_init(devp);
+
 	/* reverse/non-reverse write buffer */
 	vdin_wr_reverse(devp->addr_offset, devp->parm.h_reverse, devp->parm.v_reverse);
 	vdin_set_to_vpp_parm(devp);
@@ -1291,19 +1295,25 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	/*		       VPU_VIU_VDIN0,*/
 	/*		       VPU_MEM_POWER_ON);*/
 
+	if (vdin_sct_start(devp)) { /* request one scatter buffer before start */
+		pr_err("%s vdin%d mem_type=%d,sct start failed!\n",
+			__func__, devp->index, devp->mem_type);
+		return -1;
+	}
+
 	/* screenshot stress test vdin1 hw crash addr need adjust config */
-		vfe = provider_vf_peek(devp->vfp);
-		if (vfe) {
-			vdin_frame_write_ctrl_set(devp, vfe, 0);
-			if (is_meson_t3_cpu() && devp->index == 1 && devp->set_canvas_manual)
-				usleep_range(16600, 18000);
-		} else {
-			pr_info("vdin%d:peek first vframe fail\n", devp->index);
-		}
-		vdin_set_all_regs(devp);
-		vdin_hw_enable(devp);
-		vdin_set_dv_tunnel(devp);
-		vdin_write_mif_or_afbce_init(devp);
+	vfe = provider_vf_peek(devp->vfp);
+	if (vfe) {
+		vdin_frame_write_ctrl_set(devp, vfe, 0);
+		if (is_meson_t3_cpu() && devp->index == 1 && devp->set_canvas_manual)
+			usleep_range(16600, 18000);
+	} else {
+		pr_info("vdin%d:peek first vframe fail\n", devp->index);
+	}
+	vdin_set_all_regs(devp);
+	vdin_hw_enable(devp);
+	vdin_set_dv_tunnel(devp);
+	vdin_write_mif_or_afbce_init(devp);
 
 	sts = vdin_is_delay_vfe2rd_list(devp);
 	if (sts) {
@@ -1563,6 +1573,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && devp->index == 0)
 		vdin_afbce_soft_reset();
 
+	vdin_mem_exit(devp);
 #ifdef CONFIG_CMA
 	vdin_cma_release(devp);
 #endif
@@ -1957,7 +1968,7 @@ int stop_tvin_service(int no)
 		devp->flags &= (~VDIN_FLAG_V4L2_DEBUG);
 	devp->flags &= (~VDIN_FLAG_DEC_OPENED);
 	devp->flags &= (~VDIN_FLAG_DEC_STARTED);
-	if ((devp->parm.port != TVIN_PORT_VIU1 || viu_hw_irq != 0)) {
+	if (devp->parm.port != TVIN_PORT_VIU1 || viu_hw_irq != 0) {
 		free_irq(devp->irq, (void *)devp);
 
 		if (vdin_dbg_en)
@@ -2575,6 +2586,8 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 			devp->vfp->last_vfe = vfe;
 		}
 	}
+	vdin_sct_read_mmu_num(devp, vfe);
+
 	return ret;
 }
 
@@ -2687,6 +2700,11 @@ static void vdin_set_vfe_info(struct vdin_dev_s *devp, struct vf_entry *vfe)
 		vfe->vf.flag |= VFRAME_FLAG_ALLM_MODE;
 	else
 		vfe->vf.flag &= ~VFRAME_FLAG_ALLM_MODE;
+
+	if (devp->mem_type == VDIN_MEM_TYPE_SCT)
+		vfe->vf.type_ext = VIDTYPE_EXT_VDIN_SCATTER;
+	else
+		vfe->vf.type_ext &= ~VIDTYPE_EXT_VDIN_SCATTER;
 }
 
 /*
@@ -2798,7 +2816,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			sm_ops->hdmi_clr_vsync(devp->frontend);
 		else
 			pr_err("hdmi_clr_vsync is NULL\n ");
-
+		vdin_drop_frame_info(devp, "err_vsync");
 		return IRQ_HANDLED;
 	}
 
@@ -3137,6 +3155,16 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			goto irq_handled;
 		}
 	}
+	if (devp->mem_type == VDIN_MEM_TYPE_SCT && next_wr_vfe) {
+		if (next_wr_vfe->sct_stat != VFRAME_SCT_STATE_FULL) {
+			devp->msct_top.sct_pause_dec = true;
+			devp->vdin_irq_flag = VDIN_IRQ_FLG_NO_NEXT_FE;
+			vdin_drop_frame_info(devp, "sct no next wr vfe");
+			goto irq_handled;
+		} else if (devp->msct_top.sct_pause_dec) {
+			devp->msct_top.sct_pause_dec = false;
+		}
+	}
 
 	/* hdmi in signal is VRR or Freesync,and game mode 2 */
 	if (((devp->game_mode & VDIN_GAME_MODE_2) && devp->vrr_data.vrr_mode) &&
@@ -3333,10 +3361,12 @@ irq_handled:
 			devp->flags_isr &= ~VDIN_FLAG_RDMA_DONE;
 	}
 #endif
+	vdin_sct_queue_work(devp);
+
 	isr_log(devp->vfp);
 
 	if (vdin_isr_monitor & VDIN_ISR_MONITOR_BUFFER)
-		pr_info("vdin.%d: frame_cnt:0x%x wr_list:%x wr_mode:%x rd_list:%x rd_mode:%x\n",
+		pr_info("vdin.%d: frame_cnt:%d wr_list:%d wr_mode:%d rd_list:%d rd_mode:%d\n",
 			devp->index, devp->frame_cnt, devp->vfp->wr_list_size,
 			devp->vfp->wr_mode_size, devp->vfp->rd_list_size,
 			devp->vfp->rd_mode_size);
@@ -5583,6 +5613,7 @@ static void vdin_get_dts_config(struct vdin_dev_s *devp,
 				   &devp->frame_buff_num);
 	if (ret)
 		devp->frame_buff_num = 0;
+	devp->frame_buff_num_bak = devp->frame_buff_num;
 
 	if (devp->index == 0) {
 		ret = of_property_read_u32(pdev->dev.of_node, "vrr_mode_default",

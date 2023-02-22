@@ -39,15 +39,15 @@
 
 #define VF_FLAG_NORMAL_FRAME		 0x00000001
 #define VF_FLAG_FREEZED_FRAME		 0x00000002
-#define VFRAME_DISP_MAX_NUM 25
-#define VDIN_CANVAS_MIN_CNT	4
-#define VDIN_CANVAS_MAX_CNT	11
+#define VFRAME_DISP_MAX_NUM	25
+#define VDIN_CANVAS_MIN_CNT	3
+#define VDIN_CANVAS_MAX_CNT	12
 #define VDIN_CANVAS_INTERLACED_MIN_CNT	8
 /* total canvas num in chips */
 #define VDIN_TOTAL_CANVAS_NUM	20
 /* real canvas num for each vdin */
-#define VDIN0_CANVAS_MAX_CNT	11
-#define VDIN1_CANVAS_MAX_CNT	9
+#define VDIN0_CANVAS_MAX_CNT	12
+#define VDIN1_CANVAS_MAX_CNT	8
 #define VDIN_VF_POOL_FREEZE              0x00000001
 #define ISR_LOG_EN
 #define VDIN_VF_MAX_NUM_PLANES	2
@@ -79,6 +79,13 @@ enum vf_status_e {
 	VF_STATUS_RM,	  /* In read  mode */
 	VF_STATUS_WT,	  /* In wait  list */
 	VF_STATUS_SL,
+};
+
+/* For scatter memory status */
+enum vframe_sct_status_e {
+	VFRAME_SCT_STATE_INIT = 0,
+	VFRAME_SCT_STATE_FULL = 1,
+	VFRAME_SCT_STATE_FREE_TAIL = 2,
 };
 
 struct vf_log_s {
@@ -122,6 +129,7 @@ struct vf_entry {
 	struct list_head list;
 	unsigned int flag;
 	unsigned char af_num;/*afbce num*/
+	enum vframe_sct_status_e sct_stat;/* scatter */
 };
 
 struct vf_pool {

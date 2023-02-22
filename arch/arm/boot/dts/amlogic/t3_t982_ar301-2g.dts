@@ -1385,6 +1385,7 @@
 	 * dw:960x540x3 = 1.5M
 	 * total size:(27.5+1.5)x buffernumber
 	 */
+	flag_cma = <0x10101>;
 	cma_size = <330>;
 	frame_buff_num = <11>;
 	v4l_support_en = <0>;

@@ -2135,7 +2135,7 @@ void vdin_set_frame_mif_write_addr_s5(struct vdin_dev_s *devp,
 				       VDIN_WRMIF_STRIDE_CHROMA + devp->addr_offset,
 				       stride_chroma);
 		}
-		if (devp->pause_dec)
+		if (devp->pause_dec || devp->msct_top.sct_pause_dec)
 			rdma_write_reg_bits(devp->rdma_handle,
 				VDIN_WRMIF_CTRL + devp->addr_offset,
 				0, WR_REQ_EN_BIT, WR_REQ_EN_WID);
@@ -2153,7 +2153,7 @@ void vdin_set_frame_mif_write_addr_s5(struct vdin_dev_s *devp,
 			wr(devp->addr_offset, VDIN_WRMIF_STRIDE_CHROMA,
 			   stride_chroma);
 		}
-		if (devp->pause_dec)
+		if (devp->pause_dec || devp->msct_top.sct_pause_dec)
 			wr_bits(devp->addr_offset, VDIN_WRMIF_CTRL,
 				0, WR_REQ_EN_BIT, WR_REQ_EN_WID);
 		else
@@ -2214,7 +2214,7 @@ void vdin_set_canvas_id_s5(struct vdin_dev_s *devp, unsigned int rdma_enable,
 				    VDIN_WRMIF_CTRL + devp->addr_offset,
 				    canvas_id, WR_CANVAS_BIT, WR_CANVAS_WID);
 
-		if (devp->pause_dec)
+		if (devp->pause_dec || devp->msct_top.sct_pause_dec)
 			rdma_write_reg_bits(devp->rdma_handle, VDIN_WRMIF_CTRL + devp->addr_offset,
 					    0, WR_REQ_EN_BIT, WR_REQ_EN_WID);
 		else
@@ -2225,7 +2225,7 @@ void vdin_set_canvas_id_s5(struct vdin_dev_s *devp, unsigned int rdma_enable,
 		wr_bits(devp->addr_offset, VDIN_WRMIF_CTRL, canvas_id,
 			WR_CANVAS_BIT, WR_CANVAS_WID);
 
-		if (devp->pause_dec)
+		if (devp->pause_dec || devp->msct_top.sct_pause_dec)
 			wr_bits(devp->addr_offset, VDIN_WRMIF_CTRL, 0,
 				WR_REQ_EN_BIT, WR_REQ_EN_WID);
 		else

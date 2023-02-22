@@ -37,6 +37,8 @@
 #include "vdin_canvas.h"
 #include "vdin_ctl.h"
 #include "vdin_dv.h"
+#include "vdin_mem_scatter.h"
+
 /*the value depending on dts config mem limit
  *for skip two vframe case,need +2
  */
@@ -67,11 +69,11 @@ MODULE_PARM_DESC(dolby_size_byte, "dolby_size_byte.\n");
 const unsigned int vdin_canvas_ids[2][VDIN_CANVAS_MAX_CNT] = {
 	{
 		0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b,
-		0x2c, 0x2d, 0x2e, 0x2f, 0x30
+		0x2c, 0x2d, 0x2e, 0x2f, 0x30, 0x31
 	},
 	{
-		0x31, 0x32, 0x33, 0x34, 0x35, 0x36,
-		0x37, 0x38, 0x35, 0x36, 0x39
+		0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+		0x38, 0x39,
 	},
 };
 
@@ -625,10 +627,18 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			devp->afbce_info->frame_head_size = 0;
 			devp->afbce_info->frame_table_size = 0;
 		}
-
-		frame_size = devp->vf_mem_size_small + devp->vf_mem_size +
-			devp->afbce_info->frame_head_size + devp->afbce_info->frame_table_size;
-
+		if (devp->mem_type == VDIN_MEM_TYPE_SCT) {
+			frame_size = devp->vf_mem_size_small + devp->afbce_info->frame_head_size +
+				devp->afbce_info->frame_table_size;
+		} else {
+			frame_size = devp->vf_mem_size_small + devp->vf_mem_size +
+				devp->afbce_info->frame_head_size +
+				devp->afbce_info->frame_table_size;
+		}
+		pr_info("vdin%d small = %#x, vf_mem = %#x, head:%#x,table:%#x,frame_size:%#x.mem_size:%#x\n",
+			devp->index, devp->vf_mem_size_small, devp->vf_mem_size,
+			devp->afbce_info->frame_head_size, devp->afbce_info->frame_table_size,
+			frame_size, mem_size);
 	} else {
 		frame_size = devp->vf_mem_size_small + devp->vf_mem_size;
 	}
@@ -809,14 +819,22 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		devp->afbce_info->frame_body_size = devp->vf_mem_size;
 
 		for (i = 0; i < max_buffer_num; i++) {
-			devp->afbce_info->fm_body_paddr[i] =
-				devp->vf_mem_start[i] + devp->vf_mem_size_small;
-			devp->afbce_info->fm_head_paddr[i] =
-				devp->afbce_info->fm_body_paddr[i] + devp->vf_mem_size;
-
-			devp->afbce_info->fm_table_paddr[i] =
-				devp->afbce_info->fm_head_paddr[i] +
-				devp->afbce_info->frame_head_size;
+			if (devp->mem_type == VDIN_MEM_TYPE_SCT) {
+				devp->afbce_info->fm_body_paddr[i] = 0;
+				devp->afbce_info->fm_head_paddr[i] =
+					devp->vf_mem_start[i] + devp->vf_mem_size_small;
+				devp->afbce_info->fm_table_paddr[i] =
+					devp->afbce_info->fm_head_paddr[i] +
+					devp->afbce_info->frame_head_size;
+			} else {
+				devp->afbce_info->fm_body_paddr[i] =
+					devp->vf_mem_start[i] + devp->vf_mem_size_small;
+				devp->afbce_info->fm_head_paddr[i] =
+					devp->afbce_info->fm_body_paddr[i] + devp->vf_mem_size;
+				devp->afbce_info->fm_table_paddr[i] =
+					devp->afbce_info->fm_head_paddr[i] +
+					devp->afbce_info->frame_head_size;
+			}
 
 			if (vdin_dbg_en) {
 				pr_info("vdin%d fm_head_paddr[%d] = 0x%lx, frame_head_size = 0x%x\n",
@@ -827,6 +845,41 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 					devp->index, i,
 					devp->afbce_info->fm_table_paddr[i],
 					devp->afbce_info->frame_table_size);
+			}
+		}
+	}
+
+	if (devp->mem_type == VDIN_MEM_TYPE_SCT) {
+		//table
+		int highmem_flag = 0;
+		unsigned long *table;
+		//void *buf_table = NULL;
+		table = &devp->afbce_info->fm_table_paddr[0];
+		highmem_flag = PageHighMem(phys_to_page(table[0]));
+		if (highmem_flag == 0) {
+			/*low mem area*/
+			pr_info("low mem area,flag:%#x\n", devp->cma_config_flag);
+			if ((devp->cma_config_flag & 0xffff) == 0x101) {
+				for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
+					devp->afbce_info->fm_table_vir_paddr[i] =
+						codec_mm_phys_to_virt(table[i]);
+					//pr_info("table_paddr=0x%lx\n", (table[i]));
+				}
+			} else if ((devp->cma_config_flag & 0xffff) == 0) {
+				for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
+					devp->afbce_info->fm_table_vir_paddr[i] =
+						phys_to_virt(table[i]);
+					//pr_info("table_paddr=0x%lx\n", (table[0]));
+				}
+			}
+		} else {
+			/*high mem area*/
+			pr_info("high mem area\n");
+			for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
+				devp->afbce_info->fm_table_vir_paddr[i] =
+					vdin_vmap(table[i],
+					      devp->afbce_info->frame_table_size);
+				//pr_info("table_paddr=0x%lx\n", (table[0]));
 			}
 		}
 	}
@@ -904,6 +957,21 @@ void vdin_cma_release(struct vdin_dev_s *devp)
 							    devp->mem_size >> PAGE_SHIFT);
 
 			pr_info("vdin%d cma release ok!\n", devp->index);
+		}
+	}
+	if (devp->mem_type == VDIN_MEM_TYPE_SCT) {
+		//table
+		int highmem_flag = 0;
+		//void *buf_table = NULL;
+		highmem_flag = PageHighMem(phys_to_page(devp->afbce_info->fm_table_paddr[0]));
+		if (highmem_flag) {
+			/*high mem area*/
+			pr_info("%s high mem area\n", __func__);
+			for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
+				if (devp->afbce_info->fm_table_vir_paddr[i])
+					vdin_unmap_phyaddr(devp->afbce_info->fm_table_vir_paddr[i]);
+				devp->afbce_info->fm_table_vir_paddr[i] = NULL;
+			}
 		}
 	}
 

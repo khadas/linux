@@ -755,6 +755,7 @@ struct vframe_s {
 
 	/* data address of userdata_param_t structure */
 	struct vf_ud_param_s vf_ud_param;
+	u32 afbce_num;
 } /*vframe_t */;
 
 #define VC_FLAG_AI_SR	0x1

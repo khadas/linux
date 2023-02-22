@@ -48,6 +48,7 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include "vdin_dv.h"
+#include "vdin_mem_scatter.h"
 
 void vdin_parse_param(char *buf_orig, char **parm)
 {
@@ -325,11 +326,11 @@ static void vdin_dump_more_mem(char *path, struct vdin_dev_s *devp,
 			pre_put_frames = devp->put_frame_cnt;
 			rec_dum_frame[k] = pre_put_frames;
 			vf_phy_addr = devp->vfp->last_last_vfe->vf.canvas0_config[0].phy_addr;
-			if (devp->cma_config_flag == 0x1)
+			if ((devp->cma_config_flag & 0xfff) == 0x1)
 				buf = codec_mm_phys_to_virt(vf_phy_addr);
-			else if (devp->cma_config_flag == 0x101)
+			else if ((devp->cma_config_flag & 0xfff) == 0x101)
 				buf = codec_mm_phys_to_virt(vf_phy_addr);
-			else if (devp->cma_config_flag == 0x100)
+			else if ((devp->cma_config_flag & 0xfff) == 0x100)
 				buf = phys_to_virt(vf_phy_addr);
 			else
 				buf = phys_to_virt(vf_phy_addr);
@@ -539,11 +540,11 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 			devp->canvas_w, devp->canvas_active_w);
 		for (i = 0; i < devp->canvas_max_num; i++) {
 			pos = mem_size * i;
-			if (devp->cma_config_flag == 0x1)
+			if ((devp->cma_config_flag & 0xfff) == 0x1)
 				buf = codec_mm_phys_to_virt(devp->vf_mem_start[i]);
-			else if (devp->cma_config_flag == 0x101)
+			else if ((devp->cma_config_flag & 0xfff) == 0x101)
 				vfbuf[i] = codec_mm_phys_to_virt(devp->vf_mem_start[i]);
-			else if (devp->cma_config_flag == 0x100)
+			else if ((devp->cma_config_flag & 0xfff) == 0x100)
 				vfbuf[i] = phys_to_virt(devp->vf_mem_start[i]);
 			else
 				buf = phys_to_virt(devp->vf_mem_start[i]);
@@ -599,6 +600,72 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 	set_fs(old_fs);
 }
 
+static void vdin_dump_write_sct_mem(struct vdin_dev_s *devp,
+				    unsigned int buf_num, struct file *filp)
+{
+	int i;
+	int highmem_flag = 0;
+	phy_addr_type phy_addr;
+	struct codec_mm_scatter *sc;
+	loff_t pos = 0;
+	void *buf_body = NULL;
+	struct vdin_mmu_box *box = NULL;
+
+	box = devp->msct_top.box;
+	if (!box) {
+		pr_info("%s box == NULL\n", __func__);
+		return;
+	}
+
+	mutex_lock(&box->mutex);
+	sc = vdin_mmu_box_get_sc_from_idx(box, buf_num);
+	if (!sc) {
+		pr_info("%s sc == NULL\n", __func__);
+		return;
+	}
+	for (i = 0; i < sc->page_cnt; i++) {//devp->msct_top.mmu_4k_number
+		phy_addr = vdin_sct_get_page_addr(sc, i);
+		if (!phy_addr) {
+			pr_info("[%d] phy_addr == 0\n", i);
+			continue;
+		}
+		highmem_flag = PageHighMem(phys_to_page(phy_addr));
+		if (highmem_flag == 0) {
+			if ((devp->cma_config_flag & 0xfff) == 0x101)
+				buf_body = codec_mm_phys_to_virt(phy_addr);
+			else if ((devp->cma_config_flag & 0xfff) == 0)
+				buf_body = phys_to_virt(phy_addr);
+			pr_debug("[%d] Low phy_addr=0x%lx,buf_body=0x%lx,page:0x%lx\n", i,
+				phy_addr, (unsigned long)buf_body, PAGE_SIZE);
+			vdin_dma_flush(devp, buf_body, PAGE_SIZE,
+				       DMA_FROM_DEVICE);
+			vfs_write(filp, buf_body, PAGE_SIZE, &pos);
+		} else {
+			buf_body = vdin_vmap(phy_addr, PAGE_SIZE);
+			if (!buf_body) {
+				vfs_fsync(filp, 0);
+				pr_info("[%d] vdin_vmap error\n", i);
+				return;
+			}
+			pr_debug("[%d] High phy_addr=0x%lx,buf_body=0x%lx,page:0x%lx\n", i,
+				phy_addr, (unsigned long)buf_body, PAGE_SIZE);
+			vdin_dma_flush(devp, buf_body, PAGE_SIZE, DMA_FROM_DEVICE);
+			vfs_write(filp, buf_body, PAGE_SIZE, &pos);
+			vdin_unmap_phyaddr(buf_body);
+		}
+	}
+	pr_info("[%d] page_cnt=%d,mmu_4k_number:%d\n", i,
+		sc->page_cnt, devp->msct_top.mmu_4k_number);
+	if (highmem_flag == 0) {
+		for (i = sc->page_cnt; i < devp->msct_top.mmu_4k_number; i++) {
+			pr_debug("[%d] Low phy_addr=0x%lx,buf_body=0x%lx,page:0x%lx\n", i,
+				phy_addr, (unsigned long)buf_body, PAGE_SIZE);
+			vfs_write(filp, buf_body, PAGE_SIZE, &pos);
+		}
+	}
+
+	mutex_unlock(&box->mutex);
+}
 static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 				    unsigned int buf_num)
 {
@@ -635,7 +702,7 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 	if (highmem_flag == 0) {
 		/*low mem area*/
 		pr_info("low mem area\n");
-		if (devp->cma_config_flag == 0x101) {
+		if ((devp->cma_config_flag & 0xfff) == 0x101) {
 			buf_head =
 			codec_mm_phys_to_virt(devp->afbce_info->fm_head_paddr[buf_num]);
 			buf_table =
@@ -739,8 +806,12 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 		return;
 	}
 	if (highmem_flag == 0) {
-		vfs_write(filp, buf_body,
-			  devp->afbce_info->frame_body_size, &pos);
+		if (devp->mem_type == VDIN_MEM_TYPE_SCT) {
+			vdin_dump_write_sct_mem(devp, buf_num, filp);
+		} else {
+			vfs_write(filp, buf_body,
+				devp->afbce_info->frame_body_size, &pos);
+		}
 	} else {
 		span = SZ_1M;
 		count = devp->afbce_info->frame_body_size / PAGE_ALIGN(span);
@@ -1102,8 +1173,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	vdin_dump_vf_state(devp->vfp);
 	if (vf) {
 		pr_info("current vframe index(%u):\n", vf->index);
-		pr_info("\t buf(w%u, h%u),type(0x%x),flag(0x%x), duration(%d),",
-		vf->width, vf->height, vf->type, vf->flag, vf->duration);
+		pr_info("\t buf(w%u, h%u),type(0x%x 0x%x),flag(0x%x), duration(%d),",
+		vf->width, vf->height, vf->type, vf->type_ext, vf->flag, vf->duration);
 		pr_info("\t ratio_control(0x%x), signal_type:0x%x\n",
 			vf->ratio_control, vf->signal_type);
 		pr_info("\t trans fmt %u, left_start_x %u,",
@@ -3611,6 +3682,103 @@ static ssize_t snow_flag_show(struct device *dev,
 
 static DEVICE_ATTR_RO(snow_flag);
 
+static void vdin_dump_sct_state(struct vdin_dev_s *devp)
+{
+	int i, sum = 0;
+	struct vf_entry *vfe = NULL;
+	struct codec_mm_scatter *sc;
+	struct vdin_mmu_box *box = NULL;
+
+	pr_info("mem_type:%d\n", devp->mem_type);
+	pr_info("irq:%d,frm:%d,que:%d,run:%d,pause:%d\n",
+		devp->irq_cnt, devp->frame_cnt,
+		devp->msct_top.que_work_cnt,
+		devp->msct_top.worker_run_cnt,
+		devp->msct_top.sct_pause_dec);
+
+	pr_info("pool,size:%d,wr_list:%d,wr_mode:%d,rd_list:%d,rd_mode:%d\n",
+		devp->vfp->size, devp->vfp->wr_list_size,
+		devp->vfp->wr_mode_size, devp->vfp->rd_list_size,
+		devp->vfp->rd_mode_size);
+
+	/* initialize provider write list */
+	for (i = 0; i < devp->vfp->size; i++) {
+		vfe = vf_get_master(devp->vfp, i);
+		if (!vfe) {
+			pr_err("%s null vfe\n", __func__);
+			break;
+		}
+		sum += devp->msct_top.sct_stat[i].cur_page_cnt;
+		pr_info("[%d],index:%d,sct_stat:%d,status:%d,cur_page_cnt:%d\n",
+			i, vfe->vf.index, vfe->sct_stat, vfe->status,
+			devp->msct_top.sct_stat[i].cur_page_cnt);
+	}
+	pr_info("max_buf_mum:%d,mmu number:%d,total pages vf:%d,size:%ld KB\n",
+		devp->msct_top.max_buf_num, devp->msct_top.mmu_4k_number,
+		sum, (sum * PAGE_SIZE) / 1024);
+
+	box = devp->msct_top.box;
+	if (!box) {
+		pr_err("%s can't get scatter\n", __func__);
+		return;
+	}
+	sum = 0;
+	for (i = 0; i < box->max_sc_num; i++) {
+		sc = box->sc_list[i];
+		if (!sc) {
+			pr_err("sc[%d],null\n", i);
+			continue;
+		}
+		sum += sc->page_used;
+		pr_info("sc[%d],max_cnt:%d,cnt:%d,tail:%d,used:%d\n",
+			i, sc->page_max_cnt, sc->page_cnt,
+			sc->page_tail, sc->page_used);
+	}
+	pr_info("total pages codec_mm_scatter:%d,size:%ld KB\n", sum, (sum * PAGE_SIZE) / 1024);
+}
+
+ssize_t sct_attr_show(struct device *dev,
+		  struct device_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+
+	len += sprintf(buf + len,
+		       "echo state > /sys/class/vdin/vdin0/sct_attr\n");
+	return len;
+}
+
+static ssize_t sct_attr_store(struct device *dev,
+			  struct device_attribute *attr,
+			  const char *buf, size_t len)
+{
+	char *buf_orig, *parm[47] = {NULL};
+	struct vdin_dev_s *devp;
+	unsigned int offset, temp;
+
+	if (!buf)
+		return len;
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	devp = dev_get_drvdata(dev);
+	vdin_parse_param(buf_orig, (char **)&parm);
+	offset = devp->addr_offset;
+
+	if (!strncmp(parm[0], "state", 3)) {
+		vdin_dump_sct_state(devp);
+	} else if (!strcmp(parm[0], "dbg_sct_ctl")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			devp->debug.dbg_sct_ctl = temp;
+			pr_info("dbg_sct_ctl:%#x\n", devp->debug.dbg_sct_ctl);
+		}
+	} else {
+		pr_info("unknown command:%s\n", parm[0]);
+	}
+
+	kfree(buf_orig);
+	return len;
+}
+
+static DEVICE_ATTR_RW(sct_attr);
+
 int vdin_create_debug_files(struct device *dev)
 {
 	int ret = 0;
@@ -3624,6 +3792,7 @@ int vdin_create_debug_files(struct device *dev)
 	ret = device_create_file(dev, &dev_attr_isr_log);
 	#endif
 	ret = device_create_file(dev, &dev_attr_attr);
+	ret = device_create_file(dev, &dev_attr_sct_attr);
 	ret = device_create_file(dev, &dev_attr_cm2);
 	/*ret = device_create_file(dev, &dev_attr_debug_for_isp);*/
 	ret = device_create_file(dev, &dev_attr_crop);
@@ -3640,6 +3809,7 @@ void vdin_remove_debug_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_isr_log);
 	#endif
 	device_remove_file(dev, &dev_attr_attr);
+	device_remove_file(dev, &dev_attr_sct_attr);
 	device_remove_file(dev, &dev_attr_cm2);
 	/*device_remove_file(dev, &dev_attr_debug_for_isp);*/
 	device_remove_file(dev, &dev_attr_crop);
@@ -3965,5 +4135,4 @@ void vdin_dump_frames(struct vdin_dev_s *devp)
 		}
 	}
 }
-
 /*------------------------------------------*/
