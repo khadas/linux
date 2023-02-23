@@ -1256,7 +1256,7 @@
 	 * en_4k: disable 4K
 	 ***************************************************/
 	en_4k = <0>;
-	//keep_dec_vf = <2>;
+	keep_dec_vf = <2>;
 	po_fmt = <0>;
 	/***************************************************
 	 * post_nub: default is 11 (T7/T3/SC2/S4 new path)
@@ -1270,18 +1270,18 @@
 	 * bit 1: for 1080p
 	 ***************************************************/
 	alloc_sct = <0>;
-	en_dat = <0>;
 	/***************************************************
 	 * hf: default is 0 (T7/T3/SC2/S4 new path)
 	 * 0:not enable;
 	 * 1: enable
 	 ***************************************************/
-	//hf = <0>;
+	hf = <0>;
 	afbce_loss_en = <1>;
 	/***************************************************
 	 * loss mode for di out (T5w)
 	 * 0:not set loss mode for di out;
-	 * 1:1:check the loss flag in vf and set for di
+	 * 1:force di output loss;
+	 * 2:check the loss flag in vf and set for di
 	 ***************************************************/
 };/* end of multi-di */
 

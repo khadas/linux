@@ -1287,7 +1287,8 @@
 	/***************************************************
 	 * loss mode for di out (T5w)
 	 * 0:not set loss mode for di out;
-	 * 1:1:check the loss flag in vf and set for di
+	 * 1:force di output loss;
+	 * 2:check the loss flag in vf and set for di
 	 ***************************************************/
 };/* end of multi-di */
 
@@ -1461,6 +1462,7 @@
 &vdin0 {
 	/*memory-region = <&vdin0_cma_reserved>;*/
 	status = "okay";
+	dbg_no_wr_check;
 	/*MByte, if 10bit disable: 64M(YUV422),
 	 *if 10bit enable: 64*1.5 = 96M(YUV422)
 	 *if support 4K2K-YUV444-10bit-WR:3840*2160*4*4 ~= 128M
