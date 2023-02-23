@@ -7203,6 +7203,7 @@ void hdr10_plus_process_update(int force_source_lumin,
 {
 	int panel_lumin;
 	struct vinfo_s *vinfo;
+	int silce_mode = get_s5_silce_mode();
 
 	if (vpp_index == VPP_TOP1)
 		vinfo = get_current_vinfo2();
@@ -7226,34 +7227,76 @@ void hdr10_plus_process_update(int force_source_lumin,
 	hdr10_plus_ootf_gen(panel_lumin,
 			    force_source_lumin,
 			    &hdr10pgen_param);
-	if (vd_path == VD1_PATH)
-		hdr10p_ebzcurve_update(VD1_HDR,
-				       HDR10P_SDR,
-				       &hdr10pgen_param,
-				       vpp_index);
-	else if (vd_path == VD2_PATH)
+	if (vd_path == VD1_PATH) {
+		if (silce_mode == VD1_1SLICE) {
+			hdr10p_ebzcurve_update(VD1_HDR,
+					       HDR10P_SDR,
+					       &hdr10pgen_param,
+					       vpp_index);
+		} else if (silce_mode == VD1_2SLICE) {
+			hdr10p_ebzcurve_update(VD1_HDR,
+						   HDR10P_SDR,
+						   &hdr10pgen_param,
+						   vpp_index);
+			hdr10p_ebzcurve_update(S5_VD1_SLICE1,
+						   HDR10P_SDR,
+						   &hdr10pgen_param,
+						   vpp_index);
+		} else if (silce_mode == VD1_4SLICE) {
+			hdr10p_ebzcurve_update(VD1_HDR,
+						   HDR10P_SDR,
+						   &hdr10pgen_param,
+						   vpp_index);
+			hdr10p_ebzcurve_update(S5_VD1_SLICE1,
+						   HDR10P_SDR,
+						   &hdr10pgen_param,
+						   vpp_index);
+			hdr10p_ebzcurve_update(S5_VD1_SLICE2,
+						   HDR10P_SDR,
+						   &hdr10pgen_param,
+						   vpp_index);
+			hdr10p_ebzcurve_update(S5_VD1_SLICE3,
+						   HDR10P_SDR,
+						   &hdr10pgen_param,
+						   vpp_index);
+		}
+	} else if (vd_path == VD2_PATH) {
 		hdr10p_ebzcurve_update(VD2_HDR,
 				       HDR10P_SDR,
 				       &hdr10pgen_param,
 				       vpp_index);
-	else if (vd_path == VD3_PATH)
+	} else if (vd_path == VD3_PATH) {
 		hdr10p_ebzcurve_update(VD3_HDR,
 				       HDR10P_SDR,
 				       &hdr10pgen_param,
 				       vpp_index);
+	}
 }
 EXPORT_SYMBOL(hdr10_plus_process_update);
 
 static void hdr10_tm_process_update(struct vframe_master_display_colour_s *p,
 				    enum vd_path_e vd_path, enum vpp_index_e vpp_index)
 {
+	int silce_mode = get_s5_silce_mode();
+
 	hdr10_tm_dynamic_proc(p);
-	if (vd_path == VD1_PATH)
-		hdr10_tm_update(VD1_HDR, HDR_SDR, vpp_index);
-	else if (vd_path == VD2_PATH)
+	if (vd_path == VD1_PATH) {
+		if (silce_mode == VD1_1SLICE) {
+			hdr10_tm_update(VD1_HDR, HDR_SDR, vpp_index);
+		} else if (silce_mode == VD1_2SLICE) {
+			hdr10_tm_update(VD1_HDR, HDR_SDR, vpp_index);
+			hdr10_tm_update(S5_VD1_SLICE1, HDR_SDR, vpp_index);
+		} else if (silce_mode == VD1_4SLICE) {
+			hdr10_tm_update(VD1_HDR, HDR_SDR, vpp_index);
+			hdr10_tm_update(S5_VD1_SLICE1, HDR_SDR, vpp_index);
+			hdr10_tm_update(S5_VD1_SLICE2, HDR_SDR, vpp_index);
+			hdr10_tm_update(S5_VD1_SLICE3, HDR_SDR, vpp_index);
+		}
+	} else if (vd_path == VD2_PATH) {
 		hdr10_tm_update(VD2_HDR, HDR_SDR, vpp_index);
-	else if (vd_path == VD3_PATH)
+	} else if (vd_path == VD3_PATH) {
 		hdr10_tm_update(VD3_HDR, HDR_SDR, vpp_index);
+	}
 }
 
 static void cuva_hdr_process_update(enum hdr_type_e src_type,
@@ -7263,6 +7306,7 @@ static void cuva_hdr_process_update(enum hdr_type_e src_type,
 {
 	int proc_flag = 0;
 	struct aml_cuva_data_s *cuva_data = get_cuva_data();
+	int silce_mode = get_s5_silce_mode();
 
 	if (src_type == CUVA_HDR_SOURCE) {
 		if (proc_mode == PROC_CUVA_TO_SDR) {
@@ -7294,42 +7338,97 @@ static void cuva_hdr_process_update(enum hdr_type_e src_type,
 
 	if (src_type == CUVA_HDR_SOURCE) {
 		if (proc_mode == PROC_CUVA_TO_SDR) {
-			if (vd_path == VD1_PATH)
-				cuva_hdr_update(VD1_HDR, CUVA_SDR, vpp_index);
-			else if (vd_path == VD2_PATH)
+			if (vd_path == VD1_PATH) {
+				if (silce_mode == VD1_1SLICE) {
+					cuva_hdr_update(VD1_HDR, CUVA_SDR, vpp_index);
+				} else if (silce_mode == VD1_2SLICE) {
+					cuva_hdr_update(VD1_HDR, CUVA_SDR, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE1, CUVA_SDR, vpp_index);
+				} else if (silce_mode == VD1_4SLICE) {
+					cuva_hdr_update(VD1_HDR, CUVA_SDR, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE1, CUVA_SDR, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE2, CUVA_SDR, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE3, CUVA_SDR, vpp_index);
+				}
+			} else if (vd_path == VD2_PATH) {
 				cuva_hdr_update(VD2_HDR, CUVA_SDR, vpp_index);
-			else if (vd_path == VD3_PATH)
+			} else if (vd_path == VD3_PATH) {
 				cuva_hdr_update(VD3_HDR, CUVA_SDR, vpp_index);
+			}
 		} else if (proc_mode == PROC_CUVA_TO_HDR) {
-			if (vd_path == VD1_PATH)
-				cuva_hdr_update(VD1_HDR, CUVA_HDR, vpp_index);
-			else if (vd_path == VD2_PATH)
+			if (vd_path == VD1_PATH) {
+				if (silce_mode == VD1_1SLICE) {
+					cuva_hdr_update(VD1_HDR, CUVA_HDR, vpp_index);
+				} else if (silce_mode == VD1_2SLICE) {
+					cuva_hdr_update(VD1_HDR, CUVA_HDR, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE1, CUVA_HDR, vpp_index);
+				} else if (silce_mode == VD1_4SLICE) {
+					cuva_hdr_update(VD1_HDR, CUVA_HDR, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE1, CUVA_HDR, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE2, CUVA_HDR, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE3, CUVA_HDR, vpp_index);
+				}
+			} else if (vd_path == VD2_PATH) {
 				cuva_hdr_update(VD2_HDR, CUVA_HDR, vpp_index);
-			else if (vd_path == VD3_PATH)
+			} else if (vd_path == VD3_PATH) {
 				cuva_hdr_update(VD3_HDR, CUVA_HDR, vpp_index);
+			}
 		}
 	} else if (src_type == CUVA_HLG_SOURCE) {
 		if (proc_mode == PROC_CUVAHLG_TO_SDR) {
-			if (vd_path == VD1_PATH)
-				cuva_hdr_update(VD1_HDR, CUVAHLG_SDR, vpp_index);
-			else if (vd_path == VD2_PATH)
+			if (vd_path == VD1_PATH) {
+				if (silce_mode == VD1_1SLICE) {
+					cuva_hdr_update(VD1_HDR, CUVAHLG_SDR, vpp_index);
+				} else if (silce_mode == VD1_2SLICE) {
+					cuva_hdr_update(VD1_HDR, CUVAHLG_SDR, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE1, CUVAHLG_SDR, vpp_index);
+				} else if (silce_mode == VD1_4SLICE) {
+					cuva_hdr_update(VD1_HDR, CUVAHLG_SDR, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE1, CUVAHLG_SDR, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE2, CUVAHLG_SDR, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE3, CUVAHLG_SDR, vpp_index);
+				}
+			} else if (vd_path == VD2_PATH) {
 				cuva_hdr_update(VD2_HDR, CUVAHLG_SDR, vpp_index);
-			else if (vd_path == VD3_PATH)
+			} else if (vd_path == VD3_PATH) {
 				cuva_hdr_update(VD3_HDR, CUVAHLG_SDR, vpp_index);
+			}
 		} else if (proc_mode == PROC_CUVAHLG_TO_HLG) {
-			if (vd_path == VD1_PATH)
-				cuva_hdr_update(VD1_HDR, CUVAHLG_HLG, vpp_index);
-			else if (vd_path == VD2_PATH)
+			if (vd_path == VD1_PATH) {
+				if (silce_mode == VD1_1SLICE) {
+					cuva_hdr_update(VD1_HDR, CUVAHLG_HLG, vpp_index);
+				} else if (silce_mode == VD1_2SLICE) {
+					cuva_hdr_update(VD1_HDR, CUVAHLG_HLG, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE1, CUVAHLG_HLG, vpp_index);
+				}  else if (silce_mode == VD1_4SLICE) {
+					cuva_hdr_update(VD1_HDR, CUVAHLG_HLG, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE1, CUVAHLG_HLG, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE2, CUVAHLG_HLG, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE3, CUVAHLG_HLG, vpp_index);
+				}
+			} else if (vd_path == VD2_PATH) {
 				cuva_hdr_update(VD2_HDR, CUVAHLG_HLG, vpp_index);
-			else if (vd_path == VD3_PATH)
+			} else if (vd_path == VD3_PATH) {
 				cuva_hdr_update(VD3_HDR, CUVAHLG_HLG, vpp_index);
+			}
 		} else if (proc_mode == PROC_CUVAHLG_TO_HDR) {
-			if (vd_path == VD1_PATH)
-				cuva_hdr_update(VD1_HDR, CUVAHLG_HDR, vpp_index);
-			else if (vd_path == VD2_PATH)
+			if (vd_path == VD1_PATH) {
+				if (silce_mode == VD1_1SLICE) {
+					cuva_hdr_update(VD1_HDR, CUVAHLG_HDR, vpp_index);
+				} else if (silce_mode == VD1_2SLICE) {
+					cuva_hdr_update(VD1_HDR, CUVAHLG_HDR, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE1, CUVAHLG_HDR, vpp_index);
+				} else if (silce_mode == VD1_4SLICE) {
+					cuva_hdr_update(VD1_HDR, CUVAHLG_HDR, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE1, CUVAHLG_HDR, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE2, CUVAHLG_HDR, vpp_index);
+					cuva_hdr_update(S5_VD1_SLICE3, CUVAHLG_HDR, vpp_index);
+				}
+			} else if (vd_path == VD2_PATH) {
 				cuva_hdr_update(VD2_HDR, CUVAHLG_HDR, vpp_index);
-			else if (vd_path == VD3_PATH)
+			} else if (vd_path == VD3_PATH) {
 				cuva_hdr_update(VD3_HDR, CUVAHLG_HDR, vpp_index);
+			}
 		}
 	}
 }
