@@ -4,7 +4,7 @@
  */
 
 #include "../vpp_common.h"
-#include "../../enhancement/amvecm/dnlp_algorithm/dnlp_alg.h"
+#include <linux/amlogic/media/amvecm/dnlp_alg.h>
 #include "vpp_module_dnlp.h"
 
 #define DNLP_LPF_SIZE 64

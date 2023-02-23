@@ -28,7 +28,7 @@
 #include "amve.h"
 #include "arch/vpp_regs.h"
 #include <linux/amlogic/media/amvecm/ve.h>
-#include "dnlp_algorithm/dnlp_alg.h"
+#include <linux/amlogic/media/amvecm/dnlp_alg.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include "ai_pq/ai_pq.h"
 #include "reg_helper.h"
