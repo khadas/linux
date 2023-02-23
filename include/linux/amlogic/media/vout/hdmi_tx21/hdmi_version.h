@@ -54,6 +54,7 @@
 	"V03.02.00.01.04.03.20 [20230203] [HDCP] hdcp 1b-10 fail, need send smng times\n" \
 	"V03.02.01.01.04.03.20 [20230210] [AUD] add the acr_clk selection under FRL\n" \
 	"V03.02.01.01.04.04.20 [20230210] [EDID] HFR1-69 edid parse EEODB\n" \
-	"V03.02.01.01.04.04.21 [20230225] [BUG] add supplement of output mode protection\n"
+	"V03.02.01.01.04.04.21 [20230225] [BUG] add supplement of output mode protection\n" \
+	"V03.02.01.01.04.04.22 [20230227] [BUG] align upsample and video enable\n"
 
 #endif // __HDMI21_VERSION_H__

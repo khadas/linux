@@ -37,7 +37,8 @@ static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 {
 	const struct hdmi_timing *tp = NULL;
 	struct hdmi_timing timing = {0};
-	u32 hsync_st = 4; // hsync start pixel count
+	/* adjust to align upsample and video enable */
+	u32 hsync_st = 5; // hsync start pixel count
 	u32 vsync_st = 1; // vsync start line count
 	// Latency in pixel clock from ENCP_VFIFO2VD request to data ready to HDMI
 	const u32 vfifo2vd_to_hdmi_latency = 2;
@@ -71,8 +72,6 @@ static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 	timing.h_total /= hpara_div;
 	timing.h_blank /= hpara_div;
 	timing.h_front /= hpara_div;
-	if (hdev->frl_rate)
-		timing.h_front |= 3; /* For ENCP, there needs OR 3 */
 	timing.h_sync /= hpara_div;
 	timing.h_back /= hpara_div;
 	timing.h_active /= hpara_div;
