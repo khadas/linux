@@ -425,7 +425,7 @@ static void hdmitx_late_resume(struct early_suspend *h)
 
 	/*force to get EDID after resume */
 	if (hpd_state) {
-		/*add i2c soft reset before read EDID */
+		/* add i2c soft reset before read EDID */
 		hdev->hwop.cntlddc(hdev, DDC_GLITCH_FILTER_RESET, 0);
 		if (hdev->data->chip_type >= MESON_CPU_ID_G12A)
 			hdev->hwop.cntlmisc(hdev, MISC_I2C_RESET, 0);
@@ -6211,6 +6211,23 @@ static ssize_t hdmi_hsty_config_show(struct device *dev,
 	return 0;
 }
 
+static ssize_t hdcp22_top_reset_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	mutex_lock(&hdmimode_mutex);
+	/* should not reset hdcp2.2 after hdcp2.2 auth start */
+	if (hdmitx_device.ready) {
+		mutex_unlock(&hdmimode_mutex);
+		return count;
+	}
+	pr_info("reset hdcp2.2 module after exit hdcp2.2 auth\n");
+	hdmitx_device.hwop.cntlmisc(&hdmitx_device, MISC_HDCP_CLKDIS, 1);
+	hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_RESET_HDCP, 0);
+	mutex_unlock(&hdmimode_mutex);
+	return count;
+}
+
 static DEVICE_ATTR_RW(disp_mode);
 static DEVICE_ATTR_RW(attr);
 static DEVICE_ATTR_RW(aud_mode);
@@ -6289,6 +6306,7 @@ static DEVICE_ATTR_RO(hdmitx_basic_config);
 static DEVICE_ATTR_RO(hdmi_config_info);
 static DEVICE_ATTR_RO(hdmitx_pkt_dump);
 static DEVICE_ATTR_RW(hdr_priority_mode);
+static DEVICE_ATTR_WO(hdcp22_top_reset);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
@@ -7924,6 +7942,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdmi_config_info);
 	ret = device_create_file(dev, &dev_attr_hdmitx_pkt_dump);
 	ret = device_create_file(dev, &dev_attr_hdr_priority_mode);
+	ret = device_create_file(dev, &dev_attr_hdcp22_top_reset);
 
 #ifdef CONFIG_AMLOGIC_VPU
 	hdmitx_device.encp_vpu_dev = vpu_dev_register(VPU_VENCP, DEVICE_NAME);
@@ -8125,6 +8144,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_hdmi_config_info);
 	device_remove_file(dev, &dev_attr_hdmitx_pkt_dump);
 	device_remove_file(dev, &dev_attr_hdr_priority_mode);
+	device_remove_file(dev, &dev_attr_hdcp22_top_reset);
 
 	cdev_del(&hdmitx_device.cdev);
 
