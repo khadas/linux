@@ -68,6 +68,11 @@ static DEFINE_MUTEX(aml_mkl_mutex);
 #define KL_STAGE_OFFSET (0)
 #define KL_STAGE_MASK (3)
 
+#define KL_MSR_FUNCID_OFFSET  (0)
+#define KL_MSR_KEYALGO_OFFSET (12)
+#define KL_MSR_PAYLOAD_OFFSET (16)
+#define KL_MSR_BUFLEVEL_OFFSET (4)
+
 /* kl etc */
 #define KT_KTE_MAX (256)
 #define HANDLE_TO_KTE(h) ((h) & (KT_KTE_MAX - 1))
@@ -375,6 +380,127 @@ exit:
 	return ret;
 }
 
+static int aml_mkl_msr_run(void *iobase, struct amlkl_params *param)
+{
+	int ret;
+	int i;
+	int tee_priv = 0;
+	u32 reg_val = 0;
+	void *reg_addr;
+	struct amlkl_usage *pu;
+
+	mutex_lock(&aml_mkl_mutex);
+
+	if (!param) {
+		ret = KL_STATUS_ERROR_BAD_PARAM;
+		goto exit;
+	}
+
+	pu = &param->usage;
+	pr_info("kth:%d, kl_algo:%d, func_id:%d\n",
+		param->kt_handle, param->kl_algo, param->func_id);
+	pr_info("kt usage, crypto:%d, algo:%d, uid:%d\n", pu->crypto, pu->algo,
+		pu->uid);
+
+	if (pu->uid & ~KL_USERID_MASK ||
+	    (pu->uid > AML_KT_USER_M2M_5 && pu->uid < AML_KT_USER_TSD) ||
+	    (pu->uid > AML_KT_USER_TSE && pu->uid < KL_USERID_MASK) ||
+	    pu->algo & ~KL_KEYALGO_MASK ||
+	    (pu->algo > AML_KT_ALGO_DES && pu->algo < AML_KT_ALGO_NDL) ||
+	    (pu->algo > AML_KT_ALGO_CSA2 && pu->algo < AML_KT_ALGO_HMAC) ||
+	    (pu->algo > AML_KT_ALGO_HMAC && pu->algo < KL_KEYALGO_MASK) ||
+	    pu->crypto & ~KL_FLAG_MASK ||
+	    param->kl_algo > AML_KL_ALGO_AES) {
+		ret = KL_STATUS_ERROR_BAD_PARAM;
+		goto exit;
+	}
+
+	if (param->func_id == MSR_KL_FUNC_ID_CWUK ||
+			param->func_id == MSR_KL_FUNC_ID_SSUK ||
+			param->func_id == MSR_KL_FUNC_ID_CAUK) {
+		param->levels = MSR_KL_LEVEL_2;
+	} else if (param->func_id == MSR_KL_FUNC_ID_CPUK ||
+			param->func_id == MSR_KL_FUNC_ID_CCCK) {
+		param->levels = MSR_KL_LEVEL_3;
+	} else if (param->func_id == MSR_KL_FUNC_ID_TAUK) {
+		param->levels = MSR_KL_LEVEL_1;
+	} else {
+		ret = KL_STATUS_ERROR_BAD_PARAM;
+		goto exit;
+	}
+
+	/* 1. Read KL_REE_RDY to lock KL */
+	if (aml_mkl_lock(iobase) != KL_STATUS_OK) {
+		pr_err("key ladder not ready\n");
+		ret = KL_STATUS_ERROR_BAD_STATE;
+		goto exit;
+	}
+
+	/* 2. Program Eks */
+	for (i = 0; i < param->levels; i++) {
+		ret = aml_mkl_program_key(iobase + i * 16, param->eks[param->levels - 1 - i],
+						sizeof(param->eks[param->levels - 1 - i]));
+		if (ret != 0) {
+			pr_err("Error: Ek data has bad parameter\n");
+			ret = KL_STATUS_ERROR_BAD_PARAM;
+			goto exit;
+		}
+	}
+
+	/* 3. Program KL_REE_CMD */
+	reg_val = 0;
+	reg_addr = (void *)(iobase + MKL_REE_CMD);
+	reg_val = (param->func_id << KL_MSR_FUNCID_OFFSET |
+			param->kl_algo << KL_MSR_KEYALGO_OFFSET |
+			param->levels << KL_MSR_PAYLOAD_OFFSET);
+	aml_mkl_iowrite32(reg_val, reg_addr);
+
+	/* 4. Program KL_REE_CFG with KL_pending to 1 */
+	reg_val = 0;
+	reg_addr = (void *)(iobase + MKL_REE_CFG);
+
+	reg_val = (1 << KL_PENDING_OFFSET |
+		   param->kl_mode << KL_MODE_OFFSET |
+		   param->usage.crypto << KL_FLAG_OFFSET |
+		   param->usage.algo << KL_KEYALGO_OFFSET |
+		   param->usage.uid << KL_USERID_OFFSET |
+		   (HANDLE_TO_KTE(param->kt_handle)) << KL_KTE_OFFSET |
+		   (tee_priv << KL_TEE_PRIV_OFFSET) |
+		   0 << KL_MSR_BUFLEVEL_OFFSET);
+	aml_mkl_iowrite32(reg_val, reg_addr);
+
+	/* 5. Poll KL_REE_CFG till KL_pending is 0 */
+	while ((ret = aml_mkl_ioread32(iobase + MKL_REE_CFG) &
+		      (1 << KL_PENDING_OFFSET)))
+		;
+
+	/* 6.	Write KL_REE_RDY to release KL */
+	aml_mkl_unlock(iobase);
+
+	/* 7. Get final status */
+	ret = (ret >> KL_STATUS_OFFSET) & KL_STATUS_MASK;
+	switch (ret) {
+	case 0:
+		break;
+	case 1:
+		pr_err("Permission Denied Error code: %d\n", ret);
+		ret = KL_STATUS_ERROR_BAD_STATE;
+		goto exit;
+	case 2:
+	case 3:
+	default:
+		pr_err("OTP or KL Error code: %d\n", ret);
+		ret = KL_STATUS_ERROR_OTP;
+		goto exit;
+	}
+
+	pr_info("aml msr key ladder run success\n");
+
+exit:
+	mutex_unlock(&aml_mkl_mutex);
+	return ret;
+}
+
 static long aml_mkl_ioctl(struct file *file, unsigned int cmd,
 			  unsigned long arg)
 {
@@ -406,6 +532,13 @@ static long aml_mkl_ioctl(struct file *file, unsigned int cmd,
 			ret = aml_mkl_run((void *)p_mkl_hw_base, &kl_param);
 			if (ret != 0) {
 				pr_err("MKL: aml_mkl_run failed retval=0x%08x\n",
+				       ret);
+				return -EFAULT;
+			}
+		} else if (kl_param.kl_mode == AML_KL_MODE_MSR) {
+			ret = aml_mkl_msr_run((void *)p_mkl_hw_base, &kl_param);
+			if (ret != 0) {
+				pr_err("MKL: aml_mkl_msr_run failed retval=0x%08x\n",
 				       ret);
 				return -EFAULT;
 			}

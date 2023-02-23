@@ -22,6 +22,9 @@
 #define AML_KL_LEVEL_5 (5)
 #define AML_KL_LEVEL_6 (6)
 
+#define MSR_KL_LEVEL_1 (1)
+#define MSR_KL_LEVEL_2 (2)
+#define MSR_KL_LEVEL_3 (3)
 /* key flag */
 #define AML_KT_FLAG_NONE (0)
 #define AML_KT_FLAG_ENC_ONLY (1)
@@ -57,6 +60,7 @@
 /* key ladder mode */
 #define AML_KL_MODE_AML (0)
 #define AML_KL_MODE_ETSI (2)
+#define AML_KL_MODE_MSR (3)
 
 /* ETSI key ladder mrk_cfg_index */
 #define AML_KL_MRK_ETSI_0 (0)
@@ -92,6 +96,14 @@
 #define AML_KL_FUNC_ID_7 (7)
 #define AML_KL_FUNC_ID_8 (8)
 #define AML_KL_FUNC_ID_9 (9)
+
+/* MSR key ladder func_id */
+#define MSR_KL_FUNC_ID_CWUK (1)
+#define MSR_KL_FUNC_ID_CPUK (2)
+#define MSR_KL_FUNC_ID_SSUK (3)
+#define MSR_KL_FUNC_ID_CAUK (4)
+#define MSR_KL_FUNC_ID_CCCK (6)
+#define MSR_KL_FUNC_ID_TAUK (7)
 
 /* AML key ladder func_id */
 #define AML_KL_FUNC_AES_0 (0)
