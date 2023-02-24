@@ -680,10 +680,10 @@ int vpp_module_dnlp_init(struct vpp_dev_s *pdev)
 		} else {
 			if (chip_id == CHIP_T7) {
 				cur_mode = EN_MODE_DNLP_SR0;
-				dnlp_reg_cfg[cur_mode].page = 0x3e;
+				dnlp_reg_cfg[cur_mode].page = 0x50;
 			} else {
 				cur_mode = EN_MODE_DNLP_SR1;
-				dnlp_reg_cfg[cur_mode].page = 0x3f;
+				dnlp_reg_cfg[cur_mode].page = 0x52;
 			}
 
 			dnlp_ctrl_pnt_max[cur_mode] = 32;
