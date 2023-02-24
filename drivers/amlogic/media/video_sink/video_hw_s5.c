@@ -1438,7 +1438,7 @@ u32 get_slice_num(u32 layer_id)
 u32 get_pi_enabled(u32 layer_id)
 {
 	if (layer_id >= MAX_VD_CHAN_S5)
-		return 1;
+		return 0;
 	else
 		return vd_layer[layer_id].pi_enable;
 }
