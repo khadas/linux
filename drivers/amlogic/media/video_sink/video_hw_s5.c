@@ -7212,27 +7212,28 @@ static void vd1_scaler_setting_s5(struct video_layer_s *layer,
 				- frame_par->VPP_hsc_startp;
 			r3 = frame_par->VPP_hsc_endp
 				- frame_par->VPP_hsc_startp;
+
+			if (frame_par->supscl_path ==
+			     CORE0_PPS_CORE1 ||
+			    frame_par->supscl_path ==
+			     CORE1_AFTER_PPS ||
+			    frame_par->supscl_path ==
+			     PPS_CORE0_CORE1 ||
+			    frame_par->supscl_path ==
+			     PPS_CORE0_POSTBLEND_CORE1 ||
+			    frame_par->supscl_path ==
+			     PPS_POSTBLEND_CORE1 ||
+			    frame_par->supscl_path ==
+			     PPS_CORE1_CM)
+				r3 >>= frame_par->supsc1_hori_ratio;
+			if (frame_par->supscl_path ==
+			     CORE0_AFTER_PPS ||
+			    frame_par->supscl_path ==
+			     PPS_CORE0_CORE1 ||
+			    frame_par->supscl_path ==
+			     PPS_CORE0_POSTBLEND_CORE1)
+				r3 >>= frame_par->supsc0_hori_ratio;
 		}
-		if (frame_par->supscl_path ==
-		     CORE0_PPS_CORE1 ||
-		    frame_par->supscl_path ==
-		     CORE1_AFTER_PPS ||
-		    frame_par->supscl_path ==
-		     PPS_CORE0_CORE1 ||
-		    frame_par->supscl_path ==
-		     PPS_CORE0_POSTBLEND_CORE1 ||
-		    frame_par->supscl_path ==
-		     PPS_POSTBLEND_CORE1 ||
-		    frame_par->supscl_path ==
-		     PPS_CORE1_CM)
-			r3 >>= frame_par->supsc1_hori_ratio;
-		if (frame_par->supscl_path ==
-		     CORE0_AFTER_PPS ||
-		    frame_par->supscl_path ==
-		     PPS_CORE0_CORE1 ||
-		    frame_par->supscl_path ==
-		     PPS_CORE0_POSTBLEND_CORE1)
-			r3 >>= frame_par->supsc0_hori_ratio;
 
 		if (has_pre_hscaler_ntap(0)) {
 			int ds_ratio = 1;
