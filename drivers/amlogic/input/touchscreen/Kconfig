@@ -9,6 +9,17 @@ menuconfig AMLOGIC_INPUT_TOUCHSCREEN
 
 if AMLOGIC_INPUT_TOUCHSCREEN
 
+config TOUCHSCREEN_GT9XX
+		tristate "GT9XX touchscreens support"
+		default n
+		help
+		  Say Y here to enable debug tools.
+
+		  If unsure, say N.
+
+		  To compile this driver as a module, choose M here.
+
+
 config TOUCHSCREEN_ELAN_EKTH3915N
 	tristate "Goodix GT738x firmware update module"
 	depends on I2C
