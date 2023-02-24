@@ -2016,9 +2016,6 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 			atsc_write_reg_v4(ATSC_DEMOD_REG_0X5D, 0x14400202);
 			/* CW bin frequency */
 			atsc_write_reg_v4(ATSC_DEMOD_REG_0X61, 0x2ee);
-			//Optimize CN to 15dB
-			atsc_write_reg_v4(ATSC_EQ_REG_0XA9, 0x77744);
-			atsc_write_reg_v4(ATSC_EQ_REG_0X9E, 0xd0d0d09);
 
 			/*bit 2: invert spectrum, for r842 tuner AGC control*/
 			if (tuner_freq[0] == 1)
