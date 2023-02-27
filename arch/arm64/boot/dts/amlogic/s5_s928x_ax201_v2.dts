@@ -924,12 +924,12 @@
 
 	vddnpu_dvodosvpu: pwm_ef-regulator {
 		compatible = "pwm-regulator";
-		pwms = <&pwm_ef MESON_PWM_0 1500 0>;
+		pwms = <&pwm_ef MESON_PWM_0 750 0>;
 		regulator-name = "vddnpu";
 		regulator-min-microvolt = <720000>;
 		regulator-max-microvolt = <900000>;
 		//regulator-always-on;
-		max-duty-cycle = <1500>;
+		max-duty-cycle = <750>;
 		/* Voltage Duty-Cycle */
 		voltage-table =
 				<900000 0>,
