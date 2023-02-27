@@ -667,6 +667,14 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 				"peek: vf->vc_private is NULL\n");
 		}
 
+		if ((vf->flag & VFRAME_FLAG_GAME_MODE) && vd_vf_is_tvin(vf) &&
+			(dev->index == 1 && dev->video_render_index == 5) &&
+			vf->vc_private) {
+			vsync_index = vf->vc_private->vsync_index;
+			if (vsync_index + 1 >= vsync_count[dev->index])
+				return NULL;
+		}
+
 		input_fps = vf->duration * 15;
 		get_output_pcrscr_info(&output_pts_inc_scale, &output_pts_inc_scale_base);
 		output_fps = 90000 * 16 * (u64)output_pts_inc_scale;
