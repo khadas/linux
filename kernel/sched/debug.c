@@ -387,7 +387,7 @@ static ssize_t sd_flags_write(struct file *file, const char __user *user_buf,
 #else
 static int sd_flags_show(struct seq_file *m, void *v)
 {
-	unsigned int flags = *(unsigned int *)m->private;
+	unsigned long flags = *(unsigned int *)m->private;
 	int idx;
 
 	for_each_set_bit(idx, &flags, __SD_FLAG_CNT) {
