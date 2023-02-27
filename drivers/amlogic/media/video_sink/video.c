@@ -6321,7 +6321,7 @@ s32 primary_render_frame(struct video_layer_s *layer)
 			frame_par, dispbuf);
 
 		/* because 3d and dv process, vd2 need no scale. */
-		/* so don't call the vd2 proc_vd1_vsc_phase_per_vsync */
+		/* so don't call the vd2 proc_vd_vsc_phase_per_vsync */
 
 		/* Do 3D process if enabled */
 		switch_3d_view_per_vsync(layer);
@@ -7052,7 +7052,6 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	get_count_pip2 = 0;
 
 	for (i = 0; i < cur_dev->max_vd_layers; i++) {
-		/* karry ?*/
 		glayer_info[0].need_no_compress =
 			(next_afbc_request & (i + 1)) ? true : false;
 		vd_layer[i].bypass_pps = bypass_pps;

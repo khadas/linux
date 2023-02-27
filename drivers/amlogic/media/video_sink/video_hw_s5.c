@@ -9131,10 +9131,12 @@ static void _vd_mif_setting_s5(struct video_layer_s *layer,
 	}
 }
 
-void proc_vd_vsc_phase_per_vsync_s5(struct video_layer_s *layer,
-				 struct vpp_frame_par_s *frame_par,
-				 struct vframe_s *vf)
+void save_pps_data(int slice, u32 vd_vsc_phase_ctrl_val)
 {
+	struct vd_pps_val_s *vd_pps_val_save = NULL;
+
+	vd_pps_val_save = &vd_pps_val[slice];
+	vd_pps_val_save->vd_vsc_phase_ctrl_val = vd_vsc_phase_ctrl_val;
 }
 
 void switch_3d_view_per_vsync_s5(struct video_layer_s *layer)

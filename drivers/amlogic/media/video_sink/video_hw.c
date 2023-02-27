@@ -4457,176 +4457,6 @@ static void vdx_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 	}
 }
 
-static void proc_vd1_vsc_phase_per_vsync(struct video_layer_s *layer,
-					 struct vpp_frame_par_s *frame_par,
-					 struct vframe_s *vf)
-{
-	struct f2v_vphase_s *vphase;
-	u32 misc_off, vin_type;
-	struct vppfilter_mode_s *vpp_filter;
-	struct hw_pps_reg_s *vd_pps_reg;
-	u8 vpp_index;
-
-	if (!layer || !frame_par || !vf)
-		return;
-	if (layer->aisr_mif_setting.aisr_enable)
-		return;
-
-	vpp_filter = &frame_par->vpp_filter;
-	misc_off = layer->misc_reg_offt;
-	vin_type = vf->type & VIDTYPE_TYPEMASK;
-	vd_pps_reg = &layer->pps_reg;
-	vpp_index = layer->vpp_index;
-
-	/* vertical phase */
-	vphase = &frame_par->VPP_vf_ini_phase_
-		[vpp_phase_table[vin_type]
-		[layer->vout_type]];
-	cur_dev->rdma_func[vpp_index].rdma_wr
-		(vd_pps_reg->vd_vsc_init_phase,
-		((u32)(vphase->phase) << 8));
-
-	if (vphase->repeat_skip >= 0) {
-		/* skip lines */
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits
-			(vd_pps_reg->vd_vsc_phase_ctrl,
-			skip_tab[vphase->repeat_skip],
-			VPP_PHASECTL_INIRCVNUMT_BIT,
-			VPP_PHASECTL_INIRCVNUM_WID +
-			VPP_PHASECTL_INIRPTNUM_WID);
-	} else {
-		/* repeat first line */
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits
-			(vd_pps_reg->vd_vsc_phase_ctrl,
-			4,
-			VPP_PHASECTL_INIRCVNUMT_BIT,
-			VPP_PHASECTL_INIRCVNUM_WID);
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits
-			(vd_pps_reg->vd_vsc_phase_ctrl,
-			1 - vphase->repeat_skip,
-			VPP_PHASECTL_INIRPTNUMT_BIT,
-			VPP_PHASECTL_INIRPTNUM_WID);
-	}
-
-	cur_dev->rdma_func[vpp_index].rdma_wr_bits
-		(vd_pps_reg->vd_vsc_phase_ctrl,
-		(vpp_filter->vpp_vert_coeff[0] == 2) ? 1 : 0,
-		VPP_PHASECTL_DOUBLELINE_BIT,
-		VPP_PHASECTL_DOUBLELINE_WID);
-}
-
-static void proc_vd2_vsc_phase_per_vsync(struct video_layer_s *layer,
-					 struct vpp_frame_par_s *frame_par,
-					 struct vframe_s *vf)
-{
-	struct f2v_vphase_s *vphase;
-	u32 misc_off, vin_type;
-	struct vppfilter_mode_s *vpp_filter;
-	struct hw_pps_reg_s *vd_pps_reg;
-	u8 vpp_index;
-
-	if (!layer || !frame_par || !vf)
-		return;
-
-	vpp_filter = &frame_par->vpp_filter;
-	misc_off = layer->misc_reg_offt;
-	vin_type = vf->type & VIDTYPE_TYPEMASK;
-	vd_pps_reg = &layer->pps_reg;
-	vpp_index = layer->vpp_index;
-
-	/* vertical phase */
-	vphase = &frame_par->VPP_vf_ini_phase_
-		[vpp_phase_table[vin_type]
-		[layer->vout_type]];
-	cur_dev->rdma_func[vpp_index].rdma_wr
-		(vd_pps_reg->vd_vsc_init_phase,
-		((u32)(vphase->phase) << 8));
-
-	if (vphase->repeat_skip >= 0) {
-		/* skip lines */
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits
-			(vd_pps_reg->vd_vsc_phase_ctrl,
-			skip_tab[vphase->repeat_skip],
-			VPP_PHASECTL_INIRCVNUMT_BIT,
-			VPP_PHASECTL_INIRCVNUM_WID +
-			VPP_PHASECTL_INIRPTNUM_WID);
-	} else {
-		/* repeat first line */
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits
-			(vd_pps_reg->vd_vsc_phase_ctrl,
-			4,
-			VPP_PHASECTL_INIRCVNUMT_BIT,
-			VPP_PHASECTL_INIRCVNUM_WID);
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits
-			(vd_pps_reg->vd_vsc_phase_ctrl,
-			1 - vphase->repeat_skip,
-			VPP_PHASECTL_INIRPTNUMT_BIT,
-			VPP_PHASECTL_INIRPTNUM_WID);
-	}
-
-	cur_dev->rdma_func[vpp_index].rdma_wr_bits
-		(vd_pps_reg->vd_vsc_phase_ctrl,
-		(vpp_filter->vpp_vert_coeff[0] == 2) ? 1 : 0,
-		VPP_PHASECTL_DOUBLELINE_BIT,
-		VPP_PHASECTL_DOUBLELINE_WID);
-}
-
-static void proc_vd3_vsc_phase_per_vsync(struct video_layer_s *layer,
-					 struct vpp_frame_par_s *frame_par,
-					 struct vframe_s *vf)
-{
-	struct f2v_vphase_s *vphase;
-	u32 misc_off, vin_type;
-	struct vppfilter_mode_s *vpp_filter;
-	struct hw_pps_reg_s *vd_pps_reg;
-	u8 vpp_index;
-
-	if (!layer || !frame_par || !vf)
-		return;
-
-	vpp_filter = &frame_par->vpp_filter;
-	misc_off = layer->misc_reg_offt;
-	vin_type = vf->type & VIDTYPE_TYPEMASK;
-	vd_pps_reg = &layer->pps_reg;
-	vpp_index = layer->vpp_index;
-
-	/* vertical phase */
-	vphase = &frame_par->VPP_vf_ini_phase_
-		[vpp_phase_table[vin_type]
-		[layer->vout_type]];
-	cur_dev->rdma_func[vpp_index].rdma_wr
-		(vd_pps_reg->vd_vsc_init_phase,
-		((u32)(vphase->phase) << 8));
-
-	if (vphase->repeat_skip >= 0) {
-		/* skip lines */
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits
-			(vd_pps_reg->vd_vsc_phase_ctrl,
-			skip_tab[vphase->repeat_skip],
-			VPP_PHASECTL_INIRCVNUMT_BIT,
-			VPP_PHASECTL_INIRCVNUM_WID +
-			VPP_PHASECTL_INIRPTNUM_WID);
-	} else {
-		/* repeat first line */
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits
-			(vd_pps_reg->vd_vsc_phase_ctrl,
-			4,
-			VPP_PHASECTL_INIRCVNUMT_BIT,
-			VPP_PHASECTL_INIRCVNUM_WID);
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits
-			(vd_pps_reg->vd_vsc_phase_ctrl,
-			1 - vphase->repeat_skip,
-			VPP_PHASECTL_INIRPTNUMT_BIT,
-			VPP_PHASECTL_INIRPTNUM_WID);
-	}
-
-	cur_dev->rdma_func[vpp_index].rdma_wr_bits
-		(vd_pps_reg->vd_vsc_phase_ctrl,
-		(vpp_filter->vpp_vert_coeff[0] == 2) ? 1 : 0,
-		VPP_PHASECTL_DOUBLELINE_BIT,
-		VPP_PHASECTL_DOUBLELINE_WID);
-}
-
 static void disable_vd1_blend(struct video_layer_s *layer)
 {
 	u32 misc_off;
@@ -6098,28 +5928,98 @@ void vd_clip_setting(u8 layer_id,
 }
 
 void proc_vd_vsc_phase_per_vsync(struct video_layer_s *layer,
-				 struct vpp_frame_par_s *frame_par,
-				 struct vframe_s *vf)
+					 struct vpp_frame_par_s *frame_par,
+					 struct vframe_s *vf)
 {
-	u8 layer_id = layer->layer_id;
+	struct f2v_vphase_s *vphase;
+	u32 misc_off, vin_type;
+	struct vppfilter_mode_s *vpp_filter;
+	struct hw_pps_reg_s *vd_pps_reg;
+	u8 vpp_index;
+	u8 layer_id = 0;
+	struct vd_pps_reg_s *vd_pps_reg_s5;
+	u32 vd_vsc_phase_ctrl_val = 0;
+	u32 slice = 1;
+	int i = 0, layer_index = 0, use_pps_save = 0;
 
+	if (!layer || !frame_par || !vf)
+		return;
+	if (layer->aisr_mif_setting.aisr_enable)
+		return;
+	layer_id = layer->layer_id;
 	if (!glayer_info[layer_id].pps_support)
 		return;
-	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
-		proc_vd_vsc_phase_per_vsync_s5(layer, frame_par, vf);
-	} else {
-		if (layer_id == 0)
-			proc_vd1_vsc_phase_per_vsync
-				(layer, frame_par, vf);
-		else if (layer_id == 1)
-			proc_vd2_vsc_phase_per_vsync
-				(layer, frame_par, vf);
-		else
-			proc_vd3_vsc_phase_per_vsync
-				(layer, frame_par, vf);
+	vpp_filter = &frame_par->vpp_filter;
+	misc_off = layer->misc_reg_offt;
+	vin_type = vf->type & VIDTYPE_TYPEMASK;
+	vpp_index = layer->vpp_index;
+	vd_pps_reg = &layer->pps_reg;
+	slice = get_slice_num(layer_id);
+
+	for (i = 0; i < slice; i++) {
+		if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+			if (layer_id != 0) {
+				layer_index = layer_id + SLICE_NUM - 1;
+			} else {
+				layer_index = i;
+				use_pps_save = 1;
+			}
+			vd_pps_reg_s5 = &vd_proc_reg.vd_pps_reg[layer_index];
+			memcpy(&vd_pps_reg, &vd_pps_reg_s5, sizeof(vd_pps_reg_s5));
+		}
+
+		/* vertical phase */
+		vphase = &frame_par->VPP_vf_ini_phase_
+			[vpp_phase_table[vin_type]
+			[layer->vout_type]];
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd_pps_reg->vd_vsc_init_phase,
+			((u32)(vphase->phase) << 8));
+
+		if (vphase->repeat_skip >= 0) {
+			/* skip lines */
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(vd_pps_reg->vd_vsc_phase_ctrl,
+				skip_tab[vphase->repeat_skip],
+				VPP_PHASECTL_INIRCVNUMT_BIT,
+				VPP_PHASECTL_INIRCVNUM_WID +
+				VPP_PHASECTL_INIRPTNUM_WID);
+		} else {
+			/* repeat first line */
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(vd_pps_reg->vd_vsc_phase_ctrl,
+				4,
+				VPP_PHASECTL_INIRCVNUMT_BIT,
+				VPP_PHASECTL_INIRCVNUM_WID);
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(vd_pps_reg->vd_vsc_phase_ctrl,
+				1 - vphase->repeat_skip,
+				VPP_PHASECTL_INIRPTNUMT_BIT,
+				VPP_PHASECTL_INIRPTNUM_WID);
+		}
+		if (use_pps_save) {
+			vd_vsc_phase_ctrl_val &= ~0x6007f;
+			if (vphase->repeat_skip >= 0) {
+				/* skip lines */
+				vd_vsc_phase_ctrl_val |=
+					skip_tab[vphase->repeat_skip];
+			} else {
+				/* repeat first line */
+				vd_vsc_phase_ctrl_val |=
+					4 | (1 - vphase->repeat_skip) << 5;
+			}
+			vd_vsc_phase_ctrl_val |=
+				(vpp_filter->vpp_vert_coeff[0] == 2) ? 1 : 0 << 17;
+			save_pps_data(get_slice_num(layer_id), vd_vsc_phase_ctrl_val);
+		}
+
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(vd_pps_reg->vd_vsc_phase_ctrl,
+			(vpp_filter->vpp_vert_coeff[0] == 2) ? 1 : 0,
+			VPP_PHASECTL_DOUBLELINE_BIT,
+			VPP_PHASECTL_DOUBLELINE_WID);
 	}
 }
-
 /*********************************************************
  * Vpp APIs
  *********************************************************/
@@ -9927,16 +9827,23 @@ void alpha_win_set(struct video_layer_s *layer)
 int detect_vout_type(const struct vinfo_s *vinfo)
 {
 	int vout_type = VOUT_TYPE_PROG;
+	u32 encl_info_reg, encp_info_reg;
 
-	if (cur_dev->display_module == S5_DISPLAY_MODULE)
-		return 0;
+	if (cur_dev->display_module == T7_DISPLAY_MODULE ||
+		cur_dev->display_module == S5_DISPLAY_MODULE) {
+		encl_info_reg = VPU_VENCI_STAT;
+		encp_info_reg = VPU_VENCP_STAT;
+	} else {
+		encl_info_reg = ENCI_INFO_READ;
+		encp_info_reg = ENCP_INFO_READ;
+	}
 	if (vinfo && vinfo->field_height != vinfo->height) {
 		if (vinfo->height == 576 || vinfo->height == 480)
-			vout_type = (READ_VCBUS_REG(ENCI_INFO_READ) &
+			vout_type = (READ_VCBUS_REG(encl_info_reg) &
 				(1 << 29)) ?
 				VOUT_TYPE_BOT_FIELD : VOUT_TYPE_TOP_FIELD;
 		else if (vinfo->height == 1080)
-			vout_type = (((READ_VCBUS_REG(ENCP_INFO_READ) >> 16) &
+			vout_type = (((READ_VCBUS_REG(encp_info_reg) >> 16) &
 				0x1fff) < 562) ?
 				VOUT_TYPE_TOP_FIELD : VOUT_TYPE_BOT_FIELD;
 
@@ -10408,11 +10315,21 @@ void dump_pps_coefs_info(u8 layer_id, u8 bit9_mode, u8 coef_type)
 	u32 pps_coef_idx_save;
 	int i;
 	struct hw_pps_reg_s *vd_pps_reg;
+	struct vd_pps_reg_s *vd_pps_reg_s5;
 	int scaler_sep_coef_en;
+	u8 layer_index;
 
 	/* bit9_mode : 0 8bit, 1: 9bit*/
 	/* coef_type : 0 horz, 1: vert*/
 	vd_pps_reg = &vd_layer[layer_id].pps_reg;
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		if (layer_id != 0)
+			layer_index = layer_id + SLICE_NUM - 1;
+		else
+			layer_index = layer_id;
+		vd_pps_reg_s5 = &vd_proc_reg.vd_pps_reg[layer_index];
+		memcpy(&vd_pps_reg, &vd_pps_reg_s5, sizeof(vd_pps_reg_s5));
+	}
 	scaler_sep_coef_en = cur_dev->scaler_sep_coef_en;
 	if (layer_id == 0xff) {
 		vd_pps_reg = &cur_dev->aisr_pps_reg;
@@ -10732,7 +10649,6 @@ void dump_pps_coefs_info(u8 layer_id, u8 bit9_mode, u8 coef_type)
 	WRITE_VCBUS_REG(vd_pps_reg->vd_scale_coef_idx,
 			pps_coef_idx_save);
 }
-
 /*********************************************************
  * Film Grain APIs
  *********************************************************/

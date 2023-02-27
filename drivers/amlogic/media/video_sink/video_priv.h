@@ -767,9 +767,6 @@ void vd_set_dcu_s5(u8 layer_id,
 		struct video_layer_s *layer,
 		struct vpp_frame_par_s *frame_par,
 		struct vframe_s *vf);
-void proc_vd_vsc_phase_per_vsync_s5(struct video_layer_s *layer,
-				 struct vpp_frame_par_s *frame_par,
-				 struct vframe_s *vf);
 void switch_3d_view_per_vsync_s5(struct video_layer_s *layer);
 void aisr_reshape_cfg_s5(struct video_layer_s *layer,
 		     struct aisr_setting_s *aisr_mif_setting);
