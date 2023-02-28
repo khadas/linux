@@ -2113,7 +2113,6 @@ int vpp_set_lut3d(int bfromkey,
 void lut3d_update(unsigned int p3dlut_in[][3])
 {
 	int d0, d1, d2, index0;
-	u32 ctltemp;
 	int i;
 
 	if (p3dlut_in) {
@@ -2131,9 +2130,6 @@ void lut3d_update(unsigned int p3dlut_in[][3])
 			}
 		}
 	}
-
-	ctltemp  = READ_VPP_REG(VPP_LUT3D_CTRL);
-	VSYNC_WRITE_VPP_REG(VPP_LUT3D_CTRL, ctltemp & 0xFFFFFFFE);
 
 	VSYNC_WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 1);
 	VSYNC_WRITE_VPP_REG(VPP_LUT3D_RAM_ADDR, 0 | (0 << 31));
@@ -2153,7 +2149,6 @@ void lut3d_update(unsigned int p3dlut_in[][3])
 	}
 
 	VSYNC_WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 0);
-	VSYNC_WRITE_VPP_REG(VPP_LUT3D_CTRL, ctltemp);
 }
 
 int vpp_write_lut3d_section(int index, int section_len,

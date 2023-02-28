@@ -792,6 +792,8 @@ extern int cm2_debug;
 extern int bs_3dlut_en;
 
 extern unsigned int ct_en;
+void bs_ct_latch(void);
+
 extern enum chip_type chip_type_id;
 extern enum chip_cls_e chip_cls_id;
 

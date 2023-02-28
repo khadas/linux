@@ -321,7 +321,7 @@ module_param(freerun_en, int, 0664);
 MODULE_PARM_DESC(freerun_en, "\n enable or disable freerun\n");
 
 /*blue stretch function with 3dlut*/
-int bs_3dlut_en;
+int bs_3dlut_en = 1;
 module_param(bs_3dlut_en, int, 0664);
 MODULE_PARM_DESC(bs_3dlut_en, "\n bs_3dlut_en\n");
 

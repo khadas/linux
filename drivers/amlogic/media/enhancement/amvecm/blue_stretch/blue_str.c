@@ -202,13 +202,17 @@ void bls_set(void)
 				//	ori_in[0], ori_in[1], ori_in[2], bitdepth);
 				if (bls_param->bls_proc) {
 					bls_param->bls_proc(yuv_o, ori_in, bls_param);
-				} else {
 					yuv_o[0] = ori_in[0];
 					yuv_o[1] = ori_in[1];
 					yuv_o[2] = ori_in[2];
+					ycbcr2rgbpc_nb(&rgb_o[0], &rgb_o[1], &rgb_o[2],
+						yuv_o[0], yuv_o[1], yuv_o[2], bitdepth);
+				} else {
+					rgb_o[0] = ori_in[0];
+					rgb_o[1] = ori_in[1];
+					rgb_o[2] = ori_in[2];
 				}
-				ycbcr2rgbpc_nb(&rgb_o[0], &rgb_o[1], &rgb_o[2],
-					yuv_o[0], yuv_o[1], yuv_o[2], bitdepth);
+
 				plut3d[index * 3 + 0] = rgb_o[0];
 				plut3d[index * 3 + 1] = rgb_o[1];
 				plut3d[index * 3 + 2] = rgb_o[2];
