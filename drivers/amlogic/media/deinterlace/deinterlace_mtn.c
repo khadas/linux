@@ -107,6 +107,7 @@ module_param_array(combing_dejaggy_setting, uint,
 	&num_dejaggy_setting, 0664);
 static struct combing_param_s cmb_param;
 /*from T3 /t5db adaptive_combing_new from vlsi yanling*/
+#ifdef DI_NEW_PQ_V1
 static int combing_debug_print;
 module_param_named(combing_debug_print, combing_debug_print, int, 0664);
 static int roku_th_test = 10000;
@@ -117,6 +118,7 @@ static int th_cont = 10;
 module_param_named(th_cont, th_cont, int, 0664);
 static int change_th = 26;
 module_param_named(change_th, change_th, int, 0664);
+#endif
 /*end*/
 
 static unsigned int combing_setting_masks[MAX_NUM_DI_REG] = {
@@ -1056,6 +1058,7 @@ int adaptive_combing_fixing(
 	return 0;
 }
 
+#ifdef DI_NEW_PQ_V1
 void adaptive_combing_new(unsigned int field_diff,
 	unsigned int frame_diff)
 {
@@ -1133,6 +1136,7 @@ void adaptive_combing_new(unsigned int field_diff,
 			Rd(DI_MTN_1_CTRL10), Rd(DI_MTN_1_CTRL11));
 	}
 }
+#endif
 
 #ifdef DEBUG_SUPPORT
 module_param_named(cmb_adpset_cnt, cmb_adpset_cnt, int, 0644);
@@ -1142,7 +1146,9 @@ static const struct mtn_op_s di_ops_mtn = {
 	.adpative_combing_exit		= adpative_combing_exit,
 	.fix_tl1_1080i_patch_sel	= fix_tl1_1080i_patch_sel,
 	.adaptive_combing_fixing	= adaptive_combing_fixing,
+#ifdef DI_NEW_PQ_V1
 	.adaptive_combing_new		= adaptive_combing_new,
+#endif
 	.adpative_combing_config	= adpative_combing_config,
 	.com_patch_pre_sw_set		= com_patch_pre_sw_set,
 	/*.module_para			= dim_seq_file_module_para_mtn,*/

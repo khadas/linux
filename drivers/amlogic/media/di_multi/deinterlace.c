@@ -4286,7 +4286,9 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 				/*if (combing_fix_en)*/
 				/*from T3 /t5db adaptive_combing_new from vlsi yanling*/
 				if (ppre->combing_fix_en) {
-					if ((DIM_IS_IC(T5DB) || DIM_IS_IC_EF(T3)) &&
+					#ifdef DI_NEW_PQ_V1
+					if (((DIM_IS_IC_EF(T3) &&
+						 !DIM_IS_IC(S5))) &&
 					    ppre->di_inp_buf->vframe->width == 1920 &&
 					    ppre->di_inp_buf->vframe->height == 1080) {
 						get_ops_mtn()->adaptive_combing_new
@@ -4301,6 +4303,15 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 							 dimp_get(edi_mp_di_force_bit_mode));
 						dimp_set(edi_mp_cur_lev, tmp_cur_lev);
 					}
+					#else
+					tmp_cur_lev = /*cur_lev*/
+					get_ops_mtn()->adaptive_combing_fixing
+						(ppre->mtn_status,
+						 field_motnum,
+						 frame_motnum,
+						 dimp_get(edi_mp_di_force_bit_mode));
+					dimp_set(edi_mp_cur_lev, tmp_cur_lev);
+					#endif
 				}
 				if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX))
 					get_ops_nr()->adaptive_cue_adjust(frame_motnum,

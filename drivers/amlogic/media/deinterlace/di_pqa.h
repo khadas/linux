@@ -60,6 +60,9 @@ struct combing_status_s {
 	unsigned int cur_level;
 };
 #endif
+
+#define DI_NEW_PQ_V1	//for pq fine tune from roku 2k221208 (vlsi yanling)
+
 /**************************
  * pulldown
  *************************/
@@ -153,8 +156,10 @@ struct mtn_op_s {
 		struct combing_status_s *cmb_status,
 		unsigned int field_diff, unsigned int frame_diff,
 		int bit_mode);
+#ifdef DI_NEW_PQ_V1
 	void (*adaptive_combing_new)(unsigned int field_diff,
 				unsigned int frame_diff);
+#endif
 	/*adpative_combing_config*/
 	struct combing_status_s *
 		(*adpative_combing_config)(unsigned int width,
