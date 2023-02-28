@@ -98,9 +98,9 @@ unsigned int *ve_dnlp_tgt_10b_copy;
 
 unsigned int *pre_1_gamma_copy;
 unsigned int *pre_0_gamma_copy;
-unsigned int *nTstCnt_copy;
+unsigned int *ntstcnt_copy;
 unsigned int *ve_dnlp_luma_sum_copy;
-int *RBASE_copy;
+int *rbase_copy;
 bool *menu_chg_en_copy;
 
 /* only for debug */
@@ -137,8 +137,8 @@ struct dnlp_parse_cmd_s dnlp_parse_cmd[] = {
 	{"set_saturtn", &dnlp_alg_param.dnlp_set_saturtn},
 	{"sbgnbnd", &dnlp_alg_param.dnlp_sbgnbnd},
 	{"sendbnd", &dnlp_alg_param.dnlp_sendbnd},
-	{"clashBgn", &dnlp_alg_param.dnlp_clashBgn},
-	{"clashEnd", &dnlp_alg_param.dnlp_clashEnd},
+	{"clashBgn", &dnlp_alg_param.dnlp_clashbgn},
+	{"clashEnd", &dnlp_alg_param.dnlp_clashend},
 	{"var_th", &dnlp_alg_param.dnlp_var_th},
 	{"clahe_gain_neg", &dnlp_alg_param.dnlp_clahe_gain_neg},
 	{"clahe_gain_pos", &dnlp_alg_param.dnlp_clahe_gain_pos},
@@ -151,8 +151,8 @@ struct dnlp_parse_cmd_s dnlp_parse_cmd[] = {
 	{"blkext_rate", &dnlp_alg_param.dnlp_blkext_rate},
 	{"whtext_rate", &dnlp_alg_param.dnlp_whtext_rate},
 	{"bwext_div4x_min", &dnlp_alg_param.dnlp_bwext_div4x_min},
-	{"iRgnBgn", &dnlp_alg_param.dnlp_iRgnBgn},
-	{"iRgnEnd", &dnlp_alg_param.dnlp_iRgnEnd},
+	{"iRgnBgn", &dnlp_alg_param.dnlp_irgnbgn},
+	{"iRgnEnd", &dnlp_alg_param.dnlp_irgnend},
 	{"dbg_map", &dnlp_alg_param.dnlp_dbg_map},
 	{"final_gain", &dnlp_alg_param.dnlp_final_gain},
 	{"cliprate_v3", &dnlp_alg_param.dnlp_cliprate_v3},
@@ -219,7 +219,7 @@ void dnlp_alg_param_copy(void)
 	ro_blk_wht_ext0_copy = dnlp_dbg_ro_param->ro_blk_wht_ext0;
 	ro_blk_wht_ext1_copy = dnlp_dbg_ro_param->ro_blk_wht_ext1;
 	ro_dnlp_brightness_copy = dnlp_dbg_ro_param->ro_dnlp_brightness;
-	gmscurve_copy = dnlp_dbg_ro_param->GmScurve;
+	gmscurve_copy = dnlp_dbg_ro_param->gmscurve;
 	clash_curve_copy = dnlp_dbg_ro_param->clash_curve;
 	clsh_scvbld_copy = dnlp_dbg_ro_param->clsh_scvbld;
 	blkwht_ebld_copy = dnlp_dbg_ro_param->blkwht_ebld;
@@ -229,9 +229,9 @@ void dnlp_alg_param_copy(void)
 
 	pre_1_gamma_copy = dnlp_alg_input->pre_1_gamma;
 	pre_0_gamma_copy = dnlp_alg_input->pre_0_gamma;
-	nTstCnt_copy = dnlp_alg_input->nTstCnt;
+	ntstcnt_copy = dnlp_alg_input->ntstcnt;
 	ve_dnlp_luma_sum_copy = dnlp_alg_input->ve_dnlp_luma_sum;
-	RBASE_copy = dnlp_alg_input->RBASE;
+	rbase_copy = dnlp_alg_input->rbase;
 	menu_chg_en_copy = dnlp_alg_input->menu_chg_en;
 
 	dnlp_printk_copy = dnlp_dbg_printk->dnlp_printk;
@@ -276,8 +276,8 @@ void dnlp_alg_param_init(void)
 	dnlp_alg_param.dnlp_set_saturtn = 0;
 	dnlp_alg_param.dnlp_sbgnbnd = 4;
 	dnlp_alg_param.dnlp_sendbnd = 4;
-	dnlp_alg_param.dnlp_clashBgn = 4;
-	dnlp_alg_param.dnlp_clashEnd = 59;
+	dnlp_alg_param.dnlp_clashbgn = 4;
+	dnlp_alg_param.dnlp_clashend = 59;
 	dnlp_alg_param.dnlp_var_th = 16;
 	dnlp_alg_param.dnlp_clahe_gain_neg = 120;
 	dnlp_alg_param.dnlp_clahe_gain_pos = 24;
@@ -290,8 +290,8 @@ void dnlp_alg_param_init(void)
 	dnlp_alg_param.dnlp_blkext_rate = 32;
 	dnlp_alg_param.dnlp_whtext_rate = 16;
 	dnlp_alg_param.dnlp_bwext_div4x_min = 16;
-	dnlp_alg_param.dnlp_iRgnBgn = 0;
-	dnlp_alg_param.dnlp_iRgnEnd = 64;
+	dnlp_alg_param.dnlp_irgnbgn = 0;
+	dnlp_alg_param.dnlp_irgnend = 64;
 	dnlp_alg_param.dnlp_dbg_map = 0;
 	dnlp_alg_param.dnlp_final_gain = 8;
 	dnlp_alg_param.dnlp_cliprate_v3 = 36;
@@ -361,7 +361,7 @@ static void ve_dnlp_add_cm(unsigned int value)
  *return: hstSum
  */
 static int load_histogram(int *osamebin_num, struct vframe_s *vf,
-			  int h_sel, unsigned int nTstCnt)
+			  int h_sel, unsigned int ntstcnt)
 {
 	struct vframe_prop_s *p = &vf->prop;
 	int nT0;   /* counter number of bins same to last frame */
@@ -391,13 +391,13 @@ static int load_histogram(int *osamebin_num, struct vframe_s *vf,
 
 	if (dnlp_dbg_print & 0x1)
 		pr_info("\nRflsh%03d: %02d same bins hstSum(%d)\n",
-			nTstCnt, nT0, hstSum);
+			ntstcnt, nT0, hstSum);
 
 	/* output, same hist bin nums of this frame */
 	*osamebin_num = nT0;
 
 	if (dnlp_dbg_print & 0x1) {
-		pr_info("\n ==nTstCnt= %d====\n\n", nTstCnt);
+		pr_info("\n ==ntstcnt= %d====\n\n", ntstcnt);
 			pr_info("\n#### %s()-1: [\n", __func__);
 			for (j = 0; j < 4; j++) {
 				i = j * 16;
@@ -489,7 +489,7 @@ int ve_dnlp_calculate_tgtx(struct vframe_s *vf)
 	/* calc iir-coef params */
 	if (dnlp_alg_param.dnlp_mvreflsh < 1)
 		dnlp_alg_param.dnlp_mvreflsh = 1;
-	*RBASE_copy = (1 << dnlp_alg_param.dnlp_mvreflsh);
+	*rbase_copy = (1 << dnlp_alg_param.dnlp_mvreflsh);
 
 	/* parameters refresh */
 	dnlp_alg_function->dnlp3_param_refresh();
@@ -500,9 +500,9 @@ int ve_dnlp_calculate_tgtx(struct vframe_s *vf)
 		*ve_dnlp_luma_sum_copy = p->hist.luma_sum;
 
 	/* counter the calling function  */
-	(*nTstCnt_copy)++;
-	if (*nTstCnt_copy > 16384)
-		*nTstCnt_copy = 0;
+	(*ntstcnt_copy)++;
+	if (*ntstcnt_copy > 16384)
+		*ntstcnt_copy = 0;
 
 	/*--------------------------------------------------------*/
 
@@ -510,7 +510,7 @@ int ve_dnlp_calculate_tgtx(struct vframe_s *vf)
 	 *do histogram pre-processing and detections
 	 */
 	/*step 0.00 load the histogram*/
-	raw_hst_sum = load_histogram(&smbin_num, vf, hist_sel, *nTstCnt_copy);
+	raw_hst_sum = load_histogram(&smbin_num, vf, hist_sel, *ntstcnt_copy);
 
 	/*step 0.01 all the same histogram as last frame, freeze DNLP */
 	if (smbin_num == 64 &&
@@ -659,10 +659,10 @@ void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
 			p->param[ve_dnlp_adpcrat_lbnd] ||
 		dnlp_alg_param.dnlp_adpcrat_hbnd !=
 			p->param[ve_dnlp_adpcrat_hbnd] ||
-		dnlp_alg_param.dnlp_clashBgn !=
-			p->param[ve_dnlp_clashBgn] ||
-		dnlp_alg_param.dnlp_clashEnd !=
-			p->param[ve_dnlp_clashEnd] ||
+		dnlp_alg_param.dnlp_clashbgn !=
+			p->param[ve_dnlp_clashbgn] ||
+		dnlp_alg_param.dnlp_clashend !=
+			p->param[ve_dnlp_clashend] ||
 		dnlp_alg_param.dnlp_blkext_rate !=
 			p->param[ve_dnlp_blkext_rate] ||
 		dnlp_alg_param.dnlp_whtext_rate !=
@@ -673,10 +673,10 @@ void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
 			p->param[ve_dnlp_whtext_ofst] ||
 		dnlp_alg_param.dnlp_bwext_div4x_min !=
 			p->param[ve_dnlp_bwext_div4x_min] ||
-		dnlp_alg_param.dnlp_iRgnBgn !=
-			p->param[ve_dnlp_iRgnBgn] ||
-		dnlp_alg_param.dnlp_iRgnEnd !=
-			p->param[ve_dnlp_iRgnEnd] ||
+		dnlp_alg_param.dnlp_irgnbgn !=
+			p->param[ve_dnlp_irgnbgn] ||
+		dnlp_alg_param.dnlp_irgnend !=
+			p->param[ve_dnlp_irgnend] ||
 		dnlp_alg_param.dnlp_blk_cctr !=
 			p->param[ve_dnlp_blk_cctr] ||
 		dnlp_alg_param.dnlp_brgt_ctrl !=
@@ -795,8 +795,8 @@ void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
 	dnlp_alg_param.dnlp_adpcrat_hbnd = p->param[ve_dnlp_adpcrat_hbnd];
 
 	/* for clahe_curvs processing range */
-	dnlp_alg_param.dnlp_clashBgn = p->param[ve_dnlp_clashBgn];
-	dnlp_alg_param.dnlp_clashEnd = p->param[ve_dnlp_clashEnd];
+	dnlp_alg_param.dnlp_clashbgn = p->param[ve_dnlp_clashbgn];
+	dnlp_alg_param.dnlp_clashend = p->param[ve_dnlp_clashend];
 
 	/* black white extension control params */
 	dnlp_alg_param.dnlp_blkext_rate = p->param[ve_dnlp_blkext_rate];
@@ -804,8 +804,8 @@ void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
 	dnlp_alg_param.dnlp_blkext_ofst = p->param[ve_dnlp_blkext_ofst];
 	dnlp_alg_param.dnlp_whtext_ofst = p->param[ve_dnlp_whtext_ofst];
 	dnlp_alg_param.dnlp_bwext_div4x_min = p->param[ve_dnlp_bwext_div4x_min];
-	dnlp_alg_param.dnlp_iRgnBgn = p->param[ve_dnlp_iRgnBgn];
-	dnlp_alg_param.dnlp_iRgnEnd = p->param[ve_dnlp_iRgnEnd];
+	dnlp_alg_param.dnlp_irgnbgn = p->param[ve_dnlp_irgnbgn];
+	dnlp_alg_param.dnlp_irgnend = p->param[ve_dnlp_irgnend];
 
 	/* brightness_plus */
 	dnlp_alg_param.dnlp_blk_cctr = p->param[ve_dnlp_blk_cctr];

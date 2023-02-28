@@ -49,8 +49,8 @@ struct param_for_dnlp_s {
 	unsigned int dnlp_set_saturtn;
 	unsigned int dnlp_sbgnbnd;
 	unsigned int dnlp_sendbnd;
-	unsigned int dnlp_clashBgn;
-	unsigned int dnlp_clashEnd;
+	unsigned int dnlp_clashbgn;
+	unsigned int dnlp_clashend;
 	unsigned int dnlp_var_th;
 	unsigned int dnlp_clahe_gain_neg;
 	unsigned int dnlp_clahe_gain_pos;
@@ -63,8 +63,8 @@ struct param_for_dnlp_s {
 	unsigned int dnlp_blkext_rate;
 	unsigned int dnlp_whtext_rate;
 	unsigned int dnlp_bwext_div4x_min;
-	unsigned int dnlp_iRgnBgn;
-	unsigned int dnlp_iRgnEnd;
+	unsigned int dnlp_irgnbgn;
+	unsigned int dnlp_irgnend;
 	unsigned int dnlp_dbg_map;
 	unsigned int dnlp_final_gain;
 	unsigned int dnlp_cliprate_v3;
@@ -106,9 +106,9 @@ struct param_for_dnlp_s {
 struct dnlp_alg_input_param_s {
 	unsigned int *pre_0_gamma;
 	unsigned int *pre_1_gamma;
-	unsigned int *nTstCnt;
+	unsigned int *ntstcnt;
 	unsigned int *ve_dnlp_luma_sum;
-	int *RBASE;
+	int *rbase;
 	bool *menu_chg_en;
 };
 
@@ -124,7 +124,7 @@ struct dnlp_dbg_ro_param_s {
 	int *ro_blk_wht_ext0;
 	int *ro_blk_wht_ext1;
 	int *ro_dnlp_brightness;
-	int *GmScurve;
+	int *gmscurve;
 	int *clash_curve;
 	int *clsh_scvbld;
 	int *blkwht_ebld;

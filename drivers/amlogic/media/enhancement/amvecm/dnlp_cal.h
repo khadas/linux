@@ -49,8 +49,8 @@ struct dnlp_alg_param_s {
 	unsigned int dnlp_set_saturtn;
 	unsigned int dnlp_sbgnbnd;
 	unsigned int dnlp_sendbnd;
-	unsigned int dnlp_clashBgn;
-	unsigned int dnlp_clashEnd;
+	unsigned int dnlp_clashbgn;
+	unsigned int dnlp_clashend;
 	unsigned int dnlp_var_th;
 	unsigned int dnlp_clahe_gain_neg;
 	unsigned int dnlp_clahe_gain_pos;
@@ -63,8 +63,8 @@ struct dnlp_alg_param_s {
 	unsigned int dnlp_blkext_rate;
 	unsigned int dnlp_whtext_rate;
 	unsigned int dnlp_bwext_div4x_min;
-	unsigned int dnlp_iRgnBgn;
-	unsigned int dnlp_iRgnEnd;
+	unsigned int dnlp_irgnbgn;
+	unsigned int dnlp_irgnend;
 	unsigned int dnlp_dbg_map;
 	unsigned int dnlp_final_gain;
 	unsigned int dnlp_cliprate_v3;

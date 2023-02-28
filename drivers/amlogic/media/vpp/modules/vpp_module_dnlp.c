@@ -195,7 +195,7 @@ struct dnlp_dbg_parse_cmd_s dnlp_dbg_parse_cv_cmd[] = {
 	{"reg_trend_wht_expand_lut8", NULL, VPP_DNLP_TREND_WHT_EXP_LUT_LEN},
 	{"ve_dnlp_tgt", NULL, VPP_DNLP_SCURV_LEN},
 	{"ve_dnlp_tgt_10b", NULL, VPP_DNLP_SCURV_LEN},
-	/*{"GmScurve", NULL, VPP_DNLP_SCURV_LEN},*/
+	/*{"gmscurve", NULL, VPP_DNLP_SCURV_LEN},*/
 	{"clash_curve", NULL, VPP_DNLP_SCURV_LEN},
 	{"clsh_scvbld", NULL, VPP_DNLP_SCURV_LEN},
 	{"blkwht_ebld", NULL, VPP_DNLP_SCURV_LEN},
@@ -289,7 +289,7 @@ static void _calculate_dnlp_tgtx(int hist_luma_sum,
 	if (pdnlp_alg_node_param->dnlp_mvreflsh < 1)
 		pdnlp_alg_node_param->dnlp_mvreflsh = 1;
 
-	*pdnlp_alg_input->RBASE = 1 << pdnlp_alg_node_param->dnlp_mvreflsh;
+	*pdnlp_alg_input->rbase = 1 << pdnlp_alg_node_param->dnlp_mvreflsh;
 
 	/*parameters refresh*/
 	pdnlp_alg_function->dnlp3_param_refresh();
@@ -469,8 +469,8 @@ static void _dnlp_debug_init(void)
 	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_set_saturtn;
 	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_sbgnbnd;
 	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_sendbnd;
-	/*dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_clashBgn;*/
-	/*dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_clashEnd;*/
+	/*dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_clashbgn;*/
+	/*dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_clashend;*/
 	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_var_th;
 	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_clahe_gain_neg;
 	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_clahe_gain_pos;
@@ -483,8 +483,8 @@ static void _dnlp_debug_init(void)
 	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_blkext_rate;
 	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_whtext_rate;
 	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_bwext_div4x_min;
-	/*dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_iRgnBgn;*/
-	/*dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_iRgnEnd;*/
+	/*dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_irgnbgn;*/
+	/*dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_irgnend;*/
 	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_dbg_map;
 	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_final_gain;
 	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_cliprate_v3;
@@ -547,7 +547,7 @@ static void _dnlp_debug_init(void)
 	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_rw_param->reg_trend_wht_expand_lut8;
 	dnlp_dbg_parse_cv_cmd[i++].value = NULL;/*pdnlp_alg_output->ve_dnlp_tgt;*/
 	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_alg_output->ve_dnlp_tgt_10b;
-	/*dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_ro_param->GmScurve;*/
+	/*dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_ro_param->gmscurve;*/
 	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_ro_param->clash_curve;
 	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_ro_param->clsh_scvbld;
 	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_ro_param->blkwht_ebld;
@@ -591,8 +591,8 @@ static void _dnlp_algorithm_init(void)
 		pdnlp_alg_node_param->dnlp_set_saturtn = 0;
 		pdnlp_alg_node_param->dnlp_sbgnbnd = 4;
 		pdnlp_alg_node_param->dnlp_sendbnd = 4;
-		/*pdnlp_alg_node_param->dnlp_clashBgn = 4;*/
-		/*pdnlp_alg_node_param->dnlp_clashEnd = 59;*/
+		/*pdnlp_alg_node_param->dnlp_clashbgn = 4;*/
+		/*pdnlp_alg_node_param->dnlp_clashend = 59;*/
 		pdnlp_alg_node_param->dnlp_var_th = 16;
 		pdnlp_alg_node_param->dnlp_clahe_gain_neg = 120;
 		pdnlp_alg_node_param->dnlp_clahe_gain_pos = 24;
@@ -605,8 +605,8 @@ static void _dnlp_algorithm_init(void)
 		pdnlp_alg_node_param->dnlp_blkext_rate = 32;
 		pdnlp_alg_node_param->dnlp_whtext_rate = 16;
 		pdnlp_alg_node_param->dnlp_bwext_div4x_min = 16;
-		/*pdnlp_alg_node_param->dnlp_iRgnBgn = 0;*/
-		/*pdnlp_alg_node_param->dnlp_iRgnEnd = 64;*/
+		/*pdnlp_alg_node_param->dnlp_irgnbgn = 0;*/
+		/*pdnlp_alg_node_param->dnlp_irgnend = 64;*/
 		pdnlp_alg_node_param->dnlp_dbg_map = 0;
 		pdnlp_alg_node_param->dnlp_final_gain = 8;
 		pdnlp_alg_node_param->dnlp_cliprate_v3 = 36;
@@ -846,8 +846,8 @@ void vpp_module_dnlp_set_param(struct vpp_dnlp_curve_param_s *pdata)
 		pdata->param[EN_DNLP_SENDBND];
 
 	/*for clahe_curvs processing range*/
-	/*pdnlp_alg_node_param->dnlp_clashBgn = pdata->param[EN_DNLP_CLASHBGN];*/
-	/*pdnlp_alg_node_param->dnlp_clashEnd = pdata->param[EN_DNLP_CLASHEND];*/
+	/*pdnlp_alg_node_param->dnlp_clashbgn = pdata->param[EN_DNLP_CLASHBGN];*/
+	/*pdnlp_alg_node_param->dnlp_clashend = pdata->param[EN_DNLP_CLASHEND];*/
 
 	/*gains to delta of curves (for strength of the DNLP)*/
 	pdnlp_alg_node_param->dnlp_clahe_gain_neg =
@@ -876,8 +876,8 @@ void vpp_module_dnlp_set_param(struct vpp_dnlp_curve_param_s *pdata)
 		pdata->param[EN_DNLP_WHTEXT_RATE];
 	pdnlp_alg_node_param->dnlp_bwext_div4x_min =
 		pdata->param[EN_DNLP_BWEXT_DIV4X_MIN];
-	/*pdnlp_alg_node_param->dnlp_iRgnBgn = pdata->param[EN_DNLP_IRGNBGN];*/
-	/*pdnlp_alg_node_param->dnlp_iRgnEnd = pdata->param[EN_DNLP_IRGNEND];*/
+	/*pdnlp_alg_node_param->dnlp_irgnbgn = pdata->param[EN_DNLP_IRGNBGN];*/
+	/*pdnlp_alg_node_param->dnlp_irgnend = pdata->param[EN_DNLP_IRGNEND];*/
 
 	/*curve- clahe*/
 	pdnlp_alg_node_param->dnlp_cliprate_v3 =
