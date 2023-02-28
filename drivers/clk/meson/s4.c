@@ -838,8 +838,7 @@ static struct clk_regmap s4_hifi_pll_dco = {
 		.table = s4_hifi_pll_table,
 		.init_regs = s4_hifi_init_regs,
 		.init_count = ARRAY_SIZE(s4_hifi_init_regs),
-		.flags = CLK_MESON_PLL_ROUND_CLOSEST,
-		.new_frac = 1,
+		.flags = CLK_MESON_PLL_ROUND_CLOSEST | CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll_dco",
@@ -953,8 +952,7 @@ static struct clk_regmap s4d_hifi_pll_dco = {
 		.table = s4d_hifi_pll_table,
 		.init_regs = s4d_hifi_init_regs,
 		.init_count = ARRAY_SIZE(s4d_hifi_init_regs),
-		.flags = CLK_MESON_PLL_ROUND_CLOSEST,
-		.new_frac = 1,
+		.flags = CLK_MESON_PLL_ROUND_CLOSEST | CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll_dco",

@@ -78,13 +78,13 @@ static unsigned long __pll_params_to_rate(unsigned long parent_rate,
 	if (frac && MESON_PARM_APPLICABLE(&pll->frac)) {
 		frac_rate = (u64)parent_rate * frac;
 		if (frac & (1 << (pll->frac.width - 1))) {
-			if (pll->new_frac)
+			if (pll->flags & CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION)
 				rate -= DIV_ROUND_UP_ULL(frac_rate, FRAC_BASE);
 			else
 				rate -= DIV_ROUND_UP_ULL(frac_rate,
 						 (1 << (pll->frac.width - 2)));
 		} else {
-			if (pll->new_frac)
+			if (pll->flags & CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION)
 				rate += DIV_ROUND_UP_ULL(frac_rate, FRAC_BASE);
 			else
 				rate += DIV_ROUND_UP_ULL(frac_rate,
@@ -159,7 +159,7 @@ static unsigned int __pll_params_with_frac(unsigned long rate,
 	unsigned int frac_max;
 	u64 val = ((u64)rate * n) << od;
 
-	if (pll->new_frac)
+	if (pll->flags & CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION)
 		frac_max = FRAC_BASE;
 	else
 		frac_max = (1 << (pll->frac.width - 2));
@@ -186,7 +186,7 @@ static unsigned int __pll_params_with_frac(unsigned long rate,
 	unsigned int frac_max;
 	u64 val = (u64)rate * n;
 
-	if (pll->new_frac)
+	if (pll->flags & CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION)
 		frac_max = FRAC_BASE;
 	else
 		frac_max = (1 << (pll->frac.width - 2));
@@ -471,7 +471,7 @@ static void meson_clk_pll_init(struct clk_hw *hw)
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
 
 	/* Do not init pll, it will gate pll which is needed in RTOS */
-	if (pll->ignore_init) {
+	if (pll->flags & CLK_MESON_PLL_IGNORE_INIT) {
 		pr_warn("ignore %s clock init\n", clk_hw_get_name(hw));
 		return;
 	}

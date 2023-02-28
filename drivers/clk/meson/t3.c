@@ -1039,8 +1039,7 @@ static struct clk_regmap t3_hifi_pll_dco = {
 		.range = &t3_hifi_pll_m,
 		.init_regs = t3_hifi_init_regs,
 		.init_count = ARRAY_SIZE(t3_hifi_init_regs),
-		.flags = CLK_MESON_PLL_ROUND_CLOSEST,
-		.new_frac = 1,
+		.flags = CLK_MESON_PLL_ROUND_CLOSEST | CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll_dco",
