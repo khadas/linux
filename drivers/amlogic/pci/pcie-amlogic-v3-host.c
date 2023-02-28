@@ -493,6 +493,16 @@ static void amlogic_pcie_cfg_atr(struct amlogic_pcie *amlogic)
 static int __maybe_unused amlogic_pcie_suspend_noirq(struct device *dev)
 {
 	struct amlogic_pcie *amlogic = dev_get_drvdata(dev);
+	int err;
+	u32 value;
+
+	err = readl_poll_timeout(amlogic->pcictrl_base + PCIE_A_CTRL5, value,
+				 PCIE_LINK_STATE_CHECK(value, LTSSM_L1_IDLE), 20,
+				 jiffies_to_msecs(10 * HZ));
+	if (err) {
+		dev_err(amlogic->dev, "PCIe link enter L1 timeout!\n");
+		return err;
+	}
 
 	amlogic_pcie_deinit_phys(amlogic);
 

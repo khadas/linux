@@ -972,33 +972,36 @@ EXPORT_SYMBOL_GPL(amlogic_pcie_parse_dt);
 bool amlogic_pcie_link_up(struct amlogic_pcie *amlogic)
 {
 	struct device *dev = amlogic->dev;
-	u32 ltssm_up = 0;
+	bool ltssm_linkup = false;
 	u32 neg_link_speed = 0;
 	int cnt = 0;
 	u32 val = 0;
 
 	do {
-		ltssm_up = amlogic_pciectrl_read(amlogic, PCIE_A_CTRL5);
-		ltssm_up = ((ltssm_up >> 18) & 0x1f) == 0x10 ? 1 : 0;
-		dev_dbg(dev, "%s:%d, ltssm_up=0x%x\n", __func__, __LINE__,
-			((amlogic_pciectrl_read(amlogic,
-						PCIE_A_CTRL5) >> 18) & 0x1f));
+		val = amlogic_pciectrl_read(amlogic, PCIE_A_CTRL5);
+		ltssm_linkup = PCIE_LINK_STATE_CHECK(val, LTSSM_L0);
+
+		if (unlikely(cnt >= WAIT_LINKUP_TIMEOUT)) {
+			dev_err(dev, "Error: Wait linkup timeout.\n");
+			return false;
+		} else if (unlikely(cnt >= WAIT_LINKUP_TIMEOUT / 2)) {
+			dev_info(dev, "%s:%d, ltssm_state=0x%x\n", __func__, __LINE__,
+				 ((val >> 18) & 0x1f));
+		}
+
+		if (PCIE_LINK_STATE_CHECK(val, LTSSM_L1_IDLE)) {
+			dev_info(dev, "ltssm state into L1_IDLE\n");
+			break;
+		}
 
 		val = amlogic_pcieinter_read(amlogic, PCIE_BASIC_STATUS);
 		neg_link_speed = (val >> 8) & 0xf;
-
-		if (ltssm_up)
-			dev_dbg(dev, "ltssm_up is on\n");
 		if (neg_link_speed)
 			dev_dbg(dev, "speed_okay\n");
 
-		if (cnt >= WAIT_LINKUP_TIMEOUT) {
-			dev_err(dev, "Error: Wait linkup timeout.\n");
-			return false;
-		}
 		cnt++;
-		udelay(20);
-	} while (ltssm_up == 0);
+		udelay(2);
+	} while (!ltssm_linkup);
 
 	return true;
 }
@@ -1225,6 +1228,8 @@ int amlogic_pcie_init_port(struct amlogic_pcie *amlogic)
 
 	if (!amlogic_pcie_link_up(amlogic))
 		return -ETIMEDOUT;
+
+	usleep_range(20, 30);
 	reg = amlogic_pcieinter_read(amlogic, PCIE_BASIC_STATUS);
 
 	dev_info(dev, "current link speed is GEN%d,link width is x%d\n",
