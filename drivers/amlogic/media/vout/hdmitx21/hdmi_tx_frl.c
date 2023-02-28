@@ -370,6 +370,7 @@ static void tx_train_fsm(struct work_struct *work)
 		struct frl_work, dwork);
 	struct frl_train_t *p = container_of(frl_work,
 		struct frl_train_t, timer_frl_flt);
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	if (p->last_state != p->flt_tx_state) {
 		pr_info("FRL: %s to %s\n", flt_tx_string[p->last_state],
@@ -542,6 +543,8 @@ tx_lts_4:
 			clrear_flt_update(p);
 			pr_info("LTS:L cost %ld ms\n", (g_flt_1_e - g_flt_1 + 3) / 4);
 			frl_tx_callback(FRL_EVENT_LEGACY);
+			/* disable hdcp if fallback to legacy mode */
+			hdmitx21_disable_hdcp(hdev);
 		}
 
 		if (p->ds_frl_support && p->req_frl_mode)
@@ -596,6 +599,10 @@ tx_lts_p3:
 			frl_tx_callback(FRL_EVENT_STOP);
 			p->flt_tx_state = FLT_TX_LTS_3;
 			break;
+		} else {
+			/* start hdcp after training pass */
+			if (hdmitx21_get_hdcp_mode() == 0)
+				queue_delayed_work(hdev->hdmi_wq, &hdev->work_start_hdcp, HZ / 4);
 		}
 		break;
 	}

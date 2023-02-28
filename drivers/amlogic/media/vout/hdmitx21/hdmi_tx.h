@@ -541,4 +541,5 @@ enum frl_rate_enum hdmitx21_select_frl_rate(bool dsc_en, enum hdmi_vic vic,
 	enum hdmi_colorspace cs, enum hdmi_color_depth cd);
 void frl_tx_training_handler(struct hdmitx_dev *hdev);
 void frl_tx_stop(struct hdmitx_dev *hdev);
+void hdcptx_en_aes_dualpipe(bool en);
 #endif /* __HDMI_TX_H__ */

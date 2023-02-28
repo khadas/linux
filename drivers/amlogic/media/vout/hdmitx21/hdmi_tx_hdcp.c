@@ -1596,9 +1596,9 @@ static bool hdcp_stop_work(struct hdcp_work *work)
 static void hdcptx_auth_start(struct hdcp_t *p_hdcp)
 {
 	enum hdcp_ver_t hdcp_mode;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	hdcp_mode = p_hdcp->req_hdcp_ver;
-
 	if (hdcp_mode != HDCP_VER_NONE) {
 		hdcp_mode = p_hdcp->req_hdcp_ver;
 		if (p_hdcp->hdcptx_enabled) {
@@ -1606,10 +1606,16 @@ static void hdcptx_auth_start(struct hdcp_t *p_hdcp)
 			hdcp_enable_intrs(1);
 			hdcp_schedule_work(&p_hdcp->timer_hdcp_rcv_auth,
 				HDCP_STAGE1_RETRY_TIMER, 0);
-			if (hdcp_mode == HDCP_VER_HDCP1X)
+			if (hdcp_mode == HDCP_VER_HDCP1X) {
+				hdcptx_en_aes_dualpipe(false);
 				hdcp1x_auth_start(p_hdcp);
-			if (hdcp_mode == HDCP_VER_HDCP2X)
+			} else if (hdcp_mode == HDCP_VER_HDCP2X) {
+				if (hdev->frl_rate == FRL_NONE)
+					hdcptx_en_aes_dualpipe(false);
+				else
+					hdcptx_en_aes_dualpipe(true);
 				hdcp2x_auth_start(p_hdcp);
+			}
 			hdcp_schedule_work(&p_hdcp->timer_ddc_check_nak, 100, 200);
 		}
 	}

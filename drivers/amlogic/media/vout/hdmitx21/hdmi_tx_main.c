@@ -826,7 +826,7 @@ static int set_disp_mode_auto(void)
 	} else {
 	/* nothing */
 	}
-
+	hdev->frl_rate = FRL_NONE;
 	if (hdev->rxcap.max_frl_rate) {
 		hdev->frl_rate = hdmitx21_select_frl_rate(hdev->dsc_en, vic,
 			hdev->para->cs, hdev->para->cd);
@@ -879,7 +879,11 @@ static int set_disp_mode_auto(void)
 		hdev->not_restart_hdcp = 0;
 		pr_info("special mode switch, not start hdcp\n");
 	} else {
-		queue_delayed_work(hdev->hdmi_wq, &hdev->work_start_hdcp, HZ / 4);
+		/* below is only for tmds mode, for FRL mode
+		 * hdcp is started after training passed
+		 */
+		if (hdev->frl_rate == FRL_NONE)
+			queue_delayed_work(hdev->hdmi_wq, &hdev->work_start_hdcp, HZ / 4);
 	}
 	mutex_unlock(&hdev->hdmimode_mutex);
 	return ret;

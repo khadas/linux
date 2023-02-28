@@ -407,3 +407,8 @@ void hdcptx1_query_aksv(struct hdcp_ksv_t *p_val)
 {
 	hdmitx21_seq_rd_reg(AKSV_1_IVCTX, p_val->b, KSV_SIZE);
 }
+
+void hdcptx_en_aes_dualpipe(bool en)
+{
+	hdmitx21_set_reg_bits(CP2TX_AESCTL_IVCTX, en ? 3 : 0, 2, 2);
+}
