@@ -4614,7 +4614,7 @@ static int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *st
 						offset, c->symbol_rate);
 			}
 		}
-
+/*
 		// S/S2 ber config.
 		if ((dvbs_rd_byte(0x932) & 0x60) == 0x40) {
 			// S2.
@@ -4625,7 +4625,7 @@ static int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *st
 			if (dvbs_rd_byte(0xe60) != 0x75)
 				dvbs_wr_byte(0xe60, 0x75);
 		}
-
+*/
 	} else {
 		if (timer_not_enough(demod, D_TIMER_DETECT)) {
 			ilock = 0;
