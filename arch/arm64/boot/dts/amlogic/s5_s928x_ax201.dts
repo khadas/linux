@@ -225,7 +225,7 @@
 		pcie_dma_ops_mm:linux,pcie_dma_ops {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x5000000>;
+			size = <0x0 0x4800000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
