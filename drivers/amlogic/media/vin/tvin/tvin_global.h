@@ -598,6 +598,7 @@ struct tvin_sig_property_s {
 	struct tvin_spd_data_s spd_data;
 	unsigned int cnt;
 	unsigned int hw_vic;
+	unsigned int avi_ec;//hdmi avi ext_colorimetry
 	/* only use for loopback, 0=positvie, 1=negative */
 	unsigned int polarity_vs;
 	unsigned int hdcp_sts;	/* protected content src. 1:protected 0:not*/

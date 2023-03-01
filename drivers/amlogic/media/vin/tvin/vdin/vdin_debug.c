@@ -1132,6 +1132,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("vdin csc_idx	= %s(%d)\n",
 		vdin_trans_matrix_str(devp->csc_idx),
 		devp->csc_idx);
+	pr_info("input_colorimetry = 0x%x\n", devp->parm.info.input_colorimetry);
 	pr_info("signal_type	= 0x%x\n", devp->parm.info.signal_type);
 	pr_info("color_range_force = %d\n", color_range_force);
 	pr_info("aspect_ratio = %s(%d)\n decimation_ratio/dvi	= %u / %u\n",

@@ -414,6 +414,11 @@ struct tvin_info_s {
 	 *	"smpte170m", "smpte240m", "YCgCo", "bt2020nc", "bt2020c"
 	 */
 	unsigned int signal_type;
+	/*
+	 * 0:xvYCC601  1:xvYCC709    2:sYCC601            3:Adobe ycc601
+	 * 4:Adobe rgb 5:BT2020(ycc) 6:BT2020(rgb or yuv) 7:reserved
+	 */
+	unsigned int input_colorimetry;
 	enum tvin_aspect_ratio_e aspect_ratio;
 	/*
 	 * 0:no dv 1:visf 2:emp

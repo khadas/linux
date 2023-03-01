@@ -1338,6 +1338,14 @@ void hdmirx_get_hdr_info(struct tvin_sig_property_s *prop)
 	}
 }
 
+/*
+ * get hdmirx avi packet ext_colorimetry info
+ */
+void hdmirx_get_avi_ext_colorimetry(struct tvin_sig_property_s *prop)
+{
+	prop->avi_ec = rx.cur.ext_colorimetry;
+}
+
 /***************************************************
  *func: hdmirx_get_sig_property - get signal property
  **************************************************/
@@ -1361,6 +1369,7 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	hdmirx_get_active_aspect_ratio(prop);
 	hdmirx_get_hdcp_sts(prop);
 	hdmirx_get_hw_vic(prop);
+	hdmirx_get_avi_ext_colorimetry(prop);
 	prop->skip_vf_num = vdin_drop_frame_cnt;
 }
 
