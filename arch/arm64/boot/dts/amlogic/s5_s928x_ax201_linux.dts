@@ -152,7 +152,7 @@
 		camera_cma_reserved:linux,camera_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			status = "okay";
+			status = "disable";
 			size = <0x0 0xB000000>;
 			alignment = <0x0 0x400000>;
 		};
@@ -1612,69 +1612,6 @@
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c5_pins2>;
-	ov9285_2: sensor0@60 {
-		compatible = "omnivision, ov9285";
-		reg = <0x60>;
-		//pwr-gpios = <&gpio GPIOC_13 GPIO_ACTIVE_HIGH>;
-		//pwdn-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
-		//reset-gpios = <&gpio GPIOC_17 GPIO_ACTIVE_HIGH>;
-//		clock-frequency = <24000000>;
-//		clocks = <&clkc CLKID_MCLK_2>;
-//		clock-names = "mclk";
-		port {
-		ov9285_2_ep: endpoint {
-			data-lanes = <0 1>;
-			link-frequencies = /bits/ 64 <400000000>;
-			remote-endpoint = <&csiphy2_ep>;
-			};
-		};
-	};
-
-	ov9285_3: sensor0@10 {
-		compatible = "omnivision, ov9285";
-		reg = <0x10>;
-		//pwr-gpios = <&gpio GPIOC_13 GPIO_ACTIVE_HIGH>;
-		pwdn-gpios = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&gpio GPIOT_0 GPIO_ACTIVE_HIGH>;
-//		clock-frequency = <24000000>;
-//		clocks = <&clkc CLKID_MCLK_3>;
-//		clock-names = "mclk";
-		port {
-		ov9285_3_ep: endpoint {
-			data-lanes = <3 4>;
-			link-frequencies = /bits/ 64 <400000000>;
-			remote-endpoint = <&csiphy3_ep>;
-			};
-		};
-	};
-};
-
-&csiphy2 {
-	port {
-		csiphy2_ep: endpoint {
-		clock-lanes = <1>;
-		data-lanes = <0 1>;
-		remote-endpoint = <&ov9285_2_ep>;
-		};
-	};
-};
-
-&isp2 {
-	memory-region = <&camera_cma_reserved>;
-};
-
-&csiphy3 {
-	port {
-		csiphy3_ep: endpoint {
-		clock-lanes = <1>;
-		data-lanes = <3 4>;
-		remote-endpoint = <&ov9285_3_ep>;
-		};
-	};
-};
-
-&isp3 {
-	memory-region = <&camera_cma_reserved>;
 };
 
 &i2c5 {
