@@ -129,7 +129,8 @@
 /* 20230105: overseas project display ration control */
 /* 20230112: modify for vdin0 v4l2 */
 /* 20230216: add address debug info */
-#define VDIN_VER "20230216"
+/* 20230302: source clk change 25hz calculate to 24hz */
+#define VDIN_VER "20230302"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK

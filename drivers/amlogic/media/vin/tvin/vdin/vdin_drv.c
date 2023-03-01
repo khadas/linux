@@ -470,19 +470,16 @@ void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
 static inline void vdin_get_in_out_fps(struct vdin_dev_s *devp)
 {
 	unsigned int vinfo_out_fps = 0;
-	unsigned long long msr_clk = devp->msr_clk_val;
 	const struct vinfo_s *vinfo = NULL;
 
 	if (devp->dtdata->hw_ver >= VDIN_HW_T7 && IS_HDMI_SRC(devp->parm.port)) {
 		/* get vin fps */
-		if (devp->cycle != 0) {
-			do_div(msr_clk, devp->cycle);
-			devp->vdin_std_duration = (unsigned int)msr_clk;
-		} else {
+		if (devp->cycle != 0)
+			devp->vdin_std_duration = DIV_ROUND_CLOSEST(devp->msr_clk_val, devp->cycle);
+		else
 			devp->vdin_std_duration = devp->parm.info.fps;
-		}
-		/* get vout fps */
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
+		/* get vout fps */
 		vinfo_out_fps = vout_frame_rate_measure(1);
 #endif
 		if (vinfo_out_fps != 0) {
@@ -660,10 +657,9 @@ static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
 		devp->game_mode = 0;
 
 	if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
-		pr_info("%s %d,vrr_mode:%d,game:pre(%#x)cur(%#x)in fps:%d out fps:%d\n",
-			__func__, __LINE__, devp->vrr_data.vrr_mode,
-			devp->game_mode_pre, devp->game_mode, devp->vdin_std_duration,
-			devp->vinfo_std_duration);
+		pr_info("%s vrr_mode:%d,game:pre(%#x)cur(%#x)in fps:%d out fps:%d cycle:%#x\n",
+			__func__, devp->vrr_data.vrr_mode, devp->game_mode_pre, devp->game_mode,
+			devp->vdin_std_duration, devp->vinfo_std_duration, devp->cycle);
 }
 
 static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
