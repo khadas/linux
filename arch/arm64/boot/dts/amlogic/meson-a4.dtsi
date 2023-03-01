@@ -842,24 +842,24 @@
 			};
 
 			spicc0: spi@50000 {
-				compatible = "amlogic,meson-g12-spicc";
-				reg = <0x0 0x50000 0x0 0x44>;
+				compatible = "amlogic,meson-a4-spicc-v2";
+				reg = <0x0 0x50000 0x0 0x38>;
 				interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
-				//clocks = <&clkc CLKID_SYS_CLK_SPICC_0>,
-				//	 <&clkc CLKID_SPICC0>;
-				//clock-names = "core", "async";
+				clocks = <&clkc CLKID_SYS_CLK_SPICC_0>,
+					 <&clkc CLKID_SPICC0>;
+				clock-names = "sys", "spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
 			};
 
-			spicc1: spi@52000 {
-				compatible = "amlogic,meson-g12-spicc";
-				reg = <0x0 0x52000 0x0 0x44>;
+			spicc1: spi@51000 {
+				compatible = "amlogic,meson-a4-spicc-v2";
+				reg = <0x0 0x51000 0x0 0x38>;
 				interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
-				//clocks = <&clkc CLKID_SYS_CLK_SPICC_1>,
-				//	 <&clkc CLKID_SPICC1>;
-				//clock-names = "core", "async";
+				clocks = <&clkc CLKID_SYS_CLK_SPICC_1>,
+					 <&clkc CLKID_SPICC1>;
+				clock-names = "sys", "spi";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
@@ -2269,41 +2269,60 @@
 
 	spicc0_pins_x: spicc0_pins_x {
 		mux {
-			groups = "spi_a_mosi_x",
-				 "spi_a_miso_x",
-				 "spi_a_clk_x";
+			groups = "spi_a_mosi_x7",
+				 "spi_a_miso_x8",
+				 "spi_a_ss0_x9",
+				 "spi_a_clk_x10";
 			function = "spi_a";
-			drive-strength = <2>;
-		};
-	};
-
-	spicc0_pins_h: spicc0_pins_h {
-		mux {
-			groups = "spi_a_mosi_h",
-				 "spi_a_miso_h",
-				 "spi_a_clk_h";
-			function = "spi_a";
-			drive-strength = <2>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
 	spicc0_pins_t: spicc0_pins_t {
 		mux {
-			groups = "spi_a_mosi_t",
-				 "spi_a_miso_t",
-				 "spi_a_clk_t";
+			groups = "spi_a_dq2",
+				 "spi_a_dq3",
+				 "spi_a_clk_t13",
+				 "spi_a_mosi_t14",
+				 "spi_a_miso_t15",
+				 "spi_a_ss0_t16";
 			function = "spi_a";
-			drive-strength = <2>;
+			drive-strength-microamp = <3000>;
+		};
+	};
+
+	spicc1_pins_x: spicc1_pins_x {
+		mux {
+			groups = "spi_b_mosi_x14",
+				 "spi_b_ss0_x15",
+				 "spi_b_clk_x16",
+				 "spi_b_miso_x17";
+			function = "spi_b";
+			drive-strength-microamp = <3000>;
+		};
+	};
+
+	spicc1_pins_d: spicc1_pins_d {
+		mux {
+			groups = "spi_b_miso_d2",
+				 "spi_b_mosi_d3",
+				 "spi_b_clk_d4",
+				 "spi_b_ss0_d5";
+			function = "spi_b";
+			drive-strength-microamp = <3000>;
 		};
 	};
 
 	spicc1_pins_t: spicc1_pins_t {
 		mux {
-			groups = "spi_b_mosi_t",
-				/*"spi_b_miso_t", for spi panel miso pin as dc*/
-				 "spi_b_clk_t";
+			groups = "spi_b_dq2",
+				 "spi_b_dq3",
+				 "spi_b_clk_t5",
+				 "spi_b_mosi_t6",
+				 "spi_b_miso_t7",
+				 "spi_b_ss0_t8";
 			function = "spi_b";
-			drive-strength = <2>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
