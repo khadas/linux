@@ -1848,7 +1848,8 @@ static int get_timing_fmt(void)
 		if (rx.pre.colorspace != freq_ref[i].cd420 &&
 		    freq_ref[i].cd420 != 0)
 			continue;
-		if (freq_ref[i].interlace != rx.pre.interlaced)
+		if (freq_ref[i].interlace != rx.pre.interlaced &&
+			freq_ref[i].interlace != 0)
 			continue;
 		if (freq_ref[i].type_3d != rx.vs_info_details._3d_structure)
 			continue;

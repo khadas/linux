@@ -22,8 +22,8 @@
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_drv_ext.h"
 
-/* optimize repetition setting */
-#define RX_VER0 "ver.2023/02/09"
+//added interlaced mode protection 2023.03.01
+#define RX_VER0 "ver.2023/03/01"
 
 /*print type*/
 #define	LOG_EN		0x01
