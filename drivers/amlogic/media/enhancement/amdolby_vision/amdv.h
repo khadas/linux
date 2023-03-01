@@ -9,7 +9,7 @@
 /*#define V2_4_3*/
 
 /*  driver version */
-#define DRIVER_VER "2023000216"
+#define DRIVER_VER "2023000301"
 
 #include <linux/types.h>
 #include "amdv_pq_config.h"
@@ -690,6 +690,7 @@ extern bool force_bypass_from_prebld_to_vadj1;
 extern struct hdr10_parameter hdr10_param;
 extern int cur_valid_video_num;
 extern int (*get_osd_status)(enum OSD_INDEX index);
+extern struct vpp_post_info_t core3_slice_info;
 /************/
 
 #define pr_dv_dbg(fmt, args...)\

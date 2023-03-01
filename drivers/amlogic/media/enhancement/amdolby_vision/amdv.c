@@ -555,12 +555,11 @@ static int last_unmap_id;
 static int hdmi_inst_id;
 enum priority_mode_enum pri_mode = V_PRIORITY;
 int hdmi_path_id;
+static int vd1_inst_id = -1;
+static int vd2_inst_id = -1;
 
 static u32 inst_debug[2];
 static u32 inst_res_debug[4];/*force set inst0 w/h inst1 w/h*/
-
-static int vd1_inst_id = -1;
-static int vd2_inst_id = -1;
 
 static int force_two_valid;
 module_param(force_two_valid, int, 0664);
@@ -2498,7 +2497,7 @@ static void dump_m_setting(struct m_dovi_setting_s *m_setting,
 			i <= AMDV_CORE3_REG_START + 67; i++)
 			pr_info("[0x%4x] = 0x%x\n",
 				i, READ_VPP_DV_REG(i));
-		if (is_aml_s5()) {
+		if (is_aml_s5() && core3_slice_info.slice_num > 1) {
 			pr_info("core3 S1 swap\n");
 			for (i = AMDV_CORE3_S1_CLKGATE_CTRL;
 				i <= AMDV_CORE3_S1_OUTPUT_CSC_CRC; i++)
@@ -6173,6 +6172,7 @@ static bool send_hdmi_pkt
 				hdr10_data.max_frame_average = 0;
 				if (vinfo && vinfo->vout_device &&
 				    vinfo->vout_device->fresh_tx_hdr_pkt) {
+					pr_dv_dbg("fresh tx_hdr_pkt zero\n");
 					vinfo->vout_device->fresh_tx_hdr_pkt
 					(&hdr10_data);
 					last_dst_format = dst_format;

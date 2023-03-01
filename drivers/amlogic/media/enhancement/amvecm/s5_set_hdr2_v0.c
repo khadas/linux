@@ -841,8 +841,8 @@ void s5_set_hdr_matrix(enum hdr_module_sel module_sel,
 	} else if (mtx_sel == HDR_OUT_MTX) {
 		for (i = 0; i < MTX_NUM_PARAM; i++)
 			out_mtx[i] = hdr_mtx_param->mtx_out[i];
-#ifdef HDR2_PRINT
-		pr_info("hdr: out_mtx %d %d = %x,%x %x %x %x %x,%x\n",
+//#ifdef HDR2_PRINT
+		pr_csc(64, "hdr: out_mtx %d %d = %x,%x %x %x %x %x,%x\n",
 			hdr_mtx_param->mtx_on,
 			hdr_mtx_param->mtx_only,
 			(hdr_mtx_param->mtxo_pre_offset[0] << 16) |
@@ -858,7 +858,7 @@ void s5_set_hdr_matrix(enum hdr_module_sel module_sel,
 			out_mtx[2 * 3 + 2],
 			(hdr_mtx_param->mtxo_pos_offset[0] << 16) |
 			(hdr_mtx_param->mtxo_pos_offset[1] & 0xFFF));
-#endif
+//#endif
 		VSYNC_WRITE_VPP_REG_VPP_SEL(CGAIN_OFFT,
 			(hdr_mtx_param->mtx_cgain_offset[2] << 16) |
 			hdr_mtx_param->mtx_cgain_offset[1], vpp_sel);

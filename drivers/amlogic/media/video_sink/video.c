@@ -11383,7 +11383,8 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 		clear_vframe_dovi_md_info(vf);
 
 	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
-		pr_info("[%s]fmt: %d\n", __func__, vf->src_fmt.fmt);
+		pr_info("[%s]fmt: %d, vf %p, sei %p\n", __func__, vf->src_fmt.fmt,
+				vf, vf->src_fmt.sei_ptr);
 
 	return 0;
 }
@@ -11443,7 +11444,7 @@ int get_md_from_src_fmt(struct vframe_s *vf)
 			ret = 2;
 	}
 	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
-		pr_info("[%s] vf %p, ret %d\n", __func__, vf, ret);
+		pr_info("[%s] vf %p, sei %p, ret %d\n", __func__, vf, vf->src_fmt.sei_ptr, ret);
 
 	return ret;
 }
