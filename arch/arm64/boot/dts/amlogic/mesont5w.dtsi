@@ -1073,6 +1073,21 @@
 				status = "disabled";
 			};
 
+			pwm_gh: pwm@0x21000 {
+				compatible = "amlogic,meson-t5d-ee-pwm";
+				reg = <0x0 0x21000 0x0 0x20>;
+				#pwm-cells = <3>;
+				clocks = <&xtal>,
+						<&xtal>,
+						<&xtal>,
+						<&xtal>;
+				clock-names = "clkin0",
+						"clkin1",
+						"clkin2",
+						"clkin3";
+				status = "disabled";
+			};
+
 			uart_A: serial@24000 {
 				compatible = "amlogic,meson-uart";
 				reg = <0x0 0x24000 0x0 0x18>;
@@ -2476,6 +2491,34 @@
 		};
 	};
 
+	pwm_g_pins1: pwm_g_pins1 {
+		mux {
+			groups = "pwm_g_m";
+			function = "pwm_g";
+		};
+	};
+
+	pwm_g_pins2: pwm_g_pins2 {
+		mux {
+			groups = "pwm_g_z";
+			function = "pwm_g";
+		};
+	};
+
+	pwm_h_pins1: pwm_h_pins1 {
+		mux {
+			groups = "pwm_h_z";
+			function = "pwm_h";
+		};
+	};
+
+	pwm_h_pins2: pwm_h_pins2 {
+		mux {
+			groups = "pwm_h_m";
+			function = "pwm_h";
+		};
+	};
+
 	irblaster_pins: irblaster_pins {
 		mux {
 			groups = "remote_out";
@@ -2975,6 +3018,55 @@
 			groups = "GPIOE_0", "GPIOE_1";
 			function = "gpio_aobus";
 			output-low;
+		};
+	};
+
+	pwm_a_ao_pins:pwm_a_ao_pins {
+		mux {
+			groups = "pwm_ao_a";
+			function = "pwm_ao_a";
+		};
+	};
+
+	pwm_b_ao_pins:pwm_b_ao_pins {
+		mux {
+			groups = "pwm_ao_b";
+			function = "pwm_ao_b";
+		};
+	};
+
+	pwm_c_ao_pins1:pwm_c_ao_pins1 {
+		mux {
+			groups = "pwm_ao_c_d7";
+			function = "pwm_ao_c";
+		};
+	};
+
+	pwm_c_ao_pins2:pwm_c_ao_pins2 {
+		mux {
+			groups = "pwm_ao_c_d5";
+			function = "pwm_ao_c";
+		};
+	};
+
+	pwm_d_ao_pins1:pwm_d_ao_pins1 {
+		mux {
+			groups = "pwm_ao_d_d6";
+			function = "pwm_ao_d";
+		};
+	};
+
+	pwm_d_ao_pins2:pwm_d_ao_pins2 {
+		mux {
+			groups = "pwm_ao_d_d9";
+			function = "pwm_ao_d";
+		};
+	};
+
+	pwm_e_ao_pins:pwm_e_ao_pins {
+		mux {
+			groups = "pwm_ao_e";
+			function = "pwm_ao_e";
 		};
 	};
 
