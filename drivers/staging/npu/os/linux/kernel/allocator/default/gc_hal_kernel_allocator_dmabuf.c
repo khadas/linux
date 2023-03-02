@@ -119,13 +119,13 @@ static int dma_buf_info_show(struct seq_file* m, void* data)
     list_for_each_entry(buf_desc, &priv->buf_list, list) {
         struct dma_buf *buf_obj = buf_desc->dmabuf;
 
-        ret = mutex_lock_interruptible(&buf_obj->lock);
+//        ret = mutex_lock_interruptible(&buf_obj->lock);
 
-        if (ret) {
-            seq_puts(m,
-                 "ERROR locking buffer object: skipping\n");
-            continue;
-        }
+//        if (ret) {
+//            seq_puts(m,
+//                 "ERROR locking buffer object: skipping\n");
+ //           continue;
+//        }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
         exp_name = buf_obj->exp_name;
@@ -149,7 +149,7 @@ static int dma_buf_info_show(struct seq_file* m, void* data)
         size += buf_obj->size;
         npages += buf_desc->npages;
 
-        mutex_unlock(&buf_obj->lock);
+ //       mutex_unlock(&buf_obj->lock);
     }
 
     seq_printf(m, "\nTotal %d objects, %d pages, %zu bytes\n", count, npages, size);
