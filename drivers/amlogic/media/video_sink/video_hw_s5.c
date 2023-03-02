@@ -2832,7 +2832,7 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 	//vd_proc_preblend_info->vd1s1_vd2_prebld_en
 	vd_proc->bypass_detunnel = g_bypass_module & BYAPSS_DETUNNEL;
 	vd_proc->bypass_hdr = g_bypass_module & BYPASS_HDR;
-	vd_proc->bypass_dv = g_bypass_module & BYPASS_DV;
+	vd_proc->bypass_dv = (g_bypass_module & BYPASS_DV) && !is_amdv_enable();
 	//vd_proc->bypass_ve = 1;
 	vd_proc_unit->sr0_dpath_sel = SR0_IN_SLICE0;
 	/* SR0_IN_SLICE0 */
@@ -3559,7 +3559,7 @@ static void set_vd_proc_info_mosaic(struct video_layer_s *layer, u32 frm_idx)
 	/* need add some logic to set this var */
 	vd_proc->bypass_detunnel = g_bypass_module & BYAPSS_DETUNNEL;
 	vd_proc->bypass_hdr = g_bypass_module & BYPASS_HDR;
-	vd_proc->bypass_dv = g_bypass_module & BYPASS_DV;
+	vd_proc->bypass_dv = (g_bypass_module & BYPASS_DV) && !is_amdv_enable();
 	vd_proc_unit->sr0_dpath_sel = SR0_IN_SLICE0;
 	vd_proc_unit->sr0_pps_dpsel = SR0_BEFORE_PPS;
 
