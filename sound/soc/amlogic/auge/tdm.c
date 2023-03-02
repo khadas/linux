@@ -1437,6 +1437,7 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 		/* i2s source to hdmix */
 		if (get_hdmitx_audio_src(rtd->card) == (p_tdm->id + HDMITX_SRC_TDM_A)) {
 			enum aud_codec_types codec_type = get_i2s2hdmitx_audio_format(rtd->card);
+			int i2s_out_mask = get_hdmitx_i2s_mask(rtd->card);
 			unsigned int event_type = 0;
 			struct iec958_chsts chsts;
 			struct aud_para aud_param;
@@ -1444,16 +1445,19 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			memset(&aud_param, 0, sizeof(aud_param));
 			aud_param.rate = runtime->rate;
 			aud_param.size = runtime->sample_bits;
-			if (codec_type == AUD_CODEC_TYPE_STEREO_PCM)
+			if (codec_type == AUD_CODEC_TYPE_STEREO_PCM) {
 				aud_param.chs  = 2;
-			else
+				aud_param.i2s_ch_mask = (u8)i2s_out_mask;
+			} else {
 				aud_param.chs  = runtime->channels;
+				aud_param.i2s_ch_mask = (1 << (runtime->channels / 2)) - 1;
+			}
 			aud_param.aud_src_if = AUD_SRC_IF_I2S;
 
 			memset(&chsts, 0, sizeof(chsts));
 			separated = p_tdm->chipinfo->separate_tohdmitx_en;
-			pr_info("notify tdm to hdmitx,id %d codec_type %d",
-				p_tdm->id, codec_type);
+			pr_info("notify tdm to hdmitx,id %d codec_type %d, chs %d, ch_mask %d",
+				p_tdm->id, codec_type, aud_param.chs, aud_param.i2s_ch_mask);
 			i2s_to_hdmitx_ctrl(separated, p_tdm->id, p_tdm->clk_sel);
 
 			if (codec_type == AUD_CODEC_TYPE_TRUEHD)

@@ -2680,40 +2680,6 @@ int hdmitx21_ext_get_audio_status(void)
 	return !!hdev->tx_aud_cfg;
 }
 
-void hdmitx21_ext_set_i2s_mask(char ch_num, char ch_msk)
-{
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-	static u32 update_flag = -1;
-
-	if (!(ch_num == 2 || ch_num == 4 ||
-	      ch_num == 6 || ch_num == 8)) {
-		pr_info("err chn setting, must be 2, 4, 6 or 8, Rst as def\n");
-		hdev->aud_output_ch = 0;
-		if (update_flag != hdev->aud_output_ch) {
-			update_flag = hdev->aud_output_ch;
-			hdev->hdmi_ch = 0;
-			hdmitx21_set_audio(hdev, &hdev->cur_audio_param);
-		}
-	}
-	if (ch_msk == 0) {
-		pr_info("err chn msk, must larger than 0\n");
-		return;
-	}
-	hdev->aud_output_ch = (ch_num << 4) + ch_msk;
-	if (update_flag != hdev->aud_output_ch) {
-		update_flag = hdev->aud_output_ch;
-		hdev->hdmi_ch = 0;
-		hdmitx21_set_audio(hdev, &hdev->cur_audio_param);
-	}
-}
-
-char hdmitx21_ext_get_i2s_mask(void)
-{
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-
-	return hdev->aud_output_ch & 0xf;
-}
-
 static ssize_t aud_mute_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -5512,6 +5478,33 @@ static enum hdmi_audio_sampsize aud_size_map(u32 bits)
 	return SS_MAX;
 }
 
+static bool hdmitx_set_i2s_mask(char ch_num, char ch_msk)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	static u32 update_flag = -1;
+
+	if (!(ch_num == 2 || ch_num == 4 ||
+	      ch_num == 6 || ch_num == 8)) {
+		pr_info("err chn setting, must be 2, 4, 6 or 8, Rst as def\n");
+		hdev->aud_output_ch = 0;
+		if (update_flag != hdev->aud_output_ch) {
+			update_flag = hdev->aud_output_ch;
+			hdev->hdmi_ch = 0;
+		}
+		return 0;
+	}
+	if (ch_msk == 0) {
+		pr_info("err chn msk, must larger than 0\n");
+		return 0;
+	}
+	hdev->aud_output_ch = (ch_num << 4) + ch_msk;
+	if (update_flag != hdev->aud_output_ch) {
+		update_flag = hdev->aud_output_ch;
+		hdev->hdmi_ch = 0;
+	}
+	return 1;
+}
+
 static int hdmitx_notify_callback_a(struct notifier_block *block,
 				    unsigned long cmd, void *para);
 static struct notifier_block hdmitx_notifier_nb_a = {
@@ -5531,6 +5524,9 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 
 	hdev->audio_param_update_flag = 0;
 	hdev->audio_notify_flag = 0;
+
+	if (hdmitx_set_i2s_mask(aud_param->chs, aud_param->i2s_ch_mask))
+		hdev->audio_param_update_flag = 1;
 
 	if (audio_param->sample_rate != n_rate) {
 		audio_param->sample_rate = n_rate;

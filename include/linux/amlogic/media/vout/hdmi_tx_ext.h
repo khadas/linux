@@ -146,6 +146,7 @@ struct aud_para {
 	bool fifo_rst;
 	enum hdmi_audio_source_if aud_src_if;
 	unsigned char status[24]; /* AES/IEC958 channel status bits */
+	u8 i2s_ch_mask;
 };
 
 typedef void (*pf_callback)(bool st);
@@ -172,21 +173,6 @@ void hdmitx_ext_set_audio_output(int enable);
  * 1: normal output status; 0: output disabled
  */
 int hdmitx_ext_get_audio_status(void);
-
-/*
- * For I2S interface, there are four input ports
- * I2S_0/I2S_1/I2S_2/I2S_3
- * ch_num: must be 2/4/6/8
- * ch_msk: Mask for channel_num
- * 2ch via I2S_0, set ch_num = 2 and ch_msk = 1
- * 4ch via I2S_1/I2S_2, set ch_num = 4 and ch_msk = 6
- */
-void hdmitx_ext_set_i2s_mask(char ch_num, char ch_msk);
-
-/*
- * get I2S mask
- */
-char hdmitx_ext_get_i2s_mask(void);
 
 #endif
 

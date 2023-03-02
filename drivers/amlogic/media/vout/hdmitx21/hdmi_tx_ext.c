@@ -153,34 +153,6 @@ int hdmitx_ext_get_audio_status(void)
 }
 EXPORT_SYMBOL(hdmitx_ext_get_audio_status);
 
-void hdmitx_ext_set_i2s_mask(char ch_num, char ch_msk)
-{
-#if defined(CONFIG_AMLOGIC_HDMITX)
-	if (get_hdmitx20_init() == 1)
-		return hdmitx20_ext_set_i2s_mask(ch_num, ch_msk);
-#endif
-#if defined(CONFIG_AMLOGIC_HDMITX21)
-	if (get_hdmitx21_init() == 1)
-		return hdmitx21_ext_set_i2s_mask(ch_num, ch_msk);
-#endif
-}
-EXPORT_SYMBOL(hdmitx_ext_set_i2s_mask);
-
-char hdmitx_ext_get_i2s_mask(void)
-{
-#if defined(CONFIG_AMLOGIC_HDMITX)
-	if (get_hdmitx20_init() == 1)
-		return hdmitx20_ext_get_i2s_mask();
-#endif
-#if defined(CONFIG_AMLOGIC_HDMITX21)
-	if (get_hdmitx21_init() == 1)
-		return hdmitx21_ext_get_i2s_mask();
-#endif
-
-	return 0;
-}
-EXPORT_SYMBOL(hdmitx_ext_get_i2s_mask);
-
 int register_earcrx_callback(pf_callback callback)
 {
 #if defined(CONFIG_AMLOGIC_HDMITX)

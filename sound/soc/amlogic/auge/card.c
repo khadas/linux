@@ -145,6 +145,7 @@ struct aml_card_data {
 	/* for I2S to HDMI output audio type */
 	enum aud_codec_types hdmi_audio_type;
 	enum hdmitx_src hdmitx_src;
+	int i2s_to_hdmitx_mask;
 };
 
 #define aml_priv_to_dev(priv) ((priv)->snd_card.dev)
@@ -174,6 +175,13 @@ enum aud_codec_types get_i2s2hdmitx_audio_format(struct snd_soc_card *card)
 	struct aml_card_data *priv = aml_card_to_priv(card);
 
 	return priv->hdmi_audio_type;
+}
+
+int get_hdmitx_i2s_mask(struct snd_soc_card *card)
+{
+	struct aml_card_data *priv = aml_card_to_priv(card);
+
+	return priv->i2s_to_hdmitx_mask;
 }
 
 static const unsigned int headphone_cable[] = {
@@ -330,6 +338,27 @@ static int i2s_to_hdmitx_format_put_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int i2s_to_hdmitx_mask_get_enum(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct aml_card_data *card_data = snd_soc_card_get_drvdata(card);
+
+	ucontrol->value.enumerated.item[0] = card_data->i2s_to_hdmitx_mask;
+	return 0;
+}
+
+static int i2s_to_hdmitx_mask_put_enum(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct aml_card_data *card_data = snd_soc_card_get_drvdata(card);
+	int mask = ucontrol->value.enumerated.item[0];
+
+	card_data->i2s_to_hdmitx_mask = mask & 0xf;
+	return 0;
+}
+
 static const char *const hdmitx_src_select[] = {"Spdif", "Spdif_b",
 		"Tdm_A", "Tdm_B", "Tdm_C"};
 static const struct soc_enum hdmitx_src_select_enum =
@@ -380,14 +409,18 @@ static const struct snd_kcontrol_new snd_user_controls[] = {
 			NULL),
 #endif
 #ifdef CONFIG_AMLOGIC_HDMITX
-	SOC_ENUM_EXT("Audio I2S to HDMITX Format",
-			aud_codec_type_enum,
-			i2s_to_hdmitx_format_get_enum,
-			i2s_to_hdmitx_format_put_enum),
 	SOC_ENUM_EXT("HDMITX Audio Source Select",
 			hdmitx_src_select_enum,
 			hdmitx_src_select_get_enum,
 			hdmitx_src_select_put_enum),
+	SOC_ENUM_EXT("Audio I2S to HDMITX Format",
+			aud_codec_type_enum,
+			i2s_to_hdmitx_format_get_enum,
+			i2s_to_hdmitx_format_put_enum),
+	SOC_SINGLE_EXT("Audio I2S to HDMITX Mask",
+			0, 0, 0xf, 0,
+			i2s_to_hdmitx_mask_get_enum,
+			i2s_to_hdmitx_mask_put_enum),
 #endif
 };
 

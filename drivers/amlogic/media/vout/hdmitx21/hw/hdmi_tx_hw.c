@@ -1142,6 +1142,8 @@ static void set_aud_info_pkt(struct hdmitx_dev *hdev,
 
 	hdmi_audio_infoframe_init(info);
 	info->channels = audio_param->channel_num + 1;
+	if (GET_OUTCHN_NO(hdev->aud_output_ch))
+		info->channels = GET_OUTCHN_NO(hdev->aud_output_ch);
 	info->channel_allocation = 0;
 	/* Refer to Stream Header */
 	info->coding_type = 0;
@@ -1172,6 +1174,22 @@ static void set_aud_info_pkt(struct hdmitx_dev *hdev,
 			break;
 		case 6:
 			info->channel_allocation = 0xb;
+			break;
+		case 8:
+			info->channel_allocation = 0x13;
+			break;
+		default:
+			break;
+		}
+		switch (GET_OUTCHN_NO(hdev->aud_output_ch)) {
+		case 2:
+			info->channel_allocation = 0x00;
+			break;
+		case 4:
+			info->channel_allocation =  0x03;
+			break;
+		case 6:
+			info->channel_allocation = 0x0b;
 			break;
 		case 8:
 			info->channel_allocation = 0x13;
@@ -1322,6 +1340,12 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		return 0;
 	pr_info(HW "set audio\n");
 
+	/* if hdev->aud_output_ch is true, select I2S as 8ch in, 2ch out */
+	if (hdev->aud_output_ch) {
+		audio_param->aud_src_if = 1;
+		pr_info("hdmitx aud_output_ch 0x%x\n", hdev->aud_output_ch);
+	}
+
 	hdmitx21_set_reg_bits(AIP_RST_IVCTX, 1, 0, 1);
 	if (audio_param->type == CT_MAT || audio_param->type == CT_DTS_HD_MA) {
 		hbr_audio = true;
@@ -1384,11 +1408,19 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		/* hbr no layout, see hdmi1.4 spec table 5-28 */
 		data32 = (0 << 1);
 	} else if (hdev->tx_aud_src == 1) {
+		unsigned char mask = GET_OUTCHN_MSK(hdev->aud_output_ch);
+
 		/* multi-channel lpcm use layout 1 */
 		if (audio_param->type == CT_PCM && audio_param->channel_num >= 2)
 			data32 = (1 << 1);
 		else
 			data32 = (0 << 1);
+		if (mask) {
+			if (mask == 8 || mask == 4 || mask == 2 || mask == 1)
+				data32 = (0 << 1);
+			else
+				data32 = (1 << 1);
+		}
 	} else {
 		data32 = (0 << 1);
 	}
@@ -1408,7 +1440,27 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 
 	/* for i2s: 2~8ch lpcm, hbr */
 	if (hdev->tx_aud_src == 1) {
+		unsigned char mask = GET_OUTCHN_MSK(hdev->aud_output_ch);
+		int i = 0;
+		int j = 0;
+		const unsigned char map[] = {
+			[1] = 0,
+			[2] = 1,
+			[4] = 2,
+			[8] = 3,
+		};
+
 		hdmitx21_wr_reg(I2S_IN_MAP_IVCTX, 0xE4); //I2S_IN_MAP
+		if (mask) {
+			for (j = 0; j < 4; j++) {
+				if (mask & (1 << j)) {
+					hdmitx21_set_reg_bits(I2S_IN_MAP_IVCTX,
+						map[1 << j], i << 1, 2);
+					i++;
+				}
+			}
+		}
+
 		hdmitx21_wr_reg(I2S_IN_CTRL_IVCTX, 0x20); //I2S_IN_CTRL [5] reg_cbit_order TODO
 		hdmitx21_wr_reg(I2S_IN_SIZE_IVCTX, 0x0b); //I2S_IN_SIZE
 		/* channel status: for i2s hbr/pcm
@@ -1451,6 +1503,8 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 			/* SD0/1/2/3 */
 			i2s_line_mask = 0xf;
 		}
+		if (GET_OUTCHN_MSK(hdev->aud_output_ch))
+			i2s_line_mask = GET_OUTCHN_MSK(hdev->aud_output_ch);
 		data32 |= (i2s_line_mask << 4);
 		data32 |= (0 << 3);
 		data32 |= (hbr_audio << 2);

@@ -43,5 +43,6 @@ int set_aml_audio_inskew(struct snd_soc_card *card, int audio_inskew);
 int set_aml_audio_inskew_index(struct snd_soc_card *card, int inskew_tdm_index);
 enum hdmitx_src get_hdmitx_audio_src(struct snd_soc_card *card);
 enum aud_codec_types get_i2s2hdmitx_audio_format(struct snd_soc_card *card);
+int get_hdmitx_i2s_mask(struct snd_soc_card *card);
 
 #endif /* __SIMPLE_CARD_H */
