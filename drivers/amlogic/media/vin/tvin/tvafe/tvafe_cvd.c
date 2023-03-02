@@ -80,8 +80,8 @@
 #define CVD2_FILTER_CONFIG_LEVEL 0
 
 /********Local variables*********************************/
-static const unsigned int cvd_mem_4f_length[TVIN_SIG_FMT_CVBS_SECAM -
-			TVIN_SIG_FMT_CVBS_NTSC_M + 1] = {
+static const unsigned int cvd_mem_4f_length[TVIN_SIG_FMT_CVBS_MAX -
+			TVIN_SIG_FMT_CVBS_NTSC_M] = {
 	0x0000e946, /* TVIN_SIG_FMT_CVBS_NTSC_M, */
 	0x0000e946, /* TVIN_SIG_FMT_CVBS_NTSC_443, */
 	0x00015a60, /* TVIN_SIG_FMT_CVBS_PAL_I, */
@@ -89,6 +89,7 @@ static const unsigned int cvd_mem_4f_length[TVIN_SIG_FMT_CVBS_SECAM -
 	0x00015a60, /* TVIN_SIG_FMT_CVBS_PAL_60, */
 	0x000117d9, /* TVIN_SIG_FMT_CVBS_PAL_CN, */
 	0x00015a60, /* TVIN_SIG_FMT_CVBS_SECAM, */
+	0x0000e946, /* TVIN_SIG_FMT_CVBS_NTSC_50, */
 };
 
 static int force_fmt_flag;
@@ -854,11 +855,15 @@ inline void tvafe_cvd2_try_format(struct tvafe_cvd2_s *cvd2,
 // check tvafe status whether need drop frame
 static void tvafe_check_skip_frame(struct tvafe_cvd2_s *cvd2)
 {
-	if (cvd2->info.state != TVAFE_CVD2_STATE_FIND ||
-	    IS_TVAFE_ATV_SRC(cvd2->vd_port))
+	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
+
+	if (cvd2->info.state != TVAFE_CVD2_STATE_FIND)
 		return;
 
-	if (!R_APB_REG(ACD_REG_83))
+	if (!cvd2->hw.acc4xx_cnt && !cvd2->hw.acc425_cnt &&
+	    !cvd2->hw.acc3xx_cnt && !cvd2->hw.acc358_cnt &&
+	    cvd2->info.h_unlock_cnt > user_param->unlock_cnt_max &&
+	    cvd2->info.v_unlock_cnt > user_param->unlock_cnt_max)
 		tvin_notify_vdin_skip_frame();
 }
 
