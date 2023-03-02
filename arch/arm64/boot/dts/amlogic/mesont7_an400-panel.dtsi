@@ -51,7 +51,7 @@
 				1366 768 /*h_active, v_active*/
 				1560 806 /*h_period, v_period*/
 				8      /*lcd_bits*/
-				16 9>; /*screen_widht, screen_height*/
+				680 392>; /*screen_widht, screen_height*/
 			range_setting = <
 				1460 2000 /*h_period_min, max */
 				784 1015  /*v_period_min, max */
@@ -93,7 +93,7 @@
 				3840 2160 /*h_active, v_active*/
 				4400 2250 /*h_period, v_period*/
 				10     /*lcd_bits */
-				16 9>; /*screen_widht, screen_height*/
+				1270 721>; /*screen_widht, screen_height*/
 			range_setting = <
 				4240 4800 /*h_period_min, max*/
 				2240 3135 /*v_period_min, max*/
@@ -138,7 +138,7 @@
 				3840 2160 /*h_active, v_active*/
 				4400 2250 /*h_period, v_period*/
 				10     /*lcd_bits*/
-				16 9>; /*screen_widht, screen_height*/
+				1210 392>; /*screen_widht, screen_height*/
 			range_setting = <
 				4240 4800 /*h_period_min, max*/
 				2240 3135 /*v_period_min, max*/
@@ -183,7 +183,7 @@
 				3840 2160 /*h_active, v_active*/
 				4400 2250 /*h_period, v_period*/
 				10     /*lcd_bits */
-				16 9>; /*screen_widht, screen_height*/
+				1210 680>; /*screen_widht, screen_height*/
 			range_setting = <
 				4240 4800 /*h_period_min, max*/
 				2240 3135 /*v_period_min, max*/
@@ -228,7 +228,7 @@
 				3840 2160 /*h_active, v_active*/
 				4400 2250 /*h_period, v_period*/
 				10     /*lcd_bits */
-				16 9>; /*screen_widht, screen_height*/
+				1270 721>; /*screen_widht, screen_height*/
 			range_setting = <
 				4240 4800 /*h_period_min, max*/
 				2200 2760 /*v_period_min, max*/
@@ -273,7 +273,7 @@
 				3840 2160 /*h_active, v_active*/
 				4400 2250 /*h_period, v_period*/
 				10     /*lcd_bits */
-				16 9>; /*screen_widht, screen_height*/
+				1270 721>; /*screen_widht, screen_height*/
 			range_setting = <
 				4240 4800 /*h_period_min, max*/
 				2200 2760 /*v_period_min, max*/
@@ -319,7 +319,7 @@
 				1920 1080 /*h_active, v_active*/
 				2200 1125 /*h_period, v_period*/
 				8      /*lcd_bits*/
-				16 9>; /*screen_widht, screen_height*/
+				244 193>; /*screen_widht, screen_height*/
 			range_setting = <
 				2080 2720 /*h_period min, max*/
 				1100 1380 /*v_period min, max*/
@@ -416,7 +416,7 @@
 			basic_setting = <1280 720 /*h_active, v_active*/
 				1590 750 /*h_period, v_period*/
 				8 /*lcd_bits*/
-				16 9>; /*screen_widht, screen_height*/
+				160 90>; /*screen_widht, screen_height*/
 			lcd_timing = <40 60 0 /*hs_width,hs_bp,hs_pol*/
 				5 20 0>; /*vs_width,vs_bp,vs_pol*/
 			clk_attr = <0 /*fr_adj_type(0=clock,1=htotal,2=vtotal)*/
@@ -868,7 +868,7 @@
 				1366 768 /*h_active, v_active*/
 				1560 806 /*h_period, v_period*/
 				8      /*lcd_bits*/
-				16 9>; /*screen_widht, screen_height*/
+				680 392>; /*screen_widht, screen_height*/
 			range_setting = <
 				1460 2000 /*h_period_min, max */
 				784 1015  /*v_period_min, max */
@@ -910,7 +910,7 @@
 				3840 2160 /*h_active, v_active*/
 				4400 2250 /*h_period, v_period*/
 				10     /*lcd_bits */
-				16 9>; /*screen_widht, screen_height*/
+				1270 721>; /*screen_widht, screen_height*/
 			range_setting = <
 				4240 4800 /*h_period_min, max*/
 				2240 3135 /*v_period_min, max*/
@@ -955,7 +955,7 @@
 				3840 2160 /*h_active, v_active*/
 				4400 2250 /*h_period, v_period*/
 				10     /*lcd_bits*/
-				16 9>; /*screen_widht, screen_height*/
+				1210 680>; /*screen_widht, screen_height*/
 			range_setting = <
 				4240 4800 /*h_period_min, max*/
 				2240 3135 /*v_period_min, max*/
@@ -1000,7 +1000,7 @@
 				3840 2160 /*h_active, v_active*/
 				4400 2250 /*h_period, v_period*/
 				10     /*lcd_bits */
-				16 9>; /*screen_widht, screen_height*/
+				1210 680>; /*screen_widht, screen_height*/
 			range_setting = <
 				4240 4800 /*h_period_min, max*/
 				2240 3135 /*v_period_min, max*/
@@ -1045,7 +1045,7 @@
 				3840 2160 /*h_active, v_active*/
 				4400 2250 /*h_period, v_period*/
 				10     /*lcd_bits */
-				16 9>; /*screen_widht, screen_height*/
+				1270 721>; /*screen_widht, screen_height*/
 			range_setting = <
 				4240 4800 /*h_period_min, max*/
 				2200 2760 /*v_period_min, max*/
@@ -1091,7 +1091,7 @@
 				1920 1080 /*h_active, v_active*/
 				2200 1125 /*h_period, v_period*/
 				8      /*lcd_bits*/
-				16 9>; /*screen_widht, screen_height*/
+				334 193>; /*screen_widht, screen_height*/
 			range_setting = <
 				2080 2720 /*h_period min, max*/
 				1100 1380 /*v_period min, max*/
@@ -1188,7 +1188,7 @@
 			basic_setting = <1280 720 /*h_active, v_active*/
 				1590 750 /*h_period, v_period*/
 				8 /*lcd_bits*/
-				16 9>; /*screen_widht, screen_height*/
+				160 90>; /*screen_widht, screen_height*/
 			lcd_timing = <40 60 0 /*hs_width,hs_bp,hs_pol*/
 				5 20 0>; /*vs_width,vs_bp,vs_pol*/
 			clk_attr = <0 /*fr_adj_type(0=clock,1=htotal,2=vtotal)*/
@@ -1340,7 +1340,7 @@
 				1920 1080 /*h_active, v_active*/
 				2200 1125 /*h_period, v_period*/
 				8      /*lcd_bits */
-				16 9>; /*screen_widht, screen_height*/
+				941 529>; /*screen_widht, screen_height*/
 			range_setting = <
 				2060 2650  /*h_period_min,max*/
 				1100 1480  /*v_period_min,max*/
@@ -1382,7 +1382,7 @@
 				1920 1080 /*h_active, v_active*/
 				2200 1125 /*h_period, v_period*/
 				8      /*lcd_bits*/
-				16 9>; /*screen_widht, screen_height*/
+				941 529>; /*screen_widht, screen_height*/
 			range_setting = <
 				2080 2720 /*h_period min, max*/
 				1100 1380 /*v_period min, max*/
