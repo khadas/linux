@@ -1110,7 +1110,7 @@
 			#clock-cells = <1>;
 			reg = <0x0 0xFE330000 0x0 0xb0>, <0x0 0xFE334C00 0x0 0x20>;
 			reg-names = "audio_bus", "audio_vad_top";
-			status = "disabled";
+			status = "okay";
 		};
 
 		audiobus: audiobus@0xFE330000 {
