@@ -1,0 +1,39 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+        target = <&hdmi_tx>;
+
+        __overlay__ {
+            status = "disable";
+        };
+    };
+
+    fragment@1 {
+        target = <&mipi_dsi>;
+
+        __overlay__ {
+            status = "okay";
+            panel@0{
+	    		compatible = "khadas,ts050v2";
+            };
+        };
+    };
+
+    fragment@2 {
+        target = <&mipi_analog_dphy>;
+    
+        __overlay__ {
+	        status = "okay";
+        };
+    };
+
+    fragment@3 {
+        target = <&mipi_dphy>; 
+
+        __overlay__ {
+	        status = "okay";
+        };
+    };
+};
