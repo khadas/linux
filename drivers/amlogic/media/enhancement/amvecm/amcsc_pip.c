@@ -2039,7 +2039,8 @@ void hdmi_packet_process(int signal_change_flag,
 	case BT2020YUV_BT2020RGB_CUVA:
 			/* same as hdr10 */
 			send_info.features =
-			(0 << 30) /*sdr output 709*/
+			(1 << 31) /*signal_cuva*/
+			| (0 << 30) /*sdr output 709*/
 			| (1 << 29)	/*video available*/
 			| (5 << 26)	/* unspecified */
 			| (0 << 25)	/* limit */
