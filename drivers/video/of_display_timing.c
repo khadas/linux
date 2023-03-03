@@ -149,8 +149,14 @@ struct display_timings *of_get_display_timings(const struct device_node *np)
 
 	if (!np)
 		return NULL;
+	if (strstr(saved_command_line, "lcd_panel=ts101")) {
+		timings_np = of_get_child_by_name(np, "display-timings1");
+	} else if (strstr(saved_command_line, "lcd_panel=ts050")){
+		timings_np = of_get_child_by_name(np, "display-timings");
+	} else {
+		timings_np = of_get_child_by_name(np, "display-timings");
+	}
 
-	timings_np = of_get_child_by_name(np, "display-timings");
 	if (!timings_np) {
 		pr_err("%pOF: could not find display-timings node\n", np);
 		return NULL;
