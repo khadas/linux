@@ -636,6 +636,13 @@
 		};
 	};
 
+	aml_mkl {
+		compatible = "amlogic,aml_mkl";
+		dev_name = "aml_mkl_dev";
+		reg = <0xff630000 0x180>;
+		status = "okay";
+	};
+
 	defendkey: defendkey {
 		compatible = "amlogic, defendkey";
 		reg=<0xff800228 0x4>;

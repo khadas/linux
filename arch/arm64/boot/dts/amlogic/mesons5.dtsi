@@ -2980,6 +2980,13 @@
 		};
 	};
 
+	aml_mkl {
+		compatible = "amlogic,aml_mkl";
+		dev_name = "aml_mkl_dev";
+		reg = <0x0 0xfe440200 0x0 0xf0>;
+		status = "okay";
+	};
+
 	mfh: mfh {
 		compatible = "amlogic, mfh";
 		#address-cells = <2>;

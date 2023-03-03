@@ -35,7 +35,6 @@ obj-$(CONFIG_AMLOGIC_ETH_PRIVE)		+= ethernet/phy/
 obj-$(CONFIG_AMLOGIC_MEDIA_ALGORITHM)	+= algorithm/
 obj-$(CONFIG_AMLOGIC_GLOBAL_TIMER)	+= global_timer/
 obj-$(CONFIG_AMLOGIC_IIO)		+= iio/
-obj-$(CONFIG_AMLOGIC_MKL)		+= mkl/
 
 #Always build in code/modules
 obj-$(CONFIG_AMLOGIC_CPUIDLE)		+= cpuidle/
@@ -71,6 +70,7 @@ obj-$(CONFIG_VAD_WAKEUP_ASR) += asr/
 obj-$(CONFIG_AES_HWKEY_GCM) += aes_hwkey_gcm/
 obj-$(CONFIG_AMLOGIC_FREERTOS)         += freertos/
 obj-$(CONFIG_AMLOGIC_MCLK_GPIO) += gpio/
+obj-$(CONFIG_AMLOGIC_MKL)		+= mkl/
 
 KBUILD_CFLAGS_MODULE += $(GKI_EXT_MODULE_PREDEFINE)
 

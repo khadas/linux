@@ -1551,7 +1551,6 @@
 			dev_name = "aml_tdes_dma";
 			status = "okay";
 		};
-
 	};
 
 	rng {
@@ -2249,6 +2248,13 @@
 			offset = <18>;
 			size = <16>;
 		};
+	};
+
+	aml_mkl {
+		compatible = "amlogic,aml_mkl";
+		dev_name = "aml_mkl_dev";
+		reg = <0xfe440200 0xf0>;
+		status = "okay";
 	};
 
 	state_led: state_led {

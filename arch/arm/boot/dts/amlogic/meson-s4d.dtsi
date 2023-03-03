@@ -2196,8 +2196,8 @@
 	aml_mkl {
 		compatible = "amlogic,aml_mkl";
 		dev_name = "aml_mkl_dev";
+		reg = <0xfe440200 0xf0>;
 		status = "okay";
-		reg = <0xfe440200 0x80>;
 	};
 };
 

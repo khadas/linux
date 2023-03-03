@@ -25,6 +25,7 @@
 #define MSR_KL_LEVEL_1 (1)
 #define MSR_KL_LEVEL_2 (2)
 #define MSR_KL_LEVEL_3 (3)
+
 /* key flag */
 #define AML_KT_FLAG_NONE (0)
 #define AML_KT_FLAG_ENC_ONLY (1)
@@ -35,6 +36,8 @@
 #define AML_KT_ALGO_AES (0)
 #define AML_KT_ALGO_TDES (1)
 #define AML_KT_ALGO_DES (2)
+#define AML_KT_ALGO_S17 (3)
+#define AML_KT_ALGO_SM4 (4)
 #define AML_KT_ALGO_NDL (7)
 #define AML_KT_ALGO_ND (8)
 #define AML_KT_ALGO_CSA3 (9)
