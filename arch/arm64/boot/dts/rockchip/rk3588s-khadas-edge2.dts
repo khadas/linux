@@ -751,6 +751,16 @@
 		status = "okay";
 	};
 
+	gt9xx: gt9xx@14 {
+			   compatible = "goodix,gt9xx";
+			   reg = <0x14>;
+			   touch-gpio = <&gpio0 RK_PC6 IRQ_TYPE_LEVEL_LOW>;
+			   reset-gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+			   max-x = <1920>;
+			   max-y = <1200>;
+			   tp-size = <89>;
+	};
+
 };
 
 &pcie2x1l1 {

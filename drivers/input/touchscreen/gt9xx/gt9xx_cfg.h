@@ -37,8 +37,9 @@ u8 gtp_dat_8_9[] = {
 	/* TODO:Puts your update firmware data here! */
 	/* <1920, 1200> 8.9 */
 	/* #include "WGJ89006B_GT9271_Config_20140625_085816_0X41.cfg" */
-	/* #include "WGJ10162_GT9271_Config_20140820_182456.cfg" */
-	#include "WGJ10162B_GT9271_1060_Config_20140821_1341110X42.cfg"
+	/* #include "WGJ10162_GT9271_Config_20140820_182456.cfg"
+	#include "WGJ10162B_GT9271_1060_Config_20140821_1341110X42.cfg"*/
+	#include "WGJ10162B_GT9271_1920_1200.cfg"
 };
 
 u8 gtp_dat_8_9_1[] = {

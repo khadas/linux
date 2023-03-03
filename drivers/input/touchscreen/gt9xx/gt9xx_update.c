@@ -2702,7 +2702,7 @@ s32 i2c_read_bytes(struct i2c_client *client, u16 addr, u8 *buf, s32 len)
 
 // main clock calibration
 // bit: 0~7, val: 0/1
-static void gup_bit_write(s32 addr, s32 bit, s32 val)
+/*static void gup_bit_write(s32 addr, s32 bit, s32 val)
 {
     u8 buf;
     i2c_read_bytes(i2c_connect_client, addr, &buf, 1);
@@ -2710,9 +2710,9 @@ static void gup_bit_write(s32 addr, s32 bit, s32 val)
     buf = (buf & (~((u8)1 << bit))) | ((u8)val << bit);
 
     i2c_write_bytes(i2c_connect_client, addr, &buf, 1);
-}
+}*/
 
-static void gup_clk_count_init(s32 bCh, s32 bCNT)
+/*static void gup_clk_count_init(s32 bCh, s32 bCNT)
 {
     u8 buf;
     
@@ -2733,9 +2733,9 @@ static void gup_clk_count_init(s32 bCh, s32 bCNT)
     gup_bit_write(_fRW_MISCTL__MEA, 1, 0);
     //_fRW_MISCTL__MEA_EN = 1;
     gup_bit_write(_fRW_MISCTL__MEA, 0, 1);
-}
+}*/
 
-static u32 gup_clk_count_get(void)
+/*static u32 gup_clk_count_get(void)
 {
     s32 ready = 0;
     s32 temp;
@@ -2760,7 +2760,7 @@ static u32 gup_clk_count_get(void)
     temp = (s32)buf[0] + ((s32)buf[1] << 8) + ((s32)buf[2] << 16) + ((s32)buf[3] << 24);
     GTP_INFO("Clk_count : %d", temp);
     return temp;
-}
+}*/
 u8 gup_clk_dac_setting(int dac)
 {
     s8 buf1, buf2;
@@ -2777,7 +2777,7 @@ u8 gup_clk_dac_setting(int dac)
     return 0;
 }
 
-static u8 gup_clk_calibration_pin_select(s32 bCh)
+/*static u8 gup_clk_calibration_pin_select(s32 bCh)
 {
     s32 i2c_addr;
 
@@ -2827,7 +2827,7 @@ static u8 gup_clk_calibration_pin_select(s32 bCh)
     gup_bit_write(i2c_addr, 1, 0);
     
     return 0;
-}
+}*/
 
 void gup_output_pulse(int t)
 {
@@ -2853,7 +2853,7 @@ void gup_output_pulse(int t)
 	GTP_GPIO_OUTPUT(ts->irq_pin, 0);
 }
 
-static void gup_sys_clk_init(void)
+/*static void gup_sys_clk_init(void)
 {
     u8 buf;
     
@@ -2876,8 +2876,8 @@ static void gup_sys_clk_init(void)
     //_bRW_MISCTL__OSC_CK_SEL = 1;;
     buf = 1;
     i2c_write_bytes(i2c_connect_client, _bRW_MISCTL__OSC_CK_SEL, &buf, 1);
-}
-
+}*/
+#if 0
 s32 gup_clk_calibration(void)
 {
     u8 buf;
@@ -2941,7 +2941,7 @@ s32 gup_clk_calibration(void)
 		GTP_GPIO_OUTPUT(ts->irq_pin, 0);
         
         //local_irq_save(flags);
-        do_gettimeofday(&start);
+        do_gettimeofday64(&start);
 		GTP_GPIO_OUTPUT(ts->irq_pin, 1);
         //local_irq_restore(flags);
         
@@ -2950,7 +2950,7 @@ s32 gup_clk_calibration(void)
         msleep(1);
         
         //local_irq_save(flags);
-        do_gettimeofday(&end);
+        do_gettimeofday64(&end);
 		GTP_GPIO_OUTPUT(ts->irq_pin, 1);
         //local_irq_restore(flags);
         
@@ -3000,7 +3000,7 @@ s32 gup_clk_calibration(void)
     return i;
 }
 
-
+#endif
 
 s32 gup_hold_ss51_dsp(struct i2c_client *client)
 {
