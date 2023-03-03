@@ -537,8 +537,8 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		"[%d]: driver version: %s\n"
 		"panel_type: %s, chip: %d, mode: %s, status: %d\n"
 		"viu_sel: %d, isr_cnt: %d, resume_type: %d, resume_flag: 0x%x\n"
-		"fr_auto_policy: %d, fr_mode: %d, fr_duration: %d, frame_rate: %d\n"
-		"fr_auto_dis: %d, custom_pinmux: %d\n"
+		"fr_auto_flag: 0x%x, fr_mode: %d, fr_duration: %d, frame_rate: %d\n"
+		"fr_auto_policy(global): %d, fr_auto_cus: 0x%x, custom_pinmux: %d\n"
 		"mute_state: %d, test_flag: 0x%x\n"
 		"key_valid: %d, config_load: %d\n",
 		pdrv->index, LCD_DRV_VERSION,
@@ -546,9 +546,9 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		lcd_mode_mode_to_str(pdrv->mode), pdrv->status,
 		pdrv->viu_sel, pdrv->vsync_cnt,
 		pdrv->resume_type, pdrv->resume_flag,
-		pdrv->fr_auto_policy, pdrv->fr_mode, pdrv->fr_duration,
+		pconf->fr_auto_flag, pdrv->fr_mode, pdrv->fr_duration,
 		pconf->timing.frame_rate,
-		pconf->fr_auto_dis, pconf->custom_pinmux,
+		pdrv->fr_auto_policy, pconf->fr_auto_cus, pconf->custom_pinmux,
 		mute_state, pdrv->test_flag,
 		pdrv->key_valid, pdrv->config_load);
 
@@ -3031,28 +3031,28 @@ static ssize_t lcd_debug_frame_rate_store(struct device *dev, struct device_attr
 	return count;
 }
 
-static ssize_t lcd_debug_fr_policy_show(struct device *dev, struct device_attribute *attr,
+static ssize_t lcd_debug_fr_flag_show(struct device *dev, struct device_attribute *attr,
 					char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 
-	return sprintf(buf, "fr_auto_policy: %d\n", pdrv->fr_auto_policy);
+	return sprintf(buf, "fr_auto_flag: 0x%x\n", pdrv->config.fr_auto_flag);
 }
 
-static ssize_t lcd_debug_fr_policy_store(struct device *dev, struct device_attribute *attr,
-					 const char *buf, size_t count)
+static ssize_t lcd_debug_fr_flag_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	unsigned int temp = 0;
 	int ret = 0;
 
-	ret = kstrtouint(buf, 10, &temp);
+	ret = kstrtouint(buf, 16, &temp);
 	if (ret) {
 		pr_info("invalid data\n");
 		return -EINVAL;
 	}
-	pdrv->fr_auto_policy = temp;
-	pr_info("set fr_auto_policy: %d\n", temp);
+	pdrv->config.fr_auto_flag = temp;
+	pr_info("set fr_auto_flag: 0x%x\n", temp);
 
 	return count;
 }
@@ -3926,7 +3926,7 @@ static struct device_attribute lcd_debug_attrs[] = {
 	__ATTR(power_on,    0644, lcd_debug_power_show, lcd_debug_power_store),
 	__ATTR(power_step,  0644, lcd_debug_power_step_show, lcd_debug_power_step_store),
 	__ATTR(frame_rate,  0644, lcd_debug_frame_rate_show, lcd_debug_frame_rate_store),
-	__ATTR(fr_policy,   0644, lcd_debug_fr_policy_show, lcd_debug_fr_policy_store),
+	__ATTR(fr_flag,     0644, lcd_debug_fr_flag_show, lcd_debug_fr_flag_store),
 	__ATTR(ss,          0644, lcd_debug_ss_show, lcd_debug_ss_store),
 	__ATTR(clk,         0644, lcd_debug_clk_show, lcd_debug_clk_store),
 	__ATTR(test,        0644, lcd_debug_test_show, lcd_debug_test_store),

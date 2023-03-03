@@ -686,7 +686,7 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 	LCDPR("pixel_clk = %d\n", pconf->timing.lcd_clk);
 
 	LCDPR("custom_pinmux = %d\n", pconf->custom_pinmux);
-	LCDPR("fr_auto_dis = %d\n", pconf->fr_auto_dis);
+	LCDPR("fr_auto_cus = 0x%x\n", pconf->fr_auto_cus);
 
 	pctrl = &pconf->control;
 	if (pconf->basic.lcd_type == LCD_TTL) {
@@ -1413,12 +1413,23 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 
 	ret = of_property_read_u32(child, "fr_auto_disable", &val);
 	if (ret) {
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-			LCDPR("[%d]: failed to get fr_auto_disable\n", pdrv->index);
+		ret = of_property_read_u32(child, "fr_auto_custom", &val);
+		if (ret) {
+			pconf->fr_auto_cus = 0;
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+				LCDPR("[%d]: failed to get fr_auto_custom\n", pdrv->index);
+		} else {
+			pconf->fr_auto_cus = val;
+			LCDPR("[%d]: find fr_auto_custom: 0x%x\n",
+				pdrv->index, pconf->fr_auto_cus);
+		}
 	} else {
-		pconf->fr_auto_dis = val;
-		LCDPR("[%d]: find fr_auto_dis: %d\n",
-			pdrv->index, pconf->fr_auto_dis);
+		if (val)
+			pconf->fr_auto_cus = 0xff;
+		else
+			pconf->fr_auto_cus = 0;
+		LCDPR("[%d]: find fr_auto_disable: %d, fr_auto_cus: 0x%x\n",
+			pdrv->index, val, pconf->fr_auto_cus);
 	}
 
 	switch (pconf->basic.lcd_type) {
@@ -1957,7 +1968,7 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 	pconf->basic.frame_rate_max = *(p + LCD_UKEY_FRAME_RATE_MAX);
 
 	pconf->custom_pinmux = *(p + LCD_UKEY_CUST_PINMUX);
-	pconf->fr_auto_dis = *(p + LCD_UKEY_FR_AUTO_DIS);
+	pconf->fr_auto_cus = *(p + LCD_UKEY_FR_AUTO_CUS);
 
 	/* interface: 20byte */
 	switch (pconf->basic.lcd_type) {
@@ -2122,8 +2133,17 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 
 static int lcd_config_load_init(struct aml_lcd_drv_s *pdrv)
 {
-	if (pdrv->config.fr_auto_dis)
-		pdrv->fr_auto_policy = 0xff;
+	switch (pdrv->config.fr_auto_cus) {
+	case 0: //follow global fr_auto_policy
+		pdrv->config.fr_auto_flag = pdrv->fr_auto_policy;
+		break;
+	case 0xff: //disable fr_auto
+		pdrv->config.fr_auto_flag = 0xff;
+		break;
+	default: //custom fr_auto
+		pdrv->config.fr_auto_flag = pdrv->config.fr_auto_cus;
+		break;
+	}
 
 	if (pdrv->status & LCD_STATUS_ENCL_ON)
 		lcd_clk_gate_switch(pdrv, 1);
@@ -2693,13 +2713,37 @@ int lcd_vmode_change(struct aml_lcd_drv_s *pdrv)
 		break;
 	case 4: /* hdmi mode */
 		if (((duration_num / duration_den) == 59) ||
-		    ((duration_num / duration_den) == 47) ||
-		    ((duration_num / duration_den) == 119) ||
-		    ((duration_num / duration_den) == 95)) {
+		    ((duration_num / duration_den) == 119)) {
 			/* pixel clk adjust */
 			temp = duration_num;
 			temp = temp * h_period * v_period;
 			pclk = lcd_do_div(temp, duration_den);
+			if (pconf->timing.lcd_clk != pclk)
+				pconf->timing.clk_change = LCD_CLK_PLL_CHANGE;
+		} else if ((duration_num / duration_den) == 47) {
+			/* htotal adjust */
+			temp = pclk;
+			h_period = v_period * 50;
+			h_period = lcd_do_div(temp, h_period);
+			if (pconf->basic.h_period != h_period) {
+				/* check clk adjust */
+				temp = duration_num;
+				temp = temp * h_period * v_period;
+				pclk = lcd_do_div(temp, duration_den);
+			}
+			if (pconf->timing.lcd_clk != pclk)
+				pconf->timing.clk_change = LCD_CLK_PLL_CHANGE;
+		} else if ((duration_num / duration_den) == 95) {
+			/* htotal adjust */
+			temp = pclk;
+			h_period = v_period * 100;
+			h_period = lcd_do_div(temp, h_period);
+			if (pconf->basic.h_period != h_period) {
+				/* check clk adjust */
+				temp = duration_num;
+				temp = temp * h_period * v_period;
+				pclk = lcd_do_div(temp, duration_den);
+			}
 			if (pconf->timing.lcd_clk != pclk)
 				pconf->timing.clk_change = LCD_CLK_PLL_CHANGE;
 		} else {

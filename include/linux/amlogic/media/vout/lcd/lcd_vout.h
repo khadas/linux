@@ -552,7 +552,8 @@ struct lcd_config_s {
 	unsigned char retry_enable_flag;
 	unsigned char retry_enable_cnt;
 	unsigned char custom_pinmux;
-	unsigned char fr_auto_dis;
+	unsigned char fr_auto_cus;  //0=follow global setting, 0xff=disable
+	unsigned char fr_auto_flag; //final fr_auto policy
 };
 
 #define LCD_INIT_LEVEL_NORMAL         0

@@ -260,10 +260,10 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 	}
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("fr_auto_policy = %d\n", pdrv->fr_auto_policy);
+		LCDPR("fr_auto_flag = 0x%x\n", pdrv->config.fr_auto_flag);
 
 	info = &pdrv->vinfo;
-	switch (pdrv->fr_auto_policy) {
+	switch (pdrv->config.fr_auto_flag) {
 	case 1:
 		vtable = lcd_vframe_match_table_1;
 		n = ARRAY_SIZE(lcd_vframe_match_table_1);
@@ -273,14 +273,14 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 		n = ARRAY_SIZE(lcd_vframe_match_table_2);
 		break;
 	default:
-		LCDPR("%s: fr_auto_policy = %d, disabled\n",
-		      __func__, pdrv->fr_auto_policy);
+		LCDPR("%s: fr_auto_flag = 0x%x, disabled\n",
+		      __func__, pdrv->config.fr_auto_flag);
 		return 0;
 	}
 
 	if (duration == 0) { /* end hint */
-		LCDPR("%s: return mode = %s, policy = %d\n", __func__,
-			info->name, pdrv->fr_auto_policy);
+		LCDPR("%s: return mode = %s, fr_auto_flag = 0x%x\n", __func__,
+			info->name, pdrv->config.fr_auto_flag);
 
 		pdrv->fr_duration = 0;
 		if (pdrv->fr_mode == 0) {
@@ -310,8 +310,8 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 			return -1;
 		}
 
-		LCDPR("%s: policy = %d, duration = %d, frame_rate = %d\n",
-		      __func__, pdrv->fr_auto_policy,
+		LCDPR("%s: fr_auto_flag = 0x%x, duration = %d, frame_rate = %d\n",
+		      __func__, pdrv->config.fr_auto_flag,
 		      duration, frame_rate);
 
 		pdrv->fr_duration = duration;
