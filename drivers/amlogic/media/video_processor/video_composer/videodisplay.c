@@ -1374,7 +1374,7 @@ int video_display_setframe(int layer_index,
 		"%s: total receive_count is %lld.\n",
 		__func__, dev->received_count);
 
-	if ((dev->last_file == (struct file *)frame_info->dmabuf) &&
+	if ((dev->last_file == (struct file *)frame_info->dmabuf && dev->vd_prepare_last) &&
 	    (is_dec_vf || is_v4l_vf))
 		is_repeat_vf = true;
 
