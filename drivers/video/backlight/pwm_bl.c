@@ -70,7 +70,7 @@ static void pwm_backlight_power_on(struct pwm_bl_data *pb)
 }
 
 extern void tp_into_suspend(void);
-
+extern void tp101_into_suspend(void);
 static void pwm_backlight_power_off(struct pwm_bl_data *pb)
 {
 	struct pwm_state state;
@@ -88,6 +88,7 @@ static void pwm_backlight_power_off(struct pwm_bl_data *pb)
 	state.enabled = false;
 	//printk("pwm_backlight_power_off() tp_into_suspend\n");
 	tp_into_suspend();
+	tp101_into_suspend();
 	state.duty_cycle = 0;
 	pwm_apply_state(pb->pwm, &state);
 
