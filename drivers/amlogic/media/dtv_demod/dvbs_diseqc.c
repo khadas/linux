@@ -31,7 +31,7 @@
 
 static int diseqc_debug;
 
-#define AML_DISEQC_VER		"20221111"
+#define AML_DISEQC_VER		"20230227"
 #define DISEQC_EN_ON_DELAY	60
 
 #define dprintk(level, fmt, arg...)				\
@@ -213,8 +213,8 @@ cmd_exit:
 		dvbs2_diseqc_recv_irq_en(true);
 	}
 
-	dprintk(0, "%s unicable_cmd:%d, burst_on:%d done.\n",
-			__func__, unicable_cmd, sendburst_on);
+	dprintk(0, "%s unicable_cmd:%d, burst_on:%d tone:%d, done.\n",
+			__func__, unicable_cmd, sendburst_on, tone);
 
 	mutex_unlock(&diseqc->mutex_tx_msg);
 

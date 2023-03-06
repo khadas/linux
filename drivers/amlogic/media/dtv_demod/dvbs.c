@@ -1237,6 +1237,7 @@ static struct fe_lla_lookup_t fe_l2a_s2_cn_lookup = {
 void demod_init_local(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 {
 	unsigned int reg = 0;
+	unsigned char data = 0;
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 
 	do {
@@ -1251,9 +1252,16 @@ void demod_init_local(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 			dvbs_wr_byte(AUTOSR_REG, AUTOSR_OFF);
 		} else if (l2a_def_val_local[reg].addr == 0xe60) {
 			dvbs_wr_byte(0xe60, 0x75);
-		} else if (l2a_def_val_local[reg].addr == DVBS_REG_DISTXCFG &&
-			devp->diseqc.lnbc.is_internal_tone) {
-			dvbs_wr_byte(DVBS_REG_DISTXCFG, l2a_def_val_local[reg].value | 0x8);
+		} else if (l2a_def_val_local[reg].addr == DVBS_REG_DISTXCFG) {
+			if (!devp->diseqc.tone_on)
+				data = l2a_def_val_local[reg].value | 0x2;
+			else
+				data = l2a_def_val_local[reg].value & (~0x3);
+
+			if (devp->diseqc.lnbc.is_internal_tone)
+				data = data | 0x8;
+
+			dvbs_wr_byte(DVBS_REG_DISTXCFG, data);
 		} else if (l2a_def_val_local[reg].addr == 0x913) {
 			dvbs_wr_byte(0x913, dvbs_agc_target);
 		} else {

@@ -961,7 +961,8 @@ static void info_show(void)
 	PR_INFO("demod_thread: %d.\n", devp->demod_thread);
 	get_chip_name(devp, chip_name);
 	PR_INFO("hw version chip: %d, %s.\n", devp->data->hw_ver, chip_name);
-	PR_INFO("version: %s.\n", DTVDEMOD_VER);
+	PR_INFO("version: %s-%s, T2 FW ver: %s.\n", AMLDTVDEMOD_VER,
+			DTVDEMOD_VER, AMLDTVDEMOD_T2_FW_VER);
 	aml_diseqc_status(&devp->diseqc);
 
 	list_for_each_entry(demod, &devp->demod_list, list) {

@@ -72,6 +72,7 @@
 /*  V1.1.78  optimize 8VSB CN to 15dB */
 /*  V1.1.79  fix ATSC-T agc_target and lock signal timeout on r842 */
 /*  V1.1.80  revert optimize 8VSB CN to 15dB */
+/*  V1.1.81  fix diseqc 22k on and off after tune */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -88,8 +89,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.80"
-#define DTVDEMOD_VER	"2023/2/24: revert optimize 8VSB CN to 15dB"
+#define AMLDTVDEMOD_VER "V1.1.81"
+#define DTVDEMOD_VER	"2023/2/27: fix diseqc 22k on and off after tune"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
