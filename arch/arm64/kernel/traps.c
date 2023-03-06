@@ -870,7 +870,6 @@ void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 
 #ifdef CONFIG_AMLOGIC_USER_FAULT
 	show_all_pfn(current, regs);
-	_dump_dmc_reg();
 #endif /* CONFIG_AMLOGIC_USER_FAULT */
 
 	arm64_force_sig_fault(SIGILL, ILL_ILLOPC, pc,
@@ -918,9 +917,6 @@ void __noreturn arm64_serror_panic(struct pt_regs *regs, u32 esr)
 
 	pr_crit("SError Interrupt on CPU%d, code 0x%08x -- %s\n",
 		smp_processor_id(), esr, esr_get_class_string(esr));
-#ifdef CONFIG_AMLOGIC_USER_FAULT
-	_dump_dmc_reg();
-#endif
 
 	trace_android_rvh_arm64_serror_panic(regs, esr);
 	if (regs)

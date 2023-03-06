@@ -820,11 +820,6 @@ static int do_sea(unsigned long far, unsigned int esr, struct pt_regs *regs)
 		 */
 		siaddr  = untagged_addr(far);
 	}
-
-#ifdef CONFIG_AMLOGIC_USER_FAULT
-	_dump_dmc_reg();
-#endif /* CONFIG_AMLOGIC_USER_FAULT */
-
 	trace_android_rvh_do_sea(siaddr, esr, regs);
 	arm64_notify_die(inf->name, regs, inf->sig, inf->code, siaddr, esr);
 
