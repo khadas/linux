@@ -600,6 +600,9 @@ static bool cec_need_store_msg_to_buff(void)
 	 * need to continue to store the received msg,
 	 * otherwise msg will be flushed and lost.
 	 */
+	/* cec off, need not to store msg */
+	if (!(cec_config(0, 0) & CEC_FUNC_CFG_CEC_ON))
+		return false;
 	if (!cec_dev->framework_on || cec_dev->msg_num > 0)
 		return true;
 	else
