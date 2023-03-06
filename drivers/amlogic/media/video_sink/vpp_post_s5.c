@@ -329,6 +329,8 @@ static void vpp_post_blend_set(u32 vpp_index,
 	u32 postbld_vd1_premult, postbld_vd2_premult;
 	u32 postbld_vd3_premult, postbld_osd1_premult;
 	u32 postbld_osd2_premult;
+	u32 vd1_port, vd2_port;
+	u32 port_val[3] = {0, 0, 0};
 
 	/* setting blend scope */
 	rdma_wr_bits(vpp_reg->vpp_postblend_vd1_h_start_end,
@@ -372,15 +374,38 @@ static void vpp_post_blend_set(u32 vpp_index,
 	postbld_src4_sel     = vpp_blend->bld_src4_sel;
 	postbld_src5_sel     = vpp_blend->bld_src5_sel;
 
+	/* just reset the select port */
+	if (glayer_info[0].cur_sel_port > 2 ||
+		glayer_info[1].cur_sel_port > 2) {
+		glayer_info[0].cur_sel_port = 0;
+		glayer_info[1].cur_sel_port = 1;
+	}
+	vd1_port = glayer_info[0].cur_sel_port;
+	vd2_port = glayer_info[1].cur_sel_port;
+	/* vd2 path sel */
+	if (vd_layer[0].post_blend_en)
+		port_val[vd1_port] = postbld_src1_sel;
+	if (vd_layer[1].post_blend_en)
+		port_val[vd2_port] = postbld_src2_sel;
+	pr_info("vd1_port:%d, vd2_port:%d, val:0x%x, 0x%x\n",
+		vd1_port,
+		vd2_port,
+		port_val[vd1_port],
+		port_val[vd2_port]);
 	rdma_wr(vpp_reg->vd1_blend_src_ctrl,
-		(postbld_src1_sel & 0xf) |
+		(port_val[0] & 0xf) |
 		(postbld_vd1_premult & 0x1) << 4);
 	rdma_wr(vpp_reg->vd2_blend_src_ctrl,
-		(postbld_src2_sel & 0xf) |
+		(port_val[1] & 0xf) |
 		(postbld_vd2_premult & 0x1) << 4);
+
 	rdma_wr(vpp_reg->vd3_blend_src_ctrl,
 		(postbld_src3_sel & 0xf) |
 		(postbld_vd3_premult & 0x1) << 4);
+	rdma_wr(vpp_reg->osd2_blend_src_ctrl,
+		(port_val[2] & 0xf) |
+		(postbld_src5_sel & 0x1) << 4);
+
 	rdma_wr(vpp_reg->vd1_postblend_alpha,
 		vpp_blend->bld_din0_alpha);
 	rdma_wr(vpp_reg->vd2_postblend_alpha,

@@ -7419,7 +7419,7 @@ static void vpp_blend_update_s5(const struct vinfo_s *vinfo)
 		vd_layer[2].pre_blend_en = 0;
 		vd_layer[2].post_blend_en = 0;
 	}
-	//force_flush |= vpp_zorder_check_s5();
+	force_flush |= vpp_zorder_check();
 	force_flush |= update_vpp_input_info(vinfo);
 
 	if (force_flush)
@@ -8370,21 +8370,6 @@ static bool is_sr_phase_changed(void)
 	return changed;
 }
 
-int get_layer_display_canvas_s5(u8 layer_id)
-{
-	int ret = -1;
-	struct video_layer_s *layer = NULL;
-
-	if (layer_id >= MAX_VD_LAYER)
-		return -1;
-
-	layer = &vd_layer[layer_id];
-	if (layer_id == MAX_VD_CHAN_S5 - 1)
-		layer_id += SLICE_NUM - 1;
-	ret = READ_VCBUS_REG(vd_proc_reg.vd_mif_reg[layer_id].vd_if0_canvas0);
-	return ret;
-}
-
 int get_layer_display_canvas(u8 layer_id)
 {
 	int ret = -1;
@@ -8392,10 +8377,14 @@ int get_layer_display_canvas(u8 layer_id)
 
 	if (layer_id >= MAX_VD_LAYER)
 		return -1;
-	if (cur_dev->display_module == S5_DISPLAY_MODULE)
-		return get_layer_display_canvas_s5(layer_id);
 	layer = &vd_layer[layer_id];
-	ret = READ_VCBUS_REG(layer->vd_mif_reg.vd_if0_canvas0);
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		if (layer_id == MAX_VD_CHAN_S5 - 1)
+			layer_id += SLICE_NUM - 1;
+		ret = READ_VCBUS_REG(vd_proc_reg.vd_mif_reg[layer_id].vd_if0_canvas0);
+	} else {
+		ret = READ_VCBUS_REG(layer->vd_mif_reg.vd_if0_canvas0);
+	}
 	return ret;
 }
 
@@ -8587,173 +8576,6 @@ static void canvas_update_for_3d(struct video_layer_s *layer,
 			}
 		}
 	}
-}
-
-int set_layer_display_canvas_s5(struct video_layer_s *layer,
-			     struct vframe_s *vf,
-			     struct vpp_frame_par_s *cur_frame_par,
-			     struct disp_info_s *disp_info, u32 line)
-{
-	u32 *cur_canvas_tbl;
-	u8 cur_canvas_id;
-	bool is_mvc = false;
-	bool update_mif = true;
-	u8 vpp_index;
-	u8 layer_id, layer_index;
-	struct vd_mif_reg_s *vd_mif_reg;
-	struct vd_mif_reg_s *vd_mif_reg_mvc;
-	struct vd_afbc_reg_s *vd_afbc_reg;
-	int slice = 0, temp_slice = 0;
-	u8 frame_id = 0;
-
-	if (layer->layer_id == 0 && layer->slice_num > 1) {
-		if (layer->mosaic_mode)
-			vd_switch_frm_idx(VPP0, frame_id);
-		for (slice = 0; slice < layer->slice_num; slice++) {
-			if (layer->vd1s1_vd2_prebld_en &&
-				layer->slice_num == 2 &&
-				slice == 1)
-				/* used vd2 instead */
-				temp_slice = SLICE_NUM;
-			else
-				temp_slice = slice;
-
-			if (layer->mosaic_mode) {
-				/* set pic0/1 */
-				set_layer_mosaic_display_canvas_s5(layer, vf,
-					cur_frame_par, disp_info, temp_slice, frame_id);
-			} else {
-				set_layer_slice_display_canvas_s5(layer, vf,
-					cur_frame_par, disp_info, temp_slice, line);
-			}
-		}
-		if (layer->mosaic_mode) {
-			frame_id = 1;
-			vd_switch_frm_idx(VPP0, frame_id);
-			for (slice = 0; slice < layer->slice_num; slice++) {
-				/* switch frame, set pic2/3 */
-				set_layer_mosaic_display_canvas_s5(layer, vf,
-					cur_frame_par, disp_info, slice, frame_id);
-			}
-			layer->mosaic_frame = true;
-			frame_id = 0;
-			vd_switch_frm_idx(VPP0, frame_id);
-		}
-		return 0;
-	}
-
-	layer_id = layer->layer_id;
-	if (layer_id > MAX_VD_CHAN_S5)
-		return -1;
-	if (layer_id != 0)
-		layer_index = layer_id + SLICE_NUM - 1;
-	else
-		layer_index = layer_id;
-	if ((vf->type & VIDTYPE_MVC) && layer_id == 0)
-		is_mvc = true;
-
-	vpp_index = layer->vpp_index;
-
-	cur_canvas_id = layer->cur_canvas_id;
-	cur_canvas_tbl =
-		&layer->canvas_tbl[cur_canvas_id][0];
-	vd_mif_reg = &vd_proc_reg.vd_mif_reg[layer_index];
-	vd_afbc_reg = &vd_proc_reg.vd_afbc_reg[layer_index];
-	vd_mif_reg_mvc = &vd_proc_reg.vd_mif_reg[SLICE_NUM];
-
-	/* switch buffer */
-	if (!glayer_info[layer_id].need_no_compress &&
-	    (vf->type & VIDTYPE_COMPRESS)) {
-	    /*coverity[overrun-local]*/
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vd_afbc_reg->afbc_head_baddr,
-			vf->compHeadAddr >> 4);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vd_afbc_reg->afbc_body_baddr,
-			vf->compBodyAddr >> 4);
-	}
-
-#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
-	if (layer_id == 0 &&
-	    is_di_post_mode(vf) &&
-	    is_di_post_link_on())
-		update_mif = false;
-#endif
-	if (vf->canvas0Addr == 0)
-		update_mif = false;
-
-	if (update_mif) {
-		canvas_update_for_mif(layer, vf);
-		vpp_trace_vframe("swap_vf", (void *)vf, vf->type, vf->flag, layer_id, 0);
-		if (layer->global_debug & DEBUG_FLAG_PRINT_FRAME_DETAIL) {
-			struct canvas_s tmp;
-
-			canvas_read(cur_canvas_tbl[0], &tmp);
-			pr_info("%s %d: vf:%px, y:%02x, adr:0x%lx, canvas0Addr:%x, pnum:%d, type:%x, flag:%x, afbc:0x%lx-0x%lx, vf->vf_ext:%px, line:%d\n",
-				__func__, layer_id, vf,
-				cur_canvas_tbl[0], tmp.addr,
-				vf->canvas0Addr, vf->plane_num,
-				vf->type, vf->flag,
-				vf->compHeadAddr, vf->compBodyAddr,
-				vf->vf_ext, line);
-		}
-
-		if (layer_id == 0 &&
-		    (is_mvc || process_3d_type))
-			canvas_update_for_3d(layer, vf,
-					    cur_frame_par, disp_info,
-					    is_mvc);
-
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vd_mif_reg->vd_if0_canvas0,
-			layer->disp_canvas[cur_canvas_id][0]);
-
-		if (is_mvc)
-			cur_dev->rdma_func[vpp_index].rdma_wr
-				(vd_mif_reg_mvc->vd_if0_canvas0,
-				layer->disp_canvas[cur_canvas_id][1]);
-		if (cur_frame_par &&
-		    cur_frame_par->vpp_2pic_mode == 1) {
-			cur_dev->rdma_func[vpp_index].rdma_wr
-				(vd_mif_reg->vd_if0_canvas1,
-				layer->disp_canvas[cur_canvas_id][0]);
-			if (is_mvc)
-				cur_dev->rdma_func[vpp_index].rdma_wr
-					(vd_mif_reg_mvc->vd_if0_canvas1,
-					layer->disp_canvas[cur_canvas_id][0]);
-		} else {
-			cur_dev->rdma_func[vpp_index].rdma_wr
-				(vd_mif_reg->vd_if0_canvas1,
-				layer->disp_canvas[cur_canvas_id][1]);
-			if (is_mvc)
-				cur_dev->rdma_func[vpp_index].rdma_wr
-					(vd_mif_reg_mvc->vd_if0_canvas1,
-					layer->disp_canvas[cur_canvas_id][0]);
-		}
-		if (cur_frame_par && disp_info &&
-		    (disp_info->proc_3d_type & MODE_3D_ENABLE) &&
-		    (disp_info->proc_3d_type & MODE_3D_TO_2D_R) &&
-		    cur_frame_par->vpp_2pic_mode == VPP_SELECT_PIC1) {
-			cur_dev->rdma_func[vpp_index].rdma_wr
-				(vd_mif_reg->vd_if0_canvas0,
-				layer->disp_canvas[cur_canvas_id][1]);
-			cur_dev->rdma_func[vpp_index].rdma_wr
-				(vd_mif_reg->vd_if0_canvas1,
-				layer->disp_canvas[cur_canvas_id][1]);
-			if (is_mvc) {
-				cur_dev->rdma_func[vpp_index].rdma_wr
-					(vd_mif_reg_mvc->vd_if0_canvas0,
-					layer->disp_canvas[cur_canvas_id][1]);
-				cur_dev->rdma_func[vpp_index].rdma_wr
-					(vd_mif_reg_mvc->vd_if0_canvas1,
-					layer->disp_canvas[cur_canvas_id][1]);
-			}
-		}
-#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
-		layer->next_canvas_id = layer->cur_canvas_id ? 0 : 1;
-#endif
-	}
-	return 0;
 }
 
 void set_mosaic_axis(u32 pic_index, u32 x_start, u32 y_start,
@@ -9033,39 +8855,95 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 	bool is_mvc = false;
 	bool update_mif = true;
 	u8 vpp_index;
-	u8 layer_id;
+	u8 layer_id, layer_index;
+	struct vd_mif_reg_s *vd_mif_reg_s5;
+	struct vd_mif_reg_s *vd_mif_reg_mvc_s5;
+	struct vd_afbc_reg_s *vd_afbc_reg_s5;
 	struct hw_vd_reg_s *vd_mif_reg;
+	struct hw_vd_reg_s *vd_mif_reg_mvc;
+	struct hw_afbc_reg_s *vd_afbc_reg;
+	int slice = 0, temp_slice = 0;
+	u8 frame_id = 0;
 
-	if (cur_dev->display_module == S5_DISPLAY_MODULE)
-		return set_layer_display_canvas_s5(layer,
-			vf, cur_frame_par, disp_info, line);
+	if (layer->layer_id == 0 && layer->slice_num > 1) {
+		if (layer->mosaic_mode)
+			vd_switch_frm_idx(VPP0, frame_id);
+		for (slice = 0; slice < layer->slice_num; slice++) {
+			if (layer->vd1s1_vd2_prebld_en &&
+				layer->slice_num == 2 &&
+				slice == 1)
+				/* used vd2 instead */
+				temp_slice = SLICE_NUM;
+			else
+				temp_slice = slice;
+
+			if (layer->mosaic_mode) {
+				/* set pic0/1 */
+				set_layer_mosaic_display_canvas_s5(layer, vf,
+					cur_frame_par, disp_info, temp_slice, frame_id);
+			} else {
+				set_layer_slice_display_canvas_s5(layer, vf,
+					cur_frame_par, disp_info, temp_slice, line);
+			}
+		}
+		if (layer->mosaic_mode) {
+			frame_id = 1;
+			vd_switch_frm_idx(VPP0, frame_id);
+			for (slice = 0; slice < layer->slice_num; slice++) {
+				/* switch frame, set pic2/3 */
+				set_layer_mosaic_display_canvas_s5(layer, vf,
+					cur_frame_par, disp_info, slice, frame_id);
+			}
+			layer->mosaic_frame = true;
+			frame_id = 0;
+			vd_switch_frm_idx(VPP0, frame_id);
+		}
+		return 0;
+	}
 
 	layer_id = layer->layer_id;
-	if (layer_id >= MAX_VD_LAYER)
-		return -1;
+	vpp_index = layer->vpp_index;
 
 	if ((vf->type & VIDTYPE_MVC) && layer_id == 0)
 		is_mvc = true;
-	vd_mif_reg = &vd_layer[layer_id].vd_mif_reg;
-
-	vpp_index = layer->vpp_index;
-	if (layer_id == 0 && layer->vd1_vd2_mux) {
-		/* vd2 replaced vd1 mif reg */
-		vd_mif_reg = &vd_layer[1].vd_mif_reg;
-	}
 
 	cur_canvas_id = layer->cur_canvas_id;
 	cur_canvas_tbl =
 		&layer->canvas_tbl[cur_canvas_id][0];
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		if (layer_id > MAX_VD_CHAN_S5)
+			return -1;
+		if (layer_id != 0)
+			layer_index = layer_id + SLICE_NUM - 1;
+		else
+			layer_index = layer_id;
+		vd_mif_reg_s5 = &vd_proc_reg.vd_mif_reg[layer_index];
+		vd_afbc_reg_s5 = &vd_proc_reg.vd_afbc_reg[layer_index];
+		vd_mif_reg_mvc_s5 = &vd_proc_reg.vd_mif_reg[SLICE_NUM];
+		memcpy(&vd_mif_reg, &vd_mif_reg_s5, sizeof(vd_mif_reg));
+		memcpy(&vd_mif_reg_mvc, &vd_mif_reg_mvc_s5, sizeof(vd_mif_reg));
+		memcpy(&vd_afbc_reg, &vd_afbc_reg_s5, sizeof(vd_afbc_reg));
+	} else {
+		if (layer_id >= MAX_VD_LAYER)
+			return -1;
+		vd_mif_reg = &vd_layer[layer_id].vd_mif_reg;
+		vd_afbc_reg = &vd_layer[layer_id].vd_afbc_reg;
+		vd_mif_reg_mvc = &vd_layer[1].vd_mif_reg;
+		if (layer_id == 0 && layer->vd1_vd2_mux) {
+			/* vd2 replaced vd1 mif reg */
+			vd_mif_reg = &vd_layer[1].vd_mif_reg;
+		}
+	}
 
 	/* switch buffer */
 	if (!glayer_info[layer_id].need_no_compress &&
 	    (vf->type & VIDTYPE_COMPRESS)) {
+	    /*coverity[overrun-local]*/
 		cur_dev->rdma_func[vpp_index].rdma_wr
-			(layer->vd_afbc_reg.afbc_head_baddr,
+			(vd_afbc_reg->afbc_head_baddr,
 			vf->compHeadAddr >> 4);
 		cur_dev->rdma_func[vpp_index].rdma_wr
-			(layer->vd_afbc_reg.afbc_body_baddr,
+			(vd_afbc_reg->afbc_body_baddr,
 			vf->compBodyAddr >> 4);
 	}
 
@@ -9113,7 +8991,7 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 
 		if (is_mvc)
 			cur_dev->rdma_func[vpp_index].rdma_wr
-				(vd_layer[1].vd_mif_reg.vd_if0_canvas0,
+				(vd_mif_reg_mvc->vd_if0_canvas0,
 				layer->disp_canvas[cur_canvas_id][1]);
 		if (cur_frame_par &&
 		    cur_frame_par->vpp_2pic_mode == 1) {
@@ -9122,7 +9000,7 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 				layer->disp_canvas[cur_canvas_id][0]);
 			if (is_mvc)
 				cur_dev->rdma_func[vpp_index].rdma_wr
-					(vd_layer[1].vd_mif_reg.vd_if0_canvas1,
+					(vd_mif_reg_mvc->vd_if0_canvas1,
 					layer->disp_canvas[cur_canvas_id][0]);
 		} else {
 			cur_dev->rdma_func[vpp_index].rdma_wr
@@ -9130,7 +9008,7 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 				layer->disp_canvas[cur_canvas_id][1]);
 			if (is_mvc)
 				cur_dev->rdma_func[vpp_index].rdma_wr
-					(vd_layer[1].vd_mif_reg.vd_if0_canvas1,
+					(vd_mif_reg_mvc->vd_if0_canvas1,
 					layer->disp_canvas[cur_canvas_id][0]);
 		}
 		if (cur_frame_par && disp_info &&
@@ -9145,10 +9023,10 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 				layer->disp_canvas[cur_canvas_id][1]);
 			if (is_mvc) {
 				cur_dev->rdma_func[vpp_index].rdma_wr
-					(vd_layer[1].vd_mif_reg.vd_if0_canvas0,
+					(vd_mif_reg_mvc->vd_if0_canvas0,
 					layer->disp_canvas[cur_canvas_id][1]);
 				cur_dev->rdma_func[vpp_index].rdma_wr
-					(vd_layer[1].vd_mif_reg.vd_if0_canvas1,
+					(vd_mif_reg_mvc->vd_if0_canvas1,
 					layer->disp_canvas[cur_canvas_id][1]);
 			}
 		}
