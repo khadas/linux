@@ -78,8 +78,8 @@
 				y = z; \
 } while (0)
 
-struct input_dev *wake_key_dev = NULL;
-struct edt_ft5x06_ts_data *ts_hlm = NULL;
+static struct input_dev *wake_key_dev = NULL;
+static struct edt_ft5x06_ts_data *ts_hlm = NULL;
 
 enum edt_ver {
 	EDT_M06,
@@ -245,6 +245,7 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
     {
         if(ts_hlm->gtp_is_suspend == 1){
             //printk("wake dev\n");
+            ts_hlm->gtp_is_suspend = 0;
             wake_system();
            tsdata->is_sleeped=false;
         }
