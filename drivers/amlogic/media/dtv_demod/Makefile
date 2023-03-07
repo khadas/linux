@@ -19,7 +19,7 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_DTV_DEMOD) += dtv_demod/isdbt_func.o
 
 ccflags-y += -I.
 ccflags-y += -I$(srctree)/drivers/media/dvb-core
-#ccflags-y += -I$(srctree)/drivers/iio/adc
+ccflags-y += -I$(srctree)/drivers/iio/adc
 ccflags-y += -I$(srctree)/include/media
 ccflags-y += -I$(srctree)/drivers/amlogic/media/dtv_demod/include
 ccflags-y += -I$(srctree)/drivers/amlogic/media/dtv_demod/lnb_controller

@@ -78,6 +78,7 @@
 /*  V1.1.84  fix dvb-s unicable blind scan failed */
 /*  V1.1.85  fix the dvbc driver defined by caiyi.xu to solve missing channel */
 /*  V1.1.86  fix t2 agc target config for r842 */
+/*  V1.1.87  fix diseqc2.0 rx */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -94,8 +95,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.86"
-#define DTVDEMOD_VER	"2023/04/06: fix t2 agc target config for r842"
+#define AMLDTVDEMOD_VER "V1.1.87"
+#define DTVDEMOD_VER	"2023/04/10: fix diseqc2.0 rx"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

@@ -4111,9 +4111,9 @@ static int dtvdemod_dvbs_unicable_change_channel(struct dvb_frontend *fe)
 		return -EINVAL;
 	}
 
-	ret = aml_diseqc_send_cmd(&devp->diseqc, &cmd);
+	ret = aml_diseqc_send_master_cmd(fe, &cmd);
 	if (ret < 0) {
-		PR_ERR("%s: aml_diseqc_send_cmd failed %d\n", __func__, ret);
+		PR_ERR("%s: aml_diseqc_send_master_cmd failed %d\n", __func__, ret);
 		return ret;
 	}
 	c->frequency = devp->singlecable_param.frequency;

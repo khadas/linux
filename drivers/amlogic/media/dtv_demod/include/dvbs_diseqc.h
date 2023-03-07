@@ -10,6 +10,9 @@
 
 #include "lnb_controller.h"
 
+/* use saradc for diseqc rx */
+//#define DISEQC_SAR_ADC_RX
+
 #define IRQ_STS_GAPBURST	0x01
 #define IRQ_STS_TXFIFO64B	0x02
 #define IRQ_STS_TXEND		0x04
@@ -33,9 +36,15 @@ struct aml_diseqc {
 
 	struct completion rx_msg_ok;
 	struct completion tx_msg_ok;
+	//pull-up: lnb power, pull-down: diseqc rx 22KHz input;
+	struct gpio_desc *lnbc_enable_rx;
+
+	struct dvb_diseqc_master_cmd send_cmd;
+	unsigned char reply_msg[10];
+	unsigned char reply_len;
 
 	bool attached;
-	bool sar_adc_enable;
+	bool rx_enable;
 };
 
 extern u32 sendburst_on;
@@ -43,7 +52,7 @@ extern u32 diseqc_cmd_bypass;
 
 void demod_dump_reg_diseqc(void);
 void aml_diseqc_attach(struct device *dev, struct dvb_frontend *fe);
-u32 aml_diseqc_send_cmd(struct aml_diseqc *diseqc,
+int aml_diseqc_send_master_cmd(struct dvb_frontend *fe,
 		struct dvb_diseqc_master_cmd *cmd);
 void aml_diseqc_dbg_en(unsigned int val);
 void aml_diseqc_isr(struct aml_diseqc *diseqc);

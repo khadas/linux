@@ -1728,7 +1728,7 @@ static ssize_t diseq_cmd_store(struct class *cla, struct class_attribute *attr,
 	}
 	cmd.msg_len = cnt;
 	/* send diseqc msg */
-	aml_diseqc_send_cmd(&devp->diseqc, &cmd);
+	aml_diseqc_send_master_cmd(fe, &cmd);
 
 	return count;
 }
