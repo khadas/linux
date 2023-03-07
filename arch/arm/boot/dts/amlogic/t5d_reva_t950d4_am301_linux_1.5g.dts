@@ -1836,3 +1836,8 @@
 	status = "okay";
 	power_on-gpios  = <&gpio_ao       GPIOD_2       GPIO_ACTIVE_HIGH>;
 };
+
+&drm_subsystem {
+	fbdev_sizes = <1280 720 1280 1440 32>;
+	fbdev_size_roundup_flag = <1>;
+};

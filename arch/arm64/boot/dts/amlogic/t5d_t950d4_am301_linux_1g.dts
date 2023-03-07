@@ -1843,3 +1843,7 @@
 	vd1_vd2_mux = <0>;
 };
 
+&drm_subsystem {
+	fbdev_sizes = <1280 720 1280 1440 32>;
+	fbdev_size_roundup_flag = <1>;
+};
