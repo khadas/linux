@@ -4634,13 +4634,24 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 			src_i_set_dvfm(nr_vf);
 			//dim_print("%s:set srci\n", __func__);
 
-		if (mem_vf2 && pafd_ctr->en_set.b.mem && ndvfm->c.set_cfg.b.en_mem_afbcd)
+		if (mem_vf2 && pafd_ctr->en_set.b.mem && ndvfm->c.set_cfg.b.en_mem_afbcd) {
 			/* mem */
 			enable_afbc_input_local_dvfm(mem_vf2,
 						pafd_ctr->fb.mem_dec,
 						pcfg,
 						win_mem,
 						op_in);
+		} else if (!is_src_real_i_dvfm(mem_vf2) &&
+			pafd_ctr->en_set.b.inp &&
+			pafd_ctr->en_set.b.enc_nr) {
+			/**/
+			dim_print("%s:test\n", __func__);
+			enable_afbc_input_local_dvfm(inp_vf2,
+						pafd_ctr->fb.mem_dec,
+						pcfg,
+						win_in,
+						op_in);
+		}
 #ifdef MARK_DEADCODE_HIS
 		/*chan2_vf is write dead so comment the following codes*/
 		if (chan2_vf && pafd_ctr->en_set.b.chan2)

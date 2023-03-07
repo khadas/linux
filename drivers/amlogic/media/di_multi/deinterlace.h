@@ -786,7 +786,7 @@ void di_reg_setting(unsigned int channel, struct vframe_s *vframe);
 void di_reg_variable(unsigned int channel, struct vframe_s *vframe);
 
 void di_unreg_variable(unsigned int channel);
-void di_unreg_setting(void);
+void di_unreg_setting(bool plink);
 
 void dim_uninit_buf(unsigned int disable_mirror, unsigned int channel);
 

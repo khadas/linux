@@ -28,6 +28,7 @@
 
 #include "../deinterlace/di_pqa.h"
 //#include "di_pqa.h"
+#include "di_dd.h"
 
 #define DI_CHANNEL_NUB	(4)
 #define DI_CHANNEL_MAX  (4)
@@ -1485,6 +1486,7 @@ typedef uintptr_t ud;
 #define CODE_BYPASS	(0xff123405)
 #define CODE_INS_LBF		(DIM_DATA_MASK | 0x0c)
 
+#define CODE_DD_BLK	(DIM_DATA_MASK | 0x10)
 #define NONE_QUE	(0xff)
 
 #define QS_ERR_LOG_SIZE		10
@@ -2058,6 +2060,8 @@ struct di_ch_s {
 	bool cst_no_dw;
 	bool en_dw;
 	bool en_dw_mem;
+	bool ponly_set;/* plink ponly check */
+	bool plink_dct;/* plink ponly check */
 	unsigned int last_bypass;
 	struct kfifo	fifo32[DIM_Q_NUB];
 	bool flg_fifo32[DIM_Q_NUB];
@@ -2267,6 +2271,38 @@ struct dw_s {
  ************************************************/
 #define DPVPP_BUF_NUB	(2)
 #define DIM_LKIN_NUB	(20) /* buf number*/
+#define DPVPP_BLK_NUB_MAX	(15)
+#define DPVPP_BLK_ID_HD		(0)
+
+enum EPVPP_MEM_T {
+	EPVPP_MEM_T_NONE,
+	EPVPP_MEM_T_HD_FULL,
+	EPVPP_MEM_T_UHD_FULL,
+	EPVPP_MEM_T_UHD_AFBCE,/* 4k and afbce */
+	EPVPP_MEM_T_UHD_AFBCE_HD,/* 4k and afbce */
+	EPVPP_MEM_T_NUB
+};
+
+#define K_MEM_T_NUB		EPVPP_MEM_T_NUB
+
+/* buffer config type */
+enum EPVPP_BUF_CFG_T {
+	EPVPP_BUF_CFG_T_HD_F,
+	EPVPP_BUF_CFG_T_HD_F_TVP,
+	EPVPP_BUF_CFG_T_UHD_F_AFBCE,
+	EPVPP_BUF_CFG_T_UHD_F_AFBCE_TVP,
+	EPVPP_BUF_CFG_T_UHD_F_AFBCE_HD,	/*use hd buffer */
+	EPVPP_BUF_CFG_T_UHD_F_AFBCE_HD_TVP,
+	EPVPP_BUF_CFG_T_HD_NV21,
+	EPVPP_BUF_CFG_T_HD_NV21_TVP,
+	EPVPP_BUF_CFG_T_UHD_NV21,
+	EPVPP_BUF_CFG_T_UHD_NV21_TVP,
+	EPVPP_BUF_CFG_T_UHD_F,
+	EPVPP_BUF_CFG_T_UHD_F_TVP,
+	EPVPP_BUF_CFG_T_NUB
+};
+
+#define K_BUF_CFG_T_NUB		EPVPP_BUF_CFG_T_NUB
 
 enum EPVPP_BYPASS_REASON {
 	EPVPP_BYPASS_REASON_I = 1,
@@ -2275,7 +2311,11 @@ enum EPVPP_BYPASS_REASON {
 	EPVPP_BYPASS_REASON_TYPE,
 	EPVPP_BYPASS_REASON_HIGH_BANDWIDTH,
 	EPVPP_BYPASS_REASON_NO_AFBC,
+	EPVPP_BYPASS_REASON_EOS,
 	EPVPP_BYPASS_REASON_DBG,//dbg cmd
+	EPVPP_BYPASS_REASON_BUF_HD,
+	EPVPP_BYPASS_REASON_BUF_UHD,
+	EPVPP_NO_MEM = 0x100
 };
 
 enum EPVPP_DISPLAY {
@@ -2429,10 +2469,24 @@ struct dimn_dvfm_s {
 		bool is_inp_4k;
 		bool is_out_4k;
 		bool dw_have;
+		unsigned char out_fmt;
 		unsigned int sts_diff;
 		unsigned int src_w;//temp
 		unsigned int src_h; //temp
+		struct dcntr_mem_s *dct_pre;
 	} c;
+};
+
+struct pvpp_buf_cfg_s {
+	bool support;
+	unsigned char	type;
+	unsigned char	dbuf_plan_nub;
+	unsigned int	dbuf_hsize;
+	struct canvas_config_s	dbuf_wr_cfg[DPVPP_BUF_NUB][2];
+	/* for afbce table */
+	unsigned long	addr_e[DPVPP_BUF_NUB];
+	unsigned long	addr_i[DPVPP_BUF_NUB];
+	unsigned int afbc_crc[DPVPP_BUF_NUB];
 };
 
 #define DIM_PRE_VPP_NUB		(0xf0)
@@ -2462,6 +2516,30 @@ struct dim_pvpp_hw_s {
 	const struct reg_acc *op_n;//&di_pre_regset
 	bool	en_pst_wr_test; //use this for post write test only
 	struct completion pw_done;//use this for post write test only
+
+	/* resource */
+	struct blk_s *src_blk[DPVPP_BLK_NUB_MAX];
+	struct blk_s *src_blk_e; /* afbc table */
+	struct blk_s *src_blk_uhd_afbce[DPVPP_BLK_NUB_MAX];
+	struct blk_s *src_blk_dct;
+	unsigned char m_mode; /* EPVPP_MEM_T */
+	unsigned char m_mode_tgt;	/* EPVPP_MEM_T */
+	bool	flg_tvp;
+	bool	flg_tvp_tgt;
+	bool	blk_rd_hd;	/* mem is ready for internal */
+	bool	blk_rd_uhd;
+	bool	blk_used_hd;
+	bool	blk_used_uhd;
+	bool	en_dct;
+	unsigned char dct_ch;	/* dct register */
+	unsigned char dis_ch; /* for plink display */
+	unsigned char dct_flg;
+	struct dim_rpt_s pq_rpt;
+	unsigned int dct_sum_d;
+	struct pvpp_buf_cfg_s buf_cfg[K_BUF_CFG_T_NUB];
+
+	unsigned char blkt_n[K_BLK_T_NUB]; /*for mem alloc*/
+	int dbg_m_mode;
 };
 
 /* ds */
@@ -2483,13 +2561,25 @@ struct dim_prevpp_ds_s {
 	unsigned char sum_que_ready;
 	unsigned char sum_que_recycle;
 	unsigned char sum_que_kback;
+	unsigned int dct_sum_in;
+	unsigned int dct_sum_o;
 
 	struct div2_mm_s	mm;
 	unsigned char		cfg_cp[EDI_CFG_END];
 	unsigned char		cma_mode;
 	unsigned int cnt_parser; /* source change set to 0 */
 	unsigned int cnt_display;
-	enum EDPST_MODE		out_mode; //	EDPST_MODE_422_10BIT_PACK
+	union c_out_fmt_s o_hd;
+	union c_out_fmt_s o_uhd;
+	union c_out_fmt_s o_c;
+	enum EDPST_MODE	out_mode;	//EDPST_MODE_422_10BIT_PACK
+	enum EDPST_MODE	out_mode_hd;	//EDPST_MODE_422_10BIT_PACK
+	enum EDPST_MODE	out_mode_uhd;	//EDPST_MODE_422_10BIT_PACK
+	unsigned char m_mode_n_hd;	//enum EPVPP_MEM_T
+	unsigned char m_mode_n_uhd;	//enum EPVPP_MEM_T
+	//unsigned char out_fmt_hd;
+	//unsigned char out_fmt_uhd;
+	//unsigned char out_fmt;
 	//move bool	en_pst_wr_test; //use this for post write test only
 	bool	en_4k;	/* en 4k */
 	bool	en_out_afbce;
@@ -2508,16 +2598,7 @@ struct dim_prevpp_ds_s {
 	struct pvpp_dis_para_in_s	dis_para_demo2; //from interface;
 	struct di_win_s out_win;
 	struct dim_type_smp_s in_last;
-//	unsigned long		addr_cmem;
-	struct dim_mm_blk_s	blk_buf;
-	struct di_dat_s		dat_p_afbct; /* */
-	unsigned int		dbuf_plan_nub;
-	unsigned int		dbuf_hsize;
-	struct canvas_config_s	dbuf_wr[DPVPP_BUF_NUB][2];
-	/* for afbce table */
-	unsigned long	addr_e[DPVPP_BUF_NUB];
-	unsigned long	addr_i[DPVPP_BUF_NUB];
-	unsigned int afbc_crc[DPVPP_BUF_NUB];
+
 	struct DI_MIF_S mif_in;
 	struct DI_MIF_S mif_wr;
 	struct DI_MIF_S mif_mem;
@@ -2632,6 +2713,7 @@ struct dimn_itf_s {
 		unsigned int sum_pst_get;
 		unsigned int sum_pst_put;
 		unsigned int sum_parser;
+		unsigned int sum_4k;
 
 		//unsigned char flg_do; /*get, reg, unreg, reset */
 		bool reg_di; /* used for di local */
@@ -2641,6 +2723,8 @@ struct dimn_itf_s {
 		bool pause_pst_get;
 		bool pause_pre_get; /* stop input get */
 		bool flg_block;
+		bool flg_reg_mem;
+		unsigned char m_mode_n; /* EPVPP_MEM_T */
 		unsigned int bypass_reason;
 		//move atomic_t dbg_display_cnt; //use this to cnt display is called
 		atomic_t dbg_display_sts;
@@ -2754,6 +2838,7 @@ struct di_data_l_s {
 	bool	pre_vpp_active; /* interface sw multi wr bypass contr */
 	bool	pre_vpp_set;	/* interface sw other multi wr */
 	bool	fg_bypass_en; /* for t5dvb fg */
+	void *dd;
 };
 
 /**************************************
@@ -3104,6 +3189,16 @@ static inline void set_or_act_flag(bool on)
 static inline unsigned int get_flag_tvp(unsigned char ch)
 {
 	return get_datal()->ch_data[ch].is_tvp;
+}
+
+static inline struct dd_s *get_dd(void)
+{
+	struct dd_s *dd;
+
+	if (!get_datal())
+		return NULL;
+	dd = get_datal()->dd;
+	return dd;
 }
 
 static inline void set_flag_tvp(unsigned char ch, unsigned int data)

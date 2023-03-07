@@ -4407,10 +4407,10 @@ void set_di_memcpy_rot(struct mem_cpy_s *cfg)
 	}
 
 	if (is_4k)
-		dim_sc2_4k_set(2);
+		dim_sc2_4k_set(2, NULL);
 	#ifdef ARY_MARK
 	else
-		dim_sc2_4k_set(0);
+		dim_sc2_4k_set(0, NULL);
 	#endif
 #ifdef ARY_MARK
 	/* close pr/post_link */
@@ -4573,7 +4573,7 @@ void set_di_memcpy(struct mem_cpy_s *cfg)
 	}
 
 	if (is_4k)
-		dim_sc2_4k_set(2);
+		dim_sc2_4k_set(2, NULL);
 
 	// post start
 	op->wr(DI_SC2_POST_GL_CTRL, 0x80200001);
@@ -4980,14 +4980,6 @@ static void hw_init_v3(void)
 		//post_path_sel
 		//op->wr(DI_INTR_CTRL,0xcfff0000);
 		op->wr(DI_INTR_CTRL, 0xcffe0000);
-
-		PR_INF("%s:\n", __func__);
-		PR_INF("\t0x%x:0x%x\n", DI_TOP_PRE_CTRL,
-		       op->rd(DI_TOP_PRE_CTRL));
-		PR_INF("\t0x%x:0x%x\n", DI_TOP_POST_CTRL,
-		       op->rd(DI_TOP_POST_CTRL));
-		PR_INF("\t0x%x:0x%x\n", DI_INTR_CTRL, op->rd(DI_INTR_CTRL));
-
 	} else if (DIM_IS_IC_EF(G12A)) {
 		/* pre */
 		DIM_DI_WR(DI_INP_LUMA_FIFO_SIZE, fifo_size_di);
@@ -5023,7 +5015,8 @@ static void hw_init_v3(void)
 	}
 }
 
-static void di_pre_data_mif_ctrl_v3(bool enable, const struct reg_acc *op_in)
+static void di_pre_data_mif_ctrl_v3(bool enable, const struct reg_acc *op_in,
+				    bool en_link)
 {
 	const struct reg_acc *op;
 
@@ -5036,7 +5029,7 @@ static void di_pre_data_mif_ctrl_v3(bool enable, const struct reg_acc *op_in)
 	}
 	if (enable) {
 		if (dim_afds() && dim_afds()->is_used()) {
-			if (op_in)
+			if (en_link)
 				dim_afds()->inp_sw_op(true, op_in);
 			else
 				dim_afds()->inp_sw(true);
@@ -5071,8 +5064,8 @@ static void di_pre_data_mif_ctrl_v3(bool enable, const struct reg_acc *op_in)
 		//if (afbc_is_used()) {
 		if (dim_afds() && dim_afds()->is_used()) {
 			//afbc_input_sw(false);
-			if (op_in)
-				dim_afds()->inp_sw_op(false, op_in);
+			if (en_link)
+				dim_afds()->inp_sw_op(false, op);
 			else
 				dim_afds()->inp_sw(false);
 		}
@@ -5705,11 +5698,13 @@ static void hpost_gl_thd_v3(unsigned int hold_line)
 	op->bwr(DI_SC2_POST_GL_THD, hold_line, 16, 5);
 }
 
-void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg)
+void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg, const struct reg_acc *op_in)
 {
 	const struct reg_acc *op = &di_pre_regset;
 	unsigned int val;
 
+	if (op_in)
+		op = op_in;
 	if (is_mask(SC2_REG_MSK_nr)) {
 		PR_INF("%s:\n", __func__);
 		op = &sc2reg;
@@ -5765,10 +5760,12 @@ void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg)
  * 2: post afbce 4k
  * for t5w only 1 afbce ,no need change ram, DI_TOP_CTRL1 bit3 need set to 0
  */
-void dim_sc2_4k_set(unsigned int mode_4k)
+void dim_sc2_4k_set(unsigned int mode_4k, const struct reg_acc *op_in)
 {
 	const struct reg_acc *op = &di_pre_regset;
 
+	if (op_in)
+		op = op_in;
 	//dim_print("%s:mode[%d]\n", __func__);
 	if (!mode_4k)
 		op->wr(DI_TOP_CTRL1, 0x00000008); /*default*/
@@ -5783,17 +5780,20 @@ void dim_sc2_4k_set(unsigned int mode_4k)
 
 void dim_sc2_afbce_rst(unsigned int ec_nub, const struct reg_acc *op)
 {
+	u32 val, val1;
 	//const struct reg_acc *op = &di_pre_regset;
 
 	//PR_INF("%s:[%d]\n", __func__, ec_nub);
-	if (ec_nub == 0)  {
-		//bit 25:
-		op->bwr(DI_TOP_CTRL1, 1, 25, 1); /*default*/
-		op->bwr(DI_TOP_CTRL1, 0, 25, 1); /*default*/
+	val = op->rd(DI_TOP_CTRL1);
+	if (ec_nub == 0) {
+		val1 = val | (1 << 25); //bit 25
+		val = val & ~(1 << 25);
 	} else {
-		op->bwr(DI_TOP_CTRL1, 1, 23, 1); /*default*/
-		op->bwr(DI_TOP_CTRL1, 0, 23, 1); /*default*/
+		val1 = val | (1 << 23); //bit 23
+		val = val & ~(1 << 23);
 	}
+	op->wr(DI_TOP_CTRL1, val1); /*default*/
+	op->wr(DI_TOP_CTRL1, val); /*default*/
 }
 
 void dim_secure_pre_en(unsigned char ch)

@@ -147,6 +147,10 @@ bool dim_blk_tvp_is_out(struct dim_mm_blk_s *blk_buf);
 void di_buf_no2wait(struct di_ch_s *pch, unsigned int post_nub);
 bool mem_cfg_pst(struct di_ch_s *pch);
 void mem_resize_buf(struct di_ch_s *pch, struct di_buf_s *di_buf);
+bool mm_codec_alloc(const char *owner, size_t count,
+			   int cma_mode,
+			   struct dim_mm_s *o,
+			   bool tvp_flg);
 
 /*-------------------------*/
 #endif	/*__DI_SYS_H__*/

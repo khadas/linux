@@ -1103,12 +1103,12 @@ const struct dim_hw_opsv_s dim_ops_l1_v2 = {
 	.mif_rd_update_addr = set_di_mif_v2_addr_only,
 	.set_wrmif_pp = set_wrmif_simple_pp_v2,
 	.wrmif_update_addr = set_wrmif_simple_pp_addr_only_v2,
+	.pre_mif_sw	= di_pre_data_mif_ctrl,
 #ifdef HIS_CODE
 	.wrmif_set	= dimh_wrmif_set,
 
 	.pst_mif_set	= set_di_mif_post_v2,
 	.pst_mif_update_csv	= pst_mif_update_canvasid_v2,
-	.pre_mif_sw	= di_pre_data_mif_ctrl,
 	.pst_mif_sw	= post_mif_sw,
 	.pst_mif_rst	= post_mif_rst,
 	.pst_mif_rev	= post_mif_rev,

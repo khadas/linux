@@ -189,6 +189,7 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe);
 enum EDI_SGN di_vframe_2_sgn(struct vframe_s *vframe);
 const struct di_mm_cfg_s *di_get_mm_tab(unsigned int is_4k,
 					struct di_ch_s *pch);
+bool dip_plink_check_ponly_dct(struct di_ch_s *pch, struct vframe_s *vframe);
 
 bool dim_config_crc_icl(void);
 
@@ -346,14 +347,16 @@ void dcntr_reg(unsigned int on);
 void dcntr_check(struct vframe_s *vfm);
 void dcntr_check_bypass(struct vframe_s *vfm);
 void dcntr_dis(void);
-void dcntr_set(void);
-void dcntr_pq_tune(struct dim_rpt_s *rpt);
+bool dcntr_set(const struct reg_acc *op_in);
+void dct_pre_plink_unreg_mem(struct di_ch_s *pch);
+
+void dcntr_pq_tune(struct dim_rpt_s *rpt, const struct reg_acc *op_w);
 struct dim_rpt_s *dim_api_getrpt(struct vframe_s *vfm);
 void dim_pqrpt_init(struct dim_rpt_s *rpt);
 
 void dim_tb_prob(void);
 void dim_tb_t_release(struct di_ch_s *pch);
-void di_pq_db_setting(enum DIM_DB_SV idx);
+void di_pq_db_setting(enum DIM_DB_SV idx, const struct reg_acc *op);
 
 int  dbg_dct_mif_show(struct seq_file *s, void *v);
 int dbg_dct_core_show(struct seq_file *s, void *v);
@@ -364,6 +367,7 @@ void dim_dbg_dct_info(struct dcntr_mem_s *pprecfg);
 /* dct pre */
 void dct_pre_prob(struct platform_device *pdev);
 void dct_pre_remove(struct platform_device *pdev);
+void dct_pre_plink_reg(struct di_ch_s *pch);
 
 int dct_pre_ch_show(struct seq_file *s, void *v);
 int dct_pre_reg_show(struct seq_file *s, void *v);
@@ -373,6 +377,7 @@ int dct_pre_show(struct seq_file *s, void *v);
 struct dim_nins_s *nins_dct_get(struct di_ch_s *pch);
 struct dim_nins_s *nins_dct_get_bypass(struct di_ch_s *pch);
 bool nins_dct_2_done(struct di_ch_s *pch, struct dim_nins_s *nins);
+struct vframe_s *nins_peekvfm_dct(struct di_ch_s *pch);
 
 /* hdr */
 void dim_hdr_prob(void);
@@ -598,6 +603,7 @@ int dpvpp_check_vf(struct vframe_s *vfm);
 int dpvpp_check_di_act(void);
 int dpvpp_sw(bool on);
 unsigned int dpvpp_get_ins_id(void);
+struct canvas_config_s *dpvpp_get_mem_cvs(unsigned int index);
 
 void dpvpp_prob(void);
 bool dpvpp_is_allowed(void);
@@ -605,6 +611,12 @@ bool dpvpp_is_insert(void);
 bool dpvpp_is_en_polling(void);
 bool dpvpp_try_reg(struct di_ch_s *pch, struct vframe_s *vfm);
 int dpvpp_destroy_internal(struct dimn_itf_s *itf);
+void dpvpp_mem_mng_get(unsigned int id);
+unsigned long dpvpp_dct_mem_alloc(unsigned int ch);
+void dpvpp_dct_mem_release(unsigned int ch);
+void dpvpp_dct_clear_flg(void);
+bool dpvpp_dct_get_flg(unsigned char *ch, unsigned char *data);
+
 const struct vframe_operations_s *dpvpp_vf_ops(void);
 
 const struct dimn_pvpp_ops_s *dpvpp_ops(void);
@@ -613,11 +625,14 @@ void cvs_link(struct dim_cvspara_s *pcvsi, char *name);
 unsigned int cvs_nub_get(unsigned int idx, char *name);
 bool dim_check_exit_process(void);
 bool dim_is_creat_p_vpp_link(void);
-void dvpp_dbg_trig_sw(unsigned int cmd);
+//void dvpp_dbg_trig_sw(unsigned int cmd);
 int di_ls_bypass_ch(int index, bool on);
 void afbcd_enable_only_t5dvb(const struct reg_acc *op, bool vpp_link);
 bool dim_dbg_post_crash_check(unsigned int bit_mask);
 
 /* for secure mode hf,from vlsi feijun*/
 void di_probe_vpub_en_set(u32 enable);
+bool dd_probe(void);
+void m_polling(void);
+
 #endif	/*__DI_PRC_H__*/

@@ -176,7 +176,7 @@ static unsigned int hold_video;
 
 DEFINE_SPINLOCK(plist_lock);
 
-static const char version_s[] = "2022-05-23a";
+static const char version_s[] = "2023-01-04a";
 
 /*1:enable bypass pre,ei only;
  * 2:debug force bypass pre,ei for post
@@ -1121,8 +1121,7 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 		PR_INF("c_pvpp:ch[%d:%d]:index[%d]\n", channel, itf->id, index);
 
 		mm = &itf->ds->mm;
-
-		pcvs = &itf->ds->dbuf_wr[index][0];
+		pcvs = dpvpp_get_mem_cvs(index);
 		dump_adr = pcvs->phy_addr;
 
 		nr_size = (unsigned long)pcvs->width *
@@ -3906,8 +3905,8 @@ void dim_pre_de_process(unsigned int channel)
 		sc2_pre_cfg = &get_hw_pre()->pre_top_cfg;
 		if (sc2_pre_cfg->d32 != ppre->pre_top_cfg.d32) {
 			sc2_pre_cfg->d32 = ppre->pre_top_cfg.d32;
-			dim_sc2_contr_pre(sc2_pre_cfg);
-			dim_sc2_4k_set(sc2_pre_cfg->b.mode_4k);
+			dim_sc2_contr_pre(sc2_pre_cfg, NULL);
+			dim_sc2_4k_set(sc2_pre_cfg->b.mode_4k, NULL);
 		}
 	}
 	/*
@@ -3994,7 +3993,7 @@ void dim_pre_de_process(unsigned int channel)
 
 	//dimh_enable_afbc_input(ppre->di_inp_buf->vframe);
 
-	dcntr_set();
+	dcntr_set(NULL);
 
 	if (dim_afds()) {
 		if (ppre->di_mem_buf_dup_p && ppre->di_mem_buf_dup_p->vframe)
@@ -4218,7 +4217,7 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 		}
 		dim_pqrpt_init(&ppre->di_wr_buf->pq_rpt);
 		if (!flg_timeout)
-			dcntr_pq_tune(&ppre->di_wr_buf->pq_rpt);
+			dcntr_pq_tune(&ppre->di_wr_buf->pq_rpt, NULL);
 		dim_tr_ops.pre_ready(ppre->di_wr_buf->vframe->index_disp);
 		ATRACE_COUNTER("dim_pre_ready", 0);
 		ATRACE_COUNTER("dim_post_ready", 1);
@@ -10474,7 +10473,7 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
  * di task
  */
 
-void di_unreg_setting(void)
+void di_unreg_setting(bool plink)
 {
 	/*unsigned int mirror_disable = get_blackout_policy();*/
 #ifdef MARK_DEADCODE_HIS /* */
@@ -10491,7 +10490,7 @@ void di_unreg_setting(void)
 	sc2_dbg_set(0);
 	/*set flg*/
 	set_hw_reg_flg(false);
-	if (get_datal()->dct_op)
+	if (get_datal()->dct_op && !plink)
 		get_datal()->dct_op->unreg_all();
 	if (dim_hdr_ops())
 		dim_hdr_ops()->unreg_setting();

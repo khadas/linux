@@ -1055,6 +1055,9 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	seq_printf(seq, "bypass:is:%d,0x%x\n",
 		   pch->bypass.b.is_bypass,
 		   pch->bypass.b.reason_i);
+	seq_printf(seq, "plink:%d,%d\n",
+		   pch->ponly_set,
+		   pch->plink_dct);
 	seq_printf(seq, "cfg:4k:%d\n",
 			   cfggch(pch, 4K));
 	seq_printf(seq, "recovery_flag = %d, reason=%d, di_blocking=%d",

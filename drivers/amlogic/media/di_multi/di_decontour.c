@@ -494,7 +494,8 @@ static void dcntr_grid_wrmif(int mif_index,
 }
 
 /**************************************************************/
-#define DCNTR_PRE_POOL_SIZE 3
+#define DCNTR_PRE_POOL_SIZE 8	//3
+#define DCNTR_PRE_POOL_SIZE_LOCAL	3
 
 #define DCT_PRE_PRINT_INFO       0X1
 #define DCT_PRE_BYPASS           0X2
@@ -509,6 +510,9 @@ struct di_pre_dct_s {
 	int i_do_decontour;
 	struct dcntr_mem_s dcntr_mem_info[DCNTR_PRE_POOL_SIZE];
 	unsigned int do_cnt;
+	/* for pre-vpp link */
+	bool plink;
+	unsigned char buf_nub;
 };
 
 //static
@@ -564,7 +568,7 @@ static struct dcntr_mem_s *mem_peek_free(struct di_ch_s *pch)
 		return NULL;
 
 	chdct = (struct di_pre_dct_s *)pch->dct_pre;
-	for (i = 0; i < DCNTR_PRE_POOL_SIZE; i++) {
+	for (i = 0; i < chdct->buf_nub; i++) {
 		if (chdct->dcntr_mem_info[i].free)
 			return &chdct->dcntr_mem_info[i];
 	}
@@ -583,7 +587,7 @@ unsigned int mem_cnt_free(struct di_ch_s *pch)
 		return 0;
 
 	chdct = (struct di_pre_dct_s *)pch->dct_pre;
-	for (i = 0; i < DCNTR_PRE_POOL_SIZE; i++) {
+	for (i = 0; i < chdct->buf_nub; i++) {
 		if (chdct->dcntr_mem_info[i].free)
 			cnt++;
 	}
@@ -600,7 +604,7 @@ static struct dcntr_mem_s *mem_get_free(struct di_ch_s *pch)
 		return NULL;
 
 	chdct = (struct di_pre_dct_s *)pch->dct_pre;
-	for (i = 0; i < DCNTR_PRE_POOL_SIZE; i++) {
+	for (i = 0; i < chdct->buf_nub; i++) {
 		if (chdct->dcntr_mem_info[i].free) {
 			chdct->dcntr_mem_info[i].free = false;
 			return &chdct->dcntr_mem_info[i];
@@ -663,11 +667,11 @@ static bool is_decontour_supported(struct di_ch_s *pch)
 static void decontour_init(struct di_ch_s *pch)
 {
 	int mem_flags;
-	int grd_size = SZ_512K;             /*(81*8*16 byte)*45 = 455K*/
-	int yds_size = SZ_512K + SZ_32K;    /*960 * 576 = 540K*/
-	int cds_size = yds_size / 2;        /*960 * 576 / 2= 270K*/
-	int total_size = grd_size + yds_size + cds_size;
-	int buffer_count = DCNTR_PRE_POOL_SIZE;
+	unsigned int grd_size = SZ_512K;             /*(81*8*16 byte)*45 = 455K*/
+	unsigned int yds_size = SZ_512K + SZ_32K;    /*960 * 576 = 540K*/
+	unsigned int cds_size = yds_size / 2;        /*960 * 576 / 2= 270K*/
+	unsigned int total_size = grd_size + yds_size + cds_size;
+	//int buffer_count = 3;//DCNTR_PRE_POOL_SIZE;
 	int i;
 	bool is_tvp = false;
 	struct di_pre_dct_s *pdct = NULL;
@@ -711,8 +715,9 @@ static void decontour_init(struct di_ch_s *pch)
 		is_tvp = true;
 	}
 	dbg_timer(pch->ch_id, EDBG_TIMER_DCT_B);
+	pdct->buf_nub = DCNTR_PRE_POOL_SIZE_LOCAL;
 	pdct->decontour_addr = codec_mm_alloc_for_dma("di-decontour",
-				buffer_count * total_size / PAGE_SIZE,
+				pdct->buf_nub * total_size / PAGE_SIZE,
 				0, mem_flags);
 	dbg_timer(pch->ch_id, EDBG_TIMER_DCT_E);
 	if (pdct->decontour_addr == 0) {
@@ -724,14 +729,14 @@ static void decontour_init(struct di_ch_s *pch)
 	dbg_dctp("dctp:alloc success %lx, is_tvp=%d\n",
 		 pdct->decontour_addr, is_tvp);
 
-	for (i = 0; i < buffer_count; i++) {
+	for (i = 0; i < pdct->buf_nub; i++) {
 		memcpy(&pdct->dcntr_mem_info[i],
 		       &dim_dctp_default,
 		       sizeof(pdct->dcntr_mem_info[i]));
 		pdct->dcntr_mem_info[i].index = i;
 	}
 
-	for (i = 0; i < buffer_count; i++) {
+	for (i = 0; i < pdct->buf_nub; i++) {
 		pdct->dcntr_mem_info[i].grd_addr =
 			pdct->decontour_addr + i * total_size;
 		pdct->dcntr_mem_info[i].yds_addr =
@@ -765,7 +770,7 @@ void decontour_buf_reset(struct di_ch_s *pch)
 		return;
 
 	pr_info("decontour buf reset\n");
-	for (i = 0; i < DCNTR_PRE_POOL_SIZE; i++)
+	for (i = 0; i < pdct->buf_nub; i++)
 		pdct->dcntr_mem_info[i].free = true;
 }
 
@@ -777,17 +782,173 @@ static void decontour_uninit(struct di_ch_s *pch)
 	if (!pdct)
 		return;
 	dct = &get_datal()->hw_dct;
-
-	if (pdct->decontour_addr)
-		codec_mm_free_for_dma("di-decontour",
-			pdct->decontour_addr);
+	if (pdct->plink) {
+		dpvpp_dct_mem_release(pch->ch_id);
+		pdct->plink = false;
+	} else {
+		if (pdct->decontour_addr)
+			codec_mm_free_for_dma("di-decontour",
+				pdct->decontour_addr);
+	}
 	dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_MEM);
 	vfree(pdct);
 	pch->dct_pre = NULL;
 	dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_CH);
 	dct->src_cnt--;
 	dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_ACT);
-	dbg_dctp("decontour: uninit\n");
+	dbg_tst("ch[%d]decontour: uninit\n", pch->ch_id);
+}
+
+void dct_pre_plink_unreg_mem(struct di_ch_s *pch)
+{
+	struct di_pre_dct_s *pdct = dim_pdct(pch);
+	struct di_hdct_s  *dct;
+
+	if (!pdct)
+		return;
+
+	dct = &get_datal()->hw_dct;
+	dpvpp_dct_mem_release(pch->ch_id);
+	pdct->decontour_addr = 0;
+	dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_MEM);
+}
+
+/* ref to decontour_init */
+static void dct_pre_plink_init(struct di_ch_s *pch)
+{
+	int grd_size;	/*(81*8*16 byte)*45 = 455K*/
+	int yds_size;	/*960 * 576 = 540K*/
+	int cds_size;	/*960 * 576 / 2= 270K*/
+	int total_size;
+	unsigned long addr_dct;
+	int i;
+//	bool is_tvp = false;
+	struct di_pre_dct_s *pdct = NULL;
+	struct di_hdct_s  *dct;
+	unsigned char cnt_ch, nub_ch;
+	struct c_cfg_dct_s *dct_inf;
+
+	/* check if enable dct */
+	nub_ch = cfgg(DCT);
+	dct = &get_datal()->hw_dct;
+	cnt_ch = dct->src_cnt;
+	cnt_ch++;
+
+	if (!nub_ch)	//not support
+		return;
+	addr_dct = dpvpp_dct_mem_alloc(pch->ch_id);
+	if (!addr_dct)
+		return;
+	dct_inf = m_rd_dct();
+	if (!dct_inf)
+		return;
+	dbg_tst("%s:ch[%d]\n", "dct_p", pch->ch_id);
+
+	/***********************/
+	dct->statusx[pch->ch_id] |= DCT_PRE_LS_ACT;
+	/**/
+	if (!pch->dct_pre) {
+		pdct = vmalloc(sizeof(*pdct));
+
+		if (!pdct) {
+			PR_WARN("%s:vmalloc\n", __func__);
+			return;
+		}
+		pch->dct_pre = pdct;
+	} else {
+		pdct = pch->dct_pre;
+	}
+
+	dct->statusx[pch->ch_id] |= DCT_PRE_LS_CH;
+
+	memset(pdct, 0, sizeof(*pdct));
+	//pdct->i_do_decontour = true;
+
+	pdct->buf_nub = DIM_P_LINK_DCT_NUB;//DCNTR_PRE_POOL_SIZE;
+	if (DIM_P_LINK_DCT_NUB > DCNTR_PRE_POOL_SIZE)
+		PR_ERR("%s:\n", __func__);
+
+	pdct->decontour_addr = addr_dct;
+	pdct->plink	= true;/* special */
+
+	dct->statusx[pch->ch_id] |= DCT_PRE_LS_MEM;
+
+	dbg_dctp("dctp:alloc success %lx\n",
+		 pdct->decontour_addr);
+
+	for (i = 0; i < pdct->buf_nub; i++) {
+		memcpy(&pdct->dcntr_mem_info[i],
+		       &dim_dctp_default,
+		       sizeof(pdct->dcntr_mem_info[i]));
+		pdct->dcntr_mem_info[i].index = i;
+	}
+	total_size = dct_inf->size_one;
+	grd_size = dct_inf->grd_size;
+	yds_size = dct_inf->yds_size;
+	cds_size = dct_inf->cds_size;
+	for (i = 0; i < pdct->buf_nub; i++) {
+		pdct->dcntr_mem_info[i].grd_addr =
+			pdct->decontour_addr + i * total_size;
+		pdct->dcntr_mem_info[i].yds_addr =
+			pdct->dcntr_mem_info[i].grd_addr + grd_size;
+		pdct->dcntr_mem_info[i].cds_addr =
+			pdct->dcntr_mem_info[i].yds_addr + yds_size;
+		pdct->dcntr_mem_info[i].grd_size = grd_size;
+		pdct->dcntr_mem_info[i].yds_size = yds_size;
+		pdct->dcntr_mem_info[i].cds_size = cds_size;
+		pdct->dcntr_mem_info[i].free = true;
+	}
+
+	if (dct->state == EDI_DCT_EXIT) {
+		dct->last_w = 0;
+		dct->last_h = 0;
+		dct->last_type = 0;
+		dct->state = EDI_DCT_IDLE;
+		di_tout_int(&dct->tout, 20);
+	}
+	dbg_tst("ch[%d]:dctp: init\n", pch->ch_id);
+}
+
+void dct_pre_plink_reg(struct di_ch_s *pch)
+{
+	struct di_hdct_s  *dct;
+
+	dct = &get_datal()->hw_dct;
+
+	if (dct->state == EDI_DCT_EXIT) {
+		dct->last_w = 0;
+		dct->last_h = 0;
+		dct->last_type = 0;
+		dct->state = EDI_DCT_IDLE;
+		di_tout_int(&dct->tout, 20);
+	}
+	dbg_tst("%s\n", __func__);
+}
+
+bool dct_pre_plink_reg_cmd(void)
+{
+	bool flg;
+	unsigned char ch, cmd;
+	struct di_ch_s *pch;
+
+	flg = dpvpp_dct_get_flg(&ch, &cmd);
+	if (!flg)
+		return true;
+	if (!cmd || cmd > 2 || ch >= DI_CHANNEL_NUB) {
+		PR_ERR("%s:%d:%d\n", __func__, cmd, ch);
+		return false;
+	}
+	pch = get_chdata(ch);
+	if (cmd == 1) {
+		/* reg */
+		dct_pre_plink_init(pch);
+	}
+	if (cmd == 2) {
+		/* unreg */
+		decontour_uninit(pch);
+	}
+	dpvpp_dct_clear_flg();
+	return true;
 }
 
 irqreturn_t dct_pre_isr(int irq, void *dev_id)
@@ -1803,23 +1964,32 @@ static bool dct_m_idle(void)
 	unsigned int ch;
 	enum EDI_SUB_ID /*lst_ch,*/ nch, lch;
 	int i;
+	struct di_ch_s *pch;
 
 	if (dct->idle_cnt >= DI_CHANNEL_NUB) {
 		dct->idle_cnt = 0;
 		//dbg_dctp("%s:idle_cnt=%d\n", __func__, dct->idle_cnt);
 		return false;
 	}
+	dct_pre_plink_reg_cmd();
 	ch = dct->curr_ch;
 	nch = 0xffff;
 	for (i = 0; i < DI_CHANNEL_NUB; i++) {
 		lch = ch + i + 1;
 		if (lch >= DI_CHANNEL_NUB)
 			lch -= DI_CHANNEL_NUB;
-		//dbg_dctp("%s:i=%d,lch=%d\n", __func__, i, lch);
+		pch = get_chdata(lch);
+//#ifdef HIS_CODE
+		dbg_dctp("%s:i=%d,lch=%d:%d:%d:%d\n",
+			__func__, i, lch,
+			get_reg_flag(lch),
+			get_flag_trig_unreg(lch),
+			is_bypss2_complete(lch));
+//#endif
 		if (get_reg_flag(lch)		&&
 		    !get_flag_trig_unreg(lch)	&&
 		    !is_bypss2_complete(lch)	&&
-		    is_decontour_supported(get_chdata(lch))) {
+		    (is_decontour_supported(get_chdata(lch)) || pch->plink_dct)) {
 			nch = lch;
 			break;
 		}
@@ -1858,7 +2028,7 @@ static bool dct_m_check(void)
 	    pre_run_flag == DI_RUN_FLAG_STEP) {
 		if (pre_run_flag == DI_RUN_FLAG_STEP)
 			pre_run_flag = DI_RUN_FLAG_STEP_DONE;
-		vf = nins_peekvfm(pch);//pw_vf_peek(ch);
+		vf = nins_peekvfm_dct(pch);//pw_vf_peek(ch);
 	} else {
 		vf = NULL;
 	}
@@ -2035,15 +2205,15 @@ void dct_pre_prob(struct platform_device *pdev)
 				       IRQF_SHARED,
 				       "dct_pre",
 				       (void *)"dct_pre");
-		PR_INF("dct_pre _irq ok\n");
+		dbg_tst("dct_pre _irq ok\n");
 		get_datal()->hw_dct.i_do_decontour = true;
-		#ifdef DBG_DCT_PRINT
+#ifdef DBG_DCT_PRINT
 		get_datal()->hw_dct.debug_decontour |= DCT_PRE_DUMP_REG;
 		get_datal()->hw_dct.debug_decontour |= DCT_PRE_PRINT_INFO;
-		#endif
+#endif
 		return;
 	}
-	PR_INF("%s:not support\n", __func__);
+	dbg_tst("%s:not support\n", __func__);
 	get_datal()->dct_op = NULL;
 }
 
@@ -2346,7 +2516,7 @@ int dct_pre_ch_show(struct seq_file *s, void *v)
 	seq_printf(s, "%s:%d\n", "i_do_decontour:", pdct->i_do_decontour);
 	seq_printf(s, "%s:%d\n", "do_cnt:", pdct->do_cnt);
 
-	for (i = 0; i < DCNTR_PRE_POOL_SIZE; i++) {
+	for (i = 0; i < pdct->buf_nub; i++) {
 		seq_printf(s, "%s\n", spltb);
 		seq_printf(s, "index[%d]\n", i);
 		dim_dbg_dct_info_show(s, v, &pdct->dcntr_mem_info[i]);

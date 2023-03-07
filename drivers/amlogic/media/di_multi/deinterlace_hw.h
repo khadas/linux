@@ -673,6 +673,8 @@ void dim_pre_nr_wr_done_sel(bool on);
 void dim_arb_sw(bool on);
 void dbg_set_DI_PRE_CTRL(void);
 void di_async_reset2(void);	/*2019-04-05 add for debug*/
+void di_pre_data_mif_ctrl(bool enable, const struct reg_acc *op_in,
+			  bool en_link);
 
 enum DI_HW_POST_CTRL {
 	DI_HW_POST_CTRL_INIT,
@@ -777,6 +779,7 @@ struct dvfm_s {
 	bool	is_in_linear;	//tmp for input or out put linear.
 	bool	is_linear;	//for ic is linear or not
 	bool	en_win;	/**/
+	bool	is_4k;
 	struct di_win_s win;
 	unsigned int src_w;//temp
 	unsigned int src_h; //temp
@@ -807,7 +810,7 @@ struct dim_hw_opsv_s {
 	void (*pst_mif_update_csv)(struct DI_MIF_S *mif,
 				   enum DI_MIF0_ID mif_index,
 				   const struct reg_acc *op);
-	void (*pre_mif_sw)(bool enable, const struct reg_acc *op);
+	void (*pre_mif_sw)(bool enable, const struct reg_acc *op, bool en_link);
 	void (*pst_mif_sw)(bool on, enum DI_MIF0_SEL sel);
 	void (*pst_mif_rst)(enum DI_MIF0_SEL sel);
 	void (*pst_mif_rev)(bool rev, enum DI_MIF0_SEL sel);

@@ -494,6 +494,8 @@ int new_create_instance(struct di_init_parm parm)
 	npst_reset(pch);
 	pch->itf.opins_m_back_in	= nins_m_recycle_ins;
 	pch->itf.op_m_unreg		= nins_m_unreg_new;
+	pch->ponly_set = false;
+	pch->plink_dct = false;
 	if (itf->tmode == EDIM_TMODE_3_PW_LOCAL) {
 		itf->op_fill_ready	= ndis_fill_ready;
 		itf->op_ready_out	= dip_itf_ndrd_ins_m2_out;
@@ -513,7 +515,7 @@ int new_create_instance(struct di_init_parm parm)
 	}
 	//cfg_ch_set(pch);
 	mutex_unlock(&pch->itf.lock_reg);
-	PR_INF("%s:ch[%d],tmode[%d]\n", "create", ch, itf->tmode);
+	PR_INF("%s:ch[%d],tmode[%d]\n", "ins:create", ch, itf->tmode);
 	PR_INF("\tout:0x%x\n", itf->u.dinst.parm.output_format);
 	return ch;
 }
@@ -578,7 +580,7 @@ enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer)
 	unsigned int free_nub;
 	struct buf_que_s *pbufq;
 	struct dim_nins_s	*pins;
-	bool flg_q;
+	bool flg_q, plink_dct = false;
 	unsigned int bindex = 0;
 //	unsigned int err;
 
@@ -628,6 +630,13 @@ enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer)
 		PR_ERR("%s:qout\n", __func__);
 		return DI_ERR_IN_NO_SPACE;
 	}
+	if (buffer->vf)
+		dbg_poll("ins:ch[%d] buffer[0x%px:0x%x]:vf[0x%px:0x%x]\n",
+			ch, buffer, buffer->flag,
+			buffer->vf, buffer->vf->type);
+	else
+		dbg_poll("ins:ch[%d] buffer[0x%px:0x%x]:no vf\n",
+			ch, buffer, buffer->flag);
 	pins = (struct dim_nins_s *)pbufq->pbuf[bindex].qbc;
 	pins->c.ori = buffer;
 	//pins->c.etype = EDIM_NIN_TYPE_VFM;
@@ -655,16 +664,20 @@ enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer)
 			pins->c.vfm_cp.type |= VIDTYPE_INTERLACE_TOP;
 						//test only
 			pins->c.vfm_cp.type |= 0x3800;
-			PR_INF("ch[%d] in eos vf null\n", ch);
+			PR_INF("ch[%d] in eos vf null:0x%px\n", ch, buffer);
 		}
 		pins->c.vfm_cp.type |= VIDTYPE_V4L_EOS;
 		pins->c.vfm_cp.width = 1920;
 		pins->c.vfm_cp.height = 1080;
+	} else if (!buffer->vf) {
+		PR_ERR("%s:no vf\n", __func__);
 	} else {
-		/* @ary_note: eos may be no vf */
 		memcpy(&pins->c.vfm_cp, buffer->vf, sizeof(pins->c.vfm_cp));
 	}
-	if (get_datal()->dct_op && get_datal()->dct_op->is_en(pch))
+	plink_dct = dip_plink_check_ponly_dct(pch, &pins->c.vfm_cp);
+	if (plink_dct) /* for plink */
+		flg_q = qbuf_in(pbufq, QBF_NINS_Q_DCT, bindex);
+	else if (get_datal()->dct_op && get_datal()->dct_op->is_en(pch))
 		flg_q = qbuf_in(pbufq, QBF_NINS_Q_DCT, bindex);
 	else
 		flg_q = qbuf_in(pbufq, QBF_NINS_Q_CHECK, bindex);

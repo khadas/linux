@@ -944,6 +944,8 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		pch->sum_reg_cnt++;
 		dbg_reg("reg:%s[%d]\n", provider_name, pch->sum_reg_cnt);
 		atomic_set(&pch->vf_get_idle, 1);
+		pch->ponly_set = false;
+		pch->plink_dct = false;
 		dim_api_reg(DIME_REG_MODE_VFM, pch);
 
 		dev_vframe_reg(&pch->itf);

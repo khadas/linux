@@ -1960,7 +1960,7 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		if ((!get_reg_flag_all()) &&
 		    (!get_reg_setting_all())) {
 			dbg_pl("ch[%d]:unreg1,bypass:\n", ch);
-			di_unreg_setting();
+			di_unreg_setting(false);
 			dpre_init();
 			dpost_init();
 		}
@@ -1977,11 +1977,11 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		if ((!get_reg_flag_all()) &&
 		    (!get_reg_setting_all())) {	//??
 			dbg_pl("ch[%d]:unreg1,bypass:\n", ch);
-			di_unreg_setting();
+			di_unreg_setting(false);
 			dpre_init();
 			dpost_init();
 		}
-		PR_INF("%s:link to idle\n", __func__);
+		dbg_mem2("%s:link to idle\n", __func__);
 		dip_chst_set(ch, EDI_TOP_STATE_IDLE);
 		ret = true;
 		break;
@@ -1996,7 +1996,7 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		if ((!get_reg_flag_all()) &&
 		    (!get_reg_setting_all())) {
 			dbg_pl("ch[%d]:unreg2,step2:\n", ch);
-			di_unreg_setting();
+			di_unreg_setting(false);
 			dpre_init();
 			dpost_init();
 		}
@@ -2029,7 +2029,7 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		if ((!get_reg_flag_all()) &&
 		    (!get_reg_setting_all())) {
 			dbg_pl("ch[%d]:unreg3,step2:\n", ch);
-			di_unreg_setting();
+			di_unreg_setting(false);
 			dpre_init();
 			dpost_init();
 		}
@@ -2182,7 +2182,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			//sct_mng_working(pch);
 			//sct_alloc_in_poling(pch->ch_id);
 			sct_polling(pch, 1);
-			PR_INF("s2_1\n");
+			dbg_tst("s2_1\n");
 			if (di_cfg_top_get(EDI_CFG_FIRST_BYPASS) &&
 			    pch->itf.etype == EDIM_NIN_TYPE_VFM) {
 				if (get_sum_g(ch) == 0) {
@@ -2198,7 +2198,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			dip_chst_set(ch, EDI_TOP_STATE_READY);
 			set_reg_flag(ch, true);
 		} else {
-			PR_INF("s2_wait\n");
+			dbg_tst("s2_wait\n");
 		}
 
 		break;
@@ -3093,6 +3093,45 @@ bool dip_is_ponly_sct_mem(struct di_ch_s *pch)
 	return false;
 }
 
+bool dip_plink_check_ponly_dct(struct di_ch_s *pch, struct vframe_s *vframe)
+{
+	bool ponly_enable = false;
+
+	if (!IS_IC_SUPPORT(PRE_VPP_LINK) ||
+	    !cfgg(EN_PRE_LINK))
+		return false;
+	if (pch->ponly_set) {
+		if (pch->plink_dct)
+			return true;
+		else
+			return false;
+	}
+	//check:
+	if (!cfgg(DCT) || !IS_IC_SUPPORT(DECONTOUR)) {
+		pch->ponly_set = true;
+		pch->plink_dct = false;
+		dbg_tst("%s:a:%d,%d\n", __func__, pch->ponly_set, pch->plink_dct);
+		return false;
+	}
+
+	if ((vframe->flag & VFRAME_FLAG_DI_P_ONLY) || bget(&dim_cfg, 1))
+		ponly_enable = true;
+	if (!ponly_enable			&&
+	    cfggch(pch, PONLY_MODE) == 1	&&
+	    VFMT_IS_P(vframe->type)		&&
+	    !(vframe->type & VIDTYPE_FORCE_SIGN_IP_JOINT))
+		ponly_enable = true;
+
+	if (ponly_enable)
+		pch->plink_dct = true;
+	else
+		pch->plink_dct = false;
+
+	pch->ponly_set = true;
+	dbg_tst("%s:b:%d,%d\n", __func__, pch->ponly_set, pch->plink_dct);
+	return pch->plink_dct;
+}
+
 void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 {
 	struct di_post_stru_s *ppost;
@@ -3347,11 +3386,11 @@ bool dim_pq_db_sel(unsigned int idx, unsigned int mode, unsigned int *pdate)
 }
 EXPORT_SYMBOL(dim_pq_db_sel);
 
-void di_pq_db_setting(enum DIM_DB_SV idx)
+void di_pq_db_setting(enum DIM_DB_SV idx, const struct reg_acc *op)
 {
 	unsigned int val, vall;
 	struct db_save_s *dbp;
-	const struct reg_acc *op = &di_pre_regset;
+	//const struct reg_acc *op = &di_pre_regset;
 
 	if (idx >= DIM_DB_SAVE_NUB)
 		return;
@@ -3658,10 +3697,31 @@ struct vframe_s *nins_peekvfm(struct di_ch_s *pch)
 
 	pbufq = &pch->nin_qb;
 	//qbuf_peek_s(pbufq, QBF_INS_Q_IN, q_buf);
-	if (get_datal()->dct_op && get_datal()->dct_op->is_en(pch))
+	if (pch->plink_dct)
+		ret = qbufp_peek(pbufq, QBF_NINS_Q_DCT, &q_buf);
+	else if (get_datal()->dct_op && get_datal()->dct_op->is_en(pch))
 		ret = qbufp_peek(pbufq, QBF_NINS_Q_DCT, &q_buf);
 	else
 		ret = qbufp_peek(pbufq, QBF_NINS_Q_CHECK, &q_buf);
+	if (!ret || !q_buf.qbc)
+		return NULL;
+	ins = (struct dim_nins_s *)q_buf.qbc;
+	vfm = &ins->c.vfm_cp;
+
+	return vfm;
+}
+
+struct vframe_s *nins_peekvfm_dct(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_nins_s *ins;
+	struct vframe_s *vfm;
+	bool ret;
+
+	pbufq = &pch->nin_qb;
+
+	ret = qbufp_peek(pbufq, QBF_NINS_Q_DCT, &q_buf);
 	if (!ret || !q_buf.qbc)
 		return NULL;
 	ins = (struct dim_nins_s *)q_buf.qbc;
@@ -5837,10 +5897,17 @@ bool vf_from_subvf(struct vframe_s *vfm, struct dsub_vf_s *vfms)
 
 void dim_dvf_cp(struct dvfm_s *dvfm, struct vframe_s *vfm, unsigned int index)
 {
+	unsigned int x, y;
+
 	if (!dvfm || !vfm)
 		return;
 
 	vf_2_subvf(&dvfm->vfs, vfm);
+	dim_vf_x_y(vfm, &x, &y);
+	if (x > 1920 || y > 1088)
+		dvfm->is_4k = true;
+	else
+		dvfm->is_4k = false;
 
 	if ((vfm->flag & VFRAME_FLAG_VIDEO_LINEAR) ||
 	    dim_in_linear()) {
@@ -7106,7 +7173,7 @@ void dim_mng_hf_prob(void)
 		hmng->hf_buf[dd].index = dd;
 	}
 	//get_datal()->mng_hf_buf = hmng;
-	PR_INF("%s:ok\n", __func__);
+	dbg_tst("%s:ok\n", __func__);
 	return;
 
 dim_mng_hf_err:
@@ -7513,12 +7580,12 @@ int dim_post_process_copy_input(struct di_ch_s *pch,
 	dbg_copy("is_4k[%d]\n", is_4k);
 
 	if (is_4k)
-		dim_sc2_4k_set(2);
+		dim_sc2_4k_set(2, NULL);
 	else
-		dim_sc2_4k_set(0);
+		dim_sc2_4k_set(0, NULL);
 
 	cfg.d32 = 0;
-	dim_sc2_contr_pre(&cfg);
+	dim_sc2_contr_pre(&cfg, NULL);
 	if (cfg_cpy->in_afbcd)
 		dim_print("1:afbcd:0x%px\n", cfg_cpy->in_afbcd);
 	if (cfg_cpy->in_rdmif)
@@ -7846,12 +7913,12 @@ int dim_post_process_copy_only(struct di_ch_s *pch,
 	dbg_copy("is_4k[%d]\n", is_4k);
 
 	if (is_4k)
-		dim_sc2_4k_set(2);
+		dim_sc2_4k_set(2, NULL);
 	else
-		dim_sc2_4k_set(0);
+		dim_sc2_4k_set(0, NULL);
 
 	cfg.d32 = 0;
-	dim_sc2_contr_pre(&cfg);
+	dim_sc2_contr_pre(&cfg, NULL);
 	if (cfg_cpy->in_afbcd)
 		dim_print("1:afbcd:0x%px\n", cfg_cpy->in_afbcd);
 	if (cfg_cpy->in_rdmif)
@@ -8423,11 +8490,11 @@ int dim_post_copy_pip(struct di_ch_s *pch,
 
 	dbg_copy("is_4k[%d]\n", is_4k);
 	if (is_4k)
-		dim_sc2_4k_set(2);
+		dim_sc2_4k_set(2, NULL);
 	else
-		dim_sc2_4k_set(0);
+		dim_sc2_4k_set(0, NULL);
 	cfg.d32 = 0;
-	dim_sc2_contr_pre(&cfg);
+	dim_sc2_contr_pre(&cfg, NULL);
 	if (cfg_cpy->in_afbcd)
 		dim_print("1:afbcd:0x%px\n", cfg_cpy->in_afbcd);
 	if (cfg_cpy->in_rdmif)

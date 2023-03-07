@@ -181,7 +181,8 @@ void dim_mcinfo_v_release_idat(struct dim_iat_s *idat)
  *******************************************/
 #ifdef CONFIG_CMA
 #define TVP_MEM_PAGES	0xffff
-static bool mm_codec_alloc(const char *owner, size_t count,
+//static
+bool mm_codec_alloc(const char *owner, size_t count,
 			   int cma_mode,
 			   struct dim_mm_s *o,
 			   bool tvp_flg)
@@ -4237,7 +4238,7 @@ int __init dim_module_init(void)
 {
 	int ret = 0;
 
-	PR_INF("%s\n", __func__);
+	dbg_tst("%s\n", __func__);
 
 	ret = platform_driver_register(&di_driver);
 	if (ret != 0) {
@@ -4245,7 +4246,7 @@ int __init dim_module_init(void)
 		/*goto fail_pdrv_register;*/
 		return -ENODEV;
 	}
-	PR_INF("%s finish\n", __func__);
+	PR_INF("%s finish\n", "init");
 	return 0;
 }
 

@@ -1996,8 +1996,8 @@ static void s4dw_pre_set(unsigned int channel)
 		sc2_pre_cfg = &get_hw_pre()->pre_top_cfg;
 		if (sc2_pre_cfg->d32 != ppre->pre_top_cfg.d32) {
 			sc2_pre_cfg->d32 = ppre->pre_top_cfg.d32;
-			dim_sc2_contr_pre(sc2_pre_cfg);
-			dim_sc2_4k_set(sc2_pre_cfg->b.mode_4k);
+			dim_sc2_contr_pre(sc2_pre_cfg, NULL);
+			dim_sc2_4k_set(sc2_pre_cfg->b.mode_4k, NULL);
 		}
 	}
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))

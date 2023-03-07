@@ -48,6 +48,8 @@
  *	bit 6:8: pq ?
  *		dcntr dynamic used dbg_dct BIT:6-8
  *	bit 12:13: demo mode (old is bit 8:9)
+ *		1: left on/right off;
+ *		2: left off/right on;
  *	bit 14: border detect simulation only use when
  *		DIM_DCT_BORDER_SIMULATION enable
  *	bit 15: border detect disable
@@ -602,9 +604,10 @@ static unsigned int get_mif_addr(unsigned int mif_index,
 }
 
 static void dcntr_post_rdmif(int mif_index, //0:divr  1:grid  2:yflt  3:cflt
-			     struct dcntr_core_s *pcfg)
+			     struct dcntr_core_s *pcfg,
+			     const struct reg_acc *op)
 {
-	const struct reg_acc *op = &di_pre_regset;
+	//const struct reg_acc *op = &di_pre_regset;
 	int mem_mode;  //0:linear address mode  1:canvas mode
 	int canvas_id;
 	int src_fmt; // 0:4bit 1:8bit 2:16bit 3:32bit 4:64bit 5:128bit
@@ -671,12 +674,12 @@ static void dcntr_post_rdmif(int mif_index, //0:divr  1:grid  2:yflt  3:cflt
 		  op->rd(DCNTR_GRID_RMIF_CTRL2 + off));
 }
 
-static void dt_set_change(void)
+static void dt_set_change(const struct reg_acc *op)
 {
 	unsigned int grd_num, reg_grd_xnum, reg_grd_ynum, grd_xsize, grd_ysize;
 	int i;
 	struct dcntr_mif_s *pmif;
-	const struct reg_acc *op = &di_pre_regset;
+	//const struct reg_acc *op = &di_pre_regset;
 	struct dcntr_core_s *pcfg = &di_dcnt;
 	unsigned int off = 0; //for t3
 
@@ -778,7 +781,7 @@ static void dt_set_change(void)
 	pmif->burst	= 2;
 
 	for (i = 0; i < 4; i++) {
-		dcntr_post_rdmif(i, pcfg);
+		dcntr_post_rdmif(i, pcfg, op);
 		dbg_dct_mif(&pcfg->pstr[i]);
 	}
 
@@ -786,10 +789,10 @@ static void dt_set_change(void)
 }
 
 //initial decontour post - core
-static void dcntr_post(void)
+static bool dcntr_post(const struct reg_acc *op)
 {
 	struct dcntr_core_s *pcfg = &di_dcnt;
-	const struct reg_acc *op = &di_pre_regset;
+	//const struct reg_acc *op = &di_pre_regset;
 	int hsize;
 	int vsize;
 	int grd_num_mode;
@@ -843,7 +846,7 @@ static void dcntr_post(void)
 
 	/****************************************/
 	if (!pcfg->flg_int || !pcfg->n_set)
-		return;
+		return false;
 	op->bwr(VIUB_GCLK_CTRL3, 0x3f, 16, 6);
 	op->bwr(DI_PRE_CTRL, 1, 15, 1);// decontour enable
 
@@ -860,12 +863,12 @@ static void dcntr_post(void)
 	xsize = hsize;
 	ysize = vsize;
 
-	#ifdef HIS_CODE
+#ifdef HIS_CODE
 	in_ds_rate = (hsize > 1920) ? 2 :
 			(hsize > 960) ? 1 : 0;
-	#else
+#else
 	in_ds_rate = pcfg->in.DS_RATIO;
-	#endif
+#endif
 
 	in_ds_r_x = 1 << in_ds_rate;
 	in_ds_r_y = 1 << in_ds_rate;
@@ -905,15 +908,15 @@ static void dcntr_post(void)
 		((intep_phs_y_use & 0x1f) << 0)
 	);
 
-	#ifdef TEST_ONLY
+#ifdef TEST_ONLY
 	int divrsmap_blk0_sft = 1;
 	int divrsmap_blk1_sft = divrsmap_blk0_sft + 1;
 	int divrsmap_blk2_sft = divrsmap_blk0_sft + 2;
-	#else
+#else
 	divrsmap_blk0_sft = pcfg->in.divrsmap_blk0_sft;
 	divrsmap_blk1_sft = divrsmap_blk0_sft + 1;
 	divrsmap_blk2_sft = divrsmap_blk0_sft + 2;
-	#endif
+#endif
 	tmp = op->rd(DCTR_DIVR4 + off) & 0x0fffff;
 	op->wr(DCTR_DIVR4 + off,
 		(divrsmap_blk0_sft << 28) |
@@ -921,12 +924,12 @@ static void dcntr_post(void)
 		(divrsmap_blk2_sft << 20) |
 		tmp);
 
-	#ifdef HIS_CODE
+#ifdef HIS_CODE
 	sig_ds_r = (hsize > 1920) ? 0 :
 			(hsize > 960) ? 1 : 2;
-	#else
+#else
 	sig_ds_r = (2 - pcfg->in.DS_RATIO);
-	#endif
+#endif
 	op->wr(DCTR_SIGFIL + off,
 	       (64 << 16) |
 	       (2 << 8)		|
@@ -938,16 +941,16 @@ static void dcntr_post(void)
 	//====================================================
 	// slicing
 	//====================================================
-	#ifdef HIS_CODE
+#ifdef HIS_CODE
 	reg_in_ds_rate_x = (hsize > 1920) ? 2 :
 				(hsize > 960) ? 1 : 0;
 
 	reg_in_ds_rate_y = (vsize > 1080) ? 2 :
 				(vsize > 540) ? 1 : 0;
-	#else
+#else
 	reg_in_ds_rate_x = pcfg->in.DS_RATIO;
 	reg_in_ds_rate_y = pcfg->in.DS_RATIO;
-	#endif
+#endif
 
 	ds_r_sft_x	= reg_in_ds_rate_x;
 	ds_r_sft_y	= reg_in_ds_rate_y;
@@ -1026,7 +1029,7 @@ static void dcntr_post(void)
 		op->wr(DCTR_BGRID_PARAM8_0 + (i >> 1) + off, tmp);
 	}
 	dbg_dct_core_other(pcfg);
-	dt_set_change();
+	dt_set_change(op);
 
 	// cflt 420 to 444
 	op->wr(DCNTR_POST_FMT_CTRL + off,
@@ -1056,11 +1059,12 @@ static void dcntr_post(void)
 	pcfg->n_set	= 0;
 	dim_print("rd:0x%x,0x%x\n", DCNTR_GRID_RMIF_CTRL2 + off,
 		  op->rd(DCNTR_GRID_RMIF_CTRL2 + off));
+	return true;
 }
 
-static void dcntr_update(void)
+static bool dcntr_update(const struct reg_acc *op)
 {
-	const struct reg_acc *op = &di_pre_regset;
+	//const struct reg_acc *op = &di_pre_regset;
 	int i;
 //	const unsigned int *reg;
 	unsigned int reg_add;
@@ -1068,7 +1072,7 @@ static void dcntr_update(void)
 	unsigned int off = 0; //for t3
 
 	if (!pcfg->st_set || !pcfg->n_up)
-		return;
+		return false;
 	if (DIM_IS_IC_EF(T3))
 		off = 0x200;
 	if (pcfg->in.use_cvs) {
@@ -1087,14 +1091,15 @@ static void dcntr_update(void)
 
 	if ((dbg_dct & DI_BIT0) == 0) {
 		if ((dbg_dct & DI_BIT2) == 0)
-			di_pq_db_setting(DIM_DB_SV_DCT_BL2);
+			di_pq_db_setting(DIM_DB_SV_DCT_BL2, op);
 
 		op->bwr(DI_PRE_CTRL, 1, 15, 1);// decontour enable
 	}
 	pcfg->n_up = 0;
+	return true;
 }
 
-void dcntr_dynamic_setting(struct dim_rpt_s *rpt)
+static void dcntr_dynamic_setting(struct dim_rpt_s *rpt, const struct reg_acc *op)
 {
 	u64 map_0;
 	u64 map_1;
@@ -1109,7 +1114,7 @@ void dcntr_dynamic_setting(struct dim_rpt_s *rpt)
 	unsigned int thr = 60; /* map_count default 60*/
 	unsigned int target = 256; /*max 256*/
 	struct db_save_s *dbp;
-	const struct reg_acc *op = &di_pre_regset;
+	//const struct reg_acc *op = &di_pre_regset;
 	unsigned int off = 0; //for t3
 
 	if (!rpt || dcntr_dynamic_disable()) {
@@ -1206,15 +1211,19 @@ static void dct_border_tune(const struct reg_acc *op, unsigned int off)
 
 #endif /* DIM_DCT_BORDER_DETECT */
 
-void dcntr_pq_tune(struct dim_rpt_s *rpt)
+void dcntr_pq_tune(struct dim_rpt_s *rpt, const struct reg_acc *op_w)
 {
-	const struct reg_acc *op = &di_pre_regset;
+	const struct reg_acc *op = &di_pre_regset, *op_wl;
 //	unsigned int tmp[3];
 	struct dcntr_core_s *pcfg = &di_dcnt;
 	unsigned int off = 0; //for t3
 
 	if (!pcfg->n_rp)
 		return;
+	if (!op_w)
+		op_wl = &di_pre_regset;
+	else
+		op_wl = op_w;
 	if (DIM_IS_IC_EF(T3))
 		off = 0x200;
 	rpt->spt_bits |= DI_BIT0;
@@ -1227,7 +1236,7 @@ void dcntr_pq_tune(struct dim_rpt_s *rpt)
 	pcfg->n_rp = 0;
 	dim_print("%s:0x%x\n", __func__, rpt->dct_map_0);
 
-	dcntr_dynamic_setting(rpt);
+	dcntr_dynamic_setting(rpt, op_wl);
 #ifdef DIM_DCT_BORDER_DETECT
 	dct_border_tune(op, off);
 #endif
@@ -1250,16 +1259,20 @@ void dcntr_dis(void)
 	}
 }
 
-void dcntr_set(void)
+bool dcntr_set(const struct reg_acc *op_in)
 {
-//	const struct reg_acc *op = &di_pre_regset;
 	struct dcntr_core_s *pcfg = &di_dcnt;
-	const struct reg_acc *op = &di_pre_regset;
+	const struct reg_acc *op;
 	unsigned int dval;
 	unsigned int off = 0; //for t3
+	bool ret = false;
 
 	if (!pcfg->flg_int || pcfg->st_off)
-		return;
+		return ret;
+	if (!op_in)
+		op = &di_pre_regset;
+	else
+		op = op_in;
 	if (DIM_IS_IC_EF(T3))
 		off = 0x200;
 	if (pcfg->n_demo) {
@@ -1280,13 +1293,14 @@ void dcntr_set(void)
 	}
 	if (pcfg->n_set) {
 		dbg_dctp("%s:set\n", __func__);
-		dcntr_post();
+		ret = dcntr_post(op);
 		pcfg->st_pause	= 1;
 	} else if (pcfg->n_up) {
 		dbg_dctp("%s:update\n", __func__);
-		dcntr_update();
+		ret = dcntr_update(op);
 		pcfg->st_pause	= 1;
 	}
+	return ret;
 }
 
 void dim_dbg_dct_info(struct dcntr_mem_s *pprecfg)
@@ -1681,7 +1695,7 @@ void dcntr_prob(void)
 	else
 		pcfg->reg_contr_bits	= &rtab_t5_dcntr_bits_tab[0];
 	pcfg->flg_int = 1;
-	PR_INF("%s:end\n", __func__);
+	dbg_tst("%s:end\n", __func__);
 }
 
 int  dbg_dct_mif_show(struct seq_file *s, void *v)
