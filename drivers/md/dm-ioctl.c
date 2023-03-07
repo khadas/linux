@@ -23,10 +23,6 @@
 #include <linux/uaccess.h>
 #include <linux/ima.h>
 
-#ifdef CONFIG_AMLOGIC_DM_BOW
-#include "dm-bow.h"
-#endif
-
 #define DM_MSG_PREFIX "ioctl"
 #define DM_DRIVER_EMAIL "dm-devel@redhat.com"
 
@@ -1468,10 +1464,6 @@ static int table_load(struct file *filp, struct dm_ioctl *param, size_t param_si
 		r = -EINVAL;
 		goto err_unlock_md_type;
 	}
-
-#ifdef CONFIG_AMLOGIC_DM_BOW
-	bow_sysfs_create(t, param, param_size);
-#endif
 
 	dm_unlock_md_type(md);
 

@@ -110,5 +110,3 @@ endif
 ifeq ($(CONFIG_DM_VERITY_VERIFY_ROOTHASH_SIG),y)
 dm-verity-objs			+= dm-verity-verify-sig.o
 endif
-
-ccflags-y += -I$(srctree)/$(COMMON_DRIVERS_DIR)/drivers/md/
