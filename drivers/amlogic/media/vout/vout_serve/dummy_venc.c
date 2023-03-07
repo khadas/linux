@@ -1115,6 +1115,34 @@ static void dummy_encl_venc_set(struct dummy_venc_driver_s *venc_drv)
 
 	offset = venc_drv->vdata->vconf->venc_offset;
 
+	if (venc_drv->vdata->chip_type == DUMMY_VENC_S5) {
+		offset = 0;
+
+		vout_vcbus_write(ENCP_VIDEO_EN + offset, 0);
+
+		vout_vcbus_write(ENCP_VIDEO_MODE + offset, 0x8000);
+		vout_vcbus_write(ENCP_VIDEO_MODE_ADV + offset, 0x0418);
+
+		vout_vcbus_write(ENCP_VIDEO_MAX_PXCNT + offset, 800 - 1);
+		vout_vcbus_write(ENCP_VIDEO_MAX_LNCNT + offset, 525 - 1);
+		vout_vcbus_write(ENCP_VIDEO_HAVON_BEGIN + offset, 80);
+		vout_vcbus_write(ENCP_VIDEO_HAVON_END + offset, 799);
+		vout_vcbus_write(ENCP_VIDEO_VAVON_BLINE + offset, 22);
+		vout_vcbus_write(ENCP_VIDEO_VAVON_ELINE + offset, 501);
+
+		vout_vcbus_write(ENCP_VIDEO_HSO_BEGIN + offset, 0);
+		vout_vcbus_write(ENCP_VIDEO_HSO_END + offset,   20);
+		vout_vcbus_write(ENCP_VIDEO_VSO_BEGIN + offset, 0);
+		vout_vcbus_write(ENCP_VIDEO_VSO_END + offset,   0);
+		vout_vcbus_write(ENCP_VIDEO_VSO_BLINE + offset, 0);
+		vout_vcbus_write(ENCP_VIDEO_VSO_ELINE + offset, 5);
+
+		vout_vcbus_write(ENCP_VIDEO_RGBIN_CTRL + offset, 1);
+
+		vout_vcbus_write(ENCP_VIDEO_EN + offset, 1);
+		return;
+	}
+
 	vout_vcbus_write(ENCL_VIDEO_EN + offset, 0);
 
 	vout_vcbus_write(ENCL_VIDEO_MODE + offset, 0x8000);
