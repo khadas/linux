@@ -1219,6 +1219,14 @@ config RELAY
 
 	  If unsure, say N.
 
+config ASYNC_UNPACK_ROOTFS
+	bool "Asynchronous unpacking initramfs"
+	default n
+	help
+		This option enables support for asynchronous unpacking initramfs.
+
+		If unsure, say N.
+
 config BLK_DEV_INITRD
 	bool "Initial RAM filesystem and RAM disk (initramfs/initrd) support"
 	help

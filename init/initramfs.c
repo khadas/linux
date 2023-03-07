@@ -11,6 +11,17 @@
 #include <linux/utime.h>
 #include <linux/file.h>
 
+#if defined CONFIG_AMLOGIC_MODIFY && defined CONFIG_ASYNC_UNPACK_ROOTFS
+#include <linux/async.h>
+
+struct async_initrd_data {
+	unsigned long initrd_start;
+	unsigned long initrd_end;
+};
+
+static struct async_initrd_data data;
+#endif
+
 static ssize_t __init xwrite(int fd, const char *p, size_t count)
 {
 	ssize_t out = 0;
@@ -643,6 +654,31 @@ static void __init populate_initrd_image(char *err)
 }
 #endif /* CONFIG_BLK_DEV_RAM */
 
+#if defined CONFIG_AMLOGIC_MODIFY && defined CONFIG_ASYNC_UNPACK_ROOTFS
+static void __init do_unpack_rootfs_async(void *_data, async_cookie_t cookie)
+{
+	char *err;
+	struct async_initrd_data *data = _data;
+
+	err = unpack_to_rootfs((char *)data->initrd_start,
+		data->initrd_end - data->initrd_start);
+	if (err) {
+		clean_rootfs();
+		populate_initrd_image(err);
+	}
+
+	/*
+	 * If the initrd region is overlapped with crashkernel reserved region,
+	 * free only memory that is not part of crashkernel region.
+	 */
+	if (!do_retain_initrd && data->initrd_start && !kexec_free_initrd())
+		free_initrd_mem(data->initrd_start, data->initrd_end);
+	data->initrd_start = 0;
+	data->initrd_end = 0;
+
+	flush_delayed_fput();
+}
+#endif
 static int __init populate_rootfs(void)
 {
 	/* Load the built in initramfs */
@@ -658,6 +694,12 @@ static int __init populate_rootfs(void)
 	else
 		printk(KERN_INFO "Unpacking initramfs...\n");
 
+#if defined CONFIG_AMLOGIC_MODIFY && defined CONFIG_ASYNC_UNPACK_ROOTFS
+	data.initrd_start = initrd_start;
+	data.initrd_end = initrd_end;
+	async_schedule(do_unpack_rootfs_async, &data);
+	return 0;
+#endif
 	err = unpack_to_rootfs((char *)initrd_start, initrd_end - initrd_start);
 	if (err) {
 		clean_rootfs();
