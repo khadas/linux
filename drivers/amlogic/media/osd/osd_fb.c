@@ -4913,7 +4913,7 @@ static struct osd_device_hw_s t3_dev_property = {
 	.path_ctrl_independ = 1,
 	.remove_afbc = 0,
 	.remove_pps = 0,
-	.prevsync_support = 1,
+	.prevsync_support = 0,
 };
 
 static struct osd_device_hw_s t5w_dev_property = {
