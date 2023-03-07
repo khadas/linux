@@ -3026,3 +3026,70 @@ void hdmitx21_dither_config(struct hdmitx_dev *hdev)
 	else
 		hd21_set_reg_bits(VPU_HDMI_DITH_CNTL, 0, 4, 1);
 }
+
+/* for emds pkt cuva */
+void hdmitx_dhdr_send(u8 *body, int max_size)
+{
+	u32 data;
+	int i;
+	int active_lines;
+	int blank_lines;
+	int hdr_emp_num;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (!body) {
+		hdmitx21_wr_reg(D_HDR_INSERT_CTRL_IVCTX, 0);
+		pr_info("%s:stop send dhdr pkt\n", __func__);
+		return;
+	}
+
+	active_lines = hdev->para->timing.v_active;
+	blank_lines = hdev->para->timing.v_blank;
+
+	pr_info("%s: send dhdr for cuva\n", __func__);
+	hdr_emp_num = (3 - 1) * 28 + 21;	//emds total send 3 packet as one dhdr
+	//  step1: hdr timing
+	hdmitx21_wr_reg(D_HDR_VB_LE_IVCTX, (blank_lines & 0xff)); //reg_vb_le default 0x20
+	hdmitx21_wr_reg(D_HDR_SPARE_3_IVCTX, 0x2); //[1] reg_fapa_fsm_proper_move
+
+	//  step2: prepare packet data
+	hdmitx21_wr_reg(D_HDR_INSERT_PAYLOAD_1_IVCTX, hdr_emp_num >> 8); //payload[15:8] pb5 msb
+	hdmitx21_wr_reg(D_HDR_INSERT_PAYLOAD_0_IVCTX, hdr_emp_num & 0xff); //payload[7:0] pb6 lsb
+
+	//setting send mlds data  payload =0
+	hdmitx21_wr_reg(D_HDR_GEN_CTL_IVCTX, 0xb1); //[0] reg_source_en [6:5] fapa ctrl
+	//[0] reg_send_end_data_set [3] reg_send_pkt_cont (send data set for each frame if it is 1)
+	hdmitx21_wr_reg(D_HDR_INSERT_CTL_1_IVCTX, 0x8);
+	data  = 0;
+	data |= (0 << 6); //[7 : 6] rsvd
+	data |= (0 << 5); //[    5] reg_set_new_in_mlds_pkt
+	data |= (0 << 4); //[    4] reg_set_new_in_middle
+	data |= (0 << 3); //[    3] reg_set_new_always
+	data |= (1 << 2); //[    2] reg_to_err_ctrl
+	data |= (0 << 1); //[    1] feg_fapa1_supprot. =0:FAPA start only after second active line.
+	data |= (1 << 0); //[    0] reg_set_end_for_mlds
+	hdmitx21_wr_reg(D_HDR_INSERT_CTL_2_IVCTX, data);
+
+	hdmitx21_wr_reg(D_HDR_ACT_DE_LO_IVCTX, (active_lines & 0xff)); //reg_act_de_lsb
+	hdmitx21_wr_reg(D_HDR_ACT_DE_HI_IVCTX, (active_lines >> 8)); //reg_act_de_msb
+
+	//  step3: packet header and content
+	hdmitx21_wr_reg(D_HDR_EM_HB0_IVCTX, 0x7f); // HB0 header
+
+	hdmitx21_wr_reg(D_HDR_EM_PB0_IVCTX, 0x00); // pb0 [7] new; [6] end
+	hdmitx21_wr_reg(D_HDR_EM_PB2_IVCTX, 0x02); // pb2 ID
+	hdmitx21_wr_reg(D_HDR_EM_PB3_IVCTX, 0x00); // pb3
+	hdmitx21_wr_reg(D_HDR_EM_PB4_IVCTX, 0x00); // pb4
+
+	hdmitx21_wr_reg(D_HDR_INSERT_CTRL_IVCTX, 0x1);	//[0]reg_pkt_gen; [1]reg_pkt_gen_en
+	hdmitx21_wr_reg(D_HDR_MEM_WADDR_RST_IVCTX, 0x1);
+	hdmitx21_wr_reg(D_HDR_MEM_WADDR_RST_IVCTX, 0x1);
+	hdmitx21_wr_reg(D_HDR_MEM_WADDR_RST_IVCTX, 0x0);
+	hdmitx21_wr_reg(D_HDR_MEM_WADDR_RST_IVCTX, 0x0);
+	for (i = 0; i < hdr_emp_num && i < max_size; i++) {
+		data = *body++;
+		hdmitx21_wr_reg(D_HDR_MEM_WDATA_IVCTX, data);
+	}
+	hdmitx21_wr_reg(D_HDR_INSERT_CTRL_IVCTX, 0x3);
+}
+

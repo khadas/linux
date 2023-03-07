@@ -2250,31 +2250,26 @@ static void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data)
 	spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 }
 
-struct hdmi_packet_t {
-	u8 hb[3];
-	u8 pb[28];
-	u8 no_used; /* padding to 32 bytes */
-};
-
 static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 {
 	struct hdmi_packet_t vs_emds[3];
 	unsigned long flags;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
-	static unsigned char *virt_ptr;
-	static unsigned char *virt_ptr_align32bit;
-	unsigned long phys_ptr;
+	int max_size;
 
 	if (!_check_hdmi_mode())
 		return;
+
 	memset(vs_emds, 0, sizeof(vs_emds));
 	spin_lock_irqsave(&hdev->edid_spinlock, flags);
 	if (!data) {
-		hdev->hwop.cntlconfig(hdev, CONF_EMP_NUMBER, 0);
+		hdmitx_dhdr_send(NULL, 0);
 		spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 		return;
 	}
 
+	hdr_status_pos = 4;
+	max_size = sizeof(struct hdmi_packet_t) * 3;
 	vs_emds[0].hb[0] = 0x7f;
 	vs_emds[0].hb[1] = 1 << 7;
 	vs_emds[0].hb[2] = 0; /* Sequence_Index */
@@ -2359,15 +2354,7 @@ static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 	vs_emds[2].pb[5] = data->max_display_mastering_lum >> 8;
 	vs_emds[2].pb[6] = data->max_display_mastering_lum & 0xff;
 
-	if (!virt_ptr) { /* init virt_ptr and virt_ptr_align32bit */
-		virt_ptr = kzalloc((sizeof(vs_emds) + 0x1f), GFP_KERNEL);
-		virt_ptr_align32bit = (unsigned char *)
-			((((unsigned long)virt_ptr) + 0x1f) & (~0x1f));
-	}
-	memcpy(virt_ptr_align32bit, vs_emds, sizeof(vs_emds));
-	phys_ptr = virt_to_phys(virt_ptr_align32bit);
-
-	pr_info("emp_pkt phys_ptr: %lx\n", phys_ptr);
+	hdmitx_dhdr_send((u8 *)&vs_emds, max_size);
 	spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 }
 
@@ -2542,6 +2529,7 @@ static ssize_t config_show(struct device *dev,
 		break;
 	default:
 		conf = "MAX";
+		break;
 	}
 	pos += snprintf(buf + pos, PAGE_SIZE, "audio channel num: %s\n", conf);
 
@@ -2616,6 +2604,7 @@ static ssize_t config_store(struct device *dev,
 	struct master_display_info_s data = {0};
 	struct hdr10plus_para hdr_data = {0x1, 0x2, 0x3};
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct cuva_hdr_vs_emds_para cuva_data = {0x1, 0x2, 0x3};
 
 	pr_info("hdmitx: config: %s\n", buf);
 
@@ -2679,6 +2668,8 @@ static ssize_t config_store(struct device *dev,
 		hdmitx_set_emp_pkt(NULL, 1, 1);
 	} else if (strncmp(buf, "hdr10+", 6) == 0) {
 		hdmitx_set_hdr10plus_pkt(1, &hdr_data);
+	} else if (strncmp(buf, "cuva", 4) == 0) {
+		hdmitx_set_cuva_hdr_vs_emds(&cuva_data);
 	}
 	return count;
 }
@@ -3011,6 +3002,12 @@ static ssize_t hdmi_hdr_status_show(struct device *dev,
 {
 	int pos = 0;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	/* pos = 4 */
+	if (hdr_status_pos == 4) {
+		pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-GAMMA_CUVA");
+		return pos;
+	}
 
 	/* pos = 3 */
 	if (hdr_status_pos == 3 || hdev->hdr10plus_feature) {

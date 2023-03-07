@@ -38,6 +38,12 @@
 struct emp_packet_st;
 enum vrr_component_conf;
 
+struct hdmi_packet_t {
+	u8 hb[3];
+	u8 pb[28];
+	u8 no_used; /* padding to 32 bytes */
+};
+
 #define HDCPTX_IOOPR		0x820000ab
 enum hdcptx_oprcmd {
 	HDCP_DEFAULT,
@@ -76,6 +82,7 @@ void hdmitx21_set_audioclk(u8 hdmitx_aud_clk_div);
 void hdmitx21_disable_clk(struct hdmitx_dev *hdev);
 u32 hdcp21_rd_hdcp22_ver(void);
 void hdmitx_infoframe_send(u16 info_type, u8 *body);
+void hdmitx_dhdr_send(u8 *body, int max_size);
 
 /* there are 2 ways to send out infoframes
  * xxx_infoframe_set() will take use of struct xxx_infoframe_set
