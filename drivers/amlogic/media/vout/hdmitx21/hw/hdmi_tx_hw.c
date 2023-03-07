@@ -64,6 +64,7 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, u32 cmd,
 static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 			    u32  argv);
 static enum hdmi_vic get_vic_from_pkt(void);
+static bool is_frl_mode(void);
 
 #define EDID_RAM_ADDR_SIZE	 (8)
 
@@ -463,6 +464,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 	hdmitx21_wr_reg(hdev->data->chip_type == MESON_CPU_ID_T7 ?
 		HDMITX_T7_TOP_INFILTER : HDMITX_S5_TOP_INFILTER, data32);
 	hdmitx21_set_reg_bits(AON_CYP_CTL_IVCTX, 2, 0, 2);
+	hdmitx21_set_reg_bits(PCLK2TMDS_MISC0_IVCTX, 0, 0, 2); /* Original DE generation logic */
 }
 
 int hdmitx21_uboot_audio_en(void)
@@ -659,6 +661,93 @@ void enable_crt_video_encp(u32 enable, u32 in_sel)
 	enable_crt_video_encl(enable, in_sel);
 }
 
+/* check the h_total with depth
+ * for example, VIC4, 720p60hz
+ * htotal will be 1650/8bit, 2062.5/10bit, 2475/12bit under tmds
+ * htotal will be 825/8bit, 1031.25/10bit, 1237.5/12bit under frl
+ * which will has the fraction.
+ * Under such case, the GCP phase will be dynamic value
+ */
+static bool is_deep_htotal_frac(bool frl_mode, u32 h_total,
+	enum hdmi_colorspace cs, enum hdmi_color_depth cd)
+{
+	if (frl_mode) {
+		if (cs == HDMI_COLORSPACE_YUV420) {
+			if (cd == COLORDEPTH_24B) {
+				if (h_total % 4)
+					return 1;
+			} else if (cd == COLORDEPTH_30B) {
+				if (h_total * 5 % 16)
+					return 1;
+			} else if (cd == COLORDEPTH_36B) {
+				if (h_total * 3 % 8)
+					return 1;
+			}
+		} else if (cs == HDMI_COLORSPACE_YUV444 || cs == HDMI_COLORSPACE_RGB) {
+			if (cd == COLORDEPTH_24B) {
+				if (h_total % 2)
+					return 1;
+			} else if (cd == COLORDEPTH_30B) {
+				if (h_total * 5 % 8)
+					return 1;
+			} else if (cd == COLORDEPTH_36B) {
+				if (h_total * 3 % 4)
+					return 1;
+			}
+		} else if (cs == HDMI_COLORSPACE_YUV422) {
+			if (h_total % 2)
+				return 1;
+		}
+	} else {
+		if (cs == HDMI_COLORSPACE_YUV420) {
+			if (cd == COLORDEPTH_24B) {
+				if (h_total % 2)
+					return 1;
+			} else if (cd == COLORDEPTH_30B) {
+				if (h_total * 5 % 8)
+					return 1;
+			} else if (cd == COLORDEPTH_36B) {
+				if (h_total * 3 % 4)
+					return 1;
+			}
+		} else if (cs == HDMI_COLORSPACE_YUV444 || cs == HDMI_COLORSPACE_RGB) {
+			if (cd == COLORDEPTH_24B) {
+				return 0;
+			} else if (cd == COLORDEPTH_30B) {
+				if (h_total * 5 % 4)
+					return 1;
+			} else if (cd == COLORDEPTH_36B) {
+				if (h_total * 3 % 2)
+					return 1;
+			}
+		} else if (cs == HDMI_COLORSPACE_YUV422) {
+			return 0;
+		}
+	}
+	return 0;
+}
+
+static bool is_deep_phase_unstable(enum hdmi_colorspace cs, enum hdmi_color_depth cd)
+{
+	u8 gcp_cur_st = (hdmitx21_rd_reg(GCP_CUR_STAT_IVCTX) >> 5) & 0x3;
+
+	pr_info("%s[%d] gcp_cur_st %d\n", __func__, __LINE__, gcp_cur_st);
+	if (cs == HDMI_COLORSPACE_YUV422) {
+		if (gcp_cur_st != 0)
+			return 1;
+	} else {
+		if (cd == COLORDEPTH_36B) {
+			if (gcp_cur_st != 0x2)
+				return 1;
+		} else {
+			if (gcp_cur_st)
+				return 1;
+		}
+	}
+
+	return 0;
+}
+
 //Enable HDMI_TX_PIXEL_CLK
 //Note: when in_sel == 15, select tcon_clko
 void enable_crt_video_hdmi(u32 enable, u32 in_sel, u8 enc_sel)
@@ -735,7 +824,7 @@ static void set_hdmitx_enc_idx(unsigned int val)
 	arm_smccc_smc(HDCPTX_IOOPR, CONF_ENC_IDX, 1, !!val, 0, 0, 0, 0, &res);
 }
 
-static int dfm_type = 2;
+static int dfm_type;
 module_param(dfm_type, int, 0644);
 MODULE_PARM_DESC(dfm_type, "for dfm debug");
 
@@ -960,8 +1049,35 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	vinfo = get_current_vinfo();
 	if (vinfo) {
 		vinfo->cur_enc_ppc = 1;
-		if (hdmitx21_rd_reg(HDMITX_TOP_BIST_CNTL) & (1 << 19))
+		if (is_frl_mode())
 			vinfo->cur_enc_ppc = 4;
+	}
+	/* check the deep color phase */
+	{
+		enum hdmi_colorspace cs = hdev->para->cs;
+		enum hdmi_color_depth cd = hdev->para->cd;
+		unsigned int h_total = para->timing.h_total;
+		bool h_unstable = 0;
+		int loop = 20;
+
+		h_unstable = is_deep_htotal_frac(0, h_total, cs, cd);
+		pr_info("%s[%d] frl_mode %d htotal %d cs %d cd %d h_unstable %d\n",
+			__func__, __LINE__, is_frl_mode(), h_total, cs, cd, h_unstable);
+		if (!h_unstable) {
+			while (loop--) {
+				hdmitx21_set_reg_bits(INTR2_SW_TPI_IVCTX, 0, 1, 1);
+				mdelay(1);
+				hdmitx21_poll_reg(INTR2_SW_TPI_IVCTX, 1 << 1, ~(1 << 1), HZ / 100);
+				if (is_deep_phase_unstable(cs, cd)) {
+					/* reset pfifo */
+					hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 1, 1, 1);
+					hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 0, 1, 1);
+					continue;
+				} else {
+					break;
+				}
+			}
+		}
 	}
 
 	hdmitx_set_phy(hdev);
@@ -2380,6 +2496,11 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, u32 cmd,
 	return ret;
 }
 
+static bool is_frl_mode(void)
+{
+	return !!(hdmitx21_rd_reg(HDMITX_TOP_BIST_CNTL) & (1 << 19));
+}
+
 static int hdmitx_tmds_rxsense(void)
 {
 	int ret = 0;
@@ -2422,7 +2543,7 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 
 	switch (cmd) {
 	case MISC_IS_FRL_MODE:
-		return !!(hdmitx21_rd_reg(HDMITX_TOP_BIST_CNTL) & (1 << 19));
+		return is_frl_mode();
 	case MISC_CLK_DIV_RST:
 		hdmitx21_s5_clk_div_rst(argv);
 		break;

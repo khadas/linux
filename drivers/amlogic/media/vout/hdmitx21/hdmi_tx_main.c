@@ -826,10 +826,22 @@ static int set_disp_mode_auto(void)
 	} else {
 	/* nothing */
 	}
+
 	hdev->frl_rate = FRL_NONE;
 	if (hdev->rxcap.max_frl_rate) {
+		u8 sink_ver = scdc_tx_sink_version_get();
+		u8 test_cfg = 0;
+
+		if (!sink_ver)
+			pr_info("sink version %d\n", sink_ver);
+		scdc_tx_source_version_set(1);
+		test_cfg = scdc_tx_source_test_cfg_get();
 		hdev->frl_rate = hdmitx21_select_frl_rate(hdev->dsc_en, vic,
 			hdev->para->cs, hdev->para->cd);
+		if (test_cfg & FRL_MAX) {
+			hdev->frl_rate = min(hdev->tx_max_frl_rate, hdev->rxcap.max_frl_rate);
+			pr_info("choose frl_max %d\n", hdev->frl_rate);
+		}
 		if (hdev->frl_rate > hdev->tx_max_frl_rate)
 			pr_info("Current frl_rate %d is larger than tx_max_frl_rate %d\n",
 				hdev->frl_rate, hdev->tx_max_frl_rate);

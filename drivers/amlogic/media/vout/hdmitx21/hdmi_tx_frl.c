@@ -38,7 +38,7 @@ u32 get_frl_bandwidth(const enum frl_rate_enum rate)
 	};
 
 	if (rate > FRL_12G4L)
-		return 0;
+		return frl_bandwidth[FRL_12G4L];
 	return frl_bandwidth[rate];
 }
 
@@ -455,11 +455,11 @@ tx_lts_3:
 		while (!(b_time_out = time_after(jiffies, frl_tmo)) || p->flt_no_timeout) {
 			u8 lane;
 			u16 ltp0123;
+			static u16 ltp_pre;
 
 			/* waits for FLT_update flag, poll every 2 ms or less */
 			if (!query_flt_update(p))
 				continue;
-
 			/* FLT_update flag = 1, Source reads Ln(x)_LTP_req */
 			ltp0123 = scdc_tx_ltp0123_get();
 			/* handle each Ln(x)_LTP_req registers */
@@ -480,15 +480,16 @@ tx_lts_3:
 					/* Source updates FFE setting for the specific Lane */
 					if ((ltp0123 & mask) == (0xEEEE & mask))
 						check_ffe_change_request(p, lane);
-					else if ((ltp0123 & mask) == (0x3333 & mask) &&
-						p->flt_no_timeout)
-						check_pattern_change(p, lane, ltp0123);
+					else if ((ltp0123 & mask) == (0x3333 & mask))
+						check_pattern_change(p, lane,
+							p->flt_no_timeout ? ltp0123 : ltp_pre);
 					/* Source transmits Ln(x)_LTP_req register 1 ~ 8 */
 					else if ((ltp0123 & mask) != 0)
 						check_pattern_change(p, lane, ltp0123);
 				}
 			}
-
+			if (ltp_pre != ltp0123)
+				ltp_pre = ltp0123;
 			/* clear the FLT_update within 10 ms */
 			clrear_flt_update(p);
 			pr_info("LTS:3 LTP=0x%04x  cost %ld ms\n", ltp0123,
@@ -545,11 +546,11 @@ tx_lts_4:
 			frl_tx_callback(FRL_EVENT_LEGACY);
 			/* disable hdcp if fallback to legacy mode */
 			hdmitx21_disable_hdcp(hdev);
+			p->flt_timeout = 0;
 		}
-
-		if (p->ds_frl_support && p->req_frl_mode)
-			/* requests a new FRL mode, goto LTS:2 */
-			p->flt_tx_state = FLT_TX_LTS_2;
+		// if (p->ds_frl_support && p->req_frl_mode)
+		//	// requests a new FRL mode, goto LTS:2
+		//	p->flt_tx_state = FLT_TX_LTS_2;
 
 		p->req_legacy_mode = false;
 

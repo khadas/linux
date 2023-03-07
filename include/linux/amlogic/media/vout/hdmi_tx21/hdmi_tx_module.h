@@ -131,7 +131,7 @@ struct rx_cap {
 	u32 dc_30bit_420:1;
 	u32 dc_36bit_420:1;
 	u32 dc_48bit_420:1;
-	enum frl_rate_enum max_frl_rate:4;
+	enum frl_rate_enum max_frl_rate;
 	u32 cnc0:1; /* Graphics */
 	u32 cnc1:1; /* Photo */
 	u32 cnc2:1; /* Cinema */
@@ -418,9 +418,9 @@ struct hdmitx_dev {
 	u8 force_audio_flag;
 	u8 mux_hpd_if_pin_high_flag;
 	int aspect_ratio;	/* 1, 4:3; 2, 16:9 */
-	u8 manual_frl_rate; /* for manual setting */
-	u8 frl_rate; /* for mode setting */
-	u8 tx_max_frl_rate; /* configure in dts file */
+	enum frl_rate_enum manual_frl_rate; /* for manual setting */
+	enum frl_rate_enum frl_rate; /* for mode setting */
+	enum frl_rate_enum tx_max_frl_rate; /* configure in dts file */
 	u8 dsc_en;
 	struct hdmitx_info hdmi_info;
 	u32 log;
