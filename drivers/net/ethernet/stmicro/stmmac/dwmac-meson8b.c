@@ -422,6 +422,7 @@ static void set_wol_notify_bl30(u32 enable_bl30)
 	scpi_set_ethernet_wol(enable_bl30);
 }
 #endif
+unsigned int internal_phy;
 static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac *dwmac)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -434,6 +435,9 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 		pr_info("cover mc_val as 0x%x\n", mc_val);
 		writel(mc_val, dwmac->regs + PRG_ETH0);
 	}
+
+	if (of_property_read_u32(np, "internal_phy", &internal_phy) != 0)
+		pr_info("use default internal_phy as 0\n");
 
 	ndev->wol_enabled = true;
 	return 0;
@@ -596,8 +600,10 @@ static void meson8b_dwmac_shutdown(struct platform_device *pdev)
 
 	pr_info("aml_eth_shutdown\n");
 	ret = stmmac_suspend(priv->device);
-	if (dwmac->data->suspend)
-		ret = dwmac->data->suspend(dwmac);
+	if (internal_phy != 2) {
+		if (dwmac->data->suspend)
+			ret = dwmac->data->suspend(dwmac);
+	}
 }
 
 static int dwmac_suspend(struct meson8b_dwmac *dwmac)
@@ -622,6 +628,7 @@ static void dwmac_resume(struct meson8b_dwmac *dwmac)
 }
 
 int backup_adv;
+int without_reset;
 static int meson8b_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
@@ -631,8 +638,8 @@ static int meson8b_suspend(struct device *dev)
 
 	int ret;
 
-	/*open wol*/
-	if (wol_switch_from_user) {
+	/*open wol, shutdown phy when not link*/
+	if ((wol_switch_from_user) && phydev->link) {
 		set_wol_notify_bl31(true);
 		set_wol_notify_bl30(true);
 		device_init_wakeup(dev, true);
@@ -645,14 +652,18 @@ static int meson8b_suspend(struct device *dev)
 		genphy_restart_aneg(phydev);
 		msleep(3000);
 		ret = stmmac_suspend(dev);
+		without_reset = 1;
 	} else {
 		set_wol_notify_bl31(false);
 		set_wol_notify_bl30(false);
 		device_init_wakeup(dev, false);
 
 		ret = stmmac_suspend(dev);
-		if (dwmac->data->suspend)
-			ret = dwmac->data->suspend(dwmac);
+		if (internal_phy != 2) {
+			if (dwmac->data->suspend)
+				ret = dwmac->data->suspend(dwmac);
+		}
+		without_reset = 0;
 	}
 
 	return ret;
@@ -668,7 +679,7 @@ static int meson8b_resume(struct device *dev)
 
 	priv->wolopts = 0;
 
-	if (wol_switch_from_user) {
+	if ((wol_switch_from_user) && (without_reset)) {
 		ret = stmmac_resume(dev);
 
 		if (get_resume_method() == ETH_PHY_WAKEUP) {
@@ -685,9 +696,13 @@ static int meson8b_resume(struct device *dev)
 		mii_lpa_to_linkmode_lpa_t(phydev->advertising, backup_adv);
 		genphy_restart_aneg(phydev);
 	} else {
-		if (dwmac->data->resume)
-			dwmac->data->resume(dwmac);
+		if (internal_phy != 2) {
+			if (dwmac->data->resume)
+				dwmac->data->resume(dwmac);
+		}
 		ret = stmmac_resume(dev);
+		pr_info("wzh %s\n", __func__);
+		stmmac_global_err(priv);
 	}
 	return ret;
 }
