@@ -46,6 +46,9 @@
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
+#ifdef CONFIG_AMLOGIC_PINCTRL
+#include <linux/gpio/consumer.h>
+#endif
 
 
 #define GTP_CONFIG_OF
@@ -209,6 +212,7 @@ extern int gtp_int_gpio;
 
 #define GTP_GPIO_AS_INPUT(pin)          do{\
                                             gpio_direction_input(pin);\
+                                            gpiod_set_pull(gpio_to_desc(pin), GPIOD_PULL_DIS);\
                                         }while(0)
 #define GTP_GPIO_AS_INT(pin)            do{\
                                             GTP_GPIO_AS_INPUT(pin);\

@@ -20,6 +20,7 @@
 
 #include <linux/irq.h>
 #include "gt9xx.h"
+#include <linux/khadas-tca6408.h>
 
 #if GTP_ICS_SLOT_REPORT
     #include <linux/input/mt.h>
@@ -1074,6 +1075,7 @@ Input:
 Output:
     None.
 *******************************************************/
+extern int tca6408_output_set_value(u8 value, u8 mask);
 void gtp_reset_guitar(struct i2c_client *client, s32 ms)
 {
 #if GTP_COMPATIBLE_MODE
@@ -1082,17 +1084,20 @@ void gtp_reset_guitar(struct i2c_client *client, s32 ms)
 
     GTP_DEBUG_FUNC();
     GTP_INFO("Guitar reset");
-    GTP_GPIO_OUTPUT(gtp_rst_gpio, 0);   // begin select I2C slave addr
+
+    tca6408_output_set_value((0 << 6), TCA_TP_RST_MASK);
+    // GTP_GPIO_OUTPUT(gtp_rst_gpio, 0);   // begin select I2C slave addr
     msleep(ms);                         // T2: > 10ms
     // HIGH: 0x28/0x29, LOW: 0xBA/0xBB
     GTP_GPIO_OUTPUT(gtp_int_gpio, client->addr == 0x14);
 
     msleep(2);                          // T3: > 100us
-    GTP_GPIO_OUTPUT(gtp_rst_gpio, 1);
+    tca6408_output_set_value((1 << 6), TCA_TP_RST_MASK);
+    // GTP_GPIO_OUTPUT(gtp_rst_gpio, 1);
 
     msleep(6);                          // T4: > 5ms
 
-    GTP_GPIO_AS_INPUT(gtp_rst_gpio);    // end select I2C slave addr
+    // GTP_GPIO_AS_INPUT(gtp_rst_gpio);    // end select I2C slave addr
 
 #if GTP_COMPATIBLE_MODE
     if (CHIP_TYPE_GT9F == ts->chip_type)
@@ -1737,6 +1742,7 @@ static s8 gtp_request_io_port(struct goodix_ts_data *ts)
     GTP_GPIO_AS_INT(gtp_int_gpio);
     ts->client->irq = gpio_to_irq(gtp_int_gpio);
 
+/*
     ret = GTP_GPIO_REQUEST(gtp_rst_gpio, "GTP RST PORT");
     if (ret < 0)
     {
@@ -1746,7 +1752,7 @@ static s8 gtp_request_io_port(struct goodix_ts_data *ts)
     }
 
     GTP_GPIO_AS_INPUT(gtp_rst_gpio);
-
+*/
     gtp_reset_guitar(ts->client, 20);
 
     return 0;
@@ -2594,7 +2600,7 @@ err_request_input_dev:
 #endif
 err_chip_init:
 	GTP_GPIO_FREE(gtp_int_gpio);
-	GTP_GPIO_FREE(gtp_rst_gpio);
+	//GTP_GPIO_FREE(gtp_rst_gpio);
 err_request_io_port:
 #ifdef GTP_CONFIG_OF
 	gtp_power_switch(client, 0);
