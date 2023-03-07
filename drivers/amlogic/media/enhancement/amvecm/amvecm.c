@@ -5610,28 +5610,39 @@ static ssize_t amvecm_post_matrix_data_show(struct class *cla,
 					    char *buf)
 {
 	int len = 0, val1 = 0, val2 = 0;
+	u8 bit_depth = 12;
+	u32 probe_color, probe_color1;
+
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
-	    !is_meson_s4d_cpu() && !is_meson_s4_cpu())
-		val1 = READ_VPP_REG(VPP_PROBE_COLOR);
-	else
-		val1 = READ_VPP_REG(VPP_MATRIX_PROBE_COLOR);
-	if (is_meson_t7_cpu()) {
-		val2 = READ_VPP_REG(VPP_PROBE_COLOR1);
-		len += sprintf(buf + len,
-		"VPP_MATRIX_PROBE_COLOR %d, %d, %d\n",
-		((val2 & 0xf) << 8) | ((val1 >> 24) & 0xff),
-		(val1 >> 12) & 0xfff, val1 & 0xfff);
-	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
+		!is_meson_s4d_cpu() && !is_meson_s4_cpu()) {
+		probe_color = VPP_PROBE_COLOR;
+		probe_color1 = VPP_PROBE_COLOR1;
+	} else {
+		probe_color = VPP_MATRIX_PROBE_COLOR;
+		probe_color1 = VPP_MATRIX_PROBE_COLOR1;
+	}
+
+	if (is_meson_tl1_cpu() ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5D ||
+	    is_meson_s4_cpu() ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
+		bit_depth = 10;
+
+	if (bit_depth == 10) {
+		val1 = READ_VPP_REG(probe_color);
 		len += sprintf(buf + len,
 		"VPP_MATRIX_PROBE_COLOR %d, %d, %d\n",
 		(val1 >> 20) & 0x3ff,
 		(val1 >> 10) & 0x3ff,
 		(val1 >> 0) & 0x3ff);
 	} else {
-		val2 = READ_VPP_REG(VPP_MATRIX_PROBE_COLOR1);
+		val1 = READ_VPP_REG(probe_color);
+		val2 = READ_VPP_REG(probe_color1);
 		len += sprintf(buf + len,
-		"VPP_MATRIX_PROBE_COLOR %x, %x, %x\n",
+		"VPP_MATRIX_PROBE_COLOR %d, %d, %d\n",
 		((val2 & 0xf) << 8) | ((val1 >> 24) & 0xff),
 		(val1 >> 12) & 0xfff, val1 & 0xfff);
 	}
