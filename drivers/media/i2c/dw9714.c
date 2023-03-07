@@ -1083,85 +1083,6 @@ static int dw9714_parse_dt_property(struct i2c_client *client,
 	return 0;
 }
 
-static int dw9714_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
-{
-	struct dw9714_device *dw9714_dev;
-	struct v4l2_subdev *sd;
-	char facing[2];
-	int ret;
-
-	dev_info(&client->dev, "probing...\n");
-	dw9714_dev = devm_kzalloc(&client->dev, sizeof(*dw9714_dev),
-				  GFP_KERNEL);
-	if (dw9714_dev == NULL)
-		return -ENOMEM;
-
-	ret = dw9714_parse_dt_property(client, dw9714_dev);
-	if (ret)
-		return ret;
-	v4l2_i2c_subdev_init(&dw9714_dev->sd, client, &dw9714_ops);
-	dw9714_dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	dw9714_dev->sd.internal_ops = &dw9714_int_ops;
-
-	dw9714_dev->max_logicalpos = VCMDRV_MAX_LOG;
-	ret = dw9714_init_controls(dw9714_dev);
-	if (ret)
-		goto err_cleanup;
-
-	ret = media_entity_pads_init(&dw9714_dev->sd.entity, 0, NULL);
-	if (ret < 0)
-		goto err_cleanup;
-
-	sd = &dw9714_dev->sd;
-	sd->entity.function = MEDIA_ENT_F_LENS;
-
-	memset(facing, 0, sizeof(facing));
-	if (strcmp(dw9714_dev->module_facing, "back") == 0)
-		facing[0] = 'b';
-	else
-		facing[0] = 'f';
-
-	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
-		 dw9714_dev->module_index, facing,
-		 DW9714_NAME, dev_name(sd->dev));
-	ret = v4l2_async_register_subdev(sd);
-	if (ret)
-		dev_err(&client->dev, "v4l2 async register subdev failed\n");
-
-	dw9714_update_vcm_cfg(dw9714_dev);
-	dw9714_dev->move_ms = 0;
-	dw9714_dev->current_related_pos = dw9714_dev->max_logicalpos;
-	dw9714_dev->current_lens_pos = dw9714_dev->start_current;
-	dw9714_dev->start_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
-	dw9714_dev->end_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
-	dw9714_dev->vcm_movefull_t =
-		dw9714_move_time(dw9714_dev, DW9714_MAX_REG);
-	pm_runtime_enable(&client->dev);
-
-	add_sysfs_interfaces(&client->dev);
-	dev_info(&client->dev, "probing successful\n");
-
-	return 0;
-
-err_cleanup:
-	dw9714_subdev_cleanup(dw9714_dev);
-	dev_err(&client->dev, "Probe failed: %d\n", ret);
-	return ret;
-}
-
-static int dw9714_remove(struct i2c_client *client)
-{
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct dw9714_device *dw9714_dev = sd_to_dw9714_vcm(sd);
-
-	remove_sysfs_interfaces(&client->dev);
-	pm_runtime_disable(&client->dev);
-	dw9714_subdev_cleanup(dw9714_dev);
-
-	return 0;
-}
-
 static int dw9714_init(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -1246,6 +1167,90 @@ static int dw9714_init(struct i2c_client *client)
 err:
 	dev_err(&client->dev, "failed with error %d\n", ret);
 	return -1;
+}
+
+static int dw9714_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
+{
+	struct dw9714_device *dw9714_dev;
+	struct v4l2_subdev *sd;
+	char facing[2];
+	int ret;
+
+	dev_info(&client->dev, "probing...\n");
+	dw9714_dev = devm_kzalloc(&client->dev, sizeof(*dw9714_dev),
+				  GFP_KERNEL);
+	if (dw9714_dev == NULL)
+		return -ENOMEM;
+
+	ret = dw9714_parse_dt_property(client, dw9714_dev);
+	if (ret)
+		return ret;
+	v4l2_i2c_subdev_init(&dw9714_dev->sd, client, &dw9714_ops);
+	dw9714_dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	dw9714_dev->sd.internal_ops = &dw9714_int_ops;
+
+	dw9714_dev->max_logicalpos = VCMDRV_MAX_LOG;
+	ret = dw9714_init_controls(dw9714_dev);
+	if (ret)
+		goto err_cleanup;
+
+	ret = media_entity_pads_init(&dw9714_dev->sd.entity, 0, NULL);
+	if (ret < 0)
+		goto err_cleanup;
+
+	ret = dw9714_init(client);
+	printk("hlm dw9714_probe ret=%d\n", ret);
+	if(ret!=0)
+		goto err_cleanup;
+
+	sd = &dw9714_dev->sd;
+	sd->entity.function = MEDIA_ENT_F_LENS;
+
+	memset(facing, 0, sizeof(facing));
+	if (strcmp(dw9714_dev->module_facing, "back") == 0)
+		facing[0] = 'b';
+	else
+		facing[0] = 'f';
+
+	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
+		 dw9714_dev->module_index, facing,
+		 DW9714_NAME, dev_name(sd->dev));
+	ret = v4l2_async_register_subdev(sd);
+	if (ret)
+		dev_err(&client->dev, "v4l2 async register subdev failed\n");
+
+	dw9714_update_vcm_cfg(dw9714_dev);
+	dw9714_dev->move_ms = 0;
+	dw9714_dev->current_related_pos = dw9714_dev->max_logicalpos;
+	dw9714_dev->current_lens_pos = dw9714_dev->start_current;
+	dw9714_dev->start_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
+	dw9714_dev->end_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
+	dw9714_dev->vcm_movefull_t =
+		dw9714_move_time(dw9714_dev, DW9714_MAX_REG);
+	pm_runtime_enable(&client->dev);
+
+	add_sysfs_interfaces(&client->dev);
+	dev_info(&client->dev, "probing successful\n");
+
+	return 0;
+
+err_cleanup:
+	dw9714_subdev_cleanup(dw9714_dev);
+	dev_err(&client->dev, "Probe failed: %d\n", ret);
+	return ret;
+}
+
+static int dw9714_remove(struct i2c_client *client)
+{
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct dw9714_device *dw9714_dev = sd_to_dw9714_vcm(sd);
+
+	remove_sysfs_interfaces(&client->dev);
+	pm_runtime_disable(&client->dev);
+	dw9714_subdev_cleanup(dw9714_dev);
+
+	return 0;
 }
 
 static int __maybe_unused dw9714_vcm_suspend(struct device *dev)
