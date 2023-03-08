@@ -636,8 +636,8 @@ static int lcd_tcon_axi_mem_print(char *buf, int offset)
 		}
 		n = lcd_debug_info_len(len + offset);
 		len += snprintf((buf + len), n,
-			"axi_mem[%d]_paddr:  0x%lx (%s)\n"
-			"axi_mem[%d]_size:   0x%x\n",
+			"axi_mem[%d] paddr: 0x%lx (%s)\n"
+			"axi_mem[%d] size:  0x%x\n",
 			i, (unsigned long)tcon_rmem.axi_rmem[i].mem_paddr, sec_cfg,
 			i, tcon_rmem.axi_rmem[i].mem_size);
 	}
@@ -647,8 +647,9 @@ static int lcd_tcon_axi_mem_print(char *buf, int offset)
 
 int lcd_tcon_info_print(char *buf, int offset)
 {
-	unsigned int size, cnt, m, sec_protect, sec_handle, *data;
+	unsigned int size, file_size, cnt, m, sec_protect, sec_handle, *data;
 	unsigned char *mem_vaddr;
+	struct tcon_data_list_s *cur_list;
 	char *str;
 	int len = 0, n, i, ret;
 
@@ -657,128 +658,103 @@ int lcd_tcon_info_print(char *buf, int offset)
 		return len;
 
 	n = lcd_debug_info_len(len + offset);
-	if (tcon_mm_table.version == 0) {
-		len += snprintf((buf + len), n,
+	len += snprintf((buf + len), n,
 			"\ntcon info:\n"
-			"core_reg_width:         %d\n"
-			"reg_table_len:          %d\n"
-			"tcon_bin_ver:           %s\n"
-			"tcon_rmem_flag:         %d\n"
-			"bin_path init_load:     %d\n"
-			"bin_path data_flag:     %d\n"
-			"reserved_mem paddr:     0x%lx\n"
-			"reserved_mem size:      0x%x\n"
-			"bin_path_mem_paddr:     0x%lx\n"
-			"bin_path_mem_vaddr:     0x%p\n"
-			"bin_path_mem_size:      0x%x\n"
-			"vac_mem paddr:          0x%lx\n"
-			"vac_mem vaddr:          0x%p\n"
-			"vac_mem size:           0x%x\n"
-			"demura_set_mem paddr:   0x%lx\n"
-			"demura_set_mem vaddr:   0x%p\n"
-			"demura_set_mem size:    0x%x\n"
-			"demura_lut_mem paddr:   0x%lx\n"
-			"demura_lut_mem vaddr:   0x%p\n"
-			"demura_lut_mem size:    0x%x\n"
-			"acc_lut_mem paddr:      0x%lx\n"
-			"acc_lut_mem vaddr:      0x%p\n"
-			"acc_lut_mem size:       0x%x\n\n",
+			"core_reg_width:  %d\n"
+			"reg_table_len:   %d\n"
+			"tcon_bin_ver:    %s\n"
+			"tcon_rmem_flag:  %d\n"
+			"rsv_mem paddr:      0x%lx\n"
+			"rsv_mem size:       0x%x\n"
+			"bin_path_mem paddr: 0x%lx\n"
+			"bin_path_mem vaddr: 0x%px\n"
+			"bin_path_mem size:  0x%x\n\n",
 			lcd_tcon_conf->core_reg_width,
 			lcd_tcon_conf->reg_table_len,
 			tcon_local_cfg.bin_ver,
 			tcon_rmem.flag,
-			tcon_mm_table.init_load,
-			tcon_mm_table.tcon_data_flag,
-			(unsigned long)tcon_rmem.rsv_mem_paddr,
-			tcon_rmem.rsv_mem_size,
-			(unsigned long)tcon_rmem.bin_path_rmem.mem_paddr,
-			tcon_rmem.bin_path_rmem.mem_vaddr,
-			tcon_rmem.bin_path_rmem.mem_size,
-			(unsigned long)tcon_rmem.vac_rmem.mem_paddr,
-			tcon_rmem.vac_rmem.mem_vaddr,
-			tcon_rmem.vac_rmem.mem_size,
-			(unsigned long)tcon_rmem.demura_set_rmem.mem_paddr,
-			tcon_rmem.demura_set_rmem.mem_vaddr,
-			tcon_rmem.demura_set_rmem.mem_size,
-			(unsigned long)tcon_rmem.demura_lut_rmem.mem_paddr,
-			tcon_rmem.demura_lut_rmem.mem_vaddr,
-			tcon_rmem.demura_lut_rmem.mem_size,
-			(unsigned long)tcon_rmem.acc_lut_rmem.mem_paddr,
-			tcon_rmem.acc_lut_rmem.mem_vaddr,
-			tcon_rmem.acc_lut_rmem.mem_size);
-		len += lcd_tcon_axi_mem_print((buf + len), (len + offset));
-	} else {
-		len += snprintf((buf + len), n,
-			"\ntcon info:\n"
-			"core_reg_width:       %d\n"
-			"reg_table_len:        %d\n"
-			"tcon_bin_ver:         %s\n"
-			"tcon_rmem_flag:       %d\n"
-			"bin_path init_load:   %d\n"
-			"bin_path data_flag:   %d\n"
-			"reserved_mem paddr:   0x%lx\n"
-			"reserved_mem size:    0x%x\n"
-			"bin_path_mem_paddr:   0x%lx\n"
-			"bin_path_mem_vaddr:   0x%px\n"
-			"bin_path_mem_size:    0x%x\n\n",
-			lcd_tcon_conf->core_reg_width,
-			lcd_tcon_conf->reg_table_len,
-			tcon_local_cfg.bin_ver,
-			tcon_rmem.flag,
-			tcon_mm_table.init_load,
-			tcon_mm_table.tcon_data_flag,
 			(unsigned long)tcon_rmem.rsv_mem_paddr,
 			tcon_rmem.rsv_mem_size,
 			(unsigned long)tcon_rmem.bin_path_rmem.mem_paddr,
 			tcon_rmem.bin_path_rmem.mem_vaddr,
 			tcon_rmem.bin_path_rmem.mem_size);
+
+	if (tcon_rmem.flag) {
 		len += lcd_tcon_axi_mem_print((buf + len), (len + offset));
-		if (tcon_mm_table.data_mem_vaddr && tcon_mm_table.data_size) {
+		if (tcon_mm_table.version == 0) {
 			n = lcd_debug_info_len(len + offset);
 			len += snprintf((buf + len), n,
-				"data_mem block_cnt:   %d\n",
-				tcon_mm_table.block_cnt);
-			for (i = 0; i < tcon_mm_table.block_cnt; i++) {
+				"vac_mem paddr: 0x%lx\n"
+				"vac_mem vaddr: 0x%p\n"
+				"vac_mem size:  0x%x\n"
+				"demura_set_mem paddr: 0x%lx\n"
+				"demura_set_mem vaddr: 0x%p\n"
+				"demura_set_mem size:  0x%x\n"
+				"demura_lut_mem paddr: 0x%lx\n"
+				"demura_lut_mem vaddr: 0x%p\n"
+				"demura_lut_mem size:  0x%x\n"
+				"acc_lut_mem paddr: 0x%lx\n"
+				"acc_lut_mem vaddr: 0x%p\n"
+				"acc_lut_mem size:  0x%x\n\n",
+				(unsigned long)tcon_rmem.vac_rmem.mem_paddr,
+				tcon_rmem.vac_rmem.mem_vaddr,
+				tcon_rmem.vac_rmem.mem_size,
+				(unsigned long)tcon_rmem.demura_set_rmem.mem_paddr,
+				tcon_rmem.demura_set_rmem.mem_vaddr,
+				tcon_rmem.demura_set_rmem.mem_size,
+				(unsigned long)tcon_rmem.demura_lut_rmem.mem_paddr,
+				tcon_rmem.demura_lut_rmem.mem_vaddr,
+				tcon_rmem.demura_lut_rmem.mem_size,
+				(unsigned long)tcon_rmem.acc_lut_rmem.mem_paddr,
+				tcon_rmem.acc_lut_rmem.mem_vaddr,
+				tcon_rmem.acc_lut_rmem.mem_size);
+		} else {
+			if (tcon_mm_table.data_mem_vaddr && tcon_mm_table.data_size) {
 				n = lcd_debug_info_len(len + offset);
 				len += snprintf((buf + len), n,
-					"data_mem_vaddr[%d]: 0x%px\n"
-					"data_mem_size[%d]:  0x%x\n",
-					i, tcon_mm_table.data_mem_vaddr[i],
-					i, tcon_mm_table.data_size[i]);
+					"data_mem block_cnt: %d\n",
+					tcon_mm_table.block_cnt);
+				for (i = 0; i < tcon_mm_table.block_cnt; i++) {
+					n = lcd_debug_info_len(len + offset);
+					len += snprintf((buf + len), n,
+						"data_mem[%d] vaddr: 0x%px\n"
+						"data_mem[%d] size:  0x%x\n",
+						i, tcon_mm_table.data_mem_vaddr[i],
+						i, tcon_mm_table.data_size[i]);
+				}
 			}
-		}
-		if (tcon_mm_table.data_multi_cnt > 0 && tcon_mm_table.data_multi) {
-			n = lcd_debug_info_len(len + offset);
-			len += snprintf((buf + len), n,
-				"tcon multi_update: %d\n",
-				tcon_mm_table.multi_lut_update);
-			for (i = 0; i < tcon_mm_table.data_multi_cnt; i++) {
+			if (tcon_mm_table.data_multi_cnt > 0 && tcon_mm_table.data_multi) {
 				n = lcd_debug_info_len(len + offset);
 				len += snprintf((buf + len), n,
-					"data_multi[%d] current (bypass:%d):\n",
-					i, tcon_mm_table.data_multi[i].bypass_flag);
-				if (!tcon_mm_table.data_multi[i].list_cur) {
+					"tcon multi_update: %d\n",
+					tcon_mm_table.multi_lut_update);
+				for (i = 0; i < tcon_mm_table.data_multi_cnt; i++) {
 					n = lcd_debug_info_len(len + offset);
 					len += snprintf((buf + len), n,
-						"  type:      0x%x\n"
-						"  list_cnt:  %d\n"
-						"  list_cur:  NULL\n",
-						tcon_mm_table.data_multi[i].block_type,
-						tcon_mm_table.data_multi[i].list_cnt);
-				} else {
-					n = lcd_debug_info_len(len + offset);
-					len += snprintf((buf + len), n,
-						"  type:      0x%x\n"
-						"  list_cnt:  %d\n"
-						"  sel_id:    %d\n"
-						"  sel_name:  %s\n"
-						"  sel_range: %d,%d\n",
-						tcon_mm_table.data_multi[i].block_type,
-						tcon_mm_table.data_multi[i].list_cnt,
-						tcon_mm_table.data_multi[i].list_cur->id,
-						tcon_mm_table.data_multi[i].list_cur->block_name,
-						tcon_mm_table.data_multi[i].list_cur->min,
-						tcon_mm_table.data_multi[i].list_cur->max);
+						"data_multi[%d] current (bypass:%d):\n",
+						i, tcon_mm_table.data_multi[i].bypass_flag);
+					if (!tcon_mm_table.data_multi[i].list_cur) {
+						n = lcd_debug_info_len(len + offset);
+						len += snprintf((buf + len), n,
+							"  type:      0x%x\n"
+							"  list_cnt:  %d\n"
+							"  list_cur:  NULL\n",
+							tcon_mm_table.data_multi[i].block_type,
+							tcon_mm_table.data_multi[i].list_cnt);
+					} else {
+						cur_list = tcon_mm_table.data_multi[i].list_cur;
+						n = lcd_debug_info_len(len + offset);
+						len += snprintf((buf + len), n,
+							"  type:      0x%x\n"
+							"  list_cnt:  %d\n"
+							"  sel_id:    %d\n"
+							"  sel_name:  %s\n"
+							"  sel_range: %d,%d\n",
+							tcon_mm_table.data_multi[i].block_type,
+							tcon_mm_table.data_multi[i].list_cnt,
+							cur_list->id, cur_list->block_name,
+							cur_list->min, cur_list->max);
+					}
 				}
 			}
 		}
@@ -786,42 +762,38 @@ int lcd_tcon_info_print(char *buf, int offset)
 
 	if (tcon_rmem.bin_path_rmem.mem_vaddr) {
 		mem_vaddr = tcon_rmem.bin_path_rmem.mem_vaddr;
-		size = mem_vaddr[4] |
-			(mem_vaddr[5] << 8) |
-			(mem_vaddr[6] << 16) |
-			(mem_vaddr[7] << 24);
-		cnt = mem_vaddr[16] |
-			(mem_vaddr[17] << 8) |
-			(mem_vaddr[18] << 16) |
-			(mem_vaddr[19] << 24);
+		size = *(unsigned int *)&mem_vaddr[4];
+		cnt = *(unsigned int *)&mem_vaddr[16];
 		if (size < (32 + 256 * cnt))
 			return len;
 		if (cnt > 32)
 			return len;
 		n = lcd_debug_info_len(len + offset);
-		len += snprintf((buf + len), n, "\nbin_path cnt: %d\n", cnt);
+		len += snprintf((buf + len), n,
+			"\nbin_path cnt: %d\n"
+			"init_load:    %d\n"
+			"data_flag:    %d\n",
+			cnt, tcon_mm_table.init_load,
+			tcon_mm_table.tcon_data_flag);
 		for (i = 0; i < cnt; i++) {
 			m = 32 + 256 * i;
-			size = mem_vaddr[m] |
-				(mem_vaddr[m + 1] << 8) |
-				(mem_vaddr[m + 2] << 16) |
-				(mem_vaddr[m + 3] << 24);
+			file_size = *(unsigned int *)&mem_vaddr[m];
 			str = (char *)&mem_vaddr[m + 4];
 			n = lcd_debug_info_len(len + offset);
 			len += snprintf((buf + len), n,
-					"bin_path[%d]: size: 0x%x, %s\n",
-					i, size, str);
+				"bin[%d]: size: 0x%x, %s\n", i, file_size, str);
 		}
 	}
+
 	if (tcon_rmem.secure_cfg_rmem.mem_vaddr) {
 		data = (unsigned int *)tcon_rmem.secure_cfg_rmem.mem_vaddr;
 		cnt = lcd_tcon_conf->axi_bank;
 		n = lcd_debug_info_len(len + offset);
 		len += snprintf((buf + len), n,
 			"\nsecure_cfg rsv_mem:\n"
-			"mem_paddr:  0x%lx\n"
-			"mem_vaddr:  0x%px\n"
-			"mem_size:   0x%x\n",
+			"mem_paddr: 0x%lx\n"
+			"mem_vaddr: 0x%px\n"
+			"mem_size:  0x%x\n",
 			(unsigned long)tcon_rmem.secure_cfg_rmem.mem_paddr,
 			tcon_rmem.secure_cfg_rmem.mem_vaddr,
 			tcon_rmem.secure_cfg_rmem.mem_size);
@@ -831,17 +803,17 @@ int lcd_tcon_info_print(char *buf, int offset)
 			sec_handle = *(data + m + 1);
 			n = lcd_debug_info_len(len + offset);
 			len += snprintf((buf + len), n,
-					"  [%d]: protect: %d, handle: %d\n",
-					i,  sec_protect, sec_handle);
+				"  [%d]: protect: %d, handle: %d\n",
+				i,  sec_protect, sec_handle);
 		}
 	}
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
 		"\ntcon_status:\n"
-		"vac_valid:      %d\n"
-		"demura_valid:   %d\n"
-		"acc_valid:      %d\n",
+		"vac_valid:     %d\n"
+		"demura_valid:  %d\n"
+		"acc_valid:     %d\n",
 		((tcon_mm_table.valid_flag >> LCD_TCON_DATA_VALID_VAC) & 0x1),
 		((tcon_mm_table.valid_flag >> LCD_TCON_DATA_VALID_DEMURA) & 0x1),
 		((tcon_mm_table.valid_flag >> LCD_TCON_DATA_VALID_ACC) & 0x1));
@@ -2766,7 +2738,7 @@ int lcd_tcon_mem_tee_protect(int mem_flag, int protect_en)
 	/* mem_flag 0: od secure mem 1: demura_lut mem*/
 	if (protect_en) {
 		if (tcon_rmem.axi_rmem[mem_flag].sec_protect) {
-			LCDPR("%s: axi_mem[%d] is alreay protected\n", __func__, mem_flag);
+			LCDPR("%s: axi_mem[%d] is already protected\n", __func__, mem_flag);
 			return 0;
 		}
 
