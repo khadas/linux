@@ -22,8 +22,11 @@
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_drv_ext.h"
 
-//added interlaced mode protection 2023.03.01
-#define RX_VER0 "ver.2023/03/01"
+//2023.03.01
+//added interlaced mode protection
+//2023.03.01
+//optimize the judgment condition of unnormal timing
+#define RX_VER0 "ver.2023/03/08"
 
 /*print type*/
 #define	LOG_EN		0x01

@@ -177,9 +177,6 @@ static u32 hdcp22_esm_reset2_enable;
 int sm_pause;
 int pre_port = 0xff;
 u32 vsync_err_cnt_max = 10;
-/* waiting time cannot be reduced 10*10*/
-/* it will cause hdcp1.4 cts fail */
-static int hdcp_none_wait_max = 10;
 static int esd_phy_rst_cnt;
 static int esd_phy_rst_max;
 static int cec_dev_info;
@@ -191,6 +188,17 @@ static bool term_flag = 1;
 u32 vpp_mute_enable = 1;
 int clk_chg_cnt;
 int clk_chg_max = 3;
+// 1. connected to a non-hdcp device
+// for dv_cts HDMI 40-47 switch input per 2s
+// test equipment does not support hdcp.
+// 2. connected to a HDCP2.2 device
+// 2.1 fix appletv BSOD issue.
+// 2.2 for repeater. need to wait upstream's hdcp
+// communication to avoid black screen twice
+// 3. for hdcp1.4 cts. need to wait for hdcp start.
+// waiting time cannot be reduced 1S
+static int hdcp_none_wait_max = 80;
+
 
 void hdmirx_phy_var_init(void)
 {
@@ -398,6 +406,8 @@ int cec_set_dev_info(u8 dev_idx)
 {
 	cec_dev_info |= 1 << dev_idx;
 
+	if (rx.chip_id >= CHIP_ID_T7)
+		return 0;
 	if (dev_idx == 1)
 		hdcp_enc_mode = 1;
 	if (dev_idx == 2 && cec_dev_en)
@@ -1227,9 +1237,9 @@ static const struct freq_ref_s freq_ref[] = {
 	{0,	3,	0,	2048,	2160,	HDMI_4096p50_256x135_Y420},
 	{0,	3,	0,	960,	1080,	HDMI_1080p_420},
 	/* interlace */
-	{1,	0,	0,	720,	240,	HDMI_720x480i},
+	{1,	0,	0,	720,	240,	HDMI_480i60},
 	{1,	0,	0,	1440,	240,	HDMI_480i60},
-	/* {1, 0,	0,	720,	288,	HDMI_720x576i}, */
+	{1, 0,	0,	720,	288,	HDMI_576i50},
 	{1,	0,	0,	1440,	288,	HDMI_576i50},
 	{1,	0,	0,	1920,	540,	HDMI_1080i50},
 	{1,	0,	2,	1920,	1103,	HDMI_1080i_ALTERNATIVE},
@@ -1851,8 +1861,8 @@ static int get_timing_fmt(void)
 		if (freq_ref[i].interlace != rx.pre.interlaced &&
 			freq_ref[i].interlace != 0)
 			continue;
-		if (freq_ref[i].type_3d != rx.vs_info_details._3d_structure)
-			continue;
+		//if (freq_ref[i].type_3d != rx.vs_info_details._3d_structure)
+			//continue;
 		break;
 	}
 	if (force_vic) {
@@ -2083,68 +2093,48 @@ void esm_recovery(void)
 		hdcp22_esm_reset2 = 1;
 }
 
-bool is_unnormal_format(u8 wait_cnt)
+bool is_unnormal_format(u32 wait_cnt)
 {
-	bool ret = false;
-
 	if (rx.pre.sw_vic == HDMI_UNSUPPORT ||
 	    rx.pre.sw_vic == HDMI_UNKNOWN) {
-		ret = true;
 		if (wait_cnt == sig_stable_max)
 			rx_pr("*unsupport*\n");
-		if (unnormal_wait_max == wait_cnt) {
+		if (unnormal_wait_max == wait_cnt)
 			dump_state(RX_DUMP_VIDEO);
-			ret = false;
-		}
+		else
+			return true;
 	}
 	if (rx.pre.sw_dvi == 1) {
-		ret = true;
+		if (unnormal_wait_max == wait_cnt)
+			dump_state(RX_DUMP_VIDEO);
 		if (wait_cnt == sig_stable_max)
 			rx_pr("*DVI*\n");
-		if (unnormal_wait_max == wait_cnt) {
-			dump_state(RX_DUMP_VIDEO);
-			ret = false;
-		}
+		else
+			return true;
 	}
 	if (rx.pre.hdcp14_state != 3 &&
 	    rx.pre.hdcp14_state != 0 &&
 	    rx.hdcp.hdcp_version == HDCP_VER_14) {
-		ret = true;
 		if (sig_stable_max == wait_cnt)
 			rx_pr("hdcp14 unfinished\n");
-		if (unnormal_wait_max == wait_cnt) {
-			if ((hdmirx_rd_dwc(DWC_HDCP_BKSV1) == 0) &&
-			    (hdmirx_rd_dwc(DWC_HDCP_BKSV0) == 0))
-				rx.err_code = ERR_NO_HDCP14_KEY;
-			ret = false;
-		}
+		if (unnormal_wait_max == wait_cnt)
+			dump_state(RX_DUMP_HDCP);
+		else
+			return true;
 	}
-	/*
-	 * 1.for dv_cts HDMI 40-47 switch input per 2s
-	 * cannot keep waiting hdcp.
-	 * It will cause test fail
-	 * 2.fix appletv BSOD issue.
-	 */
-	if (rx.hdcp.hdcp_version == HDCP_VER_NONE) {
-		ret = true;
-		if (dev_is_apple_tv_v2) {
-			if (wait_cnt == hdcp_none_wait_max * 30)
-				ret = false;
-		} else if (rx.hdcp.hdcp_pre_ver != HDCP_VER_14) {
-			if (wait_cnt == hdcp_none_wait_max)
-				ret = false;
+	if (rx.hdcp.hdcp_version == HDCP_VER_NONE &&
+		rx.hdcp.hdcp_pre_ver != HDCP_VER_NONE) {
+		if ((dev_is_apple_tv_v2 && wait_cnt == hdcp_none_wait_max * 2) ||
+			(!dev_is_apple_tv_v2 && wait_cnt == hdcp_none_wait_max)) {
+			dump_state(RX_DUMP_HDCP);
 		} else {
-			if (wait_cnt == hdcp_none_wait_max * 10)
-				ret = false;
+			if (log_level & VIDEO_LOG)
+				rx_pr("hdcp waiting\n");
+			return true;
 		}
-		if (log_level & VIDEO_LOG)
-			rx_pr("hdcp none waiting\n");
 	}
-	if (!ret && wait_cnt != sig_stable_max)
-		if (log_level & VIDEO_LOG)
-			rx_pr("unnormal_format wait cnt = %d\n",
-			      wait_cnt - sig_stable_max);
-	return ret;
+	rx_pr("unnormal wait cnt = %d\n", wait_cnt - sig_stable_max);
+	return false;
 }
 
 void fsm_restart(void)
