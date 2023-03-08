@@ -48,8 +48,8 @@
 #define EDID_DATA_LOG	0x20000
 #define RP_LOG		0x40000
 
-/* add method to get 5v pin status */
-#define RX_VER1 "ver.2023/1/31"
+/* add aspect 4 : 3 */
+#define RX_VER1 "ver.2023/3/9"
 
 /*
  * Currently, a total of 5 VSIF packages are supported,

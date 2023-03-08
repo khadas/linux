@@ -705,6 +705,36 @@ void hdmirx_get_fps_info(struct tvin_sig_property_s *prop)
 	prop->fps = rate;
 }
 
+enum tvin_aspect_ratio_e get_format_ratio(void)
+{
+	enum tvin_aspect_ratio_e ratio = TVIN_ASPECT_NULL;
+	enum hdmi_vic_e vic = HDMI_UNKNOWN;
+
+	vic = rx.pre.sw_vic;
+	if (force_vic)
+		vic = force_vic;
+
+	switch (vic) {
+	case HDMI_800_600:
+	case HDMI_1024_768:
+	case HDMI_1280_960:
+	case HDMI_1280_1024:
+	case HDMI_1600_1200:
+	case HDMI_1792_1344:
+	case HDMI_1856_1392:
+	case HDMI_1920_1440:
+	case HDMI_1400_1050:
+	case HDMI_1152_864:
+		ratio = TVIN_ASPECT_4x3_FULL;
+		break;
+	default:
+		ratio = TVIN_ASPECT_16x9_FULL;
+		break;
+	}
+
+	return ratio;
+}
+
 void hdmirx_get_active_aspect_ratio(struct tvin_sig_property_s *prop)
 {
 	prop->aspect_ratio = TVIN_ASPECT_NULL;
@@ -718,8 +748,10 @@ void hdmirx_get_active_aspect_ratio(struct tvin_sig_property_s *prop)
 		} else {
 			if (rx.cur.picture_ratio == 1)
 				prop->aspect_ratio = TVIN_ASPECT_4x3_FULL;
-			else
+			else if (rx.cur.picture_ratio == 2)
 				prop->aspect_ratio = TVIN_ASPECT_16x9_FULL;
+			else
+				prop->aspect_ratio = get_format_ratio();
 		}
 		/*
 		 * prop->bar_end_top = rx.cur.bar_end_top;
@@ -730,8 +762,10 @@ void hdmirx_get_active_aspect_ratio(struct tvin_sig_property_s *prop)
 	} else {
 		if (rx.cur.picture_ratio == 1)
 			prop->aspect_ratio = TVIN_ASPECT_4x3_FULL;
-		else
+		else if (rx.cur.picture_ratio == 2)
 			prop->aspect_ratio = TVIN_ASPECT_16x9_FULL;
+		else
+			prop->aspect_ratio = get_format_ratio();
 	}
 }
 
