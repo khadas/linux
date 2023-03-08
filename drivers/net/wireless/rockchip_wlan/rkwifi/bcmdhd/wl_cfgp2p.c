@@ -705,7 +705,12 @@ wl_cfgp2p_init_discovery(struct bcm_cfg80211 *cfg)
 	BCM_REFERENCE(ndev);
 	CFGP2P_DBG(("enter\n"));
 
-	if (wl_to_p2p_bss_bssidx(cfg, P2PAPI_BSSCFG_DEVICE) > 0) {
+#ifdef BCMDBUS
+	if (wl_to_p2p_bss_bssidx(cfg, P2PAPI_BSSCFG_DEVICE) > 0 && !cfg->bus_resuming)
+#else
+	if (wl_to_p2p_bss_bssidx(cfg, P2PAPI_BSSCFG_DEVICE) > 0)
+#endif /* BCMDBUS */
+	{
 		CFGP2P_ERR(("do nothing, already initialized\n"));
 		goto exit;
 	}
@@ -732,6 +737,9 @@ wl_cfgp2p_init_discovery(struct bcm_cfg80211 *cfg)
 	 * so that time, the ifidx returned in WLC_E_IF should be used for populating
 	 * the netinfo
 	 */
+#ifdef BCMDBUS
+	if (!cfg->bus_resuming)
+#endif /* BCMDBUS */
 	ret = wl_alloc_netinfo(cfg, NULL, cfg->p2p_wdev, WL_IF_TYPE_STA, 0, bssidx, 0);
 	if (unlikely(ret)) {
 		goto exit;
@@ -822,7 +830,12 @@ wl_cfgp2p_enable_discovery(struct bcm_cfg80211 *cfg, struct net_device *dev,
 	}
 #endif /* WL_IFACE_MGMT */
 
-	if (wl_get_p2p_status(cfg, DISCOVERY_ON)) {
+#ifdef BCMDBUS
+	if (!cfg->bus_resuming && (wl_get_p2p_status(cfg, DISCOVERY_ON)))
+#else
+	if (wl_get_p2p_status(cfg, DISCOVERY_ON))
+#endif /* BCMDBUS */
+	{
 		CFGP2P_DBG((" DISCOVERY is already initialized, we have nothing to do\n"));
 		goto set_ie;
 	}
@@ -2670,7 +2683,7 @@ wl_cfgp2p_start_p2p_device(struct wiphy *wiphy, struct wireless_dev *wdev)
 	cfg->p2p_prb_noti = false;
 #endif
 
-	CFGP2P_DBG(("P2P interface started\n"));
+	printf("P2P interface started\n");
 
 exit:
 	return ret;
@@ -2718,7 +2731,7 @@ wl_cfgp2p_stop_p2p_device(struct wiphy *wiphy, struct wireless_dev *wdev)
 
 	p2p_on(cfg) = false;
 
-	CFGP2P_DBG(("Exit. P2P interface stopped\n"));
+	printf("Exit. P2P interface stopped\n");
 
 	return;
 }
@@ -2808,3 +2821,36 @@ wl_cfgp2p_is_p2p_specific_scan(struct cfg80211_scan_request *request)
 	}
 	return false;
 }
+
+#ifdef BCMDBUS
+int
+wl_cfgp2p_start_p2p_device_resume(dhd_pub_t *dhd)
+{
+	int ret = 0;
+#ifdef WL_CFG80211_P2P_DEV_IF
+	struct net_device *primary_ndev = dhd_linux_get_primary_netdev(dhd);
+	struct bcm_cfg80211 *cfg;
+	struct wiphy *wiphy;
+
+	if (!primary_ndev)
+		return -EINVAL;
+	cfg = wl_get_cfg(primary_ndev);
+	if (!cfg)
+		return -EINVAL;
+
+	RETURN_EIO_IF_NOT_UP(cfg);
+	if (!p2p_on(cfg))
+		return -EINVAL;
+
+	rtnl_lock();
+	wiphy = bcmcfg_to_wiphy(cfg);
+	cfg->bus_resuming = TRUE;
+	ret = wl_cfgp2p_start_p2p_device(wiphy, cfg->wdev);
+	cfg->bus_resuming = FALSE;
+	printf("P2P interface resumed\n");
+	rtnl_unlock();
+#endif
+
+	return ret;
+}
+#endif /* BCMDBUS */

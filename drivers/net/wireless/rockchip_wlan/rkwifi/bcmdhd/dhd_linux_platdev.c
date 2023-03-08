@@ -42,15 +42,12 @@
 #else
 #include <dhd_plat.h>
 #endif /* CONFIG_WIFI_CONTROL_FUNC */
-#ifdef BCMDBUS
-#include <dbus.h>
-#endif
 #ifdef CONFIG_DTS
 #include<linux/regulator/consumer.h>
 #include<linux/of_gpio.h>
 #endif /* CONFIG_DTS */
 
-#if defined(CUSTOMER_HW)
+#if defined(CUSTOMER_HW) || defined(BCMDHD_PLATDEV)
 extern int dhd_wlan_init_plat_data(wifi_adapter_info_t *adapter);
 extern void dhd_wlan_deinit_plat_data(wifi_adapter_info_t *adapter);
 #endif /* CUSTOMER_HW */
@@ -88,7 +85,7 @@ static bool dts_enabled = FALSE;
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #endif
 struct resource dhd_wlan_resources = {0};
-struct wifi_platform_data dhd_wlan_control = {0};
+extern struct wifi_platform_data dhd_wlan_control;
 #if defined(STRICT_GCC_WARNINGS) && defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
@@ -381,6 +378,14 @@ static int wifi_plat_dev_drv_probe(struct platform_device *pdev)
 	adapter->wifi_plat_data = (void *)&dhd_wlan_control;
 #endif
 
+#ifdef BCMDHD_PLATDEV
+	adapter->pdev = pdev;
+	wifi_plat_dev_probe_ret = dhd_wlan_init_plat_data(adapter);
+	if (!wifi_plat_dev_probe_ret)
+		wifi_plat_dev_probe_ret = dhd_wifi_platform_load();
+	return wifi_plat_dev_probe_ret;
+#endif
+
 	resource = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "bcmdhd_wlan_irq");
 	if (resource == NULL)
 		resource = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "bcm4329_wlan_irq");
@@ -452,6 +457,9 @@ static int wifi_plat_dev_drv_remove(struct platform_device *pdev)
 #ifdef CONFIG_DTS
 	regulator_put(wifi_regulator);
 #endif /* CONFIG_DTS */
+#ifdef BCMDHD_PLATDEV
+	dhd_wlan_deinit_plat_data(adapter);
+#endif
 	return 0;
 }
 
@@ -1003,7 +1011,6 @@ static int dhd_wifi_platform_load_usb(void)
 	wifi_adapter_info_t *adapter;
 	s32 timeout = -1;
 	int i;
-	enum wifi_adapter_status wait_status;
 #endif
 
 #if !defined(DHD_PRELOAD)
@@ -1012,7 +1019,7 @@ static int dhd_wifi_platform_load_usb(void)
 		adapter = &dhd_wifi_platdata->adapters[i];
 		wifi_platform_set_power(adapter, FALSE, 0);
 		if (err) {
-			DHD_ERROR(("failed to wifi_platform_set_power on %s\n", adapter->name));
+			DHD_ERROR(("failed to wifi_platform_set_power off %s\n", adapter->name));
 			goto exit;
 		}
 	}
@@ -1039,12 +1046,8 @@ static int dhd_wifi_platform_load_usb(void)
 			DHD_ERROR(("failed to wifi_platform_set_power on %s\n", adapter->name));
 			goto fail;
 		}
-		if (dhd_download_fw_on_driverload)
-			wait_status = WIFI_STATUS_ATTACH;
-		else
-			wait_status = WIFI_STATUS_DETTACH;
 		timeout = wait_event_interruptible_timeout(adapter->status_event,
-			wifi_get_adapter_status(adapter, wait_status),
+			wifi_get_adapter_status(adapter, WIFI_STATUS_NET_ATTACHED),
 			msecs_to_jiffies(DHD_REGISTRATION_TIMEOUT));
 		if (timeout <= 0) {
 			err = -1;

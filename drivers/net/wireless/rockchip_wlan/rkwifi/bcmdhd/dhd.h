@@ -47,6 +47,8 @@
 #include <linux/proc_fs.h>
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
+#include <linux/fs.h>
+#include <linux/namei.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 #include <uapi/linux/sched/types.h>
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
@@ -2211,7 +2213,7 @@ inline static void MUTEX_UNLOCK_SOFTAP_SET(dhd_pub_t * dhdp)
 	} while (0)
 #define DHD_TXFL_WAKE_LOCK_TIMEOUT(pub, val) \
 	do { \
-		printf("call pm_wake_timeout enable\n"); \
+		printf("call txfl_wake_timeout enable\n"); \
 		dhd_txfl_wake_lock_timeout(pub, val); \
 	} while (0)
 #define DHD_TXFL_WAKE_UNLOCK(pub) \
@@ -2364,10 +2366,14 @@ extern void dhd_os_oob_irq_wake_unlock(dhd_pub_t *pub);
 #define DHD_OS_OOB_IRQ_WAKE_UNLOCK(pub)			dhd_os_oob_irq_wake_unlock(pub)
 #endif /* BCMPCIE_OOB_HOST_WAKE */
 
+#ifndef DHD_PACKET_TIMEOUT_MS
 #define DHD_PACKET_TIMEOUT_MS	500
+#endif
 #define DHD_EVENT_TIMEOUT_MS	1500
 #define SCAN_WAKE_LOCK_TIMEOUT	10000
+#ifndef MAX_TX_TIMEOUT
 #define MAX_TX_TIMEOUT			500
+#endif
 
 /* Enum for IOCTL recieved status */
 typedef enum dhd_ioctl_recieved_status
@@ -4653,6 +4659,94 @@ int dhd_awdl_llc_to_eth_hdr(struct dhd_pub *dhd, struct ether_header *eh, void *
 #error "DHD_DEBUGABILITY_LOG_DUMP_RING without DEBUGABILITY"
 #endif /* DEBUGABILITY */
 #endif /* DHD_DEBUGABILITY_LOG_DUMP_RING */
+
+#if defined(__linux__)
+#ifdef DHD_SUPPORT_VFS_CALL
+static INLINE struct file *dhd_filp_open(const char *filename, int flags, int mode)
+{
+	return filp_open(filename, flags, mode);
+}
+
+static INLINE int dhd_filp_close(void *image, void *id)
+{
+	return filp_close((struct file *)image, id);
+}
+
+static INLINE int dhd_i_size_read(const struct inode *inode)
+{
+	return i_size_read(inode);
+}
+
+static INLINE int dhd_kernel_read_compat(struct file *fp, loff_t pos, void *buf, size_t count)
+{
+	return kernel_read_compat(fp, pos, buf, count);
+}
+
+static INLINE int dhd_vfs_read(struct file *filep, char *buf, size_t size, loff_t *pos)
+{
+	return vfs_read(filep, buf, size, pos);
+}
+
+static INLINE int dhd_vfs_write(struct file *filep, char *buf, size_t size, loff_t *pos)
+{
+	return vfs_write(filep, buf, size, pos);
+}
+
+static INLINE int dhd_vfs_fsync(struct file *filep, int datasync)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
+	return vfs_fsync(filep, datasync);
+#else
+	return vfs_fsync(filep, filep->f_path.dentry, 0);
+#endif
+}
+
+static INLINE int dhd_vfs_stat(char *buf, struct kstat *stat)
+{
+	return vfs_stat(buf, stat);
+}
+
+static INLINE int dhd_kern_path(char *name, int flags, struct path *file_path)
+{
+	return kern_path(name, flags, file_path);
+}
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0))
+#define DHD_VFS_INODE(dir) (dir->d_inode)
+#else
+#define DHD_VFS_INODE(dir) d_inode(dir)
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(3, 19, 0) */
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0))
+#define DHD_VFS_UNLINK(dir, b, c) vfs_unlink(DHD_VFS_INODE(dir), b)
+#else
+#define DHD_VFS_UNLINK(dir, b, c) vfs_unlink(DHD_VFS_INODE(dir), b, c)
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(3, 13, 0) */
+
+#else
+#define DHD_VFS_UNLINK(dir, b, c) 0
+
+static INLINE struct file *dhd_filp_open(const char *filename, int flags, int mode)
+	{ printf("%s: DHD_SUPPORT_VFS_CALL not defined\n", __FUNCTION__); return NULL; }
+static INLINE int dhd_filp_close(void *image, void *id)
+	{ return 0; }
+static INLINE int dhd_i_size_read(const struct inode *inode)
+	{ return 0; }
+static INLINE int dhd_kernel_read_compat(struct file *fp, loff_t pos, void *buf, size_t count)
+	{ return 0; }
+static INLINE int dhd_vfs_read(struct file *filep, char *buf, size_t size, loff_t *pos)
+	{ return 0; }
+static INLINE int dhd_vfs_write(struct file *filep, char *buf, size_t size, loff_t *pos)
+	{ return 0; }
+static INLINE int dhd_vfs_fsync(struct file *filep, int datasync)
+	{ return 0; }
+static INLINE int dhd_vfs_stat(char *buf, struct kstat *stat)
+	{ return 0; }
+static INLINE int dhd_kern_path(char *name, int flags, struct path *file_path)
+	{ return 0; }
+#endif /* DHD_SUPPORT_VFS_CALL */
+#endif /* __linux__ */
+
 #ifdef WL_MONITOR
 void dhd_set_monitor(dhd_pub_t *pub, int ifidx, int val);
 #endif /* WL_MONITOR */

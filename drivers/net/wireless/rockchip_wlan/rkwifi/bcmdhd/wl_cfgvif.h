@@ -189,13 +189,23 @@ extern s32 wl_cfg80211_change_virtual_iface(struct wiphy *wiphy, struct net_devi
 s32
 wl_cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_channel *chan,
-	enum nl80211_channel_type channel_type);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 6, 0))
+	enum nl80211_channel_type channel_type
+#else
+	enum nl80211_chan_width width
+#endif
+);
 #endif /* ((LINUX_VERSION < VERSION(3, 6, 0)) || WL_COMPAT_WIRELESS */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)) || \
 	defined(WL_COMPAT_WIRELESS)
 extern s32 wl_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		struct cfg80211_ap_settings *info);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2) || defined(CFG80211_BKPORT_MLO)
+extern s32 wl_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
+	unsigned int link_id);
+#else
 extern s32 wl_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *dev);
+#endif /* CFG80211_BKPORT_MLO */
 extern s32 wl_cfg80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	struct cfg80211_beacon_data *info);
 #else
@@ -203,6 +213,10 @@ extern s32 wl_cfg80211_add_set_beacon(struct wiphy *wiphy, struct net_device *de
 	struct beacon_parameters *info);
 extern s32 wl_cfg80211_del_beacon(struct wiphy *wiphy, struct net_device *dev);
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)  || WL_COMPAT_WIRELESS */
+#ifdef WL_CFG80211_ACL
+extern int wl_cfg80211_set_mac_acl(struct wiphy *wiphy, struct net_device *cfgdev,
+	const struct cfg80211_acl_data *acl);
+#endif /* WL_CFG80211_ACL */
 
 extern s32 wl_ap_start_ind(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 	const wl_event_msg_t *e, void *data);
@@ -248,4 +262,7 @@ extern bool wl_cfg80211_is_tdls_tunneled_frame(void *frame, u32 frame_len);
 #ifdef SUPPORT_AP_BWCTRL
 extern void wl_restore_ap_bw(struct bcm_cfg80211 *cfg);
 #endif /* SUPPORT_AP_BWCTRL */
+
+extern int wl_chspec_chandef(chanspec_t chanspec,
+	struct cfg80211_chan_def *chandef, struct wiphy *wiphy);
 #endif /* _wl_cfgvif_h_ */

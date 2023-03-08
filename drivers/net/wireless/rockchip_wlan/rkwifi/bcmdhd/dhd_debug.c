@@ -1259,7 +1259,7 @@ dhd_dbg_set_event_log_tag(dhd_pub_t *dhdp, uint16 tag, uint8 set)
 
 	ret = dhd_wl_ioctl_cmd(dhdp, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 	if (ret) {
-		/* DHD_ERROR(("%s set log tag iovar failed %d\n", __FUNCTION__, ret)); */
+//		DHD_ERROR(("%s set log tag iovar failed %d\n", __FUNCTION__, ret));
 	}
 }
 
@@ -2049,6 +2049,7 @@ dhd_dbg_monitor_get_tx_pkts(dhd_pub_t *dhdp, void __user *user_buf,
 	tx_report = dhdp->dbg->pkt_mon.tx_report;
 	tx_pkt = tx_report->tx_pkts;
 	pkt_count = MIN(req_count, tx_report->status_pos);
+	DHD_PKT_MON_UNLOCK(dhdp->dbg->pkt_mon_lock, flags);
 
 #ifdef CONFIG_COMPAT
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0))
@@ -2099,7 +2100,6 @@ dhd_dbg_monitor_get_tx_pkts(dhd_pub_t *dhdp, void __user *user_buf,
 	}
 	*resp_count = pkt_count;
 
-	DHD_PKT_MON_UNLOCK(dhdp->dbg->pkt_mon_lock, flags);
 	if (!pkt_count) {
 		DHD_ERROR(("%s(): no tx_status in tx completion messages, "
 			"make sure that 'd11status' is enabled in firmware, "
@@ -2143,6 +2143,7 @@ dhd_dbg_monitor_get_rx_pkts(dhd_pub_t *dhdp, void __user *user_buf,
 	rx_report = dhdp->dbg->pkt_mon.rx_report;
 	rx_pkt = rx_report->rx_pkts;
 	pkt_count = MIN(req_count, rx_report->pkt_pos);
+	DHD_PKT_MON_UNLOCK(dhdp->dbg->pkt_mon_lock, flags);
 
 #ifdef CONFIG_COMPAT
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0))
@@ -2194,7 +2195,6 @@ dhd_dbg_monitor_get_rx_pkts(dhd_pub_t *dhdp, void __user *user_buf,
 	}
 
 	*resp_count = pkt_count;
-	DHD_PKT_MON_UNLOCK(dhdp->dbg->pkt_mon_lock, flags);
 
 	return BCME_OK;
 }

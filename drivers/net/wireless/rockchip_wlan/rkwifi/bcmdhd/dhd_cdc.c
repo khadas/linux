@@ -71,9 +71,6 @@ typedef struct dhd_prot {
 	uint16 reqid;
 	uint8 pending;
 	uint32 lastcmd;
-#ifdef BCMDBUS
-	uint ctl_completed;
-#endif /* BCMDBUS */
 	uint8 bus_header[BUS_HEADER_LEN];
 	cdc_ioctl_t msg;
 	unsigned char buf[WLC_IOCTL_MAXLEN + ROUND_UP_MARGIN];
@@ -89,9 +86,6 @@ dhd_prot_get_ioctl_trans_id(dhd_pub_t *dhdp)
 static int
 dhdcdc_msg(dhd_pub_t *dhd)
 {
-#ifdef BCMDBUS
-	int timeout = 0;
-#endif /* BCMDBUS */
 	int err = 0;
 	dhd_prot_t *prot = dhd->prot;
 	int len = ltoh32(prot->msg.len) + sizeof(cdc_ioctl_t);
@@ -108,46 +102,8 @@ dhdcdc_msg(dhd_pub_t *dhd)
 		len = CDC_MAX_MSG_SIZE;
 
 	/* Send request */
-#ifdef BCMDBUS
-	prot->ctl_completed = FALSE;
-	err = dbus_send_ctl(dhd->bus, (void *)&prot->msg, len);
-	if (err) {
-		DHD_ERROR(("dbus_send_ctl error=0x%x\n", err));
-		DHD_OS_WAKE_UNLOCK(dhd);
-		return err;
-	}
-#else
 	err = dhd_bus_txctl(dhd->bus, (uchar*)&prot->msg, len);
-#endif /* BCMDBUS */
 
-#ifdef BCMDBUS
-	timeout = dhd_os_ioctl_resp_wait(dhd, &prot->ctl_completed);
-	if ((!timeout) || (!prot->ctl_completed)) {
-		DHD_ERROR(("Txctl timeout %d ctl_completed %d\n",
-			timeout, prot->ctl_completed));
-		DHD_ERROR(("Txctl wait timed out\n"));
-		err = -1;
-	}
-#endif /* BCMDBUS */
-#if defined(BCMDBUS) && defined(INTR_EP_ENABLE)
-	/* If the ctl write is successfully completed, wait for an acknowledgement
-	* that indicates that it is now ok to do ctl read from the dongle
-	*/
-	if (err != -1) {
-		prot->ctl_completed = FALSE;
-		if (dbus_poll_intr(dhd->dbus)) {
-			DHD_ERROR(("dbus_poll_intr not submitted\n"));
-		} else {
-			/* interrupt polling is sucessfully submitted. Wait for dongle to send
-			* interrupt
-			*/
-			timeout = dhd_os_ioctl_resp_wait(dhd, &prot->ctl_completed);
-			if (!timeout) {
-				DHD_ERROR(("intr poll wait timed out\n"));
-			}
-		}
-	}
-#endif /* defined(BCMDBUS) && defined(INTR_EP_ENABLE) */
 	DHD_OS_WAKE_UNLOCK(dhd);
 	return err;
 }
@@ -155,9 +111,6 @@ dhdcdc_msg(dhd_pub_t *dhd)
 static int
 dhdcdc_cmplt(dhd_pub_t *dhd, uint32 id, uint32 len)
 {
-#ifdef BCMDBUS
-	int timeout = 0;
-#endif /* BCMDBUS */
 	int ret;
 	int cdc_len = len + sizeof(cdc_ioctl_t);
 	dhd_prot_t *prot = dhd->prot;
@@ -165,29 +118,7 @@ dhdcdc_cmplt(dhd_pub_t *dhd, uint32 id, uint32 len)
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
 	do {
-#ifdef BCMDBUS
-		prot->ctl_completed = FALSE;
-		ret = dbus_recv_ctl(dhd->bus, (uchar*)&prot->msg, cdc_len);
-		if (ret) {
-			DHD_ERROR(("dbus_recv_ctl error=0x%x(%d)\n", ret, ret));
-			goto done;
-		}
-		timeout = dhd_os_ioctl_resp_wait(dhd, &prot->ctl_completed);
-		if ((!timeout) || (!prot->ctl_completed)) {
-			DHD_ERROR(("Rxctl timeout %d ctl_completed %d\n",
-				timeout, prot->ctl_completed));
-			ret = -ETIMEDOUT;
-			goto done;
-		}
-
-		/* XXX FIX: Must return cdc_len, not len, because after query_ioctl()
-		 * it subtracts sizeof(cdc_ioctl_t);  The other approach is
-		 * to have dbus_recv_ctl() return actual len.
-		 */
-		ret = cdc_len;
-#else
 		ret = dhd_bus_rxctl(dhd->bus, (uchar*)&prot->msg, cdc_len);
-#endif /* BCMDBUS */
 		if (ret < 0)
 			break;
 	} while (CDC_IOC_ID(ltoh32(prot->msg.flags)) != id);
@@ -197,9 +128,6 @@ dhdcdc_cmplt(dhd_pub_t *dhd, uint32 id, uint32 len)
 		ret = len;
 	}
 
-#ifdef BCMDBUS
-done:
-#endif /* BCMDBUS */
 	return ret;
 }
 
@@ -402,24 +330,6 @@ dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len, uint8
 done:
 	return ret;
 }
-
-#ifdef BCMDBUS
-int
-dhd_prot_ctl_complete(dhd_pub_t *dhd)
-{
-	dhd_prot_t *prot;
-
-	if (dhd == NULL)
-		return BCME_ERROR;
-
-	prot = dhd->prot;
-
-	ASSERT(prot);
-	prot->ctl_completed = TRUE;
-	dhd_os_ioctl_resp_wake(dhd);
-	return 0;
-}
-#endif /* BCMDBUS */
 
 /* XXX: due to overlays this should not be called directly; call dhd_wl_ioctl() instead */
 int

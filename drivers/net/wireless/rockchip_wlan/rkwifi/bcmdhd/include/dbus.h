@@ -68,6 +68,10 @@ enum {
 	DBUS_ERR_RXZLP
 };
 
+#define BCM_OTP_SIZE_43236  84	/* number of 16 bit values */
+#define BCM_OTP_SW_RGN_43236	24  /* start offset of SW config region */
+#define BCM_OTP_ADDR_43236 0x18000800 /* address of otp base */
+
 #define ERR_CBMASK_TXFAIL		0x00000001
 #define ERR_CBMASK_RXFAIL		0x00000002
 #define ERR_CBMASK_ALL			0xFFFFFFFF
@@ -316,9 +320,9 @@ typedef struct dbus_pub {
  *  For NDIS60, param2 is WdfDevice
  * Under Linux, param1 and param2 are NULL;
  */
-extern int dbus_register(int vid, int pid, probe_cb_t prcb, disconnect_cb_t discb, void *prarg,
-	void *param1, void *param2);
-extern int dbus_deregister(void);
+//extern int dbus_register(int vid, int pid, probe_cb_t prcb, disconnect_cb_t discb, void *prarg,
+//	void *param1, void *param2);
+//extern int dbus_deregister(void);
 
 //extern int dbus_download_firmware(dbus_pub_t *pub);
 //extern int dbus_up(struct dhd_bus *pub);
@@ -327,13 +331,13 @@ extern int dbus_down(dbus_pub_t *pub);
 extern int dbus_shutdown(dbus_pub_t *pub);
 extern void dbus_flowctrl_rx(dbus_pub_t *pub, bool on);
 
-extern int dbus_send_txdata(dbus_pub_t *dbus, void *pktbuf);
+//extern int dbus_send_txdata(dbus_pub_t *dbus, void *pktbuf);
 extern int dbus_send_buf(dbus_pub_t *pub, uint8 *buf, int len, void *info);
-extern int dbus_send_pkt(dbus_pub_t *pub, void *pkt, void *info);
+//extern int dbus_send_pkt(dbus_pub_t *pub, void *pkt, void *info);
 //extern int dbus_send_ctl(struct dhd_bus *pub, uint8 *buf, int len);
 //extern int dbus_recv_ctl(struct dhd_bus *pub, uint8 *buf, int len);
-extern int dbus_recv_bulk(dbus_pub_t *pub, uint32 ep_idx);
-extern int dbus_poll_intr(dbus_pub_t *pub);
+//extern int dbus_recv_bulk(dbus_pub_t *pub, uint32 ep_idx);
+//extern int dbus_poll_intr(dbus_pub_t *pub);
 extern int dbus_get_stats(dbus_pub_t *pub, dbus_stats_t *stats);
 extern int dbus_get_device_speed(dbus_pub_t *pub);
 extern int dbus_set_config(dbus_pub_t *pub, dbus_config_t *config);
@@ -407,6 +411,18 @@ typedef struct dbus_intf_callbacks {
 	void (*rxerr_indicate)(void *cbarg, bool on);
 } dbus_intf_callbacks_t;
 
+/* callback functions */
+typedef struct {
+	/* probe the device */
+	void *(*probe)(uint16 bus, uint16 slot, uint32 hdrlen);
+	/* remove the device */
+	void (*remove)(void *context);
+	/* can we suspend now */
+	int (*suspend)(void *context);
+	/* resume from suspend */
+	int (*resume)(void *context);
+} dbus_driver_t;
+
 /*
  * Porting: To support new bus, port these functions below
  */
@@ -415,8 +431,7 @@ typedef struct dbus_intf_callbacks {
  * Bus specific Interface
  * Implemented by dbus_usb.c/dbus_sdio.c
  */
-extern int dbus_bus_register(int vid, int pid, probe_cb_t prcb, disconnect_cb_t discb, void *prarg,
-	dbus_intf_t **intf, void *param1, void *param2);
+extern int dbus_bus_register(dbus_driver_t *driver, dbus_intf_t **intf);
 extern int dbus_bus_deregister(void);
 extern void dbus_bus_fw_get(void *bus, uint8 **fw, int *fwlen, int *decomp);
 
@@ -424,8 +439,7 @@ extern void dbus_bus_fw_get(void *bus, uint8 **fw, int *fwlen, int *decomp);
  * Bus-specific and OS-specific Interface
  * Implemented by dbus_usb_[linux/ndis].c/dbus_sdio_[linux/ndis].c
  */
-extern int dbus_bus_osl_register(int vid, int pid, probe_cb_t prcb, disconnect_cb_t discb,
-	void *prarg, dbus_intf_t **intf, void *param1, void *param2);
+extern int dbus_bus_osl_register(dbus_driver_t *driver, dbus_intf_t **intf);
 extern int dbus_bus_osl_deregister(void);
 
 /*
@@ -439,7 +453,7 @@ extern int dbus_bus_osl_hw_deregister(void);
 extern uint usbdev_bulkin_eps(void);
 #if defined(BCM_REQUEST_FW)
 extern void *dbus_get_fw_nvfile(int devid, int chiprev, uint8 **fw, int *fwlen, int type,
-  uint16 boardtype, uint16 boardrev);
+  uint16 boardtype, uint16 boardrev, char *path);
 extern void dbus_release_fw_nvfile(void *firmware);
 #endif  /* #if defined(BCM_REQUEST_FW) */
 
@@ -624,4 +638,7 @@ void optimize_submit_rx_request(const dbus_pub_t *pub, int epn, struct ehci_qtd 
 #endif /* EHCI_FASTPATH_TX || EHCI_FASTPATH_RX */
 
 void  dbus_flowctrl_tx(void *dbi, bool on);
+#ifdef LINUX
+struct device * dbus_get_dev(void);
+#endif /* LINUX */
 #endif /* __DBUS_H__ */

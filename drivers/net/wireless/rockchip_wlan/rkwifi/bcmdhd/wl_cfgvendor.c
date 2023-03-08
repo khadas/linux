@@ -469,7 +469,11 @@ wl_cfgvendor_send_hotlist_event(struct wiphy *wiphy,
 			iter_cnt_to_send -= cnt;
 			cache->tot_consumed += cnt;
 			/* Push the data to the skb */
+#ifdef ANDROID13_KERNEL515_BKPORT
+			nla_put_nohdr(skb, cnt * sizeof(wifi_gscan_result_t), ptr);
+#else
 			nla_append(skb, cnt * sizeof(wifi_gscan_result_t), ptr);
+#endif
 			if (cache->tot_consumed == cache->tot_count) {
 				cache = cache->next;
 			}
@@ -2808,7 +2812,7 @@ wl_cfgvendor_priv_string_handler(struct wiphy *wiphy,
 
 	ret = dhd_cfgvendor_priv_string_handler(cfg, wdev, nlioc, buf);
 	if (ret) {
-		WL_ERR(("dhd_cfgvendor returned error %d", ret));
+		WL_ERR(("dhd_cfgvendor returned error %d\n", ret));
 		vfree(buf);
 		return ret;
 	}
@@ -6856,11 +6860,13 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 	cca_congest_ext_channel_req_v2_t *per_chspec_stats = NULL;
 	uint per_chspec_stats_size = 0;
 	cca_congest_ext_channel_req_v3_t *all_chan_results;
-	cca_congest_ext_channel_req_v3_t all_chan_req;
+	cca_congest_ext_channel_req_v3_t *all_chan_req = NULL;
+	uint all_chan_req_size = sizeof(cca_congest_ext_channel_req_v3_t);
 #else
 	/* cca_get_stats_ext iovar for Wifi channel statics */
 	struct cca_congest_ext_channel_req_v2 *cca_v2_results;
-	struct cca_congest_ext_channel_req_v2 cca_v2_req;
+	struct cca_congest_ext_channel_req_v2 *cca_v2_req = NULL;
+	uint cca_v2_req_size = sizeof(cca_congest_ext_channel_req_v2_t);
 #endif /* CHAN_STATS_SUPPORT  */
 	const wl_cnt_wlc_t *wlc_cnt;
 	scb_val_t scbval;
@@ -7021,10 +7027,16 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 
 #ifdef CHAN_STATS_SUPPORT
 	/* Option to get all channel statistics */
-	all_chan_req.num_of_entries = 0;
-	all_chan_req.ver = WL_CCA_EXT_REQ_VER_V3;
+	all_chan_req = (void *)MALLOCZ(cfg->osh, all_chan_req_size);
+	if (all_chan_req == NULL) {
+		err = BCME_NOMEM;
+		WL_ERR(("all_chan_req alloc failed\n"));
+		goto exit;
+	}
+	all_chan_req->num_of_entries = 0;
+	all_chan_req->ver = WL_CCA_EXT_REQ_VER_V3;
 	err = wldev_iovar_getbuf(bcmcfg_to_prmry_ndev(cfg), "cca_get_stats_ext",
-		&all_chan_req, sizeof(all_chan_req), iovar_buf, WLC_IOCTL_MAXLEN, NULL);
+		all_chan_req, all_chan_req_size, iovar_buf, WLC_IOCTL_MAXLEN, NULL);
 
 	if (err != BCME_OK && err != BCME_UNSUPPORTED) {
 		WL_ERR(("cca_get_stats_ext iovar err = %d\n", err));
@@ -7085,12 +7097,18 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 		}
 	}
 #else
-	cca_v2_req.ver = WL_CCA_EXT_REQ_VER_V2;
-	cca_v2_req.chanspec =
+	cca_v2_req = (void *)MALLOCZ(cfg->osh, cca_v2_req_size);
+	if (cca_v2_req == NULL) {
+		err = BCME_NOMEM;
+		WL_ERR(("cca_v2_req alloc failed\n"));
+		goto exit;
+	}
+	cca_v2_req->ver = WL_CCA_EXT_REQ_VER_V2;
+	cca_v2_req->chanspec =
 		wl_chspec_host_to_driver(wf_chspec_primary20_chspec(cur_chanspec));
 
-	err = wldev_iovar_getbuf(bcmcfg_to_prmry_ndev(cfg), "cca_get_stats_ext", &cca_v2_req,
-		sizeof(cca_v2_req), iovar_buf, WLC_IOCTL_MAXLEN, NULL);
+	err = wldev_iovar_getbuf(bcmcfg_to_prmry_ndev(cfg), "cca_get_stats_ext", cca_v2_req,
+		cca_v2_req_size, iovar_buf, WLC_IOCTL_MAXLEN, NULL);
 
 	if (err != BCME_OK && err != BCME_UNSUPPORTED) {
 		WL_ERR(("cca_get_stats_ext iovar err = %d\n", err));
@@ -7145,7 +7163,7 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 				dtoh32(cca_result->secs[0].congest_obss),
 				dtoh32(cca_result->secs[0].interference)));
 		} else {
-			WL_ERR(("cca_get_stats is unsupported \n"));
+			WL_INFORM(("cca_get_stats is unsupported \n"));
 		}
 
 		/* If cca_get_stats is unsupported, cca_busy_time has zero value as initial value */
@@ -7296,6 +7314,15 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 		WL_ERR(("Vendor Command reply failed ret:%d \n", err));
 
 exit:
+#ifdef CHAN_STATS_SUPPORT
+	if (all_chan_req) {
+		MFREE(cfg->osh, all_chan_req, all_chan_req_size);
+	}
+#else
+	if (cca_v2_req) {
+		MFREE(cfg->osh, cca_v2_req, cca_v2_req_size);
+	}
+#endif /* CHAN_STATS_SUPPORT */
 	if (outdata) {
 		MFREE(cfg->osh, outdata, WLC_IOCTL_MAXLEN);
 	}
@@ -8443,15 +8470,15 @@ static int __wl_cfgvendor_dbg_get_pkt_fates(struct wiphy *wiphy,
 				user_buf = (void __user *)(unsigned long) nla_get_u64(iter);
 				break;
 			default:
-				WL_ERR(("%s: no such attribute %d\n", __FUNCTION__, type));
+				WL_ERR(("no such attribute %d\n", type));
 				ret = -EINVAL;
 				goto exit;
 		}
 	}
 
 	if (!req_count || !user_buf) {
-		WL_ERR(("%s: invalid request, user_buf=%p, req_count=%u\n",
-			__FUNCTION__, user_buf, req_count));
+		WL_ERR(("invalid request, user_buf=%p, req_count=%u\n",
+			user_buf, req_count));
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -10088,7 +10115,9 @@ const struct nla_policy andr_dbg_policy[DEBUG_ATTRIBUTE_MAX] = {
 	[DEBUG_ATTRIBUTE_LOG_MIN_DATA_SIZE] = { .type = NLA_U32 },
 	[DEBUG_ATTRIBUTE_FW_DUMP_LEN] = { .type = NLA_U32 },
 	[DEBUG_ATTRIBUTE_FW_DUMP_DATA] = { .type = NLA_U64 },
+#if (ANDROID_VERSION >= 11)
 	[DEBUG_ATTRIBUTE_FW_ERR_CODE] = { .type = NLA_U32 },
+#endif
 	[DEBUG_ATTRIBUTE_RING_DATA] = { .type = NLA_BINARY },
 	[DEBUG_ATTRIBUTE_RING_STATUS] = { .type = NLA_BINARY },
 	[DEBUG_ATTRIBUTE_RING_NUM] = { .type = NLA_U32 },

@@ -713,7 +713,7 @@ typedef struct wl_extdscan_params {
 
 #define WL_SCAN_PARAMS_SSID_MAX		10
 
-struct wl_scan_params {
+typedef struct wl_scan_params_v1 {
 	wlc_ssid_t ssid;		/**< default: {0, ""} */
 	struct ether_addr bssid;	/**< default: bcast */
 	int8 bss_type;			/**< default: any,
@@ -744,8 +744,13 @@ struct wl_scan_params {
 					 * parameter portion is assumed, otherwise ssid in
 					 * the fixed portion is ignored
 					 */
-	uint16 channel_list[1];		/**< list of chanspecs */
-};
+	uint16 channel_list[BCM_FLEX_ARRAY];
+} wl_scan_params_v1_t;
+
+/** size of wl_scan_params_v1 not including variable length array */
+#define WL_SCAN_PARAMS_V1_FIXED_SIZE	(OFFSETOF(wl_scan_params_v1_t, channel_list))
+#define WL_MAX_ROAMSCAN_V1_DATSZ \
+	(WL_SCAN_PARAMS_V1_FIXED_SIZE + (WL_NUMCHANNELS * sizeof(uint16)))
 
 /* changes in wl_scan_params_v2 as comapred to wl_scan_params (v1)
 * unit8 scantype to uint32
@@ -857,16 +862,16 @@ typedef struct wl_scan_params_v3 {
 #define WL_MAX_ROAMSCAN_V3_DATSZ \
 	(WL_SCAN_PARAMS_V3_FIXED_SIZE + (WL_NUMCHANNELS * sizeof(uint16)))
 
-#define ISCAN_REQ_VERSION 1
+#define ISCAN_REQ_VERSION_V1 1
 #define ISCAN_REQ_VERSION_V2 2
 
 /** incremental scan struct */
-struct wl_iscan_params {
+typedef struct wl_iscan_params_v1 {
 	uint32 version;
 	uint16 action;
 	uint16 scan_duration;
-	struct wl_scan_params params;
-};
+	struct wl_scan_params_v1 params;
+} wl_iscan_params_v1_t;
 
 /** incremental scan struct */
 typedef struct wl_iscan_params_v2 {
@@ -895,8 +900,9 @@ typedef struct wl_scan_results_v109 {
 	uint32 buflen;
 	uint32 version;
 	uint32 count;
-	wl_bss_info_v109_t bss_info[1];
+	wl_bss_info_v109_t bss_info[BCM_FLEX_ARRAY];
 } wl_scan_results_v109_t;
+#define WL_SCAN_RESULTS_V109_FIXED_SIZE (OFFSETOF(wl_scan_results_v109_t, bss_info))
 
 typedef struct wl_scan_results_v2 {
 	uint32 buflen;
@@ -920,15 +926,15 @@ typedef struct iscan_buf {
 } iscan_buf_t;
 #endif /* SIMPLE_ISCAN */
 #define ESCAN_REQ_VERSION 1
+#define ESCAN_REQ_VERSION_V1 1
 #define ESCAN_REQ_VERSION_V2 2
 
-/** event scan reduces amount of SOC memory needed to store scan results */
-struct wl_escan_params {
+typedef struct wl_escan_params_v1 {
 	uint32 version;
 	uint16 action;
 	uint16 sync_id;
-	struct wl_scan_params params;
-};
+	struct wl_scan_params_v1 params;
+} wl_escan_params_v1_t;
 
 typedef struct wl_escan_params_v2 {
 	uint32 version;
@@ -944,7 +950,7 @@ typedef struct wl_escan_params_v3 {
 	wl_scan_params_v3_t params;
 } wl_escan_params_v3_t;
 
-#define WL_ESCAN_PARAMS_FIXED_SIZE (OFFSETOF(wl_escan_params_t, params) + sizeof(wlc_ssid_t))
+#define WL_ESCAN_PARAMS_V1_FIXED_SIZE (OFFSETOF(wl_escan_params_v1_t, params) + sizeof(wlc_ssid_t))
 #define WL_ESCAN_PARAMS_V2_FIXED_SIZE (OFFSETOF(wl_escan_params_v2_t, params) + sizeof(wlc_ssid_t))
 #define WL_ESCAN_PARAMS_V3_FIXED_SIZE (OFFSETOF(wl_escan_params_v3_t, params) + sizeof(wlc_ssid_t))
 /* New scan version is defined then change old version of scan to
@@ -967,9 +973,9 @@ typedef struct wl_escan_params_v2	wl_escan_params_t;
 typedef struct wl_iscan_params_v2	wl_iscan_params_t;
 #define WL_SCAN_PARAMS_FIXED_SIZE	(OFFSETOF(wl_scan_params_t, channel_list))
 #else
-typedef struct wl_scan_params wl_scan_params_t;
-typedef struct wl_escan_params wl_escan_params_t;
-typedef struct wl_iscan_params wl_iscan_params_t;
+typedef struct wl_scan_params_v1 wl_scan_params_t;
+typedef struct wl_escan_params_v1 wl_escan_params_t;
+typedef struct wl_iscan_params_v1 wl_iscan_params_t;
 #define WL_SCAN_PARAMS_FIXED_SIZE	64
 #endif /* WL_SCAN_PARAMS_V3 */
 
@@ -979,8 +985,9 @@ typedef struct wl_escan_result_v109 {
 	uint32 version;
 	uint16 sync_id;
 	uint16 bss_count;
-	wl_bss_info_v109_t bss_info[1];
+	wl_bss_info_v109_t bss_info[BCM_FLEX_ARRAY];
 } wl_escan_result_v109_t;
+#define WL_ESCAN_RESULTS_V109_FIXED_SIZE (OFFSETOF(wl_escan_result_v109_t, bss_info))
 
 /** event scan reduces amount of SOC memory needed to store scan results */
 typedef struct wl_escan_result_v2 {
@@ -2306,6 +2313,7 @@ typedef struct sta_info_v7 {
 
 #define WL_STA_VER_4		4
 #define WL_STA_VER_5		5
+#define WL_STA_VER_6		6u
 /* FIXME: the user/branch should make the selection! */
 #define WL_STA_VER		WL_STA_VER_4
 
@@ -6230,6 +6238,15 @@ typedef struct wl_icmp_ipv6_cfg {
 #define WL_ICMP_CFG_IPV6_LEN(count)    (WL_ICMP_CFG_IPV6_FIXED_LEN + \
 					((count) * sizeof(struct ipv6_addr)))
 
+typedef struct wl_mkeep_alive_pkt_v1 {
+	uint16	version; /* Version for mkeep_alive */
+	uint16	length; /* length of fixed parameters in the structure */
+	uint32	period_msec; /* high bit on means immediate send */
+	uint16	len_bytes;
+	uint8	keep_alive_id; /* 0 - 3 for N = 4 */
+	uint8	data[BCM_FLEX_ARRAY];
+} wl_mkeep_alive_pkt_v1_t;
+
 typedef struct wl_mkeep_alive_pkt {
 	uint16	version; /* Version for mkeep_alive */
 	uint16	length; /* length of fixed parameters in the structure */
@@ -6239,6 +6256,7 @@ typedef struct wl_mkeep_alive_pkt {
 	uint8	data[1];
 } wl_mkeep_alive_pkt_t;
 
+#define WL_MKEEP_ALIVE_VERSION_1	1u
 #define WL_MKEEP_ALIVE_VERSION		1
 #define WL_MKEEP_ALIVE_FIXED_LEN	OFFSETOF(wl_mkeep_alive_pkt_t, data)
 /* 1/2 second precision since idle time is a seconds counter anyway */

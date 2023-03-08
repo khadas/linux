@@ -55,6 +55,9 @@ module_param(dbus_msglevel, int, 0);
 #define USB_DLGO_SPINWAIT            100     /* wait after DL_GO (ms) */
 #define TEST_CHIP                    0x4328
 
+/* driver info, initialized when bcmsdh_register is called */
+static dbus_driver_t drvinfo = {NULL, NULL, NULL, NULL};
+
 typedef struct {
 	dbus_pub_t  *pub;
 
@@ -147,10 +150,6 @@ const bcm_iovar_t dhdusb_iovars[] = {
  * attach() is not called at probe and detach()
  * can be called inside disconnect()
  */
-static probe_cb_t	probe_cb = NULL;
-static disconnect_cb_t	disconnect_cb = NULL;
-static void		*probe_arg = NULL;
-static void		*disc_arg = NULL;
 static dbus_intf_t	*g_dbusintf = NULL;
 static dbus_intf_t	dbus_usb_intf; /** functions called by higher layer DBUS into lower layer */
 
@@ -160,8 +159,7 @@ static dbus_intf_t	dbus_usb_intf; /** functions called by higher layer DBUS into
  */
 static void *dbus_usb_attach(dbus_pub_t *pub, void *cbarg, dbus_intf_callbacks_t *cbs);
 static void dbus_usb_detach(dbus_pub_t *pub, void *info);
-static void * dbus_usb_probe(void *arg, const char *desc, uint32 bustype,
-	uint16 bus_no, uint16 slot, uint32 hdrlen);
+static void * dbus_usb_probe(uint16 bus_no, uint16 slot, uint32 hdrlen);
 
 /* functions */
 
@@ -170,12 +168,10 @@ static void * dbus_usb_probe(void *arg, const char *desc, uint32 bustype,
  * lower level DBUS functions to call (in both dbus_usb.c and dbus_usb_os.c).
  */
 static void *
-dbus_usb_probe(void *arg, const char *desc, uint32 bustype, uint16 bus_no,
-	uint16 slot, uint32 hdrlen)
+dbus_usb_probe(uint16 bus_no, uint16 slot, uint32 hdrlen)
 {
 	DBUSTRACE(("%s(): \n", __FUNCTION__));
-	if (probe_cb) {
-
+	if (drvinfo.probe) {
 		if (g_dbusintf != NULL) {
 			/* First, initialize all lower-level functions as default
 			 * so that dbus.c simply calls directly to dbus_usb_os.c.
@@ -191,32 +187,55 @@ dbus_usb_probe(void *arg, const char *desc, uint32 bustype, uint16 bus_no,
 			dbus_usb_intf.dlrun = dbus_usb_dlrun;
 		}
 
-		disc_arg = probe_cb(probe_arg, "DBUS USB", USB_BUS, bus_no, slot, hdrlen);
-		return disc_arg;
+		return drvinfo.probe(bus_no, slot, hdrlen);
 	}
 
 	return NULL;
 }
+
+static int
+dbus_usb_suspend(void *handle)
+{
+	DBUSTRACE(("%s(): \n", __FUNCTION__));
+
+	if (drvinfo.suspend)
+		return drvinfo.suspend(handle);
+
+	return BCME_OK;
+}
+
+static int
+dbus_usb_resume(void *handle)
+{
+	DBUSTRACE(("%s(): \n", __FUNCTION__));
+
+	if (drvinfo.resume)
+		drvinfo.resume(handle);
+
+	return 0;
+}
+
+static dbus_driver_t dhd_usb_dbus = {
+	dbus_usb_probe,
+	dbus_usb_disconnect,
+	dbus_usb_suspend,
+	dbus_usb_resume
+};
 
 /**
  * On return, *intf contains this or lower-level DBUS functions to be called by higher
  * level (dbus.c)
  */
 int
-dbus_bus_register(int vid, int pid, probe_cb_t prcb,
-	disconnect_cb_t discb, void *prarg, dbus_intf_t **intf, void *param1, void *param2)
+dbus_bus_register(dbus_driver_t *driver, dbus_intf_t **intf)
 {
 	int err;
 
 	DBUSTRACE(("%s(): \n", __FUNCTION__));
-	probe_cb = prcb;
-	disconnect_cb = discb;
-	probe_arg = prarg;
-
+	drvinfo = *driver;
 	*intf = &dbus_usb_intf;
 
-	err = dbus_bus_osl_register(vid, pid, dbus_usb_probe,
-		dbus_usb_disconnect, NULL, &g_dbusintf, param1, param2);
+	err = dbus_bus_osl_register(&dhd_usb_dbus, &g_dbusintf);
 
 	ASSERT(g_dbusintf);
 	return err;
@@ -292,8 +311,8 @@ void
 dbus_usb_disconnect(void *handle)
 {
 	DBUSTRACE(("%s(): \n", __FUNCTION__));
-	if (disconnect_cb)
-		disconnect_cb(disc_arg);
+	if (drvinfo.remove)
+		drvinfo.remove(handle);
 }
 
 /**

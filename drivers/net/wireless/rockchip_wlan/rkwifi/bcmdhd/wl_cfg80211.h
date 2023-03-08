@@ -1967,6 +1967,12 @@ struct bcm_cfg80211 {
 #endif /* WL_P2P_6G */
 	u32 halpid;
 	u8 country[WLC_CNTRY_BUF_SZ];
+#ifdef BCMDBUS
+	bool bus_resuming;
+#endif /* BCMDBUS */
+#ifdef WL_ROAM_WAR
+	struct ether_addr roaming_bssid;
+#endif /* WL_ROAM_WAR */
 #if defined(RSSIAVG)
 	wl_rssi_cache_ctrl_t g_rssi_cache_ctrl;
 	wl_rssi_cache_ctrl_t g_connected_rssi_cache_ctrl;
@@ -3042,6 +3048,15 @@ do {	\
 	}	\
 } while (0)
 
+#define WL_CHANNEL_COPY_FLAG(band_chan_arr)    \
+do {   \
+	u32 arr_size, k;        \
+	arr_size = ARRAYSIZE(band_chan_arr);    \
+	for (k = 0; k < arr_size; k++) {        \
+		band_chan_arr[k].orig_flags = band_chan_arr[k].flags;   \
+	}       \
+} while (0)
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0))
 #define CFG80211_PUT_BSS(wiphy, bss) cfg80211_put_bss(wiphy, bss);
 #else
@@ -3095,6 +3110,10 @@ extern bool wl_customer6_legacy_chip_check(struct bcm_cfg80211 *cfg,
 extern s32 wl_cfgvendor_notify_twt_event(struct bcm_cfg80211 *cfg,
 	bcm_struct_cfgdev *cfgdev, const wl_event_msg_t *e, void *data);
 #endif /* !WL_TWT && WL_TWT_HAL_IF */
+#ifdef BCMDBUS
+s32
+__wl_cfg80211_up_resume(dhd_pub_t *dhd);
+#endif /* BCMDBUS */
 void wl_wlfc_enable(struct bcm_cfg80211 *cfg, bool enable);
 s32 wl_handle_join(struct bcm_cfg80211 *cfg, struct net_device *dev,
 	wlcfg_assoc_info_t *assoc_info);
