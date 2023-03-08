@@ -118,9 +118,9 @@
 		pinctrl-names = "focusb_gpios";
 		pinctrl-0 = <&focusb_gpio>;
 		focus-gpios = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
-		rockchip,vcm-start-current = <20>;
-		rockchip,vcm-rated-current = <76>;
-		rockchip,vcm-step-mode = <0>;
+		rockchip,vcm-start-current = <0>;
+		rockchip,vcm-rated-current = <65>;
+		rockchip,vcm-step-mode = <4>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 	};
@@ -163,9 +163,9 @@
 		pinctrl-names = "focusf_gpios";
 		pinctrl-0 = <&focusf_gpio>;
 		focus-gpios = <&gpio1 RK_PA1 GPIO_ACTIVE_HIGH>;
-		rockchip,vcm-start-current = <20>;
-		rockchip,vcm-rated-current = <76>;
-		rockchip,vcm-step-mode = <0>;
+		rockchip,vcm-start-current = <0>;
+		rockchip,vcm-rated-current = <65>;
+		rockchip,vcm-step-mode = <4>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
 	};
@@ -208,9 +208,9 @@
 		pinctrl-names = "focusc_gpios";
 		pinctrl-0 = <&focusc_gpio>;
 		focus-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;
-		rockchip,vcm-start-current = <20>;
-		rockchip,vcm-rated-current = <76>;
-		rockchip,vcm-step-mode = <0>;
+		rockchip,vcm-start-current = <0>;
+		rockchip,vcm-rated-current = <65>;
+		rockchip,vcm-step-mode = <4>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 	};
