@@ -537,6 +537,40 @@
 		status = "disabled";
 	};
 
+	vddnpu: pwmao_f-regulator {
+		compatible = "pwm-regulator";
+		pwms = <&pwmao_ef MESON_PWM_1 1500 0>;
+		regulator-name = "vddnpu";
+		regulator-min-microvolt = <690000>;
+		regulator-max-microvolt = <890000>;
+		//regulator-always-on;
+		max-duty-cycle = <1500>;
+		/* Voltage Duty-Cycle */
+		voltage-table =
+				<890000 0>,
+				<880000 5>,
+				<870000 10>,
+				<860000 15>,
+				<850000 20>,
+				<840000 25>,
+				<830000 30>,
+				<820000 35>,
+				<810000 40>,
+				<800000 45>,
+				<790000 50>,
+				<780000 55>,
+				<770000 60>,
+				<760000 65>,
+				<750000 70>,
+				<740000 75>,
+				<730000 80>,
+				<720000 85>,
+				<710000 90>,
+				<700000 95>,
+				<690000 100>;
+		status = "okay";
+	};
+
 	a73pwm_opp_table0: a73pwm_opp_table0 {
 		compatible = "operating-points-v2";
 		opp-shared;
@@ -1392,7 +1426,7 @@
 				clocks = <&clkc CLKID_PWM_AO_E_GATE>,
 						<&clkc CLKID_PWM_AO_F_GATE>;
 				clock-names = "clkin0", "clkin1";
-				status = "disabled";
+				status = "okay";
 			};
 
 			pwmao_gh: pwm@32000 {
