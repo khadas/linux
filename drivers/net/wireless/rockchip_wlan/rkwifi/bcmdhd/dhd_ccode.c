@@ -264,9 +264,11 @@ dhd_ccode_map_country_list(dhd_pub_t *dhd, wl_country_t *cspec)
 		}
 	}
 
-	if (bcmerror && ccode_ww && strlen(ccode_ww)>=4) {
-		memcpy(cspec->ccode, ccode_ww, 2);
-		cspec->rev = (int)simple_strtol(ccode_ww+3, NULL, 0);
+	if (dhd->op_mode != DHD_FLAG_MFG_MODE) {
+		if (bcmerror && ccode_ww && strlen(ccode_ww)>=4) {
+			memcpy(cspec->ccode, ccode_ww, 2);
+			cspec->rev = (int)simple_strtol(ccode_ww+3, NULL, 0);
+		}
 	}
 
 	return bcmerror;

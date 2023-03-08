@@ -485,4 +485,9 @@ wl_cfgp2p_is_p2p_specific_scan(struct cfg80211_scan_request *request);
  * instead of channel in actframe iovar.
  */
 #define FW_MAJOR_VER_ACTFRAME_CHSPEC    14
+
+#ifdef BCMDBUS
+int
+wl_cfgp2p_start_p2p_device_resume(dhd_pub_t *dhd);
+#endif /* BCMDBUS */
 #endif				/* _wl_cfgp2p_h_ */

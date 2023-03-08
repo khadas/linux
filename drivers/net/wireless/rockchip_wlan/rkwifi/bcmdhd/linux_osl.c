@@ -1718,71 +1718,6 @@ osl_rand(void)
 	return rand;
 }
 
-/* Linux Kernel: File Operations: start */
-void *
-osl_os_open_image(char *filename)
-{
-	struct file *fp;
-
-	fp = filp_open(filename, O_RDONLY, 0);
-	/*
-	 * 2.6.11 (FC4) supports filp_open() but later revs don't?
-	 * Alternative:
-	 * fp = open_namei(AT_FDCWD, filename, O_RD, 0);
-	 * ???
-	 */
-	if (IS_ERR(fp)) {
-		printf("ERROR %ld: Unable to open file %s\n", PTR_ERR(fp), filename);
-		fp = NULL;
-	}
-
-	return fp;
-}
-
-int
-osl_os_get_image_block(char *buf, int len, void *image)
-{
-	struct file *fp = (struct file *)image;
-	int rdlen;
-
-	if (fp == NULL) {
-		return 0;
-	}
-
-	rdlen = kernel_read_compat(fp, fp->f_pos, buf, len);
-	if (rdlen > 0) {
-		fp->f_pos += rdlen;
-	}
-
-	return rdlen;
-}
-
-void
-osl_os_close_image(void *image)
-{
-	struct file *fp = (struct file *)image;
-
-	if (fp != NULL) {
-		filp_close(fp, NULL);
-	}
-}
-
-int
-osl_os_image_size(void *image)
-{
-	int len = 0, curroffset;
-
-	if (image) {
-		/* store the current offset */
-		curroffset = generic_file_llseek(image, 0, 1);
-		/* goto end of file to get length */
-		len = generic_file_llseek(image, 0, 2);
-		/* restore back the offset */
-		generic_file_llseek(image, curroffset, 0);
-	}
-	return len;
-}
-
 /* Linux Kernel: File Operations: end */
 
 #if defined(AXI_TIMEOUTS_NIC)
@@ -1939,7 +1874,11 @@ osl_timer_del(osl_t *osh, osl_timer_t *t)
 int
 kernel_read_compat(struct file *file, loff_t offset, char *addr, unsigned long count)
 {
+#ifdef DHD_SUPPORT_VFS_CALL
 	return (int)kernel_read(file, addr, (size_t)count, &offset);
+#else
+	return 0;
+#endif /* DHD_SUPPORT_VFS_CALL */
 }
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)) */
 

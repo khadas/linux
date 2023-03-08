@@ -31,8 +31,6 @@
 
 extern int dbus_up(struct dhd_bus *pub);
 extern int dbus_stop(struct dhd_bus *pub);
-extern int dbus_send_ctl(struct dhd_bus *pub, uint8 *buf, int len);
-extern int dbus_recv_ctl(struct dhd_bus *pub, uint8 *buf, int len);
 /*
  * Exported from dhd bus module (dhd_usb, dhd_sdio)
  */
@@ -252,8 +250,6 @@ extern void dhd_bus_aer_config(struct dhd_bus *bus);
 static INLINE void dhd_bus_aer_config(struct dhd_bus *bus) { }
 #endif /* LINUX || linux */
 
-extern struct device * dhd_bus_to_dev(struct dhd_bus *bus);
-
 extern int dhdpcie_cto_init(struct dhd_bus *bus, bool enable);
 extern int dhdpcie_cto_cfg_init(struct dhd_bus *bus, bool enable);
 
@@ -313,7 +309,7 @@ static INLINE bool dhd_bus_check_driver_up(void) { return FALSE; }
 static INLINE void dhd_bus_set_linkdown(dhd_pub_t *dhdp, bool val) { }
 static INLINE int dhd_bus_get_linkdown(dhd_pub_t *dhdp) { return 0; }
 static INLINE int dhd_bus_get_cto(dhd_pub_t *dhdp) { return 0; }
-extern INLINE int dhd_bus_checkdied(struct dhd_bus *bus, char *data, uint size) { return 0; }
+static INLINE int dhd_bus_checkdied(struct dhd_bus *bus, char *data, uint size) { return 0; }
 #endif /* BCMPCIE */
 
 #if defined(BCMPCIE) && defined(EWP_ETD_PRSRV_LOGS)

@@ -160,7 +160,7 @@ wl_bad_ap_mngr_fparse(struct bcm_cfg80211 *cfg, struct file *fp)
 		return BCME_NOMEM;
 	}
 
-	ret = vfs_read(fp, buf, WL_BAD_AP_MAX_BUF_SIZE, &fp->f_pos);
+	ret = dhd_vfs_read(fp, buf, WL_BAD_AP_MAX_BUF_SIZE, &fp->f_pos);
 	if (ret  < 0) {
 		WL_ERR(("%s: file read failed (%d)\n", __FUNCTION__, ret));
 		goto fail;
@@ -236,8 +236,8 @@ wl_bad_ap_mngr_fread(struct bcm_cfg80211 *cfg, const char *fname)
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 
-	fp = filp_open(fname, O_RDONLY, 0);
-	if (IS_ERR(fp)) {
+	fp = dhd_filp_open(fname, O_RDONLY, 0);
+	if (IS_ERR(fp) || (fp == NULL)) {
 		fp = NULL;
 		WL_ERR(("%s: file open failed(%d)\n", __FUNCTION__, ret));
 		goto fail;
@@ -248,7 +248,7 @@ wl_bad_ap_mngr_fread(struct bcm_cfg80211 *cfg, const char *fname)
 	}
 fail:
 	if (fp) {
-		filp_close(fp, NULL);
+		dhd_filp_close(fp, NULL);
 	}
 	set_fs(fs);
 
@@ -283,8 +283,8 @@ wl_bad_ap_mngr_fwrite(struct bcm_cfg80211 *cfg, const char *fname)
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 
-	fp = filp_open(fname, O_CREAT | O_RDWR | O_TRUNC,  0666);
-	if (IS_ERR(fp)) {
+	fp = dhd_filp_open(fname, O_CREAT | O_RDWR | O_TRUNC,  0666);
+	if (IS_ERR(fp) || (fp == NULL)) {
 		ret = PTR_ERR(fp);
 		WL_ERR(("%s: file open failed(%d)\n", __FUNCTION__, ret));
 		fp = NULL;
@@ -310,13 +310,13 @@ wl_bad_ap_mngr_fwrite(struct bcm_cfg80211 *cfg, const char *fname)
 #pragma GCC diagnostic pop
 #endif
 
-	ret = vfs_write(fp, tmp, len, &fp->f_pos);
+	ret = dhd_vfs_write(fp, tmp, len, &fp->f_pos);
 	if (ret < 0) {
 		WL_ERR(("%s: file write failed(%d)\n", __FUNCTION__, ret));
 		goto fail;
 	}
 	/* Sync file from filesystem to physical media */
-	ret = vfs_fsync(fp, 0);
+	ret = dhd_vfs_fsync(fp, 0);
 	if (ret < 0) {
 		WL_ERR(("%s: sync file failed(%d)\n", __FUNCTION__, ret));
 		goto fail;
@@ -324,7 +324,7 @@ wl_bad_ap_mngr_fwrite(struct bcm_cfg80211 *cfg, const char *fname)
 	ret = BCME_OK;
 fail:
 	if (fp) {
-		filp_close(fp, NULL);
+		dhd_filp_close(fp, NULL);
 	}
 	set_fs(fs);
 	mutex_unlock(&cfg->bad_ap_mngr.fs_lock);

@@ -88,8 +88,6 @@
 #define WL_BSSIDX_MAX	16
 #endif /* WL_STATIC_IF */
 
-uint android_msg_level = ANDROID_ERROR_LEVEL | ANDROID_MSG_LEVEL;
-
 #define ANDROID_ERROR_MSG(x, args...) \
 	do { \
 		if (android_msg_level & ANDROID_ERROR_LEVEL) { \
@@ -6842,7 +6840,8 @@ wl_android_set_auto_channel(struct net_device *dev, const char* cmd_str,
 		}
 	}
 
-	channel = wl_ext_autochannel(dev, ACS_DRV_BIT, band);
+	chosen = wl_ext_autochannel(dev, ACS_DRV_BIT, band);
+	channel = wf_chspec_ctlchan(chosen);
 	if (channel) {
 		acs_band = CHSPEC_BAND(channel);
 		goto done2;

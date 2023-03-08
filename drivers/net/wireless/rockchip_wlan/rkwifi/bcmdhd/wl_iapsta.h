@@ -58,6 +58,7 @@ int wl_ext_iapsta_config(struct net_device *dev, char *command, int total_len);
 void wl_ext_add_remove_pm_enable_work(struct net_device *dev, bool add);
 bool wl_ext_iapsta_other_if_enabled(struct net_device *net);
 bool wl_ext_sta_connecting(struct net_device *dev);
+void wl_ext_get_chan_str(struct net_device *dev, char *chan_str, int total_len);
 #ifdef DHD_LOSSLESS_ROAMING
 int wl_ext_any_sta_handshaking(struct dhd_pub *dhd);
 #endif /* DHD_LOSSLESS_ROAMING */
@@ -87,6 +88,9 @@ bool wl_ext_iapsta_mesh_creating(struct net_device *net);
 void wl_ext_fw_reinit_incsa(struct net_device *dev);
 void wl_ext_send_event_msg(struct net_device *dev, int event, int status,
 	int reason);
+#ifdef BTC_WAR
+void wl_ext_btc_config(struct net_device *dev, bool enable);
+#endif /* BTC_WAR */
 #ifdef STA_MGMT
 bool wl_ext_del_sta_info(struct net_device *net, u8 *bssid);
 bool wl_ext_add_sta_info(struct net_device *net, u8 *bssid);

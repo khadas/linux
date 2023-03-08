@@ -28,10 +28,14 @@
 #define DECLSPEC_ALIGN(x)	__attribute__ ((aligned(x)))
 
 /* Linux Kernel: File Operations: start */
-extern void * osl_os_open_image(char * filename);
-extern int osl_os_get_image_block(char * buf, int len, void * image);
-extern void osl_os_close_image(void * image);
-extern int osl_os_image_size(void *image);
+static INLINE void * osl_os_open_image(char * filename)
+	{ return NULL; }
+static INLINE void osl_os_close_image(void * image)
+	{ return; }
+static INLINE int osl_os_get_image_block(char * buf, int len, void * image)
+	{ return 0; }
+static INLINE int osl_os_image_size(void *image)
+	{ return 0; }
 /* Linux Kernel: File Operations: end */
 
 #ifdef BCMDRIVER
@@ -276,7 +280,6 @@ extern void osl_preempt_enable(osl_t *osh);
 #define OSL_ENABLE_PREEMPTION(osh)	osl_preempt_enable(osh)
 
 #if (defined(BCMPCIE) && !defined(DHD_USE_COHERENT_MEM_FOR_RING) && defined(__ARM_ARCH_7A__))
-
 	extern void osl_cache_flush(void *va, uint size);
 	extern void osl_cache_inv(void *va, uint size);
 	extern void osl_prefetch(const void *ptr);

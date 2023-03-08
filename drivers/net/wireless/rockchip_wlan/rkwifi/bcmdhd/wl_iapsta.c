@@ -14,6 +14,16 @@
 #include <wl_escan.h>
 #endif /* WL_ESCAN */
 
+#ifdef BTC_WAR
+/* btc_war:
+ * -1(don't apply btc)
+ *   0(disable btc war): btc_mode=1; txchain=3; rxchain=3
+ *   1(enable btc war): txchain=2; rxchain=2; btc_mode=5
+ */
+int btc_war = -1;
+module_param(btc_war, int, 0644);
+#endif /* BTC_WAR */
+
 #define IAPSTA_ERROR(name, arg1, args...) \
 	do { \
 		if (android_msg_level & ANDROID_ERROR_LEVEL) { \
@@ -70,6 +80,13 @@ extern int disable_proptx;
 #define STA_DISCONNECT_RECONNECT_TIMEOUT	30000
 #define STA_DISCONNECT_RECONNECT_MAX	3
 #define STA_4WAY_TIMEOUT	1000
+#ifdef EAPOL_RESEND_M4
+#define STA_KEY_INSTALL_INTERVAL	50
+#define STA_KEY_INSTALL_MAX	(STA_4WAY_TIMEOUT/STA_KEY_INSTALL_INTERVAL)
+#else
+#define STA_KEY_INSTALL_INTERVAL	50
+#define STA_KEY_INSTALL_MAX	3
+#endif
 #define STA_EAPOL_TIMEOUT	100
 #define STA_EMPTY_SCAN_MAX	6
 #define AP_RESTART_TIMEOUT	1000
@@ -135,6 +152,12 @@ typedef enum ENCMODE {
 	ENC_AES,
 	ENC_TKIPAES
 } encmode_t;
+
+typedef enum MAPSTA_MODE {
+	MCHAN_APSTA_NOT_ALLOW = 0,
+	MCHAN_APSTA_SBSC,
+	MCHAN_APSTA_NO_RESTRICT
+} mapsta_mode_t;
 
 #ifdef STA_MGMT
 typedef struct wl_sta_info {
@@ -232,6 +255,10 @@ typedef struct wl_if_info {
 	int eapol_resend_intvl;
 #endif /* EAPOL_DYNAMATIC_RESEND */
 #endif /* EAPOL_RESEND */
+#ifdef KEY_INSTALL_CHECK
+	timer_list_compat_t key_install_timer;
+	int key_install_cnt;
+#endif /* KEY_INSTALL_CHECK */
 	int empty_scan;
 #ifdef RESTART_AP_WAR
 	timer_list_compat_t restart_ap_timer;
@@ -248,12 +275,13 @@ typedef struct wl_if_info {
 #endif /* WL_EXT_RECONNECT && WL_CFG80211 */
 } wl_if_info_t;
 
+u8 *g_ioctl_buf = NULL;
+
 typedef struct wl_apsta_params {
 	struct wl_if_info if_info[MAX_IF_NUM];
 #ifdef WLDWDS
 	struct wl_dwds_info dwds_info[MAX_DWDS_IF_NUM];
 #endif /* WLDWDS */
-	u8 *ioctl_buf;
 	bool init;
 	int rsdb;
 	bool vsdb;
@@ -312,7 +340,8 @@ enum wifi_isam_reason {
 	ISAM_RC_AP_RESTART = 4,
 	ISAM_RC_AP_RESET = 5,
 	ISAM_RC_EAPOL_RESEND = 6,
-	ISAM_RC_RXF0OVFL_REINIT = 7
+	ISAM_RC_KEY_INSTALL = 7,
+	ISAM_RC_RXF0OVFL_REINIT = 8
 };
 
 #define wl_get_isam_status(cur_if, stat) \
@@ -753,6 +782,22 @@ wl_ext_get_chan(struct net_device *dev, struct wl_chan_info *chan_info)
 	return chan;
 }
 
+void
+wl_ext_get_chan_str(struct net_device *dev, char *chan_str, int total_len)
+{
+	struct wl_chan_info chan_info;
+	int bytes_written=0;
+	u32 chanspec = 0;
+
+	memset(chan_str, 0, total_len);
+	chanspec = wl_ext_get_chanspec(dev, &chan_info);
+	if (chanspec) {
+		bytes_written += snprintf(chan_str+bytes_written, total_len, "%s-%d %sMHz",
+			WLCBAND2STR(chan_info.band), chan_info.chan,
+			wf_chspec_to_bw_str(chanspec));
+	}
+}
+
 static chanspec_t
 wl_ext_chan_to_chanspec(struct net_device *dev, struct wl_chan_info *chan_info)
 {
@@ -881,6 +926,62 @@ wl_ext_send_event_msg(struct net_device *dev, int event, int status,
 #endif /* WL_CFG80211 */
 	}
 }
+
+#ifdef BTC_WAR
+bool
+wl_ext_iapsta_if_2g_enabled(struct net_device *net)
+{
+	struct dhd_pub *dhd = dhd_get_pub(net);
+	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
+	struct wl_if_info *tmp_if;
+	struct wl_chan_info chan_info;
+	bool enabled = FALSE;
+	uint16 cur_chan;
+	int i;
+
+	for (i=0; i<MAX_IF_NUM; i++) {
+		tmp_if = &apsta_params->if_info[i];
+		if (tmp_if && wl_get_isam_status(tmp_if, IF_READY)) {
+			cur_chan = wl_ext_get_chan(tmp_if->dev, &chan_info);
+			if (cur_chan && chan_info.band == WLC_BAND_2G) {
+				enabled = TRUE;
+				break;
+			}
+		}
+	}
+
+	return enabled;
+}
+
+void
+wl_ext_btc_config(struct net_device *dev, bool enable)
+{
+	struct dhd_pub *dhd = dhd_get_pub(dev);
+	bool enab = FALSE;
+
+	if (dhd->conf->chip == BCM4354_CHIP_ID || dhd->conf->chip == BCM4356_CHIP_ID ||
+			dhd->conf->chip == BCM43752_CHIP_ID) {
+		IAPSTA_INFO(dev->name, "btc_war=%d, enable=%d\n", btc_war, enable);
+		if (btc_war >= 0) {
+			if (enable && btc_war > 0) {
+				if (wl_ext_iapsta_if_2g_enabled(dev))
+					enab = TRUE;
+			}
+			if (enab) {
+				IAPSTA_INFO(dev->name, "enable\n");
+				wl_ext_iovar_setint(dev, "txchain", 2);
+				wl_ext_iovar_setint(dev, "rxchain", 2);
+				wl_ext_iovar_setint(dev, "btc_mode", 5);
+			} else {
+				IAPSTA_INFO(dev->name, "disable\n");
+				wl_ext_iovar_setint(dev, "btc_mode", 1);
+				wl_ext_iovar_setint(dev, "txchain", 3);
+				wl_ext_iovar_setint(dev, "rxchain", 3);
+			}
+		}
+	}
+}
+#endif /* BTC_WAR */
 
 static void
 wl_ext_connect_timeout(unsigned long data)
@@ -1838,6 +1939,7 @@ wl_ext_move_cur_dfs_channel(struct wl_apsta_params *apsta_params,
 			if (!auto_chan) {
 				auto_chan = wl_ext_autochannel(cur_if->dev, ACS_FW_BIT|ACS_DRV_BIT,
 					cur_chan_info->band);
+				auto_chan = wf_chspec_ctlchan(auto_chan);
 			}
 			if (auto_chan)
 				cur_chan_info->chan = auto_chan;
@@ -1859,6 +1961,7 @@ wl_ext_move_cur_dfs_channel(struct wl_apsta_params *apsta_params,
 			if (!auto_chan) {
 				auto_chan = wl_ext_autochannel(cur_if->dev, ACS_FW_BIT|ACS_DRV_BIT,
 					cur_chan_info->band);
+				auto_chan = wf_chspec_ctlchan(auto_chan);
 			}
 			if (auto_chan) {
 				cur_chan_info->chan = auto_chan;
@@ -1872,6 +1975,7 @@ wl_ext_move_cur_dfs_channel(struct wl_apsta_params *apsta_params,
 			} else {
 				auto_chan = wl_ext_autochannel(cur_if->dev, ACS_FW_BIT|ACS_DRV_BIT,
 					cur_chan_info->band);
+				auto_chan = wf_chspec_ctlchan(auto_chan);
 				if (auto_chan) {
 					cur_chan_info->chan = auto_chan;
 				}
@@ -1910,6 +2014,7 @@ wl_ext_move_other_dfs_channel(struct wl_apsta_params *apsta_params,
 			if (!auto_chan) {
 				auto_chan = wl_ext_autochannel(tgt_if->dev, ACS_FW_BIT|ACS_DRV_BIT,
 					tgt_chan_info->band);
+				auto_chan = wf_chspec_ctlchan(auto_chan);
 			}
 			if (auto_chan) {
 				tgt_chan_info->chan = auto_chan;
@@ -1922,6 +2027,7 @@ wl_ext_move_other_dfs_channel(struct wl_apsta_params *apsta_params,
 				if (!auto_chan) {
 					auto_chan = wl_ext_autochannel(tgt_if->dev, ACS_FW_BIT|ACS_DRV_BIT,
 						tgt_chan_info->band);
+					auto_chan = wf_chspec_ctlchan(auto_chan);
 				}
 			} else {
 				tgt_chan_info->chan = 0;
@@ -2393,6 +2499,7 @@ wl_ext_iapsta_update_channel(struct net_device *dev, u32 chanspec)
 		if (wl_ext_master_if(cur_if) && apsta_params->acs) {
 			chan_info->chan = wl_ext_autochannel(cur_if->dev, apsta_params->acs,
 				chan_info->band);
+			chan_info->chan = wf_chspec_ctlchan(chan_info->chan);
 		}
 		chan_info->chan = wl_ext_move_cur_channel(apsta_params, cur_if);
 		if (chan_info->chan) {
@@ -3317,11 +3424,106 @@ wl_eapol_timer(unsigned long data)
 }
 #endif /* EAPOL_RESEND */
 
+#ifdef KEY_INSTALL_CHECK
+static void
+wl_ext_key_install_timeout(unsigned long data)
+{
+	struct net_device *dev = (struct net_device *)data;
+	struct dhd_pub *dhd;
+	wl_event_msg_t msg;
+
+	if (!dev) {
+		IAPSTA_ERROR("wlan", "dev is not ready\n");
+		return;
+	}
+
+	dhd = dhd_get_pub(dev);
+
+	bzero(&msg, sizeof(wl_event_msg_t));
+	IAPSTA_TRACE(dev->name, "timer expired\n");
+
+	msg.ifidx = dhd_net2idx(dhd->info, dev);
+	msg.event_type = hton32(WLC_E_RESERVED);
+	msg.reason = hton32(ISAM_RC_KEY_INSTALL);
+	wl_ext_event_send(dhd->event_params, &msg, NULL);
+}
+
+static void
+wl_ext_key_install_handler(struct wl_if_info *cur_if,
+	const wl_event_msg_t *e, void *data)
+{
+	struct net_device *dev = cur_if->dev;
+	struct dhd_pub *dhd = dhd_get_pub(dev);
+	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
+	uint32 etype = ntoh32(e->event_type);
+	uint32 reason = ntoh32(e->reason);
+	int err, key_installed = 0;
+
+	if (etype == WLC_E_RESERVED && reason == ISAM_RC_KEY_INSTALL) {
+		if (cur_if->conn_state >= CONN_STATE_4WAY_M4 &&
+				!wl_get_drv_status(cfg, DISCONNECTING, dev) &&
+				wl_get_drv_status(cfg, CONNECTED, dev)) {
+			err = wldev_iovar_getint(dev, "buf_key_b4_m4_installed", &key_installed);
+			if (!err && !key_installed) {
+				cur_if->key_install_cnt++;
+				if (cur_if->key_install_cnt > STA_KEY_INSTALL_MAX) {
+					IAPSTA_ERROR(dev->name, "key not installed, send disconnect\n");
+#ifdef EAPOL_RESEND
+					wl_ext_release_eapol_txpkt(dhd, cur_if->ifidx, FALSE);
+#endif /* EAPOL_RESEND */
+					wl_ext_update_conn_state(dhd, cur_if->ifidx, CONN_STATE_CONNECTED);
+					wl_ext_ioctl(cur_if->dev, WLC_DISASSOC, NULL, 0, 1);
+					wl_timer_mod(dhd, &cur_if->key_install_timer, 0);
+					cur_if->key_install_cnt = 0;
+				} else {
+					IAPSTA_INFO(dev->name, "check key installed %dms later, cnt=%d\n",
+						STA_KEY_INSTALL_INTERVAL, cur_if->key_install_cnt);
+					wl_timer_mod(dhd, &cur_if->key_install_timer, STA_KEY_INSTALL_INTERVAL);
+				}
+			} else {
+#ifdef EAPOL_RESEND
+				wl_ext_release_eapol_txpkt(dhd, cur_if->ifidx, FALSE);
+#endif /* EAPOL_RESEND */
+				IAPSTA_INFO(dev->name, "key installed\n");
+				wl_timer_mod(dhd, &cur_if->connect_timer, 0);
+				wl_ext_update_conn_state(dhd, cur_if->ifidx, CONN_STATE_CONNECTED);
+				cur_if->key_install_cnt = 0;
+			}
+		}
+	}
+	return;
+}
+
+static int
+wl_key_installed(struct wl_if_info *cur_if)
+{
+	struct net_device *dev = cur_if->dev;
+	dhd_pub_t *dhd = dhd_get_pub(dev);
+	int err, key_installed = 0;
+
+	err = wldev_iovar_getint(dev, "buf_key_b4_m4_installed", &key_installed);
+	if (err) {
+		IAPSTA_INFO(dev->name, "not supported %d\n", err);
+		key_installed = 1;
+	} else if (key_installed)
+		IAPSTA_INFO(dev->name, "key installed\n");
+
+	if (key_installed)
+		wl_timer_mod(dhd, &cur_if->key_install_timer, 0);
+	else {
+		IAPSTA_INFO(dev->name, "check key installed %dms later\n", STA_KEY_INSTALL_INTERVAL);
+		wl_timer_mod(dhd, &cur_if->key_install_timer, STA_KEY_INSTALL_INTERVAL);
+	}
+
+	return key_installed;
+}
+#endif /* KEY_INSTALL_CHECK */
+
 #if defined(WL_CFG80211) && defined(SCAN_SUPPRESS)
 static void
 wl_ext_light_scan_prep(struct net_device *dev, void *scan_params, bool scan_v2)
 {
-	wl_scan_params_t *params = NULL;
+	wl_scan_params_v1_t *params = NULL;
 	wl_scan_params_v2_t *params_v2 = NULL;
 
 	if (!scan_params) {
@@ -3333,7 +3535,7 @@ wl_ext_light_scan_prep(struct net_device *dev, void *scan_params, bool scan_v2)
 	if (scan_v2) {
 		params_v2 = (wl_scan_params_v2_t *)scan_params;
 	} else {
-		params = (wl_scan_params_t *)scan_params;
+		params = (wl_scan_params_v1_t *)scan_params;
 	}
 
 	if (params_v2) {
@@ -3509,39 +3711,6 @@ wl_set_btc_in4way(struct wl_apsta_params *apsta_params, struct wl_if_info *cur_i
 }
 
 static void
-wl_check_key_installed(struct wl_if_info *cur_if)
-{
-	struct net_device *dev = cur_if->dev;
-	int key_installed = 0;
-	int err;
-
-	err = wldev_iovar_getint(dev, "buf_key_b4_m4_installed", &key_installed);
-	if (err == BCME_UNSUPPORTED)
-		IAPSTA_INFO(dev->name, "buf_key_b4_m4_installed not supported\n");
-	else if (!key_installed) {
-		WL_MSG(dev->name, "delay 100ms to check it again\n");
-		OSL_SLEEP(100);
-		wldev_iovar_getint(dev, "buf_key_b4_m4_installed", &key_installed);
-		if (!key_installed) {
-			err = wldev_ioctl(dev, WLC_GET_BSSID, &cur_if->bssid, ETHER_ADDR_LEN, 0);
-			if (err != BCME_NOTASSOCIATED && memcmp(&ether_null, &cur_if->bssid, ETHER_ADDR_LEN)) {
-				IAPSTA_ERROR(dev->name, "key not installed and send disconnect\n");
-#ifdef WL_EXT_DISCONNECT_RECONNECT
-				wl_ext_send_event_msg(dev, WLC_E_DEAUTH_IND, 0,
-					WLAN_REASON_4WAY_HANDSHAKE_TIMEOUT);
-#else
-				wl_cfg80211_disassoc(dev, WLAN_REASON_4WAY_HANDSHAKE_TIMEOUT);
-#endif
-			} else {
-				IAPSTA_ERROR(dev->name, "key not installed\n");
-			}
-		}
-	} else {
-		IAPSTA_INFO(dev->name, "key installed\n");
-	}
-}
-
-static void
 wl_wait_disconnect(struct wl_apsta_params *apsta_params, struct wl_if_info *cur_if,
 	enum wl_ext_status status)
 {
@@ -3654,9 +3823,9 @@ wl_ext_in4way_sync_sta(dhd_pub_t *dhd, struct wl_if_info *cur_if,
 	struct osl_timespec cur_ts, *sta_disc_ts = &cur_if->sta_disc_ts;
 	struct osl_timespec *sta_conn_ts = &cur_if->sta_conn_ts;
 	uint32 diff_ms = 0;
-	int ret = 0, cur_conn_state;
-	int suppressed = 0, wpa_auth = 0, max_wait_time = 0;
-	bool connecting = FALSE, key_check = FALSE;
+	int ret = 0, suppressed = 0, wpa_auth = 0, max_wait_time = 0, key_installed = 1;
+	uint cur_conn_state, conn_state;
+	bool connecting = FALSE;
 	wl_event_msg_t *e = (wl_event_msg_t *)context;
 #ifdef WL_CFG80211
 	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
@@ -3758,6 +3927,9 @@ wl_ext_in4way_sync_sta(dhd_pub_t *dhd, struct wl_if_info *cur_if,
 #ifdef EAPOL_RESEND
 			wl_ext_release_eapol_txpkt(dhd, cur_if->ifidx, FALSE);
 #endif /* EAPOL_RESEND */
+#ifdef KEY_INSTALL_CHECK
+			wl_timer_mod(dhd, &cur_if->key_install_timer, 0);
+#endif /* KEY_INSTALL_CHECK */
 			wl_timer_mod(dhd, &cur_if->connect_timer, 0);
 #if defined(WL_EXT_RECONNECT) && defined(WL_CFG80211)
 			wl_timer_mod(dhd, &cur_if->reconnect_timer, 0);
@@ -3778,6 +3950,9 @@ wl_ext_in4way_sync_sta(dhd_pub_t *dhd, struct wl_if_info *cur_if,
 			if (action & STA_NO_BTC_IN4WAY) {
 				wl_set_btc_in4way(apsta_params, cur_if, status, FALSE);
 			}
+#ifdef BTC_WAR
+			wl_ext_btc_config(cur_if->dev, FALSE);
+#endif /* BTC_WAR */
 			if (action & STA_WAIT_DISCONNECTED) {
 				wl_wait_disconnect(apsta_params, cur_if, status);
 				wake_up_interruptible(&conf->event_complete);
@@ -3804,6 +3979,9 @@ wl_ext_in4way_sync_sta(dhd_pub_t *dhd, struct wl_if_info *cur_if,
 			if ((wpa_auth < WPA_AUTH_UNSPECIFIED) || (wpa_auth & WPA2_AUTH_FT)) {
 				wl_timer_mod(dhd, &cur_if->connect_timer, 0);
 				wl_ext_update_conn_state(dhd, cur_if->ifidx, CONN_STATE_CONNECTED);
+#ifdef BTC_WAR
+				wl_ext_btc_config(cur_if->dev, TRUE);
+#endif /* BTC_WAR */
 				max_wait_time = 0;
 			} else {
 				max_wait_time = STA_4WAY_TIMEOUT;
@@ -3826,6 +4004,9 @@ wl_ext_in4way_sync_sta(dhd_pub_t *dhd, struct wl_if_info *cur_if,
 				wl_timer_mod(dhd, &cur_if->connect_timer, STA_CONNECT_TIMEOUT);
 				osl_do_gettimeofday(sta_conn_ts);
 				wl_ext_update_conn_state(dhd, cur_if->ifidx, CONN_STATE_CONNECTING);
+#ifdef BTC_WAR
+				wl_ext_btc_config(cur_if->dev, TRUE);
+#endif /* BTC_WAR */
 				max_wait_time = STA_4WAY_TIMEOUT;
 			} else {
 				max_wait_time = 0;
@@ -3834,6 +4015,9 @@ wl_ext_in4way_sync_sta(dhd_pub_t *dhd, struct wl_if_info *cur_if,
 			wl_ext_update_assoc_info(dev, TRUE);
 			wl_timer_mod(dhd, &cur_if->reconnect_timer, max_wait_time);
 #endif /* WL_EXT_RECONNECT && WL_CFG80211 */
+#ifdef KEY_INSTALL_CHECK
+			wl_timer_mod(dhd, &cur_if->key_install_timer, 0);
+#endif /* KEY_INSTALL_CHECK */
 			if (cur_if->ifmode == ISTA_MODE) {
 				dhd_conf_set_wme(dhd, cur_if->ifidx, 0);
 				wake_up_interruptible(&conf->event_complete);
@@ -3853,6 +4037,9 @@ wl_ext_in4way_sync_sta(dhd_pub_t *dhd, struct wl_if_info *cur_if,
 #ifdef EAPOL_RESEND
 			wl_ext_release_eapol_txpkt(dhd, cur_if->ifidx, FALSE);
 #endif /* EAPOL_RESEND */
+#ifdef KEY_INSTALL_CHECK
+			wl_timer_mod(dhd, &cur_if->key_install_timer, 0);
+#endif /* KEY_INSTALL_CHECK */
 #if defined(WL_EXT_RECONNECT) && defined(WL_CFG80211)
 			wl_timer_mod(dhd, &cur_if->reconnect_timer, 0);
 			memset(&cur_if->assoc_info, 0, sizeof(wlcfg_assoc_info_t));
@@ -3875,26 +4062,36 @@ wl_ext_in4way_sync_sta(dhd_pub_t *dhd, struct wl_if_info *cur_if,
 			if (action & STA_NO_BTC_IN4WAY) {
 				wl_set_btc_in4way(apsta_params, cur_if, status, FALSE);
 			}
+#ifdef BTC_WAR
+			wl_ext_btc_config(cur_if->dev, FALSE);
+#endif /* BTC_WAR */
 			osl_do_gettimeofday(sta_disc_ts);
 			wake_up_interruptible(&conf->event_complete);
 			break;
 		case WL_EXT_STATUS_ADD_KEY:
-			if (cur_conn_state == CONN_STATE_CONNECTED)
-				key_check = TRUE;
+			conn_state = CONN_STATE_ADD_KEY;
 			wl_timer_mod(dhd, &cur_if->connect_timer, 0);
-			wl_ext_update_conn_state(dhd, cur_if->ifidx, CONN_STATE_CONNECTED);
-#ifdef EAPOL_RESEND
-			wl_ext_release_eapol_txpkt(dhd, cur_if->ifidx, FALSE);
-#endif /* EAPOL_RESEND */
 #if defined(WL_EXT_RECONNECT) && defined(WL_CFG80211)
 			wl_timer_mod(dhd, &cur_if->reconnect_timer, 0);
 #endif /* WL_EXT_RECONNECT && WL_CFG80211 */
+#ifdef KEY_INSTALL_CHECK
+			key_installed = wl_key_installed(cur_if);
+#endif /* KEY_INSTALL_CHECK */
+			if (key_installed)
+				conn_state = CONN_STATE_CONNECTED;
+			wl_ext_update_conn_state(dhd, cur_if->ifidx, conn_state);
+			IAPSTA_INFO(dev->name, "WPA 4-WAY complete %d => %d\n",
+				cur_conn_state, conn_state);
+#ifdef EAPOL_RESEND
+			if (key_installed)
+				wl_ext_release_eapol_txpkt(dhd, cur_if->ifidx, FALSE);
+#endif /* EAPOL_RESEND */
 			if (action & STA_NO_BTC_IN4WAY) {
 				wl_set_btc_in4way(apsta_params, cur_if, status, FALSE);
 			}
-			IAPSTA_INFO(dev->name, "WPA 4-WAY complete %d\n", cur_conn_state);
-			if (key_check)
-				wl_check_key_installed(cur_if);
+#ifdef BTC_WAR
+			wl_ext_btc_config(cur_if->dev, TRUE);
+#endif /* BTC_WAR */
 			wake_up_interruptible(&conf->event_complete);
 			break;
 		default:
@@ -4104,7 +4301,8 @@ wl_ext_update_extsae_4way(struct net_device *dev,
 			}
 		}
 	} else {
-		WL_ERR(("Unknown auth_alg=%d or auth_seq=%d\n", auth_alg, auth_seq));
+		IAPSTA_ERROR(dev->name, "Unknown auth_alg=%d or auth_seq=%d\n",
+			auth_alg, auth_seq);
 	}
 
 	return;
@@ -4210,16 +4408,11 @@ dev_wlc_ioctl(struct net_device *dev, int cmd, void *arg, int len)
 static void
 wl_ampdu_dump(struct net_device *dev)
 {
-	struct dhd_pub *dhd = dhd_get_pub(dev);
-	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
-	char *ioctl_buf = apsta_params->ioctl_buf, *buf = NULL;
+	char *ioctl_buf = g_ioctl_buf, *buf = NULL;
 	char *tx_pch_start, *tx_pch_end, *rx_pch_start, *rx_pch_end;
 	int ret = 0, max_len, tx_len, rx_len;
 
 	if (!(android_msg_level & ANDROID_AMPDU_LEVEL))
-		return;
-
-	if (!ioctl_buf)
 		return;
 
 	memset(ioctl_buf, 0, WL_DUMP_BUF_LEN);
@@ -4285,14 +4478,13 @@ wl_btc_dump(struct net_device *dev)
 static void
 wl_tvpm_dump(struct net_device *dev)
 {
-	struct dhd_pub *dhd = dhd_get_pub(dev);
-	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
 	wl_tvpm_req_t* tvpm_req = NULL;
 	size_t reqlen = sizeof(wl_tvpm_req_t) + sizeof(wl_tvpm_status_t);
-	uint8 *outbuf = apsta_params->ioctl_buf;
+	uint8 *outbuf = g_ioctl_buf;
 	size_t outlen = WLC_IOCTL_MEDLEN;
 	wl_tvpm_status_t* status;
-	int ret, val;
+	int ret, phy_temp = 0;
+	bool tvpm = FALSE, sense = FALSE;
 
 	if (!(android_msg_level & ANDROID_TVPM_LEVEL))
 		return;
@@ -4307,25 +4499,26 @@ wl_tvpm_dump(struct net_device *dev)
 	tvpm_req->version = TVPM_REQ_VERSION_1;
 	tvpm_req->length = reqlen;
 	tvpm_req->req_type = WL_TVPM_REQ_STATUS;
-	ret = wldev_iovar_getbuf(dev, "tvpm", tvpm_req, reqlen,
-		outbuf, outlen, NULL);
-	if (ret && ret != BCME_UNSUPPORTED) {
-		IAPSTA_ERROR(dev->name, "tvpm failed %d\n", ret);
-		goto exit;
-	}
-
-	if (!ret) {
-		status = (wl_tvpm_status_t*)outbuf;
-		WL_MSG(dev->name,"temp=%3d, duty=%3d, pwrbko=%d, chains=%d, %3s\n",
-			status->temp, status->tx_dutycycle, status->tx_power_backoff,
-			status->num_active_chains, status->enable?"ON":"OFF");
+	ret = wldev_iovar_getbuf(dev, "tvpm", tvpm_req, reqlen, outbuf, outlen, NULL);
+	status = (wl_tvpm_status_t*)outbuf;
+	if (!ret && status->enable) {
+		tvpm = TRUE;
 	} else {
-		ret = wldev_iovar_getbuf(dev, "phy_tempsense", &val, sizeof(val),
+		ret = wldev_iovar_getbuf(dev, "phy_tempsense", &phy_temp, sizeof(phy_temp),
 			outbuf, outlen, NULL);
 		if (!ret) {
-			val = dtoh32(*(int*)outbuf);
-			WL_MSG(dev->name,"temp=%3d\n", val);
+			phy_temp = dtoh32(*(int*)outbuf);
+			sense = TRUE;
 		}
+	}
+
+	if (tvpm) {
+		WL_MSG(dev->name,"temp=%3d, duty=%3d, pwrbko=%d, chains=%d\n",
+			status->temp, status->tx_dutycycle, status->tx_power_backoff,
+			status->num_active_chains);
+	}
+	else if (sense) {
+		WL_MSG(dev->name,"phy_temp=%3d\n", phy_temp);
 	}
 
 exit:
@@ -4358,6 +4551,8 @@ wl_phy_rssi_ant(struct net_device *dev, struct ether_addr *mac,
 			wldev_ioctl(dev, WLC_GET_RSSI, &scb_val, sizeof(scb_val_t), 0);
 			rssi_ant_p->count = 1;
 			rssi_ant_p->rssi_ant[0] = dtoh32(scb_val.val);
+		} else {
+			rssi_ant_p->count = 0;
 		}
 	}
 	for (i=0; i<rssi_ant_p->count && rssi_ant_p->rssi_ant[i]; i++) {
@@ -4383,9 +4578,7 @@ wl_tput_dump(struct wl_apsta_params *apsta_params,
 static void
 wl_sta_info_dump(struct net_device *dev, struct ether_addr *mac)
 {
-	struct dhd_pub *dhd = dhd_get_pub(dev);
-	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
-	void *buf = apsta_params->ioctl_buf;
+	void *buf = g_ioctl_buf;
 	sta_info_v4_t *sta = NULL;
 	char rssi_buf[16];
 	int ret;
@@ -4398,7 +4591,8 @@ wl_sta_info_dump(struct net_device *dev, struct ether_addr *mac)
 	if (ret == 0) {
 		sta = (sta_info_v4_t *)buf;
 	}
-	if (sta == NULL || (sta->ver != WL_STA_VER_4 && sta->ver != WL_STA_VER_5)) {
+	if (sta == NULL || (sta->ver != WL_STA_VER_4 && sta->ver != WL_STA_VER_5 &&
+			sta->ver != WL_STA_VER_6)) {
 		wldev_ioctl_get(dev, WLC_GET_RATE, &rate, sizeof(rate));
 		rate = dtoh32(rate);
 		WL_MSG(dev->name,
@@ -4426,7 +4620,6 @@ wl_cur_if_tput_dump(struct wl_apsta_params *apsta_params, struct wl_if_info *cur
 {
 #ifdef WLDWDS
 	struct wl_dwds_info *dwds_if;
-	int i;
 #endif /* WLDWDS */
 	struct ether_addr bssid;
 	int ret = 0;
@@ -4535,7 +4728,7 @@ wl_tput_monitor_handler(struct wl_if_info *cur_if,
 			tmp_if = &apsta_params->if_info[i];
 			if (tmp_if->dev &&
 					(tmp_if->ifmode == ISTA_MODE || tmp_if->ifmode == IGC_MODE) &&
-					wl_ext_associated(tmp_if->dev)) {
+					wl_get_isam_status(tmp_if, STA_CONNECTED)) {
 				wl_tput_monitor(dhd, tmp_if->ifidx, &tmp_if->tput_info);
 				monitor_if[i] = TRUE;
 			}
@@ -4681,7 +4874,7 @@ wl_ext_acs(struct wl_apsta_params *apsta_params, struct wl_if_info *cur_if)
 			wl_ext_move_cur_channel(apsta_params, cur_if);
 			if (!wl_ext_same_chan(&cur_if->chan_info, &chan_info)) {
 				WL_MSG(cur_if->dev->name, "move channel %s-%d => %s-%d\n",
-					WLCBAND2STR(chan_info->band), chan_info.chan,
+					WLCBAND2STR(chan_info.band), chan_info.chan,
 					WLCBAND2STR(cur_if->chan_info.band), cur_if->chan_info.chan);
 				wl_ext_if_down(apsta_params, cur_if);
 				wl_ext_move_other_channel(apsta_params, cur_if);
@@ -4781,7 +4974,7 @@ static void
 wl_acs_detach(struct wl_if_info *cur_if)
 {
 	IAPSTA_TRACE(cur_if->dev->name, "Enter\n");
-	wl_timer_deregister(cur_if->net, &cur_if->acs_timer);
+	wl_timer_deregister(cur_if->dev, &cur_if->acs_timer);
 	if (cur_if->escan) {
 		cur_if->escan = NULL;
 	}
@@ -4924,7 +5117,7 @@ wl_ext_counters_update(struct wl_if_info *cur_if, int war_reason)
 {
 	struct dhd_pub *dhd = dhd_get_pub(cur_if->dev);
 	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
-	char *iovar_buf = apsta_params->ioctl_buf;
+	char *iovar_buf = g_ioctl_buf;
 	uint32 corerev = 0;
 	wl_cnt_info_t *cntinfo;
 	uint16 ver;
@@ -4942,10 +5135,10 @@ wl_ext_counters_update(struct wl_if_info *cur_if, int war_reason)
 	cntinfo->datalen = dtoh16(cntinfo->datalen);
 	ver = cntinfo->version;
 	CHK_CNTBUF_DATALEN(iovar_buf, WLC_IOCTL_MEDLEN);
-	if (ver > WL_CNT_T_VERSION) {
+	if (ver > WL_CNT_VERSION_XTLV) {
 		IAPSTA_ERROR(cur_if->ifname,
 			"Incorrect version of counters struct: expected %d; got %d\n",
-			WL_CNT_T_VERSION, ver);
+			WL_CNT_VERSION_XTLV, ver);
 		goto exit;
 	}
 
@@ -5265,6 +5458,9 @@ wl_ext_iapsta_event(struct net_device *dev, void *argu,
 #ifdef EAPOL_RESEND
 	wl_resend_eapol_handler(cur_if, e, data);
 #endif /* EAPOL_RESEND */
+#ifdef KEY_INSTALL_CHECK
+	wl_ext_key_install_handler(cur_if, e, data);
+#endif /* KEY_INSTALL_CHECK */
 #ifdef RESTART_AP_WAR
 	wl_ext_restart_ap_handler(cur_if, e, data);
 #endif /* RESTART_AP_WAR */
@@ -5780,6 +5976,7 @@ wl_ext_enable_iface(struct net_device *dev, char *ifname, int wait_up, bool lock
 				(chan_5g && cur_if->chan_info.band == WLC_BAND_5G)) {
 			cur_if->chan_info.chan = wl_ext_autochannel(cur_if->dev, apsta_params->acs,
 				cur_if->chan_info.band);
+			cur_if->chan_info.chan = wf_chspec_ctlchan(cur_if->chan_info.chan);
 		} else {
 			IAPSTA_ERROR(ifname, "invalid channel\n");
 			ret = -1;
@@ -5988,8 +6185,7 @@ wl_ext_isam_dev_status(struct net_device *dev, ifmode_t ifmode, char prefix,
 		if (wl_ext_associated(dev)) {
 			wl_ext_ioctl(dev, WLC_GET_SSID, &ssid, sizeof(ssid), 0);
 			wldev_ioctl(dev, WLC_GET_BSSID, &bssid, sizeof(bssid), 0);
-			wldev_ioctl(dev, WLC_GET_RSSI, &scb_val,
-				sizeof(scb_val_t), 0);
+			wldev_ioctl(dev, WLC_GET_RSSI, &scb_val, sizeof(scb_val_t), 0);
 			chanspec = wl_ext_get_chanspec(dev, &chan_info);
 			wl_ext_get_sec(dev, ifmode, sec, sizeof(sec), FALSE);
 			dump_written += snprintf(dump_buf+dump_written, dump_len,
@@ -6498,6 +6694,28 @@ wl_ext_iapsta_get_rsdb(struct net_device *net, struct dhd_pub *dhd)
 }
 
 static void
+wl_ext_iapsta_get_mapsta_mode(struct net_device *net)
+{
+	struct dhd_pub *dhd = dhd_get_pub(net);
+	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
+	int ret, mapsta_mode;
+
+	ret = wldev_iovar_getint(net, "mapsta_mode", &mapsta_mode);
+	if (ret) {
+		IAPSTA_INFO(net->name, "not supported %d\n", ret);
+		mapsta_mode = MCHAN_APSTA_NOT_ALLOW;
+	}
+
+	if (mapsta_mode == MCHAN_APSTA_SBSC)
+		apsta_params->rsdb = 1;
+	else if (mapsta_mode == MCHAN_APSTA_NO_RESTRICT)
+		apsta_params->vsdb = TRUE;
+
+	IAPSTA_INFO(net->name, "mapsta_mode=%d(rsdb=%d, vsdb=%d)\n",
+		mapsta_mode, apsta_params->rsdb, apsta_params->vsdb);
+}
+
+static void
 wl_ext_iapsta_postinit(struct net_device *net, struct wl_if_info *cur_if)
 {
 	struct dhd_pub *dhd = dhd_get_pub(net);
@@ -6508,6 +6726,7 @@ wl_ext_iapsta_postinit(struct net_device *net, struct wl_if_info *cur_if)
 	if (cur_if->ifidx == 0) {
 		apsta_params->rsdb = wl_ext_iapsta_get_rsdb(net, dhd);
 		apsta_params->vsdb = FALSE;
+		wl_ext_iapsta_get_mapsta_mode(net);
 		apsta_params->csa = 0;
 		apsta_params->acs = 0;
 		apsta_params->radar = wl_ext_radar_detect(net);
@@ -6683,12 +6902,6 @@ wl_ext_iapsta_init_priv(struct net_device *net)
 	struct dhd_pub *dhd = dhd_get_pub(net);
 	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
 
-	if (!apsta_params->ioctl_buf) {
-		apsta_params->ioctl_buf = kmalloc(WL_DUMP_BUF_LEN, GFP_KERNEL);
-		if (unlikely(!apsta_params->ioctl_buf)) {
-			IAPSTA_ERROR(net->name, "Can not allocate ioctl_buf\n");
-		}
-	}
 	init_waitqueue_head(&apsta_params->netif_change_event);
 	mutex_init(&apsta_params->usr_sync);
 	mutex_init(&apsta_params->in4way_sync);
@@ -6706,10 +6919,6 @@ wl_ext_iapsta_deinit_priv(struct net_device *net)
 	struct dhd_pub *dhd = dhd_get_pub(net);
 	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
 
-	if (apsta_params->ioctl_buf) {
-		kfree(apsta_params->ioctl_buf);
-		apsta_params->ioctl_buf = NULL;
-	}
 	memset(apsta_params, 0, sizeof(struct wl_apsta_params));
 }
 
@@ -6767,6 +6976,9 @@ wl_ext_iapsta_attach_netdev(struct net_device *net, int ifidx, uint8 bssidx)
 #ifdef EAPOL_RESEND
 		wl_timer_register(net, &cur_if->eapol_timer, wl_eapol_timer);
 #endif /* EAPOL_RESEND */
+#ifdef KEY_INSTALL_CHECK
+		wl_timer_register(net, &cur_if->key_install_timer, wl_ext_key_install_timeout);
+#endif /* KEY_INSTALL_CHECK */
 	}
 
 	return 0;
@@ -6792,6 +7004,9 @@ wl_ext_iapsta_dettach_netdev(struct net_device *net, int ifidx)
 #ifdef EAPOL_RESEND
 		wl_ext_release_eapol_txpkt(dhd, ifidx, FALSE);
 #endif /* EAPOL_RESEND */
+#ifdef KEY_INSTALL_CHECK
+		wl_timer_deregister(net, &cur_if->key_install_timer);
+#endif /* KEY_INSTALL_CHECK */
 		wl_timer_deregister(net, &cur_if->connect_timer);
 #if defined(WL_EXT_RECONNECT) && defined(WL_CFG80211)
 		wl_timer_deregister(net, &cur_if->reconnect_timer);
@@ -6832,24 +7047,6 @@ wl_ext_iapsta_dettach_netdev(struct net_device *net, int ifidx)
 	return 0;
 }
 
-int
-wl_ext_iapsta_attach(struct net_device *net)
-{
-	struct dhd_pub *dhd = dhd_get_pub(net);
-	struct wl_apsta_params *iapsta_params;
-
-	IAPSTA_TRACE(net->name, "Enter\n");
-
-	iapsta_params = kzalloc(sizeof(struct wl_apsta_params), GFP_KERNEL);
-	if (unlikely(!iapsta_params)) {
-		IAPSTA_ERROR(net->name, "Can not allocate apsta_params\n");
-		return -ENOMEM;
-	}
-	dhd->iapsta_params = (void *)iapsta_params;
-
-	return 0;
-}
-
 void
 wl_ext_iapsta_dettach(struct net_device *net)
 {
@@ -6857,10 +7054,47 @@ wl_ext_iapsta_dettach(struct net_device *net)
 
 	IAPSTA_TRACE(net->name, "Enter\n");
 
+	if (g_ioctl_buf) {
+		kfree(g_ioctl_buf);
+		g_ioctl_buf = NULL;
+	}
+
 	if (dhd->iapsta_params) {
 		wl_ext_iapsta_deinit_priv(net);
 		kfree(dhd->iapsta_params);
 		dhd->iapsta_params = NULL;
 	}
+}
+
+int
+wl_ext_iapsta_attach(struct net_device *net)
+{
+	struct dhd_pub *dhd = dhd_get_pub(net);
+	struct wl_apsta_params *iapsta_params;
+	int ret = 0;
+
+	IAPSTA_TRACE(net->name, "Enter\n");
+
+	iapsta_params = kzalloc(sizeof(struct wl_apsta_params), GFP_KERNEL);
+	if (unlikely(!iapsta_params)) {
+		IAPSTA_ERROR(net->name, "Can not allocate apsta_params\n");
+		ret = -ENOMEM;
+		goto exit;
+	}
+	dhd->iapsta_params = (void *)iapsta_params;
+
+	if (!g_ioctl_buf) {
+		g_ioctl_buf = kmalloc(WL_DUMP_BUF_LEN, GFP_KERNEL);
+		if (unlikely(!g_ioctl_buf)) {
+			IAPSTA_ERROR(net->name, "Can not allocate g_ioctl_buf\n");
+			ret = -ENOMEM;
+			goto exit;
+		}
+	}
+
+exit:
+	if (ret)
+		wl_ext_iapsta_dettach(net);
+	return ret;
 }
 #endif /* WL_EXT_IAPSTA */

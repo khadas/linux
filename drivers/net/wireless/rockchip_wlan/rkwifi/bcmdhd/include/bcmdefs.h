@@ -24,6 +24,10 @@
 #ifndef	_bcmdefs_h_
 #define	_bcmdefs_h_
 
+#ifndef BCM_FLEX_ARRAY
+#define BCM_FLEX_ARRAY  (1)
+#endif /* BCM_FLEX_ARRAY */
+
 /*
  * One doesn't need to include this file explicitly, gets included automatically if
  * typedefs.h is included.

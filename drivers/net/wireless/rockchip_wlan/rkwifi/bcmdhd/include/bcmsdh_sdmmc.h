@@ -85,6 +85,9 @@ struct sdioh_info {
 	struct sdio_func	*func[SDIOD_MAX_IOFUNCS];
 	uint		sd_clk_rate;
 	uint	txglom_mode;		/* Txglom mode: 0 - copy, 1 - multi-descriptor */
+#if defined(BCMSDIOH_TXGLOM) && defined(BCMSDIOH_STATIC_COPY_BUF)
+	uint8	*copy_buf;
+#endif
 #ifdef PKT_STATICS
 	uint32	sdio_spent_time_us;
 #endif
