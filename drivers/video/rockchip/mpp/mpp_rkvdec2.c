@@ -19,6 +19,7 @@
 
 #include <linux/devfreq_cooling.h>
 #include <soc/rockchip/rockchip_ipa.h>
+#include <soc/rockchip/rockchip_dmc.h>
 #include <soc/rockchip/rockchip_opp_select.h>
 #include <soc/rockchip/rockchip_system_monitor.h>
 
@@ -1142,12 +1143,56 @@ static int rkvdec2_set_freq(struct mpp_dev *mpp,
 	return 0;
 }
 
+static int rkvdec2_soft_reset(struct mpp_dev *mpp)
+{
+	u32 rst_status = 0;
+	int ret = 0;
+
+	/* soft reset */
+	mpp_write(mpp, RKVDEC_REG_IMPORTANT_BASE, RKVDEC_SOFTREST_EN);
+	ret = readl_relaxed_poll_timeout(mpp->reg_base + RKVDEC_REG_INT_EN,
+					 rst_status,
+					 rst_status & RKVDEC_SOFT_RESET_READY,
+					 5, 500);
+	if (ret)
+		mpp_err("soft reset fail, int %08x\n", rst_status);
+	mpp_write(mpp, RKVDEC_REG_INT_EN, 0);
+
+	return ret;
+
+}
+
+static int rkvdec2_sip_reset(struct mpp_dev *mpp)
+{
+	mpp_debug_enter();
+
+	if (IS_REACHABLE(CONFIG_ROCKCHIP_SIP)) {
+		/* sip reset */
+		rockchip_dmcfreq_lock();
+		sip_smc_vpu_reset(0, 0, 0);
+		rockchip_dmcfreq_unlock();
+	} else {
+		rkvdec2_reset(mpp);
+	}
+
+	mpp_debug_leave();
+
+	return 0;
+}
+
 int rkvdec2_reset(struct mpp_dev *mpp)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
+	int ret = 0;
 
 	mpp_debug_enter();
-	if (dec->rst_a && dec->rst_h) {
+
+	/* safe reset first*/
+	ret = rkvdec2_soft_reset(mpp);
+
+	/* cru reset */
+	if (ret && dec->rst_a && dec->rst_h) {
+		mpp_err("soft reset timeout, use cru reset\n");
 		mpp_pmu_idle_request(mpp, true);
 		mpp_safe_reset(dec->rst_niu_a);
 		mpp_safe_reset(dec->rst_niu_h);
@@ -1187,7 +1232,16 @@ static struct mpp_hw_ops rkvdec_rk3568_hw_ops = {
 	.clk_off = rkvdec2_clk_off,
 	.get_freq = rkvdec2_get_freq,
 	.set_freq = rkvdec2_set_freq,
-	.reset = rkvdec2_reset,
+	.reset = rkvdec2_sip_reset,
+};
+
+static struct mpp_hw_ops rkvdec_rk3588_hw_ops = {
+	.init = rkvdec2_init,
+	.clk_on = rkvdec2_clk_on,
+	.clk_off = rkvdec2_clk_off,
+	.get_freq = rkvdec2_get_freq,
+	.set_freq = rkvdec2_set_freq,
+	.reset = rkvdec2_sip_reset,
 };
 
 static struct mpp_dev_ops rkvdec_v2_dev_ops = {
@@ -1241,6 +1295,14 @@ static const struct mpp_dev_var rkvdec_vdpu382_data = {
 	.dev_ops = &rkvdec_v2_dev_ops,
 };
 
+static const struct mpp_dev_var rkvdec_rk3588_data = {
+	.device_type = MPP_DEVICE_RKVDEC,
+	.hw_info = &rkvdec_v2_hw_info,
+	.trans_info = rkvdec_v2_trans,
+	.hw_ops = &rkvdec_rk3588_hw_ops,
+	.dev_ops = &rkvdec_v2_dev_ops,
+};
+
 static const struct of_device_id mpp_rkvdec2_dt_match[] = {
 	{
 		.compatible = "rockchip,rkv-decoder-v2",
@@ -1255,6 +1317,7 @@ static const struct of_device_id mpp_rkvdec2_dt_match[] = {
 #ifdef CONFIG_CPU_RK3588
 	{
 		.compatible = "rockchip,rkv-decoder-v2-ccu",
+		.data = &rkvdec_rk3588_data,
 	},
 #endif
 #ifdef CONFIG_CPU_RK3528

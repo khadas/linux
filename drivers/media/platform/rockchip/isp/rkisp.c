@@ -357,6 +357,8 @@ int rkisp_update_sensor_info(struct rkisp_device *dev)
 		return -ENODEV;
 
 	sensor = sd_to_sensor(dev, sensor_sd);
+	if (!sensor)
+		return -ENODEV;
 	ret = v4l2_subdev_call(sensor->sd, pad, get_mbus_config,
 			       0, &sensor->mbus);
 	if (ret && ret != -ENOIOCTLCMD)
@@ -1981,13 +1983,6 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 
 	if (atomic_read(&dev->hw_dev->refcnt) > 1)
 		goto end;
-
-	if (dev->hw_dev->monitor.is_en) {
-		dev->hw_dev->monitor.is_en = 0;
-		dev->hw_dev->monitor.state = ISP_STOP;
-		if (!completion_done(&dev->hw_dev->monitor.cmpl))
-			complete(&dev->hw_dev->monitor.cmpl);
-	}
 	/*
 	 * ISP(mi) stop in mi frame end -> Stop ISP(mipi) ->
 	 * Stop ISP(isp) ->wait for ISP isp off
