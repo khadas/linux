@@ -1876,7 +1876,7 @@
 		tsensor_id = <1>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
-		rtemp = <115000>;
+		rtemp = <120000>;
 		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK>;
 		clock-names = "ts_comp";
@@ -1890,7 +1890,7 @@
 		tsensor_id = <2>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
-		rtemp = <115000>;
+		rtemp = <120000>;
 		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK>;
 		clock-names = "ts_comp";
@@ -1904,7 +1904,7 @@
 		tsensor_id = <3>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
-		rtemp = <115000>;
+		rtemp = <120000>;
 		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK>;
 		clock-names = "ts_comp";

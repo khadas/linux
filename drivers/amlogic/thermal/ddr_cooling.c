@@ -145,7 +145,7 @@ static int ddr_notify_state(void *thermal_instance,
 		}
 		pr_debug("chip temp: %d, set ddr reg bit val: %x\n", tz->temperature, val);
 
-		val0 = reg_val & ddr_device->ddr_bits_keep;
+		val0 = reg_val & ~ddr_device->ddr_bits_keep;
 		val0 = val0 >> ddr_device->ddr_bits[0];
 
 		if (val0 == val)
@@ -153,7 +153,7 @@ static int ddr_notify_state(void *thermal_instance,
 
 		reg_val &= ddr_device->ddr_bits_keep;
 		reg_val |= (val << ddr_device->ddr_bits[0]);
-		pr_debug("last set ddr reg val: %x\n", reg_val);
+		pr_info("temp: %d, set ddr reg val: %x\n", tz->temperature, reg_val);
 
 		writel_relaxed(reg_val, ddr_device->vddr_reg);
 	default:

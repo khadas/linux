@@ -916,7 +916,7 @@
 				type = "hot";
 			};
 			vpucritical {
-				temperature = <110000>;
+				temperature = <115000>;
 				hysteresis = <1000>;
 				type = "critical";
 			};

@@ -1807,3 +1807,13 @@
 &cma_shrinker {
 	free = <7680 24288 28528 32600 32768 36624>;
 };
+
+&thermal_zones {
+	soc_thermal: soc_thermal {
+		trips {
+			pddr_change: trip-point@2 {
+				temperature = <75000>;
+			};
+		};
+	};
+};

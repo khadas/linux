@@ -1806,3 +1806,13 @@
 	status = "okay";
 	power_on-gpios  = <&gpio_ao       GPIOD_2       GPIO_ACTIVE_HIGH>;
 };
+
+&thermal_zones {
+	soc_thermal: soc_thermal {
+		trips {
+			pddr_change: trip-point@2 {
+				temperature = <75000>;
+			};
+		};
+	};
+};

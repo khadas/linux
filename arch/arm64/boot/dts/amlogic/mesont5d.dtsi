@@ -1866,7 +1866,7 @@
 		};
 	};/*meson cooling devices end*/
 
-	thermal-zones {
+	thermal_zones: thermal-zones {
 		soc_thermal: soc_thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
@@ -1884,7 +1884,7 @@
 					type = "passive";
 				};
 				pddr_change: trip-point@2 {
-					temperature = <75000>;
+					temperature = <90000>;
 					hysteresis = <10000>;
 					type = "hot";
 				};
