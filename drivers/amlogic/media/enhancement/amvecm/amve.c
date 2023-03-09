@@ -804,7 +804,7 @@ void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p)
 		if (chip_type_id == chip_s5) {
 			post_gainoff_set(p, WR_DMA);
 		} else if (is_meson_txlx_cpu() || is_meson_txhd_cpu() ||
-		    is_meson_tm2_cpu()) {
+		    is_meson_tm2_cpu() || is_meson_t7_cpu()) {
 			WRITE_VPP_REG(VPP_GAINOFF_CTRL0,
 				      ((p->en << 31) & 0x80000000) |
 				      ((p->r_gain << 16) & 0x07ff0000) |
