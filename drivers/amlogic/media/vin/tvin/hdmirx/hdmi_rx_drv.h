@@ -50,6 +50,7 @@
 #define RP_LOG		0x40000
 
 /* add aspect 4 : 3 */
+/* add method to get 5v pin status */
 #define RX_VER1 "ver.2023/3/9"
 
 /*

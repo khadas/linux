@@ -2538,7 +2538,7 @@ void hdmirx_hdcp22_esm_rst(void)
 	rx_pr("before kill\n");
 	rx_kill_esm();
 	mdelay(5);
-	if (hdcp22_kill_esm == 3 || !rx22_ver) {
+	if (!rx22_ver) {
 		rx_pr("before rst:\n");
 		/* For TL1,the sw_reset_hdcp22 bit is top reg 0x0,bit'12 */
 		if (rx.chip_id >= CHIP_ID_TL1)
@@ -3662,6 +3662,14 @@ void cor_init(void)
 	//DPLL
 	hdmirx_wr_cor(DPLL_CFG6_DPLL_IVCRX, 0x10);
 	hdmirx_wr_cor(DPLL_HDMI2_DPLL_IVCRX, 0);
+
+	data8 =  0;
+	data8 |= (1 << 4);//acp clr
+	data8 |= (1 << 3);//unrec clr
+	data8 |= (1 << 2);//mpeg clr
+	data8 |= (1 << 1);//spd clr
+	data8 |= (1 << 0);//avi clr
+	hdmirx_wr_cor(IF_CTRL1_DP3_IVCRX, data8);
 }
 
 void hdmirx_hbr2spdif(u8 val)
@@ -4443,6 +4451,11 @@ void hdmirx_config_video(void)
 		data8 &= (~0x7);
 		data8 |= ((pixel_rpt_cnt & 0x3) << 0);
 		hdmirx_wr_cor(RX_VP_INPUT_FORMAT_HI, data8);
+	} else if (rx.chip_id >= CHIP_ID_T3) {
+		if (rx.pre.sw_vic >= HDMI_VESA_OFFSET)
+			hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(7), 1);
+		else//use auto de-repeat
+			hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(7), 0);
 	}
 	rx_sw_reset_t7(2);
 }

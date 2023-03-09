@@ -3097,7 +3097,7 @@ extern char emp_buf[1024];
 extern char pre_emp_buf[1024];
 extern int hdcp22_on;
 extern int hdcp14_on;
-extern int hdcp22_kill_esm;
+extern bool hdcp22_kill_esm;
 extern bool hpd_to_esm;
 extern u32 term_cal_val;
 extern u32 phy_trim_val;
