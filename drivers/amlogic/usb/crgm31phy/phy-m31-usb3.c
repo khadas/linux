@@ -350,6 +350,7 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, phy);
 
 	pm_runtime_enable(phy->dev);
+	amlogic_usb3_m31_shutdown(&phy->phy);
 
 	return 0;
 }
