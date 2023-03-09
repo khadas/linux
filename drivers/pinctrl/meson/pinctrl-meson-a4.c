@@ -1070,9 +1070,9 @@ static struct meson_bank meson_a4_periphs_banks[] = {
 };
 
 static struct meson_bank meson_a4_aobus_banks[] = {
-	BANK_DS("AO", GPIOAO_0, GPIOAO_6,  -1,  -1,
+	BANK_DS("AO", GPIOAO_0, GPIOAO_6,  0,  6,
 		0x3,   0,  0x4,  0,   0x2,  0,  0x1,  0,  0x0,  0,  0x7, 0),
-	BANK_DS("TEST_N", GPIO_TEST_N,    GPIO_TEST_N,   -1, -1,
+	BANK_DS("TEST_N", GPIO_TEST_N,    GPIO_TEST_N,   7, 7,
 		0x13,  0,  0x14,  0,  0x12, 0,  0x11,  0, 0x10, 0, 0x17, 0),
 };
 

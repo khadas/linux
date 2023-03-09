@@ -777,13 +777,19 @@ static int meson_pinctrl_parse_dt(struct meson_pinctrl *pc,
 	pc->of_node = gpio_np;
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-	pc->of_irq = of_find_compatible_node(NULL,
-					     NULL,
-					     "amlogic,meson-gpio-intc-ext");
-	if (!pc->of_irq)
+	if (of_property_read_bool(node, "amlogic,ao-interrupt-controller")) {
 		pc->of_irq = of_find_compatible_node(NULL,
 						     NULL,
-						     "amlogic,meson-gpio-intc");
+						     "amlogic,meson-gpio-ao-intc");
+	} else {
+		pc->of_irq = of_find_compatible_node(NULL,
+						     NULL,
+						     "amlogic,meson-gpio-intc-ext");
+		if (!pc->of_irq)
+			pc->of_irq = of_find_compatible_node(NULL,
+							     NULL,
+							     "amlogic,meson-gpio-intc");
+	}
 #endif
 
 	pc->reg_mux = meson_map_resource(pc, gpio_np, "mux");

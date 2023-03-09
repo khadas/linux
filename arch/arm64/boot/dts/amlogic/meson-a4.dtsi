@@ -1030,6 +1030,7 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
+			amlogic,ao-interrupt-controller;
 
 			ao_gpio: bank@fe08e700 {
 				reg = <0x0 0xfe08e700 0x0 0x04>,
@@ -1039,6 +1040,15 @@
 				#gpio-cells = <2>;
 				gpio-ranges = <&aobus_pinctrl 0 0 8>;
 			};
+		};
+
+		gpio_ao_intc: interrupt-controller@fe08e72c {
+			compatible = "amlogic,meson-gpio-ao-intc",
+					"amlogic,meson-a4-gpio-ao-intc";
+			reg = <0x0 0xfe08e72c 0x0 0x0c>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			amlogic,channel-interrupts = <140 141>;
 		};
 
 		crg_phy_20: crgphy20@fe03c000 {

@@ -173,6 +173,21 @@ struct meson_gpio_irq_params {
 	.both_sel_reg =  0x0c,					\
 	.channel_num = 32,
 
+#define INIT_MESON_A4_AO_COMMON_DATA(irqs)			\
+	INIT_MESON_SC2_COMMON(irqs, meson_a1_gpio_irq_init,	\
+			      meson_a1_gpio_irq_sel_pin,	\
+			      meson_p1_gpio_irq_sel_type)	\
+	.support_edge_both = true,				\
+	.edge_both_offset = 0,					\
+	.edge_single_offset = 12,				\
+	.pol_low_offset = 0,					\
+	.pin_sel_mask = 0xff,					\
+	.pin_sel_reg_base = 0x04,				\
+	.edge_sel_reg = 0x00,					\
+	.pol_low_sel_reg = 0x00,				\
+	.both_sel_reg =  0x08,					\
+	.channel_num = 2,
+
 #endif
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -257,6 +272,10 @@ static const struct meson_gpio_irq_params s5_params = {
 static const struct meson_gpio_irq_params a4_params = {
 	INIT_MESON_SC2_COMMON_DATA(81)
 };
+
+static const struct meson_gpio_irq_params a4_ao_params = {
+	INIT_MESON_A4_AO_COMMON_DATA(8)
+};
 #endif
 
 static const struct of_device_id meson_irq_gpio_matches[] = {
@@ -282,6 +301,7 @@ static const struct of_device_id meson_irq_gpio_matches[] = {
 	{ .compatible = "amlogic,meson-a5-gpio-intc", .data = &a5_params },
 	{ .compatible = "amlogic,meson-s5-gpio-intc", .data = &s5_params },
 	{ .compatible = "amlogic,meson-a4-gpio-intc", .data = &a4_params },
+	{ .compatible = "amlogic,meson-a4-gpio-ao-intc", .data = &a4_ao_params },
 #endif
 	{ }
 };
@@ -841,5 +861,7 @@ free_ctl:
 	return ret;
 }
 
+IRQCHIP_DECLARE(meson_gpio_ao_intc, "amlogic,meson-gpio-ao-intc",
+		meson_gpio_irq_of_init);
 IRQCHIP_DECLARE(meson_gpio_intc, "amlogic,meson-gpio-intc",
 		meson_gpio_irq_of_init);
