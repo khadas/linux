@@ -131,7 +131,8 @@
 /* 20230216: add address debug info */
 /* 20230302: source clk change 25hz calculate to 24hz */
 /* 20230307: if not data input not reminder */
-#define VDIN_VER "20230307"
+/* 20230309: interlace signal not advance send frame */
+#define VDIN_VER "20230309"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
