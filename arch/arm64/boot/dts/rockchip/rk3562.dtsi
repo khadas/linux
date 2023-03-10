@@ -753,6 +753,7 @@
 			power-domains = <&power RK3562_PD_PHP>;
 			resets = <&cru SRST_USB3OTG>;
 			reset-names = "usb3-otg";
+			linux,sysdev_is_parent;
 			snps,dis_enblslpm_quirk;
 			snps,dis-u1-entry-quirk;
 			snps,dis-u2-entry-quirk;
