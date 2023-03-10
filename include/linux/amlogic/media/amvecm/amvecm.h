@@ -393,10 +393,13 @@ enum lut_type_e {
 };
 
 /*tone mapping struct*/
-struct hdr_tone_mapping_s {
+struct hdr_tone_mapping_s       {
 	enum lut_type_e lut_type;
 	unsigned int lutlength;
-	unsigned int *tm_lut;
+	union {
+	void *tm_lut;
+	long long tm_lut_len;
+	};
 };
 
 /* CMS ioctl data structure */
