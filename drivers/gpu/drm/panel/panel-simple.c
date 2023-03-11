@@ -4668,7 +4668,11 @@ static int panel_simple_of_get_desc_data(struct device *dev,
 //	of_property_read_u32(np, "reset-delay-ms", &desc->delay.reset);
 	of_property_read_u32(np, "init-delay-ms", &desc->delay.init);
 
-	data = of_get_property(np, "panel-init-sequence", &len);
+	if(strstr(saved_command_line, "lcd_panel=newts050")) {
+		data = of_get_property(np, "panel-init-sequence2", &len);
+	} else {
+		data = of_get_property(np, "panel-init-sequence", &len);
+	}
 	if (data) {
 		desc->init_seq = devm_kzalloc(dev, sizeof(*desc->init_seq),
 					      GFP_KERNEL);
