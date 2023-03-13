@@ -1518,7 +1518,7 @@
 }; /* end of audiobus */
 
 &adla {
-	regulator_nn = "gpio_regulator";
+	nn_regulator = "gpio_regulator";
 };
 
 &earc {

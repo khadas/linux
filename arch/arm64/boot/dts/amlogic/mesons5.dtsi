@@ -377,8 +377,9 @@
 		assigned-clock-rates = <800000000>;
 		power-domains=<&pwrdm PDID_S5_NNA_4T>;
 		//memory-region = <&nna_cma_reserved>;
+		nn_hw_version = "r1p0";
 		smmu;
-		regulator_nn = "pwm_regulator";
+		nn_regulator = "pwm_regulator";
 	};
 
 	nna_top_ports_wrapper_0: nna_top_ports_wrapper@fe370000 {

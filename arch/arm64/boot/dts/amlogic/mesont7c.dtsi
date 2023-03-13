@@ -389,6 +389,7 @@
 		      <0>,
 		      <800000000>;
 		power-domains=<&pwrdm PDID_T7_NNA_TOP>;
+		nn_hw_version="r2p0";
 		smmu;
 	};
 
