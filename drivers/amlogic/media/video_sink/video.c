@@ -5725,6 +5725,8 @@ void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 			mirror = V_MIRROR;
 		_set_video_mirror(layer_info, mirror);
 		layer_info->zorder = vf->zorder;
+	} else {
+		_set_video_mirror(layer_info, 0);
 	}
 
 	layer_swap_frame(vf, layer, false, vinfo, 0);
@@ -5891,6 +5893,8 @@ void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 			mirror = V_MIRROR;
 		_set_video_mirror(layer_info, mirror);
 		layer_info->zorder = vf->zorder;
+	} else {
+		_set_video_mirror(layer_info, 0);
 	}
 
 	layer_swap_frame(vf, layer, false, vinfo, 0);
@@ -6074,6 +6078,8 @@ void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1, int l
 			mirror = V_MIRROR;
 		_set_video_mirror(&glayer_info[0], mirror);
 		glayer_info[0].zorder = vf->zorder;
+	} else {
+		_set_video_mirror(&glayer_info[0], 0);
 	}
 
 	if (layer->layer_id == 0 &&
@@ -8758,6 +8764,8 @@ SET_FILTER:
 		_set_video_mirror(&glayer_info[0], mirror);
 		set_alpha_scpxn(&vd_layer[0], vd_layer[0].dispbuf->composer_info);
 		glayer_info[0].zorder = vd_layer[0].dispbuf->zorder;
+	} else if (vd_layer[0].dispbuf) {
+		_set_video_mirror(&glayer_info[0], 0);
 	}
 
 	/* setting video display property in underflow mode */
@@ -9151,6 +9159,8 @@ SET_FILTER:
 		_set_video_mirror(&glayer_info[1], mirror);
 		set_alpha_scpxn(&vd_layer[1], vd_layer[1].dispbuf->composer_info);
 		glayer_info[1].zorder = vd_layer[1].dispbuf->zorder;
+	} else if (vd_layer[1].dispbuf) {
+		_set_video_mirror(&glayer_info[1], 0);
 	}
 
 	/* setting video display property in underflow mode */
