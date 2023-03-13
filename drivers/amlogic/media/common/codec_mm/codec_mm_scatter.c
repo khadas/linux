@@ -2032,6 +2032,15 @@ static int codec_mm_scatter_info_dump_in(struct codec_mm_scatter_mgt *smgt,
 }
 EXPORT_SYMBOL(codec_mm_scatter_info_dump);
 
+int codec_mm_alloc_sys_size(void)
+{
+	struct codec_mm_scatter_mgt *smgt = codec_mm_get_scatter_mgt(0);
+
+	return ((smgt->alloc_from_sys_sc_cnt +
+		 smgt->one_page_cnt) << PAGE_SHIFT) / SZ_1M;
+}
+EXPORT_SYMBOL(codec_mm_alloc_sys_size);
+
 int codec_mm_scatter_info_dump(void *buf, int size)
 {
 	char *pbuf = buf;

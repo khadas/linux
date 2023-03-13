@@ -168,5 +168,6 @@ struct codec_mm_s *v4l_reqbufs_from_codec_mm(const char *owner,
 void v4l_freebufs_back_to_codec_mm(const char *owner, struct codec_mm_s *mem);
 void codec_mm_get_default_tvp_size(int *tvp_fhd, int *tvp_uhd);
 void codec_mm_memset(ulong phys, u32 val, u32 size);
+int codec_mm_alloc_cma_size(void);
 
 #endif

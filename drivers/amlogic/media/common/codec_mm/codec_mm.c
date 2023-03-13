@@ -2075,6 +2075,14 @@ static int dump_mem_infos(void *buf, int size)
 	return tsize;
 }
 
+int codec_mm_alloc_cma_size(void)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	return mgt->total_alloced_size / SZ_1M;
+}
+EXPORT_SYMBOL(codec_mm_alloc_cma_size);
+
 static int dump_free_mem_infos(void *buf, int size)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();

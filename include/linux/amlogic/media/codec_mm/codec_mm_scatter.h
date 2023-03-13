@@ -97,4 +97,6 @@ int codec_mm_scatter_mgt_delay_free_switch(int on, int delay_ms,
 int codec_mm_dump_scatter(struct codec_mm_scatter *mms, void *buf, int size);
 int codec_mm_scatter_dec_owner_user(void *sc_mm, int delay_ms);
 
+int codec_mm_alloc_sys_size(void);
+
 #endif
