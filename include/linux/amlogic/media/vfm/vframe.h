@@ -653,6 +653,10 @@ struct vframe_s {
 	 *	"smpte170m", "smpte240m", "YCgCo", "bt2020nc", "bt2020c"
 	 */
 	u32 signal_type;
+	/*
+	 *bit 0: FMM flag
+	 */
+	u32 ext_signal_type;
 	u32 orientation;
 	u32 video_angle;
 	enum vframe_source_type_e source_type;
