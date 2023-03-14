@@ -179,6 +179,8 @@ u32 aml_diseqc_send_cmd(struct aml_diseqc *diseqc,
 	ret = wait_for_completion_timeout(&diseqc->tx_msg_ok, timeout);
 	if (ret <= 0)	/* time out */
 		dprintk(0, "send cmd time out, ret %ld.\n", ret);
+	else
+		ret = 0;
 
 	/* Send burst SA or SB */
 	if (sendburst_on && cmd->msg_len == 4 && cmd->msg[2] == 0x38 &&

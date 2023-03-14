@@ -4098,7 +4098,7 @@ static int dtvdemod_dvbs_unicable_change_channel(struct dvb_frontend *fe)
 	}
 
 	ret = aml_diseqc_send_cmd(&devp->diseqc, &cmd);
-	if (ret <= 0) {
+	if (ret < 0) {
 		PR_ERR("%s: aml_diseqc_send_cmd failed %d\n", __func__, ret);
 		return ret;
 	}
@@ -6108,9 +6108,11 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 
 			if ((abs(last_locked_freq - cur_freq) < 5000) ||
 				(abs(last_locked_freq - cur_freq) < 10000 &&
-				last_locked_sr >= 20000000)) {
+				last_locked_sr >= 20000000) ||
+				((abs(last_locked_sr - cur_sr) <= 5000) &&
+				(abs(last_locked_freq - cur_freq) <= 8000))) {
 				status = FE_TIMEDOUT;
-				PR_INFO("Skip tune: last[%d KHz, %d bps], cur[%d KHz, %d bps].\n",
+			PR_INFO("Skip tune: last[%dKHz, %dbps], cur[%dKHz, %dbps].\n",
 						last_locked_freq, last_locked_sr,
 						cur_freq, cur_sr);
 			} else {
@@ -6143,6 +6145,9 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 					dvb_frontend_add_event(fe, status);
 			} else {
 				freq_offset = dvbs_get_freq_offset(&polarity) / 1000;
+
+				if (demod->demod_status.is_singlecable)
+					polarity = polarity ? 0 : 1;
 
 				if (polarity)
 					cur_freq = cur_freq + freq_offset * 1000;

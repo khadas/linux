@@ -75,6 +75,7 @@
 /*  V1.1.81  fix diseqc 22k on and off after tune */
 /*  V1.1.82  remove S/S2 ber config */
 /*  V1.1.83  fix T5D/T3 switch to T2 unlock */
+/*  V1.1.84  fix dvb-s unicable blind scan failed */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -91,8 +92,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.83"
-#define DTVDEMOD_VER	"2023/3/27: fix T5D/T3 switch to T2 unlock"
+#define AMLDTVDEMOD_VER "V1.1.84"
+#define DTVDEMOD_VER	"2023/3/28: fix dvb-s unicable blind scan failed"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

@@ -1621,7 +1621,8 @@ unsigned int dvbs_get_freq_offset(unsigned int *polarity)
 		carrier_offset += 1;
 	}
 
-	*polarity = dvbs_iq_swap ? 1 : 0;
+	if (dvbs_iq_swap)
+		*polarity = (*polarity) ? 0 : 1;
 
 	/* fre offset = carrier_offset * Fs(adc) / 2^24 */
 	freq_offset = carrier_offset * (ADC_CLK_135M / 1000); //ADC_CLK_135M
