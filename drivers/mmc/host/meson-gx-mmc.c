@@ -3607,6 +3607,17 @@ static const struct mmc_host_ops meson_mmc_ops = {
 	.post_req	= meson_mmc_post_req,
 	.execute_tuning = meson_mmc_execute_tuning,
 	.hs400_complete = aml_post_hs400_timming,
+	.start_signal_voltage_switch = meson_mmc_voltage_switch,
+};
+
+static const struct mmc_host_ops meson_sdio_ops = {
+	.request	= meson_mmc_request,
+	.set_ios	= meson_mmc_set_ios,
+	.enable_sdio_irq = aml_sd_emmc_enable_sdio_irq,
+	.get_cd         = meson_mmc_get_cd,
+	.pre_req	= meson_mmc_pre_req,
+	.post_req	= meson_mmc_post_req,
+	.execute_tuning = meson_mmc_execute_tuning,
 	.card_busy	= meson_mmc_card_busy,
 	.start_signal_voltage_switch = meson_mmc_voltage_switch,
 };
@@ -3999,7 +4010,10 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		}
 	}
 
-	mmc->ops = &meson_mmc_ops;
+	if (aml_card_type_mmc(host))
+		mmc->ops = &meson_mmc_ops;
+	else
+		mmc->ops = &meson_sdio_ops;
 	amlogic_add_host(host);
 
 	if (aml_card_type_non_sdio(host) && host->sd_uart_init) {
