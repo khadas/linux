@@ -201,6 +201,9 @@ static int __init jent_mod_init(void)
 {
 	int ret = 0;
 
+#ifdef CONFIG_AMLOGIC_LINUX_S_OPTIMIZE
+	return 0;
+#endif
 	ret = jent_entropy_init();
 	if (ret) {
 		pr_info("jitterentropy: Initialization failed with host not compliant with requirements: %d\n", ret);
