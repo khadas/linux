@@ -227,6 +227,7 @@ struct rkcif_sensor_info {
 	struct v4l2_subdev_selection selection;
 	int dsi_input_en;
 	int dsi_mode;
+	int hdmi_input_en;
 };
 
 enum cif_fmt_type {

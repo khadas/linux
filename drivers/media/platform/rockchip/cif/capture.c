@@ -4419,7 +4419,12 @@ static int rkcif_queue_setup(struct vb2_queue *queue,
 
 	for (i = 0; i < cif_fmt->mplanes; i++) {
 		const struct v4l2_plane_pix_format *plane_fmt;
-		int h = round_up(height, MEMORY_ALIGN_ROUND_UP_HEIGHT);
+		int h;
+
+		if (dev->chip_id >= CHIP_RK3588_CIF && dev->terminal_sensor.hdmi_input_en)
+			h = height;
+		else
+			h = round_up(height, MEMORY_ALIGN_ROUND_UP_HEIGHT);
 
 		plane_fmt = &pixm->plane_fmt[i];
 		sizes[i] = plane_fmt->sizeimage / height * h;
@@ -5760,6 +5765,13 @@ int rkcif_update_sensor_info(struct rkcif_stream *stream)
 			}
 		} else {
 			terminal_sensor->dsi_mode = 0;
+		}
+		if (v4l2_subdev_call(terminal_sensor->sd, core, ioctl, RKMODULE_GET_HDMI_MODE,
+					&terminal_sensor->hdmi_input_en)) {
+			v4l2_dbg(1, rkcif_debug, &stream->cifdev->v4l2_dev,
+				"%s: get terminal %s hdmiin, default!\n",
+				__func__, terminal_sensor->sd->name);
+			terminal_sensor->hdmi_input_en = 0;
 		}
 	} else {
 		v4l2_err(&stream->cifdev->v4l2_dev,
