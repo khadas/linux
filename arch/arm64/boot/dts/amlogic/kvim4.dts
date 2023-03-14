@@ -512,6 +512,7 @@
 		clock-names = "mclk_0","mclk_1","mclk_0_pre","mclk_1_pre","mclk_p","mclk_x";
 		pwdn = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
 		reset = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
+		af = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
 	};
 
 	iq: iq {
@@ -1461,6 +1462,10 @@
 		reg-type = <2>;
 		reg-data-type = <1>;
 		link-device = <&phycsi>;
+	};
+	dw9714@c {
+		compatible = "dw, dw9714";
+		reg = <0x0c>;
 	};
 };
 
