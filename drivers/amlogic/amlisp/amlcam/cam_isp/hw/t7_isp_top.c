@@ -120,8 +120,8 @@ static void top_cfg_blc(struct isp_dev_t *isp_dev, void *blc)
 {
 	aisp_blc_cfg_t *blc_cfg = blc;
 
-	isp_reg_update_bits(isp_dev, ISP_TOP_FED_CTRL, blc_cfg->fe_bl_en, 15, 1);
-	isp_reg_update_bits(isp_dev, ISP_TOP_BEO_CTRL, blc_cfg->blc_en, 7, 1);
+	//isp_reg_update_bits(isp_dev, ISP_TOP_FED_CTRL, blc_cfg->fe_bl_en, 15, 1);
+	//isp_reg_update_bits(isp_dev, ISP_TOP_BEO_CTRL, blc_cfg->blc_en, 7, 1);
 }
 
 void isp_top_decmpr_disable(void *isp_dev)
@@ -300,7 +300,7 @@ void isp_top_init(struct isp_dev_t *isp_dev)
 
 	val = (1 << 0) | (1 << 1) | (1 << 2) | (0 << 3) | (1 << 4) |
 		(1 << 5) | (2 << 7) | (1 << 9) | (0 << 10) | (0 << 11) |
-		(1 << 12) | (1 << 13) | (1 << 14) | (1 << 15) | (1 << 16) | (1 << 17);
+		(1 << 12) | (1 << 13) | (1 << 14) | (0 << 15) | (1 << 16) | (1 << 17);
 	isp_reg_write(isp_dev, ISP_TOP_FED_CTRL, val);
 
 	val = (1 << 1) | (0 << 2) | (1 << 3) | (0 << 4) | (0 << 5) |

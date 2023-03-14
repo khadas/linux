@@ -269,11 +269,13 @@ void isp_mcnr_mif_enable(struct isp_dev_t *isp_dev, u32 enable)
 		isp_reg_update_bits(isp_dev, ISP_TOP_PATH_EN, 0xff, 20, 8);
 		isp_reg_update_bits(isp_dev, ISP_TOP_FED_CTRL, 1, 10, 1);
 		isp_reg_update_bits(isp_dev, ISP_TOP_FED_CTRL, 1, 11, 1);
+		isp_dev->mcnr_en = 1;
 	} else {
 		isp_reg_update_bits(isp_dev, ISP_TOP_PATH_EN, 0x0, 20, 8);
 		isp_reg_update_bits(isp_dev, ISP_TOP_FED_CTRL, 0, 10, 1);
 		isp_reg_update_bits(isp_dev, ISP_TOP_FED_CTRL, 0, 11, 1);
 		isp_reg_update_bits(isp_dev, ISP_PK_MOTION_ADP_CTRL, 0, 0, 1);
+		isp_dev->mcnr_en = 0;
 	}
 }
 
@@ -325,9 +327,9 @@ void isp_mcnr_cfg_fmt(struct isp_dev_t *isp_dev, struct aml_format *fmt)
 
 	yofst = (isp_fmt == 0) ? 0 : //grbg
 		(isp_fmt == 1) ? 0 : //rggb
+		(isp_fmt == 4) ? 0 : //rgbir4x4
 		(isp_fmt == 2) ? 1 : //bggr
-		(isp_fmt == 3) ? 1 : //gbrg
-		(isp_fmt == 4) ? 0 : 0; //rgbir4x4
+		(isp_fmt == 3) ? 1 : 0; //gbrg
 
 	isp_reg_update_bits(isp_dev, ISP_LOSSE_PIX_OFST_BIT_DEPTH, xofst, 10, 2);
 	isp_reg_update_bits(isp_dev, ISP_LOSSE_PIX_OFST_BIT_DEPTH, yofst, 8, 2);

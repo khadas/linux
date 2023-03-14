@@ -28,6 +28,9 @@ static void dms_cfg_dmsc(struct isp_dev_t *isp_dev, void *dmsc)
 
 	val = d_cfg->drt_ambg_mxerr_lmt_0;
 	isp_reg_update_bits(isp_dev, ISP_DMS_DRT_AMBG1, val, 0, 10);
+
+	val = d_cfg->drt_ambg_mxerr_lmt_1;
+	isp_reg_update_bits(isp_dev, ISP_DMS_DRT_AMBG1, val, 16, 10);
 }
 
 static void dms_cfg_nr(struct isp_dev_t *isp_dev, void *nr)
@@ -53,9 +56,9 @@ void isp_dms_cfg_fmt(struct isp_dev_t *isp_dev, struct aml_format *fmt)
 
 	yofst = (isp_fmt == 0) ? 0 : //grbg
 		(isp_fmt == 1) ? 0 : //rggb
+		(isp_fmt == 4) ? 0 : //rgbir4x4
 		(isp_fmt == 2) ? 1 : //bggr
-		(isp_fmt == 3) ? 1 : //gbrg
-		(isp_fmt == 4) ? 0 : 0; //rgbir4x4
+		(isp_fmt == 3) ? 1 : 0; //gbrg
 
 	isp_reg_update_bits(isp_dev, ISP_DMS_COMMON_PARAM0, xofst, 2, 2);
 	isp_reg_update_bits(isp_dev, ISP_DMS_COMMON_PARAM0, yofst, 0, 2);
@@ -186,4 +189,6 @@ void isp_dms_init(struct isp_dev_t *isp_dev)
 	isp_reg_write(isp_dev, ISP_DMS_AMBG_SQR_LUT_3, val);
 
 	isp_reg_update_bits(isp_dev, ISP_DMS_PP_EN, 1, 5, 1);
+
+	isp_reg_update_bits(isp_dev, ISP_DMS_DRT_AMBG1, 1023, 16, 10);
 }

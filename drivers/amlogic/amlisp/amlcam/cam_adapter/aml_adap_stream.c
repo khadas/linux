@@ -139,6 +139,17 @@ static void adap_cap_stream_off(void *video)
 	vd->status = AML_OFF;
 }
 
+static void adap_vb2_discard_done(struct vb2_queue *q)
+{
+	struct vb2_buffer *vb;
+	unsigned long flags;
+
+	spin_lock_irqsave(&q->done_lock, flags);
+	list_for_each_entry(vb, &q->done_list, done_entry)
+		vb->state = VB2_BUF_STATE_ERROR;
+	spin_unlock_irqrestore(&q->done_lock, flags);
+}
+
 static void adap_cap_flush_buffer(void *video)
 {
 	unsigned long flags;
@@ -157,7 +168,7 @@ static void adap_cap_flush_buffer(void *video)
 	if (vd->b_current && vd->b_current->vb.vb2_buf.state == VB2_BUF_STATE_ACTIVE)
 		vb2_buffer_done(&vd->b_current->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 
-	vb2_discard_done(&vd->vb2_q);
+	adap_vb2_discard_done(&vd->vb2_q);
 	vd->b_current = NULL;
 
 	spin_unlock_irqrestore(&vd->buff_list_lock, flags);

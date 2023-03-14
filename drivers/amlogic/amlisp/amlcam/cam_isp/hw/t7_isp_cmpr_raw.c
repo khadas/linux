@@ -298,3 +298,10 @@ void isp_cmpr_raw_init(struct isp_dev_t *isp_dev)
 	cmpr_raw0_init(isp_dev);
 	cmpr_raw1_init(isp_dev);
 }
+
+void isp_cmpr_raw_cfg_ratio(struct isp_dev_t *isp_dev)
+{
+	isp_reg_update_bits(isp_dev, ISP_LOSSE_PIX_BASIS, isp_dev->tnr_bits * 16, 4, 9);
+	isp_reg_update_bits(isp_dev, ISP_LOSSD_PIX_BASIS, isp_dev->tnr_bits * 16, 4, 9);
+}
+

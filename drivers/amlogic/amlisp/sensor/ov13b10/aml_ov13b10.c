@@ -178,7 +178,7 @@ static struct ov13b10_regval setting_4208_3120_4lane_1080m_30fps[] = {
 	{0x380c, 0x04},
 	{0x380d, 0x98},
 	{0x380e, 0x0c},
-	{0x380f, 0x7c},
+	{0x380f, 0xc0},
 	{0x3811, 0x0f},
 	{0x3813, 0x08},
 	{0x3814, 0x01},
@@ -228,8 +228,8 @@ static struct ov13b10_regval setting_4208_3120_4lane_1080m_30fps[] = {
 	{0x4837, 0x0e},
 	{0x484b, 0x01},
 	{0x4883, 0x02},
-	{0x5000, 0xff},
-	{0x5001, 0x0f},
+	{0x5000, 0xfd},
+	{0x5001, 0x0d},
 	{0x5045, 0x20},
 	{0x5046, 0x20},
 	{0x5047, 0xa4},
@@ -269,7 +269,7 @@ static struct ov13b10_regval setting_4208_3120_4lane_1080m_30fps[] = {
 	{0x380c, 0x04},
 	{0x380d, 0x98},
 	{0x380e, 0x0c},
-	{0x380f, 0x7c},
+	{0x380f, 0xc0},
 	{0x3811, 0x0f},
 	{0x3813, 0x08},
 	{0x3814, 0x01},
@@ -288,10 +288,9 @@ static struct ov13b10_regval setting_4208_3120_4lane_1080m_30fps[] = {
 	{0x4501, 0x00},
 	{0x4505, 0x00},
 	{0x4837, 0x0e},
-	{0x5000, 0xff},
-	{0x5001, 0x0f},
+	{0x5000, 0xfd},
+	{0x5001, 0x0d},
 	{0x0100, 0x01},
-
 };
 #endif
 
@@ -709,8 +708,6 @@ static int ov13b10_set_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&ov13b10->lock);
 
-	//ov13b10_modes_ptr 返回一组数据
-	//ov13b10_modes_num 返回 多少组
 	mode = v4l2_find_nearest_size(ov13b10_modes_ptr(ov13b10),
 				 ov13b10_modes_num(ov13b10),
 				width, height,
@@ -731,7 +728,6 @@ static int ov13b10_set_fmt(struct v4l2_subdev *sd,
 		dev_err(ov13b10->dev, " zzw No format. reset i = 0 \n");
 	}
 
-	/*此处相当于 赋值ov13b10_formats[i]*/
 	fmt->format.code = ov13b10_formats[i].code;
 	fmt->format.field = V4L2_FIELD_NONE;
 
@@ -749,7 +745,6 @@ static int ov13b10_set_fmt(struct v4l2_subdev *sd,
 		ov13b10->bpp = ov13b10_formats[i].bpp;
 		/*__v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val)
 			ov13b10_get_link_freq_index(ov13b10):0 | 1
-			v4l2_ctrl初始化之前，ov13b10->link_freq是不存在的
 		*/
 		if (ov13b10->link_freq)
 			__v4l2_ctrl_s_ctrl(ov13b10->link_freq, ov13b10_get_link_freq_index(ov13b10) );
@@ -906,10 +901,6 @@ int reset_am_enable(struct device *dev, const char* propname, int val)
 static int ov13b10_power_on(struct ov13b10 *ov13b10)
 {
 	int ret;
-	//gpiod_set_pull(ov13b10->rst_gpio, GPIOD_PULL_UP);
-
-	//gpiod_set_value_cansleep(ov13b10->rst_gpio, GPIOD_OUT_HIGH);
-	//gpio_direction_output(sensor_bp->vana, val);
 	reset_am_enable(ov13b10->dev,"reset", 1);
 
 	ret = mclk_enable(ov13b10->dev,24000000);
@@ -1050,38 +1041,28 @@ static int ov13b10_ctrls_init(struct ov13b10 *ov13b10)
 
 static int ov13b10_parse_power(struct ov13b10 *ov13b10)
 {
-	int rtn = 0;
+	//int rtn = 0;
+	int reset_pin = -1;
+	int pwdn_pin = -1;
 
-	ov13b10->rst_gpio = devm_gpiod_get_optional(ov13b10->dev,
-						"reset",
-						GPIOD_OUT_LOW);
-	if (IS_ERR(ov13b10->rst_gpio)) {
-		dev_err(ov13b10->dev, "Cannot get reset gpio\n");
-		rtn = PTR_ERR(ov13b10->rst_gpio);
-		goto err_return;
+	reset_pin = of_get_named_gpio(ov13b10->dev->of_node, "reset", 0);
+	if (reset_pin < 0) {
+		pr_err("%s fail to get reset pin from dts!\n", __func__);
+	} else {
+		pr_info("%s reset_pin = %d!\n", __func__, reset_pin);
+		gpio_direction_output(reset_pin, 1);
 	}
 
-	ov13b10->pwdn_gpio = devm_gpiod_get_optional(ov13b10->dev,
-						"pwdn",
-						GPIOD_OUT_LOW);
-	if (IS_ERR(ov13b10->pwdn_gpio)) {
-		dev_err(ov13b10->dev, "Cannot get pwdn gpio\n");
-		rtn = PTR_ERR(ov13b10->pwdn_gpio);
-		goto err_return;
+	pwdn_pin = of_get_named_gpio(ov13b10->dev->of_node, "pwdn", 0);
+	if (pwdn_pin < 0) {
+		pr_err("%s fail to get pwdn pin from dts!\n", __func__);
+	} else {
+		pr_info("%s pwdn_pin = %d!\n", __func__, pwdn_pin);
+		gpio_direction_output(pwdn_pin, 1);
 	}
 
-	/*ov13b10->pwdn_gpio = devm_gpiod_get_optional(ov13b10->dev,
-						"pwdn",
-						GPIOD_OUT_LOW);
-	if (IS_ERR(ov13b10->pwdn_gpio)) {
-		dev_err(ov13b10->dev, "Cannot get pwdn gpio\n");
-		rtn = PTR_ERR(ov13b10->pwdn_gpio);
-		goto err_return;
-	}*/
+	return 0;
 
-err_return:
-
-	return rtn;
 }
 
 /*
@@ -1089,7 +1070,6 @@ err_return:
  * of MIPI data lanes are mentioned in the device tree, or the value of the
  * first missing frequency otherwise.
  */
- /*dts中设置的值，只有跟驱动中设置的值一样，*/
 static s64 ov13b10_check_link_freqs(const struct ov13b10 *ov13b10,
 				   const struct v4l2_fwnode_endpoint *ep)
 {
@@ -1117,7 +1097,6 @@ static int ov13b10_parse_endpoint(struct ov13b10 *ov13b10)
 	struct device_node *node = NULL;
 
 	//endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(ov13b10->dev), NULL);
-	/*拿到 ov13b10_0_ep节点*/
 	for_each_endpoint_of_node(ov13b10->dev->of_node, node) {
 		if (strstr(node->name, "ov13b10")) {
 			endpoint = of_fwnode_handle(node);
@@ -1125,7 +1104,6 @@ static int ov13b10_parse_endpoint(struct ov13b10 *ov13b10)
 		}
 	}
 
-	/*解析ov13b10_0_ep 节点，把解析到的值给到ov13b10->ep*/
 	rtn = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ov13b10->ep);
 	fwnode_handle_put(endpoint);
 	if (rtn) {
@@ -1216,9 +1194,6 @@ static int ov13b10_probe(struct i2c_client *client)
 	ov13b10->dev = dev;
 	ov13b10->client = client;
 
-	/*
-	I2C的注册，寄存器地址16位，数据8位
-	*/
 	ov13b10->regmap = devm_regmap_init_i2c(client, &ov13b10_regmap_config);
 	if (IS_ERR(ov13b10->regmap)) {
 		dev_err(dev, "Unable to initialize I2C\n");
@@ -1230,7 +1205,6 @@ static int ov13b10_probe(struct i2c_client *client)
 		dev_err(dev, "Failed to read sensor index. default to 0\n");
 		ov13b10->index = 0;
 	}
-
 
 	ret = ov13b10_parse_endpoint(ov13b10);
 	if (ret) {
@@ -1259,7 +1233,7 @@ static int ov13b10_probe(struct i2c_client *client)
 	ret = ov13b10_get_id(ov13b10);
 	if (ret) {
 		dev_err(dev, "Could not get id\n");
-		//ov13b10_power_off(ov13b10);
+		ov13b10_power_off(ov13b10);
 		goto free_err;
 	}
 
@@ -1333,7 +1307,7 @@ static struct i2c_driver ov13b10_i2c_driver = {
 
 module_i2c_driver(ov13b10_i2c_driver);
 
-MODULE_DESCRIPTION("Sony IMX290 CMOS Image Sensor Driver");
+MODULE_DESCRIPTION("Omini OV13B10 CMOS Image Sensor Driver");
 MODULE_AUTHOR("keke.li");
 MODULE_AUTHOR("keke.li <keke.li@amlogic.com>");
 MODULE_LICENSE("GPL v2");

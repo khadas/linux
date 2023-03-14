@@ -121,18 +121,22 @@ static int dphy_cfg(void *c_dev, int idx, int lanes, u32 bps)
 	u32 ui_val = 0;
 	u32 settle = 0;
 	int module = DPHY_MD;
+	struct csiphy_dev_t *csiphy_dev = c_dev;
 
 	ui_val = 1000 / bps;
 	if ((1000 % bps) != 0)
         	ui_val += 1;
-
 
 	settle = (85 + 145 + (16 * ui_val)) / 2;
 	settle = settle / 5;
 
 	//mipi_reg_write(c_dev, module, MIPI_PHY_CTRL, 0x80000000);//soft reset bit
 	//mipi_reg_write(c_dev, module, MIPI_PHY_CTRL, 0);//release soft reset bit
-	mipi_reg_write(c_dev, module, MIPI_PHY_CLK_LANE_CTRL, 0x3d8);//3d8:continue mode
+	if (csiphy_dev->clock_mode) {
+		mipi_reg_write(c_dev, module, MIPI_PHY_CLK_LANE_CTRL, 0x58);//MIPI_PHY_CLK_LANE_CTRL
+	} else {
+		mipi_reg_write(c_dev, module, MIPI_PHY_CLK_LANE_CTRL, 0x3d8);//3d8:continue mode
+	}
 	mipi_reg_write(c_dev, module, MIPI_PHY_TCLK_MISS, 0x9);// clck miss = 50 ns --(x< 60 ns)
 	mipi_reg_write(c_dev, module, MIPI_PHY_TCLK_SETTLE, 0x1f);// clck settle = 160 ns --(95ns< x < 300 ns)
 	mipi_reg_write(c_dev, module, MIPI_PHY_THS_EXIT, 0x8);// hs exit = 160 ns --(x>100ns)
@@ -216,7 +220,6 @@ static int csiphy_hw_start(void *c_dev, int idx, int lanes, s64 link_freq)
 	aphy_cfg(c_dev, idx, lanes, bps);
 	dphy_cfg(c_dev, idx, lanes, bps);
 	host_cfg(c_dev, idx, lanes - 1);
-
 	pr_info("CSIPHY%u: hw start\n", csiphy_dev->index);
 
 	return 0;

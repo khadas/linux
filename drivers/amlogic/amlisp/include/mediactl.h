@@ -24,6 +24,7 @@
 
 #include <linux/media.h>
 
+
 struct media_device;
 struct media_entity;
 struct media_pad;
@@ -39,7 +40,7 @@ struct media_device {
     struct media_entity *entities;
     unsigned int entities_count;
 
-    void (*debug_handler)(char *, ...);
+    void (*debug_handler)(const char *, ...);
     void *debug_priv;
 
     struct {
@@ -96,6 +97,24 @@ struct media_pad {
  * allocated.
  */
 struct media_device *media_device_new(const char *devnode);
+
+
+/**
+ * @brief Create a new media device.
+ * @param df - opened file descriptor.
+ *
+ * Create a media device instance for the given fd and return it. The
+ * device node is not accessed by this function, device node access errors will
+ * not be caught and reported here. The media device needs to be enumerated
+ * before it can be accessed, see media_device_enumerate().
+ *
+ * Media devices are reference-counted, see media_device_ref() and
+ * media_device_unref() for more information.
+ *
+ * @return A pointer to the new media device or NULL if memory cannot be
+ * allocated.
+ */
+struct media_device *media_device_new_with_fd(int fd);
 
 /**
  * @brief Create a new emulated media device.
@@ -181,7 +200,7 @@ int media_device_add_entity(struct media_device *media,
  * fprintf-like function.
  */
 void media_debug_set_handler(
-    struct media_device *media, void (*debug_handler)(char *, ...),
+    struct media_device *media, void (*debug_handler)(const char *, ...),
     void *debug_priv);
 
 /**
@@ -466,5 +485,6 @@ void media_print_streampos(struct media_device *media, const char *p,
 
 #define media_dbg(media, fmt, ...) \
     (media)->debug_handler(fmt, ##__VA_ARGS__)
+
 
 #endif

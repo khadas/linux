@@ -25,6 +25,15 @@
 #include <linux/v4l2-subdev.h>
 
 struct media_entity;
+
+enum {
+    WDR_MODE_NONE,
+    WDR_MODE_2To1_LINE,
+    WDR_MODE_2To1_FRAME,
+    SDR_DDR_MODE,
+    ISP_SDR_DCAM_MODE,
+};
+
 #define V4L2_CID_AML_BASE            (V4L2_CID_BASE + 0x1000)
 #define V4L2_CID_AML_ORIG_FPS        (V4L2_CID_AML_BASE + 0x000)
 #define V4L2_CID_AML_USER_FPS        (V4L2_CID_AML_BASE + 0x001)
@@ -248,7 +257,7 @@ int v4l2_subdev_parse_setup_formats(struct media_device *media, const char *p);
  *
  * @return A pointer to a string on success, NULL on failure.
  */
-const char *v4l2_subdev_pixelcode_to_string(enum v4l2_mbus_pixelcode code);
+const char *v4l2_subdev_pixelcode_to_string(unsigned int code);
 
 /**
  * @brief Parse string to media bus pixel code.
@@ -262,7 +271,7 @@ const char *v4l2_subdev_pixelcode_to_string(enum v4l2_mbus_pixelcode code);
 enum v4l2_mbus_pixelcode v4l2_subdev_string_to_pixelcode(const char *string,
                              unsigned int length);
 
-int v4l2_subdev_set_ctrls(struct media_entity *entity, void *ctrls, int count);
+int v4l2_subdev_set_ctrls(struct media_entity *entity, struct v4l2_ext_control *ctrls, int count);
 
 int v4l2_subdev_set_wdr(struct media_entity *entity, uint32_t wdr_mode);
 

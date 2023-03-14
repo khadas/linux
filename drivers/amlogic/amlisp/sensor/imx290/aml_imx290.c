@@ -47,6 +47,7 @@
 
 #define AML_SENSOR_NAME  "imx290-%u"
 
+#define IMX290_60HZ
 
 struct imx290_regval {
 	u16 reg;
@@ -91,6 +92,8 @@ struct imx290 {
 
 	int status;
 	struct mutex lock;
+
+	int flag_60hz;
 };
 
 struct imx290_pixfmt {
@@ -103,8 +106,11 @@ struct imx290_pixfmt {
 };
 
 static const struct imx290_pixfmt imx290_formats[] = {
+	//30hz
 	{ MEDIA_BUS_FMT_SRGGB10_1X10, 1280, 1920, 720, 1080, 10 },
 	{ MEDIA_BUS_FMT_SRGGB12_1X12, 1280, 1920, 720, 1080, 12 },
+	//60hz sdr
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 1280, 1920, 720, 1080, 10 },
 };
 
 static const struct regmap_config imx290_regmap_config = {
@@ -114,6 +120,108 @@ static const struct regmap_config imx290_regmap_config = {
 };
 
 //T7 default
+static const struct imx290_regval imx290_global_init_settings_60hz[] = {
+	{0x3000, 0x01},
+	{0x3002, 0x00},
+	{0x3005, 0x00},
+	{0x3007, 0x00},
+	{0x3009, 0x01},
+	{0x300a, 0x3c},
+	{0x300f, 0x00},
+	{0x3010, 0x21},
+	{0x3012, 0x64},
+	{0x3014, 0x00},
+	{0x3016, 0x09},
+	{0x3018, 0xDF},
+	{0x3019, 0x04},
+	{0x301c, 0xEC},
+	{0x301d, 0x07},
+	{0x3020, 0x02},
+	{0x3021, 0x01},
+	{0x3022, 0x00},
+	{0x3046, 0x00},
+	{0x304b, 0x0a},
+	{0x3418, 0x49},
+	{0x3419, 0x04},
+	{0x305c, 0x18},
+	{0x305d, 0x03},
+	{0x305e, 0x20},
+	{0x305f, 0x01},
+	{0x3070, 0x02},
+	{0x3071, 0x11},
+	{0x309b, 0x10},
+	{0x309c, 0x22},
+	{0x30a2, 0x02},
+	{0x30a6, 0x20},
+	{0x30a8, 0x20},
+	{0x30aa, 0x20},
+	{0x30ac, 0x20},
+	{0x30b0, 0x43},
+	{0x3106, 0x00},
+	{0x3119, 0x9e},
+	{0x311c, 0x1e},
+	{0x311e, 0x08},
+	{0x3128, 0x05},
+	{0x3129, 0x1d},
+	{0x313d, 0x83},
+	{0x3150, 0x03},
+	{0x315e, 0x1a},
+	{0x3164, 0x1a},
+	{0x317c, 0x12},
+	{0x317e, 0x00},
+	{0x31ec, 0x37},
+	{0x32b8, 0x50},
+	{0x32b9, 0x10},
+	{0x32ba, 0x00},
+	{0x32bb, 0x04},
+	{0x32c8, 0x50},
+	{0x32c9, 0x10},
+	{0x32ca, 0x00},
+	{0x32cb, 0x04},
+	{0x332c, 0xd3},
+	{0x332d, 0x10},
+	{0x332e, 0x0d},
+	{0x3358, 0x06},
+	{0x3359, 0xe1},
+	{0x335a, 0x11},
+	{0x3360, 0x1e},
+	{0x3361, 0x61},
+	{0x3362, 0x10},
+	{0x33b0, 0x50},
+	{0x33b2, 0x1a},
+	{0x33b3, 0x04},
+	{0x3405, 0x10},
+	{0x3407, 0x03},
+	{0x3414, 0x0a},
+	{0x3415, 0x00},
+	{0x3441, 0x0a},
+	{0x3442, 0x0a},
+	{0x3443, 0x03},
+	{0x3444, 0x20},
+	{0x3445, 0x25},
+	{0x3446, 0x57},
+	{0x3447, 0x00},
+	{0x3448, 0x37},
+	{0x3449, 0x00},
+	{0x344a, 0x1f},
+	{0x344b, 0x00},
+	{0x344c, 0x1f},
+	{0x344d, 0x00},
+	{0x344e, 0x1f},
+	{0x344f, 0x00},
+	{0x3450, 0x77},
+	{0x3451, 0x00},
+	{0x3452, 0x1f},
+	{0x3453, 0x00},
+	{0x3454, 0x17},
+	{0x3455, 0x00},
+	{0x3472, 0x9c},
+	{0x3473, 0x07},
+	{0x3480, 0x49},
+	{0x3002, 0x00},
+
+};
+
 static const struct imx290_regval imx290_global_init_settings[] = {
 	{0x3000, 0x01}, /* standby */
 
@@ -488,6 +596,7 @@ static const struct imx290_regval imx290_12bit_settings[] = {
 /* supported link frequencies */
 #define FREQ_INDEX_1080P	0
 #define FREQ_INDEX_720P		1
+#define FREQ_INDEX_1080P_60HZ	2
 
 /* supported link frequencies */
 static const s64 imx290_link_freq_2lanes[] = {
@@ -495,12 +604,13 @@ static const s64 imx290_link_freq_2lanes[] = {
 	[FREQ_INDEX_720P] = 297000000,
 };
 
-
 static const s64 imx290_link_freq_4lanes[] = {
 	[FREQ_INDEX_1080P] = 222750000,
 	[FREQ_INDEX_720P] = 148500000,
+	[FREQ_INDEX_1080P_60HZ] = 445500000,
 };
 
+//static const s64 *imx290_link_freq_4lanes = imx290_link_freq_4lanes_30hz;
 
 static inline const s64 *imx290_link_freqs_ptr(const struct imx290 *imx290)
 {
@@ -558,6 +668,14 @@ static const struct imx290_mode imx290_modes_4lanes[] = {
 		.link_freq_index = FREQ_INDEX_720P,
 		.data = imx290_720p_settings,
 		.data_size = ARRAY_SIZE(imx290_720p_settings),
+	},
+	{
+		.width = 1920,
+		.height = 1080,
+		.hmax  = 0x1130,
+		.link_freq_index = FREQ_INDEX_1080P_60HZ,
+		.data = imx290_1080p_settings,
+		.data_size = ARRAY_SIZE(imx290_1080p_settings),
 	},
 };
 
@@ -751,6 +869,12 @@ static int imx290_set_ctrl(struct v4l2_ctrl *ctrl)
 		imx290->enWDRMode = ctrl->val;
 		break;
 	case V4L2_CID_AML_USER_FPS:
+		dev_err(imx290->dev,"set user fps\n");
+		if (ctrl->val == 60) {
+			imx290->flag_60hz = 1;
+		} else {
+			imx290->flag_60hz = 0;
+		}
 		break;
 	default:
 		dev_err(imx290->dev, "Error ctrl->id %u, flag 0x%lx\n",
@@ -873,12 +997,14 @@ static int imx290_set_fmt(struct v4l2_subdev *sd,
 	unsigned int i,ret;
 
 	mutex_lock(&imx290->lock);
-
-	mode = v4l2_find_nearest_size(imx290_modes_ptr(imx290),
-				 imx290_modes_num(imx290),
-				width, height,
-				fmt->format.width, fmt->format.height);
-
+	if (imx290->flag_60hz == 1) {
+		mode = &imx290_modes_4lanes[2];
+	} else {
+		mode = v4l2_find_nearest_size(imx290_modes_ptr(imx290),
+					 imx290_modes_num(imx290),
+					width, height,
+					fmt->format.width, fmt->format.height);
+	}
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
 
@@ -931,15 +1057,19 @@ static int imx290_set_fmt(struct v4l2_subdev *sd,
 			dev_err(imx290->dev, "imx290 wdr mode init...\n");
 	} else {
 		/* Set init register settings */
-		ret = imx290_set_register_array(imx290, imx290_global_init_settings,
-			ARRAY_SIZE(imx290_global_init_settings));
+		if (imx290->flag_60hz) {
+			ret = imx290_set_register_array(imx290, imx290_global_init_settings_60hz,
+			ARRAY_SIZE(imx290_global_init_settings_60hz));
+		} else {
+			ret = imx290_set_register_array(imx290, imx290_global_init_settings,
+				ARRAY_SIZE(imx290_global_init_settings));
+		}
 		if (ret < 0) {
 			dev_err(imx290->dev, "Could not set init registers\n");
 			return ret;
 		} else
 			dev_err(imx290->dev, "imx290 linear mode init...\n");
 	}
-
 	return 0;
 }
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
@@ -1296,15 +1426,16 @@ static s64 imx290_check_link_freqs(const struct imx290 *imx290,
 	const s64 *freqs = imx290_link_freqs_ptr(imx290);
 	int freqs_count = imx290_link_freqs_num(imx290);
 
-	for (i = 0; i < freqs_count; i++) {
-		for (j = 0; j < ep->nr_of_link_frequencies; j++) {
+	for (j = 0; j < ep->nr_of_link_frequencies; j++) {
+		for (i = 0; i < freqs_count; i++) {
 			if (freqs[i] == ep->link_frequencies[j]) {
 				return 0;
 			}
 		}
-		if (j == ep->nr_of_link_frequencies)
-			return freqs[i];
+		if (i == freqs_count)
+			return ep->link_frequencies[j];
 	}
+
 	return 0;
 }
 

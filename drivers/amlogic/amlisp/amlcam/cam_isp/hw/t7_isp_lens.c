@@ -342,10 +342,10 @@ static void lswb_mesh_cfg_param(struct isp_dev_t *isp_dev, void *mesh)
 	val = (mesh_cfg->lns_mesh_xlimit << 8) | (mesh_cfg->lns_mesh_ylimit << 0);
 	isp_reg_write(isp_dev, ISP_LSWB_MS_LIMIT, val);
 
-	val = mesh_cfg->lns_mesh_xscale;
+	//val = mesh_cfg->lns_mesh_xscale;
 	//isp_reg_write(isp_dev, ISP_LSWB_MS_XSCALE, val);
 
-	val = mesh_cfg->lns_mesh_yscale;
+	//val = mesh_cfg->lns_mesh_yscale;
 	//isp_reg_write(isp_dev, ISP_LSWB_MS_YSCALE, val);
 
 	val = mesh_cfg->lns_mesh_prtmode;
@@ -438,9 +438,9 @@ void isp_lens_cfg_fmt(struct isp_dev_t *isp_dev, struct aml_format *fmt)
 
 	yofst = (isp_fmt == 0) ? 0 : //grbg
 		(isp_fmt == 1) ? 0 : //rggb
+		(isp_fmt == 4) ? 0 : //rgbir4x4
 		(isp_fmt == 2) ? 1 : //bggr
-		(isp_fmt == 3) ? 1 : //gbrg
-		(isp_fmt == 4) ? 0 : 0; //rgbir4x4
+		(isp_fmt == 3) ? 1 : 0; //gbrg
 
 	isp_reg_update_bits(isp_dev, ISP_LSWB_IDG_OFST, xofst, 2, 2);
 	isp_reg_update_bits(isp_dev, ISP_LSWB_IDG_OFST, yofst, 0, 2);

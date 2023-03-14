@@ -211,7 +211,7 @@ static int ov13855_set_gain(struct ov13855 *ov13855, u32 value)
 	u8 value_H = 0;
 	u8 value_L = 0;
 
-	dev_err(ov13855->dev, "ov13855_set_gain = 0x%x \n", value);
+	dev_dbg(ov13855->dev, "ov13855_set_gain = 0x%x \n", value);
 	value_H = value >> 1;
 	ret = ov13855_write_reg(ov13855, OV13855_GAIN, (value >> 8) & 0xFF);
 	if (ret)
@@ -231,7 +231,7 @@ static int ov13855_set_exposure(struct ov13855 *ov13855, u32 value)
 	int ret = 0;
 	u8 value_H = 0;
 	u8 value_L = 0;
-	dev_err(ov13855->dev, "ov13855_set_exposure = 0x%x \n", value);
+	dev_dbg(ov13855->dev, "ov13855_set_exposure = 0x%x \n", value);
 	value_H = (value >> 4) & 0xFF;
 	value_L = (value << 4) & 0xFF;
 	ret = ov13855_write_reg(ov13855, OV13855_EXPOSURE, value_H);
@@ -750,9 +750,6 @@ static int ov13855_parse_power(struct ov13855 *ov13855)
 	}
 
 	return 0;
-//err_return:
-
-	//return rtn;
 }
 
 /*
@@ -821,7 +818,6 @@ static int ov13855_parse_endpoint(struct ov13855 *ov13855)
 	struct device_node *node = NULL;
 
 	//endpoint = fwnode_graph_get_next_endpoint(dev_fwnode(ov13855->dev), NULL);
-	/*拿到 ov13855_0_ep节点*/
 	for_each_endpoint_of_node(ov13855->dev->of_node, node) {
 		if (strstr(node->name, "ov13855")) {
 			endpoint = of_fwnode_handle(node);
@@ -829,7 +825,6 @@ static int ov13855_parse_endpoint(struct ov13855 *ov13855)
 		}
 	}
 
-	/*解析ov13855_0_ep 节点，把解析到的值给到ov13855->ep*/
 	rtn = v4l2_fwnode_endpoint_alloc_parse(endpoint, &ov13855->ep);
 	fwnode_handle_put(endpoint);
 	if (rtn) {
@@ -987,7 +982,7 @@ static int ov13855_probe(struct i2c_client *client)
 
 	dev_info(ov13855->dev, "probe done \n");
 
-	return 0;
+	return ret;
 
 free_entity:
 	media_entity_cleanup(&ov13855->sd.entity);

@@ -64,6 +64,9 @@ static void fed_cfg_dgain(struct isp_dev_t *isp_dev, void *gain)
 static void fed_cfg_base(struct isp_dev_t *isp_dev, void *base)
 {
 	u32 i = 0;
+	u32 val = 0;
+	u32 *stp, *num;
+
 	aisp_base_cfg_t *base_cfg = base;
 	aisp_setting_fixed_cfg_t *fixed_cfg = &base_cfg->fxset_cfg;
 	aisp_lut_fixed_cfg_t *lut_cfg = &base_cfg->fxlut_cfg;
@@ -81,6 +84,34 @@ static void fed_cfg_base(struct isp_dev_t *isp_dev, void *base)
 	for (i = 0; i < ISP_ARRAY_SIZE(lut_cfg->sqrt1_lut); i++) {
 		isp_reg_write(isp_dev, ISP_FED_SQRT1_DATA, lut_cfg->sqrt1_lut[i]);
 	}
+
+	stp = fixed_cfg->sqrt1_stp;
+	val = (stp[0] << 0) | (stp[1] << 4) |
+		(stp[2] << 8) | (stp[3] << 12) |
+		(stp[4] << 16) | (stp[5] << 20) |
+		(stp[6] << 24) | (stp[7] << 28);
+	isp_reg_write(isp_dev, ISP_FED_SQRT_STP, val);
+
+	num = fixed_cfg->sqrt1_num;
+	val = (num[0] << 0) | (num[1] << 4) |
+		(num[2] << 8) | (num[3] << 12) |
+		(num[4] << 16) | (num[5] << 20) |
+		(num[6] << 24) | (num[7] << 28);
+	isp_reg_write(isp_dev, ISP_FED_SQRT_NUM, val);
+
+	stp = fixed_cfg->eotf1_stp;
+	val = (stp[0] << 28) | (stp[1] << 24) |
+		(stp[2] << 20) | (stp[3] << 16) |
+		(stp[4] << 12) | (stp[5] << 8) |
+		(stp[6] << 4) | (stp[7] << 0);
+	isp_reg_write(isp_dev, ISP_LSWB_EOTF_STP, val);
+
+	num = fixed_cfg->eotf1_num;
+	val = (num[0] << 27) | (num[1] << 24) |
+		(num[2] << 19) | (num[3] << 16) |
+		(num[4] << 11) | (num[5] << 8) |
+		(num[6] << 3) | (num[7] << 0);
+	isp_reg_write(isp_dev, ISP_LSWB_EOTF_NUM, val);
 
 	isp_hw_lut_wend(isp_dev);
 }
@@ -115,9 +146,9 @@ void isp_fed_cfg_fmt(struct isp_dev_t *isp_dev, struct aml_format *fmt)
 
 	yofst = (isp_fmt == 0) ? 0 : //grbg
 		(isp_fmt == 1) ? 0 : //rggb
+		(isp_fmt == 4) ? 0 : //rgbir4x4
 		(isp_fmt == 2) ? 1 : //bggr
-		(isp_fmt == 3) ? 1 : //gbrg
-		(isp_fmt == 4) ? 0 : 0; //rgbir4x4
+		(isp_fmt == 3) ? 1 : 0; //gbrg
 
 	isp_reg_update_bits(isp_dev, ISP_FED_DG_PHS_OFST, xofst, 4, 2);
 	isp_reg_update_bits(isp_dev, ISP_FED_DG_PHS_OFST, yofst, 0, 2);
@@ -146,8 +177,8 @@ void isp_fed_cfg_ofst(struct isp_dev_t *isp_dev)
 	isp_reg_write(isp_dev, ISP_FED_DG_GAIN4, 4096);
 
 	isp_reg_read_bits(isp_dev, ISP_LSWB_BLC_OFST0, &val, 16, 16);
-	val = (val & ((1 << 12) - 1)) << (val >> 12);
-	isp_reg_write(isp_dev, ISP_FED_DG_OFST, val);
+	//val = (val & ((1 << 12) - 1)) << (val >> 12);
+	//isp_reg_write(isp_dev, ISP_FED_DG_OFST, val);
 }
 
 void isp_fed_cfg_param(struct isp_dev_t *isp_dev, struct aml_buffer *buff)

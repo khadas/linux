@@ -365,6 +365,11 @@ typedef struct ae_req_info_s {
 	u32 ae_stat_local_mode;
 	u32 ae_stat_hblk_num;
 	u32 ae_stat_vblk_num;
+	u32 ae_stat_glbpixnum;
+	u32 roi0_pack0;
+	u32 roi0_pack1;
+	u32 roi1_pack0;
+	u32 roi1_pack1;
 } ae_req_info_t;
 
 typedef struct af_req_info_s {
@@ -523,7 +528,8 @@ typedef struct aisp_wb_triangle_cfg_s {
 } aisp_wb_triangle_cfg_t;
 
 typedef struct aisp_expo_mode_cfg_s {
-	u32 ae_stat_blk_weight[17*15];
+	u8 ae_stat_blk_weight[17*15];
+	u8 reserved;
 } aisp_expo_mode_cfg_t;
 
 typedef struct aisp_awb_weight_cfg_s {
@@ -564,6 +570,10 @@ typedef struct aisp_setting_fixed_cfg_s {
 	u32 vsc_tap_num_0;
 	u32 hsc_nor_rs_bits_0;
 	u32 vsc_nor_rs_bits_0;
+	u32 sqrt1_num[8];
+	u32 sqrt1_stp[8];
+	u32 eotf1_num[8];
+	u32 eotf1_stp[8];
 } aisp_setting_fixed_cfg_t;
 
 typedef struct aisp_lut_fixed_cfg_s {
@@ -726,8 +736,6 @@ typedef struct aisp_lns_cfg_s {
 } aisp_lns_cfg_t;
 
 typedef struct aisp_blc_cfg_s {
-	u32 fe_bl_en;
-	u32 blc_en;
 	u32 fe_bl_ofst[5];
 	u32 blc_ofst[5];
 	u32 eotf_pre_ofst;
@@ -759,12 +767,12 @@ typedef struct aisp_ltm_cfg_s{
 } aisp_ltm_cfg_t;
 
 typedef struct aisp_ltm_enhc_cfg_s{
-	u32 ltm_en;
 	u32 ltm_cc_en;
 	u32 ltm_dtl_ehn_en;
 	u32 ltm_vs_gtm_alpha;
 	u32 ltm_lmin_med_en;
 	u32 ltm_lmax_med_en;
+	u32 ltm_b2luma_alpha;
 	u32 ltm_satur_lut[63];
 } aisp_ltm_enhc_cfg_t;
 
@@ -825,6 +833,11 @@ typedef struct aisp_wdr_cfg_s {
 	u32 wdr_expcomb_maxsat_rg_thd;
 	u32 wdr_expcomb_maxsat_bg_thd;
 	u32 wdr_expcomb_maxsat_ir_thd;
+	u32 wdr_expcomb_slope_weight;
+	u32 wdr_expcomb_ir_slope_weight;
+	u32 wdr_expcomb_maxavg_winsize;
+	u32 wdr_flong2_colorcorrect_en;
+	u32 wdr_mdeci_fullmot_thd;
 	u32 comb_expratio_int64[3];
 	u32 comb_exprratio_int1024[2];
 	u32 comb_g_lsbarrier[4];
@@ -897,7 +910,6 @@ typedef struct aisp_dhz_cfg_s{
 } aisp_dhz_cfg_t;
 
 typedef struct aisp_dhz_enhc_cfg_s {
-	u32 dhz_en;
 	u32 dhz_dlt_rat;
 	u32 dhz_hig_dlt_rat;
 	u32 dhz_low_dlt_rat;
@@ -933,6 +945,8 @@ typedef struct aisp_peaking_cfg_s{
 	s32 pkosht_vsluma_lut[9];
 	s32 pk_circ_bpf_2d5x7[3][4];
 	s32 pk_circ_hpf_2d5x7[3][4];
+	u32 pk_osh_winsize;
+	u32 pk_osv_winsize;
 	u32 ltm_shrp_base_alpha;
 	u32 ltm_shrp_r_u6;
 	u32 ltm_shrp_s_u8;
@@ -1100,6 +1114,7 @@ typedef struct aisp_cnr_cfg_s {
 typedef struct aisp_dms_cfg_s{
 	u32 plp_alp;
 	u32 drt_ambg_mxerr_lmt_0;
+	u32 drt_ambg_mxerr_lmt_1;
 } aisp_dmsc_cfg_t;
 
 typedef union {
@@ -1125,6 +1140,7 @@ typedef struct aisp_nr_cfg_s {
 
 typedef struct aisp_misc_cfg_s{
 	aisp_pat_cfg_t pat_cfg;
+	u32 tnr_bits;
 } aisp_misc_cfg_t;
 
 typedef struct _isp_hwreg_t {

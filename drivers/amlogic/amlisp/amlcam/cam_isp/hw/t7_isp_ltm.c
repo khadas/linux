@@ -112,6 +112,7 @@ static void ltm_cfg_enhc(struct isp_dev_t *isp_dev, void *enhc)
 	isp_reg_update_bits(isp_dev, ISP_LTM_FINAL_CTRL, e_cfg->ltm_vs_gtm_alpha & 0x3f, 24, 6);
 	isp_reg_update_bits(isp_dev, ISP_LTM_STA_LPF_CTRL, e_cfg->ltm_lmin_med_en & 0x1, 12, 1);
 	isp_reg_update_bits(isp_dev, ISP_LTM_STA_LPF_CTRL, e_cfg->ltm_lmax_med_en & 0x1, 8, 1);
+	isp_reg_update_bits(isp_dev, ISP_LTM_FINAL_CTRL, e_cfg->ltm_b2luma_alpha & 0x3f, 16, 6);
 
 	isp_reg_write(isp_dev, ISP_LTM_CCRAT_ADDR, 0);
 	for (i = 0; i < 31; i++) {
@@ -141,9 +142,9 @@ void isp_ltm_cfg_fmt(struct isp_dev_t *isp_dev, struct aml_format *fmt)
 
 	yofst = (isp_fmt == 0) ? 0 : //grbg
 		(isp_fmt == 1) ? 0 : //rggb
+		(isp_fmt == 4) ? 0 : //rgbir4x4
 		(isp_fmt == 2) ? 1 : //bggr
-		(isp_fmt == 3) ? 1 : //gbrg
-		(isp_fmt == 4) ? 0 : 0; //rgbir4x4
+		(isp_fmt == 3) ? 1 : 0; //gbrg
 
 	isp_reg_update_bits(isp_dev, ISP_LTM_FLT_CTRL, xofst, 26, 2);
 	isp_reg_update_bits(isp_dev, ISP_LTM_FLT_CTRL, yofst, 24, 2);

@@ -150,7 +150,6 @@ static int isp_cap_irq_handler(void *video, int status)
 		spin_unlock_irqrestore(&vd->buff_list_lock, flags);
 		return 0;
 	}
-
 	if (b_current) {
 		vd->frm_cnt++;
 		if (g_info->mode == AML_ISP_SCAM) {
@@ -368,6 +367,17 @@ static void isp_cap_stream_off(void *video)
 	vd->frm_cnt = 0;
 }
 
+static void isp_vb2_discard_done(struct vb2_queue *q)
+{
+	struct vb2_buffer *vb;
+	unsigned long flags;
+
+	spin_lock_irqsave(&q->done_lock, flags);
+	list_for_each_entry(vb, &q->done_list, done_entry)
+		vb->state = VB2_BUF_STATE_ERROR;
+	spin_unlock_irqrestore(&q->done_lock, flags);
+}
+
 static void isp_cap_flush_buffer(void *video)
 {
 	unsigned long flags;
@@ -386,7 +396,7 @@ static void isp_cap_flush_buffer(void *video)
 	if (vd->b_current && vd->b_current->vb.vb2_buf.state == VB2_BUF_STATE_ACTIVE)
 		vb2_buffer_done(&vd->b_current->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 
-	vb2_discard_done(&vd->vb2_q);
+	isp_vb2_discard_done(&vd->vb2_q);
 	vd->b_current = NULL;
 
 	spin_unlock_irqrestore(&vd->buff_list_lock, flags);

@@ -28,6 +28,7 @@
 #include <linux/of_irq.h>
 #include <linux/fs.h>
 #include <linux/delay.h>
+#include <linux/freezer.h>
 
 #include "aml_cam.h"
 #include "aml_adapter.h"
@@ -166,10 +167,18 @@ static int aml_adap_global_thread(void *data)
 	struct adapter_global_info *g_info = data;
 
 	g_info->task_status = STATUS_START;
+	set_freezable();
 
 	while (1) {
-		if (g_info->task_status == STATUS_STOP)
+		try_to_freeze();
+
+		if ( kthread_should_stop() )
 			break;
+
+		if (g_info->task_status == STATUS_STOP) {
+			pr_err("aml_adap_global_thread exit\n");
+			break;
+		}
 
 		rtn = aml_adap_global_get_done_buf();
 		if (rtn != 0) {
@@ -261,7 +270,6 @@ int aml_adap_global_create_thread(void)
 
 		return -1;
 	}
-
 	return 0;
 }
 
@@ -294,6 +302,7 @@ int aml_adap_global_get_vdev(void)
 
 void aml_adap_global_destroy_thread(void)
 {
+	unsigned long flags;
 	struct adapter_global_info *g_info = aml_adap_global_get_info();
 
 	if (g_info->mode != MODE_MIPI_RAW_SDR_DDR)
@@ -305,9 +314,10 @@ void aml_adap_global_destroy_thread(void)
 
 	g_info->task_status = STATUS_STOP;
 	wait_for_completion(&g_info->g_cmpt);
-
-	INIT_LIST_HEAD(&g_info->done_list);
-
 	kthread_stop(g_info->task);
+
+	spin_lock_irqsave(&g_info->list_lock, flags);
+	INIT_LIST_HEAD(&g_info->done_list);
+	spin_unlock_irqrestore(&g_info->list_lock, flags);
 }
 

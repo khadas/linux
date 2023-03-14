@@ -10,6 +10,7 @@
 #ifndef  V4L2_VIDEO_DEV_H
 #define  V4L2_VIDEO_DEV_H
 
+
 int v4l2_video_open(struct media_entity *entity);
 
 void v4l2_video_close(struct media_entity *entity);
@@ -42,7 +43,6 @@ int v4l2_video_stream_on(struct media_entity *entity, int type);
 
 int v4l2_video_stream_off(struct media_entity *entity, int type);
 
-void v4l2_video_crop(struct media_entity *entity, int width, int height);
 
 #endif
 

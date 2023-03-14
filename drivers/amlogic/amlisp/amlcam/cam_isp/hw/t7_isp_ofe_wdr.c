@@ -90,6 +90,9 @@ static void ofe_wdr_cfg_mdect(struct isp_dev_t *isp_dev, void *wdr)
 	val = w_cfg->wdr_mdeci_still_thd;
 	isp_reg_update_bits(isp_dev, ISP_WDR_MDECI_PARAM, val, 8, 8);
 
+	val = w_cfg->wdr_mdeci_fullmot_thd;
+	isp_reg_update_bits(isp_dev, ISP_WDR_MDECI_PARAM, val, 0, 8);
+
 	val = (w_cfg->wdr_mdetc_sat_gr_thd << 16) |
 		(w_cfg->wdr_mdetc_sat_gb_thd << 0);
 	isp_reg_write(isp_dev, ISP_WDR_MDETC_SATTHD0, val);
@@ -158,11 +161,10 @@ static void ofe_wdr_cfg_flong(struct isp_dev_t *isp_dev, void *wdr)
 	u32 val = 0;
 	aisp_wdr_cfg_t *w_cfg = wdr;
 
-	val = w_cfg->wdr_forcelong_en;
-	isp_reg_update_bits(isp_dev, ISP_WDR_FLONG_PARAM, val, 8, 2);
-
-	val = w_cfg->wdr_forcelong_thdmode;
-	isp_reg_update_bits(isp_dev, ISP_WDR_FLONG_PARAM, val, 0, 1);
+	val = ((w_cfg->wdr_forcelong_en & 0x3) << 8) |
+		((w_cfg->wdr_flong2_colorcorrect_en & 0x1) << 4) |
+		(w_cfg->wdr_forcelong_thdmode & 0x1);
+	isp_reg_write(isp_dev, ISP_WDR_FLONG_PARAM, val);
 
 	val = (w_cfg->wdr_flong2_thd0[0] << 16) |
 		(w_cfg->wdr_flong2_thd1[0] << 0);
@@ -188,24 +190,16 @@ static void ofe_wdr_cfg_expcomb(struct isp_dev_t *isp_dev, void *wdr)
 	val = w_cfg->wdr_force_exp_mode;
 	isp_reg_update_bits(isp_dev, ISP_WDR_COM_PARAM0, val, 26, 3);
 
-	val = w_cfg->wdr_expcomb_maxavg_mode;
-	isp_reg_update_bits(isp_dev, ISP_WDR_EXPCOMB_PARAM, val, 18, 3);
-
-	val = w_cfg->wdr_expcomb_maxavg_ratio;
-	isp_reg_update_bits(isp_dev, ISP_WDR_EXPCOMB_PARAM, val, 14, 4);
-
 	val = w_cfg->wdr_expcomb_maxratio;
 	isp_reg_update_bits(isp_dev, ISP_WDR_EXPCOMB_MAXRATIO, val, 1, 22);
-
-	val = w_cfg->wdr_expcomb_blend_slope;
-	isp_reg_update_bits(isp_dev, ISP_WDR_EXPCOMB_PARAM, val, 0, 10);
 
 	val = (w_cfg->wdr_expcomb_blend_thd0 << 16) |
 		(w_cfg->wdr_expcomb_blend_thd1 << 0);
 	isp_reg_write(isp_dev, ISP_WDR_EXPCOMB_BLDTHD, val);
 
-	val = w_cfg->wdr_expcomb_ir_blend_slope;
-	isp_reg_update_bits(isp_dev, ISP_WDR_EXPCOMB_IRPARAM, val, 0, 10);
+	val = ((w_cfg->wdr_expcomb_ir_slope_weight & 0xf) << 10) |
+		(w_cfg->wdr_expcomb_ir_blend_slope & 0x3ff);
+	isp_reg_write(isp_dev, ISP_WDR_EXPCOMB_IRPARAM, val);
 
 	val = (w_cfg->wdr_expcomb_ir_blend_thd0 << 16) |
 		(w_cfg->wdr_expcomb_ir_blend_thd1 << 0);
@@ -221,6 +215,13 @@ static void ofe_wdr_cfg_expcomb(struct isp_dev_t *isp_dev, void *wdr)
 
 	val = w_cfg->wdr_expcomb_maxsat_ir_thd;
 	isp_reg_write(isp_dev, ISP_WDR_EXPCOMB_SATTHD2, val);
+
+	val = (w_cfg->wdr_expcomb_maxavg_winsize << 21) |
+		((w_cfg->wdr_expcomb_maxavg_mode & 0x7) << 18) |
+		((w_cfg->wdr_expcomb_maxavg_ratio & 0xf) << 14) |
+		((w_cfg->wdr_expcomb_slope_weight & 0xf) << 10) |
+		(w_cfg->wdr_expcomb_blend_slope & 0x3ff);
+	isp_reg_write(isp_dev, ISP_WDR_EXPCOMB_PARAM, val);
 }
 
 static void ofe_wdr_cfg_comb(struct isp_dev_t *isp_dev, void *wdr)
@@ -348,9 +349,9 @@ void isp_ofe_wdr_cfg_fmt(struct isp_dev_t *isp_dev, struct aml_format *fmt)
 
 	yofst = (isp_fmt == 0) ? 0 : //grbg
 		(isp_fmt == 1) ? 0 : //rggb
+		(isp_fmt == 4) ? 0 : //rgbir4x4
 		(isp_fmt == 2) ? 1 : //bggr
-		(isp_fmt == 3) ? 1 : //gbrg
-		(isp_fmt == 4) ? 0 : 0; //rgbir4x4
+		(isp_fmt == 3) ? 1 : 0; //gbrg
 
 	isp_reg_update_bits(isp_dev, ISP_WDR_COM_PARAM0, xofst, 2, 2);
 	isp_reg_update_bits(isp_dev, ISP_WDR_COM_PARAM0, yofst, 0, 2);

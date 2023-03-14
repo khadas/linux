@@ -74,6 +74,25 @@ static int csiphy_of_parse_endpoint_node(struct device_node *node,
 	return 0;
 }
 
+static void csiphy_of_parse_ports_clock_mod(struct csiphy_dev_t *csiphy_dev) {
+	struct device_node *node = NULL;
+	u32 clock_mode = 0;
+	struct v4l2_async_notifier *notifier = csiphy_dev->notifier;
+	struct device *dev = csiphy_dev->dev;
+	v4l2_async_notifier_init(notifier);
+	for_each_endpoint_of_node(dev->of_node, node) {
+		if (!of_device_is_available(node))
+			continue;
+		if (!of_property_read_u32(node, "clock-continue", &clock_mode)) {
+			pr_info("clock-continue = %u \n", clock_mode);
+		} else {
+			pr_err("can not parse clock-continue \n");
+		}
+		of_node_put(node);
+	}
+	csiphy_dev->clock_mode = clock_mode;
+}
+
 static int csiphy_of_parse_ports(struct csiphy_dev_t *csiphy_dev)
 {
 	unsigned int rtn = 0;
@@ -98,7 +117,6 @@ static int csiphy_of_parse_ports(struct csiphy_dev_t *csiphy_dev)
 			of_node_put(node);
 			return -EINVAL;
 		}
-
 #ifdef SENSOR_SEARCH
 		sensor_dev = of_fwnode_handle(remote)->dev;
 		if ( sensor_dev->driver && strstr(node->name, sensor_dev->driver->name) ) {
@@ -283,6 +301,47 @@ static struct media_entity *csiphy_subdev_get_sensor_entity(struct media_entity 
 		return NULL;
 }
 
+static int csiphy_subdev_querymenu(struct v4l2_ctrl_handler *hdl, struct v4l2_querymenu *qm)
+{
+	struct v4l2_ctrl *ctrl;
+	u32 i = qm->index;
+
+	ctrl = v4l2_ctrl_find(hdl, qm->id);
+	if (!ctrl)
+		return -EINVAL;
+
+	qm->reserved = 0;
+	/* Sanity checks */
+	switch (ctrl->type) {
+	case V4L2_CTRL_TYPE_MENU:
+		if (!ctrl->qmenu)
+			return -EINVAL;
+		break;
+	case V4L2_CTRL_TYPE_INTEGER_MENU:
+		if (!ctrl->qmenu_int)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (i < ctrl->minimum || i > ctrl->maximum)
+		return -EINVAL;
+
+	/* Use mask to see if this menu item should be skipped */
+	if (ctrl->menu_skip_mask & (1ULL << i))
+		return -EINVAL;
+	/* Empty menu items should also be skipped */
+	if (ctrl->type == V4L2_CTRL_TYPE_MENU) {
+		if (!ctrl->qmenu[i] || ctrl->qmenu[i][0] == '\0')
+			return -EINVAL;
+		strscpy(qm->name, ctrl->qmenu[i], sizeof(qm->name));
+	} else {
+		qm->value = ctrl->qmenu_int[i];
+	}
+	return 0;
+}
+
 static int csiphy_subdev_get_link_freq(struct media_entity *entity, s64 *link_freq)
 {
 	int rtn = 0;
@@ -308,7 +367,7 @@ static int csiphy_subdev_get_link_freq(struct media_entity *entity, s64 *link_fr
 	qm.id = V4L2_CID_LINK_FREQ;
 	qm.index = ctrl->val;
 
-	rtn = v4l2_querymenu(subdev->ctrl_handler, &qm);
+	rtn = csiphy_subdev_querymenu(subdev->ctrl_handler, &qm);
 	if (rtn) {
 		pr_err("Failed to querymenu idx %d\n", qm.index);
 		return rtn;
@@ -343,7 +402,6 @@ static int csiphy_subdev_stream_on(void *priv)
 	s64 link_freq = 0;
 	struct csiphy_async_subdev *casd;
 	struct csiphy_dev_t *csiphy_dev = priv;
-
 	rtn = csiphy_subdev_get_link_freq(&csiphy_dev->sd.entity, &link_freq);
 	if (rtn)
 		return rtn;
@@ -351,7 +409,6 @@ static int csiphy_subdev_stream_on(void *priv)
 	rtn = csiphy_subdev_get_casd(&csiphy_dev->sd.entity, &casd);
 	if (rtn || !casd)
 		return rtn;
-
 	return csiphy_dev->ops->hw_start(csiphy_dev, casd->phy_id, casd->data_lanes, link_freq);
 }
 
@@ -498,6 +555,8 @@ int aml_csiphy_subdev_init(void *c_dev)
 	csiphy_dev->notifier = &cam_dev->notifier;
 	csiphy_dev->index = cam_dev->index;
 	platform_set_drvdata(pdev, csiphy_dev);
+
+	csiphy_of_parse_ports_clock_mod(csiphy_dev);
 
 	rtn = csiphy_of_parse_ports(csiphy_dev);
 	if (rtn) {

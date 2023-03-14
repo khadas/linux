@@ -193,11 +193,11 @@ static int isp_subdev_mcnr_buf_alloc(struct isp_dev_t *isp_dev, struct aml_forma
 	width = fmt->width;
 	height = fmt->height;
 
-	iir_body_size = (((width  + 15) / 16) * 16) * height * 2;
+	iir_body_size = (width * isp_dev->tnr_bits + width / 10) * height / 8;
 	iir_body_size = ISP_SIZE_ALIGN(iir_body_size, 1 << 12);
 	iir_body_page = iir_body_size >> 12;
 
-	mix_body_size = (((width  + 15) / 16) * 16) * height / 4 * 12 / 8;
+	mix_body_size = (width * isp_dev->tnr_bits * 12 / 16 + width / 10) * height / 4 / 8;
 	mix_body_size = ISP_SIZE_ALIGN(mix_body_size, 1 << 12);
 	mix_body_page = mix_body_size >> 12;
 
@@ -693,6 +693,8 @@ int aml_isp_subdev_init(void *c_dev)
 	isp_dev->apb_dma = 1;
 	isp_dev->slice = 0;
 	isp_dev->enWDRMode = WDR_MODE_NONE;
+	isp_dev->mcnr_en = 0;
+	isp_dev->tnr_bits = 8;
 	platform_set_drvdata(pdev, isp_dev);
 
 	rtn = isp_subdev_parse_dev(isp_dev);

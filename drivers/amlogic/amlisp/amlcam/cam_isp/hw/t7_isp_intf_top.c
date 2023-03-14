@@ -66,11 +66,11 @@ void isp_intf_top_cfg_buf(struct isp_dev_t *isp_dev, struct aml_format *fmt, str
 	u32 *blink_vaddr = NULL;
 	struct isp_global_info *g_info = isp_global_get_info();
 
-	iir_body_size = (((fmt->width  + 15) / 16) * 16) * fmt->height * 2;
+	iir_body_size = (fmt->width * isp_dev->tnr_bits + fmt->width / 10) * fmt->height / 8;
 	iir_body_size = ISP_ALIGN(iir_body_size, 1 << 12);
 	iir_body_page = iir_body_size >> 12;
 
-	mix_body_size = (((fmt->width  + 15) / 16) * 16) * fmt->height / 4 * 12 / 8;
+	mix_body_size = (fmt->width * isp_dev->tnr_bits * 12 / 16 + fmt->width / 10) * fmt->height / 4 / 8;
 	mix_body_size = ISP_ALIGN(mix_body_size, 1 << 12);
 	mix_body_page = mix_body_size >> 12;
 

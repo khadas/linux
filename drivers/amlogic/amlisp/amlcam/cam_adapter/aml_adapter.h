@@ -185,7 +185,6 @@ struct adapter_dev_param {
 	struct aml_buffer *cur_buf;
 	struct aml_buffer *done_buf;
 	struct list_head free_list;
-	struct list_head *done_list;
 	struct spinlock ddr_lock;
 };
 

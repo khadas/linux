@@ -10,6 +10,17 @@
 #ifndef __AISP_H__
 #define __AISP_H__
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+typedef enum
+{
+    AML_CMD_GET = 0x0,
+    AML_CMD_SET,
+} aisp_cmd_type_t;
+
 struct aml_format {
     uint32_t xstart;
     uint32_t ystart;
@@ -110,5 +121,142 @@ void aisp_fw_interface(uint32_t ctx_id, void *param);
 
 #define LOG2_GAIN_SHIFT 12
 #define SHUTTER_TIME_SHIFT 12
+    /** @brief read raw data form memory and normalize raw data
+     *
+     * @param pVin      Raw data bit stream
+     * @param pData     Output normalize raw data value
+     * @param xsize     width of the raw data resolution
+     * @param ysize     height of the raw data resolution
+     * @param endian    raw data endian format
+     * @param src_bit_depth raw data source bit depth
+     * @return error code
+     *   @retval 0  - success
+     *   @retval -1 - failure
+     */
+    int aml_read_raw_data(unsigned char *pVin, int *pData, int xsize, int ysize, int endian, int src_bit_depth);
+    /** @brief mesh shading calibrate and output mesh shading correcte table.
+     *
+     * @param xsize     width of the raw data resolution
+     * @param ysize     height of the raw data resolution
+     * @param X_node    horizontal nodes of the mesh shading table
+     * @param Y_node    vertical nodes of the mesh shading table
+     * @param phase_ofst    phase offset of raw color components
+     * @param pData     normalize raw data
+     * @param chroma_s  mesh shading chroma correction strength percentage
+     * @param luma_s    mesh shading luma correction strength percentage
+     * @param mesh_s    normalize value of the mesh shading calibration value
+     * @param blc       black level value
+     * @return error code
+     *   @retval 0  - success
+     *   @retval -1 - failure
+     *   @retval -2 - mesh scale parameter error
+     */
+    int aml_mesh_shading_calibration(int xsize, int ysize, int X_node, int Y_node, int *phase_ofst, int *pData, int chroma_s, int luma_s, int mesh_s, int *blc, int *pVout);
+
+    /** @brief mesh shading correct process
+     *
+     * @param xsize     width of the raw data resolution
+     * @param ysize     height of the raw data resolution
+     * @param X_node    horizontal nodes of the mesh shading table
+     * @param Y_node    vertical nodes of the mesh shading table
+     * @param phase_ofst    phase offset of raw color components
+     * @param pData     normalize raw data
+     * @param pLSC      calibration data of the mesh shading.
+     * @param blc       black level value
+     * @param meshscale normalize value of the mesh shading calibration value
+     * @param pVout     raw data after mesh shading correction.
+     * @return error code
+     *   @retval 0  - success
+     *   @retval -1 - failure
+     */
+    int aml_mesh_shading_correct(int xsize, int ysize, int X_node, int Y_node, int *phase_ofst, int *pData, int *pLSC, int *blc, int meshscale, int *pVout);
+
+
+    /** @brief mesh shading calibration data compression processing
+     *
+     * @param X_node    horizontal nodes of the mesh shading table
+     * @param Y_node    vertical nodes of the mesh shading table
+     * @param pLSC      calibration data of the mesh shading.
+     * @param pLSC_enc  calibration data after compression.
+     * @param size      max size of the compression buffer
+     * @param lose_level compression lose level, 0:lossless
+     * @return          valid compression byte numbers
+     */
+    int aml_mesh_shading_compress(int X_node, int Y_node, int *pLSC, unsigned char *pLSC_enc, int size, int lose_level);
+
+    /** @brief mesh shading calibration data decompression processing
+     *
+     * @param X_node    horizontal nodes of the mesh shading table
+     * @param Y_node    vertical nodes of the mesh shading table
+     * @param pLSC      calibration data of the mesh shading.
+     * @param pLSC_enc  calibration data after compression.
+     * @param size      max size of the compression buffer
+     * @return error code
+     *   @retval 0  - success
+     *   @retval -1 - failure
+     */
+    int aml_mesh_shading_decompress(int X_node, int Y_node, int *pLSC, unsigned char *pLSC_enc, int size);
+
+    /** @brief white balance OTP calibration processing
+     *
+     * @param xsize     width of the raw data resolution
+     * @param ysize     height of the raw data resolution
+     * @param pData     normalize raw data
+     * @param pVout     white balance OTP data.
+     * @param phase_ofst    phase offset of raw color components
+     * @return error code
+     *   @retval 0  - success
+     *   @retval -1 - failure
+     */
+    int aml_white_balance_otp_calibration(int xsize, int ysize, int *pData, int *pVout, int *phase_ofst);
+
+    /** @brief  white balance correct process
+     *
+     * @param xsize     width of the raw data resolution
+     * @param ysize     height of the raw data resolution
+     * @param in_bw     white balance OTP data.
+     * @param phase_ofst    phase offset of raw color components
+     * @param pVout     raw data after mesh shading correction.
+     * @return error code
+     *   @retval 0  - success
+     *   @retval -1 - failure
+     */
+    int aml_white_balance_correct(int xsize, int ysize, int *in_bw, int *phase_ofst, int *pVout);
+
+    /** @brief Convert Raw data format to RGB data format
+     *
+     * @param xsize     width of the raw data resolution
+     * @param ysize     height of the raw data resolution
+     * @param pData     normalize raw data
+     * @param pVout     RGB data
+     * @return error code
+     *   @retval 0  - success
+     *   @retval -1 - failure
+     */
+    int aml_demosaic(int xsize, int ysize, int *pData, int *pVout);
+    /** @brief write RGB data into file, use BMP file format
+     *
+     * @param filename  BMP file name
+     * @param cpBufr    RGB data stream
+     * @param xsize     width of the RGB data resolution
+     * @param ysize     height of the RGB data resolution
+     * @return error code
+     *   @retval 0  - success
+     *   @retval -1 - failure
+     */
+    int aml_write_bmp(char *filename, int *cpBufr, int xsize, int ysize);
+    /** @brief whether print debug info.
+     *
+     * @param debug     0:disable 1: enable
+     * @return error code
+     *   @retval 0  - success
+     *   @retval -1 - failure
+     */
+    void aml_debug_mode_set(int debug);
+
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

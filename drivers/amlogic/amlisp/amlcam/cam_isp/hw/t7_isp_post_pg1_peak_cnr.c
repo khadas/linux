@@ -111,7 +111,11 @@ static void pk_cfg_peaking(struct isp_dev_t *isp_dev, void *peaking)
 
 	isp_reg_update_bits(isp_dev, ISP_POST_PK_DEBUG, p_cfg->pk_debug_edge, 20, 8);
 	isp_reg_update_bits(isp_dev, ISP_POST_DRT_EN_CTL, p_cfg->drtlpf_theta_min_idx_replace, 16, 1);
-	isp_reg_update_bits(isp_dev, ISP_PK_MOTION_ADP_CTRL, p_cfg->pk_motion_adp_en, 0, 1);
+
+	if (isp_dev->mcnr_en)
+		isp_reg_update_bits(isp_dev, ISP_PK_MOTION_ADP_CTRL, p_cfg->pk_motion_adp_en, 0, 1);
+	else
+		isp_reg_update_bits(isp_dev, ISP_PK_MOTION_ADP_CTRL, 0, 0, 1);
 
 	isp_reg_update_bits(isp_dev, ISP_POST_PK_FINAL_GAIN, p_cfg->bp_final_gain, 0, 8);
 	isp_reg_update_bits(isp_dev, ISP_POST_PK_FINAL_GAIN, p_cfg->hp_final_gain, 8, 15);
@@ -266,6 +270,12 @@ static void pk_cfg_peaking(struct isp_dev_t *isp_dev, void *peaking)
 		(p_cfg->ltm_shrp_smth_lvlsft << 24);
 	val = val >> 2;
 	isp_reg_update_bits(isp_dev, ISP_LTM_SHRP_CRTL, val, 2, 30);
+
+	val = p_cfg->pk_osh_winsize;
+	isp_reg_update_bits(isp_dev, ISP_POST_PK_OSHT, val, 4, 2);
+
+	val = p_cfg->pk_osv_winsize;
+	isp_reg_update_bits(isp_dev, ISP_POST_PK_OSHT, val, 0, 2);
 
 }
 

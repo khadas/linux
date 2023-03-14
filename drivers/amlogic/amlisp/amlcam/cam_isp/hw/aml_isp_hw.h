@@ -228,6 +228,7 @@ void isp_post_pg0_top_cfg_param(struct isp_dev_t *isp_dev, struct aml_buffer *bu
 
 void isp_cmpr_raw_init(struct isp_dev_t *isp_dev);
 void isp_cmpr_raw_cfg_param(struct isp_dev_t *isp_dev, struct aml_buffer *buff);
+void isp_cmpr_raw_cfg_ratio(struct isp_dev_t *isp_dev);
 
 void isp_post_tnr_init(struct isp_dev_t *isp_dev);
 void isp_post_tnr_cfg_param(struct isp_dev_t *isp_dev, struct aml_buffer *buff);
