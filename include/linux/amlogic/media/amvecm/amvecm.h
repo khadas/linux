@@ -262,6 +262,10 @@ void amdv_set_toggle_flag(int flag);
 #define AMVECM_IOC_COLOR_PRI_EN			_IO(_VE_CM, 0x7d)
 #define AMVECM_IOC_COLOR_PRIMARY		_IOW(_VE_CM, 0x7e, struct primary_s)
 #define AMVECM_IOC_S_GAMUT_CONV_EN		_IOW(_VE_CM, 0x7f, enum gamut_conv_enable_e)
+#define AMVECM_IOC_COLOR_MTX_EN			_IO(_VE_CM, 0x80)
+#define AMVECM_IOC_S_COLOR_MATRIX_DATA		_IOW(_VE_CM, 0x81, struct video_color_matrix)
+#define AMVECM_IOC_G_COLOR_MATRIX_DATA		_IOR(_VE_CM, 0x82, struct video_color_matrix)
+
 
 struct tcon_gamma_table_s {
 	u16 data[256];
@@ -662,6 +666,10 @@ struct table_3dlut_s {
 struct primary_s {
 	u32 src[8];
 	u32 dest[8];
+};
+
+struct video_color_matrix {
+	u32 data[3][3];
 };
 
 enum gamut_conv_enable_e {

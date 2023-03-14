@@ -375,6 +375,16 @@ uint force_primary;
 module_param(force_primary, uint, 0664);
 MODULE_PARM_DESC(force_primary, "\n force_primary\n");
 
+uint force_matrix;
+module_param(force_matrix, uint, 0664);
+MODULE_PARM_DESC(force_matrix, "\n force_matrix\n");
+
+u32 force_matrix_primary[3][3] = {
+	{0x0d49, 0x1b4d, 0x1f6b},
+	{0x1f01, 0x0910, 0x1fef},
+	{0x1fdb, 0x1f32, 0x08f3},
+};
+
 uint num_force_primary = 8;
 u32 force_src_primary[8] = {
 	0.708 * NORM + 0.5, 0.292 * NORM + 0.5,	/* R */
@@ -482,6 +492,15 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 	}
 	gamut_proc(src_prmy, dest_prmy, out, NORM, BL);
 	cal_mtx_seting(out, BL, BL, mtx, mtx_depth);
+
+	if (force_matrix) {
+		if (source_type[vd_path] == HDRTYPE_SDR) {
+			for (i = 0; i < 3; i++) {
+				for (j = 0; j < 3; j++)
+					mtx->matrix[i][j] = force_matrix_primary[i][j];
+			}
+		}
+	}
 
 	return 0;
 }
