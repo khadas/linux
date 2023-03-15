@@ -68,7 +68,8 @@
 #define var_to_str(var) (#var)
 
 /* fix typocheck error */
-#define RX_VER2 "ver.2023/02/21"
+/* clear scdc with RX_HPD_C_CTRL_AON_IVCRX */
+#define RX_VER2 "ver.2023/03/15"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
