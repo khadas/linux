@@ -94,8 +94,8 @@ struct ai_pq_hist_data aipq_hist_data = {
 	.cur_blue_pct = 0
 };
 
-/*scene change th: 2/3 scene diff*/
-static u32 sc_th = 682;
+/*scene change th: 1/2 scene diff*/
+static u32 sc_th = 512;
 
 enum iir_policy_e aipq_tiir_policy_proc(int (*prob)[2], int sc_chg,
 					int *pq_debug, int *kp_flag)
