@@ -47,6 +47,7 @@ void aml_fe_get_atvaudio_state(int *state)
 	static unsigned int count;
 	static bool mute = true;
 #endif
+	int adc_status = 0;
 	int av_status = 0;
 	unsigned int power = 0;
 	int vpll_lock = 0;
@@ -62,12 +63,14 @@ void aml_fe_get_atvaudio_state(int *state)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 	av_status = tvin_get_av_status();
+	adc_status = atv_demod_get_adc_status();
 #endif
 	/* scan mode need mute */
-	if (priv->state == ATVDEMOD_STATE_WORK
-			&& !priv->scanning
-			&& !priv->standby
-			&& av_status) {
+	if (priv->state == ATVDEMOD_STATE_WORK &&
+	    !priv->scanning &&
+	    !priv->standby &&
+	    av_status &&
+	    adc_status) {
 		retrieve_vpll_carrier_lock(&vpll_lock);
 		retrieve_vpll_carrier_line_lock(&line_lock);
 		if ((vpll_lock == 0) && (line_lock == 0)) {
@@ -80,9 +83,9 @@ void aml_fe_get_atvaudio_state(int *state)
 		}
 	} else {
 		*state = 0;
-		pr_audio("ATV state[%d], scan[%d], standby[%d], av[%d].\n",
+		pr_audio("ATV state[%d], scan[%d], standby[%d], av[%d] adc[%d].\n",
 				priv->state, priv->scanning,
-				priv->standby, av_status);
+				priv->standby, av_status, adc_status);
 	}
 
 	/* If the atv signal is locked, it means there is audio data,
@@ -1493,3 +1496,8 @@ struct dvb_frontend *aml_atvdemod_attach(struct dvb_frontend *fe,
 	return fe;
 }
 EXPORT_SYMBOL_GPL(aml_atvdemod_attach);
+
+int atv_demod_get_adc_status(void)
+{
+	return adc_get_status(ADC_ATV_DEMOD);
+}

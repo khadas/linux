@@ -218,7 +218,7 @@ int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data)
 	if (!on) {
 		devp->filter_flg &= ~module_sel;
 		mutex_unlock(&devp->filter_mutex);
-		if (devp->print_en)
+		if (devp->print_en & ADC_DBG_EN)
 			pr_info("%s:reon:%d, module:0x%x, filter_flg:0x%x\n",
 				__func__, on, module_sel, devp->filter_flg);
 		return 0;
@@ -235,7 +235,7 @@ int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data)
 		}
 
 		if (devp->filter_flg & FILTER_ATV_DEMOD) {
-			if (devp->print_en)
+			if (devp->print_en & ADC_DBG_EN)
 				pr_info("%s: DEMOD ATV had done!: %d\n",
 						__func__, devp->filter_flg);
 			break;
@@ -303,12 +303,12 @@ int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data)
 		break;
 
 	default:
-		if (devp->print_en)
+		if (devp->print_en & ADC_DBG_EN)
 			pr_err("%s: module: 0x%x wrong module index!!!",
 					__func__, module_sel);
 		break;
 	}
-	if (devp->print_en)
+	if (devp->print_en & ADC_DBG_EN)
 		pr_info("%s: on:%d, module:0x%x, filter_flg:0x%x\n",
 			__func__, on, module_sel, devp->filter_flg);
 	mutex_unlock(&devp->filter_mutex);
@@ -484,7 +484,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		mutex_lock(&devp->pll_mutex);
 		devp->pll_flg &= ~module_sel;
 		mutex_unlock(&devp->pll_mutex);
-		if (devp->print_en)
+		if (devp->print_en & ADC_DBG_EN)
 			pr_info("%s:reinit flag on:%d,module:0x%x,flag:0x%x\n",
 				__func__, on, module_sel, devp->pll_flg);
 		return ret;
@@ -495,7 +495,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		mutex_lock(&devp->pll_mutex);
 		if (devp->pll_flg & (ADC_TVAFE | ADC_DTV_DEMOD)) {
 			ret = -1;
-			if (devp->print_en)
+			if (devp->print_en & ADC_DBG_EN)
 				pr_info("%s:DEMOD fail!:%d\n",
 					__func__, devp->pll_flg);
 			mutex_unlock(&devp->pll_mutex);
@@ -503,7 +503,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		}
 
 		if (devp->pll_flg & ADC_ATV_DEMOD) {
-			if (devp->print_en)
+			if (devp->print_en & ADC_DBG_EN)
 				pr_info("%s:DEMOD ATV had done!:%d\n",
 					__func__, devp->pll_flg);
 			mutex_unlock(&devp->pll_mutex);
@@ -604,7 +604,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		mutex_lock(&devp->pll_mutex);
 		if (devp->pll_flg & (ADC_ATV_DEMOD | ADC_DTV_DEMOD)) {
 			ret = -2;
-			if (devp->print_en)
+			if (devp->print_en & ADC_DBG_EN)
 				pr_info("%s:AFE fail!!!:%d\n", __func__, devp->pll_flg);
 			mutex_unlock(&devp->pll_mutex);
 			break;
@@ -696,7 +696,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		if (devp->pll_flg & (ADC_ATV_DEMOD | ADC_TVAFE)) {
 			ret = -3;
 
-			if (devp->print_en)
+			if (devp->print_en & ADC_DBG_EN)
 				pr_info("%s:DDEMOD fail!:%d\n",
 					__func__, devp->pll_flg);
 			mutex_unlock(&devp->pll_mutex);
@@ -782,7 +782,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		mutex_lock(&devp->pll_mutex);
 		if (devp->pll_flg & (ADC_ATV_DEMOD | ADC_TVAFE)) {
 			ret = -4;
-			if (devp->print_en)
+			if (devp->print_en & ADC_DBG_EN)
 				pr_info("%s:DMODPLL fail!!!:%d\n", __func__,
 					devp->pll_flg);
 			mutex_unlock(&devp->pll_mutex);
@@ -791,7 +791,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 
 		if (!p_dtv_para) {
 			ret = -5;
-			if (devp->print_en)
+			if (devp->print_en & ADC_DBG_EN)
 				pr_info("%s: DTV para is NULL\n", __func__);
 			mutex_unlock(&devp->pll_mutex);
 			break;
@@ -844,17 +844,38 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		break;
 
 	default:
-		if (devp->print_en)
+		if (devp->print_en & ADC_DBG_EN)
 			pr_err("%s:module: 0x%x wrong module index !! ",
 			       __func__, module_sel);
 		break;
 	}
-	if (devp->print_en)
+	if (devp->print_en & ADC_DBG_EN)
 		pr_info("%s:init flag on:%d,module:0x%x,flag:0x%x cnt:0x%x\n",
 			__func__, on, module_sel, devp->pll_flg, adc_pll_lock_cnt);
 	return ret;
 }
 EXPORT_SYMBOL(adc_set_pll_cntl);
+
+/* get adc work status */
+int adc_get_status(enum adc_sel module_sel)
+{
+	int ret = 0;
+
+	if (!adc_devp)
+		return 0;
+
+	if (module_sel == ADC_ATV_DEMOD) {
+		if ((adc_devp->pll_flg & ADC_ATV_DEMOD) &&
+		    !mutex_is_locked(&adc_devp->pll_mutex))
+			ret = 1;
+	}
+	if (adc_devp->print_en & ADC_DBG_GET_STATUS)
+		pr_info("%s:module_sel:%#x,pll_flag:%#x mutex:%#x ret:%#x\n",
+			__func__, module_sel, adc_devp->pll_flg,
+			!mutex_is_locked(&adc_devp->pll_mutex), ret);
+	return ret;
+}
+EXPORT_SYMBOL(adc_get_status);
 
 static void adc_pll_down(void)
 {
@@ -1011,6 +1032,7 @@ static void adc_dump_regs(void)
 		adc_rd_hiu(adc_addr->vdac_cntl_0));
 	pr_info("HHI_VDAC_CNTL1(0x%x):0x%x\n", adc_addr->vdac_cntl_1,
 		adc_rd_hiu(adc_addr->vdac_cntl_1));
+	pr_info("version : %s\n", ADC_VER);
 }
 
 static ssize_t adc_store(struct device *dev, struct device_attribute *attr,

@@ -91,6 +91,5 @@ extern int tvin_get_av_status(void);
 struct dvb_frontend *aml_atvdemod_attach(struct dvb_frontend *fe,
 		struct v4l2_frontend *v4l2_fe,
 		struct i2c_adapter *i2c_adap, u8 i2c_addr, u32 tuner_id);
-
-
+int atv_demod_get_adc_status(void);
 #endif /* __ATV_DEMOD_OPS_H__ */

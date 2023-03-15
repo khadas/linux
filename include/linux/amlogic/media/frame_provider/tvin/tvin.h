@@ -662,26 +662,32 @@ int adc_get_pll_flag(void);
 int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para_);
 void adc_set_ddemod_default(enum fe_delivery_system delsys);/* add for dtv demod */
 int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data);
+int adc_get_status(enum adc_sel module_sel);
 #else
-static inline void adc_set_pll_reset(void)
+void adc_set_pll_reset(void)
 {
 }
 
-static inline int adc_get_pll_flag(void)
-{
-	return 0;
-}
-
-static inline int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para_)
+int adc_get_pll_flag(void)
 {
 	return 0;
 }
 
-static inline void adc_set_ddemod_default(enum fe_delivery_system delsys)
+int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para_)
+{
+	return 0;
+}
+
+void adc_set_ddemod_default(enum fe_delivery_system delsys)
 {
 }
 
-static inline int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data)
+int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data)
+{
+	return 0;
+}
+
+int adc_get_status(enum adc_sel module_sel)
 {
 	return 0;
 }
@@ -689,7 +695,7 @@ static inline int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void 
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 unsigned int get_vdin_buffer_num(void);
 #else
-static inline unsigned int get_vdin_buffer_num(void)
+unsigned int get_vdin_buffer_num(void)
 {
 }
 #endif

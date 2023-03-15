@@ -12,7 +12,8 @@
 /* 20220430: tm2 close vafe clk */
 /* 20220906: close adc pll all unify in adc module */
 /* 20221022: print and debug state optimize */
-#define ADC_VER "20221022:print and debug state optimize"
+/* 20230315: add get adc status interface */
+#define ADC_VER "20230315: add get adc status interface"
 
 #define ADC_CLK_24M       24000
 #define ADC_CLK_25M       25000
@@ -44,6 +45,9 @@
 #define HHI_DEMOD_CLK_CNTL	0x74
 
 #define RESET1_REGISTER		0x1102
+
+#define ADC_DBG_EN		BIT(0)
+#define ADC_DBG_GET_STATUS	BIT(1)
 
 #define ADC_ADDR_TL1_TO_S4	.adc_addr = {\
 		.dadc_cntl = 0x27,\
