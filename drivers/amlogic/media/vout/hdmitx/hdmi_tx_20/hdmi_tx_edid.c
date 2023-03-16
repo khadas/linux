@@ -84,6 +84,7 @@ struct edid_venddat_t {
 	unsigned char data[10];
 };
 char hdmimodepropname[20] = "null";
+char voutmodepropname[30] = "null";
 
 static struct edid_venddat_t vendor_id[] = {
 { {0x41, 0x0C, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x03, 0x14} },
@@ -234,6 +235,22 @@ static void store_cea_idx(struct rx_cap *prxcap, enum hdmi_vic vic)
 
 static void edid_establishedtimings(struct rx_cap *prxcap, unsigned char *data)
 {
+	int h_active = 0;
+	int v_active = 0;
+
+	h_active = (((int)(data[23] >> 4)) << 8) | (int)data[21];
+	v_active = (((int)(data[26] >> 4)) << 8) | (int)data[24];
+
+	printk("h_active = %d, v_active = %d\n", h_active, v_active);
+	if ((h_active == 800) && (v_active == 480)) {
+	    store_vesa_idx(prxcap, HDMIV_800x480p60hz);
+	    printk("--------HDMIV_800x480p60hz----------\n");
+	}
+	if ((h_active == 1024) && (v_active == 600)) {
+	    store_vesa_idx(prxcap, HDMIV_1024x600p60hz);
+	    printk("--------HDMIV_1024x600p60hz----------\n");
+	}
+
 	if (data[0] & (1 << 5))
 		store_vesa_idx(prxcap, HDMIV_640x480p60hz);
 	if (data[0] & (1 << 0))
@@ -2096,6 +2113,8 @@ static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdmitx_device)
 {
 	enum hdmi_vic vic;
 	struct rx_cap *prxcap = &hdmitx_device->rxcap;
+	char hdmimodename[20] = "null";
+	int i= 0;
 
 	prxcap->VIC_count = 0x4;
 	prxcap->VIC[0] = HDMI_720x480p60_16x9;
@@ -2104,7 +2123,17 @@ static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdmitx_device)
 	prxcap->VIC[3] = HDMI_1920x1080p60_16x9;
 	prxcap->native_VIC = HDMI_720x480p60_16x9;
 	hdmitx_device->vic_count = prxcap->VIC_count;
-	vic = hdmitx_edid_vic_tab_map_vic(hdmimodepropname);
+
+	printk("voutmodepropname = %s\n", voutmodepropname);
+	while (voutmodepropname[i] != ',') {
+		hdmimodename[i] = voutmodepropname[i];
+		i++;
+	}
+	hdmimodename[i] = '\0';
+	printk("hdmimodename = %s\n", hdmimodename);
+
+	vic = hdmitx_edid_vic_tab_map_vic(hdmimodename);
+	printk("vic = %d\n", vic);
 	switch(vic)
 	{
 		case HDMIV_480x320p60hz:
@@ -2129,6 +2158,7 @@ static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdmitx_device)
 		prxcap->VIC_count = 0x1;
 		prxcap->VIC[0] = vic;
 		prxcap->native_VIC = vic;
+		hdmitx_device->vic_count = prxcap->VIC_count;
 		pr_info(EDID "single resolution screen set default vic %d\n",vic);
 		break;
 		default:
@@ -2136,14 +2166,16 @@ static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdmitx_device)
 	}
 }
 
-/*static int __init hdmimode_setup(char *str)
+int __init hdmimode_setup(char *str)
 {
+	printk("--------hdmimode_setup----------\n");
+	printk("str = %s\n", str);
 	if (str != NULL)
 		sprintf(hdmimodepropname, "%s", str);
 
     return 0;
 }
-__setup("hdmimode=", hdmimode_setup);*/
+__setup("hdmimode=", hdmimode_setup);
 
 #define PRINT_HASH(hash)
 
@@ -2327,11 +2359,12 @@ static int edid_zero_data(unsigned char *buf)
 
 static void dump_dtd_info(struct dtd *t)
 {
-	if (0) {
+	if (1) {//打开dtd调试打印信息
 		pr_info(EDID "%s[%d]\n", __func__, __LINE__);
 		pr_info(EDID "pixel_clock: %d\n", t->pixel_clock);
 		pr_info(EDID "h_active: %d\n", t->h_active);
 		pr_info(EDID "v_active: %d\n", t->v_active);
+		pr_info(EDID "h_blank: %d\n", t->h_blank);
 		pr_info(EDID "v_blank: %d\n", t->v_blank);
 		pr_info(EDID "h_sync_offset: %d\n", t->h_sync_offset);
 		pr_info(EDID "h_sync: %d\n", t->h_sync);

@@ -61,6 +61,7 @@ static struct device *vout_dev;
 static bool disable_modesysfs;
 static bool enable_debugmode;
 
+extern char voutmodepropname[30];
 /* **********************************************************
  * null display support
  * **********************************************************
@@ -1045,6 +1046,10 @@ int get_vout_init_mode(char *str)
 	char *option;
 	int count = 3;
 	char find = 0;
+
+	printk("get_vout_init_mode str = %s\n", str);
+	strcpy(voutmodepropname, str);
+	printk("voutmodepropname = %s\n", voutmodepropname);
 
 	if (!str)
 		return -EINVAL;
