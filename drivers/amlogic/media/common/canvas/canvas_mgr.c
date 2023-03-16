@@ -507,7 +507,8 @@ static int canvas_pool_config(void)
 	int ret;
 
 	if (is_meson_t7_cpu() || is_meson_t3_cpu() || is_meson_t5w_cpu() ||
-		is_meson_s5_cpu() || is_meson_axg_cpu())
+		is_meson_s5_cpu() || is_meson_axg_cpu() ||
+		is_meson_c3_cpu() || is_meson_a4_cpu())
 		hw_canvas_support = 0;
 	else
 		hw_canvas_support = 1;

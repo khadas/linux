@@ -113,6 +113,14 @@ static struct codecio_device_data_s codecio_s5 = {
 	.cpu_id = MESON_CPU_MAJOR_ID_S5,
 };
 
+static struct codecio_device_data_s codecio_c3 = {
+	.cpu_id = MESON_CPU_MAJOR_ID_C3,
+};
+
+static struct codecio_device_data_s codecio_a4 = {
+	.cpu_id = MESON_CPU_MAJOR_ID_A4,
+};
+
 static const struct of_device_id codec_io_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -204,6 +212,14 @@ static const struct of_device_id codec_io_dt_match[] = {
 	{
 		.compatible = "amlogic, meson-s5, codec-io",
 		.data = &codecio_s5,
+	},
+	{
+		.compatible = "amlogic, meson-c3, codec-io",
+		.data = &codecio_c3,
+	},
+	{
+		.compatible = "amlogic, meson-a4, codec-io",
+		.data = &codecio_a4,
 	},
 	{},
 };

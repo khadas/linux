@@ -1570,16 +1570,16 @@
 	};
 
 	codec_io: codec_io {
-		compatible = "amlogic, meson-s4, codec-io";
-		status = "disabled";
+		compatible = "amlogic, meson-a4, codec-io";
+		status = "okay";
 		#address-cells=<2>;
 		#size-cells=<2>;
 		ranges;
-		reg =	<0x0 0xfe002000 0x0 0x2000>,
-			<0x0 0xfe320000 0x0 0x10000>,
+		reg =	<0x0 0x0 0x0 0x0>,
+			<0x0 0x0 0x0 0x0>,
 			<0x0 0x0 0x0 0x0>,
 			<0x0 0x0 0x0 0x00>,
-			<0x0 0xff000000 0x0 0x40000>,
+			<0x0 0xfe340000 0x0 0x10000>,
 			<0x0 0xfe036000 0x0 0x2000>,
 			<0x0 0x0 0x0 0x0>;
 		reg-names = "cbus",
@@ -1589,6 +1589,32 @@
 			    "vcbus",
 			    "dmcbus",
 			    "efusebus";
+	};
+
+	canvas: canvas {
+		compatible = "amlogic, meson, canvas";
+		dev_name = "amlogic-canvas";
+		status = "okay";
+		reg = <0x0 0xfe030048 0x0 0x2000>;
+	};
+
+	ion_dev {
+		compatible = "amlogic, ion_dev";
+		memory-region = <&ion_cma_reserved>;
+	};
+
+	fb: fb {
+		compatible = "amlogic, fb-a4";
+		memory-region = <&logo_reserved>;
+		status = "okay";
+		interrupts = <GIC_SPI 222 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "viu-vsync";
+		/* uboot logo,fb0/fb1 memory size,if afbcd fb0=0x01851000*/
+		display_mode_default = "1080p60hz";
+		scale_mode = <1>;
+		/** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
+		display_size_default = <1280 720 1280 1440 32>;
+		/*1920*1080*4*3 = 0x17BB000*/
 	};
 
 	ir: ir@8000 {

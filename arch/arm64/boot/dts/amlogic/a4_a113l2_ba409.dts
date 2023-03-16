@@ -72,6 +72,22 @@
 			alloc-ranges = <0x0 0x05000000 0x0 0x00c00000>;
 		};
 
+		logo_reserved:linux,meson-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* keep sync with fb */
+			/* fox example:logo_addr = "0x3f800000"*/
+			size = <0x0 0xc00000>;
+			alignment = <0x0 0x400000>;
+			reg = <0x0 0x3f000000 0x0 0xc00000>;
+		};
+
+		ion_cma_reserved:linux,ion-dev {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x2000000>;
+			alignment = <0x0 0x400000>;
+		};
 	};
 
 	vcc5v_reg: fixed@vcc5v_reg{
@@ -1229,6 +1245,16 @@
 	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
 	//btwakeup-gpios = <&gpio    GPIOX_18 GPIO_ACTIVE_HIGH>;
 	//hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
+};
+
+&fb {
+	status = "disabled";
+	display_size_default = <1280 720 1280 1440 32>;
+	mem_size = <0x00400000 0x800000>;
+	logo_addr = "0x3f000000";
+	/* display_device_cnt = <2>; */ /* for dual screen upport */
+	mem_alloc = <1>;
+	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
 &uart_A {
