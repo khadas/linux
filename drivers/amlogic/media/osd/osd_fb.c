@@ -2155,9 +2155,13 @@ int osd_notify_callback(struct notifier_block *block,
 					gp_fbdev_list[i]
 					->fb_info->var.yres);
 
-				if (!osd_dev_hw.s5_display)
+				if (osd_dev_hw.display_type == NORMAL_DISPLAY ||
+					osd_dev_hw.display_type == T7_DISPLAY)
 					osd_reg_write(VPP_POSTBLEND_H_SIZE,
 						      vinfo->width);
+				else if (osd_dev_hw.display_type == C3_DISPLAY)
+					osd_reg_write(hw_osd_vout_blend_reg.vpu_vout_blend_size,
+						vinfo->field_height | (vinfo->width << 16));
 				console_unlock();
 			}
 		}
@@ -4881,7 +4885,7 @@ static struct osd_device_data_s osd_t7 = {
 };
 
 static struct osd_device_hw_s legcy_dev_property = {
-	.t7_display = 0,
+	.display_type = NORMAL_DISPLAY,
 	.has_8G_addr = 0,
 	.multi_afbc_core = 0,
 	.has_multi_vpp = 0,
@@ -4893,7 +4897,7 @@ static struct osd_device_hw_s legcy_dev_property = {
 };
 
 static struct osd_device_hw_s t7_dev_property = {
-	.t7_display = 1,
+	.display_type = T7_DISPLAY,
 	.has_8G_addr = 1,
 	.multi_afbc_core = 1,
 	.has_multi_vpp = 1,
@@ -4905,7 +4909,7 @@ static struct osd_device_hw_s t7_dev_property = {
 };
 
 static struct osd_device_hw_s t3_dev_property = {
-	.t7_display = 1,
+	.display_type = T7_DISPLAY,
 	.has_8G_addr = 1,
 	.multi_afbc_core = 1,
 	.has_multi_vpp = 1,
@@ -4917,7 +4921,7 @@ static struct osd_device_hw_s t3_dev_property = {
 };
 
 static struct osd_device_hw_s t5w_dev_property = {
-	.t7_display = 1,
+	.display_type = T7_DISPLAY,
 	.has_8G_addr = 1,
 	.multi_afbc_core = 1,
 	.has_multi_vpp = 1,
@@ -4925,6 +4929,18 @@ static struct osd_device_hw_s t5w_dev_property = {
 	.path_ctrl_independ = 1,
 	.remove_afbc = 3,
 	.remove_pps = 3,
+	.prevsync_support = 0,
+};
+
+static struct osd_device_hw_s c3_dev_property = {
+	.display_type = C3_DISPLAY,
+	.has_8G_addr = 1,
+	.multi_afbc_core = 0,
+	.has_multi_vpp = 0,
+	.new_blend_bypass = 0,
+	.path_ctrl_independ = 0,
+	.remove_afbc = 1,
+	.remove_pps = 0,
 	.prevsync_support = 0,
 };
 
@@ -5003,8 +5019,46 @@ static struct osd_device_data_s osd_s5 = {
 	.has_slice2ppc = 1,
 };
 
+static struct osd_device_data_s osd_c3 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_C3,
+	.osd_ver = OSD_SIMPLE,
+	.afbc_type = NO_AFBC,
+	.osd_count = 1,
+	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 0,
+	.has_dolby_vision = 0,
+	.osd_fifo_len = 32, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
+	.mif_linear = 1,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
+};
+
+static struct osd_device_data_s osd_a4 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_A4,
+	.osd_ver = OSD_SIMPLE,
+	.afbc_type = NO_AFBC,
+	.osd_count = 1,
+	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 0,
+	.has_dolby_vision = 0,
+	.osd_fifo_len = 32, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
+	.mif_linear = 1,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
+};
+
 static struct osd_device_hw_s s5_dev_property = {
-	.t7_display = 0,
+	.display_type = S5_DISPLAY,
 	.has_8G_addr = 1,
 	.multi_afbc_core = 1,
 	.has_multi_vpp = 0,
@@ -5013,7 +5067,6 @@ static struct osd_device_hw_s s5_dev_property = {
 	.remove_afbc = 0,
 	.remove_pps = 0,
 	.prevsync_support = 0,
-	.s5_display = 1,
 };
 
 static const struct of_device_id meson_fb_dt_match[] = {
@@ -5108,6 +5161,14 @@ static const struct of_device_id meson_fb_dt_match[] = {
 		.compatible = "amlogic, fb-s5",
 		.data = &osd_s5,
 	},
+	{
+		.compatible = "amlogic, fb-c3",
+		.data = &osd_c3,
+	},
+	{
+		.compatible = "amlogic, fb-a4",
+		.data = &osd_a4,
+	},
 	{},
 };
 
@@ -5121,7 +5182,7 @@ static void config_osd_table(u32 display_device_cnt)
 		osd_hw.viu_osd_table[i] = 0xffffffff;
 
 	/* 2. set viu osd table */
-	if (osd_dev_hw.t7_display) {
+	if (osd_dev_hw.display_type == T7_DISPLAY) {
 		switch (display_device_cnt) {
 		case 1:
 			osd_hw.viu_osd_table[VIU1] = OSD_TABLE_1;
@@ -5226,6 +5287,10 @@ static int __init osd_probe(struct platform_device *pdev)
 	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_S5)
 		memcpy(&osd_dev_hw, &s5_dev_property,
 		       sizeof(struct osd_device_hw_s));
+	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_C3 ||
+		osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_A4)
+		memcpy(&osd_dev_hw, &c3_dev_property,
+		       sizeof(struct osd_device_hw_s));
 	else
 		memcpy(&osd_dev_hw, &legcy_dev_property,
 		       sizeof(struct osd_device_hw_s));
@@ -5263,7 +5328,8 @@ static int __init osd_probe(struct platform_device *pdev)
 			goto failed1;
 		}
 	}
-	if (osd_meson_dev.has_viu2 && !osd_dev_hw.t7_display) {
+	if (osd_meson_dev.has_viu2 &&
+		osd_dev_hw.display_type == NORMAL_DISPLAY) {
 		osd_meson_dev.vpu_clkc = devm_clk_get(&pdev->dev, "vpu_clkc");
 		if (IS_ERR(osd_meson_dev.vpu_clkc)) {
 			osd_log_err("cannot get vpu_clkc\n");
@@ -5285,7 +5351,7 @@ static int __init osd_probe(struct platform_device *pdev)
 
 	config_osd_table(display_device_cnt);
 
-	ret = osd_io_remap(osd_meson_dev.osd_ver == OSD_SIMPLE);
+	ret = osd_io_remap(osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_AXG);
 	if (!ret) {
 		osd_log_err("osd_io_remap failed\n");
 		goto failed1;

@@ -13,6 +13,7 @@
 #include <linux/amlogic/media/osd/osd_logo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
 
 /* Local Headers */
 #include "osd_hw.h"
@@ -297,6 +298,9 @@ __setup("fb_height=", get_logo_height);
 
 int logo_work_init(void)
 {
+	/* temply return for a4 for uboot not ready */
+	if (is_meson_a4_cpu())
+		return 1;
 	if (logo_info.loaded == 0)
 		return -1;
 	osd_set_logo_index(logo_info.index);

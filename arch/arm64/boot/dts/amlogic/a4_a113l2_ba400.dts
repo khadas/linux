@@ -1256,7 +1256,7 @@
 };
 
 &fb {
-	status = "disabled";
+	status = "okay";
 	display_size_default = <1280 720 1280 1440 32>;
 	mem_size = <0x00400000 0x800000>;
 	logo_addr = "0x3f000000";

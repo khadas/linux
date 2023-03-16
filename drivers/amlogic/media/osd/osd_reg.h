@@ -2151,4 +2151,185 @@
 
 #define OSD_REG_UNSUPPORT                   0xffff
 
+/* c3 osd */
+#define VOUT_OSD1_CTRL_STAT                        0x0240
+#define VOUT_OSD1_CTRL_STAT2                       0x0241
+#define VOUT_OSD1_COLOR_ADDR                       0x0242
+#define VOUT_OSD1_COLOR                            0x0243
+#define VOUT_OSD1_TCOLOR_AG0                       0x0244
+#define VOUT_OSD1_TCOLOR_AG1                       0x0245
+#define VOUT_OSD1_TCOLOR_AG2                       0x0246
+#define VOUT_OSD1_TCOLOR_AG3                       0x0247
+#define VOUT_OSD1_BLK0_CFG_W0                      0x0248
+#define VOUT_OSD1_BLK1_CFG_W0                      0x0249
+#define VOUT_OSD1_BLK2_CFG_W0                      0x024a
+#define VOUT_OSD1_BLK3_CFG_W0                      0x024b
+#define VOUT_OSD1_BLK0_CFG_W1                      0x024c
+#define VOUT_OSD1_BLK1_CFG_W1                      0x024d
+#define VOUT_OSD1_BLK2_CFG_W1                      0x024e
+#define VOUT_OSD1_BLK3_CFG_W1                      0x024f
+#define VOUT_OSD1_BLK0_CFG_W2                      0x0250
+#define VOUT_OSD1_BLK1_CFG_W2                      0x0251
+#define VOUT_OSD1_BLK2_CFG_W2                      0x0252
+#define VOUT_OSD1_BLK3_CFG_W2                      0x0253
+#define VOUT_OSD1_BLK0_CFG_W3                      0x0254
+#define VOUT_OSD1_BLK1_CFG_W3                      0x0255
+#define VOUT_OSD1_BLK2_CFG_W3                      0x0256
+#define VOUT_OSD1_BLK3_CFG_W3                      0x0257
+#define VOUT_OSD1_BLK0_CFG_W4                      0x0258
+#define VOUT_OSD1_BLK1_CFG_W4                      0x0259
+#define VOUT_OSD1_BLK2_CFG_W4                      0x025a
+#define VOUT_OSD1_BLK3_CFG_W4                      0x025b
+#define VOUT_OSD1_FIFO_CTRL_STAT                   0x0260
+#define VOUT_OSD1_TEST_RDDATA                      0x0261
+#define VOUT_OSD1_PROT_CTRL                        0x0262
+#define VOUT_OSD1_MALI_UNPACK_CTRL                 0x0263
+#define VOUT_OSD1_DIMM_CTRL                        0x0264
+
+#define VOUT_OSD1_UNSUPPORT      VOUT_OSD1_TCOLOR_AG0
+
+//OSD_CSC
+#define VOUT_OSD1_CSC_COEF00_01                    0x0280
+#define VOUT_OSD1_CSC_COEF02_10                    0x0281
+#define VOUT_OSD1_CSC_COEF11_12                    0x0282
+#define VOUT_OSD1_CSC_COEF20_21                    0x0283
+#define VOUT_OSD1_CSC_COEF22                       0x0284
+#define VOUT_OSD1_CSC_COEF30_31                    0x0285
+#define VOUT_OSD1_CSC_COEF32_40                    0x0286
+#define VOUT_OSD1_CSC_COEF41_42                    0x0287
+#define VOUT_OSD1_CSC_CLIP                         0x0288
+#define VOUT_OSD1_CSC_OFFSET0_1                    0x0289
+#define VOUT_OSD1_CSC_OFFSET2                      0x028a
+#define VOUT_OSD1_CSC_PRE_OFFSET0_1                0x028b
+#define VOUT_OSD1_CSC_PRE_OFFSET2                  0x028c
+#define VOUT_OSD1_CSC_EN_CTRL                      0x028d
+//OSD_SCALER
+#define VOUT_OSD1_VSC_PHASE_STEP                   0x02a0
+#define VOUT_OSD1_VSC_INI_PHASE                    0x02a1
+#define VOUT_OSD1_VSC_CTRL0                        0x02a2
+#define VOUT_OSD1_HSC_PHASE_STEP                   0x02a3
+#define VOUT_OSD1_HSC_INI_PHASE                    0x02a4
+#define VOUT_OSD1_HSC_CTRL0                        0x02a5
+#define VOUT_OSD1_HSC_INI_PAT_CTRL                 0x02a6
+#define VOUT_OSD1_SC_DUMMY_DATA                    0x02a7
+#define VOUT_OSD1_SC_CTRL0                         0x02a8
+#define VOUT_OSD1_SCI_WH_M1                        0x02a9
+#define VOUT_OSD1_SCO_H_START_END                  0x02aa
+#define VOUT_OSD1_SCO_V_START_END                  0x02ab
+#define VOUT_OSD1_SCALE_COEF_IDX                   0x02ac
+#define VOUT_OSD1_SCALE_COEF                       0x02ad
+#define VOUT_OSD1_DB_FLT_CTRL                      0x02ae
+#define VOUT_OSD1_DB_FLT_CTRL1                     0x02af
+#define VOUT_OSD1_DB_FLT_LUMA_THRD                 0x02b0
+#define VOUT_OSD1_DB_FLT_CHRM_THRD                 0x02b1
+#define VOUT_OSD1_DB_FLT_RANDLUT                   0x02b2
+#define VOUT_OSD1_DB_FLT_PXI_THRD                  0x02b3
+#define VOUT_OSD1_DB_FLT_SEED_Y                    0x02b4
+#define VOUT_OSD1_DB_FLT_SEED_U                    0x02b5
+#define VOUT_OSD1_DB_FLT_SEED_V                    0x02b6
+#define VOUT_OSD1_DB_FLT_SEED3                     0x02b7
+#define VOUT_OSD1_DB_FLT_SEED4                     0x02b8
+#define VOUT_OSD1_DB_FLT_SEED5                     0x02b9
+
+#define VPU_VOUT_IRQ_CTRL                          0x0007
+#define VPU_VOUT_BLEND_CTRL                        0x0010
+#define VPU_VOUT_BLEND_DUMDATA                     0x0011
+#define VPU_VOUT_BLEND_SIZE                        0x0012
+//vd1 module
+#define VPU_VOUT_BLD_SRC0_HPOS                     0x0020
+#define VPU_VOUT_BLD_SRC0_VPOS                     0x0021
+//osd1 module
+#define VPU_VOUT_BLD_SRC1_HPOS                     0x0030
+#define VPU_VOUT_BLD_SRC1_VPOS                     0x0031
+
+/* a4 osd */
+#define A4_VOUT_OSD1_CTRL_STAT                        0x0140
+#define A4_VOUT_OSD1_CTRL_STAT2                       0x0141
+#define A4_VOUT_OSD1_COLOR_ADDR                       0x0142
+#define A4_VOUT_OSD1_COLOR                            0x0143
+#define A4_VOUT_OSD1_TCOLOR_AG0                       0x0144
+#define A4_VOUT_OSD1_TCOLOR_AG1                       0x0145
+#define A4_VOUT_OSD1_TCOLOR_AG2                       0x0146
+#define A4_VOUT_OSD1_TCOLOR_AG3                       0x0147
+#define A4_VOUT_OSD1_BLK0_CFG_W0                      0x0148
+#define A4_VOUT_OSD1_BLK1_CFG_W0                      0x0149
+#define A4_VOUT_OSD1_BLK2_CFG_W0                      0x014a
+#define A4_VOUT_OSD1_BLK3_CFG_W0                      0x014b
+#define A4_VOUT_OSD1_BLK0_CFG_W1                      0x014c
+#define A4_VOUT_OSD1_BLK1_CFG_W1                      0x014d
+#define A4_VOUT_OSD1_BLK2_CFG_W1                      0x014e
+#define A4_VOUT_OSD1_BLK3_CFG_W1                      0x014f
+#define A4_VOUT_OSD1_BLK0_CFG_W2                      0x0150
+#define A4_VOUT_OSD1_BLK1_CFG_W2                      0x0151
+#define A4_VOUT_OSD1_BLK2_CFG_W2                      0x0152
+#define A4_VOUT_OSD1_BLK3_CFG_W2                      0x0153
+#define A4_VOUT_OSD1_BLK0_CFG_W3                      0x0154
+#define A4_VOUT_OSD1_BLK1_CFG_W3                      0x0155
+#define A4_VOUT_OSD1_BLK2_CFG_W3                      0x0156
+#define A4_VOUT_OSD1_BLK3_CFG_W3                      0x0157
+#define A4_VOUT_OSD1_BLK0_CFG_W4                      0x0158
+#define A4_VOUT_OSD1_BLK1_CFG_W4                      0x0159
+#define A4_VOUT_OSD1_BLK2_CFG_W4                      0x015a
+#define A4_VOUT_OSD1_BLK3_CFG_W4                      0x015b
+#define A4_VOUT_OSD1_FIFO_CTRL_STAT                   0x0160
+#define A4_VOUT_OSD1_TEST_RDDATA                      0x0161
+#define A4_VOUT_OSD1_PROT_CTRL                        0x0162
+#define A4_VOUT_OSD1_MALI_UNPACK_CTRL                 0x0163
+#define A4_VOUT_OSD1_DIMM_CTRL                        0x0164
+#define A4_VOUT_OSD1_UNSUPPORT      A4_VOUT_OSD1_TCOLOR_AG0
+
+/* OSD CSC */
+#define A4_VOUT_OSD1_CSC_COEF00_01                    0x0180
+#define A4_VOUT_OSD1_CSC_COEF02_10                    0x0181
+#define A4_VOUT_OSD1_CSC_COEF11_12                    0x0182
+#define A4_VOUT_OSD1_CSC_COEF20_21                    0x0183
+#define A4_VOUT_OSD1_CSC_COEF22                       0x0184
+#define A4_VOUT_OSD1_CSC_COEF30_31                    0x0185
+#define A4_VOUT_OSD1_CSC_COEF32_40                    0x0186
+#define A4_VOUT_OSD1_CSC_COEF41_42                    0x0187
+#define A4_VOUT_OSD1_CSC_CLIP                         0x0188
+#define A4_VOUT_OSD1_CSC_OFFSET0_1                    0x0189
+#define A4_VOUT_OSD1_CSC_OFFSET2                      0x018a
+#define A4_VOUT_OSD1_CSC_PRE_OFFSET0_1                0x018b
+#define A4_VOUT_OSD1_CSC_PRE_OFFSET2                  0x018c
+#define A4_VOUT_OSD1_CSC_EN_CTRL                      0x018d
+
+/* OSD_SCALER */
+#define A4_VOUT_OSD1_VSC_PHASE_STEP                   0x01a0
+#define A4_VOUT_OSD1_VSC_INI_PHASE                    0x01a1
+#define A4_VOUT_OSD1_VSC_CTRL0                        0x01a2
+#define A4_VOUT_OSD1_HSC_PHASE_STEP                   0x01a3
+#define A4_VOUT_OSD1_HSC_INI_PHASE                    0x01a4
+#define A4_VOUT_OSD1_HSC_CTRL0                        0x01a5
+#define A4_VOUT_OSD1_HSC_INI_PAT_CTRL                 0x01a6
+#define A4_VOUT_OSD1_SC_DUMMY_DATA                    0x01a7
+#define A4_VOUT_OSD1_SC_CTRL0                         0x01a8
+#define A4_VOUT_OSD1_SCI_WH_M1                        0x01a9
+#define A4_VOUT_OSD1_SCO_H_START_END                  0x01aa
+#define A4_VOUT_OSD1_SCO_V_START_END                  0x01ab
+#define A4_VOUT_OSD1_SCALE_COEF_IDX                   0x01ac
+#define A4_VOUT_OSD1_SCALE_COEF                       0x01ad
+#define A4_VOUT_OSD1_DB_FLT_CTRL                      0x01ae
+#define A4_VOUT_OSD1_DB_FLT_CTRL1                     0x01af
+#define A4_VOUT_OSD1_DB_FLT_LUMA_THRD                 0x01b0
+#define A4_VOUT_OSD1_DB_FLT_CHRM_THRD                 0x01b1
+#define A4_VOUT_OSD1_DB_FLT_RANDLUT                   0x01b2
+#define A4_VOUT_OSD1_DB_FLT_PXI_THRD                  0x01b3
+#define A4_VOUT_OSD1_DB_FLT_SEED_Y                    0x01b4
+#define A4_VOUT_OSD1_DB_FLT_SEED_U                    0x01b5
+#define A4_VOUT_OSD1_DB_FLT_SEED_V                    0x01b6
+#define A4_VOUT_OSD1_DB_FLT_SEED3                     0x01b7
+#define A4_VOUT_OSD1_DB_FLT_SEED4                     0x01b8
+#define A4_VOUT_OSD1_DB_FLT_SEED5                     0x01b9
+
+#define A4_VPU_VOUT_IRQ_CTRL                          0x0007
+#define A4_VPU_VOUT_BLEND_CTRL                        0x0040
+#define A4_VPU_VOUT_BLEND_DUMDATA                     0x0041
+#define A4_VPU_VOUT_BLEND_SIZE                        0x0042
+//vd1 module
+#define A4_VPU_VOUT_BLD_SRC0_HPOS                     0x0043
+#define A4_VPU_VOUT_BLD_SRC0_VPOS                     0x0044
+//osd1 module
+#define A4_VPU_VOUT_BLD_SRC1_HPOS                     0x0045
+#define A4_VPU_VOUT_BLD_SRC1_VPOS                     0x0046
 #endif

@@ -293,7 +293,9 @@ enum cpuid_type_e {
 	__MESON_CPU_MAJOR_ID_T7,
 	__MESON_CPU_MAJOR_ID_T3,
 	__MESON_CPU_MAJOR_ID_T5W,
+	__MESON_CPU_MAJOR_ID_C3,
 	__MESON_CPU_MAJOR_ID_S5,
+	__MESON_CPU_MAJOR_ID_A4,
 	__MESON_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -412,6 +414,19 @@ enum render_cmd_type {
 	LAYER_SYNC,
 	BLANK_CMD,
 	PAGE_FLIP,
+};
+
+enum display_type_e {
+	NORMAL_DISPLAY = 0,
+	T7_DISPLAY,
+	C3_DISPLAY,
+	S5_DISPLAY
+};
+
+enum matrix_type_e {
+	MATRIX_BYPASS = 0,
+	YUV2RGB,
+	RGB2YUV
 };
 
 struct pandata_s {
@@ -569,7 +584,7 @@ struct osd_device_data_s {
 };
 
 struct osd_device_hw_s {
-	u32 t7_display;
+	u32 display_type;
 	u32 has_8G_addr;
 	u32 multi_afbc_core;
 	u32 has_multi_vpp;
@@ -578,7 +593,6 @@ struct osd_device_hw_s {
 	u32 remove_afbc;
 	u32 remove_pps;
 	u32 prevsync_support;
-	u32 s5_display;
 };
 
 struct hw_osd_reg_s {
@@ -689,6 +703,34 @@ struct hw_osd_slice2ppc_reg_s {
 	u32 osd_sys_pad_h_size;      /* OSD_SYS_PAD_H_SIZE */
 	u32 osd_sys_pad_v_size;      /* OSD_SYS_PAD_V_SIZE */
 	u32 osd_sys_2slice_hwin_cut; /* OSD_SYS_2SLICE_HWIN_CUT */
+};
+
+struct hw_osd_vout_blend_reg_s {
+	u32 vpu_vout_irq_ctrl;
+	u32 vpu_vout_blend_ctrl;
+	u32 vpu_vout_blend_dumdata;
+	u32 vpu_vout_blend_size;
+	u32 vpu_vout_bld_src0_hpos;
+	u32 vpu_vout_bld_src0_vpos;
+	u32 vpu_vout_bld_src1_hpos;
+	u32 vpu_vout_bld_src1_vpos;
+};
+
+struct hw_osd_vout_csc_reg_s {
+	u32 vout_osd1_csc_coef00_01;
+	u32 vout_osd1_csc_coef02_10;
+	u32 vout_osd1_csc_coef11_12;
+	u32 vout_osd1_csc_coef20_21;
+	u32 vout_osd1_csc_coef22;
+	u32 vout_osd1_csc_coef30_31;
+	u32 vout_osd1_csc_coef32_40;
+	u32 vout_osd1_csc_coef41_42;
+	u32 vout_osd1_csc_clip;
+	u32 vout_osd1_csc_offset0_1;
+	u32 vout_osd1_csc_offset2;
+	u32 vout_osd1_csc_pre_offset0_1;
+	u32 vout_osd1_csc_pre_offset2;
+	u32 vout_osd1_csc_en_ctrl;
 };
 
 enum hwin_cut_e {
@@ -843,6 +885,7 @@ struct hw_osd_blending_s {
 
 extern struct hw_osd_reg_s hw_osd_reg_array[HW_OSD_COUNT];
 extern struct hw_osd_blend_reg_s hw_osd_reg_blend;
+extern struct hw_osd_vout_blend_reg_s hw_osd_vout_blend_reg;
 typedef void (*update_func_t)(u32);
 struct hw_list_s {
 	struct list_head list;

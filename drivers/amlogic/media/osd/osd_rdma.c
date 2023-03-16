@@ -263,7 +263,7 @@ u32 rdma_detect_reg;
 
 void osd_rdma_flag_init(void)
 {
-	if (osd_dev_hw.s5_display) {
+	if (osd_dev_hw.display_type == S5_DISPLAY) {
 		/* no OSD2 for S5 */
 		osd_rdma_flag_reg[VPP0] = S5_VIU_OSD1_TCOLOR_AG3;
 		osd_rdma_flag_reg[VPP1] = S5_VIU_OSD1_TCOLOR_AG2;

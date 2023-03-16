@@ -879,7 +879,7 @@ int osd_drm_init(struct osd_device_data_s *osd_meson_dev)
 	int ret;
 
 	/* osd hw init */
-	ret = osd_io_remap(osd_meson_dev->osd_ver == OSD_SIMPLE);
+	ret = osd_io_remap(osd_meson_dev->cpu_id == __MESON_CPU_MAJOR_ID_AXG);
 	if (!ret) {
 		osd_log_err("osd_io_remap failed\n");
 		return -1;

@@ -96,7 +96,7 @@ u32 osd_reg_read(u32 reg)
 	return ret;
 }
 
-void osd_reg_write(u32 reg, const u32 val)
+int osd_reg_write(u32 reg, u32 val)
 {
 	unsigned int addr = 0;
 
@@ -108,25 +108,25 @@ void osd_reg_write(u32 reg, const u32 val)
 	}
 	update_backup_reg(reg, val);
 	osd_log_dbg3(MODULE_BASE, "%s(0x%x, 0x%x)\n", __func__, reg, val);
+	return 0;
 }
 
-void osd_reg_set_mask(u32 reg, const u32 mask)
+int osd_reg_set_mask(u32 reg, u32 mask)
 {
-	osd_reg_write(reg, (osd_reg_read(reg) | (mask)));
+	return osd_reg_write(reg, (osd_reg_read(reg) | (mask)));
 }
 
-void osd_reg_clr_mask(u32 reg, const u32 mask)
+int osd_reg_clr_mask(u32 reg, u32 mask)
 {
-	osd_reg_write(reg, (osd_reg_read(reg) & (~(mask))));
+	return osd_reg_write(reg, (osd_reg_read(reg) & (~(mask))));
 }
 
-void osd_reg_set_bits(u32 reg,
-		      const u32 value,
-		      const u32 start,
-		      const u32 len)
+int osd_reg_set_bits(u32 reg,
+		      u32 value,
+		      u32 start,
+		      u32 len)
 {
-	osd_reg_write(reg, ((osd_reg_read(reg) &
+	return osd_reg_write(reg, ((osd_reg_read(reg) &
 			     ~(((1L << (len)) - 1) << (start))) |
 			    (((value) & ((1L << (len)) - 1)) << (start))));
 }
-

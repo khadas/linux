@@ -463,5 +463,244 @@
 #define VD1_AFBCDM_VDTOP_CTRL0 0x4838
 #define VD2_AFBCDM_VDTOP_CTRL0 0x48b8
 #define VD3_AFBCDM_VDTOP_CTRL0 0x4938
+
+/* c3 regs */
+//VD1_RDMIF
+#define VOUT_VD1_GEN_REG                           0x0200
+#define VOUT_VD1_GEN_REG2                          0x0201
+#define VOUT_VD1_CANVAS0                           0x0202
+#define VOUT_VD1_LUMA_X0                           0x0203
+#define VOUT_VD1_LUMA_Y0                           0x0204
+#define VOUT_VD1_CHROMA_X0                         0x0205
+#define VOUT_VD1_CHROMA_Y0                         0x0206
+#define VOUT_VD1_RPT_LOOP                          0x0207
+#define VOUT_VD1_LUMA0_RPT_PAT                     0x0208
+#define VOUT_VD1_CHROMA0_RPT_PAT                   0x0209
+#define VOUT_VD1_DUMMY_PIXEL                       0x020a
+#define VOUT_VD1_LUMA_FIFO_SIZE                    0x020b
+#define VOUT_VD1_RANGE_MAP_Y                       0x020c
+#define VOUT_VD1_RANGE_MAP_CB                      0x020d
+#define VOUT_VD1_RANGE_MAP_CR                      0x020e
+#define VOUT_VD1_URGENT_CTRL                       0x020f
+#define VOUT_VD1_GEN_REG3                          0x0210
+#define VOUT_VD1_AXI_CMD_CNT                       0x0211
+#define VOUT_VD1_AXI_RDAT_CNT                      0x0212
+#define VOUT_VD1_CFMT_CTRL                         0x0213
+#define VOUT_VD1_CFMT_W                            0x0214
+#define VOUT_VD1_BADDR_Y                           0x0215
+#define VOUT_VD1_BADDR_CB                          0x0216
+#define VOUT_VD1_BADDR_CR                          0x0217
+#define VOUT_VD1_STRIDE_0                          0x0218
+#define VOUT_VD1_STRIDE_1                          0x0219
+#define VOUT_VD1_BADDR_Y_F1                        0x021a
+#define VOUT_VD1_BADDR_CB_F1                       0x021b
+#define VOUT_VD1_BADDR_CR_F1                       0x021c
+#define VOUT_VD1_STRIDE_0_F1                       0x021d
+#define VOUT_VD1_STRIDE_1_F1                       0x021e
+#define VOUT_VD1_EMPTY_REG                         VOUT_VD1_CANVAS0
+
+#define VOUT_OSD1_CTRL_STAT                        0x0240
+#define VOUT_OSD1_CTRL_STAT2                       0x0241
+#define VOUT_OSD1_COLOR_ADDR                       0x0242
+#define VOUT_OSD1_COLOR                            0x0243
+#define VOUT_OSD1_TCOLOR_AG0                       0x0244
+#define VOUT_OSD1_TCOLOR_AG1                       0x0245
+#define VOUT_OSD1_TCOLOR_AG2                       0x0246
+#define VOUT_OSD1_TCOLOR_AG3                       0x0247
+#define VOUT_OSD1_BLK0_CFG_W0                      0x0248
+#define VOUT_OSD1_BLK1_CFG_W0                      0x0249
+#define VOUT_OSD1_BLK2_CFG_W0                      0x024a
+#define VOUT_OSD1_BLK3_CFG_W0                      0x024b
+#define VOUT_OSD1_BLK0_CFG_W1                      0x024c
+#define VOUT_OSD1_BLK1_CFG_W1                      0x024d
+#define VOUT_OSD1_BLK2_CFG_W1                      0x024e
+#define VOUT_OSD1_BLK3_CFG_W1                      0x024f
+#define VOUT_OSD1_BLK0_CFG_W2                      0x0250
+#define VOUT_OSD1_BLK1_CFG_W2                      0x0251
+#define VOUT_OSD1_BLK2_CFG_W2                      0x0252
+#define VOUT_OSD1_BLK3_CFG_W2                      0x0253
+#define VOUT_OSD1_BLK0_CFG_W3                      0x0254
+#define VOUT_OSD1_BLK1_CFG_W3                      0x0255
+#define VOUT_OSD1_BLK2_CFG_W3                      0x0256
+#define VOUT_OSD1_BLK3_CFG_W3                      0x0257
+#define VOUT_OSD1_BLK0_CFG_W4                      0x0258
+#define VOUT_OSD1_BLK1_CFG_W4                      0x0259
+#define VOUT_OSD1_BLK2_CFG_W4                      0x025a
+#define VOUT_OSD1_BLK3_CFG_W4                      0x025b
+#define VOUT_OSD1_FIFO_CTRL_STAT                   0x0260
+#define VOUT_OSD1_TEST_RDDATA                      0x0261
+#define VOUT_OSD1_PROT_CTRL                        0x0262
+#define VOUT_OSD1_MALI_UNPACK_CTRL                 0x0263
+#define VOUT_OSD1_DIMM_CTRL                        0x0264
+//VD1_RDMIF_CSC
+#define VOUT_VD1_CSC_COEF00_01                     0x0270
+#define VOUT_VD1_CSC_COEF02_10                     0x0271
+#define VOUT_VD1_CSC_COEF11_12                     0x0272
+#define VOUT_VD1_CSC_COEF20_21                     0x0273
+#define VOUT_VD1_CSC_COEF22                        0x0274
+#define VOUT_VD1_CSC_COEF13_14                     0x0275
+#define VOUT_VD1_CSC_COEF23_24                     0x0276
+#define VOUT_VD1_CSC_COEF15_25                     0x0277
+#define VOUT_VD1_CSC_CLIP                          0x0278
+#define VOUT_VD1_CSC_OFFSET0_1                     0x0279
+#define VOUT_VD1_CSC_OFFSET2                       0x027a
+#define VOUT_VD1_CSC_PRE_OFFSET0_1                 0x027b
+#define VOUT_VD1_CSC_PRE_OFFSET2                   0x027c
+#define VOUT_VD1_CSC_EN_CTRL                       0x027d
+//OSD_CSC
+#define VOUT_OSD1_CSC_COEF00_01                    0x0280
+#define VOUT_OSD1_CSC_COEF02_10                    0x0281
+#define VOUT_OSD1_CSC_COEF11_12                    0x0282
+#define VOUT_OSD1_CSC_COEF20_21                    0x0283
+#define VOUT_OSD1_CSC_COEF22                       0x0284
+#define VOUT_OSD1_CSC_COEF30_31                    0x0285
+#define VOUT_OSD1_CSC_COEF32_40                    0x0286
+#define VOUT_OSD1_CSC_COEF41_42                    0x0287
+#define VOUT_OSD1_CSC_CLIP                         0x0288
+#define VOUT_OSD1_CSC_OFFSET0_1                    0x0289
+#define VOUT_OSD1_CSC_OFFSET2                      0x028a
+#define VOUT_OSD1_CSC_PRE_OFFSET0_1                0x028b
+#define VOUT_OSD1_CSC_PRE_OFFSET2                  0x028c
+#define VOUT_OSD1_CSC_EN_CTRL                      0x028d
+//OSD_SCALER
+#define VOUT_OSD1_VSC_PHASE_STEP                   0x02a0
+#define VOUT_OSD1_VSC_INI_PHASE                    0x02a1
+#define VOUT_OSD1_VSC_CTRL0                        0x02a2
+#define VOUT_OSD1_HSC_PHASE_STEP                   0x02a3
+#define VOUT_OSD1_HSC_INI_PHASE                    0x02a4
+#define VOUT_OSD1_HSC_CTRL0                        0x02a5
+#define VOUT_OSD1_HSC_INI_PAT_CTRL                 0x02a6
+#define VOUT_OSD1_SC_DUMMY_DATA                    0x02a7
+#define VOUT_OSD1_SC_CTRL0                         0x02a8
+#define VOUT_OSD1_SCI_WH_M1                        0x02a9
+#define VOUT_OSD1_SCO_H_START_END                  0x02aa
+#define VOUT_OSD1_SCO_V_START_END                  0x02ab
+#define VOUT_OSD1_SCALE_COEF_IDX                   0x02ac
+#define VOUT_OSD1_SCALE_COEF                       0x02ad
+#define VOUT_OSD1_DB_FLT_CTRL                      0x02ae
+#define VOUT_OSD1_DB_FLT_CTRL1                     0x02af
+#define VOUT_OSD1_DB_FLT_LUMA_THRD                 0x02b0
+#define VOUT_OSD1_DB_FLT_CHRM_THRD                 0x02b1
+#define VOUT_OSD1_DB_FLT_RANDLUT                   0x02b2
+#define VOUT_OSD1_DB_FLT_PXI_THRD                  0x02b3
+#define VOUT_OSD1_DB_FLT_SEED_Y                    0x02b4
+#define VOUT_OSD1_DB_FLT_SEED_U                    0x02b5
+#define VOUT_OSD1_DB_FLT_SEED_V                    0x02b6
+#define VOUT_OSD1_DB_FLT_SEED3                     0x02b7
+#define VOUT_OSD1_DB_FLT_SEED4                     0x02b8
+#define VOUT_OSD1_DB_FLT_SEED5                     0x02b9
+
+#define VPU_VOUT_TOP_CTRL                          0x0000
+#define VPU_VOUT_SECURE_BIT_NOR                    0x0001
+#define VPU_VOUT_SECURE_DATA                       0x0002
+#define VPU_VOUT_FRM_CTRL                          0x0003
+#define VPU_VOUT_AXI_ARBIT                         0x0004
+#define VPU_VOUT_RDARB_IDMAP0                      0x0005
+#define VPU_VOUT_RDARB_IDMAP1                      0x0006
+#define VPU_VOUT_IRQ_CTRL                          0x0007
+#define VPU_VOUT_VLK_CTRL                          0x0009
+
+#define VPU_VOUT_BLEND_CTRL                        0x0010
+#define VPU_VOUT_BLEND_DUMDATA                     0x0011
+#define VPU_VOUT_BLEND_SIZE                        0x0012
+//vd1 module
+#define VPU_VOUT_BLD_SRC0_HPOS                     0x0020
+#define VPU_VOUT_BLD_SRC0_VPOS                     0x0021
+//osd1 module
+#define VPU_VOUT_BLD_SRC1_HPOS                     0x0030
+#define VPU_VOUT_BLD_SRC1_VPOS                     0x0031
+
+/* A4 regs */
+//VD1_RDMIF
+#define A4_VOUT_VD1_GEN_REG                           0x0100
+#define A4_VOUT_VD1_GEN_REG2                          0x0101
+#define A4_VOUT_VD1_CANVAS0                           0x0102
+#define A4_VOUT_VD1_LUMA_X0                           0x0103
+#define A4_VOUT_VD1_LUMA_Y0                           0x0104
+#define A4_VOUT_VD1_CHROMA_X0                         0x0105
+#define A4_VOUT_VD1_CHROMA_Y0                         0x0106
+#define A4_VOUT_VD1_RPT_LOOP                          0x0107
+#define A4_VOUT_VD1_LUMA0_RPT_PAT                     0x0108
+#define A4_VOUT_VD1_CHROMA0_RPT_PAT                   0x0109
+#define A4_VOUT_VD1_DUMMY_PIXEL                       0x010a
+#define A4_VOUT_VD1_LUMA_FIFO_SIZE                    0x010b
+#define A4_VOUT_VD1_RANGE_MAP_Y                       0x010c
+#define A4_VOUT_VD1_RANGE_MAP_CB                      0x010d
+#define A4_VOUT_VD1_RANGE_MAP_CR                      0x010e
+#define A4_VOUT_VD1_URGENT_CTRL                       0x010f
+#define A4_VOUT_VD1_GEN_REG3                          0x0110
+#define A4_VOUT_VD1_AXI_CMD_CNT                       0x0111
+#define A4_VOUT_VD1_AXI_RDAT_CNT                      0x0112
+#define A4_VOUT_VD1_CFMT_CTRL                         0x0113
+#define A4_VOUT_VD1_CFMT_W                            0x0114
+#define A4_VOUT_VD1_BADDR_Y                           0x0115
+#define A4_VOUT_VD1_BADDR_CB                          0x0116
+#define A4_VOUT_VD1_BADDR_CR                          0x0117
+#define A4_VOUT_VD1_STRIDE_0                          0x0118
+#define A4_VOUT_VD1_STRIDE_1                          0x0119
+#define A4_VOUT_VD1_BADDR_Y_F1                        0x011a
+#define A4_VOUT_VD1_BADDR_CB_F1                       0x011b
+#define A4_VOUT_VD1_BADDR_CR_F1                       0x011c
+#define A4_VOUT_VD1_STRIDE_0_F1                       0x011d
+#define A4_VOUT_VD1_STRIDE_1_F1                       0x011e
+#define A4_VOUT_VD1_EMPTY_REG                         A4_VOUT_VD1_CANVAS0
+
+//VD1_RDMIF_CSC
+#define A4_VOUT_VD1_CSC_COEF00_01                     0x0170
+#define A4_VOUT_VD1_CSC_COEF02_10                     0x0171
+#define A4_VOUT_VD1_CSC_COEF11_12                     0x0172
+#define A4_VOUT_VD1_CSC_COEF20_21                     0x0173
+#define A4_VOUT_VD1_CSC_COEF22                        0x0174
+#define A4_VOUT_VD1_CSC_COEF13_14                     0x0175
+#define A4_VOUT_VD1_CSC_COEF23_24                     0x0176
+#define A4_VOUT_VD1_CSC_COEF15_25                     0x0177
+#define A4_VOUT_VD1_CSC_CLIP                          0x0178
+#define A4_VOUT_VD1_CSC_OFFSET0_1                     0x0179
+#define A4_VOUT_VD1_CSC_OFFSET2                       0x017a
+#define A4_VOUT_VD1_CSC_PRE_OFFSET0_1                 0x017b
+#define A4_VOUT_VD1_CSC_PRE_OFFSET2                   0x017c
+#define A4_VOUT_VD1_CSC_EN_CTRL                       0x017d
+
+#define A4_VOUT_VD1_SCALE_COEF_IDX                    0x0200
+#define A4_VOUT_VD1_SCALE_COEF                        0x0201
+#define A4_VOUT_VD1_VSC_REGION12_STARTP               0x0202
+#define A4_VOUT_VD1_VSC_REGION34_STARTP               0x0203
+#define A4_VOUT_VD1_VSC_REGION4_ENDP                  0x0204
+#define A4_VOUT_VD1_VSC_START_PHASE_STEP              0x0205
+#define A4_VOUT_VD1_VSC_REGION0_PHASE_SLOPE           0x0206
+#define A4_VOUT_VD1_VSC_REGION1_PHASE_SLOPE           0x0207
+#define A4_VOUT_VD1_VSC_REGION3_PHASE_SLOPE           0x0208
+#define A4_VOUT_VD1_VSC_REGION4_PHASE_SLOPE           0x0209
+#define A4_VOUT_VD1_VSC_PHASE_CTRL                    0x020a
+#define A4_VOUT_VD1_VSC_INI_PHASE                     0x020b
+#define A4_VOUT_VD1_HSC_REGION12_STARTP               0x020c
+#define A4_VOUT_VD1_HSC_REGION34_STARTP               0x020d
+#define A4_VOUT_VD1_HSC_REGION4_ENDP                  0x020e
+#define A4_VOUT_VD1_HSC_START_PHASE_STEP              0x020f
+#define A4_VOUT_VD1_HSC_REGION0_PHASE_SLOPE           0x0210
+#define A4_VOUT_VD1_HSC_REGION1_PHASE_SLOPE           0x0211
+#define A4_VOUT_VD1_HSC_REGION3_PHASE_SLOPE           0x0212
+#define A4_VOUT_VD1_HSC_REGION4_PHASE_SLOPE           0x0213
+#define A4_VOUT_VD1_HSC_PHASE_CTRL                    0x0214
+#define A4_VOUT_VD1_SC_MISC                           0x0215
+#define A4_VOUT_VD1_SCO_FIFO_CTRL                     0x0216
+#define A4_VOUT_VD1_HSC_PHASE_CTRL1                   0x0217
+#define A4_VOUT_VD1_HSC_INI_PAT_CTRL                  0x0218
+#define A4_VOUT_VD1_SC_GCLK_CTRL                      0x0219
+#define A4_VOUT_VD1_PREHSC_COEF                       0x021a
+#define A4_VOUT_VD1_PRE_SCALE_CTRL                    0x021b
+#define A4_VOUT_VD1_PREVSC_COEF                       0x021c
+#define A4_VOUT_VD1_PREHSC_COEF1                      0x021d
+
+#define A4_VPU_VOUT_BLEND_CTRL                        0x0040
+#define A4_VPU_VOUT_BLEND_DUMDATA                     0x0041
+#define A4_VPU_VOUT_BLEND_SIZE                        0x0042
+
+//vd1 module
+#define A4_VPU_VOUT_BLD_SRC0_HPOS                     0x0043
+#define A4_VPU_VOUT_BLD_SRC0_VPOS                     0x0044
+//osd1 module
+#define A4_VPU_VOUT_BLD_SRC1_HPOS                     0x0045
+#define A4_VPU_VOUT_BLD_SRC1_VPOS                     0x0046
 #endif
 
