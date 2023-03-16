@@ -115,7 +115,8 @@ static struct toddr *register_toddr_l(struct device *dev,
 
 	/* lookup unused toddr */
 	for (i = 0; i < DDRMAX; i++) {
-		if (!toddrs[i].in_use)
+		if (!toddrs[i].in_use &&
+		    strncmp(toddrs[i].toddr_name, "toddr_acc", sizeof("toddr_acc") - 1))
 			break;
 	}
 
@@ -1190,7 +1191,8 @@ static struct frddr *register_frddr_l(struct device *dev,
 			rvd_dst)
 			break;
 		/* lookup unused frddr */
-		if (!frddrs[i].in_use && !frddrs[i].reserved && !rvd_dst)
+		if (!frddrs[i].in_use && !frddrs[i].reserved && !rvd_dst &&
+		    strncmp(frddrs[i].frddr_name, "frddr_acc", sizeof("frddr_acc") - 1))
 			break;
 	}
 
@@ -2381,11 +2383,11 @@ static struct notifier_block ddr_pm_notifier_block = {
 
 /* table Must in order */
 static struct ddr_info ddr_info[] = {
-	{EE_AUDIO_TODDR_A_CTRL0, EE_AUDIO_FRDDR_A_CTRL0, "toddr_a", "frddr_a"},
-	{EE_AUDIO_TODDR_B_CTRL0, EE_AUDIO_FRDDR_B_CTRL0, "toddr_b", "frddr_b"},
-	{EE_AUDIO_TODDR_C_CTRL0, EE_AUDIO_FRDDR_C_CTRL0, "toddr_c", "frddr_c"},
-	{EE_AUDIO_TODDR_D_CTRL0, EE_AUDIO_FRDDR_D_CTRL0, "toddr_d", "frddr_d"},
-	{EE_AUDIO_TODDR_E_CTRL0, EE_AUDIO_FRDDR_E_CTRL0, "toddr_e", "frddr_e"},
+	{EE_AUDIO_TODDR_A_CTRL0, EE_AUDIO_FRDDR_A_CTRL0},
+	{EE_AUDIO_TODDR_B_CTRL0, EE_AUDIO_FRDDR_B_CTRL0},
+	{EE_AUDIO_TODDR_C_CTRL0, EE_AUDIO_FRDDR_C_CTRL0},
+	{EE_AUDIO_TODDR_D_CTRL0, EE_AUDIO_FRDDR_D_CTRL0},
+	{EE_AUDIO_TODDR_E_CTRL0, EE_AUDIO_FRDDR_E_CTRL0},
 };
 
 static int ddr_get_toddr_base_addr_by_idx(int idx)
@@ -2398,16 +2400,6 @@ static int ddr_get_frddr_base_addr_by_idx(int idx)
 	return ddr_info[idx].frddr_addr;
 }
 
-static char *ddr_get_toddr_name_by_idx(int idx)
-{
-	return ddr_info[idx].toddr_name;
-}
-
-static char *ddr_get_frddr_name_by_idx(int idx)
-{
-	return ddr_info[idx].frddr_name;
-}
-
 static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -2415,7 +2407,8 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 	struct platform_device *pdev_parent;
 	struct aml_audio_controller *actrl = NULL;
 	struct ddr_chipinfo *p_ddr_chipinfo;
-	int i, ret;
+	int i, ret, j = 0, k = 0, irq_count = 0;
+	const char *name;
 
 	/* get audio controller */
 	node_prt = of_get_parent(node);
@@ -2435,38 +2428,38 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	irq_count = platform_irq_count(pdev);
+	for (i = 0; i < irq_count; i++) {
+		of_property_read_string_index(node, "interrupt-names", i, &name);
+		if (!strncmp(name, "toddr", sizeof("toddr") - 1) && j < DDRMAX) {
+			strncpy(toddrs[j].toddr_name, name, 30);
+			toddrs[j].irq = platform_get_irq(pdev, i);
+			dev_info(&pdev->dev, "toddr name %s, irq id %d\n",
+				toddrs[j].toddr_name, toddrs[j].irq);
+			j++;
+		}
+
+		if (!strncmp(name, "frddr", sizeof("frddr") - 1) && k < DDRMAX) {
+			strncpy(frddrs[k].frddr_name, name, 30);
+			frddrs[k].irq = platform_get_irq(pdev, i);
+			dev_info(&pdev->dev, "frddr name %s, irq id %d\n",
+				frddrs[k].frddr_name, frddrs[k].irq);
+			k++;
+		}
+	}
+
 	for (i = 0; i < p_ddr_chipinfo->toddr_num; i++) {
-		toddrs[i].irq =
-			platform_get_irq_byname(pdev,
-						ddr_get_toddr_name_by_idx(i));
 		toddrs[i].reg_base   = ddr_get_toddr_base_addr_by_idx(i);
 		toddrs[i].fifo_id    = i;
 		toddrs[i].chipinfo   = p_ddr_chipinfo;
 		toddrs[i].actrl      = actrl;
-
-		dev_info(&pdev->dev, "%d, irqs toddr %d\n", i, toddrs[i].irq);
-
-		if (toddrs[i].irq <= 0) {
-			dev_err(&pdev->dev, "%s, get irq failed\n", __func__);
-			return -ENXIO;
-		}
 	}
 
 	for (i = 0; i < p_ddr_chipinfo->frddr_num; i++) {
-		frddrs[i].irq        =
-			platform_get_irq_byname(pdev,
-						ddr_get_frddr_name_by_idx(i));
 		frddrs[i].reg_base   = ddr_get_frddr_base_addr_by_idx(i);
 		frddrs[i].fifo_id    = i;
 		frddrs[i].chipinfo   = p_ddr_chipinfo;
 		frddrs[i].actrl      = actrl;
-
-		dev_info(&pdev->dev, "%d, irqs frddr %d\n", i, frddrs[i].irq);
-
-		if (frddrs[i].irq <= 0) {
-			dev_err(&pdev->dev, "%s, get irq failed\n", __func__);
-			return -ENXIO;
-		}
 	}
 
 	mutex_init(&attach_resample_a.lock);

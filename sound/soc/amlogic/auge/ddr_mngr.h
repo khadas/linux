@@ -208,6 +208,7 @@ struct toddr {
 	bool in_use: 1;
 	struct aml_audio_controller *actrl;
 	struct ddr_chipinfo *chipinfo;
+	char toddr_name[32];
 };
 
 enum status {
@@ -261,13 +262,12 @@ struct frddr {
 	struct ddr_chipinfo *chipinfo;
 
 	bool reserved;
+	char frddr_name[32];
 };
 
 struct ddr_info {
 	unsigned int toddr_addr;
 	unsigned int frddr_addr;
-	char *toddr_name;
-	char *frddr_name;
 };
 
 /* to ddrs */
