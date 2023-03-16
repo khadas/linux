@@ -2272,7 +2272,7 @@ bool is_emp_buf_change(void)
 {
 	if (rx.emp_buff.pre_emp_pkt_cnt != rx.emp_buff.emp_pkt_cnt)
 		return true;
-	else if (memcmp(emp_buf, pre_emp_buf, rx.emp_buff.emp_pkt_cnt * 32) != 0)
+	else if (memcmp((u8 *)emp_buf, (u8 *)pre_emp_buf, rx.emp_buff.emp_pkt_cnt * 32) != 0)
 		return true;
 	else
 		return false;
@@ -2291,8 +2291,6 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 	/*u32 t1, t2;*/
 	rxpktsts.dv_pkt_num = 0;
 	rxpktsts.fifo_pkt_num = 0;
-	if (log_level & PACKET_LOG)
-		rx_pr("pkt_int_src:0x%x\n", pkt_int_src);
 	if (pkt_int_src == PKT_BUFF_SET_FIFO) {
 		/*from pkt fifo*/
 		if (!pd_fifo_buf)
@@ -2391,7 +2389,7 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 		memset(pd_fifo_buf, 0, PFIFO_SIZE);
 		memset(&prx->emp_info, 0, sizeof(struct pd_infoframe_s));
 		pkt_num = rx.emp_buff.emp_pkt_cnt;
-		if (log_level & PACKET_LOG)
+		if (log_level & PACKET_LOG && rx.new_emp_pkt)
 			rx_pr("emp pkt=%d\n", pkt_num);
 #ifdef MULTI_VSIF_EXPORT_TO_EMP
 		rx.vs_info_details.vsi_state = 0x0;
@@ -2401,38 +2399,42 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 			pkt_num--;
 			/*read one pkt from fifo*/
 			if (rx.chip_id >= CHIP_ID_T7) {
-				memcpy(pd_fifo_buf, emp_buf + rxpktsts.fifo_pkt_num * 31, 3);
-				memcpy((char *)pd_fifo_buf + 4,
+				memcpy((char *)pd_fifo_buf + rxpktsts.fifo_pkt_num * 32,
+					emp_buf + rxpktsts.fifo_pkt_num * 31, 3);
+				memcpy((char *)pd_fifo_buf + 4 + rxpktsts.fifo_pkt_num * 32,
 				    emp_buf + rxpktsts.fifo_pkt_num * 31 + 3,
 				    28);
 			} else {
-				memcpy(pd_fifo_buf, emp_buf + rxpktsts.fifo_pkt_num * 32, 3);
-				memcpy((char *)pd_fifo_buf + 4,
+				memcpy((char *)pd_fifo_buf + rxpktsts.fifo_pkt_num * 32,
+					emp_buf + rxpktsts.fifo_pkt_num * 32, 3);
+				memcpy((char *)pd_fifo_buf + 4 + rxpktsts.fifo_pkt_num * 32,
 				    emp_buf + rxpktsts.fifo_pkt_num * 32 + 3,
 				    28);
 			}
-			rxpktsts.fifo_pkt_num++;
 			if (log_level & PACKET_LOG && rx.new_emp_pkt)
 				rx_pr("PD[0/%d]=0x%x, PD[1/%d]=0x%x\n",
-					pkt_num, pd_fifo_buf[0], pkt_num, pd_fifo_buf[1]);
-			pktdata = (union infoframe_u *)pd_fifo_buf;
+					pkt_num, pd_fifo_buf[rxpktsts.fifo_pkt_num * 8],
+					pkt_num, pd_fifo_buf[1 + rxpktsts.fifo_pkt_num * 8]);
+			pktdata = (union infoframe_u *)&pd_fifo_buf[rxpktsts.fifo_pkt_num * 8];
 			rx_pkt_fifodecode(prx, pktdata, &rxpktsts);
-			if ((pd_fifo_buf[0] & 0xff) == PKT_TYPE_EMP)
-				rx_parse_dsf((u8 *)pd_fifo_buf);
-			if ((pd_fifo_buf[0] & 0xff) == PKT_TYPE_EMP && !find_emp_header) {
+			if ((pd_fifo_buf[rxpktsts.fifo_pkt_num * 8] & 0xff) == PKT_TYPE_EMP)
+				rx_parse_dsf((u8 *)&pd_fifo_buf[rxpktsts.fifo_pkt_num * 8]);
+			if ((pd_fifo_buf[rxpktsts.fifo_pkt_num * 8] & 0xff) == PKT_TYPE_EMP &&
+				!find_emp_header) {
 				find_emp_header = true;
 				rx.emp_buff.ogi_id =
-					(pd_fifo_buf[1] >> 16) & 0xff;
-				j = (((pd_fifo_buf[2] >> 24) & 0xff) +
-					((pd_fifo_buf[3] & 0xff) << 8) +
-					(((pd_fifo_buf[3] >> 8) & 0xff) << 16));
+					(pd_fifo_buf[1 + rxpktsts.fifo_pkt_num * 8] >> 16) & 0xff;
+				j = (((pd_fifo_buf[2 + rxpktsts.fifo_pkt_num * 8] >> 24) & 0xff) +
+					((pd_fifo_buf[3 + rxpktsts.fifo_pkt_num * 8] & 0xff) << 8) +
+				(((pd_fifo_buf[3 + rxpktsts.fifo_pkt_num * 8] >> 8) & 0xff) << 16));
 				rx.emp_buff.emp_tagid = j;
 				rx.emp_buff.data_ver =
-					(pd_fifo_buf[3] >> 16) & 0xff;
+					(pd_fifo_buf[3 + rxpktsts.fifo_pkt_num * 8] >> 16) & 0xff;
 				rx.emp_buff.emp_content_type =
-					(pd_fifo_buf[5] >> 24) & 0x0f;
+					(pd_fifo_buf[5 + rxpktsts.fifo_pkt_num * 8] >> 24) & 0x0f;
 			}
 			rx.irq_flag &= ~IRQ_PACKET_FLAG;
+			rxpktsts.fifo_pkt_num++;
 		}
 	} else if (pkt_int_src == PKT_BUFF_SET_SPD) {
 		rxpktsts.pkt_op_flag |= PKT_OP_SPD;
@@ -2458,17 +2460,23 @@ void rx_get_em_info(void)
 	u32 u_ieee;
 	struct emp_pkt_st *pkt;
 
+	rx.sbtm_info.flag = false;
+	rx.vtem_info.vrr_en = false;
+	rx.emp_dv_info.flag = false;
+	rx.emp_cuva_info.flag = false;
 	if (rx.chip_id < CHIP_ID_T7 || !rx.emp_pkt_rev) {
 		if (log_level == 0x121)
 			rx_pr("rx.emp_pkt_rev = %d\n", rx.emp_pkt_rev);
 		return;
 	}
-	rx.sbtm_info.flag = false;
-
 	if (log_level == 0x121 && rx.emp_dsf_cnt)
 		rx_pr("emp_dsf_cnt:0x%x\n", rx.emp_dsf_cnt);
 	for (i = 0; i < rx.emp_dsf_cnt; i++) {
 		pkt = (struct emp_pkt_st *)rx.emp_dsf_info[i].pkt_addr;
+		if (!pkt) {
+			rx_pr("emp_dsf pkt err\n");
+			break;
+		}
 		u_ieee = pkt->cnt.md[0] +
 			(pkt->cnt.md[1] << 8) +
 			(pkt->cnt.md[2] << 16);
@@ -2541,13 +2549,13 @@ void rx_get_em_info(void)
 		case EMP_DV:
 			rx.emp_dv_info.flag = true;
 			rx.emp_dv_info.dv_addr = (u8 *)pkt;
-			rx.emp_dv_info.dv_size = rx.emp_dsf_info[i].pkt_cnt;
+			rx.emp_dv_info.dv_size = rx.emp_dsf_info[i].pkt_cnt * 32;
 			break;
 		case EMP_CUVA:
 			rx.emp_cuva_info.flag = true;
 			rx.emp_cuva_info.emds_addr = (u8 *)pkt;
 			rx.emp_cuva_info.cuva_emds_size =
-				rx.emp_dsf_info[i].pkt_cnt;
+				rx.emp_dsf_info[i].pkt_cnt * 32;
 			break;
 		default:
 			memset(&rx.vtem_info, 0, sizeof(struct vtem_info_s));
@@ -2558,7 +2566,7 @@ void rx_get_em_info(void)
 	rx.emp_pkt_rev = false;
 	rx.emp_dsf_cnt = 0;
 	for (i = 0; i < EMP_DSF_CNT_MAX; i++)
-		memset(&rx.emp_dsf_info[i], 0, sizeof(struct pd_infoframe_s));
+		memset(&rx.emp_dsf_info[i], 0, sizeof(struct emp_dsf_st));
 	if (log_level == 0x121)
 		log_level = LOG_EN;
 }
