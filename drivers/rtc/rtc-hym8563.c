@@ -465,8 +465,11 @@ static int hym8563_init_device(struct i2c_client *client)
 
 	/* Clear stop flag if present */
 	ret = i2c_smbus_write_byte_data(client, HYM8563_CTL1, 0);
-	if (ret < 0)
-		return ret;
+	if (-EAGAIN == ret) {
+		ret = i2c_smbus_write_byte_data(client, HYM8563_CTL1, 0);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = i2c_smbus_read_byte_data(client, HYM8563_CTL2);
 	if (ret < 0)
