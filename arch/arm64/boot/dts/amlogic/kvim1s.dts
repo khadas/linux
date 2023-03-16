@@ -1378,3 +1378,7 @@
 	tocodec_inout = <1>;
 	tdmout_index = <1>;
 };
+
+&vrtc {
+	status = "disabled";
+};
