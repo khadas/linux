@@ -425,8 +425,8 @@
 		compatible = "amlogic, jtag";
 		status = "okay";
 		select = "disable"; /* disable/jtag_a */
-		pinctrl-names="jtag_a_pins", "jtag_a_gpio_pins";
-		pinctrl-0=<&jtag_a_pins>, <&jtag_a_gpio_pins>;
+		pinctrl-names="jtag_a_pins";
+		pinctrl-0=<&jtag_a_pins>;
 	};
 
 	mhu_fifo: mhu@0 {
@@ -2212,10 +2212,10 @@
 
 	jtag_a_pins: jtag_a_pin {
 		mux {
-			groups = "jtag_tdi",
-				 "jtag_tdo",
-				 "jtag_clk",
-				 "jtag_tms";
+			groups = "jtag_1_tdi",
+				 "jtag_1_tdo",
+				 "jtag_1_clk",
+				 "jtag_1_tms";
 			function = "jtag_1";
 		};
 	};
