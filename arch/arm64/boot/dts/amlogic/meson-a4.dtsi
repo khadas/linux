@@ -1209,16 +1209,16 @@
 				<&clkc CLKID_SD_EMMC_C_CLK_SEL>,
 				 <&clkc CLKID_SD_EMMC_C_CLK>,
 				 <&xtal>,
-				 //<&clkc CLKID_GP0_PLL>,
-				 //<&clkc CLKID_GP0_PLL>;
-				 <&clkc CLKID_FCLK_DIV2>,
-				 <&clkc CLKID_FCLK_DIV2>;
+				 <&clkc CLKID_GP0_PLL>,
+				 <&clkc CLKID_GP0_PLL>;
+				// <&clkc CLKID_FCLK_DIV2>,
+				 //<&clkc CLKID_FCLK_DIV2>;
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1", "clkin2";
 			card_type = <1>;
 			ignore_desc_busy;
 			mmc_debug_flag;
-			//src_clk_rate = <1152000000>;
+			src_clk_rate = <1152000000>;
 			//enable-ctrl-power;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};

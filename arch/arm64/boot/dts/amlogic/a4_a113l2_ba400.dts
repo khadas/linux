@@ -986,56 +986,56 @@
 };
 
 /* SDIO */
-//&sd_emmc_a {
-//	status = "disabled";
-//	pinctrl-0 = <&sdio_pins>;
-//	pinctrl-1 = <&sdio_clk_gate_pins>;
-//	pinctrl-names = "default", "clk-gate";
-//	#address-cells = <1>;
-//	#size-cells = <0>;
-//
-//	bus-width = <4>;
-//	cap-sd-highspeed;
-//	sd-uhs-sdr12;
-//	sd-uhs-sdr25;
-//	sd-uhs-sdr50;
-//	sd_uhs-sdr104;
-//	max-frequency = <200000000>;
-//
-//	non-removable;
-//	disable-wp;
-//	card_type = <3>;
-//	cap-sdio-irq;
-//	keep-power-in-suspend;
-//
-//	//vmmc-supply = <&vddao_3v3>;
-//	//vqmmc-supply = <&vddio_ao1v8>;
-//
-//	brcmf: wifi@1 {
-//		reg = <1>;
-//		compatible = "brcm,bcm4329-fmac";
-//	};
-//};
-
-/* SD card pxp bringup */
 &sd_emmc_a {
-	status = "okay";
-	pinctrl-0 = <&sdcard_pins>;
-	pinctrl-1 = <&sdcard_clk_gate_pins>;
-	pinctrl-2 = <&sd_1bit_pins>;
-	pinctrl-names = "sd_default",
-			"clk-gate",
-			"sd_1bit_pins";
+	status = "disabled";
+	pinctrl-0 = <&sdio_pins>;
+	pinctrl-1 = <&sdio_clk_gate_pins>;
+	pinctrl-names = "default", "clk-gate";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
 	bus-width = <4>;
 	cap-sd-highspeed;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd_uhs-sdr104;
 	max-frequency = <200000000>;
-	disable-wp;
-	card_type = <5>;
 
-	cd-gpios = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
+	non-removable;
+	disable-wp;
+	card_type = <3>;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+
 	//vmmc-supply = <&vddao_3v3>;
-	//vqmmc-supply = <&emmc_1v8>;
+	//vqmmc-supply = <&vddio_ao1v8>;
+
+	brcmf: wifi@1 {
+		reg = <1>;
+		compatible = "brcm,bcm4329-fmac";
+	};
 };
+
+/* SD card pxp bringup */
+//&sd_emmc_a {
+//	status = "okay";
+//	pinctrl-0 = <&sdcard_pins>;
+//	pinctrl-1 = <&sdcard_clk_gate_pins>;
+//	pinctrl-2 = <&sd_1bit_pins>;
+//	pinctrl-names = "sd_default",
+//			"clk-gate",
+//			"sd_1bit_pins";
+//	bus-width = <4>;
+//	cap-sd-highspeed;
+//	max-frequency = <200000000>;
+//	disable-wp;
+//	card_type = <5>;
+//
+//	cd-gpios = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
+//	//vmmc-supply = <&vddao_3v3>;
+//	//vqmmc-supply = <&emmc_1v8>;
+//};
 
 /* SD card */
 &sd_emmc_b {
@@ -1087,7 +1087,7 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	//mmc-ddr-1_8v;
-	//mmc-hs200-1_8v;
+	mmc-hs200-1_8v;
 	//mmc-hs400-1_8v;
 	max-frequency = <200000000>;
 	non-removable;
