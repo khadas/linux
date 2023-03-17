@@ -210,39 +210,57 @@
 		method = "smc";
 	};
 
-	vbat: fixedregulator0 {
+	dc_12v: fixedregulator0 {
 		compatible = "regulator-fixed";
-		regulator-name = "vbat";
+		regulator-name = "DC_12V";
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
 		regulator-always-on;
 	};
 
-	vcc5v_reg: fixedregulator@1{
-		vin-supply = <&vbat>;
+	v_12v: fixed@v_12v {
+		vin-supply = <&dc_12v>;
 		compatible = "regulator-fixed";
-		regulator-name = "VCC_5V";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		//gpio = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
+		regulator-name = "12V";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		gpio = <&ao_gpio GPIOAO_4 GPIO_ACTIVE_LOW>;
+		enable-active-low;
+		regulator-always-on;
+	};
+
+	vdd3v3_ao_rtc_reg: fixed@vdd3v3_ao_rtc_reg{
+		vin-supply = <&dc_12v>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDD3V3_AO_RTC";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
 	};
 
-	vddq_reg: fixedregulator@2 {
+	vdd1v8_ao_rtc_reg: fixed@vdd1v8_ao_rtc_reg{
+		vin-supply = <&vdd3v3_ao_rtc_reg>;
 		compatible = "regulator-fixed";
-		vin-supply = <&vbat>;
+		regulator-name = "AVDD_AO18_RTC-VDD1V8_AO_RTC";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+	};
+
+	vddq_reg: fixed@vddq_reg{
+		compatible = "regulator-fixed";
+		vin-supply = <&v_12v>;
 		regulator-name = "VDDQ";
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1200000>;
-		gpio = <&gpio GPIOD_2 GPIO_ACTIVE_HIGH>;
+		gpio = <&ao_gpio GPIOAO_0 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-boot-on;
 		regulator-always-on;
 	};
 
-	vddao3v3_reg: fixedregulator@3{
-		vin-supply = <&vbat>;
+	vddao3v3_reg: fixed@vddao3v3_reg{
+		vin-supply = <&v_12v>;
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_3V3";
 		regulator-min-microvolt = <3300000>;
@@ -251,7 +269,7 @@
 		regulator-always-on;
 	};
 
-	vddao1v8_reg: fixedregulator@4{
+	vddao1v8_reg: fixed@vddao1v8_reg{
 		vin-supply = <&vddao3v3_reg>;
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_1V8";

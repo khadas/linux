@@ -74,69 +74,60 @@
 
 	};
 
-	vddio3v3_reg: fixedregulator@5{
+	vcc5v_reg: fixed@vcc5v_reg{
+		vin-supply = <&dc_12v>;
+		compatible = "regulator-fixed";
+		regulator-name = "VCC5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+	};
+
+	vddio3v3_reg: fixed@vddio3v3_reg{
 		vin-supply = <&vddao3v3_reg>;
 		compatible = "regulator-fixed";
 		regulator-name = "VDDIO_3V3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio GPIO_TEST_N GPIO_ACTIVE_HIGH>;
+		gpio = <&ao_gpio GPIO_TEST_N GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-boot-on;
 		regulator-always-on;
 	};
 
-	vddio_1v8_reg: fixedregulator@6{
-		vin-supply = <&vddio3v3_reg>;
-		compatible = "regulator-fixed";
-		regulator-name = "VDDIO_1V8";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	vddio_x: gpio-regulator {
+	vddio_x: gpio-regulator@vddio_x {
 		vin-supply = <&vddao3v3_reg>;
 		compatible = "regulator-gpio";
 		regulator-name = "VDDIO_X";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <3300000>;
-		gpios = <&gpio GPIOD_11 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio GPIOD_8 GPIO_ACTIVE_LOW>;
 		gpios-states = <1>;
 		states = <1800000 1
 			  3300000 0>;
 		regulator-boot-on;
 	};
 
-	vddds1v8_reg: fixedregulator@7{
+	sd_3v3_reg: fixed@sd_3v3_reg{
+		vin-supply = <&vddao3v3_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "SD_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddds1v8_reg: fixed@vddds1v8_reg{
 		vin-supply = <&vddao3v3_reg>;
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_DSOFF_1V8";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
-		gpio = <&gpio GPIOD_2 GPIO_ACTIVE_HIGH>;
+		gpio = <&ao_gpio GPIOAO_0 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-boot-on;
 		regulator-always-on;
-	};
-
-	avdd33_usb_reg: fixedregulator@9{
-		vin-supply = <&vddio3v3_reg>;
-		compatible = "regulator-fixed";
-		regulator-name = "AVDD33_USB";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-boot-on;
-	};
-
-	avdd18_usb_reg: fixedregulator@10{
-		vin-supply = <&vddio_1v8_reg>;
-		compatible = "regulator-fixed";
-		regulator-name = "AVDD18_USB";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-boot-on;
 	};
 
 	provisionkey {
@@ -1086,8 +1077,8 @@
 
 	//cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
 	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
-	//vmmc-supply = <&vddao_3v3>;
-	//vqmmc-supply = <&emmc_1v8>;
+	//vmmc-supply = <&sd_3v3_reg>;
+	//vqmmc-supply = <&vddio_x>;
 };
 
 &sd_emmc_c {
