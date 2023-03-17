@@ -21,6 +21,7 @@
 #include <linux/amlogic/media/vout/lcd/lcd_tcon_data.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
+#include <linux/amlogic/media/vout/lcd/lcd_tcon_fw.h>
 #include "lcd_reg.h"
 #include "lcd_common.h"
 #ifdef CONFIG_AMLOGIC_LCD_TABLET
@@ -31,8 +32,8 @@
 #include "lcd_tcon.h"
 #include "./lcd_clk/lcd_clk_config.h"
 
-/* 1: unlocked, 0: locked, negative: locked, possible waiters */
-struct mutex lcd_tcon_adb_mutex;
+//1: unlocked, 0: locked, negative: locked, possible waiters
+struct mutex lcd_tcon_dbg_mutex;
 
 /*device attribute buf max size 4k*/
 #define PR_BUF_MAX          (4 * 1024)
@@ -4279,12 +4280,12 @@ static ssize_t lcd_tcon_adb_status_show(struct device *dev,
 	int len = 0;
 	unsigned int i, addr;
 
-	mutex_lock(&lcd_tcon_adb_mutex);
+	mutex_lock(&lcd_tcon_dbg_mutex);
 
 	len += sprintf(buf + len, "for_tool:");
 	if ((pdrv->status & LCD_STATUS_IF_ON) == 0) {
 		len += sprintf(buf + len, "ERROR\n");
-		mutex_unlock(&lcd_tcon_adb_mutex);
+		mutex_unlock(&lcd_tcon_dbg_mutex);
 		return len;
 	}
 	switch (adb_reg.rw_mode) {
@@ -4358,7 +4359,7 @@ static ssize_t lcd_tcon_adb_status_show(struct device *dev,
 		break;
 	}
 	len += sprintf(buf + len, "\n");
-	mutex_unlock(&lcd_tcon_adb_mutex);
+	mutex_unlock(&lcd_tcon_dbg_mutex);
 	return len;
 }
 
@@ -5344,7 +5345,6 @@ static ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute 
 	char *buf_orig;
 	char **parm = NULL;
 	unsigned int temp = 0, val, back_val, i, n, size = 0;
-	unsigned int gamma_r, gamma_g, gamma_b;
 	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
 	unsigned char data;
 	unsigned char *table = NULL;
@@ -5496,22 +5496,6 @@ static ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute 
 					lcd_tcon_read(pdrv, temp + i));
 			}
 		}
-	} else if (strcmp(parm[0], "gamma") == 0) { /* save buf to bin */
-		if (!parm[4])
-			goto lcd_tcon_debug_store_err;
-		ret = kstrtouint(parm[1], 10, &temp);
-		if (ret)
-			goto lcd_tcon_debug_store_err;
-		ret = kstrtouint(parm[2], 16, &gamma_r);
-		if (ret)
-			goto lcd_tcon_debug_store_err;
-		ret = kstrtouint(parm[3], 16, &gamma_g);
-		if (ret)
-			goto lcd_tcon_debug_store_err;
-		ret = kstrtouint(parm[4], 16, &gamma_b);
-		if (ret)
-			goto lcd_tcon_debug_store_err;
-		lcd_tcon_gamma_set_pattern(pdrv, temp, gamma_r, gamma_g, gamma_b);
 	} else if (strcmp(parm[0], "table") == 0) {
 		if (lcd_tcon_reg_table_check(table, size))
 			goto lcd_tcon_debug_store_end;
@@ -5757,18 +5741,18 @@ static ssize_t lcd_tcon_adb_debug_store(struct device *dev, struct device_attrib
 	if (!buf)
 		return count;
 
-	mutex_lock(&lcd_tcon_adb_mutex);
+	mutex_lock(&lcd_tcon_dbg_mutex);
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	if (!buf_orig) {
-		mutex_unlock(&lcd_tcon_adb_mutex);
+		mutex_unlock(&lcd_tcon_dbg_mutex);
 		return count;
 	}
 
 	parm = kcalloc(1500, sizeof(char *), GFP_KERNEL);
 	if (!parm) {
 		kfree(buf_orig);
-		mutex_unlock(&lcd_tcon_adb_mutex);
+		mutex_unlock(&lcd_tcon_dbg_mutex);
 		return count;
 	}
 
@@ -5926,7 +5910,7 @@ static ssize_t lcd_tcon_adb_debug_store(struct device *dev, struct device_attrib
 
 	kfree(parm);
 	kfree(buf_orig);
-	mutex_unlock(&lcd_tcon_adb_mutex);
+	mutex_unlock(&lcd_tcon_dbg_mutex);
 	return count;
 
 lcd_tcon_adb_debug_store_err:
@@ -5934,7 +5918,45 @@ lcd_tcon_adb_debug_store_err:
 
 	kfree(parm);
 	kfree(buf_orig);
-	mutex_unlock(&lcd_tcon_adb_mutex);
+	mutex_unlock(&lcd_tcon_dbg_mutex);
+	return count;
+}
+
+static ssize_t lcd_tcon_fw_dbg_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct lcd_tcon_fw_s *tcon_fw = aml_lcd_tcon_get_fw();
+	ssize_t ret = 0;
+
+	if (!tcon_fw)
+		return ret;
+
+	if (tcon_fw->debug_show)
+		ret = tcon_fw->debug_show(tcon_fw, buf);
+
+	return ret;
+}
+
+static ssize_t lcd_tcon_fw_dbg_store(struct device *dev, struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	struct lcd_tcon_fw_s *tcon_fw = aml_lcd_tcon_get_fw();
+
+	if ((pdrv->status & LCD_STATUS_IF_ON) == 0)
+		return count;
+
+	if (!buf)
+		return count;
+	if (!tcon_fw)
+		return count;
+
+	mutex_lock(&lcd_tcon_dbg_mutex);
+
+	if (tcon_fw->debug_store)
+		tcon_fw->debug_store(tcon_fw, buf);
+
+	mutex_unlock(&lcd_tcon_dbg_mutex);
 	return count;
 }
 
@@ -6184,6 +6206,7 @@ static struct device_attribute lcd_debug_attrs_mlvds[] = {
 	__ATTR(tcon,   0644, lcd_tcon_debug_show, lcd_tcon_debug_store),
 	__ATTR(tcon_status,   0444, lcd_tcon_status_show, NULL),
 	__ATTR(tcon_reg,   0644, lcd_tcon_adb_status_show, lcd_tcon_adb_debug_store),
+	__ATTR(tcon_fw,   0644, lcd_tcon_fw_dbg_show, lcd_tcon_fw_dbg_store),
 	__ATTR(null,   0644, NULL, NULL)
 };
 
@@ -6193,6 +6216,7 @@ static struct device_attribute lcd_debug_attrs_p2p[] = {
 	__ATTR(tcon,   0644, lcd_tcon_debug_show, lcd_tcon_debug_store),
 	__ATTR(tcon_status,   0444, lcd_tcon_status_show, NULL),
 	__ATTR(tcon_reg,   0644, lcd_tcon_adb_status_show, lcd_tcon_adb_debug_store),
+	__ATTR(tcon_fw,   0644, lcd_tcon_fw_dbg_show, lcd_tcon_fw_dbg_store),
 	__ATTR(null,   0644, NULL, NULL)
 };
 
@@ -6725,11 +6749,11 @@ int lcd_debug_probe(struct aml_lcd_drv_s *pdrv)
 		lcd_debug_info->debug_if = lcd_debug_info->debug_if_edp;
 		break;
 	case LCD_MLVDS:
-		mutex_init(&lcd_tcon_adb_mutex);
+		mutex_init(&lcd_tcon_dbg_mutex);
 		lcd_debug_info->debug_if = lcd_debug_info->debug_if_mlvds;
 		break;
 	case LCD_P2P:
-		mutex_init(&lcd_tcon_adb_mutex);
+		mutex_init(&lcd_tcon_dbg_mutex);
 		lcd_debug_info->debug_if = lcd_debug_info->debug_if_p2p;
 		break;
 	default:

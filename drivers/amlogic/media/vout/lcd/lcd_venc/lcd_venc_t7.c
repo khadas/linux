@@ -21,9 +21,9 @@
 #include "../lcd_common.h"
 #include "lcd_venc.h"
 
-static inline unsigned int lcd_venc_get_encl_lint_cnt(struct aml_lcd_drv_s *pdrv)
+static inline unsigned int lcd_venc_get_encl_line_cnt(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned int reg, offset, line_cnt;
+	unsigned int reg, offset, cnt;
 
 	if (!pdrv)
 		return 0;
@@ -31,8 +31,22 @@ static inline unsigned int lcd_venc_get_encl_lint_cnt(struct aml_lcd_drv_s *pdrv
 	offset = pdrv->data->offset_venc[pdrv->index];
 	reg = VPU_VENCP_STAT + offset;
 
-	line_cnt = lcd_vcbus_getb(reg, 16, 13);
-	return line_cnt;
+	cnt = lcd_vcbus_getb(reg, 16, 13);
+	return cnt;
+}
+
+static inline unsigned int lcd_venc_get_encl_frm_cnt(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned int reg, offset, cnt;
+
+	if (!pdrv)
+		return 0;
+
+	offset = pdrv->data->offset_venc[pdrv->index];
+	reg = VPU_VENCP_STAT + offset;
+
+	cnt = lcd_vcbus_getb(reg, 29, 3);
+	return cnt;
 }
 
 static void lcd_wait_vsync_t7(struct aml_lcd_drv_s *pdrv)
@@ -537,7 +551,8 @@ int lcd_venc_op_init_t7(struct aml_lcd_drv_s *pdrv,
 	venc_op->mute_set = lcd_venc_mute_set;
 	venc_op->get_venc_init_config = lcd_venc_get_init_config;
 	venc_op->venc_vrr_recovery = lcd_venc_vrr_recovery_t7;
-	venc_op->get_encl_lint_cnt = lcd_venc_get_encl_lint_cnt;
+	venc_op->get_encl_line_cnt = lcd_venc_get_encl_line_cnt;
+	venc_op->get_encl_frm_cnt = lcd_venc_get_encl_frm_cnt;
 
 	return 0;
 };

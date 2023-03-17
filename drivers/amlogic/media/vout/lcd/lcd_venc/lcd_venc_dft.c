@@ -19,17 +19,18 @@
 #include "../lcd_common.h"
 #include "lcd_venc.h"
 
-static inline unsigned int lcd_venc_get_encl_lint_cnt(struct aml_lcd_drv_s *pdrv)
+static inline unsigned int lcd_venc_get_encl_line_cnt(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned int reg, line_cnt;
+	unsigned int line_cnt = lcd_vcbus_getb(ENCL_INFO_READ, 16, 13);
 
-	if (!pdrv)
-		return 0;
-
-	reg = ENCL_INFO_READ;
-
-	line_cnt = lcd_vcbus_getb(reg, 16, 13);
 	return line_cnt;
+}
+
+static unsigned int lcd_venc_get_encl_frm_cnt(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned int frm_cnt = lcd_vcbus_getb(ENCL_INFO_READ, 29, 3);
+
+	return frm_cnt;
 }
 
 static void lcd_wait_vsync_dft(struct aml_lcd_drv_s *pdrv)
@@ -457,7 +458,8 @@ int lcd_venc_op_init_dft(struct aml_lcd_drv_s *pdrv,
 	venc_op->mute_set = lcd_venc_mute_set;
 	venc_op->get_venc_init_config = lcd_venc_get_init_config;
 	venc_op->venc_vrr_recovery = lcd_venc_vrr_recovery_dft;
-	venc_op->get_encl_lint_cnt = lcd_venc_get_encl_lint_cnt;
+	venc_op->get_encl_line_cnt = lcd_venc_get_encl_line_cnt;
+	venc_op->get_encl_frm_cnt = lcd_venc_get_encl_frm_cnt;
 
 	return 0;
 };

@@ -59,7 +59,8 @@
 /* 20230313: update tcon debug info print*/
 /* 20230119: optimize phy code*/
 /* 20230406: add a4 support*/
-#define LCD_DRV_VERSION    "20230406"
+/* 20230510: support tcon fw*/
+#define LCD_DRV_VERSION    "20230510"
 
 extern struct mutex lcd_vout_mutex;
 
@@ -155,9 +156,6 @@ void lcd_tcon_reg_write(struct aml_lcd_drv_s *pdrv,
 			unsigned int addr, unsigned int val);
 int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_global_reset(struct aml_lcd_drv_s *pdrv);
-int lcd_tcon_gamma_set_pattern(struct aml_lcd_drv_s *pdrv,
-			       unsigned int bit_width, unsigned int gamma_r,
-			       unsigned int gamma_g, unsigned int gamma_b);
 unsigned int lcd_tcon_table_read(unsigned int addr);
 unsigned int lcd_tcon_table_write(unsigned int addr, unsigned int val);
 int lcd_tcon_core_update(struct aml_lcd_drv_s *pdrv);
@@ -177,7 +175,8 @@ int lcd_debug_probe(struct aml_lcd_drv_s *pdrv);
 int lcd_debug_remove(struct aml_lcd_drv_s *pdrv);
 
 /* lcd venc */
-unsigned int lcd_get_encl_lint_cnt(struct aml_lcd_drv_s *pdrv);
+unsigned int lcd_get_encl_line_cnt(struct aml_lcd_drv_s *pdrv);
+unsigned int lcd_get_encl_frm_cnt(struct aml_lcd_drv_s *pdrv);
 void lcd_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num);
 void lcd_wait_vsync(struct aml_lcd_drv_s *pdrv);
 void lcd_gamma_debug_test_en(struct aml_lcd_drv_s *pdrv, int flag);

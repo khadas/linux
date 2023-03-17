@@ -26,6 +26,7 @@
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
+#include <linux/amlogic/media/vout/lcd/lcd_tcon_fw.h>
 #ifdef CONFIG_AMLOGIC_BACKLIGHT
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
 #endif
@@ -50,6 +51,7 @@ static struct lcd_tcon_local_cfg_s tcon_local_cfg;
 
 static int lcd_tcon_data_multi_remvoe(struct tcon_mem_map_table_s *mm_table);
 static int lcd_tcon_data_multi_reset(struct tcon_mem_map_table_s *mm_table);
+static void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv);
 
 static unsigned long long *dbg_vsync_time, *dbg_list_trave_time;
 static unsigned int dbg_vsync_cnt, dbg_list_trave_cnt;
@@ -184,6 +186,48 @@ void lcd_tcon_dbg_trace_print(unsigned int flag)
  * tcon common function
  * **********************************
  */
+static struct tcon_fw_config_s lcd_tcon_fw_config = {
+	.config_size = sizeof(struct tcon_fw_config_s),
+	.chip_type = TCON_CHIP_MAX,
+	.if_type = TCON_IF_TYPE_MAX,
+	.axi_cnt = 0,
+	.axi_rmem = NULL,
+};
+
+static struct lcd_tcon_fw_s lcd_tcon_fw = {
+	/* init by driver */
+	.para_ver = TCON_FW_PARA_VER,
+	.para_size = sizeof(struct lcd_tcon_fw_s),
+	.valid = 0,
+	.tcon_state = 0,
+
+	/* init by fw */
+	.flag = 0,
+	.fw_ver = "not installed",
+	.dbg_level = 0,
+
+	/* driver resource */
+	.drvdat = NULL,
+	.dev = NULL,
+	.config = &lcd_tcon_fw_config,
+
+	/* fw resource */
+	.buf_table_in = NULL,
+	.buf_table_out = NULL,
+
+	/* API */
+	.vsync_isr = NULL,
+	.tcon_alg = NULL,
+	.debug_show = NULL,
+	.debug_store = NULL,
+};
+
+struct lcd_tcon_fw_s *aml_lcd_tcon_get_fw(void)
+{
+	return &lcd_tcon_fw;
+}
+EXPORT_SYMBOL(aml_lcd_tcon_get_fw);
+
 int lcd_tcon_valid_check(void)
 {
 	if (!lcd_tcon_conf) {
@@ -932,27 +976,6 @@ void lcd_tcon_global_reset(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
-int lcd_tcon_gamma_set_pattern(struct aml_lcd_drv_s *pdrv,
-			       unsigned int bit_width, unsigned int gamma_r,
-			       unsigned int gamma_g, unsigned int gamma_b)
-{
-	int ret;
-
-	ret = lcd_tcon_valid_check();
-	if (ret)
-		return -1;
-
-	if (lcd_tcon_conf->tcon_gamma_pattern) {
-		ret = lcd_tcon_conf->tcon_gamma_pattern(pdrv,
-							bit_width, gamma_r,
-							gamma_g, gamma_b);
-		LCDPR("%s: %dbits gamma r:0x%x g:0x%x b:0x%x\n",
-		      __func__, bit_width, gamma_r, gamma_g, gamma_b);
-	}
-
-	return ret;
-}
-
 int lcd_tcon_core_update(struct aml_lcd_drv_s *pdrv)
 {
 	int ret;
@@ -997,6 +1020,7 @@ int lcd_tcon_reload(struct aml_lcd_drv_s *pdrv)
 
 int lcd_tcon_enable(struct aml_lcd_drv_s *pdrv)
 {
+	struct lcd_tcon_fw_s *tcon_fw = aml_lcd_tcon_get_fw();
 	int ret;
 
 	ret = lcd_tcon_valid_check();
@@ -1006,11 +1030,14 @@ int lcd_tcon_enable(struct aml_lcd_drv_s *pdrv)
 	if (lcd_tcon_conf->tcon_enable)
 		lcd_tcon_conf->tcon_enable(pdrv);
 
+	tcon_fw->tcon_state |= TCON_FW_STATE_TCON_EN;
+
 	return 0;
 }
 
 void lcd_tcon_disable(struct aml_lcd_drv_s *pdrv)
 {
+	struct lcd_tcon_fw_s *tcon_fw = aml_lcd_tcon_get_fw();
 	unsigned int i;
 	int ret;
 
@@ -1019,6 +1046,8 @@ void lcd_tcon_disable(struct aml_lcd_drv_s *pdrv)
 		return;
 
 	LCDPR("%s\n", __func__);
+
+	tcon_fw->tcon_state &= ~TCON_FW_STATE_TCON_EN;
 
 	/* release data*/
 	if (tcon_mm_table.version) {
@@ -1658,7 +1687,7 @@ static int lcd_tcon_data_multi_set(struct aml_lcd_drv_s *pdrv,
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_TEST) {
 		local_time[0] = sched_clock();
-		line_cnt = lcd_get_encl_lint_cnt(pdrv);
+		line_cnt = lcd_get_encl_line_cnt(pdrv);
 		lcd_tcon_dbg_vsync_time_save(local_time[0], line_cnt, 0);
 	}
 
@@ -1671,14 +1700,14 @@ static int lcd_tcon_data_multi_set(struct aml_lcd_drv_s *pdrv,
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_TEST) {
 		local_time[1] = sched_clock();
-		line_cnt = lcd_get_encl_lint_cnt(pdrv);
+		line_cnt = lcd_get_encl_line_cnt(pdrv);
 		lcd_tcon_dbg_vsync_time_save(local_time[1] - local_time[0], line_cnt, 1);
 	}
 
 	lcd_tcon_data_multi_update(pdrv, &tcon_mm_table);
 	if (lcd_debug_print_flag & LCD_DBG_PR_TEST) {
 		local_time[2] = sched_clock();
-		line_cnt = lcd_get_encl_lint_cnt(pdrv);
+		line_cnt = lcd_get_encl_line_cnt(pdrv);
 		lcd_tcon_dbg_vsync_time_save(local_time[2] - local_time[0], line_cnt, 2);
 	}
 
@@ -1704,7 +1733,7 @@ static int lcd_tcon_data_multi_set(struct aml_lcd_drv_s *pdrv,
 	}
 	if (lcd_debug_print_flag & LCD_DBG_PR_TEST) {
 		local_time[3] = sched_clock();
-		line_cnt = lcd_get_encl_lint_cnt(pdrv);
+		line_cnt = lcd_get_encl_line_cnt(pdrv);
 		temp = (0xf << 12) | (lut_hit << 4) | 3;
 		lcd_tcon_dbg_vsync_time_save(local_time[3] - local_time[0], line_cnt, temp);
 		lcd_tcon_time_sort_save(mm_table->vsync_time, (local_time[3] - local_time[0]));
@@ -1715,6 +1744,7 @@ static int lcd_tcon_data_multi_set(struct aml_lcd_drv_s *pdrv,
 
 void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 {
+	struct lcd_tcon_fw_s *tcon_fw = aml_lcd_tcon_get_fw();
 	unsigned long flags = 0;
 
 	if ((pdrv->status & LCD_STATUS_IF_ON) == 0)
@@ -1729,6 +1759,9 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 			spin_unlock_irqrestore(&tcon_local_cfg.multi_list_lock, flags);
 		}
 	}
+
+	if (tcon_fw->vsync_isr)
+		tcon_fw->vsync_isr(tcon_fw);
 }
 
 /* **********************************
@@ -3049,6 +3082,8 @@ static int lcd_tcon_get_config(struct aml_lcd_drv_s *pdrv)
 	lcd_tcon_intr_init(pdrv);
 	//lcd_tcon_line_n_intr_init(pdrv);
 
+	lcd_tcon_fw_prepare(pdrv);
+
 	return 0;
 }
 
@@ -3074,6 +3109,81 @@ static void lcd_tcon_get_config_work(struct work_struct *p_work)
 	}
 
 	lcd_tcon_get_config(pdrv);
+}
+
+static void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_tcon_fw_s *tcon_fw = aml_lcd_tcon_get_fw();
+	int i;
+
+	if (!tcon_fw || !tcon_fw->config)
+		return;
+	if (!lcd_tcon_conf)
+		return;
+
+	switch (pdrv->data->chip_type) {
+	case LCD_CHIP_TL1:
+		tcon_fw->config->chip_type = TCON_CHIP_TL1;
+		break;
+	case LCD_CHIP_TM2:
+	case LCD_CHIP_TM2B:
+		tcon_fw->config->chip_type = TCON_CHIP_TM2;
+		break;
+	case LCD_CHIP_T5:
+		tcon_fw->config->chip_type = TCON_CHIP_T5;
+		break;
+	case LCD_CHIP_T5D:
+		tcon_fw->config->chip_type = TCON_CHIP_T5D;
+		break;
+	case LCD_CHIP_T3:
+		tcon_fw->config->chip_type = TCON_CHIP_T3;
+		break;
+	case LCD_CHIP_T5W:
+		tcon_fw->config->chip_type = TCON_CHIP_T5W;
+		break;
+	default:
+		break;
+	}
+	switch (pdrv->config.basic.lcd_type) {
+	case LCD_MLVDS:
+		tcon_fw->config->if_type = TCON_IF_MLVDS;
+		break;
+	case LCD_P2P:
+		tcon_fw->config->if_type = TCON_IF_P2P;
+		break;
+	default:
+		break;
+	}
+
+	tcon_fw->config->axi_cnt = lcd_tcon_conf->axi_bank;
+	if (!tcon_rmem.axi_rmem)
+		return;
+	tcon_fw->config->axi_rmem = kcalloc(tcon_fw->config->axi_cnt,
+		sizeof(struct tcon_fw_axi_rmem_s), GFP_KERNEL);
+	for (i = 0; i < tcon_fw->config->axi_cnt; i++) {
+		tcon_fw->config->axi_rmem[i].mem_paddr = tcon_rmem.axi_rmem[i].mem_paddr;
+		tcon_fw->config->axi_rmem[i].mem_size = tcon_rmem.axi_rmem[i].mem_size;
+	}
+
+	if (pdrv->status & LCD_STATUS_IF_ON)
+		tcon_fw->tcon_state |= TCON_FW_STATE_TCON_EN;
+	if (tcon_mm_table.valid_flag & LCD_TCON_DATA_VALID_VAC)
+		tcon_fw->tcon_state |= TCON_FW_STATE_VAC_VALID;
+	if (tcon_mm_table.valid_flag & LCD_TCON_DATA_VALID_DEMURA)
+		tcon_fw->tcon_state |= TCON_FW_STATE_DEMURA_VALID;
+	if (tcon_mm_table.valid_flag & LCD_TCON_DATA_VALID_ACC)
+		tcon_fw->tcon_state |= TCON_FW_STATE_ACC_VALID;
+	if (tcon_mm_table.valid_flag & LCD_TCON_DATA_VALID_DITHER)
+		tcon_fw->tcon_state |= TCON_FW_STATE_DITHER_VALID;
+	if (tcon_mm_table.valid_flag & LCD_TCON_DATA_VALID_OD)
+		tcon_fw->tcon_state |= TCON_FW_STATE_OD_VALID;
+	if (tcon_mm_table.valid_flag & LCD_TCON_DATA_VALID_LOD)
+		tcon_fw->tcon_state |= TCON_FW_STATE_LOD_VALID;
+
+	tcon_fw->drvdat = (void *)pdrv;
+	tcon_fw->dev = pdrv->dev;
+
+	tcon_fw->valid = 1;
 }
 
 /* **********************************
@@ -3119,7 +3229,6 @@ static struct lcd_tcon_config_s tcon_data_tl1 = {
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_tl1,
 	.tcon_axi_mem_update = NULL,
 	.tcon_global_reset = NULL,
-	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_tl1,
 	.tcon_enable = lcd_tcon_enable_tl1,
 	.tcon_disable = lcd_tcon_disable_tl1,
 	.tcon_reload = NULL,
@@ -3165,7 +3274,6 @@ static struct lcd_tcon_config_s tcon_data_t5 = {
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_axi_mem_update = lcd_tcon_axi_rmem_update_t5,
 	.tcon_global_reset = lcd_tcon_global_reset_t5,
-	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
 	.tcon_reload = NULL,
@@ -3207,7 +3315,6 @@ static struct lcd_tcon_config_s tcon_data_t5d = {
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_axi_mem_update = lcd_tcon_axi_rmem_update_t5d,
 	.tcon_global_reset = lcd_tcon_global_reset_t5,
-	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
 	.tcon_reload = NULL,
@@ -3253,7 +3360,6 @@ static struct lcd_tcon_config_s tcon_data_t3 = {
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_axi_mem_update = lcd_tcon_axi_rmem_update_t5,
 	.tcon_global_reset = lcd_tcon_global_reset_t3,
-	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_t5,
 	.tcon_enable = lcd_tcon_enable_t3,
 	.tcon_disable = lcd_tcon_disable_t3,
 	.tcon_reload = lcd_tcon_reload_t3,
@@ -3299,7 +3405,6 @@ static struct lcd_tcon_config_s tcon_data_t5w = {
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_axi_mem_update = lcd_tcon_axi_rmem_update_t5,
 	.tcon_global_reset = lcd_tcon_global_reset_t5,
-	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
 	.tcon_reload = lcd_tcon_reload_t3,

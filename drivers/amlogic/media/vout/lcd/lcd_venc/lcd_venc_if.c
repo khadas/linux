@@ -19,18 +19,21 @@
 #include "../lcd_common.h"
 #include "lcd_venc.h"
 
-static struct lcd_venc_op_s lcd_venc_op = { .init_flag = 0,
-					    .wait_vsync = NULL,
-					    .gamma_test_en = NULL,
-					    .venc_debug_test = NULL,
-					    .venc_set_timing = NULL,
-					    .venc_set = NULL,
-					    .venc_change = NULL,
-					    .venc_enable = NULL,
-					    .mute_set = NULL,
-					    .get_venc_init_config = NULL,
-					    .venc_vrr_recovery = NULL,
-					    .get_encl_lint_cnt = NULL };
+static struct lcd_venc_op_s lcd_venc_op = {
+	.init_flag = 0,
+	.wait_vsync = NULL,
+	.gamma_test_en = NULL,
+	.venc_debug_test = NULL,
+	.venc_set_timing = NULL,
+	.venc_set = NULL,
+	.venc_change = NULL,
+	.venc_enable = NULL,
+	.mute_set = NULL,
+	.get_venc_init_config = NULL,
+	.venc_vrr_recovery = NULL,
+	.get_encl_line_cnt = NULL,
+	.get_encl_frm_cnt = NULL,
+};
 
 void lcd_wait_vsync(struct aml_lcd_drv_s *pdrv)
 {
@@ -84,19 +87,35 @@ void lcd_venc_change(struct aml_lcd_drv_s *pdrv)
 	lcd_venc_op.venc_change(pdrv);
 }
 
-unsigned int lcd_get_encl_lint_cnt(struct aml_lcd_drv_s *pdrv)
+unsigned int lcd_get_encl_line_cnt(struct aml_lcd_drv_s *pdrv)
 {
-	if (!lcd_venc_op.get_encl_lint_cnt)
+	unsigned int cnt = 0;
+
+	if (!lcd_venc_op.get_encl_line_cnt)
 		return 0;
 
-	int ret = 0;
-
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+	if (lcd_debug_print_flag & LCD_DBG_PR_ISR)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
-	ret = lcd_venc_op.get_encl_lint_cnt(pdrv);
-	return ret;
+	cnt = lcd_venc_op.get_encl_line_cnt(pdrv);
+	return cnt;
 }
+EXPORT_SYMBOL(lcd_get_encl_line_cnt);
+
+unsigned int lcd_get_encl_frm_cnt(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned int cnt = 0;
+
+	if (!lcd_venc_op.get_encl_frm_cnt)
+		return 0;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_ISR)
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+
+	cnt = lcd_venc_op.get_encl_frm_cnt(pdrv);
+	return cnt;
+}
+EXPORT_SYMBOL(lcd_get_encl_frm_cnt);
 
 void lcd_venc_vrr_recovery(struct aml_lcd_drv_s *pdrv)
 {
