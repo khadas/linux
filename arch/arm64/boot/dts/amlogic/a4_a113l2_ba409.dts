@@ -29,7 +29,7 @@
 		//spi0 = &spifc;
 		spi1 = &spicc0;
 		spi2 = &spicc1;
-		//tsensor0 = &p_tsensor;
+		tsensor0 = &p_tsensor;
 	};
 
 	memory@00000000 {
