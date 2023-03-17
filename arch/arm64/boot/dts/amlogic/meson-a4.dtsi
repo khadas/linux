@@ -1599,12 +1599,6 @@
 		/* 4: 333.3M */
 	};
 
-	vclk_serve: vclk_serve {
-		compatible = "amlogic, vclk_serve";
-		status = "okay";
-		reg = <0x0 0xfe000000 0x0 0x2000>;    /* clk */
-	};
-
 	vout: vout {
 		compatible = "amlogic, vout";
 		status = "okay";
@@ -1656,6 +1650,14 @@
 		/** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
 		display_size_default = <1280 720 1280 1440 32>;
 		/*1920*1080*4*3 = 0x17BB000*/
+	};
+
+	meson-amvideom {
+		compatible = "amlogic, amvideom-a4";
+		dev_name = "amvideom";
+		status = "okay";
+		interrupts = <GIC_SPI 222 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "vsync";
 	};
 
 	ir: ir@8000 {

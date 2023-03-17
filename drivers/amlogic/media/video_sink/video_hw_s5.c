@@ -147,12 +147,13 @@ static void vdx_scaler_setting_s5(struct video_layer_s *layer,
 	struct scaler_setting_s *setting);
 static void _vd_mif_setting_s5(struct video_layer_s *layer,
 			struct mif_pos_s *setting);
+#ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
 static void _vd_fgrain_config_s5(struct video_layer_s *layer,
 		   struct vpp_frame_par_s *frame_par,
 		   struct vframe_s *vf);
 static void _vd_fgrain_setting_s5(struct video_layer_s *layer,
 		    struct vframe_s *vf);
-
+#endif
 static inline u32 slice_out_hsize(u32 slice,
 	u32 slice_num, u32 frm_hsize)
 {
@@ -5374,10 +5375,12 @@ void vd_s5_hw_set(struct video_layer_s *layer,
 		vd_set_dcu_s5(layer->layer_id, layer,
 				frame_par, dispbuf);
 		_vd_mif_setting_s5(layer, &layer->mif_setting);
+#ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
 		_vd_fgrain_config_s5(layer,
 			      frame_par,
 			      dispbuf);
 		_vd_fgrain_setting_s5(layer, dispbuf);
+#endif
 	}
 	/* update info for dv */
 	update_vd_proc_amdv_info(vd_proc);
@@ -11331,7 +11334,6 @@ int video_hw_init_s5(void)
 {
 	//u32 cur_hold_line;
 	//struct vpu_dev_s *arb_vpu_dev;
-	int i;
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	void *video_secure_op[VPP_TOP_MAX] = {VSYNC_WR_MPEG_REG_BITS,
 					       VSYNC_WR_MPEG_REG_BITS_VPP1,
@@ -11398,6 +11400,8 @@ int video_hw_init_s5(void)
 	WRITE_VCBUS_REG(S5_VIU_VD1_MISC, 0x100);
 	save_vd_pps_reg();
 #ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
+	int i;
+
 	for (i = 0; i < MAX_VD_CHAN_S5; i++) {
 		if (glayer_info[i].fgrain_support)
 			fgrain_init_s5(i, FGRAIN_TBL_SIZE);

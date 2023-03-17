@@ -26,4 +26,9 @@ void vpp_secure_cb(u32 arg);
 #endif
 void int_vpu_delay_work(void);
 
+void set_probe_ctrl_a4(u8 probe_id);
+u32 get_probe_pos_a4(u8 probe_id);
+void set_probe_pos_a4(u32 val_x, u32 val_y);
+u32 get_probe_data_a4(void);
+
 #endif

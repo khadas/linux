@@ -21,7 +21,9 @@
 
 #include <linux/amlogic/media/video_sink/vpp.h>
 #include "video_reg.h"
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 #include <linux/amlogic/media/amvecm/amvecm.h>
+#endif
 #include "video_reg_s5.h"
 
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
@@ -213,7 +215,15 @@ enum display_module_e {
 	OLD_DISPLAY_MODULE,
 	T7_DISPLAY_MODULE,
 	S5_DISPLAY_MODULE,
+	C3_DISPLAY_MODULE,
 };
+
+enum matrix_type_e {
+	MATRIX_BYPASS = 0,
+	YUV2RGB,
+	RGB2YUV
+};
+
 typedef u32 (*rdma_rd_op)(u32 reg);
 typedef int (*rdma_wr_op)(u32 reg, u32 val);
 typedef int (*rdma_wr_bits_op)(u32 reg, u32 val, u32 start, u32 len);
@@ -243,6 +253,7 @@ struct video_dev_s {
 	u32 aisr_demo_yend;
 	bool power_ctrl;
 	struct hw_pps_reg_s aisr_pps_reg;
+	struct hw_vout_blend_reg_s vout_blend_reg;
 	struct vpp_frame_par_s aisr_frame_parms;
 	struct rdma_fun_s rdma_func[RDMA_INTERFACE_NUM];
 	u32 sr_in_size;
@@ -425,6 +436,7 @@ struct video_layer_s {
 	struct hw_fg_reg_s fg_reg;
 	struct hw_pps_reg_s pps_reg;
 	struct hw_vpp_blend_reg_s vpp_blend_reg;
+	struct hw_vd_csc_reg_s vd_csc_reg;
 	u8 cur_canvas_id;
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	u8 next_canvas_id;
@@ -531,6 +543,8 @@ enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_T3_,
 	MESON_CPU_MAJOR_ID_T5W_,
 	MESON_CPU_MAJOR_ID_S5_,
+	MESON_CPU_MAJOR_ID_C3_,
+	MESON_CPU_MAJOR_ID_A4_,
 	MESON_CPU_MAJOR_ID_UNKNOWN_,
 };
 
@@ -842,6 +856,17 @@ extern u32 video_info_change_status;
 extern u32 reference_zorder;
 extern u32 pi_enable;
 
+#ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+enum vd_path_e {
+	VD1_PATH = 0,
+	VD2_PATH = 1,
+	VD3_PATH = 2,
+	VD_PATH_MAX = 3
+};
+
+#define MAX_SOURCE      10
+#endif
+
 bool black_threshold_check(u8 id);
 bool black_threshold_check_s5(u8 id);
 extern atomic_t primary_src_fmt;
@@ -875,6 +900,8 @@ bool video_is_meson_t5d_revb_cpu(void);
 bool video_is_meson_t3_cpu(void);
 bool video_is_meson_t5w_cpu(void);
 bool video_is_meson_s5_cpu(void);
+bool video_is_meson_c3_cpu(void);
+bool video_is_meson_a4_cpu(void);
 void alpha_win_set(struct video_layer_s *layer);
 void fgrain_config(struct video_layer_s *layer,
 		   struct vpp_frame_par_s *frame_par,
@@ -976,6 +1003,11 @@ enum {
 	PTS_TYPE_MAX = 3
 };
 
+#define TIME_UNIT90K    (90000)
+#define AM_ABSSUB(a, b) ({ unsigned int _a = a; \
+	unsigned int _b = b; \
+	((_a) >= (_b)) ? ((_a) - (_b)) : ((_b) - (_a)); })
+
 static inline void tsync_avevent_locked(enum avevent_e event, u32 param) {}
 static inline void tsync_avevent(enum avevent_e event, u32 param) {}
 static inline int tsync_get_mode(void) { return 0; }
@@ -1010,6 +1042,10 @@ static inline void timestamp_pcrscr_inc(s32 val) {}
 static inline void timestamp_pcrscr_inc_scale(s32 inc, u32 base) {}
 static inline void timestamp_pcrscr_enable(u32 enable) {}
 static inline u32 timestamp_pcrscr_enable_state(void) { return 0; }
+static inline void timestamp_vpts_set_u64(u64 pts) {}
+static inline void timestamp_vpts_inc_u64(s32 val) {}
+static inline u64 timestamp_pcrscr_get_u64(void) { return 0; }
+static inline void timestamp_avsync_counter_set(u32 counts) {}
 
 static inline int calculation_stream_delayed_ms(u8 type, u32 *latestbirate,
 						u32 *avg_bitare)
@@ -1019,15 +1055,6 @@ static inline bool tsync_check_vpts_discontinuity(unsigned int vpts)
 {
 	return false;
 }
-#endif
-
-#ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-enum vd_path_e {
-	VD1_PATH = 0,
-	VD2_PATH = 1,
-	VD3_PATH = 2,
-	VD_PATH_MAX = 3
-};
 #endif
 #endif
 /*VIDEO_PRIV_HEADER_HH*/

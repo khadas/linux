@@ -692,6 +692,88 @@
 #define A4_VOUT_VD1_PREVSC_COEF                       0x021c
 #define A4_VOUT_VD1_PREHSC_COEF1                      0x021d
 
+/* a4 osd */
+#define A4_VOUT_OSD1_CTRL_STAT                        0x0140
+#define A4_VOUT_OSD1_CTRL_STAT2                       0x0141
+#define A4_VOUT_OSD1_COLOR_ADDR                       0x0142
+#define A4_VOUT_OSD1_COLOR                            0x0143
+#define A4_VOUT_OSD1_TCOLOR_AG0                       0x0144
+#define A4_VOUT_OSD1_TCOLOR_AG1                       0x0145
+#define A4_VOUT_OSD1_TCOLOR_AG2                       0x0146
+#define A4_VOUT_OSD1_TCOLOR_AG3                       0x0147
+#define A4_VOUT_OSD1_BLK0_CFG_W0                      0x0148
+#define A4_VOUT_OSD1_BLK1_CFG_W0                      0x0149
+#define A4_VOUT_OSD1_BLK2_CFG_W0                      0x014a
+#define A4_VOUT_OSD1_BLK3_CFG_W0                      0x014b
+#define A4_VOUT_OSD1_BLK0_CFG_W1                      0x014c
+#define A4_VOUT_OSD1_BLK1_CFG_W1                      0x014d
+#define A4_VOUT_OSD1_BLK2_CFG_W1                      0x014e
+#define A4_VOUT_OSD1_BLK3_CFG_W1                      0x014f
+#define A4_VOUT_OSD1_BLK0_CFG_W2                      0x0150
+#define A4_VOUT_OSD1_BLK1_CFG_W2                      0x0151
+#define A4_VOUT_OSD1_BLK2_CFG_W2                      0x0152
+#define A4_VOUT_OSD1_BLK3_CFG_W2                      0x0153
+#define A4_VOUT_OSD1_BLK0_CFG_W3                      0x0154
+#define A4_VOUT_OSD1_BLK1_CFG_W3                      0x0155
+#define A4_VOUT_OSD1_BLK2_CFG_W3                      0x0156
+#define A4_VOUT_OSD1_BLK3_CFG_W3                      0x0157
+#define A4_VOUT_OSD1_BLK0_CFG_W4                      0x0158
+#define A4_VOUT_OSD1_BLK1_CFG_W4                      0x0159
+#define A4_VOUT_OSD1_BLK2_CFG_W4                      0x015a
+#define A4_VOUT_OSD1_BLK3_CFG_W4                      0x015b
+#define A4_VOUT_OSD1_FIFO_CTRL_STAT                   0x0160
+#define A4_VOUT_OSD1_TEST_RDDATA                      0x0161
+#define A4_VOUT_OSD1_PROT_CTRL                        0x0162
+#define A4_VOUT_OSD1_MALI_UNPACK_CTRL                 0x0163
+#define A4_VOUT_OSD1_DIMM_CTRL                        0x0164
+#define A4_VOUT_OSD1_UNSUPPORT      A4_VOUT_OSD1_TCOLOR_AG0
+
+/* OSD CSC */
+#define A4_VOUT_OSD1_CSC_COEF00_01                    0x0180
+#define A4_VOUT_OSD1_CSC_COEF02_10                    0x0181
+#define A4_VOUT_OSD1_CSC_COEF11_12                    0x0182
+#define A4_VOUT_OSD1_CSC_COEF20_21                    0x0183
+#define A4_VOUT_OSD1_CSC_COEF22                       0x0184
+#define A4_VOUT_OSD1_CSC_COEF30_31                    0x0185
+#define A4_VOUT_OSD1_CSC_COEF32_40                    0x0186
+#define A4_VOUT_OSD1_CSC_COEF41_42                    0x0187
+#define A4_VOUT_OSD1_CSC_CLIP                         0x0188
+#define A4_VOUT_OSD1_CSC_OFFSET0_1                    0x0189
+#define A4_VOUT_OSD1_CSC_OFFSET2                      0x018a
+#define A4_VOUT_OSD1_CSC_PRE_OFFSET0_1                0x018b
+#define A4_VOUT_OSD1_CSC_PRE_OFFSET2                  0x018c
+#define A4_VOUT_OSD1_CSC_EN_CTRL                      0x018d
+
+/* OSD_SCALER */
+#define A4_VOUT_OSD1_VSC_PHASE_STEP                   0x01a0
+#define A4_VOUT_OSD1_VSC_INI_PHASE                    0x01a1
+#define A4_VOUT_OSD1_VSC_CTRL0                        0x01a2
+#define A4_VOUT_OSD1_HSC_PHASE_STEP                   0x01a3
+#define A4_VOUT_OSD1_HSC_INI_PHASE                    0x01a4
+#define A4_VOUT_OSD1_HSC_CTRL0                        0x01a5
+#define A4_VOUT_OSD1_HSC_INI_PAT_CTRL                 0x01a6
+#define A4_VOUT_OSD1_SC_DUMMY_DATA                    0x01a7
+#define A4_VOUT_OSD1_SC_CTRL0                         0x01a8
+#define A4_VOUT_OSD1_SCI_WH_M1                        0x01a9
+#define A4_VOUT_OSD1_SCO_H_START_END                  0x01aa
+#define A4_VOUT_OSD1_SCO_V_START_END                  0x01ab
+#define A4_VOUT_OSD1_SCALE_COEF_IDX                   0x01ac
+#define A4_VOUT_OSD1_SCALE_COEF                       0x01ad
+#define A4_VOUT_OSD1_DB_FLT_CTRL                      0x01ae
+#define A4_VOUT_OSD1_DB_FLT_CTRL1                     0x01af
+#define A4_VOUT_OSD1_DB_FLT_LUMA_THRD                 0x01b0
+#define A4_VOUT_OSD1_DB_FLT_CHRM_THRD                 0x01b1
+#define A4_VOUT_OSD1_DB_FLT_RANDLUT                   0x01b2
+#define A4_VOUT_OSD1_DB_FLT_PXI_THRD                  0x01b3
+#define A4_VOUT_OSD1_DB_FLT_SEED_Y                    0x01b4
+#define A4_VOUT_OSD1_DB_FLT_SEED_U                    0x01b5
+#define A4_VOUT_OSD1_DB_FLT_SEED_V                    0x01b6
+#define A4_VOUT_OSD1_DB_FLT_SEED3                     0x01b7
+#define A4_VOUT_OSD1_DB_FLT_SEED4                     0x01b8
+#define A4_VOUT_OSD1_DB_FLT_SEED5                     0x01b9
+
+#define A4_VPU_VOUT_VDSC_SIZE                         0x0011
+
 #define A4_VPU_VOUT_BLEND_CTRL                        0x0040
 #define A4_VPU_VOUT_BLEND_DUMDATA                     0x0041
 #define A4_VPU_VOUT_BLEND_SIZE                        0x0042
@@ -702,5 +784,24 @@
 //osd1 module
 #define A4_VPU_VOUT_BLD_SRC1_HPOS                     0x0045
 #define A4_VPU_VOUT_BLD_SRC1_VPOS                     0x0046
+
+#define VPU_VOUT_RO_PROB                              0x005a
+//Bit 31:0   ro_prob_dat                 //unsigned  ro
+#define VPU_VOUT_PROB_CTRL                            0x0060
+//Bit 31:6   reserved
+//Bit 5      reg_prob_clr               //unsigned,   RW,   default = 'd100;
+//Bit 4      reg_prob_en                //unsigned,   RW,   default = 'd100;
+//Bit 3 : 0  reg_prob_src               //unsigned,   RW,   default = 'd100;
+#define VPU_VOUT_PROB_POS                             0x0061
+//Bit 31:29  reserved
+//Bit 28:16  reg_prob_pos_x             //unsigned,   RW,   default = 'd100;
+//Bit 15:13  reserved
+//Bit 12 :0  reg_prob_pos_y             //unsigned,   RW,   default = 'd100;
+#define VPU_VOUT_PROB_SIZE                            0x0062
+//Bit 31:29  reserved
+//Bit 28:16  reg_prob_hsize             //unsigned,   RW,   default = 'd100;
+//Bit 15:13  reserved
+//Bit 12 :0  reg_prob_vsize             //unsigned,   RW,   default = 'd100;
+
 #endif
 

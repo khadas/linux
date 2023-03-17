@@ -5,9 +5,7 @@
 
 #ifndef VIDEO_LOW_LATENCTY_HH
 #define VIDEO_LOW_LATENCTY_HH
-#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 #include "vpp_pq.h"
-#endif
 #include <linux/amlogic/media/video_sink/video_signal_notify.h>
 #include <linux/amlogic/media/video_sink/vpp.h>
 #include "video_reg.h"

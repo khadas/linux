@@ -979,11 +979,15 @@ static int vpp_process_speed_check
 		else
 			clk_in_pps = 333000000;
 	} else {
+#ifdef CONFIG_AMLOGIC_VPU
 		clk_in_pps = vpu_clk_get();
+#endif
 	}
 
 	next_frame_par->clk_in_pps = clk_in_pps;
+#ifdef CONFIG_AMLOGIC_VPU
 	vpu_clk = vpu_clk_get();
+#endif
 	/* the output is only up to 1080p */
 	if (vpu_clk <= 250000000) {
 		/* ((3840 * 2160) / 1920) *  (vpu_clk / 1000000) / 666 */
@@ -1039,7 +1043,9 @@ static int vpp_process_speed_check
 	 */
 	if (IS_DI_POST(vf->type)) {
 		htotal = vinfo->htotal;
+#ifdef CONFIG_AMLOGIC_VPU
 		clk_vpu = vpu_clk_get();
+#endif
 		clk_temp = clk_in_pps / 1000000;
 		if (clk_temp)
 			input_time_us = height_in * width_in / clk_temp;
@@ -2292,10 +2298,11 @@ RESTART:
 	}
 
 	/* only check vd1 */
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (!input->layer_id)
 		align_vd1_mif_size_for_DV(next_frame_par,
 			(vpp_flags & VPP_FLAG_HAS_DV_EL) ? true : false, reverse);
-
+#endif
 	next_frame_par->video_input_h = next_frame_par->VPP_vd_end_lines_ -
 		next_frame_par->VPP_vd_start_lines_ + 1;
 	next_frame_par->video_input_h = next_frame_par->video_input_h /
@@ -2847,7 +2854,9 @@ static int check_reshape_speed(s32 width_in,
 	else
 		vtotal = vinfo->vtotal;
 	pi_enable = get_pi_enabled(0);
+#ifdef CONFIG_AMLOGIC_VPU
 	clk_in_pps = vpu_clk_get();
+#endif
 	calc_clk = div_u64((u64)width_in *
 		(u64)height_in *
 		(u64)vinfo->sync_duration_num *
@@ -3159,6 +3168,8 @@ int vpp_set_super_scaler_regs(int scaler_path_sel,
 		sr_support &= ~SUPER_CORE0_SUPPORT;
 		sr_support &= ~SUPER_CORE1_SUPPORT;
 	}
+	if (cur_dev->display_module == C3_DISPLAY_MODULE)
+		return 0;
 	sr_reg_offt = sr->sr_reg_offt;
 	sr_reg_offt2 = sr->sr_reg_offt2;
 	/* just work around for g12a not to disable sr core2 bit2 */

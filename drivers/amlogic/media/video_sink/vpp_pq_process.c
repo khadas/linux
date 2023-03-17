@@ -5,7 +5,9 @@
 
 #include "vpp_pq.h"
 #include <linux/types.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 #include <linux/amlogic/media/amvecm/amvecm.h>
+#endif
 
 /*BLUE_SCENE             default 0*/
 /*GREEN_SCENE            default 0*/
@@ -71,6 +73,18 @@ int vpp_pq_data[AI_SCENES_MAX][SCENES_VALUE] = {
 	{0, 0, 0, 100, 30, 0, 0, 0, 0, 0}
 };
 
+/*scene_prob[0]: scene, scene_prob[1]: prob*/
+int scene_prob[2] = {0, 0};
+struct ai_pq_hist_data aipq_hist_data = {
+	.pre_skin_pct = 0,
+	.pre_green_pct = 0,
+	.pre_blue_pct = 0,
+	.cur_skin_pct = 0,
+	.cur_green_pct = 0,
+	.cur_blue_pct = 0
+};
+
+#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 static unsigned int det_stb_cnt = 30;
 static unsigned int det_unstb_cnt = 20;
 static unsigned int tolrnc_cnt = 6;
@@ -82,17 +96,6 @@ static unsigned int timer_filter_en;
  */
 static unsigned int aipq_set_policy;
 static unsigned int color_th = 100;
-
-/*scene_prob[0]: scene, scene_prob[1]: prob*/
-int scene_prob[2] = {0, 0};
-struct ai_pq_hist_data aipq_hist_data = {
-	.pre_skin_pct = 0,
-	.pre_green_pct = 0,
-	.pre_blue_pct = 0,
-	.cur_skin_pct = 0,
-	.cur_green_pct = 0,
-	.cur_blue_pct = 0
-};
 
 /*scene change th: 1/2 scene diff*/
 static u32 sc_th = 512;
@@ -631,4 +634,10 @@ void vf_pq_process(struct vframe_s *vf,
 		i++;
 	}
 }
-
+#else
+void vf_pq_process(struct vframe_s *vf,
+		   struct ai_scenes_pq *vpp_scenes,
+		   int *pq_debug)
+{
+}
+#endif

@@ -37,9 +37,13 @@
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/amlogic/media/utils/amstream.h>
 #include <linux/amlogic/media/utils/am_com.h>
+//#ifdef CONFIG_AMLOGIC_VOUT
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/video_sink/video_signal_notify.h>
+//#endif
+#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
+#endif
 #include <linux/amlogic/media/vfm/vfm_ext.h>
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
@@ -121,6 +125,7 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include <linux/math64.h>
 #include "video_receiver.h"
 #include "video_multi_vsync.h"
+#include "video_hw.h"
 #include "video_hw_s5.h"
 #include "vpp_post_s5.h"
 
@@ -1044,6 +1049,8 @@ static void dump_pps_reg(void)
 	u32 reg_addr, reg_val = 0;
 
 	for (i = 0; i < cur_dev->max_vd_layers; i++) {
+		if (!glayer_info[i].pps_support)
+			continue;
 		pr_info("vd%d pps regs:\n", i);
 		reg_addr = vd_layer[i].pps_reg.vd_vsc_region12_startp;
 		reg_val = READ_VCBUS_REG(reg_addr);
@@ -1580,6 +1587,71 @@ static void dump_zorder_reg(void)
 		   reg_addr, reg_val);
 }
 
+static void dump_vout_blend_reg(void)
+{
+	u32 reg_addr, reg_val = 0;
+
+	if (cur_dev->display_module != C3_DISPLAY_MODULE)
+		return;
+	pr_info("vout blend reg:\n");
+	reg_addr = cur_dev->vout_blend_reg.vpu_vout_blend_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("VPU_VOUT_BLEND_CTRL[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->vout_blend_reg.vpu_vout_blend_dumdata;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("VPU_VOUT_BLEND_DUMDATA[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->vout_blend_reg.vpu_vout_blend_size;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("VPU_VOUT_BLEND_SIZE[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+
+	reg_addr = cur_dev->vout_blend_reg.vpu_vout_bld_src0_hpos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("VPU_VOUT_BLD_SRC0_HPOS[0x%x](vd1) = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->vout_blend_reg.vpu_vout_bld_src0_vpos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("VPU_VOUT_BLD_SRC0_VPOS[0x%x](vd1) = 0x%X\n",
+		   reg_addr, reg_val);
+
+	reg_addr = cur_dev->vout_blend_reg.vpu_vout_bld_src1_hpos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("VPU_VOUT_BLD_SRC1_HPOS[0x%x](osd) = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->vout_blend_reg.vpu_vout_bld_src1_vpos;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("VPU_VOUT_BLD_SRC1_VPOS[0x%x](osd) = 0x%X\n",
+		   reg_addr, reg_val);
+
+	pr_info("vout top reg:\n");
+	reg_addr = VPU_VOUT_TOP_CTRL;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("VPU_VOUT_TOP_CTRL[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = VPU_VOUT_SECURE_BIT_NOR;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("VPU_VOUT_SECURE_BIT_NOR[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = VPU_VOUT_SECURE_DATA;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("VPU_VOUT_SECURE_DATA[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = VPU_VOUT_FRM_CTRL;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("VPU_VOUT_FRM_CTRL[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = VPU_VOUT_IRQ_CTRL;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("VPU_VOUT_IRQ_CTRL[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = VPU_VOUT_VLK_CTRL;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("VPU_VOUT_VLK_CTRL[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+}
+
 static ssize_t dump_reg_write(struct file *file, const char __user *userbuf,
 			      size_t count, loff_t *ppos)
 {
@@ -1592,50 +1664,10 @@ static int dump_reg_show(struct seq_file *s, void *what)
 	u32 reg_addr, reg_val = 0;
 	struct sr_info_s *sr;
 
-	/* viu top regs */
-	seq_puts(s, "\nviu top registers:\n");
-	reg_addr = 0x1a04;
-	count = 12;
-	for (i = 0; i < count; i++) {
-		reg_val = READ_VCBUS_REG(reg_addr);
-		seq_printf(s, "[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr += 1;
-	}
-	/* vpp registers begin from 0x1d00*/
-	seq_puts(s, "vpp registers:\n");
-	reg_addr = VPP_DUMMY_DATA + cur_dev->vpp_off;
-	count = 256;
-	for (i = 0; i < count; i++) {
-		reg_val = READ_VCBUS_REG(reg_addr);
-		seq_printf(s, "[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr += 1;
-	}
-	/* vd1 afbc regs */
-	seq_puts(s, "\nvd1 afbc registers:\n");
-	reg_addr = vd_layer[0].vd_afbc_reg.afbc_enable;
-	count = 32;
-	for (i = 0; i < count; i++) {
-		reg_val = READ_VCBUS_REG(reg_addr);
-		seq_printf(s, "[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr += 1;
-	}
-	/* vd2 afbc regs */
-	seq_puts(s, "\nvd2 afbc registers:\n");
-	reg_addr = vd_layer[1].vd_afbc_reg.afbc_enable;
-	count = 32;
-	for (i = 0; i < count; i++) {
-		reg_val = READ_VCBUS_REG(reg_addr);
-		seq_printf(s, "[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr += 1;
-	}
-	if (cur_dev->max_vd_layers == 3) {
-		/* vd3 afbc regs */
-		seq_puts(s, "\nvd3 afbc registers:\n");
-		reg_addr = vd_layer[2].vd_afbc_reg.afbc_enable;
+	if (cur_dev->display_module == C3_DISPLAY_MODULE) {
+		/* vd1 mif */
+		seq_puts(s, "\nvd1 mif registers:\n");
+		reg_addr = vd_layer[0].vd_mif_reg.vd_if0_gen_reg;
 		count = 32;
 		for (i = 0; i < count; i++) {
 			reg_val = READ_VCBUS_REG(reg_addr);
@@ -1643,31 +1675,64 @@ static int dump_reg_show(struct seq_file *s, void *what)
 				   reg_addr, reg_val);
 			reg_addr += 1;
 		}
-	}
-	/* vd1 mif */
-	seq_puts(s, "\nvd1 mif registers:\n");
-	reg_addr = vd_layer[0].vd_mif_reg.vd_if0_gen_reg;
-	count = 32;
-	for (i = 0; i < count; i++) {
-		reg_val = READ_VCBUS_REG(reg_addr);
-		seq_printf(s, "[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr += 1;
-	}
-	/* vd2 mif */
-	seq_puts(s, "\nvd2 mif registers:\n");
-	reg_addr = vd_layer[1].vd_mif_reg.vd_if0_gen_reg;
-	count = 32;
-	for (i = 0; i < count; i++) {
-		reg_val = READ_VCBUS_REG(reg_addr);
-		seq_printf(s, "[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr += 1;
-	}
-	if (cur_dev->max_vd_layers == 3) {
-		/* vd3 mif */
-		seq_puts(s, "\nvd3 mif registers:\n");
-		reg_addr = vd_layer[2].vd_mif_reg.vd_if0_gen_reg;
+		seq_puts(s, "\nvd1 csc registers:\n");
+		reg_addr = vd_layer[0].vd_csc_reg.vout_vd1_csc_coef00_01;
+		count = 14;
+		for (i = 0; i < count; i++) {
+			reg_val = READ_VCBUS_REG(reg_addr);
+			seq_printf(s, "[0x%x] = 0x%X\n",
+				   reg_addr, reg_val);
+			reg_addr += 1;
+		}
+		seq_puts(s, "\nvout blend registers:\n");
+		reg_addr = cur_dev->vout_blend_reg.vpu_vout_blend_ctrl;
+		count = 3;
+		for (i = 0; i < count; i++) {
+			reg_val = READ_VCBUS_REG(reg_addr);
+			seq_printf(s, "[0x%x] = 0x%X\n",
+				   reg_addr, reg_val);
+			reg_addr += 1;
+		}
+		reg_addr = cur_dev->vout_blend_reg.vpu_vout_bld_src0_hpos;
+		count = 2;
+		for (i = 0; i < count; i++) {
+			reg_val = READ_VCBUS_REG(reg_addr);
+			seq_printf(s, "[0x%x] = 0x%X\n",
+				   reg_addr, reg_val);
+			reg_addr += 1;
+		}
+		reg_addr = cur_dev->vout_blend_reg.vpu_vout_bld_src1_hpos;
+		count = 2;
+		for (i = 0; i < count; i++) {
+			reg_val = READ_VCBUS_REG(reg_addr);
+			seq_printf(s, "[0x%x] = 0x%X\n",
+				   reg_addr, reg_val);
+			reg_addr += 1;
+		}
+	} else {
+		/* viu top regs */
+		seq_puts(s, "\nviu top registers:\n");
+		reg_addr = 0x1a04;
+		count = 12;
+		for (i = 0; i < count; i++) {
+			reg_val = READ_VCBUS_REG(reg_addr);
+			seq_printf(s, "[0x%x] = 0x%X\n",
+				   reg_addr, reg_val);
+			reg_addr += 1;
+		}
+		/* vpp registers begin from 0x1d00*/
+		seq_puts(s, "vpp registers:\n");
+		reg_addr = VPP_DUMMY_DATA + cur_dev->vpp_off;
+		count = 256;
+		for (i = 0; i < count; i++) {
+			reg_val = READ_VCBUS_REG(reg_addr);
+			seq_printf(s, "[0x%x] = 0x%X\n",
+				   reg_addr, reg_val);
+			reg_addr += 1;
+		}
+		/* vd1 afbc regs */
+		seq_puts(s, "\nvd1 afbc registers:\n");
+		reg_addr = vd_layer[0].vd_afbc_reg.afbc_enable;
 		count = 32;
 		for (i = 0; i < count; i++) {
 			reg_val = READ_VCBUS_REG(reg_addr);
@@ -1675,42 +1740,96 @@ static int dump_reg_show(struct seq_file *s, void *what)
 				   reg_addr, reg_val);
 			reg_addr += 1;
 		}
-	}
-	/* vd1(0x3800) & vd2(0x3850) hdr */
-	/* osd hdr (0x38a0) */
-	seq_puts(s, "\nvd1(0x3800) & vd2(0x3850) hdr registers:\n");
-	seq_puts(s, "osd hdr (0x38a0) registers:\n");
-	reg_addr = 0x3800;
-	count = 256;
-	for (i = 0; i < count; i++) {
-		reg_val = READ_VCBUS_REG(reg_addr);
-		seq_printf(s, "[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr += 1;
-	}
-	/* super scaler */
-	sr = &sr_info;
-	/* g12a ~ tm2: 0x3e00 */
-	/* tm2 revb: 0x5000 */
-	seq_puts(s, "\nsuper scaler 0 registers:\n");
-	reg_addr = SRSHARP0_SHARP_HVSIZE + sr->sr_reg_offt;
-	count = 128;
-	for (i = 0; i < count; i++) {
-		reg_val = READ_VCBUS_REG(reg_addr);
-		seq_printf(s, "[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr += 1;
-	}
-	/* tl1, tm2 : 0x3f00*/
-	/* tm2 revb: 0x5200 */
-	seq_puts(s, "\nsuper scaler 1 registers:\n");
-	reg_addr = SRSHARP1_SHARP_HVSIZE + sr->sr_reg_offt2;
-	count = 128;
-	for (i = 0; i < count; i++) {
-		reg_val = READ_VCBUS_REG(reg_addr);
-		seq_printf(s, "[0x%x] = 0x%X\n",
-			   reg_addr, reg_val);
-		reg_addr += 1;
+		/* vd2 afbc regs */
+		seq_puts(s, "\nvd2 afbc registers:\n");
+		reg_addr = vd_layer[1].vd_afbc_reg.afbc_enable;
+		count = 32;
+		for (i = 0; i < count; i++) {
+			reg_val = READ_VCBUS_REG(reg_addr);
+			seq_printf(s, "[0x%x] = 0x%X\n",
+				   reg_addr, reg_val);
+			reg_addr += 1;
+		}
+		if (cur_dev->max_vd_layers == 3) {
+			/* vd3 afbc regs */
+			seq_puts(s, "\nvd3 afbc registers:\n");
+			reg_addr = vd_layer[2].vd_afbc_reg.afbc_enable;
+			count = 32;
+			for (i = 0; i < count; i++) {
+				reg_val = READ_VCBUS_REG(reg_addr);
+				seq_printf(s, "[0x%x] = 0x%X\n",
+					   reg_addr, reg_val);
+				reg_addr += 1;
+			}
+		}
+		/* vd1 mif */
+		seq_puts(s, "\nvd1 mif registers:\n");
+		reg_addr = vd_layer[0].vd_mif_reg.vd_if0_gen_reg;
+		count = 32;
+		for (i = 0; i < count; i++) {
+			reg_val = READ_VCBUS_REG(reg_addr);
+			seq_printf(s, "[0x%x] = 0x%X\n",
+				   reg_addr, reg_val);
+			reg_addr += 1;
+		}
+		/* vd2 mif */
+		seq_puts(s, "\nvd2 mif registers:\n");
+		reg_addr = vd_layer[1].vd_mif_reg.vd_if0_gen_reg;
+		count = 32;
+		for (i = 0; i < count; i++) {
+			reg_val = READ_VCBUS_REG(reg_addr);
+			seq_printf(s, "[0x%x] = 0x%X\n",
+				   reg_addr, reg_val);
+			reg_addr += 1;
+		}
+		if (cur_dev->max_vd_layers == 3) {
+			/* vd3 mif */
+			seq_puts(s, "\nvd3 mif registers:\n");
+			reg_addr = vd_layer[2].vd_mif_reg.vd_if0_gen_reg;
+			count = 32;
+			for (i = 0; i < count; i++) {
+				reg_val = READ_VCBUS_REG(reg_addr);
+				seq_printf(s, "[0x%x] = 0x%X\n",
+					   reg_addr, reg_val);
+				reg_addr += 1;
+			}
+		}
+		/* vd1(0x3800) & vd2(0x3850) hdr */
+		/* osd hdr (0x38a0) */
+		seq_puts(s, "\nvd1(0x3800) & vd2(0x3850) hdr registers:\n");
+		seq_puts(s, "osd hdr (0x38a0) registers:\n");
+		reg_addr = 0x3800;
+		count = 256;
+		for (i = 0; i < count; i++) {
+			reg_val = READ_VCBUS_REG(reg_addr);
+			seq_printf(s, "[0x%x] = 0x%X\n",
+				   reg_addr, reg_val);
+			reg_addr += 1;
+		}
+		/* super scaler */
+		sr = &sr_info;
+		/* g12a ~ tm2: 0x3e00 */
+		/* tm2 revb: 0x5000 */
+		seq_puts(s, "\nsuper scaler 0 registers:\n");
+		reg_addr = SRSHARP0_SHARP_HVSIZE + sr->sr_reg_offt;
+		count = 128;
+		for (i = 0; i < count; i++) {
+			reg_val = READ_VCBUS_REG(reg_addr);
+			seq_printf(s, "[0x%x] = 0x%X\n",
+				   reg_addr, reg_val);
+			reg_addr += 1;
+		}
+		/* tl1, tm2 : 0x3f00*/
+		/* tm2 revb: 0x5200 */
+		seq_puts(s, "\nsuper scaler 1 registers:\n");
+		reg_addr = SRSHARP1_SHARP_HVSIZE + sr->sr_reg_offt2;
+		count = 128;
+		for (i = 0; i < count; i++) {
+			reg_val = READ_VCBUS_REG(reg_addr);
+			seq_printf(s, "[0x%x] = 0x%X\n",
+				   reg_addr, reg_val);
+			reg_addr += 1;
+		}
 	}
 	return 0;
 }
@@ -1978,10 +2097,11 @@ static u8 enable_hdmi_delay_normal_check = 1;
 /* video_inuse */
 u32 video_inuse;
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 /*dv instance id, used for tunnel mode*/
 static int dv_inst = -1;
 static int dv_inst_pip = -1;
-
+#endif
 /*bit0~1 for vd1, bit2~3 for vd2*/
 static u32 force_skip_cnt;
 
@@ -4931,12 +5051,13 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	 *di keep 1/2 buf, 8/7 left
 	 *count = (7 + 8/7) * vdin_vsync+ 3 * vpp_vsync;
 	 */
-
+#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 	vdin_buf_count = get_vdin_buffer_num();
 	if (vdin_buf_count <= 0) {
 		pr_info("%s:Get count failed, use default value.\n", __func__);
 		vdin_buf_count = VDIN_BUF_COUNT;
 	}
+#endif
 	if (di_has_vdin_vf || !do_di) {
 		vdin_count = vdin_buf_count - 3 - DIS_PATH_DELAY_COUNT - 1;
 		vpp_count = DIS_PATH_DELAY_COUNT + 1;
@@ -4954,6 +5075,7 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 			__func__, hdmin_delay_min_ms, hdmin_delay_max_ms);
 }
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 static void hdmi_in_delay_maxmin_new1(struct tvin_to_vpp_info_s *tvin_info)
 {
 	u64 vdin_vsync = 0;
@@ -5064,6 +5186,7 @@ void vdin_start_notify_vpp(struct tvin_to_vpp_info_s *tvin_info)
 		hdmi_in_delay_maxmin_new1(tvin_info);
 }
 EXPORT_SYMBOL(vdin_start_notify_vpp);
+#endif
 
 u32 get_tvin_delay_start(void)
 {
@@ -6030,7 +6153,6 @@ void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1, int l
 	int axis[4];
 	int crop[4];
 	struct vframe_s *vf;
-	u32 vpp_index = 0;
 
 	ATRACE_COUNTER(__func__,  line);
 
@@ -6042,6 +6164,7 @@ void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1, int l
 	if (layer->need_switch_vf && IS_DI_POST(vf->type)) {
 		if ((vf1->flag & VFRAME_FLAG_DOUBLE_FRAM) &&
 		    is_di_post_mode(vf1)) {
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 			if (di_api_get_instance_id() == vf1->di_instance_id) {
 				layer->need_switch_vf = false;
 				pr_info("set need_switch_vf false\n");
@@ -6050,6 +6173,7 @@ void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1, int l
 				layer->do_switch = true;
 				di_api_post_disable();
 			}
+#endif
 		} else {
 			layer->need_switch_vf = false;
 		}
@@ -6102,6 +6226,8 @@ void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1, int l
 			force_toggle = true;
 	} else {
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+		u32 vpp_index = 0;
+
 		/* FIXME: is_di_on */
 		if (is_di_post_mode(vf)) {
 			/* check mif enable status, disable post di */
@@ -6761,6 +6887,8 @@ static void blend_reg_conflict_detect(void)
 	u32 r1, r2, r3;
 	u32 blend_en = 0;
 
+	if (cur_dev->display_module == C3_DISPLAY_MODULE)
+		return;
 	if (!legacy_vpp) {
 		r1 = READ_VCBUS_REG(VD1_BLEND_SRC_CTRL);
 		if (r1 & 0xfff)
@@ -6930,7 +7058,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	int crop[4];
 	int pq_process_debug[4];
 	enum vframe_signal_fmt_e fmt;
-	int i, j = 0;
+	int i;
 	int source_type = 0;
 	struct path_id_s path_id;
 	bool need_force_black = false;
@@ -7528,6 +7656,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 		struct vframe_s *_cur_dispbuf;
 		struct vframe_s *_local_vf;
+		int j;
 
 		switch (i) {
 		case 0:
@@ -8082,7 +8211,6 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 						0,
 						VD2_PATH,
 						VPP_TOP0);
-					/* karry ? */
 					if (vd3_path_id == VFM_PATH_AMVIDEO)
 						iret3 = amvecm_on_vs
 						((cur_dispbuf != &vf_local)
@@ -9226,7 +9354,6 @@ SET_FILTER:
 #endif
 	}
 
-	/* karry ? */
 	if (cur_dev->max_vd_layers == 3) {
 		if (vd_layer[2].dispbuf_mapping == &cur_dispbuf &&
 		    (cur_dispbuf == &vf_local ||
@@ -9623,7 +9750,8 @@ SET_FILTER:
 	}
 
 	memset(&ai_face_value, 0, sizeof(ai_face_value));
-	if (vd_layer[0].dispbuf) {
+	if (vd_layer[0].dispbuf &&
+		cur_dev->display_module != C3_DISPLAY_MODULE) {
 		pq_process_debug[0] = ai_pq_value;
 		pq_process_debug[1] = ai_pq_disable;
 		pq_process_debug[2] = ai_pq_debug;
@@ -9693,15 +9821,16 @@ exit:
 	pts_trace++;
 #endif
 
-	if (vd1_vd2_mux) {
-		vd_clip_setting(1, &vd_layer[0].clip_setting);
-	} else {
-		vd_clip_setting(0, &vd_layer[0].clip_setting);
-		vd_clip_setting(1, &vd_layer[1].clip_setting);
+	if (cur_dev->display_module != C3_DISPLAY_MODULE) {
+		if (vd1_vd2_mux) {
+			vd_clip_setting(1, &vd_layer[0].clip_setting);
+		} else {
+			vd_clip_setting(0, &vd_layer[0].clip_setting);
+			vd_clip_setting(1, &vd_layer[1].clip_setting);
+		}
+		if (cur_dev->max_vd_layers == 3)
+			vd_clip_setting(2, &vd_layer[2].clip_setting);
 	}
-	if (cur_dev->max_vd_layers == 3)
-		vd_clip_setting(2, &vd_layer[2].clip_setting);
-
 	vpp_blend_update(vinfo);
 	vsync_cnt[VPP0]++;
 	if (gvideo_recv[0])
@@ -9735,47 +9864,48 @@ RUN_FIRST_RDMA:
 	rdma_enable_pre = is_vsync_rdma_enable();
 #endif
 
-	if (timer_count > 50) {
-		timer_count = 0;
-		video_notify_flag |= VIDEO_NOTIFY_FRAME_WAIT;
-	}
+	if (cur_dev->display_module != C3_DISPLAY_MODULE) {
+		if (timer_count > 50) {
+			timer_count = 0;
+			video_notify_flag |= VIDEO_NOTIFY_FRAME_WAIT;
+		}
 
-	enc_line = get_cur_enc_line();
-	if (enc_line > vsync_exit_line_max)
-		vsync_exit_line_max = enc_line;
-	if (video_suspend)
-		video_suspend_cycle++;
+		enc_line = get_cur_enc_line();
+		if (enc_line > vsync_exit_line_max)
+			vsync_exit_line_max = enc_line;
+		if (video_suspend)
+			video_suspend_cycle++;
 #ifdef FIQ_VSYNC
-	if (video_notify_flag)
-		fiq_bridge_pulse_trigger(&vsync_fiq_bridge);
+		if (video_notify_flag)
+			fiq_bridge_pulse_trigger(&vsync_fiq_bridge);
 #else
-	if (video_notify_flag)
-		vsync_notify();
+		if (video_notify_flag)
+			vsync_notify();
 
-	/* if prop_change not zero, event will be delayed to next vsync */
-	if (video_prop_status &&
-	    !atomic_read(&video_prop_change)) {
-		if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
-			pr_info("VD1 send event, changed status: 0x%x\n",
-				video_prop_status);
-		atomic_set(&video_prop_change, video_prop_status);
-		video_prop_status = VIDEO_PROP_CHANGE_NONE;
-		wake_up_interruptible(&amvideo_prop_change_wait);
+		/* if prop_change not zero, event will be delayed to next vsync */
+		if (video_prop_status &&
+		    !atomic_read(&video_prop_change)) {
+			if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
+				pr_info("VD1 send event, changed status: 0x%x\n",
+					video_prop_status);
+			atomic_set(&video_prop_change, video_prop_status);
+			video_prop_status = VIDEO_PROP_CHANGE_NONE;
+			wake_up_interruptible(&amvideo_prop_change_wait);
+		}
+		if (video_info_change_status) {
+			struct vd_info_s vd_info;
+
+			if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
+				pr_info("VD1 send event to frc, changed status: 0x%x\n",
+					video_info_change_status);
+			vd_info.flags = video_info_change_status;
+			vd_signal_notifier_call_chain(VIDEO_INFO_CHANGED,
+						      &vd_info);
+			video_info_change_status = VIDEO_INFO_CHANGE_NONE;
+		}
+		vpu_work_process();
+		vpp_crc_result = vpp_crc_check(vpp_crc_en, VPP0);
 	}
-	if (video_info_change_status) {
-		struct vd_info_s vd_info;
-
-		if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
-			pr_info("VD1 send event to frc, changed status: 0x%x\n",
-				video_info_change_status);
-		vd_info.flags = video_info_change_status;
-		vd_signal_notifier_call_chain(VIDEO_INFO_CHANGED,
-					      &vd_info);
-		video_info_change_status = VIDEO_INFO_CHANGE_NONE;
-	}
-	vpu_work_process();
-	vpp_crc_result = vpp_crc_check(vpp_crc_en, VPP0);
-
 	cur_vd1_path_id = vd1_path_id;
 	cur_vd2_path_id = vd2_path_id;
 	cur_vd3_path_id = vd3_path_id;
@@ -9969,7 +10099,9 @@ static void release_di_buffer(int inst)
 		    IS_DI_POSTWRTIE(recycle_buf[inst][i]->type) &&
 		    (recycle_buf[inst][i]->flag & VFRAME_FLAG_DI_PW_VFM)) {
 			di_release_count++;
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 			dim_post_keep_cmd_release2(recycle_buf[inst][i]);
+#endif
 		}
 		recycle_buf[inst][i] = NULL;
 	}
@@ -11116,6 +11248,16 @@ EXPORT_SYMBOL(di_prelink_state_changed_notify);
 #define FMT_TYPE_HDR10_PLUS 2
 #define FMT_TYPE_PRIME 3
 #define FMT_TYPE_HDR10_PLUS_AV1 4
+#ifndef DV_SEI
+#define DV_SEI 0x01000000
+#endif
+/* for both dv and hdr10plus */
+#ifndef AV1_SEI
+#define AV1_SEI 0x14000000
+#endif
+#ifndef HDR10P
+#define HDR10P 0x02000000
+#endif
 
 bool check_av1_hdr10p(char *p)
 {
@@ -15033,9 +15175,9 @@ static ssize_t process_fmt_show
 				src_fmt_str[fmt]);
 		else
 			ret += sprintf(buf + ret, "vd1: src_fmt = null; ");
-
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 		get_hdr_process_name(0, process_name[0], output_fmt);
-
+#endif
 		l = strlen("HDR_BYPASS");
 		if (!strncmp(process_name[0], "HDR_BYPASS", l) ||
 		    !strncmp(process_name[0], "HLG_BYPASS", l) ||
@@ -15078,9 +15220,9 @@ static ssize_t process_fmt_show
 				src_fmt_str[fmt]);
 		else
 			ret += sprintf(buf + ret, "vd2: src_fmt = null; ");
-
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 		get_hdr_process_name(1, process_name[1], output_fmt);
-
+#endif
 		l = strlen("HDR_BYPASS");
 		if (!strncmp(process_name[1], "HDR_BYPASS", l) ||
 		    !strncmp(process_name[1], "HLG_BYPASS", l) ||
@@ -15127,9 +15269,9 @@ static ssize_t process_fmt_show
 				src_fmt_str[fmt]);
 		else
 			ret += sprintf(buf + ret, "vd3: src_fmt = null; ");
-
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 		get_hdr_process_name(2, process_name[2], output_fmt);
-
+#endif
 		l = strlen("HDR_BYPASS");
 		if (!strncmp(process_name[2], "HDR_BYPASS", l) ||
 		    !strncmp(process_name[2], "HLG_BYPASS", l) ||
@@ -17446,6 +17588,10 @@ static ssize_t reg_dump_store(struct class *cla,
 		if (cur_dev->display_module == S5_DISPLAY_MODULE) {
 			dump_s5_vd_proc_regs();
 			dump_vpp_post_reg();
+		} else if (cur_dev->display_module == C3_DISPLAY_MODULE) {
+			dump_mif_reg();
+			dump_pps_reg();
+			dump_vout_blend_reg();
 		} else {
 			dump_mif_reg();
 			dump_afbc_reg();
@@ -17936,6 +18082,7 @@ static ssize_t power_ctrl_store(struct class *cla,
 	}
 	return count;
 }
+#endif
 
 static ssize_t frc_delay_show(struct class *class,
 				      struct class_attribute *attr,
@@ -17948,8 +18095,6 @@ static ssize_t frc_delay_show(struct class *class,
 #endif
 	return sprintf(buf, "%d\n", frc_delay);
 }
-
-#endif
 
 static ssize_t vpu_module_urgent_show(struct class *cla,
 			     struct class_attribute *attr, char *buf)
@@ -18173,8 +18318,17 @@ static ssize_t set_post_matrix_show(struct class *cla,
 		pr_info("BIT4: 0 INPUT\n");
 		pr_info("BIT4: 1 OUTPUT\n");
 		pr_info("current setting: %d\n", probe_id | probe_output);
+	} else if (cur_dev->display_module == C3_DISPLAY_MODULE) {
+		pr_info("Usage:\n");
+		pr_info("echo port > /sys/class/amvecm/matrix_set\n");
+		pr_info("0 : VD1_PROBE\n");
+		pr_info("1 : VD1SC_PROBE\n");
+		pr_info("2 : OSD1_PROBE\n");
+		pr_info("3 : OSD1SC_PROBE\n");
+		pr_info("4 : VOUT_BLD_PROBE\n");
+		pr_info("5 : GAINOFF_PROBE\n");
+		pr_info("current setting: %d\n", probe_id);
 	}
-
 	return 0;
 }
 
@@ -18210,6 +18364,10 @@ static ssize_t set_post_matrix_store(struct class *cla,
 			return 0;
 		}
 		pr_info("VPP_MATRIX_CTRL is set\n");
+	} else if (cur_dev->display_module == C3_DISPLAY_MODULE) {
+		probe_id = val;
+		set_probe_ctrl_a4(val);
+		pr_info("VPP_MATRIX_CTRL is set\n");
 	}
 	return strnlen(buf, count);
 }
@@ -18225,6 +18383,8 @@ static ssize_t post_matrix_pos_show(struct class *cla,
 
 	if (cur_dev->display_module == S5_DISPLAY_MODULE)
 		val = get_probe_pos_s5(probe_id);
+	else if (cur_dev->display_module == C3_DISPLAY_MODULE)
+		val = get_probe_pos_a4(probe_id);
 	pr_info("current position: %d %d\n",
 		(val >> 16) & 0x1fff,
 			(val >> 0) & 0x1fff);
@@ -18243,6 +18403,8 @@ static ssize_t post_matrix_pos_store(struct class *cla,
 		val_y = parsed[1] & 0x1fff;
 		if (cur_dev->display_module == S5_DISPLAY_MODULE)
 			set_probe_pos_s5(val_x, val_y, probe_id, probe_output);
+		else if (cur_dev->display_module == C3_DISPLAY_MODULE)
+			set_probe_pos_a4(val_x, val_y);
 	}
 	return strnlen(buf, count);
 }
@@ -18254,11 +18416,19 @@ static ssize_t post_matrix_data_show(struct class *cla,
 	int len = 0, val1 = 0, val2 = 0;
 
 	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		/* 12bit */
 		get_probe_data_s5(&val1, &val2, probe_id);
 		len += sprintf(buf + len,
 		"VPP_MATRIX_PROBE_COLOR %d, %d, %d\n",
 		((val2 & 0xf) << 8) | ((val1 >> 24) & 0xff),
 		(val1 >> 12) & 0xfff, val1 & 0xfff);
+	} else if (cur_dev->display_module == C3_DISPLAY_MODULE) {
+		/* 10bit */
+		val1 = get_probe_data_a4();
+		len += sprintf(buf + len,
+		"VPP_MATRIX_PROBE_COLOR %d, %d, %d\n",
+		((val1 >> 20) & 0x3ff),
+		(val1 >> 10) & 0x3ff, val1 & 0x3ff);
 	}
 	return len;
 }
@@ -19846,6 +20016,112 @@ static struct amvideo_device_data_s amvideo_s5 = {
 	.is_tv_panel = 0,
 };
 
+static struct amvideo_device_data_s amvideo_c3 = {
+	.cpu_type = MESON_CPU_MAJOR_ID_C3_,
+	.sr_reg_offt = 0x1e00,
+	.sr_reg_offt2 = 0x1f80,
+	.layer_support[0] = 1,
+	.layer_support[1] = 0,
+	.layer_support[2] = 0,
+	.afbc_support[0] = 0,
+	.afbc_support[1] = 0,
+	.afbc_support[2] = 0,
+	.pps_support[0] = 0,
+	.pps_support[1] = 0,
+	.pps_support[2] = 0,
+	.alpha_support[0] = 0,
+	.alpha_support[1] = 0,
+	.alpha_support[2] = 0,
+	.dv_support = 0,
+	.sr0_support = 0,
+	.sr1_support = 0,
+	.core_v_disable_width_max[0] = 2048,
+	.core_v_disable_width_max[1] = 4096,
+	.core_v_enable_width_max[0] = 1024,
+	.core_v_enable_width_max[1] = 2048,
+	.supscl_path = CORE0_PPS_CORE1,
+	.fgrain_support[0] = 0,
+	.fgrain_support[1] = 0,
+	.fgrain_support[2] = 0,
+	.has_hscaler_8tap[0] = 0,
+	.has_hscaler_8tap[1] = 0,
+	.has_hscaler_8tap[2] = 0,
+	.has_pre_hscaler_ntap[0] = 0,
+	.has_pre_hscaler_ntap[1] = 0,
+	.has_pre_hscaler_ntap[2] = 0,
+	.has_pre_vscaler_ntap[0] = 0,
+	.has_pre_vscaler_ntap[1] = 0,
+	.has_pre_vscaler_ntap[2] = 0,
+	.src_width_max[0] = 4096,
+	.src_width_max[1] = 2048,
+	.src_width_max[2] = 4096,
+	.src_height_max[0] = 2160,
+	.src_height_max[1] = 1080,
+	.src_height_max[2] = 2160,
+	.ofifo_size = 0x1000,
+	.afbc_conv_lbuf_len[0] = 0x100,
+	.afbc_conv_lbuf_len[1] = 0x80,
+	.mif_linear = 1,
+	.display_module = C3_DISPLAY_MODULE,
+	.max_vd_layers = 1,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
+	.is_tv_panel = 1,
+};
+
+static struct amvideo_device_data_s amvideo_a4 = {
+	.cpu_type = MESON_CPU_MAJOR_ID_A4_,
+	.sr_reg_offt = 0x1e00,
+	.sr_reg_offt2 = 0x1f80,
+	.layer_support[0] = 1,
+	.layer_support[1] = 0,
+	.layer_support[2] = 0,
+	.afbc_support[0] = 0,
+	.afbc_support[1] = 0,
+	.afbc_support[2] = 0,
+	.pps_support[0] = 1,
+	.pps_support[1] = 0,
+	.pps_support[2] = 0,
+	.alpha_support[0] = 0,
+	.alpha_support[1] = 0,
+	.alpha_support[2] = 0,
+	.dv_support = 0,
+	.sr0_support = 0,
+	.sr1_support = 0,
+	.core_v_disable_width_max[0] = 2048,
+	.core_v_disable_width_max[1] = 4096,
+	.core_v_enable_width_max[0] = 1024,
+	.core_v_enable_width_max[1] = 2048,
+	.supscl_path = CORE0_PPS_CORE1,
+	.fgrain_support[0] = 0,
+	.fgrain_support[1] = 0,
+	.fgrain_support[2] = 0,
+	.has_hscaler_8tap[0] = 0,
+	.has_hscaler_8tap[1] = 0,
+	.has_hscaler_8tap[2] = 0,
+	.has_pre_hscaler_ntap[0] = 0,
+	.has_pre_hscaler_ntap[1] = 0,
+	.has_pre_hscaler_ntap[2] = 0,
+	.has_pre_vscaler_ntap[0] = 0,
+	.has_pre_vscaler_ntap[1] = 0,
+	.has_pre_vscaler_ntap[2] = 0,
+	.src_width_max[0] = 4096,
+	.src_width_max[1] = 2048,
+	.src_width_max[2] = 4096,
+	.src_height_max[0] = 2160,
+	.src_height_max[1] = 1080,
+	.src_height_max[2] = 2160,
+	.ofifo_size = 0x1000,
+	.afbc_conv_lbuf_len[0] = 0x100,
+	.afbc_conv_lbuf_len[1] = 0x80,
+	.mif_linear = 1,
+	.display_module = C3_DISPLAY_MODULE,
+	.max_vd_layers = 1,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
+	.is_tv_panel = 1,
+};
+
 static struct video_device_hw_s legcy_dev_property = {
 	.vd2_independ_blend_ctrl = 0,
 	.aisr_support = 0,
@@ -19878,6 +20154,14 @@ static struct video_device_hw_s s5_dev_property = {
 	.di_hf_y_reverse = 1,
 	.sr_in_size = 1,
 	.mosaic_support = 1,
+};
+
+static struct video_device_hw_s c3_dev_property = {
+	.vd2_independ_blend_ctrl = 0,
+	.aisr_support = 0,
+	.frc_support = 0,
+	.di_hf_y_reverse = 0,
+	.sr_in_size = 0,
 };
 
 static const struct of_device_id amlogic_amvideom_dt_match[] = {
@@ -19924,6 +20208,14 @@ static const struct of_device_id amlogic_amvideom_dt_match[] = {
 	{
 		.compatible = "amlogic, amvideom-s5",
 		.data = &amvideo_s5,
+	},
+	{
+		.compatible = "amlogic, amvideom-c3",
+		.data = &amvideo_c3,
+	},
+	{
+		.compatible = "amlogic, amvideom-a4",
+		.data = &amvideo_a4,
 	},
 	{}
 };
@@ -20004,6 +20296,24 @@ bool video_is_meson_s5_cpu(void)
 {
 	if (amvideo_meson_dev.cpu_type ==
 		MESON_CPU_MAJOR_ID_S5_)
+		return true;
+	else
+		return false;
+}
+
+bool video_is_meson_c3_cpu(void)
+{
+	if (amvideo_meson_dev.cpu_type ==
+		MESON_CPU_MAJOR_ID_C3_)
+		return true;
+	else
+		return false;
+}
+
+bool video_is_meson_a4_cpu(void)
+{
+	if (amvideo_meson_dev.cpu_type ==
+		MESON_CPU_MAJOR_ID_A4_)
 		return true;
 	else
 		return false;
@@ -20218,6 +20528,11 @@ static int amvideom_probe(struct platform_device *pdev)
 		       sizeof(struct video_device_hw_s));
 		aisr_en = 1;
 		cur_dev->power_ctrl = true;
+	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_C3_ ||
+		amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_A4_) {
+		memcpy(&amvideo_meson_dev.dev_property, &c3_dev_property,
+			   sizeof(struct video_device_hw_s));
+		cur_dev->power_ctrl = false;
 	} else {
 		memcpy(&amvideo_meson_dev.dev_property, &legcy_dev_property,
 		       sizeof(struct video_device_hw_s));

@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
-
+#include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/string.h>
@@ -44,9 +44,6 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
 
-#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-#include <linux/amlogic/pm.h>
-#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 #include <linux/amlogic/media/vpu_secure/vpu_secure.h>
 #endif
@@ -97,7 +94,9 @@ bool overrun_flag;
 static int lowlatency_vsync(u8 instance_id)
 {
 	s32 vout_type;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	struct vframe_s *vf = NULL;
+#endif
 	struct vframe_s *path0_new_frame = NULL;
 	struct vframe_s *path1_new_frame = NULL;
 	struct vframe_s *path2_new_frame = NULL;

@@ -43,10 +43,6 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
-
-#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-#include <linux/amlogic/pm.h>
-#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 #include <linux/amlogic/media/vpu_secure/vpu_secure.h>
 #endif
@@ -576,4 +572,3 @@ void viu3_hook(void)
 				sizeof(new_vmode_vpp[1]) - 1);
 	}
 }
-

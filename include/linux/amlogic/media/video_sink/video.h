@@ -20,8 +20,9 @@
 #define VIDEO_H
 
 #include <linux/amlogic/media/vfm/vframe.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
-
+#endif
 #define MAX_VD_LAYERS 3
 
 #define MOSAIC_MODE   BIT(24) /* 1 bit */
@@ -472,9 +473,9 @@ int frc_get_video_latency(void);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 int get_vdin_add_delay_num(void);
+void vdin_start_notify_vpp(struct tvin_to_vpp_info_s *tvin_info);
 #endif
 u32 get_playback_delay_duration(void);
-void vdin_start_notify_vpp(struct tvin_to_vpp_info_s *tvin_info);
 void get_video_axis_offset(s32 *x_offset, s32 *y_offset);
 bool is_vpp0(u8 layer_id);
 bool is_vpp1(u8 layer_id);
