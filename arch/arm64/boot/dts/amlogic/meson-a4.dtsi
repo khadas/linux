@@ -1586,11 +1586,11 @@
 
 	ir: ir@8000 {
 		compatible = "amlogic, meson-ir";
-		reg = <0x0 0xfe084040 0x0 0xA4>,
-			<0x0 0xfe084000 0x0 0x20>;
+		reg = <0x0 0xfe08e040 0x0 0xA4>,
+			<0x0 0xfe08e000 0x0 0x20>;
 		status = "disabled";
 		protocol = <REMOTE_TYPE_NEC>;
-		interrupts = <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 136 IRQ_TYPE_EDGE_RISING>;
 		map = <&custom_maps>;
 		max_frame_time = <200>;
 	};
@@ -1779,6 +1779,17 @@
 	chosen {
 		kaslr-seed = <0x0 0x0>;
 	};
+};
+
+&aobus_pinctrl {
+	remote_pins: remote_pin {
+		mux {
+			groups = "remote_ao_input_ao1";
+			function = "remote_in_ao";
+			bias-disable;
+		};
+	};
+
 };
 
 &periphs_pinctrl {
@@ -2369,14 +2380,6 @@
 		mux {
 			groups = "pwm_h_t20";
 			function = "pwm_h";
-		};
-	};
-
-	remote_pins: remote_pin {
-		mux {
-			groups = "remote_in";
-			function = "remote_in";
-			bias-disable;
 		};
 	};
 
