@@ -1471,6 +1471,7 @@
 			tdmout_index = <1>;
 			tdmin_index = <1>;
 			dat0_ch_sel = <2>;
+			lane_offset = <4>;
 			reset-names = "acodec";
 			resets = <&reset RESET_AUDIO_CODEC>;
 		};
