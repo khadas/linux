@@ -1776,7 +1776,7 @@ void rx_set_suspend_edid_clk(bool en)
 	}
 }
 
-void rx_i2c_init(void)
+void rx_i2c_div_init(void)
 {
 	int data32 = 0;
 
@@ -1787,6 +1787,11 @@ void rx_i2c_init(void)
 	data32 |= 0 << 8;
 	data32 |= EDID_CLK_DIV << 0;
 	hdmirx_wr_top(TOP_EDID_GEN_CNTL,  data32);
+}
+
+void rx_i2c_hdcp_cfg(void)
+{
+	int data32 = 0;
 
 	data32 = 0;
 	/* SDA filter internal clk div */
@@ -1798,6 +1803,11 @@ void rx_i2c_init(void)
 	/* SCL sampling clk div */
 	data32 |= 1 << 0;
 	hdmirx_wr_top(TOP_INFILTER_HDCP, data32);
+}
+
+void rx_i2c_edid_cfg_with_port(u8 port_id, bool en)
+{
+	int data32 = 0;
 
 	data32 = 0;
 	/* SDA filter internal clk div */
@@ -1808,10 +1818,22 @@ void rx_i2c_init(void)
 	data32 |= 1 << 13;
 	/* SCL sampling clk div */
 	data32 |= 1 << 0;
-	hdmirx_wr_top(TOP_INFILTER_I2C0, data32);
-	hdmirx_wr_top(TOP_INFILTER_I2C1, data32);
-	hdmirx_wr_top(TOP_INFILTER_I2C2, data32);
-	hdmirx_wr_top(TOP_INFILTER_I2C3, data32);
+	if (!en) {
+		data32 = 0xffffffff;
+		if (port_id == 0)
+			hdmirx_wr_top(TOP_INFILTER_I2C0, data32);
+		else if (port_id == 1)
+			hdmirx_wr_top(TOP_INFILTER_I2C1, data32);
+		else if (port_id == 2)
+			hdmirx_wr_top(TOP_INFILTER_I2C2, data32);
+		else if (port_id == 3)
+			hdmirx_wr_top(TOP_INFILTER_I2C3, data32);
+	} else {
+		hdmirx_wr_top(TOP_INFILTER_I2C0, data32);
+		hdmirx_wr_top(TOP_INFILTER_I2C1, data32);
+		hdmirx_wr_top(TOP_INFILTER_I2C2, data32);
+		hdmirx_wr_top(TOP_INFILTER_I2C3, data32);
+	}
 }
 
 /*
@@ -1830,7 +1852,9 @@ static int TOP_init(void)
 		data32 |= (1 << 1);// [1:0]  sel
 		hdmirx_wr_top(TOP_PHYIF_CNTL0, data32);
 	}
-	rx_i2c_init();
+	rx_i2c_div_init();
+	rx_i2c_hdcp_cfg();
+	rx_i2c_edid_cfg_with_port(0xf, true);
 	data32 = 0;
 	if (rx.chip_id >= CHIP_ID_T7) {
 		/*420to444_en*/
@@ -2245,35 +2269,28 @@ void rx_set_term_value(unsigned char port, bool value)
 int rx_set_port_hpd(u8 port_id, bool val)
 {
 	if (port_id < E_PORT_NUM) {
-		if (log_level & VIDEO_LOG)
-			rx_pr("%s, clear scdc, val:%d\n", __func__, val);
 		if (val) {
 			if (rx.chip_id >= CHIP_ID_T7)
 				hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, 0x1);
 			hdmirx_wr_bits_top(TOP_HPD_PWR5V, _BIT(port_id), 1);
-			if (port_id == rx.port)
-				hdmirx_wr_bits_top(TOP_PORT_SEL, _BIT(port_id), 1);
-			hdmirx_wr_bits_top(TOP_PORT_SEL, _BIT(4), 1);
+			rx_i2c_edid_cfg_with_port(0xf, true);
 			rx_set_term_value(port_id, 1);
 		} else {
 			if (rx.chip_id >= CHIP_ID_T7)
 				hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, 0x0);
+			rx_i2c_edid_cfg_with_port(port_id, false);
 			hdmirx_wr_bits_top(TOP_HPD_PWR5V, _BIT(port_id), 0);
-			hdmirx_wr_bits_top(TOP_PORT_SEL, _BIT(4), 0);
-			if (port_id == rx.port)
-				hdmirx_wr_bits_top(TOP_PORT_SEL, _BIT(port_id), 0);
 			rx_set_term_value(port_id, 0);
 		}
 	} else if (port_id == ALL_PORTS) {
 		if (val) {
+			if (rx.chip_id >= CHIP_ID_T7)
+				hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, 0x1);
+			rx_i2c_edid_cfg_with_port(0xf, true);
 			hdmirx_wr_bits_top(TOP_HPD_PWR5V, MSK(4, 0), 0xF);
-			if (port_id == rx.port)
-				hdmirx_wr_bits_top(TOP_PORT_SEL, _BIT(port_id), 1);
-			hdmirx_wr_bits_top(TOP_PORT_SEL, _BIT(4), 1);
 			rx_set_term_value(port_id, 1);
 		} else {
 			hdmirx_wr_bits_top(TOP_HPD_PWR5V, MSK(4, 0), 0x0);
-			hdmirx_wr_top(TOP_PORT_SEL, 0);
 			rx_set_term_value(port_id, 0);
 		}
 	} else {
@@ -2307,9 +2324,9 @@ void rx_force_hpd_cfg(u8 hpd_level)
 		else
 			hpd_value = 0xF;
 
-		hdmirx_wr_bits_top(TOP_HPD_PWR5V, MSK(4, 0), hpd_value);
+		rx_set_port_hpd(ALL_PORTS, hpd_value);
 	} else {
-		hdmirx_wr_bits_top(TOP_HPD_PWR5V, MSK(4, 0), 0x0);
+		rx_set_port_hpd(ALL_PORTS, 0);
 	}
 }
 
@@ -3697,7 +3714,6 @@ void hdmirx_hw_config(void)
 {
 	rx_pr("%s port:%d\n", __func__, rx.port);
 	hdmirx_top_sw_reset();
-	//rx_i2c_init();
 	hdmirx_output_en(false);
 	if (rx.chip_id >= CHIP_ID_T7) {
 		cor_init();

@@ -26,8 +26,11 @@
 //added interlaced mode protection
 //2023.03.01
 //optimize the judgment condition of unnormal timing
+//2023.03.17
 //fix emp pkt parse err
-#define RX_VER0 "ver.2023/03/17"
+//2023.03.18
+//disabled edid response after HPD low
+#define RX_VER0 "ver.2023/03/18"
 
 /*print type*/
 #define	LOG_EN		0x01

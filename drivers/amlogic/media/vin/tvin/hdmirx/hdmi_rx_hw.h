@@ -3292,7 +3292,7 @@ void rx_ddc_active_monitor(void);
 void rx_clkmsr_monitor(void);
 void rx_clkmsr_handler(struct work_struct *work);
 void rx_i2c_err_monitor(void);
-void rx_i2c_init(void);
+void rx_i2c_div_init(void);
 bool is_ddc_filter_en(void);
 void rx_aud_fifo_rst(void);
 void rx_esm_reset(int level);
