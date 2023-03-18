@@ -1218,6 +1218,7 @@
 			card_type = <1>;
 			ignore_desc_busy;
 			mmc_debug_flag;
+			tx_delay = <0x16>;
 			src_clk_rate = <1152000000>;
 			//enable-ctrl-power;
 		//	resets = <&reset RESET_SD_EMMC_C>;
