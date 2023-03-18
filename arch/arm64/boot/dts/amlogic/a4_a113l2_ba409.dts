@@ -22,10 +22,10 @@
 		serial2 = &uart_C;
 		serial3 = &uart_D;
 		serial4 = &uart_E;
-		//i2c0 = &i2c0;
-		//i2c1 = &i2c1;
-		//i2c2 = &i2c2;
-		//i2c3 = &i2c3;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
 		//spi0 = &spifc;
 		spi1 = &spicc0;
 		spi2 = &spicc1;
@@ -1226,79 +1226,11 @@
 	amlogic,tx-delay-ns = <2>;
 };
 
-&i2c2 {
-	status = "disabled";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c2_pins1>;
-	clock-frequency = <100000>;
-	ad82128_c_30: ad82128_c_30@30 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x30>;
-		status = "disabled";
-		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
-	};
-	ad82128_c_31: ad82128_c_31@31 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x31>;
-		status = "disabled";
-	};
-	ad82128_c_34: ad82128_c_34@34 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x34>;
-		status = "disabled";
-	};
-	ad82128_c_35: ad82128_c_35@35 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x35>;
-		status = "disabled";
-	};
-	aml_pca9557: aml_pca9557@1f {
-		compatible = "aml, ledring";
-		reg = <0x1f>;
-		mode = <0>; /*0: 6-led 1: 4key+2led */
-		key_num = <4>;
-		led_dev_name = "aml_ledring";
-		key_dev_name = "aml_pca_key";
-		key_name = "mute", "pause", "vol+", "vol-";
-		key_value = <200 201 202 203>;
-		status = "disabled";
-	};
-};
-
 &i2c3 {
 	status = "disabled";
 	pinctrl-names="default";
-	pinctrl-0=<&i2c3_pins2>;
+	pinctrl-0=<&i2c3_pins1>;
 	clock-frequency = <100000>;
-	ad82128_d_30: ad82128_d_30@30 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x30>;
-		status = "disabled";
-	};
-	ad82128_d_31: ad82128_d_31@31 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x31>;
-		status = "disabled";
-	};
-	ad82128_d_34: ad82128_d_34@34 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x34>;
-		status = "disabled";
-	};
-	ad82128_d_35: ad82128_d_35@35 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x35>;
-		status = "disabled";
-
-	};
 };
 
 &custom_maps{
