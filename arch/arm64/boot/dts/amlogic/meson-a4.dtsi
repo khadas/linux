@@ -890,9 +890,9 @@
 				compatible = "amlogic,meson-v2-pwm";
 				reg = <0x0 0x58000 0x0 0x24>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_A>,
-				//		<&clkc CLKID_PWM_B>;
-				//clock-names = "clkin0", "clkin1";
+				clocks = <&clkc CLKID_PWM_A>,
+						<&clkc CLKID_PWM_B>;
+				clock-names = "clkin0", "clkin1";
 				status = "disabled";
 			};
 
@@ -900,9 +900,9 @@
 				compatible = "amlogic,meson-v2-pwm";
 				reg = <0x0 0x5a000 0x0 0x24>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_C>,
-				//		<&clkc CLKID_PWM_D>;
-				//clock-names = "clkin0", "clkin1";
+				clocks = <&clkc CLKID_PWM_C>,
+						<&clkc CLKID_PWM_D>;
+				clock-names = "clkin0", "clkin1";
 				status = "disabled";
 			};
 
@@ -910,21 +910,20 @@
 				compatible = "amlogic,meson-v2-pwm";
 				reg = <0x0 0x5c000 0x0 0x24>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_E>,
-				//		<&clkc CLKID_PWM_F>;
-				//clock-names = "clkin0", "clkin1";
-				status = "okay";
+				clocks = <&clkc CLKID_PWM_E>,
+						<&clkc CLKID_PWM_F>;
+				clock-names = "clkin0", "clkin1";
+				status = "disabled";
 			};
 
 			pwm_gh: pwm@5e000 {
 				compatible = "amlogic,meson-v2-pwm";
 				reg = <0x0 0x5e000 0x0 0x24>;
 				#pwm-cells = <3>;
-				//clocks = <&clkc CLKID_PWM_G>,
-				//		<&clkc CLKID_PWM_H>;
-				//clock-names = "clkin0", "clkin1";
-				//status = "disabled";
-				status = "okay";
+				clocks = <&clkc CLKID_PWM_G>,
+						<&clkc CLKID_PWM_H>;
+				clock-names = "clkin0", "clkin1";
+				status = "disabled";
 			};
 
 			i2c0: i2c@66000 {
