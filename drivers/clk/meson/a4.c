@@ -227,12 +227,22 @@ static struct clk_regmap a4_sys_pll = {
 	},
 };
 #else
+
+static const struct clk_div_table a4_sys_pll_od[] = {
+	{ 0, 1 },
+	{ 1, 2 },
+	{ 2, 4 },
+	{ 3, 8 },
+	{ 4, 16 },
+	{ /* sentinel */ }
+};
+
 static struct clk_regmap a4_sys_pll = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = ANACTRL_SYSPLL_CTRL0,
 		.shift = 12,
 		.width = 3,
-		.flags = CLK_DIVIDER_POWER_OF_TWO,
+		.table = a4_sys_pll_od,
 		.smc_id = SECURE_PLL_CLK,
 		.secid = SECID_SYS0_PLL_OD
 	},
@@ -423,20 +433,20 @@ static struct clk_regmap a4_fclk_div2p5 = {
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table a4_gp0_pll_table[] = {
-	PLL_PARAMS(141, 1, 2), /* DCO = 3384M OD = 2 PLL = 846M */
-	PLL_PARAMS(132, 1, 2), /* DCO = 3168M OD = 2 PLL = 792M */
-	PLL_PARAMS(248, 1, 3), /* DCO = 5952M OD = 3 PLL = 744M */
-	PLL_PARAMS(128, 1, 2), /* DCO = 3072M OD = 2 PLL = 768M */
-	PLL_PARAMS(192, 1, 2), /* DCO = 4608M OD = 4 PLL = 1152M */
+	PLL_PARAMS(62, 1, 1), /* DCO = 1488M OD = 1 PLL = 744M */
+	PLL_PARAMS(64, 1, 1), /* DCO = 1536M OD = 1 PLL = 768M */
+	PLL_PARAMS(66, 1, 1), /* DCO = 1584M OD = 1 PLL = 792M */
+	PLL_PARAMS(70, 1, 1), /* DCO = 1680M OD = 1 PLL = 840M */
+	PLL_PARAMS(96, 1, 2), /* DCO = 2304M OD = 1 PLL = 1152M */
 	{ /* sentinel */  }
 };
 #else
 static const struct pll_params_table a4_gp0_pll_table[] = {
-	PLL_PARAMS(141, 1), /* DCO = 3384M OD = 2 PLL = 846M */
-	PLL_PARAMS(132, 1), /* DCO = 3168M OD = 2 PLL = 792M */
-	PLL_PARAMS(248, 1), /* DCO = 5952M OD = 3 PLL = 744M */
-	PLL_PARAMS(128, 1), /* DCO = 3072M OD = 2 PLL = 768M */
-	PLL_PARAMS(192, 1), /* DCO = 4608M OD = 4 PLL = 1152M */
+	PLL_PARAMS(62, 1), /* DCO = 1488M OD = 1 PLL = 744M */
+	PLL_PARAMS(64, 1), /* DCO = 1536M OD = 1 PLL = 768M */
+	PLL_PARAMS(66, 1), /* DCO = 1584M OD = 1 PLL = 792M */
+	PLL_PARAMS(70, 1), /* DCO = 1680M OD = 1 PLL = 840M */
+	PLL_PARAMS(96, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
 	{ /* sentinel */  }
 };
 #endif
@@ -445,12 +455,13 @@ static const struct pll_params_table a4_gp0_pll_table[] = {
  * Internal gp0 pll emulation configuration parameters
  */
 static const struct reg_sequence a4_gp0_init_regs[] = {
-	{ .reg = ANACTRL_GP0PLL_CTRL1,	.def = 0x00000000 },
-	{ .reg = ANACTRL_GP0PLL_CTRL2,	.def = 0x00000000 },
-	{ .reg = ANACTRL_GP0PLL_CTRL3,	.def = 0x6a295c00 },
-	{ .reg = ANACTRL_GP0PLL_CTRL4,	.def = 0x65771290 },
-	{ .reg = ANACTRL_GP0PLL_CTRL5,	.def = 0x3927200a },
-	{ .reg = ANACTRL_GP0PLL_CTRL6,	.def = 0x54540000 }
+	{ .reg = ANACTRL_GP0PLL_CTRL0,	.def = 0x20011085 },
+	{ .reg = ANACTRL_GP0PLL_CTRL0,	.def = 0x30011085 },
+	{ .reg = ANACTRL_GP0PLL_CTRL1,	.def = 0x03a10000 },
+	{ .reg = ANACTRL_GP0PLL_CTRL2,	.def = 0x00040000 },
+	{ .reg = ANACTRL_GP0PLL_CTRL3,	.def = 0x090da000, .delay_us = 20 },
+	{ .reg = ANACTRL_GP0PLL_CTRL0,	.def = 0x10011085 },
+	{ .reg = ANACTRL_GP0PLL_CTRL3,	.def = 0x090da200, .delay_us = 20 },
 };
 
 static struct clk_regmap a4_gp0_pll_dco = {
@@ -493,6 +504,7 @@ static struct clk_regmap a4_gp0_pll_dco = {
 		.table = a4_gp0_pll_table,
 		.init_regs = a4_gp0_init_regs,
 		.init_count = ARRAY_SIZE(a4_gp0_init_regs),
+		.flags = CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp0_pll_dco",
@@ -518,13 +530,23 @@ static struct clk_regmap a4_gp0_pll = {
 	},
 };
 #else
+
+static const struct clk_div_table a4_gp0_pll_od[] = {
+	{ 0, 1 },
+	{ 1, 2 },
+	{ 2, 4 },
+	{ 3, 8 },
+	{ 4, 16 },
+	{ /* sentinel */ }
+};
+
 static struct clk_regmap a4_gp0_pll = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = ANACTRL_GP0PLL_CTRL0,
 		.shift = 10,
 		.width = 3,
-		.flags = (CLK_DIVIDER_POWER_OF_TWO |
-			  CLK_DIVIDER_ROUND_CLOSEST),
+		.table = a4_gp0_pll_od,
+		.flags = CLK_DIVIDER_ROUND_CLOSEST,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp0_pll",
@@ -622,13 +644,23 @@ static struct clk_regmap a4_gp1_pll = {
 	},
 };
 #else
+
+static const struct clk_div_table a4_gp1_pll_od[] = {
+	{ 0, 1 },
+	{ 1, 2 },
+	{ 2, 4 },
+	{ 3, 8 },
+	{ 4, 16 },
+	{ /* sentinel */ }
+};
+
 static struct clk_regmap a4_gp1_pll = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = ANACTRL_GP1PLL_CTRL0,
 		.shift = 12,
 		.width = 3,
-		.flags = (CLK_DIVIDER_POWER_OF_TWO |
-			  CLK_DIVIDER_ROUND_CLOSEST),
+		.table = a4_gp1_pll_od,
+		.flags = CLK_DIVIDER_ROUND_CLOSEST,
 		.smc_id = SECURE_PLL_CLK,
 		.secid = SECID_GP1_PLL_OD
 	},
@@ -651,7 +683,7 @@ static const struct cpu_dyn_table a4_cpu_dyn_table[] = {
 	CPU_LOW_PARAMS(250000000, 1, 1, 3),
 	CPU_LOW_PARAMS(333333333, 2, 1, 1),
 	CPU_LOW_PARAMS(500000000, 1, 1, 1),
-	CPU_LOW_PARAMS(667000000, 2, 0, 0),
+	CPU_LOW_PARAMS(666666666, 2, 0, 0),
 	CPU_LOW_PARAMS(1000000000, 1, 0, 0),
 };
 
@@ -776,30 +808,22 @@ static struct a4_sys_pll_nb_data a4_sys_pll_nb_data = {
 	.nb.notifier_call = a4_sys_pll_notifier_cb,
 };
 
-#ifdef CONFIG_ARM
-static const struct pll_params_table a4_hifi_pll_table[] = {
-	PLL_PARAMS(192, 1, 2), /* DCO = 4608M OD = 2 PLL = 1152M */
-	PLL_PARAMS(150, 1, 1), /* DCO = 1806.336M OD = 1 */
-	{ /* sentinel */  }
+static const struct pll_mult_range a4_hifi_pll_m = {
+	.min = 67,
+	.max = 133,
 };
-#else
-static const struct pll_params_table a4_hifi_pll_table[] = {
-	PLL_PARAMS(192, 1), /* DCO = 4608M OD = 2 PLL = 1152M */
-	PLL_PARAMS(150, 1), /* DCO = 1806.336M */
-	{ /* sentinel */  }
-};
-#endif
 
 /*
  * Internal hifi pll emulation configuration parameters
  */
 static const struct reg_sequence a4_hifi_init_regs[] = {
-	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x00010e56 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00000000 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL3,	.def = 0x6a285c00 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL4,	.def = 0x65771290 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL5,	.def = 0x39272000 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL6,	.def = 0x56540000 }
+	{ .reg = ANACTRL_HIFIPLL_CTRL0,	.def = 0x20011085 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL0,	.def = 0x30011085 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x03a10000 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00040000 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL3,	.def = 0x0a0da000, .delay_us = 20 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL0,	.def = 0x10011085 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL3,	.def = 0x0a0da200, .delay_us = 20 },
 };
 
 static struct clk_regmap a4_hifi_pll_dco = {
@@ -817,7 +841,7 @@ static struct clk_regmap a4_hifi_pll_dco = {
 		.n = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL0,
 			.shift   = 16,
-			.width   = 5,
+			.width   = 1,  /* keep always n = 1 */
 		},
 		.od = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL0,
@@ -839,10 +863,11 @@ static struct clk_regmap a4_hifi_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
-		.table = a4_hifi_pll_table,
+		.range = &a4_hifi_pll_m,
 		.init_regs = a4_hifi_init_regs,
 		.init_count = ARRAY_SIZE(a4_hifi_init_regs),
-		.flags = CLK_MESON_PLL_ROUND_CLOSEST,
+		.flags = CLK_MESON_PLL_ROUND_CLOSEST |
+			 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll_dco",
@@ -868,13 +893,23 @@ static struct clk_regmap a4_hifi_pll = {
 	},
 };
 #else
+
+static const struct clk_div_table a4_hifi_pll_od[] = {
+	{ 0, 1 },
+	{ 1, 2 },
+	{ 2, 4 },
+	{ 3, 8 },
+	{ 4, 16 },
+	{ /* sentinel */ }
+};
+
 static struct clk_regmap a4_hifi_pll = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = ANACTRL_HIFIPLL_CTRL0,
 		.shift = 10,
 		.width = 3,
-		.flags = (CLK_DIVIDER_POWER_OF_TWO |
-			  CLK_DIVIDER_ROUND_CLOSEST),
+		.table = a4_hifi_pll_od,
+		.flags = CLK_DIVIDER_ROUND_CLOSEST,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll",
