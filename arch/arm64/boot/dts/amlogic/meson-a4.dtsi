@@ -294,6 +294,9 @@
 		sys_reset = <0x84000009>;
 		sys_poweroff = <0x84000008>;
 		dis_nb_cpus_in_shutdown;
+		extend_reboot_reason; /* Support up to 128 reboot reasons*/
+		reg = <0x0 0xfe01037c 0x0 0x4>; /* SEC_AO_SEC_SD_CFG15 */
+		status = "okay";
 	};
 
 	secmon {
