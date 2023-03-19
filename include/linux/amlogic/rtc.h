@@ -25,6 +25,16 @@
 #define RTC_ALRM1_STATUS_BIT	(5)
 #define RTC_ALRM2_STATUS_BIT	(6)
 #define RTC_ALRM3_STATUS_BIT	(7)
+/* RTC_INT_STATUS Bit[7:4]: 0 - alarm irq is disable, 1 - alarm irq is enable */
+#define RTC_ALRM0_IRQ_STATUS_BIT	(0)
+#define RTC_ALRM1_IRQ_STATUS_BIT	(1)
+#define RTC_ALRM2_IRQ_STATUS_BIT	(2)
+#define RTC_ALRM3_IRQ_STATUS_BIT	(3)
+/* RTC INT clear alarm0 irq bit */
+#define RTC_ALRM0_CLR_STATUS_BIT	(0)
+#define RTC_ALRM1_CLR_STAUTS_BIT	(1)
+#define RTC_ALRM2_CLR_STATUS_BIT	(2)
+#define RTC_ALRM3_CLR_STAUTS_BIT	(3)
 
 /* RTC register address offset */
 #define RTC_CTRL		(0)	 /* Control RTC -RW*/
@@ -70,5 +80,5 @@ struct meson_rtc_data {
 	struct clk *clock;
 	int irq;
 	u32 freq;
-	const char *time_storage_format;
+	bool time_storage_format;
 };
