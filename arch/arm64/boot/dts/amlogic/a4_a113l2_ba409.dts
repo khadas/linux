@@ -957,31 +957,45 @@
 };
 
 &crg_udc_2 {
-	status = "disabled";
+	status = "okay";
 };
 
 &crg20_otg {
-	status = "disabled";
+	status = "okay";
 	controller-type = <3>;
-	usb5v-supply = <&vcc5v_reg>;
-	usb3v3-supply = <&avdd33_usb_reg>;
-	usb1v8-supply = <&avdd18_usb_reg>;
 };
 
 &crg2_drd {
-	compatible = "amlogic, crg-drd";
-	status = "disabled";
+	compatible = "amlogic, crg-host-drd";
+	status = "okay";
 };
 
 &crg_phy_20 {
-	status = "disabled";
+	status = "okay";
+	portnum = <2>;
+	gpio-vbus-power = "GPIOD_6";
+	gpios = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
+};
+
+&crg3_phy_20 {
+	status = "okay";
+	portnum = <0>;
+};
+
+&crg21_drd {
+	compatible = "amlogic, crg-drd";
+	status = "okay";
+};
+
+&crg_phy_21 {
+	status = "okay";
 	portnum = <1>;
 	gpio-vbus-power = "GPIOD_10";
 	gpios = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
 };
 
-&crg3_phy_20 {
-	status = "disabled";
+&crg3_phy_21 {
+	status = "okay";
 	portnum = <0>;
 };
 
