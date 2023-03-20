@@ -494,16 +494,26 @@ static inline void vdin_get_in_out_fps(struct vdin_dev_s *devp)
 	}
 }
 
+static bool vdin_need_game_mode(struct vdin_dev_s *devp)
+{
+	if (devp->fmt_info_p->scan_mode != TVIN_SCAN_MODE_INTERLACED)
+		return true;
+
+	// 1080i maybe has game mode demand
+	if ((devp->vdin_function_sel & VDIN_INTERLACE_GAME_MODE) &&
+	    devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED &&
+	    devp->fmt_info_p->v_active == 540)
+		return true;
+	else
+		return false;
+}
+
 static void vdin_game_mode_check(struct vdin_dev_s *devp)
 {
 	devp->game_mode_pre = devp->game_mode;
-	if (game_mode == 1 && (!IS_TVAFE_ATV_SRC(devp->parm.port))) {
+	if (game_mode == 1 && vdin_need_game_mode(devp)) {
 		vdin_get_in_out_fps(devp);
-		if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED ||
-		    devp->h_active <= 720) {
-			//interlace and x<= 720 not bypass DI so not advance send frame
-			devp->game_mode = VDIN_GAME_MODE_0;
-		} else if (devp->vinfo_std_duration > (devp->vdin_std_duration + 2)) {
+		if (devp->vinfo_std_duration > (devp->vdin_std_duration + 2)) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0) {
 				/* if vout fps greater than vin fps use mode0 */
 				devp->game_mode = (VDIN_GAME_MODE_0 |
@@ -511,8 +521,7 @@ static void vdin_game_mode_check(struct vdin_dev_s *devp)
 			} else {
 				devp->game_mode = VDIN_GAME_MODE_0;
 			}
-		} else if (devp->h_active > 720 &&
-			(devp->parm.info.fps >= 48 && devp->parm.info.fps <= 144)) {
+		} else if (devp->parm.info.fps >= 48 && devp->parm.info.fps <= 144) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0) {
 				devp->game_mode = (VDIN_GAME_MODE_0 |
 					VDIN_GAME_MODE_1 |
@@ -604,12 +613,11 @@ static inline void vdin_game_mode_dynamic_chg(struct vdin_dev_s *devp)
 
 static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
 {
+	if (!vdin_need_game_mode(devp))
+		return;
+
 	vdin_get_in_out_fps(devp);
-	if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED ||
-	    devp->h_active <= 720) {
-		//interlace and x<= 720 not bypass DI so not advance send frame
-		devp->game_mode = VDIN_GAME_MODE_0;
-	} else if (devp->vrr_data.vrr_mode &&
+	if (devp->vrr_data.vrr_mode &&
 	    devp->vdin_std_duration >= 25 &&
 	    devp->vdin_std_duration < 48) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0)
