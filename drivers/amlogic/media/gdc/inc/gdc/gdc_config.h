@@ -111,6 +111,12 @@ struct gdc_irq_data_s {
 extern struct gdc_manager_s gdc_manager;
 extern int gdc_smmu_enable;
 
+extern int gdc_debug_enable;
+extern int gdc_in_swap_endian;
+extern int gdc_out_swap_endian;
+extern int gdc_in_swap_64bit;
+extern int gdc_out_swap_64bit;
+
 #define GDC_DEVICE(dev_type) ((dev_type) == ARM_GDC ?             \
 			      &gdc_manager.gdc_dev->pdev->dev :   \
 			      &gdc_manager.aml_gdc_dev->pdev->dev)
@@ -141,6 +147,10 @@ extern int gdc_smmu_enable;
 #define ISP_DWAP_TOP_DST_U_CTRL1           ((0x16 << 2) | ISP_DWAP_REG_MARK)
 #define ISP_DWAP_TOP_DST_V_CTRL0           ((0x17 << 2) | ISP_DWAP_REG_MARK)
 #define ISP_DWAP_TOP_DST_V_CTRL1           ((0x18 << 2) | ISP_DWAP_REG_MARK)
+
+#define ISP_DWAP_CMD_SWAP                  ((0x2b << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_WMIF_CTRL1                ((0x40 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_RMIF_CTRL1                ((0x50 << 2) | ISP_DWAP_REG_MARK)
 
 #define ISP_DWAP_GAMMA_CTRL                ((0x60 << 2) | ISP_DWAP_REG_MARK)
 #define ISP_DWAP_GAMMA_OFST                ((0x61 << 2) | ISP_DWAP_REG_MARK)
@@ -365,6 +375,7 @@ static inline void gdc_config_addr_write(struct gdc_dmabuf_cfg_s *cfg, u32 data,
 					       core_id);
 
 			kunmap(page);
+
 			gdc_log(LOG_DEBUG, "   coef_size: 0x%x %u\n",
 				coef_size, coef_size);
 			gdc_log(LOG_DEBUG, "   mesh_size: 0x%x %u\n",
@@ -403,6 +414,54 @@ static inline void gdc_config_size_write(u32 data, u32 dev_type, u32 core_id)
 static inline u32 gdc_config_size_read(void)
 {
 	return system_gdc_read_32(0x14L, 0);
+}
+
+// args: enable (1-swap endian  0-do not swap)
+static inline void gdc_datain_swap_endian_write(u32 enable, u32 core_id)
+{
+	u32 curr = system_gdc_read_32(ISP_DWAP_CMD_SWAP, core_id);
+
+	curr &= ~(1 << 6);
+	curr |= (enable << 6);
+	system_gdc_write_32(ISP_DWAP_CMD_SWAP, curr, core_id);
+}
+
+static inline void gdc_dataout_swap_endian_write(u32 enable, u32 core_id)
+{
+	u32 curr = system_gdc_read_32(ISP_DWAP_WMIF_CTRL1, core_id);
+
+	curr &= ~(1 << 6);
+	curr |= ((enable ? 0 : 1) << 6);
+	system_gdc_write_32(ISP_DWAP_WMIF_CTRL1, curr, core_id);
+
+	curr = system_gdc_read_32(ISP_DWAP_CMD_SWAP, core_id);
+
+	curr &= ~(1 << 8);
+	curr |= (enable << 8);
+	system_gdc_write_32(ISP_DWAP_CMD_SWAP, curr, core_id);
+}
+
+// args: enable (1-swap 64bit of 128bit  0-do not swap)
+static inline void gdc_datain_swap_64bit_write(u32 enable, u32 core_id)
+{
+	u32 curr = system_gdc_read_32(ISP_DWAP_RMIF_CTRL1, core_id);
+
+	curr &= ~(1 << 7);
+	curr |= (enable << 7);
+
+	/* for coef and mesh, in case of swap_64bit */
+	curr &= ~(1 << 6);
+	curr |= ((enable ? 0 : 1) << 6);
+	system_gdc_write_32(ISP_DWAP_RMIF_CTRL1, curr, core_id);
+}
+
+static inline void gdc_dataout_swap_64bit_write(u32 enable, u32 core_id)
+{
+	u32 curr = system_gdc_read_32(ISP_DWAP_WMIF_CTRL1, core_id);
+
+	curr &= ~(1 << 7);
+	curr |= (enable << 7);
+	system_gdc_write_32(ISP_DWAP_WMIF_CTRL1, curr, core_id);
 }
 
 // ----------------------------------- //

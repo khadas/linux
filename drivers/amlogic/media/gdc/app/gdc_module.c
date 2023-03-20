@@ -23,6 +23,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/of_address.h>
 #include <linux/timer.h>
+#include <linux/ctype.h>
 
 #ifdef CONFIG_AMLOGIC_FREERTOS
 #include <linux/amlogic/freertos.h>
@@ -57,6 +58,13 @@ static struct timer_data_s timer_data[HW_TYPE];
 
 int gdc_log_level;
 int gdc_smmu_enable;
+
+int gdc_debug_enable;
+int gdc_in_swap_endian;
+int gdc_out_swap_endian;
+int gdc_in_swap_64bit;
+int gdc_out_swap_64bit;
+
 struct gdc_manager_s gdc_manager;
 static int kthread_created;
 static struct gdc_irq_handle_wq irq_handle_wq[CORE_NUM];
@@ -1447,10 +1455,12 @@ int gdc_process_phys(struct gdc_context_s *context,
 		}
 	}
 
-	gdc_log(LOG_DEBUG, "input, format:%d, width:%d, height:%d y_stride:%d c_stride:%d\n",
-		format, i_width, i_height, i_y_stride, i_c_stride);
-	gdc_log(LOG_DEBUG, "output, format:%d, width:%d, height:%d y_stride:%d c_stride:%d\n",
-		format, o_width, o_height, o_y_stride, o_c_stride);
+	gdc_log(LOG_DEBUG,
+		"input, format:%d, width:%d, height:%d y_stride:%d c_stride:%d endian:0x%x\n",
+		format, i_width, i_height, i_y_stride, i_c_stride, gs->in_endian);
+	gdc_log(LOG_DEBUG,
+		"output, format:%d, width:%d, height:%d y_stride:%d c_stride:%d endian:0x%x\n",
+		format, o_width, o_height, o_y_stride, o_c_stride, gs->out_endian);
 
 	gdc_cmd->gdc_config.format = format;
 	gdc_cmd->gdc_config.input_width = i_width;
@@ -1465,6 +1475,8 @@ int gdc_process_phys(struct gdc_context_s *context,
 	gdc_cmd->gdc_config.config_size = gs->config_size;
 	gdc_cmd->outplane = gs->out_plane_num;
 	gdc_cmd->use_sec_mem = gs->use_sec_mem;
+	gdc_cmd->in_endian = gs->in_endian;
+	gdc_cmd->out_endian = gs->out_endian;
 
 	/* set config_paddr MSB val */
 	context->dma_cfg.config_cfg.paddr_8g_msb = (u64)gs->config_paddr >> 32;
@@ -1899,6 +1911,45 @@ static const struct file_operations meson_gdc_fops = {
 	.mmap = meson_gdc_mmap,
 };
 
+static int parse_para(const char *para, int para_num, int *result)
+{
+	char *token = NULL;
+	char *params, *params_base;
+	int *out = result;
+	int len = 0, count = 0;
+	int res = 0;
+	int ret = 0;
+
+	if (!para)
+		return 0;
+
+	params = kstrdup(para, GFP_KERNEL);
+	params_base = params;
+	token = params;
+	if (!token)
+		return 0;
+	len = strlen(token);
+	do {
+		token = strsep(&params, " ");
+		while (token && (isspace(*token) ||
+				 !isgraph(*token)) && len) {
+			token++;
+			len--;
+		}
+		if (len == 0 || !token)
+			break;
+		ret = kstrtoint(token, 0, &res);
+		if (ret < 0)
+			break;
+		len = strlen(token);
+		*out++ = res;
+		count++;
+	} while ((token) && (count < para_num) && (len > 0));
+
+	kfree(params_base);
+	return count;
+}
+
 static ssize_t dump_reg_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
@@ -2039,6 +2090,39 @@ static ssize_t config_out_path_store(struct device *dev,
 }
 
 static DEVICE_ATTR_RW(config_out_path);
+
+static ssize_t debug_endian_show(struct device *device,
+					struct device_attribute *attr,
+					char *buf)
+{
+	return snprintf(buf, 80, "%d %d %d %d %d\n",
+			gdc_debug_enable,
+			gdc_in_swap_endian,
+			gdc_out_swap_endian,
+			gdc_in_swap_64bit,
+			gdc_out_swap_64bit);
+}
+
+static ssize_t debug_endian_store(struct device *device,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	int parsed[5];
+
+	if (likely(parse_para(buf, 5, parsed) == 5)) {
+		gdc_debug_enable    = parsed[0];
+		gdc_in_swap_endian  = parsed[1];
+		gdc_out_swap_endian = parsed[2];
+		gdc_in_swap_64bit   = parsed[3];
+		gdc_out_swap_64bit  = parsed[4];
+	} else {
+		pr_err("wrong params\n");
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(debug_endian);
 
 void irq_handle_func(struct work_struct *work)
 {
@@ -2328,6 +2412,8 @@ static int gdc_platform_probe(struct platform_device *pdev)
 			   &dev_attr_trace_mode);
 	device_create_file(gdc_dev->misc_dev.this_device,
 			   &dev_attr_config_out_path);
+	device_create_file(gdc_dev->misc_dev.this_device,
+			   &dev_attr_debug_endian);
 
 	platform_set_drvdata(pdev, gdc_dev);
 	dev_set_drvdata(gdc_dev->misc_dev.this_device, gdc_dev);

@@ -30,6 +30,13 @@ enum {
 	GDC_MAX_FW
 };
 
+enum {
+	GDC_ENDAIN_DEFAULT = 0, /* no endian operation */
+	GDC_ENDIAN_LITTLE  = BIT(0),
+	GDC_ENDIAN_BIG_8BYTES  = BIT(1),
+	GDC_ENDIAN_BIG_16BYTES = BIT(2)
+};
+
 struct gdc_linear_config_s {
 	void *buf_vaddr;
 	int buf_size;
@@ -120,6 +127,9 @@ struct gdc_cmd_s {
 	u32 dev_type;
 	/* secure mem access */
 	u32 use_sec_mem;
+	/* endian setting */
+	u32 in_endian;
+	u32 out_endian;
 };
 
 struct gdc_context_s {
@@ -194,6 +204,8 @@ struct gdc_phy_setting {
 	ulong config_paddr;
 	u32 config_size; /* in 32bit */
 	u32 use_sec_mem; /* secure mem access */
+	u32 in_endian;
+	u32 out_endian;
 };
 
 struct firmware_load_s {

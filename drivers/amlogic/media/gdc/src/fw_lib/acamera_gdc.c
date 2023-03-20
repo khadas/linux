@@ -96,6 +96,106 @@ void gdc_stop(struct gdc_cmd_s *gdc_cmd, u32 core_id)
  *   @param  gdc_cmd - overall gdc settings and state
  *
  */
+
+static void gdc_endian_config(struct gdc_cmd_s *gdc_cmd, u32 core_id)
+{
+	u32 dev_type = gdc_cmd->dev_type;
+
+	if (dev_type == ARM_GDC)
+		return;
+
+	if (gdc_debug_enable) {
+		gdc_datain_swap_64bit_write(gdc_in_swap_64bit, core_id);
+		gdc_dataout_swap_64bit_write(gdc_out_swap_64bit, core_id);
+
+		gdc_datain_swap_endian_write(gdc_in_swap_endian, core_id);
+		gdc_dataout_swap_endian_write(gdc_out_swap_endian, core_id);
+	} else {
+		u32 in_swap_64bit = 0, out_swap_64bit = 0;
+		u32 in_swap_endian = 0, out_swap_endian = 0;
+		u32 in_endian = gdc_cmd->in_endian;
+		u32 out_endian = gdc_cmd->out_endian;
+
+		if (in_endian == GDC_ENDIAN_LITTLE) {
+			switch (out_endian) {
+			case GDC_ENDIAN_LITTLE:
+				in_swap_64bit   = 0;
+				out_swap_64bit  = 0;
+				in_swap_endian  = 0;
+				out_swap_endian = 0;
+				break;
+			case GDC_ENDIAN_BIG_8BYTES:
+				in_swap_64bit   = 0;
+				out_swap_64bit  = 1;
+				in_swap_endian  = 0;
+				out_swap_endian = 1;
+				break;
+			case GDC_ENDIAN_BIG_16BYTES:
+				in_swap_64bit   = 0;
+				out_swap_64bit  = 0;
+				in_swap_endian  = 0;
+				out_swap_endian = 1;
+				break;
+			}
+		} else if (in_endian == GDC_ENDIAN_BIG_8BYTES) {
+			switch (out_endian) {
+			case GDC_ENDIAN_LITTLE:
+				in_swap_64bit   = 1;
+				out_swap_64bit  = 0;
+				in_swap_endian  = 1;
+				out_swap_endian = 0;
+				break;
+			case GDC_ENDIAN_BIG_8BYTES:
+				in_swap_64bit   = 1;
+				out_swap_64bit  = 1;
+				in_swap_endian  = 1;
+				out_swap_endian = 1;
+				break;
+			case GDC_ENDIAN_BIG_16BYTES:
+				in_swap_64bit   = 1;
+				out_swap_64bit  = 0;
+				in_swap_endian  = 1;
+				out_swap_endian = 1;
+				break;
+			}
+		} else if (in_endian == GDC_ENDIAN_BIG_16BYTES) {
+			switch (out_endian) {
+			case GDC_ENDIAN_LITTLE:
+				in_swap_64bit   = 0;
+				out_swap_64bit  = 0;
+				in_swap_endian  = 1;
+				out_swap_endian = 0;
+				break;
+			case GDC_ENDIAN_BIG_8BYTES:
+				in_swap_64bit   = 0;
+				out_swap_64bit  = 1;
+				in_swap_endian  = 1;
+				out_swap_endian = 1;
+				break;
+			case GDC_ENDIAN_BIG_16BYTES:
+				in_swap_64bit   = 0;
+				out_swap_64bit  = 0;
+				in_swap_endian  = 1;
+				out_swap_endian = 1;
+				break;
+			}
+		}
+
+		gdc_datain_swap_64bit_write(in_swap_64bit, core_id);
+		gdc_dataout_swap_64bit_write(out_swap_64bit, core_id);
+		gdc_datain_swap_endian_write(in_swap_endian, core_id);
+		gdc_dataout_swap_endian_write(out_swap_endian, core_id);
+
+		gdc_log(LOG_DEBUG, "in_endian:%d, out_endian:%d",
+			in_endian, out_endian);
+
+		gdc_log(LOG_DEBUG,
+			"in_swap_64bit:%d out_swap_64_bit:%d in_swap_endian:%d, out_swap_endian:%d",
+			in_swap_64bit, out_swap_64bit,
+			in_swap_endian, out_swap_endian);
+	}
+}
+
 void gdc_start(struct gdc_cmd_s *gdc_cmd, u32 core_id)
 {
 	/* do a stop for sync */
@@ -213,6 +313,7 @@ int gdc_process(struct gdc_cmd_s *gdc_cmd,
 	if (GDC_DEV_T(dev_type)->ext_msb_8g)
 		set_ext_8g_msb(dma_cfg, 2);
 
+	gdc_endian_config(gdc_cmd, core_id);
 	gdc_start(gdc_cmd, core_id);
 
 	return 0;
@@ -308,6 +409,7 @@ int gdc_process_yuv420p(struct gdc_cmd_s *gdc_cmd,
 	if (GDC_DEV_T(dev_type)->ext_msb_8g)
 		set_ext_8g_msb(dma_cfg, 3);
 
+	gdc_endian_config(gdc_cmd, core_id);
 	gdc_start(gdc_cmd, core_id);
 
 	return 0;
@@ -365,6 +467,7 @@ int gdc_process_y_grey(struct gdc_cmd_s *gdc_cmd,
 	if (GDC_DEV_T(dev_type)->ext_msb_8g)
 		set_ext_8g_msb(dma_cfg, 1);
 
+	gdc_endian_config(gdc_cmd, core_id);
 	gdc_start(gdc_cmd, core_id);
 
 	return 0;
@@ -454,6 +557,7 @@ int gdc_process_yuv444p(struct gdc_cmd_s *gdc_cmd,
 	if (GDC_DEV_T(dev_type)->ext_msb_8g)
 		set_ext_8g_msb(dma_cfg, 3);
 
+	gdc_endian_config(gdc_cmd, core_id);
 	gdc_start(gdc_cmd, core_id);
 
 	return 0;
@@ -545,6 +649,7 @@ int gdc_process_rgb444p(struct gdc_cmd_s *gdc_cmd,
 	if (GDC_DEV_T(dev_type)->ext_msb_8g)
 		set_ext_8g_msb(dma_cfg, 3);
 
+	gdc_endian_config(gdc_cmd, core_id);
 	gdc_start(gdc_cmd, core_id);
 
 	return 0;
