@@ -912,7 +912,6 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client)
              dev_err(&i2c_client->dev, "Failed to request spk_ctl_gpio\n");
              return ret;
           }
-          es8316_enable_spk(es8316, true);
        }
 
 	es8316->hp_det_gpio = of_get_named_gpio_flags(np,
@@ -933,14 +932,26 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client)
 
 	mutex_init(&es8316->lock);
 
-	if (es8316->irq > 0) {
-		ret = devm_request_threaded_irq(dev, es8316->irq, NULL, es8316_irq,
-						IRQF_TRIGGER_HIGH | IRQF_ONESHOT | IRQF_NO_AUTOEN,
-						"es8316", es8316);
-		if (ret) {
-			dev_warn(dev, "Failed to get IRQ %d: %d\n", es8316->irq, ret);
-			es8316->irq = -ENXIO;
-		}
+	if (!!gpio_get_value(es8316->hp_det_gpio))
+		if (es8316->hp_det_invert)
+			es8316_enable_spk(es8316, true);
+		else
+			es8316_enable_spk(es8316, false);
+	else
+		if (es8316->hp_det_invert)
+			es8316_enable_spk(es8316, false);
+		else
+			es8316_enable_spk(es8316, true);
+
+	ret = devm_request_threaded_irq(dev, es8316->irq, NULL, es8316_irq,
+					IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					"es8316", es8316);
+	if (ret < 0) {
+		/* Gets re-enabled by es8316_set_jack() */
+//		disable_irq(es8316->irq);
+//	} else {
+		dev_warn(dev, "Failed to get IRQ %d: %d\n", es8316->irq, ret);
+		es8316->irq = -ENXIO;
 	}
 
 	return devm_snd_soc_register_component(&i2c_client->dev,
