@@ -389,7 +389,7 @@
 
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
-		status = "okay";
+		status = "disabled";
 		key_name = "update", "vol-", "vol+", "ok" ,"power";
 		key_num = <5>;
 		io-channels = <&saradc 2>;
