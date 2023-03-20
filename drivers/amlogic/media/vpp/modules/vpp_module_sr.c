@@ -572,52 +572,63 @@ int vpp_module_sr_init(struct vpp_dev_s *pdev)
 
 void vpp_module_sr_en(enum sr_mode_e mode, bool enable)
 {
-	int gating_clock = 0;
+	/*int gating_clock = 0;*/
 	unsigned int addr = 0;
 	enum io_mode_e io_mode = EN_MODE_DIR;
+	int i = 0;
 
 	pr_vpp(PR_DEBUG_SR, "[%s] mode = %d, enable = %d\n",
 		__func__, mode, enable);
 
-	if (enable)
-		gating_clock = 0x05;
-	else
-		gating_clock = 0x0;
-
+	/*if (enable)
+	 *	gating_clock = 0x05;
+	 *else
+	 *	gating_clock = 0x0;
+	 */
 	switch (mode) {
 	case EN_MODE_SR_0:
-		addr = ADDR_PARAM(sr_reg_cfg.page[4],
-			sr_reg_cfg.reg_srscl_gclk_ctrl);
-		WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, gating_clock,
-			sr_bit_cfg.bit_gclk_ctrl_sr0.start,
-			sr_bit_cfg.bit_gclk_ctrl_sr0.len);
-		addr = ADDR_PARAM(sr_reg_cfg.page[4],
-			sr_reg_cfg.reg_srsharp0_ctrl);
-		WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, enable,
-			sr_bit_cfg.bit_srsharp0_en.start,
-			sr_bit_cfg.bit_srsharp0_en.len);
-		WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, enable,
-			sr_bit_cfg.bit_srsharp0_buf_en.start,
-			sr_bit_cfg.bit_srsharp0_buf_en.len);
+		i = 0;
+		/*addr = ADDR_PARAM(sr_reg_cfg.page[4],
+		 *	sr_reg_cfg.reg_srscl_gclk_ctrl);
+		 *WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, gating_clock,
+		 *sr_bit_cfg.bit_gclk_ctrl_sr0.start,
+		 *	sr_bit_cfg.bit_gclk_ctrl_sr0.len);
+		 *addr = ADDR_PARAM(sr_reg_cfg.page[4],
+		 *	sr_reg_cfg.reg_srsharp0_ctrl);
+		 *WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, enable,
+		 *	sr_bit_cfg.bit_srsharp0_en.start,
+		 *	sr_bit_cfg.bit_srsharp0_en.len);
+		 *WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, enable,
+		 *	sr_bit_cfg.bit_srsharp0_buf_en.start,
+		 *	sr_bit_cfg.bit_srsharp0_buf_en.len);
+		 */
 		break;
 	case EN_MODE_SR_1:
-		addr = ADDR_PARAM(sr_reg_cfg.page[4],
-			sr_reg_cfg.reg_srscl_gclk_ctrl);
-		WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, gating_clock,
-			sr_bit_cfg.bit_gclk_ctrl_sr1.start,
-			sr_bit_cfg.bit_gclk_ctrl_sr1.len);
-		addr = ADDR_PARAM(sr_reg_cfg.page[4],
-			sr_reg_cfg.reg_srsharp1_ctrl);
-		WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, enable,
-			sr_bit_cfg.bit_srsharp1_en.start,
-			sr_bit_cfg.bit_srsharp1_en.len);
-		WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, enable,
-			sr_bit_cfg.bit_srsharp1_buf_en.start,
-			sr_bit_cfg.bit_srsharp1_buf_en.len);
+		i = 2;
+		/*addr = ADDR_PARAM(sr_reg_cfg.page[4],
+		 *	sr_reg_cfg.reg_srscl_gclk_ctrl);
+		 *WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, gating_clock,
+		 *	sr_bit_cfg.bit_gclk_ctrl_sr1.start,
+		 *	sr_bit_cfg.bit_gclk_ctrl_sr1.len);
+		 *addr = ADDR_PARAM(sr_reg_cfg.page[4],
+		 *	sr_reg_cfg.reg_srsharp1_ctrl);
+		 *WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, enable,
+		 *	sr_bit_cfg.bit_srsharp1_en.start,
+		 *	sr_bit_cfg.bit_srsharp1_en.len);
+		 *WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, enable,
+		 *	sr_bit_cfg.bit_srsharp1_buf_en.start,
+		 *	sr_bit_cfg.bit_srsharp1_buf_en.len);
+		 */
 		break;
 	default:
 		break;
 	}
+
+	addr = ADDR_PARAM(sr_reg_cfg.page[i],
+		sr_reg_cfg.reg_pk_nr_en);
+	WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, enable,
+		sr_bit_cfg.bit_pk_nr_en.start,
+		sr_bit_cfg.bit_pk_nr_en.len);
 }
 
 void vpp_module_sr_sub_module_en(enum sr_mode_e mode,
