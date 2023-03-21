@@ -7,21 +7,11 @@
 #include <linux/module.h>
 #include "audio_io.h"
 
-int aml_init_audio_controller(struct aml_audio_controller *actrlr,
-			      struct regmap *regmap,
-			      struct aml_audio_ctrl_ops *ops)
-{
-	actrlr->regmap = regmap;
-	actrlr->ops = ops;
-
-	return 0;
-}
-
 int aml_audiobus_write(struct aml_audio_controller *actrlr,
 		       unsigned int reg, unsigned int value)
 {
 	if (actrlr->ops->write)
-		return actrlr->ops->write(actrlr, reg, value);
+		return actrlr->ops->write(actrlr, actrlr->audioio_regmap, reg, value);
 
 	return -1;
 }
@@ -30,7 +20,7 @@ unsigned int aml_audiobus_read(struct aml_audio_controller *actrlr,
 			       unsigned int reg)
 {
 	if (actrlr->ops->read)
-		return actrlr->ops->read(actrlr, reg);
+		return actrlr->ops->read(actrlr, actrlr->audioio_regmap, reg);
 
 	return 0;
 }
@@ -40,7 +30,35 @@ int aml_audiobus_update_bits(struct aml_audio_controller *actrlr,
 			     unsigned int value)
 {
 	if (actrlr->ops->update_bits)
-		return actrlr->ops->update_bits(actrlr, reg, mask, value);
+		return actrlr->ops->update_bits(actrlr, actrlr->audioio_regmap, reg, mask, value);
+
+	return -1;
+}
+
+int aml_acc_write(struct aml_audio_controller *actrlr,
+		       unsigned int reg, unsigned int value)
+{
+	if (actrlr->ops->write && actrlr->acc_regmap)
+		return actrlr->ops->write(actrlr, actrlr->acc_regmap, reg, value);
+
+	return -1;
+}
+
+unsigned int aml_acc_read(struct aml_audio_controller *actrlr,
+			       unsigned int reg)
+{
+	if (actrlr->ops->read && actrlr->acc_regmap)
+		return actrlr->ops->read(actrlr, actrlr->acc_regmap, reg);
+
+	return 0;
+}
+
+int aml_acc_update_bits(struct aml_audio_controller *actrlr,
+			     unsigned int reg, unsigned int mask,
+			     unsigned int value)
+{
+	if (actrlr->ops->update_bits && actrlr->acc_regmap)
+		return actrlr->ops->update_bits(actrlr, actrlr->acc_regmap, reg, mask, value);
 
 	return -1;
 }

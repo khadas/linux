@@ -76,10 +76,7 @@ static int audio_clocks_probe(struct platform_device *pdev)
 	audio_top_vad_regmap = regmap_resource(dev, "audio_vad_top");
 	if (!IS_ERR(audio_top_vad_regmap))
 		/* need gate on vad_top then the audio top could work */
-		regmap_write
-			(audio_top_vad_regmap,
-			(EE_AUDIO2_CLK_GATE_EN0 << 2),
-			0xff);
+		mmio_write(audio_top_vad_regmap, EE_AUDIO2_CLK_GATE_EN0, 0xff);
 	else
 		dev_info(dev, "no audio top vad clk\n");
 

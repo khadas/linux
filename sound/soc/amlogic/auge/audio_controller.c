@@ -29,19 +29,15 @@
 
 unsigned int chip_id;
 
-static unsigned int aml_audio_mmio_read(struct aml_audio_controller *actrlr,
+static unsigned int aml_audio_mmio_read(struct aml_audio_controller *actrlr, struct regmap *regmap,
 					unsigned int reg)
 {
-	struct regmap *regmap = actrlr->regmap;
-
 	return mmio_read(regmap, reg);
 }
 
-static int aml_audio_mmio_write(struct aml_audio_controller *actrlr,
+static int aml_audio_mmio_write(struct aml_audio_controller *actrlr, struct regmap *regmap,
 				unsigned int reg, unsigned int value)
 {
-	struct regmap *regmap = actrlr->regmap;
-
 	pr_debug("audio top reg:[%s] addr: [%#x] val: [%#x]\n",
 		 top_register_table[reg].name,
 		 top_register_table[reg].addr,
@@ -50,12 +46,10 @@ static int aml_audio_mmio_write(struct aml_audio_controller *actrlr,
 	return mmio_write(regmap, reg, value);
 }
 
-static int aml_audio_mmio_update_bits(struct aml_audio_controller *actrlr,
+static int aml_audio_mmio_update_bits(struct aml_audio_controller *actrlr, struct regmap *regmap,
 				      unsigned int reg, unsigned int mask,
 				      unsigned int value)
 {
-	struct regmap *regmap = actrlr->regmap;
-
 	pr_debug("audio top reg:[%s] addr: [%#x] mask: [%#x] val: [%#x]\n",
 		 top_register_table[reg].name,
 		 top_register_table[reg].addr,
@@ -73,12 +67,6 @@ struct aml_audio_ctrl_ops aml_actrl_mmio_ops = {
 	.read		= aml_audio_mmio_read,
 	.write		= aml_audio_mmio_write,
 	.update_bits	= aml_audio_mmio_update_bits,
-};
-
-static struct regmap_config aml_audio_regmap_config = {
-	.reg_bits = 32,
-	.val_bits = 32,
-	.reg_stride = 4,
 };
 
 struct gate_info {
@@ -103,29 +91,24 @@ static const struct of_device_id amlogic_audio_controller_of_match[] = {
 static int register_audio_controller(struct platform_device *pdev,
 				     struct aml_audio_controller *actrl)
 {
-	struct resource *res_mem;
-	void __iomem *regs;
-	struct regmap *regmap;
+	struct regmap *audioio_regmap, *acc_regmap;
 	struct gate_info *info = (struct gate_info *)of_device_get_match_data(&pdev->dev);
 
-	/* get platform res from dtb */
-	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res_mem)
-		return -ENOENT;
-
-	regs = devm_ioremap_resource(&pdev->dev, res_mem);
-	if (IS_ERR(regs))
-		return PTR_ERR(regs);
-
-	aml_audio_regmap_config.max_register = 4 * resource_size(res_mem);
-
-	regmap = devm_regmap_init_mmio(&pdev->dev, regs,
-				       &aml_audio_regmap_config);
-	if (IS_ERR(regmap))
-		return PTR_ERR(regmap);
+	audioio_regmap = regmap_resource(&pdev->dev, "audio_bus");
+	acc_regmap = regmap_resource(&pdev->dev, "audio_acc");
+	if (IS_ERR(audioio_regmap))
+		return PTR_ERR(audioio_regmap);
 
 	/* init aml audio bus mmio controller */
-	aml_init_audio_controller(actrl, regmap, &aml_actrl_mmio_ops);
+	actrl->audioio_regmap = audioio_regmap;
+	if (!IS_ERR(audioio_regmap)) {
+		actrl->acc_regmap = acc_regmap;
+		mmio_write(acc_regmap, AUDIO_ACC_CLK_GATE_EN, 0xff);
+	} else {
+		actrl->acc_regmap = NULL;
+	}
+	actrl->ops = &aml_actrl_mmio_ops;
+
 	platform_set_drvdata(pdev, actrl);
 
 	/* gate on all clks on bringup stage, need gate separately */
