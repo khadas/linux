@@ -3039,14 +3039,12 @@ void hdmitx_dhdr_send(u8 *body, int max_size)
 
 	if (!body) {
 		hdmitx21_wr_reg(D_HDR_INSERT_CTRL_IVCTX, 0);
-		pr_info("%s:stop send dhdr pkt\n", __func__);
 		return;
 	}
 
 	active_lines = hdev->para->timing.v_active;
 	blank_lines = hdev->para->timing.v_blank;
 
-	pr_info("%s: send dhdr for cuva\n", __func__);
 	hdr_emp_num = (3 - 1) * 28 + 21;	//emds total send 3 packet as one dhdr
 	//  step1: hdr timing
 	hdmitx21_wr_reg(D_HDR_VB_LE_IVCTX, (blank_lines & 0xff)); //reg_vb_le default 0x20
