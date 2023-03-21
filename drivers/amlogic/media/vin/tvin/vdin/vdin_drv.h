@@ -133,7 +133,8 @@
 /* 20230307: if not data input not reminder */
 /* 20230309: interlace signal not advance send frame */
 /* 20230316: add avi ext_colorimetry callback api for vdin */
-#define VDIN_VER "20230316"
+/* 20230321: not add vdin interrupt lock on tvin_notify_vdin_skip_frame */
+#define VDIN_VER "20230321"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK

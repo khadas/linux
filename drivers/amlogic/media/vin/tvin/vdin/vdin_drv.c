@@ -320,18 +320,15 @@ EXPORT_SYMBOL(tvin_update_vdin_prop);
 void tvin_notify_vdin_skip_frame(void)
 {
 	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
-	ulong flags;
 
 	if (!vdin0_devp || !(vdin0_devp->flags & VDIN_FLAG_ISR_EN))
 		return;
 
 	vdin_vf_skip_all_disp(vdin0_devp->vfp);
 
-	if (vdin0_devp->game_mode) {
-		spin_lock_irqsave(&vdin0_devp->isr_lock, flags);
+	if (vdin0_devp->game_mode)
 		vdin_pause_hw_write(vdin0_devp, 0);
-		spin_unlock_irqrestore(&vdin0_devp->isr_lock, flags);
-	}
+
 	vdin0_devp->frame_drop_num = 1;
 	vdin_drop_frame_info(vdin0_devp, "tvin notify skip frame");
 }
