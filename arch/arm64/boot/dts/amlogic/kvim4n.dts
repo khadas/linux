@@ -1392,21 +1392,18 @@
 		clock-names = "mclk","mclk_pre","mclk_p","mclk_x";
 		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
 		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
-		ports {
-			port@0 {
-				imx415_4_ep: imx415 {
-					reg = <0>;
-					data-lanes = <0 1 2 3>;
-					link-frequencies = /bits/ 64 <1440000000>;
-					remote-endpoint = <&csiphy0_ep_4>;
-				};
+		port@0 {
+			imx415_4_ep: imx415 {
+				reg = <0>;
+				data-lanes = <0 1 2 3>;
+				link-frequencies = /bits/ 64 <1440000000>;
+				remote-endpoint = <&csiphy0_ep_4>;
 			};
 		};
 	};
 	ov08a10_0: sensor2@36 {
 		compatible = "omini, ov08a10";
-		status = "okay";
-		index = <1>;
+		index = <0>;
 		reg = <0x36>;
 		reg-addr-type = <2>;
 		reg-data-type = <1>;
@@ -1416,8 +1413,7 @@
 				<&clkc CLKID_MCLK_PLL>,
 				<&xtal>;
 		clock-names = "mclk","mclk_pre","mclk_p","mclk_x";
-		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
-		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
 		port {
 			ov08a10_0_ep: ov08a10 {
 				data-lanes = <0 1 2 3>;
@@ -1636,7 +1632,7 @@
 		port@1 {
 			csiphy0_ep_4: endpoint {
 				reg = <1>;
-				status = "disable";
+				status = "disabled";
 				clock-lanes = <4>;
 				data-lanes = <0 1 2 3>;
 				remote-endpoint = <&imx415_4_ep>;
@@ -1656,12 +1652,21 @@
 &csiphy2 {
 	ports {
 		port@0 {
-			csiphy2_ep: endpoint {
+			csiphy2_ep_0: endpoint {
 				reg = <2>;
-				status = "okay";
+				status = "disable";
 				clock-lanes = <4>;
 				data-lanes = <0 1 2 3>;
 //				remote-endpoint = <&imx290_1_ep>;
+			};
+		};
+		port@1 {
+			csiphy2_ep_1: endpoint {
+				reg = <2>;
+				status = "disabled";
+				clock-lanes = <4>;
+				data-lanes = <0 1 2 3>;
+//				remote-endpoint = <&ov08a10_1_ep>;
 			};
 		};
 	};
