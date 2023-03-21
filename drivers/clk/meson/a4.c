@@ -271,17 +271,16 @@ static struct clk_fixed_factor a4_fclk_div2_div = {
 
 static struct clk_regmap a4_fclk_div2 = {
 	.data = &(struct clk_regmap_gate_data){
-		.offset = ANACTRL_FIXPLL_CTRL1,
-		.bit_idx = 24,
+		.offset = ANACTRL_FIXPLL_CTRL3,
+		.bit_idx = 20,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "fclk_div2",
-		.ops = &clk_regmap_gate_ops,
+		.ops = &clk_regmap_gate_ro_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&a4_fclk_div2_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -298,26 +297,16 @@ static struct clk_fixed_factor a4_fclk_div3_div = {
 
 static struct clk_regmap a4_fclk_div3 = {
 	.data = &(struct clk_regmap_gate_data){
-		.offset = ANACTRL_FIXPLL_CTRL1,
-		.bit_idx = 20,
+		.offset = ANACTRL_FIXPLL_CTRL3,
+		.bit_idx = 16,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "fclk_div3",
-		.ops = &clk_regmap_gate_ops,
+		.ops = &clk_regmap_gate_ro_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&a4_fclk_div3_div.hw
 		},
 		.num_parents = 1,
-		/*
-		 * This clock is used by the resident firmware and is required
-		 * by the platform to operate correctly.
-		 * Until the following condition are met, we need this clock to
-		 * be marked as critical:
-		 * a) Mark the clock used by a firmware resource, if possible
-		 * b) CCF has a clock hand-off mechanism to make the sure the
-		 *    clock stays on until the proper driver comes along
-		 */
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -334,17 +323,16 @@ static struct clk_fixed_factor a4_fclk_div4_div = {
 
 static struct clk_regmap a4_fclk_div4 = {
 	.data = &(struct clk_regmap_gate_data){
-		.offset = ANACTRL_FIXPLL_CTRL1,
-		.bit_idx = 21,
+		.offset = ANACTRL_FIXPLL_CTRL3,
+		.bit_idx = 17,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "fclk_div4",
-		.ops = &clk_regmap_gate_ops,
+		.ops = &clk_regmap_gate_ro_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&a4_fclk_div4_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -361,17 +349,16 @@ static struct clk_fixed_factor a4_fclk_div5_div = {
 
 static struct clk_regmap a4_fclk_div5 = {
 	.data = &(struct clk_regmap_gate_data){
-		.offset = ANACTRL_FIXPLL_CTRL1,
-		.bit_idx = 22,
+		.offset = ANACTRL_FIXPLL_CTRL3,
+		.bit_idx = 18,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "fclk_div5",
-		.ops = &clk_regmap_gate_ops,
+		.ops = &clk_regmap_gate_ro_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&a4_fclk_div5_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -388,17 +375,16 @@ static struct clk_fixed_factor a4_fclk_div7_div = {
 
 static struct clk_regmap a4_fclk_div7 = {
 	.data = &(struct clk_regmap_gate_data){
-		.offset = ANACTRL_FIXPLL_CTRL1,
-		.bit_idx = 23,
+		.offset = ANACTRL_FIXPLL_CTRL3,
+		.bit_idx = 19,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "fclk_div7",
-		.ops = &clk_regmap_gate_ops,
+		.ops = &clk_regmap_gate_ro_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&a4_fclk_div7_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -417,17 +403,16 @@ static struct clk_fixed_factor a4_fclk_div2p5_div = {
 
 static struct clk_regmap a4_fclk_div2p5 = {
 	.data = &(struct clk_regmap_gate_data){
-		.offset = ANACTRL_FIXPLL_CTRL1,
-		.bit_idx = 25,
+		.offset = ANACTRL_FIXPLL_CTRL3,
+		.bit_idx = 9,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "fclk_div2p5",
-		.ops = &clk_regmap_gate_ops,
+		.ops = &clk_regmap_gate_ro_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&a4_fclk_div2p5_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -938,16 +923,19 @@ static struct clk_fixed_factor a4_mpll_50m = {
 
 /*
  *rtc 32k clock
- *
- *xtal--GATE------------------GATE---------------------|\
- *	              |  --------                      | \
- *	              |  |      |                      |  \
- *	              ---| DUAL |----------------------|   |
- *	                 |      |                      |   |____GATE__
- *	                 --------                      |   |     rtc_32k_out
- *	   PAD-----------------------------------------|  /
- *	                                               | /
- *	   DUAL function:                              |/
+ *                                    ---------
+ *           ------                  |         |
+ *          |      |                 |         |
+ * xtal---->| GATE |-------------------->|\    |     |\
+ *	    |      |  |      ------      | \   |     | \       ------
+ *	     ------   |     |      |     |  |   ---->|  |     |      | rtc_clk
+ *	               ---->| DUAL |---->|  |        |  |---->| GATE |-------->
+ *	                    |      |     |  |------->|  |     |      |
+ *	                     ------      |  |        | /       ------
+ *                                       |  |        |/
+ *	   PAD-------------------------->| /
+ *	                                 |/
+ *	   DUAL function:
  *	   bit 28 in RTC_BY_OSCIN_CTRL0 control the dual function.
  *	   when bit 28 = 0
  *	         f = 24M/N0
@@ -1033,22 +1021,6 @@ static struct clk_regmap a4_rtc_32k_div = {
 	},
 };
 
-static struct clk_regmap a4_rtc_32k_xtal = {
-	.data = &(struct clk_regmap_gate_data){
-		.offset = CLKCTRL_RTC_BY_OSCIN_CTRL1,
-		.bit_idx = 24,
-	},
-	.hw.init = &(struct clk_init_data) {
-		.name = "rtc_32k_xtal",
-		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&a4_rtc_32k_clkin.hw
-		},
-		.num_parents = 1,
-		.flags = CLK_IGNORE_UNUSED,
-	},
-};
-
 /*
  * three parent for rtc clock out
  * pad is from where?
@@ -1066,11 +1038,29 @@ static struct clk_regmap a4_rtc_32k_sel = {
 		.name = "rtc_32k_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&a4_rtc_32k_xtal.hw,
+			&a4_rtc_32k_clkin.hw,
 			&a4_rtc_32k_div.hw
 		},
 		.num_parents = 2,
 		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap a4_rtc_32k_xtal = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = CLKCTRL_RTC_BY_OSCIN_CTRL1,
+		.mask = 0x1,
+		.shift = 24,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "rtc_32k_xtal",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&a4_rtc_32k_sel.hw,
+			&a4_rtc_32k_clkin.hw
+		},
+		.num_parents = 2,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1083,7 +1073,7 @@ static struct clk_regmap a4_rtc_clk = {
 		.name = "rtc_clk",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&a4_rtc_32k_sel.hw
+			&a4_rtc_32k_xtal.hw
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -1334,132 +1324,6 @@ static struct clk_regmap a4_axi_clk = {
 		.parent_hws = (const struct clk_hw *[]) {
 			&a4_axiclk_0.hw,
 			&a4_axiclk_1.hw
-		},
-		.num_parents = 2,
-		.flags = CLK_IS_CRITICAL,
-	},
-};
-
-static u32 mux_table_rama_clk_sel[] = { 0, 1, 2, 3, 4, 6, 7 };
-
-static const struct clk_parent_data a4_rama_clk_parent_data[] = {
-	{ .fw_name = "xtal", },
-	{ .hw = &a4_fclk_div2.hw },
-	{ .hw = &a4_fclk_div3.hw },
-	{ .hw = &a4_fclk_div4.hw },
-	{ .hw = &a4_fclk_div5.hw },
-	{ .hw = &a4_fclk_div7.hw },
-	{ .hw = &a4_rtc_clk.hw }
-};
-
-static struct clk_regmap a4_ramaclk_1_sel = {
-	.data = &(struct clk_regmap_mux_data){
-		.offset = CLKCTRL_RAMA_CLK_CTRL0,
-		.mask = 0x7,
-		.shift = 26,
-		.table = mux_table_rama_clk_sel,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "ramaclk_1_sel",
-		.ops = &clk_regmap_mux_ops,
-		.parent_data = a4_rama_clk_parent_data,
-		.num_parents = ARRAY_SIZE(a4_rama_clk_parent_data),
-	},
-};
-
-static struct clk_regmap a4_ramaclk_1_div = {
-	.data = &(struct clk_regmap_div_data){
-		.offset = CLKCTRL_RAMA_CLK_CTRL0,
-		.shift = 16,
-		.width = 10,
-		.flags = CLK_DIVIDER_ALLOW_ZERO,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "ramaclk_1_div",
-		.ops = &clk_regmap_divider_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&a4_ramaclk_1_sel.hw,
-		},
-		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
-	},
-};
-
-static struct clk_regmap a4_ramaclk_1 = {
-	.data = &(struct clk_regmap_gate_data){
-		.offset = CLKCTRL_RAMA_CLK_CTRL0,
-		.bit_idx = 29,
-	},
-	.hw.init = &(struct clk_init_data) {
-		.name = "ramaclk_1",
-		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&a4_ramaclk_1_div.hw,
-		},
-		.num_parents = 1,
-	},
-};
-
-static struct clk_regmap a4_ramaclk_0_sel = {
-	.data = &(struct clk_regmap_mux_data){
-		.offset = CLKCTRL_RAMA_CLK_CTRL0,
-		.mask = 0x7,
-		.shift = 10,
-		.table = mux_table_rama_clk_sel,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "ramaclk_0_sel",
-		.ops = &clk_regmap_mux_ops,
-		.parent_data = a4_rama_clk_parent_data,
-		.num_parents = ARRAY_SIZE(a4_rama_clk_parent_data),
-	},
-};
-
-static struct clk_regmap a4_ramaclk_0_div = {
-	.data = &(struct clk_regmap_div_data){
-		.offset = CLKCTRL_RAMA_CLK_CTRL0,
-		.shift = 0,
-		.width = 10,
-		.flags = CLK_DIVIDER_ALLOW_ZERO,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "ramaclk_0_div",
-		.ops = &clk_regmap_divider_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&a4_ramaclk_0_sel.hw,
-		},
-		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
-	},
-};
-
-static struct clk_regmap a4_ramaclk_0 = {
-	.data = &(struct clk_regmap_gate_data){
-		.offset = CLKCTRL_RAMA_CLK_CTRL0,
-		.bit_idx = 13,
-	},
-	.hw.init = &(struct clk_init_data) {
-		.name = "ramaclk_0",
-		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&a4_ramaclk_0_div.hw,
-		},
-		.num_parents = 1,
-	},
-};
-
-static struct clk_regmap a4_rama_clk = {
-	.data = &(struct clk_regmap_mux_data){
-		.offset = CLKCTRL_RAMA_CLK_CTRL0,
-		.mask = 0x1,
-		.shift = 15,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "rama_clk",
-		.ops = &clk_regmap_mux_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&a4_ramaclk_0.hw,
-			&a4_ramaclk_1.hw
 		},
 		.num_parents = 2,
 		.flags = CLK_IS_CRITICAL,
@@ -1761,13 +1625,15 @@ static struct clk_regmap a4_sd_emmc_a_clk0 = {
 };
 
 /*cts_spicc_0/1_clk*/
-static u32 a4_spicc_table[] = {0, 1, 2, 4, 7};
 static const struct clk_parent_data a4_spicc_parent_hws[] = {
 	{ .fw_name = "xtal", },
-	{ .hw = &a4_fclk_div2.hw },
+	{ .hw = &a4_sys_clk.hw },
+	{ .hw = &a4_fclk_div4.hw },
 	{ .hw = &a4_fclk_div3.hw },
-	{ .hw = &a4_fclk_div2p5.hw },
-	{ .hw = &a4_gp0_pll.hw }
+	{ .hw = &a4_fclk_div2.hw },
+	{ .hw = &a4_fclk_div5.hw },
+	{ .hw = &a4_fclk_div7.hw },
+	{ .hw = &a4_gp1_pll.hw }
 };
 
 static struct clk_regmap a4_spicc0_sel = {
@@ -1775,7 +1641,6 @@ static struct clk_regmap a4_spicc0_sel = {
 		.offset = CLKCTRL_SPICC_CLK_CTRL,
 		.mask = 0x7,
 		.shift = 7,
-		.table = a4_spicc_table,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "spicc0_sel",
@@ -1823,7 +1688,6 @@ static struct clk_regmap a4_spicc1_sel = {
 		.offset = CLKCTRL_SPICC_CLK_CTRL,
 		.mask = 0x7,
 		.shift = 23,
-		.table = a4_spicc_table,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "spicc1_sel",
@@ -2686,13 +2550,6 @@ static struct clk_hw_onecell_data a4_hw_onecell_data = {
 		[CLKID_AXI_CLK_0_DIV]			= &a4_axiclk_0_div.hw,
 		[CLKID_AXI_CLK_0]			= &a4_axiclk_0.hw,
 		[CLKID_AXI_CLK]				= &a4_axi_clk.hw,
-		[CLKID_RAMA_CLK_1_SEL]			= &a4_ramaclk_1_sel.hw,
-		[CLKID_RAMA_CLK_1_DIV]			= &a4_ramaclk_1_div.hw,
-		[CLKID_RAMA_CLK_1]			= &a4_ramaclk_1.hw,
-		[CLKID_RAMA_CLK_0_SEL]			= &a4_ramaclk_0_sel.hw,
-		[CLKID_RAMA_CLK_0_DIV]			= &a4_ramaclk_0_div.hw,
-		[CLKID_RAMA_CLK_0]			= &a4_ramaclk_0.hw,
-		[CLKID_RAMA_CLK]			= &a4_rama_clk.hw,
 		[CLKID_24M_CLK_GATE]			= &a4_24M_clk_gate.hw,
 		[CLKID_12M_CLK_DIV]			= &a4_12M_clk_div.hw,
 		[CLKID_12M_CLK_GATE]			= &a4_12M_clk_gate.hw,
@@ -2838,13 +2695,6 @@ static struct clk_regmap *const a4_clk_regmaps[] __initconst  = {
 	&a4_axiclk_0_div,
 	&a4_axiclk_0,
 	&a4_axi_clk,
-	&a4_ramaclk_1_sel,
-	&a4_ramaclk_1_div,
-	&a4_ramaclk_1,
-	&a4_ramaclk_0_sel,
-	&a4_ramaclk_0_div,
-	&a4_ramaclk_0,
-	&a4_rama_clk,
 	&a4_24M_clk_gate,
 	&a4_12M_clk_gate,
 	&a4_25m_clk_div,
