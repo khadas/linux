@@ -29,6 +29,10 @@ struct mtdblk_dev {
 	unsigned long cache_offset;
 	unsigned int cache_size;
 	enum { STATE_EMPTY, STATE_CLEAN, STATE_DIRTY } cache_state;
+#ifdef CONFIG_AMLOGIC_NAND
+	unsigned int bad_cnt;
+	unsigned short *part_bbt;
+#endif
 };
 
 /*
@@ -101,11 +105,43 @@ static int write_cached_data (struct mtdblk_dev *mtdblk)
 	 * written to the device. Clear cache_state to avoid writing to
 	 * bad blocks repeatedly.
 	 */
+#ifdef CONFIG_AMLOGIC_NAND
+	if (!ret && ret != EIO)
+		return ret;
+	mtdblk->cache_state = STATE_EMPTY;
+	return ret;
+	/*
+	 * If define CONFIG_AMLOGIC_NAND, never come here.
+	 */
+	/* coverity[unreachable:SUPPRESS] */
+#endif
 	if (ret == 0 || ret == -EIO)
 		mtdblk->cache_state = STATE_EMPTY;
 	return ret;
 }
 
+#ifdef CONFIG_AMLOGIC_NAND
+static unsigned long map_block(struct mtdblk_dev *mtdblk, unsigned long pos)
+{
+	struct mtd_info *mtd = mtdblk->mbd.mtd;
+	int block, i;
+
+	if (!mtdblk->part_bbt)
+		return pos;
+
+	block = (int)(pos >> mtd->erasesize_shift);
+	for (i = 0; i < mtdblk->bad_cnt; i++) {
+		if (block >= mtdblk->part_bbt[i])
+			block++;
+		else
+			break;
+	}
+
+	/* form actual position */
+	return ((unsigned long)block * mtd->erasesize) |
+		(pos & (mtd->erasesize - 1));
+}
+#endif
 
 static int do_cached_write (struct mtdblk_dev *mtdblk, unsigned long pos,
 			    int len, const char *buf)
@@ -117,6 +153,10 @@ static int do_cached_write (struct mtdblk_dev *mtdblk, unsigned long pos,
 
 	pr_debug("mtdblock: write on \"%s\" at 0x%lx, size 0x%x\n",
 		mtd->name, pos, len);
+
+#ifdef CONFIG_AMLOGIC_NAND
+	pos = map_block(mtdblk, pos);
+#endif
 
 	if (!sect_size)
 		return mtd_write(mtd, pos, len, &retlen, buf);
@@ -188,6 +228,10 @@ static int do_cached_read (struct mtdblk_dev *mtdblk, unsigned long pos,
 	pr_debug("mtdblock: read on \"%s\" at 0x%lx, size 0x%x\n",
 			mtd->name, pos, len);
 
+#ifdef CONFIG_AMLOGIC_NAND
+	pos = map_block(mtdblk, pos);
+#endif
+
 	if (!sect_size)
 		return mtd_read(mtd, pos, len, &retlen, buf);
 
@@ -249,6 +293,9 @@ static int mtdblock_writesect(struct mtd_blktrans_dev *dev,
 static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 {
 	struct mtdblk_dev *mtdblk = container_of(mbd, struct mtdblk_dev, mbd);
+#ifdef CONFIG_AMLOGIC_NAND
+	int block_cnt, i, bad_cnt = 0;
+#endif
 
 	pr_debug("mtdblock_open\n");
 
@@ -270,6 +317,35 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 		mtdblk->cache_data = NULL;
 	}
 
+#ifdef CONFIG_AMLOGIC_NAND
+	mtdblk->part_bbt =  NULL;
+	if (!mtd_can_have_bb(mbd->mtd))
+		goto _ok;
+
+	block_cnt = mbd->mtd->size >> mbd->mtd->erasesize_shift;
+	for (i = 0; i < block_cnt; i++)
+		/*
+		 * A valid judgment is made before calling this function.
+		 */
+		/* coverity[divide_by_zero:SUPPRESS] */
+		if (mtd_block_isbad(mbd->mtd, i * mbd->mtd->erasesize))
+			bad_cnt++;
+	mtdblk->bad_cnt = bad_cnt;
+	if (bad_cnt) {
+		mtdblk->part_bbt =
+		kmalloc_array(block_cnt, sizeof(*mtdblk->part_bbt), GFP_KERNEL);
+		bad_cnt = 0;
+		for (i = 0; i < block_cnt; i++)
+			/*
+			 * A valid judgment is made before calling this function.
+			 */
+			/* coverity[divide_by_zero:SUPPRESS] */
+			if (mtd_block_isbad(mbd->mtd, i * mbd->mtd->erasesize))
+				mtdblk->part_bbt[bad_cnt++] = i;
+	}
+
+_ok:
+#endif
 	pr_debug("ok\n");
 
 	return 0;
@@ -307,12 +383,23 @@ static int mtdblock_flush(struct mtd_blktrans_dev *dev)
 	ret = write_cached_data(mtdblk);
 	mutex_unlock(&mtdblk->cache_mutex);
 	mtd_sync(dev->mtd);
+
+#ifdef CONFIG_AMLOGIC_NAND
+	return 0;
+	/*
+	 * If define CONFIG_AMLOGIC_NAND, never come here.
+	 */
+	/* coverity[unreachable:SUPPRESS] */
+#endif
 	return ret;
 }
 
 static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 {
 	struct mtdblk_dev *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+#ifdef CONFIG_AMLOGIC_NAND
+	int i = 0;
+#endif
 
 	if (!dev)
 		return;
@@ -321,6 +408,16 @@ static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	dev->mbd.devnum = mtd->index;
 
 	dev->mbd.size = mtd->size >> 9;
+
+#ifdef CONFIG_AMLOGIC_NAND
+	if (!mtd_can_have_bb(mtd))
+		goto _ok;
+
+	for (i = 0; i < (mtd->size >> mtd->erasesize_shift); i++)
+		if (mtd_block_isbad(mtd, i * mtd->erasesize))
+			dev->mbd.size -= (mtd->erasesize >> 9);
+_ok:
+#endif
 	dev->mbd.tr = tr;
 
 	if (!(mtd->flags & MTD_WRITEABLE))
