@@ -44,6 +44,7 @@
 #define HHI_PCIE_PLL_CNTL4		0x0A8
 #define HHI_PCIE_PLL_CNTL5		0x0AC
 #define HHI_PCIE_PLL_STS		0x0B8
+#define HHI_XTAL_DIVN_CNTL		0x0BC
 #define HHI_HIFI_PLL_CNTL0		0x0D8
 #define HHI_HIFI_PLL_CNTL1		0x0DC
 #define HHI_HIFI_PLL_CNTL2		0x0E0
@@ -60,6 +61,7 @@
 #define HHI_GCLK_OTHER2			0x154
 #define HHI_SYS_CPU_CLK_CNTL1		0x15c
 #define HHI_VID_CLK_DIV			0x164
+#define HHI_APICALGDC_CNTL		0x16C
 #define HHI_MPEG_CLK_CNTL		0x174
 #define HHI_AUD_CLK_CNTL		0x178
 #define HHI_VID_CLK_CNTL		0x17c
@@ -70,6 +72,7 @@
 #define HHI_MALI_CLK_CNTL		0x1b0
 #define HHI_VPU_CLKC_CNTL		0x1b4
 #define HHI_VPU_CLK_CNTL		0x1bC
+#define HHI_MIPI_ISP_CLK_CNTL		0x1c0
 #define HHI_VIPNANOQ_CLK_CNTL		0x1c8
 #define HHI_HDMI_CLK_CNTL		0x1CC
 #define HHI_VDEC_CLK_CNTL		0x1E0
@@ -119,6 +122,7 @@
 #define HHI_HDMI_PLL_CNTL4		0x330
 #define HHI_HDMI_PLL_CNTL5		0x334
 #define HHI_HDMI_PLL_CNTL6		0x338
+#define HHI_MIPI_CSI_PHY_CLK_CNTL	0x340
 #define HHI_SPICC_CLK_CNTL		0x3dc
 #define HHI_SYS1_PLL_CNTL0		0x380
 #define HHI_SYS1_PLL_CNTL1		0x384
@@ -127,7 +131,8 @@
 #define HHI_SYS1_PLL_CNTL4		0x390
 #define HHI_SYS1_PLL_CNTL5		0x394
 #define HHI_SYS1_PLL_CNTL6		0x398
-#define HHI_BT656_CLK_CNTL		0x3d4  /* 0xf5 offset in datasheet1 */
+#define HHI_CSI2_ADAPT_CLK_CNTL		0x3c0
+#define HHI_BT656_CLK_CNTL		0x3d4
 
 /*
  * CLKID index values
@@ -257,6 +262,7 @@
 #define CLKID_DSU_CLK_DYN1_DIV			248
 #define CLKID_DSU_CLK_DYN1			249
 #define CLKID_DSU_CLK_DYN			250
+#define CLKID_25M_CLK_DIV			258
 
 /* include the CLKIDs that have been made part of the DT binding */
 #include <dt-bindings/clock/g12a-clkc.h>

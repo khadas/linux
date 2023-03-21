@@ -1769,7 +1769,7 @@
 			hevc,reset = <&hevc_pd_rst>;
 			wave420l,reset = <&wave420l_pd_rst>;
 			clocks = <&clkc CLKID_VPU>,
-				 <&clkc CLKID_VAPB>;
+				 <&clkc CLKID_GE2D_GATE>;
 			clock-names = "vpu", "vapb";
 			/*
 			 * VPU clocking is provided by two identical clock paths

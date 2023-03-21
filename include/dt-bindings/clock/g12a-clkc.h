@@ -49,7 +49,7 @@
 #define CLKID_AUDIO_IFIFO			40
 #define CLKID_ADC				41
 #define CLKID_UART1				42
-#define CLKID_G2D				43
+#define CLKID_GE2D				43
 #define CLKID_RESET				44
 #define CLKID_PCIE_COMB				45
 #define CLKID_PARSER				46
@@ -111,7 +111,7 @@
 #define CLKID_VAPB_1_SEL			120
 #define CLKID_VAPB_1				122
 #define CLKID_VAPB_SEL				123
-#define CLKID_VAPB				124
+#define CLKID_GE2D_GATE				124
 #define CLKID_HDMI_PLL				128
 #define CLKID_VID_PLL				129
 #define CLKID_VCLK				138
@@ -153,8 +153,9 @@
 #define CLKID_CPU3_CLK				255
 #define CLKID_PCIE_HCSL				256
 #define CLKID_PCIE_BGP				257
+#define CLKID_25M_CLK_GATE			259
 /* Media clocks */
-#define MEDIA_BASE				(258 + 1)
+#define MEDIA_BASE				(260 + 1)
 #define CLKID_DSI_MEAS_MUX			(MEDIA_BASE + 0)
 #define CLKID_DSI_MEAS_DIV			(MEDIA_BASE + 1)
 #define CLKID_DSI_MEAS				(MEDIA_BASE + 2)
@@ -207,9 +208,28 @@
 #define CLKID_VIPNANOQ_AXI_MUX			(MEDIA_BASE + 49)
 #define CLKID_VIPNANOQ_AXI_DIV			(MEDIA_BASE + 50)
 #define CLKID_VIPNANOQ_AXI_GATE			(MEDIA_BASE + 51)
+#define CLKID_GDC_CORE_CLK_MUX			(MEDIA_BASE + 52)
+#define CLKID_GDC_CORE_CLK_DIV			(MEDIA_BASE + 53)
+#define CLKID_GDC_CORE_CLK			(MEDIA_BASE + 54)
+#define CLKID_GDC_AXI_CLK_MUX			(MEDIA_BASE + 55)
+#define CLKID_GDC_AXI_CLK_DIV			(MEDIA_BASE + 56)
+#define CLKID_GDC_AXI_CLK			(MEDIA_BASE + 57)
+#define CLKID_MIPI_ISP_CLK_MUX			(MEDIA_BASE + 58)
+#define CLKID_MIPI_ISP_CLK_DIV			(MEDIA_BASE + 59)
+#define CLKID_MIPI_ISP_CLK			(MEDIA_BASE + 60)
+#define CLKID_MIPI_CSI_PHY_CLK0_MUX		(MEDIA_BASE + 61)
+#define CLKID_MIPI_CSI_PHY_CLK0_DIV		(MEDIA_BASE + 62)
+#define CLKID_MIPI_CSI_PHY_CLK0			(MEDIA_BASE + 63)
+#define CLKID_MIPI_CSI_PHY_CLK1_MUX		(MEDIA_BASE + 64)
+#define CLKID_MIPI_CSI_PHY_CLK1_DIV		(MEDIA_BASE + 65)
+#define CLKID_MIPI_CSI_PHY_CLK1			(MEDIA_BASE + 66)
+#define CLKID_MIPI_CSI_PHY_CLK			(MEDIA_BASE + 67)
+#define CLKID_CSI_ADAPT_CLK_MUX			(MEDIA_BASE + 68)
+#define CLKID_CSI_ADAPT_CLK_DIV			(MEDIA_BASE + 69)
+#define CLKID_CSI_ADAPT_CLK			(MEDIA_BASE + 70)
 
 /*misc clocks*/
-#define MISC_BASE				(MEDIA_BASE + 52)
+#define MISC_BASE				(MEDIA_BASE + 71)
 #define CLKID_SPICC0_MUX			(MISC_BASE + 0)
 #define CLKID_SPICC0_DIV			(MISC_BASE + 1)
 #define CLKID_SPICC0_GATE			(MISC_BASE + 2)
@@ -220,6 +240,32 @@
 #define CLKID_BT656_DIV				(MISC_BASE + 7)
 #define CLKID_BT656_GATE			(MISC_BASE + 8)
 
-#define CLKID_END				(MISC_BASE + 9)
+/*gpio 12M/24M */
+#define CLKID_24M_GATE				(MISC_BASE + 9)
+#define CLKID_12M_24M				(MISC_BASE + 10)
+/* gen clock */
+#define CLKID_GEN_MUX				(MISC_BASE + 11)
+#define	CLKID_GEN_DIV				(MISC_BASE + 12)
+#define CLKID_GEN_CLK				(MISC_BASE + 13)
+
+/*G12B gate*/
+#define G21B_CLK81				(MISC_BASE + 14)
+#define CLKID_CSI_DIG				(G21B_CLK81 + 0)
+#define CLKID_VIPNANOQ				(G21B_CLK81 + 1)
+#define CLKID_GDC				(G21B_CLK81 + 2)
+#define CLKID_MIPI_ISP				(G21B_CLK81 + 3)
+#define CLKID_CSI2_PHY1				(G21B_CLK81 + 4)
+#define CLKID_CSI2_PHY0				(G21B_CLK81 + 5)
+
+/*sm1 gate*/
+#define SM1_CLK81				(G21B_CLK81 + 6)
+#define CLKID_CSI_PHY				(SM1_CLK81 + 0)
+#define CLKID_TEMP_SENSOR			(SM1_CLK81 + 1)
+#define CLKID_CSI_ADAPT				(SM1_CLK81 + 2)
+#define CLKID_CSI_HOST				(SM1_CLK81 + 3)
+#define CLKID_PARSER1				(SM1_CLK81 + 4)
+#define CLKID_NNA				(SM1_CLK81 + 5)
+
+#define CLKID_END				(SM1_CLK81 + 6)
 
 #endif /* __G12A_CLKC_H */

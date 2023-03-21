@@ -450,8 +450,8 @@
 		interrupts = <GIC_SPI 146 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ge2d";
 		clocks = <&clkc CLKID_VAPB_SEL>,
-			<&clkc CLKID_G2D>,
-			<&clkc CLKID_VAPB>;
+			<&clkc CLKID_GE2D>,
+			<&clkc CLKID_GE2D_GATE>;
 		clock-names = "clk_vapb_0",
 			"clk_ge2d",
 			"clk_ge2d_gate";
