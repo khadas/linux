@@ -39,3 +39,13 @@ config AMLOGIC_TOUCHSCREEN_HYN_CST2XX
 	help
 	  Say Y here if you want to use the hyn cst2xx.
 endif
+
+config TOUCHSCREEN_GT9XX
+	tristate "GT9XX touchscreens support"
+	default n
+	help
+		Say Y here to enable debug tools.
+
+		If unsure, say N.
+
+		To compile this driver as a module, choose M here.
