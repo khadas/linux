@@ -930,6 +930,7 @@
 				0xff 0xff>; /*ending*/
 			init_off = <0xff 0xff>; /*ending*/
 		};
+	};
 
 	backlight{
 		compatible = "amlogic, backlight-sm1";
