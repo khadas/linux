@@ -2826,7 +2826,7 @@ static int di_init_buf_new(struct di_ch_s *pch, struct vframe_s *vframe)
 	ch = pch->ch_id;
 	mm = dim_mm_get(ch);
 
-	check_tvp_state(pch);
+	//check_tvp_state(pch);
 	di_cnt_i_buf(pch, 1920, 1088);
 	//di_cnt_i_buf(pch, 1920, 2160);
 	di_cnt_pst_afbct(pch);
@@ -11208,6 +11208,7 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 		/*need before set buffer*/
 		if (dim_afds())
 			dim_afds()->reg_val(pch);
+		check_tvp_state(pch);
 		if (get_datal()->dct_op)
 			get_datal()->dct_op->reg(pch);
 
