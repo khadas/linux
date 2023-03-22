@@ -31,7 +31,8 @@
 /* 20221105: av detect failure and av black screen */
 /* 20230106: av format switch flower screen */
 /* 20230304: ntsc-50hz will crash */
-#define TVAFE_VER "20230304: ntsc-50hz will crash"
+/* 20230322: memset vbi memory */
+#define TVAFE_VER "20230322: memset vbi memory"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010

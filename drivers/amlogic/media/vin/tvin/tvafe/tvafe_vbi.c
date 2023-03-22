@@ -918,11 +918,6 @@ static void vbi_slicer_work(struct work_struct *p_work)
 		return;
 	}
 
-	if (devp->slicer->busy) {
-		if (vbi_dbg_en & VBI_DBG_INFO)
-			tvafe_pr_info("%s busy, exit\n", __func__);
-		return;
-	}
 	if (vbi_slicer_bypass) {
 		if (vbi_dbg_en & VBI_DBG_ISR2)
 			tvafe_pr_info("%s bypass, exit\n", __func__);
@@ -934,6 +929,14 @@ static void vbi_slicer_work(struct work_struct *p_work)
 		mutex_unlock(&devp->slicer->mutex);
 		return;
 	}
+
+	if (devp->slicer->busy) {
+		if (vbi_dbg_en & VBI_DBG_INFO)
+			tvafe_pr_info("%s busy, exit\n", __func__);
+		mutex_unlock(&devp->slicer->mutex);
+		return;
+	}
+
 	devp->slicer->busy = 1;
 	if (devp->slicer->slicer_cnt++ >= 0xffffffff)
 		devp->slicer->slicer_cnt = 0;
@@ -1251,7 +1254,7 @@ static void vbi_ringbuffer_init(struct vbi_ringbuffer_s *rbuf,
 			void *data, size_t len)
 {
 	if (!data)
-		rbuf->data = vmalloc(len * sizeof(struct vbi_data_s));
+		rbuf->data = vzalloc(len * sizeof(struct vbi_data_s));
 	else
 		rbuf->data = data;
 	rbuf->size = len * sizeof(struct vbi_data_s);
@@ -1286,7 +1289,7 @@ static int vbi_set_buffer_size(struct vbi_dev_s *dev,
 		return -EBUSY;
 	}
 
-	newmem = vmalloc(size);
+	newmem = vzalloc(size);
 	if (!newmem)
 		return -ENOMEM;
 
@@ -1317,7 +1320,7 @@ static int vbi_slicer_start(struct vbi_dev_s *dev)
 		vbi_slicer_stop(vbi_slicer);
 
 	if (!vbi_slicer->buffer.data) {
-		mem = vmalloc(vbi_slicer->buffer.size);
+		mem = vzalloc(vbi_slicer->buffer.size);
 		spin_lock_irq(&dev->lock);
 		vbi_slicer->buffer.data = mem;
 		spin_unlock_irq(&dev->lock);
@@ -1675,6 +1678,7 @@ static long vbi_ioctl(struct file *file,
 		vbi_dev->slicer_enable = false;
 		vbi_dev->vbi_start = false;
 		vbi_data_stable_flag = 0;
+		vbi_dev->slicer->busy = 0;
 		ret = vbi_slicer_stop(vbi_slicer);
 		if (tvafe_clk_status) {
 			/* manual reset vbi */
@@ -2050,6 +2054,7 @@ static ssize_t debug_store(struct device *dev,
 		devp->slicer_enable = false;
 		devp->vbi_start = false;
 		vbi_data_stable_flag = 0;
+		devp->slicer->busy = 0;
 		vbi_slicer_stop(vbi_slicer);
 		/* manual reset vbi */
 		/* vbi reset release, vbi agent enable*/
@@ -2253,7 +2258,7 @@ static int vbi_probe(struct platform_device *pdev)
 
 	vbi_dev->vs_delay = VBI_VS_DELAY;
 
-	vbi_dev->slicer = vmalloc(sizeof(*vbi_dev->slicer));
+	vbi_dev->slicer = vzalloc(sizeof(*vbi_dev->slicer));
 	if (!vbi_dev->slicer) {
 		ret = -ENOMEM;
 		goto fail_alloc_mem;
@@ -2281,7 +2286,7 @@ static int vbi_probe(struct platform_device *pdev)
 
 fail_get_resource_irq:
 fail_alloc_mem:
-	tvafe_pr_err(": vmalloc error!!!\n");
+	tvafe_pr_err(": vzalloc error!!!\n");
 fail_create_dbg_file:
 	device_destroy(vbi_clsp, MKDEV(MAJOR(vbi_id), 0));
 fail_create_device:
