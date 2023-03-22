@@ -1509,7 +1509,7 @@
 		compatible = "amlogic,ddr-bandwidth-a4";
 		status = "okay";
 		reg = <0 0xfe036000 0 0x400
-			0 0xfe040000 0 0x100>;
+		       0 0xfe0368a8 0 0x4>;
 		interrupts = <0 78 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ddr_bandwidth";
 	};

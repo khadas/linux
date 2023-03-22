@@ -15,6 +15,8 @@
 #include "ddr_port.h"
 #include "ddr_bandwidth.h"
 
+#define PRIORITY_NUM	(aml_db->ddr_priority_num & 0xffff)
+
 static struct ddr_priority ddr_priority_s4[] __initdata = {
 	{ .port_id = 0, .reg_base = 0xfe036000,
 		.reg_mode = 0, .reg_config = 0,
@@ -598,6 +600,58 @@ static struct ddr_priority ddr_priority_c3[] __initdata = {
 		.r_offset = 0x100, .r_bit_s = 0, .r_width = 0xf	},
 };
 
+static struct ddr_priority ddr_priority_a4[] __initdata = {
+	{ .port_id = 0, .reg_base = 0xfe036000,
+		.reg_mode = 0, .reg_config = 0x8000,
+		.w_offset = (0x80  << 2), .w_bit_s = 16, .w_width = 0xf,
+		.r_offset = (0x80  << 2), .r_bit_s = 16, .r_width = 0xf	},
+
+	{ .port_id = 2, .reg_base = 0xfe036000,
+		.reg_mode = 0, .reg_config = 0x8000,
+		.w_offset = (0x88  << 2), .w_bit_s = 16, .w_width = 0xf,
+		.r_offset = (0x88  << 2), .r_bit_s = 16, .r_width = 0xf	},
+
+	{ .port_id = 4, .reg_base = 0xfe036000,
+		.reg_mode = 0, .reg_config = 0x8000,
+		.w_offset = (0x90  << 2), .w_bit_s = 16, .w_width = 0xf,
+		.r_offset = (0x90  << 2), .r_bit_s = 16, .r_width = 0xf	},
+
+	{ .port_id = 6, .reg_base = 0xfe036000,
+		.reg_mode = 0, .reg_config = 0x8000,
+		.w_offset = (0x98  << 2), .w_bit_s = 16, .w_width = 0xf,
+		.r_offset = (0x98  << 2), .r_bit_s = 16, .r_width = 0xf	},
+
+	{ .port_id = 7, .reg_base = 0xfe036000,
+		.reg_mode = 0, .reg_config = 0x8000,
+		.w_offset = (0x9c  << 2), .w_bit_s = 16, .w_width = 0xf,
+		.r_offset = (0x9c  << 2), .r_bit_s = 16, .r_width = 0xf	},
+
+	{ .port_id = 40, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0x0,
+		.w_offset = (0x69  << 2), .w_bit_s = 0, .w_width = 0x3,
+		.r_offset = (0x69  << 2), .r_bit_s = 2, .r_width = 0x3	},
+
+	{ .port_id = 41, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0x0,
+		.w_offset = (0x69  << 2), .w_bit_s = 12, .w_width = 0x1,
+		.r_offset = (0x69  << 2), .r_bit_s = 13, .r_width = 0x1	},
+
+	{ .port_id = 42, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0x0,
+		.w_offset = (0x69  << 2), .w_bit_s = 8, .w_width = 0x3,
+		.r_offset = (0x69  << 2), .r_bit_s = 10, .r_width = 0x3	},
+
+	{ .port_id = 43, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0x0,
+		.w_offset = (0x69  << 2), .w_bit_s = 14, .w_width = 0x3,
+		.r_offset = (0x69  << 2), .r_bit_s = 16, .r_width = 0x3	},
+
+	{ .port_id = 45, .reg_base = 0xfe010000,
+		.reg_mode = 0, .reg_config = 0x0,
+		.w_offset = (0x69  << 2), .w_bit_s = 18, .w_width = 0x3,
+		.r_offset = (0x69  << 2), .r_bit_s = 20, .r_width = 0x3	},
+};
+
 static struct ddr_priority *ddr_priority_list;
 static unsigned int ddr_priority_list_num __initdata;
 
@@ -622,6 +676,10 @@ int __init ddr_find_port_priority(int cpu_type, struct ddr_priority **desc)
 		*desc = ddr_priority_c3;
 		desc_size = ARRAY_SIZE(ddr_priority_c3);
 		break;
+	case DMC_TYPE_A4:
+		*desc = ddr_priority_a4;
+		desc_size = ARRAY_SIZE(ddr_priority_a4);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -645,7 +703,7 @@ static int ddr_priority_get_info(unsigned char port_id)
 		return -EINVAL;
 	}
 
-	for (i = 0; i < aml_db->ddr_priority_num; i++) {
+	for (i = 0; i < PRIORITY_NUM; i++) {
 		if (aml_db->ddr_priority_desc[i].port_id == port_id)
 			return i;
 	}
@@ -714,7 +772,7 @@ static int ddr_priority_config(struct ddr_priority info,
 			reg_value |= info.reg_config;
 			dmc_rw(reg_addr, reg_value, DMC_WRITE);
 		} else {
-			*priority = (reg_value >> bit_s) & 0xf;
+			*priority = (reg_value >> bit_s) & width;
 		}
 	} else {
 		vaddr = ioremap(reg_addr, 0x4);
@@ -729,7 +787,7 @@ static int ddr_priority_config(struct ddr_priority info,
 			reg_value |= info.reg_config;
 			writel_relaxed(reg_value, vaddr);
 		} else {
-			*priority = (reg_value >> bit_s) & 0xf;
+			*priority = (reg_value >> bit_s) & width;
 		}
 	}
 
@@ -822,7 +880,7 @@ int priority_display(char *buf)
 			"\tparm2: 'r' or 'w' priority (default set all)\n");
 
 	s += sprintf(buf + s, "\tid\t name \t\tw_current \tw_max \t\tr_current \tr_max\n");
-	for (i = 0; i < aml_db->ddr_priority_num; i++) {
+	for (i = 0; i < PRIORITY_NUM; i++) {
 		info =  aml_db->ddr_priority_desc[i];
 		ret = ddr_priority_rw(info.port_id, &priority_r, &priority_w, DMC_READ);
 

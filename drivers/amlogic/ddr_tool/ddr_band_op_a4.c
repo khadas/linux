@@ -102,6 +102,7 @@ static void a4_dmc_port_config(struct ddr_bandwidth *db, int channel, int port)
 			val = (0x1 << 7);	/* select device0 */
 		}
 
+		db->port[channel] |= val;	/* update trust port*/
 		writel(val, db->ddr_reg1 + off + 4);
 		val = readl(db->ddr_reg1 + off + 8);
 		val |= (1 << subport);
@@ -126,49 +127,10 @@ static void a4_dmc_range_config(struct ddr_bandwidth *db, int channel,
 
 static unsigned long a4_get_dmc_freq_quick(struct ddr_bandwidth *db)
 {
-	unsigned int val;
-	unsigned int n, m, od1;
-	unsigned int od_div = 0xfff;
-	unsigned long freq = 0;
+	unsigned long freq;
 
-	if (db->soc_feature & PLL_IS_SEC)
-		val = dmc_rw((unsigned long)db->pll_reg, 0, DMC_READ);
-	else
-		val = readl(db->pll_reg);
-
-	val = val & 0xfffff;
-	switch ((val >> 16) & 7) {
-	case 0:
-		od_div = 2;
-		break;
-
-	case 1:
-		od_div = 3;
-		break;
-
-	case 2:
-		od_div = 4;
-		break;
-
-	case 3:
-		od_div = 6;
-		break;
-
-	case 4:
-		od_div = 8;
-		break;
-
-	default:
-		break;
-	}
-
-	m = val & 0x1ff;
-	n = ((val >> 10) & 0x1f);
-	od1 = (((val >> 19) & 0x1)) == 1 ? 2 : 1;
-	freq = DEFAULT_XTAL_FREQ / 1000;	/* avoid overflow */
-	if (n)
-		freq = ((((freq * m) / n) >> od1) / od_div) * 1000;
-
+	freq = (readl(db->pll_reg) & 0xffff) * 1000000;
+	freq = freq >> 1;
 	return freq;
 }
 
