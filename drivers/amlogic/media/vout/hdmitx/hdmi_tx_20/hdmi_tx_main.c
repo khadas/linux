@@ -4875,6 +4875,18 @@ static ssize_t hdcp_mode_store(struct device *dev,
 	if (hdev->hwop.cntlmisc(hdev, MISC_TMDS_RXSENSE, 0) == 0)
 		hdmitx_current_status(HDMITX_HDCP_DEVICE_NOT_READY_ERROR);
 
+	/* there's risk:
+	 * hdcp2.2 start auth-->enter early suspend, stop hdcp-->
+	 * hdcp2.2 auth fail & timeout-->fall back to hdcp1.4, so
+	 * hdcp running even no hdmi output-->resume, read EDID.
+	 * EDID may read fail as hdcp may also access DDC simultaneously.
+	 */
+	mutex_lock(&hdmimode_mutex);
+	if (!hdmitx_device.ready) {
+		pr_info("hdmi signal not ready, should not set hdcp mode %s\n", buf);
+		mutex_unlock(&hdmimode_mutex);
+		return count;
+	}
 	pr_info(SYS "hdcp: set mode as %s\n", buf);
 	hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_MUX_INIT, 1);
 	hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_GET_AUTH, 0);
@@ -4906,6 +4918,7 @@ static ssize_t hdcp_mode_store(struct device *dev,
 			DDC_HDCP_MUX_INIT, 2);
 		hdmitx_current_status(HDMITX_HDCP_HDCP_2_ENABLED);
 	}
+	mutex_unlock(&hdmimode_mutex);
 
 	return count;
 }
@@ -6851,7 +6864,12 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 		mutex_unlock(&setclk_mutex);
 		return;
 	}
-
+	/* clear plugin event asap, as there may be
+	 * very short low pulse of HPD during edid reading
+	 * and cause EDID abnormal, after this low hpd pulse,
+	 * will read edid again, and notify system to update.
+	 */
+	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
 	if (hdev->rxsense_policy) {
 		cancel_delayed_work(&hdev->work_rxsense);
 		queue_delayed_work(hdev->rxsense_wq, &hdev->work_rxsense, 0);
@@ -6859,6 +6877,24 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	hdev->previous_error_event = 0;
 	pr_info(SYS "plugin\n");
 	hdmitx_current_status(HDMITX_HPD_PLUGIN);
+	/* there maybe such case:
+	 * hpd rsing & hpd level high (0.6S > HZ/2)-->
+	 * plugin handler-->hpd falling & hpd level low(0.05S)-->
+	 * continue plugin handler, EDID read normal,
+	 * post plugin uevent-->
+	 * plugout handler(may be filtered and skipped):
+	 * stop hdcp/clear edid, post plugout uevent-->
+	 * system plugin handle: set hdmi mode/hdcp auth-->
+	 * system plugout handle: set non-hdmi mode(but hdcp is still running)-->
+	 * hpd rsing & keep level high-->plugin handler, EDID read abnormal
+	 * as hdcp auth is running and may access DDC when reading EDID.
+	 * so need to disable hdcp auth before EDID reading
+	 */
+	if (hdev->hdcp_mode != 0 && !hdev->ready) {
+		pr_info("hdcp: %d should not be enabled before signal ready\n",
+			hdev->hdcp_mode);
+		drm_hdmitx_hdcp_disable(hdev->hdcp_mode);
+	}
 	/* there's such case: plugin irq->hdmitx resume + read EDID +
 	 * resume uevent->mode setting + hdcp auth->plugin handler read
 	 * EDID, now EDID already read done and hdcp already started,
@@ -6870,7 +6906,6 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 		hdmitx_get_edid(hdev);
 		hdmitx_edid_done = true;
 	}
-	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
 	/* start reading E-EDID */
 	if (hdev->repeater_tx)
 		rx_repeat_hpd_state(1);
@@ -6983,11 +7018,22 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 
 	mutex_lock(&setclk_mutex);
 	mutex_lock(&hdmimode_mutex);
-	if (!(hdev->hdmitx_event & (HDMI_TX_HPD_PLUGOUT))) {
-		mutex_unlock(&hdmimode_mutex);
-		mutex_unlock(&setclk_mutex);
-		return;
-	}
+
+	/* there's such case: hpd rsing & hpd level high (0.6S > HZ/2)-->
+	 * plugin handler-->hpd falling & hpd level low(0.2S)-->
+	 * continue plugin handler, but EDID read abnormal as hpd fall,
+	 * post plugin uevent-->
+	 * hpd rsing & keep level high-->plugin handler, EDID read normal,
+	 * post plugin uevent, but as plugout event is not handled,
+	 * the second plugin event will be posted fail. system may use
+	 * the abnormal EDID read during the first plugin handler.
+	 * so hpd plugout event should always be handled, and no need filter.
+	 */
+	/* if (!(hdev->hdmitx_event & (HDMI_TX_HPD_PLUGOUT))) { */
+		/* mutex_unlock(&hdmimode_mutex); */
+		/* mutex_unlock(&setclk_mutex); */
+		/* return; */
+	/* } */
 	hdev->hdcp_mode = 0;
 	hdev->hdcp_bcaps_repeater = 0;
 	hdev->hwop.cntlddc(hdev, DDC_HDCP_MUX_INIT, 1);
