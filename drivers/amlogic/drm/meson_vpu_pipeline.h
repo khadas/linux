@@ -264,7 +264,6 @@ struct meson_vpu_video_layer_info {
 	struct dma_buf *dmabuf;
 	u32 vfm_mode;
 	bool is_uvm;
-	u32 status_changed;
 };
 
 struct meson_vpu_video {

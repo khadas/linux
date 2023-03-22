@@ -1080,18 +1080,6 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 	}
 
 	plane_info = &mvps->video_plane_info[video_plane->plane_index];
-	if ((plane_info->src_w != ((state->src_w >> 16) & 0xffff)) ||
-		(plane_info->src_h != ((state->src_h >> 16) & 0xffff)) ||
-		plane_info->dst_x != state->crtc_x ||
-		plane_info->dst_y != state->crtc_y ||
-		plane_info->dst_w != state->crtc_w ||
-		plane_info->dst_h != state->crtc_h ||
-		plane_info->zorder != state->zpos ||
-		!plane_info->enable)
-		plane_info->status_changed = 1;
-	else
-		plane_info->status_changed = 0;
-
 	plane_info->plane_index = video_plane->plane_index;
 	plane_info->vfm_mode = video_plane->vfm_mode;
 	plane_info->zorder = state->zpos + plane_info->plane_index;
@@ -1216,11 +1204,6 @@ int meson_video_plane_async_check(struct drm_plane *plane,
 	plane_info = &mvps->video_plane_info[video_plane->plane_index];
 	if ((plane_info->enable && !new_state->fb) || !plane_info->enable) {
 		DRM_ERROR("plane visible state changed.\n");
-		return -EINVAL;
-	}
-
-	if (plane_info->status_changed) {
-		DRM_ERROR("video%d plane info changed\n", video_plane->plane_index);
 		return -EINVAL;
 	}
 
