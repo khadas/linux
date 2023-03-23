@@ -48,12 +48,15 @@ struct composer_vf_para {
 	int src_buf_stride0;
 	u32 src_buf_addr1;
 	int src_buf_stride1;
+	int src_endian;
 	int dst_vf_format;
 	int dst_vf_width;
 	int dst_vf_height;
 	int dst_vf_plane_count;
 	u32 dst_buf_addr;
 	int dst_buf_stride;
+	int dst_endian;
+	bool is_tvp;
 };
 
 #endif

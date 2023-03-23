@@ -364,13 +364,16 @@ int config_dewarp_vframe(int vc_index, int rotation, struct vframe_s *src_vf,
 	vframe_para->src_buf_stride0 = vf->canvas0_config[0].width;
 	vframe_para->src_buf_addr1 = vf->canvas0_config[1].phy_addr;
 	vframe_para->src_buf_stride1 = vf->canvas0_config[1].width;
+	vframe_para->src_vf_angle = rotation;
+	vframe_para->src_endian = vf->canvas0_config[0].endian;
 
 	vframe_para->dst_vf_width = dst_buf->buf_w;
 	vframe_para->dst_vf_height = dst_buf->buf_h;
 	vframe_para->dst_vf_plane_count = 2;
 	vframe_para->dst_buf_addr = dst_buf->phy_addr;
 	vframe_para->dst_buf_stride = dst_buf->buf_w;
-	vframe_para->src_vf_angle = rotation;
+	vframe_para->dst_endian = 0;
+	vframe_para->is_tvp = dst_buf->is_tvp;
 
 	if (dewarp_com_dump) {
 		pr_info("vc:[%d] src_vf, addr0:0x%x, addr1:0x%x, w:%d, h:%d, fmt:%d, angle:%d.\n",
@@ -426,7 +429,20 @@ int dewarp_data_composer(struct dewarp_composer_para *param)
 				* AXI_WORD_ALIGN(gdc_config.out_height);
 	gdc_config.config_paddr = param->fw_load.phys_addr;
 	gdc_config.config_size = param->fw_load.size_32bit; /* in 32bit */
-	gdc_config.use_sec_mem = 0; /* secure mem access */
+	if (param->vf_para->is_tvp)
+		gdc_config.use_sec_mem = 1; /* secure mem access */
+	else
+		gdc_config.use_sec_mem = 0;
+
+	if (param->vf_para->src_endian != 0)
+		gdc_config.in_endian = GDC_ENDIAN_BIG_8BYTES;
+	else
+		gdc_config.in_endian = GDC_ENDIAN_LITTLE;
+
+	if (param->vf_para->dst_endian != 0)
+		gdc_config.out_endian = GDC_ENDIAN_BIG_8BYTES;
+	else
+		gdc_config.out_endian = GDC_ENDIAN_LITTLE;
 
 	ret = gdc_process_phys(param->context, &gdc_config);
 	if (ret < 0) {
@@ -446,7 +462,7 @@ int dewarp_data_composer(struct dewarp_composer_para *param)
 				param->vf_para->dst_vf_height,
 				gdc_config.out_paddr[0],
 				gdc_config.out_paddr[1]);
-			dewarp_com_dump = dump_num;
+			dump_num = dewarp_com_dump;
 		}
 	}
 
