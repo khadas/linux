@@ -2590,6 +2590,7 @@ static long amvecm_ioctl(struct file *file,
 	struct eye_protect_s *eye_prot = NULL;
 	int tmp;
 	struct primary_s color_pr;
+	struct video_color_matrix gamut_mtx;
 	int cm_color = 0;
 	struct color_tune_parm_s ct_param;
 	struct color_param_s ct_parm1;
@@ -3423,6 +3424,45 @@ static long amvecm_ioctl(struct file *file,
 		} else {
 			pr_amvecm_dbg("gamut conv enable cp from usr success status:%d\n",
 				gamut_conv_enable);
+		}
+		break;
+	case AMVECM_IOC_COLOR_MTX_EN:
+		if (copy_from_user(&tmp,
+				   (void __user *)arg,
+				   sizeof(int))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("color matrix cp from usr failed\n");
+		} else {
+			pr_amvecm_dbg("color matrix cp from usr success\n");
+			force_matrix = tmp;
+			vecm_latch_flag |= FLAG_COLORPRI_LATCH;
+			force_toggle();
+		}
+		break;
+	case AMVECM_IOC_S_COLOR_MATRIX_DATA:
+		if (copy_from_user(&gamut_mtx,
+				   (void __user *)arg,
+				   sizeof(struct video_color_matrix))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("color matrix data cp from usr failed\n");
+		} else {
+			pr_amvecm_dbg("color matrix data cp from usr success\n");
+			memcpy(force_matrix_primary, gamut_mtx.data,
+				sizeof(force_matrix_primary));
+			vecm_latch_flag |= FLAG_COLORPRI_LATCH;
+			force_toggle();
+		}
+		break;
+	case AMVECM_IOC_G_COLOR_MATRIX_DATA:
+		argp = (void __user *)arg;
+		memcpy(gamut_mtx.data, force_matrix_primary,
+				sizeof(force_matrix_primary));
+		if (copy_to_user(argp, &gamut_mtx,
+				 sizeof(struct video_color_matrix))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("gamut matrix copy to user fail\n");
+		} else {
+			pr_amvecm_dbg("gamut matrix copy to user success\n");
 		}
 		break;
 	default:

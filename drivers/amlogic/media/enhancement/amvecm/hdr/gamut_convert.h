@@ -22,6 +22,8 @@
 #define GAMUT_H
 
 extern uint force_primary;
+extern uint force_matrix;
+extern u32 force_matrix_primary[3][3];
 extern u32 force_src_primary[8];
 extern u32 force_dst_primary[8];
 int gamut_convert_process(struct vinfo_s *vinfo,
