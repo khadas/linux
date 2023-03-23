@@ -78,8 +78,8 @@ static ssize_t mbox_message_write(struct file *filp,
 		}
 		mhu_dev->busy = true;
 		ret = mbox_message_send_ao_sync(dev, *(uint32_t *)data,
-						data + CMD_LEN, count,
-						mhu_dev->data, count, idx);
+						data + CMD_LEN, count - CMD_LEN,
+						mhu_dev->data, count - CMD_LEN, idx);
 		mhu_dev->r_size = count;
 		break;
 	case MAILBOX_DSP:
