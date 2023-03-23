@@ -640,4 +640,6 @@
 #define VIU_DMA_CTRL0						0x1a28//32'hff8068a0
 #define VIU_DMA_CTRL1						0x1a29//32'hff8068a4
 #define VPU_INTF_CTRL                       0x270a//32'hff809c28
+
+#define SA_CTRL                                 0x3f00
 #endif

@@ -1201,6 +1201,7 @@ void disable_ai_color(void)
 	WRITE_VPP_REG_BITS_S5(S5_VD2_HDR2_CTRL, 0, 14, 2);
 	WRITE_VPP_REG_BITS_S5(S5_OSD1_HDR2_CTRL, 0, 14, 2);
 	WRITE_VPP_REG_BITS_S5(S5_OSD3_HDR2_CTRL, 0, 14, 2);
+	WRITE_VPP_REG_BITS_S5(SA_CTRL, 0, 0, 1);
 }
 
 void s5_set_hist(enum hdr_module_sel module_sel, int enable,
