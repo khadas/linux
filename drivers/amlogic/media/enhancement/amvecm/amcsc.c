@@ -7463,6 +7463,14 @@ uint get_cuva_pkt_delay(void)
 }
 EXPORT_SYMBOL(get_cuva_pkt_delay);
 
+void pkt_delay_flag_init(void)
+{
+	if (pkt_adv_chip()) {
+		hdr10_plus_pkt_delay = 0;
+		cuva_pkt_delay = 0;
+	}
+}
+
 void update_hdr10_plus_pkt(bool enable,
 			   void *hdr10plus_params,
 			   void *send_info,

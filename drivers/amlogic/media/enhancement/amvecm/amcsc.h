@@ -322,5 +322,7 @@ int get_s5_silce_mode(void);
 #define VD1_1SLICE							1
 #define VD1_2SLICE							2
 #define VD1_4SLICE							4
+
+void pkt_delay_flag_init(void);
 #endif /* AM_CSC_H */
 

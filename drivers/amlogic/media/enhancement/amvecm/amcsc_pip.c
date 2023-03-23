@@ -1940,15 +1940,6 @@ void hdmi_packet_process(int signal_change_flag,
 			vd_path + 1);
 	}
 
-	/* clean cuva packet when switch to others */
-	if (target_format[vd_path] != BT2020YUV_BT2020RGB_CUVA) {
-		if (vdev->fresh_tx_cuva_hdr_vsif)
-			vdev->fresh_tx_cuva_hdr_vsif(NULL);
-		if (vdev->fresh_tx_cuva_hdr_vs_emds)
-			vdev->fresh_tx_cuva_hdr_vs_emds(NULL);
-		pr_csc(4, "am_vecm: vd%d hdmi clean cuva pkt\n", vd_path + 1);
-	}
-
 	if (output_format != target_format[vd_path]) {
 		pr_csc(4,
 		       "am_vecm: vd%d %s %s, vd2 %s %s, output_format %s => %s\n",

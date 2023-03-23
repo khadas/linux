@@ -10645,7 +10645,7 @@ static const struct vecm_match_data_s vecm_dt_t5d = {
 };
 
 static const struct vecm_match_data_s vecm_dt_t7 = {
-	.chip_id = chip_other,
+	.chip_id = chip_t7,
 	.chip_cls = SMT_CHIP,
 	.vlk_chip = vlock_chip_t7,
 	.vlk_support = true,
@@ -10742,6 +10742,19 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 	},
 	{},
 };
+
+int pkt_adv_chip(void)
+{
+	int ret;
+
+	if (chip_type_id == chip_t7 ||
+		chip_type_id == chip_s5)
+		ret = 1;
+	else
+		ret = 0;
+
+	return ret;
+}
 
 static void aml_vecm_match_init(struct vecm_match_data_s *pdata)
 {
@@ -11078,6 +11091,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	lc_curve_isr_defined = 0;
 	aml_vecm_lc_curve_irq_init();
 
+	pkt_delay_flag_init();
 
 	aml_cabc_queue = create_workqueue("cabc workqueue");
 	if (!aml_cabc_queue) {

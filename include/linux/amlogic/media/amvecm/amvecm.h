@@ -699,6 +699,7 @@ enum vlk_chiptype {
 
 enum chip_type {
 	chip_other = 0,
+	chip_t7,
 	chip_t3,
 	chip_t5w,
 	chip_s5
@@ -927,5 +928,6 @@ struct demo_data_s {
 };
 
 void bs_ct_latch(void);
+int pkt_adv_chip(void);
 #endif /* AMVECM_H */
 
