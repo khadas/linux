@@ -115,6 +115,9 @@ struct aml_dmx {
 	/* pid list */
 	struct list_head pid_head;
 
+	/* check whether the input pack are aligned */
+	char last_pack[192 * 2];
+	int last_len;
 };
 
 void dmx_init_hw(void);

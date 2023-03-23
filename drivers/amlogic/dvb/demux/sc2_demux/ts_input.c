@@ -131,7 +131,7 @@ int ts_input_close(struct in_elem *elem)
  * \retval size:written count
  * \retval -1:fail.
  */
-int ts_input_write(struct in_elem *elem, const char *buf, int count)
+int ts_input_write(struct in_elem *elem, const char *buf, int count, int dmx_id)
 {
 	int ret = 0;
 
@@ -145,7 +145,7 @@ int ts_input_write(struct in_elem *elem, const char *buf, int count)
 	pr_dbg("%s id:%d count:%d\n", __func__, elem->id, count);
 
 	ret = SC2_bufferid_write(elem->pchan,
-				 buf, count, elem->mem_level ? 1 : 0);
+				buf, count, elem->mem_level ? 1 : 0, dmx_id);
 	ATRACE_COUNTER("demux_ts_input", ret);
 	return ret;
 }
