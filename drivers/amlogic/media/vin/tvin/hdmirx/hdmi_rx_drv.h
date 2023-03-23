@@ -26,7 +26,8 @@
 //added interlaced mode protection
 //2023.03.01
 //optimize the judgment condition of unnormal timing
-#define RX_VER0 "ver.2023/03/08"
+//fix emp pkt parse err
+#define RX_VER0 "ver.2023/03/17"
 
 /*print type*/
 #define	LOG_EN		0x01
