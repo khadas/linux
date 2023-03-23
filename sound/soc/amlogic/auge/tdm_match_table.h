@@ -115,32 +115,13 @@ struct src_table tdmin_srcs_v3[] = {
 	TDMIN_SRC_CONFIG(SRC_TDMIN_A, 0),
 	TDMIN_SRC_CONFIG(SRC_TDMIN_B, 1),
 	TDMIN_SRC_CONFIG(SRC_TDMIN_C, 2),
+	TDMIN_SRC_CONFIG(SRC_TDMIN_D, 3),
 	TDMIN_SRC_CONFIG(SRC_HDMIRX, 6),
 	TDMIN_SRC_CONFIG(SRC_ACODEC, 7),
 	TDMIN_SRC_CONFIG(SRC_TDMOUT_A, 12),
 	TDMIN_SRC_CONFIG(SRC_TDMOUT_B, 13),
 	TDMIN_SRC_CONFIG(SRC_TDMOUT_C, 14),
-	{ /* sentinel */ }
-};
-
-/* for p1 */
-struct src_table tdmin_srcs_v4[] = {
-	TDMIN_SRC_CONFIG(SRC_TDMIN_A, 0),
-	TDMIN_SRC_CONFIG(SRC_TDMIN_B, 1),
-	TDMIN_SRC_CONFIG(SRC_TDMIN_C, 2),
-	TDMIN_SRC_CONFIG(SRC_TDMIN_D, 3),
-	TDMIN_SRC_CONFIG(SRC_TDMOUT_A, 12),
-	TDMIN_SRC_CONFIG(SRC_TDMOUT_B, 13),
-	TDMIN_SRC_CONFIG(SRC_TDMOUT_C, 14),
 	TDMIN_SRC_CONFIG(SRC_TDMOUT_D, 15),
-	{ /* sentinel */ }
-};
-
-/* for a5 */
-struct src_table tdmin_srcs_v5[] = {
-	TDMIN_SRC_CONFIG(SRC_TDMIN_A, 0),
-	TDMIN_SRC_CONFIG(SRC_TDMOUT_A, 12),
-	TDMIN_SRC_CONFIG(SRC_TDMOUT_B, 13),
 	{ /* sentinel */ }
 };
 
@@ -491,7 +472,7 @@ struct tdm_chipinfo p1_tdma_chipinfo = {
 	.reset_reg_offset = 1,
 	.async_fifo  = true,
 	.separate_tohdmitx_en = true,
-	.tdmin_srcs = &tdmin_srcs_v4[0],
+	.tdmin_srcs = &tdmin_srcs_v3[0],
 	.slot_num_en = true,
 	.chnum_en = false,
 	.use_arb = true,
@@ -507,7 +488,7 @@ struct tdm_chipinfo p1_tdmb_chipinfo = {
 	.reset_reg_offset = 1,
 	.async_fifo  = true,
 	.separate_tohdmitx_en = true,
-	.tdmin_srcs = &tdmin_srcs_v4[0],
+	.tdmin_srcs = &tdmin_srcs_v3[0],
 	.slot_num_en = true,
 	.chnum_en = false,
 	.use_arb = true,
@@ -523,7 +504,7 @@ struct tdm_chipinfo p1_tdmc_chipinfo = {
 	.reset_reg_offset = 1,
 	.async_fifo  = true,
 	.separate_tohdmitx_en = true,
-	.tdmin_srcs = &tdmin_srcs_v4[0],
+	.tdmin_srcs = &tdmin_srcs_v3[0],
 	.slot_num_en = true,
 	.chnum_en = false,
 	.use_arb = true,
@@ -539,7 +520,7 @@ struct tdm_chipinfo p1_tdmd_chipinfo = {
 	.reset_reg_offset = 1,
 	.async_fifo  = true,
 	.separate_tohdmitx_en = true,
-	.tdmin_srcs = &tdmin_srcs_v4[0],
+	.tdmin_srcs = &tdmin_srcs_v3[0],
 	.slot_num_en = true,
 	.chnum_en = false,
 	.use_arb = true,
@@ -554,7 +535,7 @@ struct tdm_chipinfo a5_tdma_chipinfo = {
 	.lane_cnt    = LANE_MAX1,
 	.reset_reg_offset = 1,
 	.async_fifo  = true,
-	.tdmin_srcs = &tdmin_srcs_v5[0],
+	.tdmin_srcs = &tdmin_srcs_v3[0],
 	.slot_num_en = true,
 	.chnum_en = false,
 	.gain_ver = GAIN_VER3,
@@ -571,7 +552,7 @@ struct tdm_chipinfo a5_tdmb_chipinfo = {
 	.lane_cnt    = LANE_MAX3,
 	.reset_reg_offset = 1,
 	.async_fifo  = true,
-	.tdmin_srcs = &tdmin_srcs_v5[0],
+	.tdmin_srcs = &tdmin_srcs_v3[0],
 	.slot_num_en = true,
 	.chnum_en = false,
 	.gain_ver = GAIN_VER3,
@@ -588,7 +569,7 @@ struct tdm_chipinfo a5_tdmc_chipinfo = {
 	.lane_cnt    = LANE_MAX3,
 	.reset_reg_offset = 1,
 	.async_fifo  = true,
-	.tdmin_srcs = &tdmin_srcs_v5[0],
+	.tdmin_srcs = &tdmin_srcs_v3[0],
 	.slot_num_en = true,
 	.chnum_en = false,
 	.gain_ver = GAIN_VER3,
