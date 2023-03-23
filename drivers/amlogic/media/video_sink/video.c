@@ -5796,9 +5796,6 @@ s32 pip2_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo)
 		proc_vd_vsc_phase_per_vsync
 			(layer,
 			frame_par, dispbuf);
-
-		/* update alpha win */
-		alpha_win_set(layer);
 	}
 
 	if (!layer->new_vpp_setting && !force_setting) {
@@ -5843,6 +5840,7 @@ s32 pip2_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo)
 		(layer, &layer->sc_setting, vinfo);
 	vd_scaler_setting
 		(layer, &layer->sc_setting);
+	alpha_win_set(layer);
 
 	config_vd_blend
 		(layer, &layer->bld_setting);
@@ -5962,8 +5960,6 @@ s32 pip_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo)
 		proc_vd_vsc_phase_per_vsync
 			(layer,
 			frame_par, dispbuf);
-		/* update alpha win */
-		alpha_win_set(layer);
 	}
 
 	if (!layer->new_vpp_setting && !force_setting) {
@@ -6007,6 +6003,7 @@ s32 pip_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo)
 	config_vd_pps
 		(layer, &layer->sc_setting, vinfo);
 	vd_s5_hw_set(layer, dispbuf, frame_par);
+	alpha_win_set(layer);
 	vd_scaler_setting
 		(layer, &layer->sc_setting);
 
@@ -6337,8 +6334,6 @@ s32 primary_render_frame(struct video_layer_s *layer)
 
 		/* Do 3D process if enabled */
 		switch_3d_view_per_vsync(layer);
-		/* update alpha win */
-		alpha_win_set(layer);
 	}
 
 	/* no frame parameter change */
@@ -6446,6 +6441,7 @@ s32 primary_render_frame(struct video_layer_s *layer)
 	}
 #endif
 	vd_s5_hw_set(layer, dispbuf, frame_par);
+	alpha_win_set(layer);
 	vd_scaler_setting(layer, &layer->sc_setting);
 	aisr_scaler_setting(layer, &layer->aisr_sc_setting);
 	vd_blend_setting(layer, &layer->bld_setting);

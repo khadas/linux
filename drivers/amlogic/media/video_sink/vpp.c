@@ -1576,11 +1576,6 @@ static int vpp_set_filters_internal
 		pr_info("layer_id=%d, next_frame_par->vscale_skip_count=%d\n",
 			input->layer_id,
 			next_frame_par->vscale_skip_count);
-RESTART_ALL:
-	crop_left = video_source_crop_left / crop_ratio;
-	crop_right = video_source_crop_right / crop_ratio;
-	crop_top = video_source_crop_top / crop_ratio;
-	crop_bottom = video_source_crop_bottom / crop_ratio;
 
 	if (get_pi_enabled(input->layer_id)) {
 		width_out >>= 1;
@@ -1588,6 +1583,12 @@ RESTART_ALL:
 		video_layer_width >>= 1;
 		video_layer_height >>= 1;
 	}
+
+RESTART_ALL:
+	crop_left = video_source_crop_left / crop_ratio;
+	crop_right = video_source_crop_right / crop_ratio;
+	crop_top = video_source_crop_top / crop_ratio;
+	crop_bottom = video_source_crop_bottom / crop_ratio;
 
 	slice_num = get_slice_num(input->layer_id);
 	if (slice_num == 2) {

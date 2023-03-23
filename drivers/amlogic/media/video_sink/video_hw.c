@@ -9691,9 +9691,20 @@ void alpha_win_set(struct video_layer_s *layer)
 	u8 layer_id = layer->layer_id;
 
 	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
-		if (glayer_info[layer_id].alpha_support)
+		if (glayer_info[layer_id].alpha_support) {
+			if (layer_id == 0 &&
+				get_pi_enabled(layer_id) &&
+				layer->alpha_win_en == 0) {
+				layer->alpha_win_en = 1;
+				layer->alpha_win.scpxn_bgn_h[0] = glayer_info[layer_id].layer_left;
+				layer->alpha_win.scpxn_end_h[0] = glayer_info[layer_id].layer_left +
+					glayer_info[layer_id].layer_width - 1;
+				layer->alpha_win.scpxn_bgn_v[0] = glayer_info[layer_id].layer_top;
+				layer->alpha_win.scpxn_end_v[0] = glayer_info[layer_id].layer_top +
+					glayer_info[layer_id].layer_height - 1;
+			}
 			vd_set_alpha_s5(layer, layer->alpha_win_en, &layer->alpha_win);
-
+		}
 	} else {
 		if (glayer_info[layer_id].alpha_support)
 			vd_set_alpha(layer, layer->alpha_win_en, &layer->alpha_win);
