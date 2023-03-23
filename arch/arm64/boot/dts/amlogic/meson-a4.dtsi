@@ -782,12 +782,12 @@
 			   "amlogic,meson-saradc";
 		status = "disabled";
 		#io-channel-cells = <1>;
-		//clocks = <&xtal>,
-		//    <&clkc CLKID_SYS_CLK_SAR_ADC>,
-		//    <&clkc CLKID_SARADC>,
-		//    <&clkc CLKID_SARADC_SEL>;
-		//clock-names = "clkin", "core",
-		//    "adc_clk", "adc_sel";
+		clocks = <&xtal>,
+			 <&clkc CLKID_SYS_CLK_SAR_ADC>,
+			 <&clkc CLKID_SARADC>,
+			 <&clkc CLKID_SARADC_SEL>;
+		clock-names = "clkin", "core",
+			      "adc_clk", "adc_sel";
 		interrupts = <GIC_SPI 181 IRQ_TYPE_EDGE_RISING>;
 		reg = <0x00 0xfe026000 0x00 0xf0>;
 	};

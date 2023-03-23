@@ -403,27 +403,15 @@
 
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
-		status = "disabled";
-		key_name = "update", "vol-", "vol+", "ok" ,"power";
+		status = "okay";
+		key_name = "menu", "vol-", "vol+", "esc" ,"home";
 		key_num = <5>;
 		io-channels = <&saradc 2>;
 		io-channel-names = "key-chan-2";
 		key_chan = <2 2 2 2 2>;
-		key_code = <KEY_SETUP KEY_VOLUMEDOWN KEY_VOLUMEUP KEY_ENTER KEY_POWER>;
-		key_val = <0 143 266 389 512>; //val=voltage/1800mV*1023
+		key_code = <KEY_MENU KEY_VOLUMEDOWN KEY_VOLUMEUP KEY_ESC KEY_HOME>;
+		key_val = <0 143 266 389 512>; /* val=voltage/1800mV*1023 */
 		key_tolerance = <40 40 40 40 40>;
-	};
-
-	gpio_keypad{
-		compatible = "amlogic, gpio_keypad";
-		status = "disabled";
-		scan_period = <20>;
-		key_num = <1>;
-		key_name = "mute";
-		key_code = <SW_MUTE_DEVICE>;
-		key_type = <EV_SW>;
-		key-gpios = <&gpio  GPIOD_3  GPIO_ACTIVE_HIGH>;
-		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
 
 	partitions: partitions{
@@ -1195,7 +1183,7 @@
 };
 
 &saradc {
-	status = "disabled";
+	status = "okay";
 };
 
 &ir {
