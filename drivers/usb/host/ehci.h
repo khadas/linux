@@ -214,6 +214,7 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		need_io_watchdog:1;
 	unsigned		amd_pll_fix:1;
 	unsigned		use_dummy_qh:1;	/* AMD Frame List table quirk*/
+	unsigned		use_hs_only:1; /* only use EHCI */
 	unsigned		has_synopsys_hc_bug:1; /* Synopsys HC */
 	unsigned		frame_index_bug:1; /* MosChip (AKA NetMos) */
 	unsigned		need_oc_pp_cycle:1; /* MPC834X port power */
