@@ -71,7 +71,11 @@ EXPORT_SYMBOL(hdmi_avi_infoframe_init);
 static int hdmi_avi_infoframe_check_only(const struct hdmi_avi_infoframe *frame)
 {
 	if (frame->type != HDMI_INFOFRAME_TYPE_AVI ||
-	    frame->version != 2 ||
+	/* refer to CTA-861-H Page 69 */
+#ifdef CONFIG_AMLOGIC_MODIFY
+	    frame->version < 2 ||
+	    frame->version > 4 ||
+#endif
 	    frame->length != HDMI_AVI_INFOFRAME_SIZE)
 		return -EINVAL;
 

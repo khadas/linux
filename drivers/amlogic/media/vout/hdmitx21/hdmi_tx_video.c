@@ -34,6 +34,7 @@ static void construct_avi_packet(struct hdmitx_dev *hdev)
 	ret = hdmi_avi_infoframe_init(info);
 	if (ret)
 		pr_info("init avi infoframe failed\n");
+	info->version = 2;
 	info->colorspace = para->cs;
 	info->scan_mode = HDMI_SCAN_MODE_NONE;
 	if (para->timing.v_active <= 576)
@@ -54,6 +55,9 @@ static void construct_avi_packet(struct hdmitx_dev *hdev)
 		/*HDMI Spec V1.4b P151*/
 		if (!hdev->frl_rate) /* TODO, clear under FRL */
 			info->video_code = 0;
+	/* refer to CTA-861-H Page 69 */
+	if (info->video_code >= 128)
+		info->version = 3;
 	info->ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
 	info->content_type = HDMI_CONTENT_TYPE_GRAPHICS;
 	info->pixel_repeat = 0;
