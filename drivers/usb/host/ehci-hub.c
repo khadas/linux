@@ -580,7 +580,8 @@ static int check_reset_complete (
 	if (!(port_status & PORT_PE)) {
 
 		/* with integrated TT, there's nobody to hand it to! */
-		if (ehci_is_TDI(ehci)) {
+		if (ehci_is_TDI(ehci) || (ehci->use_hs_only &&
+					!((port_status) & (3 << 10)))) {
 			ehci_dbg (ehci,
 				"Failed to enable port %d on root hub TT\n",
 				index+1);

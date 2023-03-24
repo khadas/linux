@@ -2594,6 +2594,7 @@
 		phys = <&u2phy2_host>;
 		phy-names = "usb2-phy";
 		power-domains = <&power RK3588_PD_USB>;
+		use-hs-only;
 		status = "disabled";
 	};
 
@@ -2619,6 +2620,7 @@
 		phys = <&u2phy3_host>;
 		phy-names = "usb2-phy";
 		power-domains = <&power RK3588_PD_USB>;
+		use-hs-only;
 		status = "disabled";
 	};
 
