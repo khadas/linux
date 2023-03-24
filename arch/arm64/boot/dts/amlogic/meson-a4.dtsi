@@ -1210,19 +1210,16 @@
 			compatible = "amlogic, aml_dummy_codec";
 			status = "okay";
 		};
-		amlogic_codec:t9015{
+		amlogic_codec:acodec{
 			#sound-dai-cells = <0>;
-			compatible = "amlogic, s4_codec_T9015";
+			compatible = "amlogic, t3_acodec";
 			reg = <0x0 0xFE01A000 0x0 0x2000>;
-			tocodec_inout = <2>;
-			tdmout_index = <2>;
-			ch0_sel = <0>;
-			ch1_sel = <1>;
-
-		//	reset-names = "acodec";
-		//	resets = <&reset RESET_ACODEC>;
-
-			status = "disabled";
+			tdmout_index = <0>;
+			tdmin_index = <0>;
+			dat0_ch_sel = <0>;
+			reset-names = "acodec";
+			resets = <&reset RESET_ACODEC>;
+			status = "okay";
 		};
 
 		clkaudio: audio_clocks {
@@ -2469,6 +2466,13 @@
 		};
 	};
 
+	mclk1_t4_pins: mclk1_t4_pin {
+		mux { /* GPIOT_4 */
+			groups = "mclk1_t4";
+			function = "mclk";
+		};
+	};
+
 	mclk_1_pins: mclk_1_pin {
 		mux { /* GPIOC_4 */
 			groups = "mclk_1_c";
@@ -2484,23 +2488,23 @@
 	};
 
 	spdifout: spdifout {
-		mux { /* GPIOC_9 */
-			groups = "spdif_out_c";
+		mux { /* GPIOT_9 */
+			groups = "spdif_out";
 			function = "spdif_out";
 		};
 	};
 
 	spdifin: spdifin {
-		mux {/* GPIOC_10 */
-			groups = "spdif_in_c10";
+		mux {/* GPIOT_10 */
+			groups = "spdif_in_t10";
 			function = "spdif_in";
 		};
 	};
 
 	spdif_a_mute: spdif_a_mute {
-		mux { /* GPIOC_9 */
-			groups = "GPIOC_9",
-				 "GPIOC_10";
+		mux { /* GPIOT_9 */
+			groups = "GPIOT_9",
+				 "GPIOT_10";
 			function = "gpio_periphs";
 			output-low;
 		};

@@ -253,7 +253,7 @@
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		/*avout mute gpio*/
-		//avout_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		avout_mute-gpios = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
 		//spk_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_LOW>;
 
 		aml-audio-card,dai-link@0 {
@@ -282,7 +282,8 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmacodec: codec {
-				sound-dai = <&dummy_codec>;
+				prefix-names = "AMP", "AMP1";
+				sound-dai = <&tas5707_36 &tas5707_3a &amlogic_codec>;
 			};
 		};
 
@@ -458,25 +459,24 @@
 		compatible = "amlogic, a5-snd-tdma";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
-		dai-tdm-lane-slot-mask-out = <1 1>;
+		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <0>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
-				&clkaudio CLKID_AUDIO_MCLK_PAD2
+				&clkaudio CLKID_AUDIO_MCLK_PAD1
 				&clkc CLKID_HIFI_PLL>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll";
-		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
-		pinctrl-0 = <
-			&mclk_2_pins
-			&tdmain_pins
-			&tdm_d8_pins
-			&tdm_d9_pins
-			&tdm_d10_pins
-			&tdm_d11_pins
-			&tdmain_clk_pins
-			>;
-		pinctrl-1 = <&tdmin_a_gpio>;
+		pinctrl-names = "tdm_pins","tdmout_a_gpio";
+		pinctrl-0 =
+			<&mclk1_t4_pins
+			&tdm_a_pins
+			&tdm_d4_pins
+			&tdm_d5_pins
+			&tdm_clk_pins>;
+		pinctrl-1 = <&tdmout_a_gpio>;
 		tdm5v-supply = <&vcc5v_reg>;
 		//tdm3v3-supply = <&vddio3v3_reg>;
+		/* enable control gain */
+		ctrl_gain = <1>;
 		status = "okay";
 	};
 
@@ -489,21 +489,23 @@
 				&clkaudio CLKID_AUDIO_MCLK_PAD1
 				&clkc CLKID_HIFI_PLL>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll";
-		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
-		pinctrl-0 = <
-			&mclk_1_pins
-			&tdm_b_pins
-			&tdm_d2_pins
-			&tdm_d3_pins
-			&tdm_d4_pins
-			&tdm_d5_pins
-			&tdm_d6_pins
-			&tdm_d7_pins
-			&tdm_d12_pins
-			&tdm_d13_pins
-			&tdmb_clk_pins>;
+		//pinctrl-names = "tdm_pins", "tdmout_a_gpio";
+		//pinctrl-0 = <
+			//&mclk_1_pins
+			//&tdm_b_pins
+			//&tdm_d2_pins
+			//&tdm_d3_pins
+			//&tdm_d4_pins
+			//&tdm_d5_pins
+			//&tdm_d6_pins
+			//&tdm_d7_pins
+			//&tdm_d12_pins
+			//&tdm_d13_pins
+			//&tdmb_clk_pins>;
 		pinctrl-1 = <&tdmout_b_gpio>;
 		start_clk_enable = <1>;
+		/* enable control gain */
+		ctrl_gain = <1>;
 		tdm5v-supply = <&vcc5v_reg>;
 		//tdm3v3-supply = <&vddio3v3_reg>;
 		status = "okay";
@@ -517,13 +519,8 @@
 		clocks = <&clkaudio CLKID_AUDIO2_MCLK_VAD
 				&clkc CLKID_HIFI_PLL>;
 		clock-names = "mclk","clk_srcpll";
-		//pinctrl-names = "tdm_pins";
-		//pinctrl-0 = <
-			//&mclk_2_pins
-			//&tdm_c_pins
-			//&tdm_d11_pins
-			//&tdmc_clk_pins>;
-
+		/* enable control gain */
+		ctrl_gain = <1>;
 		tdm5v-supply = <&vcc5v_reg>;
 		//tdm3v3-supply = <&vddio3v3_reg>;
 		status = "okay";
@@ -544,16 +541,16 @@
 				<GIC_SPI 35 IRQ_TYPE_EDGE_RISING>;
 
 		interrupt-names = "irq_spdifin";
-		//pinctrl-names = "spdif_pins", "spdif_pins_mute";
-		//pinctrl-0 = <&spdifout
-		//	     &spdifin>;
-		//pinctrl-1 = <&spdif_a_mute>;
+		pinctrl-names = "spdif_pins", "spdif_pins_mute";
+		pinctrl-0 = <&spdifout
+			     &spdifin>;
+		pinctrl-1 = <&spdif_a_mute>;
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
 
 		spdif5v-supply = <&vcc5v_reg>;
-		spdif3v3-supply = <&vcc3v3_reg>;
+		//spdif3v3-supply = <&vddio3v3_reg>;
 		status = "okay";
 	};
 
@@ -572,14 +569,14 @@
 			"pdm_dclk",
 			"pdm_sysclk";
 		//power-domains = <&pwrdm PDID_A5_AUDIO_PDM>;
-		//pinctrl-names = "pdm_pins";
-		//pinctrl-0 = <&pdmin>;
+		pinctrl-names = "pdm_pins";
+		pinctrl-0 = <&pdmin>;
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
 
 		pdm5v-supply = <&vcc5v_reg>;
-		pdm3v3-supply = <&vdd3v3_reg>;
+		//pdm3v3-supply = <&vddio3v3_reg>;
 		status = "okay";
 	};
 
@@ -587,10 +584,10 @@
 	/* spdif use this resample */
 	asrca: resample@0 {
 		compatible = "amlogic, t5-resample-a";
-		//clocks = <&clkc CLKID_MPLL2
-		//		&clkaudio CLKID_AUDIO_MCLK_F
-		//		&clkaudio CLKID_AUDIO_RESAMPLE_A>;
-		//clock-names = "resample_pll", "resample_src", "resample_clk";
+		clocks = <&clkc CLKID_HIFI_PLL
+				&clkaudio CLKID_AUDIO_MCLK_F
+				&clkaudio CLKID_AUDIO_RESAMPLE_A>;
+		clock-names = "resample_pll", "resample_src", "resample_clk";
 		/*same with toddr_src
 		 *	TDMIN_A, 0
 		 *	TDMIN_B, 1
@@ -602,20 +599,20 @@
 		 *	LOOPBACK, 7
 		 */
 		resample_module = <3>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	/* loopback use this resample */
 	asrcb: resample@1 {
 		compatible = "amlogic, t5-resample-b";
-		//clocks = <&clkc CLKID_MPLL2
-		//		&clkaudio CLKID_AUDIO_MCLK_F
-		//		&clkaudio CLKID_AUDIO_RESAMPLE_A>;
-		//clock-names = "resample_pll", "resample_src", "resample_clk";
+		clocks = <&clkc CLKID_HIFI_PLL
+				&clkaudio CLKID_AUDIO_MCLK_F
+				&clkaudio CLKID_AUDIO_RESAMPLE_A>;
+		clock-names = "resample_pll", "resample_src", "resample_clk";
 		/*this resample is only used for loopback_A.*/
 		capture_sample_rate = <16000>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	vad:vad {
@@ -712,10 +709,10 @@
 	aed:effect {
 		compatible = "amlogic, snd-effect-v4";
 		#sound-dai-cells = <0>;
-		//clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
-		//	&clkc CLKID_FCLK_DIV4
-		//	&clkaudio CLKID_AUDIO_EQDRC>;
-		//clock-names = "gate", "srcpll", "eqdrc";
+		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
+			&clkc CLKID_FCLK_DIV4
+			&clkaudio CLKID_AUDIO_EQDRC>;
+		clock-names = "gate", "srcpll", "eqdrc";
 		/*
 		 * 0:tdmout_a
 		 * 1:tdmout_b
@@ -728,37 +725,29 @@
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0xff>;
-		status = "disabled";
+		status = "okay";
 	};
 }; /* end of audiobus */
 
 &periphs_pinctrl {
-
-	tdmain_pins: tdmain_pin {
-		mux { /* GPIOT_1, GPIOT_0, GPIOT_2, GPIOT_3, GPIOT_4, GPIOT_5 */
-			groups = "tdm_sclk2_t",
-				"tdm_fs2_t",
-				"tdm_d8_t",
-				"tdm_d9_t",
-				"tdm_d10_t",
-				"tdm_d11_t";
+	tdm_a_pins: tdm_a_pin {
+		mux { /* GPIOT_2, GPIOT_3, GPIOT_5, GPIOT_6,*/
+			groups = "tdm_fs1_t2",
+				"tdm_sclk1_t3",
+				"tdm_d4_t5",
+				"tdm_d5_t6";
 			function = "tdm";
 		};
 	};
 
-	tdm_b_pins: tdm_b_pin {
-		mux { /* GPIOC_0, GPIOC_1, GPIOC_2--GPIOC_8, GPIOT7, GPIOT8*/
-			groups = "tdm_d2_c",
-				"tdm_d3_c",
-				"tdm_fs1_c",
-				"tdm_sclk1_c",
-				"tdm_d4_c",
-				"tdm_d5_c",
-				"tdm_d6_c",
-				"tdm_d7_c",
-				"tdm_d12_t",
-				"tdm_d13_t";
-			function = "tdm";
+	tdmout_a_gpio: tdmout_a_gpio {
+		mux { /* GPIOT_2, GPIOT_3, GPIOT_5, GPIOT_6, */
+			groups ="GPIOT_2",
+				"GPIOT_3",
+				"GPIOT_5",
+				"GPIOT_5";
+			function = "gpio_periphs";
+			output-low;
 		};
 	};
 
@@ -814,12 +803,10 @@
 	};
 
 	pdmin: pdmin {
-		mux { /* GPIOH_2, GPIOH_1, GPIOH_0, GPIOH_4, GPIOH_3 */
-			groups = "pdm_dclk_h",
-				"pdm_din0_h",
-				"pdm_din1_h",
-				"pdm_din2_h",
-				"pdm_din3_h";
+		mux { /* GPIOD_2, GPIOD_3, GPIOD_4 */
+			groups = "pdm_din1_d2",
+				"pdm_din0_d3",
+				"pdm_dclk_d4";
 			function = "pdm";
 		};
 	};
@@ -858,14 +845,14 @@
 	tdm_d4_pins: tdm_d4_pin {
 		mux {
 			groups = "tdm_d4";
-			function = "tdmoutb_lane2";
+			function = "tdmouta_lane0";
 		};
 	};
 
 	tdm_d5_pins: tdm_d5_pin {
 		mux {
 			groups = "tdm_d5";
-			function = "tdmoutb_lane3";
+			function = "tdmouta_lane1";
 		};
 	};
 
@@ -950,6 +937,26 @@
 		mux {
 			groups = "tdm_sclk0", "tdm_lrclk0";
 			function = "vadtop_tdm_clk_outc";
+		};
+	};
+	tdm_d2_pins: tdm_d2_pin {
+		mux {
+			groups = "tdm_d2";
+			function = "tdmoutb_lane0";
+		};
+	};
+
+	tdm_d3_pins: tdm_d3_pin {
+		mux {
+			groups = "tdm_d3";
+			function = "tdmoutb_lane1";
+		};
+	};
+
+	tdm_clk_pins: tdm_clk_pin {
+		mux {
+			groups = "tdm_sclk1", "tdm_lrclk1";
+			function = "tdm_clk_outa";
 		};
 	};
 };
@@ -1240,10 +1247,25 @@
 };
 
 &i2c3 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_pins1>;
 	clock-frequency = <100000>;
+
+	tas5707_36: tas5707_36@1b {
+		compatible = "ti,tas5707";
+		#sound-dai-cells = <0>;
+		reg = <0x1b>;
+		status = "okay";
+		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
+	};
+
+	tas5707_3a: tas5707_3a@1d {
+		compatible = "ti,tas5707";
+		#sound-dai-cells = <0>;
+		reg = <0x1d>;
+		status = "okay";
+	};
 };
 
 &custom_maps{
