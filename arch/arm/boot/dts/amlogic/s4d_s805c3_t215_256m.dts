@@ -196,7 +196,7 @@
 
 		/* dvb hardware main power. */
 		dvb_power_gpio = <&gpio GPIOZ_5 GPIO_ACTIVE_HIGH>;
-		dvb_power_value = <1>;
+		dvb_power_value = <0>;
 		dvb_power_dir = <0>; /* 0: out, 1: in. */
 
 		fe_num = <1>; /* internal 1 * dvb-s */
