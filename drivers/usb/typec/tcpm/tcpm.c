@@ -6119,6 +6119,13 @@ static int tcpm_fw_get_caps(struct tcpm_port *port,
 	if (!fwnode)
 		return -EINVAL;
 
+	ret = fwnode_property_read_u32(fwnode, "pd-revision",
+				       &pd_revision);
+	if (ret < 0)
+		port->typec_caps.pd_revision = 0x0300;
+	else
+		port->typec_caps.pd_revision = pd_revision & 0xffff;
+
 	/* USB data support is optional */
 	ret = fwnode_property_read_string(fwnode, "data-role", &cap_str);
 	if (ret == 0) {
@@ -6239,13 +6246,6 @@ sink:
 		if (ret < 0)
 			return ret;
 	}
-
-	ret = fwnode_property_read_u32(fwnode, "pd-revision",
-				       &pd_revision);
-	if (ret < 0)
-		port->typec_caps.pd_revision = 0x0300;
-	else
-		port->typec_caps.pd_revision = pd_revision & 0xffff;
 
 	return 0;
 }

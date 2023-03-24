@@ -137,7 +137,16 @@
 	cpu-supply = <&vdd_cpu>;
 };
 
+&dfi {
+	status = "okay";
+};
+
 &display_subsystem {
+	status = "okay";
+};
+
+&dmc {
+	center-supply = <&vdd_logic>;
 	status = "okay";
 };
 
@@ -522,20 +531,20 @@
 	status = "okay";
 };
 
+&rga2 {
+	status = "okay";
+};
+
+&rga2_mmu {
+	status = "okay";
+};
+
 &rknpu {
 	rknpu-supply = <&vdd_npu>;
 	status = "okay";
 };
 
 &rknpu_mmu {
-	status = "okay";
-};
-
-&rga2 {
-	status = "okay";
-};
-
-&rga2_mmu {
 	status = "okay";
 };
 

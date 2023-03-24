@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
 
-#define RKISP_API_VERSION		KERNEL_VERSION(2, 1, 0)
+#define RKISP_API_VERSION		KERNEL_VERSION(2, 2, 0)
 
 /****************ISP SUBDEV IOCTL*****************************/
 
@@ -1977,7 +1977,8 @@ struct rkisp_thunderboot_resmem_head {
 	u16 hdr_mode;
 	u16 width;
 	u16 height;
-	u32 bus_fmt;
+	u16 camera_num;
+	u16 camera_index;
 
 	u32 exp_time[3];
 	u32 exp_gain[3];

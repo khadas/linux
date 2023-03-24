@@ -4386,29 +4386,31 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		stream->id, stream->cur_stream_mode, mode);
 
 	if (mode == stream->cur_stream_mode) {
-		stream->stopping = true;
 		if (stream->dma_en) {
 			if (!dev->sensor_linetime)
 				dev->sensor_linetime = rkcif_get_linetime(stream);
 			vblank = rkcif_get_sensor_vblank(dev);
-			frame_time_ns = (vblank + dev->terminal_sensor.raw_rect.height) *
-					dev->sensor_linetime;
-			spin_lock_irqsave(&stream->fps_lock, flags);
-			fs_time = stream->readout.fs_timestamp;
-			spin_unlock_irqrestore(&stream->fps_lock, flags);
-			cur_time = ktime_get_ns();
-			if (cur_time > fs_time &&
-			    cur_time - fs_time < (frame_time_ns - 10000000)) {
-				spin_lock_irqsave(&stream->vbq_lock, flags);
-				if (stream->dma_en & RKCIF_DMAEN_BY_VICAP)
-					stream->to_stop_dma = RKCIF_DMAEN_BY_VICAP;
-				else if (stream->dma_en & RKCIF_DMAEN_BY_ISP)
-					stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
-				stream->is_stop_capture = true;
-				rkcif_stop_dma_capture(stream);
-				spin_unlock_irqrestore(&stream->vbq_lock, flags);
+			if (vblank) {
+				frame_time_ns = (vblank + dev->terminal_sensor.raw_rect.height) *
+						dev->sensor_linetime;
+				spin_lock_irqsave(&stream->fps_lock, flags);
+				fs_time = stream->readout.fs_timestamp;
+				spin_unlock_irqrestore(&stream->fps_lock, flags);
+				cur_time = ktime_get_ns();
+				if (cur_time > fs_time &&
+				    cur_time - fs_time < (frame_time_ns - 10000000)) {
+					spin_lock_irqsave(&stream->vbq_lock, flags);
+					if (stream->dma_en & RKCIF_DMAEN_BY_VICAP)
+						stream->to_stop_dma = RKCIF_DMAEN_BY_VICAP;
+					else if (stream->dma_en & RKCIF_DMAEN_BY_ISP)
+						stream->to_stop_dma = RKCIF_DMAEN_BY_ISP;
+					stream->is_stop_capture = true;
+					rkcif_stop_dma_capture(stream);
+					spin_unlock_irqrestore(&stream->vbq_lock, flags);
+				}
 			}
 		}
+		stream->stopping = true;
 		ret = wait_event_timeout(stream->wq_stopped,
 					 stream->state != RKCIF_STATE_STREAMING,
 					 msecs_to_jiffies(500));
@@ -4467,6 +4469,14 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 		}
 		INIT_LIST_HEAD(&stream->buf_head);
+		while (!list_empty(&stream->vb_done_list)) {
+			buf = list_first_entry(&stream->vb_done_list,
+					       struct rkcif_buffer, queue);
+			if (buf) {
+				list_del(&buf->queue);
+				vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+			}
+		}
 		stream->lack_buf_cnt = 0;
 		stream->dma_en &= ~RKCIF_DMAEN_BY_VICAP;
 	}
@@ -6494,8 +6504,8 @@ static const struct v4l2_ioctl_ops rkcif_v4l2_ioctl_ops = {
 	.vidioc_default = rkcif_ioctl_default,
 };
 
-static void rkcif_vb_done_oneframe(struct rkcif_stream *stream,
-				   struct vb2_v4l2_buffer *vb_done)
+void rkcif_vb_done_oneframe(struct rkcif_stream *stream,
+			    struct vb2_v4l2_buffer *vb_done)
 {
 	const struct cif_output_fmt *fmt = stream->cif_fmt_out;
 	u32 i;

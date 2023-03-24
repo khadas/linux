@@ -1738,7 +1738,7 @@
 		rockchip,grf = <&grf>;
 		power-domains = <&power RK3568_PD_VI>;
 		iommus = <&rkisp_mmu>;
-		rockchip,iq-feature = /bits/ 64 <0x3FBFFFE67FF>;
+		rockchip,iq-feature = /bits/ 64 <0x1BFBFFFE67FF>;
 		status = "disabled";
 	};
 
@@ -1764,6 +1764,13 @@
 	rkisp_vir1: rkisp-vir1 {
 		compatible = "rockchip,rkisp-vir";
 		rockchip,hw = <&rkisp>;
+		status = "disabled";
+	};
+
+	gmac_uio1: uio@fe010000 {
+		compatible = "rockchip,uio-gmac";
+		reg = <0x0 0xfe010000 0x0 0x10000>;
+		rockchip,ethernet = <&gmac1>;
 		status = "disabled";
 	};
 
@@ -2510,6 +2517,13 @@
 			interrupt-parent = <&gic>;
 			interrupts = <GIC_SPI 162 IRQ_TYPE_EDGE_RISING>;
 		};
+	};
+
+	gmac_uio0: uio@fe2a0000 {
+		compatible = "rockchip,uio-gmac";
+		reg = <0x0 0xfe2a0000 0x0 0x10000>;
+		rockchip,ethernet = <&gmac0>;
+		status = "disabled";
 	};
 
 	gmac0: ethernet@fe2a0000 {
