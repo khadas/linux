@@ -57,7 +57,7 @@ enum {
 #define HDCP_AUTH_TIMEOUT (40) /*40*200ms = 8s*/
 #define HDCP22_LOAD_TIMEOUT (160)
 #define TIMER_CHECK	(1 * HZ / 2)
-#define TIMER_CHK_CNT 40
+#define TIMER_CHK_CNT 60
 
 struct meson_hdmitx_hdcp {
 	struct miscdevice hdcp_comm_device;
