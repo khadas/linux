@@ -1234,7 +1234,7 @@
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xFE330000 0x0 0x3000>;
 			chip_id = <0x40>;
-			//power-domains = <&pwrdm PDID_A5_AUDIO>;
+			power-domains = <&pwrdm PDID_A4_AUDIO>;
 			status = "okay";
 			ddr_manager {
 				compatible =

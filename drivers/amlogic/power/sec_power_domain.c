@@ -531,7 +531,7 @@ static struct sec_pm_domain_data s5_pm_domain_data = {
 
 static struct sec_pm_private_domain a4_pm_domains[] = {
 	[PDID_A4_AUDIO] = POWER_DOMAIN(audio, PDID_A4_AUDIO,
-			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+			DOMAIN_INIT_ON, 0),
 	[PDID_A4_SDIOA] = POWER_DOMAIN(sdioa, PDID_A4_SDIOA,
 			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_A4_EMMC] = POWER_DOMAIN(emmc, PDID_A4_EMMC,
