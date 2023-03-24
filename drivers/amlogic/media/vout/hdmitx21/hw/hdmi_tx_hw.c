@@ -465,6 +465,8 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 		HDMITX_T7_TOP_INFILTER : HDMITX_S5_TOP_INFILTER, data32);
 	hdmitx21_set_reg_bits(AON_CYP_CTL_IVCTX, 2, 0, 2);
 	hdmitx21_set_reg_bits(PCLK2TMDS_MISC0_IVCTX, 0, 0, 2); /* Original DE generation logic */
+	/*Control signals for repeat count */
+	hdmitx21_set_reg_bits(HBLANK_REKEY_CONTROL_IVCTX, 1, 6, 1);
 }
 
 int hdmitx21_uboot_audio_en(void)
