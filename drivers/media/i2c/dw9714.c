@@ -202,7 +202,7 @@ static int dw9714_read_msg(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	for (retries = 0; retries < 5; retries++) {
+	for (retries = 0; retries < 3; retries++) {
 		msg->addr = client->addr;
 		msg->flags = I2C_M_RD;
 		msg->len = 2;
@@ -1176,6 +1176,7 @@ static int dw9714_probe(struct i2c_client *client,
 	struct v4l2_subdev *sd;
 	char facing[2];
 	int ret;
+	unsigned int dac = 0;
 
 	dev_info(&client->dev, "probing...\n");
 	dw9714_dev = devm_kzalloc(&client->dev, sizeof(*dw9714_dev),
@@ -1199,7 +1200,8 @@ static int dw9714_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto err_cleanup;
 
-	ret = dw9714_init(client);
+
+	ret = dw9714_get_dac(dw9714_dev, &dac);
 	printk("hlm dw9714_probe ret=%d\n", ret);
 	if(ret!=0)
 		goto err_cleanup;
