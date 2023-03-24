@@ -343,6 +343,10 @@ static int ehci_platform_probe(struct platform_device *dev)
 			ehci_platform_hc_driver.relinquish_port =
 					  ehci_rockchip_relinquish_port;
 
+		if (of_property_read_bool(dev->dev.of_node,
+				  "use-hs-only"))
+			ehci->use_hs_only = 1;
+
 		for (clk = 0; clk < EHCI_MAX_CLKS; clk++) {
 			priv->clks[clk] = of_clk_get(dev->dev.of_node, clk);
 			if (IS_ERR(priv->clks[clk])) {
