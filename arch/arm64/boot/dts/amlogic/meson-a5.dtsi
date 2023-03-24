@@ -289,6 +289,14 @@
 		auth_reg_ops_cmd=<0x820000f0>;
 	};
 
+	ram-dump {
+		compatible = "amlogic, ram_dump";
+		status = "okay";
+		reg = <0x0 0xFE0102D8 0x0 4>;
+		reg-names = "SYSCTRL_STICKY_REG6";
+		store_device = "data";
+	};
+
 	aml_reboot {
 		compatible = "aml, reboot";
 		sys_reset = <0x84000009>;

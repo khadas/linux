@@ -39,6 +39,10 @@
 		#size-cells = <2>;
 		ranges;
 		/* global autoconfigured region for contiguous allocations */
+		ramdump_bl33z@00000000 {
+			reg = <0x0 0x0 0x0 0x1800000>; /* 0 ~ 24M */
+			status = "disabled";
+		};
 
 		secmon_reserved: linux,secmon {
 			compatible = "shared-dma-pool";
