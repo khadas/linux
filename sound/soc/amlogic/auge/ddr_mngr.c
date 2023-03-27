@@ -106,11 +106,9 @@ static irqreturn_t aml_ddr_isr(int irq, void *devid)
 
 /* to DDRS */
 static struct toddr *register_toddr_l(struct device *dev,
-	struct aml_audio_controller *actrl,
 	irq_handler_t handler, void *data)
 {
 	struct toddr *to;
-	unsigned int mask_bit;
 	int i, ret;
 
 	/* lookup unused toddr */
@@ -132,11 +130,6 @@ static struct toddr *register_toddr_l(struct device *dev,
 		dev_err(dev, "failed to claim irq %u\n", to->irq);
 		return NULL;
 	}
-	/* enable audio ddr arb */
-	mask_bit = i;
-	/*aml_audiobus_update_bits(actrl, EE_AUDIO_ARB_CTRL,*/
-	/*		(1 << 31)|(1 << mask_bit),*/
-	/*		(1 << 31)|(1 << mask_bit));*/
 
 	to->dev = dev;
 	to->in_use = true;
@@ -211,14 +204,12 @@ struct toddr *fetch_toddr_by_src(int toddr_src)
 }
 
 struct toddr *aml_audio_register_toddr(struct device *dev,
-	struct aml_audio_controller *actrl,
 	irq_handler_t handler, void *data)
 {
 	struct toddr *to = NULL;
 
 	mutex_lock(&ddr_mutex);
-	to = register_toddr_l(dev, actrl,
-		handler, data);
+	to = register_toddr_l(dev, handler, data);
 	mutex_unlock(&ddr_mutex);
 	return to;
 }
@@ -1177,11 +1168,9 @@ static void aml_check_vad(struct toddr *to, bool enable)
 
 /* from DDRS */
 static struct frddr *register_frddr_l(struct device *dev,
-	struct aml_audio_controller *actrl,
 	irq_handler_t handler, void *data, bool rvd_dst)
 {
 	struct frddr *from;
-	unsigned int mask_bit;
 	int i, ret;
 
 	for (i = 0; i < DDRMAX; i++) {
@@ -1200,12 +1189,6 @@ static struct frddr *register_frddr_l(struct device *dev,
 		return NULL;
 
 	from = &frddrs[i];
-
-	/* enable audio ddr arb */
-	mask_bit = i + 4;
-	/*aml_audiobus_update_bits(actrl, EE_AUDIO_ARB_CTRL,*/
-	/*		(1 << 31)|(1 << mask_bit),*/
-	/*		(1 << 31)|(1 << mask_bit));*/
 
 	/* irqs request */
 	ret = request_threaded_irq(from->irq, aml_ddr_isr, handler,
@@ -1287,13 +1270,12 @@ struct frddr *fetch_frddr_by_src(int frddr_src)
 }
 
 struct frddr *aml_audio_register_frddr(struct device *dev,
-	struct aml_audio_controller *actrl,
 	irq_handler_t handler, void *data, bool rvd_dst)
 {
 	struct frddr *fr = NULL;
 
 	mutex_lock(&ddr_mutex);
-	fr = register_frddr_l(dev, actrl, handler, data, rvd_dst);
+	fr = register_frddr_l(dev, handler, data, rvd_dst);
 	mutex_unlock(&ddr_mutex);
 	return fr;
 }

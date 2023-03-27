@@ -253,7 +253,6 @@ static int extn_open(struct snd_pcm_substream *substream)
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		p_extn->fddr = aml_audio_register_frddr(dev,
-			p_extn->actrl,
 			extn_ddr_isr, substream, false);
 		if (!p_extn->fddr) {
 			ret = -ENXIO;
@@ -262,7 +261,6 @@ static int extn_open(struct snd_pcm_substream *substream)
 		}
 	} else {
 		p_extn->tddr = aml_audio_register_toddr(dev,
-			p_extn->actrl,
 			extn_ddr_isr, substream);
 		if (!p_extn->tddr) {
 			ret = -ENXIO;

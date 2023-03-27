@@ -1064,7 +1064,6 @@ static int aml_spdif_open(struct snd_pcm_substream *substream)
 			release_spdif_same_src(p_spdif, substream);
 
 		p_spdif->fddr = aml_audio_register_frddr(dev,
-			p_spdif->actrl,
 			aml_spdif_ddr_isr, substream, false);
 		if (!p_spdif->fddr) {
 			ret = -ENXIO;
@@ -1073,7 +1072,6 @@ static int aml_spdif_open(struct snd_pcm_substream *substream)
 		}
 	} else {
 		p_spdif->tddr = aml_audio_register_toddr(dev,
-			p_spdif->actrl,
 			aml_spdif_ddr_isr, substream);
 		if (!p_spdif->tddr) {
 			ret = -ENXIO;

@@ -688,7 +688,6 @@ static int earc_open(struct snd_pcm_substream *substream)
 		}
 
 		p_earc->fddr = aml_audio_register_frddr(dev,
-			p_earc->actrl,
 			earc_ddr_isr, substream, false);
 		if (!p_earc->fddr) {
 			ret = -ENXIO;
@@ -698,7 +697,6 @@ static int earc_open(struct snd_pcm_substream *substream)
 		p_earc->earctx_on = true;
 	} else {
 		p_earc->tddr = aml_audio_register_toddr(dev,
-			p_earc->actrl,
 			earc_ddr_isr, substream);
 		if (!p_earc->tddr) {
 			ret = -ENXIO;

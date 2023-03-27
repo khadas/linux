@@ -238,7 +238,6 @@ static int loopback_open(struct snd_pcm_substream *ss)
 		dev, LOOPBACK_BUFFER_BYTES / 2, LOOPBACK_BUFFER_BYTES);
 
 	p_loopback->tddr = aml_audio_register_toddr(dev,
-		p_loopback->actrl,
 		loopback_ddr_isr, ss);
 	if (!p_loopback->tddr) {
 		ret = -ENXIO;

@@ -563,7 +563,7 @@ static int aml_pdm_open(struct snd_pcm_substream *substream)
 	runtime->private_data = p_pdm;
 
 	p_pdm->tddr = aml_audio_register_toddr
-		(dev, p_pdm->actrl, aml_pdm_isr_handler, substream);
+		(dev, aml_pdm_isr_handler, substream);
 	if (!p_pdm->tddr) {
 		ret = -ENXIO;
 		dev_err(dev, "failed to claim to ddr\n");

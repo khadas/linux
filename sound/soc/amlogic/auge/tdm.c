@@ -1192,7 +1192,7 @@ static int aml_tdm_open(struct snd_pcm_substream *substream)
 		if (dst_id == p_tdm->id && is_aed_reserve_frddr())
 			aed_dst_status = true;
 		p_tdm->fddr = aml_audio_register_frddr(dev,
-			p_tdm->actrl, aml_tdm_ddr_isr,
+			aml_tdm_ddr_isr,
 			substream, aed_dst_status);
 		if (!p_tdm->fddr) {
 			ret = -ENXIO;
@@ -1201,7 +1201,7 @@ static int aml_tdm_open(struct snd_pcm_substream *substream)
 		}
 	} else {
 		p_tdm->tddr = aml_audio_register_toddr(dev,
-			p_tdm->actrl, aml_tdm_ddr_isr, substream);
+			aml_tdm_ddr_isr, substream);
 		if (!p_tdm->tddr) {
 			ret = -ENXIO;
 			dev_err(dev, "failed to claim to ddr\n");
