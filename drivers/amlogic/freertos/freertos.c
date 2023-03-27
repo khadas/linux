@@ -67,6 +67,25 @@ static DEFINE_MUTEX(freertos_logbuf_lock);
 
 static BLOCKING_NOTIFIER_HEAD(rtos_nofitier_chain);
 
+static int aml_rtos_logbuf_save(void);
+
+static unsigned long rtos_log_save;
+static int rtos_param(char *buf)
+{
+	if (!buf)
+		return -EINVAL;
+
+	if (kstrtoul(buf, 0, &rtos_log_save)) {
+		pr_info("invalid input:%s\n", buf);
+		return 0;
+	}
+
+	pr_info("%s, buf:%s, rtos_log_save:%ld\n", __func__, buf, rtos_log_save);
+
+	return 0;
+}
+__setup("rtos_log_save=", rtos_param);
+
 int register_freertos_notifier(struct notifier_block *nb)
 {
 	int err;
@@ -264,6 +283,8 @@ static void freertos_do_finish(int bootup)
 				} else {
 					pr_info("cpu %u already take over\n", cpu);
 				}
+
+				aml_rtos_logbuf_save();
 				free_reserved_area(__va(res_mem.base),
 					__va(PAGE_ALIGN(res_mem.base + res_mem.size)),
 						   0,
@@ -431,6 +452,33 @@ static const struct file_operations logbuf_fops = {
 	.release	= logbuf_release,
 };
 
+static int aml_rtos_logbuf_save(void)
+{
+	struct logbuf_t *tmpbuf;
+
+	if (!rtos_log_save)
+		pr_info("parm rtos_log_save not set\n");
+
+	if (!rtos_debug_dir) {
+		pr_err("rtos logbuf dir not exit\n");
+		return -1;
+	}
+
+	if (rtosinfo->logbuf_len <= sizeof(struct logbuf_t)) {
+		pr_err("rtos logbuf len is error\n");
+		return -1;
+	}
+
+	tmpbuf = vmalloc(rtosinfo->logbuf_len);
+	memcpy(tmpbuf, logbuf, rtosinfo->logbuf_len);
+	pr_info("ori read %d, write %d, tmp read %d write %d\n",
+				logbuf->read, logbuf->write,
+				tmpbuf->read, tmpbuf->write);
+	logbuf = tmpbuf;
+
+	return 0;
+}
+
 static int aml_rtos_logbuf_init(void)
 {
 	phys_addr_t phy;
@@ -566,6 +614,12 @@ static int __exit aml_rtos_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void aml_rtos_shutdown(struct platform_device *pdev)
+{
+	pr_info("%s\n", __func__);
+	arch_send_ipi_rtos(1);
+}
+
 static const struct of_device_id aml_freertos_dt_match[] = {
 	{
 		.compatible = "amlogic,freertos",
@@ -581,6 +635,7 @@ static struct platform_driver aml_rtos_driver = {
 	},
 	.probe = aml_rtos_probe,
 	.remove = __exit_p(aml_rtos_remove),
+	.shutdown = aml_rtos_shutdown,
 };
 
 static void freertos_get_irqrsved(void)
