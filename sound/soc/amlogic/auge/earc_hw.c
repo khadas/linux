@@ -896,6 +896,7 @@ void earctx_cmdc_hpd_detect(struct regmap *top_map,
 				 EARC_TX_CMDC_TOP_CTRL1,
 				 0xf << 0,
 				 0x0 << 0);
+		earctx_cmdc_set_timeout(cmdc_map, 1);
 		/* set default value */
 		mmio_update_bits(cmdc_map,
 				 EARC_TX_CMDC_VSM_CTRL1,
