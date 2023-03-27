@@ -2327,7 +2327,7 @@
 		tsensor_id = <2>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
-		rtemp = <115000>;
+		rtemp = <120000>;
 		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK>;
 		clock-names = "ts_comp";
@@ -2344,7 +2344,7 @@
 		tsensor_id = <1>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
-		rtemp = <115000>;
+		rtemp = <120000>;
 		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK>;
 		clock-names = "ts_comp";
@@ -2360,7 +2360,7 @@
 		tsensor_id = <3>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
-		rtemp = <115000>;
+		rtemp = <120000>;
 		interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK>;
 		clock-names = "ts_comp";
@@ -2376,7 +2376,7 @@
 		tsensor_id = <4>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
-		rtemp = <115000>;
+		rtemp = <120000>;
 		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK>;
 		clock-names = "ts_comp";
@@ -2393,7 +2393,7 @@
 		tsensor_id = <5>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
-		rtemp = <115000>;
+		rtemp = <120000>;
 		interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK>;
 		clock-names = "ts_comp";
@@ -2447,22 +2447,22 @@
 			thermal-sensors = <&gpu_tsensor 1>;
 			trips {
 				gpuswitch_on: trip-point@0 {
-					temperature = <80000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				gpucontrol: trip-point@1 {
 					temperature = <90000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				gpuhot: trip-point@2 {
+				gpucontrol: trip-point@1 {
 					temperature = <100000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				gpuhot: trip-point@2 {
+					temperature = <105000>;
 					hysteresis = <5000>;
 					type = "hot";
 				};
 				gpucritical: trip-point@3 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2488,22 +2488,22 @@
 			thermal-sensors = <&a55_tsensor 0>;
 			trips {
 				a55switch_on: trip-point@0 {
-					temperature = <80000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				a55control: trip-point@1 {
 					temperature = <90000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				a55hot: trip-point@2 {
+				a55control: trip-point@1 {
 					temperature = <100000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				a55hot: trip-point@2 {
+					temperature = <105000>;
 					hysteresis = <5000>;
 					type = "hot";
 				};
 				a55critical: trip-point@3 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2544,7 +2544,7 @@
 					type = "passive";
 				};
 				vpucritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2568,7 +2568,7 @@
 					type = "passive";
 				};
 				doscritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2592,7 +2592,7 @@
 					type = "passive";
 				};
 				nnacritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
