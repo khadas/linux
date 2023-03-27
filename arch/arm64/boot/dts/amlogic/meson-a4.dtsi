@@ -1054,6 +1054,13 @@
 				#gpio-cells = <2>;
 				gpio-ranges = <&aobus_pinctrl 0 0 8>;
 			};
+
+			pwm_g_ao_pins: pwm_g_ao_pins {
+				mux {
+					groups = "pwm_g";
+					function = "pwm_g_ao";
+				};
+			};
 		};
 
 		gpio_ao_intc: interrupt-controller@fe08e72c {
