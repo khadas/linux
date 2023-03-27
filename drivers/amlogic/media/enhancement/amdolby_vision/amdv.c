@@ -1822,11 +1822,10 @@ void amdv_create_inst(void)
 		memset(graphic_md_buf, 0, MD_BUF_SIZE);
 }
 
-static DEFINE_SPINLOCK(dv_inst_lock);
+static DEFINE_MUTEX(dv_inst_lock);
 
 int dv_inst_map(int *inst)
 {
-	unsigned long flags;
 	int i;
 	int ret = 0;
 	int new_map_id = -1;
@@ -1837,7 +1836,7 @@ int dv_inst_map(int *inst)
 		return 0;
 	}
 
-	spin_lock_irqsave(&dv_inst_lock, flags);
+	mutex_lock(&dv_inst_lock);
 
 	for (i = 0; i < NUM_INST; i++) {
 		if (!dv_inst[i].mapped)
@@ -1849,7 +1848,7 @@ int dv_inst_map(int *inst)
 	}
 
 	if (ret == -1) {
-		spin_unlock_irqrestore(&dv_inst_lock, flags);
+		mutex_unlock(&dv_inst_lock);
 		*inst = -1;
 		pr_info("%s failed\n", __func__);
 		return -ENODEV;
@@ -1898,7 +1897,7 @@ int dv_inst_map(int *inst)
 			p_funcs_stb->multi_mp_reset(dv_inst[*inst].metadata_parser, 1);
 			pr_dv_dbg("reset mp\n");
 		}
-		spin_unlock_irqrestore(&dv_inst_lock, flags);
+		mutex_unlock(&dv_inst_lock);
 		/*clear dv_vf and framecount*/
 		amdv_clear_buf(*inst);
 		dv_inst[*inst].frame_count = 0;
@@ -1917,7 +1916,7 @@ int dv_inst_map(int *inst)
 		dv_inst[*inst].in_comp_size = 0;
 		return 0;
 	}
-	spin_unlock_irqrestore(&dv_inst_lock, flags);
+	mutex_unlock(&dv_inst_lock);
 	*inst = -1;
 	pr_info("%s failed\n", __func__);
 	return -ENODEV;
@@ -1926,14 +1925,12 @@ EXPORT_SYMBOL(dv_inst_map);
 
 void dv_inst_unmap(int inst)
 {
-	unsigned long flags;
-
 	if (!multi_dv_mode)
 		return;
 
 	pr_info("%s %d\n", __func__, inst);
 
-	spin_lock_irqsave(&dv_inst_lock, flags);
+	mutex_lock(&dv_inst_lock);
 
 	if (dv_inst_valid(inst) && dv_inst[inst].mapped) {
 		dv_inst[inst].mapped = false;
@@ -1945,7 +1942,7 @@ void dv_inst_unmap(int inst)
 		}
 		pr_info("%s %d OK\n", __func__, inst);
 	}
-	spin_unlock_irqrestore(&dv_inst_lock, flags);
+	mutex_unlock(&dv_inst_lock);
 }
 EXPORT_SYMBOL(dv_inst_unmap);
 
