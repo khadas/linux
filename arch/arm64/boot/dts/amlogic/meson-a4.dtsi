@@ -402,7 +402,7 @@
 	galcore {
 		compatible = "amlogic, galcore";
 		dev_name = "galcore";
-		status = "okay";
+		status = "disabled";
 		//clocks = <&clkc CLKID_CTS_NNA_AXI_CLK>,
 		//      <&clkc CLKID_CTS_NNA_CORE_CLK>;
 		//clock-names = "cts_vipnanoq_axi_clk_composite",
