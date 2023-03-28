@@ -215,6 +215,7 @@
 		regulator-name = "DC_12V";
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
+		regulator-boot-on;
 		regulator-always-on;
 	};
 
@@ -226,6 +227,7 @@
 		regulator-max-microvolt = <12000000>;
 		gpio = <&ao_gpio GPIOAO_4 GPIO_ACTIVE_LOW>;
 		enable-active-low;
+		regulator-boot-on;
 		regulator-always-on;
 	};
 
@@ -236,6 +238,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
+		regulator-always-on;
 	};
 
 	vdd1v8_ao_rtc_reg: fixed@vdd1v8_ao_rtc_reg{
@@ -245,6 +248,7 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-boot-on;
+		regulator-always-on;
 	};
 
 	vddq_reg: fixed@vddq_reg{
@@ -266,7 +270,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
-		regulator-always-on;
+		//regulator-always-on;
 	};
 
 	vddao1v8_reg: fixed@vddao1v8_reg{

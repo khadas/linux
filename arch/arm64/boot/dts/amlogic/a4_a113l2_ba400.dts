@@ -99,8 +99,8 @@
 		//BA400 2R52 is NC;
 		//gpio = <&ao_gpio GPIO_TEST_N GPIO_ACTIVE_HIGH>;
 		//enable-active-high;
-		regulator-always-on;
 		regulator-boot-on;
+		//regulator-always-on;
 	};
 
 	vddio3v3_reg: fixed@vddio3v3_reg{
@@ -112,7 +112,7 @@
 		gpio = <&ao_gpio GPIO_TEST_N GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-boot-on;
-		regulator-always-on;
+		//regulator-always-on;
 	};
 
 	vddio_x: gpio-regulator@vddio_x {
@@ -121,11 +121,12 @@
 		regulator-name = "VDDIO_X";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <3300000>;
-		gpios = <&gpio GPIOD_8 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio GPIOD_8 GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
 		states = <1800000 1
 			  3300000 0>;
 		regulator-boot-on;
+		//regulator-always-on;
 	};
 
 	sd_3v3_reg: fixed@sd_3v3_reg{
@@ -135,7 +136,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
-		regulator-always-on;
+		//regulator-always-on;
 	};
 
 	vddds1v8_reg: fixed@vddds1v8_reg{
