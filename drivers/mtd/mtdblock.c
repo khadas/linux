@@ -29,11 +29,15 @@ struct mtdblk_dev {
 	unsigned long cache_offset;
 	unsigned int cache_size;
 	enum { STATE_EMPTY, STATE_CLEAN, STATE_DIRTY } cache_state;
+};
+
 #ifdef CONFIG_AMLOGIC_NAND
+struct mtdblk_pbbt {
+	struct mtdblk_dev mb;
 	unsigned int bad_cnt;
 	unsigned short *part_bbt;
-#endif
 };
+#endif
 
 /*
  * Cache stuff...
@@ -110,28 +114,26 @@ static int write_cached_data (struct mtdblk_dev *mtdblk)
 		return ret;
 	mtdblk->cache_state = STATE_EMPTY;
 	return ret;
-	/*
-	 * If define CONFIG_AMLOGIC_NAND, never come here.
-	 */
-	/* coverity[unreachable:SUPPRESS] */
-#endif
+#else
 	if (ret == 0 || ret == -EIO)
 		mtdblk->cache_state = STATE_EMPTY;
 	return ret;
+#endif
 }
 
 #ifdef CONFIG_AMLOGIC_NAND
 static unsigned long map_block(struct mtdblk_dev *mtdblk, unsigned long pos)
 {
 	struct mtd_info *mtd = mtdblk->mbd.mtd;
+	struct mtdblk_pbbt *pbbt = container_of(mtdblk, struct mtdblk_pbbt, mb);
 	int block, i;
 
-	if (!mtdblk->part_bbt)
+	if (!pbbt->part_bbt)
 		return pos;
 
 	block = (int)(pos >> mtd->erasesize_shift);
-	for (i = 0; i < mtdblk->bad_cnt; i++) {
-		if (block >= mtdblk->part_bbt[i])
+	for (i = 0; i < pbbt->bad_cnt; i++) {
+		if (block >= pbbt->part_bbt[i])
 			block++;
 		else
 			break;
@@ -295,6 +297,7 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 	struct mtdblk_dev *mtdblk = container_of(mbd, struct mtdblk_dev, mbd);
 #ifdef CONFIG_AMLOGIC_NAND
 	int block_cnt, i, bad_cnt = 0;
+	struct mtdblk_pbbt *pbbt = container_of(mtdblk, struct mtdblk_pbbt, mb);
 #endif
 
 	pr_debug("mtdblock_open\n");
@@ -318,7 +321,7 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 	}
 
 #ifdef CONFIG_AMLOGIC_NAND
-	mtdblk->part_bbt =  NULL;
+	pbbt->part_bbt =  NULL;
 	if (!mtd_can_have_bb(mbd->mtd))
 		goto _ok;
 
@@ -330,10 +333,10 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 		/* coverity[divide_by_zero:SUPPRESS] */
 		if (mtd_block_isbad(mbd->mtd, i * mbd->mtd->erasesize))
 			bad_cnt++;
-	mtdblk->bad_cnt = bad_cnt;
+	pbbt->bad_cnt = bad_cnt;
 	if (bad_cnt) {
-		mtdblk->part_bbt =
-		kmalloc_array(block_cnt, sizeof(*mtdblk->part_bbt), GFP_KERNEL);
+		pbbt->part_bbt =
+		kmalloc_array(block_cnt, sizeof(*pbbt->part_bbt), GFP_KERNEL);
 		bad_cnt = 0;
 		for (i = 0; i < block_cnt; i++)
 			/*
@@ -341,7 +344,7 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 			 */
 			/* coverity[divide_by_zero:SUPPRESS] */
 			if (mtd_block_isbad(mbd->mtd, i * mbd->mtd->erasesize))
-				mtdblk->part_bbt[bad_cnt++] = i;
+				pbbt->part_bbt[bad_cnt++] = i;
 	}
 
 _ok:
@@ -384,13 +387,6 @@ static int mtdblock_flush(struct mtd_blktrans_dev *dev)
 	mutex_unlock(&mtdblk->cache_mutex);
 	mtd_sync(dev->mtd);
 
-#ifdef CONFIG_AMLOGIC_NAND
-	return 0;
-	/*
-	 * If define CONFIG_AMLOGIC_NAND, never come here.
-	 */
-	/* coverity[unreachable:SUPPRESS] */
-#endif
 	return ret;
 }
 
@@ -399,10 +395,16 @@ static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	struct mtdblk_dev *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 #ifdef CONFIG_AMLOGIC_NAND
 	int i = 0;
+	struct mtdblk_pbbt *pbbt = kzalloc(sizeof(*pbbt), GFP_KERNEL);
 #endif
 
 	if (!dev)
 		return;
+
+#ifdef CONFIG_AMLOGIC_NAND
+	if (!pbbt)
+		return;
+#endif
 
 	dev->mbd.mtd = mtd;
 	dev->mbd.devnum = mtd->index;
@@ -423,8 +425,16 @@ _ok:
 	if (!(mtd->flags & MTD_WRITEABLE))
 		dev->mbd.readonly = 1;
 
+#ifdef CONFIG_AMLOGIC_NAND
+	pbbt->mb = *dev;
+	if (add_mtd_blktrans_dev(&dev->mbd)) {
+		kfree(dev);
+		kfree(pbbt);
+	}
+#else
 	if (add_mtd_blktrans_dev(&dev->mbd))
 		kfree(dev);
+#endif
 }
 
 static void mtdblock_remove_dev(struct mtd_blktrans_dev *dev)
