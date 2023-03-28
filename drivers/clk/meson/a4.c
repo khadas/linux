@@ -64,7 +64,6 @@ static struct clk_regmap a4_fixed_pll_dco = {
 			{ .fw_name = "xtal", }
 		},
 		.num_parents = 1,
-		.flags = CLK_IS_CRITICAL | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -77,7 +76,6 @@ static struct clk_regmap a4_fixed_pll = {
 			&a4_fixed_pll_dco.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 #else
@@ -95,11 +93,6 @@ static struct clk_regmap a4_fixed_pll = {
 			&a4_fixed_pll_dco.hw
 		},
 		.num_parents = 1,
-		/*
-		 * This clock won't ever change at runtime so
-		 * CLK_SET_RATE_PARENT is not required
-		 */
-		.flags = CLK_IS_CRITICAL | CLK_GET_RATE_NOCACHE,
 	},
 };
 #endif
@@ -109,7 +102,6 @@ static struct clk_regmap a4_fixed_pll = {
  * otherwise the sys pll can not lock.
  * od is for 32 bit.
  */
-
 #ifdef CONFIG_ARM
 static const struct pll_params_table a4_sys_pll_params_table[] = {
 	PLL_PARAMS(100, 1, 1), /*DCO=2400M OD=DCO/2=1200M*/
@@ -188,7 +180,7 @@ static struct clk_regmap a4_sys_pll_dco = {
 		},
 		.num_parents = 1,
 		/* This clock feeds the CPU, avoid disabling it */
-		.flags = CLK_IS_CRITICAL | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -223,7 +215,7 @@ static struct clk_regmap a4_sys_pll = {
 		 * prevent the system hang up which will be called
 		 * by clk_disable_unused
 		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 #else
@@ -253,7 +245,7 @@ static struct clk_regmap a4_sys_pll = {
 			&a4_sys_pll_dco.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 #endif
@@ -498,7 +490,7 @@ static struct clk_regmap a4_gp0_pll_dco = {
 			{ .fw_name = "xtal", }
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -540,8 +532,7 @@ static struct clk_regmap a4_gp0_pll = {
 			&a4_gp0_pll_dco.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE
-				| CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 #endif
@@ -612,7 +603,7 @@ static struct clk_regmap a4_gp1_pll_dco = {
 			{ .fw_name = "xtal", }
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -656,7 +647,7 @@ static struct clk_regmap a4_gp1_pll = {
 			&a4_gp1_pll_dco.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 #endif
@@ -861,7 +852,6 @@ static struct clk_regmap a4_hifi_pll_dco = {
 			{ .fw_name = "xtal", }
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -903,7 +893,7 @@ static struct clk_regmap a4_hifi_pll = {
 			&a4_hifi_pll_dco.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 #endif
@@ -1119,7 +1109,6 @@ static struct clk_regmap a4_sysclk_1_div = {
 			&a4_sysclk_1_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -1135,8 +1124,6 @@ static struct clk_regmap a4_sysclk_1 = {
 			&a4_sysclk_1_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED
-			 | CLK_IS_CRITICAL,
 	},
 };
 
@@ -1168,7 +1155,6 @@ static struct clk_regmap a4_sysclk_0_div = {
 			&a4_sysclk_0_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -1201,7 +1187,6 @@ static struct clk_regmap a4_sys_clk = {
 			&a4_sysclk_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -1236,7 +1221,6 @@ static struct clk_regmap a4_axiclk_1_div = {
 		.offset = CLKCTRL_AXI_CLK_CTRL0,
 		.shift = 16,
 		.width = 10,
-		.flags = CLK_DIVIDER_ALLOW_ZERO,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "axiclk_1_div",
@@ -1245,7 +1229,6 @@ static struct clk_regmap a4_axiclk_1_div = {
 			&a4_axiclk_1_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -1284,7 +1267,6 @@ static struct clk_regmap a4_axiclk_0_div = {
 		.offset = CLKCTRL_AXI_CLK_CTRL0,
 		.shift = 0,
 		.width = 10,
-		.flags = CLK_DIVIDER_ALLOW_ZERO,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "axiclk_0_div",
@@ -1293,7 +1275,6 @@ static struct clk_regmap a4_axiclk_0_div = {
 			&a4_axiclk_0_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -1326,7 +1307,6 @@ static struct clk_regmap a4_axi_clk = {
 			&a4_axiclk_1.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -1555,7 +1535,6 @@ static struct clk_regmap a4_sd_emmc_c_clk0_div = {
 			&a4_sd_emmc_c_clk0_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -1571,7 +1550,6 @@ static struct clk_regmap a4_sd_emmc_c_clk0 = {
 			&a4_sd_emmc_c_clk0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1604,7 +1582,6 @@ static struct clk_regmap a4_sd_emmc_a_clk0_div = {
 			&a4_sd_emmc_a_clk0_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -1620,7 +1597,6 @@ static struct clk_regmap a4_sd_emmc_a_clk0 = {
 			&a4_sd_emmc_a_clk0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1750,7 +1726,6 @@ static struct clk_regmap a4_pwm_a_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = a4_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(a4_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1767,7 +1742,7 @@ static struct clk_regmap a4_pwm_a_div = {
 			&a4_pwm_a_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1783,7 +1758,7 @@ static struct clk_regmap a4_pwm_a = {
 			&a4_pwm_a_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1799,7 +1774,6 @@ static struct clk_regmap a4_pwm_b_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = a4_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(a4_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1816,7 +1790,7 @@ static struct clk_regmap a4_pwm_b_div = {
 			&a4_pwm_b_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1832,7 +1806,7 @@ static struct clk_regmap a4_pwm_b = {
 			&a4_pwm_b_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1848,7 +1822,6 @@ static struct clk_regmap a4_pwm_c_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = a4_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(a4_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1865,7 +1838,7 @@ static struct clk_regmap a4_pwm_c_div = {
 			&a4_pwm_c_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1881,7 +1854,7 @@ static struct clk_regmap a4_pwm_c = {
 			&a4_pwm_c_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1897,7 +1870,6 @@ static struct clk_regmap a4_pwm_d_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = a4_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(a4_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1914,7 +1886,7 @@ static struct clk_regmap a4_pwm_d_div = {
 			&a4_pwm_d_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1930,7 +1902,7 @@ static struct clk_regmap a4_pwm_d = {
 			&a4_pwm_d_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1946,7 +1918,6 @@ static struct clk_regmap a4_pwm_e_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = a4_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(a4_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1963,7 +1934,7 @@ static struct clk_regmap a4_pwm_e_div = {
 			&a4_pwm_e_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1979,7 +1950,7 @@ static struct clk_regmap a4_pwm_e = {
 			&a4_pwm_e_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1995,7 +1966,6 @@ static struct clk_regmap a4_pwm_f_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = a4_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(a4_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -2012,7 +1982,7 @@ static struct clk_regmap a4_pwm_f_div = {
 			&a4_pwm_f_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2028,7 +1998,7 @@ static struct clk_regmap a4_pwm_f = {
 			&a4_pwm_f_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2044,7 +2014,6 @@ static struct clk_regmap a4_pwm_g_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = a4_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(a4_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -2061,7 +2030,7 @@ static struct clk_regmap a4_pwm_g_div = {
 			&a4_pwm_g_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2077,7 +2046,7 @@ static struct clk_regmap a4_pwm_g = {
 			&a4_pwm_g_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2093,7 +2062,6 @@ static struct clk_regmap a4_pwm_h_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = a4_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(a4_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -2110,7 +2078,7 @@ static struct clk_regmap a4_pwm_h_div = {
 			&a4_pwm_h_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2126,7 +2094,7 @@ static struct clk_regmap a4_pwm_h = {
 			&a4_pwm_h_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
