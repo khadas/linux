@@ -1002,7 +1002,7 @@
 
 /* SDIO */
 &sd_emmc_a {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&sdio_pins>;
 	pinctrl-1 = <&sdio_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -1211,16 +1211,20 @@
 };
 
 &aml_wifi{
-	status = "disabled";
-	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
+	status = "okay";
+	interrupt-gpios = <&ao_gpio  GPIOAO_2  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
 };
 
 &aml_bt {
-	status = "disabled";
-	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+	reset-gpios = <&gpio    GPIOX_16 GPIO_ACTIVE_HIGH>;
 	//btwakeup-gpios = <&gpio    GPIOX_18 GPIO_ACTIVE_HIGH>;
 	//hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
+};
+
+&pwm_gh {
+	status = "okay";
 };
 
 &uart_A {
