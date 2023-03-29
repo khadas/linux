@@ -842,6 +842,7 @@
 	audiobus: audiobus@0xFF660000 {
 		compatible = "amlogic, audio-controller", "simple-bus";
 		reg = <0x0 0xFF660000 0x0 0x3000>;
+		reg-names = "audio_bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges = <0x0 0x0 0x0 0xFF660000 0x0 0x3000>;

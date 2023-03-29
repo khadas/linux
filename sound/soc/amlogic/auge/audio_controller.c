@@ -101,7 +101,7 @@ static int register_audio_controller(struct platform_device *pdev,
 
 	/* init aml audio bus mmio controller */
 	actrl->audioio_regmap = audioio_regmap;
-	if (!IS_ERR(audioio_regmap)) {
+	if (!IS_ERR(acc_regmap)) {
 		actrl->acc_regmap = acc_regmap;
 		mmio_write(acc_regmap, AUDIO_ACC_CLK_GATE_EN, 0xff);
 	} else {

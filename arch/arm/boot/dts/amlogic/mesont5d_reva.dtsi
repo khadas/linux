@@ -989,6 +989,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0xff600000 0x3000>;
+			reg-names = "audio_bus";
 			ranges = <0x0 0xff600000 0x3000>;
 
 			clkaudio:audio_clocks {
