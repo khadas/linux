@@ -2186,6 +2186,92 @@ static struct vpu_data_s vpu_data_s5 = {
 	.clktree_init = vpu_clktree_init_dft,
 };
 
+static struct vpu_data_s vpu_data_c3 = {
+	.chip_type = VPU_CHIP_C3,
+	.chip_name = "c3",
+
+	.clk_level_dft = CLK_LEVEL_DFT_C3,
+	.clk_level_max = CLK_LEVEL_MAX_C3,
+	.fclk_div_table = fclk_div_table_c3,
+	.clk_table = vpu_clk_table,
+	.reg_map_table = vpu_reg_table_c3,
+	.test_reg_table = vcbus_test_reg_c3,
+
+	.vpu_clk_reg = CLKCTRL_VOUTENC_CLK_CTRL,
+	.vapb_clk_reg = VPU_REG_END,
+
+	.gp_pll_valid = 0,
+	.mem_pd_reg[0] = VPU_REG_END,
+	.mem_pd_reg[1] = VPU_REG_END,
+	.mem_pd_reg[2] = VPU_REG_END,
+	.mem_pd_reg[3] = VPU_REG_END,
+	.mem_pd_reg[4] = VPU_REG_END,
+	.mem_pd_reg_flag = 1,
+
+	.pwrctrl_id_table = NULL,
+
+	.power_table = NULL,
+	.iso_table = NULL,
+	.reset_table = NULL,
+	.module_init_table = NULL,
+
+	.mem_pd_table = NULL,
+	.clk_gate_table = NULL,
+
+	.power_on = NULL,
+	.power_off = NULL,
+	.mem_pd_init_off = NULL,
+	.module_init_config = NULL,
+	.power_init_check = vpu_power_init_check_c3,
+	.mempd_switch = NULL,
+	.mempd_get = NULL,
+	.clk_apply = vpu_clk_apply_c3,
+	.clktree_init = vpu_clktree_init_c3,
+};
+
+static struct vpu_data_s vpu_data_a4 = {
+	.chip_type = VPU_CHIP_A4,
+	.chip_name = "A4",
+
+	.clk_level_dft = CLK_LEVEL_DFT_C3,
+	.clk_level_max = CLK_LEVEL_MAX_C3,
+	.fclk_div_table = fclk_div_table_c3,
+	.clk_table = vpu_clk_table,
+	.reg_map_table = vpu_reg_table_a4,
+	.test_reg_table = vcbus_test_reg_a4,
+
+	.vpu_clk_reg = CLKCTRL_VOUTENC_CLK_CTRL_A4,
+	.vapb_clk_reg = VPU_REG_END,
+
+	.gp_pll_valid = 0,
+	.mem_pd_reg[0] = PWRCTRL_MEM_PD6_A4,
+	.mem_pd_reg[1] = VPU_REG_END,
+	.mem_pd_reg[2] = VPU_REG_END,
+	.mem_pd_reg[3] = VPU_REG_END,
+	.mem_pd_reg[4] = VPU_REG_END,
+	.mem_pd_reg_flag = 1,
+
+	.pwrctrl_id_table = NULL,
+
+	.power_table = NULL,
+	.iso_table = NULL,
+	.reset_table = NULL,
+	.module_init_table = NULL,
+
+	.mem_pd_table = NULL,
+	.clk_gate_table = NULL,
+
+	.power_on = NULL,
+	.power_off = NULL,
+	.mem_pd_init_off = NULL,
+	.module_init_config = NULL,
+	.power_init_check = vpu_power_init_check_c3,
+	.mempd_switch = NULL,
+	.mempd_get = NULL,
+	.clk_apply = vpu_clk_apply_c3,
+	.clktree_init = vpu_clktree_init_c3,
+};
+
 static const struct of_device_id vpu_of_table[] = {
 	{
 		.compatible = "amlogic, vpu-axg",
@@ -2250,8 +2336,16 @@ static const struct of_device_id vpu_of_table[] = {
 		.data = &vpu_data_t5w,
 	},
 	{
+		.compatible = "amlogic, vpu-c3",
+		.data = &vpu_data_c3,
+	},
+	{
 		.compatible = "amlogic, vpu-s5",
 		.data = &vpu_data_s5,
+	},
+	{
+		.compatible = "amlogic, vpu-a4",
+		.data = &vpu_data_a4,
 	},
 	{}
 };

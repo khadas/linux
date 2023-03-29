@@ -35,6 +35,21 @@ int vpu_power_init_check_dft(void)
 	return ret;
 }
 
+int vpu_power_init_check_c3(void)
+{
+	unsigned int val;
+	int ret = 0;
+
+	val = vpu_clk_getb(vpu_conf.data->vpu_clk_reg, 8, 1);
+	ret = (val == 0) ? 1 : 0;
+	if (vpu_debug_print_flag) {
+		VPUPR("%s: vpu_clk_ctrl: 0x%08x, ret=%d\n",
+		      __func__, vpu_clk_read(vpu_conf.data->vpu_clk_reg), ret);
+	}
+
+	return ret;
+}
+
 void vpu_mem_pd_init_off(void)
 {
 }

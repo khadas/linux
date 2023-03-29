@@ -1573,6 +1573,30 @@
 		version = <2>;
 	};
 
+	vpu: vpu {
+		compatible = "amlogic, vpu-a4";
+		status = "okay";
+		reg = <0x0 0xfe000000 0x0 0x2000    /* clk */
+			   0x0 0xfe00c000 0x0 0x70      /* pwrctrl */
+		       0x0 0xfe340000 0x0 0x10000>; /* vcbus */
+		clocks = <&clkc CLKID_VOUT_MCLK>;
+		clock-names = "vpu_clk";
+		clk_level = <4>;
+		/* 0: 100.0M    1: 166.7M    2: 200.0M    3: 250.0M */
+		/* 4: 333.3M */
+	};
+
+	vclk_serve: vclk_serve {
+		compatible = "amlogic, vclk_serve";
+		status = "okay";
+		reg = <0x0 0xfe000000 0x0 0x2000>;    /* clk */
+	};
+
+	vout: vout {
+		compatible = "amlogic, vout";
+		status = "okay";
+	};
+
 	codec_io: codec_io {
 		compatible = "amlogic, meson-a4, codec-io";
 		status = "okay";

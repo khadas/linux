@@ -27,7 +27,9 @@ enum vpu_chip_e {
 	VPU_CHIP_S4D,
 	VPU_CHIP_T3,
 	VPU_CHIP_T5W,
+	VPU_CHIP_C3,
 	VPU_CHIP_S5,
+	VPU_CHIP_A4,
 	VPU_CHIP_MAX,
 };
 
@@ -154,17 +156,22 @@ extern struct vpu_conf_s vpu_conf;
 extern int vpu_debug_print_flag;
 extern int vpu_reg_table[];
 extern int vpu_reg_table_new[];
+extern int vpu_reg_table_c3[];
+extern int vpu_reg_table_a4[];
 
 int vpu_chip_valid_check(void);
 
 unsigned int get_vpu_clk_level_max_vmod(void);
 int vpu_clk_apply_dft(unsigned int clk_level);
+int vpu_clk_apply_c3(unsigned int clk_level);
 int set_vpu_clk(unsigned int vclk);
 void vpu_clktree_init_dft(struct device *dev);
+void vpu_clktree_init_c3(struct device *dev);
 
 void vpu_mem_pd_init_off(void);
 void vpu_module_init_config(void);
 int vpu_power_init_check_dft(void);
+int vpu_power_init_check_c3(void);
 void vpu_power_on(void);
 void vpu_power_off(void);
 void vpu_power_on_new(void);

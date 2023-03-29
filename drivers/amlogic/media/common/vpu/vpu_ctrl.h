@@ -30,6 +30,11 @@
 #define CLK_LEVEL_DFT_T5D     5
 #define CLK_LEVEL_MAX_T5D     6
 
+/* C3 */
+/* freq max=333M, default=333M */
+#define CLK_LEVEL_DFT_C3     4
+#define CLK_LEVEL_MAX_C3     5
+
 /* vpu clk setting */
 static struct fclk_div_s fclk_div_table_axg[] = {
 	/* id,         mux,  div */
@@ -46,6 +51,15 @@ static struct fclk_div_s fclk_div_table_g12a[] = {
 	{FCLK_DIV4,    1,    4},
 	{FCLK_DIV5,    2,    5},
 	{FCLK_DIV7,    3,    7},
+	{FCLK_DIV_MAX, 8,    1},
+};
+
+static struct fclk_div_s fclk_div_table_c3[] = {
+	/* id,         mux,  div */
+	{FCLK_DIV3,    1,    3},
+	{FCLK_DIV4,    2,    4},
+	{FCLK_DIV5,    3,    5},
+	{FCLK_DIV7,    7,    7},
 	{FCLK_DIV_MAX, 8,    1},
 };
 
@@ -77,6 +91,18 @@ static unsigned int vcbus_test_reg_t7[VCBUS_REG_CNT_MAX] = {
 	VENC_VDAC_TST_VAL,
 	VPP_DUMMY_DATA,
 	VPU_VPU_PWM_V0_T7
+};
+
+static unsigned int vcbus_test_reg_c3[VCBUS_REG_CNT_MAX] = {
+	VPU_VOUT_BLEND_DUMDATA,
+	VPP_VD1_MATRIX_OFFSET0_1,
+	VPU_VOUT_DTH_DATA
+};
+
+static unsigned int vcbus_test_reg_a4[VCBUS_REG_CNT_MAX] = {
+	VPU_VOUT_BLEND_DUMDATA_A4,
+	VPP_VD1_MATRIX_OFFSET0_1_A4,
+	VPU_VOUT_DTH_DATA_A4
 };
 
 /* ******************************************************* */

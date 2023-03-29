@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/of_device.h>
 #include <linux/amlogic/clk_measure.h>
+#include <linux/amlogic/cpu_version.h>
 
 /* Local Headers */
 #include "vout_func.h"
@@ -321,6 +322,10 @@ static void vout_viu_mux_clear_t7(int index, unsigned int mux_sel)
 
 void vout_viu_mux_update(int index, unsigned int mux_sel)
 {
+	/* for c3/a4 no vout data */
+	if ((is_meson_c3_cpu() || is_meson_a4_cpu()) &&
+		!vout_mux_data)
+		return;
 	/* for default case */
 	if (!vout_mux_data) {
 		vout_viu_mux_update_default(index, mux_sel);

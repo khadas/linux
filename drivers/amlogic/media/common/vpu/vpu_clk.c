@@ -212,6 +212,38 @@ int vpu_clk_apply_dft(unsigned int clk_level)
 	return ret;
 }
 
+int vpu_clk_apply_c3(unsigned int clk_level)
+{
+	unsigned int clk;
+	int ret = 0;
+
+	ret = vpu_chip_valid_check();
+	if (ret)
+		return -1;
+
+	if (vpu_conf.data->clk_table[clk_level].mux == FCLK_DIV_MAX) {
+		VPUERR("clk_mux is invalid\n");
+		return -1;
+	}
+
+	if (IS_ERR_OR_NULL(vpu_conf.vpu_clk)) {
+		VPUERR("%s: vpu_clk\n", __func__);
+		return -1;
+	}
+
+	clk = vpu_conf.data->clk_table[clk_level].freq;
+	ret = clk_set_rate(vpu_conf.vpu_clk, clk);
+	if (ret)
+		return ret;
+
+	clk = clk_get_rate(vpu_conf.vpu_clk);
+	VPUPR("set vpu clk: %uHz(%d), readback: %uHz(0x%x)\n",
+	      vpu_conf.data->clk_table[clk_level].freq, clk_level,
+	      clk, (vpu_clk_read(vpu_conf.data->vpu_clk_reg)));
+
+	return ret;
+}
+
 int set_vpu_clk(unsigned int vclk)
 {
 	int ret = -1;
@@ -288,3 +320,12 @@ void vpu_clktree_init_dft(struct device *dev)
 	}
 }
 
+void vpu_clktree_init_c3(struct device *dev)
+{
+	/* init & enable vpu_clk */
+	vpu_conf.vpu_clk = devm_clk_get(dev, "vpu_clk");
+	if (IS_ERR_OR_NULL(vpu_conf.vpu_clk))
+		VPUERR("%s: vpu_clk\n", __func__);
+	else
+		clk_prepare_enable(vpu_conf.vpu_clk);
+}

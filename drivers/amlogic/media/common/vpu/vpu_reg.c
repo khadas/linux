@@ -36,6 +36,19 @@ int vpu_reg_table_new[] = {
 	VPU_MAP_MAX,
 };
 
+int vpu_reg_table_c3[] = {
+	VPU_MAP_CLK,
+	VPU_MAP_VCBUS,
+	VPU_MAP_MAX
+};
+
+int vpu_reg_table_a4[] = {
+	VPU_MAP_CLK,
+	VPU_MAP_PWRCTRL,
+	VPU_MAP_VCBUS,
+	VPU_MAP_MAX
+};
+
 struct vpu_reg_map_s {
 	unsigned int base_addr;
 	unsigned int size;
