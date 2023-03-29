@@ -21,40 +21,26 @@
 
 #include "audio_io.h"
 #include "regs.h"
-#include "audio_aed_reg_list.h"
-#include "audio_top_reg_list.h"
 #include "audio_controller.h"
 
 #define DRV_NAME "aml-audio-controller"
 
 unsigned int chip_id;
 
-static unsigned int aml_audio_mmio_read(struct aml_audio_controller *actrlr, struct regmap *regmap,
-					unsigned int reg)
+static unsigned int aml_audio_mmio_read(struct regmap *regmap, unsigned int reg)
 {
 	return mmio_read(regmap, reg);
 }
 
-static int aml_audio_mmio_write(struct aml_audio_controller *actrlr, struct regmap *regmap,
-				unsigned int reg, unsigned int value)
+static int aml_audio_mmio_write(struct regmap *regmap, unsigned int reg, unsigned int value)
 {
-	pr_debug("audio top reg:[%s] addr: [%#x] val: [%#x]\n",
-		 top_register_table[reg].name,
-		 top_register_table[reg].addr,
-		 value);
-
 	return mmio_write(regmap, reg, value);
 }
 
-static int aml_audio_mmio_update_bits(struct aml_audio_controller *actrlr, struct regmap *regmap,
+static int aml_audio_mmio_update_bits(struct regmap *regmap,
 				      unsigned int reg, unsigned int mask,
 				      unsigned int value)
 {
-	pr_debug("audio top reg:[%s] addr: [%#x] mask: [%#x] val: [%#x]\n",
-		 top_register_table[reg].name,
-		 top_register_table[reg].addr,
-		 mask, value);
-
 	return mmio_update_bits(regmap, reg, mask, value);
 }
 

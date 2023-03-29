@@ -11,12 +11,11 @@
 struct aml_audio_controller;
 
 struct aml_audio_ctrl_ops {
-	unsigned int (*read)(struct aml_audio_controller *actrlr, struct regmap *regmap,
-			     unsigned int reg);
-	int (*write)(struct aml_audio_controller *actrlr, struct regmap *regmap,
-		     unsigned int reg, unsigned int value);
-	int (*update_bits)(struct aml_audio_controller *actrlr, struct regmap *regmap,
-			   unsigned int reg, unsigned int mask,
+	unsigned int (*read)(struct regmap *regmap, unsigned int reg);
+	int (*write)(struct regmap *regmap, unsigned int reg, unsigned int value);
+	int (*update_bits)(struct regmap *regmap,
+			   unsigned int reg,
+			   unsigned int mask,
 			   unsigned int value);
 };
 
