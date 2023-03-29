@@ -845,58 +845,58 @@ ssize_t vpp_debug_pre_gamma_store(struct class *class,
 	if (kstrtouint(param[1], 10, &curve_type) < 0)
 		goto fr_bf;
 
-	if (!strcmp(param[0], "pre")) {
+	if (!strcmp(param[0], "pre_gamma")) {
 		len = vpp_module_pre_gamma_get_table_len();
 		if (len == 0)
-			goto fr_bf;
-
-		buf_size = len * sizeof(unsigned int);
-		pg_data = kmalloc(buf_size, GFP_KERNEL);
-		if (!pg_data)
 			goto fr_bf;
 
 		switch (curve_type) {
 		case 0:
 			pdata_pre = vpp_pq_mgr_get_pre_gamma_table();
-			vpp_pq_mgr_set_pre_gamma_table(pdata_pre);
+			vpp_module_pre_gamma_write(pdata_pre->r_data,
+				pdata_pre->g_data, pdata_pre->b_data);
 			break;
 		case 1:
+			buf_size = len * sizeof(unsigned int);
+			pg_data = kmalloc(buf_size, GFP_KERNEL);
+			if (!pg_data)
+				goto fr_bf;
 			for (i = 0; i < len; i++)
 				pg_data[i] = i * (max_val / len);
 
 			vpp_module_pre_gamma_write(pg_data, pg_data, pg_data);
+			kfree(pg_data);
 			break;
 		default:
 			break;
 		}
 
-		kfree(pg_data);
-	} else if (!strcmp(param[0], "lcd")) {
+	} else if (!strcmp(param[0], "lcd_gamma")) {
 		len = vpp_module_lcd_gamma_get_table_len();
 		if (len == 0)
-			goto fr_bf;
-
-		buf_size = len * sizeof(unsigned int);
-		pg_data = kmalloc(buf_size, GFP_KERNEL);
-		if (!pg_data)
 			goto fr_bf;
 
 		switch (curve_type) {
 		case 0:
 			pdata_lcd = vpp_pq_mgr_get_gamma_table();
-			vpp_pq_mgr_set_gamma_table(pdata_lcd);
+			vpp_module_lcd_gamma_write(pdata_lcd->r_data,
+				pdata_lcd->g_data, pdata_lcd->b_data);
 			break;
 		case 1:
+			buf_size = len * sizeof(unsigned int);
+			pg_data = kmalloc(buf_size, GFP_KERNEL);
+			if (!pg_data)
+				goto fr_bf;
 			for (i = 0; i < len; i++)
 				pg_data[i] = i * (max_val / len);
 
 			vpp_module_lcd_gamma_write(pg_data, pg_data, pg_data);
+			kfree(pg_data);
 			break;
 		default:
 			break;
 		}
 
-		kfree(pg_data);
 	}
 
 fr_bf:
