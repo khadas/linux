@@ -824,11 +824,13 @@
 			};
 
 			watchdog@2100 {
-				compatible = "amlogic,meson-sc2-wdt";
+				compatible = "amlogic,meson-a4-wdt";
 				status = "okay";
 				/* 0:userspace, 1:kernel */
 				amlogic,feed_watchdog_mode = <1>;
-				reg = <0x0 0x2100 0x0 0x10>;
+				reg = <0x0 0x2100 0x0 0x10>,
+				      <0x0 0x2124 0x0 0x04>;
+				interrupts = <GIC_SPI 9 IRQ_TYPE_EDGE_RISING>;
 				clocks = <&xtal>;
 			};
 
