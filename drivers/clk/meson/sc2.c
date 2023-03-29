@@ -1296,11 +1296,11 @@ static const struct reg_sequence sc2_pcie_pll_init_regs[] = {
 	{ .reg = ANACTRL_PCIEPLL_CTRL2,	.def = 0x00001100 },
 	{ .reg = ANACTRL_PCIEPLL_CTRL3,	.def = 0x10058e00 },
 	{ .reg = ANACTRL_PCIEPLL_CTRL4,	.def = 0x000100c0 },
-	{ .reg = ANACTRL_PCIEPLL_CTRL5,	.def = 0x68000040 },
-	{ .reg = ANACTRL_PCIEPLL_CTRL5,	.def = 0x68000060, .delay_us = 20 },
-	{ .reg = ANACTRL_PCIEPLL_CTRL4,	.def = 0x008100c0, .delay_us = 10 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL5,	.def = 0x68000048 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL5,	.def = 0x68000068, .delay_us = 20 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL4,	.def = 0x008100c0, .delay_us = 20 },
 	{ .reg = ANACTRL_PCIEPLL_CTRL0,	.def = 0x340c04c8 },
-	{ .reg = ANACTRL_PCIEPLL_CTRL0,	.def = 0x140c04c8, .delay_us = 10 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL0,	.def = 0x140c04c8, .delay_us = 20 },
 	{ .reg = ANACTRL_PCIEPLL_CTRL2,	.def = 0x00001000 }
 };
 
