@@ -21,6 +21,7 @@
 #define ACODEC_5   ACODEC_TOP_ADDR(0x14)
 #define ACODEC_6   ACODEC_TOP_ADDR(0x18)
 #define ACODEC_7   ACODEC_TOP_ADDR(0x1C)
+#define ACODEC_8   ACODEC_TOP_ADDR(0x20)
 
 /* AML TL1 CODEC register-bitfield define */
 

@@ -59,6 +59,7 @@ struct tl1_acodec_priv {
 	int dac2_input_sel;
 	struct reset_control *rst;
 	int diff_output;
+	int diff_input;
 	int dac_extra_12db;
 	int dac_output_invert;
 	int lane_offset;
@@ -72,7 +73,8 @@ static const struct reg_default tl1_acodec_init_list[] = {
 	{ACODEC_4, 0x00010000},
 	{ACODEC_5, 0xFBFB0033},
 	{ACODEC_6, 0x0},
-	{ACODEC_7, 0x0}
+	{ACODEC_7, 0x0},
+	{ACODEC_8, 0x0}
 };
 
 static struct tl1_acodec_chipinfo tl1_acodec_cinfo = {
@@ -124,7 +126,7 @@ static int tl1_acodec_reg_init(struct snd_soc_component *component)
 	int i;
 	struct tl1_acodec_priv *aml_acodec =
 				snd_soc_component_get_drvdata(component);
-	if (aml_acodec && aml_acodec->chipinfo) {
+	if (aml_acodec) {
 		for (i = 0;
 			i < ARRAY_SIZE(tl1_acodec_init_list); i++)
 			snd_soc_component_write
@@ -148,6 +150,9 @@ static int tl1_acodec_reg_init(struct snd_soc_component *component)
 						ACODEC_3,
 						0x00002400);
 	}
+
+	if (aml_acodec && aml_acodec->diff_input == 1)
+		snd_soc_component_update_bits(component, ACODEC_1, 0xffff << 0, 0x6969 << 0);
 
 	if (aml_acodec && aml_acodec->chipinfo && aml_acodec->dac_extra_12db == 1) {
 		u32 val = 0;
@@ -637,6 +642,7 @@ static int tl1_acodec_dai_set_bias_level
 {
 	switch (level) {
 	case SND_SOC_BIAS_ON:
+		snd_soc_component_write(component, ACODEC_8, 0x3);
 
 		break;
 
@@ -657,6 +663,7 @@ static int tl1_acodec_dai_set_bias_level
 		snd_soc_component_update_bits(component, ACODEC_6, 1 << DAC2_SOFT_MUTE,
 							1 << DAC2_SOFT_MUTE);
 		snd_soc_component_write(component, ACODEC_0, 0);
+		snd_soc_component_write(component, ACODEC_8, 0);
 		break;
 
 	default:
@@ -889,7 +896,7 @@ static const struct regmap_config tl1_acodec_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
-	.max_register = 0x1c,
+	.max_register = 0x20,
 	.reg_defaults = tl1_acodec_init_list,
 	.num_reg_defaults = ARRAY_SIZE(tl1_acodec_init_list),
 	.cache_type = REGCACHE_RBTREE,
@@ -1049,6 +1056,11 @@ static int aml_tl1_acodec_probe(struct platform_device *pdev)
 
 	of_property_read_u32
 			(pdev->dev.of_node,
+			"diff_input",
+			&aml_acodec->diff_input);
+
+	of_property_read_u32
+			(pdev->dev.of_node,
 			"dac_extra_12db",
 			&aml_acodec->dac_extra_12db);
 
@@ -1066,8 +1078,8 @@ static int aml_tl1_acodec_probe(struct platform_device *pdev)
 		aml_acodec->tdmout_index, aml_acodec->tdmin_index,
 		aml_acodec->dat0_ch_sel, aml_acodec->dat1_ch_sel);
 
-	pr_info("aml_tl1_acodec diff_output %d dac_extra_12db %d dac_output_invert %d lane_offset %d\n",
-		aml_acodec->diff_output, aml_acodec->dac_extra_12db,
+	pr_info("aml_tl1_acodec diff_output %d diff_input %d dac_extra_12db %d dac_output_invert %d lane_offset %d\n",
+		aml_acodec->diff_output, aml_acodec->diff_input, aml_acodec->dac_extra_12db,
 		aml_acodec->dac_output_invert, aml_acodec->lane_offset);
 
 	platform_set_drvdata(pdev, aml_acodec);
@@ -1130,7 +1142,6 @@ static const struct of_device_id aml_tl1_acodec_dt_match[] = {
 		.compatible = "amlogic, t5w_acodec",
 		.data = &acodec_cinfo_v3,
 	},
-
 	{},
 };
 

@@ -1210,13 +1210,14 @@
 			compatible = "amlogic, aml_dummy_codec";
 			status = "okay";
 		};
-		amlogic_codec:acodec{
+		acodec:acodec{
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, t3_acodec";
 			reg = <0x0 0xFE01A000 0x0 0x2000>;
-			tdmout_index = <0>;
-			tdmin_index = <0>;
-			dat0_ch_sel = <0>;
+			tdmout_index = <1>;
+			tdmin_index = <1>;
+			dat0_ch_sel = <2>;
+			lane_offset = <8>;
 			reset-names = "acodec";
 			resets = <&reset RESET_ACODEC>;
 			status = "okay";
@@ -2466,6 +2467,13 @@
 		};
 	};
 
+	mclk_1_pins: mclk_1_pin {
+		mux { /* GPIOC_4 */
+			groups = "mclk_1_c";
+			function = "mclk";
+		};
+	};
+
 	mclk1_t4_pins: mclk1_t4_pin {
 		mux { /* GPIOT_4 */
 			groups = "mclk1_t4";
@@ -2473,9 +2481,9 @@
 		};
 	};
 
-	mclk_1_pins: mclk_1_pin {
-		mux { /* GPIOC_4 */
-			groups = "mclk_1_c";
+	mclk2_t17_pins: mclk2_t17_pin {
+		mux { /* GPIOT_6 */
+			groups = "mclk2_t17";
 			function = "mclk";
 		};
 	};

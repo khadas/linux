@@ -243,14 +243,14 @@
 			//bitclock-inversion;
 			//frame-inversion;
 			/* master mode */
-			bitclock-master = <&tdma>;
-			frame-master = <&tdma>;
+			// bitclock-master = <&tdma>;
+			// frame-master = <&tdma>;
 			/* slave mode */
-			/*
-			 * bitclock-master = <&tdmacodec>;
-			 * frame-master = <&tdmacodec>;
-			 */
-			suffix-name = "alsaPORT-pcm";
+
+			bitclock-master = <&tdmacodec>;
+			frame-master = <&tdmacodec>;
+
+			suffix-name = "alsaPORT-i2sCapture";
 			tdmacpu: cpu {
 				sound-dai = <&tdma>;
 				dai-tdm-slot-tx-mask =
@@ -262,13 +262,12 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmacodec: codec {
-				prefix-names = "AMP", "AMP1";
-				sound-dai = <&tas5707_36 &tas5707_3a &amlogic_codec>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 
 		aml-audio-card,dai-link@1 {
-			format = "i2s";// "dsp_a";
+			format = "i2s";
 			mclk-fs = <256>;
 			//continuous-clock;
 			//bitclock-inversion;
@@ -299,7 +298,8 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				sound-dai = <&dummy_codec /* &amlogic_codec */ /*&ad82584f_62*/>;
+				prefix-names = "5707_A", "5707_B";
+				sound-dai = <&tas5707_36 &tas5707_3a &acodec>;
 			};
 		};
 
@@ -344,8 +344,8 @@
 		};
 
 		aml-audio-card,dai-link@5 {
-			format = "i2s";
-			mclk-fs = <256>;
+			format = "dsp_a";
+			mclk-fs = <512>;
 			//continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
@@ -356,14 +356,14 @@
 			//bitclock-master = <&tdmccodec>;
 			//frame-master = <&tdmccodec>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-tdmin";
+			// suffix-name = "alsaPORT-tdmin";
 			cpu {
 				sound-dai = <&tdmc>;
-				//dai-tdm-slot-tx-mask = <1 1>;
-				dai-tdm-slot-rx-mask = <1 1>;
-				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-tx-mask = <1>;
+				dai-tdm-slot-rx-mask = <1>;
+				dai-tdm-slot-num = <1>;
 				dai-tdm-slot-width = <32>;
-				system-clock-frequency = <12288000>;
+				system-clock-frequency = <512000>;
 			};
 			codec {
 				sound-dai = <&dummy_codec>;
@@ -451,53 +451,53 @@
 		compatible = "amlogic, a5-snd-tdma";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
-		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
-		dai-tdm-clk-sel = <0>;
+		dai-tdm-lane-slot-mask-out = <1 1>;
+		dai-tdm-clk-sel = <2>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
-				&clkaudio CLKID_AUDIO_MCLK_PAD1
+				&clkaudio CLKID_AUDIO_MCLK_PAD2
 				&clkc CLKID_HIFI_PLL>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll";
 		pinctrl-names = "tdm_pins","tdmout_a_gpio";
-		pinctrl-0 =
-			<&mclk1_t4_pins
-			&tdm_a_pins
-			&tdm_d4_pins
-			&tdm_d5_pins
-			&tdm_clk_pins>;
-		pinctrl-1 = <&tdmout_a_gpio>;
+		pinctrl-0 = <
+			&mclk2_t17_pins
+			&tdmin_a_pins
+			&tdm_d8_pins
+			&tdm_d9_pins
+			&tdm_d10_pins
+			&tdm_d11_pins
+			&tdmin_a_clk_pins
+			>;
+		pinctrl-1 = <&tdmin_a_gpio>;
 		tdm5v-supply = <&vcc5v_reg>;
 		tdm3v3-supply = <&vddio3v3_reg>;
 		/* enable control gain */
 		ctrl_gain = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
 	tdmb: tdm@1 {
 		compatible = "amlogic, a5-snd-tdmb";
 		#sound-dai-cells = <0>;
-		dai-tdm-lane-slot-mask-out = <1 1 1 1 1 1 1 1>;
+		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
+		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
 				&clkaudio CLKID_AUDIO_MCLK_PAD1
 				&clkc CLKID_HIFI_PLL>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll";
-		//pinctrl-names = "tdm_pins", "tdmout_a_gpio";
-		//pinctrl-0 = <
-			//&mclk_1_pins
-			//&tdm_b_pins
-			//&tdm_d2_pins
-			//&tdm_d3_pins
-			//&tdm_d4_pins
-			//&tdm_d5_pins
-			//&tdm_d6_pins
-			//&tdm_d7_pins
-			//&tdm_d12_pins
-			//&tdm_d13_pins
-			//&tdmb_clk_pins>;
+		pinctrl-names = "tdm_pins", "tdmout_b_gpio";
+		pinctrl-0 =
+			<&mclk1_t4_pins
+			&tdm_b_pins
+			&tdm_d4_pins
+			&tdm_d5_pins
+			&tdmb_clk_pins>;
 		pinctrl-1 = <&tdmout_b_gpio>;
 		start_clk_enable = <1>;
 		/* enable control gain */
 		ctrl_gain = <1>;
+		src-clk-freq = <491520000>;
 		tdm5v-supply = <&vcc5v_reg>;
 		tdm3v3-supply = <&vddio3v3_reg>;
 		status = "okay";
@@ -506,15 +506,24 @@
 	tdmc:tdm@2 {
 		compatible = "amlogic, a5-snd-tdmc";
 		#sound-dai-cells = <0>;
-		dai-tdm-lane-slot-mask-in = <1 1>;
-		dai-tdm-clk-sel = <2>;
+		dai-tdm-lane-slot-mask-in = <1 0>;
+		// dai-tdm-lane-slot-mask-out = <0 1>;
+		dai-tdm-clk-sel = <0>;
 		clocks = <&clkaudio CLKID_AUDIO2_MCLK_VAD
 				&clkc CLKID_HIFI_PLL>;
 		clock-names = "mclk","clk_srcpll";
-		/* enable control gain */
-		ctrl_gain = <1>;
+		pinctrl-names = "tdm_pins", "tdmin_c_gpio";
+		pinctrl-0 = <
+			&tdmin_c_pins
+			&tdm_d0_pins
+			&tdm_d1_pins
+			&tdmc_clk_pins>;
+		pinctrl-1 = <&tdmin_c_gpio>;
 		tdm5v-supply = <&vcc5v_reg>;
 		tdm3v3-supply = <&vddio3v3_reg>;
+		/* enable control gain */
+		ctrl_gain = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -566,7 +575,7 @@
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
-
+		src-clk-freq = <491520000>;
 		pdm5v-supply = <&vcc5v_reg>;
 		pdm3v3-supply = <&vddio3v3_reg>;
 		status = "okay";
@@ -590,6 +599,7 @@
 		 *	TDMIN_LB, 6
 		 *	LOOPBACK, 7
 		 */
+		src-clk-freq = <491520000>;
 		resample_module = <3>;
 		status = "okay";
 	};
@@ -601,6 +611,7 @@
 				&clkaudio CLKID_AUDIO_MCLK_F
 				&clkaudio CLKID_AUDIO_RESAMPLE_A>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
+		src-clk-freq = <491520000>;
 		/*this resample is only used for loopback_A.*/
 		capture_sample_rate = <16000>;
 
@@ -694,7 +705,7 @@
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
-
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 
@@ -721,37 +732,52 @@
 	};
 }; /* end of audiobus */
 
+&acodec {
+	diff_input = <1>;
+};
 &periphs_pinctrl {
-	tdm_a_pins: tdm_a_pin {
-		mux { /* GPIOT_2, GPIOT_3, GPIOT_5, GPIOT_6,*/
-			groups = "tdm_fs1_t2",
-				"tdm_sclk1_t3",
-				"tdm_d4_t5",
-				"tdm_d5_t6";
+
+	tdmin_a_pins: tdmin_a_pin {
+		mux { /* GPIOT_11, GPIOT_12, GPIOT_13, GPIOT_14, GPIOT_15, GPIOT_16 */
+			groups = "tdm_fs2_t11",
+				"tdm_sclk2_t12",
+				"tdm_d8",
+				"tdm_d9",
+				"tdm_d10",
+				"tdm_d11";
 			function = "tdm";
 		};
 	};
 
-	tdmout_a_gpio: tdmout_a_gpio {
-		mux { /* GPIOT_2, GPIOT_3, GPIOT_5, GPIOT_6, */
-			groups ="GPIOT_2",
-				"GPIOT_3",
-				"GPIOT_5",
-				"GPIOT_5";
-			function = "gpio_periphs";
-			output-low;
+	tdm_b_pins: tdm_b_pin {
+		mux {
+			/*
+			 * GPIOT_2, GPIOT_3, GPIOT_0, GPIOT_1, GPIOT_5, GPIOT_6,
+			 * GPIOT_7, GPIOT_8, GPIOT_18, GPIOT_19
+			 */
+			groups = "tdm_fs1_t2",
+				"tdm_sclk1_t3",
+				"tdm_d2_t0",
+				"tdm_d3_t1",
+				"tdm_d4_t5",
+				"tdm_d5_t6",
+				"tdm_d6_t7",
+				"tdm_d7",
+				"tdm_d12_t18",
+				"tdm_d13_t19";
+			function = "tdm";
 		};
 	};
 
 	tdmin_a_gpio: tdmin_a_gpio {
 		mux {
-			groups ="GPIOT_0",
-				"GPIOT_1",
-				"GPIOT_2",
-				"GPIOT_3",
-				"GPIOT_4",
-				"GPIOT_5",
-				"GPIOT_6";
+			groups ="GPIOT_17",
+				"GPIOT_11",
+				"GPIOT_12",
+				"GPIOT_13",
+				"GPIOT_14",
+				"GPIOT_15",
+				"GPIOT_16";
 			function = "gpio_periphs";
 			output-low;
 		};
@@ -759,37 +785,37 @@
 
 	tdmout_b_gpio: tdmout_b_gpio {
 		mux {
-			groups ="GPIOC_0",
-				"GPIOC_1",
-				"GPIOC_2",
-				"GPIOC_3",
-				"GPIOC_4",
-				"GPIOC_5",
-				"GPIOC_6",
-				"GPIOC_7",
-				"GPIOC_8",
+			groups ="GPIOT_0",
+				"GPIOT_1",
+				"GPIOT_2",
+				"GPIOT_3",
+				"GPIOT_4",
+				"GPIOT_5",
+				"GPIOT_6",
 				"GPIOT_7",
-				"GPIOT_8";
+				"GPIOT_8",
+				"GPIOT_18",
+				"GPIOT_19";
 			function = "gpio_periphs";
 			output-low;
 		};
 	};
 	tdmin_c_gpio: tdmin_c_gpio {
 		mux {
-			groups ="GPIOX_8",
+			groups ="GPIOX_7",
+				"GPIOX_8",
 				"GPIOX_9",
-				"GPIOX_10",
-				"GPIOX_11";
+				"GPIOX_10";
 			function = "gpio_periphs";
 			output-low;
 		};
 	};
-	tdmcin_pins: tdmcin_pin {
-		mux { /* GPIOX_8, GPIOX_9, GPIOX_10, GPIOX_11, */
-			groups = "tdm_sclk0_x",
-				"tdm_fs0_x",
-				"tdm_d0_x",
-				"tdm_d1_x";
+	tdmin_c_pins: tdmin_c_pin {
+		mux { /* GPIOX_7, GPIOX_8, GPIOX_9, GPIOX_10, */
+			groups = "tdm_d1",
+				"tdm_d0_x8",
+				"tdm_fs0_x9",
+				"tdm_sclk0_x10";
 			function = "tdm";
 		};
 	};
@@ -837,14 +863,14 @@
 	tdm_d4_pins: tdm_d4_pin {
 		mux {
 			groups = "tdm_d4";
-			function = "tdmouta_lane0";
+			function = "tdmoutb_lane0";
 		};
 	};
 
 	tdm_d5_pins: tdm_d5_pin {
 		mux {
 			groups = "tdm_d5";
-			function = "tdmouta_lane1";
+			function = "tdmoutb_lane1";
 		};
 	};
 
@@ -918,7 +944,7 @@
 		};
 	};
 
-	tdmain_clk_pins: tdmain_clk_pin {
+	tdmin_a_clk_pins: tdmin_a_clk_pin {
 		mux {
 			groups = "tdm_sclk2", "tdm_lrclk2";
 			function = "tdm_clk_in";
@@ -929,26 +955,6 @@
 		mux {
 			groups = "tdm_sclk0", "tdm_lrclk0";
 			function = "vadtop_tdm_clk_outc";
-		};
-	};
-	tdm_d2_pins: tdm_d2_pin {
-		mux {
-			groups = "tdm_d2";
-			function = "tdmoutb_lane0";
-		};
-	};
-
-	tdm_d3_pins: tdm_d3_pin {
-		mux {
-			groups = "tdm_d3";
-			function = "tdmoutb_lane1";
-		};
-	};
-
-	tdm_clk_pins: tdm_clk_pin {
-		mux {
-			groups = "tdm_sclk1", "tdm_lrclk1";
-			function = "tdm_clk_outa";
 		};
 	};
 };

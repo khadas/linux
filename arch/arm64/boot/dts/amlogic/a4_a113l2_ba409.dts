@@ -283,7 +283,7 @@
 			};
 			tdmacodec: codec {
 				prefix-names = "AMP", "AMP1";
-				sound-dai = <&tas5707_36 &tas5707_3a &amlogic_codec>;
+				sound-dai = <&tas5707_36 &tas5707_3a &acodec>;
 			};
 		};
 
