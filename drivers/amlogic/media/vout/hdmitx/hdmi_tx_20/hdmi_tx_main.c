@@ -359,6 +359,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	clear_rx_vinfo(hdev);
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
+	hdmitx_edid_done = false;
 	edidinfo_detach_to_vinfo(hdev);
 	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_SUSPEND);
 	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 0);
@@ -461,6 +462,9 @@ static void hdmitx_late_resume(struct early_suspend *h)
 		if (hdev->hdcp_ctl_lvl == 0x1)
 			hdev->hwop.am_hdmitx_set_out_mode();
 	}
+	/*notify to drm hdmi*/
+	if (hdmitx_device.drm_hpd_cb.callback)
+		hdmitx_device.drm_hpd_cb.callback(hdmitx_device.drm_hpd_cb.data);
 }
 
 /* Set avmute_set signal to HDMIRX */
@@ -6773,7 +6777,7 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	mutex_unlock(&setclk_mutex);
 
 	/*notify to drm hdmi*/
-	if (hdmitx_device.drm_hpd_cb.callback)
+	if (!hdev->suspend_flag && hdmitx_device.drm_hpd_cb.callback)
 		hdmitx_device.drm_hpd_cb.callback(hdmitx_device.drm_hpd_cb.data);
 }
 
