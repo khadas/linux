@@ -1094,7 +1094,8 @@ static int vpp_process_speed_check
 				/* di process first, need more a bit of ratio */
 				if (IS_DI_POST(vf->type))
 					cur_ratio = (cur_ratio * 105) / 100;
-				if (next_frame_par->vscale_skip_count > 0 &&
+				if (!is_meson_t7_cpu() &&
+					next_frame_par->vscale_skip_count > 0 &&
 				    ((vf->type & VIDTYPE_VIU_444) ||
 				     (vf->type & VIDTYPE_RGB_444)))
 					cur_ratio = cur_ratio * 2;
