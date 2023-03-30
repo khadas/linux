@@ -495,6 +495,17 @@
 		irq_gpio_number = <&gpio1 RK_PB5 IRQ_TYPE_LEVEL_LOW>;
 		rst_gpio_number = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
 	};
+
+	ft5336@38 {
+		compatible = "edt,edt-ft5336", "ft5x06";
+		reg = <0x38>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PB5 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpio = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tp_rst_gpio>;
+		status = "okay";
+	};
 };
 
 &i2c5 {
@@ -727,6 +738,12 @@
 			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+
+	ft5336 {
+		tp_rst_gpio: tp-rst-gpio {
+			rockchip,pins = <1 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+       };
+   };
 
 	wireless-bluetooth {
 		uart9_gpios: uart9-gpios {
