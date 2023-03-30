@@ -1059,6 +1059,33 @@
 		status = "okay";
 	};
 
+	gt9xx@5d {
+		compatible = "goodix,gt9xx";
+		status = "okay";
+		reg = <0x5d>;
+		reset-gpio = <&gpio_expander 6 GPIO_ACTIVE_HIGH>;
+		tp-size = <89>;
+		rotation = <1>;
+		goodix,cfg-group0 = [
+				41 80 07 B0 04 0A 3D 00 01 08 28
+				05 64 50 03 05 00 00 00 00 23 13
+				00 17 19 1C 13 90 30 AA 17 15 31
+				0D 00 00 01 9B 03 24 00 00 00 00
+				00 00 00 00 00 00 00 0F 23 94 D5
+				02 07 00 00 04 A3 10 00 8C 13 00
+				7B 16 00 69 1B 00 5B 20 00 5B 00
+				00 00 00 00 00 00 00 00 00 00 00
+				00 00 00 00 00 00 00 00 00 00 00
+				00 00 00 00 00 00 00 00 00 00 00
+				00 00 00 01 04 05 06 07 08 09 0C
+				0D 0E 0F 10 11 14 15 16 17 18 19
+				FF FF FF FF FF FF FF FF FF FF 00
+				02 04 06 07 08 0A 0C 0D 0E 0F 10
+				11 12 13 14 19 1B 1C 1E 1F 20 21
+				22 23 24 25 26 27 28 29 2A FF FF
+				FF FF FF FF FF FF FF FF 6F 01];
+	};
+
     bq25703:bq25703@6b {
         compatible = "bq25703";
         reg = <0x6b>;
