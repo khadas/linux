@@ -1553,6 +1553,7 @@ CONFIG_SCSI_PROC_FS=y
 #
 # SCSI support type (disk, tape, CD-ROM)
 #
+CONFIG_KHADAS_MCU=y
 CONFIG_BLK_DEV_SD=y
 # CONFIG_CHR_DEV_ST is not set
 CONFIG_BLK_DEV_SR=y

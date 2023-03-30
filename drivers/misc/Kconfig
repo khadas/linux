@@ -487,6 +487,12 @@ config RK803
 	help
 	  Driver for RK803 which is used for driving porjector and IR flood LED.
 
+config KHADAS_MCU
+	tristate "Khadas MCU control driver"
+	default n
+	help
+	  This driver allow to control MCU.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
