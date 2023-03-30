@@ -298,7 +298,7 @@ if [ "\$(grep nand /proc/partitions)" != "" ] && [ "\$(grep mmc /proc/partitions
 	cp /tmp/uImage /boot/uImage
 	rm -f /$installed_image_path
 else
-	ln -sf $(basename $installed_image_path) /boot/zImage 2> /dev/null || mv /$installed_image_path /boot/zImage
+	ln -sf $(basename $installed_image_path) /boot/Image 2> /dev/null || mv /$installed_image_path /boot/Image
 fi
 exit 0
 EOT
