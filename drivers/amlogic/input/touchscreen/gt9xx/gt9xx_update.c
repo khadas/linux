@@ -476,7 +476,7 @@ s32 gup_enter_update_mode(struct i2c_client *client)
     msleep(2);
 
     //step2:select I2C slave addr,INT:0--0xBA;1--0x28.
-    GTP_GPIO_OUTPUT(gtp_int_gpio, (client->addr == 0x14));
+    //GTP_GPIO_OUTPUT(gtp_int_gpio, (client->addr == 0x14));
     msleep(2);
 
     //step3:RST output high reset guitar
@@ -523,7 +523,7 @@ s32 gup_enter_update_mode(struct i2c_client *client)
 
 void gup_leave_update_mode(void)
 {
-    GTP_GPIO_AS_INT(gtp_int_gpio);
+    //GTP_GPIO_AS_INT(gtp_int_gpio);
 
     GTP_DEBUG("[leave_update_mode]reset chip.");
     gtp_reset_guitar(i2c_connect_client, 20);
@@ -2831,21 +2831,21 @@ void gup_output_pulse(int t)
     unsigned long flags;
     //s32 i;
 
-    GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
+    //GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
     msleep(10);
 
     local_irq_save(flags);
 
-    GTP_GPIO_OUTPUT(gtp_int_gpio, 1);
+    //GTP_GPIO_OUTPUT(gtp_int_gpio, 1);
     msleep(50);
-    GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
+    //GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
     msleep(t - 50);
-    GTP_GPIO_OUTPUT(gtp_int_gpio, 1);
+    //GTP_GPIO_OUTPUT(gtp_int_gpio, 1);
 
     local_irq_restore(flags);
 
     msleep(20);
-    GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
+    //GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
 }
 
 static void gup_sys_clk_init(void)
@@ -2906,7 +2906,7 @@ s32 gup_clk_calibration(void)
     gup_sys_clk_init();
     gup_clk_calibration_pin_select(1);//use GIO1 to do the calibration
 
-    GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
+    //GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
 
     ts = i2c_get_clientdata(i2c_connect_client);
 
@@ -2933,25 +2933,25 @@ s32 gup_clk_calibration(void)
         }
 
     #else
-        GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
+        //GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
 
         //local_irq_save(flags);
         do_gettimeofday(&start);
-        GTP_GPIO_OUTPUT(gtp_int_gpio, 1);
+        //GTP_GPIO_OUTPUT(gtp_int_gpio, 1);
         //local_irq_restore(flags);
 
         msleep(1);
-        GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
+        //GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
         msleep(1);
 
         //local_irq_save(flags);
         do_gettimeofday(&end);
-        GTP_GPIO_OUTPUT(gtp_int_gpio, 1);
+        //GTP_GPIO_OUTPUT(gtp_int_gpio, 1);
         //local_irq_restore(flags);
 
         count = gup_clk_count_get();
         msleep(20);
-        GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
+        //GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
 
         usec = end.tv_usec - start.tv_usec;
         sec = end.tv_sec - start.tv_sec;
@@ -2990,7 +2990,7 @@ s32 gup_clk_calibration(void)
     i2c_write_bytes(i2c_connect_client, 0x41F9, &buf, 1);
 #endif
 
-    GTP_GPIO_AS_INT(gtp_int_gpio);
+    //GTP_GPIO_AS_INT(gtp_int_gpio);
     return i;
 }
 

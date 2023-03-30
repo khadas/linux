@@ -887,7 +887,7 @@
 		compatible = "goodix,gt9xx";
 		status = "okay";
 		reg = <0x5d>;
-		reset_pin = <6>;
+		reset-gpio = <&gpio_expander 6 GPIO_ACTIVE_HIGH>;
 		tp-size = <89>;
 		rotation = <1>;
 		goodix,cfg-group0 = [
