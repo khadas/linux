@@ -1136,7 +1136,6 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data,
 		y_vaddr = v4l_data->dst_addr;
 		uv_vaddr = y_vaddr +
 			v4l_data->byte_stride * v4l_data->height;
-		do_vframe_afbc_soft_decode(v4l_data, vf);
 		if (need_do_extend_one_column_fbc(vf, v4l_data) == true) {
 			for (row = 0; row < vf->compHeight; row++) {
 				int cnt = vf->compWidth +

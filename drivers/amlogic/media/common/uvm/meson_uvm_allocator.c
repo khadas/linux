@@ -127,6 +127,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	struct scatterlist *sg = NULL;
 	unsigned int id = meson_ion_cma_heap_id_get();
 	size_t pre_size = 0;
+	size_t new_size = 0;
 
 	buffer = container_of(obj, struct mua_buffer, base);
 	MUA_PRINTK(1, "%s. buf_scalar=%d WxH: %dx%d, commit_display = %d, tgid=%d,pid=%d",
@@ -143,21 +144,21 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 
 	pre_size = dmabuf->size;
 	if (!skip_fill_buf)
-		dmabuf->size = buffer->size * scalar * scalar;
+		new_size = buffer->size * scalar * scalar;
 	else
-		dmabuf->size = buffer->byte_stride * ALIGN(buffer->height, buffer->align) * 3 / 2;
+		new_size = buffer->byte_stride * ALIGN(buffer->height, buffer->align) * 3 / 2;
 
-	MUA_PRINTK(1, "buffer->size:%zu realloc dmabuf->size=%zu, pre_size = %zu\n",
-			buffer->size, dmabuf->size, pre_size);
+	MUA_PRINTK(1, "buffer->size:%zu realloc new_size=%zu, pre_size = %zu\n",
+			buffer->size, new_size, pre_size);
 
-	if (pre_size != dmabuf->size && buffer->idmabuf[1]) {
+	if (pre_size != new_size && buffer->idmabuf[1]) {
 		dma_buf_put(buffer->idmabuf[1]);
 		buffer->idmabuf[1] = NULL;
 	}
 
 	if (!buffer->idmabuf[1]) {
 		id = meson_ion_codecmm_heap_id_get();
-		idmabuf = ion_alloc(dmabuf->size,
+		idmabuf = ion_alloc(new_size,
 				    (1 << id), ION_FLAG_EXTEND_MESON_HEAP);
 		if (IS_ERR(idmabuf)) {
 			MUA_PRINTK(0, "%s: ion_alloc fail.\n", __func__);
@@ -183,7 +184,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 		return -ENODEV;
 	}
 	src_sgt = buffer->sg_table;
-	num_pages = PAGE_ALIGN(dmabuf->size) / PAGE_SIZE;
+	num_pages = PAGE_ALIGN(new_size) / PAGE_SIZE;
 	tmp = vmalloc(sizeof(struct page *) * num_pages);
 	page_array = tmp;
 
@@ -209,7 +210,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	MUA_PRINTK(1, "buffer vaddr: %p.\n", vaddr);
 
 	if (skip_fill_buf) {
-		size_t buf_size = dmabuf->size * 2 / 3;
+		size_t buf_size = new_size * 2 / 3;
 
 		MUA_PRINTK(1, "%s buf size=%zu\n", __func__, buf_size);
 		memset(vaddr, 0x15, buf_size);
