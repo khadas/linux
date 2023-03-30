@@ -5070,7 +5070,7 @@ void vdin_pr_emp_data(struct vdin_dev_s *devp, struct vframe_s *vf)
 static void vdin_pr_sei_hdr_data(struct vdin_dev_s *devp)
 {
 	if (vdin_isr_monitor & VDIN_ISR_MONITOR_HDR_SEI_DATA)
-		pr_info("sei_data idx:%d et:%d sta:%x id:%02x len:%02x data:%x %x %x %x %x %x\n",
+		pr_info("sei_data idx:%d et:%d sta:%x id:%02x len:%02x data:[0]%x [0]%x [1]%x [1]%x [2]%x [2]%x %x %x %x %x\n",
 			devp->curr_wr_vfe->vf.index,
 			devp->prop.hdr_info.hdr_data.eotf,
 			devp->prop.hdr_info.hdr_state,
@@ -5078,6 +5078,10 @@ static void vdin_pr_sei_hdr_data(struct vdin_dev_s *devp)
 			devp->prop.hdr_info.hdr_data.length,
 			devp->prop.hdr_info.hdr_data.primaries[0].x,
 			devp->prop.hdr_info.hdr_data.primaries[0].y,
+			devp->prop.hdr_info.hdr_data.primaries[1].x,
+			devp->prop.hdr_info.hdr_data.primaries[1].y,
+			devp->prop.hdr_info.hdr_data.primaries[2].x,
+			devp->prop.hdr_info.hdr_data.primaries[2].y,
 			devp->prop.hdr_info.hdr_data.white_points.x,
 			devp->prop.hdr_info.hdr_data.white_points.y,
 			devp->prop.hdr_info.hdr_data.master_lum.x,
@@ -5700,12 +5704,16 @@ int vdin_hdr_sei_error_check(struct vdin_dev_s *devp)
 			devp->prop.hdr_info.hdr_data.primaries[i].y;
 	}
 	if (((primary_data[0][0] + 250) / 500 == 30) &&
-	    ((primary_data[0][1] + 250) / 500 == 60) &&
-	    ((primary_data[1][0] + 250) / 500 == 15) &&
-	    ((primary_data[1][1] + 250) / 500 == 6) &&
-	    ((primary_data[2][0] + 250) / 500 == 64) &&
-	    ((primary_data[2][1] + 250) / 500 == 33))
-		return 1;
+		((primary_data[0][1] + 250) / 500 == 60) &&
+		((primary_data[1][0] + 250) / 500 == 15) &&
+		((primary_data[1][1] + 250) / 500 == 6) &&
+		((primary_data[2][0] + 250) / 500 == 64) &&
+		((primary_data[2][1] + 250) / 500 == 33)) {
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_HDR_SEI_DATA)
+			pr_info("GBR: it was judged to be standard BT709\n");
+		if (!(devp->vdin_function_sel & VDIN_BYPASS_HDR_SEI_CHECK))
+			return 1;
+		}
 
 	/*RGB compare with standard 709 primary*/
 	for (i = 0; i < 3; i++) {
@@ -5716,12 +5724,16 @@ int vdin_hdr_sei_error_check(struct vdin_dev_s *devp)
 	}
 
 	if (((primary_data[0][0] + 250) / 500 == 30) &&
-	    ((primary_data[0][1] + 250) / 500 == 60) &&
-	    ((primary_data[1][0] + 250) / 500 == 15) &&
-	    ((primary_data[1][1] + 250) / 500 == 6) &&
-	    ((primary_data[2][0] + 250) / 500 == 64) &&
-	    ((primary_data[2][1] + 250) / 500 == 33))
-		return 1;
+		((primary_data[0][1] + 250) / 500 == 60) &&
+		((primary_data[1][0] + 250) / 500 == 15) &&
+		((primary_data[1][1] + 250) / 500 == 6) &&
+		((primary_data[2][0] + 250) / 500 == 64) &&
+		((primary_data[2][1] + 250) / 500 == 33)) {
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_HDR_SEI_DATA)
+			pr_info("RGB: it was judged to be standard BT709\n");
+		if (!(devp->vdin_function_sel & VDIN_BYPASS_HDR_SEI_CHECK))
+			return 1;
+		}
 
 	/*GxBxRxGyByRy compare with standard 709 primary*/
 	primary_data[0][0] = devp->prop.hdr_info.hdr_data.primaries[0].x;
@@ -5732,14 +5744,17 @@ int vdin_hdr_sei_error_check(struct vdin_dev_s *devp)
 	primary_data[2][1] = devp->prop.hdr_info.hdr_data.primaries[2].y;
 
 	if (((primary_data[0][0] + 250) / 500 == 30) &&
-	    ((primary_data[0][1] + 250) / 500 == 60) &&
-	    ((primary_data[1][0] + 250) / 500 == 15) &&
-	    ((primary_data[1][1] + 250) / 500 == 6) &&
-	    ((primary_data[2][0] + 250) / 500 == 64) &&
-	    ((primary_data[2][1] + 250) / 500 == 33))
-		return 1;
-	else
-		return 0;
+		((primary_data[0][1] + 250) / 500 == 60) &&
+		((primary_data[1][0] + 250) / 500 == 15) &&
+		((primary_data[1][1] + 250) / 500 == 6) &&
+		((primary_data[2][0] + 250) / 500 == 64) &&
+		((primary_data[2][1] + 250) / 500 == 33)) {
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_HDR_SEI_DATA)
+			pr_info("GxBxRxGyByRy: it was judged to be standard BT709\n");
+		if (!(devp->vdin_function_sel & VDIN_BYPASS_HDR_SEI_CHECK))
+			return 1;
+	}
+	return 0;
 }
 
 void vdin_hdr10plus_check(struct vdin_dev_s *devp,

@@ -134,7 +134,8 @@
 /* 20230309: interlace signal not advance send frame */
 /* 20230316: add avi ext_colorimetry callback api for vdin */
 /* 20230321: not add vdin interrupt lock on tvin_notify_vdin_skip_frame */
-#define VDIN_VER "20230321"
+/* 20230330: set whether to check the hdr sei error option */
+#define VDIN_VER "20230330"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -287,6 +288,7 @@ struct match_data_s {
 #define VDIN_NO_TVAFE_ASPECT_RATIO_CHK	BIT(8) //no tvafe aspect_ratio check
 #define VDIN_SET_DISPLAY_RATIO		BIT(9)
 #define VDIN_NOT_DATA_INPUT_DROP	BIT(10)
+#define VDIN_BYPASS_HDR_SEI_CHECK	BIT(11) //bypass non-standard hdr stream detection
 /* vdin_function_sel control bits end */
 
 #define VDIN_2K_SIZE			0x07800438 /* 0x780 = 1920 0x438 = 1080 */
