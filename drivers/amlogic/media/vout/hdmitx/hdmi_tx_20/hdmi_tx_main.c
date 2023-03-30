@@ -6626,15 +6626,19 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 	hdev->audio_notify_flag = 0;
 	if (hdmitx_set_i2s_mask(aud_param->chs, aud_param->i2s_ch_mask))
 		hdev->audio_param_update_flag = 1;
-	pr_info("%s[%d] type:%d rate:%d size:%d chs:%d fifo_rst:%d aud_src_if:%d\n",
-		__func__, __LINE__, aud_param->type, aud_param->rate, aud_param->size,
-		aud_param->chs, aud_param->fifo_rst, aud_param->aud_src_if);
+	pr_info("%s[%d] type:%lu rate:%d size:%d chs:%d fifo_rst:%d aud_src_if:%d\n",
+		__func__, __LINE__, cmd, n_rate, n_size, aud_param->chs,
+		aud_param->fifo_rst, aud_param->aud_src_if);
 	if (audio_param->sample_rate != n_rate) {
+		/* if the audio sampe rate or type changes, stop ACR firstly */
+		hdev->hwop.cntlmisc(hdev, MISC_AUDIO_ACR_CTRL, 0);
 		audio_param->sample_rate = n_rate;
 		hdev->audio_param_update_flag = 1;
 	}
 
 	if (audio_param->type != cmd) {
+		/* if the audio sampe rate or type changes, stop ACR firstly */
+		hdev->hwop.cntlmisc(hdev, MISC_AUDIO_ACR_CTRL, 0);
 		audio_param->type = cmd;
 		pr_info(AUD "aout notify format %s\n",
 			aud_type_string[audio_param->type & 0xff]);
@@ -6676,7 +6680,9 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 	    hdev->audio_param_update_flag) {
 		/* plug-in & update audio param */
 		if (hdev->hpd_state == 1) {
+			hdev->aud_notify_update = 1;
 			hdmitx_set_audio(hdev, &hdev->cur_audio_param);
+			hdev->aud_notify_update = 0;
 			if (hdev->audio_notify_flag == 1 ||
 			    hdev->audio_step == 1) {
 				hdev->audio_notify_flag = 0;

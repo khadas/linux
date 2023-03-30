@@ -2655,12 +2655,13 @@ static void set_aud_info_pkt(struct hdmitx_dev *hdev,
 	hdmitx_wr_reg(HDMITX_DWC_FC_AUDICONF3, 0);
 }
 
-static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
+static int set_aud_acr_pkt(struct hdmitx_dev *hdev,
 			    struct hdmitx_audpara *audio_param)
 {
 	unsigned int data32;
 	unsigned int aud_n_para;
 	unsigned int char_rate;
+	static unsigned int pre_aud_n_para;
 
 	/* audio packetizer config */
 	hdmitx_wr_reg(HDMITX_DWC_AUD_INPUTCLKFS, audio_param->aud_src_if ? 4 : 0);
@@ -2687,7 +2688,6 @@ static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 	default:
 		break;
 	}
-	pr_info(HW "aud_n_para = %d\n", aud_n_para);
 
 	/* ACR packet configuration */
 	data32 = 0;
@@ -2707,10 +2707,19 @@ static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 	data32 = 0;
 	data32 |= (1 << 7);  /* [  7] ncts_atomic_write */
 	data32 |= (((aud_n_para >> 16) & 0xf) << 0);  /* [3:0] AudN[19:16] */
+	/* if only audio module update and previous n_para is same as current
+	 * value, then skip update audio_n_para
+	 */
+	if (hdev->aud_notify_update && pre_aud_n_para == aud_n_para)
+		return 0;
+	/* update audio_n_para */
+	pre_aud_n_para = aud_n_para;
 	hdmitx_wr_reg(HDMITX_DWC_AUD_N3, data32);
 	hdmitx_wr_reg(HDMITX_DWC_AUD_N2,
 		      (aud_n_para >> 8) & 0xff); /* AudN[15:8] */
 	hdmitx_wr_reg(HDMITX_DWC_AUD_N1, aud_n_para & 0xff); /* AudN[7:0] */
+	pr_info("update audio N %d", aud_n_para);
+	return 1;
 }
 
 static void set_aud_fifo_rst(void)
@@ -2814,6 +2823,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 			      struct hdmitx_audpara *audio_param)
 {
 	unsigned int data32;
+	int acr_update = 0;
 
 	if (!hdev)
 		return 0;
@@ -2891,7 +2901,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	hdmitx_wr_reg(HDMITX_DWC_AUD_SPDIF0, data32);
 
 	set_aud_info_pkt(hdev, audio_param);
-	set_aud_acr_pkt(hdev, audio_param);
+	acr_update = set_aud_acr_pkt(hdev, audio_param);
 	set_aud_samp_pkt(hdev, audio_param);
 
 	set_aud_chnls(hdev, audio_param);
@@ -2910,20 +2920,13 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		/* Wait for 40 us for TX I2S decoder to settle */
 		msleep(20);
 	}
-	data32 = hdmitx_rd_reg(HDMITX_DWC_FC_PACKET_TX_EN);
-	pr_info(HW "[0x10e3] = 0x%x\n", data32);
 	set_aud_fifo_rst();
 	usleep_range(9, 11);
-	hdmitx_wr_reg(HDMITX_DWC_AUD_N1, hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
-	/* double confirm that ACR packet is enabled
-	 * simultaneously with audio sample packet
-	 */
-	data32 = hdmitx_rd_reg(HDMITX_DWC_FC_PACKET_TX_EN);
-	if ((data32 & 0x9) == 0x8) {
-		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
-		pr_info(HW "enable ACR: [0x10e3] = 0x%x\n", data32);
-	}
+	if (acr_update)
+		hdmitx_wr_reg(HDMITX_DWC_AUD_N1, hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 1, 0, 1);
+	usleep_range(4000, 5000);
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
 	mutex_unlock(&aud_mutex);
 
 	return 1;
@@ -5902,6 +5905,12 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 		hdmitx_wr_reg(HDMITX_DWC_AUD_N1,
 			      hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
 		udelay(1);
+		break;
+	case MISC_AUDIO_ACR_CTRL:
+		if (argv == 0)
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 0, 0, 1);
+		if (argv == 1)
+			hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
 		break;
 	case MISC_DIS_HPLL:
 		/* RESET set as 1, delay 50us, Enable set as 0 */

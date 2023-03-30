@@ -544,6 +544,11 @@ struct hdmitx_dev {
 	enum eotf_type hdmi_current_eotf_type;
 	enum mode_type hdmi_current_tunnel_mode;
 	bool hdmi_current_signal_sdr;
+	/* if switching from 48k pcm to 48k DD, the ACR/N parameter is same,
+	 * so there is no need to update ACR/N. but for mode change, different
+	 * sample rate, need to update ACR/N.
+	 */
+	bool aud_notify_update;
 	unsigned int hdr_priority;
 	unsigned int flag_3dfp:1;
 	unsigned int flag_3dtb:1;
@@ -705,6 +710,7 @@ struct hdmitx_dev {
 #define MISC_SUSFLAG		(CMD_MISC_OFFSET + 0X15)
 #define MISC_AUDIO_RESET	(CMD_MISC_OFFSET + 0x16)
 #define MISC_DIS_HPLL		(CMD_MISC_OFFSET + 0x17)
+#define MISC_AUDIO_ACR_CTRL	(CMD_MISC_OFFSET + 0x18)
 
 /***********************************************************************
  *                          Get State //getstate
