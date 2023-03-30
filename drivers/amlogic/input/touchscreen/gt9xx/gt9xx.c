@@ -30,7 +30,7 @@ static const char *goodix_input_phys = "input/ts";
 static struct workqueue_struct *goodix_wq;
 struct i2c_client * i2c_connect_client = NULL;
 int gtp_rst_gpio;
-int gtp_int_gpio;
+//int gtp_int_gpio;
 static u32 rotation;
 u8 config[GTP_CONFIG_MAX_LENGTH + GTP_ADDR_LENGTH]
                 = {GTP_REG_CONFIG_DATA >> 8, GTP_REG_CONFIG_DATA & 0xff};
@@ -1072,9 +1072,9 @@ Output:
 *******************************************************/
 void gtp_int_sync(s32 ms)
 {
-    GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
+    //GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
     msleep(ms);
-    GTP_GPIO_AS_INT(gtp_int_gpio);
+    //GTP_GPIO_AS_INT(gtp_int_gpio);
 }
 
 
@@ -1097,7 +1097,7 @@ void gtp_reset_guitar(struct i2c_client *client, s32 ms)
     GTP_GPIO_OUTPUT(gtp_rst_gpio, 0);   // begin select I2C slave addr
     msleep(ms);                         // T2: > 10ms
     // HIGH: 0x28/0x29, LOW: 0xBA/0xBB
-    GTP_GPIO_OUTPUT(gtp_int_gpio, client->addr == 0x14);
+    //GTP_GPIO_OUTPUT(gtp_int_gpio, client->addr == 0x14);
 
     msleep(2);                          // T3: > 100us
     GTP_GPIO_OUTPUT(gtp_rst_gpio, 1);
@@ -1204,7 +1204,7 @@ static s8 gtp_enter_sleep(struct goodix_ts_data * ts)
     }
 #endif
 
-    GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
+    //GTP_GPIO_OUTPUT(gtp_int_gpio, 0);
     msleep(5);
 
     while(retry++ < 5)
@@ -1243,7 +1243,7 @@ static s8 gtp_wakeup_sleep(struct goodix_ts_data * ts)
     {
         u8 opr_buf[3] = {0x41, 0x80};
 
-        GTP_GPIO_OUTPUT(gtp_int_gpio, 1);
+        //GTP_GPIO_OUTPUT(gtp_int_gpio, 1);
         msleep(5);
 
         for (retry = 0; retry < 10; ++retry)
@@ -1317,7 +1317,7 @@ static s8 gtp_wakeup_sleep(struct goodix_ts_data * ts)
         gtp_irq_enable(ts);
 
     #else
-        GTP_GPIO_OUTPUT(gtp_int_gpio, 1);
+        //GTP_GPIO_OUTPUT(gtp_int_gpio, 1);
         msleep(5);
     #endif
 
@@ -1735,7 +1735,7 @@ Output:
     Executive outcomes.
         >= 0: succeed, < 0: failed
 *******************************************************/
-static s8 gtp_request_io_port(struct goodix_ts_data *ts)
+/*static s8 gtp_request_io_port(struct goodix_ts_data *ts)
 {
     s32 ret = 0;
 
@@ -1762,7 +1762,7 @@ static s8 gtp_request_io_port(struct goodix_ts_data *ts)
     gtp_reset_guitar(ts->client, 20);
 
     return 0;
-}
+}*/
 
 /*******************************************************
 Function:
@@ -1789,8 +1789,8 @@ static s8 gtp_request_irq(struct goodix_ts_data *ts)
     if (ret)
     {
         GTP_ERROR("Request IRQ failed!ERRNO:%d.", ret);
-        GTP_GPIO_AS_INPUT(gtp_int_gpio);
-        GTP_GPIO_FREE(gtp_int_gpio);
+        //GTP_GPIO_AS_INPUT(gtp_int_gpio);
+        //GTP_GPIO_FREE(gtp_int_gpio);
 
         hrtimer_init(&ts->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
         ts->timer.function = goodix_ts_timer_handler;
@@ -2334,7 +2334,7 @@ static void gtp_parse_dt(struct device *dev)
 	u32 temp_val;
 	int ret = 0;
 	
-	gtp_int_gpio = of_get_named_gpio(np, "irq-gpio", 0);
+	//gtp_int_gpio = of_get_named_gpio(np, "irq-gpio", 0);
 	gtp_rst_gpio = of_get_named_gpio(np, "reset-gpio", 0);
 
 	ret = of_property_read_u32(np, "rotation", &temp_val);
@@ -2486,8 +2486,8 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		goto err_power_switch;
 	}
 #else			/* use gpio defined in gt9xx.h */
-	gtp_rst_gpio = GTP_RST_PORT;
-	gtp_int_gpio = GTP_INT_PORT;
+	//gtp_rst_gpio = GTP_RST_PORT;
+	//gtp_int_gpio = GTP_INT_PORT;
 #endif
 
     INIT_WORK(&ts->work, goodix_ts_work_func);
@@ -2502,12 +2502,12 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 #endif
     i2c_set_clientdata(client, ts);
     ts->gtp_rawdiff_mode = 0;
-    ret = gtp_request_io_port(ts);
+    /*ret = gtp_request_io_port(ts);
     if (ret < 0)
     {
         GTP_ERROR("GTP request IO port failed.");
         goto err_request_io_port;
-    }
+    }*/
 
 #if GTP_COMPATIBLE_MODE
     gtp_get_chip_type(ts);
@@ -2606,9 +2606,9 @@ err_request_input_dev:
 	gtp_esd_switch(client, SWITCH_OFF);
 #endif
 err_chip_init:
-	GTP_GPIO_FREE(gtp_int_gpio);
-	GTP_GPIO_FREE(gtp_rst_gpio);
-err_request_io_port:
+	//GTP_GPIO_FREE(gtp_int_gpio);
+	//GTP_GPIO_FREE(gtp_rst_gpio);
+//err_request_io_port:
 #ifdef GTP_CONFIG_OF
 	gtp_power_switch(client, 0);
 err_power_switch:
@@ -2655,8 +2655,8 @@ static int goodix_ts_remove(struct i2c_client *client)
     {
         if (ts->use_irq)
         {
-            GTP_GPIO_AS_INPUT(gtp_int_gpio);
-            GTP_GPIO_FREE(gtp_int_gpio);
+            //GTP_GPIO_AS_INPUT(gtp_int_gpio);
+            //GTP_GPIO_FREE(gtp_int_gpio);
             free_irq(client->irq, ts);
         }
         else
