@@ -50,7 +50,7 @@ enum khadas_board {
 
 enum khadas_board_hwver {
 	KHADAS_BOARD_HWVER_NONE = 0,
-	KHADAS_BOARD_HWVER_V10
+	KHADAS_BOARD_HWVER_V11
 };
 
 enum mcu_fan_mode {
@@ -161,7 +161,7 @@ static int is_mcu_fan_control_supported(void)
 	// MCU FAN control is supported for:
 	// 1. Khadas EDGE2
 	if (g_mcu_data->board == KHADAS_BOARD_EDGE2) {
-		if (g_mcu_data->hwver >= KHADAS_BOARD_HWVER_V10)
+		if (g_mcu_data->hwver >= KHADAS_BOARD_HWVER_V11)
 			return 1;
 		else
 			return 0;
@@ -207,10 +207,8 @@ static void fan_work_func(struct work_struct *_work)
         struct mcu_fan_data *fan_data = &g_mcu_data->fan_data;
 
 		if (g_mcu_data->board == KHADAS_BOARD_EDGE2) {
-				printk("temp start23!!\r\n");
             temp = rk_get_temperature();
 		} else {
-			printk("temp start!!\r\n");
            temp = fan_data->trig_temp_level0;
 		}
 
@@ -574,8 +572,8 @@ static int mcu_parse_dt(struct device *dev)
 					g_mcu_data->board = KHADAS_BOARD_NONE;
 
 			if (g_mcu_data->board == KHADAS_BOARD_EDGE2) {
-					if (strcmp(hwver, "EDGE2.V10") == 0)
-							g_mcu_data->hwver = KHADAS_BOARD_HWVER_V10;
+					if (strcmp(hwver, "EDGE2.V11") == 0)
+							g_mcu_data->hwver = KHADAS_BOARD_HWVER_V11;
 			}
 	}
 
