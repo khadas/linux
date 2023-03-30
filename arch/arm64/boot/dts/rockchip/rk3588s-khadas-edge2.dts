@@ -552,6 +552,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c6m3_xfer>;
 
+	mcu: khadas-mcu@18 {
+		compatible = "khadas-mcu";
+		status = "okay";
+		reg = <0x18>;
+	};
+
 	usbc0: fusb302@22 {
 		compatible = "fcs,fusb302";
 		reg = <0x22>;
