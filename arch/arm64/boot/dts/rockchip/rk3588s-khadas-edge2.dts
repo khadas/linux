@@ -342,6 +342,17 @@
 &i2c3 {
 	status = "okay";
 
+	gs_kxtj3: gs_kxtj3@e {
+		compatible = "gs_kxtj3";
+		reg = <0x0e>;
+		irq-gpio = <&gpio1 RK_PB0 IRQ_TYPE_EDGE_RISING>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		type = <SENSOR_TYPE_ACCEL>;
+		layout = <0>;
+		status = "okay";
+	};
+
 	es8388: es8388@11 {
 		status = "okay";
 		#sound-dai-cells = <0>;
