@@ -1974,8 +1974,6 @@ CONFIG_AP6XXX=m
 # CONFIG_BCMDHD_SDIO is not set
 CONFIG_BCMDHD_PCIE=y
 # CONFIG_PCIEASPM_ROCKCHIP_WIFI_EXTENSION is not set
-CONFIG_BCMDHD_FW_PATH="/vendor/etc/firmware/fw_bcmdhd.bin"
-CONFIG_BCMDHD_NVRAM_PATH="/vendor/etc/firmware/nvram.txt"
 # CONFIG_BCMDHD_STATIC_IF is not set
 # CONFIG_CYW_BCMDHD is not set
 # CONFIG_INFINEON_DHD is not set
@@ -1998,6 +1996,8 @@ CONFIG_BCMDHD_NVRAM_PATH="/vendor/etc/firmware/nvram.txt"
 #
 CONFIG_INPUT=y
 CONFIG_INPUT_LEDS=y
+CONFIG_BCMDHD_FW_PATH="/lib/firmware/brcm/fw_bcmdhd.bin"
+CONFIG_BCMDHD_NVRAM_PATH="/lib/firmware/brcm/nvram.txt"
 CONFIG_INPUT_FF_MEMLESS=y
 # CONFIG_INPUT_POLLDEV is not set
 # CONFIG_INPUT_SPARSEKMAP is not set
