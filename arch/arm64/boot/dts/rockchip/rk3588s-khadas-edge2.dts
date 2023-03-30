@@ -151,15 +151,6 @@
 		>;
 	};
 
-	hall_sensor: hall-mh248 {
-		compatible = "hall-mh248";
-		pinctrl-names = "default";
-		pinctrl-0 = <&mh248_irq_gpio>;
-		irq-gpio = <&gpio0 RK_PD4 IRQ_TYPE_EDGE_BOTH>;
-		hall-active = <1>;
-		status = "disabled";
-	};
-
 	vbus5v0_typec: vbus5v0-typec {
 		compatible = "regulator-fixed";
 		regulator-name = "vbus5v0_typec";
