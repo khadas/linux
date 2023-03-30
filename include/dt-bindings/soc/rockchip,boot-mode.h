@@ -22,5 +22,6 @@
 #define BOOT_UMS		(REBOOT_FLAG + 12)
 /* reboot system quiescent */
 #define BOOT_QUIESCENT		(REBOOT_FLAG + 14)
-
+/* enter reboot test mode */
+#define BOOT_REBOOT_TEST        (REBOOT_FLAG + 15)
 #endif
