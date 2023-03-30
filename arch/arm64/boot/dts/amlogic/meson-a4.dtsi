@@ -876,9 +876,9 @@
 				status = "disabled";
 			};
 
-			spicc1: spi@51000 {
+			spicc1: spi@50100 {
 				compatible = "amlogic,meson-a4-spicc-v2";
-				reg = <0x0 0x51000 0x0 0x38>;
+				reg = <0x0 0x50100 0x0 0x38>;
 				interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clkc CLKID_SYS_CLK_SPICC_1>,
 					 <&clkc CLKID_SPICC1>;
