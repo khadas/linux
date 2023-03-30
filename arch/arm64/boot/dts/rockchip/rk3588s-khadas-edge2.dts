@@ -521,6 +521,14 @@
         };
     };
 
+    pt7c4363: pt7c4363@51 {
+        compatible = "haoyu,hym8563";
+        reg = <0x51>;
+        #clock-cells = <0>;
+        clock-frequency = <32768>;
+        clock-output-names = "pt7c4363";
+        wakeup-source;
+    };
 };
 
 &reboot_mode {
@@ -731,14 +739,6 @@
 		compatible = "khadas-mcu";
 		status = "okay";
 		reg = <0x18>;
-	};
-	pt7c4363: pt7c4363@51 {
-		compatible = "haoyu,hym8563";
-		reg = <0x51>;
-		#clock-cells = <0>;
-		clock-frequency = <32768>;
-		clock-output-names = "pt7c4363";
-		wakeup-source;
 	};
 };
 
