@@ -118,6 +118,13 @@
 		};
 	};
 
+	khadas_wdt {
+		compatible = "linux,wdt-khadas";
+		status = "okay";
+		hw_margin_ms = <500>;
+		hw-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+	};
+
 	fan: pwm-fan {
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
@@ -947,4 +954,8 @@
 		regulator-on-in-suspend;
 		regulator-suspend-microvolt = <3300000>;
 	};
+};
+
+&wdt {
+	status = "okay";
 };
