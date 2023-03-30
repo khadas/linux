@@ -167,18 +167,14 @@ void meson_ir_keydown(struct meson_ir_dev *dev, int scancode, int status)
 }
 EXPORT_SYMBOL(meson_ir_keydown);
 
-void meson_ir_input_ots_configure(struct meson_ir_dev *dev, int cnt0)
+void meson_ir_input_ots_configure(struct meson_ir_dev *dev, int cnt0,
+				  struct ir_map_tab *ir_map)
 {
 	int i;
 
-	for (i = KEY_RESERVED; i < BTN_MISC; i++)
-		input_set_capability(dev->input_device_ots[cnt0], EV_KEY, i);
-
-	for (i = KEY_OK; i < BTN_TRIGGER_HAPPY; i++)
-		input_set_capability(dev->input_device_ots[cnt0], EV_KEY, i);
-
-	for (i = BTN_MOUSE; i < BTN_SIDE; i++)
-		input_set_capability(dev->input_device_ots[cnt0], EV_KEY, i);
+	for (i = 0; i < ir_map->map_size; i++)
+		input_set_capability(dev->input_device_ots[cnt0], EV_KEY,
+				     ir_map->codemap[i].map.keycode);
 
 	input_set_capability(dev->input_device_ots[cnt0], EV_REL, REL_X);
 	input_set_capability(dev->input_device_ots[cnt0], EV_REL, REL_Y);
@@ -186,18 +182,14 @@ void meson_ir_input_ots_configure(struct meson_ir_dev *dev, int cnt0)
 }
 EXPORT_SYMBOL(meson_ir_input_ots_configure);
 
-void meson_ir_input_configure(struct meson_ir_dev *dev)
+void meson_ir_input_configure(struct meson_ir_dev *dev,
+			      struct ir_map_tab *ir_map)
 {
 	int i;
 
-	for (i = KEY_RESERVED; i < BTN_MISC; i++)
-		input_set_capability(dev->input_device, EV_KEY, i);
-
-	for (i = KEY_OK; i < BTN_TRIGGER_HAPPY; i++)
-		input_set_capability(dev->input_device, EV_KEY, i);
-
-	for (i = BTN_MOUSE; i < BTN_SIDE; i++)
-		input_set_capability(dev->input_device, EV_KEY, i);
+	for (i = 0; i < ir_map->map_size; i++)
+		input_set_capability(dev->input_device, EV_KEY,
+				     ir_map->codemap[i].map.keycode);
 
 	input_set_capability(dev->input_device, EV_REL, REL_X);
 	input_set_capability(dev->input_device, EV_REL, REL_Y);

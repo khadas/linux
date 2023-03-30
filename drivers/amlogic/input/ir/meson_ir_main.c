@@ -32,6 +32,8 @@
 static void meson_ir_tasklet(unsigned long data);
 DECLARE_TASKLET_DISABLED(tasklet, meson_ir_tasklet, 0);
 
+static void meson_ir_input_device_init(struct input_dev *dev,
+				       struct device *parent, const char *name);
 static int disable_ir;
 static int get_irenv(char *str)
 {
@@ -510,6 +512,14 @@ static int meson_ir_get_custom_tables(struct device_node *node,
 		chip->version = value;
 		ptable->tab.version = chip->version;
 
+		ret = of_property_read_u32_array(map, "keymap",
+						 (u32 *)&ptable->tab.codemap[0],
+						 ptable->tab.map_size);
+		if (ret) {
+			dev_err(chip->dev, "please config keymap item\n");
+			goto err;
+		}
+
 		if (DECIDE_VENDOR_CHIP_ID) {
 			if (cnt == 0 || cnl != chip->vendor) {
 				chip->r_dev->input_device_ots[cnt] =
@@ -517,7 +527,8 @@ static int meson_ir_get_custom_tables(struct device_node *node,
 				input_set_drvdata(chip->r_dev->input_device_ots[cnt], chip->r_dev);
 				meson_ir_input_device_ots_init(chip->r_dev->input_device_ots[cnt],
 					chip->dev, chip, "ir_keypad1", cnt);
-				meson_ir_input_ots_configure(chip->r_dev, cnt);
+				meson_ir_input_ots_configure(chip->r_dev, cnt,
+							     &ptable->tab);
 				chip->input_cnt = cnt;
 				chip->search_id[cnt] = chip->vendor;
 				ret = input_register_device(chip->r_dev->input_device_ots[cnt]);
@@ -528,16 +539,9 @@ static int meson_ir_get_custom_tables(struct device_node *node,
 			cnt++;
 		}
 
-		ret = of_property_read_u32_array(map, "keymap",
-						 (u32 *)&ptable->tab.codemap[0],
-						 ptable->tab.map_size);
-		if (ret) {
-			dev_err(chip->dev, "please config keymap item\n");
-			goto err;
-		}
-
 		memset(&ptable->tab.cursor_code, 0xff,
 		       sizeof(struct cursor_codemap));
+		meson_ir_input_configure(chip->r_dev, &ptable->tab);
 		meson_ir_scancode_sort(&ptable->tab);
 		/*insert list*/
 		spin_lock_irqsave(&chip->slock, flags);
@@ -634,8 +638,15 @@ static int meson_ir_get_devtree_pdata(struct platform_device *pdev)
 
 	chip->r_dev->max_frame_time = value;
 
+	meson_ir_input_device_init(chip->r_dev->input_device,
+				   &pdev->dev, "ir_keypad");
+
 	/*create map table */
 	ret = meson_ir_get_custom_tables(pdev->dev.of_node, chip);
+	if (ret < 0)
+		return ret;
+
+	ret = input_register_device(chip->r_dev->input_device);
 	if (ret < 0)
 		return ret;
 
@@ -746,13 +757,6 @@ static int meson_ir_probe(struct platform_device *pdev)
 	chip->r_dev->max_learned_pulse = MAX_LEARNED_PULSE;
 	chip->set_register_config = meson_ir_register_default_config;
 	platform_set_drvdata(pdev, chip);
-
-	meson_ir_input_device_init(dev->input_device, &pdev->dev, "ir_keypad");
-	meson_ir_input_configure(dev);
-
-	ret = input_register_device(dev->input_device);
-	if (ret < 0)
-		return ret;
 
 	ret = meson_ir_hardware_init(pdev);
 	if (ret < 0)

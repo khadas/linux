@@ -89,6 +89,8 @@ static long meson_ir_ioctl(struct file *file, unsigned int cmd,
 				retval = -EFAULT;
 				goto err;
 			}
+
+			meson_ir_input_configure(chip->r_dev, &ir_map->tab);
 			/*scancode sort*/
 			meson_ir_scancode_sort(&ir_map->tab);
 

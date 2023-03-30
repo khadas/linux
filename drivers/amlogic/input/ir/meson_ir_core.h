@@ -15,6 +15,7 @@
 #include <linux/device.h>
 #include <dt-bindings/input/meson_ir.h>
 #include <linux/leds.h>
+#include "meson_ir_common.h"
 
 #define MULTI_IR_TYPE_MASK(type) (type & 0xff)  /*8bit*/
 #define LEGACY_IR_TYPE_MASK(type) ((type >> 8) & 0xff) /*8bit*/
@@ -182,7 +183,8 @@ static inline void decrease_duration(struct meson_ir_raw_event *ev,
 		ev->duration -= duration;
 }
 
-void meson_ir_input_configure(struct meson_ir_dev *dev);
+void meson_ir_input_configure(struct meson_ir_dev *dev,
+			      struct ir_map_tab *ir_map);
 void meson_ir_keydown(struct meson_ir_dev *dev, int scancode, int status);
 int meson_ir_raw_event_store(struct meson_ir_dev *dev,
 			     struct meson_ir_raw_event *ev);

@@ -186,7 +186,8 @@ void meson_ir_cdev_free(struct meson_ir_chip *chip);
 int meson_ir_scancode_sort(struct ir_map_tab *ir_map);
 struct meson_ir_map_tab_list *meson_ir_seek_map_tab(struct meson_ir_chip *chip,
 						    int custom_code);
-void meson_ir_input_ots_configure(struct meson_ir_dev *dev, int cnt0);
+void meson_ir_input_ots_configure(struct meson_ir_dev *dev, int cnt0,
+				  struct ir_map_tab *ir_map);
 void meson_ir_input_device_ots_init(struct input_dev *dev, struct device *parent,
 		struct meson_ir_chip *chip, const char *name, int cnt);
 void meson_ir_timer_keyup(struct timer_list *t);
