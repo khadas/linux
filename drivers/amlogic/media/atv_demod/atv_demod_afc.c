@@ -131,7 +131,7 @@ void atv_demod_afc_do_work(struct work_struct *work)
 
 	adc_status = atv_demod_get_adc_status();
 
-	if (afc->state != AFC_ENABLE || adc_status)
+	if (afc->state != AFC_ENABLE || !adc_status)
 		return;
 
 	retrieve_vpll_carrier_lock(&tmp);/* 0 means lock, 1 means unlock */

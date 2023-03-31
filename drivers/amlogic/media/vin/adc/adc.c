@@ -856,7 +856,11 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 }
 EXPORT_SYMBOL(adc_set_pll_cntl);
 
-/* get adc work status */
+/* get adc work status
+ * return value:
+ *     1: adc locked
+ *     0: adc not locked
+ */
 int adc_get_status(enum adc_sel module_sel)
 {
 	int ret = 0;
