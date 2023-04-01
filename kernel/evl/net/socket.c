@@ -765,8 +765,6 @@ static void destroy_evl_socket(struct sock *sk)
 	local_bh_disable();
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	local_bh_enable();
-
-	sk_refcnt_debug_dec(sk);
 }
 
 static int create_evl_socket(struct net *net, struct socket *sock,
@@ -791,7 +789,6 @@ static int create_evl_socket(struct net *net, struct socket *sock,
 	 * attached to the out-of-band core in sock_oob_attach().
 	 */
 	sk->sk_protocol = protocol;
-	sk_refcnt_debug_inc(sk);
 	sk->sk_destruct	= destroy_evl_socket;
 
 	local_bh_disable();
