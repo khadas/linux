@@ -710,7 +710,7 @@ __evl_get_element_by_fundle(struct evl_index *map, fundle_t fundle)
 	return rb ? e : NULL;
 }
 
-static char *factory_type_devnode(struct device *dev, umode_t *mode,
+static char *factory_type_devnode(const struct device *dev, umode_t *mode,
 			kuid_t *uid, kgid_t *gid)
 {
 	struct evl_element *e;
