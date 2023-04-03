@@ -1087,15 +1087,20 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 	if (data->video_cmd == VT_VIDEO_SET_COLOR_BLACK ||
 			data->video_cmd == VT_VIDEO_SET_COLOR_BLUE ||
 			data->video_cmd == VT_VIDEO_SET_COLOR_GREEN ||
-			data->video_cmd == VT_VIDEO_SET_STATUS) {
+			data->video_cmd == VT_VIDEO_SET_STATUS ||
+			data->video_cmd == VT_VIDEO_SET_SOURCE_CROP ||
+			data->video_cmd == VT_VIDEO_SET_DISPLAY_FRAME) {
 		/* no instance or instance has no consumer */
 		if (!instance || !instance->consumer) {
 			vt_debug(VT_DEBUG_CMD, "vt [%d] set solid color, no consumer", id);
 			return -ENOTCONN;
 		}
 	} else {
-		if (!instance || session->role != VT_ROLE_PRODUCER)
-			return -EINVAL;
+		if (data->video_cmd != VT_VIDEO_SET_SOURCE_CROP &&
+				data->video_cmd != VT_VIDEO_SET_DISPLAY_FRAME) {
+			if (!instance || session->role != VT_ROLE_PRODUCER)
+				return -EINVAL;
+		}
 	}
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
@@ -1106,17 +1111,18 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 	cmd->cmd = data->video_cmd;
 	cmd->cmd_data = data->video_cmd_data;
 	cmd->client_id = session->pid;
-	cmd->source_crop = data->source_crop;
+	cmd->rect = data->rect;
 	if (cmd->cmd == VT_VIDEO_SET_GAME_MODE)
 		instance->mode =
 		    cmd->cmd_data ?  VT_MODE_GAME : VT_MODE_NONE_BLOCK;
 	kfifo_put(&instance->fifo_cmd, cmd);
 
 	vt_debug(VT_DEBUG_CMD, "vt [%d] send cmd:%d ", instance->id, cmd->cmd);
-	if (cmd->cmd == VT_VIDEO_SET_SOURCE_CROP)
-		vt_debug(VT_DEBUG_CMD, "source crop (%d %d %d %d)\n",
-			 cmd->source_crop.left, cmd->source_crop.top,
-			 cmd->source_crop.right, cmd->source_crop.bottom);
+	if (cmd->cmd == VT_VIDEO_SET_SOURCE_CROP ||
+		cmd->cmd == VT_VIDEO_SET_DISPLAY_FRAME)
+		vt_debug(VT_DEBUG_CMD, "rect (%d %d %d %d)\n",
+			 cmd->rect.left, cmd->rect.top,
+			 cmd->rect.right, cmd->rect.bottom);
 	else
 		vt_debug(VT_DEBUG_CMD, "data:%d\n", cmd->cmd_data);
 	mutex_unlock(&instance->cmd_lock);
@@ -1176,17 +1182,18 @@ static int vt_recv_cmd_process(struct vt_ctrl_data *data,
 
 	vt_debug(VT_DEBUG_CMD, "vt [%d] recv cmd:%d ", instance->id, vcmd->cmd);
 
-	if (vcmd->cmd == VT_VIDEO_SET_SOURCE_CROP)
-		vt_debug(VT_DEBUG_CMD, "source crop (%d %d %d %d)\n",
-			 vcmd->source_crop.left, vcmd->source_crop.top,
-			 vcmd->source_crop.right, vcmd->source_crop.bottom);
+	if (vcmd->cmd == VT_VIDEO_SET_SOURCE_CROP ||
+		vcmd->cmd == VT_VIDEO_SET_DISPLAY_FRAME)
+		vt_debug(VT_DEBUG_CMD, "rect (%d %d %d %d)\n",
+			 vcmd->rect.left, vcmd->rect.top,
+			 vcmd->rect.right, vcmd->rect.bottom);
 	else
 		vt_debug(VT_DEBUG_CMD, "data:%d\n", vcmd->cmd_data);
 
 	data->video_cmd = vcmd->cmd;
 	data->video_cmd_data = vcmd->cmd_data;
 	data->client_id = vcmd->client_id;
-	data->source_crop = vcmd->source_crop;
+	data->rect = vcmd->rect;
 
 	if (vcmd->cmd == VT_VIDEO_SET_GAME_MODE) {
 		if (!vcmd->cmd_data)
