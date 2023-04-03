@@ -6444,6 +6444,7 @@ s32 primary_render_frame(struct video_layer_s *layer)
 	alpha_win_set(layer);
 	vd_scaler_setting(layer, &layer->sc_setting);
 	aisr_scaler_setting(layer, &layer->aisr_sc_setting);
+	aisr_demo_axis_set();
 	vd_blend_setting(layer, &layer->bld_setting);
 
 	if (update_vd2) {
@@ -17856,7 +17857,6 @@ static ssize_t aisr_demo_en_store(struct class *cla,
 	}
 	if (res != cur_dev->aisr_demo_en) {
 		cur_dev->aisr_demo_en = res;
-		aisr_demo_enable();
 	}
 	return count;
 }
@@ -17886,7 +17886,6 @@ static ssize_t aisr_demo_axis_store(struct class *cla,
 			cur_dev->aisr_demo_ystart = parsed[1];
 			cur_dev->aisr_demo_xend = parsed[2];
 			cur_dev->aisr_demo_yend = parsed[3];
-			aisr_demo_axis_set();
 		}
 	}
 	return count;

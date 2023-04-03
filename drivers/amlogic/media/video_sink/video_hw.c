@@ -11902,39 +11902,52 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 		aisr_sr1_nn_enable(0);
 }
 
-void aisr_demo_enable(void)
-{
-	if (cur_dev->display_module == S5_DISPLAY_MODULE)
-		return aisr_demo_enable_s5();
-	if (!cur_dev->aisr_support)
-		return;
-	/* reshape and aisr demo is mutex */
-	WRITE_VCBUS_REG_BITS
-		(DEMO_MODE_WINDO_CTRL0,
-		cur_dev->aisr_demo_en, 29, 1);
-	WRITE_VCBUS_REG_BITS
-		(DEMO_MODE_WINDO_CTRL0,
-		1, 12, 4);
-}
-
 void aisr_demo_axis_set(void)
 {
-	if (cur_dev->display_module == S5_DISPLAY_MODULE)
-		return aisr_demo_axis_set_s5();
-	if (!cur_dev->aisr_support)
-		return;
-	WRITE_VCBUS_REG_BITS
-		(DEMO_MODE_WINDO_CTRL0,
-		cur_dev->aisr_demo_xstart, 16, 12);
-	WRITE_VCBUS_REG_BITS
-		(DEMO_MODE_WINDO_CTRL0,
-		cur_dev->aisr_demo_xend, 0, 12);
-	WRITE_VCBUS_REG_BITS
-		(DEMO_MODE_WINDO_CTRL1,
-		cur_dev->aisr_demo_ystart, 16, 12);
-	WRITE_VCBUS_REG_BITS
-		(DEMO_MODE_WINDO_CTRL1,
-		cur_dev->aisr_demo_yend, 0, 12);
+	u8 vpp_index = VPP0;
+	static bool en_flag;
+	static u32 original_reg_value1;
+	static u32 original_reg_value2;
+
+	if (cur_dev->aisr_demo_en) {
+		original_reg_value1 = READ_VCBUS_REG(DEMO_MODE_WINDO_CTRL0);
+		original_reg_value2 = READ_VCBUS_REG(DEMO_MODE_WINDO_CTRL1);
+		en_flag = TRUE;
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(DEMO_MODE_WINDO_CTRL0,
+			cur_dev->aisr_demo_en, 29, 1);
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(DEMO_MODE_WINDO_CTRL0,
+			1, 12, 4);
+		if (cur_dev->display_module == S5_DISPLAY_MODULE)
+			return aisr_demo_axis_set_s5();
+		if (!cur_dev->aisr_support)
+			return;
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(DEMO_MODE_WINDO_CTRL0,
+			cur_dev->aisr_demo_xstart, 16, 12);
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(DEMO_MODE_WINDO_CTRL0,
+			cur_dev->aisr_demo_xend, 0, 12);
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(DEMO_MODE_WINDO_CTRL1,
+			cur_dev->aisr_demo_ystart, 16, 12);
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(DEMO_MODE_WINDO_CTRL1,
+			cur_dev->aisr_demo_yend, 0, 12);
+	} else {
+		if (cur_dev->display_module == S5_DISPLAY_MODULE)
+			return aisr_demo_axis_set_s5();
+		if (!cur_dev->aisr_support)
+			return;
+		if (en_flag) {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(DEMO_MODE_WINDO_CTRL0, original_reg_value1);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(DEMO_MODE_WINDO_CTRL1, original_reg_value2);
+		}
+	}
+
 }
 
 void update_primary_fmt_event(void)

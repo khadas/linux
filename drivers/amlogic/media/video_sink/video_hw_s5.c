@@ -9766,24 +9766,44 @@ void aisr_demo_enable_s5(void)
 
 void aisr_demo_axis_set_s5(void)
 {
+	u8 vpp_index = VPP0;
+	static bool en_flag;
+	static u32 original_reg_value1;
+	static u32 original_reg_value2;
 	struct vd_proc_sr_reg_s *vd_sr_reg = NULL;
 
 	if (!cur_dev->aisr_support)
 		return;
 	vd_sr_reg = &vd_proc_reg.vd_proc_sr_reg;
 
-	WRITE_VCBUS_REG_BITS
-		(vd_sr_reg->srsharp1_demo_mode_window_ctrl0,
-		cur_dev->aisr_demo_xstart, 16, 12);
-	WRITE_VCBUS_REG_BITS
-		(vd_sr_reg->srsharp1_demo_mode_window_ctrl0,
-		cur_dev->aisr_demo_xend, 0, 12);
-	WRITE_VCBUS_REG_BITS
-		(vd_sr_reg->srsharp1_demo_mode_window_ctrl1,
-		cur_dev->aisr_demo_ystart, 16, 12);
-	WRITE_VCBUS_REG_BITS
-		(vd_sr_reg->srsharp1_demo_mode_window_ctrl1,
-		cur_dev->aisr_demo_yend, 0, 12);
+	if (cur_dev->aisr_demo_en) {
+		original_reg_value1 =
+			READ_VCBUS_REG(vd_sr_reg->srsharp1_demo_mode_window_ctrl0);
+		original_reg_value2 =
+			READ_VCBUS_REG(vd_sr_reg->srsharp1_demo_mode_window_ctrl1);
+		en_flag = TRUE;
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(vd_sr_reg->srsharp1_demo_mode_window_ctrl0,
+			cur_dev->aisr_demo_xstart, 16, 12);
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(vd_sr_reg->srsharp1_demo_mode_window_ctrl0,
+			cur_dev->aisr_demo_xend, 0, 12);
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(vd_sr_reg->srsharp1_demo_mode_window_ctrl1,
+			cur_dev->aisr_demo_ystart, 16, 12);
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(vd_sr_reg->srsharp1_demo_mode_window_ctrl1,
+			cur_dev->aisr_demo_yend, 0, 12);
+	} else {
+		if (en_flag) {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_sr_reg->srsharp1_demo_mode_window_ctrl0,
+				original_reg_value1);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_sr_reg->srsharp1_demo_mode_window_ctrl1,
+				original_reg_value2);
+		}
+	}
 }
 
 void aisr_reshape_addr_set_s5(struct video_layer_s *layer,
