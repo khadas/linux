@@ -1378,7 +1378,7 @@
 	//pinctrl-1 = <&i2c2_sleep_pins2>;
 	clock-frequency = <100000>; /* default 100k */
 	imx415: sensor1@1a {
-		compatible = "sony, imx290","sony, imx415";
+		compatible = "sony, imx415";
 		status = "okay";
 		index = <0>;
 		reg = <0x1a>;
@@ -1393,7 +1393,7 @@
 		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
 		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
 		port@0 {
-			imx415_4_ep: imx415 {
+			imx415_4_ep: endpoint {
 				reg = <0>;
 				data-lanes = <0 1 2 3>;
 				link-frequencies = /bits/ 64 <1440000000>;
