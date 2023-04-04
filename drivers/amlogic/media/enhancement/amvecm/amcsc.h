@@ -256,6 +256,8 @@ int get_primaries_type(struct vframe_master_display_colour_s *p_mdc);
 #define PROC_SDR_TO_HLG		2
 #define PROC_SDR_TO_CUVA	3
 #define PROC_SDR_TO_TRG		4
+/*AI Color enhance*/
+#define PROC_SDR_AC_SDR		5
 
 /* hdr */
 #define PROC_HDR_TO_SDR		1

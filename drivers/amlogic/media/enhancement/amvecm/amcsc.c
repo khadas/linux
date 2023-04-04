@@ -8692,7 +8692,8 @@ static int vpp_matrix_update(struct vframe_s *vf,
 				vd_path, p, vpp_index);
 	}
 
-	ai_color_proc(vf);
+	if (ai_color_enable)
+		ai_color_proc(vf);
 
 	/* eye protection mode */
 	if (signal_change_flag & SIG_WB_CHG)

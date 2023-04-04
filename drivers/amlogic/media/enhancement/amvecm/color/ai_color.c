@@ -31,10 +31,7 @@ int aice_offset[4] = {
 			pr_info("ai_color: " fmt, ## args);\
 	} while (0)\
 
-#define AI_COLOR_VER "ai_color ver: 2022-08-31\n"
-unsigned int slice_reg_ofst[4] = {
-	0x0, 0x100, 0x900, 0xa00
-};
+#define AI_COLOR_VER "ai_color ver: 2023-04-07\n"
 
 int s_gain_lut[120] = {0};
 int l_gain_lut[64] = {
@@ -51,8 +48,8 @@ int l_gain_lut[64] = {
 struct sa_adj_param_s sa_adj_parm = {
 	.reg_s_gain_lut = s_gain_lut,
 	.reg_l_gain_lut = l_gain_lut,
-	.reg_sat_s_gain_en = 0,
-	.reg_sat_l_gain_en = 0,
+	.reg_sat_s_gain_en = 1,
+	.reg_sat_l_gain_en = 1,
 	.reg_sat_adj_a = 818,
 	.reg_sat_prt = 1024,
 	.reg_sat_prt_p = 900,
@@ -267,125 +264,152 @@ void ai_color_cfg(struct sa_adj_param_s *sa_adj_param)
 	l_gain_en = sa_adj_param->reg_sat_l_gain_en;
 
 	en = s_gain_en | l_gain_en;
-	VSYNC_WRITE_VPP_REG_BITS(SA_CTRL, en, 0, 1);
+	VSYNC_WR_MPEG_REG_BITS(SA_CTRL, en, 0, 1);
 	if (!en)
 		return;
-	VSYNC_WRITE_VPP_REG_BITS(SA_ADJ, (s_gain_en << 1) | l_gain_en, 27, 2);
+	VSYNC_WR_MPEG_REG_BITS(SA_ADJ, (s_gain_en << 1) | l_gain_en, 27, 2);
 
 	s_gain = sa_adj_param->reg_s_gain_lut;
 	l_gain = sa_adj_param->reg_l_gain_lut;
 
 	if (s_gain_en) {
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_0, (s_gain[0] << 16) | s_gain[1]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_1, (s_gain[2] << 16) | s_gain[3]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_2, (s_gain[4] << 16) | s_gain[5]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_3, (s_gain[6] << 16) | s_gain[7]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_4, (s_gain[8] << 16) | s_gain[9]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_5, (s_gain[10] << 16) | s_gain[11]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_6, (s_gain[12] << 16) | s_gain[13]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_7, (s_gain[14] << 16) | s_gain[15]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_8, (s_gain[16] << 16) | s_gain[17]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_9, (s_gain[18] << 16) | s_gain[19]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_10, (s_gain[20] << 16) | s_gain[21]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_11, (s_gain[22] << 16) | s_gain[23]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_12, (s_gain[24] << 16) | s_gain[25]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_13, (s_gain[26] << 16) | s_gain[27]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_14, (s_gain[28] << 16) | s_gain[29]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_15, (s_gain[30] << 16) | s_gain[31]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_16, (s_gain[32] << 16) | s_gain[33]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_17, (s_gain[34] << 16) | s_gain[35]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_18, (s_gain[36] << 16) | s_gain[37]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_19, (s_gain[38] << 16) | s_gain[39]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_20, (s_gain[40] << 16) | s_gain[41]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_21, (s_gain[42] << 16) | s_gain[43]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_22, (s_gain[44] << 16) | s_gain[45]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_23, (s_gain[46] << 16) | s_gain[47]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_24, (s_gain[48] << 16) | s_gain[49]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_25, (s_gain[50] << 16) | s_gain[51]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_26, (s_gain[52] << 16) | s_gain[53]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_27, (s_gain[54] << 16) | s_gain[55]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_28, (s_gain[56] << 16) | s_gain[57]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_29, (s_gain[58] << 16) | s_gain[59]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_30, (s_gain[60] << 16) | s_gain[61]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_31, (s_gain[62] << 16) | s_gain[63]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_32, (s_gain[64] << 16) | s_gain[65]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_33, (s_gain[66] << 16) | s_gain[67]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_34, (s_gain[68] << 16) | s_gain[69]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_35, (s_gain[70] << 16) | s_gain[71]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_36, (s_gain[72] << 16) | s_gain[73]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_37, (s_gain[74] << 16) | s_gain[75]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_38, (s_gain[76] << 16) | s_gain[77]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_39, (s_gain[78] << 16) | s_gain[79]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_40, (s_gain[80] << 16) | s_gain[81]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_41, (s_gain[82] << 16) | s_gain[83]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_42, (s_gain[84] << 16) | s_gain[85]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_43, (s_gain[86] << 16) | s_gain[87]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_44, (s_gain[88] << 16) | s_gain[89]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_45, (s_gain[90] << 16) | s_gain[91]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_46, (s_gain[92] << 16) | s_gain[93]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_47, (s_gain[94] << 16) | s_gain[95]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_48, (s_gain[96] << 16) | s_gain[97]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_49, (s_gain[98] << 16) | s_gain[99]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_50, (s_gain[100] << 16) | s_gain[101]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_51, (s_gain[102] << 16) | s_gain[103]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_52, (s_gain[104] << 16) | s_gain[105]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_53, (s_gain[106] << 16) | s_gain[107]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_54, (s_gain[108] << 16) | s_gain[109]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_55, (s_gain[110] << 16) | s_gain[111]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_56, (s_gain[112] << 16) | s_gain[113]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_57, (s_gain[114] << 16) | s_gain[115]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_58, (s_gain[116] << 16) | s_gain[117]);
-		VSYNC_WRITE_VPP_REG(SA_S_GAIN_59, (s_gain[118] << 16) | s_gain[119]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_0, (s_gain[0] << 16) | s_gain[1]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_1, (s_gain[2] << 16) | s_gain[3]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_2, (s_gain[4] << 16) | s_gain[5]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_3, (s_gain[6] << 16) | s_gain[7]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_4, (s_gain[8] << 16) | s_gain[9]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_5, (s_gain[10] << 16) | s_gain[11]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_6, (s_gain[12] << 16) | s_gain[13]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_7, (s_gain[14] << 16) | s_gain[15]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_8, (s_gain[16] << 16) | s_gain[17]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_9, (s_gain[18] << 16) | s_gain[19]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_10, (s_gain[20] << 16) | s_gain[21]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_11, (s_gain[22] << 16) | s_gain[23]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_12, (s_gain[24] << 16) | s_gain[25]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_13, (s_gain[26] << 16) | s_gain[27]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_14, (s_gain[28] << 16) | s_gain[29]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_15, (s_gain[30] << 16) | s_gain[31]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_16, (s_gain[32] << 16) | s_gain[33]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_17, (s_gain[34] << 16) | s_gain[35]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_18, (s_gain[36] << 16) | s_gain[37]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_19, (s_gain[38] << 16) | s_gain[39]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_20, (s_gain[40] << 16) | s_gain[41]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_21, (s_gain[42] << 16) | s_gain[43]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_22, (s_gain[44] << 16) | s_gain[45]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_23, (s_gain[46] << 16) | s_gain[47]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_24, (s_gain[48] << 16) | s_gain[49]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_25, (s_gain[50] << 16) | s_gain[51]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_26, (s_gain[52] << 16) | s_gain[53]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_27, (s_gain[54] << 16) | s_gain[55]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_28, (s_gain[56] << 16) | s_gain[57]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_29, (s_gain[58] << 16) | s_gain[59]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_30, (s_gain[60] << 16) | s_gain[61]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_31, (s_gain[62] << 16) | s_gain[63]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_32, (s_gain[64] << 16) | s_gain[65]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_33, (s_gain[66] << 16) | s_gain[67]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_34, (s_gain[68] << 16) | s_gain[69]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_35, (s_gain[70] << 16) | s_gain[71]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_36, (s_gain[72] << 16) | s_gain[73]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_37, (s_gain[74] << 16) | s_gain[75]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_38, (s_gain[76] << 16) | s_gain[77]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_39, (s_gain[78] << 16) | s_gain[79]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_40, (s_gain[80] << 16) | s_gain[81]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_41, (s_gain[82] << 16) | s_gain[83]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_42, (s_gain[84] << 16) | s_gain[85]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_43, (s_gain[86] << 16) | s_gain[87]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_44, (s_gain[88] << 16) | s_gain[89]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_45, (s_gain[90] << 16) | s_gain[91]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_46, (s_gain[92] << 16) | s_gain[93]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_47, (s_gain[94] << 16) | s_gain[95]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_48, (s_gain[96] << 16) | s_gain[97]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_49, (s_gain[98] << 16) | s_gain[99]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_50, (s_gain[100] << 16) | s_gain[101]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_51, (s_gain[102] << 16) | s_gain[103]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_52, (s_gain[104] << 16) | s_gain[105]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_53, (s_gain[106] << 16) | s_gain[107]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_54, (s_gain[108] << 16) | s_gain[109]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_55, (s_gain[110] << 16) | s_gain[111]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_56, (s_gain[112] << 16) | s_gain[113]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_57, (s_gain[114] << 16) | s_gain[115]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_58, (s_gain[116] << 16) | s_gain[117]);
+		VSYNC_WR_MPEG_REG(SA_S_GAIN_59, (s_gain[118] << 16) | s_gain[119]);
 	}
 
 	if (l_gain_en) {
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_0, (l_gain[0] << 16 | l_gain[1]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_1, (l_gain[2] << 16 | l_gain[3]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_2, (l_gain[4] << 16 | l_gain[5]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_3, (l_gain[6] << 16 | l_gain[7]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_4, (l_gain[8] << 16 | l_gain[9]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_5, (l_gain[10] << 16 | l_gain[11]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_6, (l_gain[12] << 16 | l_gain[13]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_7, (l_gain[14] << 16 | l_gain[15]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_8, (l_gain[16] << 16 | l_gain[17]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_9, (l_gain[18] << 16 | l_gain[19]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_10, (l_gain[20] << 16 | l_gain[21]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_11, (l_gain[22] << 16 | l_gain[23]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_12, (l_gain[24] << 16 | l_gain[25]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_13, (l_gain[26] << 16 | l_gain[27]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_14, (l_gain[28] << 16 | l_gain[29]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_15, (l_gain[30] << 16 | l_gain[31]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_16, (l_gain[32] << 16 | l_gain[33]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_17, (l_gain[34] << 16 | l_gain[35]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_18, (l_gain[36] << 16 | l_gain[37]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_19, (l_gain[38] << 16 | l_gain[39]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_20, (l_gain[40] << 16 | l_gain[41]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_21, (l_gain[42] << 16 | l_gain[43]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_22, (l_gain[44] << 16 | l_gain[45]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_23, (l_gain[46] << 16 | l_gain[47]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_24, (l_gain[48] << 16 | l_gain[49]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_25, (l_gain[50] << 16 | l_gain[51]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_26, (l_gain[52] << 16  | l_gain[53]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_27, (l_gain[54] << 16 | l_gain[55]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_28, (l_gain[56] << 16 | l_gain[57]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_29, (l_gain[58] << 16 | l_gain[59]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_30, (l_gain[60] << 16 | l_gain[61]));
-		VSYNC_WRITE_VPP_REG(SA_L_GAIN_31, (l_gain[62] << 16 | l_gain[63]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_0, (l_gain[0] << 16 | l_gain[1]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_1, (l_gain[2] << 16 | l_gain[3]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_2, (l_gain[4] << 16 | l_gain[5]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_3, (l_gain[6] << 16 | l_gain[7]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_4, (l_gain[8] << 16 | l_gain[9]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_5, (l_gain[10] << 16 | l_gain[11]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_6, (l_gain[12] << 16 | l_gain[13]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_7, (l_gain[14] << 16 | l_gain[15]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_8, (l_gain[16] << 16 | l_gain[17]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_9, (l_gain[18] << 16 | l_gain[19]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_10, (l_gain[20] << 16 | l_gain[21]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_11, (l_gain[22] << 16 | l_gain[23]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_12, (l_gain[24] << 16 | l_gain[25]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_13, (l_gain[26] << 16 | l_gain[27]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_14, (l_gain[28] << 16 | l_gain[29]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_15, (l_gain[30] << 16 | l_gain[31]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_16, (l_gain[32] << 16 | l_gain[33]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_17, (l_gain[34] << 16 | l_gain[35]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_18, (l_gain[36] << 16 | l_gain[37]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_19, (l_gain[38] << 16 | l_gain[39]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_20, (l_gain[40] << 16 | l_gain[41]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_21, (l_gain[42] << 16 | l_gain[43]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_22, (l_gain[44] << 16 | l_gain[45]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_23, (l_gain[46] << 16 | l_gain[47]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_24, (l_gain[48] << 16 | l_gain[49]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_25, (l_gain[50] << 16 | l_gain[51]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_26, (l_gain[52] << 16  | l_gain[53]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_27, (l_gain[54] << 16 | l_gain[55]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_28, (l_gain[56] << 16 | l_gain[57]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_29, (l_gain[58] << 16 | l_gain[59]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_30, (l_gain[60] << 16 | l_gain[61]));
+		VSYNC_WR_MPEG_REG(SA_L_GAIN_31, (l_gain[62] << 16 | l_gain[63]));
 	}
 	pr_ai_clr("%s: done\n", __func__);
 }
 
 void ai_color_proc(struct vframe_s *vf)
 {
+	int i;
+
+	if (!vf || !vf->vc_private)
+		return;
+
 	if (sa_adj_parm.reg_sat_s_gain_en == 0 &&
 		sa_adj_parm.reg_sat_l_gain_en == 0)
 		return;
 
+	if (!vf->vc_private->aicolor_info) {
+		if (ai_clr_dbg) {
+			pr_info("no aicolor_info\n");
+			ai_clr_dbg--;
+		}
+		return;
+	}
+
+	for (i = 0; i < 120; i++)
+		sa_adj_parm.reg_s_gain_lut[i] =
+			(int)vf->vc_private->aicolor_info->color_value[i];
+
+	if (ai_clr_dbg > 0) {
+		for (i = 0; i < 120; i++)
+			pr_info("input: reg_s_gain_lut[%d] = %d\n", i,
+				sa_adj_parm.reg_s_gain_lut[i]);
+	}
+
 	SLut_gen(&sa_adj_parm, &sa_fw_parm);
 	ai_color_cfg(&sa_adj_parm);
 
-	if (ai_clr_dbg > 0)
+	if (ai_clr_dbg > 0) {
+		for (i = 0; i < 120; i++)
+			pr_info("output-> reg_s_gain_lut[%d] = %d\n", i,
+				sa_adj_parm.reg_s_gain_lut[i]);
 		ai_clr_dbg--;
+	}
 }
 
 void ai_clr_config(int enable)
@@ -416,6 +440,142 @@ int ai_color_debug_store(char **parm)
 			return -EINVAL;
 		sa_adj_parm.reg_sat_l_gain_en = (uint)val;
 		pr_info("sat_l_gain_en = %d\n", sa_adj_parm.reg_sat_l_gain_en);
+	} else if (!strcmp(parm[0], "reg_sat_adj_a")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_adj_parm.reg_sat_adj_a = (uint)val;
+		pr_info("reg_sat_adj_a = %d\n", sa_adj_parm.reg_sat_adj_a);
+	} else if (!strcmp(parm[0], "reg_sat_prt")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_adj_parm.reg_sat_prt = (uint)val;
+		pr_info("reg_sat_prt = %d\n", sa_adj_parm.reg_sat_prt);
+	} else if (!strcmp(parm[0], "reg_sat_prt_p")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_adj_parm.reg_sat_prt_p = (uint)val;
+		pr_info("reg_sat_prt_p = %d\n", sa_adj_parm.reg_sat_prt_p);
+	} else if (!strcmp(parm[0], "reg_sat_prt_th")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_adj_parm.reg_sat_prt_th = (uint)val;
+		pr_info("reg_sat_prt_th = %d\n", sa_adj_parm.reg_sat_prt_th);
+	} else if (!strcmp(parm[0], "reg_zero")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_zero = (uint)val;
+		pr_info("reg_zero = %d\n", sa_fw_parm.reg_zero);
+	} else if (!strcmp(parm[0], "reg_sat_adj")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_sat_adj = (uint)val;
+		pr_info("reg_sat_adj = %d\n", sa_fw_parm.reg_sat_adj);
+	} else if (!strcmp(parm[0], "reg_sat_shift")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_sat_shift = (uint)val;
+		pr_info("reg_sat_shift = %d\n", sa_fw_parm.reg_sat_shift);
+	} else if (!strcmp(parm[0], "reg_skin_th")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_skin_th = (uint)val;
+		pr_info("reg_skin_th = %d\n", sa_fw_parm.reg_skin_th);
+	} else if (!strcmp(parm[0], "reg_skin_shift")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_skin_shift = (uint)val;
+		pr_info("reg_skin_shift = %d\n", sa_fw_parm.reg_skin_shift);
+	} else if (!strcmp(parm[0], "reg_skin_adj")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_skin_adj = (uint)val;
+		pr_info("reg_skin_adj = %d\n", sa_fw_parm.reg_skin_adj);
+	} else if (!strcmp(parm[0], "reg_hue_left1")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_hue_left1 = (uint)val;
+		pr_info("reg_hue_left1 = %d\n", sa_fw_parm.reg_hue_left1);
+	} else if (!strcmp(parm[0], "reg_hue_right1")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_hue_right1 = (uint)val;
+		pr_info("reg_hue_right1 = %d\n", sa_fw_parm.reg_hue_right1);
+	} else if (!strcmp(parm[0], "reg_hue_adj1")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_hue_adj1 = (uint)val;
+		pr_info("reg_hue_adj1 = %d\n", sa_fw_parm.reg_hue_adj1);
+	} else if (!strcmp(parm[0], "reg_hue_shift1")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_hue_shift1 = (uint)val;
+		pr_info("reg_hue_shift1 = %d\n", sa_fw_parm.reg_hue_shift1);
+	} else if (!strcmp(parm[0], "reg_hue_left2")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_hue_left2 = (uint)val;
+		pr_info("reg_hue_left2 = %d\n", sa_fw_parm.reg_hue_left2);
+	} else if (!strcmp(parm[0], "reg_hue_right2")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_hue_right2 = (uint)val;
+		pr_info("reg_hue_right2 = %d\n", sa_fw_parm.reg_hue_right2);
+	} else if (!strcmp(parm[0], "reg_hue_adj2")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_hue_adj2 = (uint)val;
+		pr_info("reg_hue_adj2 = %d\n", sa_fw_parm.reg_hue_adj2);
+	} else if (!strcmp(parm[0], "reg_hue_shift2")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_hue_shift2 = (uint)val;
+		pr_info("reg_hue_shift2 = %d\n", sa_fw_parm.reg_hue_shift2);
+	} else if (!strcmp(parm[0], "reg_hue_left3")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_hue_left3 = (uint)val;
+		pr_info("reg_hue_left3 = %d\n", sa_fw_parm.reg_hue_left3);
+	} else if (!strcmp(parm[0], "reg_hue_right3")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_hue_right3 = (uint)val;
+		pr_info("reg_hue_right3 = %d\n", sa_fw_parm.reg_hue_right3);
+	} else if (!strcmp(parm[0], "reg_hue_adj3")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_hue_adj3 = (uint)val;
+		pr_info("reg_hue_adj3 = %d\n", sa_fw_parm.reg_hue_adj3);
+	} else if (!strcmp(parm[0], "reg_hue_shift3")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		sa_fw_parm.reg_hue_shift3 = (uint)val;
+		pr_info("reg_hue_shift3 = %d\n", sa_fw_parm.reg_hue_shift3);
+	} else if (!strcmp(parm[0], "read_all")) {
+		pr_info("sat_s_gain_en = %d\n", sa_adj_parm.reg_sat_s_gain_en);
+		pr_info("sat_l_gain_en = %d\n", sa_adj_parm.reg_sat_l_gain_en);
+		pr_info("reg_sat_adj_a = %d\n", sa_adj_parm.reg_sat_adj_a);
+		pr_info("reg_sat_prt = %d\n", sa_adj_parm.reg_sat_prt);
+		pr_info("reg_sat_prt_p = %d\n", sa_adj_parm.reg_sat_prt_p);
+		pr_info("reg_sat_prt_th = %d\n", sa_adj_parm.reg_sat_prt_th);
+		pr_info("\n");
+		pr_info("reg_zero = %d\n", sa_fw_parm.reg_zero);
+		pr_info("reg_sat_adj = %d\n", sa_fw_parm.reg_sat_adj);
+		pr_info("reg_sat_shift = %d\n", sa_fw_parm.reg_sat_shift);
+		pr_info("reg_skin_th = %d\n", sa_fw_parm.reg_skin_th);
+		pr_info("reg_skin_shift = %d\n", sa_fw_parm.reg_skin_shift);
+		pr_info("reg_skin_adj = %d\n", sa_fw_parm.reg_skin_adj);
+		pr_info("reg_hue_left1 = %d\n", sa_fw_parm.reg_hue_left1);
+		pr_info("reg_hue_right1 = %d\n", sa_fw_parm.reg_hue_right1);
+		pr_info("reg_hue_adj1 = %d\n", sa_fw_parm.reg_hue_adj1);
+		pr_info("reg_hue_shift1 = %d\n", sa_fw_parm.reg_hue_shift1);
+		pr_info("reg_hue_left2 = %d\n", sa_fw_parm.reg_hue_left2);
+		pr_info("reg_hue_right2 = %d\n", sa_fw_parm.reg_hue_right2);
+		pr_info("reg_hue_adj2 = %d\n", sa_fw_parm.reg_hue_adj2);
+		pr_info("reg_hue_shift2 = %d\n", sa_fw_parm.reg_hue_shift2);
+		pr_info("reg_hue_left3 = %d\n", sa_fw_parm.reg_hue_left3);
+		pr_info("reg_hue_right3 = %d\n", sa_fw_parm.reg_hue_right3);
+		pr_info("reg_hue_adj3 = %d\n", sa_fw_parm.reg_hue_adj3);
+		pr_info("reg_hue_shift3 = %d\n", sa_fw_parm.reg_hue_shift3);
 	}
 
 	return 0;

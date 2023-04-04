@@ -929,5 +929,6 @@ struct demo_data_s {
 
 void bs_ct_latch(void);
 int pkt_adv_chip(void);
+extern unsigned int ai_color_enable;
 #endif /* AMVECM_H */
 
