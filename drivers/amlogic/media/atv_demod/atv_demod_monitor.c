@@ -37,8 +37,11 @@ static void atv_demod_monitor_do_work(struct work_struct *work)
 	int vpll_lock = 0, line_lock = 0;
 	struct atv_demod_monitor *monitor =
 			container_of(work, struct atv_demod_monitor, work);
+	int adc_status = 0;
 
-	if (monitor->state == MONI_DISABLE)
+	adc_status = atv_demod_get_adc_status();
+
+	if (monitor->state == MONI_DISABLE || !adc_status)
 		return;
 
 	retrieve_vpll_carrier_lock(&vpll_lock);
