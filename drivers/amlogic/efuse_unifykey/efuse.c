@@ -1279,7 +1279,7 @@ static int efuse_probe(struct platform_device *pdev)
 
 	reg_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!IS_ERR_OR_NULL(reg_mem)) {
-		reg_base = devm_ioremap_resource(&pdev->dev, reg_mem);
+		reg_base = ioremap(reg_mem->start, resource_size(reg_mem));
 		if (IS_ERR(reg_base)) {
 			dev_err(&pdev->dev, "reg0: cannot obtain I/O memory region.\n");
 			ret = PTR_ERR(reg_base);

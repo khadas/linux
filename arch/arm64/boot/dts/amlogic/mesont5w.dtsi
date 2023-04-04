@@ -598,6 +598,8 @@
 
 	efuse: efuse {
 		compatible = "amlogic, efuse";
+		reg = <0x0 0xff800228 0x0 0x4>;
+		secureboot_mask = <0x00000010>;
 		read_cmd = <0x82000030>;
 		write_cmd = <0x82000031>;
 		get_max_cmd = <0x82000033>;

@@ -1704,6 +1704,8 @@
 
 	efuse: efuse{
 		compatible = "amlogic, efuse";
+		reg = <0xff800228 0x4>;
+		secureboot_mask = <0x00000010>;
 		read_cmd = <0x82000030>;
 		write_cmd = <0x82000031>;
 		get_max_cmd = <0x82000033>;
@@ -1714,7 +1716,7 @@
 		check = <&efusecheck>;
 		clocks = <&clkc CLKID_EFUSE>;
 		clock-names = "efuse_clk";
-		status = "disabled";
+		status = "okay";
 	};
 
 	efusekey:efusekey{

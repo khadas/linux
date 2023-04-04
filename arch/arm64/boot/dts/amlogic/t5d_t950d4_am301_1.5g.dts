@@ -1832,10 +1832,6 @@
 	status = "okay";
 };
 
-&efuse {
-	status = "disabled";
-};
-
 &lut_dma {
 	status = "disabled";
 };
