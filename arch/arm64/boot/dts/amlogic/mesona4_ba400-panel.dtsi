@@ -1,0 +1,147 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+/ {
+	lcd {
+		compatible = "amlogic, lcd-a4";
+		mode = "tablet";
+		status = "okay";
+		index = <0>;
+		fr_auto_policy = <2>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
+		key_valid = <0>;
+		reg = <0x0 0xfe004000 0x0 0x4000>;  /* pin ctrl */
+		interrupts = <0 222 1>;
+		interrupt-names = "vsync";
+		pinctrl-names = "ttl_6bit_hvsync_de_on", "rgb_off";
+		pinctrl-0 = <&lcd_rgb_sync_on_pin>;
+		pinctrl-1 = <&rgb_off_pin>;
+
+		clk_path = <0>;
+
+		lcd_cpu-gpios = <&gpio GPIOX_16 GPIO_ACTIVE_HIGH /* LCD_PWREN */
+						&gpio GPIOT_22 GPIO_ACTIVE_HIGH>; /* LCD_RST */
+		lcd_cpu_gpio_names = "GPIOX_16","GPIOT_22";
+
+		rgb_0{
+			model_name = "RGB_600P";
+			interface = "ttl";
+			basic_setting = <1024 600 /*h_active, v_active*/
+				1312 635 /*h_period, v_period*/
+				6 /*lcd_bits*/
+				16 9>; /*screen_widht, screen_height*/
+			range_frame_rate = <
+				1114 1400 /*h_period min, max*/
+				610 800 /*v_period min, max*/
+				40800000 67200000>; /*pclk_min, max*/
+			lcd_timing = <40 140 0 /*hs_width, hs_bp, hs_pol*/
+				5 23 0>; /*vs_width, vs_bp, vs_pol*/
+			clk_attr = <0 /*fr_adj_type(0=clk, 1=htotal, 2=vtotal)*/
+				0 /*clk_ss_level */
+				1 /*clk_auto_generate*/
+				51200000>; /*pixel_clk(unit in Hz)*/
+			ttl_attr = <
+				1 /*clk_pol*/
+				1 /*de_valid*/
+				1 /*sync_valid*/
+				1 /*rb_swap*/
+				0>; /*bit_swap*/
+
+			/* power step: type, index, value, delay(ms) */
+			power_on_step = <
+				0 0 1 100
+				0 1 1 10
+				0 1 0 10
+				0 1 1 520
+				2 0 0 0   /*signal enable*/
+				0xff 0 0 0>; /*ending*/
+			power_off_step = <
+				0 0 0 100
+				2 0 0 0 /*signal disable*/
+				0xff 0 0 0>; /*ending*/
+			backlight_index = <0x00>;
+		};
+
+		rgb_1{
+			model_name = "RGB_720P";
+			interface = "ttl";
+			basic_setting = <1280 720 /*h_active, v_active*/
+				1650 750 /*h_period, v_period*/
+				8 /*lcd_bits*/
+				160 90>; /*screen_widht, screen_height*/
+			lcd_timing = <40 220 0 /*hs_width, hs_bp, hs_pol*/
+				5 20 0>; /*vs_width, vs_bp, vs_pol*/
+			clk_attr = <0 /*fr_adj_type(0=clk, 1=htotal, 2=vtotal)*/
+				0 /*clk_ss_level */
+				1 /*clk_auto_generate*/
+				74250000>; /*pixel_clk(unit in Hz)*/
+			ttl_attr = <
+				1 /*clk_pol: 0:0.5phase 1:0phase 2:0.75phase 3:0.25phase*/
+				1 /*de_valid*/
+				1 /*sync_valid*/
+				0 /*rb_swap*/
+				0>; /*bit_swap*/
+
+			/* power step: type, index, value, delay(ms) */
+			power_on_step = <
+				0 0 1 100
+				0 1 1 10
+				0 1 0 10
+				0 1 1 120
+				2 0 0 0   /*signal enable*/
+				0xff 0 0 0>; /*ending*/
+			power_off_step = <
+				2 0 0 0 /*signal disable*/
+				0xff 0 0 0>; /*ending*/
+			backlight_index = <0x00>;
+		};
+	};
+
+	backlight{
+		compatible = "amlogic, backlight-a4";
+		status = "okay";
+		index = <0>;
+		key_valid = <0>;
+		pinctrl-names = "pwm_on";
+		pinctrl-0 = <&pwm_d_pins3>; /* d9 */
+		pinctrl_version = <2>; /* for uboot */
+		interrupts = <0 222 1>;
+		interrupt-names = "vsync";
+		bl_pwm_config = <&bl_pwm_conf>;
+
+		/* pwm port: PWM_A, PWM_B, PWM_C, PWM_D, PWM_E, PWM_F, PWM_VS*/
+		/* power index:(point gpios_index, 0xff=invalid) */
+		/* power value:(0=output low, 1=output high, 2=input) */
+		/* power delay:(unit in ms) */
+		bl-gpios = <&gpio GPIOD_5 GPIO_ACTIVE_HIGH	/* LCD_BL_EN */
+					&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
+		bl_gpio_names = "GPIOD_5", "GPIOD_9";
+
+		backlight_0{
+			index = <0>;
+			bl_name = "backlight_pwm";
+			bl_level_default_uboot_kernel = <255 255>;
+			bl_level_attr = <255 10 /*max, min*/
+				128 128>; /*mid, mid_mapping*/
+			bl_ctrl_method = <1>; /*1=pwm,2=pwm_combo,3=ldim*/
+			bl_power_attr = <0 /*en_gpio_index*/
+				1 0 /*on_value, off_value*/
+				200 200>; /*on_delay(ms), off_delay(ms)*/
+			bl_pwm_port = "PWM_D";
+			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positvie)*/
+				180 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
+				100 25>; /*duty_max(%), duty_min(%)*/
+			bl_pwm_power = <1 0 /*pwm_gpio_index, pwm_gpio_off*/
+				10 10>; /*pwm_on_delay(ms), pwm_off_delay(ms)*/
+			en_sequence_reverse = <0>; /* 1 for reverse */
+		};
+	};
+
+	bl_pwm_conf:bl_pwm_conf{
+		pwm_channel_0 {
+			pwm_port = "PWM_D";
+			pwms = <&pwm_cd MESON_PWM_0 30040 0>;
+		};
+	};
+};

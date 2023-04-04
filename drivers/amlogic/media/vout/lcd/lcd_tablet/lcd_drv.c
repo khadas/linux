@@ -53,16 +53,7 @@ static int lcd_type_supported(struct lcd_config_s *pconf)
 
 static void lcd_ttl_control_set(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_config_s *pconf = &pdrv->config;
-	unsigned int clk_pol, rb_swap, bit_swap;
-
-	clk_pol = pconf->control.ttl_cfg.clk_pol;
-	rb_swap = (pconf->control.ttl_cfg.swap_ctrl >> 1) & 1;
-	bit_swap = (pconf->control.ttl_cfg.swap_ctrl >> 0) & 1;
-
-	lcd_vcbus_setb(L_POL_CNTL_ADDR, clk_pol, 6, 1);
-	lcd_vcbus_setb(L_DUAL_PORT_CNTL_ADDR, rb_swap, 1, 1);
-	lcd_vcbus_setb(L_DUAL_PORT_CNTL_ADDR, bit_swap, 0, 1);
+	// TODO
 }
 
 static void lcd_mipi_control_set(struct aml_lcd_drv_s *pdrv)
@@ -87,8 +78,7 @@ static void lcd_mipi_control_set(struct aml_lcd_drv_s *pdrv)
 
 	if (pdrv->data->chip_type == LCD_CHIP_T7) {
 		// sel dphy lane
-		lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL1,
-				    0x0, bit_lane_sel, 10);
+		lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL1, 0x0, bit_lane_sel, 10);
 	}
 
 	mipi_dsi_tx_ctrl(pdrv, 1);

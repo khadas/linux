@@ -333,6 +333,70 @@
 #define CRT_MASK                                   0x1117
 #define RESET7_MASK                                0x1118
 
+/*********** A4 (Base Addr: 0xfe340000) ****************/
+#define CLKCTRL_VOUTENC_CLK_CTRL                   0x0081
+
+#define VPU_VOUT_CORE_CTRL                         0x0400
+#define VPU_VOUT_INT_CTRL                          0x0401
+#define VPU_VOUT_DETH_CTRL                         0x0402
+#define VPU_VOUT_DTH_DATA                          0x0403
+#define VPU_VOUT_DTH_ADDR                          0x0404
+#define VPU_VOUT_HS_POS                            0x0412
+#define VPU_VOUT_VSLN_E_POS                        0x0413
+#define VPU_VOUT_VSPX_E_POS                        0x0414
+#define VPU_VOUT_VSLN_O_POS                        0x0415
+#define VPU_VOUT_VSPX_O_POS                        0x0416
+#define VPU_VOUT_DE_PX_EN                          0x0417
+#define VPU_VOUT_DELN_E_POS                        0x0418
+#define VPU_VOUT_DELN_O_POS                        0x0419
+#define VPU_VOUT_MAX_SIZE                          0x041a
+#define VPU_VOUT_FLD_BGN_LINE                      0x041b
+#define VPU_VOUTO_HS_POS                           0x0420
+#define VPU_VOUTO_VSLN_E_POS                       0x0421
+#define VPU_VOUTO_VSPX_E_POS                       0x0422
+#define VPU_VOUTO_VSLN_O_POS                       0x0423
+#define VPU_VOUTO_VSPX_O_POS                       0x0424
+#define VPU_VOUTO_DE_PX_EN                         0x0425
+#define VPU_VOUTO_DELN_E_POS                       0x0426
+#define VPU_VOUTO_DELN_O_POS                       0x0427
+#define VPU_VOUTO_MAX_SIZE                         0x0428
+#define VPU_VOUTO_FLD_BGN_LINE                     0x0429
+#define VPU_VOUT_BT_CTRL                           0x0430
+#define VPU_VOUT_BT_PLD_LINE                       0x0431
+#define VPU_VOUT_BT_PLDIDT0                        0x0432
+#define VPU_VOUT_BT_PLDIDT1                        0x0433
+#define VPU_VOUT_BT_BLK_DATA                       0x0434
+#define VPU_VOUT_BT_DAT_CLPY                       0x0435
+#define VPU_VOUT_BT_DAT_CLPC                       0x0436
+#define VPU_VOUT_LVDS_BIST_CTRL                    0x0440
+#define VPU_VOUT_LVDS_FIXED_VALE                   0x0441
+#define VPU_VOUT_LVDS_CNT1                         0x0442
+#define VPU_VOUT_LVDS_CLK_CFG                      0x0443
+#define VPU_VOUT_LVDS_CH_SWAP                      0x0444
+#define VPU_VOUT_LVDS_CH_SWAP_H16BIT               0x0445
+#define VPU_VOUT_LVDS_BLANK_DATA                   0x0446
+#define VPU_VOUT_LVDS_CH_SWAP0                     0x0447
+#define VPU_VOUT_LVDS_CH_SWAP1                     0x0448
+#define VPU_VOUT_BIST_CFG_YUV                      0x0450
+#define VPU_VOUT_CLRBAR_CFG                        0x0451
+#define VPU_VOUT_BIST_SEL                          0x0452
+#define VPU_VOUT_BIST_HIGH                         0x0453
+#define VPU_VOUT_GAMMA_CTRL                        0x0458
+#define VPU_VOUT_GAMMA_PROB0                       0x0459
+#define VPU_VOUT_GAMMA_PROB1                       0x045a
+#define VPU_VOUT_RO_GAMMA_PROB                     0x045b
+#define VPU_VOUT_RO_INT                            0x0460
+#define VPU_VOUT_LVDS_RO_COVGE                     0x0461
+#define A4_LCD_RGB_BASE_ADDR                       0x05a5
+#define A4_LCD_RGB_COEFF_ADDR                      0x05a6
+#define A4_LCD_POL_CNTL_ADDR                       0x05a7
+#define A4_LCD_DITH_CNTL_ADDR                      0x05a8
+#define A4_LCD_LCD_MCU_CTL                         0x05b0
+#define A4_LCD_LCD_MCU_DATA_0                      0x05b1
+#define A4_LCD_LCD_MCU_DATA_1                      0x05b2
+#define A4_LCD_LCD_PORT_SWAP                       0x05b3
+/********************** A4 END ***************************/
+
 /* t5 */
 #define RESET0_MASK_T5                             0x0010
 #define RESET1_MASK_T5                             0x0011
@@ -1669,130 +1733,100 @@ extern int lcd_reg_g12a[];
 extern int lcd_reg_tl1[];
 extern int lcd_reg_t5[];
 extern int lcd_reg_t7[];
+extern int lcd_reg_a4[];
 
 int lcd_ioremap(struct aml_lcd_drv_s *pdrv, struct platform_device *pdev);
 unsigned int lcd_vcbus_read(unsigned int reg);
 void lcd_vcbus_write(unsigned int reg, unsigned int value);
-void lcd_vcbus_setb(unsigned int reg, unsigned int value,
-		    unsigned int start, unsigned int len);
-unsigned int lcd_vcbus_getb(unsigned int reg,
-			    unsigned int start, unsigned int len);
+void lcd_vcbus_setb(unsigned int reg, unsigned int value, unsigned int start, unsigned int len);
+unsigned int lcd_vcbus_getb(unsigned int reg, unsigned int start, unsigned int len);
 void lcd_vcbus_set_mask(unsigned int reg, unsigned int mask);
 void lcd_vcbus_clr_mask(unsigned int reg, unsigned int mask);
 
 unsigned int lcd_hiu_read(unsigned int reg);
 void lcd_hiu_write(unsigned int reg, unsigned int value);
-void lcd_hiu_setb(unsigned int reg, unsigned int value,
-		  unsigned int start, unsigned int len);
-unsigned int lcd_hiu_getb(unsigned int reg,
-			  unsigned int start, unsigned int len);
+void lcd_hiu_setb(unsigned int reg, unsigned int value, unsigned int start, unsigned int len);
+unsigned int lcd_hiu_getb(unsigned int reg, unsigned int start, unsigned int len);
 
 unsigned int lcd_clk_read(unsigned int reg);
 void lcd_clk_write(unsigned int reg, unsigned int value);
-void lcd_clk_setb(unsigned int reg, unsigned int value,
-		  unsigned int start, unsigned int len);
-unsigned int lcd_clk_getb(unsigned int reg,
-			  unsigned int start, unsigned int len);
+void lcd_clk_setb(unsigned int reg, unsigned int value, unsigned int start, unsigned int len);
+unsigned int lcd_clk_getb(unsigned int reg, unsigned int start, unsigned int len);
 void lcd_clk_set_mask(unsigned int reg, unsigned int mask);
 void lcd_clk_clr_mask(unsigned int reg, unsigned int mask);
 
 unsigned int lcd_ana_read(unsigned int reg);
 void lcd_ana_write(unsigned int reg, unsigned int value);
-void lcd_ana_setb(unsigned int reg, unsigned int value,
-		  unsigned int start, unsigned int len);
-unsigned int lcd_ana_getb(unsigned int reg,
-			  unsigned int start, unsigned int len);
+void lcd_ana_setb(unsigned int reg, unsigned int value, unsigned int start, unsigned int len);
+unsigned int lcd_ana_getb(unsigned int reg, unsigned int start, unsigned int len);
 
 unsigned int lcd_cbus_read(unsigned int reg);
 void lcd_cbus_write(unsigned int reg, unsigned int value);
-void lcd_cbus_setb(unsigned int reg, unsigned int value,
-		   unsigned int start, unsigned int len);
+void lcd_cbus_setb(unsigned int reg, unsigned int value, unsigned int start, unsigned int len);
 
 unsigned int lcd_periphs_read(struct aml_lcd_drv_s *pdrv, unsigned int reg);
-void lcd_periphs_write(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-		       unsigned int value);
+void lcd_periphs_write(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int value);
 
 unsigned int dsi_host_read(struct aml_lcd_drv_s *pdrv, unsigned int reg);
-void dsi_host_write(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-		    unsigned int value);
-void dsi_host_setb(struct aml_lcd_drv_s *pdrv,
-		   unsigned int reg, unsigned int value,
-		   unsigned int start, unsigned int len);
+void dsi_host_write(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int value);
+void dsi_host_setb(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int value,
+			unsigned int start, unsigned int len);
 unsigned int dsi_host_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			   unsigned int start, unsigned int len);
-void dsi_host_set_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-		       unsigned int mask);
-void dsi_host_clr_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-		       unsigned int mask);
+			unsigned int start, unsigned int len);
+void dsi_host_set_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int mask);
+void dsi_host_clr_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int mask);
+
 unsigned int dsi_phy_read(struct aml_lcd_drv_s *pdrv, unsigned int reg);
-void dsi_phy_write(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-		   unsigned int value);
-void dsi_phy_setb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-		  unsigned int value,
-		  unsigned int start, unsigned int len);
+void dsi_phy_write(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int value);
+void dsi_phy_setb(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int value,
+			unsigned int start, unsigned int len);
 unsigned int dsi_phy_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			  unsigned int start, unsigned int len);
-void dsi_phy_set_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-		      unsigned int mask);
-void dsi_phy_clr_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-		      unsigned int mask);
+			unsigned int start, unsigned int len);
+void dsi_phy_set_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int mask);
+void dsi_phy_clr_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int mask);
 
 unsigned int lcd_tcon_read(struct aml_lcd_drv_s *pdrv, unsigned int reg);
-void lcd_tcon_write(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-		    unsigned int value);
-void lcd_tcon_setb(struct aml_lcd_drv_s *pdrv,
-		   unsigned int reg, unsigned int value,
-		   unsigned int start, unsigned int len);
+void lcd_tcon_write(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int value);
+void lcd_tcon_setb(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int value,
+			unsigned int start, unsigned int len);
 unsigned int lcd_tcon_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			   unsigned int start, unsigned int len);
-void lcd_tcon_set_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-		       unsigned int mask);
-void lcd_tcon_clr_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-		       unsigned int mask);
+			unsigned int start, unsigned int len);
+void lcd_tcon_set_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int mask);
+void lcd_tcon_clr_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int mask);
 void lcd_tcon_update_bits(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			  unsigned int mask, unsigned int value);
+			unsigned int mask, unsigned int value);
 int lcd_tcon_check_bits(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 			unsigned int mask, unsigned int value);
 unsigned char lcd_tcon_read_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg);
-void lcd_tcon_write_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			 unsigned char value);
-void lcd_tcon_setb_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			unsigned char value,
+void lcd_tcon_write_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned char value);
+void lcd_tcon_setb_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned char value,
 			unsigned int start, unsigned int len);
 unsigned char lcd_tcon_getb_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-				 unsigned int start, unsigned int len);
+			unsigned int start, unsigned int len);
 void lcd_tcon_update_bits_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			       unsigned char mask, unsigned char value);
+			unsigned char mask, unsigned char value);
 int lcd_tcon_check_bits_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			     unsigned char mask, unsigned char value);
+			unsigned char mask, unsigned char value);
 
 unsigned int dptx_reg_read(struct aml_lcd_drv_s *pdrv, unsigned int reg);
-void dptx_reg_write(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-		    unsigned int value);
-void dptx_reg_setb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-		   unsigned int value,
-		   unsigned int start, unsigned int len);
+void dptx_reg_write(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int value);
+void dptx_reg_setb(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int value,
+			unsigned int start, unsigned int len);
 unsigned int dptx_reg_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			   unsigned int start, unsigned int len);
+			unsigned int start, unsigned int len);
 
 unsigned int lcd_combo_dphy_read(struct aml_lcd_drv_s *pdrv, unsigned int reg);
-void lcd_combo_dphy_write(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			  unsigned int value);
-void lcd_combo_dphy_setb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			 unsigned int value,
-			 unsigned int start, unsigned int len);
+void lcd_combo_dphy_write(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int value);
+void lcd_combo_dphy_setb(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int value,
+			unsigned int start, unsigned int len);
 unsigned int lcd_combo_dphy_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-				 unsigned int start, unsigned int len);
+			unsigned int start, unsigned int len);
 unsigned int lcd_reset_read(struct aml_lcd_drv_s *pdrv, unsigned int reg);
-void lcd_reset_write(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-		     unsigned int value);
-void lcd_reset_setb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-		    unsigned int value, unsigned int start, unsigned int len);
-unsigned int lcd_reset_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			    unsigned int start, unsigned int len);
-void lcd_reset_set_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			unsigned int mask);
-void lcd_reset_clr_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			unsigned int mask);
+void lcd_reset_write(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int value);
+void lcd_reset_setb(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int value,
+			unsigned int start, unsigned int len);
+unsigned int lcd_reset_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int start,
+			unsigned int len);
+void lcd_reset_set_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int mask);
+void lcd_reset_clr_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned int mask);
 #endif
-

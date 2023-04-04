@@ -88,7 +88,7 @@ char *lcd_clk_div_sel_table[] = {
  * lcd pll & clk operation
  * ****************************************************
  */
-static inline unsigned long lcd_abs(long a, long b)
+inline unsigned long lcd_abs(long a, long b)
 {
 	return (a >= b) ? (a - b) : (b - a);
 }

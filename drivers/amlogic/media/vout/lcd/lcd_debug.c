@@ -6578,6 +6578,23 @@ static struct lcd_debug_info_s lcd_debug_info_t5w = {
 	.debug_if = NULL,
 };
 
+static struct lcd_debug_info_s lcd_debug_info_a4 = {
+	.reg_pll_table = NULL,
+	.reg_clk_table = NULL,
+	.reg_clk_hiu_table = lcd_reg_dump_clk_a4,
+	.reg_encl_table = lcd_reg_dump_encl_a4,
+	.reg_pinmux_table = NULL,
+
+	.debug_if_ttl = NULL,
+	.debug_if_lvds = NULL,
+	.debug_if_vbyone = NULL,
+	.debug_if_mlvds = NULL,
+	.debug_if_p2p = NULL,
+	.debug_if_mipi = NULL,
+	.debug_if_edp = NULL,
+	.debug_if = NULL,
+};
+
 int lcd_debug_probe(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_debug_info_s *lcd_debug_info;
@@ -6631,6 +6648,9 @@ int lcd_debug_probe(struct aml_lcd_drv_s *pdrv)
 			lcd_debug_info = &lcd_debug_info_g12a_clk_path1;
 		else
 			lcd_debug_info = &lcd_debug_info_g12a_clk_path0;
+		break;
+	case LCD_CHIP_A4:
+		lcd_debug_info = &lcd_debug_info_a4;
 		break;
 	default:
 		lcd_debug_info = NULL;

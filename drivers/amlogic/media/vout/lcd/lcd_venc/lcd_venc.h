@@ -26,5 +26,6 @@ struct lcd_venc_op_s {
 
 int lcd_venc_op_init_dft(struct aml_lcd_drv_s *pdrv, struct lcd_venc_op_s *venc_op);
 int lcd_venc_op_init_t7(struct aml_lcd_drv_s *pdrv, struct lcd_venc_op_s *venc_op);
+int lcd_venc_op_init_a4(struct aml_lcd_drv_s *pdrv, struct lcd_venc_op_s *venc_op);
 
 #endif

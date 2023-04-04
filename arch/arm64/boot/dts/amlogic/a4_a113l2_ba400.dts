@@ -7,6 +7,7 @@
 
 #include "meson-a4.dtsi"
 #include <dt-bindings/input/input.h>
+#include "mesona4_ba400-panel.dtsi"
 
 / {
 	model = "Amlogic";

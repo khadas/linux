@@ -1850,6 +1850,14 @@
 		};
 	};
 
+	vclk_serve: vclk_serve {
+		compatible = "amlogic, vclk_serve";
+		status = "okay";
+		mode = <1>;
+		reg = <0x0 0xfe008000 0x0 0x100>,     /* analog */
+			  <0x0 0xfe000000 0x0 0x400>;    /*  clk  */
+	};
+
 	chosen {
 		kaslr-seed = <0x0 0x0>;
 	};
@@ -1867,6 +1875,33 @@
 };
 
 &periphs_pinctrl {
+	lcd_rgb_sync_on_pin:lcd_rgb_sync_on_pin {
+		mux {
+			groups = "lcd_d0", "lcd_d1", "lcd_d2", "lcd_d3", "lcd_d4",
+				"lcd_d5", "lcd_d6", "lcd_d7", "lcd_d8", "lcd_d9",
+				"lcd_d10", "lcd_d11", "lcd_d12", "lcd_d13",
+				"lcd_d14", "lcd_d15", "lcd_d16", "lcd_d17",
+				"lcd_clk", "lcd_den", "lcd_hsync", "lcd_vsync";
+			function = "lcd";
+			bias-pull-down;
+			drive-strength-microamp = <3000>;
+		};
+	};
+
+	rgb_off_pin:rgb_off_pin {
+		mux {
+			groups = "GPIOT_0", "GPIOT_1", "GPIOT_2","GPIOT_3","GPIOT_4",
+					"GPIOT_5","GPIOT_6","GPIOT_7","GPIOT_8",
+					"GPIOT_9","GPIOT_10","GPIOT_11","GPIOT_12",
+					"GPIOT_13","GPIOT_14","GPIOT_15","GPIOT_16",
+					"GPIOT_17","GPIOT_18","GPIOT_19","GPIOT_20",
+					"GPIOT_21";
+			function = "gpio_periphs";
+			bias-pull-down;
+			output-low;
+		};
+	};
+
 	i2c0_pins1:i2c0_pins1 {
 		mux {
 			groups = "i2c0_sda_e0",

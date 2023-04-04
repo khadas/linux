@@ -16,6 +16,7 @@
  * ****************************************************
  */
 #define PLL_CLK_CHECK_MAX    2000000 /* Hz */
+inline unsigned long lcd_abs(long a, long b);
 int lcd_clk_msr_check(struct aml_lcd_drv_s *pdrv);
 int lcd_pll_ss_level_generate(unsigned int *data, unsigned int level, unsigned int step);
 int lcd_pll_wait_lock(unsigned int reg, unsigned int lock_bit);
@@ -62,6 +63,7 @@ void lcd_clk_config_chip_init_tm2(struct aml_lcd_drv_s *pdrv, struct lcd_clk_con
 void lcd_clk_config_chip_init_t5(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf);
 void lcd_clk_config_chip_init_t5d(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf);
 void lcd_clk_config_chip_init_t5w(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf);
+void lcd_clk_config_chip_init_a4(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf);
 
 /* ****************************************************
  * lcd clk prbs func

@@ -58,7 +58,8 @@
 /* 20230303: fix hdmi mode 47hz & 95hz timing*/
 /* 20230313: update tcon debug info print*/
 /* 20230119: optimize phy code*/
-#define LCD_DRV_VERSION    "20230319"
+/* 20230406: add a4 support*/
+#define LCD_DRV_VERSION    "20230406"
 
 extern struct mutex lcd_vout_mutex;
 

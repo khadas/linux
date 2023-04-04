@@ -56,6 +56,11 @@ int lcd_reg_t7[] = {
 	LCD_MAP_MAX,
 };
 
+int lcd_reg_a4[] = {
+	LCD_MAP_PERIPHS,
+	LCD_MAP_MAX,
+};
+
 /* for lcd reg access */
 spinlock_t lcd_reg_spinlock;
 
@@ -137,8 +142,7 @@ static int check_lcd_ioremap(struct aml_lcd_drv_s *pdrv, unsigned int n)
 	return 0;
 }
 
-static inline void __iomem *check_lcd_periphs_reg(struct aml_lcd_drv_s *pdrv,
-						  unsigned int reg)
+static inline void __iomem *check_lcd_periphs_reg(struct aml_lcd_drv_s *pdrv, unsigned int reg)
 {
 	void __iomem *p;
 	int reg_bus;
@@ -159,8 +163,7 @@ static inline void __iomem *check_lcd_periphs_reg(struct aml_lcd_drv_s *pdrv,
 	return p;
 }
 
-static inline void __iomem *check_lcd_dsi_host_reg(struct aml_lcd_drv_s *pdrv,
-						   unsigned int reg)
+static inline void __iomem *check_lcd_dsi_host_reg(struct aml_lcd_drv_s *pdrv, unsigned int reg)
 {
 	void __iomem *p;
 	int reg_bus;
@@ -180,8 +183,7 @@ static inline void __iomem *check_lcd_dsi_host_reg(struct aml_lcd_drv_s *pdrv,
 	return p;
 }
 
-static inline void __iomem *check_lcd_dsi_phy_reg(struct aml_lcd_drv_s *pdrv,
-						  unsigned int reg)
+static inline void __iomem *check_lcd_dsi_phy_reg(struct aml_lcd_drv_s *pdrv, unsigned int reg)
 {
 	void __iomem *p;
 	int reg_bus;
@@ -201,8 +203,7 @@ static inline void __iomem *check_lcd_dsi_phy_reg(struct aml_lcd_drv_s *pdrv,
 	return p;
 }
 
-static inline void __iomem *check_lcd_tcon_reg(struct aml_lcd_drv_s *pdrv,
-					       unsigned int reg)
+static inline void __iomem *check_lcd_tcon_reg(struct aml_lcd_drv_s *pdrv, unsigned int reg)
 {
 	void __iomem *p;
 	int reg_bus;
@@ -222,8 +223,7 @@ static inline void __iomem *check_lcd_tcon_reg(struct aml_lcd_drv_s *pdrv,
 	return p;
 }
 
-static inline void __iomem *check_lcd_tcon_reg_byte(struct aml_lcd_drv_s *pdrv,
-						    unsigned int reg)
+static inline void __iomem *check_lcd_tcon_reg_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg)
 {
 	void __iomem *p;
 	int reg_bus;
@@ -243,8 +243,7 @@ static inline void __iomem *check_lcd_tcon_reg_byte(struct aml_lcd_drv_s *pdrv,
 	return p;
 }
 
-static inline void __iomem *check_lcd_dptx_reg(struct aml_lcd_drv_s *pdrv,
-					       unsigned int reg)
+static inline void __iomem *check_lcd_dptx_reg(struct aml_lcd_drv_s *pdrv, unsigned int reg)
 {
 	void __iomem *p;
 	int reg_bus;
@@ -265,8 +264,7 @@ static inline void __iomem *check_lcd_dptx_reg(struct aml_lcd_drv_s *pdrv,
 	return p;
 }
 
-static inline void __iomem *check_lcd_combo_dphy_reg(struct aml_lcd_drv_s *pdrv,
-						     unsigned int reg)
+static inline void __iomem *check_lcd_combo_dphy_reg(struct aml_lcd_drv_s *pdrv, unsigned int reg)
 {
 	void __iomem *p;
 	int reg_bus;
@@ -287,8 +285,7 @@ static inline void __iomem *check_lcd_combo_dphy_reg(struct aml_lcd_drv_s *pdrv,
 	return p;
 }
 
-static inline void __iomem *check_lcd_reset_reg(struct aml_lcd_drv_s *pdrv,
-					      unsigned int reg)
+static inline void __iomem *check_lcd_reset_reg(struct aml_lcd_drv_s *pdrv, unsigned int reg)
 {
 	void __iomem *p;
 	int reg_bus;
