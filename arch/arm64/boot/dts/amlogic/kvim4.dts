@@ -496,6 +496,7 @@
 		clock-names = "mclk_0","mclk_1","mclk_0_pre","mclk_1_pre","mclk_p","mclk_x";
 		ir_cut_gpio = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
 		reset = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
+		pwdn = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
 	};
 
 	iq: iq {
