@@ -44,7 +44,7 @@ config UBIFS_FS_ZLIB
 config UBIFS_FS_ZSTD
 	bool "ZSTD compression support" if UBIFS_FS_ADVANCED_COMPR
 	depends on UBIFS_FS
-	default y
+	default y if !AMLOGIC_LINUX_S_OPTIMIZE
 	help
 	  ZSTD compresses is a big win in speed over Zlib and
 	  in compression ratio over LZO. Say 'Y' if unsure.
