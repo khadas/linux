@@ -17,6 +17,7 @@ obj-$(CONFIG_AMLOGIC_PCIE)		+= pci/
 obj-$(CONFIG_AMLOGIC_THERMAL)		+= thermal/
 obj-$(CONFIG_AMLOGIC_CLK_DEBUG)		+= clk_debug/
 obj-$(CONFIG_AMLOGIC_INPUT)		+= input/
+obj-$(CONFIG_AML_TEE)			+= aml_tee/
 obj-$(CONFIG_AMLOGIC_TEE)		+= tee/
 obj-$(CONFIG_AMLOGIC_JTAG_MESON)	+= jtag/
 obj-$(CONFIG_AMLOGIC_GX_REBOOT)		+= reboot/

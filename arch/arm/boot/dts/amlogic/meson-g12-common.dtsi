@@ -81,6 +81,11 @@
 		clear_range = <0x05100000 0x200000>;
 	};
 
+	optee {
+		compatible = "linaro,optee-tz";
+		method = "smc";
+	};
+
 	soc: soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;

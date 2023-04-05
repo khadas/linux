@@ -52,6 +52,11 @@
 		inout_size_func = <0x8200002a>;
 	};
 
+	optee {
+		compatible = "linaro,optee-tz";
+		method = "smc";
+	};
+
 	meson_uvm {
 		compatible = "amlogic, meson_uvm";
 		status = "okay";

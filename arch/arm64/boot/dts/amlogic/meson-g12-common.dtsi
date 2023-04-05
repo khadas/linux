@@ -82,6 +82,11 @@
 		clear_range = <0x05100000 0x1e00000>;
 	};
 
+	optee {
+		compatible = "linaro,optee-tz";
+		method = "smc";
+	};
+
 	cpu_info {
 		compatible = "amlogic, cpuinfo";
 		status = "okay";

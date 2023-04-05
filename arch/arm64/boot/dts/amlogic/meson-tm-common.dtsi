@@ -53,6 +53,11 @@
 		reserve_mem_size = <0x00300000>;
 	};
 
+	optee {
+		compatible = "linaro,optee-tz";
+		method = "smc";
+	};
+
 	cpu_info {
 		compatible = "amlogic, cpuinfo";
 		status = "okay";
