@@ -183,6 +183,7 @@ source "drivers/amlogic/iio/Kconfig"
 source "drivers/amlogic/asr/Kconfig"
 source "drivers/amlogic/mkl/Kconfig"
 source "drivers/amlogic/freertos/Kconfig"
+source "drivers/amlogic/keytable/Kconfig"
 
 source "drivers/amlogic/aes_hwkey_gcm/Kconfig"
 source "drivers/amlogic/gpio/Kconfig"

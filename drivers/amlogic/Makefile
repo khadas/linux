@@ -71,6 +71,7 @@ obj-$(CONFIG_AES_HWKEY_GCM) += aes_hwkey_gcm/
 obj-$(CONFIG_AMLOGIC_FREERTOS)         += freertos/
 obj-$(CONFIG_AMLOGIC_MCLK_GPIO) += gpio/
 obj-$(CONFIG_AMLOGIC_MKL)		+= mkl/
+obj-$(CONFIG_AMLOGIC_KT)		+= keytable/
 
 KBUILD_CFLAGS_MODULE += $(GKI_EXT_MODULE_PREDEFINE)
 

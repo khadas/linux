@@ -1,0 +1,11 @@
+
+menu "Amlogic Keytable Support"
+
+config AMLOGIC_KT
+	tristate "amlogic Keytable driver"
+	default y
+	help
+		Keytable driver using the H/W keytable.
+		This module deposits keys into h/w KeyTable with usage flags.
+
+endmenu

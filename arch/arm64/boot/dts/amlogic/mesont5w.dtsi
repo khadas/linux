@@ -644,6 +644,15 @@
 		status = "okay";
 	};
 
+	aml_kt {
+		compatible = "amlogic,aml_kt";
+		dev_name = "aml_kt_dev";
+		reg = <0x0 0xfe440500 0x0 0xa0>;
+		kt_offset = <0x80 0x88 0x8c 0x90 0x94 0x98 0x9c>;
+		kt_cap = <0x407 0x600 0 16>;
+		status = "okay";
+	};
+
 	defendkey: defendkey {
 		compatible = "amlogic, defendkey";
 		reg=<0x0 0xff800228 0x0 0x4>;
