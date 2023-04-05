@@ -414,7 +414,7 @@
 
 	gpio_keypad {
 		compatible = "amlogic, gpio_keypad";
-		status = "okay";
+		status = "disabled";
 		scan_period = <20>;
 		key_num = <1>;
 		key_name = "mute";
@@ -465,7 +465,7 @@
 
 &audiobus {
 	tdma: tdm@0 {
-		compatible = "amlogic, a5-snd-tdma";
+		compatible = "amlogic, a4-snd-tdma";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
 		dai-tdm-lane-slot-mask-out = <1 1>;
@@ -485,6 +485,8 @@
 			&tdmin_a_clk_pins
 			>;
 		pinctrl-1 = <&tdmin_a_gpio>;
+		/* pcpd_monitor */
+		/* pcpd_monitor_src = <&pcpd_monitor_a>; */
 		tdm5v-supply = <&vcc5v_reg>;
 		tdm3v3-supply = <&vddio3v3_reg>;
 		/* enable control gain */
@@ -494,7 +496,7 @@
 	};
 
 	tdmb: tdm@1 {
-		compatible = "amlogic, a5-snd-tdmb";
+		compatible = "amlogic, a4-snd-tdmb";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
 		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
@@ -512,6 +514,8 @@
 			&tdmb_clk_pins>;
 		pinctrl-1 = <&tdmout_b_gpio>;
 		start_clk_enable = <1>;
+		/* pcpd_monitor */
+		/* pcpd_monitor_src = <&pcpd_monitor_b>; */
 		/* enable control gain */
 		ctrl_gain = <1>;
 		src-clk-freq = <491520000>;
@@ -521,7 +525,7 @@
 	};
 
 	tdmc:tdm@2 {
-		compatible = "amlogic, a5-snd-tdmc";
+		compatible = "amlogic, a4-snd-tdmc";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <1 0>;
 		// dai-tdm-lane-slot-mask-out = <0 1>;
@@ -626,7 +630,7 @@
 		compatible = "amlogic, t5-resample-b";
 		clocks = <&clkc CLKID_HIFI_PLL
 				&clkaudio CLKID_AUDIO_MCLK_F
-				&clkaudio CLKID_AUDIO_RESAMPLE_A>;
+				&clkaudio CLKID_AUDIO_RESAMPLE_B>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
 		src-clk-freq = <491520000>;
 		/*this resample is only used for loopback_A.*/
@@ -672,7 +676,7 @@
 	};
 
 	loopbacka:loopback@0 {
-		compatible = "amlogic, a5-loopbacka";
+		compatible = "amlogic, a4-loopbacka";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO2_GATE_PDM
@@ -701,7 +705,7 @@
 		datain_chnum = <4>;
 		datain_chmask = <0xf>;
 		/* config which data pin for loopback */
-		datain-lane-mask-in = <1 0 1 0>;
+		datain-lane-mask-in = <1 1 0 0>;
 
 		/* calc mclk for datalb */
 		mclk-fs = <256>;

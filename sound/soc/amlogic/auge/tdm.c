@@ -839,18 +839,6 @@ static const struct snd_kcontrol_new snd_tdm_clk_controls[] = {
 				tdm_clk_ppm_set),
 };
 
-static const struct snd_kcontrol_new snd_tdm_a_controls[] = {
-	/*TDMOUT_A gain, enable data * gain*/
-	SOC_SINGLE_EXT("TDMOUT_A GAIN",
-		       0, 0, 255, 0,
-		       tdmout_gain_get,
-		       tdmout_gain_set),
-	SOC_SINGLE_BOOL_EXT("TDMOUT_A Mute",
-			    0,
-			    tdmout_get_mute_enum,
-			    tdmout_set_mute_enum),
-};
-
 static const char * const tdmin_source_text[] = {
 	"tdmin_a", "tdmin_b", "tdmin_c", "NULL", "NULL",
 	"NULL", "hdmirx", "acodec_adc",	"NULL",	"NULL",
@@ -938,6 +926,26 @@ static int tdm_port_pcpd_detect_set(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
+
+static const struct snd_kcontrol_new snd_tdm_a_controls[] = {
+	/*TDMOUT_A gain, enable data * gain*/
+	SOC_SINGLE_EXT("TDMOUT_A GAIN",
+		       0, 0, 255, 0,
+		       tdmout_gain_get,
+		       tdmout_gain_set),
+	SOC_SINGLE_BOOL_EXT("TDMOUT_A Mute",
+			    0,
+			    tdmout_get_mute_enum,
+			    tdmout_set_mute_enum),
+	SOC_ENUM_EXT("TDMIN_A source select",
+				tdmin_source_enum,
+				tdmin_src_enum_get,
+				tdmin_src_enum_put),
+	SOC_SINGLE_EXT("TDMA_Port PC_PD Detect enable",
+		       0, 0, 1, 0,
+		       tdm_port_pcpd_detect_get,
+		       tdm_port_pcpd_detect_set),
+};
 
 static const struct snd_kcontrol_new snd_tdm_b_controls[] = {
 	/*TDMOUT_B gain, enable data * gain*/

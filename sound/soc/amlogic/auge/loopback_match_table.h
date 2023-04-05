@@ -221,6 +221,15 @@ static struct loopback_chipinfo a5_loopbacka_chipinfo = {
 	.use_resamplea = true,
 };
 
+static struct loopback_chipinfo a4_loopbacka_chipinfo = {
+	.id = LOOPBACKA,
+	.ch_ctrl = true,
+	.chnum_en = false,
+	.srcs = &lb_srcs_v3[0],
+	.tdmin_lb_srcs = &tdmin_lb_srcs_v2[0],
+	.multi_bits_lbsrcs = true,
+};
+
 static const struct of_device_id loopback_device_id[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -283,6 +292,10 @@ static const struct of_device_id loopback_device_id[] = {
 	{
 		.compatible = "amlogic, a5-loopbacka",
 		.data = &a5_loopbacka_chipinfo,
+	},
+	{
+		.compatible = "amlogic, a4-loopbacka",
+		.data = &a4_loopbacka_chipinfo,
 	},
 	{
 		.compatible = "amlogic, axg-loopback",

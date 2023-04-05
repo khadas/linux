@@ -10,7 +10,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/power/s4-pd.h>
 #include <dt-bindings/power/a4-pd.h>
-#include <dt-bindings/clock/amlogic,a5-audio-clk.h>
+#include <dt-bindings/clock/amlogic,a4-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-a4-gpio.h>
 #include <dt-bindings/reset/amlogic,meson-a4-reset.h>
@@ -1222,15 +1222,15 @@
 			reg = <0x0 0xFE01A000 0x0 0x2000>;
 			tdmout_index = <1>;
 			tdmin_index = <1>;
-			dat0_ch_sel = <2>;
-			lane_offset = <8>;
+			dat0_ch_sel = <0>;
+
 			reset-names = "acodec";
 			resets = <&reset RESET_ACODEC>;
 			status = "okay";
 		};
 
 		clkaudio: audio_clocks {
-			compatible = "amlogic, a5-audio-clocks";
+			compatible = "amlogic, a4-audio-clocks";
 			#clock-cells = <1>;
 			reg = <0x0 0xFE330000 0x0 0xb0>, <0x0 0xFE334C00 0x0 0x20>;
 			reg-names = "audio_bus", "audio_vad_top";
@@ -1266,7 +1266,20 @@
 					"frddr_a", "frddr_b", "frddr_c",
 					"frddr_acc_a", "frddr_acc_b";
 			};
-
+			pcpd_monitor_a: pcpd_monitor@0 {
+				compatible = "amlogic, pcpda_monitor";
+				interrupts = <GIC_SPI 40
+					IRQ_TYPE_EDGE_RISING>;
+				interrupt-names = "irq_pcpd";
+				status = "disabled";
+			};
+			pcpd_monitor_b: pcpd_monitor@1 {
+				compatible = "amlogic, pcpdb_monitor";
+				interrupts = <GIC_SPI 42
+					IRQ_TYPE_EDGE_RISING>;
+				interrupt-names = "irq_pcpd";
+				status = "disabled";
+			};
 			pinctrl_audio: pinctrl {
 				compatible = "amlogic, audio-pinctrl";
 			};
