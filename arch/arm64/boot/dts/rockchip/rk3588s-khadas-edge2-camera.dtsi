@@ -383,7 +383,7 @@
 
 	port {
 		mipi_lvds_sditf: endpoint {
-			remote-endpoint = <&isp1_in1>;
+			remote-endpoint = <&isp0_vir0>;
 		};
 	};
 };
@@ -403,7 +403,7 @@
 
 	port {
 		mipi1_lvds_sditf: endpoint {
-			remote-endpoint = <&isp1_in2>;
+			remote-endpoint = <&isp0_vir1>;
 		};
 	};
 };
@@ -423,7 +423,7 @@
 
 	port {
 		mipi_lvds2_sditf: endpoint {
-			remote-endpoint = <&isp0_vir0>;
+			remote-endpoint = <&isp1_vir0>;
 		};
 	};
 };
@@ -432,36 +432,60 @@
 	status = "okay";
 };
 
-&rkisp_unite {
+&rkisp0 {
 	status = "okay";
 
 };
 
-&rkisp_unite_mmu {
+&isp0_mmu {
 	status = "okay";
 };
 
 &rkisp0_vir0 {
 	status = "okay";
-	/*
-	 * dual isp process image case
-	 * other rkisp hw and virtual nodes should disabled
-	 */
-	rockchip,hw = <&rkisp_unite>;
+
 	port {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		isp1_in1: endpoint@0 {
+		isp0_vir0: endpoint@0 {
 			reg = <0>;
 			remote-endpoint = <&mipi_lvds_sditf>;
 		};
-		isp1_in2: endpoint@1 {
-			reg = <1>;
+	};
+};
+
+&rkisp0_vir1 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp0_vir1: endpoint@0 {
+			reg = <0>;
 			remote-endpoint = <&mipi1_lvds_sditf>;
 		};
-		isp0_vir0: endpoint@2 {
-			reg = <2>;
+	};
+};
+
+&rkisp1 {
+	status = "okay";
+};
+
+&isp1_mmu {
+	status = "okay";
+};
+
+&rkisp1_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp1_vir0: endpoint@0 {
+			reg = <0>;
 			remote-endpoint = <&mipi_lvds2_sditf>;
 		};
 	};
