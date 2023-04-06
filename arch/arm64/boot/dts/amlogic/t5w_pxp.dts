@@ -9,9 +9,8 @@
 #include "mesont5w_pxp-panel.dtsi"
 
 / {
-	model = "Amlogic T5W PXP";
 	amlogic-dt-id = "t5w_pxp";
-	compatible = "amlogic, t5w";
+	compatible = "t5w_pxp";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;

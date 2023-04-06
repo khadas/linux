@@ -9,9 +9,8 @@
 #include "mesont3_pxp-panel.dtsi"
 
 / {
-	model = "Amlogic";
 	amlogic-dt-id = "t3_pxp";
-	compatible = "amlogic, t3";
+	compatible = "t3_pxp";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;

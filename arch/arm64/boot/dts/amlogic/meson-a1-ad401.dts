@@ -9,7 +9,6 @@
 
 / {
 	compatible = "amlogic,ad401", "amlogic,a1";
-	model = "Amlogic Meson A1 AD401 Development Board";
 
 	aliases {
 		serial0 = &uart_AO_B;

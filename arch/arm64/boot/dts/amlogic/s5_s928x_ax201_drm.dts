@@ -12,9 +12,8 @@
 //#include "mesont7_pxp-panel.dtsi"
 
 / {
-	model = "Amlogic";
 	amlogic-dt-id = "s5_s928x_ax201";
-	compatible = "amlogic, s5";
+	compatible = "s5_s928x_ax201";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;

@@ -10,9 +10,8 @@
 #include "mesont5w_at301-panel.dtsi"
 
 / {
-	model = "Amlogic T5W AT301 2G";
 	amlogic-dt-id = "t5w_at301_2g";
-	compatible = "amlogic, t5w";
+	compatible = "t5w_at301_2g";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
 	#size-cells = <1>;

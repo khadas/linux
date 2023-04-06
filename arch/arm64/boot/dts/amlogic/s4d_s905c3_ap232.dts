@@ -10,9 +10,8 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "Amlogic";
 	amlogic-dt-id = "s4d_s905c3_ap232";
-	compatible = "amlogic, s4d";
+	compatible = "s4d_s905c3_ap232";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;

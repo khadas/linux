@@ -13,9 +13,8 @@
 #include "mesonsm1_skt-panel.dtsi"
 
 / {
-	compatible = "amlogic,sm1";
-	model = "AML AC200";
 	amlogic-dt-id = "sm1_s905d3_ac200";
+	compatible = "sm1_s905d3_ac200";
 
 	aliases {
 		serial0 = &uart_AO;

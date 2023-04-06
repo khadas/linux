@@ -7,9 +7,8 @@
 
 #include "mesonaxg.dtsi"
 / {
-	model = "Amlogic";
 	amlogic-dt-id = "axg_s400_1g";
-	compatible = "amlogic, axg";
+	compatible = "axg_s400_1g";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;

@@ -11,8 +11,8 @@
 #include "mesont5_drm.dtsi"
 
 / {
-	model = "Amlogic T5D T950X4 AM311 512M";
 	amlogic-dt-id = "t5d_t950x4_am311-512m";
+	compatible = "t5d_t950x4_am311-512m";
 
 	aliases {
 		serial0 = &uart_B;

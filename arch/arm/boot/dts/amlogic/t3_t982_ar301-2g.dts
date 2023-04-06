@@ -10,9 +10,8 @@
 #include "mesont3_ar301-panel.dtsi"
 
 / {
-	model = "Amlogic";
 	amlogic-dt-id = "t3_t982_ar301-2g";
-	compatible = "amlogic, t3";
+	compatible = "t3_t982_ar301-2g";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
 	#size-cells = <1>;

@@ -10,9 +10,8 @@
 #include "partition_normal_linux.dtsi"
 
 / {
-	compatible = "amlogic,tm2";
-	model = "AML AB311";
 	amlogic-dt-id = "tm2_t962e2_ab311_linux";
+	compatible = "tm2_t962e2_ab311_linux";
 
 	aliases {
 		serial0 = &uart_AO;

@@ -11,9 +11,8 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "Amlogic";
 	amlogic-dt-id = "s4d_s805c3_aq2432_512m";
-	compatible = "amlogic, s4d";
+	compatible = "s4d_s805c3_aq2432_512m";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
 	#size-cells = <1>;

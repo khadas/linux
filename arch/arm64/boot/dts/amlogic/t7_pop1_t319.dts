@@ -11,9 +11,8 @@
 #include "mesont7_t319-panel.dtsi"
 
 / {
-	model = "Amlogic";
 	amlogic-dt-id = "t7_pop1_t319";
-	compatible = "amlogic, t7";
+	compatible = "t7_pop1_t319";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;

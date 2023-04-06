@@ -12,9 +12,8 @@
 #include "mesont7_an400-panel.dtsi"
 
 / {
-	model = "Amlogic";
 	amlogic-dt-id = "t7c_a311d2_an400-4g";
-	compatible = "amlogic, t7c";
+	compatible = "t7c_a311d2_an400-4g";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;

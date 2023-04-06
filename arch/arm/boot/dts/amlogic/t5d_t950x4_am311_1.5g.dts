@@ -10,8 +10,8 @@
 #include "mesont5d_am311-panel.dtsi"
 
 / {
-	model = "Amlogic T5D T950X4 AM311 1.5G";
 	amlogic-dt-id = "t5d_t950x4_am311-1.5g";
+	compatible = "t5d_t950x4_am311-1.5g";
 
 	aliases {
 		serial0 = &uart_B;

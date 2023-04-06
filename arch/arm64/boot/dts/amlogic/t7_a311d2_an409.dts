@@ -11,9 +11,8 @@
 #include "mesont7_pxp-panel.dtsi"
 
 / {
-	model = "Amlogic";
 	amlogic-dt-id = "t7_a311d2_an409";
-	compatible = "amlogic, t7";
+	compatible = "t7_a311d2_an409";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;

@@ -9,9 +9,8 @@
 #include "partition_mbox_ab.dtsi"
 
 / {
-	compatible = "amlogic,tm2";
-	model = "AML AB311";
 	amlogic-dt-id = "tm2_t962e2_ab311";
+	compatible = "tm2_t962e2_ab311";
 
 	aliases {
 		serial0 = &uart_AO;
