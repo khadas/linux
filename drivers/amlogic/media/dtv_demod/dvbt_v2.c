@@ -14,6 +14,14 @@
 #include <linux/mutex.h>
 #include "dvbt_func.h"
 
+MODULE_PARM_DESC(dvbt2_agc_target1, "\n\t\t dvbt2_agc_target1");
+static unsigned char dvbt2_agc_target1 = 0x60;
+module_param(dvbt2_agc_target1, byte, 0644);
+
+MODULE_PARM_DESC(dvbt2_agc_target2, "\n\t\t dvbt2_agc_target2");
+static unsigned char dvbt2_agc_target2 = 0x11;
+module_param(dvbt2_agc_target2, byte, 0644);
+
 void dvbt_write_regb(unsigned long addr, int index, unsigned long data)
 {
 	/*to achieve write func*/
@@ -834,8 +842,8 @@ void dvbt2_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	if (tuner_find_by_name(fe, "r842")) {
 		PR_INFO("set r842 dvbt2 config\n");
 		dvbt_t2_wrb(0x821, 0x70);
-		dvbt_t2_wrb(0x824, 0xa0);
-		dvbt_t2_wrb(0x825, 0x11);
+		dvbt_t2_wrb(0x824, dvbt2_agc_target1);
+		dvbt_t2_wrb(0x825, dvbt2_agc_target2);
 		dvbt_t2_wrb(0x827, 0x50);
 	} else {
 		PR_INFO("set default dvbt2 config\n");
