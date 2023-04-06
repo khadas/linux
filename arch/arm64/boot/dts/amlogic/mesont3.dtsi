@@ -388,10 +388,10 @@
 		compatible = "amlogic, hifi4dsp";
 		memory-region = <&dsp_fw_reserved>;
 		reg = <0 0xfe340018 0 0x114>,   /*dspa base address*/
-			  <0 0xfe350018 0 0x114>,   /*dspb base address*/
-			  <0 0xfe010258 0 0x4>,     /*dspa status counter*/
-			  <0 0xfe01025c 0 0x4>,     /*dspb status counter*/
-			  <0 0x30000000 0 0x80000>; /*dsp shm region*/
+		      <0 0xfe350018 0 0x114>,   /*dspb base address*/
+		      <0 0xfe010258 0 0x4>,     /*dspa status counter*/
+		      <0 0xfe01025c 0 0x4>,     /*dspb status counter*/
+		      <0 0x30780000 0 0x80000>; /*dsp shm region*/
 		dsp-monitor-period-ms = <1000>;
 		logbuff-polling-period-ms = <50>;
 		reg-names = "dspa_top_reg", "dspb_top_reg";
@@ -399,8 +399,8 @@
 		clock-names = "dspa_clk";
 		dsp-start-mode = <1>; /*0:scpi start mode,1:smc start mode*/
 		dsp-cnt = <1>;
-		dspaoffset = <0xa0000>;
-		dspboffset = <0x8a0000>;
+		dspaoffset = <0x0>;
+		dspboffset = <0x800000>;
 		bootlocation = <1>;   /*1: boot from DDR, 2: from sram, 3...*/
 		boot_sram_addr = <0xfff00000>;
 		boot_sram_size = <0x80000>;
