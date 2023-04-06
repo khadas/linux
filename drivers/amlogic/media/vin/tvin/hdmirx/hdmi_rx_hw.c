@@ -1529,16 +1529,30 @@ unsigned int hdmirx_audio_fifo_rst(void)
 {
 	int error = 0;
 
-	if (rx.chip_id >= CHIP_ID_T7)
-		return 0;
-
-	hdmirx_wr_bits_dwc(DWC_AUD_FIFO_CTRL, AFIF_INIT, 1);
-	udelay(20);
-	hdmirx_wr_bits_dwc(DWC_AUD_FIFO_CTRL, AFIF_INIT, 0);
-	hdmirx_wr_dwc(DWC_DMI_SW_RST, 0x10);
+	if (rx.chip_id >= CHIP_ID_T7) {
+		hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(1), 1);
+		udelay(1);
+		hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(1), 0);
+	} else {
+		hdmirx_wr_bits_dwc(DWC_AUD_FIFO_CTRL, AFIF_INIT, 1);
+		udelay(1);
+		hdmirx_wr_bits_dwc(DWC_AUD_FIFO_CTRL, AFIF_INIT, 0);
+		hdmirx_wr_dwc(DWC_DMI_SW_RST, 0x10);
+	}
 	if (log_level & AUDIO_LOG)
 		rx_pr("%s\n", __func__);
 	return error;
+}
+
+void hdmirx_audio_disabled(void)
+{
+	if (rx.chip_id >= CHIP_ID_T7)
+		hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(1), 1);
+	else
+		hdmirx_wr_bits_dwc(DWC_AUD_FIFO_CTRL, AFIF_INIT, 1);
+
+	if (log_level & AUDIO_LOG)
+		rx_pr("%s\n", __func__);
 }
 
 /*
@@ -3173,12 +3187,12 @@ void rx_afifo_monitor(void)
 	hdmirx_wr_cor(RX_INTR4_PWD_IVCRX, 3);
 	if (rx.afifo_sts & 2) {
 		afifo_overflow_cnt++;
-		rx_aud_fifo_rst();
+		hdmirx_audio_fifo_rst();
 		if (log_level & AUDIO_LOG)
 			rx_pr("overflow\n");
 	} else if (rx.afifo_sts & 1) {
 		afifo_underflow_cnt++;
-		rx_aud_fifo_rst();
+		hdmirx_audio_fifo_rst();
 		if (log_level & AUDIO_LOG)
 			rx_pr("underflow\n");
 	} else {
@@ -3862,23 +3876,6 @@ bool is_aud_pll_error(void)
 	if ((ret) && (log_level & AUDIO_LOG))
 		rx_pr("clk:%d,128fs:%d,512fs:%d,\n", clk, aud_128fs, aud_512fs);
 	return ret;
-}
-
-void rx_aud_fifo_rst(void)
-{
-	//u8 tmp;
-
-	hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(1), 1);
-	udelay(1);
-	hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(1), 0);
-	//tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
-	//tmp &= ~(1 << 8);// [	8] clk_en for cts_hdmirx_aud_pll_clk
-	//wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
-	//udelay(2);
-	//tmp |= (1 << 8);// [	8] clk_en for cts_hdmirx_aud_pll_clk
-	//wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
-	//if (log_level & AUDIO_LOG)
-		//rx_pr("aud pll rst\n");
 }
 
 /*

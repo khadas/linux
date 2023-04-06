@@ -2143,6 +2143,7 @@ void fsm_restart(void)
 	hdmi_rx_top_edid_update();
 	hdmirx_hw_config();
 	set_scdc_cfg(1, 0);
+	hdmirx_audio_disabled();
 	vic_check_en = false;
 	dvi_check_en = true;
 	rx.fsm_ext_state = FSM_INIT;
@@ -2788,6 +2789,7 @@ void hdmirx_close_port(void)
 	if (disable_port_en)
 		rx_set_port_hpd(disable_port_num, 0);
 	hdmirx_top_irq_en(0, 0);
+	hdmirx_audio_disabled();
 	if (hdmirx_repeat_support())
 		hdmitx_reauth_request(UPSTREAM_INACTIVE);
 	/* extcon_set_state_sync(rx.rx_excton_open, EXTCON_DISP_HDMI, 0); */
@@ -3346,6 +3348,7 @@ void rx_main_state_machine(void)
 			rx.var.de_stable = false;
 			sig_unready_cnt = 0;
 			audio_sample_rate = 0;
+			hdmirx_audio_disabled();
 			rx_aud_pll_ctl(0);
 			rx.hdcp.hdcp_pre_ver = rx.hdcp.hdcp_version;
 			/* need to clr to none, for dishNXT box */
@@ -3376,6 +3379,7 @@ void rx_main_state_machine(void)
 				rx.var.de_stable = false;
 				sig_unready_cnt = 0;
 				audio_sample_rate = 0;
+				hdmirx_audio_disabled();
 				rx_aud_pll_ctl(0);
 				rx.hdcp.hdcp_pre_ver = rx.hdcp.hdcp_version;
 				/* need to clr to none, for dishNXT box */
