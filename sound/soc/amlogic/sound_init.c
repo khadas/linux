@@ -42,6 +42,7 @@ static int __init sound_soc_init(void)
 	call_sub_init(pcpd_monitor_init);
 	call_sub_init(earc_init);
 	call_sub_init(effect_platform_init);
+	call_sub_init(acc_platform_init);
 	call_sub_init(extn_init);
 	call_sub_init(audio_locker_init);
 	call_sub_init(pdm_init);
@@ -75,7 +76,8 @@ static __exit void sound_soc_exit(void)
 	call_sub_exit(audio_locker_exit);
 	call_sub_exit(extn_exit);
 	call_sub_exit(effect_platform_exit);
-	 call_sub_exit(earc_exit);
+	call_sub_exit(acc_platform_exit);
+	call_sub_exit(earc_exit);
 	call_sub_exit(audio_ddr_exit);
 	call_sub_exit(pcpd_monitor_exit);
 	call_sub_exit(audio_controller_exit);

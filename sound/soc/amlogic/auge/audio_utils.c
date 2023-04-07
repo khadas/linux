@@ -14,6 +14,7 @@
 #include "ddr_mngr.h"
 #include "card.h"
 #include "tdm_hw.h"
+#include "acc.h"
 
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/sound/auge_utils.h>
@@ -545,6 +546,10 @@ int snd_card_add_kcontrols(struct snd_soc_card *card)
 		pr_err("Failed to add AED v2 controls\n");
 		return ret;
 	}
+
+	ret = card_add_acc_kcontrols(card);
+	if (ret < 0)
+		pr_warn_once("Failed to add acc controls\n");
 
 	ret = card_add_vad_kcontrols(card);
 	if (ret < 0)

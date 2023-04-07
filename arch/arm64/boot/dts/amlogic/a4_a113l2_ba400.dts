@@ -603,6 +603,24 @@
 		status = "okay";
 	};
 
+	acc:effect_acc {
+		compatible = "amlogic, snd-effect-acc";
+		#sound-dai-cells = <0>;
+		clocks = <&clkc CLKID_AUDIO_CORE>;
+		clock-names = "acc_core";
+
+		/*
+		 * 0:to_ddr
+		 * 1:Null
+		 * 2:to_tdmout_a
+		 * 3:to_tdmout_b
+		 * 4:to_spdifout
+		 */
+		output_module = <3>;
+
+		status = "okay";
+	};
+
 	/* a5 only one resample, a/b can only use one at the same time */
 	/* spdif use this resample */
 	asrca: resample@0 {

@@ -87,18 +87,20 @@ static int register_audio_controller(struct platform_device *pdev,
 
 	/* init aml audio bus mmio controller */
 	actrl->audioio_regmap = audioio_regmap;
-	if (!IS_ERR(acc_regmap)) {
+	if (!IS_ERR(acc_regmap))
 		actrl->acc_regmap = acc_regmap;
-		mmio_write(acc_regmap, AUDIO_ACC_CLK_GATE_EN, 0xff);
-	} else {
+	else
 		actrl->acc_regmap = NULL;
-	}
+
 	actrl->ops = &aml_actrl_mmio_ops;
 
 	platform_set_drvdata(pdev, actrl);
 
 	/* gate on all clks on bringup stage, need gate separately */
 	aml_audiobus_write(actrl, EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
+
+	if (!IS_ERR(acc_regmap))
+		aml_acc_write(actrl, AUDIO_ACC_CLK_GATE_EN, 0xff);
 
 	if (info && !info->clk1_gate_off)
 		aml_audiobus_update_bits(actrl, EE_AUDIO_CLK_GATE_EN1, 0xffffffff, 0xffffffff);
