@@ -9747,27 +9747,10 @@ void aisr_reshape_output_s5(u32 enable)
 		}
 }
 
-void aisr_demo_enable_s5(void)
-{
-	struct vd_proc_sr_reg_s *vd_sr_reg = NULL;
-
-	if (!cur_dev->aisr_support)
-		return;
-	vd_sr_reg = &vd_proc_reg.vd_proc_sr_reg;
-
-	/* reshape and aisr demo is mutex */
-	WRITE_VCBUS_REG_BITS
-		(vd_sr_reg->srsharp1_demo_mode_window_ctrl0,
-		cur_dev->aisr_demo_en, 29, 1);
-	WRITE_VCBUS_REG_BITS
-		(vd_sr_reg->srsharp1_demo_mode_window_ctrl0,
-		1, 12, 4);
-}
-
 void aisr_demo_axis_set_s5(void)
 {
 	u8 vpp_index = VPP0;
-	static bool en_flag;
+	static bool en_flag = FALSE;
 	static u32 original_reg_value1;
 	static u32 original_reg_value2;
 	struct vd_proc_sr_reg_s *vd_sr_reg = NULL;
@@ -9777,11 +9760,19 @@ void aisr_demo_axis_set_s5(void)
 	vd_sr_reg = &vd_proc_reg.vd_proc_sr_reg;
 
 	if (cur_dev->aisr_demo_en) {
-		original_reg_value1 =
-			READ_VCBUS_REG(vd_sr_reg->srsharp1_demo_mode_window_ctrl0);
-		original_reg_value2 =
-			READ_VCBUS_REG(vd_sr_reg->srsharp1_demo_mode_window_ctrl1);
-		en_flag = TRUE;
+		if (!en_flag) {
+			original_reg_value1 =
+				READ_VCBUS_REG(vd_sr_reg->srsharp1_demo_mode_window_ctrl0);
+			original_reg_value2 =
+				READ_VCBUS_REG(vd_sr_reg->srsharp1_demo_mode_window_ctrl1);
+			en_flag = TRUE;
+		}
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(vd_sr_reg->srsharp1_demo_mode_window_ctrl0,
+			cur_dev->aisr_demo_en, 29, 1);
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(vd_sr_reg->srsharp1_demo_mode_window_ctrl0,
+			1, 12, 4);
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(vd_sr_reg->srsharp1_demo_mode_window_ctrl0,
 			cur_dev->aisr_demo_xstart, 16, 12);
@@ -9802,6 +9793,7 @@ void aisr_demo_axis_set_s5(void)
 			cur_dev->rdma_func[vpp_index].rdma_wr
 				(vd_sr_reg->srsharp1_demo_mode_window_ctrl1,
 				original_reg_value2);
+			en_flag = FALSE;
 		}
 	}
 }

@@ -11905,24 +11905,26 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 void aisr_demo_axis_set(void)
 {
 	u8 vpp_index = VPP0;
-	static bool en_flag;
+	static bool en_flag = FALSE;
 	static u32 original_reg_value1;
 	static u32 original_reg_value2;
 
 	if (cur_dev->aisr_demo_en) {
-		original_reg_value1 = READ_VCBUS_REG(DEMO_MODE_WINDO_CTRL0);
-		original_reg_value2 = READ_VCBUS_REG(DEMO_MODE_WINDO_CTRL1);
-		en_flag = TRUE;
+		if (!cur_dev->aisr_support)
+			return;
+		if (cur_dev->display_module == S5_DISPLAY_MODULE)
+			return aisr_demo_axis_set_s5();
+		if (!en_flag) {
+			original_reg_value1 = READ_VCBUS_REG(DEMO_MODE_WINDO_CTRL0);
+			original_reg_value2 = READ_VCBUS_REG(DEMO_MODE_WINDO_CTRL1);
+			en_flag = TRUE;
+		}
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(DEMO_MODE_WINDO_CTRL0,
 			cur_dev->aisr_demo_en, 29, 1);
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(DEMO_MODE_WINDO_CTRL0,
 			1, 12, 4);
-		if (cur_dev->display_module == S5_DISPLAY_MODULE)
-			return aisr_demo_axis_set_s5();
-		if (!cur_dev->aisr_support)
-			return;
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(DEMO_MODE_WINDO_CTRL0,
 			cur_dev->aisr_demo_xstart, 16, 12);
@@ -11936,15 +11938,16 @@ void aisr_demo_axis_set(void)
 			(DEMO_MODE_WINDO_CTRL1,
 			cur_dev->aisr_demo_yend, 0, 12);
 	} else {
-		if (cur_dev->display_module == S5_DISPLAY_MODULE)
-			return aisr_demo_axis_set_s5();
 		if (!cur_dev->aisr_support)
 			return;
+		if (cur_dev->display_module == S5_DISPLAY_MODULE)
+			return aisr_demo_axis_set_s5();
 		if (en_flag) {
 			cur_dev->rdma_func[vpp_index].rdma_wr
 				(DEMO_MODE_WINDO_CTRL0, original_reg_value1);
 			cur_dev->rdma_func[vpp_index].rdma_wr
 				(DEMO_MODE_WINDO_CTRL1, original_reg_value2);
+			en_flag = FALSE;
 		}
 	}
 
