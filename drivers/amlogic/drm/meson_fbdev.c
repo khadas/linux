@@ -29,7 +29,7 @@ static int am_meson_fbdev_alloc_fb_gem(struct fb_info *info)
 	struct meson_drm_fbdev *fbdev = container_of(helper, struct meson_drm_fbdev, base);
 	struct drm_framebuffer *fb = helper->fb;
 	struct drm_device *dev = helper->dev;
-	size_t size = info->fix.smem_len;
+	size_t size = info->screen_size;
 	struct am_meson_gem_object *meson_gem;
 	void *vaddr;
 	int roundup_flag, ret = 0;
@@ -312,6 +312,8 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 	struct drm_gem_object *fb_gem = fbdev->fb_gem;
 	struct drm_fb_helper_surface_size sizes;
 	unsigned int bytes_per_pixel;
+	u32 xres_set = var->xres;
+	u32 yres_set = var->yres;
 
 	if (oops_in_progress)
 		return -EBUSY;
@@ -339,11 +341,14 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 		fb->pitches[0] =  ALIGN(fb->width * bytes_per_pixel, 64);
 
 		info->screen_size = fb->pitches[0] * fb->height;
-		info->fix.smem_len = info->screen_size;
+		//info->fix.smem_len = info->screen_size;
 
 		drm_fb_helper_fill_info(info, fb_helper, &sizes);
+		/* fix some bug in drm_fb_helper_full_info */
+		var->xres = xres_set;
+		var->yres = yres_set;
 
-		if (fb_gem && fb_gem->size < info->fix.smem_len) {
+		if (fb_gem && fb_gem->size < info->screen_size) {
 			DRM_DEBUG("GEM SIZE is not enough, no re-allocate.\n");
 			am_meson_fbdev_free_fb_gem(info);
 			fb_gem = NULL;
