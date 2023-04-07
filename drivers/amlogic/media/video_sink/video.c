@@ -452,6 +452,49 @@ static inline int DUR2PTS(int x)
 #define DUR2PTS_RM(x) ((x) & 0xf)
 #define PTS2DUR(x) (((x) << 4) / 15)
 
+/*vdin output 29.97 59.94, vinfo is 60hz, but after vlock locked, actual vout is 59.94;
+ *23.974: vlock not work, both vinfo and actual vout are 60;
+ *119.88: vinfo is 120hz, but after vlock locked, actual vout is 119.88
+ *this case, vinfo is not equal to actual vout frame rate, so duration need to be adjusted
+ */
+int vf_get_pts(struct vframe_s *vf)
+{
+	int duration = vf->duration;
+
+	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+		vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
+		vf->source_type == VFRAME_SOURCE_TYPE_TUNER) {
+		if (duration == 4004)
+			duration = 4000;
+		else if (duration == 3203)
+			duration = 3200;
+		else if (duration == 1601)
+			duration = 1600;
+		else if (duration == 801)
+			duration = 800;
+	}
+	return DUR2PTS(duration);
+}
+
+int vf_get_pts_rm(struct vframe_s *vf)
+{
+	int duration = vf->duration;
+
+	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+		vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
+		vf->source_type == VFRAME_SOURCE_TYPE_TUNER) {
+		if (duration == 4004)
+			duration = 4000;
+		else if (duration == 3203)
+			duration = 3200;
+		else if (duration == 1601)
+			duration = 1600;
+		else if (duration == 801)
+			duration = 800;
+	}
+	return DUR2PTS_RM(duration);
+}
+
 #ifdef VIDEO_PTS_CHASE
 static int vpts_chase;
 static int av_sync_flag;
@@ -3230,6 +3273,9 @@ static void process_hdmi_video_sync(struct vframe_s *vf)
 		if (last_required_total_delay > vframe_walk_delay) { /*delay video*/
 			vframe_walk_delay = (int)div_u64(((jiffies_64 -
 			vf->ready_jiffies64) * 1000), HZ);
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+			vframe_walk_delay += frc_get_video_latency();
+#endif
 			/*check hdmi max delay*/
 			if (last_required_total_delay > hdmin_delay_max_ms) {
 				if (hdmin_delay_max_ms > vframe_walk_delay)
@@ -3413,7 +3459,7 @@ static struct vframe_s *vsync_toggle_frame(struct vframe_s *vf, int line)
 					(LOG_MASK_TIMESTAMP,
 					"vpts inc: 0x%x, scr: 0x%x, abs_scr: 0x%x\n",
 					timestamp_vpts_get() +
-					DUR2PTS(cur_dispbuf->duration),
+					vf_get_pts(cur_dispbuf);
 					timestamp_pcrscr_get(),
 					READ_MPEG_REG(SCR_HIU));
 
@@ -3524,6 +3570,9 @@ static struct vframe_s *vsync_toggle_frame(struct vframe_s *vf, int line)
 			vf->width, vf->height, vf->pts);
 	vframe_walk_delay = (int)div_u64(((jiffies_64 -
 		vf->ready_jiffies64) * 1000), HZ);
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+	vframe_walk_delay += frc_get_video_latency();
+#endif
 
 	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
 		pr_info("toggle vf %p, ready_jiffies64 %d, walk_delay %d\n",
@@ -3545,17 +3594,17 @@ static struct vframe_s *vsync_toggle_frame(struct vframe_s *vf, int line)
 				(LOG_MASK_TIMESTAMP,
 				"vpts inc: 0x%x, scr: 0x%x, abs_scr: 0x%x\n",
 				timestamp_vpts_get() +
-				DUR2PTS(cur_dispbuf->duration),
+				vf_get_pts(cur_dispbuf),
 				timestamp_pcrscr_get(),
 				READ_MPEG_REG(SCR_HIU));
 
 			timestamp_vpts_inc
-				(DUR2PTS(cur_dispbuf->duration));
+				(vf_get_pts(cur_dispbuf));
 			timestamp_vpts_inc_u64
-				(DUR2PTS(cur_dispbuf->duration));
+				(vf_get_pts(cur_dispbuf));
 
 			vpts_remainder +=
-				DUR2PTS_RM(cur_dispbuf->duration);
+				vf_get_pts_rm(cur_dispbuf);
 			if (vpts_remainder >= 0xf) {
 				vpts_remainder -= 0xf;
 				timestamp_vpts_inc(-1);
@@ -3602,7 +3651,7 @@ static struct vframe_s *vsync_toggle_frame(struct vframe_s *vf, int line)
 static inline bool interlace_field_type_need_match(int vout_type,
 						   struct vframe_s *vf)
 {
-	if (DUR2PTS(vf->duration) != vsync_pts_inc)
+	if (vf_get_pts(vf) != vsync_pts_inc)
 		return false;
 
 	if (vout_type == VOUT_TYPE_TOP_FIELD &&
@@ -3634,7 +3683,7 @@ static inline bool duration_expire(struct vframe_s *cur_vf,
 		return true;
 	pts = next_vf->pts;
 	if (pts == 0)
-		dur_disp = DUR2PTS(cur_vf->duration);
+		dur_disp = vf_get_pts(cur_vf);
 	else
 		dur_disp = pts - timestamp_vpts_get();
 
@@ -3845,7 +3894,7 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 	    freerun_mode == FREERUN_DUR) {
 		pts =
 		    timestamp_vpts_get() +
-		    (cur_vf ? DUR2PTS(cur_vf->duration) : 0);
+		    (cur_vf ? vf_get_pts(cur_vf) : 0);
 		if (hold_property_changed == 1)
 			hold_property_changed = 0;
 	}
@@ -3865,7 +3914,7 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 			 */
 			return false;
 		}
-		pts_temp = cur_vf ? DUR2PTS(cur_vf->duration) : 0;
+		pts_temp = cur_vf ? vf_get_pts(cur_vf) : 0;
 		pts = timestamp_vpts_get() + pts_temp;
 		if (debug_flag & DEBUG_FLAG_OMX_DEBUG_DROP_FRAME) {
 			pr_info("system=0x%x ,dur:%d,pts:0x%x,align:%d\n",
@@ -4079,8 +4128,8 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 				vsync_pts_align - pts) >= 0;
 
 	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
-		pr_info("vf/next %p/%p, pcr %d, pts %d, expired %d\n",
-			cur_vf, next_vf, timestamp_pcrscr_get(), pts, expired);
+		pr_info("vf/next %p/%p, pcr %d, pts %d, duration %d, expired %d\n",
+			cur_vf, next_vf, timestamp_pcrscr_get(), pts, next_vf->duration, expired);
 
 #ifdef PTS_THROTTLE
 	if (expired && next_vf && next_vf->next_vf_pts_valid &&
@@ -4250,13 +4299,13 @@ static inline bool video_vf_disp_mode_check(struct vframe_s *vf)
 			amlog_mask(LOG_MASK_TIMESTAMP,
 				   "vpts inc:0x%x,scr: 0x%x, abs_scr: 0x%x\n",
 			timestamp_vpts_get() +
-			DUR2PTS(cur_dispbuf->duration),
+			vf_get_pts(cur_dispbuf),
 			timestamp_pcrscr_get(),
 			READ_MPEG_REG(SCR_HIU));
-			timestamp_vpts_inc(DUR2PTS(cur_dispbuf->duration));
+			timestamp_vpts_inc(vf_get_pts(cur_dispbuf));
 
 			vpts_remainder +=
-				DUR2PTS_RM(cur_dispbuf->duration);
+				vf_get_pts_rm(cur_dispbuf);
 			if (vpts_remainder >= 0xf) {
 				vpts_remainder -= 0xf;
 				timestamp_vpts_inc(-1);
@@ -4309,16 +4358,16 @@ static inline bool video_vf_dirty_put(struct vframe_s *vf)
 			amlog_mask(LOG_MASK_TIMESTAMP,
 				   "vpts inc:0x%x,scr: 0x%x, abs_scr: 0x%x\n",
 			timestamp_vpts_get() +
-			DUR2PTS(cur_dispbuf->duration),
+			vf_get_pts(cur_dispbuf),
 			timestamp_pcrscr_get(),
 			READ_MPEG_REG(SCR_HIU));
 			timestamp_vpts_inc
-				(DUR2PTS(cur_dispbuf->duration));
+				(vf_get_pts(cur_dispbuf));
 			timestamp_vpts_inc_u64
-				(DUR2PTS(cur_dispbuf->duration));
+				(vf_get_pts(cur_dispbuf));
 
 			vpts_remainder +=
-				DUR2PTS_RM(cur_dispbuf->duration);
+				vf_get_pts_rm(cur_dispbuf);
 			if (vpts_remainder >= 0xf) {
 				vpts_remainder -= 0xf;
 				timestamp_vpts_inc(-1);
@@ -4455,13 +4504,13 @@ static inline bool dv_vf_crc_check(struct vframe_s *vf)
 					amlog_mask(LOG_MASK_TIMESTAMP,
 						   "vpts inc:0x%x,scr: 0x%x, abs_scr: 0x%x\n",
 					timestamp_vpts_get() +
-					DUR2PTS(cur_dispbuf->duration),
+					vf_get_pts(cur_dispbuf),
 					timestamp_pcrscr_get(),
 					READ_MPEG_REG(SCR_HIU));
-					timestamp_vpts_inc(DUR2PTS(cur_dispbuf->duration));
+					timestamp_vpts_inc(vf_get_pts(cur_dispbuf));
 
 					vpts_remainder +=
-					DUR2PTS_RM(cur_dispbuf->duration);
+					vf_get_pts_rm(cur_dispbuf);
 					if (vpts_remainder >= 0xf) {
 						vpts_remainder -= 0xf;
 						timestamp_vpts_inc(-1);
@@ -5362,11 +5411,11 @@ static int hdmi_in_delay_check(struct vframe_s *vf)
 		pr_info("hdmi video delay done! expire %d\n", expire);
 
 	/*reset vpts=pcr will lead vpts_expire delay 1 vsync - vsync_pts_align*/
-	timestamp_vpts_set(timestamp_pcrscr_get() - (DUR2PTS(vf->duration) - vsync_pts_align));
+	timestamp_vpts_set(timestamp_pcrscr_get() - (vf_get_pts(vf) - vsync_pts_align));
 	timestamp_vpts_set_u64((u64)(timestamp_pcrscr_get() -
-		(DUR2PTS(vf->duration) - vsync_pts_align)));
+		(vf_get_pts(vf) - vsync_pts_align)));
 	pts = (u64)timestamp_pcrscr_get_u64();
-	pts = pts - (DUR2PTS(vf->duration) - vsync_pts_align);
+	pts = pts - (vf_get_pts(vf) - vsync_pts_align);
 	us = div64_u64(pts * 100, 9);
 	timestamp_vpts_set_u64(us);
 	spin_unlock_irqrestore(&hdmi_avsync_lock, flags);
