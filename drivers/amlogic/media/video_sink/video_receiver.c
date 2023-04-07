@@ -421,6 +421,19 @@ static int dolby_vision_need_wait_common(struct video_recv_s *ins)
 }
 #endif
 
+static bool is_vsync_vppx_rdma_enable(u8 vpp_index)
+{
+	bool enable = false;
+
+	if (vpp_index == VPP0)
+		enable = is_vsync_rdma_enable();
+	else if (vpp_index == VPP1)
+		enable = is_vsync_vpp1_rdma_enable();
+	else if (vpp_index == VPP2)
+		enable = is_vsync_vpp2_rdma_enable();
+	return enable;
+}
+
 static void common_toggle_frame(struct video_recv_s *ins,
 				struct vframe_s *vf)
 {
@@ -439,7 +452,7 @@ static void common_toggle_frame(struct video_recv_s *ins,
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 		int i = 0;
 
-		if (is_vsync_rdma_enable()) {
+		if (is_vsync_vppx_rdma_enable(ins->vpp_id)) {
 			if (ins->rdma_buf == ins->cur_buf) {
 				if (ins->buf_to_put_num < DISPBUF_TO_PUT_MAX) {
 					ins->buf_to_put[ins->buf_to_put_num] =
