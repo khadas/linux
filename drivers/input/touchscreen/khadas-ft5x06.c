@@ -943,6 +943,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 {
 	const struct edt_i2c_chip_data *chip_data;
 	struct edt_ft5x06_ts_data *tsdata;
+	u8 buf[2] = { 0xfc, 0x00 };
 	struct input_dev *input;
 	struct device_node *node = client->dev.of_node;
 	struct gpio_desc *desc;
@@ -990,6 +991,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	tca6408_output_set_value((0<<6), (1<<6));
 	msleep(300);
 	tca6408_output_set_value((1<<6), (1<<6));
+	msleep(300);
 
 	input = devm_input_allocate_device(&client->dev);
 	if (!input) {
@@ -1008,6 +1010,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		return error;
 	}
 
+	edt_ft5x06_ts_readwrite(tsdata->client, 2, buf, 2, buf);
 	edt_ft5x06_ts_set_regs(tsdata);
 	edt_ft5x06_ts_get_defaults(&client->dev, tsdata);
 	edt_ft5x06_ts_get_parameters(tsdata);
