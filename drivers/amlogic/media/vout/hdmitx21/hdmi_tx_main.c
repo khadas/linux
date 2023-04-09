@@ -5123,14 +5123,9 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 	} else {
 		pr_info("already display in uboot\n");
 		hdev->ready = 1;
-		/* if hdmitx already output under uboot,
-		 * here get the current parameters of
-		 * output mode, which may be used later
-		 */
 		update_current_para(hdev);
 		if (hdev->rxcap.max_frl_rate) {
-			hdev->frl_rate = hdmitx21_select_frl_rate(hdev->dsc_en, hdev->cur_VIC,
-				hdev->para->cs, hdev->para->cd);
+			hdev->frl_rate = hdev->hwop.cntlmisc(hdev, MISC_GET_FRL_MODE, 0);
 			if (hdev->frl_rate > hdev->tx_max_frl_rate)
 				pr_info("Current frl_rate %d is larger than tx_max_frl_rate %d\n",
 					hdev->frl_rate, hdev->tx_max_frl_rate);
@@ -5139,7 +5134,7 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 		vinfo = get_current_vinfo();
 		if (vinfo) {
 			vinfo->cur_enc_ppc = 1;
-			if (hdev->hwop.cntlmisc(hdev, MISC_IS_FRL_MODE, 0))
+			if (hdev->hwop.cntlmisc(hdev, MISC_GET_FRL_MODE, 0))
 				vinfo->cur_enc_ppc = 4;
 			pr_info("vinfo: set cur_enc_ppc as %d\n", vinfo->cur_enc_ppc);
 		}
@@ -6556,7 +6551,7 @@ static int hdmitx21_status_check(void *data)
 		if (!hdev->ready)
 			continue;
 		/* skip FRL mode */
-		if (hdev->hwop.cntlmisc(hdev, MISC_IS_FRL_MODE, 0))
+		if (hdev->hwop.cntlmisc(hdev, MISC_GET_FRL_MODE, 0))
 			continue;
 		clk[0] = meson_clk_measure(idx[0]);
 		clk[1] = meson_clk_measure(idx[1]);

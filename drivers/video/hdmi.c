@@ -1585,7 +1585,10 @@ static int hdmi_avi_infoframe_unpack(struct hdmi_avi_infoframe *frame,
 		return -EINVAL;
 
 	if (ptr[0] != HDMI_INFOFRAME_TYPE_AVI ||
-	    ptr[1] != 2 ||
+#ifdef CONFIG_AMLOGIC_MODIFY
+	    ptr[1] < 2 ||
+	    ptr[1] > 4 ||
+#endif
 	    ptr[2] != HDMI_AVI_INFOFRAME_SIZE)
 		return -EINVAL;
 

@@ -764,12 +764,12 @@ static int dump_frl_status_show(struct seq_file *s, void *p)
 		[FRL_8G4L] = "FRL_8G4L",
 		[FRL_10G4L] = "FRL_10G4L",
 		[FRL_12G4L] = "FRL_12G4L",
-		[FRL_INVALID] = "FRL_INVALID",
+		[FRL_RATE_MAX] = "FRL_RATE_MAX",
 	};
 
 	seq_puts(s, "\n--------frl status--------\n");
-	seq_printf(s, "FRL rate: %s\n", hdev->frl_rate < FRL_INVALID ?
-		rate_string[hdev->frl_rate] : rate_string[FRL_INVALID]);
+	seq_printf(s, "FRL rate: %s\n", hdev->frl_rate < FRL_RATE_MAX ?
+		rate_string[hdev->frl_rate] : rate_string[FRL_RATE_MAX]);
 	val = hdmitx21_rd_reg(INTR5_SW_TPI_IVCTX);
 	seq_printf(s, "INTR5_SW_TPI[0x%x] 0x%x\n", INTR5_SW_TPI_IVCTX, val);
 	hdmitx21_wr_reg(INTR5_SW_TPI_IVCTX, val);

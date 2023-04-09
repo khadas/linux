@@ -111,7 +111,7 @@ enum frl_rate_enum {
 	FRL_8G4L = 4,
 	FRL_10G4L = 5,
 	FRL_12G4L = 6,
-	FRL_INVALID = 7,
+	FRL_RATE_MAX = 7,
 };
 
 enum flt_tx_states {

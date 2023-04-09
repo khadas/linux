@@ -64,7 +64,7 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, u32 cmd,
 static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 			    u32  argv);
 static enum hdmi_vic get_vic_from_pkt(void);
-static bool is_frl_mode(void);
+static enum frl_rate_enum get_current_frl_rate(void);
 
 #define EDID_RAM_ADDR_SIZE	 (8)
 
@@ -370,6 +370,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 		} else {
 			if (!hdev->para)
 				return;
+			hdev->frl_rate = get_current_frl_rate();
 			if (hdev->para) {
 				hdev->para->cs = avi->colorspace;
 				hdev->para->cd = _get_colordepth();
@@ -1051,7 +1052,7 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	vinfo = get_current_vinfo();
 	if (vinfo) {
 		vinfo->cur_enc_ppc = 1;
-		if (is_frl_mode())
+		if (get_current_frl_rate())
 			vinfo->cur_enc_ppc = 4;
 	}
 	/* check the deep color phase */
@@ -1063,8 +1064,8 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 		int loop = 20;
 
 		h_unstable = is_deep_htotal_frac(0, h_total, cs, cd);
-		pr_info("%s[%d] frl_mode %d htotal %d cs %d cd %d h_unstable %d\n",
-			__func__, __LINE__, is_frl_mode(), h_total, cs, cd, h_unstable);
+		pr_info("%s[%d] frl_rate %d htotal %d cs %d cd %d h_unstable %d\n",
+			__func__, __LINE__, get_current_frl_rate(), h_total, cs, cd, h_unstable);
 		if (!h_unstable) {
 			while (loop--) {
 				hdmitx21_set_reg_bits(INTR2_SW_TPI_IVCTX, 0, 1, 1);
@@ -2498,9 +2499,14 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, u32 cmd,
 	return ret;
 }
 
-static bool is_frl_mode(void)
+static enum frl_rate_enum get_current_frl_rate(void)
 {
-	return !!(hdmitx21_rd_reg(HDMITX_TOP_BIST_CNTL) & (1 << 19));
+	u8 rate = hdmitx21_rd_reg(FRL_LINK_RATE_CONFIG_IVCTX) & 0xf;
+
+	if (rate >= FRL_RATE_MAX)
+		rate = FRL_NONE;
+
+	return rate;
 }
 
 static int hdmitx_tmds_rxsense(void)
@@ -2544,8 +2550,8 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 	}
 
 	switch (cmd) {
-	case MISC_IS_FRL_MODE:
-		return is_frl_mode();
+	case MISC_GET_FRL_MODE:
+		return (int)get_current_frl_rate();
 	case MISC_CLK_DIV_RST:
 		hdmitx21_s5_clk_div_rst(argv);
 		break;
@@ -2753,6 +2759,7 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	data32 |= (1 << 5);  // [  5] reg_hdmi2_on
 	data32 |= (para->scrambler_en & 0x01 << 0);  // [ 0] scrambler_en.
 	hdmitx21_wr_reg(SCRCTL_IVCTX, data32 & 0xff);
+	hdmitx21_set_reg_bits(FRL_LINK_RATE_CONFIG_IVCTX, hdev->frl_rate, 0, 4);
 
 	hdmitx21_wr_reg(SW_RST_IVCTX, 0); // default value
 	hdmitx21_wr_reg(CLK_DIV_CNTRL_IVCTX, hdev->frl_rate ? 0 : 1);
