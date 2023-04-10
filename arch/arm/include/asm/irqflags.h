@@ -6,7 +6,7 @@
 
 #include <asm/ptrace.h>
 
-#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG)
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG) && !defined(SKIP_LOCKUP_CHECK) && (IS_ENABLED(CONFIG_AMLOGIC_BREAK_GKI_20) || defined(MODULE))
 #include <linux/amlogic/irqflags_debug_arm.h>
 #else
 

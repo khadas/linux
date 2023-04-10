@@ -3868,14 +3868,6 @@ static noinline int do_init_module(struct module *mod)
 	mod->btf_data = NULL;
 #endif
 
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
-	/*
-	 * let free module init_mem synchronized, so module layout can keep
-	 * consistence after reboot, it's very important for ramoops iodump.
-	 */
-	module_memfree(mod->init_layout.base);
-	kfree(freeinit);
-#else
 	/*
 	 * We want to free module_init, but be aware that kallsyms may be
 	 * walking this with preempt disabled.  In all the failure paths, we
@@ -3891,7 +3883,6 @@ static noinline int do_init_module(struct module *mod)
 	 */
 	if (llist_add(&freeinit->node, &init_free_list))
 		schedule_work(&init_free_wq);
-#endif
 
 	mutex_unlock(&module_mutex);
 	wake_up_all(&module_wq);

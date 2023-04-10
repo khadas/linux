@@ -7,11 +7,10 @@
 
 #include <linux/export.h>
 #include <linux/types.h>
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
+#if IS_BUILTIN(CONFIG_AMLOGIC_DEBUG_IOTRACE)
 #define SKIP_IO_TRACE
 #include <linux/io.h>
 #undef SKIP_IO_TRACE
-#include <linux/amlogic/debug_ftrace_ramoops.h>
 #else
 #include <linux/io.h>
 #endif
@@ -21,9 +20,6 @@
  */
 void __memcpy_fromio(void *to, const volatile void __iomem *from, size_t count)
 {
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
-	pstore_ftrace_io_copy_from((unsigned long)from, (unsigned long)count);
-#endif
 	while (count && !IS_ALIGNED((unsigned long)from, 8)) {
 		*(u8 *)to = __raw_readb(from);
 		from++;
@@ -44,9 +40,6 @@ void __memcpy_fromio(void *to, const volatile void __iomem *from, size_t count)
 		to++;
 		count--;
 	}
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
-	pstore_ftrace_io_copy_from_end((unsigned long)from, (unsigned long)count);
-#endif
 }
 EXPORT_SYMBOL(__memcpy_fromio);
 
@@ -55,9 +48,6 @@ EXPORT_SYMBOL(__memcpy_fromio);
  */
 void __memcpy_toio(volatile void __iomem *to, const void *from, size_t count)
 {
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
-	pstore_ftrace_io_copy_to((unsigned long)to, (unsigned long)count);
-#endif
 	while (count && !IS_ALIGNED((unsigned long)to, 8)) {
 		__raw_writeb(*(u8 *)from, to);
 		from++;
@@ -78,9 +68,6 @@ void __memcpy_toio(volatile void __iomem *to, const void *from, size_t count)
 		to++;
 		count--;
 	}
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
-	pstore_ftrace_io_copy_to_end((unsigned long)to, (unsigned long)count);
-#endif
 }
 EXPORT_SYMBOL(__memcpy_toio);
 
@@ -90,10 +77,6 @@ EXPORT_SYMBOL(__memcpy_toio);
 void __memset_io(volatile void __iomem *dst, int c, size_t count)
 {
 	u64 qc = (u8)c;
-
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
-	pstore_ftrace_io_memset((unsigned long)dst, (unsigned long)count);
-#endif
 
 	qc |= qc << 8;
 	qc |= qc << 16;
@@ -116,8 +99,5 @@ void __memset_io(volatile void __iomem *dst, int c, size_t count)
 		dst++;
 		count--;
 	}
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
-	pstore_ftrace_io_memset_end((unsigned long)dst, (unsigned long)count);
-#endif
 }
 EXPORT_SYMBOL(__memset_io);

@@ -45,11 +45,6 @@
 #include "internal.h"
 #include "pgalloc-track.h"
 
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
-#include <linux/moduleparam.h>
-#include <linux/amlogic/debug_ftrace_ramoops.h>
-#endif
-
 #ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
 static unsigned int __ro_after_init ioremap_max_page_shift = BITS_PER_LONG - 1;
 
@@ -317,41 +312,15 @@ static int vmap_range_noflush(unsigned long addr, unsigned long end,
 	return err;
 }
 
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
-bool is_normal_memory(pgprot_t p)
-{
-#if defined(CONFIG_ARM)
-	return ((pgprot_val(p) & L_PTE_MT_MASK) == L_PTE_MT_WRITEALLOC);
-#elif defined(CONFIG_ARM64)
-	return (pgprot_val(p) & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_NORMAL);
-#else
-#error "Unuspported architecture"
-#endif
-}
-#endif
-
 int ioremap_page_range(unsigned long addr, unsigned long end,
 		phys_addr_t phys_addr, pgprot_t prot)
 {
 	int err;
 
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
-	phys_addr_t phys_addr_save = phys_addr;
-#endif
 	prot = pgprot_nx(prot);
 	err = vmap_range_noflush(addr, end, phys_addr, prot,
 				 ioremap_max_page_shift);
 	flush_cache_vmap(addr, end);
-
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
-	if (need_dump_iomap() && !is_normal_memory(prot)) {
-		pr_err("io__map <va:0x%08lx-0x%08lx> pa:0x%lx,port:0x%lx\n",
-		       addr, end, (unsigned long)phys_addr_save,
-		       (unsigned long)pgprot_val(prot));
-
-		save_iomap_info(addr, (unsigned long)phys_addr_save, (unsigned int)(end - addr));
-	}
-#endif
 
 	if (IS_ENABLED(CONFIG_ARCH_HAS_IOREMAP_PHYS_HOOKS) && !err)
 		ioremap_phys_range_hook(phys_addr, end - addr, prot);
@@ -2668,9 +2637,6 @@ static void __vunmap(const void *addr, int deallocate_pages)
 		return;
 	}
 
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
-	delete_iomap_info((unsigned long)addr);
-#endif
 	debug_check_no_locks_freed(area->addr, get_vm_area_size(area));
 	debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
 

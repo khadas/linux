@@ -19,7 +19,9 @@
 #include <asm/cpufeature.h>
 
 /* builtin code include iotrace can cause some symbols crc changed */
-#if (IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)) && defined(MODULE)
+#if IS_BUILTIN(CONFIG_AMLOGIC_DEBUG_IOTRACE)
+#include <linux/amlogic/io_64.h>
+#elif (IS_MODULE(CONFIG_AMLOGIC_DEBUG_IOTRACE)) && defined(MODULE)
 #include <linux/amlogic/io_64.h>
 #else
 /*

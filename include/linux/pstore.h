@@ -43,10 +43,6 @@ enum pstore_type_id {
 	PSTORE_TYPE_MAX
 };
 
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
-#include <linux/amlogic/debug_ftrace_ramoops.h>
-#endif
-
 const char *pstore_type_to_name(enum pstore_type_id type);
 enum pstore_type_id pstore_name_to_type(const char *name);
 
@@ -214,29 +210,7 @@ struct pstore_ftrace_record {
 	unsigned long ip;
 	unsigned long parent_ip;
 	u64 ts;
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
-	int pid;
-	union {
-		char name[16];
-		struct {
-			unsigned long val1;
-			unsigned long val2;
-		};
-	};
-	unsigned long long time;
-	unsigned char comm[8];
-	struct {
-		unsigned int flag:30;
-		unsigned int in_irq:1;
-		unsigned int phys_addr:1;
-	};
-#endif
 };
-
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
-void notrace pstore_ftrace_dump(struct pstore_ftrace_record *rec,
-				struct seq_file *s);
-#endif
 
 /*
  * ftrace related stuff: Both backends and frontends need these so expose
