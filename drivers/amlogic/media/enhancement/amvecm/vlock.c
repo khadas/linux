@@ -2375,6 +2375,9 @@ bool vlock_get_phlock_flag_ex(struct stvlock_sig_sts *pvlock)
 	if (!pvlock->phlock_en)
 		return false;
 
+	if (!pvlock->dtdata)
+		return false;
+
 	offset_vlck = pvlock->offset_vlck;
 	if (pvlock->dtdata->vlk_hwver >= vlock_hw_tm2verb)
 		flag = READ_VPP_REG(VPU_VLOCK_RO_LCK_FRM + offset_vlck) >> 17;
@@ -2401,6 +2404,9 @@ bool vlock_get_vlock_flag_ex(struct stvlock_sig_sts *pvlock)
 
 	if (!pvlock)
 		return 0;
+
+	if (!pvlock->dtdata)
+		return false;
 
 	offset_vlck = pvlock->offset_vlck;
 	if (pvlock->dtdata->vlk_hwver >= vlock_hw_tm2verb)
