@@ -5673,10 +5673,21 @@ s32 config_vd_pps_internal(struct video_layer_s *layer,
 	else
 		setting->last_line_fix = false;
 
-	src_w = cur_frame_par->video_input_w << cur_frame_par->supsc0_hori_ratio;
-	src_h = cur_frame_par->video_input_h << cur_frame_par->supsc0_vert_ratio;
-	dst_w = cur_frame_par->VPP_hsc_endp - cur_frame_par->VPP_hsc_startp + 1;
-	dst_h = cur_frame_par->VPP_vsc_endp - cur_frame_par->VPP_vsc_startp + 1;
+	if (cur_dev->display_module != S5_DISPLAY_MODULE) {
+		src_w = cur_frame_par->video_input_w << cur_frame_par->supsc0_hori_ratio;
+		src_h = cur_frame_par->video_input_h << cur_frame_par->supsc0_vert_ratio;
+		dst_w = cur_frame_par->VPP_hsc_endp - cur_frame_par->VPP_hsc_startp + 1;
+		dst_h = cur_frame_par->VPP_vsc_endp - cur_frame_par->VPP_vsc_startp + 1;
+	} else {
+		/* for s5 calc sr later */
+		src_w = cur_frame_par->video_input_w;
+		src_h = cur_frame_par->video_input_h;
+		dst_w = (cur_frame_par->VPP_hsc_endp - cur_frame_par->VPP_hsc_startp + 1) >>
+			cur_frame_par->supsc1_hori_ratio;
+		dst_h = (cur_frame_par->VPP_vsc_endp - cur_frame_par->VPP_vsc_startp + 1) >>
+			cur_frame_par->supsc1_vert_ratio;
+	}
+
 	if (vpp_filter->vpp_hsc_start_phase_step == 0x1000000 &&
 	    vpp_filter->vpp_vsc_start_phase_step == 0x1000000 &&
 	    vpp_filter->vpp_hsc_start_phase_step ==

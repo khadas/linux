@@ -4705,12 +4705,34 @@ static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 			/* sr0 in slice1  ->pps->sr0 */
 			/* pps */
 			pps_din_hsize = s1_din_hsize_tmp;
-			if (h_no_scale)
+			if (h_no_scale) {
 				pps_dout_hsize = pps_din_hsize;
-			else
+			} else {
+				if (vd_proc_vd1_info->vd1_work_mode == VD1_SLICES01_MODE) {
+					cal_pps_dout_hsize(&pps_dout_hsize0,
+						0, slice_x_st + 1 - crop_left, horz_phase_step,
+						pre_hsc_en);
+					cal_pps_dout_hsize(&pps_dout_hsize1,
+						0, slice_x_end[slice] + 1 - crop_left,
+						horz_phase_step,
+						pre_hsc_en);
+					pps_dout_hsize = pps_dout_hsize1 - pps_dout_hsize0;
+					if (debug_flag_s5 & DEBUG_PPS) {
+						pr_info("slice_x_st=0x%x, slice_x_end=0x%x, horz_phase_step=0x%x\n",
+							slice_x_st,
+							slice_x_end[slice],
+							horz_phase_step);
+						pr_info("pps_dout_hsize0=0x%x, pps_dout_hsize1=0x%x, pps_dout_hsize=0x%x\n",
+							pps_dout_hsize0,
+							pps_dout_hsize1,
+							pps_dout_hsize);
+				}
+			} else {
 				cal_pps_dout_hsize(&pps_dout_hsize,
 					0, pps_din_hsize, horz_phase_step,
 					pre_hsc_en);
+				}
+			}
 			/* sr0 */
 			sr0_din_hsize = pps_dout_hsize;
 			/* recheck sr0 din hsize limit */
@@ -7255,10 +7277,7 @@ static void vd1_scaler_setting_s5(struct video_layer_s *layer,
 						hsc_init_rev_num0 = 8;
 					hsc_init_rev_num0 =
 						slice == 0 ? 8 : 8 - hsc_init_rev_num0;
-					if (slice_num == 2)
-						frame_par->hsc_rpt_p0_num0 = 3;
-					else
-						frame_par->hsc_rpt_p0_num0 = slice == 0 ? 3 : 2;
+					frame_par->hsc_rpt_p0_num0 = slice == 0 ? 3 : 2;
 				} else {
 					hsc_init_rev_num0 = 8;
 				}
@@ -7267,10 +7286,7 @@ static void vd1_scaler_setting_s5(struct video_layer_s *layer,
 					hsc_init_rev_num0 =
 						slice == 0 ? 4 : 4 - (slice_x_st + 1 -
 						(slice_ini_sum >> 24));
-					if (slice_num == 2)
-						frame_par->hsc_rpt_p0_num0 = 1;
-					else
-						frame_par->hsc_rpt_p0_num0 = slice == 0 ? 1 : 0;
+					frame_par->hsc_rpt_p0_num0 = slice == 0 ? 1 : 0;
 				} else {
 					hsc_init_rev_num0 = 4;
 				}
