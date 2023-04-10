@@ -53,6 +53,14 @@ static void evl_fifo_ceilprio(struct evl_thread *thread, int prio)
 	__evl_ceil_fifo_priority(thread, prio);
 }
 
+static const char *evl_fifo_name(struct evl_thread *thread)
+{
+	if (thread->state & EVL_T_RRB)
+		return "rr";
+
+	return "fifo";
+}
+
 static ssize_t evl_fifo_show(struct evl_thread *thread,
 			char *buf, ssize_t count)
 {
@@ -71,6 +79,7 @@ struct evl_sched_class evl_sched_fifo = {
 	.sched_trackprio	=	evl_fifo_trackprio,
 	.sched_ceilprio		=	evl_fifo_ceilprio,
 	.sched_getparam		=	evl_fifo_getparam,
+	.sched_name		=	evl_fifo_name,
 	.sched_show		=	evl_fifo_show,
 	.weight			=	EVL_CLASS_WEIGHT(4),
 	.policy			=	SCHED_FIFO,

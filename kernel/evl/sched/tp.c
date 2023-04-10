@@ -241,6 +241,11 @@ static void tp_migrate(struct evl_thread *thread, struct evl_rq *rq)
 	evl_set_thread_schedparam_locked(thread, &evl_sched_fifo, &param);
 }
 
+static const char *tp_name(struct evl_thread *thread)
+{
+	return "tp";
+}
+
 static ssize_t tp_show(struct evl_thread *thread,
 		char *buf, ssize_t count)
 {
@@ -472,6 +477,7 @@ struct evl_sched_class evl_sched_tp = {
 	.sched_ceilprio		=	tp_ceilprio,
 	.sched_declare		=	tp_declare,
 	.sched_forget		=	tp_forget,
+	.sched_name		=	tp_name,
 	.sched_show		=	tp_show,
 	.sched_control		=	tp_control,
 	.weight			=	EVL_CLASS_WEIGHT(3),
