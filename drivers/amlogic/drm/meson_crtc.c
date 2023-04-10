@@ -448,6 +448,8 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 		if (ret)
 			DRM_ERROR("crtc[%d]: new mode[%d] set error\n",
 				amcrtc->crtc_index, mode);
+		else
+			meson_vout_update_mode_name(amcrtc->vout_index, name, "dummy");
 	} else {
 		if (meson_crtc_state->uboot_mode_init)
 			mode |= VMODE_INIT_BIT_MASK;
