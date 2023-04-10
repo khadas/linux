@@ -159,6 +159,7 @@ struct evl_sched_class {
 			     const union evl_sched_param *p);
 	void (*sched_forget)(struct evl_thread *thread);
 	void (*sched_kick)(struct evl_thread *thread);
+	const char *(*sched_name)(struct evl_thread *thread);
 	ssize_t (*sched_show)(struct evl_thread *thread,
 			      char *buf, ssize_t count);
 	ssize_t (*sched_control)(int cpu, union evl_sched_ctlparam *ctlp,

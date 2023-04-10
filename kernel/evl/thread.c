@@ -2646,7 +2646,7 @@ static ssize_t sched_show(struct device *dev,
 	cpu = evl_rq_cpu(thread->rq);
 
 	ret = snprintf(buf, PAGE_SIZE, "%d %d %d %s ",
-		cpu, bprio, cprio, sched_class->name);
+		cpu, bprio, cprio, sched_class->sched_name(thread));
 
 	if (sched_class->sched_show) {
 		_ret = sched_class->sched_show(thread, buf + ret,

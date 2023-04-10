@@ -474,6 +474,11 @@ static void quota_migrate(struct evl_thread *thread, struct evl_rq *rq)
 	evl_set_thread_schedparam_locked(thread, &evl_sched_fifo, &param);
 }
 
+static const char *quota_name(struct evl_thread *thread)
+{
+	return "quota";
+}
+
 static ssize_t quota_show(struct evl_thread *thread,
 			char *buf, ssize_t count)
 {
@@ -789,6 +794,7 @@ struct evl_sched_class evl_sched_quota = {
 	.sched_ceilprio		=	quota_ceilprio,
 	.sched_forget		=	quota_forget,
 	.sched_kick		=	quota_kick,
+	.sched_name		=	quota_name,
 	.sched_show		=	quota_show,
 	.sched_control		=	quota_control,
 	.weight			=	EVL_CLASS_WEIGHT(2),

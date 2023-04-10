@@ -85,6 +85,11 @@ static int weak_declare(struct evl_thread *thread,
 	return 0;
 }
 
+static const char *weak_name(struct evl_thread *thread)
+{
+	return "weak";
+}
+
 struct evl_sched_class evl_sched_weak = {
 	.sched_init		=	weak_init,
 	.sched_enqueue		=	weak_enqueue,
@@ -97,6 +102,7 @@ struct evl_sched_class evl_sched_weak = {
 	.sched_trackprio	=	weak_trackprio,
 	.sched_ceilprio		=	weak_ceilprio,
 	.sched_getparam		=	weak_getparam,
+	.sched_name		=	weak_name,
 	.weight			=	EVL_CLASS_WEIGHT(1),
 	.policy			=	SCHED_WEAK,
 	.name			=	"weak"
