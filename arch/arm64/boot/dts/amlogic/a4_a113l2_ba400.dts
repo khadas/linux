@@ -744,10 +744,10 @@
 		 * 4: pdmin;
 		 */
 		datain_src = <4>;
-		datain_chnum = <4>;
-		datain_chmask = <0xf>;
+		datain_chnum = <2>;
+		datain_chmask = <0x3>;
 		/* config which data pin for loopback */
-		datain-lane-mask-in = <1 1 0 0>;
+		datain-lane-mask-in = <1 0 0 0>;
 
 		/* calc mclk for datalb */
 		mclk-fs = <256>;
@@ -1322,10 +1322,21 @@
 };
 
 &i2c2 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c2_pins1>;
 	clock-frequency = <100000>;
+	aml_pca9557: aml_pca9557@1f {
+		compatible = "aml, ledring";
+		reg = <0x1f>;
+		mode = <0>; /*0: 6-led 1: 4key+2led */
+		key_num = <4>;
+		led_dev_name = "aml_ledring";
+		key_dev_name = "aml_pca_key";
+		key_name = "mute", "pause", "vol+", "vol-";
+		key_value = <200 201 202 203>;
+		status = "okay";
+	};
 };
 
 &i2c3 {
