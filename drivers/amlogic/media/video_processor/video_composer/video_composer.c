@@ -2339,7 +2339,11 @@ static void vframe_composer(struct composer_dev *dev)
 			// coverity[var_deref_model] if scr_vf is null code will not run to here
 			config_dewarp_vframe(dev->index, transform, scr_vf, dst_buf, &vframe_para);
 			dev->dewarp_para.vf_para = &vframe_para;
-			load_dewarp_firmware(&dev->dewarp_para);
+			ret = load_dewarp_firmware(&dev->dewarp_para);
+			if (ret != 0) {
+				vc_print(dev->index, PRINT_ERROR, "load firmware failed.\n");
+				break;
+			}
 			ret = dewarp_data_composer(&dev->dewarp_para);
 			if (ret < 0)
 				vc_print(dev->index, PRINT_ERROR, "dewarp composer failed\n");
