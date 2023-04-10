@@ -150,6 +150,7 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 	u32 temp;
 	int m31_utmi_reset_level_flag = 0;
 	int u3_combx0_reset_flag = 0;
+	int m31phy_reset_level_bit_flag = 0;
 
 	prop = of_get_property(dev->of_node, "portnum", NULL);
 	if (prop)
@@ -208,10 +209,12 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 	else
 		reset_level = 0x84;
 	prop = of_get_property(dev->of_node, "m31phy-reset-level-bit", NULL);
-	if (prop)
+	if (prop) {
 		m31phy_reset_level_bit = of_read_ulong(prop, 1);
-	else
+		m31phy_reset_level_bit_flag = 1;
+	} else {
 		m31phy_reset_level_bit = 13;
+	}
 
 	prop = of_get_property(dev->of_node, "m31ctl-reset-level-bit", NULL);
 	if (prop)
@@ -252,7 +255,7 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 	phy->m31ctl_reset_level_bit = m31ctl_reset_level_bit;
 
 	if (m31_utmi_reset_level_flag == 1 && u3_combx0_reset_flag == 1) {
-		dev_info(&pdev->dev, "reset m31 phy!!!!!!\n");
+		dev_info(&pdev->dev, "reset m31 utmi combx0!!!!!!\n");
 		mask = (size_t)phy->reset_regs & 0xf;
 		temp = 1 << (m31ctl_reset_level_bit % 32);
 		shift = (m31ctl_reset_level_bit / 32) * 4;
@@ -285,6 +288,24 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 
 		temp = 1 << (u3_combx0_reset_bit % 32);
 		shift = (u3_combx0_reset_bit / 32) * 4;
+		val = readl((void __iomem		*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + shift));
+		writel((val & (~temp)), (void __iomem	*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + shift));
+		usleep_range(90, 100);
+		writel((val | (temp)), (void __iomem	*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + shift));
+		usleep_range(90, 100);
+	}
+
+	if (m31phy_reset_level_bit_flag == 1) {
+		dev_info(&pdev->dev, "reset m31phy_reset_level_bit!!!!!!\n");
+		mask = (size_t)phy->reset_regs & 0xf;
+		temp = 1 << (m31phy_reset_level_bit % 32);
+		shift = (m31phy_reset_level_bit / 32) * 4;
 		val = readl((void __iomem		*)
 			((unsigned long)phy->reset_regs +
 			(phy->reset_level - mask) + shift));
