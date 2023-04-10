@@ -590,7 +590,6 @@ void ai_dnlp_param_update(int value)
 
 void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
 {
-	ulong i = 0;
 	/* get command parameters */
 	/* general settings */
 	if (dnlp_insmod_ok == 0)
@@ -898,27 +897,6 @@ void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
 			ve_en, dnlp_sel, dnlp_alg_param.dnlp_alg_enable);
 
 	dnlp_dbg_node_copy();
-
-	if (ve_en) {
-		/* clear historic luma sum */
-		*ve_dnlp_luma_sum_copy = 0;
-		/* init tgt & lpf */
-		for (i = 0; i < 64; i++) {
-			ve_dnlp_tgt_copy[i] = i << 2;
-			ve_dnlp_tgt_10b_copy[i] = i << 4;
-			ve_dnlp_lpf[i] = (ulong)(ve_dnlp_tgt_copy[i]
-				<< ve_dnlp_rt);
-		}
-		/* calculate dnlp reg data */
-		ve_dnlp_calculate_reg();
-		/* load dnlp reg data */
-		ve_dnlp_load_reg();
-		/* enable dnlp */
-		ve_enable_dnlp();
-	} else {
-		/* disable dnlp */
-		ve_disable_dnlp();
-	}
 }
 
 void ble_whe_param_update(struct ve_ble_whe_param_s *p)
