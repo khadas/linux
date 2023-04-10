@@ -1589,6 +1589,8 @@ static int vpp_set_filters_internal
 		height_out >>= 1;
 		video_layer_width >>= 1;
 		video_layer_height >>= 1;
+		video_layer_left >>= 1;
+		video_layer_top >>= 1;
 	}
 
 RESTART_ALL:
@@ -5079,6 +5081,8 @@ RERTY:
 			dst_height = vinfo->height >> 1;
 			local_input.layer_width >>= 1;
 			local_input.layer_height >>= 1;
+			local_input.layer_left >>= 1;
+			local_input.layer_top >>= 1;
 		}
 		ret = vpp_set_filters_no_scaler_internal
 			(&local_input, src_width, src_height,

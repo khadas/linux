@@ -4188,10 +4188,7 @@ static void vd1_proc_unit_param_set(struct vd_proc_s *vd_proc, u32 slice)
 	dout_x_start = vd_proc_vd1_info->vd1_dout_x_start[slice];
 	dout_y_start = vd_proc_vd1_info->vd1_dout_y_start[slice];
 	overlap_hsize = vd_proc_vd1_info->vd1_overlap_hsize;
-	if (vd_proc->vd_proc_pi.pi_en) {
-		dout_x_start >>= 1;
-		dout_y_start >>= 1;
-	}
+
 	if (din_hsize < overlap_hsize * 2) {
 		pr_info("invalid param: vd1_slice_din_hsize(%d) < overlap_hsize*2(%d)\n",
 			din_hsize,
@@ -5138,19 +5135,21 @@ static void vd_proc_param_set_vd2(struct vd_proc_s *vd_proc)
 
 	pps_din_hsize = din_hsize;
 	pps_din_vsize = din_vsize;
+	vd2_dout_x_start = vd_proc_vd2_info->vd2_dout_x_start;
+	vd2_dout_y_start = vd_proc_vd2_info->vd2_dout_y_start;
 	if (vd_proc_vd2_info->vd2_dout_dpsel == VD2_DOUT_PI) {
 		vd2_proc->vd_proc_pi.pi_en = 1;
 		pps_dout_hsize = dout_hsize;
 		pps_dout_vsize = dout_vsize;
 		dout_hsize = dout_hsize * 2;
 		dout_vsize = dout_vsize * 2;
+		vd2_dout_x_start *= 2;
+		vd2_dout_y_start *= 2;
 	} else {
 		vd2_proc->vd_proc_pi.pi_en = 0;
 		pps_dout_hsize = dout_hsize;
 		pps_dout_vsize = dout_vsize;
 	}
-	vd2_dout_x_start = vd_proc_vd2_info->vd2_dout_x_start;
-	vd2_dout_y_start = vd_proc_vd2_info->vd2_dout_y_start;
 
 	vd2_proc->din_hsize = din_hsize;
 	vd2_proc->din_vsize = din_vsize;
