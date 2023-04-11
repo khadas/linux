@@ -554,7 +554,7 @@
 		spk_mute-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_LOW>;
 
 		aml-audio-card,dai-link@0 {
-			format = "dsp_a";
+			format = "dsp_b";
 			mclk-fs = <512>;
 			//continuous-clock;
 			//bitclock-inversion;
