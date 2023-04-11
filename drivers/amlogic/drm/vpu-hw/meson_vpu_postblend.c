@@ -627,15 +627,15 @@ static void s5_postblend_hw_init(struct meson_vpu_block *vblk)
 	/* default: osd byp dolby */
 	/*core2a core2c dv init in uboot*/
 	/*reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x1, 0, 1);*/
-	reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x1, 2, 1);
+	/*reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x1, 2, 1);*/
 	/*reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x1, 4, 1);*/
-	reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x1, 6, 1);
+	/*reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x1, 6, 1);*/
 
 	/* default: osd 12bit path */
-	reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x0, 1, 1);
-	reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x0, 3, 1);
-	reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x0, 5, 1);
-	reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x0, 7, 1);
+	/*reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x0, 1, 1);*/
+	/*reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x0, 3, 1);*/
+	/*reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x0, 5, 1);*/
+	/*reg_ops->rdma_write_reg_bits(OSD_DOLBY_BYPASS_EN, 0x0, 7, 1);*/
 
 	reg_ops->rdma_write_reg_bits(VPP_INTF_OSD3_CTRL, 0, 1, 1);
 }
