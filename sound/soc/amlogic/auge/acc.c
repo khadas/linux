@@ -12,6 +12,7 @@
 #include <sound/soc.h>
 #include <sound/tlv.h>
 #include <linux/clk-provider.h>
+#include <linux/cdev.h>
 
 #include "acc.h"
 #include "acc_hw_eq.h"
@@ -56,6 +57,58 @@ static unsigned int ACC_EQ_DC_COEFF[ACC_EQ_DC_RAM_SIZE] = {
 /* Mixer: LL/RL/LR/RR; format:5.23, 0dB:0x800000 */
 static unsigned int ACC_EQ_MIXER_COEFF[ACC_EQ_MIXER_RAM_SIZE] = {
 		0x00800000, 0, 0, 0x00800000};
+
+static int acc_open(struct inode *ind, struct file *fp)
+{
+	pr_info("acc open\n");
+	return 0;
+}
+
+static int acc_release(struct inode *ind, struct file *fp)
+{
+	pr_info("acc release\n");
+	return 0;
+}
+
+static ssize_t acc_read(struct file *fp, char __user *buf, size_t size, loff_t *pos)
+{
+	int rc;
+	char kbuf[32] = "read test\n";
+
+	if (size > 32)
+		size = 32;
+
+	rc = copy_to_user(buf, kbuf, size);
+	if (rc < 0) {
+		pr_err("copy_to_user failed!");
+		return -EFAULT;
+	}
+	return size;
+}
+
+static ssize_t acc_write(struct file *fp, const char __user *buf, size_t size, loff_t *pos)
+{
+	int rc;
+	char kbuf[32];
+
+	if (size > 32)
+		size = 32;
+
+	rc = copy_from_user(kbuf, buf, size);
+	if (rc < 0) {
+		return -EFAULT;
+		pr_err("copy_from_user failed!");
+	}
+	pr_info("%s", kbuf);
+	return size;
+}
+
+static const struct file_operations fops = {
+	.open = acc_open,
+	.release = acc_release,
+	.read = acc_read,
+	.write = acc_write,
+};
 
 static int mixer_acc_read(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
@@ -331,6 +384,45 @@ static void acc_init(struct platform_device *pdev)
 	pr_info("%s: [0x%p]\n", __func__, p_acc);
 }
 
+void create_acc_device_node(void)
+{
+	int ret;
+	dev_t devno;
+	struct cdev cd;
+	struct class *acc_class;
+	struct device *acc_device;
+
+	ret = alloc_chrdev_region(&devno, 0, 1, "audio_acc");
+	if (ret < 0) {
+		pr_err("audio_acc alloc_chrdev_region failed!");
+		return;
+	}
+	cdev_init(&cd, &fops);
+
+	ret = cdev_add(&cd, devno, 1);
+	if (ret < 0) {
+		pr_err("cdev_add failed!");
+		return;
+	}
+
+	acc_class = class_create(THIS_MODULE, "audio_acc");
+	if (!acc_class) {
+		pr_info("create class failed\n");
+		cdev_del(&cd);
+		unregister_chrdev_region(devno, 1);
+		return;
+	}
+
+	acc_device = device_create(acc_class, NULL, devno, NULL, "audio_acc");
+	if (!acc_device) {
+		pr_info("create device failed\n");
+		cdev_del(&cd);
+		unregister_chrdev_region(devno, 1);
+		class_destroy(acc_class);
+		return;
+	}
+}
+
 static struct acc_chipinfo a4_acc_chipinfo = {
 	.version = VERSION1,
 	.eq_ram_count = 1,
@@ -377,6 +469,7 @@ static int acc_platform_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Can't retrieve output_module\n");
 		return -EINVAL;
 	}
+	pr_info("%s: acc output module id [%d]\n", __func__, output_module);
 	p_acc->acc_module = output_module;
 
 	/* get audio controller */
@@ -397,7 +490,7 @@ static int acc_platform_probe(struct platform_device *pdev)
 
 	acc_init(pdev);
 
-	pr_info("%s: acc output module id [%d]\n", __func__, output_module);
+	create_acc_device_node();
 
 	return 0;
 }
