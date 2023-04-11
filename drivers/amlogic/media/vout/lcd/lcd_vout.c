@@ -2051,10 +2051,11 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	if (pdrv->config.basic.lcd_type == LCD_TYPE_MAX) {
 		val = pdrv->boot_ctrl->advanced_flag;
 		switch (pdrv->boot_ctrl->lcd_type) {
-		case LCD_TTL:
+		case LCD_RGB:
 			pdrv->config.basic.lcd_bits = pdrv->boot_ctrl->lcd_bits;
-			pdrv->config.control.ttl_cfg.sync_valid = val;
-			lcd_ttl_pinmux_set(pdrv, 1);
+			pdrv->config.control.rgb_cfg.de_valid = val & 0x1;
+			pdrv->config.control.rgb_cfg.sync_valid = (val >> 1) & 0x1;
+			lcd_rgb_pinmux_set(pdrv, 1);
 			break;
 		case LCD_VBYONE:
 			lcd_vbyone_pinmux_set(pdrv, 1);

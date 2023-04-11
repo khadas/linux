@@ -36,7 +36,9 @@ static int lcd_type_supported(struct lcd_config_s *pconf)
 	int ret = -1;
 
 	switch (lcd_type) {
-	case LCD_TTL:
+	case LCD_RGB:
+	case LCD_BT656:
+	case LCD_BT1120:
 	case LCD_LVDS:
 	case LCD_VBYONE:
 	case LCD_MIPI:
@@ -51,9 +53,14 @@ static int lcd_type_supported(struct lcd_config_s *pconf)
 	return ret;
 }
 
-static void lcd_ttl_control_set(struct aml_lcd_drv_s *pdrv)
+static void lcd_rgb_control_set(struct aml_lcd_drv_s *pdrv)
 {
-	// TODO
+	//TODO
+}
+
+static void lcd_bt_control_set(struct aml_lcd_drv_s *pdrv)
+{
+	//TODO
 }
 
 static void lcd_mipi_control_set(struct aml_lcd_drv_s *pdrv)
@@ -891,9 +898,14 @@ int lcd_tablet_driver_init(struct aml_lcd_drv_s *pdrv)
 		return -1;
 
 	switch (pdrv->config.basic.lcd_type) {
-	case LCD_TTL:
-		lcd_ttl_control_set(pdrv);
-		lcd_ttl_pinmux_set(pdrv, 1);
+	case LCD_RGB:
+		lcd_rgb_control_set(pdrv);
+		lcd_rgb_pinmux_set(pdrv, 1);
+		break;
+	case LCD_BT656:
+	case LCD_BT1120:
+		lcd_bt_control_set(pdrv);
+		lcd_bt_pinmux_set(pdrv, 1);
 		break;
 	case LCD_LVDS:
 		lcd_lvds_control_set(pdrv);
@@ -934,8 +946,12 @@ void lcd_tablet_driver_disable(struct aml_lcd_drv_s *pdrv)
 		return;
 
 	switch (pdrv->config.basic.lcd_type) {
-	case LCD_TTL:
-		lcd_ttl_pinmux_set(pdrv, 0);
+	case LCD_RGB:
+		lcd_rgb_pinmux_set(pdrv, 0);
+		break;
+	case LCD_BT656:
+	case LCD_BT1120:
+		lcd_bt_pinmux_set(pdrv, 0);
 		break;
 	case LCD_LVDS:
 		lcd_phy_set(pdrv, LCD_PHY_OFF);

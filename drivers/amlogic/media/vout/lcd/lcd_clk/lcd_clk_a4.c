@@ -94,7 +94,7 @@ static void lcd_set_vclk_crt_a4(struct aml_lcd_drv_s *pdrv)  /* from c3 */
 		return;
 
 	/* phase */
-	clk_phase = pdrv->config.control.ttl_cfg.clk_pol;
+	clk_phase = pdrv->config.control.rgb_cfg.clk_pol;
 	lcd_clk_setb(CLKCTRL_VOUTENC_CLK_CTRL, clk_phase, 28, 2);
 
 	/* cts_vout_clk */

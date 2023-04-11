@@ -852,7 +852,9 @@ void lcd_clk_generate_dft(struct aml_lcd_drv_s *pdrv)
 	cconf->pll_mode = pconf->timing.clk_auto;
 
 	switch (pconf->basic.lcd_type) {
-	case LCD_TTL:
+	case LCD_RGB:
+	case LCD_BT656:
+	case LCD_BT1120:
 		clk_div_sel = CLK_DIV_SEL_1;
 		cconf->xd_max = CRT_VID_DIV_MAX;
 		for (xd = 1; xd <= cconf->xd_max; xd++) {

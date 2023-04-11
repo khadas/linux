@@ -36,7 +36,7 @@ static void lcd_venc_set(struct aml_lcd_drv_s *pdrv)
 	int i;
 	unsigned int rb_swap;
 
-	rb_swap = (pdrv->config.control.ttl_cfg.swap_ctrl >> 1) & 1;
+	rb_swap = pdrv->config.control.rgb_cfg.rb_swap & 1;
 	reoder = 0x24;
 	if (rb_swap)
 		reoder = 0x06;
@@ -52,7 +52,7 @@ static void lcd_venc_set(struct aml_lcd_drv_s *pdrv)
 	//0:progress 1:interlace
 
 	switch (pconf->basic.lcd_type) {
-	case LCD_TTL: /* 6bit here , support 8bit */
+	case LCD_RGB: /* 6bit only */
 	default:
 		timgen_mode = (1 << 5);
 		serial_rate = 0;
@@ -132,29 +132,28 @@ static char *lcd_enc_tst_str_a4[] = {
 	"1-Color Bar",   /* 1 */
 	"2-Thin Line",   /* 2 */
 	"3-Dot Grid",    /* 3 */
-	"4-X Patten",    /* 4 */
-	"5-Gray",        /* 5 */
-	"6-Red",         /* 6 */
-	"7-Green",       /* 7 */
-	"8-Blue",        /* 8 */
-	"9-Black",       /* 9 */
-	"10-white",      /* 10 */
+	"4-Gray",        /* 4 */
+	"5-Red",         /* 5 */
+	"6-Green",       /* 6 */
+	"7-Blue",        /* 7 */
+	"8-Black",       /* 8 */
+	"9-white",       /* 9 */
+	"10-X Patten",   /* 10 */
 };
 
-//remove [][0] ?
-static unsigned int lcd_enc_tst_a4[][7] = {
+static unsigned int lcd_enc_tst_a4[][4] = {
 /*   Y,     Cb,    Cr,    mode_sel */
 	{0x200, 0x200, 0x200, 0},  /* 0 */
 	{0x0,     0x0,   0x0, 1},  /* 1 */
 	{0x0,     0x0,   0x0, 2},  /* 2 */
 	{0x0,     0x0,   0x0, 3},  /* 3 */
-	{0x3ff,   0x0,   0x0, 4},  /* 4 */
-	{0x1ff, 0x1ff, 0x1ff, 0},  /* 5 */
-	{0x3ff,   0x0,   0x0, 0},  /* 6 */
-	{  0x0, 0x3ff,   0x0, 0},  /* 7 */
-	{  0x0,   0x0, 0x3ff, 0},  /* 8 */
-	{  0x0,   0x0,   0x0, 0},  /* 9 */
-	{0x3ff, 0x3ff, 0x3ff, 0},  /* 10 */
+	{0x1ff, 0x1ff, 0x1ff, 0},  /* 4 */
+	{0x3ff,   0x0,   0x0, 0},  /* 5 */
+	{  0x0, 0x3ff,   0x0, 0},  /* 6 */
+	{  0x0,   0x0, 0x3ff, 0},  /* 7 */
+	{  0x0,   0x0,   0x0, 0},  /* 8 */
+	{0x3ff, 0x3ff, 0x3ff, 0},  /* 9 */
+	{0x3ff,   0x0,   0x0, 4},  /* 10 */
 };
 
 static int lcd_venc_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num)
@@ -218,16 +217,17 @@ static int lcd_venc_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num)
 
 static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 {
-	//struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_config_s *pconf = &pdrv->config;
 	unsigned int init_state;
 
 	init_state = 0;
-	//pconf->basic.h_active = lcd_vcbus_read(ENCL_VIDEO_HAVON_END)
-	//	- lcd_vcbus_read(ENCL_VIDEO_HAVON_BEGIN) + 1;
-	//pconf->basic.v_active = lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE)
-	//	- lcd_vcbus_read(ENCL_VIDEO_VAVON_BLINE) + 1;
-	//pconf->basic.h_period = lcd_vcbus_read(ENCL_VIDEO_MAX_PXCNT) + 1;
-	//pconf->basic.v_period = lcd_vcbus_read(ENCL_VIDEO_MAX_LNCNT) + 1;
+	pconf->basic.h_active = lcd_vcbus_getb(VPU_VOUT_DE_PX_EN, 16, 13)
+			- lcd_vcbus_getb(VPU_VOUT_DE_PX_EN, 0, 13) + 1;
+	pconf->basic.v_active = lcd_vcbus_getb(VPU_VOUT_DELN_E_POS, 16, 13)
+			- lcd_vcbus_getb(VPU_VOUT_DELN_E_POS, 0, 13) + 1;
+
+	pconf->basic.h_period = lcd_vcbus_getb(VPU_VOUT_MAX_SIZE, 16, 13);
+	pconf->basic.v_period = lcd_vcbus_getb(VPU_VOUT_MAX_SIZE, 0, 13);
 
 	init_state = lcd_vcbus_read(VPU_VOUT_CORE_CTRL);
 	return init_state;

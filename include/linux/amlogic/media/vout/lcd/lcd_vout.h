@@ -75,7 +75,7 @@ extern unsigned int lcd_debug_print_flag;
  * VENC to TCON sync delay
  * **********************************
  */
-#define TTL_DELAY                   13
+#define RGB_DELAY                   13
 #define PRE_DE_DELAY                8
 
 /* **********************************
@@ -106,13 +106,15 @@ enum lcd_chip_e {
 };
 
 enum lcd_type_e {
-	LCD_TTL = 0,
+	LCD_RGB = 0,
 	LCD_LVDS,
 	LCD_VBYONE,
 	LCD_MIPI,
 	LCD_MLVDS,
 	LCD_P2P,
 	LCD_EDP,
+	LCD_BT656,
+	LCD_BT1120,
 	LCD_TYPE_MAX,
 };
 
@@ -221,10 +223,21 @@ struct lcd_optical_info_s {
 	unsigned int luma_peak;
 };
 
-struct ttl_config_s {
+struct rgb_config_s {
+	unsigned int type;
 	unsigned int clk_pol;
-	unsigned int sync_valid; /* [1]DE, [0]hvsync */
-	unsigned int swap_ctrl; /* [1]rb swap, [0]bit swap */
+	unsigned int de_valid;
+	unsigned int sync_valid;
+	unsigned int rb_swap;
+	unsigned int bit_swap;
+};
+
+struct bt_config_s {
+	unsigned int clk_phase;
+	unsigned int field_type;
+	unsigned int mode_422;
+	unsigned int yc_swap;
+	unsigned int cbcr_swap;
 };
 
 #define LVDS_PHY_VSWING_DFT        3
@@ -412,7 +425,8 @@ struct p2p_config_s {
 };
 
 union lcd_ctrl_config_u {
-	struct ttl_config_s ttl_cfg;
+	struct rgb_config_s rgb_cfg;
+	struct bt_config_s bt_cfg;
 	struct lvds_config_s lvds_cfg;
 	struct vbyone_config_s vbyone_cfg;
 	struct dsi_config_s mipi_cfg;

@@ -60,7 +60,8 @@ struct lcd_debug_info_s {
 	void (*prbs_test)(struct aml_lcd_drv_s *pdrv, unsigned int s,
 			  unsigned int mode_flag);
 
-	struct lcd_debug_info_if_s *debug_if_ttl;
+	struct lcd_debug_info_if_s *debug_if_rgb;
+	struct lcd_debug_info_if_s *debug_if_bt;
 	struct lcd_debug_info_if_s *debug_if_lvds;
 	struct lcd_debug_info_if_s *debug_if_vbyone;
 	struct lcd_debug_info_if_s *debug_if_mlvds;

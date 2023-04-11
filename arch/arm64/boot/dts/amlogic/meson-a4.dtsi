@@ -1882,7 +1882,7 @@
 };
 
 &periphs_pinctrl {
-	lcd_rgb_sync_on_pin:lcd_rgb_sync_on_pin {
+	lcd_rgb_sync_de_on:lcd_rgb_sync_de_on {
 		mux {
 			groups = "lcd_d0", "lcd_d1", "lcd_d2", "lcd_d3", "lcd_d4",
 				"lcd_d5", "lcd_d6", "lcd_d7", "lcd_d8", "lcd_d9",
