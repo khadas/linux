@@ -2353,6 +2353,56 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 	return 0;
 }
 
+static void atsc_optimize_cn(bool reset)
+{
+	unsigned int r_c3, ave_c3, r_a9, r_9e, r_d8, ave_d8;
+	static unsigned int arr_c3[10] = { 0 };
+	static unsigned int arr_d8[10] = { 0 };
+	static unsigned int times;
+
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+		return;
+
+	if (reset) {
+		times = 0;
+		memset(arr_c3, 0, sizeof(int) * 10);
+		memset(arr_d8, 0, sizeof(int) * 10);
+		return;
+	}
+
+	times++;
+	if (times == 10000)
+		times = 20;
+	r_c3 = atsc_read_reg_v4(ATSC_EQ_REG_0XC3);
+	r_d8 = atsc_read_reg_v4(ATSC_EQ_REG_0XD8);
+	arr_c3[times % 10] = r_c3;
+	arr_d8[times % 10] = r_d8;
+	if (times < 10) {
+		ave_c3 = 0;
+		ave_d8 = 0;
+	} else {
+		ave_c3 = (arr_c3[0] + arr_c3[1] + arr_c3[2] + arr_c3[3] + arr_c3[4] +
+			arr_c3[5] + arr_c3[6] + arr_c3[7] + arr_c3[8] + arr_c3[9]) / 10;
+		ave_d8 = (arr_d8[0] + arr_d8[1] + arr_d8[2] + arr_d8[3] + arr_d8[4] +
+			arr_d8[5] + arr_d8[6] + arr_d8[7] + arr_d8[8] + arr_d8[9]) / 10;
+	}
+
+	r_a9 = atsc_read_reg_v4(ATSC_EQ_REG_0XA9);
+	r_9e = atsc_read_reg_v4(ATSC_EQ_REG_0X9E);
+	PR_ATSC("r_a9=0x%x, r_9e=0x%x, ave_c3=0x%x, ave_d8=0x%x\n", r_a9, r_9e, ave_c3, ave_d8);
+	if ((r_a9 != 0x77744 || r_9e != 0xd0d0d09) &&
+		ave_d8 < 0x1000 && ave_c3 > 0x240) {
+		PR_ATSC("set cn to 15dB\n");
+		atsc_write_reg_v4(ATSC_EQ_REG_0XA9, 0x77744);
+		atsc_write_reg_v4(ATSC_EQ_REG_0X9E, 0xd0d0d09);
+	} else if ((r_a9 != 0x44444 || r_9e != 0xa080809) &&
+		(ave_d8 > 0x2000 || (ave_c3 < 0x170 && ave_c3 != 0))) {
+		PR_ATSC("set cn to 15.8dB\n");
+		atsc_write_reg_v4(ATSC_EQ_REG_0XA9, 0x44444);
+		atsc_write_reg_v4(ATSC_EQ_REG_0X9E, 0xa080809);
+	}
+}
+
 static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned int re_tune)
 {
 	int fsm_status;//0:none;1:lock;-1:lost
@@ -2372,6 +2422,7 @@ static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 		peak = 0;
 		demod->time_start = jiffies_to_msecs(jiffies);
 		*status = 0;
+		atsc_optimize_cn(true);
 		return;
 	}
 
@@ -2401,6 +2452,7 @@ static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 	sys_sts = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) & 0xff;
 	PR_ATSC("fsm=0x%x, time_passed=%d\n", sys_sts, demod->time_passed);
 	if (sys_sts >= ATSC_SYNC_LOCK) {
+		atsc_optimize_cn(false);
 		fsm_status = 1;
 		peak = 1;//atsc signal
 	} else if (sys_sts >= (CR_PEAK_LOCK & 0xf0)) {
