@@ -581,6 +581,19 @@ static int __init unknown_bootoption(char *param, char *val,
 		}
 		argv_init[i] = param;
 	}
+#ifdef CONFIG_AMLOGIC_ENV_DEBUG
+	if (panic_later) {
+		int k;
+
+		pr_err("Dump init args\n");
+		for (k = 0; argv_init[k] && k < MAX_INIT_ARGS; k++)
+			pr_err("[%2d]: %s\n", k, argv_init[k]);
+
+		pr_err("Dump env args\n");
+		for (k = 0; envp_init[k] && k < MAX_INIT_ENVS; k++)
+			pr_err("[%2d]: %s\n", k, envp_init[k]);
+	}
+#endif
 	return 0;
 }
 
