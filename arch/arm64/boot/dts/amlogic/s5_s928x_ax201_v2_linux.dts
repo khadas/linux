@@ -2018,7 +2018,7 @@
 };
 
 &irblaster {
-	status = "disabled";
+	status = "okay";
 };
 
 &uart_B {
