@@ -42,6 +42,8 @@ struct audio_acc {
 	int eq_tuning_index;
 	unsigned int m_mixer_tab[ACC_EQ_INDEX][ACC_EQ_MIXER_RAM_SIZE];
 	unsigned int m_eq_tab[ACC_EQ_INDEX][ACC_EQ_FILTER_SIZE_CH][ACC_EQ_FILTER_PARAM_SIZE];
+	dev_t devno;
+	struct cdev cd;
 };
 
 struct audio_acc *acc;
@@ -104,10 +106,11 @@ static ssize_t acc_write(struct file *fp, const char __user *buf, size_t size, l
 }
 
 static const struct file_operations fops = {
-	.open = acc_open,
-	.release = acc_release,
-	.read = acc_read,
-	.write = acc_write,
+	.owner      = THIS_MODULE,
+	.open       = acc_open,
+	.release    = acc_release,
+	.read       = acc_read,
+	.write      = acc_write,
 };
 
 static int mixer_acc_read(struct snd_kcontrol *kcontrol,
@@ -384,22 +387,20 @@ static void acc_init(struct platform_device *pdev)
 	pr_info("%s: [0x%p]\n", __func__, p_acc);
 }
 
-void create_acc_device_node(void)
+void create_acc_device_node(struct audio_acc *p_acc)
 {
 	int ret;
-	dev_t devno;
-	struct cdev cd;
 	struct class *acc_class;
 	struct device *acc_device;
 
-	ret = alloc_chrdev_region(&devno, 0, 1, "audio_acc");
+	ret = alloc_chrdev_region(&p_acc->devno, 0, 1, "audio_acc");
 	if (ret < 0) {
 		pr_err("audio_acc alloc_chrdev_region failed!");
 		return;
 	}
-	cdev_init(&cd, &fops);
+	cdev_init(&p_acc->cd, &fops);
 
-	ret = cdev_add(&cd, devno, 1);
+	ret = cdev_add(&p_acc->cd, p_acc->devno, 1);
 	if (ret < 0) {
 		pr_err("cdev_add failed!");
 		return;
@@ -408,16 +409,16 @@ void create_acc_device_node(void)
 	acc_class = class_create(THIS_MODULE, "audio_acc");
 	if (!acc_class) {
 		pr_info("create class failed\n");
-		cdev_del(&cd);
-		unregister_chrdev_region(devno, 1);
+		cdev_del(&p_acc->cd);
+		unregister_chrdev_region(p_acc->devno, 1);
 		return;
 	}
 
-	acc_device = device_create(acc_class, NULL, devno, NULL, "audio_acc");
+	acc_device = device_create(acc_class, NULL, p_acc->devno, NULL, "audio_acc");
 	if (!acc_device) {
 		pr_info("create device failed\n");
-		cdev_del(&cd);
-		unregister_chrdev_region(devno, 1);
+		cdev_del(&p_acc->cd);
+		unregister_chrdev_region(p_acc->devno, 1);
 		class_destroy(acc_class);
 		return;
 	}
@@ -490,7 +491,7 @@ static int acc_platform_probe(struct platform_device *pdev)
 
 	acc_init(pdev);
 
-	create_acc_device_node();
+	create_acc_device_node(p_acc);
 
 	return 0;
 }
