@@ -22,6 +22,7 @@
 #include "reg_helper.h"
 #include "hdr/gamut_convert.h"
 #include "arch/vpp_hdr_regs.h"
+#include "color/ai_color.h"
 
 static uint cpu_write_lut = 1;
 module_param(cpu_write_lut, uint, 0664);
@@ -1201,7 +1202,7 @@ void disable_ai_color(void)
 	WRITE_VPP_REG_BITS_S5(S5_VD2_HDR2_CTRL, 0, 14, 2);
 	WRITE_VPP_REG_BITS_S5(S5_OSD1_HDR2_CTRL, 0, 14, 2);
 	WRITE_VPP_REG_BITS_S5(S5_OSD3_HDR2_CTRL, 0, 14, 2);
-	WRITE_VPP_REG_BITS_S5(SA_CTRL, 0, 0, 1);
+	ai_clr_config(0);
 }
 
 void s5_set_hist(enum hdr_module_sel module_sel, int enable,

@@ -15,10 +15,15 @@
 #include "../arch/vpp_regs_v2.h"
 #include "../reg_helper.h"
 #include "ai_color.h"
+#include "../amcsc.h"
 
 unsigned int ai_clr_dbg;
 module_param(ai_clr_dbg, uint, 0664);
 MODULE_PARM_DESC(ai_clr_dbg, "\n ai color dbg\n");
+
+int aice_offset[4] = {
+	0x0, 0x100, 0x900, 0xa00
+};
 
 #define pr_ai_clr(fmt, args...)\
 	do {\
@@ -381,6 +386,18 @@ void ai_color_proc(struct vframe_s *vf)
 
 	if (ai_clr_dbg > 0)
 		ai_clr_dbg--;
+}
+
+void ai_clr_config(int enable)
+{
+	int i;
+	int s5_slice_mode = get_s5_silce_mode();
+
+	if (s5_slice_mode < 1 || s5_slice_mode > 4)
+		return;
+
+	for (i = 0; i < s5_slice_mode; i++)
+		WRITE_VPP_REG_BITS_S5(SA_CTRL + aice_offset[i], enable, 0, 1);
 }
 
 int ai_color_debug_store(char **parm)

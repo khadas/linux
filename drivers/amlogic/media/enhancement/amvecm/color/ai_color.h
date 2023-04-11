@@ -49,4 +49,5 @@ struct sa_param_s    {
 
 void ai_color_proc(struct vframe_s *vf);
 int ai_color_debug_store(char **parm);
+void ai_clr_config(int enable);
 #endif
