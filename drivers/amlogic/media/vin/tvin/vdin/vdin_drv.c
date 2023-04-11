@@ -3484,7 +3484,9 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	if (vdin0_devp) { /* May not probe vdin0 */
 		/* check input content is protected */
 		protect_mode = vdin0_devp->prop.hdcp_sts ? 4 : 0;
-		if (protect_mode != devp->matrix_pattern_mode && !devp->mem_protected) {
+		if (protect_mode != devp->matrix_pattern_mode && !devp->mem_protected &&
+			(vdin0_devp->flags & VDIN_FLAG_DEC_OPENED) &&
+			(vdin0_devp->flags & VDIN_FLAG_DEC_STARTED)) {
 			devp->matrix_pattern_mode = protect_mode;
 			pr_info("vdin0:hdcp chg to %d\n", vdin0_devp->prop.hdcp_sts);
 			vdin_set_matrix(devp);
