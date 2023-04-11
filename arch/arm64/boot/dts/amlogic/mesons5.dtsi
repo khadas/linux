@@ -2628,7 +2628,7 @@
 		status = "disabled";
 		reg = <0x0 0xfe08410c 0x0 0x10>;
 		#irblaster-cells = <2>;
-		interrupts = <GIC_SPI 23 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 60 IRQ_TYPE_EDGE_RISING>;
 	};
 
 	/*if you want to use vdin just modify status to "ok"*/
