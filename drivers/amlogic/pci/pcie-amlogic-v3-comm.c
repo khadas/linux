@@ -984,7 +984,7 @@ bool amlogic_pcie_link_up(struct amlogic_pcie *amlogic)
 		if (unlikely(cnt >= WAIT_LINKUP_TIMEOUT)) {
 			dev_err(dev, "Error: Wait linkup timeout.\n");
 			return false;
-		} else if (unlikely(cnt >= WAIT_LINKUP_TIMEOUT / 2)) {
+		} else if (unlikely(cnt >= amlogic->link_times)) {
 			dev_info(dev, "%s:%d, ltssm_state=0x%x\n", __func__, __LINE__,
 				 ((val >> 18) & 0x1f));
 		}

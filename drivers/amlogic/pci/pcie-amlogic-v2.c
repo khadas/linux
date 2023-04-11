@@ -26,7 +26,7 @@
 #include <linux/amlogic/tee.h>
 
 static u32 handle;
-static int link_speed = 2;
+static int link_speed;
 module_param(link_speed, int, 0444);
 MODULE_PARM_DESC(link_speed, "select pcie link speed ");
 int keep_init;
@@ -1003,7 +1003,13 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 
 	amlogic_pcie->phy->reset_state = 1;
 
-	amlogic_pcie->link_gen = link_speed;
+	if (of_property_read_bool(np, "max-link-speed"))
+		of_property_read_u32(np, "max-link-speed",
+				     &amlogic_pcie->link_gen);
+
+	if (link_speed)
+		amlogic_pcie->link_gen = link_speed;
+
 	if (amlogic_pcie->link_gen <= 0 || amlogic_pcie->link_gen > 2)
 		amlogic_pcie->link_gen = 2;
 

@@ -41,6 +41,10 @@ static int link_speed;
 module_param(link_speed, int, 0444);
 MODULE_PARM_DESC(link_speed, "select pcie link speed ");
 
+static int link_times = WAIT_LINKUP_TIMEOUT - 10;
+module_param(link_times, int, 0644);
+MODULE_PARM_DESC(link_times, "select pcie link speed ");
+
 /* MSI information */
 struct amlogic_msi {
 	DECLARE_BITMAP(used, INT_PCI_MSI_NR);
@@ -332,8 +336,15 @@ static int amlogic_pcie_parse_host_dt(struct amlogic_pcie_rc *rc)
 		amlogic->phy_type = M31_PHY;
 	dev_dbg(amlogic->dev, "PCIE phy type is %d\n", amlogic->phy_type);
 
+	if (of_property_read_bool(node, "max-link-speed"))
+		of_property_read_u32(node, "max-link-speed",
+				     &amlogic->link_gen);
+
 	if (link_speed)
 		amlogic->link_gen = link_speed;
+
+	if (link_times)
+		amlogic->link_times = link_times;
 
 	ret = amlogic_pcie_parse_dt(amlogic);
 	if (ret)
