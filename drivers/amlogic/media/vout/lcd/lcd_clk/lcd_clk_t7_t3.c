@@ -175,7 +175,10 @@ set_pll_retry_t7:
 	udelay(10);
 	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL2 + offset, 0x0000110c);
 	udelay(10);
-	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL3 + offset, 0x10051400);
+	if (cconf->pll_fvco < 3800000)
+		lcd_ana_write(ANACTRL_TCON_PLL0_CNTL3 + offset, 0x10051100);
+	else
+		lcd_ana_write(ANACTRL_TCON_PLL0_CNTL3 + offset, 0x10051400);
 	udelay(10);
 	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL4 + offset, 0x0100c0, 0, 24);
 	udelay(10);
@@ -892,7 +895,10 @@ set_pll_retry_t3:
 	udelay(10);
 	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL2 + offset, 0x0000110c);
 	udelay(10);
-	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL3 + offset, 0x10051400);
+	if (cconf->pll_fvco < 3800000)
+		lcd_ana_write(ANACTRL_TCON_PLL0_CNTL3 + offset, 0x10051100);
+	else
+		lcd_ana_write(ANACTRL_TCON_PLL0_CNTL3 + offset, 0x10051400);
 	udelay(10);
 	lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL4 + offset, 0x0100c0, 0, 24);
 	udelay(10);
