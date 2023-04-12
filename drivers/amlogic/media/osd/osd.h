@@ -426,7 +426,9 @@ enum display_type_e {
 enum matrix_type_e {
 	MATRIX_BYPASS = 0,
 	YUV2RGB,
-	RGB2YUV
+	RGB2YUV,
+	YUV7092RGB,
+	RGB2YUV709
 };
 
 struct pandata_s {

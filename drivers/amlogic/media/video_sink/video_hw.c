@@ -7547,26 +7547,10 @@ static void vpp_blend_update_s5(const struct vinfo_s *vinfo)
 
 static void vd1_matrix_yuv2rgb(int yuv2rgb)
 {
-	int i;
 	int mat_conv_en = 0;
-	int pre_offset[3], post_offset[3];
-	int mat_coef[15];
-	int rgb2yuvpre[3] = {0, 0, 0};
-	int rgb2yuvpos[3] = {64, 512, 512};
-	int yuv2rgbpre[3] = {-64, -512, -512};
-	int yuv2rgbpos[3] = {0, 0, 0};
-	u32 vpp_index = 0;
 	static int matrix_save;
-
-	/* matrix coef BT709 */
-	int rgb2ycbcr[15] = {264, 516, 100, -152, -296, 448,
-		448, -376, -72, 0, 0, 0, 0, 0, 0};
-	int ycbcr2rgb[15] = {1197, 0, 1726, 1197, -193, -669,
-		1197, 2202, 0, 0, 0, 0, 0, 0, 0};
-
-	memset(pre_offset, 0, sizeof(pre_offset));
-	memset(post_offset, 0, sizeof(post_offset));
-	memset(mat_coef, 0, sizeof(mat_coef));
+	u32 vpp_index = 0;
+	int marix_coef[9] = {0};
 	if (matrix_save == yuv2rgb)
 		return;
 	switch (yuv2rgb) {
@@ -7575,63 +7559,103 @@ static void vd1_matrix_yuv2rgb(int yuv2rgb)
 		break;
 	case YUV2RGB:
 		mat_conv_en = 1;
-		for (i = 0; i < 3; i++) {
-			pre_offset[i] = yuv2rgbpre[i];
-			post_offset[i] = yuv2rgbpos[i];
-		}
-		for (i = 0; i < 15; i++)
-			mat_coef[i] = ycbcr2rgb[i];
+		marix_coef[0] = 0x04ad0000;
+		marix_coef[1] = 0x06be04ad;
+		marix_coef[2] = 0x1f3f1d63;
+		marix_coef[3] = 0x04ad089a;
+		marix_coef[4] = 0x00000000;
+		marix_coef[5] = 0x0;
+		marix_coef[6] = 0x0;
+		marix_coef[7] = 0x1fc00e00;
+		marix_coef[8] = 0x00001e00;
 		break;
 	case RGB2YUV:
 		mat_conv_en = 1;
-		for (i = 0; i < 3; i++) {
-			pre_offset[i] = rgb2yuvpre[i];
-			post_offset[i] = rgb2yuvpos[i];
-		}
-		for (i = 0; i < 15; i++)
-			mat_coef[i] = rgb2ycbcr[i];
+		marix_coef[0] = 0x01080204;
+		marix_coef[1] = 0x00641f68;
+		marix_coef[2] = 0x1ed801c0;
+		marix_coef[3] = 0x01c01e88;
+		marix_coef[4] = 0x00001fb8;
+		marix_coef[5] = 0x00400200;
+		marix_coef[6] = 0x00000200;
+		marix_coef[7] = 0x0;
+		marix_coef[8] = 0x0;
+		break;
+	case RGB2YUV709:
+		mat_conv_en = 1;
+		marix_coef[0] = 0x00bb0275;
+		marix_coef[1] = 0x003f1f99;
+		marix_coef[2] = 0x1ea601c2;
+		marix_coef[3] = 0x01c21e67;
+		marix_coef[4] = 0x00001fd7;
+		marix_coef[5] = 0x00400200;
+		marix_coef[6] = 0x00000200;
+		marix_coef[7] = 0x0;
+		marix_coef[8] = 0x0;
+		break;
+	case YUV7092RGB:
+		mat_conv_en = 1;
+		marix_coef[0] = 0x04ac0000;
+		marix_coef[1] = 0x073104ac;
+		marix_coef[2] = 0x1f251ddd;
+		marix_coef[3] = 0x04ac0879;
+		marix_coef[4] = 0x0;
+		marix_coef[5] = 0x0;
+		marix_coef[6] = 0x0;
+		marix_coef[7] = 0x7c00600;
+		marix_coef[8] = 0x00000600;
 		break;
 	}
-	matrix_save = yuv2rgb;
 	if (yuv2rgb != MATRIX_BYPASS) {
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_layer[0].vd_csc_reg.vout_vd1_csc_coef00_01,
-			(mat_coef[0] << 16) |
-			(mat_coef[1] & 0x1FFF));
+			marix_coef[0]);
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_layer[0].vd_csc_reg.vout_vd1_csc_coef02_10,
-			(mat_coef[2] << 16) |
-			(mat_coef[1 * 3 + 0] & 0x1FFF));
+			marix_coef[1]);
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_layer[0].vd_csc_reg.vout_vd1_csc_coef11_12,
-			(mat_coef[1 * 3 + 1] << 16) |
-			(mat_coef[1 * 3 + 2] & 0x1FFF));
+			marix_coef[2]);
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_layer[0].vd_csc_reg.vout_vd1_csc_coef20_21,
-			(mat_coef[2 * 3 + 0] << 16) |
-			(mat_coef[2 * 3 + 1] & 0x1FFF));
+			marix_coef[3]);
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_layer[0].vd_csc_reg.vout_vd1_csc_coef22,
-			mat_coef[2 * 3 + 2]);
+			marix_coef[4]);
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_layer[0].vd_csc_reg.vout_vd1_csc_offset0_1,
-			(post_offset[0] << 16) |
-			(post_offset[1] & 0xFFF));
+			marix_coef[5]);
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_layer[0].vd_csc_reg.vout_vd1_csc_offset2,
-			post_offset[2]);
+			marix_coef[6]);
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_layer[0].vd_csc_reg.vout_vd1_csc_pre_offset0_1,
-			(pre_offset[0] << 16) |
-			(pre_offset[1] & 0xFFF));
+			marix_coef[7]);
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_layer[0].vd_csc_reg.vout_vd1_csc_pre_offset2,
-			pre_offset[2]);
+			marix_coef[8]);
 	}
 	/* vd1_mat_en */
 	cur_dev->rdma_func[vpp_index].rdma_wr_bits
 		(vd_layer[0].vd_csc_reg.vout_vd1_csc_en_ctrl,
 		mat_conv_en, 0, 1);
+	matrix_save = yuv2rgb;
+}
+
+void vd_csc_setting(struct video_layer_s *layer,
+		    struct vframe_s *vf)
+{
+	if (cur_dev->display_module == C3_DISPLAY_MODULE) {
+		if (!video_is_meson_c3_cpu()) {
+			bool is_rgb = false;
+
+			if (vf && (vf->type & VIDTYPE_RGB_444 ||
+				vf->type & VIDTYPE_VIU_444))
+				is_rgb = true;
+			if (is_rgb)
+				vd1_matrix_yuv2rgb(RGB2YUV709);
+		}
+	}
 }
 
 static void vpp_blend_update_c3(const struct vinfo_s *vinfo)
@@ -7643,7 +7667,8 @@ static void vpp_blend_update_c3(const struct vinfo_s *vinfo)
 	u32 vpp_index = 0;
 
 	if (vd1_matrix != save_setting) {
-		vd1_matrix_yuv2rgb(vd1_matrix);
+		if (video_is_meson_c3_cpu())
+			vd1_matrix_yuv2rgb(vd1_matrix);
 
 		if (vinfo) {
 			u32 read_value = cur_dev->rdma_func[vpp_index].rdma_rd
@@ -12593,14 +12618,22 @@ int set_vpu_super_urgent_t3(u32 module_id, u32 low_level, u32 high_level)
 static void video_hw_init_c3(void)
 {
 	vd1_matrix = YUV2RGB;
-	if (video_is_meson_a4_cpu())
+	if (video_is_meson_a4_cpu()) {
+		/* set blend dummy alpha and data for osd alpha */
+		WRITE_VCBUS_REG_BITS
+			(cur_dev->vout_blend_reg.vpu_vout_blend_ctrl,
+			0x100, 16, 9);
+		WRITE_VCBUS_REG
+			(cur_dev->vout_blend_reg.vpu_vout_blend_dumdata,
+			0x4080200);
 		WRITE_VCBUS_REG
 			(vd_layer[0].vd_mif_reg.vd_if0_luma_fifo_size,
 			0xc0);
-	else if (video_is_meson_c3_cpu())
+	} else if (video_is_meson_c3_cpu()) {
 		WRITE_VCBUS_REG
 			(vd_layer[0].vd_mif_reg.vd_if0_luma_fifo_size,
 			0x60);
+	}
 #ifdef CONFIG_AMLOGIC_VPU
 	vd1_vpu_dev = vpu_dev_register(VPU_VIU_VD1, "VD1");
 #endif
@@ -12620,7 +12653,6 @@ int video_hw_init(void)
 #endif
 	if (cur_dev->display_module == C3_DISPLAY_MODULE) {
 		video_hw_init_c3();
-		pr_info("%s, LINE=%d\n", __func__, __LINE__);
 		return 0;
 	}
 

@@ -221,7 +221,9 @@ enum display_module_e {
 enum matrix_type_e {
 	MATRIX_BYPASS = 0,
 	YUV2RGB,
-	RGB2YUV
+	RGB2YUV,
+	YUV7092RGB,
+	RGB2YUV709
 };
 
 typedef u32 (*rdma_rd_op)(u32 reg);
@@ -725,6 +727,8 @@ void vd_scaler_setting(struct video_layer_s *layer,
 		       struct scaler_setting_s *setting);
 void vd_blend_setting(struct video_layer_s *layer,
 		      struct blend_setting_s *setting);
+void vd_csc_setting(struct video_layer_s *layer,
+		    struct vframe_s *vf);
 void vd_clip_setting(u8 layer_id,
 		     struct clip_setting_s *setting);
 void proc_vd_vsc_phase_per_vsync(struct video_layer_s *layer,

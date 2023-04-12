@@ -1785,26 +1785,10 @@ static int is_yuv_format(u32 format)
 /* for c3 */
 static void osd1_matrix_yuv2rgb(int yuv2rgb)
 {
-	int i;
 	int mat_conv_en = 0;
-	int pre_offset[3], post_offset[3];
-	int mat_coef[15];
-	int rgb2yuvpre[3] = {0, 0, 0};
-	int rgb2yuvpos[3] = {64, 512, 512};
-	int yuv2rgbpre[3] = {-64, -512, -512};
-	int yuv2rgbpos[3] = {0, 0, 0};
 	static int matrix_save;
 	u32 output_index = VPP0;
-
-	/* matrix coef BT709 */
-	int rgb2ycbcr[15] = {264, 516, 100, -152, -296, 448,
-		448, -376, -72, 0, 0, 0, 0, 0, 0};
-	int ycbcr2rgb[15] = {1197, 0, 1726, 1197, -193, -669,
-		1197, 2202, 0, 0, 0, 0, 0, 0, 0};
-
-	memset(pre_offset, 0, sizeof(pre_offset));
-	memset(post_offset, 0, sizeof(post_offset));
-	memset(mat_coef, 0, sizeof(mat_coef));
+	int marix_coef[9] = {0};
 	if (matrix_save == yuv2rgb)
 		return;
 	switch (yuv2rgb) {
@@ -1813,63 +1797,87 @@ static void osd1_matrix_yuv2rgb(int yuv2rgb)
 		break;
 	case YUV2RGB:
 		mat_conv_en = 1;
-		for (i = 0; i < 3; i++) {
-			pre_offset[i] = yuv2rgbpre[i];
-			post_offset[i] = yuv2rgbpos[i];
-		}
-		for (i = 0; i < 15; i++)
-			mat_coef[i] = ycbcr2rgb[i];
+		marix_coef[0] = 0x04ad0000;
+		marix_coef[1] = 0x06be04ad;
+		marix_coef[2] = 0x1f3f1d63;
+		marix_coef[3] = 0x04ad089a;
+		marix_coef[4] = 0x00000000;
+		marix_coef[5] = 0x0;
+		marix_coef[6] = 0x0;
+		marix_coef[7] = 0x1fc00e00;
+		marix_coef[8] = 0x00001e00;
 		break;
 	case RGB2YUV:
 		mat_conv_en = 1;
-		for (i = 0; i < 3; i++) {
-			pre_offset[i] = rgb2yuvpre[i];
-			post_offset[i] = rgb2yuvpos[i];
-		}
-		for (i = 0; i < 15; i++)
-			mat_coef[i] = rgb2ycbcr[i];
+		marix_coef[0] = 0x01080204;
+		marix_coef[1] = 0x00641f68;
+		marix_coef[2] = 0x1ed801c0;
+		marix_coef[3] = 0x01c01e88;
+		marix_coef[4] = 0x00001fb8;
+		marix_coef[5] = 0x00400200;
+		marix_coef[6] = 0x00000200;
+		marix_coef[7] = 0x0;
+		marix_coef[8] = 0x0;
+		break;
+	case RGB2YUV709:
+		mat_conv_en = 1;
+		marix_coef[0] = 0x00bb0275;
+		marix_coef[1] = 0x003f1f99;
+		marix_coef[2] = 0x1ea601c2;
+		marix_coef[3] = 0x01c21e67;
+		marix_coef[4] = 0x00001fd7;
+		marix_coef[5] = 0x00400200;
+		marix_coef[6] = 0x00000200;
+		marix_coef[7] = 0x0;
+		marix_coef[8] = 0x0;
+		break;
+	case YUV7092RGB:
+		mat_conv_en = 1;
+		marix_coef[0] = 0x04ac0000;
+		marix_coef[1] = 0x073104ac;
+		marix_coef[2] = 0x1f251ddd;
+		marix_coef[3] = 0x04ac0879;
+		marix_coef[4] = 0x0;
+		marix_coef[5] = 0x0;
+		marix_coef[6] = 0x0;
+		marix_coef[7] = 0x7c00600;
+		marix_coef[8] = 0x00000600;
 		break;
 	}
-	matrix_save = yuv2rgb;
 	if (yuv2rgb != MATRIX_BYPASS) {
 		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 			(hw_osd_vout_csc_reg.vout_osd1_csc_coef00_01,
-			(mat_coef[0] << 16) |
-			(mat_coef[1] & 0x1FFF));
+			marix_coef[0]);
 		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 			(hw_osd_vout_csc_reg.vout_osd1_csc_coef02_10,
-			(mat_coef[2] << 16) |
-			(mat_coef[1 * 3 + 0] & 0x1FFF));
+			marix_coef[1]);
 		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 			(hw_osd_vout_csc_reg.vout_osd1_csc_coef11_12,
-			(mat_coef[1 * 3 + 1] << 16) |
-			(mat_coef[1 * 3 + 2] & 0x1FFF));
+			marix_coef[2]);
 		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 			(hw_osd_vout_csc_reg.vout_osd1_csc_coef20_21,
-			(mat_coef[2 * 3 + 0] << 16) |
-			(mat_coef[2 * 3 + 1] & 0x1FFF));
+			marix_coef[3]);
 		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 			(hw_osd_vout_csc_reg.vout_osd1_csc_coef22,
-			mat_coef[2 * 3 + 2]);
+			marix_coef[4]);
 		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 			(hw_osd_vout_csc_reg.vout_osd1_csc_offset0_1,
-			(post_offset[0] << 16) |
-			(post_offset[1] & 0xFFF));
+			marix_coef[5]);
 		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 			(hw_osd_vout_csc_reg.vout_osd1_csc_offset2,
-			post_offset[2]);
+			marix_coef[6]);
 		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 			(hw_osd_vout_csc_reg.vout_osd1_csc_pre_offset0_1,
-			(pre_offset[0] << 16) |
-			(pre_offset[1] & 0xFFF));
+			marix_coef[7]);
 		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 			(hw_osd_vout_csc_reg.vout_osd1_csc_pre_offset2,
-			pre_offset[2]);
+			marix_coef[8]);
 	}
-	/* vd1_mat_en */
+	/* osd1_mat_en */
 	osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 		(hw_osd_vout_csc_reg.vout_osd1_csc_en_ctrl,
 		mat_conv_en, 0, 1);
+	matrix_save = yuv2rgb;
 }
 
 /*for G12A, set osd3 matrix(10bit) RGB2YUV*/
@@ -14839,6 +14847,9 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		set_vpp_osd1_rgb2yuv(1);
 		set_vpp_osd2_rgb2yuv(1);
 	}
+	if (osd_dev_hw.display_type == C3_DISPLAY &&
+		osd_hw.osd_meson_dev.osd_rgb2yuv)
+		osd1_matrix_yuv2rgb(RGB2YUV709);
 	if (osd_hw.fb_drvier_probe) {
 #ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
 		INIT_LIST_HEAD(&post_fence_list[VIU1]);

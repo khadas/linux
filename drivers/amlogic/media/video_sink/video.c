@@ -6620,7 +6620,7 @@ s32 primary_render_frame(struct video_layer_s *layer)
 	aisr_scaler_setting(layer, &layer->aisr_sc_setting);
 	aisr_demo_axis_set(layer);
 	vd_blend_setting(layer, &layer->bld_setting);
-
+	vd_csc_setting(layer, dispbuf);
 	if (update_vd2) {
 		vd_scaler_setting(&vd_layer[1], &local_vd2_pps);
 		vd_blend_setting(&vd_layer[1], &local_vd2_blend);
