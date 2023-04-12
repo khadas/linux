@@ -9769,7 +9769,7 @@ void aisr_reshape_output_s5(u32 enable)
 void aisr_demo_axis_set_s5(void)
 {
 	u8 vpp_index = VPP0;
-	static bool en_flag = FALSE;
+	static bool en_flag;
 	static u32 original_reg_value1;
 	static u32 original_reg_value2;
 	struct vd_proc_sr_reg_s *vd_sr_reg = NULL;
@@ -9784,7 +9784,7 @@ void aisr_demo_axis_set_s5(void)
 				READ_VCBUS_REG(vd_sr_reg->srsharp1_demo_mode_window_ctrl0);
 			original_reg_value2 =
 				READ_VCBUS_REG(vd_sr_reg->srsharp1_demo_mode_window_ctrl1);
-			en_flag = TRUE;
+			en_flag = true;
 		}
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(vd_sr_reg->srsharp1_demo_mode_window_ctrl0,
@@ -9812,7 +9812,7 @@ void aisr_demo_axis_set_s5(void)
 			cur_dev->rdma_func[vpp_index].rdma_wr
 				(vd_sr_reg->srsharp1_demo_mode_window_ctrl1,
 				original_reg_value2);
-			en_flag = FALSE;
+			en_flag = false;
 		}
 	}
 }

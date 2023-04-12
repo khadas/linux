@@ -12185,7 +12185,7 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 void aisr_demo_axis_set(void)
 {
 	u8 vpp_index = VPP0;
-	static bool en_flag = FALSE;
+	static bool en_flag;
 	static u32 original_reg_value1;
 	static u32 original_reg_value2;
 
@@ -12197,7 +12197,7 @@ void aisr_demo_axis_set(void)
 		if (!en_flag) {
 			original_reg_value1 = READ_VCBUS_REG(DEMO_MODE_WINDO_CTRL0);
 			original_reg_value2 = READ_VCBUS_REG(DEMO_MODE_WINDO_CTRL1);
-			en_flag = TRUE;
+			en_flag = true;
 		}
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(DEMO_MODE_WINDO_CTRL0,
@@ -12227,7 +12227,7 @@ void aisr_demo_axis_set(void)
 				(DEMO_MODE_WINDO_CTRL0, original_reg_value1);
 			cur_dev->rdma_func[vpp_index].rdma_wr
 				(DEMO_MODE_WINDO_CTRL1, original_reg_value2);
-			en_flag = FALSE;
+			en_flag = false;
 		}
 	}
 
