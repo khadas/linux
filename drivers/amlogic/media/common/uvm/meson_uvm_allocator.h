@@ -33,6 +33,16 @@
 struct mua_device;
 struct mua_buffer;
 
+enum mua_debug_mask {
+	MUA_DEBUG_LEVEL_ERROR,
+	MUA_DEBUG_LEVEL_INFO,
+	MUA_DEBUG_LEVEL_DBG
+};
+
+#define MUA_ERROR       BIT(MUA_DEBUG_LEVEL_ERROR)
+#define MUA_INFO        BIT(MUA_DEBUG_LEVEL_INFO)
+#define MUA_DBG         BIT(MUA_DEBUG_LEVEL_DBG)
+
 struct mua_buffer {
 	struct uvm_buf_obj base;
 	struct mua_device *dev;
