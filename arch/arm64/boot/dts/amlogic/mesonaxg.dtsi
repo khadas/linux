@@ -153,6 +153,11 @@
 		reserve_mem_size = <0x00300000>;
 	};
 
+	optee {
+		compatible = "linaro,optee-tz";
+		method = "smc";
+	};
+
 	securitykey {
 		compatible = "aml, securitykey";
 		storage_query = <0x82000060>;
