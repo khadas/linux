@@ -169,7 +169,7 @@ static struct tvafe_user_param_s tvafe_user_param = {
 	.nostd_vs_cntl = 0x1,
 	.nostd_vloop_tc = 0x2,
 	.force_vs_th_flag = 0,
-	.nostd_stable_cnt = 3,
+	.nostd_stable_cnt = 12,
 	.nostd_dmd_clp_step = 0x10,
 
 	/*4 is the test result@20171101 on fluke-54200 and DVD*/

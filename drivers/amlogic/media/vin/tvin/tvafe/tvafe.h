@@ -34,7 +34,8 @@
 /* 20230322: memset vbi memory */
 /* 20230423: Set the default value of comp_level_adj to 3 */
 /* 20230423: white level detection is enabled by default */
-#define TVAFE_VER "20230423: Set the default value of comp_level_adj to 3"
+/* 20230509: adjust nostd_stable_cnt */
+#define TVAFE_VER "20230509: adjust nostd_stable_cnt"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010
