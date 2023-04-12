@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
- * Copyright © 2019-2022 Amlogic Inc.
+ * Copyright (C) 2019-2022 Amlogic Inc.
  */
 
 #ifndef _MESON_DRM_H
@@ -39,6 +39,8 @@ struct drm_meson_gem_create {
 /*Memory related.*/
 #define DRM_IOCTL_MESON_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + \
 		0x00, struct drm_meson_gem_create)
+#define DRM_IOCTL_MESON_RMFB	DRM_IOWR(DRM_COMMAND_BASE + \
+		0x01, unsigned int)
 
 /*KMS related.*/
 #define DRM_IOCTL_MESON_ASYNC_ATOMIC	DRM_IOWR(DRM_COMMAND_BASE + \

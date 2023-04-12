@@ -137,3 +137,59 @@ am_meson_drm_framebuffer_init(struct drm_device *dev,
 
 	return fb;
 }
+
+int am_meson_mode_rmfb(struct drm_device *dev, u32 fb_id,
+		  struct drm_file *file_priv)
+{
+	struct drm_framebuffer *fb = NULL;
+	struct drm_framebuffer *fbl = NULL;
+	int found = 0;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EOPNOTSUPP;
+
+	fb = drm_framebuffer_lookup(dev, file_priv, fb_id);
+	if (!fb)
+		return -ENOENT;
+
+	mutex_lock(&file_priv->fbs_lock);
+	list_for_each_entry(fbl, &file_priv->fbs, filp_head)
+		if (fb == fbl)
+			found = 1;
+	if (!found) {
+		mutex_unlock(&file_priv->fbs_lock);
+		goto fail_unref;
+	}
+
+	list_del_init(&fb->filp_head);
+	mutex_unlock(&file_priv->fbs_lock);
+
+	/* drop the reference we picked up in framebuffer lookup */
+	drm_framebuffer_put(fb);
+
+	/*
+	 * we now own the reference that was stored in the fbs list
+	 *
+	 * drm_framebuffer_remove may fail with -EINTR on pending signals,
+	 * so run this in a separate stack as there's no way to correctly
+	 * handle this after the fb is already removed from the lookup table.
+	 */
+	DRM_DEBUG("fb=%px, fbid=%d, ref=%d\n", fb,
+		fb->base.id, drm_framebuffer_read_refcount(fb));
+
+	drm_framebuffer_put(fb);
+
+	return 0;
+
+fail_unref:
+	drm_framebuffer_put(fb);
+	return -ENOENT;
+}
+
+int am_meson_mode_rmfb_ioctl(struct drm_device *dev,
+			void *data, struct drm_file *file_priv)
+{
+	u32 *fb_id = data;
+
+	return am_meson_mode_rmfb(dev, *fb_id, file_priv);
+}

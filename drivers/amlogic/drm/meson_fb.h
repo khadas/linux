@@ -38,5 +38,6 @@ struct drm_framebuffer *
 am_meson_fb_alloc(struct drm_device *dev,
 		  struct drm_mode_fb_cmd2 *mode_cmd,
 		  struct drm_gem_object *obj);
-
+int am_meson_mode_rmfb_ioctl(struct drm_device *dev,
+			void *data, struct drm_file *file_priv);
 #endif
