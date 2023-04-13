@@ -2379,9 +2379,18 @@ static void set_top_div40(u32 div40)
 
 static void hdmitx_set_div40(u32 div40)
 {
-	hdmitx_set_scdc_div40(div40);
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (div40)
+		hdmitx_set_scdc_div40(1);
+	else if (hdev->rxcap.scdc_present ||
+		hdev->pre_tmds_clk_div40)
+		hdmitx_set_scdc_div40(0);
+	else
+		pr_info("warn: SCDC not present, should not send 1:10\n");
 	set_top_div40(div40);
 	hdmitx21_wr_reg(SCRCTL_IVCTX, (1 << 5) | !!div40);
+	hdev->pre_tmds_clk_div40 = !!div40;
 }
 
 static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, u32 cmd,
@@ -2425,7 +2434,17 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, u32 cmd,
 	case DDC_EDID_CLEAR_RAM:
 		break;
 	case DDC_SCDC_DIV40_SCRAMB:
-		hdmitx_set_scdc_div40(argv == 1);
+		if (argv == 1) {
+			hdmitx_set_scdc_div40(1);
+		} else if (argv == 0) {
+			if (hdev->rxcap.scdc_present)
+				hdmitx_set_scdc_div40(0);
+			else
+				pr_info("warn2: SCDC not present, should not send 1:10\n");
+		} else {
+			/* force send 1:10 tmds bit clk ratio, for echo 2 > div40 */
+			hdmitx_set_scdc_div40(0);
+		}
 		hdev->div40 = (argv == 1);
 		break;
 	case DDC_HDCP_SET_TOPO_INFO:

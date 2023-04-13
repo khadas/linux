@@ -12,6 +12,7 @@
 #include <linux/clk.h>
 #include <linux/cdev.h>
 #include <linux/clk-provider.h>
+#include <linux/kfifo.h>
 #include <linux/device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -45,6 +46,37 @@ enum amhdmitx_chip_e {
 	MESON_CPU_ID_TM2B,
 	MESON_CPU_ID_SC2,
 	MESON_CPU_ID_MAX,
+};
+
+enum hdmitx_event_log_bits {
+	HDMITX_HPD_PLUGOUT                      = BIT(0),
+	HDMITX_HPD_PLUGIN                       = BIT(1),
+	/* EDID states */
+	HDMITX_EDID_HDMI_DEVICE                 = BIT(2),
+	HDMITX_EDID_DVI_DEVICE                  = BIT(3),
+	/* HDCP states */
+	HDMITX_HDCP_AUTH_SUCCESS                = BIT(4),
+	HDMITX_HDCP_AUTH_FAILURE                = BIT(5),
+	HDMITX_HDCP_HDCP_1_ENABLED              = BIT(6),
+	HDMITX_HDCP_HDCP_2_ENABLED              = BIT(7),
+	HDMITX_HDCP_NOT_ENABLED                 = BIT(8),
+
+	/* EDID errors */
+	HDMITX_EDID_HEAD_ERROR                  = BIT(16),
+	HDMITX_EDID_CHECKSUM_ERROR              = BIT(17),
+	HDMITX_EDID_I2C_ERROR                   = BIT(18),
+	/* HDCP errors */
+	HDMITX_HDCP_DEVICE_NOT_READY_ERROR      = BIT(19),
+	HDMITX_HDCP_AUTH_NO_14_KEYS_ERROR       = BIT(20),
+	HDMITX_HDCP_AUTH_NO_22_KEYS_ERROR       = BIT(21),
+	HDMITX_HDCP_AUTH_READ_BKSV_ERROR        = BIT(22),
+	HDMITX_HDCP_AUTH_VI_MISMATCH_ERROR      = BIT(23),
+	HDMITX_HDCP_AUTH_TOPOLOGY_ERROR         = BIT(24),
+	HDMITX_HDCP_AUTH_R0_MISMATCH_ERROR      = BIT(25),
+	HDMITX_HDCP_AUTH_REPEATER_DELAY_ERROR   = BIT(26),
+	HDMITX_HDCP_I2C_ERROR                   = BIT(27),
+
+	HDMITX_HDMI_ERROR_MASK	=	GENMASK(31, 16),
 };
 
 struct amhdmitx_data_s {
@@ -187,6 +219,8 @@ struct rx_cap {
 	/*blk0 check sum*/
 	unsigned char blk0_chksum;
 	unsigned char chksum[10];
+	unsigned char head_err;
+	unsigned char chksum_err;
 };
 
 struct cts_conftab {
@@ -308,6 +342,7 @@ struct hdmitx_clk_tree_s {
 	struct clk *venci_1_gate;
 };
 
+#define HDMI_LOG_SIZE (BIT(12)) /* 4k */
 struct st_debug_param {
 	unsigned int avmute_frame;
 };
@@ -329,6 +364,9 @@ struct hdmitx_dev {
 	struct pinctrl_state *pinctrl_i2c;
 	struct pinctrl_state *pinctrl_default;
 	struct vinfo_s *vinfo;
+	struct kfifo *log_kfifo;
+	const char *log_str;
+	int previous_error_event;
 	struct delayed_work work_hpd_plugin;
 	struct delayed_work work_hpd_plugout;
 	struct delayed_work work_aud_hpd_plug;
@@ -338,6 +376,7 @@ struct hdmitx_dev {
 	struct work_struct work_hdr;
 	struct work_struct work_hdr_unmute;
 	struct delayed_work work_do_hdcp;
+	struct delayed_work work_do_event_logs;
 #ifdef CONFIG_AML_HDMI_TX_14
 	struct delayed_work cec_work;
 #endif
@@ -363,6 +402,7 @@ struct hdmitx_dev {
 	int hdcp_hpd_stick;	/* 1 not init & reset at plugout */
 	int hdcp_tst_sig;
 	unsigned int div40;
+	bool pre_tmds_clk_div40;
 	unsigned int lstore;
 	struct {
 		void (*setpacket)(int type, unsigned char *DB,
@@ -717,6 +757,7 @@ void hdmitx_edid_buf_compare_print(struct hdmitx_dev *hdmitx_device);
 const char *hdmitx_edid_get_native_VIC(struct hdmitx_dev *hdmitx_device);
 bool hdmitx_check_edid_all_zeros(unsigned char *buf);
 bool hdmitx_edid_notify_ng(unsigned char *buf);
+void hdmitx_current_status(enum hdmitx_event_log_bits event);
 
 extern struct hdmitx_audpara hdmiaud_config_data;
 extern struct hdmitx_audpara hsty_hdmiaud_config_data[8];
@@ -832,6 +873,7 @@ enum hdmitx_event {
 	HDMITX_NONE_EVENT = 0,
 	HDMITX_HPD_EVENT,
 	HDMITX_HDCP_EVENT,
+	HDMITX_CUR_ST_EVENT,
 	HDMITX_AUDIO_EVENT,
 	HDMITX_HDCPPWR_EVENT,
 	HDMITX_HDR_EVENT,

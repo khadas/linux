@@ -80,6 +80,7 @@ static unsigned char __nosavedata edid_checkvalue[4] = {0};
 static unsigned int hdmitx_edid_check_valid_blocks(unsigned char *buf);
 static void edid_dtd_parsing(struct rx_cap *prxcap, unsigned char *data);
 static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev);
+static bool hdmitx_edid_header_invalid(unsigned char *buf);
 /* Base Block, Vendor/Product Information, byte[8]~[18] */
 struct edid_venddat_t {
 	unsigned char data[10];
@@ -1713,6 +1714,21 @@ int check_dvi_hdmi_edid_valid(unsigned char *buf)
 	return 1;
 }
 
+int check_hdmi_edid_sub_block_valid(unsigned char *buf, int blk_no)
+{
+	if (!buf)
+		return 0;
+
+	/* check block 0 */
+	if (blk_no == 0)
+		return _check_base_structure(buf);
+
+	/* check block n */
+	if (buf[0] == 0)
+		return 0;
+	return _check_edid_blk_chksum(buf);
+}
+
 static void edid_manufacturedateparse(struct rx_cap *prxcap,
 				      unsigned char *data)
 {
@@ -2191,6 +2207,12 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	}
 	if (check_dvi_hdmi_edid_valid(hdmitx_device->EDID_buf1))
 		hdmitx_device->edid_parsing = 1;
+	prxcap->head_err = hdmitx_edid_header_invalid(&EDID_buf[0]);
+	if (prxcap->head_err)
+		hdmitx_current_status(HDMITX_EDID_HEAD_ERROR);
+	prxcap->chksum_err = !edid_check_valid(&EDID_buf[0]);
+	if (prxcap->chksum_err)
+		hdmitx_current_status(HDMITX_EDID_CHECKSUM_ERROR);
 
 	hdmitx_device->edid_ptr = EDID_buf;
 	pr_info(EDID "EDID Parser:\n");
@@ -2345,9 +2367,13 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	/* if edid are all zeroes, or no VIC, set default vic */
 	if (edid_zero_data(EDID_buf) || prxcap->VIC_count == 0)
 		hdmitx_edid_set_default_vic(hdmitx_device);
-	if (prxcap->ieeeoui != HDMI_IEEE_OUI)
-		hdmitx_device->physical_addr = 0xffff;
 
+	if (prxcap->ieeeoui == HDMI_IEEEOUI) {
+		hdmitx_current_status(HDMITX_EDID_HDMI_DEVICE);
+	} else {
+		hdmitx_device->physical_addr = 0xffff;
+		hdmitx_current_status(HDMITX_EDID_DVI_DEVICE);
+	}
 	return 0;
 }
 
@@ -3136,6 +3162,35 @@ bool hdmitx_check_edid_all_zeros(unsigned char *buf)
 			return false;
 	}
 	return true;
+}
+
+static bool hdmitx_edid_header_invalid(unsigned char *buf)
+{
+	bool base_blk_invalid = false;
+	bool ext_blk_invalid = false;
+	bool ret = false;
+	int i = 0;
+
+	if (buf[0] != 0 || buf[7] != 0) {
+		base_blk_invalid = true;
+	} else {
+		for (i = 1; i < 7; i++) {
+			if (buf[i] != 0xff) {
+				base_blk_invalid = true;
+				break;
+			}
+		}
+	}
+	/* judge header strictly, only if both header invalid */
+	if (buf[0x7e] > 0) {
+		if (buf[0x80] != 0x2 && buf[0x80] != 0xf0)
+			ext_blk_invalid = true;
+		ret = base_blk_invalid && ext_blk_invalid;
+	} else {
+		ret = base_blk_invalid;
+	}
+
+	return ret;
 }
 
 bool hdmitx_edid_notify_ng(unsigned char *buf)

@@ -4488,13 +4488,17 @@ static ssize_t div40_show(struct device *dev,
 	return pos;
 }
 
+/* echo 1 > div40, force send 1:40 tmds bit clk ratio
+ * echo 0 > div40, send 1:10 tmds bit clk ratio if scdc_present
+ * echo 2 > div40, force send 1:10 tmds bit clk ratio
+ */
 static ssize_t div40_store(struct device *dev,
 			   struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, buf[0] == '1');
+	hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, buf[0] - '0');
 
 	return count;
 }
@@ -6126,6 +6130,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdmitx21_edid_ram_buffer_clear(hdev);
 	hdmitx_edid_done = false;
 	hdev->hpd_state = 0;
+	hdev->pre_tmds_clk_div40 = false;
 	hdev->ll_enabled_in_auto_mode = false;
 	if (hdev->tv_usage == 0) {
 		rx_edid_physical_addr(0, 0, 0, 0);

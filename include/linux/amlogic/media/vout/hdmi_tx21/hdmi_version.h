@@ -61,6 +61,7 @@
 	"V03.02.01.01.04.04.25 [NEW] tx21 send emds pkt for cuva\n" \
 	"V03.02.01.01.04.04.26 [COM] add vic to AVI when send vsif\n" \
 	"V03.02.01.01.05.04.26 [20230506] [HDCP] scdc sequence optimise" \
-	"V03.02.01.01.05.04.27 [COM] add hdr_priority_mode node hide or enable HDR\n"
+	"V03.02.01.01.05.04.27 [COM] add hdr_priority_mode node hide or enable HDR\n" \
+	"V03.02.01.01.05.04.28 [20230511] [COM] send scdc commands under scdc_present available\n"
 
 #endif // __HDMI21_VERSION_H__

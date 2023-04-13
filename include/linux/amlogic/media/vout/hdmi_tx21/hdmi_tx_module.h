@@ -359,6 +359,7 @@ struct hdmitx_dev {
 	int hpdmode;
 	int ready;	/* 1, hdmi stable output, others are 0 */
 	u32 div40;
+	bool pre_tmds_clk_div40;
 	u32 lstore;
 	u32 hdcp_mode;
 	struct {

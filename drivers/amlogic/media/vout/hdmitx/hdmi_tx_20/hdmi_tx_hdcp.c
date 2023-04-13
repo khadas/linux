@@ -196,8 +196,13 @@ static int hdmitx_hdcp_task(void *data)
 		hdmitx_hdcp_status(hdmi_authenticated);
 		if (auth_trigger != hdmi_authenticated) {
 			auth_trigger = hdmi_authenticated;
-			pr_info("hdcptx: %d  auth: %d\n", hdev->hdcp_mode,
-				auth_trigger);
+			pr_info("hdcptx: %d  auth: %d\n", hdev->hdcp_mode, auth_trigger);
+			// Only collect the metric when hdmi is plugged in.
+			if (hdev->hpd_state == 1) {
+				hdmitx_current_status(auth_trigger
+					? HDMITX_HDCP_AUTH_SUCCESS
+					: HDMITX_HDCP_AUTH_FAILURE);
+			}
 		}
 		msleep_interruptible(200);
 	}

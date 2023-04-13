@@ -10,8 +10,27 @@
 
 void scdc_config(struct hdmitx_dev *hdev)
 {
-	/* TMDS 1/40 & Scramble */
-	scdc_wr_sink(TMDS_CFG, hdev->para->tmds_clk_div40 ? 0x3 : 0);
+	/* from hdmi2.1/2.0 spec chapter 10.4, prior to accessing
+	 * the SCDC, source devices shall verify that the attached
+	 * sink Device incorporates a valid HF-VSDB in the E-EDID
+	 * in which the SCDC Present bit is set (=1). Source
+	 * devices shall not attempt to access the SCDC unless the
+	 * SCDC Present bit is set (=1).
+	 * For some special TV(bug#164688), it support 6G 4k60hz,
+	 * but not declare scdc_present in EDID, so still force to
+	 * send 1:40 tmds bit clk ratio when output >3.4Gbps signal
+	 * to cover such non-standard TV.
+	 */
+	/* if change to > 3.4Gbps mode, or change from > 3.4Gbps
+	 * to < 3.4Gbps mode, need to forcely update clk ratio
+	 */
+	if (hdev->para->tmds_clk_div40)
+		scdc_wr_sink(TMDS_CFG, 3);
+	else if (hdev->rxcap.scdc_present ||
+		hdev->pre_tmds_clk_div40)
+		scdc_wr_sink(TMDS_CFG, 0);
+	else
+		pr_info("ERR: SCDC not present, should not send 1:10\n");
 }
 
 /* update CED, 10.4.1.8 */
@@ -25,6 +44,8 @@ static int scdc_ced_cnt(struct hdmitx_dev *hdev)
 	memset(raw, 0, sizeof(raw));
 	memset(ced, 0, sizeof(struct ced_cnt));
 
+	if (!hdev->rxcap.scdc_present)
+		pr_debug("ERR: SCDC not present, should not access SCDC\n");
 	chksum = 0;
 	for (i = 0; i < 7; i++) {
 		scdc_rd_sink(ERR_DET_0_L + i, &raw[i]);
@@ -60,6 +81,9 @@ int scdc_status_flags(struct hdmitx_dev *hdev)
 {
 	u8 st = 0;
 	u8 locked_st = 0;
+
+	if (!hdev->rxcap.scdc_present)
+		pr_debug("ERR: SCDC not present, should not access SCDC\n");
 
 	scdc_rd_sink(UPDATE_0, &st);
 	if (st & STATUS_UPDATE) {

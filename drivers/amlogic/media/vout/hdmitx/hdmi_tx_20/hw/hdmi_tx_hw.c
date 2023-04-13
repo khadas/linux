@@ -2106,6 +2106,7 @@ static void hdmitx_set_scdc(struct hdmitx_dev *hdev)
 	}
 	set_tmds_clk_div40(hdev->para->tmds_clk_div40);
 	scdc_config(hdev);
+	hdev->pre_tmds_clk_div40 = hdev->para->tmds_clk_div40;
 	hdev->div40 = hdev->para->tmds_clk_div40;
 }
 
@@ -4697,10 +4698,12 @@ static void hdcp_ksv_sha1_calc(struct hdmitx_dev *hdev)
 						hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_0 + i);
 				}
 			}
-			if (calc_hdcp_ksv_valid(hdcp_mksvlistbuf, size) == TRUE)
+			if (calc_hdcp_ksv_valid(hdcp_mksvlistbuf, size) == TRUE) {
 				valid = HDCP_KSVLIST_VALID;
-			else
+			} else {
 				valid = HDCP_KSVLIST_INVALID;
+				hdmitx_current_status(HDMITX_HDCP_AUTH_VI_MISMATCH_ERROR);
+			}
 			ksv_sha_matched = valid;
 		}
 		hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 0, 0, 1);
@@ -4765,6 +4768,7 @@ static void hdcptx_events_handle(struct timer_list *t)
 			topo14->max_devs_exceeded = 1;
 			topo14->max_cascade_exceeded = 1;
 			hdev->hdcp_max_exceed_state = 1;
+			hdmitx_current_status(HDMITX_HDCP_AUTH_TOPOLOGY_ERROR);
 		}
 	}
 
@@ -4815,6 +4819,23 @@ static void hdcptx_events_handle(struct timer_list *t)
 				topo14->depth = 1;
 			}
 		}
+	}
+	if (st_flag & (1 << 6)) {
+		struct hdcp_obs_val obs_cur;
+
+		hdev->hwop.cntlddc((struct hdmitx_dev *)&obs_cur,
+			DDC_HDCP14_SAVE_OBS, 0);
+		if (obs_cur.intstat & (3 << 3))
+			hdmitx_current_status(HDMITX_HDCP_I2C_ERROR);
+		if (((obs_cur.obs0 >> 4) == 3) && (((obs_cur.obs0 >> 1) & 0x7) == 0))
+			hdmitx_current_status(HDMITX_HDCP_AUTH_R0_MISMATCH_ERROR);
+		if (((obs_cur.obs0 >> 4) == 9) && (((obs_cur.obs0 >> 1) & 0x7) == 2))
+			hdmitx_current_status(HDMITX_HDCP_AUTH_VI_MISMATCH_ERROR);
+		if (((obs_cur.obs0 >> 4) == 8) && (((obs_cur.obs0 >> 1) & 0x7) == 1))
+			hdmitx_current_status(HDMITX_HDCP_AUTH_REPEATER_DELAY_ERROR);
+	}
+	if (st_flag & (1 << 4)) {
+		hdmitx_current_status(HDMITX_HDCP_I2C_ERROR);
 	}
 	if (st_flag & (1 << 1)) {
 		hdmitx_wr_reg(HDMITX_DWC_A_APIINTCLR, (1 << 1));
@@ -5086,17 +5107,40 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned int cmd,
 		}
 		break;
 	case DDC_SCDC_DIV40_SCRAMB:
+		/* from hdmi2.1/2.0 spec chapter 10.4, prior to accessing
+		 * the SCDC, source devices shall verify that the attached
+		 * sink Device incorporates a valid HF-VSDB in the E-EDID
+		 * in which the SCDC Present bit is set (=1). Source
+		 * devices shall not attempt to access the SCDC unless the
+		 * SCDC Present bit is set (=1).
+		 * For some special TV(bug#164688), it support 6G 4k60hz,
+		 * but not declare scdc_present in EDID, so still force to
+		 * send 1:40 tmds bit clk ratio when output >3.4Gbps signal
+		 * to cover such non-standard TV.
+		 */
 		if (argv == 1) {
 			scdc_wr_sink(TMDS_CFG, 0x3); /* TMDS 1/40 & Scramble */
 			scdc_wr_sink(TMDS_CFG, 0x3); /* TMDS 1/40 & Scramble */
 			hdmitx_wr_reg(HDMITX_DWC_FC_SCRAMBLER_CTRL, 1);
 			hdev->div40 = 1;
+		} else if (argv == 0) {
+			if (hdev->rxcap.scdc_present ||
+				hdev->pre_tmds_clk_div40) {
+				scdc_wr_sink(TMDS_CFG, 0x0); /* TMDS 1/10 & Scramble */
+				scdc_wr_sink(TMDS_CFG, 0x0); /* TMDS 1/10 & Scramble */
+				hdmitx_wr_reg(HDMITX_DWC_FC_SCRAMBLER_CTRL, 0);
+				hdev->div40 = 0;
+			} else {
+				pr_info(HW "ERR: SCDC not present, should not send 1:10\n");
+			}
 		} else {
-			scdc_wr_sink(TMDS_CFG, 0x0); /* TMDS 1/40 & Scramble */
-			scdc_wr_sink(TMDS_CFG, 0x0); /* TMDS 1/40 & Scramble */
+			/* force send 1:10 tmds bit clk ratio, for echo 2 > div40 */
+			scdc_wr_sink(TMDS_CFG, 0x0); /* TMDS 1/10 & Scramble */
+			scdc_wr_sink(TMDS_CFG, 0x0); /* TMDS 1/10 & Scramble */
 			hdmitx_wr_reg(HDMITX_DWC_FC_SCRAMBLER_CTRL, 0);
 			hdev->div40 = 0;
 		}
+		hdev->pre_tmds_clk_div40 = hdev->div40;
 		break;
 	case DDC_HDCP14_GET_BCAPS_RP:
 		return !!(hdmitx_rd_reg(HDMITX_DWC_A_HDCPOBS3) & (1 << 6));

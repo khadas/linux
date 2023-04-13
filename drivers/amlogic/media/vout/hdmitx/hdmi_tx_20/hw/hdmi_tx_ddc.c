@@ -21,12 +21,78 @@
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/rtc.h>
+#include <linux/timekeeping.h>
 
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ddc.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_info_global.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include "common.h"
 #include "hdmi_tx_reg.h"
+
+const char *slave_msg[] = {
+	[EDID_SLAVE] = "edid",
+	[HDCP_SLAVE] = "hdcp",
+	[SCDC_SLAVE] = "scdc",
+};
+
+const char *scdc_msg[] = {
+	[SINK_VER] = "sink version",
+	[SOURCE_VER] = "source version",
+	[UPDATE_0] = "update0",
+	[UPDATE_1] = "update1",
+	[TMDS_CFG] = "tmds_config",
+	[SCRAMBLER_ST] = "scrambler_status",
+	[CONFIG_0] = "config_0",
+	[STATUS_FLAGS_0] = "status_flags_0",
+	[STATUS_FLAGS_1] = "status_flags_1",
+	[ERR_DET_0_L] = "error detect ch0 L",
+	[ERR_DET_0_H] = "error detect ch0 H",
+	[ERR_DET_1_L] = "error detect ch1 L",
+	[ERR_DET_1_H] = "error detect ch1 H",
+	[ERR_DET_2_L] = "error detect ch2 L",
+	[ERR_DET_2_H] = "error detect ch2 H",
+	[ERR_DET_CHKSUM] = "error detect checksum",
+	[TEST_CONFIG_0] = "test_config_0",
+	[MANUFACT_IEEE_OUI_2] = "manufacturer ieee oui 2",
+	[MANUFACT_IEEE_OUI_1] = "manufacturer ieee oui 1",
+	[MANUFACT_IEEE_OUI_0] = "manufacturer ieee oui 0",
+	[DEVICE_ID] = "device id",
+	[MANUFACT_SPECIFIC] = "manufacturer specific",
+};
+
+static void pr_scdc_err_info(const char *func_name, u8 slave, u8 offset_addr,
+	bool wr_flag, u8 *data)
+{
+	/* if operation is writing, then print data */
+	if (wr_flag) {
+		if (slave == SCDC_SLAVE) {
+			pr_err("hdmitx: E: %s %s %s 0x%02x\n",
+				func_name, slave_msg[SCDC_SLAVE],
+				scdc_msg[offset_addr] ? scdc_msg[offset_addr] : "rsvd", *data);
+		} else {
+			if (slave_msg[slave])
+				pr_err("hdmitx: E: %s %s 0x%02x 0x%02x 0x%02x\n",
+					func_name, slave_msg[slave], slave, offset_addr, *data);
+			else
+				pr_err("hdmitx: E: %s unknown slave: <0x%x> 0x%02x 0x%02x\n",
+					func_name, slave, offset_addr, *data);
+		}
+	} else {
+		if (slave == SCDC_SLAVE) {
+			pr_err("hdmitx: E: %s %s %s\n",
+				func_name, slave_msg[SCDC_SLAVE],
+				scdc_msg[offset_addr] ? scdc_msg[offset_addr] : "rsvd");
+		} else {
+			if (slave_msg[slave])
+				pr_err("hdmitx: E: %s %s 0x%02x 0x%02x\n",
+					func_name, slave_msg[slave], slave, offset_addr);
+			else
+				pr_err("hdmitx: E: %s unknown slave: <0x%x> 0x%02x\n",
+					func_name, slave, offset_addr);
+		}
+	}
+}
 
 static DEFINE_MUTEX(ddc_mutex);
 static uint32_t ddc_write_1byte(u8 slave, u8 offset_addr, u8 data)
@@ -41,8 +107,7 @@ static uint32_t ddc_write_1byte(u8 slave, u8 offset_addr, u8 data)
 	mdelay(2);
 	if (hdmitx_rd_reg(HDMITX_DWC_IH_I2CM_STAT0) & (1 << 0)) {
 		st = 0;
-		pr_info("hdmitx: E: ddc w1b 0x%02x 0x%02x 0x%02x\n",
-			slave, offset_addr, data);
+		pr_scdc_err_info(__func__, slave, offset_addr, 1, &data);
 	} else {
 		st = 1;
 	}
@@ -64,8 +129,7 @@ static uint32_t ddc_read_8byte(u8 slave, u8 offset_addr, u8 *data)
 	mdelay(2);
 	if (hdmitx_rd_reg(HDMITX_DWC_IH_I2CM_STAT0) & (1 << 0)) {
 		st = 0;
-		pr_info("hdmitx: E: ddc rd8b 0x%02x 0x%02x 0x%02x\n",
-			slave, offset_addr, *data);
+		pr_scdc_err_info(__func__, slave, offset_addr, 0, data);
 	} else {
 		st = 1;
 	}
@@ -88,8 +152,7 @@ static uint32_t ddc_read_1byte(u8 slave, u8 offset_addr, u8 *data)
 	mdelay(2);
 	if (hdmitx_rd_reg(HDMITX_DWC_IH_I2CM_STAT0) & (1 << 0)) {
 		st = 0;
-		pr_info("hdmitx: E: ddc rd8b 0x%02x 0x%02x\n",
-			slave, offset_addr);
+		pr_scdc_err_info(__func__, slave, offset_addr, 0, data);
 	} else {
 		st = 1;
 	}
@@ -203,8 +266,10 @@ void hdmitx_read_edid(unsigned char *rx_edid)
 			mdelay(2);
 			timeout++;
 		}
-		if (timeout == EDID_WAIT_TIMEOUT)
+		if (timeout == EDID_WAIT_TIMEOUT) {
 			pr_info(HW "ddc timeout\n");
+			hdmitx_current_status(HDMITX_EDID_I2C_ERROR);
+		}
 		hdmitx_wr_reg(HDMITX_DWC_IH_I2CM_STAT0, 1 << 1);
 		/* Read back 8 bytes */
 		for (i = 0; i < 8; i++) {
