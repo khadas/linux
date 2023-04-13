@@ -9771,6 +9771,17 @@ void aisr_demo_axis_set_s5(void)
 	static bool en_flag;
 	static u32 original_reg_value1;
 	static u32 original_reg_value2;
+	static u32 last_aisr_demo_xstart;
+	static u32 new_aisr_demo_xstart;
+	static u32 last_aisr_demo_xend;
+	static u32 new_aisr_demo_xend;
+	static u32 last_aisr_demo_ystart;
+	static u32 new_aisr_demo_ystart;
+	static u32 last_aisr_demo_yend;
+	static u32 new_aisr_demo_yend;
+	const struct vinfo_s *vinfo = get_current_vinfo();
+
+	struct disp_info_s *layer = &glayer_info[0];
 	struct vd_proc_sr_reg_s *vd_sr_reg = NULL;
 
 	if (!cur_dev->aisr_support)
@@ -9778,6 +9789,51 @@ void aisr_demo_axis_set_s5(void)
 	vd_sr_reg = &vd_proc_reg.vd_proc_sr_reg;
 
 	if (cur_dev->aisr_demo_en) {
+		/*for black margin on left and right, cause aisr axis can not match setting*/
+		new_aisr_demo_xstart = cur_dev->aisr_demo_xstart;
+		new_aisr_demo_xend = cur_dev->aisr_demo_xend;
+		new_aisr_demo_ystart = cur_dev->aisr_demo_ystart;
+		new_aisr_demo_yend = cur_dev->aisr_demo_yend;
+		if ((layer->layer_left || layer->layer_top ||
+			layer->layer_width < vinfo->width ||
+			layer->layer_height < vinfo->height) &&
+			(last_aisr_demo_xstart != new_aisr_demo_xstart ||
+			last_aisr_demo_xend != new_aisr_demo_xend ||
+			last_aisr_demo_ystart != new_aisr_demo_ystart ||
+			last_aisr_demo_yend != new_aisr_demo_yend)
+			) {
+			/*demo window in black margin or not*/
+			if (new_aisr_demo_xend < layer->layer_left ||
+				new_aisr_demo_xstart > layer->layer_width ||
+				new_aisr_demo_yend < layer->layer_top ||
+				new_aisr_demo_ystart > layer->layer_height) {
+				new_aisr_demo_xstart = 0;
+				new_aisr_demo_xend = 0;
+				new_aisr_demo_ystart = 0;
+				new_aisr_demo_yend = 0;
+			} else {
+				if (new_aisr_demo_xstart < layer->layer_left)
+					new_aisr_demo_xstart = 0;
+				else
+					new_aisr_demo_xstart -= layer->layer_left;
+				if (new_aisr_demo_xend > (layer->layer_width + layer->layer_left))
+					new_aisr_demo_xend = layer->layer_width;
+				else
+					new_aisr_demo_xend -= layer->layer_left;
+				if (new_aisr_demo_ystart < layer->layer_top)
+					new_aisr_demo_ystart = 0;
+				else
+					new_aisr_demo_ystart -= layer->layer_top;
+				if (new_aisr_demo_yend > (layer->layer_height + layer->layer_top))
+					new_aisr_demo_yend = layer->layer_height;
+				else
+					new_aisr_demo_yend -= layer->layer_top;
+			}
+			last_aisr_demo_xstart = new_aisr_demo_xstart;
+			last_aisr_demo_xend = new_aisr_demo_xend;
+			last_aisr_demo_ystart = new_aisr_demo_ystart;
+			last_aisr_demo_yend = new_aisr_demo_yend;
+		}
 		if (!en_flag) {
 			original_reg_value1 =
 				READ_VCBUS_REG(vd_sr_reg->srsharp1_demo_mode_window_ctrl0);
@@ -9793,16 +9849,16 @@ void aisr_demo_axis_set_s5(void)
 			1, 12, 4);
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(vd_sr_reg->srsharp1_demo_mode_window_ctrl0,
-			cur_dev->aisr_demo_xstart, 16, 12);
+			new_aisr_demo_xstart, 16, 12);
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(vd_sr_reg->srsharp1_demo_mode_window_ctrl0,
-			cur_dev->aisr_demo_xend, 0, 12);
+			new_aisr_demo_xend, 0, 12);
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(vd_sr_reg->srsharp1_demo_mode_window_ctrl1,
-			cur_dev->aisr_demo_ystart, 16, 12);
+			new_aisr_demo_ystart, 16, 12);
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(vd_sr_reg->srsharp1_demo_mode_window_ctrl1,
-			cur_dev->aisr_demo_yend, 0, 12);
+			new_aisr_demo_yend, 0, 12);
 	} else {
 		if (en_flag) {
 			cur_dev->rdma_func[vpp_index].rdma_wr

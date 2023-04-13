@@ -6461,7 +6461,6 @@ s32 primary_render_frame(struct video_layer_s *layer)
 		/* Do 3D process if enabled */
 		switch_3d_view_per_vsync(layer);
 	}
-
 	/* no frame parameter change */
 	if ((!layer->new_vpp_setting && !force_setting) || !frame_par) {
 		/* when new frame is toggled but video layer is not on */
@@ -18032,6 +18031,7 @@ static ssize_t aisr_demo_axis_store(struct class *cla,
 			cur_dev->aisr_demo_ystart = parsed[1];
 			cur_dev->aisr_demo_xend = parsed[2];
 			cur_dev->aisr_demo_yend = parsed[3];
+			vd_layer[0].property_changed = true;
 		}
 	}
 	return count;
