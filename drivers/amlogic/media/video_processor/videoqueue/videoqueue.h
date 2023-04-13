@@ -75,6 +75,7 @@ struct video_queue_dev {
 	bool need_keep_frame;
 	int dv_inst;
 	int frame_skip_check_cnt;
+	struct mutex mutex_file; /*for file_q*/
 };
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
