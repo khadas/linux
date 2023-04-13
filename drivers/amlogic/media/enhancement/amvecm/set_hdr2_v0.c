@@ -31,6 +31,7 @@
 #include "s5_set_hdr2_v0.h"
 #include "arch/vpp_hdr_regs.h"
 #include "arch/vpp_regs.h"
+#include "arch/vpp_a4_regs.h"
 #include "arch/vpp_dolbyvision_regs.h"
 #include "reg_helper.h"
 #include "hdr/gamut_convert.h"
@@ -4768,22 +4769,38 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 
 		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VD1_MATRIX_EN_CTRL, mtx_on, 0, 1, vpp_sel);
 	} else if (mtx_sel == POST2_MTX) {
-		matrix_coef00_01 = VPP_POST2_MATRIX_COEF00_01;
-		matrix_coef02_10 = VPP_POST2_MATRIX_COEF02_10;
-		matrix_coef11_12 = VPP_POST2_MATRIX_COEF11_12;
-		matrix_coef20_21 = VPP_POST2_MATRIX_COEF20_21;
-		matrix_coef22 = VPP_POST2_MATRIX_COEF22;
-		matrix_coef13_14 = VPP_POST2_MATRIX_COEF13_14;
-		matrix_coef23_24 = VPP_POST2_MATRIX_COEF23_24;
-		matrix_coef15_25 = VPP_POST2_MATRIX_COEF15_25;
-		matrix_clip = VPP_POST2_MATRIX_CLIP;
-		matrix_offset0_1 = VPP_POST2_MATRIX_OFFSET0_1;
-		matrix_offset2 = VPP_POST2_MATRIX_OFFSET2;
-		matrix_pre_offset0_1 = VPP_POST2_MATRIX_PRE_OFFSET0_1;
-		matrix_pre_offset2 = VPP_POST2_MATRIX_PRE_OFFSET2;
-		matrix_en_ctrl = VPP_POST2_MATRIX_EN_CTRL;
-
-		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_POST2_MATRIX_EN_CTRL, mtx_on, 0, 1, vpp_sel);
+		if (chip_type_id == chip_a4) {
+			matrix_coef00_01 = VOUT_MATRIX_COEF00_01;
+			matrix_coef02_10 = VOUT_MATRIX_COEF02_10;
+			matrix_coef11_12 = VOUT_MATRIX_COEF11_12;
+			matrix_coef20_21 = VOUT_MATRIX_COEF20_21;
+			matrix_coef22 = VOUT_MATRIX_COEF22;
+			matrix_coef13_14 = VOUT_MATRIX_COEF13_14;
+			matrix_coef23_24 = VOUT_MATRIX_COEF23_24;
+			matrix_coef15_25 = VOUT_MATRIX_COEF15_25;
+			matrix_clip = VOUT_MATRIX_CLIP;
+			matrix_offset0_1 = VOUT_MATRIX_OFFSET0_1;
+			matrix_offset2 = VOUT_MATRIX_OFFSET2;
+			matrix_pre_offset0_1 = VOUT_MATRIX_PRE_OFFSET0_1;
+			matrix_pre_offset2 = VOUT_MATRIX_PRE_OFFSET2;
+			matrix_en_ctrl = VOUT_MATRIX_EN_CTRL;
+		} else {
+			matrix_coef00_01 = VPP_POST2_MATRIX_COEF00_01;
+			matrix_coef02_10 = VPP_POST2_MATRIX_COEF02_10;
+			matrix_coef11_12 = VPP_POST2_MATRIX_COEF11_12;
+			matrix_coef20_21 = VPP_POST2_MATRIX_COEF20_21;
+			matrix_coef22 = VPP_POST2_MATRIX_COEF22;
+			matrix_coef13_14 = VPP_POST2_MATRIX_COEF13_14;
+			matrix_coef23_24 = VPP_POST2_MATRIX_COEF23_24;
+			matrix_coef15_25 = VPP_POST2_MATRIX_COEF15_25;
+			matrix_clip = VPP_POST2_MATRIX_CLIP;
+			matrix_offset0_1 = VPP_POST2_MATRIX_OFFSET0_1;
+			matrix_offset2 = VPP_POST2_MATRIX_OFFSET2;
+			matrix_pre_offset0_1 = VPP_POST2_MATRIX_PRE_OFFSET0_1;
+			matrix_pre_offset2 = VPP_POST2_MATRIX_PRE_OFFSET2;
+			matrix_en_ctrl = VPP_POST2_MATRIX_EN_CTRL;
+		}
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(matrix_en_ctrl, mtx_on, 0, 1, vpp_sel);
 	} else if (mtx_sel == POST_MTX) {
 		matrix_coef00_01 = VPP_POST_MATRIX_COEF00_01;
 		matrix_coef02_10 = VPP_POST_MATRIX_COEF02_10;

@@ -57,6 +57,8 @@
 #include "arch/vpp_regs.h"
 #include "arch/ve_regs.h"
 #include "arch/cm_regs.h"
+#include "arch/vpp_hdr_regs.h"
+#include "arch/vpp_a4_regs.h"
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 #include "../../vin/tvin/tvin_global.h"
 #endif
@@ -75,7 +77,6 @@
 #include "vlock.h"
 #include "hdr/am_hdr10_plus.h"
 #include "local_contrast.h"
-#include "arch/vpp_hdr_regs.h"
 #include "set_hdr2_v0.h"
 #include "s5_set_hdr2_v0.h"
 #include "ai_pq/ai_pq.h"
@@ -116,6 +117,7 @@ struct amvecm_dev_s {
 	wait_queue_head_t           hdr_queue;
 	/*hdr*/
 	struct hdr_data_t	hdr_d;
+	struct gamma_data_s gm_data;
 };
 
 #ifdef CONFIG_AMLOGIC_LCD
@@ -556,13 +558,15 @@ static int amvecm_set_contrast2(int val)
 {
 	val += 0x80;
 
-	if (chip_type_id == chip_s5) {
+	if (chip_type_id == chip_a4) {
+		WRITE_VPP_REG_BITS(VOUT_VADJ_Y,
+			val, 0, 8);
+	} else if (chip_type_id == chip_s5) {
 		ve_contrast_set(val, VE_VADJ2, WR_VCB);
 	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y_2,
 				   val, 0, 8);
 		WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 0, 1);
-
 	} else {
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y,
 				   val, 0, 8);
@@ -573,7 +577,11 @@ static int amvecm_set_contrast2(int val)
 
 static int amvecm_set_brightness2(int val)
 {
-	if (chip_type_id == chip_s5) {
+	if (chip_type_id == chip_a4) {
+		WRITE_VPP_REG_BITS(VOUT_VADJ_Y,
+			val, 8, 11);
+		return 0;
+	} else if (chip_type_id == chip_s5) {
 		ve_brigtness_set(val, VE_VADJ2, WR_VCB);
 		return 0;
 	} else if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
@@ -731,7 +739,11 @@ static ssize_t video_adj2_brightness_show(struct class *cla,
 {
 	s32 val = 0;
 
-	if (chip_type_id == chip_s5) {
+	if (chip_type_id == chip_a4) {
+		val = (READ_VPP_REG(VOUT_VADJ_Y) >> 8) & 0x7ff;
+		val = (val << 21) >> 21;
+		return sprintf(buf, "%d\n", val);
+	} else if (chip_type_id == chip_s5) {
 		val = ve_brightness_contrast_get(VE_VADJ2);
 		val = (val >> 8) & 0x7ff;
 		val = (val << 21) >> 21;
@@ -773,7 +785,10 @@ static ssize_t video_adj2_contrast_show(struct class *cla,
 					struct class_attribute *attr,
 					char *buf)
 {
-	if (chip_type_id == chip_s5) {
+	if (chip_type_id == chip_a4) {
+		return sprintf(buf, "%d\n",
+			(int)(READ_VPP_REG(VOUT_VADJ_Y) & 0xff) - 0x80);
+	} else if (chip_type_id == chip_s5) {
 		return sprintf(buf, "%d\n",
 			(int)(ve_brightness_contrast_get(VE_VADJ2) & 0xff) - 0x80);
 	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
@@ -1093,6 +1108,9 @@ static void vpp_dump_histgram(void)
 
 void vpp_get_hist_en(void)
 {
+	if (chip_type_id == chip_a4)
+		return;
+
 	if (chip_type_id == chip_s5) {
 		vpp_luma_hist_init();
 		return;
@@ -2427,7 +2445,9 @@ static int amvecm_set_saturation_hue_post(int val1,
 	pr_info("\n[amvideo..] saturation_post:%d hue_post:%d mab:%x\n",
 		saturation_post, hue_post, mab);
 
-	if (chip_type_id == chip_s5)
+	if (chip_type_id == chip_a4)
+		WRITE_VPP_REG(VOUT_VADJ_MA_MB, mab);
+	else if (chip_type_id == chip_s5)
 		ve_color_mab_set(mab, VE_VADJ2, WR_VCB);
 	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG(VPP_VADJ2_MA_MB_2, mab);
@@ -2442,7 +2462,9 @@ static int amvecm_set_saturation_hue_post(int val1,
 	md = (s16)((mab << 6) >> 22);  /* md =	ma; */
 	mab = ((mc & 0x3ff) << 16) | (md & 0x3ff);
 
-	if (chip_type_id == chip_s5) {
+	if (chip_type_id == chip_a4) {
+		WRITE_VPP_REG(VOUT_VADJ_MC_MD, mab);
+	} else if (chip_type_id == chip_s5) {
 		ve_color_mcd_set(mab, VE_VADJ2, WR_VCB);
 	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		WRITE_VPP_REG(VPP_VADJ2_MC_MD_2, mab);
@@ -5155,6 +5177,280 @@ free_buf:
 	return -EINVAL;
 }
 
+static ssize_t amvecm_gamma_v2_show(struct class *cls,
+				 struct class_attribute *attr,
+			char *buf)
+{
+	int i;
+	int len = 0;
+	struct gamma_data_s *p_gm;
+	int max_idx;
+
+	if (chip_type_id < chip_a4)
+		return 0;
+
+	p_gm = get_gm_data();
+	max_idx = p_gm->max_idx;
+
+	if (vecm_latch_flag2 & GAMMA_READ_R) {
+		for (i = 0; i < max_idx; i++)
+			len += sprintf(buf + len, "%03x",
+				p_gm->dbg_gm_tbl.gamma_r[i]);
+		len += sprintf(buf + len, "\n");
+		vecm_latch_flag2 &= ~GAMMA_READ_R;
+		return len;
+	}
+
+	if (vecm_latch_flag2 & GAMMA_READ_G) {
+		for (i = 0; i < max_idx; i++)
+			len += sprintf(buf + len, "%03x",
+				p_gm->dbg_gm_tbl.gamma_g[i]);
+		len += sprintf(buf + len, "\n");
+		vecm_latch_flag2 &= ~GAMMA_READ_G;
+		return len;
+	}
+
+	if (vecm_latch_flag2 & GAMMA_READ_B) {
+		for (i = 0; i < max_idx; i++)
+			len += sprintf(buf + len, "%03x",
+				p_gm->dbg_gm_tbl.gamma_b[i]);
+		len += sprintf(buf + len, "\n");
+		vecm_latch_flag2 &= ~GAMMA_READ_B;
+		return len;
+	}
+
+	if (vecm_latch_flag2 & GAMMA_CRC_PASS) {
+		len += sprintf(buf + len, "gamma set crc pass\n");
+		vecm_latch_flag2 &= ~GAMMA_CRC_PASS;
+		return len;
+	}
+
+	if (vecm_latch_flag2 & GAMMA_CRC_FAIL) {
+		len += sprintf(buf + len, "gamma set crc fail\n");
+		vecm_latch_flag2 &= ~GAMMA_CRC_FAIL;
+		return len;
+	}
+
+	pr_info("Usage:");
+	pr_info("	echo sgr|sgg|sgb xxx...xx > /sys/class/amvecm/gamma_v2\n");
+	pr_info("Notes:\n");
+	pr_info("	if the string xxx......xx is less than 257*3,");
+	pr_info("	then the remaining will be set value 0\n");
+	pr_info("	if the string xxx......xx is more than 257*3, ");
+	pr_info("	then the remaining will be ignored\n");
+	pr_info("Usage:");
+	pr_info("	echo ggr|ggg|ggb xxx > /sys/class/amvecm/gamma_v2\n");
+	pr_info("Notes:\n");
+	pr_info("	read all as point......xxx is 'all'.\n");
+	pr_info("	read all as strings......xxx is 'all_str'.\n");
+	pr_info("	read one point......xxx is a value '0~256'.\n ");
+	return 0;
+}
+
+static ssize_t amvecm_gamma_v2_store(struct class *cls,
+				  struct class_attribute *attr,
+			const char *buffer, size_t count)
+{
+	int n = 0;
+	char *buf_orig, *ps, *token;
+	char *parm[4] = {NULL};
+	unsigned short *gm_cv;
+	unsigned int gamma_count;
+	char gamma[4];
+	int i = 0;
+	long val;
+	char delim1[3] = " ";
+	char delim2[2] = "\n";
+	char *stemp = NULL;
+	unsigned int len;
+	unsigned int crc_data;
+	struct gamma_data_s *p_gm;
+	int max_idx;
+
+	stemp = kmalloc(600, GFP_KERNEL);
+	if (!stemp)
+		return -ENOMEM;
+
+	if (chip_type_id < chip_a4) {
+		kfree(stemp);
+		return -EIO;
+	}
+
+	p_gm = get_gm_data();
+	max_idx = p_gm->max_idx;
+
+	gm_cv = kmalloc_array(max_idx, sizeof(unsigned short), GFP_KERNEL);
+	if (!gm_cv) {
+		kfree(stemp);
+		return -ENOMEM;
+	}
+
+	buf_orig = kstrdup(buffer, GFP_KERNEL);
+	if (!buf_orig)
+		goto free_buf;
+	ps = buf_orig;
+	strcat(delim1, delim2);
+	while (1) {
+		token = strsep(&ps, delim1);
+		if (!token)
+			break;
+		if (*token == '\0')
+			continue;
+		parm[n++] = token;
+	}
+	if (!gm_cv || !stemp || n == 0)
+		goto free_buf;
+
+	// parm[0] sgr/sgg/sgb/ggr/ggg/ggb
+	if ((parm[0][0] == 's') && (parm[0][1] == 'g') &&
+		((parm[0][2] == 'r') || (parm[0][2] == 'g') || (parm[0][2] == 'b'))) {
+		len = strlen(parm[1]);
+		if (len != max_idx * 3) {
+			vecm_latch_flag2 |= GAMMA_CRC_FAIL;
+			pr_info("data length is not 771 Bytes.\n");
+			goto free_buf;
+		}
+
+		//gamma data should be hex character
+		for (i = 0; i < len; i++) {
+			if ((parm[1][i] - '0') < 10 || (parm[1][i] | 0x20) - 'a' < 6)
+				continue;
+			pr_info("error char\n");
+			goto free_buf;
+		}
+
+		//parm[2] crc value
+		if (parm[2]) {
+			crc_data = cal_crc32(0, parm[1], len);
+			if (kstrtoul(parm[2], 16, &val) < 0) {
+				pr_info("cmd crc error\n");
+				goto free_buf;
+			}
+			if (crc_data == val) {
+				vecm_latch_flag2 |= GAMMA_CRC_PASS;
+			} else {
+				vecm_latch_flag2 |= GAMMA_CRC_FAIL;
+				goto free_buf;
+			}
+		}
+		memset(gm_cv, 0, max_idx * sizeof(unsigned short));
+		gamma_count = (strlen(parm[1]) + 2) / 3;
+		if (gamma_count > max_idx)
+			gamma_count = max_idx;
+
+		for (i = 0; i < gamma_count; ++i) {
+			gamma[0] = parm[1][3 * i + 0];
+			gamma[1] = parm[1][3 * i + 1];
+			gamma[2] = parm[1][3 * i + 2];
+			gamma[3] = '\0';
+			if (kstrtol(gamma, 16, &val) < 0)
+				goto free_buf;
+			gm_cv[i] = val;
+		}
+
+		switch (parm[0][2]) {
+		case 'r':
+			amve_write_gamma_table(gm_cv, H_SEL_R);
+			break;
+
+		case 'g':
+			amve_write_gamma_table(gm_cv, H_SEL_G);
+			break;
+
+		case 'b':
+			amve_write_gamma_table(gm_cv, H_SEL_B);
+			break;
+		default:
+			break;
+		}
+	} else if (!strcmp(parm[0], "ggr")) {
+		vpp_get_lcd_gamma_table(H_SEL_R);
+		if (!strcmp(parm[1], "all")) {
+			for (i = 0; i < 256; i++)
+				pr_info("gamma_r[%d] = %x\n",
+					i, p_gm->dbg_gm_tbl.gamma_r[i]);
+		} else if (!strcmp(parm[1], "all_str")) {
+			if (!parm[2]) {
+				for (i = 0; i < 256; i++)
+					d_convert_str(p_gm->dbg_gm_tbl.gamma_r[i], i, stemp, 3, 16);
+				pr_info("gamma_r str: %s\n", stemp);
+			} else if (!strcmp(parm[2], "adb")) {
+				vecm_latch_flag2 |= GAMMA_READ_R;
+			}
+		} else {
+			if (kstrtoul(parm[1], 10, &val) < 0) {
+				pr_info("invalid command\n");
+				goto free_buf;
+			}
+			i = val;
+			if (i >= 0 && i <= 256)
+				pr_info("gamma_r[%d] = %x\n",
+					i, p_gm->dbg_gm_tbl.gamma_r[i]);
+		}
+	} else if (!strcmp(parm[0], "ggg")) {
+		vpp_get_lcd_gamma_table(H_SEL_G);
+		if (!strcmp(parm[1], "all")) {
+			for (i = 0; i < 256; i++)
+				pr_info("gamma_g[%d] = %x\n",
+					i, p_gm->dbg_gm_tbl.gamma_g[i]);
+		} else if (!strcmp(parm[1], "all_str")) {
+			if (!parm[2]) {
+				for (i = 0; i < 256; i++)
+					d_convert_str(p_gm->dbg_gm_tbl.gamma_g[i], i, stemp, 3, 16);
+				pr_info("gamma_g str: %s\n", stemp);
+			} else if (!strcmp(parm[2], "adb")) {
+				vecm_latch_flag2 |= GAMMA_READ_G;
+			}
+		} else {
+			if (kstrtoul(parm[1], 10, &val) < 0) {
+				pr_info("invalid command\n");
+				goto free_buf;
+			}
+			i = val;
+			if (i >= 0 && i <= 255)
+				pr_info("gamma_g[%d] = %x\n",
+					i, p_gm->dbg_gm_tbl.gamma_g[i]);
+		}
+
+	} else if (!strcmp(parm[0], "ggb")) {
+		vpp_get_lcd_gamma_table(H_SEL_B);
+		if (!strcmp(parm[1], "all")) {
+			for (i = 0; i < 256; i++)
+				pr_info("gamma_b[%d] = %x\n",
+					i, p_gm->dbg_gm_tbl.gamma_b[i]);
+		} else if (!strcmp(parm[1], "all_str")) {
+			if (!parm[2]) {
+				for (i = 0; i < 256; i++)
+					d_convert_str(p_gm->dbg_gm_tbl.gamma_b[i], i, stemp, 3, 16);
+				pr_info("gamma_b str: %s\n", stemp);
+			} else if (!strcmp(parm[2], "adb")) {
+				vecm_latch_flag2 |= GAMMA_READ_B;
+			}
+		} else {
+			if (kstrtoul(parm[1], 10, &val) < 0) {
+				pr_info("invalid command\n");
+				goto free_buf;
+			}
+			i = val;
+			if (i >= 0 && i <= 255)
+				pr_info("gamma_b[%d] = %x\n",
+					i, p_gm->dbg_gm_tbl.gamma_b[i]);
+		}
+	} else {
+		pr_info("invalid command\n");
+		pr_info("please: cat /sys/class/amvecm/gamma");
+	}
+	kfree(buf_orig);
+	kfree(stemp);
+	kfree(gm_cv);
+	return count;
+free_buf:
+	kfree(buf_orig);
+	kfree(stemp);
+	kfree(gm_cv);
+	return -EINVAL;
+}
+
 static ssize_t set_gamma_pattern_show(struct class *cla,
 				      struct class_attribute *attr, char *buf)
 {
@@ -5170,7 +5466,7 @@ static ssize_t set_gamma_pattern_store(struct class *cls,
 				       struct class_attribute *attr,
 			const char *buffer, size_t count)
 {
-	static unsigned short r_val[256], g_val[256], b_val[256];
+	static unsigned short r_val[257], g_val[257], b_val[257];
 	int n = 0;
 	char *buf_orig, *ps, *token;
 	char *parm[4];
@@ -5249,7 +5545,7 @@ static ssize_t set_gamma_pattern_store(struct class *cls,
 		gamma[2] = val << 2;
 	}
 
-	for (i = 0; i < 256; i++) {
+	for (i = 0; i < 257; i++) {
 		r_val[i] = gamma[0];
 		g_val[i] = gamma[1];
 		b_val[i] = gamma[2];
@@ -10139,6 +10435,12 @@ void init_pq_setting(void)
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_SC2)
 		init_pq_control(PQ_BOX);
 
+	if (chip_type_id == chip_a4) {
+		vpp_pq_ctrl_config(pq_cfg, WR_VCB);
+		pq_reg_wr_rdma = 1;
+		return;
+	}
+
 	/*ai pq interface*/
 	ai_detect_scene_init();
 	adaptive_param_init();
@@ -10275,13 +10577,41 @@ tvchip_pq_setting:
 
 /* #endif*/
 
+struct gamma_data_s *get_gm_data(void)
+{
+	return &amvecm_dev.gm_data;
+}
+
 void amvecm_gamma_init(bool en)
 {
 	unsigned int i, j, k;
 	unsigned short data[256];
+	unsigned short temp;
+	struct gamma_data_s *p_gm;
 
 	if (chip_type_id == chip_s5)
 		return;
+
+	if (chip_type_id == chip_a4) {
+		p_gm = get_gm_data();
+		p_gm->max_idx = 257;
+		p_gm->auto_inc = 1 << L_H_AUTO_INC_2;
+		p_gm->addr_port = LCD_GAMMA_ADDR_PORT0_A4;
+		p_gm->data_port = LCD_GAMMA_DATA_PORT0_A4;
+		for (i = 0; i < p_gm->max_idx; i++) {
+			temp = i << 2;
+			if (temp >= (1 << 10))
+				temp = (1 << 10) - 1;
+			p_gm->gm_tbl.gamma_r[i] = temp;
+			p_gm->gm_tbl.gamma_g[i] = temp;
+			p_gm->gm_tbl.gamma_b[i] = temp;
+		}
+		lcd_gamma_api(0, p_gm->gm_tbl.gamma_r,
+				p_gm->gm_tbl.gamma_g,
+				p_gm->gm_tbl.gamma_b,
+				0, 0);
+		return;
+	}
 
 	for (i = 0; i < 256; i++) {
 		data[i] = i << 2;
@@ -10331,6 +10661,14 @@ static void amvecm_wb_init(bool en)
 
 	if (chip_type_id == chip_s5)
 		return;
+
+	if (chip_type_id == chip_a4) {
+		WRITE_VPP_REG(VOUT_GAINOFF_CTRL0,
+					(en << 31) | (1024 << 16) | 1024);
+		WRITE_VPP_REG(VOUT_GAINOFF_CTRL1,
+					(1024 << 16));
+		return;
+	}
 
 	if (video_rgb_ogo_xvy_mtx) {
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 3, 8, 3);
@@ -10386,7 +10724,8 @@ static void amvecm_wb_init(bool en)
 
 void amvecm_3dlut_init(bool en)
 {
-	if (chip_type_id == chip_s5)
+	if (chip_type_id == chip_s5 ||
+		chip_type_id == chip_a4)
 		return;
 
 	if (ct_en) {
@@ -10448,6 +10787,9 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(gamma, 0644,
 	       amvecm_gamma_show,
 		amvecm_gamma_store),
+	__ATTR(gamma_v2, 0644,
+	       amvecm_gamma_v2_show,
+		amvecm_gamma_v2_store),
 	__ATTR(wb, 0644,
 	       amvecm_wb_show,
 		amvecm_wb_store),
@@ -10693,6 +11035,17 @@ static const struct vecm_match_data_s vecm_dt_s5 = {
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 };
 
+static const struct vecm_match_data_s vecm_dt_a4 = {
+	.chip_id = chip_a4,
+	.chip_cls = AD_CHIP,
+	.vlk_chip = vlock_chip_null,
+	.vlk_support = false,
+	.vlk_new_fsm = 1,
+	.vlk_hwver = vlock_hw_tm2verb,
+	.vlk_phlock_en = false,
+	.vlk_pll_sel = vlock_pll_sel_tcon,
+};
+
 static const struct of_device_id aml_vecm_dt_match[] = {
 	{
 		.compatible = "amlogic, vecm",
@@ -10739,6 +11092,10 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 	{
 		.compatible = "amlogic, vecm-s5",
 		.data = &vecm_dt_s5,
+	},
+	{
+		.compatible = "amlogic, vecm-a4",
+		.data = &vecm_dt_a4,
 	},
 	{},
 };
@@ -11186,14 +11543,16 @@ static void amvecm_shutdown(struct platform_device *pdev)
 {
 	struct amvecm_dev_s *devp = &amvecm_dev;
 
-	hdr_exit();
-	ve_disable_dnlp();
-	amcm_disable(WR_VCB);
-	WRITE_VPP_REG(VPP_VADJ_CTRL, 0x0);
-	amvecm_wb_enable(0);
-	/*dnlp cm vadj1 wb gate*/
-	WRITE_VPP_REG(VPP_GCLK_CTRL0, 0x11000400);
-	WRITE_VPP_REG(VPP_GCLK_CTRL1, 0x14);
+	if (chip_type_id != chip_a4) {
+		hdr_exit();
+		ve_disable_dnlp();
+		amcm_disable(WR_VCB);
+		WRITE_VPP_REG(VPP_VADJ_CTRL, 0x0);
+		amvecm_wb_enable(0);
+		/*dnlp cm vadj1 wb gate*/
+		WRITE_VPP_REG(VPP_GCLK_CTRL0, 0x11000400);
+		WRITE_VPP_REG(VPP_GCLK_CTRL1, 0x14);
+	}
 	pr_info("amvecm: shutdown module\n");
 
 	device_destroy(devp->clsp, devp->devno);

@@ -686,6 +686,7 @@ enum gamut_conv_enable_e {
 };
 
 enum vlk_chiptype {
+	vlock_chip_null,
 	vlock_chip_txl,
 	vlock_chip_txlx,
 	vlock_chip_txhd,
@@ -702,14 +703,16 @@ enum chip_type {
 	chip_t7,
 	chip_t3,
 	chip_t5w,
-	chip_s5
+	chip_s5,
+	chip_a4
 };
 
 enum chip_cls_e {
 	OTHER_CLS = 0,
 	TV_CHIP,
 	STB_CHIP,
-	SMT_CHIP
+	SMT_CHIP,
+	AD_CHIP
 };
 
 enum vlock_hw_ver_e {
@@ -930,5 +933,22 @@ struct demo_data_s {
 void bs_ct_latch(void);
 int pkt_adv_chip(void);
 extern unsigned int ai_color_enable;
+
+struct venc_gamma_table_s {
+	u16 gamma_r[257];
+	u16 gamma_g[257];
+	u16 gamma_b[257];
+};
+
+struct gamma_data_s {
+	int max_idx;
+	unsigned int auto_inc;
+	int addr_port;
+	int data_port;
+	struct venc_gamma_table_s gm_tbl;
+	struct venc_gamma_table_s dbg_gm_tbl;
+};
+
+struct gamma_data_s *get_gm_data(void);
 #endif /* AMVECM_H */
 

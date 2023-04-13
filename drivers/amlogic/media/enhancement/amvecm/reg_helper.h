@@ -243,6 +243,27 @@ static inline u32 READ_VPP_REG_BITS(u32 reg,
 	return val;
 }
 
+static inline void WRITE_VPP_REG_SEL(u32 reg,
+				const u32 value,
+				const u32 vpp_sel)
+{
+	aml_write_vcbus_s(offset_addr(reg), value);
+}
+
+static inline u32 READ_VCBUS_REG_SEL(u32 reg, const u32 vpp_sel)
+{
+	return aml_read_vcbus_s(offset_addr(reg));
+}
+
+static inline void WRITE_VCBUS_REG_BITS_SEL(u32 reg,
+		const u32 value,
+		const u32 start,
+		const u32 len,
+		const u32 vpp_sel)
+{
+	aml_vcbus_update_bits_s(offset_addr(reg), value, start, len);
+}
+
 #ifndef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 #define VSYNC_WR_MPEG_REG(adr, val) WRITE_VPP_REG(adr, val)
 #define VSYNC_RD_MPEG_REG(adr) READ_VPP_REG(adr)
@@ -264,9 +285,12 @@ static inline u32 READ_VPP_REG_BITS(u32 reg,
 #define VSYNC_WR_MPEG_REG_BITS_VPP2(adr, val, start, len) \
 	WRITE_VCBUS_REG_BITS(adr, val, start, len)
 
-int VSYNC_WR_MPEG_REG_BITS_VPP_SEL(u32 adr, u32 val, u32 start, u32 len, int vpp_sel);
-u32 VSYNC_RD_MPEG_REG_VPP_SEL(u32 adr, int vpp_sel);
-int VSYNC_WR_MPEG_REG_VPP_SEL(u32 adr, u32 val, int vpp_sel);
+#define VSYNC_WR_MPEG_REG_VPP_SEL(adr, val, vpp_sel) \
+	WRITE_VPP_REG_SEL(adr, val, vpp_sel)
+#define VSYNC_RD_MPEG_REG_VPP_SEL(adr, vpp_sel) \
+	READ_VCBUS_REG_SEL(adr, vpp_sel)
+#define VSYNC_WR_MPEG_REG_BITS_VPP_SEL(adr, val, start, len, vpp_sel) \
+	WRITE_VCBUS_REG_BITS_SEL(adr, val, start, len, vpp_sel)
 
 #else
 int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);

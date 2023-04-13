@@ -2634,7 +2634,13 @@ void video_post_process(struct vframe_s *vf,
 		break;
 	}
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A &&
+	if (chip_type_id == chip_a4) {
+		if (!(vinfo->mode == VMODE_LCD ||
+			vinfo->mode == VMODE_DUMMY_ENCP))
+			mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
+		else
+			mtx_setting(POST2_MTX, MATRIX_YUV709_RGB, MTX_ON);
+	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A &&
 		chip_type_id != chip_s5) {
 		if (!(vinfo->mode == VMODE_LCD ||
 			vinfo->mode == VMODE_DUMMY_ENCP)) {

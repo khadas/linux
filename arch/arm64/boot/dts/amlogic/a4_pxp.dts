@@ -1527,3 +1527,10 @@
 				>;
 		};
 };
+
+&amlvecm {
+	status = "okay";
+	gamma_en = <0>;/*1:enable ;0:disable*/
+	wb_en = <0>;/*1:enable ;0:disable*/
+	vlock_en = <0>;/*1:enable;0:disable*/
+};
