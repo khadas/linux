@@ -328,6 +328,14 @@ bool dim_config_crc_ic(void)
 }
 EXPORT_SYMBOL(dim_config_crc_ic);
 
+unsigned int dim_get_vpuclkb_ext(void)
+{
+	if (dil_api && dil_api->get_vpu_clkb_ext)
+		return dil_api->get_vpu_clkb_ext();
+	return 0;
+}
+EXPORT_SYMBOL(dim_get_vpuclkb_ext);
+
 int di_s_bypass_ch(int index, bool on)
 {
 	if (dil_api && dil_api->s_bypass_ch)

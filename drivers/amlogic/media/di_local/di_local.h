@@ -51,6 +51,7 @@ struct di_ext_ops {
 	u32 (*pre_vpp_get_ins_id)(void);
 	bool (*config_crc_ic)(void);
 	int (*s_bypass_ch)(int index, bool on);
+	unsigned int (*get_vpu_clkb_ext)(void);
 };
 
 #endif	/*__DI_LOCAL_H__*/

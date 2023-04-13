@@ -11727,6 +11727,11 @@ void dim_get_vpu_clkb(struct device *dev, struct di_dev_s *pdev)
 	#endif
 }
 
+unsigned int dim_get_vpu_clk_ext(void)
+{
+	return get_dim_de_devp()->clkb_max_rate;
+}
+
 module_param_named(invert_top_bot, invert_top_bot, int, 0664);
 
 #ifdef DET3D
