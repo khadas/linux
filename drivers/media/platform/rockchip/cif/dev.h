@@ -512,6 +512,10 @@ struct rkcif_stream {
 	unsigned int			frame_idx;
 	int				frame_phase;
 	int				frame_phase_cache;
+	int				last_fs_interlaced_phase;
+	int				last_fe_interlaced_phase;
+	int				odd_frame_id;
+	int				odd_frame_first;
 	unsigned int			crop_mask;
 	/* lock between irq and buf_queue */
 	struct list_head		buf_head;
@@ -583,6 +587,7 @@ struct rkcif_stream {
 	bool				is_wait_dma_stop;
 	bool				is_single_cap;
 	bool				is_wait_stop_complete;
+	bool				interlaced_bad_frame;
 };
 
 struct rkcif_lvds_subdev {
