@@ -1663,7 +1663,7 @@
 		port@1 {
 			csiphy2_ep_1: endpoint {
 				reg = <2>;
-				status = "disabled";
+				status = "okay";
 				clock-lanes = <4>;
 				data-lanes = <0 1 2 3>;
 //				remote-endpoint = <&ov08a10_1_ep>;
