@@ -69,6 +69,7 @@ struct fft_total_result {
 	s32 tp_num;
 	u32 freq[1000];
 	u32 bw[1000];
+	u32 iq_swap[1000];
 };
 
 #define DVBS_REG_MRELEASE	0x100
@@ -171,5 +172,7 @@ void dvbs_blind_fft_result_handle(struct fft_total_result *total_result);
 unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz,
 		int *next_step_khz1, int *signal_state);
 unsigned int dvbs_blind_check_AGC2_bandwidth_old(int *next_step_khz);
+void dvbs_set_iq_swap(unsigned int iq_swap);
+unsigned int dvbs_get_iq_swap(void);
 
 #endif

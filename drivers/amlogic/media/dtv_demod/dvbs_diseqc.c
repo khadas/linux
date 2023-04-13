@@ -94,7 +94,7 @@ void aml_diseqc_tone_on(struct aml_diseqc *diseqc, bool onoff)
 	diseqc->tone_on = onoff;
 }
 
-static int aml_diseqc_set_lnb_voltage(struct aml_diseqc *diseqc,
+int aml_diseqc_set_lnb_voltage(struct aml_diseqc *diseqc,
 		enum fe_sec_voltage voltage)
 {
 	int ret = 0;

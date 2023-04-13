@@ -60,6 +60,8 @@ void aml_diseqc_status(struct aml_diseqc *diseqc);
 void aml_diseqc_toneburst_sa(void);
 void aml_diseqc_toneburst_sb(void);
 void aml_diseqc_tone_on(struct aml_diseqc *diseqc, bool onoff);
+int aml_diseqc_set_lnb_voltage(struct aml_diseqc *diseqc,
+		enum fe_sec_voltage voltage);
 void aml_diseqc_flag_tone_on(u32 onoff);
 int aml_diseqc_set_voltage(struct dvb_frontend *fe,
 		enum fe_sec_voltage voltage);

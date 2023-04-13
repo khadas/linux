@@ -57,7 +57,7 @@ int aml_singlecable_command_ODU_channel_change(struct dvb_diseqc_master_cmd *cmd
 		return -EINVAL;
 
 	/* Calculation T */
-	T = (unsigned short)(((center_freq_khz + ub_slot_freq_khz + 2000) / 4000) - 350);
+	T = (unsigned short)(((center_freq_khz + ub_slot_freq_khz) / 4000) - 350);
 
 	if (T > 0x3FFF)
 		return -EINVAL;

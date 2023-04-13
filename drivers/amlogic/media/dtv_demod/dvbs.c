@@ -1628,8 +1628,8 @@ unsigned int dvbs_get_freq_offset(unsigned int *polarity)
 	freq_offset = carrier_offset * (ADC_CLK_135M / 1000); //ADC_CLK_135M
 	freq_offset = (freq_offset + ALIGN_24 / 2000) / (ALIGN_24 / 1000);
 
-	PR_DVBS("%s: polarity %d, carrier_offset 0x%x, freq_offset %dKHz.\n",
-		__func__, *polarity, carrier_offset, freq_offset);
+	PR_DVBS("%s: iq_swap %d, polarity %d, carrier_offset 0x%x, freq_offset %dKHz.\n",
+		__func__, dvbs_iq_swap, *polarity, carrier_offset, freq_offset);
 
 	return freq_offset;
 }
@@ -1975,6 +1975,7 @@ void dvbs_blind_fft_result_handle(struct fft_total_result *result)
 	int n = 0;
 	unsigned int frc_data_tmp = 0;
 	unsigned int bw_data_tmp = 0;
+	unsigned int iq_data_tmp = 0;
 
 	for (m = 0; m < (result->tp_num - 1); m++) {
 		for (n = 0; n < (result->tp_num - 1 - m); n++) {
@@ -1986,6 +1987,10 @@ void dvbs_blind_fft_result_handle(struct fft_total_result *result)
 				bw_data_tmp = result->bw[n];
 				result->bw[n] = result->bw[n + 1];
 				result->bw[n + 1] = bw_data_tmp;
+
+				iq_data_tmp = result->iq_swap[n];
+				result->iq_swap[n] = result->iq_swap[n + 1];
+				result->iq_swap[n + 1] = iq_data_tmp;
 			}
 		}
 	}
@@ -2526,3 +2531,14 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_old(int *next_step_khz)
 
 	return asperity;
 }
+
+void dvbs_set_iq_swap(unsigned int iq_swap)
+{
+	dvbs_iq_swap = iq_swap;
+}
+
+unsigned int dvbs_get_iq_swap(void)
+{
+	return dvbs_iq_swap;
+}
+
