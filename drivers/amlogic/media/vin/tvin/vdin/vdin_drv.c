@@ -2037,14 +2037,22 @@ int start_tvin_capture_ex(int dev_num, enum port_vpp_e port, struct vdin_parm_s 
 		loop_port = TVIN_PORT_VIU1_WB0_VD1;
 	else if (port == PORT_VPP0_OSD_VIDEO)
 		loop_port = TVIN_PORT_VIU1_WB0_VPP;
+	else if (port == PORT_VPP0_OSD1_ONLY)
+		loop_port = TVIN_PORT_VIU1_WB0_OSD1;
+	else if (port == PORT_VPP0_OSD2_ONLY)
+		loop_port = TVIN_PORT_VIU1_WB0_OSD2;
 	else if (port == PORT_VPP1_VIDEO_ONLY)		/* vpp1 */
 		loop_port = TVIN_PORT_VIU2_VD1;
 	else if (port == PORT_VPP1_OSD_VIDEO)
 		loop_port = TVIN_PORT_VIU2_VPP;
+	else if (port == PORT_VPP1_OSD1_ONLY)
+		loop_port = TVIN_PORT_VIU2_OSD1;
 	else if (port == PORT_VPP2_VIDEO_ONLY)		/* vpp2 */
 		loop_port = TVIN_PORT_VIU3_VD1;
 	else if (port == PORT_VPP2_OSD_VIDEO)
 		loop_port = TVIN_PORT_VIU3_VPP;
+	else if (port == PORT_VPP2_OSD1_ONLY)
+		loop_port = TVIN_PORT_VIU3_OSD1;
 	else
 		loop_port = para->port;
 		//loop_port = TVIN_PORT_VIU1_WB0_VD1;

@@ -136,7 +136,8 @@
 /* 20230321: not add vdin interrupt lock on tvin_notify_vdin_skip_frame */
 /* 20230330: set whether to check the hdr sei error option */
 /* 20230404: interlace not into game mode */
-#define VDIN_VER "20230404"
+/* 20230420: add osd only support for screencap */
+#define VDIN_VER "20230420"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
