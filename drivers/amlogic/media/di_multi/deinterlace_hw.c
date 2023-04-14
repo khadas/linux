@@ -35,6 +35,8 @@
 #include "di_data_l.h"
 
 #include "deinterlace_hw.h"
+#include "reg_decontour.h"
+#include "reg_decontour_t3.h"
 #include "register.h"
 #include "di_reg_v2.h"
 #include "di_reg_v3.h"
@@ -4764,6 +4766,7 @@ static bool pq_save_db(unsigned int addr, unsigned int val, unsigned int mask)
 	bool ret = false;
 	int i;
 	struct db_save_s *p;
+	bool dct_flg = false;
 
 	for (i = 0; i < DIM_DB_SAVE_NUB; i++) {
 		p = &get_datal()->db_save[i];
@@ -4776,6 +4779,16 @@ static bool pq_save_db(unsigned int addr, unsigned int val, unsigned int mask)
 			p->mask		= mask;
 			p->en_db	= true;
 			ret	= true;
+			if (DIM_IS_IC(T5) && addr == DCNTR_DIVR_RMIF_CTRL2)
+				dct_flg = true;
+			else if (DIM_IS_IC_EF(T3) &&
+				 addr == DCNTR_T3_DIVR_RMIF_CTRL2)
+				dct_flg = true;
+			if (dct_flg) {
+				dim_pq_db_sel(DIM_DB_SV_DCT_PQ1, 0, NULL);
+				dim_pq_db_sel(DIM_DB_SV_DCT_PQ2, 0, NULL);
+			}
+
 			dbg_pq("%s:reg:0x%x,val:0x%x,mask:0x%x\n",
 				__func__, p->addr, p->val_db, p->mask);
 			break;

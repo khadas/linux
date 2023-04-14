@@ -305,6 +305,8 @@ static bool dpvpp_dbg_force_bypass_2(void)
 {
 	if (tst_pre_vpp & DI_BIT19)
 		return true;
+	if (dimp_get(edi_mp_di_debug_flag) & 0x100000)
+		return true;
 
 	return false;
 }

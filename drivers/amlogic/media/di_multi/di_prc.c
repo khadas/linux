@@ -3309,10 +3309,26 @@ static void pq_sv_db_ini(void)
 		dbp = &get_datal()->db_save[DIM_DB_SV_DCT_BL2];
 		dbp->support = 1;
 		dbp->addr	= DCTR_BLENDING2;
+		//for p-link
+		dbp = &get_datal()->db_save[DIM_DB_SV_DCT_PQ1];
+		dbp->support = 1;
+		dbp->addr	= DCTR_DIVR4;
+
+		dbp = &get_datal()->db_save[DIM_DB_SV_DCT_PQ2];
+		dbp->support = 1;
+		dbp->addr	= DCNTR_DIVR_RMIF_CTRL2;
 	} else if (DIM_IS_IC_EF(T3)) {
 		dbp = &get_datal()->db_save[DIM_DB_SV_DCT_BL2];
 		dbp->support = 1;
 		dbp->addr	= DCTR_T3_BLENDING2;
+		//for p-link
+		dbp = &get_datal()->db_save[DIM_DB_SV_DCT_PQ1];
+		dbp->support = 1;
+		dbp->addr	= DCTR_T3_DIVR4;
+
+		dbp = &get_datal()->db_save[DIM_DB_SV_DCT_PQ2];
+		dbp->support = 1;
+		dbp->addr	= DCNTR_T3_DIVR_RMIF_CTRL2;
 	}
 }
 

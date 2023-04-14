@@ -1090,8 +1090,11 @@ static bool dcntr_update(const struct reg_acc *op)
 		  DCNTR_GRID_RMIF_CTRL2 + off, op->rd(DCNTR_GRID_RMIF_CTRL2 + off));
 
 	if ((dbg_dct & DI_BIT0) == 0) {
-		if ((dbg_dct & DI_BIT2) == 0)
+		if ((dbg_dct & DI_BIT2) == 0) {
 			di_pq_db_setting(DIM_DB_SV_DCT_BL2, op);
+			di_pq_db_setting(DIM_DB_SV_DCT_PQ1, op);
+			di_pq_db_setting(DIM_DB_SV_DCT_PQ2, op);
+		}
 
 		op->bwr(DI_PRE_CTRL, 1, 15, 1);// decontour enable
 	}
