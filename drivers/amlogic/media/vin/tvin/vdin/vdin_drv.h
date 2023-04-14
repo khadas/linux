@@ -136,6 +136,7 @@
 /* 20230321: not add vdin interrupt lock on tvin_notify_vdin_skip_frame */
 /* 20230330: set whether to check the hdr sei error option */
 /* 20230404: interlace not into game mode */
+/* 20230417: provide uapi headers for user space */
 /* 20230420: add osd only support for screencap */
 /* 20230427: fix screen cap stress test crash issue */
 #define VDIN_VER "20230427"
@@ -471,12 +472,6 @@ static inline const char
 	}
 }
 
-/* only for keystone use begin */
-struct vdin_set_canvas_s {
-	int fd;
-	int index;
-};
-
 struct vdin_set_canvas_addr_s {
 	long paddr;
 	int  size;
@@ -567,11 +562,6 @@ struct vdin_afbce_s {
 	/*every body head addr*/
 	unsigned long fm_body_paddr[VDIN_CANVAS_MAX_CNT];
 	void *fm_table_vir_paddr[VDIN_CANVAS_MAX_CNT];
-};
-
-struct vdin_event_info {
-	/*enum tvin_sg_chg_flg*/
-	u32 event_sts;
 };
 
 enum vdin_game_mode_chg_e {
@@ -1003,49 +993,6 @@ struct vdin_dev_s {
 	struct vf_entry *vfe_tmp;
 	struct vdin_dts_config_s dts_config;
 	unsigned int common_divisor;
-};
-
-struct vdin_hist_s {
-	ulong sum;
-	int width;
-	int height;
-	int ave;
-	unsigned short hist[64];
-};
-
-enum port_mode {
-	capture_osd_plus_video = 0,
-	capture_only_video,
-};
-
-struct vdin_v4l2_param_s {
-	int width;
-	int height;
-	int fps;
-	enum tvin_color_fmt_e dst_fmt;
-	int dst_width;	/* H scaling down */
-	int dst_height;	/* v scaling down */
-	unsigned int bit_order;	/* raw data bit order(0:none std, 1: std)*/
-	enum port_mode mode;	/*0:osd + video 1:video only*/
-	int bit_dep;
-	bool secure_memory_en; /* 0:not secure memory 1:secure memory */
-};
-
-enum vdin_vrr_mode_e {
-	VDIN_VRR_OFF = 0,
-	VDIN_VRR_BASIC,
-	VDIN_VRR_FREESYNC,
-	VDIN_VRR_FREESYNC_PREMIUM,
-	VDIN_VRR_FREESYNC_PREMIUM_PRO,
-	VDIN_VRR_FREESYNC_PREMIUM_G_SYNC,
-	VDIN_VRR_NUM
-};
-
-struct vdin_vrr_freesync_param_s {
-	enum vdin_vrr_mode_e cur_vrr_status;
-	u8 tone_mapping_en;
-	u8 local_dimming_disable;
-	u8 native_color_en;
 };
 
 extern unsigned int max_ignore_frame_cnt;

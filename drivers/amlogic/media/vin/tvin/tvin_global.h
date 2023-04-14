@@ -310,12 +310,6 @@ static inline u32 rd_bits(u32 offset, u32 reg, const u32 start, const u32 len)
 #define CDTO_FILTER_FACTOR			1
 #endif
 
-enum tvin_sync_pol_e {
-	TVIN_SYNC_POL_NULL = 0,
-	TVIN_SYNC_POL_NEGATIVE,
-	TVIN_SYNC_POL_POSITIVE,
-};
-
 enum tvin_color_space_e {
 	TVIN_CS_RGB444 = 0,
 	TVIN_CS_YUV444,
@@ -336,47 +330,6 @@ enum tvin_buffer_ctl_e {
 /* *** structure definitions ********************************************* */
 /* ************************************************************************* */
 /* Hs_cnt        Pixel_Clk(Khz/10) */
-
-struct tvin_format_s {
-	/* Th in the unit of pixel */
-	unsigned short         h_active;
-	 /* Tv in the unit of line */
-	unsigned short         v_active;
-	/* Th in the unit of T, while 1/T = 24MHz or 27MHz or even 100MHz */
-	unsigned short         h_cnt;
-	/* Tolerance of h_cnt */
-	unsigned short         h_cnt_offset;
-	/* Tolerance of v_cnt */
-	unsigned short         v_cnt_offset;
-	/* Ths in the unit of T, while 1/T = 24MHz or 27MHz or even 100MHz */
-	unsigned short         hs_cnt;
-	/* Tolerance of hs_cnt */
-	unsigned short         hs_cnt_offset;
-	/* Th in the unit of pixel */
-	unsigned short         h_total;
-	/* Tv in the unit of line */
-	unsigned short         v_total;
-	/* h front proch */
-	unsigned short         hs_front;
-	 /* HS in the unit of pixel */
-	unsigned short         hs_width;
-	 /* HS in the unit of pixel */
-	unsigned short         hs_bp;
-	/* vs front proch in the unit of line */
-	unsigned short         vs_front;
-	 /* VS width in the unit of line */
-	unsigned short         vs_width;
-	/* vs back proch in the unit of line */
-	unsigned short         vs_bp;
-	enum tvin_sync_pol_e   hs_pol;
-	enum tvin_sync_pol_e   vs_pol;
-	enum tvin_scan_mode_e  scan_mode;
-	/* (Khz/10) */
-	unsigned short         pixel_clk;
-	unsigned short         vbi_line_start;
-	unsigned short         vbi_line_end;
-	unsigned int           duration;
-};
 
 enum tvin_ar_b3_b0_val_e {
 	TVIN_AR_14x9_LB_CENTER_VAL = 0x11,
@@ -544,19 +497,6 @@ struct tvin_cuva_data_s {
 struct tvin_cuva_vsif_s {
 	bool cuva_on;
 	struct tvin_cuva_data_s cuva_data;
-};
-
-enum tvin_cn_type_e {
-	GRAPHICS,
-	PHOTO,
-	CINEMA,
-	GAME,
-};
-
-struct tvin_latency_s {
-	bool allm_mode;
-	bool it_content;
-	enum tvin_cn_type_e cn_type;
 };
 
 struct tvin_sig_property_s {

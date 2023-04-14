@@ -36,26 +36,6 @@ enum tvin_sm_status_e {
 	TVIN_SM_STATUS_STABLE,
 };
 
-enum tvin_sg_chg_flg {
-	TVIN_SIG_CHG_NONE = 0,
-	TVIN_SIG_CHG_SDR2HDR	= 0x01,
-	TVIN_SIG_CHG_HDR2SDR	= 0x02,
-	TVIN_SIG_CHG_DV2NO	= 0x04,
-	TVIN_SIG_CHG_NO2DV	= 0x08,
-	TVIN_SIG_CHG_COLOR_FMT	= 0x10,
-	TVIN_SIG_CHG_RANGE	= 0x20,	/*color range:full or limit*/
-	TVIN_SIG_CHG_BIT	= 0x40,	/*color bit depth: 8,10,12 ...*/
-	TVIN_SIG_CHG_VS_FRQ	= 0x80,
-	TVIN_SIG_CHG_DV_ALLM	= 0x100,
-	TVIN_SIG_CHG_AFD	= 0x200,/*aspect ratio*/
-	TVIN_SIG_CHG_VRR        = 0x1000, /*vrr*/
-	TVIN_SIG_CHG_CLOSE_FE	= 0x40000000,	/*closed frontend*/
-	TVIN_SIG_CHG_STS	= 0x80000000,	/*sm state change*/
-};
-
-#define TVIN_SIG_DV_CHG		(TVIN_SIG_CHG_DV2NO | TVIN_SIG_CHG_NO2DV)
-#define TVIN_SIG_HDR_CHG	(TVIN_SIG_CHG_SDR2HDR | TVIN_SIG_CHG_HDR2SDR)
-
 #define RE_CONFIG_DV_EN		0x01
 #define RE_CONFIG_HDR_EN	0x02
 #define RE_CONFIG_ALLM_EN	0x04

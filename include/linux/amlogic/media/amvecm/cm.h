@@ -13,6 +13,8 @@
 #ifndef _TVOUT_CM_H
 #define _TVOUT_CM_H
 
+#include <uapi/linux/amlogic/amvecm.h>
+
 /* ******************************************************************* */
 /* *** enum definitions ********************************************* */
 /* ******************************************************************* */
@@ -143,20 +145,6 @@ enum reg_bus_type_e {
 	REG_TYPE_VCBUS = 10,
 	REG_TYPE_OFFSET_VCBUS = 11,
 	REG_TYPE_MAX,
-};
-
-/* Register table structure */
-struct am_reg_s {
-	unsigned int type; /* 32-bits; 0: CBUS; 1: APB BUS... */
-	unsigned int addr; /* 32-bits; Register address */
-	unsigned int mask; /* 32-bits; Valid bits */
-	unsigned int  val; /* 32-bits; Register Value */
-};
-
-#define am_reg_size 900
-struct am_regs_s {
-	unsigned int    length; /* Length of total am_reg */
-	struct am_reg_s am_reg[am_reg_size];
 };
 
 #endif  /* _TVOUT_CM_H */
