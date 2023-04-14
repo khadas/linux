@@ -444,6 +444,7 @@ struct meson_vpu_postblend {
 	struct meson_vpu_block base;
 	struct postblend_reg_s *reg;
 	struct postblend1_reg_s *reg1;
+	bool postblend_path_mask;
 };
 
 struct meson_vpu_postblend_state {

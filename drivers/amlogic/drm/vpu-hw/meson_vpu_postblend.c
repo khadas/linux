@@ -373,7 +373,13 @@ static void t7_postblend_set_state(struct meson_vpu_block *vblk,
 			reg_ops->rdma_write_reg(reg1->vpp_bld_ctrl, val);
 
 		if (bld_src2_sel == 2) {
-			reg_ops->rdma_write_reg(VPP_OSD3_SCALE_CTRL, 0x7);
+			if (postblend->postblend_path_mask) {
+				reg_ops->rdma_write_reg_bits(PATH_START_SEL, crtc_index, 24, 2);
+				reg_ops->rdma_write_reg_bits(VIU_OSD3_PATH_CTRL, 1, 2, 1);
+				reg_ops->rdma_write_reg_bits(VIU_OSD3_PATH_CTRL, 0x1, 4, 1);
+			} else {
+				reg_ops->rdma_write_reg(VPP_OSD3_SCALE_CTRL, 0x7);
+			}
 		} else if (bld_src2_sel == 3) {
 			reg_ops->rdma_write_reg(VPP_OSD4_SCALE_CTRL, 0x7);
 		} else {
@@ -614,6 +620,8 @@ static void t3_postblend_hw_init(struct meson_vpu_block *vblk)
 	postblend->reg = &postblend_reg;
 
 	independ_path_default_regs(vblk, vblk->pipeline->subs[0].reg_ops);
+	/*t3 t5w t5m paht crtl flag*/
+	postblend->postblend_path_mask = true;
 	DRM_DEBUG("%s hw_init called.\n", postblend->base.name);
 }
 
