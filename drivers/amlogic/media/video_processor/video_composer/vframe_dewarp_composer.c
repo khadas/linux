@@ -52,12 +52,12 @@ static int get_dewarp_rotation_value(int vc_transform)
 {
 	int rotate_value = 0;
 
-	if (vc_transform == 4)
-		rotate_value = 90;
+	if (vc_transform == 4 || vc_transform == 5 || vc_transform == 6)
+		rotate_value = 270;
 	else if (vc_transform == 3)
 		rotate_value = 180;
 	else if (vc_transform == 7)
-		rotate_value = 270;
+		rotate_value = 90;
 	else
 		rotate_value = 0;
 

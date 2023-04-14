@@ -209,7 +209,7 @@ static enum ge2d_angle_type config_ge2d_rotation(int vf_transform)
 		ge2d_angle = GE2D_ANGLE_TYPE_FLIP_H;
 	else if (vf_transform == 2)
 		ge2d_angle = GE2D_ANGLE_TYPE_FLIP_V;
-	else if (vf_transform == 4)
+	else if (vf_transform == 4 || vf_transform == 5 || vf_transform == 6)
 		ge2d_angle = GE2D_ANGLE_TYPE_ROT_90;
 	else if (vf_transform == 3)
 		ge2d_angle = GE2D_ANGLE_TYPE_ROT_180;
