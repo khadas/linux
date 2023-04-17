@@ -1216,21 +1216,23 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		return 0;
 	}
 
-	strength = tuner_get_ch_power(fe);
-	if (devp->tuner_strength_limit)
-		strength_limit = devp->tuner_strength_limit;
+	if (!tuner_find_by_name(fe, "mxl661") || demod->last_status != 0x1F) {
+		strength = tuner_get_ch_power(fe);
+		if (devp->tuner_strength_limit)
+			strength_limit = devp->tuner_strength_limit;
 
-	if (strength < strength_limit) {
-		if (!(no_signal_cnt++ % 20))
-			dvbt2_reset(demod, fe);
-		unlock_cnt = 0;
-		*status = FE_TIMEDOUT;
-		demod->last_status = *status;
-		real_para_clear(&demod->real_para);
-		PR_DVBT("%s: tuner strength [%d] no signal(%d).\n",
-				__func__, strength, strength_limit);
+		if (strength < strength_limit) {
+			if (!(no_signal_cnt++ % 20))
+				dvbt2_reset(demod, fe);
+			unlock_cnt = 0;
+			*status = FE_TIMEDOUT;
+			demod->last_status = *status;
+			real_para_clear(&demod->real_para);
+			PR_DVBT("%s: tuner strength [%d] no signal(%d).\n",
+					__func__, strength, strength_limit);
 
-		return 0;
+			return 0;
+		}
 	}
 
 	no_signal_cnt = 0;

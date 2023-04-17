@@ -80,6 +80,7 @@
 /*  V1.1.86  fix t2 agc target config for r842 */
 /*  V1.1.87  fix diseqc2.0 rx */
 /*  V1.1.88  fix diseqc and lnb attach */
+/*  V1.1.89  fix T2 pulse test failed when tuner is mxl661 */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -96,8 +97,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.88"
-#define DTVDEMOD_VER	"2023/04/18: fix diseqc and lnb attach"
+#define AMLDTVDEMOD_VER "V1.1.89"
+#define DTVDEMOD_VER	"2023/04/23: fix T2 pulse test failed when tuner is mxl661"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
