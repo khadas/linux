@@ -2178,7 +2178,12 @@ static void _edid_parse_base_structure(struct hdmitx_dev *hdmitx_device,
 			prxcap->ieeeoui = HDMI_IEEE_OUI;
 		if (zero_numbers > 120)
 			prxcap->ieeeoui = HDMI_IEEE_OUI;
-		hdmitx_edid_set_default_vic(hdmitx_device);
+
+		edid_standardtiming(prxcap, &EDID_buf[0x26], 8);
+		edid_parseceatiming(prxcap, &EDID_buf[0x36]);
+		/* if no matched dtd/standard_timing, use fallback mode */
+		if (prxcap->VIC_count == 0 && prxcap->vesa_timing[0] == 0)
+			hdmitx_edid_set_default_vic(hdmitx_device);
 	}
 }
 
@@ -2353,7 +2358,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	}
 
 	/* if edid are all zeroes, or no VIC, set default vic */
-	if (edid_zero_data(EDID_buf) || prxcap->VIC_count == 0)
+	if (edid_zero_data(EDID_buf) || (prxcap->VIC_count == 0 && prxcap->vesa_timing[0] == 0))
 		hdmitx_edid_set_default_vic(hdmitx_device);
 	if (prxcap->ieeeoui != HDMI_IEEE_OUI)
 		hdmitx_device->physical_addr = 0xffff;
