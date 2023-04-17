@@ -117,6 +117,7 @@
 
 #define LTSSM_L0		0x10
 #define LTSSM_L1_IDLE		0x13
+#define LTSSM_L2_IDLE		0x14
 #define LTSSM_LPBK_ACTIVE	0x18
 
 #define PCIE_LINK_STATE_CHECK(val, state) \
