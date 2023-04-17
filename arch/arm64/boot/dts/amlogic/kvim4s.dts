@@ -967,6 +967,15 @@
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
 
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = <&tdm_a_pins
+			&tdm_d0_pins
+			&tdm_d1_pins
+			&tdma_clk_pins>;
+
+		/*enable default mclk(12.288M), before extern codec start*/
+		//start_clk_enable = <1>;
+
 		status = "okay";
 	};
 
@@ -1756,6 +1765,16 @@
 		};
 	};
 
+	tdm_a_pins: tdm_a_pin {
+		mux { /* GPIOX_11, GPIOX_10, GPIOX_8, GPIOX_9 */
+			groups = "tdm_sclk0",
+				"tdm_fs0",
+				"tdm_d0",
+				"tdm_d1";
+			function = "tdm";
+		};
+	};
+
 	tdm_b_pins: tdm_b_pin {
 		mux { /* GPIOT_1, GPIOT_2, GPIOT_3, GPIOT_4 */
 			groups = "tdm_sclk1",
@@ -1856,6 +1875,20 @@
 };
 
 &pinctrl_audio {
+	tdm_d0_pins: tdm_d0_pin {
+		mux {
+			groups = "tdm_d0";
+			function = "tdmouta_lane1";
+		};
+	};
+
+	tdm_d1_pins: tdm_d1_pin {
+		mux {
+			groups = "tdm_d1";
+			function = "tdmina_lane0";
+		};
+	};
+
 	tdm_d2_pins: tdm_d2_pin {
 		mux {
 			groups = "tdm_d2";
@@ -1888,6 +1921,13 @@
 		mux {
 			groups = "tdm_d7";
 			function = "tdminb_lane0";
+		};
+	};
+
+	tdma_clk_pins: tdma_clk_pin {
+		mux {
+			groups = "tdm_sclk0", "tdm_lrclk0";
+			function = "tdm_clk_outa";
 		};
 	};
 
