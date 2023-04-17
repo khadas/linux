@@ -366,7 +366,7 @@ void aisr_reshape_addr_set_s5(struct video_layer_s *layer,
 				  struct aisr_setting_s *aisr_mif_setting);
 void aisr_reshape_output_s5(u32 enable);
 void aisr_demo_enable_s5(void);
-void aisr_demo_axis_set_s5(void);
+void aisr_demo_axis_set_s5(struct video_layer_s *layer);
 void aisr_sr1_nn_enable_s5(u32 enable);
 void aisr_sr1_nn_enable_sync_s5(u32 enable);
 bool is_sr_phase_changed_s5(void);

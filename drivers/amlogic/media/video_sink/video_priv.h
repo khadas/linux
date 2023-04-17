@@ -942,7 +942,7 @@ s32 config_aisr_pps(struct video_layer_s *layer,
 s32 config_aisr_position(struct video_layer_s *layer,
 			     struct aisr_setting_s *aisr_mif_setting);
 void aisr_demo_enable(void);
-void aisr_demo_axis_set(void);
+void aisr_demo_axis_set(struct video_layer_s *layer);
 void aisr_reshape_output(u32 enable);
 void pre_process_for_3d(struct vframe_s *vf);
 int get_vpu_urgent_info_t3(void);

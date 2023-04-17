@@ -12182,7 +12182,7 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 		aisr_sr1_nn_enable(0);
 }
 
-void aisr_demo_axis_set(void)
+void aisr_demo_axis_set(struct video_layer_s *layer)
 {
 	u8 vpp_index = VPP0;
 	static bool en_flag;
@@ -12196,7 +12196,7 @@ void aisr_demo_axis_set(void)
 	static u32 new_aisr_demo_ystart;
 	static u32 last_aisr_demo_yend;
 	static u32 new_aisr_demo_yend;
-	struct disp_info_s *layer = &glayer_info[0];
+	struct disp_info_s *layer_info = &glayer_info[0];
 	const struct vinfo_s *vinfo = get_current_vinfo();
 
 	if (cur_dev->aisr_demo_en) {
@@ -12207,40 +12207,42 @@ void aisr_demo_axis_set(void)
 		new_aisr_demo_xend = cur_dev->aisr_demo_xend;
 		new_aisr_demo_ystart = cur_dev->aisr_demo_ystart;
 		new_aisr_demo_yend = cur_dev->aisr_demo_yend;
-		if ((layer->layer_left || layer->layer_top ||
-			layer->layer_width < vinfo->width ||
-			layer->layer_height < vinfo->height) &&
+		if ((layer_info->layer_left || layer_info->layer_top ||
+			layer_info->layer_left + layer_info->layer_width < vinfo->width ||
+			layer_info->layer_top + layer_info->layer_height < vinfo->height) &&
 			(last_aisr_demo_xstart != new_aisr_demo_xstart ||
 			last_aisr_demo_xend != new_aisr_demo_xend ||
 			last_aisr_demo_ystart != new_aisr_demo_ystart ||
 			last_aisr_demo_yend != new_aisr_demo_yend)
 			) {
 			/*demo window in black margin or not*/
-			if (new_aisr_demo_xend < layer->layer_left ||
-				new_aisr_demo_xstart > layer->layer_width ||
-				new_aisr_demo_yend < layer->layer_top ||
-				new_aisr_demo_ystart > layer->layer_height) {
+			if (new_aisr_demo_xend < layer_info->layer_left ||
+				new_aisr_demo_xstart > layer_info->layer_width ||
+				new_aisr_demo_yend < layer_info->layer_top ||
+				new_aisr_demo_ystart > layer_info->layer_height) {
 				new_aisr_demo_xstart = 0;
 				new_aisr_demo_xend = 0;
 				new_aisr_demo_ystart = 0;
 				new_aisr_demo_yend = 0;
 			} else {
-				if (new_aisr_demo_xstart < layer->layer_left)
+				if (new_aisr_demo_xstart < layer_info->layer_left)
 					new_aisr_demo_xstart = 0;
 				else
-					new_aisr_demo_xstart -= layer->layer_left;
-				if (new_aisr_demo_xend > (layer->layer_width + layer->layer_left))
-					new_aisr_demo_xend = layer->layer_width;
+					new_aisr_demo_xstart -= layer_info->layer_left;
+				if (new_aisr_demo_xend >
+					(layer_info->layer_width + layer_info->layer_left))
+					new_aisr_demo_xend = layer_info->layer_width;
 				else
-					new_aisr_demo_xend -= layer->layer_left;
-				if (new_aisr_demo_ystart < layer->layer_top)
+					new_aisr_demo_xend -= layer_info->layer_left;
+				if (new_aisr_demo_ystart < layer_info->layer_top)
 					new_aisr_demo_ystart = 0;
 				else
-					new_aisr_demo_ystart -= layer->layer_top;
-				if (new_aisr_demo_yend > (layer->layer_height + layer->layer_top))
-					new_aisr_demo_yend = layer->layer_height;
+					new_aisr_demo_ystart -= layer_info->layer_top;
+				if (new_aisr_demo_yend >
+					(layer_info->layer_height + layer_info->layer_top))
+					new_aisr_demo_yend = layer_info->layer_height;
 				else
-					new_aisr_demo_yend -= layer->layer_top;
+					new_aisr_demo_yend -= layer_info->layer_top;
 			}
 			last_aisr_demo_xstart = new_aisr_demo_xstart;
 			last_aisr_demo_xend = new_aisr_demo_xend;
@@ -12248,7 +12250,13 @@ void aisr_demo_axis_set(void)
 			last_aisr_demo_yend = new_aisr_demo_yend;
 		}
 		if (cur_dev->display_module == S5_DISPLAY_MODULE)
-			return aisr_demo_axis_set_s5();
+			return aisr_demo_axis_set_s5(layer);
+		if (layer->pi_enable) {
+			new_aisr_demo_xstart /= 2;
+			new_aisr_demo_xend /= 2;
+			new_aisr_demo_ystart /= 2;
+			new_aisr_demo_yend /= 2;
+		}
 		if (!en_flag) {
 			original_reg_value1 = READ_VCBUS_REG(DEMO_MODE_WINDO_CTRL0);
 			original_reg_value2 = READ_VCBUS_REG(DEMO_MODE_WINDO_CTRL1);
@@ -12276,7 +12284,7 @@ void aisr_demo_axis_set(void)
 		if (!cur_dev->aisr_support)
 			return;
 		if (cur_dev->display_module == S5_DISPLAY_MODULE)
-			return aisr_demo_axis_set_s5();
+			return aisr_demo_axis_set_s5(layer);
 		if (en_flag) {
 			cur_dev->rdma_func[vpp_index].rdma_wr
 				(DEMO_MODE_WINDO_CTRL0, original_reg_value1);
