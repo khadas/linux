@@ -152,6 +152,32 @@ void ct_parm_set(struct color_param_s *param)
 	ct_parm.ygain_b = param->ygain_b;
 }
 
+int cmp_ct_parm(struct color_tune_parm_s *ct_param)
+{
+	if (ct_parm.en != ct_param->en ||
+		ct_parm.rgain_r != ct_param->rgain_r ||
+		ct_parm.rgain_g != ct_param->rgain_g ||
+		ct_parm.rgain_b != ct_param->rgain_b ||
+		ct_parm.ggain_r != ct_param->ggain_r ||
+		ct_parm.ggain_g != ct_param->ggain_g ||
+		ct_parm.ggain_b != ct_param->ggain_b ||
+		ct_parm.bgain_r != ct_param->bgain_r ||
+		ct_parm.bgain_g != ct_param->bgain_g ||
+		ct_parm.bgain_b != ct_param->bgain_b ||
+		ct_parm.cgain_r != ct_param->cgain_r ||
+		ct_parm.cgain_g != ct_param->cgain_g ||
+		ct_parm.cgain_b != ct_param->cgain_b ||
+		ct_parm.mgain_r != ct_param->mgain_r ||
+		ct_parm.mgain_g != ct_param->mgain_g ||
+		ct_parm.mgain_b != ct_param->mgain_b ||
+		ct_parm.ygain_r != ct_param->ygain_r ||
+		ct_parm.ygain_g != ct_param->ygain_g ||
+		ct_parm.ygain_b != ct_param->ygain_b)
+		return 1;
+	else
+		return 0;
+}
+
 int ct_dbg(char **parm)
 {
 	long val;
@@ -161,7 +187,7 @@ int ct_dbg(char **parm)
 			goto error;
 		ct_parm.en = (int)val;
 		pr_info("ct_en = %d\n", ct_en);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "read_parm")) {
 		pr_info("ct_en = %d\n", ct_en);
 
@@ -193,109 +219,109 @@ int ct_dbg(char **parm)
 			goto error;
 		ct_parm.rgain_r = (int)val;
 		pr_info("rgain_r = %d\n", ct_parm.rgain_r);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "rgain_g")) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.rgain_g = (int)val;
 		pr_info("rgain_g = %d\n", ct_parm.rgain_g);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "rgain_b")) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.rgain_b = (int)val;
 		pr_info("rgain_b = %d\n", ct_parm.rgain_b);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "ggain_r")) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.ggain_r = (int)val;
 		pr_info("ggain_r = %d\n", ct_parm.ggain_r);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "ggain_g")) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.ggain_g = (int)val;
 		pr_info("ggain_g = %d\n", ct_parm.ggain_g);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "ggain_b")) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.ggain_b = (int)val;
 		pr_info("ggain_b = %d\n", ct_parm.ggain_b);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "bgain_r")) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.bgain_r = (int)val;
 		pr_info("bgain_r = %d\n", ct_parm.bgain_r);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "bgain_g")) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.bgain_g = (int)val;
 		pr_info("bgain_g = %d\n", ct_parm.bgain_g);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "bgain_b")) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.bgain_b = (int)val;
 		pr_info("bgain_b = %d\n", ct_parm.bgain_b);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "cgain_r")) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.cgain_r = (int)val;
 		pr_info("cgain_r = %d\n", ct_parm.cgain_r);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "cgain_g")) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.cgain_g = (int)val;
 		pr_info("cgain_g = %d\n", ct_parm.cgain_g);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "cgain_b")) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.cgain_b = (int)val;
 		pr_info("cgain_b = %d\n", ct_parm.cgain_b);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "mgain_r")) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.mgain_r = (int)val;
 		pr_info("mgain_r = %d\n", ct_parm.mgain_r);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "mgain_g")) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.mgain_g = (int)val;
 		pr_info("mgain_g = %d\n", ct_parm.mgain_g);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "mgain_b")) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.mgain_b = (int)val;
 		pr_info("mgain_b = %d\n", ct_parm.mgain_b);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "ygain_r")) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.ygain_r = (int)val;
 		pr_info("ygain_r = %d\n", ct_parm.ygain_r);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "ygain_g")) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.ygain_g = (int)val;
 		pr_info("ygain_g = %d\n", ct_parm.ygain_g);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "ygain_b")) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			goto error;
 		ct_parm.ygain_b = (int)val;
 		pr_info("ygain_b = %d\n", ct_parm.ygain_b);
-		bs_ct_latch();
+		ct_latch();
 	} else if (!strcmp(parm[0], "tune")) {
 		ct_process();
 		pr_info("color tune\n");

@@ -108,6 +108,8 @@ void amdv_set_toggle_flag(int flag);
  *#define VPP_VADJ1_BLMINUS_EN        (1 << 1)
  *#define VPP_VADJ1_EN                (1 << 0)
  */
+#define CT_UPDATE                   BIT(16)
+#define BS_UPDATE                   BIT(15)
 #define LUT3D_UPDATE                BIT(14)
 #define BLE_WHE_UPDATE              BIT(13)
 #define GAMMA_CRC_FAIL              BIT(12)
@@ -813,7 +815,9 @@ extern int bs_3dlut_en;
 extern unsigned int vecm_latch_flag2;
 
 extern unsigned int ct_en;
-void bs_ct_latch(void);
+void bs_latch(void);
+void ct_latch(void);
+void lut3d_latch(void);
 
 extern enum chip_type chip_type_id;
 extern enum chip_cls_e chip_cls_id;
@@ -950,5 +954,7 @@ struct gamma_data_s {
 };
 
 struct gamma_data_s *get_gm_data(void);
+extern u32 _get_cur_enc_line(void);
+extern int rd_vencl;
 #endif /* AMVECM_H */
 

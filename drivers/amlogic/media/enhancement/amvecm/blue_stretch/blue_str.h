@@ -41,5 +41,6 @@ void set_blue_str_parm(struct blue_str_parm_s *parm);
 //void lut3d_yuv2rgb(int en);
 extern int bs_proc_en;
 void bls_set(void);
+int cmp_bs_param(struct blue_str_parm_s *parm);
 void bs_reg_set(void);
 #endif

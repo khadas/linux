@@ -101,6 +101,31 @@ void set_blue_str_parm(struct blue_str_parm_s *parm)
 	bls_param->blue_stretch_luma_high = parm->blue_stretch_luma_high;
 }
 
+int cmp_bs_param(struct blue_str_parm_s *parm)
+{
+	struct bls_par *bls_param;
+
+	bls_param = get_bls_par();
+
+	if (bls_param->blue_stretch_en != parm->blue_stretch_en ||
+		bls_param->blue_stretch_cr_inc != parm->blue_stretch_cr_inc ||
+		bls_param->blue_stretch_cb_inc != parm->blue_stretch_cb_inc ||
+		bls_param->blue_stretch_gain != parm->blue_stretch_gain ||
+		bls_param->blue_stretch_gain_cb4cr != parm->blue_stretch_gain_cb4cr ||
+		bls_param->blue_stretch_error_crp != parm->blue_stretch_error_crp ||
+		bls_param->blue_stretch_error_crp_inv != parm->blue_stretch_error_crp_inv ||
+		bls_param->blue_stretch_error_crn != parm->blue_stretch_error_crn ||
+		bls_param->blue_stretch_error_crn_inv != parm->blue_stretch_error_crn_inv ||
+		bls_param->blue_stretch_error_cbp != parm->blue_stretch_error_cbp ||
+		bls_param->blue_stretch_error_cbp_inv != parm->blue_stretch_error_cbp_inv ||
+		bls_param->blue_stretch_error_cbn != parm->blue_stretch_error_cbn ||
+		bls_param->blue_stretch_error_cbn_inv != parm->blue_stretch_error_cbn_inv ||
+		bls_param->blue_stretch_luma_high != parm->blue_stretch_luma_high)
+		return 1;
+	else
+		return 0;
+}
+
 /*
  *static void rgb2ycbcrpc_fr(int *y, int *u, int *v, int r, int g, int b, int bitdepth)
  *{
@@ -353,7 +378,7 @@ int bls_par_dbg(char **parm)
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto failed;
 		bls_param->blue_stretch_en = (int)val;
-		bs_ct_latch();
+		bs_latch();
 	} else if (!strcmp(parm[0], "bls_cr_inc")) {
 		if (!parm[1]) {
 			bs_latch_flag |= BLUE_STR_CR_INC;
@@ -362,7 +387,7 @@ int bls_par_dbg(char **parm)
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto failed;
 		bls_param->blue_stretch_cr_inc = (int)val;
-		bs_ct_latch();
+		bs_latch();
 	} else if (!strcmp(parm[0], "bls_cb_inc")) {
 		if (!parm[1]) {
 			bs_latch_flag |= BLUE_STR_CB_INC;
@@ -371,7 +396,7 @@ int bls_par_dbg(char **parm)
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto failed;
 		bls_param->blue_stretch_cb_inc = (int)val;
-		bs_ct_latch();
+		bs_latch();
 	} else if (!strcmp(parm[0], "bls_gain")) {
 		if (!parm[1]) {
 			bs_latch_flag |= BLUE_STR_GAIN;
@@ -380,7 +405,7 @@ int bls_par_dbg(char **parm)
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto failed;
 		bls_param->blue_stretch_gain = (int)val;
-		bs_ct_latch();
+		bs_latch();
 	} else if (!strcmp(parm[0], "bls_gain_cb4cr")) {
 		if (!parm[1]) {
 			bs_latch_flag |= BLUE_STR_GAIN_CB4CR;
@@ -389,7 +414,7 @@ int bls_par_dbg(char **parm)
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto failed;
 		bls_param->blue_stretch_gain_cb4cr = (int)val;
-		bs_ct_latch();
+		bs_latch();
 	} else if (!strcmp(parm[0], "bls_error_crp")) {
 		if (!parm[1]) {
 			bs_latch_flag |= BLUE_STR_GAIN_ERR_CRP;
@@ -398,7 +423,7 @@ int bls_par_dbg(char **parm)
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto failed;
 		bls_param->blue_stretch_error_crp = (int)val;
-		bs_ct_latch();
+		bs_latch();
 	} else if (!strcmp(parm[0], "bls_error_crp_inv")) {
 		if (!parm[1]) {
 			bs_latch_flag |= BLUE_STR_GAIN_ERR_CRP_INV;
@@ -407,7 +432,7 @@ int bls_par_dbg(char **parm)
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto failed;
 		bls_param->blue_stretch_error_crp_inv = (int)val;
-		bs_ct_latch();
+		bs_latch();
 	} else if (!strcmp(parm[0], "bls_error_crn")) {
 		if (!parm[1]) {
 			bs_latch_flag |= BLUE_STR_GAIN_ERR_CRN;
@@ -416,7 +441,7 @@ int bls_par_dbg(char **parm)
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto failed;
 		bls_param->blue_stretch_error_crn = (int)val;
-		bs_ct_latch();
+		bs_latch();
 	} else if (!strcmp(parm[0], "bls_error_crn_inv")) {
 		if (!parm[1]) {
 			bs_latch_flag |= BLUE_STR_GAIN_ERR_CRN_INV;
@@ -425,7 +450,7 @@ int bls_par_dbg(char **parm)
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto failed;
 		bls_param->blue_stretch_error_crn_inv = (int)val;
-		bs_ct_latch();
+		bs_latch();
 	} else if (!strcmp(parm[0], "bls_error_cbp")) {
 		if (!parm[1]) {
 			bs_latch_flag |= BLUE_STR_GAIN_ERR_CBP;
@@ -434,7 +459,7 @@ int bls_par_dbg(char **parm)
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto failed;
 		bls_param->blue_stretch_error_cbp = (int)val;
-		bs_ct_latch();
+		bs_latch();
 	} else if (!strcmp(parm[0], "bls_error_cbp_inv")) {
 		if (!parm[1]) {
 			bs_latch_flag |= BLUE_STR_GAIN_ERR_CBP_INV;
@@ -443,7 +468,7 @@ int bls_par_dbg(char **parm)
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto failed;
 		bls_param->blue_stretch_error_cbp_inv = (int)val;
-		bs_ct_latch();
+		bs_latch();
 	} else if (!strcmp(parm[0], "bls_error_cbn")) {
 		if (!parm[1]) {
 			bs_latch_flag |= BLUE_STR_GAIN_ERR_CBN;
@@ -452,7 +477,7 @@ int bls_par_dbg(char **parm)
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto failed;
 		bls_param->blue_stretch_error_cbn = (int)val;
-		bs_ct_latch();
+		bs_latch();
 	} else if (!strcmp(parm[0], "bls_error_cbn_inv")) {
 		if (!parm[1]) {
 			bs_latch_flag |= BLUE_STR_GAIN_ERR_CBN_INV;
@@ -461,7 +486,7 @@ int bls_par_dbg(char **parm)
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto failed;
 		bls_param->blue_stretch_error_cbn_inv = (int)val;
-		bs_ct_latch();
+		bs_latch();
 	} else if (!strcmp(parm[0], "bls_luma_high")) {
 		if (!parm[1]) {
 			bs_latch_flag |= BLUE_STR_GAIN_LUMA_HIGH;
@@ -470,7 +495,7 @@ int bls_par_dbg(char **parm)
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto failed;
 		bls_param->blue_stretch_luma_high = (int)val;
-		bs_ct_latch();
+		bs_latch();
 	} else if (!strcmp(parm[0], "read_all")) {
 		bs_latch_flag |= BLUE_STR_EN;
 		bs_latch_flag |= BLUE_STR_CR_INC;

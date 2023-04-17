@@ -138,6 +138,9 @@ struct demo_data_s demo_data;
 
 /*gamma loading protect*/
 spinlock_t vpp_lcd_gamma_lock;
+/*for 3dlut protect*/
+spinlock_t vpp_3dlut_lock;
+
 /*3dlut loading protect*/
 struct mutex vpp_lut3d_lock;
 
@@ -334,6 +337,10 @@ MODULE_PARM_DESC(ct_en, "\n color tune\n");
 unsigned int ai_color_enable;
 module_param(ai_color_enable, uint, 0664);
 MODULE_PARM_DESC(ai_color_enable, "\n ai_color_enable\n");
+
+int rd_vencl;
+module_param(rd_vencl, int, 0664);
+MODULE_PARM_DESC(rd_vencl, "\n rd_vencl\n");
 
 unsigned int pq_user_value;
 enum hdr_type_e hdr_source_type = HDRTYPE_NONE;
@@ -1986,17 +1993,51 @@ void amvecm_saturation_hue_update(int offset_val)
 		sat_hue_offset_val);
 }
 
+u32 _get_cur_enc_line(void)
+{
+	u32 ret = 0;
+
+	switch (READ_VPP_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3) {
+	case 0:
+		ret = (READ_VPP_REG(ENCL_INFO_READ) >> 16) & 0x1fff;
+		break;
+	case 1:
+		ret = (READ_VPP_REG(ENCI_INFO_READ) >> 16) & 0x1fff;
+		break;
+	case 2:
+		ret = (READ_VPP_REG(ENCP_INFO_READ) >> 16) & 0x1fff;
+		break;
+	case 3:
+		ret = (READ_VPP_REG(ENCT_INFO_READ) >> 16) & 0x1fff;
+		break;
+	}
+	return ret;
+}
+
 void bs_ct_update(void)
 {
-	if (vecm_latch_flag2 & LUT3D_UPDATE) {
-		vecm_latch_flag2 &= ~LUT3D_UPDATE;
+	unsigned long flags = 0;
+
+	if (vecm_latch_flag2 & (LUT3D_UPDATE | BS_UPDATE | CT_UPDATE)) {
+		spin_lock_irqsave(&vpp_3dlut_lock, flags);
 		lut3d_set_api();
+		spin_unlock_irqrestore(&vpp_3dlut_lock, flags);
 	}
 }
 
-void bs_ct_latch(void)
+void lut3d_latch(void)
 {
 	vecm_latch_flag2 |= LUT3D_UPDATE;
+}
+
+void bs_latch(void)
+{
+	vecm_latch_flag2 |= BS_UPDATE;
+}
+
+void ct_latch(void)
+{
+	vecm_latch_flag2 |= CT_UPDATE;
 }
 
 void amvecm_video_latch(void)
@@ -2128,6 +2169,11 @@ int amvecm_on_vs(struct vframe_s *vf,
 {
 	int result = 0;
 	int vf_state = 0;
+	int stt;
+	int ndt;
+
+	stt = _get_cur_enc_line();
+
 #ifdef T7_BRINGUP_MULTI_VPP
 	// to do, t7 vecm bringup,
 	int vpp_top_index = 0;
@@ -2240,6 +2286,14 @@ int amvecm_on_vs(struct vframe_s *vf,
 	amvecm_video_latch();
 	/*wq for cacb and aad*/
 	cabc_aad_on_vs(vf_state);
+
+	ndt = _get_cur_enc_line();
+
+	if (rd_vencl) {
+		pr_info("startline = %d, endline = %d, diff = %d\n", stt, ndt, ndt - stt);
+		rd_vencl--;
+	}
+
 	return result;
 }
 EXPORT_SYMBOL(amvecm_on_vs);
@@ -3406,10 +3460,14 @@ static long amvecm_ioctl(struct file *file,
 			pr_amvecm_dbg("set color tune failed\n");
 			ret = -EFAULT;
 		} else {
-			memcpy(&ct_parm1, &ct_param, sizeof(struct color_tune_parm_s));
-			ct_parm_set(&ct_parm1);
-			bs_ct_latch();
-			pr_amvecm_dbg("set color tune success\n");
+			if (cmp_ct_parm(&ct_param)) {
+				memcpy(&ct_parm1, &ct_param, sizeof(struct color_tune_parm_s));
+				ct_parm_set(&ct_parm1);
+				bs_latch();
+				pr_amvecm_dbg("set color tune success\n");
+			} else {
+				pr_amvecm_dbg("same color tune param, no need update\n");
+			}
 		}
 		break;
 	case AMVECM_IOC_S_EYE_PROT:
@@ -11398,6 +11456,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	}
 
 	spin_lock_init(&vpp_lcd_gamma_lock);
+	spin_lock_init(&vpp_3dlut_lock);
 	mutex_init(&vpp_lut3d_lock);
 #ifdef CONFIG_AMLOGIC_LCD
 	ret = aml_lcd_atomic_notifier_register(&aml_lcd_gamma_nb);

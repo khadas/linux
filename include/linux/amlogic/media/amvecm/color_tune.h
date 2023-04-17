@@ -47,5 +47,6 @@ int ct_dbg(char **param);
 void lut_release(void);
 void ct_process(void);
 void ct_parm_set(struct color_param_s *param);
+int cmp_ct_parm(struct color_tune_parm_s *ct_param);
 #endif
 

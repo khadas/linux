@@ -31,17 +31,48 @@ void bs_ct_tbl(void)
 /* color tune and blue stretch set */
 void lut3d_set_api(void)
 {
+	int st;
+	int mid;
+	int mid2;
+	int end;
+
 	struct ct_func_s *ct_f = get_ct_func();
 
-	bls_set();
-	if (!ct_f->cl_par->en || !ct_f->ct) {
-		pr_info("%s: ct_en = %d, ct = %p\n", __func__, ct_f->cl_par->en, ct_f->ct);
-		lut3d_update(0);
-	} else {
-		pr_info("%s: ct_en = %d, ct = %p\n", __func__, ct_f->cl_par->en, ct_f->ct);
+	st = _get_cur_enc_line();
+
+	if (vecm_latch_flag2 & LUT3D_UPDATE &&
+		!(vecm_latch_flag2 & (BS_UPDATE | CT_UPDATE))) {
+		vecm_latch_flag2 &= ~LUT3D_UPDATE;
+		if (!ct_f->cl_par->en || !ct_f->ct) {
+			pr_info("%s: ct_en = %d, ct = %p\n", __func__, ct_f->cl_par->en, ct_f->ct);
+			lut3d_update(0);
+		} else {
+			pr_info("%s: ct_en = %d, ct = %p\n", __func__, ct_f->cl_par->en, ct_f->ct);
+			lut3d_update(plut_out);
+		}
+	}
+
+	mid = _get_cur_enc_line();
+	if (vecm_latch_flag2 & CT_UPDATE &&
+		!(vecm_latch_flag2 & BS_UPDATE)) {
+		vecm_latch_flag2 &= ~CT_UPDATE;
+		vecm_latch_flag2 |= LUT3D_UPDATE;
 		bs_ct_tbl();
 		ct_process();
-		lut3d_update(plut_out);
+	}
+
+	mid2 = _get_cur_enc_line();
+	if (vecm_latch_flag2 & BS_UPDATE) {
+		vecm_latch_flag2 &= ~BS_UPDATE;
+		vecm_latch_flag2 |= CT_UPDATE;
+		bls_set();
+	}
+	end = _get_cur_enc_line();
+
+	if (rd_vencl) {
+		pr_info("%s: st = %d, mid = %d, mid2 = %d, end = %d, diff = %d\n",
+			__func__, st, mid, mid2, end, end - st);
+		rd_vencl--;
 	}
 }
 
