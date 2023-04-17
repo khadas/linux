@@ -2589,7 +2589,7 @@ int codec_mm_enough_for_size(int size, int with_wait, int mem_flags)
 
 	if (!have_mem && with_wait && mgt->alloced_for_sc_cnt > 0) {
 		pr_err(" No mem, clear scatter cache!!\n");
-		codec_mm_scatter_free_all_ignorecache(1);
+		//codec_mm_scatter_free_all_ignorecache(1);
 		have_mem = codec_mm_alloc_pre_check_in(mgt, size, 0);
 		if (have_mem)
 			return 1;
