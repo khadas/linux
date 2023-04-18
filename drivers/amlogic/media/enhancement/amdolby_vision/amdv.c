@@ -2975,11 +2975,13 @@ static enum signal_format_enum get_cur_src_format(void)
 	return ret;
 }
 
-static int amdv_policy_process_v1(int *mode,
-						    enum signal_format_enum src_format)
+static int amdv_policy_process_v1(struct vframe_s *vf,
+				int *mode, enum signal_format_enum src_format)
 {
 	const struct vinfo_s *vinfo;
 	int mode_change = 0;
+	int h = 0;
+	int w = 0;
 
 	if (is_aml_tvmode()) {
 		if (dolby_vision_policy == AMDV_FORCE_OUTPUT_MODE) {
@@ -3103,6 +3105,26 @@ static int amdv_policy_process_v1(int *mode,
 			}
 		}
 		return mode_change;
+	}
+
+	if (vf) {
+		h = (vf->type & VIDTYPE_COMPRESS) ?
+			vf->compHeight : vf->height;
+		w = (vf->type & VIDTYPE_COMPRESS) ?
+			vf->compWidth : vf->width;
+		if ((w > 3840 && h > 2160))  {
+			if (dolby_vision_mode !=
+				AMDV_OUTPUT_MODE_BYPASS) {
+				if (debug_dolby & 2)
+					pr_dv_dbg("src size: %dx%d, dovi output -> BYPASS\n",
+						w, h);
+				*mode = AMDV_OUTPUT_MODE_BYPASS;
+				mode_change = 1;
+			} else {
+				mode_change = 0;
+		}
+		return mode_change;
+		}
 	}
 
 	vinfo = get_current_vinfo();
@@ -3383,16 +3405,38 @@ static int amdv_policy_process_v1(int *mode,
 
 /*multi-inst tv mode, todo*/
 static int amdv_policy_process_v2_tv(int *mode,
-							 enum signal_format_enum src_format)
+				enum signal_format_enum src_format)
 {
 	return 1;
 }
 
-static int amdv_policy_process_v2_stb(int *mode,
-							  enum signal_format_enum src_format)
+static int amdv_policy_process_v2_stb(struct vframe_s *vf,
+				int *mode, enum signal_format_enum src_format)
 {
 	const struct vinfo_s *vinfo;
 	int mode_change = 0;
+	int h = 0;
+	int w = 0;
+
+	if (vf) {
+		h = (vf->type & VIDTYPE_COMPRESS) ?
+			vf->compHeight : vf->height;
+		w = (vf->type & VIDTYPE_COMPRESS) ?
+			vf->compWidth : vf->width;
+		if ((w > 3840 && h > 2160))  {
+			if (dolby_vision_mode !=
+				AMDV_OUTPUT_MODE_BYPASS) {
+				if (debug_dolby & 2)
+					pr_dv_dbg("src size: %dx%d, dovi output -> BYPASS\n",
+						w, h);
+				*mode = AMDV_OUTPUT_MODE_BYPASS;
+				mode_change = 1;
+			} else {
+				mode_change = 0;
+		}
+		return mode_change;
+		}
+	}
 
 	vinfo = get_current_vinfo();
 	if (src_format == FORMAT_MVC) {
@@ -3727,7 +3771,8 @@ static int amdv_policy_process_v2_stb(int *mode,
 	return mode_change;
 }
 
-static int amdv_policy_process(int *mode, enum signal_format_enum src_format)
+static int amdv_policy_process(struct vframe_s *vf, int *mode,
+			enum signal_format_enum src_format)
 {
 	int mode_change = 0;
 
@@ -3738,9 +3783,9 @@ static int amdv_policy_process(int *mode, enum signal_format_enum src_format)
 		if (is_aml_tvmode())
 			mode_change = amdv_policy_process_v2_tv(mode, src_format);
 		else
-			mode_change = amdv_policy_process_v2_stb(mode, src_format);
+			mode_change = amdv_policy_process_v2_stb(vf, mode, src_format);
 	} else {
-		mode_change = amdv_policy_process_v1(mode, src_format);
+		mode_change = amdv_policy_process_v1(vf, mode, src_format);
 	}
 	return mode_change;
 }
@@ -3906,7 +3951,7 @@ int amdv_check_mvc(struct vframe_s *vf)
 	if (is_mvc_frame(vf) && dolby_vision_on) {
 		/* mvc source, but dovi enabled, need bypass dv */
 		mode = dolby_vision_mode;
-		if (amdv_policy_process(&mode, FORMAT_MVC)) {
+		if (amdv_policy_process(vf, &mode, FORMAT_MVC)) {
 			if (mode != AMDV_OUTPUT_MODE_BYPASS &&
 			    dolby_vision_mode ==
 			    AMDV_OUTPUT_MODE_BYPASS)
@@ -3926,7 +3971,7 @@ int amdv_check_hlg(struct vframe_s *vf)
 	if (!is_amdv_frame(vf) && is_hlg_frame(vf) && !dolby_vision_on) {
 		/* hlg source, but dovi not enabled */
 		mode = dolby_vision_mode;
-		if (amdv_policy_process(&mode, FORMAT_HLG)) {
+		if (amdv_policy_process(vf, &mode, FORMAT_HLG)) {
 			if (mode != AMDV_OUTPUT_MODE_BYPASS &&
 			    dolby_vision_mode ==
 			    AMDV_OUTPUT_MODE_BYPASS)
@@ -3946,7 +3991,7 @@ int amdv_check_hdr10plus(struct vframe_s *vf)
 	if (!is_amdv_frame(vf) && is_hdr10plus_frame(vf) && !dolby_vision_on) {
 		/* hdr10+ source, but dovi not enabled */
 		mode = dolby_vision_mode;
-		if (amdv_policy_process(&mode, FORMAT_HDR10PLUS)) {
+		if (amdv_policy_process(vf, &mode, FORMAT_HDR10PLUS)) {
 			if (mode != AMDV_OUTPUT_MODE_BYPASS &&
 			    dolby_vision_mode ==
 			    AMDV_OUTPUT_MODE_BYPASS)
@@ -3966,7 +4011,7 @@ int amdv_check_hdr10(struct vframe_s *vf)
 	if (!is_amdv_frame(vf) && is_hdr10_frame(vf) && !dolby_vision_on) {
 		/* hdr10 source, but dovi not enabled */
 		mode = dolby_vision_mode;
-		if (amdv_policy_process(&mode, FORMAT_HDR10)) {
+		if (amdv_policy_process(vf, &mode, FORMAT_HDR10)) {
 			if (mode != AMDV_OUTPUT_MODE_BYPASS &&
 			    dolby_vision_mode ==
 			    AMDV_OUTPUT_MODE_BYPASS)
@@ -3986,7 +4031,7 @@ int amdv_check_primesl(struct vframe_s *vf)
 	if (is_primesl_frame(vf) && dolby_vision_on) {
 		/* primesl source, but dovi enabled, need bypass dv */
 		mode = dolby_vision_mode;
-		if (amdv_policy_process(&mode, FORMAT_PRIMESL)) {
+		if (amdv_policy_process(vf, &mode, FORMAT_PRIMESL)) {
 			if (mode != AMDV_OUTPUT_MODE_BYPASS &&
 			    dolby_vision_mode ==
 			    AMDV_OUTPUT_MODE_BYPASS)
@@ -4006,7 +4051,7 @@ int amdv_check_cuva(struct vframe_s *vf)
 	if (is_cuva_frame(vf) && dolby_vision_on) {
 		/* cuva source, but dovi enabled, need bypass dv */
 		mode = dolby_vision_mode;
-		if (amdv_policy_process(&mode, FORMAT_CUVA)) {
+		if (amdv_policy_process(vf, &mode, FORMAT_CUVA)) {
 			if (mode != AMDV_OUTPUT_MODE_BYPASS &&
 			    dolby_vision_mode ==
 			    AMDV_OUTPUT_MODE_BYPASS)
@@ -7216,7 +7261,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 	}
 	current_mode = dolby_vision_mode;
 	if (amdv_policy_process
-		(&current_mode, check_format)) {
+		(vf, &current_mode, check_format)) {
 		if (!amdv_wait_init)
 			amdv_set_toggle_flag(1);
 		pr_dv_dbg("[%s]output change from %d to %d(%d, %p, %d)\n",
@@ -8923,7 +8968,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 		}
 		current_mode = dolby_vision_mode;
 		if (amdv_policy_process
-			(&current_mode, check_format)) {
+			(vf, &current_mode, check_format)) {
 			if (!dv_inst[pri_input].amdv_wait_init)
 				amdv_set_toggle_flag(1);
 			pr_info("[%s] output change from %d to %d(%d, %p, %d)\n",
@@ -9862,7 +9907,7 @@ int amdv_wait_metadata_v1(struct vframe_s *vf)
 		if (vf)
 			update_src_format(check_format, vf);
 
-		if (amdv_policy_process(&mode, check_format)) {
+		if (amdv_policy_process(vf, &mode, check_format)) {
 			if (mode != AMDV_OUTPUT_MODE_BYPASS &&
 			    dolby_vision_mode ==
 			    AMDV_OUTPUT_MODE_BYPASS) {
@@ -10043,7 +10088,7 @@ int amdv_wait_metadata_v2(struct vframe_s *vf, enum vd_path_e vd_path)
 			update_src_format(check_format, vf);
 
 		if (amdv_policy_process
-			(&mode, check_format)) {
+			(vf, &mode, check_format)) {
 			if (mode != AMDV_OUTPUT_MODE_BYPASS &&
 			    dolby_vision_mode == AMDV_OUTPUT_MODE_BYPASS) {
 				dv_inst[dv_id].amdv_wait_init = true;
@@ -10233,7 +10278,7 @@ int amdv_update_src_format_v1(struct vframe_s *vf, u8 toggle_mode)
 	    !amdv_core1_on &&
 	    amdv_src_format != 0) {
 		if (amdv_policy_process
-			(&mode, check_format)) {
+			(vf, &mode, check_format)) {
 			if (mode != AMDV_OUTPUT_MODE_BYPASS &&
 			    dolby_vision_mode ==
 			    AMDV_OUTPUT_MODE_BYPASS) {
@@ -10324,7 +10369,7 @@ int amdv_update_src_format_v2(struct vframe_s *vf, u8 toggle_mode, enum vd_path_
 	    !dv_core1[layer_id].core1_on &&
 	    dv_inst[dv_id].amdv_src_format != 0) {
 		if (amdv_policy_process
-			(&mode, check_format)) {
+			(vf, &mode, check_format)) {
 			if (mode != AMDV_OUTPUT_MODE_BYPASS &&
 			    dolby_vision_mode ==
 			     AMDV_OUTPUT_MODE_BYPASS) {
@@ -10891,7 +10936,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 
 	if ((!vf && video_turn_off) ||
 	    (video_status == -1)) {
-		if (amdv_policy_process(&mode, FORMAT_SDR)) {
+		if (amdv_policy_process(vf, &mode, FORMAT_SDR)) {
 			pr_dv_dbg("Fake SDR, mode->%d\n", mode);
 			if (dolby_vision_policy == AMDV_FOLLOW_SOURCE &&
 			    mode == AMDV_OUTPUT_MODE_BYPASS) {
@@ -11761,7 +11806,7 @@ static int amdolby_vision_process_v2_stb
 		if ((!vf && video_turn_off[0] && !vf_2 && video_turn_off[1]) ||
 		    (video_status[0] == -1 && video_turn_off[0]) ||
 		    (video_status[1] == -1 && video_turn_off[1])) {
-			if (amdv_policy_process(&mode, FORMAT_SDR)) {
+			if (amdv_policy_process(vf, &mode, FORMAT_SDR)) {
 				pr_dv_dbg("Fake SDR, mode->%d\n", mode);
 				if (dolby_vision_policy == AMDV_FOLLOW_SOURCE &&
 				    mode == AMDV_OUTPUT_MODE_BYPASS) {
@@ -11814,7 +11859,7 @@ static int amdolby_vision_process_v2_stb
 		/*No vd1 vf or vd1 turn off */
 		if ((!vf && video_turn_off[0]) ||
 		    (video_status[0] == -1)) {
-			if (amdv_policy_process(&mode, FORMAT_SDR)) {
+			if (amdv_policy_process(vf, &mode, FORMAT_SDR)) {
 				pr_dv_dbg("Fake SDR, mode->%d\n", mode);
 				if (dolby_vision_policy == AMDV_FOLLOW_SOURCE &&
 				    mode == AMDV_OUTPUT_MODE_BYPASS) {
@@ -12323,7 +12368,7 @@ void set_amdv_mode(int mode)
 	    dolby_vision_enable &&
 	    dolby_vision_request_mode == 0xff) {
 		if (amdv_policy_process
-			(&mode, get_cur_src_format())) {
+			(NULL, &mode, get_cur_src_format())) {
 			amdv_set_toggle_flag(1);
 			if (mode != AMDV_OUTPUT_MODE_BYPASS &&
 			    dolby_vision_mode ==
