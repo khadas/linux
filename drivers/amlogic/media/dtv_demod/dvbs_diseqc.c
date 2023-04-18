@@ -33,7 +33,7 @@
 
 static int diseqc_debug;
 
-#define AML_DISEQC_VER		"20230410"
+#define AML_DISEQC_VER		"20230418"
 #define DISEQC_EN_ON_DELAY	60
 
 #define dprintk(level, fmt, arg...)				\
@@ -588,14 +588,6 @@ void aml_diseqc_attach(struct device *dev, struct dvb_frontend *fe)
 	int ret = 0;
 	struct aml_diseqc *diseqc = &devp->diseqc;
 
-	if (diseqc->attached) {
-		dprintk(0, "diseqc had attached\n");
-		return;
-	}
-
-	init_completion(&diseqc->tx_msg_ok);
-	init_completion(&diseqc->rx_msg_ok);
-
 	fe->ops.release_sec = aml_diseqc_release_sec;
 	fe->ops.set_tone = aml_diseqc_set_tone;
 	fe->ops.set_voltage = aml_diseqc_set_voltage;
@@ -606,6 +598,15 @@ void aml_diseqc_attach(struct device *dev, struct dvb_frontend *fe)
 
 	fe->dtv_property_cache.voltage = SEC_VOLTAGE_OFF;
 	fe->dtv_property_cache.sectone = SEC_TONE_OFF;
+
+	if (diseqc->attached) {
+		dprintk(0, "diseqc had attached\n");
+		return;
+	}
+
+	init_completion(&diseqc->tx_msg_ok);
+	init_completion(&diseqc->rx_msg_ok);
+
 	diseqc->voltage = SEC_VOLTAGE_OFF;
 	diseqc->tone_on = 0;
 	diseqc->rx_enable = false;
