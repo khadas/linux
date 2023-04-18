@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/of_gpio.h>
+#include <linux/amlogic/cpu_version.h>
 
 #include "pcie-amlogic-v3.h"
 
@@ -1138,7 +1139,7 @@ static int amlogic_pcie_init_port_for_m31_combphy(struct amlogic_pcie *amlogic)
 	 * workaround pcie1 ctrl just for S5, S5 pcie0 no need
 	 * value recommend by VLSI
 	 */
-	if (amlogic->port_num == 1 && of_machine_is_compatible("amlogic, s5")) {
+	if (amlogic->port_num == 1 && is_meson_s5_cpu()) {
 		val = 0x73f << 2;
 		amlogic_pciectrl_write(amlogic, val, 0xb4);
 		val = amlogic_pciectrl_read(amlogic, 0xb8);
