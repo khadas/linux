@@ -1708,11 +1708,23 @@ void hdmitx_set_aspect_ratio(int aspect_ratio)
 	pr_info("set new aspect ratio = %d\n", aspect_ratio);
 }
 
+static void hdr_unmute_work_func(struct work_struct *work)
+{
+	unsigned int mute_us;
+
+	if (hdr_mute_frame) {
+		pr_info("vid mute %d frames before play hdr/hlg video\n",
+			hdr_mute_frame);
+		mute_us = hdr_mute_frame * hdmitx_get_frame_duration();
+		usleep_range(mute_us, mute_us + 10);
+		hdmitx_video_mute_op(1);
+	}
+}
+
 static void hdr_work_func(struct work_struct *work)
 {
 	struct hdmitx_dev *hdev =
 		container_of(work, struct hdmitx_dev, work_hdr);
-	unsigned int mute_us;
 
 	if (hdev->hdr_transfer_feature == T_BT709 &&
 	    hdev->hdr_color_feature == C_BT709) {
@@ -1745,13 +1757,6 @@ static void hdr_work_func(struct work_struct *work)
 				hdev->hdr_color_feature);
 		}
 	} else {
-		if (hdr_mute_frame) {
-			pr_info("vid mute %d frames before play hdr/hlg video\n",
-				hdr_mute_frame);
-			mute_us = hdr_mute_frame * hdmitx_get_frame_duration();
-			usleep_range(mute_us, mute_us + 10);
-			hdmitx_video_mute_op(1);
-		}
 		hdmitx_sdr_hdr_uevent(hdev);
 	}
 }
@@ -2022,8 +2027,14 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 
 	/* if sdr/hdr mode change ,notify uevent to userspace*/
 	if (hdev->hdmi_current_hdr_mode != hdev->hdmi_last_hdr_mode) {
-		if (hdr_mute_frame)
+		if (hdr_mute_frame) {
 			hdmitx_video_mute_op(0);
+			pr_info("SDR->HDR enter mute\n");
+			/* force unmute after specific frames,
+			 * no need to check hdr status when unmute
+			 */
+			schedule_work(&hdev->work_hdr_unmute);
+		}
 		schedule_work(&hdev->work_hdr);
 	}
 
@@ -3006,6 +3017,7 @@ static ssize_t config_store(struct device *dev,
 	int ret = 0;
 	struct master_display_info_s data = {0};
 	struct hdr10plus_para hdr_data = {0x1, 0x2, 0x3};
+	struct dv_vsif_para vsif_para = {0};
 
 	pr_info("hdmitx: config: %s\n", buf);
 
@@ -3055,7 +3067,26 @@ static ssize_t config_store(struct device *dev,
 		data.features = 0x00091200;
 		hdmitx_set_drm_pkt(&data);
 	} else if (strncmp(buf, "vsif", 4) == 0) {
-		hdmitx_set_vsif_pkt(buf[4] - '0', buf[5] == '1', NULL, true);
+		if (buf[4] == '1' && buf[5] == '1') {
+			/* DV STD */
+			vsif_para.ver = 0x1;
+			vsif_para.length = 0x1b;
+			vsif_para.ver2_l11_flag = 0;
+			vsif_para.vers.ver2.low_latency = 0;
+			vsif_para.vers.ver2.dobly_vision_signal = 1;
+			hdmitx_set_vsif_pkt(1, 1, &vsif_para, false);
+		} else if (buf[4] == '4') {
+			/* DV LL */
+			vsif_para.ver = 0x1;
+			vsif_para.length = 0x1b;
+			vsif_para.ver2_l11_flag = 0;
+			vsif_para.vers.ver2.low_latency = 1;
+			vsif_para.vers.ver2.dobly_vision_signal = 1;
+			hdmitx_set_vsif_pkt(4, 0, &vsif_para, false);
+		} else if (buf[4] == '0') {
+			/* exit DV to SDR */
+			hdmitx_set_vsif_pkt(0, 0, NULL, true);
+		}
 	} else if (strncmp(buf, "emp", 3) == 0) {
 		if (hdmitx_device.data->chip_type >= MESON_CPU_ID_G12A)
 			hdmitx_set_emp_pkt(NULL, 1, 1);
@@ -7725,7 +7756,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_notify_hpd(hdev->hpd_state, NULL);
 	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
 	INIT_WORK(&hdev->work_hdr, hdr_work_func);
-
+	INIT_WORK(&hdev->work_hdr_unmute, hdr_unmute_work_func);
 /* When init hdmi, clear the hdmitx module edid ram and edid buffer. */
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
@@ -7795,6 +7826,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 		component_del(&pdev->dev, &meson_hdmitx_bind_ops);
 
 	cancel_work_sync(&hdmitx_device.work_hdr);
+	cancel_work_sync(&hdmitx_device.work_hdr_unmute);
 
 	if (hdmitx_device.hwop.uninit)
 		hdmitx_device.hwop.uninit(&hdmitx_device);

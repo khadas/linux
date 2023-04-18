@@ -335,6 +335,7 @@ struct hdmitx_dev {
 	struct delayed_work work_internal_intr;
 	struct delayed_work work_cedst;
 	struct work_struct work_hdr;
+	struct work_struct work_hdr_unmute;
 	struct delayed_work work_do_hdcp;
 #ifdef CONFIG_AML_HDMI_TX_14
 	struct delayed_work cec_work;
