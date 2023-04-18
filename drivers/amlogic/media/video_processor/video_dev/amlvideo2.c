@@ -459,10 +459,13 @@ struct vinfo_s *amlvideo2_get_vinfo(struct amlvideo2_node *node)
 		return NULL;
 
 	if (node->vdin_port_ext == PORT_VPP0_OSD_VIDEO ||
-		node->vdin_port_ext == PORT_VPP0_VIDEO_ONLY) {
+		node->vdin_port_ext == PORT_VPP0_VIDEO_ONLY ||
+		node->vdin_port_ext == PORT_VPP0_OSD1_ONLY ||
+		node->vdin_port_ext == PORT_VPP0_OSD2_ONLY) {
 		vinfo = get_current_vinfo();
 	} else if (node->vdin_port_ext == PORT_VPP1_VIDEO_ONLY ||
-		node->vdin_port_ext == PORT_VPP1_OSD_VIDEO) {
+		node->vdin_port_ext == PORT_VPP1_OSD_VIDEO ||
+		node->vdin_port_ext == PORT_VPP1_OSD1_ONLY) {
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 		vinfo = get_current_vinfo2();
 #else
@@ -992,7 +995,11 @@ int amlvideo2_ge2d_interlace_two_canvasaddr_process(struct vframe_s *vf,
 	if (node->crop_info.capture_crop_enable == 0 &&
 	    (node->porttype != TVIN_PORT_VIU1_VIDEO &&
 	     node->porttype != TVIN_PORT_VIU1_WB0_VD1 &&
-	     node->porttype != TVIN_PORT_VIU2_VD1)) {
+	     node->porttype != TVIN_PORT_VIU2_VD1 &&
+	     node->porttype != TVIN_PORT_VIU1_WB0_OSD1 &&
+	     node->porttype != TVIN_PORT_VIU1_WB0_OSD2 &&
+	     node->porttype != TVIN_PORT_VIU2_OSD1 &&
+	     node->porttype != TVIN_PORT_VIU3_OSD1)) {
 		output_axis_adjust(src_width, src_height,
 				   &dst_width, &dst_height,
 				   cur_angle, output);
@@ -1389,7 +1396,11 @@ int amlvideo2_ge2d_interlace_two_canvasaddr_process(struct vframe_s *vf,
 	if (node->crop_info.capture_crop_enable == 0 &&
 	    (node->porttype != TVIN_PORT_VIU1_VIDEO &&
 	     node->porttype != TVIN_PORT_VIU1_WB0_VD1 &&
-	     node->porttype != TVIN_PORT_VIU2_VD1)) {
+	     node->porttype != TVIN_PORT_VIU2_VD1 &&
+	     node->porttype != TVIN_PORT_VIU1_WB0_OSD1 &&
+	     node->porttype != TVIN_PORT_VIU1_WB0_OSD2 &&
+	     node->porttype != TVIN_PORT_VIU2_OSD1 &&
+	     node->porttype != TVIN_PORT_VIU3_OSD1)) {
 		output_axis_adjust(src_width, src_height,
 				   &dst_width, &dst_height,
 				   cur_angle, output);
@@ -1804,7 +1815,11 @@ int amlvideo2_ge2d_interlace_vdindata_process(struct vframe_s *vf,
 	if (node->crop_info.capture_crop_enable == 0 &&
 	    (node->porttype != TVIN_PORT_VIU1_VIDEO &&
 	     node->porttype != TVIN_PORT_VIU1_WB0_VD1 &&
-	     node->porttype != TVIN_PORT_VIU2_VD1)) {
+	     node->porttype != TVIN_PORT_VIU2_VD1 &&
+	     node->porttype != TVIN_PORT_VIU1_WB0_OSD1 &&
+	     node->porttype != TVIN_PORT_VIU1_WB0_OSD2 &&
+	     node->porttype != TVIN_PORT_VIU2_OSD1 &&
+	     node->porttype != TVIN_PORT_VIU3_OSD1)) {
 		output_axis_adjust(src_width, src_height,
 				   &dst_width, &dst_height,
 				   cur_angle, output);
@@ -2246,7 +2261,11 @@ int amlvideo2_ge2d_interlace_one_canvasaddr_process(struct vframe_s *vf,
 	if (node->crop_info.capture_crop_enable == 0 &&
 	    (node->porttype != TVIN_PORT_VIU1_VIDEO &&
 	     node->porttype != TVIN_PORT_VIU1_WB0_VD1 &&
-	     node->porttype != TVIN_PORT_VIU2_VD1)) {
+	     node->porttype != TVIN_PORT_VIU2_VD1 &&
+	     node->porttype != TVIN_PORT_VIU1_WB0_OSD1 &&
+	     node->porttype != TVIN_PORT_VIU1_WB0_OSD2 &&
+	     node->porttype != TVIN_PORT_VIU2_OSD1 &&
+	     node->porttype != TVIN_PORT_VIU3_OSD1)) {
 		output_axis_adjust(src_width, src_height,
 				   &dst_width, &dst_height,
 				   cur_angle, output);
@@ -2682,7 +2701,11 @@ int amlvideo2_ge2d_interlace_dtv_process(struct vframe_s *vf,
 	if (node->crop_info.capture_crop_enable == 0 &&
 	    (node->porttype != TVIN_PORT_VIU1_VIDEO &&
 	     node->porttype != TVIN_PORT_VIU1_WB0_VD1 &&
-	     node->porttype != TVIN_PORT_VIU2_VD1)) {
+	     node->porttype != TVIN_PORT_VIU2_VD1 &&
+	     node->porttype != TVIN_PORT_VIU1_WB0_OSD1 &&
+	     node->porttype != TVIN_PORT_VIU1_WB0_OSD2 &&
+	     node->porttype != TVIN_PORT_VIU2_OSD1 &&
+	     node->porttype != TVIN_PORT_VIU3_OSD1)) {
 		output_axis_adjust(src_width, src_height,
 				   &dst_width, &dst_height,
 				   cur_angle, output);
@@ -3380,7 +3403,11 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 	if (node->crop_info.capture_crop_enable == 0 &&
 	    (node->porttype != TVIN_PORT_VIU1_VIDEO &&
 	     node->porttype != TVIN_PORT_VIU1_WB0_VD1 &&
-	     node->porttype != TVIN_PORT_VIU2_VD1)) {
+	     node->porttype != TVIN_PORT_VIU2_VD1 &&
+	     node->porttype != TVIN_PORT_VIU1_WB0_OSD1 &&
+	     node->porttype != TVIN_PORT_VIU1_WB0_OSD2 &&
+	     node->porttype != TVIN_PORT_VIU2_OSD1 &&
+	     node->porttype != TVIN_PORT_VIU3_OSD1)) {
 		output_axis_adjust(src_width, src_height,
 				   &dst_width, &dst_height,
 				   cur_angle, output);
@@ -5213,7 +5240,11 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 
 	if (para.port == TVIN_PORT_VIU1_VIDEO ||
 	    para.port == TVIN_PORT_VIU1_WB0_VD1 ||
-	    para.port == TVIN_PORT_VIU2_VD1)
+	    para.port == TVIN_PORT_VIU2_VD1 ||
+	    para.port == TVIN_PORT_VIU1_WB0_OSD1 ||
+	    para.port == TVIN_PORT_VIU1_WB0_OSD2 ||
+	    para.port == TVIN_PORT_VIU2_OSD1 ||
+	    para.port == TVIN_PORT_VIU3_OSD1)
 		para.cfmt = 1;
 
 	if (amlvideo2_dbg_en) {
@@ -5409,7 +5440,11 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	if (!node->start_vdin_flag ||
 	    node->porttype == TVIN_PORT_VIU1_WB0_VD1 ||
 	    node->porttype == TVIN_PORT_VIU1_VIDEO ||
-	    node->porttype == TVIN_PORT_VIU2_VD1) {
+	    node->porttype == TVIN_PORT_VIU2_VD1 ||
+	    node->porttype == TVIN_PORT_VIU1_WB0_OSD1 ||
+	    node->porttype == TVIN_PORT_VIU1_WB0_OSD2 ||
+	    node->porttype == TVIN_PORT_VIU2_OSD1 ||
+	    node->porttype == TVIN_PORT_VIU3_OSD1) {
 		ret = vf_notify_receiver_by_name
 			("amvideo",
 			 VFRAME_EVENT_PROVIDER_QUREY_DISPLAY_INFO,
@@ -5530,7 +5565,11 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 		para.dest_v_active = para.dest_v_active / 2;
 	if (para.port == TVIN_PORT_VIU1_VIDEO ||
 	    para.port == TVIN_PORT_VIU1_WB0_VD1 ||
-	    para.port == TVIN_PORT_VIU2_VD1) {
+	    para.port == TVIN_PORT_VIU2_VD1 ||
+	    para.port == TVIN_PORT_VIU1_WB0_OSD1 ||
+	    para.port == TVIN_PORT_VIU1_WB0_OSD2 ||
+	    para.port == TVIN_PORT_VIU2_OSD1 ||
+	    para.port == TVIN_PORT_VIU3_OSD1) {
 		if (node->ge2d_multi_process_flag) {
 			para.dest_h_active = 384;
 			para.dest_v_active = 216;
@@ -5765,7 +5804,9 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	node->vdin_device_num = (i >> 24) & 1;
 	node->ge2d_multi_process_flag = (i >> 16) & 1;
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
-	/*0: vpp0 video only; 1: vpp0(osd+video); 2: vpp1 video only; 3: vpp1(osd+video)*/
+	/* 0: vpp0 video only; 1: vpp0(osd+video); 2: vpp1 video only; 3: vpp1(osd+video)
+	 * 4: vpp0 osd1 only; 5: vpp0 osd2 only; 6: vpp1 osd1 only; 7: vpp2 osd1 only
+	 */
 	if ((i & 0xffff) == 1) {
 		node->vdin_port_ext = PORT_VPP0_OSD_VIDEO;
 		node->porttype = TVIN_PORT_VIU1_WB0_VPP;
@@ -5786,6 +5827,26 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 		node->porttype = TVIN_PORT_VIU2_VPP;
 		if (amlvideo2_dbg_en)
 			pr_info("amlvideo2: vpp1(osd+video)\n");
+	} else if ((i & 0xffff) == 4) {
+		node->vdin_port_ext = PORT_VPP0_OSD1_ONLY;
+		node->porttype = TVIN_PORT_VIU1_WB0_OSD1;
+		if (amlvideo2_dbg_en)
+			pr_info("amlvideo2: vpp0 osd1 only\n");
+	} else if ((i & 0xffff) == 5) {
+		node->vdin_port_ext = PORT_VPP0_OSD2_ONLY;
+		node->porttype = TVIN_PORT_VIU1_WB0_OSD2;
+		if (amlvideo2_dbg_en)
+			pr_info("amlvideo2: vpp0 osd2 only)\n");
+	} else if ((i & 0xffff) == 6) {
+		node->vdin_port_ext = PORT_VPP1_OSD1_ONLY;
+		node->porttype = TVIN_PORT_VIU2_OSD1;
+		if (amlvideo2_dbg_en)
+			pr_info("amlvideo2: vpp1 osd1 only)\n");
+	} else if ((i & 0xffff) == 7) {
+		node->vdin_port_ext = PORT_VPP2_OSD1_ONLY;
+		node->porttype = TVIN_PORT_VIU3_OSD1;
+		if (amlvideo2_dbg_en)
+			pr_info("amlvideo2: vpp2 osd1 only)\n");
 	} else {
 		node->vdin_port_ext = -1;
 		node->porttype = i & 0xffff;
