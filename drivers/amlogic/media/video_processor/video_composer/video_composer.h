@@ -279,6 +279,7 @@ struct composer_dev {
 	u32 next_factor;
 	u32 last_drop_cnt;
 	struct vf_aiface_t *aiface_buf;
+	u32 nn_mode_flag;
 };
 
 struct capability_info_t {

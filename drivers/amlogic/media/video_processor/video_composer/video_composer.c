@@ -1214,6 +1214,8 @@ struct vframe_s *videocomposer_vf_peek(void *op_arg)
 	u64 nn_used_time;
 	bool canbe_peek = true;
 	u32 nn_status;
+	u32 nn_mode;
+	bool bypass_nn = false;
 
 	if (kfifo_peek(&dev->ready_q, &vf)) {
 		if (!vf)
@@ -1229,6 +1231,7 @@ struct vframe_s *videocomposer_vf_peek(void *op_arg)
 			return vf;
 
 		nn_status = vf->vc_private->srout_data->nn_status;
+		nn_mode = vf->vc_private->srout_data->nn_mode;
 
 		vc_print(dev->index, PRINT_NN,
 			"peek:nn_status=%d, nn_index=%d, nn_mode=%d, PHY=%llx, nn out:%d*%d, hf:%d*%d,hf_align:%d*%d\n",
@@ -1265,9 +1268,34 @@ struct vframe_s *videocomposer_vf_peek(void *op_arg)
 				return vf;
 			}
 
-			if (vf->vc_private->srout_data->nn_index == 0) {
+			if (!(vf->type_original & VIDTYPE_INTERLACE)) {
+				if (!(dev->nn_mode_flag & 0x1) && nn_mode == 1) {
+					dev->nn_mode_flag |= 0x1;
+					bypass_nn = true;
+				} else if (!(dev->nn_mode_flag & 0x2) && nn_mode == 2) {
+					dev->nn_mode_flag |= 0x2;
+					bypass_nn = true;
+				} else if (!(dev->nn_mode_flag & 0x4) && nn_mode == 3) {
+					dev->nn_mode_flag |= 0x4;
+					bypass_nn = true;
+				}
+			} else {
+				if (!(dev->nn_mode_flag & 0x100) && nn_mode == 1) {
+					dev->nn_mode_flag |= 0x100;
+					bypass_nn = true;
+				} else if (!(dev->nn_mode_flag & 0x200) && nn_mode == 2) {
+					dev->nn_mode_flag |= 0x200;
+					bypass_nn = true;
+				} else if (!(dev->nn_mode_flag & 0x400) && nn_mode == 3) {
+					dev->nn_mode_flag |= 0x400;
+					bypass_nn = true;
+				}
+			}
+
+			if (bypass_nn) {
 				vf->vc_private->flag &= ~VC_FLAG_AI_SR;
-				vc_print(dev->index, PRINT_NN, "nn not done, bypass first frame\n");
+				vc_print(dev->index, PRINT_NN,
+					"nn mode change, bypass first frame\n");
 				return vf;
 			}
 
