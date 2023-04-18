@@ -11475,6 +11475,8 @@ int video_hw_init_s5(void)
 	WRITE_VCBUS_REG(S5_VPP_RDARB_MODE, 0x9a205000);
 	/* VPU_RDARB_MODE_L2C1 */
 	WRITE_VCBUS_REG(S5_VPU_RDARB_MODE_L2C1, 0x924000);
+	/* set vpu read super urgent default */
+	WRITE_VCBUS_REG(S5_VPU_RDARB_UGT_L2C1, 0xffff);
 	/* for mosaic mode, set holdline for sur_id = 1 */
 	WRITE_VCBUS_REG(S5_VIU_VD1_MISC, 0x100);
 	save_vd_pps_reg();
