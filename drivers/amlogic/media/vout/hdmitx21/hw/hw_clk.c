@@ -303,7 +303,7 @@ static void set_tmds_vid_clk_div(u8 div_src, u32 div_val)
 		shift_sel = 0;
 		break;
 	case VID_PLL_DIV_5:
-		shift_val = 0x739c;
+		shift_val = 0x0c63;
 		shift_sel = 2;
 		break;
 	case VID_PLL_DIV_6:

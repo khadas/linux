@@ -6542,9 +6542,9 @@ static int hdmitx21_status_check(void *data)
 		return 0;
 
 	/* for S5, here need check the clk index 89 & 16 */
-	idx[0] = 89; /* htx_tmds20_clk */
+	idx[0] = 92; /* cts_htx_tmds_clk */
 	idx[1] = 16; /* vid_pll0_clk */
-	idx[2] = 92; /* cts_htx_tmds_clk */
+	idx[2] = 89; /* htx_tmds20_clk */
 
 	while (1) {
 		msleep_interruptible(1000);
@@ -6572,8 +6572,8 @@ static int hdmitx21_status_check(void *data)
 		}
 		/* resend the SCDC/DIV40 config */
 		if (!clk[0] || !clk[1]) {
-			clk[2] = meson_clk_measure(idx[2]);
-			if (clk[2] >= 340000000)
+			clk[0] = meson_clk_measure(idx[0]);
+			if (clk[0] >= 340000000)
 				hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, 1);
 			else
 				hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, 0);
