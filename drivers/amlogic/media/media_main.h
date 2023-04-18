@@ -695,6 +695,15 @@ static int vpp_drv_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VLOCK
+int __init vlock_drv_init(void);
+#else
+static int vlock_drv_init(void)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
 int amprime_sl_init(void);
 #else

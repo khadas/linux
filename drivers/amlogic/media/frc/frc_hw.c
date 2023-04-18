@@ -40,11 +40,16 @@
 #include "frc_hw.h"
 #include "frc_regs_table.h"
 #include "frc_proc.h"
+#include "../framelock/vlock/vlock_proc.h"
 
 void __iomem *frc_clk_base;
 void __iomem *vpu_base;
 
-struct stvlock_frc_param gst_frc_param;
+#ifdef CONFIG_AMLOGIC_MEDIA_VLOCK
+	struct vlock_proc_frc_param gst_frc_param;
+#else
+	struct stvlock_frc_param gst_frc_param;
+#endif
 
 int FRC_PARAM_NUM = 8;
 module_param(FRC_PARAM_NUM, int, 0664);
@@ -261,10 +266,18 @@ void set_frc_enable(u32 en)
 	} else {
 		gst_frc_param.s2l_en = 0;
 		gst_frc_param.frc_mcfixlines = 0;
-		if (vlock_sync_frc_vporch(gst_frc_param) < 0)
-			pr_frc(1, "frc_off_set maxlnct fail !!!\n");
-		else
-			pr_frc(1, "frc_off_set maxlnct success!!!\n");
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VLOCK
+	if (vlock_proc_sync_frc_vporch(gst_frc_param) < 0)
+		pr_frc(1, "frc_off_set vlock proc maxlnct fail !!!\n");
+	else
+		pr_frc(1, "frc_off_set vlock proc maxlnct success!!!\n");
+#else
+	if (vlock_sync_frc_vporch(gst_frc_param) < 0)
+		pr_frc(1, "frc_off_set vlock maxlnct fail !!!\n");
+	else
+		pr_frc(1, "frc_off_set vlock maxlnct success!!!\n");
+#endif
 	}
 }
 
@@ -890,11 +903,18 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 			if (mc_frm_dly + mc_hold_line < reg_mc_out_line)
 				gst_frc_param.frc_mcfixlines = 0;
 			gst_frc_param.s2l_en = 1;
-			if (vlock_sync_frc_vporch(gst_frc_param) < 0)
-				pr_frc(0, "frc_on_set maxlnct fail !!!\n");
+#ifdef CONFIG_AMLOGIC_MEDIA_VLOCK
+			if (vlock_proc_sync_frc_vporch(gst_frc_param) < 0)
+				pr_frc(0, "frc_on_set vlock proc maxlnct fail !!!\n");
 			else
-				pr_frc(0, "frc_on_set maxlnct success!!!\n");
+				pr_frc(0, "frc_on_set vlock proc maxlnct success!!!\n");
 
+#else
+			if (vlock_sync_frc_vporch(gst_frc_param) < 0)
+				pr_frc(0, "frc_on_set vlock maxlnct fail !!!\n");
+			else
+				pr_frc(0, "frc_on_set vlock maxlnct success!!!\n");
+#endif
 			//vpu_reg_write(ENCL_SYNC_TO_LINE_EN,
 			// (1 << 13) | (max_lncnt - frc_v_porch));
 			//vpu_reg_write(ENCL_SYNC_LINE_LENGTH, max_lncnt - frc_v_porch - 1);
@@ -913,10 +933,17 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 			if (mc_frm_dly + mc_hold_line < reg_mc_out_line)
 				gst_frc_param.frc_mcfixlines = 0;
 			gst_frc_param.s2l_en = 0;
-			if (vlock_sync_frc_vporch(gst_frc_param) < 0)
-				pr_frc(0, "frc_infrom vlock fail !!!\n");
-			else
-				pr_frc(0, "frc_infrom vlock success!!!\n");
+#ifdef CONFIG_AMLOGIC_MEDIA_VLOCK
+		if (vlock_proc_sync_frc_vporch(gst_frc_param) < 0)
+			pr_frc(0, "frc_infrom vlock proc fail !!!\n");
+		else
+			pr_frc(0, "frc_infrom vlock proc success!!!\n");
+#else
+		if (vlock_sync_frc_vporch(gst_frc_param) < 0)
+			pr_frc(0, "frc_infrom vlock fail !!!\n");
+		else
+			pr_frc(0, "frc_infrom vlock success!!!\n");
+#endif
 		}
 		frc_porch_delta = frc_v_porch - frc_vporch_cal;
 		pr_frc(log, "frc_v_porch=%d frc_porch_delta=%d\n",
@@ -937,10 +964,17 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 		if (mc_frm_dly + mc_hold_line < reg_mc_out_line)
 			gst_frc_param.frc_mcfixlines = 0;
 		gst_frc_param.s2l_en = 2; /* rev B chip*/
+#ifdef CONFIG_AMLOGIC_MEDIA_VLOCK
+		if (vlock_proc_sync_frc_vporch(gst_frc_param) < 0)
+			pr_frc(0, "frc_infrom vlock proc fail !!!\n");
+		else
+			pr_frc(0, "frc_infrom vlock proc success!!!\n");
+#else
 		if (vlock_sync_frc_vporch(gst_frc_param) < 0)
 			pr_frc(0, "frc_infrom vlock fail !!!\n");
 		else
 			pr_frc(0, "frc_infrom vlock success!!!\n");
+#endif
 		vpu_reg_write_bits(ENCL_FRC_CTRL, memc_frm_dly - reg_mc_out_line, 0, 16);
 		// WRITE_FRC_BITS(FRC_REG_TOP_CTRL14, reg_post_dly_vofst, 0, 16);
 		// WRITE_FRC_BITS(FRC_REG_TOP_CTRL14, reg_me_dly_vofst, 16, 16);

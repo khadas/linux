@@ -281,6 +281,16 @@ static int lowlatency_vsync(u8 instance_id)
 		if (vd1_path_id == VFM_PATH_VIDEO_RENDER0 &&
 			cur_frame_par) {
 			/*need call every vsync*/
+#ifdef CONFIG_AMLOGIC_MEDIA_VLOCK
+			if (path3_new_frame)
+				framelock_proc(path3_new_frame,
+					cur_frame_par);
+			else if (vd_layer[0].dispbuf)
+				framelock_proc(vd_layer[0].dispbuf,
+					cur_frame_par);
+			else
+				framelock_proc(NULL, cur_frame_par);
+#else
 			if (path3_new_frame)
 				frame_lock_process(path3_new_frame,
 					cur_frame_par);
@@ -289,6 +299,7 @@ static int lowlatency_vsync(u8 instance_id)
 					cur_frame_par);
 			else
 				frame_lock_process(NULL, cur_frame_par);
+#endif
 		}
 
 		if (vd1_path_id == gvideo_recv[0]->path_id) {

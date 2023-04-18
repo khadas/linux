@@ -330,6 +330,7 @@ MODULE_PARM_DESC(tx_op_color_primary,
 unsigned int debug_game_mode_1;
 module_param(debug_game_mode_1, uint, 0664);
 MODULE_PARM_DESC(debug_game_mode_1, "\n debug_game_mode_1\n");
+
 int freerun_en = GAME_MODE;/* 0:game mode;1:freerun mode */
 module_param(freerun_en, int, 0664);
 MODULE_PARM_DESC(freerun_en, "\n enable or disable freerun\n");
@@ -11795,16 +11796,15 @@ static void aml_vecm_dt_parse(struct amvecm_dev_s *devp, struct platform_device 
 			pr_amvecm_dbg("unable to get matched device\n");
 		}
 		aml_vecm_match_init(matchdata);
-		vlock_dt_match_init(matchdata);
 
 		frame_lock_set_vrr_support_flag(matchdata->vrr_support_flag);
-
+//#ifndef CONFIG_AMLOGIC_MEDIA_VLOCK
+		vlock_dt_match_init(matchdata);
 		/*vlock param config*/
 		vlock_param_config(node);
 		vlock_clk_config(devp, &pdev->dev);
-
 		vlock_status_init();
-
+//#endif
 		/*vrr param config*/
 		frame_lock_param_config(node);
 	}

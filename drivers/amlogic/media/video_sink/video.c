@@ -7710,10 +7710,17 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		(vd1_path_id == VFM_PATH_AMVIDEO ||
 		vd1_path_id == VFM_PATH_DEF)) {
 		/*need call every vsync*/
+		#ifdef CONFIG_AMLOGIC_MEDIA_VLOCK
 		if (vf)
-			frame_lock_process(vf, cur_frame_par);
+			framelock_proc(vf, cur_frame_par);
 		else
-			frame_lock_process(NULL, cur_frame_par);
+			framelock_proc(NULL, cur_frame_par);
+		#else
+			if (vf)
+				frame_lock_process(vf, cur_frame_par);
+			else
+				frame_lock_process(NULL, cur_frame_par);
+		#endif
 	}
 #endif
 	if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME)
@@ -8785,6 +8792,16 @@ SET_FILTER:
 		if (vd1_path_id == VFM_PATH_VIDEO_RENDER0 &&
 			cur_frame_par) {
 			/*need call every vsync*/
+#ifdef CONFIG_AMLOGIC_MEDIA_VLOCK
+			if (path3_new_frame)
+				framelock_proc(path3_new_frame,
+					cur_frame_par);
+			else if (vd_layer[0].dispbuf)
+				framelock_proc(vd_layer[0].dispbuf,
+					cur_frame_par);
+			else
+				framelock_proc(NULL, cur_frame_par);
+#else
 			if (path3_new_frame)
 				frame_lock_process(path3_new_frame,
 					cur_frame_par);
@@ -8793,6 +8810,7 @@ SET_FILTER:
 					cur_frame_par);
 			else
 				frame_lock_process(NULL, cur_frame_par);
+#endif
 		}
 #endif
 
