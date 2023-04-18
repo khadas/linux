@@ -17,16 +17,6 @@
 	model = "Khadas Edge2";
 	compatible = "khadas,edge2", "rockchip,rk3588";
 
-	aw883xx_sound: aw883x-sound {
-		status = "disabled";
-		compatible = "rockchip,multicodecs-card";
-		rockchip,card-name = "rockchip-aw883xx";
-		rockchip,format = "i2s";
-		rockchip,mclk-fs = <256>;
-		rockchip,cpu = <&i2s0_8ch>;
-		rockchip,codec = <&aw883xx_1 &aw883xx_2 &aw883xx_3 &aw883xx_4>;
-	};
-
 	combophy_avdd0v85: combophy-avdd0v85 {
 		compatible = "regulator-fixed";
 		regulator-name = "combophy_avdd0v85";
@@ -62,23 +52,6 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
-	};
-
-	es8326_sound: es8326-sound {
-		status = "disabled";
-		compatible = "rockchip,multicodecs-card";
-		rockchip,card-name = "rockchip-es8326";
-		rockchip,format = "i2s";
-		rockchip,mclk-fs = <256>;
-		rockchip,cpu = <&i2s1_8ch>;
-		rockchip,codec = <&es8326>;
-		rockchip,audio-routing =
-		"Headphone", "HPOL",
-		"Headphone", "HPOR",
-		"Headphone", "Headphone Power",
-		"Headphone", "Headphone Power",
-		"MIC1", "Headset Mic",
-		"MIC2", "Main Mic";
 	};
 
 	dummy_codec: dummy-codec {
@@ -135,20 +108,6 @@
 		status = "okay";
 		hw_margin_ms = <500>;
 		hw-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
-	};
-
-	fan: pwm-fan {
-		compatible = "pwm-fan";
-		#cooling-cells = <2>;
-		pwms = <&pwm11 0 50000 0>;
-		cooling-levels = <0 50 100 150 200 255>;
-		rockchip,temp-trips = <
-			50000	1
-			55000	2
-			60000	3
-			65000	4
-			70000	5
-		>;
 	};
 
 	vbus5v0_typec: vbus5v0-typec {
@@ -600,89 +559,12 @@
 		hp-det-gpio = <&gpio1 RK_PD3 GPIO_ACTIVE_LOW>;
 	};
 
-	es8326: es8326@18 {
-		status = "disabled";
-		#sound-dai-cells = <0>;
-		compatible = "everest,es8326";
-		reg = <0x18>;
-		clocks = <&cru I2S1_8CH_MCLKOUT>;
-		clock-names = "mclk";
-		assigned-clocks = <&cru I2S1_8CH_MCLKOUT>;
-		assigned-clock-rates = <12288000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2s1m0_mclk>;
-		mclk-rate = <12288000>;
-		mic1-src = [22];
-		mic2-src = [44];
-		jack-pol = [0e];
-	};
-
-	aw883xx_1: aw883xx@34 {
-		compatible = "awinic,aw883xx_smartpa";
-		reg = <0x34>;
-		#sound-dai-cells = <0>;
-		reset-gpio = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
-		pinctrl-0 = <&aw_rst1_gpio>;
-		pinctrl-names = "default";
-		sound-channel = <0>;
-		re-min = <1000>;
-		re-max= <40000>;
-		status = "disabled";
-	};
-
-	aw883xx_2: aw883xx@35 {
-		compatible = "awinic,aw883xx_smartpa";
-		reg = <0x35>;
-		#sound-dai-cells = <0>;
-		reset-gpio = <&gpio1 RK_PA5 GPIO_ACTIVE_HIGH>;
-		pinctrl-0 = <&aw_rst2_gpio>;
-		pinctrl-names = "default";
-		sound-channel = <1>;
-		re-min = <1000>;
-		re-max= <40000>;
-		status = "disabled";
-	};
 };
 
 &i2c4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4m3_xfer>;
 	status = "okay";
-
-	aw883xx_3: aw883xx@34 {
-		compatible = "awinic,aw883xx_smartpa";
-		reg = <0x34>;
-		#sound-dai-cells = <0>;
-		reset-gpio = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
-		pinctrl-0 = <&aw_rst3_gpio>;
-		pinctrl-names = "default";
-		sound-channel = <2>;
-		re-min = <1000>;
-		re-max= <40000>;
-		status = "disabled";
-	};
-
-	aw883xx_4: aw883xx@35 {
-		compatible = "awinic,aw883xx_smartpa";
-		reg = <0x35>;
-		#sound-dai-cells = <0>;
-		reset-gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
-		pinctrl-0 = <&aw_rst4_gpio>;
-		pinctrl-names = "default";
-		sound-channel = <3>;
-		re-min = <1000>;
-		re-max= <40000>;
-		status = "disabled";
-	};
-
-	gsl3673@40 {
-		compatible = "GSL,GSL3673";
-		reg = <0x40>;
-		screen_max_x = <1536>;
-		screen_max_y = <2048>;
-		irq_gpio_number = <&gpio1 RK_PB5 IRQ_TYPE_LEVEL_LOW>;
-		rst_gpio_number = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
-	};
 };
 
 &i2c5 {
@@ -804,31 +686,6 @@
 		};
 		lcd2_rst_gpio1: lcd2-rst-gpio1 {
 			rockchip,pins = <4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-
-	aw883x {
-		aw_rst1_gpio: aw-rst1-gpio {
-			rockchip,pins = <4 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-		aw_rst2_gpio: aw-rst2-gpio {
-			rockchip,pins = <1 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-		aw_rst3_gpio: aw-rst3-gpio {
-			rockchip,pins = <3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-		aw_rst4_gpio: aw-rst4-gpio {
-			rockchip,pins = <1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-
-	sensor {
-		mh248_irq_gpio: mh248_irq_gpio {
-			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-
-		mpu6500_irq_gpio: mpu6500_irq_gpio {
-			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
