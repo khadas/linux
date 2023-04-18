@@ -1223,6 +1223,23 @@ int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len,
 	return 0;
 }
 
+/**
+ * SC2_bufferid_move_read_rp
+ * \param pchan:struct chan_id handle
+ * \param len:length
+ * \param flag: 0:rewind; 1:forward
+ * \retval 0:success.
+ * \retval -1:fail.
+ */
+int SC2_bufferid_move_read_rp(struct chan_id *pchan, unsigned int len, int flag)
+{
+	if (flag == 0)
+		pchan->r_offset = (pchan->r_offset + pchan->mem_size - len) % pchan->mem_size;
+	else
+		pchan->r_offset = (pchan->r_offset + len) % pchan->mem_size;
+	return 0;
+}
+
 static int check_data_pack_align(char *mem, int len, struct aml_dmx *pdmx)
 {
 	int left = len;

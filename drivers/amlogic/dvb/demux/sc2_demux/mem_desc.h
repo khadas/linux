@@ -152,6 +152,15 @@ unsigned int SC2_bufferid_get_wp_offset(struct chan_id *pchan);
 unsigned int SC2_bufferid_get_data_len(struct chan_id *pchan);
 int SC2_bufferid_read_header_again(struct chan_id *pchan, char **pread);
 int SC2_bufferid_read_newest_pts(struct chan_id *pchan, char **pread);
+/**
+ * SC2_bufferid_move_read_rp
+ * \param pchan:struct chan_id handle
+ * \param len:length
+ * \param flag: 0:rewind; 1:forward
+ * \retval 0:success.
+ * \retval -1:fail.
+ */
+int SC2_bufferid_move_read_rp(struct chan_id *pchan, unsigned int len, int flag);
 
 int _alloc_buff(unsigned int len, int sec_level,
 		unsigned long *vir_mem, unsigned long *phy_mem);

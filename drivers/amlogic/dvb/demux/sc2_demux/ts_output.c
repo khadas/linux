@@ -112,9 +112,6 @@ struct out_elem {
 	struct chan_id *pchan1;
 	struct pid_entry *pcrpid_list;
 
-	char *cache;
-	u16 cache_len;
-	u16 remain_len;
 	struct cb_entry *cb_sec_list;
 	struct cb_entry *cb_ts_list;
 	u16 flush_time_ms;
@@ -553,64 +550,35 @@ static int section_process(struct out_elem *pout)
 	int ret = 0;
 	int len = 0, w_size;
 	char *pread;
+	int remain_len = 0;
 
 	if (pout->pchan->sec_level)
 		start_aucpu_non_es(pout);
 
-	if (pout->remain_len == 0) {
-		len = MAX_READ_BUF_LEN;
-		if (pout->pchan->sec_level)
-			ret = aucpu_bufferid_read(pout, &pread, len, 0);
-		else
-			ret = SC2_bufferid_read(pout->pchan, &pread, len, 0);
-		if (ret != 0) {
-			if (pout->cb_sec_list) {
-				w_size = out_sec_cb_list(pout, pread, ret);
-				ATRACE_COUNTER(pout->name, w_size);
-				pr_sec_dbg("%s send:%d, w:%d wwwwww\n", __func__,
-				       ret, w_size);
-				pout->remain_len = ret - w_size;
-				if (pout->remain_len) {
-					if (pout->remain_len >=
-							READ_CACHE_SIZE) {
-						dprint("len:%d lost data\n",
-						       pout->remain_len);
-						pout->remain_len = 0;
-					} else {
-						memcpy(pout->cache,
-						       pread + w_size,
-						       pout->remain_len);
-					}
-				}
+	len = MAX_READ_BUF_LEN;
+	if (pout->pchan->sec_level)
+		ret = aucpu_bufferid_read(pout, &pread, len, 0);
+	else
+		ret = SC2_bufferid_read(pout->pchan, &pread, len, 0);
+	if (ret != 0) {
+		if (pout->cb_sec_list) {
+			w_size = out_sec_cb_list(pout, pread, ret);
+			ATRACE_COUNTER(pout->name, w_size);
+			pr_sec_dbg("%s send:%d, w:%d wwwwww\n", __func__,
+			       ret, w_size);
+			remain_len = ret - w_size;
+			if (remain_len) {
+				if (pout->pchan->sec_level)
+					pout->aucpu_read_offset =
+						(pout->aucpu_read_offset +
+						pout->aucpu_mem_size - remain_len)
+						% pout->aucpu_mem_size;
+				else
+					SC2_bufferid_move_read_rp(pout->pchan, remain_len, 0);
 			}
-			if (pout->cb_ts_list)
-				out_ts_cb_list(pout, pread, ret, 0, 0);
 		}
-	} else {
-		len = READ_CACHE_SIZE - pout->remain_len;
-		if (pout->pchan->sec_level)
-			ret = aucpu_bufferid_read(pout, &pread, len, 0);
-		else
-			ret = SC2_bufferid_read(pout->pchan, &pread, len, 0);
-		if (ret != 0) {
-			memcpy(pout->cache + pout->remain_len, pread, ret);
-			pout->remain_len += ret;
-			if (ret == len) {
-				ret = pout->remain_len;
-				w_size =
-				    out_sec_cb_list(pout, pout->cache, ret);
-				ATRACE_COUNTER(pout->name, w_size);
-				pr_sec_dbg("%s send:%d, w:%d\n", __func__, ret,
-				       w_size);
-				pout->remain_len = ret - w_size;
-				if (pout->remain_len)
-					memmove(pout->cache,
-						pout->cache + w_size,
-						pout->remain_len);
-			}
-			if (pout->cb_ts_list)
-				out_ts_cb_list(pout, pread, ret, 0, 0);
-		}
+		if (pout->cb_ts_list)
+			out_ts_cb_list(pout, pread, ret, 0, 0);
 	}
 	return 0;
 }
@@ -2427,9 +2395,6 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 			return NULL;
 		}
 		pout->enable = 0;
-		pout->remain_len = 0;
-		pout->cache_len = 0;
-		pout->cache = NULL;
 		pout->aucpu_handle = -1;
 		pout->aucpu_start = 0;
 		pout->aucpu_pts_handle = -1;
@@ -2451,21 +2416,12 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 		pout->aucpu_pts_handle = -1;
 		pout->aucpu_pts_start = 0;
 		pout->enable = 0;
-		pout->remain_len = 0;
-		pout->cache_len = READ_CACHE_SIZE;
-		pout->cache = kmalloc(pout->cache_len, GFP_KERNEL);
-		if (!pout->cache) {
-			SC2_bufferid_dealloc(pout->pchan);
-			dprint("%s sid:%d kmalloc cache fail\n", __func__, sid);
-			return NULL;
-		}
 	}
 
 	ts_out_tmp = kmalloc(sizeof(*ts_out_tmp), GFP_KERNEL);
 	if (!ts_out_tmp) {
 		dprint("ts out list fail\n");
 		SC2_bufferid_dealloc(pout->pchan);
-		kfree(pout->cache);
 		return NULL;
 	}
 
@@ -2475,7 +2431,6 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 		if (!ts_out_tmp->es_params) {
 			dprint("ts out es_params fail\n");
 			SC2_bufferid_dealloc(pout->pchan);
-			kfree(pout->cache);
 			kfree(ts_out_tmp);
 			return NULL;
 		}
@@ -2531,7 +2486,6 @@ int ts_output_close(struct out_elem *pout)
 		if (pout->format == DVR_FORMAT && pout->dump_file.file_fp)
 			dump_file_close(&pout->dump_file);
 		remove_ts_out_list(pout, &ts_out_task_tmp);
-		kfree(pout->cache);
 	}
 
 	if (pout->aucpu_handle >= 0) {
@@ -3219,8 +3173,6 @@ int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 			pre_cb = tmp_cb;
 			tmp_cb = tmp_cb->next;
 		}
-		if (!pout->cb_sec_list)
-			pout->remain_len = 0;
 	} else {
 		if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE)
 			mutex_lock(&es_output_mutex);
