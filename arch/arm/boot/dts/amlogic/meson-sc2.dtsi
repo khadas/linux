@@ -1281,10 +1281,6 @@
 					&clkaudio CLKID_EARCRX_DMAC
 					&clkc CLKID_FCLK_DIV4
 					&clkc CLKID_FCLK_DIV4
-					&clkaudio CLKID_EARCTX_CMDC
-					&clkaudio CLKID_EARCTX_DMAC
-					&clkc CLKID_FCLK_DIV4
-					&clkc CLKID_MPLL1
 					>;
 				clock-names =
 					"rx_cmdc",
