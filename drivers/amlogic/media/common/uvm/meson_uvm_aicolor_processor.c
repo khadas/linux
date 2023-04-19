@@ -478,7 +478,7 @@ static void dump_vf(struct vframe_s *vf, phys_addr_t addr, struct uvm_aicolor_in
 		return;
 	}
 
-	snprintf(name_buf, sizeof(name_buf), "/data/tmp/ge2dOut.rgb");
+	snprintf(name_buf, sizeof(name_buf), "/data/aicolor_ge2dOut.rgb");
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 	if (IS_ERR(fp))
 		return;
@@ -497,7 +497,7 @@ static void dump_vf(struct vframe_s *vf, phys_addr_t addr, struct uvm_aicolor_in
 	filp_close(fp, NULL);
 	set_fs(fs);
 
-	snprintf(name_buf, sizeof(name_buf), "/data/tmp/dec.yuv");
+	snprintf(name_buf, sizeof(name_buf), "/data/aicolor_dec.yuv");
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 	if (IS_ERR(fp))
 		return;
@@ -554,7 +554,7 @@ int aicolor_getinfo(void *arg, char *buf)
 		output.height = aicolor_info->nn_input_frame_height;
 		aicolor_info->omx_index = vf->omx_index;
 
-		output.format = GE2D_FORMAT_S24_RGB;
+		output.format = GE2D_FORMAT_S24_BGR;
 		output.addr = addr;
 		do_gettimeofday(&begin_time);
 		ret = ge2d_vf_process(vf, &output);

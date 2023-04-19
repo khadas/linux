@@ -491,7 +491,7 @@ static void dump_vf(struct vframe_s *vf, phys_addr_t addr, struct uvm_aiface_inf
 		return;
 	}
 
-	snprintf(name_buf, sizeof(name_buf), "/data/tmp/ge2dOut.rgb");
+	snprintf(name_buf, sizeof(name_buf), "/data/aiface_ge2dOut.rgb");
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 	if (IS_ERR(fp))
 		return;
@@ -510,7 +510,7 @@ static void dump_vf(struct vframe_s *vf, phys_addr_t addr, struct uvm_aiface_inf
 	filp_close(fp, NULL);
 	set_fs(fs);
 
-	snprintf(name_buf, sizeof(name_buf), "/data/tmp/dec.yuv");
+	snprintf(name_buf, sizeof(name_buf), "/data/aiface_dec.yuv");
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 	if (IS_ERR(fp))
 		return;
