@@ -20,6 +20,12 @@
 				remote-endpoint = <&imx415b_out0>;
 				data-lanes = <1 2 3 4>;
 			};
+
+			mipi_in_dcphy3: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&os08a10b_out0>;
+				data-lanes = <1 2 3 4>;
+			};
 		};
 		port@1 {
 			reg = <1>;
@@ -54,6 +60,12 @@
 				remote-endpoint = <&imx415f_out1>;
 				data-lanes = <1 2 3 4>;
 			};
+
+			mipi_in_dcphy4: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&os08a10f_out1>;
+				data-lanes = <1 2 3 4>;
+			};
 		};
 		port@1 {
 			reg = <1>;
@@ -86,6 +98,12 @@
 			mipidphy0_in_ucam0: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&imx415c_out0>;
+				data-lanes = <1 2 3 4>;
+			};
+
+			mipidphy0_in_ucam1: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&os08a10c_out0>;
 				data-lanes = <1 2 3 4>;
 			};
 		};
@@ -149,6 +167,30 @@
 			};
 		};
 	};
+
+	os08a10b: os08a10b@36 {
+		compatible = "ovti,os08a10";
+		status = "okay";
+		reg = <0x36>;
+		clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3588_PD_VI>;
+		pinctrl-names = "default", "camb_gpios";
+		pinctrl-0 = <&mipim1_camera1_clk>, <&camb_gpio>;
+		rockchip,grf = <&sys_grf>;
+		reset-gpios = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
+		power-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			os08a10b_out0: endpoint {
+				remote-endpoint = <&mipi_in_dcphy3>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
 };
 
 &i2c3 {
@@ -194,6 +236,30 @@
 			};
 		};
 	};
+
+	os08a10f: os08a10f@36 {
+		compatible = "ovti,os08a10";
+		status = "okay";
+		reg = <0x36>;
+		clocks = <&cru CLK_MIPI_CAMARAOUT_M2>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3588_PD_VI>;
+		pinctrl-names = "default", "camf_gpios";
+		pinctrl-0 = <&mipim1_camera2_clk>, <&camf_gpio>;
+		rockchip,grf = <&sys_grf>;
+		reset-gpios = <&gpio1 RK_PA1 GPIO_ACTIVE_HIGH>;
+		power-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			os08a10f_out1: endpoint {
+				remote-endpoint = <&mipi_in_dcphy4>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
 };
 
 &i2c8 {
@@ -233,6 +299,29 @@
 		port {
 			imx415c_out0: endpoint {
 				remote-endpoint = <&mipidphy0_in_ucam0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+
+	os08a10: os08a10@36 {
+		compatible = "ovti,os08a10";
+		status = "okay";
+		reg = <0x36>;
+		clocks = <&cru CLK_MIPI_CAMARAOUT_M3>;
+		clock-names = "xvclk";
+		pinctrl-names = "default", "camc_gpios";
+		pinctrl-0 = <&mipim1_camera3_clk>, <&camc_gpio>;
+		power-domains = <&power RK3588_PD_VI>;
+		reset-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;
+		power-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			os08a10c_out0: endpoint {
+				remote-endpoint = <&mipidphy0_in_ucam1>;
 				data-lanes = <1 2 3 4>;
 			};
 		};
