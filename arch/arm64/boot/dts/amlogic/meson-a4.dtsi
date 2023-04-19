@@ -544,6 +544,39 @@
 		status = "okay";
 	};
 
+	vddee: pwm_e-regulator {
+		compatible = "pwm-regulator";
+		pwms = <&pwm_ef MESON_PWM_0 1500 0>;
+		regulator-name = "vddee";
+		regulator-min-microvolt = <701000>;
+		regulator-max-microvolt = <901000>;
+		regulator-always-on;
+		max-duty-cycle = <1500>;
+		/* Voltage Duty-Cycle */
+		voltage-table = <901000 0>,
+				<891000 5>,
+				<881000 10>,
+				<871000 15>,
+				<861000 20>,
+				<851000 25>,
+				<841000 30>,
+				<831000 35>,
+				<821000 40>,
+				<811000 45>,
+				<801000 50>,
+				<791000 55>,
+				<781000 60>,
+				<771000 65>,
+				<761000 70>,
+				<751000 75>,
+				<741000 80>,
+				<731000 85>,
+				<721000 90>,
+				<711000 95>,
+				<701000 100>;
+		status = "okay";
+	};
+
 	cpu_opp_table0: cpu_opp_table0 {
 		compatible = "operating-points-v2";
 		opp-shared;
