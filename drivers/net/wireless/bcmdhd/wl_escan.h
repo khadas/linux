@@ -5,8 +5,8 @@
 #if defined(WL_WIRELESS_EXT)
 #include <wl_iw.h>
 #endif /* WL_WIRELESS_EXT */
-#include <wl_iapsta.h>
 #include <wl_android_ext.h>
+#include <wl_iapsta.h>
 #include <dhd_config.h>
 
 #define ESCAN_BUF_SIZE (64 * 1024)
@@ -35,12 +35,13 @@ typedef struct wl_escan_info {
 	int escan_state;
 	int ioctl_ver;
 	u8 escan_buf[ESCAN_BUF_SIZE];
-	wl_scan_results_t *bss_list;
+	wl_scan_results_v109_t *bss_list;
 	u8 *escan_ioctl_buf;
 	struct mutex usr_sync; /* maily for up/down synchronization */
 	int autochannel;
 	int best_2g_ch;
 	int best_5g_ch;
+	int best_6g_ch;
 #if defined(RSSIAVG)
 	wl_rssi_cache_ctrl_t g_rssi_cache_ctrl;
 	wl_rssi_cache_ctrl_t g_connected_rssi_cache_ctrl;
@@ -64,7 +65,7 @@ typedef struct wl_mesh_params {
 	uint16 master_channel;
 	uint hop_cnt;
 	struct ether_addr peer_bssid[MAX_HOP_LIST];
-	uint16 scan_channel;
+	uint32 scan_channel;
 } wl_mesh_params_t;
 bool wl_escan_mesh_info(struct net_device *dev,
 	struct wl_escan_info *escan, struct ether_addr *peer_bssid,

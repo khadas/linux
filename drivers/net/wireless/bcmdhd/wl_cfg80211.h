@@ -332,6 +332,13 @@ extern char *dhd_dbg_get_system_timestamp(void);
 #endif /* SUPPORT_AP_RADIO_PWRSAVE */
 
 #ifdef BCMWAPI_WPI
+#ifdef CFG80211_WAPI_BKPORT
+#define IS_WAPI_VER(version) (version == NL80211_WAPI_VERSION_1)
+#undef WLAN_AKM_SUITE_WAPI_PSK
+#define WLAN_AKM_SUITE_WAPI_PSK			0x000FAC13
+#undef WLAN_AKM_SUITE_WAPI_CERT
+#define WLAN_AKM_SUITE_WAPI_CERT		0x000FAC14
+#else
 #ifdef OEM_ANDROID
 #undef NL80211_WAPI_VERSION_1
 #define NL80211_WAPI_VERSION_1		0
@@ -354,6 +361,7 @@ extern char *dhd_dbg_get_system_timestamp(void);
 #define NL80211_WAPI_VERSION_1			1 << 2
 #define IS_WAPI_VER(version) (version & NL80211_WAPI_VERSION_1)
 #endif /* OEM_ANDROID */
+#endif /* CFG80211_WAPI_BKPORT */
 #endif /* BCMWAPI_WPI */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
@@ -1955,6 +1963,13 @@ struct bcm_cfg80211 {
 	bool p2p_6g_enabled;	/* P2P 6G support enabled */
 #endif /* WL_P2P_6G */
 	u32 halpid;
+	u8 country[WLC_CNTRY_BUF_SZ];
+#ifdef BCMDBUS
+	bool bus_resuming;
+#endif /* BCMDBUS */
+#ifdef WL_ROAM_WAR
+	struct ether_addr roaming_bssid;
+#endif /* WL_ROAM_WAR */
 #if defined(RSSIAVG)
 	wl_rssi_cache_ctrl_t g_rssi_cache_ctrl;
 	wl_rssi_cache_ctrl_t g_connected_rssi_cache_ctrl;
@@ -1965,6 +1980,7 @@ struct bcm_cfg80211 {
 	int autochannel;
 	int best_2g_ch;
 	int best_5g_ch;
+	int best_6g_ch;
 };
 
 /* Max auth timeout allowed in case of EAP is 70sec, additional 5 sec for
@@ -3078,6 +3094,14 @@ extern s32 wl_handle_auth_event(struct bcm_cfg80211 *cfg, struct net_device *nde
 extern bool wl_customer6_legacy_chip_check(struct bcm_cfg80211 *cfg,
 	struct net_device *ndev);
 #endif /* CUSTOMER_HW6 */
+#if !defined(WL_TWT) && defined(WL_TWT_HAL_IF)
+extern s32 wl_cfgvendor_notify_twt_event(struct bcm_cfg80211 *cfg,
+	bcm_struct_cfgdev *cfgdev, const wl_event_msg_t *e, void *data);
+#endif /* !WL_TWT && WL_TWT_HAL_IF */
+#ifdef BCMDBUS
+s32
+__wl_cfg80211_up_resume(dhd_pub_t *dhd);
+#endif /* BCMDBUS */
 void wl_wlfc_enable(struct bcm_cfg80211 *cfg, bool enable);
 s32 wl_handle_join(struct bcm_cfg80211 *cfg, struct net_device *dev,
 	wlcfg_assoc_info_t *assoc_info);

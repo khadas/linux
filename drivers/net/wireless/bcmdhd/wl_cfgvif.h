@@ -195,7 +195,12 @@ wl_cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
 	defined(WL_COMPAT_WIRELESS)
 extern s32 wl_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		struct cfg80211_ap_settings *info);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2) || defined(CFG80211_BKPORT_MLO)
+extern s32 wl_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
+	unsigned int link_id);
+#else
 extern s32 wl_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *dev);
+#endif
 extern s32 wl_cfg80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	struct cfg80211_beacon_data *info);
 #else
@@ -248,4 +253,7 @@ extern bool wl_cfg80211_is_tdls_tunneled_frame(void *frame, u32 frame_len);
 #ifdef SUPPORT_AP_BWCTRL
 extern void wl_restore_ap_bw(struct bcm_cfg80211 *cfg);
 #endif /* SUPPORT_AP_BWCTRL */
+
+extern int wl_chspec_chandef(chanspec_t chanspec,
+	struct cfg80211_chan_def *chandef, struct wiphy *wiphy);
 #endif /* _wl_cfgvif_h_ */

@@ -941,5 +941,28 @@ int kernel_read_compat(struct file *file, loff_t offset, char *addr, unsigned lo
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 32)
 #define netdev_tx_t int
 #endif
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0))
+#define complete_and_exit(a, b) kthread_complete_and_exit(a, b)
+#else
+#define	dev_addr_set(net, addr) memcpy(net->dev_addr, addr, ETHER_ADDR_LEN)
+#endif /* LINUX_VERSION_CODE > KERNEL_VERSION(5, 17, 0) */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0))
+#define netif_rx_ni(skb) netif_rx(skb)
+#define pci_free_consistent(a, b, c, d) dma_free_coherent(&((struct pci_dev *)a)->dev, b, c, d)
+#define pci_map_single(a, b, c, d) dma_map_single(&((struct pci_dev *)a)->dev, b, c, d)
+#define pci_unmap_single(a, b, c, d) dma_unmap_single(&((struct pci_dev *)a)->dev, b, c, d)
+#define pci_dma_mapping_error(a, b) dma_mapping_error(&((struct pci_dev *)a)->dev, b)
+#ifndef PCI_DMA_TODEVICE
+#define	PCI_DMA_TODEVICE	1
+#define	PCI_DMA_FROMDEVICE	2
+#endif
+#endif
+
+#ifdef ANDROID_BKPORT
+#if (ANDROID_VERSION >= 13) && (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 41))
+#define ANDROID13_KERNEL515_BKPORT
+#define CFG80211_BKPORT_MLO
+#endif /* ANDROID_VERSION >= 13 && KERNEL >= 5.15.41 */
+#endif /* ANDROID_BKPORT */
 
 #endif /* _linuxver_h_ */

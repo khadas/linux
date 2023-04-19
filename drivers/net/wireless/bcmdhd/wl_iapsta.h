@@ -10,7 +10,8 @@ typedef enum IFMODE {
 } ifmode_t;
 
 enum wl_ext_status {
-	WL_EXT_STATUS_DISCONNECTING = 0,
+	WL_EXT_STATUS_PRE_DISCONNECTING = 0,
+	WL_EXT_STATUS_DISCONNECTING,
 	WL_EXT_STATUS_DISCONNECTED,
 	WL_EXT_STATUS_SCAN,
 	WL_EXT_STATUS_SCANNING,
@@ -18,11 +19,14 @@ enum wl_ext_status {
 	WL_EXT_STATUS_CONNECTING,
 	WL_EXT_STATUS_RECONNECT,
 	WL_EXT_STATUS_CONNECTED,
+	WL_EXT_STATUS_ROAMED,
 	WL_EXT_STATUS_ADD_KEY,
+	WL_EXT_STATUS_AP_ENABLING,
 	WL_EXT_STATUS_AP_ENABLED,
 	WL_EXT_STATUS_DELETE_STA,
 	WL_EXT_STATUS_STA_DISCONNECTED,
 	WL_EXT_STATUS_STA_CONNECTED,
+	WL_EXT_STATUS_AP_DISABLING,
 	WL_EXT_STATUS_AP_DISABLED
 };
 
@@ -33,6 +37,10 @@ void wl_ext_backup_eapol_txpkt(dhd_pub_t *dhd, int ifidx, void *pkt);
 void wl_ext_release_eapol_txpkt(dhd_pub_t *dhd, int ifidx, bool rx);
 #endif /* EAPOL_RESEND */
 void wl_ext_iapsta_get_vif_macaddr(struct dhd_pub *dhd, int ifidx, u8 *mac_addr);
+#ifdef WLDWDS
+int wl_ext_iapsta_attach_dwds_netdev(struct net_device *net, int ifidx, uint8 bssidx);
+int wl_ext_iapsta_dettach_dwds_netdev(struct net_device *net, int ifidx, uint8 bssidx);
+#endif /* WLDWDS */
 int wl_ext_iapsta_attach_netdev(struct net_device *net, int ifidx, uint8 bssidx);
 int wl_ext_iapsta_attach_name(struct net_device *net, int ifidx);
 int wl_ext_iapsta_dettach_netdev(struct net_device *net, int ifidx);
@@ -50,6 +58,10 @@ int wl_ext_iapsta_config(struct net_device *dev, char *command, int total_len);
 void wl_ext_add_remove_pm_enable_work(struct net_device *dev, bool add);
 bool wl_ext_iapsta_other_if_enabled(struct net_device *net);
 bool wl_ext_sta_connecting(struct net_device *dev);
+void wl_ext_get_chan_str(struct net_device *dev, char *chan_str, int total_len);
+#ifdef DHD_LOSSLESS_ROAMING
+int wl_ext_any_sta_handshaking(struct dhd_pub *dhd);
+#endif /* DHD_LOSSLESS_ROAMING */
 void wl_iapsta_wait_event_complete(struct dhd_pub *dhd);
 int wl_iapsta_suspend_resume(dhd_pub_t *dhd, int suspend);
 #ifdef USE_IW
@@ -74,8 +86,18 @@ void wl_ext_iapsta_restart_master(struct net_device *dev);
 void wl_ext_iapsta_ifadding(struct net_device *net, int ifidx);
 bool wl_ext_iapsta_mesh_creating(struct net_device *net);
 void wl_ext_fw_reinit_incsa(struct net_device *dev);
+void wl_ext_send_event_msg(struct net_device *dev, int event, int status,
+	int reason);
+#ifdef BTC_WAR
+void wl_ext_btc_config(struct net_device *dev, bool enable);
+#endif /* BTC_WAR */
+#ifdef STA_MGMT
+bool wl_ext_del_sta_info(struct net_device *net, u8 *bssid);
+bool wl_ext_add_sta_info(struct net_device *net, u8 *bssid);
+#endif /* STA_MGMT */
 #ifdef SCAN_SUPPRESS
-uint16 wl_ext_scan_suppress(struct net_device *dev, void *scan_params, bool scan_v2);
+uint16 wl_ext_scan_suppress(struct net_device *dev, void *scan_params, bool scan_v2,
+	struct wl_chan_info *chan_info);
 void wl_ext_reset_scan_busy(dhd_pub_t *dhd);
 #endif /* SCAN_SUPPRESS */
 #endif

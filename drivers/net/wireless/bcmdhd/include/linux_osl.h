@@ -28,10 +28,14 @@
 #define DECLSPEC_ALIGN(x)	__attribute__ ((aligned(x)))
 
 /* Linux Kernel: File Operations: start */
-extern void * osl_os_open_image(char * filename);
-extern int osl_os_get_image_block(char * buf, int len, void * image);
-extern void osl_os_close_image(void * image);
-extern int osl_os_image_size(void *image);
+static INLINE void * osl_os_open_image(char * filename)
+	{ return NULL; }
+static INLINE void osl_os_close_image(void * image)
+	{ return; }
+static INLINE int osl_os_get_image_block(char * buf, int len, void * image)
+	{ return 0; }
+static INLINE int osl_os_image_size(void *image)
+	{ return 0; }
 /* Linux Kernel: File Operations: end */
 
 #ifdef BCMDRIVER

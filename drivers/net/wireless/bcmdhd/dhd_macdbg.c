@@ -26,13 +26,8 @@
 #include "dhdioctl.h"
 #include <sdiovar.h>
 
-#ifdef BCMDBUS
-#include <dbus.h>
-#define BUS_IOVAR_OP(a, b, c, d, e, f, g) dbus_iovar_op(a->dbus, b, c, d, e, f, g)
-#else
 #include <dhd_bus.h>
 #define BUS_IOVAR_OP dhd_bus_iovar_op
-#endif
 
 typedef struct _macdbg_info_t {
 	dhd_pub_t *dhdp;

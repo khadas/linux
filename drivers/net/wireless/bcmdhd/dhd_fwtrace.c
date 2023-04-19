@@ -105,7 +105,7 @@ dhd_fwtrace_detach(dhd_pub_t *dhdp)
 
 	/* close the file if valid */
 	if (!(IS_ERR_OR_NULL(dhdp->fwtrace_info->fw_trace_fp))) {
-		(void) filp_close(dhdp->fwtrace_info->fw_trace_fp, 0);
+		(void) dhd_filp_close(dhdp->fwtrace_info->fw_trace_fp, 0);
 	}
 
 	mutex_destroy(&dhdp->fwtrace_info->fwtrace_lock);
@@ -229,7 +229,7 @@ fwtrace_write_to_file(uint8 *buf, uint16 buf_len, dhd_pub_t *dhdp)
 	// Get the file size
 	// if the size + buf_len > TRACE_FILE_SIZE, then write to a different file.
 	//
-	error = vfs_stat(fwtrace_info->trace_file, &stat);
+	error = dhd_vfs_stat(fwtrace_info->trace_file, &stat);
 	if (error) {
 		DHD_ERROR(("vfs_stat has failed with error code = %d\n", error));
 		goto done;
@@ -243,7 +243,7 @@ fwtrace_write_to_file(uint8 *buf, uint16 buf_len, dhd_pub_t *dhdp)
 
 	pos = fwtrace_info->fw_trace_fp->f_pos;
 	/* Write buf to file */
-	ret_val_1 = vfs_write(fwtrace_info->fw_trace_fp,
+	ret_val_1 = dhd_vfs_write(fwtrace_info->fw_trace_fp,
 	                      (char *) buf, (uint32) buf_len, &pos);
 	if (ret_val_1 < 0) {
 		DHD_ERROR(("write file error, err = %d\n", ret_val_1));
@@ -253,7 +253,7 @@ fwtrace_write_to_file(uint8 *buf, uint16 buf_len, dhd_pub_t *dhdp)
 	fwtrace_info->fw_trace_fp->f_pos = pos;
 
 	/* Sync file from filesystem to physical media */
-	ret_val_1 = vfs_fsync(fwtrace_info->fw_trace_fp, 0);
+	ret_val_1 = dhd_vfs_fsync(fwtrace_info->fw_trace_fp, 0);
 	if (ret_val_1 < 0) {
 		DHD_ERROR(("sync file error, error = %d\n", ret_val_1));
 		ret_val = BCME_ERROR;
@@ -330,7 +330,7 @@ fwtrace_open_file(uint32 fw_trace_enabled, dhd_pub_t *dhdp)
 
 	if (fw_trace_enabled) {
 		if (!(IS_ERR_OR_NULL(fwtrace_info->fw_trace_fp))) {
-			(void) filp_close(fwtrace_info->fw_trace_fp, 0);
+			(void) dhd_filp_close(fwtrace_info->fw_trace_fp, 0);
 		}
 
 		DHD_INFO((" *** Creating the trace file \n"));
@@ -348,9 +348,9 @@ fwtrace_open_file(uint32 fw_trace_enabled, dhd_pub_t *dhdp)
 		         ts_str);
 
 		fwtrace_info->fw_trace_fp =
-		        filp_open(fwtrace_info->trace_file, file_mode, 0664);
+		        dhd_filp_open(fwtrace_info->trace_file, file_mode, 0664);
 
-		if (IS_ERR(fwtrace_info->fw_trace_fp)) {
+		if (IS_ERR(fwtrace_info->fw_trace_fp) || (fwtrace_info->fw_trace_fp == NULL)) {
 			DHD_ERROR(("Unable to create the fw trace file file: %s\n",
 			           fwtrace_info->trace_file));
 			ret_val = BCME_ERROR;
@@ -368,7 +368,7 @@ fwtrace_close_file(dhd_pub_t *dhdp)
 	int ret_val = BCME_OK;
 
 	if (!(IS_ERR_OR_NULL(dhdp->fwtrace_info->fw_trace_fp))) {
-		(void) filp_close(dhdp->fwtrace_info->fw_trace_fp, 0);
+		(void) dhd_filp_close(dhdp->fwtrace_info->fw_trace_fp, 0);
 	}
 
 	dhdp->fwtrace_info->fw_trace_fp = NULL;

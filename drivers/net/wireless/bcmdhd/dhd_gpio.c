@@ -15,7 +15,7 @@
 extern int dhd_static_buf_init(void);
 extern void dhd_static_buf_exit(void);
 #endif /* DHD_STATIC_IN_DRIVER */
-#ifdef BCMDHD_MDRIVER
+#if defined(BCMDHD_MDRIVER) && !defined(DHD_STATIC_IN_DRIVER)
 extern void *bcmdhd_mem_prealloc(uint bus_type, int index,
 	int section, unsigned long size);
 #else
@@ -77,8 +77,8 @@ dhd_wlan_set_power(int on, wifi_adapter_info_t *adapter)
 		}
 #ifdef CUSTOMER_HW_AMLOGIC
 #ifdef BCMSDIO
-		extern_wifi_set_enable(0);
-		mdelay(200);
+//		extern_wifi_set_enable(0);
+//		mdelay(200);
 		extern_wifi_set_enable(1);
 		mdelay(200);
 //		sdio_reinit();
@@ -174,12 +174,14 @@ dhd_wlan_set_power(int on, wifi_adapter_info_t *adapter)
 	return err;
 }
 
-static int dhd_wlan_set_reset(int onoff)
+static int
+dhd_wlan_set_reset(int onoff)
 {
 	return 0;
 }
 
-static int dhd_wlan_set_carddetect(int present)
+static int
+dhd_wlan_set_carddetect(int present)
 {
 	int err = 0;
 
@@ -203,8 +205,8 @@ static int dhd_wlan_set_carddetect(int present)
 		err = sdhci_force_presence_change(&sdmmc_channel, 0);
 #endif /* CUSTOMER_HW_PLATFORM */
 #ifdef CUSTOMER_HW_AMLOGIC
-		extern_wifi_set_enable(0);
-		mdelay(200);
+//		extern_wifi_set_enable(0);
+//		mdelay(200);
 #endif
 #elif defined(BCMPCIE)
 		printf("======== Card detection to remove PCIE card! ========\n");
@@ -219,7 +221,8 @@ static int dhd_wlan_set_carddetect(int present)
 	return err;
 }
 
-static int dhd_wlan_get_mac_addr(unsigned char *buf, int ifidx)
+static int
+dhd_wlan_get_mac_addr(unsigned char *buf, int ifidx)
 {
 	int err = 0;
 
@@ -338,7 +341,8 @@ struct wifi_platform_data dhd_wlan_control = {
 	.get_country_code = dhd_wlan_get_country_code,
 };
 
-int dhd_wlan_init_gpio(wifi_adapter_info_t *adapter)
+static int
+dhd_wlan_init_gpio(wifi_adapter_info_t *adapter)
 {
 #ifdef BCMDHD_DTS
 	char wlan_node[32];
@@ -375,7 +379,7 @@ int dhd_wlan_init_gpio(wifi_adapter_info_t *adapter)
 
 #ifdef CUSTOMER_HW_AMLOGIC
 #if defined(BCMPCIE)
-	printf("======== Card detection to detect PCIE card! ========\n");
+//	printf("======== Card detection to detect PCIE card! ========\n");
 //	pci_remove_reinit(0x14e4, 0x43ec, 1);
 #endif
 #endif
@@ -383,8 +387,8 @@ int dhd_wlan_init_gpio(wifi_adapter_info_t *adapter)
 	if (gpio_wl_reg_on >= 0) {
 		err = gpio_request(gpio_wl_reg_on, "WL_REG_ON");
 		if (err < 0) {
-			printf("%s: gpio_request(%d) for WL_REG_ON failed\n",
-				__FUNCTION__, gpio_wl_reg_on);
+			printf("%s: gpio_request(%d) for WL_REG_ON failed %d\n",
+				__FUNCTION__, gpio_wl_reg_on, err);
 			gpio_wl_reg_on = -1;
 		}
 	}
@@ -394,22 +398,22 @@ int dhd_wlan_init_gpio(wifi_adapter_info_t *adapter)
 	if (gpio_wl_host_wake >= 0) {
 		err = gpio_request(gpio_wl_host_wake, "bcmdhd");
 		if (err < 0) {
-			printf("%s: gpio_request(%d) for WL_HOST_WAKE failed\n",
-				__FUNCTION__, gpio_wl_host_wake);
+			printf("%s: gpio_request(%d) for WL_HOST_WAKE failed %d\n",
+				__FUNCTION__, gpio_wl_host_wake, err);
 			return -1;
 		}
 		adapter->gpio_wl_host_wake = gpio_wl_host_wake;
 		err = gpio_direction_input(gpio_wl_host_wake);
 		if (err < 0) {
-			printf("%s: gpio_direction_input(%d) for WL_HOST_WAKE failed\n",
-				__FUNCTION__, gpio_wl_host_wake);
+			printf("%s: gpio_direction_input(%d) for WL_HOST_WAKE failed %d\n",
+				__FUNCTION__, gpio_wl_host_wake, err);
 			gpio_free(gpio_wl_host_wake);
 			return -1;
 		}
 		host_oob_irq = gpio_to_irq(gpio_wl_host_wake);
 		if (host_oob_irq < 0) {
-			printf("%s: gpio_to_irq(%d) for WL_HOST_WAKE failed\n",
-				__FUNCTION__, gpio_wl_host_wake);
+			printf("%s: gpio_to_irq(%d) for WL_HOST_WAKE failed %d\n",
+				__FUNCTION__, gpio_wl_host_wake, host_oob_irq);
 			gpio_free(gpio_wl_host_wake);
 			return -1;
 		}
@@ -450,7 +454,8 @@ int dhd_wlan_init_gpio(wifi_adapter_info_t *adapter)
 	return 0;
 }
 
-static void dhd_wlan_deinit_gpio(wifi_adapter_info_t *adapter)
+static void
+dhd_wlan_deinit_gpio(wifi_adapter_info_t *adapter)
 {
 	int gpio_wl_reg_on = adapter->gpio_wl_reg_on;
 #ifdef CUSTOMER_OOB
@@ -471,25 +476,68 @@ static void dhd_wlan_deinit_gpio(wifi_adapter_info_t *adapter)
 #endif /* CUSTOMER_OOB */
 }
 
-int dhd_wlan_init_plat_data(wifi_adapter_info_t *adapter)
+#if defined(BCMDHD_MDRIVER)
+static void
+dhd_wlan_init_adapter(wifi_adapter_info_t *adapter)
+{
+#ifdef ADAPTER_IDX
+	if (ADAPTER_IDX == 0) {
+		adapter->bus_num = 1;
+		adapter->slot_num = 1;
+	} else if (ADAPTER_IDX == 1) {
+		adapter->bus_num = 2;
+		adapter->slot_num = 1;
+	}
+	adapter->index = ADAPTER_IDX;
+#ifdef BCMSDIO
+	adapter->bus_type = SDIO_BUS;
+#elif defined(BCMPCIE)
+	adapter->bus_type = PCI_BUS;
+#elif defined(BCMDBUS)
+	adapter->bus_type = USB_BUS;
+#endif
+	printf("bus_type=%d, bus_num=%d, slot_num=%d\n",
+		adapter->bus_type, adapter->bus_num, adapter->slot_num);
+#endif /* ADAPTER_IDX */
+
+#ifdef DHD_STATIC_IN_DRIVER
+	adapter->index = 0;
+#elif !defined(ADAPTER_IDX)
+#ifdef BCMSDIO
+	adapter->index = 0;
+#elif defined(BCMPCIE)
+	adapter->index = 1;
+#elif defined(BCMDBUS)
+	adapter->index = 2;
+#endif
+#endif /* DHD_STATIC_IN_DRIVER */
+}
+#endif /* BCMDHD_MDRIVER */
+
+int
+dhd_wlan_init_plat_data(wifi_adapter_info_t *adapter)
 {
 	int err = 0;
 
-	printf("======== %s ========\n", __FUNCTION__);
-	if (adapter->index == -1) {
-		adapter->index = 0;
-	}
+#ifdef BCMDHD_MDRIVER
+	dhd_wlan_init_adapter(adapter);
+#endif /* BCMDHD_MDRIVER */
+
 	err = dhd_wlan_init_gpio(adapter);
+	if (err)
+		goto exit;
 
 #ifdef DHD_STATIC_IN_DRIVER
-	dhd_static_buf_init();
+	err = dhd_static_buf_init();
 #endif
+
+exit:
 	return err;
 }
 
-void dhd_wlan_deinit_plat_data(wifi_adapter_info_t *adapter)
+void
+dhd_wlan_deinit_plat_data(wifi_adapter_info_t *adapter)
 {
-	printf("======== %s ========\n", __FUNCTION__);
 #ifdef DHD_STATIC_IN_DRIVER
 	dhd_static_buf_exit();
 #endif

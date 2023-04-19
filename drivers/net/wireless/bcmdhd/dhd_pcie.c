@@ -102,6 +102,7 @@
 #if defined(DHD_CONTROL_PCIE_CPUCORE_WIFI_TURNON)
 #include <dhd_linux_priv.h>
 #endif /* DHD_CONTROL_PCIE_CPUCORE_WIFI_TURNON */
+#include <dhd_linux_pktdump.h>
 
 #define EXTENDED_PCIE_DEBUG_DUMP 1	/* Enable Extended pcie registers dump */
 
@@ -3991,6 +3992,118 @@ exit:
 }
 #endif /* BCMINTERNAL */
 
+#ifdef DHD_LINUX_STD_FW_API
+static int
+dhdpcie_download_code_file(struct dhd_bus *bus, char *pfw_path)
+{
+	int bcmerror = BCME_ERROR;
+	int offset = 0;
+	int len = 0;
+	bool store_reset;
+	int offset_end = bus->ramsize;
+	const struct firmware *fw = NULL;
+	int buf_offset = 0, residual_len = 0;
+#ifdef CHECK_DOWNLOAD_FW
+	uint8 *memptr_tmp = NULL; // terence: check downloaded firmware is correct
+#endif
+
+#if defined(DHD_FW_MEM_CORRUPTION)
+	if (dhd_bus_get_fw_mode(bus->dhd) == DHD_FLAG_MFG_MODE) {
+		dhd_tcm_test_enable = TRUE;
+	} else {
+		dhd_tcm_test_enable = FALSE;
+	}
+#endif /* DHD_FW_MEM_CORRUPTION */
+	DHD_ERROR(("%s: dhd_tcm_test_enable %u\n", __FUNCTION__, dhd_tcm_test_enable));
+	/* TCM check */
+	if (dhd_tcm_test_enable && !dhd_bus_tcm_test(bus)) {
+		DHD_ERROR(("dhd_bus_tcm_test failed\n"));
+		bcmerror = BCME_ERROR;
+		goto err;
+	}
+
+	DHD_ERROR(("%s: download firmware %s\n", __FUNCTION__, pfw_path));
+
+	/* check if CR4/CA7 */
+	store_reset = (si_setcore(bus->sih, ARMCR4_CORE_ID, 0) ||
+			si_setcore(bus->sih, ARMCA7_CORE_ID, 0));
+
+	bcmerror = dhd_os_get_img_fwreq(&fw, bus->fw_path);
+	if (bcmerror < 0) {
+		DHD_ERROR(("dhd_os_get_img(Request Firmware API) error : %d\n",
+			bcmerror));
+		goto err;
+	}
+#ifdef CHECK_DOWNLOAD_FW
+	if (bus->dhd->conf->fwchk) {
+		memptr_tmp = MALLOC(bus->dhd->osh, MEMBLOCK + DHD_SDALIGN);
+		if (memptr_tmp == NULL) {
+			DHD_ERROR(("%s: Failed to allocate memory %d bytes\n", __FUNCTION__, MEMBLOCK));
+			goto err;
+		}
+	}
+#endif
+	residual_len = fw->size;
+	while (residual_len) {
+		len = MIN(residual_len, MEMBLOCK);
+
+		/* if address is 0, store the reset instruction to be written in 0 */
+		if (store_reset) {
+			ASSERT(offset == 0);
+			bus->resetinstr = *(((uint32*)fw->data + buf_offset));
+			/* Add start of RAM address to the address given by user */
+			offset += bus->dongle_ram_base;
+			offset_end += offset;
+			store_reset = FALSE;
+		}
+
+		bcmerror = dhdpcie_bus_membytes(bus, TRUE, offset,
+			(uint8 *)fw->data + buf_offset, len);
+		if (bcmerror) {
+			DHD_ERROR(("%s: error %d on writing %d membytes at 0x%08x\n",
+				__FUNCTION__, bcmerror, MEMBLOCK, offset));
+			goto err;
+		}
+#ifdef CHECK_DOWNLOAD_FW
+		if (bus->dhd->conf->fwchk) {
+			bcmerror = dhdpcie_bus_membytes(bus, FALSE, offset, memptr_tmp, len);
+			if (bcmerror) {
+				DHD_ERROR(("%s: error %d on reading %d membytes at 0x%08x\n",
+				        __FUNCTION__, bcmerror, MEMBLOCK, offset));
+				goto err;
+			}
+			if (memcmp(memptr_tmp, (uint8 *)fw->data + buf_offset, len)) {
+				DHD_ERROR(("%s: Downloaded image is corrupted at 0x%08x\n", __FUNCTION__, offset));
+				bcmerror = BCME_ERROR;
+				goto err;
+			} else
+				DHD_INFO(("%s: Download, Upload and compare succeeded.\n", __FUNCTION__));
+		}
+#endif
+		offset += MEMBLOCK;
+
+		if (offset >= offset_end) {
+			DHD_ERROR(("%s: invalid address access to %x (offset end: %x)\n",
+				__FUNCTION__, offset, offset_end));
+			bcmerror = BCME_ERROR;
+			goto err;
+		}
+		residual_len -= len;
+		buf_offset += len;
+	}
+err:
+#ifdef CHECK_DOWNLOAD_FW
+	if (memptr_tmp)
+		MFREE(bus->dhd->osh, memptr_tmp, MEMBLOCK + DHD_SDALIGN);
+#endif
+	if (fw) {
+		dhd_os_close_img_fwreq(fw);
+	}
+	return bcmerror;
+} /* dhdpcie_download_code_file */
+
+#else
+
 /**
  * Downloads a file containing firmware into dongle memory. In case of a .bea file, the DHD
  * is updated with the event logging partitions within that file as well.
@@ -4197,6 +4310,7 @@ err:
 
 	return bcmerror;
 } /* dhdpcie_download_code_file */
+#endif /* DHD_LINUX_STD_FW_API */
 
 #ifdef CUSTOMER_HW4_DEBUG
 #define MIN_NVRAMVARS_SIZE 128
@@ -4206,7 +4320,7 @@ static int
 dhdpcie_download_nvram(struct dhd_bus *bus)
 {
 	int bcmerror = BCME_ERROR;
-	uint len;
+	uint len, memblock_len = 0;
 	char * memblock = NULL;
 	char *bufp;
 	char *pnv_path;
@@ -4253,6 +4367,11 @@ dhdpcie_download_nvram(struct dhd_bus *bus)
 	} else {
 		nvram_uefi_exists = TRUE;
 	}
+#ifdef DHD_LINUX_STD_FW_API
+	memblock_len = len;
+#else
+	memblock_len = MAX_NVRAMBUF_SIZE;
+#endif /* DHD_LINUX_STD_FW_API */
 
 	DHD_ERROR(("%s: dhd_get_download_buffer len %d\n", __FUNCTION__, len));
 
@@ -4313,7 +4432,7 @@ err:
 		if (local_alloc) {
 			MFREE(bus->dhd->osh, memblock, MAX_NVRAMBUF_SIZE);
 		} else {
-			dhd_free_download_buffer(bus->dhd, memblock, MAX_NVRAMBUF_SIZE);
+			dhd_free_download_buffer(bus->dhd, memblock, memblock_len);
 		}
 	}
 
@@ -5689,6 +5808,7 @@ BCMFASTPATH(dhd_bus_txdata)(struct dhd_bus *bus, void *txp, uint8 ifidx)
 	void *ntxp = NULL;
 	uint8 prio = PKTPRIO(txp);
 #endif
+	uint8 *pktdata = (uint8 *)PKTDATA(bus->dhd->osh, txp);
 
 	if (!bus->dhd->flowid_allocator) {
 		DHD_ERROR(("%s: Flow ring not intited yet  \n", __FUNCTION__));
@@ -5777,6 +5897,10 @@ BCMFASTPATH(dhd_bus_txdata)(struct dhd_bus *bus, void *txp, uint8 ifidx)
 		}
 	}
 #else  /* !(defined(BCM_ROUTER_DHD) && defined(HNDCTF)) */
+	if (dhd_match_pkt_type(bus->dhd, pktdata, (uint32)PKTLEN(bus->dhd->osh, txp))) {
+		if ((ret = dhd_flow_queue_enqueue_head(bus->dhd, queue, txp)) != BCME_OK)
+			txp_pend = txp;
+	} else
 	if ((ret = dhd_flow_queue_enqueue(bus->dhd, queue, txp)) != BCME_OK)
 		txp_pend = txp;
 #endif /* defined(BCM_ROUTER_DHD) && defined(HNDCTF */
@@ -5814,6 +5938,13 @@ BCMFASTPATH(dhd_bus_txdata)(struct dhd_bus *bus, void *txp, uint8 ifidx)
 			}
 		}
 #else  /* !(defined(BCM_ROUTER_DHD) && defined(HNDCTF)) */
+		if (dhd_match_pkt_type(bus->dhd, pktdata, (uint32)PKTLEN(bus->dhd->osh, txp))) {
+			if ((ret = dhd_flow_queue_enqueue_head(bus->dhd, queue, txp_pend)) != BCME_OK) {
+				DHD_FLOWRING_UNLOCK(flow_ring_node->lock, flags);
+				txp = txp_pend;
+				goto toss;
+			}
+		} else
 		if ((ret = dhd_flow_queue_enqueue(bus->dhd, queue, txp_pend)) != BCME_OK) {
 			DHD_FLOWRING_UNLOCK(flow_ring_node->lock, flags);
 			txp = txp_pend;
@@ -9571,7 +9702,7 @@ dhdpcie_bus_suspend(struct dhd_bus *bus, bool state)
 			/* Got D3 Ack. Suspend the bus */
 #ifdef OEM_ANDROID
 			if (active) {
-				DHD_ERROR(("%s():Suspend failed because of wakelock"
+				DHD_ERROR(("%s():Suspend failed because of wakelock "
 					"restoring Dongle to D0\n", __FUNCTION__));
 
 				if (bus->dhd->dhd_watchdog_ms_backup) {

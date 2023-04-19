@@ -1,7 +1,21 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/wifi/dhd_static_buf.c
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
+
+#define pr_fmt(fmt)	"Wifi: %s: " fmt, __func__
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -10,10 +24,10 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/skbuff.h>
-#include <linux/amlogic/wlan_plat.h>
+#include <linux/wlan_plat.h>
 #include <linux/amlogic/dhd_buf.h>
 
-#define	DHD_STATIC_VERSION_STR		"101.10.361.16 (wlan=r892223-20220401-1)"
+#define	DHD_STATIC_VERSION_STR		"101.10.361.18 (wlan=r892223-20220519-1)"
 #define STATIC_ERROR_LEVEL	(1 << 0)
 #define STATIC_TRACE_LEVEL	(1 << 1)
 #define STATIC_MSG_LEVEL	(1 << 0)
@@ -179,21 +193,21 @@ void *wlan_static_dhd_event_ring_buf[MAX_NUM_ADAPTERS] = {NULL};
 void *wlan_static_nan_event_ring_buf[MAX_NUM_ADAPTERS] = {NULL};
 
 #if defined(BCMDHD_SDIO) || defined(BCMDHD_PCIE)
-static struct sk_buff *wlan_static_skb[MAX_NUM_ADAPTERS][WLAN_SKB_BUF_NUM];
+static struct sk_buff *wlan_static_skb[MAX_NUM_ADAPTERS][WLAN_SKB_BUF_NUM] = {NULL};
 #endif /* BCMDHD_SDIO | BCMDHD_PCIE */
 
 void *
 bcmdhd_mem_prealloc(
-#ifdef BCMDHD_MDRIVER
+#if defined(BCMDHD_MDRIVER) && !defined(DHD_STATIC_IN_DRIVER)
 	uint bus_type, int index,
 #endif
 	int section, unsigned long size)
 {
-#ifndef BCMDHD_MDRIVER
+#if !defined(BCMDHD_MDRIVER) || defined(DHD_STATIC_IN_DRIVER)
 	int index = 0;
 #endif
 
-#ifdef BCMDHD_MDRIVER
+#if defined(BCMDHD_MDRIVER) && !defined(DHD_STATIC_IN_DRIVER)
 	DHD_STATIC_MSG("bus_type %d, index %d, sectoin %d, size %ld\n",
 		bus_type, index, section, size);
 #else
@@ -348,7 +362,9 @@ bcmdhd_mem_prealloc(
 
 	return NULL;
 }
+#ifndef DHD_STATIC_IN_DRIVER
 EXPORT_SYMBOL(bcmdhd_mem_prealloc);
+#endif
 
 static void
 dhd_deinit_wlan_mem(int index)
@@ -612,9 +628,9 @@ err_mem_alloc:
 #ifdef DHD_STATIC_IN_DRIVER
 int
 #else
-static int __init
+int
 #endif
-bcmdhd_init_wlan_mem(unsigned int all_buf))
+bcmdhd_init_wlan_mem(unsigned int all_buf)
 {
 	int i, ret = 0;
 
@@ -631,7 +647,7 @@ bcmdhd_init_wlan_mem(unsigned int all_buf))
 			dhd_deinit_wlan_mem(i);
 	}
 
-	return 0;
+	return ret;
 }
 
 #ifdef DHD_STATIC_IN_DRIVER

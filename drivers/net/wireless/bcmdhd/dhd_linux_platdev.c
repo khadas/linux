@@ -42,9 +42,6 @@
 #else
 #include <dhd_plat.h>
 #endif /* CONFIG_WIFI_CONTROL_FUNC */
-#ifdef BCMDBUS
-#include <dbus.h>
-#endif
 #ifdef CONFIG_DTS
 #include<linux/regulator/consumer.h>
 #include<linux/of_gpio.h>
@@ -170,7 +167,7 @@ void* wifi_platform_prealloc(wifi_adapter_info_t *adapter, int section, unsigned
 		return NULL;
 	plat_data = adapter->wifi_plat_data;
 	if (plat_data->mem_prealloc) {
-#ifdef BCMDHD_MDRIVER
+#if defined(BCMDHD_MDRIVER) && !defined(DHD_STATIC_IN_DRIVER)
 		alloc_ptr = plat_data->mem_prealloc(adapter->bus_type, adapter->index, section, size);
 #else
 		alloc_ptr = plat_data->mem_prealloc(section, size);
@@ -569,16 +566,7 @@ static int wifi_ctrlfunc_register_drv(void)
 		return -ENOMEM;
 	}
 	adapter->name = "DHD generic adapter";
-	adapter->index = -1;
-#ifdef BCMDHD_MDRIVER
-#ifdef BCMSDIO
 	adapter->index = 0;
-#elif defined(BCMPCIE)
-	adapter->index = 1;
-#elif defined(BCMDBUS)
-	adapter->index = 2;
-#endif
-#endif
 	adapter->bus_type = -1;
 	adapter->bus_num = -1;
 	adapter->slot_num = -1;
@@ -771,10 +759,11 @@ static int dhd_wifi_platform_load_pcie(void)
 		err = dhd_bus_register();
 	} else {
 #ifdef DHD_SUPPORT_HDM
-		if (dhd_download_fw_on_driverload || hdm_trigger_init) {
+		if (dhd_download_fw_on_driverload || hdm_trigger_init)
 #else
-		if (dhd_download_fw_on_driverload) {
+		if (dhd_download_fw_on_driverload)
 #endif /* DHD_SUPPORT_HDM */
+		{
 			/* power up all adapters */
 			for (i = 0; i < dhd_wifi_platdata->num_adapters; i++) {
 				int retry = POWERUP_MAX_RETRY;
@@ -896,7 +885,9 @@ static int dhd_wifi_platform_load_sdio(void)
 	for (i = 0; i < dhd_wifi_platdata->num_adapters; i++) {
 		bool chip_up = FALSE;
 		int retry = POWERUP_MAX_RETRY;
+#ifndef DHD_INSMOD_NOWAIT
 		struct semaphore dhd_chipup_sem;
+#endif
 
 		adapter = &dhd_wifi_platdata->adapters[i];
 
@@ -907,6 +898,18 @@ static int dhd_wifi_platform_load_sdio(void)
 			adapter->bus_type, adapter->bus_num, adapter->slot_num));
 
 		do {
+#ifdef DHD_INSMOD_NOWAIT
+			err = wifi_platform_set_power(adapter, TRUE, WIFI_TURNON_DELAY);
+			if (err) {
+				DHD_ERROR(("%s: wifi pwr on error ! \n", __FUNCTION__));
+				wifi_platform_set_power(adapter, FALSE, WIFI_TURNOFF_DELAY);
+				continue;
+			} else {
+				wifi_platform_bus_enumerate(adapter, TRUE);
+				chip_up = TRUE;
+				break;
+			}
+#else
 #ifndef CUSTOMER_HW_AMLOGIC
 			sema_init(&dhd_chipup_sem, 0);
 			err = dhd_bus_reg_sdio_notify(&dhd_chipup_sem);
@@ -946,6 +949,7 @@ static int dhd_wifi_platform_load_sdio(void)
 			dhd_bus_unreg_sdio_notify();
 			wifi_platform_set_power(adapter, FALSE, WIFI_TURNOFF_DELAY);
 			wifi_platform_bus_enumerate(adapter, FALSE);
+#endif
 		} while (retry--);
 
 		if (!chip_up) {
@@ -962,6 +966,7 @@ static int dhd_wifi_platform_load_sdio(void)
 		goto fail;
 	}
 
+#ifndef DHD_INSMOD_NOWAIT
 	/*
 	 * Wait till MMC sdio_register_driver callback called and made driver attach.
 	 * It's needed to make sync up exit from dhd insmod  and
@@ -973,6 +978,7 @@ static int dhd_wifi_platform_load_sdio(void)
 		dhd_bus_unregister();
 		goto fail;
 	}
+#endif
 
 	return err;
 
@@ -1005,7 +1011,6 @@ static int dhd_wifi_platform_load_usb(void)
 	wifi_adapter_info_t *adapter;
 	s32 timeout = -1;
 	int i;
-	enum wifi_adapter_status wait_status;
 #endif
 
 #if !defined(DHD_PRELOAD)
@@ -1014,7 +1019,7 @@ static int dhd_wifi_platform_load_usb(void)
 		adapter = &dhd_wifi_platdata->adapters[i];
 		wifi_platform_set_power(adapter, FALSE, 0);
 		if (err) {
-			DHD_ERROR(("failed to wifi_platform_set_power on %s\n", adapter->name));
+			DHD_ERROR(("failed to wifi_platform_set_power off %s\n", adapter->name));
 			goto exit;
 		}
 	}
@@ -1041,12 +1046,8 @@ static int dhd_wifi_platform_load_usb(void)
 			DHD_ERROR(("failed to wifi_platform_set_power on %s\n", adapter->name));
 			goto fail;
 		}
-		if (dhd_download_fw_on_driverload)
-			wait_status = WIFI_STATUS_ATTACH;
-		else
-			wait_status = WIFI_STATUS_DETTACH;
 		timeout = wait_event_interruptible_timeout(adapter->status_event,
-			wifi_get_adapter_status(adapter, wait_status),
+			wifi_get_adapter_status(adapter, WIFI_STATUS_NET_ATTACHED),
 			msecs_to_jiffies(DHD_REGISTRATION_TIMEOUT));
 		if (timeout <= 0) {
 			err = -1;

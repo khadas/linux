@@ -103,6 +103,8 @@ extern PBCMSDH_SDMMC_INSTANCE gInstance;
 #define CUSTOM_SDIO_F1_BLKSIZE		DEFAULT_SDIO_F1_BLKSIZE
 #endif
 
+#define COPY_BUF_SIZE	(SDPCM_MAXGLOM_SIZE * 1600)
+
 #define MAX_IO_RW_EXTENDED_BLK		511
 
 uint sd_sdmode = SDIOH_MODE_SD4;	/* Use SD4 mode by default */
@@ -209,6 +211,14 @@ sdioh_attach(osl_t *osh, struct sdio_func *func)
 		return NULL;
 	}
 	bzero((char *)sd, sizeof(sdioh_info_t));
+#if defined(BCMSDIOH_TXGLOM) && defined(BCMSDIOH_STATIC_COPY_BUF)
+	sd->copy_buf = MALLOC(osh, COPY_BUF_SIZE);
+	if (sd->copy_buf == NULL) {
+		sd_err(("%s: MALLOC of %d-byte copy_buf failed\n",
+			__FUNCTION__, COPY_BUF_SIZE));
+		goto fail;
+	}
+#endif
 	sd->osh = osh;
 	sd->fake_func0.num = 0;
 	sd->fake_func0.card = func->card;
@@ -273,6 +283,9 @@ sdioh_attach(osl_t *osh, struct sdio_func *func)
 	return sd;
 
 fail:
+#if defined(BCMSDIOH_TXGLOM) && defined(BCMSDIOH_STATIC_COPY_BUF)
+	MFREE(sd->osh, sd->copy_buf, COPY_BUF_SIZE);
+#endif
 	MFREE(sd->osh, sd, sizeof(sdioh_info_t));
 	return NULL;
 }
@@ -301,6 +314,9 @@ sdioh_detach(osl_t *osh, sdioh_info_t *sd)
 		sd->func[1] = NULL;
 		sd->func[2] = NULL;
 
+#if defined(BCMSDIOH_TXGLOM) && defined(BCMSDIOH_STATIC_COPY_BUF)
+		MFREE(sd->osh, sd->copy_buf, COPY_BUF_SIZE);
+#endif
 		MFREE(sd->osh, sd, sizeof(sdioh_info_t));
 	}
 	return SDIOH_API_RC_SUCCESS;
@@ -1102,8 +1118,7 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr, uint8 *by
 	}
 
 	if (err_ret) {
-		if ((regaddr == 0x1001F) && ((err_ret == -ETIMEDOUT) || (err_ret == -EILSEQ)
-			|| (err_ret == -EIO))) {
+		if (regaddr == 0x1001F) {
 			/* XXX: Read/Write to SBSDIO_FUNC1_SLEEPCSR could return -110(timeout)
 			 * 	or -84(CRC) error in case the host tries to wake the device up.
 			 *	Skip error log message if err code is -110 or -84 when accessing
@@ -1365,7 +1380,8 @@ sdioh_request_packet_chain(sdioh_info_t *sd, uint fix_inc, uint write, uint func
 			return SDIOH_API_RC_FAIL;
 		}
 	}
-	} else if(sd->txglom_mode == SDPCM_TXGLOM_CPY) {
+	}
+	else if(sd->txglom_mode == SDPCM_TXGLOM_CPY) {
 		for (pnext = pkt; pnext; pnext = PKTNEXT(sd->osh, pnext)) {
 			ttl_len += PKTLEN(sd->osh, pnext);
 		}
@@ -1374,16 +1390,20 @@ sdioh_request_packet_chain(sdioh_info_t *sd, uint fix_inc, uint write, uint func
 		for (pnext = pkt; pnext; pnext = PKTNEXT(sd->osh, pnext)) {
 			uint8 *buf = (uint8*)PKTDATA(sd->osh, pnext);
 			pkt_len = PKTLEN(sd->osh, pnext);
-
 			if (!localbuf) {
+#ifdef BCMSDIOH_STATIC_COPY_BUF
+				if (ttl_len <= COPY_BUF_SIZE)
+					localbuf = sd->copy_buf;
+#else
 				localbuf = (uint8 *)MALLOC(sd->osh, ttl_len);
+#endif
 				if (localbuf == NULL) {
-					sd_err(("%s: %s TXGLOM: localbuf malloc FAILED\n",
-						__FUNCTION__, (write) ? "TX" : "RX"));
+					sd_err(("%s: %s localbuf malloc FAILED ttl_len=%d\n",
+						__FUNCTION__, (write) ? "TX" : "RX", ttl_len));
+					ttl_len -= pkt_len;
 					goto txglomfail;
 				}
 			}
-
 			bcopy(buf, (localbuf + local_plen), pkt_len);
 			local_plen += pkt_len;
 			if (PKTNEXT(sd->osh, pnext))
@@ -1428,8 +1448,10 @@ txglomfail:
 		return SDIOH_API_RC_FAIL;
 	}
 
+#ifndef BCMSDIOH_STATIC_COPY_BUF
 	if (localbuf)
 		MFREE(sd->osh, localbuf, ttl_len);
+#endif
 
 #ifndef PKT_STATICS
 	if (sd_msglevel & SDH_COST_VAL)

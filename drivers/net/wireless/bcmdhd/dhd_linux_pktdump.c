@@ -1047,13 +1047,34 @@ dhd_check_dhcp(uint8 *pktdata)
 	return TRUE;
 }
 
-#ifdef DHD_DHCP_DUMP
 #define BOOTP_CHADDR_LEN		16
 #define BOOTP_SNAME_LEN			64
 #define BOOTP_FILE_LEN			128
 #define BOOTP_MIN_DHCP_OPT_LEN		312
 #define BOOTP_MAGIC_COOKIE_LEN		4
 
+typedef struct bootp_fmt {
+	struct ipv4_hdr iph;
+	struct bcmudp_hdr udph;
+	uint8 op;
+	uint8 htype;
+	uint8 hlen;
+	uint8 hops;
+	uint32 transaction_id;
+	uint16 secs;
+	uint16 flags;
+	uint32 client_ip;
+	uint32 assigned_ip;
+	uint32 server_ip;
+	uint32 relay_ip;
+	uint8 hw_address[BOOTP_CHADDR_LEN];
+	uint8 server_name[BOOTP_SNAME_LEN];
+	uint8 file_name[BOOTP_FILE_LEN];
+	uint8 options[BOOTP_MIN_DHCP_OPT_LEN];
+} PACKED_STRUCT bootp_fmt_t;
+static const uint8 bootp_magic_cookie[4] = { 99, 130, 83, 99 };
+
+#ifdef DHD_DHCP_DUMP
 #define DHCP_MSGTYPE_DISCOVER		1
 #define DHCP_MSGTYPE_OFFER		2
 #define DHCP_MSGTYPE_REQUEST		3
@@ -1077,27 +1098,6 @@ dhd_check_dhcp(uint8 *pktdata)
 		} \
 	} while (0)
 
-typedef struct bootp_fmt {
-	struct ipv4_hdr iph;
-	struct bcmudp_hdr udph;
-	uint8 op;
-	uint8 htype;
-	uint8 hlen;
-	uint8 hops;
-	uint32 transaction_id;
-	uint16 secs;
-	uint16 flags;
-	uint32 client_ip;
-	uint32 assigned_ip;
-	uint32 server_ip;
-	uint32 relay_ip;
-	uint8 hw_address[BOOTP_CHADDR_LEN];
-	uint8 server_name[BOOTP_SNAME_LEN];
-	uint8 file_name[BOOTP_FILE_LEN];
-	uint8 options[BOOTP_MIN_DHCP_OPT_LEN];
-} PACKED_STRUCT bootp_fmt_t;
-
-static const uint8 bootp_magic_cookie[4] = { 99, 130, 83, 99 };
 static char dhcp_ops[][10] = {
 	"NA", "REQUEST", "REPLY"
 };
@@ -1576,3 +1576,160 @@ dhd_trx_pkt_dump(dhd_pub_t *dhdp, int ifidx, uint8 *pktdata, uint32 pktlen, bool
 	}
 }
 #endif /* DHD_RX_DUMP */
+
+#ifdef BCMPCIE
+static bool
+dhd_is_eapol_pkt(dhd_pub_t *dhd, uint8 *pktdata, uint32 pktlen)
+{
+	eapol_header_t *eapol_hdr = (eapol_header_t *)pktdata;
+
+	eapol_hdr = (eapol_header_t *)pktdata;
+
+	if (eapol_hdr->type == EAP_PACKET) {
+		return TRUE;
+	} else if (eapol_hdr->type == EAPOL_START) {
+		return TRUE;
+	} else if (eapol_hdr->type == EAPOL_KEY) {
+		return TRUE;
+	} else {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+static bool
+dhd_is_arp_pkt(dhd_pub_t *dhdp, uint8 *pktdata)
+{
+	uint8 *pkt = (uint8 *)&pktdata[ETHER_HDR_LEN];
+	struct bcmarp *arph = (struct bcmarp *)pkt;
+	uint16 opcode;
+
+	/* validation check */
+	if (arph->htype != hton16(HTYPE_ETHERNET) ||
+		arph->hlen != ETHER_ADDR_LEN ||
+		arph->plen != 4) {
+		return FALSE;
+	}
+
+	opcode = ntoh16(arph->oper);
+	if (opcode == ARP_OPC_REQUEST) {
+		return TRUE;
+	} else if (opcode == ARP_OPC_REPLY) {
+		return TRUE;
+	} else {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+static bool
+dhd_is_dhcp_pkt(dhd_pub_t *dhdp, uint8 *pktdata)
+{
+	bootp_fmt_t *b = (bootp_fmt_t *)&pktdata[ETHER_HDR_LEN];
+	struct ipv4_hdr *iph = &b->iph;
+	uint8 *ptr, *opt, *end = (uint8 *) b + ntohs(b->iph.tot_len);
+	int len, opt_len;
+
+	/* check IP header */
+	if ((IPV4_HLEN(iph) < IPV4_HLEN_MIN) ||
+		IP_VER(iph) != IP_VER_4 ||
+		IPV4_PROT(iph) != IP_PROT_UDP) {
+		return FALSE;
+	}
+
+	/* check UDP port for bootp (67, 68) */
+	if (b->udph.src_port != htons(DHCP_PORT_SERVER) &&
+		b->udph.src_port != htons(DHCP_PORT_CLIENT) &&
+		b->udph.dst_port != htons(DHCP_PORT_SERVER) &&
+		b->udph.dst_port != htons(DHCP_PORT_CLIENT)) {
+		return FALSE;
+	}
+
+	/* check header length */
+	if (ntohs(iph->tot_len) < ntohs(b->udph.len) + sizeof(struct bcmudp_hdr)) {
+		return FALSE;
+	}
+
+	len = ntohs(b->udph.len) - sizeof(struct bcmudp_hdr);
+	opt_len = len - (sizeof(*b) - sizeof(struct ipv4_hdr) -
+		sizeof(struct bcmudp_hdr) - sizeof(b->options));
+
+	/* parse bootp options */
+	if (opt_len >= BOOTP_MAGIC_COOKIE_LEN &&
+		!memcmp(b->options, bootp_magic_cookie, BOOTP_MAGIC_COOKIE_LEN)) {
+		ptr = &b->options[BOOTP_MAGIC_COOKIE_LEN];
+		while (ptr < end && *ptr != 0xff) {
+			opt = ptr++;
+			if (*opt == 0) {
+				continue;
+			}
+			ptr += *ptr + 1;
+			if (ptr >= end) {
+				break;
+			}
+			if (*opt == DHCP_OPT_MSGTYPE) {
+				if (opt[1]) {
+					return TRUE;
+				}
+			}
+		}
+	}
+
+	return FALSE;
+}
+
+static bool
+dhd_is_icmp_pkt(dhd_pub_t *dhd, uint8 *pktdata, uint32 pktlen)
+{
+	uint8 *pkt;
+	struct ipv4_hdr *iph;
+
+	pkt = (uint8 *)&pktdata[ETHER_HDR_LEN];
+	iph = (struct ipv4_hdr *)pkt;
+
+	/* check IP header */
+	if ((IPV4_HLEN(iph) < IPV4_HLEN_MIN) ||
+		IP_VER(iph) != IP_VER_4 ||
+		IPV4_PROT(iph) != IP_PROT_ICMP) {
+		return FALSE;
+	}
+
+	/* check header length */
+	if (ntohs(iph->tot_len) - IPV4_HLEN(iph) < sizeof(struct bcmicmp_hdr)) {
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+bool
+dhd_match_pkt_type(dhd_pub_t *dhd, uint8 *pktdata, uint32 pktlen)
+{
+	struct ether_header *eh;
+	uint16 ether_type;
+	bool match = FALSE;
+
+	if (!pktdata || pktlen < ETHER_HDR_LEN) {
+		return match;
+	}
+
+	eh = (struct ether_header *)pktdata;
+	ether_type = ntoh16(eh->ether_type);
+	if ((dhd->conf->enq_hdr_pkt & ENQ_PKT_TYPE_EAPOL) &&
+			ether_type == ETHER_TYPE_802_1X) {
+		match = dhd_is_eapol_pkt(dhd, pktdata, pktlen);
+	}
+	else if ((dhd->conf->enq_hdr_pkt & ENQ_PKT_TYPE_ARP) &&
+			ntoh16(eh->ether_type) == ETHER_TYPE_ARP) {
+		match = dhd_is_arp_pkt(dhd, pktdata);
+	}
+	else if (ntoh16(eh->ether_type) == ETHER_TYPE_IP) {
+		if (dhd->conf->enq_hdr_pkt & ENQ_PKT_TYPE_ICMP)
+			match = dhd_is_icmp_pkt(dhd, pktdata, pktlen);
+		if (!match && dhd->conf->enq_hdr_pkt & ENQ_PKT_TYPE_DHCP)
+			match = dhd_is_dhcp_pkt(dhd, pktdata);
+	}
+
+	return match;
+}
+#endif /* BCMPCIE */

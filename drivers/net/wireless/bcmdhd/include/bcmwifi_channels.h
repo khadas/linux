@@ -356,7 +356,7 @@ uint wf_chspec_first_20_sb(chanspec_t chspec);
 	((((chspec) & WL_CHANSPEC_CTL_SB_MASK) == WL_CHANSPEC_CTL_SB_LOWER) && \
 	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_40))
 
-#ifdef WL_BAND6G
+#ifdef WL_6G_BAND
 #define CHSPEC2WLC_BAND(chspec) (CHSPEC_IS2G(chspec) ? WLC_BAND_2G : CHSPEC_IS5G(chspec) ? \
 	WLC_BAND_5G : WLC_BAND_6G)
 #else
