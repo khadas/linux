@@ -3574,7 +3574,6 @@ int vlock_notify_callback(struct notifier_block *block, unsigned long cmd,
 	switch (cmd) {
 	case VOUT_EVENT_MODE_CHANGE_PRE:
 		pvlock->fsm_pause = true;
-		pvlock->fsm_sts = VLOCK_STATE_NULL;
 		vlock_notify_event = cmd;
 		frame_lock_mode_chg(cmd);
 		if (pvlock->dtdata->vlk_new_fsm &&
@@ -3587,6 +3586,7 @@ int vlock_notify_callback(struct notifier_block *block, unsigned long cmd,
 					break;
 			}
 		}
+		pvlock->fsm_sts = VLOCK_STATE_NULL;
 		pr_info("vlock: event MODE_CHANGE_PRE %d\n", cnt);
 		break;
 
