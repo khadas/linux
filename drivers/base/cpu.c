@@ -209,6 +209,15 @@ static ssize_t show_cpus_attr(struct device *dev,
 {
 	struct cpu_attr *ca = container_of(attr, struct cpu_attr, attr);
 
+#ifdef CONFIG_AMLOGIC_APU
+	struct cpumask mask;
+
+	if (apu_enable && apu_id != -1) {
+		cpumask_copy(&mask, ca->map);
+		cpumask_clear_cpu(apu_id, &mask);
+		return cpumap_print_to_pagebuf(true, buf, &mask);
+	}
+#endif
 	return cpumap_print_to_pagebuf(true, buf, ca->map);
 }
 

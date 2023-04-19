@@ -1705,6 +1705,9 @@ static int kernfs_fop_readdir(struct file *file, struct dir_context *ctx)
 	struct kernfs_node *parent = kernfs_dentry_node(dentry);
 	struct kernfs_node *pos = file->private_data;
 	const void *ns = NULL;
+#ifdef CONFIG_AMLOGIC_APU
+	char buf[16];
+#endif
 
 	if (!dir_emit_dots(file, ctx))
 		return 0;
@@ -1725,6 +1728,13 @@ static int kernfs_fop_readdir(struct file *file, struct dir_context *ctx)
 		file->private_data = pos;
 		kernfs_get(pos);
 
+#ifdef CONFIG_AMLOGIC_APU
+		if (apu_enable && apu_id != -1) {
+			snprintf(buf, sizeof(buf), "cpu%d", apu_id);
+			if (!strcmp(buf, name))
+				continue;
+		}
+#endif
 		up_read(&kernfs_rwsem);
 		if (!dir_emit(ctx, name, len, ino, type))
 			return 0;

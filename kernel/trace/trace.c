@@ -5140,6 +5140,11 @@ int tracing_set_cpumask(struct trace_array *tr,
 	if (!tr)
 		return -EINVAL;
 
+#ifdef CONFIG_AMLOGIC_APU
+	if (apu_enable && apu_id != -1)
+		cpumask_clear_cpu(apu_id, tracing_cpumask_new);
+#endif
+
 	local_irq_disable();
 	arch_spin_lock(&tr->max_lock);
 	for_each_tracing_cpu(cpu) {
@@ -8629,6 +8634,11 @@ tracing_init_tracefs_percpu(struct trace_array *tr, long cpu)
 	if (!d_percpu)
 		return;
 
+#ifdef CONFIG_AMLOGIC_APU
+	if (apu_enable && cpu == apu_id)
+		return;
+#endif
+
 	snprintf(cpu_dir, 30, "cpu%ld", cpu);
 	d_cpu = tracefs_create_dir(cpu_dir, d_percpu);
 	if (!d_cpu) {
@@ -10099,6 +10109,12 @@ __init static int tracer_alloc_buffers(void)
 
 	cpumask_copy(tracing_buffer_mask, cpu_possible_mask);
 	cpumask_copy(global_trace.tracing_cpumask, cpu_all_mask);
+#ifdef CONFIG_AMLOGIC_APU
+	if (apu_enable && apu_id != -1) {
+		cpumask_clear_cpu(apu_id, tracing_buffer_mask);
+		cpumask_clear_cpu(apu_id, global_trace.tracing_cpumask);
+	}
+#endif
 
 	raw_spin_lock_init(&global_trace.start_lock);
 
