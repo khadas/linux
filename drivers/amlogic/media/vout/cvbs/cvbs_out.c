@@ -1085,6 +1085,7 @@ enum {
 	CMD_HELP,
 
 	CMD_SVA_VALUE,
+	CMD_DISPLAY_ON_OFF,
 
 	CMD_MAX
 } debug_cmd_t;
@@ -1174,6 +1175,8 @@ static void cvbs_debug_store(const char *buf)
 	} else if (!strncmp(argv[0], "cvbs_sva", strlen("cvbs_sva"))) {
 		pr_info("config ccitt033 SVA standard test value\n");
 		cmd = CMD_SVA_VALUE;
+	} else if (!strncmp(argv[0], "cvbs_display", strlen("cvbs_display"))) {
+		cmd = CMD_DISPLAY_ON_OFF;
 	} else if (!strncmp(argv[0], "help", strlen("help"))) {
 		cmd = CMD_HELP;
 	} else if (!strncmp(argv[0], "cvbs_ver", strlen("cvbs_ver"))) {
@@ -1389,6 +1392,24 @@ static void cvbs_debug_store(const char *buf)
 			i++;
 		}
 		cvbs_log_info("%s\n", __func__);
+		break;
+	}
+	case CMD_DISPLAY_ON_OFF: {
+		if (argc != 2) {
+			pr_info("[%s] param not match\n", __func__);
+			goto DEBUG_END;
+		}
+		if (!cvbs_drv || !(cvbs_drv->vinfo)) {
+			pr_info("[%s] cvbs_drv or cvbs_drv->vinfo is null\n", __func__);
+			goto DEBUG_END;
+		}
+
+		ret = kstrtoul(argv[1], 10, &value);
+		if (value)
+			cvbs_set_current_vmode(cvbs_drv->vinfo->mode, NULL);
+		else
+			cvbs_module_disable(cvbs_drv->vinfo->mode, NULL);
+
 		break;
 	}
 	case CMD_HELP:

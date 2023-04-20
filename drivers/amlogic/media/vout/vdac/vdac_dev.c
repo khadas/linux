@@ -768,6 +768,7 @@ static ssize_t vdac_debug_store(struct class *class,
 	char *buf_orig;
 	char *parm[3] = {NULL};
 	unsigned int reg_val;
+	unsigned int tmp = 1;
 
 	if (!s_vdac_data) {
 		pr_info("vdac data is null\n");
@@ -793,6 +794,16 @@ static ssize_t vdac_debug_store(struct class *class,
 				&s_vdac_data->cdac_disable) < 0)
 				goto vdac_store_err;
 		}
+		pr_info("cdac_disable:%d\n", s_vdac_data->cdac_disable);
+	} else if (!strcmp(parm[0], "av_display")) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &tmp) < 0)
+				goto vdac_store_err;
+		}
+		if (tmp)
+			vdac_enable(1, VDAC_MODULE_CVBS_OUT);
+		else
+			vdac_enable(0, VDAC_MODULE_CVBS_OUT);
 		pr_info("cdac_disable:%d\n", s_vdac_data->cdac_disable);
 	} else if (!strcmp(parm[0], "w")) {
 		if (parm[1] && parm[2]) {
