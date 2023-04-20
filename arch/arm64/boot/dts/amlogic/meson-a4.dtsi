@@ -1401,7 +1401,8 @@
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1";
 			mmc_debug_flag;
-			//use_intf3_tuning;
+			sdr_core_phase = <3>;
+			use_intf3_tuning;
 			//resets = <&reset RESET_SD_EMMC_A>;
 		};
 
