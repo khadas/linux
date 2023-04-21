@@ -58,7 +58,7 @@ static unsigned int avin_detect_flag;
 static unsigned int dc_level_adj = 4;
 
 /*0:635mv; 1:686mv; 2:733mv; 3:776mv; 4:816mv; 5:853mv; 6:887mv; 7:919mv*/
-static unsigned int comp_level_adj;
+static unsigned int comp_level_adj = 3;
 
 /*0:use internal VDC to bias CVBS_in*/
 /*1:use ground to bias CVBS_in*/
@@ -227,6 +227,8 @@ static int tvafe_avin_dts_parse(struct platform_device *pdev)
 		av_dev->function_select = value;
 		tvafe_pr_info("function_select:0x%x\n", av_dev->function_select);
 	}
+	/* default open black field detect for white level detect */
+	av_dev->function_select |= AVIN_FUNCTION_WHITE0;
 
 	return 0;
 get_avin_param_failed:
@@ -697,6 +699,7 @@ static void tvafe_avin_detect_state(struct tvafe_avin_det_s *av_dev)
 	tvafe_pr_info("device_num: %d\n", av_dev->device_num);
 	tvafe_pr_info("\t*****dts param*****\n");
 	tvafe_pr_info("device_mask: %d\n", av_dev->dts_param.device_mask);
+	tvafe_pr_info("function_select: %#x\n", av_dev->function_select);
 	tvafe_pr_info("irq0: %d\n", av_dev->dts_param.irq[0]);
 	tvafe_pr_info("irq1: %d\n", av_dev->dts_param.irq[1]);
 	tvafe_pr_info("irq_counter[0]: 0x%x\n", av_dev->irq_counter[0]);

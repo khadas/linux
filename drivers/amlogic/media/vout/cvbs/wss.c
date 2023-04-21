@@ -71,8 +71,13 @@ static void wss_set_output(unsigned int cmd, unsigned int mode,
 		break;
 	case WSS_576I_CMD_MVSN:
 	case WSS_480I_CMD_MVSN:
-		cvbs_out_reg_setb(ENCI_VIDEO_MODE_ADV, 1, 15, 1);
-		cvbs_out_reg_write(ENCI_MACV_N0, 0x3e);
+		if (!data) {
+			cvbs_out_reg_setb(ENCI_VIDEO_MODE_ADV, 0, 15, 1);
+			cvbs_out_reg_write(ENCI_MACV_N0, 0x0);
+		} else {
+			cvbs_out_reg_setb(ENCI_VIDEO_MODE_ADV, 1, 15, 1);
+			cvbs_out_reg_write(ENCI_MACV_N0, 0x3e);
+		}
 		break;
 	case WSS_576I_CMD_CGMS_A:
 	default:
