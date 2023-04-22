@@ -979,6 +979,73 @@ static int event_qurey_state(struct dimn_itf_s *itf)
 }
 #endif /* DIM_PLINK_ENABLE_CREATE */
 
+static struct vframe_s *in_patch_first_buffer(struct dimn_itf_s *itf)
+{
+	unsigned int cnt;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_nins_s *ins;
+	bool ret;
+	unsigned int qt_in;
+	unsigned int bindex;
+	struct di_ch_s *pch;
+	struct vframe_s *vf = NULL;
+
+	if (!itf)
+		return NULL;
+
+	if (itf->bind_ch >= DI_CHANNEL_MAX) {
+		PR_ERR("%s:ch[%d] overflow\n", __func__, itf->bind_ch);
+		return NULL;
+	}
+	pch = get_chdata(itf->bind_ch);
+
+	if (!pch) {
+		PR_ERR("%s:no pch:id[%d]\n", __func__, itf->bind_ch);
+		return NULL;
+	}
+	pbufq = &pch->nin_qb;
+
+	qt_in = QBF_NINS_Q_CHECK;
+
+	cnt = nins_cnt(pch, qt_in);
+
+	if (!cnt)
+		return NULL;
+
+	ret = qbuf_out(pbufq, qt_in, &bindex);
+	if (!ret) {
+		PR_ERR("%s:1:%d:can't get out\n", __func__, bindex);
+		return NULL;
+	}
+	if (bindex >= DIM_NINS_NUB) {
+		PR_ERR("%s:2:%d\n", __func__, bindex);
+		return NULL;
+	}
+	q_buf = pbufq->pbuf[bindex];
+	ins = (struct dim_nins_s *)q_buf.qbc;
+	vf = (struct vframe_s *)ins->c.ori;
+	if (!vf) {
+		ins->c.vfm_cp.decontour_pre = NULL;
+		memset(&ins->c, 0, sizeof(ins->c));
+		qbuf_in(pbufq, QBF_NINS_Q_IDLE, bindex);
+		PR_ERR("%s:3:%d\n", __func__, bindex);
+		return NULL;
+	}
+	vf->di_flag = 0;
+	vf->di_flag |= DI_FLAG_DI_GET;
+	if (ins->c.vfm_cp.decontour_pre)
+		vf->decontour_pre = ins->c.vfm_cp.decontour_pre;
+	else
+		vf->decontour_pre = NULL;
+	ins->c.vfm_cp.decontour_pre = NULL;
+	memset(&ins->c, 0, sizeof(ins->c));
+	qbuf_in(pbufq, QBF_NINS_Q_IDLE, bindex);
+	itf->c.sum_pre_get++;
+	dim_print("%s:%px cnt:%d\n", __func__, vf, itf->c.sum_pre_get);
+	return vf;
+}
+
 struct vframe_s *in_vf_get(struct dimn_itf_s *itf)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_VFM
@@ -5490,14 +5557,18 @@ static bool vf_m_in(struct dimn_itf_s *itf)
 	}
 
 	for (i = 0; i < (DIM_K_VFM_IN_LIMIT - in_nub); i++) {
-		vf = in_vf_peek(itf);
-		if (!vf)
-			break;
 #ifdef pre_dbg_is_run
 		if (!pre_dbg_is_run(itf->bind_ch)) //p_pause
 			break;
 #endif
-		vf = in_vf_get(itf);
+		vf = in_patch_first_buffer(itf);
+		if (!vf) {
+			vf = in_vf_peek(itf);
+			if (!vf)
+				break;
+
+			vf = in_vf_get(itf);
+		}
 		if (!vf)
 			break;
 		mvf = (struct vframe_s *)qidle->ops.get(qidle);
