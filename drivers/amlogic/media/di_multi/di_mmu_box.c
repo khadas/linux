@@ -5,6 +5,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mm.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -33,6 +34,7 @@ struct di_mmu_box {//decoder_mmu_box
 #define MAX_KEEP_FRAME 4
 #define START_KEEP_ID 0x9
 #define MAX_KEEP_ID    (INT_MAX - 1)
+#define DDR_8G_SIZE	(0x200000000)//1024 * 1024 * 1024 * 8)
 struct di_mmu_box_mgr {//decoder_mmu_box_mgr
 	int num;
 	struct mutex mutex; /* for mgr */
@@ -185,6 +187,10 @@ int di_mmu_box_alloc_idx(void *handle, int idx, int num_pages,
 			box, idx);
 		return -1;
 	}
+
+	if (get_num_physpages() >= DDR_8G_SIZE / PAGE_SIZE)//for 8g
+		codec_mm_scatter_alloc_flags_config(0, SC_ALLOC_SYS_DMA32);
+
 	mutex_lock(&box->mutex);
 	sc = box->sc_list[idx];
 	if (sc) {
