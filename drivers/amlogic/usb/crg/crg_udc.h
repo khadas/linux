@@ -353,4 +353,14 @@ struct crg_udc_platdata {
 	int num_in_eps;
 };
 
+/*
+ * Test Mode Selectors
+ * See USB 2.0 spec Table 9-7
+ */
+#define USB_TEST_J              1
+#define USB_TEST_K              2
+#define USB_TEST_SE0_NAK        3
+#define USB_TEST_PACKET         4
+#define USB_TEST_FORCE_ENABLE   5
+
 #endif /* __CRG_UDC_H__ */

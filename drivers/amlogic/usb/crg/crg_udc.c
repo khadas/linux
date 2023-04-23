@@ -3319,6 +3319,17 @@ void set_test_mode_cmpl(struct crg_gadget_dev *crg_udc)
 		u32 tmp;
 		struct crg_uccr *uccr = crg_udc->uccr;
 
+		if (crg_udc->controller_type == USB_M31) {
+			if (crg_udc->set_tm == USB_TEST_J ||
+					crg_udc->set_tm == USB_TEST_K) {
+				writel(0x0, crg_udc->phy_reg_addr + 0x848);
+				udelay(9);
+			} else {
+				writel(0x3, crg_udc->phy_reg_addr + 0x848);
+				udelay(9);
+			}
+		}
+
 		tmp = reg_read(&uccr->u2portpmsc);
 		tmp = SETF_VAR(CRG_U3DC_U2PORTPM_TM, tmp, crg_udc->set_tm);
 		reg_write(&uccr->u2portpmsc, tmp);
@@ -4409,6 +4420,9 @@ void amlogic_crg_m31_phy_init(struct crg_gadget_dev *crg_udc)
 	udelay(9);
 
 	writel(0, crg_udc->phy_reg_addr + 0xc);
+	udelay(9);
+
+	writel(0x3, crg_udc->phy_reg_addr + 0x848);
 	udelay(9);
 
 	/* to do */
