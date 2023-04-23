@@ -464,7 +464,7 @@
 
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
-			mclk-fs = <512>;
+			mclk-fs = <64>;
 			//continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
@@ -485,7 +485,7 @@
 							<1>;
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <16>;
-				system-clock-frequency = <256000>;
+				system-clock-frequency = <512000>;
 			};
 			tdmacodec: codec {
 				sound-dai = <&dummy_codec>;
@@ -745,16 +745,20 @@
 		compatible = "amlogic, t5-snd-tdma";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <1>;
-		dai-tdm-lane-slot-mask-out = <1 0>;
+		dai-tdm-lane-slot-mask-out = <0 1>;
 		dai-tdm-clk-sel = <0>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
-		//pinctrl-names = "tdm_pins";
-		//pinctrl-0 = <&tdm_a
-			//&tdm_d0_pins
-			//&tdm_d1_pins
-			//&tdma_clk_pins>;
+
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = <&tdm_a_pins
+			&tdm_d0_pins
+			&tdm_d1_pins
+			&tdma_clk_pins>;
+
+		/*enable default mclk(12.288M), before extern codec start*/
+		//start_clk_enable = <1>;
 
 		status = "okay";
 	};
@@ -1089,6 +1093,26 @@
 }; /* end of audiobus */
 
 &pinctrl_audio {
+	tdm_d0_pins: tdm_d0_pin {
+		mux {
+			groups = "tdm_d0";
+			function = "tdmouta_lane1";
+		};
+	};
+
+	tdm_d1_pins: tdm_d1_pin {
+		mux {
+			groups = "tdm_d1";
+			function = "tdmina_lane0";
+		};
+	};
+	tdma_clk_pins: tdma_clk_pin {
+		mux {
+			groups = "tdm_sclk0", "tdm_lrclk0";
+			function = "tdm_clk_outa";
+		};
+	};
+
 	mclk_2_pins: mclk_2_pin {
 		mux { /* GPIOZ_6 */
 			groups = "mclk2";
@@ -1119,6 +1143,16 @@
 };
 
 &periphs_pinctrl {
+	tdm_a_pins: tdm_a_pin {
+		mux { /* GPIOX_11, GPIOX_10, GPIOX_8, GPIOX_9 */
+			groups = "tdm_sclk0",
+				"tdm_fs0",
+				"tdm_d0",
+				"tdm_d1";
+			function = "tdm";
+		};
+	};
+
 	tdm_b_pins: tdm_b_pin {
 		mux { /* GPIOX_11, GPIOX_10, GPIOX_9, GPIOX_8 */
 			groups = "tdm_sclk2",
