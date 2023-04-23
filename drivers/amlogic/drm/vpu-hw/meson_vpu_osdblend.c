@@ -22,7 +22,7 @@ MODULE_PARM_DESC(align_proc, "align_proc");
 #define BLEND_DOUT_DEF_HSIZE 3840
 #define BLEND_DOUT_DEF_VSIZE 2160
 
-static int osd_enable[MESON_MAX_OSDS];
+static int osd_enable[MESON_MAX_OSDS] = {1, 0, 1, 0};
 
 static struct osdblend_reg_s osdblend_reg = {
 	VIU_OSD_BLEND_CTRL,
