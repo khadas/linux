@@ -4189,26 +4189,23 @@ static void fb_def_var_set_spec(int index,int xres,int yres,int xres_virtual,int
 
 static void fb_var_set_process(int index)
 {
-
-  printk(" fb_var_set_process \n");
-  if(recovery_flag != 1){
-    printk("not recovery mode set \n");
-        fb_def_var_set(index);
-
-  } else if(recovery_flag == 1&&strncmp(lcd_exist_propname, "1", 1) != 0&&strncmp(hdmichecksum_propname, "0x00000000", 10)!=0){
-    printk("recovery mode lcd not exist hdmi insert \n");
-    fb_def_var_set_spec(index,1920,1080,1920,2160,32);
-
-  } else if(recovery_flag == 1&&strncmp(lcd_exist_propname, "1", 1) == 0&&strncmp(hdmichecksum_propname, "0x00000000", 10)==0){
-
-    printk("recovery mode lcd exist hdmi not insert\n");
-    fb_def_var_set_spec(index,1080,1920,1080,3840,32);
-
-  }
+	printk(" fb_var_set_process \n");
+	if(recovery_flag != 1) {
+		printk("not recovery mode set \n");
+		fb_def_var_set(index);
+	} else if(recovery_flag == 1&&strncmp(lcd_exist_propname, "1", 1) != 0&&strncmp(hdmichecksum_propname, "0x00000000", 10)!=0) {
+		printk("recovery mode lcd not exist hdmi insert \n");
+		fb_def_var_set_spec(index,1920,1080,1920,2160,32);
+	} else if(recovery_flag == 1&&strncmp(lcd_exist_propname, "1", 1) == 0&&strncmp(hdmichecksum_propname, "0x00000000", 10)==0) {
+		printk("recovery mode lcd exist hdmi not insert\n");
+		if (strstr(saved_command_line, "khadas_mipi_id=2")) {
+			fb_def_var_set_spec(index,1920,1200,1920,2400,32);//TS101
+		}
+		if (strstr(saved_command_line, "khadas_mipi_id=1") || strstr(saved_command_line, "khadas_mipi_id=3")) {
+			fb_def_var_set_spec(index,1080,1920,1080,3840,32);//old_TS050 or new_TS050
+		}
+	}
 }
-
-
-
 
 static int osd_probe(struct platform_device *pdev)
 {
