@@ -6143,7 +6143,7 @@ void proc_vd_vsc_phase_per_vsync(struct video_layer_s *layer,
 			}
 			vd_vsc_phase_ctrl_val |=
 				(vpp_filter->vpp_vert_coeff[0] == 2) ? 1 : 0 << 17;
-			save_pps_data(get_slice_num(layer_id), vd_vsc_phase_ctrl_val);
+			save_pps_data(i, vd_vsc_phase_ctrl_val);
 		}
 
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits

@@ -9163,6 +9163,8 @@ void save_pps_data(int slice, u32 vd_vsc_phase_ctrl_val)
 {
 	struct vd_pps_val_s *vd_pps_val_save = NULL;
 
+	if (slice >= SLICE_NUM)
+		return;
 	vd_pps_val_save = &vd_pps_val[slice];
 	vd_pps_val_save->vd_vsc_phase_ctrl_val = vd_vsc_phase_ctrl_val;
 }
