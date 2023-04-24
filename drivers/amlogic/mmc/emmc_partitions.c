@@ -418,7 +418,7 @@ ssize_t mmc_dtb_write(struct file *file,
 
 	ret = copy_from_user(dtb_ptr, buf, write_size);
 
-	cnt = write_size >> bit;
+	cnt = round_up(write_size, DTB_BLK_SIZE) >> bit;
 	dst = dtb_ptr;
 	mmc_claim_host(card_dtb->host);
 	aml_disable_mmc_cqe(card_dtb);
