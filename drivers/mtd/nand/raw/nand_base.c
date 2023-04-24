@@ -963,6 +963,10 @@ int nand_choose_best_sdr_timings(struct nand_chip *chip,
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_MTD_NAND)
+EXPORT_SYMBOL_GPL(nand_choose_best_sdr_timings);
+#endif
+
 /**
  * nand_choose_best_nvddr_timings - Pick up the best NVDDR timings that both the
  *                                  NAND controller and the NAND chip support
@@ -5151,7 +5155,9 @@ ident_done:
 		chip->options |= NAND_ROW_ADDR_3;
 
 	chip->badblockbits = 8;
-
+#if IS_ENABLED(CONFIG_AMLOGIC_MTD_NAND)
+	chip->type = type;
+#endif
 	nand_legacy_adjust_cmdfunc(chip);
 
 	pr_info("device found, Manufacturer ID: 0x%02x, Chip ID: 0x%02x\n",
