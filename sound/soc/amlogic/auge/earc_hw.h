@@ -287,8 +287,7 @@ void earctx_dmac_init(struct regmap *top_map,
 		      struct regmap *dmac_map,
 		      int earc_spdifout_lane_mask,
 		      unsigned int chmask,
-		      unsigned int swap_masks,
-		      bool mute);
+		      unsigned int swap_masks);
 void earctx_dmac_set_format(struct regmap *dmac_map,
 			    int frddr_idx, int msb, int frddr_type);
 int earctx_get_cs_iec958(struct regmap *dmac_map);
@@ -314,7 +313,8 @@ void earctx_enable(struct regmap *top_map,
 		   struct regmap *dmac_map,
 		   enum audio_coding_types coding_type,
 		   bool enable,
-		   bool rterm_on);
+		   bool rterm_on,
+		   bool mute);
 bool get_earctx_enable(struct regmap *cmdc_map, struct regmap *dmac_map);
 void earcrx_cmdc_get_latency(struct regmap *cmdc_map, u8 *latency);
 void earcrx_cmdc_set_latency(struct regmap *cmdc_map, u8 *latency);

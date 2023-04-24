@@ -684,7 +684,8 @@ static int earc_open(struct snd_pcm_substream *substream)
 				      p_earc->tx_dmac_map,
 				      p_earc->tx_audio_coding_type,
 				      false,
-				      p_earc->chipinfo->rterm_on);
+				      p_earc->chipinfo->rterm_on,
+					  p_earc->tx_mute);
 		}
 
 		p_earc->fddr = aml_audio_register_frddr(dev,
@@ -864,8 +865,7 @@ static int earc_dai_prepare(struct snd_pcm_substream *substream,
 				 p_earc->tx_dmac_map,
 				 p_earc->chipinfo->earc_spdifout_lane_mask,
 				 3,
-				 0x10,
-				 p_earc->tx_mute);
+				 0x10);
 		earctx_dmac_set_format(p_earc->tx_dmac_map,
 				       fr->fifo_id,
 				       bit_depth - 1,
@@ -1091,8 +1091,7 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 			 s_earc->tx_dmac_map,
 			 s_earc->chipinfo->earc_spdifout_lane_mask,
 			 chmask,
-			 swap_masks,
-			 s_earc->tx_mute);
+			 swap_masks);
 	earctx_dmac_set_format(s_earc->tx_dmac_map,
 			       fr->fifo_id,
 			       bit_depth - 1,
@@ -1116,7 +1115,8 @@ void aml_earctx_enable(bool enable)
 			s_earc->tx_dmac_map,
 			s_earc->tx_audio_coding_type,
 			enable,
-			s_earc->chipinfo->rterm_on);
+			s_earc->chipinfo->rterm_on,
+			s_earc->tx_mute);
 	}
 	spin_unlock_irqrestore(&s_earc->tx_lock, flags);
 }
@@ -1139,7 +1139,8 @@ static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				      p_earc->tx_dmac_map,
 				      p_earc->tx_audio_coding_type,
 				      true,
-				      p_earc->chipinfo->rterm_on);
+				      p_earc->chipinfo->rterm_on,
+					  p_earc->tx_mute);
 		} else {
 			dev_info(substream->pcm->card->dev, "eARC/ARC RX enable\n");
 
@@ -1160,7 +1161,8 @@ static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				      p_earc->tx_dmac_map,
 				      p_earc->tx_audio_coding_type,
 				      false,
-				      p_earc->chipinfo->rterm_on);
+				      p_earc->chipinfo->rterm_on,
+					  p_earc->tx_mute);
 			aml_frddr_enable(p_earc->fddr, false);
 		} else {
 			dev_info(substream->pcm->card->dev, "eARC/ARC RX disable\n");
