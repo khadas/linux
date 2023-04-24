@@ -122,7 +122,7 @@ u32 dewarp_load_flag; /*0 dynamic load, 1 load bin file*/
 #define to_dst_buf(vf)	\
 	container_of(vf, struct dst_buf_t, frame)
 
-static void vd_dump_afbc_vf(u8 *data_y, u8 *data_uv, struct vframe_s *vf)
+static void vd_dump_afbc_vf(u8 *data_y, u8 *data_uv, struct vframe_s *vf, int flag)
 {
 	struct file *fp = NULL;
 	char name_buf[32];
@@ -133,7 +133,12 @@ static void vd_dump_afbc_vf(u8 *data_y, u8 *data_uv, struct vframe_s *vf)
 	if (!vf)
 		return;
 
-	snprintf(name_buf, sizeof(name_buf), "/sdcard/dst_afbc_vframe.yuv");
+	/*use flag to distinguish src and dst vframe*/
+	if (flag == 0)
+		snprintf(name_buf, sizeof(name_buf), "/sdcard/src_afbc_vframe.yuv");
+	else
+		snprintf(name_buf, sizeof(name_buf), "/sdcard/dst_afbc_vframe.yuv");
+
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 	if (IS_ERR(fp))
 		return;
@@ -211,7 +216,7 @@ static void vd_dump_vf(struct vframe_s *vf)
 	filp_close(fp, NULL);
 }
 
-static int vd_vframe_afbc_soft_decode(struct vframe_s *vf)
+static int vd_vframe_afbc_soft_decode(struct vframe_s *vf, int flag)
 {
 	int i, j, ret, y_size, free_cnt;
 	short *planes[4];
@@ -312,7 +317,7 @@ static int vd_vframe_afbc_soft_decode(struct vframe_s *vf)
 
 	y_dst = p;
 	vu_dst = p + vf->compWidth * vf->compHeight;
-	vd_dump_afbc_vf(y_dst, vu_dst, vf);
+	vd_dump_afbc_vf(y_dst, vu_dst, vf, flag);
 	vfree(p);
 	for (i = 0; i < free_cnt; i++)
 		vfree(planes[i]);
@@ -327,7 +332,7 @@ free:
 void ext_controls(void)
 {
 	if (current_display_vf->type & VIDTYPE_COMPRESS) {
-		vd_vframe_afbc_soft_decode(current_display_vf);
+		vd_vframe_afbc_soft_decode(current_display_vf, 1);
 	} else {
 		vd_dump_vf(current_display_vf);
 	}
@@ -1790,35 +1795,6 @@ static void dump_vf(int vc_index, struct vframe_s *vf, int flag)
 	filp_close(fp, NULL);
 }
 
-static void dump_fbc_out_data(ulong addr, u32 data_size)
-{
-	struct file *fp = NULL;
-	mm_segment_t fs;
-	loff_t pos;
-	u8 *virt_addr = NULL;
-
-	pr_info("%s: addr is 0x%lx.\n", __func__, addr);
-	fp = filp_open("/data/fbc_out.bin", O_CREAT | O_RDWR, 0644);
-	if (IS_ERR(fp))
-		return;
-
-	virt_addr = codec_mm_phys_to_virt(addr);
-	if (IS_ERR_OR_NULL(virt_addr)) {
-		pr_info("%s: vmap failed.\n", __func__);
-		return;
-	}
-
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-	pos = fp->f_pos;
-	vfs_write(fp, virt_addr, data_size, &pos);
-	fp->f_pos = pos;
-	vfs_fsync(fp, 0);
-	pr_info("%s: read %u size from addr:%p\n", __func__, data_size, virt_addr);
-	set_fs(fs);
-	filp_close(fp, NULL);
-}
-
 static bool check_dewarp_support_status(struct composer_dev *dev,
 	struct received_frames_t *received_frames)
 {
@@ -2740,13 +2716,16 @@ static void vframe_composer(struct composer_dev *dev)
 	dev->fake_vf = *dev->last_dst_vf;
 
 	if (dump_vframe != dev->vframe_dump_flag) {
-		dump_vf(dev->index, scr_vf, 0);
-		dump_vf(dev->index, dst_vf, 1);
-		if (fbcout_en && dev->dev_choice == COMPOSER_WITH_VICP) {
-			dump_fbc_out_data(dst_buf->afbc_head_addr, dst_buf->afbc_head_size);
-			dump_fbc_out_data(dst_buf->afbc_body_addr, dst_buf->afbc_body_size);
-			dump_fbc_out_data(dst_buf->afbc_table_addr, dst_buf->afbc_table_size);
-		}
+		if (scr_vf->type & VIDTYPE_COMPRESS)
+			vd_vframe_afbc_soft_decode(scr_vf, 0);
+		else
+			dump_vf(dev->index, scr_vf, 0);
+
+		if (dst_vf->type & VIDTYPE_COMPRESS)
+			vd_vframe_afbc_soft_decode(dst_vf, 1);
+		else
+			dump_vf(dev->index, dst_vf, 1);
+
 		dev->vframe_dump_flag = dump_vframe;
 	}
 	if (!kfifo_put(&dev->ready_q, (const struct vframe_s *)dst_vf))
