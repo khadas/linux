@@ -2608,7 +2608,7 @@
 		/* after sc2 */
 		reset-names = "rdma";
 		resets = <&reset RESET_RDMA>;
-		rdma_table_page_count = <16>;
+		rdma_table_page_count = <20>;
 	};
 
 	dsc: dsc {
