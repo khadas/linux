@@ -122,7 +122,7 @@ void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry, u32 buffer_id)
 		cfg.b.remap_flag = 0;
 		cfg.b.buffer_id = buffer_id;
 		cfg.b.on_off = 0;
-		cfg.b.mode = MODE_WRITE;
+		cfg.b.mode = MODE_TURN_OFF;
 		cfg.b.ap_pending = 1;
 	} else {
 		data.b.pid_mask = pid_mask;
