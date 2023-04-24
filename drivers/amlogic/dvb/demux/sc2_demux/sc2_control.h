@@ -73,7 +73,8 @@ enum DEMOD_TSIN_SEL_E {
 /*****************************************************/
 unsigned int tsout_get_ready(void);
 void tsout_config_sid_table(u32 sid, u32 begin, u32 length);
-void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry, u32 buffer_id);
+void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry,
+			u32 buffer_id, int sid, int sec_level);
 void tsout_config_es_table(u32 es_entry, int pid,
 			   u32 sid, u32 reset, u32 dup_ok, u8 fmt);
 void tsout_config_pcr_table(u32 pcr_entry, u32 pcr_pid, u32 sid);
@@ -119,7 +120,9 @@ unsigned int rdma_get_cfg_fifo(void);
 void wdma_clean(u8 chan_id);
 //void wdma_config_enable(u8 chan_id, int enable,
 void wdma_config_enable(struct chan_id *pchan, int enable,
-			unsigned int desc, unsigned int total_size);
+			unsigned int desc, unsigned int total_size,
+			int sid, int pid, int sec_level);
+
 void wdam_config_ready(u8 chan_id);
 unsigned int wdma_get_wptr(u8 chan_id);
 unsigned int wdma_get_wcmdcnt(u8 chan_id);

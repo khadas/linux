@@ -20,6 +20,9 @@
 
 #include <linux/amlogic/tee_demux.h>
 
+#define INVALID_PID 0x1FFF
+#define INVALID_SID 0x3f
+
 enum es_on_off {
 	EST_OFF = 0,
 	EST_SAVE_TS = 1,
@@ -86,7 +89,8 @@ void tsout_config_sid_table(u32 sid, u32 begin, u32 length)
 	WRITE_CBUS_REG(sid_addr, data);
 }
 
-static void tee_tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry, u32 buffer_id)
+static void tee_tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry,
+			   u32 buffer_id, int sid, int sec_level)
 {
 	struct tee_dmx_ts_table_param param = {0};
 	int ret = -1;
@@ -99,12 +103,21 @@ static void tee_tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry, u32 
 	param.pid_entry = pid_entry;
 	param.buffer_id = buffer_id;
 
+	if (sec_level != 0)
+		param.sid = sid;
+	else
+		param.sid = INVALID_SID;
+
+	pr_dbg("%s, TEE sid:0x%0x, sec_level:%d\n",
+	       __func__, param.sid, sec_level);
+
 	ret = tee_demux_set(TEE_DMX_SET_TS_TABLE,
 			(void *)&param, sizeof(param));
 	pr_dbg("[demux] %s ret:%d\n", __func__, ret);
 }
 
-void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry, u32 buffer_id)
+void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry,
+			   u32 buffer_id, int sid, int sec_level)
 {
 	union PID_CFG_FIELD cfg;
 	union PID_DATA_FIELD data;
@@ -113,7 +126,8 @@ void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry, u32 buffer_id)
 	       __func__, pid, pid_mask, pid_entry, buffer_id);
 
 	if (is_security_dmx == TEE_DMX_ENABLE)
-		return tee_tsout_config_ts_table(pid, pid_mask, pid_entry, buffer_id);
+		return tee_tsout_config_ts_table(pid, pid_mask, pid_entry,
+			buffer_id, sid, sec_level);
 
 	cfg.data = 0;
 	data.data = 0;
@@ -615,7 +629,8 @@ void wdam_config_ready(u8 chan_id)
 
 //void wdma_config_enable(u8 chan_id, int enable,
 void wdma_config_enable(struct chan_id *pchan, int enable,
-			unsigned int desc, unsigned int total_size)
+			unsigned int desc, unsigned int total_size,
+			int sid, int pid, int sec_level)
 {
 	int times = 0;
 	unsigned int cnt = 0;
@@ -628,23 +643,31 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 
 		wdma_clean(pchan->id);
 
-		param.address = pchan->memdescs->bits.address;
-		param.len = pchan->memdescs->bits.byte_length;
-		param.buffer_id = pchan->id;
+		if (is_security_dmx == TEE_DMX_ENABLE) {
+			memcpy(&param.desc, pchan->memdescs, sizeof(union mem_desc));
+			param.buffer_id = pchan->id;
+			param.pid = pid;
+			if (sec_level != 0)
+				param.sid = sid;
+			else
+				param.sid = INVALID_SID;
 
-		if (is_security_dmx == TEE_DMX_ENABLE)
+			pr_dbg("[demux] %s sid:0x%x pid:0x%x sec_level:%d\n",
+				__func__, param.sid, param.pid, sec_level);
+
 			ret = tee_demux_set(TEE_DMX_SET_DMA_DESC,
 					(void *)&param, sizeof(param));
-		pr_dbg("[demux] %s ret:%d\n", __func__, ret);
+			pr_dbg("[demux] %s ret:%d\n", __func__, ret);
+		} else {
+			WRITE_CBUS_REG(TS_DMA_WCH_ADDR(pchan->id), desc);
+			WRITE_CBUS_REG(TS_DMA_WCH_LEN(pchan->id), total_size);
 
-		WRITE_CBUS_REG(TS_DMA_WCH_ADDR(pchan->id), desc);
-		WRITE_CBUS_REG(TS_DMA_WCH_LEN(pchan->id), total_size);
-
-		pr_dbg("%s, output address:0x%x, len:%d\n", __func__,
-				pchan->memdescs->bits.address,
-				pchan->memdescs->bits.byte_length);
-		pr_dbg("%s desc:0x%0x\n", __func__, desc);
-		pr_dbg("%s total_size:0x%0x\n", __func__, total_size);
+			pr_dbg("%s, output address:0x%x, len:%d\n", __func__,
+					pchan->memdescs->bits.address,
+					pchan->memdescs->bits.byte_length);
+			pr_dbg("%s desc:0x%0x\n", __func__, desc);
+			pr_dbg("%s total_size:0x%0x\n", __func__, total_size);
+		}
 	} else {
 //              unsigned int data;
 
@@ -652,17 +675,20 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 //              data |= (1 << WCH_CFG_CLEAR);
 //              WRITE_CBUS_REG(TS_DMA_WCH_CFG(pchan->id), data);
 
-		param.address = 0;
-		param.len = 0;
-		param.buffer_id = pchan->id;
+		if (is_security_dmx == TEE_DMX_ENABLE) {
+			param.desc.bits.address = 0;
+			param.desc.bits.byte_length = 0;
+			param.buffer_id = pchan->id;
+			param.sid = sid;
+			param.pid = INVALID_PID;
 
-		if (is_security_dmx == TEE_DMX_ENABLE)
 			ret = tee_demux_set(TEE_DMX_SET_DMA_DESC,
 					(void *)&param, sizeof(param));
-		pr_dbg("[demux] %s ret:%d\n", __func__, ret);
-
-		WRITE_CBUS_REG(TS_DMA_WCH_ADDR(pchan->id), 0);
-		WRITE_CBUS_REG(TS_DMA_WCH_LEN(pchan->id), 0);
+			pr_dbg("[demux] %s ret:%d\n", __func__, ret);
+		} else {
+			WRITE_CBUS_REG(TS_DMA_WCH_ADDR(pchan->id), 0);
+			WRITE_CBUS_REG(TS_DMA_WCH_LEN(pchan->id), 0);
+		}
 
 		/*if dmx have cmd completed, need delay,
 		 * or clean will cause

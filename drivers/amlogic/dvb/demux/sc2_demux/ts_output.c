@@ -2837,12 +2837,12 @@ int ts_output_close(struct out_elem *pout)
 	}
 
 	if (pout->pchan) {
-		SC2_bufferid_set_enable(pout->pchan, 0);
+		SC2_bufferid_set_enable(pout->pchan, 0, pout->sid, 0x1fff);
 		SC2_bufferid_dealloc(pout->pchan);
 		pout->pchan = NULL;
 	}
 	if (pout->pchan1) {
-		SC2_bufferid_set_enable(pout->pchan1, 0);
+		SC2_bufferid_set_enable(pout->pchan1, 0, pout->sid, 0x1fff);
 		SC2_bufferid_dealloc(pout->pchan1);
 		pout->pchan1 = NULL;
 	}
@@ -2953,7 +2953,7 @@ int ts_output_add_temi_pid(struct out_elem *pout, int pid, int dmx_id,
 		*cb_id = 0;
 
 	if (pout->pchan)
-		SC2_bufferid_set_enable(pout->pchan, 1);
+		SC2_bufferid_set_enable(pout->pchan, 1, pout->sid, pid);
 
 	if (cb_id)
 		*cb_id = dmx_id;
@@ -3010,9 +3010,9 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 		*cb_id = 0;
 
 	if (pout->pchan)
-		SC2_bufferid_set_enable(pout->pchan, 1);
+		SC2_bufferid_set_enable(pout->pchan, 1, pout->sid, pid);
 	if (pout->pchan1)
-		SC2_bufferid_set_enable(pout->pchan1, 1);
+		SC2_bufferid_set_enable(pout->pchan1, 1, pout->sid, pid);
 
 	pr_dbg("%s pout:0x%lx pid:%d, pid_mask:%d\n",
 	       __func__, (unsigned long)pout, pid, pid_mask);
@@ -3124,7 +3124,7 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 		pr_dbg("sid:%d, pid:0x%0x, mask:0x%0x\n",
 				pout->sid, pid_slot->pid, pid_slot->pid_mask);
 		tsout_config_ts_table(pid_slot->pid, pid_slot->pid_mask,
-					pid_slot->id, pout->pchan->id);
+				pid_slot->id, pout->pchan->id, pout->sid, pout->pchan->sec_level);
 	}
 	pout->enable = 1;
 	return 0;
@@ -3180,7 +3180,8 @@ int ts_output_remove_pid(struct out_elem *pout, int pid)
 		}
 		if (cur_pid) {
 			tsout_config_ts_table(-1, cur_pid->pid_mask,
-					      cur_pid->id, pout->pchan->id);
+					      cur_pid->id, pout->pchan->id,
+					      pout->sid, pout->pchan->sec_level);
 			_free_pid_entry_slot(cur_pid);
 		}
 		if (pout->pid_list)
@@ -3901,7 +3902,7 @@ static void update_dvr_sid(struct out_elem *pout, int sid, int dmx_no)
 				dmx_no, pout->sid, pid_slot->pid);
 		/*free slot*/
 		tsout_config_ts_table(-1, pid_slot->pid_mask,
-		      pid_slot->id, pout->pchan->id);
+		      pid_slot->id, pout->pchan->id, pout->sid, pout->pchan->sec_level);
 
 		/*malloc slot and */
 		new_pid_slot = _malloc_pid_entry_slot(pout->sid, pid_slot->pid);
@@ -3928,7 +3929,9 @@ static void update_dvr_sid(struct out_elem *pout, int sid, int dmx_no)
 		tsout_config_ts_table(new_pid_slot->pid,
 			new_pid_slot->pid_mask,
 			new_pid_slot->id,
-			pout->pchan->id);
+			pout->pchan->id,
+			pout->sid,
+			pout->pchan->sec_level);
 
 		_free_pid_entry_slot(pid_slot);
 		pid_slot = pid_slot->pnext;

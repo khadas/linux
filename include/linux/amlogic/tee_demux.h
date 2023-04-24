@@ -25,6 +25,7 @@ struct tee_dmx_ts_table_param {
 	u32 pid_mask;
 	u32 pid_entry;
 	u32 buffer_id;
+	int sid;
 };
 
 struct tee_dmx_sid_table_param {
@@ -73,10 +74,24 @@ struct tee_dmx_pcr_table_param {
 	u32 sid;
 };
 
+union tee_mem_desc {
+	u64 data;
+	struct {
+		u64 byte_length:27;
+		u64 irq:1;
+		u64 eoc:1;
+		u64 loop:1;
+		u64 error:1;
+		u64 owner:1;
+		u64 address:32;
+	} bits;
+};
+
 struct tee_dmx_dma_desc_param {
-	u32 len;
-	u32 address;
+	union tee_mem_desc desc;
 	u32 buffer_id;
+	int pid;
+	int sid;
 };
 
 int tee_demux_set(enum tee_dmx_cmd cmd, void *data, u32 len);

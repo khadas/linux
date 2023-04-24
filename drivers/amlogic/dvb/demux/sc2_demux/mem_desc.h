@@ -108,10 +108,12 @@ int SC2_bufferid_set_sec_mem(struct chan_id *pchan,
  * set enable
  * \param pchan:struct chan_id handle
  * \param enable: 1/0
+ * \param sid: stream id
+ * \param pid: packet id
  * \retval success: 0
  * \retval -1:fail.
  */
-int SC2_bufferid_set_enable(struct chan_id *pchan, int enable);
+int SC2_bufferid_set_enable(struct chan_id *pchan, int enable, int sid, int pid);
 
 /**
  * recv data
