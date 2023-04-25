@@ -9073,6 +9073,8 @@ int amvecm_matrix_process(struct vframe_s *vf,
 				    (vd_path == VD1_PATH &&
 				     (get_source_type(VD1_PATH, vpp_index) == HDRTYPE_HDR10PLUS ||
 				      get_source_type(VD1_PATH, vpp_index) == HDRTYPE_MVC ||
+				      get_source_type(VD1_PATH, vpp_index) == HDRTYPE_CUVA_HDR ||
+				      get_source_type(VD1_PATH, vpp_index) == HDRTYPE_CUVA_HLG ||
 				      ((get_dv_support_info() & 7) != 7) ||
 				      (get_source_type(VD1_PATH, vpp_index) == HDRTYPE_HDR10 &&
 				       !(dv_hdr_policy & 1)) ||
