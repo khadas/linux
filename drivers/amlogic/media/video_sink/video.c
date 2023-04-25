@@ -6922,9 +6922,11 @@ void set_alpha_scpxn(struct video_layer_s *layer,
 			   struct composer_info_t *composer_info)
 {
 	struct pip_alpha_scpxn_s alpha_win;
+	static struct pip_alpha_scpxn_s last_alpha_win;
 	int win_num = 0;
 	int win_en = 0;
-	int i;
+	static int last_alpha_win_en;
+	int i, update = 0;
 
 	memset(&alpha_win, 0, sizeof(struct pip_alpha_scpxn_s));
 
@@ -6938,9 +6940,54 @@ void set_alpha_scpxn(struct video_layer_s *layer,
 		alpha_win.scpxn_end_v[i] = composer_info->axis[i][3];
 		win_en |= 1 << i;
 	}
+	/* check win num first, if changed update */
+	if (last_alpha_win_en != win_en) {
+		update = 1;
+	} else {
+		/* check win set, if changed update */
+		for (i = 0; i < MAX_PIP_WINDOW; i++) {
+			if (alpha_win.scpxn_bgn_h[i] != last_alpha_win.scpxn_bgn_h[i] ||
+				alpha_win.scpxn_end_h[i] != last_alpha_win.scpxn_end_h[i] ||
+				alpha_win.scpxn_bgn_v[i] != last_alpha_win.scpxn_bgn_v[i] ||
+				alpha_win.scpxn_end_v[i] != last_alpha_win.scpxn_end_v[i]) {
+				update = 1;
+				break;
+			}
+		}
+	}
 	layer->alpha_win_en = win_en;
+	last_alpha_win_en = win_en;
 	memcpy(&layer->alpha_win, &alpha_win,
 		sizeof(struct pip_alpha_scpxn_s));
+	memcpy(&last_alpha_win, &alpha_win,
+		sizeof(struct pip_alpha_scpxn_s));
+	if (update) {
+		if (layer->layer_id == 0) {
+			vd_layer[0].property_changed = true;
+		} else if (layer->layer_id == 1) {
+			if (vd_layer[1].vpp_index == VPP0)
+				vd_layer[1].property_changed = true;
+			/* vpp1 case */
+			else if (vd_layer_vpp[0].layer_id == layer->layer_id &&
+				vd_layer_vpp[0].vpp_index == VPP1)
+				vd_layer_vpp[0].property_changed = true;
+			/* vpp2 case */
+			else if (vd_layer_vpp[1].layer_id == layer->layer_id &&
+				vd_layer_vpp[1].vpp_index == VPP2)
+				vd_layer_vpp[1].property_changed = true;
+		} else if (layer->layer_id == 2) {
+			if (vd_layer[2].vpp_index == VPP0)
+				vd_layer[2].property_changed = true;
+			/* vpp1 case */
+			else if (vd_layer_vpp[0].layer_id == layer->layer_id &&
+				vd_layer_vpp[0].vpp_index == VPP1)
+				vd_layer_vpp[0].property_changed = true;
+			/* vpp2 case */
+			else if (vd_layer_vpp[1].layer_id == layer->layer_id &&
+				vd_layer_vpp[1].vpp_index == VPP2)
+				vd_layer_vpp[1].property_changed = true;
+		}
+	}
 }
 
 static void blend_reg_conflict_detect(void)
