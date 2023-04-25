@@ -1688,9 +1688,6 @@ static void bl_on_function(struct aml_bl_drv_s *bdrv)
 	BLPR("%s: bl_step_on_flag=%d, bl_level=%u, state=0x%x\n",
 	     __func__, bdrv->step_on_flag, bdrv->level, bdrv->state);
 
-	bdrv->level_brightness = bl_brightness_level_map(bdrv,
-					bdrv->bldev->props.brightness);
-
 	bdrv->state |= BL_STATE_BL_INIT_ON;
 	switch (bdrv->step_on_flag) {
 	case 1:
