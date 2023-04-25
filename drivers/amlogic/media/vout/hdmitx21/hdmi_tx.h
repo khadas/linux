@@ -92,6 +92,7 @@ void hdmitx_dhdr_send(u8 *body, int max_size);
 void hdmi_vend_infoframe_set(struct hdmi_vendor_infoframe *info);
 void hdmi_vend_infoframe_rawset(u8 *hb, u8 *pb);
 void hdmi_vend_infoframe2_rawset(u8 *hb, u8 *pb);
+int hdmi_vend_infoframe_get(struct hdmitx_dev *hdev, u8 *body);
 void hdmi_avi_infoframe_set(struct hdmi_avi_infoframe *info);
 void hdmi_avi_infoframe_rawset(u8 *hb, u8 *pb);
 void hdmi_spd_infoframe_set(struct hdmi_spd_infoframe *info);

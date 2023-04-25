@@ -308,7 +308,7 @@ static enum hdmi_vic _get_vic_from_vsif(struct hdmitx_dev *hdev)
 	union hdmi_infoframe *infoframe = &hdev->infoframes.vend;
 	struct hdmi_vendor_infoframe *vendor = &infoframe->vendor.hdmi;
 
-	ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	ret = hdmi_vend_infoframe_get(hdev, body);
 	if (ret == -1 || ret == 0)
 		return hdmi4k_vic;
 	ret = hdmi_infoframe_unpack(infoframe, body, sizeof(body));
@@ -392,8 +392,8 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 				hdev->para->cs = HDMI_COLORSPACE_YUV444;
 				hdev->para->cd = COLORDEPTH_24B;
 			}
-			pr_info("hdmitx21: parsing AVI CS%d CD%d VIC%d\n",
-				avi->colorspace, hdev->para->cd, hdev->cur_VIC);
+			pr_info("hdmitx21: parsing AVI CS%d CD%d VIC%d AVI_VIC%d\n",
+				avi->colorspace, hdev->para->cd, hdev->cur_VIC, avi->video_code);
 		}
 		return;
 	}
@@ -1234,6 +1234,21 @@ enum hdmi_tf_type hdmitx21_get_cur_hdr10p_st(void)
 		type = HDMI_HDR10P_DV_VSIF;
 
 	return type;
+}
+
+unsigned int hdmitx21_get_vender_infoframe_ieee(void)
+{
+	unsigned int ieee_code = 0;
+	u8 body[31] = {0};
+
+	if (!hdmitx_vsif_en(body))
+		return 0;
+	/* check Packet type */
+	if (body[0] != 0x81)
+		return 0;
+
+	ieee_code = body[4] | (body[5] << 8) | (body[6] << 16);
+	return ieee_code;
 }
 
 bool hdmitx21_hdr_en(void)
@@ -2746,6 +2761,8 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	data32 |= (0 << 0);
 	hdmitx21_wr_reg(HDMITX_TOP_HPD_FILTER,    data32);
 
+	hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 1, 0, 1);
+	hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 0, 0, 1);
 	//-------------
 	//config video
 	//-------------
@@ -2762,6 +2779,7 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	hdmitx21_set_reg_bits(FRL_LINK_RATE_CONFIG_IVCTX, hdev->frl_rate, 0, 4);
 
 	hdmitx21_wr_reg(SW_RST_IVCTX, 0); // default value
+	hdmitx21_wr_reg(HT_DIG_CTL22_PHY_IVCTX, 0);
 	hdmitx21_wr_reg(CLK_DIV_CNTRL_IVCTX, hdev->frl_rate ? 0 : 1);
 	//hdmitx21_wr_reg(H21TXSB_PKT_PRD_IVCTX, 0x1);
 	//hdmitx21_wr_reg(HOST_CTRL2_IVCTX, 0x80); //INT active high

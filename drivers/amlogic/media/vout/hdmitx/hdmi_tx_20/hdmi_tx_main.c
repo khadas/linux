@@ -1912,8 +1912,6 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 				CSC_RGB_8BIT | CSC_UPDATE_AVI_CS);
 			pr_info("%s: switch back to cs:%d, cd:%d\n",
 				__func__, hdev->para->cs, hdev->para->cd);
-		} else {
-			pr_info("%s: no need switch back to 8bit mode\n", __func__);
 		}
 		spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 		return;

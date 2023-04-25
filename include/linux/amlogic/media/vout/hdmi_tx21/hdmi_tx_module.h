@@ -835,6 +835,7 @@ void vsem_init_cfg(struct hdmitx_dev *hdev);
 enum hdmi_tf_type hdmitx21_get_cur_hdr_st(void);
 enum hdmi_tf_type hdmitx21_get_cur_dv_st(void);
 enum hdmi_tf_type hdmitx21_get_cur_hdr10p_st(void);
+unsigned int hdmitx21_get_vender_infoframe_ieee(void);
 bool hdmitx21_hdr_en(void);
 bool hdmitx21_dv_en(void);
 bool hdmitx21_hdr10p_en(void);

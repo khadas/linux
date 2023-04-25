@@ -56,8 +56,9 @@
 	"V03.02.01.01.04.04.20 [20230210] [EDID] HFR1-69 edid parse EEODB\n" \
 	"V03.02.01.01.04.04.21 [20230225] [BUG] add supplement of output mode protection\n" \
 	"V03.02.01.01.04.04.22 [20230227] [BUG] align upsample and video enable\n" \
-	"V03.02.01.01.04.04.23 [BUG]  fix y422 deep color check" \
-	"V03.02.01.01.04.04.24 [BUG] 480p&576p colorimetry should be 601" \
-	"V03.02.01.01.04.04.25 [NEW] tx21 send emds pkt for cuva"
+	"V03.02.01.01.04.04.23 [BUG]  fix y422 deep color check\n" \
+	"V03.02.01.01.04.04.24 [BUG] 480p&576p colorimetry should be 601\n" \
+	"V03.02.01.01.04.04.25 [NEW] tx21 send emds pkt for cuva\n" \
+	"V03.02.01.01.04.04.26 [COM] add vic to AVI when send vsif\n"
 
 #endif // __HDMI21_VERSION_H__

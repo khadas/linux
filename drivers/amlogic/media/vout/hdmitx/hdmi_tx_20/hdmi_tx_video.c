@@ -1047,7 +1047,7 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 		return;
 	}
 
-	if (hdev->rxcap.dv_info.block_flag == CORRECT ||
+	if (hdev->rxcap.dv_info.block_flag == CORRECT &&
 	    hdev->dv_src_feature == 1) {	   /* For dolby */
 		return;
 	}

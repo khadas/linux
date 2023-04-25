@@ -1672,6 +1672,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 		/* zero hdr10+ VSIF being sent - disable it */
 		pr_info("%s: disable hdr10+ zero vsif\n", __func__);
 		/* hdmi_vend_infoframe_set(NULL); */
+		/* todo, maybe need recover hdmi1.4b_vsif when 4k*/
 		hdmi_vend_infoframe_rawset(NULL, NULL);
 		hdr_status_pos = 0;
 	}
@@ -1683,17 +1684,27 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	 *	1:bt709 0xe:bt2020-10 0x10:smpte-st-2084 0x12:hlg(todo)
 	 */
 	if (data) {
-		hdev->hdr_transfer_feature = (data->features >> 8) & 0xff;
-		hdev->hdr_color_feature = (data->features >> 16) & 0xff;
-		hdev->colormetry = (data->features >> 30) & 0x1;
+		if ((hdev->hdr_transfer_feature !=
+			((data->features >> 8) & 0xff)) ||
+			(hdev->hdr_color_feature !=
+			((data->features >> 16) & 0xff)) ||
+			(hdev->colormetry !=
+			((data->features >> 30) & 0x1))) {
+			hdev->hdr_transfer_feature =
+				(data->features >> 8) & 0xff;
+			hdev->hdr_color_feature =
+				(data->features >> 16) & 0xff;
+			hdev->colormetry =
+				(data->features >> 30) & 0x1;
+			pr_info("%s: tf=%d, cf=%d, colormetry=%d\n",
+				__func__,
+				hdev->hdr_transfer_feature,
+				hdev->hdr_color_feature,
+				hdev->colormetry);
+		}
+	} else {
+		pr_info("%s: disable drm pkt\n", __func__);
 	}
-
-	if (hdr_status_pos != 1 && hdr_status_pos != 3)
-		pr_info("%s: tf=%d, cf=%d, colormetry=%d\n",
-			__func__,
-			hdev->hdr_transfer_feature,
-			hdev->hdr_color_feature,
-			hdev->colormetry);
 	hdr_status_pos = 1;
 	/* if VSIF/DV or VSIF/HDR10P packet is enabled, disable it */
 	if (hdmitx21_dv_en()) {
@@ -1921,6 +1932,12 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 
 	hdev->hdmi_current_eotf_type = type;
 	hdev->hdmi_current_tunnel_mode = tunnel_mode;
+	if (vic == HDMI_95_3840x2160p30_16x9 ||
+		vic == HDMI_94_3840x2160p25_16x9 ||
+		vic == HDMI_93_3840x2160p24_16x9 ||
+		vic == HDMI_98_4096x2160p24_256x135)
+		hdmi_vic_4k_flag = 1;
+
 	/*ver0 and ver1_15 and ver1_12bit with ll= 0 use hdmi 1.4b VSIF*/
 	if (hdev->rxcap.dv_info.ver == 0 ||
 	    (hdev->rxcap.dv_info.ver == 1 &&
@@ -1928,11 +1945,6 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 	    (hdev->rxcap.dv_info.ver == 1 &&
 	    hdev->rxcap.dv_info.length == 0xB &&
 	    hdev->rxcap.dv_info.low_latency == 0)) {
-		if (vic == HDMI_95_3840x2160p30_16x9 ||
-		    vic == HDMI_94_3840x2160p25_16x9 ||
-		    vic == HDMI_93_3840x2160p24_16x9 ||
-		    vic == HDMI_98_4096x2160p24_256x135)
-			hdmi_vic_4k_flag = 1;
 
 		switch (type) {
 		case EOTF_T_DOLBYVISION:
@@ -2101,6 +2113,8 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 				hdmi_avi_infoframe_config(CONF_AVI_CS, HDMI_COLORSPACE_YUV422);
 				hdmi_avi_infoframe_config(CONF_AVI_YQ01, YCC_RANGE_FUL);
 			}
+			if (hdmi_vic_4k_flag)
+				hdmitx21_set_avi_vic(vic);
 		}
 		/*Dolby Vision low-latency case*/
 		else if  (type == EOTF_T_LL_MODE) {
@@ -2132,9 +2146,32 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 				hdmi_avi_infoframe_config(CONF_AVI_CS, HDMI_COLORSPACE_YUV422);
 				hdmi_avi_infoframe_config(CONF_AVI_YQ01, YCC_RANGE_LIM);
 			}
+			/* save vic to AVI when send DV_VSIF*/
+			if (hdmi_vic_4k_flag)
+				hdmitx21_set_avi_vic(vic);
 		} else { /*SDR case*/
-			pr_info("hdmitx: Dolby VSIF, ven_db2[3]) = %d\n", ven_db2[3]);
-			hdmi_vend_infoframe_rawset(ven_hb, db2);
+			if (hdmi_vic_4k_flag) {
+				/* recover HDMI1.4b_VSIF*/
+				ven_hb[2] = 0x5;
+				ven_db1[0] = 0x03;
+				ven_db1[1] = 0x0c;
+				ven_db1[2] = 0x00;
+				ven_db1[3] = 0x20;
+				if (vic == HDMI_95_3840x2160p30_16x9)
+					ven_db1[4] = 0x1;
+				else if (vic == HDMI_94_3840x2160p25_16x9)
+					ven_db1[4] = 0x2;
+				else if (vic == HDMI_93_3840x2160p24_16x9)
+					ven_db1[4] = 0x3;
+				else if (vic == HDMI_98_4096x2160p24_256x135)
+					ven_db1[4] = 0x4;
+				hdmi_vend_infoframe_rawset(ven_hb, db1);
+				/* clear vic from AVI*/
+				hdmitx21_set_avi_vic(0);
+			} else {
+				pr_info("hdmitx: Dolby VSIF, ven_db2[3]) = %d\n", ven_db2[3]);
+				hdmi_vend_infoframe_rawset(ven_hb, db2);
+			}
 			if (signal_sdr) {
 				pr_info("hdmitx: Dolby VSIF, switching signal to SDR\n");
 				update_current_para(hdev);
@@ -2144,7 +2181,8 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 				hdmi_avi_infoframe_config(CONF_AVI_CS, hdev->para->cs);
 				hdmi_avi_infoframe_config(CONF_AVI_Q01, RGB_RANGE_DEFAULT);
 				hdmi_avi_infoframe_config(CONF_AVI_YQ01, YCC_RANGE_LIM);
-				hdmi_avi_infoframe_config(CONF_AVI_BT2020, CLR_AVI_BT2020);/*BT709*/
+				/*BT709*/
+				hdmi_avi_infoframe_config(CONF_AVI_BT2020, CLR_AVI_BT2020);
 				/* re-enable forced game mode if selected by the user */
 				if (hdev->ll_user_set_mode == HDMI_LL_MODE_ENABLE) {
 					pr_info("hdmitx: Dolby VSIF disabled, re-enable forced game mode\n");
@@ -2161,6 +2199,8 @@ static void hdmitx_set_hdr10plus_pkt(u32 flag,
 	struct hdr10plus_para *data)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	u32 vic = hdev->cur_VIC;
+	u32 hdmi_vic_4k_flag = 0;
 	u8 ven_hb[3] = {0x81, 0x01, 0x1b};
 	u8 db[28] = {0x00};
 	u8 *ven_db = &db[1];
@@ -2170,12 +2210,20 @@ static void hdmitx_set_hdr10plus_pkt(u32 flag,
 	hdmi_debug();
 	if (hdev->bist_lock)
 		return;
+	/* save vic to AVI when send HDR10P_VSIF*/
+	if (vic == HDMI_95_3840x2160p30_16x9 ||
+		vic == HDMI_94_3840x2160p25_16x9 ||
+		vic == HDMI_93_3840x2160p24_16x9 ||
+		vic == HDMI_98_4096x2160p24_256x135)
+		hdmi_vic_4k_flag = 1;
 	if (flag == HDR10_PLUS_ZERO_VSIF) {
 		/* needed during hdr10+ to sdr transition */
 		pr_info("%s: zero vsif\n", __func__);
 		hdmi_vend_infoframe_rawset(ven_hb, db);
 		hdmi_avi_infoframe_config(CONF_AVI_BT2020, CLR_AVI_BT2020);
 		hdev->hdr10plus_feature = 0;
+		if (hdmi_vic_4k_flag)
+			hdmitx21_set_avi_vic(vic);
 		hdr_status_pos = 4;
 		return;
 	}
@@ -2228,21 +2276,54 @@ static void hdmitx_set_hdr10plus_pkt(u32 flag,
 
 	hdmi_vend_infoframe_rawset(ven_hb, db);
 	hdmi_avi_infoframe_config(CONF_AVI_BT2020, SET_AVI_BT2020);
+	if (hdmi_vic_4k_flag)
+		hdmitx21_set_avi_vic(vic);
 }
 
 static void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data)
 {
 	unsigned long flags = 0;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	unsigned int vic = hdev->cur_VIC;
+	unsigned int hdmi_vic_4k_flag = 0;
 	unsigned char ven_hb[3] = {0x81, 0x01, 0x1b};
 	unsigned char db[28] = {0x00};
 	unsigned char *ven_db = &db[1];
+	unsigned int ieee_code;
 
 	if (!_check_hdmi_mode())
 		return;
+	if (vic == HDMI_95_3840x2160p30_16x9 ||
+		vic == HDMI_94_3840x2160p25_16x9 ||
+		vic == HDMI_93_3840x2160p24_16x9 ||
+		vic == HDMI_98_4096x2160p24_256x135)
+		hdmi_vic_4k_flag = 1;
 	spin_lock_irqsave(&hdev->edid_spinlock, flags);
 	if (!data) {
-		hdmi_vend_infoframe_rawset(NULL, NULL);
+		ieee_code = hdmitx21_get_vender_infoframe_ieee();
+		if (ieee_code == CUVA_IEEEOUI) {
+			if (hdmi_vic_4k_flag) {
+				ven_hb[2] = 0x5;
+				ven_db[0] = 0x03;
+				ven_db[1] = 0x0c;
+				ven_db[2] = 0x00;
+				ven_db[3] = 0x20;
+				if (vic == HDMI_95_3840x2160p30_16x9)
+					ven_db[4] = 0x1;
+				else if (vic == HDMI_94_3840x2160p25_16x9)
+					ven_db[4] = 0x2;
+				else if (vic == HDMI_93_3840x2160p24_16x9)
+					ven_db[4] = 0x3;
+				else if (vic == HDMI_98_4096x2160p24_256x135)
+					ven_db[4] = 0x4;
+				hdmi_vend_infoframe_rawset(ven_hb, db);
+				hdmitx21_set_avi_vic(0);
+				pr_info("%s: recover hdmi1.4b_vsif\n", __func__);
+			} else {
+				hdmi_vend_infoframe_rawset(NULL, NULL);
+				pr_info("%s: clear vender infoframe\n", __func__);
+			}
+		}
 		spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 		return;
 	}
@@ -2252,6 +2333,8 @@ static void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data)
 	ven_db[3] = data->system_start_code;
 	ven_db[4] = (data->version_code & 0xf) << 4;
 	hdmi_vend_infoframe_rawset(ven_hb, db);
+	if (hdmi_vic_4k_flag)
+		hdmitx21_set_avi_vic(vic);
 	spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 }
 

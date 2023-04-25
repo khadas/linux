@@ -68,7 +68,7 @@ void hdmi_vend_infoframe_set(struct hdmi_vendor_infoframe *info)
  * with  ALLM_Mode = 1(case B2), or should only send Dolby VSIF,
  * not send HF-VSIF(case A)
  */
-/* only used for DV_VSIF / HDMI1.4b_VSIF / HDR10+ VSIF */
+/* only used for DV_VSIF / HDMI1.4b_VSIF / CUVA_VSIF / HDR10+ VSIF */
 void hdmi_vend_infoframe_rawset(u8 *hb, u8 *pb)
 {
 	u8 body[31] = {0};
@@ -125,6 +125,34 @@ void hdmi_vend_infoframe2_rawset(u8 *hb, u8 *pb)
 		 */
 		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, body);
 	}
+}
+
+/* refer DV HDMI 1.4b/2.0/2.1 Transmission
+ * 1.DV source device signals the video-timing
+ * format by using the CTA VICs in its AVI InfoFrame
+ * 2.DV source must not simultaneously transmit
+ * a DV and any form of H14b VSIF, even for the case
+ * of 4Kp24/25/30
+ */
+/* only used for DV_VSIF / CUVA VSIF / HDMI1.4b_VSIF / HDR10+ VSIF */
+int hdmi_vend_infoframe_get(struct hdmitx_dev *hdev, u8 *body)
+{
+	int ret;
+
+	if (!hdev || !body)
+		return 0;
+
+	if (hdev->rxcap.ifdb_present && hdev->rxcap.additional_vsif_num >= 1) {
+		/* dolby cts case93 B1 */
+		ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	} else if (!hdev->rxcap.ifdb_present) {
+		/* dolby cts case92 B2 */
+		ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_VENDOR2, body);
+	} else {
+		/* case89 */
+		ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	}
+	return ret;
 }
 
 void hdmi_avi_infoframe_set(struct hdmi_avi_infoframe *info)

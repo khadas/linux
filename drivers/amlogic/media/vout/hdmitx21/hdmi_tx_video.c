@@ -202,7 +202,7 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 		return;
 	}
 
-	if (hdev->rxcap.dv_info.block_flag == CORRECT ||
+	if (hdev->rxcap.dv_info.block_flag == CORRECT &&
 	    hdev->dv_src_feature == 1) {	   /* For dolby */
 		return;
 	}
@@ -229,7 +229,7 @@ static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 	} else {
 		;
 	}
-	hdmi_vend_infoframe2_rawset(ven_hb, db);
+	hdmi_vend_infoframe_rawset(ven_hb, db);
 }
 
 int hdmi21_set_3d(struct hdmitx_dev *hdev, int type, u32 param)
