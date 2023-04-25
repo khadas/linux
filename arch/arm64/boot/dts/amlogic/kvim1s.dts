@@ -81,7 +81,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1920x1080x4x3 round up 4M align */
-			size = <0x0 0x0000000>;
+			size = <0x0 0x10000000>;
 			alignment = <0x0 0x400000>;
 		};
 		/*di CMA pool */

@@ -426,7 +426,8 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 				 * if not find then select 720p mode as pref mode
 				 */
 				if (!(mode->flags & DRM_MODE_FLAG_INTERLACE) &&
-					((mode->hdisplay == 1920 && mode->vdisplay == 1080) ||
+					((mode->hdisplay == 3840 && mode->vdisplay == 2160) ||
+					(mode->hdisplay == 1920 && mode->vdisplay == 1080) ||
 					(mode->hdisplay == 1280 && mode->vdisplay == 720))) {
 					if (!pref_mode)
 						pref_mode = mode;
