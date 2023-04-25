@@ -593,7 +593,24 @@ static unsigned int _sink_dv_support(const struct vinfo_s *pvinfo)
 		if (!pvinfo->vout_device->dv_info->sup_2160p60hz)
 			return ret;
 	}
-
+	/* for sink not support 120hz*/
+	if (strstr(pvinfo->name, "120hz") ||
+	    strstr(pvinfo->name, "100hz")) {
+		if (!pvinfo->vout_device->dv_info->sup_1080p120hz)
+			return 0;
+	}
+	/* currently all sink not support 4k100/120 and 8k dv */
+	if (strstr(pvinfo->name, "2160p100hz") ||
+	    strstr(pvinfo->name, "2160p120hz") ||
+	    strstr(pvinfo->name, "3840x2160p100hz") ||
+	    strstr(pvinfo->name, "3840x2160p120hz") ||
+	    strstr(pvinfo->name, "7680x4320p")) {
+	    /*in the future, some new flag in vsvdb will be used to judge dv cap*/
+		return 0;
+	}
+	/* for interlace output */
+	if (pvinfo->height != pvinfo->field_height)
+		return 0;
 	if (pvinfo->vout_device->dv_info->ver == 2) {
 		if (pvinfo->vout_device->dv_info->Interface <= 1)
 			ret = 2; /*LL only*/

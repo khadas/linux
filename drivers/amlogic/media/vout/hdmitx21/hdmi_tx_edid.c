@@ -1079,6 +1079,9 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 				dv->tminPQ = dat[pos] >> 3;
 				pos++;
 				dv->Interface = dat[pos] & 0x3;
+				dv->parity = (dat[pos] >> 0x2) & 0x1;
+				/* if parity = 0, then not support > 60hz nor 8k */
+				dv->sup_1080p120hz = dv->parity;
 				dv->tmaxPQ = dat[pos] >> 3;
 				pos++;
 				dv->sup_10b_12b_444 = ((dat[pos] & 0x1) << 1) |
@@ -1099,7 +1102,6 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 				dv->block_flag = ERROR_LENGTH;
 			}
 		}
-
 		if (pos > (dv->length + 1))
 			pr_info("hdmitx: edid: maybe invalid dv%d data\n", dv->ver);
 		return;

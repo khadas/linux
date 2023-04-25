@@ -3976,6 +3976,8 @@ static ssize_t _show_dv_cap(struct device *dev,
 					"  LL_RGB_444_12BIT\n");
 			}
 		}
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"Parity: %d\n", dv->parity);
 	}
 	pos += snprintf(buf + pos, PAGE_SIZE,
 		"IEEEOUI: 0x%06x\n", dv->ieeeoui);

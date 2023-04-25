@@ -3956,6 +3956,12 @@ uint32_t sink_dv_support(const struct vinfo_s *vinfo)
 		if (!vinfo->vout_device->dv_info->sup_2160p60hz)
 			return 0;
 	}
+	/* for sink not support 120hz*/
+	if (strstr(vinfo->name, "120hz") ||
+	    strstr(vinfo->name, "100hz")) {
+		if (!vinfo->vout_device->dv_info->sup_1080p120hz)
+			return 0;
+	}
 	/* currently all sink not support 4k100/120 and 8k dv */
 	if (strstr(vinfo->name, "2160p100hz") ||
 	    strstr(vinfo->name, "2160p120hz") ||
