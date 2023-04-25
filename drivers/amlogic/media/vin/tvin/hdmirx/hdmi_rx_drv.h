@@ -29,8 +29,8 @@
 //2023.03.17
 //fix emp pkt parse err
 //2023.03.18
-//disabled edid response after HPD low
-#define RX_VER0 "ver.2023/03/18"
+//get audio info
+#define RX_VER0 "ver.2023/04/20"
 
 /*print type*/
 #define	LOG_EN		0x01

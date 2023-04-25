@@ -1299,6 +1299,12 @@ void hdmirx_top_irq_en(int en, int lvl)
  */
 void rx_get_aud_info(struct aud_info_s *audio_info)
 {
+	struct packet_info_s *prx = &rx_pkt;
+	struct aud_infoframe_st *pkt =
+		(struct aud_infoframe_st *)&prx->aud_pktinfo;
+
+	u32 tmp = 0;
+
 	/* refer to hdmi spec. CT = 0 */
 	audio_info->coding_type = 0;
 	/* refer to hdmi spec. SS = 0 */
@@ -1306,28 +1312,47 @@ void rx_get_aud_info(struct aud_info_s *audio_info)
 	/* refer to hdmi spec. SF = 0*/
 	audio_info->sample_frequency = 0;
 	if (rx.chip_id >= CHIP_ID_T7) {
-		audio_info->n = hdmirx_rd_top(TOP_ACR_N_STAT);
-		audio_info->cts = hdmirx_rd_top(TOP_ACR_CTS_STAT);
-		audio_info->channel_count = rx.aud_info.channel_count;
-		audio_info->auds_ch_alloc = rx.aud_info.auds_ch_alloc;
+		pkt->pkttype = PKT_TYPE_INFOFRAME_AUD;
+		pkt->version = hdmirx_rd_cor(AUDRX_VERS_DP2_IVCRX);
+		pkt->length = hdmirx_rd_cor(AUDRX_LENGTH_DP2_IVCRX);
+		pkt->checksum = hdmirx_rd_cor(AUDRX_CHSUM_DP2_IVCRX);
+		pkt->rsd = 0;
+		/*get AudioInfo */
+		pkt->coding_type = hdmirx_rd_bits_cor(AUDRX_DBYTE1_DP2_IVCRX, MSK(4, 4));
+		pkt->ch_count = hdmirx_rd_bits_cor(AUDRX_DBYTE1_DP2_IVCRX, MSK(3, 0));
+		pkt->sample_frq = hdmirx_rd_bits_cor(AUDRX_DBYTE2_DP2_IVCRX, MSK(3, 2));
+		pkt->sample_size = hdmirx_rd_bits_cor(AUDRX_DBYTE2_DP2_IVCRX, MSK(2, 0));
+		pkt->fromat = hdmirx_rd_cor(AUDRX_DBYTE3_DP2_IVCRX);
+		pkt->ca = hdmirx_rd_cor(AUDRX_DBYTE4_DP2_IVCRX);
+		pkt->down_mix = hdmirx_rd_bits_cor(AUDRX_DBYTE5_DP2_IVCRX, MSK(7, 6));
+		pkt->level_shift_value =
+			hdmirx_rd_bits_cor(AUDRX_DBYTE5_DP2_IVCRX, MSK(4, 3));
+		pkt->lfep = hdmirx_rd_bits_cor(AUDRX_DBYTE5_DP2_IVCRX, MSK(2, 0));
+		audio_info->channel_count = pkt->ch_count;
+		audio_info->auds_ch_alloc = pkt->ca;
 		audio_info->aud_hbr_rcv =
 			(hdmirx_rd_cor(RX_AUDP_STAT_DP2_IVCRX) >> 6) & 1;
-		if (rx.chip_id >= CHIP_ID_T3) {
-			audio_info->aud_packet_received =
-				hdmirx_rd_top(TOP_MISC_STAT0) >> 16 & 0xff;
-		} else {
-			if (audio_info->aud_hbr_rcv)
-				audio_info->aud_packet_received = 8;
-			else
-				audio_info->aud_packet_received = 1;
-		}
-		audio_info->ch_sts[0] = hdmirx_rd_cor(RX_CHST1_AUD_IVCRX);
-		audio_info->ch_sts[1] = hdmirx_rd_cor(RX_CHST2_AUD_IVCRX);
-		audio_info->ch_sts[2] = hdmirx_rd_cor(RX_CHST3a_AUD_IVCRX);
-		audio_info->ch_sts[3] = hdmirx_rd_cor(RX_CHST4_AUD_IVCRX);
-		audio_info->ch_sts[4] = hdmirx_rd_cor(RX_CHST5_AUD_IVCRX);
-		audio_info->ch_sts[5] = hdmirx_rd_cor(RX_CHST6_AUD_IVCRX);
-		audio_info->ch_sts[6] = hdmirx_rd_cor(RX_CHST7_AUD_IVCRX);
+		audio_info->auds_layout = hdmirx_rd_bits_cor(RX_AUDP_STAT_DP2_IVCRX, MSK(2, 3));
+
+		//if (rx.chip_id >= CHIP_ID_T3X) {
+		tmp = (hdmirx_rd_cor(RX_ACR_DBYTE4_DP2_IVCRX) & 0x0f) << 16;
+		tmp += hdmirx_rd_cor(RX_ACR_DBYTE5_DP2_IVCRX) << 8;
+		tmp += hdmirx_rd_cor(RX_ACR_DBYTE6_DP2_IVCRX);
+		audio_info->n = tmp;
+		tmp = (hdmirx_rd_cor(RX_ACR_DBYTE1_DP2_IVCRX) & 0x0f) << 16;
+		tmp += hdmirx_rd_cor(RX_ACR_DBYTE2_DP2_IVCRX) << 8;
+		tmp += hdmirx_rd_cor(RX_ACR_DBYTE3_DP2_IVCRX);
+			audio_info->cts = tmp;
+		//} else {//todo
+			//audio_info->n = hdmirx_rd_top(TOP_ACR_N_STAT);
+			//audio_info->cts = hdmirx_rd_top(TOP_ACR_CTS_STAT);
+		//}
+
+		//if (rx.chip_id >= CHIP_ID_T3) {
+		if (pkt->length == 10) //aif length is 10
+			audio_info->aud_packet_received = 1;
+		else
+			audio_info->aud_packet_received = 0;
 	} else {
 		audio_info->channel_count =
 			hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CHANNEL_COUNT);
@@ -2538,7 +2563,7 @@ void hdcp22_clk_en(bool en)
 		if (rx.chip_id >= CHIP_ID_TM2)
 			/* Enable axi_clk,for tm2 */
 			/* AXI arbiter is moved outside of hdmitx. */
-			/* There is an AXI arbiter in the chip’s EE domain */
+			/* There is an AXI arbiter in the chip's EE domain */
 			/* for arbitrating AXI requests from HDMI TX and RX.*/
 			hdmirx_wr_bits_top(TOP_CLK_CNTL, MSK(1, 12), 0x1);
 	} else {
@@ -3118,7 +3143,7 @@ void aml_phy_offset_cal(void)
 }
 
 /*
- * rx_clk_rate_monitor - clock ratio monitor
+ * rx_clkrate_monitor - clock ratio monitor
  * detect SCDC tmds clk ratio changes and
  * update phy setting
  */
@@ -3396,7 +3421,7 @@ void rx_esm_reset(int level)
 		 * not miss 2.2 interaction
 		 */
 		/* else */
-			/* rx_esm_tmd_sclk_en(false); */
+			/* rx_esm_tmds_clk_en(false); */
 	} else if (level == 1) {//for open port
 		esm_set_stable(false);
 		esm_set_reset(true);
@@ -3561,8 +3586,8 @@ void cor_init(void)
 	// audio I2S config
 	//------------------
 	data8 = 0;
-	data8 |= (5 << 4);//reg_vres_x_clk_diff
-	data8 |= (0 << 0);//reg_vid_xlckp_clk_en
+	data8 |= (5 << 4);//reg_vres_xclk_diff
+	data8 |= (0 << 0);//reg_vid_xlckpclk_en
 	hdmirx_wr_cor(VID_XPCLK_EN_AUD_IVCRX, data8);//register address: 0x1468 (0x50)
 
 	data8 = 0xc; //[5:0] reg_post_val_sw
@@ -4321,8 +4346,6 @@ void rx_get_video_info(void)
 	rx_get_de_sts();
 	/* interlace */
 	rx_get_interlaced();
-	//ecc
-	//rx_get_ecc_info();
 }
 
 void hdmirx_set_vp_mapping(enum colorspace_e cs)
@@ -4613,7 +4636,7 @@ unsigned int rx_measure_clock(enum measure_clk_src_e clk_src)
 	unsigned int clock = 0;
 
 	/*	from clock measure: txlx_clk_measure
-	 *		cable [x] need read from hdmi_top
+	 *		cable [x] need read from hdmitop
 	 *		tmds clock [25] Hdmirx_tmds_clk
 	 *		pixel clock [29] Hdmirx_pix_clk
 	 *		audio clock	[24] Hdmirx_aud_pll_clk
@@ -5456,7 +5479,7 @@ void rx_emp_to_ddr_init(void)
 		/* enable store EMP pkt type */
 		data32 = 0;
 		if (disable_hdr)
-			data32 |= 0 << 22;/* ddr_store_drm */
+			data32 |= 0 << 22; /* ddr_store_drm */
 		else
 			data32 |= 1 << 22;/* ddr_store_drm */
 		/* ddr_store_aif */
@@ -5912,7 +5935,6 @@ void rx_ddc_active_monitor(void)
 	/*0x0a, 0x15 for hengyi ops-pc. refer to 88378
 	 *0x14 for special spliter. refer to 72949
 	 *0x13 for 8268 refer to 73940
-	 *0x02,0x03 for yi xian splitter
 	 *fix edid filter setting
 	 */
 	if (temp < 0x3f &&
