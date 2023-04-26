@@ -40,7 +40,7 @@
 #include "../../../media/platform/rockchip/cif/dev.h"
 #include "../../../phy/rockchip/phy-rockchip-csi2-dphy-common.h"
 
-#define DRIVER_VERSION		KERNEL_VERSION(0, 0x03, 0x00)
+#define DRIVER_VERSION		KERNEL_VERSION(0, 0x03, 0x02)
 
 static bool flinger_inited;
 static bool TEST_GPIO = true;
@@ -77,15 +77,14 @@ static int vehicle_parse_dt(struct vehicle *vehicle_info)
 	vehicle_info->pinctrl = devm_pinctrl_get(dev);
 
 	if (IS_ERR(vehicle_info->pinctrl)) {
-		dev_err(dev, "pinctrl get failed\n");
-		return PTR_ERR(vehicle_info->pinctrl);
+		dev_err(dev, "pinctrl get failed, maybe unuse\n");
+	} else {
+		vehicle_info->pins_default = pinctrl_lookup_state(vehicle_info->pinctrl,
+				"default");
+
+		if (IS_ERR(vehicle_info->pins_default))
+			dev_err(dev, "get default pinstate failed\n");
 	}
-
-	vehicle_info->pins_default = pinctrl_lookup_state(vehicle_info->pinctrl,
-			"default");
-
-	if (IS_ERR(vehicle_info->pins_default))
-		dev_err(dev, "get default pinstate failed\n");
 
 	return 0;
 }

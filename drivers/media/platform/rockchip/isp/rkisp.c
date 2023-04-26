@@ -43,7 +43,7 @@
 #include <linux/kfifo.h>
 #include <linux/interrupt.h>
 #include <linux/rk-preisp.h>
-#include <linux/rkisp21-config.h>
+#include <linux/rk-isp21-config.h>
 #include <linux/iommu.h>
 #include <media/v4l2-event.h>
 #include <media/media-entity.h>
@@ -3813,7 +3813,17 @@ void rkisp_chk_tb_over(struct rkisp_device *isp_dev)
 	} else {
 		struct rkisp_isp_params_vdev *params_vdev = &isp_dev->params_vdev;
 		void *param = NULL;
-		u32 size = 0, offset = 0;
+		u32 size = 0, offset = 0, timeout = 50;
+
+		/* wait for all isp dev to register */
+		if (head->camera_num > 1) {
+			while (timeout--) {
+				if (hw->dev_num >= head->camera_num &&
+				    hw->isp[hw->dev_num - 1]->is_probe_end)
+					break;
+				usleep_range(200, 210);
+			}
+		}
 
 		switch (isp_dev->isp_ver) {
 		case ISP_V32:

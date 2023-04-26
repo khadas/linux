@@ -2378,7 +2378,7 @@
 			<850000000>, <1188000000>,
 			<702000000>,
 			<400000000>, <500000000>,
-			<800000000>, <100000000>,
+			<750000000>, <100000000>,
 			<400000000>, <100000000>,
 			<200000000>,
 			<375000000>, <150000000>,
@@ -2416,6 +2416,7 @@
 	pwm0: pwm@fd8b0000 {
 		compatible = "rockchip,rk3588-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xfd8b0000 0x0 0x10>;
+		interrupts = <GIC_SPI 344 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm0m0_pins>;
@@ -2427,6 +2428,7 @@
 	pwm1: pwm@fd8b0010 {
 		compatible = "rockchip,rk3588-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xfd8b0010 0x0 0x10>;
+		interrupts = <GIC_SPI 344 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm1m0_pins>;
@@ -2438,6 +2440,7 @@
 	pwm2: pwm@fd8b0020 {
 		compatible = "rockchip,rk3588-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xfd8b0020 0x0 0x10>;
+		interrupts = <GIC_SPI 344 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm2m0_pins>;
@@ -4256,7 +4259,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			dp0_in: port@0 {
+			port@0 {
 				reg = <0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -4278,6 +4281,12 @@
 					remote-endpoint = <&vp2_out_dp0>;
 					status = "disabled";
 				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				dp0_out: endpoint { };
 			};
 		};
 	};
@@ -4391,7 +4400,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			edp0_in: port@0 {
+			port@0 {
 				reg = <0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -4413,6 +4422,12 @@
 					remote-endpoint = <&vp2_out_edp0>;
 					status = "disabled";
 				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				edp0_out: endpoint { };
 			};
 		};
 	};
@@ -5521,6 +5536,7 @@
 	pwm4: pwm@febd0000 {
 		compatible = "rockchip,rk3588-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xfebd0000 0x0 0x10>;
+		interrupts = <GIC_SPI 346 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm4m0_pins>;
@@ -5532,6 +5548,7 @@
 	pwm5: pwm@febd0010 {
 		compatible = "rockchip,rk3588-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xfebd0010 0x0 0x10>;
+		interrupts = <GIC_SPI 346 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm5m0_pins>;
@@ -5543,6 +5560,7 @@
 	pwm6: pwm@febd0020 {
 		compatible = "rockchip,rk3588-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xfebd0020 0x0 0x10>;
+		interrupts = <GIC_SPI 346 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm6m0_pins>;
@@ -5567,6 +5585,7 @@
 	pwm8: pwm@febe0000 {
 		compatible = "rockchip,rk3588-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xfebe0000 0x0 0x10>;
+		interrupts = <GIC_SPI 348 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm8m0_pins>;
@@ -5578,6 +5597,7 @@
 	pwm9: pwm@febe0010 {
 		compatible = "rockchip,rk3588-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xfebe0010 0x0 0x10>;
+		interrupts = <GIC_SPI 348 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm9m0_pins>;
@@ -5589,6 +5609,7 @@
 	pwm10: pwm@febe0020 {
 		compatible = "rockchip,rk3588-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xfebe0020 0x0 0x10>;
+		interrupts = <GIC_SPI 348 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm10m0_pins>;
@@ -5613,6 +5634,7 @@
 	pwm12: pwm@febf0000 {
 		compatible = "rockchip,rk3588-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xfebf0000 0x0 0x10>;
+		interrupts = <GIC_SPI 350 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm12m0_pins>;
@@ -5624,6 +5646,7 @@
 	pwm13: pwm@febf0010 {
 		compatible = "rockchip,rk3588-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xfebf0010 0x0 0x10>;
+		interrupts = <GIC_SPI 350 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm13m0_pins>;
@@ -5635,6 +5658,7 @@
 	pwm14: pwm@febf0020 {
 		compatible = "rockchip,rk3588-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xfebf0020 0x0 0x10>;
+		interrupts = <GIC_SPI 350 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm14m0_pins>;

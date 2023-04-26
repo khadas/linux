@@ -25,6 +25,8 @@
 #define RKCIF_MAX_BUS_CLK	15
 #define RKCIF_MAX_RESET		15
 
+#define RKCIF_MAX_GROUP		4
+
 #define write_cif_reg(base, addr, val) \
 	writel(val, (addr) + (base))
 #define read_cif_reg(base, addr) \
@@ -138,7 +140,7 @@ struct rkcif_hw {
 	atomic_t			power_cnt;
 	const struct rkcif_hw_match_data *match_data;
 	struct mutex			dev_lock;
-	struct rkcif_multi_sync_config	sync_config;
+	struct rkcif_multi_sync_config	sync_config[RKCIF_MAX_GROUP];
 	spinlock_t			group_lock;
 	struct notifier_block		reset_notifier; /* reset for mipi csi crc err */
 	struct rkcif_dummy_buffer	dummy_buf;
@@ -147,6 +149,7 @@ struct rkcif_hw {
 	bool				is_dma_sg_ops;
 	bool				is_dma_contig;
 	bool				adapt_to_usbcamerahal;
+	u64				irq_time;
 };
 
 void rkcif_hw_soft_reset(struct rkcif_hw *cif_hw, bool is_rst_iommu);

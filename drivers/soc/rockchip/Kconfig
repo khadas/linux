@@ -190,6 +190,12 @@ config ROCKCHIP_MTD_VENDOR_STORAGE
 	help
 	  Say y here to enable rockchip mtd vendor storage support.
 
+config ROCKCHIP_RAM_VENDOR_STORAGE
+	tristate "Rockchip ram vendor storage support"
+	depends on ROCKCHIP_VENDOR_STORAGE
+	help
+	  Say y here to enable rockchip ram vendor storage support.
+
 config ROCKCHIP_VENDOR_STORAGE_UPDATE_LOADER
 	bool "Rockchip vendor storage update loader support"
 	default n
@@ -197,12 +203,9 @@ config ROCKCHIP_VENDOR_STORAGE_UPDATE_LOADER
 	  Say y here to enable rockchip vendor storage update loader support.
 	  The /dev/vendor_storage must set root user access only.
 
-config ROCKCHIP_FIQ_DEBUGGER
-	tristate "Rockchip FIQ Debugger"
-	depends on FIQ_DEBUGGER
-	default FIQ_DEBUGGER
-	help
-	  Say y here to enable Rockchip FIQ Debugger platform driver.
+menu "FIQ Debugger"
+source "drivers/soc/rockchip/fiq_debugger/Kconfig"
+endmenu
 
 config ROCKCHIP_DEBUG
 	tristate "Rockchip DEBUG"

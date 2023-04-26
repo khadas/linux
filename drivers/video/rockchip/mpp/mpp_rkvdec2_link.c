@@ -623,7 +623,7 @@ static int rkvdec_link_isr_recv_task(struct mpp_dev *mpp,
 		u32 *regs = NULL;
 		u32 irq_status = 0;
 
-		if (!mpp_task) {
+		if (!mpp_task && info->hack_setup) {
 			regs = table_base + idx * link_dec->link_reg_count;
 			mpp_dbg_link_flow("slot %d read  task stuff\n", idx);
 
@@ -671,6 +671,9 @@ static int rkvdec_link_isr_recv_task(struct mpp_dev *mpp,
 			continue;
 		}
 
+		if (!mpp_task)
+			return 0;
+
 		task = to_rkvdec2_task(mpp_task);
 		regs = table_base + idx * link_dec->link_reg_count;
 		irq_status = regs[info->tb_reg_int];
@@ -716,6 +719,7 @@ static int rkvdec_link_isr_recv_task(struct mpp_dev *mpp,
 		/* Wake up the GET thread */
 		wake_up(&task->wait);
 		kref_put(&mpp_task->ref, rkvdec2_link_free_task);
+		link_dec->tasks_hw[idx] = NULL;
 	}
 
 	return 0;
@@ -835,6 +839,7 @@ static int rkvdec2_link_isr(struct mpp_dev *mpp)
 	mpp_debug_enter();
 
 	disable_irq(mpp->irq);
+	mpp_iommu_disable_irq(mpp->iommu_info);
 	rkvdec_link_status_update(link_dec);
 	link_dec->irq_status = irq_status;
 	prev_dec_num = link_dec->task_decoded;
@@ -842,8 +847,10 @@ static int rkvdec2_link_isr(struct mpp_dev *mpp)
 	if (!link_dec->enabled || task_timeout) {
 		u32 val;
 
-		if (task_timeout)
+		if (task_timeout) {
 			rkvdec_link_reg_dump("timeout", link_dec);
+			link_dec->decoded += task_timeout;
+		}
 
 		val = mpp_read(mpp, 224 * 4);
 		if (link_info->hack_setup && !(val & BIT(2))) {
@@ -858,6 +865,7 @@ static int rkvdec2_link_isr(struct mpp_dev *mpp)
 	if (link_dec->enabled && !count && !need_reset) {
 		/* process extra isr when task is processed */
 		enable_irq(mpp->irq);
+		mpp_iommu_enable_irq(mpp->iommu_info);
 		goto done;
 	}
 
@@ -871,6 +879,7 @@ static int rkvdec2_link_isr(struct mpp_dev *mpp)
 		goto do_reset;
 
 	enable_irq(mpp->irq);
+	mpp_iommu_enable_irq(mpp->iommu_info);
 	goto done;
 
 do_reset:
@@ -880,6 +889,7 @@ do_reset:
 	link_dec->task_decoded = 0;
 	link_dec->task_total = 0;
 	enable_irq(mpp->irq);
+	mpp_iommu_enable_irq(mpp->iommu_info);
 
 	if (link_dec->total == link_dec->decoded)
 		goto done;
@@ -1136,6 +1146,7 @@ static int rkvdec2_link_power_on(struct mpp_dev *mpp)
 
 		if (!link_dec->irq_enabled) {
 			enable_irq(mpp->irq);
+			mpp_iommu_enable_irq(mpp->iommu_info);
 			link_dec->irq_enabled = 1;
 		}
 
@@ -1155,6 +1166,7 @@ static void rkvdec2_link_power_off(struct mpp_dev *mpp)
 
 	if (atomic_xchg(&link_dec->power_enabled, 0)) {
 		disable_irq(mpp->irq);
+		mpp_iommu_disable_irq(mpp->iommu_info);
 		link_dec->irq_enabled = 0;
 
 		if (mpp->hw_ops->clk_off)
@@ -1463,10 +1475,12 @@ again:
 			goto done;
 
 		disable_irq(mpp->irq);
+		mpp_iommu_disable_irq(mpp->iommu_info);
 		rkvdec2_link_reset(mpp);
 		link_dec->task_decoded = 0;
 		link_dec->task_total = 0;
 		enable_irq(mpp->irq);
+		mpp_iommu_enable_irq(mpp->iommu_info);
 	}
 	/*
 	 * process pending queue to find the task to accept.

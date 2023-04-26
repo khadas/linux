@@ -305,6 +305,11 @@ struct vop_ctrl {
 	struct vop_reg sw_uv_offset_en;
 	struct vop_reg dsp_out_yuv;
 	struct vop_reg dsp_data_swap;
+	struct vop_reg dsp_bg_swap;
+	struct vop_reg dsp_rb_swap;
+	struct vop_reg dsp_rg_swap;
+	struct vop_reg dsp_delta_swap;
+	struct vop_reg dsp_dummy_swap;
 	struct vop_reg yuv_clip;
 	struct vop_reg dsp_ccir656_avg;
 	struct vop_reg dsp_black;
@@ -1324,6 +1329,12 @@ struct vop_dump_regs {
 	bool enable_state;
 };
 
+struct vop2_vp_plane_mask {
+	u8 primary_plane_id;
+	u8 attached_layers_nr;
+	u8 attached_layers[ROCKCHIP_MAX_LAYER];
+};
+
 /**
  * VOP2 data structe
  *
@@ -1368,6 +1379,8 @@ struct vop2_data {
 	uint32_t dump_regs_size;
 	struct vop_rect max_input;
 	struct vop_rect max_output;
+	const struct vop2_vp_plane_mask *plane_mask;
+	uint32_t plane_mask_base;
 
 	unsigned int win_size;
 };

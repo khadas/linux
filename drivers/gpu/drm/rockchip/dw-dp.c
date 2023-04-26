@@ -390,9 +390,14 @@ struct dw_dp {
 	struct drm_property *color_depth_capacity;
 	struct drm_property *color_format_capacity;
 	struct drm_property *hdcp_state_property;
+	struct drm_property *hdr_panel_metadata_property;
+	struct drm_property_blob *hdr_panel_blob_ptr;
 
 	struct rockchip_drm_sub_dev sub_dev;
 	struct dw_dp_hdcp hdcp;
+	int eotf_type;
+
+	u32 max_link_rate;
 };
 
 struct dw_dp_state {
@@ -1181,6 +1186,21 @@ static const struct drm_connector_funcs dw_dp_connector_funcs = {
 	.atomic_set_property	= dw_dp_atomic_connector_set_property,
 };
 
+static int dw_dp_update_hdr_property(struct drm_connector *connector)
+{
+	struct dw_dp *dp = connector_to_dp(connector);
+	struct drm_device *dev = connector->dev;
+	const struct hdr_static_metadata *metadata =
+		&connector->hdr_sink_metadata.hdmi_type1;
+	size_t size = sizeof(*metadata);
+	int ret;
+
+	ret = drm_property_replace_global_blob(dev, &dp->hdr_panel_blob_ptr, size, metadata,
+					       &connector->base, dp->hdr_panel_metadata_property);
+
+	return ret;
+}
+
 static int dw_dp_connector_get_modes(struct drm_connector *connector)
 {
 	struct dw_dp *dp = connector_to_dp(connector);
@@ -1208,6 +1228,7 @@ static int dw_dp_connector_get_modes(struct drm_connector *connector)
 		if (edid) {
 			drm_connector_update_edid_property(connector, edid);
 			num_modes = drm_add_edid_modes(connector, edid);
+			dw_dp_update_hdr_property(connector);
 			kfree(edid);
 		}
 	}
@@ -1266,6 +1287,26 @@ mode_changed:
 	return 0;
 }
 
+static bool dw_dp_hdr_metadata_equal(const struct drm_connector_state *old_state,
+				     const struct drm_connector_state *new_state)
+{
+	struct drm_property_blob *old_blob = old_state->hdr_output_metadata;
+	struct drm_property_blob *new_blob = new_state->hdr_output_metadata;
+
+	if (!old_blob || !new_blob)
+		return old_blob == new_blob;
+
+	if (old_blob->length != new_blob->length)
+		return false;
+
+	return !memcmp(old_blob->data, new_blob->data, old_blob->length);
+}
+
+static inline bool dw_dp_is_hdr_eotf(int eotf)
+{
+	return eotf > HDMI_EOTF_TRADITIONAL_GAMMA_SDR && eotf <= HDMI_EOTF_BT_2100_HLG;
+}
+
 static int dw_dp_connector_atomic_check(struct drm_connector *conn,
 					struct drm_atomic_state *state)
 {
@@ -1285,6 +1326,9 @@ static int dw_dp_connector_atomic_check(struct drm_connector *conn,
 		return 0;
 
 	crtc_state = drm_atomic_get_new_crtc_state(state, new_state->crtc);
+
+	if (!dw_dp_hdr_metadata_equal(old_state, new_state))
+		crtc_state->mode_changed = true;
 
 	if ((dp_new_state->bpc != 0) && (dp_new_state->bpc != 6) && (dp_new_state->bpc != 8) &&
 	    (dp_new_state->bpc != 10)) {
@@ -1427,7 +1471,7 @@ static int dw_dp_link_probe(struct dw_dp *dp)
 			!!(dpcd & DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED);
 
 	link->revision = link->dpcd[DP_DPCD_REV];
-	link->rate = min_t(u32, dp->phy->attrs.max_link_rate * 100,
+	link->rate = min_t(u32, min(dp->max_link_rate, dp->phy->attrs.max_link_rate * 100),
 			   drm_dp_max_link_rate(link->dpcd));
 	link->lanes = min_t(u8, phy_get_bus_width(dp->phy),
 			    drm_dp_max_lane_count(link->dpcd));
@@ -2056,10 +2100,16 @@ static int dw_dp_send_vsc_sdp(struct dw_dp *dp)
 	}
 
 	if (video->color_format == DRM_COLOR_FORMAT_RGB444) {
-		vsc.colorimetry = DP_COLORIMETRY_DEFAULT;
+		if (dw_dp_is_hdr_eotf(dp->eotf_type))
+			vsc.colorimetry = DP_COLORIMETRY_BT2020_RGB;
+		else
+			vsc.colorimetry = DP_COLORIMETRY_DEFAULT;
 		vsc.dynamic_range = DP_DYNAMIC_RANGE_VESA;
 	} else {
-		vsc.colorimetry = DP_COLORIMETRY_BT709_YCC;
+		if (dw_dp_is_hdr_eotf(dp->eotf_type))
+			vsc.colorimetry = DP_COLORIMETRY_BT2020_YCC;
+		else
+			vsc.colorimetry = DP_COLORIMETRY_BT709_YCC;
 		vsc.dynamic_range = DP_DYNAMIC_RANGE_CTA;
 	}
 
@@ -2067,6 +2117,62 @@ static int dw_dp_send_vsc_sdp(struct dw_dp *dp)
 	vsc.content_type = DP_CONTENT_TYPE_NOT_DEFINED;
 
 	dw_dp_vsc_sdp_pack(&vsc, &sdp);
+
+	return dw_dp_send_sdp(dp, &sdp);
+}
+
+static ssize_t dw_dp_hdr_metadata_infoframe_sdp_pack(struct dw_dp *dp,
+						     const struct hdmi_drm_infoframe *drm_infoframe,
+						     struct dw_dp_sdp *sdp)
+{
+	const int infoframe_size = HDMI_INFOFRAME_HEADER_SIZE + HDMI_DRM_INFOFRAME_SIZE;
+	unsigned char buf[HDMI_INFOFRAME_HEADER_SIZE + HDMI_DRM_INFOFRAME_SIZE];
+	ssize_t len;
+
+	memset(sdp, 0, sizeof(*sdp));
+
+	len = hdmi_drm_infoframe_pack_only(drm_infoframe, buf, sizeof(buf));
+	if (len < 0) {
+		dev_err(dp->dev, "buffer size is smaller than hdr metadata infoframe\n");
+		return -ENOSPC;
+	}
+
+	if (len != infoframe_size) {
+		dev_err(dp->dev, "wrong static hdr metadata size\n");
+		return -ENOSPC;
+	}
+
+	sdp->header.HB0 = 0;
+	sdp->header.HB1 = drm_infoframe->type;
+	sdp->header.HB2 = 0x1D;
+	sdp->header.HB3 = (0x13 << 2);
+	sdp->db[0] = drm_infoframe->version;
+	sdp->db[1] = drm_infoframe->length;
+
+	memcpy(&sdp->db[2], &buf[HDMI_INFOFRAME_HEADER_SIZE],
+	       HDMI_DRM_INFOFRAME_SIZE);
+
+	sdp->flags |= DPTX_SDP_VERTICAL_INTERVAL;
+
+	return sizeof(struct dp_sdp_header) + 2 + HDMI_DRM_INFOFRAME_SIZE;
+}
+
+static int dw_dp_send_hdr_metadata_infoframe_sdp(struct dw_dp *dp)
+{
+	struct hdmi_drm_infoframe drm_infoframe = {};
+	struct dw_dp_sdp sdp = {};
+	struct drm_connector_state *conn_state;
+	int ret;
+
+	conn_state = dp->connector.state;
+
+	ret = drm_hdmi_infoframe_set_hdr_metadata(&drm_infoframe, conn_state);
+	if (ret) {
+		dev_err(dp->dev, "couldn't set HDR metadata in infoframe\n");
+		return ret;
+	}
+
+	dw_dp_hdr_metadata_infoframe_sdp_pack(dp, &drm_infoframe, &sdp);
 
 	return dw_dp_send_sdp(dp, &sdp);
 }
@@ -2088,13 +2194,29 @@ static int dw_dp_video_set_pixel_mode(struct dw_dp *dp, u8 pixel_mode)
 	return 0;
 }
 
+static bool dw_dp_video_need_vsc_sdp(struct dw_dp *dp)
+{
+	struct dw_dp_link *link = &dp->link;
+	struct dw_dp_video *video = &dp->video;
+
+	if (!link->vsc_sdp_extension_for_colorimetry_supported)
+		return false;
+
+	if (video->color_format == DRM_COLOR_FORMAT_YCRCB420)
+		return true;
+
+	if (dw_dp_is_hdr_eotf(dp->eotf_type))
+		return true;
+
+	return false;
+}
+
 static int dw_dp_video_set_msa(struct dw_dp *dp, u8 color_format, u8 bpc,
 			       u16 vstart, u16 hstart)
 {
-	struct dw_dp_link *link = &dp->link;
 	u16 misc = 0;
 
-	if (link->vsc_sdp_extension_for_colorimetry_supported)
+	if (dw_dp_video_need_vsc_sdp(dp))
 		misc |= DP_MSA_MISC_COLOR_VSC_SDP;
 
 	switch (color_format) {
@@ -2311,8 +2433,11 @@ static int dw_dp_video_enable(struct dw_dp *dp)
 	regmap_update_bits(dp->regmap, DPTX_VSAMPLE_CTRL, VIDEO_STREAM_ENABLE,
 			   FIELD_PREP(VIDEO_STREAM_ENABLE, 1));
 
-	if (link->vsc_sdp_extension_for_colorimetry_supported)
+	if (dw_dp_video_need_vsc_sdp(dp))
 		dw_dp_send_vsc_sdp(dp);
+
+	if (dw_dp_is_hdr_eotf(dp->eotf_type))
+		dw_dp_send_hdr_metadata_infoframe_sdp(dp);
 
 	return 0;
 }
@@ -2421,6 +2546,18 @@ static void dw_dp_mode_fixup(struct dw_dp *dp, struct drm_display_mode *adjusted
 	}
 }
 
+static int dw_dp_get_eotf(struct drm_connector_state *conn_state)
+{
+	if (conn_state->hdr_output_metadata) {
+		struct hdr_output_metadata *hdr_metadata =
+			(struct hdr_output_metadata *)conn_state->hdr_output_metadata->data;
+
+		return hdr_metadata->hdmi_metadata_type1.eotf;
+	}
+
+	return HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
+}
+
 static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 				      struct drm_crtc_state *crtc_state,
 				      struct drm_connector_state *conn_state)
@@ -2430,6 +2567,7 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
 	struct drm_display_info *di = &conn_state->connector->display_info;
 
+	dp->eotf_type = dw_dp_get_eotf(conn_state);
 	switch (video->color_format) {
 	case DRM_COLOR_FORMAT_YCRCB420:
 		s->output_mode = ROCKCHIP_OUT_MODE_YUV420;
@@ -2456,8 +2594,11 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 	s->bus_format = video->bus_format;
 	s->bus_flags = di->bus_flags;
 	s->tv_state = &conn_state->tv;
-	s->eotf = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
-	s->color_space = V4L2_COLORSPACE_DEFAULT;
+	s->eotf = dp->eotf_type;
+	if (dw_dp_is_hdr_eotf(s->eotf))
+		s->color_space = V4L2_COLORSPACE_BT2020;
+	else
+		s->color_space = V4L2_COLORSPACE_DEFAULT;
 
 	dw_dp_mode_fixup(dp, &crtc_state->adjusted_mode);
 
@@ -2587,9 +2728,10 @@ static ssize_t dw_dp_aux_transfer(struct drm_dp_aux *aux,
 	return ret;
 }
 
-static int dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
-				   const struct drm_display_info *info,
-				   const struct drm_display_mode *mode)
+static enum drm_mode_status
+dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
+			const struct drm_display_info *info,
+			const struct drm_display_mode *mode)
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
 	struct dw_dp_link *link = &dp->link;
@@ -2688,6 +2830,7 @@ static int dw_dp_connector_init(struct dw_dp *dp)
 	struct drm_connector *connector = &dp->connector;
 	struct drm_bridge *bridge = &dp->bridge;
 	struct drm_property *prop;
+	struct drm_device *dev = bridge->dev;
 	int ret;
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
@@ -2761,6 +2904,18 @@ static int dw_dp_connector_init(struct dw_dp *dp)
 	}
 	dp->hdcp_state_property = prop;
 	drm_object_attach_property(&connector->base, prop, RK_IF_HDCP_ENCRYPTED_NONE);
+
+	prop = drm_property_create(connector->dev, DRM_MODE_PROP_BLOB | DRM_MODE_PROP_IMMUTABLE,
+				   "HDR_PANEL_METADATA", 0);
+	if (!prop) {
+		DRM_DEV_ERROR(dp->dev, "create hdr metedata prop for dp%d failed\n", dp->id);
+		return -ENOMEM;
+	}
+	dp->hdr_panel_metadata_property = prop;
+	drm_object_attach_property(&connector->base, prop, 0);
+	drm_object_attach_property(&connector->base,
+				   dev->mode_config.hdr_output_metadata_property,
+				   0);
 
 	return 0;
 }
@@ -3127,6 +3282,10 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 			    (fmt->color_format != BIT(dp_state->color_format)))
 				continue;
 		}
+
+		if (dw_dp_is_hdr_eotf(dp->eotf_type) && fmt->bpc < 10)
+			continue;
+
 		output_fmts[j++] = fmt->bus_format;
 	}
 
@@ -3792,6 +3951,53 @@ static const struct regmap_config dw_dp_regmap_config = {
 	.rd_table = &dw_dp_readable_table,
 };
 
+static u32 dw_dp_parse_link_frequencies(struct dw_dp *dp)
+{
+	struct device_node *node = dp->dev->of_node;
+	struct device_node *endpoint;
+	u64 frequency = 0;
+	int cnt;
+
+	endpoint = of_graph_get_endpoint_by_regs(node, 1, 0);
+	if (!endpoint)
+		return 0;
+
+	cnt = of_property_count_u64_elems(endpoint, "link-frequencies");
+	if (cnt > 0)
+		of_property_read_u64_index(endpoint, "link-frequencies",
+					   cnt - 1, &frequency);
+	of_node_put(endpoint);
+
+	if (!frequency)
+		return 0;
+
+	do_div(frequency, 10 * 1000);	/* symbol rate kbytes */
+
+	switch (frequency) {
+	case 162000:
+	case 270000:
+	case 540000:
+	case 810000:
+		break;
+	default:
+		dev_err(dp->dev, "invalid link frequency value: %llu\n", frequency);
+		return 0;
+	}
+
+	return frequency;
+}
+
+static int dw_dp_parse_dt(struct dw_dp *dp)
+{
+	dp->force_hpd = device_property_read_bool(dp->dev, "force-hpd");
+
+	dp->max_link_rate = dw_dp_parse_link_frequencies(dp);
+	if (!dp->max_link_rate)
+		dp->max_link_rate = 810000;
+
+	return 0;
+}
+
 static int dw_dp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -3810,6 +4016,10 @@ static int dw_dp_probe(struct platform_device *pdev)
 	dp->id = id;
 	dp->dev = dev;
 	dp->video.pixel_mode = DPTX_MP_QUAD_PIXEL;
+
+	ret = dw_dp_parse_dt(dp);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to parse DT\n");
 
 	mutex_init(&dp->irq_lock);
 	INIT_WORK(&dp->hpd_work, dw_dp_hpd_work);
@@ -3934,8 +4144,6 @@ static int dw_dp_probe(struct platform_device *pdev)
 	dp->bridge.type = DRM_MODE_CONNECTOR_DisplayPort;
 
 	platform_set_drvdata(pdev, dp);
-
-	dp->force_hpd = device_property_read_bool(dev, "force-hpd");
 
 	if (device_property_read_bool(dev, "split-mode")) {
 		struct dw_dp *secondary = dw_dp_find_by_id(dev->driver, !dp->id);

@@ -475,7 +475,10 @@ static void dw_mipi_dsi2_encoder_disable(struct drm_encoder *encoder)
 	if (!crtc->state->active_changed)
 		return;
 
-	s->output_if &= ~(dsi2->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0);
+	if (dsi2->slave)
+		s->output_if &= ~(VOP_OUTPUT_IF_MIPI1 | VOP_OUTPUT_IF_MIPI0);
+	else
+		s->output_if &= ~(dsi2->id ? VOP_OUTPUT_IF_MIPI1 : VOP_OUTPUT_IF_MIPI0);
 }
 
 static void dw_mipi_dsi2_get_lane_rate(struct dw_mipi_dsi2 *dsi2)
@@ -1005,6 +1008,15 @@ dw_mipi_dsi2_connector_mode_valid(struct drm_connector *connector,
 	u8 min_pixels = dsi2->slave ? 8 : 4;
 
 	drm_display_mode_to_videomode(mode, &vm);
+
+	if (vm.vactive > 16383)
+		return MODE_VIRTUAL_Y;
+
+	if (vm.vsync_len > 1023)
+		return MODE_VSYNC_WIDE;
+
+	if (vm.vback_porch > 1023 || vm.vfront_porch > 1023)
+		return MODE_VBLANK_WIDE;
 
 	/*
 	 * the minimum region size (HSA,HBP,HACT,HFP) is 4 pixels

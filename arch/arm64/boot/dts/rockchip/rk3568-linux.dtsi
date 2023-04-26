@@ -66,5 +66,5 @@
 };
 
 &vop {
-	disable-afbc-win;
+	disable-win-move;
 };

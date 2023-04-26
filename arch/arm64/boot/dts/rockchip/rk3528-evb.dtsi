@@ -275,12 +275,22 @@
 	status = "okay";
 };
 
+&dmc {
+	center-supply = <&vdd_logic>;
+	status = "okay";
+};
+
 &gmac0 {
 	status = "okay";
 };
 
 &gpu {
 	mali-supply = <&vdd_gpu>;
+	status = "okay";
+};
+
+&gpu_bus {
+	bus-supply = <&vdd_logic>;
 	status = "okay";
 };
 

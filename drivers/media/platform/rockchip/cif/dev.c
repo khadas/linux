@@ -977,22 +977,24 @@ static void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
 	int on = 1;
 	int ret = 0;
 	bool is_streaming = false;
+	struct rkcif_multi_sync_config *sync_config;
 
-	if (!cif_dev->sync_type)
+	if (!cif_dev->sync_cfg.type)
 		return;
 
 	mutex_lock(&hw->dev_lock);
-	hw->sync_config.streaming_cnt++;
-	if (hw->sync_config.streaming_cnt < hw->sync_config.dev_cnt) {
+	sync_config = &hw->sync_config[cif_dev->sync_cfg.group];
+	sync_config->streaming_cnt++;
+	if (sync_config->streaming_cnt < sync_config->dev_cnt) {
 		mutex_unlock(&hw->dev_lock);
 		return;
 	}
 
-	if (hw->sync_config.mode == RKCIF_MASTER_MASTER ||
-	    hw->sync_config.mode == RKCIF_MASTER_SLAVE) {
-		for (i = 0; i < hw->sync_config.slave.count; i++) {
-			dev = hw->sync_config.slave.cif_dev[i];
-			is_streaming = hw->sync_config.slave.is_streaming[i];
+	if (sync_config->mode == RKCIF_MASTER_MASTER ||
+	    sync_config->mode == RKCIF_MASTER_SLAVE) {
+		for (i = 0; i < sync_config->slave.count; i++) {
+			dev = sync_config->slave.cif_dev[i];
+			is_streaming = sync_config->slave.is_streaming[i];
 			if (!is_streaming) {
 				if (dev->sditf_cnt == 1) {
 					ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
@@ -1011,15 +1013,15 @@ static void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
 						dev_info(dev->dev,
 							 "set RKMODULE_SET_QUICK_STREAM failed\n");
 				}
-				hw->sync_config.slave.is_streaming[i] = true;
+				sync_config->slave.is_streaming[i] = true;
 			}
 			v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
 				 "quick stream in sync mode, slave_dev[%d]\n", i);
 
 		}
-		for (i = 0; i < hw->sync_config.ext_master.count; i++) {
-			dev = hw->sync_config.ext_master.cif_dev[i];
-			is_streaming = hw->sync_config.ext_master.is_streaming[i];
+		for (i = 0; i < sync_config->ext_master.count; i++) {
+			dev = sync_config->ext_master.cif_dev[i];
+			is_streaming = sync_config->ext_master.is_streaming[i];
 			if (!is_streaming) {
 				if (dev->sditf_cnt == 1) {
 					ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
@@ -1038,14 +1040,14 @@ static void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
 						dev_info(dev->dev,
 							 "set RKMODULE_SET_QUICK_STREAM failed\n");
 				}
-				hw->sync_config.ext_master.is_streaming[i] = true;
+				sync_config->ext_master.is_streaming[i] = true;
 			}
 			v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
 				 "quick stream in sync mode, ext_master_dev[%d]\n", i);
 		}
-		for (i = 0; i < hw->sync_config.int_master.count; i++) {
-			dev = hw->sync_config.int_master.cif_dev[i];
-			is_streaming = hw->sync_config.int_master.is_streaming[i];
+		for (i = 0; i < sync_config->int_master.count; i++) {
+			dev = sync_config->int_master.cif_dev[i];
+			is_streaming = sync_config->int_master.is_streaming[i];
 			if (!is_streaming) {
 				if (dev->sditf_cnt == 1) {
 					ret = v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
@@ -1064,7 +1066,7 @@ static void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
 						dev_info(dev->dev,
 							 "set RKMODULE_SET_QUICK_STREAM failed\n");
 				}
-				hw->sync_config.int_master.is_streaming[i] = true;
+				sync_config->int_master.is_streaming[i] = true;
 			}
 			v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
 				 "quick stream in sync mode, int_master_dev[%d]\n", i);
@@ -1107,9 +1109,21 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 			cif_dev->irq_stats.csi_size_err_cnt = 0;
 			cif_dev->irq_stats.dvp_size_err_cnt = 0;
 			cif_dev->irq_stats.dvp_bwidth_lack_cnt = 0;
-			cif_dev->irq_stats.all_frm_end_cnt = 0;
+			cif_dev->irq_stats.frm_end_cnt[0] = 0;
+			cif_dev->irq_stats.frm_end_cnt[1] = 0;
+			cif_dev->irq_stats.frm_end_cnt[2] = 0;
+			cif_dev->irq_stats.frm_end_cnt[3] = 0;
+			cif_dev->irq_stats.not_active_buf_cnt[0] = 0;
+			cif_dev->irq_stats.not_active_buf_cnt[1] = 0;
+			cif_dev->irq_stats.not_active_buf_cnt[2] = 0;
+			cif_dev->irq_stats.not_active_buf_cnt[3] = 0;
+			cif_dev->irq_stats.trig_simult_cnt[0] = 0;
+			cif_dev->irq_stats.trig_simult_cnt[1] = 0;
+			cif_dev->irq_stats.trig_simult_cnt[2] = 0;
+			cif_dev->irq_stats.trig_simult_cnt[3] = 0;
 			cif_dev->reset_watchdog_timer.is_triggered = false;
 			cif_dev->reset_watchdog_timer.is_running = false;
+			cif_dev->err_state_work.last_timestamp = 0;
 			for (i = 0; i < cif_dev->num_channels; i++)
 				cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt[i] = 0;
 			cif_dev->reset_watchdog_timer.run_cnt = 0;
@@ -1179,7 +1193,18 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 				cif_dev->irq_stats.all_err_cnt = 0;
 				cif_dev->irq_stats.csi_size_err_cnt = 0;
 				cif_dev->irq_stats.dvp_size_err_cnt = 0;
-				cif_dev->irq_stats.all_frm_end_cnt = 0;
+				cif_dev->irq_stats.frm_end_cnt[0] = 0;
+				cif_dev->irq_stats.frm_end_cnt[1] = 0;
+				cif_dev->irq_stats.frm_end_cnt[2] = 0;
+				cif_dev->irq_stats.frm_end_cnt[3] = 0;
+				cif_dev->irq_stats.not_active_buf_cnt[0] = 0;
+				cif_dev->irq_stats.not_active_buf_cnt[1] = 0;
+				cif_dev->irq_stats.not_active_buf_cnt[2] = 0;
+				cif_dev->irq_stats.not_active_buf_cnt[3] = 0;
+				cif_dev->irq_stats.trig_simult_cnt[0] = 0;
+				cif_dev->irq_stats.trig_simult_cnt[1] = 0;
+				cif_dev->irq_stats.trig_simult_cnt[2] = 0;
+				cif_dev->irq_stats.trig_simult_cnt[3] = 0;
 				cif_dev->is_start_hdr = true;
 				cif_dev->reset_watchdog_timer.is_triggered = false;
 				cif_dev->reset_watchdog_timer.is_running = false;
@@ -1240,6 +1265,10 @@ static int rkcif_create_link(struct rkcif_device *dev,
 	struct media_entity *source_entity, *sink_entity;
 	int ret = 0;
 	u32 flags, pad, id;
+	int pad_offset = 0;
+
+	if (dev->chip_id >= CHIP_RK3588_CIF)
+		pad_offset = 4;
 
 	linked_sensor.lanes = sensor->lanes;
 
@@ -1323,9 +1352,7 @@ static int rkcif_create_link(struct rkcif_device *dev,
 					break;
 				}
 			}
-			if (dev->chip_id == CHIP_RK3588_CIF ||
-			    dev->chip_id == CHIP_RV1106_CIF ||
-			    dev->chip_id == CHIP_RK3562_CIF) {
+			if (dev->chip_id >= CHIP_RK3588_CIF) {
 				for (id = 0; id < stream_num; id++) {
 					source_entity = &linked_sensor.sd->entity;
 					sink_entity = &dev->scale_vdev[id].vnode.vdev.entity;
@@ -1347,11 +1374,13 @@ static int rkcif_create_link(struct rkcif_device *dev,
 						break;
 					}
 				}
+			}
+			if (dev->chip_id > CHIP_RK1808_CIF) {
 				for (id = 0; id < RKCIF_MAX_TOOLS_CH; id++) {
 					source_entity = &linked_sensor.sd->entity;
 					sink_entity = &dev->tools_vdev[id].vnode.vdev.entity;
 
-					if ((id + stream_num * 2) == pad - 1 && !(*mipi_lvds_linked))
+					if ((id + stream_num + pad_offset) == pad - 1 && !(*mipi_lvds_linked))
 						flags = MEDIA_LNK_FL_ENABLED;
 					else
 						flags = 0;
@@ -1693,12 +1722,17 @@ static int rkcif_register_platform_subdevs(struct rkcif_device *cif_dev)
 			dev_err(cif_dev->dev, "cif register scale_vdev[%d] failed!\n", stream_num);
 			goto err_unreg_stream_vdev;
 		}
+	}
+	if (cif_dev->chip_id > CHIP_RK1808_CIF) {
 		ret = rkcif_register_tools_vdevs(cif_dev, RKCIF_MAX_TOOLS_CH, true);
 
 		if (ret < 0) {
 			dev_err(cif_dev->dev, "cif register tools_vdev[%d] failed!\n", RKCIF_MAX_TOOLS_CH);
 			goto err_unreg_stream_vdev;
 		}
+		cif_dev->is_support_tools = true;
+	} else {
+		cif_dev->is_support_tools = false;
 	}
 	init_completion(&cif_dev->cmpl_ntf);
 	kthread_run(notifier_isp_thread, cif_dev, "notifier isp");
@@ -1714,10 +1748,11 @@ err_unreg_stream_vdev:
 	rkcif_unregister_stream_vdevs(cif_dev, stream_num);
 	if (cif_dev->chip_id == CHIP_RK3588_CIF ||
 	    cif_dev->chip_id == CHIP_RV1106_CIF ||
-	    cif_dev->chip_id == CHIP_RK3562_CIF) {
+	    cif_dev->chip_id == CHIP_RK3562_CIF)
 		rkcif_unregister_scale_vdevs(cif_dev, RKCIF_MAX_SCALE_CH);
+
+	if (cif_dev->chip_id > CHIP_RK1808_CIF)
 		rkcif_unregister_tools_vdevs(cif_dev, RKCIF_MAX_TOOLS_CH);
-	}
 
 	return ret;
 }
@@ -1898,7 +1933,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->pipe.set_stream = rkcif_pipeline_set_stream;
 	cif_dev->isr_hdl = rkcif_irq_handler;
 	cif_dev->id_use_cnt = 0;
-	cif_dev->sync_type = NO_SYNC_MODE;
+	memset(&cif_dev->sync_cfg, 0, sizeof(cif_dev->sync_cfg));
 	cif_dev->sditf_cnt = 0;
 	cif_dev->is_notifier_isp = false;
 	cif_dev->sensor_linetime = 0;
@@ -1907,6 +1942,8 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->rdbk_debug = 0;
 	if (cif_dev->chip_id == CHIP_RV1126_CIF_LITE)
 		cif_dev->isr_hdl = rkcif_irq_lite_handler;
+
+	INIT_WORK(&cif_dev->err_state_work.work, rkcif_err_print_work);
 
 	if (cif_dev->chip_id < CHIP_RV1126_CIF) {
 		if (cif_dev->inf_id == RKCIF_MIPI_LVDS) {
@@ -1932,12 +1969,13 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 		rkcif_init_scale_vdev(cif_dev, RKCIF_SCALE_CH1);
 		rkcif_init_scale_vdev(cif_dev, RKCIF_SCALE_CH2);
 		rkcif_init_scale_vdev(cif_dev, RKCIF_SCALE_CH3);
+	}
 
+	if (cif_dev->chip_id > CHIP_RK1808_CIF) {
 		rkcif_init_tools_vdev(cif_dev, RKCIF_TOOLS_CH0);
 		rkcif_init_tools_vdev(cif_dev, RKCIF_TOOLS_CH1);
 		rkcif_init_tools_vdev(cif_dev, RKCIF_TOOLS_CH2);
 	}
-
 #if defined(CONFIG_ROCKCHIP_CIF_WORKMODE_PINGPONG)
 	cif_dev->workmode = RKCIF_WORKMODE_PINGPONG;
 #elif defined(CONFIG_ROCKCHIP_CIF_WORKMODE_ONEFRAME)

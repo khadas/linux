@@ -11,6 +11,7 @@
 #include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
+#include <dt-bindings/suspend/rockchip-rk3562.h>
 #include <dt-bindings/thermal/thermal.h>
 
 / {
@@ -345,6 +346,20 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 	};
 
+	bus_soc: bus-soc {
+		compatible = "rockchip,rk3562-bus";
+		rockchip,busfreq-policy = "smc";
+		rockchip,soc-bus-table = <0 0x00a000a8 0x7001>,
+					 <1 0x00a000a8 0x7c31>,
+					 <2 0x00a000a8 0x7c31>,
+					 <3 0x00a000a8 0x7c31>,
+					 <4 0x00a000a5 0xb007>,
+					 <5 0x00a000a8 0x7034>,
+					 <6 0x00a000a8 0x7034>,
+					 <7 0x00a000a8 0x7034>,
+					 <8 0x00a000a8 0x7001>;
+	};
+
 	cpuinfo {
 		compatible = "rockchip,cpuinfo";
 		nvmem-cells = <&otp_id>, <&otp_cpu_version>, <&cpu_code>;
@@ -504,6 +519,11 @@
 
 		drm_logo: drm-logo@00000000 {
 			compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
+
+		vendor_storage_rm: vendor-storage-rm@00000000 {
+			compatible = "rockchip,vendor-storage-rm";
 			reg = <0x0 0x0 0x0 0x0>;
 		};
 
@@ -725,6 +745,12 @@
 			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+	};
+
+	vendor_storage: vendor-storage {
+		compatible = "rockchip,ram-vendor-storage";
+		memory-region = <&vendor_storage_rm>;
+		status = "okay";
 	};
 
 	scmi_shmem: scmi-shmem@10f000 {
@@ -1105,6 +1131,7 @@
 	pwm0: pwm@ff230000 {
 		compatible = "rockchip,rk3562-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff230000 0x0 0x10>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm0m0_pins>;
@@ -1116,6 +1143,7 @@
 	pwm1: pwm@ff230010 {
 		compatible = "rockchip,rk3562-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff230010 0x0 0x10>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm1m0_pins>;
@@ -1127,6 +1155,7 @@
 	pwm2: pwm@ff230020 {
 		compatible = "rockchip,rk3562-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff230020 0x0 0x10>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm2m0_pins>;
@@ -1937,6 +1966,7 @@
 	pwm4: pwm@ff700000 {
 		compatible = "rockchip,rk3562-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff700000 0x0 0x10>;
+		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm4m0_pins>;
@@ -1948,6 +1978,7 @@
 	pwm5: pwm@ff700010 {
 		compatible = "rockchip,rk3562-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff700010 0x0 0x10>;
+		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm5m0_pins>;
@@ -1959,6 +1990,7 @@
 	pwm6: pwm@ff700020 {
 		compatible = "rockchip,rk3562-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff700020 0x0 0x10>;
+		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm6m0_pins>;
@@ -1983,6 +2015,7 @@
 	pwm8: pwm@ff710000 {
 		compatible = "rockchip,rk3562-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff710000 0x0 0x10>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm8m0_pins>;
@@ -1994,6 +2027,7 @@
 	pwm9: pwm@ff710010 {
 		compatible = "rockchip,rk3562-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff710010 0x0 0x10>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm9m0_pins>;
@@ -2005,6 +2039,7 @@
 	pwm10: pwm@ff710020 {
 		compatible = "rockchip,rk3562-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff710020 0x0 0x10>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm10m0_pins>;
@@ -2029,6 +2064,7 @@
 	pwm12: pwm@ff720000 {
 		compatible = "rockchip,rk3562-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff720000 0x0 0x10>;
+		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm12m0_pins>;
@@ -2040,6 +2076,7 @@
 	pwm13: pwm@ff720010 {
 		compatible = "rockchip,rk3562-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff720010 0x0 0x10>;
+		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm13m0_pins>;
@@ -2051,6 +2088,7 @@
 	pwm14: pwm@ff720020 {
 		compatible = "rockchip,rk3562-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff720020 0x0 0x10>;
+		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm14m0_pins>;
@@ -2719,6 +2757,27 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
+	};
+
+	rockchip_suspend: rockchip-suspend {
+		compatible = "rockchip,pm-rk3562";
+		status = "disabled";
+		rockchip,sleep-debug-en = <1>;
+		rockchip,sleep-mode-config = <
+			(0
+			| RKPM_SLP_DEEP1_MODE
+			| RKPM_SLP_PMIC_LP
+			| RKPM_SLP_HW_PLLS_OFF
+			| RKPM_SLP_PMUALIVE_32K
+			| RKPM_SLP_OSC_DIS
+			| RKPM_SLP_32K_PVTM
+			)
+		>;
+		rockchip,wakeup-config = <
+			(0
+			| RKPM_GPIO0_WKUP_EN
+			)
+		>;
 	};
 };
 

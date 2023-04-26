@@ -1570,10 +1570,11 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 }
 
 static enum drm_mode_status
-dw_hdmi_rockchip_mode_valid(struct drm_connector *connector, void *data,
+dw_hdmi_rockchip_mode_valid(struct dw_hdmi *dw_hdmi, void *data,
 			    const struct drm_display_info *info,
 			    const struct drm_display_mode *mode)
 {
+	struct drm_connector *connector = container_of(info, struct drm_connector, display_info);
 	struct drm_encoder *encoder = connector->encoder;
 	enum drm_mode_status status = MODE_OK;
 	struct drm_device *dev = connector->dev;
@@ -1742,10 +1743,8 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 		      ret ? "LIT" : "BIG");
 }
 
-static int dw_hdmi_rockchip_encoder_loader_protect(struct drm_encoder *encoder,
-						    bool on)
+static int _dw_hdmi_rockchip_encoder_loader_protect(struct rockchip_hdmi *hdmi, bool on)
 {
-	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
 	int ret;
 
 	if (on) {
@@ -1761,6 +1760,20 @@ static int dw_hdmi_rockchip_encoder_loader_protect(struct drm_encoder *encoder,
 	} else {
 		clk_disable_unprepare(hdmi->link_clk);
 		hdmi->phy->power_count--;
+	}
+
+	return 0;
+}
+
+static int dw_hdmi_rockchip_encoder_loader_protect(struct drm_encoder *encoder, bool on)
+{
+	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
+	struct rockchip_hdmi *secondary;
+
+	_dw_hdmi_rockchip_encoder_loader_protect(hdmi, on);
+	if (hdmi->plat_data->right) {
+		secondary = rockchip_hdmi_find_by_id(hdmi->dev->driver, !hdmi->id);
+		_dw_hdmi_rockchip_encoder_loader_protect(secondary, on);
 	}
 
 	return 0;
@@ -2427,10 +2440,17 @@ static int dw_hdmi_dclk_set(void *data, bool enable, int vp_id)
 
 	snprintf(clk_name, sizeof(clk_name), "dclk_vp%d", vp_id);
 
-	dclk = devm_clk_get(hdmi->dev, clk_name);
+	dclk = devm_clk_get_optional(hdmi->dev, clk_name);
 	if (IS_ERR(dclk)) {
 		DRM_DEV_ERROR(hdmi->dev, "failed to get %s\n", clk_name);
 		return PTR_ERR(dclk);
+	} else if (!dclk) {
+		if (hdmi->is_hdmi_qp) {
+			DRM_DEV_ERROR(hdmi->dev, "failed to get %s\n", clk_name);
+			return -ENOENT;
+		}
+
+		return 0;
 	}
 
 	if (enable) {
@@ -3632,8 +3652,12 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 
 		if (plat_data->connector) {
 			hdmi->sub_dev.connector = plat_data->connector;
-			hdmi->sub_dev.of_node = dev->of_node;
 			hdmi->sub_dev.loader_protect = dw_hdmi_rockchip_encoder_loader_protect;
+			if (secondary && device_property_read_bool(secondary->dev, "split-mode"))
+				hdmi->sub_dev.of_node = secondary->dev->of_node;
+			else
+				hdmi->sub_dev.of_node = hdmi->dev->of_node;
+
 			rockchip_drm_register_sub_dev(&hdmi->sub_dev);
 		}
 

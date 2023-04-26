@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
+#include <linux/extcon-provider.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <drm/drm_mipi_dsi.h>
@@ -31,6 +32,7 @@ struct max96755f_bridge {
 	struct drm_panel *panel;
 
 	struct device *dev;
+	struct max96755f *parent;
 	struct regmap *regmap;
 	struct mipi_dsi_device *dsi;
 	struct device_node *dsi_node;
@@ -39,6 +41,8 @@ struct max96755f_bridge {
 	bool dv_swp_ab;
 	bool dpi_deskew_en;
 	bool split_mode;
+	u32 dsi_lane_map[4];
+
 	struct {
 		struct gpio_desc *gpio;
 		int irq;
@@ -196,6 +200,7 @@ static void max96755f_mipi_dsi_rx_config(struct max96755f_bridge *ser)
 	struct drm_display_mode *mode = &ser->mode;
 	u32 hfp, hsa, hbp, hact;
 	u32 vact, vsa, vfp, vbp;
+	u8 lane_map;
 
 	regmap_update_bits(ser->regmap, 0x330, MIPI_RX_RESET,
 			   FIELD_PREP(MIPI_RX_RESET, 1));
@@ -206,6 +211,12 @@ static void max96755f_mipi_dsi_rx_config(struct max96755f_bridge *ser)
 
 	regmap_update_bits(ser->regmap, 0x331, NUM_LANES,
 			   FIELD_PREP(NUM_LANES, ser->num_lanes - 1));
+
+	lane_map = (ser->dsi_lane_map[0] & 0xff) << 4 |
+		   (ser->dsi_lane_map[1] & 0xff) << 6 |
+		   (ser->dsi_lane_map[2] & 0xff) << 0 |
+		   (ser->dsi_lane_map[3] & 0xff) << 2;
+	regmap_write(ser->regmap, 0x332, lane_map);
 
 	if (!ser->dpi_deskew_en)
 		return;
@@ -283,6 +294,7 @@ static void max96755f_bridge_reset_oneshot(struct max96755f_bridge *ser)
 static void max96755f_bridge_enable(struct drm_bridge *bridge)
 {
 	struct max96755f_bridge *ser = to_max96755f_bridge(bridge);
+	struct max96755f *max96755f = ser->parent;
 	u32 val;
 	int ret;
 
@@ -323,11 +335,16 @@ static void max96755f_bridge_enable(struct drm_bridge *bridge)
 		enable_irq(ser->lock.irq);
 		ser->lock.irq_enabled = true;
 	}
+
+	extcon_set_state_sync(max96755f->extcon, EXTCON_JACK_VIDEO_OUT, true);
 }
 
 static void max96755f_bridge_disable(struct drm_bridge *bridge)
 {
 	struct max96755f_bridge *ser = to_max96755f_bridge(bridge);
+	struct max96755f *max96755f = ser->parent;
+
+	extcon_set_state_sync(max96755f->extcon, EXTCON_JACK_VIDEO_OUT, false);
 
 	if (ser->lock.irq_enabled) {
 		disable_irq(ser->lock.irq);
@@ -360,12 +377,12 @@ static enum drm_connector_status
 max96755f_bridge_detect(struct drm_bridge *bridge)
 {
 	struct max96755f_bridge *ser = to_max96755f_bridge(bridge);
-	struct drm_connector *connector = &ser->connector;
+	struct max96755f *max96755f = ser->parent;
 
 	if (!max96755f_bridge_link_locked(ser))
 		return connector_status_disconnected;
 
-	if (connector->status == connector_status_connected) {
+	if (extcon_get_state(max96755f->extcon, EXTCON_JACK_VIDEO_OUT)) {
 		if (atomic_cmpxchg(&ser->lock.triggered, 1, 0))
 			return connector_status_disconnected;
 	} else {
@@ -405,17 +422,39 @@ static const struct drm_bridge_funcs max96755f_bridge_funcs = {
 static int max96755f_link_parse(struct max96755f_bridge *ser)
 {
 	struct device *dev = ser->dev;
+	struct device_node *np = dev->of_node;
 	struct device *parent = dev->parent;
 	struct device_node *child;
 	u32 val;
 	int ret = 0;
 	unsigned int nr = 0;
+	int i, len;
 
-	ser->dpi_deskew_en = of_property_read_bool(dev->of_node, "dpi-deskew-en");
-	ser->dv_swp_ab = of_property_read_bool(dev->of_node, "vd-swap-ab");
+	ser->dpi_deskew_en = of_property_read_bool(np, "dpi-deskew-en");
+	ser->dv_swp_ab = of_property_read_bool(np, "vd-swap-ab");
 
-	if (!of_property_read_u32(dev->of_node, "dsi,lanes", &val))
+	if (!of_property_read_u32(np, "dsi,lanes", &val))
 		ser->num_lanes = val;
+	else
+		ser->num_lanes = 4;
+
+	for (i = 0; i < ser->num_lanes; i++)
+		ser->dsi_lane_map[i] = i;
+
+	if (of_find_property(np, "maxim,dsi-lane-map", &len)) {
+		len /= sizeof(u32);
+		if (ser->num_lanes != len) {
+			dev_err(dev, "invalid number of lane map\n");
+			return -EINVAL;
+		}
+
+		ret = of_property_read_u32_array(np, "maxim,dsi-lane-map",
+						 ser->dsi_lane_map, len);
+		if (ret) {
+			dev_err(dev, "get dsi lane map failed\n");
+			return -EINVAL;
+		}
+	}
 
 	for_each_available_child_of_node(parent->of_node, child) {
 		if (!of_find_property(child, "reg", NULL))
@@ -456,6 +495,7 @@ static int max96755f_bridge_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ser->dev = dev;
+	ser->parent = dev_get_drvdata(dev->parent);
 	platform_set_drvdata(pdev, ser);
 
 	ser->regmap = dev_get_regmap(dev->parent, NULL);

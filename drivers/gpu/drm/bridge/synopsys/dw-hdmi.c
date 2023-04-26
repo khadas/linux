@@ -46,6 +46,7 @@
 #define DDC_SEGMENT_ADDR	0x30
 
 #define HDMI_EDID_LEN		512
+#define HDMI_EDID_BLOCK_LEN	128
 
 /* DW-HDMI Controller >= 0x200a are at least compliant with SCDC version 1 */
 #define SCDC_MIN_SOURCE_VERSION	0x1
@@ -328,6 +329,7 @@ struct dw_hdmi {
 	bool initialized;		/* hdmi is enabled before bind */
 	bool logo_plug_out;		/* hdmi is plug out when kernel logo */
 	bool update;
+	bool hdr2sdr;			/* from hdr to sdr */
 };
 
 #define HDMI_IH_PHY_STAT0_RX_SENSE \
@@ -614,7 +616,8 @@ static int dw_hdmi_i2c_read(struct dw_hdmi *hdmi,
 			    unsigned char *buf, unsigned int length)
 {
 	struct dw_hdmi_i2c *i2c = hdmi->i2c;
-	int ret, retry;
+	int ret, retry, i;
+	bool read_edid = false;
 
 	if (!i2c->is_regaddr) {
 		dev_dbg(hdmi->dev, "set read register address to 0\n");
@@ -622,9 +625,21 @@ static int dw_hdmi_i2c_read(struct dw_hdmi *hdmi,
 		i2c->is_regaddr = true;
 	}
 
-	while (length--) {
+	/* edid reads are in 128 bytes. scdc reads are in 1 byte */
+	if (length == HDMI_EDID_BLOCK_LEN)
+		read_edid = true;
+
+	while (length > 0) {
 		retry = 100;
-		hdmi_writeb(hdmi, i2c->slave_reg++, HDMI_I2CM_ADDRESS);
+		hdmi_writeb(hdmi, i2c->slave_reg, HDMI_I2CM_ADDRESS);
+
+		if (read_edid) {
+			i2c->slave_reg += 8;
+			length -= 8;
+		} else {
+			i2c->slave_reg++;
+			length--;
+		}
 
 		while (retry > 0) {
 			if (!(hdmi_readb(hdmi, HDMI_PHY_STAT0) & HDMI_PHY_HPD)) {
@@ -636,38 +651,54 @@ static int dw_hdmi_i2c_read(struct dw_hdmi *hdmi,
 				return -EPERM;
 			}
 
-			reinit_completion(&i2c->cmp);
-			if (i2c->is_segment)
-				hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_READ_EXT,
-					    HDMI_I2CM_OPERATION);
-			else
-				hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_READ,
-					    HDMI_I2CM_OPERATION);
+			if (i2c->is_segment) {
+				if (read_edid)
+					hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_READ8_EXT,
+						    HDMI_I2CM_OPERATION);
+				else
+					hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_READ_EXT,
+						    HDMI_I2CM_OPERATION);
+			} else {
+				if (read_edid)
+					hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_READ8,
+						    HDMI_I2CM_OPERATION);
+				else
+					hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_READ,
+						    HDMI_I2CM_OPERATION);
+			}
 
 			ret = dw_hdmi_i2c_wait(hdmi);
 			if (ret == -EAGAIN) {
 				dev_dbg(hdmi->dev, "ddc read time out\n");
 				hdmi_writeb(hdmi, 0, HDMI_I2CM_SOFTRSTZ);
+				hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_BUS_CLEAR,
+					    HDMI_I2CM_OPERATION);
 				retry -= 10;
 				continue;
 			} else if (ret == -EIO) {
 				dev_dbg(hdmi->dev, "ddc read err\n");
 				hdmi_writeb(hdmi, 0, HDMI_I2CM_SOFTRSTZ);
+				hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_BUS_CLEAR,
+					    HDMI_I2CM_OPERATION);
 				retry--;
 				usleep_range(10000, 11000);
 				continue;
 			}
-
 			/* read success */
 			break;
 		}
-
 		if (retry <= 0) {
 			dev_err(hdmi->dev, "ddc read failed\n");
 			return -EIO;
 		}
-		*buf++ = hdmi_readb(hdmi, HDMI_I2CM_DATAI);
+
+		if (read_edid)
+			for (i = 0; i < 8; i++)
+				*buf++ = hdmi_readb(hdmi, HDMI_I2CM_READ_BUFF0 + i);
+		else
+			*buf++ = hdmi_readb(hdmi, HDMI_I2CM_DATAI);
 	}
+
 	i2c->is_segment = false;
 
 	return 0;
@@ -711,11 +742,15 @@ static int dw_hdmi_i2c_write(struct dw_hdmi *hdmi,
 			if (ret == -EAGAIN) {
 				dev_dbg(hdmi->dev, "ddc write time out\n");
 				hdmi_writeb(hdmi, 0, HDMI_I2CM_SOFTRSTZ);
+				hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_BUS_CLEAR,
+					    HDMI_I2CM_OPERATION);
 				retry -= 10;
 				continue;
 			} else if (ret == -EIO) {
 				dev_dbg(hdmi->dev, "ddc write err\n");
 				hdmi_writeb(hdmi, 0, HDMI_I2CM_SOFTRSTZ);
+				hdmi_writeb(hdmi, HDMI_I2CM_OPERATION_BUS_CLEAR,
+					    HDMI_I2CM_OPERATION);
 				retry--;
 				usleep_range(10000, 11000);
 				continue;
@@ -3093,11 +3128,8 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 
 			mode = drm_mode_duplicate(connector->dev, ptr);
 			if (mode) {
-				if (!i) {
+				if (!i)
 					mode->type = DRM_MODE_TYPE_PREFERRED;
-					mode->picture_aspect_ratio =
-						HDMI_PICTURE_ASPECT_NONE;
-				}
 				drm_mode_probed_add(connector, mode);
 				ret++;
 			}
@@ -3136,13 +3168,15 @@ static bool dw_hdmi_color_changed(struct drm_connector *connector)
 	return ret;
 }
 
-static bool hdr_metadata_equal(const struct drm_connector_state *old_state,
+static bool hdr_metadata_equal(struct dw_hdmi *hdmi, const struct drm_connector_state *old_state,
 			       const struct drm_connector_state *new_state)
 {
 	struct drm_property_blob *old_blob = old_state->hdr_output_metadata;
 	struct drm_property_blob *new_blob = new_state->hdr_output_metadata;
-	int i;
+	int i, ret;
 	u8 *data;
+
+	hdmi->hdr2sdr = false;
 
 	if (!old_blob && !new_blob)
 		return true;
@@ -3170,7 +3204,20 @@ static bool hdr_metadata_equal(const struct drm_connector_state *old_state,
 	if (old_blob->length != new_blob->length)
 		return false;
 
-	return !memcmp(old_blob->data, new_blob->data, old_blob->length);
+	ret = !memcmp(old_blob->data, new_blob->data, old_blob->length);
+
+	if (!ret && new_blob) {
+		data = (u8 *)new_blob->data;
+
+		for (i = 0; i < new_blob->length; i++)
+			if (data[i])
+				break;
+
+		if (i == new_blob->length)
+			hdmi->hdr2sdr = true;
+	}
+
+	return ret;
 }
 
 static bool check_hdr_color_change(struct drm_connector_state *old_state,
@@ -3179,7 +3226,7 @@ static bool check_hdr_color_change(struct drm_connector_state *old_state,
 {
 	void *data = hdmi->plat_data->phy_data;
 
-	if (!hdr_metadata_equal(old_state, new_state)) {
+	if (!hdr_metadata_equal(hdmi, old_state, new_state)) {
 		hdmi->plat_data->check_hdr_color_change(new_state, data);
 		return true;
 	}
@@ -3216,6 +3263,8 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	 * drm_display_mode and set phy status to enabled.
 	 */
 	if (!vmode->mpixelclock) {
+		u8 val;
+
 		hdmi->curr_conn = connector;
 
 		if (hdmi->plat_data->get_enc_in_encoding)
@@ -3241,6 +3290,11 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 			vmode->mtmdsclock /= 2;
 
 		dw_hdmi_force_output_pattern(hdmi, mode);
+		drm_scdc_readb(hdmi->ddc, SCDC_TMDS_CONFIG, &val);
+
+		/* if plug out before hdmi bind, reset hdmi */
+		if (vmode->mtmdsclock >= 340000000 && !(val & SCDC_TMDS_BIT_CLOCK_RATIO_BY_40))
+			hdmi->logo_plug_out = true;
 	}
 
 	if (check_hdr_color_change(old_state, new_state, hdmi) || hdmi->logo_plug_out ||
@@ -3267,12 +3321,15 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 		if (hdmi_bus_fmt_is_yuv420(hdmi->hdmi_data.enc_out_bus_format))
 			mtmdsclk /= 2;
 
+		if (!(hdmi_readb(hdmi, HDMI_PHY_STAT0) & HDMI_PHY_HPD))
+			return 0;
+
 		if (hdmi->hdmi_data.video_mode.mpixelclock == (mode->clock * 1000) &&
 		    hdmi->hdmi_data.video_mode.mtmdsclock == (mtmdsclk * 1000) &&
 		    !hdmi->logo_plug_out && !hdmi->disabled) {
 			hdmi->update = true;
 			hdmi_writeb(hdmi, HDMI_FC_GCP_SET_AVMUTE, HDMI_FC_GCP);
-			mdelay(50);
+			mdelay(180);
 			handle_plugged_change(hdmi, false);
 		} else {
 			hdmi->update = false;
@@ -3902,16 +3959,19 @@ dw_hdmi_bridge_mode_valid(struct drm_bridge *bridge,
 			  const struct drm_display_mode *mode)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
-	struct drm_connector *connector = &hdmi->connector;
 	const struct dw_hdmi_plat_data *pdata = hdmi->plat_data;
 	enum drm_mode_status mode_status = MODE_OK;
 
 	if (hdmi->next_bridge)
 		return MODE_OK;
 
+	if (!(hdmi_readb(hdmi, HDMI_PHY_STAT0) & HDMI_PHY_HPD) && hdmi->hdr2sdr)
+		return MODE_OK;
+
 	if (pdata->mode_valid)
-		mode_status = pdata->mode_valid(connector, pdata->priv_data,
-						info, mode);
+		mode_status = pdata->mode_valid(hdmi, pdata->priv_data, info,
+						mode);
+
 	return mode_status;
 }
 
@@ -3941,6 +4001,8 @@ static void dw_hdmi_bridge_atomic_disable(struct drm_bridge *bridge,
 	hdmi->curr_conn = NULL;
 	dw_hdmi_update_power(hdmi);
 	dw_hdmi_update_phy_mask(hdmi);
+	if (hdmi->plat_data->dclk_set)
+		hdmi->plat_data->dclk_set(hdmi->plat_data->phy_data, false, 0);
 	mutex_unlock(&hdmi->mutex);
 
 	mutex_lock(&hdmi->i2c->lock);
@@ -3962,6 +4024,8 @@ static void dw_hdmi_bridge_atomic_enable(struct drm_bridge *bridge,
 	mutex_lock(&hdmi->mutex);
 	hdmi->disabled = false;
 	hdmi->curr_conn = connector;
+	if (hdmi->plat_data->dclk_set)
+		hdmi->plat_data->dclk_set(hdmi->plat_data->phy_data, true, 0);
 	dw_hdmi_update_power(hdmi);
 	dw_hdmi_update_phy_mask(hdmi);
 	handle_plugged_change(hdmi, true);
@@ -4255,14 +4319,14 @@ static const struct regmap_config hdmi_regmap_8bit_config = {
 	.reg_bits	= 32,
 	.val_bits	= 8,
 	.reg_stride	= 1,
-	.max_register	= HDMI_I2CM_FS_SCL_LCNT_0_ADDR,
+	.max_register	= HDMI_I2CM_SCDC_UPDATE1,
 };
 
 static const struct regmap_config hdmi_regmap_32bit_config = {
 	.reg_bits	= 32,
 	.val_bits	= 32,
 	.reg_stride	= 4,
-	.max_register	= HDMI_I2CM_FS_SCL_LCNT_0_ADDR << 2,
+	.max_register	= HDMI_I2CM_SCDC_UPDATE1 << 2,
 };
 
 static void dw_hdmi_init_hw(struct dw_hdmi *hdmi)
@@ -4816,6 +4880,8 @@ struct dw_hdmi *dw_hdmi_probe(struct platform_device *pdev,
 		hdmi->initialized = true;
 		if (hdmi->plat_data->set_ddc_io)
 			hdmi->plat_data->set_ddc_io(hdmi->plat_data->phy_data, true);
+		if (hdmi->plat_data->dclk_set)
+			hdmi->plat_data->dclk_set(hdmi->plat_data->phy_data, true, 0);
 	} else if (ret & HDMI_PHY_TX_PHY_LOCK) {
 		hdmi->phy.ops->disable(hdmi, hdmi->phy.data);
 		if (hdmi->plat_data->set_ddc_io)

@@ -37,6 +37,7 @@
 #include "rockchip_drm_logo.h"
 
 #include "../drm_crtc_internal.h"
+#include "../drivers/clk/rockchip/clk.h"
 
 #define DRIVER_NAME	"rockchip"
 #define DRIVER_DESC	"RockChip Soc DRM"
@@ -222,7 +223,7 @@ uint32_t rockchip_drm_of_find_possible_crtcs(struct drm_device *dev,
 		remote_port = of_graph_get_remote_port(ep);
 		if (!remote_port) {
 			of_node_put(ep);
-			return 0;
+			continue;
 		}
 
 		possible_crtcs |= drm_of_crtc_port_mask(dev, remote_port);
@@ -1542,6 +1543,8 @@ static int rockchip_drm_bind(struct device *dev)
 	ret = drm_dev_register(drm_dev, 0);
 	if (ret)
 		goto err_kms_helper_poll_fini;
+
+	rockchip_clk_unprotect();
 
 	return 0;
 err_kms_helper_poll_fini:
