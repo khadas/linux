@@ -373,8 +373,7 @@ int cdn_dp_software_train_link(struct cdn_dp_device *dp)
 	u32 rate, sink_max, source_max;
 	bool ssc_on;
 
-	ret = drm_dp_dpcd_read(&dp->aux, DP_DPCD_REV, dp->dpcd,
-			       sizeof(dp->dpcd));
+	ret = drm_dp_read_dpcd_caps(&dp->aux, dp->dpcd);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dp->dev, "Failed to get caps %d\n", ret);
 		return ret;

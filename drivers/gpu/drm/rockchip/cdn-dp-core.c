@@ -360,8 +360,7 @@ static int cdn_dp_get_sink_capability(struct cdn_dp_device *dp)
 	if (!cdn_dp_check_sink_connection(dp))
 		return -ENODEV;
 
-	ret = drm_dp_dpcd_read(&dp->aux, DP_DPCD_REV, dp->dpcd,
-			       sizeof(dp->dpcd));
+	ret = drm_dp_read_dpcd_caps(&dp->aux, dp->dpcd);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dp->dev, "Failed to get caps %d\n", ret);
 		return ret;
