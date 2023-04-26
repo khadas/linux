@@ -18990,6 +18990,26 @@ static ssize_t cur_ai_face_show(struct class *cla,
 	return count;
 }
 
+static ssize_t aisr_info_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+	struct vpp_frame_par_s *_cur_frame_par = NULL;
+	struct aisr_setting_s *aisr_mif_setting = &vd_layer[0].aisr_mif_setting;
+
+	_cur_frame_par = &cur_dev->aisr_frame_parms;
+	if (!_cur_frame_par)
+		return len;
+	if (!aisr_mif_setting->aisr_enable || !vd_layer[0].dispbuf)
+		return sprintf(buf, "aisr is not enable\n");
+	else
+		return sprintf(buf, "input %d*%d;output %d*%d;\n",
+			aisr_mif_setting->src_w,
+			aisr_mif_setting->src_h,
+			_cur_frame_par->nnhf_input_w,
+			_cur_frame_par->nnhf_input_h);
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -19434,6 +19454,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       ai_pq_policy_show,
 	       ai_pq_policy_store),
+	__ATTR(aisr_info,
+	       0664,
+	       aisr_info_show,
+	       NULL),
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 	__ATTR(det_stb_cnt,
 	       0664,
