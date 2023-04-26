@@ -16,6 +16,7 @@
 
 #include "acc.h"
 #include "acc_hw_eq.h"
+#include "acc_hw_asrc.h"
 #include "ddr_mngr.h"
 #include "regs.h"
 #include "iomap.h"
@@ -32,6 +33,8 @@ struct audio_acc {
 	struct device *dev;
 	struct acc_chipinfo *chipinfo;
 	struct clk *acc_core_clk;
+	dev_t devno;
+	struct cdev cd;
 
 	/*which module should be effected */
 	enum acc_dest acc_module;
@@ -42,8 +45,12 @@ struct audio_acc {
 	int eq_tuning_index;
 	unsigned int m_mixer_tab[ACC_EQ_INDEX][ACC_EQ_MIXER_RAM_SIZE];
 	unsigned int m_eq_tab[ACC_EQ_INDEX][ACC_EQ_FILTER_SIZE_CH][ACC_EQ_FILTER_PARAM_SIZE];
-	dev_t devno;
-	struct cdev cd;
+
+	/* asrc */
+	int asrc_enable;
+	int asrc_input_samplerate;
+	int asrc_output_samplerate;
+	int channel;
 };
 
 struct audio_acc *acc;
@@ -154,6 +161,29 @@ static int mixer_acc_write(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int acc_asrc_sr_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct audio_acc *p_acc = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.integer.value[0] = p_acc->asrc_input_samplerate;
+
+	return 0;
+}
+
+static int acc_asrc_sr_set(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct audio_acc *p_acc = snd_kcontrol_chip(kcontrol);
+
+	p_acc->asrc_input_samplerate = ucontrol->value.integer.value[0];
+	acc_asrc_set_ratio(p_acc->actrl, p_acc->asrc_input_samplerate,
+				p_acc->asrc_output_samplerate,
+				p_acc->channel);
+
+	return 0;
+}
+
 static void acc_eq_ram_init(struct audio_acc *acc)
 {
 	struct audio_acc *p_acc = acc;
@@ -187,6 +217,23 @@ static void acc_eq_ram_init(struct audio_acc *acc)
 		}
 		eq_addr += ACC_EQ_MIXER_FILTER_OFFSET_SIZE;
 	}
+}
+
+static void acc_asrc_init(struct audio_acc *acc)
+{
+	struct audio_acc *p_acc = acc;
+
+	/* set ram parameters */
+	acc_asrc_arm_init(p_acc->actrl);
+
+	/* set input & output sample rate, channel number */
+	acc_asrc_set_ratio(p_acc->actrl, 96000, 48000, 2);
+	p_acc->asrc_input_samplerate = 96000;
+	p_acc->asrc_output_samplerate = 48000;
+	p_acc->channel = 2;
+
+	acc_asrc_enable(p_acc->actrl, true);
+
 }
 
 static int mixer_acc_tuning_index_get(struct snd_kcontrol *kcontrol,
@@ -355,6 +402,18 @@ static const struct snd_kcontrol_new snd_acc_controls[] = {
 				(ACC_EQ_FILTER_SIZE_CH * 4),
 				mixer_acc_params_get,
 				mixer_acc_params_set),
+
+	/* enable/disable asrc */
+	SOC_SINGLE_EXT("ACC ASRC enable",
+				AUDIO_RSAMP_ACC_CTRL1, 0x18, 0x1, 0x1,
+				mixer_acc_read,
+				mixer_acc_write),
+
+	/* input sample rate for asrc */
+	SOC_SINGLE_EXT("ACC ASRC input sample rate",
+				0, 0, 192000, 0,
+				acc_asrc_sr_get,
+				acc_asrc_sr_set),
 };
 
 int card_add_acc_kcontrols(struct snd_soc_card *card)
@@ -381,8 +440,14 @@ static void acc_init(struct platform_device *pdev)
 	struct audio_acc *p_acc = dev_get_drvdata(&pdev->dev);
 
 	acc_eq_clk_enable(p_acc->actrl, true);
+	acc_asrc_clk_enable(p_acc->actrl, true);
+
+	/* frddr1->EQ->ASRC->toIO/toddr0 */
 	acc_eq_set_wrapper(p_acc->actrl);
+	acc_asrc_set_wrapper(p_acc->actrl);
+
 	acc_eq_ram_init(p_acc);
+	acc_asrc_init(p_acc);
 
 	pr_info("%s: [0x%p]\n", __func__, p_acc);
 }
@@ -501,6 +566,7 @@ static int acc_platform_suspend(struct platform_device *pdev, pm_message_t state
 	struct audio_acc *p_acc = dev_get_drvdata(&pdev->dev);
 
 	acc_eq_clk_enable(p_acc->actrl, false);
+	acc_asrc_clk_enable(p_acc->actrl, false);
 
 	return 0;
 }
@@ -510,6 +576,7 @@ static int acc_platform_resume(struct platform_device *pdev)
 	struct audio_acc *p_acc = dev_get_drvdata(&pdev->dev);
 
 	acc_eq_clk_enable(p_acc->actrl, true);
+	acc_asrc_clk_enable(p_acc->actrl, true);
 
 	return 0;
 }

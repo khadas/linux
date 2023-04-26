@@ -16,8 +16,6 @@
 
 /*Cnt_ctrl = mclk/fs_out-1 ; fest 256fs */
 #define RESAMPLE_CNT_CONTROL (255)
-#define SINC8_FILTER_COEF_ADDR (0)
-#define AA_FILTER_COEF_ADDR (129 * 32)
 
 static u32 resample_coef_parameters_table[7][5] = {
 	/*coef of 32K, fc = 9000, Q:0.55, G= 14.00, */

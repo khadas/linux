@@ -5,6 +5,7 @@
 
 #ifndef __EFFECTS_HW_ACC_H__
 #define __EFFECTS_HW_ACC_H__
+
 #include <linux/types.h>
 #include "audio_io.h"
 #include "ddr_mngr.h"

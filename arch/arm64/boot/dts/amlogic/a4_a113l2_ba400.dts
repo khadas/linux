@@ -631,6 +631,7 @@
 		clock-names = "acc_core";
 
 		/*
+		 * frddr1->EQ->ASRC->toIO/toddr0
 		 * 0:to_ddr
 		 * 1:Null
 		 * 2:to_tdmout_a

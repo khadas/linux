@@ -144,6 +144,7 @@ void acc_eq_clk_enable(struct aml_audio_controller *actrl, bool enable)
 
 void acc_eq_set_wrapper(struct aml_audio_controller *actrl)
 {
+	/* config eq wrapper */
 	aml_acc_update_bits(actrl, AUDIO_ACC_EQDRC_WRAPPER_TOP_CTL0,
 			0x1 << 31 | 0x7 << 11 | 0x1f << 6 | 0x7 << 3 | 0x7,
 			0 << 31 | //reg_start_en       [31]
@@ -170,7 +171,7 @@ void acc_eq_set_wrapper(struct aml_audio_controller *actrl)
 			/* reg_req_sel0       <= pwdata_aed[2:0]
 			 * 0: toddr, 1: asrc, 2: tdmout_a, 3: tdmout_b, 4: spdifout
 			 */
-			3 << 0  |
+			1 << 0  |
 			1 << 3  | //  reg_req_sel0_en    <= pwdata_aed[3]
 			0 << 4  | //  reg_req_sel1       <= pwdata_aed[6:4]
 			0 << 7  | //  reg_req_sel1_en    <= pwdata_aed[7]
@@ -178,16 +179,14 @@ void acc_eq_set_wrapper(struct aml_audio_controller *actrl)
 			0 << 11 | //  reg_req_sel2_en    <= pwdata_aed[11]
 			0 << 12   //  reg_ack_num        <= pwdata_aed[19:12]
 			);
-	aml_acc_update_bits(actrl, AUDIO_ACC_EQDRC_WRAPPER_TOP_CTL0,
-			1 << 31 | 1 << 0, 1 << 31 | 1 << 0);
-	/* config eqdrc_wrapper */
 	aml_acc_write(actrl, AUDIO_ACC_EQDRC_WRAPPER_TOP_CTL3,
 			7 << 28 | 6 << 24 | 5 << 20 | 4 << 16 |
 			3 << 12 | 2 << 8  | 1 << 4  | 0 << 0);
-
 	aml_acc_write(actrl, AUDIO_ACC_EQDRC_WRAPPER_TOP_CTL4,
 			15 << 28 | 14 << 24 | 13 << 20 | 12 << 16 |
 			11 << 12 | 10 << 8  | 9 << 4 | 8 << 0);
+	aml_acc_update_bits(actrl, AUDIO_ACC_EQDRC_WRAPPER_TOP_CTL0,
+			1 << 31 | 1 << 0, 1 << 31 | 1 << 0);
 
 	/* set EQ tap to max 20 bands*/
 	aml_acc_update_bits(actrl, AEQ_STATUS0_CTRL, 0x1f << 2, 0x14 << 1);
