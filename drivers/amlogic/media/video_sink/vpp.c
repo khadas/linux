@@ -1115,7 +1115,8 @@ static int vpp_process_speed_check
 				    !(vf->di_flag & DI_FLAG_DI_PVPPLINK))
 					cur_ratio = (cur_ratio * 105) / 100;
 				if (!is_meson_t7_cpu() &&
-					next_frame_par->vscale_skip_count > 0 &&
+				    !is_meson_t3_cpu() &&
+				    next_frame_par->vscale_skip_count > 0 &&
 				    ((vf->type & VIDTYPE_VIU_444) ||
 				     (vf->type & VIDTYPE_RGB_444)))
 					cur_ratio = cur_ratio * 2;
