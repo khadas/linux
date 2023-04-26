@@ -12924,9 +12924,10 @@ static void osd_setting_old_hwc(void)
 	int index = OSD1, output_index = VIU1;
 	bool freescale_update = false;
 	static u32 osd_enable;
+	static bool first_set = true;
 
 	spin_lock_irqsave(&osd_lock, lock_flags);
-	if (!osd_hw.osd_afbcd[index].enable) {
+	if (!osd_hw.osd_afbcd[index].enable && osd_hw.enable[index]) {
 		if (osd_hw.osd_meson_dev.mif_linear)
 			osd_update_mif_linear_addr(index);
 	#ifdef CONFIG_AMLOGIC_MEDIA_CANVAS
@@ -12956,12 +12957,13 @@ static void osd_setting_old_hwc(void)
 		}
 		osd_update_window_axis = false;
 	}
-	if (osd_enable != osd_hw.enable[index] &&
+	if ((osd_enable != osd_hw.enable[index] || first_set) &&
 	    !osd_hw.osd_display_debug[output_index] &&
 	    !suspend_flag) {
 		osd_hw.reg[OSD_ENABLE]
 		.update_func(index);
 		osd_enable = osd_hw.enable[index];
+		first_set = false;
 	}
 	spin_unlock_irqrestore(&osd_lock, lock_flags);
 	osd_wait_vsync_hw(index);
