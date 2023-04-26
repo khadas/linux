@@ -320,6 +320,10 @@ enum hdmi_ll_mode {
 	HDMI_LL_MODE_ENABLE,
 };
 
+struct st_debug_param {
+	unsigned int avmute_frame;
+};
+
 #define EDID_MAX_BLOCK              8
 struct hdmitx_dev {
 	struct cdev cdev; /* The cdev structure */
@@ -508,6 +512,7 @@ struct hdmitx_dev {
 	struct mutex hdmimode_mutex;
 	unsigned long up_hdcp_timeout_sec;
 	struct delayed_work work_up_hdcp_timeout;
+	struct st_debug_param debug_param;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)

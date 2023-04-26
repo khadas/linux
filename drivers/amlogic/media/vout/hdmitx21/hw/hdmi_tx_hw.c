@@ -2070,6 +2070,10 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		ret = kstrtoul(tmpbuf + 8, 10, &value);
 		hdmitx21_ext_set_audio_output(value);
 		pr_info("aud_mute :%lu\n", value);
+	} else if (strncmp(tmpbuf, "avmute_frame", 12) == 0) {
+		ret = kstrtoul(tmpbuf + 12, 10, &value);
+		hdev->debug_param.avmute_frame = value;
+		pr_info(HW "avmute_frame = %lu\n", value);
 	} else if (strncmp(tmpbuf, "testtype", 8) == 0) {
 		ret = kstrtoul(tmpbuf + 8, 10, &value);
 		event_type = value;

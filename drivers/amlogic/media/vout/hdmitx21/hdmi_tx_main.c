@@ -96,6 +96,7 @@ static void tee_comm_dev_unreg(struct hdmitx_dev *hdev);
 static bool is_cur_tmds_div40(struct hdmitx_dev *hdev);
 static void hdmitx_resend_div40(struct hdmitx_dev *hdev);
 static int hdmitx_check_vic(int vic);
+static unsigned int hdmitx_get_frame_duration(void);
 
 /*
  * Normally, after the HPD in or late resume, there will reading EDID, and
@@ -314,6 +315,8 @@ static inline void hdmitx_notify_hpd(int hpd, void *p)
 static void hdmitx_early_suspend(struct early_suspend *h)
 {
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)h->param;
+	unsigned int mute_us =
+		hdev->debug_param.avmute_frame * hdmitx_get_frame_duration();
 
 	if (hdev->aon_output) {
 		pr_info("%s return, HDMI signal enabled\n", __func__);
@@ -339,7 +342,10 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	hdev->hwop.cntlmisc(hdev, MISC_SUSFLAG, 1);
 	usleep_range(10000, 10010);
 	hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
-	usleep_range(10000, 10010);
+	if (hdev->debug_param.avmute_frame > 0)
+		msleep(mute_us / 1000);
+	else
+		msleep(100);
 	pr_info("HDMITX: Early Suspend\n");
 	frl_tx_stop(hdev);
 	hdmitx21_disable_hdcp(hdev);
@@ -438,11 +444,16 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 				  unsigned long action, void *data)
 {
 	struct hdmitx_dev *hdev = container_of(nb, struct hdmitx_dev, nb);
+	unsigned int mute_us =
+		hdev->debug_param.avmute_frame * hdmitx_get_frame_duration();
 
 	hdev->ready = 0;
 	hdmitx_vrr_disable();
 	hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
-	usleep_range(10000, 10010);
+	if (hdev->debug_param.avmute_frame > 0)
+		msleep(mute_us / 1000);
+	else
+		msleep(100);
 	frl_tx_stop(hdev);
 	if (hdev->rxsense_policy)
 		cancel_delayed_work(&hdev->work_rxsense);
@@ -1403,6 +1414,19 @@ static void hdmitx_sdr_hdr_uevent(struct hdmitx_dev *hdev)
 		hdev->hdmi_last_hdr_mode = hdev->hdmi_current_hdr_mode;
 		hdmitx21_set_uevent(HDMITX_HDR_EVENT, 0);
 	}
+}
+
+static unsigned int hdmitx_get_frame_duration(void)
+{
+	unsigned int frame_duration;
+	struct vinfo_s *vinfo = hdmitx_get_current_vinfo(NULL);
+
+	if (!vinfo || !vinfo->sync_duration_num)
+		return 0;
+
+	frame_duration =
+		1000000 * vinfo->sync_duration_den / vinfo->sync_duration_num;
+	return frame_duration;
 }
 
 static int hdmitx_check_vic(int vic)
@@ -3996,6 +4020,8 @@ void hdmitx21_av_mute_op(u32 flag, unsigned int path)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	static unsigned int avmute_path;
+	unsigned int mute_us =
+		hdev->debug_param.avmute_frame * hdmitx_get_frame_duration();
 
 	mutex_lock(&avmute_mutex);
 	if (flag == SET_AVMUTE) {
@@ -4012,6 +4038,8 @@ void hdmitx21_av_mute_op(u32 flag, unsigned int path)
 	} else if (flag == OFF_AVMUTE) {
 		hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, OFF_AVMUTE);
 	}
+	if (flag == SET_AVMUTE && hdev->debug_param.avmute_frame > 0)
+		msleep(mute_us / 1000);
 	mutex_unlock(&avmute_mutex);
 }
 
@@ -6329,6 +6357,7 @@ static int amhdmitx21_device_init(struct hdmitx_dev *hdmi_dev)
 	hdev->not_restart_hdcp = false;
 	/* wait for upstream start hdcp auth 5S */
 	hdev->up_hdcp_timeout_sec = 5;
+	hdev->debug_param.avmute_frame = 0;
 
 	return 0;
 }
