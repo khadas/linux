@@ -343,8 +343,16 @@ enum ddc_err_t hdmitx_ddc_read_1byte(u8 slave_addr, u8 reg_addr, u8 *p_buf)
 bool is_rx_hdcp2ver(void)
 {
 	u8 cap_val = 0;
+	bool ret = false;
 
-	hdmitx_ddc_read_1byte(DDC_HDCP_DEVICE_ADDR, REG_DDC_HDCP_VERSION, &cap_val);
+	/* it easily read fails under FRL mode as FRL ddc bus stall operation,
+	 * so use hdmitx_ddcm_read() method instead
+	 */
+	/* hdmitx_ddc_read_1byte(DDC_HDCP_DEVICE_ADDR, REG_DDC_HDCP_VERSION, &cap_val); */
+	ret = hdmitx_ddcm_read(0, DDC_HDCP_DEVICE_ADDR, REG_DDC_HDCP_VERSION, &cap_val, 1);
+	if (ret)
+		pr_info("hdmitx: ddc read hdcp version failed\n");
 
 	return cap_val == 0x04;
 }
+

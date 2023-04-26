@@ -337,6 +337,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	 */
 	hdev->suspend_flag = true;
 	rx_hdcp2_ver = 0;
+	hdev->dw_hdcp22_cap = false;
 	hdev->ready = 0;
 	hdmitx_vrr_disable();
 	hdev->hwop.cntlmisc(hdev, MISC_SUSFLAG, 1);
@@ -567,6 +568,69 @@ static  int  set_disp_mode(const char *mode)
 	return ret;
 }
 
+static void hdmitx_pre_display_init(struct hdmitx_dev *hdev)
+{
+	u8 update_flags = 0;
+
+	if (hdev->rxcap.max_frl_rate > FRL_NONE &&
+		hdev->rxcap.scdc_present == 1 &&
+		/* hdev->hwop.cntlmisc(hdev, MISC_GET_FRL_MODE, 0) && */
+		hdev->frl_rate == FRL_NONE) {
+		/* refer to LTS:L Source in FRL link training procedure:
+		 * for FRL->legacy TMDS mode(LTS:4->LTS:L),
+		 * or source init TMDS mode(LTS:1->LTS:L)
+		 * 1. IF (SCDC_Present = 1)
+		 * Source shall clear (=0) FRL_Rate indicating TMDS.
+		 * IF FLT_update is currently set, Source shall clear
+		 * FLT_update by writing "1".
+		 * 2.Source shall start legacy TMDS operation when its
+		 * content is ready.
+		 */
+		scdc_tx_frl_cfg1_set(0);
+		update_flags = scdc_tx_update_flags_get();
+		if ((update_flags & FLT_UPDATE) != 0)
+			scdc_tx_update_flags_set(update_flags);
+		hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
+	} else if (hdev->rxcap.max_frl_rate > FRL_NONE &&
+		hdev->rxcap.scdc_present == 1 &&
+		hdev->frl_rate > FRL_NONE &&
+		hdev->frl_rate < FRL_RATE_MAX &&
+		hdev->hwop.cntlmisc(hdev, MISC_GET_FRL_MODE, 0) == FRL_NONE) {
+		/* refer to LTS:L Source in FRL link training procedure:
+		 * for case(LTS:L->LTS:2) switch from TMDS mode to FRL mode
+		 *
+		 * IF (Max_FRL_Rate > 0) AND (SCDC_Present = 1) AND (SCDC Sink Version != 0)
+		 * IF Source chooses to operate in FRL mode
+		 * Source should use AV mute
+		 * Source shall stop TMDS transmission
+		 * Source shall EXIT to LTS:2
+		 * END IF
+		 * END IF
+		 */
+		/* AV mute is set by system earlier */
+		hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
+	} else if (hdev->frl_rate == FRL_NONE &&
+		hdev->hwop.cntlmisc(hdev, MISC_GET_FRL_MODE, 0) == FRL_NONE) {
+		/* for cases switch between TMDS modes
+		 * per hdmi2.1 spec chapter 6.1.3.2, when source change
+		 * tmds_bit_clk_ratio, should follow the steps:
+		 * 1.disable tmds clk/data
+		 * 2.change tmds_bit_clk_ratio 0 <-> 1
+		 * 3.resume tmds clk/data transmission in 1~100 ms
+		 */
+		hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
+	}
+	/* for cases switch between FRL modes: todo
+	 * may refer to LTS:P Source in FRL link training procedure
+	 * LTS:P->LTS:2
+	 * IF Source initiates request for retraining
+	 * Source should use AV mute if video is active
+	 * Source shall stop FRL transmission including Gap-character-only transmission
+	 * Source shall EXIT to LTS:2
+	 */
+
+	/* clear vsif/avi */
+}
 static void hdmi_physical_size_update(struct hdmitx_dev *hdev)
 {
 	u32 width, height;
@@ -869,6 +933,8 @@ static int set_disp_mode_auto(void)
 /* if vic is HDMI_0_UNKNOWN, hdmitx21_set_display will disable HDMI */
 	edidinfo_detach_to_vinfo(hdev);
 	vic = check_vic_4x3_and_16x9(hdev, vic);
+
+	hdmitx_pre_display_init(hdev);
 	ret = hdmitx21_set_display(hdev, vic);
 
 	if (ret >= 0) {
@@ -910,8 +976,11 @@ static int set_disp_mode_auto(void)
 		/* below is only for tmds mode, for FRL mode
 		 * hdcp is started after training passed
 		 */
-		if (hdev->frl_rate == FRL_NONE)
+		if (hdev->frl_rate == FRL_NONE) {
+			if (get_hdcp2_lstore())
+				hdev->dw_hdcp22_cap = is_rx_hdcp2ver();
 			queue_delayed_work(hdev->hdmi_wq, &hdev->work_start_hdcp, HZ / 4);
+		}
 	}
 	mutex_unlock(&hdev->hdmimode_mutex);
 	return ret;
@@ -5975,6 +6044,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	edidinfo_detach_to_vinfo(hdev);
 	frl_tx_stop(hdev);
 	rx_hdcp2_ver = 0;
+	hdev->dw_hdcp22_cap = false;
 	is_passthrough_switch = 0;
 	pr_info("plugout\n");
 	/* when plugout before systemcontrol boot, setavmute
@@ -7699,16 +7769,25 @@ static long hdcp_comm_ioctl(struct file *file,
 	case TEE_HDCP_IOC_START:
 		/* notify by TEE, hdcp key ready */
 		rtn_val = 0;
-		pr_info("tee load hdcp key ready\n");
+		if (get_hdcp2_lstore())
+			hdev->lstore |= BIT(1);
+		if (get_hdcp1_lstore())
+			hdev->lstore |= BIT(0);
+		pr_info("tee load hdcp key ready: 0x%x\n", hdev->lstore);
+		mutex_lock(&hdev->hdmimode_mutex);
 		if (hdev->hpd_state == 1 &&
 			hdev->ready &&
 			hdmitx21_get_hdcp_mode() == 0) {
 			pr_info("hdmi ready but hdcp not enabled, enable now\n");
-			if (hdcp_need_control_by_upstream(hdev))
+			if (hdcp_need_control_by_upstream(hdev)) {
 				pr_info("hdmitx: currently hdcp should started by upstream\n");
-			else
+			} else {
+				if (hdev->lstore & BIT(1))
+					hdev->dw_hdcp22_cap = is_rx_hdcp2ver();
 				hdmitx21_enable_hdcp(hdev);
+			}
 		}
+		mutex_unlock(&hdev->hdmimode_mutex);
 		break;
 	default:
 		rtn_val = -EPERM;

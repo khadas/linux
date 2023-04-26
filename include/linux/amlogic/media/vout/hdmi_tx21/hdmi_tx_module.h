@@ -506,6 +506,7 @@ struct hdmitx_dev {
 	bool need_filter_hdcp_off;
 	u32 filter_hdcp_off_period;
 	bool not_restart_hdcp;
+	bool dw_hdcp22_cap;
 	/* mutex for mode setting, note hdcp should also
 	 * mutex with hdmi mode setting
 	 */

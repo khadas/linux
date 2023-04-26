@@ -314,6 +314,7 @@ union intr_u {
 		struct intr_t cp2tx_intr1;
 		struct intr_t cp2tx_intr2;
 		struct intr_t cp2tx_intr3;
+		struct intr_t scdc_intr;
 		struct intr_t intr2;
 	} entity;
 };
@@ -434,6 +435,7 @@ void hdmitx_setupirqs(struct hdmitx_dev *phdev);
 void ddc_toggle_sw_tpi(void);
 bool hdmitx_ddcm_read(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 *p_buf, u16 len);
 bool hdmitx_ddcm_write(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 data);
+enum ddc_err_t hdmitx_ddc_read_1byte(u8 slave_addr, u8 reg_addr, u8 *p_buf);
 bool is_cur_mode_hdmi(void);
 
 extern unsigned long hdcp_reauth_dbg;

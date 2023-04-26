@@ -251,6 +251,13 @@ static void clear_frl_start(struct frl_train_t *p)
 /*	pr_info("Clr FRL_start\n"); */
 }
 
+/* scdc bus stall operation is async with other ddc operation
+ * (such as hdcp version read), also it's used in FRL training
+ * process which is time-sensitive, so not use it with mutex
+ * with other ddc operation which may delay frl status polling,
+ * place other ddc operation in positions where no polling
+ * operation of frl status.
+ */
 static void poll_update_flags(struct frl_train_t *p)
 {
 	scdc_bus_stall_set(true);
@@ -602,8 +609,17 @@ tx_lts_p3:
 			break;
 		} else {
 			/* start hdcp after training pass */
-			if (hdmitx21_get_hdcp_mode() == 0)
+			/* if no hdcp2.2 key on board, then skip */
+			if (get_hdcp2_lstore() &&
+				hdmitx21_get_hdcp_mode() == 0) {
+				/* get downstream hdcp2.2 version in certain place,
+				 * as ddc stall request in poll_update_flags() may
+				 * affect hdcp version read.
+				 */
+				if (!hdev->dw_hdcp22_cap)
+					hdev->dw_hdcp22_cap = is_rx_hdcp2ver();
 				queue_delayed_work(hdev->hdmi_wq, &hdev->work_start_hdcp, HZ / 4);
+			}
 		}
 		break;
 	}

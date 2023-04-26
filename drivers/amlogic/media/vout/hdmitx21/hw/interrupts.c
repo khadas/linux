@@ -33,6 +33,7 @@ static void top_hpd_intr_stub_handler(struct intr_t *);
 
 static pf_callback earc_hdmitx_hpdst;
 
+static void ddc_stall_req_handler(struct intr_t *intr);
 void hdmitx21_earc_hpdst(pf_callback cb)
 {
 	earc_hdmitx_hpdst = cb;
@@ -98,6 +99,18 @@ union intr_u hdmi_all_intrs = {
 			.mask_data = BIT(2) | BIT(3),
 			.callback = hdcp2x_intr_handler,
 		},
+		/* not enable this interrupt, there're frequent poll_update_flags()
+		 * under FRL mode which will stall request SCDC DDC, there will be
+		 * lots of interrupts
+		 */
+		.scdc_intr = {
+			.intr_mask_reg = SCDC_INTR0_MASK_IVCTX,
+			.intr_st_reg = SCDC_INTR0_IVCTX,
+			.intr_clr_reg = SCDC_INTR0_IVCTX,
+			.intr_top_bit = BIT(0),
+			.mask_data = BIT(5),
+			.callback = ddc_stall_req_handler,
+		},
 	},
 };
 
@@ -128,10 +141,13 @@ static void intr2_sw_handler(struct intr_t *intr)
 	}
 }
 
+static void ddc_stall_req_handler(struct intr_t *intr)
+{
+}
+
 static void _intr_enable(struct intr_t *pint, bool en)
 {
 	hdmitx21_wr_reg(pint->intr_mask_reg, en ? pint->mask_data : 0);
-	pr_info("%s%d\n", __func__, __LINE__);
 	hdmitx21_set_bit(HDMITX_TOP_INTR_MASKN, pint->intr_top_bit, en);
 }
 

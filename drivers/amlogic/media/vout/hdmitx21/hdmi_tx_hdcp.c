@@ -161,13 +161,17 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 	}
 
 	if (hdev->lstore == 0) {
-		if (get_hdcp2_lstore() && is_rx_hdcp2ver()) {
+		if (get_hdcp2_lstore() && hdev->dw_hdcp22_cap) {
 			hdev->hdcp_mode = 2;
 			rx_hdcp2_ver = 1;
 			hdcp_mode_set(2);
 		} else {
 			rx_hdcp2_ver = 0;
-			if (get_hdcp1_lstore()) {
+			if (hdev->frl_rate > FRL_NONE && hdev->frl_rate < FRL_RATE_MAX) {
+				hdev->hdcp_mode = 0;
+				pr_hdcp_info(L_0, "[%s] should not enable hdcp1.4 under FRL mode\n",
+					__func__);
+			} else if (get_hdcp1_lstore()) {
 				hdev->hdcp_mode = 1;
 				hdcp_mode_set(1);
 			} else {
@@ -175,7 +179,7 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 			}
 		}
 	} else if (hdev->lstore & 0x2) {
-		if (get_hdcp2_lstore() && is_rx_hdcp2ver()) {
+		if (get_hdcp2_lstore() && hdev->dw_hdcp22_cap) {
 			hdev->hdcp_mode = 2;
 			rx_hdcp2_ver = 1;
 			hdcp_mode_set(2);
@@ -184,7 +188,11 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 			hdev->hdcp_mode = 0;
 		}
 	} else if (hdev->lstore & 0x1) {
-		if (get_hdcp1_lstore()) {
+		if (hdev->frl_rate > FRL_NONE && hdev->frl_rate < FRL_RATE_MAX) {
+			hdev->hdcp_mode = 0;
+			pr_hdcp_info(L_0, "[%s] should not enable hdcp1.4 under FRL mode\n",
+				__func__);
+		} else if (get_hdcp1_lstore()) {
 			hdev->hdcp_mode = 1;
 			hdcp_mode_set(1);
 		} else {
@@ -782,7 +790,7 @@ static void hdcp_req_reauth_whandler(struct work_struct *work)
 	} else if (p_hdcp->req_reauth_ver == 2) {
 		/* force hdcp2.x mode */
 		mutex_lock(&hdcp_mutex);
-		if (get_hdcp2_lstore() && is_rx_hdcp2ver()) {
+		if (get_hdcp2_lstore() && hdev->dw_hdcp22_cap) {
 			hdev->hdcp_mode = 2;
 			hdcp_mode_set(2);
 		} else {

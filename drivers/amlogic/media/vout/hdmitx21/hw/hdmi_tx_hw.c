@@ -1787,6 +1787,10 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		hdmitx21_set_clk(hdev);
 		return;
 	} else if (strncmp(tmpbuf, "frl", 3) == 0) {
+		if (strncmp(tmpbuf + 3, "stop", 4) == 0) {
+			frl_tx_stop(hdev);
+			return;
+		}
 		hdev->manual_frl_rate = tmpbuf[3] - '0';
 		frl_tx_training_handler(hdev);
 		return;
@@ -2101,6 +2105,8 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		ret = kstrtoul(tmpbuf + 15, 10, &value);
 		set_output_mute(!!value);
 		pr_info("set VPP output mute :%d\n", !!value);
+	} else if (strncmp(tmpbuf, "hdcp_ver", 8) == 0) {
+		pr_info("hdcp_22_capable :%d\n", is_rx_hdcp2ver());
 	}
 }
 
