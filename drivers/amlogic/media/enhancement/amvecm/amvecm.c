@@ -5366,12 +5366,12 @@ static ssize_t amvecm_gamma_v2_store(struct class *cls,
 	} else if (!strcmp(parm[0], "ggr")) {
 		vpp_get_lcd_gamma_table(H_SEL_R);
 		if (!strcmp(parm[1], "all")) {
-			for (i = 0; i < 256; i++)
+			for (i = 0; i < max_idx; i++)
 				pr_info("gamma_r[%d] = %x\n",
 					i, p_gm->dbg_gm_tbl.gamma_r[i]);
 		} else if (!strcmp(parm[1], "all_str")) {
 			if (!parm[2]) {
-				for (i = 0; i < 256; i++)
+				for (i = 0; i < max_idx; i++)
 					d_convert_str(p_gm->dbg_gm_tbl.gamma_r[i], i, stemp, 3, 16);
 				pr_info("gamma_r str: %s\n", stemp);
 			} else if (!strcmp(parm[2], "adb")) {
@@ -5383,19 +5383,19 @@ static ssize_t amvecm_gamma_v2_store(struct class *cls,
 				goto free_buf;
 			}
 			i = val;
-			if (i >= 0 && i <= 256)
+			if (i >= 0 && i < max_idx)
 				pr_info("gamma_r[%d] = %x\n",
 					i, p_gm->dbg_gm_tbl.gamma_r[i]);
 		}
 	} else if (!strcmp(parm[0], "ggg")) {
 		vpp_get_lcd_gamma_table(H_SEL_G);
 		if (!strcmp(parm[1], "all")) {
-			for (i = 0; i < 256; i++)
+			for (i = 0; i < max_idx; i++)
 				pr_info("gamma_g[%d] = %x\n",
 					i, p_gm->dbg_gm_tbl.gamma_g[i]);
 		} else if (!strcmp(parm[1], "all_str")) {
 			if (!parm[2]) {
-				for (i = 0; i < 256; i++)
+				for (i = 0; i < max_idx; i++)
 					d_convert_str(p_gm->dbg_gm_tbl.gamma_g[i], i, stemp, 3, 16);
 				pr_info("gamma_g str: %s\n", stemp);
 			} else if (!strcmp(parm[2], "adb")) {
@@ -5407,7 +5407,7 @@ static ssize_t amvecm_gamma_v2_store(struct class *cls,
 				goto free_buf;
 			}
 			i = val;
-			if (i >= 0 && i <= 255)
+			if (i >= 0 && i < max_idx)
 				pr_info("gamma_g[%d] = %x\n",
 					i, p_gm->dbg_gm_tbl.gamma_g[i]);
 		}
@@ -5415,12 +5415,12 @@ static ssize_t amvecm_gamma_v2_store(struct class *cls,
 	} else if (!strcmp(parm[0], "ggb")) {
 		vpp_get_lcd_gamma_table(H_SEL_B);
 		if (!strcmp(parm[1], "all")) {
-			for (i = 0; i < 256; i++)
+			for (i = 0; i < max_idx; i++)
 				pr_info("gamma_b[%d] = %x\n",
 					i, p_gm->dbg_gm_tbl.gamma_b[i]);
 		} else if (!strcmp(parm[1], "all_str")) {
 			if (!parm[2]) {
-				for (i = 0; i < 256; i++)
+				for (i = 0; i < max_idx; i++)
 					d_convert_str(p_gm->dbg_gm_tbl.gamma_b[i], i, stemp, 3, 16);
 				pr_info("gamma_b str: %s\n", stemp);
 			} else if (!strcmp(parm[2], "adb")) {
@@ -5432,7 +5432,7 @@ static ssize_t amvecm_gamma_v2_store(struct class *cls,
 				goto free_buf;
 			}
 			i = val;
-			if (i >= 0 && i <= 255)
+			if (i >= 0 && i < max_idx)
 				pr_info("gamma_b[%d] = %x\n",
 					i, p_gm->dbg_gm_tbl.gamma_b[i]);
 		}
