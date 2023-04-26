@@ -752,11 +752,6 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 		return;
 	}
 	port_num = buf[0] - 1;
-	if (hdmi_cec_en) {
-		port_hpd_rst_flag |= 1 << port_num;
-		rx_set_port_hpd(port_num, 0);
-		rx_pr("port%d_hpd_low\n", port_num);
-	}
 	if (buf[0] > 0 && buf[0] < 4)
 		memcpy(edid_buf + EDID_SIZE * port_num * 2, buf + 1, size);
 

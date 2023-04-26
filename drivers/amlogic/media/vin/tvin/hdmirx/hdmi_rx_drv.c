@@ -1494,6 +1494,8 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 	u8 sad_data[30];
 	u8 len = 0;
 	u8 i = 0;
+	u8 port_idx = 0;
+	u8 hdmi_idx = 0;
 
 	if (_IOC_TYPE(cmd) != HDMI_IOC_MAGIC) {
 		pr_err("%s invalid command: %u\n", __func__, cmd);
@@ -1540,6 +1542,41 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 		}
 		fsm_restart();
 		rx_pr("*update edid*\n");
+		break;
+	case HDMI_IOC_EDID_UPDATE_WITH_PORT:
+		if (!argp)
+			return -EINVAL;
+		mutex_lock(&devp->rx_lock);
+		if (copy_from_user(&hdmi_idx, argp, sizeof(unsigned char))) {
+			ret = -EFAULT;
+			mutex_unlock(&devp->rx_lock);
+			break;
+		}
+		port_idx = hdmi_idx - 1;
+		if (port_idx >= 3) {
+			rx_pr("port_idx illeage\n");
+			ret = -EFAULT;
+			mutex_unlock(&devp->rx_lock);
+			break;
+		}
+
+		rx_set_port_hpd(port_idx, 0);
+		rx_pr("port%d_hpd_low\n", port_idx);
+
+		if (!rx.open_fg) {
+			port_hpd_rst_flag |= (1 << port_idx);
+			hdmi_rx_top_edid_update();
+		} else {
+			if (port_idx != rx.port) {
+				port_hpd_rst_flag |= (1 << port_idx);
+				hdmi_rx_top_edid_update();
+			} else {
+				rx_irq_en(false);
+				//rx_set_cur_hpd(0, 4);
+				fsm_restart();
+			}
+		}
+		mutex_unlock(&devp->rx_lock);
 		break;
 	case HDMI_IOC_PC_MODE_ON:
 		pc_mode_en = 1;

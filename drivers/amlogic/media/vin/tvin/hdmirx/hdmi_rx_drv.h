@@ -32,7 +32,8 @@
 //get audio info
 //2023.04.28
 //fix HDR10+ info error
-#define RX_VER0 "ver.2023/04/28"
+//add an ioctl to update single edid
+#define RX_VER0 "ver.2023/04/29"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -179,6 +180,7 @@ struct hdmirx_dev_s {
 #define HDMI_IOC_GET_AUD_SAD	_IOR(HDMI_IOC_MAGIC, 0x10, int)
 #define HDMI_IOC_GET_SPD_SRC_INFO	_IOR(HDMI_IOC_MAGIC, 0x11, struct spd_infoframe_st)
 #define HDMI_5V_PIN_STATUS	_IOR(HDMI_IOC_MAGIC, 0x12, unsigned int)
+#define HDMI_IOC_EDID_UPDATE_WITH_PORT  _IOW(HDMI_IOC_MAGIC, 0x13, unsigned char)
 
 
 #define IOC_SPD_INFO  _BIT(0)
