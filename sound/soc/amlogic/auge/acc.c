@@ -340,7 +340,7 @@ static const struct snd_kcontrol_new snd_acc_controls[] = {
 
 	/* index: 0~7 */
 	SOC_SINGLE_EXT("ACC EQ Tuning Index",
-				0, 0, 0xf, 0,
+				0, 0, 0x7, 0,
 				mixer_acc_tuning_index_get,
 				mixer_acc_tuning_index_set),
 

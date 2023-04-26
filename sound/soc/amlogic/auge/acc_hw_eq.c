@@ -154,7 +154,7 @@ void acc_eq_set_wrapper(struct aml_audio_controller *actrl)
 			1 << 1 | //reg_afifo_out_rst  [1]
 			0 << 0   //reg_eqdrc_en       [0]
 			);
-	aml_acc_update_bits(actrl, AUDIO_ACC_EQDRC_WRAPPER_TOP_CTL1, 0xffff | 0x1 << 16,
+	aml_acc_update_bits(actrl, AUDIO_ACC_EQDRC_WRAPPER_TOP_CTL1, 0xffff | 0xf << 16,
 			1 << 16 | //reg_channel_valid the valid channel num [19:16]
 			0 << 7  | // reg_eq_ch7_en [7]
 			0 << 6  | // reg_eq_ch6_en [6]
