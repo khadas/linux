@@ -505,6 +505,60 @@ void s5_set_hdr_matrix(enum hdr_module_sel module_sel,
 
 		hdr_ctrl = S5_OSD3_HDR2_CTRL;
 		hdr_clk_gate = S5_OSD3_HDR2_CLK_GATE;
+	} else if (module_sel == VDIN1_HDR) {
+		MATRIXI_COEF00_01 = VDIN_PP_HDR2_MATRIXI_COEF00_01;
+		MATRIXI_COEF00_01 = VDIN_PP_HDR2_MATRIXI_COEF00_01;
+		MATRIXI_COEF02_10 = VDIN_PP_HDR2_MATRIXI_COEF02_10;
+		MATRIXI_COEF11_12 = VDIN_PP_HDR2_MATRIXI_COEF11_12;
+		MATRIXI_COEF20_21 = VDIN_PP_HDR2_MATRIXI_COEF20_21;
+		MATRIXI_COEF22 = VDIN_PP_HDR2_MATRIXI_COEF22;
+		MATRIXI_COEF30_31 = VDIN_PP_HDR2_MATRIXI_COEF30_31;
+		MATRIXI_COEF32_40 = VDIN_PP_HDR2_MATRIXI_COEF32_40;
+		MATRIXI_COEF41_42 = VDIN_PP_HDR2_MATRIXI_COEF41_42;
+		MATRIXI_OFFSET0_1 = VDIN_PP_HDR2_MATRIXI_OFFSET0_1;
+		MATRIXI_OFFSET2 = VDIN_PP_HDR2_MATRIXI_OFFSET2;
+		MATRIXI_PRE_OFFSET0_1 = VDIN_PP_HDR2_MATRIXI_PRE_OFFSET0_1;
+		MATRIXI_PRE_OFFSET2 = VDIN_PP_HDR2_MATRIXI_PRE_OFFSET2;
+		MATRIXI_CLIP = VDIN_PP_HDR2_MATRIXI_CLIP;
+		MATRIXI_EN_CTRL = VDIN_PP_HDR2_MATRIXI_EN_CTRL;
+
+		MATRIXO_COEF00_01 = VDIN_PP_HDR2_MATRIXO_COEF00_01;
+		MATRIXO_COEF00_01 = VDIN_PP_HDR2_MATRIXO_COEF00_01;
+		MATRIXO_COEF02_10 = VDIN_PP_HDR2_MATRIXO_COEF02_10;
+		MATRIXO_COEF11_12 = VDIN_PP_HDR2_MATRIXO_COEF11_12;
+		MATRIXO_COEF20_21 = VDIN_PP_HDR2_MATRIXO_COEF20_21;
+		MATRIXO_COEF22 = VDIN_PP_HDR2_MATRIXO_COEF22;
+		MATRIXO_COEF30_31 = VDIN_PP_HDR2_MATRIXO_COEF30_31;
+		MATRIXO_COEF32_40 = VDIN_PP_HDR2_MATRIXO_COEF32_40;
+		MATRIXO_COEF41_42 = VDIN_PP_HDR2_MATRIXO_COEF41_42;
+		MATRIXO_OFFSET0_1 = VDIN_PP_HDR2_MATRIXO_OFFSET0_1;
+		MATRIXO_OFFSET2 = VDIN_PP_HDR2_MATRIXO_OFFSET2;
+		MATRIXO_PRE_OFFSET0_1 = VDIN_PP_HDR2_MATRIXO_PRE_OFFSET0_1;
+		MATRIXO_PRE_OFFSET2 = VDIN_PP_HDR2_MATRIXO_PRE_OFFSET2;
+		MATRIXO_CLIP = VDIN_PP_HDR2_MATRIXO_CLIP;
+		MATRIXO_EN_CTRL = VDIN_PP_HDR2_MATRIXO_EN_CTRL;
+
+		CGAIN_OFFT = VDIN_PP_HDR2_CGAIN_OFFT;
+		CGAIN_COEF0 = VDIN_PP_HDR2_CGAIN_COEF0;
+		CGAIN_COEF1 = VDIN_PP_HDR2_CGAIN_COEF1;
+		ADPS_CTRL = VDIN_PP_HDR2_ADPS_CTRL;
+		ADPS_ALPHA0 = VDIN_PP_HDR2_ADPS_ALPHA0;
+		ADPS_ALPHA1 = VDIN_PP_HDR2_ADPS_ALPHA1;
+		ADPS_BETA0 = VDIN_PP_HDR2_ADPS_BETA0;
+		ADPS_BETA1 = VDIN_PP_HDR2_ADPS_BETA1;
+		ADPS_BETA2 = VDIN_PP_HDR2_ADPS_BETA2;
+		ADPS_COEF0 = VDIN_PP_HDR2_ADPS_COEF0;
+		ADPS_COEF1 = VDIN_PP_HDR2_ADPS_COEF1;
+		GMUT_CTRL = VDIN_PP_HDR2_GMUT_CTRL;
+		GMUT_COEF0 = VDIN_PP_HDR2_GMUT_COEF0;
+		GMUT_COEF1 = VDIN_PP_HDR2_GMUT_COEF1;
+		GMUT_COEF2 = VDIN_PP_HDR2_GMUT_COEF2;
+		GMUT_COEF3 = VDIN_PP_HDR2_GMUT_COEF3;
+		GMUT_COEF4 = VDIN_PP_HDR2_GMUT_COEF4;
+
+		hdr_ctrl = VDIN_PP_HDR2_CTRL;
+		hdr_clk_gate = VDIN_PP_HDR2_CLK_GATE;
+		vpp_sel = 0xff;
 	}
 
 	if (!hdr_mtx_param ||
@@ -936,6 +990,11 @@ void s5_set_eotf_lut(enum hdr_module_sel module_sel,
 		eotf_lut_addr_port = S5_OSD3_EOTF_LUT_ADDR_PORT;
 		eotf_lut_data_port = S5_OSD3_EOTF_LUT_DATA_PORT;
 		hdr_ctrl = S5_OSD3_HDR2_CTRL;
+	} else if (module_sel == VDIN1_HDR) {
+		eotf_lut_addr_port = VDIN_PP_EOTF_LUT_ADDR_PORT;
+		eotf_lut_data_port = VDIN_PP_EOTF_LUT_DATA_PORT;
+		hdr_ctrl = VDIN_PP_HDR2_CTRL;
+		vpp_sel = 0xff;
 	}
 
 	for (i = 0; i < HDR2_EOTF_LUT_SIZE; i++)
@@ -993,6 +1052,11 @@ void s5_set_ootf_lut(enum hdr_module_sel module_sel,
 		ootf_lut_addr_port = S5_OSD3_OGAIN_LUT_ADDR_PORT;
 		ootf_lut_data_port = S5_OSD3_OGAIN_LUT_DATA_PORT;
 		hdr_ctrl = S5_OSD3_HDR2_CTRL;
+	} else if (module_sel == VDIN1_HDR) {
+		ootf_lut_addr_port = VDIN_PP_OGAIN_LUT_ADDR_PORT;
+		ootf_lut_data_port = VDIN_PP_OGAIN_LUT_DATA_PORT;
+		hdr_ctrl = VDIN_PP_HDR2_CTRL;
+		vpp_sel = 0xff;
 	}
 
 	for (i = 0; i < HDR2_OOTF_LUT_SIZE; i++)
@@ -1053,7 +1117,13 @@ void s5_set_oetf_lut(enum hdr_module_sel module_sel,
 		oetf_lut_addr_port = S5_OSD3_OETF_LUT_ADDR_PORT;
 		oetf_lut_data_port = S5_OSD3_OETF_LUT_DATA_PORT;
 		hdr_ctrl = S5_OSD3_HDR2_CTRL;
+	} else if (module_sel == VDIN1_HDR) {
+		oetf_lut_addr_port = VDIN_PP_OETF_LUT_ADDR_PORT;
+		oetf_lut_data_port = VDIN_PP_OETF_LUT_DATA_PORT;
+		hdr_ctrl = VDIN_PP_HDR2_CTRL;
+		vpp_sel = 0xff;
 	}
+
 	for (i = 0; i < HDR2_OETF_LUT_SIZE; i++)
 		lut[i] = hdr_lut_param->oetf_lut[i];
 
@@ -1130,6 +1200,12 @@ void s5_set_c_gain(enum hdr_module_sel module_sel,
 		cgain_lut_data_port = S5_OSD3_CGAIN_LUT_DATA_PORT;
 		hdr_ctrl = S5_OSD3_HDR2_CTRL;
 		cgain_coef1 = S5_OSD3_HDR2_CGAIN_COEF1;
+	} else if (module_sel == VDIN1_HDR) {
+		cgain_lut_addr_port = VDIN_PP_CGAIN_LUT_ADDR_PORT;
+		cgain_lut_data_port = VDIN_PP_CGAIN_LUT_DATA_PORT;
+		hdr_ctrl = VDIN_PP_HDR2_CTRL;
+		cgain_coef1 = VDIN_PP_HDR2_CGAIN_COEF1;
+		vpp_sel = 0xff;
 	}
 
 	for (i = 0; i < HDR2_CGAIN_LUT_SIZE; i++)
@@ -1376,6 +1452,11 @@ void s5_hdr_hist_config(enum hdr_module_sel module_sel,
 		hist_ctrl = S5_OSD3_HDR2_HIST_CTRL;
 		hist_hs_he = S5_OSD3_HDR2_HIST_H_START_END;
 		hist_vs_ve = S5_OSD3_HDR2_HIST_V_START_END;
+	} else if (module_sel == VDIN1_HDR) {
+		hist_ctrl = VDIN_PP_HDR2_HIST_CTRL;
+		hist_hs_he = VDIN_PP_HDR2_HIST_H_START_END;
+		hist_vs_ve = VDIN_PP_HDR2_HIST_V_START_END;
+		vpp_sel = 0xff;
 	} else {
 		return;
 	}
@@ -2236,6 +2317,16 @@ void s5_hdr_reg_dump(unsigned int offset)
 		oetf_lut_data_port = S5_OSD3_OETF_LUT_DATA_PORT;
 		cgain_lut_addr_port = S5_OSD3_CGAIN_LUT_ADDR_PORT;
 		cgain_lut_data_port = S5_OSD3_CGAIN_LUT_DATA_PORT;
+	} else if (offset == VDIN1_HDR) {
+		hdr_ctrl = VDIN_PP_HDR2_CTRL;
+		eotf_lut_addr_port = VDIN_PP_EOTF_LUT_ADDR_PORT;
+		eotf_lut_data_port = VDIN_PP_EOTF_LUT_DATA_PORT;
+		ootf_lut_addr_port = VDIN_PP_OGAIN_LUT_ADDR_PORT;
+		ootf_lut_data_port = VDIN_PP_OGAIN_LUT_DATA_PORT;
+		oetf_lut_addr_port = VDIN_PP_OETF_LUT_ADDR_PORT;
+		oetf_lut_data_port = VDIN_PP_OETF_LUT_DATA_PORT;
+		cgain_lut_addr_port = VDIN_PP_CGAIN_LUT_ADDR_PORT;
+		cgain_lut_data_port = VDIN_PP_CGAIN_LUT_DATA_PORT;
 	} else {
 		hdr_ctrl = S5_OSD1_HDR2_CTRL;
 		eotf_lut_addr_port = S5_OSD1_EOTF_LUT_ADDR_PORT;

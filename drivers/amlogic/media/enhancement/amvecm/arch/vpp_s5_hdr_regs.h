@@ -462,6 +462,72 @@
 #define S5_VD2_HDR2_HIST_H_START_END          0x383e
 #define S5_VD2_HDR2_HIST_V_START_END          0x383f
 
+// s5 vdin1 hdr2
+#define VDIN_PP_HDR2_CTRL                                      0x0291 // RW
+#define VDIN_PP_HDR2_CLK_GATE                                  0x0292 // RW
+#define VDIN_PP_HDR2_MATRIXI_COEF00_01                         0x0293 // RW
+#define VDIN_PP_HDR2_MATRIXI_COEF02_10                         0x0294 // RW
+#define VDIN_PP_HDR2_MATRIXI_COEF11_12                         0x0295 // RW
+#define VDIN_PP_HDR2_MATRIXI_COEF20_21                         0x0296 // RW
+#define VDIN_PP_HDR2_MATRIXI_COEF22                            0x0297 // RW
+#define VDIN_PP_HDR2_MATRIXI_COEF30_31                         0x0298 // RW
+#define VDIN_PP_HDR2_MATRIXI_COEF32_40                         0x0299 // RW
+#define VDIN_PP_HDR2_MATRIXI_COEF41_42                         0x029a // RW
+#define VDIN_PP_HDR2_MATRIXI_OFFSET0_1                         0x029b // RW
+#define VDIN_PP_HDR2_MATRIXI_OFFSET2                           0x029c // RW
+#define VDIN_PP_HDR2_MATRIXI_PRE_OFFSET0_1                     0x029d // RW
+#define VDIN_PP_HDR2_MATRIXI_PRE_OFFSET2                       0x029e // RW
+#define VDIN_PP_HDR2_MATRIXO_COEF00_01                         0x029f // RW
+#define VDIN_PP_HDR2_MATRIXO_COEF02_10                         0x02a0 // RW
+#define VDIN_PP_HDR2_MATRIXO_COEF11_12                         0x02a1 // RW
+#define VDIN_PP_HDR2_MATRIXO_COEF20_21                         0x02a2 // RW
+#define VDIN_PP_HDR2_MATRIXO_COEF22                            0x02a3 // RW
+#define VDIN_PP_HDR2_MATRIXO_COEF30_31                         0x02a4 // RW
+#define VDIN_PP_HDR2_MATRIXO_COEF32_40                         0x02a5 // RW
+#define VDIN_PP_HDR2_MATRIXO_COEF41_42                         0x02a6 // RW
+#define VDIN_PP_HDR2_MATRIXO_OFFSET0_1                         0x02a7 // RW
+#define VDIN_PP_HDR2_MATRIXO_OFFSET2                           0x02a8 // RW
+#define VDIN_PP_HDR2_MATRIXO_PRE_OFFSET0_1                     0x02a9 // RW
+#define VDIN_PP_HDR2_MATRIXO_PRE_OFFSET2                       0x02aa // RW
+#define VDIN_PP_HDR2_MATRIXI_CLIP                              0x02ab // RW
+#define VDIN_PP_HDR2_MATRIXO_CLIP                              0x02ac // RW
+#define VDIN_PP_HDR2_CGAIN_OFFT                                0x02ad // RW
+#define VDIN_PP_HDR2_CGAIN_COEF0                               0x02b5 // RW
+#define VDIN_PP_HDR2_CGAIN_COEF1                               0x02b6 // RW
+#define VDIN_PP_HDR2_ADPS_CTRL                                 0x02b9 // RW
+#define VDIN_PP_HDR2_ADPS_ALPHA0                               0x02ba // RW
+#define VDIN_PP_HDR2_ADPS_ALPHA1                               0x02bb // RW
+#define VDIN_PP_HDR2_ADPS_BETA0                                0x02bc // RW
+#define VDIN_PP_HDR2_ADPS_BETA1                                0x02bd // RW
+#define VDIN_PP_HDR2_ADPS_BETA2                                0x02be // RW
+#define VDIN_PP_HDR2_ADPS_COEF0                                0x02bf // RW
+#define VDIN_PP_HDR2_ADPS_COEF1                                0x02c0 // RW
+#define VDIN_PP_HDR2_GMUT_CTRL                                 0x02c1 // RW
+#define VDIN_PP_HDR2_GMUT_COEF0                                0x02c2 // RW
+#define VDIN_PP_HDR2_GMUT_COEF1                                0x02c3 // RW
+#define VDIN_PP_HDR2_GMUT_COEF2                                0x02c4 // RW
+#define VDIN_PP_HDR2_GMUT_COEF3                                0x02c5 // RW
+#define VDIN_PP_HDR2_GMUT_COEF4                                0x02c6 // RW
+#define VDIN_PP_HDR2_PIPE_CTRL1                                0x02c7 // RW
+#define VDIN_PP_HDR2_PIPE_CTRL2                                0x02c8 // RW
+#define VDIN_PP_HDR2_PIPE_CTRL3                                0x02c9 // RW
+#define VDIN_PP_HDR2_PROC_WIN1                                 0x02ca // RW
+#define VDIN_PP_HDR2_PROC_WIN2                                 0x02cb // RW
+#define VDIN_PP_HDR2_MATRIXI_EN_CTRL                           0x02cc // RW
+#define VDIN_PP_HDR2_MATRIXO_EN_CTRL                           0x02cd // RW
+#define VDIN_PP_HDR2_HIST_CTRL                                 0x02ce // RW
+#define VDIN_PP_HDR2_HIST_H_START_END                          0x02cf // RW
+#define VDIN_PP_HDR2_HIST_V_START_END                          0x02d0 // RW
+#define VDIN_PP_HDR2_HIST_RD                                   0x02ae // RO
+#define VDIN_PP_EOTF_LUT_ADDR_PORT                             0x02af // RW
+#define VDIN_PP_EOTF_LUT_DATA_PORT                             0x02b0 // RW
+#define VDIN_PP_OETF_LUT_ADDR_PORT                             0x02b1 // RW
+#define VDIN_PP_OETF_LUT_DATA_PORT                             0x02b2 // RW
+#define VDIN_PP_OGAIN_LUT_ADDR_PORT                            0x02b7 // RW
+#define VDIN_PP_OGAIN_LUT_DATA_PORT                            0x02b8 // RW
+#define VDIN_PP_CGAIN_LUT_ADDR_PORT                            0x02b3 // RW
+#define VDIN_PP_CGAIN_LUT_DATA_PORT                            0x02b4 // RW
+
 /* dma register*/
 #define VPU_DMA_REG_BASE 0x2700
 // 0x50~0x7f
