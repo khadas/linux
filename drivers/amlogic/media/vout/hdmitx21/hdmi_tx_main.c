@@ -443,6 +443,11 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 	hdmitx_vrr_disable();
 	hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
 	usleep_range(10000, 10010);
+	frl_tx_stop(hdev);
+	if (hdev->rxsense_policy)
+		cancel_delayed_work(&hdev->work_rxsense);
+	if (hdev->cedst_policy)
+		cancel_delayed_work(&hdev->work_cedst);
 	hdmitx21_disable_hdcp(hdev);
 	hdmitx21_rst_stream_type(hdev->am_hdcp);
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
