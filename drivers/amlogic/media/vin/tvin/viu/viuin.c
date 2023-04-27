@@ -639,11 +639,8 @@ static void viuin_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
 		devp->flag |= AMVIUIN_DEC_STOP;
 	else
 		pr_info("[viuin..]%s viu in dec isn't start.\n", __func__);
-	//T3 may also can do this,need same test
-	if (is_meson_s5_cpu()) {
-		pr_info("%s %d Disable VIU to VDIN\n", __func__, __LINE__);
-		wr_viu(VPU_VIU_VDIN_IF_MUX_CTRL, 0);
-	}
+	//pr_info("%s %d Disable VIU to VDIN\n", __func__, __LINE__);
+	wr_viu(VPU_VIU_VDIN_IF_MUX_CTRL, 0);
 }
 
 static int viuin_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)

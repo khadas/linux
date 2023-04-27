@@ -137,7 +137,8 @@
 /* 20230330: set whether to check the hdr sei error option */
 /* 20230404: interlace not into game mode */
 /* 20230420: add osd only support for screencap */
-#define VDIN_VER "20230420"
+/* 20230427: fix screen cap stress test crash issue */
+#define VDIN_VER "20230427"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
