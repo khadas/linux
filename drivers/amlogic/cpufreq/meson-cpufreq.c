@@ -40,7 +40,7 @@ static DEFINE_MUTEX(cpufreq_target_lock);
 struct proc_dir_entry *cpufreq_proc;
 static int opp_table_index[MAX_CLUSTERS];
 
-static unsigned int get_cpufreq_table_index(u64 function_id,
+unsigned int get_cpufreq_table_index(u64 function_id,
 					    u64 arg0, u64 arg1, u64 arg2)
 {
 	struct arm_smccc_res res;
@@ -52,6 +52,7 @@ static unsigned int get_cpufreq_table_index(u64 function_id,
 		      0, 0, 0, 0, &res);
 	return res.a0;
 }
+EXPORT_SYMBOL(get_cpufreq_table_index);
 
 static unsigned int meson_cpufreq_get_rate(unsigned int cpu)
 {
