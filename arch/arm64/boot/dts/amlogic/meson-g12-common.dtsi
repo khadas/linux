@@ -2632,25 +2632,24 @@
 			};
 		};
 
-		sd_emmc_a: sd@ffe03000 {
+		sd_emmc_c: mmc@ffe07000 {
 			compatible = "amlogic,meson-axg-mmc";
-			reg = <0x0 0xffe03000 0x0 0x800>,
-				<0x0 0xff63c264 0x0 0x4>,
-				<0x0 0xff6346cc 0x0 0x4>;
-			interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x0 0xffe07000 0x0 0x800>,
+				<0x0 0xff63c25c 0x0 0x4>,
+				<0x0 0xff6346c0 0x0 0x4>;
+			interrupts = <GIC_SPI 191 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
-			clocks = <&clkc CLKID_SD_EMMC_A>,
-				<&clkc CLKID_SD_EMMC_A_CLK0_SEL>,
-				 <&clkc CLKID_SD_EMMC_A_CLK0>,
+			clocks = <&clkc CLKID_SD_EMMC_C>,
+				<&clkc CLKID_SD_EMMC_C_CLK0_SEL>,
+				 <&clkc CLKID_SD_EMMC_C_CLK0>,
 				 <&xtal>,
-				 <&clkc CLKID_FCLK_DIV2>;
+				 <&clkc CLKID_FCLK_DIV2>,
+				 <&clkc CLKID_FCLK_DIV2P5>;
 			clock-names = "core", "mux0", "mux1",
-					"clkin0", "clkin1";
-			card_type = <3>;
+					"clkin0", "clkin1", "clkin2";
+			card_type = <1>;
 			mmc_debug_flag;
-			cap-sdio-irq;
-			keep-power-in-suspend;
-			resets = <&reset RESET_SD_EMMC_A>;
+			resets = <&reset RESET_SD_EMMC_C>;
 		};
 
 		sd_emmc_b: sd@ffe05000 {
@@ -2672,24 +2671,25 @@
 			resets = <&reset RESET_SD_EMMC_B>;
 		};
 
-		sd_emmc_c: mmc@ffe07000 {
+		sd_emmc_a: sd@ffe03000 {
 			compatible = "amlogic,meson-axg-mmc";
-			reg = <0x0 0xffe07000 0x0 0x800>,
-				<0x0 0xff63c25c 0x0 0x4>,
-				<0x0 0xff6346c0 0x0 0x4>;
-			interrupts = <GIC_SPI 191 IRQ_TYPE_EDGE_RISING>;
+			reg = <0x0 0xffe03000 0x0 0x800>,
+				<0x0 0xff63c264 0x0 0x4>,
+				<0x0 0xff6346cc 0x0 0x4>;
+			interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
-			clocks = <&clkc CLKID_SD_EMMC_C>,
-				<&clkc CLKID_SD_EMMC_C_CLK0_SEL>,
-				 <&clkc CLKID_SD_EMMC_C_CLK0>,
+			clocks = <&clkc CLKID_SD_EMMC_A>,
+				<&clkc CLKID_SD_EMMC_A_CLK0_SEL>,
+				 <&clkc CLKID_SD_EMMC_A_CLK0>,
 				 <&xtal>,
-				 <&clkc CLKID_FCLK_DIV2>,
-				 <&clkc CLKID_FCLK_DIV2P5>;
+				 <&clkc CLKID_FCLK_DIV2>;
 			clock-names = "core", "mux0", "mux1",
-					"clkin0", "clkin1", "clkin2";
-			card_type = <1>;
+					"clkin0", "clkin1";
+			card_type = <3>;
 			mmc_debug_flag;
-			resets = <&reset RESET_SD_EMMC_C>;
+			cap-sdio-irq;
+			keep-power-in-suspend;
+			resets = <&reset RESET_SD_EMMC_A>;
 		};
 
 		mtd_nand: nfc@ffe07800 {

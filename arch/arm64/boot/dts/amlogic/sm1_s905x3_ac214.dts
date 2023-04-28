@@ -1035,14 +1035,14 @@
 	non-removable;
 	disable-wp;
 
-	mmc-pwrseq = <&emmc_pwrseq>;
-	vmmc-supply = <&vddao_3v3>;
-	vqmmc-supply = <&emmc_1v8>;
+//	mmc-pwrseq = <&emmc_pwrseq>;
+//	vmmc-supply = <&vddao_3v3>;
+//	vqmmc-supply = <&emmc_1v8>;
 };
 
-&emmc_pwrseq {
-	status = "okay";
-};
+//&emmc_pwrseq {
+//	status = "okay";
+//};
 
 &mtd_nand {
 	status = "disabled";
