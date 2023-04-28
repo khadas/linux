@@ -30,7 +30,9 @@
 //fix emp pkt parse err
 //2023.03.18
 //get audio info
-#define RX_VER0 "ver.2023/04/20"
+//2023.04.28
+//fix HDR10+ info error
+#define RX_VER0 "ver.2023/04/28"
 
 /*print type*/
 #define	LOG_EN		0x01

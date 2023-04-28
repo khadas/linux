@@ -1547,8 +1547,6 @@ void rx_get_vsi_info(void)
 					rx_pr("vsi hdr10+ length err\n");
 			/* consider hdr10+ is true when IEEE matched */
 			rx.vs_info_details.hdr10plus = true;
-			rx.vs_info_details.dv_allm = true;
-			pkt->ieee = IEEE_HDR10PLUS;
 		} else if (pkt->ieee == IEEE_CUVAHDR) {
 			if (pkt->length != E_PKT_LENGTH_27) {
 				if (log_level & PACKET_LOG)
@@ -1566,10 +1564,17 @@ void rx_get_vsi_info(void)
 		if (pkt->ieee == IEEE_VSI14) {
 			/* dolbyvision1.0 */
 			if (pkt->length == E_PKT_LENGTH_24) {
-				rx.vs_info_details.dolby_vision_flag = DV_VSIF;
-				if ((pkt->sbpkt.payload.data[0] & 0xffff) == 0)
-					pkt->sbpkt.payload.data[0] = 0xffff;
-				rx.vs_info_details.vsi_state = E_VSI_DV10;
+				/* DV10: PB4-0x00/0x20, PB5-0/1/2/3/4 */
+				if ((pkt->sbpkt.vsi_dobv10.vdfmt == 0x00 ||
+					pkt->sbpkt.vsi_dobv10.vdfmt == 0x20) &&
+					pkt->sbpkt.vsi_dobv10.hdmi_vic <= 0x4) {
+					if ((pkt->sbpkt.payload.data[0] & 0xffff) == 0)
+						pkt->sbpkt.payload.data[0] = 0xffff;
+					rx.vs_info_details.dolby_vision_flag = DV_VSIF;
+					rx.vs_info_details.vsi_state = E_VSI_DV10;
+					if (log_level & PACKET_LOG)
+						rx_pr("IEEE_VSI14 DV10\n");
+				}
 			} else if ((pkt->length == E_PKT_LENGTH_5) &&
 				(pkt->sbpkt.payload.data[0] & 0xffff)) {
 				rx.vs_info_details.dolby_vision_flag = DV_NULL;
