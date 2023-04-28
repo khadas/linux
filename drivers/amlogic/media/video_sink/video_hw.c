@@ -9948,6 +9948,27 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 					vf_ext,
 					layer->cur_frame_par,
 					layer_info, __LINE__);
+				/* if vskip > 1, need set next_frame_par again with dw buffer */
+				if (layer->next_frame_par->vscale_skip_count > 1) {
+					ret = vpp_set_filters
+						(&glayer_info[layer_id], vf_ext,
+						layer->next_frame_par, vinfo,
+						(is_amdv_on() &&
+						is_amdv_stb_mode() &&
+						for_amdv_certification()),
+						op_flag);
+					if (ret == vppfilter_success_and_changed ||
+						ret == vppfilter_changed_but_hold ||
+						ret == vppfilter_changed_but_switch)
+						layer->property_changed = true;
+					if (ret != vppfilter_changed_but_hold &&
+						ret != vppfilter_changed_but_switch)
+						layer->new_vpp_setting = true;
+					if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
+						pr_info
+						("layer%d: switch and vpp_set_filters ret:%d\n",
+						 layer->layer_id, ret);
+				}
 				if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info
 						("layer%d: switch to vf_ext %px->%px(%px %px)\n",

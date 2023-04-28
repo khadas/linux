@@ -2259,6 +2259,7 @@ RESTART:
 
 	if ((vf->type & VIDTYPE_COMPRESS) &&
 	    !(vf->type & VIDTYPE_NO_DW) &&
+	    !(vf->di_flag & DI_FLAG_DI_PVPPLINK) &&
 	    !next_frame_par->nocomp &&
 	    vf->canvas0Addr != 0 &&
 	    (!IS_DI_POSTWRTIE(vf->type) ||
@@ -4703,6 +4704,7 @@ RESTART:
 
 	if ((vf->type & VIDTYPE_COMPRESS) &&
 	    !(vf->type & VIDTYPE_NO_DW) &&
+	    !(vf->di_flag & DI_FLAG_DI_PVPPLINK) &&
 	    !next_frame_par->nocomp &&
 	    vf->canvas0Addr != 0 &&
 	    (!IS_DI_POSTWRTIE(vf->type) ||
