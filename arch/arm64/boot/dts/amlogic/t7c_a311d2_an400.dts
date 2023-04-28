@@ -1009,8 +1009,9 @@
 		clock-names = "gate_out","mclk",
 					"mclk_pad","clk_srcpll";
 		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdm_d_pins
+/*		pinctrl-0 = <&tdm_d_pins
 			&tdmd_clk_pins>;
+*/
 		start_clk_enable = <1>;
 		samesource_sel = <3>;
 		ctrl_gain = <1>;
@@ -1722,7 +1723,7 @@
 		mux { /* GPIOM_3, GPIOM_4, GPIOM_5, GPIOM_1, GPIOM_2 */
 			groups = "pdm_dclk",
 				"pdm_din0",
-				"pdm_din1_m5",
+				/*"pdm_din1_m5",*/
 				"pdm_din2",
 				"pdm_din3";
 			function = "pdm";
@@ -1748,9 +1749,10 @@
 			function = "tdm";
 		};
 	};
-
+/* GPIOM_5, GPIOM_4, GPIOM_3, GPIOM_2 */
+/*
 	tdm_d_pins: tdm_d_pin {
-		mux { /* GPIOM_5, GPIOM_4, GPIOM_3, GPIOM_2 */
+		mux {
 			groups = "tdm_sclk3",
 				"tdm_fs3",
 				"tdm_d14",
@@ -1758,7 +1760,7 @@
 			function = "tdm";
 		};
 	};
-
+*/
     dvb_s_ts0_pins: dvb_s_ts0_pins {
 		tsin_a {
 			groups = "tsin_a_sop_t",
