@@ -2099,14 +2099,18 @@ bool is_unnormal_format(u32 wait_cnt)
 	    rx.pre.sw_vic == HDMI_UNKNOWN) {
 		if (wait_cnt == sig_stable_max)
 			rx_pr("*unsupport*\n");
-		if (unnormal_wait_max == wait_cnt)
+		if (unnormal_wait_max == wait_cnt) {
 			dump_state(RX_DUMP_VIDEO);
-		else
+			return false;
+		} else {
 			return true;
+		}
 	}
 	if (rx.pre.sw_dvi == 1) {
-		if (unnormal_wait_max == wait_cnt)
+		if (unnormal_wait_max == wait_cnt) {
 			dump_state(RX_DUMP_VIDEO);
+			return false;
+		}
 		if (wait_cnt == sig_stable_max)
 			rx_pr("*DVI*\n");
 		else
@@ -2117,16 +2121,19 @@ bool is_unnormal_format(u32 wait_cnt)
 	    rx.hdcp.hdcp_version == HDCP_VER_14) {
 		if (sig_stable_max == wait_cnt)
 			rx_pr("hdcp14 unfinished\n");
-		if (unnormal_wait_max == wait_cnt)
-			dump_state(RX_DUMP_HDCP);
-		else
+		if (unnormal_wait_max == wait_cnt) {
+			dump_state(RX_DUMP_VIDEO);
+			return false;
+		} else {
 			return true;
+		}
 	}
 	if (rx.hdcp.hdcp_version == HDCP_VER_NONE &&
 		rx.hdcp.hdcp_pre_ver != HDCP_VER_NONE) {
 		if ((dev_is_apple_tv_v2 && wait_cnt == hdcp_none_wait_max * 2) ||
 			(!dev_is_apple_tv_v2 && wait_cnt == hdcp_none_wait_max)) {
 			dump_state(RX_DUMP_HDCP);
+			return false;
 		} else {
 			if (log_level & VIDEO_LOG)
 				rx_pr("hdcp waiting\n");

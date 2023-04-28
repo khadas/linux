@@ -56,7 +56,8 @@
 
 /* add aspect 4 : 3 */
 /* add method to get 5v pin status */
-#define RX_VER1 "ver.2023/3/9"
+/* optimize unnormal_format check logic */
+#define RX_VER1 "ver.2023/4/28"
 
 /*
  * Currently, a total of 5 VSIF packages are supported,
