@@ -14,6 +14,9 @@
 #define phy_addr_type ulong
 #define page_sid_type u16
 
+/* config_alloc_flags bitmask */
+#define SC_ALLOC_SYS_DMA32  BIT(0)
+
 #define PAGE_INDEX(page) ((page) >> PAGE_SHIFT)
 
 struct codec_mm_scatter {
@@ -96,5 +99,9 @@ int codec_mm_scatter_mgt_delay_free_switch(int on, int delay_ms,
 					   int wait_size_M, int istvp);
 int codec_mm_dump_scatter(struct codec_mm_scatter *mms, void *buf, int size);
 int codec_mm_scatter_dec_owner_user(void *sc_mm, int delay_ms);
+
+int codec_mm_scatter_alloc_flags_config(int is_tvp, int sc_alloc_flags);
+
+int codec_mm_scatter_alloc_flag_get(void);
 
 #endif

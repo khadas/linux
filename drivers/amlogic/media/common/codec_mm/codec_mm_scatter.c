@@ -122,6 +122,7 @@ struct codec_mm_scatter_s {
 	u32 no_cache_size_M;
 	u32 support_from_slot_sys;
 	u32 no_alloc_from_sys;
+	u32 config_alloc_flags;
 };
 
 struct codec_mm_scatter_mgt {
@@ -140,6 +141,7 @@ struct codec_mm_scatter_mgt {
 	u32 enable_slot_from_sys;
 	u32 no_cache_size_M;
 	u32 no_alloc_from_sys;
+	u32 config_alloc_flags;
 	u32 support_from_slot_sys;
 	int one_page_cnt;
 	int scatters_cnt;
@@ -705,8 +707,14 @@ codec_mm_slot_alloc(struct codec_mm_scatter_mgt *smgt, int size, int flags)
 		/*try alloc from sys. */
 		int page_order = get_order(try_alloc_size);
 
-		slot->page_header = __get_free_pages(__GFP_IO | __GFP_NOWARN |
-						     __GFP_NORETRY, page_order);
+		if (smgt->config_alloc_flags & SC_ALLOC_SYS_DMA32) {
+			slot->page_header = __get_free_pages(__GFP_IO | __GFP_NOWARN |
+						__GFP_NORETRY | GFP_DMA32, page_order);
+		} else {
+			slot->page_header = __get_free_pages(__GFP_IO | __GFP_NOWARN |
+						__GFP_NORETRY, page_order);
+		}
+
 		if (!slot->page_header) {
 			if ((try_alloc_size >> (PAGE_SHIFT + 1)) >=
 				smgt->try_alloc_in_sys_page_cnt_min) {
@@ -890,9 +898,15 @@ static int codec_mm_page_alloc_from_one_pages(struct codec_mm_scatter_mgt *smgt,
 	int alloced = 0;
 
 	while (neednum > 0) {	/*one page  alloc */
-		void *vpage = (void *)__get_free_page(GFP_KERNEL);
+		void *vpage;
 		ulong page;
 		page_sid_type sid;
+
+		if (smgt->config_alloc_flags & SC_ALLOC_SYS_DMA32) {
+			vpage = (void *)__get_free_page(GFP_KERNEL | GFP_DMA32);
+		} else {
+			vpage = (void *)__get_free_page(GFP_KERNEL);
+		}
 
 		if (vpage) {
 			page = virt_to_phys(vpage);
@@ -2329,8 +2343,29 @@ int codec_mm_scatter_update_config(struct codec_mm_scatter_mgt *smgt)
 	smgt->support_from_slot_sys = g_scatter.support_from_slot_sys;
 	smgt->no_cache_size_M = g_scatter.no_cache_size_M;
 	smgt->no_alloc_from_sys = g_scatter.no_alloc_from_sys;
+	smgt->config_alloc_flags = g_scatter.config_alloc_flags;
+
 	return 0;
 }
+
+int codec_mm_scatter_alloc_flags_config(int is_tvp, int sc_alloc_flags)
+{
+	struct codec_mm_scatter_mgt *smgt =
+		codec_mm_get_scatter_mgt(is_tvp ? 1 : 0);
+
+	g_scatter.config_alloc_flags = sc_alloc_flags;
+
+	codec_mm_scatter_update_config(smgt);
+
+	return 0;
+}
+EXPORT_SYMBOL(codec_mm_scatter_alloc_flags_config);
+
+int codec_mm_scatter_alloc_flag_get(void)
+{
+	return g_scatter.config_alloc_flags;
+}
+EXPORT_SYMBOL(codec_mm_scatter_alloc_flag_get);
 
 int codec_mm_scatter_size(int is_tvp)
 {
@@ -2766,6 +2801,7 @@ static struct mconfig codec_mm_sc_configs[] = {
 		&g_scatter.enable_slot_from_sys),
 	MC_PU32("no_cache_size_M", &g_scatter.no_cache_size_M),
 	MC_PU32("no_alloc_from_sys", &g_scatter.no_alloc_from_sys),
+	MC_PU32("config_alloc_flags", &g_scatter.config_alloc_flags),
 };
 
 static struct mconfig_node codec_mm_sc;
@@ -2790,6 +2826,7 @@ int codec_mm_scatter_mgt_init(struct device *dev)
 	g_scatter.support_from_slot_sys = smgt->support_from_slot_sys;
 	g_scatter.no_cache_size_M = smgt->no_cache_size_M;
 	g_scatter.no_alloc_from_sys = 0;
+	g_scatter.config_alloc_flags = 0;
 
 	smgt->dev = dev;
 
