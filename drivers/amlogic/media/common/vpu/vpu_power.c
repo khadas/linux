@@ -263,9 +263,11 @@ void vpu_power_on_new(void)
 		pwr_id = vpu_conf.data->pwrctrl_id_table[i];
 		if (pwr_id == VPU_PWR_ID_END)
 			break;
-		if (vpu_debug_print_flag)
-			VPUPR("%s: pwr_id=%d\n", __func__, pwr_id);
-		pwr_ctrl_psci_smc(pwr_id, 1);
+		if (vpu_conf.data->chip_type == VPU_CHIP_SC2) {
+			if (vpu_debug_print_flag)
+				VPUPR("%s: pwr_id=%d\n", __func__, pwr_id);
+			pwr_ctrl_psci_smc(pwr_id, 1);
+		}
 		i++;
 	}
 	VPUPR("%s\n", __func__);
@@ -291,9 +293,11 @@ void vpu_power_off_new(void)
 		pwr_id = vpu_conf.data->pwrctrl_id_table[i];
 		if (pwr_id == VPU_PWR_ID_END)
 			break;
-		if (vpu_debug_print_flag)
-			VPUPR("%s: pwr_id=%d\n", __func__, pwr_id);
-		pwr_ctrl_psci_smc(pwr_id, 0);
+		if (vpu_conf.data->chip_type == VPU_CHIP_SC2) {
+			if (vpu_debug_print_flag)
+				VPUPR("%s: pwr_id=%d\n", __func__, pwr_id);
+			pwr_ctrl_psci_smc(pwr_id, 0);
+		}
 		i++;
 	}
 #else
