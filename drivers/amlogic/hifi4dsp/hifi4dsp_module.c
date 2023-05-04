@@ -211,6 +211,11 @@ static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		pr_debug("%s HIFI4DSP_LOAD\n", __func__);
 		ret = copy_from_user(usrinfo, argp,
 				     sizeof(struct hifi4dsp_info_t));
+		if (ret) {
+			kfree(usrinfo);
+			pr_err("%s error: HIFI4DSP_LOAD is error", __func__);
+			goto err;
+		}
 		pr_debug("\ninfo->fw1_name : %s\n", usrinfo->fw1_name);
 		pr_debug("\ninfo->fw2_name : %s\n", usrinfo->fw2_name);
 		priv->dsp->info = usrinfo;
@@ -220,6 +225,11 @@ static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		pr_debug("%s HIFI4DSP_2LOAD\n", __func__);
 		ret = copy_from_user(usrinfo, argp,
 				     sizeof(struct hifi4dsp_info_t));
+		if (ret) {
+			kfree(usrinfo);
+			pr_err("%s error: HIFI4DSP_2LOAD is error", __func__);
+			goto err;
+		}
 		priv->dsp->info = usrinfo;
 		hifi4dsp_driver_load_2fw(priv->dsp);
 	break;
@@ -227,6 +237,11 @@ static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		pr_debug("%s HIFI4DSP_RESET\n", __func__);
 		ret = copy_from_user(usrinfo, argp,
 				     sizeof(struct hifi4dsp_info_t));
+		if (ret) {
+			kfree(usrinfo);
+			pr_err("%s error: HIFI4DSP_RESET is error", __func__);
+			goto err;
+		}
 		priv->dsp->info = usrinfo;
 		hifi4dsp_driver_reset(priv->dsp);
 	break;
@@ -234,6 +249,11 @@ static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		pr_debug("%s HIFI4DSP_START\n", __func__);
 		ret = copy_from_user(usrinfo, argp,
 				     sizeof(struct hifi4dsp_info_t));
+		if (ret) {
+			kfree(usrinfo);
+			pr_err("%s error: HIFI4DSP_START is error", __func__);
+			goto err;
+		}
 		priv->dsp->info = usrinfo;
 		hifi4dsp_driver_dsp_start(priv->dsp);
 	break;
@@ -241,6 +261,11 @@ static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		pr_debug("%s HIFI4DSP_STOP\n", __func__);
 		ret = copy_from_user(usrinfo, argp,
 				     sizeof(struct hifi4dsp_info_t));
+		if (ret) {
+			kfree(usrinfo);
+			pr_err("%s error: HIFI4DSP_STOP is error", __func__);
+			goto err;
+		}
 		priv->dsp->info = usrinfo;
 		hifi4dsp_driver_dsp_stop(priv->dsp);
 	break;
@@ -248,6 +273,11 @@ static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		pr_debug("%s HIFI4DSP_SLEEP\n", __func__);
 		ret = copy_from_user(usrinfo, argp,
 				     sizeof(struct hifi4dsp_info_t));
+		if (ret) {
+			kfree(usrinfo);
+			pr_err("%s error: HIFI4DSP_SLEEP is error", __func__);
+			goto err;
+		}
 		priv->dsp->info = usrinfo;
 		hifi4dsp_driver_dsp_sleep(priv->dsp);
 	break;
@@ -255,6 +285,11 @@ static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		pr_debug("%s HIFI4DSP_WAKE\n", __func__);
 		ret = copy_from_user(usrinfo, argp,
 				     sizeof(struct hifi4dsp_info_t));
+		if (ret) {
+			kfree(usrinfo);
+			pr_err("%s error: HIFI4DSP_WAKE is error", __func__);
+			goto err;
+		}
 		priv->dsp->info = usrinfo;
 		hifi4dsp_driver_dsp_wake(priv->dsp);
 	break;
@@ -262,6 +297,11 @@ static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		pr_debug("%s HIFI4DSP_GET_INFO\n", __func__);
 		ret = copy_from_user(usrinfo, argp,
 				     sizeof(struct hifi4dsp_info_t));
+		if (ret) {
+			kfree(usrinfo);
+			pr_err("%s error: HIFI4DSP_GET_INFO is error", __func__);
+			goto err;
+		}
 		pr_debug("%s HIFI4DSP_GET_INFO %s\n", __func__,
 			 usrinfo->fw_name);
 		strcpy(usrinfo->fw_name, "1234abcdef");
@@ -269,14 +309,29 @@ static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		usrinfo->size = priv->pdata->fw_max_size;
 		ret = copy_to_user(argp, usrinfo,
 				   sizeof(struct hifi4dsp_info_t));
+		if (ret) {
+			kfree(usrinfo);
+			pr_err("%s error: HIFI4DSP_GET_INFO copy_to_user is error", __func__);
+			goto err;
+		}
 		pr_debug("%s HIFI4DSP_GET_INFO %s\n", __func__,
 			 usrinfo->fw_name);
 	break;
 	case HIFI4DSP_SHM_CLEAN:
 		if (!strcmp(get_hifi_fw_mem_type(), "sram"))
 			break;
+		pr_debug("%s HIFI4DSP_SHM_CLEAN\n", __func__);
 		ret = copy_from_user(&shminfo, argp, sizeof(shminfo));
-		pr_debug("%s clean cache, addr:0x%x, size:0x%x\n",
+		if (ret || shminfo.addr > (dsp->pdata->fw_paddr +
+					dsp->pdata->fw_max_size) || shminfo.addr <
+					dsp->pdata->fw_paddr ||
+					shminfo.size > (dsp->pdata->fw_paddr +
+					dsp->pdata->fw_max_size - shminfo.addr)) {
+			kfree(usrinfo);
+			pr_err("%s error: HIFI4DSP_SHM_CLEAN is error", __func__);
+			goto err;
+		}
+		pr_debug("%s clean cache, addr:%u, size:%u\n",
 			 __func__, shminfo.addr, shminfo.size);
 		dma_sync_single_for_device
 								(priv->dev,
@@ -287,8 +342,18 @@ static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 	case HIFI4DSP_SHM_INV:
 		if (!strcmp(get_hifi_fw_mem_type(), "sram"))
 			break;
+		pr_debug("%s HIFI4DSP_SHM_INV\n", __func__);
 		ret = copy_from_user(&shminfo, argp, sizeof(shminfo));
-		pr_debug("%s invalidate cache, addr:0x%x, size:0x%x\n",
+		if (ret || shminfo.addr > (dsp->pdata->fw_paddr +
+					dsp->pdata->fw_max_size) || shminfo.addr <
+					dsp->pdata->fw_paddr ||
+					shminfo.size > (dsp->pdata->fw_paddr +
+					dsp->pdata->fw_max_size - shminfo.addr)) {
+			kfree(usrinfo);
+			pr_err("%s error: HIFI4DSP_SHM_INV is error", __func__);
+			goto err;
+		}
+		pr_debug("%s invalidate cache, addr:%u, size:%u\n",
 			 __func__, shminfo.addr, shminfo.size);
 		dma_sync_single_for_device(priv->dev,
 					   shminfo.addr,
