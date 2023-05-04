@@ -493,6 +493,20 @@ static uint cur_hdr_policy = 0xff;
 module_param(hdr_policy, uint, 0664);
 MODULE_PARM_DESC(hdr_policy, "\n current hdr_policy\n");
 
+/* when get_hdr_policy() == 0 */
+/* enum output_format_e */
+/*	BT709 = 1,				*/
+/*	BT2020 = 2,				*/
+/*	BT2020_PQ = 3,			*/
+/*	BT2020_PQ_DYNAMIC = 4,	*/
+/*	BT2020_HLG = 5,			*/
+/*	BT2100_IPT = 6			*/
+/*	BT_BYPASS = 7			*/
+/* BT2020 = 2: 2020 + gamma not support in hdmi now */
+static uint force_output; /* 0: no force */
+module_param(force_output, uint, 0664);
+MODULE_PARM_DESC(force_output, "\n current force_output\n");
+
 /* 0: source: use src meta */
 /* 1: Auto: 601/709=709 P3/2020=P3 */
 /* 2: Native: 601/709=off P3/2020=2020 */
@@ -508,6 +522,14 @@ int boot_hdr_policy(char *str)
 	} else if (strncmp("0", str, 1) == 0) {
 		hdr_policy = 0; //follow sink
 		pr_info("boot hdr_policy: 0\n");
+	} else if (strncmp("2", str, 1) == 0) {
+		hdr_policy = 2; //force policy
+		force_output = 1; //force sdr output
+		pr_info("boot hdr_policy: 2, force_output: 1\n");
+	} else if (strncmp("3", str, 1) == 0) {
+		hdr_policy = 2; //force policy
+		force_output = 3; //force hdr10 output
+		pr_info("boot hdr_policy: 2, force_output: 3\n");
 	}
 	return 0;
 }
@@ -549,20 +571,6 @@ int boot_hdr_debug(char *str)
 	return 0;
 }
 __setup("hdr_debug=", boot_hdr_debug);
-
-/* when get_hdr_policy() == 0 */
-/* enum output_format_e */
-/*	BT709 = 1,				*/
-/*	BT2020 = 2,				*/
-/*	BT2020_PQ = 3,			*/
-/*	BT2020_PQ_DYNAMIC = 4,	*/
-/*	BT2020_HLG = 5,			*/
-/*	BT2100_IPT = 6			*/
-/*	BT_BYPASS = 7			*/
-/* BT2020 = 2: 2020 + gamma not support in hdmi now */
-static uint force_output; /* 0: no force */
-module_param(force_output, uint, 0664);
-MODULE_PARM_DESC(force_output, "\n current force_output\n");
 
 int get_primary_policy(void)
 {
