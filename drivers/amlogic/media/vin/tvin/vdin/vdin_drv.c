@@ -1393,8 +1393,6 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	/* write vframe as default */
 	devp->vframe_wr_en = 1;
 	devp->vframe_wr_en_pre = 1;
-	/* avoid abnormal image */
-	devp->dbg_stop_dec_delay = 50000;
 	memset(&devp->stats, 0, sizeof(devp->stats));
 	if (vdin_time_en)
 		pr_info("vdin.%d start time: %ums, run time:%ums.\n",
@@ -5991,7 +5989,11 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	devp->dv.dv_config = false;
 	/* Game mode 2 use one buffer by default */
 	devp->dbg_force_one_buffer = 1;
-	devp->vdin_drop_num = VDIN_DROP_FRAME_NUM_DEF;
+	if (!devp->index) {
+		devp->vdin_drop_num = VDIN_DROP_FRAME_NUM_DEF;
+		/* avoid abnormal image */
+		devp->dbg_stop_dec_delay = 50000;
+	}
 
 	INIT_DELAYED_WORK(&devp->dv.dv_dwork, vdin_dv_dwork);
 	INIT_DELAYED_WORK(&devp->vlock_dwork, vdin_vlock_dwork);
