@@ -425,7 +425,7 @@
 		nn_power_version = <6>;
 	};
 
-	jtag {
+	jtag: jtag {
 		compatible = "amlogic, jtag";
 		status = "okay";
 		select = "disable"; /* disable/jtag_a */
@@ -1686,7 +1686,7 @@
 		/*1920*1080*4*3 = 0x17BB000*/
 	};
 
-	meson-amvideom {
+	meson_amvideom: meson-amvideom {
 		compatible = "amlogic, amvideom-a4";
 		dev_name = "amvideom";
 		status = "okay";
