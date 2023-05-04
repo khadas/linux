@@ -32,8 +32,11 @@
 //get audio info
 //2023.04.28
 //fix HDR10+ info error
+//2023.05.08
 //add an ioctl to update single edid
-#define RX_VER0 "ver.2023/04/29"
+//2023.05.09
+//add extended colorimetry; mute audio for unsupported format; audio status optimized;
+#define RX_VER0 "ver.2023/05/09"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -666,6 +669,22 @@ struct spkts_rcvd_sts {
 	u32 pkt_spd_rcvd:1;
 	u32 pkt_vtem_rcvd:1;
 	u32 rsvd:28;
+};
+
+enum e_colorimetry {
+	E_NULL = 0,
+	E_SMPTE_ST_170,
+	E_BT_709,
+	E_XVYCC_601 = 3,
+	E_XVYCC_709,
+	E_SYCC_601,
+	E_OPYCC_601,
+	E_OP_RGB,
+	E_BT_2020_YCC,
+	E_BI_2020_RGBORYCC,
+	E_SMPTE_ST_2113_P3D65RGB = 10,
+	E_SMPTE_ST_2113_P3DCIRGB,
+	E_BT_2100,
 };
 
 enum hdmirx_event {

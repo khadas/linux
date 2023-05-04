@@ -1353,6 +1353,13 @@ void rx_get_aud_info(struct aud_info_s *audio_info)
 			audio_info->aud_packet_received = 1;
 		else
 			audio_info->aud_packet_received = 0;
+		audio_info->ch_sts[0] = hdmirx_rd_cor(RX_CHST1_AUD_IVCRX);
+		audio_info->ch_sts[1] = hdmirx_rd_cor(RX_CHST2_AUD_IVCRX);
+		audio_info->ch_sts[2] = hdmirx_rd_cor(RX_CHST3a_AUD_IVCRX);
+		audio_info->ch_sts[3] = hdmirx_rd_cor(RX_CHST4_AUD_IVCRX);
+		audio_info->ch_sts[4] = hdmirx_rd_cor(RX_CHST5_AUD_IVCRX);
+		audio_info->ch_sts[5] = hdmirx_rd_cor(RX_CHST6_AUD_IVCRX);
+		audio_info->ch_sts[6] = hdmirx_rd_cor(RX_CHST7_AUD_IVCRX);
 	} else {
 		audio_info->channel_count =
 			hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CHANNEL_COUNT);
@@ -1387,9 +1394,10 @@ void rx_get_aud_info(struct aud_info_s *audio_info)
  */
 void rx_get_audio_status(struct rx_audio_stat_s *aud_sts)
 {
+	enum tvin_sig_fmt_e fmt = hdmirx_hw_get_fmt();
+
 	if (rx.state == FSM_SIG_READY &&
-	    rx.pre.sw_vic != HDMI_UNKNOWN &&
-	    rx.pre.sw_vic != HDMI_UNSUPPORT &&
+	    fmt != TVIN_SIG_FMT_NULL &&
 	    rx.avmute_skip == 0) {
 		if (rx.chip_id < CHIP_ID_T7) {
 			aud_sts->aud_alloc = rx.aud_info.auds_ch_alloc;
@@ -1711,7 +1719,7 @@ int packet_init_t7(void)
 	/* get data 0x11c0-11de */
 
 	data8 = 0;
-	data8 |= 1 << 7; /* use AIF to VSI */
+	data8 |= 0 << 7; /* use AIF to VSI */
 	data8 |= 1 << 6; /* irq is set for any VSIF */
 	data8 |= 0 << 5; /* irq is set for any ACP */
 	data8 |= 1 << 4; /* irq is set for any UN-REC */
