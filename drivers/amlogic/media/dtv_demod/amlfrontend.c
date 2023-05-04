@@ -3475,7 +3475,9 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 				demod->auto_qam_mode = qam_mode;
 				dvbc_get_qam_name(demod->auto_qam_mode, qam_name);
 				demod_dvbc_set_qam(demod, demod->auto_qam_mode);
-				if (qam_mode == QAM_MODE_16 || qam_mode == QAM_MODE_32)
+				if (qam_mode == QAM_MODE_16 ||
+					qam_mode == QAM_MODE_32 ||
+					qam_mode == QAM_MODE_128)
 					demod_dvbc_fsm_reset(demod);
 
 				PR_INFO("%s: auto_times %d, auto qam done, get %s.\n",
@@ -3784,7 +3786,10 @@ static int gxtv_demod_dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 			demod->fast_search_finish = 0;
 			*status = 0;
 			*delay = HZ / 8;
-			qam_write_reg(demod, 0x65, 0x400c); // offset
+			qam_write_reg(demod, 0x65, 0x700c); // offset
+			qam_write_reg(demod, 0xb4, 0x32030);
+			qam_write_reg(demod, 0xb7, 0x3084);
+
 			// agc gain
 			qam_write_reg(demod, 0x24, (qam_read_reg(demod, 0x24) | (1 << 17)));
 			qam_write_reg(demod, 0x60, 0x10466000);
