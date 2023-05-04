@@ -2002,7 +2002,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 /* Just record VFPDB offset address, call Edid_ParsingVFPDB() after DTD
  * parsing, in case that
  * SVR >=129 and SVR <=144, Interpret as the Kth DTD in the EDID,
- * where K = SVR – 128 (for K=1 to 16)
+ * where K = SVR - 128 (for K=1 to 16)
  */
 					vfpdb_offset = &blockbuf[offset];
 					break;
@@ -2088,10 +2088,9 @@ static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdmitx_device)
 {
 	struct rx_cap *prxcap = &hdmitx_device->rxcap;
 
-	prxcap->VIC_count = 0x3;
+	prxcap->VIC_count = 0x2;
 	prxcap->VIC[0] = HDMI_3_720x480p60_16x9;
 	prxcap->VIC[1] = HDMI_4_1280x720p60_16x9;
-	prxcap->VIC[2] = HDMI_16_1920x1080p60_16x9;
 	prxcap->native_vic = HDMI_3_720x480p60_16x9;
 	hdmitx_device->vic_count = prxcap->VIC_count;
 	pr_info(EDID "set default vic\n");
