@@ -4561,6 +4561,16 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
+		if (vdin_dbg_en) {
+			pr_info("width:%d height:%d dst_width:%d dst_height:%d\n",
+				vdin_v4l2_param.width, vdin_v4l2_param.height,
+				vdin_v4l2_param.dst_width, vdin_v4l2_param.dst_height);
+			pr_info("fps:%d dst_fmt:%d bit_order:%d mode:%d bit_dep:%d secure:%d\n",
+				vdin_v4l2_param.fps, vdin_v4l2_param.dst_fmt,
+				vdin_v4l2_param.bit_order, vdin_v4l2_param.mode,
+				vdin_v4l2_param.bit_dep, vdin_v4l2_param.secure_memory_en);
+		}
+
 		memset(&param, 0, sizeof(struct vdin_parm_s));
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_SM1))
 			param.port = TVIN_PORT_VIU1_WB0_VPP;
@@ -4569,6 +4579,8 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		param.h_active = vdin_v4l2_param.width;
 		param.v_active = vdin_v4l2_param.height;
+		param.dest_h_active = vdin_v4l2_param.dst_width;
+		param.dest_v_active = vdin_v4l2_param.dst_height;
 
 		if (devp->set_canvas_manual != 1) {
 			param.reserved |= PARAM_STATE_HISTGRAM;
