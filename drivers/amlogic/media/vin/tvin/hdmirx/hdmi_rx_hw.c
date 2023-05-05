@@ -3212,6 +3212,21 @@ bool rx_clk_rate_monitor(void)
 	return changed;
 }
 
+static void hdmirx_cor_reset(void)
+{
+	ulong flags;
+	unsigned long dev_offset = 0;
+
+	if (rx.chip_id < CHIP_ID_T7)
+		return;
+	spin_lock_irqsave(&reg_rw_lock, flags);
+	dev_offset = rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
+	wr_reg(MAP_ADDR_MODULE_TOP, dev_offset + TOP_SW_RESET, 1);
+	udelay(1);
+	wr_reg(MAP_ADDR_MODULE_TOP, dev_offset + TOP_SW_RESET, 0);
+	spin_unlock_irqrestore(&reg_rw_lock, flags);
+}
+
 void rx_afifo_monitor(void)
 {
 	if (rx.chip_id < CHIP_ID_T7)
@@ -3242,14 +3257,15 @@ void rx_afifo_monitor(void)
 		if (afifo_underflow_cnt)
 			afifo_underflow_cnt--;
 	}
-	//if (afifo_overflow_cnt > 150) {
-		//afifo_overflow_cnt = 0;
-		//hdmirx_output_en(false);
+	if (afifo_overflow_cnt > 600) {
+		afifo_overflow_cnt = 0;
+		hdmirx_output_en(false);
+		hdmirx_cor_reset();
 		//hdmirx_hbr2spdif(0);
 		//rx_set_cur_hpd(0, 5);
 		//rx.state = FSM_5V_LOST;
-		//rx_pr("!!force reset\n");
-	//}
+		rx_pr("!!force reset\n");
+	}
 	//if (afifo_underflow_cnt) {
 		//afifo_underflow_cnt = 0;
 		//rx_aud_fifo_rst();

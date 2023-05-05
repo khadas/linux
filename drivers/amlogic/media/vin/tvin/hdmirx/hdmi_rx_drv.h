@@ -64,7 +64,8 @@
 /* add aspect 4 : 3 */
 /* add method to get 5v pin status */
 /* optimize unnormal_format check logic */
-#define RX_VER1 "ver.2023/4/28"
+/* 2023.05.05 core reset when afifo overflow */
+#define RX_VER1 "ver.2023/5/5"
 
 /*
  * Currently, a total of 5 VSIF packages are supported,
