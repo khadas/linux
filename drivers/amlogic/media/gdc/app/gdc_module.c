@@ -78,7 +78,8 @@ static struct gdc_device_data_s arm_gdc_clk2 = {
 	.clk_type = CORE_AXI,
 	.core_cnt = 1,
 	.smmu_support = 0,
-	.fw_version = ARMGDC_FW_V1
+	.fw_version = ARMGDC_FW_V1,
+	.endian_config = NO_ENDIAN_CONFIG
 };
 
 static struct gdc_device_data_s arm_gdc = {
@@ -87,7 +88,8 @@ static struct gdc_device_data_s arm_gdc = {
 	.ext_msb_8g = 1,
 	.core_cnt = 1,
 	.smmu_support = 0,
-	.fw_version = ARMGDC_FW_V1
+	.fw_version = ARMGDC_FW_V1,
+	.endian_config = NO_ENDIAN_CONFIG
 };
 
 static struct gdc_device_data_s aml_gdc = {
@@ -95,7 +97,8 @@ static struct gdc_device_data_s aml_gdc = {
 	.clk_type = MUXGATE_MUXSEL_GATE,
 	.core_cnt = 1,
 	.smmu_support = 0,
-	.fw_version = AMLGDC_FW_V1
+	.fw_version = AMLGDC_FW_V1,
+	.endian_config = OLD_ENDIAN_CONFIG
 };
 
 static struct gdc_device_data_s aml_gdc_v2 = {
@@ -105,7 +108,8 @@ static struct gdc_device_data_s aml_gdc_v2 = {
 	.gamma_support = 1,
 	.core_cnt = 3,
 	.smmu_support = 1,
-	.fw_version = AMLGDC_FW_V1
+	.fw_version = AMLGDC_FW_V1,
+	.endian_config = NEW_ENDIAN_CONFIG
 };
 
 static struct gdc_device_data_s aml_gdc_v3 = {
@@ -115,7 +119,8 @@ static struct gdc_device_data_s aml_gdc_v3 = {
 	.gamma_support = 0,
 	.core_cnt = 1,
 	.smmu_support = 0,
-	.fw_version = AMLGDC_FW_V2
+	.fw_version = AMLGDC_FW_V2,
+	.endian_config = NEW_ENDIAN_CONFIG
 };
 
 static const struct of_device_id gdc_dt_match[] = {
@@ -2286,6 +2291,7 @@ static int gdc_platform_probe(struct platform_device *pdev)
 	gdc_dev->ext_msb_8g = gdc_data->ext_msb_8g;
 	gdc_dev->core_cnt = gdc_data->core_cnt;
 	gdc_dev->fw_version = gdc_data->fw_version;
+	gdc_dev->endian_config = gdc_data->endian_config;
 
 	gdc_dev->misc_dev.minor = MISC_DYNAMIC_MINOR;
 	gdc_dev->misc_dev.name = drv_name;

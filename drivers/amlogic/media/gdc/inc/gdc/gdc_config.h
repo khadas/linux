@@ -44,6 +44,12 @@ enum {
 	CORE_NUM
 };
 
+enum {
+	NO_ENDIAN_CONFIG,  /* arm gdc */
+	OLD_ENDIAN_CONFIG, /* amlogic t7 */
+	NEW_ENDIAN_CONFIG  /* amlogic p1/c3/t7c... */
+};
+
 struct gdc_device_data_s {
 	int dev_type;
 	int clk_type;
@@ -54,6 +60,7 @@ struct gdc_device_data_s {
 	int core_cnt;      /* total core count */
 	int smmu_support;  /* smmu support */
 	int fw_version;
+	int endian_config; /* differences in hardware register settings */
 };
 
 struct meson_gdc_dev_t {
@@ -80,6 +87,7 @@ struct meson_gdc_dev_t {
 	ktime_t time_stamp[CORE_NUM]; /* start time stamp */
 	struct gdc_queue_item_s *current_item[CORE_NUM];
 	int fw_version;
+	int endian_config;
 };
 
 struct gdc_event_s {
@@ -422,7 +430,10 @@ static inline void gdc_datain_swap_endian_write(u32 enable, u32 core_id)
 	u32 curr = system_gdc_read_32(ISP_DWAP_CMD_SWAP, core_id);
 
 	curr &= ~(1 << 6);
-	curr |= (enable << 6);
+	if (GDC_DEV_T(AML_GDC)->endian_config == NEW_ENDIAN_CONFIG)
+		curr |= ((enable ? 0 : 1) << 6);
+	else
+		curr |= (enable << 6);
 	system_gdc_write_32(ISP_DWAP_CMD_SWAP, curr, core_id);
 }
 
@@ -434,25 +445,34 @@ static inline void gdc_dataout_swap_endian_write(u32 enable, u32 core_id)
 	curr |= ((enable ? 0 : 1) << 6);
 	system_gdc_write_32(ISP_DWAP_WMIF_CTRL1, curr, core_id);
 
-	curr = system_gdc_read_32(ISP_DWAP_CMD_SWAP, core_id);
-
-	curr &= ~(1 << 8);
-	curr |= (enable << 8);
-	system_gdc_write_32(ISP_DWAP_CMD_SWAP, curr, core_id);
+	if (GDC_DEV_T(AML_GDC)->endian_config == OLD_ENDIAN_CONFIG) {
+		curr = system_gdc_read_32(ISP_DWAP_CMD_SWAP, core_id);
+		curr &= ~(1 << 8);
+		curr |= (enable << 8);
+		system_gdc_write_32(ISP_DWAP_CMD_SWAP, curr, core_id);
+	}
 }
 
 // args: enable (1-swap 64bit of 128bit  0-do not swap)
 static inline void gdc_datain_swap_64bit_write(u32 enable, u32 core_id)
 {
-	u32 curr = system_gdc_read_32(ISP_DWAP_RMIF_CTRL1, core_id);
+	u32 curr;
 
-	curr &= ~(1 << 7);
-	curr |= (enable << 7);
+	if (GDC_DEV_T(AML_GDC)->endian_config == NEW_ENDIAN_CONFIG) {
+		curr = system_gdc_read_32(ISP_DWAP_CMD_SWAP, core_id);
+		curr &= ~(1 << 11);
+		curr |= (enable << 11);
+		system_gdc_write_32(ISP_DWAP_CMD_SWAP, curr, core_id);
+	} else {
+		curr = system_gdc_read_32(ISP_DWAP_RMIF_CTRL1, core_id);
+		curr &= ~(1 << 7);
+		curr |= (enable << 7);
 
-	/* for coef and mesh, in case of swap_64bit */
-	curr &= ~(1 << 6);
-	curr |= ((enable ? 0 : 1) << 6);
-	system_gdc_write_32(ISP_DWAP_RMIF_CTRL1, curr, core_id);
+		/* for coef and mesh, in the case of swap_64bit */
+		curr &= ~(1 << 6);
+		curr |= ((enable ? 0 : 1) << 6);
+		system_gdc_write_32(ISP_DWAP_RMIF_CTRL1, curr, core_id);
+	}
 }
 
 static inline void gdc_dataout_swap_64bit_write(u32 enable, u32 core_id)
