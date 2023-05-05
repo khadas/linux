@@ -1780,8 +1780,6 @@
 			dct = <2>;
 			sub_v = <1>;//sub version for t5w
 			afbce_loss_en = <0>;//t5w loss mode enable for DI output
-			prelink_en = <1>;
-			ponly_mode = <1>;
 			/***************************************************
 			 * t5w t3 support 4k ,same with t7 ,no canvas,
 			 * post_nub---default is 11

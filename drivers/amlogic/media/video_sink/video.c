@@ -21013,7 +21013,7 @@ static int amvideom_probe(struct platform_device *pdev)
 	vdtemp = of_property_read_u32(pdev->dev.of_node, "vd1_vd2_mux",
 				      &vd1_vd2_mux_dts);
 	if (vdtemp < 0)
-		vd1_vd2_mux_dts = 0;
+		vd1_vd2_mux_dts = 1;
 	set_rdma_func_handler();
 	if (amvideo_meson_dev.display_module == S5_DISPLAY_MODULE) {
 		video_early_init_s5(&amvideo_meson_dev);
