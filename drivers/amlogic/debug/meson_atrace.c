@@ -5,8 +5,8 @@
 
 #include <linux/module.h>
 
-#define CREATE_TRACE_POINTS
 #include <trace/events/meson_atrace.h>
+#include <linux/device.h>
 
 static u64 atrace_tag;
 
@@ -119,13 +119,53 @@ static void __exit debug_module_exit(void)
 	class_unregister(&debug_class);
 }
 
+static char *print_flags_type(unsigned int flags)
+{
+	if (flags & 1UL << KERNEL_ATRACE_COUNTER)
+		return "C";
+	else if (flags & 1UL << KERNEL_ATRACE_BEGIN)
+		return "B";
+	else if (flags & 1UL << KERNEL_ATRACE_END)
+		return "E";
+	else if (flags & 1UL << KERNEL_ATRACE_ASYNC_BEGIN)
+		return "S";
+	else if (flags & 1UL << KERNEL_ATRACE_ASYNC_END)
+		return "F";
+
+	return NULL;
+}
+
+static noinline void tracing_mark_write(char *buf)
+{
+	__trace_puts(_THIS_IP_, buf, strlen(buf));
+}
+
 void meson_atrace(int tag, const char *name, unsigned int flags,
 	 unsigned long value)
 {
-	if (get_atrace_tag_enabled(tag))
-		trace_tracing_mark_write(name, flags, value);
+	char buf[256];
+
+	if (get_atrace_tag_enabled(tag)) {
+		snprintf(buf, sizeof(buf), "%s|1|%s|%lu\n",
+			print_flags_type(flags), name, value);
+		tracing_mark_write(buf);
+	}
 }
 EXPORT_SYMBOL_GPL(meson_atrace);
+
+void __aml_trace_printk(unsigned long ip, const char *fmt, ...)
+{
+	int len = 0;
+	char buf[1024];
+	va_list ap;
+
+	va_start(ap, fmt);
+	len = vscnprintf(buf, sizeof(buf), fmt, ap);
+	if (len > 0)
+		__trace_puts(ip, buf, strlen(buf));
+	va_end(ap);
+}
+EXPORT_SYMBOL(__aml_trace_printk);
 
 module_init(debug_module_init);
 module_exit(debug_module_exit);

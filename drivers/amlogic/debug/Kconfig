@@ -19,6 +19,7 @@ config AMLOGIC_DEBUG_LOCKUP
 config AMLOGIC_DEBUG_ATRACE
 	bool "Amlogic Kernel ATrace"
 	depends on AMLOGIC_DEBUG
+	depends on TRACING
 	default y
 	help
 		Add android atrace compatible function.
