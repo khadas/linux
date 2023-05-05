@@ -63,7 +63,7 @@ int get_dtvpll_init_flag(void)
 }
 
 
-void adc_dpll_setup(int clk_a, int clk_b, int clk_sys, struct aml_demod_sta *demod_sta)
+int adc_dpll_setup(int clk_a, int clk_b, int clk_sys, struct aml_demod_sta *demod_sta)
 {
 	int unit, found, ena, enb, div2;
 	int pll_m, pll_n, pll_od_a, pll_od_b, pll_xd_a, pll_xd_b;
@@ -80,7 +80,7 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys, struct aml_demod_sta *dem
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		dtvpll_init_flag(1);
-		return;
+		return sts_pll;
 	}
 
 	dig_clk_cfg.d32 = 0;
@@ -293,15 +293,17 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys, struct aml_demod_sta *dem
 #endif
 	if (sts_pll < 0) {
 		/*set pll fail*/
-		PR_ERR("%s:set pll fail! please check!\n", __func__);
+		PR_ERR("%s: set pll fail %d !\n", __func__, sts_pll);
 	} else {
 		dtvpll_init_flag(1);
 	}
+
+	return sts_pll;
 }
 
-void demod_set_adc_core_clk(int adc_clk, int sys_clk, struct aml_demod_sta *demod_sta)
+int demod_set_adc_core_clk(int adc_clk, int sys_clk, struct aml_demod_sta *demod_sta)
 {
-	adc_dpll_setup(25, adc_clk, sys_clk, demod_sta);
+	return adc_dpll_setup(25, adc_clk, sys_clk, demod_sta);
 }
 
 void demod_set_cbus_reg(unsigned int data, unsigned int addr)
@@ -574,7 +576,7 @@ void demod_set_mode_ts(enum fe_delivery_system delsys)
 	demod_top_write_reg(DEMOD_TOP_REGC, dvbt_mode);
 }
 
-void clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk)
+int clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk)
 {
 	union demod_cfg2 cfg2;
 	int sts_pll = 0;
@@ -597,9 +599,12 @@ void clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk)
 
 	sts_pll = adc_set_pll_cntl(1, ADC_DTV_DEMOD, &ddemod_pll);
 #endif
+
 	if (sts_pll < 0) {
 		/*set pll fail*/
-		PR_ERR("%s:set pll default fail! please check!\n", __func__);
+		PR_ERR("%s: set pll default fail %d !\n", __func__, sts_pll);
+
+		return sts_pll;
 	}
 
 	demod_set_mode_ts(demod->demod_status.delsys);
@@ -608,6 +613,8 @@ void clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk)
 	demod_top_write_reg(DEMOD_TOP_REG8, cfg2.d32);
 
 	PR_ERR("%s:done!\n", __func__);
+
+	return sts_pll;
 }
 
 void dtmb_write_reg(unsigned int reg_addr, unsigned int reg_data)
@@ -1034,6 +1041,7 @@ void demod_init_mutex(void)
 
 int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 {
+	int ret = 0;
 	unsigned int clk_adc, clk_dem;
 	int nco_rate;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
@@ -1042,9 +1050,14 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 	clk_dem = demod_sys->demod_clk;
 	nco_rate = (clk_adc * 256) / clk_dem + 2;
 	PR_DBG("%s: clk_adc is %d, clk_demod is %d.\n", __func__, clk_adc, clk_dem);
-	clocks_set_sys_defaults(demod, clk_adc);
+	ret = clocks_set_sys_defaults(demod, clk_adc);
+	if (ret)
+		return ret;
+
 	/* set adc clk */
-	demod_set_adc_core_clk(clk_adc, clk_dem, &demod->demod_status);
+	ret = demod_set_adc_core_clk(clk_adc, clk_dem, &demod->demod_status);
+	if (ret)
+		return ret;
 
 	switch (demod->demod_status.delsys) {
 	case SYS_DTMB:
@@ -1172,7 +1185,7 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 		break;
 	}
 
-	PR_ERR("%s:done!\n", __func__);
+	PR_ERR("%s: %d done!\n", __func__, demod->demod_status.delsys);
 
 	return 0;
 }

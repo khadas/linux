@@ -354,7 +354,7 @@ void set_j83b_filter_reg_v4(struct aml_dtvdemod *demod);
 
 
 /* for g9tv */
-void adc_dpll_setup(int clk_a, int clk_b, int clk_sys, struct aml_demod_sta *demod_sta);
+int adc_dpll_setup(int clk_a, int clk_b, int clk_sys, struct aml_demod_sta *demod_sta);
 void demod_power_switch(int pwr_cntl);
 
 union adc_pll_cntl {
@@ -559,7 +559,7 @@ void dtvpll_lock_init(void);
 void dtvpll_init_flag(int on);
 void demod_set_irq_mask(void);
 void demod_clr_irq_stat(void);
-void demod_set_adc_core_clk(int adc_clk, int sys_clk, struct aml_demod_sta *demod_sta);
+int demod_set_adc_core_clk(int adc_clk, int sys_clk, struct aml_demod_sta *demod_sta);
 void demod_set_adc_core_clk_fix(int clk_adc, int clk_dem);
 void calculate_cordic_para(void);
 /*extern int aml_fe_analog_set_frontend(struct dvb_frontend *fe);*/
@@ -592,7 +592,7 @@ unsigned int dtvdemod_ddr_reg_read(unsigned int addr);
 int reset_reg_write(unsigned int reg, unsigned int val);
 unsigned int reset_reg_read(unsigned int addr);
 
-void clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk);
+int clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk);
 void demod_set_demod_default(void);
 unsigned int demod_get_adc_clk(struct aml_dtvdemod *demod);
 unsigned int demod_get_sys_clk(struct aml_dtvdemod *demod);
