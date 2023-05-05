@@ -1039,6 +1039,8 @@
 
 #define RV1126_GRF_IOFUNC_CON3			0x1026c
 
+#define RK3506_GRF_SOC_CON2			0x0008
+
 #define RK3562_GRF_IOC_VO_IO_CON		0x10500
 
 /* rk3568 vop registers definition */
