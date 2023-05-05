@@ -77,7 +77,8 @@
 
 /* fix typocheck error */
 /* clear scdc with RX_HPD_C_CTRL_AON_IVCRX */
-#define RX_VER2 "ver.2023/03/15"
+/* 2023.5.5 fix emp pkt parse error */
+#define RX_VER2 "ver.2023/05/05"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
@@ -449,7 +450,7 @@ struct rx_video_info {
 #define DUMP_MODE_TMDS	1
 #define TMDS_BUFFER_SIZE	0x2000000 /*32M*/
 #define EMP_BUFFER_SIZE		0x1000	/*4k*/
-#define EMP_BUFF_MAX_PKT_CNT (EMP_BUFFER_SIZE / 4) /* 1024/32 */
+#define EMP_BUFF_MAX_PKT_CNT	32
 #define TMDS_DATA_BUFFER_SIZE	0x200000
 
 struct rx_fastswitch_mode {
@@ -559,8 +560,8 @@ struct cuva_emds_s {
 
 struct dv_info_s {
 	bool flag;
-	unsigned char *dv_addr;
-	u8 dv_size;
+	u8 dv_addr[1024];
+	u8 dv_pkt_cnt;
 };
 
 struct emp_dsf_st {

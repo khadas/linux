@@ -2300,7 +2300,7 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 		/*from pkt fifo*/
 		if (!pd_fifo_buf)
 			return 0;
-		memset(pd_fifo_buf, 0, PFIFO_SIZE);
+		memset(pd_fifo_buf, 0, PFIFO_SIZE * sizeof(u32));
 		memset(&prx->vs_info, 0, sizeof(struct pd_infoframe_s));
 		/*t1 = sched_clock();*/
 		/*for recode interrupt cnt*/
@@ -2391,7 +2391,7 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 		} else {
 			rx.new_emp_pkt = false;
 		}
-		memset(pd_fifo_buf, 0, PFIFO_SIZE);
+		memset(pd_fifo_buf, 0, PFIFO_SIZE * sizeof(u32));
 		memset(&prx->emp_info, 0, sizeof(struct pd_infoframe_s));
 		pkt_num = rx.emp_buff.emp_pkt_cnt;
 		if (log_level & PACKET_LOG && rx.new_emp_pkt)
@@ -2478,10 +2478,8 @@ void rx_get_em_info(void)
 		rx_pr("emp_dsf_cnt:0x%x\n", rx.emp_dsf_cnt);
 	for (i = 0; i < rx.emp_dsf_cnt; i++) {
 		pkt = (struct emp_pkt_st *)rx.emp_dsf_info[i].pkt_addr;
-		if (!pkt) {
-			rx_pr("emp_dsf pkt err\n");
+		if (!pkt)
 			break;
-		}
 		u_ieee = pkt->cnt.md[0] +
 			(pkt->cnt.md[1] << 8) +
 			(pkt->cnt.md[2] << 16);
@@ -2553,8 +2551,15 @@ void rx_get_em_info(void)
 			break;
 		case EMP_DV:
 			rx.emp_dv_info.flag = true;
-			rx.emp_dv_info.dv_addr = (u8 *)pkt;
-			rx.emp_dv_info.dv_size = rx.emp_dsf_info[i].pkt_cnt * 32;
+			rx.emp_dv_info.dv_pkt_cnt = rx.emp_dsf_info[i].pkt_cnt;
+			if (rx.emp_dv_info.dv_pkt_cnt > 32) {
+				if (log_level & LOG_EN)
+					rx_pr("%s dv_pkt_cnt(%d) too large set to 32\n", __func__,
+						rx.emp_dv_info.dv_pkt_cnt);
+				rx.emp_dv_info.dv_pkt_cnt = 32;
+			}
+			memcpy(rx.emp_dv_info.dv_addr, (u8 *)pkt,
+				rx.emp_dv_info.dv_pkt_cnt * 32);
 			break;
 		case EMP_CUVA:
 			rx.emp_cuva_info.flag = true;

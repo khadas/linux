@@ -436,7 +436,7 @@ struct tvin_dv_vsif_raw_s {
 };
 
 struct tvin_emp_data_s {
-	u8 size;
+	u8 size; //dv is pkt_cnt
 	u8 empbuf[1024];
 	u8 tag_id;
 };
