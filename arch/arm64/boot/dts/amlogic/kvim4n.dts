@@ -12,7 +12,7 @@
 
 / {
 	model = "Khadas";
-	amlogic-dt-id = "t7c_a311d2_vim4s";
+	amlogic-dt-id = "t7c_a311d2_vim4n";
 	compatible = "amlogic, t7c";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
