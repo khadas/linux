@@ -341,6 +341,7 @@ static void ge2d_set_canvas(struct ge2d_config_s *cfg)
 
 	index = ALLOC_CANVAS_INDEX;
 	for (i = 0; i < MAX_PLANE; i++) {
+#ifdef CONFIG_AMLOGIC_MEDIA_CANVAS
 		/* fix RTL issue in SC2,
 		 * if first plane canvas index >= 0x80,
 		 * use ge2d reserved canvas to replace.
@@ -362,6 +363,7 @@ static void ge2d_set_canvas(struct ge2d_config_s *cfg)
 				      canvas.blkmode,
 				      canvas.endian);
 		}
+#endif
 
 		if (cfg->src_canvas_cfg[i].canvas_used) {
 			index_src |= index << (8 * i);
@@ -3178,7 +3180,7 @@ static void ge2d_fill_bytes(unsigned long addr, unsigned int size, char val)
 {
 	struct ge2d_context_s *context = NULL;
 	struct config_para_ex_s ge2d_config;
-	int canvas = -1;
+	int canvas = 0;
 	unsigned int w = size, h = 1;
 
 	if (!addr || !size)
@@ -3192,6 +3194,7 @@ static void ge2d_fill_bytes(unsigned long addr, unsigned int size, char val)
 		return;
 	}
 
+#ifdef CONFIG_AMLOGIC_MEDIA_CANVAS
 	canvas = canvas_pool_map_alloc_canvas("ge2d_fill_bytes");
 	if (canvas < 0) {
 		ge2d_log_err("%s, alloc canvas error\n", __func__);
@@ -3200,7 +3203,7 @@ static void ge2d_fill_bytes(unsigned long addr, unsigned int size, char val)
 	canvas_config(canvas, addr, w, h,
 		      CANVAS_ADDR_NOWRAP,
 		      CANVAS_BLKMODE_LINEAR);
-
+#endif
 	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
 	ge2d_config.alu_const_color = 0;
 	ge2d_config.bitmask_en = 0;
@@ -3247,8 +3250,10 @@ static void ge2d_fill_bytes(unsigned long addr, unsigned int size, char val)
 	fillrect(context, 0, 0, w, h, 0);
 
 release_canvas:
+#ifdef CONFIG_AMLOGIC_MEDIA_CANVAS
 	canvas_pool_map_free_canvas(canvas);
 release_context:
+#endif
 	destroy_ge2d_work_queue(context);
 }
 
