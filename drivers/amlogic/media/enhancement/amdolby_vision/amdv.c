@@ -455,6 +455,7 @@ static bool amdv_wait_on;
 module_param(amdv_wait_on, bool, 0664);
 MODULE_PARM_DESC(amdv_wait_on, "\n amdv_wait_on\n");
 
+static int amdv_uboot_on;
 static bool amdv_wait_init;
 static int amdv_wait_count;
 static unsigned int frame_count;
@@ -14021,32 +14022,59 @@ unsigned int amdv_check_enable(void)
 	if (is_aml_g12() || is_aml_sc2() || is_aml_tm2_stbmode() ||
 		is_aml_t7_stbmode() || is_aml_s4d() || is_aml_s5()) {
 		if (amdv_on_in_uboot) {
-			if ((READ_VPP_DV_REG(AMDV_CORE3_DIAG_CTRL)
-				& 0xff) == 0x20) {
-				/*LL YUV422 mode*/
-				uboot_dv_mode = dv_mode_table[2];
-				uboot_dv_source_led_yuv = 1;
-			} else if ((READ_VPP_DV_REG
-				(AMDV_CORE3_DIAG_CTRL)
-				& 0xff) == 0x3) {
-				/*LL RGB444 mode*/
-				uboot_dv_mode = dv_mode_table[2];
-				uboot_dv_source_led_rgb = 1;
-			} else {
-				if (READ_VPP_DV_REG
-					(AMDV_CORE3_REG_START + 1)
-					== 2) {
-					/*HDR10 mode*/
+			if (is_aml_s5()) {
+				if (amdv_uboot_on == 2) {
+					if ((READ_VPP_DV_REG
+						(AMDV_CORE3_DIAG_CTRL) & 0xff) == 0x3) {
+						/*LL RGB444 mode*/
+						uboot_dv_mode = dv_mode_table[2];
+						uboot_dv_source_led_rgb = 1;
+					} else {
+						/*LL YUV422 mode*/
+						uboot_dv_mode = dv_mode_table[2];
+						uboot_dv_source_led_yuv = 1;
+					}
+				} else if (amdv_uboot_on == 3) {
+					/*HDR mode*/
 					uboot_dv_mode = dv_mode_table[3];
-				} else if (READ_VPP_DV_REG
-					(AMDV_CORE3_REG_START + 1)
-					== 4) {
+					uboot_dv_source_led_yuv = 1;
+				} else if (amdv_uboot_on == 4) {
 					/*SDR mode*/
 					uboot_dv_mode = dv_mode_table[5];
+					uboot_dv_source_led_yuv = 1;
 				} else {
 					/*STANDARD RGB444 mode*/
 					uboot_dv_mode = dv_mode_table[2];
 					uboot_dv_sink_led = 1;
+				}
+			} else {
+				if ((READ_VPP_DV_REG(AMDV_CORE3_DIAG_CTRL)
+					& 0xff) == 0x20) {
+					/*LL YUV422 mode*/
+					uboot_dv_mode = dv_mode_table[2];
+					uboot_dv_source_led_yuv = 1;
+				} else if ((READ_VPP_DV_REG
+					(AMDV_CORE3_DIAG_CTRL)
+					& 0xff) == 0x3) {
+					/*LL RGB444 mode*/
+					uboot_dv_mode = dv_mode_table[2];
+					uboot_dv_source_led_rgb = 1;
+				} else {
+					if (READ_VPP_DV_REG
+						(AMDV_CORE3_REG_START + 1)
+						== 2) {
+						/*HDR10 mode*/
+						uboot_dv_mode = dv_mode_table[3];
+					} else if (READ_VPP_DV_REG
+						(AMDV_CORE3_REG_START + 1)
+						== 4) {
+						/*SDR mode*/
+						uboot_dv_mode = dv_mode_table[5];
+					} else {
+						/*STANDARD RGB444 mode*/
+						uboot_dv_mode = dv_mode_table[2];
+						uboot_dv_sink_led = 1;
+					}
 				}
 			}
 			if (recovery_mode) {/*recovery mode*/
@@ -15300,11 +15328,15 @@ static struct platform_driver aml_amdolby_vision_driver = {
 static int get_amdv_uboot_status(char *str)
 {
 	char uboot_dolby_status[DV_NAME_LEN_MAX] = {0};
+	amdv_uboot_on = *str - '0';
 
 	snprintf(uboot_dolby_status, DV_NAME_LEN_MAX, "%s", str);
 	pr_info("get_amdv_on: %s\n", uboot_dolby_status);
 
-	if (!strcmp(uboot_dolby_status, "1")) {
+	if (!strcmp(uboot_dolby_status, "1") ||
+		!strcmp(uboot_dolby_status, "2") ||
+		!strcmp(uboot_dolby_status, "3") ||
+		!strcmp(uboot_dolby_status, "4")) {
 		amdv_on_in_uboot = 1;
 		dolby_vision_enable = 1;
 	}
