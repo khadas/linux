@@ -192,10 +192,13 @@ const struct hdmi_timing *hdmitx21_match_standrd_timing(struct vesa_standard_tim
 		return NULL;
 
 	for (i = 0; i < hdmitx21_timing_size(); i++) {
-		if (t->hactive == timing->h_active &&
-		    t->vactive == timing->v_active &&
-		    abs(t->vsync - timing->v_freq / 1000) <= 1)
-			return timing;
+		/* standrd timing only support progressive format */
+		if (timing->pi_mode == 1) {
+			if (t->hactive == timing->h_active &&
+			    t->vactive == timing->v_active &&
+			    abs(t->vsync - timing->v_freq / 1000) <= 1)
+				return timing;
+		}
 		timing++;
 	}
 	return NULL;
