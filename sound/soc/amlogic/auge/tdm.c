@@ -2570,17 +2570,17 @@ static void aml_tdm_platform_shutdown(struct platform_device *pdev)
 	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 }
 
-static int aml_tdm_freeze(struct device *dev)
+static int aml_tdm_pm_freeze(struct device *dev)
 {
 	return 0;
 }
 
-static int aml_tdm_thaw(struct device *dev)
+static int aml_tdm_pm_thaw(struct device *dev)
 {
 	return 0;
 }
 
-static int aml_tdm_poweroff(struct device *dev)
+static int aml_tdm_pm_poweroff(struct device *dev)
 {
 	struct aml_tdm *p_tdm = dev_get_drvdata(dev);
 
@@ -2589,7 +2589,25 @@ static int aml_tdm_poweroff(struct device *dev)
 	return 0;
 }
 
-static int aml_tdm_restore(struct device *dev)
+static int aml_tdm_pm_suspend(struct device *dev)
+{
+	struct aml_tdm *p_tdm = dev_get_drvdata(dev);
+
+	aml_tdm_suspend(p_tdm);
+	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
+	return 0;
+}
+
+static int aml_tdm_pm_resume(struct device *dev)
+{
+	struct aml_tdm *p_tdm = dev_get_drvdata(dev);
+
+	aml_tdm_resume(p_tdm);
+	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
+	return 0;
+}
+
+static int aml_tdm_pm_restore(struct device *dev)
 {
 	struct aml_tdm *p_tdm = dev_get_drvdata(dev);
 
@@ -2599,10 +2617,12 @@ static int aml_tdm_restore(struct device *dev)
 }
 
 const struct dev_pm_ops aml_tdm_pm_ops = {
-	.freeze = aml_tdm_freeze,
-	.thaw = aml_tdm_thaw,
-	.poweroff = aml_tdm_poweroff,
-	.restore = aml_tdm_restore,
+	.freeze = aml_tdm_pm_freeze,
+	.thaw = aml_tdm_pm_thaw,
+	.poweroff = aml_tdm_pm_poweroff,
+	.restore = aml_tdm_pm_restore,
+	.suspend = aml_tdm_pm_suspend,
+	.resume  = aml_tdm_pm_resume,
 };
 
 struct platform_driver aml_tdm_driver = {

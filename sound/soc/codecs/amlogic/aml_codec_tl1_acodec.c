@@ -867,8 +867,15 @@ static int tl1_acodec_suspend(struct snd_soc_component *component)
 
 static int tl1_acodec_resume(struct snd_soc_component *component)
 {
-	pr_info("%s!\n", __func__);
+	struct tl1_acodec_priv *aml_acodec =
+		snd_soc_component_get_drvdata(component);
 
+	if (!aml_acodec) {
+		pr_err("Failed to get tl1 acodec priv\n");
+		return -EINVAL;
+	}
+	pr_info("%s\n", __func__);
+	tl1_acodec_set_toacodec(aml_acodec);
 	tl1_acodec_reset(component);
 	tl1_acodec_start_up(component);
 	tl1_acodec_reg_init(component);

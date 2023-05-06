@@ -157,6 +157,7 @@ struct tas5707_priv {
 	unsigned int mclk;
 	unsigned int EQ_enum_value;
 	unsigned int DRC_enum_value;
+	bool  request_done;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif
@@ -526,15 +527,19 @@ static int reset_tas5707_GPIO(struct snd_soc_component *component)
 	struct tas57xx_platform_data *pdata = tas5707->pdata;
 	int ret = 0;
 
-	if (pdata->reset_pin < 0)
-		return 0;
-
-	ret = devm_gpio_request_one(component->dev, pdata->reset_pin,
-					    GPIOF_OUT_INIT_LOW,
-					    "tas5707-reset-pin");
-	if (ret < 0)
+	if (pdata->reset_pin < 0) {
+		pr_warn("%s(), no reset pin\n", __func__);
 		return -1;
+	}
 
+	if (!tas5707->request_done && pdata->reset_pin > 0) {
+		ret = devm_gpio_request_one(component->dev, pdata->reset_pin,
+							GPIOF_OUT_INIT_LOW,
+							"tas5707-reset-pin");
+		if (ret < 0)
+			return -1;
+		tas5707->request_done = true;
+	}
 	gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
 	usleep_range(900, 1000);
 	gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_HIGH);
@@ -690,7 +695,7 @@ static void tas5707_remove(struct snd_soc_component *component)
 static int tas5707_suspend(struct snd_soc_component *component)
 {
 	struct tas5707_priv *tas5707 = snd_soc_component_get_drvdata(component);
-	struct tas57xx_platform_data *pdata = dev_get_platdata(component->dev);
+	struct tas57xx_platform_data *pdata = tas5707->pdata;
 
 	dev_info(component->dev, "%s!\n", __func__);
 
@@ -704,13 +709,18 @@ static int tas5707_suspend(struct snd_soc_component *component)
 	tas5707->ch_mute = snd_soc_component_read32(component, DDX_SOFT_MUTE);
 	tas5707_set_bias_level(component, SND_SOC_BIAS_OFF);
 
+	if (pdata && pdata->reset_pin >= 0) {
+		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
+		usleep_range(9, 15);
+	}
+
 	return 0;
 }
 
 static int tas5707_resume(struct snd_soc_component *component)
 {
 	struct tas5707_priv *tas5707 = snd_soc_component_get_drvdata(component);
-	struct tas57xx_platform_data *pdata = dev_get_platdata(component->dev);
+	struct tas57xx_platform_data *pdata = tas5707->pdata;
 
 	dev_info(component->dev, "%s!\n", __func__);
 
@@ -779,7 +789,7 @@ static int tas5707_parse_dt(struct tas5707_priv *tas5707,
 		//ret = -1;
 	} else {
 		pr_info("%s pdata->reset_pin = %d!\n", __func__,
-				tas5707->pdata->reset_pin);
+				reset_pin);
 	}
 	tas5707->pdata->reset_pin = reset_pin;
 

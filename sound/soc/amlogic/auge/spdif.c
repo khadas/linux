@@ -2063,17 +2063,17 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int aml_spdif_freeze(struct device *dev)
+static int aml_spdif_pm_freeze(struct device *dev)
 {
 	return 0;
 }
 
-static int aml_spdif_thaw(struct device *dev)
+static int aml_spdif_pm_thaw(struct device *dev)
 {
 	return 0;
 }
 
-static int aml_spdif_poweroff(struct device *dev)
+static int aml_spdif_pm_poweroff(struct device *dev)
 {
 	struct aml_spdif *p_spdif = dev_get_drvdata(dev);
 
@@ -2082,7 +2082,25 @@ static int aml_spdif_poweroff(struct device *dev)
 	return 0;
 }
 
-static int aml_spdif_restore(struct device *dev)
+static int aml_spdif_pm_suspend(struct device *dev)
+{
+	struct aml_spdif *p_spdif = dev_get_drvdata(dev);
+
+	aml_spdif_suspend(p_spdif);
+	pr_info("%s spdif:(%d)\n", __func__, p_spdif->id);
+	return 0;
+}
+
+static int aml_spdif_pm_resume(struct device *dev)
+{
+	struct aml_spdif *p_spdif = dev_get_drvdata(dev);
+
+	aml_spdif_resume(p_spdif);
+	pr_info("%s spdif:(%d)\n", __func__, p_spdif->id);
+	return 0;
+}
+
+static int aml_spdif_pm_restore(struct device *dev)
 {
 	struct aml_spdif *p_spdif = dev_get_drvdata(dev);
 
@@ -2092,10 +2110,12 @@ static int aml_spdif_restore(struct device *dev)
 }
 
 const struct dev_pm_ops aml_spdif_pm_ops = {
-	.freeze = aml_spdif_freeze,
-	.thaw = aml_spdif_thaw,
-	.poweroff = aml_spdif_poweroff,
-	.restore = aml_spdif_restore,
+	.freeze = aml_spdif_pm_freeze,
+	.thaw = aml_spdif_pm_thaw,
+	.poweroff = aml_spdif_pm_poweroff,
+	.restore = aml_spdif_pm_restore,
+	.suspend = aml_spdif_pm_suspend,
+	.resume = aml_spdif_pm_resume,
 };
 
 struct platform_driver aml_spdif_driver = {

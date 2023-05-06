@@ -111,7 +111,7 @@
 		gpio = <&ao_gpio GPIO_TEST_N GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-boot-on;
-		//regulator-always-on;
+		regulator-always-on;
 	};
 
 	vcc_1v8_reg: fixed@vcc_1v8_reg{
@@ -537,10 +537,10 @@
 		clocks = <&clkaudio CLKID_AUDIO2_MCLK_VAD
 				&clkc CLKID_HIFI_PLL>;
 		clock-names = "mclk","clk_srcpll";
-		/* enable control gain */
-		ctrl_gain = <1>;
 		tdm5v-supply = <&vcc5v_reg>;
 		//tdm3v3-supply = <&vddio3v3_reg>;
+		/* enable control gain */
+		ctrl_gain = <1>;
 		status = "okay";
 	};
 
