@@ -149,6 +149,10 @@ enum cif_reg_index {
 	CIF_REG_MIPI_FRAME_SIZE_ID1,
 	CIF_REG_MIPI_FRAME_SIZE_ID2,
 	CIF_REG_MIPI_FRAME_SIZE_ID3,
+	CIF_REG_MIPI_SET_SIZE_ID0,
+	CIF_REG_MIPI_SET_SIZE_ID1,
+	CIF_REG_MIPI_SET_SIZE_ID2,
+	CIF_REG_MIPI_SET_SIZE_ID3,
 	CIF_REG_MIPI_ON_PAD,
 
 	CIF_REG_Y_STAT_CONTROL,
@@ -430,6 +434,28 @@ enum cif_reg_index {
 #define CSI_MIPI0_FRAME_SIZE_ID2	0x1C8
 #define CSI_MIPI0_FRAME_SIZE_ID3	0x1CC
 
+#define CSI_MIPI0_LINE_INT_NUM_ID0_1_RK3576	0x1B0
+#define CSI_MIPI0_LINE_INT_NUM_ID2_3_RK3576	0x1B4
+#define CSI_MIPI0_LINE_CNT_ID0_1_RK3576		0x1B8
+#define CSI_MIPI0_LINE_CNT_ID2_3_RK3576		0x1BC
+#define CSI_MIPI0_ID0_CROP_START_RK3576		0x190
+#define CSI_MIPI0_ID1_CROP_START_RK3576		0x194
+#define CSI_MIPI0_ID2_CROP_START_RK3576		0x198
+#define CSI_MIPI0_ID3_CROP_START_RK3576		0x19C
+#define CSI_MIPI0_FRAME_NUM_VC0_RK3576		0x1D0
+#define CSI_MIPI0_FRAME_NUM_VC1_RK3576		0x1D4
+#define CSI_MIPI0_FRAME_NUM_VC2_RK3576		0x1D8
+#define CSI_MIPI0_FRAME_NUM_VC3_RK3576		0x1DC
+#define CSI_MIPI0_EFFECT_CODE_ID0_RK3576	0x180
+#define CSI_MIPI0_EFFECT_CODE_ID1_RK3576	0x184
+#define CSI_MIPI0_EFFECT_CODE_ID2_RK3576	0x188
+#define CSI_MIPI0_EFFECT_CODE_ID3_RK3576	0x18C
+#define CSI_MIPI0_ON_PAD_RK3576			0x17C
+#define CSI_MIPI0_SET_FRAME_SIZE_ID0_RK3576	0x1A0
+#define CSI_MIPI0_SET_FRAME_SIZE_ID1_RK3576	0x1A4
+#define CSI_MIPI0_SET_FRAME_SIZE_ID2_RK3576	0x1A8
+#define CSI_MIPI0_SET_FRAME_SIZE_ID3_RK3576	0x1AC
+
 /* RV1106 CONTROL Registers Offset */
 #define CIF_LVDS0_ID0_CTRL0		0x1D0
 #define CIF_LVDS0_ID1_CTRL0		0x1D4
@@ -497,6 +523,10 @@ enum cif_reg_index {
 #define DVP_SW_WATER_LINE_50		(0x1 << 5)
 #define DVP_SW_WATER_LINE_25		(0x2 << 5)
 #define DVP_SW_WATER_LINE_00		(0x3 << 5)
+#define DVP_SW_WATER_LINE_75_RK3576	(0x0 << 20)
+#define DVP_SW_WATER_LINE_50_RK3576	(0x1 << 20)
+#define DVP_SW_WATER_LINE_25_RK3576	(0x2 << 20)
+#define DVP_SW_WATER_LINE_00_RK3576	(0x3 << 20)
 
 /* CIF_INTEN */
 #define INTEN_DISABLE			(0x0 << 0)
@@ -547,7 +577,9 @@ enum cif_reg_index {
 #define DVP_SW_PRESS_VALUE(val)		(((val) & 0x7) << 13)
 #define DVP_SW_HURRY_VALUE(val)		(((val) & 0x7) << 9)
 #define DVP_SW_CAP_EN(ID)		(2 << ID)
+#define DVP_SW_CAP_EN_RK3576(ID)	(0x10 << ID)
 #define DVP_SW_DMA_EN(ID)		(0x100000 << ID)
+#define DVP_SW_DMA_EN_RK3676(ID)	(0x100 << ID)
 #define DVP_START_INTSTAT(ID)		(0x3 << ((ID) * 2))
 
 #define DVP_DMA_END_INTEN(id)	\
@@ -633,6 +665,10 @@ enum cif_reg_index {
 #define BT1120_CLOCK_DOUBLE_EDGES	(0x01 << 24)
 #define BT1120_TRANSMIT_INTERFACE	(0x00 << 25)
 #define BT1120_TRANSMIT_PROGRESS	(0x01 << 25)
+#define BT1120_TRANSMIT_INTERFACE_RK3588	(0x01 << 9)
+#define BT1120_TRANSMIT_PROGRESS_RK3588		(0x00 << 9)
+#define BT1120_TRANSMIT_INTERFACE_RK3576	(0x01 << 8)
+#define BT1120_TRANSMIT_PROGRESS_RK3576		(0x00 << 8)
 #define BT1120_YC_SWAP			(0x01 << 26)
 #define BT656_1120_MULTI_ID_DISABLE	(0x00 << 28)
 #define BT656_1120_MULTI_ID_ENABLE	(0x01 << 28)
@@ -649,12 +685,12 @@ enum cif_reg_index {
 #define	CIF_HIGH_ALIGN_RK3588		(0x01 << 21)
 #define BT656_DETECT_SAV		(0X01 << 13)
 #define BT656_DETECT_SAV_EAV		(0X00 << 13)
+#define DVP_UVDS_EN			(1 << 14)
 
 #define BT1120_CLOCK_SINGLE_EDGES_RK3588	(0x00 << 11)
 #define BT1120_CLOCK_DOUBLE_EDGES_RK3588	(0x01 << 11)
-#define TRANSMIT_INTERFACE_RK3588		(0x01 << 9)
-#define TRANSMIT_PROGRESS_RK3588		(0x00 << 9)
 #define BT1120_YC_SWAP_RK3588			(0x01 << 12)
+#define BT1120_YC_SWAP_RK3576			(0x01 << 10)
 #define INPUT_BT601_YUV422			(0x00 << 2)
 #define INPUT_BT601_RAW				(0x01 << 2)
 #define INPUT_BT656_YUV422			(0x02 << 2)
@@ -748,7 +784,9 @@ enum cif_reg_index {
 
 /* CIF SCALE*/
 #define SCALE_END_INTSTAT(ch)		(0x3 << ((ch + 1) * 2))
+#define SCALE_END_INTSTAT_RK3576	(0x3 << 1)
 #define SCALE_FIFO_OVERFLOW(ch)		(1 << (10 + ch))
+#define SCALE_FIFO_OVERFLOW_RK3576	(1 << 3)
 #define SCALE_TOISP_AXI0_ERR		(1 << 0)
 #define SCALE_TOISP_AXI1_ERR		(1 << 1)
 #define CIF_SCALE_SW_PRESS_VALUE(val)	(((val) & 0x7) << 13)
@@ -758,9 +796,12 @@ enum cif_reg_index {
 #define CIF_SCALE_SW_WATER_LINE(val)	(val << 1)
 #define CIF_SCALE_SW_SRC_CH(val, ch)	((val & 0x1f) << (3 + ch * 8))
 #define CIF_SCALE_SW_MODE(val, ch)	((val & 0x3) << (1 + ch * 8))
+#define CIF_SCALE_SW_MODE_RK3576(val)	((val & 0x3) << 8)
 #define CIF_SCALE_EN(ch)		(1 << (ch * 8))
 #define SW_SCALE_END(intstat, ch)	((intstat >> ((ch + 1) * 2)) & 0x3)
+#define SW_SCALE_END_RK3576(intstat)	(intstat >> 1)
 #define SCALE_SOFT_RESET(ch)		(0x1 << (ch + 16))
+#define CIF_SCALE_DMA_EN_RK3576		(1 << 16)
 
 /* CIF TOISP*/
 #define CIF_TOISP0_FS(ch)		(BIT(14) << ch)
@@ -768,15 +809,22 @@ enum cif_reg_index {
 #define CIF_TOISP0_FE(ch)		(BIT(20) << ch)
 #define CIF_TOISP1_FE(ch)		(BIT(23) << ch)
 
+#define CIF_TOISP0_FS_RK3576(ch)		(BIT(4) << ch)
+#define CIF_TOISP0_FE_RK3576(ch)		(BIT(7) << ch)
+
 /* CIF_CSI_ID_CTRL0 */
 #define CSI_DISABLE_CAPTURE		(0x0 << 0)
 #define CSI_ENABLE_CAPTURE		(0x1 << 0)
 #define CSI_WRDDR_TYPE_RAW8		(0x0 << 1)
 #define CSI_WRDDR_TYPE_RAW10		(0x1 << 1)
 #define CSI_WRDDR_TYPE_RAW12		(0x2 << 1)
+#define CSI_WRDDR_TYPE_RAW14_RK3588	(0x3 << 0)
 #define CSI_WRDDR_TYPE_RGB888		(0x3 << 1)
+#define CSI_WRDDR_TYPE_RGB888_RK3576	(0x7 << 4)
+#define CSI_WRDDR_TYPE_RAW16		(0x4 << 4)
 #define CSI_WRDDR_TYPE_YUV422		(0x4 << 1)
 #define CSI_WRDDR_TYPE_YUV420SP		(0x5 << 1)
+#define CSI_WRDDR_TYPE_YUV420LEGACY	(0xB << 4)
 #define CSI_WRDDR_TYPE_YUV400		(0x6 << 1)
 #define CSI_WRDDR_TYPE_RGB565		(0x7 << 1)
 #define CSI_DISABLE_COMMAND_MODE	(0x0 << 4)
@@ -785,6 +833,8 @@ enum cif_reg_index {
 #define CSI_ENABLE_CROP			(0x1 << 5)
 #define CSI_DISABLE_CROP_V1		(0x0 << 4)
 #define CSI_ENABLE_CROP_V1		(0x1 << 4)
+#define CSI_DISABLE_CROP_RK3576		(0x0 << 1)
+#define CSI_ENABLE_CROP_RK3576		(0x1 << 1)
 #define CSI_ENABLE_MIPI_COMPACT		(0x1 << 6)
 #define CSI_YUV_INPUT_ORDER_UYVY	(0x0 << 16)
 #define CSI_YUV_INPUT_ORDER_VYUY	(0x1 << 16)
@@ -792,6 +842,7 @@ enum cif_reg_index {
 #define CSI_YUV_INPUT_ORDER_YVYU	(0x3 << 16)
 #define CSI_HIGH_ALIGN			(0x1 << 31)
 #define CSI_HIGH_ALIGN_RK3588		(0x1 << 27)
+#define CSI_HIGH_ALIGN_RK3576		(0x1 << 11)
 
 #define CSI_YUV_OUTPUT_ORDER_UYVY	(0x0 << 18)
 #define CSI_YUV_OUTPUT_ORDER_VYUY	(0x1 << 18)
@@ -806,6 +857,8 @@ enum cif_reg_index {
 #define CSI_ALIGN_MSB			(0x01 << 27)
 #define CSI_ALIGN_LSB			(0x0 << 27)
 #define CSI_DMA_ENABLE			(0x1 << 28)
+#define CSI_DMA_ENABLE_RK3576		(0x1 << 3)
+#define CSI_UVDS_EN			(1 << 16)
 
 #define CSI_NO_HDR			(0X0 << 22)
 #define CSI_HDR2			(0X1 << 22)
@@ -893,11 +946,13 @@ enum cif_reg_index {
 #define CSI_ALL_ERROR_INTEN_V1		(0xf0f << 16)
 
 #define CSI_START_INTEN(id)		(0x3 << ((id) * 2))
+#define CSI_START_INTEN_RK3576(id)	(0x1 << id)
 #define CSI_DMA_END_INTEN(id)		(0x3 << ((id) * 2 + 8))
 #define CSI_LINE_INTEN(id)		(0x1 << ((id) + 21))
 #define CSI_LINE_INTEN_RK3588(id)	(0x1 << ((id) + 20))
 
 #define CSI_START_INTSTAT(id)		(0x3 << ((id) * 2))
+#define CSI_START_INTSTAT_RK3576(id)	(0x1 << id)
 #define CSI_DMA_END_INTSTAT(id)		(0x3 << ((id) * 2 + 8))
 #define CSI_LINE_INTSTAT(id)		(0x1 << ((id) + 21))
 #define CSI_LINE_INTSTAT_V1(id)		(0x1 << ((id) + 20))
@@ -1026,6 +1081,10 @@ enum cif_reg_index {
 #define RKCIF_SKIP_SHIFT	0X15
 #define RKCIF_SKIP_EN(x)	(0x1 << (8 + x))
 
+#define RKCIF_CAP_SHIFT_RK3576		0x12
+#define RKCIF_SKIP_SHIFT_RK3576		0x09
+#define RKCIF_SKIP_EN_RK3576		(0x1 << 2)
+
 /* CIF LVDS SAV EAV Define */
 #define SW_LVDS_EAV_ACT(code)	(((code) & 0xfff) << 16)
 #define SW_LVDS_SAV_ACT(code)	(((code) & 0xfff) << 0)
@@ -1071,5 +1130,13 @@ enum cif_reg_index {
 #define TOISP_END_CH0(index)		(0x1 << (20 + index * 3))
 #define TOISP_END_CH1(index)		(0x1 << (21 + index * 3))
 #define TOISP_END_CH2(index)		(0x1 << (22 + index * 3))
+
+#define TOISP_FS_CH0_RK3576(index)		(0x1 << (4 + index * 3))
+#define TOISP_FS_CH1_RK3576(index)		(0x1 << (5 + index * 3))
+#define TOISP_FS_CH2_RK3576(index)		(0x1 << (6 + index * 3))
+
+#define TOISP_END_CH0_RK3576(index)		(0x1 << (7 + index * 3))
+#define TOISP_END_CH1_RK3576(index)		(0x1 << (8 + index * 3))
+#define TOISP_END_CH2_RK3576(index)		(0x1 << (9 + index * 3))
 
 #endif

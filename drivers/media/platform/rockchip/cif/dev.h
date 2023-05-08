@@ -75,8 +75,8 @@
 #define RKCIF_MAX_CSI_CHANNEL	4
 #define RKCIF_MAX_PIPELINE	4
 
-#define RKCIF_DEFAULT_WIDTH	640
-#define RKCIF_DEFAULT_HEIGHT	480
+#define RKCIF_DEFAULT_WIDTH	64
+#define RKCIF_DEFAULT_HEIGHT	48
 #define RKCIF_FS_DETECTED_NUM	2
 
 #define RKCIF_MAX_INTERVAL_NS	5000000
@@ -569,6 +569,7 @@ struct rkcif_stream {
 	int				last_rx_buf_idx;
 	int				last_frame_idx;
 	int				new_fource_idx;
+	int				sw_dbg_en;
 	atomic_t			buf_cnt;
 	struct completion		stop_complete;
 	struct rkcif_toisp_buf_state	toisp_buf_state;
@@ -739,6 +740,8 @@ struct rkcif_scale_vdev {
 	unsigned int scale_mode;
 	int frame_phase;
 	unsigned int frame_idx;
+	int scl_mode;
+	int extrac_pattern;
 	bool stopping;
 };
 
