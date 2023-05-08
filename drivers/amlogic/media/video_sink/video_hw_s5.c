@@ -9169,6 +9169,14 @@ void save_pps_data(int slice, u32 vd_vsc_phase_ctrl_val)
 	vd_pps_val_save->vd_vsc_phase_ctrl_val = vd_vsc_phase_ctrl_val;
 }
 
+u32 get_pps_data(int slice)
+{
+	struct vd_pps_val_s *vd_pps_val_save = NULL;
+
+	vd_pps_val_save = &vd_pps_val[slice];
+	return vd_pps_val_save->vd_vsc_phase_ctrl_val;
+}
+
 void switch_3d_view_per_vsync_s5(struct video_layer_s *layer)
 {
 }

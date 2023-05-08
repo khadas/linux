@@ -410,4 +410,5 @@ void enable_mosaic_mode(u32 vpp_index, u8 enable);
 void dump_mosaic_pps(void);
 void set_frm_idx(u32 vpp_index, u32 frm_idx);
 void save_pps_data(int slice, u32 vd_vsc_phase_ctrl_val);
+u32 get_pps_data(int slice);
 #endif

@@ -6131,6 +6131,7 @@ void proc_vd_vsc_phase_per_vsync(struct video_layer_s *layer,
 				VPP_PHASECTL_INIRPTNUM_WID);
 		}
 		if (use_pps_save) {
+			vd_vsc_phase_ctrl_val = get_pps_data(i);
 			vd_vsc_phase_ctrl_val &= ~0x6007f;
 			if (vphase->repeat_skip >= 0) {
 				/* skip lines */
@@ -10141,9 +10142,15 @@ int detect_vout_type(const struct vinfo_s *vinfo)
 	}
 	if (vinfo && vinfo->field_height != vinfo->height) {
 		if (vinfo->height == 576 || vinfo->height == 480)
-			vout_type = (READ_VCBUS_REG(encl_info_reg) &
-				(1 << 29)) ?
-				VOUT_TYPE_BOT_FIELD : VOUT_TYPE_TOP_FIELD;
+			if (cur_dev->display_module == T7_DISPLAY_MODULE ||
+				cur_dev->display_module == S5_DISPLAY_MODULE)
+				vout_type = (READ_VCBUS_REG(encl_info_reg) &
+					(1 << 28)) ?
+					VOUT_TYPE_BOT_FIELD : VOUT_TYPE_TOP_FIELD;
+			else
+				vout_type = (READ_VCBUS_REG(encl_info_reg) &
+					(1 << 29)) ?
+					VOUT_TYPE_BOT_FIELD : VOUT_TYPE_TOP_FIELD;
 		else if (vinfo->height == 1080)
 			vout_type = (((READ_VCBUS_REG(encp_info_reg) >> 16) &
 				0x1fff) < 562) ?
