@@ -2615,6 +2615,7 @@ static struct clk_regmap s5_rtc_32k_clkin = {
 			.fw_name = "xtal",
 		},
 		.num_parents = 1,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -2680,6 +2681,7 @@ static struct clk_regmap s5_rtc_32k_xtal = {
 			&s5_rtc_32k_clkin.hw
 		},
 		.num_parents = 1,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -2729,7 +2731,7 @@ static struct clk_regmap s5_rtc_clk = {
 		 * rtc 32k is directly used in other modules, and the
 		 * parent rate needs to be modified
 		 */
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
