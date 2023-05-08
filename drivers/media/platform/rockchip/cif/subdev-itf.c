@@ -493,10 +493,15 @@ static int sditf_channel_enable(struct sditf_priv *priv, int user)
 		else
 			ch0 = 24;//dvp
 		ctrl_val = (ch0 << 3) | 0x1;
-		if (user == 0)
-			int_en = CIF_TOISP0_FS(0) | CIF_TOISP0_FE(0);
-		else
-			int_en = CIF_TOISP1_FS(0) | CIF_TOISP1_FE(0);
+		if (cif_dev->chip_id < CHIP_RK3576_CIF) {
+			if (user == 0)
+				int_en = CIF_TOISP0_FS(0) | CIF_TOISP0_FE(0);
+			else
+				int_en = CIF_TOISP1_FS(0) | CIF_TOISP1_FE(0);
+		} else {
+			if (user == 0)
+				int_en = CIF_TOISP0_FS_RK3576(0) | CIF_TOISP0_FE_RK3576(0);
+		}
 		priv->toisp_inf.ch_info[0].is_valid = true;
 		priv->toisp_inf.ch_info[0].id = ch0;
 	} else if (priv->hdr_cfg.hdr_mode == HDR_X2) {
@@ -504,12 +509,18 @@ static int sditf_channel_enable(struct sditf_priv *priv, int user)
 		ch1 = cif_dev->csi_host_idx * 4;
 		ctrl_val = (ch0 << 3) | 0x1;
 		ctrl_val |= (ch1 << 11) | 0x100;
-		if (user == 0)
-			int_en = CIF_TOISP0_FS(0) | CIF_TOISP0_FS(1) |
-				 CIF_TOISP0_FE(0) | CIF_TOISP0_FE(1);
-		else
-			int_en = CIF_TOISP1_FS(0) | CIF_TOISP1_FS(1) |
-				 CIF_TOISP1_FE(0) | CIF_TOISP1_FE(1);
+		if (cif_dev->chip_id < CHIP_RK3576_CIF) {
+			if (user == 0)
+				int_en = CIF_TOISP0_FS(0) | CIF_TOISP0_FS(1) |
+					 CIF_TOISP0_FE(0) | CIF_TOISP0_FE(1);
+			else
+				int_en = CIF_TOISP1_FS(0) | CIF_TOISP1_FS(1) |
+					 CIF_TOISP1_FE(0) | CIF_TOISP1_FE(1);
+		} else {
+			if (user == 0)
+				int_en = CIF_TOISP0_FS_RK3576(0) | CIF_TOISP0_FS_RK3576(1) |
+					 CIF_TOISP0_FE_RK3576(0) | CIF_TOISP0_FE_RK3576(1);
+		}
 		priv->toisp_inf.ch_info[0].is_valid = true;
 		priv->toisp_inf.ch_info[0].id = ch0;
 		priv->toisp_inf.ch_info[1].is_valid = true;
@@ -521,12 +532,19 @@ static int sditf_channel_enable(struct sditf_priv *priv, int user)
 		ctrl_val = (ch0 << 3) | 0x1;
 		ctrl_val |= (ch1 << 11) | 0x100;
 		ctrl_val |= (ch2 << 19) | 0x10000;
-		if (user == 0)
-			int_en = CIF_TOISP0_FS(0) | CIF_TOISP0_FS(1) | CIF_TOISP0_FS(2) |
-				 CIF_TOISP0_FE(0) | CIF_TOISP0_FE(1) | CIF_TOISP0_FE(2);
-		else
-			int_en = CIF_TOISP1_FS(0) | CIF_TOISP1_FS(1) | CIF_TOISP1_FS(2) |
-				 CIF_TOISP1_FE(0) | CIF_TOISP1_FE(1) | CIF_TOISP1_FE(2);
+		if (cif_dev->chip_id < CHIP_RK3576_CIF) {
+			if (user == 0)
+				int_en = CIF_TOISP0_FS(0) | CIF_TOISP0_FS(1) | CIF_TOISP0_FS(2) |
+					 CIF_TOISP0_FE(0) | CIF_TOISP0_FE(1) | CIF_TOISP0_FE(2);
+			else
+				int_en = CIF_TOISP1_FS(0) | CIF_TOISP1_FS(1) | CIF_TOISP1_FS(2) |
+					 CIF_TOISP1_FE(0) | CIF_TOISP1_FE(1) | CIF_TOISP1_FE(2);
+		} else {
+			if (user == 0)
+				int_en = CIF_TOISP0_FS_RK3576(0) | CIF_TOISP0_FS_RK3576(1) |
+					 CIF_TOISP0_FS_RK3576(2) | CIF_TOISP0_FE_RK3576(0) |
+					 CIF_TOISP0_FE_RK3576(1) | CIF_TOISP0_FE_RK3576(2);
+		}
 		priv->toisp_inf.ch_info[0].is_valid = true;
 		priv->toisp_inf.ch_info[0].id = ch0;
 		priv->toisp_inf.ch_info[1].is_valid = true;
@@ -534,6 +552,8 @@ static int sditf_channel_enable(struct sditf_priv *priv, int user)
 		priv->toisp_inf.ch_info[2].is_valid = true;
 		priv->toisp_inf.ch_info[2].id = ch2;
 	}
+	if (cif_dev->chip_id > CHIP_RK3562_CIF)
+		ctrl_val |= BIT(28);
 	if (user == 0) {
 		if (priv->toisp_inf.link_mode == TOISP_UNITE)
 			width = priv->cap_info.width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
