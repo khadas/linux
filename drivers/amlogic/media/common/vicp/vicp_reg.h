@@ -20,6 +20,7 @@
 #define _VICP_REG_H_
 
 #include <linux/types.h>
+#include <linux/amlogic/cpu_version.h>
 
 //==========================================================================
 // DMA
@@ -91,9 +92,11 @@
 #define VID_CMPR_HOLD_LINE                         0x0107
 #define VID_CMPR_FIELD_FLAG                        0x0109
 #define VID_CMPR_GCLK_CTRL                         0x010a
+#define VID_CMPR_FGRAIN_LUT_DATA                   0x010d
 #define VID_CMPR_IN_SIZE                           0x0110
 #define VID_CMPR_OUT_SIZE                          0x0111
 #define VID_CMPR_DUMMY_DATA                        0x0114
+#define VID_CMPR_INP_DAT_SWAP                      0x0115
 #define VID_CMPR_WR_PATH_CTRL                      0x0118
 #define VID_CMPR_PATH_HOLD_CTRL                    0x0119
 #define VID_CMPR_SCO_BUF_COUNT                     0x011a
@@ -194,6 +197,8 @@
 #define VID_CMPR_AFBCDM_IQUANT_LUT_2               0x0254
 #define VID_CMPR_AFBCDM_IQUANT_LUT_3               0x0255
 #define VID_CMPR_AFBCDM_IQUANT_LUT_4               0x0256
+#define VID_CMPR_AFBCD_BURST_CTRL                  0x0257
+#define VID_CMPR_AFBCD_LOSS_CTRL                   0x0258
 #define VID_CMPR_AFBCDM_ROT_CTRL                   0x0260
 #define VID_CMPR_AFBCDM_ROT_SCOPE                  0x0261
 #define VID_CMPR_AFBCDM_RPLC_CTRL                  0x0262
@@ -212,7 +217,7 @@
 #define VID_CMPR_AFBCDM_FGRAIN_GCLK_CTRL_2         0x0277
 #define VID_CMPR_AFBCDM_FGRAIN_PARAM_ADDR          0x0278
 #define VID_CMPR_AFBCDM_FGRAIN_PARAM_DATA          0x0279
-
+#define VID_CMPR_AFBCDM_FGRAIN_SLICE_WIN_H         0x027a
 //==========================================================================
 // AFBC_ENC
 //==========================================================================
@@ -261,6 +266,73 @@
 #define VID_CMPR_AFBCE_MMU_RMIF_SCOPE_Y            0x02c5
 #define VID_CMPR_AFBCE_MMU_RMIF_RO_STAT            0x02c6
 
+#define T3X_VID_CMPR_AFBCE_ENABLE                  0x02b4
+#define T3X_VID_CMPR_AFBCE_MODE                    0x02b5
+#define T3X_VID_CMPR_AFBCE_SIZE_IN                 0x02b6
+#define T3X_VID_CMPR_AFBCE_BLK_SIZE_IN             0x02b7
+#define T3X_VID_CMPR_AFBCE_HEAD_BADDR              0x02b8
+#define T3X_VID_CMPR_AFBCE_MIF_SIZE                0x02b9
+#define T3X_VID_CMPR_AFBCE_PIXEL_IN_HOR_SCOPE      0x02ba
+#define T3X_VID_CMPR_AFBCE_PIXEL_IN_VER_SCOPE      0x02bb
+#define T3X_VID_CMPR_AFBCE_CONV_CTRL               0x02bc
+#define T3X_VID_CMPR_AFBCE_MIF_HOR_SCOPE           0x02bd
+#define T3X_VID_CMPR_AFBCE_MIF_VER_SCOPE           0x02be
+#define T3X_VID_CMPR_AFBCE_STAT1                   0x02bf
+#define T3X_VID_CMPR_AFBCE_STAT2                   0x02c0
+#define T3X_VID_CMPR_AFBCE_FORMAT                  0x0290
+#define T3X_VID_CMPR_AFBCE_MODE_EN                 0x0291
+#define T3X_VID_CMPR_AFBCE_DWSCALAR                0x0292
+#define T3X_VID_CMPR_AFBCE_DEFCOLOR_1              0x0293
+#define T3X_VID_CMPR_AFBCE_DEFCOLOR_2              0x0294
+#define T3X_VID_CMPR_AFBCE_QUANT_ENABLE            0x0295
+#define T3X_VID_CMPR_AFBCE_IQUANT_LUT_1            0x0296
+#define T3X_VID_CMPR_AFBCE_IQUANT_LUT_2            0x0297
+#define T3X_VID_CMPR_AFBCE_IQUANT_LUT_3            0x0298
+#define T3X_VID_CMPR_AFBCE_IQUANT_LUT_4            0x0299
+#define T3X_VID_CMPR_AFBCE_RQUANT_LUT_1            0x029a
+#define T3X_VID_CMPR_AFBCE_RQUANT_LUT_2            0x029b
+#define T3X_VID_CMPR_AFBCE_RQUANT_LUT_3            0x029c
+#define T3X_VID_CMPR_AFBCE_RQUANT_LUT_4            0x029d
+#define T3X_VID_CMPR_AFBCE_YUV_FORMAT_CONV_MODE    0x029e
+#define T3X_VID_CMPR_AFBCE_DUMMY_DATA              0x02c1
+#define T3X_VID_CMPR_AFBCE_CLR_FLAG                0x02c2
+#define T3X_VID_CMPR_AFBCE_STA_FLAGT               0x02c3
+#define T3X_VID_CMPR_AFBCE_MMU_NUM                 0x02c4
+#define T3X_VID_CMPR_AFBCE_PIP_CTRL                0x02c5
+#define T3X_VID_CMPR_AFBCE_ROT_CTRL                0x02c6
+#define T3X_VID_CMPR_AFBCE_DIMM_CTRL               0x02c7
+#define T3X_VID_CMPR_AFBCE_BND_DEC_MISC            0x02c8
+#define T3X_VID_CMPR_AFBCE_RD_ARB_MISC             0x02c9
+#define T3X_VID_CMPR_AFBCE_MMU_RMIF_CTRL1          0x02ca
+#define T3X_VID_CMPR_AFBCE_MMU_RMIF_CTRL2          0x02cb
+#define T3X_VID_CMPR_AFBCE_MMU_RMIF_CTRL3          0x02cc
+#define T3X_VID_CMPR_AFBCE_MMU_RMIF_CTRL4          0x02cd
+#define T3X_VID_CMPR_AFBCE_MMU_RMIF_SCOPE_X        0x02ce
+#define T3X_VID_CMPR_AFBCE_MMU_RMIF_SCOPE_Y        0x02cf
+#define T3X_VID_CMPR_AFBCE_MMU_RMIF_RO_STAT        0x02d0
+
+#define T3X_VID_CMPR_AFBCE_LOSS_CTRL               0x029f
+#define T3X_VID_CMPR_AFBCE_LOSS_BURST_NUM          0x02a0
+#define T3X_VID_CMPR_AFBCE_LOSS_RC                 0x02a1
+#define T3X_VID_CMPR_AFBCE_LOSS_RC_FIFO_THD        0x02a2
+#define T3X_VID_CMPR_AFBCE_LOSS_RC_FIFO_BUGET      0x02a3
+#define T3X_VID_CMPR_AFBCE_LOSS_RC_ACCUM_THD_0     0x02a4
+#define T3X_VID_CMPR_AFBCE_LOSS_RC_ACCUM_THD_1     0x02a5
+#define T3X_VID_CMPR_AFBCE_LOSS_RC_ACCUM_THD_2     0x02a6
+#define T3X_VID_CMPR_AFBCE_LOSS_RC_ACCUM_THD_3     0x02a7
+#define T3X_VID_CMPR_AFBCE_LOSS_RC_ACCUM_BUGET_0   0x02a8
+#define T3X_VID_CMPR_AFBCE_LOSS_RC_ACCUM_BUGET_1   0x02a9
+#define T3X_VID_CMPR_AFBCE_LOSS_RO_ERROR_L_0       0x02aa
+#define T3X_VID_CMPR_AFBCE_LOSS_RO_COUNT_0         0x02ab
+#define T3X_VID_CMPR_AFBCE_LOSS_RO_ERROR_L_1       0x02ac
+#define T3X_VID_CMPR_AFBCE_LOSS_RO_COUNT_1         0x02ad
+#define T3X_VID_CMPR_AFBCE_LOSS_RO_ERROR_L_2       0x02ae
+#define T3X_VID_CMPR_AFBCE_LOSS_RO_COUNT_2         0x02af
+#define T3X_VID_CMPR_AFBCE_LOSS_RO_ERROR_H_0       0x02b0
+#define T3X_VID_CMPR_AFBCE_LOSS_RO_ERROR_H_1       0x02b1
+#define T3X_VID_CMPR_AFBCE_LOSS_RO_MAX_ERROR_0     0x02b2
+#define T3X_VID_CMPR_AFBCE_LOSS_RO_MAX_ERROR_1     0x02b3
+
 //==========================================================================
 //WRITE MIF
 //==========================================================================
@@ -268,6 +340,7 @@
 #define VID_CMPR_WRMIF_STRIDE0                     0x02e9
 #define VID_CMPR_WRMIF_BADDR1                      0x02ea
 #define VID_CMPR_WRMIF_STRIDE1                     0x02eb
+#define VID_CMPR_WRMIF_CTRL3                       0x02ee
 #define VID_CMPR_WRMIF_DBG_AXI_CMD_CNT             0x02f0
 #define VID_CMPR_WRMIF_DBG_AXI_DAT_CNT             0x02f1
 #define VID_CMPR_WRMIF_CANVAS                      0x02f2
@@ -390,6 +463,105 @@
 #define VID_CMPR_PREHSC_COEF1                      0x038d
 
 extern void __iomem *vicp_reg_map;
+/* *********************************************************************** */
+/* ************************* enum definitions **************************.*/
+/* *********************************************************************** */
+enum vicp_support_chip_e {
+	VICP_SUPPORT_CHIP_S5,
+	VICP_SUPPORT_CHIP_t3X,
+	VICP_SUPPORT_CHIP_MAX,
+};
+
+enum vicp_module_e {
+	VICP_MODULE_WRMIF,
+	VICP_MODULE_AFBCD,
+	VICP_MODULE_SCALER,
+	VICP_MODULE_HDR,
+	VICP_MODULE_CROP,
+	VICP_MODULE_SHRINK,
+	VICP_MODULE_RDMIF,
+	VICP_MODULE_AFBCE,
+	VICP_MODULE_LOSSY_COMPRESS,
+	VICP_MODULE_MAX,
+};
+
+/* *********************************************************************** */
+/* ************************* struct definitions **************************.*/
+/* *********************************************************************** */
+struct vicp_afbce_reg_s {
+	u32 afbce_enable;		/* VID_CMPR_AFBCE_ENABLE */
+	u32 afbce_mode;			/* VID_CMPR_AFBCE_MODE */
+	u32 afbce_size_in;		/* VID_CMPR_AFBCE_SIZE_IN */
+	u32 afbce_block_size_in;	/* VID_CMPR_AFBCE_BLK_SIZE_IN */
+	u32 afbce_head_baddr;		/* VID_CMPR_AFBCE_HEAD_BADDR*/
+	u32 afbce_mif_size;		/* VID_CMPR_AFBCE_MIF_SIZE */
+	u32 afbce_pixel_hor_scope;	/* VID_CMPR_AFBCE_PIXEL_HOR_SCOPE */
+	u32 afbce_pixel_ver_scope;	/* VID_CMPR_AFBCE_PIXEL_VER_SCOPE */
+	u32 afbce_conv_ctrl;		/* VID_CMPR_AFBCE_CONV_CTRL */
+	u32 afbce_mif_hor_scope;	/* VID_CMPR_AFBCE_MIF_HOR_SCOPE */
+	u32 afbce_mif_ver_scope;	/* VID_CMPR_AFBCE_MIF_VER_SCOPE */
+	u32 afbce_stat1;		/* VID_CMPR_AFBCE_STAT1 */
+	u32 afbce_stat2;		/* VID_CMPR_AFBCE_STAT2 */
+	u32 afbce_format;		/* VID_CMPR_AFBCE_FORMAT*/
+	u32 afbce_mode_en;		/* VID_CMPR_AFBCE_MODE_EN */
+	u32 afbce_dwscalar;		/* VID_CMPR_AFBCE_DWSCALAR */
+	u32 afbce_def_color1;		/* VID_CMPR_AFBCE_DEF_COLOR1 */
+	u32 afbce_def_color2;		/* VID_CMPR_AFBCE_DEF_COLOR1 */
+	u32 afbce_quant_enable;		/* VID_CMPR_AFBCE_QUANT_ENABLE */
+	u32 afbce_iquant_lut_1;		/* VID_CMPR_AFBCE_IQUANT_LUT_1 */
+	u32 afbce_iquant_lut_2;		/* VID_CMPR_AFBCE_IQUANT_LUT_2 */
+	u32 afbce_iquant_lut_3;		/* VID_CMPR_AFBCE_IQUANT_LUT_3 */
+	u32 afbce_iquant_lut_4;		/* VID_CMPR_AFBCE_IQUANT_LUT_4 */
+	u32 afbce_rquant_lut_1;		/* VID_CMPR_AFBCE_RQUANT_LUT_1 */
+	u32 afbce_rquant_lut_2;		/* VID_CMPR_AFBCE_RQUANT_LUT_2 */
+	u32 afbce_rquant_lut_3;		/* VID_CMPR_AFBCE_RQUANT_LUT_3 */
+	u32 afbce_rquant_lut_4;		/* VID_CMPR_AFBCE_RQUANT_LUT_4 */
+	u32 afbce_yuv_format_conv_mode;	/* VID_CMPR_AFBCE_YUV_FORMAT_CONV_MODE */
+	u32 afbce_dummy_data;		/* VID_CMPR_AFBCE_DUMMY_DATA */
+	u32 afbce_clr_flag;		/* VID_CMPR_AFBCE_CLR_FLAG */
+	u32 afbce_sta_flag;		/* VID_CMPR_AFBCE_STA_FLAG */
+	u32 afbce_mmu_num;		/* VID_CMPR_AFBCE_MMU_NUM */
+	u32 afbce_pip_ctrl;		/* VID_CMPR_AFBCE_PIP_CTRL */
+	u32 afbce_rot_ctrl;		/* VID_CMPR_AFBCE_ROT_CTRL */
+	u32 afbce_dimm_ctrl;		/* VID_CMPR_AFBCE_DIMM_CTRL */
+	u32 afbce_bnd_dec_misc;		/* VID_CMPR_AFBCE_BND_DEC_MISC */
+	u32 afbce_rd_arb_misc;		/* VID_CMPR_AFBCE_RD_ARB_MISC */
+	u32 afbce_mmu_rmif_ctrl1;	/* VID_CMPR_AFBCE_MMU_RMIF_CTRL1 */
+	u32 afbce_mmu_rmif_ctrl2;	/* VID_CMPR_AFBCE_MMU_RMIF_CTRL2 */
+	u32 afbce_mmu_rmif_ctrl3;	/* VID_CMPR_AFBCE_MMU_RMIF_CTRL3 */
+	u32 afbce_mmu_rmif_ctrl4;	/* VID_CMPR_AFBCE_MMU_RMIF_CTRL4 */
+	u32 afbce_mmu_rmif_scope_x;	/* VID_CMPR_AFBCE_MMU_RMIF_SCOPE_X */
+	u32 afbce_mmu_rmif_scope_y;	/* VID_CMPR_AFBCE_MMU_RMIF_SCOPE_Y */
+	u32 afbce_mmu_rmif_ro_stat;	/* VID_CMPR_AFBCE_MMU_RMIF_RO_STAT */
+};
+
+struct vicp_lossy_compress_reg_s {
+	u32 loss_ctrl;			/* VID_CMPR_AFBCE_LOSS_CTRL */
+	u32 loss_burst_num;		/* VID_CMPR_AFBCE_LOSS_BURST_NUM */
+	u32 loss_rc;			/* VID_CMPR_AFBCE_LOSS_RC */
+	u32 loss_rc_fifo_thd;		/* VID_CMPR_AFBCE_LOSS_RC_FIFO_THD */
+	u32 loss_rc_fifo_buget;		/* VID_CMPR_AFBCE_LOSS_RC_FIFO_BUGET */
+	u32 loss_rc_accum_thd0;		/* VID_CMPR_AFBCE_LOSS_RC_ACCUM_THD_0 */
+	u32 loss_rc_accum_thd1;		/* VID_CMPR_AFBCE_LOSS_RC_ACCUM_THD_1 */
+	u32 loss_rc_accum_thd2;		/* VID_CMPR_AFBCE_LOSS_RC_ACCUM_THD_2 */
+	u32 loss_rc_accum_thd3;		/* VID_CMPR_AFBCE_LOSS_RC_ACCUM_THD_3 */
+	u32 loss_rc_accum_buget0;	/* VID_CMPR_AFBCE_LOSS_RC_ACCUM_BUGET_0 */
+	u32 loss_rc_accum_buget1;	/* VID_CMPR_AFBCE_LOSS_RC_ACCUM_BUGET_1 */
+	u32 loss_ro_error_l0;		/* VID_CMPR_AFBCE_LOSS_RO_ERROR_L_0 */
+	u32 loss_ro_count0;		/* VID_CMPR_AFBCE_LOSS_RO_COUNT_0 */
+	u32 loss_ro_error_l1;		/* VID_CMPR_AFBCE_LOSS_RO_ERROR_L_1 */
+	u32 loss_ro_count1;		/* VID_CMPR_AFBCE_LOSS_RO_COUNT_1 */
+	u32 loss_ro_error_l2;		/* VID_CMPR_AFBCE_LOSS_RO_ERROR_L_2 */
+	u32 loss_ro_count2;		/* VID_CMPR_AFBCE_LOSS_RO_COUNT_2 */
+	u32 loss_ro_error_h0;		/* VID_CMPR_AFBCE_LOSS_RO_ERROR_H_0 */
+	u32 loss_ro_error_h1;		/* VID_CMPR_AFBCE_LOSS_RO_ERROR_H_1 */
+	u32 loss_ro_max_error0;		/* VID_CMPR_AFBCE_LOSS_RO_MAX_ERROR_0 */
+	u32 loss_ro_max_error1;		/* VID_CMPR_AFBCE_LOSS_RO_MAX_ERROR_1 */
+};
+
+/* *********************************************************************** */
+/* ************************* function definitions **************************.*/
+/* *********************************************************************** */
 u32 vicp_reg_read(u32 reg);
 void vicp_reg_write(u32 reg, u32 val);
 u32 vicp_vcbus_read(u32 reg);
@@ -398,4 +570,5 @@ u32 vicp_reg_get_bits(u32 reg, const u32 start, const u32 len);
 void vicp_reg_set_bits(u32 reg, const u32 value, const u32 start, const u32 len);
 void vicp_reg_write_addr(u64 addr, u64 data);
 u64 vicp_reg_read_addr(u64 addr);
+u32 vicp_reg_array_init(enum vicp_support_chip_e chip, enum vicp_module_e module, void *array);
 #endif

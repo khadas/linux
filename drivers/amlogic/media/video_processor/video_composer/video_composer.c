@@ -2187,8 +2187,8 @@ static void vframe_composer(struct composer_dev *dev)
 	bool is_fixtunnel = false;
 	int transform = 0;
 	struct composer_vf_para vframe_para;
-	struct vicp_data_config_t data_config;
-	struct crop_info_t crop_info;
+	struct vicp_data_config_s data_config;
+	struct crop_info_s crop_info;
 	ulong buf_addr[3];
 	int fbc_init_ctrl, fbc_pip_mode;
 	int mifout_en = 1, fbcout_en = 1;
@@ -2407,7 +2407,7 @@ static void vframe_composer(struct composer_dev *dev)
 				vc_print(dev->index, PRINT_ERROR, "dewarp composer failed\n");
 		} else if (dev->dev_choice == COMPOSER_WITH_VICP) {
 			vc_print(dev->index, PRINT_OTHER, "use vicp composer.\n");
-			memset(&data_config, 0, sizeof(struct vicp_data_config_t));
+			memset(&data_config, 0, sizeof(struct vicp_data_config_s));
 			config_vicp_input_data(scr_vf,
 					addr,
 					dst_buf->buf_w,

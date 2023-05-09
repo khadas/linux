@@ -10,7 +10,7 @@
 #include "vicp_reg.h"
 #include <linux/amlogic/media/vicp/vicp.h>
 
-struct rdma_buf_type_t rdma_buf[MAX_INPUTSOURCE_COUNT];
+struct rdma_buf_type_s rdma_buf[MAX_INPUTSOURCE_COUNT];
 u32 rdma_buf_choice;
 
 // --------------------------------------------------------
@@ -21,7 +21,7 @@ void vicp_rdma_reset(void)
 	vicp_reg_set_bits(VID_CMPR_DMA_RESET, 1, 0, 1);
 }
 
-void vicp_rdma_init(struct rdma_buf_type_t *rdma_buf)
+void vicp_rdma_init(struct rdma_buf_type_s *rdma_buf)
 {
 	vicp_print(VICP_RDMA, "%s: cmd_buf: start_addr: 0x%llx, len: %lld.\n",
 		__func__, rdma_buf->cmd_buf_start_addr, rdma_buf->cmd_buf_len);
@@ -108,12 +108,12 @@ void set_vicp_rdma_buf_choice(u32 buf_num)
 	rdma_buf_choice = buf_num;
 }
 
-struct rdma_buf_type_t *get_vicp_rdma_buf_choice(u32 buf_num)
+struct rdma_buf_type_s *get_vicp_rdma_buf_choice(u32 buf_num)
 {
 	return &rdma_buf[buf_num];
 }
 
-struct rdma_buf_type_t *get_current_vicp_rdma_buf(void)
+struct rdma_buf_type_s *get_current_vicp_rdma_buf(void)
 {
 	return &rdma_buf[rdma_buf_choice];
 }
@@ -273,8 +273,8 @@ void vicp_rdma_buf_dump(u32 buf_count, u32 buf_num)
 	}
 }
 
-struct rdma_buf_type_t *vicp_rdma_jmp(struct rdma_buf_type_t *last_rdma_buf,
-	struct rdma_buf_type_t *rdma_buf, int rdma_lbuf_en)
+struct rdma_buf_type_s *vicp_rdma_jmp(struct rdma_buf_type_s *last_rdma_buf,
+	struct rdma_buf_type_s *rdma_buf, int rdma_lbuf_en)
 {
 	u64 *data_addr = NULL;
 	u64 wdata = 0;
@@ -303,7 +303,7 @@ struct rdma_buf_type_t *vicp_rdma_jmp(struct rdma_buf_type_t *last_rdma_buf,
 	return rdma_buf;
 }
 
-struct rdma_buf_type_t *vicp_rdma_end(struct rdma_buf_type_t *rdma_buf)
+struct rdma_buf_type_s *vicp_rdma_end(struct rdma_buf_type_s *rdma_buf)
 {
 	u64 wdata, nop_num;
 	u64 *data_addr;
@@ -332,7 +332,7 @@ struct rdma_buf_type_t *vicp_rdma_end(struct rdma_buf_type_t *rdma_buf)
 	return rdma_buf;
 }
 
-struct rdma_buf_type_t *vicp_rdma_wr(struct rdma_buf_type_t *rdma_buf, u64 reg_addr,
+struct rdma_buf_type_s *vicp_rdma_wr(struct rdma_buf_type_s *rdma_buf, u64 reg_addr,
 	u64 reg_data, u64 start_bits, u64 bits_num)
 {
 	u64 *data_addr;
@@ -353,7 +353,7 @@ struct rdma_buf_type_t *vicp_rdma_wr(struct rdma_buf_type_t *rdma_buf, u64 reg_a
 	return rdma_buf;
 }
 
-struct rdma_buf_type_t *vicp_rdma_rd(struct rdma_buf_type_t *rdma_buf, u64 reg_addr)
+struct rdma_buf_type_s *vicp_rdma_rd(struct rdma_buf_type_s *rdma_buf, u64 reg_addr)
 {
 	u64 *data_addr;
 	u64 wdata;
@@ -372,7 +372,7 @@ struct rdma_buf_type_t *vicp_rdma_rd(struct rdma_buf_type_t *rdma_buf, u64 reg_a
 	return rdma_buf;
 }
 
-struct rdma_buf_type_t *vicp_rdma_wint(struct rdma_buf_type_t *rdma_buf, u64 int_idx)
+struct rdma_buf_type_s *vicp_rdma_wint(struct rdma_buf_type_s *rdma_buf, u64 int_idx)
 {
 	u64 *data_addr;
 	u64 wdata;
@@ -386,7 +386,7 @@ struct rdma_buf_type_t *vicp_rdma_wint(struct rdma_buf_type_t *rdma_buf, u64 int
 	return rdma_buf;
 }
 
-void  vicp_rdma_release(struct rdma_buf_type_t *rdma_buf0, struct rdma_buf_type_t *rdma_buf1,
+void  vicp_rdma_release(struct rdma_buf_type_s *rdma_buf0, struct rdma_buf_type_s *rdma_buf1,
 			int rdma_lbuf_en, int buf_index)
 {
 	vicp_print(VICP_RDMA, "%s: buf0:%p, buf1:%p, lbuf_en:%d, buf_index:%d.\n",

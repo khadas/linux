@@ -576,8 +576,8 @@ int vicp_test(void)
 	int i = 0;
 	u32 *virt_addr = NULL;
 	u32 temp_body_addr;
-	struct dma_data_config_t data_dma;
-	struct vicp_data_config_t data_config;
+	struct dma_data_config_s data_dma;
+	struct vicp_data_config_s data_config;
 	struct vframe_s *test_vframe = NULL;
 	struct timeval time1, time2, time3;
 	int cost_time = 0;
@@ -607,7 +607,7 @@ int vicp_test(void)
 		+ (time2.tv_usec - time1.tv_usec));
 	vicp_print(VICP_INFO, "create yuv file cost: %d us\n", cost_time);
 
-	memset(&data_dma, 0, sizeof(struct dma_data_config_t));
+	memset(&data_dma, 0, sizeof(struct dma_data_config_s));
 	data_dma.buf_addr = mif_in_addr;
 	data_dma.buf_stride_w = input_width;
 	data_dma.buf_stride_h = input_height;
@@ -618,7 +618,7 @@ int vicp_test(void)
 	data_dma.plane_count = 2;
 	data_dma.endian = 0;
 	data_dma.need_swap_cbcr = 0;
-	memset(&data_config, 0, sizeof(struct vicp_data_config_t));
+	memset(&data_config, 0, sizeof(struct vicp_data_config_s));
 	data_config.input_data.is_vframe = false;
 	data_config.input_data.data_dma = &data_dma;
 
@@ -672,7 +672,7 @@ int vicp_test(void)
 	input_height = 1080;
 	output_width = 3840;
 	output_height = 2160;
-	memset(&data_dma, 0, sizeof(struct dma_data_config_t));
+	memset(&data_dma, 0, sizeof(struct dma_data_config_s));
 	data_dma.buf_addr = mif_out_addr;
 	data_dma.buf_stride_w = input_width;
 	data_dma.buf_stride_h = input_height;
@@ -683,7 +683,7 @@ int vicp_test(void)
 	data_dma.plane_count = 2;
 	data_dma.endian = 0;
 	data_dma.need_swap_cbcr = 0;
-	memset(&data_config, 0, sizeof(struct vicp_data_config_t));
+	memset(&data_config, 0, sizeof(struct vicp_data_config_s));
 	data_config.input_data.is_vframe = false;
 	data_config.input_data.data_dma = &data_dma;
 

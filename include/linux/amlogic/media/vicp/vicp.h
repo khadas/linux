@@ -24,7 +24,7 @@
 #define MAX_INPUTSOURCE_COUNT	9
 
 #define VICP_IOC_MAGIC		'V'
-#define VICP_PROCESS		_IOW(VICP_IOC_MAGIC, 0x00, struct vicp_data_info_t)
+#define VICP_PROCESS		_IOW(VICP_IOC_MAGIC, 0x00, struct vicp_data_info_s)
 
 /* *********************************************************************** */
 /* ************************* enum definitions ****************************.*/
@@ -61,37 +61,45 @@ enum vicp_skip_mode_e {
 	VICP_SKIP_MODE_ALL,
 	VICP_SKIP_MODE_MAX,
 };
-
 /* *********************************************************************** */
 /* ************************* struct definitions **************************.*/
 /* *********************************************************************** */
-struct output_axis_t {
+struct vicp_device_data_s {
+	int cpu_type;
+	int rate;
+	bool film_grain_support;
+	bool cr_lossy_support;
+	bool ddr16_support;
+};
+
+struct output_axis_s {
 	u32 left;
 	u32 top;
 	u32 width;
 	u32 height;
 };
 
-struct crop_info_t {
+struct crop_info_s {
 	u32 left;
 	u32 top;
 	u32 width;
 	u32 height;
 };
 
-struct data_option_t {
-	struct crop_info_t crop_info;
+struct data_option_s {
+	struct crop_info_s crop_info;
 	enum vicp_rotation_mode_e rotation_mode;
-	struct output_axis_t output_axis;
+	struct output_axis_s output_axis;
 	enum vicp_shrink_mode_e shrink_mode;
 	enum vicp_skip_mode_e skip_mode;
 	bool rdma_enable;
 	u32 input_source_count;
 	u32 input_source_number;
 	bool security_enable;
+	u32 compress_rate;
 };
 
-struct dma_data_config_t {
+struct dma_data_config_s {
 	ulong buf_addr;
 	u32 buf_stride_w;
 	u32 buf_stride_h;
@@ -104,13 +112,13 @@ struct dma_data_config_t {
 	u32 need_swap_cbcr;
 };
 
-struct input_data_param_t {
+struct input_data_param_s {
 	bool is_vframe;
 	struct vframe_s *data_vf;
-	struct dma_data_config_t *data_dma;
+	struct dma_data_config_s *data_dma;
 };
 
-struct output_data_param_t {
+struct output_data_param_s {
 	ulong phy_addr[MAX_PLANE_MUM];
 	u32 stride[MAX_PLANE_MUM];
 	u32 width;
@@ -127,13 +135,13 @@ struct output_data_param_t {
 	u32 mif_color_dep;
 };
 
-struct vicp_data_config_t {
-	struct input_data_param_t input_data;
-	struct output_data_param_t output_data;
-	struct data_option_t data_option;
+struct vicp_data_config_s {
+	struct input_data_param_s input_data;
+	struct output_data_param_s output_data;
+	struct data_option_s data_option;
 };
 
-struct vicp_data_info_t {
+struct vicp_data_info_s {
 	u32 src_buf_fd;
 	u32 src_buf_alisg_w;
 	u32 src_buf_alisg_h;
@@ -171,7 +179,6 @@ struct vicp_data_info_t {
 /* *********************************************************************** */
 /* ************************* function definitions **************************.*/
 /* *********************************************************************** */
-int vicp_process(struct vicp_data_config_t *data_config);
+int vicp_process(struct vicp_data_config_s *data_config);
 int vicp_process_enable(int enable);
-
 #endif
