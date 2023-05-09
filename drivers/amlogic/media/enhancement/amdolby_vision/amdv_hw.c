@@ -266,6 +266,10 @@ void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 			else
 				g_vpotch = 0x10;
 
+			/* for 1080p fb */
+			if (graphics_h <= 1080)
+				g_vpotch = 0x50;
+
 			if (vinfo->width > 1920)
 				htotal_add = 0xc0;
 			else
