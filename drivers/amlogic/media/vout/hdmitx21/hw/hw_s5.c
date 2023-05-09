@@ -564,7 +564,14 @@ void hdmitx21_s5_clk_div_rst(u32 clk_idx)
 	}
 }
 
-static int gate_bit_mask = 0xfffff;
+/* CLKCTRL_HTX_CLK_CTRL0 bit8 gate for cts_hdmitx_prif_clk
+ * it's necessary for register access of controller
+ * CLKCTRL_HTX_CLK_CTRL0 bit24 gate for cts_hdmitx_200m_clk
+ * it's necessary for i2c clk
+ * CLKCTRL_HDMI_CLK_CTRL bit8 gate for cts_hdmitx_sys_clk
+ * it's necessary for register access of hdmitx top
+ */
+static int gate_bit_mask = 0xffc7f;
 module_param(gate_bit_mask, int, 0644);
 MODULE_PARM_DESC(gate_bit_mask, "for hdcp debug");
 

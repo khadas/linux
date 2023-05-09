@@ -7119,6 +7119,16 @@ static void amhdmitx_shutdown(struct platform_device *pdev)
 		hdmitx_s5_clk_ctrl(hdev, 0);
 }
 
+/* there's corner case:
+ * when deep suspend, RTC wakeup kernel-->
+ * hdmi plugout/in interrupt-->
+ * plugin bottom handle, edid...
+ * however it may re-enter RTC suspend and
+ * disable hdmitx clk during hdmi register
+ * access in plugin bottom handler, cause
+ * system hard lock and crash. so need to keep
+ * basic hdmitx clk enabled when suspend
+ */
 #ifdef CONFIG_PM
 static int amhdmitx_suspend(struct platform_device *pdev,
 			    pm_message_t state)
@@ -7128,6 +7138,7 @@ static int amhdmitx_suspend(struct platform_device *pdev,
 	if (hdev->data->chip_type >= MESON_CPU_ID_S5)
 		hdmitx_s5_clk_ctrl(hdev, 0);
 
+	pr_info("%s\n", __func__);
 	return 0;
 }
 
@@ -7786,16 +7797,17 @@ static long hdcp_comm_ioctl(struct file *file,
 {
 	int rtn_val;
 	struct hdmitx_dev *hdev = &hdmitx21_device;
+	u8 hdcp_key_store = 0;
 
 	switch (cmd) {
 	case TEE_HDCP_IOC_START:
 		/* notify by TEE, hdcp key ready */
 		rtn_val = 0;
 		if (get_hdcp2_lstore())
-			hdev->lstore |= BIT(1);
+			hdcp_key_store |= BIT(1);
 		if (get_hdcp1_lstore())
-			hdev->lstore |= BIT(0);
-		pr_info("tee load hdcp key ready: 0x%x\n", hdev->lstore);
+			hdcp_key_store |= BIT(0);
+		pr_info("tee load hdcp key ready: 0x%x\n", hdcp_key_store);
 		mutex_lock(&hdev->hdmimode_mutex);
 		if (hdev->hpd_state == 1 &&
 			hdev->ready &&
@@ -7804,7 +7816,7 @@ static long hdcp_comm_ioctl(struct file *file,
 			if (hdcp_need_control_by_upstream(hdev)) {
 				pr_info("hdmitx: currently hdcp should started by upstream\n");
 			} else {
-				if (hdev->lstore & BIT(1))
+				if (hdcp_key_store & BIT(1))
 					hdev->dw_hdcp22_cap = is_rx_hdcp2ver();
 				hdmitx21_enable_hdcp(hdev);
 			}
