@@ -2771,8 +2771,6 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	data32 |= (0 << 0);
 	hdmitx21_wr_reg(HDMITX_TOP_HPD_FILTER,    data32);
 
-	hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 1, 0, 1);
-	hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 0, 0, 1);
 	//-------------
 	//config video
 	//-------------
@@ -2789,7 +2787,6 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	hdmitx21_set_reg_bits(FRL_LINK_RATE_CONFIG_IVCTX, hdev->frl_rate, 0, 4);
 
 	hdmitx21_wr_reg(SW_RST_IVCTX, 0); // default value
-	hdmitx21_wr_reg(HT_DIG_CTL22_PHY_IVCTX, 0);
 	hdmitx21_wr_reg(CLK_DIV_CNTRL_IVCTX, hdev->frl_rate ? 0 : 1);
 	//hdmitx21_wr_reg(H21TXSB_PKT_PRD_IVCTX, 0x1);
 	//hdmitx21_wr_reg(HOST_CTRL2_IVCTX, 0x80); //INT active high

@@ -600,7 +600,12 @@ void hdmitx_s5_clock_gate_ctrl(struct hdmitx_dev *hdev, bool en)
 	if (gate_bit_mask & BIT(10))
 		hd21_set_reg_bits(CLKCTRL_HDMI_PLL_TMDS_CLK_DIV, en, 19, 1);
 		// hdmitx21_set_reg_bits(HDMITX_TOP_CLK_CNTL, en, 1, 1);
-	if (gate_bit_mask & BIT(11))
+	/* ANACTRL_HDMIPLL_CTRL4 bit[25] for frl mode 1618 coding
+	 * enable bit[25] may lead no signal in TMDS mode when
+	 * suspend/resume. so disable it in suspend, not enable in resume,
+	 * it will be enabled in setting frl mode later.
+	 */
+	if (gate_bit_mask & BIT(11) && !en)
 		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL4, en, 25, 1);
 	if (gate_bit_mask & BIT(12))
 		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, en, 24, 1);
