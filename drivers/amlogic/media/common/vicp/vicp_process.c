@@ -2207,6 +2207,30 @@ int vicp_process_reset(void)
 	return 0;
 }
 
+int vicp_process_enable(int enable)
+{
+	vicp_print(VICP_INFO, "%s: %d.\n", __func__, enable);
+
+	last_input_w = 0;
+	last_input_h = 0;
+	last_input_fmt = 0;
+	last_input_bit_depth = 0;
+	last_fbcinput_en = 0;
+	last_output_w = 0;
+	last_output_h = 0;
+	last_output_miffmt = 0;
+	last_output_fbcfmt = 0;
+	last_fbcoutput_en = 0;
+	last_mifoutput_en = 0;
+	last_output_begin_v = 0;
+	last_output_end_v = 0;
+	last_output_begin_h = 0;
+	last_output_end_h = 0;
+
+	return 0;
+}
+EXPORT_SYMBOL(vicp_process_enable);
+
 int  vicp_process(struct vicp_data_config_t *data_config)
 {
 	int ret = 0;

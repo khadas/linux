@@ -76,7 +76,6 @@ u32 debug_axis_en;
 struct output_axis_t axis;
 u32 rdma_en;
 u32 debug_rdma_en;
-
 struct mutex vicp_mutex; /*used to avoid user space call at the same time*/
 struct vicp_hdr_s *vicp_hdr;
 
@@ -836,6 +835,7 @@ static int config_vicp_param(struct vicp_data_info_t *vicp_data_info,
 
 static int vicp_open(struct inode *inode, struct file *file)
 {
+	pr_info("%s\n", __func__);
 	return 0;
 }
 
@@ -879,6 +879,7 @@ static long vicp_compat_ioctl(struct file *file, unsigned int cmd, unsigned long
 static int vicp_release(struct inode *inode, struct file *file)
 {
 	pr_info("%s\n", __func__);
+	vicp_process_enable(0);
 
 	return 0;
 }

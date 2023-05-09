@@ -756,6 +756,8 @@ static int vc_init_vicp_buffer(struct composer_dev *dev, bool is_tvp, size_t usa
 				*virt_addr = ((j + temp_body_addr) >> 12) & 0x000fffff;
 				virt_addr++;
 			}
+			codec_mm_dma_flush(virt_addr,
+				dev->dst_buf[i].afbc_table_size, DMA_TO_DEVICE);
 
 			vc_print(dev->index, PRINT_VICP, "HeadAddr = 0x%lx.\n",
 				dev->dst_buf[i].afbc_head_addr);
@@ -4050,6 +4052,9 @@ static int video_composer_uninit(struct composer_dev *dev)
 		vfree(dev->aiface_buf);
 		dev->aiface_buf = NULL;
 	}
+
+	if (dev->dev_choice == COMPOSER_WITH_VICP)
+		vicp_process_enable(0);
 	return ret;
 }
 

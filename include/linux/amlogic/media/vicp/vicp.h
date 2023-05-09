@@ -172,5 +172,6 @@ struct vicp_data_info_t {
 /* ************************* function definitions **************************.*/
 /* *********************************************************************** */
 int vicp_process(struct vicp_data_config_t *data_config);
+int vicp_process_enable(int enable);
 
 #endif
