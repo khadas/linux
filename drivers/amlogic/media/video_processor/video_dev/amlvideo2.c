@@ -5642,8 +5642,10 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE || i != fh->type)
 		return -EINVAL;
 	ret = videobuf_streamoff(&fh->vb_vidq);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_err("videobuf stream off failed\n");
+		return 0;
+	}
 	if (amlvideo2_dbg_en) {
 		pr_info("%s , %d\n", __func__, __LINE__);
 		pr_info("start_vdin_flag = %d\n", node->start_vdin_flag);

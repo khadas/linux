@@ -482,7 +482,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	dprintk(dev, 2, "%s\n", __func__);
 
 	/* shutdown control thread */
-	if (dma_q->kthread) {
+	if (!IS_ERR(dma_q->kthread)) {
 		kthread_stop(dma_q->kthread);
 		dma_q->kthread = NULL;
 	}
@@ -698,6 +698,12 @@ static unsigned int vidioc_poll(struct file *file,
 		return 0;
 }
 
+static int vidioc_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	pr_info("ionvideo mmap\n");
+	return 0;
+}
+
 static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct ionvideo_dev *dev = video_drvdata(file);
@@ -790,7 +796,7 @@ static const struct v4l2_file_operations ionvideo_v4l2_fops = {
 	.read = vidioc_read,
 	.poll = vidioc_poll,
 	.unlocked_ioctl = video_ioctl2,/* V4L2 ioctl handler */
-	.mmap = vb2_fop_mmap,
+	.mmap = vidioc_mmap,
 };
 
 static const struct v4l2_ioctl_ops ionvideo_ioctl_ops = {
