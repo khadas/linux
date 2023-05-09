@@ -258,6 +258,7 @@ static int _dsc_chan_alloc(struct aml_dsc *dsc,
 	index = _malloc_dsc_table_index(dsc_type);
 	if (index == -1) {
 		dprint("%s _malloc_dsc_table_index fail\n", __func__);
+		vfree(ch);
 		return -1;
 	}
 	ch->state = DSC_STATE_READY;
