@@ -1086,7 +1086,8 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 
 	if (data->video_cmd == VT_VIDEO_SET_COLOR_BLACK ||
 			data->video_cmd == VT_VIDEO_SET_COLOR_BLUE ||
-			data->video_cmd == VT_VIDEO_SET_COLOR_GREEN) {
+			data->video_cmd == VT_VIDEO_SET_COLOR_GREEN ||
+			data->video_cmd == VT_VIDEO_SET_STATUS) {
 		/* no instance or instance has no consumer */
 		if (!instance || !instance->consumer) {
 			vt_debug(VT_DEBUG_CMD, "vt [%d] set solid color, no consumer", id);
