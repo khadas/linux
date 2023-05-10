@@ -2721,8 +2721,9 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 			dprint("get es entry slot error\n");
 			return -1;
 		}
-          	if (!pout->pchan) {
+		if (!pout->pchan) {
 			dprint("get pout->pchan error\n");
+			_free_es_entry_slot(es_pes);
 			return -1;
 		}
 		es_pes->buff_id = pout->pchan->id;
@@ -2735,8 +2736,10 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 		/*before pid filter enable */
 		if (pout->pchan->sec_level || (pout->pchan1 && pout->pchan1->sec_level)) {
 			ret = create_aucpu_inst(pout);
-			if (ret != 0)
+			if (ret != 0) {
+				_free_es_entry_slot(es_pes);
 				return -1;
+			}
 		}
 		if (pout->type == VIDEO_TYPE) {
 			if (((dump_video_es & 0xFFFF) == pout->es_pes->pid &&
@@ -2802,8 +2805,9 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 			pr_dbg("malloc pid entry fail\n");
 			return -1;
 		}
-                if (!pout->pchan) {
+		if (!pout->pchan) {
 			dprint("get pout->pchan NULL error\n");
+			_free_pid_entry_slot(pid_slot);
 			return -1;
 		}
 		pid_slot->pid = pid;
