@@ -103,6 +103,8 @@ void set_vicp_rdma_buf_choice(u32 buf_num)
 	}
 	vicp_print(VICP_RDMA, "%s: cur_buf_num:%d, new_buf_num:%d.\n",
 		__func__, rdma_buf_choice, buf_num);
+	vicp_rdma_buf_init(buf_num, rdma_buf[buf_num].cmd_buf_start_addr,
+		rdma_buf[buf_num].load_buf_start_addr);
 	rdma_buf_choice = buf_num;
 }
 

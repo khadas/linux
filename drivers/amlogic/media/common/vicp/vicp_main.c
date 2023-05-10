@@ -836,6 +836,8 @@ static int config_vicp_param(struct vicp_data_info_t *vicp_data_info,
 static int vicp_open(struct inode *inode, struct file *file)
 {
 	pr_info("%s\n", __func__);
+
+	vicp_process_enable(1);
 	return 0;
 }
 
@@ -879,8 +881,8 @@ static long vicp_compat_ioctl(struct file *file, unsigned int cmd, unsigned long
 static int vicp_release(struct inode *inode, struct file *file)
 {
 	pr_info("%s\n", __func__);
-	vicp_process_enable(0);
 
+	vicp_process_enable(0);
 	return 0;
 }
 

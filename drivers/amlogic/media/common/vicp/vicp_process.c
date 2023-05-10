@@ -40,13 +40,13 @@
 struct completion vicp_proc_done;
 struct completion vicp_rdma_done;
 static int rdma_done_count;
-static ulong rdma_buf_phy_addr;
 static int current_dump_flag;
 static u32 last_input_w, last_input_h, last_input_fmt, last_input_bit_depth;
 static u32 last_fbcinput_en;
 static u32 last_output_w, last_output_h, last_output_fbcfmt, last_output_miffmt;
 static u32 last_fbcoutput_en, last_mifoutput_en;
 static u32 last_output_begin_v, last_output_begin_h, last_output_end_v, last_output_end_h;
+static u32 rdma_buf_init_flag;
 
 irqreturn_t vicp_isr_handle(int irq, void *dev_id)
 {
@@ -1251,9 +1251,6 @@ void set_vid_cmpr_wmif(struct vid_cmpr_mif_t *wr_mif, int wrmif_en)
 
 static void set_vid_cmpr_rdma_config(bool rdma_en, int input_count, int input_number)
 {
-	int i, data_size;
-	u64 cmd_buf_addr, load_buf_addr;
-
 	vicp_print(VICP_INFO, "enter %s.\n", __func__);
 
 	if (print_flag & VICP_RDMA) {
@@ -1271,8 +1268,7 @@ static void set_vid_cmpr_rdma_config(bool rdma_en, int input_count, int input_nu
 		return;
 	}
 
-	if (input_count <= 0 || input_count > MAX_INPUTSOURCE_COUNT ||
-		input_number < 0 || input_number >= MAX_INPUTSOURCE_COUNT) {
+	if (input_count <= 0 || input_count > MAX_INPUTSOURCE_COUNT) {
 		vicp_print(VICP_ERROR, "%s: invalid param.\n", __func__);
 		set_rdma_flag(0);
 		vicp_rdma_enable(0, 0, 0);
@@ -1287,16 +1283,6 @@ static void set_vid_cmpr_rdma_config(bool rdma_en, int input_count, int input_nu
 		vicp_rdma_trigger();
 		vicp_rdma_errorflag_clear();
 		set_rdma_start(input_count);
-
-		data_size = input_count * (RDMA_CMD_BUF_LEN + RDMA_LOAD_BUF_LEN);
-		rdma_buf_phy_addr = codec_mm_alloc_for_dma("vicp", data_size / PAGE_SIZE,
-			0, CODEC_MM_FLAGS_DMA);
-		for (i = 0; i < input_count; i++) {
-			cmd_buf_addr = rdma_buf_phy_addr +
-				(RDMA_CMD_BUF_LEN + RDMA_LOAD_BUF_LEN) * i;
-			load_buf_addr = cmd_buf_addr + RDMA_CMD_BUF_LEN;
-			vicp_rdma_buf_init(i, cmd_buf_addr, load_buf_addr);
-		}
 	}
 
 	set_vicp_rdma_buf_choice(input_number);
@@ -1458,6 +1444,68 @@ static int get_input_color_format(struct vframe_s *vf)
 		format = 2;
 
 	return format;
+}
+
+static int init_rdma_buf(void)
+{
+	int buf_size = 0;
+	int num = 0;
+	u64 cmd_buf_addr, load_buf_addr;
+	ulong addr_start;
+
+	if (rdma_buf_init_flag) {
+		vicp_print(VICP_RDMA, "%s: no need init again.\n", __func__);
+		return 0;
+	}
+
+	buf_size = MAX_INPUTSOURCE_COUNT * (RDMA_CMD_BUF_LEN + RDMA_LOAD_BUF_LEN);
+	addr_start = codec_mm_alloc_for_dma("vicp", buf_size / PAGE_SIZE, 0, CODEC_MM_FLAGS_DMA);
+	for (num = 0; num < MAX_INPUTSOURCE_COUNT; num++) {
+		cmd_buf_addr = addr_start + (RDMA_CMD_BUF_LEN + RDMA_LOAD_BUF_LEN) * num;
+		load_buf_addr = cmd_buf_addr + RDMA_CMD_BUF_LEN;
+		vicp_rdma_buf_init(num, cmd_buf_addr, load_buf_addr);
+	}
+
+	rdma_buf_init_flag = 1;
+	return 0;
+}
+
+static int uninit_rdma_buf(void)
+{
+	int buf_size = 0;
+	u8 *temp_addr;
+	ulong rdma_buf_start_addr;
+	struct rdma_buf_type_t *first_rdma_buf;
+
+	buf_size = MAX_INPUTSOURCE_COUNT * (RDMA_CMD_BUF_LEN + RDMA_LOAD_BUF_LEN);
+	first_rdma_buf = get_vicp_rdma_buf_choice(0);
+	rdma_buf_start_addr = first_rdma_buf->cmd_buf_start_addr;
+
+	temp_addr = codec_mm_vmap(rdma_buf_start_addr, buf_size);
+	memset(temp_addr, 0, buf_size);
+	codec_mm_unmap_phyaddr(temp_addr);
+	codec_mm_free_for_dma("vicp", rdma_buf_start_addr);
+
+	rdma_buf_init_flag = 0;
+	return 0;
+}
+
+static int add_jumpcmd_to_buf(int input_count)
+{
+	int num, buf_size;
+	u8 *temp_addr;
+	struct rdma_buf_type_t *buf;
+
+	buf_size = MAX_INPUTSOURCE_COUNT * (RDMA_CMD_BUF_LEN + RDMA_LOAD_BUF_LEN);
+	buf = get_vicp_rdma_buf_choice(0);
+	temp_addr = codec_mm_vmap(buf->cmd_buf_start_addr, buf_size);
+	for (num = 1; num < input_count; num++)
+		vicp_rdma_jmp(get_vicp_rdma_buf_choice(num - 1), get_vicp_rdma_buf_choice(num), 1);
+
+	codec_mm_dma_flush(temp_addr, buf_size, DMA_TO_DEVICE);
+	codec_mm_unmap_phyaddr(temp_addr);
+	codec_mm_free_for_dma("vicp", buf->cmd_buf_start_addr);
+	return 0;
 }
 
 static void set_vid_cmpr_basic_param(struct vid_cmpr_top_t *vid_cmpr_top)
@@ -2066,8 +2114,6 @@ int vicp_process_task(struct vid_cmpr_top_t *vid_cmpr_top)
 	int ret = 0;
 	int time = 0;
 	int i = 0;
-	u8 *temp_addr;
-	int buffer_size;
 	bool is_need_update_all = false;
 
 	vicp_print(VICP_INFO, "enter %s, rdma_en is %d.\n", __func__, vid_cmpr_top->rdma_enable);
@@ -2089,17 +2135,9 @@ int vicp_process_task(struct vid_cmpr_top_t *vid_cmpr_top)
 		if (vid_cmpr_top->src_num + 1 == vid_cmpr_top->src_count) {
 			init_completion(&vicp_rdma_done);
 			init_completion(&vicp_proc_done);
-			buffer_size = vid_cmpr_top->src_count *
-				(RDMA_CMD_BUF_LEN + RDMA_LOAD_BUF_LEN);
-			temp_addr = codec_mm_vmap(rdma_buf_phy_addr, buffer_size);
-			for (i = 1; i < vid_cmpr_top->src_count; i++) {
-				vicp_rdma_jmp(get_vicp_rdma_buf_choice(i - 1),
-					get_vicp_rdma_buf_choice(i), 1);
-			}
-			codec_mm_dma_flush(temp_addr, buffer_size, DMA_TO_DEVICE);
-
+			add_jumpcmd_to_buf(vid_cmpr_top->src_count);
 			vicp_rdma_buf_load(vid_cmpr_top->src_count);
-			time = wait_for_completion_timeout(&vicp_proc_done, msecs_to_jiffies(200));
+			time = wait_for_completion_timeout(&vicp_proc_done, msecs_to_jiffies(300));
 			if (!time) {
 				vicp_print(VICP_ERROR, "vicp_task wait isr timeout\n");
 				if (debug_rdma_en) {
@@ -2119,10 +2157,6 @@ int vicp_process_task(struct vid_cmpr_top_t *vid_cmpr_top)
 			rdma_done_count = 0;
 
 			vicp_rdma_errorflag_clear();
-			memset(temp_addr, 0, buffer_size);
-			codec_mm_unmap_phyaddr(temp_addr);
-			codec_mm_free_for_dma("vicp", rdma_buf_phy_addr);
-			rdma_buf_phy_addr = 0;
 		}
 	} else {
 		if (last_input_w != vid_cmpr_top->src_hsize ||
@@ -2211,21 +2245,26 @@ int vicp_process_enable(int enable)
 {
 	vicp_print(VICP_INFO, "%s: %d.\n", __func__, enable);
 
-	last_input_w = 0;
-	last_input_h = 0;
-	last_input_fmt = 0;
-	last_input_bit_depth = 0;
-	last_fbcinput_en = 0;
-	last_output_w = 0;
-	last_output_h = 0;
-	last_output_miffmt = 0;
-	last_output_fbcfmt = 0;
-	last_fbcoutput_en = 0;
-	last_mifoutput_en = 0;
-	last_output_begin_v = 0;
-	last_output_end_v = 0;
-	last_output_begin_h = 0;
-	last_output_end_h = 0;
+	if (enable) {
+		init_rdma_buf();
+	} else {
+		last_input_w = 0;
+		last_input_h = 0;
+		last_input_fmt = 0;
+		last_input_bit_depth = 0;
+		last_fbcinput_en = 0;
+		last_output_w = 0;
+		last_output_h = 0;
+		last_output_miffmt = 0;
+		last_output_fbcfmt = 0;
+		last_fbcoutput_en = 0;
+		last_mifoutput_en = 0;
+		last_output_begin_v = 0;
+		last_output_end_v = 0;
+		last_output_begin_h = 0;
+		last_output_end_h = 0;
+		uninit_rdma_buf();
+	}
 
 	return 0;
 }

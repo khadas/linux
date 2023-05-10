@@ -1865,6 +1865,9 @@ static void choose_composer_device(struct composer_dev *dev,
 		else
 			dev->dev_choice = COMPOSER_WITH_GE2D;
 	}
+
+	if (dev->dev_choice == COMPOSER_WITH_VICP)
+		vicp_process_enable(1);
 }
 
 static void check_vicp_skip_mode(struct composer_dev *dev, struct frames_info_t *frames_info,
