@@ -78,7 +78,7 @@ static unsigned char atsc_agc_target = 0x28;
 module_param(atsc_agc_target, byte, 0644);
 
 MODULE_PARM_DESC(atsc_check_signal_time, "\n\t\t atsc check signal time");
-static unsigned int atsc_check_signal_time;
+static unsigned int atsc_check_signal_time = ATSC_TIME_CHECK_SIGNAL;
 module_param(atsc_check_signal_time, int, 0644);
 
 MODULE_PARM_DESC(atsc_t_lock_continuous_cnt, "\n\t\t atsc-t lock signal continuous counting");
@@ -2026,6 +2026,9 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 
 	tuner_set_params(fe);
 
+	if (c->modulation > QAM_AUTO && tuner_find_by_name(fe, "r842"))
+		msleep(200);
+
 	if ((c->modulation <= QAM_AUTO) && (c->modulation != QPSK)) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			/* add for j83b 256 qam, livetv and timeshif */
@@ -2458,7 +2461,6 @@ static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 {
 	int fsm_status;//0:none;1:lock;-1:lost
 	int strength = 0;
-	u16 rf_strength = 0;
 	unsigned int sys_sts;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	static int lock_status;
@@ -2466,8 +2468,9 @@ static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 	//Threshold value of times of continuous lock and lost
 	int lock_continuous_cnt = atsc_t_lock_continuous_cnt > 1 ? atsc_t_lock_continuous_cnt : 1;
 	int lost_continuous_cnt = atsc_t_lost_continuous_cnt > 1 ? atsc_t_lost_continuous_cnt : 1;
+	int check_signal_time = atsc_check_signal_time > 1 ? atsc_check_signal_time :
+		ATSC_TIME_CHECK_SIGNAL;
 	int tuner_strength_threshold = THRD_TUNER_STRENGTH_ATSC;
-	unsigned int check_signal_time = ATSC_TIME_CHECK_SIGNAL;
 
 	if (re_tune) {
 		lock_status = 0;
@@ -2479,8 +2482,9 @@ static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 		return;
 	}
 
-	strength = tuner_get_ch_power(fe);
+	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
 
+	strength = tuner_get_ch_power(fe);
 	/*agc control,fine tune strength*/
 	if (tuner_find_by_name(fe, "r842")) {
 		strength += 15;
@@ -2488,39 +2492,32 @@ static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 			strength = atsc_get_power_strength(atsc_read_reg_v4(0x44) & 0xfff,
 					strength);
 		tuner_strength_threshold = -89;
-		check_signal_time = 1800;
+		check_signal_time += 100;
 	}
-
-	check_signal_time = atsc_check_signal_time ? atsc_check_signal_time : check_signal_time;
 
 	if (strength < tuner_strength_threshold) {
 		*status = FE_TIMEDOUT;
-		demod->last_status = *status;
 		PR_ATSC("%s: tuner strength [%d] no signal(%d).\n",
 				__func__, strength, tuner_strength_threshold);
-		return;
+
+		goto finish;
 	}
 
 	atsc_check_fsm_status();
 
-	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
 	sys_sts = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) & 0xff;
 	PR_ATSC("fsm=0x%x, time_passed=%d\n", sys_sts, demod->time_passed);
-	if (sys_sts >= ATSC_SYNC_LOCK) {
+	if (sys_sts >= ATSC_LOCK) {
 		atsc_optimize_cn(false);
 		fsm_status = 1;
 		peak = 1;//atsc signal
-	} else if (sys_sts >= (CR_PEAK_LOCK & 0xf0)) {
-		peak = 1;//atsc signal
-		if (demod->time_passed >= TIMEOUT_ATSC)
-			fsm_status = -1;
-		else
-			fsm_status = 0;
-
-		if (demod->time_passed >= ATSC_TIME_START_CCI)
-			atsc_check_cci(demod);
 	} else {
-		if (demod->time_passed <= check_signal_time) {
+		if (sys_sts >= (CR_PEAK_LOCK & 0xf0))
+			peak = 1;//atsc signal
+
+		if (sys_sts >= ATSC_SYNC_LOCK ||
+			demod->time_passed <= check_signal_time ||
+			(demod->time_passed <= TIMEOUT_ATSC && peak)) {
 			fsm_status = 0;
 		} else {
 			fsm_status = -1;
@@ -2534,6 +2531,10 @@ static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 				goto finish;
 			}
 		}
+
+		if (demod->time_passed >= ATSC_TIME_START_CCI &&
+			(sys_sts & 0xf0) == (CR_PEAK_LOCK & 0xf0))
+			atsc_check_cci(demod);
 	}
 
 	//The status is updated only when the status continuously reaches the threshold of times
@@ -2565,25 +2566,19 @@ static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 			PR_ATSC("==> lock signal times:%d\n", lock_status);
 		}
 
-		if (lock_status >= lock_continuous_cnt) {
+		if (lock_status >= lock_continuous_cnt)
 			*status = FE_HAS_LOCK | FE_HAS_SIGNAL |
 				FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC;
-
-			/* for call r842 atsc monitor */
-			if (tuner_find_by_name(fe, "r842") &&
-					fe->ops.tuner_ops.get_rf_strength)
-				fe->ops.tuner_ops.get_rf_strength(fe, &rf_strength);
-		} else {
+		else
 			*status = 0;
-		}
 	} else {
 		*status = 0;
 	}
 
 finish:
 	if (demod->last_status != *status && *status != 0) {
-		PR_INFO("!!  >> %s << !!, freq=%d\n", *status == FE_TIMEDOUT ? "UNLOCK" : "LOCK",
-			fe->dtv_property_cache.frequency);
+		PR_INFO("!!  >> %s << !!, freq=%d, time_passed=%d\n", *status == FE_TIMEDOUT ?
+			"UNLOCK" : "LOCK", fe->dtv_property_cache.frequency, demod->time_passed);
 		demod->last_status = *status;
 	}
 }

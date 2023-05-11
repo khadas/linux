@@ -87,6 +87,7 @@
 /*  V2.1.93  fix dvb-s unicable blind scan miss TP */
 /*  V2.1.94  optimize isdbt stability of locking signal */
 /*  V2.1.95  fix dvbc aft test unstable */
+/*  V2.1.96  improve performance when atsc signal is weak */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -103,8 +104,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.1.95"
-#define DTVDEMOD_VER	"2023/05/24: fix dvbc aft test unstable"
+#define AMLDTVDEMOD_VER "V2.1.96"
+#define DTVDEMOD_VER	"2023/05/29: improve performance when atsc signal is weak"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
