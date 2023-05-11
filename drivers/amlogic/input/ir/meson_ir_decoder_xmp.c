@@ -129,6 +129,7 @@ static int meson_ir_xmp_decode(struct meson_ir_dev *dev,
 {
 	struct xmp_dec *data = data_dec;
 
+	ev.duration = ev.duration & GENMASK(30, 0);
 	if (ev.reset) {
 		data->state = STATE_INACTIVE;
 		return 0;

@@ -80,8 +80,8 @@ int meson_ir_raw_event_store_edge(struct meson_ir_dev *dev,
 
 	if (time_after(jiffies, timeout) || !dev->raw->last_type)
 		type |= RAW_START_EVENT;
-	else
-		ev.duration = duration;
+
+	ev.duration = duration;
 
 	if (type & RAW_START_EVENT)
 		ev.reset = true;

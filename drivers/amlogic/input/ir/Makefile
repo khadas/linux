@@ -12,4 +12,5 @@ $(MODULE_NAME)-y += meson_ir_core.o \
 		 meson_ir_cdev.o \
 		 meson_ir_raw.o \
 		 meson_ir_regmap.o\
-		 meson_ir_decoder_xmp.o
+		 meson_ir_decoder_xmp.o\
+		 meson_ir_decoder_sejin.o

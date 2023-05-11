@@ -380,6 +380,13 @@ static irqreturn_t meson_ir_interrupt(int irq, void *dev_id)
 		rc->ir_work = MULTI_IR_ID;
 		duration = val * 10 * 1000;
 		type = RAW_PULSE;
+
+		regmap_read(rc->ir_contr[MULTI_IR_ID].base, REG_STATUS, &val);
+		val = !!((val >> 8) & BIT(0));
+		duration &= ~BIT(31);
+		if (val)
+			duration |= BIT(31);
+
 		meson_ir_raw_event_store_edge(rc->r_dev, type, duration);
 		meson_ir_raw_event_handle(rc->r_dev);
 	} else {

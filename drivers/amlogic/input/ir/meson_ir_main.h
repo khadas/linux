@@ -197,4 +197,6 @@ void meson_ir_pulses_free(struct meson_ir_chip *chip);
 
 int meson_ir_xmp_decode_init(void);
 void meson_ir_xmp_decode_exit(void);
+int meson_ir_sejin_decode_init(void);
+void meson_ir_sejin_decode_exit(void);
 #endif

@@ -43,7 +43,7 @@ static struct meson_ir_reg_map regs_default_duokan[] = {
 	{ REG_REG3,         5000 << 0}
 };
 
-static struct meson_ir_reg_map regs_default_xmp_1_sw[] = {
+static struct meson_ir_reg_map regs_default_sw_decoder[] = {
 	{ REG_LDR_ACTIVE,   0},
 	{ REG_LDR_IDLE,     0},
 	{ REG_LDR_REPEAT,   0},
@@ -401,6 +401,39 @@ static bool meson_ir_raw_xmp_set_custom_code(struct meson_ir_chip *chip,
 }
 
 /*
+ *sejin raw decoder interface
+ */
+
+static u32 meson_ir_raw_sejin_get_custom_code(struct meson_ir_chip *chip)
+{
+	u32 custom_code;
+
+	custom_code = chip->r_dev->cur_customcode;
+	meson_ir_dbg(chip->r_dev, "custom_code=0x%x\n", custom_code);
+	return custom_code;
+}
+
+static bool meson_ir_raw_sejin_set_custom_code(struct meson_ir_chip *chip,
+					     u32 code)
+{
+#define SEJIN_RELEASE_FLAG	0x80
+
+	chip->r_dev->cur_customcode = code >> 24;
+
+	if ((chip->r_dev->cur_hardcode & 0xff00) == (code & 0xff00))
+		chip->decode_status = IR_STATUS_REPEAT;
+	else
+		chip->decode_status = IR_STATUS_NORMAL;
+
+	if (((code >> 16) & 0xff) == SEJIN_RELEASE_FLAG)
+		chip->r_dev->cur_hardcode = 0;
+	else
+		chip->r_dev->cur_hardcode = code;
+
+	return 0;
+}
+
+/*
  * RC5 decoder interface
  * 14bit of one frame is stored in [13:0]:
  *      bit[13:11] is S1, S2, Toggle
@@ -749,12 +782,23 @@ static struct meson_ir_reg_proto reg_duokan = {
 static struct meson_ir_reg_proto reg_xmp_1_sw = {
 	.protocol = REMOTE_TYPE_RAW_XMP_1,
 	.name	  = "XMP-1-RAW",
-	.reg_map      = regs_default_xmp_1_sw,
-	.reg_map_size = ARRAY_SIZE(regs_default_xmp_1_sw),
+	.reg_map      = regs_default_sw_decoder,
+	.reg_map_size = ARRAY_SIZE(regs_default_sw_decoder),
 	.get_scancode      = NULL,
 	.get_decode_status = NULL,
 	.get_custom_code   = meson_ir_raw_xmp_get_custom_code,
 	.set_custom_code   = meson_ir_raw_xmp_set_custom_code
+};
+
+static struct meson_ir_reg_proto reg_sejin_sw = {
+	.protocol = REMOTE_TYPE_RAW_SEJIN,
+	.name	  = "SEJIN-RAW",
+	.reg_map      = regs_default_sw_decoder,
+	.reg_map_size = ARRAY_SIZE(regs_default_sw_decoder),
+	.get_scancode      = NULL,
+	.get_decode_status = NULL,
+	.get_custom_code   = meson_ir_raw_sejin_get_custom_code,
+	.set_custom_code   = meson_ir_raw_sejin_set_custom_code
 };
 
 static struct meson_ir_reg_proto reg_xmp_1 = {
@@ -842,6 +886,7 @@ const struct meson_ir_reg_proto *meson_ir_regs_proto[] = {
 	&reg_duokan,
 	&reg_xmp_1,
 	&reg_xmp_1_sw,
+	&reg_sejin_sw,
 	&reg_nec_sw,
 	&reg_rc5,
 	&reg_rc6,

@@ -41,6 +41,7 @@
  */
 #define		REMOTE_TYPE_RAW_NEC	0x81
 #define		REMOTE_TYPE_RAW_XMP_1	0x83
+#define		REMOTE_TYPE_RAW_SEJIN	0x84
 
 /**
  *hardware decode two protocols
