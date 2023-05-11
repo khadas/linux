@@ -2546,6 +2546,15 @@ static ssize_t disp_cap_show(struct device *dev,
 				/* timing->sname ? timing->sname : timing->name); */
 		}
 	}
+	for (i = 0; i < VESA_MAX_TIMING && prxcap->vesa_timing[i]; i++) {
+		vic = prxcap->vesa_timing[i];
+		/* skip CEA modes */
+		if (vic < HDMITX_VESA_OFFSET)
+			continue;
+		timing = hdmitx21_gettiming_from_vic(vic);
+		if (timing)
+			pos += snprintf(buf + pos, PAGE_SIZE, "%s\n", timing->name);
+	}
 
 	return pos;
 }
