@@ -8371,7 +8371,7 @@ int is_sink_cap_changed(const struct vinfo_s *vinfo,
 			(sink_support_dv(vinfo) << 1) |
 			(sink_support_hdr10_plus(vinfo) << 2) |
 			(sink_support_hdr(vinfo) << 3) |
-			(sink_support_hlg(vinfo) << 3);
+			(sink_support_hlg(vinfo) << 4);
 		sink_available = 1;
 	} else {
 		hdr_cap = 0;
