@@ -1883,7 +1883,6 @@
 
 &amhdmitx {
 	status = "okay";
-	pxp_mode = <1>; /* run on pxp */
 };
 
 /*if you want to use vdin just modify status to "ok"*/
