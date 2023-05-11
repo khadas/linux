@@ -690,7 +690,7 @@ static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev)
 	mutex_lock(&getedid_mutex);
 	hdrinfo_to_vinfo(&info->hdr_info, hdev);
 	memcpy(&ext_dvinfo, &hdev->rxcap.dv_info, sizeof(ext_dvinfo));
-	if (hdev->para && hdev->para->cd == COLORDEPTH_24B)
+	if (hdev->para && !hdev->hdr_8bit_en && hdev->para->cd == COLORDEPTH_24B)
 		memset(&info->hdr_info, 0, sizeof(struct hdr_info));
 	rxlatency_to_vinfo(info, &hdev->rxcap);
 	hdmitx_vdev.dv_info = &ext_dvinfo;
@@ -6562,6 +6562,11 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 					   "cedst_en", &val);
 		if (!ret)
 			hdev->cedst_en = !!val;
+
+		ret = of_property_read_u32(pdev->dev.of_node, "hdr_8bit_en", &val);
+		if (!ret)
+			hdev->hdr_8bit_en = !!val;
+
 		/* not support FRL by default, unless enabled in dts */
 		hdev->tx_max_frl_rate = FRL_NONE;
 		ret = of_property_read_u32(pdev->dev.of_node, "tx_max_frl_rate", &val);

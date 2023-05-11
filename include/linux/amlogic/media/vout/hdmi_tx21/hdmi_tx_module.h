@@ -483,6 +483,7 @@ struct hdmitx_dev {
 	u32 dongle_mode:1;
 	u32 pxp_mode:1;
 	u32 cedst_en:1; /* configure in DTS */
+	u32 hdr_8bit_en:1; /* hdr can output with 8bit */
 	u32 aon_output:1; /* always output in bl30 */
 	u32 hdr_priority;
 	u32 bist_lock:1;
