@@ -50,7 +50,10 @@ static unsigned int vwidth = 0x8;
 static unsigned int hwidth = 0x8;
 static unsigned int vpotch = 0x10;
 static unsigned int hpotch = 0x8;
-unsigned int debug_vpotch;
+unsigned int debug_vpotch = 0xFFFF;
+unsigned int debug_vwidth = 0xFFFF;
+unsigned int core1_bypass;
+
 static unsigned int g_htotal_add = 0x40;
 static unsigned int g_vtotal_add = 0x80;
 static unsigned int g_vsize_add;
@@ -283,10 +286,15 @@ void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 		g_vwidth = 0x10;
 	}
 
-	if (debug_vpotch)
+	if (debug_vpotch != 0xFFFF)
 		vpotch = debug_vpotch;
 	else
 		vpotch = 0x10;
+
+	if (debug_vwidth != 0xFFFF)
+		vwidth = debug_vwidth;
+	else
+		vwidth = 8;
 }
 
 void adjust_vpotch_tv(void)
@@ -927,6 +935,7 @@ static int dv_core1_set(u32 dm_count,
 	int copy_core1a_to_core1b = ((copy_core1a & 1) &&
 				(is_aml_tm2_stbmode() || is_aml_t7_stbmode()));
 	int copy_core1a_to_core1c = ((copy_core1a & 2) && is_aml_t7_stbmode());
+	u32 dma_ctrl = 0x1401;
 
 	/* G12A: make sure the BL is enable for the very 1st frame*/
 	/* Register: dolby_path_ctrl[0] = 0 to enable BL*/
@@ -1198,11 +1207,13 @@ static int dv_core1_set(u32 dm_count,
 			VSYNC_WR_DV_REG_BITS(AMDV_CORE1A_CLKGATE_CTRL,
 					     2, 2, 2);
 #endif
-		VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_CTRL, 0x1401);
+		if (is_aml_s5())
+			dma_ctrl = 0x1409;/*bit3=1 disable latch*/
+		VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_CTRL, dma_ctrl);
 		if (copy_core1a_to_core1b)
-			VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_CTRL, 0x1401);
+			VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_CTRL, dma_ctrl);
 		if (copy_core1a_to_core1c)
-			VSYNC_WR_DV_REG(AMDV_CORE1C_DMA_CTRL, 0x1401);
+			VSYNC_WR_DV_REG(AMDV_CORE1C_DMA_CTRL, dma_ctrl);
 		if (lut_endian) {
 			for (i = 0; i < count; i += 4) {
 				VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_PORT,
@@ -1464,7 +1475,8 @@ static int dv_core1_set(u32 dm_count,
 	    is_aml_s4d() || is_aml_s5()) {
 		VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL0,
 			(el_41_mode ? (0x3 << 4) : (0x0 << 4)) |
-			bl_enable | composer_enable << 1 | el_41_mode << 2);
+			bl_enable | composer_enable << 1 | el_41_mode << 2 |
+			core1_bypass << 24);
 		if (copy_core1a_to_core1b) {
 			VSYNC_WR_DV_REG
 				(AMDV_CORE1B_SWAP_CTRL0,
@@ -1522,6 +1534,8 @@ static int dv_core1a_set(u32 dm_count,
 	int hsize_2;
 	int vsize_2;
 	struct vd_proc_info_t *vd_proc_info;
+	static int start_render;
+	u32 dma_ctrl = 0x1401;
 
 	/* G12A: make sure the BL is enable for the very 1st frame*/
 	/* Register: dolby_path_ctrl[0] = 0 to enable BL*/
@@ -1757,12 +1771,15 @@ static int dv_core1a_set(u32 dm_count,
 		count = 256 * 5;
 	else
 		count = lut_count;
+
+	if (is_aml_s5())
+		dma_ctrl = 0x1409;/*bit3=1 disable latch*/
 	if (count && (set_lut || reset)) {
-		VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_CTRL, 0x1401);
+		VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_CTRL, dma_ctrl);
 		if (copy_core1a_to_core1b)
-			VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_CTRL, 0x1401);
+			VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_CTRL, dma_ctrl);
 		if (copy_core1a_to_core1c)
-			VSYNC_WR_DV_REG(AMDV_CORE1C_DMA_CTRL, 0x1401);
+			VSYNC_WR_DV_REG(AMDV_CORE1C_DMA_CTRL, dma_ctrl);
 		if (lut_endian) {
 			for (i = 0; i < count; i += 4) {
 				VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_PORT,
@@ -1832,18 +1849,21 @@ static int dv_core1a_set(u32 dm_count,
 			VSYNC_WR_DV_REG_BITS
 				(VD1_S0_DV_BYPASS_CTRL,
 				 0, 0, 1);
-
+		start_render = 0;
 	} else {
 		if (dv_core1[0].run_mode_count >
 			amdv_run_mode_delay) {
-			VSYNC_WR_DV_REG
-				(VPP_VD1_CLIP_MISC0,
-				 (0x3ff << 20) |
-				 (0x3ff << 10) |
-				 0x3ff);
-			VSYNC_WR_DV_REG
-				(VPP_VD1_CLIP_MISC1,
-				 0);
+			if (start_render == 0) {
+				VSYNC_WR_DV_REG
+					(VPP_VD1_CLIP_MISC0,
+					 (0x3ff << 20) |
+					 (0x3ff << 10) |
+					 0x3ff);
+				VSYNC_WR_DV_REG
+					(VPP_VD1_CLIP_MISC1,
+					 0);
+			}
+			start_render = 1;
 		}
 		if (dv_core1[0].core1_on && !bypass_core1) {
 			if (is_aml_g12()) {
@@ -2029,7 +2049,8 @@ static int dv_core1a_set(u32 dm_count,
 	    is_aml_s4d() || is_aml_s5()) {
 		VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL0,
 			(el_41_mode ? (0x3 << 4) : (0x0 << 4)) |
-			core1a_enable | composer_enable << 1 | el_41_mode << 2);
+			core1a_enable | composer_enable << 1 | el_41_mode << 2 |
+			core1_bypass << 24);
 		if (copy_core1a_to_core1b) {
 			VSYNC_WR_DV_REG
 				(AMDV_CORE1B_SWAP_CTRL0,
@@ -2095,6 +2116,7 @@ static int dv_core1b_set(u32 dm_count,
 	bool set_lut = false;
 	bool bypass_core1 = (!hsize || !vsize ||
 				!(amdv_mask & 1));
+	u32 dma_ctrl = 0x1401;
 
 	if (!core1b_enable)
 		return 0;
@@ -2263,8 +2285,11 @@ static int dv_core1b_set(u32 dm_count,
 		count = 256 * 5;
 	else
 		count = lut_count;
+
+	if (is_aml_s5())
+		dma_ctrl = 0x1401;
 	if (count && (set_lut || reset)) {
-		VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_CTRL, 0x1401);
+		VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_CTRL, dma_ctrl);
 		if (lut_endian) {
 			for (i = 0; i < count; i += 4) {
 				VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_PORT,
@@ -2414,7 +2439,7 @@ static int dv_core1b_set(u32 dm_count,
 		VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL0,
 			(el_41_mode ? (0x3 << 4) : (0x0 << 4)) |
 			core1b_enable | composer_enable << 1 |
-			el_41_mode << 2);
+			el_41_mode << 2  | core1_bypass << 24);
 	}
 	set_dovi_setting_update_flag(true);
 	return 0;
@@ -2585,8 +2610,8 @@ static int dv_core2c_set
 			VSYNC_WR_DV_REG_BITS(AMDV_CORE2C_CLKGATE_CTRL,
 				2, 2, 2);
 #endif
-		if (is_aml_s5() && (debug_dolby & 0x10000000))
-			VSYNC_WR_DV_REG(AMDV_CORE2C_DMA_CTRL, 0x1409);
+		if (is_aml_s5())
+			VSYNC_WR_DV_REG(AMDV_CORE2C_DMA_CTRL, 0x1409);/*bit3=1,disable latch*/
 		else
 			VSYNC_WR_DV_REG(AMDV_CORE2C_DMA_CTRL, 0x1401);
 
@@ -2807,8 +2832,8 @@ static int dv_core2a_set
 			VSYNC_WR_DV_REG_BITS(AMDV_CORE2A_CLKGATE_CTRL,
 				2, 2, 2);
 #endif
-		if (is_aml_s5() && (debug_dolby & 0x10000000))
-			VSYNC_WR_DV_REG(AMDV_CORE2A_DMA_CTRL, 0x1409);
+		if (is_aml_s5())
+			VSYNC_WR_DV_REG(AMDV_CORE2A_DMA_CTRL, 0x1409);/*bit3=1 disable latch*/
 		else
 			VSYNC_WR_DV_REG(AMDV_CORE2A_DMA_CTRL, 0x1401);
 
@@ -3015,7 +3040,7 @@ static int dv_core3_set
 		diag_mode = 1;
 #endif
 
-	if (debug_dolby & 1)
+	if (debug_dolby & 2)
 		pr_dv_dbg("diag_mode %d %d %d\n",
 				  diag_mode, diag_enable, diagnostic_enable);
 
@@ -3249,7 +3274,7 @@ void update_core3_slice_info(u32 v_width, u32 v_height)
 			core3_slice_info.slice[i].hsize = post_info->slice[i].hsize;
 			core3_slice_info.slice[i].vsize = post_info->slice[i].vsize;
 		}
-		if (debug_dolby & 1)
+		if (debug_dolby & 2)
 			pr_dv_dbg("core3_info %d %d %d %d %d %d %d %d %d %d %d %d\n",
 					  core3_slice_info.slice_num,
 					  core3_slice_info.overlap_hsize,
@@ -6309,6 +6334,14 @@ int register_osd_func(int (*get_osd_enable_status)(enum OSD_INDEX index))
 	return 0;
 }
 EXPORT_SYMBOL(register_osd_func);
+
+module_param(core1_bypass, uint, 0664);
+MODULE_PARM_DESC(core1_bypass, "\n core1_bypass\n");
+module_param(debug_vpotch, uint, 0664);
+MODULE_PARM_DESC(debug_vpotch, "\n debug_vpotch\n");
+
+module_param(debug_vwidth, uint, 0664);
+MODULE_PARM_DESC(debug_vwidth, "\n debug_vwidth\n");
 
 module_param(vtotal_add, uint, 0664);
 MODULE_PARM_DESC(vtotal_add, "\n vtotal_add\n");
