@@ -82,7 +82,8 @@
 /* fix typocheck error */
 /* clear scdc with RX_HPD_C_CTRL_AON_IVCRX */
 /* 2023.5.5 fix emp pkt parse error */
-#define RX_VER2 "ver.2023/05/05"
+/* 2023.5.12 fix silent issue, switch to FSM_HPD_LOW */
+#define RX_VER2 "ver.2023/05/12"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
