@@ -75,8 +75,14 @@ static void set_usb_phy_trim_tuning
 			return;
 	}
 
+	if (aml_phy->shutdown_flag == 1) {
+		aml_phy->phy_trim_state[port] = default_val;
+		dev_info(aml_phy->dev, "---phy has been shutdown\n");
+		return;
+	}
+
 	phy_reg_base = aml_phy->phy_cfg[port];
-	dev_info(aml_phy->dev, "---%s port(%d) tuning for host cf(%ps)--\n",
+	dev_info(aml_phy->dev, "---%s port(%d) phy trim tuning cf(%ps)--\n",
 		default_val ? "Recovery" : "Set",
 		port, __builtin_return_address(0));
 	if (!default_val) {
@@ -306,6 +312,7 @@ static int amlogic_new_usb2_init(struct usb_phy *x)
 
 	if (phy->suspend_flag)
 		phy->suspend_flag = 0;
+	phy->shutdown_flag = 0;
 
 	return 0;
 }
@@ -323,6 +330,7 @@ static void amlogic_new_usb2phy_shutdown(struct usb_phy *x)
 	u32 cnt = phy->portnum;
 	size_t mask = 0;
 
+	phy->shutdown_flag = 1;
 	mask = (size_t)phy->reset_regs & 0xf;
 
 	for (i = 0; i < cnt; i++)

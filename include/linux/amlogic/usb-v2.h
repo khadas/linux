@@ -260,6 +260,7 @@ struct amlogic_usb_v2 {
 	u32 usb3_apb_reset_bit;
 	u32 usb3_phy_reset_bit;
 	u32 usb3_reset_shift;
+	int shutdown_flag;
 };
 
 union phy3_r1 {

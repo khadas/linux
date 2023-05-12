@@ -93,10 +93,17 @@ static void set_usb_phy_trim_tuning
 			return;
 	}
 
+	if (aml_phy->shutdown_flag == 1) {
+		aml_phy->phy_trim_state[port] = default_val;
+		dev_info(aml_phy->dev, "--phy has been shutdown\n");
+		return;
+	}
+
 	phy_reg_base = aml_phy->phy_cfg[port];
-	dev_info(aml_phy->dev, "---%s port(%d) tuning for host cf(%ps)--\n",
+	dev_info(aml_phy->dev, "---%s port(%d) phy trim tuning cf(%ps)--\n",
 		default_val ? "Recovery" : "Set",
 		port, __builtin_return_address(0));
+
 	if (!default_val) {
 		value = readl(phy_reg_base + 0x0c);
 		value |= 0x07;
@@ -192,6 +199,7 @@ static int amlogic_crg_drd_usb2_init(struct usb_phy *x)
 	u32 portnum = phy->portnum;
 	size_t mask = 0;
 
+	phy->shutdown_flag = 0;
 	amlogic_crg_drd_usb2_set_vbus_power(phy, 1);
 
 	mask = (size_t)phy->reset_regs & 0xf;
@@ -285,6 +293,7 @@ int amlogic_crg_device_usb2_init(u32 phy_id)
 	phy = phy_to_amlusb(x);
 	portnum = phy->portnum;
 
+	phy->shutdown_flag = 0;
 	amlogic_crg_drd_usb2_set_vbus_power(phy, 0);
 
 	mask = (size_t)phy->reset_regs & 0xf;
@@ -377,6 +386,7 @@ int amlogic_crg_device_usb2_shutdown(u32 phy_id)
 	phy = phy_to_amlusb(x);
 	cnt = phy->portnum;
 
+	phy->shutdown_flag = 1;
 	mask = (size_t)phy->reset_regs & 0xf;
 
 	for (i = 0; i < cnt; i++)
@@ -392,7 +402,6 @@ int amlogic_crg_device_usb2_shutdown(u32 phy_id)
 		clk_disable_unprepare(phy->clk);
 
 	phy->suspend_flag = 1;
-
 	return 0;
 }
 
@@ -403,6 +412,8 @@ static void amlogic_crg_drd_usb2phy_shutdown(struct usb_phy *x)
 	u32 temp = 0;
 	u32 cnt = phy->portnum;
 	size_t mask = 0;
+
+	phy->shutdown_flag = 1;
 
 	mask = (size_t)phy->reset_regs & 0xf;
 
