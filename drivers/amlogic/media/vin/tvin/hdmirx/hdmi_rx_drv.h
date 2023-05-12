@@ -38,8 +38,11 @@
 //add extended colorimetry; mute audio for unsupported format; audio status optimized;
 //2023.05.11
 //support filmmaker mode
-/* 23.5.15 add aud pkt rev status parsing in HBR mode */
-#define RX_VER0 "ver.2023/05/15"
+//2023.05.15
+//add aud pkt rev status parsing in HBR mode
+//2023.05.16
+//disable de-repeat for 640x480p
+#define RX_VER0 "ver.2023/05/16"
 
 /*print type*/
 #define	LOG_EN		0x01

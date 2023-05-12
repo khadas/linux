@@ -4520,7 +4520,9 @@ void hdmirx_config_video(void)
 		data8 |= ((pixel_rpt_cnt & 0x3) << 0);
 		hdmirx_wr_cor(RX_VP_INPUT_FORMAT_HI, data8);
 	} else if (rx.chip_id >= CHIP_ID_T3) {
-		if (rx.pre.sw_vic >= HDMI_VESA_OFFSET)
+		if (rx.pre.sw_vic >= HDMI_VESA_OFFSET ||
+			rx.pre.sw_vic == HDMI_640x480p60 ||
+			rx.pre.sw_dvi)
 			hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(7), 1);
 		else//use auto de-repeat
 			hdmirx_wr_bits_top(TOP_VID_CNTL, _BIT(7), 0);
