@@ -77,9 +77,9 @@
 			reusable;
 			/* keep sync with fb */
 			/* fox example:logo_addr = "0x3f800000"*/
-			size = <0x0 0xc00000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			reg = <0x0 0x3f000000 0x0 0xc00000>;
+			reg = <0x0 0x3f000000 0x0 0x0>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
