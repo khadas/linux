@@ -75,7 +75,7 @@ static void lcd_mipi_control_set(struct aml_lcd_drv_s *pdrv)
 		bit_lane_sel = 0;
 		break;
 	case 1:
-		bit_lane_sel = 8;
+		bit_lane_sel = 16;
 		break;
 	default:
 		LCDERR("[%d]: %s: invalid drv_index\n",
@@ -117,7 +117,7 @@ static void lcd_edp_control_set(struct aml_lcd_drv_s *pdrv)
 		reg_dphy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL1;
 		bit_data_in_lvds = 2;
 		bit_data_in_edp = 3;
-		bit_lane_sel = 8;
+		bit_lane_sel = 16;
 		break;
 	default:
 		LCDERR("[%d]: %s: invalid drv_index\n",
