@@ -253,7 +253,8 @@ static int aml_dmabuf_ops_attach(struct dma_buf *dbuf,
 				 struct dma_buf_attachment *dbuf_attach)
 {
 	struct aml_attachment *attach;
-	struct aml_dma_buf *buf = dbuf->priv;
+	struct aml_dma_buf_priv *buf_priv = dbuf->priv;
+	struct aml_dma_buf *buf = buf_priv->aml_buf;
 	struct scatterlist *rd, *wr;
 	struct sg_table *sgt;
 	dma_addr_t dev_addr = buf->dma_addr;
@@ -359,19 +360,25 @@ static void aml_dmabuf_ops_unmap(struct dma_buf_attachment *db_attach,
 
 static void aml_dmabuf_ops_release(struct dma_buf *dbuf)
 {
-	/* nothing to be done here */
+	struct aml_dma_buf_priv *buf_priv = dbuf->priv;
+	struct aml_dma_buf *buf = buf_priv->aml_buf;
+
+	if (buf_priv->alloc && buf)
+		aml_dma_put(buf);
 }
 
 static void *aml_dmabuf_ops_kmap(struct dma_buf *dbuf, unsigned long pgnum)
 {
-	struct aml_dma_buf *buf = dbuf->priv;
+	struct aml_dma_buf_priv *buf_priv = dbuf->priv;
+	struct aml_dma_buf *buf = buf_priv->aml_buf;
 
 	return buf->vaddr ? buf->vaddr + pgnum * PAGE_SIZE : NULL;
 }
 
 static void *aml_dmabuf_ops_vmap(struct dma_buf *dbuf)
 {
-	struct aml_dma_buf *buf = dbuf->priv;
+	struct aml_dma_buf_priv *buf_priv = dbuf->priv;
+	struct aml_dma_buf *buf = buf_priv->aml_buf;
 
 	return buf->vaddr;
 }
@@ -379,7 +386,10 @@ static void *aml_dmabuf_ops_vmap(struct dma_buf *dbuf)
 static int aml_dmabuf_ops_mmap(struct dma_buf *dbuf,
 			       struct vm_area_struct *vma)
 {
-	return aml_dma_mmap(dbuf->priv, vma);
+	struct aml_dma_buf_priv *buf_priv = dbuf->priv;
+	struct aml_dma_buf *buf = buf_priv->aml_buf;
+
+	return aml_dma_mmap(buf, vma);
 }
 
 static struct dma_buf_ops gdc_dmabuf_ops = {
@@ -413,9 +423,10 @@ static struct sg_table *gdc_dma_get_base_sgt(struct aml_dma_buf *buf)
 	return sgt;
 }
 
-static struct dma_buf *get_dmabuf(void *buf_priv, unsigned long flags)
+static struct dma_buf *get_dmabuf(struct aml_dma_buf_priv *buf_priv,
+				  unsigned long flags)
 {
-	struct aml_dma_buf *buf = buf_priv;
+	struct aml_dma_buf *buf = buf_priv->aml_buf;
 	struct dma_buf *dbuf;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 
@@ -427,7 +438,7 @@ static struct dma_buf *get_dmabuf(void *buf_priv, unsigned long flags)
 	exp_info.ops = &gdc_dmabuf_ops;
 	exp_info.size = buf->size;
 	exp_info.flags = flags;
-	exp_info.priv = buf;
+	exp_info.priv = buf_priv;
 
 	if (WARN_ON(!buf->vaddr))
 		return NULL;
@@ -468,7 +479,7 @@ static int find_empty_dma_buffer(struct aml_dma_buffer *buffer)
 static void clear_dma_buffer(struct aml_dma_buffer *buffer, int index)
 {
 	mutex_lock(&buffer->lock);
-	buffer->gd_buffer[index].mem_priv = NULL;
+	buffer->gd_buffer[index].aml_buf = NULL;
 	buffer->gd_buffer[index].index = 0;
 	buffer->gd_buffer[index].alloc = 0;
 	mutex_unlock(&buffer->lock);
@@ -485,7 +496,7 @@ void *gdc_dma_buffer_create(void)
 
 	mutex_init(&buffer->lock);
 	for (i = 0; i < AML_MAX_DMABUF; i++) {
-		buffer->gd_buffer[i].mem_priv = NULL;
+		buffer->gd_buffer[i].aml_buf = NULL;
 		buffer->gd_buffer[i].index = 0;
 		buffer->gd_buffer[i].alloc = 0;
 	}
@@ -530,7 +541,7 @@ int gdc_dma_buffer_alloc(struct aml_dma_buffer *buffer,
 	}
 	((struct aml_dma_buf *)buf)->priv = buffer;
 	((struct aml_dma_buf *)buf)->index = index;
-	buffer->gd_buffer[index].mem_priv = buf;
+	buffer->gd_buffer[index].aml_buf = buf;
 	buffer->gd_buffer[index].index = index;
 	buffer->gd_buffer[index].alloc = 1;
 	mutex_unlock(&buffer->lock);
@@ -554,7 +565,7 @@ int gdc_dma_buffer_free(struct aml_dma_buffer *buffer, int index)
 	if (index < 0 || index >= AML_MAX_DMABUF)
 		return (-EINVAL);
 
-	buf = buffer->gd_buffer[index].mem_priv;
+	buf = buffer->gd_buffer[index].aml_buf;
 	if (!buf) {
 		pr_err("aml_dma_buf is null\n");
 		return (-EINVAL);
@@ -566,7 +577,7 @@ int gdc_dma_buffer_free(struct aml_dma_buffer *buffer, int index)
 int gdc_dma_buffer_export(struct aml_dma_buffer *buffer,
 			  struct gdc_dmabuf_exp_s *gdc_exp_buf)
 {
-	struct aml_dma_buf *buf;
+	struct aml_dma_buf_priv *buf;
 	struct dma_buf *dbuf;
 	int ret, index;
 	unsigned int flags;
@@ -581,7 +592,7 @@ int gdc_dma_buffer_export(struct aml_dma_buffer *buffer,
 		return (-EINVAL);
 
 	flags = gdc_exp_buf->flags;
-	buf = buffer->gd_buffer[index].mem_priv;
+	buf = &buffer->gd_buffer[index];
 	if (!buf) {
 		pr_err("aml_dma_buf is null\n");
 		return (-EINVAL);
@@ -684,7 +695,7 @@ static int gdc_dma_buffer_get_phys_internal(struct aml_dma_buffer *buffer,
 			dma_buf_put(dbuf);
 			if (dbuf == buffer->gd_buffer[i].dbuf) {
 				cfg->dbuf = dbuf;
-				dma_buf = buffer->gd_buffer[i].mem_priv;
+				dma_buf = buffer->gd_buffer[i].aml_buf;
 				*addr = dma_buf->dma_addr;
 				cfg->vaddr = dma_buf->vaddr;
 				ret = 0;
@@ -853,6 +864,7 @@ void gdc_dma_buffer_unmap(struct aml_dma_cfg *cfg)
 void gdc_dma_buffer_dma_flush(struct device *dev, int fd)
 {
 	struct dma_buf *dmabuf;
+	struct aml_dma_buf_priv *buf_priv;
 	struct aml_dma_buf *buf;
 
 	gdc_log(LOG_DEBUG, "%s fd=%d\n", __func__, fd);
@@ -864,7 +876,8 @@ void gdc_dma_buffer_dma_flush(struct device *dev, int fd)
 		pr_err("dma_buf_get failed\n");
 		return;
 	}
-	buf = dmabuf->priv;
+	buf_priv = dmabuf->priv;
+	buf = buf_priv->aml_buf;
 	if (!buf) {
 		pr_err("%s: error input param\n", __func__);
 		return;
@@ -878,6 +891,7 @@ void gdc_dma_buffer_dma_flush(struct device *dev, int fd)
 void gdc_dma_buffer_cache_flush(struct device *dev, int fd)
 {
 	struct dma_buf *dmabuf;
+	struct aml_dma_buf_priv *buf_priv;
 	struct aml_dma_buf *buf;
 
 	gdc_log(LOG_DEBUG, "%s fd=%d\n", __func__, fd);
@@ -889,7 +903,8 @@ void gdc_dma_buffer_cache_flush(struct device *dev, int fd)
 		pr_err("dma_buf_get failed\n");
 		return;
 	}
-	buf = dmabuf->priv;
+	buf_priv = dmabuf->priv;
+	buf = buf_priv->aml_buf;
 	if (!buf) {
 		pr_err("%s: error input param\n", __func__);
 		return;

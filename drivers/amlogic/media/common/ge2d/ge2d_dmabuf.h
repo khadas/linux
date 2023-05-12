@@ -31,7 +31,7 @@ struct aml_dma_buf {
 };
 
 struct aml_dma_buf_priv {
-	void *mem_priv;
+	void *aml_buf;
 	int index;
 	int fd;
 	unsigned int alloc;
