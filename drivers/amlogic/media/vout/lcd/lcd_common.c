@@ -3103,7 +3103,7 @@ void lcd_vinfo_update(struct aml_lcd_drv_s *pdrv)
 	lcd_vout_notify_mode_change(pdrv);
 }
 
-unsigned int lcd_vrr_lfc_switch(void *dev_data, int fps)
+static unsigned int lcd_vrr_lfc_switch(void *dev_data, int fps)
 {
 	struct aml_lcd_drv_s *pdrv;
 	unsigned long long temp;
@@ -3126,7 +3126,7 @@ unsigned int lcd_vrr_lfc_switch(void *dev_data, int fps)
 	return v_period;
 }
 
-int lcd_vrr_disable_cb(void *dev_data)
+static int lcd_vrr_disable_cb(void *dev_data)
 {
 	struct aml_lcd_drv_s *pdrv;
 
@@ -3157,3 +3157,30 @@ void lcd_vrr_dev_update(struct aml_lcd_drv_s *pdrv)
 	pdrv->vrr_dev->vfreq_min = pdrv->config.basic.frame_rate_min;
 }
 
+void lcd_vrr_dev_register(struct aml_lcd_drv_s *pdrv)
+{
+	if (pdrv->vrr_dev)
+		return;
+
+	pdrv->vrr_dev = kzalloc(sizeof(*pdrv->vrr_dev), GFP_KERNEL);
+	if (!pdrv->vrr_dev)
+		return;
+
+	sprintf(pdrv->vrr_dev->name, "lcd%d_dev", pdrv->index);
+	pdrv->vrr_dev->output_src = VRR_OUTPUT_ENCL;
+	pdrv->vrr_dev->lfc_switch = lcd_vrr_lfc_switch;
+	pdrv->vrr_dev->disable_cb = lcd_vrr_disable_cb;
+	pdrv->vrr_dev->dev_data = (void *)pdrv;
+	lcd_vrr_dev_update(pdrv);
+	aml_vrr_register_device(pdrv->vrr_dev, pdrv->index);
+}
+
+void lcd_vrr_dev_unregister(struct aml_lcd_drv_s *pdrv)
+{
+	if (!pdrv->vrr_dev)
+		return;
+
+	aml_vrr_unregister_device(pdrv->index);
+	kfree(pdrv->vrr_dev);
+	pdrv->vrr_dev = NULL;
+}

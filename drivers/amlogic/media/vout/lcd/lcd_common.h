@@ -70,7 +70,8 @@
 /* 20230824: support high resolution vsync measure debug*/
 /* 20230912: bypass phy data buffer */
 /* 20231012: optimize clk management*/
-#define LCD_DRV_VERSION    "20231012"
+/* 20231113: update vrr_dev register flow for tablet mode*/
+#define LCD_DRV_VERSION    "20231113"
 
 extern struct mutex lcd_vout_mutex;
 
@@ -131,9 +132,9 @@ void lcd_if_enable_retry(struct aml_lcd_drv_s *pdrv);
 void lcd_vout_notify_mode_change_pre(struct aml_lcd_drv_s *pdrv);
 void lcd_vout_notify_mode_change(struct aml_lcd_drv_s *pdrv);
 void lcd_vinfo_update(struct aml_lcd_drv_s *pdrv);
-unsigned int lcd_vrr_lfc_switch(void *dev_data, int fps);
-int lcd_vrr_disable_cb(void *dev_data);
 void lcd_vrr_dev_update(struct aml_lcd_drv_s *pdrv);
+void lcd_vrr_dev_register(struct aml_lcd_drv_s *pdrv);
+void lcd_vrr_dev_unregister(struct aml_lcd_drv_s *pdrv);
 
 void lcd_queue_work(struct work_struct *work);
 inline void lcd_queue_delayed_work(struct delayed_work *delayed_work, int ms);

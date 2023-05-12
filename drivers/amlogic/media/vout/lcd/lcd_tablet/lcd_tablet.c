@@ -98,21 +98,12 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 
 	mutex_lock(&lcd_power_mutex);
 
-	pdrv->vrr_dev = kzalloc(sizeof(*pdrv->vrr_dev), GFP_KERNEL);
-	if (pdrv->vrr_dev) {
-		sprintf(pdrv->vrr_dev->name, "lcd%d_dev", pdrv->index);
-		pdrv->vrr_dev->output_src = VRR_OUTPUT_ENCL;
-		pdrv->vrr_dev->lfc_switch = lcd_vrr_lfc_switch;
-		pdrv->vrr_dev->disable_cb = lcd_vrr_disable_cb;
-		pdrv->vrr_dev->dev_data = (void *)pdrv;
-		lcd_vrr_dev_update(pdrv);
-		aml_vrr_register_device(pdrv->vrr_dev, pdrv->index);
-	}
-
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		LCDPR("[%d]: %s: drv_mode=%s\n",
 		      pdrv->index, __func__, pdrv->vinfo.name);
 	}
+
+	lcd_vrr_dev_register(pdrv);
 	if (mode & VMODE_INIT_BIT_MASK) {
 		lcd_clk_gate_switch(pdrv, 1);
 	} else {
@@ -134,11 +125,7 @@ static int lcd_vout_disable(enum vmode_e cur_vmod, void *data)
 		return -1;
 
 	mutex_lock(&lcd_power_mutex);
-	if (pdrv->vrr_dev) {
-		aml_vrr_unregister_device(pdrv->index);
-		kfree(pdrv->vrr_dev);
-		pdrv->vrr_dev = NULL;
-	}
+	lcd_vrr_dev_unregister(pdrv);
 
 	pdrv->status &= ~LCD_STATUS_VMODE_ACTIVE;
 	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);
@@ -640,11 +627,15 @@ int lcd_mode_tablet_init(struct aml_lcd_drv_s *pdrv)
 	pdrv->driver_disable = lcd_tablet_driver_disable;
 	pdrv->fr_adjust = lcd_frame_rate_adjust;
 
+	if (pdrv->status & LCD_STATUS_VMODE_ACTIVE)
+		lcd_vrr_dev_register(pdrv);
+
 	return 0;
 }
 
 int lcd_mode_tablet_remove(struct aml_lcd_drv_s *pdrv)
 {
+	lcd_vrr_dev_unregister(pdrv);
 	return 0;
 }
 
