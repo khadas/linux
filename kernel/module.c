@@ -3852,7 +3852,7 @@ static noinline int do_init_module(struct module *mod)
 	 * let free module init_mem synchronized, so module layout can keep
 	 * consistence after reboot, it's very important for ramoops iodump.
 	 */
-	module_memfree(mod->init_layout.base);
+	module_memfree(freeinit->module_init);
 	kfree(freeinit);
 #else
 	/*
