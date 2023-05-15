@@ -860,7 +860,7 @@ static struct hw_enc_clk_val_group setting_enc_clk_val_24[] = {
 	  HDMIV_1280x1024p60hz,
 	  HDMIV_1600x900p60hz,
 	  HDMI_VIC_END},
-		1080000, 4, 1, 1, VID_PLL_DIV_5, 2, 1, 1, -1},
+		4320000, 4, 1, 1, VID_PLL_DIV_5, 2, 1, 1, -1},
 	{{HDMIV_1600x1200p60hz,
 	  HDMI_VIC_END},
 		1620000, 2, 1, 1, VID_PLL_DIV_5, 2, 1, 1, -1},
