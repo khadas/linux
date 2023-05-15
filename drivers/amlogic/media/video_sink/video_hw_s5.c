@@ -11537,6 +11537,7 @@ int video_early_init_s5(struct amvideo_device_data_s *p_amvideo)
 {
 	int r = 0, i = 0;
 
+	legacy_vpp = false;
 	/* check super scaler support status */
 	vpp_sr_init_s5(p_amvideo);
 	/* adaptive config bypass ratio */

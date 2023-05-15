@@ -123,6 +123,7 @@ static int lowlatency_vsync(u8 instance_id)
 	struct path_id_s path_id;
 	int i;
 
+	vinfo = get_current_vinfo();
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	set_vsync_rdma_id(EX_VSYNC_RDMA);
 #endif

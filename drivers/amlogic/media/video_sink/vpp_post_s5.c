@@ -1000,6 +1000,8 @@ int update_vpp_input_info(const struct vinfo_s *info)
 	struct vd_proc_vd1_info_s *vd_proc_vd1_info;
 	struct vd_proc_vd2_info_s *vd_proc_vd2_info;
 
+	if (!info)
+		return 0;
 	vpp_input.slice_num = get_vpp_slice_num(info);
 	vpp_input.overlap_hsize = g_post_overlap_size;
 	vpp_input.bld_out_hsize = info->width;
