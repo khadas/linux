@@ -95,9 +95,6 @@ static int distinguish_module(void)
 	 */
 	return 1;
 #else
-	if (vendor_id == QCA_ID)
-		return 1;
-
 	return 0;
 #endif
 }
@@ -451,6 +448,7 @@ static int bt_resume(struct platform_device *pdev)
 		cnt = 0;
 	}
 	if (!distinguish_module() && get_resume_method() == BT_WAKEUP) {
+		pr_info("%s: simulate report key\r", __func__);
 		input_event(prdata->pdata->input_dev,
 			EV_KEY, KEY_POWER, 1);
 		input_sync(prdata->pdata->input_dev);
