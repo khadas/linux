@@ -939,10 +939,10 @@ static int _VSYNCOSD_WR_MPEG_REG_BITS(u32 vpp_index, u32 addr, u32 val, u32 star
 		trace_num = 0;
 	for (k = 0; k < trace_num; k++) {
 		if (addr == (osd_hw.rdma_trace_reg[k] & 0xffff))
-			pr_info("(%s), addr:%04x val:0x%08x start:%d len:%d, rdma_en=%d, ret=%d\n",
-				__func__,
+			pr_info("(%s), vpp:%d addr:%04x val:0x%08x start:%d len:%d, rdma_en=%d, ret=%d write_val:0x%x\n",
+				__func__, vpp_index,
 				addr, val, start, len,
-				rdma_en, ret);
+				rdma_en, ret, write_val);
 	}
 	return ret;
 }

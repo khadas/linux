@@ -13500,7 +13500,8 @@ static void osd_basic_update_disp_geometry(u32 index)
 					}
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 					if (osd_hw.osd_meson_dev.cpu_id ==
-						__MESON_CPU_MAJOR_ID_T7)
+						__MESON_CPU_MAJOR_ID_T7 &&
+						validate_osd(index, VIU1))
 						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 							(MALI_AFBCD_TOP_CTRL,
 							 is_amdv_graphic_on() ? 0 : 1,
@@ -13574,7 +13575,8 @@ static void osd_basic_update_disp_geometry(u32 index)
 					}
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 					if (osd_hw.osd_meson_dev.cpu_id ==
-						__MESON_CPU_MAJOR_ID_T7)
+						__MESON_CPU_MAJOR_ID_T7 &&
+						validate_osd(index, VIU1))
 						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 							(MALI_AFBCD_TOP_CTRL,
 							 is_amdv_graphic_on() ? 0 : 1,
