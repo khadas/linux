@@ -1174,6 +1174,7 @@
 #define RX_CLK_CTRL1		(0x4B << 2)
 #define RX_CLK_CTRL2		(0x4C << 2)
 #define RX_CLK_CTRL3		(0x4D << 2)
+	#define METER_CLK_EN				_BIT(8)
 #define CLKCTRL_SYS_CLK_EN0_REG2	(0x13 << 2)
 
 /*t5w*/

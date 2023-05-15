@@ -38,7 +38,8 @@
 //add extended colorimetry; mute audio for unsupported format; audio status optimized;
 //2023.05.11
 //support filmmaker mode
-#define RX_VER0 "ver.2023/05/11"
+/* 23.5.15 add aud pkt rev status parsing in HBR mode */
+#define RX_VER0 "ver.2023/05/15"
 
 /*print type*/
 #define	LOG_EN		0x01
