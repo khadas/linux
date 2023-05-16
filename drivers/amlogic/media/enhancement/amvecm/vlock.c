@@ -945,40 +945,6 @@ static void vlock_hw_reinit(struct stvlock_sig_sts *pvlock,
 		pr_info("[%s]\n", __func__);
 }
 
-void vlock_clk_config(struct device *dev)
-{
-	struct clk *clk;
-	/*unsigned int clk_frq;*/
-	struct stvlock_sig_sts *pvlock = vlock_tab[VLOCK_ENC0];
-
-	if (chip_type_id == chip_s5 ||
-		chip_cls_id == AD_CHIP)
-		return;
-
-	if (!pvlock)
-		return;
-
-	vlock_init_reg_map(dev, pvlock);
-
-	/*pr_info("%s\n", __func__);*/
-	if (pvlock->dtdata->vlk_chip <= vlock_chip_tm2)
-		amvecm_hiu_reg_write(HHI_VID_LOCK_CLK_CNTL, 0x80);
-
-	/*need set clock tree */
-	clk = devm_clk_get(dev, "cts_vid_lock_clk");
-	if (!IS_ERR(clk)) {
-		clk_set_rate(clk, 24000000);
-		if (clk_prepare_enable(clk) < 0)
-			pr_info("vlock clk enable fail\n");
-		/*clk_frq = clk_get_rate(clk);*/
-		/*pr_info("cts_vid_lock_clk:%d\n", clk_frq);*/
-		hw_clk_ok = 1;
-	} else {
-		pr_err("vlock clk not cfg\n");
-		hw_clk_ok = 0;
-	}
-}
-
 static void vlock_setting(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 {
 	unsigned int freq_hz = 0;
@@ -3628,6 +3594,26 @@ int phlock_phase_config(char *str)
 	return 0;
 }
 __setup("video_reverse=", phlock_phase_config);
+
+void vlock_hiu_reg_config(struct device *dev)
+{
+	/*unsigned int clk_frq;*/
+	struct stvlock_sig_sts *pvlock;
+	enum vlock_enc_num_e enc_mux = VLOCK_ENC0;
+
+	enc_mux = get_cur_enc_mode();
+	pvlock = vlock_tab[enc_mux];
+#ifdef VLOCK_DEBUG_ENC_IDX
+	pvlock = vlock_tab[VLOCK_DEBUG_ENC_IDX];
+#endif
+
+	if (!pvlock)
+		return;
+
+	/*pr_info("%s\n", __func__);*/
+	if (pvlock->dtdata->vlk_chip <= vlock_chip_tm2)
+		amvecm_hiu_reg_write(HHI_VID_LOCK_CLK_CNTL, 0x80);
+}
 
 void vlock_parse_param(char *buf_orig, char **parm)
 {

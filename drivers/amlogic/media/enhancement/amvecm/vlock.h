@@ -352,11 +352,12 @@ ssize_t vlock_debug_store(struct class *cla,
 			  const char *buf, size_t count);
 ssize_t vlock_debug_show(struct class *cla,
 			 struct class_attribute *attr, char *buf);
-void vlock_clk_config(struct device *dev);
+//void vlock_clk_config(struct device *dev);
 int frc_is_on(void);
 bool vlock_get_phlock_flag(void);
 bool vlock_get_vlock_flag(void);
 int vlock_sync_frc_vporch(struct stvlock_frc_param frc_param);
 void vlock_set_sts_by_frame_lock(bool en);
-
+//void vlock_clk_config(struct device *dev);
+void vlock_hiu_reg_config(struct device *dev);
 

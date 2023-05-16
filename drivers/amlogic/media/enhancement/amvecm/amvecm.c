@@ -38,6 +38,7 @@
 /* #include <linux/amlogic/aml_common.h> */
 #include <linux/ctype.h>/* for parse_para_pq */
 #include <linux/vmalloc.h>
+#include <linux/clk.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -118,6 +119,8 @@ struct amvecm_dev_s {
 	/*hdr*/
 	struct hdr_data_t	hdr_d;
 	struct gamma_data_s gm_data;
+	/*vlock cts_vid_lock_clk*/
+	struct clk *vlock_clk;
 };
 
 #ifdef CONFIG_AMLOGIC_LCD
@@ -8505,6 +8508,35 @@ static void sr_init_config(void)
 	am_set_regmap(&sr1_default);
 }
 
+void vlock_clk_config(struct amvecm_dev_s *devp, struct device *dev)
+{
+	if (!vlock_en)
+		return;
+
+	vlock_hiu_reg_config(dev);
+	/*need set clock tree */
+	devp->vlock_clk = devm_clk_get(dev, "cts_vid_lock_clk");
+	if (!IS_ERR(devp->vlock_clk)) {
+		clk_set_rate(devp->vlock_clk, 24000000);
+		if (clk_prepare_enable(devp->vlock_clk) < 0)
+			pr_info("vlock clk enable fail\n");
+		/*clk_frq = clk_get_rate(clk);*/
+		/*pr_info("cts_vid_lock_clk:%d\n", clk_frq);*/
+	} else {
+		pr_err("vlock clk not cfg\n");
+	}
+}
+
+void vlock_clk_suspend(void)
+{
+	clk_disable_unprepare(amvecm_dev.vlock_clk);
+}
+
+void vlock_clk_resume(void)
+{
+	clk_prepare_enable(amvecm_dev.vlock_clk);
+}
+
 static const char *amvecm_debug_usage_str = {
 	"Usage:\n"
 	"echo vpp_size > /sys/class/amvecm/debug; get vpp size config\n"
@@ -9450,6 +9482,16 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		}
 		pr_hist = (uint)val;
 		pr_info("pr_hist = %d\n", pr_hist);
+	} else if (!strcmp(parm[0], "vlk_clk")) {
+		if (!strcmp(parm[1], "disable")) {
+			clk_disable_unprepare(amvecm_dev.vlock_clk);
+			pr_info("vid_lock_clk disable!!!");
+		} else if (!strcmp(parm[1], "enable")) {
+			clk_prepare_enable(amvecm_dev.vlock_clk);
+			pr_info("vid_lock_clk enable!!!");
+		} else {
+			pr_info("unsupport cmd\n");
+		}
 	} else {
 		pr_info("unsupport cmd\n");
 	}
@@ -11178,7 +11220,7 @@ static void aml_vecm_match_init(struct vecm_match_data_s *pdata)
 	pr_info("vecm chip id: %d, chip_cls : %d\n", chip_type_id, chip_cls_id);
 }
 
-static void aml_vecm_dt_parse(struct platform_device *pdev)
+static void aml_vecm_dt_parse(struct amvecm_dev_s *devp, struct platform_device *pdev)
 {
 	struct device_node *node;
 	unsigned int val;
@@ -11298,7 +11340,7 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 
 		/*vlock param config*/
 		vlock_param_config(node);
-		vlock_clk_config(&pdev->dev);
+		vlock_clk_config(devp, &pdev->dev);
 
 		vlock_status_init();
 
@@ -11498,7 +11540,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 		hdr_flag = (1 << 0) | (1 << 1) | (0 << 2) | (0 << 3) | (1 << 4);
 	}
 	hdr_init(&amvecm_dev.hdr_d);
-	aml_vecm_dt_parse(pdev);
+	aml_vecm_dt_parse(devp, pdev);
 
 	init_pattern_detect();
 	vpp_get_hist_en();
@@ -11584,6 +11626,9 @@ static int amvecm_drv_suspend(struct platform_device *pdev,
 {
 	if (probe_ok == 1)
 		probe_ok = 0;
+
+	//if (is_meson_t5d_cpu())
+	vlock_clk_suspend();
 	pr_info("amvecm: suspend module\n");
 	return 0;
 }
@@ -11593,6 +11638,8 @@ static int amvecm_drv_resume(struct platform_device *pdev)
 	if (probe_ok == 0)
 		probe_ok = 1;
 
+	//if (is_meson_t5d_cpu())
+	vlock_clk_resume();
 	pr_info("amvecm: resume module\n");
 	return 0;
 }
