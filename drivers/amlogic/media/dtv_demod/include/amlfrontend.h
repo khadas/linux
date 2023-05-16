@@ -85,6 +85,7 @@
 /*  V1.1.91  fix r842 atsc missing TP and scan slowly */
 /*  V1.1.92  fix init flow */
 /*  V2.1.93  fix dvb-s unicable blind scan miss TP */
+/*  V2.1.94  optimize isdbt stability of locking signal */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -101,8 +102,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.1.93"
-#define DTVDEMOD_VER	"2023/05/08: fix dvb-s unicable blind scan miss TP"
+#define AMLDTVDEMOD_VER "V2.1.94"
+#define DTVDEMOD_VER	"2023/05/17: optimize isdbt stability of locking signal"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

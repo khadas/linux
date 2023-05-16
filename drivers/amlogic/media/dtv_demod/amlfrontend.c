@@ -58,10 +58,12 @@
 #include <linux/amlogic/media/vout/vdac_dev.h>
 #include <linux/amlogic/aml_dtvdemod.h>
 
-//It is a timeout which is used for check atsc signal
 #define ATSC_TIME_CHECK_SIGNAL 600
 #define ATSC_TIME_START_CCI 1500
+#define ISDBT_TIME_CHECK_SIGNAL 400
+#define ISDBT_RESET_IN_UNLOCK_TIMES 40
 
+//atsc-c
 MODULE_PARM_DESC(auto_search_std, "\n\t\t atsc-c std&hrc search");
 static unsigned int auto_search_std;
 module_param(auto_search_std, int, 0644);
@@ -69,6 +71,15 @@ module_param(auto_search_std, int, 0644);
 MODULE_PARM_DESC(std_lock_timeout, "\n\t\t atsc-c std lock timeout");
 static unsigned int std_lock_timeout = 1000;
 module_param(std_lock_timeout, int, 0644);
+
+//atsc-t
+MODULE_PARM_DESC(atsc_agc_target, "\n\t\t atsc agc target");
+static unsigned char atsc_agc_target = 0x28;
+module_param(atsc_agc_target, byte, 0644);
+
+MODULE_PARM_DESC(atsc_check_signal_time, "\n\t\t atsc check signal time");
+static unsigned int atsc_check_signal_time;
+module_param(atsc_check_signal_time, int, 0644);
 
 MODULE_PARM_DESC(atsc_t_lock_continuous_cnt, "\n\t\t atsc-t lock signal continuous counting");
 static unsigned int atsc_t_lock_continuous_cnt = 1;
@@ -78,22 +89,24 @@ MODULE_PARM_DESC(atsc_t_lost_continuous_cnt, "\n\t\t atsc-t lost signal continuo
 static unsigned int atsc_t_lost_continuous_cnt = 15;
 module_param(atsc_t_lost_continuous_cnt, int, 0644);
 
+//isdb-t
+MODULE_PARM_DESC(isdbt_check_signal_time, "\n\t\t isdbt check signal time");
+static unsigned int isdbt_check_signal_time = ISDBT_TIME_CHECK_SIGNAL;
+module_param(isdbt_check_signal_time, int, 0644);
+
+MODULE_PARM_DESC(isdbt_reset_in_unlock_times, "\n\t\t isdbt check signal time");
+static unsigned int isdbt_reset_in_unlock_times = ISDBT_RESET_IN_UNLOCK_TIMES;
+module_param(isdbt_reset_in_unlock_times, int, 0644);
+
 MODULE_PARM_DESC(isdbt_lock_continuous_cnt, "\n\t\t isdbt lock signal continuous counting");
 static unsigned int isdbt_lock_continuous_cnt = 1;
 module_param(isdbt_lock_continuous_cnt, int, 0644);
 
 MODULE_PARM_DESC(isdbt_lost_continuous_cnt, "\n\t\t isdbt lost signal continuous counting");
-static unsigned int isdbt_lost_continuous_cnt = 1;
+static unsigned int isdbt_lost_continuous_cnt = 10;
 module_param(isdbt_lost_continuous_cnt, int, 0644);
 
-MODULE_PARM_DESC(atsc_check_signal_time, "\n\t\t atsc check signal time");
-static unsigned int atsc_check_signal_time;
-module_param(atsc_check_signal_time, int, 0644);
-
-MODULE_PARM_DESC(atsc_agc_target, "\n\t\t atsc agc target");
-static unsigned char atsc_agc_target = 0x28;
-module_param(atsc_agc_target, byte, 0644);
-
+//dvb-c
 MODULE_PARM_DESC(dvbc_new_driver, "\n\t\t use dvbc new driver to work");
 static unsigned char dvbc_new_driver;
 module_param(dvbc_new_driver, byte, 0644);
@@ -906,7 +919,7 @@ static void gxtv_demod_dvbt_release(struct dvb_frontend *fe)
 
 }
 
-#define ISDBT_TIME_CHECK_SIGNAL 400
+static int dvbt_isdbt_set_frontend(struct dvb_frontend *fe);
 #define ISDBT_FSM_CHECK_SIGNAL 7
 static int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *status, bool re_tune)
 {
@@ -915,14 +928,21 @@ static int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *statu
 	unsigned int fsm;
 	int lock, strength, snr10;
 	static int has_signal;
+	static int no_signal_cnt, unlock_cnt;
 	int lock_continuous_cnt = isdbt_lock_continuous_cnt > 1 ? isdbt_lock_continuous_cnt : 1;
 	int lost_continuous_cnt = isdbt_lost_continuous_cnt > 1 ? isdbt_lost_continuous_cnt : 1;
+	int check_signal_time = isdbt_check_signal_time > 1 ? isdbt_check_signal_time :
+		ISDBT_TIME_CHECK_SIGNAL;
+	int reset_in_unlock_times = isdbt_reset_in_unlock_times > 1 ? isdbt_reset_in_unlock_times :
+		ISDBT_RESET_IN_UNLOCK_TIMES;
 
 	if (re_tune) {
 		demod->time_start = jiffies_to_msecs(jiffies);
 		*status = 0;
 		demod->last_status = 0;
 		has_signal = 0;
+		no_signal_cnt = 0;
+		unlock_cnt = 0;
 		demod->last_lock = 0;
 
 		return 0;
@@ -935,9 +955,13 @@ static int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *statu
 	if (strength < THRD_TUNER_STRENGTH_ISDBT) {
 		*status = FE_TIMEDOUT;
 		PR_ISDBT("no signal, strength=%d, need<%d\n", strength, THRD_TUNER_STRENGTH_ISDBT);
+		if (!(no_signal_cnt++ % 20))
+			dvbt_isdbt_set_frontend(fe);
+		unlock_cnt = 0;
 
 		goto finish;
 	}
+	no_signal_cnt = 0;
 
 	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
 	fsm = dvbt_isdbt_rd_reg(0x2a << 2);
@@ -948,13 +972,21 @@ static int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *statu
 		fsm, strength, snr10 / 10, snr10 % 10, demod->time_passed);
 
 	s = dvbt_isdbt_rd_reg(0x0) >> 12 & 1;
-	if (s == 1)
+	if (s == 1) {
 		lock = 1;
-	else if (demod->time_passed < ISDBT_TIME_CHECK_SIGNAL ||
-		(demod->time_passed < TIMEOUT_ISDBT && has_signal && demod->last_lock == 0))
+	} else if (demod->time_passed < check_signal_time ||
+		(demod->time_passed < TIMEOUT_ISDBT && has_signal && demod->last_lock == 0)) {
 		lock = 0;
-	else
+	} else {
 		lock = -1;
+		if (!has_signal && demod->last_lock == 0) {
+			demod->last_lock = -lost_continuous_cnt;
+			*status = FE_TIMEDOUT;
+			PR_ISDBT("not isdb-t signal\n");
+
+			goto finish;
+		}
+	}
 
 	//The status is updated only when the status continuously reaches the threshold of times
 	if (lock < 0) {
@@ -993,6 +1025,15 @@ static int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *statu
 	} else {
 		*status = 0;
 		PR_ISDBT("==> wait\n");
+	}
+
+	if (*status == FE_TIMEDOUT)
+		unlock_cnt++;
+	else
+		unlock_cnt = 0;
+	if (unlock_cnt >= reset_in_unlock_times) {
+		unlock_cnt = 0;
+		dvbt_isdbt_set_frontend(fe);
 	}
 
 finish:
