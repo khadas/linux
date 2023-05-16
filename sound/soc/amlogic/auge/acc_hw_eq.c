@@ -189,7 +189,7 @@ void acc_eq_set_wrapper(struct aml_audio_controller *actrl)
 			1 << 31 | 1 << 0, 1 << 31 | 1 << 0);
 
 	/* set EQ tap to max 20 bands*/
-	aml_acc_update_bits(actrl, AEQ_STATUS0_CTRL, 0x1f << 2, 0x14 << 1);
+	aml_acc_update_bits(actrl, AEQ_STATUS0_CTRL, 0x1f << 2, 0x14 << 2);
 }
 
 void acc_eq_enable(struct aml_audio_controller *actrl, bool enable)
