@@ -120,9 +120,15 @@ static int gd5fxgq4_variant2_ooblayout_free(struct mtd_info *mtd, int section,
 	if (section)
 		return -ERANGE;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/* Reserve 2 bytes for the BBM. */
+	region->offset = 2;
+	region->length = 62;
+#else
 	/* Reserve 1 bytes for the BBM. */
 	region->offset = 1;
 	region->length = 63;
+#endif
 
 	return 0;
 }
