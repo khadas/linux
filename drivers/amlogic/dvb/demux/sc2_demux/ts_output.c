@@ -3318,7 +3318,20 @@ int ts_output_get_mem_info(struct out_elem *pout,
 		else
 			*free_size = pout->aucpu_read_offset - now_w;
 	} else {
-		*free_size = SC2_bufferid_get_free_size(pout->pchan);
+		if (pout->decoder_rp_offset == INVALID_DECODE_RP) {
+			*free_size = SC2_bufferid_get_free_size(pout->pchan);
+		} else {
+			unsigned int w = 0;
+			unsigned int total = 0;
+
+//			pr_dbg("decoder rp:0x%0x\n", pout->decoder_rp_offset);
+			w = SC2_bufferid_get_wp_offset(pout->pchan);
+			total = pout->pchan->mem_size;
+			if (w > pout->decoder_rp_offset)
+				*free_size = total - w + pout->decoder_rp_offset;
+			else
+				*free_size = pout->decoder_rp_offset - w;
+		}
 	}
 	if (newest_pts && pout->format == ES_FORMAT)
 		ts_output_get_newest_pts(pout, newest_pts);

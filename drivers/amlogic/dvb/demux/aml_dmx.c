@@ -1949,6 +1949,8 @@ static int _dmx_decode_info(struct dmx_demux *dmx, struct decoder_mem_info *info
 
 	if (demux->source != INPUT_DEMOD)
 		ts_output_set_decode_info(demux->local_sid, info);
+	else
+		ts_output_set_decode_info(demux->demod_sid, info);
 	mutex_unlock(demux->pmutex);
 	return 0;
 }
