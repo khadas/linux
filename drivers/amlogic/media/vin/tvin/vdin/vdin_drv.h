@@ -703,6 +703,7 @@ struct vdin_dev_s {
 	struct mutex fe_lock;/*front end lock*/
 	struct clk *msr_clk;
 	unsigned int msr_clk_val;
+	bool vdin_clk_flag;/*vdin on_off msr clk flag*/
 
 	struct vdin_debug_s debug;
 	enum vdin_format_convert_e format_convert;

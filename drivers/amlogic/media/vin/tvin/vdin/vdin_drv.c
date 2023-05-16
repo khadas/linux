@@ -370,8 +370,10 @@ int vdin_open_fe(enum tvin_port_e port, int index,  struct vdin_dev_s *devp)
 	memset(&devp->prop, 0, sizeof(devp->prop));
 
 	/* vdin msr clock gate enable */
-	if (devp->msr_clk)
+	if (devp->msr_clk) {
+		devp->vdin_clk_flag = 1;
 		clk_prepare_enable(devp->msr_clk);
+		}
 
 	if (devp->frontend->dec_ops && devp->frontend->dec_ops->open)
 		ret = devp->frontend->dec_ops->open(devp->frontend, port);
@@ -407,8 +409,10 @@ void vdin_close_fe(struct vdin_dev_s *devp)
 		return;
 	}
 	/* bt656 clock gate disable */
-	if (devp->msr_clk)
+	if (devp->msr_clk) {
+		devp->vdin_clk_flag = 0;
 		clk_disable_unprepare(devp->msr_clk);
+		}
 
 	del_timer_sync(&devp->timer);
 	if (devp->frontend && devp->frontend->dec_ops->close) {
@@ -5961,7 +5965,9 @@ static int vdin_drv_probe(struct platform_device *pdev)
 				clk_set_parent(devp->msr_clk, fclk_div5);
 
 			clk_set_rate(devp->msr_clk, 50000000);
-			clk_prepare_enable(devp->msr_clk);
+			/* vdin clk is not enabled in probe by default */
+			//clk_prepare_enable(devp->msr_clk);
+			devp->vdin_clk_flag = 0;
 			devp->msr_clk_val = clk_get_rate(devp->msr_clk);
 			pr_info("%s: vdin[%d] clock is %d MHZ\n",
 				__func__, devp->index,
@@ -6118,8 +6124,12 @@ static int vdin_drv_suspend(struct platform_device *pdev, pm_message_t state)
 	/* Restarting vdin1 clock will crash */
 	if (!devp->index || devp->dtdata->hw_ver < VDIN_HW_T7)
 		vdin_clk_on_off(devp, false);
+	/* vdin msr clock gate disable */
+	if (!devp->index && devp->msr_clk &&
+		devp->vdin_clk_flag)
+		clk_disable_unprepare(devp->msr_clk);
 
-	pr_info("%s id:%d ok.\n", __func__, devp->index);
+	pr_info("%s vdin-id:%d ok.\n", __func__, devp->index);
 	return 0;
 }
 
