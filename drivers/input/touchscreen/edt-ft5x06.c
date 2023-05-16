@@ -47,16 +47,25 @@
 #define WORK_REGISTER_NUM_X		0x33
 #define WORK_REGISTER_NUM_Y		0x34
 
+#define PMOD_REGISTER_ACTIVE		0x00
+#define PMOD_REGISTER_HIBERNATE		0x03
+
 #define M09_REGISTER_THRESHOLD		0x80
 #define M09_REGISTER_GAIN		0x92
 #define M09_REGISTER_OFFSET		0x93
 #define M09_REGISTER_NUM_X		0x94
 #define M09_REGISTER_NUM_Y		0x95
 
+#define EV_REGISTER_THRESHOLD		0x40
+#define EV_REGISTER_GAIN		0x41
+#define EV_REGISTER_OFFSET_Y		0x45
+#define EV_REGISTER_OFFSET_X		0x46
+
 #define NO_REGISTER			0xff
 
 #define WORK_REGISTER_OPMODE		0x3c
 #define FACTORY_REGISTER_OPMODE		0x01
+#define PMOD_REGISTER_OPMODE		0xa5
 
 #define TOUCH_EVENT_DOWN		0x00
 #define TOUCH_EVENT_UP			0x01
@@ -68,6 +77,15 @@
 #define EDT_SWITCH_MODE_DELAY		5 /* msec */
 #define EDT_RAW_DATA_RETRIES		100
 #define EDT_RAW_DATA_DELAY		1000 /* usec */
+
+#define TP_CHANGE_X2Y        1
+#define TP_X_REVERSE_ENABLE     0
+#define TP_Y_REVERSE_ENABLE     1
+#define TP_SWAP(x, y)  do {\
+				typeof(x) z = x;\
+				x = y;\
+				y = z; \
+} while (0)
 
 enum edt_ver {
 	EDT_M06,
@@ -254,6 +272,18 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 
 		if (!down)
 			continue;
+//printk("---------------------------hlm0 x: %d  y: %d.\n", x,y);
+#if TP_Y_REVERSE_ENABLE
+		y = tsdata->num_y - y;
+#endif
+
+#if TP_X_REVERSE_ENABLE
+		x = tsdata->num_x -x;
+#endif
+
+#if TP_CHANGE_X2Y
+		TP_SWAP(x, y);
+#endif
 
 		touchscreen_report_pos(tsdata->input, &tsdata->prop, x, y,
 				       true);
@@ -994,6 +1024,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		gpiod_set_value_cansleep(tsdata->reset_gpio, 0);
 		msleep(300);
 		gpiod_set_value_cansleep(tsdata->reset_gpio, 1);
+		msleep(100);
 	}
 
 	input = devm_input_allocate_device(&client->dev);
@@ -1031,11 +1062,17 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = &client->dev;
 
+#if TP_CHANGE_X2Y
+	input_set_abs_params(input, ABS_MT_POSITION_Y,
+				0, tsdata->num_x, 0, 0);
+	input_set_abs_params(input, ABS_MT_POSITION_X,
+				0, tsdata->num_y, 0, 0);
+#else
 	input_set_abs_params(input, ABS_MT_POSITION_X,
 			     0, tsdata->num_x, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_Y,
 			     0, tsdata->num_y, 0, 0);
-
+#endif
 	touchscreen_parse_properties(input, true, &tsdata->prop);
 
 	error = input_mt_init_slots(input, tsdata->max_support_points,
