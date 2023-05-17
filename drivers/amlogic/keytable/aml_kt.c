@@ -11,20 +11,15 @@
 #include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/string.h>
-#include <linux/interrupt.h>
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
-#include <linux/spinlock.h>
 #include <linux/fcntl.h>
 #include <linux/uaccess.h>
-#include <linux/poll.h>
 #include <linux/delay.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
-#include <linux/spinlock.h>
-#include <linux/string.h>
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -68,6 +63,8 @@
 #define KTE_KTE_OFFSET	    (8)
 #define KTE_KTE_MASK	    (0xff)
 
+#define HANDLE_TO_ENTRY(h) ((h) & ~(1 << KT_IV_FLAG_OFFSET))
+
 enum KT_ALGO_CAPABILITY {
 	KT_CAP_AES = 0x1,
 	KT_CAP_DES = 0x2,
@@ -102,11 +99,13 @@ enum KT_UID_CAPABILITY {
  /*variant: 6, frobenious cycles:0x5a5*/
 #define S17_CFG_DEFAULT     (0x15a5)
 #define KT_KTE_MAX (128)
+#define KT_IVE_MAX (32)
 
 struct aml_kt_dev {
 	struct cdev cdev;
 	struct mutex lock; /*define mutex*/
 	struct amlkt_cfg_param *kt_slot[KT_KTE_MAX];
+	struct amlkt_cfg_param *kt_iv_slot[KT_IVE_MAX];
 	void __iomem *base_addr;
 	struct reg {
 		u32 rdy_offset;
@@ -122,6 +121,9 @@ struct aml_kt_dev {
 	u32 algo_cap;
 	u32 kte_start;
 	u32 kte_end;
+	u32 ive_start;
+	u32 ive_end;
+	u32 kt_reserved;
 };
 
 static dev_t aml_kt_devt;
@@ -140,8 +142,7 @@ MODULE_DEVICE_TABLE(of, aml_kt_dt_match);
 #define aml_kt_dt_match NULL
 #endif
 
-__attribute__((always_inline)) static inline u32
-aml_kt_ioread32(void __iomem *base_addr, u32 offset)
+static inline u32 aml_kt_ioread32(void __iomem *base_addr, u32 offset)
 {
 	u32 val;
 
@@ -150,8 +151,7 @@ aml_kt_ioread32(void __iomem *base_addr, u32 offset)
 	return val;
 }
 
-__attribute__((always_inline)) static inline void
-aml_kt_iowrite32(u32 data, void __iomem *base_addr, u32 offset)
+static inline void aml_kt_iowrite32(u32 data, void __iomem *base_addr, u32 offset)
 {
 	iowrite32(data, (char *)base_addr + offset);
 }
@@ -162,7 +162,8 @@ static int aml_kt_lock(struct aml_kt_dev *dev)
 	int ret = KT_SUCCESS;
 
 	mutex_lock(&dev->lock);
-	while (aml_kt_ioread32(dev->base_addr, dev->reg.rdy_offset) == 0) {
+	while (aml_kt_ioread32(dev->base_addr, dev->reg.rdy_offset) ==
+	       KT_STS_OK) {
 		if (cnt++ > KT_PENDING_WAIT_TIMEOUT) {
 			LOGE("Error: wait KT ready timeout\n");
 			ret = KT_ERROR;
@@ -178,6 +179,48 @@ static void aml_kt_unlock(struct aml_kt_dev *dev)
 	mutex_lock(&dev->lock);
 	aml_kt_iowrite32(1, dev->base_addr, dev->reg.rdy_offset);
 	mutex_unlock(&dev->lock);
+}
+
+static bool aml_kt_handle_valid(struct aml_kt_dev *dev, u32 handle)
+{
+	u32 entry = HANDLE_TO_ENTRY(handle);
+	u8 is_iv = handle >> KT_IV_FLAG_OFFSET;
+
+	if (is_iv) {
+		if (entry < dev->ive_start || dev->ive_end <= entry) {
+			LOGE("Error: Invalid handle (%#x)\n", handle);
+			return false;
+		}
+	} else {
+		if (entry < dev->kte_start || dev->kte_end <= entry) {
+			LOGE("Error: Invalid handle (%#x)\n", handle);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static int aml_kt_handle_to_kte(struct aml_kt_dev *dev, u32 handle, u32 *kte)
+{
+	if (unlikely(!dev)) {
+		LOGE("Empty aml_kt_dev\n");
+		return KT_ERROR;
+	}
+
+	if (!aml_kt_handle_valid(dev, handle)) {
+		LOGE("Invalid handle\n");
+		return KT_ERROR;
+	}
+
+	if (!kte) {
+		LOGE("Invalid kte\n");
+		return KT_ERROR;
+	}
+
+	*kte = HANDLE_TO_ENTRY(handle);
+
+	return KT_SUCCESS;
 }
 
 static int aml_kt_read_pending(struct aml_kt_dev *dev)
@@ -196,28 +239,10 @@ static int aml_kt_read_pending(struct aml_kt_dev *dev)
 	} while (reg_ret & (KT_PENDING << KTE_PENDING_OFFSET));
 
 	reg_ret = (reg_ret >> KTE_STATUS_OFFSET) & KTE_STATUS_MASK;
-	if (reg_ret != KT_STS_OK) {
-		LOGE("Error: KT return error:%#x\n", reg_ret);
-		ret = KT_ERROR;
-	} else {
+	if (reg_ret == KT_STS_OK) {
 		ret = KT_SUCCESS;
-	}
-
-	return ret;
-}
-
-static int aml_kt_handle_to_kte(struct aml_kt_dev *dev, u32 handle, u32 *kte)
-{
-	int ret = KT_SUCCESS;
-
-	if (unlikely(!dev)) {
-		LOGE("Empty aml_kt_dev\n");
-		return KT_ERROR;
-	}
-
-	*kte = handle & ~(1 << KT_IV_FLAG_OFFSET);
-	if (*kte >= dev->kte_end) {
-		LOGE("Exceed kt max slot\n");
+	} else {
+		LOGE("Error: KT return error:%#x\n", reg_ret);
 		ret = KT_ERROR;
 	}
 
@@ -295,43 +320,14 @@ exit:
 	return ret;
 }
 
-static int aml_kt_clean_kte(struct aml_kt_dev *dev, u32 kte)
-{
-	int ret = 0;
-	u32 reg_val = 0;
-	u32 reg_offset = 0;
-
-	if (aml_kt_lock(dev) != KT_SUCCESS)
-		return KT_ERROR;
-
-	reg_offset = dev->reg.cfg_offset;
-	reg_val = (KT_PENDING << KTE_PENDING_OFFSET |
-			KT_CLEAN_KTE << KTE_CLEAN_OFFSET |
-			KT_MODE_HOST << KTE_MODE_OFFSET |
-			kte << KTE_KTE_OFFSET);
-	aml_kt_iowrite32(reg_val, dev->base_addr, reg_offset);
-
-	if (aml_kt_read_pending(dev) != KT_SUCCESS) {
-		LOGE("pending error\n");
-		ret = KT_ERROR;
-		goto exit;
-	}
-
-exit:
-	aml_kt_unlock(dev);
-
-	return ret;
-}
-
 static int aml_kt_alloc(struct file *filp, u32 flag, u32 *handle)
 {
 	struct aml_kt_dev *dev = filp->private_data;
 	int res = KT_SUCCESS;
-	int i;
-	u32 entry_start;
-	u32 entry_end;
-	u32 slot_size;
+	u32 entry = 0;
 	u8 is_iv = 0;
+	u32 entry_start = 0;
+	u32 entry_end = 0;
 
 	if (unlikely(!dev)) {
 		LOGE("Empty aml_kt_dev\n");
@@ -343,38 +339,59 @@ static int aml_kt_alloc(struct file *filp, u32 flag, u32 *handle)
 		return KT_ERROR;
 	}
 
-	if (flag == AML_KT_ALLOC_FLAG_IV)
+	if (flag == AML_KT_ALLOC_FLAG_IV) {
 		is_iv = 1;
+		entry_start = dev->ive_start;
+		entry_end = dev->ive_end;
+	} else if (flag == AML_KT_ALLOC_FLAG_HOST) {
+		entry_start = dev->kte_start;
+		entry_end = dev->kte_end;
+	} else if (flag == AML_KT_ALLOC_FLAG_NSK_M2M) {
+		/* TO-DO */
+	} else {
+		entry_start = dev->kte_start;
+		entry_end = dev->kte_end;
+	}
 
-	entry_start = dev->kte_start;
-	entry_end = dev->kte_end;
-	slot_size = entry_end - entry_start;
 	mutex_lock(&dev->lock);
-	for (i = 0; i < slot_size; i++) {
-		if (dev->kt_slot[i])
-			continue;
+	for (entry = entry_start; entry < entry_end; entry++) {
+		if (is_iv) {
+			if (dev->kt_iv_slot[entry])
+				continue;
 
-		/* Skip reserved key slots */
-		if ((get_cpu_type() == MESON_CPU_MAJOR_ID_C3) && aml_kt_slot_reserved(i))
-			continue;
+			dev->kt_iv_slot[entry] = kzalloc(sizeof(*dev->kt_iv_slot[entry]),
+				GFP_KERNEL);
+			if (!dev->kt_iv_slot[entry]) {
+				LOGE("Error: KT ive kzalloc failed\n");
+				res = KT_ERROR;
+				goto exit;
+			}
+		} else {
+			if (dev->kt_slot[entry])
+				continue;
 
-		dev->kt_slot[i] = kzalloc(sizeof(*dev->kt_slot[i]), GFP_KERNEL);
-		if (!dev->kt_slot[i]) {
-			LOGE("Error: KT kzalloc failed\n");
-			res = KT_ERROR;
-			goto exit;
+			/* Skip reserved key slots */
+			if (dev->kt_reserved && aml_kt_slot_reserved(entry))
+				continue;
+
+			dev->kt_slot[entry] = kzalloc(sizeof(*dev->kt_slot[entry]),
+				GFP_KERNEL);
+			if (!dev->kt_slot[entry]) {
+				LOGE("Error: KT kte kzalloc failed\n");
+				res = KT_ERROR;
+				goto exit;
+			}
 		}
-
-		*handle = i | (is_iv << KT_IV_FLAG_OFFSET);
 		break;
 	}
 
-	LOGI("flag:%#x, is_iv:%d, handle:%#x, index:%d\n", flag, is_iv, *handle, i);
-	if (i == entry_end) {
-		LOGE("Error: KT alloc return error, no kte available\n");
-		res = KT_ERROR;
-	} else {
+	if (entry < entry_end) {
+		*handle = entry | (is_iv << KT_IV_FLAG_OFFSET);
+		LOGD("flag:%#x, is_iv:%d, handle:%#x\n", flag, is_iv, *handle);
 		res = KT_SUCCESS;
+	} else {
+		LOGE("Error: KT alloc return error, no kte/ive available\n");
+		res = KT_ERROR;
 	}
 
 exit:
@@ -387,7 +404,7 @@ static int aml_kt_config(struct file *filp, struct amlkt_cfg_param key_cfg)
 {
 	struct aml_kt_dev *dev = filp->private_data;
 	int ret = KT_SUCCESS;
-	u32 index;
+	u32 index = 0;
 	u8 is_iv = 0;
 
 	if (unlikely(!dev)) {
@@ -402,13 +419,25 @@ static int aml_kt_config(struct file *filp, struct amlkt_cfg_param key_cfg)
 	}
 
 	is_iv = key_cfg.handle >> KT_IV_FLAG_OFFSET;
-	LOGI("handle:%#x, index:%d\n", key_cfg.handle, index);
+	if (is_iv) {
+		if (!dev->kt_iv_slot[index]) {
+			LOGE("kt_iv_slot is null\n");
+			return KT_ERROR;
+		}
+	} else {
+		if (!dev->kt_slot[index]) {
+			LOGE("kt_slot is null\n");
+			return KT_ERROR;
+		}
+	}
 
 	/* Conversion T5W key algorithm */
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5W) {
 		if (key_cfg.key_algo == AML_KT_ALGO_AES)
 			key_cfg.key_algo = 2;
 		if (key_cfg.key_algo == AML_KT_ALGO_DES)
+			key_cfg.key_algo = 0;
+		if (key_cfg.key_algo == AML_KT_ALGO_CSA2)
 			key_cfg.key_algo = 0;
 	}
 
@@ -417,135 +446,93 @@ static int aml_kt_config(struct file *filp, struct amlkt_cfg_param key_cfg)
 	LOGD("dev->user_cap:0x%x\n", dev->user_cap);
 	switch (key_cfg.key_algo) {
 	case AML_KT_ALGO_AES:
-		if (!(dev->algo_cap & KT_CAP_AES)) {
-			LOGE("invalid key algorithm:%d\n", key_cfg.key_algo);
-			return KT_ERROR;
-		}
+		if (!(dev->algo_cap & KT_CAP_AES))
+			goto error_algo;
 		break;
 	case AML_KT_ALGO_TDES:
-		if (!(dev->algo_cap & KT_CAP_TDES)) {
-			LOGE("invalid key algorithm:%d\n", key_cfg.key_algo);
-			return KT_ERROR;
-		}
+		if (!(dev->algo_cap & KT_CAP_TDES))
+			goto error_algo;
 		break;
 	case AML_KT_ALGO_DES:
-		if (!(dev->algo_cap & KT_CAP_DES)) {
-			LOGE("invalid key algorithm:%d\n", key_cfg.key_algo);
-			return KT_ERROR;
-		}
+		if (!(dev->algo_cap & KT_CAP_DES))
+			goto error_algo;
 		break;
 	case AML_KT_ALGO_S17:
-		if (!(dev->algo_cap & KT_CAP_S17)) {
-			LOGE("invalid key algorithm:%d\n", key_cfg.key_algo);
-			return KT_ERROR;
-		}
+		if (!(dev->algo_cap & KT_CAP_S17))
+			goto error_algo;
 		break;
 	case AML_KT_ALGO_SM4:
-		if (!(dev->algo_cap & KT_CAP_SM4)) {
-			LOGE("invalid key algorithm:%d\n", key_cfg.key_algo);
-			return KT_ERROR;
-		}
+		if (!(dev->algo_cap & KT_CAP_SM4))
+			goto error_algo;
 		break;
 	case AML_KT_ALGO_NDL:
-		if (!(dev->algo_cap & KT_CAP_NDL)) {
-			LOGE("invalid key algorithm:%d\n", key_cfg.key_algo);
-			return KT_ERROR;
-		}
+		if (!(dev->algo_cap & KT_CAP_NDL))
+			goto error_algo;
 		break;
 	case AML_KT_ALGO_ND:
-		if (!(dev->algo_cap & KT_CAP_ND)) {
-			LOGE("invalid key algorithm:%d\n", key_cfg.key_algo);
-			return KT_ERROR;
-		}
+		if (!(dev->algo_cap & KT_CAP_ND))
+			goto error_algo;
 		break;
 	case AML_KT_ALGO_CSA3:
-		if (!(dev->algo_cap & KT_CAP_CSA3)) {
-			LOGE("invalid key algorithm:%d\n", key_cfg.key_algo);
-			return KT_ERROR;
-		}
+		if (!(dev->algo_cap & KT_CAP_CSA3))
+			goto error_algo;
 		break;
 	case AML_KT_ALGO_CSA2:
-		if (!(dev->algo_cap & KT_CAP_CSA2)) {
-			LOGE("invalid key algorithm:%d\n", key_cfg.key_algo);
-			return KT_ERROR;
-		}
+		if (!(dev->algo_cap & KT_CAP_CSA2))
+			goto error_algo;
 		break;
 	case AML_KT_ALGO_HMAC:
-		if (!(dev->algo_cap & KT_CAP_HMAC)) {
-			LOGE("invalid key algorithm:%d\n", key_cfg.key_algo);
-			return KT_ERROR;
-		}
+		if (!(dev->algo_cap & KT_CAP_HMAC))
+			goto error_algo;
 		break;
 	default:
-		LOGE("invalid key algorithm:%d\n", key_cfg.key_algo);
-		return KT_ERROR;
+		goto error_algo;
 	}
 
 	/* Check Invalid key user id */
 	switch (key_cfg.key_userid) {
 	case AML_KT_USER_M2M_0:
-		if (!(dev->user_cap & KT_CAP_M2M_0)) {
-			LOGE("invalid key user:%d\n", key_cfg.key_userid);
-			return KT_ERROR;
-		}
+		if (!(dev->user_cap & KT_CAP_M2M_0))
+			goto error_user;
 		break;
 	case AML_KT_USER_M2M_1:
-		if (!(dev->user_cap & KT_CAP_M2M_1)) {
-			LOGE("invalid key user:%d\n", key_cfg.key_userid);
-			return KT_ERROR;
-		}
+		if (!(dev->user_cap & KT_CAP_M2M_1))
+			goto error_user;
 		break;
 	case AML_KT_USER_M2M_2:
-		if (!(dev->user_cap & KT_CAP_M2M_2)) {
-			LOGE("invalid key user:%d\n", key_cfg.key_userid);
-			return KT_ERROR;
-		}
+		if (!(dev->user_cap & KT_CAP_M2M_2))
+			goto error_user;
 		break;
 	case AML_KT_USER_M2M_3:
-		if (!(dev->user_cap & KT_CAP_M2M_3)) {
-			LOGE("invalid key user:%d\n", key_cfg.key_userid);
-			return KT_ERROR;
-		}
+		if (!(dev->user_cap & KT_CAP_M2M_3))
+			goto error_user;
 		break;
 	case AML_KT_USER_M2M_4:
-		if (!(dev->user_cap & KT_CAP_M2M_4)) {
-			LOGE("invalid key user:%d\n", key_cfg.key_userid);
-			return KT_ERROR;
-		}
+		if (!(dev->user_cap & KT_CAP_M2M_4))
+			goto error_user;
 		break;
 	case AML_KT_USER_M2M_5:
-		if (!(dev->user_cap & KT_CAP_M2M_5)) {
-			LOGE("invalid key user:%d\n", key_cfg.key_userid);
-			return KT_ERROR;
-		}
+		if (!(dev->user_cap & KT_CAP_M2M_5))
+			goto error_user;
 		break;
 	case AML_KT_USER_M2M_ANY:
-		if (!(dev->user_cap & KT_CAP_M2M_ANY)) {
-			LOGE("invalid key user:%d\n", key_cfg.key_userid);
-			return KT_ERROR;
-		}
+		if (!(dev->user_cap & KT_CAP_M2M_ANY))
+			goto error_user;
 		break;
 	case AML_KT_USER_TSD:
-		if (!(dev->user_cap & KT_CAP_TSD)) {
-			LOGE("invalid key user:%d\n", key_cfg.key_userid);
-			return KT_ERROR;
-		}
+		if (!(dev->user_cap & KT_CAP_TSD))
+			goto error_user;
 		break;
 	case AML_KT_USER_TSN:
-		if (!(dev->user_cap & KT_CAP_TSN)) {
-			LOGE("invalid key user:%d\n", key_cfg.key_userid);
-			return KT_ERROR;
-		}
+		if (!(dev->user_cap & KT_CAP_TSN))
+			goto error_user;
 		break;
 	case AML_KT_USER_TSE:
-		if (!(dev->user_cap & KT_CAP_TSE)) {
-			LOGE("invalid key user:%d\n", key_cfg.key_userid);
-			return KT_ERROR;
-		}
+		if (!(dev->user_cap & KT_CAP_TSE))
+			goto error_user;
 		break;
 	default:
-		LOGE("invalid key user:%d\n", key_cfg.key_userid);
-		return KT_ERROR;
+		goto error_user;
 	}
 
 	/* Special case for S17 key algorithm */
@@ -560,13 +547,22 @@ static int aml_kt_config(struct file *filp, struct amlkt_cfg_param key_cfg)
 		}
 	}
 
-	if (!dev->kt_slot[index]) {
-		LOGE("kt_slot is null\n");
-		return KT_ERROR;
-	}
-	memcpy(dev->kt_slot[index], &key_cfg, sizeof(struct amlkt_cfg_param));
-
+	if (is_iv)
+		memcpy(dev->kt_iv_slot[index], &key_cfg, sizeof(struct amlkt_cfg_param));
+	else
+		memcpy(dev->kt_slot[index], &key_cfg, sizeof(struct amlkt_cfg_param));
 	return ret;
+
+error_algo:
+	LOGE("invalid key algorithm:%d\n", key_cfg.key_algo);
+	goto exit;
+
+error_user:
+	LOGE("invalid key user:%d\n", key_cfg.key_userid);
+	goto exit;
+
+exit:
+	return KT_ERROR;
 }
 
 static int aml_kt_write_cfg(struct aml_kt_dev *dev,
@@ -585,7 +581,6 @@ static int aml_kt_write_cfg(struct aml_kt_dev *dev,
 	}
 
 	is_iv = handle >> KT_IV_FLAG_OFFSET;
-
 	if (key_cfg->key_source == AML_KT_SRC_NSK) {
 		// Divide with 3 for getting NSK KTE group ID
 		kte = kte / 3;
@@ -754,25 +749,36 @@ static int aml_kt_set_host_key(struct file *filp, struct amlkt_set_key_param *ke
 	int ret = KT_SUCCESS;
 	u32 index = 0;
 	u32 key_source = 0;
+	u8 is_iv = 0;
 
 	ret = aml_kt_handle_to_kte(dev, key_param->handle, &index);
 	if (ret != KT_SUCCESS) {
 		LOGE("index get error\n");
 		return ret;
 	}
-	LOGI("handle:%#x, index:%d\n", key_param->handle, index);
 
-	if (!dev->kt_slot[index]) {
-		ret = KT_ERROR;
-		return ret;
+	is_iv = key_param->handle >> KT_IV_FLAG_OFFSET;
+	if (is_iv) {
+		if (!dev->kt_iv_slot[index])
+			return KT_ERROR;
+		key_source = dev->kt_iv_slot[index]->key_source;
+	} else {
+		if (!dev->kt_slot[index])
+			return KT_ERROR;
+		key_source = dev->kt_slot[index]->key_source;
 	}
 
-	key_source = dev->kt_slot[index]->key_source;
 	switch (key_source) {
 	case AML_KT_SRC_REE_HOST:
-		ret = aml_kt_set_inter_key(dev, key_param->handle,
+		if (is_iv) {
+			ret = aml_kt_set_inter_key(dev, key_param->handle,
+							dev->kt_iv_slot[index], key_param->key,
+							key_param->key_len, KT_MODE_HOST);
+		} else {
+			ret = aml_kt_set_inter_key(dev, key_param->handle,
 						dev->kt_slot[index], key_param->key,
 						key_param->key_len, KT_MODE_HOST);
+		}
 		break;
 	default:
 		LOGE("Not support key_source[%d]\n", key_source);
@@ -792,29 +798,44 @@ static int aml_kt_set_hw_key(struct file *filp, u32 handle)
 	int ret = KT_SUCCESS;
 	u32 index = 0;
 	u32 key_source = 0;
+	u8 is_iv = 0;
 
 	ret = aml_kt_handle_to_kte(dev, handle, &index);
 	if (ret != KT_SUCCESS) {
 		LOGE("index get error\n");
 		return KT_ERROR;
 	}
-	LOGI("handle:%#x, index:%d\n", handle, index);
 
-	if (!dev->kt_slot[index]) {
-		LOGE("kt_slot is null\n");
-		return KT_ERROR;
+	is_iv = handle >> KT_IV_FLAG_OFFSET;
+	if (is_iv) {
+		if (!dev->kt_iv_slot[index])
+			return KT_ERROR;
+		key_source = dev->kt_iv_slot[index]->key_source;
+	} else {
+		if (!dev->kt_slot[index])
+			return KT_ERROR;
+		key_source = dev->kt_slot[index]->key_source;
 	}
-	key_source = dev->kt_slot[index]->key_source;
 
 	switch (key_source) {
 	case AML_KT_SRC_REE_CERT:
 	case AML_KT_SRC_REEKL_NAGRA:
-		ret = aml_kt_set_inter_hw_key(dev, handle, dev->kt_slot[index],
+		if (is_iv) {
+			ret = aml_kt_set_inter_hw_key(dev, handle, dev->kt_iv_slot[index],
+								KT_MODE_NAGRA);
+		} else {
+			ret = aml_kt_set_inter_hw_key(dev, handle, dev->kt_slot[index],
 							KT_MODE_NAGRA);
+		}
 		break;
 	case AML_KT_SRC_NSK:
-		ret = aml_kt_set_inter_hw_key(dev, handle, dev->kt_slot[index],
-							KT_MODE_NSK);
+		if (is_iv) {
+			ret = aml_kt_set_inter_hw_key(dev, handle, dev->kt_iv_slot[index],
+								KT_MODE_NSK);
+		} else {
+			ret = aml_kt_set_inter_hw_key(dev, handle, dev->kt_slot[index],
+								KT_MODE_NSK);
+		}
 		break;
 	default:
 		LOGE("Not support key_source[%d]\n", key_source);
@@ -833,6 +854,8 @@ static int aml_kt_invalidate(struct file *filp, u32 handle)
 	struct aml_kt_dev *dev = filp->private_data;
 	int ret = KT_SUCCESS;
 	u32 kte = 0;
+	u32 reg_val = 0;
+	u32 reg_offset = 0;
 
 	if (unlikely(!dev)) {
 		LOGE("Empty aml_kt_dev\n");
@@ -845,11 +868,26 @@ static int aml_kt_invalidate(struct file *filp, u32 handle)
 		return ret;
 	}
 
-	ret = aml_kt_clean_kte(dev, kte);
-	if (ret != KT_SUCCESS) {
-		LOGE("Error: KT invalidate clean kte error\n");
+	if (aml_kt_lock(dev) != KT_SUCCESS)
+		return KT_ERROR;
+
+	reg_offset = dev->reg.cfg_offset;
+	reg_val = (KT_PENDING << KTE_PENDING_OFFSET |
+			KT_CLEAN_KTE << KTE_CLEAN_OFFSET |
+			KT_MODE_HOST << KTE_MODE_OFFSET |
+			kte << KTE_KTE_OFFSET);
+	aml_kt_iowrite32(reg_val, dev->base_addr, reg_offset);
+
+	if (aml_kt_read_pending(dev) != KT_SUCCESS) {
+		LOGE("pending error\n");
 		ret = KT_ERROR;
+		goto exit;
+	} else {
+		ret = KT_SUCCESS;
 	}
+
+exit:
+	aml_kt_unlock(dev);
 
 	return ret;
 }
@@ -859,6 +897,7 @@ static int aml_kt_free(struct file *filp, u32 handle)
 	struct aml_kt_dev *dev = filp->private_data;
 	int ret = KT_SUCCESS;
 	u32 kte = 0;
+	u8 is_iv = 0;
 
 	if (unlikely(!dev)) {
 		LOGE("Empty aml_kt_dev\n");
@@ -871,16 +910,25 @@ static int aml_kt_free(struct file *filp, u32 handle)
 		return ret;
 	}
 
-	LOGI("handle:%#x, kte:%d\n", handle, kte);
-	ret = aml_kt_clean_kte(dev, kte);
+	is_iv = handle >> KT_IV_FLAG_OFFSET;
+	ret = aml_kt_invalidate(filp, handle);
+
+	mutex_lock(&dev->lock);
+	if (is_iv) {
+		kfree(dev->kt_iv_slot[kte]);
+		dev->kt_iv_slot[kte] = NULL;
+	} else {
+		kfree(dev->kt_slot[kte]);
+		dev->kt_slot[kte] = NULL;
+	}
+	mutex_unlock(&dev->lock);
+
 	if (ret != KT_SUCCESS) {
 		LOGE("Error: KT invalidate clean kte error\n");
 		return KT_ERROR;
+	} else {
+		ret = KT_SUCCESS;
 	}
-	mutex_lock(&dev->lock);
-	kfree(dev->kt_slot[kte]);
-	dev->kt_slot[kte] = NULL;
-	mutex_unlock(&dev->lock);
 
 	return ret;
 }
@@ -897,9 +945,6 @@ int aml_kt_open(struct inode *inode, struct file *filp)
 
 int aml_kt_release(struct inode *inode, struct file *filp)
 {
-	__maybe_unused struct aml_kt_dev *dev =
-		container_of(inode->i_cdev, struct aml_kt_dev, cdev);
-
 	if (!filp->private_data)
 		return 0;
 
@@ -931,7 +976,7 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case AML_KT_ALLOC:
 		memset(&alloc_param, 0, sizeof(alloc_param));
 		if (copy_from_user(&alloc_param, (void __user *)arg, sizeof(alloc_param))) {
-			LOGE("aml_kt_alloc copy error\n");
+			LOGE("aml_kt_alloc copy_from_user error\n");
 			return -EFAULT;
 		}
 
@@ -943,14 +988,14 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		ret = copy_to_user((void __user *)arg, &alloc_param, sizeof(alloc_param));
 		if (unlikely(ret)) {
-			LOGE("aml_kt_alloc copy error\n");
+			LOGE("aml_kt_alloc copy_to_user error\n");
 			return -EFAULT;
 		}
 		break;
 	case AML_KT_CONFIG:
 		memset(&cfg_param, 0, sizeof(cfg_param));
 		if (copy_from_user(&cfg_param, (void __user *)arg, sizeof(cfg_param))) {
-			LOGE("aml_kt_config copy error\n");
+			LOGE("aml_kt_config copy_from_user error\n");
 			return -EFAULT;
 		}
 
@@ -963,7 +1008,7 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case AML_KT_SET:
 		memset(&key_param, 0, sizeof(key_param));
 		if (copy_from_user(&key_param, (void __user *)arg, sizeof(key_param))) {
-			LOGE("aml_kt_set_host_key copy error\n");
+			LOGE("aml_kt_set_host_key copy_from_user error\n");
 			return -EFAULT;
 		}
 
@@ -976,7 +1021,7 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case AML_KT_HW_SET:
 		ret = get_user(handle, (u32 __user *)arg);
 		if (unlikely(ret)) {
-			LOGE("aml_kt_set_hw_key copy error\n");
+			LOGE("aml_kt_set_hw_key get_user error\n");
 			return ret;
 		}
 
@@ -989,7 +1034,7 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case AML_KT_FREE:
 		ret = get_user(handle, (u32 __user *)arg);
 		if (unlikely(ret)) {
-			LOGE("aml_kt_free copy error\n");
+			LOGE("aml_kt_free get_user error\n");
 			return ret;
 		}
 
@@ -1002,7 +1047,7 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case AML_KT_INVALIDATE:
 		ret = get_user(handle, (u32 __user *)arg);
 		if (unlikely(ret)) {
-			LOGE("aml_kt_invalidate copy error\n");
+			LOGE("aml_kt_invalidate get_user error\n");
 			return ret;
 		}
 
@@ -1032,7 +1077,7 @@ static int aml_kt_get_dts_info(struct aml_kt_dev *dev, struct platform_device *p
 {
 	int ret = 0;
 	u32 offset[7];
-	u32 cap[4];
+	u32 cap[6];
 
 	if (unlikely(!dev)) {
 		LOGE("Empty aml_kt_dev\n");
@@ -1061,19 +1106,28 @@ static int aml_kt_get_dts_info(struct aml_kt_dev *dev, struct platform_device *p
 		dev->user_cap = cap[1];
 		dev->kte_start = cap[2];
 		dev->kte_end = cap[3];
+		dev->ive_start = cap[4];
+		dev->ive_end = cap[5];
 	} else {
 		LOGE("%s: not found\n", "kt_cap");
 		return KT_ERROR;
 	}
 
-	/* S4D s17 algo cfg */
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_S4D) {
+	/* S17 algo cfg */
+	if (dev->algo_cap & KT_CAP_S17) {
 		ret = of_property_read_u32(pdev->dev.of_node, "s17_cfg_offset",
 			&dev->reg.s17_cfg_offset);
 		if (ret) {
 			LOGE("%s: not found 0x%x\n", "s17_cfg_offset", dev->reg.s17_cfg_offset);
 			return KT_ERROR;
 		}
+	}
+
+	/* Check reserved KTE */
+	ret = of_property_read_u32(pdev->dev.of_node, "kt_reserved", &dev->kt_reserved);
+	if (ret) {
+		LOGE("%s: not found 0x%x\n", "kt_reserved", dev->kt_reserved);
+		return KT_ERROR;
 	}
 
 	return KT_SUCCESS;
@@ -1083,7 +1137,6 @@ int aml_kt_init(struct class *aml_kt_class, struct platform_device *pdev)
 {
 	int ret = -1;
 	struct device *device;
-	const struct of_device_id *match;
 	struct resource *res;
 
 	if (alloc_chrdev_region(&aml_kt_devt, 0, DEVICE_INSTANCES,
@@ -1106,13 +1159,6 @@ int aml_kt_init(struct class *aml_kt_class, struct platform_device *pdev)
 		LOGE("device_create failed\n");
 		ret = PTR_ERR(device);
 		goto delete_cdev;
-	}
-
-	match = of_match_device(aml_kt_dt_match, &pdev->dev);
-	if (!match) {
-		LOGE("%s: cannot find match dt\n", __func__);
-		ret = -EINVAL;
-		goto destroy_device;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1138,6 +1184,7 @@ int aml_kt_init(struct class *aml_kt_class, struct platform_device *pdev)
 
 	mutex_init(&aml_kt_dev.lock);
 	memset(aml_kt_dev.kt_slot, 0, sizeof(aml_kt_dev.kt_slot));
+	memset(aml_kt_dev.kt_iv_slot, 0, sizeof(aml_kt_dev.kt_iv_slot));
 	return ret;
 
 destroy_device:
@@ -1152,13 +1199,31 @@ unregister_chrdev:
 
 void aml_kt_exit(struct class *aml_kt_class, struct platform_device *pdev)
 {
+	int i = 0;
+
+	for (i = aml_kt_dev.kte_start; i < aml_kt_dev.kte_end; i++) {
+		if (aml_kt_dev.kt_reserved && aml_kt_slot_reserved(i))
+			continue;
+
+		if (aml_kt_dev.kt_slot[i]) {
+			kfree(aml_kt_dev.kt_slot[i]);
+			aml_kt_dev.kt_slot[i] = NULL;
+		}
+	}
+
+	for (i = aml_kt_dev.ive_start; i < aml_kt_dev.ive_end; i++) {
+		if (aml_kt_dev.kt_iv_slot[i]) {
+			kfree(aml_kt_dev.kt_iv_slot[i]);
+			aml_kt_dev.kt_iv_slot[i] = NULL;
+		}
+	}
+
 	device_destroy(aml_kt_class, aml_kt_devt);
 	cdev_del(&aml_kt_dev.cdev);
 	unregister_chrdev_region(MKDEV(MAJOR(aml_kt_devt),
 				       MINOR(aml_kt_devt)),
 				 DEVICE_INSTANCES);
 	mutex_destroy(&aml_kt_dev.lock);
-	LOGI("%s module has been unloaded.\n", DEVICE_NAME);
 }
 
 static int aml_kt_probe(struct platform_device *pdev)
@@ -1178,7 +1243,6 @@ static int aml_kt_probe(struct platform_device *pdev)
 		goto destroy_class;
 	}
 
-	LOGI("%s module has been loaded.\n", DEVICE_NAME);
 	return 0;
 
 destroy_class:
@@ -1190,7 +1254,7 @@ static int aml_kt_remove(struct platform_device *pdev)
 {
 	aml_kt_exit(aml_kt_class, pdev);
 	class_destroy(aml_kt_class);
-	LOGI("%s module has been unloaded.\n", KBUILD_MODNAME);
+
 	return 0;
 }
 
