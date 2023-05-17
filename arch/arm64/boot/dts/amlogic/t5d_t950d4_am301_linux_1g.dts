@@ -534,7 +534,7 @@
 		wb_en = <1>;/*1:enable ;0:disable*/
 		cm_en = <1>;/*1:enable ;0:disable*/
 		wb_sel = <0>;/*1:mtx ;0:gainoff*/
-		hist_sel = <1>;/*1:vd2 ;0:vd1*/
+		hist_sel = <0>;/*1:vd2 ;0:vd1*/
 		vlock_en = <1>;/*1:enable;0:disable*/
 		vlock_mode = <0x8>;
 		/* vlock work mode:
