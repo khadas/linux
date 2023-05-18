@@ -4339,8 +4339,8 @@ void rx_get_de_sts(void)
 		rx.cur.vtotal = hdmirx_rd_bits_dwc(DWC_MD_VTL, VTOT_LIN);
 		rx.cur.hactive = hdmirx_rd_bits_dwc(DWC_MD_HACT_PX, HACT_PIX);
 		rx.cur.htotal = hdmirx_rd_bits_dwc(DWC_MD_HT1, HTOT_PIX);
-		rx.cur.hactive	= rx.cur.hactive / rx.cur.colordepth * 8;
-		rx.cur.htotal = rx.cur.htotal / rx.cur.colordepth * 8;
+		rx.cur.hactive	= rx.cur.hactive * 8 / rx.cur.colordepth;
+		rx.cur.htotal = rx.cur.htotal * 8 / rx.cur.colordepth;
 		if (rx.cur.repeat) {
 			rx.cur.hactive	= rx.cur.hactive / (rx.cur.repeat + 1);
 			rx.cur.htotal = rx.cur.htotal / (rx.cur.repeat + 1);

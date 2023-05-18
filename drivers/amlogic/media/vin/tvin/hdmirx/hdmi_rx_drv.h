@@ -68,7 +68,8 @@
 /* add method to get 5v pin status */
 /* optimize unnormal_format check logic */
 /* 2023.05.05 core reset when afifo overflow */
-#define RX_VER1 "ver.2023/5/5"
+/* 2023.05.24 fix 1366*768 identify to 1360*768 */
+#define RX_VER1 "ver.2023/5/24"
 
 /*
  * Currently, a total of 5 VSIF packages are supported,
