@@ -138,6 +138,7 @@ struct hw_vppx_blend_reg_s {
 	u32 vpp_bld_ctrl;
 	u32 vpp_bld_dummy_data;
 	u32 vpp_bld_dummy_alpha;
+	u32 vpp_blend_ctrl;
 };
 
 struct hw_viu_misc_reg_s     {

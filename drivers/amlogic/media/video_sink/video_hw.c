@@ -12826,6 +12826,14 @@ int video_hw_init(void)
 			WRITE_VCBUS_REG(VD3_PPS_DUMMY_DATA, 0x4080200);
 		}
 	}
+
+	/* set vpp1/2 holdline */
+	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
+		if (cur_dev->has_vpp1)
+			WRITE_VCBUS_REG_BITS(VPP1_BLEND_CTRL, 16, 20, 5);
+		if (cur_dev->has_vpp2)
+			WRITE_VCBUS_REG_BITS(VPP2_BLEND_CTRL, 16, 20, 5);
+	}
 	/* select afbcd output to di pre */
 	if (video_is_meson_t5d_revb_cpu() && vd1_vd2_mux_dts) {
 		/* default false */
@@ -13203,6 +13211,8 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	vd_layer[1].misc_reg_offt = 0 + cur_dev->vpp_off;
 	vd_layer[2].misc_reg_offt = 0 + cur_dev->vpp_off;
 	vd_layer[0].dummy_alpha = 0x7fffffff;
+	cur_dev->has_vpp1 = p_amvideo->has_vpp1;
+	cur_dev->has_vpp2 = p_amvideo->has_vpp2;
 	cur_dev->is_tv_panel = p_amvideo->is_tv_panel;
 	cur_dev->mif_linear = p_amvideo->mif_linear;
 	cur_dev->display_module = p_amvideo->display_module;

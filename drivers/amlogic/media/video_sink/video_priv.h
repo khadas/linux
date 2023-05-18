@@ -260,6 +260,8 @@ struct video_dev_s {
 	struct rdma_fun_s rdma_func[RDMA_INTERFACE_NUM];
 	u32 sr_in_size;
 	u8 is_tv_panel;
+	u8 has_vpp1;
+	u8 has_vpp2;
 };
 
 struct video_layer_s;

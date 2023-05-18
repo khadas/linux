@@ -533,6 +533,7 @@
 #define VPP1_BLD_DIN1_VSCOPE                       0x598a
 #define VPP1_BLD_DIN2_HSCOPE                       0x598b
 #define VPP1_BLD_DIN2_VSCOPE                       0x598c
+#define VPP1_BLEND_CTRL                            0x59a8
 #define VPP1_BLEND_BLEND_DUMMY_DATA                0x59a9
 #define VPP1_BLEND_DUMMY_ALPHA                     0x59aa
 
@@ -544,6 +545,7 @@
 #define VPP2_BLD_DIN1_VSCOPE                       0x59ca
 #define VPP2_BLD_DIN2_HSCOPE                       0x59cb
 #define VPP2_BLD_DIN2_VSCOPE                       0x59cc
+#define VPP2_BLEND_CTRL                            0x59e8
 #define VPP2_BLEND_BLEND_DUMMY_DATA                0x59e9
 #define VPP2_BLEND_DUMMY_ALPHA                     0x59ea
 

@@ -1216,6 +1216,76 @@ static void dump_vpp_blend_reg(void)
 	}
 }
 
+static void dump_vppx_blend_reg(void)
+{
+	u32 reg_addr, reg_val = 0;
+
+	if (cur_dev->display_module == OLD_DISPLAY_MODULE)
+		return;
+	if (cur_dev->has_vpp1) {
+		pr_info("vpp1 blend regs:\n");
+		reg_addr = vppx_blend_reg_array[0].vpp_bld_din0_hscope;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vpp_bld_din0_hscope[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vppx_blend_reg_array[0].vpp_bld_din0_vscope;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vpp_bld_din0_vscope[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vppx_blend_reg_array[0].vpp_bld_out_size;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vpp_bld_out_size[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vppx_blend_reg_array[0].vpp_bld_ctrl;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vpp_bld_ctrl[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vppx_blend_reg_array[0].vpp_bld_dummy_data;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vpp_bld_dummy_data[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vppx_blend_reg_array[0].vpp_bld_dummy_alpha;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vpp_bld_dummy_alpha[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vppx_blend_reg_array[0].vpp_blend_ctrl;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vpp_blend_ctrl[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+	}
+	if (cur_dev->has_vpp2) {
+		pr_info("vpp2 blend regs:\n");
+		reg_addr = vppx_blend_reg_array[1].vpp_bld_din0_hscope;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vpp_bld_din0_hscope[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vppx_blend_reg_array[1].vpp_bld_din0_vscope;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vpp_bld_din0_vscope[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vppx_blend_reg_array[1].vpp_bld_out_size;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vpp_bld_out_size[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vppx_blend_reg_array[1].vpp_bld_ctrl;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vpp_bld_ctrl[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vppx_blend_reg_array[1].vpp_bld_dummy_data;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vpp_bld_dummy_data[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vppx_blend_reg_array[1].vpp_bld_dummy_alpha;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vpp_bld_dummy_alpha[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vppx_blend_reg_array[1].vpp_blend_ctrl;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("vpp_blend_ctrl[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+	}
+}
+
 static void dump_fgrain_reg(void)
 {
 	int i;
@@ -18042,6 +18112,7 @@ static ssize_t reg_dump_store(struct class *cla,
 			dump_afbc_reg();
 			dump_pps_reg();
 			dump_vpp_blend_reg();
+			dump_vppx_blend_reg();
 			dump_vpp_path_size_reg();
 			dump_vpp_misc_reg();
 			dump_zorder_reg();

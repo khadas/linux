@@ -933,6 +933,7 @@ struct hw_vppx_blend_reg_s vppx_blend_reg_array[MAX_VPP_NUM - 1] = {
 		VPP1_BLD_CTRL,
 		VPP1_BLEND_BLEND_DUMMY_DATA,
 		VPP1_BLEND_DUMMY_ALPHA,
+		VPP1_BLEND_CTRL,
 	},
 	{
 		VPP2_BLD_DIN0_HSCOPE,
@@ -941,6 +942,7 @@ struct hw_vppx_blend_reg_s vppx_blend_reg_array[MAX_VPP_NUM - 1] = {
 		VPP2_BLD_CTRL,
 		VPP2_BLEND_BLEND_DUMMY_DATA,
 		VPP2_BLEND_DUMMY_ALPHA,
+		VPP2_BLEND_CTRL,
 	},
 };
 
