@@ -139,7 +139,6 @@ static int meson_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct meson_rtc_data *rtc = dev_get_drvdata(dev);
 	u32 alarm_sec;
-	u32 reg_val;
 
 	alarm_sec = meson_read_alarm(rtc);
 	if (rtc->time_storage_format)
@@ -148,7 +147,6 @@ static int meson_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	dev_dbg(dev, "%s: alarm->enabled=%d alarm=0x%x\n", __func__,
 		alarm->enabled, alarm_sec);
 
-	reg_val = readl(rtc->reg_base + RTC_INT_STATUS);
 	alarm->enabled = rtc->alarm_enabled;
 
 	return 0;
@@ -412,6 +410,8 @@ static void meson_rtc_init(struct device *dev, struct meson_rtc_data *rtc)
 	rtc->alarm_enabled = false;
 	/* Show rtc time */
 	reg_val = readl(rtc->reg_base + RTC_REAL_TIME);
+	if (rtc->time_storage_format)
+		reg_val = gray_to_binary(reg_val);
 	dev_dbg(dev, "%s: rtc time stamp = %u\n", __func__, reg_val);
 }
 
@@ -521,14 +521,19 @@ static int meson_rtc_resume(struct device *dev)
 {
 	struct meson_rtc_data *rtc = dev_get_drvdata(dev);
 	int remain_time;
-	u32 reg_val;
+	u32 alarm, time, reg_val;
 
 	dev_dbg(dev, "%s\n", __func__);
 	if (device_may_wakeup(dev))
 		disable_irq_wake(rtc->irq);
 
-	remain_time = readl(rtc->reg_base + RTC_ALARM0_REG)
-					  - readl(rtc->reg_base + RTC_REAL_TIME);
+	alarm = readl(rtc->reg_base + RTC_ALARM0_REG);
+	time = readl(rtc->reg_base + RTC_REAL_TIME);
+	if (rtc->time_storage_format) {
+		alarm = gray_to_binary(alarm);
+		time = gray_to_binary(time);
+	}
+	remain_time = alarm - time;
 	if (remain_time <= 0) {
 		/* Clear alarm0 */
 		writel(0, rtc->reg_base + RTC_ALARM0_REG);
