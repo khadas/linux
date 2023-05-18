@@ -4578,6 +4578,18 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 				(AMDV_PATH_CTRL + misc_off,
 				3, 0, 2);
 	}
+	if (cur_dev->display_module != C3_DISPLAY_MODULE) {
+		/*vpp input size setting*/
+		if (layer->cur_frame_par) {
+			layer->cur_frame_par->VPP_pic_in_height_ = 0;
+			layer->cur_frame_par->VPP_line_in_length_ = 0;
+		}
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_PIC_IN_HEIGHT + misc_off, 0);
+
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(VPP_LINE_IN_LENGTH + misc_off, 0);
+	}
 
 	/*auto disable sr when video off*/
 	if (!is_meson_txl_cpu() &&
