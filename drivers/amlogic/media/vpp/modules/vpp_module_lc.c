@@ -1529,8 +1529,8 @@ static void _lc_stts_config(int bitdepth,
 	tmp = lc_tune_curve[EN_LC_THD_BLACK];
 	addr = ADDR_PARAM(lc_reg_cfg.page,
 		lc_reg_cfg.reg_stts_black_info);
-	start = lc_bit_cfg.bit_stts_black_cnt.start;
-	len = lc_bit_cfg.bit_stts_black_cnt.len;
+	start = lc_bit_cfg.bit_stts_black_data_thrd.start;
+	len = lc_bit_cfg.bit_stts_black_data_thrd.len;
 	WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, tmp, start, len);
 }
 
