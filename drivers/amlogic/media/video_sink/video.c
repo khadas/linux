@@ -727,6 +727,11 @@ void get_video_axis_offset(s32 *x_offset, s32 *y_offset)
 	s32 x_end, y_end;
 	struct disp_info_s *layer = &glayer_info[0];
 	const struct vinfo_s *info = get_current_vinfo();
+	int orientation = 0;
+
+	#ifdef TV_REVERSE
+	orientation = screen_orientation();
+	#endif
 
 	if (!info) {
 		*x_offset = 0;
@@ -735,18 +740,18 @@ void get_video_axis_offset(s32 *x_offset, s32 *y_offset)
 	}
 
 	/* reverse and mirror case */
-	if (layer->reverse) {
+	if (orientation == HV_MIRROR) {
 		/* reverse x/y start */
 		x_end = layer->layer_left + layer->layer_width - 1;
 		*x_offset = info->width - x_end - 1;
 		y_end = layer->layer_top + layer->layer_height - 1;
 		*y_offset = info->height - y_end - 1;
-	} else if (layer->mirror == H_MIRROR) {
+	} else if (orientation == H_MIRROR) {
 		/* horizontal mirror */
 		x_end = layer->layer_left + layer->layer_width - 1;
 		*x_offset = info->width - x_end - 1;
 		*y_offset = layer->layer_top;
-	} else if (layer->mirror == V_MIRROR) {
+	} else if (orientation == V_MIRROR) {
 		/* vertical mirror */
 		*x_offset = layer->layer_left;
 		y_end = layer->layer_top + layer->layer_height - 1;
@@ -19684,6 +19689,22 @@ static int video_attr_create(void)
 }
 
 #ifdef TV_REVERSE
+int screen_orientation(void)
+{
+	int ret = 0;
+
+	if (reverse)
+		ret = HV_MIRROR;
+	else if (video_mirror == H_MIRROR)
+		ret = H_MIRROR;
+	else if (video_mirror == V_MIRROR)
+		ret = V_MIRROR;
+	else
+		ret = NO_MIRROR;
+
+	return ret;
+}
+
 static int vpp_axis_reverse(char *str)
 {
 	char *ptr = str;
@@ -19705,10 +19726,10 @@ static int vpp_axis_reverse(char *str)
 		video_mirror = 0;
 	} else if (strstr(ptr, "2")) {
 		reverse = false;
-		video_mirror = 1;
+		video_mirror = H_MIRROR;
 	} else if (strstr(ptr, "3")) {
 		reverse = false;
-		video_mirror = 2;
+		video_mirror = V_MIRROR;
 	} else {
 		reverse = false;
 		video_mirror = 0;

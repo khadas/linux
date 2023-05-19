@@ -983,6 +983,10 @@ bool is_pre_link_available(struct vframe_s *vf);
 #endif
 void update_primary_fmt_event(void);
 
+#ifdef TV_REVERSE
+int screen_orientation(void);
+#endif
+
 #ifndef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 enum avevent_e {
 	VIDEO_START,

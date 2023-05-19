@@ -4825,6 +4825,7 @@ int vpp_set_filters(struct disp_info_s *input,
 	u32 dst_width = 0, dst_height = 0;
 	u8 slice_num = 0;
 	bool adjust = false;
+	s32 orientation = 0;
 
 	if (!input)
 		return ret;
@@ -5031,11 +5032,15 @@ RERTY:
 			local_input.layer_left + local_input.layer_width - 1,
 			local_input.layer_top + local_input.layer_height - 1);
 
+#ifdef TV_REVERSE
+	orientation = screen_orientation();
+#endif
+
 	/* reverse and mirror case */
-	if (local_input.reverse || local_input.mirror) {
+	if (orientation != NO_MIRROR) {
 		s32 x_end, y_end;
 
-		if (local_input.reverse) {
+		if (orientation == HV_MIRROR) {
 			/* reverse x/y start */
 			x_end = local_input.layer_left +
 				local_input.layer_width - 1;
@@ -5043,12 +5048,12 @@ RERTY:
 			y_end = local_input.layer_top +
 				local_input.layer_height - 1;
 			local_input.layer_top = vinfo->height - y_end - 1;
-		} else if (local_input.mirror == H_MIRROR) {
+		} else if (orientation == H_MIRROR) {
 			/* horizontal mirror */
 			x_end = local_input.layer_left +
 				local_input.layer_width - 1;
 			local_input.layer_left = vinfo->width - x_end - 1;
-		} else if (local_input.mirror == V_MIRROR) {
+		} else if (orientation == V_MIRROR) {
 			/* vertical mirror */
 			y_end = local_input.layer_top +
 				local_input.layer_height - 1;

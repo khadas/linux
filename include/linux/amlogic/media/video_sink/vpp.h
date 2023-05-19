@@ -61,6 +61,7 @@ extern struct sr_info_s sr_info;
 #define NO_MIRROR  0
 #define H_MIRROR   1
 #define V_MIRROR   2
+#define HV_MIRROR  3
 
 enum vppfilter_state_e {
 	vppfilter_fail = -1,
