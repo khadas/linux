@@ -255,7 +255,7 @@ void vdin_fill_pix_format(struct vdin_dev_s *devp)
 			v4l2_fmt->fmt.pix_mp.plane_fmt[1].bytesperline =
 				v4l2_fmt->fmt.pix_mp.width;
 		} else if (v4l2_fmt->fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV12M ||
-				   v4l2_fmt->fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV12M) {
+				   v4l2_fmt->fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV21M) {
 			v4l2_fmt->fmt.pix_mp.plane_fmt[0].sizeimage =
 				v4l2_fmt->fmt.pix_mp.width * v4l2_fmt->fmt.pix_mp.height;
 			v4l2_fmt->fmt.pix_mp.plane_fmt[1].sizeimage =
