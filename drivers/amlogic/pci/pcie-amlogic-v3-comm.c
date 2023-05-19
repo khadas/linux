@@ -1098,6 +1098,16 @@ static int amlogic_pcie_init_port_for_m31_phy(struct amlogic_pcie *amlogic)
 	if (err)
 		return err;
 
+	/* XCFGI[706] value from vendor recommend for temperature compensation */
+	val = readl(amlogic->phy_base + 0x858);
+	val |= BIT(2);
+	writel(val, amlogic->phy_base + 0x858);
+
+	/* XCFGI[322:320] value from vendor recommend for temperature compensation */
+	val = readl(amlogic->phy_base + 0x828);
+	val |= 0x6;
+	writel(val, amlogic->phy_base + 0x828);
+
 	/*PHY_Register_XCFGD value from vendor recommend*/
 	regs = readl(amlogic->phy_base + 0x470);
 	regs |= (1 << 6);
@@ -1127,9 +1137,18 @@ static int amlogic_pcie_init_port_for_m31_combphy(struct amlogic_pcie *amlogic)
 	val |= BIT(2) | BIT(12) | BIT(17) | BIT(23) | BIT(25);
 	writel(val, amlogic->phy_base);
 	val = readl(amlogic->phy_base + 0x4);
-
 	val |= BIT(11);
 	writel(val, amlogic->phy_base + 0x4);
+
+	/* XCFGI[706] value from vendor recommend for temperature compensation */
+	val = readl(amlogic->phy_base + 0x858);
+	val |= BIT(2);
+	writel(val, amlogic->phy_base + 0x858);
+
+	/* XCFGI[322:320] value from vendor recommend for temperature compensation */
+	val = readl(amlogic->phy_base + 0x828);
+	val |= 0x6;
+	writel(val, amlogic->phy_base + 0x828);
 
 	ret = amlogic_pcie_set_reset_for_m31_combphy(amlogic);
 	if (ret)
