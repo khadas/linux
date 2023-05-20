@@ -1172,7 +1172,6 @@ static int latmus_release(struct inode *inode, struct file *filp)
 
 static struct class latmus_class = {
 	.name = "latmus",
-	.owner = THIS_MODULE,
 };
 
 static const struct file_operations latmus_fops = {

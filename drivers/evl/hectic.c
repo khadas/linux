@@ -650,7 +650,6 @@ static int hectic_release(struct inode *inode, struct file *filp)
 
 static struct class hectic_class = {
 	.name = "hectic",
-	.owner = THIS_MODULE,
 };
 
 static const struct file_operations hectic_fops = {

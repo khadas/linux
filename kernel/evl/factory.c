@@ -740,7 +740,7 @@ static int create_element_class(struct evl_factory *fac)
 	if (fac->minor_map == NULL)
 		return ret;
 
-	class = class_create(THIS_MODULE, fac->name);
+	class = class_create(fac->name);
 	if (IS_ERR(class)) {
 		ret = PTR_ERR(class);
 		goto cleanup_minor;
@@ -882,7 +882,7 @@ int __init evl_early_init_factories(void)
 {
 	int ret;
 
-	evl_class = class_create(THIS_MODULE, "evl");
+	evl_class = class_create("evl");
 	if (IS_ERR(evl_class))
 		return PTR_ERR(evl_class);
 
