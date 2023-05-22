@@ -2394,6 +2394,7 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	u32 calc_tmds_clk = 0;
 	int i = 0;
 	int svd_flag = 0;
+	int must_frl_flag = 0;
 	/* Default max color depth is 24 bit */
 	enum hdmi_color_depth rx_y444_max_dc = COLORDEPTH_24B;
 	enum hdmi_color_depth rx_y420_max_dc = COLORDEPTH_24B;
@@ -2467,21 +2468,35 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	if (!timing)
 		return 0;
 
+	/* more than 4k60 must use frl mode */
+	if (timing->h_active > 4096 || timing->v_active > 2160 ||
+	timing->v_freq == 48000 || calc_tmds_clk > 594 ||
+	timing->pixel_freq / 1000 > 600)
+		must_frl_flag = 1;
+
+	if (prxcap->max_frl_rate == FRL_NONE) {
+		if (must_frl_flag)
+			return 0;
+	}
+
 	if (hdev->tx_max_frl_rate == FRL_NONE) {
-		/* maximum 600Mhz for tmds mode */
-		tx_bandwidth_cap = 600;
-		if (calc_tmds_clk > tx_bandwidth_cap)
+		if (must_frl_flag)
 			return 0;
-		else if (calc_tmds_clk > rx_max_tmds_clk)
+		/* Used for S1A to judge whether it exceeds the chip support */
+		/* if (hdev->data.chip_type == MESON_CPU_ID_S1A) { */
+		/* tx_bandwidth_cap = 225; */
+		/* if (calc_tmds_clk > tx_bandwidth_cap) */
+		/*	return 0; */
+		/* } */
+		if (calc_tmds_clk > rx_max_tmds_clk)
 			return 0;
-		valid = 1;
 	} else {
-		/* maximum 600Mhz for tmds mode */
-		tx_bandwidth_cap = 600;
-		if (calc_tmds_clk <= rx_max_tmds_clk &&
-			calc_tmds_clk <= tx_bandwidth_cap) {
-			/* is able to run under TMDS mode */
-			valid = 1;
+		if (!must_frl_flag) {
+			/* used TMDS, calc_tmds_clk must less than 594, not
+			 * need repeat judgment(calc_tmds_clk < tx_bandwidth_cap)
+			 */
+			if (calc_tmds_clk > rx_max_tmds_clk)
+				return 0;
 		} else {
 			/* try to check if able to run under FRL mode */
 			/* tx_frl_bandwidth = timing->pixel_freq / 1000 * 24 * 1.122 */
