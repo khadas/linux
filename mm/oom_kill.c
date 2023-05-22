@@ -42,6 +42,9 @@
 #include <linux/kthread.h>
 #include <linux/init.h>
 #include <linux/mmu_notifier.h>
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+#include <linux/amlogic/page_trace.h>
+#endif
 
 #include <asm/tlb.h>
 #include "internal.h"
@@ -457,6 +460,9 @@ static void dump_header(struct oom_control *oc, struct task_struct *p)
 	if (!IS_ENABLED(CONFIG_COMPACTION) && oc->order)
 		pr_warn("COMPACTION is disabled!!!\n");
 
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+	show_pagetrace();
+#endif
 	dump_stack();
 	if (is_memcg_oom(oc))
 		mem_cgroup_print_oom_meminfo(oc->memcg);

@@ -1077,6 +1077,103 @@ static const struct file_operations pagetrace_file_ops = {
 	.release	= single_release,
 };
 
+static void show_page_trace2(struct zone *zone,
+		struct pagetrace_summary *pt_sum)
+{
+	int i, j;
+	struct page_summary *p;
+	unsigned long total_mt, total_used = 0;
+	struct page_summary *sum = pt_sum->sum;
+	int *mt_cnt = pt_sum->mt_cnt;
+
+	pr_info("%s            %s, %s\n",
+			"count(KB)", "kaddr", "function");
+	pr_info("------------------------------\n");
+	for (j = 0; j < MIGRATE_TYPES; j++) {
+		if (!mt_cnt[j])	/* this migrate type is empty */
+			continue;
+
+		p = sum + mt_offset[j];
+		sort(p, mt_cnt[j], sizeof(*p), trace_cmp, NULL);
+
+		total_mt = 0;
+		for (i = 0; i < mt_cnt[j]; i++) {
+			if (!p[i].cnt)	/* may be empty after merge */
+				continue;
+
+			if (K(p[i].cnt) >= page_trace_filter) {
+				pr_info("%8ld, %16lx, %ps\n",
+						K(p[i].cnt), p[i].ip,
+						(void *)p[i].ip);
+			}
+			total_mt += p[i].cnt;
+		}
+		if (!total_mt)
+			continue;
+		pr_info("------------------------------\n");
+		pr_info("total pages:%6ld, %9ld kB, type:%s\n",
+				total_mt, K(total_mt), migratetype_names[j]);
+		if (page_trace_filter_slab)
+			pr_info("filter_slab pages:%6d, %9ld kB\n",
+					pt_sum->filter_slab[j], K(pt_sum->filter_slab[j]));
+		pr_info("------------------------------\n");
+		total_used += total_mt;
+	}
+	pr_info("Zone %8s, managed:%6ld KB, free:%6ld kB, used:%6ld KB\n",
+			zone->name, K(atomic_long_read(&zone->managed_pages)),
+			K(zone_page_state(zone, NR_FREE_PAGES)), K(total_used));
+	pr_info("------------------------------\n");
+}
+
+int show_pagetrace(void)
+{
+	struct zone *zone;
+	int ret, size = sizeof(struct page_summary) * SHOW_CNT;
+	struct pagetrace_summary *sum;
+
+#ifndef CONFIG_64BIT
+	if (!trace_buffer) {
+		pr_info("page trace not enabled\n");
+		return 0;
+	}
+#endif
+
+	sum = kzalloc(sizeof(*sum), GFP_KERNEL);
+	if (!sum)
+		return -ENOMEM;
+
+	sum->sum = vzalloc(size);
+	if (!sum->sum) {
+		kfree(sum);
+		return -ENOMEM;
+	}
+
+	/* update only once */
+	pr_info("==============================\n");
+	sum->ticks = sched_clock();
+	for_each_populated_zone(zone) {
+		memset(sum->sum, 0, size);
+		memset(sum->mt_cnt, 0, sizeof(int) * MIGRATE_TYPES);
+		ret = update_page_trace(NULL, zone, sum);
+		if (ret) {
+			pr_info("Error %d in zone %8s\n",
+					ret, zone->name);
+			continue;
+		}
+		show_page_trace2(zone, sum);
+	}
+	sum->ticks = sched_clock() - sum->ticks;
+
+	pr_info("SHOW_CNT:%d, buffer size:%d, tick:%ld ns\n",
+			SHOW_CNT, size, sum->ticks);
+	pr_info("==============================\n");
+
+	vfree(sum->sum);
+	kfree(sum);
+
+	return 0;
+}
+
 #ifdef CONFIG_AMLOGIC_SLAB_TRACE
 /*---------------- part 2 for slab trace ---------------------*/
 #include <linux/jhash.h>

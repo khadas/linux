@@ -135,6 +135,7 @@ unsigned long find_back_trace(void);
 unsigned long get_page_trace(struct page *page);
 void show_data(unsigned long addr, int nbytes, const char *name);
 int save_obj_stack(unsigned long *stack, int depth);
+int show_pagetrace(void);
 #ifdef CONFIG_AMLOGIC_SLAB_TRACE
 int slab_trace_init(void);
 int slab_trace_add_page(struct page *page, int order,
@@ -216,6 +217,11 @@ static inline int get_cache_max_order(struct kmem_cache *s)
 }
 
 static inline int save_obj_stack(unsigned long *stack, int depth)
+{
+	return 0;
+}
+
+int show_pagetrace(void)
 {
 	return 0;
 }
