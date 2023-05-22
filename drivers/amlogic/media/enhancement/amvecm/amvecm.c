@@ -10689,7 +10689,7 @@ void amvecm_gamma_init(bool en)
 	unsigned short temp;
 	struct gamma_data_s *p_gm;
 
-	if (chip_type_id == chip_s5)
+	if (chip_cls_id == STB_CHIP)
 		return;
 
 	if (chip_type_id == chip_a4) {
