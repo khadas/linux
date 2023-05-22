@@ -762,6 +762,16 @@ void get_video_axis_offset(s32 *x_offset, s32 *y_offset)
 	}
 }
 
+bool vf_source_from_vdin(struct vframe_s *vf)
+{
+	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+		vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
+		vf->source_type == VFRAME_SOURCE_TYPE_TUNER)
+		return true;
+	else
+		return false;
+}
+
 #if defined(PTS_LOGGING)
 static ssize_t pts_pattern_enter_cnt_read_file(struct file *file,
 					       char __user *userbuf,
@@ -8017,11 +8027,14 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		vf = video_vf_peek();
 		if (vf) {
 			if (hdmi_in_onvideo == 0) {
-				if (!nopostvideostart)
+				if (!nopostvideostart) {
+					if (vf_source_from_vdin(vf))
+						tsync_set_enable(0);
 					tsync_avevent_locked
 						(VIDEO_START,
 						(vf->pts) ? vf->pts :
 						timestamp_vpts_get());
+				}
 				video_start_post = true;
 			}
 

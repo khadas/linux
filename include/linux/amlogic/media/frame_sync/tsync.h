@@ -241,6 +241,8 @@ bool tsync_get_new_arch(void);
 
 u32 tsync_get_checkin_apts(void);
 
+void tsync_set_mode(int mode);
+
 void tsync_reset(void);
 
 static inline u32 tsync_vpts_discontinuity_margin(void)

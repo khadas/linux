@@ -1574,6 +1574,13 @@ u32 tsync_get_checkin_apts(void)
 }
 EXPORT_SYMBOL(tsync_get_checkin_apts);
 
+void tsync_set_mode(int mode)
+{
+	tsync_mode = mode;
+	pr_info("[%s]tsync_mode=%d\n", __func__, tsync_mode);
+}
+EXPORT_SYMBOL(tsync_set_mode);
+
 static ssize_t pcr_recover_store(struct class *class,
 				 struct class_attribute *attr,
 				 const char *buf, size_t size)
