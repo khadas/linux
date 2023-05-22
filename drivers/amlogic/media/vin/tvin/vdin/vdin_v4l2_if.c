@@ -1277,7 +1277,7 @@ static int vidioc_try_fmt_vid_cap_mplane(struct file *file, void *priv,
 			__func__, devp->index, f->type);
 		return -EINVAL;
 	}
-	if (f->fmt.pix_mp.width > 4096 || f->fmt.pix_mp.width > 2160) {
+	if (f->fmt.pix_mp.width > 4096 || f->fmt.pix_mp.height > 2160) {
 		dprintk(0, "%s vdin%d v4l2 do not support w=%d,h=%d\n",
 			__func__, devp->index, f->fmt.pix_mp.width, f->fmt.pix_mp.height);
 		return -EINVAL;
