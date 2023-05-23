@@ -51,6 +51,7 @@ struct audio_acc {
 	int asrc_input_samplerate;
 	int asrc_output_samplerate;
 	int channel;
+	int suspend_clk_off;
 };
 
 struct audio_acc *acc;
@@ -529,7 +530,10 @@ static int acc_platform_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "get acc core clock\n");
 		clk_prepare_enable(p_acc->acc_core_clk);
 	}
-
+	ret = of_property_read_u32(node, "suspend-clk-off",
+			&p_acc->suspend_clk_off);
+	if (ret < 0)
+		dev_err(&pdev->dev, "Can't retrieve suspend-clk-off\n");
 	ret = of_property_read_u32(pdev->dev.of_node, "output_module", &output_module);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Can't retrieve output_module\n");
@@ -567,13 +571,20 @@ static int acc_platform_suspend(struct platform_device *pdev, pm_message_t state
 
 	acc_eq_clk_enable(p_acc->actrl, false);
 	acc_asrc_clk_enable(p_acc->actrl, false);
-
+	if (p_acc->suspend_clk_off && !IS_ERR(p_acc->acc_core_clk)) {
+		while (__clk_is_enabled(p_acc->acc_core_clk))
+			clk_disable_unprepare(p_acc->acc_core_clk);
+	}
 	return 0;
 }
 
 static int acc_platform_resume(struct platform_device *pdev)
 {
 	struct audio_acc *p_acc = dev_get_drvdata(&pdev->dev);
+	if (p_acc->suspend_clk_off && !IS_ERR(p_acc->acc_core_clk)) {
+		dev_info(&pdev->dev, "get acc core clock\n");
+		clk_prepare_enable(p_acc->acc_core_clk);
+	}
 
 	acc_eq_clk_enable(p_acc->actrl, true);
 	acc_asrc_clk_enable(p_acc->actrl, true);
