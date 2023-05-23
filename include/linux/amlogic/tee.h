@@ -49,6 +49,8 @@
 #define DMC_DEV_ID_DI_POST                                 17
 #define DMC_DEV_ID_GDC                                     18
 
+/* TEE error codes */
+#define TEEC_SUCCESS                                       0x00000000
 bool tee_enabled(void);
 int is_secload_get(void);
 int tee_load_video_fw(u32 index, u32 vdec);
@@ -77,6 +79,8 @@ u32 tee_protect_mem(u32 type, u32 level,
 int tee_check_in_mem(phys_addr_t pa, size_t size);
 
 int tee_check_out_mem(phys_addr_t pa, size_t size);
+
+u32 tee_register_mem(u32 type, phys_addr_t pa, size_t size);
 
 int tee_vp9_prob_process(u32 cur_frame_type, u32 prev_frame_type,
 		u32 prob_status, u32 prob_addr);

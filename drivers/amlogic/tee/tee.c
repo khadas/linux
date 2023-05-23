@@ -23,6 +23,7 @@
 
 #include <linux/amlogic/tee.h>
 #include <asm/cputype.h>
+#include <linux/tee_drv.h>
 
 #define DRIVER_NAME "tee_info"
 #define DRIVER_DESC "Amlogic tee driver"
@@ -128,6 +129,31 @@ static int disable_flag;
 #define TEE_SMC_VP9_PROB_FREE \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_VP9_PROB_FREE)
 
+/* tee param number */
+#define TEE_PARAM_NUM                   4
+
+/* tvp memory command */
+#define TVP_CMD_PROTECT_MEM             0
+#define TVP_CMD_UNPROTECT_MEM           1
+#define TVP_CMD_CHECK_IN_MEM            2
+#define TVP_CMD_CHECK_OUT_MEM           3
+#define TVP_CMD_REGISTER_MEM            4
+
+#define PTA_TVP_UUID UUID_INIT(0x1a658fe8, 0x894e, 0x4403, \
+			0xae, 0xa6, 0x5a, 0xe6, 0x91, 0xe8, 0xa3, 0x5f)
+
+/* stest pta related */
+struct tee_sys_info {
+	char module[64];
+	char status[128];
+};
+
+#define STEST_CMD_GET_SYS_INFO          5
+#define STEST_GET_SYS_INFO_CNT          32
+
+#define PTA_STEST_UUID UUID_INIT(0x7a7050be, 0xb5f8, 0x4c06, \
+			0x81, 0xca, 0x52, 0x3a, 0xb2, 0x02, 0xa3, 0x8a)
+
 static struct class *tee_sys_class;
 
 struct tee_smc_calls_revision_result {
@@ -136,6 +162,111 @@ struct tee_smc_calls_revision_result {
 	unsigned long reserved0;
 	unsigned long reserved1;
 };
+
+#ifdef CONFIG_AML_OPTEE
+static int optee_ctx_match(struct tee_ioctl_version_data *ver, const void *data)
+{
+	return (ver->impl_id == TEE_IMPL_ID_OPTEE);
+}
+
+/* Invoke pta cmd with tee context, the tee context have been allocated*/
+static int tee_pta_invoke_cmd(struct tee_context *ctx, uuid_t uuid, u32 cmd,
+				struct tee_param *param)
+{
+	int ret = 0;
+	struct tee_ioctl_open_session_arg sess_arg = { 0 };
+	struct tee_ioctl_invoke_arg inv_arg = { 0 };
+
+	/* Check tee ctx */
+	if (IS_ERR(ctx)) {
+		pr_err("%s is null, cmd = %u\n", __func__, cmd);
+		return -ENODEV;
+	}
+
+	/* Open session */
+	memcpy(sess_arg.uuid, uuid.b, TEE_IOCTL_UUID_LEN);
+	sess_arg.clnt_login = TEE_IOCTL_LOGIN_PUBLIC;
+	sess_arg.num_params = 0;
+	ret = tee_client_open_session(ctx, &sess_arg, NULL);
+	if (ret < 0 || sess_arg.ret != TEEC_SUCCESS) {
+		pr_err("%s open session failed, cmd = %u, ret = %d, res = 0x%x, origin = 0x%x\n",
+				__func__, cmd, ret, sess_arg.ret, sess_arg.ret_origin);
+		ret = sess_arg.ret;
+		goto out;
+	}
+
+	/* Invoke function */
+	inv_arg.func = cmd;
+	inv_arg.session = sess_arg.session;
+	inv_arg.num_params = TEE_PARAM_NUM;
+	ret = tee_client_invoke_func(ctx, &inv_arg, param);
+	if (ret < 0 || inv_arg.ret != TEEC_SUCCESS) {
+		pr_err("%s invoke func failed, cmd = %u, ret= %d, res = 0x%x, origin = 0x%x\n",
+				__func__, cmd, ret, inv_arg.ret, inv_arg.ret_origin);
+		ret = inv_arg.ret;
+	}
+
+	tee_client_close_session(ctx, sess_arg.session);
+out:
+	return ret;
+}
+
+static int tee_get_sys_info(char *buf)
+{
+	int ret = 0;
+	struct tee_context *ctx = NULL;
+	struct tee_shm *shm_pool = NULL;
+	uuid_t uuid = PTA_STEST_UUID;
+	struct tee_param param[TEE_PARAM_NUM] = { 0 };
+	char *shm_data = NULL;
+	struct tee_sys_info *sys_info = NULL;
+	int i = 0;
+	int buf_offs = 0;
+
+	/* Open context with TEE driver */
+	ctx = tee_client_open_context(NULL, optee_ctx_match, NULL, NULL);
+	if (IS_ERR(ctx)) {
+		pr_err("%s open context failed\n", __func__);
+		return -ENODEV;
+	}
+
+	shm_pool = tee_shm_alloc_kernel_buf(ctx,
+		STEST_GET_SYS_INFO_CNT * sizeof(struct tee_sys_info));
+	if (IS_ERR(shm_pool)) {
+		pr_err("%s tee_shm_alloc failed\n", __func__);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT;
+	param[0].u.memref.shm = shm_pool;
+	param[0].u.memref.size = STEST_GET_SYS_INFO_CNT * sizeof(struct tee_sys_info);
+	param[0].u.memref.shm_offs = 0;
+
+	ret = tee_pta_invoke_cmd(ctx, uuid, STEST_CMD_GET_SYS_INFO, param);
+	if (!ret) {
+		shm_data = tee_shm_get_va(shm_pool, 0);
+		if (IS_ERR(shm_data)) {
+			pr_err("%s tee_shm_get_va failed\n", __func__);
+			ret = -EBUSY;
+			goto out_shm;
+		}
+
+		for (i = 0; i < param[0].u.memref.size / sizeof(struct tee_sys_info); i++) {
+			sys_info = (struct tee_sys_info *)shm_data;
+			sprintf(buf + buf_offs, "%-55s | %s\n", sys_info->module, sys_info->status);
+			buf_offs = strlen(buf);
+			shm_data += sizeof(struct tee_sys_info);
+		}
+	}
+
+out_shm:
+	tee_shm_free(shm_pool);
+out:
+	tee_client_close_context(ctx);
+	return ret;
+}
+#endif
 
 static int tee_msg_os_revision(u32 *major, u32 *minor)
 {
@@ -211,6 +342,21 @@ static ssize_t os_version_show(struct class *class,
 
 	return ret;
 }
+
+#ifdef CONFIG_AML_OPTEE
+static ssize_t sys_info_show(struct class *class,
+			       struct class_attribute *attr, char *buf)
+{
+	int ret;
+
+	ret = tee_get_sys_info(buf);
+	if (ret)
+		return 0;
+
+	ret = strlen(buf);
+	return ret;
+}
+#endif
 
 static ssize_t api_version_show(struct class *class,
 				struct class_attribute *attr, char *buf)
@@ -334,6 +480,9 @@ static ssize_t log_level_store(struct class *class,
 
 static CLASS_ATTR_RO(os_version);
 static CLASS_ATTR_RO(api_version);
+#ifdef CONFIG_AML_OPTEE
+static CLASS_ATTR_RO(sys_info);
+#endif
 static CLASS_ATTR_RW(sys_boot_complete);
 static CLASS_ATTR_RW(log_mode);
 static CLASS_ATTR_RW(log_level);
@@ -381,49 +530,167 @@ bool tee_enabled(void)
 }
 EXPORT_SYMBOL(tee_enabled);
 
+/* This function will be deprecated */
 u32 tee_protect_tvp_mem(phys_addr_t start, size_t size, u32 *handle)
 {
-	struct arm_smccc_res res;
-
-	if (!handle)
-		return 0xFFFF0006;
-
-	arm_smccc_smc(TEE_SMC_PROTECT_TVP_MEM,
-		      start, size, 0, 0, 0, 0, 0, &res);
-
-	*handle = res.a1;
-
-	return res.a0;
+	return tee_protect_mem(TEE_MEM_TYPE_STREAM_OUTPUT, 0, start, size, handle);
 }
 EXPORT_SYMBOL(tee_protect_tvp_mem);
 
+/* This function will be deprecated */
 void tee_unprotect_tvp_mem(u32 handle)
 {
-	struct arm_smccc_res res;
-
-	arm_smccc_smc(TEE_SMC_UNPROTECT_TVP_MEM,
-		      handle, 0, 0, 0, 0, 0, 0, &res);
+	tee_unprotect_mem(handle);
 }
 EXPORT_SYMBOL(tee_unprotect_tvp_mem);
 
+/* This function will be deprecated */
 u32 tee_protect_mem_by_type(u32 type,
-		phys_addr_t start, size_t size,
-		u32 *handle)
+		phys_addr_t start, size_t size, u32 *handle)
 {
-	struct arm_smccc_res res;
-
-	if (!handle)
-		return 0xFFFF0006;
-
-	arm_smccc_smc(TEE_SMC_PROTECT_MEM_BY_TYPE,
-			type, start, size, 0, 0, 0, 0, &res);
-
-	*handle = res.a1;
-
-	return res.a0;
+	return tee_protect_mem(type, 0, start, size, handle);
 }
 EXPORT_SYMBOL(tee_protect_mem_by_type);
 
+#ifdef CONFIG_AML_OPTEE
+u32 tee_protect_mem(u32 type, u32 level,
+		phys_addr_t start, size_t size, u32 *handle)
+{
+	int ret = 0;
+	uuid_t uuid = PTA_TVP_UUID;
+	struct tee_param param[TEE_PARAM_NUM] = { 0 };
+	struct tee_context *ctx = NULL;
+
+	if (!handle)
+		return -EINVAL;
+
+	ctx = tee_client_open_context(NULL, optee_ctx_match, NULL, NULL);
+	if (IS_ERR(ctx)) {
+		pr_err("%s open context failed\n", __func__);
+		return -ENODEV;
+	}
+
+	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
+	param[0].u.value.a = (u64)type;
+	param[0].u.value.b = (u64)level;
+	param[1].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
+	param[1].u.value.a = start & 0xffffffff;
+	param[1].u.value.b = (sizeof(phys_addr_t) == sizeof(u32)) ? 0 : start >> 32;
+
+	param[2].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
+	param[2].u.value.a = size & 0xffffffff;
+	param[2].u.value.b = (sizeof(size_t) == sizeof(u32)) ? 0 : size >> 32;
+	param[3].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT;
+
+	ret = tee_pta_invoke_cmd(ctx, uuid, TVP_CMD_PROTECT_MEM, param);
+	if (!ret)
+		*handle = (u32)param[3].u.value.a;
+
+	tee_client_close_context(ctx);
+	return ret;
+}
+EXPORT_SYMBOL(tee_protect_mem);
+
+void tee_unprotect_mem(u32 handle)
+{
+	uuid_t uuid = PTA_TVP_UUID;
+	struct tee_param param[TEE_PARAM_NUM] = { 0 };
+	struct tee_context *ctx = NULL;
+
+	ctx = tee_client_open_context(NULL, optee_ctx_match, NULL, NULL);
+	if (IS_ERR(ctx)) {
+		pr_err("%s open context failed\n", __func__);
+		return;
+	}
+
+	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
+	param[0].u.value.a = (u64)handle;
+	tee_pta_invoke_cmd(ctx, uuid, TVP_CMD_UNPROTECT_MEM, param);
+	tee_client_close_context(ctx);
+}
+EXPORT_SYMBOL(tee_unprotect_mem);
+
+int tee_check_in_mem(phys_addr_t pa, size_t size)
+{
+	int ret = 0;
+	uuid_t uuid = PTA_TVP_UUID;
+	struct tee_param param[TEE_PARAM_NUM] = { 0 };
+	struct tee_context *ctx = NULL;
+
+	ctx = tee_client_open_context(NULL, optee_ctx_match, NULL, NULL);
+	if (IS_ERR(ctx)) {
+		pr_err("%s open context failed\n", __func__);
+		return -ENODEV;
+	}
+
+	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
+	param[0].u.value.a = pa & 0xffffffff;
+	param[0].u.value.b = (sizeof(phys_addr_t) == sizeof(u32)) ? 0 : pa >> 32;
+	param[1].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
+	param[1].u.value.a = size & 0xffffffff;
+	param[1].u.value.b = (sizeof(size_t) == sizeof(u32)) ? 0 : size >> 32;
+
+	ret = tee_pta_invoke_cmd(ctx, uuid, TVP_CMD_CHECK_IN_MEM, param);
+	tee_client_close_context(ctx);
+	return ret;
+}
+EXPORT_SYMBOL(tee_check_in_mem);
+
+int tee_check_out_mem(phys_addr_t pa, size_t size)
+{
+	int ret = 0;
+	uuid_t uuid = PTA_TVP_UUID;
+	struct tee_param param[TEE_PARAM_NUM] = { 0 };
+	struct tee_context *ctx = NULL;
+
+	ctx = tee_client_open_context(NULL, optee_ctx_match, NULL, NULL);
+	if (IS_ERR(ctx)) {
+		pr_err("%s open context failed\n", __func__);
+		return -ENODEV;
+	}
+
+	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
+	param[0].u.value.a = pa & 0xffffffff;
+	param[0].u.value.b = (sizeof(phys_addr_t) == sizeof(u32)) ? 0 : pa >> 32;
+	param[1].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
+	param[1].u.value.a = size & 0xffffffff;
+	param[1].u.value.b = (sizeof(size_t) == sizeof(u32)) ? 0 : size >> 32;
+
+	ret = tee_pta_invoke_cmd(ctx, uuid, TVP_CMD_CHECK_OUT_MEM, param);
+	tee_client_close_context(ctx);
+	return ret;
+}
+EXPORT_SYMBOL(tee_check_out_mem);
+
+u32 tee_register_mem(u32 type, phys_addr_t pa, size_t size)
+{
+	int ret = 0;
+	uuid_t uuid = PTA_TVP_UUID;
+	struct tee_param param[TEE_PARAM_NUM] = { 0 };
+	struct tee_context *ctx = NULL;
+
+	ctx = tee_client_open_context(NULL, optee_ctx_match, NULL, NULL);
+	if (IS_ERR(ctx)) {
+		pr_err("%s open context failed\n", __func__);
+		return -ENODEV;
+	}
+
+	param[0].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
+	param[0].u.value.a = (u64)type;
+	param[1].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
+	param[1].u.value.a = pa & 0xffffffff;
+	param[1].u.value.b = (sizeof(phys_addr_t) == sizeof(u32)) ? 0 : pa >> 32;
+
+	param[2].attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT;
+	param[2].u.value.a = size & 0xffffffff;
+	param[2].u.value.b = (sizeof(size_t) == sizeof(u32)) ? 0 : size >> 32;
+
+	ret = tee_pta_invoke_cmd(ctx, uuid, TVP_CMD_REGISTER_MEM, param);
+	tee_client_close_context(ctx);
+	return ret;
+}
+EXPORT_SYMBOL(tee_register_mem);
+#else
 u32 tee_protect_mem(u32 type, u32 level,
 		phys_addr_t start, size_t size, u32 *handle)
 {
@@ -471,6 +738,17 @@ int tee_check_out_mem(phys_addr_t pa, size_t size)
 	return res.a0;
 }
 EXPORT_SYMBOL(tee_check_out_mem);
+
+u32 tee_register_mem(u32 type, phys_addr_t pa, size_t size)
+{
+	(void)type;
+	(void)pa;
+	(void)size;
+	pr_err("do not support %s.\n", __func__);
+	return 0;
+}
+EXPORT_SYMBOL(tee_register_mem);
+#endif
 
 int tee_config_device_state(int dev_id, int secure)
 {
@@ -579,9 +857,16 @@ int tee_create_sysfs(void)
 	}
 	ret = class_create_file(tee_sys_class, &class_attr_api_version);
 	if (ret != 0) {
-		pr_err("create class file os_version fail\n");
+		pr_err("create class file api_version fail\n");
 		return ret;
 	}
+#ifdef CONFIG_AML_OPTEE
+	ret = class_create_file(tee_sys_class, &class_attr_sys_info);
+	if (ret != 0) {
+		pr_err("create class file sys_info fail\n");
+		return ret;
+	}
+#endif
 
 	ret = class_create_file(tee_sys_class, &class_attr_sys_boot_complete);
 	if (ret != 0) {
