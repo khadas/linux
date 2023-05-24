@@ -945,11 +945,11 @@
                 hactive = <1088>; /* default 1080, but afbdc must 16 align */
                 hfront-porch = <104>;
                 hback-porch = <127>;
-                hsync-len = <4>; /////
+                hsync-len = <6>; /////
                 vactive = <1920>;
-                vfront-porch = <4>;
-                vback-porch = <3>;
-                vsync-len = <2>; /////
+                vfront-porch = <12>;
+                vback-porch = <10>;
+                vsync-len = <6>; /////
                 hsync-active = <0>;
                 vsync-active = <0>;
                 de-active = <0>;
