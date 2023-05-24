@@ -448,8 +448,9 @@ static void config_tv_enci(enum hdmi_vic vic)
 		hd21_write_reg(ENCI_VFIFO2VD_LINE_BOT_END, 18 + 240);
 		hd21_write_reg(ENCI_VFIFO2VD_CTL, (0x4e << 8) | 1);     // enable vfifo2vd
 		hd21_write_reg(ENCI_DBG_FLDLN_RST, 0x0f05);
-		hd21_write_reg(ENCI_SYNC_VSO_EVNLN, 0x0508);
-		hd21_write_reg(ENCI_SYNC_VSO_ODDLN, 0x0508);
+		/* adujst timming for s5 480i */
+		hd21_write_reg(ENCI_SYNC_VSO_EVNLN, 0x0003);
+		hd21_write_reg(ENCI_SYNC_VSO_ODDLN, 0x0003);
 		hd21_write_reg(ENCI_SYNC_HSO_BEGIN, 11 - 2);
 		hd21_write_reg(ENCI_SYNC_HSO_END, 31 - 2);
 		hd21_write_reg(ENCI_DBG_FLDLN_RST, 0xcf05);

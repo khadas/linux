@@ -89,6 +89,7 @@
 #endif
 #include "vpp_regs_s5.h"
 
+static u32 g_viu0_hold_line;
 static struct vd_proc_s g_vd_proc;
 struct vpp_post_reg_s vpp_post_reg;
 struct vd_proc_reg_s vd_proc_reg;
@@ -5253,19 +5254,24 @@ static void vd_proc_param_set(struct vd_proc_s *vd_proc, u32 frm_idx)
 void enable_mosaic_mode(u32 vpp_index, u8 enable)
 {
 	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
+	u32 val = 0;
 
 	if (enable)
-		rdma_wr(VIU_VIU0_MISC, 0x1000006);
+		val = 0x1000000 | g_viu0_hold_line;
 	else
-		rdma_wr(VIU_VIU0_MISC, 0x0000006);
+		val = g_viu0_hold_line;
+	rdma_wr(VIU_VIU0_MISC, val);
 }
 
 void set_frm_idx(u32 vpp_index, u32 frm_idx)
 {
+	u32 val = 0;
+
 	if (frm_idx == 0)
-		WRITE_VCBUS_REG(VIU_VIU0_MISC, 0x1000006);
+		val = 0x1000000 | g_viu0_hold_line;
 	else if (frm_idx == 1)
-		WRITE_VCBUS_REG(VIU_VIU0_MISC, 0x41000006);
+		val = 0x41000000 | g_viu0_hold_line;
+	WRITE_VCBUS_REG(VIU_VIU0_MISC, val);
 }
 
 /* sur_idx set to 0 for the first half */
@@ -5273,11 +5279,14 @@ void set_frm_idx(u32 vpp_index, u32 frm_idx)
 void vd_switch_frm_idx(u32 vpp_index, u32 frm_idx)
 {
 	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
+	u32 val = 0;
 
 	if (frm_idx == 0)
-		rdma_wr(VIU_VIU0_MISC, 0x1000006);
+		val = 0x1000000 | g_viu0_hold_line;
 	else if (frm_idx == 1)
-		rdma_wr(VIU_VIU0_MISC, 0x41000006);
+		val = 0x41000000 | g_viu0_hold_line;
+
+	rdma_wr(VIU_VIU0_MISC, val);
 	mosaic_frame_idx = frm_idx;
 }
 
@@ -11737,6 +11746,7 @@ int video_early_init_s5(struct amvideo_device_data_s *p_amvideo)
 	vpp_ofifo_size_s5 = p_amvideo->ofifo_size;
 	memcpy(conv_lbuf_len_s5, p_amvideo->afbc_conv_lbuf_len,
 	       sizeof(u32) * MAX_VD_LAYER);
+	g_viu0_hold_line = 6;
 
 	//init_vpu_work();
 	int_vpu_delay_work();

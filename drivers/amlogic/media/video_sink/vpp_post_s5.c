@@ -617,8 +617,6 @@ static int vpp_post_hwincut_param_set(struct vpp_post_input_s *vpp_input,
 static int vpp_blend_param_set(struct vpp_post_input_s *vpp_input,
 	struct vpp_post_blend_s *vpp_post_blend)
 {
-	const struct vinfo_s *vinfo = get_current_vinfo();
-
 	if (!vpp_input || !vpp_post_blend)
 		return -1;
 	vpp_post_blend->bld_dummy_data = 0x008080;
@@ -640,13 +638,6 @@ static int vpp_blend_param_set(struct vpp_post_input_s *vpp_input,
 #endif
 	vpp_post_blend->bld_out_w = vpp_input->bld_out_hsize;
 	vpp_post_blend->bld_out_h = vpp_input->bld_out_vsize;
-
-	/* for s5 480i, need add v scope yoffset 5 for workaround */
-	if (vinfo && vinfo->field_height != vinfo->height) {
-		if (vinfo->height == 480 &&
-			vpp_input->din_y_start[0] < 5)
-			vpp_input->din_y_start[0] = 5;
-	}
 
 	vpp_post_blend->bld_din0_h_start = vpp_input->din_x_start[0];
 	vpp_post_blend->bld_din0_h_end = vpp_post_blend->bld_din0_h_start +
