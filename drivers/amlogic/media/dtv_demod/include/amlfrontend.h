@@ -90,6 +90,7 @@
 /*  V2.1.96  improve performance when atsc signal is weak */
 /*  V2.1.97  fix dvbs blind scan new miss 2150M */
 /*  V2.1.98  support for identifying rt720 by name */
+/*  V2.1.99  increase the speed of isdb-t re-lock */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -106,8 +107,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.1.98"
-#define DTVDEMOD_VER	"2023/06/08: support for identifying rt720 by name"
+#define AMLDTVDEMOD_VER "V2.1.99"
+#define DTVDEMOD_VER	"2023/06/15: increase the speed of isdb-t re-lock"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

@@ -1452,7 +1452,7 @@ static ssize_t attr_store(struct class *cls, struct class_attribute *attr,
 	} else if (!strcmp(parm[0], "isdbtw")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
 			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
-				dvbt_isdtb_wr_reg_new(addr, val);
+				dvbt_isdbt_wr_reg_new(addr, val);
 				PR_INFO("isdbt wr addr:0x%x, val:0x%x\n", addr, val);
 			}
 		}

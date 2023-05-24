@@ -919,7 +919,17 @@ static void gxtv_demod_dvbt_release(struct dvb_frontend *fe)
 
 }
 
-static int dvbt_isdbt_set_frontend(struct dvb_frontend *fe);
+static void isdbt_reset_demod(void)
+{
+	dvbt_isdbt_wr_reg_new(0x02, 0x00800000);
+	dvbt_isdbt_wr_reg_new(0x00, 0x00000000);
+	dvbt_isdbt_wr_reg_new(0x0e, 0xffff);
+	dvbt_isdbt_wr_reg_new(0x02, 0x11001a);
+	msleep(20);
+	dvbt_isdbt_wr_reg_new(0x02, dvbt_isdbt_rd_reg_new(0x02) | (1 << 0));
+	dvbt_isdbt_wr_reg_new(0x02, dvbt_isdbt_rd_reg_new(0x02) | (1 << 24));
+}
+
 #define ISDBT_FSM_CHECK_SIGNAL 7
 static int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *status, bool re_tune)
 {
@@ -933,7 +943,7 @@ static int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *statu
 	int lost_continuous_cnt = isdbt_lost_continuous_cnt > 1 ? isdbt_lost_continuous_cnt : 1;
 	int check_signal_time = isdbt_check_signal_time > 1 ? isdbt_check_signal_time :
 		ISDBT_TIME_CHECK_SIGNAL;
-	int reset_in_unlock_times = isdbt_reset_in_unlock_times > 1 ? isdbt_reset_in_unlock_times :
+	int reset_in_unlock_times = isdbt_reset_in_unlock_times > 0 ? isdbt_reset_in_unlock_times :
 		ISDBT_RESET_IN_UNLOCK_TIMES;
 
 	if (re_tune) {
@@ -954,14 +964,17 @@ static int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *statu
 
 	if (strength < THRD_TUNER_STRENGTH_ISDBT) {
 		*status = FE_TIMEDOUT;
-		PR_ISDBT("no signal, strength=%d, need<%d\n", strength, THRD_TUNER_STRENGTH_ISDBT);
+		PR_ISDBT("no signal, strength=%d, need>%d\n", strength, THRD_TUNER_STRENGTH_ISDBT);
 		if (!(no_signal_cnt++ % 20))
-			dvbt_isdbt_set_frontend(fe);
+			isdbt_reset_demod();
 		unlock_cnt = 0;
 
 		goto finish;
 	}
-	no_signal_cnt = 0;
+	if (no_signal_cnt) {
+		no_signal_cnt = 0;
+		isdbt_reset_demod();
+	}
 
 	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
 	fsm = dvbt_isdbt_rd_reg(0x2a << 2);
@@ -990,6 +1003,9 @@ static int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *statu
 
 	//The status is updated only when the status continuously reaches the threshold of times
 	if (lock < 0) {
+		if (!(++unlock_cnt % reset_in_unlock_times))
+			isdbt_reset_demod();
+
 		if (demod->last_lock >= 0) {
 			demod->last_lock = -1;
 			PR_ISDBT("==> lost signal first\n");
@@ -1006,6 +1022,8 @@ static int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *statu
 		else
 			*status = 0;
 	} else if (lock > 0) {
+		unlock_cnt = 0;
+
 		if (demod->last_lock <= 0) {
 			demod->last_lock = 1;
 			PR_ISDBT("==> lock signal first\n");
@@ -1025,15 +1043,6 @@ static int dvbt_isdbt_read_status(struct dvb_frontend *fe, enum fe_status *statu
 	} else {
 		*status = 0;
 		PR_ISDBT("==> wait\n");
-	}
-
-	if (*status == FE_TIMEDOUT)
-		unlock_cnt++;
-	else
-		unlock_cnt = 0;
-	if (unlock_cnt >= reset_in_unlock_times) {
-		unlock_cnt = 0;
-		dvbt_isdbt_set_frontend(fe);
 	}
 
 finish:

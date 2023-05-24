@@ -599,7 +599,7 @@ unsigned int demod_get_sys_clk(struct aml_dtvdemod *demod);
 
 /*register access api new*/
 void dvbt_isdbt_wr_reg(unsigned int addr, unsigned int data);
-void dvbt_isdtb_wr_reg_new(unsigned int addr, unsigned int data);
+void dvbt_isdbt_wr_reg_new(unsigned int addr, unsigned int data);
 void dvbt_isdbt_wr_bits_new(u32 reg_addr, const u32 reg_data,
 		    const u32 start, const u32 len);
 unsigned int dvbt_isdbt_rd_reg(unsigned int addr);
