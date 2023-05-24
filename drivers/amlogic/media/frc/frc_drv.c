@@ -67,7 +67,6 @@
 
 // static struct frc_dev_s *frc_dev; // for SWPL-53056:KASAN: use-after-free
 static struct frc_dev_s frc_dev;
-struct work_struct frc_mem_dyc_proc;
 
 // need export_symbol for compiling frc_fw.ko which insmod frc_fw.ko
 // frc_fw: disagrees about version of symbol module_layout
@@ -437,8 +436,6 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 			// alloc frc buf according to status of alloced
 			if (!devp->buf.cma_mem_alloced) {
 				frc_buf_alloc(devp);
-				if (devp->buf.cma_buf_alloc && devp->buf.cma_buf_alloc2)
-					devp->buf.cma_mem_alloced = 1;
 			}
 			devp->power_on_flag = true;
 			frc_init_config(devp);
@@ -826,8 +823,6 @@ int frc_buf_set(struct frc_dev_s *frc_devp)
 		return -1;
 	if (frc_buf_alloc(frc_devp) != 0)
 		return -1;
-	if (frc_devp->buf.cma_buf_alloc && frc_devp->buf.cma_buf_alloc2)
-		frc_devp->buf.cma_mem_alloced = 1;
 	frc_buf_distribute(frc_devp);
 	if (frc_buf_config(frc_devp) != 0)
 		return -1;
@@ -942,7 +937,6 @@ static int frc_probe(struct platform_device *pdev)
 		PR_FRC("%s frc rdma init failed\n", __func__);
 // #endif
 	INIT_WORK(&frc_devp->frc_clk_work, frc_clock_workaround);
-	INIT_WORK(&frc_mem_dyc_proc, frc_mem_dynamic_proc);
 	frc_devp->clk_chg = 1;
 	frc_set_enter_forcefilm(frc_devp, 1);
 
@@ -981,7 +975,6 @@ static int __exit frc_remove(struct platform_device *pdev)
 	PR_FRC("%s:module remove\n", __func__);
 	// frc_devp = platform_get_drvdata(pdev);
 	cancel_work_sync(&frc_devp->frc_clk_work);
-	cancel_work_sync(&frc_mem_dyc_proc);
 	tasklet_kill(&frc_devp->input_tasklet);
 	tasklet_kill(&frc_devp->output_tasklet);
 	tasklet_disable(&frc_devp->input_tasklet);

@@ -85,8 +85,9 @@
 // frc_20221102 frc clean up typo err
 // frc_20221123 check input size
 // frc_20230104 clean up kasan log error
+// frc_20230129 frc sync ko 2795
 
-#define FRC_FW_VER			"2023-0129 frc sync ko 2795"
+#define FRC_FW_VER			"2023-0524 frc remove dynamic buf"
 #define FRC_KERDRV_VER                  2795
 
 #define FRC_DEVNO	1
@@ -115,12 +116,9 @@ extern int frc_dbg_en;
 #define FRC_COMPRESS_RATE_ME		60
 
 #define FRC_TOTAL_BUF_NUM		16
-#define FRC_TOTAL_BUF_NUM_8     8
 #define FRC_MEMV_BUF_NUM		6
 #define FRC_MEMV2_BUF_NUM		7
 #define FRC_MEVP_BUF_NUM		2
-// release buf num (12 / 16)
-#define FRC_RE_BUF_NUM		12
 
 #define FRC_SLICER_NUM			4
 
@@ -195,15 +193,9 @@ struct vf_rate_table {
 struct st_frc_buf {
 	/*cma memory define*/
 	u32 cma_mem_size;
-	u32 cma_mem_size2;
 	struct page *cma_mem_paddr_pages;
-	struct page *cma_mem_paddr_pages2;
 	phys_addr_t cma_mem_paddr_start;
-	phys_addr_t cma_mem_paddr_start2;
 	u8  cma_mem_alloced;
-	u8  cma_buf_alloc;
-	u8  cma_buf_alloc2;
-	u8  buf_ctrl;  //0: release buf, 1:alloc buf
 	u8  secured;
 	u8  otherflag;
 	u8  otherflag2;
