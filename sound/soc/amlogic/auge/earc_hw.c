@@ -913,20 +913,25 @@ void earctx_dmac_init(struct regmap *top_map,
 		      struct regmap *dmac_map,
 		      int earc_spdifout_lane_mask,
 		      unsigned int chmask,
-		      unsigned int swap_masks)
+		      unsigned int swap_masks,
+		      bool mute)
 {
 	unsigned int lswap_masks, rswap_masks;
 
 	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
 			 0x3 << 28,
 			 0x0 << 28);
-
 	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+			 0x1 << 29, /* afifo out reset */
+			 0x1 << 29);
+	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+			 0x1 << 28 | /* afifo in reset */
 			 0x1 << 26 | /* user Bit select */
 			 0x1 << 24 | /* chdata select*/
 			 0x1 << 20 | /* reg_data_sel, 1: data from 27bit */
 			 0x1 << 19 | /* 0: lsb first */
 			 0x1 << 18,  /* biphase encode valid Bit value sel */
+			 0x1 << 28 |
 			 0x1 << 26 |
 			 0x1 << 24 |
 			 0x1 << 20 |
@@ -974,6 +979,8 @@ void earctx_dmac_init(struct regmap *top_map,
 			 0x1 << 18 |  /* validBit sel, 1: reg_value */
 			 0x1 << 17    /* reg_chst_sel, 1: reg_value */
 			);
+
+	earctx_dmac_mute(dmac_map, mute);
 }
 
 void earctx_dmac_set_format(struct regmap *dmac_map,
@@ -1358,8 +1365,7 @@ void earctx_enable(struct regmap *top_map,
 		   struct regmap *dmac_map,
 		   enum audio_coding_types coding_type,
 		   bool enable,
-		   bool rterm_on,
-		   bool mute)
+		   bool rterm_on)
 {
 	enum attend_type type = earctx_cmdc_get_attended_type(cmdc_map);
 
@@ -1390,7 +1396,13 @@ void earctx_enable(struct regmap *top_map,
 					 val << offset);
 		}
 
-		earctx_dmac_mute(dmac_map, mute);
+		/* first biphase work clear, and then start */
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+				 0x1 << 30,
+				 0x1 << 30);
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+				 0x3 << 28,
+				 0x0);
 
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
 				 0x1 << 29, /* afifo out reset */
@@ -1402,7 +1414,10 @@ void earctx_enable(struct regmap *top_map,
 				 0x1 << 31,
 				 0x1 << 31);
 	} else {
-		earctx_dmac_mute(dmac_map, true);
+		/* earc tx is not disable, only mute, ensure earc outputs zero data */
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+				 0x3 << 21,
+				 0x3 << 21);
 		return;
 	}
 
