@@ -810,6 +810,15 @@ void earctx_cmdc_set_timeout(struct regmap *cmdc_map, int no_timeout)
 			 0x3 << 0,
 			 no_timeout << 1
 			 );
+
+	/* if no_timeout is 0, fill in timeout value, 550ms*/
+	if (no_timeout == 0) {
+		mmio_update_bits(cmdc_map,
+			 EARC_TX_CMDC_VSM_CTRL5,
+			 0x7 << 4 | 0xfffff << 12,
+			 0x3 << 4 | 550 << 12
+			 );
+	}
 }
 
 void earctx_cmdc_arc_connect(struct regmap *cmdc_map, bool init)
