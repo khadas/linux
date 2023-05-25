@@ -709,6 +709,7 @@ drivers-y	:= drivers/ sound/
 ifdef CONFIG_AMLOGIC_IN_KERNEL_MODULES
 drivers-y	+= $(COMMON_DRIVERS_DIR)/drivers/ $(COMMON_DRIVERS_DIR)/sound/
 drivers-y       += $(COMMON_DRIVERS_DIR)/samples/
+KBUILD_CFLAGS += -Wno-misleading-indentation
 endif
 drivers-$(CONFIG_SAMPLES) += samples/
 drivers-$(CONFIG_NET) += net/
