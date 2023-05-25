@@ -5,7 +5,7 @@
 
 #include "vicp_process.h"
 
-#define VICP_CRC0_CHECK_FLAG0    0x517971db    //mif->mif
+#define VICP_CRC0_CHECK_FLAG0    0x6a740299    //mif->mif
 #define VICP_CRC0_CHECK_FLAG1    0x12f487cf   //mif->fbc
 #define VICP_CRC0_CHECK_FLAG2    0xb1e2e03c   //fbc->mif
 

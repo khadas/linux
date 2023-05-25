@@ -663,7 +663,12 @@ int vicp_test(void)
 	cost_time = (1000000 * (time3.tv_sec - time1.tv_sec)
 		+ (time3.tv_usec - time1.tv_usec));
 	vicp_print(VICP_INFO, "test cost: %d us\n", cost_time);
-	dump_test_yuv(1, output_width, output_height, data_config.output_data.phy_addr[0], 1);
+	if (dump_yuv_flag)
+		dump_test_yuv(1,
+			output_width,
+			output_height,
+			data_config.output_data.phy_addr[0],
+			1);
 	codec_mm_free_for_dma("vicp", mif_in_addr);
 	mif_in_addr = 0;
 
@@ -795,7 +800,8 @@ int vicp_test(void)
 	test_vframe->type |= (VIDTYPE_VIU_FIELD | VIDTYPE_VIU_NV21);
 	data_config.input_data.data_vf = test_vframe;
 
-	vd_vframe_afbc_soft_decode(test_vframe, 1);
+	if (dump_yuv_flag)
+		vd_vframe_afbc_soft_decode(test_vframe, 1);
 
 	data_config.output_data.fbc_out_en = false;
 	data_config.output_data.mif_out_en = true;
@@ -835,7 +841,12 @@ int vicp_test(void)
 	}
 
 	result3 = vicp_crc0_check(VICP_CRC0_CHECK_FLAG2);
-	dump_test_yuv(1, output_width, output_height, data_config.output_data.phy_addr[0], 3);
+	if (dump_yuv_flag)
+		dump_test_yuv(1,
+			output_width,
+			output_height,
+			data_config.output_data.phy_addr[0],
+			3);
 
 	vfree(test_vframe);
 exit:
@@ -863,11 +874,13 @@ exit:
 	cost_time = (1000000 * (time3.tv_sec - time1.tv_sec)
 		+ (time3.tv_usec - time1.tv_usec));
 	vicp_print(VICP_INFO, "all test cost: %d us\n", cost_time);
-
-	if (result1 != 0 || result2 != 0 || result3 != 0)
+	if (result1 != 0 || result2 != 0 || result3 != 0) {
 		pr_info("%s: result: failed.\n", __func__);
-	else
+		ret = -1;
+	} else {
 		pr_info("%s: result: success.\n", __func__);
+		ret = 1;
+	}
 
 	return ret;
 }

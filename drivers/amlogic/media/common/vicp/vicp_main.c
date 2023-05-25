@@ -59,6 +59,7 @@ void __iomem *vicp_reg_map;
 
 u32 print_flag;
 u32 demo_enable;
+static int demo_result;
 u32 dump_yuv_flag;
 u32 scaler_en = 1;
 u32 hdr_en = 1;
@@ -210,7 +211,18 @@ static ssize_t reg_store(struct class *class,
 static ssize_t demo_enable_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "current demo_enable is %d.\n", demo_enable);
+	ssize_t count = 0;
+
+	count = sprintf(buf, "current demo_enable is %d.\n", demo_enable);
+
+	if (demo_result == -1)
+		count += sprintf(buf + count, "vicp test result: failed.\n");
+	else if (demo_result == 0)
+		count += sprintf(buf + count, "vicp test not complete.\n");
+	else
+		count += sprintf(buf + count, "vicp test result: success.\n");
+
+	return count;
 }
 
 static ssize_t demo_enable_store(struct class *class,
@@ -229,8 +241,9 @@ static ssize_t demo_enable_store(struct class *class,
 	else
 		demo_enable = 0;
 
+	demo_result = 0;
 	if (demo_enable)
-		vicp_test();
+		demo_result = vicp_test();
 
 	return count;
 }
