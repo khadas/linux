@@ -108,6 +108,9 @@
 #define EDID_DETECT_PORT  7
 #endif
 
+/* If HDCP_VERSION is 2.x, edid switch to 2.0 automatically */
+#define CONFIG_AMLOGIC_HDMIRX_EDID_AUTO
+
 enum chip_id_e {
 	CHIP_ID_GXTVBB,
 	CHIP_ID_TXL,
@@ -468,7 +471,7 @@ struct rx_video_info {
 #define EMP_BUFF_MAX_PKT_CNT	32
 #define TMDS_DATA_BUFFER_SIZE	0x200000
 
-struct rx_fastswitch_mode {
+struct rx_edid_auto_mode {
 	enum hdcp_version_e hdcp_ver[E_PORT_NUM];
 	/* if edid ver is the same after switch
 	 * edid ver in UI, no need to update edid
@@ -743,7 +746,7 @@ struct rx_s {
 	unsigned int state;
 	unsigned int fsm_ext_state;
 	unsigned int pre_state;
-	struct rx_fastswitch_mode fs_mode;
+	struct rx_edid_auto_mode edid_auto_mode;
 	/* recovery mode */
 	unsigned char err_rec_mode;
 	unsigned char err_code;

@@ -74,6 +74,7 @@ int clk_unstable_cnt;
 static int clk_unstable_max;
 int clk_stable_cnt;
 static int clk_stable_max;
+static int special_wait_max;
 static int unnormal_wait_max = 200;
 static int wait_no_sig_max = 600;
 u32 vrr_func_en = 1;
@@ -1103,7 +1104,7 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 			if (rx.chip_id < CHIP_ID_T7)
 				rx_pkt_handler(PKT_BUFF_SET_FIFO);
 			#endif
-			if (rx.state == FSM_SIG_READY) {
+			if (rx.state >= FSM_SIG_STABLE) {
 				rx.vsync_cnt++;
 #ifndef MULTI_VSIF_EXPORT_TO_EMP
 				if (rx_vsif_type) {
@@ -1937,37 +1938,52 @@ static void signal_status_init(void)
 	hdmitx_update_latency_info(&latency_info);
 }
 
+static bool is_edid20_devices(void)
+{
+	bool ret = false;
+
+#ifdef CONFIG_AMLOGIC_HDMIRX_EDID_AUTO
+	if (rx.hdcp.hdcp_version == HDCP_VER_22)
+		ret = true;
+#endif
+	if (rx_is_specific_20_dev() < SPEC_DEV_PANASONIC)
+		ret = true;
+
+	return ret;
+}
+
 bool edid_ver_need_chg(void)
 {
 	bool flag = false;
 
-	if (rx.fs_mode.hdcp_ver[rx.port] == HDCP_VER_NONE ||
-		rx.fs_mode.hdcp_ver[rx.port] == HDCP_VER_14) {
+	if (rx.edid_auto_mode.hdcp_ver[rx.port] == HDCP_VER_NONE ||
+		rx.edid_auto_mode.hdcp_ver[rx.port] == HDCP_VER_14) {
 		/* if detect hdcp22 auth, update to edid2.0 */
-		if ((rx.hdcp.hdcp_version == HDCP_VER_22 || rx_is_specific_20_dev()) &&
-			rx.fs_mode.edid_ver[rx.port] != EDID_V20) {
-			rx.fs_mode.hdcp_ver[rx.port] = HDCP_VER_22;
-			flag = true;
+		if (is_edid20_devices()) {
+			if (rx.edid_auto_mode.edid_ver[rx.port] != EDID_V20) {
+				rx.edid_auto_mode.hdcp_ver[rx.port] = HDCP_VER_22;
+				flag = true;
+			}
 		}
 	}
 	/* if change from hdcp22 to hdcp none/14,
 	 * need to update to edid1.4
 	 * else {
 	 * if (((cur == HDCP_VER_NONE) || (cur == HDCP_VER_14)) &&
-	 * (rx.fs_mode.edid_ver[rx.port] != EDID_V14))
+	 * (rx.edid_auto_mode.edid_ver[rx.port] != EDID_V14))
 	 * flag = true;
 	 * }
 	 */
 	return flag;
 }
 
-void fs_mode_init(void)
+void edid_auto_mode_init(void)
 {
 	unsigned char i = 0;
 
 	for (i = 0; i < E_PORT_NUM; i++) {
-		rx.fs_mode.hdcp_ver[i] = HDCP_VER_NONE;
-		rx.fs_mode.edid_ver[i] = EDID_V14;
+		rx.edid_auto_mode.hdcp_ver[i] = HDCP_VER_NONE;
+		rx.edid_auto_mode.edid_ver[i] = EDID_V14;
 	}
 }
 
@@ -2130,8 +2146,8 @@ bool is_unnormal_format(u32 wait_cnt)
 	}
 	if (rx.hdcp.hdcp_version == HDCP_VER_NONE &&
 		rx.hdcp.hdcp_pre_ver != HDCP_VER_NONE) {
-		if ((dev_is_apple_tv_v2 && wait_cnt == hdcp_none_wait_max * 2) ||
-			(!dev_is_apple_tv_v2 && wait_cnt == hdcp_none_wait_max)) {
+		if ((dev_is_apple_tv_v2 && wait_cnt >= hdcp_none_wait_max * 2) ||
+			(!dev_is_apple_tv_v2 && wait_cnt >= hdcp_none_wait_max)) {
 			dump_state(RX_DUMP_HDCP);
 			return false;
 		} else {
@@ -2839,18 +2855,18 @@ static void rx_cable_clk_monitor(void)
 	}
 }
 
-void rx_clr_fs_sts(unsigned char port)
+void rx_clr_edid_auto_sts(unsigned char port)
 {
 	if (port >= E_PORT_NUM)
 		return;
 
-	rx.fs_mode.hdcp_ver[port] = HDCP_VER_NONE;
-	rx.fs_mode.edid_ver[port] = EDID_V14;
+	rx.edid_auto_mode.hdcp_ver[port] = HDCP_VER_NONE;
+	rx.edid_auto_mode.edid_ver[port] = EDID_V14;
 	/* no need */
-	rx.fs_mode.hdmi5v_sts[port] = 0;
+	rx.edid_auto_mode.hdmi5v_sts[port] = 0;
 }
 
-u8 rx_update_fastswitch_sts(u8 sts)
+u8 rx_update_edid_auto_sts(u8 sts)
 {
 	u8 i = 0;
 
@@ -2859,9 +2875,9 @@ u8 rx_update_fastswitch_sts(u8 sts)
 
 	for (i = 0; i < E_PORT_NUM; i++) {
 		if ((sts & (1 << i)) == 0)
-			rx_clr_fs_sts(i);
+			rx_clr_edid_auto_sts(i);
 		else
-			rx.fs_mode.hdmi5v_sts[i] = 1;
+			rx.edid_auto_mode.hdmi5v_sts[i] = 1;
 	}
 	return 1;
 }
@@ -2900,7 +2916,7 @@ void rx_5v_monitor(void)
 	if (check_cnt >= pow5v_max_cnt) {
 		check_cnt = 0;
 		pwr_sts = tmp_5v;
-		rx_update_fastswitch_sts(pwr_sts);
+		rx_update_edid_auto_sts(pwr_sts);
 		rx.cur_5v_sts = (pwr_sts >> rx.port) & 1;
 		if (cec_hdmirx5v_update)
 			cec_hdmirx5v_update(pwr_sts);
@@ -3056,6 +3072,19 @@ static void hdcp22_decrypt_monitor(void)
 	} else {
 		rx.last_hdcp22_state = 0;
 	}
+}
+
+static bool sepcail_dev_need_extra_wait(int wait_cnt)
+{
+	if (rx_is_specific_20_dev() == SPEC_DEV_CNT)
+		return false;
+	else if (rx_is_specific_20_dev() == SPEC_DEV_PANASONIC)
+		special_wait_max = 160;
+
+	if (wait_cnt >= special_wait_max)
+		return false;
+	else
+		return true;
 }
 
 /*
@@ -3232,6 +3261,7 @@ void rx_main_state_machine(void)
 		sig_unstable_cnt = 0;
 		sig_stable_err_cnt = 0;
 		clk_chg_cnt = 0;
+		special_wait_max = 0;
 		rx_pkt_initial();
 		rx.state = FSM_SIG_STABLE;
 		break;
@@ -3243,11 +3273,15 @@ void rx_main_state_machine(void)
 		memcpy(&rx.pre, &rx.cur, sizeof(struct rx_video_info));
 		rx_get_video_info();
 		if (rx_is_timing_stable()) {
+			if (sig_stable_cnt == sig_stable_max / 2)
+				hdmirx_top_irq_en(1, 2);
 			if (++sig_stable_cnt >= sig_stable_max) {
 				get_timing_fmt();
 				/* timing stable, start count vsync and avi pkt */
 				rx.var.de_stable = true;
 				sig_unstable_cnt = 0;
+				if (sepcail_dev_need_extra_wait(sig_stable_cnt))
+					break;
 				if (is_unnormal_format(sig_stable_cnt))
 					break;
 				/* if format vic is abnormal, do hw
@@ -3266,6 +3300,7 @@ void rx_main_state_machine(void)
 					}
 					break;
 				}
+				special_wait_max = 0;
 				sig_unready_cnt = 0;
 				/* if DVI signal is detected, then try
 				 * hpd reset once to recovery, to avoid
@@ -3288,6 +3323,7 @@ void rx_main_state_machine(void)
 				rx.no_signal = false;
 				rx.ecc_err = 0;
 				clk_chg_cnt = 0;
+				hdcp_sts_update();
 				/*memset(&rx.aud_info, 0,*/
 					/*sizeof(struct aud_info_s));*/
 				/*rx_set_eq_run_state(E_EQ_PASS);*/
@@ -3309,6 +3345,7 @@ void rx_main_state_machine(void)
 				rx.ddc_filter_en = false;
 			}
 		} else {
+			hdmirx_top_irq_en(1, 1);
 			sig_stable_cnt = 0;
 			rx.var.de_stable = false;
 			if (sig_unstable_cnt < sig_unstable_max) {

@@ -1388,7 +1388,7 @@ enum edid_ver_e get_edid_selection(u8 port)
 	enum edid_ver_e edid_slt = EDID_V14;
 
 	if (tmp_slt & 0x2) {
-		if (rx.fs_mode.hdcp_ver[port] == HDCP_VER_22)
+		if (rx.edid_auto_mode.hdcp_ver[port] == HDCP_VER_22)
 			edid_slt = EDID_V20;
 		else
 			edid_slt = EDID_V14;
@@ -2091,14 +2091,14 @@ bool hdmi_rx_top_edid_update(void)
 			return false;
 		}
 		for (i = 0; i < PORT_NUM; i++) {
-			rx.fs_mode.edid_ver[i] = get_edid_selection(i);
+			rx.edid_auto_mode.edid_ver[i] = get_edid_selection(i);
 			if (up_phy_addr)
 				ui_port_num = (port_map >> (i * 4)) & 0xF;
 			else
 				ui_port_num = i + 1;
 			switch (ui_port_num) {
 			case 1:
-				pedid = (rx.fs_mode.edid_ver[i] == EDID_V20) ?
+				pedid = (rx.edid_auto_mode.edid_ver[i] == EDID_V20) ?
 					pedid_data2 : pedid_data1;
 				#ifdef CONFIG_AMLOGIC_HDMITX
 					if (edid_from_tx & 1)
@@ -2106,7 +2106,7 @@ bool hdmi_rx_top_edid_update(void)
 				#endif
 				break;
 			case 2:
-				pedid = (rx.fs_mode.edid_ver[i] == EDID_V20) ?
+				pedid = (rx.edid_auto_mode.edid_ver[i] == EDID_V20) ?
 					pedid_data4 : pedid_data3;
 				#ifdef CONFIG_AMLOGIC_HDMITX
 					if (edid_from_tx & 1)
@@ -2114,7 +2114,7 @@ bool hdmi_rx_top_edid_update(void)
 				#endif
 				break;
 			case 3:
-				pedid = (rx.fs_mode.edid_ver[i] == EDID_V20) ?
+				pedid = (rx.edid_auto_mode.edid_ver[i] == EDID_V20) ?
 					pedid_data6 : pedid_data5;
 				#ifdef CONFIG_AMLOGIC_HDMITX
 					if (edid_from_tx & 1)
@@ -2163,18 +2163,18 @@ bool hdmi_rx_top_edid_update(void)
 		pedid_data2[phy_addr_off2 + 1] = 0x0;
 		if (rx.chip_id >= CHIP_ID_TM2) {
 			for (i = 0; i < E_PORT_NUM; i++) {
-				rx.fs_mode.edid_ver[i] =
+				rx.edid_auto_mode.edid_ver[i] =
 					get_edid_selection(i);
-				if (rx.fs_mode.edid_ver[i] == EDID_V20)
+				if (rx.edid_auto_mode.edid_ver[i] == EDID_V20)
 					phy_addr_offset[i] = phy_addr_off2;
 				else
 					phy_addr_offset[i] = phy_addr_off1;
 			}
 		} else {
 			/* only edid for current port is used */
-			rx.fs_mode.edid_ver[rx.port] =
+			rx.edid_auto_mode.edid_ver[rx.port] =
 				get_edid_selection(rx.port);
-			if (rx.fs_mode.edid_ver[rx.port] == EDID_V20)
+			if (rx.edid_auto_mode.edid_ver[rx.port] == EDID_V20)
 				phy_addr_offset[0] = phy_addr_off2;
 			else
 				phy_addr_offset[0] = phy_addr_off1;

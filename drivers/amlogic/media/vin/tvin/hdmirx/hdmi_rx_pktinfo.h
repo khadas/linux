@@ -63,6 +63,18 @@ enum vsi_type {
 	VSI_TYPE_MAX
 };
 
+#define WHITE_LIST_SIZE 25
+enum spec_dev_e {
+	/* following devices need to switch to edid2.0 */
+	SPEC_DEV_PS5,
+	SPEC_DEV_XBOX,
+	SPEC_DEV_PS,
+	SPEC_DEV_XBOX_SERIES,
+	/* following devices need to get SPD earlier */
+	SPEC_DEV_PANASONIC,
+	SPEC_DEV_CNT
+};
+
 enum pkt_length_e {
 	E_PKT_LENGTH_4 = 0x04,
 	E_PKT_LENGTH_5 = 0x05,
@@ -1199,5 +1211,5 @@ void rx_get_avi_info(struct avi_infoframe_st *st_pkt);
 void rx_get_em_info(void);
 void rx_get_aif_info(void);
 void dump_pktinfo_status(void);
-bool rx_is_specific_20_dev(void);
+int rx_is_specific_20_dev(void);
 #endif
