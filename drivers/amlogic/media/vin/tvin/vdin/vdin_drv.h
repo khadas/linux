@@ -140,7 +140,8 @@
 /* 20230420: add osd only support for screencap */
 /* 20230427: fix screen cap stress test crash issue */
 /* 20230504: keystone interlace update dest value */
-#define VDIN_VER "20230504"
+/* 20230526: 2560x1440 set bit to 8 */
+#define VDIN_VER "20230526"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK

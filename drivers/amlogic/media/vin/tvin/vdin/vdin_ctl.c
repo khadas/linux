@@ -4755,7 +4755,7 @@ bool vdin_is_convert_to_nv21(u32 format_convert)
 
 bool vdin_is_4k(struct vdin_dev_s *devp)
 {
-	if (devp->h_active >= 3800 && devp->v_active >= 2100)
+	if (devp->h_active >= 2500 && devp->v_active >= 1400)
 		return true;
 	else
 		return false;
