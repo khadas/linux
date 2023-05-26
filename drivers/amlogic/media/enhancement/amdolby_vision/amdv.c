@@ -571,6 +571,7 @@ static bool update_control_path_flag;
 
 static bool hdmi_in_allm;
 static bool local_allm;
+
 #define MAX_PARAM   8
 bool is_aml_gxm(void)
 {
@@ -6338,6 +6339,7 @@ static void send_hdmi_pkt_ahead
 					? YUV422_BIT12 : RGB_8BIT, &vsif,
 					false);
 		}
+		last_dst_format = dst_format;
 		pr_dv_dbg("send_hdmi_pkt ahead: %s\n",
 			     dovi_ll_enable ? "LL" : "DV");
 	}
@@ -11998,6 +12000,38 @@ static int amdolby_vision_process_v2_stb
 				}
 			} else {
 				enable_amdv(0);
+			}
+		} else {
+			if (debug_dolby & 0x2000)
+				pr_dv_dbg("[inst%d]%p,flags 0x%x, last_dst_format %d\n",
+				dv_id + 1, vf,
+				dolby_vision_flags, last_dst_format);
+			/* disable dv after send dv pkt ahead:
+			 * one DV frame is inserted between the sdr frames in adaptive mode,
+			 * send dv pkt ahead once but dv not on, status is still bypass.
+			 * need to send sdr pkt after that.
+			 */
+			if (vinfo && last_dst_format == FORMAT_DOVI &&
+				dolby_vision_policy == AMDV_FOLLOW_SOURCE) {
+				if (sdr_delay == 0) {
+					pr_dv_dbg("DV bypass: Start - Switched to SDR\n");
+					amdv_set_toggle_flag(1);
+				}
+				if (m_dovi_setting.input[pri_input].src_format ==
+					FORMAT_INVALID)
+					cur_src_format = FORMAT_SDR;
+				else
+					cur_src_format =
+					m_dovi_setting.input[pri_input].src_format;
+				send_hdmi_pkt(cur_src_format,
+						  FORMAT_SDR, vinfo, vf);
+				if (sdr_delay >= MAX_TRANSITION_DELAY) {
+					pr_dv_dbg("DV bypass: Done - Switched to SDR\n");
+					enable_amdv(0);
+					sdr_delay = 0;
+				} else {
+					sdr_delay++;
+				}
 			}
 		}
 		if (sdr_delay == 0)
