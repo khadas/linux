@@ -100,6 +100,7 @@ dtb-y += a5_a113x2_av400_1g_spk.dtb
 dtb-y += a5_a113x2_av409_2g.dtb
 dtb-y += a4_pxp.dtb
 dtb-y += a4_a113l2_ba400.dtb
+dtb-y += a4_a113l2_ba400_sbr.dtb
 dtb-y += a4_a113l2_ba409.dtb
 dtb-y += t7c_a311d2_an400_drm_hdmitx_only.dtb
 dtb-y += axg_s420.dtb
