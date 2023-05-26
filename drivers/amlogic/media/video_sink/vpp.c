@@ -982,7 +982,7 @@ static int vpp_process_speed_check
 		else
 			clk_in_pps = 333000000;
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
-		if (vf->di_flag & DI_FLAG_DI_PVPPLINK)
+		if (IS_DI_PRELINK(vf->di_flag))
 			clk_in_pps = dim_get_vpuclkb_ext();
 #endif
 	} else {
@@ -1112,7 +1112,7 @@ static int vpp_process_speed_check
 					height_out * max_height);
 				/* di process first, need more a bit of ratio */
 				if (IS_DI_POST(vf->type) &&
-				    !(vf->di_flag & DI_FLAG_DI_PVPPLINK))
+				    !IS_DI_PRELINK(vf->di_flag))
 					cur_ratio = (cur_ratio * 105) / 100;
 				if (!is_meson_t7_cpu() &&
 				    !is_meson_t3_cpu() &&
@@ -1145,7 +1145,7 @@ static int vpp_process_speed_check
 				u32 cur_bypass_ratio;
 
 				if (IS_DI_POST(vf->type) &&
-				    (vf->di_flag & DI_FLAG_DI_PVPPLINK)) {
+				    IS_DI_PRELINK(vf->di_flag)) {
 					cur_vpp_speed_factor = 0x100; //adjust factor for prelink
 					cur_bypass_ratio = bypass_ratio;
 				} else {
@@ -2260,7 +2260,7 @@ RESTART:
 
 	if ((vf->type & VIDTYPE_COMPRESS) &&
 	    !(vf->type & VIDTYPE_NO_DW) &&
-	    !(vf->di_flag & DI_FLAG_DI_PVPPLINK) &&
+	    !IS_DI_PRELINK(vf->di_flag) &&
 	    !next_frame_par->nocomp &&
 	    vf->canvas0Addr != 0 &&
 	    (!IS_DI_POSTWRTIE(vf->type) ||
@@ -4705,7 +4705,7 @@ RESTART:
 
 	if ((vf->type & VIDTYPE_COMPRESS) &&
 	    !(vf->type & VIDTYPE_NO_DW) &&
-	    !(vf->di_flag & DI_FLAG_DI_PVPPLINK) &&
+	    !IS_DI_PRELINK(vf->di_flag) &&
 	    !next_frame_par->nocomp &&
 	    vf->canvas0Addr != 0 &&
 	    (!IS_DI_POSTWRTIE(vf->type) ||

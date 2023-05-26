@@ -3655,8 +3655,10 @@ struct dim_nins_s *nins_peek(struct di_ch_s *pch)
 		ret = qbufp_peek(pbufq, QBF_NINS_Q_DCT, &q_buf);
 	else
 		ret = qbufp_peek(pbufq, QBF_NINS_Q_CHECK, &q_buf);
-	if (!ret || !q_buf.qbc)
+	if (!ret || !q_buf.qbc) {
+		dbg_poll("%s return [0x%x]\n", __func__, ret);
 		return NULL;
+	}
 	ins = (struct dim_nins_s *)q_buf.qbc;
 
 	return ins;
@@ -3738,8 +3740,10 @@ struct vframe_s *nins_peekvfm_dct(struct di_ch_s *pch)
 	pbufq = &pch->nin_qb;
 
 	ret = qbufp_peek(pbufq, QBF_NINS_Q_DCT, &q_buf);
-	if (!ret || !q_buf.qbc)
+	if (!ret || !q_buf.qbc) {
+		dbg_poll("%s return [0x%x]\n", __func__, ret);
 		return NULL;
+	}
 	ins = (struct dim_nins_s *)q_buf.qbc;
 	vfm = &ins->c.vfm_cp;
 

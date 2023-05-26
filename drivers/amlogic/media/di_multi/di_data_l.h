@@ -690,6 +690,7 @@ struct di_hdct_s {
 struct di_dct_ops_s {
 	void (*main_process)(void);
 	void (*mem_put_free)(struct dcntr_mem_s *dmem);
+	bool (*mem_check)(struct di_ch_s *pch, struct dcntr_mem_s *dmem);
 	/**/
 	void (*reg)(struct di_ch_s *pch);
 	void (*unreg)(struct di_ch_s *pch);
@@ -2046,6 +2047,7 @@ struct di_ch_s {
 	struct qs_cls_s		npst_que; /*new interface */
 	struct dim_itf_s itf;
 	void *dct_pre; /* struct di_pre_dct_s */
+	void *dct_pre_alloc; /* struct di_pre_dct_s */
 	const struct dim_s4dw_data_s *s4dw;
 	/**/
 	unsigned char sts_mem_pre_cfg;
@@ -2499,6 +2501,7 @@ struct dim_pvpp_hw_s {
 	atomic_t link_on_byvpp;
 	atomic_t link_on_bydi;
 	atomic_t link_sts;
+	atomic_t link_instance_id;
 //no used	atomic_t dbg_display_cnt; //use this to cnt display is called
 	struct pvpp_dis_para_in_s	dis_last_para;
 	struct dimn_dvfm_s		*dis_last_dvf;

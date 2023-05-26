@@ -349,6 +349,7 @@ void dcntr_check_bypass(struct vframe_s *vfm);
 void dcntr_dis(void);
 bool dcntr_set(const struct reg_acc *op_in);
 void dct_pre_plink_unreg_mem(struct di_ch_s *pch);
+bool dct_pre_plink_reg_mem(struct di_ch_s *pch, unsigned long addr_dct);
 
 void dcntr_pq_tune(struct dim_rpt_s *rpt, const struct reg_acc *op_w);
 struct dim_rpt_s *dim_api_getrpt(struct vframe_s *vfm);
@@ -612,8 +613,8 @@ bool dpvpp_is_en_polling(void);
 bool dpvpp_try_reg(struct di_ch_s *pch, struct vframe_s *vfm);
 int dpvpp_destroy_internal(struct dimn_itf_s *itf);
 void dpvpp_mem_mng_get(unsigned int id);
-unsigned long dpvpp_dct_mem_alloc(unsigned int ch);
-void dpvpp_dct_mem_release(unsigned int ch);
+bool dpvpp_dct_mem_reg(struct di_ch_s *pch);
+bool dpvpp_dct_mem_unreg(struct di_ch_s *pch);
 void dpvpp_dct_clear_flg(void);
 bool dpvpp_dct_get_flg(unsigned char *ch, unsigned char *data);
 

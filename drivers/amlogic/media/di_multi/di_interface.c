@@ -631,9 +631,9 @@ enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer)
 		return DI_ERR_IN_NO_SPACE;
 	}
 	if (buffer->vf)
-		dbg_poll("ins:ch[%d] buffer[0x%px:0x%x]:vf[0x%px:0x%x]\n",
+		dbg_poll("ins:ch[%d] buffer[0x%px:0x%x]:vf[0x%px:0x%x],bindex=%d,free_nub=%d\n",
 			ch, buffer, buffer->flag,
-			buffer->vf, buffer->vf->type);
+			buffer->vf, buffer->vf->type, bindex, free_nub);
 	else
 		dbg_poll("ins:ch[%d] buffer[0x%px:0x%x]:no vf\n",
 			ch, buffer, buffer->flag);
@@ -675,6 +675,8 @@ enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer)
 		memcpy(&pins->c.vfm_cp, buffer->vf, sizeof(pins->c.vfm_cp));
 	}
 	plink_dct = dip_plink_check_ponly_dct(pch, &pins->c.vfm_cp);
+	dbg_poll("ins:plink_dct=%d,flg_q=%d\n", plink_dct, flg_q);
+
 	if (plink_dct) /* for plink */
 		flg_q = qbuf_in(pbufq, QBF_NINS_Q_DCT, bindex);
 	else if (get_datal()->dct_op && get_datal()->dct_op->is_en(pch))

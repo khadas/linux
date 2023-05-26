@@ -93,6 +93,10 @@ enum DIM_DB_SV {
 
 #define DIM_DB_SAVE_NUB		3//1
 
+#define DIM_PLINK_INSTANCE_ID_MIN 12
+#define DIM_PLINK_INSTANCE_ID_MAX 1024
+#define DIM_PLINK_INSTANCE_ID_INVALID (DIM_PLINK_INSTANCE_ID_MIN - 2)
+
 /**************************************************
  * function:
  *	get report information from di;

@@ -1698,7 +1698,7 @@ void dcntr_prob(void)
 	else
 		pcfg->reg_contr_bits	= &rtab_t5_dcntr_bits_tab[0];
 	pcfg->flg_int = 1;
-	dbg_tst("%s:end\n", __func__);
+	PR_INF("dim:%s:end\n", __func__);
 }
 
 int  dbg_dct_mif_show(struct seq_file *s, void *v)

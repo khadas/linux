@@ -9499,12 +9499,17 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 
 	if (!layer->need_disable_prelink &&
 	    is_pre_link_on(layer, vf)) {
-		if (layer->dispbuf &&
+		if (!layer->dispbuf ||
 		    layer->dispbuf->di_instance_id !=
-		    vf->di_instance_id &&
-		    vf->di_instance_id ==
-		    di_api_get_plink_instance_id())
+		    vf->di_instance_id ||
+		    vf->di_instance_id !=
+		    di_api_get_plink_instance_id()) {
 			layer->need_disable_prelink = true;
+			if (layer->global_debug & DEBUG_FLAG_PRELINK)
+				pr_info("pre-link: vf instance_id changed: %d->%d, cur:%d\n",
+					layer->dispbuf ? layer->dispbuf->di_instance_id : -1,
+					vf->di_instance_id, di_api_get_plink_instance_id());
+		}
 		if (!IS_DI_POST(vf->type))
 			layer->need_disable_prelink = true;
 		if (layer->need_disable_prelink && (layer->global_debug & DEBUG_FLAG_PRELINK))
@@ -9691,7 +9696,7 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 			if (IS_DI_POST(vf->type) &&
 			    layer->next_frame_par->vscale_skip_count > 0) {
 				ret = true;
-			} else if (vf->di_flag & DI_FLAG_DI_PVPPLINK) {
+			} else if (IS_DI_PRELINK(vf->di_flag)) {
 				ret = true;
 				if (layer->global_debug & DEBUG_FLAG_PRELINK)
 					pr_info("can't enable pre-link, force switch: vf %px vf_ext:%px uvm_vf:%px type:%x flag:%x di_flag:%x\n",
@@ -9901,6 +9906,10 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		    update_pre_link_state(layer, vf))
 			ret = vppfilter_success_and_switched;
 #endif
+		if (layer->layer_id != 0 &&
+		    (IS_DI_PRELINK(vf->di_flag) || IS_DI_POST(vf->type)))
+			ret = vppfilter_success_and_switched;
+
 		memcpy(&gpic_info[layer_id], &vf->pic_mode,
 		       sizeof(struct vframe_pic_mode_s));
 
@@ -9961,32 +9970,35 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 					vf_ext,
 					layer->cur_frame_par,
 					layer_info, __LINE__);
-				/* if vskip > 1, need set next_frame_par again with dw buffer */
-				if (layer->next_frame_par->vscale_skip_count > 1) {
-					ret = vpp_set_filters
-						(&glayer_info[layer_id], vf_ext,
-						layer->next_frame_par, vinfo,
-						(is_amdv_on() &&
-						is_amdv_stb_mode() &&
-						for_amdv_certification()),
-						op_flag);
-					if (ret == vppfilter_success_and_changed ||
-						ret == vppfilter_changed_but_hold ||
-						ret == vppfilter_changed_but_switch)
-						layer->property_changed = true;
-					if (ret != vppfilter_changed_but_hold &&
-						ret != vppfilter_changed_but_switch)
-						layer->new_vpp_setting = true;
-					if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
-						pr_info
-						("layer%d: switch and vpp_set_filters ret:%d\n",
-						 layer->layer_id, ret);
-				}
+				memcpy(&vf_ext->pic_mode, &vf->pic_mode,
+					sizeof(struct vframe_pic_mode_s));
 				if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info
 						("layer%d: switch to vf_ext %px->%px(%px %px)\n",
-						layer->layer_id, vf, vf_ext,
-						vf->vf_ext, vf->uvm_vf);
+						 layer->layer_id, vf, vf_ext,
+						 vf->vf_ext, vf->uvm_vf);
+			}
+			/* if vskip > 1, need set next_frame_par again with dw buffer */
+			if (layer->next_frame_par->vscale_skip_count > 1 &&
+			    (vf_ext->type & VIDTYPE_COMPRESS)) {
+				ret = vpp_set_filters
+					(&glayer_info[layer_id], vf_ext,
+					layer->next_frame_par, vinfo,
+					(is_amdv_on() &&
+					is_amdv_stb_mode() &&
+					for_amdv_certification()),
+					op_flag);
+				if (ret == vppfilter_success_and_changed ||
+					ret == vppfilter_changed_but_hold ||
+					ret == vppfilter_changed_but_switch)
+					layer->property_changed = true;
+				if (ret != vppfilter_changed_but_hold &&
+					ret != vppfilter_changed_but_switch)
+					layer->new_vpp_setting = true;
+				if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
+					pr_info
+					("layer%d: switch and vpp_set_filters ret:%d\n",
+					 layer->layer_id, ret);
 			}
 			layer->switch_vf = true;
 		} else {

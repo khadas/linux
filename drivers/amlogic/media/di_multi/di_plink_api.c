@@ -6,6 +6,7 @@
 #include <linux/semaphore.h>
 #include <linux/kfifo.h>
 #include <linux/spinlock.h>
+#include <linux/amlogic/tee.h>
 
 #include "deinterlace.h"
 #include "di_data_l.h"
@@ -90,6 +91,7 @@ static int dpvpp_reg_idle_ch(void);
 static void dpvpph_pre_frame_reset_g12(bool pvpp_link,
 				       const struct reg_acc *op_in);
 static void dpvpp_patch_first_buffer(struct dimn_itf_s *itf);
+static unsigned int dpvpp_create_instance_id(unsigned int ch);
 static unsigned int dpvpp_dbg_force_dech;
 module_param_named(dpvpp_dbg_force_dech, dpvpp_dbg_force_dech, uint, 0664);
 static unsigned int dpvpp_dbg_force_decv;
@@ -1185,8 +1187,7 @@ static int dimn_receiver_event_fun(int type, void *data, void *arg)
 			break;
 		}
 
-		itf->sum_reg_cnt =
-		atomic_inc_return(&get_datal()->cnt_reg_pre_link);
+		itf->sum_reg_cnt = dpvpp_create_instance_id(itf->bind_ch);
 		itf->etype = EDIM_NIN_TYPE_VFM;
 
 		dbg_ev("reg:%s[%d]\n", provider_name, itf->sum_reg_cnt);
@@ -1485,10 +1486,10 @@ static bool ffp_put(struct dimn_qs_cls_s *p, void *ubuf)
 			is_act = true;
 	}
 	if (is_act)
-		PR_INF("%s:put:%d ndvfm:0x%px\n",
+		dbg_plink3("%s:put:%d ndvfm:0x%px\n",
 		       p->cfg.name, ndvfm->header.index, ubuf);
 	else
-		PR_INF("%s:put:0x%px?\n", p->cfg.name, ubuf);
+		dbg_plink3("%s:put:0x%px?\n", p->cfg.name, ubuf);
 #endif
 	return true;
 }
@@ -1537,10 +1538,10 @@ static void *ffp_get(struct dimn_qs_cls_s *p)
 			is_act = true;
 	}
 	if (is_act)
-		PR_INF("%s:get:%d ndvfm:0x%px\n",
+		dbg_plink3("%s:get:%d ndvfm:0x%px\n",
 		       p->cfg.name, ndvfm->header.index, buf_add);
 	else
-		PR_ERR("%s:get:?:0x%px\n", p->cfg.name, buf_add);
+		dbg_plink3("%s:get:?:0x%px\n", p->cfg.name, buf_add);
 #endif
 
 	return (void *)buf_add;
@@ -1587,7 +1588,7 @@ static unsigned int ffp_in(struct dimn_qs_cls_s *p,
 
 	buf_add = *(addr + 0);
 
-	PR_INF("%s:in:%d:0x%px,cnt[%d]\n", p->cfg.name, rcnt, buf_add);
+	dbg_plink3("%s:in:%d:0x%px,cnt[%d]\n", p->cfg.name, rcnt, buf_add);
 #endif
 	return rcnt;
 }
@@ -1630,7 +1631,7 @@ static unsigned int ffp_out(struct dimn_qs_cls_s *p, void *buf, unsigned int cnt
 
 	buf_add = *(pud + 0);
 
-	PR_INF("%s:out:%d:0x%px:cnt[%d]\n", p->cfg.name, rcnt, buf_add, rcnt);
+	dbg_plink3("%s:out:%d:0x%px:cnt[%d]\n", p->cfg.name, rcnt, buf_add, rcnt);
 #endif
 
 	return rcnt;
@@ -3745,7 +3746,7 @@ static void mem_hw_reg(void)
 	hw->intr_mode = 3;
 }
 
-unsigned long dpvpp_dct_mem_alloc(unsigned int ch)
+static unsigned long dpvpp_dct_mem_alloc(unsigned int ch)
 {
 	struct dim_pvpp_hw_s *hw;
 	unsigned long addr = 0;
@@ -3756,13 +3757,16 @@ unsigned long dpvpp_dct_mem_alloc(unsigned int ch)
 			addr = hw->src_blk_dct->c.b.blk_m.mem_start;
 			hw->dct_ch = ch;
 		} else {
-			PR_WARN("%s:%d\n", __func__, (int)hw->dct_ch);
+			PR_WARN("%s:%d: dis_ch:%d; dct_ch:%d; dct_flg:%d; src_blk_dct:%px\n",
+				__func__, ch,
+				hw->dct_ch, hw->dis_ch,
+				hw->dct_flg, hw->src_blk_dct);
 		}
 	}
 	return addr;
 }
 
-void dpvpp_dct_mem_release(unsigned int ch)
+static void dpvpp_dct_mem_release(unsigned int ch)
 {
 	struct dim_pvpp_hw_s *hw;
 
@@ -3770,7 +3774,56 @@ void dpvpp_dct_mem_release(unsigned int ch)
 	if (hw->src_blk_dct && hw->dct_ch == ch)
 		hw->dct_ch = 0xff;
 	else
-		PR_WARN("%s:%d:%d\n", __func__, ch, hw->dct_ch);
+		PR_WARN("%s:%d: dis_ch:%d; dct_ch:%d; dct_flg:%d; src_blk_dct:%px\n",
+			__func__, ch,
+			hw->dct_ch, hw->dis_ch,
+			hw->dct_flg, hw->src_blk_dct);
+}
+
+bool dpvpp_dct_mem_reg(struct di_ch_s *pch)
+{
+	ulong irq_flag = 0;
+	unsigned long addr_dct;
+
+	if (!pch) {
+		PR_ERR("%s: no pch %px\n",
+			__func__, pch);
+		return false;
+	}
+
+	spin_lock_irqsave(&lock_pvpp, irq_flag);
+	addr_dct = dpvpp_dct_mem_alloc(pch->ch_id);
+	if (!addr_dct) {
+		PR_ERR("%s: allocate dct mem fail\n", __func__);
+		spin_unlock_irqrestore(&lock_pvpp, irq_flag);
+		return false;
+	}
+	if (!dct_pre_plink_reg_mem(pch, addr_dct)) {
+		dpvpp_dct_mem_release(pch->ch_id);
+		PR_ERR("%s: ch[%d] plink_reg_mem fail\n",
+			__func__, pch->ch_id);
+		spin_unlock_irqrestore(&lock_pvpp, irq_flag);
+		return false;
+	}
+	spin_unlock_irqrestore(&lock_pvpp, irq_flag);
+	return true;
+}
+
+bool dpvpp_dct_mem_unreg(struct di_ch_s *pch)
+{
+	ulong irq_flag = 0;
+
+	if (!pch) {
+		PR_ERR("%s: no pch %px\n",
+			__func__, pch);
+		return false;
+	}
+
+	spin_lock_irqsave(&lock_pvpp, irq_flag);
+	dpvpp_dct_mem_release(pch->ch_id);
+	dct_pre_plink_unreg_mem(pch);
+	spin_unlock_irqrestore(&lock_pvpp, irq_flag);
+	return true;
 }
 
 /************************************************
@@ -3788,6 +3841,7 @@ bool dpvpp_dct_get_flg(unsigned char *ch, unsigned char *data)
 	struct dim_pvpp_hw_s *hw;
 	unsigned char ch_l, data_l;
 
+	/* TODO: check if to add spin_lock_irqsave(&lock_pvpp, irq_flag) */
 	hw = &get_datal()->dvs_prevpp.hw;
 	if (hw->dct_flg) {
 		if (hw->dct_flg == 2)
@@ -3814,6 +3868,9 @@ void dpvpp_dct_clear_flg(void)
 
 	spin_lock_irqsave(&lock_pvpp, irq_flag);
 	hw = &get_datal()->dvs_prevpp.hw;
+	dbg_plink1("%s flg:%d dis_ch:%d dct_ch:%d\n",
+		__func__, hw->dct_flg,
+		hw->dis_ch, hw->dct_ch);
 	hw->dct_flg = 0;
 	spin_unlock_irqrestore(&lock_pvpp, irq_flag);
 }
@@ -3830,12 +3887,15 @@ void dpvpp_dct_unreg(unsigned char ch)
 		return;
 	spin_lock_irqsave(&lock_pvpp, irq_flag);
 	pch = get_chdata(ch);
+	dpvpp_dct_mem_release(ch);
 	dct_pre_plink_unreg_mem(pch);
 	if (hw->dct_flg) {
-		PR_WARN("disable flg\n");
+		PR_WARN("disable flg ch:%d flg:%d dis_ch:%d dct_ch:%d\n",
+			ch, hw->dct_flg, hw->dis_ch, hw->dct_ch);
 	} else {
+		dbg_plink3("trig dct unreg 3 ch:%d dis_ch:%d dct_ch:%d\n",
+			ch, hw->dis_ch, hw->dct_ch);
 		hw->dis_ch = 0xff;
-		dbg_plink3("trig dct unreg 3\n");
 	}
 	spin_unlock_irqrestore(&lock_pvpp, irq_flag);
 
@@ -3847,12 +3907,31 @@ static void dct_pst(const struct reg_acc *op, struct dimn_dvfm_s *ndvfm)
 	struct vframe_s *vf;
 	struct dim_pvpp_hw_s *hw;
 	bool ret;
+	struct di_ch_s *pch;
 
 	hw = &get_datal()->dvs_prevpp.hw;
 	if (hw->dis_ch == 0xff)
 		return;
 	if (!op || !ndvfm || !ndvfm->c.dct_pre)
 		return;
+	if (!ndvfm->itf) {
+		PR_ERR("%s:no itf ndvfm:%px\n", __func__, ndvfm);
+		return;
+	}
+
+	pch = get_chdata(ndvfm->itf->bind_ch);
+	if (!pch) {
+		PR_ERR("%s:no pch ndvfm->itf:%px bind_ch:%d\n",
+			__func__, ndvfm->itf,
+			ndvfm->itf->bind_ch);
+		return;
+	}
+	if (!get_datal()->dct_op->mem_check(pch, ndvfm->c.dct_pre)) {
+		PR_WARN("%s:ch[%d]:dct_pre not match: %px %px\n",
+			__func__, ndvfm->itf->bind_ch,
+			ndvfm->c.dct_pre, pch->dct_pre);
+		return;
+	}
 	vf = ndvfm->c.ori_vf;
 	vf->decontour_pre = ndvfm->c.dct_pre;
 	dcntr_check(vf);
@@ -3892,6 +3971,43 @@ static void dpvpp_mem_dct(void)
 	}
 }
 
+void dpvpp_secure_pre_en(bool is_tvp)
+{
+	if (is_tvp) {
+		if (DIM_IS_IC_EF(SC2)) {
+			DIM_DI_WR(DI_PRE_SEC_IN, 0x3F);//secure
+		} else {
+		#ifdef CONFIG_AMLOGIC_TEE
+			tee_config_device_state(16, 1);
+		#endif
+		}
+		if (DIM_IS_IC(S5)) {
+		#ifdef CONFIG_AMLOGIC_TEE
+			tee_write_reg_bits
+				(((DI_VIUB_SECURE_REG << 2) + 0xff800000),
+				 1, 8, 1);// HF secure Polarity
+		#endif
+		}
+		//dbg_mem2("%s:tvp3 pre SECURE\n", __func__);
+	} else {
+		if (DIM_IS_IC_EF(SC2)) {
+			DIM_DI_WR(DI_PRE_SEC_IN, 0x0);
+		} else {
+		#ifdef CONFIG_AMLOGIC_TEE
+			tee_config_device_state(16, 0);
+		#endif
+		}
+		if (DIM_IS_IC(S5)) {
+		#ifdef CONFIG_AMLOGIC_TEE
+			tee_write_reg_bits
+				(((DI_VIUB_SECURE_REG << 2) + 0xff800000),
+				 0, 8, 1);// HF secure Polarity
+		#endif
+		}
+		//dbg_mem2("%s:tvp3 pre NOSECURE:\n", __func__);
+	}
+}
+
 //static
 void dpvpp_mng_set(void)
 {
@@ -3908,6 +4024,10 @@ void dpvpp_mng_set(void)
 	hw = &get_datal()->dvs_prevpp.hw;
 	d_dd = get_dd();
 
+	dim_print("%s:<%d,%d>, <%d,%d>\n", __func__,
+		hw->m_mode_tgt, hw->flg_tvp_tgt,
+		hw->m_mode, hw->flg_tvp);
+
 	if (hw->m_mode_tgt == hw->m_mode &&
 	    hw->flg_tvp_tgt == hw->flg_tvp) {
 		dim_print("%s:<%d,%d>, <%d,%d>\n", __func__,
@@ -3915,7 +4035,7 @@ void dpvpp_mng_set(void)
 			hw->m_mode, hw->flg_tvp);
 		return;
 	}
-
+	dpvpp_secure_pre_en(hw->flg_tvp_tgt);
 	switch (hw->m_mode_tgt) {
 	case EPVPP_MEM_T_HD_FULL:
 		if (hw->flg_tvp_tgt) {
@@ -3925,6 +4045,7 @@ void dpvpp_mng_set(void)
 			is_tvp = false;
 			index = EBLK_T_HD_FULL;
 		}
+		hw->flg_tvp = hw->flg_tvp_tgt;
 		cnt = 0;
 		for (i = 0; i < 2; i++) {
 			if (hw->src_blk[i]) {
@@ -3958,6 +4079,7 @@ void dpvpp_mng_set(void)
 			is_tvp = false;
 			index = EBLK_T_UHD_FULL_AFBCE;
 		}
+		hw->flg_tvp = hw->flg_tvp_tgt;
 		cnt = 0;
 		for (i = 0; i < 2; i++) {
 			if (hw->src_blk_uhd_afbce[i]) {
@@ -4005,6 +4127,7 @@ void dpvpp_mng_set(void)
 			is_tvp = false;
 			index = EBLK_T_HD_FULL;
 		}
+		hw->flg_tvp = hw->flg_tvp_tgt;
 		cnt = 0;
 		for (i = 0; i < 10; i++) {
 			if (hw->src_blk[i]) {
@@ -4077,6 +4200,9 @@ void dpvpp_mem_mng_get(unsigned int id)
 	back_tvp = hw->flg_tvp_tgt;
 	memset(&cnt[0], 0, sizeof(cnt));
 	memset(&cnt_tvp[0], 0, sizeof(cnt_tvp));
+	dim_print("%s:<%d,%d>, <%d,%d>\n", __func__,
+		hw->m_mode_tgt, hw->flg_tvp_tgt,
+		hw->m_mode, hw->flg_tvp);
 
 	for (ch = 0; ch < DI_PLINK_CN_NUB; ch++) {
 		//count mode:
@@ -4699,6 +4825,7 @@ static bool recycle_in(struct dimn_itf_s *itf, ud buf)
 	unsigned int err = 0;
 	struct dim_prevpp_ds_s *ds;
 	struct dim_pvpp_hw_s *hw;
+	struct di_ch_s *pch;
 
 	if (!itf || !itf->ds) {
 		PR_ERR("%s:1\n", __func__);
@@ -4715,7 +4842,23 @@ static bool recycle_in(struct dimn_itf_s *itf, ud buf)
 	}
 	hw = &get_datal()->dvs_prevpp.hw;
 	if (hw->dct_ch != 0xff && ndvfm->c.dct_pre) {
-		get_datal()->dct_op->mem_put_free(ndvfm->c.dct_pre);
+		pch = get_chdata(itf->bind_ch);
+		if (hw->dct_ch == itf->bind_ch &&
+		    pch && pch->dct_pre) {
+			if (get_datal()->dct_op->mem_check(pch, ndvfm->c.dct_pre))
+				get_datal()->dct_op->mem_put_free(ndvfm->c.dct_pre);
+			else
+				PR_WARN("%s:dct_pre not match %px %px\n",
+					__func__, ndvfm->c.dct_pre, pch->dct_pre);
+		} else {
+			PR_WARN("%s:ch or NULL:%d %d:(%d %d) %px %px %px %px(%px) %s\n",
+				__func__,
+				itf->id, itf->bind_ch,
+				hw->dct_ch, hw->dis_ch,
+				ndvfm->c.dct_pre, ndvfm, vf,
+				pch, pch ? pch->dct_pre : NULL,
+				current->comm);
+		}
 		ndvfm->c.dct_pre = NULL;
 		ds->dct_sum_o++;
 	}
@@ -4743,13 +4886,16 @@ static void recycle_back(struct dimn_itf_s *itf)
 	int i;
 	struct dim_prevpp_ds_s *ds;
 
-	if (!itf || !itf->ds)
+	if (!itf || !itf->ds) {
+		PR_ERR("%s:NULL handle:%px\n", __func__, itf);
 		return;
+	}
 	ds = itf->ds;
-
 	qback = &ds->lk_que_kback;
-	if (qback->ops.is_empty(qback))
+	if (qback->ops.is_empty(qback)) {
+		dbg_plink3("%s:lk_que_kback empty\n", __func__);
 		return;
+	}
 	qidle	= &ds->lk_que_idle;
 	cnt = qback->ops.count(qback);
 	cnt_out = qback->ops.out(qback, &buf[0], cnt);
@@ -4761,6 +4907,7 @@ static void recycle_back(struct dimn_itf_s *itf)
 
 	if (cnt != cnt_out || cnt != cnt_in)
 		PR_ERR("%s:err:cnt[%d:%d:%d]\n", __func__, cnt, cnt_out, cnt_in);
+	dbg_plink3("%s: END cnt[%d:%d:%d]\n", __func__, cnt, cnt_out, cnt_in);
 }
 
 static bool dpvpp_parser(struct dimn_itf_s *itf)
@@ -5091,6 +5238,7 @@ static int dpvpp_display_unreg_bypass(void)
 	hw = &get_datal()->dvs_prevpp.hw;
 
 	if (hw->dis_last_para.dmode != EPVPP_DISPLAY_MODE_BYPASS) {
+		dbg_plink1("%s:trig dis_ch:%d->255\n", __func__, hw->dis_ch);
 		hw->dis_ch = 0xff;
 		/* from pre-vpp link to bypass */
 		//be sure vpp can display
@@ -5101,7 +5249,8 @@ static int dpvpp_display_unreg_bypass(void)
 	}
 	if (hw->dis_ch != hw->dct_ch && !hw->dct_flg) {
 		hw->dct_flg = 2;
-		dbg_plink1("dis:trig2:dct unreg\n");
+		dbg_plink1("dis:trig2:dct unreg dis_ch:%d dct_ch:%d\n",
+			hw->dis_ch, hw->dct_ch);
 	}
 	hw->dis_last_para.dmode = EPVPP_DISPLAY_MODE_BYPASS;
 	hw->dis_last_dvf	= NULL;
@@ -5335,9 +5484,13 @@ static int dpvpp_display(struct vframe_s *vfm,
 	    hw->dis_ch != 0xff		&&
 	    hw->dis_ch != hw->dct_ch	&&
 	    !hw->dct_flg) {
-		hw->dct_flg = 1;
-		dbg_plink3("dis:trig:dct reg\n");
+		if (hw->dct_ch != 0xff)
+			hw->dct_flg = 2;
+		else
+			hw->dct_flg = 1;
+		dbg_plink1("dis:trig:dct reg:%d->%d\n", hw->dct_ch, hw->dis_ch);
 	}
+	atomic_set(&hw->link_instance_id, itf->sum_reg_cnt);
 	return EPVPP_DISPLAY_MODE_NR;
 
 DISPLAY_BYPASS:
@@ -5356,13 +5509,14 @@ DISPLAY_BYPASS:
 	}
 	if (hw->dis_ch != hw->dct_ch && !hw->dct_flg) {
 		hw->dct_flg = 2;
-		dbg_plink1("dis:trig1:dct unreg\n");
+		dbg_plink1("dis:trig1:dct unreg:%d->%d\n", hw->dct_ch, hw->dis_ch);
 	}
 	hw->dis_last_para.dmode = EPVPP_DISPLAY_MODE_BYPASS;
 	hw->dis_last_dvf	= NULL;
 	if (ds) {
 		ds->cnt_display = 0;
 	}
+	atomic_set(&hw->link_instance_id, DIM_PLINK_INSTANCE_ID_INVALID);
 	atomic_add(DI_BIT9, &itf->c.dbg_display_sts);	/* dbg only */
 	if (dbg_tm)
 		PR_INF("%s:bypass\n", __func__);
@@ -5753,6 +5907,7 @@ void dpvpp_prob(void)
 		hw->en_dct = false;
 	hw->dct_ch = 0xff;
 	hw->dis_ch = 0xff;
+	atomic_set(&hw->link_instance_id, DIM_PLINK_INSTANCE_ID_INVALID);
 	dbg_tst("%s:size[0x%zx]k\n",
 		__func__, (sizeof(*dv_prevpp) >> 10));
 }
@@ -6788,6 +6943,9 @@ static void dpvpp_put_ready_vf(struct dimn_itf_s *itf,
 	} else {
 		buffer = &itf->buf_bf[vfm->index];
 		buffer->flag = 0;
+		dbg_plink3("%s:[0x%px:0x%x]:vf[0x%px],%px index:%d\n",
+			__func__, buffer, buffer->flag, buffer->vf,
+			vfm, vfm->index);
 		qready->ops.put(qready, buffer);
 	}
 }
@@ -7840,8 +7998,7 @@ int dpvpp_create_instance(struct di_init_parm *parm)
 		return DI_ERR_REG_NO_IDLE_CH;
 	}
 
-	itf->sum_reg_cnt =
-	atomic_inc_return(&get_datal()->cnt_reg_pre_link);
+	itf->sum_reg_cnt = dpvpp_create_instance_id(ret);
 
 	dbg_ev("reg:[%d]\n", itf->sum_reg_cnt);
 	itf->etype = EDIM_NIN_TYPE_INS;
@@ -7925,8 +8082,10 @@ enum DI_ERRORTYPE dpvpp_empty_input_buffer(struct dimn_itf_s *itf,
 
 	free_nub	= qidle->ops.count(qidle);
 
-	if (!free_nub || qin->ops.is_full(qin))
+	if (!free_nub || qin->ops.is_full(qin)) {
+		PR_ERR("%s:queue full. free_nub:%d\n", __func__, free_nub);
 		return DI_ERR_IN_NO_SPACE;
+	}
 
 	mvf = (struct vframe_s *)qidle->ops.get(qidle);
 
@@ -7959,6 +8118,10 @@ enum DI_ERRORTYPE dpvpp_empty_input_buffer(struct dimn_itf_s *itf,
 #if defined(DBG_QUE_IN_OUT) || defined(DBG_QUE_INTERFACE)
 	dbg_plink3("ins:in:0x%px:%d:0x%x\n",
 		   buffer, ndvfm->c.cnt_in, buffer->flag);
+	dbg_plink3("ins:buffer[0x%px:0x%x]:vf[0x%px:0x%x]\n",
+				buffer, buffer->flag,
+				buffer->vf, buffer->vf->type);
+
 #endif
 
 	itf->c.sum_pre_get++;
@@ -8007,8 +8170,9 @@ enum DI_ERRORTYPE dpvpp_empty_input_buffer(struct dimn_itf_s *itf,
 static void dpvpp_patch_first_buffer(struct dimn_itf_s *itf)
 {
 	int i;
-	unsigned int cnt;
-
+	unsigned int cnt1, cnt2;
+	struct dim_prevpp_ds_s *ds = NULL;
+	struct dimn_qs_cls_s *qidle;
 	struct buf_que_s *pbufq;
 	union q_buf_u q_buf;
 	struct dim_nins_s *ins;
@@ -8019,29 +8183,46 @@ static void dpvpp_patch_first_buffer(struct dimn_itf_s *itf)
 	struct di_ch_s *pch;
 //	struct dcntr_mem_s	*pdcn; //tmp
 
-	if (!itf)
+	if (!itf || !itf->ds) {
+		PR_ERR("%s:no itf:0x%px\n", __func__, itf);
 		return;
+	}
+
+	ds	= itf->ds;
+	if (!atomic_read(&itf->reg) || !ds) {
+		PR_WARN("%s:not reg\n", __func__);
+		return;
+	}
 
 	if (itf->bind_ch >= DI_CHANNEL_MAX) {
 		PR_ERR("%s:ch[%d] overflow\n", __func__, itf->bind_ch);
 		return;
 	}
-	pch = get_chdata(itf->bind_ch);
 
+	pch = get_chdata(itf->bind_ch);
 	if (!pch) {
 		PR_ERR("%s:no pch:id[%d]\n", __func__, itf->bind_ch);
 		return;
 	}
+
 	pbufq = &pch->nin_qb;
-	//qbuf_peek_s(pbufq, QBF_INS_Q_IN, q_buf);
-
 	qt_in = QBF_NINS_Q_CHECK;
-
-	cnt = nins_cnt(pch, qt_in);
-
-	if (!cnt)
+	cnt1 = nins_cnt(pch, qt_in);
+	if (!cnt1) {
+		dbg_plink3("%s:no input buffer\n", __func__);
 		return;
-	for (i = 0; i < cnt; i++) {
+	}
+
+	qidle = &ds->lk_que_idle;
+	cnt2 = qidle->ops.count(qidle);
+	if (!cnt2) {
+		dbg_plink3("%s:no free nub. input buffer:%d\n", __func__, cnt1);
+		return;
+	}
+
+	if (cnt1 > cnt2)
+		cnt1 = cnt2;
+	for (i = 0; i < cnt1; i++) {
 		ret = qbuf_out(pbufq, qt_in, &bindex);
 		if (!ret) {
 			PR_ERR("%s:1:%d:can't get out\n", __func__, i);
@@ -8113,6 +8294,8 @@ enum DI_ERRORTYPE dpvpp_fill_output_buffer(struct dimn_itf_s *itf,
 		return DI_ERR_UNSUPPORT;
 	}
 	qback = &ds->lk_que_kback;
+	dbg_plink3("fill_output_buffer:in:0x%px:0x%px,0x%x\n",
+		   buffer, vf, buffer->flag);
 	qback->ops.put(qback, vf);
 	task_send_wk_timer(EDIM_WKUP_REASON_BACK_BUF);
 
@@ -8196,7 +8379,7 @@ void dpvpp_ins_fill_out(struct dimn_itf_s *itf)
 			dbg_plink3("ins:out_done:bypass:0x%px:0x%x\n",
 				   buffer, buffer->flag);
 			dbg_plink3("ins:empty_done:bypass:0x%px:0x%x\n",
-				   buffer, buffer->flag);
+				   buffer->vf, buffer->vf->type);
 #endif
 		} else {
 			/*tmp*/
@@ -8219,6 +8402,21 @@ void dpvpp_ins_fill_out(struct dimn_itf_s *itf)
 }
 
 //---------------------------------------------------------
+static unsigned int dpvpp_create_instance_id(unsigned int ch)
+{
+	unsigned int tmp_cnt;
+
+	tmp_cnt = atomic_inc_return(&get_datal()->cnt_reg_pre_link);
+	if (tmp_cnt < DIM_PLINK_INSTANCE_ID_MIN ||
+	    tmp_cnt > DIM_PLINK_INSTANCE_ID_MAX) {
+		atomic_set(&get_datal()->cnt_reg_pre_link,
+			DIM_PLINK_INSTANCE_ID_MIN);
+		tmp_cnt = atomic_read(&get_datal()->cnt_reg_pre_link);
+	}
+	tmp_cnt = tmp_cnt * DI_PLINK_CN_NUB + ch;
+	return tmp_cnt;
+}
+
 static int dpvpp_reg_idle_ch(void)
 {
 	struct dimn_itf_s *itf;
@@ -8251,7 +8449,7 @@ int dpvpp_create_internal(struct di_ch_s *pch)
 	struct dimn_itf_s *itf;
 	int ret;
 	struct di_init_parm *parm;
-	unsigned int tmp_cnt;
+
 	/* try */
 	ret = dpvpp_reg_idle_ch();
 	if (ret < 0 || ret >= DI_PLINK_CN_NUB)
@@ -8266,10 +8464,7 @@ int dpvpp_create_internal(struct di_ch_s *pch)
 	}
 
 	/* reg count */
-	tmp_cnt = atomic_inc_return(&get_datal()->cnt_reg_pre_link);
-	if (tmp_cnt < 10)
-		atomic_set(&get_datal()->cnt_reg_pre_link, 11);
-	itf->sum_reg_cnt = atomic_inc_return(&get_datal()->cnt_reg_pre_link);
+	itf->sum_reg_cnt = dpvpp_create_instance_id(pch->ch_id);
 
 	dbg_mem("reg_cnt:[%d]\n", itf->sum_reg_cnt);
 
@@ -8500,11 +8695,13 @@ int dpvpp_sw(bool on)
 unsigned int dpvpp_get_ins_id(void)
 {
 	unsigned int ret = 0;
+	struct dim_pvpp_hw_s *hw;
 
 	if (!get_dim_de_devp() || !get_dim_de_devp()->data_l)
 		return 0;
 
-	ret = (unsigned int)atomic_read(&get_datal()->cnt_reg_pre_link);
+	hw = &get_datal()->dvs_prevpp.hw;
+	ret = (unsigned int)atomic_read(&hw->link_instance_id);
 	return ret;
 }
 

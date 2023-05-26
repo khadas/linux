@@ -494,7 +494,7 @@ static void dcntr_grid_wrmif(int mif_index,
 }
 
 /**************************************************************/
-#define DCNTR_PRE_POOL_SIZE 8	//3
+#define DCNTR_PRE_POOL_SIZE 20	//3
 #define DCNTR_PRE_POOL_SIZE_LOCAL	3
 
 #define DCT_PRE_PRINT_INFO       0X1
@@ -557,6 +557,11 @@ void dct_pre_release(struct di_ch_s *pch)
 static struct di_pre_dct_s *dim_pdct(struct di_ch_s *pch)
 {
 	return (struct di_pre_dct_s *)pch->dct_pre;
+}
+
+static struct di_pre_dct_s *dim_pdct_alloc(struct di_ch_s *pch)
+{
+	return (struct di_pre_dct_s *)pch->dct_pre_alloc;
 }
 
 static struct dcntr_mem_s *mem_peek_free(struct di_ch_s *pch)
@@ -625,6 +630,38 @@ static void mem_put_free(struct dcntr_mem_s *dmem)
 		return;
 	}
 	dmem->free = true;
+}
+
+static bool mem_check(struct di_ch_s *pch, struct dcntr_mem_s *dmem)
+{
+	struct di_pre_dct_s *chdct;
+	int i;
+	bool valid = false;
+
+	if (!dmem || !pch) {
+		PR_ERR("%s:no %px %px\n", __func__, pch, dmem);
+		return false;
+	}
+
+	if (!pch->dct_pre) {
+		PR_WARN("ch[%d] no dct_pre; dmem:%px\n", pch->ch_id, dmem);
+		return false;
+	}
+
+	chdct = (struct di_pre_dct_s *)pch->dct_pre;
+	for (i = 0; i < chdct->buf_nub; i++) {
+		if (dmem == &chdct->dcntr_mem_info[i]) {
+			valid = true;
+			break;
+		}
+	}
+
+	if (!valid) {
+		PR_WARN("ch[%d] dct_pr:%px dmem:%px not match\n", pch->ch_id, chdct, dmem);
+		return false;
+	}
+
+	return true;
 }
 
 static const struct dcntr_mem_s dim_dctp_default = {
@@ -703,6 +740,7 @@ static void decontour_init(struct di_ch_s *pch)
 	}
 
 	pch->dct_pre = pdct;
+	pch->dct_pre_alloc = pdct;
 
 	dct->statusx[pch->ch_id] |= DCT_PRE_LS_CH;
 
@@ -776,14 +814,15 @@ void decontour_buf_reset(struct di_ch_s *pch)
 
 static void decontour_uninit(struct di_ch_s *pch)
 {
-	struct di_pre_dct_s *pdct = dim_pdct(pch);
+	struct di_pre_dct_s *pdct = dim_pdct_alloc(pch);
 	struct di_hdct_s  *dct;
 
 	if (!pdct)
 		return;
 	dct = &get_datal()->hw_dct;
 	if (pdct->plink) {
-		dpvpp_dct_mem_release(pch->ch_id);
+		/* TODO: need check to add lock_pvpp->spin_lock_irqsave */
+		dpvpp_dct_mem_unreg(pch);
 		pdct->plink = false;
 	} else {
 		if (pdct->decontour_addr)
@@ -792,11 +831,12 @@ static void decontour_uninit(struct di_ch_s *pch)
 	}
 	dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_MEM);
 	vfree(pdct);
+	pch->dct_pre_alloc = NULL;
 	pch->dct_pre = NULL;
 	dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_CH);
 	dct->src_cnt--;
 	dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_ACT);
-	dbg_tst("ch[%d]decontour: uninit\n", pch->ch_id);
+	pr_info("ch[%d]decontour: uninit\n", pch->ch_id);
 }
 
 void dct_pre_plink_unreg_mem(struct di_ch_s *pch)
@@ -808,9 +848,36 @@ void dct_pre_plink_unreg_mem(struct di_ch_s *pch)
 		return;
 
 	dct = &get_datal()->hw_dct;
-	dpvpp_dct_mem_release(pch->ch_id);
 	pdct->decontour_addr = 0;
+	pch->dct_pre = NULL;
 	dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_MEM);
+}
+
+bool dct_pre_plink_reg_mem(struct di_ch_s *pch, unsigned long addr_dct)
+{
+	struct di_pre_dct_s *pdct;
+	struct di_hdct_s  *dct;
+
+	if (!addr_dct || !pch) {
+		PR_ERR("%s: no pch %px or dct_addr:%lx\n",
+			__func__, pch, addr_dct);
+		return false;
+	}
+	pdct = dim_pdct_alloc(pch);
+	if (!pdct)
+		return false;
+
+	if (dim_pdct(pch)) {
+		PR_ERR("%s: already reg mem %px\n",
+			__func__, pdct);
+		return false;
+	}
+
+	dct = &get_datal()->hw_dct;
+	pdct->decontour_addr = addr_dct;
+	pch->dct_pre = pdct;
+	dct->statusx[pch->ch_id] |= DCT_PRE_LS_MEM;
+	return true;
 }
 
 /* ref to decontour_init */
@@ -820,7 +887,6 @@ static void dct_pre_plink_init(struct di_ch_s *pch)
 	int yds_size;	/*960 * 576 = 540K*/
 	int cds_size;	/*960 * 576 / 2= 270K*/
 	int total_size;
-	unsigned long addr_dct;
 	int i;
 //	bool is_tvp = false;
 	struct di_pre_dct_s *pdct = NULL;
@@ -836,9 +902,7 @@ static void dct_pre_plink_init(struct di_ch_s *pch)
 
 	if (!nub_ch)	//not support
 		return;
-	addr_dct = dpvpp_dct_mem_alloc(pch->ch_id);
-	if (!addr_dct)
-		return;
+
 	dct_inf = m_rd_dct();
 	if (!dct_inf)
 		return;
@@ -847,28 +911,42 @@ static void dct_pre_plink_init(struct di_ch_s *pch)
 	/***********************/
 	dct->statusx[pch->ch_id] |= DCT_PRE_LS_ACT;
 	/**/
-	if (!pch->dct_pre) {
+	if (!pch->dct_pre_alloc) {
 		pdct = vmalloc(sizeof(*pdct));
-
+		dbg_tst("%s 1:ch[%d] %px\n", __func__, pch->ch_id, pdct);
 		if (!pdct) {
 			PR_WARN("%s:vmalloc\n", __func__);
 			return;
 		}
-		pch->dct_pre = pdct;
+		pch->dct_pre_alloc = pdct;
 	} else {
-		pdct = pch->dct_pre;
+		dbg_tst("%s 2:ch[%d] %px\n", __func__, pch->ch_id, pch->dct_pre_alloc);
+		pdct = pch->dct_pre_alloc;
 	}
 
+	if (!dpvpp_dct_mem_reg(pch)) {
+		dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_MEM);
+		vfree(pdct);
+		pch->dct_pre = NULL;
+		pch->dct_pre_alloc = NULL;
+		dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_CH);
+		dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_ACT);
+		return;
+	}
+
+	dct->src_cnt = cnt_ch;
 	dct->statusx[pch->ch_id] |= DCT_PRE_LS_CH;
 
 	memset(pdct, 0, sizeof(*pdct));
 	//pdct->i_do_decontour = true;
 
 	pdct->buf_nub = DIM_P_LINK_DCT_NUB;//DCNTR_PRE_POOL_SIZE;
-	if (DIM_P_LINK_DCT_NUB > DCNTR_PRE_POOL_SIZE)
-		PR_ERR("%s:\n", __func__);
+	if (pdct->buf_nub > DCNTR_PRE_POOL_SIZE) {
+		PR_WARN("%s:over size(%d > %d)\n",
+			__func__, pdct->buf_nub, DCNTR_PRE_POOL_SIZE);
+		pdct->buf_nub = DCNTR_PRE_POOL_SIZE;
+	}
 
-	pdct->decontour_addr = addr_dct;
 	pdct->plink	= true;/* special */
 
 	dct->statusx[pch->ch_id] |= DCT_PRE_LS_MEM;
@@ -922,7 +1000,7 @@ void dct_pre_plink_reg(struct di_ch_s *pch)
 		dct->state = EDI_DCT_IDLE;
 		di_tout_int(&dct->tout, 20);
 	}
-	dbg_tst("%s\n", __func__);
+	PR_INF("dim:%s\n", __func__);
 }
 
 bool dct_pre_plink_reg_cmd(void)
@@ -934,10 +1012,16 @@ bool dct_pre_plink_reg_cmd(void)
 	flg = dpvpp_dct_get_flg(&ch, &cmd);
 	if (!flg)
 		return true;
-	if (!cmd || cmd > 2 || ch >= DI_CHANNEL_NUB) {
+	if (!cmd || cmd > 2 || (ch >= DI_CHANNEL_NUB && ch != 255)) {
 		PR_ERR("%s:%d:%d\n", __func__, cmd, ch);
 		return false;
 	}
+	if (ch == 255) {
+		PR_ERR("%s:%d:%d reset\n", __func__, cmd, ch);
+		dpvpp_dct_clear_flg();
+		return true;
+	}
+
 	pch = get_chdata(ch);
 	if (cmd == 1) {
 		/* reg */
@@ -2144,6 +2228,7 @@ static void dct_unreg_all(void)
 static const struct di_dct_ops_s dim_dct_ops = {
 	.main_process = dct_main_process,
 	.mem_put_free = mem_put_free,
+	.mem_check = mem_check,
 	.reg		= decontour_init,
 	.unreg		= decontour_uninit,
 	.unreg_all	= dct_unreg_all,

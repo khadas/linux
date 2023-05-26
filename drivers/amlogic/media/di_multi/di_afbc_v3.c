@@ -4604,11 +4604,11 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 
 	if (pafd_ctr->b.chg_level == 3 || pafd_ctr->b.chg_mem == 3 ||
 	    pafd_ctr->b.chg_chan2 == 3) {
-		PR_INF("%s:%d:chg:%d,%d,%d\n", __func__,
+		PR_INF("%s:%d:chg:%d,%d,%d, op:%px\n", __func__,
 		       ndvfm->c.cnt_in,
 		       pafd_ctr->b.chg_level,
 		       pafd_ctr->b.chg_mem,
-		       pafd_ctr->b.chg_chan2);
+		       pafd_ctr->b.chg_chan2, op_in);
 		if (pafd_ctr->fb.ver == AFBCD_V4) {
 			if (pafd_ctr->en_set.b.inp)
 				afbc_tm2_sw_inp(true, op_in);
