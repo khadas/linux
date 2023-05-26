@@ -277,7 +277,7 @@
 		rockchip,vcm-start-current = <0>;
 		rockchip,vcm-rated-current = <65>;
 		rockchip,vcm-step-mode = <4>;
-		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-index = <2>;
 		rockchip,camera-module-facing = "back";
 	};
 
@@ -291,7 +291,7 @@
 		power-domains = <&power RK3588_PD_VI>;
 		reset-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_LOW>;	
 		pwdn-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
-		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-index = <2>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT2022-PX1";
 		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
@@ -315,7 +315,7 @@
 		power-domains = <&power RK3588_PD_VI>;
 		reset-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_HIGH>;
 		power-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
-		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-index = <2>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "default";
 		rockchip,camera-module-lens-name = "default";
