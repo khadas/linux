@@ -185,6 +185,8 @@ struct earc {
 	unsigned int standard_tx_dmac;
 	int suspend_clk_off;
 	bool resumed;
+	/* ui earc/arc rx switch */
+	int rx_ui_flag;
 };
 
 static struct earc *s_earc;
@@ -2142,6 +2144,30 @@ static int arc_set_ui_flag(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int arcrx_get_ui_flag(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+
+	ucontrol->value.integer.value[0] = p_earc->rx_ui_flag;
+
+	return 0;
+}
+
+static int arcrx_set_ui_flag(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+
+	if (p_earc->rx_ui_flag == ucontrol->value.integer.value[0])
+		return 0;
+	p_earc->rx_ui_flag = ucontrol->value.integer.value[0];
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new earc_controls[] = {
 	SOC_SINGLE_BOOL_EXT("eARC RX ARC Switch",
 			    0,
@@ -2234,6 +2260,11 @@ static const struct snd_kcontrol_new earc_controls[] = {
 			    0,
 			    arc_get_ui_flag,
 			    arc_set_ui_flag),
+
+	SOC_SINGLE_BOOL_EXT("ARC eARC RX enable",
+			    0,
+			    arcrx_get_ui_flag,
+			    arcrx_set_ui_flag),
 
 	/* Status channel controller */
 	SND_IEC958(SNDRV_CTL_NAME_IEC958("", CAPTURE, DEFAULT),
@@ -2447,7 +2478,7 @@ void earc_hdmitx_hpdst(bool st)
 {
 	struct earc *p_earc = s_earc;
 
-	if (!p_earc)
+	if (!p_earc || !p_earc->rx_ui_flag)
 		return;
 
 	dev_info(p_earc->dev, "HDMITX cable is %s\n",
