@@ -5638,6 +5638,11 @@ static unsigned long capacity_spare_without(int cpu, struct task_struct *p)
 	return max_t(long, capacity_of(cpu) - cpu_util_without(cpu, p), 0);
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static unsigned long use_spare_thresh = 800;
+core_param(use_spare_thresh, use_spare_thresh, ulong, 0644);
+#endif
+
 /*
  * find_idlest_group finds and returns the least busy CPU group within the
  * domain.
@@ -5742,12 +5747,18 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p,
 	if (sd_flag & SD_BALANCE_FORK)
 		goto skip_spare;
 
-	if (this_spare > task_util(p) / 2 &&
-	    imbalance_scale*this_spare > 100*most_spare)
-		return NULL;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (this_spare >= use_spare_thresh) {
+		if (this_spare > task_util(p) / 2 &&
+		    imbalance_scale * this_spare > 100 * most_spare)
+			return NULL;
+	}
 
-	if (most_spare > task_util(p) / 2)
-		return most_spare_sg;
+	if (most_spare >= use_spare_thresh) {
+		if (most_spare > task_util(p) / 2)
+			return most_spare_sg;
+	}
+#endif
 
 skip_spare:
 	if (!idlest)
