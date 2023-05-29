@@ -1538,7 +1538,7 @@
 		mux { /* GPIOH_4 */
 			groups = "mclk0_h";
 			function = "mclk0";
-			drive-strength = <1>;
+			drive-strength = <2>;
 		};
 	};
 
@@ -1549,7 +1549,7 @@
 				"tdma_dout0_h",
 				"tdma_dout1_h";
 			function = "tdma_out";
-			drive-strength = <1>;
+			drive-strength = <2>;
 			bias-pull-down;
 		};
 	};
@@ -1559,7 +1559,7 @@
 			groups = "tdma_din0_h",
 			    "tdma_din1_h";
 			function = "tdma_in";
-			drive-strength = <1>;
+			drive-strength = <2>;
 		};
 	};
 
@@ -1569,7 +1569,7 @@
 				"tdmc_fs",
 				"tdmc_dout0";
 			function = "tdmc_out";
-			drive-strength = <1>;
+			drive-strength = <2>;
 		};
 	};
 
@@ -1577,7 +1577,7 @@
 		mux { /* GPIODV_10 */
 			groups = "tdmc_din1";
 			function = "tdmc_in";
-			drive-strength = <1>;
+			drive-strength = <2>;
 		};
 	};
 
