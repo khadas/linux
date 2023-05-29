@@ -136,6 +136,8 @@ void ve_set_regmap(struct ve_regmap_s *p);
 void ve_enable_dnlp(void);
 void ve_disable_dnlp(void);
 
+void ve_dnlp_ctrl_vsync(int enable);
+
 int vpp_get_encl_viu_mux(void);
 int vpp_get_vout_viu_mux(void);
 void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write);

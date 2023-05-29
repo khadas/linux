@@ -34,6 +34,7 @@
 #include "reg_helper.h"
 
 bool ve_en;
+bool ve_en_pre;
 unsigned int ve_dnlp_rt;
 ulong ve_dnlp_lpf[64], ve_dnlp_reg[16];
 ulong ve_dnlp_reg_v2[32];
@@ -897,6 +898,11 @@ void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
 			ve_en, dnlp_sel, dnlp_alg_param.dnlp_alg_enable);
 
 	dnlp_dbg_node_copy();
+
+	if (ve_en != ve_en_pre) {
+		ve_en_pre = ve_en;
+		ve_dnlp_ctrl_vsync(ve_en);
+	}
 }
 
 void ble_whe_param_update(struct ve_ble_whe_param_s *p)
