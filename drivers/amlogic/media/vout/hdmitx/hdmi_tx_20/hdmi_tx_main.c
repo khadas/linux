@@ -2511,8 +2511,14 @@ static void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data)
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	unsigned char ven_hb[3] = {0x81, 0x01, 0x1b};
 	unsigned char ven_db[27] = {0x00};
+	const struct cuva_info *cuva = &hdev->rxcap.hdr_info.cuva_info;
 
 	spin_lock_irqsave(&hdev->edid_spinlock, flags);
+
+	if (cuva->ieeeoui != CUVA_IEEEOUI) {
+		spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
+		return;
+	}
 	if (!data) {
 		hdev->hwop.setpacket(HDMI_PACKET_VEND, NULL, NULL);
 		spin_unlock_irqrestore(&hdev->edid_spinlock, flags);

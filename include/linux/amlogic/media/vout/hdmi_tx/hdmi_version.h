@@ -55,6 +55,7 @@
 	"V03.01.02.00.03.05.20 [20230412] [NEW] Add more debug info of hdmitx\n" \
 	"V03.01.02.00.03.05.21 [20230418] [COM] add unmute hdr work func\n" \
 	"V03.01.02.00.03.05.22 [20230505] [COM] add hdr_priority_mode node hide or enable HDR\n" \
-	"V03.01.02.00.03.05.23 [20230511] [COM] sync hdmi commit from project\n"
+	"V03.01.02.00.03.05.23 [20230511] [COM] sync hdmi commit from project\n" \
+	"V03.01.02.00.03.05.24 [20230530] [COM] not control cuva vsif when TV not support cuva\n"
 
 #endif // __HDMI20_VERSION_H__
