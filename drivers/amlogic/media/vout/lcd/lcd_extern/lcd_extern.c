@@ -1545,21 +1545,21 @@ static int lcd_extern_config_load(struct lcd_extern_driver_s *edrv)
 				EXTPR("[%d]: %s: invalid dev_index\n", edrv->index, __func__);
 				continue;
 			}
-			edrv->dev[dev_index] = lcd_extern_dev_malloc(dev_index);
-			if (!edrv->dev[dev_index])
+			edrv->dev[i] = lcd_extern_dev_malloc(dev_index);
+			if (!edrv->dev[i])
 				continue;
 
-			ret = lcd_extern_get_config_dts(np, edrv, edrv->dev[dev_index]);
+			ret = lcd_extern_get_config_dts(np, edrv, edrv->dev[i]);
 			if (ret) {
-				lcd_extern_dev_free(edrv->dev[dev_index]);
-				edrv->dev[dev_index] = NULL;
+				lcd_extern_dev_free(edrv->dev[i]);
+				edrv->dev[i] = NULL;
 				continue;
 			}
 
-			ret = lcd_extern_add_dev(edrv, edrv->dev[dev_index]);
+			ret = lcd_extern_add_dev(edrv, edrv->dev[i]);
 			if (ret) {
-				lcd_extern_dev_free(edrv->dev[dev_index]);
-				edrv->dev[dev_index] = NULL;
+				lcd_extern_dev_free(edrv->dev[i]);
+				edrv->dev[i] = NULL;
 			}
 		}
 	}
