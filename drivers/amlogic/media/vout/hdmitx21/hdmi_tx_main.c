@@ -1414,8 +1414,12 @@ static ssize_t edid_parsing_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "ok\n");
+	if (hdmitx21_edid_notify_ng(hdev->edid_ptr))
+		pos += snprintf(buf + pos, PAGE_SIZE, "ng\n");
+	else
+		pos += snprintf(buf + pos, PAGE_SIZE, "ok\n");
 	return pos;
 }
 
@@ -5846,20 +5850,6 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 }
 
 #endif
-u32 hdmitx21_check_edid_all_zeros(u8 *buf)
-{
-	u32 i = 0, j = 0;
-	u32 chksum = 0;
-
-	for (j = 0; j < EDID_MAX_BLOCK; j++) {
-		chksum = 0;
-		for (i = 0; i < 128; i++)
-			chksum += buf[i + j * 128];
-		if (chksum != 0)
-			return 0;
-	}
-	return 1;
-}
 
 static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 {

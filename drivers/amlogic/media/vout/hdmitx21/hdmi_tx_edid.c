@@ -2994,3 +2994,65 @@ bool is_4k_sink(struct hdmitx_dev *hdev)
 	}
 	return false;
 }
+
+u32 hdmitx21_check_edid_all_zeros(u8 *buf)
+{
+	u32 i = 0, j = 0;
+	u32 chksum = 0;
+
+	for (j = 0; j < EDID_MAX_BLOCK; j++) {
+		chksum = 0;
+		for (i = 0; i < 128; i++)
+			chksum += buf[i + j * 128];
+		if (chksum != 0)
+			return 0;
+	}
+	return 1;
+}
+
+/* static bool hdmitx21_edid_header_invalid(u8 *buf) */
+/* { */
+/*	bool base_blk_invalid = false; */
+/*	bool ext_blk_invalid = false; */
+/*	bool ret = false; */
+/*	int i = 0; */
+
+/*	if (buf[0] != 0 || buf[7] != 0) { */
+/*		base_blk_invalid = true; */
+/*	} else { */
+/*		for (i = 1; i < 7; i++) { */
+/*			if (buf[i] != 0xff) { */
+/*				base_blk_invalid = true; */
+/*				break; */
+/*			} */
+/*		} */
+/*	} */
+	/* judge header strictly, only if both header invalid */
+/*	if (buf[0x7e] > 0) { */
+/*		if (buf[0x80] != 0x2 && buf[0x80] != 0xf0) */
+/*			ext_blk_invalid = true; */
+/*		ret = base_blk_invalid && ext_blk_invalid; */
+/*	} else { */
+/*		 ret = base_blk_invalid; */
+/*	} */
+
+/*	return ret; */
+/* } */
+
+bool hdmitx21_edid_notify_ng(u8 *buf)
+{
+	if (!buf)
+		return true;
+
+	return check21_dvi_hdmi_edid_valid(buf) == 0;
+
+	/* notify EDID NG to systemcontrol */
+	/* if (hdmitx_check_edid_all_zeros(buf)) */
+		/* return true; */
+	/* else if ((buf[0x7e] > 3) && */
+		/* hdmitx_edid_header_invalid(buf)) */
+		/* return true; */
+	/* may extend NG case here */
+
+	/* return false; */
+}
