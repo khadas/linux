@@ -532,7 +532,6 @@ static int mua_detach(int fd, int type)
 	int ret = 0;
 	int index = 0;
 	struct dma_buf *dmabuf = NULL;
-	struct uvm_handle *handle = NULL;
 
 	dmabuf = dma_buf_get(fd);
 
@@ -547,14 +546,13 @@ static int mua_detach(int fd, int type)
 		return -EINVAL;
 	}
 
-	handle = dmabuf->priv;
 
 	MUA_PRINTK(MUA_INFO, "[%s]: dmabuf %p.\n",  __func__, dmabuf);
 
-	if (handle->flags & MUA_DETACH) {
-		for (index = VF_SRC_DECODER; index < PROCESS_INVALID; index++) {
-			if (type & BIT(index))
-				ret &= uvm_detach_hook_mod(dmabuf, index);
+	for (index = VF_SRC_DECODER; index < PROCESS_INVALID; index++) {
+		if (type & BIT(index)) {
+			index |= BIT(PROCESS_HWC);
+			ret &= uvm_detach_hook_mod(dmabuf, index);
 		}
 	}
 

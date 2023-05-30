@@ -20,6 +20,7 @@
 #include <linux/pagemap.h>
 #include <linux/amlogic/meson_uvm_core.h>
 #include "meson_uvm_nn_processor.h"
+#include "meson_uvm_allocator.h"
 
 static int uvm_debug_level = UVM_ERROR;
 module_param(uvm_debug_level, int, 0644);
@@ -818,16 +819,21 @@ int uvm_put_hook_mod(struct dma_buf *dmabuf, int type)
 	handle = dmabuf->priv;
 
 	mutex_lock(&handle->lock);
+	UVM_PRINTK(UVM_DBG, "%s, handle->flags:%lu\n", __func__, handle->flags);
+	if (!(type & BIT(PROCESS_HWC)) ||
+			((type & BIT(PROCESS_HWC)) && (handle->flags & MUA_DETACH))) {
+		uhmod = uvm_find_hook_mod(handle, type);
 
-	uhmod = uvm_find_hook_mod(handle, type);
-
-	if (uhmod) {
-		UVM_PRINTK(UVM_DBG, "%s before kref_put uhmod:%p, dmabuf:%p ref:%u\n",
-			__func__, uhmod, dmabuf, kref_read(&uhmod->ref));
-		ret = kref_put(&uhmod->ref, uvm_hook_mod_release);
-	} else {
-		UVM_PRINTK(UVM_DBG, "%s, uhmod is NULL! can not find the match uhmod\n", __func__);
-		ret = -EINVAL;
+		if (uhmod) {
+			UVM_PRINTK(UVM_DBG, "%s before kref_put uhmod:%p, dmabuf:%p ref:%u\n",
+					__func__, uhmod, dmabuf, kref_read(&uhmod->ref));
+			ret = kref_put(&uhmod->ref, uvm_hook_mod_release);
+			handle->flags &= ~BIT(UVM_DETACH_FLAG);
+		} else {
+			UVM_PRINTK(UVM_DBG, "%s, uhmod is NULL! can not find the match uhmod\n",
+					__func__);
+			ret = -EINVAL;
+		}
 	}
 
 	mutex_unlock(&handle->lock);
