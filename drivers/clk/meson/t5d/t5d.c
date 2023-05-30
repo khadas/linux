@@ -545,10 +545,19 @@ static const struct reg_sequence t5d_hifi_init_regs[] = {
 	{ .reg = HHI_HIFI_PLL_CNTL6,	.def = 0x56540000 },
 };
 
-static const struct pll_mult_range t5d_hifi_pll_mult_range = {
-	.min = 128,
-	.max = 250,
+#ifdef CONFIG_ARM
+static const struct pll_params_table t5d_hifi_pll_table[] = {
+	PLL_PARAMS(150, 1, 3), /* DCO = 3612.672M */
+	PLL_PARAMS(163, 1, 3), /* DCO = 3932.16M */
+	{ /* sentinel */  }
 };
+#else
+static const struct pll_params_table t5d_hifi_pll_table[] = {
+	PLL_PARAMS(150, 1), /* DCO = 3612.672M */
+	PLL_PARAMS(163, 1), /* DCO = 3932.16M */
+	{ /* sentinel */  }
+};
+#endif
 
 static struct clk_regmap t5d_hifi_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
@@ -567,6 +576,11 @@ static struct clk_regmap t5d_hifi_pll_dco = {
 			.shift   = 10,
 			.width   = 5,
 		},
+		.od = {
+			.reg_off = HHI_HIFI_PLL_CNTL0,
+			.shift   = 16,
+			.width   = 2,
+		},
 		.frac = {
 			.reg_off = HHI_HIFI_PLL_CNTL1,
 			.shift   = 0,
@@ -582,10 +596,11 @@ static struct clk_regmap t5d_hifi_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
-		.range = &t5d_hifi_pll_mult_range,
+		.table = t5d_hifi_pll_table,
 		.init_regs = t5d_hifi_init_regs,
 		.init_count = ARRAY_SIZE(t5d_hifi_init_regs),
-		.flags = CLK_MESON_PLL_ROUND_CLOSEST,
+		.flags = CLK_MESON_PLL_ROUND_CLOSEST |
+			 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll_dco",
@@ -597,6 +612,19 @@ static struct clk_regmap t5d_hifi_pll_dco = {
 	},
 };
 
+#ifdef CONFIG_ARM
+static struct clk_regmap t5d_hifi_pll = {
+	.hw.init = &(struct clk_init_data){
+		.name = "hifi_pll",
+		.ops = &meson_pll_clk_no_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t5d_hifi_pll_dco.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+#else
 static struct clk_regmap t5d_hifi_pll = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = HHI_HIFI_PLL_CNTL0,
@@ -615,6 +643,7 @@ static struct clk_regmap t5d_hifi_pll = {
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
+#endif
 
 static struct clk_fixed_factor t5d_mpll_50m_div = {
 	.mult = 1,
