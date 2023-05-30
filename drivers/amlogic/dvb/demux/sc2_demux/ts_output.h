@@ -33,6 +33,10 @@ enum content_type {
 	OTHER_TYPE
 };
 
+#define PCR_TYPE	1
+#define TEMI_TYPE	2
+#define PCR_TEMI_TYPE	3
+
 /**
  * ts_output_init
  * \retval 0:success.
@@ -192,10 +196,11 @@ int ts_output_set_dump_timer(int flag);
 int ts_output_set_decode_info(int sid, struct decoder_mem_info *info);
 int ts_output_check_flow_control(int sid, int percentage);
 int ts_output_add_temi_pid(struct out_elem *pout, int pid, int dmx_id,
-						int *cb_id, int index);
+						int *cb_id, int *index, int type);
 int ts_output_add_remove_temi_pid(struct out_elem *pout, int index);
-int ts_output_alloc_pcr_temi_entry(int *pcr_index, int *temi_index,
-								int *is_same_pid, int pid);
-int ts_output_free_pcr_temi_entry(int index);
+int ts_output_alloc_pcr_temi_entry(int pid, int sid, int type);
+int ts_output_free_pcr_temi_entry(int index, int type);
+
+void *ts_output_find_temi_pcr(int sid, int pid, int *pcr_index, int *temi_index);
 
 #endif

@@ -354,6 +354,22 @@ static int _ts_out_sec_cb(struct out_elem *pout, char *buf,
 	return ret;
 }
 
+static int pcr_type_to_index(enum dmx_ts_pes pes_type)
+{
+	int pcr_num = 0;
+
+	if (pes_type == DMX_PES_PCR0)
+		pcr_num = 0;
+	else if (pes_type == DMX_PES_PCR1)
+		pcr_num = 1;
+	else if (pes_type == DMX_PES_PCR2)
+		pcr_num = 2;
+	else
+		pcr_num = 3;
+
+	return pcr_num;
+}
+
 static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			    enum dmx_ts_pes pes_type, ktime_t timeout)
 {
@@ -375,7 +391,6 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	int is_temi = 0;
 	int is_temi_and_pcr = 0;
 	int pcr_index = -1;
-	int is_same_pid = 0;
 
 	feed->temi_index = -1;
 
@@ -397,6 +412,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	feed->pid = pid;
 	feed->ts_type = ts_type;
 	feed->pes_type = pes_type;
+	feed->temi_index = -1;
 	feed->state = DMX_STATE_READY;
 
 //      feed->buffer_size = circular_buffer_size;
@@ -407,7 +423,6 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 //                      return -ENOMEM;
 //              }
 //      }
-
 	if (demux->source != INPUT_DEMOD)
 		sid = demux->local_sid;
 	else
@@ -431,121 +446,169 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		pr_dbg("%s PCR\n", __func__);
 		if (is_temi == 1) {
 			is_temi_and_pcr = 1;
-			ret = ts_output_alloc_pcr_temi_entry(&pcr_index,
-						&feed->temi_index, &is_same_pid, pid);
-			if (ret == MAX_PCR_NUM || is_same_pid == 1) {
-				dprint("%s error pcr or temi full\n", __func__);
-				if (is_same_pid == 1)
-					ts_output_free_pcr_temi_entry(feed->temi_index);
-				mutex_unlock(demux->pmutex);
-				return -EBUSY;
-			}
-		}
+			type = OTHER_TYPE;
+			format = TEMI_FORMAT;
+			feed->type = OTHER_TYPE;
+			feed->format = TEMI_FORMAT;
+			feed->ts_out_elem = ts_output_find_temi_pcr(sid, pid, &pcr_index,
+									&feed->temi_index);
+			if (feed->ts_out_elem && pcr_index < MAX_PCR_NUM) {
+				ret = ts_output_add_temi_pid(feed->ts_out_elem, feed->pid,
+						demux->id, &cb_id, &feed->temi_index,
+									PCR_TEMI_TYPE);
+				if (ret) {
+					dprint("%s add temi pid fail\n", __func__);
+				} else {
+					ret = ts_output_add_cb(feed->ts_out_elem,
+							out_ts_elem_cb, feed,
+							cb_id, format, 0, demux->id);
+					if (ret)
+						dprint("%s add temi call black fail\n", __func__);
+					else
+						feed->cb_id = cb_id;
+				}
 
-		if (is_temi == 0) {
-			ret = ts_output_alloc_pcr_temi_entry(&pcr_index, NULL, &is_same_pid, pid);
-			if (ret == MAX_PCR_NUM) {
-				dprint("%s error pcr full\n", __func__);
-				mutex_unlock(demux->pmutex);
-				return -EBUSY;
-			}
-
-			if (is_same_pid == 1) {
-				if (pes_type == DMX_PES_PCR0)
-					pcr_num = 0;
-				else if (pes_type == DMX_PES_PCR1)
-					pcr_num = 1;
-				else if (pes_type == DMX_PES_PCR2)
-					pcr_num = 2;
-				else
-					pcr_num = 3;
-
+				pcr_num = pcr_type_to_index(pes_type);
 				demux->pcr_index[pcr_num] = pcr_index;
+				feed->type = OTHER_TYPE;
 
 				mutex_unlock(demux->pmutex);
-
 				return 0;
 			}
 
-			goto HANDLE_PCR;
+			feed->ts_out_elem = ts_output_open(sid, demux->id, format, type,
+								media_type, output_mode);
+			if (!feed->ts_out_elem) {
+				dprint("%s open ts output fail\n", __func__);
+				mutex_unlock(demux->pmutex);
+				return -ENOSPC;
+			}
+
+			ret = ts_output_set_mem(feed->ts_out_elem,
+							temi_buff_size, sec_level,
+							TS_OUTPUT_CHAN_PTS_BUF_SIZE, pts_level);
+			if (ret) {
+				dprint("%s alloc ts output memory fail\n", __func__);
+				ts_output_close(feed->ts_out_elem);
+				mutex_unlock(demux->pmutex);
+				return ret;
+			}
+
+			ret = ts_output_add_temi_pid(feed->ts_out_elem, feed->pid,
+						demux->id, &cb_id, &feed->temi_index,
+									PCR_TEMI_TYPE);
+			if (ret) {
+				dprint("%s add temi pid fail\n", __func__);
+				ts_output_close(feed->ts_out_elem);
+				mutex_unlock(demux->pmutex);
+				return ret;
+			}
+
+			ret = ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed,
+							cb_id, format, 0, demux->id);
+			if (ret) {
+				dprint("%s add temi call black fail\n", __func__);
+				ts_output_remove_pid(feed->ts_out_elem, feed->pid);
+				ts_output_close(feed->ts_out_elem);
+				mutex_unlock(demux->pmutex);
+				return -ENOMEM;
+			}
+
+			pcr_num = pcr_type_to_index(pes_type);
+			demux->pcr_index[pcr_num] = feed->temi_index;
+
+			feed->type = OTHER_TYPE;
+			feed->cb_id = cb_id;
+
+		} else {
+			feed->ts_out_elem = ts_output_find_temi_pcr(sid, pid, &pcr_index, NULL);
+			if (pcr_index < MAX_PCR_NUM) {
+				pcr_num = pcr_type_to_index(pes_type);
+				demux->pcr_index[pcr_num] = pcr_index;
+
+				feed->ts_out_elem = NULL;
+				feed->type = OTHER_TYPE;
+				mutex_unlock(demux->pmutex);
+				return 0;
+			}
+
+			pcr_index = ts_output_alloc_pcr_temi_entry(pid, sid, PCR_TYPE);
+			if (pcr_index >= MAX_PCR_NUM) {
+				dprint("%s error pcr full\n", __func__);
+				mutex_unlock(demux->pmutex);
+				return -EXFULL;
+			}
+
+			pcr_num = pcr_type_to_index(pes_type);
+			demux->pcr_index[pcr_num] = pcr_index;
+
+			ts_output_set_pcr(sid, pcr_index, pid);
+			jiffies_pcr_record[pcr_index].last_pcr = 0;
+			jiffies_pcr_record[pcr_index].last_time = 0;
+			feed->type = OTHER_TYPE;
 		}
+
+		mutex_unlock(demux->pmutex);
+		return 0;
 	}
 
-	if (is_temi == 1) {
+	if (is_temi == 1 && !is_temi_and_pcr) {
 		type = OTHER_TYPE;
 		format = TEMI_FORMAT;
-		feed->type = type;
-		feed->format = format;
-		mem_size = temi_buff_size;
+		feed->type = OTHER_TYPE;
+		feed->format = TEMI_FORMAT;
 
-		if (is_temi_and_pcr == 0) {
-			ret = ts_output_alloc_pcr_temi_entry(NULL,
-					&feed->temi_index, &is_same_pid, pid);
-			if (ret != 0) {
-				dprint("%s error TEMI full\n", __func__);
-				mutex_unlock(demux->pmutex);
-				return -EBUSY;
-			}
+		feed->ts_out_elem = ts_output_find_temi_pcr(sid, pid, NULL, &feed->temi_index);
+		if (feed->ts_out_elem && feed->temi_index < MAX_PCR_NUM) {
+			ret = ts_output_add_temi_pid(feed->ts_out_elem, feed->pid,
+					demux->id, &cb_id, &feed->temi_index, TEMI_TYPE);
+
+			ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed,
+						cb_id, format, 0, demux->id);
+			feed->cb_id = cb_id;
+
+			mutex_unlock(demux->pmutex);
+			return 0;
 		}
 
-		feed->ts_out_elem = ts_output_open(sid, demux->id, format,
-		type, media_type, output_mode);
+		feed->ts_out_elem = ts_output_open(sid, demux->id, format, type,
+							media_type, output_mode);
 		if (!feed->ts_out_elem) {
-			dprint("%s TEMI error\n", __func__);
-			ts_output_free_pcr_temi_entry(feed->temi_index);
-			if (is_temi_and_pcr == 1)
-				ts_output_free_pcr_temi_entry(pcr_index);
+			dprint("%s open ts output fail\n", __func__);
 			mutex_unlock(demux->pmutex);
-			return -EBUSY;
+			return -ENOSPC;
 		}
 
 		ret = ts_output_set_mem(feed->ts_out_elem,
-					mem_size, sec_level,
-					TS_OUTPUT_CHAN_PTS_BUF_SIZE, pts_level);
-
-		if (ret != 0) {
-			dprint("temi set mem failed\n");
-			ts_output_free_pcr_temi_entry(feed->temi_index);
-			if (is_temi_and_pcr == 1)
-				ts_output_free_pcr_temi_entry(pcr_index);
+						temi_buff_size, sec_level,
+						TS_OUTPUT_CHAN_PTS_BUF_SIZE, pts_level);
+		if (ret) {
+			dprint("%s alloc ts output memory fail\n", __func__);
 			ts_output_close(feed->ts_out_elem);
-			feed->ts_out_elem = NULL;
 			mutex_unlock(demux->pmutex);
-			return -ENOMEM;
+			return ret;
 		}
 
 		ret = ts_output_add_temi_pid(feed->ts_out_elem, feed->pid,
-				demux->id, &cb_id, feed->temi_index);
-
-		if (ret != 0) {
-			dprint("temi add pid failed\n");
-			ts_output_free_pcr_temi_entry(feed->temi_index);
-			if (is_temi_and_pcr == 1)
-				ts_output_free_pcr_temi_entry(pcr_index);
+					demux->id, &cb_id, &feed->temi_index, TEMI_TYPE);
+		if (ret) {
+			dprint("%s add temi pid fail\n", __func__);
 			ts_output_close(feed->ts_out_elem);
-			feed->ts_out_elem = NULL;
 			mutex_unlock(demux->pmutex);
-			return -EBUSY;
+			return ret;
 		}
 
-		ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed,
+		ret = ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed,
 			cb_id, format, 0, demux->id);
+		if (ret) {
+			dprint("%s add temi call black fail\n", __func__);
+			ts_output_remove_pid(feed->ts_out_elem, feed->pid);
+			ts_output_close(feed->ts_out_elem);
+			mutex_unlock(demux->pmutex);
+			return ret;
+		}
 
 		feed->cb_id = cb_id;
-
-		if (is_temi_and_pcr == 1) {
-			if (pes_type == DMX_PES_PCR0)
-				pcr_num = 0;
-			else if (pes_type == DMX_PES_PCR1)
-				pcr_num = 1;
-			else if (pes_type == DMX_PES_PCR2)
-				pcr_num = 2;
-			else
-				pcr_num = 3;
-
-			demux->pcr_index[pcr_num] = pcr_index;
-		}
-
 		mutex_unlock(demux->pmutex);
 
 		return 0;
@@ -718,26 +781,6 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		demux->reset_init_audio = 0;
 	}
 
-	mutex_unlock(demux->pmutex);
-	return 0;
-
-HANDLE_PCR:
-	{
-		if (pes_type == DMX_PES_PCR0)
-			pcr_num = 0;
-		else if (pes_type == DMX_PES_PCR1)
-			pcr_num = 1;
-		else if (pes_type == DMX_PES_PCR2)
-			pcr_num = 2;
-		else
-			pcr_num = 3;
-
-		demux->pcr_index[pcr_num] = pcr_index;
-		ts_output_set_pcr(sid, pcr_index, pid);
-		jiffies_pcr_record[pcr_index].last_pcr = 0;
-		jiffies_pcr_record[pcr_index].last_time = 0;
-		feed->type = OTHER_TYPE;
-	}
 	mutex_unlock(demux->pmutex);
 	return 0;
 }
@@ -1268,13 +1311,13 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 
 	if (feed->ts_out_elem) {
 		pr_dbg("%s pid:%d\n", __func__, feed->pid);
-		if (feed->temi_index != -1) {
-			ts_output_free_pcr_temi_entry(feed->temi_index);
+		if (feed->format == TEMI_FORMAT) {
 			ts_output_add_remove_temi_pid(feed->ts_out_elem, feed->temi_index);
 			feed->temi_index = -1;
 		} else {
 			ts_output_remove_pid(feed->ts_out_elem, feed->pid);
 		}
+
 		ts_output_remove_cb(feed->ts_out_elem,
 				out_ts_elem_cb, feed, feed->cb_id, 0);
 		if (feed->format == DVR_FORMAT) {
@@ -1307,7 +1350,7 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 
 		pcr_index = demux->pcr_index[pcr_num];
 		if (pcr_index >= 0 && pcr_index < MAX_PCR_NUM) {
-			ts_output_free_pcr_temi_entry(pcr_index);
+			ts_output_free_pcr_temi_entry(pcr_index, PCR_TYPE);
 			ts_output_set_pcr(sid, pcr_index, -1);
 			jiffies_pcr_record[pcr_index].last_pcr = 0;
 			jiffies_pcr_record[pcr_index].last_time = 0;

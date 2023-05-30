@@ -144,6 +144,7 @@ struct out_elem {
 	/*get es header mutex with get newest pts*/
 	struct mutex pts_mutex;
 	u8 ts_dump;
+	int temi_index;
 };
 
 struct sid_entry {
@@ -175,9 +176,12 @@ struct pcr_entry {
 	u8 turn_on;
 	u8 stream_id;
 	int pcr_pid;
+	int sid;
 	struct out_elem *pout;
 	int ref;
 	int type;
+	int pcr_total;
+	int temi_total;
 };
 
 static struct pid_entry *pid_table;
@@ -2571,20 +2575,25 @@ int ts_output_remap_pid(int sid, int pid, int new_pid)
  */
 int ts_output_set_pcr(int sid, int pcr_num, int pcrpid)
 {
-	pr_dbg("%s pcr_num:%d,pid:%d\n", __func__, pcr_num, pcrpid);
+	pr_dbg("%s pcr_num:%d,pid:%d,ref=%d\n", __func__, pcr_num, pcrpid, pcr_table[pcr_num].ref);
 	if (pcr_num >= MAX_PCR_NUM) {
 		dprint("%s num:%d invalid\n", __func__, pcr_num);
 		return -1;
 	}
-	if (pcrpid == -1 && pcr_table[pcr_num].ref == 0) {
-		pcr_table[pcr_num].turn_on = 0;
-		pcr_table[pcr_num].stream_id = -1;
-		pcr_table[pcr_num].pcr_pid = -1;
-		tsout_config_pcr_table(pcr_num, -1, sid);
+
+	if (pcrpid == -1) {
+		if (pcr_table[pcr_num].ref <= 0) {
+			pcr_table[pcr_num].turn_on = 0;
+			pcr_table[pcr_num].stream_id = -1;
+			pcr_table[pcr_num].pcr_pid = -1;
+			pcr_table[pcr_num].sid = -1;
+			tsout_config_pcr_table(pcr_num, -1, sid);
+		}
 	} else {
 		pcr_table[pcr_num].turn_on = 1;
 		pcr_table[pcr_num].stream_id = sid;
 		pcr_table[pcr_num].pcr_pid = pcrpid;
+		pcr_table[pcr_num].sid = sid;
 		tsout_config_pcr_table(pcr_num, pcrpid, sid);
 	}
 	return 0;
@@ -2849,69 +2858,62 @@ int ts_output_close(struct out_elem *pout)
 	pout->use_external_mem = 0;
 	pout->ts_dump = 0;
 	pout->used = 0;
+	if (pout->format == TEMI_FORMAT) {
+		pcr_table[pout->temi_index].pout = NULL;
+		pout->temi_index = -1;
+	}
+
 	pr_dbg("%s exit, line:%d\n", __func__, __LINE__);
 	return 0;
 }
 
-int ts_output_alloc_pcr_temi_entry(int *pcr_index, int *temi_index, int *is_same_pid, int pid)
+int ts_output_alloc_pcr_temi_entry(int pid, int sid, int type)
 {
 	int index = 0;
-
-	for (index = 0; index < MAX_PCR_NUM; index++) {
-		if (pcr_table[index].turn_on == 1 && pid == pcr_table[index].pcr_pid) {
-			pcr_table[index].ref += 1;
-			pcr_table[index].type = 3;
-			*is_same_pid = 1;
-			if (pcr_index)
-				*pcr_index = index;
-
-			if (temi_index)
-				*temi_index = index;
-
-			return 0;
-		}
-	}
 
 	for (index = 0; index < MAX_PCR_NUM; index++)
 		if (pcr_table[index].turn_on == 0)
 			break;
 
-	if (index == MAX_PCR_NUM) {
-		if (pcr_index)
-			*pcr_index = -1;
-		if (temi_index)
-			*temi_index = -1;
-		return -1;
-	}
+	if (index == MAX_PCR_NUM)
+		return index;
 
 	pcr_table[index].turn_on = 1;
-	pcr_table[index].ref = 0;
-	*is_same_pid = 0;
+	pcr_table[index].type = type;
 
-	if (pcr_index) {
-		*pcr_index = index;
-		pcr_table[index].ref += 1;
-		pcr_table[index].type = 1;
+	switch (type) {
+	case PCR_TYPE:
+		pcr_table[index].pcr_total = 1;
+		pcr_table[index].ref = 1;
+	break;
+	case TEMI_TYPE:
+		pcr_table[index].temi_total = 1;
+		pcr_table[index].ref = 1;
+	break;
+	case PCR_TEMI_TYPE:
+		pcr_table[index].pcr_total = 1;
+		pcr_table[index].temi_total = 1;
+		pcr_table[index].ref = 2;
+	break;
+	default:
+		dprint("%s type error type=%d\n", __func__, type);
+	break;
 	}
-
-	if (temi_index) {
-		*temi_index = index;
-		pcr_table[index].ref += 1;
-		pcr_table[index].type = 2;
-	}
-
-	if (temi_index && pcr_index)
-		pcr_table[index].type = 3;
 
 	return 0;
 }
 
-int ts_output_free_pcr_temi_entry(int index)
+int ts_output_free_pcr_temi_entry(int index, int type)
 {
 	if (index < 0 || index >= MAX_PCR_NUM)
 		return -1;
 
 	pcr_table[index].ref -= 1;
+	if (type == PCR_TYPE)
+		pcr_table[index].pcr_total -= 1;
+	else if (type == TEMI_TYPE)
+		pcr_table[index].temi_total -= 1;
+
 	if (pcr_table[index].ref <= 0) {
 		pcr_table[index].turn_on = 0;
 		pcr_table[index].type = 0;
@@ -2927,30 +2929,79 @@ static int ts_output_set_temi(int index, int pid, int sid, void *pout)
 	if (index < 0 || index >= MAX_PCR_NUM)
 		return -1;
 
-	pcr_table[index].pcr_pid = pid;
-	pcr_table[index].stream_id = sid;
-	pcr_table[index].pout = pout;
-
 	p = pout;
 
-	if (pid != -1)
+	if (pid == -1) {
+		if (pcr_table[index].ref <= 0) {
+			pcr_table[index].pcr_pid = -1;
+			pcr_table[index].stream_id = -1;
+			pcr_table[index].sid = -1;
+			pcr_table[index].pout = NULL;
+			tsout_config_temi_table(index, -1, -1, -1, -1);
+		}
+	} else {
+		pcr_table[index].pcr_pid = pid;
+		pcr_table[index].stream_id = sid;
+		pcr_table[index].sid = sid;
+		pcr_table[index].pout = pout;
 		tsout_config_temi_table(index, pid, sid, p->pchan->id, 0);
-	else if (pid == -1 && pcr_table[index].ref == 0)
-		tsout_config_temi_table(index, -1, -1, -1, -1);
+	}
 
 	return 0;
 }
 
+void *ts_output_find_temi_pcr(int sid, int pid, int *pcr_index, int *temi_index)
+{
+	int index = 0;
+
+	for (index = 0; index < MAX_PCR_NUM; index++) {
+		if (pcr_table[index].turn_on == 1 && pid == pcr_table[index].pcr_pid &&
+			sid == pcr_table[index].sid) {
+			if (pcr_index) {
+				pcr_table[index].ref += 1;
+				pcr_table[index].pcr_total += 1;
+				if (pcr_table[index].type == TEMI_TYPE)
+					pcr_table[index].type = PCR_TEMI_TYPE;
+				*pcr_index = index;
+			}
+
+			if (temi_index) {
+				pcr_table[index].ref += 1;
+				pcr_table[index].temi_total += 1;
+				if (pcr_table[index].type == PCR_TYPE)
+					pcr_table[index].type = PCR_TEMI_TYPE;
+				*temi_index = index;
+			}
+
+			if (pcr_index && temi_index)
+				pcr_table[index].type = PCR_TEMI_TYPE;
+
+			return pcr_table[index].pout;
+		}
+	}
+
+	if (pcr_index)
+		*pcr_index = index;
+
+	if (temi_index)
+		*temi_index = index;
+
+	return NULL;
+}
+
 int ts_output_add_temi_pid(struct out_elem *pout, int pid, int dmx_id,
-						int *cb_id, int index)
+						int *cb_id, int *index, int type)
 {
 	int ret = 0;
 
 	if (!pout)
 		return -1;
 
-	if (cb_id)
-		*cb_id = 0;
+	if (*index >= MAX_PCR_NUM) {
+		*index = ts_output_alloc_pcr_temi_entry(pid, pout->sid, type);
+		if (*index >= MAX_PCR_NUM)
+			return -1;
+	}
 
 	if (pout->pchan)
 		SC2_bufferid_set_enable(pout->pchan, 1, pout->sid, pid);
@@ -2958,18 +3009,15 @@ int ts_output_add_temi_pid(struct out_elem *pout, int pid, int dmx_id,
 	if (cb_id)
 		*cb_id = dmx_id;
 
-	if (!pout->pchan) {
-		dprint("get pout->pchan NULL error\n");
-		return -1;
-	}
-
-	ret = ts_output_set_temi(index, pid, pout->sid, pout);
+	ret = ts_output_set_temi(*index, pid, pout->sid, pout);
 	if (ret != 0) {
 		dprint("set temi status failed\n");
+		ts_output_free_pcr_temi_entry(*index, TEMI_TYPE);
 		return -1;
 	}
 
 	pout->enable = 1;
+	pout->temi_index = *index;
 
 	return 0;
 }
@@ -2980,7 +3028,9 @@ int ts_output_add_remove_temi_pid(struct out_elem *pout, int index)
 
 	ret = ts_output_set_temi(index, -1, -1, NULL);
 
-	if (pout)
+	ts_output_free_pcr_temi_entry(index, TEMI_TYPE);
+
+	if (pout->ref <= 1)
 		pout->enable = 0;
 
 	return ret;
@@ -3618,6 +3668,10 @@ int ts_output_dump_info(char *buf)
 		unsigned int wp_offset = 0;
 
 		if (es_slot->used && es_slot->status == PES_FORMAT) {
+			if (!es_slot->pout) {
+				dprint("%s line:%d\n", __func__, __LINE__);
+				continue;
+			}
 			r = sprintf(buf, "%d dmx_id:%d sid:0x%0x type:%d,",
 				count, es_slot->dmx_id,
 				es_slot->pout->sid, es_slot->pout->type);
@@ -3680,6 +3734,10 @@ int ts_output_dump_info(char *buf)
 		unsigned int wp_offset = 0;
 
 		if (es_slot->used && es_slot->status == ES_FORMAT) {
+			if (!es_slot->pout) {
+				dprint("%s line:%d\n", __func__, __LINE__);
+				continue;
+			}
 			r = sprintf(buf, "%d dmx_id:%d sid:0x%0x type:%s",
 				count, es_slot->dmx_id, es_slot->pout->sid,
 				    (es_slot->pout->type == AUDIO_TYPE) ?
@@ -3770,6 +3828,10 @@ int ts_output_dump_info(char *buf)
 		struct out_elem *pout = NULL;
 
 		if (es_slot->used && es_slot->status == SECTION_FORMAT) {
+			if (!es_slot->pout) {
+				dprint("%s line:%d\n", __func__, __LINE__);
+				continue;
+			}
 			pout = es_slot->pout;
 			tmp_cb = pout->cb_sec_list;
 
@@ -3832,11 +3894,11 @@ int ts_output_dump_info(char *buf)
 	count = 0;
 
 	for (i = 0; i < MAX_PCR_NUM; i++) {
-		if (pcr_table[i].turn_on != 1 || pcr_table[i].type == 2)
+		if (pcr_table[i].turn_on == 0 || pcr_table[i].pcr_total <= 0)
 			continue;
 
-		r = sprintf(buf, "%d sid:0x%0x pcr pid:0x%0x\n", count,
-			pcr_table[i].stream_id, pcr_table[i].pcr_pid);
+		r = sprintf(buf, "%d sid:0x%0x pcr pid:0x%0x ref=%d\n", count,
+			pcr_table[i].stream_id, pcr_table[i].pcr_pid, pcr_table[i].pcr_total);
 		buf += r;
 		total += r;
 
@@ -3854,11 +3916,15 @@ int ts_output_dump_info(char *buf)
 		unsigned int free_size = 0;
 		unsigned int wp_offset = 0;
 
-		if (pcr_table[i].turn_on != 1 || pcr_table[i].type == 1)
+		if (pcr_table[i].turn_on == 0 || pcr_table[i].temi_total <= 0)
 			continue;
 
-		r = sprintf(buf, "%d sid:0x%0x temi pid:0x%0x, ", count,
-			pcr_table[i].stream_id, pcr_table[i].pcr_pid);
+		if (!pcr_table[i].pout) {
+			dprint("%s line:%d\n", __func__, __LINE__);
+			continue;
+		}
+		r = sprintf(buf, "%d sid:0x%0x temi pid:0x%0x, ref=%d ", count,
+			pcr_table[i].stream_id, pcr_table[i].pcr_pid, pcr_table[i].temi_total);
 
 		buf += r;
 		total += r;
