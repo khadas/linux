@@ -11,7 +11,7 @@
 void scdc21_config(struct hdmitx_dev *hdev)
 {
 	/* TMDS 1/40 & Scramble */
-	scdc21_wr_sink(TMDS_CFG, hdev->para->tmds_clk_div40 ? 0x3 : 0);
+	scdc21_wr_sink(SCDC_TMDS_CFG, hdev->para->tmds_clk_div40 ? 0x3 : 0);
 }
 
 /* update CED, 10.4.1.8 */
@@ -27,7 +27,7 @@ static int scdc_ced_cnt(struct hdmitx_dev *hdev)
 
 	chksum = 0;
 	for (i = 0; i < 7; i++) {
-		scdc21_rd_sink(ERR_DET_0_L + i, &raw[i]);
+		scdc21_rd_sink(SCDC_CH0_ERRCNT_0 + i, &raw[i]);
 		chksum += raw[i];
 	}
 
@@ -61,9 +61,9 @@ int scdc21_status_flags(struct hdmitx_dev *hdev)
 	u8 st = 0;
 	u8 locked_st = 0;
 
-	scdc21_rd_sink(UPDATE_0, &st);
+	scdc21_rd_sink(SCDC_UPDATE_0, &st);
 	if (st & STATUS_UPDATE) {
-		scdc21_rd_sink(STATUS_FLAGS_0, &locked_st);
+		scdc21_rd_sink(SCDC_STATUS_FLAGS_0, &locked_st);
 		hdev->chlocked_st.clock_detected = locked_st & (1 << 0);
 		hdev->chlocked_st.ch0_locked = !!(locked_st & (1 << 1));
 		hdev->chlocked_st.ch1_locked = !!(locked_st & (1 << 2));
@@ -72,7 +72,7 @@ int scdc21_status_flags(struct hdmitx_dev *hdev)
 	if (st & CED_UPDATE)
 		scdc_ced_cnt(hdev);
 	if (st & (STATUS_UPDATE | CED_UPDATE))
-		scdc21_wr_sink(UPDATE_0, st & (STATUS_UPDATE | CED_UPDATE));
+		scdc21_wr_sink(SCDC_UPDATE_0, st & (STATUS_UPDATE | CED_UPDATE));
 	if (!hdev->chlocked_st.clock_detected)
 		pr_info("ced: clock undetected\n");
 	if (!hdev->chlocked_st.ch0_locked)
@@ -83,4 +83,76 @@ int scdc21_status_flags(struct hdmitx_dev *hdev)
 		pr_info("ced: ch2 unlocked\n");
 
 	return st & (STATUS_UPDATE | CED_UPDATE);
+}
+
+u16 scdc_tx_ltp0123_get(void)
+{
+	u8 data;
+	u16 ltp;
+
+	scdc21_rd_sink(SCDC_STATUS_FLAGS_1, &data);
+	ltp = data;
+	scdc21_rd_sink(SCDC_STATUS_FLAGS_2, &data);
+	ltp |= data << 8;
+
+	return ltp;
+}
+
+bool scdc_tx_frl_cfg1_set(u8 cfg1)
+{
+	scdc21_wr_sink(SCDC_CONFIG_1, cfg1);
+
+	return true;
+}
+
+u8 scdc_tx_update_flags_get(void)
+{
+	u8 data;
+
+	scdc21_rd_sink(SCDC_UPDATE_0, &data);
+	if (data && (data & HDMI20_UPDATE_FLAGS)) {
+		/* clear the flags after reading */
+		scdc21_wr_sink(SCDC_UPDATE_0, HDMI20_UPDATE_FLAGS & data);
+	}
+
+	return data;
+}
+
+bool scdc_tx_update_flags_set(u8 update_flags)
+{
+	u8 data;
+
+	data = update_flags & HDMI21_UPDATE_FLAGS;
+	scdc21_wr_sink(SCDC_UPDATE_0, data);
+
+	return true;
+}
+
+u8 scdc_tx_flt_ready_status_get(void)
+{
+	u8 data;
+
+	scdc21_rd_sink(SCDC_STATUS_FLAGS_0, &data);
+	return !!(data & FLT_READY);
+}
+
+u8 scdc_tx_sink_version_get(void)
+{
+	u8 data;
+
+	scdc21_rd_sink(SCDC_SINK_VER, &data);
+	return data;
+}
+
+void scdc_tx_source_version_set(u8 src_ver)
+{
+	scdc21_wr_sink(SCDC_SOURCE_VER, src_ver);
+}
+
+u8 scdc_tx_source_test_cfg_get(void)
+{
+	u8 data;
+
+	scdc21_rd_sink(SCDC_SOURCE_TEST_CONFIG, &data);
+	return data;
 }

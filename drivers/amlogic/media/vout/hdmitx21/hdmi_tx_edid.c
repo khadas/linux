@@ -34,6 +34,7 @@
 #define AUDIO_TAG 0x20
 #define VENDOR_TAG 0x60
 #define SPEAKER_TAG 0x80
+#define EXTENSION_IFDB_TAG	0x20
 
 #define HDMI_EDID_BLOCK_TYPE_RESERVED	 0
 #define HDMI_EDID_BLOCK_TYPE_AUDIO		1
@@ -185,16 +186,16 @@ static void edid_parsingidserialnumber(struct rx_cap *prxcap,
 static void store_vesa_idx(struct rx_cap *prxcap, enum hdmi_vic vesa_timing)
 {
 	int i;
+	int already = 0;
 
-	for (i = 0; i < VESA_MAX_TIMING; i++) {
-		if (!prxcap->vesa_timing[i]) {
-			prxcap->vesa_timing[i] = vesa_timing;
+	for (i = 0; i < VESA_MAX_TIMING && prxcap->vesa_timing[i]; i++) {
+		if (prxcap->vesa_timing[i] == vesa_timing) {
+			already = 1;
 			break;
 		}
-
-		if (prxcap->vesa_timing[i] == vesa_timing)
-			break;
 	}
+	if (!already && i != VESA_MAX_TIMING)
+		prxcap->vesa_timing[i] = vesa_timing;
 }
 
 static void store_cea_idx(struct rx_cap *prxcap, enum hdmi_vic vic)
@@ -1404,7 +1405,7 @@ static void edid_parsingdolbyvsadb(struct hdmitx_dev *hdev,
 	pos += 3;
 	cap->dolby_vsadb_ver = buf[pos] & 0x7;
 	if (cap->dolby_vsadb_ver)
-		pr_info("%s[%d]: the verion is 0x%x, should be 0x0\n",
+		pr_info("%s[%d]: the version is 0x%x, should be 0x0\n",
 			__func__, __LINE__, cap->dolby_vsadb_ver);
 
 	cap->spk_center = (buf[pos] >> 4) & 1;
@@ -1742,13 +1743,16 @@ static void hdmitx21_edid_parse_hdmi14(struct rx_cap *prxcap,
 			val[1] = blockbuf[idx + 1];
 			get_latency(prxcap, val);
 			idx += 2;
-		}
-		if (tmp & (1 << 7)) {
+			val[0] = blockbuf[idx];
+			val[1] = blockbuf[idx + 1];
+			get_ilatency(prxcap, val);
+			idx += 2;
+		} else if (tmp & (1 << 7)) {
 			u8 val[2];
 
 			val[0] = blockbuf[idx];
 			val[1] = blockbuf[idx + 1];
-			get_ilatency(prxcap, val);
+			get_latency(prxcap, val);
 			idx += 2;
 		}
 		prxcap->cnc0 = (tmp >> 0) & 1;
@@ -1773,6 +1777,55 @@ static void hdmitx21_edid_parse_hdmi14(struct rx_cap *prxcap,
 	}
 }
 
+static void hdmitx21_edid_parse_ifdb(struct rx_cap *prxcap, u8 *blockbuf)
+{
+	u8 payload_len;
+	u8 len;
+	u8 sum_len = 0;
+
+	if (!prxcap || !blockbuf)
+		return;
+
+	payload_len = blockbuf[0] & 0x1f;
+	/* no additional bytes after extended tag code */
+	if (payload_len <= 1)
+		return;
+
+	/* begin with an InfoFrame Processing Descriptor */
+	if ((blockbuf[2] & 0x1f) != 0)
+		pr_info(EDID "ERR: IFDB not begin with InfoFrame Processing Descriptor\n");
+	sum_len = 1; /* Extended Tag Code len */
+
+	len = (blockbuf[2] >> 5) & 0x7;
+	sum_len += (len + 2);
+	if (payload_len < sum_len) {
+		pr_info(EDID "ERR: IFDB length abnormal: %d exceed playload len %d\n",
+			sum_len, payload_len);
+		return;
+	}
+
+	prxcap->additional_vsif_num = blockbuf[3];
+	if (payload_len == sum_len)
+		return;
+
+	while (sum_len < payload_len) {
+		if ((blockbuf[sum_len + 1] & 0x1f) == 1) {
+			/* Short Vendor-Specific InfoFrame Descriptor */
+			/* pr_info(EDID "InfoFrame Type Code: 0x1, len: %d, IEEE: %x\n", */
+				/* len, blockbuf[sum_len + 4] << 16 | */
+				/* blockbuf[sum_len + 3] << 8 | blockbuf[sum_len + 2]); */
+			/* number of additional bytes following the 3-byte OUI */
+			len = (blockbuf[sum_len + 1] >> 5) & 0x7;
+			sum_len += (len + 1 + 3);
+		} else {
+			/* Short InfoFrame Descriptor */
+			/* pr_info(EDID "InfoFrame Type Code: %x, len: %d\n", */
+				/* blockbuf[sum_len + 1] & 0x1f, len); */
+			len = (blockbuf[sum_len + 1] >> 5) & 0x7;
+			sum_len += (len + 1);
+		}
+	}
+}
 static void hdmitx21_edid_parse_hfscdb(struct rx_cap *prxcap,
 	u8 offset, u8 *blockbuf, u8 count)
 {
@@ -1840,19 +1893,24 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 	u32 aud_flag = 0;
 
 	if (blockbuf[0] == 0x0)
-		pr_info(EDID "unkonw Extension Tag detected, continue\n");
+		pr_info(EDID "unknown Extension Tag detected, continue\n");
 	if (blockbuf[0] != 0x02)
 		return -1; /* not a CEA BLOCK. */
 	end = blockbuf[2]; /* CEA description. */
 	prxcap->native_Mode = blockbuf[3];
 	prxcap->number_of_dtd += blockbuf[3] & 0xf;
 
+	/* do not reset anything during parsing as there could be
+	 * more than one block. Below variable should be reset once
+	 * before parsing and are already being reset before parse
+	 *call
+	 */
 	/* prxcap->native_vic = 0;*/
 	/* prxcap->native_vic2 = 0;*/
 	/* prxcap->AUD_count = 0;*/
 
 	edid_y420cmdb_reset(&hdev->hdmi_info);
-	if (end > 126)
+	if (end > 127)
 		return 0;
 	for (offset = 4 ; offset < end ; ) {
 		tag = blockbuf[offset] >> 5;
@@ -1879,8 +1937,10 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 
 		case HDMI_EDID_BLOCK_TYPE_VIDEO:
 			offset++;
-			for (i = 0; i < count ; i++)
+			for (i = 0; i < count ; i++) {
+				pr_info("i=%d VIC=%d\n", i, blockbuf[offset + i]);
 				_store_vics(prxcap, blockbuf[offset + i]);
+			}
 			offset += count;
 			break;
 
@@ -1924,6 +1984,8 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 				case EXTENSION_COLORMETRY_TAG:
 					prxcap->colorimetry_data =
 						blockbuf[offset + 2];
+					prxcap->colorimetry_data2 =
+						blockbuf[offset + 2];
 					break;
 				case EXTENSION_DRM_STATIC_TAG:
 					edid_parsedrmsb(prxcap,
@@ -1959,6 +2021,10 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 				case EXTENSION_SCDB_EXT_TAG:
 					hdmitx21_edid_parse_hfscdb(prxcap, offset + 1,
 							 blockbuf, count);
+					break;
+				case EXTENSION_IFDB_TAG:
+					prxcap->ifdb_present = true;
+					hdmitx21_edid_parse_ifdb(prxcap, &blockbuf[offset]);
 					break;
 				default:
 					break;
@@ -2090,7 +2156,7 @@ static int edid_check_valid(u8 *buf)
 	return 1;
 }
 
-/* retrun 1 valid edid */
+/* return 1 valid edid */
 int check21_dvi_hdmi_edid_valid(u8 *buf)
 {
 	u32 chksum = 0;
@@ -2186,7 +2252,7 @@ static void edid_versionparse(struct rx_cap *prxcap,
 	prxcap->edid_revision = (data[1] < 0x5) ? data[1] : 0;
 }
 
-static void Edid_PhyscialSizeParse(struct rx_cap *prxcap,
+static void Edid_PhysicalSizeParse(struct rx_cap *prxcap,
 				   u8 *data)
 {
 	if (data[0] != 0 && data[1] != 0) {
@@ -2541,7 +2607,7 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 
 	edid_versionparse(&hdmitx_device->rxcap, &EDID_buf[18]);
 
-	Edid_PhyscialSizeParse(&hdmitx_device->rxcap, &EDID_buf[21]);
+	Edid_PhysicalSizeParse(&hdmitx_device->rxcap, &EDID_buf[21]);
 
 	blockcount = EDID_buf[0x7E];
 	hdmitx_device->rxcap.blk0_chksum = EDID_buf[0x7F];
@@ -2719,6 +2785,11 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 
 	if (!prxcap->AUD_count && !prxcap->ieeeoui)
 		hdmitx_edid_set_default_aud(hdmitx_device);
+	/* CEA-861F 7.5.2  If only Basic Audio is supported,
+	 * no Short Audio Descriptors are necessary.
+	 */
+	if (!prxcap->AUD_count && hdmitx_device->hdmi_info.support_basic_audio_flag)
+		hdmitx_edid_set_default_aud(hdmitx_device);
 
 	edid_save_checkvalue(EDID_buf, blockcount + 1, prxcap);
 
@@ -2756,7 +2827,6 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 	if (edid_zero_data(EDID_buf) ||
 	    (prxcap->VIC_count == 0 && prxcap->vesa_timing[0] == 0))
 		hdmitx_edid_set_default_vic(hdmitx_device);
-
 	return 0;
 }
 
@@ -2788,17 +2858,60 @@ static bool is_rx_support_y420(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 {
 	int i;
 	struct rx_cap *prxcap = &hdev->rxcap;
+	const struct hdmi_timing *timing;
 
 	for (i = 0; i < Y420_VIC_MAX_NUM; i++) {
 		if (prxcap->y420_vic[i] == vic)
 			return 1;
 	}
 
+	/* In Spec2.1 Table 7-34, greater than 2160p30hz will support y420 */
+	timing = hdmitx21_gettiming_from_vic(vic);
+	if (!timing)
+		return 0;
+
+	if (timing->v_active >= 2160 && timing->v_freq > 30000)
+		return 1;
+	if (timing->v_active >= 4320)
+		return 1;
+
 	return 0;
 }
 
+static bool hdmitx_check_4x3_16x9_mode(struct hdmitx_dev *hdev,
+		enum hdmi_vic vic)
+{
+	bool flag = 0;
+	int j;
+	struct rx_cap *prxcap = NULL;
+
+	prxcap = &hdev->rxcap;
+	if (vic == HDMI_2_720x480p60_4x3 ||
+		vic == HDMI_6_720x480i60_4x3 ||
+		vic == HDMI_17_720x576p50_4x3 ||
+		vic == HDMI_21_720x576i50_4x3) {
+		for (j = 0; (j < prxcap->VIC_count) && (j < VIC_MAX_NUM); j++) {
+			if ((vic + 1) == (prxcap->VIC[j] & 0xff)) {
+				flag = 1;
+				break;
+			}
+		}
+	} else if (vic == HDMI_3_720x480p60_16x9 ||
+			vic == HDMI_7_720x480i60_16x9 ||
+			vic == HDMI_18_720x576p50_16x9 ||
+			vic == HDMI_22_720x576i50_16x9) {
+		for (j = 0; (j < prxcap->VIC_count) && (j < VIC_MAX_NUM); j++) {
+			if ((vic - 1) == (prxcap->VIC[j] & 0xff)) {
+				flag = 1;
+				break;
+			}
+		}
+	}
+	return flag;
+}
+
 /* For some TV's EDID, there maybe exist some information ambiguous.
- * Such as EDID declears support 2160p60hz(Y444 8bit), but no valid
+ * Such as EDID declare support 2160p60hz(Y444 8bit), but no valid
  * Max_TMDS_Clock2 to indicate that it can support 5.94G signal.
  */
 bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
@@ -2815,11 +2928,18 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	enum hdmi_color_depth rx_y444_max_dc = COLORDEPTH_24B;
 	enum hdmi_color_depth rx_y420_max_dc = COLORDEPTH_24B;
 	enum hdmi_color_depth rx_rgb_max_dc = COLORDEPTH_24B;
+	u32 rx_frl_bandwidth = 0;
+	u32 tx_frl_bandwidth = 0;
+	const struct hdmi_timing *timing;
 
 	if (!hdev || !para)
 		return 0;
 
+	prxcap = &hdev->rxcap;
+
 	/* exclude such as: 2160p60hz YCbCr444 10bit */
+	if (hdev->data->chip_type < MESON_CPU_ID_S5)	//todo, not in parse
+		prxcap->max_frl_rate = 0;	//t7 not support frl
 	switch (para->timing.vic) {
 	case HDMI_96_3840x2160p50_16x9:
 	case HDMI_97_3840x2160p60_16x9:
@@ -2829,7 +2949,7 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	case HDMI_107_3840x2160p60_64x27:
 		if (para->cs == HDMI_COLORSPACE_RGB ||
 		    para->cs == HDMI_COLORSPACE_YUV444)
-			if (para->cd != COLORDEPTH_24B)
+			if (para->cd != COLORDEPTH_24B && !prxcap->max_frl_rate)
 				return 0;
 		break;
 	case HDMI_7_720x480i60_16x9:
@@ -2840,8 +2960,6 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 		break;
 	}
 
-	prxcap = &hdev->rxcap;
-
 	/* DVI case, only 8bit */
 	if (prxcap->ieeeoui != HDMI_IEEE_OUI) {
 		if (para->cd != COLORDEPTH_24B)
@@ -2850,8 +2968,13 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 
 	/* target mode is not contained at RX SVD */
 	for (i = 0; (i < prxcap->VIC_count) && (i < VIC_MAX_NUM); i++) {
-		if ((para->timing.vic & 0xff) == (prxcap->VIC[i] & 0xff))
+		if ((para->timing.vic & 0xff) == (prxcap->VIC[i] & 0xff)) {
 			svd_flag = 1;
+			break;
+		} else if (hdmitx_check_4x3_16x9_mode(hdev, para->timing.vic & 0xff)) {
+			svd_flag = 1;
+			break;
+		}
 	}
 	if (svd_flag == 0)
 		return 0;
@@ -2867,7 +2990,24 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	}
 
 	calc_tmds_clk = para->tmds_clk / 1000;
-	if (calc_tmds_clk < rx_max_tmds_clk)
+	if (hdev->data->chip_type < MESON_CPU_ID_S5)	//todo, not in parse
+		rx_frl_bandwidth = 0;
+	else
+		rx_frl_bandwidth = get_frl_bandwidth(prxcap->max_frl_rate);
+	timing = hdmitx21_gettiming_from_vic(para->timing.vic);
+	if (!timing)
+		return 0;
+	/* tx_frl_bandwidth = timing->pixel_freq / 1000 * 24 * 1.122 */
+	if (hdev->data->chip_type < MESON_CPU_ID_S5) { //todo, not in parse
+		tx_frl_bandwidth = 0;
+	} else {
+		tx_frl_bandwidth = calc_frl_bandwidth(timing->pixel_freq / 1000,
+			para->cs, para->cd);
+		if (tx_frl_bandwidth > get_frl_bandwidth(hdev->tx_max_frl_rate))
+			return 0;
+	}
+
+	if (calc_tmds_clk < rx_max_tmds_clk || tx_frl_bandwidth <= rx_frl_bandwidth)
 		valid = 1;
 	else
 		return 0;
@@ -2924,7 +3064,7 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 }
 
 /* force_flag: 0 means check with RX's edid */
-/* 1 means no check wich RX's edid */
+/* 1 means no check which RX's edid */
 enum hdmi_vic hdmitx21_edid_get_VIC(struct hdmitx_dev *hdev,
 				  const char *disp_mode,
 				  char force_flag)
@@ -2986,6 +3126,11 @@ void hdmitx21_edid_clear(struct hdmitx_dev *hdmitx_device)
 	hdmitx_edid_set_default_aud(hdmitx_device);
 	rx_set_hdr_lumi(&tmp[0], 2);
 	//rx_set_receiver_edid(&tmp[0], 2);
+	/* clear info */
+	hdmitx_device->hdmi_info.support_underscan_flag = 0;
+	hdmitx_device->hdmi_info.support_basic_audio_flag = 0;
+	hdmitx_device->hdmi_info.support_ycbcr444_flag = 0;
+	hdmitx_device->hdmi_info.support_ycbcr422_flag = 0;
 }
 
 /*
@@ -3106,7 +3251,7 @@ int hdmitx21_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		"Manufacture Year: %d\n", prxcap->manufacture_year + 1990);
 
 	pos += snprintf(buffer + pos, buffer_len - pos,
-		"Physcial size(mm): %d x %d\n",
+		"Physical size(mm): %d x %d\n",
 		prxcap->physical_width, prxcap->physical_height);
 
 	pos += snprintf(buffer + pos, buffer_len - pos,
@@ -3170,6 +3315,10 @@ int hdmitx21_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		pos += snprintf(buffer + pos, buffer_len - pos, "ALLM: %x\n",
 				prxcap->allm);
 
+	if (prxcap->cnc3)
+		pos += snprintf(buffer + pos, buffer_len - pos, "Game/CNC3: %x\n",
+				prxcap->cnc3);
+
 	pos += snprintf(buffer + pos, buffer_len - pos, "vLatency: ");
 	if (prxcap->vLatency == LATENCY_INVALID_UNKNOWN)
 		pos += snprintf(buffer + pos, buffer_len - pos,
@@ -3221,6 +3370,8 @@ int hdmitx21_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		prxcap->scdc_present);
 	pos += snprintf(buffer + pos, buffer_len - pos, "RR_Cap: %x\n",
 		prxcap->scdc_rr_capable);
+	pos += snprintf(buffer + pos, buffer_len - pos, "FRL_RATE: %x\n",
+		prxcap->max_frl_rate);
 	pos +=
 	snprintf(buffer + pos, buffer_len - pos, "LTE_340M_Scramble: %x\n",
 		 prxcap->lte_340mcsc_scramble);
@@ -3234,7 +3385,10 @@ int hdmitx21_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 	if (prxcap->dc_y444 || prxcap->dc_30bit || prxcap->dc_30bit_420)
 		pos += snprintf(buffer + pos, buffer_len - pos, "  DeepColor");
 	pos += snprintf(buffer + pos, buffer_len - pos, "\n");
-
+	pos += snprintf(buffer + pos, buffer_len - pos, "additional_vsif_num: %d\n",
+			prxcap->additional_vsif_num);
+	pos += snprintf(buffer + pos, buffer_len - pos, "ifdb_present: %d\n",
+			prxcap->ifdb_present);
 	/* for checkvalue which maybe used by application to adjust
 	 * whether edid is changed
 	 */
@@ -3246,4 +3400,49 @@ int hdmitx21_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 			edid_checkvalue[3]);
 
 	return pos;
+}
+
+bool hdmitx21_edid_only_support_sd(struct hdmitx_dev *hdev)
+{
+	struct rx_cap *prxcap = &hdev->rxcap;
+	enum hdmi_vic vic;
+	u32 i, j;
+	bool only_support_sd = true;
+	/* EDID of SL8800 equipment only support below formats */
+	static enum hdmi_vic sd_fmt[] = {
+		1, 3, 4, 17, 18
+	};
+
+	for (i = 0; i < prxcap->VIC_count; i++) {
+		vic = prxcap->VIC[i];
+		for (j = 0; j < ARRAY_SIZE(sd_fmt); j++) {
+			if (vic == sd_fmt[j])
+				break;
+		}
+		if (j == ARRAY_SIZE(sd_fmt)) {
+			only_support_sd = false;
+			break;
+		}
+	}
+
+	return only_support_sd;
+}
+
+bool is_4k_sink(struct hdmitx_dev *hdev)
+{
+	struct rx_cap *prxcap = &hdev->rxcap;
+	enum hdmi_vic vic;
+	u32 i = 0;
+
+	if (!prxcap)
+		return false;
+
+	for (i = 0; (i < prxcap->VIC_count) && (i < VIC_MAX_NUM); i++) {
+		vic = prxcap->VIC[i] & 0xff;
+		if (vic >= HDMI_93_3840x2160p24_16x9 &&
+		    vic <= HDMI_97_3840x2160p60_16x9) {
+			return true;
+		}
+	}
+	return false;
 }

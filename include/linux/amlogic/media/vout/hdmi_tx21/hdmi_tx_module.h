@@ -8,6 +8,7 @@
 #include "hdmi_info_global.h"
 #include "hdmi_config.h"
 #include "hdmi_hdcp.h"
+#include "hdmi_tx_ddc.h"
 #include <linux/wait.h>
 #include <linux/clk.h>
 #include <linux/cdev.h>
@@ -23,11 +24,12 @@
 #define DEVICE_NAME "amhdmitx21"
 
 /* HDMITX driver version */
-#define HDMITX_VER "20220125"
+#define HDMITX_VER "20230303"
 
 /* chip type */
 enum amhdmitx_chip_e {
 	MESON_CPU_ID_T7,
+	MESON_CPU_ID_S5,
 	MESON_CPU_ID_MAX,
 };
 
@@ -86,6 +88,13 @@ struct hdr_dynamic_struct {
 	u8 optional_fields[20];
 };
 
+/* get the corresponding bandwidth of current FRL_RATE, Unit: MHz */
+u32 get_frl_bandwidth(const enum frl_rate_enum rate);
+u32 calc_frl_bandwidth(u32 pixel_freq, enum hdmi_colorspace cs,
+	enum hdmi_color_depth cd);
+u32 calc_tmds_bandwidth(u32 pixel_freq, enum hdmi_colorspace cs,
+	enum hdmi_color_depth cd);
+
 #define VESA_MAX_TIMING 64
 #define Y420_VIC_MAX_NUM 6 /* only 6 4k mode for y420 */
 
@@ -110,6 +119,7 @@ struct rx_cap {
 	u32 Max_TMDS_Clock2; /* HDMI2.0 TMDS_CLK */
 	/* CEA861-F, Table 56, Colorimetry Data Block */
 	u32 colorimetry_data;
+	u32 colorimetry_data2;
 	u32 scdc_present:1;
 	u32 scdc_rr_capable:1; /* SCDC read request */
 	u32 lte_340mcsc_scramble:1;
@@ -120,7 +130,7 @@ struct rx_cap {
 	u32 dc_30bit_420:1;
 	u32 dc_36bit_420:1;
 	u32 dc_48bit_420:1;
-	u32 max_frl_rate:4;
+	enum frl_rate_enum max_frl_rate:4;
 	u32 cnc0:1; /* Graphics */
 	u32 cnc1:1; /* Photo */
 	u32 cnc2:1; /* Cinema */
@@ -178,6 +188,10 @@ struct rx_cap {
 	u8 number_of_dtd;
 	struct raw_block asd;
 	struct raw_block vsd;
+	/* for DV cts */
+	bool ifdb_present;
+	/* IFDB, currently only use below node */
+	u8 additional_vsif_num;
 	/*blk0 check sum*/
 	u8 blk0_chksum;
 	u8 chksum[10];
@@ -397,6 +411,10 @@ struct hdmitx_dev {
 	u8 force_audio_flag;
 	u8 mux_hpd_if_pin_high_flag;
 	int aspect_ratio;	/* 1, 4:3; 2, 16:9 */
+	u8 manual_frl_rate; /* for manual setting */
+	u8 frl_rate; /* for mode setting */
+	u8 tx_max_frl_rate; /* configure in dts file */
+	u8 dsc_en;
 	struct hdmitx_info hdmi_info;
 	u32 log;
 	u32 tx_aud_cfg; /* 0, off; 1, on */
@@ -449,7 +467,9 @@ struct hdmitx_dev {
 	u32 flag_3dtb:1;
 	u32 flag_3dss:1;
 	u32 dongle_mode:1;
+	u32 pxp_mode:1;
 	u32 cedst_en:1; /* configure in DTS */
+	u32 aon_output:1; /* always output in bl30 */
 	u32 hdr_priority;
 	u32 bist_lock:1;
 	u32 vend_id_hit:1;
@@ -457,17 +477,27 @@ struct hdmitx_dev {
 	spinlock_t edid_spinlock; /* edid hdr/dv cap lock */
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
 
-	unsigned int hdcp_ctl_lvl;
-
 	/*DRM related*/
 	int drm_hdmitx_id;
 	struct connector_hpd_cb drm_hpd_cb;
 	struct connector_hdcp_cb drm_hdcp_cb;
 
 	struct miscdevice hdcp_comm_device;
+	unsigned int hdcp_ctl_lvl;
 	u8 def_stream_type;
 	u8 tv_usage;
 	bool systemcontrol_on;
+	bool suspend_flag;
+	u32 arc_rx_en;
+	bool need_filter_hdcp_off;
+	u32 filter_hdcp_off_period;
+	bool not_restart_hdcp;
+	/* mutex for mode setting, note hdcp should also
+	 * mutex with hdmi mode setting
+	 */
+	struct mutex hdmimode_mutex;
+	unsigned long up_hdcp_timeout_sec;
+	struct delayed_work work_up_hdcp_timeout;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
