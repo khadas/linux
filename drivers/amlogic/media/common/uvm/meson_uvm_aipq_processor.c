@@ -320,6 +320,8 @@ int ge2d_vf_process(struct vframe_s *vf, struct ge2d_output_t *output)
 		src_format |= (GE2D_FMT_M24_YUV420T & (3 << 3));
 	}
 
+	ge2d_config->src_para.format = src_format;
+
 	if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
 		ge2d_config->src_para.format |= GE2D_LITTLE_ENDIAN;
 	aipq_print(PRINT_OTHER, "src width: %d, height: %d format =%x\n",
@@ -331,7 +333,6 @@ int ge2d_vf_process(struct vframe_s *vf, struct ge2d_output_t *output)
 
 	canvas_read(output_canvas & 0xff, &cd);
 
-	ge2d_config->src_para.format = src_format;
 	ge2d_config->dst_planes[0].addr = cd.addr;
 	ge2d_config->dst_planes[0].w = cd.width;
 	ge2d_config->dst_planes[0].h = cd.height;
@@ -534,11 +535,14 @@ static void dump_vf(struct vframe_s *vf, phys_addr_t addr, struct uvm_aipq_info 
 	vfs_fsync(fp, 0);
 	aipq_print(PRINT_ERROR, "aipq: write %u size to addr%p\n",
 		write_size, data);
+
+	aipq_print(PRINT_ERROR, "aipq: ge2dout w %d, h %d.\n",
+		info->nn_input_frame_width, info->nn_input_frame_height);
 	codec_mm_unmap_phyaddr(data);
 	filp_close(fp, NULL);
 	set_fs(fs);
 
-	snprintf(name_buf, sizeof(name_buf), "/data/tmp/aipq_dec.yuv");
+	snprintf(name_buf, sizeof(name_buf), "/data/aipq_dec.yuv");
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 	if (IS_ERR(fp))
 		return;
@@ -554,6 +558,8 @@ static void dump_vf(struct vframe_s *vf, phys_addr_t addr, struct uvm_aipq_info 
 	vfs_fsync(fp, 0);
 	aipq_print(PRINT_ERROR, "aipq: write %u size to addr%p\n",
 		write_size, data);
+	aipq_print(PRINT_ERROR, "aipq: yuv w %d, h %d.\n",
+		vf->canvas0_config[0].width, vf->canvas0_config[0].height);
 	codec_mm_unmap_phyaddr(data);
 	filp_close(fp, NULL);
 	set_fs(fs);

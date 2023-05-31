@@ -350,7 +350,7 @@ static void dump_vf(struct vframe_s *vf)
 	if (!vf)
 		return;
 
-	snprintf(name_buf, sizeof(name_buf), "/data/DI.bin");
+	snprintf(name_buf, sizeof(name_buf), "/data/aisr_DI.bin");
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 	if (IS_ERR(fp))
 		return;
@@ -379,7 +379,7 @@ int dump_hf(struct vf_nn_sr_t *nn_sr_dst)
 	mm_segment_t fs;
 	loff_t pos;
 
-	snprintf(name_buf, sizeof(name_buf), "/data/hf.yuv");
+	snprintf(name_buf, sizeof(name_buf), "/data/aisr_hf.yuv");
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 	if (IS_ERR(fp))
 		return -1;
