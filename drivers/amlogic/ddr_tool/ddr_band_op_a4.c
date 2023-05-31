@@ -102,7 +102,6 @@ static void a4_dmc_port_config(struct ddr_bandwidth *db, int channel, int port)
 			val = (0x1 << 7);	/* select device0 */
 		}
 
-		db->port[channel] |= val;	/* update trust port*/
 		writel(val, db->ddr_reg1 + off + 4);
 		val = readl(db->ddr_reg1 + off + 8);
 		val |= (1 << subport);

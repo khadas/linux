@@ -545,6 +545,7 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 	/* set default parameters */
 	mon->debug = 0x01;
 	mon->mon_number = 1;
+	dmc_mon->configs |= POLICY_INCLUDE;
 
 	switch (chip) {
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_G12
@@ -598,13 +599,11 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 	case DMC_TYPE_T7:
 	case DMC_TYPE_T3:
 		mon->ops = &t7_dmc_mon_ops;
-		mon->configs |= POLICY_INCLUDE;
 		mon->configs |= DMC_DEVICE_8BIT;
 		mon->mon_number = 2;
 		break;
 	case DMC_TYPE_P1:
 		mon->ops = &t7_dmc_mon_ops;
-		mon->configs |= POLICY_INCLUDE;
 		mon->configs |= DMC_DEVICE_8BIT;
 		mon->mon_number = 4;
 		break;
@@ -619,7 +618,6 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_S5
 	case DMC_TYPE_S5:
 		mon->ops = &s5_dmc_mon_ops;
-		mon->configs |= POLICY_INCLUDE;
 		mon->configs |= DMC_DEVICE_8BIT;
 		mon->mon_number = 4;
 		break;
@@ -627,7 +625,6 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_A4
 	case DMC_TYPE_A4:
 		mon->ops = &a4_dmc_mon_ops;
-		mon->configs |= POLICY_INCLUDE;
 		mon->configs |= DMC_DEVICE_8BIT;
 		mon->mon_number = 1;
 		break;

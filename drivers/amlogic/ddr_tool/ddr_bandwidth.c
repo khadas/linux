@@ -372,7 +372,7 @@ static ssize_t port_store(struct class *cla,
 			if (port < 0) /* clear port set */
 				aml_db->port[ch] = 0;
 			else
-				aml_db->port[ch] |= 1ULL << (port & 0x1f);
+				aml_db->port[ch] |= 1ULL << (port & 0x3f);
 			aml_db->ops->config_port(aml_db, ch, port);
 		}
 	}
