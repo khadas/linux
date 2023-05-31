@@ -193,6 +193,8 @@ struct earc {
 	bool resumed;
 	/* ui earc/arc rx switch */
 	int rx_ui_flag;
+	/* get from hdmitx */
+	int earcrx_5v;
 };
 
 static struct earc *s_earc;
@@ -320,6 +322,32 @@ static void earctx_init(int earc_port, bool st)
 			       earc_port, st);
 	if (st && !p_earc->tx_earc_mode)
 		schedule_work(&p_earc->send_uevent);
+}
+
+static void earcrx_init(bool st)
+{
+	struct earc *p_earc = s_earc;
+
+	st = st && p_earc->rx_ui_flag;
+
+	if (!p_earc->rx_bootup_auto_cal) {
+		p_earc->rx_bootup_auto_cal = true;
+		p_earc->event |= EVENT_RX_ANA_AUTO_CAL;
+		schedule_work(&p_earc->work);
+	}
+
+	/* rx cmdc init */
+	earcrx_cmdc_init(p_earc->rx_top_map,
+			 st,
+			 p_earc->chipinfo->rx_dmac_sync_int,
+			 p_earc->chipinfo->rterm_on);
+
+	if (st)
+		earcrx_cmdc_int_mask(p_earc->rx_top_map);
+
+	earcrx_cmdc_arc_connect(p_earc->rx_cmdc_map, st);
+
+	earcrx_cmdc_hpd_detect(p_earc->rx_cmdc_map, st);
 }
 
 static irqreturn_t earc_ddr_isr(int irq, void *data)
@@ -2258,6 +2286,8 @@ static int arcrx_set_ui_flag(struct snd_kcontrol *kcontrol,
 	if (p_earc->rx_ui_flag == ucontrol->value.integer.value[0])
 		return 0;
 	p_earc->rx_ui_flag = ucontrol->value.integer.value[0];
+	if (p_earc->earcrx_5v)
+		earcrx_init(p_earc->rx_ui_flag);
 
 	return 0;
 }
@@ -2572,7 +2602,7 @@ void earc_hdmitx_hpdst(bool st)
 {
 	struct earc *p_earc = s_earc;
 
-	if (!p_earc || !p_earc->rx_ui_flag)
+	if (!p_earc)
 		return;
 
 	dev_info(p_earc->dev, "HDMITX cable is %s\n",
@@ -2581,24 +2611,8 @@ void earc_hdmitx_hpdst(bool st)
 	if (!p_earc->resumed)
 		earc_resume();
 
-	if (!p_earc->rx_bootup_auto_cal) {
-		p_earc->rx_bootup_auto_cal = true;
-		p_earc->event |= EVENT_RX_ANA_AUTO_CAL;
-		schedule_work(&p_earc->work);
-	}
-
-	/* rx cmdc init */
-	earcrx_cmdc_init(p_earc->rx_top_map,
-			 st,
-			 p_earc->chipinfo->rx_dmac_sync_int,
-			 p_earc->chipinfo->rterm_on);
-
-	if (st)
-		earcrx_cmdc_int_mask(p_earc->rx_top_map);
-
-	earcrx_cmdc_arc_connect(p_earc->rx_cmdc_map, st);
-
-	earcrx_cmdc_hpd_detect(p_earc->rx_cmdc_map, st);
+	p_earc->earcrx_5v = st;
+	earcrx_init(st);
 }
 
 static int earcrx_cmdc_setup(struct earc *p_earc)
