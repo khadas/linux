@@ -736,7 +736,17 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		}
 
 		table = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
+		if (IS_ERR(table)) {
+			pr_err("ionvideo: qbuf: table is null\n");
+			return -EINVAL;
+		}
+
 		page = sg_page(table->sgl);
+		if (!page) {
+			pr_err("ionvideo: qbuf: page is null\n");
+			return -EINVAL;
+		}
+
 		phy_addr = (void *)PFN_PHYS(page_to_pfn(page));
 		dma_buf_unmap_attachment(attach, table, DMA_BIDIRECTIONAL);
 		dma_buf_detach(dbuf, attach);
