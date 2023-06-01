@@ -2,10 +2,11 @@
 menu "Amlogic MKL Support"
 
 config AMLOGIC_MKL
-	tristate "amlogic MKL driver"
+	tristate "amlogic manufacturer keyladder driver"
+	depends on AMLOGIC_KT
 	default y
 	help
-		MKL driver supporting the ETSI keyladder.
+		MKL driver supporting the ETSI/AML keyladder.
 		This module gets KL keys deposited into KeyTable with usage flags.
 
 endmenu

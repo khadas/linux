@@ -1675,6 +1675,14 @@
 		kaslr-seed = <0x0 0x0>;
 	};
 
+	aml_mkl {
+		compatible = "amlogic,aml_mkl";
+		reg = <0xfe440200 0xf0>;
+		kl_type = <1>;
+		kl_offset = <0x80 0x88 0x8c 0x90>;
+		status = "okay";
+	};
+
 	aml_kt {
 		compatible = "amlogic,aml_kt";
 		reg = <0x0 0xfe440500 0x0 0xa0>;

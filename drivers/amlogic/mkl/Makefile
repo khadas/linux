@@ -1,6 +1,10 @@
-MODULE_NAME = aml_mkl_drv
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 
-ccflags-y +=								\
-	-DMODULES_MKL_VERSION_BASE=\"1.0.0\"
+MODULE_NAME = amlogic-mkl
+
+PR_FMT = $(subst amlogic-,,$(MODULE_NAME))
+PR_FMT_DEFINE="-Dpr_fmt(fmt)= \"[$(PR_FMT)]: \" fmt"
+ccflags-y += $(PR_FMT_DEFINE)
+
 obj-$(CONFIG_AMLOGIC_MKL) += $(MODULE_NAME).o
 $(MODULE_NAME)-objs := aml_mkl.o

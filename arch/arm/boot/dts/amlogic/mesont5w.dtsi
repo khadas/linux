@@ -640,8 +640,9 @@
 
 	aml_mkl {
 		compatible = "amlogic,aml_mkl";
-		dev_name = "aml_mkl_dev";
 		reg = <0xff630000 0x180>;
+		kl_type = <0>;
+		kl_offset = <0x80 0x100>;
 		status = "okay";
 	};
 

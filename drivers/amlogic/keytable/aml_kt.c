@@ -8,6 +8,7 @@
 #include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/debugfs.h>
 #include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/string.h>
@@ -17,7 +18,6 @@
 #include <linux/fcntl.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
-#include <linux/amlogic/cpu_version.h>
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
 #include <linux/of.h>
@@ -26,7 +26,7 @@
 #include <linux/amlogic/iomap.h>
 #include "aml_kt_log.h"
 
-#define DEVICE_NAME "aml_kt"
+#define AML_KT_DEVICE_NAME "aml_kt"
 #define DEVICE_INSTANCES 1
 
 #define KT_MODE_READ  (0)
@@ -129,31 +129,21 @@ struct aml_kt_dev {
 static dev_t aml_kt_devt;
 static struct aml_kt_dev aml_kt_dev;
 static struct class *aml_kt_class;
+static struct dentry *aml_kt_debug_dent;
+int kt_log_level = 3;
 
-#ifdef CONFIG_OF
-static const struct of_device_id aml_kt_dt_match[] = {
-	{
-		.compatible = "amlogic,aml_kt"
-	},
-	{},
-};
-MODULE_DEVICE_TABLE(of, aml_kt_dt_match);
-#else
-#define aml_kt_dt_match NULL
-#endif
-
-static inline u32 aml_kt_ioread32(void __iomem *base_addr, u32 offset)
+static int aml_kt_init_dbgfs(void)
 {
-	u32 val;
+	if (!aml_kt_debug_dent) {
+		aml_kt_debug_dent = debugfs_create_dir("aml_kt", NULL);
+		if (!aml_kt_debug_dent) {
+			LOGE("can not create debugfs directory\n");
+			return -ENOMEM;
+		}
 
-	val = ioread32((char *)base_addr + offset);
-
-	return val;
-}
-
-static inline void aml_kt_iowrite32(u32 data, void __iomem *base_addr, u32 offset)
-{
-	iowrite32(data, (char *)base_addr + offset);
+		debugfs_create_u32("log_level", 0644, aml_kt_debug_dent, &kt_log_level);
+	}
+	return 0;
 }
 
 static int aml_kt_lock(struct aml_kt_dev *dev)
@@ -162,7 +152,7 @@ static int aml_kt_lock(struct aml_kt_dev *dev)
 	int ret = KT_SUCCESS;
 
 	mutex_lock(&dev->lock);
-	while (aml_kt_ioread32(dev->base_addr, dev->reg.rdy_offset) ==
+	while (ioread32((char *)dev->base_addr + dev->reg.rdy_offset) ==
 	       KT_STS_OK) {
 		if (cnt++ > KT_PENDING_WAIT_TIMEOUT) {
 			LOGE("Error: wait KT ready timeout\n");
@@ -177,7 +167,7 @@ static int aml_kt_lock(struct aml_kt_dev *dev)
 static void aml_kt_unlock(struct aml_kt_dev *dev)
 {
 	mutex_lock(&dev->lock);
-	aml_kt_iowrite32(1, dev->base_addr, dev->reg.rdy_offset);
+	iowrite32(1, (char *)dev->base_addr + dev->reg.rdy_offset);
 	mutex_unlock(&dev->lock);
 }
 
@@ -230,7 +220,7 @@ static int aml_kt_read_pending(struct aml_kt_dev *dev)
 	u32 reg_ret = 0;
 
 	do {
-		reg_ret = aml_kt_ioread32(dev->base_addr, dev->reg.cfg_offset);
+		reg_ret = ioread32((char *)dev->base_addr + dev->reg.cfg_offset);
 		if (cnt++ > KT_PENDING_WAIT_TIMEOUT) {
 			LOGE("Error: wait KT pending done timeout\n");
 			ret = KT_ERROR;
@@ -299,7 +289,7 @@ static int aml_kt_get_flag(struct aml_kt_dev *dev, u32 handle)
 	reg_val = (KT_PENDING << KTE_PENDING_OFFSET |
 			KT_MODE_READ << KTE_MODE_OFFSET |
 			kte << KTE_KTE_OFFSET);
-	aml_kt_iowrite32(reg_val, dev->base_addr, reg_offset);
+	iowrite32(reg_val, (char *)dev->base_addr + reg_offset);
 
 	if (aml_kt_read_pending(dev) != KT_SUCCESS) {
 		LOGE("pending error kte[%d]\n", kte);
@@ -307,7 +297,7 @@ static int aml_kt_get_flag(struct aml_kt_dev *dev, u32 handle)
 		goto exit;
 	}
 
-	reg_ret = aml_kt_ioread32(dev->base_addr, dev->reg.sts_offset);
+	reg_ret = ioread32((char *)dev->base_addr + dev->reg.sts_offset);
 	if (reg_ret != KT_ERROR) {
 		LOGD("kte=%d KT_REE_STS=0x%08x\n", kte, reg_ret);
 		ret = KT_SUCCESS;
@@ -387,7 +377,7 @@ static int aml_kt_alloc(struct file *filp, u32 flag, u32 *handle)
 
 	if (entry < entry_end) {
 		*handle = entry | (is_iv << KT_IV_FLAG_OFFSET);
-		LOGD("flag:%#x, is_iv:%d, handle:%#x\n", flag, is_iv, *handle);
+		LOGI("flag:%#x, is_iv:%d, handle:%#x\n", flag, is_iv, *handle);
 		res = KT_SUCCESS;
 	} else {
 		LOGE("Error: KT alloc return error, no kte/ive available\n");
@@ -431,14 +421,24 @@ static int aml_kt_config(struct file *filp, struct amlkt_cfg_param key_cfg)
 		}
 	}
 
+	LOGD("--------------------------------------------------------------\n");
+	LOGD("flag:%d, algo:%d, uid:%d, src:%d\n", key_cfg.key_flag, key_cfg.key_algo,
+	     key_cfg.key_userid, key_cfg.key_source);
+
 	/* Conversion T5W key algorithm */
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5W) {
-		if (key_cfg.key_algo == AML_KT_ALGO_AES)
+	if (dev->algo_cap == 0x407 && dev->user_cap == 0x600) {
+		if (key_cfg.key_algo == AML_KT_ALGO_AES) {
 			key_cfg.key_algo = 2;
-		if (key_cfg.key_algo == AML_KT_ALGO_DES)
+			LOGD("AES conversion\n");
+		} else if (key_cfg.key_algo == AML_KT_ALGO_DES) {
 			key_cfg.key_algo = 0;
-		if (key_cfg.key_algo == AML_KT_ALGO_CSA2)
+			LOGD("DES conversion\n");
+		} else if (key_cfg.key_algo == AML_KT_ALGO_CSA2) {
 			key_cfg.key_algo = 0;
+			LOGD("CSA2 conversion\n");
+		} else {
+			LOGD("No need conversion\n");
+		}
 	}
 
 	/* Check Invalid key algorithm */
@@ -538,11 +538,12 @@ static int aml_kt_config(struct file *filp, struct amlkt_cfg_param key_cfg)
 	/* Special case for S17 key algorithm */
 	if (key_cfg.key_algo == AML_KT_ALGO_S17 && is_iv == 0) {
 		if (key_cfg.ext_value == 0) {
-			aml_kt_iowrite32(S17_CFG_DEFAULT, dev->base_addr, dev->reg.s17_cfg_offset);
+			iowrite32(S17_CFG_DEFAULT,
+				(char *)dev->base_addr + dev->reg.s17_cfg_offset);
 			LOGD("default frobenius :0x%0x\n", S17_CFG_DEFAULT);
 		} else {
-			aml_kt_iowrite32(key_cfg.ext_value, dev->base_addr,
-					 dev->reg.s17_cfg_offset);
+			iowrite32(key_cfg.ext_value,
+				(char *)dev->base_addr + dev->reg.s17_cfg_offset);
 			LOGD("frobenius :0x%0x\n", key_cfg.ext_value);
 		}
 	}
@@ -592,7 +593,7 @@ static int aml_kt_write_cfg(struct aml_kt_dev *dev,
 			| ((is_iv ? KT_IV_SPEC_ALGO : key_cfg->key_algo) << KTE_KEYALGO_OFFSET)
 			| (key_cfg->key_userid << KTE_USERID_OFFSET) | (kte << KTE_KTE_OFFSET)
 			| func_id;
-	aml_kt_iowrite32(reg_val, dev->base_addr, reg_offset);
+	iowrite32(reg_val, (char *)dev->base_addr + reg_offset);
 
 	if (aml_kt_read_pending(dev) != KT_SUCCESS) {
 		LOGE("Pending error\n");
@@ -607,7 +608,7 @@ static void aml_kt_write_key(struct aml_kt_dev *dev, u32 offset, const u8 *key, 
 	u32 tmp_key = 0;
 
 	memcpy((void *)&tmp_key, key, keylen);
-	aml_kt_iowrite32(tmp_key, dev->base_addr, offset);
+	iowrite32(tmp_key, (char *)dev->base_addr + offset);
 }
 
 static int aml_kt_set_inter_key(struct aml_kt_dev *dev, u32 handle, struct amlkt_cfg_param *key_cfg,
@@ -876,7 +877,7 @@ static int aml_kt_invalidate(struct file *filp, u32 handle)
 			KT_CLEAN_KTE << KTE_CLEAN_OFFSET |
 			KT_MODE_HOST << KTE_MODE_OFFSET |
 			kte << KTE_KTE_OFFSET);
-	aml_kt_iowrite32(reg_val, dev->base_addr, reg_offset);
+	iowrite32(reg_val, (char *)dev->base_addr + reg_offset);
 
 	if (aml_kt_read_pending(dev) != KT_SUCCESS) {
 		LOGE("pending error\n");
@@ -1140,8 +1141,8 @@ int aml_kt_init(struct class *aml_kt_class, struct platform_device *pdev)
 	struct resource *res;
 
 	if (alloc_chrdev_region(&aml_kt_devt, 0, DEVICE_INSTANCES,
-				DEVICE_NAME) < 0) {
-		LOGE("%s device can't be allocated.\n", DEVICE_NAME);
+				AML_KT_DEVICE_NAME) < 0) {
+		LOGE("%s device can't be allocated.\n", AML_KT_DEVICE_NAME);
 		return -ENXIO;
 	}
 
@@ -1154,7 +1155,7 @@ int aml_kt_init(struct class *aml_kt_class, struct platform_device *pdev)
 		goto unregister_chrdev;
 
 	device = device_create(aml_kt_class, NULL, aml_kt_devt, NULL,
-			       DEVICE_NAME);
+			       AML_KT_DEVICE_NAME);
 	if (IS_ERR(device)) {
 		LOGE("device_create failed\n");
 		ret = PTR_ERR(device);
@@ -1205,17 +1206,13 @@ void aml_kt_exit(struct class *aml_kt_class, struct platform_device *pdev)
 		if (aml_kt_dev.kt_reserved && aml_kt_slot_reserved(i))
 			continue;
 
-		if (aml_kt_dev.kt_slot[i]) {
-			kfree(aml_kt_dev.kt_slot[i]);
-			aml_kt_dev.kt_slot[i] = NULL;
-		}
+		kfree(aml_kt_dev.kt_slot[i]);
+		aml_kt_dev.kt_slot[i] = NULL;
 	}
 
 	for (i = aml_kt_dev.ive_start; i < aml_kt_dev.ive_end; i++) {
-		if (aml_kt_dev.kt_iv_slot[i]) {
-			kfree(aml_kt_dev.kt_iv_slot[i]);
-			aml_kt_dev.kt_iv_slot[i] = NULL;
-		}
+		kfree(aml_kt_dev.kt_iv_slot[i]);
+		aml_kt_dev.kt_iv_slot[i] = NULL;
 	}
 
 	device_destroy(aml_kt_class, aml_kt_devt);
@@ -1230,7 +1227,7 @@ static int aml_kt_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 
-	aml_kt_class = class_create(THIS_MODULE, DEVICE_NAME);
+	aml_kt_class = class_create(THIS_MODULE, AML_KT_DEVICE_NAME);
 	if (IS_ERR(aml_kt_class)) {
 		LOGE("class_create failed\n");
 		ret = PTR_ERR(aml_kt_class);
@@ -1240,6 +1237,12 @@ static int aml_kt_probe(struct platform_device *pdev)
 	ret = aml_kt_init(aml_kt_class, pdev);
 	if (unlikely(ret < 0)) {
 		LOGE("aml_kt_init failed\n");
+		goto destroy_class;
+	}
+
+	ret = aml_kt_init_dbgfs();
+	if (ret) {
+		LOGE("aml_kt_init_dbgfs failed\n");
 		goto destroy_class;
 	}
 
@@ -1254,15 +1257,27 @@ static int aml_kt_remove(struct platform_device *pdev)
 {
 	aml_kt_exit(aml_kt_class, pdev);
 	class_destroy(aml_kt_class);
-
+	debugfs_remove_recursive(aml_kt_debug_dent);
 	return 0;
 }
+
+#ifdef CONFIG_OF
+static const struct of_device_id aml_kt_dt_match[] = {
+	{
+		.compatible = "amlogic,aml_kt"
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, aml_kt_dt_match);
+#else
+#define aml_kt_dt_match NULL
+#endif
 
 static struct platform_driver aml_kt_drv = {
 	.probe = aml_kt_probe,
 	.remove = aml_kt_remove,
 	.driver = {
-		.name = KBUILD_MODNAME,
+		.name = AML_KT_DEVICE_NAME,
 		.of_match_table = aml_kt_dt_match,
 		.owner = THIS_MODULE,
 	},
@@ -1271,5 +1286,4 @@ static struct platform_driver aml_kt_drv = {
 module_platform_driver(aml_kt_drv);
 MODULE_AUTHOR("Amlogic Inc.");
 MODULE_DESCRIPTION("AML Keytable device driver");
-MODULE_LICENSE("GPL");
-MODULE_VERSION(MODULES_KT_VERSION_BASE);
+MODULE_LICENSE("GPL v2");

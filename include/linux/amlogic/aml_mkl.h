@@ -8,10 +8,6 @@
 
 #include <linux/types.h>
 
-#ifndef __KERNEL__
-#define __user
-#endif
-
 /**
  * Key-Ladder parameters
  */
@@ -25,36 +21,6 @@
 #define MSR_KL_LEVEL_1 (1)
 #define MSR_KL_LEVEL_2 (2)
 #define MSR_KL_LEVEL_3 (3)
-
-/* key flag */
-#define AML_KT_FLAG_NONE (0)
-#define AML_KT_FLAG_ENC_ONLY (1)
-#define AML_KT_FLAG_DEC_ONLY (2)
-#define AML_KT_FLAG_ENC_DEC (3)
-
-/* key algorithm */
-#define AML_KT_ALGO_AES (0)
-#define AML_KT_ALGO_TDES (1)
-#define AML_KT_ALGO_DES (2)
-#define AML_KT_ALGO_S17 (3)
-#define AML_KT_ALGO_SM4 (4)
-#define AML_KT_ALGO_NDL (7)
-#define AML_KT_ALGO_ND (8)
-#define AML_KT_ALGO_CSA3 (9)
-#define AML_KT_ALGO_CSA2 (10)
-#define AML_KT_ALGO_HMAC (13)
-
-/* key user */
-#define AML_KT_USER_M2M_0 (0)
-#define AML_KT_USER_M2M_1 (1)
-#define AML_KT_USER_M2M_2 (2)
-#define AML_KT_USER_M2M_3 (3)
-#define AML_KT_USER_M2M_4 (4)
-#define AML_KT_USER_M2M_5 (5)
-#define AML_KT_USER_M2M_ANY (7)
-#define AML_KT_USER_TSD (8)
-#define AML_KT_USER_TSN (9)
-#define AML_KT_USER_TSE (10)
 
 /* key ladder algo */
 #define AML_KL_ALGO_TDES (0)
@@ -80,7 +46,7 @@
 #define AML_KL_MRK_DGPK2 (5)
 #define AML_KL_MRK_ACRK (6)
 
-/* key ladder kl_num */
+/* T5W ETSI key ladder kl_num */
 #define AML_KL_NUM_0 (0)
 #define AML_KL_NUM_1 (1)
 #define AML_KL_NUM_2 (2)
