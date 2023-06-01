@@ -482,7 +482,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	dprintk(dev, 2, "%s\n", __func__);
 
 	/* shutdown control thread */
-	if (!IS_ERR(dma_q->kthread)) {
+	if (!IS_ERR_OR_NULL(dma_q->kthread)) {
 		kthread_stop(dma_q->kthread);
 		dma_q->kthread = NULL;
 	}
