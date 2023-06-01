@@ -7277,6 +7277,8 @@ static void vd1_scaler_setting_s5(struct video_layer_s *layer,
 					hsc_init_rev_num0 =
 						slice == 0 ? 8 : 8 - hsc_init_rev_num0;
 					frame_par->hsc_rpt_p0_num0 = slice == 0 ? 3 : 2;
+					if (vpp_filter->vpp_pre_hsc_en & 1)
+						frame_par->hsc_rpt_p0_num0 = 3;
 				} else {
 					hsc_init_rev_num0 = 8;
 				}
@@ -7286,6 +7288,8 @@ static void vd1_scaler_setting_s5(struct video_layer_s *layer,
 						slice == 0 ? 4 : 4 - (slice_x_st + 1 -
 						(slice_ini_sum >> 24));
 					frame_par->hsc_rpt_p0_num0 = slice == 0 ? 1 : 0;
+					if (vpp_filter->vpp_pre_hsc_en & 1)
+						frame_par->hsc_rpt_p0_num0 = 1;
 				} else {
 					hsc_init_rev_num0 = 4;
 				}
