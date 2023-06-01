@@ -27,6 +27,7 @@
 #include <linux/workqueue.h>
 #include <linux/amlogic/iomap.h>
 #include <linux/clk-provider.h>
+#include <linux/amlogic/cpu_version.h>
 
 #include <linux/amlogic/media/sound/hdmi_earc.h>
 #include "resample.h"
@@ -103,6 +104,9 @@ struct earc {
 	struct clk *clk_tx_dmac;
 	struct clk *clk_tx_cmdc_srcpll;
 	struct clk *clk_tx_dmac_srcpll;
+
+	/* for 44100hz samplerate */
+	struct clk *clk_src_cd;
 
 	struct regmap *tx_cmdc_map;
 	struct regmap *tx_dmac_map;
@@ -182,7 +186,9 @@ struct earc {
 	int earctx_port;
 	/* get from hdmirx */
 	int earctx_5v;
+	/* Standardization value by normal setting */
 	unsigned int standard_tx_dmac;
+	unsigned int standard_tx_freq;
 	int suspend_clk_off;
 	bool resumed;
 	/* ui earc/arc rx switch */
@@ -938,7 +944,11 @@ static int earc_dai_prepare(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static void earctx_set_dmac_freq(struct earc *p_earc, unsigned int freq)
+#define MPLL_HBR_FIXED_FREQ   (491520000)
+#define MPLL_CD_FIXED_FREQ    (451584000)
+
+/* normal 1 audio clk src both for 44.1k and 48k */
+static void earctx_set_dmac_freq_normal_1(struct earc *p_earc, unsigned int freq,  bool tune)
 {
 	unsigned int mpll_freq = freq *
 		mpll2dmac_clk_ratio_by_type(p_earc->tx_audio_coding_type);
@@ -976,6 +986,88 @@ static void earctx_set_dmac_freq(struct earc *p_earc, unsigned int freq)
 			p_earc->tx_dmac_clk_on = true;
 		spin_unlock_irqrestore(&s_earc->tx_lock, flags);
 	}
+
+	if (!tune)
+		clk_set_rate(p_earc->clk_tx_dmac, freq);
+}
+
+/* 2 audio clk src each for 44.1k and 48k */
+static void earctx_set_dmac_freq_normal_2(struct earc *p_earc, unsigned int freq,  bool tune)
+{
+	int ret = 0;
+	char *clk_name = (char *)__clk_get_name(p_earc->clk_tx_dmac_srcpll);
+	int ratio = 0;
+
+	if (freq == 0) {
+		dev_err(p_earc->dev, "%s(), freq setting error\n", __func__);
+		return;
+	}
+
+	if (p_earc->standard_tx_freq % 8000 == 0) {
+		ratio = MPLL_HBR_FIXED_FREQ / p_earc->standard_tx_dmac;
+		clk_set_rate(p_earc->clk_tx_dmac_srcpll, freq * ratio);
+		ret = clk_set_parent(p_earc->clk_tx_dmac, p_earc->clk_tx_dmac_srcpll);
+		if (ret)
+			dev_warn(p_earc->dev, "can't set clk_tx_dmac parent srcpll clock\n");
+	} else if (p_earc->standard_tx_freq % 11025 == 0) {
+		ratio = MPLL_CD_FIXED_FREQ / p_earc->standard_tx_dmac;
+		clk_set_rate(p_earc->clk_src_cd, freq * ratio);
+		ret = clk_set_parent(p_earc->clk_tx_dmac, p_earc->clk_src_cd);
+		if (ret)
+			dev_warn(p_earc->dev, "can't set clk_tx_dmac parent cd clock\n");
+		if (!IS_ERR(p_earc->clk_src_cd)) {
+			char *clk_name = (char *)__clk_get_name(p_earc->clk_src_cd);
+
+			ret = clk_prepare_enable(p_earc->clk_src_cd);
+			if (ret) {
+				dev_err(s_earc->dev, "Can't s_earc earc clk_src_cd:%d clk_name: %s rate: %lu\n",
+					ret, clk_name, clk_get_rate(p_earc->clk_src_cd));
+			}
+		}
+	} else {
+		dev_warn(p_earc->dev, "unsupport clock rate %d\n",
+			p_earc->standard_tx_freq);
+	}
+
+	if (!p_earc->tx_dmac_clk_on) {
+		int ret;
+		unsigned long flags;
+
+		ret = clk_prepare_enable(p_earc->clk_tx_dmac);
+
+		spin_lock_irqsave(&s_earc->tx_lock, flags);
+		if (ret)
+			dev_err(p_earc->dev, "Can't enable earc clk_tx_dmac: %d\n", ret);
+		else
+			p_earc->tx_dmac_clk_on = true;
+		spin_unlock_irqrestore(&s_earc->tx_lock, flags);
+	}
+
+	if (!tune)
+		clk_set_rate(p_earc->clk_tx_dmac, freq);
+	p_earc->tx_dmac_freq = freq;
+	dev_info(p_earc->dev,
+		"%s, tune 0x%x p_earc->standard_tx_freq %d set freq:%d, get freq:%lu, get src freq:%lu, clk_name %s, standard_tx_dmac %d\n",
+		__func__, tune,
+		p_earc->standard_tx_freq,
+		freq,
+		clk_get_rate(p_earc->clk_tx_dmac),
+		clk_get_rate(p_earc->clk_tx_dmac_srcpll),
+		clk_name,
+		p_earc->standard_tx_dmac);
+}
+
+static void earctx_set_dmac_freq_normal(struct earc *p_earc, unsigned int freq,  bool tune)
+{
+	if (IS_ERR(p_earc->clk_src_cd))
+		earctx_set_dmac_freq_normal_1(p_earc, freq, tune);
+	else
+		earctx_set_dmac_freq_normal_2(p_earc, freq, tune);
+}
+
+static void earctx_set_dmac_freq(struct earc *p_earc, unsigned int freq,  bool tune)
+{
+	earctx_set_dmac_freq_normal(p_earc, freq, tune);
 }
 
 static void earctx_update_clk(struct earc *p_earc,
@@ -985,10 +1077,12 @@ static void earctx_update_clk(struct earc *p_earc,
 	unsigned int multi = audio_multi_clk(p_earc->tx_audio_coding_type);
 	unsigned int freq = rate * 128 * EARC_DMAC_MUTIPLIER * multi;
 
-	p_earc->standard_tx_dmac = freq;
 	dev_info(p_earc->dev, "rate %d, set %dX normal dmac clk, p_earc->tx_dmac_freq:%d\n",
 		rate, multi, p_earc->tx_dmac_freq);
-	earctx_set_dmac_freq(p_earc, freq);
+
+	p_earc->standard_tx_dmac = freq;
+	p_earc->standard_tx_freq = rate;
+	earctx_set_dmac_freq(p_earc, freq, false);
 }
 
 int spdif_codec_to_earc_codec[][2] = {
@@ -2087,7 +2181,7 @@ static int earctx_clk_put(struct snd_kcontrol *kcontrol,
 	value = value - 1000000;
 	freq += value;
 
-	earctx_set_dmac_freq(p_earc, freq);
+	earctx_set_dmac_freq(p_earc, freq, true);
 	return 0;
 }
 
@@ -2105,7 +2199,7 @@ static int earctx_clk_ppm_put(struct snd_kcontrol *kcontrol,
 	}
 	freq = freq + freq * (value - 1000) / 1000000;
 
-	earctx_set_dmac_freq(p_earc, freq);
+	earctx_set_dmac_freq(p_earc, freq, true);
 	return 0;
 }
 
@@ -2703,6 +2797,9 @@ static int earc_platform_probe(struct platform_device *pdev)
 	if (ret < 0)
 		dev_err(&pdev->dev, "Can't retrieve suspend-clk-off\n");
 
+	p_earc->clk_src_cd = devm_clk_get(&pdev->dev, "clk_src_cd");
+	if (IS_ERR(p_earc->clk_src_cd))
+		dev_info(&pdev->dev, "no clk_src_cd clock for 44k case\n");
 	/* RX */
 	if (p_earc->chipinfo->rx_enable) {
 		spin_lock_init(&p_earc->rx_lock);
