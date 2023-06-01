@@ -126,6 +126,7 @@ config BROKEN_ON_SMP
 
 config INIT_ENV_ARG_LIMIT
 	int
+	default 128 if AMLOGIC_MODIFY
 	default 32 if !UML
 	default 128 if UML
 	help
