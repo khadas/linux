@@ -272,14 +272,14 @@ fail:
 int mpp_dma_unmap_kernel(struct mpp_dma_session *dma,
 			 struct mpp_dma_buffer *buffer)
 {
-	void *vaddr = buffer->vaddr;
+	struct iosys_map map = IOSYS_MAP_INIT_VADDR(buffer->vaddr);
 	struct dma_buf *dmabuf = buffer->dmabuf;
 
-	if (IS_ERR_OR_NULL(vaddr) ||
+	if (IS_ERR_OR_NULL(map.vaddr) ||
 	    IS_ERR_OR_NULL(dmabuf))
 		return -EINVAL;
 
-	dma_buf_vunmap(dmabuf, vaddr);
+	dma_buf_vunmap(dmabuf, &map);
 	buffer->vaddr = NULL;
 
 	dma_buf_end_cpu_access(dmabuf, DMA_FROM_DEVICE);
@@ -291,7 +291,7 @@ int mpp_dma_map_kernel(struct mpp_dma_session *dma,
 		       struct mpp_dma_buffer *buffer)
 {
 	int ret;
-	void *vaddr;
+	struct iosys_map map;
 	struct dma_buf *dmabuf = buffer->dmabuf;
 
 	if (IS_ERR_OR_NULL(dmabuf))
@@ -303,14 +303,13 @@ int mpp_dma_map_kernel(struct mpp_dma_session *dma,
 		goto failed_access;
 	}
 
-	vaddr = dma_buf_vmap(dmabuf);
-	if (!vaddr) {
+	ret = dma_buf_vmap(dmabuf, &map);
+	if (ret) {
 		dev_dbg(dma->dev, "can't vmap the dma buffer\n");
-		ret = -EIO;
 		goto failed_vmap;
 	}
 
-	buffer->vaddr = vaddr;
+	buffer->vaddr = map.vaddr;
 
 	return 0;
 
@@ -632,4 +631,32 @@ int mpp_iommu_dev_deactivate(struct mpp_iommu_info *info, struct mpp_dev *dev)
 	spin_unlock_irqrestore(&info->dev_lock, flags);
 
 	return 0;
+}
+
+int mpp_iommu_reserve_iova(struct mpp_iommu_info *info, dma_addr_t iova, size_t size)
+{
+
+	struct iommu_domain *domain;
+	struct mpp_iommu_dma_cookie *cookie;
+	struct iova_domain *iovad;
+	unsigned long pfn_lo, pfn_hi;
+
+	if (!info)
+		return 0;
+
+	domain = info->domain;
+	if (!domain || !domain->iova_cookie)
+		return -EINVAL;
+
+	cookie = (struct mpp_iommu_dma_cookie *)domain->iova_cookie;
+	iovad = &cookie->iovad;
+
+	/* iova will be freed automatically by put_iova_domain() */
+	pfn_lo = iova_pfn(iovad, iova);
+	pfn_hi = iova_pfn(iovad, iova + size - 1);
+	if (!reserve_iova(iovad, pfn_lo, pfn_hi))
+		return -EINVAL;
+
+	return 0;
+
 }
