@@ -101,6 +101,8 @@
 #define VDIN_AFBC_ADDR_CHK		BIT(2)
 
 #define VDIN_DBG_PRINT_CNT		20
+/* smc cmd for setting vpu secure reg0 via bl31 */
+#define VDIN_SECURE_CFG	0x8200008d
 
 /* 8 is filter the abnormal frame rate diff */
 #define VDIN_DURATION_FILTER_VALUE	8
