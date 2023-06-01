@@ -631,6 +631,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		   pes_type == DMX_PES_SUBTITLE2 ||
 		   pes_type == DMX_PES_SUBTITLE3) {
 		type = SUB_TYPE;
+		mem_size = pes_buf_size;
 		media_type = MEDIA_PES_SUB;
 	} else if (pes_type == DMX_PES_TELETEXT0 ||
 		   pes_type == DMX_PES_TELETEXT1 ||
