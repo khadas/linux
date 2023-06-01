@@ -6163,7 +6163,8 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 	}
 
 	total_result.tp_num = 0;
-
+	if (blind_scan_new && freq_max == 2150000)
+		freq_max = freq_max + freq_step;
 	/* 950MHz ~ 2150MHz. */
 	do {
 		for (freq = freq_min; freq <= freq_max;) {
