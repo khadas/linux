@@ -1,0 +1,1335 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
+ */
+
+#include <linux/module.h>
+#include <linux/moduleparam.h>
+#include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/init.h>
+#include <linux/i2c.h>
+#include <linux/regmap.h>
+#include <linux/amlogic/aml_gpio_consumer.h>
+
+#include <sound/initval.h>
+#include <sound/core.h>
+#include <sound/pcm.h>
+#include <sound/pcm_params.h>
+#include <sound/soc.h>
+#include <sound/tlv.h>
+#include "acm8625.h"
+
+#define ACM8625_DRV_NAME    "acm8625"
+
+#define ACM8625_RATES	     (SNDRV_PCM_RATE_8000 | \
+		       SNDRV_PCM_RATE_11025 | \
+		       SNDRV_PCM_RATE_16000 | \
+		       SNDRV_PCM_RATE_22050 | \
+		       SNDRV_PCM_RATE_32000 | \
+		       SNDRV_PCM_RATE_44100 | \
+		       SNDRV_PCM_RATE_48000)
+#define ACM8625_FORMATS     (SNDRV_PCM_FMTBIT_S16_LE | \
+			SNDRV_PCM_FMTBIT_S20_3LE |\
+			SNDRV_PCM_FMTBIT_S24_LE | \
+			SNDRV_PCM_FMTBIT_S32_LE)
+
+#define ACM8625_DIG_VAL_CTL_LEFT  (0x0f) // left channel DAC volume control
+#define ACM8625_DIG_VAL_CTL_RIGHT  (0x10) // right channel DAC volume control
+
+#define ACM8625_PAGE_00     (0x00) //page 00
+#define ACM8625_PAGE_04     (0x04) //page 04
+#define ACM8625_REG_00      (0x00)
+#define ACM8625_REG_04      (0x04) //Mute and state Control
+#define ACM8625_REG_05      (0x05) //Processing control
+#define ACM8625_REG_7C      (0x7C) //Left volume
+#define ACM8625_REG_7D      (0x7D) //Left volume
+#define ACM8625_REG_7E      (0x7E) //Left volume
+#define ACM8625_REG_7F      (0x7F) //Left volume
+#define ACM8625_REG_80      (0x80) //Right volume
+#define ACM8625_REG_81      (0x81) //Right volume
+#define ACM8625_REG_82      (0x82) //Right volume
+#define ACM8625_REG_83      (0x83) //Right volume
+
+#define ACM8625_VOLUME_MAX  (578)
+#define ACM8625_VOLUME_MIN  (0)
+
+const u32 acm8625_volume[] = {
+	0x0000001B,		//0, -110dB
+	0x0000001E,		//1, -109dB
+	0x00000021,		//2, -108dB
+	0x00000025,		//3, -107dB
+	0x0000002A,		//4, -106dB
+	0x0000002F,		//5, -105dB
+	0x00000035,		//6, -104dB
+	0x0000003B,		//7, -103dB
+	0x00000043,		//8, -102dB
+	0x0000004B,		//9, -101dB
+	0x00000054,		//10, -100dB
+	0x0000005E,		//11, -99dB
+	0x0000006A,		//12, -98dB
+	0x00000076,		//13, -97dB
+	0x00000085,		//14, -96dB
+	0x00000095,		//15, -95dB
+	0x000000A7,		//16, -94dB
+	0x000000BC,		//17, -93dB
+	0x000000D3,		//18, -92dB
+	0x000000EC,		//19, -91dB
+	0x00000109,		//20, -90dB
+	0x0000012A,		//21, -89dB
+	0x0000014E,		//22, -88dB
+	0x00000177,		//23, -87dB
+	0x000001A4,		//24, -86dB
+	0x000001D8,		//25, -85dB
+	0x00000211,		//26, -84dB
+	0x00000252,		//27, -83dB
+	0x0000029A,		//28, -82dB
+	0x000002EC,		//29, -81dB
+	0x00000347,		//30, -80dB
+	0x000003AD,		//31, -79dB
+	0x00000420,		//32, -78dB
+	0x000004A1,		//33, -77dB
+	0x00000532,		//34, -76dB
+	0x000005D4,		//35, -75dB
+	0x0000068A,		//36, -74dB
+	0x00000756,		//37, -73dB
+	0x0000083B,		//38, -72dB
+	0x0000093C,		//39, -71dB
+	0x00000A5D,		//40, -70dB
+	0x00000BA0,		//41, -69dB
+	0x00000D0C,		//42, -68dB
+	0x00000EA3,		//43, -67dB
+	0x0000106C,		//44, -66dB
+	0x0000126D,		//45, -65dB
+	0x000014AD,		//46, -64dB
+	0x00001733,		//47, -63dB
+	0x00001A07,		//48, -62dB
+	0x00001D34,		//49, -61dB
+	0x000020C5,		//50, -60dB
+	0x000024C4,		//51, -59dB
+	0x00002941,		//52, -58dB
+	0x00002E49,		//53, -57dB
+	0x000033EF,		//54, -56dB
+	0x00003A45,		//55, -55dB
+	0x00004161,		//56, -54dB
+	0x0000495C,		//57, -53dB
+	0x0000524F,		//58, -52dB
+	0x00005C5A,		//59, -51dB
+	0x0000679F,		//60, -50dB
+	0x00007444,		//61, -49dB
+	0x00008274,		//62, -48dB
+	0x0000925F,		//63, -47dB
+	0x0000A43B,		//64, -46dB
+	0x0000B845,		//65, -45dB
+	0x0000CEC1,		//66, -44dB
+	0x0000E7FB,		//67, -43dB
+	0x00010449,		//68, -42dB
+	0x0001240C,		//69, -41dB
+	0x000147AE,		//70, -40dB
+	0x00016FAA,		//71, -39dB
+	0x00019C86,		//72, -38dB
+	0x0001CEDC,		//73, -37dB
+	0x00020756,		//74, -36dB
+	0x000246B5,		//75, -35dB
+	0x00028DCF,		//76, -34dB
+	0x0002DD96,		//77, -33dB
+	0x00033718,		//78, -32dB
+	0x00039B87,		//79, -31dB
+	0x00040C37,		//80    -30
+	0x00041B3C,		//81    -29.875
+	0x00042A79,		//82    -29.75
+	0x000439EE,		//83    -29.625
+	0x0004499D,		//84    -29.5
+	0x00045986,		//85    -29.375
+	0x000469AA,		//86    -29.25
+	0x00047A0A,		//87    -29.125
+	0x00048AA7,		//88    -29
+	0x00049B81,		//89    -28.875
+	0x0004AC9A,		//90    -28.75
+	0x0004BDF2,		//91    -28.625
+	0x0004CF8B,		//92    -28.5
+	0x0004E165,		//93    -28.375
+	0x0004F381,		//94    -28.25
+	0x000505E0,		//95    -28.125
+	0x00051884,		//96    -28
+	0x00052B6D,		//97    -27.875
+	0x00053E9C,		//98    -27.75
+	0x00055212,		//99    -27.625
+	0x000565D0,		//100   -27.5
+	0x000579D8,		//101   -27.375
+	0x00058E2A,		//102   -27.25
+	0x0005A2C7,		//103   -27.125
+	0x0005B7B1,		//104   -27
+	0x0005CCE8,		//105   -26.875
+	0x0005E26E,		//106   -26.75
+	0x0005F844,		//107   -26.625
+	0x00060E6C,		//108   -26.5
+	0x000624E5,		//109   -26.375
+	0x00063BB1,		//110   -26.25
+	0x000652D3,		//111   -26.125
+	0x00066A4A,		//112   -26
+	0x00068218,		//113   -25.875
+	0x00069A3E,		//114   -25.75
+	0x0006B2BF,		//115   -25.625
+	0x0006CB9A,		//116   -25.5
+	0x0006E4D1,		//117   -25.375
+	0x0006FE66,		//118   -25.25
+	0x0007185A,		//119   -25.125
+	0x000732AE,		//120   -25
+	0x00074D63,		//121   -24.875
+	0x0007687C,		//122   -24.75
+	0x000783FA,		//123   -24.625
+	0x00079FDD,		//124   -24.5
+	0x0007BC28,		//125   -24.375
+	0x0007D8DC,		//126   -24.25
+	0x0007F5FA,		//127   -24.125
+	0x00081385,		//128   -24
+	0x0008317D,		//129   -23.875
+	0x00084FE4,		//130   -23.75
+	0x00086EBC,		//131   -23.625
+	0x00088E07,		//132   -23.5
+	0x0008ADC6,		//133   -23.375
+	0x0008CDFA,		//134   -23.25
+	0x0008EEA6,		//135   -23.125
+	0x00090FCB,		//136   -23
+	0x0009316C,		//137   -22.875
+	0x00095389,		//138   -22.75
+	0x00097624,		//139   -22.625
+	0x00099940,		//140   -22.5
+	0x0009BCDF,		//141   -22.375
+	0x0009E101,		//142   -22.25
+	0x000A05AA,		//143   -22.125
+	0x000A2ADA,		//144   -22
+	0x000A5095,		//145   -21.875
+	0x000A76DC,		//146   -21.75
+	0x000A9DB0,		//147   -21.625
+	0x000AC515,		//148   -21.5
+	0x000AED0C,		//149   -21.375
+	0x000B1597,		//150   -21.25
+	0x000B3EB9,		//151   -21.125
+	0x000B6873,		//152   -21
+	0x000B92C8,		//153   -20.875
+	0x000BBDBA,		//154   -20.75
+	0x000BE94C,		//155   -20.625
+	0x000C157F,		//156   -20.5
+	0x000C4256,		//157   -20.375
+	0x000C6FD4,		//158   -20.25
+	0x000C9DFB,		//159   -20.125
+	0x000CCCCC,		//160   -20
+	0x000CFC4C,		//161   -19.875
+	0x000D2C7B,		//162   -19.75
+	0x000D5D5E,		//163   -19.625
+	0x000D8EF6,		//164   -19.5
+	0x000DC146,		//165   -19.375
+	0x000DF451,		//166   -19.25
+	0x000E2819,		//167   -19.125
+	0x000E5CA1,		//168   -19
+	0x000E91EC,		//169   -18.875
+	0x000EC7FD,		//170   -18.75
+	0x000EFED6,		//171   -18.625
+	0x000F367B,		//172   -18.5
+	0x000F6EEF,		//173   -18.375
+	0x000FA834,		//174   -18.25
+	0x000FE24E,		//175   -18.125
+	0x00101D3F,		//176   -18
+	0x0010590B,		//177   -17.875
+	0x001095B4,		//178   -17.75
+	0x0010D33F,		//179   -17.625
+	0x001111AE,		//180   -17.5
+	0x00115105,		//181   -17.375
+	0x00119147,		//182   -17.25
+	0x0011D278,		//183   -17.125
+	0x0012149A,		//184   -17
+	0x001257B2,		//185   -16.875
+	0x00129BC2,		//186   -16.75
+	0x0012E0CF,		//187   -16.625
+	0x001326DD,		//188   -16.5
+	0x00136DEE,		//189   -16.375
+	0x0013B607,		//190   -16.25
+	0x0013FF2C,		//191   -16.125
+	0x00144960,		//192   -16
+	0x001494A8,		//193   -15.875
+	0x0014E107,		//194   -15.75
+	0x00152E81,		//195   -15.625
+	0x00157D1A,		//196   -15.5
+	0x0015CCD8,		//197   -15.375
+	0x00161DBD,		//198   -15.25
+	0x00166FCE,		//199   -15.125
+	0x0016C310,		//200   -15
+	0x00171787,		//201   -14.875
+	0x00176D38,		//202   -14.75
+	0x0017C426,		//203   -14.625
+	0x00181C57,		//204   -14.5
+	0x001875CF,		//205   -14.375
+	0x0018D093,		//206   -14.25
+	0x00192CA8,		//207   -14.125
+	0x00198A13,		//208   -14
+	0x0019E8D8,		//209   -13.875
+	0x001A48FD,		//210   -13.75
+	0x001AAA87,		//211   -13.625
+	0x001B0D7B,		//212   -13.5
+	0x001B71DD,		//213   -13.375
+	0x001BD7B5,		//214   -13.25
+	0x001C3F06,		//215   -13.125
+	0x001CA7D7,		//216   -13
+	0x001D122D,		//217   -12.875
+	0x001D7E0D,		//218   -12.75
+	0x001DEB7D,		//219   -12.625
+	0x001E5A84,		//220   -12.5
+	0x001ECB27,		//221   -12.375
+	0x001F3D6B,		//222   -12.25
+	0x001FB158,		//223   -12.125
+	0x002026F3,		//224   -12
+	0x00209E42,		//225   -11.875
+	0x0021174C,		//226   -11.75
+	0x00219217,		//227   -11.625
+	0x00220EA9,		//228   -11.5
+	0x00228D0A,		//229   -11.375
+	0x00230D40,		//230   -11.25
+	0x00238F52,		//231   -11.125
+	0x00241346,		//232   -11
+	0x00249924,		//233   -10.875
+	0x002520F3,		//234   -10.75
+	0x0025AABA,		//235   -10.625
+	0x00263680,		//236   -10.5
+	0x0026C44D,		//237   -10.375
+	0x00275427,		//238   -10.25
+	0x0027E618,		//239   -10.125
+	0x00287A26,		//240   -10
+	0x0029105A,		//241   -9.875
+	0x0029A8BB,		//242   -9.75
+	0x002A4351,		//243   -9.625
+	0x002AE025,		//244   -9.5
+	0x002B7F3F,		//245   -9.375
+	0x002C20A8,		//246   -9.25
+	0x002CC467,		//247   -9.125
+	0x002D6A86,		//248   -9
+	0x002E130D,		//249   -8.875
+	0x002EBE06,		//250   -8.75
+	0x002F6B79,		//251   -8.625
+	0x00301B70,		//252   -8.5
+	0x0030CDF4,		//253   -8.375
+	0x0031830E,		//254   -8.25
+	0x00323AC8,		//255   -8.125
+	0x0032F52C,		//256   -8
+	0x0033B244,		//257   -7.875
+	0x0034721A,		//258   -7.75
+	0x003534B7,		//259   -7.625
+	0x0035FA26,		//260   -7.5
+	0x0036C272,		//261   -7.375
+	0x00378DA5,		//262   -7.25
+	0x00385BCB,		//263   -7.125
+	0x00392CED,		//264   -7
+	0x003A0117,		//265   -6.875
+	0x003AD855,		//266   -6.75
+	0x003BB2B1,		//267   -6.625
+	0x003C9038,		//268   -6.5
+	0x003D70F5,		//269   -6.375
+	0x003E54F3,		//270   -6.25
+	0x003F3C40,		//271   -6.125
+	0x004026E7,		//272   -6
+	0x004114F4,		//273   -5.875
+	0x00420675,		//274   -5.75
+	0x0042FB77,		//275   -5.625
+	0x0043F405,		//276   -5.5
+	0x0044F02E,		//277   -5.375
+	0x0045EFFE,		//278   -5.25
+	0x0046F384,		//279   -5.125
+	0x0047FACC,		//280   -5
+	0x004905E6,		//281   -4.875
+	0x004A14DF,		//282   -4.75
+	0x004B27C5,		//283   -4.625
+	0x004C3EA8,		//284   -4.5
+	0x004D5995,		//285   -4.375
+	0x004E789C,		//286   -4.25
+	0x004F9BCD,		//287   -4.125
+	0x0050C335,		//288   -4
+	0x0051EEE6,		//289   -3.875
+	0x00531EEF,		//290   -3.75
+	0x00545361,		//291   -3.625
+	0x00558C4B,		//292   -3.5
+	0x0056C9BE,		//293   -3.375
+	0x00580BCB,		//294   -3.25
+	0x00595283,		//295   -3.125
+	0x005A9DF7,		//296   -3
+	0x005BEE3A,		//297   -2.875
+	0x005D435C,		//298   -2.75
+	0x005E9D70,		//299   -2.625
+	0x005FFC88,		//300   -2.5
+	0x006160B7,		//301   -2.375
+	0x0062CA10,		//302   -2.25
+	0x006438A6,		//303   -2.125
+	0x0065AC8C,		//304   -2
+	0x006725D6,		//305   -1.875
+	0x0068A498,		//306   -1.75
+	0x006A28E6,		//307   -1.625
+	0x006BB2D6,		//308   -1.5
+	0x006D427B,		//309   -1.375
+	0x006ED7EB,		//310   -1.25
+	0x0070733B,		//311   -1.125
+	0x00721482,		//312   -1
+	0x0073BBD6,		//313   -0.875
+	0x0075694C,		//314   -0.75
+	0x00771CFC,		//315   -0.625
+	0x0078D6FC,		//316   -0.5
+	0x007A9765,		//317   -0.375
+	0x007C5E4E,		//318   -0.25
+	0x007E2BCE,		//319   -0.125
+	0x00800000,		//320   0
+	0x0081DAFA,		//321   0.125
+	0x0083BCD7,		//322   0.25
+	0x0085A5B1,		//323   0.375
+	0x008795A0,		//324   0.5
+	0x00898CBF,		//325   0.625
+	0x008B8B2A,		//326   0.75
+	0x008D90FA,		//327   0.875
+	0x008F9E4C,		//328   1
+	0x0091B33C,		//329   1.125
+	0x0093CFE5,		//330   1.25
+	0x0095F464,		//331   1.375
+	0x009820D7,		//332   1.5
+	0x009A555A,		//333   1.625
+	0x009C920D,		//334   1.75
+	0x009ED70C,		//335   1.875
+	0x00A12477,		//336   2
+	0x00A37A6E,		//337   2.125
+	0x00A5D90F,		//338   2.25
+	0x00A8407C,		//339   2.375
+	0x00AAB0D4,		//340   2.5
+	0x00AD2A39,		//341   2.625
+	0x00AFACCC,		//342   2.75
+	0x00B238B0,		//343   2.875
+	0x00B4CE07,		//344   3
+	0x00B76CF4,		//345   3.125
+	0x00BA159B,		//346   3.25
+	0x00BCC81F,		//347   3.375
+	0x00BF84A6,		//348   3.5
+	0x00C24B54,		//349   3.625
+	0x00C51C4F,		//350   3.75
+	0x00C7F7BE,		//351   3.875
+	0x00CADDC7,		//352   4
+	0x00CDCE92,		//353   4.125
+	0x00D0CA46,		//354   4.25
+	0x00D3D10B,		//355   4.375
+	0x00D6E30C,		//356   4.5
+	0x00DA0072,		//357   4.625
+	0x00DD2966,		//358   4.75
+	0x00E05E15,		//359   4.875
+	0x00E39EA8,		//360   5
+	0x00E6EB4E,		//361   5.125
+	0x00EA4431,		//362   5.25
+	0x00EDA980,		//363   5.375
+	0x00F11B69,		//364   5.5
+	0x00F49A1B,		//365   5.625
+	0x00F825C5,		//366   5.75
+	0x00FBBE96,		//367   5.875
+	0x00FF64C1,		//368   6
+	0x01031876,		//369   6.125
+	0x0106D9E8,		//370   6.25
+	0x010AA94A,		//371   6.375
+	0x010E86CF,		//372   6.5
+	0x011272AB,		//373   6.625
+	0x01166D15,		//374   6.75
+	0x011A7643,		//375   6.875
+	0x011E8E6A,		//376   7
+	0x0122B5C2,		//377   7.125
+	0x0126EC84,		//378   7.25
+	0x012B32EA,		//379   7.375
+	0x012F892C,		//380   7.5
+	0x0133EF86,		//381   7.625
+	0x01386634,		//382   7.75
+	0x013CED72,		//383   7.875
+	0x0141857E,		//384   8
+	0x01462E96,		//385   8.125
+	0x014AE8F9,		//386   8.25
+	0x014FB4E8,		//387   8.375
+	0x015492A3,		//388   8.5
+	0x0159826D,		//389   8.625
+	0x015E8488,		//390   8.75
+	0x01639939,		//391   8.875
+	0x0168C0C5,		//392   9
+	0x016DFB71,		//393   9.125
+	0x01734985,		//394   9.25
+	0x0178AB48,		//395   9.375
+	0x017E2104,		//396   9.5
+	0x0183AB02,		//397   9.625
+	0x0189498F,		//398   9.75
+	0x018EFCF5,		//399   9.875
+	0x0194C583,		//400   10
+	0x019AA387,		//401   10.125
+	0x01A09751,		//402   10.25
+	0x01A6A131,		//403   10.375
+	0x01ACC179,		//404   10.5
+	0x01B2F87D,		//405   10.625
+	0x01B94691,		//406   10.75
+	0x01BFAC0A,		//407   10.875
+	0x01C62940,		//408   11
+	0x01CCBE8A,		//409   11.125
+	0x01D36C42,		//410   11.25
+	0x01DA32C2,		//411   11.375
+	0x01E11266,		//412   11.5
+	0x01E80B8C,		//413   11.625
+	0x01EF1E92,		//414   11.75
+	0x01F64BD9,		//415   11.875
+	0x01FD93C1,		//416   12
+	0x0204F6AE,		//417   12.125
+	0x020C7504,		//418   12.25
+	0x02140F28,		//419   12.375
+	0x021BC582,		//420   12.5
+	0x0223987A,		//421   12.625
+	0x022B887B,		//422   12.75
+	0x023395F0,		//423   12.875
+	0x023BC147,		//424   13
+	0x02440AEE,		//425   13.125
+	0x024C7356,		//426   13.25
+	0x0254FAF2,		//427   13.375
+	0x025DA234,		//428   13.5
+	0x02666992,		//429   13.625
+	0x026F5184,		//430   13.75
+	0x02785A83,		//431   13.875
+	0x02818508,		//432   14
+	0x028AD191,		//433   14.125
+	0x0294409B,		//434   14.25
+	0x029DD2A7,		//435   14.375
+	0x02A78836,		//436   14.5
+	0x02B161CD,		//437   14.625
+	0x02BB5FF1,		//438   14.75
+	0x02C5832A,		//439   14.875
+	0x02CFCC01,		//440   15
+	0x02DA3B02,		//441   15.125
+	0x02E4D0BA,		//442   15.25
+	0x02EF8DB9,		//443   15.375
+	0x02FA7292,		//444   15.5
+	0x03057FD7,		//445   15.625
+	0x0310B61F,		//446   15.75
+	0x031C1602,		//447   15.875
+	0x0327A01A,		//448   16
+	0x03335504,		//449   16.125
+	0x033F355F,		//450   16.25
+	0x034B41CC,		//451   16.375
+	0x03577AEF,		//452   16.5
+	0x0363E16D,		//453   16.625
+	0x037075EF,		//454   16.75
+	0x037D3920,		//455   16.875
+	0x038A2BAC,		//456   17
+	0x03974E44,		//457   17.125
+	0x03A4A19A,		//458   17.25
+	0x03B22662,		//459   17.375
+	0x03BFDD55,		//460   17.5
+	0x03CDC72C,		//461   17.625
+	0x03DBE4A4,		//462   17.75
+	0x03EA367D,		//463   17.875
+	0x03F8BD79,		//464   18
+	0x04077A5E,		//465   18.125
+	0x04166DF2,		//466   18.25
+	0x04259902,		//467   18.375
+	0x0434FC5C,		//468   18.5
+	0x044498CF,		//469   18.625
+	0x04546F30,		//470   18.75
+	0x04648056,		//471   18.875
+	0x0474CD1B,		//472   19
+	0x0485565C,		//473   19.125
+	0x04961CFA,		//474   19.25
+	0x04A721D8,		//475   19.375
+	0x04B865DE,		//476   19.5
+	0x04C9E9F5,		//477   19.625
+	0x04DBAF0C,		//478   19.75
+	0x04EDB613,		//479   19.875
+	0x05000000,		//480   20
+	0x05128DCA,		//481   20.125
+	0x0525606D,		//482   20.25
+	0x053878EA,		//483   20.375
+	0x054BD842,		//484   20.5
+	0x055F7F7E,		//485   20.625
+	0x05736FA7,		//486   20.75
+	0x0587A9CD,		//487   20.875
+	0x059C2F01,		//488   21
+	0x05B1005B,		//489   21.125
+	0x05C61EF5,		//490   21.25
+	0x05DB8BEE,		//491   21.375
+	0x05F14868,		//492   21.5
+	0x0607558B,		//493   21.625
+	0x061DB482,		//494   21.75
+	0x0634667C,		//495   21.875
+	0x064B6CAD,		//496   22
+	0x0662C84F,		//497   22.125
+	0x067A7A9D,		//498   22.25
+	0x069284DB,		//499   22.375
+	0x06AAE84D,		//500   22.5
+	0x06C3A63F,		//501   22.625
+	0x06DCC001,		//502   22.75
+	0x06F636E8,		//503   22.875
+	0x07100C4D,		//504   23
+	0x072A418F,		//505   23.125
+	0x0744D811,		//506   23.25
+	0x075FD13C,		//507   23.375
+	0x077B2E7F,		//508   23.5
+	0x0796F14D,		//509   23.625
+	0x07B31B1F,		//510   23.75
+	0x07CFAD73,		//511   23.875
+	0x07ECA9CD,		//512   24
+	0x080A11B5,		//513   24.125
+	0x0827E6BD,		//514   24.25
+	0x08462A77,		//515   24.375
+	0x0864DE80,		//516   24.5
+	0x08840477,		//517   24.625
+	0x08A39E04,		//518   24.75
+	0x08C3ACD3,		//519   24.875
+	0x08E43298,		//520   25
+	0x0905310C,		//521   25.125
+	0x0926A9EF,		//522   25.25
+	0x09489F07,		//523   25.375
+	0x096B1222,		//524   25.5
+	0x098E0512,		//525   25.625
+	0x09B179B2,		//526   25.75
+	0x09D571E3,		//527   25.875
+	0x09F9EF8E,		//528   26
+	0x0A1EF4A1,		//529   26.125
+	0x0A448314,		//530   26.25
+	0x0A6A9CE4,		//531   26.375
+	0x0A914416,		//532   26.5
+	0x0AB87AB7,		//533   26.625
+	0x0AE042DB,		//534   26.75
+	0x0B089E9E,		//535   26.875
+	0x0B319024,		//536   27
+	0x0B5B1998,		//537   27.125
+	0x0B853D2F,		//538   27.25
+	0x0BAFFD24,		//539   27.375
+	0x0BDB5BBC,		//540   27.5
+	0x0C075B43,		//541   27.625
+	0x0C33FE0E,		//542   27.75
+	0x0C61467B,		//543   27.875
+	0x0C8F36F2,		//544   28
+	0x0CBDD1E0,		//545   28.125
+	0x0CED19C0,		//546   28.25
+	0x0D1D1113,		//547   28.375
+	0x0D4DBA63,		//548   28.5
+	0x0D7F1845,		//549   28.625
+	0x0DB12D58,		//550   28.75
+	0x0DE3FC43,		//551   28.875
+	0x0E1787B8,		//552   29
+	0x0E4BD272,		//553   29.125
+	0x0E80DF37,		//554   29.25
+	0x0EB6B0D7,		//555   29.375
+	0x0EED4A2D,		//556   29.5
+	0x0F24AE1D,		//557   29.625
+	0x0F5CDF98,		//558   29.75
+	0x0F95E199,		//559   29.875
+	0x0FCFB724,		//560   30
+	0x11BD9C84,		//561   31dB
+	0x13E7C594,		//562   32dB
+	0x16558CCB,		//563   33dB
+	0x190F3254,		//564   34dB
+	0x1C1DF80E,		//565   35dB
+	0x1F8C4107,		//566   36dB
+	0x2365B4BF,		//567   37dB
+	0x27B766C2,		//568   38dB
+	0x2C900313,		//569   39dB
+	0x32000000,		//570   40dB
+	0x3819D612,		//571   41dB
+	0x3EF23ECA,		//572   42dB
+	0x46A07B07,		//573   43dB
+	0x4F3EA203,		//574   44dB
+	0x58E9F9F9,		//575   45dB
+	0x63C35B8E,		//576   46dB
+	0x6FEFA16D,		//577   47dB
+	0x7D982575,		//578   48dB
+};
+
+#define ACM8625_EQ_PARAM_LENGTH 604
+#define ACM8625_EQ_PARAM_COUNT 1208
+#define ACM8625_DRC_PARAM_LENGTH 358
+#define ACM8625_DRC_PARAM_COUNT 716
+
+struct acm8625_priv {
+	struct regmap *regmap;
+	struct acm8625_platform_data *pdata;
+	int vol;
+	int mute;
+	struct snd_soc_component *component;
+	int eq_enable;
+	char *m_eq_tab;
+	int drc_enable;
+	char *m_drc_tab;
+};
+
+const struct regmap_config acm8625_regmap = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.cache_type = REGCACHE_RBTREE,
+};
+
+/* Digital Off during DSP configuration */
+static void acm8625_write_prepare(struct snd_soc_component *component)
+{
+	snd_soc_component_write(component, ACM8625_REG_00, ACM8625_PAGE_00);
+	snd_soc_component_write(component, ACM8625_REG_04, 0);
+	snd_soc_component_write(component, ACM8625_REG_00, ACM8625_PAGE_00);
+	snd_soc_component_write(component, ACM8625_REG_00, ACM8625_PAGE_00);
+	snd_soc_component_write(component, ACM8625_REG_00, ACM8625_PAGE_00);
+}
+
+static void acm8625_write_ready(struct snd_soc_component *component)
+{
+	snd_soc_component_write(component, ACM8625_REG_00, ACM8625_PAGE_00);
+	snd_soc_component_write(component, ACM8625_REG_04, 0x3);
+}
+
+static int acm8625_vol_info(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->access =
+	    (SNDRV_CTL_ELEM_ACCESS_TLV_READ | SNDRV_CTL_ELEM_ACCESS_READWRITE);
+	uinfo->count = 1;
+
+	uinfo->value.integer.min = ACM8625_VOLUME_MIN;
+	uinfo->value.integer.max = ACM8625_VOLUME_MAX;
+	uinfo->value.integer.step = 1;
+
+	return 0;
+}
+
+static int acm8625_mute_info(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->access =
+	    (SNDRV_CTL_ELEM_ACCESS_TLV_READ | SNDRV_CTL_ELEM_ACCESS_READWRITE);
+	uinfo->count = 1;
+
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 1;
+	uinfo->value.integer.step = 1;
+
+	return 0;
+}
+
+static int acm8625_vol_locked_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct acm8625_priv *acm8625 = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = acm8625->vol;
+
+	return 0;
+}
+
+static inline int get_volume_index(int vol)
+{
+	int index;
+
+	index = vol;
+
+	if (index < ACM8625_VOLUME_MIN)
+		index = ACM8625_VOLUME_MIN;
+
+	if (index > ACM8625_VOLUME_MAX)
+		index = ACM8625_VOLUME_MAX;
+
+	return index;
+}
+
+static void acm8625_set_volume(struct snd_soc_component *component, int vol)
+{
+	unsigned int index;
+	u32 volume_hex;
+	u8 byte4;
+	u8 byte3;
+	u8 byte2;
+	u8 byte1;
+
+	index = get_volume_index(vol);
+	volume_hex = acm8625_volume[index];
+
+	byte4 = ((volume_hex >> 24) & 0xFF);
+	byte3 = ((volume_hex >> 16) & 0xFF);
+	byte2 = ((volume_hex >> 8) & 0xFF);
+	byte1 = ((volume_hex >> 0) & 0xFF);
+
+	//w 58 00 04
+	snd_soc_component_write(component, ACM8625_REG_00, ACM8625_PAGE_04);
+	//w 58 7C
+	snd_soc_component_write(component, ACM8625_REG_7C, byte4);
+	snd_soc_component_write(component, ACM8625_REG_7D, byte3);
+	snd_soc_component_write(component, ACM8625_REG_7E, byte2);
+	snd_soc_component_write(component, ACM8625_REG_7F, byte1);
+	//w 58 80
+	snd_soc_component_write(component, ACM8625_REG_80, byte4);
+	snd_soc_component_write(component, ACM8625_REG_81, byte3);
+	snd_soc_component_write(component, ACM8625_REG_82, byte2);
+	snd_soc_component_write(component, ACM8625_REG_83, byte1);
+	snd_soc_component_write(component, ACM8625_REG_00, ACM8625_PAGE_00);
+}
+
+static int acm8625_vol_locked_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct acm8625_priv *acm8625 = snd_soc_component_get_drvdata(component);
+
+	acm8625->vol = ucontrol->value.integer.value[0];
+	acm8625_set_volume(component, acm8625->vol);
+
+	return 0;
+}
+
+static int acm8625_mute(struct snd_soc_component *component, int mute)
+{
+	u8 reg04_value = 0;
+
+	if (mute) {
+		//mute both left & right channels
+		reg04_value = 0x0f;
+
+	} else {
+		//unmute
+		reg04_value = 0x03;
+	}
+
+	snd_soc_component_write(component, ACM8625_REG_00, ACM8625_PAGE_00);
+	snd_soc_component_write(component, ACM8625_REG_04, reg04_value);
+	return 0;
+}
+
+static int acm8625_mute_locked_put(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct acm8625_priv *acm8625 = snd_soc_component_get_drvdata(component);
+
+	acm8625->mute = ucontrol->value.integer.value[0];
+	acm8625_mute(component, acm8625->mute);
+
+	return 0;
+}
+
+static int acm8625_mute_locked_get(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct acm8625_priv *acm8625 = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = acm8625->mute;
+	return 0;
+}
+
+static int acm8625_set_EQ_enum(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct acm8625_priv *acm8625 = snd_soc_component_get_drvdata(component);
+
+	acm8625->eq_enable = ucontrol->value.integer.value[0];
+
+	return 0;
+}
+
+static int acm8625_get_EQ_enum(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct acm8625_priv *acm8625 = snd_soc_component_get_drvdata(component);
+	bool enable = (bool)acm8625->eq_enable & 0x1;
+
+	ucontrol->value.integer.value[0] = enable;
+	if (enable == 1) {
+		snd_soc_component_write(component, ACM8625_REG_00, ACM8625_PAGE_00);
+		snd_soc_component_write(component, ACM8625_REG_05, 0x0);
+	} else {
+		snd_soc_component_write(component, ACM8625_REG_00, ACM8625_PAGE_00);
+		snd_soc_component_write(component, ACM8625_REG_05, 0x8);
+	}
+
+	return 0;
+}
+
+static int acm8625_set_DRC_enum(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct acm8625_priv *acm8625 = snd_soc_component_get_drvdata(component);
+
+	acm8625->drc_enable = ucontrol->value.integer.value[0];
+
+	return 0;
+}
+
+static int acm8625_get_DRC_enum(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct acm8625_priv *acm8625 = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = acm8625->drc_enable;
+
+	return 0;
+}
+
+static int acm8625_set_DRC_param(struct snd_kcontrol *kcontrol,
+				  const unsigned int __user *bytes,
+				  unsigned int size)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct acm8625_priv *acm8625 = snd_soc_component_get_drvdata(component);
+	char tmp_string[ACM8625_DRC_PARAM_COUNT];
+	char *p_string = &tmp_string[0];
+	char *p = acm8625->m_drc_tab;
+	unsigned int i = 0, res;
+	struct snd_ctl_tlv *tlv;
+	char *val = (char *)bytes + sizeof(*tlv);
+
+	res = copy_from_user(p_string, val, ACM8625_DRC_PARAM_COUNT);
+	if (res)
+		return -EFAULT;
+
+	memcpy(p, p_string, ACM8625_DRC_PARAM_COUNT);
+
+	acm8625_write_prepare(component);
+	for (i = 0; i < ACM8625_DRC_PARAM_LENGTH; i++) {
+		snd_soc_component_write(component, *p, *(p + 1));
+		p += 2;
+	}
+	acm8625_write_ready(component);
+
+	return 0;
+}
+
+static int acm8625_get_DRC_param(struct snd_kcontrol *kcontrol,
+			    unsigned int __user *bytes,
+			    unsigned int size)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct acm8625_priv *acm8625 = snd_soc_component_get_drvdata(component);
+	struct snd_ctl_tlv *tlv;
+	char *val = (char *)bytes + sizeof(*tlv);
+	char *p = acm8625->m_drc_tab;
+	int res = 0;
+
+	res = copy_to_user(val, p, ACM8625_DRC_PARAM_COUNT);
+	if (res)
+		return -EFAULT;
+
+	return 0;
+}
+
+static int acm8625_set_EQ_param(struct snd_kcontrol *kcontrol,
+				  const unsigned int __user *bytes,
+				  unsigned int size)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct acm8625_priv *acm8625 = snd_soc_component_get_drvdata(component);
+	char tmp_string[ACM8625_EQ_PARAM_COUNT];
+	char *p_string = &tmp_string[0];
+	char *p = acm8625->m_eq_tab;
+	unsigned int i = 0, res;
+	struct snd_ctl_tlv *tlv;
+	char *val = (char *)bytes + sizeof(*tlv);
+
+	res = copy_from_user(p_string, val, ACM8625_EQ_PARAM_COUNT);
+	if (res)
+		return -EFAULT;
+
+	memcpy(p, p_string, ACM8625_EQ_PARAM_COUNT);
+
+	acm8625_write_prepare(component);
+	for (i = 0; i < ACM8625_EQ_PARAM_LENGTH; i++) {
+		snd_soc_component_write(component, *p, *(p + 1));
+		p += 2;
+		/*pr_info("acm8625_eq_tab[%d] = {0x%x, 0x%x}\n",*/
+		/*	i, tmp_string[2*i], tmp_string[2*i+1]);*/
+	}
+	acm8625_write_ready(component);
+
+	return 0;
+}
+
+static int acm8625_get_EQ_param(struct snd_kcontrol *kcontrol,
+				unsigned int __user *bytes,
+				unsigned int size)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct acm8625_priv *acm8625 = snd_soc_component_get_drvdata(component);
+	struct snd_ctl_tlv *tlv;
+	char *val = (char *)bytes + sizeof(*tlv);
+	char *p = acm8625->m_eq_tab;
+	int res = 0;
+
+	res = copy_to_user(val, p, ACM8625_EQ_PARAM_COUNT);
+	if (res)
+		return -EFAULT;
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new acm8625_vol_control[] = {
+	{
+	 .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	 .name = "Master Volume",
+	 .info = acm8625_vol_info,
+	 .get = acm8625_vol_locked_get,
+	 .put = acm8625_vol_locked_put,
+	 },
+	{
+	 .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	 .name = "Master Volume Mute",
+	 .info = acm8625_mute_info,
+	 .get = acm8625_mute_locked_get,
+	 .put = acm8625_mute_locked_put,
+	},
+	SOC_SINGLE_BOOL_EXT("Set EQ Enable", 0,
+			   acm8625_get_EQ_enum, acm8625_set_EQ_enum),
+	SOC_SINGLE_BOOL_EXT("Set DRC Enable", 0,
+			   acm8625_get_DRC_enum, acm8625_set_DRC_enum),
+	SND_SOC_BYTES_TLV("EQ table", ACM8625_EQ_PARAM_COUNT,
+			   acm8625_get_EQ_param, acm8625_set_EQ_param),
+	SND_SOC_BYTES_TLV("DRC table", ACM8625_DRC_PARAM_COUNT,
+			   acm8625_get_DRC_param, acm8625_set_DRC_param),
+
+};
+
+static int acm8625_set_bias_level(struct snd_soc_component *component,
+				  enum snd_soc_bias_level level)
+{
+	pr_debug("level = %d\n", level);
+
+	switch (level) {
+	case SND_SOC_BIAS_ON:
+		break;
+
+	case SND_SOC_BIAS_PREPARE:
+		/* Full power on */
+		break;
+
+	case SND_SOC_BIAS_STANDBY:
+		break;
+
+	case SND_SOC_BIAS_OFF:
+		/* The chip runs through the power down sequence for us. */
+		break;
+	}
+	component->dapm.bias_level = level;
+
+	return 0;
+}
+
+static int acm8625_trigger(struct snd_pcm_substream *substream, int cmd,
+			       struct snd_soc_dai *codec_dai)
+{
+	struct acm8625_priv *acm8625 = snd_soc_dai_get_drvdata(codec_dai);
+	struct snd_soc_component *component = acm8625->component;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		switch (cmd) {
+		case SNDRV_PCM_TRIGGER_START:
+		case SNDRV_PCM_TRIGGER_RESUME:
+		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+			pr_debug("%s(), start\n", __func__);
+			if (!acm8625->mute)
+				acm8625_mute(component, 0);
+			break;
+		case SNDRV_PCM_TRIGGER_STOP:
+		case SNDRV_PCM_TRIGGER_SUSPEND:
+		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+			pr_debug("%s(), stop\n", __func__);
+			if (!acm8625->mute)
+				acm8625_mute(component, 1);
+			break;
+		}
+	}
+	return 0;
+}
+
+static int reset_acm8625_GPIO(struct device *dev)
+{
+	struct acm8625_priv *acm8625 =  dev_get_drvdata(dev);
+	struct acm8625_platform_data *pdata = acm8625->pdata;
+	int ret = 0;
+
+	if (pdata->reset_pin < 0)
+		return 0;
+
+	ret = devm_gpio_request_one(dev, pdata->reset_pin,
+					    GPIOF_OUT_INIT_LOW,
+					    "acm8625-reset-pin");
+	if (ret < 0)
+		return -1;
+
+	gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
+	usleep_range(1 * 1000, 2 * 1000);
+	gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_HIGH);
+	usleep_range(5 * 1000, 6 * 1000);
+
+	return 0;
+}
+
+static int acm8625_snd_suspend(struct snd_soc_component *component)
+{
+	struct acm8625_priv *acm8625 = snd_soc_component_get_drvdata(component);
+	struct acm8625_platform_data *pdata = acm8625->pdata;
+
+	dev_info(component->dev, "acm8625_suspend!\n");
+	acm8625_set_bias_level(component, SND_SOC_BIAS_OFF);
+
+	if (pdata->reset_pin)
+		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
+
+	usleep_range(10, 11);
+
+	return 0;
+}
+
+static int acm8625_reg_init(struct snd_soc_component *component)
+{
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(acm8625_reset); i++) {
+		snd_soc_component_write(component, acm8625_reset[i][0],
+		acm8625_reset[i][1]);
+	};
+	usleep_range(10 * 1000, 11 * 1000);
+
+	for (i = 0; i < ARRAY_SIZE(acm8625_init_sequence); i++) {
+		snd_soc_component_write(component, acm8625_init_sequence[i][0],
+		acm8625_init_sequence[i][1]);
+	};
+
+	return 0;
+}
+
+static int acm8625_snd_resume(struct snd_soc_component *component)
+{
+	int ret;
+	struct acm8625_priv *acm8625 = snd_soc_component_get_drvdata(component);
+	struct acm8625_platform_data *pdata = acm8625->pdata;
+	char *p_drc = acm8625->m_drc_tab;
+	char *p_eq = acm8625->m_eq_tab;
+	int i;
+
+	dev_info(component->dev, "acm8625 snd resume!\n");
+
+	if (pdata->reset_pin)
+		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_HIGH);
+
+	usleep_range(3 * 1000, 4 * 1000);
+
+	ret = acm8625_reg_init(component);
+	if (ret != 0) {
+		dev_err(component->dev, "Failed to initialize ACM8625: %d\n", ret);
+		goto err;
+	}
+
+	acm8625_set_volume(component, acm8625->vol);
+
+	acm8625_write_prepare(component);
+	if (acm8625->eq_enable) {
+		for (i = 0; i < ACM8625_EQ_PARAM_LENGTH; i++) {
+			snd_soc_component_write(component, *p_eq, *(p_eq + 1));
+			p_eq += 2;
+		}
+	}
+
+	if (acm8625->drc_enable) {
+		for (i = 0; i < ACM8625_DRC_PARAM_LENGTH; i++) {
+			snd_soc_component_write(component, *p_drc, *(p_drc + 1));
+			p_drc += 2;
+		}
+	}
+	acm8625_write_ready(component);
+
+	acm8625_mute(component, acm8625->mute);
+	acm8625_set_bias_level(component, SND_SOC_BIAS_STANDBY);
+
+	return 0;
+err:
+	return ret;
+}
+
+static int acm8625_probe(struct snd_soc_component *component)
+{
+	int ret;
+	struct acm8625_priv *acm8625 = snd_soc_component_get_drvdata(component);
+
+	usleep_range(20 * 1000, 21 * 1000);
+	ret = acm8625_reg_init(component);
+	if (ret != 0)
+		goto err;
+
+	acm8625_set_volume(component, acm8625->vol);
+	snd_soc_add_component_controls(component, acm8625_vol_control,
+			ARRAY_SIZE(acm8625_vol_control));
+	acm8625->component = component;
+	return 0;
+
+err:
+	return ret;
+}
+
+static void acm8625_remove(struct snd_soc_component *component)
+{
+	struct acm8625_priv *acm8625 = snd_soc_component_get_drvdata(component);
+	struct acm8625_platform_data *pdata = acm8625->pdata;
+
+	if (pdata->reset_pin)
+		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
+
+	usleep_range(10, 11);
+}
+
+static const struct snd_soc_component_driver soc_component_acm8625 = {
+	.probe = acm8625_probe,
+	.remove = acm8625_remove,
+	.suspend = acm8625_snd_suspend,
+	.resume = acm8625_snd_resume,
+	.set_bias_level = acm8625_set_bias_level,
+};
+
+static const struct snd_soc_dai_ops acm8625_dai_ops = {
+	//.digital_mute = acm8625_mute,
+	.trigger = acm8625_trigger,
+};
+
+static struct snd_soc_dai_driver acm8625_dai = {
+	.name = "acm8625-amplifier",
+	.playback = {
+		     .stream_name = "Playback",
+		     .channels_min = 2,
+		     .channels_max = 8,
+		     .rates = ACM8625_RATES,
+		     .formats = ACM8625_FORMATS,
+		     },
+	.ops = &acm8625_dai_ops,
+};
+
+static int acm8625_parse_dt(struct acm8625_priv *acm8625, struct device_node *np)
+{
+	int ret = 0;
+	int reset_pin = -1;
+
+	reset_pin = of_get_named_gpio(np, "reset_pin", 0);
+	if (reset_pin < 0) {
+		pr_err("%s fail to get reset pin from dts!\n", __func__);
+		ret = -1;
+	} else {
+		pr_info("%s pdata->reset_pin = %d!\n", __func__,
+				acm8625->pdata->reset_pin);
+	}
+	acm8625->pdata->reset_pin = reset_pin;
+
+	return ret;
+}
+
+static int acm8625_i2c_probe(struct i2c_client *i2c,
+			      const struct i2c_device_id *id)
+{
+	struct regmap *regmap;
+	struct regmap_config config = acm8625_regmap;
+	struct acm8625_priv *acm8625;
+	struct acm8625_platform_data *pdata;
+	int ret = 0;
+
+	acm8625 = devm_kzalloc(&i2c->dev,
+		sizeof(struct acm8625_priv), GFP_KERNEL);
+	if (!acm8625)
+		return -ENOMEM;
+
+	regmap = devm_regmap_init_i2c(i2c, &config);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	pdata = devm_kzalloc(&i2c->dev,
+				sizeof(struct acm8625_platform_data),
+				GFP_KERNEL);
+	if (!pdata) {
+		pr_err("%s failed to kzalloc for acm8625 pdata\n", __func__);
+		return -ENOMEM;
+	}
+	acm8625->pdata = pdata;
+
+	acm8625_parse_dt(acm8625, i2c->dev.of_node);
+	acm8625->regmap = regmap;
+	acm8625->vol = 400;
+
+	dev_set_drvdata(&i2c->dev, acm8625);
+
+	ret =
+		snd_soc_register_component(&i2c->dev, &soc_component_acm8625,
+			&acm8625_dai, 1);
+	if (ret != 0)
+		return -ENOMEM;
+
+	reset_acm8625_GPIO(&i2c->dev);
+
+	acm8625->m_drc_tab =
+		devm_kzalloc(&i2c->dev,
+			     sizeof(char) * ACM8625_DRC_PARAM_COUNT,
+			     GFP_KERNEL);
+	if (!acm8625->m_drc_tab)
+		return -ENOMEM;
+
+	acm8625->m_eq_tab =
+		devm_kzalloc(&i2c->dev,
+			     sizeof(char) * ACM8625_EQ_PARAM_COUNT,
+			     GFP_KERNEL);
+	if (!acm8625->m_eq_tab)
+		return -ENOMEM;
+
+	return ret;
+}
+
+static int acm8625_i2c_remove(struct i2c_client *i2c)
+{
+	struct acm8625_priv *acm8625 =
+			(struct acm8625_priv *)i2c_get_clientdata(i2c);
+
+	snd_soc_unregister_component(&i2c->dev);
+	devm_kfree(&i2c->dev, acm8625->m_drc_tab);
+	devm_kfree(&i2c->dev, acm8625->m_eq_tab);
+	devm_kfree(&i2c->dev, acm8625->pdata);
+	devm_kfree(&i2c->dev, i2c_get_clientdata(i2c));
+
+	return 0;
+}
+
+static void acm8625_i2c_shutdown(struct i2c_client *i2c)
+{
+	struct acm8625_priv *acm8625 =
+			(struct acm8625_priv *)i2c_get_clientdata(i2c);
+	struct acm8625_platform_data *pdata = acm8625->pdata;
+
+	if (pdata->reset_pin)
+		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
+}
+
+static const struct i2c_device_id acm8625_i2c_id[] = {
+	{"acm8625",},
+	{}
+};
+
+MODULE_DEVICE_TABLE(i2c, acm8625_i2c_id);
+
+#ifdef CONFIG_OF
+static const struct of_device_id acm8625_of_match[] = {
+	{.compatible = "acme,acm8625",},
+	{}
+};
+
+MODULE_DEVICE_TABLE(of, acm8625_of_match);
+#endif
+
+static struct i2c_driver acm8625_i2c_driver = {
+	.probe = acm8625_i2c_probe,
+	.remove = acm8625_i2c_remove,
+	.shutdown = acm8625_i2c_shutdown,
+	.id_table = acm8625_i2c_id,
+	.driver = {
+		   .name = ACM8625_DRV_NAME,
+		   .of_match_table = acm8625_of_match,
+		   },
+};
+
+module_i2c_driver(acm8625_i2c_driver);
+
+MODULE_DESCRIPTION("ACM8625 Audio Amplifier Driver");
+MODULE_LICENSE("GPL v2");
