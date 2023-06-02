@@ -26,24 +26,6 @@
 #define LCD_REG_DBG_RST_BUS         10
 #define LCD_REG_DBG_MAX_BUS         0xff
 
-/*tcon adb port use */
-#define LCD_ADB_TCON_REG_RW_MODE_NULL              0
-#define LCD_ADB_TCON_REG_RW_MODE_RN                1
-#define LCD_ADB_TCON_REG_RW_MODE_WM                2
-#define LCD_ADB_TCON_REG_RW_MODE_WN                3
-#define LCD_ADB_TCON_REG_RW_MODE_WS                4
-#define LCD_ADB_TCON_REG_RW_MODE_ERR               5
-
-#define ADB_TCON_REG_8_bit                         0
-#define ADB_TCON_REG_32_bit                        1
-
-struct lcd_tcon_adb_reg_s {
-	unsigned int rw_mode;
-	unsigned int bit_width;
-	unsigned int addr;
-	unsigned int len;
-};
-
 struct lcd_debug_info_if_s {
 	int (*interface_print)(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 	int (*reg_dump_interface)(struct aml_lcd_drv_s *pdrv, char *buf, int offset);

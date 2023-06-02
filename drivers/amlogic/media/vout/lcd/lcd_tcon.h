@@ -12,6 +12,10 @@
 #include <linux/mm.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_tcon_data.h>
+#include <linux/amlogic/media/vout/lcd/lcd_tcon_fw.h>
+
+#define AML_TCON_CLASS_NAME  "aml_tcon"
+#define AML_TCON_DEVICE_NAME "tcon"
 
 #define REG_LCD_TCON_MAX    0xffff
 #define TCON_INTR_MASKN_VAL    0x0  /* default mask all */
@@ -158,6 +162,11 @@ struct tcon_mem_map_table_s {
 struct lcd_tcon_local_cfg_s {
 	char bin_ver[TCON_BIN_VER_LEN];
 	spinlock_t multi_list_lock; /* for tcon multi lut list change */
+
+	struct cdev   cdev;
+	struct device *dev;
+	dev_t devno;
+	struct class *clsp;
 };
 
 #ifdef CONFIG_AMLOGIC_TEE
@@ -169,6 +178,9 @@ struct lcd_tcon_config_s *get_lcd_tcon_config(void);
 struct tcon_rmem_s *get_lcd_tcon_rmem(void);
 struct tcon_mem_map_table_s *get_lcd_tcon_mm_table(void);
 struct lcd_tcon_local_cfg_s *get_lcd_tcon_local_cfg(void);
+void lcd_tcon_fw_prepare(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_config_s *tcon_conf);
+int lcd_tcon_fw_buf_table_generate(struct lcd_tcon_fw_s *tcon_fw);
+void lcd_tcon_fw_base_timing_update(struct aml_lcd_drv_s *pdrv);
 
 /* **********************************
  * tcon config
@@ -268,11 +280,13 @@ int lcd_tcon_bin_load(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_reg_table_print(void);
 void lcd_tcon_reg_readback_print(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_multi_lut_print(void);
-int lcd_tcon_info_print(char *buf, int offset);
 void lcd_tcon_axi_rmem_lut_load(unsigned int index, unsigned char *buf,
 				unsigned int size);
 
 void lcd_tcon_dbg_trace_clear(void);
 void lcd_tcon_dbg_trace_print(unsigned int flag);
+
+void lcd_tcon_debug_file_add(struct aml_lcd_drv_s *pdrv, struct lcd_tcon_local_cfg_s *local_cfg);
+void lcd_tcon_debug_file_remove(struct lcd_tcon_local_cfg_s *local_cfg);
 
 #endif

@@ -60,12 +60,14 @@
 /* 20230119: optimize phy code*/
 /* 20230406: add a4 support*/
 /* 20230510: support tcon fw*/
-#define LCD_DRV_VERSION    "20230510"
+/* 20230525: update tcon debug support */
+#define LCD_DRV_VERSION    "20230525"
 
 extern struct mutex lcd_vout_mutex;
 
 extern spinlock_t lcd_reg_spinlock;
 extern int lcd_vout_serve_bypass;
+extern struct mutex lcd_tcon_dbg_mutex;
 
 static inline unsigned int lcd_do_div(unsigned long long num, unsigned int den)
 {
@@ -86,6 +88,7 @@ unsigned char lcd_mode_str_to_mode(const char *str);
 char *lcd_mode_mode_to_str(int mode);
 u8 *lcd_vmap(ulong addr, u32 size);
 void lcd_unmap_phyaddr(u8 *vaddr);
+void lcd_debug_parse_param(char *buf_orig, char **parm);
 
 void lcd_cpu_gpio_probe(struct aml_lcd_drv_s *pdrv, unsigned int index);
 void lcd_cpu_gpio_set(struct aml_lcd_drv_s *pdrv, unsigned int index, int value);
@@ -168,6 +171,20 @@ int lcd_tcon_reload(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_reload_pre(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_disable(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv);
+
+/* tcon debug */
+int lcd_tcon_info_print(char *buf, int offset);
+ssize_t lcd_tcon_debug_show(struct device *dev, struct device_attribute *attr, char *buf);
+ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
+				const char *buf, size_t count);
+ssize_t lcd_tcon_status_show(struct device *dev, struct device_attribute *attr, char *buf);
+ssize_t lcd_tcon_reg_debug_show(struct device *dev, struct device_attribute *attr, char *buf);
+ssize_t lcd_tcon_reg_debug_store(struct device *dev, struct device_attribute *attr,
+				const char *buf, size_t count);
+ssize_t lcd_tcon_fw_dbg_show(struct device *dev, struct device_attribute *attr, char *buf);
+ssize_t lcd_tcon_fw_dbg_store(struct device *dev, struct device_attribute *attr,
+				const char *buf, size_t count);
+long lcd_tcon_ioctl_handler(struct aml_lcd_drv_s *pdrv, int mcd_nr, unsigned long arg);
 
 /* lcd debug */
 int lcd_debug_info_len(int num);

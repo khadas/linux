@@ -100,7 +100,6 @@ unsigned int lcd_get_encl_line_cnt(struct aml_lcd_drv_s *pdrv)
 	cnt = lcd_venc_op.get_encl_line_cnt(pdrv);
 	return cnt;
 }
-EXPORT_SYMBOL(lcd_get_encl_line_cnt);
 
 unsigned int lcd_get_encl_frm_cnt(struct aml_lcd_drv_s *pdrv)
 {
@@ -115,7 +114,6 @@ unsigned int lcd_get_encl_frm_cnt(struct aml_lcd_drv_s *pdrv)
 	cnt = lcd_venc_op.get_encl_frm_cnt(pdrv);
 	return cnt;
 }
-EXPORT_SYMBOL(lcd_get_encl_frm_cnt);
 
 void lcd_venc_vrr_recovery(struct aml_lcd_drv_s *pdrv)
 {

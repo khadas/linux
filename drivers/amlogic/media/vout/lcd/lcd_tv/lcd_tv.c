@@ -35,7 +35,6 @@
 #include "lcd_tv.h"
 #include "../lcd_reg.h"
 #include "../lcd_common.h"
-#include "../lcd_tcon.h"
 
 static int lcd_init_on_flag;
 /* ************************************************** *
