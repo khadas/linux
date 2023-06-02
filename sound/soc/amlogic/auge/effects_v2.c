@@ -606,8 +606,6 @@ static void effect_init(struct platform_device *pdev)
 	else
 		aed_set_lane_and_channels(p_effect->lane_mask, p_effect->ch_mask);
 
-	/*set master & channel volume gain to 0dB*/
-	aed_set_volume(0xc0, 0x30, 0x30);
 	/*set default mixer gain*/
 	aed_set_mixer_params();
 	/*all 20 bands for EQ1*/
@@ -738,6 +736,9 @@ static int effect_platform_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, p_effect);
 
 	effect_init(pdev);
+
+	/*set master & channel volume gain to 0dB*/
+	aed_set_volume(0xc0, 0x30, 0x30);
 
 	return 0;
 }
