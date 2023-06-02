@@ -3925,6 +3925,19 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 	if (next_vf->flag & VFRAME_FLAG_VIDEO_DRM)
 		return true;
 
+	if (cur_vf &&
+		(next_vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+		next_vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
+		next_vf->source_type == VFRAME_SOURCE_TYPE_TUNER) &&
+		!(next_vf->flag & VFRAME_FLAG_GAME_MODE) &&
+		cur_vf->flag & VFRAME_FLAG_GAME_MODE) {
+		pr_info("game to non-game\n");
+		/*do avsync normal check*/
+		timestamp_pcrscr_set(timestamp_vpts_get());
+		hdmi_vframe_count = HDMI_DELAY_NORMAL_CHECK_COUNT;
+		return true;
+	}
+
 	if (step_enable) {
 		if (step_flag)
 			return false;
