@@ -97,6 +97,7 @@ static bool is_cur_tmds_div40(struct hdmitx_dev *hdev);
 static void hdmitx_resend_div40(struct hdmitx_dev *hdev);
 static int hdmitx_check_vic(int vic);
 static unsigned int hdmitx_get_frame_duration(void);
+static void hdmitx_set_frlrate_none(struct hdmitx_dev *hdev);
 
 /*
  * Normally, after the HPD in or late resume, there will reading EDID, and
@@ -358,6 +359,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	frl_tx_stop(hdev);
 	hdmitx21_disable_hdcp(hdev);
 	hdmitx21_rst_stream_type(hdev->am_hdcp);
+	hdmitx_set_frlrate_none(hdev);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
 		HDMITX_EARLY_SUSPEND);
 	hdev->cur_VIC = HDMI_0_UNKNOWN;
@@ -469,6 +471,7 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 		cancel_delayed_work(&hdev->work_cedst);
 	hdmitx21_disable_hdcp(hdev);
 	hdmitx21_rst_stream_type(hdev->am_hdcp);
+	hdmitx_set_frlrate_none(hdev);
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
 		HDMITX_EARLY_SUSPEND);
@@ -573,6 +576,24 @@ static  int  set_disp_mode(const char *mode)
 		}
 	}
 	return ret;
+}
+
+static void hdmitx_set_frlrate_none(struct hdmitx_dev *hdev)
+{
+	u8 data;
+
+	/* such as T7 unsupport FRL, skip frl flow */
+	if (hdev->data && hdev->data->chip_type < MESON_CPU_ID_S5)
+		return;
+
+	if (hdev->rxcap.max_frl_rate > FRL_NONE &&
+		hdev->rxcap.scdc_present == 1 &&
+		hdev->hwop.cntlmisc(hdev, MISC_GET_FRL_MODE, 0) > FRL_NONE) {
+		scdc_tx_frl_cfg1_set(0);
+		data = scdc_tx_update_flags_get();
+		if (data & FLT_UPDATE)
+			scdc_tx_update_flags_set(FLT_UPDATE);
+	}
 }
 
 static void hdmitx_pre_display_init(struct hdmitx_dev *hdev)
