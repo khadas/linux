@@ -160,7 +160,7 @@ void evl_start_timer(struct evl_timer *timer,
 	if (!timeout_infinite(interval)) {
 		timer->interval = interval;
 		timer->start_date = value;
-		timer->pexpect_ticks = 0;
+		timer->consumed_ticks = 0;
 		timer->periodic_ticks = 0;
 		timer->status |= EVL_TIMER_PERIODIC;
 	}
@@ -415,21 +415,59 @@ unsigned long evl_get_timer_overruns(struct evl_timer *timer)
 	struct evl_tqueue *tq;
 	ktime_t now, delta;
 
-	now = evl_read_clock(timer->clock);
-	base = lock_timer_base(timer, &flags);
+	if (EVL_WARN_ON_ONCE(CORE, !evl_timer_is_periodic(timer)))
+		return 0;
 
+	base = lock_timer_base(timer, &flags);
+	now = evl_read_clock(timer->clock);
+
+	/*
+	 * Measure the lateness with respect to the expected expiry
+	 * date in the timeline for this timer. This ideal expiry date
+	 * would be the start date of the timer, plus the interval
+	 * duration times the number of ticks which were consumed so
+	 * far. Any delay longer than the periodic interval denotes an
+	 * overrun condition since we missed at least one tick.
+	 */
 	delta = ktime_sub(now, evl_get_timer_next_date(timer));
 	if (likely(delta < timer->interval))
 		goto done;
 
 	overruns = ktime_divns(delta, ktime_to_ns(timer->interval));
-	timer->pexpect_ticks += overruns;
+
+	/*
+	 * Compensate for the current lateness as the timer progresses
+	 * in the timeline, consuming all missed ticks in one gulp to
+	 * catch up.
+	 */
+	timer->consumed_ticks += overruns;
+
+	/*
+	 * We are about to re-enqueue the timer for its next expiry
+	 * date. However, we refrain from doing so if either:
+	 *
+	 * - the timer was deactivated, in which case there is no
+	 * point in planning for further expiry.
+	 *
+	 * - the timer is still running but not queued, which means
+	 * that do_clock_tick() dequeued it then released the base
+	 * lock on a remote CPU for running its handler. Since the
+	 * timer is running and we hold that lock at the moment,
+	 * do_clock_tick() is certainly going to either advance the
+	 * expiry as required or shut the timer down after we drop the
+	 * base lock. IOW, we may leave reprogramming to the core tick
+	 * handler.
+	 */
 	if (!evl_timer_is_running(timer))
 		goto done;
 
-	EVL_WARN_ON_ONCE(CORE, (timer->status &
-			(EVL_TIMER_DEQUEUED|EVL_TIMER_PERIODIC))
-			!= EVL_TIMER_PERIODIC);
+	if (timer->status & EVL_TIMER_DEQUEUED)
+		goto done;
+
+	/*
+	 * Re-enqueue the periodic timer so that it ticks at the next
+	 * interval boundary.
+	 */
 	tq = &base->q;
 	evl_dequeue_timer(timer, tq);
 	while (evl_tdate(timer) < now) {
@@ -439,7 +477,7 @@ unsigned long evl_get_timer_overruns(struct evl_timer *timer)
 
 	program_timer(timer, tq);
 done:
-	timer->pexpect_ticks++;
+	timer->consumed_ticks++;
 
 	unlock_timer_base(base, flags);
 
