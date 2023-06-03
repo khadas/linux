@@ -276,6 +276,11 @@ static irqreturn_t vrr_vsync_intr_handler(int irq, void *dev)
 	return hdmitx_vrr_vsync_handler((struct hdmitx_dev *)dev);
 }
 
+static irqreturn_t emp_vsync_intr_handler(int irq, void *dev)
+{
+	return hdmitx_emp_vsync_handler((struct hdmitx_dev *)dev);
+}
+
 void hdmitx_setupirqs(struct hdmitx_dev *phdev)
 {
 	int r;
@@ -291,4 +296,9 @@ void hdmitx_setupirqs(struct hdmitx_dev *phdev)
 			(void *)phdev);
 	if (r != 0)
 		pr_info(SYS "can't request vrr_vsync irq\n");
+	r = request_irq(phdev->irq_vrr_vsync, &emp_vsync_intr_handler,
+			IRQF_SHARED, "hdmitx_emp_vsync",
+			(void *)phdev);
+	if (r != 0)
+		pr_info(SYS "can't request emp_vsync irq\n");
 }

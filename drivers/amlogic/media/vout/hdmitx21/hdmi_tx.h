@@ -448,6 +448,7 @@ bool get_hdcp2_topo(void);
 
 /* VRR parts */
 irqreturn_t hdmitx_vrr_vsync_handler(struct hdmitx_dev *hdev);
+irqreturn_t hdmitx_emp_vsync_handler(struct hdmitx_dev *hdev);
 void tx_vrr_params_init(void);
 void hdmitx_set_vrr_para(const struct vrr_conf_para *para);
 void hdmitx_vrr_set_maxlncnt(u32 max_lcnt);
@@ -548,9 +549,14 @@ bool frl_tx_tx_phy_init(bool disable_ffe);
 void frl_tx_tx_init(void);
 void frl_tx_tx_phy_set(void);
 void tmds_tx_phy_set(void);
+void hdmitx_dsc_cvtem_pkt_send(struct dsc_pps_data_s *pps,
+	struct hdmi_timing *timing);
+void hdmitx_dsc_cvtem_pkt_disable(void);
 enum frl_rate_enum hdmitx21_select_frl_rate(bool dsc_en, enum hdmi_vic vic,
 	enum hdmi_colorspace cs, enum hdmi_color_depth cd);
 void frl_tx_training_handler(struct hdmitx_dev *hdev);
 void frl_tx_stop(struct hdmitx_dev *hdev);
 void hdcptx_en_aes_dualpipe(bool en);
+bool frl_check_full_bw(enum hdmi_colorspace cs, enum hdmi_color_depth cd, u32 pixel_clock,
+	u32 h_active, enum frl_rate_enum frl_rate, u32 *tri_bytes);
 #endif /* __HDMI_TX_H__ */

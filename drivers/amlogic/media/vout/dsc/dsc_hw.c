@@ -83,19 +83,46 @@ unsigned int dsc_vcbus_reg_getb(unsigned int reg,
 
 void set_dsc_en(unsigned int enable)
 {
+	struct aml_dsc_drv_s *dsc_drv = dsc_drv_get();
+
+	if (!dsc_drv || !dsc_drv->data || dsc_drv->data->chip_type != DSC_CHIP_S5)
+		return;
+
 	if (enable) {
+		/* venc slave mode & mux to DSC path, actually it's already configured in hdmitx */
 		dsc_vcbus_reg_setb(ENCP_VIDEO_SYNC_MODE, 1, 4, 1);
 		dsc_vcbus_reg_setb(VPU_HDMI_SETTING, 1, 31, 1);
-		dsc_vcbus_reg_setb(VPU_HDMI_SETTING, 0, 7, 1);
+		dsc_enc_rst();
 		W_DSC_BIT(DSC_ASIC_CTRL0, 1, DSC_ENC_EN, DSC_ENC_EN_WID);
 		W_DSC_BIT(DSC_ASIC_CTRL4, 1, TMG_EN, TMG_EN_WID);
 	} else {
-		dsc_vcbus_reg_setb(ENCP_VIDEO_SYNC_MODE, 0, 4, 1);
-		dsc_vcbus_reg_setb(VPU_HDMI_SETTING, 0, 31, 1);
+		/* it's necessary to exit venc slave mode, otherwise
+		 * there'll be no vsync to vpp/drm as dummy_l use encp
+		 */
 		W_DSC_BIT(DSC_ASIC_CTRL0, 0, DSC_ENC_EN, DSC_ENC_EN_WID);
 		W_DSC_BIT(DSC_ASIC_CTRL4, 0, TMG_EN, TMG_EN_WID);
+		dsc_vcbus_reg_setb(ENCP_VIDEO_SYNC_MODE, 0, 4, 1);
+		dsc_vcbus_reg_setb(VPU_HDMI_SETTING, 0, 31, 1);
 	}
 }
+
+bool get_dsc_en(void)
+{
+	bool dsc_en = false;
+	struct aml_dsc_drv_s *dsc_drv = dsc_drv_get();
+
+	if (!dsc_drv || !dsc_drv->data || dsc_drv->data->chip_type != DSC_CHIP_S5)
+		return false;
+
+	if (R_DSC_BIT(DSC_ASIC_CTRL0, DSC_ENC_EN, DSC_ENC_EN_WID) &&
+		R_DSC_BIT(DSC_ASIC_CTRL4, TMG_EN, TMG_EN_WID))
+		dsc_en = true;
+	else
+		dsc_en = false;
+
+	return dsc_en;
+}
+EXPORT_SYMBOL(get_dsc_en);
 
 static void dsc_config_rc_parameter_register(struct dsc_rc_parameter_set *rc_parameter_set)
 {
@@ -108,6 +135,7 @@ static void dsc_config_rc_parameter_register(struct dsc_rc_parameter_set *rc_par
 	}
 
 	for (i = 0; i < RC_RANGE_PARAMETERS_NUM; i++) {
+		/* note that range_bpg_offset is signed char */
 		range_bpg_offset =
 			rc_parameter_set->rc_range_parameters[i].range_bpg_offset & 0x3f;
 		W_DSC_BIT(DSC_COMP_RC_RANGE_0 + i, range_bpg_offset,
@@ -138,8 +166,8 @@ static void dsc_config_timing_register(struct aml_dsc_drv_s *dsc_drv)
 	W_DSC_BIT(DSC_ASIC_CTRL18, dsc_drv->hc_vtotal_m1, HC_VTOTAL_M1, HC_VTOTAL_M1_WID);
 	W_DSC_BIT(DSC_ASIC_CTRL18, dsc_drv->hc_htotal_m1, HC_HTOTAL_M1, HC_HTOTAL_M1_WID);
 
-	if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_VPU_BIST_TMG_CTRL) ||
-	    dsc_drv->encp_timing_ctrl.encp_dvi_hso_begin != 0) {
+	if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_VPU_BIST_TMG_CTRL)) {
+		DSC_PR("%s [%d]\n", __func__, __LINE__);
 		//bist set
 		dsc_vcbus_reg_write(ENCP_DVI_HSO_BEGIN, encp_timing_ctrl.encp_dvi_hso_begin);
 		dsc_vcbus_reg_write(ENCP_DVI_HSO_END, encp_timing_ctrl.encp_dvi_hso_end);
@@ -154,6 +182,7 @@ static void dsc_config_timing_register(struct aml_dsc_drv_s *dsc_drv)
 	}
 
 	if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_VPU_VIDEO_TMG_CTRL)) {
+		DSC_PR("%s [%d]\n", __func__, __LINE__);
 		//video set
 		dsc_vcbus_reg_write(ENCP_VIDEO_HSO_BEGIN, encp_timing_ctrl.encp_hso_begin);
 		dsc_vcbus_reg_write(ENCP_VIDEO_HSO_END, encp_timing_ctrl.encp_hso_end);

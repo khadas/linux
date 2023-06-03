@@ -2622,6 +2622,8 @@
 		compatible = "amlogic, dsc-s5";
 		status = "okay";
 		reg = <0x0 0xfe0be000 0x0 0x80>;
+		resets = <&reset RESET_DSC_ENC>;
+		reset-names = "dsc_enc_reset";
 	};
 
 	vclk_serve: vclk_serve {

@@ -143,6 +143,7 @@ static void dsc_cdev_remove(struct aml_dsc_drv_s *dsc_drv)
 	cdev_del(&dsc_drv->cdev);
 }
 
+/* todo: removed */
 static inline void dsc_get_notify_value(struct aml_dsc_drv_s *dsc_drv,
 				struct dsc_notifier_data_s *vdata)
 {
@@ -154,9 +155,10 @@ static inline void dsc_get_notify_value(struct aml_dsc_drv_s *dsc_drv,
 
 		if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_COLOR_FORMAT))
 			dsc_drv->color_format = vdata->color_format;
-
 		if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_VIDEO_FPS))
 			dsc_drv->fps = vdata->fps;
+		if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_BITS_PER_COMPONENT))
+			dsc_drv->pps_data.bits_per_component = vdata->bits_per_component;
 	}
 }
 
@@ -164,14 +166,16 @@ void hdmitx_get_dsc_data(struct dsc_offer_tx_data *dsc_data)
 {
 	struct aml_dsc_drv_s *dsc_drv = dsc_drv_get();
 
-	if (!dsc_drv || !dsc_data) {
-		DSC_PR("dsc_drv or notifier_data is null\n");
+	if (!dsc_drv || !dsc_drv->data || dsc_drv->data->chip_type != DSC_CHIP_S5 || !dsc_data) {
+		DSC_ERR("%s not get dsc data\n", __func__);
 		return;
 	}
 	memcpy(&dsc_data->pps_data, &dsc_drv->pps_data, sizeof(dsc_drv->pps_data));
+	dsc_data->dsc_mode = dsc_drv->dsc_mode;
 	dsc_data->enc0_clk = dsc_drv->enc0_clk;
 	dsc_data->cts_hdmi_tx_pixel_clk = dsc_drv->cts_hdmi_tx_pixel_clk;
 }
+EXPORT_SYMBOL(hdmitx_get_dsc_data);
 
 static void dsc_get_notifier_data(struct aml_dsc_drv_s *dsc_drv,
 				 struct dsc_notifier_data_s *notifier_data)
@@ -185,34 +189,70 @@ static void dsc_get_notifier_data(struct aml_dsc_drv_s *dsc_drv,
 		dsc_drv->fps = notifier_data->fps;
 
 	if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_BITS_PER_COMPONENT))
-		dsc_drv->color_format = notifier_data->bits_per_component;
+		dsc_drv->pps_data.bits_per_component = notifier_data->bits_per_component;
 
 	if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_COLOR_FORMAT))
 		dsc_drv->color_format = notifier_data->color_format;
+	DSC_PR("hdmitx notify input: %dx%dp%dhz cs:%d,cd:%d\n",
+		dsc_drv->pps_data.pic_width,
+		dsc_drv->pps_data.pic_height,
+		dsc_drv->fps / 1000,
+		dsc_drv->color_format,
+		dsc_drv->pps_data.bits_per_component);
 }
 
-int aml_set_dsc_mode(bool on_off, struct dsc_notifier_data_s *notifier_data)
+int aml_set_dsc_input_param(struct dsc_notifier_data_s *notifier_data)
 {
 	struct aml_dsc_drv_s *dsc_drv = dsc_drv_get();
 
-	if (!dsc_drv || !notifier_data) {
-		DSC_ERR("%s: dsc_drv is null\n", __func__);
+	if (!dsc_drv || !dsc_drv->data || dsc_drv->data->chip_type != DSC_CHIP_S5)
+		return -1;
+
+	if (!notifier_data) {
+		DSC_ERR("%s: notifier_data is null\n", __func__);
 		return -1;
 	}
 
-	if (!on_off) {
-		set_dsc_en(0);
-		return 0;
-	}
-
 	dsc_get_notifier_data(dsc_drv, notifier_data);
-	calculate_dsc_data(dsc_drv);
-	dsc_config_register(dsc_drv);
-	set_dsc_en(1);
+	calculate_dsc_enc_data(dsc_drv);
 
 	return 0;
 }
+EXPORT_SYMBOL(aml_set_dsc_input_param);
 
+void aml_dsc_enable(bool dsc_en)
+{
+	struct aml_dsc_drv_s *dsc_drv = dsc_drv_get();
+
+	if (!dsc_drv || !dsc_drv->data || dsc_drv->data->chip_type != DSC_CHIP_S5)
+		return;
+
+	if (!dsc_en) {
+		set_dsc_en(0);
+	} else {
+		/* if (dsc_dbg) */
+			/* return; */
+		dsc_config_register(dsc_drv);
+		set_dsc_en(1);
+	}
+}
+EXPORT_SYMBOL(aml_dsc_enable);
+
+void dsc_enc_rst(void)
+{
+	struct aml_dsc_drv_s *dsc_drv = dsc_drv_get();
+
+	if (!dsc_drv || !dsc_drv->data || dsc_drv->data->chip_type != DSC_CHIP_S5)
+		return;
+
+	if (IS_ERR(dsc_drv->rst_control)) {
+		DSC_ERR("%s can't get device\n", __func__);
+		return;
+	}
+	reset_control_reset(dsc_drv->rst_control);
+}
+
+/* todo: removed */
 static int aml_dsc_switch_notify_callback(struct notifier_block *block,
 					  unsigned long event, void *para)
 {
@@ -231,7 +271,7 @@ static int aml_dsc_switch_notify_callback(struct notifier_block *block,
 		vdata = (struct dsc_notifier_data_s *)para;
 		memset(&dsc_drv->pps_data, 0, sizeof(dsc_drv->pps_data));
 		dsc_get_notify_value(dsc_drv, vdata);
-		calculate_dsc_data(dsc_drv);
+		calculate_dsc_enc_data(dsc_drv);
 		dsc_config_register(dsc_drv);
 		set_dsc_en(1);
 		break;
@@ -245,6 +285,7 @@ static int aml_dsc_switch_notify_callback(struct notifier_block *block,
 	return 0;
 }
 
+/* todo: removed */
 static struct notifier_block aml_dsc_switch_notifier = {
 	.notifier_call = aml_dsc_switch_notify_callback,
 };
@@ -325,9 +366,7 @@ static int dsc_probe(struct platform_device *pdev)
 	}
 	vdata = (struct dsc_data_s *)match->data;
 	if (!vdata) {
-		DSC_PR("driver version: %s(%d-%s)\n",
-			DSC_DRV_VERSION, vdata->chip_type,
-			vdata->chip_name);
+		DSC_ERR("no matched chip data, exit!\n");
 		return -1;
 	}
 
@@ -349,6 +388,7 @@ static int dsc_probe(struct platform_device *pdev)
 	dsc_debug_file_create(dsc_drv);
 
 	dsc_ioremap(pdev, dsc_drv);
+	dsc_drv->rst_control = devm_reset_control_get(dsc_drv->dev, "dsc_enc_reset");
 
 	DSC_PR("%s ok, init_state\n", __func__);
 
@@ -412,7 +452,7 @@ static struct platform_driver dsc_platform_driver = {
 	},
 };
 
-int __init dsc_init(void)
+int __init dsc_enc_init(void)
 {
 	if (platform_driver_register(&dsc_platform_driver)) {
 		DSC_ERR("failed to register dsc driver module\n");

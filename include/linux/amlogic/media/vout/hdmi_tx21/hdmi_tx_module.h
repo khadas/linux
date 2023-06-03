@@ -20,6 +20,7 @@
 #include <linux/amlogic/media/vrr/vrr.h>
 #include <drm/amlogic/meson_connector_dev.h>
 #include <linux/miscdevice.h>
+#include <linux/amlogic/media/vout/dsc/dsc.h>
 
 #define DEVICE_NAME "amhdmitx21"
 
@@ -131,7 +132,18 @@ struct rx_cap {
 	u32 dc_30bit_420:1;
 	u32 dc_36bit_420:1;
 	u32 dc_48bit_420:1;
+	/* for frl */
 	enum frl_rate_enum max_frl_rate;
+	/* for dsc */
+	u8 dsc_10bpc:1;
+	u8 dsc_12bpc:1;
+	u8 dsc_16bpc:1;
+	u8 dsc_all_bpp:1;
+	u8 dsc_native_420:1;
+	u8 dsc_1p2:1;
+	u8 dsc_max_slices:4;
+	enum frl_rate_enum dsc_max_frl_rate;
+	u8 dsc_total_chunk_bytes:6;
 	u32 cnc0:1; /* Graphics */
 	u32 cnc1:1; /* Photo */
 	u32 cnc2:1; /* Cinema */
@@ -433,6 +445,9 @@ struct hdmitx_dev {
 	enum frl_rate_enum frl_rate; /* for mode setting */
 	enum frl_rate_enum tx_max_frl_rate; /* configure in dts file */
 	u8 dsc_en;
+	u8 dsc_policy;
+	/* pps data and clk info from dsc module */
+	struct dsc_offer_tx_data dsc_data;
 	struct hdmitx_info hdmi_info;
 	u32 log;
 	u32 tx_aud_cfg; /* 0, off; 1, on */

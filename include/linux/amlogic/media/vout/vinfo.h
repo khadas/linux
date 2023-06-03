@@ -417,6 +417,8 @@ struct vinfo_s {
 	 * the default value is 0 or 1.
 	 */
 	u8 cur_enc_ppc;
+	/* 0: yuv, 1: rgb */
+	u8 vpp_post_out_color_fmt;
 };
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FB

@@ -115,6 +115,89 @@ enum frl_rate_enum hdmitx21_select_frl_rate(bool dsc_en, enum hdmi_vic vic,
 	return FRL_NONE;
 }
 
+#define CALC_COEFF 10000
+
+bool frl_check_full_bw(enum hdmi_colorspace cs, enum hdmi_color_depth cd, u32 pixel_clock,
+	u32 h_active, enum frl_rate_enum frl_rate, u32 *tri_bytes)
+{
+	u32 tmds_clock = 0;
+	u32 overhead_max_num = 0;
+	u32 overhead_max_den = 10000;
+	u32 tri_bytes_per_line = 0;
+	u32 time_for_1_active_video_line = 0;
+	u32 effective_link_rate = 0;
+	u32 effective_chars_per_sec = 0;
+	u32 effective_active_bytes_per_line = 0;
+	u32 bytes_per_active_line = 0;
+	u32 frl_mega_bits_rate = 0;
+	u32 temp = 0;
+
+	if (!frl_rate || !tri_bytes)
+		return 0;
+
+	if (cs == HDMI_COLORSPACE_YUV420)
+		pixel_clock = pixel_clock / 2;
+	tmds_clock = pixel_clock;
+	tri_bytes_per_line = h_active;
+	bytes_per_active_line = h_active;
+	frl_mega_bits_rate = pixel_clock;
+
+	/* TCLK update */
+	if (cs != HDMI_COLORSPACE_YUV422) {
+		if (cd == COLORDEPTH_30B)
+			tmds_clock = (pixel_clock * 5) / 4;
+		else if (cd == COLORDEPTH_36B)
+			tmds_clock = (pixel_clock * 3) / 2;
+		else
+			tmds_clock = pixel_clock;
+	}
+	if (cs == HDMI_COLORSPACE_YUV420)
+		tri_bytes_per_line >>= 1;
+
+	if (cs != HDMI_COLORSPACE_YUV422) {
+		if (cd == COLORDEPTH_30B)
+			tri_bytes_per_line = (tri_bytes_per_line * 5) / 4;
+		else if (cd == COLORDEPTH_36B)
+			tri_bytes_per_line = ((tri_bytes_per_line * 3) / 2);
+	}
+	tmds_clock = tmds_clock / CALC_COEFF;
+	time_for_1_active_video_line = tri_bytes_per_line * 200;
+	time_for_1_active_video_line = time_for_1_active_video_line / tmds_clock;
+	time_for_1_active_video_line = time_for_1_active_video_line / 201;
+
+	frl_mega_bits_rate = get_frl_bandwidth(frl_rate);
+	if (frl_rate == FRL_3G3L || frl_rate == FRL_6G3L) {
+		/* for 3 lanes, overhead max is 2.136% */
+		overhead_max_num = 267;
+		overhead_max_den = 12500;
+	} else {
+		/* for 4 lanes, overhead max is 2.184% */
+		overhead_max_num = 273;
+		overhead_max_den = 12500;
+	}
+
+	effective_link_rate = frl_mega_bits_rate * 1000 / CALC_COEFF;
+	temp = effective_link_rate * 3 / 10000;
+	effective_link_rate = effective_link_rate - temp;
+	effective_chars_per_sec = effective_link_rate / 18;
+	temp = effective_chars_per_sec * overhead_max_num / overhead_max_den;
+	effective_chars_per_sec = effective_chars_per_sec - temp;
+	effective_active_bytes_per_line =
+		(effective_chars_per_sec * time_for_1_active_video_line) * 2;
+	bytes_per_active_line = tri_bytes_per_line * 3;
+	temp = bytes_per_active_line / 200;
+	bytes_per_active_line = bytes_per_active_line + temp + 6;
+	tri_bytes_per_line = ((tri_bytes_per_line * 3) >> 1) + 3;
+	*tri_bytes = tri_bytes_per_line;
+
+	pr_info("bytes_per_active_line %d  effective_active_bytes_per_line %d\n",
+		bytes_per_active_line, effective_active_bytes_per_line);
+	if (bytes_per_active_line >= effective_active_bytes_per_line)
+		return 1;
+	else
+		return 0;
+}
+
 /* In LTS:3, increase FFE level for the specified lane */
 static bool check_ffe_change_request(struct frl_train_t *p, u8 lane)
 {

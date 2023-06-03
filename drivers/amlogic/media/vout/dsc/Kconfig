@@ -1,0 +1,13 @@
+#
+# DSC_ENCODER
+#
+menu "Amlogic DSC_ENCODER Module"
+
+config AMLOGIC_DSC
+	bool "AMLOGIC DSC_ENCODER driver"
+	default n
+	help
+	This option is used to configure Amlogic drivers
+        of the dsc encoder
+
+endmenu

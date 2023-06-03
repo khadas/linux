@@ -117,11 +117,12 @@ void hdmitx_set_gp2pll(struct hdmitx_dev *hdev);
 void hdmitx_set_s5_fpll(u32 clk, u32 div, u32 pixel_od);
 void hdmitx_set_s5_gp2pll(u32 clk, u32 div);
 void hdmitx_set_clkdiv(struct hdmitx_dev *hdev);
-void hdmitx_set_s5_clkdiv(struct hdmitx_dev *hdev);
+void hdmitx_set_s5_tmds_clk_div(struct hdmitx_dev *hdev);
 void set_htxpll4_od(const u32 y420);
 void disable_hdmitx_s5_plls(struct hdmitx_dev *hdev);
 void hdmitx_set_s5_phypara(enum frl_rate_enum frl_rate, u32 tmds_clk);
 void hdmitx_s5_clock_gate_ctrl(struct hdmitx_dev *hdev, bool en);
+void hdmitx_mux_gp2pll(struct hdmitx_dev *hdev);
 
 void set_tv_encp_new(struct hdmitx_dev *hdev, u32 enc_index,
 	enum hdmi_vic vic, u32 enable);

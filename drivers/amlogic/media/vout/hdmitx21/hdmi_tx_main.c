@@ -56,6 +56,7 @@
 #include <drm/amlogic/meson_drm_bind.h>
 #include <../../vin/tvin/tvin_global.h>
 #include <../../vin/tvin/hdmirx/hdmi_rx_repeater.h>
+#include "hw/common.h"
 
 #define HDMI_TX_COUNT 32
 #define HDMI_TX_POOL_NUM  6
@@ -361,6 +362,8 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 		msleep(100);
 	pr_info("HDMITX: Early Suspend\n");
 	frl_tx_stop(hdev);
+	aml_dsc_enable(false);
+	hdmitx_dsc_cvtem_pkt_disable();
 	hdmitx21_disable_hdcp(hdev);
 	hdmitx21_rst_stream_type(hdev->am_hdcp);
 	hdmitx_set_frlrate_none(hdev);
@@ -469,6 +472,8 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 	else
 		msleep(100);
 	frl_tx_stop(hdev);
+	aml_dsc_enable(false);
+	hdmitx_dsc_cvtem_pkt_disable();
 	if (hdev->rxsense_policy)
 		cancel_delayed_work(&hdev->work_rxsense);
 	if (hdev->cedst_policy)
@@ -854,6 +859,8 @@ static int set_disp_mode_auto(void)
 	struct hdmi_format_para *para = NULL;
 	u8 mode[32];
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
+	struct dsc_notifier_data_s dsc_notifier_data;
+	enum frl_rate_enum source_test_frl_rate = FRL_NONE;
 
 	mutex_lock(&hdev->hdmimode_mutex);
 
@@ -940,7 +947,7 @@ static int set_disp_mode_auto(void)
 	}
 
 	hdev->frl_rate = FRL_NONE;
-	if (hdev->rxcap.max_frl_rate) {
+	if (hdev->rxcap.max_frl_rate && hdev->data->chip_type == MESON_CPU_ID_S5) {
 		u8 sink_ver = scdc_tx_sink_version_get();
 		u8 test_cfg = 0;
 
@@ -950,17 +957,193 @@ static int set_disp_mode_auto(void)
 		test_cfg = scdc_tx_source_test_cfg_get();
 		hdev->frl_rate = hdmitx21_select_frl_rate(hdev->dsc_en, vic,
 			hdev->para->cs, hdev->para->cd);
-		if (test_cfg & FRL_MAX) {
-			hdev->frl_rate = min(hdev->tx_max_frl_rate, hdev->rxcap.max_frl_rate);
-			pr_info("choose frl_max %d\n", hdev->frl_rate);
+		/* per 2.1 spec, if both are set, then treat as if both are cleared */
+		if ((test_cfg & FRL_MAX) && (test_cfg & DSC_FRL_MAX)) {
+			pr_info("warning: both FRL_MAX and DSC_FRL_MAX are set, ignore\n");
+		} else if (test_cfg & FRL_MAX) {
+			source_test_frl_rate = min(hdev->tx_max_frl_rate, hdev->rxcap.max_frl_rate);
+			pr_info("CTS: choose frl_max %d\n", source_test_frl_rate);
+		} else if (test_cfg & DSC_FRL_MAX) {
+			source_test_frl_rate =
+				min(hdev->tx_max_frl_rate, hdev->rxcap.dsc_max_frl_rate);
+			pr_info("CTS: choose dsc_frl_max %d\n", source_test_frl_rate);
 		}
 		if (hdev->frl_rate > hdev->tx_max_frl_rate)
-			pr_info("Current frl_rate %d is larger than tx_max_frl_rate %d\n",
+			pr_info("error: Current frl_rate %d is larger than tx_max_frl_rate %d\n",
 				hdev->frl_rate, hdev->tx_max_frl_rate);
+
+		/* DSC specific, automatically enable dsc if necessary */
+		if (strcmp(mode, "7680x4320p60hz") == 0) {
+			if (strstr(hdev->fmt_attr, "444") ||
+				strstr(hdev->fmt_attr, "rgb")) {
+				hdev->dsc_en = 1;
+				/* note: previously spec FRL_6G4L can't work */
+				hdev->frl_rate = FRL_6G4L;
+				pr_debug("%s automatically dsc enable\n", __func__);
+			} else if (strstr(hdev->fmt_attr, "420,12bit") ||
+				strstr(hdev->fmt_attr, "422")) {
+				hdev->dsc_en = 1;
+				/* note: previously spec FRL_6G3L can't work */
+				hdev->frl_rate = FRL_6G3L;
+				pr_debug("%s automatically dsc enable\n", __func__);
+			} else if (hdev->dsc_policy == 1) {
+				/* for 420,8/10bit */
+				/* force mode for dsc test, may need to also set manual_frl_rate */
+				hdev->dsc_en = 1;
+				/* note: previously spec FRL_6G3L can't work */
+				hdev->frl_rate = FRL_6G3L;
+			} else {
+				hdev->dsc_en = 0;
+			}
+			if (hdev->dsc_en)
+				pr_debug("forced DSC rate %d\n", hdev->frl_rate);
+		} else if (strcmp(mode, "7680x4320p50hz") == 0) {
+			if (strstr(hdev->fmt_attr, "444") ||
+				strstr(hdev->fmt_attr, "rgb")) {
+				hdev->dsc_en = 1;
+				hdev->frl_rate = FRL_6G4L;
+				pr_debug("%s automatically dsc enable\n", __func__);
+			} else if (strstr(hdev->fmt_attr, "420,12bit") ||
+				strstr(hdev->fmt_attr, "422")) {
+				hdev->dsc_en = 1;
+				hdev->frl_rate = FRL_6G3L;
+				pr_debug("%s automatically dsc enable\n", __func__);
+			} else if (hdev->dsc_policy == 1) {
+				/* for 420,8/10bit */
+				/* force mode for dsc test, may need to also set manual_frl_rate */
+				hdev->dsc_en = 1;
+				hdev->frl_rate = FRL_6G3L;
+			} else {
+				hdev->dsc_en = 0;
+			}
+			if (hdev->dsc_en)
+				pr_debug("spec recommended DSC frl rate: %d\n", hdev->frl_rate);
+		} else if (strcmp(mode, "7680x4320p25hz") == 0 ||
+			strcmp(mode, "7680x4320p24hz") == 0) {
+			if (strstr(hdev->fmt_attr, "444,12bit") ||
+				strstr(hdev->fmt_attr, "rgb,12bit")) {
+				hdev->dsc_en = 1;
+				hdev->frl_rate = FRL_6G3L;
+				pr_debug("%s automatically dsc enable\n", __func__);
+			} else if (hdev->dsc_policy == 1) {
+				/* force mode for test, may need to also set manual_frl_rate */
+				hdev->dsc_en = 1;
+				/* for y444/rgb,8/10bit */
+				if (strstr(hdev->fmt_attr, "444") ||
+					strstr(hdev->fmt_attr, "rgb"))
+					hdev->frl_rate = FRL_6G3L;
+				else
+					hdev->frl_rate = FRL_3G3L; //for 422/420
+			} else {
+				hdev->dsc_en = 0;
+			}
+			if (hdev->dsc_en)
+				pr_debug("spec recommended DSC frl rate: %d\n", hdev->frl_rate);
+		} else if (strcmp(mode, "7680x4320p30hz") == 0) {
+			if (strstr(hdev->fmt_attr, "444,12bit") ||
+				strstr(hdev->fmt_attr, "rgb,12bit")) {
+				hdev->dsc_en = 1;
+				hdev->frl_rate = FRL_6G3L;
+				pr_debug("%s automatically dsc enable\n", __func__);
+			} else if (hdev->dsc_policy == 1) {
+				/* force mode for test, may need to also set manual_frl_rate */
+				hdev->dsc_en = 1;
+				/* for 444/rgb,8/10bit */
+				if (strstr(hdev->fmt_attr, "444") ||
+					strstr(hdev->fmt_attr, "rgb"))
+					hdev->frl_rate = FRL_6G3L;
+				else /* for 422/420, note: previously spec FRL_3G3L can't work */
+					hdev->frl_rate = FRL_3G3L;
+			} else {
+				hdev->dsc_en = 0;
+			}
+			if (hdev->dsc_en)
+				pr_debug("forced DSC frl rate: %d\n", hdev->frl_rate);
+		} else if (strcmp(mode, "2160p60hz") == 0 ||
+			strcmp(mode, "2160p50hz") == 0) {
+			if (hdev->dsc_policy == 1) {
+				/* force mode for test, may need to also set manual_frl_rate */
+				hdev->dsc_en = 1;
+				hdev->frl_rate = FRL_3G3L;
+			} else {
+				hdev->dsc_en = 0;
+			}
+			if (hdev->dsc_en)
+				pr_debug("spec recommended DSC frl rate: %d\n", hdev->frl_rate);
+		} else if (strcmp(mode, "3840x2160p120hz") == 0 ||
+			strcmp(mode, "3840x2160p100hz") == 0) {
+			/* need 12G4L under uncompressed format */
+			if (strstr(hdev->fmt_attr, "444,12bit") ||
+				strstr(hdev->fmt_attr, "rgb,12bit")) {
+				hdev->dsc_en = 1;
+				hdev->frl_rate = FRL_6G3L;
+				pr_debug("%s automatically dsc enable\n", __func__);
+			} else if (hdev->dsc_policy == 1) {
+				/* force mode for test, may need to also set manual_frl_rate */
+				hdev->dsc_en = 1;
+				/* for 444/rgb,8/10bit */
+				if (strstr(hdev->fmt_attr, "444") ||
+					strstr(hdev->fmt_attr, "rgb"))
+					hdev->frl_rate = FRL_6G3L;
+				else /* for 422/420, note: previously spec FRL_3G3L can't work */
+					hdev->frl_rate = FRL_3G3L;
+			} else {
+				hdev->dsc_en = 0;
+			}
+			if (hdev->dsc_en)
+				pr_debug("spec recommended DSC frl rate: %d\n", hdev->frl_rate);
+		} else {
+			/* when switch mode to lower resolution, need to back to non-dsc mode */
+			if (hdev->dsc_policy != 2)
+				hdev->dsc_en = 0;
+		}
+	}
+
+	/* if (strstr(mode, "i")) { */
+		/* hdev->dsc_en = 0; */
+		/* pr_info("error: Sources shall not enable DSC for interlaced Timings\n"); */
+	/* } */
+
+	/* source_test_frl_rate has the highest priority */
+	if (source_test_frl_rate > FRL_NONE && source_test_frl_rate < FRL_RATE_MAX)
+		hdev->frl_rate = source_test_frl_rate;
+
+	if (hdev->dsc_en && hdev->data->chip_type == MESON_CPU_ID_S5) {
+		/* notify hdmitx format to dsc, and dsc module will
+		 * calculate pps data and venc/pixel clock
+		 */
+		dsc_notifier_data.pic_width = hdev->para->timing.h_active;
+		dsc_notifier_data.pic_height = hdev->para->timing.v_active;
+		dsc_notifier_data.color_format = hdev->para->cs;
+		/* note: for y422 need set bpc to 8 in pps,
+		 * otherwise y422 iter in cts HFR1-85 will fail
+		 */
+		if (hdev->para->cs == HDMI_COLORSPACE_YUV422)
+			dsc_notifier_data.bits_per_component = 8;
+		else if (hdev->para->cd == COLORDEPTH_24B)
+			dsc_notifier_data.bits_per_component = 8;
+		else if (hdev->para->cd == COLORDEPTH_30B)
+			dsc_notifier_data.bits_per_component = 10;
+		else if (hdev->para->cd == COLORDEPTH_36B)
+			dsc_notifier_data.bits_per_component = 12;
+		else
+			dsc_notifier_data.bits_per_component = 8;
+		dsc_notifier_data.fps = hdev->para->timing.v_freq;
+		ret = aml_set_dsc_input_param(&dsc_notifier_data);
+		if (ret < 0) {
+			pr_info("[%s] set dsc input param error\n", __func__);
+		} else {
+			hdmitx_get_dsc_data(&hdev->dsc_data);
+			pr_info("dsc provide enc0_clk: %d, cts_hdmi_pixel_clk: %d\n",
+				hdev->dsc_data.enc0_clk,
+				hdev->dsc_data.cts_hdmi_tx_pixel_clk);
+		}
 	}
 	/* if manual_frl_rate is true, set to force frl_rate */
-	if (hdev->manual_frl_rate)
+	if (hdev->manual_frl_rate) {
 		hdev->frl_rate = hdev->manual_frl_rate;
+		pr_info("manually frl rate %d\n", hdev->frl_rate);
+	}
 	hdev->cur_VIC = HDMI_0_UNKNOWN;
 /* if vic is HDMI_0_UNKNOWN, hdmitx21_set_display will disable HDMI */
 	edidinfo_detach_to_vinfo(hdev);
@@ -996,6 +1179,9 @@ static int set_disp_mode_auto(void)
 	}
 	hdev->output_blank_flag = 1;
 	edidinfo_attach_to_vinfo(hdev);
+	/* backup values need to be updated to latest values */
+	memcpy(hdev->backup_fmt_attr, hdev->fmt_attr, 16);
+	hdev->backup_frac_rate_policy = hdev->frac_rate_policy;
 	/* wait for TV detect signal stable,
 	 * otherwise hdcp may easily auth fail
 	 */
@@ -4854,7 +5040,27 @@ static ssize_t dsc_en_show(struct device *dev,
 	return pos;
 }
 
-static ssize_t dsc_en_store(struct device *dev,
+/* dsc_policy:
+ * 0 automatically enable dsc if necessary, but not support 8k Y444/rgb,12bit
+ * or 4k100/120hz Y444/rgb,12bit
+ * 1 force enable dsc for mode that can be supported both with dsc/non-dsc
+ * 2 force enable dsc for mode test for new dsc mode(debug only)
+ * 3 forcely filter out dsc mode output by valid_mode_check
+ * 4 automatically enable dsc if necessary, include those mentioned in 0
+ */
+static ssize_t dsc_policy_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	int pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n", hdev->dsc_policy);
+
+	return pos;
+}
+
+static ssize_t dsc_policy_store(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf,
 				      size_t count)
@@ -4864,12 +5070,12 @@ static ssize_t dsc_en_store(struct device *dev,
 
 	if (isdigit(buf[0])) {
 		val = buf[0] - '0';
-		if (val != 0 && val != 1) {
-			pr_info("set dsc_en in 0 ~ 1\n");
+		if (val != 0 && val != 1 && val != 2 && val != 3 && val != 4) {
+			pr_info("set dsc_policy in 0~4\n");
 			return count;
 		}
-		hdev->dsc_en = val;
-		pr_info("set dsc_en as %d\n", val);
+		hdev->dsc_policy = val;
+		pr_info("set dsc_policy as %d\n", val);
 	}
 
 	return count;
@@ -5399,8 +5605,9 @@ static DEVICE_ATTR_RW(need_filter_hdcp_off);
 static DEVICE_ATTR_RW(filter_hdcp_off_period);
 static DEVICE_ATTR_RW(not_restart_hdcp);
 static DEVICE_ATTR_RW(frl_rate);
-static DEVICE_ATTR_RW(dsc_en);
 static DEVICE_ATTR_RW(hdr_mute_frame);
+static DEVICE_ATTR_RO(dsc_en);
+static DEVICE_ATTR_RW(dsc_policy);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
@@ -5436,7 +5643,17 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 			vinfo->cur_enc_ppc = 1;
 			if (hdev->hwop.cntlmisc(hdev, MISC_GET_FRL_MODE, 0))
 				vinfo->cur_enc_ppc = 4;
-			pr_info("vinfo: set cur_enc_ppc as %d\n", vinfo->cur_enc_ppc);
+			if (get_dsc_en()) {
+				hdev->dsc_en = 1;
+				if (hdev->para->cs == HDMI_COLORSPACE_RGB)
+					vinfo->vpp_post_out_color_fmt = 1;
+				else
+					vinfo->vpp_post_out_color_fmt = 0;
+			} else {
+				vinfo->vpp_post_out_color_fmt = 0;
+			}
+			pr_info("vinfo: set cur_enc_ppc as %d, vpp color: %d\n",
+				vinfo->cur_enc_ppc, vinfo->vpp_post_out_color_fmt);
 		}
 	}
 	return 0;
@@ -5481,6 +5698,7 @@ static int hdmitx_vmode_is_supported(enum vmode_e mode, void *data)
 		return false;
 }
 
+/* static int dsc_dis_dbg; */
 static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
@@ -5490,6 +5708,15 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data)
 	frl_tx_stop(hdev);
 	hdmitx_set_frlrate_none(hdev);
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
+
+	/* turn off encp timing gen->disable dsc encoder */
+	if (hdev->data->chip_type == MESON_CPU_ID_S5) {
+		hdmitx21_venc_en(0, 1);
+		/* if (dsc_dis_dbg >= 0) { */
+		aml_dsc_enable(false);
+		hdmitx_dsc_cvtem_pkt_disable();
+		/* } */
+	}
 	/* hdmitx21_disable_clk(hdev); */
 	hdev->para = hdmitx21_get_fmtpara("invalid", hdev->fmt_attr);
 	hdmitx_validate_vmode("null", 0, NULL);
@@ -5528,8 +5755,6 @@ static int hdmitx_check_same_vmodeattr(char *name, void *data)
 	if (memcmp(hdev->backup_fmt_attr, hdev->fmt_attr, 16) == 0 &&
 	    hdev->backup_frac_rate_policy == hdev->frac_rate_policy)
 		return 1;
-	memcpy(hdev->backup_fmt_attr, hdev->fmt_attr, 16);
-	hdev->backup_frac_rate_policy = hdev->frac_rate_policy;
 	return 0;
 }
 
@@ -6976,6 +7201,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_cont_smng_method);
 	ret = device_create_file(dev, &dev_attr_frl_rate);
 	ret = device_create_file(dev, &dev_attr_dsc_en);
+	ret = device_create_file(dev, &dev_attr_dsc_policy);
 	ret = device_create_file(dev, &dev_attr_hdr_priority_mode);
 	ret = device_create_file(dev, &dev_attr_is_passthrough_switch);
 	ret = device_create_file(dev, &dev_attr_is_hdcp_cts_te);
@@ -7168,6 +7394,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_cont_smng_method);
 	device_remove_file(dev, &dev_attr_frl_rate);
 	device_remove_file(dev, &dev_attr_dsc_en);
+	device_remove_file(dev, &dev_attr_dsc_policy);
 	device_remove_file(dev, &dev_attr_hdr_priority_mode);
 	device_remove_file(dev, &dev_attr_is_passthrough_switch);
 	device_remove_file(dev, &dev_attr_is_hdcp_cts_te);
@@ -7445,6 +7672,27 @@ static int __init get_hdmi21_checksum(char *str)
 }
 
 __setup("hdmichecksum=", get_hdmi21_checksum);
+
+static int hdmitx21_boot_dsc_policy(char *str)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	unsigned int val = 0;
+
+	if ((strncmp("0", str, 1) == 0) ||
+		(strncmp("1", str, 1) == 0) ||
+		(strncmp("2", str, 1) == 0) ||
+		(strncmp("3", str, 1) == 0) ||
+		(strncmp("4", str, 1) == 0)) {
+		val = str[0] - '0';
+		hdev->dsc_policy = val;
+		pr_info("hdmitx boot dsc_policy: %d\n", val);
+	} else {
+		/* default policy */
+		hdev->dsc_policy = 0;
+	}
+	return 0;
+}
+__setup("dsc_policy=", hdmitx21_boot_dsc_policy);
 
 MODULE_PARM_DESC(log21_level, "\n log21_level\n");
 module_param(log21_level, int, 0644);

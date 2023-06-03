@@ -8,12 +8,11 @@
 
 #include <linux/hdmi.h>
 #include <linux/cdev.h>
+#include <linux/reset.h>
 
-/* 20221216:DSC implement 8K 444 format */
-#define DSC_DRV_VER "20221216:DSC implement 8K 444 format"
+#define DSC_DRV_VER "20230620: DSC support more timing"
 
-#define DSC_TIMING_MAX			4
-#define DSC_TIMING_VALUE_MAX		13
+#define DSC_TIMING_VALUE_MAX		15
 
 #define DSC_NORMAL_DEBUG		BIT(0)
 #define DSC_PPS_PARA_EN			BIT(1)
@@ -28,20 +27,6 @@ struct dsc_cdev_s {
 enum dsc_chip_e {
 	DSC_CHIP_S5 = 0,
 	DSC_CHIP_MAX,
-};
-
-enum dsc_encode_mode {
-	DSC_RGB_3840X2160_60HZ,
-	DSC_YUV444_3840X2160_60HZ,
-	DSC_RGB_3840X2160_120HZ,
-	DSC_YUV444_3840X2160_120HZ,
-	DSC_YUV422_3840X2160_120HZ,
-	DSC_YUV420_3840X2160_120HZ,
-	DSC_RGB_7680X4320_60HZ,
-	DSC_YUV444_7680X4320_60HZ,
-	DSC_YUV422_7680X4320_60HZ,
-	DSC_YUV420_7680X4320_60HZ,
-	DSC_ENCODE_MAX,
 };
 
 struct dsc_data_s {
@@ -90,6 +75,7 @@ struct encp_timing_gen_ctrl {
 
 /*******for debug **********/
 struct dsc_debug_s {
+	/* use_dsc_model_value useless */
 	int use_dsc_model_value;
 	unsigned int manual_set_select;
 };
@@ -102,10 +88,10 @@ struct aml_dsc_drv_s {
 
 	struct dsc_debug_s dsc_debug;
 	struct dsc_pps_data_s pps_data;
-	int bits_per_pixel_int;
-	int bits_per_pixel_remain;
-	int bits_per_pixel_multiple;
-	int bits_per_pixel_really_value;
+	unsigned int bits_per_pixel_int;
+	unsigned int bits_per_pixel_remain;
+	unsigned int bits_per_pixel_multiple;
+	unsigned int bits_per_pixel_really_value;
 	unsigned int dsc_print_en;
 	bool full_ich_err_precision;
 	unsigned int rcb_bits;
@@ -166,6 +152,7 @@ struct aml_dsc_drv_s {
 	unsigned int v_total;
 	unsigned int enc0_clk;
 	unsigned int cts_hdmi_tx_pixel_clk;
+	struct reset_control *rst_control;
 };
 
 //===========================================================================
@@ -174,5 +161,6 @@ struct aml_dsc_drv_s {
 #define DSC_ENC_INDEX                              0
 
 struct aml_dsc_drv_s *dsc_drv_get(void);
+extern unsigned int dsc_timing[][DSC_TIMING_VALUE_MAX];
 
 #endif

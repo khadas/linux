@@ -22,6 +22,7 @@ static const char *dsc_debug_usage_str = {
 "    echo dump_reg > /sys/class/aml_dsc/dsc0/debug; dump dsc register\n"
 "    echo read addr >/sys/class/aml_dsc/dsc0/debug\n"
 "    echo write addr value >/sys/class/aml_dsc/dsc0/debug\n"
+"    cat /sys/class/aml_dsc/dsc0/dsc_enc_mode; show supported dsc encode mode list\n"
 "\n"
 };
 
@@ -141,7 +142,7 @@ static inline void dsc_print_state(struct aml_dsc_drv_s *dsc_drv)
 	DSC_PR("slice_group_number:%d\n", dsc_drv->slice_group_number);
 	DSC_PR("partial_group_pix_num:%d\n", dsc_drv->partial_group_pix_num);
 	DSC_PR("chunk_6byte_num_m1:%d\n", dsc_drv->chunk_6byte_num_m1);
-	DSC_PR("------timing start------\n");
+	DSC_PR("------dsc timing start------\n");
 	DSC_PR("tmg_havon_begin:%d\n", dsc_drv->tmg_ctrl.tmg_havon_begin);
 	DSC_PR("tmg_vavon_bline:%d\n", dsc_drv->tmg_ctrl.tmg_vavon_bline);
 	DSC_PR("tmg_vavon_eline:%d\n", dsc_drv->tmg_ctrl.tmg_vavon_eline);
@@ -154,29 +155,29 @@ static inline void dsc_print_state(struct aml_dsc_drv_s *dsc_drv)
 	DSC_PR("hc_vtotal_m1:%d\n", dsc_drv->hc_vtotal_m1);
 	DSC_PR("hc_htotal_m1:%d\n", dsc_drv->hc_htotal_m1);
 	DSC_PR("encp bist timing------\n");
-	DSC_PR("encp_dvi_hso_begin:%d\n", dsc_drv->encp_timing_ctrl.encp_dvi_hso_begin);
-	DSC_PR("encp_dvi_hso_end:%d\n", dsc_drv->encp_timing_ctrl.encp_dvi_hso_end);
-	DSC_PR("encp_vso_bline:%d\n", dsc_drv->encp_timing_ctrl.encp_vso_bline);
-	DSC_PR("encp_vso_eline:%d\n", dsc_drv->encp_timing_ctrl.encp_vso_eline);
-	DSC_PR("encp_vso_begin:%d\n", dsc_drv->encp_timing_ctrl.encp_vso_begin);
-	DSC_PR("encp_vso_end:%d\n", dsc_drv->encp_timing_ctrl.encp_vso_end);
-	DSC_PR("encp_de_h_begin:%d\n", dsc_drv->encp_timing_ctrl.encp_de_h_begin);
-	DSC_PR("encp_de_h_end:%d\n", dsc_drv->encp_timing_ctrl.encp_de_h_end);
-	DSC_PR("encp_de_v_begin:%d\n", dsc_drv->encp_timing_ctrl.encp_de_v_begin);
-	DSC_PR("encp_de_v_end:%d\n", dsc_drv->encp_timing_ctrl.encp_de_v_end);
+	DSC_PR("encp_dvi_hso_begin:0x%x\n", dsc_drv->encp_timing_ctrl.encp_dvi_hso_begin);
+	DSC_PR("encp_dvi_hso_end:0x%x\n", dsc_drv->encp_timing_ctrl.encp_dvi_hso_end);
+	DSC_PR("encp_vso_bline:0x%x\n", dsc_drv->encp_timing_ctrl.encp_vso_bline);
+	DSC_PR("encp_vso_eline:0x%x\n", dsc_drv->encp_timing_ctrl.encp_vso_eline);
+	DSC_PR("encp_vso_begin:0x%x\n", dsc_drv->encp_timing_ctrl.encp_vso_begin);
+	DSC_PR("encp_vso_end:0x%x\n", dsc_drv->encp_timing_ctrl.encp_vso_end);
+	DSC_PR("encp_de_h_begin:0x%x\n", dsc_drv->encp_timing_ctrl.encp_de_h_begin);
+	DSC_PR("encp_de_h_end:0x%x\n", dsc_drv->encp_timing_ctrl.encp_de_h_end);
+	DSC_PR("encp_de_v_begin:0x%x\n", dsc_drv->encp_timing_ctrl.encp_de_v_begin);
+	DSC_PR("encp_de_v_end:0x%x\n", dsc_drv->encp_timing_ctrl.encp_de_v_end);
 	DSC_PR("encp video timing------\n");
-	DSC_PR("encp_hso_begin:%d\n", dsc_drv->encp_timing_ctrl.encp_hso_begin);
-	DSC_PR("encp_hso_end:%d\n", dsc_drv->encp_timing_ctrl.encp_hso_end);
-	DSC_PR("encp_video_vso_bline:%d\n", dsc_drv->encp_timing_ctrl.encp_video_vso_bline);
-	DSC_PR("encp_video_vso_eline:%d\n", dsc_drv->encp_timing_ctrl.encp_video_vso_eline);
-	DSC_PR("encp_video_vso_begin:%d\n", dsc_drv->encp_timing_ctrl.encp_video_vso_begin);
-	DSC_PR("encp_video_vso_end:%d\n", dsc_drv->encp_timing_ctrl.encp_video_vso_end);
-	DSC_PR("encp_havon_begin:%d\n", dsc_drv->encp_timing_ctrl.encp_havon_begin);
-	DSC_PR("encp_havon_end:%d\n", dsc_drv->encp_timing_ctrl.encp_havon_end);
-	DSC_PR("encp_vavon_bline:%d\n", dsc_drv->encp_timing_ctrl.encp_vavon_bline);
-	DSC_PR("encp_vavon_eline:%d\n", dsc_drv->encp_timing_ctrl.encp_vavon_eline);
-	DSC_PR("h_total:%d\n", dsc_drv->encp_timing_ctrl.h_total);
-	DSC_PR("v_total:%d\n", dsc_drv->encp_timing_ctrl.v_total);
+	DSC_PR("encp_hso_begin:0x%x\n", dsc_drv->encp_timing_ctrl.encp_hso_begin);
+	DSC_PR("encp_hso_end:0x%x\n", dsc_drv->encp_timing_ctrl.encp_hso_end);
+	DSC_PR("encp_video_vso_bline:0x%x\n", dsc_drv->encp_timing_ctrl.encp_video_vso_bline);
+	DSC_PR("encp_video_vso_eline:0x%x\n", dsc_drv->encp_timing_ctrl.encp_video_vso_eline);
+	DSC_PR("encp_video_vso_begin:0x%x\n", dsc_drv->encp_timing_ctrl.encp_video_vso_begin);
+	DSC_PR("encp_video_vso_end:0x%x\n", dsc_drv->encp_timing_ctrl.encp_video_vso_end);
+	DSC_PR("encp_havon_begin:0x%x\n", dsc_drv->encp_timing_ctrl.encp_havon_begin);
+	DSC_PR("encp_havon_end:0x%x\n", dsc_drv->encp_timing_ctrl.encp_havon_end);
+	DSC_PR("encp_vavon_bline:0x%x\n", dsc_drv->encp_timing_ctrl.encp_vavon_bline);
+	DSC_PR("encp_vavon_eline:0x%x\n", dsc_drv->encp_timing_ctrl.encp_vavon_eline);
+	DSC_PR("encp_h_total:0x%x\n", dsc_drv->encp_timing_ctrl.h_total);
+	DSC_PR("encp_v_total:0x%x\n", dsc_drv->encp_timing_ctrl.v_total);
 	DSC_PR("------timing end------\n");
 	DSC_PR("pix_in_swap0:0x%x\n", dsc_drv->pix_in_swap0);
 	DSC_PR("pix_in_swap1:0x%x\n", dsc_drv->pix_in_swap1);
@@ -202,8 +203,8 @@ static inline void dsc_print_state(struct aml_dsc_drv_s *dsc_drv)
 	DSC_PR("bits_per_pixel_remain:%d\n", dsc_drv->bits_per_pixel_remain);
 	DSC_PR("bits_per_pixel_multiple:%d\n", dsc_drv->bits_per_pixel_multiple);
 	DSC_PR("bits_per_pixel_really_value:%d\n", dsc_drv->bits_per_pixel_really_value);
-	DSC_PR("h_total:%d\n", dsc_drv->h_total);
-	DSC_PR("v_total:%d\n", dsc_drv->v_total);
+	DSC_PR("hdmi_notify_h_total:%d\n", dsc_drv->h_total);
+	DSC_PR("hdmi_notify_v_total:%d\n", dsc_drv->v_total);
 	DSC_PR("enc0_clk:%d\n", dsc_drv->enc0_clk);
 	DSC_PR("cts_hdmi_tx_pixel_clk:%d\n", dsc_drv->cts_hdmi_tx_pixel_clk);
 	DSC_PR("manual_set_select:0x%x\n", dsc_drv->dsc_debug.manual_set_select);
@@ -215,7 +216,8 @@ static inline void dsc_print_reg_value(struct aml_dsc_drv_s *dsc_drv)
 	int i;
 
 	/* Picture Parameter Set Start*/
-	DSC_PR("------Picture Parameter Set Start------\n");
+	DSC_PR("------dump DSC register Set------\n");
+	DSC_PR("------Picture Parameter Set start------\n");
 	DSC_PR("dsc_version_major:%d\n", dsc_drv->pps_data.dsc_version_major);
 	DSC_PR("dsc_version_minor:%d\n", R_DSC_BIT(DSC_COMP_CTRL, DSC_VERSION_MINOR,
 		DSC_VERSION_MINOR_WID));
@@ -347,50 +349,50 @@ static inline void dsc_print_reg_value(struct aml_dsc_drv_s *dsc_drv)
 	DSC_PR("hc_vtotal_m1:%d\n", R_DSC_BIT(DSC_ASIC_CTRL18, HC_VTOTAL_M1, HC_VTOTAL_M1_WID));
 	DSC_PR("hc_htotal_m1:%d\n", R_DSC_BIT(DSC_ASIC_CTRL18, HC_HTOTAL_M1, HC_HTOTAL_M1_WID));
 	DSC_PR("encp bist timing------\n");
-	DSC_PR("encp_dvi_hso_begin(%#x):%d\n",
+	DSC_PR("encp_dvi_hso_begin(%#x):0x%x\n",
 		ENCP_DVI_HSO_BEGIN, dsc_vcbus_reg_read(ENCP_DVI_HSO_BEGIN));
-	DSC_PR("encp_dvi_hso_end(%#x):%d\n",
+	DSC_PR("encp_dvi_hso_end(%#x):0x%x\n",
 		ENCP_DVI_HSO_END, dsc_vcbus_reg_read(ENCP_DVI_HSO_END));
-	DSC_PR("encp_vso_bline(%#x):%d\n",
+	DSC_PR("encp_vso_bline(%#x):0x%x\n",
 		ENCP_DVI_VSO_BLINE_EVN, dsc_vcbus_reg_read(ENCP_DVI_VSO_BLINE_EVN));
-	DSC_PR("encp_vso_eline(%#x):%d\n",
+	DSC_PR("encp_vso_eline(%#x):0x%x\n",
 		ENCP_DVI_VSO_ELINE_EVN, dsc_vcbus_reg_read(ENCP_DVI_VSO_ELINE_EVN));
-	DSC_PR("encp_vso_begin(%#x):%d\n",
+	DSC_PR("encp_vso_begin(%#x):0x%x\n",
 		ENCP_DVI_VSO_BEGIN_EVN, dsc_vcbus_reg_read(ENCP_DVI_VSO_BEGIN_EVN));
-	DSC_PR("encp_vso_end(%#x):%d\n",
+	DSC_PR("encp_vso_end(%#x):0x%x\n",
 		ENCP_DVI_VSO_END_EVN, dsc_vcbus_reg_read(ENCP_DVI_VSO_END_EVN));
-	DSC_PR("encp_de_h_begin(%#x):%d\n",
+	DSC_PR("encp_de_h_begin(%#x):0x%x\n",
 		ENCP_DE_H_BEGIN, dsc_vcbus_reg_read(ENCP_DE_H_BEGIN));
-	DSC_PR("encp_de_h_end(%#x):%d\n",
+	DSC_PR("encp_de_h_end(%#x):0x%x\n",
 		ENCP_DE_H_END, dsc_vcbus_reg_read(ENCP_DE_H_END));
-	DSC_PR("encp_de_v_begin(%#x):%d\n",
+	DSC_PR("encp_de_v_begin(%#x):0x%x\n",
 		ENCP_DE_V_BEGIN_EVEN, dsc_vcbus_reg_read(ENCP_DE_V_BEGIN_EVEN));
-	DSC_PR("encp_de_v_end(%#x):%d\n",
+	DSC_PR("encp_de_v_end(%#x):0x%x\n",
 		ENCP_DE_V_END_EVEN, dsc_vcbus_reg_read(ENCP_DE_V_END_EVEN));
-	DSC_PR("encp_video_max_pxcnt(%#x):%d\n",
+	DSC_PR("encp_video_max_pxcnt(%#x):0x%x\n",
 		ENCP_VIDEO_MAX_PXCNT, dsc_vcbus_reg_read(ENCP_VIDEO_MAX_PXCNT));
-	DSC_PR("encp_video_max_lncnt(%#x):%d\n",
+	DSC_PR("encp_video_max_lncnt(%#x):0x%x\n",
 		ENCP_VIDEO_MAX_LNCNT, dsc_vcbus_reg_read(ENCP_VIDEO_MAX_LNCNT));
 	DSC_PR("encp video timing------\n");
-	DSC_PR("encp_hso_begin(%#x):%d\n",
+	DSC_PR("encp_hso_begin(%#x):0x%x\n",
 		ENCP_VIDEO_HSO_BEGIN, dsc_vcbus_reg_read(ENCP_VIDEO_HSO_BEGIN));
-	DSC_PR("encp_hso_end(%#x):%d\n",
+	DSC_PR("encp_hso_end(%#x):0x%x\n",
 		ENCP_VIDEO_HSO_END, dsc_vcbus_reg_read(ENCP_VIDEO_HSO_END));
-	DSC_PR("encp_video_vso_bline(%#x):%d\n",
+	DSC_PR("encp_video_vso_bline(%#x):0x%x\n",
 		ENCP_VIDEO_VSO_BLINE, dsc_vcbus_reg_read(ENCP_VIDEO_VSO_BLINE));
-	DSC_PR("encp_video_vso_eline(%#x):%d\n",
+	DSC_PR("encp_video_vso_eline(%#x):0x%x\n",
 		ENCP_VIDEO_VSO_ELINE, dsc_vcbus_reg_read(ENCP_VIDEO_VSO_ELINE));
-	DSC_PR("encp_video_vso_begin(%#x):%d\n",
+	DSC_PR("encp_video_vso_begin(%#x):0x%x\n",
 		ENCP_VIDEO_VSO_BEGIN, dsc_vcbus_reg_read(ENCP_VIDEO_VSO_BEGIN));
-	DSC_PR("encp_video_vso_end(%#x):%d\n",
+	DSC_PR("encp_video_vso_end(%#x):0x%x\n",
 		ENCP_VIDEO_VSO_END, dsc_vcbus_reg_read(ENCP_VIDEO_VSO_END));
-	DSC_PR("encp_havon_begin(%#x):%d\n",
+	DSC_PR("encp_havon_begin(%#x):0x%x\n",
 		ENCP_VIDEO_HAVON_BEGIN, dsc_vcbus_reg_read(ENCP_VIDEO_HAVON_BEGIN));
-	DSC_PR("encp_havon_end(%#x):%d\n",
+	DSC_PR("encp_havon_end(%#x):0x%x\n",
 		ENCP_VIDEO_HAVON_END, dsc_vcbus_reg_read(ENCP_VIDEO_HAVON_END));
-	DSC_PR("encp_vavon_bline(%#x):%d\n",
+	DSC_PR("encp_vavon_bline(%#x):0x%x\n",
 		ENCP_VIDEO_VAVON_BLINE, dsc_vcbus_reg_read(ENCP_VIDEO_VAVON_BLINE));
-	DSC_PR("encp_vavon_eline(%#x):%d\n",
+	DSC_PR("encp_vavon_eline(%#x):0x%x\n",
 		ENCP_VIDEO_VAVON_ELINE, dsc_vcbus_reg_read(ENCP_VIDEO_VAVON_ELINE));
 	DSC_PR("------timing end------\n");
 	DSC_PR("pix_in_swap0:0x%x\n", R_DSC_BIT(DSC_ASIC_CTRL9, PIX_IN_SWAP0, PIX_IN_SWAP0_WID));
@@ -427,7 +429,7 @@ static inline void dsc_dump_regs(struct aml_dsc_drv_s *dsc_drv)
 {
 	unsigned int reg;
 
-	DSC_PR("dsc regs start----\n");
+	DSC_PR("dsc dump regs start----\n");
 	for (reg = DSC_COMP_CTRL; reg <= DSC_ASIC_CTRL23; reg++)
 		DSC_PR("0x%04x = 0x%08x\n", reg, R_DSC_REG(reg));
 	DSC_PR("mux register\n");
@@ -457,7 +459,7 @@ static inline void dsc_dump_regs(struct aml_dsc_drv_s *dsc_drv)
 	DSC_PR("0x%x = 0x%x\n", ENCP_VIDEO_HAVON_END, dsc_vcbus_reg_read(ENCP_VIDEO_HAVON_END));
 	DSC_PR("0x%x = 0x%x\n", ENCP_VIDEO_VAVON_BLINE, dsc_vcbus_reg_read(ENCP_VIDEO_VAVON_BLINE));
 	DSC_PR("0x%x = 0x%x\n", ENCP_VIDEO_VAVON_ELINE, dsc_vcbus_reg_read(ENCP_VIDEO_VAVON_ELINE));
-	DSC_PR("dsc regs end----\n\n");
+	DSC_PR("dsc dump regs end----\n\n");
 }
 
 static inline void set_dsc_pps_data(struct aml_dsc_drv_s *dsc_drv, char **parm)
@@ -571,33 +573,53 @@ static inline void set_dsc_tmg_ctrl(struct aml_dsc_drv_s *dsc_drv, char **parm)
 
 	if (parm[1] && (kstrtoint(parm[1], 10, &temp) == 0))
 		dsc_drv->tmg_ctrl.tmg_havon_begin = temp;
+	else
+		DSC_PR("%s manual_dsc_tmg error %d\n", __func__, __LINE__);
 
 	if (parm[2] && (kstrtoint(parm[2], 10, &temp) == 0))
 		dsc_drv->tmg_ctrl.tmg_vavon_bline = temp;
+	else
+		DSC_PR("%s manual_dsc_tmg error %d\n", __func__, __LINE__);
 
 	if (parm[3] && (kstrtoint(parm[3], 10, &temp) == 0))
 		dsc_drv->tmg_ctrl.tmg_vavon_eline = temp;
+	else
+		DSC_PR("%s manual_dsc_tmg error %d\n", __func__, __LINE__);
 
 	if (parm[4] && (kstrtoint(parm[4], 10, &temp) == 0))
 		dsc_drv->tmg_ctrl.tmg_hso_begin = temp;
+	else
+		DSC_PR("%s manual_dsc_tmg error %d\n", __func__, __LINE__);
 
 	if (parm[5] && (kstrtoint(parm[5], 10, &temp) == 0))
 		dsc_drv->tmg_ctrl.tmg_hso_end = temp;
+	else
+		DSC_PR("%s manual_dsc_tmg error %d\n", __func__, __LINE__);
 
 	if (parm[6] && (kstrtoint(parm[6], 10, &temp) == 0))
 		dsc_drv->tmg_ctrl.tmg_vso_begin = temp;
+	else
+		DSC_PR("%s manual_dsc_tmg error %d\n", __func__, __LINE__);
 
 	if (parm[7] && (kstrtoint(parm[7], 10, &temp) == 0))
 		dsc_drv->tmg_ctrl.tmg_vso_end = temp;
+	else
+		DSC_PR("%s manual_dsc_tmg error %d\n", __func__, __LINE__);
 
 	if (parm[8] && (kstrtoint(parm[8], 10, &temp) == 0))
 		dsc_drv->tmg_ctrl.tmg_vso_bline = temp;
+	else
+		DSC_PR("%s manual_dsc_tmg error %d\n", __func__, __LINE__);
 
 	if (parm[9] && (kstrtoint(parm[9], 10, &temp) == 0))
 		dsc_drv->tmg_ctrl.tmg_vso_eline = temp;
+	else
+		DSC_PR("%s manual_dsc_tmg error %d\n", __func__, __LINE__);
 
 	if (parm[10] && (kstrtoint(parm[10], 10, &temp) == 0))
 		dsc_drv->hc_vtotal_m1 = temp - 1;
+	else
+		DSC_PR("%s manual_dsc_tmg error %d\n", __func__, __LINE__);
 
 	if (parm[11] && (kstrtoint(parm[11], 10, &temp) == 0)) {
 		dsc_drv->dsc_debug.manual_set_select |= MANUAL_DSC_TMG_CTRL;
@@ -662,44 +684,66 @@ static inline void set_vpu_bist_tmg_ctrl(struct aml_dsc_drv_s *dsc_drv, char **p
 {
 	int temp = 0;
 
-	if (parm[1] && (kstrtoint(parm[1], 10, &temp) == 0))
+	if (parm[1] && (kstrtoint(parm[1], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_dvi_hso_begin = temp;
+	else
+		DSC_PR("%s manual_vpu_bist_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[2] && (kstrtoint(parm[2], 10, &temp) == 0))
+	if (parm[2] && (kstrtoint(parm[2], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_dvi_hso_end = temp;
+	else
+		DSC_PR("%s manual_vpu_bist_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[3] && (kstrtoint(parm[3], 10, &temp) == 0))
+	if (parm[3] && (kstrtoint(parm[3], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_vso_bline = temp;
+	else
+		DSC_PR("%s manual_vpu_bist_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[4] && (kstrtoint(parm[4], 10, &temp) == 0))
+	if (parm[4] && (kstrtoint(parm[4], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_vso_eline = temp;
+	else
+		DSC_PR("%s manual_vpu_bist_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[5] && (kstrtoint(parm[5], 10, &temp) == 0))
+	if (parm[5] && (kstrtoint(parm[5], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_vso_begin = temp;
+	else
+		DSC_PR("%s manual_vpu_bist_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[6] && (kstrtoint(parm[6], 10, &temp) == 0))
+	if (parm[6] && (kstrtoint(parm[6], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_vso_end = temp;
+	else
+		DSC_PR("%s manual_vpu_bist_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[7] && (kstrtoint(parm[7], 10, &temp) == 0))
+	if (parm[7] && (kstrtoint(parm[7], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_de_h_begin = temp;
+	else
+		DSC_PR("%s manual_vpu_bist_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[8] && (kstrtoint(parm[8], 10, &temp) == 0))
+	if (parm[8] && (kstrtoint(parm[8], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_de_h_end = temp;
+	else
+		DSC_PR("%s manual_vpu_bist_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[9] && (kstrtoint(parm[9], 10, &temp) == 0))
+	if (parm[9] && (kstrtoint(parm[9], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_de_v_begin = temp;
+	else
+		DSC_PR("%s manual_vpu_bist_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[10] && (kstrtoint(parm[10], 10, &temp) == 0))
+	if (parm[10] && (kstrtoint(parm[10], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_de_v_end = temp;
+	else
+		DSC_PR("%s manual_vpu_bist_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[11] && (kstrtoint(parm[11], 10, &temp) == 0))
+	if (parm[11] && (kstrtoint(parm[11], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.h_total = temp - 1;
+	else
+		DSC_PR("%s manual_vpu_bist_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[12] && (kstrtoint(parm[12], 10, &temp) == 0)) {
+	if (parm[12] && (kstrtoint(parm[12], 16, &temp) == 0)) {
 		dsc_drv->dsc_debug.manual_set_select |= MANUAL_VPU_BIST_TMG_CTRL;
 		dsc_drv->encp_timing_ctrl.v_total = temp - 1;
 	} else {
-		DSC_PR("%s manual_vpu_bit_tmg error\n", __func__);
+		DSC_PR("%s manual_vpu_bist_tmg error\n", __func__);
 		dsc_drv->dsc_debug.manual_set_select &= (~MANUAL_VPU_BIST_TMG_CTRL);
 	}
 
@@ -724,32 +768,32 @@ static inline void set_vpu_bist_tmg_ctrl(struct aml_dsc_drv_s *dsc_drv, char **p
 					dsc_drv->encp_timing_ctrl.encp_de_v_begin);
 		dsc_vcbus_reg_write(ENCP_DE_V_END_EVEN,
 					dsc_drv->encp_timing_ctrl.encp_de_v_end);
-		dsc_vcbus_reg_write(ENCP_VIDEO_MAX_PXCNT, dsc_drv->encp_timing_ctrl.v_total);
-		dsc_vcbus_reg_write(ENCP_VIDEO_MAX_LNCNT, dsc_drv->encp_timing_ctrl.h_total);
+		dsc_vcbus_reg_write(ENCP_VIDEO_MAX_PXCNT, dsc_drv->encp_timing_ctrl.h_total);
+		dsc_vcbus_reg_write(ENCP_VIDEO_MAX_LNCNT, dsc_drv->encp_timing_ctrl.v_total);
 
-		DSC_PR("encp_dvi_hso_begin(%#x):%d\n",
+		DSC_PR("encp_dvi_hso_begin(%#x): 0x%x\n",
 				ENCP_DVI_HSO_BEGIN, dsc_vcbus_reg_read(ENCP_DVI_HSO_BEGIN));
-		DSC_PR("encp_dvi_hso_end(%#x):%d\n",
+		DSC_PR("encp_dvi_hso_end(%#x): 0x%x\n",
 				ENCP_DVI_HSO_END, dsc_vcbus_reg_read(ENCP_DVI_HSO_END));
-		DSC_PR("encp_vso_bline(%#x):%d\n",
+		DSC_PR("encp_vso_bline(%#x): 0x%x\n",
 				ENCP_DVI_VSO_BLINE_EVN, dsc_vcbus_reg_read(ENCP_DVI_VSO_BLINE_EVN));
-		DSC_PR("encp_vso_eline(%#x):%d\n",
+		DSC_PR("encp_vso_eline(%#x): 0x%x\n",
 				ENCP_DVI_VSO_ELINE_EVN, dsc_vcbus_reg_read(ENCP_DVI_VSO_ELINE_EVN));
-		DSC_PR("encp_vso_begin(%#x):%d\n",
+		DSC_PR("encp_vso_begin(%#x): 0x%x\n",
 				ENCP_DVI_VSO_BEGIN_EVN, dsc_vcbus_reg_read(ENCP_DVI_VSO_BEGIN_EVN));
-		DSC_PR("encp_vso_end(%#x):%d\n",
+		DSC_PR("encp_vso_end(%#x): 0x%x\n",
 				ENCP_DVI_VSO_END_EVN, dsc_vcbus_reg_read(ENCP_DVI_VSO_END_EVN));
-		DSC_PR("encp_de_h_begin(%#x):%d\n",
+		DSC_PR("encp_de_h_begin(%#x): 0x%x\n",
 				ENCP_DE_H_BEGIN, dsc_vcbus_reg_read(ENCP_DE_H_BEGIN));
-		DSC_PR("encp_de_h_end(%#x):%d\n",
+		DSC_PR("encp_de_h_end(%#x): 0x%x\n",
 				ENCP_DE_H_END, dsc_vcbus_reg_read(ENCP_DE_H_END));
-		DSC_PR("encp_de_v_begin(%#x):%d\n",
+		DSC_PR("encp_de_v_begin(%#x): 0x%x\n",
 				ENCP_DE_V_BEGIN_EVEN, dsc_vcbus_reg_read(ENCP_DE_V_BEGIN_EVEN));
-		DSC_PR("encp_de_v_end(%#x):%d\n",
+		DSC_PR("encp_de_v_end(%#x): 0x%x\n",
 				ENCP_DE_V_END_EVEN, dsc_vcbus_reg_read(ENCP_DE_V_END_EVEN));
-		DSC_PR("encp_v_total(%#x):%d\n",
+		DSC_PR("encp_h_total(%#x): 0x%x\n",
 				ENCP_VIDEO_MAX_PXCNT, dsc_vcbus_reg_read(ENCP_VIDEO_MAX_PXCNT));
-		DSC_PR("encp_h_total(%#x):%d\n",
+		DSC_PR("encp_v_total(%#x): 0x%x\n",
 				ENCP_VIDEO_MAX_LNCNT, dsc_vcbus_reg_read(ENCP_VIDEO_MAX_LNCNT));
 	}
 }
@@ -758,94 +802,114 @@ static inline void set_vpu_video_tmg_ctrl(struct aml_dsc_drv_s *dsc_drv, char **
 {
 	int temp = 0;
 
-	if (parm[1] && (kstrtoint(parm[1], 10, &temp) == 0))
+	if (parm[1] && (kstrtoint(parm[1], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_hso_begin = temp;
+	else
+		DSC_PR("%s manual_vpu_video_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[2] && (kstrtoint(parm[2], 10, &temp) == 0))
+	if (parm[2] && (kstrtoint(parm[2], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_hso_end = temp;
+	else
+		DSC_PR("%s manual_vpu_video_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[3] && (kstrtoint(parm[3], 10, &temp) == 0))
+	if (parm[3] && (kstrtoint(parm[3], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_video_vso_bline = temp;
+	else
+		DSC_PR("%s manual_vpu_video_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[4] && (kstrtoint(parm[4], 10, &temp) == 0))
+	if (parm[4] && (kstrtoint(parm[4], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_video_vso_eline = temp;
+	else
+		DSC_PR("%s manual_vpu_video_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[5] && (kstrtoint(parm[5], 10, &temp) == 0))
+	if (parm[5] && (kstrtoint(parm[5], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_video_vso_begin = temp;
+	else
+		DSC_PR("%s manual_vpu_video_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[6] && (kstrtoint(parm[6], 10, &temp) == 0))
+	if (parm[6] && (kstrtoint(parm[6], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_video_vso_end = temp;
+	else
+		DSC_PR("%s manual_vpu_video_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[7] && (kstrtoint(parm[7], 10, &temp) == 0))
+	if (parm[7] && (kstrtoint(parm[7], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_havon_begin = temp;
+	else
+		DSC_PR("%s manual_vpu_video_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[8] && (kstrtoint(parm[8], 10, &temp) == 0))
+	if (parm[8] && (kstrtoint(parm[8], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_havon_end = temp;
 
-	if (parm[9] && (kstrtoint(parm[9], 10, &temp) == 0))
+	if (parm[9] && (kstrtoint(parm[9], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_vavon_bline = temp;
+	else
+		DSC_PR("%s manual_vpu_video_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[10] && (kstrtoint(parm[10], 10, &temp) == 0))
+	if (parm[10] && (kstrtoint(parm[10], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.encp_vavon_eline = temp;
+	else
+		DSC_PR("%s manual_vpu_video_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[11] && (kstrtoint(parm[11], 10, &temp) == 0))
+	if (parm[11] && (kstrtoint(parm[11], 16, &temp) == 0))
 		dsc_drv->encp_timing_ctrl.h_total = temp - 1;
+	else
+		DSC_PR("%s manual_vpu_video_tmg error %d\n", __func__, __LINE__);
 
-	if (parm[12] && (kstrtoint(parm[12], 10, &temp) == 0)) {
+	if (parm[12] && (kstrtoint(parm[12], 16, &temp) == 0)) {
 		dsc_drv->dsc_debug.manual_set_select |= MANUAL_VPU_VIDEO_TMG_CTRL;
 		dsc_drv->encp_timing_ctrl.v_total = temp - 1;
 	} else {
-		DSC_PR("%s manual_vpu_bit_tmg error\n", __func__);
+		DSC_PR("%s manual_vpu_video_tmg error\n", __func__);
 		dsc_drv->dsc_debug.manual_set_select &= (~MANUAL_VPU_VIDEO_TMG_CTRL);
 	}
 
 	if (dsc_drv->dsc_debug.manual_set_select & MANUAL_VPU_VIDEO_TMG_CTRL) {
-		dsc_vcbus_reg_write(ENCP_DVI_HSO_BEGIN,
+		dsc_vcbus_reg_write(ENCP_VIDEO_HSO_BEGIN,
 					dsc_drv->encp_timing_ctrl.encp_hso_begin);
-		dsc_vcbus_reg_write(ENCP_DVI_HSO_END,
+		dsc_vcbus_reg_write(ENCP_VIDEO_HSO_END,
 					dsc_drv->encp_timing_ctrl.encp_hso_end);
-		dsc_vcbus_reg_write(ENCP_DVI_VSO_BLINE_EVN,
+		dsc_vcbus_reg_write(ENCP_VIDEO_VSO_BLINE,
 					dsc_drv->encp_timing_ctrl.encp_video_vso_bline);
-		dsc_vcbus_reg_write(ENCP_DVI_VSO_ELINE_EVN,
+		dsc_vcbus_reg_write(ENCP_VIDEO_VSO_ELINE,
 					dsc_drv->encp_timing_ctrl.encp_video_vso_eline);
-		dsc_vcbus_reg_write(ENCP_DVI_VSO_BEGIN_EVN,
+		dsc_vcbus_reg_write(ENCP_VIDEO_VSO_BEGIN,
 					dsc_drv->encp_timing_ctrl.encp_video_vso_begin);
-		dsc_vcbus_reg_write(ENCP_DVI_VSO_END_EVN,
+		dsc_vcbus_reg_write(ENCP_VIDEO_VSO_END,
 					dsc_drv->encp_timing_ctrl.encp_video_vso_end);
-		dsc_vcbus_reg_write(ENCP_DE_H_BEGIN,
+		dsc_vcbus_reg_write(ENCP_VIDEO_HAVON_BEGIN,
 					dsc_drv->encp_timing_ctrl.encp_havon_begin);
-		dsc_vcbus_reg_write(ENCP_DE_H_END,
+		dsc_vcbus_reg_write(ENCP_VIDEO_HAVON_END,
 					dsc_drv->encp_timing_ctrl.encp_havon_end);
-		dsc_vcbus_reg_write(ENCP_DE_V_BEGIN_EVEN,
-					dsc_drv->encp_timing_ctrl.encp_vavon_eline);
-		dsc_vcbus_reg_write(ENCP_DE_V_END_EVEN,
+		dsc_vcbus_reg_write(ENCP_VIDEO_VAVON_BLINE,
 					dsc_drv->encp_timing_ctrl.encp_vavon_bline);
-		dsc_vcbus_reg_write(ENCP_VIDEO_MAX_LNCNT, dsc_drv->encp_timing_ctrl.h_total);
-		dsc_vcbus_reg_write(ENCP_VIDEO_MAX_PXCNT, dsc_drv->encp_timing_ctrl.v_total);
+		dsc_vcbus_reg_write(ENCP_VIDEO_VAVON_ELINE,
+					dsc_drv->encp_timing_ctrl.encp_vavon_eline);
+		dsc_vcbus_reg_write(ENCP_VIDEO_MAX_PXCNT, dsc_drv->encp_timing_ctrl.h_total);
+		dsc_vcbus_reg_write(ENCP_VIDEO_MAX_LNCNT, dsc_drv->encp_timing_ctrl.v_total);
 
-		DSC_PR("encp_hso_begin(%#x):%d\n",
-				ENCP_DVI_HSO_BEGIN, dsc_vcbus_reg_read(ENCP_VIDEO_HSO_BEGIN));
-		DSC_PR("encp_hso_end(%#x):%d\n",
-				ENCP_DVI_HSO_END, dsc_vcbus_reg_read(ENCP_VIDEO_HSO_END));
-		DSC_PR("encp_video_vso_bline(%#x):%d\n",
-				ENCP_DVI_VSO_BLINE_EVN, dsc_vcbus_reg_read(ENCP_VIDEO_VSO_BLINE));
-		DSC_PR("encp_video_vso_eline(%#x):%d\n",
-				ENCP_DVI_VSO_ELINE_EVN, dsc_vcbus_reg_read(ENCP_VIDEO_VSO_ELINE));
-		DSC_PR("encp_video_vso_begin(%#x):%d\n",
-				ENCP_DVI_VSO_BEGIN_EVN, dsc_vcbus_reg_read(ENCP_VIDEO_VSO_BEGIN));
-		DSC_PR("encp_video_vso_end(%#x):%d\n",
-				ENCP_DVI_VSO_END_EVN, dsc_vcbus_reg_read(ENCP_VIDEO_VSO_END));
-		DSC_PR("encp_havon_begin(%#x):%d\n",
-				ENCP_DE_H_BEGIN, dsc_vcbus_reg_read(ENCP_VIDEO_HAVON_END));
-		DSC_PR("encp_havon_end(%#x):%d\n",
-				ENCP_DE_H_END, dsc_vcbus_reg_read(ENCP_VIDEO_HAVON_BEGIN));
-		DSC_PR("encp_vavon_bline(%#x):%d\n",
-				ENCP_DE_V_BEGIN_EVEN, dsc_vcbus_reg_read(ENCP_VIDEO_VAVON_BLINE));
-		DSC_PR("encp_vavon_eline(%#x):%d\n",
-				ENCP_DE_V_END_EVEN, dsc_vcbus_reg_read(ENCP_VIDEO_VAVON_ELINE));
-		DSC_PR("v_total(%#x):%d\n",
+		DSC_PR("encp_hso_begin(%#x):0x%x\n",
+				ENCP_VIDEO_HSO_BEGIN, dsc_vcbus_reg_read(ENCP_VIDEO_HSO_BEGIN));
+		DSC_PR("encp_hso_end(%#x):0x%x\n",
+				ENCP_VIDEO_HSO_END, dsc_vcbus_reg_read(ENCP_VIDEO_HSO_END));
+		DSC_PR("encp_video_vso_bline(%#x):0x%x\n",
+				ENCP_VIDEO_VSO_BLINE, dsc_vcbus_reg_read(ENCP_VIDEO_VSO_BLINE));
+		DSC_PR("encp_video_vso_eline(%#x):0x%x\n",
+				ENCP_VIDEO_VSO_ELINE, dsc_vcbus_reg_read(ENCP_VIDEO_VSO_ELINE));
+		DSC_PR("encp_video_vso_begin(%#x):0x%x\n",
+				ENCP_VIDEO_VSO_BEGIN, dsc_vcbus_reg_read(ENCP_VIDEO_VSO_BEGIN));
+		DSC_PR("encp_video_vso_end(%#x):0x%x\n",
+				ENCP_VIDEO_VSO_END, dsc_vcbus_reg_read(ENCP_VIDEO_VSO_END));
+		DSC_PR("encp_havon_begin(%#x):0x%x\n",
+				ENCP_VIDEO_HAVON_BEGIN, dsc_vcbus_reg_read(ENCP_VIDEO_HAVON_BEGIN));
+		DSC_PR("encp_havon_end(%#x):0x%x\n",
+				ENCP_VIDEO_HAVON_END, dsc_vcbus_reg_read(ENCP_VIDEO_HAVON_END));
+		DSC_PR("encp_vavon_bline(%#x):0x%x\n",
+				ENCP_VIDEO_VAVON_BLINE, dsc_vcbus_reg_read(ENCP_VIDEO_VAVON_BLINE));
+		DSC_PR("encp_vavon_eline(%#x):0x%x\n",
+				ENCP_VIDEO_VAVON_ELINE, dsc_vcbus_reg_read(ENCP_VIDEO_VAVON_ELINE));
+		DSC_PR("h_total(%#x):0x%x\n",
 				ENCP_VIDEO_MAX_PXCNT, dsc_vcbus_reg_read(ENCP_VIDEO_MAX_PXCNT));
-		DSC_PR("h_total(%#x):%d\n",
+		DSC_PR("v_total(%#x):0x%x\n",
 				ENCP_VIDEO_MAX_LNCNT, dsc_vcbus_reg_read(ENCP_VIDEO_MAX_LNCNT));
 	}
 }
@@ -877,6 +941,7 @@ static ssize_t dsc_debug_store(struct device *dev,
 	} else if (!strcmp(parm[0], "state")) {
 		dsc_print_state(dsc_drv);
 	} else if (!strcmp(parm[0], "dump_reg")) {
+		/* dump venc registers */
 		dsc_dump_regs(dsc_drv);
 	} else if (!strcmp(parm[0], "get_reg_config")) {
 		dsc_print_reg_value(dsc_drv);
@@ -889,13 +954,14 @@ static ssize_t dsc_debug_store(struct device *dev,
 			dsc_data.pps_data.dsc_version_major, dsc_data.pps_data.dsc_version_minor,
 			dsc_data.enc0_clk, dsc_data.cts_hdmi_tx_pixel_clk);
 	} else if (!strcmp(parm[0], "use_dsc_model_value")) {
+		/* no use */
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0))
 			dsc_drv->dsc_debug.use_dsc_model_value = temp;
 		DSC_PR("use_dsc_model_value:0x%x\n", dsc_drv->dsc_debug.use_dsc_model_value);
 	} else if (!strcmp(parm[0], "manual_pps_para")) {
 		set_dsc_pps_data(dsc_drv, (char **)&parm);
 	} else if (!strcmp(parm[0], "calculate_dsc_data")) {
-		calculate_dsc_data(dsc_drv);
+		calculate_dsc_enc_data(dsc_drv);
 	} else if (!strcmp(parm[0], "config_dsc_reg")) {
 		dsc_config_register(dsc_drv);
 	} else if (!strcmp(parm[0], "is_enable_dsc")) {
@@ -908,6 +974,14 @@ static ssize_t dsc_debug_store(struct device *dev,
 		set_vpu_bist_tmg_ctrl(dsc_drv, (char **)&parm);
 	} else if (!strcmp(parm[0], "manual_vpu_video_tmg")) {
 		set_vpu_video_tmg_ctrl(dsc_drv, (char **)&parm);
+	} else if (!strcmp(parm[0], "vpu_tmg_bypass")) {
+		/* let hdmi side set VPU venc instead of by DSC side */
+		dsc_drv->dsc_debug.manual_set_select |= MANUAL_VPU_VIDEO_TMG_CTRL;
+		dsc_drv->dsc_debug.manual_set_select |= MANUAL_VPU_BIST_TMG_CTRL;
+	} else if (!strcmp(parm[0], "vpu_tmg_en")) {
+		/* enable set VPU venc by DSC side */
+		dsc_drv->dsc_debug.manual_set_select &= (~MANUAL_VPU_VIDEO_TMG_CTRL);
+		dsc_drv->dsc_debug.manual_set_select &= (~MANUAL_VPU_BIST_TMG_CTRL);
 	} else if (!strcmp(parm[0], "clr_dsc_status")) {
 		W_DSC_BIT(DSC_ASIC_CTRL0, 1, CLR_SSM_FIFO_STS, CLR_SSM_FIFO_STS_WID);
 		W_DSC_BIT(DSC_ASIC_CTRLD, 0xff, C0S0_CLR_CB_STS, 8);
@@ -927,9 +1001,10 @@ static ssize_t dsc_debug_store(struct device *dev,
 	} else if (!strcmp(parm[0], "set_dsc_mode")) {
 		struct dsc_notifier_data_s notifier_data;
 
+		memset(&notifier_data, 0, sizeof(notifier_data));
 		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0) && !parm[2]) {
 			if (temp == 0)
-				aml_set_dsc_mode(0, &notifier_data);
+				aml_dsc_enable(false);
 		} else {
 			if (kstrtouint(parm[2], 10, &temp) == 0)
 				notifier_data.pic_width = temp;
@@ -945,8 +1020,11 @@ static ssize_t dsc_debug_store(struct device *dev,
 				notifier_data.pic_width, notifier_data.pic_height,
 				notifier_data.fps, notifier_data.bits_per_component,
 				notifier_data.color_format);
-			aml_set_dsc_mode(1, &notifier_data);
+			aml_set_dsc_input_param(&notifier_data);
+			aml_dsc_enable(true);
 		}
+	} else if (!strcmp(parm[0], "rst_dsc")) {
+		dsc_enc_rst();
 	} else {
 		DSC_PR("unknown command\n");
 	}
@@ -955,10 +1033,82 @@ static ssize_t dsc_debug_store(struct device *dev,
 	return count;
 }
 
+/* correspond to dsc_timing */
+static struct dsc_mode_map dsc_mode_tab[] = {
+	/* 4k60hz */
+	{DSC_RGB_3840X2160_60HZ, "DSC_RGB_3840X2160_60HZ"},
+	{DSC_YUV444_3840X2160_60HZ, "DSC_YUV444_3840X2160_60HZ"},
+	{DSC_YUV422_3840X2160_60HZ, "DSC_YUV422_3840X2160_60HZ"},
+	{DSC_YUV420_3840X2160_60HZ, "DSC_YUV420_3840X2160_60HZ"},
+	/* 4k120hz */
+	{DSC_RGB_3840X2160_120HZ, "DSC_RGB_3840X2160_120HZ"},
+	{DSC_YUV444_3840X2160_120HZ, "DSC_YUV444_3840X2160_120HZ"},
+	{DSC_YUV422_3840X2160_120HZ, "DSC_YUV422_3840X2160_120HZ"},
+	{DSC_YUV420_3840X2160_120HZ, "DSC_YUV420_3840X2160_120HZ"},
+	/* 4k50hz */
+	{DSC_RGB_3840X2160_50HZ, "DSC_RGB_3840X2160_50HZ"},
+	{DSC_YUV444_3840X2160_50HZ, "DSC_YUV444_3840X2160_50HZ"},
+	{DSC_YUV422_3840X2160_50HZ, "DSC_YUV422_3840X2160_50HZ"},
+	{DSC_YUV420_3840X2160_50HZ, "DSC_YUV420_3840X2160_50HZ"},
+	/* 4k100hz */
+	{DSC_RGB_3840X2160_100HZ, "DSC_RGB_3840X2160_100HZ"},
+	{DSC_YUV444_3840X2160_100HZ, "DSC_YUV444_3840X2160_100HZ"},
+	{DSC_YUV422_3840X2160_100HZ, "DSC_YUV422_3840X2160_100HZ"},
+	{DSC_YUV420_3840X2160_100HZ, "DSC_YUV420_3840X2160_100HZ"},
+	/* 8k30hz */
+	{DSC_RGB_7680X4320_30HZ, "DSC_RGB_7680X4320_30HZ"},
+	{DSC_YUV444_7680X4320_30HZ, "DSC_YUV444_7680X4320_30HZ"},
+	{DSC_YUV422_7680X4320_30HZ, "DSC_YUV422_7680X4320_30HZ"},
+	{DSC_YUV420_7680X4320_30HZ, "DSC_YUV420_7680X4320_30HZ"},
+	/* 8k60hz */
+	{DSC_RGB_7680X4320_60HZ, "DSC_RGB_7680X4320_60HZ"},
+	{DSC_YUV444_7680X4320_60HZ, "DSC_YUV444_7680X4320_60HZ"},
+	{DSC_YUV422_7680X4320_60HZ, "DSC_YUV422_7680X4320_60HZ"},
+	{DSC_YUV420_7680X4320_60HZ, "DSC_YUV420_7680X4320_60HZ"},
+	/* 8k50hz */
+	{DSC_RGB_7680X4320_50HZ, "DSC_RGB_7680X4320_50HZ"},
+	{DSC_YUV444_7680X4320_50HZ, "DSC_YUV444_7680X4320_50HZ"},
+	{DSC_YUV422_7680X4320_50HZ, "DSC_YUV422_7680X4320_50HZ"},
+	{DSC_YUV420_7680X4320_50HZ, "DSC_YUV420_7680X4320_50HZ"},
+	/* 8k25hz */
+	{DSC_YUV422_7680X4320_25HZ, "DSC_YUV422_7680X4320_25HZ"},
+	{DSC_YUV420_7680X4320_25HZ, "DSC_YUV420_7680X4320_25HZ"},
+	{DSC_RGB_7680X4320_25HZ, "DSC_RGB_7680X4320_25HZ"},
+	{DSC_YUV444_7680X4320_25HZ, "DSC_YUV444_7680X4320_25HZ"},
+	/* 8k24hz */
+	{DSC_RGB_7680X4320_24HZ, "DSC_RGB_7680X4320_24HZ"},
+	{DSC_YUV444_7680X4320_24HZ, "DSC_YUV444_7680X4320_24HZ"},
+	{DSC_YUV422_7680X4320_24HZ, "DSC_YUV422_7680X4320_24HZ"},
+	{DSC_YUV420_7680X4320_24HZ, "DSC_YUV420_7680X4320_24HZ"},
+
+	{DSC_ENCODE_MAX, "DSC_ENCODE_MAX"},
+};
+
+static ssize_t dsc_enc_cap_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	ssize_t pos = 0;
+	int i = 0;
+	int j = 0;
+
+	for (j = 0; dsc_mode_tab[j].dsc_mode != DSC_ENCODE_MAX; j++) {
+		for (i = 0; dsc_timing[i][0] != DSC_ENCODE_MAX; i++) {
+			if (dsc_mode_tab[j].dsc_mode == dsc_timing[i][0]) {
+				pos += snprintf(buf + pos, PAGE_SIZE, "%s, bpp = %d.%d\n",
+					dsc_mode_tab[j].mode_name, dsc_timing[i][1] / BPP_FRACTION,
+					dsc_timing[i][1] % BPP_FRACTION);
+			}
+		}
+	}
+
+	return pos;
+}
+
 static struct device_attribute dsc_debug_attrs[] = {
 	__ATTR(help, 0444, dsc_debug_help, NULL),
 	__ATTR(status, 0444, dsc_status_show, NULL),
 	__ATTR(debug, 0644, dsc_debug_help, dsc_debug_store),
+	__ATTR(dsc_enc_cap, 0444, dsc_enc_cap_show, NULL),
 };
 
 int dsc_debug_file_create(struct aml_dsc_drv_s *dsc_drv)
@@ -967,7 +1117,7 @@ int dsc_debug_file_create(struct aml_dsc_drv_s *dsc_drv)
 
 	for (i = 0; i < ARRAY_SIZE(dsc_debug_attrs); i++) {
 		if (device_create_file(dsc_drv->dev, &dsc_debug_attrs[i])) {
-			DSC_ERR("create lcd debug attribute %s fail\n",
+			DSC_ERR("create dsc debug attribute %s fail\n",
 				dsc_debug_attrs[i].attr.name);
 		}
 	}

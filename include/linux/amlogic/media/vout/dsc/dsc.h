@@ -68,7 +68,63 @@ struct dsc_pps_data_s {
 	unsigned int hc_active_bytes;
 };
 
+enum dsc_encode_mode {
+	/* 4k60hz */
+	DSC_RGB_3840X2160_60HZ,
+	DSC_YUV444_3840X2160_60HZ,
+	DSC_YUV422_3840X2160_60HZ,
+	DSC_YUV420_3840X2160_60HZ,
+	/* 4k50hz */
+	DSC_RGB_3840X2160_50HZ,
+	DSC_YUV444_3840X2160_50HZ,
+	DSC_YUV422_3840X2160_50HZ,
+	DSC_YUV420_3840X2160_50HZ,
+	/* 4k120hz */
+	DSC_RGB_3840X2160_120HZ,
+	DSC_YUV444_3840X2160_120HZ,
+	DSC_YUV422_3840X2160_120HZ,
+	DSC_YUV420_3840X2160_120HZ,
+	/* 4k100hz */
+	DSC_RGB_3840X2160_100HZ,
+	DSC_YUV444_3840X2160_100HZ,
+	DSC_YUV422_3840X2160_100HZ,
+	DSC_YUV420_3840X2160_100HZ,
+	/* 8k60hz */
+	DSC_RGB_7680X4320_60HZ,
+	DSC_YUV444_7680X4320_60HZ,
+	DSC_YUV422_7680X4320_60HZ,
+	DSC_YUV420_7680X4320_60HZ,
+	/* 8k50hz */
+	DSC_RGB_7680X4320_50HZ,
+	DSC_YUV444_7680X4320_50HZ,
+	DSC_YUV422_7680X4320_50HZ,
+	DSC_YUV420_7680X4320_50HZ,
+	/* 8k24hz */
+	DSC_RGB_7680X4320_24HZ,
+	DSC_YUV444_7680X4320_24HZ,
+	DSC_YUV422_7680X4320_24HZ,
+	DSC_YUV420_7680X4320_24HZ,
+	/* 8k25hz */
+	DSC_RGB_7680X4320_25HZ,
+	DSC_YUV444_7680X4320_25HZ,
+	DSC_YUV422_7680X4320_25HZ,
+	DSC_YUV420_7680X4320_25HZ,
+	/* 8k30hz */
+	DSC_RGB_7680X4320_30HZ,
+	DSC_YUV444_7680X4320_30HZ,
+	DSC_YUV422_7680X4320_30HZ,
+	DSC_YUV420_7680X4320_30HZ,
+
+	DSC_ENCODE_MAX,
+};
+
+struct dsc_mode_map {
+	enum dsc_encode_mode dsc_mode;
+	const char *mode_name;
+};
+
 struct dsc_offer_tx_data {
+	enum dsc_encode_mode dsc_mode;
 	struct dsc_pps_data_s pps_data;
 	unsigned int enc0_clk;
 	unsigned int cts_hdmi_tx_pixel_clk;
@@ -83,10 +139,18 @@ struct dsc_notifier_data_s {
 };
 
 //hdmitx inform dsc video format
-int aml_set_dsc_mode(bool on_off, struct dsc_notifier_data_s *notifier_data);
-//hdmitx get dsc data
+int aml_set_dsc_input_param(struct dsc_notifier_data_s *notifier_data);
+//hdmitx to enable/disable dsc
+void aml_dsc_enable(bool dsc_en);
+//hdmitx get pps and enc/pixel_clk from dsc
 void hdmitx_get_dsc_data(struct dsc_offer_tx_data *dsc_data);
-
+inline enum dsc_encode_mode dsc_enc_confirm_mode(unsigned int pic_width, unsigned int pic_height,
+	unsigned int fps, enum hdmi_colorspace color_format);
+u8 dsc_get_slice_num(enum dsc_encode_mode dsc_mode);
+u32 dsc_get_bytes_target_by_mode(enum dsc_encode_mode dsc_mode);
+u32 dsc_get_hc_active_by_mode(enum dsc_encode_mode dsc_mode);
+bool get_dsc_en(void);
+void dsc_enc_rst(void);
 /* atomic notify */
 int aml_dsc_atomic_notifier_register(struct notifier_block *nb);
 int aml_dsc_atomic_notifier_unregister(struct notifier_block *nb);

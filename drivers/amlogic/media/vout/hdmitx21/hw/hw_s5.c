@@ -73,8 +73,13 @@
  * FRL modes without DSC: sub-pll, htx-pll, fpll
  * FRL modes with DSC: sub-pll, htx-pll, fpll, gp2pll
  */
-const static char od_map[9] = {
-	0, 0, 1, 0, 2, 0, 0, 0, 3,
+const static char od_map[17] = {
+	[0] = 0,
+	[1] = 0,
+	[2] = 1,
+	[4] = 2,
+	[8] = 3,
+	[16] = 4,
 };
 
 void disable_hdmitx_s5_plls(struct hdmitx_dev *hdev)
@@ -186,7 +191,7 @@ static void set_s5_htxpll_clk_4_5_6g(const u32 clk, const bool frl_en)
 	}
 	hd21_write_reg(ANACTRL_HDMIPLL_CTRL3,
 		0x000c0000 | (htxpll_m << 8) | (htxpll_ref_clk_od << 4));
-	hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x03400293 | (frl_en << 25));
+	hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x03400293);
 	hd21_write_reg(ANACTRL_HDMIPLL_CTRL5, 0x00000203);
 	hd21_write_reg(ANACTRL_HDMIPLL_CTRL6, 0x00000000);
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, 1, 0, 1);
@@ -238,6 +243,7 @@ void set21_s5_htxpll_clk_out(const u32 clk, const u32 div)
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, od_map[div2], 22, 2);
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, 0, 24, 2);
 	hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL4, 0, 30, 2);
+	/* todo, check why */
 	if (cs == HDMI_COLORSPACE_YUV420) {
 		if (cd == COLORDEPTH_24B)
 			hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, 1, 20, 2);
@@ -269,9 +275,8 @@ void set_frl_hpll_od(enum frl_rate_enum rate)
 	case FRL_8G4L:
 	case FRL_10G4L:
 	case FRL_12G4L:
-		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, 0, 20, 2);
-		break;
 	default:
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, 0, 20, 2);
 		break;
 	};
 }
@@ -350,22 +355,23 @@ void hdmitx_set_s5_gp2pll(u32 clk, u32 div)
 	hd21_set_reg_bits(CLKCTRL_GP2PLL_CTRL3, 1, 9, 1); /* enable pll_lock_rst */
 	WAIT_FPLL_GP2PLL_LOCK(CLKCTRL_GP2PLL_CTRL0, CLKCTRL_GP2PLL_STS);
 
-	hd21_set_reg_bits(CLKCTRL_FPLL_CTRL0, od_map[div], 23, 2); // gp2pll_tmds_od<2:0>
+	hd21_set_reg_bits(CLKCTRL_GP2PLL_CTRL0, od_map[div], 10, 3);
 }
 
-void hdmitx_set_s5_clkdiv(struct hdmitx_dev *hdev)
+void hdmitx_set_s5_tmds_clk_div(struct hdmitx_dev *hdev)
 {
-	if (!hdev && !hdev->para)
+	if (!hdev || !hdev->para)
 		return;
 
 	/* cts_htx_tmds_clk selects the htx_tmds20_clk or fll_tmds_clk */
+	/* RJ for cts_htx_tmds_clk[92]
+	 * bit[26:25] source, bit[24] enable, bit[22:16] div
+	 */
 	hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, hdev->frl_rate ? 1 : 0, 25, 2);
 	if (!hdev->frl_rate && hdev->para->cs == HDMI_COLORSPACE_YUV420)
 		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 1, 16, 7);
 	else
 		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 0, 16, 7);
-	/* master_clk selects the vid_pll_clk or fpll_pixel_clk */
-	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, hdev->frl_rate ? 4 : 0, 16, 3);
 }
 
 void hdmitx21_phy_bandgap_en_s5(void)

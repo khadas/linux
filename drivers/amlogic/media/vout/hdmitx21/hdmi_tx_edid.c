@@ -1270,8 +1270,41 @@ static void hdmitx21_edid_parse_hfscdb(struct rx_cap *prxcap,
 
 	if (count < 11)
 		return;
+	prxcap->dsc_10bpc = !!(blockbuf[offset + 10] & (1 << 0));
+	prxcap->dsc_12bpc = !!(blockbuf[offset + 10] & (1 << 1));
+	prxcap->dsc_16bpc = !!(blockbuf[offset + 10] & (1 << 2));
+	prxcap->dsc_all_bpp = !!(blockbuf[offset + 10] & (1 << 3));
 	prxcap->qms_tfr_min = !!(blockbuf[offset + 10] & (1 << 4));
 	prxcap->qms_tfr_max = !!(blockbuf[offset + 10] & (1 << 5));
+	prxcap->dsc_native_420 = !!(blockbuf[offset + 10] & (1 << 6));
+	prxcap->dsc_1p2 = !!(blockbuf[offset + 10] & (1 << 7));
+	/* dsc_1p2 shall be cleared (=0) for devices that
+	 * do not support FRL (i.e. Max_FRL_Rate=0).
+	 */
+	if (prxcap->max_frl_rate == 0)
+		prxcap->dsc_1p2 = 0;
+	if (prxcap->dsc_1p2) {
+		if (count < 13) {
+			pr_info(EDID "error: dsc_1p2 support, but dsc not complete\n");
+			prxcap->dsc_1p2 = 0;
+			return;
+		}
+		/* 3: up to 4 slices and up to (340 MHz/K SliceAdjust)
+		 * pixel clock per slice
+		 * 4: up to 8 slices and up to (340 MHz/K SliceAdjust)
+		 * pixel clock per slice
+		 */
+		prxcap->dsc_max_slices = blockbuf[offset + 11] & 0xf;
+		/* This is value shall be the same or lower than
+		 * the physical maximum rate specified by the
+		 * Max_FRL_Rate field.
+		 */
+		prxcap->dsc_max_frl_rate = (blockbuf[offset + 11] >> 4) & 0xf;
+		/* The number of bytes is computed as:
+		 * 1024 x (1+DSC_ TotalChunkKBytes)
+		 */
+		prxcap->dsc_total_chunk_bytes = blockbuf[offset + 12] & 0x3f;
+	}
 }
 
 /* refer to CEA-861-G 7.5.1 video data block */
@@ -2380,6 +2413,203 @@ static bool hdmitx_check_4x3_16x9_mode(struct hdmitx_dev *hdev,
 	return flag;
 }
 
+/* 0: VESA DSC 1.2a is not supported
+ * 1: up to 1 slice and up to (340 MHz/K SliceAdjust) pixel clock per slice
+ * 2: up to 2 slices and up to (340 MHz/K SliceAdjust) pixel clock per slice
+ * 3: up to 4 slices and up to (340 MHz/K SliceAdjust) pixel clock per slice
+ * 4: up to 8 slices and up to (340 MHz/K SliceAdjust) pixel clock per slice
+ * 5: up to 8 slices and up to (400 MHz/K SliceAdjust) pixel clock per slice
+ * 6: up to 12 slices and up to (400 MHz/K SliceAdjust) pixel clock per slice
+ * 7: up to 16 slices and up to (400 MHz/K SliceAdjust) pixel clock per slice
+ * 8~15: Reserved
+ */
+u8 dsc_max_slices_num[] = {
+	0,
+	1,
+	2,
+	4,
+	8,
+	8,
+	12,
+	16
+};
+
+/* get the needed frl rate, refer to 2.1 spec table 7-37/38,
+ * actually it may also need to check bpp
+ */
+enum frl_rate_enum get_dsc_frl_rate(enum dsc_encode_mode dsc_mode)
+{
+	enum frl_rate_enum frl_rate = FRL_RATE_MAX;
+
+	switch (dsc_mode) {
+	case DSC_RGB_3840X2160_60HZ:
+	case DSC_YUV444_3840X2160_60HZ:
+	case DSC_YUV422_3840X2160_60HZ:
+	case DSC_YUV420_3840X2160_60HZ:
+	case DSC_RGB_3840X2160_50HZ:
+	case DSC_YUV444_3840X2160_50HZ:
+	case DSC_YUV422_3840X2160_50HZ:
+	case DSC_YUV420_3840X2160_50HZ:
+		frl_rate = FRL_3G3L;
+		break;
+	case DSC_RGB_3840X2160_120HZ:
+	case DSC_YUV444_3840X2160_120HZ:
+	case DSC_RGB_3840X2160_100HZ:
+	case DSC_YUV444_3840X2160_100HZ:
+		frl_rate = FRL_6G3L;
+		break;
+	case DSC_YUV422_3840X2160_120HZ:
+	case DSC_YUV420_3840X2160_120HZ:
+	case DSC_YUV422_3840X2160_100HZ:
+	case DSC_YUV420_3840X2160_100HZ:
+		frl_rate = FRL_3G3L;
+		break;
+
+	case DSC_RGB_7680X4320_60HZ:
+	case DSC_YUV444_7680X4320_60HZ:
+		/* 6G4L is spec recommended, but actually it can't
+		 * work on board, need to work under 8G4L
+		 */
+		frl_rate = FRL_6G4L;
+		break;
+	case DSC_YUV422_7680X4320_60HZ:
+	case DSC_YUV420_7680X4320_60HZ:
+		/* 6G3L is spec recommended, but actually it can't
+		 * work on board, need to work under 6G4L
+		 */
+		frl_rate = FRL_6G3L;
+		break;
+
+	case DSC_RGB_7680X4320_50HZ:
+	case DSC_YUV444_7680X4320_50HZ:
+		frl_rate = FRL_6G4L;
+		break;
+	case DSC_YUV422_7680X4320_50HZ:
+	case DSC_YUV420_7680X4320_50HZ:
+		frl_rate = FRL_6G3L;
+		break;
+
+	case DSC_YUV444_7680X4320_30HZ: /* bpp = 12 */
+	case DSC_RGB_7680X4320_30HZ: /* bpp = 12 */
+		frl_rate = FRL_6G3L;
+		break;
+	case DSC_YUV422_7680X4320_30HZ: /* bpp = 7.375 */
+	case DSC_YUV420_7680X4320_30HZ: /* bpp = 7.375 */
+		/* 3G3L is spec recommended, but actually it can't
+		 * work on board, need to work under 6G3L
+		 */
+		frl_rate = FRL_3G3L;
+		break;
+
+	case DSC_YUV444_7680X4320_25HZ: /* bpp = 12 */
+	case DSC_RGB_7680X4320_25HZ: /* bpp = 12 */
+	case DSC_YUV444_7680X4320_24HZ: /* bpp = 12 */
+	case DSC_RGB_7680X4320_24HZ: /* bpp = 12 */
+		frl_rate = FRL_6G3L;
+		break;
+	case DSC_YUV422_7680X4320_25HZ: /* bpp = 7.6875 */
+	case DSC_YUV420_7680X4320_25HZ: /* bpp = 7.6875 */
+	case DSC_YUV422_7680X4320_24HZ: /* bpp = 7.6875 */
+	case DSC_YUV420_7680X4320_24HZ: /* bpp = 7.6875 */
+		frl_rate = FRL_3G3L;
+		break;
+	case DSC_ENCODE_MAX:
+	default:
+		frl_rate = FRL_RATE_MAX;
+		break;
+	}
+	return frl_rate;
+}
+
+static bool edid_check_dsc_support(struct hdmitx_dev *hdev, struct hdmi_format_para *para)
+{
+	enum dsc_encode_mode dsc_mode = DSC_ENCODE_MAX;
+	u8 dsc_slice_num = 0;
+	enum frl_rate_enum dsc_frl_rate = FRL_NONE;
+	u32 bytes_target = 0;
+	struct rx_cap *prxcap;
+
+	if (!hdev || !para)
+		return false;
+
+	prxcap = &hdev->rxcap;
+	if (prxcap->dsc_1p2 == 0)
+		return false;
+
+	/* check dsc color depth cap */
+	if (para->cd == COLORDEPTH_30B &&
+		!prxcap->dsc_10bpc)
+		return false;
+	else if (para->cd == COLORDEPTH_36B &&
+		!prxcap->dsc_12bpc)
+		return false;
+	/* check dsc color space cap */
+	if (para->cs == HDMI_COLORSPACE_YUV420 &&
+		!prxcap->dsc_native_420)
+		return false;
+	/* driver not support current dsc mode */
+	dsc_mode = dsc_enc_confirm_mode(para->timing.h_active,
+		para->timing.v_active, para->timing.v_freq, para->cs);
+	if (dsc_mode == DSC_ENCODE_MAX)
+		return false;
+	if (hdev->dsc_policy == 0) {
+		/* force not support below 12bit format temporarily */
+		switch (dsc_mode) {
+		/* 4k120hz */
+		case DSC_RGB_3840X2160_120HZ:
+		case DSC_YUV444_3840X2160_120HZ:
+		/* 4k100hz */
+		case DSC_RGB_3840X2160_100HZ:
+		case DSC_YUV444_3840X2160_100HZ:
+		/* 8k60hz */
+		case DSC_RGB_7680X4320_60HZ:
+		case DSC_YUV444_7680X4320_60HZ:
+		/* 8k50hz */
+		case DSC_RGB_7680X4320_50HZ:
+		case DSC_YUV444_7680X4320_50HZ:
+		/* 8k24hz */
+		case DSC_RGB_7680X4320_24HZ:
+		case DSC_YUV444_7680X4320_24HZ:
+		/* 8k25hz */
+		case DSC_RGB_7680X4320_25HZ:
+		case DSC_YUV444_7680X4320_25HZ:
+		/* 8k30hz */
+		case DSC_RGB_7680X4320_30HZ:
+		case DSC_YUV444_7680X4320_30HZ:
+			if (para->cd == COLORDEPTH_36B)
+				return false;
+			break;
+		default:
+			break;
+		}
+	}
+	dsc_slice_num = dsc_get_slice_num(dsc_mode);
+	/* slice num exceed rx cap */
+	if (dsc_slice_num == 0 ||
+		dsc_slice_num > dsc_max_slices_num[prxcap->dsc_max_slices])
+		return false;
+	/* note: pixel clock per slice not checked, assume
+	 * it's always within rx cap
+	 */
+	/* check dsc frl rate within rx cap */
+	dsc_frl_rate = get_dsc_frl_rate(dsc_mode);
+	if (dsc_frl_rate == FRL_RATE_MAX ||
+		dsc_frl_rate > prxcap->dsc_max_frl_rate ||
+		dsc_frl_rate > prxcap->max_frl_rate)
+		return false;
+
+	/* 2.1 spec table 6-56, if Bytes Target is greater than
+	 * the value indicated by DSC_TotalChunkKBytes (see Sections
+	 * 7.7.1 and 7.7.4.2), then the configuration is not
+	 * supported with Compressed Video Transport.
+	 */
+	bytes_target = dsc_get_bytes_target_by_mode(dsc_mode);
+	if (bytes_target > (prxcap->dsc_total_chunk_bytes + 1) * 1024)
+		return false;
+
+	return true;
+}
+
 /* For some TV's EDID, there maybe exist some information ambiguous.
  * Such as EDID declare support 2160p60hz(Y444 8bit), but no valid
  * Max_TMDS_Clock2 to indicate that it can support 5.94G signal.
@@ -2490,6 +2720,13 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 		if (calc_tmds_clk > rx_max_tmds_clk)
 			return 0;
 	} else {
+		if (hdev->dsc_policy == 1) {
+			if (edid_check_dsc_support(hdev, para))
+				return 1;
+		} else if (hdev->dsc_policy == 2) {
+			/* for debug test */
+			return 1;
+		}
 		if (!must_frl_flag) {
 			/* used TMDS, calc_tmds_clk must less than 594, not
 			 * need repeat judgment(calc_tmds_clk < tx_bandwidth_cap)
@@ -2502,10 +2739,20 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 			tx_frl_bandwidth = calc_frl_bandwidth(timing->pixel_freq / 1000,
 				para->cs, para->cd);
 			tx_bandwidth_cap = get_frl_bandwidth(hdev->tx_max_frl_rate);
-			if (tx_frl_bandwidth > tx_bandwidth_cap)
-				return 0;
-			else if (tx_frl_bandwidth > rx_frl_bandwidth)
-				return 0;
+			if (prxcap->dsc_1p2 == 0) {
+				if (tx_frl_bandwidth > tx_bandwidth_cap)
+					return 0;
+				else if (tx_frl_bandwidth > rx_frl_bandwidth)
+					return 0;
+			} else {
+				if (tx_frl_bandwidth <= tx_bandwidth_cap &&
+					tx_frl_bandwidth <= rx_frl_bandwidth)
+					; // non-dsc bandwidth is within cap, continue check
+				else if (hdev->dsc_policy == 3) //forcely filter out dsc mode output
+					return 0;
+				else if (!edid_check_dsc_support(hdev, para))
+					return 0;
+			}
 			valid = 1;
 		}
 	}
@@ -2920,6 +3167,26 @@ int hdmitx21_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 	pos +=
 	snprintf(buffer + pos, buffer_len - pos, "LTE_340M_Scramble: %x\n",
 		 prxcap->lte_340mcsc_scramble);
+
+	/* dsc capability */
+	pos += snprintf(buffer + pos, buffer_len - pos, "dsc_10bpc: %d\n",
+		 prxcap->dsc_10bpc);
+	pos += snprintf(buffer + pos, buffer_len - pos, "dsc_12bpc: %d\n",
+		 prxcap->dsc_12bpc);
+	pos += snprintf(buffer + pos, buffer_len - pos, "dsc_16bpc: %d\n",
+		 prxcap->dsc_16bpc);
+	pos += snprintf(buffer + pos, buffer_len - pos, "dsc_all_bpp: %d\n",
+		 prxcap->dsc_all_bpp);
+	pos += snprintf(buffer + pos, buffer_len - pos, "dsc_native_420: %d\n",
+		 prxcap->dsc_native_420);
+	pos += snprintf(buffer + pos, buffer_len - pos, "dsc_1p2: %d\n",
+		 prxcap->dsc_1p2);
+	pos += snprintf(buffer + pos, buffer_len - pos, "dsc_max_slices: 0x%x(%d slices)\n",
+		 prxcap->dsc_max_slices, dsc_max_slices_num[prxcap->dsc_max_slices]);
+	pos += snprintf(buffer + pos, buffer_len - pos, "dsc_max_frl_rate: 0x%x\n",
+		 prxcap->dsc_max_frl_rate);
+	pos += snprintf(buffer + pos, buffer_len - pos, "dsc_total_chunk_bytes: 0x%x\n",
+		 prxcap->dsc_total_chunk_bytes);
 
 	if (prxcap->dv_info.ieeeoui == DOVI_IEEEOUI)
 		pos += snprintf(buffer + pos, buffer_len - pos,

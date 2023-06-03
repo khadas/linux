@@ -13,24 +13,196 @@
 #include "dsc_debug.h"
 #include "rc_tables.h"
 
-unsigned int dsc_timing[DSC_TIMING_MAX][DSC_TIMING_VALUE_MAX] = {
-//horizontal_valye bpp_value, havon_begin,vavon_bline,vavon_eline,hso_begin,hs_end
-//vs_begin,vs_end,vs_bline,vs_eline,hc_vtotal_m1,hc_htotal_m1
-{3840, 70625, 52, 94, 4, 16, 24, 22, 22, 12, 22, 2249, 616}, //4k 422 bpp7.0625
-{7680, 120000, 330, 83, 3, 138, 182, 22, 22, 19, 39, 4399, 2249}, //8k bpp12
-{7680, 99375, 70, 83, 3, 29, 38, 22, 22, 19, 39, 4399, 1660}, //8k bpp9.9375
-{7680, 74375, 58, 83, 3, 24, 32, 22, 22, 19, 39, 4399, 1247},//8k bpp7.4375
+/* VPP-->VPU VENC(video)-->VPU VENC bist(DE/DVI, about 2 pixel delay
+ * than venc video)-->DSC->HDMI
+ * the DE timing of DSC is later than the vpu bist timing.
+ * for 8k it delays 2 lines, for 4k it delay 2~4 lines.
+ * checked on board, it's 3 lines for 8k30/50/60hz.
+ * while for 8k24/25hz it's 1 or 2 lines, and should not be 3 lines
+ * otherwise it will got a snow board screen
+ */
+/* bpp_value is multiplied by 10000 */
+unsigned int dsc_timing[][DSC_TIMING_VALUE_MAX] = {
+//dsc_encode_mode bpp_value, havon_begin,vavon_bline,vavon_eline,hso_begin,hs_end
+//vs_begin,vs_end,vs_bline,vs_eline,hc_vtotal_m1,hc_htotal_m1, hc_active, hc_blank
+//hc_htotal_m1 = (hc_active + hc_blank) / 2 -1
+/* {3840, 70625, 52, 94, 4, 16, 24, 22, 22, 12, 22, 2249, 616}, //4k 422 bpp7.0625 */
+/* {3840, 120000, 140, 94, 4, 44,  66, 22, 22, 12, 22, 2249, 1099}, //4k60/120hz y444,420, bpp12 */
+
+/* for 4k60hz y444/rgb/y422/y420, bpp = 12, dsc vertical timing = encp bist timing + 3 */
+{DSC_RGB_3840X2160_60HZ, 120000, 140, 86, 2246, 44, 66, 22, 22, 5, 15, 2249, 1099, 1920, 280},
+{DSC_YUV444_3840X2160_60HZ, 120000, 140, 86, 2246, 44, 66, 22, 22, 5, 15, 2249, 1099, 1920, 280},
+{DSC_YUV422_3840X2160_60HZ, 120000, 140, 86, 2246, 44, 66, 22, 22, 5, 15, 2249, 1099, 1920, 280},
+{DSC_YUV420_3840X2160_60HZ, 120000, 140, 86, 2246, 44, 66, 22, 22, 5, 15, 2249, 1099, 1920, 280},
+/* for 4k120hz y444/rgb bpp = 12, dsc vertical timing = encp bist timing + 3 */
+{DSC_RGB_3840X2160_120HZ, 120000, 140, 86, 2246, 44, 66, 22, 22, 5, 15, 2249, 1099, 1920, 280},
+{DSC_YUV444_3840X2160_120HZ, 120000, 140, 86, 2246, 44, 66, 22, 22, 5, 15, 2249, 1099, 1920, 280},
+
+/* for 4k120hz y422/420 bpp = 7.0625, dsc vertical timing = encp bist timing + 3 */
+{DSC_YUV422_3840X2160_120HZ, 70625, 52, 86, 2246, 16, 24, 22, 22, 5, 15, 2249, 616, 1130, 104},
+{DSC_YUV420_3840X2160_120HZ, 70625, 52, 86, 2246, 16, 24, 22, 22, 5, 15, 2249, 616, 1130, 104},
+
+/* for 4k50hz y444/rgb/y422/y420(the same), bpp = 12, dsc vertical timing = encp bist timing + 3 */
+{DSC_RGB_3840X2160_50HZ, 120000, 360, 86, 2246, 264, 286, 22, 22, 5, 15, 2249, 1319, 1920, 720},
+{DSC_YUV444_3840X2160_50HZ, 120000, 360, 86, 2246, 264, 286, 22, 22, 5, 15, 2249, 1319, 1920, 720},
+{DSC_YUV422_3840X2160_50HZ, 120000, 360, 86, 2246, 264, 286, 22, 22, 5, 15, 2249, 1319, 1920, 720},
+{DSC_YUV420_3840X2160_50HZ, 120000, 360, 86, 2246, 264, 286, 22, 22, 5, 15, 2249, 1319, 1920, 720},
+/* for 4k100hz y444/rgb bpp = 12, dsc vertical timing = encp bist timing + 3 */
+{DSC_RGB_3840X2160_100HZ, 120000, 360, 86, 2246, 264, 286, 22, 22, 5, 15, 2249, 1319, 1920, 720},
+{DSC_YUV444_3840X2160_100HZ, 120000, 360, 86, 2246, 264, 286, 22, 22, 5, 15, 2249, 1319, 1920, 720},
+
+/* for 4k100hz y422/420 bpp = 8.5625, dsc vertical timing = encp bist timing + 3 */
+{DSC_YUV422_3840X2160_100HZ, 85625, 52, 86, 2246, 38, 41, 22, 22, 5, 15, 2249, 736, 1370, 104},
+{DSC_YUV420_3840X2160_100HZ, 85625, 52, 86, 2246, 38, 41, 22, 22, 5, 15, 2249, 736, 1370, 104},
+
+/* for 8k30hz y444/rgb, bpp = 12,
+ * and 8k30hz y422/y420(force bpp = 12, not spec recommended,
+ * now not use this one for y422/420)
+ */
+/* below timing is from test case (v timing is from 8k60hz) */
+/* {DSC_RGB_7680X4320_30HZ, 120000, 330, 83, 3, 138, 182, 22, 22, 19, 39, 4399, 2249}, */
+/* {DSC_YUV444_7680X4320_30HZ, 120000, 330, 83, 3, 138, 182, 22, 22, 19, 39, 4399, 2249}, */
+/* below is based on vpu bist vertical timing + 3 */
+{DSC_RGB_7680X4320_30HZ, 120000, 330, 68, 4388, 138, 182, 22, 22, 5, 25, 4399, 2249, 3840, 660},
+{DSC_YUV444_7680X4320_30HZ, 120000, 330, 68, 4388, 138, 182, 22, 22, 5, 25, 4399, 2249, 3840, 660},
+
+/* for 8k30hz y422/y420(spec recommended bpp = 7.375) */
+/* below timing is from test case (v timing is from 8k60hz) */
+/* 72 = 144 / 2,
+ * 30 = 552 * (144 / 2) / 1320
+ * 39 = (552 + 176) * (144 / 2) / 1320
+ * (2360 + 144) / 2 - 1 = 1251
+ */
+/* {DSC_YUV422_7680X4320_30HZ, 73750, 72, 83, 3, 30, 39, 22, 22, 19, 39, 4399, 1251}, */
+/* {DSC_YUV420_7680X4320_30HZ, 73750, 72, 83, 3, 30, 39, 22, 22, 19, 39, 4399, 1251}, */
+/* below is based on vpu bist vertical timing + 3 */
+{DSC_YUV422_7680X4320_30HZ, 73750, 72, 68, 4388, 30, 39, 22, 22, 5, 25, 4399, 1251, 2360, 144},
+{DSC_YUV420_7680X4320_30HZ, 73750, 72, 68, 4388, 30, 39, 22, 22, 5, 25, 4399, 1251, 2360, 144},
+
+/* for 8k60hz y444/rgb, bpp = 9.9375 */
+/* below timing is from test case */
+/* {DSC_RGB_7680X4320_60HZ, 99375, 70, 83, 3, 29, 38, 22, 22, 19, 39, 4399, 1660}, */
+/* {DSC_YUV444_7680X4320_60HZ, 99375, 70, 83, 3, 29, 38, 22, 22, 19, 39, 4399, 1660}, */
+/* below is based on vpu bist vertical timing + 3 */
+{DSC_RGB_7680X4320_60HZ, 99375, 70, 68, 4388, 29, 38, 22, 22, 5, 25, 4399, 1660, 3182, 140},
+{DSC_YUV444_7680X4320_60HZ, 99375, 70, 68, 4388, 29, 38, 22, 22, 5, 25, 4399, 1660, 3182, 140},
+
+/* for 8k60h y422/420, bpp = 7.4375 */
+/* below timing is from test case */
+/* {DSC_YUV422_7680X4320_60HZ, 74375, 58, 83, 3, 24, 32, 22, 22, 19, 39, 4399, 1247}, */
+/* {DSC_YUV420_7680X4320_60HZ, 74375, 58, 83, 3, 24, 32, 22, 22, 19, 39, 4399, 1247}, */
+/* below is based on vpu bist vertical timing + 3 */
+{DSC_YUV422_7680X4320_60HZ, 74375, 58, 68, 4388, 24, 32, 22, 22, 5, 25, 4399, 1247, 2380, 116},
+{DSC_YUV420_7680X4320_60HZ, 74375, 58, 68, 4388, 24, 32, 22, 22, 5, 25, 4399, 1247, 2380, 116},
+
+/* for 8k50hz rgb/y444, bpp = 9.8125 */
+/* below 8k24/25 is based on vpu bist vertical timing + 2,
+ * 8k50 is based on vpu bist vertical timing + 3
+ */
+/* below V timing is from test case for 8k60hz */
+/* echo manual_dsc_tmg 590 83 3 444 478 22 22 19 39 4399 2160 > debug */
+/* {DSC_RGB_7680X4320_50HZ, 98125, 590, 83, 3, 444, 478, 22, 22, 19, 39, 4399, 2160}, */
+/* {DSC_YUV444_7680X4320_50HZ, 98125, 590, 83, 3, 444, 478, 22, 22, 19, 39, 4399, 2160}, */
+{DSC_RGB_7680X4320_50HZ, 98125, 590, 68, 4388, 444, 478, 22, 22, 5, 25, 4399, 2160, 3142, 1180},
+{DSC_YUV444_7680X4320_50HZ, 98125, 590, 68, 4388, 444, 478, 22, 22, 5, 25, 4399, 2160, 3142, 1180},
+
+/* for 8k50hz y422/420, bpp = 7.6875 */
+/* below V timing is from test case for 8k60hz */
+/* {DSC_YUV422_7680X4320_50HZ, 76875, 366, 83, 3, 275, 296, 22, 22, 19, 39, 4399, 1595}, */
+/* {DSC_YUV420_7680X4320_50HZ, 76875, 366, 83, 3, 275, 296, 22, 22, 19, 39, 4399, 1595}, */
+{DSC_YUV422_7680X4320_50HZ, 76875, 366, 68, 4388, 275, 296, 22, 22, 5, 25, 4399, 1595, 2460, 732},
+{DSC_YUV420_7680X4320_50HZ, 76875, 366, 68, 4388, 275, 296, 22, 22, 5, 25, 4399, 1595, 2460, 732},
+
+/* for 8k25hz y422/420,  bpp = 7.6875 */
+{DSC_YUV422_7680X4320_25HZ, 76875, 366, 68, 4388, 275, 296, 22, 22, 5, 25, 4399, 1595, 2460, 732},
+{DSC_YUV420_7680X4320_25HZ, 76875, 366, 68, 4388, 275, 296, 22, 22, 5, 25, 4399, 1595, 2460, 732},
+
+/* for 8k25hz y444/rgb: bpp = 12, (3840 + 1560) / 2 - 1 = 2699 */
+{DSC_RGB_7680X4320_25HZ, 120000, 780, 67, 4387, 588, 632, 22, 22, 4, 24, 4399, 2699, 3840, 1560},
+{DSC_YUV444_7680X4320_25HZ, 120000, 780, 67, 4387, 588, 632, 22, 22, 4, 24, 4399, 2699, 3840, 1560},
+
+/* for 8k24hz y444/rgb: bpp = 12
+ * below is the example how these parameters come from
+ * havon_begin = 830 = hc_blank / 2 = 1660 / 2
+ * vavon_bline = 167 = de_v_begin(venc bist timing) + 2 = 0xa5 + 2(see note)
+ * vavon_eline = 4487 = de_v_end(venc bist timing) + 2 = 0x1185 + 2(see note)
+ * hso_begin = 638 = h_front * (hc_blank / 2) / h_blank = 2552 * 830 / 3320
+ * hso_end = 682 = (h_front + h_sync) * (hc_blank / 2) / h_blank = 2728 * 830 / 3320
+ * vs_begin = vs_begin = 22 = 44 / 2 (44: 7.7.3.2 Vertical Timing for Compressed Video Transport)
+ * vs_bline = 4 = vso_bline(venc bist timing) + 2 = 0x2 + 2(see note)
+ * vs_eline = 24 = vso_eline(venc bist timing) + 2 = 0x16 + 2(see note)
+ * hc_vtotal_m1 = v_total - 1 = 4499
+ * hc_htotal_m1 = (hc_active + hc_blank) / 2 -1 =(3840 + 1660) / 2 - 1 = 2749
+ * note: for 8k24/25 y444/rgb, dsc vertical timing = encp bist timing + 2
+ * (should not + 3 like 8k60/30/50hz), it's checked on board
+ */
+{DSC_RGB_7680X4320_24HZ, 120000, 830, 167, 4487, 638, 682, 22, 22, 4, 24, 4499, 2749, 3840, 1660},
+{DSC_YUV444_7680X4320_24HZ, 120000, 830, 167, 4487, 638, 682, 22, 22, 4, 24, 4499, 2749,
+	3840, 1660},
+/* for 8k24hz y422/420, bpp = 7.6875 */
+{DSC_YUV422_7680X4320_24HZ, 76875, 408, 168, 4488, 313, 335, 22, 22, 5, 25, 4499, 1637, 2460, 816},
+{DSC_YUV420_7680X4320_24HZ, 76875, 408, 168, 4488, 313, 335, 22, 22, 5, 25, 4499, 1637, 2460, 816},
+
+{DSC_ENCODE_MAX},
 };
 
-unsigned int encp_timing_bist[DSC_TIMING_MAX][11] = {
-//hso_begin,hso_end,vso_bline,vso_eline,vso_bline,vso_eline,de_h_begin,de_h_end,de_v_begin,de_v_end
-{7680, 0x853, 0x87f, 0x10, 0x24, 0x0, 0x0, 0x49, 0x7c9, 0x50, 0x0}, //8k 60hz
+/* e.g. 8k60hz vactive = 0 - 0x50 = 4320, hactive = 0x7c9 - 0x49 = 1920 */
+/* the param come from config_tv_enc_calc() */
+unsigned int encp_timing_bist[][12] = {
+//hactive,fps,hso_begin,hso_end,vso_bline,vso_eline,vso_begin,vso_end,
+//de_h_begin,de_h_end,de_v_begin,de_v_end
+/* below is test case for 8k 60hz */
+/* {7680, 60000, 0x853, 0x87f, 0x10, 0x24, 0x0, 0x0, 0x49, 0x7c9, 0x50, 0x0}, */
+/* below is from config_tv_enc_calc */
+{7680, 60000, 0x5, 0x31, 0x2, 0x16, 0x5, 0x5, 0xc5, 0x845, 0x41, 0x1121}, //8k 60hz
+/* below is test case for 8k 30hz */
+/* {7680, 30000, 0x853, 0x87f, 0x10, 0x24, 0x0, 0x0, 0x49, 0x7c9, 0x50, 0x0}, */
+/* below is from config_tv_enc_calc */
+{7680, 30000, 0x5, 0x31, 0x2, 0x16, 0x5, 0x5, 0xc5, 0x845, 0x41, 0x1121}, //8k 30hz
+
+/* below V timing is from test case for 8k60hz */
+/* echo manual_vpu_bist_tmg 5 31 10 24 0 0 c5 845 50 0 a8c 1130 > debug */
+/* {7680, 50000, 0x5, 0x31, 0x10, 0x24, 0x0, 0x0, 0xc5, 0x845, 0x50, 0x0}, //8k50hz */
+
+{7680, 50000, 0x5, 0x31, 0x2, 0x16, 0x5, 0x5, 0xc5, 0x845, 0x41, 0x1121}, //8k50hz
+/* echo manual_vpu_bist_tmg 5 31 2 16 5 5 c5 845 41 1121 a8c 1130 > debug */
+{7680, 25000, 0x5, 0x31, 0x2, 0x16, 0x5, 0x5, 0xc5, 0x845, 0x41, 0x1121}, //8k25hz
+/* note for 8k24hz, timing of vertical is different with 8k25/30/50/60hz */
+{7680, 24000, 0x5, 0x31, 0x2, 0x16, 0x5, 0x5, 0xc5, 0x845, 0xa5, 0x1185}, //8k24hz
+{3840, 120000, 0x5, 0x1b, 0x2, 0xc, 0x5, 0x5, 0x65, 0x425, 0x53, 0x8c3}, //4k120hz
+{3840, 60000, 0x5, 0x1b, 0x2, 0xc, 0x5, 0x5, 0x65, 0x425, 0x53, 0x8c3}, //4k60hz
+{3840, 100000, 0x5, 0x1b, 0x2, 0xc, 0x5, 0x5, 0x65, 0x425, 0x53, 0x8c3}, //4k100hz
+{3840, 50000, 0x5, 0x1b, 0x2, 0xc, 0x5, 0x5, 0x65, 0x425, 0x53, 0x8c3}, //4k50hz
+{0},
 };
 
-unsigned int encp_timing_video[DSC_TIMING_MAX][11] = {
-//hso_begin,hso_end,vso_bline,vso_eline,vso_begin,vso_end
+/* e.g. 8k60hz: vactive = 0x112f - 0x50 = 4319, hactive = 0x7c6 - 0x47 = 1919 */
+/* the param come from config_tv_enc_calc() */
+unsigned int encp_timing_video[][12] = {
+//hactive,fps,hso_begin,hso_end,vso_bline,vso_eline,vso_begin,vso_end
 //havon_begin,havon_end,vavon_bline,vavon_eline
-{7680, 0x851, 0x87d, 0x10, 0x24, 0x0, 0x0, 0x47, 0x7c6, 0x50, 0x112f},//8k 60hz
+/* below is test case for 8k60hz */
+/* {7680, 60000, 0x851, 0x87d, 0x10, 0x24, 0x0, 0x0, 0x47, 0x7c6, 0x50, 0x112f}, */
+/* below is from config_tv_enc_calc */
+{7680, 60000, 0x3, 0x2f, 0x1, 0x15, 0x0, 0x0, 0xc3, 0x842, 0x41, 0x1120},//8k 60hz
+/* below is test case for 8k30hz */
+/* {7680, 30000, 0x851, 0x87d, 0x10, 0x24, 0x0, 0x0, 0x47, 0x7c6, 0x50, 0x112f}, */
+/* below is from config_tv_enc_calc */
+{7680, 30000, 0x3, 0x2f, 0x1, 0x15, 0x0, 0x0, 0xc3, 0x842, 0x41, 0x1120},//8k 30hz
+
+/* below V timing is from test case for 8k60hz */
+/* echo manual_vpu_video_tmg 3 2f 10 24 0 0 c3 842(should not be 843) 50 112f a8c 1130 > debug */
+/* {7680, 50000, 0x3, 0x2f, 0x10, 0x24, 0x0, 0x0, 0xc3, 0x842, 0x50, 0x112f}, //8k50hz */
+
+{7680, 50000, 0x3, 0x2f, 0x1, 0x15, 0x0, 0x0, 0xc3, 0x842, 0x41, 0x1120}, //8k50hz
+/* echo manual_vpu_video_tmg 3 2f 1 15 0 0 c3 842 41 1120 a8c 1130 > debug */
+{7680, 25000, 0x3, 0x2f, 0x1, 0x15, 0x0, 0x0, 0xc3, 0x842, 0x41, 0x1120}, //8k25hz
+{7680, 24000, 0x3, 0x2f, 0x1, 0x15, 0x0, 0x0, 0xc3, 0x842, 0xa5, 0x1184}, //8k24hz
+{3840, 120000, 0x3, 0x19, 0x1, 0xb, 0x0, 0x0, 0x63, 0x422, 0x53, 0x8c2}, //4k120hz
+{3840, 60000, 0x3, 0x19, 0x1, 0xb, 0x0, 0x0, 0x63, 0x422, 0x53, 0x8c2}, //4k60hz
+{3840, 100000, 0x3, 0x19, 0x1, 0xb, 0x0, 0x0, 0x63, 0x422, 0x53, 0x8c2}, //4k100hz
+{3840, 50000, 0x3, 0x19, 0x1, 0xb, 0x0, 0x0, 0x63, 0x422, 0x53, 0x8c2}, //4k50hz
+{0},
 };
 
 static inline void range_check(char *s, u32 a, u32 b, u32 c)
@@ -67,6 +239,9 @@ static int compute_offset(struct aml_dsc_drv_s *dsc_drv, int pixels_per_group,
 	int offset = 0;
 	int grp_cnt_id;
 	int bits_per_pixel_multiple = dsc_drv->bits_per_pixel_multiple;
+
+	if (pixels_per_group == 0)
+		return offset;
 
 	if (dsc_drv->dsc_print_en & DSC_PPS_PARA_EN)
 		DSC_PR("[%s]bits_per_pixel_multiple:%d\n", __func__, bits_per_pixel_multiple);
@@ -413,6 +588,15 @@ void check_qp_for_overflow(struct aml_dsc_drv_s *dsc_drv, int pixel_per_group)
 	max_bits += p_mode_bits;
 }
 
+static inline unsigned int dsc_do_div(unsigned long long num, unsigned int den)
+{
+	unsigned long long val = num;
+
+	do_div(val, den);
+
+	return (unsigned int)val;
+}
+
 /*!
  * \brief
  *    generate_rc_parameters() - Generate RC parameters
@@ -429,7 +613,7 @@ static void generate_rc_parameters(struct aml_dsc_drv_s *dsc_drv)
 	int padding_pixels;
 	int sw;
 	int bits_per_pixel_int = dsc_drv->bits_per_pixel_int;
-	int bits_per_pixel_multiple = dsc_drv->bits_per_pixel_multiple;
+	unsigned int bits_per_pixel_multiple = dsc_drv->bits_per_pixel_multiple;
 	int slices;
 	u8 bits_per_component;
 
@@ -475,7 +659,8 @@ static void generate_rc_parameters(struct aml_dsc_drv_s *dsc_drv)
 	}
 	/* 409600000000 = 4096*BPP_FRACTION*BPP_FRACTION */
 	dsc_drv->pps_data.initial_xmit_delay =
-		((409600000000 / bits_per_pixel_multiple + 5 * BPP_FRACTION / 10) / BPP_FRACTION);
+		dsc_do_div(dsc_do_div(409600000000, bits_per_pixel_multiple) +
+			5 * BPP_FRACTION / 10, BPP_FRACTION);
 	if (dsc_drv->dsc_print_en & DSC_PPS_PARA_EN)
 		DSC_PR("initial_xmit_delay:%d\n", dsc_drv->pps_data.initial_xmit_delay);
 
@@ -662,6 +847,7 @@ static void populate_pps(struct aml_dsc_drv_s *dsc_drv)
 	int i;
 	int pixels_per_group, num_s_sps;
 	struct dsc_pps_data_s *pps_data = &dsc_drv->pps_data;
+	/* where's the defination of default value? */
 	int default_threshold[] = {896, 1792, 2688, 3584, 4480, 5376, 6272, 6720, 7168, 7616, 7744,
 					7872, 8000, 8064};
 
@@ -669,12 +855,12 @@ static void populate_pps(struct aml_dsc_drv_s *dsc_drv)
 		pps_data->rc_parameter_set.rc_buf_thresh[i] = default_threshold[i] >> 6;
 
 	if (pps_data->native_422 && pps_data->native_420)
-		DSC_PR("NATIVE_420 and NATIVE_422 modes cannot both be enabled at the same time\n");
+		DSC_ERR("NATIVE_420 and NATIVE_422 cannot both be enabled at the same time\n");
 
 	if (pps_data->bits_per_component != 8 && pps_data->bits_per_component != 10 &&
 	    pps_data->bits_per_component != 12 && pps_data->bits_per_component != 14 &&
 	    pps_data->bits_per_component != 16)
-		DSC_PR("bits_per_component must be either 8, 10, 12, 14, or 16\n");
+		DSC_ERR("bits_per_component must be either 8, 10, 12, 14, or 16\n");
 
 	// Removed from PPS in v1.44:
 	dsc_drv->very_flat_qp = 1 + (2 * (pps_data->bits_per_component - 8));
@@ -714,15 +900,19 @@ static void dsc_config_timing_value(struct aml_dsc_drv_s *dsc_drv)
 {
 	int i;
 	unsigned int dsc_timing_mode = 0;
-	enum dsc_encode_mode dsc_mode = dsc_drv->dsc_mode;
+	unsigned int venc_timing_mode = 0;
 
 	if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_DSC_TMG_CTRL)) {
-		for (i = 0; i < DSC_TIMING_MAX; i++) {
-			if (dsc_timing[i][0] == dsc_drv->pps_data.pic_width &&
-			    dsc_timing[i][1] == dsc_drv->bits_per_pixel_really_value) {
+		for (i = 0; dsc_timing[i][0] != DSC_ENCODE_MAX; i++) {
+			if (dsc_timing[i][0] == dsc_drv->dsc_mode &&
+				dsc_timing[i][1] == dsc_drv->bits_per_pixel_really_value) {
 				dsc_timing_mode = i;
 				break;
 			}
+		}
+		if (dsc_timing[i][0] == DSC_ENCODE_MAX) {
+			DSC_ERR("%s didn't find dsc timing!!!\n", __func__);
+			return;
 		}
 		//dsc timing set
 		dsc_drv->tmg_ctrl.tmg_havon_begin	= dsc_timing[dsc_timing_mode][2];
@@ -739,70 +929,137 @@ static void dsc_config_timing_value(struct aml_dsc_drv_s *dsc_drv)
 	}
 
 	if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_VPU_BIST_TMG_CTRL)) {
-		for (i = 0; i < DSC_TIMING_MAX; i++) {
-			if (encp_timing_bist[i][0] == dsc_drv->pps_data.pic_width) {
-				dsc_mode = i;
+		for (i = 0; encp_timing_bist[i][0] != 0; i++) {
+			if (encp_timing_bist[i][0] == dsc_drv->pps_data.pic_width &&
+				encp_timing_bist[i][1] == dsc_drv->fps) {
+				venc_timing_mode = i;
 				break;
 			}
 		}
+		if (encp_timing_bist[i][0] == 0) {
+			DSC_ERR("%s didn't find venc bist timing!!!\n", __func__);
+			return;
+		}
 		//encp bist timing set
-		dsc_drv->encp_timing_ctrl.encp_dvi_hso_begin = encp_timing_bist[dsc_mode][1];
-		dsc_drv->encp_timing_ctrl.encp_dvi_hso_end = encp_timing_bist[dsc_mode][2];
-		dsc_drv->encp_timing_ctrl.encp_vso_bline = encp_timing_bist[dsc_mode][3];
-		dsc_drv->encp_timing_ctrl.encp_vso_eline = encp_timing_bist[dsc_mode][4];
-		dsc_drv->encp_timing_ctrl.encp_vso_begin = encp_timing_bist[dsc_mode][5];
-		dsc_drv->encp_timing_ctrl.encp_vso_end = encp_timing_bist[dsc_mode][6];
-		dsc_drv->encp_timing_ctrl.encp_de_h_begin = encp_timing_bist[dsc_mode][7];
-		dsc_drv->encp_timing_ctrl.encp_de_h_end = encp_timing_bist[dsc_mode][8];
-		dsc_drv->encp_timing_ctrl.encp_de_v_begin = encp_timing_bist[dsc_mode][9];
-		dsc_drv->encp_timing_ctrl.encp_de_v_end = encp_timing_bist[dsc_mode][10];
+		dsc_drv->encp_timing_ctrl.encp_dvi_hso_begin =
+			encp_timing_bist[venc_timing_mode][2];
+		dsc_drv->encp_timing_ctrl.encp_dvi_hso_end = encp_timing_bist[venc_timing_mode][3];
+		dsc_drv->encp_timing_ctrl.encp_vso_bline = encp_timing_bist[venc_timing_mode][4];
+		dsc_drv->encp_timing_ctrl.encp_vso_eline = encp_timing_bist[venc_timing_mode][5];
+		dsc_drv->encp_timing_ctrl.encp_vso_begin = encp_timing_bist[venc_timing_mode][6];
+		dsc_drv->encp_timing_ctrl.encp_vso_end = encp_timing_bist[venc_timing_mode][7];
+		dsc_drv->encp_timing_ctrl.encp_de_h_begin = encp_timing_bist[venc_timing_mode][8];
+		dsc_drv->encp_timing_ctrl.encp_de_h_end = encp_timing_bist[venc_timing_mode][9];
+		dsc_drv->encp_timing_ctrl.encp_de_v_begin = encp_timing_bist[venc_timing_mode][10];
+		dsc_drv->encp_timing_ctrl.encp_de_v_end = encp_timing_bist[venc_timing_mode][11];
 	}
 
 	if (!(dsc_drv->dsc_debug.manual_set_select & MANUAL_VPU_VIDEO_TMG_CTRL)) {
-		for (i = 0; i < DSC_TIMING_MAX; i++) {
-			if (encp_timing_video[i][0] == dsc_drv->pps_data.pic_width) {
-				dsc_mode = i;
+		for (i = 0; encp_timing_video[i][0] != 0; i++) {
+			if (encp_timing_video[i][0] == dsc_drv->pps_data.pic_width &&
+				encp_timing_video[i][1] == dsc_drv->fps) {
+				venc_timing_mode = i;
 				break;
 			}
 		}
+		if (encp_timing_video[i][0] == 0) {
+			DSC_ERR("%s didn't find venc video timing!!!\n", __func__);
+			return;
+		}
 		//encp video timing set
-		dsc_drv->encp_timing_ctrl.encp_hso_begin = encp_timing_video[dsc_mode][1];
-		dsc_drv->encp_timing_ctrl.encp_hso_end = encp_timing_video[dsc_mode][2];
-		dsc_drv->encp_timing_ctrl.encp_video_vso_bline = encp_timing_video[dsc_mode][3];
-		dsc_drv->encp_timing_ctrl.encp_video_vso_eline = encp_timing_video[dsc_mode][4];
-		dsc_drv->encp_timing_ctrl.encp_video_vso_begin = encp_timing_video[dsc_mode][5];
-		dsc_drv->encp_timing_ctrl.encp_video_vso_end = encp_timing_video[dsc_mode][6];
-		dsc_drv->encp_timing_ctrl.encp_havon_begin = encp_timing_video[dsc_mode][7];
-		dsc_drv->encp_timing_ctrl.encp_havon_end = encp_timing_video[dsc_mode][8];
-		dsc_drv->encp_timing_ctrl.encp_vavon_bline = encp_timing_video[dsc_mode][9];
-		dsc_drv->encp_timing_ctrl.encp_vavon_eline = encp_timing_video[dsc_mode][10];
+		dsc_drv->encp_timing_ctrl.encp_hso_begin = encp_timing_video[venc_timing_mode][2];
+		dsc_drv->encp_timing_ctrl.encp_hso_end = encp_timing_video[venc_timing_mode][3];
+		dsc_drv->encp_timing_ctrl.encp_video_vso_bline =
+			encp_timing_video[venc_timing_mode][4];
+		dsc_drv->encp_timing_ctrl.encp_video_vso_eline =
+			encp_timing_video[venc_timing_mode][5];
+		dsc_drv->encp_timing_ctrl.encp_video_vso_begin =
+			encp_timing_video[venc_timing_mode][6];
+		dsc_drv->encp_timing_ctrl.encp_video_vso_end =
+			encp_timing_video[venc_timing_mode][7];
+		dsc_drv->encp_timing_ctrl.encp_havon_begin =
+			encp_timing_video[venc_timing_mode][8];
+		dsc_drv->encp_timing_ctrl.encp_havon_end =
+			encp_timing_video[venc_timing_mode][9];
+		dsc_drv->encp_timing_ctrl.encp_vavon_bline =
+			encp_timing_video[venc_timing_mode][10];
+		dsc_drv->encp_timing_ctrl.encp_vavon_eline =
+			encp_timing_video[venc_timing_mode][11];
 	}
-	DSC_PR("[%s] dsc_timing_mode:%d dsc_mode:%d\n", __func__, dsc_timing_mode, dsc_mode);
+	DSC_PR("[%s] dsc_timing_mode:%d venc_timing_mode:%d\n",
+		__func__, dsc_timing_mode, venc_timing_mode);
 }
 
-static void dsc_confirm_clk_en(struct aml_dsc_drv_s *dsc_drv)
+static void dsc_enc_confirm_clk_en(struct aml_dsc_drv_s *dsc_drv)
 {
 	switch (dsc_drv->dsc_mode) {
 	case DSC_RGB_3840X2160_120HZ:
 	case DSC_YUV444_3840X2160_120HZ:
-	case DSC_YUV422_3840X2160_120HZ:
-	case DSC_YUV420_3840X2160_120HZ:
+	case DSC_RGB_3840X2160_100HZ:
+	case DSC_YUV444_3840X2160_100HZ:
+		/* 4 slice */
+		dsc_drv->c3_clk_en = 1;
+		dsc_drv->c2_clk_en = 1;
+		dsc_drv->c1_clk_en = 1;
+		dsc_drv->c0_clk_en = 1;
+		break;
+
+	case DSC_RGB_3840X2160_60HZ:
+	case DSC_YUV444_3840X2160_60HZ:
+	case DSC_YUV420_3840X2160_60HZ:
+	case DSC_RGB_3840X2160_50HZ:
+	case DSC_YUV444_3840X2160_50HZ:
+	case DSC_YUV420_3840X2160_50HZ:
+		/* for 2 slice(slice width = 1920) */
 		dsc_drv->c3_clk_en = 0;
 		dsc_drv->c2_clk_en = 0;
 		dsc_drv->c1_clk_en = 1;
 		dsc_drv->c0_clk_en = 1;
 		break;
+	case DSC_YUV422_3840X2160_100HZ:
+	case DSC_YUV420_3840X2160_100HZ:
+	case DSC_YUV422_3840X2160_120HZ:
+	case DSC_YUV420_3840X2160_120HZ:
+	case DSC_YUV422_3840X2160_60HZ:
+	case DSC_YUV422_3840X2160_50HZ:
+		/* for 2 slice(slice width = 1920) */
+		dsc_drv->c3_clk_en = 0;
+		dsc_drv->c2_clk_en = 0;
+		dsc_drv->c1_clk_en = 1;
+		dsc_drv->c0_clk_en = 1;
+		break;
+	/* 8k60hz */
 	case DSC_RGB_7680X4320_60HZ:
 	case DSC_YUV444_7680X4320_60HZ:
 	case DSC_YUV422_7680X4320_60HZ:
 	case DSC_YUV420_7680X4320_60HZ:
+	/* 8k50hz */
+	case DSC_RGB_7680X4320_50HZ:
+	case DSC_YUV444_7680X4320_50HZ:
+	case DSC_YUV422_7680X4320_50HZ:
+	case DSC_YUV420_7680X4320_50HZ:
+	/* 8K30Hz */
+	case DSC_RGB_7680X4320_30HZ:
+	case DSC_YUV444_7680X4320_30HZ:
+	case DSC_YUV422_7680X4320_30HZ:
+	case DSC_YUV420_7680X4320_30HZ:
+	/* 8K25Hz */
+	case DSC_RGB_7680X4320_25HZ:
+	case DSC_YUV444_7680X4320_25HZ:
+	case DSC_YUV422_7680X4320_25HZ:
+	case DSC_YUV420_7680X4320_25HZ:
+	/* 8K24Hz */
+	case DSC_RGB_7680X4320_24HZ:
+	case DSC_YUV444_7680X4320_24HZ:
+	case DSC_YUV422_7680X4320_24HZ:
+	case DSC_YUV420_7680X4320_24HZ:
 		dsc_drv->c3_clk_en = 1;
 		dsc_drv->c2_clk_en = 1;
 		dsc_drv->c1_clk_en = 1;
 		dsc_drv->c0_clk_en = 1;
 		break;
 	default:
-		DSC_ERR("color_format is null(%d)\n", dsc_drv->color_format);
+		DSC_ERR("dsc_mode(%d) not config clk_en\n", dsc_drv->dsc_mode);
 		break;
 	}
 }
@@ -817,9 +1074,11 @@ static void calculate_asic_data(struct aml_dsc_drv_s *dsc_drv)
 	dsc_drv->pix_per_clk			= 2;
 	dsc_drv->inbuf_rd_dly0			= 8;
 	dsc_drv->inbuf_rd_dly1			= 44;
-	dsc_confirm_clk_en(dsc_drv);
+	dsc_enc_confirm_clk_en(dsc_drv);
 	if (slice_num == 8)
 		dsc_drv->slices_in_core = 1;
+	else
+		dsc_drv->slices_in_core = 0;
 
 	if (dsc_drv->pps_data.convert_rgb ||
 	    (!dsc_drv->pps_data.native_422 && !dsc_drv->pps_data.native_420))
@@ -862,56 +1121,175 @@ static void calculate_asic_data(struct aml_dsc_drv_s *dsc_drv)
 	dsc_drv->hc_htotal_offs_evenline		= 0;
 }
 
-static inline void dsc_confirm_mode(struct aml_dsc_drv_s *dsc_drv)
+inline enum dsc_encode_mode dsc_enc_confirm_mode(unsigned int pic_width, unsigned int pic_height,
+	unsigned int fps, enum hdmi_colorspace color_format)
 {
-	struct dsc_pps_data_s *pps_data = &dsc_drv->pps_data;
+	enum dsc_encode_mode dsc_mode = DSC_ENCODE_MAX;
+	struct aml_dsc_drv_s *dsc_drv = dsc_drv_get();
 
-	if (pps_data->pic_width == 3840 && pps_data->pic_height == 2160 &&
-		   dsc_drv->fps == 60000 && dsc_drv->color_format == HDMI_COLORSPACE_RGB)
-		dsc_drv->dsc_mode = DSC_RGB_3840X2160_60HZ;
-	else if (pps_data->pic_width == 3840 && pps_data->pic_height == 2160 &&
-		   dsc_drv->fps == 60000 && dsc_drv->color_format == HDMI_COLORSPACE_YUV444)
-		dsc_drv->dsc_mode = DSC_YUV444_3840X2160_60HZ;
-	else if (pps_data->pic_width == 3840 && pps_data->pic_height == 2160 &&
-		   dsc_drv->fps == 120000 && dsc_drv->color_format == HDMI_COLORSPACE_RGB)
-		dsc_drv->dsc_mode = DSC_RGB_3840X2160_120HZ;
-	else if (pps_data->pic_width == 3840 && pps_data->pic_height == 2160 &&
-		   dsc_drv->fps == 120000 && dsc_drv->color_format == HDMI_COLORSPACE_YUV444)
-		dsc_drv->dsc_mode = DSC_YUV444_3840X2160_120HZ;
-	else if (pps_data->pic_width == 3840 && pps_data->pic_height == 2160 &&
-		   dsc_drv->fps == 120000 && dsc_drv->color_format == HDMI_COLORSPACE_YUV422)
-		dsc_drv->dsc_mode = DSC_YUV422_3840X2160_120HZ;
-	else if (pps_data->pic_width == 3840 && pps_data->pic_height == 2160 &&
-		   dsc_drv->fps == 120000 && dsc_drv->color_format == HDMI_COLORSPACE_YUV420)
-		dsc_drv->dsc_mode = DSC_YUV420_3840X2160_120HZ;
-	else if (pps_data->pic_width == 7680 && pps_data->pic_height == 4320 &&
-		 dsc_drv->fps == 60000 && dsc_drv->color_format == HDMI_COLORSPACE_RGB)
-		dsc_drv->dsc_mode = DSC_RGB_7680X4320_60HZ;
-	else if (pps_data->pic_width == 7680 && pps_data->pic_height == 4320 &&
-		 dsc_drv->fps == 60000 && dsc_drv->color_format == HDMI_COLORSPACE_YUV444)
-		dsc_drv->dsc_mode = DSC_YUV444_7680X4320_60HZ;
-	else if (pps_data->pic_width == 7680 && pps_data->pic_height == 4320 &&
-		 dsc_drv->fps == 60000 && dsc_drv->color_format == HDMI_COLORSPACE_YUV422)
-		dsc_drv->dsc_mode = DSC_YUV422_7680X4320_60HZ;
-	else if (pps_data->pic_width == 7680 && pps_data->pic_height == 4320 &&
-		 dsc_drv->fps == 60000 && dsc_drv->color_format == HDMI_COLORSPACE_YUV420)
-		dsc_drv->dsc_mode = DSC_YUV420_7680X4320_60HZ;
+	if (!dsc_drv || !dsc_drv->data || dsc_drv->data->chip_type != DSC_CHIP_S5)
+		return DSC_ENCODE_MAX;
+
+	/* 4k60hz */
+	if (pic_width == 3840 && pic_height == 2160 &&
+		fps == 60000 && color_format == HDMI_COLORSPACE_RGB)
+		dsc_mode = DSC_RGB_3840X2160_60HZ;
+	else if (pic_width == 3840 && pic_height == 2160 &&
+		fps == 60000 && color_format == HDMI_COLORSPACE_YUV444)
+		dsc_mode = DSC_YUV444_3840X2160_60HZ;
+	else if (pic_width == 3840 && pic_height == 2160 &&
+		fps == 60000 && color_format == HDMI_COLORSPACE_YUV422)
+		dsc_mode = DSC_YUV422_3840X2160_60HZ;
+	else if (pic_width == 3840 && pic_height == 2160 &&
+		fps == 60000 && color_format == HDMI_COLORSPACE_YUV420)
+		dsc_mode = DSC_YUV420_3840X2160_60HZ;
+	/* 4k50hz */
+	else if (pic_width == 3840 && pic_height == 2160 &&
+		fps == 50000 && color_format == HDMI_COLORSPACE_RGB)
+		dsc_mode = DSC_RGB_3840X2160_50HZ;
+	else if (pic_width == 3840 && pic_height == 2160 &&
+		fps == 50000 && color_format == HDMI_COLORSPACE_YUV444)
+		dsc_mode = DSC_YUV444_3840X2160_50HZ;
+	else if (pic_width == 3840 && pic_height == 2160 &&
+		fps == 50000 && color_format == HDMI_COLORSPACE_YUV422)
+		dsc_mode = DSC_YUV422_3840X2160_50HZ;
+	else if (pic_width == 3840 && pic_height == 2160 &&
+		fps == 50000 && color_format == HDMI_COLORSPACE_YUV420)
+		dsc_mode = DSC_YUV420_3840X2160_50HZ;
+	/* 4k120hz */
+	else if (pic_width == 3840 && pic_height == 2160 &&
+		fps == 120000 && color_format == HDMI_COLORSPACE_RGB)
+		dsc_mode = DSC_RGB_3840X2160_120HZ;
+	else if (pic_width == 3840 && pic_height == 2160 &&
+		  fps == 120000 && color_format == HDMI_COLORSPACE_YUV444)
+		dsc_mode = DSC_YUV444_3840X2160_120HZ;
+	else if (pic_width == 3840 && pic_height == 2160 &&
+		fps == 120000 && color_format == HDMI_COLORSPACE_YUV422)
+		dsc_mode = DSC_YUV422_3840X2160_120HZ;
+	else if (pic_width == 3840 && pic_height == 2160 &&
+		fps == 120000 && color_format == HDMI_COLORSPACE_YUV420)
+		dsc_mode = DSC_YUV420_3840X2160_120HZ;
+	/* 4k100hz */
+	else if (pic_width == 3840 && pic_height == 2160 &&
+		fps == 100000 && color_format == HDMI_COLORSPACE_RGB)
+		dsc_mode = DSC_RGB_3840X2160_100HZ;
+	else if (pic_width == 3840 && pic_height == 2160 &&
+		  fps == 100000 && color_format == HDMI_COLORSPACE_YUV444)
+		dsc_mode = DSC_YUV444_3840X2160_100HZ;
+	else if (pic_width == 3840 && pic_height == 2160 &&
+		fps == 100000 && color_format == HDMI_COLORSPACE_YUV422)
+		dsc_mode = DSC_YUV422_3840X2160_100HZ;
+	else if (pic_width == 3840 && pic_height == 2160 &&
+		fps == 100000 && color_format == HDMI_COLORSPACE_YUV420)
+		dsc_mode = DSC_YUV420_3840X2160_100HZ;
+	/* 8K60Hz */
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		fps == 60000 && color_format == HDMI_COLORSPACE_RGB)
+		dsc_mode = DSC_RGB_7680X4320_60HZ;
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		fps == 60000 && color_format == HDMI_COLORSPACE_YUV444)
+		dsc_mode = DSC_YUV444_7680X4320_60HZ;
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		fps == 60000 && color_format == HDMI_COLORSPACE_YUV422)
+		dsc_mode = DSC_YUV422_7680X4320_60HZ;
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		fps == 60000 && color_format == HDMI_COLORSPACE_YUV420)
+		dsc_mode = DSC_YUV420_7680X4320_60HZ;
+	/* 8k50hz */
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		fps == 50000 && color_format == HDMI_COLORSPACE_RGB)
+		dsc_mode = DSC_RGB_7680X4320_50HZ;
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		 fps == 50000 && color_format == HDMI_COLORSPACE_YUV444)
+		dsc_mode = DSC_YUV444_7680X4320_50HZ;
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		 fps == 50000 && color_format == HDMI_COLORSPACE_YUV422)
+		dsc_mode = DSC_YUV422_7680X4320_50HZ;
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		 fps == 50000 && color_format == HDMI_COLORSPACE_YUV420)
+		dsc_mode = DSC_YUV420_7680X4320_50HZ;
+	/* 8K24Hz */
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		 fps == 24000 && color_format == HDMI_COLORSPACE_RGB)
+		dsc_mode = DSC_RGB_7680X4320_24HZ;
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		 fps == 24000 && color_format == HDMI_COLORSPACE_YUV444)
+		dsc_mode = DSC_YUV444_7680X4320_24HZ;
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		 fps == 24000 && color_format == HDMI_COLORSPACE_YUV422)
+		dsc_mode = DSC_YUV422_7680X4320_24HZ;
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		 fps == 24000 && color_format == HDMI_COLORSPACE_YUV420)
+		dsc_mode = DSC_YUV420_7680X4320_24HZ;
+	/* 8k25hz */
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		 fps == 25000 && color_format == HDMI_COLORSPACE_RGB)
+		dsc_mode = DSC_RGB_7680X4320_25HZ;
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		 fps == 25000 && color_format == HDMI_COLORSPACE_YUV444)
+		dsc_mode = DSC_YUV444_7680X4320_25HZ;
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		 fps == 25000 && color_format == HDMI_COLORSPACE_YUV422)
+		dsc_mode = DSC_YUV422_7680X4320_25HZ;
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		 fps == 25000 && color_format == HDMI_COLORSPACE_YUV420)
+		dsc_mode = DSC_YUV420_7680X4320_25HZ;
+	/* 8k30hz */
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		 fps == 30000 && color_format == HDMI_COLORSPACE_RGB)
+		dsc_mode = DSC_RGB_7680X4320_30HZ;
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		 fps == 30000 && color_format == HDMI_COLORSPACE_YUV444)
+		dsc_mode = DSC_YUV444_7680X4320_30HZ;
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		 fps == 30000 && color_format == HDMI_COLORSPACE_YUV422)
+		dsc_mode = DSC_YUV422_7680X4320_30HZ;
+	else if (pic_width == 7680 && pic_height == 4320 &&
+		 fps == 30000 && color_format == HDMI_COLORSPACE_YUV420)
+		dsc_mode = DSC_YUV420_7680X4320_30HZ;
 	else
-		dsc_drv->dsc_mode = DSC_ENCODE_MAX;
-}
+		dsc_mode = DSC_ENCODE_MAX;
 
-static inline void dsc_confirm_format_h_v_total(struct aml_dsc_drv_s *dsc_drv)
+	return dsc_mode;
+}
+EXPORT_SYMBOL(dsc_enc_confirm_mode);
+
+static inline void dsc_enc_confirm_format_h_v_total(struct aml_dsc_drv_s *dsc_drv)
 {
 	switch (dsc_drv->dsc_mode) {
 	case DSC_RGB_7680X4320_60HZ:
 	case DSC_YUV444_7680X4320_60HZ:
 	case DSC_YUV422_7680X4320_60HZ:
 	case DSC_YUV420_7680X4320_60HZ:
+	case DSC_RGB_7680X4320_30HZ:
+	case DSC_YUV444_7680X4320_30HZ:
+	case DSC_YUV422_7680X4320_30HZ:
+	case DSC_YUV420_7680X4320_30HZ:
 		dsc_drv->h_total = 9000;
 		dsc_drv->v_total = 4400;
 		break;
+	case DSC_RGB_7680X4320_50HZ:
+	case DSC_YUV444_7680X4320_50HZ:
+	case DSC_YUV422_7680X4320_50HZ:
+	case DSC_YUV420_7680X4320_50HZ:
+	case DSC_RGB_7680X4320_25HZ:
+	case DSC_YUV444_7680X4320_25HZ:
+	case DSC_YUV422_7680X4320_25HZ:
+	case DSC_YUV420_7680X4320_25HZ:
+		dsc_drv->h_total = 10800;
+		dsc_drv->v_total = 4400;
+		break;
+	case DSC_RGB_7680X4320_24HZ:
+	case DSC_YUV444_7680X4320_24HZ:
+	case DSC_YUV422_7680X4320_24HZ:
+	case DSC_YUV420_7680X4320_24HZ:
+		dsc_drv->h_total = 11000;
+		dsc_drv->v_total = 4500;
+		break;
 	case DSC_RGB_3840X2160_60HZ:
 	case DSC_YUV444_3840X2160_60HZ:
+	case DSC_YUV422_3840X2160_60HZ:
+	case DSC_YUV420_3840X2160_60HZ:
 	case DSC_RGB_3840X2160_120HZ:
 	case DSC_YUV444_3840X2160_120HZ:
 	case DSC_YUV422_3840X2160_120HZ:
@@ -919,18 +1297,37 @@ static inline void dsc_confirm_format_h_v_total(struct aml_dsc_drv_s *dsc_drv)
 		dsc_drv->h_total = 4400;
 		dsc_drv->v_total = 2250;
 		break;
+
+	case DSC_RGB_3840X2160_50HZ:
+	case DSC_YUV444_3840X2160_50HZ:
+	case DSC_YUV422_3840X2160_50HZ:
+	case DSC_YUV420_3840X2160_50HZ:
+	case DSC_RGB_3840X2160_100HZ:
+	case DSC_YUV444_3840X2160_100HZ:
+	case DSC_YUV422_3840X2160_100HZ:
+	case DSC_YUV420_3840X2160_100HZ:
+		dsc_drv->h_total = 5280;
+		dsc_drv->v_total = 2250;
+		break;
 	default:
-		DSC_ERR("dsc_mode is null(%d) not get h or v total\n", dsc_drv->dsc_mode);
+		DSC_ERR("dsc_mode(%d) not get h or v total\n", dsc_drv->dsc_mode);
 		break;
 	}
 }
 
-static inline void dsc_confirm_pps_color_format(struct aml_dsc_drv_s *dsc_drv)
+static inline void dsc_enc_confirm_pps_color_format(struct aml_dsc_drv_s *dsc_drv)
 {
 	struct dsc_pps_data_s *pps_data = &dsc_drv->pps_data;
 
 	switch (dsc_drv->color_format) {
 	case HDMI_COLORSPACE_RGB:
+		/* 1.Sources shall clear (=0) if the input to the
+		 * VESA DSC 1.2a Encoder is YCbCr pixel data.
+		 * 2.Sources shall set (=1) if the input to the
+		 * VESA DSC 1.2a Encoder is RGB pixel data.
+		 * note vpp should output RGB to DSC encoder if
+		 * select RGB output
+		 */
 		pps_data->convert_rgb = 1;
 		pps_data->simple_422 = 0;
 		pps_data->native_422 = 0;
@@ -955,12 +1352,16 @@ static inline void dsc_confirm_pps_color_format(struct aml_dsc_drv_s *dsc_drv)
 		pps_data->native_420 = 1;
 		break;
 	default:
-		DSC_ERR("color_format is null(%d)\n", dsc_drv->color_format);
+		DSC_ERR("color_format is invalid(%d)\n", dsc_drv->color_format);
 		break;
 	}
 }
 
-static inline void dsc_confirm_slice_value(struct aml_dsc_drv_s *dsc_drv)
+/* note the slice with is derived from hdmi2.1 spec
+ * Table7-29: Determination of slice_with, and then
+ * the slice height is automatically from C-model
+ */
+static inline void dsc_enc_confirm_slice_value(struct aml_dsc_drv_s *dsc_drv)
 {
 	struct dsc_pps_data_s *pps_data = &dsc_drv->pps_data;
 
@@ -973,28 +1374,322 @@ static inline void dsc_confirm_slice_value(struct aml_dsc_drv_s *dsc_drv)
 	switch (dsc_drv->dsc_mode) {
 	case DSC_RGB_3840X2160_60HZ:
 	case DSC_YUV444_3840X2160_60HZ:
+	case DSC_RGB_3840X2160_50HZ:
+	case DSC_YUV444_3840X2160_50HZ:
+		/* per table7-29, the slice_num should be 2 and slice width = 1920
+		 * now we force 4 slice in and 4 slice out to dsc encoder
+		 */
+		/* pps_data->slice_width = 960; */
+		pps_data->slice_width = 1920;
+		pps_data->slice_height = 2160;
+		break;
+	case DSC_YUV420_3840X2160_60HZ:
+	case DSC_YUV420_3840X2160_50HZ:
+		/* per table7-29 and C-model */
+		pps_data->slice_width = 1920;
+		pps_data->slice_height = 1080;
+		break;
+
+	case DSC_YUV422_3840X2160_60HZ:
+	case DSC_YUV422_3840X2160_50HZ:
+		/* per table7-29 and C-model */
+		pps_data->slice_width = 1920;
+		pps_data->slice_height = 2160;
+		break;
+
 	case DSC_RGB_3840X2160_120HZ:
 	case DSC_YUV444_3840X2160_120HZ:
+	case DSC_RGB_3840X2160_100HZ:
+	case DSC_YUV444_3840X2160_100HZ:
+		/* per table7-29 and C-model */
+		pps_data->slice_width = 960;
+		pps_data->slice_height = 2160;
+		break;
 	case DSC_YUV422_3840X2160_120HZ:
+	case DSC_YUV422_3840X2160_100HZ:
 	case DSC_YUV420_3840X2160_120HZ:
+	case DSC_YUV420_3840X2160_100HZ:
+		/* per table7-29 and C-model */
+		pps_data->slice_width = 1920;
+		pps_data->slice_height = 2160;
+		break;
+
+	/* 8k60hz */
 	case DSC_YUV422_7680X4320_60HZ:
 	case DSC_YUV420_7680X4320_60HZ:
 		pps_data->slice_width = 1920;
-		pps_data->slice_height = 108;
+		pps_data->slice_height = 2160;
 		break;
 	case DSC_RGB_7680X4320_60HZ:
 	case DSC_YUV444_7680X4320_60HZ:
 		pps_data->slice_width = 960;
 		pps_data->slice_height = 2160;
 		break;
+	/* 8k50hz, similar as 8k60hz */
+	case DSC_YUV422_7680X4320_50HZ:
+	case DSC_YUV420_7680X4320_50HZ:
+		pps_data->slice_width = 1920;
+		pps_data->slice_height = 2160;
+		break;
+	case DSC_RGB_7680X4320_50HZ:
+	case DSC_YUV444_7680X4320_50HZ:
+		pps_data->slice_width = 960;
+		pps_data->slice_height = 2160;
+		break;
+	/* 8k30hz */
+	case DSC_YUV422_7680X4320_30HZ: /* bpp = 7.375 */
+	case DSC_YUV444_7680X4320_30HZ: /* bpp = 12 */
+	case DSC_RGB_7680X4320_30HZ: /* bpp = 12 */
+	case DSC_YUV422_7680X4320_25HZ: /* bpp = 7.6875 */
+	case DSC_YUV444_7680X4320_25HZ: /* bpp = 12 */
+	case DSC_RGB_7680X4320_25HZ: /* bpp = 12 */
+	case DSC_YUV422_7680X4320_24HZ: /* bpp = 7.6875 */
+	case DSC_YUV444_7680X4320_24HZ: /* bpp = 12 */
+	case DSC_RGB_7680X4320_24HZ: /* bpp = 12 */
+		pps_data->slice_width = 1920;
+		pps_data->slice_height = 2160;
+		break;
+	/* case DSC_YUV422_7680X4320_30HZ:*/ /* force bpp = 12, todo removed */
+	case DSC_YUV420_7680X4320_30HZ: /* bpp = 7.375 */
+	case DSC_YUV420_7680X4320_25HZ: /* bpp = 7.6875 */
+	case DSC_YUV420_7680X4320_24HZ: /* bpp = 7.6875 */
+		pps_data->slice_width = 1920;
+		pps_data->slice_height = 4320;
+		break;
+	/* case DSC_YUV420_7680X4320_30HZ: */
+		/* force bpp = 12, tested pass, todo removed */
+		/* pps_data->slice_width = 1920; */
+		/* pps_data->slice_height = 1440; */
+		/* break; */
 	default:
-		DSC_ERR("dsc_mode is null(%d)\n", dsc_drv->dsc_mode);
+		DSC_ERR("dsc_mode(%d) not get slice width/height\n", dsc_drv->dsc_mode);
 		break;
 	}
+
+	DSC_PR("%s slice w(%d) & h(%d)\n", __func__, pps_data->slice_width, pps_data->slice_height);
 }
 
-//hdmi2.1 7.7.3.4(7-37) bits_per_pixel = 444:bpp*16 422/420:bpp*32
-static inline void dsc_confirm_bpp_value(struct aml_dsc_drv_s *dsc_drv)
+/* sync with dsc_enc_confirm_slice_value() */
+static u32 dsc_get_slice_width(enum dsc_encode_mode dsc_mode)
+{
+	u32 slice_width = 0;
+
+	switch (dsc_mode) {
+	case DSC_RGB_3840X2160_60HZ:
+	case DSC_YUV444_3840X2160_60HZ:
+	case DSC_RGB_3840X2160_50HZ:
+	case DSC_YUV444_3840X2160_50HZ:
+		/* force mode, not spec recommended */
+		/* slice_width = 960; */
+		slice_width = 1920;
+		break;
+	case DSC_YUV420_3840X2160_60HZ:
+	case DSC_YUV420_3840X2160_50HZ:
+	case DSC_YUV422_3840X2160_60HZ:
+	case DSC_YUV422_3840X2160_50HZ:
+		slice_width = 1920;
+		break;
+
+	case DSC_RGB_3840X2160_120HZ:
+	case DSC_YUV444_3840X2160_120HZ:
+	case DSC_RGB_3840X2160_100HZ:
+	case DSC_YUV444_3840X2160_100HZ:
+		slice_width = 960;
+		break;
+	case DSC_YUV420_3840X2160_120HZ:
+	case DSC_YUV420_3840X2160_100HZ:
+	case DSC_YUV422_3840X2160_120HZ:
+	case DSC_YUV422_3840X2160_100HZ:
+		slice_width = 1920;
+		break;
+
+	case DSC_RGB_7680X4320_60HZ:
+	case DSC_YUV444_7680X4320_60HZ:
+	case DSC_RGB_7680X4320_50HZ:
+	case DSC_YUV444_7680X4320_50HZ:
+		slice_width = 960;
+		break;
+
+	case DSC_YUV422_7680X4320_60HZ:
+	case DSC_YUV420_7680X4320_60HZ:
+	case DSC_YUV422_7680X4320_50HZ:
+	case DSC_YUV420_7680X4320_50HZ:
+
+	case DSC_YUV422_7680X4320_30HZ: /* bpp = 7.375 */
+	case DSC_YUV444_7680X4320_30HZ: /* bpp = 12 */
+	case DSC_RGB_7680X4320_30HZ: /* bpp = 12 */
+	case DSC_YUV422_7680X4320_25HZ: /* bpp = 7.6875 */
+	case DSC_YUV444_7680X4320_25HZ: /* bpp = 12 */
+	case DSC_RGB_7680X4320_25HZ: /* bpp = 12 */
+	case DSC_YUV422_7680X4320_24HZ: /* bpp = 7.6875 */
+	case DSC_YUV444_7680X4320_24HZ: /* bpp = 12 */
+	case DSC_RGB_7680X4320_24HZ: /* bpp = 12 */
+
+	case DSC_YUV420_7680X4320_30HZ: /* bpp = 7.375 */
+	case DSC_YUV420_7680X4320_25HZ: /* bpp = 7.6875 */
+	case DSC_YUV420_7680X4320_24HZ: /* bpp = 7.6875 */
+		slice_width = 1920;
+		break;
+
+	case DSC_ENCODE_MAX:
+	default:
+		slice_width = 0;
+		break;
+	}
+	return slice_width;
+}
+
+/* use slice_with from dsc_get_slice_width() */
+u8 dsc_get_slice_num(enum dsc_encode_mode dsc_mode)
+{
+	u8 slice_num = 0;
+	struct aml_dsc_drv_s *dsc_drv = dsc_drv_get();
+	/* dsc_drv->pps_data.pic_width / dsc_drv->pps_data.slice_width; */
+
+	/* default 1 */
+	if (!dsc_drv || !dsc_drv->data || dsc_drv->data->chip_type != DSC_CHIP_S5)
+		return 1;
+
+	switch (dsc_mode) {
+	case DSC_RGB_3840X2160_60HZ:
+	case DSC_YUV444_3840X2160_60HZ:
+	case DSC_RGB_3840X2160_50HZ:
+	case DSC_YUV444_3840X2160_50HZ:
+		/* force 960 */
+		/* slice_num = 3840 / 960; */
+		slice_num = 3840 / 1920;
+		break;
+	case DSC_YUV420_3840X2160_60HZ:
+	case DSC_YUV420_3840X2160_50HZ:
+	case DSC_YUV422_3840X2160_60HZ:
+	case DSC_YUV422_3840X2160_50HZ:
+		slice_num = 3840 / 1920;
+		break;
+
+	case DSC_RGB_3840X2160_120HZ:
+	case DSC_YUV444_3840X2160_120HZ:
+	case DSC_RGB_3840X2160_100HZ:
+	case DSC_YUV444_3840X2160_100HZ:
+		slice_num = 3840 / 960;
+		break;
+	case DSC_YUV420_3840X2160_120HZ:
+	case DSC_YUV420_3840X2160_100HZ:
+	case DSC_YUV422_3840X2160_120HZ:
+	case DSC_YUV422_3840X2160_100HZ:
+		slice_num = 3840 / 1920;
+		break;
+
+	case DSC_RGB_7680X4320_60HZ:
+	case DSC_YUV444_7680X4320_60HZ:
+	case DSC_RGB_7680X4320_50HZ:
+	case DSC_YUV444_7680X4320_50HZ:
+		slice_num = 7680 / 960;
+		break;
+
+	case DSC_YUV422_7680X4320_60HZ:
+	case DSC_YUV420_7680X4320_60HZ:
+	case DSC_YUV422_7680X4320_50HZ:
+	case DSC_YUV420_7680X4320_50HZ:
+
+	case DSC_YUV422_7680X4320_30HZ: /* bpp = 7.375 */
+	case DSC_YUV444_7680X4320_30HZ: /* bpp = 12 */
+	case DSC_RGB_7680X4320_30HZ: /* bpp = 12 */
+	case DSC_YUV422_7680X4320_25HZ: /* bpp = 7.6875 */
+	case DSC_YUV444_7680X4320_25HZ: /* bpp = 12 */
+	case DSC_RGB_7680X4320_25HZ: /* bpp = 12 */
+	case DSC_YUV422_7680X4320_24HZ: /* bpp = 7.6875 */
+	case DSC_YUV444_7680X4320_24HZ: /* bpp = 12 */
+	case DSC_RGB_7680X4320_24HZ: /* bpp = 12 */
+
+	case DSC_YUV420_7680X4320_30HZ: /* bpp = 7.375 */
+	case DSC_YUV420_7680X4320_25HZ: /* bpp = 7.6875 */
+	case DSC_YUV420_7680X4320_24HZ: /* bpp = 7.6875 */
+		slice_num = 7680 / 1920;
+		break;
+
+	case DSC_ENCODE_MAX:
+	default:
+		slice_num = 0;
+		break;
+	}
+	return slice_num;
+}
+EXPORT_SYMBOL(dsc_get_slice_num);
+
+/* these bpp are from 2.1 spec table 7-37/38 */
+static u32 dsc_get_bpp_target(enum dsc_encode_mode dsc_mode)
+{
+	u8 i = 0;
+
+	for (i = 0; dsc_timing[i][0] != DSC_ENCODE_MAX; i++) {
+		if (dsc_timing[i][0] == dsc_mode)
+			break;
+	}
+	if (dsc_timing[i][0] == DSC_ENCODE_MAX) {
+		DSC_PR("don't find bpp_target for dsc_mode :%d\n", dsc_mode);
+		return 0;
+	}
+
+	return dsc_timing[i][1];
+}
+
+/* 2.1 spec table 6-56: bytes_target = slice_num * CEILING(bpp_target * slice_width / 8); */
+static u32 dsc_get_bytes_target(u32 bpp_target, u8 slice_num, u32 slice_width)
+{
+	u32 bytes_target = 0;
+	u32 bytes_per_slice = 0;
+	struct aml_dsc_drv_s *dsc_drv = dsc_drv_get();
+
+	if (!dsc_drv || !dsc_drv->data || dsc_drv->data->chip_type != DSC_CHIP_S5)
+		return 0;
+
+	if (bpp_target == 0 || slice_num == 0 || slice_width == 0) {
+		DSC_ERR("don't find bytes_target, bpp: %d, slice_num: %d, slice_width: %d\n",
+			bpp_target, slice_num, slice_width);
+		return 0;
+	}
+
+	/* bpp_target is multiplied by BPP_FRACTION previously, below is for CEILING */
+	if ((bpp_target * slice_width) % (8 * BPP_FRACTION) == 0)
+		bytes_per_slice = (bpp_target * slice_width) / (8 * BPP_FRACTION);
+	else
+		bytes_per_slice = (bpp_target * slice_width) / (8 * BPP_FRACTION) + 1;
+
+	bytes_target = slice_num * bytes_per_slice;
+
+	return bytes_target;
+}
+
+u32 dsc_get_bytes_target_by_mode(enum dsc_encode_mode dsc_mode)
+{
+	u32 bpp_target = dsc_get_bpp_target(dsc_mode);
+	u8 slice_num = dsc_get_slice_num(dsc_mode);
+	u32 slice_width = dsc_get_slice_width(dsc_mode);
+
+	return dsc_get_bytes_target(bpp_target, slice_num, slice_width);
+}
+EXPORT_SYMBOL(dsc_get_bytes_target_by_mode);
+
+u32 dsc_get_hc_active_by_mode(enum dsc_encode_mode dsc_mode)
+{
+	u8 i = 0;
+
+	for (i = 0; dsc_timing[i][0] != DSC_ENCODE_MAX; i++) {
+		if (dsc_timing[i][0] == dsc_mode)
+			break;
+	}
+	if (dsc_timing[i][0] == DSC_ENCODE_MAX) {
+		DSC_ERR("don't find bpp_target for dsc_mode :%d\n", dsc_mode);
+		return 0;
+	}
+
+	return dsc_timing[i][13];
+}
+EXPORT_SYMBOL(dsc_get_hc_active_by_mode);
+
+/* hdmi2.1 7.7.3.4(7-37) bits_per_pixel = 444: bpp * 16, 422/420: bpp * 32 */
+/* note: should double bpp for BITS_PER_PIXEL used in cfg file of C-model */
+static inline void dsc_enc_confirm_bpp_value(struct aml_dsc_drv_s *dsc_drv)
 {
 	struct dsc_pps_data_s *pps_data = &dsc_drv->pps_data;
 
@@ -1008,34 +1703,90 @@ static inline void dsc_confirm_bpp_value(struct aml_dsc_drv_s *dsc_drv)
 	case DSC_YUV444_3840X2160_60HZ:
 	case DSC_RGB_3840X2160_120HZ:
 	case DSC_YUV444_3840X2160_120HZ:
+	case DSC_RGB_3840X2160_50HZ:
+	case DSC_YUV444_3840X2160_50HZ:
+	case DSC_RGB_3840X2160_100HZ:
+	case DSC_YUV444_3840X2160_100HZ:
+		/* hdmi2.1 table 7-37 bpp = 12, 12 * 16 = 192 */
 		pps_data->bits_per_pixel = 192;
+		break;
+	case DSC_YUV422_3840X2160_60HZ:
+	case DSC_YUV420_3840X2160_60HZ:
+	case DSC_YUV422_3840X2160_50HZ:
+	case DSC_YUV420_3840X2160_50HZ:
+		/* hdmi2.1 table 7-37/38 bpp = 12, 12 * 16 * 2 = 384*/
+		pps_data->bits_per_pixel = 384;
 		break;
 	case DSC_YUV422_3840X2160_120HZ:
 	case DSC_YUV420_3840X2160_120HZ:
+		/* hdmi2.1 table 7-37/38 7.0625 * 32 = 226 */
 		pps_data->bits_per_pixel = 226;
+
+		/* note: test case: bpp = 12, 12 * 32 = 384, todo removed */
+		/* pps_data->bits_per_pixel = 384; */
 		break;
+	case DSC_YUV422_3840X2160_100HZ:
+	case DSC_YUV420_3840X2160_100HZ:
+		/* hdmi2.1 table 7-37/38 8.5625 * 32 = 274 */
+		pps_data->bits_per_pixel = 274;
+		break;
+
 	case DSC_RGB_7680X4320_60HZ:
 	case DSC_YUV444_7680X4320_60HZ:
+		/* hdmi2.1 table 7-37 bpp = 9.9375,  9.9375 * 16 = 159 */
 		pps_data->bits_per_pixel = 159;
 		break;
 	case DSC_YUV422_7680X4320_60HZ:
 	case DSC_YUV420_7680X4320_60HZ:
+		/* hdmi2.1 table 7-37/38 bpp = 7.4375, 7.4375 * 16 * 2 =238 */
 		pps_data->bits_per_pixel = 238;
 		break;
+	case DSC_RGB_7680X4320_30HZ:
+	case DSC_YUV444_7680X4320_30HZ:
+	case DSC_RGB_7680X4320_25HZ:
+	case DSC_YUV444_7680X4320_25HZ:
+	case DSC_RGB_7680X4320_24HZ:
+	case DSC_YUV444_7680X4320_24HZ:
+		/* hdmi2.1 table 7-37 bpp = 12bp, 12 * 16 = 192 */
+		pps_data->bits_per_pixel = 192;
+		break;
+	case DSC_YUV422_7680X4320_30HZ:
+	case DSC_YUV420_7680X4320_30HZ:
+		/* note: test case force bpp = 12, 12 * 32 = 384. tested pass, todo removed */
+		/* pps_data->bits_per_pixel = 384; */
+		/* hdmi2.1 table 7-37/38 bpp = 7.375, 7.375 * 16 * 2 = 236 */
+		pps_data->bits_per_pixel = 236;
+		break;
+	case DSC_RGB_7680X4320_50HZ:
+	case DSC_YUV444_7680X4320_50HZ:
+		/* hdmi2.1 table 7-37 bpp = 9.8125, 9.8125 * 16 = 157 */
+		pps_data->bits_per_pixel = 157;
+		break;
+	case DSC_YUV422_7680X4320_50HZ:
+	case DSC_YUV420_7680X4320_50HZ:
+	case DSC_YUV422_7680X4320_25HZ:
+	case DSC_YUV420_7680X4320_25HZ:
+	case DSC_YUV422_7680X4320_24HZ:
+	case DSC_YUV420_7680X4320_24HZ:
+		/* hdmi2.1 table 7-37/38 bpp = 7.6875, 7.6875 * 16 * 2 = 246  */
+		pps_data->bits_per_pixel = 246;
+		break;
 	default:
-		DSC_ERR("dsc_mode is null(%d)\n", dsc_drv->dsc_mode);
+		DSC_ERR("dsc_mode(%d) not get bpp\n", dsc_drv->dsc_mode);
 		break;
 	}
 }
 
 //1. cts_hdmi_tx_fe_clk > cts_hdmi_tx_pixel_clk
 //2. enc0_clk = cts_hdmi_tx_fe_clk = htotal*vtotal*fps/4 (4 is vpp_slice_num)
+//left side means the time to process one line of slice(4 is 4 slice) before compression,
+//right side means the time to process one line of chunk after compression.
 //3. 1/cts_hdmi_tx_fe_clk*htotal/4 = 1/cts_hdmi_tx_pixel_clk*hc_htotal (if 420 hc_htotal/2)
 //4. hc_htotal:(pic_width*bpp+47)/48 + hc_blank/2
 //hdmitx ip receive dsc is 48bit,hdmitx protocol is 24bit, so need divided by 48 and 2
 // enc0_clk = cts_hdmi_tx_fe_clk
 // cts_hdmi_tx_pnx_clk = cts_hdmi_tx_pixel_clk=cts_htx_tmds_clk=fpll_pixel_clk
-static inline void calculate_dsc_need_clk(struct aml_dsc_drv_s *dsc_drv)
+static inline void calculate_dsc_enc_need_clk(struct aml_dsc_drv_s *dsc_drv)
 {
 	unsigned int fps = dsc_drv->fps;
 	unsigned int hc_htotal = dsc_drv->hc_htotal_m1 + 1;
@@ -1048,31 +1799,39 @@ static inline void calculate_dsc_need_clk(struct aml_dsc_drv_s *dsc_drv)
 	//cts_hdmi_tx_fe_clk = ecn0_clk
 	//cts_hdmi_tx_fe_clk = htotal*vtotal*fps/1000/4 (1000 is fps*1000, 4 is vpp_slice_num)
 	dsc_drv->enc0_clk = dsc_drv->h_total * dsc_drv->v_total / 1000 * fps / 4;
-
+	//4 means 4 slice, multiply by 4 means the total clk before cut to slice
 	//cts_hdmi_tx_pixel_clk = cts_hdmi_tx_fe_clk*4*hc_htotal/htotal
 	dsc_drv->cts_hdmi_tx_pixel_clk = dsc_drv->enc0_clk * 4 / dsc_drv->h_total * hc_htotal;
+	/* for LG TV, need to set slice_width = 1920, and double enc0/fe_clk under 4k50/60hz y444 */
+	if (dsc_drv->dsc_mode == DSC_YUV444_3840X2160_60HZ ||
+		dsc_drv->dsc_mode == DSC_RGB_3840X2160_60HZ ||
+		dsc_drv->dsc_mode == DSC_YUV444_3840X2160_50HZ ||
+		dsc_drv->dsc_mode == DSC_RGB_3840X2160_50HZ)
+		dsc_drv->enc0_clk = dsc_drv->enc0_clk * 2;
 }
 
 void init_pps_data(struct aml_dsc_drv_s *dsc_drv)
 {
 	struct dsc_pps_data_s *pps_data = &dsc_drv->pps_data;
 
+	dsc_drv->pps_data.dsc_version_major = 1;
 	dsc_drv->pps_data.dsc_version_minor = 2;
 
 	//confirm dsc_mode
-	dsc_confirm_mode(dsc_drv);
+	dsc_drv->dsc_mode = dsc_enc_confirm_mode(dsc_drv->pps_data.pic_width,
+		dsc_drv->pps_data.pic_height, dsc_drv->fps, dsc_drv->color_format);
 
 	//get format htotal and vtotal
-	dsc_confirm_format_h_v_total(dsc_drv);
+	dsc_enc_confirm_format_h_v_total(dsc_drv);
 
 	//dsc confirm dsc pps color format
-	dsc_confirm_pps_color_format(dsc_drv);
+	dsc_enc_confirm_pps_color_format(dsc_drv);
 
 	//set bits_per_pixel
-	dsc_confirm_bpp_value(dsc_drv);
+	dsc_enc_confirm_bpp_value(dsc_drv);
 
 	//set slice_width slice_height
-	dsc_confirm_slice_value(dsc_drv);
+	dsc_enc_confirm_slice_value(dsc_drv);
 
 	//confirm bits_per_component
 	if (dsc_drv->dsc_debug.manual_set_select & MANUAL_BITS_PER_COMPONENT)
@@ -1104,6 +1863,7 @@ void init_pps_data(struct aml_dsc_drv_s *dsc_drv)
 			pps_data->rc_parameter_set.rc_tgt_offset_lo,
 			pps_data->rc_parameter_set.rc_tgt_offset_hi);
 	} else {
+		/* where's the defination of default value? */
 		pps_data->rc_parameter_set.rc_model_size = 8192;
 		pps_data->rc_parameter_set.rc_tgt_offset_hi = 3;
 		pps_data->rc_parameter_set.rc_tgt_offset_lo = 3;
@@ -1126,12 +1886,17 @@ void init_pps_data(struct aml_dsc_drv_s *dsc_drv)
 		DSC_ERR("color_format is error:%d\n", dsc_drv->color_format);
 }
 
-void calculate_dsc_data(struct aml_dsc_drv_s *dsc_drv)
+void calculate_dsc_enc_data(struct aml_dsc_drv_s *dsc_drv)
 {
+	if (!dsc_drv) {
+		DSC_ERR("dsc_drv is NULL\n");
+		return;
+	}
 	init_pps_data(dsc_drv);
 	populate_pps(dsc_drv);
 	calculate_asic_data(dsc_drv);
-	calculate_dsc_need_clk(dsc_drv);
+	calculate_dsc_enc_need_clk(dsc_drv);
+	/* no need? */
 	compute_offset(dsc_drv, 0, 0, 0);
 }
 

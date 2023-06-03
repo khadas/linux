@@ -41,7 +41,7 @@
 #define MANUAL_VPU_VIDEO_TMG_CTRL			BIT(11)
 
 void dsc_drv_param_init(struct aml_dsc_drv_s *dsc_drv);
-void calculate_dsc_data(struct aml_dsc_drv_s *dsc_drv);
+void calculate_dsc_enc_data(struct aml_dsc_drv_s *dsc_drv);
 
 #endif
 
