@@ -85,7 +85,7 @@ static void adjust_timer(struct evl_clock *clock,
 		 */
 		div = ktime_divns(-diff, ktime_to_ns(period));
 		timer->periodic_ticks -= div;
-		timer->pexpect_ticks -= div;
+		timer->consumed_ticks -= div;
 		evl_update_timer_date(timer);
 	}
 

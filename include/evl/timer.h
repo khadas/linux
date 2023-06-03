@@ -179,7 +179,7 @@ struct evl_timer {
 	int status;
 	ktime_t interval;	/* 0 == oneshot */
 	ktime_t start_date;
-	u64 pexpect_ticks;	/* periodic release date */
+	u64 consumed_ticks;	/* advanced by evl_get_timer_overruns() */
 	u64 periodic_ticks;
 #ifdef CONFIG_SMP
 	struct evl_rq *rq;
@@ -263,7 +263,7 @@ static inline
 ktime_t evl_get_timer_next_date(struct evl_timer *timer)
 {
 	return ktime_add_ns(timer->start_date,
-			timer->pexpect_ticks * ktime_to_ns(timer->interval));
+			timer->consumed_ticks * ktime_to_ns(timer->interval));
 }
 
 void __evl_init_timer(struct evl_timer *timer,
