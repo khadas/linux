@@ -2316,6 +2316,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(hdmi_yuv444_enable, i++);
 	pr_var(pc_mode_en, i++);
 	pr_var(en_4k_2_2k, i++);
+	pr_var(ops_port, i++);
 	pr_var(en_4096_2_3840, i++);
 	pr_var(en_4k_timing, i++);
 	pr_var(acr_mode, i++);
@@ -2530,6 +2531,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(en_4k_2_2k, index);
 	if (set_pr_var(tmpbuf, var_to_str(en_4096_2_3840), &en_4096_2_3840, value))
 		return pr_var(en_4096_2_3840, index);
+	if (set_pr_var(tmpbuf, var_to_str(ops_port), &ops_port, value))
+		return pr_var(ops_port, index);
 	if (set_pr_var(tmpbuf, var_to_str(en_4k_timing), &en_4k_timing, value))
 		return pr_var(en_4k_timing, index);
 	if (set_pr_var(tmpbuf, var_to_str(acr_mode), &acr_mode, value))
@@ -2769,13 +2772,15 @@ void hdmirx_open_port(enum tvin_port_e port)
 		//rx.hdcp.repeat = repeat_plug;
 	//else
 		//rx.hdcp.repeat = 0;
-	if (is_special_func_en()) {
+	if (rx_sw_scramble_en())
+		force_clk_rate |= 0x10;
+	else
+		force_clk_rate &= ~(_BIT(4));
+	if (rx_special_func_en()) {
 		rx.state = FSM_HPD_HIGH;
-	} else if (!rx_need_support_fastswitch() &&
-		(pre_port != rx.port ||
+	} else if (pre_port != rx.port ||
 	    (rx_get_cur_hpd_sts() == 0) ||
-	    /* when open specific port, force to enable it */
-	    (disable_port_en && rx.port == disable_port_num))) {
+	    (disable_port_en && rx.port == disable_port_num)) {
 		rx_esm_reset(1);
 		if (rx.state > FSM_HPD_LOW)
 			rx.state = FSM_HPD_LOW;
@@ -3123,8 +3128,7 @@ void rx_main_state_machine(void)
 			if (rx_hpd_keep_low())
 				break;
 			hdmirx_hw_config();
-		} else if ((pre_port != rx.port) &&
-			(!rx_need_support_fastswitch())) {
+		} else if (pre_port != rx.port) {
 			hdmirx_hw_config();
 		}
 		hpd_wait_cnt = 0;
@@ -3227,6 +3231,14 @@ void rx_main_state_machine(void)
 			}
 			if (rx.err_rec_mode == ERR_REC_EQ_RETRY) {
 				rx.state = FSM_WAIT_CLK_STABLE;
+				if (rx_sw_scramble_en() &&
+					force_clk_rate > 1) {
+					if (force_clk_rate & 1)
+						force_clk_rate = 0x10;
+					else
+						force_clk_rate = 0x11;
+					rx_pr("force_clk=%x\n", force_clk_rate);
+				}
 				if (esd_phy_rst_cnt++ < esd_phy_rst_max) {
 					rx.phy.cablesel++;
 					//rx.clk.cable_clk = 0;

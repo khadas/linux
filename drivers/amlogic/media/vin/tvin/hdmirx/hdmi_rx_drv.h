@@ -100,7 +100,6 @@
 /* sizeof(emp_buf) / sizeof(sizeof(struct pd_infoframe_s) + 1) = 1024/32 */
 #define EMP_DSF_CNT_MAX 32
 
-//#define SPECIAL_FUNC_EN
 #ifdef SPECIAL_FUNC_EN
 //bit0 portA bit1 portB bit2 portC
 #define EDID_DETECT_PORT  2
@@ -869,6 +868,7 @@ extern int en_4k_timing;
 extern int cec_dev_en;
 extern bool dev_is_apple_tv_v2;
 extern u32 en_4096_2_3840;
+extern u32 ops_port;
 extern int en_4k_2_2k;
 extern bool hdmi_cec_en;
 extern int hdmi_yuv444_enable;

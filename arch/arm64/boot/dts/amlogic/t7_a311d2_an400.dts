@@ -539,6 +539,7 @@
 		pinctrl-0 = <&hdmirx_a_mux &hdmirx_b_mux
 			&hdmirx_c_mux>;
 		repeat = <0>;
+		#ops_port = <0xf0>;
 		power-domains = <&pwrdm PDID_T7_HDMIRX>;
 		interrupts = <0 57 IRQ_TYPE_LEVEL_HIGH>;
 		clocks =<&clkc CLKID_HDMIRX_CFG>,

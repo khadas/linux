@@ -74,7 +74,7 @@ int acr_mode;
 int auto_aclk_mute = 2;
 int aud_avmute_en = 1;
 int aud_mute_sel = 2;
-int force_clk_rate;
+int force_clk_rate = 1;
 u32 rx_ecc_err_thres = 100;
 u32 rx_ecc_err_frames = 5;
 int md_ists_en = VIDEO_MODE;
@@ -1476,10 +1476,14 @@ unsigned int rx_get_scdc_clkrate_sts(void)
 		clk_rate = (hdmirx_rd_cor(SCDCS_TMDS_CONFIG_SCDC_IVCRX) >> 1) & 1;
 	else
 		clk_rate = (hdmirx_rd_dwc(DWC_SCDC_REGS0) >> 17) & 1;
-	/* for debug */
-	if (force_clk_rate & 0x10)
-		clk_rate = force_clk_rate & 1;
 
+	if (force_clk_rate & 0x10) {
+		clk_rate = force_clk_rate & 1;
+		if (clk_rate)
+			hdmirx_wr_cor(HDMI2_MODE_CTRL_AON_IVCRX, 0x33);
+		else
+			hdmirx_wr_cor(HDMI2_MODE_CTRL_AON_IVCRX, 0x11);
+	}
 	return clk_rate;
 }
 
@@ -3323,32 +3327,36 @@ void rx_hdcp_monitor(void)
 	}
 }
 
-bool is_special_func_en(void)
-{
-	bool ret = false;
-
-	#ifdef SPECIAL_FUNC_EN
-		if (rx.port == E_PORT2)
-			ret = true;
-	#endif
-
-	return ret;
-}
-
-bool rx_need_support_fastswitch(void)
+bool rx_special_func_en(void)
 {
 	bool ret = false;
 
 	if (rx.chip_id <= CHIP_ID_T7)
 		return ret;
 
-#ifdef SPECIAL_FUNC_EN
+#ifdef CVT_DEF_FIXED_HPD_PORT
+	if (rx.port == E_PORT0 && ((CVT_DEF_FIXED_HPD_PORT & (1 << E_PORT0)) != 0))
+		ret = true;
+
 	if (rx.boot_flag && rx.port == E_PORT0) {
 		if (hdmirx_rd_cor(SCDCS_TMDS_CONFIG_SCDC_IVCRX) & 2)
 			ret = true;
+		//no hdcp
 		rx_pr("pc port first boot\n");
 	}
 #endif
+
+	return ret;
+}
+
+bool rx_sw_scramble_en(void)
+{
+	bool ret = false;
+
+	if (rx.port == ops_port) {
+		ret = true;
+		rx_pr("ops port in\n");
+	}
 
 	return ret;
 }
@@ -3758,6 +3766,8 @@ void cor_init(void)
 	data8 |= (1 << 1);//spd clr
 	data8 |= (1 << 0);//avi clr
 	hdmirx_wr_cor(IF_CTRL1_DP3_IVCRX, data8);
+
+	hdmirx_wr_cor(HDMI2_MODE_CTRL_AON_IVCRX, 0x11);
 }
 
 void hdmirx_hbr2spdif(u8 val)

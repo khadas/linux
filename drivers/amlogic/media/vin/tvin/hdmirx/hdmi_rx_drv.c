@@ -134,6 +134,7 @@ u8 rx_audio_block[MAX_AUDIO_BLK_LEN] = {
 
 u32 en_4096_2_3840;
 int en_4k_2_2k;
+u32 ops_port;
 int en_4k_timing = 1;
 int cec_dev_en;
 bool dev_is_apple_tv_v2;
@@ -3423,6 +3424,12 @@ static int hdmirx_probe(struct platform_device *pdev)
 	/*repeater_wq = create_singlethread_workqueue(hdevp->frontend.name);*/
 	/*INIT_DELAYED_WORK(&repeater_dwork, repeater_dwork_handle);*/
 
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "ops_port", &ops_port);
+	if (ret) {
+		rx_pr("ops_port not found.\n");
+		ops_port = 0xf0;
+	}
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "en_4k_2_2k", &en_4k_2_2k);
 	if (ret) {
