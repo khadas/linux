@@ -4286,7 +4286,7 @@ static int dtvdemod_dvbs_blind_check_signal(struct dvb_frontend *fe,
 #endif
 	/* set tuner */
 	c->frequency = freq_khz; // KHz
-	if (tuner_find_by_name(fe, "rt710")) {
+	if (tuner_find_by_name(fe, "rt710") || tuner_find_by_name(fe, "rt720")) {
 		c->bandwidth_hz = 45000000;
 		c->symbol_rate = 45000000;
 	} else {
@@ -4375,7 +4375,7 @@ static int dtvdemod_dvbs_blind_set_frontend(struct dvb_frontend *fe,
 	spectr_ana_data.in_bw_center_frc = (spectr_ana_data.flow +  spectr_ana_data.fup) >> 1;
 
 	fe->dtv_property_cache.frequency = spectr_ana_data.in_bw_center_frc * 1000;
-	if (tuner_find_by_name(fe, "rt710")) {
+	if (tuner_find_by_name(fe, "rt710") || tuner_find_by_name(fe, "rt720")) {
 		fe->dtv_property_cache.bandwidth_hz = 45000000;
 		fe->dtv_property_cache.symbol_rate = 45000000;
 	} else {
