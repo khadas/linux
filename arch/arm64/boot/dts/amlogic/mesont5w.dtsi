@@ -1243,6 +1243,14 @@
 			clock-names = "xtal";
 			status = "okay";
 		};
+		rng {
+			compatible = "amlogic,meson-rng";
+			status = "okay";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			reg = <0x0 0xff630218 0x0 0x4>;
+			quality = /bits/ 16 <1000>;
+		};
 
 		pwrdm: power-domains {
 			compatible = "amlogic,t5w-power-domain";
