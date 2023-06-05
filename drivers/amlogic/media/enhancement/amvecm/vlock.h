@@ -324,6 +324,7 @@ extern unsigned int vecm_latch_flag;
 extern unsigned int probe_ok;
 extern u32 phase_en_after_frqlock;
 extern u32 vlock_ss_en;
+extern unsigned int hw_clk_ok;
 
 void lcd_ss_enable(bool flag);
 unsigned int lcd_ss_status(void);
@@ -359,5 +360,5 @@ bool vlock_get_vlock_flag(void);
 int vlock_sync_frc_vporch(struct stvlock_frc_param frc_param);
 void vlock_set_sts_by_frame_lock(bool en);
 //void vlock_clk_config(struct device *dev);
-void vlock_hiu_reg_config(struct device *dev);
+void vlock_reg_config(struct device *dev);
 

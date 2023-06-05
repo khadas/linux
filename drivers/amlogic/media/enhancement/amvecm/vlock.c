@@ -50,6 +50,8 @@
  */
 enum VLOCK_MD vlock_mode = VLOCK_MODE_MANUAL_ENC;
 unsigned int vlock_en;
+unsigned int hw_clk_ok;
+
 /*
  *0:only support 50->50;60->60;24->24;30->30;
  *1:support 24/30/50/60/100/120 mix,such as 50->60;
@@ -86,7 +88,6 @@ static unsigned int vlock_enc_adj_limit;
 static unsigned int vlock_capture_limit = 0x10000/*0x8000*/;
 static unsigned int vlock_debug;
 static unsigned int vlock_dynamic_adjust = 1;
-static unsigned int hw_clk_ok;
 
 static unsigned int vlock_sync_limit_flag;
 static unsigned int vlock_state = VLOCK_STATE_NULL;/*1/2/3:vlock step*/
@@ -3595,7 +3596,7 @@ int phlock_phase_config(char *str)
 }
 __setup("video_reverse=", phlock_phase_config);
 
-void vlock_hiu_reg_config(struct device *dev)
+void vlock_reg_config(struct device *dev)
 {
 	/*unsigned int clk_frq;*/
 	struct stvlock_sig_sts *pvlock;
@@ -3609,6 +3610,8 @@ void vlock_hiu_reg_config(struct device *dev)
 
 	if (!pvlock)
 		return;
+
+	vlock_init_reg_map(dev, pvlock);
 
 	/*pr_info("%s\n", __func__);*/
 	if (pvlock->dtdata->vlk_chip <= vlock_chip_tm2)

@@ -8513,7 +8513,7 @@ void vlock_clk_config(struct amvecm_dev_s *devp, struct device *dev)
 	if (!vlock_en)
 		return;
 
-	vlock_hiu_reg_config(dev);
+	vlock_reg_config(dev);
 	/*need set clock tree */
 	devp->vlock_clk = devm_clk_get(dev, "cts_vid_lock_clk");
 	if (!IS_ERR(devp->vlock_clk)) {
@@ -8522,8 +8522,10 @@ void vlock_clk_config(struct amvecm_dev_s *devp, struct device *dev)
 			pr_info("vlock clk enable fail\n");
 		/*clk_frq = clk_get_rate(clk);*/
 		/*pr_info("cts_vid_lock_clk:%d\n", clk_frq);*/
+		hw_clk_ok = 1;
 	} else {
 		pr_err("vlock clk not cfg\n");
+		hw_clk_ok = 0;
 	}
 }
 
