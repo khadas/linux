@@ -774,8 +774,11 @@ int is_graphics_output_off(void)
 
 bool core1_detunnel(void)
 {
-	if ((is_aml_tm2_stbmode() || is_aml_t7_stbmode()) &&
-	    dv_core1_detunnel && multi_dv_mode)
+	if (is_aml_t7_stbmode() &&
+		dv_core1_detunnel && multi_dv_mode)
+		return 1;
+	else if (is_aml_tm2_stbmode() && is_aml_tm2revb() &&
+		dv_core1_detunnel)
 		return 1;
 	else
 		return 0;
@@ -7655,7 +7658,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 	/* update input mode for HDMI in STB core */
 	if (is_aml_tm2_stbmode() || is_aml_t7_stbmode()) {
 		tv_dovi_setting->input_mode = input_mode;
-		if (is_aml_stb_hdmimode()) {
+		if (is_aml_stb_hdmimode() && !core1_detunnel()) {
 			tv_dovi_setting->src_format = src_format;
 			tv_dovi_setting->video_width = w;
 			tv_dovi_setting->video_height = h;
@@ -10761,7 +10764,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 				}
 
 				/* tvcore need a force config for resolution change */
-				if (is_aml_stb_hdmimode() &&
+				if (is_aml_stb_hdmimode() && !core1_detunnel() &&
 				    (core1_disp_hsize != h_size ||
 				     core1_disp_vsize != v_size))
 					force_set = true;
@@ -11201,7 +11204,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 				else if (vf)
 					src_chroma_format = 1;
 
-				if (is_aml_stb_hdmimode()) {
+				if (is_aml_stb_hdmimode() && !core1_detunnel()) {
 					core_mask = 0x6;
 					tv_dv_core1_set
 					(tv_dovi_setting->core1_reg_lut,
@@ -11375,7 +11378,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 			    force_set) {
 				if (force_set)
 					reset_flag = true;
-				if (is_aml_stb_hdmimode())
+				if (is_aml_stb_hdmimode() && !core1_detunnel())
 					tv_dv_core1_set
 					(tv_dovi_setting->core1_reg_lut,
 					 dma_paddr,

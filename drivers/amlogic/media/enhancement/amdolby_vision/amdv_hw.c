@@ -711,7 +711,7 @@ int tv_dv_core1_set(u64 *dma_data,
 
 	if (!dolby_vision_on ||
 	(!core1_on_flag &&
-	(is_aml_tm2_stbmode() || is_aml_t7_stbmode()))) {
+	(is_aml_tm2_stbmode() || is_aml_t7_stbmode()) && !core1_detunnel())) {
 		WRITE_VPP_DV_REG(AMDV_TV_AXI2DMA_CTRL1, 0x6f666080);
 		if (is_aml_t7() || is_aml_t3() || is_aml_t5w())
 			WRITE_VPP_DV_REG(AMDV_TV_AXI2DMA_CTRL2, (u32)(dma_paddr >> 4));
@@ -1082,7 +1082,16 @@ static int dv_core1_set(u32 dm_count,
 	VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL3, (hwidth << 16) | vwidth);
 	VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL4, (hpotch << 16) | vpotch);
 	VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL2, (hsize << 16) | vsize);
-	VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL5, 0xa);
+
+	/*tm2 reva: use tvcore do detunnel*/
+	/*tm2 revb/t7: use core1 do detunnel*/
+	if (is_aml_stb_hdmimode() && core1_detunnel() && amdv_src) {
+		/*bit14~bit31: detunnel bit swap, 0x2c2d0:5-4-1-3-2-0*/
+		/*bit29=1: disable el mem read/write, conflict with detunnel*/
+		VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL5, 0xb0b4001a);
+	} else {
+		VSYNC_WR_DV_REG(AMDV_CORE1A_SWAP_CTRL5, 0xa);
+	}
 
 	VSYNC_WR_DV_REG(AMDV_CORE1A_DMA_CTRL, 0x0);
 	VSYNC_WR_DV_REG(AMDV_CORE1A_REG_START + 4, 4);
@@ -4623,7 +4632,7 @@ void enable_amdv_v1(int enable)
 						amdv_core1_on = false;
 					}
 				} else if (is_aml_tm2_stbmode()) {
-					if (is_aml_stb_hdmimode())
+					if (is_aml_stb_hdmimode() && !core1_detunnel())
 						core_flag = 1;
 					VSYNC_WR_DV_REG_BITS
 						(AMDV_PATH_CTRL,
@@ -4885,7 +4894,7 @@ void enable_amdv_v1(int enable)
 						VSYNC_WR_DV_REG_BITS
 							(AMDV_PATH_CTRL,
 							0, 0, 1);
-					if (is_aml_stb_hdmimode()) {
+					if (is_aml_stb_hdmimode() && !core1_detunnel()) {
 						/* core1 off */
 						VSYNC_WR_DV_REG_BITS
 							(AMDV_PATH_CTRL,
