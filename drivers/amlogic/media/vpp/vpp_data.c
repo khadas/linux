@@ -918,14 +918,7 @@ static void _update_data_page_reg(struct vpp_pq_tuning_page_s *pdata)
 	if (!pdata->preg_list || pdata->reg_count == 0)
 		return;
 
-	preg_list = kcalloc(pdata->reg_count,
-		sizeof(struct vpp_pq_tuning_reg_s), GFP_KERNEL);
-
-	if (!preg_list)
-		return;
-
-	memcpy(preg_list, pdata->preg_list,
-		sizeof(struct vpp_pq_tuning_reg_s) * pdata->reg_count);
+	preg_list = pdata->preg_list;
 
 	for (i = 0; i < EN_PAGE_MODULE_MAX; i++) {
 		if (pq_table[i].page_addr == pdata->page_addr) {
@@ -949,8 +942,6 @@ static void _update_data_page_reg(struct vpp_pq_tuning_page_s *pdata)
 			}
 		}
 	}
-
-	kfree(preg_list);
 }
 
 static void _write_data_table(enum vpp_page_module_e module,
