@@ -527,6 +527,8 @@
 		/* enable control gain */
 		ctrl_gain = <1>;
 		src-clk-freq = <491520000>;
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -562,6 +564,8 @@
 		src-clk-freq = <491520000>;
 		tdm5v-supply = <&vcc5v_reg>;
 		//tdm3v3-supply = <&vddio3v3_reg>;
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -586,6 +590,8 @@
 		/* enable control gain */
 		ctrl_gain = <1>;
 		src-clk-freq = <491520000>;
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -614,6 +620,8 @@
 
 		spdif5v-supply = <&vcc5v_reg>;
 		//spdif3v3-supply = <&vddio3v3_reg>;
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -631,7 +639,7 @@
 			"dclk_srcpll",
 			"pdm_dclk",
 			"pdm_sysclk";
-		//power-domains = <&pwrdm PDID_A5_AUDIO_PDM>;
+		power-domains = <&pwrdm PDID_A4_AUDIO_PDM>;
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
 
@@ -658,7 +666,8 @@
 		 * 4:to_spdifout
 		 */
 		output_module = <3>;
-
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -682,6 +691,8 @@
 		 */
 		src-clk-freq = <491520000>;
 		resample_module = <3>;
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -695,7 +706,8 @@
 		src-clk-freq = <491520000>;
 		/*this resample is only used for loopback_A.*/
 		capture_sample_rate = <16000>;
-
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -787,6 +799,8 @@
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
 		src-clk-freq = <491520000>;
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -945,14 +959,14 @@
 	tdm_d4_pins: tdm_d4_pin {
 		mux {
 			groups = "tdm_d4";
-			function = "tdmoutb_lane0";
+			function = "tdmoutb_lane2";
 		};
 	};
 
 	tdm_d5_pins: tdm_d5_pin {
 		mux {
 			groups = "tdm_d5";
-			function = "tdmoutb_lane1";
+			function = "tdmoutb_lane3";
 		};
 	};
 
@@ -1280,7 +1294,7 @@
 };
 
 &spicc0 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_t>;
 };
