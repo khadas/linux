@@ -17,6 +17,10 @@
 
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 
+MODULE_PARM_DESC(front_agc_target, "\n\t\t front_agc_target");
+static unsigned int front_agc_target;
+module_param(front_agc_target, int, 0644);
+
 /* protect register access */
 static struct mutex mp;
 static struct mutex dtvpll_init_lock;
@@ -266,13 +270,13 @@ int adc_dpll_setup(int clk_a, int clk_b, int clk_sys, struct aml_demod_sta *demo
 
 	ddemod_pll.adcpllctl = adc_pll_cntl.d32;
 	ddemod_pll.demodctl = dig_clk_cfg.d32;
-	ddemod_pll.atsc = 0;
+	ddemod_pll.mode = 0;
 
 	switch (demod_sta->delsys) {
 	case SYS_ATSC:
 	case SYS_ATSCMH:
 	case SYS_DVBC_ANNEX_B:
-		ddemod_pll.atsc = 1;
+		ddemod_pll.mode = 1; //for atsc
 		break;
 
 	default:
@@ -489,9 +493,9 @@ void demod_power_switch(int pwr_cntl)
 }
 
 /* 0:DVBC/J.83B, 1:DVBT/ISDBT, 2:ATSC, 3:DTMB */
-void demod_set_mode_ts(enum fe_delivery_system delsys)
+void demod_set_mode_ts(struct aml_dtvdemod *demod, enum fe_delivery_system delsys)
 {
-	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	union demod_cfg0 cfg0 = { .d32 = 0, };
 	unsigned int dvbt_mode = 0x11; // demod_cfg3
 
@@ -541,6 +545,10 @@ void demod_set_mode_ts(enum fe_delivery_system delsys)
 			cfg0.b.mode = 1<<3;
 			cfg0.b.adc_format = 0;
 			cfg0.b.adc_regout = 0;
+			//for new dvbc_blind_scan mode
+			if (!devp->blind_scan_stop && demod->dvbc_sel == 1)
+				//when use DVB-C ch1, ADC I/Q should be swapped.
+				cfg0.b.adc_swap = 1;
 		}
 		break;
 
@@ -563,6 +571,7 @@ void demod_set_mode_ts(enum fe_delivery_system delsys)
 		break;
 	}
 
+	PR_DBG("%s: delsys %d cfg0 %#x\n", __func__, delsys, cfg0.d32);
 	demod_top_write_reg(DEMOD_TOP_REG0, cfg0.d32);
 	demod_top_write_reg(DEMOD_TOP_REGC, dvbt_mode);
 }
@@ -570,6 +579,7 @@ void demod_set_mode_ts(enum fe_delivery_system delsys)
 int clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk)
 {
 	union demod_cfg2 cfg2 = { .d32 = 0, };
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	int sts_pll = 0;
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
 	struct dfe_adcpll_para ddemod_pll;
@@ -577,11 +587,20 @@ int clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk)
 	demod_power_switch(PWR_ON);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
-	adc_set_ddemod_default(demod->demod_status.delsys);
+	memset(&ddemod_pll, 0, sizeof(ddemod_pll));
+	ddemod_pll.delsys = demod->demod_status.delsys;
+	if (demod->demod_status.delsys == SYS_DVBC_ANNEX_A && !devp->blind_scan_stop) {
+		//mode[0:7]=2 is new dvbc_blind_scan mode, mode[8:15] DVB-C channel;
+		ddemod_pll.mode = 2;
+		if (demod->dvbc_sel == 1)
+			//[8:15], 0: use DVB-C ch0, 1: use ch1;
+			ddemod_pll.mode |= 1 << 8;
+	}
+
+	adc_set_ddemod_default(&ddemod_pll);
 #endif
 	demod_set_demod_default();
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
-	ddemod_pll.delsys = demod->demod_status.delsys;
 	ddemod_pll.adc_clk = adc_clk;
 	if (tuner_find_by_name(&demod->frontend, "av2018"))
 		ddemod_pll.pga_gain = 2;
@@ -593,11 +612,10 @@ int clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk)
 	if (sts_pll < 0) {
 		/*set pll fail*/
 		PR_ERR("%s: set pll default fail %d !\n", __func__, sts_pll);
-
 		return sts_pll;
 	}
 
-	demod_set_mode_ts(demod->demod_status.delsys);
+	demod_set_mode_ts(demod, demod->demod_status.delsys);
 	cfg2.b.biasgen_en = 1;
 	cfg2.b.en_adc = 1;
 	demod_top_write_reg(DEMOD_TOP_REG8, cfg2.d32);
@@ -1119,7 +1137,13 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 				demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
 				demod_top_write_reg(DEMOD_TOP_REGC, 0x10);
 				usleep_range(1000, 2000);
-				demod_top_write_reg(DEMOD_TOP_REGC, 0xcc0011);
+				//enable dvbc and dvbs mode for new dvbc_blind_scan mode
+				if (!devp->blind_scan_stop)
+					demod_top_write_reg(DEMOD_TOP_REGC,
+							demod->dvbc_sel == 1 ? 0xaa0011 : 0x660011);
+				else
+					demod_top_write_reg(DEMOD_TOP_REGC, 0xcc0011);
+
 				front_write_bits(AFIFO_ADC_S4D, nco_rate,
 					AFIFO_NCO_RATE_BIT, AFIFO_NCO_RATE_WID);
 			} else {
@@ -1130,9 +1154,17 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 				front_write_bits(AFIFO_ADC, nco_rate, AFIFO_NCO_RATE_BIT,
 						 AFIFO_NCO_RATE_WID);
 			}
-			front_write_reg(SFIFO_OUT_LENS, 0x05);
+
+			//for new dvbc_blind_scan mode
+			if (!devp->blind_scan_stop) {
+				front_write_reg(0x6C, 0); //config afifo2
+				front_write_reg(SFIFO_OUT_LENS, 0);
+				front_write_reg(0x27, 0x03555555); //config ddc_bypass
+			} else {
+				front_write_reg(SFIFO_OUT_LENS, 0x05);
+			}
 			front_write_bits(AFIFO_ADC, 1, ADC_2S_COMPLEMENT_BIT,
-					 ADC_2S_COMPLEMENT_WID);
+					ADC_2S_COMPLEMENT_WID);
 		}
 		break;
 
@@ -1795,5 +1827,177 @@ void demod_set_demod_default(void)
 	demod_top_write_reg(DEMOD_TOP_REG0, DEMOD_REG0_VALUE);
 	demod_top_write_reg(DEMOD_TOP_REG4, DEMOD_REG4_VALUE);
 	demod_top_write_reg(DEMOD_TOP_REG8, DEMOD_REG8_VALUE);
+}
+
+//when frontend top AGC is enabled, sub-module local AGC
+//will be disabled automatically.
+void demod_enable_frontend_agc(struct aml_dtvdemod *demod,
+		enum fe_delivery_system delsys, bool enable)
+{
+	unsigned int top_saved = 0, polling_en = 0;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+
+	if (!enable) {
+		//enable frontend agc, 0x20[18]: 0x1 use frontend agc, 0x0 use local agc.
+		front_write_bits(DEMOD_FRONT_AFIFO_ADC, 0, 18, 1);
+		return;
+	}
+
+	if (delsys == SYS_DVBT || delsys == SYS_DVBT2) {
+		//set f040 = 0x0, disable T/T2 mode, stop to
+		//access T/T2 regs, so should stop demod_thread to access T/T2 status first.
+		polling_en = devp->demod_thread;
+		devp->demod_thread = 0;
+		top_saved = demod_top_read_reg(DEMOD_TOP_CFG_REG_4);
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+	}
+
+	PR_DBG("frontagc 0x20 %#x 0x21 %#x 0x22 %#x 0x23 %#x 0x26 %#x 0x28 %#x top_saved %#x\n",
+				front_read_reg(0x20), front_read_reg(0x21), front_read_reg(0x22),
+				front_read_reg(0x23), front_read_reg(0x26), front_read_reg(0x28),
+				top_saved);
+
+	front_write_reg(DEMOD_FRONT_AGC_CFG1, 0x10122);
+
+	if (delsys == SYS_DVBC_ANNEX_A && !devp->blind_scan_stop &&
+			demod->dvbc_sel == 1)
+		//when use DVB-C ch1, adc_iq_exchange = 1.
+		front_write_reg(DEMOD_FRONT_AGC_CFG2, 0x7200a36);
+	else
+		front_write_reg(DEMOD_FRONT_AGC_CFG2, 0x7200a16); //config same as dtmb 0x22
+
+	front_write_reg(DEMOD_FRONT_AGC_CFG6, 0x1a000f0f); //config same as dtmb 0x46
+
+	if (front_agc_target)
+		front_write_bits(DEMOD_FRONT_AGC_CFG6, front_agc_target, 24, 6);
+
+	//disable dc remove1 bypass
+	front_write_bits(DEMOD_FRONT_DC_CFG1, 1, 31, 1);
+
+	//enable frontend agc, 0x20[18]: 0x1 use frontend agc, 0x0 use local agc.
+	//0x20[17]: adc_real_only.
+	if (delsys == SYS_DVBS || delsys == SYS_DVBS2)
+		front_write_bits(DEMOD_FRONT_AFIFO_ADC, 0x2, 17, 2);
+	else
+		front_write_bits(DEMOD_FRONT_AFIFO_ADC, 0x3, 17, 2);
+
+	PR_DBG("frontagc 0x20 %#x 0x21 %#x 0x22 %#x 0x23 %#x 0x26 %#x 0x28 %#x\n",
+			front_read_reg(0x20), front_read_reg(0x21), front_read_reg(0x22),
+			front_read_reg(0x23), front_read_reg(0x26), front_read_reg(0x28));
+
+	if (delsys == SYS_DVBT || delsys == SYS_DVBT2) {
+		//f040 = 0x182: host only can access top regs and T/T2 regs
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, top_saved);
+		devp->demod_thread = polling_en;
+	}
+}
+
+static int x_to_power_y(int number, unsigned int power)
+{
+	unsigned int i;
+	int result = 1;
+
+	for (i = 0; i < power; i++)
+		result *= number;
+
+	return result;
+}
+
+void fe_l2a_set_symbol_rate(struct fe_l2a_internal_param *pparams, unsigned int symbol_rate)
+{
+	//unsigned int reg_field2, reg_field1, reg_field0;
+	unsigned int reg32;
+	int tmp;
+	int tmp_f;
+
+	//reg_field2 = FLD_FL2A_DVBSX_DEMOD_SFRINIT2_SFR_INIT;
+	//reg_field1 = FLD_FL2A_DVBSX_DEMOD_SFRINIT1_SFR_INIT;
+	//reg_field0 = FLD_FL2A_DVBSX_DEMOD_SFRINIT0_SFR_INIT;
+
+	/* sfr_init = sfr_init(MHz) * 2^24 / ckadc (unsigned), ckadc = nsamples * Mclk */
+	/* max SR: MCLK/2=67.5MS/s rounded to 70MS/s */
+
+	/*reg32 = (symbol_rate / 1000) * (1 << 15);
+	 *reg32 = reg32 / (pParams->master_clock / 1000);
+	 *reg32 = reg32 * (1 << 9);
+
+	 *error |= fe_write_field(pParams->handle_demod, reg_field2,
+	 *		((s32)reg32 >> 16) & 0xFF);
+	 *error |= fe_write_field(pParams->handle_demod, reg_field1,
+	 *		((s32)reg32 >> 8) & 0xFF);
+	 *error |= fe_write_field(pParams->handle_demod, reg_field0,
+	 *		((s32)reg32) & 0xFF);
+	 */
+
+	//reg32 = (symbol_rate * 16777216)/master_clock;
+	reg32 = (symbol_rate / 1000) * (1 << 15);
+	//printf("pParams->master_clock is %d\n",pParams->master_clock);
+	//pParams->master_clock = 135000000;
+
+	//reg32 = reg32 / (pParams->master_clock / 1000);
+	reg32 = reg32 / ADC_CLK_135M;
+	reg32 = reg32 * (1 << 9);
+	PR_DVBC("reg32: %d, symb_rate: %d.\n", reg32, symbol_rate);
+
+	dvbs_wr_byte(0x9f0, (reg32 >> 16) & 0xff);
+	dvbs_wr_byte(0x9f1, (reg32 >> 8) & 0xff);
+	dvbs_wr_byte(0x9f2, reg32 & 0xff);
+	tmp = (((dvbs_rd_byte(0x9f0)) << 16) + ((dvbs_rd_byte(0x9f1)) << 8) +
+			(dvbs_rd_byte(0x9f2)));
+	tmp_f = tmp * 135 / 16777216;
+	PR_DVBC(" after %s init 9f0 sr = %d %d Mbps\n", __func__, tmp, tmp_f);
+}
+
+void fe_l2a_get_agc2accu(struct fe_l2a_internal_param *pparams, unsigned int *pintegrator)
+{
+	unsigned int agc2acc_mant, agc2acc_exp, fld_value[2] = {0};
+
+	unsigned int mantissa;
+	signed int exponent;
+	//unsigned long long Value;
+	//unsigned int Value;
+	unsigned int AGC2I1, AGC2I0;
+	unsigned short mant;
+	unsigned char exp;
+	signed int exp_abs_s32 = 0, exp_s32 = 0;
+
+	fld_value[0] = dvbs_rd_byte(0x9a0);
+	fld_value[1] = (dvbs_rd_byte(0x9a1) & 0xc0) >> 6;//9a1&c0
+	mantissa = fld_value[1] + (fld_value[0] << 2);
+	fld_value[0] = (dvbs_rd_byte(0x9a1) & 0x3f);
+	exponent = (signed int)(fld_value[0]);
+
+	*pintegrator = mantissa * (unsigned int)POWOF2(exponent + 5 - 9); /* 2^5=32 */
+
+	/* Georg's method */
+	fld_value[0] = dvbs_rd_byte(0x9a0);
+	fld_value[1] = (dvbs_rd_byte(0x9a1) & 0xc0) >> 6;//9a1&c0
+	agc2acc_mant = (MAKEWORD(fld_value[0], fld_value[1])) >> 6;
+	agc2acc_exp = dvbs_rd_byte(0x9a1) & 0x3f;
+	if (((int)(agc2acc_exp - 9)) >= 0)
+		*pintegrator = agc2acc_mant * (unsigned int)POWOF2(agc2acc_exp - 9);
+	//printf("Integrator is %d\n",*pIntegrator);
+
+	AGC2I1 = dvbs_rd_byte(0x9a0);
+	//printf("0x9a0 is %x\n",AGC2I1);
+	AGC2I0 = dvbs_rd_byte(0x9a1);
+	mant = (unsigned short)((AGC2I1 * 4) + ((AGC2I0 >> 6) & 0x3));
+	exp = (unsigned char)(AGC2I0 & 0x3f);
+	PR_DVBC("mant is %d\n", mant);
+	/*evaluate exp-9 */
+	exp_s32 = (signed int)(exp - 9);
+
+	/*evaluate exp -9 sign */
+	if (exp_s32 < 0) {
+		/* if exp_s32<0 divide the mantissa  by 2^abs(exp_s32)*/
+		exp_abs_s32 = x_to_power_y(2, (unsigned int)(-exp_s32));
+		*pintegrator = (unsigned int)((1000 * (mant)) / exp_abs_s32);
+		PR_DVBC("Integrator is %d\n", *pintegrator);
+	} else {
+		/*if exp_s32> 0 multiply the mantissa  by 2^(exp_s32)*/
+		exp_abs_s32 = x_to_power_y(2, (unsigned int)(exp_s32));
+		*pintegrator = (unsigned int)((1000 * mant) * exp_abs_s32);
+		PR_DVBC("Integrator is %d\n", *pintegrator);
+	}
 }
 

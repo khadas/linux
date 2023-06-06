@@ -1869,30 +1869,6 @@ void dvbs_fft_reg_term(unsigned int reg_val[60])
 	dvbs_write_bits(0x8a1, 0, 4, 2);
 }
 
-void fe_l2a_set_symbol_rate(unsigned int symb_rate)
-{
-	unsigned int tmp = 0;
-
-	tmp = (symb_rate / 1000) * (1 << 15);
-	tmp = tmp / ADC_CLK_135M;
-	tmp = tmp * (1 << 9);
-	PR_DVBS("1 tmp: %d, symb_rate: %d.\n", tmp, symb_rate);
-
-	//tmp = symb_rate / 1000 * ((ALIGN_24 + ADC_CLK_135M / 2) / ADC_CLK_135M);
-	//PR_DVBS("2 tmp: %d, symb_rate: %d.\n", tmp, symb_rate);
-
-	dvbs_wr_byte(0x9f0, (tmp >> 16) & 0xff);
-	dvbs_wr_byte(0x9f1, (tmp >> 8) & 0xff);
-	dvbs_wr_byte(0x9f2, tmp & 0xff);
-
-	// read back from register for checking
-	//tmp = ((dvbs_rd_byte(0x9f0) & 0xff) << 16);
-	//tmp = tmp | ((dvbs_rd_byte(0x9f1) & 0xff) << 8);
-	//tmp = tmp | (dvbs_rd_byte(0x9f2) & 0xff);
-
-	//PR_DVBS("3 tmp: %d, symb_rate: %d.\n", tmp, symb_rate);
-}
-
 void dvbs_blind_fft_work(struct fft_threadcontrols *spectr_ana_data,
 	int frq, struct fft_search_result *search_result)
 {
@@ -1914,7 +1890,7 @@ void dvbs_blind_fft_work(struct fft_threadcontrols *spectr_ana_data,
 	dvbs_wr_byte(0x9c5, (char)frc_demod_set);
 
 	// Set bandwidth
-	fe_l2a_set_symbol_rate(2 * spectr_ana_data->range * 1000000);
+	fe_l2a_set_symbol_rate(NULL, 2 * spectr_ana_data->range * 1000000);
 
 	// start acquisition
 	dvbs_write_bits(0x8c0, 0x1, 1, 1);
@@ -2094,7 +2070,7 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz,
 	dvbs_write_bits(0x922, 0, 3, 1);
 
 	/* AGC2 bandwidth * 0.5M */
-	fe_l2a_set_symbol_rate(1000000 / div);
+	fe_l2a_set_symbol_rate(NULL, 1000000 / div);
 
 	nb_steps = (45000000 / 2000000) * div;
 	//if (nb_steps <= 0)
@@ -2361,7 +2337,7 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_old(int *next_step_khz)
 	dvbs_write_bits(0x922, 0, 3, 1);
 
 	/* AGC2 bandwidth * 0.5M */
-	fe_l2a_set_symbol_rate(1000000 / div);
+	fe_l2a_set_symbol_rate(NULL, 1000000 / div);
 
 	nb_steps = (45000000 / 2000000) * div;
 	//if (nb_steps <= 0)

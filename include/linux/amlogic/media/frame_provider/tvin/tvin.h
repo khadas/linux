@@ -148,7 +148,7 @@ bool IS_HDMI_SRC(enum tvin_port_e port);
 struct dfe_adcpll_para {
 	unsigned int adcpllctl;
 	unsigned int demodctl;
-	unsigned int atsc;
+	unsigned int mode; //[1]: atsc mode, [2]: for dvbc_blind_scan mode;
 	enum fe_delivery_system delsys;
 	unsigned int adc_clk;
 	/* adc pga gain:
@@ -204,7 +204,7 @@ int adc_get_pll_flag(void);
 /*ADC_EN_DTV_DEMOD	0x4*/
 /*ADC_EN_DTV_DEMODPLL	0x8*/
 int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para_);
-void adc_set_ddemod_default(enum fe_delivery_system delsys);/* add for dtv demod */
+void adc_set_ddemod_default(struct dfe_adcpll_para *adcpll_para);/* add for dtv demod */
 int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data);
 int adc_get_status(enum adc_sel module_sel);
 #else
