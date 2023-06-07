@@ -3068,6 +3068,14 @@ void tvafe_cvd2_rf_ntsc50_en(bool v)
 
 void tvafe_snow_config(unsigned int on_off)
 {
+	/*setting for snow*/
+	if (tvafe_get_snow_cfg() &&
+		(tvafe_cpu_type() == TVAFE_CPU_TYPE_TL1 ||
+		tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2)) {
+		W_APB_BIT(CVD2_OUTPUT_CONTROL, 3, 5, 2);
+		W_APB_REG(ACD_REG_6C, 0x80500000);
+	}
+
 	if (tvafe_snow_function_flag == 0 ||
 		tvafe_cpu_type() == TVAFE_CPU_TYPE_TL1 ||
 		tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2)

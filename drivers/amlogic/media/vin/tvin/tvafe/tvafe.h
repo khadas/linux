@@ -35,7 +35,8 @@
 /* 20230423: Set the default value of comp_level_adj to 3 */
 /* 20230423: white level detection is enabled by default */
 /* 20230509: adjust nostd_stable_cnt */
-#define TVAFE_VER "20230509: adjust nostd_stable_cnt"
+/* 20230607: optimized snow config */
+#define TVAFE_VER "20230607: optimized snow config"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010
