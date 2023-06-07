@@ -67,8 +67,17 @@ static int rdma_force_reset = -1;
 #define RDMA_MGR_CLASS_NAME  "rdma_mgr"
 static int rdma_trace_num;
 static int rdma_trace_enable;
+static int rdma_trace_channel;
 static u32 rdma_trace_reg[MAX_TRACE_NUM];
 static int rdma_table_size = RDMA_TABLE_SIZE;
+static int g_vsync_rdma_item_count;
+static int g_vsync_rdma_item_count_max;
+
+MODULE_PARM_DESC(g_vsync_rdma_item_count, "\n g_vsync_rdma_item_count\n");
+module_param(g_vsync_rdma_item_count, uint, 0664);
+
+MODULE_PARM_DESC(g_vsync_rdma_item_count_max, "\n g_vsync_rdma_item_count_max\n");
+module_param(g_vsync_rdma_item_count_max, uint, 0664);
 
 struct rdma_regadr_s {
 	u32 rdma_ahb_start_addr;
@@ -725,7 +734,9 @@ int rdma_config(int handle, u32 trigger_type)
 						__func__, ins->rdma_item_count);
 			} else {
 				/* interrupt input trigger RDMA */
-				if (debug_flag & 2)
+				if (debug_flag & 2 ||
+					(rdma_trace_enable &&
+					rdma_trace_channel == handle))
 					pr_info("%s: handle=%d case 3 : %d:\r\n",
 					__func__, handle, ins->rdma_item_count);
 				WRITE_VCBUS_REG_BITS
@@ -822,11 +833,17 @@ int rdma_config(int handle, u32 trigger_type)
 
 	/* don't reset rdma_item_count for read function */
 	if (handle != get_rdma_handle(VSYNC_RDMA_READ) &&
-		!buffer_lock)
+		!buffer_lock) {
+		g_vsync_rdma_item_count = ins->rdma_item_count;
+		if (g_vsync_rdma_item_count >= g_vsync_rdma_item_count_max)
+			g_vsync_rdma_item_count_max = g_vsync_rdma_item_count;
 		ins->rdma_item_count = 0;
+	}
 	spin_unlock_irqrestore(&rdma_lock, flags);
 
-	if (debug_flag & 2)
+	if (debug_flag & 2 ||
+		(rdma_trace_enable &&
+		rdma_trace_channel == handle))
 		pr_info("%s: (%d 0x%x) ret %d\r\n",
 			__func__, handle, trigger_type_backup, ret);
 	ins->rdma_config_count++;
@@ -853,7 +870,9 @@ int rdma_clear(int handle)
 	WRITE_VCBUS_REG_BITS(ins->rdma_regadr->trigger_mask_reg,
 			     0, ins->rdma_regadr->trigger_mask_reg_bitpos,
 			     rdma_meson_dev.trigger_mask_len);
-	if (debug_flag & 2)
+	if (debug_flag & 2 ||
+		(rdma_trace_enable &&
+		rdma_trace_channel == handle))
 		pr_info("%s: handle=%d : write count %d item count %d\n",
 			__func__, handle,
 			ins->rdma_write_count, ins->rdma_item_count);
@@ -1108,7 +1127,9 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 			handle, val, ins->rdma_item_count);
 		dump_stack();
 	}
-	if (debug_flag & 1)
+	if (debug_flag & 1 ||
+		(rdma_trace_enable &&
+		rdma_trace_channel == handle))
 		pr_info("rdma_write(%d) %d(%x)<=%x\n",
 			handle, ins->rdma_item_count, adr, val);
 	if (rdma_check_conflict(handle, adr, NULL))
@@ -1235,7 +1256,9 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 		ins->reg_buf[(i << 1) + 1] = write_val;
 		return 0;
 	}
-	if (debug_flag & 1)
+	if (debug_flag & 1 ||
+		(rdma_trace_enable &&
+		rdma_trace_channel == handle))
 		pr_info("rdma_write(%d) %d(%x)<=%x\n",
 			handle, ins->rdma_item_count, adr, write_val);
 
@@ -1657,6 +1680,25 @@ static ssize_t rdma_irq_count_show(struct class *cla,
 	return i;
 }
 
+static ssize_t rdma_mgr_trace_channel_show(struct class *cla,
+					  struct class_attribute *attr,
+					  char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%x\n", rdma_trace_channel);
+}
+
+static ssize_t rdma_mgr_trace_channel_stroe(struct class *cla,
+					   struct class_attribute *attr,
+					   const char *buf, size_t count)
+{
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &rdma_trace_channel);
+	if (ret < 0)
+		return -EINVAL;
+	return count;
+}
+
 static struct class_attribute rdma_mgr_attrs[] = {
 	__ATTR(debug_flag, 0664,
 	       show_debug_flag, store_debug_flag),
@@ -1676,6 +1718,8 @@ static struct class_attribute rdma_mgr_attrs[] = {
 	       show_ex_vsync_rdma, store_ex_vsync_rdma),
 	__ATTR(irq_count_stat, 0664,
 		   rdma_irq_count_show, NULL),
+	__ATTR(trace_channel, 0664,
+	       rdma_mgr_trace_channel_show, rdma_mgr_trace_channel_stroe),
 };
 
 static struct class *rdma_mgr_class;

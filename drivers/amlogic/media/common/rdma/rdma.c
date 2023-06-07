@@ -1024,26 +1024,32 @@ static ssize_t store_second_rdma_feature(struct class *class,
 	return count;
 }
 
-static ssize_t enable_show(struct class *class,
+static ssize_t show_enable(struct class *class,
 			   struct class_attribute *attr,
 			   char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d %d %d %d\n",
-			enable[0], enable[1],
-			enable[2], enable[3]);
+	int i;
+	int enable_flag = 0;
+
+	for (i = 0; i < RDMA_NUM; i++)
+		if (enable[i])
+			enable_flag |= (1 << i);
+
+	return snprintf(buf, PAGE_SIZE, "enable_flag: 0x%x\n",
+			enable_flag);
 }
 
-static ssize_t enable_store(struct class *class,
+static ssize_t store_enable(struct class *class,
 			    struct class_attribute *attr,
 			    const char *buf, size_t count)
 {
 	int i = 0;
+	int enable_flag = 0, ret;
 
-	if (likely(parse_para(buf, RDMA_NUM, enable) == RDMA_NUM)) {
-		for (i = 0; i < RDMA_NUM; i++)
-			pr_info("enable[%d]: %d\n", i, enable[i]);
-	} else {
-		pr_err("set enable error\n");
+	ret = kstrtoint(buf, 0, &enable_flag);
+	for (i = 0; i < RDMA_NUM; i++) {
+		enable[i] = (enable_flag >> i) & 1;
+		pr_info("enable[%d]=%d\n", i, enable[i]);
 	}
 	return count;
 }
@@ -1052,9 +1058,17 @@ static ssize_t show_irq_count(struct class *class,
 			      struct class_attribute *attr,
 			      char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d %d %d %d\n",
-			irq_count[0], irq_count[1],
-			irq_count[2], irq_count[3]);
+	int i;
+	char str[8];
+	char buf_str[128] = {0};
+
+	memset(buf_str, 0, sizeof(strlen(buf_str)));
+	for (i = 0; i < RDMA_NUM; i++) {
+		sprintf(str, "%d ", irq_count[i]);
+		strcat(buf_str, str);
+	}
+
+	return snprintf(buf, PAGE_SIZE, "irq count: %s\n", buf_str);
 }
 
 static ssize_t store_irq_count(struct class *class,
@@ -1062,12 +1076,19 @@ static ssize_t store_irq_count(struct class *class,
 			       const char *buf, size_t count)
 {
 	int i = 0;
+	int channel = 0;
+	int parsed[2];
 
-	if (likely(parse_para(buf, RDMA_NUM, irq_count) == RDMA_NUM)) {
-		for (i = 0; i < RDMA_NUM; i++)
-			pr_info("enable[%d]: %d\n", i, irq_count[i]);
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		channel = parsed[0];
+		if (channel < RDMA_NUM) {
+			irq_count[channel] = parsed[1];
+			pr_info("irq_count[%d]: %d\n", i, irq_count[i]);
+		} else {
+			pr_info("error please input: rdma_channel, irq_count\n");
+		}
 	} else {
-		pr_err("set irq_count error\n");
+		pr_info("error please input: rdma_channel, irq_count\n");
 	}
 	return count;
 }
@@ -1076,9 +1097,16 @@ static ssize_t show_debug_flag(struct class *class,
 			       struct class_attribute *attr,
 			       char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d %d, %d, %d\n",
-			debug_flag[0], debug_flag[1],
-			debug_flag[2], debug_flag[3]);
+	int i;
+	char str[8];
+	char buf_str[128] = {0};
+
+	for (i = 0; i < RDMA_NUM; i++) {
+		sprintf(str, "%d ", debug_flag[i]);
+		strcat(buf_str, str);
+	}
+
+	return snprintf(buf, PAGE_SIZE, "debug_flag: %s\n", buf_str);
 }
 
 static ssize_t store_debug_flag(struct class *class,
@@ -1086,12 +1114,19 @@ static ssize_t store_debug_flag(struct class *class,
 				const char *buf, size_t count)
 {
 	int i = 0;
+	int channel = 0;
+	int parsed[2];
 
-	if (likely(parse_para(buf, RDMA_NUM, debug_flag) == RDMA_NUM)) {
-		for (i = 0; i < RDMA_NUM; i++)
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		channel = parsed[0];
+		if (channel < RDMA_NUM) {
+			debug_flag[channel] = parsed[1];
 			pr_info("debug_flag[%d]: %d\n", i, debug_flag[i]);
+		} else {
+			pr_info("error please input: rdma_channel, debug_flag\n");
+		}
 	} else {
-		pr_err("set debug_flag error\n");
+		pr_info("error please input: rdma_channel, debug_flag\n");
 	}
 	return count;
 }
@@ -1100,9 +1135,17 @@ static ssize_t show_vsync_cfg_count(struct class *class,
 				    struct class_attribute *attr,
 				    char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d %d, %d, %d\n",
-			vsync_cfg_count[0], vsync_cfg_count[1],
-			vsync_cfg_count[2], vsync_cfg_count[3]);
+	int i;
+	char str[8];
+	char buf_str[128] = {0};
+
+	memset(buf_str, 0, sizeof(strlen(buf_str)));
+	for (i = 0; i < RDMA_NUM; i++) {
+		sprintf(str, "%d ", vsync_cfg_count[i]);
+		strcat(buf_str, str);
+	}
+
+	return snprintf(buf, PAGE_SIZE, "vsync_cfg_count: %s\n", buf_str);
 }
 
 static ssize_t store_vsync_cfg_count(struct class *class,
@@ -1110,13 +1153,19 @@ static ssize_t store_vsync_cfg_count(struct class *class,
 				     const char *buf, size_t count)
 {
 	int i = 0;
+	int channel = 0;
+	int parsed[2];
 
-	if (likely(parse_para(buf, RDMA_NUM, vsync_cfg_count) == RDMA_NUM)) {
-		for (i = 0; i < RDMA_NUM; i++)
-			pr_info("vsync_cfg_count[%d]: %d\n",
-				i, vsync_cfg_count[i]);
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		channel = parsed[0];
+		if (channel < RDMA_NUM) {
+			vsync_cfg_count[channel] = parsed[1];
+			pr_info("vsync_cfg_count[%d]: %d\n", i, vsync_cfg_count[i]);
+		} else {
+			pr_info("error please input: rdma_channel, vsync_cfg_count\n");
+		}
 	} else {
-		pr_err("set vsync_cfg_count error\n");
+		pr_info("error please input: rdma_channel, debug_flag\n");
 	}
 	return count;
 }
@@ -1125,9 +1174,16 @@ static ssize_t show_force_rdma_config(struct class *class,
 				      struct class_attribute *attr,
 				      char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d %d, %d, %d\n",
-			force_rdma_config[0], force_rdma_config[1],
-			force_rdma_config[2], force_rdma_config[3]);
+	int i;
+	char str[8];
+	char buf_str[128] = {0};
+
+	for (i = 0; i < RDMA_NUM; i++) {
+		sprintf(str, "%d ", force_rdma_config[i]);
+		strcat(buf_str, str);
+	}
+
+	return snprintf(buf, PAGE_SIZE, "force_rdma_config: %s\n", buf_str);
 }
 
 static ssize_t store_force_rdma_config(struct class *class,
@@ -1135,13 +1191,19 @@ static ssize_t store_force_rdma_config(struct class *class,
 				       const char *buf, size_t count)
 {
 	int i = 0;
+	int channel = 0;
+	int parsed[2];
 
-	if (likely(parse_para(buf, RDMA_NUM, force_rdma_config) == RDMA_NUM)) {
-		for (i = 0; i < RDMA_NUM; i++)
-			pr_info("force_rdma_config[%d]: %d\n",
-				i, force_rdma_config[i]);
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		channel = parsed[0];
+		if (channel < RDMA_NUM) {
+			force_rdma_config[channel] = parsed[1];
+			pr_info("force_rdma_config[%d]: %d\n", i, force_rdma_config[i]);
+		} else {
+			pr_info("error please input: rdma_channel, force_rdma_config\n");
+		}
 	} else {
-		pr_err("set force_rdma_config error\n");
+		pr_info("error please input: rdma_channel, force_rdma_config\n");
 	}
 	return count;
 }
@@ -1150,7 +1212,7 @@ static struct class_attribute rdma_attrs[] = {
 	__ATTR(second_rdma_feature, 0664,
 	       show_second_rdma_feature, store_second_rdma_feature),
 	__ATTR(enable, 0664,
-	       enable_show, enable_store),
+	       show_enable, store_enable),
 	__ATTR(irq_count, 0664,
 	       show_irq_count, store_irq_count),
 	__ATTR(debug_flag, 0664,
