@@ -1314,6 +1314,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->dbg_dump_frames, devp->dbg_stop_dec_delay);
 	pr_info("vdin_function_sel: 0x%x\n", devp->vdin_function_sel);
 	pr_info("Vdin driver version :  %s\n", VDIN_VER);
+	pr_info("Vdin driver version_V1 :  %s\n", VDIN_VER_V1);
 	/*vdin_dump_vs_info(devp);*/
 }
 
@@ -1471,6 +1472,7 @@ static int seq_file_vdin_state_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "size of struct vdin_dev_s: %d\n",
 		   devp->vdin_dev_ssize);
 	seq_printf(seq, "Vdin driver version :  %s\n", VDIN_VER);
+	seq_printf(seq, "Vdin driver version_v1 :  %s\n", VDIN_VER_V1);
 
 	return 0;
 }
@@ -3365,6 +3367,25 @@ start_chk:
 			devp->vdin_drop_num = temp;
 			pr_info("vdin_drop_num:%d\n", devp->vdin_drop_num);
 		}
+	} else if (!strcmp(parm[0], "invert_top_bot")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			if (temp)
+				set_invert_top_bot(true);
+			else
+				set_invert_top_bot(false);
+			pr_info("invert_top_bot temp:%d\n", temp);
+		}
+	} else if (!strcmp(parm[0], "color_range_force")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			if (temp)
+				color_range_force = temp;
+			else
+				color_range_force = 0;
+			pr_info("color_range_force:%d\n", color_range_force);
+		}
+	} else if (!strcmp(parm[0], "set_unstable_sig")) {
+		devp->parm.info.status = TVIN_SIG_STATUS_UNSTABLE;
+		devp->frame_drop_num = 8;
 	} else {
 		pr_info("unknown command:%s\n", parm[0]);
 	}

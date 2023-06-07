@@ -1068,6 +1068,13 @@ static void vdin_scale_and_cutwin_handle(struct vdin_dev_s *devp)
 		return;
 
 	vdin0_max_w_h = devp->dtdata->vdin0_max_w_h;
+
+	if (devp->vdin_function_sel & VDIN_SACALE_4096_2_3840 &&
+	    devp->parm.info.fmt == TVIN_SIG_FMT_HDMI_4096_2160_00HZ) {
+		devp->prop.scaling4w = 3840;
+		devp->prop.scaling4h = 2160;
+	}
+
 	if (devp->parm.dest_width != 0 ||
 	    devp->parm.dest_height != 0) {
 		devp->prop.scaling4w = devp->parm.dest_width;
@@ -1087,6 +1094,13 @@ static void vdin_scale_and_cutwin_handle(struct vdin_dev_s *devp)
 		devp->prop.scaling4w = devp->debug.scaling4w;
 		devp->prop.scaling4h = devp->debug.scaling4h;
 	}
+
+	if (devp->vdin_function_sel & VDIN_CUTWIN_4096_2_3840 &&
+	    devp->parm.info.fmt == TVIN_SIG_FMT_HDMI_4096_2160_00HZ) {
+		devp->prop.hs = 128;
+		devp->prop.he = 128;
+	}
+
 	if (devp->debug.cutwin.hs ||
 	    devp->debug.cutwin.he ||
 	    devp->debug.cutwin.vs ||

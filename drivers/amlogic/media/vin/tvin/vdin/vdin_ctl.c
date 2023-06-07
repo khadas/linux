@@ -682,7 +682,8 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 		case TVIN_YUV444:
 			if (IS_HDMI_SRC(port) &&
 			    scan_mod == TVIN_SCAN_MODE_PROGRESSIVE && !manual_md) {
-				if (devp->vdin_pc_mode || game_mode)
+				if (devp->vdin_pc_mode ||
+				    devp->vdin_function_sel & VDIN_FORCE_444_NOT_CONVERT)
 					format_convert =
 						VDIN_FORMAT_CONVERT_YUV_YUV444;
 				else
@@ -713,7 +714,8 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 		case TVIN_RGB444:
 			if (IS_HDMI_SRC(port) &&
 			    scan_mod == TVIN_SCAN_MODE_PROGRESSIVE && !manual_md) {
-				if (devp->vdin_pc_mode || game_mode)
+				if (devp->vdin_pc_mode ||
+				    devp->vdin_function_sel & VDIN_FORCE_444_NOT_CONVERT)
 					format_convert =
 						VDIN_FORMAT_CONVERT_RGB_RGB;
 				else
@@ -1590,7 +1592,10 @@ static void vdin_manual_matrix_csc(enum vdin_matrix_csc_e *matrix_csc)
 	if (!devp->debug.manual_change_csc)
 		return;
 
-	*matrix_csc = devp->debug.manual_change_csc;
+	if (devp->debug.manual_change_csc >= VDIN_MATRIX_MAX)
+		*matrix_csc = VDIN_MATRIX_NULL;
+	else
+		*matrix_csc = devp->debug.manual_change_csc;
 	pr_info("%s matrix_csc:%d\n", __func__, *matrix_csc);
 }
 

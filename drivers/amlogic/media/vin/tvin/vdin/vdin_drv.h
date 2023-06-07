@@ -192,6 +192,9 @@ enum vdin_hw_ver_e {
 	VDIN_HW_S5,
 };
 
+/* 20230607: game mode optimize and add debug */
+#define VDIN_VER_V1 "20230607: game mode optimize and add debug"
+
 enum vdin_irq_flg_e {
 	VDIN_IRQ_FLG_NO_END = 1,
 	VDIN_IRQ_FLG_IRQ_STOP = 2,
@@ -290,11 +293,14 @@ struct match_data_s {
 #define VDIN_ADJUST_VLOCK		BIT(4)
 #define VDIN_PROP_RX_UPDATE		BIT(5)
 #define VDIN_GAME_NOT_TANSFER		BIT(6) //control for tx output when game mode
+#define VDIN_FORCE_444_NOT_CONVERT	BIT(7) //commercial display control
 #define VDIN_NO_TVAFE_ASPECT_RATIO_CHK	BIT(8) //no tvafe aspect_ratio check
 #define VDIN_SET_DISPLAY_RATIO		BIT(9)
 #define VDIN_NOT_DATA_INPUT_DROP	BIT(10)
 #define VDIN_BYPASS_HDR_SEI_CHECK	BIT(11) //bypass non-standard hdr stream detection
 #define VDIN_INTERLACE_GAME_MODE	BIT(12)
+#define VDIN_SACALE_4096_2_3840		BIT(13)
+#define VDIN_CUTWIN_4096_2_3840		BIT(14)
 /* vdin_function_sel control bits end */
 
 #define VDIN_2K_SIZE			0x07800438 /* 0x780 = 1920 0x438 = 1080 */
@@ -436,6 +442,7 @@ enum vdin_matrix_csc_e {
 	VDIN_MATRIX_RGB_RGBS,
 	VDIN_MATRIX_RGB2020_YUV2020,
 	VDIN_MATRIX_YUV2020F_YUV2020,
+	VDIN_MATRIX_MAX,
 };
 
 enum vdin_matrix_sel_e {
