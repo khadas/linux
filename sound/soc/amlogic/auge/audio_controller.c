@@ -63,9 +63,14 @@ static struct gate_info axg_info = {
 	.clk1_gate_off = true,
 };
 
+static struct gate_info t3x_info = {
+	.clk1_gate_off = false,
+};
+
 static const struct of_device_id amlogic_audio_controller_of_match[] = {
 	{
-		.compatible = "amlogic, audio-controller"
+		.compatible = "amlogic, audio-controller",
+		.data       = &t3x_info,
 	},
 	{
 		.compatible = "amlogic, axg-audio-controller",
