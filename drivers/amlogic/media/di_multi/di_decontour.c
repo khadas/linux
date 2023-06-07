@@ -1290,7 +1290,7 @@ enum DDIM_DCT_BYPASS_REASON {
 
 	DDIM_DCT_BYPASS_BY_V_I,
 	DDIM_DCT_BYPASS_BY_V_COMP,
-	DDIM_DCT_BYPASS_BY_V_SIZE,
+	DDIM_DCT_BYPASS_BY_HV_SIZE,
 	DDIM_DCT_BYPASS_BY_V_EOS,
 	DDIM_DCT_BYPASS_BY_PRE_BASE = 0x20,
 };
@@ -1315,8 +1315,8 @@ static unsigned int dct_check_vfm_bypass(struct vframe_s *vf)
 		return breason;
 
 	dim_vf_x_y(vf, &x, &y);
-	if ((x * y) < (160 * 120))
-		breason = DDIM_DCT_BYPASS_BY_V_SIZE;
+	if (y < 192 || x < 192)
+		breason = DDIM_DCT_BYPASS_BY_HV_SIZE;
 
 	return breason;
 }
