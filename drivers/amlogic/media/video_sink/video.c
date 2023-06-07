@@ -9206,30 +9206,36 @@ SET_FILTER:
 		vd_layer[0].keep_frame_id = 0xff;
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
-	refresh_on_vs(new_frame, vd_layer[0].dispbuf);
+	struct vpp_frame_par_s *frame_par = NULL;
 
+	if (vd_layer[0].next_frame_par)
+		frame_par = vd_layer[0].next_frame_par;
+	else
+		frame_par = vd_layer[0].cur_frame_par;
+
+	refresh_on_vs(new_frame, vd_layer[0].dispbuf);
 	amvecm_on_vs
 		(!is_local_vf(vd_layer[0].dispbuf)
 		? vd_layer[0].dispbuf : NULL,
 		new_frame,
 		new_frame ? CSC_FLAG_TOGGLE_FRAME : 0,
-		cur_frame_par ?
-		cur_frame_par->supsc1_hori_ratio :
+		frame_par ?
+		frame_par->supsc1_hori_ratio :
 		0,
-		cur_frame_par ?
-		cur_frame_par->supsc1_vert_ratio :
+		frame_par ?
+		frame_par->supsc1_vert_ratio :
 		0,
-		cur_frame_par ?
-		cur_frame_par->spsc1_w_in :
+		frame_par ?
+		frame_par->spsc1_w_in :
 		0,
-		cur_frame_par ?
-		cur_frame_par->spsc1_h_in :
+		frame_par ?
+		frame_par->spsc1_h_in :
 		0,
-		cur_frame_par ?
-		cur_frame_par->cm_input_w :
+		frame_par ?
+		frame_par->cm_input_w :
 		0,
-		cur_frame_par ?
-		cur_frame_par->cm_input_h :
+		frame_par ?
+		frame_par->cm_input_h :
 		0,
 		VD1_PATH,
 		VPP_TOP0);
@@ -9551,28 +9557,33 @@ SET_FILTER:
 		vd_layer[1].keep_frame_id = 0xff;
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+	if (vd_layer[1].next_frame_par)
+		frame_par = vd_layer[1].next_frame_par;
+	else
+		frame_par = vd_layer[1].cur_frame_par;
+
 	amvecm_on_vs
 		(!is_local_vf(vd_layer[1].dispbuf)
 		? vd_layer[1].dispbuf : NULL,
 		new_frame2,
 		new_frame2 ? CSC_FLAG_TOGGLE_FRAME : 0,
-		curpip_frame_par ?
-		curpip_frame_par->supsc1_hori_ratio :
+		frame_par ?
+		frame_par->supsc1_hori_ratio :
 		0,
-		curpip_frame_par ?
-		curpip_frame_par->supsc1_vert_ratio :
+		frame_par ?
+		frame_par->supsc1_vert_ratio :
 		0,
-		curpip_frame_par ?
-		curpip_frame_par->spsc1_w_in :
+		frame_par ?
+		frame_par->spsc1_w_in :
 		0,
-		curpip_frame_par ?
-		curpip_frame_par->spsc1_h_in :
+		frame_par ?
+		frame_par->spsc1_h_in :
 		0,
-		curpip_frame_par ?
-		curpip_frame_par->cm_input_w :
+		frame_par ?
+		frame_par->cm_input_w :
 		0,
-		curpip_frame_par ?
-		curpip_frame_par->cm_input_h :
+		frame_par ?
+		frame_par->cm_input_h :
 		0,
 		VD2_PATH,
 		VPP_TOP0);
@@ -9836,28 +9847,33 @@ SET_FILTER:
 			vd_layer[2].keep_frame_id = 0xff;
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+		if (vd_layer[2].next_frame_par)
+			frame_par = vd_layer[2].next_frame_par;
+		else
+			frame_par = vd_layer[2].cur_frame_par;
+
 		amvecm_on_vs
 			(!is_local_vf(vd_layer[2].dispbuf)
 			? vd_layer[2].dispbuf : NULL,
 			new_frame3,
 			new_frame3 ? CSC_FLAG_TOGGLE_FRAME : 0,
-			curpip2_frame_par ?
-			curpip2_frame_par->supsc1_hori_ratio :
+			frame_par ?
+			frame_par->supsc1_hori_ratio :
 			0,
-			curpip2_frame_par ?
-			curpip2_frame_par->supsc1_vert_ratio :
+			frame_par ?
+			frame_par->supsc1_vert_ratio :
 			0,
-			curpip2_frame_par ?
-			curpip2_frame_par->spsc1_w_in :
+			frame_par ?
+			frame_par->spsc1_w_in :
 			0,
-			curpip2_frame_par ?
-			curpip2_frame_par->spsc1_h_in :
+			frame_par ?
+			frame_par->spsc1_h_in :
 			0,
-			curpip2_frame_par ?
-			curpip2_frame_par->cm_input_w :
+			frame_par ?
+			frame_par->cm_input_w :
 			0,
-			curpip2_frame_par ?
-			curpip2_frame_par->cm_input_h :
+			frame_par ?
+			frame_par->cm_input_h :
 			0,
 			VD3_PATH,
 			VPP_TOP0);

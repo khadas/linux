@@ -372,28 +372,35 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 	vd_layer_vpp[vpp_id].keep_frame_id = 0xff;
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+	struct vpp_frame_par_s *frame_par = NULL;
+
+	if (vd_layer_vpp[vpp_id].next_frame_par)
+		frame_par = vd_layer_vpp[vpp_id].next_frame_par;
+	else
+		frame_par = vd_layer_vpp[vpp_id].cur_frame_par;
+
 	amvecm_on_vs
 		(!is_local_vf(vd_layer_vpp[vpp_id].dispbuf)
 		? vd_layer_vpp[vpp_id].dispbuf : NULL,
 		new_frame,
 		new_frame ? CSC_FLAG_TOGGLE_FRAME : 0,
-		vd_layer_vpp[vpp_id].cur_frame_par ?
-		vd_layer_vpp[vpp_id].cur_frame_par->supsc1_hori_ratio :
+		frame_par ?
+		frame_par->supsc1_hori_ratio :
 		0,
-		vd_layer_vpp[vpp_id].cur_frame_par ?
-		vd_layer_vpp[vpp_id].cur_frame_par->supsc1_vert_ratio :
+		frame_par ?
+		frame_par->supsc1_vert_ratio :
 		0,
-		vd_layer_vpp[vpp_id].cur_frame_par ?
-		vd_layer_vpp[vpp_id].cur_frame_par->spsc1_w_in :
+		frame_par ?
+		frame_par->spsc1_w_in :
 		0,
-		vd_layer_vpp[vpp_id].cur_frame_par ?
-		vd_layer_vpp[vpp_id].cur_frame_par->spsc1_h_in :
+		frame_par ?
+		frame_par->spsc1_h_in :
 		0,
-		vd_layer_vpp[vpp_id].cur_frame_par ?
-		vd_layer_vpp[vpp_id].cur_frame_par->cm_input_w :
+		frame_par ?
+		frame_par->cm_input_w :
 		0,
-		vd_layer_vpp[vpp_id].cur_frame_par ?
-		vd_layer_vpp[vpp_id].cur_frame_par->cm_input_h :
+		frame_par ?
+		frame_par->cm_input_h :
 		0,
 		layer_id,
 		vpp_index);

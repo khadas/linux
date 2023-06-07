@@ -386,7 +386,7 @@ void aml_cabc_alg_process(struct work_struct *work)
 		pre_gam.en = fw_pre_gma_parm.fw_pre_gamma_en;
 		fw_pre_gma_parm.pre_gamma_proc(&fw_pre_gma_parm, pre_gamma);
 		pre_gamma_data_cp(&pre_gam);
-		set_pre_gamma_reg(&pre_gam);
+		vecm_latch_flag2 |= VPP_PRE_GAMMA_UPDATE;
 	}
 
 	if (!status_flag)
@@ -408,7 +408,7 @@ void aml_cabc_alg_bypass(struct work_struct *work)
 		pre_gam.en = 0;
 		gain_pre_gamma_init();
 		pre_gamma_data_cp(&pre_gam);
-		set_pre_gamma_reg(&pre_gam);
+		vecm_latch_flag2 |= VPP_PRE_GAMMA_UPDATE;
 		pr_cabc_aad_dbg("%s\n", __func__);
 		status_flag = 0;
 		if (pre_cabc_en) {
