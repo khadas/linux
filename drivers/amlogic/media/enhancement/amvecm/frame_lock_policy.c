@@ -615,6 +615,38 @@ void frame_lock_process(struct vframe_s *vf,
 	frame_sts.vrr_policy_pre = frame_sts.vrr_policy;
 }
 
+/* check min value of vrr frame rate range */
+unsigned int vrr_check_frame_rate_min_hz(void)
+{
+	unsigned int vrr_min;
+	struct vinfo_s *vinfo = NULL;
+
+	vinfo = get_current_vinfo();
+	if (!vinfo) {
+		vrr_min = 48;
+		if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
+			framelock_pr_info("%s: vinfo is null!\n", __func__);
+		return vrr_min;
+	}
+
+	if (frame_sts.vrr_support) {
+		vrr_min = vinfo->vfreq_min + 5;
+		if (vrr_min != 48 && vrr_min != 40)
+			vrr_min = 48;
+	} else {
+		vrr_min = 48;
+	}
+
+	if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG) {
+		framelock_pr_info("%s: vrr support:%d vrr_min:%d vfreq_min:%d\n",
+			__func__,
+			frame_sts.vrr_support,
+			vrr_min, vinfo->vfreq_min + 5);
+	}
+
+	return vrr_min;
+}
+
 ssize_t frame_lock_debug_store(struct class *cla,
 			  struct class_attribute *attr,
 		const char *buf, size_t count)
@@ -649,12 +681,17 @@ ssize_t frame_lock_debug_store(struct class *cla,
 		vrr_delay_line = val;
 		frame_sts.vrr_frame_lock_type = FRAMELOCK_INVALID;
 		pr_info("\n vrr_delay_line = %d\n", vrr_delay_line);
-	} else if (!strncmp(parm[0], "delay_line_50hz", 10)) {
+	} else if (!strncmp(parm[0], "delay_line_50hz", 15)) {
 		if (kstrtol(parm[1], 10, &val) < 0)
 			return -EINVAL;
 		vrr_delay_line_50hz = val;
 		frame_sts.vrr_frame_lock_type = FRAMELOCK_INVALID;
 		pr_info("\n vrr_delay_line_50hz = %d\n", vrr_delay_line_50hz);
+	} else if (!strncmp(parm[0], "frame_lock_debug", 16)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		frame_lock_debug = val;
+		pr_info("\n frame_lock_debug = %d\n", frame_lock_debug);
 	} else {
 		pr_info("\n frame lock debug cmd invalid\n");
 	}

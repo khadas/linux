@@ -995,6 +995,7 @@ struct vdin_dev_s {
 	struct vf_entry *vfe_tmp;
 	struct vdin_dts_config_s dts_config;
 	unsigned int common_divisor;
+	unsigned int vrr_frame_rate_min;
 };
 
 extern unsigned int max_ignore_frame_cnt;

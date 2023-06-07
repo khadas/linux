@@ -515,6 +515,7 @@ static bool vdin_need_game_mode(struct vdin_dev_s *devp)
 static void vdin_game_mode_check(struct vdin_dev_s *devp)
 {
 	devp->game_mode_pre = devp->game_mode;
+	devp->vrr_frame_rate_min = vrr_check_frame_rate_min_hz();
 	if (game_mode == 1 && vdin_need_game_mode(devp)) {
 		vdin_get_in_out_fps(devp);
 		if (devp->vinfo_std_duration > (devp->vdin_std_duration + 2)) {
@@ -525,7 +526,8 @@ static void vdin_game_mode_check(struct vdin_dev_s *devp)
 			} else {
 				devp->game_mode = VDIN_GAME_MODE_0;
 			}
-		} else if (devp->parm.info.fps >= 48 && devp->parm.info.fps <= 144) {
+		} else if (devp->parm.info.fps >= devp->vrr_frame_rate_min &&
+			devp->parm.info.fps <= 144) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0) {
 				devp->game_mode = (VDIN_GAME_MODE_0 |
 					VDIN_GAME_MODE_1 |
@@ -535,7 +537,7 @@ static void vdin_game_mode_check(struct vdin_dev_s *devp)
 					VDIN_GAME_MODE_1);
 			}
 		} else if (devp->parm.info.fps >= 25 &&
-			   devp->parm.info.fps < 48) {
+			   devp->parm.info.fps < devp->vrr_frame_rate_min) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0) {
 				devp->game_mode = (VDIN_GAME_MODE_0 |
 					VDIN_GAME_MODE_SWITCH_EN);
@@ -621,16 +623,17 @@ static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
 		return;
 
 	vdin_get_in_out_fps(devp);
+	devp->vrr_frame_rate_min = vrr_check_frame_rate_min_hz();
 	if (devp->vrr_data.vrr_mode &&
 	    devp->vdin_std_duration >= 25 &&
-	    devp->vdin_std_duration < 48) {
+	    devp->vdin_std_duration < devp->vrr_frame_rate_min) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0)
 			devp->game_mode = (VDIN_GAME_MODE_0 |
 					VDIN_GAME_MODE_SWITCH_EN);
 		else
 			devp->game_mode = VDIN_GAME_MODE_0;
 	} else if (devp->vrr_data.vrr_mode &&
-		   devp->vdin_std_duration >= 48) {
+		   devp->vdin_std_duration >= devp->vrr_frame_rate_min) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0)
 			devp->game_mode = (VDIN_GAME_MODE_0 |
 					VDIN_GAME_MODE_1 |
@@ -650,7 +653,7 @@ static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
 			devp->game_mode &= ~VDIN_GAME_MODE_2;
 		}
 	} else if ((devp->vdin_std_duration >= 25 &&
-		    devp->vdin_std_duration < 48) ||
+		    devp->vdin_std_duration < devp->vrr_frame_rate_min) ||
 		   (devp->vinfo_std_duration >
 		    (devp->vdin_std_duration + 2))) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0)
@@ -687,6 +690,7 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 		return;
 
 	game_mode_backup = devp->game_mode;
+	devp->vrr_frame_rate_min = vrr_check_frame_rate_min_hz();
 	/*switch to game mode 2 from game mode 1,otherwise may appear blink*/
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		if (devp->game_mode & VDIN_GAME_MODE_SWITCH_EN) {
@@ -701,12 +705,12 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 			if (phase_lock_flag >= game_mode_phlock_switch_frames) {
 				/* vrr mode vinfo_std_duration not correct so separate judgment */
 				if (devp->vrr_data.vrr_mode && devp->vdin_std_duration >= 25 &&
-				    devp->vdin_std_duration < 48) {
+				    devp->vdin_std_duration < devp->vrr_frame_rate_min) {
 					/*1 to 2 need delay more than one vf*/
 					devp->game_mode = (VDIN_GAME_MODE_0 |
 						VDIN_GAME_MODE_1);
 				} else if (devp->vrr_data.vrr_mode &&
-					   devp->vdin_std_duration >= 48) {
+					   devp->vdin_std_duration >= devp->vrr_frame_rate_min) {
 					devp->game_mode = (VDIN_GAME_MODE_0 |
 						VDIN_GAME_MODE_2);
 				} else if (devp->vdin_std_duration < 25 ||
@@ -715,7 +719,7 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 					devp->game_mode &= ~VDIN_GAME_MODE_1;
 					devp->game_mode &= ~VDIN_GAME_MODE_2;
 				} else if ((devp->vdin_std_duration >= 25 &&
-					    devp->vdin_std_duration < 48) ||
+					    devp->vdin_std_duration < devp->vrr_frame_rate_min) ||
 					   (devp->vinfo_std_duration >
 					    (devp->vdin_std_duration + 2))) {
 					devp->game_mode = (VDIN_GAME_MODE_0 |
