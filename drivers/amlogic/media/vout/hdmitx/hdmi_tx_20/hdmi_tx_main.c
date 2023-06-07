@@ -56,6 +56,7 @@
 #include "hdmi_tx_hdcp.h"
 #include "meson_drm_hdmitx.h"
 #include "meson_hdcp.h"
+#include "dv_emp_vsem.h"
 
 #include <linux/component.h>
 #include <uapi/drm/drm_mode.h>
@@ -72,8 +73,6 @@ static struct class *hdmitx_class;
 static int set_disp_mode_auto(void);
 static void hdmitx_get_edid(struct hdmitx_dev *hdev);
 static void hdmitx_set_drm_pkt(struct master_display_info_s *data);
-static void hdmitx_set_vsif_pkt(enum eotf_type type, enum mode_type
-	tunnel_mode, struct dv_vsif_para *data, bool signal_sdr);
 static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 				     struct hdr10plus_para *data);
 static void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data);
@@ -86,7 +85,6 @@ static void hdmitx_fmt_attr(struct hdmitx_dev *hdev);
 static void clear_rx_vinfo(struct hdmitx_dev *hdev);
 static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev);
 static void edidinfo_detach_to_vinfo(struct hdmitx_dev *hdev);
-static void update_current_para(struct hdmitx_dev *hdev);
 static bool is_cur_tmds_div40(struct hdmitx_dev *hdev);
 static void hdmitx_resend_div40(struct hdmitx_dev *hdev);
 static unsigned int hdmitx_get_frame_duration(void);
@@ -2146,7 +2144,7 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 }
 
-static void update_current_para(struct hdmitx_dev *hdev)
+void update_current_para(struct hdmitx_dev *hdev)
 {
 	struct vinfo_s *info = NULL;
 	unsigned char mode[32];
@@ -2167,7 +2165,7 @@ static void update_current_para(struct hdmitx_dev *hdev)
 struct vsif_debug_save vsif_debug_info;
 struct vsif_debug_save hsty_vsif_config_data[8];
 unsigned int hsty_vsif_config_loc, hsty_vsif_config_num;
-static void hdmitx_set_vsif_pkt(enum eotf_type type,
+void hdmitx_set_vsif_pkt(enum eotf_type type,
 				enum mode_type tunnel_mode,
 				struct dv_vsif_para *data,
 				bool signal_sdr)
@@ -2752,9 +2750,12 @@ static void hdmitx_set_emp_pkt(unsigned char *data, unsigned int type,
 	unsigned char sync = 0;
 	unsigned char  new = 0;
 	unsigned char  end = 0;
-	unsigned int organzation_id = 0;
+	unsigned int organization_id = 0;
 	unsigned int data_set_tag = 0;
-	unsigned int data_set_length = 0;
+	unsigned int data_set_length = size;
+	unsigned int sequence_index = 0;
+	unsigned int ieee_code;
+	unsigned int j;
 
 	hdmi_debug();
 
@@ -2781,8 +2782,9 @@ static void hdmitx_set_emp_pkt(unsigned char *data, unsigned int type,
 		number = ((size - 21) / 28) + 2;
 		remainder = (size - 21) % 28;
 	}
-
-	virt_ptr = kzalloc(sizeof(unsigned char) * (number + 0x1f),
+	pr_info("remainder=%d\n", remainder);
+	pr_info("number=%d\n", number);
+	virt_ptr = kzalloc(sizeof(unsigned char) * (size + 0x1f),
 			   GFP_KERNEL);
 	if (!virt_ptr)
 		return;
@@ -2791,10 +2793,19 @@ static void hdmitx_set_emp_pkt(unsigned char *data, unsigned int type,
 		((((unsigned long)virt_ptr) + 0x1f) & (~0x1f));
 	pr_info("emp_pkt virt_ptr_align32bit: %p\n", virt_ptr_align32bit);
 
-	memset(virt_ptr_align32bit, 0, sizeof(unsigned char) * (number + 0x1f));
+	memset(virt_ptr_align32bit, 0, sizeof(unsigned char) * (size + 0x1f));
 
 	switch (type) {
 	case VENDOR_SPECIFIC_EM_DATA:
+		ieee_code = data[0] | data[1] << 8 | data[2] << 16;
+		pr_info("ieee_code = %x\n", ieee_code);
+			ds_type = 2;
+			sync = 1;
+			VFR = 1;
+			AFR = 1;
+			new = 0x1; /*todo*/
+			end = 0x1; /*todo*/
+			organization_id = 0;
 		break;
 	case COMPRESS_VIDEO_TRAMSPORT:
 		break;
@@ -2804,8 +2815,8 @@ static void hdmitx_set_emp_pkt(unsigned char *data, unsigned int type,
 			VFR = 1;
 			AFR = 0;
 			new = 0x1; /*todo*/
-			end = 0x1; /*todo*/
-			organzation_id = 2;
+			end = 0x0; /*todo*/
+			organization_id = 2;
 		break;
 	case VIDEO_TIMING_EXTENDED:
 		break;
@@ -2818,16 +2829,16 @@ static void hdmitx_set_emp_pkt(unsigned char *data, unsigned int type,
 		virt_ptr_align32bit[i * 32 + 0] = 0x7F;
 		if (i == 0)
 			virt_ptr_align32bit[i * 32 + 1] |=  EMP_FIRST;
-		if (i == number)
+		if ((i + 1) == number)
 			virt_ptr_align32bit[i * 32 + 1] |= EMP_LAST;
-		virt_ptr_align32bit[i * 32 + 2] = number;
+		virt_ptr_align32bit[i * 32 + 2] = sequence_index;
 		/*PB[0]-[6]*/
 		if (i == 0) {
 			virt_ptr_align32bit[3] = (new << 7) | (end << 6) |
 				(ds_type << 4) | (AFR << 3) |
 				(VFR << 2) | (sync << 1);
 			virt_ptr_align32bit[4] = 0;/*Rsvd*/
-			virt_ptr_align32bit[5] = organzation_id;
+			virt_ptr_align32bit[5] = organization_id;
 			virt_ptr_align32bit[6] = (data_set_tag >> 8) & 0xFF;
 			virt_ptr_align32bit[7] = data_set_tag & 0xFF;
 			virt_ptr_align32bit[8] = (data_set_length >> 8)
@@ -2842,27 +2853,122 @@ static void hdmitx_set_emp_pkt(unsigned char *data, unsigned int type,
 			/*MD: first package need PB[7]-[27]*/
 				memcpy(&virt_ptr_align32bit[10], &data[0],
 				       sizeof(unsigned char) * 21);
-			} else if (i != number) {
+			} else if ((i + 1) != number) {
 			/*MD: following package need PB[0]-[27]*/
-				memcpy(&virt_ptr_align32bit[i * 32 + 10],
+				memcpy(&virt_ptr_align32bit[i * 32 + 3],
 				       &data[(i - 1) * 28 + 21],
 				       sizeof(unsigned char) * 28);
 			} else {
 			/*MD: the last package need PB[0] to end */
-				memcpy(&virt_ptr_align32bit[0],
+				memcpy(&virt_ptr_align32bit[i * 32 + 3],
 				       &data[(i - 1) * 28 + 21],
 				       sizeof(unsigned char) * remainder);
 			}
 		}
 			/*PB[28]*/
 		virt_ptr_align32bit[i * 32 + 31] = 0;
+		sequence_index++;
 	}
-
+	for (j = 0; j < sizeof(unsigned char) * (size + 0x1f); j++)
+		pr_info("virt_ptr_align32bit[%d]=%x\n", j, virt_ptr_align32bit[j]);
 	phys_ptr = virt_to_phys(virt_ptr_align32bit);
 	pr_info("emp_pkt phys_ptr: %lx\n", phys_ptr);
 
 	hdev->hwop.cntlconfig(hdev, CONF_EMP_NUMBER, number);
 	hdev->hwop.cntlconfig(hdev, CONF_EMP_PHY_ADDR, phys_ptr);
+}
+
+int hdmitx_set_dv_emp_pkt(enum eotf_type type,
+		enum mode_type tunnel_mode,
+		struct dv_vsif_para *vsif_data,
+		unsigned char *p_vsem,
+		int vsem_len,
+		bool signal_sdr)
+{
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	struct dv_vsif_para para = {0};
+	static enum eotf_type type_save = EOTF_T_NULL;
+	bool vsem_flag = false;
+
+	if (!hdev) {
+		pr_info("EMP hdmitx: no device\n");
+		return -1;
+	}
+	if (hdev->data->chip_type < MESON_CPU_ID_GXL) {
+		pr_info("EMP hdmitx: not support DolbyVision\n");
+		return -1;
+	}
+	if (hdev->ready == 0 || hdev->rxcap.dv_info.ieeeoui != DV_IEEE_OUI)
+		return -1;
+
+	if (hdr_status_pos != 2)
+		pr_info("EMP hdmitx_set_vsif_pkt: type = %d\n", type);
+	hdr_status_pos = 2;
+	if (type != EOTF_T_DOLBYVISION && type != EOTF_T_LL_MODE) {
+		/*exit from Dolby VSIF*/
+		hdmitx_set_vsif_pkt(type, tunnel_mode, vsif_data, signal_sdr);
+		hdev->dv_src_feature = 0;
+		vsem_flag = false;
+		pr_info("EMP hdmitx_set_vsif_pkt: stop\n");
+		return 1;
+	}
+
+	/*ver1_12  with low_latency = 1 and ver2 use Dolby VSIF*/
+	if (hdev->rxcap.dv_info.ver == 2 ||
+	    (hdev->rxcap.dv_info.ver == 1 &&
+	     hdev->rxcap.dv_info.length == 0xB &&
+	     hdev->rxcap.dv_info.low_latency == 1) ||
+	     type == EOTF_T_LL_MODE) {
+		if (!vsif_data)
+			vsif_data = &para;
+		vsem_len = 0x1b;
+
+		hdev->dv_src_feature = 1;
+
+		p_vsem[0] = 0x46;
+		p_vsem[1] = 0xd0;
+		p_vsem[2] = 0x00;
+		if (vsif_data->ver2_l11_flag == 1) {
+			p_vsem[3] = vsif_data->vers.ver2_l11.low_latency |
+				     vsif_data->vers.ver2_l11.dobly_vision_signal << 1 |
+				     vsif_data->vers.ver2_l11.src_dm_version << 5;
+			p_vsem[4] = vsif_data->vers.ver2_l11.eff_tmax_PQ_hi
+				     | vsif_data->vers.ver2_l11.auxiliary_MD_present << 6
+				     | vsif_data->vers.ver2_l11.backlt_ctrl_MD_present << 7
+				     | 0x20; /*L11_MD_Present*/
+			p_vsem[5] = vsif_data->vers.ver2_l11.eff_tmax_PQ_low;
+			p_vsem[6] = vsif_data->vers.ver2_l11.auxiliary_runmode;
+			p_vsem[7] = vsif_data->vers.ver2_l11.auxiliary_runversion;
+			p_vsem[8] = vsif_data->vers.ver2_l11.auxiliary_debug0;
+			p_vsem[9] = (vsif_data->vers.ver2_l11.content_type)
+				| (vsif_data->vers.ver2_l11.content_sub_type << 4);
+			p_vsem[10] = (vsif_data->vers.ver2_l11.intended_white_point)
+				| (vsif_data->vers.ver2_l11.crf << 4);
+			p_vsem[11] = vsif_data->vers.ver2_l11.l11_byte2;
+			p_vsem[12] = vsif_data->vers.ver2_l11.l11_byte3;
+		} else {
+			p_vsem[3] = (vsif_data->vers.ver2.low_latency) |
+				(vsif_data->vers.ver2.dobly_vision_signal << 1) |
+				(vsif_data->vers.ver2.src_dm_version << 5);
+			p_vsem[4] = (vsif_data->vers.ver2.eff_tmax_PQ_hi)
+				| (vsif_data->vers.ver2.auxiliary_MD_present << 6)
+				| (vsif_data->vers.ver2.backlt_ctrl_MD_present << 7);
+			p_vsem[5] = vsif_data->vers.ver2.eff_tmax_PQ_low;
+			p_vsem[6] = vsif_data->vers.ver2.auxiliary_runmode;
+			p_vsem[7] = vsif_data->vers.ver2.auxiliary_runversion;
+			p_vsem[8] = vsif_data->vers.ver2.auxiliary_debug0;
+		}
+
+		hdev->hdmi_current_eotf_type = type;
+		hdmitx_emp_infoframe(hdev, type, type_save, signal_sdr);
+		type_save = type;
+		/*Dolby VS-EMDS*/
+		vsem_flag = true;
+		/*Disable VSIF send*/
+		hdev->hwop.setpacket(HDMI_PACKET_VEND, NULL, NULL);
+		hdmitx_set_emp_pkt(p_vsem, 0, vsem_len);
+	}
+	return 1;
 }
 
 /*config attr*/
@@ -3112,7 +3218,12 @@ static ssize_t config_store(struct device *dev,
 	struct master_display_info_s data = {0};
 	struct hdr10plus_para hdr_data = {0x1, 0x2, 0x3};
 	struct dv_vsif_para vsif_para = {0};
-
+	/* test send emp */
+	unsigned char emp_data[20] = {0x46, 0xD0, 0x00, 0x00, 0x00, 0x00, 0x46, 0xD0,
+	0x00, 0x10, 0x21, 0xaa, 0x9b, 0x96, 0x19, 0xfc, 0x19, 0x75, 0xd5, 0x78};
+	struct cuva_hdr_vs_emds_para cuva_emds = {0x0d, 0x02, 0x03};
+	unsigned char dv_emp_data[13] = {0};
+	struct cuva_hdr_vsif_para cuva_vsif = {0};
 	pr_info("hdmitx: config: %s\n", buf);
 
 	if (strncmp(buf, "unplug_powerdown", 16) == 0) {
@@ -3183,9 +3294,56 @@ static ssize_t config_store(struct device *dev,
 		}
 	} else if (strncmp(buf, "emp", 3) == 0) {
 		if (hdmitx_device.data->chip_type >= MESON_CPU_ID_G12A)
-			hdmitx_set_emp_pkt(NULL, 1, 1);
+			hdmitx_set_emp_pkt(emp_data, 2, 26);
 	} else if (strncmp(buf, "hdr10+", 6) == 0) {
 		hdmitx_set_hdr10plus_pkt(1, &hdr_data);
+	} else if (strncmp(buf, "cuva", 4) == 0) {
+		hdmitx_set_cuva_hdr_vs_emds(&cuva_emds);
+	} else if (strncmp(buf, "dv_emp", 6) == 0) {
+		if (hdmitx_device.data->chip_type >= MESON_CPU_ID_G12A) {
+			pr_info("hdmitx_set_dv_emp\n");
+			hdmitx_set_emp_pkt(emp_data, 0, sizeof(emp_data));
+		}
+	} else if (strncmp(buf, "cuva_vsif", 9) == 0) {
+		hdmitx_set_cuva_hdr_vsif(&cuva_vsif);
+		pr_info("hdmitx_set_cuva_hdr_vsif\n");
+	} else if (strncmp(buf, "set_dv_emp", 10) == 0) {
+		if (hdmitx_device.data->chip_type >= MESON_CPU_ID_G12A) {
+			if (buf[10] == '1' && buf[11] == '1') {
+				/* DV STD */
+				vsif_para.ver = 0x1;
+				vsif_para.length = 0x1b;
+				vsif_para.ver2_l11_flag = 0;
+				vsif_para.vers.ver2.low_latency = 0;
+				vsif_para.vers.ver2.dobly_vision_signal = 1;
+				if (buf[12] == '1')
+					send_emp(1, 1, &vsif_para, dv_emp_data,
+					sizeof(dv_emp_data), false);
+				if (buf[12] == '2')
+					hdmitx_set_dv_emp_pkt(1, 1, &vsif_para, dv_emp_data,
+					sizeof(dv_emp_data), false);
+			} else if (buf[10] == '4') {
+				/* DV LL */
+				vsif_para.ver = 0x1;
+				vsif_para.length = 0x1b;
+				vsif_para.ver2_l11_flag = 0;
+				vsif_para.vers.ver2.low_latency = 1;
+				vsif_para.vers.ver2.dobly_vision_signal = 1;
+				if (buf[12] == '1')
+					send_emp(4, 0, &vsif_para, dv_emp_data,
+					sizeof(dv_emp_data), false);
+				if (buf[12] == '2')
+					hdmitx_set_dv_emp_pkt(4, 0, &vsif_para, dv_emp_data,
+					sizeof(dv_emp_data), false);
+			} else if (buf[10] == '0') {
+				/* exit DV to SDR */
+				if (buf[12] == '1')
+					send_emp(0, 0, NULL, NULL, 0, true);
+				if (buf[12] == '2')
+					hdmitx_set_dv_emp_pkt(0, 0, NULL, NULL, 0, true);
+				send_emp(0, 0, NULL, NULL, 0, true);
+			}
+		}
 	}
 	return count;
 }
@@ -8088,6 +8246,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = kfifo_alloc(hdev->log_kfifo, HDMI_LOG_SIZE, GFP_KERNEL);
 	if (ret)
 		pr_info("hdmitx: alloc hdmi_log_kfifo failed\n");
+	vsem_init_cfg(&hdmitx_device);
 	hdmitx_meson_init(hdev);
 	hdmitx_hdr_state_init(&hdmitx_device);
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE

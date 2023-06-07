@@ -3462,6 +3462,8 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 	} else if (strncmp(tmpbuf, "teststate", 9) == 0) {
 		ret = kstrtoul(tmpbuf + 9, 10, &value);
 		hdmitx_set_uevent_state(event_type, value);
+	} else if (strncmp(tmpbuf, "dump_emp", 8) == 0) {
+		dump_emp_packet();
 	}
 }
 

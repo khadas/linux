@@ -997,6 +997,18 @@ unsigned int hdmitx_rd_check_reg(unsigned int addr, unsigned int exp_data,
 				 unsigned int mask);
 bool hdmitx_get_bit(unsigned int addr, unsigned int bit_nr);
 void vsem_init_cfg(struct hdmitx_dev *hdev);
+void update_current_para(struct hdmitx_dev *hdev);
+int send_emp(enum eotf_type type, enum mode_type tunnel_mode,
+		struct dv_vsif_para *vsif_data, unsigned char *p_vsem,
+		int vsem_len, bool signal_sdr);
+void hdmitx_emp_infoframe(struct hdmitx_dev *hdev, enum eotf_type type,
+		enum eotf_type type_save, bool signal_sdr);
+void hdmitx_disable_emp_pkt(void);
+void dump_emp_packet(void);
+void hdmitx_set_vsif_pkt(enum eotf_type type,
+				enum mode_type tunnel_mode,
+				struct dv_vsif_para *data,
+				bool signal_sdr);
 
 enum hdmi_tf_type hdmitx_get_cur_hdr_st(void);
 enum hdmi_tf_type hdmitx_get_cur_dv_st(void);
