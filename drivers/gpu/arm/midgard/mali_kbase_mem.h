@@ -978,6 +978,8 @@ static inline int kbase_reg_prepare_native(struct kbase_va_region *reg,
 	return 0;
 }
 
+#define CONFIG_MALI_LOW_MEM 0
+
 #if (CONFIG_MALI_LOW_MEM == 1)
 /*
  * Max size for kbdev memory pool (in pages)
