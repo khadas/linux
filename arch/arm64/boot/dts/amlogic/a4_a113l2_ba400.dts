@@ -652,7 +652,7 @@
 		status = "okay";
 	};
 
-	/* a5 only one resample, a/b can only use one at the same time */
+	/* a4 only one resample, a/b can only use one at the same time */
 	/* spdif use this resample */
 	asrca: resample@0 {
 		compatible = "amlogic, t5-resample-a";
@@ -674,7 +674,7 @@
 		resample_module = <3>;
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
-		status = "okay";
+		status = "disabled";
 	};
 
 	/* loopback use this resample */
