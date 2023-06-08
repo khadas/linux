@@ -237,6 +237,8 @@ source "drivers/counter/Kconfig"
 
 source "drivers/most/Kconfig"
 
+source "drivers/gpu/arm/Kconfig"
+
 config AMLOGIC_DRIVER
 	bool "Amlogic Peripheral drivers"
 	default n
