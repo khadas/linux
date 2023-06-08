@@ -769,8 +769,6 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 		master->status = VF_STATUS_WL;
 		vf_pool_put(master, &p->wr_list);
 		p->wr_list_size++;
-		memset(&master->vf.pic_mode, 0, sizeof(master->vf.pic_mode));
-		master->vf.ratio_control = 0;
 		spin_unlock_irqrestore(&p->wr_lock, flags);
 		spin_lock_irqsave(&p->log_lock, flags);
 		vf_log(p, VF_OPERATION_BPUT, true);
@@ -814,9 +812,6 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 			spin_lock_irqsave(&p->wr_lock, flags);
 			vf_pool_put(master, &p->wr_list);
 			p->wr_list_size++;
-			memset(&master->vf.pic_mode, 0,
-			       sizeof(master->vf.pic_mode));
-			master->vf.ratio_control = 0;
 			spin_unlock_irqrestore(&p->wr_lock, flags);
 			slave->status = VF_STATUS_SL;
 			spin_lock_irqsave(&p->log_lock, flags);
