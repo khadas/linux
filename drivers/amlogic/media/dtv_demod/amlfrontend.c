@@ -1534,7 +1534,7 @@ static int dvbs_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 
-	*snr = (u16)dvbs_get_quality();
+	*snr = (u16)demod->real_para.snr;
 
 	PR_DVBS("demod[%d] snr is %d.%d\n", demod->id, *snr / 10, *snr % 10);
 
@@ -4671,12 +4671,15 @@ static int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *st
 	char *band = NULL;
 	unsigned int pkt_err_cnt, br;
 	static unsigned int pkt_err_cnt_last;
+	static unsigned int times, snr[5];
 
 	if (re_tune) {
 		pkt_err_cnt_last = 0;
 		real_para_clear(&demod->real_para);
 		*status = 0;
 		demod->last_status = 0;
+		times = 0;
+		memset(snr, 0, sizeof(unsigned int) * 5);
 
 		return 0;
 	}
@@ -4709,6 +4712,8 @@ static int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *st
 	PR_DVBS("sr=%d, br=%d, ber=%d.%d E-8\n", c->symbol_rate, br,
 		demod->real_para.ber / 100, demod->real_para.ber % 100);
 	pkt_err_cnt_last = pkt_err_cnt;
+	snr[times++ % 5] = dvbs_get_quality();
+	demod->real_para.snr = (snr[0] + snr[1] + snr[2] + snr[3] + snr[4]) / 5;
 
 	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
 	if (demod->time_passed >= 500) {
@@ -4813,7 +4818,7 @@ static int dtvdemod_dvbs_tune(struct dvb_frontend *fe, bool re_tune,
 	struct amldtvdemod_device_s *devp =
 		(struct amldtvdemod_device_s *)demod->priv;
 
-	*delay = HZ / 4;
+	*delay = HZ / 8;
 
 	if (!devp->blind_scan_stop)
 		return ret;

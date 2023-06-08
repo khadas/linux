@@ -1571,12 +1571,12 @@ unsigned int dvbs_get_quality(void)
 	if (fld_value[0]) {
 		if (lookup->size) {
 			regval = 0;
-			for (i = 0; i < 8; i++) {
+			for (i = 0; i < 200; i++) {
 				fld_value[0] = dvbs_rd_byte(noisefield1) & 0xff;
 				fld_value[1] = dvbs_rd_byte(noisefield0) & 0xff;
 				regval += (fld_value[0] << 8) + fld_value[1];
 			}
-			regval /= 8;
+			regval /= 200;
 			imin = 0;
 			imax = lookup->size - 1;
 			if ((lookup->table[imin].regval <= regval &&
