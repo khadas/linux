@@ -6,20 +6,6 @@
 #ifndef __VPP_VF_PROC_H__
 #define __VPP_VF_PROC_H__
 
-enum vpp_vd_path_e {
-	EN_VD1_PATH = 0,
-	EN_VD2_PATH,
-	EN_VD3_PATH,
-	EN_VD_PATH_MAX,
-};
-
-enum vpp_vf_top_e {
-	EN_VF_TOP0 = 0,
-	EN_VF_TOP1,
-	EN_VF_TOP2,
-	EN_VF_TOP_MAX,
-};
-
 enum vpp_pw_state_e {
 	EN_PW_ON = 0,
 	EN_PW_OFF,
@@ -36,15 +22,6 @@ struct vpp_vf_signal_info_s {
 	unsigned int range;
 	unsigned int color_primaries;
 	unsigned int transfer_characteristic;
-};
-
-struct vpp_vf_param_s {
-	unsigned int sps_h_en;
-	unsigned int sps_v_en;
-	unsigned int sps_w_in;
-	unsigned int sps_h_in;
-	unsigned int cm_in_w;
-	unsigned int cm_in_h;
 };
 
 void vpp_vf_set_pc_mode(int val);

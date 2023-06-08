@@ -6,6 +6,10 @@
 #ifndef __VPP_DRV_H__
 #define __VPP_DRV_H__
 
+#include <linux/types.h>
+#include <linux/cdev.h>
+#include <linux/mutex.h>
+
 #define VPP_DEVNO       1
 #define VPP_NAME        "aml_vpp"
 #define VPP_CLS_NAME    "aml_vpp"
@@ -122,6 +126,6 @@ struct vpp_dev_s {
 	struct workqueue_struct *cabc_queue;
 };
 
-struct vpp_dev_s *get_vpp_drv(void);
+struct vpp_dev_s *get_vpp_dev(void);
 #endif
 

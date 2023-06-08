@@ -3,6 +3,8 @@
  * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
+#include <linux/module.h>
+
 #include "vpp_common.h"
 #include "vpp_data.h"
 #include "vpp_vf_proc.h"
@@ -1792,6 +1794,7 @@ void vpp_vf_refresh(struct vframe_s *pvf, struct vframe_s *prpt_vf)
 	/*if (do_sat_comp) !!!maybe conflict with pq table tuning params*/
 		/*vpp_module_cm_set_tuning_param(EN_PARAM_GLB_SAT, &sat_comp_val);*/
 }
+EXPORT_SYMBOL(vpp_vf_refresh);
 
 void vpp_vf_proc(struct vframe_s *pvf,
 	struct vframe_s *ptoggle_vf,
@@ -1857,4 +1860,5 @@ void vpp_vf_proc(struct vframe_s *pvf,
 	_vpp_matrix_update_proc(NULL, NULL, 0, EN_VD1_PATH, EN_VF_TOP0);
 	_overscan_proc(pvf, ptoggle_vf, flags, vd_path);
 }
+EXPORT_SYMBOL(vpp_vf_proc);
 

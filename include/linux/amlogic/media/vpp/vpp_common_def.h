@@ -6,6 +6,8 @@
 #ifndef __VPP_COMMON_DEF_H__
 #define __VPP_COMMON_DEF_H__
 
+#include <linux/amlogic/media/vfm/vframe.h>
+
 #define _VPP_TYPE  'V'
 
 #define VPP_MTRX_COEF_LEN         (9)
@@ -1322,6 +1324,29 @@ enum vpp_overscan_timing_e {
 	EN_TIMING_MAX,
 };
 
+enum vpp_vd_path_e {
+	EN_VD1_PATH = 0,
+	EN_VD2_PATH,
+	EN_VD3_PATH,
+	EN_VD_PATH_MAX,
+};
+
+enum vpp_vf_top_e {
+	EN_VF_TOP0 = 0,
+	EN_VF_TOP1,
+	EN_VF_TOP2,
+	EN_VF_TOP_MAX,
+};
+
+struct vpp_vf_param_s {
+	unsigned int sps_h_en;
+	unsigned int sps_v_en;
+	unsigned int sps_w_in;
+	unsigned int sps_h_in;
+	unsigned int cm_in_w;
+	unsigned int cm_in_h;
+};
+
 /*Commom struct*/
 struct vpp_pq_en_ctrl_s {
 	unsigned char vadj1_en; /*control video brightness contrast saturation hue*/
@@ -1693,6 +1718,15 @@ struct vpp_pq_tuning_table_s {
 #define VPP_IOC_GET_HDR_HIST        _IOR(_VPP_TYPE, 0x88, struct vpp_hdr_histgm_param_s)
 #define VPP_IOC_GET_PRE_GAMMA_LEN   _IOR(_VPP_TYPE, 0x89, int)
 #define VPP_IOC_GET_GAMMA_LEN       _IOR(_VPP_TYPE, 0x8a, int)
+
+/*Functions*/
+void vpp_vf_refresh(struct vframe_s *pvf, struct vframe_s *prpt_vf);
+void vpp_vf_proc(struct vframe_s *pvf,
+	struct vframe_s *ptoggle_vf,
+	struct vpp_vf_param_s *pvf_param,
+	int flags,
+	enum vpp_vd_path_e vd_path,
+	enum vpp_vf_top_e vpp_top);
 
 #endif
 

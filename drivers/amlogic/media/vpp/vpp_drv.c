@@ -3,8 +3,10 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
+#include <linux/module.h>
+
+#include <linux/amlogic/media/vpp/vpp_drv.h>
 #include "vpp_common.h"
-#include "vpp_drv.h"
 #include "vpp_pq_mgr.h"
 #include "vpp_debug.h"
 
@@ -15,6 +17,7 @@ struct vpp_dev_s *get_vpp_dev(void)
 {
 	return vpp_dev;
 }
+EXPORT_SYMBOL(get_vpp_dev);
 
 const struct class_attribute vpp_class_attr[] = {
 	__ATTR(vpp_debug, 0644,
@@ -1106,6 +1109,8 @@ static int vpp_drv_probe(struct platform_device *pdev)
 			PR_DRV("request res_lc_curve_irq successful\n");
 		}
 	}
+
+	vpp_devp->probe_ok = 1;
 
 	return ret;
 

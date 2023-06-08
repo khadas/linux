@@ -7,7 +7,7 @@
 #include "vpp_reg_io.h"
 #include "vpp_hw.h"
 #include "vpp_common.h"
-#include "vpp_drv.h"
+#include <linux/amlogic/media/vpp/vpp_drv.h>
 
 /* vpp pipeline for all features:
  * SR0-PPS-SR1(SHARPNESS1 DNLP LC)-CHR CORING-BLE-CM-BLUE STR-VADJ1-

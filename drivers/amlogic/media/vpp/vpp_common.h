@@ -43,9 +43,9 @@
 #endif
 #include "../../video_sink/vpp_pq.h"
 
-#include "vpp_common_def.h"
+#include <linux/amlogic/media/vpp/vpp_common_def.h>
 #include "vpp_reg_io.h"
-#include "vpp_drv.h"
+#include <linux/amlogic/media/vpp/vpp_drv.h>
 
 /* Commom define */
 #define PR_SYS          (0x01)

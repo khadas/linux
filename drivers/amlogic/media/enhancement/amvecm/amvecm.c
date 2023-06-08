@@ -93,6 +93,10 @@
 #include "amve_v2.h"
 #include "color/ai_color.h"
 #include "am_lut3d.h"
+#ifdef CONFIG_AMLOGIC_MEDIA_VPP
+#include <linux/amlogic/media/vpp/vpp_common_def.h>
+#include <linux/amlogic/media/vpp/vpp_drv.h>
+#endif
 
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
@@ -2304,6 +2308,16 @@ EXPORT_SYMBOL(amvecm_on_vs);
 void refresh_on_vs(struct vframe_s *vf, struct vframe_s *rpt_vf)
 {
 	int ave = -1;
+#ifdef CONFIG_AMLOGIC_MEDIA_VPP
+	struct vpp_dev_s *vpp_devp = get_vpp_dev();
+
+	if (vpp_devp) {
+		if (vpp_devp->probe_ok == 1) {
+			vpp_vf_refresh(vf, rpt_vf);
+			return;
+		}
+	}
+#endif
 
 	if (probe_ok == 0)
 		return;
