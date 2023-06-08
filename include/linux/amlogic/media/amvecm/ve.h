@@ -18,6 +18,8 @@
 
 #ifndef __VE_H
 #define __VE_H
+#include <uapi/linux/amlogic/amvecm_ext.h>
+
 
 /* ******************************************************************* */
 /* *** enum definitions ********************************************* */
@@ -55,62 +57,13 @@ struct ve_bext_s {
 };
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
-#define DNLP_SCURV_LEN 65
-#define GAIN_VAR_LUT_LEN 49
-#define WEXT_GAIN_LEN 48
-#define ADP_THRD_LEN 33
-#define REG_BLK_BOOST_LEN 13
-#define REG_ADP_OFSET_LEN 20
-#define REG_MONO_PROT_LEN 6
-#define TREND_WHT_EXP_LUT_LEN 9
-#define C_HIST_GAIN_LEN 65
-#define S_HIST_GAIN_LEN 65
-#define DNLP_PARM_MAX_NUM 100
-#define DNLP_VPP_HIST_BIN_NUM 64
-#define HDR_HIST_BIN_NUM 128
-#define HUE_HIST_BIN_NUM 32
-#define SAT_HIST_BIN_NUM 32
+
 struct ve_dnlp_s {
 	unsigned int      en;
 	unsigned int rt;    /* 0 ~ 255, */
 	unsigned int rl;    /* 0 ~  15, 1.0000x ~ 1.9375x, step 0.0625x */
 	unsigned int black; /* 0 ~  16, weak ~ strong */
 	unsigned int white; /* 0 ~  16, weak ~ strong */
-};
-
-struct ve_hist_s {
-	unsigned int sum;
-	int width;
-	int height;
-	int ave;
-};
-
-struct vpp_hist_param_s {
-	unsigned int vpp_hist_pow;
-	unsigned int vpp_luma_sum;
-	unsigned int vpp_pixel_sum;
-	unsigned short vpp_histgram[DNLP_VPP_HIST_BIN_NUM];
-	unsigned int hdr_histgram[HDR_HIST_BIN_NUM];
-	unsigned int hue_histgram[HUE_HIST_BIN_NUM];
-	unsigned int sat_histgram[SAT_HIST_BIN_NUM];
-};
-
-struct ve_dnlp_curve_param_s {
-	unsigned int ve_dnlp_scurv_low[DNLP_SCURV_LEN];
-	unsigned int ve_dnlp_scurv_mid1[DNLP_SCURV_LEN];
-	unsigned int ve_dnlp_scurv_mid2[DNLP_SCURV_LEN];
-	unsigned int ve_dnlp_scurv_hgh1[DNLP_SCURV_LEN];
-	unsigned int ve_dnlp_scurv_hgh2[DNLP_SCURV_LEN];
-	unsigned int ve_gain_var_lut49[GAIN_VAR_LUT_LEN];
-	unsigned int ve_wext_gain[WEXT_GAIN_LEN];
-	unsigned int ve_adp_thrd[ADP_THRD_LEN];
-	unsigned int ve_reg_blk_boost_12[REG_BLK_BOOST_LEN];
-	unsigned int ve_reg_adp_ofset_20[REG_ADP_OFSET_LEN];
-	unsigned int ve_reg_mono_protect[REG_MONO_PROT_LEN];
-	unsigned int ve_reg_trend_wht_expand_lut8[TREND_WHT_EXP_LUT_LEN];
-	unsigned int ve_c_hist_gain[C_HIST_GAIN_LEN];
-	unsigned int ve_s_hist_gain[S_HIST_GAIN_LEN];
-	unsigned int param[DNLP_PARM_MAX_NUM];
 };
 
 enum dnlp_param_e {
@@ -221,25 +174,6 @@ struct ve_dnlp_s {
 	unsigned char gamma[64];
 };
 #endif
-
-struct ve_lc_curve_parm_s {
-	unsigned int ve_lc_saturation[63];
-	unsigned int ve_lc_yminval_lmt[16];
-	unsigned int ve_lc_ypkbv_ymaxval_lmt[16];
-	unsigned int ve_lc_ymaxval_lmt[16];
-	unsigned int ve_lc_ypkbv_lmt[16];
-	unsigned int ve_lc_ypkbv_ratio[4];
-	unsigned int param[100];
-};
-
-struct ve_ble_whe_param_s {
-	int blk_adj_en;
-	int blk_end;
-	int blk_slp;
-	int brt_adj_en;
-	int brt_start;
-	int brt_slp;
-};
 
 enum lc_alg_param_e {
 	lc_dbg_parm0 = 0,
@@ -400,54 +334,6 @@ struct hdr_osd_reg_s {
 	struct hdr_osd_lut_s lut_val;
 	/* -1: invalid, 0: not shadow, >1: delay count */
 	s32 shadow_mode;
-};
-
-struct db_cabc_aad_param_s {
-	unsigned int length;
-	union {
-		void *cabc_aad_param_ptr;
-		long long cabc_aad_param_ptr_len;
-	};
-};
-
-struct db_aad_param_s {
-	int aad_param_cabc_aad_en;
-	int aad_param_aad_en;
-	int aad_param_tf_en;
-	int aad_param_force_gain_en;
-	int aad_param_sensor_mode;
-	int aad_param_mode;
-	int aad_param_dist_mode;
-	int aad_param_tf_alpha;
-	int aad_param_sensor_input[3];
-	struct db_cabc_aad_param_s	 db_LUT_Y_gain;
-	struct db_cabc_aad_param_s	 db_LUT_RG_gain;
-	struct db_cabc_aad_param_s	 db_LUT_BG_gain;
-	struct db_cabc_aad_param_s	 db_gain_lut;
-	struct db_cabc_aad_param_s	 db_xy_lut;
-};
-
-struct db_cabc_param_s {
-	int cabc_param_cabc_en;
-	int cabc_param_hist_mode;
-	int cabc_param_tf_en;
-	int cabc_param_sc_flag;
-	int cabc_param_bl_map_mode;
-	int cabc_param_bl_map_en;
-	int cabc_param_temp_proc;
-	int cabc_param_max95_ratio;
-	int cabc_param_hist_blend_alpha;
-	int cabc_param_init_bl_min;
-	int cabc_param_init_bl_max;
-	int cabc_param_tf_alpha;
-	int cabc_param_sc_hist_diff_thd;
-	int cabc_param_sc_apl_diff_thd;
-	int cabc_param_patch_bl_th;
-	int cabc_param_patch_on_alpha;
-	int cabc_param_patch_bl_off_th;
-	int cabc_param_patch_off_alpha;
-	struct db_cabc_aad_param_s db_o_bl_cv;
-	struct db_cabc_aad_param_s db_maxbin_bl_cv;
 };
 
 extern struct hdr_osd_reg_s hdr_osd_reg;

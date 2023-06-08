@@ -49,14 +49,6 @@ struct pq_ctrl_s {
 	u8 reserved;
 };
 
-struct vpp_pq_ctrl_s {
-	unsigned int length;
-	union {
-		void *ptr;/*point to pq_ctrl_s*/
-		long long ptr_length;
-	};
-};
-
 struct ve_regs_s {
 	unsigned int val:32;
 	unsigned int reg:14;

@@ -7,7 +7,7 @@
 #define _TVIN_H_
 
 #include <linux/types.h>
-#include "amvecm.h"
+#include "amvecm_ext.h"
 
 /* *********************************************************************** */
 

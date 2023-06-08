@@ -18,50 +18,7 @@
 
 #ifndef __CM2_ADJ__
 #define __CM2_ADJ__
-
-enum ecm2colormode {
-	ecm2colormode_purple = 0,
-	ecm2colormode_red,
-	ecm2colormode_skin,
-	ecm2colormode_yellow,
-	ecm2colormode_yellow_green,
-	ecm2colormode_green,
-	ecm2colormode_blue_green,
-	ecm2colormode_cyan,
-	ecm2colormode_blue,
-	ecm2colormode_max,
-};
-
-enum ecm_14_color_md {
-	cm_14_ecm2colormode_blue_purple = 0,
-	cm_14_ecm2colormode_purple,
-	cm_14_ecm2colormode_purple_red,
-	cm_14_ecm2colormode_red,
-	cm_14_ecm2colormode_skin_cheeks,
-	cm_14_ecm2colormode_skin_hair_cheeks,
-	cm_14_ecm2colormode_skin_yellow,
-	cm_14_ecm2colormode_yellow,
-	cm_14_ecm2colormode_yellow_green,
-	cm_14_ecm2colormode_green,
-	cm_14_ecm2colormode_green_cyan,
-	cm_14_ecm2colormode_cyan,
-	cm_14_ecm2colormode_cyan_blue,
-	cm_14_ecm2colormode_blue,
-	cm_14_ecm2colormode_max,
-};
-
-enum ecm_color_type {
-	cm_9_color = 0,
-	cm_14_color,
-	cm_color_max,
-};
-
-struct cm_color_md {
-	enum ecm_color_type	color_type;//0: 9 color; 1: 14 color
-	enum ecm2colormode	cm_9_color_md;
-	enum ecm_14_color_md cm_14_color_md;
-	int color_value;
-};
+#include <uapi/linux/amlogic/amvecm_ext.h>
 
 /*H00 ~ H31*/
 #define CM2_ENH_COEF0_H00 0x100
