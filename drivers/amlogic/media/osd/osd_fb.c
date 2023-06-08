@@ -379,6 +379,7 @@ static phys_addr_t fb_rmem_afbc_paddr[OSD_COUNT][OSD_MAX_BUF_NUM];
 static void __iomem *fb_rmem_afbc_vaddr[OSD_COUNT][OSD_MAX_BUF_NUM];
 static size_t fb_rmem_afbc_size[OSD_COUNT][OSD_MAX_BUF_NUM];
 int ion_fd[OSD_COUNT][OSD_MAX_BUF_NUM];
+struct mutex preblend_lock; /* lock for preblend */
 
 static int osd_cursor(struct fb_info *fbi, struct fb_cursor *var);
 static void *map_virt_from_phys(phys_addr_t phys, unsigned long total_size);
@@ -3743,12 +3744,22 @@ static ssize_t store_osd_preblend_en(struct device *device,
 {
 	int osd_preblend_en;
 	int ret = 0;
+	struct fb_info *fb_info = dev_get_drvdata(device);
+	u32 output_index;
 
+	output_index = get_output_device_id(fb_info->node);
 	ret = kstrtoint(buf, 0, &osd_preblend_en);
 	if (ret < 0)
 		return -EINVAL;
+
 	osd_hw.osd_preblend_en = osd_preblend_en;
 	notify_preblend_to_amvideo(osd_preblend_en);
+	mutex_lock(&preblend_lock);
+	osd_hw.osd_display_debug[output_index] = 1;
+	osd_setting_blend(output_index);
+	osd_hw.osd_display_debug[output_index] = 0;
+	mutex_unlock(&preblend_lock);
+
 	return count;
 }
 
@@ -5482,6 +5493,7 @@ static int __init osd_probe(struct platform_device *pdev)
 		fbdev->fb_info = fbi;
 		fbdev->dev = pdev;
 		mutex_init(&fbdev->lock);
+		mutex_init(&preblend_lock);
 		var = &fbi->var;
 		fix = &fbi->fix;
 		gp_fbdev_list[index] = fbdev;

@@ -7498,8 +7498,11 @@ static void _osd_pan_display_layers_fence
 		}
 	}
 	/* set hw regs */
-	if (osd_hw.osd_display_debug[output_index] != OSD_DISP_DEBUG)
+	if (osd_hw.osd_display_debug[output_index] != OSD_DISP_DEBUG) {
+		mutex_lock(&preblend_lock);
 		osd_setting_blend(output_index);
+		mutex_unlock(&preblend_lock);
+	}
 out:
 	/* signal out fence */
 	if (timeline_created[output_index]) {

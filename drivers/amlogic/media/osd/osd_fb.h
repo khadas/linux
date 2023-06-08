@@ -68,4 +68,5 @@ extern const struct color_bit_define_s default_color_format_array[];
 extern unsigned int osd_game_mode[];
 extern unsigned int osd_pi_debug, osd_pi_enable;
 extern unsigned int osd_slice2ppc_debug, osd_slice2ppc_enable;
+extern struct mutex preblend_lock;
 #endif
