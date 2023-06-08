@@ -18,6 +18,8 @@
 #include <linux/pwm.h>
 #include <linux/gpio/consumer.h>
 
+#define CONFIG_AMLOGIC_PWM_REGULATOR
+
 struct pwm_continuous_reg_data {
 	unsigned int min_uV_dutycycle;
 	unsigned int max_uV_dutycycle;
@@ -51,6 +53,35 @@ struct pwm_voltages {
 /*
  * Voltage table call-backs
  */
+#ifdef CONFIG_AMLOGIC_PWM_REGULATOR
+static void pwm_regulator_init_state(struct regulator_dev *rdev)
+{
+	struct pwm_regulator_data *drvdata = rdev_get_drvdata(rdev);
+	struct pwm_state pwm_state;
+	unsigned int dutycycle;
+	int i;
+
+	pwm_get_state(drvdata->pwm, &pwm_state);
+	dutycycle = pwm_get_relative_duty_cycle(&pwm_state, 100);
+
+	pr_debug("[%s] Default drvdata->state: %d\n", __func__, drvdata->state);
+	for (i = 0; i < rdev->desc->n_voltages; i++) {
+		pr_debug("[%s] i:%d n_voltages:%d, dutycycle:%d = [i].dutycycle:%d\n",
+			__func__, i, rdev->desc->n_voltages, dutycycle,
+			drvdata->duty_cycle_table[i].dutycycle);
+		if (dutycycle == drvdata->duty_cycle_table[i].dutycycle) {
+			drvdata->state = i;
+			pr_info("[%s] Get return == i: %d\n", __func__, drvdata->state);
+			return;
+		} else if (dutycycle < drvdata->duty_cycle_table[i].dutycycle) {
+			drvdata->state = i - 1;
+			pr_info("[%s] Get return < i-1:%d\n", __func__, drvdata->state);
+			return;
+		}
+	}
+	pr_info("[%s] Get drvdata->state: %d\n", __func__, drvdata->state);
+}
+#else /* CONFIG_AMLOGIC_PWM_REGULATOR */
 static void pwm_regulator_init_state(struct regulator_dev *rdev)
 {
 	struct pwm_regulator_data *drvdata = rdev_get_drvdata(rdev);
@@ -68,6 +99,7 @@ static void pwm_regulator_init_state(struct regulator_dev *rdev)
 		}
 	}
 }
+#endif /* CONFIG_AMLOGIC_PWM_REGULATOR */
 
 static int pwm_regulator_get_voltage_sel(struct regulator_dev *rdev)
 {
