@@ -3403,16 +3403,6 @@ static void process_hdmi_video_sync(struct vframe_s *vf)
 			hdmin_delay_duration,
 			hdmin_delay_done ? "false" : "true",
 			need_drop, hdmi_delay_normal_check);
-
-		/* retry n times after vfm path reg and first check */
-		if (hdmi_delay_normal_check > 0 &&
-		    hdmi_delay_normal_check != 0xff &&
-		    !hdmi_delay_first_check)
-			hdmi_delay_normal_check--;
-
-		/* retry n times after audio require new delay and no more check */
-		if (hdmin_delay_start && hdmi_delay_normal_check == 0)
-			hdmi_delay_normal_check = enable_hdmi_delay_normal_check;
 		spin_unlock_irqrestore(&hdmi_avsync_lock, flags);
 	}
 }
