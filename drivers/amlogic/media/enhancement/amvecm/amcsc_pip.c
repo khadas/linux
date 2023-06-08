@@ -31,6 +31,7 @@
 #include "hdr/am_hdr10_plus.h"
 #include "hdr/gamut_convert.h"
 
+static enum vd_format_e last_signal_type;
 static enum output_format_e target_format[VD_PATH_MAX];
 static enum hdr_type_e cur_source_format[VD_PATH_MAX];
 static enum output_format_e output_format;
@@ -2102,8 +2103,13 @@ void hdmi_packet_process(int signal_change_flag,
 		notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
 		return;
 	}
-	/* none hdr+ */
+	/* none hdr+ and cuva*/
 	if (f_h) {
+		if (vd_signal.signal_type == SIGNAL_SDR &&
+			last_signal_type == SIGNAL_SDR) {
+			return;
+		}
+		last_signal_type = vd_signal.signal_type;
 		f_h(&send_info);
 		notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
 	}
