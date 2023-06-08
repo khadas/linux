@@ -5216,8 +5216,12 @@ static void vd_proc_param_set(struct vd_proc_s *vd_proc, u32 frm_idx)
 	} else if (vd_proc->vd_proc_preblend_info.vd1s1_vd2_prebld_en) {
 		slice_num = 1;
 		bld_out_en = 1;
+		vd_proc->vd_proc_unit[0].dout_x_start = 0;
+		vd_proc->vd_proc_unit[0].dout_y_start = 0;
 		vd_proc->vd_proc_unit[0].dout_hsize = 0;
 		vd_proc->vd_proc_unit[0].dout_vsize = 0;
+		vd_proc->vd_proc_unit[1].dout_x_start = 0;
+		vd_proc->vd_proc_unit[1].dout_y_start = 0;
 		vd_proc->vd_proc_unit[1].dout_hsize =
 			vd_proc->vd_proc_vd2_info.vd2_dout_hsize;
 		vd_proc->vd_proc_unit[1].dout_vsize =
