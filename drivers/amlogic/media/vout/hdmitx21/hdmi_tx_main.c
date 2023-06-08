@@ -5426,6 +5426,7 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data)
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_AVI_PACKET, 0);
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_VSDB_PACKET, 0);
 	frl_tx_stop(hdev);
+	hdmitx_set_frlrate_none(hdev);
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	/* hdmitx21_disable_clk(hdev); */
 	hdev->para = hdmitx21_get_fmtpara("invalid", hdev->fmt_attr);

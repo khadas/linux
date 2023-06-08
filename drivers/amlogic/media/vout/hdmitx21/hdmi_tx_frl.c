@@ -623,8 +623,13 @@ tx_lts_p3:
 		}
 		break;
 	}
-	if (p->flt_running)
-		frl_schedule_work(p, 0, FRL_TX_TASK_INTERVAL);
+	if (p->flt_running) {
+		u32 frl_tick = FRL_TX_TASK_INTERVAL;
+
+		if (p->flt_tx_state == FLT_TX_LTS_P3)
+			frl_tick = 1000;
+		frl_schedule_work(p, 0, frl_tick);
+	}
 }
 
 static bool frl_schedule_work(struct frl_train_t *p, u32 delay_ms, u32 period_ms)
