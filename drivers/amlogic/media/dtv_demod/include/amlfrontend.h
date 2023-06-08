@@ -94,6 +94,7 @@
 /*  V2.1.100 fix significant fluctuations of dvbs snr */
 /*  V2.1.101 fix the sync of shutdown and tune */
 /*  V2.1.102 improve compatibility with dvb-t signals */
+/*  V2.1.103 improved dvbc auto qam (t5w/t5m) */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -110,8 +111,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.1.102"
-#define DTVDEMOD_VER	"2023/06/20: improve compatibility with dvb-t signals"
+#define AMLDTVDEMOD_VER "V2.1.103"
+#define DTVDEMOD_VER	"2023/06/25: improved dvbc auto qam (t5w/t5m)"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -308,8 +309,8 @@ struct aml_dtvdemod {
 	unsigned int sr_val_hw_count;
 	unsigned int sr_val_uf_count;
 	unsigned int symb_rate_en;
-	unsigned int auto_sr;
-	unsigned int auto_sr_done;
+	bool auto_sr;
+	bool auto_sr_done;
 	unsigned int freq;
 	unsigned int freq_dvbc;
 	enum fe_modulation atsc_mode;
@@ -329,10 +330,12 @@ struct aml_dtvdemod {
 	unsigned int no_sig_cnt;
 
 	enum qam_md_e auto_qam_mode;
+	enum qam_md_e auto_qam_list[5];
 	enum qam_md_e last_qam_mode;
 	unsigned int auto_times;
 	unsigned int auto_done_times;
-	unsigned int auto_qam_done;
+	bool auto_qam_done;
+	unsigned int auto_qam_index;
 	unsigned int auto_no_sig_cnt;
 	unsigned int fast_search_finish;
 

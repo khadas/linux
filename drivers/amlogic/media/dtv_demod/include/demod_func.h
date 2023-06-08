@@ -266,8 +266,11 @@ enum dvbc_sym_speed {
 	SYM_SPEED_HIGH
 };
 void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
+void demod_dvbc_qam_reset(struct aml_dtvdemod *demod);
 void demod_dvbc_fsm_reset(struct aml_dtvdemod *demod);
-void demod_dvbc_set_qam(struct aml_dtvdemod *demod, unsigned int qam);
+void demod_dvbc_store_qam_cfg(struct aml_dtvdemod *demod);
+void demod_dvbc_restore_qam_cfg(struct aml_dtvdemod *demod);
+void demod_dvbc_set_qam(struct aml_dtvdemod *demod, unsigned int qam, bool auto_sr);
 void dvbc_init_reg_ext(struct aml_dtvdemod *demod);
 u32 dvbc_get_ch_sts(struct aml_dtvdemod *demod);
 u32 dvbc_get_qam_mode(struct aml_dtvdemod *demod);
@@ -275,7 +278,7 @@ void dvbc_cfg_sr_cnt(struct aml_dtvdemod *demod, enum dvbc_sym_speed spd);
 void dvbc_cfg_sr_scan_speed(struct aml_dtvdemod *demod, enum dvbc_sym_speed spd);
 void dvbc_cfg_tim_sweep_range(struct aml_dtvdemod *demod, enum dvbc_sym_speed spd);
 void dvbc_cfg_sw_hw_sr_max(struct aml_dtvdemod *demod, unsigned int max_sr);
-unsigned int dvbc_auto_qam_process(struct aml_dtvdemod *demod);
+int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode);
 
 /* dtmb */
 

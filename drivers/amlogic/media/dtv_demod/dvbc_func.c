@@ -325,6 +325,8 @@ int dvbc_set_ch(struct aml_dtvdemod *demod, struct aml_demod_dvbc *demod_dvbc,
 	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 		demod->demod_status.adc_freq = demod_dvbc->dat0;
 
+	demod_dvbc_qam_reset(demod);
+
 	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
 		dvbc_reg_initial_old(demod);
 	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX) && !is_meson_txhd_cpu())

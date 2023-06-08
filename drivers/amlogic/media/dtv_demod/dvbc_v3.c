@@ -19,6 +19,9 @@ MODULE_PARM_DESC(j83b_agc_target, "\n\t\t j83b_agc_target");
 static unsigned char j83b_agc_target = 0xe;
 module_param(j83b_agc_target, byte, 0644);
 
+static unsigned char dvbc_qam_reg[15] = { 0 };
+static unsigned int dvbc_qam_value[15] = { 0 };
+
 u32 dvbc_get_status(struct aml_dtvdemod *demod)
 {
 	/*PR_DVBC("c4 is %x\n",dvbc_read_reg(QAM_BASE+0xc4));*/
@@ -136,8 +139,7 @@ void qam_auto_scan(struct aml_dtvdemod *demod, int auto_qam_enable)
 		/* j83b */
 		if (demod->atsc_mode == QAM_64 || demod->atsc_mode == QAM_256 ||
 			demod->atsc_mode == QAM_AUTO ||
-			(!is_meson_t5d_cpu() && !is_meson_s4d_cpu() && !is_meson_s4_cpu() &&
-				!is_meson_t3_cpu() && !is_meson_t5w_cpu())) {
+			!cpu_after_eq(MESON_CPU_MAJOR_ID_T5D)) {
 			dvbc_cfg_tim_sweep_range(demod, SYM_SPEED_NORMAL);
 		} else {
 			if (demod->auto_sr)
@@ -156,89 +158,89 @@ static unsigned int get_adc_freq(void)
 	return 24000;
 }
 
+void demod_dvbc_qam_reset(struct aml_dtvdemod *demod)
+{
+	/* reset qam register */
+	qam_write_reg(demod, 0x1, qam_read_reg(demod, 0x1) | (1 << 0));
+	qam_write_reg(demod, 0x1, qam_read_reg(demod, 0x1) & ~(1 << 0));
+
+	PR_DVBC("dvbc reset qam\n");
+}
+
 void demod_dvbc_fsm_reset(struct aml_dtvdemod *demod)
 {
+	/* reset fsm */
 	qam_write_reg(demod, 0x7, qam_read_reg(demod, 0x7) & ~(1 << 4));
 	qam_write_reg(demod, 0x3a, 0x0);
 	qam_write_reg(demod, 0x7, qam_read_reg(demod, 0x7) | (1 << 4));
 	qam_write_reg(demod, 0x3a, 0x4);
+
 	PR_DVBC("dvbc reset fsm\n");
 }
 
-void demod_dvbc_set_qam(struct aml_dtvdemod *demod, enum qam_md_e qam)
+void demod_dvbc_store_qam_cfg(struct aml_dtvdemod *demod)
 {
-	static unsigned int reg_value[13] = { 0 };
+	dvbc_qam_reg[0] = 0x71;
+	dvbc_qam_reg[1] = 0x72;
+	dvbc_qam_reg[2] = 0x73;
+	dvbc_qam_reg[3] = 0x75;
+	dvbc_qam_reg[4] = 0x76;
+	dvbc_qam_reg[5] = 0x7a;
+	dvbc_qam_reg[6] = 0x93;
+	dvbc_qam_reg[7] = 0x94;
+	dvbc_qam_reg[8] = 0x77;
+	dvbc_qam_reg[9] = 0x7c;
+	dvbc_qam_reg[10] = 0x7d;
+	dvbc_qam_reg[11] = 0x7e;
+	dvbc_qam_reg[12] = 0x9c;
+	dvbc_qam_reg[13] = 0x78;
+	dvbc_qam_reg[14] = 0x57;
 
+	dvbc_qam_value[0] = qam_read_reg(demod, 0x71);
+	dvbc_qam_value[1] = qam_read_reg(demod, 0x72);
+	dvbc_qam_value[2] = qam_read_reg(demod, 0x73);
+	dvbc_qam_value[3] = qam_read_reg(demod, 0x75);
+	dvbc_qam_value[4] = qam_read_reg(demod, 0x76);
+	dvbc_qam_value[5] = qam_read_reg(demod, 0x7a);
+	dvbc_qam_value[6] = qam_read_reg(demod, 0x93);
+	dvbc_qam_value[7] = qam_read_reg(demod, 0x94);
+	dvbc_qam_value[8] = qam_read_reg(demod, 0x77);
+	dvbc_qam_value[9] = qam_read_reg(demod, 0x7c);
+	dvbc_qam_value[10] = qam_read_reg(demod, 0x7d);
+	dvbc_qam_value[11] = qam_read_reg(demod, 0x7e);
+	dvbc_qam_value[12] = qam_read_reg(demod, 0x9c);
+	dvbc_qam_value[13] = qam_read_reg(demod, 0x78);
+	dvbc_qam_value[14] = qam_read_reg(demod, 0x57);
+}
+
+void demod_dvbc_restore_qam_cfg(struct aml_dtvdemod *demod)
+{
+	qam_write_reg(demod, dvbc_qam_reg[0], dvbc_qam_value[0]);
+	qam_write_reg(demod, dvbc_qam_reg[1], dvbc_qam_value[1]);
+	qam_write_reg(demod, dvbc_qam_reg[2], dvbc_qam_value[2]);
+	qam_write_reg(demod, dvbc_qam_reg[3], dvbc_qam_value[3]);
+	qam_write_reg(demod, dvbc_qam_reg[4], dvbc_qam_value[4]);
+	qam_write_reg(demod, dvbc_qam_reg[5], dvbc_qam_value[5]);
+	qam_write_reg(demod, dvbc_qam_reg[6], dvbc_qam_value[6]);
+	qam_write_reg(demod, dvbc_qam_reg[7], dvbc_qam_value[7]);
+	qam_write_reg(demod, dvbc_qam_reg[8], dvbc_qam_value[8]);
+	qam_write_reg(demod, dvbc_qam_reg[9], dvbc_qam_value[9]);
+	qam_write_reg(demod, dvbc_qam_reg[10], dvbc_qam_value[10]);
+	qam_write_reg(demod, dvbc_qam_reg[11], dvbc_qam_value[11]);
+	qam_write_reg(demod, dvbc_qam_reg[12], dvbc_qam_value[12]);
+	qam_write_reg(demod, dvbc_qam_reg[13], dvbc_qam_value[13]);
+	qam_write_reg(demod, dvbc_qam_reg[14], dvbc_qam_value[14]);
+}
+
+void demod_dvbc_set_qam(struct aml_dtvdemod *demod, enum qam_md_e qam, bool auto_sr)
+{
 	PR_DVBC("%s last_qam_mode %d, qam %d.\n",
 			__func__, demod->last_qam_mode, qam);
 
-	if (demod->last_qam_mode != QAM_MODE_NUM &&
-		demod->last_qam_mode != qam) {
-		/* restore register value, switching between different qam. */
-		switch (demod->last_qam_mode) {
-		case QAM_MODE_16:
-			qam_write_reg(demod, 0x71, reg_value[0]);
-			qam_write_reg(demod, 0x72, reg_value[1]);
-			qam_write_reg(demod, 0x73, reg_value[2]);
-			qam_write_reg(demod, 0x75, reg_value[3]);
-			qam_write_reg(demod, 0x76, reg_value[4]);
-			qam_write_reg(demod, 0x7a, reg_value[5]);
-			qam_write_reg(demod, 0x93, reg_value[6]);
-			qam_write_reg(demod, 0x94, reg_value[7]);
-			break;
-
-		case QAM_MODE_32:
-			qam_write_reg(demod, 0x71, reg_value[0]);
-			qam_write_reg(demod, 0x72, reg_value[1]);
-			qam_write_reg(demod, 0x73, reg_value[2]);
-			qam_write_reg(demod, 0x75, reg_value[3]);
-			qam_write_reg(demod, 0x76, reg_value[4]);
-			qam_write_reg(demod, 0x77, reg_value[5]);
-			qam_write_reg(demod, 0x7a, reg_value[6]);
-			qam_write_reg(demod, 0x7c, reg_value[7]);
-			qam_write_reg(demod, 0x7d, reg_value[8]);
-			qam_write_reg(demod, 0x7e, reg_value[9]);
-			qam_write_reg(demod, 0x93, reg_value[10]);
-			qam_write_reg(demod, 0x94, reg_value[11]);
-			break;
-
-		case QAM_MODE_64:
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-				qam_write_reg(demod, 0x9c, reg_value[0]);
-				qam_write_reg(demod, 0x57, reg_value[1]);
-			}
-			break;
-
-		case QAM_MODE_128:
-			qam_write_reg(demod, 0x71, reg_value[0]);
-			qam_write_reg(demod, 0x72, reg_value[1]);
-			qam_write_reg(demod, 0x73, reg_value[2]);
-			qam_write_reg(demod, 0x75, reg_value[3]);
-			qam_write_reg(demod, 0x76, reg_value[4]);
-			qam_write_reg(demod, 0x77, reg_value[5]);
-			qam_write_reg(demod, 0x78, reg_value[6]);
-			qam_write_reg(demod, 0x7a, reg_value[7]);
-			qam_write_reg(demod, 0x7c, reg_value[8]);
-			qam_write_reg(demod, 0x7d, reg_value[9]);
-			qam_write_reg(demod, 0x7e, reg_value[10]);
-			qam_write_reg(demod, 0x93, reg_value[11]);
-			qam_write_reg(demod, 0x94, reg_value[12]);
-			break;
-
-		case QAM_MODE_256:
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-				qam_write_reg(demod, 0x9c, reg_value[0]);
-				qam_write_reg(demod, 0x57, reg_value[1]);
-			}
-			break;
-
-		default:
-			break;
-		}
-	}
+	demod_dvbc_restore_qam_cfg(demod);
 
 	/* 0x2 bit[0-3]: qam_mode_cfg. */
-	if (demod->auto_sr)
+	if (auto_sr)
 		qam_write_reg(demod, QAM_MODE_CFG,
 			(qam_read_reg(demod, QAM_MODE_CFG) & ~7)
 				| (qam & 7) | (1 << 17));
@@ -250,15 +252,6 @@ void demod_dvbc_set_qam(struct aml_dtvdemod *demod, enum qam_md_e qam)
 
 	switch (qam) {
 	case QAM_MODE_16:
-		reg_value[0] = qam_read_reg(demod, 0x71);
-		reg_value[1] = qam_read_reg(demod, 0x72);
-		reg_value[2] = qam_read_reg(demod, 0x73);
-		reg_value[3] = qam_read_reg(demod, 0x75);
-		reg_value[4] = qam_read_reg(demod, 0x76);
-		reg_value[5] = qam_read_reg(demod, 0x7a);
-		reg_value[6] = qam_read_reg(demod, 0x93);
-		reg_value[7] = qam_read_reg(demod, 0x94);
-
 		qam_write_reg(demod, 0x71, 0x000a2200);
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
@@ -275,19 +268,6 @@ void demod_dvbc_set_qam(struct aml_dtvdemod *demod, enum qam_md_e qam)
 		break;
 
 	case QAM_MODE_32:
-		reg_value[0] = qam_read_reg(demod, 0x71);
-		reg_value[1] = qam_read_reg(demod, 0x72);
-		reg_value[2] = qam_read_reg(demod, 0x73);
-		reg_value[3] = qam_read_reg(demod, 0x75);
-		reg_value[4] = qam_read_reg(demod, 0x76);
-		reg_value[5] = qam_read_reg(demod, 0x77);
-		reg_value[6] = qam_read_reg(demod, 0x7a);
-		reg_value[7] = qam_read_reg(demod, 0x7c);
-		reg_value[8] = qam_read_reg(demod, 0x7d);
-		reg_value[9] = qam_read_reg(demod, 0x7e);
-		reg_value[10] = qam_read_reg(demod, 0x93);
-		reg_value[11] = qam_read_reg(demod, 0x94);
-
 		qam_write_reg(demod, 0x71, 0x00061200);
 		qam_write_reg(demod, 0x72, 0x099301ae);
 		qam_write_reg(demod, 0x73, 0x08080000);
@@ -309,29 +289,12 @@ void demod_dvbc_set_qam(struct aml_dtvdemod *demod, enum qam_md_e qam)
 
 	case QAM_MODE_64:
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-			reg_value[0] = qam_read_reg(demod, 0x9c);
-			reg_value[1] = qam_read_reg(demod, 0x57);
-
 			qam_write_reg(demod, 0x9c, 0x2a132100);
 			qam_write_reg(demod, 0x57, 0x606060d);
 		}
 		break;
 
 	case QAM_MODE_128:
-		reg_value[0] = qam_read_reg(demod, 0x71);
-		reg_value[1] = qam_read_reg(demod, 0x72);
-		reg_value[2] = qam_read_reg(demod, 0x73);
-		reg_value[3] = qam_read_reg(demod, 0x75);
-		reg_value[4] = qam_read_reg(demod, 0x76);
-		reg_value[5] = qam_read_reg(demod, 0x77);
-		reg_value[6] = qam_read_reg(demod, 0x78);
-		reg_value[7] = qam_read_reg(demod, 0x7a);
-		reg_value[8] = qam_read_reg(demod, 0x7c);
-		reg_value[9] = qam_read_reg(demod, 0x7d);
-		reg_value[10] = qam_read_reg(demod, 0x7e);
-		reg_value[11] = qam_read_reg(demod, 0x93);
-		reg_value[12] = qam_read_reg(demod, 0x94);
-
 		qam_write_reg(demod, 0x71, 0x0002c200);
 		qam_write_reg(demod, 0x72, 0x0a6e0059);
 		qam_write_reg(demod, 0x73, 0x08080000);
@@ -359,9 +322,6 @@ void demod_dvbc_set_qam(struct aml_dtvdemod *demod, enum qam_md_e qam)
 
 	case QAM_MODE_256:
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-			reg_value[0] = qam_read_reg(demod, 0x9c);
-			reg_value[1] = qam_read_reg(demod, 0x57);
-
 			qam_write_reg(demod, 0x9c, 0x2a232100);
 			qam_write_reg(demod, 0x57, 0x606040d);
 		}
@@ -441,7 +401,7 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	qam_write_reg(demod, 0x0, 0x0);
 	/* QAM_STATUS */
 	qam_write_reg(demod, 0x7, 0x00000f00);
-	demod_dvbc_set_qam(demod, ch_mode);
+	//demod_dvbc_set_qam(demod, ch_mode, demod->auto_sr);
 	/*dvbc_write_reg(QAM_BASE+0x00c, 0xfffffffe);*/
 	/* // adc_cnt, symb_cnt*/
 
@@ -492,8 +452,7 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 		/* j83b */
 		if (demod->atsc_mode == QAM_64 || demod->atsc_mode == QAM_256 ||
 			demod->atsc_mode == QAM_AUTO ||
-			(!is_meson_t5d_cpu() && !is_meson_s4d_cpu() && !is_meson_s4_cpu() &&
-				!is_meson_t3_cpu() && !is_meson_t5w_cpu()))
+			!cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
 			qam_write_reg(demod, SR_SCAN_SPEED, 0x245cf450);
 		else
 			qam_write_reg(demod, SR_SCAN_SPEED, 0x235cf459);
@@ -653,7 +612,11 @@ int dvbc_status(struct aml_dtvdemod *demod, struct aml_demod_sts *demod_sts, str
 			demod_sts->dat1, qam_read_reg(demod, 0x38) & 0xffff,
 			qam_read_reg(demod, 0x2d) & 0xffff, qam_read_reg(demod, 0x29) & 0x7f,
 			demod_sts->ch_pow & 0xffff);
-		PR_DVBC("0x31=0x%x\n\n", qam_read_reg(demod, 0x31));
+		PR_DVBC("0xba=0x%x, 0x07=0x%x, 0x3a=0x%x, 0x31=0x%x\n",
+				qam_read_reg(demod, 0xba),
+				qam_read_reg(demod, 0x07),
+				qam_read_reg(demod, 0x3a),
+				qam_read_reg(demod, 0x31));
 	}
 
 	return 0;
@@ -772,18 +735,66 @@ void dvbc_cfg_sw_hw_sr_max(struct aml_dtvdemod *demod, unsigned int max_sr)
 	qam_write_bits(demod, 0x11, max_sr & 0xffff, 8, 16);
 }
 
-unsigned int dvbc_auto_qam_process(struct aml_dtvdemod *demod)
+static void sort_with_index(int size, int data[], int index[])
 {
+	int i = 0, j = 0;
+
+	struct index_data {
+		int value;
+		int index;
+	};
+
+	struct index_data idx_data[5], temp;
+
+	if (size > 5) {
+		PR_ERR("error [size > 5].\n");
+
+		return;
+	}
+
+	for (i = 0; i < size; i++) {
+		idx_data[i].value = data[i];
+		idx_data[i].index = i;
+	}
+
+	for (i = 0; i < size - 1; i++) {
+		for (j = 0; j < size - i - 1; j++) {
+			if (idx_data[j].value > idx_data[j + 1].value) {
+				temp = idx_data[j];
+				idx_data[j] = idx_data[j + 1];
+				idx_data[j + 1] = temp;
+			}
+		}
+	}
+
+	for (i = 0; i < size; i++) {
+		data[i] = idx_data[i].value;
+		index[i] = idx_data[i].index;
+	}
+}
+
+int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode)
+{
+#define MSIZE 8
 	unsigned int idx_1_acc = 0, idx_2_acc = 0, idx_4_acc = 0;
 	unsigned int idx_8_acc = 0, idx_16_acc = 0, idx_32_acc = 0;
 	unsigned int idx_64_acc = 0, idx_128_acc = 0, idx_256_acc = 0;
-	unsigned int idx_00 = 0, idx_77 = 0, idx_all = 0;
-	unsigned int be = 0, bf = 0, c0 = 0, d3 = 0, d4 = 0, d5 = 0;
-	unsigned int aa = 0, bb = 0;
-	unsigned int lock_flag = 0, eq_state = 0;
-	unsigned int find_qam = 0xf;
+	unsigned int idx[64] = { 0 }, idx_77 = 0, idx_all = 0, temp = 0;
+	unsigned int be = 0, bf = 0, c0 = 0;
+	unsigned int d3 = 0, d4 = 0, d5 = 0;
+	unsigned int eq_state = 0;
 	unsigned int total_64_128_256_acc = 0;
-	int i = 0;
+	unsigned int total_32_64_128_256_acc = 0;
+	unsigned int total_all_acc = 0;
+	int i = 0, ret = 0;
+	int dis_idx[5] = { 0 }, dis_val[5] = { 0 };
+	unsigned int len = ARRAY_SIZE(dis_val);
+
+	qam_mode[0] = 0xf;
+	qam_mode[1] = 0xf;
+	qam_mode[2] = 0xf;
+	qam_mode[3] = 0xf;
+	qam_mode[4] = 0xf;
 
 	// 1. wait eq stable.
 	for (i = 0; i < 5; i++) {
@@ -795,113 +806,311 @@ unsigned int dvbc_auto_qam_process(struct aml_dtvdemod *demod)
 		msleep(50);
 	}
 
+	if (eq_state <= 0x01) {
+		ret = -1;
+
+		goto AUTO_QAM_DONE;
+	}
+
 	// 2. get QAM constellation map accumulated value.
 	be = qam_read_reg(demod, 0xbe);
 	bf = qam_read_reg(demod, 0xbf);
 	c0 = qam_read_reg(demod, 0xc0);
+	d4 = qam_read_reg(demod, 0xd4);
+	d5 = qam_read_reg(demod, 0xd5);
+	d3 = qam_read_reg(demod, 0xd3);
 
-	if (eq_state > 0x01) {
-		// 3. get QAM probability distribution.
-		d4 = qam_read_reg(demod, 0xd4);
-		d5 = qam_read_reg(demod, 0xd5);
-		d3 = qam_read_reg(demod, 0xd3);
+	PR_DVBC("0xbe[0x%x], 0xbf[0x%x], 0xc0[0x%x].\n", be, bf, c0);
+	PR_DVBC("0xd3[0x%x], 0xd4[0x%x], 0xd5[0x%x].\n", d3, d4, d5);
 
-		PR_DVBC("%s: 0xbe[0x%x], 0xbf[0x%x], 0xc0[0x%x].\n",
-				__func__, be, bf, c0);
-		PR_DVBC("%s: 0xd3[0x%x], 0xd4[0x%x], 0xd5[0x%x].\n",
-				__func__, d3, d4, d5);
+	// 3. get QAM probability distribution.
+	idx[0] = (be & 0x1);
+	idx[0] += ((be >> 2) & 0x1) * 2;
+	idx[0] += ((be >> 4) & 0x1) * 4;
+	idx[0] += (bf & 0x1) * 8;
+	idx[0] += ((bf >> 2) & 0x1) * 16;
+	idx[0] += ((bf >> 4) & 0x1) * 32;
+	idx[0] += (c0 & 0x1) * 64;
+	idx[0] += ((c0 >> 2) & 0x1) * 128;
+	idx[0] += ((c0 >> 4) & 0x1) * 256;
 
-		idx_00 = (be & 0x1);
-		idx_00 += ((be >> 2) & 0x1) * 2;
-		idx_00 += ((be >> 4) & 0x1) * 4;
-		idx_00 += (bf & 0x1) * 8;
-		idx_00 += ((bf >> 2) & 0x1) * 16;
-		idx_00 += ((bf >> 4) & 0x1) * 32;
-		idx_00 += (c0 & 0x1) * 64;
-		idx_00 += ((c0 >> 2) & 0x1) * 128;
-		idx_00 += ((c0 >> 4) & 0x1) * 256;
+	idx_2_acc = d4 & 0x7f;
+	idx_4_acc = (d4 & 0x7f00) >> 8;
+	idx_8_acc = (d4 & 0x7f0000) >> 16;
+	idx_16_acc = (d4 & 0x7f000000) >> 24;
+	idx_32_acc = d5 & 0x7f;
+	idx_64_acc = (d5 & 0x7f00) >> 8;
+	idx_128_acc = (d5 & 0x7f0000) >> 16;
+	idx_256_acc = (d5 & 0x7f000000) >> 24;
 
-		idx_2_acc = d4 & 0x7f;
-		idx_4_acc = (d4 & 0x7f00) >> 8;
-		idx_8_acc = (d4 & 0x7f0000) >> 16;
-		idx_16_acc = (d4 & 0x7f000000) >> 24;
+	idx_1_acc = (d3 & 0x3f0000) >> 16;
+	idx_77 = (d3 & 0x7ff0) >> 4;
+	idx_77 = (idx_77 * 10000) >> 2;
 
-		idx_32_acc = d5 & 0x7f;
-		idx_64_acc = (d5 & 0x7f00) >> 8;
-		idx_128_acc = (d5 & 0x7f0000) >> 16;
-		idx_256_acc = (d5 & 0x7f000000) >> 24;
+	idx_all = idx_256_acc * 256;
+	idx_all += idx_128_acc * 128;
+	idx_all += idx_64_acc * 64;
+	idx_all += idx_32_acc * 32;
+	idx_all += idx_16_acc * 16;
+	idx_all += idx_8_acc * 8;
+	idx_all += idx_4_acc * 4;
+	idx_all += idx_2_acc * 2;
+	idx_all += idx_1_acc;
+	idx_all += idx[0];
+	idx_all = idx_all >> 6;
 
-		idx_1_acc = (d3 & 0x3f0000) >> 16;
-		idx_77 = (d3 & 0x7ff0) >> 4;
-		idx_77 = (idx_77 * 10000) >> 2;
+	if (idx_all > 0)
+		idx_77 = idx_77 / idx_all;
 
-		total_64_128_256_acc = idx_64_acc + idx_128_acc + idx_256_acc;
+	total_64_128_256_acc = idx_64_acc + idx_128_acc + idx_256_acc;
+	total_32_64_128_256_acc = total_64_128_256_acc + idx_32_acc;
+	total_all_acc = total_32_64_128_256_acc + idx_16_acc;
+	total_all_acc += idx_8_acc + idx_4_acc + idx_2_acc + idx_1_acc;
 
-		PR_DVBC("%s: idx_00[0x%x], idx_77[0x%x].\n",
-				__func__, idx_00, idx_77);
-		PR_DVBC("%s: idx_1_acc[0x%x], idx_2_acc[0x%x], idx_4_acc[0x%x].\n",
-				__func__, idx_1_acc, idx_2_acc, idx_4_acc);
-		PR_DVBC("%s: idx_8_acc[0x%x], idx_16_acc[0x%x], index_32_acc[0x%x].\n",
-				__func__, idx_8_acc, idx_16_acc, idx_32_acc);
-		PR_DVBC("%s: idx_64_acc[0x%x], idx_128_acc[0x%x], idx_256_acc[0x%x].\n",
-				__func__, idx_64_acc, idx_128_acc, idx_256_acc);
-		PR_DVBC("%s: total_64_128_256_acc[0x%x].\n",
-				__func__, total_64_128_256_acc);
+	PR_DVBC("idx_1_acc: 0x%x, idx_2_acc: 0x%x, idx_4_acc: 0x%x.\n",
+			idx_1_acc, idx_2_acc, idx_4_acc);
+	PR_DVBC("idx_8_acc: 0x%x, idx_16_acc: 0x%x, index_32_acc: 0x%x.\n",
+			idx_8_acc, idx_16_acc, idx_32_acc);
+	PR_DVBC("idx_64_acc: 0x%x, idx_128_acc: 0x%x, idx_256_acc: 0x%x.\n",
+			idx_64_acc, idx_128_acc, idx_256_acc);
+	PR_DVBC("total_64_128_256_acc: 0x%x.\n", total_64_128_256_acc);
+	PR_DVBC("total_32_64_128_256_acc: 0x%x.\n", total_32_64_128_256_acc);
+	PR_DVBC("total_all_acc: 0x%x.\n", total_all_acc);
+	PR_DVBC("idx_all: 0x%x(%d), idx_77: 0x%x(%d), idx[0]: %d.\n",
+			idx_all, idx_all, idx_77, idx_77, idx[0]);
 
-		idx_all = idx_256_acc * 256;
-		idx_all += idx_128_acc * 128;
-		idx_all += idx_64_acc * 64;
-		idx_all += idx_32_acc * 32;
-		idx_all += idx_16_acc * 16;
-		idx_all += idx_8_acc * 8;
-		idx_all += idx_4_acc * 4;
-		idx_all += idx_2_acc * 2;
-		idx_all += idx_1_acc;
-		idx_all += idx_00;
-		idx_all = idx_all >> 6;
+	if (total_all_acc < 60 || total_64_128_256_acc <= 4) {
+		ret = -2;
 
-		if (idx_all > 0)
-			idx_77 = idx_77 / idx_all;
+		goto AUTO_QAM_DONE;
+	}
 
-		PR_DVBC("%s: idx_all: 0x%x, idx_77: %d.\n",
-				__func__, idx_all, idx_77);
+	// total_all_acc >= 60 && total_64_128_256_acc > 4
+	dis_val[4] = abs(idx_256_acc - 64) + 1;
+	dis_val[3] = abs(idx_256_acc - 56) + 1;
+	dis_val[2] = abs(idx_256_acc - 32) + 1;
+	dis_val[1] = abs(idx_256_acc - 16) + 1;
+	dis_val[0] = abs(idx_256_acc - 8) + 1;
 
-		msleep(40);
+	PR_DVBC("orig dis_val: %d, %d, %d, %d, %d.\n",
+			dis_val[0], dis_val[1],
+			dis_val[2], dis_val[3], dis_val[4]);
 
-		aa = idx_256_acc;
-		aa = aa + idx_128_acc;
-		aa = aa + idx_64_acc;
-		aa = aa + idx_32_acc;
-		bb = aa + idx_16_acc;
-		bb = bb + idx_8_acc;
-		bb = bb + idx_4_acc;
-		bb = bb + idx_2_acc;
-		bb = bb + idx_1_acc;
+	sort_with_index(len, dis_val, dis_idx);
 
-		// 4. get fsm lock state.
-		lock_flag = ((qam_read_reg(demod, 0x31) & 0xf) == 0x5);
+	PR_DVBC("sort dis_val(idx): %d(%d), %d(%d), %d(%d), %d(%d), %d(%d).\n",
+			dis_val[0], dis_idx[0], dis_val[1], dis_idx[1],
+			dis_val[2], dis_idx[2], dis_val[3], dis_idx[3],
+			dis_val[4], dis_idx[4]);
 
-		PR_DVBC("%s: lock_flag: %d, aa: %d, bb: %d.\n",
-				__func__, lock_flag, aa, bb);
+	if (idx_77 <= 2000) {
+		if (dis_idx[0] > 2 && dis_idx[1] > 2) {
+			if (dis_idx[0] == 3) //128
+				dis_val[0] = -1;
+			else
+				dis_val[1] = -1;
 
-		// 5. get qam.
-		if (bb >= 60 && total_64_128_256_acc > 4) {
-			if (idx_77 < 2000) {
-				find_qam = QAM_MODE_128;
-				if (idx_00 <= 24 || idx_256_acc < 40)
-					find_qam = QAM_MODE_32;
-			} else if ((lock_flag == 1) || (idx_77 > 2000)) {
-				find_qam = QAM_MODE_256;
-			} else {
-				find_qam = QAM_MODE_16;
+			if (dis_val[0] > dis_val[1]) {
+				temp = dis_val[0];
+				dis_val[0] = dis_val[1];
+				dis_val[1] = temp;
+
+				temp = dis_idx[0];
+				dis_idx[0] = dis_idx[1];
+				dis_idx[1] = temp;
 			}
+
+			PR_DVBC("in idx_77 <= 2000  128 256 ----\n");
+		} else if (dis_idx[0] > 1 && dis_idx[1] > 1 &&
+			dis_idx[0] < 4 && dis_idx[1] < 4) {
+			if (dis_idx[0] == 3) //128
+				dis_val[0] = -1;
+			else
+				dis_val[1] = -1;
+
+			if (dis_val[0] > dis_val[1]) {
+				temp = dis_val[0];
+				dis_val[0] = dis_val[1];
+				dis_val[1] = temp;
+
+				temp = dis_idx[0];
+				dis_idx[0] = dis_idx[1];
+				dis_idx[1] = temp;
+			}
+
+			PR_DVBC("in idx_77 <= 2000  128 64 ----\n");
+		} else if (dis_idx[0] > 0 && dis_idx[1] > 0 &&
+			dis_idx[0] < 3 && dis_idx[1] < 3) {
+			if (dis_idx[0] == 1) //32
+				dis_val[0] = -1;
+			else
+				dis_val[1] = -1;
+
+			if (dis_val[0] > dis_val[1]) {
+				temp = dis_val[0];
+				dis_val[0] = dis_val[1];
+				dis_val[1] = temp;
+
+				temp = dis_idx[0];
+				dis_idx[0] = dis_idx[1];
+				dis_idx[1] = temp;
+			}
+
+			PR_DVBC("in idx_77 <= 2000  32 64 ----\n\n");
+		}
+	} else {
+		// > 2000
+		if (dis_idx[0] > 2 && dis_idx[1] > 2 && dis_idx[2] == 2) {
+			if (dis_idx[0] == 4) //256
+				dis_val[0] = -1;
+			else
+				dis_val[1] = -1;
+
+			if (dis_val[0] > dis_val[1]) { // sort
+				temp = dis_val[0];
+				dis_val[0] = dis_val[1];
+				dis_val[1] = temp;
+
+				temp = dis_idx[0];
+				dis_idx[0] = dis_idx[1];
+				dis_idx[1] = temp;
+			}
+
+			temp = dis_val[1];
+			dis_val[1] = dis_val[2];
+			dis_val[2] = temp;
+
+			temp = dis_idx[1];
+			dis_idx[1] = dis_idx[2];
+			dis_idx[2] = temp;
+		}
+
+		if (dis_idx[0] < 2 && dis_idx[1] < 2 && dis_idx[2] == 2) {
+			dis_val[2] = 0;
+			temp = dis_val[1];
+			dis_val[1] = dis_val[0];
+			dis_val[0] = dis_val[2];
+			dis_val[2] = temp;
+
+			temp = dis_idx[1];
+			dis_idx[1] = dis_idx[0];
+			dis_idx[0] = dis_idx[2];
+			dis_idx[2] = temp;
+
+			if (dis_idx[0] < 2 && dis_idx[1] < 2 && dis_idx[3] == 2) {
+				dis_val[3] = 0;
+				temp = dis_val[1];
+				dis_val[1] = dis_val[0];
+				dis_val[0] = dis_val[3];
+				dis_val[3] = dis_val[2];
+				dis_val[2] = temp;
+
+				temp = dis_idx[1];
+				dis_idx[1] = dis_idx[0];
+				dis_idx[0] = dis_idx[3];
+				dis_idx[3] = dis_idx[2];
+				dis_idx[2] = temp;
+			}
+		}
+
+		PR_DVBC("in idx_77 > 2000  128 256 ----\n\n");
+	}
+
+	if (idx[0] < 25) {
+		if (dis_idx[0] > 0 && dis_idx[1] > 0 &&
+			dis_idx[0] < 3 && dis_idx[1] < 3) {
+			if (dis_idx[0] == 1) //32
+				dis_val[0] = -2;
+			else
+				dis_val[1] = -2;
+
+			if (dis_val[0] > dis_val[1]) {
+				temp = dis_val[0];
+				dis_val[0] = dis_val[1];
+				dis_val[1] = temp;
+
+				temp = dis_idx[0];
+				dis_idx[0] = dis_idx[1];
+				dis_idx[1] = temp;
+			}
+
+			PR_DVBC("in index_00 < 25  32 64----\n\n");
 		}
 	}
 
-	if (find_qam != 0xf)
-		PR_INFO("%s: find qam: %d.\n", __func__, find_qam);
-	else
-		PR_INFO("%s: can not find qam.\n", __func__);
+	if (idx[0] < 150) {
+		if (dis_idx[0] > 1 && dis_idx[1] > 1 &&
+			dis_idx[0] < 4 && dis_idx[1] < 4) {
+			if (dis_idx[0] == 2) //64
+				dis_val[0] = -3;
+			else
+				dis_val[1] = -3;
 
-	return find_qam;
+			if (dis_val[0] > dis_val[1]) {
+				temp = dis_val[0];
+				dis_val[0] = dis_val[1];
+				dis_val[1] = temp;
+
+				temp = dis_idx[0];
+				dis_idx[0] = dis_idx[1];
+				dis_idx[1] = temp;
+			}
+
+			PR_DVBC("in index_00 < 150  128 64 ----\n\n");
+		}
+	}
+
+	if (dis_idx[0] < 2 && dis_idx[1] < 2) {
+		if (total_32_64_128_256_acc == 8) {
+			if (dis_idx[0] == 0) //16
+				dis_val[0] = -4;
+			else
+				dis_val[1] = -4;
+
+			if (dis_val[0] > dis_val[1]) {
+				temp = dis_val[0];
+				dis_val[0] = dis_val[1];
+				dis_val[1] = temp;
+
+				temp = dis_idx[0];
+				dis_idx[0] = dis_idx[1];
+				dis_idx[1] = temp;
+			}
+
+			PR_DVBC("in aa == 8  16 ----\n\n");
+		} else {
+			if (dis_idx[0] == 1) //32
+				dis_val[0] = -4;
+			else
+				dis_val[1] = -4;
+
+			if (dis_val[0] > dis_val[1]) {
+				temp = dis_val[0];
+				dis_val[0] = dis_val[1];
+				dis_val[1] = temp;
+
+				temp = dis_idx[0];
+				dis_idx[0] = dis_idx[1];
+				dis_idx[1] = temp;
+			}
+
+			PR_DVBC("in aa > or < 8  32 ----\n");
+		}
+	}
+
+	qam_mode[0] = dis_idx[0];
+	qam_mode[1] = dis_idx[1];
+	qam_mode[2] = dis_idx[2];
+	qam_mode[3] = dis_idx[3];
+	qam_mode[4] = dis_idx[4];
+
+AUTO_QAM_DONE:
+	if (!ret)
+		PR_INFO("%s: find qam: %d, %d, %d, %d, %d.\n",
+				__func__, qam_mode[0], qam_mode[1],
+				qam_mode[2], qam_mode[3], qam_mode[4]);
+	else
+		PR_INFO("%s: can not find qam(ret %d).\n", __func__, ret);
+
+	return ret;
 }
