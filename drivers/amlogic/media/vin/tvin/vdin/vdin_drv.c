@@ -4832,6 +4832,18 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		/*clear event info*/
 		/*devp->pre_event_info.event_sts = 0;*/
 		break;
+	case TVIN_IOC_G_VDIN_STATUS:
+		mutex_lock(&devp->fe_lock);
+		if (copy_to_user(argp, &devp->flags, sizeof(unsigned int))) {
+			mutex_unlock(&devp->fe_lock);
+			ret = -EFAULT;
+			pr_info("TVIN_IOC_G_VDIN_STATUS err\n\n");
+			break;
+		}
+		if (vdin_dbg_en)
+			pr_info("TVIN_IOC_G_VDIN_STATUS(%#x)\n", devp->flags);
+		mutex_unlock(&devp->fe_lock);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	/* pr_info("%s %d is not supported command\n", __func__, cmd); */

@@ -194,7 +194,8 @@ enum vdin_hw_ver_e {
 };
 
 /* 20230607: game mode optimize and add debug */
-#define VDIN_VER_V1 "20230607: game mode optimize and add debug"
+/* 20230609: add get vdin status */
+#define VDIN_VER_V1 "20230609: add get vdin status"
 
 enum vdin_irq_flg_e {
 	VDIN_IRQ_FLG_NO_END = 1,
@@ -728,6 +729,8 @@ struct vdin_dev_s {
 
 	char name[15];
 	/* bit0 TVIN_PARM_FLAG_CAP bit31: TVIN_PARM_FLAG_WORK_ON */
+	/* bit[1] 1:already TVIN_IOC_START_DEC OK 0:already TVIN_IOC_STOP_DEC OK*/
+	/* bit[2] 1:already TVIN_IOC_OPEN OK 0:already TVIN_IOC_CLOSE OK*/
 	unsigned int flags;
 	unsigned int flags_isr;
 	unsigned int index;
