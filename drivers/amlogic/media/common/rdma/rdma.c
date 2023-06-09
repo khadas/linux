@@ -266,6 +266,9 @@ int _vsync_rdma_config(int rdma_type)
 		if (!iret) {
 			force_rdma_config[rdma_type] = 1;
 			iret = 0;
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+			update_over_field_states(OVER_FIELD_RDMA_READY, false);
+#endif
 		} else {
 			force_rdma_config[rdma_type] = 0;
 			iret = 0;

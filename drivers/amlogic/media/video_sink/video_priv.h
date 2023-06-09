@@ -522,9 +522,12 @@ struct video_layer_s {
 	u32 src_height;
 	u32 alpha_win_en;
 	struct pip_alpha_scpxn_s alpha_win;
+
 	bool pre_link_en;
 	bool need_disable_prelink;
 	bool prelink_bypass_check;
+	atomic_t disable_prelink_done;
+
 	bool mosaic_frame;
 	u8 prelink_skip_cnt;
 	s32 last_di_instance;
@@ -970,7 +973,7 @@ void amvecm_process(struct path_id_s *path_id, struct video_recv_s *p_gvideo_rec
 
 u32 get_force_skip_cnt(enum vd_path_e path);
 bool is_pre_link_source(struct vframe_s *vf);
-bool is_pre_link_on(struct video_layer_s *layer, struct vframe_s *vf);
+bool is_pre_link_on(struct video_layer_s *layer);
 void vpp_trace_axis(int left, int top, int right, int bottom);
 void vpp_trace_timeinfo(unsigned long time1,
 	unsigned long time2, unsigned long time3,

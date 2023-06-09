@@ -515,14 +515,17 @@ static void common_toggle_frame(struct video_recv_s *ins,
 		} else {
 			for (i = 0; i < ins->buf_to_put_num; i++) {
 				if (ins->buf_to_put[i]) {
+					ins->buf_to_put[i]->rendered = true;
 					common_vf_put(ins, ins->buf_to_put[i]);
 					ins->buf_to_put[i] = NULL;
 				}
 			}
 			ins->buf_to_put_num = 0;
+			ins->original_vf->rendered = true;
 			common_vf_put(ins, ins->original_vf);
 		}
 #else
+		ins->original_vf->rendered = true;
 		common_vf_put(ins, ins->original_vf);
 #endif
 		ins->frame_count++;
