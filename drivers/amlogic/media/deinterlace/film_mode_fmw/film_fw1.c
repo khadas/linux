@@ -816,7 +816,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		pd22224_dif02_flag = 0;
 		if (pd22224_mcdi_flag || pd_dif01_flag ||
 			(nDIF02[HISDIFNUM - 1] < (1 << (pd_dif02_sel - 1)) &&
-			pd22224_cnt > pd22224_th)) {
+			pd22224_cnt > pd22224_th && max_dif02 > (1 << pd_dif02_sel))) {
 			pd22224_cnt = pd22224_cnt < 255 ? pd22224_cnt + 1 : 255;
 			if (pRDat.enter_cnt[0] < pPar->enter_th)
 				pRDat.enter_cnt[0] = pRDat.enter_cnt[0] < 255 ? pRDat.enter_cnt[0] + 1 : 255;
@@ -834,9 +834,9 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		if (pr_pd)
 			pr_info("max_dif02 = %d, pd22_pre_cur_dif = %d\n",
 				max_dif02, pd22_pre_cur_dif);
-		if (max_dif02 / (nDIF02[HISDIFNUM - 1] + 1) >
-			flm22_dif02_ratio ||
-			nDIF02[HISDIFNUM - 1] < (1 << (pd_dif02_sel - 2)))
+		if (max_dif02 / (nDIF02[HISDIFNUM - 1] + 1) > flm22_dif02_ratio ||
+			(nDIF02[HISDIFNUM - 1] < (1 << (pd_dif02_sel - 2)) &&
+			max_dif02 > (1 << pd_dif02_sel)))
 			pd22224_cnt = pd22224_cnt < 255 ? pd22224_cnt + 1 : 255;
 		else if (pd22224_cnt > pd22224_quit_dif02_th &&
 			pd22_pre_cur_dif > pd22_cnt_th)
