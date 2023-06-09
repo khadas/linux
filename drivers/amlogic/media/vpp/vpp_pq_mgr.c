@@ -1279,7 +1279,8 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_lc_isr);
 void vpp_pq_mgr_get_status(struct vpp_pq_state_s *pstatus)
 {
 	if (pstatus)
-		pstatus = &pq_mgr_settings.pq_status;
+		memcpy(pstatus, &pq_mgr_settings.pq_status,
+			sizeof(struct vpp_pq_state_s));
 }
 EXPORT_SYMBOL(vpp_pq_mgr_get_status);
 
