@@ -1111,6 +1111,9 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		for (i = 0; i < devp->canvas_max_num; i++)
 			pr_info("buf[%d]mem_start = 0x%lx, mem_size = 0x%x\n",
 				i, devp->vf_mem_start[i], vframe_size);
+	pr_info("parm.port	= %s(0x%x)\n",
+		tvin_port_str(devp->parm.port),
+		devp->parm.port);
 	pr_info("signal format	= %s(0x%x)\n",
 		tvin_sig_fmt_str(devp->parm.info.fmt),
 		devp->parm.info.fmt);

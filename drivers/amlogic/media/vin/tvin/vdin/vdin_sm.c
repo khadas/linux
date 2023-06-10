@@ -110,8 +110,7 @@ u32 vdin_re_cfg_drop_cnt = 8;
 module_param(vdin_re_cfg_drop_cnt, int, 0664);
 MODULE_PARM_DESC(vdin_re_cfg_drop_cnt, "vdin_re_cfg_drop_cnt");
 
-/*#define DEBUG_SUPPORT*/
-#ifdef DEBUG_SUPPORT
+//#ifdef DEBUG_SUPPORT
 module_param(back_nosig_max_cnt, int, 0664);
 MODULE_PARM_DESC(back_nosig_max_cnt,
 		 "unstable enter no signal state max count");
@@ -148,7 +147,7 @@ MODULE_PARM_DESC(other_unstable_in_cnt, "other_unstable_in_cnt");
 
 module_param(nosig_in_cnt, int, 0664);
 MODULE_PARM_DESC(nosig_in_cnt, "nosig_in_cnt");
-#endif
+//#endif
 
 module_param(nosig2_unstable_cnt, int, 0664);
 MODULE_PARM_DESC(nosig2_unstable_cnt, "nosig2_unstable_cnt");
@@ -1056,8 +1055,10 @@ void tvin_smr(struct vdin_dev_s *devp)
 						break;
 				}
 			}
+			devp->fmt_info_p = (struct tvin_format_s *)tvin_get_fmt_info(info->fmt);
 			if (IS_HDMI_SRC(port)) {
-				if (!(devp->flags & VDIN_FLAG_DEC_STARTED) &&
+				/* for tvstart, do not judge VDIN_FLAG_DEC_STARTED */
+				if (/*!(devp->flags & VDIN_FLAG_DEC_STARTED) &&*/
 				    !mutex_is_locked(&devp->fe_lock)) {
 					sm_p->state = TVIN_SM_STATUS_STABLE;
 					info->status = TVIN_SIG_STATUS_STABLE;
@@ -1071,8 +1072,9 @@ void tvin_smr(struct vdin_dev_s *devp)
 						devp->csc_cfg = 0;
 					}
 					if (sm_debug_enable)
-						pr_info("[smr.%d] %ums prestable --> stable\n",
-							devp->index, jiffies_to_msecs(jiffies));
+						pr_info("[smr.%d] %ums prestable --> stable(%#x)\n",
+							devp->index, jiffies_to_msecs(jiffies),
+							info->fmt);
 					sm_print_nosig  = 0;
 					sm_print_notsup = 0;
 					sm_print_prestable = 0;
@@ -1095,8 +1097,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 					devp->cut_window_cfg = 0;
 				}
 				if (sm_debug_enable)
-					pr_info("[smr.%d] %ums prestable --> stable\n",
-						devp->index, jiffies_to_msecs(jiffies));
+					pr_info("[smr.%d] %ums prestable --> stable(%#x)\n",
+						devp->index, jiffies_to_msecs(jiffies), info->fmt);
 				sm_print_nosig  = 0;
 				sm_print_notsup = 0;
 				sm_print_prestable = 0;

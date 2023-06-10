@@ -617,12 +617,18 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 {
 	enum vdin_format_convert_e	format_convert;
 	unsigned int port = devp->parm.port;
-	unsigned int scan_mod = devp->fmt_info_p->scan_mode;
+	unsigned int scan_mod;
 	unsigned int manual_md = (devp->flags & VDIN_FLAG_MANUAL_CONVERSION);
+
+	if (!devp->fmt_info_p) {
+		pr_err("%s:fmt_info_p is null\n", __func__);
+		return;
+	}
 
 	if (IS_HDMI_SRC(port) && !manual_md)
 		devp->prop.dest_cfmt = TVIN_COLOR_FMT_MAX;
 
+	scan_mod = devp->fmt_info_p->scan_mode;
 #ifdef VDIN_BRINGUP_BYPASS_COLOR_CNVT
 	devp->prop.dest_cfmt = devp->prop.color_format;
 #endif

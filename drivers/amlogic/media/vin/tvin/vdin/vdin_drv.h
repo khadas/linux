@@ -197,7 +197,8 @@ enum vdin_hw_ver_e {
 /* 20230607: game mode optimize and add debug */
 /* 20230609: add get vdin status */
 /* 20230713: bc302 get field type */
-#define VDIN_VER_V1 "20230713: bc302 get field type"
+/* 20230718: optimize get video format process */
+#define VDIN_VER_V1 "20230718: optimize get video format process"
 
 enum vdin_irq_flg_e {
 	VDIN_IRQ_FLG_NO_END = 1,
