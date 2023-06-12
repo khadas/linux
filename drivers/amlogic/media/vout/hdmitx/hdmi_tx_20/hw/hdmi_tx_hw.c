@@ -95,6 +95,7 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned int cmd,
 static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 			    unsigned int  argv);
 static enum hdmi_vic get_vic_from_pkt(void);
+static void audio_mute_op(bool flag);
 
 static DEFINE_MUTEX(aud_mutex);
 
@@ -548,6 +549,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 		hdmitx_wr_reg(HDMITX_DWC_MC_LOCKONCLOCK, 0xff);
 		hdmitx_wr_reg(HDMITX_TOP_INTR_MASKN, 0x1f);
 	}
+	audio_mute_op(1); /* enable audio default */
 }
 
 static void hdmi_hwi_init(struct hdmitx_dev *hdev)
