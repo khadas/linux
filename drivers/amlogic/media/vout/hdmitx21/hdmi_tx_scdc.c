@@ -18,18 +18,23 @@ void scdc21_config(struct hdmitx_dev *hdev)
 static int scdc_ced_cnt(struct hdmitx_dev *hdev)
 {
 	struct ced_cnt *ced = &hdev->ced_cnt;
-	u8 raw[7];
+	enum frl_rate_enum frl_rate;
+	u8 raw[9] = {0};
 	u8 chksum;
+	u8 len;
 	int i;
 
 	memset(raw, 0, sizeof(raw));
 	memset(ced, 0, sizeof(struct ced_cnt));
+	frl_rate = hdev->hwop.cntlmisc(hdev, MISC_GET_FRL_MODE, 0);
 
 	chksum = 0;
-	for (i = 0; i < 7; i++) {
-		scdc21_rd_sink(SCDC_CH0_ERRCNT_0 + i, &raw[i]);
+	len = 7; /* 0x50 ~ 0x56 */
+	if (frl_rate >= FRL_6G4L)
+		len = 9; /* 0x50 ~ 0x58 */
+	scdc21_sequential_rd_sink(SCDC_CH0_ERRCNT_0, &raw[0], len);
+	for (i = 0; i < len; i++)
 		chksum += raw[i];
-	}
 
 	ced->ch0_cnt = raw[0] + ((raw[1] & 0x7f) << 8);
 	ced->ch0_valid = (raw[1] >> 7) & 0x1;
@@ -37,6 +42,8 @@ static int scdc_ced_cnt(struct hdmitx_dev *hdev)
 	ced->ch1_valid = (raw[3] >> 7) & 0x1;
 	ced->ch2_cnt = raw[4] + ((raw[5] & 0x7f) << 8);
 	ced->ch2_valid = (raw[5] >> 7) & 0x1;
+	ced->ch3_cnt = raw[7] + ((raw[8] & 0x7f) << 8);
+	ced->ch3_valid = (raw[8] >> 7) & 0x1;
 
 	/* Do checksum */
 	if (chksum != 0)
@@ -50,8 +57,28 @@ static int scdc_ced_cnt(struct hdmitx_dev *hdev)
 	if (ced->ch2_cnt)
 		pr_info("ced: ch2_cnt = %d %s\n", ced->ch2_cnt,
 			ced->ch2_valid ? "" : "invalid");
+	if (ced->ch3_cnt)
+		pr_info("ced: ch3_cnt = %d %s\n", ced->ch3_cnt,
+			ced->ch3_valid ? "" : "invalid");
 
 	return chksum != 0;
+}
+
+static int scdc_rsed_cnt(struct hdmitx_dev *hdev)
+{
+	struct ced_cnt *ced = &hdev->ced_cnt;
+	u8 raw[2] = {0};
+
+	scdc21_sequential_rd_sink(SCDC_RS_CORRECTION_CNT_0, &raw[0], 2);
+
+	ced->rs_c_cnt = raw[0] + ((raw[1] & 0x7f) << 8);
+	ced->rs_c_valid = (raw[1] >> 7) & 0x1;
+
+	if (ced->rs_c_cnt)
+		pr_info("ced: rs_c_cnt = %d %s\n", ced->rs_c_cnt,
+			ced->rs_c_valid ? "" : "invalid");
+
+	return 0;
 }
 
 /* update scdc status flags, 10.4.1.7 */
@@ -60,29 +87,38 @@ int scdc21_status_flags(struct hdmitx_dev *hdev)
 {
 	u8 st = 0;
 	u8 locked_st = 0;
+	enum frl_rate_enum frl_rate;
 
+	frl_rate = hdev->hwop.cntlmisc(hdev, MISC_GET_FRL_MODE, 0);
 	scdc21_rd_sink(SCDC_UPDATE_0, &st);
 	if (st & STATUS_UPDATE) {
 		scdc21_rd_sink(SCDC_STATUS_FLAGS_0, &locked_st);
-		hdev->chlocked_st.clock_detected = locked_st & (1 << 0);
-		hdev->chlocked_st.ch0_locked = !!(locked_st & (1 << 1));
-		hdev->chlocked_st.ch1_locked = !!(locked_st & (1 << 2));
-		hdev->chlocked_st.ch2_locked = !!(locked_st & (1 << 3));
+		hdev->chlocked_st.clock_detected = locked_st & BIT(0);
+		hdev->chlocked_st.ch0_locked = !!(locked_st & BIT(1));
+		hdev->chlocked_st.ch1_locked = !!(locked_st & BIT(2));
+		hdev->chlocked_st.ch2_locked = !!(locked_st & BIT(3));
+		hdev->chlocked_st.ch3_locked = !!(locked_st & BIT(4));
 	}
 	if (st & CED_UPDATE)
 		scdc_ced_cnt(hdev);
-	if (st & (STATUS_UPDATE | CED_UPDATE))
-		scdc21_wr_sink(SCDC_UPDATE_0, st & (STATUS_UPDATE | CED_UPDATE));
-	if (!hdev->chlocked_st.clock_detected)
-		pr_info("ced: clock undetected\n");
-	if (!hdev->chlocked_st.ch0_locked)
-		pr_info("ced: ch0 unlocked\n");
-	if (!hdev->chlocked_st.ch1_locked)
-		pr_info("ced: ch1 unlocked\n");
-	if (!hdev->chlocked_st.ch2_locked)
-		pr_info("ced: ch2 unlocked\n");
+	if (st & RSED_UPDATE)
+		scdc_rsed_cnt(hdev);
+	if (st & (STATUS_UPDATE | CED_UPDATE | RSED_UPDATE))
+		scdc21_wr_sink(SCDC_UPDATE_0, st & (STATUS_UPDATE | CED_UPDATE | RSED_UPDATE));
+	if (st & STATUS_UPDATE) {
+		if (!frl_rate && !hdev->chlocked_st.clock_detected)
+			pr_info("ced: clock undetected\n");
+		if (!hdev->chlocked_st.ch0_locked)
+			pr_info("ced: ch0 unlocked\n");
+		if (!hdev->chlocked_st.ch1_locked)
+			pr_info("ced: ch1 unlocked\n");
+		if (!hdev->chlocked_st.ch2_locked)
+			pr_info("ced: ch2 unlocked\n");
+		if (frl_rate && !hdev->chlocked_st.ch3_locked)
+			pr_info("ced: ch3 unlocked\n");
+	}
 
-	return st & (STATUS_UPDATE | CED_UPDATE);
+	return st & (STATUS_UPDATE | CED_UPDATE | RSED_UPDATE);
 }
 
 u16 scdc_tx_ltp0123_get(void)

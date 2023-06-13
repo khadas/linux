@@ -4332,8 +4332,10 @@ static ssize_t cedst_count_show(struct device *dev,
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	struct ced_cnt *ced = &hdev->ced_cnt;
 	struct scdc_locked_st *ch_st = &hdev->chlocked_st;
+	enum frl_rate_enum frl_rate;
 
-	if (!ch_st->clock_detected)
+	frl_rate = hdev->hwop.cntlmisc(hdev, MISC_GET_FRL_MODE, 0);
+	if (!frl_rate && !ch_st->clock_detected)
 		pos += snprintf(buf + pos, PAGE_SIZE, "clock undetected\n");
 	if (!ch_st->ch0_locked)
 		pos += snprintf(buf + pos, PAGE_SIZE, "CH0 unlocked\n");
@@ -4341,6 +4343,8 @@ static ssize_t cedst_count_show(struct device *dev,
 		pos += snprintf(buf + pos, PAGE_SIZE, "CH1 unlocked\n");
 	if (!ch_st->ch2_locked)
 		pos += snprintf(buf + pos, PAGE_SIZE, "CH2 unlocked\n");
+	if (frl_rate && !ch_st->ch3_locked)
+		pos += snprintf(buf + pos, PAGE_SIZE, "CH3 unlocked\n");
 	if (ced->ch0_valid && ced->ch0_cnt)
 		pos += snprintf(buf + pos, PAGE_SIZE, "CH0 ErrCnt 0x%x\n",
 			ced->ch0_cnt);
@@ -4350,6 +4354,13 @@ static ssize_t cedst_count_show(struct device *dev,
 	if (ced->ch2_valid && ced->ch2_cnt)
 		pos += snprintf(buf + pos, PAGE_SIZE, "CH2 ErrCnt 0x%x\n",
 			ced->ch2_cnt);
+	if (frl_rate >= FRL_6G4L && ced->ch3_valid && ced->ch3_cnt)
+		pos += snprintf(buf + pos, PAGE_SIZE, "CH3 ErrCnt 0x%x\n",
+			ced->ch3_cnt);
+	if (frl_rate && ced->rs_c_valid && ced->rs_c_cnt)
+		pos += snprintf(buf + pos, PAGE_SIZE, "RSCC ErrCnt 0x%x\n",
+			ced->rs_c_cnt);
+
 	memset(ced, 0, sizeof(*ced));
 
 	return pos;

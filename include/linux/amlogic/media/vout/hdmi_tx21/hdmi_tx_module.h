@@ -243,6 +243,10 @@ struct ced_cnt {
 	bool ch2_valid;
 	u16 ch2_cnt:15;
 	u8 chksum;
+	bool ch3_valid;
+	u16 ch3_cnt:15;
+	bool rs_c_valid;
+	u16 rs_c_cnt:15;
 };
 
 struct scdc_locked_st {
@@ -250,6 +254,7 @@ struct scdc_locked_st {
 	u8 ch0_locked:1;
 	u8 ch1_locked:1;
 	u8 ch2_locked:1;
+	u8 ch3_locked:1;
 };
 
 enum hdmi_hdr_transfer {

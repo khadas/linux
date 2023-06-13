@@ -2615,8 +2615,10 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 		return 0;
 		break;
 	case MISC_TMDS_PHY_OP:
-		if (argv == TMDS_PHY_ENABLE)
+		if (argv == TMDS_PHY_ENABLE) {
+			hdmitx_phy_pre_init(hdev);
 			hdmi_phy_wakeup(hdev);  /* TODO */
+		}
 		if (argv == TMDS_PHY_DISABLE) {
 			/* as did in echo -1 > hdcp_mode in hdmitx20 */
 			hdmitx21_disable_hdcp(hdev);

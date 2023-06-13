@@ -784,8 +784,27 @@ static int dump_frl_status_show(struct seq_file *s, void *p)
 	scdc21_rd_sink(SCDC_UPDATE_0, &val);
 	scdc21_wr_sink(SCDC_UPDATE_0, val);
 	for (scdc_reg = SCDC_SINK_VER; scdc_reg < 0x100; scdc_reg++) {
-		scdc21_rd_sink(scdc_reg, &val);
-		seq_printf(s, "SCDC[0x%02x] 0x%02x\n", scdc_reg, val);
+		if (scdc_reg >= SCDC_CH0_ERRCNT_0 && scdc_reg <= SCDC_RS_CORRECTION_CNT_1) {
+			u8 len = 7;
+			u8 val[9] = {0};
+			u8 i;
+
+			if (hdev->frl_rate >= FRL_6G4L)
+				len = 9;
+
+			scdc21_sequential_rd_sink(SCDC_CH0_ERRCNT_0, val, len);
+			for (i = 0; i < len; i++)
+				seq_printf(s, "SCDC[0x%02x] 0x%02x\n", scdc_reg + i, val[i]);
+
+			scdc21_sequential_rd_sink(SCDC_RS_CORRECTION_CNT_0, val, 2);
+			scdc_reg = SCDC_RS_CORRECTION_CNT_0;
+			for (i = 0; i < 2; i++)
+				seq_printf(s, "SCDC[0x%02x] 0x%02x\n", scdc_reg + i, val[i]);
+			scdc_reg = SCDC_RS_CORRECTION_CNT_1;
+		} else {
+			scdc21_rd_sink(scdc_reg, &val);
+			seq_printf(s, "SCDC[0x%02x] 0x%02x\n", scdc_reg, val);
+		}
 	}
 
 	return 0;

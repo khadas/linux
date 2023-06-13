@@ -1630,23 +1630,27 @@ static void hdcptx_auth_start(struct hdcp_t *p_hdcp)
 }
 
 const static char *fail_string[] = {
-	"none",
-	"ddc_nack",
-	"bksv_rxid",
-	"auth_fail",
-	"ready_to",
-	"v",
-	"topology",
-	"ri",
-	"reauth_req",
-	"content_type",
-	"auth_time_out",
-	"hash",
-	"unknown",
+	[HDCP_FAIL_NONE] = "none",
+	[HDCP_FAIL_DDC_NACK] = "ddc_nack",
+	[HDCP_FAIL_BKSV_RXID] = "bksv_rxid",
+	[HDCP_FAIL_AUTH_FAIL] = "auth_fail",
+	[HDCP_FAIL_READY_TO] = "ready_to",
+	[HDCP_FAIL_V] = "v",
+	[HDCP_FAIL_TOPOLOGY] = "topology",
+	[HDCP_FAIL_RI] = "ri",
+	[HDCP_FAIL_REAUTH_REQ] = "reauth_req",
+	[HDCP_FAIL_CONTENT_TYPE] = "content_type",
+	[HDCP_FAIL_AUTH_TIME_OUT] = "auth_time_out",
+	[HDCP_FAIL_HASH] = "hash",
+	[HDCP_FAIL_UNKNOWN] = "unknown",
 };
 
 static void hdcptx_update_failures(struct hdcp_t *p_hdcp, enum hdcp_fail_types_t types)
 {
+	if (types > HDCP_FAIL_UNKNOWN) {
+		types = HDCP_FAIL_UNKNOWN;
+		dump_stack();
+	}
 	if (fail_reason != types) {
 		/* if fail type is DDC_NAK, and then comes BKSV_RXID, don't print */
 		if (fail_reason == HDCP_FAIL_DDC_NACK ||

@@ -38,6 +38,11 @@ void scdc21_rd_sink(u8 adr, u8 *val)
 	hdmitx_ddcm_read(0, DDC_SCDC_ADDR, adr, val, 1);
 }
 
+void scdc21_sequential_rd_sink(u8 adr, u8 *val, u8 len)
+{
+	hdmitx_ddcm_read(0, DDC_SCDC_ADDR, adr, val, len);
+}
+
 void scdc21_wr_sink(u8 adr, u8 val)
 {
 	hdmitx_ddcm_write(0, DDC_SCDC_ADDR, adr, val);

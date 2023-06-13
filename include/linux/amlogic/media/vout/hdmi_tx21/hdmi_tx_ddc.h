@@ -165,6 +165,8 @@ enum ltp_patterns {
 int hdmitx21_ddc_hw_op(enum ddc_op cmd);
 
 void scdc21_rd_sink(u8 adr, u8 *val);
+/* For reading the CED counter, SCDC should read as sequential request */
+void scdc21_sequential_rd_sink(u8 adr, u8 *val, u8 len);
 void scdc21_wr_sink(u8 adr, u8 val);
 uint32_t hdcp21_rd_hdcp14_ver(void);
 uint32_t hdcp21_rd_hdcp22_ver(void);

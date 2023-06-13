@@ -97,14 +97,16 @@ int scdc_status_flags(struct hdmitx_dev *hdev)
 		scdc_ced_cnt(hdev);
 	if (st & (STATUS_UPDATE | CED_UPDATE))
 		scdc_wr_sink(UPDATE_0, st & (STATUS_UPDATE | CED_UPDATE));
-	if (!hdev->chlocked_st.clock_detected)
-		pr_info("ced: clock undetected\n");
-	if (!hdev->chlocked_st.ch0_locked)
-		pr_info("ced: ch0 unlocked\n");
-	if (!hdev->chlocked_st.ch1_locked)
-		pr_info("ced: ch1 unlocked\n");
-	if (!hdev->chlocked_st.ch2_locked)
-		pr_info("ced: ch2 unlocked\n");
+	if (st & CED_UPDATE) {
+		if (!hdev->chlocked_st.clock_detected)
+			pr_info("ced: clock undetected\n");
+		if (!hdev->chlocked_st.ch0_locked)
+			pr_info("ced: ch0 unlocked\n");
+		if (!hdev->chlocked_st.ch1_locked)
+			pr_info("ced: ch1 unlocked\n");
+		if (!hdev->chlocked_st.ch2_locked)
+			pr_info("ced: ch2 unlocked\n");
+	}
 
 	return st & (STATUS_UPDATE | CED_UPDATE);
 }
