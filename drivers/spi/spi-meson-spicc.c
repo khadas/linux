@@ -905,7 +905,6 @@ static int meson_spicc_transfer_one(struct spi_controller *ctlr,
 		spicc->rx_remain = spicc->tx_remain;
 	}
 
-	meson_spicc_hw_prepare(spicc, spi->mode);
 	meson_spicc_set_width(spicc, xfer->bits_per_word);
 	meson_spicc_set_endian(spicc, spi->mode & SPI_LSB_FIRST);
 	meson_spicc_set_word_mode(spicc);
@@ -956,7 +955,7 @@ static int meson_spicc_prepare_message(struct spi_controller *ctlr,
 #ifdef CONFIG_AMLOGIC_MODIFY
 	meson_spicc_hw_prepare(spicc, spi->mode);
 	meson_spicc_set_width(spicc, spi->bits_per_word);
-	return meson_spicc_set_speed(spicc, spi->max_speed_hz);
+	return 0;
 #else
 	meson_spicc_hw_prepare(spicc, spi->mode, spi->bits_per_word,
 			       spi->max_speed_hz);
