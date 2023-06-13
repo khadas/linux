@@ -35,7 +35,7 @@ extern int cgain_lut1[65];
 extern int cgain_lut0[65];
 extern u32 debug_axis_en;
 extern struct output_axis_s axis;
-extern struct vicp_hdr_s *vicp_hdr;
+extern struct vicp_hdr_data_s *vicp_hdr;
 extern u32 rdma_en;
 extern u32 debug_rdma_en;
 extern u32 fgrain_en;
@@ -64,6 +64,12 @@ struct vid_cmpr_lossy_compress_s {
 	u32 compress_rate;
 };
 
+struct vid_cmpr_hdr_s {
+	u32 hdr2_en;
+	enum vframe_signal_fmt_e input_sig_fmt;
+	enum vframe_signal_fmt_e output_sig_fmt;
+};
+
 struct vid_cmpr_top_s {
 	u32 src_compress;
 	u32 src_hsize;//input size
@@ -88,7 +94,7 @@ struct vid_cmpr_top_s {
 	enum vicp_skip_mode_e skip_mode;
 	u32 src_need_swap_cbcr;
 	// hdr
-	u32 hdr_en;//0:close 1:open
+	struct vid_cmpr_hdr_s hdr_config;
 	// afbce
 	u32 out_afbce_enable;//open nbit of afbce
 	u64 out_head_baddr;//head_addr of afbce
@@ -281,18 +287,6 @@ struct vid_cmpr_scaler_s {
 	u32 vphase_type_bot;
 };
 
-struct vid_cmpr_hdr_s {
-	u32 hdr2_en;
-	u32 hdr2_only_mat;
-	u32 hdr2_fmt_cfg;
-	u32 input_fmt;// 1:yuv in   0:rgb in
-	u32 rgb_out_en;
-	u32 aicolor_sat_en;
-	u32 aicolor_lut_mod;
-	u32 aicolor_sg_en;
-	u32 aicolor_lg_en;
-};
-
 struct vid_cmpr_f2v_vphase_s {
 	unsigned char rcv_num; //0~15
 	unsigned char rpt_num; // 0~3
@@ -331,5 +325,5 @@ void set_vid_cmpr_wmif(struct vid_cmpr_mif_s *wr_mif, int wrmif_en);
 void set_vid_cmpr_rmif(struct vid_cmpr_mif_s *rd_mif, int urgent, int hold_line);
 void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_s *scaler);
 void set_vid_cmpr_afbcd(int hold_line_num, bool rdma_en, struct vid_cmpr_afbcd_s *afbcd);
-void set_vid_cmpr_hdr(int hdr2_top_en);
+void set_vid_cmpr_hdr(struct vid_cmpr_hdr_s config);
 #endif //_VICP_PROCESS_H_

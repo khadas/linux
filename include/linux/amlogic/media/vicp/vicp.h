@@ -133,6 +133,7 @@ struct output_data_param_s {
 	u32 mif_out_en;
 	enum vicp_color_format_e mif_color_fmt;
 	u32 mif_color_dep;
+	u32 out_sig_fmt;
 };
 
 struct vicp_data_config_s {

@@ -17,7 +17,7 @@
 #include "vicp_hdr.h"
 #include "vicp_hardware.h"
 
-static void dump_hdr_param(struct vicp_hdr_s *vicp_hdr)
+static void dump_hdr_param(struct vicp_hdr_data_s *vicp_hdr)
 {
 	int i = 0;
 
@@ -29,116 +29,110 @@ static void dump_hdr_param(struct vicp_hdr_s *vicp_hdr)
 	pr_info("###############eotf param###############");
 	for (i = 0; i < 140; i += 10)
 		pr_info("0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx\n",
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.eotf_lut[i],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.eotf_lut[i + 1],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.eotf_lut[i + 2],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.eotf_lut[i + 3],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.eotf_lut[i + 4],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.eotf_lut[i + 5],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.eotf_lut[i + 6],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.eotf_lut[i + 7],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.eotf_lut[i + 8],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.eotf_lut[i + 9]);
+			vicp_hdr->hdr_para.hdr_lut_param.eotf_lut[i],
+			vicp_hdr->hdr_para.hdr_lut_param.eotf_lut[i + 1],
+			vicp_hdr->hdr_para.hdr_lut_param.eotf_lut[i + 2],
+			vicp_hdr->hdr_para.hdr_lut_param.eotf_lut[i + 3],
+			vicp_hdr->hdr_para.hdr_lut_param.eotf_lut[i + 4],
+			vicp_hdr->hdr_para.hdr_lut_param.eotf_lut[i + 5],
+			vicp_hdr->hdr_para.hdr_lut_param.eotf_lut[i + 6],
+			vicp_hdr->hdr_para.hdr_lut_param.eotf_lut[i + 7],
+			vicp_hdr->hdr_para.hdr_lut_param.eotf_lut[i + 8],
+			vicp_hdr->hdr_para.hdr_lut_param.eotf_lut[i + 9]);
 	pr_info("0x%llx 0x%llx 0x%llx.\n",
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.eotf_lut[140],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.eotf_lut[141],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.eotf_lut[142]);
+		vicp_hdr->hdr_para.hdr_lut_param.eotf_lut[140],
+		vicp_hdr->hdr_para.hdr_lut_param.eotf_lut[141],
+		vicp_hdr->hdr_para.hdr_lut_param.eotf_lut[142]);
 
 	pr_info("###############oetf param###############");
 	for (i = 0; i < 140; i += 10)
 		pr_info("0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx\n",
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[i],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[i + 1],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[i + 2],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[i + 3],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[i + 4],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[i + 5],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[i + 6],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[i + 7],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[i + 8],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[i + 9]);
+			vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[i],
+			vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[i + 1],
+			vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[i + 2],
+			vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[i + 3],
+			vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[i + 4],
+			vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[i + 5],
+			vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[i + 6],
+			vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[i + 7],
+			vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[i + 8],
+			vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[i + 9]);
 	pr_info("0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx\n",
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[140],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[141],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[142],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[143],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[144],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[145],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[146],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[147],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.oetf_lut[148]);
+		vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[140],
+		vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[141],
+		vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[142],
+		vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[143],
+		vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[144],
+		vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[145],
+		vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[146],
+		vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[147],
+		vicp_hdr->hdr_para.hdr_lut_param.oetf_lut[148]);
 
 	pr_info("###############cgain param###############");
 	for (i = 0; i < 60; i += 10)
 		pr_info("0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx 0x%llx\n",
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.cgain_lut[i],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.cgain_lut[i + 1],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.cgain_lut[i + 2],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.cgain_lut[i + 3],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.cgain_lut[i + 4],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.cgain_lut[i + 5],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.cgain_lut[i + 6],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.cgain_lut[i + 7],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.cgain_lut[i + 8],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.cgain_lut[i + 9]);
+			vicp_hdr->hdr_para.hdr_lut_param.cgain_lut[i],
+			vicp_hdr->hdr_para.hdr_lut_param.cgain_lut[i + 1],
+			vicp_hdr->hdr_para.hdr_lut_param.cgain_lut[i + 2],
+			vicp_hdr->hdr_para.hdr_lut_param.cgain_lut[i + 3],
+			vicp_hdr->hdr_para.hdr_lut_param.cgain_lut[i + 4],
+			vicp_hdr->hdr_para.hdr_lut_param.cgain_lut[i + 5],
+			vicp_hdr->hdr_para.hdr_lut_param.cgain_lut[i + 6],
+			vicp_hdr->hdr_para.hdr_lut_param.cgain_lut[i + 7],
+			vicp_hdr->hdr_para.hdr_lut_param.cgain_lut[i + 8],
+			vicp_hdr->hdr_para.hdr_lut_param.cgain_lut[i + 9]);
 	pr_info("0x%llx 0x%llx 0x%llx 0x%llx 0x%llx\n",
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.cgain_lut[60],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.cgain_lut[61],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.cgain_lut[62],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.cgain_lut[63],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.cgain_lut[64]);
+		vicp_hdr->hdr_para.hdr_lut_param.cgain_lut[60],
+		vicp_hdr->hdr_para.hdr_lut_param.cgain_lut[61],
+		vicp_hdr->hdr_para.hdr_lut_param.cgain_lut[62],
+		vicp_hdr->hdr_para.hdr_lut_param.cgain_lut[63],
+		vicp_hdr->hdr_para.hdr_lut_param.cgain_lut[64]);
 
 	pr_info("###############ogain param###############");
 	for (i = 0; i < 140; i += 10)
 		pr_info("0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[i],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[i + 1],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[i + 2],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[i + 3],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[i + 4],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[i + 5],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[i + 6],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[i + 7],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[i + 8],
-			vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[i + 9]);
+			vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[i],
+			vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[i + 1],
+			vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[i + 2],
+			vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[i + 3],
+			vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[i + 4],
+			vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[i + 5],
+			vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[i + 6],
+			vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[i + 7],
+			vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[i + 8],
+			vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[i + 9]);
 	pr_info("0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[140],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[141],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[142],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[143],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[144],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[145],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[146],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[147],
-		vicp_hdr->hdr_data.hdr_para.hdr_lut_param.ogain_lut[148]);
+		vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[140],
+		vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[141],
+		vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[142],
+		vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[143],
+		vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[144],
+		vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[145],
+		vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[146],
+		vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[147],
+		vicp_hdr->hdr_para.hdr_lut_param.ogain_lut[148]);
 }
 
-bool vicp_hdr_get_setting(struct vicp_hdr_s *vicp_hdr, struct vframe_s *vf)
+static bool vicp_hdr_get_setting(struct vicp_hdr_data_s *vicp_hdr)
 {
 	if (IS_ERR_OR_NULL(vicp_hdr)) {
 		vicp_print(VICP_ERROR, "%s: invalid param.\n", __func__);
 		return false;
 	}
-	get_hdr_setting(vicp_hdr->hdr_data.module_sel,
-			vicp_hdr->hdr_data.hdr_process_select,
-			&vicp_hdr->hdr_data.hdr_para,
+
+	vicp_hdr->para_done = false;
+	get_hdr_setting(vicp_hdr->module_sel,
+			vicp_hdr->hdr_process_select,
+			&vicp_hdr->hdr_para,
 			HDR_FULL_SETTING);
+
+	vicp_hdr->para_done = true;
 
 	return true;
 }
 
-unsigned char vicp_hdr_get_pre_post(struct vicp_hdr_s *vicp_hdr)
-{
-	if (IS_ERR_OR_NULL(vicp_hdr)) {
-		vicp_print(VICP_ERROR, "%s: invalid param.\n", __func__);
-		return false;
-	}
-
-	return (unsigned char)vicp_hdr->hdr_data.pre_post;
-}
-
 /* from set_hdr_matrix */
-void vicp_hdr_set_matrix(struct vicp_hdr_s *vicp_hdr, enum hdr_matrix_sel mtx_sel)
+static void vicp_hdr_set_matrix(struct vicp_hdr_data_s *vicp_hdr, enum hdr_matrix_sel mtx_sel)
 {
 	enum hdr_module_sel module_sel;
 	struct hdr_proc_mtx_param_s *pmtx;
@@ -148,9 +142,9 @@ void vicp_hdr_set_matrix(struct vicp_hdr_s *vicp_hdr, enum hdr_matrix_sel mtx_se
 	int gmut_shift;
 	int i = 0;
 
-	module_sel = vicp_hdr->hdr_data.module_sel;
-	pmtx = &vicp_hdr->hdr_data.hdr_para.hdr_mtx_param;
-	padpscl = &vicp_hdr->hdr_data.hdr_para.hdr_adpscl_param;
+	module_sel = vicp_hdr->module_sel;
+	pmtx = &vicp_hdr->hdr_para.hdr_mtx_param;
+	padpscl = &vicp_hdr->hdr_para.hdr_adpscl_param;
 
 	if (IS_ERR_OR_NULL(pmtx) || IS_ERR_OR_NULL(padpscl)) {
 		vicp_print(VICP_ERROR, "%s: NULL param.\n", __func__);
@@ -317,7 +311,7 @@ void vicp_hdr_set_matrix(struct vicp_hdr_s *vicp_hdr, enum hdr_matrix_sel mtx_se
  * from set_eotf_lut
  * plut -> hdr_lut_param
  ************************************************/
-void vicp_hdr_set_eotf_lut(enum hdr_module_sel module_sel,
+static void vicp_hdr_set_eotf_lut(enum hdr_module_sel module_sel,
 	struct hdr_proc_lut_param_s *plut)
 {
 	unsigned int i = 0;
@@ -343,7 +337,7 @@ void vicp_hdr_set_eotf_lut(enum hdr_module_sel module_sel,
  * from set_ootf_lut
  * plut -> hdr_lut_param
  ************************************************/
-void vicp_hdr_set_ootf_lut(enum hdr_module_sel module_sel,
+static void vicp_hdr_set_ootf_lut(enum hdr_module_sel module_sel,
 	struct hdr_proc_lut_param_s *plut)
 {
 	unsigned int i = 0;
@@ -371,7 +365,7 @@ void vicp_hdr_set_ootf_lut(enum hdr_module_sel module_sel,
  * from set_oetf_lut
  * plut-> hdr_lut_param
  ***********************************************/
-void vicp_hdr_set_oetf_lut(enum hdr_module_sel module_sel,
+static void vicp_hdr_set_oetf_lut(enum hdr_module_sel module_sel,
 	struct hdr_proc_lut_param_s *plut)
 {
 	unsigned int i = 0;
@@ -409,7 +403,7 @@ void vicp_hdr_set_oetf_lut(enum hdr_module_sel module_sel,
  * from set_c_gain
  * plut->hdr_lut_param
  ************************************************/
-void vicp_hdr_set_c_gain(enum hdr_module_sel module_sel,
+static void vicp_hdr_set_c_gain(enum hdr_module_sel module_sel,
 	struct hdr_proc_lut_param_s *plut)
 {
 	unsigned int i = 0;
@@ -447,7 +441,7 @@ void vicp_hdr_set_c_gain(enum hdr_module_sel module_sel,
  * hdr_hist_config
  * plut -> hdr_lut_param
  ************************************************/
-void vicp_hdr_hist_config(enum hdr_module_sel module_sel,
+static void vicp_hdr_hist_config(enum hdr_module_sel module_sel,
 	struct hdr_proc_lut_param_s *plut)
 {
 	unsigned int hist_ctrl;
@@ -477,71 +471,79 @@ void vicp_hdr_hist_config(enum hdr_module_sel module_sel,
 	}
 }
 
-void vicp_hdr_set(struct vicp_hdr_s *vicp_hdr, int pre_post)
+static void set_hdr_enable(u32 is_enable)
 {
-	enum hdr_module_sel module_sel;
+	return write_vicp_reg_bits(VID_CMPR_HDR2_CTRL, is_enable, 13, 1);
+}
 
+void vicp_hdr_set(struct vicp_hdr_data_s *vicp_hdr, int enable,
+	enum vframe_signal_fmt_e sig_fmt_in, enum vframe_signal_fmt_e sig_fmt_out)
+{
 	if (IS_ERR_OR_NULL(vicp_hdr)) {
 		vicp_print(VICP_ERROR, "%s: invalid param.\n", __func__);
 		return;
 	}
 
-	if (print_flag & VICP_HDR2)
-		dump_hdr_param(vicp_hdr);
+	if (!enable) {
+		vicp_hdr->enable = 0;
+		set_hdr_enable(0);
+		vicp_print(VICP_HDR2, "disable vicp hdr.\n");
+	} else {
+		vicp_hdr->enable = 1;
+		if (sig_fmt_in == VFRAME_SIGNAL_FMT_SDR) {
+			if (sig_fmt_out == VFRAME_SIGNAL_FMT_HDR10 ||
+				sig_fmt_out == VFRAME_SIGNAL_FMT_HDR10PLUS ||
+				sig_fmt_out == VFRAME_SIGNAL_FMT_HDR10PRIME)
+				vicp_hdr->hdr_process_select = SDR_HDR;
+			else if (sig_fmt_out == VFRAME_SIGNAL_FMT_HLG)
+				vicp_hdr->hdr_process_select = SDR_HLG;
+			else
+				vicp_hdr->hdr_process_select = SDR_HDR;
+		} else if (sig_fmt_in == VFRAME_SIGNAL_FMT_HDR10) {
+			vicp_hdr->hdr_process_select = HDR_SDR;
+		} else if (sig_fmt_in == VFRAME_SIGNAL_FMT_HDR10PLUS) {
+			vicp_hdr->hdr_process_select = HDR10P_SDR;
+		} else if (sig_fmt_in == VFRAME_SIGNAL_FMT_HLG) {
+			vicp_hdr->hdr_process_select = HLG_SDR;
+		} else {
+			vicp_hdr->hdr_process_select = HDR_SDR;
+		}
 
-	module_sel = vicp_hdr->hdr_data.module_sel;
+		vicp_print(VICP_HDR2, "case changed: new case: %d, last_case: %d.\n",
+			vicp_hdr->hdr_process_select, vicp_hdr->last_hdr_process_select);
 
-	vicp_print(VICP_HDR2, "%s: pre_post %d, module_sel %d.\n", __func__, pre_post, module_sel);
+		if (vicp_hdr->last_hdr_process_select != vicp_hdr->hdr_process_select) {
+			vicp_hdr_get_setting(vicp_hdr);
+			vicp_hdr->last_hdr_process_select = vicp_hdr->hdr_process_select;
+		}
 
-	vicp_hdr_set_matrix(vicp_hdr, HDR_IN_MTX);
+		if (print_flag & VICP_HDR2)
+			dump_hdr_param(vicp_hdr);
 
-	vicp_hdr_set_eotf_lut(module_sel, &vicp_hdr->hdr_data.hdr_para.hdr_lut_param);
+		vicp_hdr_set_matrix(vicp_hdr, HDR_IN_MTX);
 
-	vicp_hdr_set_matrix(vicp_hdr, HDR_GAMUT_MTX);
+		vicp_hdr_set_eotf_lut(vicp_hdr->module_sel, &vicp_hdr->hdr_para.hdr_lut_param);
 
-	vicp_hdr_set_ootf_lut(module_sel, &vicp_hdr->hdr_data.hdr_para.hdr_lut_param);
+		vicp_hdr_set_matrix(vicp_hdr, HDR_GAMUT_MTX);
 
-	vicp_hdr_set_oetf_lut(module_sel, &vicp_hdr->hdr_data.hdr_para.hdr_lut_param);
+		vicp_hdr_set_ootf_lut(vicp_hdr->module_sel, &vicp_hdr->hdr_para.hdr_lut_param);
 
-	vicp_hdr_set_matrix(vicp_hdr, HDR_OUT_MTX);
+		vicp_hdr_set_oetf_lut(vicp_hdr->module_sel, &vicp_hdr->hdr_para.hdr_lut_param);
 
-	vicp_hdr_set_c_gain(module_sel, &vicp_hdr->hdr_data.hdr_para.hdr_lut_param);
+		vicp_hdr_set_matrix(vicp_hdr, HDR_OUT_MTX);
 
-	vicp_hdr_hist_config(module_sel, &vicp_hdr->hdr_data.hdr_para.hdr_lut_param);
-	vicp_hdr->hdr_data.n_update = false;
-}
+		vicp_hdr_set_c_gain(vicp_hdr->module_sel, &vicp_hdr->hdr_para.hdr_lut_param);
 
-bool vicp_hdr_init(struct vicp_hdr_s *vicp_hdr)
-{
-	if (IS_ERR_OR_NULL(vicp_hdr)) {
-		vicp_print(VICP_ERROR, "%s: invalid param.\n", __func__);
-		return false;
+		vicp_hdr_hist_config(vicp_hdr->module_sel, &vicp_hdr->hdr_para.hdr_lut_param);
 	}
-
-	vicp_hdr->hdr_data.module_sel = VICP_HDR;
-	vicp_hdr->hdr_data.para_done = false;
-	vicp_hdr->hdr_data.enable = 1;
-	vicp_hdr->hdr_data.hdr_process_select = HDR_SDR;
-
-	return true;
 }
 
-bool vicp_hdr_uninit(struct vicp_hdr_s *vicp_hdr)
+struct vicp_hdr_data_s *vicp_hdr_prob(void)
 {
-	if (IS_ERR_OR_NULL(vicp_hdr)) {
-		vicp_print(VICP_ERROR, "%s: invalid param.\n", __func__);
-		return false;
-	}
-	memset(&vicp_hdr->hdr_data, 0, sizeof(struct vicp_hdr_data_s));
-	return true;
-}
-
-struct vicp_hdr_s *vicp_hdr_prob(void)
-{
-	struct vicp_hdr_s *hdr;
+	struct vicp_hdr_data_s *hdr;
 	size_t size = 0;
 
-	size = sizeof(struct vicp_hdr_s);
+	size = sizeof(struct vicp_hdr_data_s);
 	hdr = vmalloc(size);
 	if (IS_ERR_OR_NULL(hdr)) {
 		vicp_print(VICP_ERROR, "%s: vmalloc.\n", __func__);
@@ -550,18 +552,20 @@ struct vicp_hdr_s *vicp_hdr_prob(void)
 	}
 
 	memset(hdr, 0, size);
-	vicp_hdr_init(hdr);
-	vicp_hdr_get_setting(hdr, NULL);
+	hdr->module_sel = VICP_HDR;
+	hdr->hdr_process_select = HDR_SDR;
+	hdr->last_hdr_process_select = HDR_SDR;
+	vicp_hdr_get_setting(hdr);
 
 	return hdr;
 }
 
-void vicp_hdr_remove(struct vicp_hdr_s *vicp_hdr)
+void vicp_hdr_remove(struct vicp_hdr_data_s *vicp_hdr)
 {
 	if (IS_ERR_OR_NULL(vicp_hdr))
 		return;
 
-	vicp_hdr_uninit(vicp_hdr);
+	memset(vicp_hdr, 0, sizeof(struct vicp_hdr_data_s));
 
 	vfree(vicp_hdr);
 	vicp_hdr = NULL;

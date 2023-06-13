@@ -19,6 +19,6 @@ int config_vicp_input_data(struct vframe_s *vf, ulong addr, int stride, int widt
 int config_vicp_output_data(int fbc_out_en, int mif_out_en, ulong *phy_addr, int stride,
 	int width, int height, int endian, enum vicp_color_format_e cfmt_mif, int cdep_mif,
 	enum vicp_color_format_e cfmt_fbc, int cdep_fbc, int init_ctrl, int pip_mode,
-	struct output_data_param_s *output_data);
+	int out_sig_fmt, struct output_data_param_s *output_data);
 int vicp_data_composer(struct vicp_data_config_s *data_config);
 #endif

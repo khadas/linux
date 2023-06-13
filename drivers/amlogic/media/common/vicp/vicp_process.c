@@ -352,12 +352,11 @@ void f2v_get_vertical_phase(unsigned int zoom_ratio, enum f2v_vphase_type_e type
 	}
 }
 
-void set_vid_cmpr_hdr(int hdr2_top_en)
+void set_vid_cmpr_hdr(struct vid_cmpr_hdr_s config)
 {
-	if (hdr2_top_en)
-		vicp_hdr_set(vicp_hdr, 1);
-	else
-		set_hdr_enable(0);
+	vicp_print(VICP_HDR2, "%s: sig_fmt_in: %d, sig_fmt_out: %d.\n",
+		__func__, config.input_sig_fmt, config.output_sig_fmt);
+	return vicp_hdr_set(vicp_hdr, config.hdr2_en, config.input_sig_fmt, config.output_sig_fmt);
 }
 
 static void set_vid_cmpr_fgrain(struct vid_cmpr_fgrain_s fgrain)
@@ -1791,7 +1790,6 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 	struct vid_cmpr_afbcd_s vid_cmpr_afbcd;
 	struct vid_cmpr_fgrain_s fgrain;
 	struct vid_cmpr_scaler_s vid_cmpr_scaler;
-	struct vid_cmpr_hdr_s vid_cmpr_hdr;
 	struct vid_cmpr_afbce_s vid_cmpr_afbce;
 
 	struct vid_cmpr_mif_s vid_cmpr_rmif;
@@ -2021,16 +2019,9 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 	set_vid_cmpr_scale(scaler_enable, &vid_cmpr_scaler);
 	set_output_size(vid_cmpr_top->out_vsize_in, vid_cmpr_top->out_hsize_in);
 
-	memset(&vid_cmpr_hdr, 0, sizeof(struct vid_cmpr_hdr_s));
 	if (!hdr_en)
-		vid_cmpr_hdr.hdr2_en = 0;
-	else
-		vid_cmpr_hdr.hdr2_en = vid_cmpr_top->hdr_en;
-	vid_cmpr_hdr.hdr2_only_mat = 0;
-	vid_cmpr_hdr.hdr2_fmt_cfg = 1;
-	vid_cmpr_hdr.input_fmt = 1;
-	vid_cmpr_hdr.rgb_out_en = 0;
-	set_vid_cmpr_hdr(vid_cmpr_hdr.hdr2_en);
+		vid_cmpr_top->hdr_config.hdr2_en = 0;
+	set_vid_cmpr_hdr(vid_cmpr_top->hdr_config);
 
 	if (vid_cmpr_top->wrmif_en == 1) {
 		write_vicp_reg_bits(VID_CMPR_WR_PATH_CTRL, 1, 0, 1);
@@ -2192,7 +2183,7 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 	struct vframe_s *input_vframe = NULL;
 	struct dma_data_config_s *input_dma = NULL;
 	enum vicp_rotation_mode_e rotation;
-	enum vframe_signal_fmt_e signal_fmt;
+	enum vframe_signal_fmt_e sig_fmt;
 	struct vid_cmpr_lossy_compress_s temp_compress_param;
 	u32 canvas_width = 0;
 
@@ -2279,11 +2270,15 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 			vid_cmpr_top->src_endian = 0;
 		vid_cmpr_top->src_block_mode = input_vframe->canvas0_config[0].block_mode;
 		canvas_width = vid_cmpr_top->canvas_width[0];
-		signal_fmt = get_vframe_src_fmt(input_vframe);
-		if (signal_fmt != VFRAME_SIGNAL_FMT_INVALID && signal_fmt != VFRAME_SIGNAL_FMT_SDR)
-			vid_cmpr_top->hdr_en = 1;
-		else
-			vid_cmpr_top->hdr_en = 0;
+		sig_fmt = get_vframe_src_fmt(input_vframe);
+		if (sig_fmt != VFRAME_SIGNAL_FMT_INVALID && sig_fmt != VFRAME_SIGNAL_FMT_SDR) {
+			vid_cmpr_top->hdr_config.hdr2_en = 1;
+			vid_cmpr_top->hdr_config.input_sig_fmt = sig_fmt;
+			vid_cmpr_top->hdr_config.output_sig_fmt =
+				data_config->output_data.out_sig_fmt;
+		} else {
+			vid_cmpr_top->hdr_config.hdr2_en = 0;
+		}
 
 		if (input_vframe->fgs_valid && input_vframe->fgs_table_adr) {
 			vid_cmpr_top->film_grain_en = 1;
@@ -2330,7 +2325,7 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 		vid_cmpr_top->src_win_end_v = vid_cmpr_top->src_vsize - 1;
 		vid_cmpr_top->src_endian = input_dma->endian;
 		vid_cmpr_top->src_block_mode = 0;
-		vid_cmpr_top->hdr_en = 0;
+		vid_cmpr_top->hdr_config.hdr2_en = 0;
 		vid_cmpr_top->src_need_swap_cbcr = input_dma->need_swap_cbcr;
 		vid_cmpr_top->film_grain_en = 0;
 		vid_cmpr_top->film_lut_addr = 0;

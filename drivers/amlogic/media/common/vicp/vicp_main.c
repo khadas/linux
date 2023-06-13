@@ -71,7 +71,7 @@ struct output_axis_s axis;
 u32 rdma_en;
 u32 debug_rdma_en;
 struct mutex vicp_mutex; /*used to avoid user space call at the same time*/
-struct vicp_hdr_s *vicp_hdr;
+struct vicp_hdr_data_s *vicp_hdr;
 
 struct vicp_device_s {
 	char name[20];
@@ -629,6 +629,7 @@ static int config_vicp_param(struct vicp_data_info_s *vicp_data_info,
 	data_config->output_data.height = vicp_data_info->dst_buf_h;
 	data_config->output_data.endian = vicp_data_info->dst_endian;
 	data_config->output_data.need_swap_cbcr = vicp_data_info->dst_swap_cbcr;
+	data_config->output_data.out_sig_fmt = VFRAME_SIGNAL_FMT_SDR;
 
 	data_config->data_option.crop_info.left = vicp_data_info->crop_x;
 	data_config->data_option.crop_info.top = vicp_data_info->crop_y;

@@ -2459,6 +2459,7 @@ static void vframe_composer(struct composer_dev *dev)
 				8,
 				fbc_init_ctrl,
 				fbc_pip_mode,
+				VFRAME_SIGNAL_FMT_SDR,
 				&data_config.output_data);
 			data_config.data_option.rotation_mode =
 				map_rotationmode_from_vc_to_vicp(transform);

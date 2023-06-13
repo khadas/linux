@@ -71,26 +71,17 @@ enum VICP_HDR_REG_IDX {
 struct vicp_hdr_data_s {
 	int enable; /*1: en; 2: to disable; 0: disable*/
 	bool para_done;
-	bool n_update;
-	bool pre_post;
-	bool have_set;
-	u32 w;
-	u32 h;
-	u32 last_sgn_type;
-	enum hdr_process_sel last_prc_sel;
 	enum hdr_module_sel module_sel;
 	enum hdr_process_sel hdr_process_select;
+	enum hdr_process_sel last_hdr_process_select;
 	struct hdr_proc_setting_param_s hdr_para;
-};
-
-struct vicp_hdr_s {
-	struct vicp_hdr_data_s hdr_data;
 };
 
 /* *********************************************************************** */
 /* ************************* function definitions **************************.*/
 /* *********************************************************************** */
-struct vicp_hdr_s *vicp_hdr_prob(void);
-void vicp_hdr_remove(struct vicp_hdr_s *vicp_hdr);
-void vicp_hdr_set(struct vicp_hdr_s *vicp_hdr, int pre_post);
+struct vicp_hdr_data_s *vicp_hdr_prob(void);
+void vicp_hdr_remove(struct vicp_hdr_data_s *vicp_hdr);
+void vicp_hdr_set(struct vicp_hdr_data_s *vicp_hdr, int enable,
+	enum vframe_signal_fmt_e sig_fmt_in, enum vframe_signal_fmt_e sig_fmt_out);
 #endif

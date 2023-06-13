@@ -998,11 +998,6 @@ void set_crop_scope_v(u32 begain, u32 end)
 	return write_vicp_reg(VID_CMPR_CROP_VSCOPE, value);
 }
 
-void set_hdr_enable(u32 is_enable)
-{
-	return write_vicp_reg_bits(VID_CMPR_HDR2_CTRL, is_enable, 13, 1);
-}
-
 void set_top_holdline(void)
 {
 	write_vicp_reg_bits(afbce_reg.afbce_mode, 0x5, 16, 7);

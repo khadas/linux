@@ -91,7 +91,7 @@ int config_vicp_input_data(struct vframe_s *vf, ulong addr, int stride, int widt
 int config_vicp_output_data(int fbc_out_en, int mif_out_en, ulong *phy_addr, int stride,
 	int width, int height, int endian, enum vicp_color_format_e cfmt_mif, int cdep_mif,
 	enum vicp_color_format_e cfmt_fbc, int cdep_fbc, int init_ctrl, int pip_mode,
-	struct output_data_param_s *output_data)
+	int out_sig_fmt, struct output_data_param_s *output_data)
 {
 	if (IS_ERR_OR_NULL(output_data)) {
 		pr_info("%s: NULL param, please check.\n", __func__);
@@ -105,6 +105,7 @@ int config_vicp_output_data(int fbc_out_en, int mif_out_en, ulong *phy_addr, int
 	output_data->mif_out_en = mif_out_en;
 	output_data->endian = endian;
 	output_data->need_swap_cbcr = 1;
+	output_data->out_sig_fmt = out_sig_fmt;
 	if (mif_out_en) {
 		output_data->mif_color_fmt = cfmt_mif;
 		output_data->mif_color_dep = cdep_mif;

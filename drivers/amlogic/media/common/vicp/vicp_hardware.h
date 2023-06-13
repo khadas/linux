@@ -482,7 +482,6 @@ void set_crop_dimm(u32 dimm_layer_en, u32 dimm_data);
 void set_crop_size_in(u32 size_h, u32 size_v);
 void set_crop_scope_h(u32 begain, u32 end);
 void set_crop_scope_v(u32 begain, u32 end);
-void set_hdr_enable(u32 is_enable);
 void set_top_holdline(void);
 void set_pre_scaler_control(struct vicp_pre_scaler_ctrl_reg_s pre_scaler_ctrl_reg);
 void set_scaler_coef_param(u32 coef_index);
