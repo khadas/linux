@@ -1427,6 +1427,103 @@ int frc_fpp_memc_set_level(u8 level, u8 num)
 
 }
 
+int frc_lge_memc_set_level(struct v4l2_ext_memc_motion_comp_info comp_info)
+{
+	u8 memc_type;
+	u32 judder_level;
+	unsigned char temp_level;
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *pfw_data;
+
+	if (!devp || !devp->probe_ok || !devp->fw_data)
+		return 0;
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	memc_type = (u8)comp_info.memc_type;
+
+	pr_frc(1, "comp_info.memc_type:%d, judder_level:%d, blur_level:%d\n",
+		(u8)comp_info.memc_type, comp_info.judder_level, comp_info.blur_level);
+
+	if (memc_type == V4L2_EXT_MEMC_OFF) {
+		pfw_data->frc_top_type.frc_memc_level = 0;  // off
+	} else if (memc_type == V4L2_EXT_MEMC_NATURAL) {
+		pfw_data->frc_top_type.frc_memc_level = 6;  // low level
+	} else if (memc_type == V4L2_EXT_MEMC_SMOOTH) {
+		pfw_data->frc_top_type.frc_memc_level = 10;  // mid level
+	} else if (memc_type == V4L2_EXT_MEMC_CINEMA_CLEAR) {
+		pfw_data->frc_top_type.frc_memc_level = 3;  // mid level
+	} else if (memc_type == V4L2_EXT_MEMC_TYPE_USER) {
+		temp_level = comp_info.judder_level;
+		if (kstrtoint(&temp_level, 10, &judder_level) == 0) {
+			// char type
+			if (judder_level <= 10)
+				pfw_data->frc_top_type.frc_memc_level = judder_level;
+			else
+				pr_frc(0, "ioc memc-level char-value is unsupported\n");
+		} else {
+			// int type
+			judder_level = comp_info.judder_level;
+			if (judder_level <= 10)
+				pfw_data->frc_top_type.frc_memc_level = judder_level;
+			else
+				pr_frc(0, "ioc memc-level int-value is unsupported\n");
+		}
+	} else if (memc_type == V4L2_EXT_MEMC_TYPE_55_PULLDOWN) {
+		pr_frc(1, "24p film mode\n");
+		// need to discuss
+	}
+
+	pr_frc(1, "ioc lge_set_memc_level:%d\n",
+		pfw_data->frc_top_type.frc_memc_level);
+	if (pfw_data->frc_memc_level)
+		pfw_data->frc_memc_level(pfw_data);
+
+	return 0;
+}
+
+void frc_lge_memc_get_level(struct v4l2_ext_memc_motion_comp_info *comp_info)
+{
+	enum v4l2_ext_memc_type memc_type;
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *pfw_data;
+
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+
+	if (pfw_data->frc_top_type.frc_memc_level == 0) {
+		memc_type = (enum v4l2_ext_memc_type)V4L2_EXT_MEMC_OFF;
+	} else if (pfw_data->frc_top_type.frc_memc_level == 3) {
+		memc_type = (enum v4l2_ext_memc_type)V4L2_EXT_MEMC_CINEMA_CLEAR;
+	} else if (pfw_data->frc_top_type.frc_memc_level == 6) {
+		memc_type = (enum v4l2_ext_memc_type)V4L2_EXT_MEMC_NATURAL;
+	} else if (pfw_data->frc_top_type.frc_memc_level == 10) {
+		memc_type = (enum v4l2_ext_memc_type)V4L2_EXT_MEMC_SMOOTH;
+	} else {
+		//user setting
+		memc_type = (enum v4l2_ext_memc_type)V4L2_EXT_MEMC_TYPE_USER;
+	}
+	comp_info->memc_type = memc_type;
+	comp_info->judder_level = '1';
+	comp_info->blur_level = '1';
+}
+
+void frc_lge_memc_init(void)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *pfw_data;
+
+	if (!devp || !devp->probe_ok || !devp->fw_data)
+		return;
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+
+	// reserve frc buf init
+
+	//frc status and fw_pause ready
+	// devp->frc_fw_pause = true;
+	devp->frc_sts.auto_ctrl = true;
+	frc_change_to_state(FRC_STATE_ENABLE);
+	// devp->frc_sts.re_config = true;
+	pr_frc(0, "frc lge memc init done\n");
+}
+
 int frc_memc_set_demo(u8 setdemo)
 {
 	struct frc_dev_s *devp = get_frc_devp();

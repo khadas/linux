@@ -214,6 +214,7 @@ static long frc_ioctl(struct file *file,
 	u32 data;
 	u8  tmpver[32];
 	enum frc_fpp_state_e fpp_state;
+	struct v4l2_ext_memc_motion_comp_info comp_info;
 
 	devp = file->private_data;
 	if (!devp)
@@ -352,8 +353,37 @@ static long frc_ioctl(struct file *file,
 		if (copy_to_user(argp, tmpver, sizeof(u8) * 32))
 			ret = -EFAULT;
 		break;
-	}
+	case PQ_MEMC_IOC_SET_LGE_MEMC_LEVEL:
+		if (copy_from_user(&comp_info, argp,
+			sizeof(struct v4l2_ext_memc_motion_comp_info))) {
+			pr_frc(1, "lge copy from user error!/n");
+			ret = -EFAULT;
+			break;
+		}
+		// parm1 control memc level, parm2 control fullback reserved
+		frc_lge_memc_set_level(comp_info);
 
+		pr_frc(1, "SET_LGE_MEMC_LEVEL\n");
+		break;
+	case PQ_MEMC_IOC_GET_LGE_MEMC_LEVEL:
+		frc_lge_memc_get_level(&comp_info);
+		if (copy_to_user(argp, &comp_info,
+			sizeof(struct v4l2_ext_memc_motion_comp_info))) {
+			pr_frc(0, "lge copy from user error!/n");
+			ret = -EFAULT;
+			break;
+		}
+		pr_frc(1, "GET_LGE_MEMC_LEVEL:%d\n", comp_info.memc_type);
+		break;
+	case PQ_MEMC_IOC_LGE_SET_MEMC_INIT:
+		if (copy_from_user(&data, argp, sizeof(u32))) {
+			ret = -EFAULT;
+			break;
+		}
+		pr_frc(1, "parm:%d\n", data);
+		frc_lge_memc_init();
+		break;
+	}
 	return ret;
 }
 

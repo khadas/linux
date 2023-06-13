@@ -22,6 +22,7 @@
 #include <linux/device.h>
 #include <linux/cdev.h>
 #include <linux/amlogic/media/frc/frc_common.h>
+#include <uapi/linux/amlogic/frc.h>
 #include "frc_interface.h"
 
 // frc_20210720_divided_reg_table
