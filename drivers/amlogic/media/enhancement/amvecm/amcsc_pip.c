@@ -178,12 +178,10 @@ static void hdr_proc(struct vframe_s *vf,
 			break;
 		}
 	}
-	pr_csc(8, "am_vecm: hdr module=%s %d, process=%s,vpp_index=%d,dv %d\n",
-	       module_str[module_sel],
-	       module_sel,
-	       process_str[index],
-	       vpp_index,
-	       is_amdv_on());
+	pr_csc(8, "am_vecm: hdr module=%s, process=%s, select=%x\n",
+			module_str[module_sel],
+			process_str[index],
+			hdr_process_select);
 
 	if (module_sel == VD1_HDR)
 		process_id[0] = index;

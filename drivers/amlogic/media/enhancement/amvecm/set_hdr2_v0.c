@@ -889,6 +889,7 @@ int ys_coef[3] = {269, 694, 61};
 int rgb2yuvpre[3]	= {0, 0, 0};
 int rgb2yuvpos[3]	= {64, 512, 512};
 int yuv2rgbpre[3]	= {-64, -512, -512};
+int yuvf2rgbpre[3]	= {0, -512, -512};
 int yuv2rgbpos[3]	= {0, 0, 0};
 int bypass_pre[3] = {0, 0, 0};
 int bypass_pos[3] = {0, 0, 0};
@@ -966,7 +967,16 @@ int srgb2ycbcrf_709[MTX_NUM_PARAM] = {
 int ycbcr2rgb_709[MTX_NUM_PARAM]  = {
 	1192, 0, 1836,
 	1192, -217, -546,
-	1192, 2166,
+	1192, 2166, 0,
+	0, 0, 0,
+	0, 0, 0,
+	0
+};
+
+int ycbcrf2rgb_709[MTX_NUM_PARAM]  = {
+	1024, 0, 1436,
+	1024, -352, -731,
+	1024, 1815, 0,
 	0, 0, 0,
 	0, 0, 0,
 	0
@@ -979,6 +989,15 @@ int ycbcr2rgb_709[MTX_NUM_PARAM]  = {
 /*	-462, 0, 462, */
 /*	-521, 521, 0, */
 /*	0};	*/
+
+int ycbcrf2rgb_ncl2020[MTX_NUM_PARAM] = {
+	1024, 0, 1510,
+	1024, -169, -585,
+	1024, 1927, 0,
+	0, 0, 0,
+	0, 0, 0,
+	0
+};
 
 int ycbcr2rgb_ncl2020[MTX_NUM_PARAM] = {
 	1197, 0, 1726,
@@ -3507,8 +3526,15 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			oft_post_in = srgb2rgb_pos;
 			oft_pre_out = rgb2yuvpre;
 			oft_post_out = rgb2yuvpos;
+		} else if (hdr_process_select & FULL_VDIN) {
+			/* sdr-> hdr use ycbcrf2rgb_ncl2020 */
+			coeff_in = ycbcrf2rgb_ncl2020;
+			oft_pre_in = yuvf2rgbpre;
+			oft_post_in = yuv2rgbpos;
+			oft_pre_out = rgb2yuvpre;
+			oft_post_out = rgb2yuvpos;
 		} else {
-			/* sdr-> hdr use ycbcr2rgb_709 */
+			/* sdr-> hdr use ycbcr2rgb_ncl2020 */
 			coeff_in = ycbcr2rgb_ncl2020;
 			oft_pre_in = yuv2rgbpre;
 			oft_post_in = yuv2rgbpos;
@@ -3998,6 +4024,13 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			oft_post_in = bypass_pos;
 			oft_pre_out = srgb2yuvfpre;
 			oft_post_out = srgb2yuvfpos;
+		} else if (hdr_process_select & FULL_VDIN) {
+			coeff_in = ycbcrf2rgb_709;
+			coeff_out = rgb2ycbcr_709;
+			oft_pre_in = yuvf2rgbpre;
+			oft_post_in = yuv2rgbpos;
+			oft_pre_out = rgb2yuvpre;
+			oft_post_out = rgb2yuvpos;
 		} else {
 			coeff_in = ycbcr2rgb_709;
 			coeff_out = rgb2ycbcr_709;
