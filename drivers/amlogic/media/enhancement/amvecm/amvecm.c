@@ -2848,6 +2848,72 @@ static long amvecm_ioctl(struct file *file,
 			pr_amvecm_dbg("load same gamma_b table,no need to change\n");
 		}
 		break;
+	case AMVECM_IOC_GAMMA_TABLE_EN_SUB:
+		if (!gamma_en)
+			return -EINVAL;
+
+		vecm_latch_flag2 |= FLAG_GAMMA_TABLE_EN_SUB;
+		break;
+	case AMVECM_IOC_GAMMA_TABLE_DIS_SUB:
+		if (!gamma_en)
+			return -EINVAL;
+
+		vecm_latch_flag2 |= FLAG_GAMMA_TABLE_DIS_SUB;
+		break;
+	case AMVECM_IOC_GAMMA_TABLE_R_SUB:
+		if (!gamma_en)
+			return -EINVAL;
+
+		if (copy_from_user(&video_gamma_table_ioctl_set,
+			(void __user *)arg,
+			sizeof(struct tcon_gamma_table_s))) {
+			ret = -EFAULT;
+		} else if (gamma_table_compare(&video_gamma_table_ioctl_set,
+				&video_gamma_table_r_sub)) {
+			memcpy(&video_gamma_table_r_sub,
+				&video_gamma_table_ioctl_set,
+				sizeof(struct tcon_gamma_table_s));
+			vecm_latch_flag2 |= FLAG_GAMMA_TABLE_R_SUB;
+		} else {
+			pr_amvecm_dbg("load same gamma_r_sub table,no need to change\n");
+		}
+		break;
+	case AMVECM_IOC_GAMMA_TABLE_G_SUB:
+		if (!gamma_en)
+			return -EINVAL;
+
+		if (copy_from_user(&video_gamma_table_ioctl_set,
+			(void __user *)arg,
+			sizeof(struct tcon_gamma_table_s))) {
+			ret = -EFAULT;
+		} else if (gamma_table_compare(&video_gamma_table_ioctl_set,
+			&video_gamma_table_g_sub)) {
+			memcpy(&video_gamma_table_g_sub,
+				&video_gamma_table_ioctl_set,
+				sizeof(struct tcon_gamma_table_s));
+			vecm_latch_flag2 |= FLAG_GAMMA_TABLE_G_SUB;
+		} else {
+			pr_amvecm_dbg("load same gamma_g_sub table,no need to change\n");
+		}
+		break;
+	case AMVECM_IOC_GAMMA_TABLE_B_SUB:
+		if (!gamma_en)
+			return -EINVAL;
+
+		if (copy_from_user(&video_gamma_table_ioctl_set,
+			(void __user *)arg,
+			sizeof(struct tcon_gamma_table_s))) {
+			ret = -EFAULT;
+		} else if (gamma_table_compare(&video_gamma_table_ioctl_set,
+			&video_gamma_table_b_sub)) {
+			memcpy(&video_gamma_table_b_sub,
+				&video_gamma_table_ioctl_set,
+				sizeof(struct tcon_gamma_table_s));
+			vecm_latch_flag2 |= FLAG_GAMMA_TABLE_B_SUB;
+		} else {
+			pr_amvecm_dbg("load same gamma_b_sub table,no need to change\n");
+		}
+		break;
 	case AMVECM_IOC_GAMMA_SET:
 		if (!gamma_en)
 			return -EINVAL;
@@ -2861,6 +2927,7 @@ static long amvecm_ioctl(struct file *file,
 		}
 		break;
 	case AMVECM_IOC_S_RGB_OGO:
+		pr_amvecm_dbg("AMVECM_IOC_S_RGB_OGO, wb_en=%d\n", wb_en);
 		if (!wb_en)
 			return -EINVAL;
 
@@ -2872,6 +2939,7 @@ static long amvecm_ioctl(struct file *file,
 			ve_ogo_param_update();
 		break;
 	case AMVECM_IOC_G_RGB_OGO:
+		pr_amvecm_dbg("AMVECM_IOC_G_RGB_OGO, wb_en=%d\n", wb_en);
 		if (!wb_en)
 			return -EINVAL;
 
@@ -2880,6 +2948,29 @@ static long amvecm_ioctl(struct file *file,
 			ret = -EFAULT;
 
 		break;
+	case AMVECM_IOC_S_RGB_OGO_SUB:
+			pr_amvecm_dbg("AMVECM_IOC_S_RGB_OGO_SUB, wb_en=%d\n", wb_en);
+			if (!wb_en)
+				return -EINVAL;
+
+			if (copy_from_user(&video_rgb_ogo_sub,
+				(void __user *)arg,
+				sizeof(struct tcon_rgb_ogo_s)))
+				ret = -EFAULT;
+			else
+				ve_ogo_param_update_sub();
+
+			break;
+		case AMVECM_IOC_G_RGB_OGO_SUB:
+			pr_amvecm_dbg("AMVECM_IOC_G_RGB_OGO_SUB, wb_en=%d\n", wb_en);
+			if (!wb_en)
+				return -EINVAL;
+
+			if (copy_to_user((void __user *)arg,
+				&video_rgb_ogo_sub, sizeof(struct tcon_rgb_ogo_s)))
+				ret = -EFAULT;
+
+			break;
 	case AMVECM_IOC_SET_3D_LUT:
 		p3dlut = kmalloc(4913 * 3 * sizeof(unsigned int),
 				 GFP_KERNEL);
@@ -5531,6 +5622,67 @@ static ssize_t amvecm_gamma_v2_store(struct class *cls,
 			if (i >= 0 && i < max_idx)
 				pr_info("gamma_b[%d] = %x\n",
 					i, p_gm->dbg_gm_tbl.gamma_b[i]);
+		}
+	} else if (!strcmp(parm[0], "ggr_sub")) {
+		vpp_get_lcd_gamma_table_sub();
+		if (!strcmp(parm[1], "all")) {
+			for (i = 0; i < 256; i++)
+				pr_info("gamma_r[%d] = %x\n",
+					i, gamma_data_r[i]);
+		} else if (!strcmp(parm[1], "all_str")) {
+			for (i = 0; i < 256; i++)
+				d_convert_str(gamma_data_r[i], i, stemp, 3, 16);
+			pr_info("gamma_r str: %s\n", stemp);
+		} else {
+			if (kstrtoul(parm[1], 10, &val) < 0) {
+				pr_info("invalid command\n");
+				goto free_buf;
+			}
+			i = val;
+			if (i >= 0 && i <= 255)
+				pr_info("gamma_r[%d] = %x\n",
+					i, gamma_data_r[i]);
+			}
+	} else if (!strcmp(parm[0], "ggg_sub")) {
+		vpp_get_lcd_gamma_table_sub();
+		if (!strcmp(parm[1], "all")) {
+			for (i = 0; i < 256; i++)
+				pr_info("gamma_g[%d] = %x\n",
+					i, gamma_data_g[i]);
+		} else if (!strcmp(parm[1], "all_str")) {
+			for (i = 0; i < 256; i++)
+				d_convert_str(gamma_data_g[i], i, stemp, 3, 16);
+			pr_info("gamma_g str: %s\n", stemp);
+		} else {
+			if (kstrtoul(parm[1], 10, &val) < 0) {
+				pr_info("invalid command\n");
+				goto free_buf;
+			}
+			i = val;
+			if (i >= 0 && i <= 255)
+				pr_info("gamma_g[%d] = %x\n",
+					i, gamma_data_g[i]);
+		}
+
+	} else if (!strcmp(parm[0], "ggb_sub")) {
+		vpp_get_lcd_gamma_table_sub();
+		if (!strcmp(parm[1], "all")) {
+			for (i = 0; i < 256; i++)
+				pr_info("gamma_b[%d] = %x\n",
+					i, gamma_data_b[i]);
+		} else if (!strcmp(parm[1], "all_str")) {
+			for (i = 0; i < 256; i++)
+				d_convert_str(gamma_data_b[i], i, stemp, 3, 16);
+			pr_info("gamma_b str: %s\n", stemp);
+		} else {
+			if (kstrtoul(parm[1], 10, &val) < 0) {
+				pr_info("invalid command\n");
+				goto free_buf;
+			}
+			i = val;
+			if (i >= 0 && i <= 255)
+				pr_info("gamma_b[%d] = %x\n",
+					i, gamma_data_b[i]);
 		}
 	} else {
 		pr_info("invalid command\n");

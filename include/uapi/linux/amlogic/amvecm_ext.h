@@ -604,5 +604,14 @@ struct ve_ble_whe_param_s {
 #define AMVECM_IOC_G_COLOR_MATRIX_DATA		_IOR(_VE_CM, 0x82, struct video_color_matrix)
 #define AMVECM_IOC_S_BLE_WHE			_IOW(_VE_CM, 0x83, struct ve_ble_whe_param_s)
 
+/*t7 vpp1 command list*/
+#define AMVECM_IOC_S_RGB_OGO_SUB _IOW(_VE_CM, 0x84, struct tcon_rgb_ogo_s)
+#define AMVECM_IOC_G_RGB_OGO_SUB _IOR(_VE_CM, 0x85, struct tcon_rgb_ogo_s)
+#define AMVECM_IOC_GAMMA_TABLE_EN_SUB _IO(_VE_CM, 0x86)
+#define AMVECM_IOC_GAMMA_TABLE_DIS_SUB _IO(_VE_CM, 0x87)
+#define AMVECM_IOC_GAMMA_TABLE_R_SUB _IOW(_VE_CM, 0x88, struct tcon_gamma_table_s)
+#define AMVECM_IOC_GAMMA_TABLE_G_SUB _IOW(_VE_CM, 0x89, struct tcon_gamma_table_s)
+#define AMVECM_IOC_GAMMA_TABLE_B_SUB _IOW(_VE_CM, 0x8a, struct tcon_gamma_table_s)
+
 #endif
 

@@ -110,6 +110,12 @@ void amdv_set_toggle_flag(int flag);
  *#define VPP_VADJ1_BLMINUS_EN        (1 << 1)
  *#define VPP_VADJ1_EN                (1 << 0)
  */
+#define FLAG_GAMMA_TABLE_EN_SUB     BIT(19)
+#define FLAG_GAMMA_TABLE_DIS_SUB    BIT(18)
+#define FLAG_GAMMA_TABLE_R_SUB      BIT(17)
+#define FLAG_GAMMA_TABLE_G_SUB      BIT(16)
+#define FLAG_GAMMA_TABLE_B_SUB      BIT(15)
+
 #define CT_UPDATE                   BIT(16)
 #define BS_UPDATE                   BIT(15)
 #define LUT3D_UPDATE                BIT(14)

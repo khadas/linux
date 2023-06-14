@@ -97,8 +97,27 @@ struct tcon_gamma_table_s video_gamma_table_ioctl_set;
 struct gm_tbl_s gt;
 unsigned int gamma_index;
 unsigned int gm_par_idx;
+unsigned int gamma_index_sub = 1;
+
+struct tcon_gamma_table_s video_gamma_table_r_sub;
+struct tcon_gamma_table_s video_gamma_table_g_sub;
+struct tcon_gamma_table_s video_gamma_table_b_sub;
+
 
 struct tcon_rgb_ogo_s video_rgb_ogo = {
+	0, /* wb enable */
+	0, /* -1024~1023, r_pre_offset */
+	0, /* -1024~1023, g_pre_offset */
+	0, /* -1024~1023, b_pre_offset */
+	1024, /* 0~2047, r_gain */
+	1024, /* 0~2047, g_gain */
+	1024, /* 0~2047, b_gain */
+	0, /* -1024~1023, r_post_offset */
+	0, /* -1024~1023, g_post_offset */
+	0  /* -1024~1023, b_post_offset */
+};
+
+struct tcon_rgb_ogo_s video_rgb_ogo_sub = {
 	0, /* wb enable */
 	0, /* -1024~1023, r_pre_offset */
 	0, /* -1024~1023, g_pre_offset */
@@ -564,9 +583,9 @@ void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask, int viu_sel)
 	spin_unlock_irqrestore(&vpp_lcd_gamma_lock, flags);
 }
 
-u16 gamma_data_r[256] = {0};
-u16 gamma_data_g[256] = {0};
-u16 gamma_data_b[256] = {0};
+u16 gamma_data_r[257] = {0};
+u16 gamma_data_g[257] = {0};
+u16 gamma_data_b[257] = {0};
 void vpp_get_lcd_gamma_table(u32 rgb_mask)
 {
 	int i;
@@ -629,6 +648,16 @@ void vpp_get_lcd_gamma_table(u32 rgb_mask)
 				    (0x1 << rgb_mask)   |
 				    (0x23 << HADR));
 	pr_info("read gamma over\n");
+}
+
+void vpp_get_lcd_gamma_table_sub(void)
+{
+	if (is_meson_t7_cpu())
+		lcd_gamma_api(gamma_index_sub,
+			gamma_data_r,
+			gamma_data_g,
+			gamma_data_b,
+			0, 1);
 }
 
 void amve_write_gamma_table(u16 *data, u32 rgb_mask)
@@ -743,6 +772,28 @@ static int matrix_yuv_bypass_coef[MATRIX_3x3_COEF_SIZE] = {
 	MTX_RS,
 	MTX_ENABLE
 };
+
+void vpp_set_rgb_ogo_sub(struct tcon_rgb_ogo_s *p)
+{
+	/*for t7 vpp1 go*/
+	if (is_meson_t7_cpu()) {
+		WRITE_VPP_REG(VPP1_GAINOFF_CTRL0,
+			((p->en << 31) & 0x80000000) |
+			((p->r_gain << 16) & 0x07ff0000) |
+			((p->g_gain << 0) & 0x000007ff));
+		WRITE_VPP_REG(VPP1_GAINOFF_CTRL1,
+			((p->b_gain << 16) & 0x07ff0000) |
+			((p->r_post_offset << 0) & 0x00001fff));
+		WRITE_VPP_REG(VPP1_GAINOFF_CTRL2,
+			((p->g_post_offset << 16) & 0x1fff0000) |
+			((p->b_post_offset << 0) & 0x00001fff));
+		WRITE_VPP_REG(VPP1_GAINOFF_CTRL3,
+			((p->r_pre_offset << 16) & 0x1fff0000) |
+			((p->g_pre_offset << 0) & 0x00001fff));
+		WRITE_VPP_REG(VPP1_GAINOFF_CTRL4,
+			((p->b_pre_offset << 0) & 0x00001fff));
+	}
+}
 
 void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p)
 {
@@ -1139,6 +1190,13 @@ void ve_lcd_gamma_process(void)
 		if (viu_sel < 0)
 			viu_sel = 0;
 		gamma_index = viu_sel;
+		if (is_meson_t7_cpu()) {
+			if (gamma_index == 0)
+				gamma_index_sub = 1;
+			else
+				gamma_index_sub = 0;
+		}
+
 	} else {
 		viu_sel = vpp_get_encl_viu_mux();
 	}
@@ -1209,7 +1267,40 @@ void ve_lcd_gamma_process(void)
 			pr_amve_dbg("\n[amve] vpp_set_lcd_gamma_table OK\n");
 		} else {
 			vpp_set_rgb_ogo(&video_rgb_ogo);
+			if (is_meson_t7_cpu()) {
+				vpp_set_rgb_ogo_sub(&video_rgb_ogo_sub);
+				pr_amve_dbg("\n[amve] set_rgb_ogo_sub OK!!!\n");
+			}
 			pr_amve_dbg("\n[amve] vpp_set_rgb_ogo OK!!!\n");
+		}
+	}
+
+	/*for t7 vpp1 lcd gamma*/
+	if (is_meson_t7_cpu()) {
+		if (vecm_latch_flag2 & FLAG_GAMMA_TABLE_EN_SUB) {
+			vecm_latch_flag2 &= ~FLAG_GAMMA_TABLE_EN_SUB;
+			vpp_enable_lcd_gamma_table(gamma_index_sub, 0);
+			pr_amve_dbg("\n[amve..] set enable_lcd_gamma_sub OK!!!\n");
+		}
+
+		if (vecm_latch_flag2 & FLAG_GAMMA_TABLE_DIS_SUB) {
+			vecm_latch_flag2 &= ~FLAG_GAMMA_TABLE_DIS_SUB;
+			vpp_disable_lcd_gamma_table(gamma_index_sub, 0);
+			pr_amve_dbg("\n[amve..] set disable_lcd_gamma_sub OK!!!\n");
+		}
+
+		if ((vecm_latch_flag2 & FLAG_GAMMA_TABLE_R_SUB) &&
+			(vecm_latch_flag2 & FLAG_GAMMA_TABLE_G_SUB) &&
+			(vecm_latch_flag2 & FLAG_GAMMA_TABLE_B_SUB)) {
+			vecm_latch_flag2 &= ~FLAG_GAMMA_TABLE_R_SUB;
+			vecm_latch_flag2 &= ~FLAG_GAMMA_TABLE_G_SUB;
+			vecm_latch_flag2 &= ~FLAG_GAMMA_TABLE_B_SUB;
+			lcd_gamma_api(gamma_index_sub,
+				video_gamma_table_r_sub.data,
+				video_gamma_table_g_sub.data,
+				video_gamma_table_b_sub.data,
+				1, 0);
+			pr_amve_dbg("\n[amve] set_lcd_gamma_table_sub OK!!!\n");
 		}
 	}
 }
@@ -1327,6 +1418,44 @@ static void video_set_rgb_ogo(void)
 		video_gamma_table_g_adj.data[i] = g;
 		video_gamma_table_b_adj.data[i] = b;
 	}
+}
+
+void ve_ogo_param_update_sub(void)
+{
+	if (video_rgb_ogo_sub.en > 1)
+		video_rgb_ogo_sub.en = 1;
+	if (video_rgb_ogo_sub.r_pre_offset > 1023)
+		video_rgb_ogo_sub.r_pre_offset = 1023;
+	if (video_rgb_ogo_sub.r_pre_offset < -1024)
+		video_rgb_ogo_sub.r_pre_offset = -1024;
+	if (video_rgb_ogo_sub.g_pre_offset > 1023)
+		video_rgb_ogo_sub.g_pre_offset = 1023;
+	if (video_rgb_ogo_sub.g_pre_offset < -1024)
+		video_rgb_ogo_sub.g_pre_offset = -1024;
+	if (video_rgb_ogo_sub.b_pre_offset > 1023)
+		video_rgb_ogo_sub.b_pre_offset = 1023;
+	if (video_rgb_ogo_sub.b_pre_offset < -1024)
+		video_rgb_ogo_sub.b_pre_offset = -1024;
+	if (video_rgb_ogo_sub.r_gain > 2047)
+		video_rgb_ogo_sub.r_gain = 2047;
+	if (video_rgb_ogo_sub.g_gain > 2047)
+		video_rgb_ogo_sub.g_gain = 2047;
+	if (video_rgb_ogo_sub.b_gain > 2047)
+		video_rgb_ogo_sub.b_gain = 2047;
+	if (video_rgb_ogo_sub.r_post_offset > 1023)
+		video_rgb_ogo_sub.r_post_offset = 1023;
+	if (video_rgb_ogo_sub.r_post_offset < -1024)
+		video_rgb_ogo_sub.r_post_offset = -1024;
+	if (video_rgb_ogo_sub.g_post_offset > 1023)
+		video_rgb_ogo_sub.g_post_offset = 1023;
+	if (video_rgb_ogo_sub.g_post_offset < -1024)
+		video_rgb_ogo_sub.g_post_offset = -1024;
+	if (video_rgb_ogo_sub.b_post_offset > 1023)
+		video_rgb_ogo_sub.b_post_offset = 1023;
+	if (video_rgb_ogo_sub.b_post_offset < -1024)
+		video_rgb_ogo_sub.b_post_offset = -1024;
+
+	vecm_latch_flag |= FLAG_RGB_OGO;
 }
 
 void ve_ogo_param_update(void)

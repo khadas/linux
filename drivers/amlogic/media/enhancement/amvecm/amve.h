@@ -101,6 +101,11 @@ extern unsigned int gamma_index;
 extern unsigned int gm_par_idx;
 extern unsigned int *plut3d;
 
+extern struct tcon_gamma_table_s video_gamma_table_r_sub;
+extern struct tcon_gamma_table_s video_gamma_table_g_sub;
+extern struct tcon_gamma_table_s video_gamma_table_b_sub;
+extern struct tcon_rgb_ogo_s video_rgb_ogo_sub;
+
 extern spinlock_t vpp_lcd_gamma_lock;
 extern spinlock_t vpp_3dlut_lock;
 extern struct mutex vpp_lut3d_lock;
@@ -108,10 +113,11 @@ extern int lut3d_en;/*0:disable;1:enable */
 extern int lut3d_order;/* 0 RGB 1 GBR */
 extern int lut3d_debug;
 
-extern u16 gamma_data_r[256];
-extern u16 gamma_data_g[256];
-extern u16 gamma_data_b[256];
+extern u16 gamma_data_r[257];
+extern u16 gamma_data_g[257];
+extern u16 gamma_data_b[257];
 void vpp_get_lcd_gamma_table(u32 rgb_mask);
+void vpp_get_lcd_gamma_table_sub(void);
 
 void ve_on_vs(struct vframe_s *vf);
 
@@ -136,6 +142,7 @@ void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write);
 void vpp_disable_lcd_gamma_table(int viu_sel, int rdma_write);
 void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask, int viu_sel);
 void amve_write_gamma_table(u16 *data, u32 rgb_mask);
+void vpp_set_rgb_ogo_sub(struct tcon_rgb_ogo_s *p);
 void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p);
 void vpp_phase_lock_on_vs(unsigned int cycle,
 			  unsigned int stamp,
@@ -152,6 +159,7 @@ void ve_dnlp_param_update(void);
 void ve_new_dnlp_param_update(void);
 void ve_lc_curve_update(void);
 void ve_lc_latch_process(void);
+void ve_ogo_param_update_sub(void);
 void ve_ogo_param_update(void);
 void am_set_regmap(struct am_regs_s *p);
 void sharpness_process(struct vframe_s *vf);

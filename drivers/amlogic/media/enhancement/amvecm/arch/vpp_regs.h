@@ -1516,5 +1516,14 @@
 #define VPP_PST_STA_WIN_X       0x1d3c
 #define VPP_PST_STA_WIN_Y       0x1d3d
 #define VPP_PST_STA_RO_HIST     0x1d3e
+
+/*T7 vpp1 gainoff module*/
+#define VPP1_GAINOFF_GCLK_CTRL 0x59a0
+#define VPP1_GAINOFF_CTRL0 0x59a1
+#define VPP1_GAINOFF_CTRL1 0x59a2
+#define VPP1_GAINOFF_CTRL2 0x59a3
+#define VPP1_GAINOFF_CTRL3 0x59a4
+#define VPP1_GAINOFF_CTRL4 0x59a5
+
 #endif
 
