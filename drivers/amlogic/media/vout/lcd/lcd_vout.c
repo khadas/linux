@@ -108,6 +108,21 @@ static struct lcd_debug_ctrl_s lcd_debug_ctrl_config = {
 	.debug_lcd_mode = 0,
 };
 
+static struct ioctl_phy_config_s ioctl_phy_config = {
+	.flag = 0,
+	.vswing = 0,
+	.vcm = 0,
+	.odt = 0,
+	.ref_bias = 0,
+	.mode = 0,
+	.weakly_pull_down = 0,
+	.lane_num = 0,
+	.ext_pullup = 0,
+	.ioctl_mode = 1,
+	.vswing_level = 0,
+	.preem_level = 0,
+};
+
 static struct aml_lcd_drv_s *lcd_driver_add(int index)
 {
 	struct aml_lcd_drv_s *pdrv = NULL;
@@ -1174,9 +1189,10 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct lcd_optical_info_s *opt_info;
 	union lcd_ctrl_config_u *pctrl;
 	struct lcd_config_s *pconf;
-	struct phy_config_s *phy_cfg, phy_usr;
+	struct phy_config_s *phy_cfg;
+	struct ioctl_phy_config_s *ioctl_phy_cfg = &ioctl_phy_config, ioctl_phy_usr;
 	unsigned int ss_level = 0xffffffff, ss_freq = 0xffffffff, ss_mode = 0xffffffff;
-	struct lcd_ss_ctl_s ss_ctl = {0xffffffff, 0xffffffff, 0xffffffff};
+	struct aml_lcd_ss_ctl_s ss_ctl = {0xffffffff, 0xffffffff, 0xffffffff};
 	unsigned int temp, i = 0;
 	int ret = 0;
 
@@ -1270,41 +1286,56 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case LCD_IOC_GET_PHY_PARAM:
 		phy_cfg = &pconf->phy_cfg;
-
-		if (copy_to_user(argp, (const void *)phy_cfg, sizeof(struct phy_config_s)))
+		ioctl_phy_cfg->flag = phy_cfg->flag;
+		ioctl_phy_cfg->vswing = phy_cfg->vswing;
+		ioctl_phy_cfg->vcm = phy_cfg->vcm;
+		ioctl_phy_cfg->odt = phy_cfg->odt;
+		ioctl_phy_cfg->ref_bias = phy_cfg->ref_bias;
+		ioctl_phy_cfg->mode = phy_cfg->mode;
+		ioctl_phy_cfg->weakly_pull_down = phy_cfg->weakly_pull_down;
+		ioctl_phy_cfg->lane_num = phy_cfg->lane_num;
+		ioctl_phy_cfg->ext_pullup = phy_cfg->ext_pullup;
+		ioctl_phy_cfg->vswing_level = phy_cfg->vswing_level;
+		ioctl_phy_cfg->preem_level = phy_cfg->preem_level;
+		for (i = 0; i < phy_cfg->lane_num; i++) {
+			ioctl_phy_cfg->ioctl_lane[i].preem = phy_cfg->lane[i].preem;
+			ioctl_phy_cfg->ioctl_lane[i].amp = phy_cfg->lane[i].amp;
+		}
+		if (copy_to_user(argp, (const void *)ioctl_phy_cfg,
+		    sizeof(struct ioctl_phy_config_s)))
 			ret = -EFAULT;
 
 		break;
 	case LCD_IOC_SET_PHY_PARAM:
-		memset(&phy_usr, 0, sizeof(struct phy_config_s));
-		if (copy_from_user((void *)&phy_usr, argp, sizeof(struct phy_config_s))) {
+		memset(&ioctl_phy_usr, 0, sizeof(struct ioctl_phy_config_s));
+		if (copy_from_user((void *)&ioctl_phy_usr, argp,
+		    sizeof(struct ioctl_phy_config_s))) {
 			ret = -EFAULT;
 			break;
 		}
 
-		memcpy(&pdrv->config.phy_cfg, &phy_usr, sizeof(struct phy_config_s));
 		phy_cfg = &pconf->phy_cfg;
-		if (phy_cfg->ioctl_mode == 0) {
+		if (ioctl_phy_usr.ioctl_mode == 0) {
 			switch (pdrv->config.basic.lcd_type) {
 			case LCD_LVDS:
-				pctrl->lvds_cfg.phy_vswing = phy_cfg->vswing_level;
-				pctrl->lvds_cfg.phy_preem  = phy_cfg->preem_level;
+				pctrl->lvds_cfg.phy_vswing = ioctl_phy_usr.vswing_level;
+				pctrl->lvds_cfg.phy_preem  = ioctl_phy_usr.preem_level;
 				break;
 			case LCD_VBYONE:
-				pctrl->vbyone_cfg.phy_vswing = phy_cfg->vswing_level;
-				pctrl->vbyone_cfg.phy_preem  = phy_cfg->preem_level;
+				pctrl->vbyone_cfg.phy_vswing = ioctl_phy_usr.vswing_level;
+				pctrl->vbyone_cfg.phy_preem  = ioctl_phy_usr.preem_level;
 				break;
 			case LCD_MLVDS:
-				pctrl->mlvds_cfg.phy_vswing = phy_cfg->vswing_level;
-				pctrl->mlvds_cfg.phy_preem  = phy_cfg->preem_level;
+				pctrl->mlvds_cfg.phy_vswing = ioctl_phy_usr.vswing_level;
+				pctrl->mlvds_cfg.phy_preem  = ioctl_phy_usr.preem_level;
 				break;
 			case LCD_P2P:
-				pctrl->p2p_cfg.phy_vswing = phy_cfg->vswing_level;
-				pctrl->p2p_cfg.phy_preem  = phy_cfg->preem_level;
+				pctrl->p2p_cfg.phy_vswing = ioctl_phy_usr.vswing_level;
+				pctrl->p2p_cfg.phy_preem  = ioctl_phy_usr.preem_level;
 				break;
 			case LCD_EDP:
-				pctrl->edp_cfg.phy_vswing = phy_cfg->vswing_level;
-				pctrl->edp_cfg.phy_preem  = phy_cfg->preem_level;
+				pctrl->edp_cfg.phy_vswing = ioctl_phy_usr.vswing_level;
+				pctrl->edp_cfg.phy_preem  = ioctl_phy_usr.preem_level;
 				break;
 			default:
 				LCDERR("%s: not support lcd_type: %s\n",
@@ -1312,11 +1343,24 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				       lcd_type_type_to_str(pdrv->config.basic.lcd_type));
 				return -EINVAL;
 			}
+			phy_cfg->flag = ioctl_phy_usr.flag;
+			phy_cfg->vswing = ioctl_phy_usr.vswing;
+			phy_cfg->vcm = ioctl_phy_usr.vcm;
+			phy_cfg->odt = ioctl_phy_usr.odt;
+			phy_cfg->ref_bias = ioctl_phy_usr.ref_bias;
+			phy_cfg->mode = ioctl_phy_usr.mode;
+			phy_cfg->weakly_pull_down = ioctl_phy_usr.weakly_pull_down;
+			phy_cfg->lane_num = ioctl_phy_usr.lane_num;
+			phy_cfg->ext_pullup = ioctl_phy_usr.ext_pullup;
+			phy_cfg->vswing_level = ioctl_phy_usr.vswing_level;
+			phy_cfg->preem_level = ioctl_phy_usr.preem_level;
 			phy_cfg->vswing =
 				lcd_phy_vswing_level_to_value(pdrv, phy_cfg->vswing_level);
 			temp = lcd_phy_preem_level_to_value(pdrv, phy_cfg->preem_level);
-			for (i = 0; i < phy_cfg->lane_num; i++)
+			for (i = 0; i < phy_cfg->lane_num; i++) {
 				phy_cfg->lane[i].preem = temp;
+				phy_cfg->lane[i].amp = ioctl_phy_usr.ioctl_lane[i].amp;
+			}
 		}
 
 		if (pdrv->status & LCD_STATUS_IF_ON)
@@ -1326,12 +1370,12 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case LCD_IOC_GET_SS:
 		lcd_get_ss_num(pdrv, &ss_ctl.level, &ss_ctl.freq, &ss_ctl.mode);
 
-		if (copy_to_user(argp, (const void *)&ss_ctl, sizeof(struct lcd_ss_ctl_s)))
+		if (copy_to_user(argp, (const void *)&ss_ctl, sizeof(struct aml_lcd_ss_ctl_s)))
 			ret = -EFAULT;
 
 		break;
 	case LCD_IOC_SET_SS:
-		if (copy_from_user((void *)&ss_ctl, argp, sizeof(struct lcd_ss_ctl_s))) {
+		if (copy_from_user((void *)&ss_ctl, argp, sizeof(struct aml_lcd_ss_ctl_s))) {
 			ret = -EFAULT;
 			break;
 		}
