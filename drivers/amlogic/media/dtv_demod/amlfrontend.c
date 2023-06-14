@@ -6430,8 +6430,6 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 
 	devp->dev = &pdev->dev;
 	platform_set_drvdata(pdev, devp);
-	devp->state = DTVDEMOD_ST_NOT_INI;
-
 
 	/*class attr */
 	devp->clsp = class_create(THIS_MODULE, DEMOD_DEVICE_NAME);
@@ -6470,7 +6468,6 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 	mutex_init(&devp->diseqc.mutex_tx_msg);
 	mutex_init(&devp->diseqc.mutex_rx_msg);
 	dtvdemod_clktree_probe(&pdev->dev);
-	devp->state = DTVDEMOD_ST_IDLE;
 	dtvdemod_version(devp);
 	devp->flg_cma_allc = false;
 	devp->demod_thread = 1;
@@ -6576,20 +6573,20 @@ static void aml_dtvdemod_shutdown(struct platform_device *pdev)
 		return;
 	}
 
+	mutex_lock(&devp->lock);
+
 	list_for_each_entry(demod, &devp->demod_list, list) {
 		/* It will be waked up when it is re-tune.
 		 * So it don't have to call the internal resume function.
 		 * But need to reinitialize it.
 		 */
-		if (devp->state != DTVDEMOD_ST_IDLE) {
-			if (demod->last_delsys != SYS_UNDEFINED)
-				delsys_exit(demod, demod->last_delsys, SYS_UNDEFINED);
-		}
+		if (demod->last_delsys != SYS_UNDEFINED)
+			delsys_exit(demod, demod->last_delsys, SYS_UNDEFINED);
 	}
 
-	devp->state = DTVDEMOD_ST_IDLE;
-
 	PR_INFO("%s OK.\n", __func__);
+
+	mutex_unlock(&devp->lock);
 
 	mutex_unlock(&amldtvdemod_device_mutex);
 }
@@ -6609,9 +6606,13 @@ static int aml_dtvdemod_suspend(struct platform_device *pdev,
 		return -EFAULT;
 	}
 
+	mutex_lock(&devp->lock);
+
 	ret = dtvdemod_leave_mode(devp);
 
 	PR_INFO("%s state event %d, ret %d, OK\n", __func__, state.event, ret);
+
+	mutex_unlock(&devp->lock);
 
 	mutex_unlock(&amldtvdemod_device_mutex);
 
@@ -6667,9 +6668,13 @@ static __maybe_unused int dtv_demod_pm_suspend(struct device *dev)
 		return -EFAULT;
 	}
 
+	mutex_lock(&devp->lock);
+
 	ret = dtvdemod_leave_mode(devp);
 
 	PR_INFO("%s ret %d, OK.\n", __func__, ret);
+
+	mutex_unlock(&devp->lock);
 
 	mutex_unlock(&amldtvdemod_device_mutex);
 
@@ -6688,10 +6693,14 @@ static __maybe_unused int dtv_demod_pm_resume(struct device *dev)
 		return -EFAULT;
 	}
 
+	mutex_lock(&devp->lock);
+
 	/* download fw again after STR in case sram was power down */
 	devp->fw_wr_done = 0;
 
 	PR_INFO("%s OK.\n", __func__);
+
+	mutex_unlock(&devp->lock);
 
 	mutex_unlock(&amldtvdemod_device_mutex);
 

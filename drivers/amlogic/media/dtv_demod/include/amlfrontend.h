@@ -91,7 +91,8 @@
 /*  V2.1.97  fix dvbs blind scan new miss 2150M */
 /*  V2.1.98  support for identifying rt720 by name */
 /*  V2.1.99  increase the speed of isdb-t re-lock */
-/*  V2.1.100  fix significant fluctuations of dvbs snr */
+/*  V2.1.100 fix significant fluctuations of dvbs snr */
+/*  V2.1.101 fix the sync of shutdown and tune */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -108,8 +109,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.1.100"
-#define DTVDEMOD_VER	"2023/06/15: fix significant fluctuations of dvbs snr"
+#define AMLDTVDEMOD_VER "V2.1.101"
+#define DTVDEMOD_VER	"2023/06/19: fix the sync of shutdown and tune"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -225,11 +226,6 @@ struct meson_ddemod_data {
 	struct ddemod_dig_clk_addr dig_clk;
 	struct ddemod_reg_off regoff;
 	enum dtv_demod_hw_ver_e hw_ver;
-};
-enum DTVDEMOD_ST {
-	DTVDEMOD_ST_NOT_INI,	/*driver is not init or init failed*/
-	DTVDEMOD_ST_IDLE,	/*leave mode*/
-	DTVDEMOD_ST_WORK,	/*enter_mode*/
 };
 
 /*polling*/
@@ -380,7 +376,6 @@ struct amldtvdemod_device_s {
 
 	struct class *clsp;
 	struct device *dev;
-	enum DTVDEMOD_ST state;
 	struct mutex lock;	/*aml_lock*/
 	struct ss_reg_phy reg_p[ES_MAP_ADDR_NUM];
 	struct ss_reg_vt reg_v[ES_MAP_ADDR_NUM];
