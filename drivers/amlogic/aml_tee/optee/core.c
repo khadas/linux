@@ -142,7 +142,6 @@ static void optee_release_helper(struct tee_context *ctx,
 				 list_node) {
 		list_del(&sess->list_node);
 		close_session(ctx, sess->session_id);
-		optee_timer_missed_destroy(ctx, sess->session_id);
 		kfree(sess);
 	}
 	kfree(ctxdata);

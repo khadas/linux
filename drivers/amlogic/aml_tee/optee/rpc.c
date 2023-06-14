@@ -443,7 +443,7 @@ static void handle_rpc_func_cmd_timer_destroy(struct tee_context *ctx,
 				arg->ret = TEEC_SUCCESS;
 				goto out;
 			}
-			cancel_delayed_work_sync(&timer_data->work);
+			cancel_delayed_work(&timer_data->work);
 			list_del(&timer_data->list_node);
 			kfree(timer_data);
 
