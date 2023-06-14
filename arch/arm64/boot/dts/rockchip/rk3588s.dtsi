@@ -2372,7 +2372,8 @@
 			<&cru HCLK_PMU_CM0_ROOT>,
 			<&cru ACLK_BUS_ROOT>, <&cru CLK_150M_SRC>,
 			<&cru CLK_GPU>, <&cru CLK_SPDIF2_DP0>,
-			<&cru CLK_SPDIF5_DP1>;
+			<&cru CLK_SPDIF5_DP1>, <&cru CLK_HDMIRX_AUD>,
+			<&cru DCLK_DECOM>;
 		assigned-clock-rates =
 			<1100000000>, <786432000>,
 			<850000000>, <1188000000>,
@@ -2383,7 +2384,8 @@
 			<200000000>,
 			<375000000>, <150000000>,
 			<200000000>, <12000000>,
-			<12000000>;
+			<12000000>, <99000000>,
+			<20000000>;
 	};
 
 	i2c0: i2c@fd880000 {
@@ -2872,7 +2874,7 @@
 			675000	3
 			495000	4
 		>;
-		low-volt-read-margin = <4>;
+		low-volt-mem-read-margin = <4>;
 		intermediate-threshold-freq = <500000>;	/* KHz*/
 		rockchip,init-freq = <1000000>;		/* KHz */
 
@@ -3087,9 +3089,13 @@
 		interrupt-names = "irq_avsd";
 		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
+		rockchip,normal-rates = <594000000>, <0>;
+		assigned-clocks = <&cru ACLK_VPU>;
+		assigned-clock-rates = <594000000>;
 		resets = <&cru SRST_A_VPU>, <&cru SRST_H_VPU>;
 		reset-names = "shared_video_a", "shared_video_h";
 		rockchip,skip-pmu-idle-request;
+		rockchip,disable-auto-freq;
 		iommus = <&vdpu_mmu>;
 		power-domains = <&power RK3588_PD_VDPU>;
 		rockchip,srv = <&mpp_srv>;
@@ -3365,9 +3371,9 @@
 		interrupt-names = "irq_rkvenc0";
 		clocks = <&cru ACLK_RKVENC0>, <&cru HCLK_RKVENC0>, <&cru CLK_RKVENC0_CORE>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
-		rockchip,normal-rates = <600000000>, <0>, <800000000>;
+		rockchip,normal-rates = <500000000>, <0>, <800000000>;
 		assigned-clocks = <&cru ACLK_RKVENC0>, <&cru CLK_RKVENC0_CORE>;
-		assigned-clock-rates = <600000000>, <800000000>;
+		assigned-clock-rates = <500000000>, <800000000>;
 		resets = <&cru SRST_A_RKVENC0>, <&cru SRST_H_RKVENC0>, <&cru SRST_RKVENC0_CORE>;
 		reset-names = "video_a", "video_h", "video_core";
 		rockchip,skip-pmu-idle-request;
@@ -3404,9 +3410,9 @@
 		interrupt-names = "irq_rkvenc1";
 		clocks = <&cru ACLK_RKVENC1>, <&cru HCLK_RKVENC1>, <&cru CLK_RKVENC1_CORE>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core";
-		rockchip,normal-rates = <600000000>, <0>, <800000000>;
+		rockchip,normal-rates = <500000000>, <0>, <800000000>;
 		assigned-clocks = <&cru ACLK_RKVENC1>, <&cru CLK_RKVENC1_CORE>;
-		assigned-clock-rates = <600000000>, <800000000>;
+		assigned-clock-rates = <500000000>, <800000000>;
 		resets = <&cru SRST_A_RKVENC1>, <&cru SRST_H_RKVENC1>, <&cru SRST_RKVENC1_CORE>;
 		reset-names = "video_a", "video_h", "video_core";
 		rockchip,skip-pmu-idle-request;
@@ -4787,6 +4793,13 @@
 		};
 	};
 
+	gmac_uio1: uio@fe1c0000 {
+		compatible = "rockchip,uio-gmac";
+		reg = <0x0 0xfe1c0000 0x0 0x10000>;
+		rockchip,ethernet = <&gmac1>;
+		status = "disabled";
+	};
+
 	gmac1: ethernet@fe1c0000 {
 		compatible = "rockchip,rk3588-gmac", "snps,dwmac-4.20a";
 		reg = <0x0 0xfe1c0000 0x0 0x10000>;
@@ -4826,15 +4839,13 @@
 		};
 
 		gmac1_mtl_rx_setup: rx-queues-config {
-			snps,rx-queues-to-use = <2>;
+			snps,rx-queues-to-use = <1>;
 			queue0 {};
-			queue1 {};
 		};
 
 		gmac1_mtl_tx_setup: tx-queues-config {
-			snps,tx-queues-to-use = <2>;
+			snps,tx-queues-to-use = <1>;
 			queue0 {};
-			queue1 {};
 		};
 	};
 

@@ -826,8 +826,8 @@ static void stmmac_mac_flow_ctrl(struct stmmac_priv *priv, u32 duplex)
 {
 	u32 tx_cnt = priv->plat->tx_queues_to_use;
 
-	stmmac_flow_ctrl(priv, priv->hw, duplex, priv->flow_ctrl,
-			priv->pause, tx_cnt);
+	stmmac_flow_ctrl(priv, priv->hw, duplex, priv->flow_ctrl & priv->plat->flow_ctrl,
+			 priv->pause, tx_cnt);
 }
 
 static void stmmac_validate(struct phylink_config *config,
@@ -847,6 +847,8 @@ static void stmmac_validate(struct phylink_config *config,
 	phylink_set(mac_supported, 1000baseT_Half);
 	phylink_set(mac_supported, 1000baseT_Full);
 	phylink_set(mac_supported, 1000baseKX_Full);
+	phylink_set(mac_supported, 100baseT1_Full);
+	phylink_set(mac_supported, 1000baseT1_Full);
 
 	phylink_set(mac_supported, Autoneg);
 	phylink_set(mac_supported, Pause);

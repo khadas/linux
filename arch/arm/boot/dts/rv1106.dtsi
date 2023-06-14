@@ -119,51 +119,54 @@
 		rockchip,pvtpll-min-rate = <1104000>;
 		rockchip,pvtpll-volt-step = <12500>;
 		rockchip,grf = <&grf>;
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <900000>;
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
-			opp-microvolt = <850000 850000 1050000>;
+			opp-microvolt = <850000 850000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <850000 850000 1050000>;
+			opp-microvolt = <850000 850000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-816000000 {
 			opp-hz = /bits/ 64 <816000000>;
-			opp-microvolt = <850000 850000 1050000>;
+			opp-microvolt = <850000 850000 1000000>;
 			clock-latency-ns = <40000>;
 			opp-suspend;
 		};
 		opp-1104000000 {
 			opp-hz = /bits/ 64 <1104000000>;
-			opp-microvolt = <850000 850000 1050000>;
+			opp-microvolt = <850000 850000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <850000 850000 1050000>;
+			opp-microvolt = <850000 850000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1296000000 {
 			opp-hz = /bits/ 64 <1296000000>;
-			opp-microvolt = <875000 850000 1050000>;
+			opp-microvolt = <875000 850000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1416000000 {
 			opp-hz = /bits/ 64 <1416000000>;
-			opp-microvolt = <925000 850000 1050000>;
+			opp-microvolt = <925000 850000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1512000000 {
 			opp-hz = /bits/ 64 <1512000000>;
-			opp-microvolt = <975000 850000 1050000>;
+			opp-microvolt = <975000 850000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1608000000 {
 			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <1012500 850000 1050000>;
+			opp-microvolt = <1000000 850000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 	};
@@ -228,6 +231,14 @@
 		status = "disabled";
 	};
 
+	firmware {
+		optee: optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+			status = "disabled";
+		};
+	};
+
 	mpp_srv: mpp-srv {
 		compatible = "rockchip,mpp-service";
 		rockchip,taskqueue-count = <2>;
@@ -237,6 +248,11 @@
 	mpp_vcodec: mpp-vcodec {
 		compatible = "rockchip,vcodec";
 		status = "disabled";
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
 	};
 
 	rkcif_dvp: rkcif-dvp {
@@ -337,7 +353,8 @@
 
 	timer {
 		compatible = "arm,armv7-timer";
-		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_HIGH)>;
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_HIGH)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_HIGH)>;
 		clock-frequency = <24000000>;
 	};
 
@@ -1248,7 +1265,7 @@
 		snps,tso;
 
 		tx-dma-size = <256>;
-		rx-dma-size = <16>;
+		rx-dma-size = <128>;
 
 		snps,axi-config = <&stmmac_axi_setup>;
 		snps,mtl-rx-config = <&mtl_rx_setup>;
@@ -1257,6 +1274,9 @@
 		phy-mode = "rmii";
 		clock_in_out = "input";
 		phy-handle = <&rmii_phy>;
+
+		/* FLOW_OFF: 0, FLOW_RX: 1, FLOW_TX: 2, FLOW_AUTO: 3 */
+		snps,flow-ctrl = <0>;
 
 		nvmem-cells = <&macphy_bgs>;
 		nvmem-cell-names = "bgs";
@@ -1274,6 +1294,7 @@
 				phy-is-integrated;
 				nvmem-cells = <&macphy_txlevel>;
 				nvmem-cell-names = "txlevel";
+				bgs,increment = <2>;
 			};
 		};
 

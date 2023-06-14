@@ -397,6 +397,12 @@ static int rockchip_i2s_tdm_clear(struct rk_i2s_tdm_dev *i2s_tdm,
 		return -EINVAL;
 	}
 
+	regmap_update_bits(i2s_tdm->regmap, I2S_CLR, clr, clr);
+	ret = regmap_read_poll_timeout_atomic(i2s_tdm->regmap, I2S_CLR, val,
+					      !(val & clr), 10, 100);
+	if (ret == 0)
+		return 0;
+
 	/*
 	 * Workaround for FIFO clear on SLAVE mode:
 	 *
@@ -655,6 +661,19 @@ static int rockchip_i2s_tdm_set_fmt(struct snd_soc_dai *cpu_dai,
 	case SND_SOC_DAIFMT_CBM_CFM:
 		val = I2S_CKR_MSS_SLAVE;
 		i2s_tdm->is_master_mode = false;
+		/*
+		 * TRCM require TX/RX enabled at the same time, or need the one
+		 * which provide clk enabled at first for master mode.
+		 *
+		 * It is quite a different for slave mode which does not have
+		 * these restrictions, because the BCLK / LRCK are provided by
+		 * external master devices.
+		 *
+		 * So, we just set the right clk path value on TRCM register on
+		 * stage probe and then drop the trcm value to make TX / RX work
+		 * independently.
+		 */
+		i2s_tdm->clk_trcm = 0;
 		break;
 	default:
 		ret = -EINVAL;

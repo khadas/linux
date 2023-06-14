@@ -904,8 +904,10 @@ static int hdmirx_try_to_get_timings(struct rk_hdmirx_dev *hdmirx_dev,
 		usleep_range(10*1000, 10*1100);
 	}
 
-	if (try_cnt > 8 && cnt < 8)
+	if (try_cnt > 8 && cnt < 8) {
 		v4l2_dbg(1, debug, v4l2_dev, "%s: res not stable!\n", __func__);
+		ret = -EINVAL;
+	}
 
 	return ret;
 }
@@ -2030,6 +2032,7 @@ static int hdmirx_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct v4l2_dv_timings timings = hdmirx_dev->timings;
 	struct v4l2_bt_timings *bt = &timings.bt;
 	int line_flag;
+	uint32_t touch_flag;
 
 	if (!hdmirx_dev->get_timing) {
 		v4l2_err(v4l2_dev, "Err, timing is invalid\n");
@@ -2043,7 +2046,8 @@ static int hdmirx_start_streaming(struct vb2_queue *queue, unsigned int count)
 	}
 
 	mutex_lock(&hdmirx_dev->stream_lock);
-	sip_hdmirx_config(HDMIRX_AUTO_TOUCH_EN, 0, 1, 100);
+	touch_flag = (hdmirx_dev->bound_cpu << 1) | 0x1;
+	sip_hdmirx_config(HDMIRX_AUTO_TOUCH_EN, 0, touch_flag, 100);
 	stream->frame_idx = 0;
 	stream->line_flag_int_cnt = 0;
 	stream->curr_buf = NULL;

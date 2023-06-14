@@ -480,8 +480,14 @@ static int rk3528_combphy_cfg(struct rockchip_combphy_priv *priv)
 		/* Enable adaptive CTLE for USB3.0 Rx */
 		val = readl(priv->mmio + 0x200);
 		val &= ~GENMASK(17, 17);
-		val |= 0x01;
+		val |= 0x01 << 17;
 		writel(val, priv->mmio + 0x200);
+
+		/* Set Rx squelch input filler bandwidth */
+		val = readl(priv->mmio + 0x20c);
+		val &= ~GENMASK(2, 0);
+		val |= 0x06;
+		writel(val, priv->mmio + 0x20c);
 
 		param_write(priv->phy_grf, &cfg->pipe_txcomp_sel, false);
 		param_write(priv->phy_grf, &cfg->pipe_txelec_sel, false);
@@ -519,10 +525,8 @@ static int rk3528_combphy_cfg(struct rockchip_combphy_priv *priv)
 			val |= 0x2 << 10;
 			writel(val, priv->mmio + 0x18);
 
-			/* su_trim[6:4]=111, [10:7]=1001, [2:0]=000 */
-			val = readl(priv->mmio + 0x108);
-			val &= ~(0x7f7);
-			val |= 0x4f0;
+			/* su_trim[6:4]=111, [10:7]=1001, [2:0]=000, swing 650mv */
+			val = 0x570804f0;
 			writel(val, priv->mmio + 0x108);
 		}
 		break;
@@ -637,6 +641,9 @@ static int rk3562_combphy_cfg(struct rockchip_combphy_priv *priv)
 		/* Set PLL KVCO to min and set PLL charge pump current to max */
 		writel(0xf0, priv->mmio + (0xa << 2));
 
+		/* Set Rx squelch input filler bandwidth */
+		writel(0x0e, priv->mmio + (0x14 << 2));
+
 		param_write(priv->phy_grf, &cfg->pipe_sel_usb, true);
 		param_write(priv->phy_grf, &cfg->pipe_txcomp_sel, false);
 		param_write(priv->phy_grf, &cfg->pipe_txelec_sel, false);
@@ -686,6 +693,12 @@ static int rk3562_combphy_cfg(struct rockchip_combphy_priv *priv)
 
 			writel(0x32, priv->mmio + (0x11 << 2));
 			writel(0xf0, priv->mmio + (0xa << 2));
+
+			/* CKDRV output swing adjust to 650mv */
+			val = readl(priv->mmio + (0xd << 2));
+			val &= ~(0xf << 1);
+			val |= 0xb;
+			writel(val, priv->mmio + (0xd << 2));
 		}
 		break;
 	default:
@@ -822,6 +835,9 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 
 		/* Set PLL KVCO to min and set PLL charge pump current to max */
 		writel(0xf0, priv->mmio + (0xa << 2));
+
+		/* Set Rx squelch input filler bandwidth */
+		writel(0x0e, priv->mmio + (0x14 << 2));
 
 		param_write(priv->phy_grf, &cfg->pipe_sel_usb, true);
 		param_write(priv->phy_grf, &cfg->pipe_txcomp_sel, false);

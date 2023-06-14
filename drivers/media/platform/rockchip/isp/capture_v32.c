@@ -698,10 +698,8 @@ static int mp_config_mi(struct rkisp_stream *stream)
 	* NOTE: plane_fmt[0].sizeimage is total size of all planes for single
 	* memory plane formats, so calculate the size explicitly.
 	*/
-	if (dev->cap_dev.wrap_line) {
+	if (dev->cap_dev.wrap_line)
 		height = dev->cap_dev.wrap_line;
-		rkisp_clear_bits(dev, 0x1814, BIT(0), false);
-	}
 	val = out_fmt->plane_fmt[0].bytesperline;
 	/* in bytes for isp32 */
 	if (dev->isp_ver == ISP_V32)
@@ -1054,15 +1052,24 @@ static void update_mi(struct rkisp_stream *stream)
 				/* isp no start and mi close, force to enable it */
 				if (!ISP3X_ISP_OUT_LINE(rkisp_read(dev, ISP3X_ISP_DEBUG2, true))) {
 					stream->ops->enable_mi(stream);
-					stream->is_pause = false;
 					stream_self_update(stream);
 					if (!stream->curr_buf) {
 						stream->curr_buf = stream->next_buf;
 						stream->next_buf = NULL;
 					}
+					/* maybe no next buf to preclose mi */
+					stream->ops->disable_mi(stream);
+				} else if (stream->is_pause) {
+					/* isp working and mi closed
+					 * config buf and enable mi, capture at next frame
+					 */
+					stream->ops->enable_mi(stream);
+					stream->is_pause = false;
 				}
-			}
-			if (stream->is_pause) {
+			} else if (stream->is_pause) {
+				/* isp working and mi no to close
+				 * config buf will auto update at frame end
+				 */
 				stream->ops->enable_mi(stream);
 				stream->is_pause = false;
 			}
@@ -1100,6 +1107,7 @@ static void update_mi(struct rkisp_stream *stream)
 			dev->tb_addr_idx++;
 	} else if (!stream->is_pause) {
 		stream->is_pause = true;
+		/* no next buf to preclose mi */
 		stream->ops->disable_mi(stream);
 		/* no buf, force to close mi */
 		if (!stream->curr_buf)
@@ -1399,10 +1407,12 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 		struct rkisp_stream *vir = &dev->cap_dev.stream[RKISP_STREAM_VIR];
 		u64 ns = 0;
 
-		if (dev->skip_frame) {
+		if (dev->skip_frame || stream->skip_frame) {
 			spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 			list_add_tail(&buf->queue, &stream->buf_queue);
 			spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+			if (stream->skip_frame)
+				stream->skip_frame--;
 			goto end;
 		}
 
@@ -1540,6 +1550,7 @@ static int rkisp_start(struct rkisp_stream *stream)
 		stream->ops->enable_mi(stream);
 
 	stream->streaming = true;
+	stream->skip_frame = 0;
 	return 0;
 }
 

@@ -46,7 +46,7 @@
 static struct devfreq_simple_ondemand_data ondemand_data;
 
 static struct monitor_dev_profile mali_mdevp = {
-	.type = MONITOR_TPYE_DEV,
+	.type = MONITOR_TYPE_DEV,
 	.low_temp_adjust = rockchip_monitor_dev_low_temp_adjust,
 	.high_temp_adjust = rockchip_monitor_dev_high_temp_adjust,
 	.update_volt = rockchip_monitor_check_rate_volt,
@@ -304,7 +304,8 @@ kbase_devfreq_status(struct device *dev, struct devfreq_dev_status *stat)
 	stat->private_data = NULL;
 
 #if MALI_USE_CSF && defined CONFIG_DEVFREQ_THERMAL
-	kbase_ipa_reset_data(kbdev);
+	if (!kbdev->dfc_power.dyn_power_coeff)
+		kbase_ipa_reset_data(kbdev);
 #endif
 
 	return 0;

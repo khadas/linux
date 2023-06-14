@@ -206,12 +206,11 @@ static dma_addr_t rga_iommu_dma_alloc_iova(struct iommu_domain *domain,
 	struct rga_iommu_dma_cookie *cookie = domain->iova_cookie;
 	struct iova_domain *iovad = &cookie->iovad;
 	unsigned long shift, iova_len, iova = 0;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
-	dma_addr_t limit;
-#endif
 
 	shift = iova_shift(iovad);
 	iova_len = size >> shift;
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
 	/*
 	 * Freeing non-power-of-two-sized allocations back into the IOVA caches
 	 * will come back to bite us badly, so we have to waste a bit of space
@@ -220,6 +219,7 @@ static dma_addr_t rga_iommu_dma_alloc_iova(struct iommu_domain *domain,
 	 */
 	if (iova_len < (1 << (IOVA_RANGE_CACHE_MAX_SIZE - 1)))
 		iova_len = roundup_pow_of_two(iova_len);
+#endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
 	dma_limit = min_not_zero(dma_limit, dev->bus_dma_limit);
@@ -231,12 +231,13 @@ static dma_addr_t rga_iommu_dma_alloc_iova(struct iommu_domain *domain,
 	if (domain->geometry.force_aperture)
 		dma_limit = min(dma_limit, (u64)domain->geometry.aperture_end);
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	iova = alloc_iova_fast(iovad, iova_len, dma_limit >> shift, true);
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(4, 19, 111) && \
+     LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0))
+	iova = alloc_iova_fast(iovad, iova_len,
+			       min_t(dma_addr_t, dma_limit >> shift, iovad->end_pfn),
+			       true);
 #else
-	limit = min_t(dma_addr_t, dma_limit >> shift, iovad->end_pfn);
-
-	iova = alloc_iova_fast(iovad, iova_len, limit, true);
+	iova = alloc_iova_fast(iovad, iova_len, dma_limit >> shift, true);
 #endif
 
 	return (dma_addr_t)iova << shift;
