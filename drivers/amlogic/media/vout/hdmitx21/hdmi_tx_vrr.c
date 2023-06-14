@@ -368,6 +368,137 @@ static const struct mvrr_const_val const_hdmi2160p60_2397 = {
 	.frac_array = {0x00, 0x3f, 0xff, 0xff, 0xff, 0x00},
 };
 
+/* BRR 2160p120hz */
+static const struct mvrr_const_val const_hdmi2160p120_12000 = {
+	.duration = 12000,
+	.vtotal_fixed = 2250,
+};
+
+static const struct mvrr_const_val const_hdmi2160p120_11988 = {
+	.duration = 11988,
+	.vtotal_fixed = 2252, /* 0.25 */
+	.bit_len = 32,
+	.frac_array = {0x01, 0xe0, 0x03, 0xc0},
+};
+
+static const struct mvrr_const_val const_hdmi2160p120_10000 = {
+	.duration = 10000,
+	.vtotal_fixed = 2700,
+};
+
+static const struct mvrr_const_val const_hdmi2160p120_6000 = {
+	.duration = 6000,
+	.vtotal_fixed = 4500,
+};
+
+static const struct mvrr_const_val const_hdmi2160p120_5994 = {
+	.duration = 5994,
+	.vtotal_fixed = 4504, /* 0.5 */
+	.bit_len = 24,
+	.frac_array = {0x03, 0xff, 0xc0},
+};
+
+static const struct mvrr_const_val const_hdmi2160p120_5000 = {
+	.duration = 5000,
+	.vtotal_fixed = 5400,
+};
+
+static const struct mvrr_const_val const_hdmi2160p120_4800 = {
+	.duration = 4800,
+	.vtotal_fixed = 5625,
+};
+
+static const struct mvrr_const_val const_hdmi2160p120_4795 = {
+	.duration = 4795,
+	.vtotal_fixed = 5630, /* 0.625 */
+	.bit_len = 24,
+	.frac_array = {0x00, 0x7f, 0xff},
+};
+
+static const struct mvrr_const_val const_hdmi2160p120_3000 = {
+	.duration = 3000,
+	.vtotal_fixed = 9000,
+};
+
+static const struct mvrr_const_val const_hdmi2160p120_2997 = {
+	.duration = 2997,
+	.vtotal_fixed = 9009,
+};
+
+static const struct mvrr_const_val const_hdmi2160p120_2500 = {
+	.duration = 2500,
+	.vtotal_fixed = 10800,
+};
+
+static const struct mvrr_const_val const_hdmi2160p120_2400 = {
+	.duration = 2400,
+	.vtotal_fixed = 11250,
+};
+
+static const struct mvrr_const_val const_hdmi2160p120_2397 = {
+	.duration = 2397,
+	.vtotal_fixed = 11261, /* 0.25 */
+	.bit_len = 32,
+	.frac_array = {0x00, 0x00, 0x00, 0xff},
+};
+
+/* BRR 4320p60hz */
+static const struct mvrr_const_val const_hdmi4320p60_6000 = {
+	.duration = 6000,
+	.vtotal_fixed = 4400,
+};
+
+static const struct mvrr_const_val const_hdmi4320p60_5994 = {
+	.duration = 5994,
+	.vtotal_fixed = 4404, /* 0.4 */
+	.bit_len = 40,
+	.frac_array = {0x03, 0xc0, 0xf0, 0x3c, 0x0f},
+};
+
+static const struct mvrr_const_val const_hdmi4320p60_5000 = {
+	.duration = 5000,
+	.vtotal_fixed = 5280,
+};
+
+static const struct mvrr_const_val const_hdmi4320p60_4800 = {
+	.duration = 4800,
+	.vtotal_fixed = 5500,
+};
+
+static const struct mvrr_const_val const_hdmi4320p60_4795 = {
+	.duration = 4795,
+	.vtotal_fixed = 5505, /* 0.5 */
+	.bit_len = 40,
+	.frac_array = {0x00, 0x3f, 0xff, 0xfc, 0x00},
+};
+
+static const struct mvrr_const_val const_hdmi4320p60_3000 = {
+	.duration = 3000,
+	.vtotal_fixed = 8800,
+};
+
+static const struct mvrr_const_val const_hdmi4320p60_2997 = {
+	.duration = 2997,
+	.vtotal_fixed = 8808, /* 0.8 */
+	.bit_len = 40,
+	.frac_array = {0x00, 0xff, 0xff, 0xff, 0xff},
+};
+
+static const struct mvrr_const_val const_hdmi4320p60_2500 = {
+	.duration = 2500,
+	.vtotal_fixed = 10506,
+};
+
+static const struct mvrr_const_val const_hdmi4320p60_2400 = {
+	.duration = 2400,
+	.vtotal_fixed = 11000,
+};
+
+static const struct mvrr_const_val const_hdmi4320p60_2397 = {
+	.duration = 2397,
+	.vtotal_fixed = 11011,
+};
+
 const struct mvrr_const_st const_hdmi1080p60_val = {
 	.brr_vic = HDMI_16_1920x1080p60_16x9,
 	.val = {
@@ -477,6 +608,63 @@ const struct mvrr_const_st const_hdmismpte60_val = {
 	},
 };
 
+const struct mvrr_const_st const_hdmi2160p120_val = {
+	.brr_vic = HDMI_118_3840x2160p120_16x9,  //HDMI_120_3840x2160p120_64x27
+	.val = {
+		&const_hdmi2160p120_12000,
+		&const_hdmi2160p120_11988,
+		&const_hdmi2160p120_10000,
+		&const_hdmi2160p120_6000,
+		&const_hdmi2160p120_5994,
+		&const_hdmi2160p120_5000,
+		&const_hdmi2160p120_4800,
+		&const_hdmi2160p120_4795,
+		&const_hdmi2160p120_3000,
+		&const_hdmi2160p120_2997,
+		&const_hdmi2160p120_2500,
+		&const_hdmi2160p120_2400,
+		&const_hdmi2160p120_2397,
+		NULL,
+	},
+};
+
+const struct mvrr_const_st const_hdmismpte120_val = {
+	.brr_vic = HDMI_219_4096x2160p120_256x135,
+	.val = {
+		&const_hdmi2160p120_12000,
+		&const_hdmi2160p120_11988,
+		&const_hdmi2160p120_10000,
+		&const_hdmi2160p120_6000,
+		&const_hdmi2160p120_5994,
+		&const_hdmi2160p120_5000,
+		&const_hdmi2160p120_4800,
+		&const_hdmi2160p120_4795,
+		&const_hdmi2160p120_3000,
+		&const_hdmi2160p120_2997,
+		&const_hdmi2160p120_2500,
+		&const_hdmi2160p120_2400,
+		&const_hdmi2160p120_2397,
+		NULL,
+	},
+};
+
+const struct mvrr_const_st const_hdmi4320p60_val = {
+	.brr_vic = HDMI_199_7680x4320p60_16x9,
+	.val = {
+		&const_hdmi4320p60_6000,
+		&const_hdmi4320p60_5994,
+		&const_hdmi4320p60_5000,
+		&const_hdmi4320p60_4800,
+		&const_hdmi4320p60_4795,
+		&const_hdmi4320p60_3000,
+		&const_hdmi4320p60_2997,
+		&const_hdmi4320p60_2500,
+		&const_hdmi4320p60_2400,
+		&const_hdmi4320p60_2397,
+		NULL,
+	},
+};
+
 const struct mvrr_const_st *qms_const[] = {
 	&const_hdmi1080p60_val,
 	&const_hdmi1080p120_val,
@@ -484,6 +672,9 @@ const struct mvrr_const_st *qms_const[] = {
 	&const_hdmi720p60_val,
 	&const_hdmi720p120_val,
 	&const_hdmismpte60_val,
+	&const_hdmi2160p120_val,
+	&const_hdmismpte120_val,
+	&const_hdmi4320p60_val,
 	NULL,
 };
 
@@ -741,7 +932,8 @@ static void vrr_init_qms_para(struct tx_vrr_params *para)
 			para->mdelta_limit = mval->vtotal_fixed / 2;
 	}
 
-	if (para->mconst_val && brr_vic == HDMI_63_1920x1080p120_16x9)
+	if (para->mconst_val && (brr_vic == HDMI_63_1920x1080p120_16x9 ||
+		brr_vic == HDMI_118_3840x2160p120_16x9))
 		brr_rate = 120;
 
 	memset(vrr_pkt, 0, sizeof(*vrr_pkt));
@@ -896,6 +1088,8 @@ static const enum hdmi_vic brr_list[] = {
 	HDMI_47_1280x720p120_16x9,
 	HDMI_97_3840x2160p60_16x9,
 	HDMI_102_4096x2160p60_256x135,
+	HDMI_118_3840x2160p120_16x9,
+	HDMI_199_7680x4320p60_16x9,
 };
 
 static bool check_qms_brr_format(const enum hdmi_vic vic)
