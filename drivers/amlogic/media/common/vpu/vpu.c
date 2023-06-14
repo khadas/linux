@@ -1331,50 +1331,121 @@ static ssize_t vpu_debug_info(struct class *class,
 	return len;
 }
 
+static unsigned int vpu_reg_dbg_flag = 0xff;
+static unsigned int vpu_reg_dbg_addr, vpu_reg_dbg_val, vpu_reg_dbg_mask, vpu_reg_dbg_cnt;
+static ssize_t vpu_debug_reg_show(struct class *class,
+				    struct class_attribute *attr, char *buf)
+{
+	unsigned int temp, i;
+	ssize_t len = 0;
+
+	if (vpu_reg_dbg_flag == 1) {//write mask
+		len = sprintf(buf, "for_tool: write reg[0x%04x] mask:0x%08x, val:0x%08x, ",
+			vpu_reg_dbg_addr, vpu_reg_dbg_mask, vpu_reg_dbg_val);
+		temp = vpu_vcbus_read(vpu_reg_dbg_addr);
+		len += sprintf(buf + len, "readback:0x%08x\n", temp);
+		return len;
+	}
+
+	if (vpu_reg_dbg_flag == 2) {//write
+		temp = vpu_vcbus_read(vpu_reg_dbg_addr);
+		len = sprintf(buf, "for_tool: write reg[0x%04x] val:0x%08x, readback:0x%08x\n",
+			vpu_reg_dbg_addr, vpu_reg_dbg_val, temp);
+		return len;
+	}
+
+	if (vpu_reg_dbg_flag == 3) {//read
+		temp = vpu_vcbus_read(vpu_reg_dbg_addr);
+		len = sprintf(buf, "for_tool: read reg[0x%04x] = 0x%08x\n",
+			vpu_reg_dbg_addr, temp);
+		return len;
+	}
+
+	if (vpu_reg_dbg_flag == 4) {//dump
+		len = sprintf(buf, "for_tool: dump reg:\n");
+		for (i = 0; i < vpu_reg_dbg_cnt; i++) {
+			temp = vpu_vcbus_read(vpu_reg_dbg_addr + i);
+			len += sprintf(buf + len, "[0x%04x] = 0x%08x\n",
+				vpu_reg_dbg_addr + i, temp);
+		}
+		return len;
+	}
+
+	return sprintf(buf, "for_tool: none\n");
+}
+
 static ssize_t vpu_debug_reg_store(struct class *class,
 				   struct class_attribute *attr,
 				   const char *buf, size_t count)
 {
 	int ret = 0;
-	unsigned int reg32 = 0, data32 = 0;
+	unsigned int temp;
 	int i;
 
 	switch (buf[0]) {
 	case 'w':
-		ret = sscanf(buf, "w %x %x", &reg32, &data32);
-		if (ret == 2) {
-			vpu_vcbus_write(reg32, data32);
-			pr_info("write vcbus[0x%04x]=0x%08x, readback 0x%08x\n",
-				reg32, data32, vpu_vcbus_read(reg32));
+		if (buf[1] == 'm') { //wm: write mask
+			ret = sscanf(buf, "wm %x %x %x",
+				&vpu_reg_dbg_addr, &vpu_reg_dbg_mask, &vpu_reg_dbg_val);
+			if (ret == 3) {
+				vpu_reg_dbg_flag = 1;
+				temp = vpu_vcbus_read(vpu_reg_dbg_addr);
+				temp &= ~vpu_reg_dbg_mask;
+				temp |= vpu_reg_dbg_val & vpu_reg_dbg_mask;
+				vpu_vcbus_write(vpu_reg_dbg_addr, temp);
+				pr_info("write vcbus[0x%04x]: (0x%08x & 0x%08x), readback:0x%08x\n",
+					vpu_reg_dbg_addr, vpu_reg_dbg_mask, vpu_reg_dbg_val,
+					vpu_vcbus_read(vpu_reg_dbg_addr));
+			} else {
+				vpu_reg_dbg_flag = 0xff;
+				pr_info("invalid data\n");
+				return -EINVAL;
+			}
 		} else {
-			pr_info("invalid data\n");
-			return -EINVAL;
+			vpu_reg_dbg_flag = 2;
+			ret = sscanf(buf, "w %x %x", &vpu_reg_dbg_addr, &vpu_reg_dbg_val);
+			if (ret == 2) {
+				vpu_vcbus_write(vpu_reg_dbg_addr, vpu_reg_dbg_val);
+				pr_info("write vcbus[0x%04x]=0x%08x, readback 0x%08x\n",
+					vpu_reg_dbg_addr, vpu_reg_dbg_val,
+					vpu_vcbus_read(vpu_reg_dbg_addr));
+			} else {
+				vpu_reg_dbg_flag = 0xff;
+				pr_info("invalid data\n");
+				return -EINVAL;
+			}
 		}
 		break;
 	case 'r':
-		ret = sscanf(buf, "r %x", &reg32);
+		ret = sscanf(buf, "r %x", &vpu_reg_dbg_addr);
 		if (ret == 1) {
+			vpu_reg_dbg_flag = 3;
 			pr_info("read vcbus[0x%04x] = 0x%08x\n",
-				reg32, vpu_vcbus_read(reg32));
+				vpu_reg_dbg_addr, vpu_vcbus_read(vpu_reg_dbg_addr));
 		} else {
+			vpu_reg_dbg_flag = 0xff;
 			pr_info("invalid data\n");
 			return -EINVAL;
 		}
 		break;
 	case 'd':
-		ret = sscanf(buf, "d %x %d", &reg32, &data32);
+		ret = sscanf(buf, "d %x %d", &vpu_reg_dbg_addr, &vpu_reg_dbg_cnt);
 		if (ret == 2) {
+			vpu_reg_dbg_flag = 4;
 			pr_info("dump vcbus regs:\n");
-			for (i = 0; i < data32; i++) {
+			for (i = 0; i < vpu_reg_dbg_cnt; i++) {
 				pr_info("[0x%04x] = 0x%08x\n",
-					(reg32 + i), vpu_vcbus_read(reg32 + i));
+					(vpu_reg_dbg_addr + i),
+					vpu_vcbus_read(vpu_reg_dbg_addr + i));
 			}
 		} else {
+			vpu_reg_dbg_flag = 0xff;
 			pr_info("invalid data\n");
 			return -EINVAL;
 		}
 		break;
 	default:
+		vpu_reg_dbg_flag = 0xff;
 		pr_info("wrong command\n");
 		break;
 	}
@@ -1389,7 +1460,7 @@ static struct class_attribute vpu_debug_class_attrs[] = {
 	__ATTR(dev,   0644, NULL, vpu_dev_debug),
 	__ATTR(test,  0644, NULL, vpu_test_debug),
 	__ATTR(print, 0644, vpu_debug_print_show, vpu_debug_print_store),
-	__ATTR(reg,   0644, NULL, vpu_debug_reg_store),
+	__ATTR(reg,   0644, vpu_debug_reg_show, vpu_debug_reg_store),
 	__ATTR(info,  0444, vpu_debug_info, NULL),
 	__ATTR(help,  0444, vpu_debug_help, NULL),
 };
