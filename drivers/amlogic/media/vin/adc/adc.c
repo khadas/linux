@@ -118,6 +118,9 @@ void adc_set_ddemod_default(enum fe_delivery_system delsys)
 	if (!probe_finish)
 		return;
 
+	if (devp->print_en & ADC_DBG_EN)
+		pr_info("%s: delsys:%#x id:%#x\n", __func__, delsys, devp->plat_data->chip_id);
+
 	if (is_meson_txl_cpu() || is_meson_txlx_cpu() ||
 	    is_meson_gxlx_cpu()) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -229,7 +232,7 @@ int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data)
 		if (devp->filter_flg & (FILTER_TVAFE | FILTER_DTV_DEMOD)) {
 			ret = -1;
 
-			pr_info("%s: DEMOD fail!!!, filter_flg: %d\n",
+			pr_err("%s: DEMOD fail!!!, filter_flg: %d\n",
 					__func__, devp->filter_flg);
 			break;
 		}
@@ -259,7 +262,7 @@ int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data)
 		if (devp->filter_flg & (FILTER_ATV_DEMOD | FILTER_DTV_DEMOD)) {
 			ret = -2;
 
-			pr_info("%s: AFE fail!!!, filter_flg: %d\n",
+			pr_err("%s: AFE fail!!!, filter_flg: %d\n",
 					__func__, devp->filter_flg);
 			break;
 		}
@@ -282,7 +285,7 @@ int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data)
 		if (devp->filter_flg & (FILTER_ATV_DEMOD | FILTER_TVAFE)) {
 			ret = -3;
 
-			pr_info("%s: DDEMOD fail!!!, filter_flg: %d\n",
+			pr_err("%s: DDEMOD fail!!!, filter_flg: %d\n",
 					__func__, devp->filter_flg);
 			break;
 		}
@@ -294,7 +297,7 @@ int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data)
 		if (devp->filter_flg & (FILTER_ATV_DEMOD | FILTER_TVAFE)) {
 			ret = -4;
 
-			pr_info("%s:DMODPLL fail!!!, filter_flg: %d\n",
+			pr_err("%s:DMODPLL fail!!!, filter_flg: %d\n",
 					__func__, devp->filter_flg);
 			break;
 		}
@@ -496,7 +499,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		if (devp->pll_flg & (ADC_TVAFE | ADC_DTV_DEMOD)) {
 			ret = -1;
 			if (devp->print_en & ADC_DBG_EN)
-				pr_info("%s:DEMOD fail!:%d\n",
+				pr_err("%s:DEMOD fail!:%d\n",
 					__func__, devp->pll_flg);
 			mutex_unlock(&devp->pll_mutex);
 			break;
@@ -594,18 +597,20 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 			} while (!adc_rd_hiu_bits(HHI_ADC_PLL_CNTL, 31, 1) &&
 				(adc_pll_lock_cnt < 10));
 		}
-		devp->pll_flg |= ADC_ATV_DEMOD;
+		if (adc_pll_lock_cnt == 10) {
+			ret = -1;
+			pr_err("%s: ATV_DEMOD adc pll lock fail!!!\n", __func__);
+		} else {
+			devp->pll_flg |= ADC_ATV_DEMOD;
+		}
 		mutex_unlock(&devp->pll_mutex);
-		if (adc_pll_lock_cnt == 10)
-			pr_info("%s: ATV_DEMOD adc pll lock fail!!!\n",
-					__func__);
 		break;
 	case ADC_TVAFE:
 		mutex_lock(&devp->pll_mutex);
 		if (devp->pll_flg & (ADC_ATV_DEMOD | ADC_DTV_DEMOD)) {
 			ret = -2;
 			if (devp->print_en & ADC_DBG_EN)
-				pr_info("%s:AFE fail!!!:%d\n", __func__, devp->pll_flg);
+				pr_err("%s:AFE fail!!!:%d\n", __func__, devp->pll_flg);
 			mutex_unlock(&devp->pll_mutex);
 			break;
 		}
@@ -684,11 +689,13 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 			} while (!adc_rd_hiu_bits(HHI_ADC_PLL_CNTL, 31, 1) &&
 				(adc_pll_lock_cnt < 10));
 		}
-		devp->pll_flg |= ADC_TVAFE;
+		if (adc_pll_lock_cnt == 10) {
+			ret = -2;
+			pr_err("%s: TVAFE adc pll lock fail!!!\n", __func__);
+		} else {
+			devp->pll_flg |= ADC_TVAFE;
+		}
 		mutex_unlock(&devp->pll_mutex);
-		if (adc_pll_lock_cnt == 10)
-			pr_info("%s: TVAFE adc pll lock fail!!!\n",
-					__func__);
 		break;
 
 	case ADC_DTV_DEMOD:
@@ -697,7 +704,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 			ret = -3;
 
 			if (devp->print_en & ADC_DBG_EN)
-				pr_info("%s:DDEMOD fail!:%d\n",
+				pr_err("%s:DDEMOD fail!:%d\n",
 					__func__, devp->pll_flg);
 			mutex_unlock(&devp->pll_mutex);
 			break;
@@ -771,19 +778,20 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 			adc_pll_lock_cnt = 1;
 #endif
 		}
-
-		devp->pll_flg |= ADC_DTV_DEMOD;
+		if (adc_pll_lock_cnt >= 10) {
+			ret = -3;
+			pr_err("%s: DTV_DEMOD adc pll lock fail!!!\n", __func__);
+		} else {
+			devp->pll_flg |= ADC_DTV_DEMOD;
+		}
 		mutex_unlock(&devp->pll_mutex);
-		if (adc_pll_lock_cnt >= 10)
-			pr_info("%s: DTV_DEMOD adc pll lock fail!!!\n",
-					__func__);
 		break;
 	case ADC_DTV_DEMODPLL:
 		mutex_lock(&devp->pll_mutex);
 		if (devp->pll_flg & (ADC_ATV_DEMOD | ADC_TVAFE)) {
 			ret = -4;
 			if (devp->print_en & ADC_DBG_EN)
-				pr_info("%s:DMODPLL fail!!!:%d\n", __func__,
+				pr_err("%s:DMODPLL fail!!!:%d\n", __func__,
 					devp->pll_flg);
 			mutex_unlock(&devp->pll_mutex);
 			break;
@@ -850,7 +858,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		break;
 	}
 	if (devp->print_en & ADC_DBG_EN)
-		pr_info("%s:init flag on:%d,module:0x%x,flag:0x%x cnt:0x%x\n",
+		pr_info("%s:init flag on:%d,module:%#x,flag:%#x cnt:%#x\n",
 			__func__, on, module_sel, devp->pll_flg, adc_pll_lock_cnt);
 	return ret;
 }

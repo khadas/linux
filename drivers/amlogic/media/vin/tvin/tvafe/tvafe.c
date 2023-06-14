@@ -251,12 +251,13 @@ static int tvafe_cma_alloc(struct tvafe_dev_s *devp)
 {
 	unsigned int mem_size = devp->cma_mem_size;
 	int flags = CODEC_MM_FLAGS_CMA_FIRST | CODEC_MM_FLAGS_CMA_CLEAR |
-		CODEC_MM_FLAGS_CPU;
+		CODEC_MM_FLAGS_DMA;
+
 	if (devp->cma_config_en == 0)
 		return 0;
 	if (devp->cma_mem_alloc == 1)
 		return 0;
-	devp->cma_mem_alloc = 1;
+
 	if (devp->cma_config_flag == 1) {
 		devp->mem.start = codec_mm_alloc_for_dma("tvafe",
 			mem_size / PAGE_SIZE, 0, flags);
@@ -265,6 +266,7 @@ static int tvafe_cma_alloc(struct tvafe_dev_s *devp)
 			tvafe_pr_err("tvafe codec alloc fail!!!\n");
 			return 1;
 		} else {
+			devp->cma_mem_alloc = 1;
 			tvafe_pr_info("mem_start = 0x%x, mem_size = 0x%x\n",
 				devp->mem.start, devp->mem.size);
 			tvafe_pr_info("codec cma alloc ok!\n");
@@ -276,6 +278,7 @@ static int tvafe_cma_alloc(struct tvafe_dev_s *devp)
 		if (devp->venc_pages) {
 			devp->mem.start = page_to_phys(devp->venc_pages);
 			devp->mem.size  = mem_size;
+			devp->cma_mem_alloc = 1;
 			tvafe_pr_info("mem_start = 0x%x, mem_size = 0x%x\n",
 				devp->mem.start, devp->mem.size);
 			tvafe_pr_info("cma alloc ok!\n");
@@ -283,6 +286,7 @@ static int tvafe_cma_alloc(struct tvafe_dev_s *devp)
 			tvafe_pr_err("tvafe cma mem undefined2.\n");
 		}
 	}
+	//if memory data not update need check DMC_REQ_CTRL tvafe dmc request chan bit
 
 	return 0;
 }
@@ -679,8 +683,7 @@ static void tvafe_dec_close(struct tvin_frontend_s *fe)
 	tvafe_enable_module(false);
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
 	if (IS_TVAFE_ATV_SRC(tvafe->parm.port)) {
-		adc_set_pll_cntl(0, ADC_EN_ATV_DEMOD, NULL);
-		adc_set_filter_ctrl(0, FILTER_ATV_DEMOD, NULL);
+		//atv demod clear pll and filter flags
 	} else if (IS_TVAFE_AVIN_SRC(tvafe->parm.port)) {
 		adc_set_pll_cntl(0, ADC_EN_TVAFE, NULL);
 		adc_set_filter_ctrl(0, FILTER_TVAFE, NULL);

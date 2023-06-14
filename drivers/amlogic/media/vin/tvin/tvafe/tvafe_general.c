@@ -504,13 +504,7 @@ void tvafe_enable_avout(enum tvin_port_e port, bool enable)
 void tvafe_init_reg(struct tvafe_cvd2_s *cvd2, struct tvafe_cvd2_mem_s *mem,
 		    enum tvin_port_e port)
 {
-	unsigned int module_sel = ADC_EN_TVAFE;
 	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
-
-	if (IS_TVAFE_ATV_SRC(port))
-		module_sel = ADC_EN_ATV_DEMOD;
-	else if (IS_TVAFE_AVIN_SRC(port))
-		module_sel = ADC_EN_TVAFE;
 
 	if (IS_TVAFE_SRC(port)) {
 #ifdef CRYSTAL_25M
@@ -528,12 +522,18 @@ void tvafe_init_reg(struct tvafe_cvd2_s *cvd2, struct tvafe_cvd2_mem_s *mem,
 			W_HIU_REG(HHI_ADC_PLL_CNTL3, 0x292a2110);
 		} else {
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
-			adc_set_pll_cntl(1, module_sel, NULL);
+			if (IS_TVAFE_AVIN_SRC(port)) {
+				if (adc_set_pll_cntl(1, ADC_EN_TVAFE, NULL))
+					pr_err("%s:ADC_EN_TVAFE fail\n", __func__);
+			}
 #endif
 		}
 #else
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
-			adc_set_pll_cntl(1, module_sel, NULL);
+			if (IS_TVAFE_AVIN_SRC(port)) {
+				if (adc_set_pll_cntl(1, ADC_EN_TVAFE, NULL))
+					pr_err("%s:ADC_EN_TVAFE fail\n", __func__);
+			}
 #endif
 #endif
 		tvafe_set_cvbs_default(cvd2, mem, port);

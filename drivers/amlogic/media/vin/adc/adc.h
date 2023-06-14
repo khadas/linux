@@ -14,7 +14,8 @@
 /* 20221022: print and debug state optimize */
 /* 20230315: add get adc status interface */
 /* 20230331: change atv_demod_afc_do_work status judge */
-#define ADC_VER "20230331: change atv_demod_afc_do_work status judge"
+/* 20230615: solved demod not adc clock will crash */
+#define ADC_VER "20230615:solved demod not adc clock will crash"
 
 #define ADC_CLK_24M       24000
 #define ADC_CLK_25M       25000
