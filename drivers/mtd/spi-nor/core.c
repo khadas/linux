@@ -1838,6 +1838,7 @@ int spi_nor_sr2_bit7_quad_enable(struct spi_nor *nor)
 }
 
 static const struct spi_nor_manufacturer *manufacturers[] = {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	&spi_nor_atmel,
 	&spi_nor_catalyst,
 	&spi_nor_eon,
@@ -1855,6 +1856,7 @@ static const struct spi_nor_manufacturer *manufacturers[] = {
 	&spi_nor_winbond,
 	&spi_nor_xilinx,
 	&spi_nor_xmc,
+#endif
 };
 
 static const struct flash_info *

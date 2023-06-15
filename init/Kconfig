@@ -2109,6 +2109,7 @@ config MODULE_FORCE_LOAD
 
 config MODULE_UNLOAD
 	bool "Module unloading"
+	default n if AMLOGIC_ZAPPER_CUT
 	help
 	  Without this option you will not be able to unload any
 	  modules (note that some modules may not be unloadable
@@ -2373,7 +2374,7 @@ config UNUSED_KSYMS_WHITELIST
 endif # MODULES
 
 config MODULES_TREE_LOOKUP
-	def_bool y
+	def_bool y if !AMLOGIC_ZAPPER_CUT
 	depends on PERF_EVENTS || TRACING || CFI_CLANG
 
 config INIT_ALL_POSSIBLE
