@@ -96,6 +96,7 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_VPP
 #include <linux/amlogic/media/vpp/vpp_common_def.h>
 #include <linux/amlogic/media/vpp/vpp_drv.h>
+//#include "../../vpp/vpp_vf_proc.h"
 #endif
 
 #define pr_amvecm_dbg(fmt, args...)\
@@ -2180,6 +2181,26 @@ int amvecm_on_vs(struct vframe_s *vf,
 	int ndt;
 
 	stt = _get_cur_enc_line();
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VPP
+		struct vpp_dev_s *vpp_devp = get_vpp_dev();
+
+		struct vpp_vf_param_s vf_param;
+		enum vpp_vd_path_e vd_paths = EN_VD1_PATH;
+		enum vpp_vf_top_e vpp_tops = EN_VF_TOP0;
+
+		vf_param.cm_in_h = cm_in_h;
+		vf_param.cm_in_w = cm_in_w;
+		vf_param.sps_h_en = sps_h_en;
+		vf_param.sps_h_in = sps_h_in;
+		vf_param.sps_v_en = sps_v_en;
+		vf_param.sps_w_in = sps_w_in;
+
+		if (vpp_devp) {
+			if (vpp_devp->probe_ok == 1)
+				vpp_vf_proc(vf, toggle_vf, &vf_param, flags, vd_paths, vpp_tops);
+		}
+#endif
 
 #ifdef T7_BRINGUP_MULTI_VPP
 	// to do, t7 vecm bringup,
