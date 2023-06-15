@@ -902,7 +902,7 @@ static int adc5140_parse_node(struct adc5140_priv *adc5140)
 
 	adc5140->reset_pin =
 		of_get_named_gpio(adc5140->dev->of_node, "reset-gpio", 0);
-	if (adc5140->reset_pin < 0) {
+	if (!gpio_is_valid(adc5140->reset_pin)) {
 		pr_warn("%s fail to get reset pin from dts!\n", __func__);
 		goto parse_other;
 	}

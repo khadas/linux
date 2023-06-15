@@ -527,12 +527,12 @@ static int reset_tas5707_GPIO(struct snd_soc_component *component)
 	struct tas57xx_platform_data *pdata = tas5707->pdata;
 	int ret = 0;
 
-	if (pdata->reset_pin < 0) {
+	if (!gpio_is_valid(pdata->reset_pin)) {
 		pr_warn("%s(), no reset pin\n", __func__);
 		return -1;
 	}
 
-	if (!tas5707->request_done && pdata->reset_pin > 0) {
+	if (!tas5707->request_done && gpio_is_valid(pdata->reset_pin)) {
 		ret = devm_gpio_request_one(component->dev, pdata->reset_pin,
 							GPIOF_OUT_INIT_LOW,
 							"tas5707-reset-pin");
@@ -709,7 +709,7 @@ static int tas5707_suspend(struct snd_soc_component *component)
 	tas5707->ch_mute = snd_soc_component_read32(component, DDX_SOFT_MUTE);
 	tas5707_set_bias_level(component, SND_SOC_BIAS_OFF);
 
-	if (pdata && pdata->reset_pin >= 0) {
+	if (pdata && gpio_is_valid(pdata->reset_pin)) {
 		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
 		usleep_range(9, 15);
 	}
@@ -784,7 +784,7 @@ static int tas5707_parse_dt(struct tas5707_priv *tas5707,
 	int reset_pin = -1;
 
 	reset_pin = of_get_named_gpio(np, "reset_pin", 0);
-	if (reset_pin < 0) {
+	if (!gpio_is_valid(reset_pin)) {
 		pr_err("%s fail to get reset pin from dts!\n", __func__);
 		//ret = -1;
 	} else {

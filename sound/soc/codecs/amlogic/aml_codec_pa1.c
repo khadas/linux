@@ -1053,7 +1053,7 @@ static int reset_pa1_acodec_GPIO(struct device *dev)
 	struct pa1_acodec_platform_data *pdata = pa1_acodec->pdata;
 	int ret = 0;
 
-	if (pdata->reset_pin < 0)
+	if (!gpio_is_valid(pdata->reset_pin))
 		return 0;
 	ret = devm_gpio_request_one(dev, pdata->reset_pin,
 					    GPIOF_OUT_INIT_LOW,
@@ -1093,7 +1093,7 @@ static int pa1_acodec_snd_suspend(struct snd_soc_component *component)
 		(unsigned int)snd_soc_component_read32(component, PA1_AED_STATUS_CTRL);
 	pa1_acodec_set_bias_level(component, SND_SOC_BIAS_OFF);
 
-	if (pdata->reset_pin)
+	if (gpio_is_valid(pdata->reset_pin))
 		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
 
 	usleep_range(9, 15);
@@ -1133,7 +1133,7 @@ static int pa1_acodec_snd_resume(struct snd_soc_component *component)
 	struct pa1_acodec_priv *pa1_acodec = snd_soc_component_get_drvdata(component);
 	struct pa1_acodec_platform_data *pdata = pa1_acodec->pdata;
 
-	if (pdata->reset_pin)
+	if (gpio_is_valid(pdata->reset_pin))
 		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_HIGH);
 
 	usleep_range(1 * 500, 1 * 1000);
@@ -1169,7 +1169,7 @@ static void pa1_acodec_remove(struct snd_soc_component *component)
 	struct pa1_acodec_priv *pa1_acodec = snd_soc_component_get_drvdata(component);
 	struct pa1_acodec_platform_data *pdata = pa1_acodec->pdata;
 
-	if (pdata->reset_pin)
+	if (gpio_is_valid(pdata->reset_pin))
 		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
 
 	usleep_range(9, 15);
@@ -1206,7 +1206,7 @@ static int pa1_acodec_parse_dt(struct pa1_acodec_priv *pa1_acodec,
 	int reset_pin = -1;
 
 	reset_pin = of_get_named_gpio(np, "reset_pin", 0);
-	if (reset_pin < 0) {
+	if (!gpio_is_valid(reset_pin)) {
 		pr_err("%s fail to get reset pin from dts!\n", __func__);
 		ret = -1;
 	} else {
@@ -1273,7 +1273,7 @@ static void pa1_acodec_i2c_shutdown(struct i2c_client *i2c)
 	struct pa1_acodec_priv *pa1_acodec = i2c_get_clientdata(i2c);
 	struct pa1_acodec_platform_data *pdata = pa1_acodec->pdata;
 
-	if (pdata->reset_pin)
+	if (gpio_is_valid(pdata->reset_pin))
 		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
 }
 

@@ -474,7 +474,7 @@ static int reset_tas5782m_GPIO(struct snd_soc_component *component)
 	struct tas57xx_platform_data *pdata = tas5782m->pdata;
 	int ret = 0;
 
-	if (pdata->reset_pin < 0)
+	if (!gpio_is_valid(pdata->reset_pin))
 		return 0;
 
 	ret = devm_gpio_request_one(component->dev, pdata->reset_pin,
@@ -777,7 +777,7 @@ static int tas5782m_parse_dts(struct tas5782m_priv *tas5782m,
 	int reset_pin = -1;
 
 	reset_pin = of_get_named_gpio(np, "reset_pin", 0);
-	if (reset_pin < 0) {
+	if (!gpio_is_valid(reset_pin)) {
 		pr_err("%s fail to get reset pin from dts!\n", __func__);
 		ret = -1;
 	} else {

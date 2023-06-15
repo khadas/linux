@@ -296,7 +296,7 @@ static int ad82587d_GPIO_enable(struct snd_soc_component *component, bool enable
 	struct ad82587d_priv *ad82587d = snd_soc_component_get_drvdata(component);
 	struct ad82587d_platform_data *pdata = ad82587d->pdata;
 
-	if (pdata->reset_pin < 0)
+	if (!gpio_is_valid(pdata->reset_pin))
 		return 0;
 
 	if (enable) {
@@ -393,7 +393,7 @@ static int ad82587d_probe(struct snd_soc_component *component)
 	register_early_suspend(&ad82587d->early_suspend);
 #endif
 
-	if (pdata->reset_pin > 0) {
+	if (gpio_is_valid(pdata->reset_pin)) {
 		ret = devm_gpio_request_one(component->dev, pdata->reset_pin,
 						GPIOF_OUT_INIT_LOW,
 						"ad82587d-reset-pin");
@@ -506,7 +506,7 @@ static int ad82587d_parse_dt(struct ad82587d_priv *ad82587d,
 	int reset_pin = -1;
 
 	reset_pin = of_get_named_gpio(np, "reset_pin", 0);
-	if (reset_pin < 0) {
+	if (!gpio_is_valid(reset_pin)) {
 		pr_err("%s fail to get reset pin from dts!\n", __func__);
 		ret = -1;
 	} else {

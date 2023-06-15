@@ -324,7 +324,7 @@ static void ad82128_fault_check_work(struct work_struct *work)
 	 * the full sequence no matter the first return value to minimizes
 	 * chances for the device to end up in shutdown mode.
 	 */
-	if (ad82128->reset_pin > 0) {
+	if (gpio_is_valid(ad82128->reset_pin)) {
 		ret = gpio_request(ad82128->reset_pin, NULL); // request amp PD pin control GPIO
 		if (ret < 0)
 			dev_err(dev, "failed to request gpio: %d\n", ret);
@@ -509,7 +509,7 @@ static int ad82128_suspend(struct snd_soc_component *component)
 	if (ret < 0)
 		dev_err(component->dev, "failed to disable supplies: %d\n", ret);
 
-	if (ad82128->reset_pin >= 0) {
+	if (gpio_is_valid(ad82128->reset_pin)) {
 		gpio_direction_output(ad82128->reset_pin, 0);
 		msleep(20);
 	}
@@ -529,7 +529,7 @@ static int ad82128_resume(struct snd_soc_component *component)
 		return ret;
 	}
 
-	if (ad82128->reset_pin >= 0) {
+	if (gpio_is_valid(ad82128->reset_pin)) {
 		gpio_direction_output(ad82128->reset_pin, 0);
 		msleep(20);
 		gpio_direction_output(ad82128->reset_pin, 1);
@@ -706,7 +706,7 @@ static int ad82128_parse_dt(struct ad82128_data *ad82128,
 	int reset_pin = -1;
 
 	reset_pin = of_get_named_gpio(np, "reset_pin", 0);
-	if (reset_pin < 0) {
+	if (!gpio_is_valid(reset_pin)) {
 		ret = -1;
 		reset_pin = -1;
 	} else {
@@ -734,7 +734,7 @@ static int ad82128_probe(struct i2c_client *client,
 	data->ad82128_client = client;
 	data->devtype = id->driver_data;
 	ret = ad82128_parse_dt(data, client->dev.of_node);
-	if (data->reset_pin > 0) {
+	if (gpio_is_valid(data->reset_pin)) {
 		// request amp PD pin control GPIO
 		ret = gpio_request(data->reset_pin, NULL);
 		if (ret < 0)
@@ -789,7 +789,7 @@ static void ad82128_i2c_shutdown(struct i2c_client *client)
 	if (!data)
 		return;
 
-	if (data->reset_pin)
+	if (gpio_is_valid(data->reset_pin))
 		gpio_direction_output(data->reset_pin, GPIOF_OUT_INIT_LOW);
 }
 

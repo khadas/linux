@@ -1043,7 +1043,7 @@ static int reset_tas5805m_GPIO(struct device *dev)
 	struct tas5805m_platform_data *pdata = tas5805m->pdata;
 	int ret = 0;
 
-	if (pdata->reset_pin < 0)
+	if (!gpio_is_valid(pdata->reset_pin))
 		return 0;
 
 	ret = devm_gpio_request_one(dev, pdata->reset_pin,
@@ -1068,7 +1068,7 @@ static int tas5805m_snd_suspend(struct snd_soc_component *component)
 	dev_info(component->dev, "tas5805m_suspend!\n");
 	tas5805m_set_bias_level(component, SND_SOC_BIAS_OFF);
 
-	if (pdata->reset_pin)
+	if (gpio_is_valid(pdata->reset_pin))
 		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
 	usleep_range(9, 15);
 	return 0;
@@ -1097,7 +1097,7 @@ static int tas5805m_snd_resume(struct snd_soc_component *component)
 	struct tas5805m_platform_data *pdata = tas5805m->pdata;
 
 	dev_info(component->dev, "%s!\n", __func__);
-	if (pdata->reset_pin)
+	if (gpio_is_valid(pdata->reset_pin))
 		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_HIGH);
 
 	usleep_range(3 * 1000, 4 * 1000);
@@ -1144,7 +1144,7 @@ static void tas5805m_remove(struct snd_soc_component *component)
 	struct tas5805m_priv *tas5805m = snd_soc_component_get_drvdata(component);
 	struct tas5805m_platform_data *pdata = tas5805m->pdata;
 
-	if (pdata->reset_pin)
+	if (gpio_is_valid(pdata->reset_pin))
 		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
 
 	usleep_range(9, 15);
@@ -1182,7 +1182,7 @@ static int tas5805m_parse_dt(struct tas5805m_priv *tas5805m,
 	int reset_pin = -1;
 
 	reset_pin = of_get_named_gpio(np, "reset_pin", 0);
-	if (reset_pin < 0) {
+	if (gpio_is_valid(reset_pin)) {
 		pr_err("%s fail to get reset pin from dts!\n", __func__);
 		ret = -1;
 	} else {
@@ -1263,7 +1263,7 @@ static void tas5805m_i2c_shutdown(struct i2c_client *i2c)
 	struct tas5805m_priv *tas5805m = i2c_get_clientdata(i2c);
 	struct tas5805m_platform_data *pdata = tas5805m->pdata;
 
-	if (pdata->reset_pin)
+	if (gpio_is_valid(pdata->reset_pin))
 		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
 }
 
