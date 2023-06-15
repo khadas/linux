@@ -1203,6 +1203,16 @@ static const union afbc_blk_s cafbc_cfg_sgn[] = {
 		.b.enc_nr		= 0,
 		.b.enc_wr		= 0,
 	},
+	[AFBC_SGN_I] = {
+		.b.inp		= 0,
+		.b.mem		= 1,
+		.b.chan2		= 1,
+		.b.if0		= 1,
+		.b.if1		= 1,
+		.b.if2		= 1,
+		.b.enc_nr		= 1,
+		.b.enc_wr		= 1,
+	},
 	[AFBC_SGN_I_H265] = {
 		.b.inp		= 1,
 		.b.mem		= 1,
@@ -1213,15 +1223,15 @@ static const union afbc_blk_s cafbc_cfg_sgn[] = {
 		.b.enc_nr		= 1,
 		.b.enc_wr		= 1,
 	},
-	[AFBC_SGN_I] = {
-		.b.inp		= 0,
-		.b.mem		= 1,
-		.b.chan2		= 1,
-		.b.if0		= 1,
-		.b.if1		= 1,
-		.b.if2		= 1,
-		.b.enc_nr		= 1,
-		.b.enc_wr		= 1,
+	[AFBC_SGN_I_H265_SINP] = {
+		.b.inp		= 1,
+		.b.mem		= 0,
+		.b.chan2		= 0,
+		.b.if0		= 0,
+		.b.if1		= 0,
+		.b.if2		= 0,
+		.b.enc_nr		= 0,
+		.b.enc_wr		= 0,
 	}
 };
 
@@ -1232,7 +1242,7 @@ static void afbc_sgn_mode_set(unsigned int sgn_mode)
 
 	pafd_ctr = &di_afdp->ctr;
 
-	if (sgn_mode <= AFBC_SGN_I_H265) {
+	if (sgn_mode <= AFBC_SGN_I_H265_SINP) {
 		memcpy(&pafd_ctr->en_sgn,
 		       &cafbc_cfg_sgn[sgn_mode], sizeof(pafd_ctr->en_sgn));
 	} else {
@@ -1270,7 +1280,7 @@ static unsigned char afbc_cnt_sgn_mode(unsigned int sgn)
 //	struct afbcd_ctr_s *pafd_ctr;
 	unsigned char sgn_mode;
 
-	if (sgn <= AFBC_SGN_I_H265) {
+	if (sgn <= AFBC_SGN_I_H265_SINP) {
 		//memcpy(&sgn_mode, &cafbc_cfg_sgn[sgn], sizeof(sgn_mode));
 		sgn_mode = cafbc_cfg_sgn[sgn].d8;
 	} else {
@@ -1851,6 +1861,8 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 		 vf->compBodyAddr);
 	vfw = vf->width;
 	vfh = vf->height;
+	if (IS_FIELD_I_SRC(vf->type))
+		vfh = (vfh + 1) >> 1;
 	dbg_copy("afbcdin:0x%px, pulldown[%d]\n", vf, vf->di_pulldown);
 
 	/* reset inp afbcd */
@@ -1976,7 +1988,7 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 		r |= (1 << 29);
 
 	out_height = h_aligned;
-	if (!(vf->type & VIDTYPE_VIU_422)) {
+	if (!(vf->type & VIDTYPE_VIU_422) && !(vf->type & VIDTYPE_VIU_FIELD)) {
 		/*from dec, process P as i*/
 		if ((vf->type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP) {
 			r |= 0x40;
@@ -1992,7 +2004,7 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 		}
 	}
 
-	if (IS_420P_SRC(vf->type)) {
+	if ((vf->type & (VIDTYPE_VIU_422 | VIDTYPE_VIU_444)) == 0) {
 		cvfmt_en = 1;
 		vt_ini_phase = 0xc;
 		cvfm_h = out_height >> 1;
@@ -2269,7 +2281,8 @@ static void afbc_update_level2_inp(struct afbcd_ctr_s *pctr)
 	old_mode = reg_rd(reg[EAFBC_MODE]);
 	old_cfmt_ctrl = reg_rd(reg[EAFBC_VD_CFMT_CTRL]);
 	old_mode &= (~(0x03 << 6));
-	if (!(pctr->l_vtype & VIDTYPE_VIU_422)) {
+	if (!(pctr->l_vtype & VIDTYPE_VIU_422) &&
+	    !(pctr->l_vtype & VIDTYPE_VIU_FIELD)) {
 		/*from dec, process P as i*/
 		if ((pctr->l_vtype & VIDTYPE_TYPEMASK) ==
 		    VIDTYPE_INTERLACE_TOP) {

@@ -6713,8 +6713,13 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 					dim_afds()->sgn_mode_set(&di_buf->afbc_sgn_cfg,
 								 EAFBC_SNG_CLR_WR);
 			} else {
-				di_buf->afbc_sgn_cfg =
-					dim_afds()->cnt_sgn_mode(AFBC_SGN_BYPSS);
+				if (IS_COMP_MODE(ppre->di_inp_buf->vframe->type)) {
+					di_buf->afbc_sgn_cfg =
+						dim_afds()->cnt_sgn_mode(AFBC_SGN_I_H265_SINP);
+				} else {
+					di_buf->afbc_sgn_cfg =
+						dim_afds()->cnt_sgn_mode(AFBC_SGN_BYPSS);
+				}
 				if (cfggch(pch, IOUT_FMT) == 3)
 					dim_afds()->sgn_mode_set(&di_buf->afbc_sgn_cfg,
 								 EAFBC_SNG_SET_WR);

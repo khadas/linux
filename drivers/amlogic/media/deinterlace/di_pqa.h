@@ -483,6 +483,7 @@ enum AFBC_SGN {
 	AFBC_SGN_H265_SINP,
 	AFBC_SGN_I,
 	AFBC_SGN_I_H265,
+	AFBC_SGN_I_H265_SINP,
 };
 
 struct afdv1_ops_s {
