@@ -11,6 +11,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/amlogic/media/vout/lcd/ldim_fw.h>
+#include <uapi/linux/amlogic/ldim.h>
 
 /*20200215: init version */
 /*20210201: fix compiler mistake */

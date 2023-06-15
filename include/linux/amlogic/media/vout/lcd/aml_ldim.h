@@ -24,42 +24,6 @@
 #define LD_DATA_MIN     10
 #define LD_DATA_MAX     0xfff
 
-/* **********************************
- * IOCTL define
- * **********************************
- */
-#define _VE_LDIM  'C'
-#define AML_LDIM_IOC_NR_GET_PQ_INIT	0x04
-#define AML_LDIM_IOC_NR_SET_PQ_INIT	0x05
-#define AML_LDIM_IOC_NR_GET_LEVEL_IDX	0x06
-#define AML_LDIM_IOC_NR_SET_LEVEL_IDX	0x07
-#define AML_LDIM_IOC_NR_GET_FUNC_EN	0x08
-#define AML_LDIM_IOC_NR_SET_FUNC_EN	0x09
-#define AML_LDIM_IOC_NR_GET_REMAP_EN	0x0A
-#define AML_LDIM_IOC_NR_SET_REMAP_EN	0x0B
-#define AML_LDIM_IOC_NR_GET_BL_MATRIX	0x0C
-#define AML_LDIM_IOC_NR_SET_BL_MATRIX	0x0D
-#define AML_LDIM_IOC_NR_GET_DEMOMODE	0x0E
-#define AML_LDIM_IOC_NR_SET_DEMOMODE	0x0F
-
-#define AML_LDIM_IOC_NR_GET_INFO_NEW	0x53
-#define AML_LDIM_IOC_NR_SET_INFO_NEW	0x54
-
-#define AML_LDIM_IOC_NR_GET_BL_MAPPING_PATH	0x55
-#define AML_LDIM_IOC_NR_SET_BL_MAPPING	0x56
-
-#define AML_LDIM_IOC_NR_GET_BL_PROFILE_PATH	0x57
-#define AML_LDIM_IOC_NR_SET_BL_PROFILE	0x58
-
-struct aml_ldim_bin_s {
-	unsigned int index;
-	unsigned int len;
-	union {
-	void *ptr;
-	long long ptr_length;
-	};
-};
-
 enum ldim_dev_type_e {
 	LDIM_DEV_TYPE_NORMAL = 0,
 	LDIM_DEV_TYPE_SPI,
