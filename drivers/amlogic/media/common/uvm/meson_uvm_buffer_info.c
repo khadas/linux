@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/media/vfm/vframe.h>
+#include <linux/amlogic/media/video_sink/v4lvideo_ext.h>
 
 #include "meson_uvm_buffer_info.h"
 
@@ -92,6 +93,45 @@ static enum uvm_video_type get_resolution_vframe(const struct vframe_s *vfp)
 	return AM_VIDEO_NORMAL;
 }
 
+static struct vframe_s *get_vf_from_dma(struct dma_buf *dma_buf)
+{
+	bool is_dec_vf = false;
+	bool is_v4l_vf = false;
+	struct vframe_s *p_vf = NULL;
+	struct uvm_hook_mod *uhmod = NULL;
+	struct file_private_data *file_private_data = NULL;
+
+	is_dec_vf = is_valid_mod_type(dma_buf, VF_SRC_DECODER);
+	is_v4l_vf = is_valid_mod_type(dma_buf, VF_PROCESS_V4LVIDEO);
+
+	if (is_dec_vf) {
+		p_vf = dmabuf_get_vframe(dma_buf);
+		if (!p_vf)
+			MUBI_PRINTK(1, "%s, get vframe for decoder fail\n", __func__);
+
+		dmabuf_put_vframe(dma_buf);
+	} else if (is_v4l_vf) {
+		uhmod = uvm_get_hook_mod(dma_buf, VF_PROCESS_V4LVIDEO);
+		if (IS_ERR_OR_NULL(uhmod) || !uhmod->arg) {
+			MUBI_PRINTK(1, "%s, dma file file_private_data is NULL\n", __func__);
+			goto exit_ret;
+		}
+
+		file_private_data = uhmod->arg;
+		uvm_put_hook_mod(dma_buf, VF_PROCESS_V4LVIDEO);
+
+		if (!file_private_data)
+			MUBI_PRINTK(1, "%s, invalid buffer fd, cannot found dma file", __func__);
+		else
+			p_vf = &file_private_data->vf;
+	} else {
+		MUBI_PRINTK(1, "%s, buffer is not UVM, not V4lvideo", __func__);
+	}
+
+exit_ret:
+	return p_vf;
+}
+
 int get_uvm_video_type(const int fd)
 {
 	struct dma_buf *dmabuf;
@@ -111,7 +151,7 @@ int get_uvm_video_type(const int fd)
 		return -EINVAL;
 	}
 
-	vfp = dmabuf_get_vframe(dmabuf);
+	vfp = get_vf_from_dma(dmabuf);
 	if (IS_ERR_OR_NULL(vfp)) {
 		MUBI_PRINTK(1, "%s, vframe is null.\n", __func__);
 		ret = -EINVAL;
@@ -139,7 +179,6 @@ int get_uvm_video_type(const int fd)
 	type |= get_resolution_vframe(vfp);
 
 exit_ret:
-	dmabuf_put_vframe(dmabuf);
 	dma_buf_put(dmabuf);
 
 	if (ret < 0)
