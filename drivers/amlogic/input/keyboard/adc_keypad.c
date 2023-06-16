@@ -513,6 +513,7 @@ static int meson_adc_kp_probe(struct platform_device *pdev)
 	meson_adc_kp_init_keybit(kp);
 
 	input->name = "adc_keypad";
+	input->uniq = "adc_keypad";
 	input->phys = "adc_keypad/input0";
 	input->dev.parent = &pdev->dev;
 

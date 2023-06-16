@@ -696,6 +696,7 @@ static void meson_ir_input_device_init(struct input_dev *dev,
 				       struct device *parent, const char *name)
 {
 	dev->name = name;
+	dev->uniq = name;
 	dev->phys = "keypad/input0";
 	dev->dev.parent = parent;
 	dev->id.bustype = BUS_ISA;
