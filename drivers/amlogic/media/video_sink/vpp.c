@@ -711,6 +711,9 @@ static unsigned int force_vskip_cnt;
 MODULE_PARM_DESC(force_vskip_cnt, "force_vskip_cnt");
 module_param(force_vskip_cnt, uint, 0664);
 
+/* bit0: disable adaptive ar; bit1: disable adaptive crop alignment for pre-link */
+#define DISABLE_ADAPTIVE_AR 1
+#define DISABLE_ADAPTIVE_ALIGN 2
 static unsigned int disable_adapted;
 MODULE_PARM_DESC(disable_adapted, "disable_adapted");
 module_param(disable_adapted, uint, 0664);
@@ -2019,16 +2022,33 @@ RESTART:
 	next_frame_par->VPP_pic_in_height_ =
 		next_frame_par->VPP_pic_in_height_ /
 		(next_frame_par->vscale_skip_count + 1);
-	/* DI POST link, need make pps input size is even */
-	if ((next_frame_par->VPP_pic_in_height_ & 1) &&
-	    IS_DI_POST(vf->type)) {
-		next_frame_par->VPP_pic_in_height_ &= ~1;
-		next_frame_par->VPP_vd_end_lines_ =
-			next_frame_par->VPP_pic_in_height_ *
-			(next_frame_par->vscale_skip_count + 1) +
-			next_frame_par->VPP_vd_start_lines_;
-		if (next_frame_par->VPP_vd_end_lines_ > 0)
-			next_frame_par->VPP_vd_end_lines_--;
+
+	if (!(disable_adapted & DISABLE_ADAPTIVE_ALIGN)) {
+		if (!next_frame_par->vscale_skip_count &&
+		    IS_DI_PRELINK(vf->di_flag)) {
+			if (next_frame_par->VPP_vd_start_lines_ & 1)
+				next_frame_par->VPP_vd_start_lines_--;
+			if (next_frame_par->VPP_pic_in_height_ & 1) {
+				if (next_frame_par->VPP_pic_in_height_ < height_in)
+					next_frame_par->VPP_pic_in_height_++;
+				else
+					next_frame_par->VPP_pic_in_height_--;
+			}
+			next_frame_par->VPP_vd_end_lines_ =
+				next_frame_par->VPP_pic_in_height_ +
+				next_frame_par->VPP_vd_start_lines_ - 1;
+			/* TODO: re-calculate ratio y if VPP_pic_in_height_-- */
+		} else if ((next_frame_par->VPP_pic_in_height_ & 1) &&
+		    IS_DI_POST(vf->type)) {
+			/* DI POST link, need make pps input size is even */
+			next_frame_par->VPP_pic_in_height_ &= ~1;
+			next_frame_par->VPP_vd_end_lines_ =
+				next_frame_par->VPP_pic_in_height_ *
+				(next_frame_par->vscale_skip_count + 1) +
+				next_frame_par->VPP_vd_start_lines_;
+			if (next_frame_par->VPP_vd_end_lines_ > 0)
+				next_frame_par->VPP_vd_end_lines_--;
+		}
 	}
 	/*
 	 *find overlapped region between
@@ -2157,6 +2177,25 @@ RESTART:
 	next_frame_par->VPP_line_in_length_ =
 		next_frame_par->VPP_hd_end_lines_ -
 		next_frame_par->VPP_hd_start_lines_ + 1;
+
+	if (!(disable_adapted & DISABLE_ADAPTIVE_ALIGN)) {
+		if (!next_frame_par->hscale_skip_count &&
+		    IS_DI_PRELINK(vf->di_flag)) {
+			if (next_frame_par->VPP_hd_start_lines_ & 1)
+				next_frame_par->VPP_hd_start_lines_--;
+			if (next_frame_par->VPP_line_in_length_ & 1) {
+				if (next_frame_par->VPP_line_in_length_ < width_in)
+					next_frame_par->VPP_line_in_length_++;
+				else
+					next_frame_par->VPP_line_in_length_--;
+			}
+			next_frame_par->VPP_hd_end_lines_ =
+				next_frame_par->VPP_line_in_length_ +
+				next_frame_par->VPP_hd_start_lines_ - 1;
+			/* TODO: re-calculate ratio x if VPP_line_in_length_-- */
+		}
+	}
+
 	/*
 	 *find overlapped region between
 	 * [start, end], [0, width_out-1],
@@ -4940,7 +4979,7 @@ RERTY:
 		vpp_flags |= VPP_FLAG_VSCALE_DISABLE;
 
 	if ((vf->ratio_control & DISP_RATIO_ADAPTED_PICMODE) &&
-	    !disable_adapted) {
+	    !(disable_adapted & DISABLE_ADAPTIVE_AR)) {
 		if (vf->pic_mode.screen_mode != 0xff)
 			wide_mode = vf->pic_mode.screen_mode;
 		if (vf->pic_mode.AFD_enable &&
@@ -4962,7 +5001,7 @@ RERTY:
 	if (!local_input.pps_support)
 		wide_mode = VIDEO_WIDEOPTION_NORMAL;
 
-	if (local_input.afd_enable && !disable_adapted) {
+	if (local_input.afd_enable && !(disable_adapted & DISABLE_ADAPTIVE_AR)) {
 		wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
 		local_input.crop_top = local_input.afd_crop.top;
 		local_input.crop_left = local_input.afd_crop.left;
