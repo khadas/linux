@@ -1183,13 +1183,17 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		console_unlock();
 		break;
 	default:
-		lock_fb_info(info);
+		if (!(cmd == FBIO_WAITFORVSYNC ||
+		cmd == FBIO_WAITFORVSYNC_64))
+			lock_fb_info(info);
 		fb = info->fbops;
 		if (fb->fb_ioctl)
 			ret = fb->fb_ioctl(info, cmd, arg);
 		else
 			ret = -ENOTTY;
-		unlock_fb_info(info);
+		if (!(cmd == FBIO_WAITFORVSYNC ||
+		cmd == FBIO_WAITFORVSYNC_64))
+			unlock_fb_info(info);
 	}
 	return ret;
 }
