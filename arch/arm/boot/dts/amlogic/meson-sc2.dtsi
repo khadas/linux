@@ -1606,7 +1606,7 @@
 		status = "okay";
 		reg = <0xfe0360C0 0x100
 		       0xfe036c00 0x100>;
-		interrupts = <0 62 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <0 62 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "ddr_bandwidth";
 	};
 	dmc_monitor {
@@ -1614,7 +1614,7 @@
 		status = "okay";
 		reg = <0xfe036000 0x100>;
 		reg_base = <0xfe036000>;
-		interrupts = <0 62 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <0 62 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	amhdmitx: amhdmitx{

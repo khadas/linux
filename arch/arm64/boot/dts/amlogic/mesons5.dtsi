@@ -2358,10 +2358,10 @@
 		       0 0xfe032000 0 0x200
 		       0 0xfe030000 0 0x200>;
 		reg_base = <0xfe036000>;
-		interrupts = <0 333 IRQ_TYPE_EDGE_RISING
-			      0 337 IRQ_TYPE_EDGE_RISING
-			      0 341 IRQ_TYPE_EDGE_RISING
-			      0 55 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <0 333 IRQ_TYPE_LEVEL_HIGH
+			      0 337 IRQ_TYPE_LEVEL_HIGH
+			      0 341 IRQ_TYPE_LEVEL_HIGH
+			      0 55 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	amhdmitx: amhdmitx{

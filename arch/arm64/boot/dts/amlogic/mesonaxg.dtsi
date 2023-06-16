@@ -1148,7 +1148,7 @@
 		compatible = "amlogic,dmc_monitor-axg";
 		status = "okay";
 		reg_base = <0xff638800>;
-		interrupts = <0 51 1>;
+		interrupts = <0 51 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	cpu_ver_name{
