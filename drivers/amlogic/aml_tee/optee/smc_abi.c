@@ -1401,11 +1401,13 @@ static int optee_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	// disable dynamic share memory
+	sec_caps &= ~(OPTEE_SMC_SEC_CAP_DYNAMIC_SHM);
+
 	/*
 	 * Try to use dynamic shared memory if possible
 	 */
-	if (0) {//(sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM) {
-	//if (sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM) {
+	if (sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM) {
 		/*
 		 * If we have OPTEE_SMC_SEC_CAP_RPC_ARG we can ask
 		 * optee_get_msg_arg() to pre-register (by having
