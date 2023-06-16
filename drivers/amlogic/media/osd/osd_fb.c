@@ -1776,6 +1776,11 @@ static ssize_t osd_read(struct fb_info *info, char __user *buf,
 			src = (u8 __iomem *)(vaddr);
 		} else {
 			/* in same page just get vaddr + p*/
+			if (!vaddr) {
+				pr_err("the phy(%lx) vmaped fail, size: %d\n",
+					phys, npages << PAGE_SHIFT);
+				return -ENOMEM;
+			}
 			src = (u8 __iomem *)(vaddr + (p & ~PAGE_MASK));
 		}
 	} else {
@@ -1911,6 +1916,11 @@ static ssize_t osd_write(struct fb_info *info,
 			dst = (u8 __iomem *)(vaddr);
 		} else {
 			/* in same page just get vaddr + p*/
+			if (!vaddr) {
+				pr_err("the phy(%lx) vmaped fail, size: %d\n",
+					phys, npages << PAGE_SHIFT);
+				return -ENOMEM;
+			}
 			dst = (u8 __iomem *)(vaddr + (p & ~PAGE_MASK));
 		}
 	} else {
