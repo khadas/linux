@@ -683,6 +683,7 @@ static long dmabuf_manage_set_filterfd(unsigned long args)
 		} else {
 			pr_error("Invalid filter fd\n");
 		}
+		fdput(f);
 #endif
 		node->demux = demux;
 		node->decode_info_func = decode_info_func;

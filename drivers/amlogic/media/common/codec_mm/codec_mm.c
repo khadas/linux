@@ -2176,9 +2176,9 @@ static int dump_free_mem_infos(void *buf, int size)
 
 static void codec_mm_tvp_segment_init(void)
 {
-	int size = 0;
-	int segment_size = 0;
-	int rest_size = 0;
+	u32 size = 0;
+	u32 segment_size = 0;
+	u32 rest_size = 0;
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 
 	/*2M for audio not protect.*/
@@ -2218,15 +2218,15 @@ static void codec_mm_tvp_segment_init(void)
 		default_tvp_pool_segment_size[0] =
 			default_tvp_pool_size_0;
 	} else {
-		default_tvp_pool_segment_size[0] =
-			default_tvp_size * 4 / 12;
+		segment_size = default_tvp_size / 3;
+		default_tvp_pool_segment_size[0] = segment_size;
 	}
 	size = default_tvp_pool_segment_size[0];
 	if (default_tvp_pool_size_1 >= DEFAULT_TVP_SEGMENT_MIN_SIZE) {
 		default_tvp_pool_segment_size[1] =
 			default_tvp_pool_size_1;
 	} else {
-		segment_size = default_tvp_size * 3 / 12;
+		segment_size = default_tvp_size / 4;
 		rest_size = default_tvp_size - size;
 		default_tvp_pool_segment_size[1] =
 			(rest_size > segment_size) ? segment_size : rest_size;
@@ -2236,7 +2236,7 @@ static void codec_mm_tvp_segment_init(void)
 		default_tvp_pool_segment_size[2] =
 			default_tvp_pool_size_2;
 	} else {
-		segment_size = default_tvp_size * 3 / 12;
+		segment_size = default_tvp_size / 4;
 		rest_size = default_tvp_size - size;
 		default_tvp_pool_segment_size[2] =
 			(rest_size > segment_size) ? segment_size : rest_size;
