@@ -307,23 +307,26 @@ void ldim_vs_arithmetic(struct aml_ldim_driver_s *ldim_drv)
 
 	size = ldim_drv->conf->seg_row * ldim_drv->conf->seg_col;
 
+	if (fw->fw_alg_frm)
+		fw->fw_alg_frm(fw);
 	/*fw_sel: 0:hw, 1:aml sw, 2: aml sw + cus sw*/
 	if (fw->fw_sel == 0) {
-		fw->fw_rmem_duty_get(fw);
+		if (fw->fw_rmem_duty_get)
+			fw->fw_rmem_duty_get(fw);
 		memcpy(ldim_drv->local_bl_matrix, fw->bl_matrix,
 		       size * (sizeof(unsigned int)));
 	} else {
-		fw->fw_alg_frm(fw);
 		if (fw->fw_sel == 1) {
 			memcpy(ldim_drv->local_bl_matrix, fw->bl_matrix,
 		       size * (sizeof(unsigned int)));
 		} else {
-			memcpy(cus_fw->bl_matrix, fw->bl_matrix,
-		       size * (sizeof(unsigned int)));
-			cus_fw->fw_alg_frm(cus_fw, fw->stts);
-			fw->fw_rmem_duty_set(cus_fw->bl_matrix);
+			memcpy(cus_fw->bl_matrix, fw->bl_matrix, size * (sizeof(unsigned int)));
+			if (cus_fw->fw_alg_frm)
+				cus_fw->fw_alg_frm(cus_fw, fw->stts);
+			if (fw->fw_rmem_duty_set)
+				fw->fw_rmem_duty_set(cus_fw->bl_matrix);
 			memcpy(ldim_drv->local_bl_matrix, cus_fw->bl_matrix,
-		       size * (sizeof(unsigned int)));
+			size * (sizeof(unsigned int)));
 		}
 	}
 }
