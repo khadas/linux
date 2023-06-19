@@ -338,6 +338,8 @@ ssize_t tso_source_store(struct class *class,
 		tso_src = 2;
 	else if (!strncmp("ts3", buf, 3))
 		tso_src = 3;
+	else if (!strncmp("close", buf, 5))
+		tso_src = 0xff;
 
 	tso_set(tso_src);
 
