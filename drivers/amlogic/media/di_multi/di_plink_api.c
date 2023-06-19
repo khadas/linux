@@ -6316,6 +6316,7 @@ static void dpvpph_enable_di_pre_aml(const struct reg_acc *op_in,
 //	unsigned int madi_en = 0;	//use FIX_MADI_EN
 	unsigned int pre_field_num = 1;
 //	unsigned int tmpk;
+	u32 val;
 
 	if (!pw_en || dim_is_pre_link_l())
 		pre_link_en = 1;
@@ -6416,6 +6417,11 @@ static void dpvpph_enable_di_pre_aml(const struct reg_acc *op_in,
 					    /* contrd en */
 					    ((mem_bypass ? 1 : 0) << 28)   |
 					    pre_field_num << 29);
+				val = op_in->rd(DI_TOP_PRE_CTRL);
+				val &= ~(0xff << 12);
+				if (mem_bypass)
+					val |= (0x81 << 12);
+				op_in->wr(DI_TOP_PRE_CTRL, val);
 				dim_print("%s:b:%d\n", __func__, pre_field_num);
 			} else {
 				op_in->wr(DI_PRE_CTRL,
@@ -9173,7 +9179,7 @@ static void dim_reg_buf_i(void)
 		memcpy(&d_dd->afbc_i[i], afbc_cfg, sizeof(d_dd->afbc_i[i]));
 	}
 	/* count dct */
-	d_dd->dct_i.nub = DIM_P_LINK_DCT_NUB;
+	d_dd->dct_i.nub = cfgg(POST_NUB) + 1;//DIM_P_LINK_DCT_NUB;
 	d_dd->dct_i.size_one = cnt_dct_buf_size(&d_dd->dct_i);
 	d_dd->dct_i.size_total = d_dd->dct_i.size_one * d_dd->dct_i.nub;
 	/* count buffer base */

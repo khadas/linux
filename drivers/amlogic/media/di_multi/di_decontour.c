@@ -940,7 +940,7 @@ static void dct_pre_plink_init(struct di_ch_s *pch)
 	memset(pdct, 0, sizeof(*pdct));
 	//pdct->i_do_decontour = true;
 
-	pdct->buf_nub = DIM_P_LINK_DCT_NUB;//DCNTR_PRE_POOL_SIZE;
+	pdct->buf_nub = cfgg(POST_NUB) + 1;//DIM_P_LINK_DCT_NUB
 	if (pdct->buf_nub > DCNTR_PRE_POOL_SIZE) {
 		PR_WARN("%s:over size(%d > %d)\n",
 			__func__, pdct->buf_nub, DCNTR_PRE_POOL_SIZE);
