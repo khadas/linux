@@ -584,6 +584,7 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			ldim_drv->fw->flag,
 			ldim_drv->irq_cnt,
 			ldim_drv->duty_update_flag);
+		aml_ldim_rmem_info();
 	} else if (!strcmp(parm[0], "print")) {
 		if (parm[1]) {
 			if (kstrtoul(parm[1], 10, &val1) < 0)

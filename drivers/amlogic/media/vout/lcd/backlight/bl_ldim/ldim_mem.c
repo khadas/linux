@@ -214,69 +214,6 @@ lcd_ldc_axi_rmem_write_end:
 	LDIMERR("buf mapping failed: 0x%lx\n", mem_paddr);
 }
 
-void ldc_mem_write_profile(unsigned char *buf, unsigned long mem_paddr, unsigned int size)
-{
-	unsigned int span = 0, remain = 0, count = 0;
-	unsigned long phys;
-	void *vaddr = NULL;
-	unsigned int highmem_flag = 0;
-	unsigned char *p;
-	int i;
-
-	if (!buf)
-		return;
-
-	highmem_flag = PageHighMem(phys_to_page(mem_paddr));
-	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
-		LDIMPR("%s: highmem_flag: %d\n", __func__, highmem_flag);
-	if (highmem_flag == 0) {
-		vaddr = phys_to_virt(mem_paddr);
-		if (!vaddr)
-			goto lcd_ldc_axi_rmem_write_end1;
-		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
-			LDIMPR("%s: directly write: paddr=0x%lx, vaddr=0x%px, size: 0x%x\n",
-		       __func__, mem_paddr, vaddr, size);
-		memcpy(vaddr, buf, size);
-	} else {
-		span = SZ_1M;
-		count = size / PAGE_ALIGN(span);
-		remain = size % PAGE_ALIGN(span);
-
-		for (i = 0; i < count; i++) {
-			phys = mem_paddr + i * span;
-			vaddr = lcd_vmap(phys, span);
-			if (!vaddr)
-				goto lcd_ldc_axi_rmem_write_end1;
-			if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
-				LDIMPR("%s: write: paddr=0x%lx, vaddr=0x%px, size: 0x%x\n",
-			       __func__, phys, vaddr, span);
-			p = buf + i * span;
-			memcpy(vaddr, p, span);
-			lcd_unmap_phyaddr(vaddr);
-		}
-		if (remain) {
-			phys = mem_paddr + count * span;
-			vaddr = lcd_vmap(phys, remain);
-			if (!vaddr)
-				goto lcd_ldc_axi_rmem_write_end1;
-			if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
-				LDIMPR("%s: write: paddr=0x%lx, vaddr=0x%px, size: 0x%x\n",
-			       __func__, phys, vaddr, remain);
-			p = buf + count * span;
-			memcpy(vaddr, p, remain);
-			lcd_unmap_phyaddr(vaddr);
-		}
-	}
-
-	LDIMPR("write buf finished\n");
-	return;
-
-lcd_ldc_axi_rmem_write_end1:
-	LDIMERR("%s buf mapping failed: 0x%lx\n", __func__, mem_paddr);
-}
-EXPORT_SYMBOL(ldc_mem_write_profile);
-
-
 void ldc_mem_clear(unsigned long mem_paddr, unsigned int mem_size)
 {
 	unsigned int span = 0, remain = 0, count = 0;
