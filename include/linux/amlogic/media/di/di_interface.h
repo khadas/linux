@@ -259,6 +259,7 @@ struct pvpp_dis_para_in_s {
 	enum EPVPP_DISPLAY_MODE dmode;
 	bool unreg_bypass; //for unreg bypass: set 1; other, set 0;
 	struct di_win_s win;
+	unsigned int follow_hold_line;
 };
 
 /************************************************

@@ -924,6 +924,8 @@ static void dct_pre_plink_init(struct di_ch_s *pch)
 		pdct = pch->dct_pre_alloc;
 	}
 
+	memset(pdct, 0, sizeof(*pdct));
+
 	if (!dpvpp_dct_mem_reg(pch)) {
 		dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_MEM);
 		vfree(pdct);
@@ -937,7 +939,7 @@ static void dct_pre_plink_init(struct di_ch_s *pch)
 	dct->src_cnt = cnt_ch;
 	dct->statusx[pch->ch_id] |= DCT_PRE_LS_CH;
 
-	memset(pdct, 0, sizeof(*pdct));
+	//memset(pdct, 0, sizeof(*pdct));
 	//pdct->i_do_decontour = true;
 
 	pdct->buf_nub = cfgg(POST_NUB) + 1;//DIM_P_LINK_DCT_NUB
@@ -952,7 +954,7 @@ static void dct_pre_plink_init(struct di_ch_s *pch)
 	dct->statusx[pch->ch_id] |= DCT_PRE_LS_MEM;
 
 	dbg_dctp("dctp:alloc success %lx\n",
-		 pdct->decontour_addr);
+			 pdct->decontour_addr);
 
 	for (i = 0; i < pdct->buf_nub; i++) {
 		memcpy(&pdct->dcntr_mem_info[i],
@@ -2063,13 +2065,13 @@ static bool dct_m_idle(void)
 		if (lch >= DI_CHANNEL_NUB)
 			lch -= DI_CHANNEL_NUB;
 		pch = get_chdata(lch);
-//#ifdef HIS_CODE
+#ifdef HIS_CODE
 		dbg_dctp("%s:i=%d,lch=%d:%d:%d:%d\n",
 			__func__, i, lch,
 			get_reg_flag(lch),
 			get_flag_trig_unreg(lch),
 			is_bypss2_complete(lch));
-//#endif
+#endif
 		if (get_reg_flag(lch)		&&
 		    !get_flag_trig_unreg(lch)	&&
 		    !is_bypss2_complete(lch)	&&

@@ -263,7 +263,8 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_SUB_V]  = {"sub_v",
 			/* 0:major;	*/
-			/* 1:sub */
+			/* 1:sub t3 + 1 t5w*/
+			/* 2:sub t3 + 2 t5m*/
 			EDI_CFG_SUB_V,
 			0,
 			K_DI_CFG_T_FLG_DTS},
@@ -913,6 +914,8 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
 	//0~7coef0,8~15coef1,16~23coef2,24~27haa,28~31blendmode
 	[edi_mp_tb_dump]  = {"edi_mp_tb_dump:uint:1",
 				edi_mp_tb_dump, 0},//1400
+	[edi_mp_prelink_hold_line]	= {"pre_hold_line:ushort:8",
+				edi_mp_prelink_hold_line, 8},
 	[EDI_MP_SUB_DI_E]  = {"di end-------",
 				EDI_MP_SUB_DI_E, 0},
 	/**************************************/

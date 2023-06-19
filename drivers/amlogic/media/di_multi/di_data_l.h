@@ -1072,6 +1072,7 @@ enum EDI_MP_UI_T {
 	edi_mp_shr_cfg,
 	edi_mp_blend_mode,
 	edi_mp_tb_dump,
+	edi_mp_prelink_hold_line,
 	EDI_MP_SUB_DI_E,
 	/**************************************/
 	EDI_MP_SUB_NR_B,

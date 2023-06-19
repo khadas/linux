@@ -740,7 +740,7 @@ EXPORT_SYMBOL(get_dv_vpu_mem_power_status);
 /*********************************************************/
 struct vframe_pic_mode_s gpic_info[MAX_VD_LAYERS];
 u32 reference_zorder = 128;
-static u32 vpp_hold_line = 8;
+u32 vpp_hold_line = 8;
 static unsigned int cur_vf_flag;
 static u32 vpp_ofifo_size = 0x1000;
 static u32 conv_lbuf_len[MAX_VD_LAYER] = {0x100, 0x100, 0x100};
@@ -9550,6 +9550,7 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 				memset(&di_in_p, 0, sizeof(struct pvpp_dis_para_in_s));
 				di_in_p.dmode = EPVPP_DISPLAY_MODE_BYPASS;
 				di_in_p.unreg_bypass = 0; /* 1? */
+				di_in_p.follow_hold_line = vpp_hold_line;
 				iret = pvpp_display(vf, &di_in_p, NULL);
 				if (layer->global_debug & DEBUG_FLAG_PRELINK)
 					pr_info("Disable/Bypass pre-link mode ret %d\n", iret);
@@ -9577,6 +9578,7 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 			memset(&di_in_p, 0, sizeof(struct pvpp_dis_para_in_s));
 			di_in_p.dmode = EPVPP_DISPLAY_MODE_BYPASS;
 			di_in_p.unreg_bypass = 1;
+			di_in_p.follow_hold_line = vpp_hold_line;
 			iret = pvpp_display(NULL, &di_in_p, NULL);
 			if (layer->global_debug & DEBUG_FLAG_PRELINK)
 				pr_info("%s: unreg_bypass pre-link mode ret %d\n",
@@ -9616,6 +9618,7 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 			memset(&di_in_p, 0, sizeof(struct pvpp_dis_para_in_s));
 			di_in_p.dmode = EPVPP_DISPLAY_MODE_BYPASS;
 			di_in_p.unreg_bypass = 0;
+			di_in_p.follow_hold_line = vpp_hold_line;
 			iret = pvpp_display(vf, &di_in_p, NULL);
 			if (iret >= 0) {
 				iret = pvpp_sw(false);
@@ -9653,6 +9656,7 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 					di_in_p.win.y_end - di_in_p.win.y_st + 1;
 				di_in_p.dmode = EPVPP_DISPLAY_MODE_NR;
 				di_in_p.unreg_bypass = 0;
+				di_in_p.follow_hold_line = vpp_hold_line;
 				iret = pvpp_display(vf, &di_in_p, NULL);
 				if (iret > 0) {
 					layer->pre_link_en = true;

@@ -6382,9 +6382,10 @@ static void dpvpph_enable_di_pre_aml(const struct reg_acc *op_in,
 #endif
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		//chan2_disable = true;
-
+		//opl1()->pre_gl_thd();
 		if (DIM_IS_IC_EF(SC2))
-			opl1()->pre_gl_thd();
+			op_in->bwr(DI_SC2_PRE_GL_THD,
+				dimp_get(edi_mp_prelink_hold_line), 16, 6);
 		else	/*from feijun's for pre-vpp link */
 			op_in->bwr(DI_PRE_GL_THD, 8, 16, 6);
 		if (dimp_get(edi_mp_pre_ctrl)) {
@@ -6472,7 +6473,7 @@ static void dpvpph_enable_di_pre_aml(const struct reg_acc *op_in,
 			    | (0 << 12)		/* pre viu link */
 			    | (pre_vdin_link << 13)
 			    | (pre_vdin_link << 14)	/* pre go line link */
-			    | (dimp_get(edi_mp_pre_hold_line) << 16)
+			    | (dimp_get(edi_mp_prelink_hold_line) << 16)
 			    /* pre hold line number */
 			    | (1 << 22)		/* MTN after NR. */
 			    | (FIX_MADI_EN << 25)	/* contrd en */
@@ -6698,7 +6699,7 @@ static void mif_cfg_v2(struct DI_MIF_S *di_mif,
 	di_mif->burst_size_y	= 3;
 	di_mif->burst_size_cb	= 1;
 	di_mif->burst_size_cr	= 1;
-	di_mif->hold_line = dimp_get(edi_mp_pre_hold_line);
+	di_mif->hold_line = dimp_get(edi_mp_prelink_hold_line);
 	di_mif->urgent	= dimp_get(edi_mp_pre_urgent);
 	di_mif->canvas_w = pvfm->vfs.canvas0_config[0].width;
 
@@ -8601,6 +8602,7 @@ int dim_pre_vpp_link_display(struct vframe_s *vfm,
 	dbg_plink3("%s:0x%px, 0x%px:\n", __func__, vfm, in_para);
 	/* dbg only */
 	if (in_para) {
+		dimp_set(edi_mp_prelink_hold_line, in_para->follow_hold_line);
 		if (last_x != in_para->win.x_end ||
 		    last_v != in_para->win.y_end) {
 			dbg_plink1("itf:disp:w<%d,%d><%d,%d>m%d\n",

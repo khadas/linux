@@ -870,6 +870,7 @@ extern u32 force_switch_vf_mode;
 extern u32 video_info_change_status;
 extern u32 reference_zorder;
 extern u32 pi_enable;
+extern u32 vpp_hold_line;
 
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 enum vd_path_e {
