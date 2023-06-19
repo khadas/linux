@@ -428,7 +428,7 @@ void lcd_rgb_pinmux_set(struct aml_lcd_drv_s *pdrv, int status)
 
 	pconf = &pdrv->config;
 	if (status) {
-		if (pconf->control.rgb_cfg.sync_valid || pconf->control.rgb_cfg.de_valid) {
+		if (pconf->control.rgb_cfg.sync_valid && pconf->control.rgb_cfg.de_valid) {
 			index = 2;
 		} else if (pconf->control.rgb_cfg.de_valid) {
 			index = 1;
@@ -2408,29 +2408,61 @@ void lcd_mlvds_config_set(struct aml_lcd_drv_s *pdrv)
 	/* pi_clk select */
 	channel_sel0 = pconf->control.mlvds_cfg.channel_sel0;
 	channel_sel1 = pconf->control.mlvds_cfg.channel_sel1;
-	/* mlvds channel:    //tx 12 channels
-	 *    0: clk_a
-	 *    1: d0_a
-	 *    2: d1_a
-	 *    3: d2_a
-	 *    4: d3_a
-	 *    5: d4_a
-	 *    6: clk_b
-	 *    7: d0_b
-	 *    8: d1_b
-	 *    9: d2_b
-	 *   10: d3_b
-	 *   11: d4_b
-	 */
-	for (i = 0; i < 8; i++) {
-		temp = (channel_sel0 >> (i * 4)) & 0xf;
-		if (temp == 0 || temp == 6)
-			pi_clk_sel |= (1 << i);
-	}
-	for (i = 0; i < 4; i++) {
-		temp = (channel_sel1 >> (i * 4)) & 0xf;
-		if (temp == 0 || temp == 6)
-			pi_clk_sel |= (1 << (i + 8));
+	switch (pdrv->data->chip_type) {
+	case LCD_CHIP_TL1:
+	case LCD_CHIP_TM2:
+		/* mlvds channel:    //tx 12 channels
+		 *    0: clk_a
+		 *    1: d0_a
+		 *    2: d1_a
+		 *    3: d2_a
+		 *    4: d3_a
+		 *    5: d4_a
+		 *    6: clk_b
+		 *    7: d0_b
+		 *    8: d1_b
+		 *    9: d2_b
+		 *   10: d3_b
+		 *   11: d4_b
+		 */
+		for (i = 0; i < 8; i++) {
+			temp = (channel_sel0 >> (i * 4)) & 0xf;
+			if (temp == 0 || temp == 6)
+				pi_clk_sel |= (1 << i);
+		}
+		for (i = 0; i < 4; i++) {
+			temp = (channel_sel1 >> (i * 4)) & 0xf;
+			if (temp == 0 || temp == 6)
+				pi_clk_sel |= (1 << (i + 8));
+		}
+		break;
+	case LCD_CHIP_T5:
+	case LCD_CHIP_T5D:
+	case LCD_CHIP_T3:
+	case LCD_CHIP_T5W:
+		/* mlvds channel:    //tx 8 channels
+		 *    0: d0_a
+		 *    1: d1_a
+		 *    2: d2_a
+		 *    3: clk_a
+		 *    4: d0_b
+		 *    5: d1_b
+		 *    6: d2_b
+		 *    7: clk_b
+		 */
+		for (i = 0; i < 8; i++) {
+			temp = (channel_sel0 >> (i * 4)) & 0xf;
+			if (temp == 3 || temp == 7)
+				pi_clk_sel |= (1 << i);
+		}
+		for (i = 0; i < 4; i++) {
+			temp = (channel_sel1 >> (i * 4)) & 0xf;
+			if (temp == 3 || temp == 7)
+				pi_clk_sel |= (1 << (i + 8));
+		}
+		break;
+	default:
+		break;
 	}
 
 	pconf->control.mlvds_cfg.pi_clk_sel = pi_clk_sel;
