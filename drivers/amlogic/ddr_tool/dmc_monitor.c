@@ -703,6 +703,26 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 		}
 	}
 
+	r = class_register(&dmc_monitor_class);
+	if (r) {
+		pr_err("regist dmc_monitor_class failed\n");
+		dmc_mon = NULL;
+		return -EINVAL;
+	}
+	INIT_DELAYED_WORK(&dmc_mon->work, clear_irq_work);
+	schedule_delayed_work(&dmc_mon->work, HZ);
+
+	if (init_dmc_config >> 1)
+		dmc_mon->debug = init_dmc_config >> 1;
+
+	if (init_dmc_config & 0x1)
+		dmc_mon->configs &= ~POLICY_INCLUDE;
+
+	if (init_dev_mask)
+		dmc_set_monitor(init_start_addr,
+				init_end_addr, init_dev_mask, 1);
+	set_dump_dmc_func(dump_dmc_reg);
+
 	irq = of_irq_get(node, 0);
 	if (dmc_mon->io_mem1)
 		r = request_irq(irq, dmc_monitor_irq_handler,
@@ -742,25 +762,6 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 		}
 	}
 
-	r = class_register(&dmc_monitor_class);
-	if (r) {
-		pr_err("regist dmc_monitor_class failed\n");
-		dmc_mon = NULL;
-		return -EINVAL;
-	}
-	INIT_DELAYED_WORK(&dmc_mon->work, clear_irq_work);
-	schedule_delayed_work(&dmc_mon->work, HZ);
-
-	if (init_dmc_config >> 1)
-		dmc_mon->debug = init_dmc_config >> 1;
-
-	if (init_dmc_config & 0x1)
-		dmc_mon->configs &= ~POLICY_INCLUDE;
-
-	if (init_dev_mask)
-		dmc_set_monitor(init_start_addr,
-				init_end_addr, init_dev_mask, 1);
-	set_dump_dmc_func(dump_dmc_reg);
 	return 0;
 }
 
