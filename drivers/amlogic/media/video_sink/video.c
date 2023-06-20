@@ -15086,6 +15086,32 @@ static ssize_t frame_format_show(struct class *cla,
 	return sprintf(buf, "NA\n");
 }
 
+static ssize_t frame_original_format_show(struct class *cla,
+				 struct class_attribute *attr, char *buf)
+{
+	struct vframe_s *dispbuf = NULL;
+	ssize_t ret = 0;
+
+	dispbuf = get_dispbuf(0);
+	if (dispbuf) {
+		if ((dispbuf->type_original & VIDTYPE_TYPEMASK) ==
+		    VIDTYPE_INTERLACE_TOP)
+			ret = sprintf(buf, "interlace-top\n");
+		else if ((dispbuf->type_original & VIDTYPE_TYPEMASK) ==
+			 VIDTYPE_INTERLACE_BOTTOM)
+			ret = sprintf(buf, "interlace-bottom\n");
+		else
+			ret = sprintf(buf, "progressive\n");
+
+		if (dispbuf->type_original & VIDTYPE_COMPRESS)
+			ret += sprintf(buf + ret, "Compressed\n");
+
+		return ret;
+	}
+
+	return sprintf(buf, "NA\n");
+}
+
 static ssize_t frame_aspect_ratio_show(struct class *cla,
 				       struct class_attribute *attr,
 				       char *buf)
@@ -19380,6 +19406,7 @@ static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR_RO(frame_width),
 	__ATTR_RO(frame_height),
 	__ATTR_RO(frame_format),
+	__ATTR_RO(frame_original_format),
 	__ATTR_RO(frame_aspect_ratio),
 	__ATTR_RO(frame_rate),
 	__ATTR_RO(vframe_states),

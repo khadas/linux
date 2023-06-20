@@ -5480,6 +5480,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		if (!nins)
 			return 10;
 		vframe = &nins->c.vfm_cp;
+		vframe->type_original = vframe->type;
 
 		/*eos check*/
 		if ((vframe->type & VIDTYPE_V4L_EOS) ||
