@@ -148,6 +148,7 @@ enum aml_aucpu_stream_type {
 	MEDIA_TS_SYS = 6,	/* TS System information (PAT, PMT, etc) */
 	MEDIA_PES_SUB = 7,	/* PES format subtitle/audio stream */
 	MEDIA_PTS_PACK = 8,	/* PTS pack in proprietary format */
+	MEDIA_AC4 = 9,		/* AC4 */
 	MEDIA_MAX,
 };
 
