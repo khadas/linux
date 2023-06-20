@@ -24,6 +24,7 @@ struct vpp_vf_signal_info_s {
 	unsigned int transfer_characteristic;
 };
 
+int vpp_vf_init(struct vpp_dev_s *pdev);
 void vpp_vf_set_pc_mode(int val);
 void vpp_vf_set_overscan_mode(int val);
 void vpp_vf_set_overscan_reset(int val);

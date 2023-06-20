@@ -31,6 +31,7 @@ static int _modules_init(struct vpp_dev_s *pdev)
 	vpp_module_lc_init(pdev);
 	vpp_module_cm_init(pdev);
 	vpp_module_sr_init(pdev);
+	vpp_vf_init(pdev);
 
 	return 0;
 }

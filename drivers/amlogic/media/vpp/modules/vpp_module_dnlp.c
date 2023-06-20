@@ -9,6 +9,7 @@
 
 #define DNLP_LPF_SIZE 64
 #define DNLP_REG_SIZE 32
+#define DNLP_DATA_BIT 32
 
 enum _dnlp_mode_e {
 	EN_MODE_DNLP_VPP = 0,
@@ -219,7 +220,7 @@ static void _set_dnlp_ctrl(enum _dnlp_mode_e mode, int val,
 	WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, val, start, len);
 }
 
-static void _set_dnlp_data(enum _dnlp_mode_e mode, int *pdata)
+static void _set_dnlp_data(enum _dnlp_mode_e mode, uint *pdata)
 {
 	int i = 0;
 	unsigned int val = 0;
@@ -322,10 +323,10 @@ static void _calculate_dnlp_tgtx(int hist_luma_sum,
 	pdnlp_alg_function->dnlp_algorithm_main(raw_hist_sum);
 }
 
-static void _calculate_dnlp_lpf(char *pdata_in, int *pdata_out)
+static void _calculate_dnlp_lpf(char *pdata_in, uint *pdata_out)
 {
 	int i = 0;
-	int tmp = 0;
+	uint tmp = 0;
 
 	for (i = 0; i < DNLP_LPF_SIZE; i++) {
 		tmp = pdata_out[i];
@@ -333,12 +334,12 @@ static void _calculate_dnlp_lpf(char *pdata_in, int *pdata_out)
 	}
 }
 
-static void _calculate_dnlp_reg(int *pdata_in, int *pdata_out)
+static void _calculate_dnlp_reg(uint *pdata_in, uint *pdata_out)
 {
 	int i = 0;
 	int j = 0;
 	int k = 0;
-	int val = 0;
+	uint val = 0;
 
 	for (i = 0; i < reg_cal.len; i++) {
 		val = 0;
@@ -348,7 +349,7 @@ static void _calculate_dnlp_reg(int *pdata_in, int *pdata_out)
 			val = val << reg_cal.shift_lf;
 			val = val >> reg_cal.shift_rt;
 			val = vpp_check_range(val, 0, reg_cal.range_up);
-			val |= val << (j * (sizeof(int) / reg_cal.rate));
+			val |= val << (j * (DNLP_DATA_BIT / reg_cal.rate));
 		}
 
 		pdata_out[i] = val;
@@ -420,21 +421,19 @@ void _calculate_dnlp_sat_compensation(bool *psat_comp, int *psat_val)
 	*psat_val = val;
 }
 
-static void _init_dnlp_data(int *pluma_sum,
-	char *ptgt_data, int *ptgt_data_10b, int *plpf_data)
-{
-	int i = 0;
-
-	/*clear historic luma sum*/
-	*pluma_sum = 0;
-
-	/*init tgt & lpf*/
-	for (i = 0; i < DNLP_LPF_SIZE; i++) {
-		ptgt_data[i] = i << 2;
-		ptgt_data_10b[i] = i << 4;
-		plpf_data[i] = ptgt_data[i] << dnlp_rt;
-	}
-}
+/* static void _init_dnlp_data(int *pluma_sum, */
+/* char *ptgt_data, int *ptgt_data_10b, uint *plpf_data) */
+/* { */
+/*  int i = 0; */
+/*  clear historic luma sum*/
+/*  *pluma_sum = 0; */
+/*  init tgt & lpf*/
+/*  for (i = 0; i < DNLP_LPF_SIZE; i++) { */
+/*     ptgt_data[i] = i << 2; */
+/*     ptgt_data_10b[i] = i << 4; */
+/*     plpf_data[i] = ptgt_data[i] << dnlp_rt; */
+/*  } */
+/* } */
 
 static void _dnlp_debug_init(void)
 {
@@ -728,8 +727,13 @@ void vpp_module_dnlp_on_vs(int hist_luma_sum,
 	if (!dnlp_alg_insmod_ok)
 		_dnlp_algorithm_init();
 
-	if (!dnlp_alg_insmod_ok || dnlp_bypass || !phist_data)
+	if (!dnlp_alg_insmod_ok || !phist_data)
 		return;
+
+	if (dnlp_bypass)
+		pdnlp_alg_node_param->dnlp_alg_enable = 0;
+	else
+		pdnlp_alg_node_param->dnlp_alg_enable = 1;
 
 	_calculate_dnlp_tgtx(hist_luma_sum, phist_data);
 	_calculate_dnlp_lpf(pdnlp_alg_output->ve_dnlp_tgt, &dnlp_lpf[0]);
@@ -955,12 +959,12 @@ void vpp_module_dnlp_set_param(struct vpp_dnlp_curve_param_s *pdata)
 	dnlp_ai_pq_base.final_gain = pdata->param[EN_DNLP_FINAL_GAIN];
 
 	/*update reg data*/
-	_init_dnlp_data(pdnlp_alg_input->ve_dnlp_luma_sum,
-		pdnlp_alg_output->ve_dnlp_tgt,
-		pdnlp_alg_output->ve_dnlp_tgt_10b,
-		&dnlp_lpf[0]);
-	_calculate_dnlp_reg(&dnlp_lpf[0], &dnlp_reg[0]);
-	_set_dnlp_data(cur_mode, &dnlp_reg[0]);
+/* _init_dnlp_data(pdnlp_alg_input->ve_dnlp_luma_sum, */
+/*     pdnlp_alg_output->ve_dnlp_tgt, */
+/*     pdnlp_alg_output->ve_dnlp_tgt_10b, */
+/*     &dnlp_lpf[0]); */
+/* _calculate_dnlp_reg(&dnlp_lpf[0], &dnlp_reg[0]); */
+/* _set_dnlp_data(cur_mode, &dnlp_reg[0]); */
 }
 
 bool vpp_module_dnlp_get_insmod_status(void)

@@ -1788,7 +1788,7 @@ void vpp_vf_refresh(struct vframe_s *pvf, struct vframe_s *prpt_vf)
 		phist_data = &ptmp->prop.hist.gamma[0];
 	}
 
-	/*vpp_module_dnlp_on_vs(hist_luma_sum, phist_data);*/
+	vpp_module_dnlp_on_vs(hist_luma_sum, phist_data);
 	vpp_module_dnlp_get_sat_compensation(&do_sat_comp, &sat_comp_val);
 
 	/*if (do_sat_comp) !!!maybe conflict with pq table tuning params*/
