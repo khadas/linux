@@ -59,6 +59,7 @@ struct aml_dvb {
 	unsigned int dsc_pipeline;
 	unsigned int tsn_flag;
 	unsigned char loop_tsn;
+	unsigned char ts_clone;
 };
 
 struct aml_dvb *aml_get_dvb_device(void);

@@ -57,37 +57,21 @@ MODULE_PARM_DESC(rch_sync_num, "\n\t\t Enable loop mem desc information");
 static int rch_sync_num = DEFAULT_RCH_SYNC_NUM;
 module_param(rch_sync_num, int, 0644);
 
-MODULE_PARM_DESC(pack_len,
-		 "\n\t\t Set pack length default 188 bytes");
-static unsigned int pack_len = 188;
-module_param(pack_len, int, 0644);
-
 #define BEN_LEVEL_SIZE			(512 * 1024)
 
 MODULE_PARM_DESC(dump_input_ts, "\n\t\t dump input ts packet");
 static int dump_input_ts;
 module_param(dump_input_ts, int, 0644);
 
-MODULE_PARM_DESC(check_ts_alignm, "\n\t\t check input ts alignm");
-static int check_ts_alignm = 1;
-module_param(check_ts_alignm, int, 0644);
-
 MODULE_PARM_DESC(dmc_keep_alive, "\n\t\t Enable keep dmc alive");
 static int dmc_keep_alive;
 module_param(dmc_keep_alive, int, 0644);
-
-MODULE_PARM_DESC(find_error_pack, "\n\t\t find error package default 2 package");
-static int find_error_pack = 2;
-module_param(find_error_pack, int, 0644);
 
 MODULE_PARM_DESC(write_timeout_ms, "\n\t\t write timeout default 1s");
 static int write_timeout_ms = 1000;
 module_param(write_timeout_ms, int, 0644);
 
-static loff_t input_file_pos;
-static struct file *input_dump_fp;
-
-#define INPUT_DUMP_FILE   "/data/input_dump.ts"
+#define INPUT_DUMP_FILE   "/data/input_dump"
 
 struct mem_cache {
 	unsigned long start_virt;
@@ -322,46 +306,66 @@ int cache_adjust(int cache0_count, int cache1_count)
 	return 0;
 }
 
-static void dump_file_open(char *path)
+static void dump_file_open(char *path, struct dump_input_file *dump_file_fp,
+	int sid)
 {
-	if (input_dump_fp)
+	int i = 0;
+	char whole_path[255];
+	struct file *file_fp;
+
+	if (dump_file_fp->file_fp)
 		return;
 
-	input_dump_fp = filp_open(path, O_CREAT | O_RDWR, 0666);
-	if (IS_ERR(input_dump_fp)) {
-		pr_err("create input dump [%s] file failed [%d]\n",
-			path, (int)PTR_ERR(input_dump_fp));
-		input_dump_fp = NULL;
+	//find new file name
+	while (i < 999) {
+		snprintf((char *)&whole_path, sizeof(whole_path),
+		"%s_0x%0x_%03d.ts", path, sid, i);
+
+		file_fp = filp_open(whole_path, O_RDONLY, 0666);
+		if (IS_ERR(file_fp))
+			break;
+		filp_close(file_fp, current->files);
+		i++;
+	}
+	dump_file_fp->file_fp = filp_open(whole_path,
+		O_CREAT | O_RDWR | O_APPEND, 0666);
+	if (IS_ERR(dump_file_fp->file_fp)) {
+		pr_err("create video dump [%s] file failed [%d]\n",
+			whole_path, (int)PTR_ERR(dump_file_fp->file_fp));
+		dump_file_fp->file_fp = NULL;
 	} else {
-		dprint("create dump ts:%s success\n", path);
+		dprint("create dump [%s] success\n", whole_path);
 	}
 }
 
-static void dump_file_write(char *buf, size_t count)
+static void dump_file_write(char *buf,
+		size_t count, struct dump_input_file *dump_file_fp)
 {
 	mm_segment_t old_fs;
 
-	if (!input_dump_fp) {
-		pr_err("Failed to write ts dump file fp is null\n");
+	if (!dump_file_fp->file_fp) {
+		pr_err("Failed to write video dump file fp is null\n");
 		return;
 	}
+	if (count == 0)
+		return;
 
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
 
-	if (count != vfs_write(input_dump_fp, buf, count,
-			&input_file_pos))
-		pr_err("Failed to write video dump file\n");
+	if (count != vfs_write(dump_file_fp->file_fp, buf, count,
+			&dump_file_fp->file_pos))
+		pr_err("Failed to write dump file\n");
 
 	set_fs(old_fs);
 }
 
-static void dump_file_close(void)
+static void dump_file_close(struct dump_input_file *dump_file_fp)
 {
-	if (input_dump_fp) {
-		vfs_fsync(input_dump_fp, 0);
-		filp_close(input_dump_fp, current->files);
-		input_dump_fp = NULL;
+	if (dump_file_fp->file_fp) {
+		vfs_fsync(dump_file_fp->file_fp, 0);
+		filp_close(dump_file_fp->file_fp, current->files);
+		dump_file_fp->file_fp = NULL;
 	}
 }
 
@@ -978,7 +982,7 @@ static int _bufferid_alloc_chan_r_for_ts(struct chan_id **pchan, u8 req_id)
 }
 
 #ifdef CHECK_PACKET_ALIGNM
-static void check_packet_alignm(unsigned int start, unsigned int end)
+static void check_packet_alignm(unsigned int start, unsigned int end, int pack_len)
 {
 	int n = 0;
 	char *p = NULL;
@@ -1078,16 +1082,9 @@ int SC2_bufferid_alloc(struct bufferid_attr *attr,
 int SC2_bufferid_dealloc(struct chan_id *pchan)
 {
 	pr_dbg("%s enter\n", __func__);
-	if (pchan->mode == INPUT_MODE) {
-		_bufferid_free_desc_mem(pchan);
-		pchan->is_es = 0;
-		pchan->used = 0;
-		dump_file_close();
-	} else {
-		_bufferid_free_desc_mem(pchan);
-		pchan->is_es = 0;
-		pchan->used = 0;
-	}
+	_bufferid_free_desc_mem(pchan);
+	pchan->is_es = 0;
+	pchan->used = 0;
 	return 0;
 }
 
@@ -1371,135 +1368,32 @@ int SC2_bufferid_move_read_rp(struct chan_id *pchan, unsigned int len, int flag)
 	return 0;
 }
 
-static int check_data_pack_align(char *mem, int len, struct aml_dmx *pdmx)
-{
-	int left = len;
-	int ops = 0;
-	int total = 0;
-	char *ops_mem = mem;
-	char *next_ops_mem = mem;
-	int ops_pack_len = 0;
-	int next_pack = 0;
-	int find_pack_len = pack_len * find_error_pack;
-	int try_count = 0;
-	int try_total = find_error_pack;
-
-	while (left > pack_len) {
-		if (*ops_mem == 0x47) {
-			if (ops) {
-				memmove(ops_mem - ops, ops_mem, left);
-				ops_mem -= ops;
-				next_ops_mem = ops_mem;
-				ops = 0;
-			}
-
-			if (*next_ops_mem == 0x47 && ops_pack_len && ops_pack_len != pack_len) {
-				try_count = 0;
-				next_pack = pack_len;
-				try_total = (left - 1) / pack_len > find_error_pack ?
-						find_error_pack : (left - 1) / pack_len;
-
-				find_pack_len = try_total * pack_len;
-				while (try_count < try_total &&
-					*(next_ops_mem + next_pack) == 0x47) {
-					next_pack += pack_len;
-					try_count++;
-				}
-
-				if (try_total && try_count == try_total) {
-					memmove(ops_mem, ops_mem + ops_pack_len, left);
-					ops_mem += find_pack_len;
-					next_ops_mem = ops_mem;
-					left -= find_pack_len;
-					total += find_pack_len;
-					ops_pack_len = 0;
-					continue;
-				}
-			}
-
-			if (!ops_pack_len) {
-				try_count = 0;
-				next_pack = pack_len;
-				try_total = (left - 1) / pack_len > find_error_pack ?
-						find_error_pack : (left - 1) / pack_len;
-
-				find_pack_len = try_total * pack_len;
-				while (try_count < try_total && *(ops_mem + next_pack) == 0x47) {
-					next_pack += pack_len;
-					try_count++;
-				}
-
-				if (try_total && try_count == try_total) {
-					ops_mem += find_pack_len;
-					next_ops_mem = ops_mem;
-					left -= find_pack_len;
-					total += find_pack_len;
-					continue;
-				}
-			}
-
-			if (ops_pack_len == pack_len) {
-				ops_mem += pack_len;
-				total += pack_len;
-				ops_pack_len = 0;
-				continue;
-			}
-
-			next_ops_mem++;
-			ops_pack_len++;
-			left--;
-		} else {
-			ops_mem++;
-			left--;
-			ops++;
-		}
-	}
-
-	if (*ops_mem == 0x47 && left == pack_len) {
-		total += pack_len;
-		left -= pack_len;
-	}
-
-	if (left > 0 && left <= pack_len) {
-		memcpy(pdmx->last_pack, ops_mem, left);
-		pdmx->last_len = left;
-	}
-
-	if (left < 0 || left > pack_len)
-		pr_err("%s last pack length=%d\n", __func__, left);
-
-	return total;
-}
-
 /**
  * write to channel
  * \param pchan:struct chan_id handle
  * \param buf: data addr
+ * \param buf_phys: data phys addr
  * \param  count: write size
  * \param  isphybuf: isphybuf
+ * \param  pack_len: 188 or 192
  * \retval -1:fail
  * \retval written size
  */
-int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
-		       unsigned int count, int isphybuf, int dmx_id)
+int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
+		       unsigned int count, int isphybuf, int pack_len)
 {
-	unsigned int r = count;
 	unsigned int len;
 	unsigned int ret;
-	const char __user *p = buf;
 	unsigned int tmp;
 	unsigned int times = 0;
-	struct dmx_sec_ts_data ts_data;
+	struct dmx_sec_ts_data *ts_data;
 	unsigned long mem;
-	struct aml_dvb *advb = aml_get_dvb_device();
-	struct aml_dmx *pdmx = &advb->dmx[dmx_id];
-	char *p_mem = (void *)pchan->mem;
-	int p_total = 0;
-	int total = 0;
+	int total = count;
 	s64 prev_time_nsec;
 	s64 max_timeout_nsec;
 
-	pr_dbg("%s start w:%d\n", __func__, r);
+	pr_dbg("%s start w:%d id:%d, addr:0x%0x\n", __func__,
+		count, pchan->id, (u32)(long)buf_phys);
 	do {
 	} while (!rdma_get_ready(pchan->id) && times++ < 20);
 
@@ -1509,134 +1403,224 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 	}
 
 	times = 0;
-	while (r) {
-		p_mem = (void *)pchan->mem;
-		if (isphybuf) {
-			pchan->enable = 1;
-			if (copy_from_user((char *)&ts_data,
-				p, sizeof(struct dmx_sec_ts_data))) {
-				dprint("copy_from user error\n");
-				return -EFAULT;
-			}
+	if (isphybuf) {
+		pchan->enable = 1;
+		ts_data = (struct dmx_sec_ts_data *)buf;
 #ifdef CHECK_PACKET_ALIGNM
-			check_packet_alignm(ts_data.buf_start, ts_data.buf_end);
+		check_packet_alignm(ts_data->buf_start, ts_data->buf_end, pack_len);
 #endif
-			tmp = (unsigned long)ts_data.buf_start & 0xFFFFFFFF;
-			pchan->memdescs->bits.address = tmp;
-			pchan->memdescs->bits.byte_length =
-				ts_data.buf_end - ts_data.buf_start;
+		tmp = (unsigned long)ts_data->buf_start & 0xFFFFFFFF;
+		pchan->memdescs->bits.address = tmp;
+		pchan->memdescs->bits.byte_length =
+			ts_data->buf_end - ts_data->buf_start;
 
-			if (dump_input_ts) {
-				dump_file_open(INPUT_DUMP_FILE);
-				mem = (unsigned long)
-					phys_to_virt(ts_data.buf_start);
-				dump_file_write((char *)mem,
-					pchan->memdescs->bits.byte_length);
-			}
+		if (dump_input_ts) {
+			dump_file_open(INPUT_DUMP_FILE, &pchan->dump_file, pchan->id);
+			mem = (unsigned long)
+				phys_to_virt(ts_data->buf_start);
+			dump_file_write((char *)mem,
+				pchan->memdescs->bits.byte_length, &pchan->dump_file);
+		} else {
+			dump_file_close(&pchan->dump_file);
+		}
 
-			dma_sync_single_for_device(aml_get_device(),
-				pchan->memdescs_phy, sizeof(union mem_desc),
-				DMA_TO_DEVICE);
+		dma_sync_single_for_device(aml_get_device(),
+			pchan->memdescs_phy, sizeof(union mem_desc),
+			DMA_TO_DEVICE);
 
 //			tmp = (unsigned long)(pchan->memdescs) & 0xFFFFFFFF;
-			tmp = pchan->memdescs_phy & 0xFFFFFFFF;
-			len = pchan->memdescs->bits.byte_length;
-			//rdma_config_enable(pchan->id, 1, tmp, count, len);
+		tmp = pchan->memdescs_phy & 0xFFFFFFFF;
+		len = pchan->memdescs->bits.byte_length;
+		//rdma_config_enable(pchan->id, 1, tmp, count, len);
 
-			rdma_config_enable(pchan, 1, tmp, count, len, pack_len);
-			pr_dbg("%s isphybuf\n", __func__);
-			/*it will exit write loop*/
-			r = len;
-			total = len;
+		rdma_config_enable(pchan, 1, tmp, count, len, pack_len);
+		pr_dbg("%s isphybuf\n", __func__);
+		/*it will exit write loop*/
+		total = len;
+	} else {
+		if (dump_input_ts) {
+			dump_file_open(INPUT_DUMP_FILE, &pchan->dump_file, pchan->id);
+			dump_file_write((char *)buf, total, &pchan->dump_file);
 		} else {
-			if (r > pchan->mem_size)
-				len = pchan->mem_size;
-			else
-				len = r;
-
-			if (check_ts_alignm && pdmx->last_len) {
-				memcpy((void *)pchan->mem, pdmx->last_pack, pdmx->last_len);
-				if (len + pdmx->last_len > pchan->mem_size)
-					len = pchan->mem_size - pdmx->last_len;
-				p_mem += pdmx->last_len;
-				p_total = pdmx->last_len;
-				pdmx->last_len = 0;
-			}
-
-			if (copy_from_user(p_mem, p, len)) {
-				dprint("copy_from user error\n");
-				return -EFAULT;
-			}
-
-			if (check_ts_alignm) {
-				p_total += len;
-				total = check_data_pack_align((void *)pchan->mem, p_total, pdmx);
-			} else {
-				total = len;
-			}
-
-			if (dump_input_ts) {
-				dump_file_open(INPUT_DUMP_FILE);
-				dump_file_write((char *)pchan->mem, total);
-			}
-
-			dma_sync_single_for_device(aml_get_device(),
-				pchan->mem_phy, pchan->mem_size, DMA_TO_DEVICE);
-
-			pchan->memdescs->bits.address = pchan->mem_phy;
-			//set desc mem ==len for trigger data transfer.
-			pchan->memdescs->bits.byte_length = total;
-			dma_sync_single_for_device(aml_get_device(),
-				pchan->memdescs_phy, sizeof(union mem_desc),
-				DMA_TO_DEVICE);
-
-			wmb();	/*Ensure pchan->mem contents visible */
-
-			pr_dbg("%s, input data:0x%0x, des len:%d\n", __func__,
-			       (*(char *)(pchan->mem)), len);
-			pr_dbg("%s, desc data:0x%0x 0x%0x\n", __func__,
-			       (*(unsigned int *)(pchan->memdescs)),
-			       (*((unsigned int *)(pchan->memdescs) + 1)));
-
-			pchan->enable = 1;
-			tmp = pchan->memdescs_phy & 0xFFFFFFFF;
-			//rdma_config_enable(pchan->id, 1, tmp,
-			rdma_config_enable(pchan, 1, tmp,
-					   pchan->mem_size, total, pack_len);
+			dump_file_close(&pchan->dump_file);
 		}
-		prev_time_nsec = ktime_to_ns(ktime_get());
-		max_timeout_nsec = (s64)write_timeout_ms * 1000 * 1000;
-		do {
-			usleep_range(100, 200);
-		} while (!rdma_get_done(pchan->id) &&
-			(ktime_to_ns(ktime_get()) - prev_time_nsec) < max_timeout_nsec);
 
-		ret = rdma_get_rd_len(pchan->id);
-		if (ret != total)
-			dprint("%s, len not equal,ret:%d,w:%d\n",
-			       __func__, ret, len);
+		dma_sync_single_for_device(aml_get_device(),
+			(dma_addr_t)buf_phys, total, DMA_TO_DEVICE);
 
-		pr_dbg("#######rdma##########\n");
-		pr_dbg("status:0x%0x\n", rdma_get_status(pchan->id));
-		pr_dbg("err:0x%0x, len err:0x%0x, active:%d\n",
-		       rdma_get_err(), rdma_get_len_err(), rdma_get_active());
-		pr_dbg("pkt_sync:0x%0x\n", rdma_get_pkt_sync_status(pchan->id));
-		pr_dbg("ptr:0x%0x\n", rdma_get_ptr(pchan->id));
-		pr_dbg("cfg fifo:0x%0x\n", rdma_get_cfg_fifo());
-		pr_dbg("#######rdma##########\n");
+		pchan->memdescs->bits.address = (u32)(long)buf_phys;
+		//set desc mem ==len for trigger data transfer.
+		pchan->memdescs->bits.byte_length = total;
+		dma_sync_single_for_device(aml_get_device(),
+			pchan->memdescs_phy, sizeof(union mem_desc),
+			DMA_TO_DEVICE);
 
-		/*disable */
-		//rdma_config_enable(pchan->id, 0, 0, 0, 0);
-		rdma_config_enable(pchan, 0, 0, 0, 0, 0);
-		rdma_clean(pchan->id);
+		wmb();	/*Ensure pchan->mem contents visible */
 
-		p += len;
-		r -= len;
-		p_total = 0;
+		pr_dbg("%s, input data:0x%0x, des len:%d\n", __func__,
+		       (*(char *)(pchan->mem)), total);
+		pr_dbg("%s, desc data:0x%0x 0x%0x\n", __func__,
+		       (*(unsigned int *)(pchan->memdescs)),
+		       (*((unsigned int *)(pchan->memdescs) + 1)));
+
+		pchan->enable = 1;
+		tmp = pchan->memdescs_phy & 0xFFFFFFFF;
+		//rdma_config_enable(pchan->id, 1, tmp,
+		rdma_config_enable(pchan, 1, tmp,
+				   pchan->mem_size, total, pack_len);
 	}
+	prev_time_nsec = ktime_to_ns(ktime_get());
+	max_timeout_nsec = (s64)write_timeout_ms * 1000 * 1000;
+	do {
+		usleep_range(100, 200);
+	} while (!rdma_get_done(pchan->id) &&
+		(ktime_to_ns(ktime_get()) - prev_time_nsec) < max_timeout_nsec);
+
+	ret = rdma_get_rd_len(pchan->id);
+	if (ret != total)
+		dprint("%s, len not equal,ret:%d,w:%d\n",
+		       __func__, ret, total);
+
+	pr_dbg("#######rdma##########\n");
+	pr_dbg("status:0x%0x\n", rdma_get_status(pchan->id));
+	pr_dbg("err:0x%0x, len err:0x%0x, active:%d\n",
+	       rdma_get_err(), rdma_get_len_err(), rdma_get_active());
+	pr_dbg("pkt_sync:0x%0x\n", rdma_get_pkt_sync_status(pchan->id));
+	pr_dbg("ptr:0x%0x\n", rdma_get_ptr(pchan->id));
+	pr_dbg("cfg fifo:0x%0x\n", rdma_get_cfg_fifo());
+	pr_dbg("#######rdma##########\n");
+
+	/*disable */
+	//rdma_config_enable(pchan->id, 0, 0, 0, 0);
+	rdma_config_enable(pchan, 0, 0, 0, 0, 0);
+	rdma_clean(pchan->id);
+
 	pr_dbg("%s end\n", __func__);
 	rdma_config_ready(pchan->id);
-	return count - r;
+	return count;
+}
+
+/**
+ * write to channel
+ * \param pchan:struct chan_id handle
+ * \param buf: data addr
+ * \param buf_phys: data phys addr
+ * \param  count: write size
+ * \param  isphybuf: isphybuf
+ * \param  pack_len: 188 or 192
+ * \retval -1:fail
+ * \retval written size
+ */
+int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *buf_phys,
+		       unsigned int count, int isphybuf, int pack_len)
+{
+	unsigned int len;
+	unsigned int tmp;
+	unsigned int times = 0;
+	struct dmx_sec_ts_data *ts_data;
+	int total = count;
+	unsigned long mem;
+
+	pr_dbg("%s id:%d start w:%d\n", __func__, pchan->id, count);
+	do {
+	} while (!rdma_get_ready(pchan->id) && times++ < 20);
+
+	if (rch_sync_num != rch_sync_num_last) {
+		rdma_config_sync_num(rch_sync_num);
+		rch_sync_num_last = rch_sync_num;
+	}
+
+	times = 0;
+	if (isphybuf) {
+		pchan->enable = 1;
+		ts_data = (struct dmx_sec_ts_data *)buf;
+#ifdef CHECK_PACKET_ALIGNM
+		check_packet_alignm(ts_data->buf_start, ts_data->buf_end, pack_len);
+#endif
+		tmp = (unsigned long)ts_data->buf_start & 0xFFFFFFFF;
+		pchan->memdescs->bits.address = tmp;
+		pchan->memdescs->bits.byte_length =
+			ts_data->buf_end - ts_data->buf_start;
+
+		if (dump_input_ts) {
+			dump_file_open(INPUT_DUMP_FILE, &pchan->dump_file, pchan->id);
+			mem = (unsigned long)
+				phys_to_virt(ts_data->buf_start);
+			dump_file_write((char *)mem,
+				pchan->memdescs->bits.byte_length, &pchan->dump_file);
+		} else {
+			dump_file_close(&pchan->dump_file);
+		}
+
+		dma_sync_single_for_device(aml_get_device(),
+			pchan->memdescs_phy, sizeof(union mem_desc),
+			DMA_TO_DEVICE);
+
+//			tmp = (unsigned long)(pchan->memdescs) & 0xFFFFFFFF;
+		tmp = pchan->memdescs_phy & 0xFFFFFFFF;
+		len = pchan->memdescs->bits.byte_length;
+		//rdma_config_enable(pchan->id, 1, tmp, count, len);
+
+		rdma_config_enable(pchan, 1, tmp, count, len, pack_len);
+		pr_dbg("%s isphybuf\n", __func__);
+		/*it will exit write loop*/
+		total = len;
+	} else {
+		if (dump_input_ts) {
+			dump_file_open(INPUT_DUMP_FILE, &pchan->dump_file, pchan->id);
+			dump_file_write((char *)buf, total, &pchan->dump_file);
+		} else {
+			dump_file_close(&pchan->dump_file);
+		}
+
+		pchan->memdescs->bits.address = (u32)(long)buf_phys;
+		//set desc mem ==len for trigger data transfer.
+		pchan->memdescs->bits.byte_length = total;
+		dma_sync_single_for_device(aml_get_device(),
+			pchan->memdescs_phy, sizeof(union mem_desc),
+			DMA_TO_DEVICE);
+
+		wmb();	/*Ensure pchan->mem contents visible */
+
+		pr_dbg("%s, input data:0x%0x, des len:%d\n", __func__,
+			   (*(char *)(pchan->mem)), total);
+		pr_dbg("%s, desc data:0x%0x 0x%0x\n", __func__,
+			   (*(unsigned int *)(pchan->memdescs)),
+			   (*((unsigned int *)(pchan->memdescs) + 1)));
+
+		pchan->enable = 1;
+		tmp = pchan->memdescs_phy & 0xFFFFFFFF;
+		//rdma_config_enable(pchan->id, 1, tmp,
+		rdma_config_enable(pchan, 1, tmp,
+				   pchan->mem_size, total, pack_len);
+	}
+	return count;
+}
+
+/**
+ * check wrint done
+ * \param pchan:struct chan_id handle
+ * \retval 1:done, 0:not done
+ */
+int SC2_bufferid_non_block_write_status(struct chan_id *pchan)
+{
+	return rdma_get_done(pchan->id);
+}
+
+/**
+ * free channel
+ * \param pchan:struct chan_id handle
+ * \retval 0:success
+ */
+int SC2_bufferid_non_block_write_free(struct chan_id *pchan)
+{
+	/*disable */
+	//rdma_config_enable(pchan->id, 0, 0, 0, 0);
+	rdma_config_enable(pchan, 0, 0, 0, 0, 0);
+	rdma_clean(pchan->id);
+	pr_dbg("%s end\n", __func__);
+	rdma_config_ready(pchan->id);
+	return 0;
 }
 
 int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
@@ -1698,7 +1682,7 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 	pchan->enable = 1;
 	tmp = pchan->memdescs_phy & 0xFFFFFFFF;
 	//rdma_config_enable(pchan->id, 1, tmp,
-	rdma_config_enable(pchan, 1, tmp, len, len, pack_len);
+	rdma_config_enable(pchan, 1, tmp, len, len, 188);
 
 	do {
 	} while (!rdma_get_done(pchan->id));

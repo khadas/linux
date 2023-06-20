@@ -145,12 +145,12 @@ void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry,
 		cfg.b.pid_entry = pid_entry;
 		cfg.b.remap_flag = 0;
 		cfg.b.buffer_id = buffer_id;
+
 		/*drop NULL packet*/
 		if (pid == 0x1fff && pid_mask == 0)
 			cfg.b.on_off = 0;
 		else
 			cfg.b.on_off = 1;
-
 		cfg.b.mode = MODE_WRITE;
 		cfg.b.ap_pending = 1;
 	}
@@ -510,7 +510,7 @@ void rdma_config_ready(u8 chan_id)
 
 unsigned int rdma_get_done(u8 chan_id)
 {
-	return (READ_CBUS_REG(TS_DMA_RCH_DONE) & (0x1 << chan_id));
+	return ((READ_CBUS_REG(TS_DMA_RCH_DONE) >> chan_id) & 0x1);
 }
 
 unsigned int rdma_get_cfg_fifo(void)

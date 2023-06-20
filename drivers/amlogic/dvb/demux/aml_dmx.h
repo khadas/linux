@@ -59,6 +59,7 @@ struct pid_node {
 	struct list_head node;
 };
 
+#define CACHE_ALIGNMENT_LEN (192 * 2)
 struct aml_dmx {
 	struct dmx_demux dmx;
 	struct dmxdev dev;
@@ -66,14 +67,18 @@ struct aml_dmx {
 	int id;
 
 	u8 ts_index;
-	int demod_sid;
-	int local_sid;
+	int sid;
+	int hw_source;
+	int input_len;
+	unsigned long input_mem;
+	unsigned long input_mem_phys;
 	struct in_elem *sc2_input;
 
 	enum dmx_input_source source;
 	struct swdmx_demux *swdmx;
 	struct swdmx_ts_parser *tsp;
 
+	int used_feed_num;
 	int ts_feed_num;
 	struct sw_demux_ts_feed *ts_feed;
 
@@ -116,7 +121,7 @@ struct aml_dmx {
 	struct list_head pid_head;
 
 	/* check whether the input pack are aligned */
-	char last_pack[192 * 2];
+	char last_pack[CACHE_ALIGNMENT_LEN];
 	int last_len;
 };
 

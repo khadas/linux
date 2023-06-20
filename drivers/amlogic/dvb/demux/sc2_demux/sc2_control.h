@@ -33,7 +33,8 @@ enum output_format {
 	PES_FORMAT,
 	SECTION_FORMAT,
 	DVR_FORMAT,
-	TEMI_FORMAT
+	TEMI_FORMAT,
+	CLONE_FORMAT,
 };
 
 enum pid_cfg_mode {

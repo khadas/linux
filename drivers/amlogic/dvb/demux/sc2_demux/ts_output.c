@@ -2819,6 +2819,22 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 		pout->aucpu_start = 0;
 		pout->aucpu_pts_handle = -1;
 		pout->aucpu_pts_start = 0;
+	} else if (format == CLONE_FORMAT) {
+		ret = SC2_bufferid_alloc(&attr, &pout->pchan, NULL);
+		if (ret != 0) {
+			dprint("%s sid:%d SC2_bufferid_alloc fail\n",
+				   __func__, sid);
+			return NULL;
+		}
+		pout->enable = 0;
+		pout->aucpu_handle = -1;
+		pout->aucpu_start = 0;
+		pout->aucpu_pts_handle = -1;
+		pout->aucpu_pts_start = 0;
+		pout->running = TASK_RUNNING;
+		pout->used = 1;
+		pr_dbg("%s ts clone success\n", __func__);
+		return pout;
 	} else {
 		if (get_dmx_version() >= 5 && format == PES_FORMAT) {
 			attr.is_es = 1;
@@ -2902,7 +2918,7 @@ int ts_output_close(struct out_elem *pout)
 		remove_ts_out_list(pout, &es_out_task_tmp);
 		mutex_unlock(&es_output_mutex);
 		mutex_destroy(&pout->pts_mutex);
-	} else {
+	} else if (pout->format != CLONE_FORMAT) {
 		if (pout->format == DVR_FORMAT && pout->dump_file.file_fp)
 			dump_file_close(&pout->dump_file);
 		remove_ts_out_list(pout, &ts_out_task_tmp);
@@ -3243,7 +3259,51 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 		default:
 			break;
 		}
-	} else {
+	} else if (pout->format == CLONE_FORMAT) {
+		pid_slot = _malloc_pid_entry_slot(pout->sid, 0x1fff);
+		if (!pid_slot) {
+			pr_dbg("malloc pid entry fail\n");
+			return -1;
+		}
+		if (!pout->pchan) {
+			dprint("get pout->pchan NULL error\n");
+			_free_pid_entry_slot(pid_slot);
+			return -1;
+		}
+
+		pid_slot->pid = 0x1fff;
+		pid_slot->pid_mask = 0;
+		pid_slot->used = 1;
+		pid_slot->dmx_id = dmx_id;
+		pid_slot->ref = 1;
+		pid_slot->pout = pout;
+
+		pid_slot->pnext = pout->pid_list;
+		pout->pid_list = pid_slot;
+		pr_dbg("sid:%d, pid:0x%0x, mask:0x%0x\n",
+				pout->sid, pid_slot->pid, pid_slot->pid_mask);
+		tsout_config_ts_table(pid_slot->pid, pid_slot->pid_mask,
+				pid_slot->id, pout->pchan->id, pout->sid, 0);
+
+		pid_slot = _malloc_pid_entry_slot(pout->sid, 0x1ffe);
+		if (!pid_slot) {
+			pr_dbg("malloc pid entry fail\n");
+			return -1;
+		}
+		pid_slot->pid = 0x1ffe;
+		pid_slot->pid_mask = 0x1fff;
+		pid_slot->used = 1;
+		pid_slot->dmx_id = dmx_id;
+		pid_slot->ref = 1;
+		pid_slot->pout = pout;
+
+		pid_slot->pnext = pout->pid_list;
+		pout->pid_list = pid_slot;
+		pr_dbg("sid:%d, pid:0x%0x, mask:0x%0x\n",
+				pout->sid, pid_slot->pid, pid_slot->pid_mask);
+		tsout_config_ts_table(pid_slot->pid, pid_slot->pid_mask,
+				pid_slot->id, pout->pchan->id, pout->sid, 0);
+	} else  {
 		if (pid == 0x1fff && pid_mask == 0x1fff)
 			pout->ts_dump = 1;
 		if (cb_id)
@@ -3345,6 +3405,17 @@ int ts_output_remove_pid(struct out_elem *pout, int pid)
 		}
 		if (pout->pid_list)
 			return 0;
+	} else if (pout->format == CLONE_FORMAT) {
+		cur_pid = pout->pid_list;
+		while (cur_pid) {
+			if (cur_pid) {
+				tsout_config_ts_table(-1, cur_pid->pid_mask,
+							  cur_pid->id, pout->pchan->id,
+							  pout->sid, pout->pchan->sec_level);
+				_free_pid_entry_slot(cur_pid);
+			}
+			cur_pid = cur_pid->pnext;
+		}
 	}
 	pout->enable = 0;
 	pr_dbg("%s line:%d\n", __func__, __LINE__);
@@ -4307,4 +4378,72 @@ int ts_output_check_flow_control(int sid, int percentage)
 		}
 	}
 	return 0;
+}
+
+int ts_output_get_wp(struct out_elem *pout, unsigned int *wp)
+{
+	if (!pout) {
+		*wp = 0;
+		return -1;
+	}
+	*wp = SC2_bufferid_get_wp_offset(pout->pchan);
+	return 0;
+}
+
+int ts_output_get_meminfo(struct out_elem *pout, unsigned int *size,
+	unsigned long *mem, unsigned long *mem_phy)
+{
+	if (!pout) {
+		*mem = 0;
+		*mem_phy = 0;
+		return -1;
+	}
+	*size = pout->pchan->mem_size;
+	*mem = pout->pchan->mem;
+	*mem_phy = pout->pchan->mem_phy;
+	return 0;
+}
+
+int ts_output_dump_clone_info(char *buf)
+{
+	int i = 0;
+	int count = 0;
+	int r, total = 0;
+
+	r = sprintf(buf, "********ts clone ********\n");
+	buf += r;
+	total += r;
+
+	for (i = 0; i < MAX_OUT_ELEM_NUM; i++) {
+		struct out_elem *pout = &out_elem_table[i];
+		unsigned int total_size = 0;
+		unsigned int buf_phy_start = 0;
+		unsigned int free_size = 0;
+		unsigned int wp_offset = 0;
+
+		if (pout->used && pout->format == CLONE_FORMAT) {
+			r = sprintf(buf, "%d ts clone sid:0x%0x ",
+					count, pout->sid);
+			buf += r;
+			total += r;
+
+			ts_output_get_mem_info(pout,
+					       &total_size,
+					       &buf_phy_start,
+					       &free_size, &wp_offset, NULL);
+			r = sprintf(buf,
+				    "mem total:0x%0x, buf_base:0x%0x, ",
+				    total_size, buf_phy_start);
+			buf += r;
+			total += r;
+
+			r = sprintf(buf,
+				    "free size:0x%0x, wp:0x%0x\n", free_size, wp_offset);
+			buf += r;
+			total += r;
+
+			count++;
+		}
+	}
+	return total;
 }

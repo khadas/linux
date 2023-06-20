@@ -140,14 +140,31 @@ ssize_t dmx_setting_show(struct class *class, struct class_attribute *attr,
 	struct aml_dvb *dvb = aml_get_dvb_device();
 
 	for (i = 0; i < dmx_dev_num; i++) {
-		r = sprintf(buf, "dmx%d source:%s ", i,
+		r = sprintf(buf, "dmx%d input:%s ", i,
 			    dvb->dmx[i].source == INPUT_DEMOD ? "input_demod" :
 			    (dvb->dmx[i].source == INPUT_LOCAL ?
 			     "input_local" : "input_local_sec"));
 		buf += r;
 		total += r;
-		r = sprintf(buf, "demod_sid:0x%0x local_sid:0x%0x\n",
-			    dvb->dmx[i].demod_sid, dvb->dmx[i].local_sid);
+		if (dvb->dmx[i].hw_source >= 0 &&
+			dvb->dmx[i].hw_source < FRONTEND_TS0) {
+			r = sprintf(buf, "DMA_%d ", dvb->dmx[i].hw_source);
+		} else if (dvb->dmx[i].hw_source >= FRONTEND_TS0 &&
+			dvb->dmx[i].hw_source < DMA_0_1) {
+			r = sprintf(buf, "FRONTEND_TS%d ",
+					dvb->dmx[i].hw_source - FRONTEND_TS0);
+		} else if (dvb->dmx[i].hw_source >= DMA_0_1 &&
+			dvb->dmx[i].hw_source < FRONTEND_TS0_1) {
+			r = sprintf(buf, "DMA_%d_1 ", dvb->dmx[i].hw_source - DMA_0_1);
+		} else if (dvb->dmx[i].hw_source >= FRONTEND_TS0_1) {
+			r = sprintf(buf, "FRONTEND_TS%d_1 ",
+					dvb->dmx[i].hw_source - FRONTEND_TS0_1);
+		}
+
+		buf += r;
+		total += r;
+
+		r = sprintf(buf, "sid:0x%0x\n", dvb->dmx[i].sid);
 		buf += r;
 		total += r;
 	}
@@ -698,6 +715,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	int valid_ts = 0;
 	char buf[255];
 	struct dvb_adapter *padater;
+	int hw_source = 0;
 
 	dprint("probe amlogic dvb driver [%s].\n", DVB_VERSION);
 	memset(&buf, 0, sizeof(buf));
@@ -743,6 +761,12 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	dmx_init_hw();
 
 	valid_ts = get_first_valid_ts(advb);
+
+	if (tsn_in == INPUT_DEMOD)
+		hw_source = FRONTEND_TS0 + valid_ts;
+	else
+		hw_source = DMA_0;
+
 	//create dmx dev
 	for (i = 0; i < dmx_dev_num; i++) {
 		advb->swdmx[i] = swdmx_demux_new();
@@ -763,8 +787,11 @@ static int aml_dvb_probe(struct platform_device *pdev)
 		advb->dmx[i].tsp = advb->tsp[i];
 		advb->dmx[i].source = tsn_in;
 		advb->dmx[i].ts_index = valid_ts;
-		advb->dmx[i].demod_sid = advb->ts[advb->dmx[i].ts_index].ts_sid;
-		advb->dmx[i].local_sid = i;
+		if (tsn_in == INPUT_DEMOD)
+			advb->dmx[i].sid = advb->ts[advb->dmx[i].ts_index].ts_sid;
+		else
+			advb->dmx[i].sid = -1;
+		advb->dmx[i].hw_source = hw_source;
 		ret = dmx_init(&advb->dmx[i], padater);
 		if (ret)
 			goto INIT_ERR;
@@ -772,9 +799,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 		advb->dsc[i].mutex = advb->mutex;
 //              advb->dsc[i].slock = advb->slock;
 		advb->dsc[i].id = i;
-		advb->dsc[i].source = tsn_in;
-		advb->dsc[i].demod_sid = advb->dmx[i].demod_sid;
-		advb->dsc[i].local_sid = i;
+		advb->dsc[i].sid = advb->dmx[i].sid;
 
 		ret = dsc_init(&advb->dsc[i], padater);
 		if (ret)

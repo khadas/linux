@@ -22,3 +22,4 @@ dvb_demux-objs += sc2_demux/ts_output.o
 dvb_demux-objs += sc2_demux/ts_input.o
 dvb_demux-objs += sc2_demux/frontend.o
 dvb_demux-objs += sc2_demux/dvb_reg.o
+dvb_demux-objs += sc2_demux/ts_clone.o

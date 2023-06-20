@@ -23,6 +23,11 @@ union mem_desc {
 	} bits;
 };
 
+struct dump_input_file {
+	loff_t file_pos;
+	struct file *file_fp;
+};
+
 struct chan_id {
 	u8 used;
 	u8 id;
@@ -43,6 +48,8 @@ struct chan_id {
 	/*just for DVR sec direct mem*/
 	unsigned int sec_mem;
 	unsigned int sec_size;
+
+	struct dump_input_file dump_file;
 };
 
 enum bufferid_mode {
@@ -139,13 +146,43 @@ int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len,
  * write to channel
  * \param pchan:struct chan_id handle
  * \param buf: data addr
+ * \param buf_phys: data phys addr
  * \param  count: write size
  * \param  isphybuf: isphybuf
+ * \param  pack_len: 188 or 192
  * \retval -1:fail
  * \retval written size
  */
-int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
-		       unsigned int count, int isphybuf, int dmx_id);
+int SC2_bufferid_write(struct chan_id *pchan, const char *buf, char *buf_phys,
+		       unsigned int count, int isphybuf, int pack_len);
+
+/**
+ * write to channel
+ * \param pchan:struct chan_id handle
+ * \param buf: data addr
+ * \param buf_phys: data phys addr
+ * \param  count: write size
+ * \param  isphybuf: isphybuf
+ * \param  pack_len: 188 or 192
+ * \retval -1:fail
+ * \retval written size
+ */
+int SC2_bufferid_non_block_write(struct chan_id *pchan, const char *buf, char *buf_phys,
+		       unsigned int count, int isphybuf, int pack_len);
+
+/**
+ * check wrint done
+ * \param pchan:struct chan_id handle
+ * \retval 1:done, 0:not done
+ */
+int SC2_bufferid_non_block_write_status(struct chan_id *pchan);
+
+/**
+ * free channel
+ * \param pchan:struct chan_id handle
+ * \retval 0:success
+ */
+int SC2_bufferid_non_block_write_free(struct chan_id *pchan);
 
 int SC2_bufferid_write_empty(struct chan_id *pchan, int pid);
 

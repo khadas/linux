@@ -202,5 +202,8 @@ int ts_output_alloc_pcr_temi_entry(int pid, int sid, int type);
 int ts_output_free_pcr_temi_entry(int index, int type);
 
 void *ts_output_find_temi_pcr(int sid, int pid, int *pcr_index, int *temi_index);
-
+int ts_output_get_wp(struct out_elem *pout, unsigned int *wp);
+int ts_output_get_meminfo(struct out_elem *pout, unsigned int *size,
+	unsigned long *mem, unsigned long *mem_phy);
+int ts_output_dump_clone_info(char *buf);
 #endif

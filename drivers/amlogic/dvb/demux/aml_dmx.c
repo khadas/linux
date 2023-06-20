@@ -32,6 +32,7 @@
 #include "sc2_demux/mem_desc.h"
 #include "sc2_demux/ts_output.h"
 #include "sc2_demux/ts_input.h"
+#include "sc2_demux/ts_clone.h"
 #include "sc2_demux/dvb_reg.h"
 #include "sw_demux/swdemux_internal.h"
 #include "../aucpu/aml_aucpu.h"
@@ -78,6 +79,9 @@ struct jiffies_pcr {
 static struct jiffies_pcr jiffies_pcr_record[MAX_PCR_NUM];
 static struct out_elem *ts_out_elem;
 
+#define MAX_INPUT_NUM		32
+static u8 record_input_sid[MAX_INPUT_NUM];
+
 MODULE_PARM_DESC(debug_dmx, "\n\t\t Enable demux debug information");
 static int debug_dmx;
 module_param(debug_dmx, int, 0644);
@@ -120,9 +124,23 @@ MODULE_PARM_DESC(enable_w_mutex,
 static int enable_w_mutex;
 module_param(enable_w_mutex, int, 0644);
 
+MODULE_PARM_DESC(pack_len,
+		 "\n\t\t Set pack length default 188 bytes");
+unsigned int pack_len = 188;
+module_param(pack_len, int, 0644);
+
+MODULE_PARM_DESC(check_ts_alignm, "\n\t\t check input ts alignm");
+static int check_ts_alignm = 1;
+module_param(check_ts_alignm, int, 0644);
+
+MODULE_PARM_DESC(find_error_pack, "\n\t\t find error package default 2 package");
+static int find_error_pack = 2;
+module_param(find_error_pack, int, 0644);
+
 static int out_ts_elem_cb(struct out_elem *pout,
 			  char *buf, int count, void *udata,
 			  int req_len, int *req_ret);
+static int _dmx_free_input_id(int id);
 
 static inline void _invert_mode(struct dmx_section_filter *filter)
 {
@@ -154,6 +172,7 @@ static int _dmx_close(struct dmx_demux *demux)
 
 	if (pdmx->users == 0) {
 		if (pdmx->sc2_input) {
+			_dmx_free_input_id(pdmx->sc2_input->id);
 			ts_input_close(pdmx->sc2_input);
 			pdmx->sc2_input = NULL;
 		}
@@ -162,11 +181,213 @@ static int _dmx_close(struct dmx_demux *demux)
 	return 0;
 }
 
+static int _dmx_init_input_id(void)
+{
+	struct aml_dvb *advb = aml_get_dvb_device();
+	int i = 0;
+
+	memset(&record_input_sid, 0, sizeof(record_input_sid));
+	for (i = 0; i < FE_DEV_COUNT; i++) {
+		if (advb->ts[i].ts_sid != -1 && advb->ts[i].ts_sid < MAX_INPUT_NUM)
+			record_input_sid[advb->ts[i].ts_sid] = 1;
+	}
+	return 0;
+}
+
+static int _dmx_find_input_id(int id)
+{
+	int i = 0;
+
+	if (id >= MAX_INPUT_NUM) {
+		dprint("find input sid invalid, id:%d\n", id);
+		return -1;
+	}
+
+	if (record_input_sid[id] == 0) {
+		record_input_sid[id] = 1;
+		return id;
+	}
+	/*find the reasonable id*/
+	for (i = 0; i < MAX_INPUT_NUM; i++) {
+		if (record_input_sid[i] == 0) {
+			record_input_sid[i] = 1;
+			return i;
+		}
+	}
+
+	for (i = id - 1; i >= 0; i--) {
+		if (record_input_sid[i] == 0) {
+			record_input_sid[i] = 1;
+			return i;
+		}
+	}
+	dprint("can't find input sid, id:%d\n", id);
+	return -1;
+}
+
+static int _dmx_free_input_id(int id)
+{
+	if (id >= MAX_INPUT_NUM) {
+		dprint("find input sid invalid, id:%d\n", id);
+		return -1;
+	}
+	record_input_sid[id] = 0;
+	return 0;
+}
+
+static int _dmx_alloc_input(struct aml_dmx *pdmx)
+{
+	int id = 0;
+
+	if (!pdmx->sc2_input) {
+		id = _dmx_find_input_id(pdmx->id);
+		if (id == -1) {
+			dprint("%s find input fail\n", __func__);
+			return -ENODEV;
+		}
+		pdmx->sc2_input = ts_input_open(id);
+		if (!pdmx->sc2_input) {
+			dprint("%s ts_input_open fail\n", __func__);
+			return -ENODEV;
+		}
+		pdmx->sid = pdmx->sc2_input->id;
+	}
+	return 0;
+}
+
+static int _dmx_set_hw_source_ts_clone(struct dmx_demux *dmx, int hw_source)
+{
+	struct aml_dmx *pdmx = (struct aml_dmx *)dmx->priv;
+
+	if (!pdmx->sc2_input)
+		_dmx_alloc_input(pdmx);
+
+	if (pdmx->hw_source != hw_source) {
+		pr_dbg("%s org source:%d, change source:%d\n",
+				__func__, pdmx->hw_source, hw_source);
+		if (pdmx->used_feed_num && pdmx->sc2_input) {
+			pr_dbg("%s feed num:%d\n", __func__, pdmx->used_feed_num);
+			ts_clone_disconnect(pdmx->id, pdmx->hw_source, pdmx->sc2_input);
+			ts_clone_connect(pdmx->id, hw_source, pdmx->sc2_input);
+		}
+		pdmx->hw_source = hw_source;
+	}
+	return 0;
+}
+
+static int check_data_pack_align(char *mem, int len, struct aml_dmx *pdmx)
+{
+	int left = len;
+	int ops = 0;
+	int total = 0;
+	char *ops_mem = mem;
+	char *next_ops_mem = mem;
+	int ops_pack_len = 0;
+	int next_pack = 0;
+	int find_pack_len = pack_len * find_error_pack;
+	int try_count = 0;
+	int try_total = find_error_pack;
+
+	if (pack_len == 0)
+		return len;
+
+	while (left > pack_len) {
+		if (*ops_mem == 0x47) {
+			if (ops) {
+				memmove(ops_mem - ops, ops_mem, left);
+				ops_mem -= ops;
+				next_ops_mem = ops_mem;
+				ops = 0;
+			}
+
+			if (*next_ops_mem == 0x47 && ops_pack_len && ops_pack_len != pack_len) {
+				try_count = 0;
+				next_pack = pack_len;
+				try_total = (left - 1) / pack_len > find_error_pack ?
+						find_error_pack : (left - 1) / pack_len;
+
+				find_pack_len = try_total * pack_len;
+				while (try_count < try_total &&
+					*(next_ops_mem + next_pack) == 0x47) {
+					next_pack += pack_len;
+					try_count++;
+				}
+
+				if (try_total && try_count == try_total) {
+					memmove(ops_mem, ops_mem + ops_pack_len, left);
+					ops_mem += find_pack_len;
+					next_ops_mem = ops_mem;
+					left -= find_pack_len;
+					total += find_pack_len;
+					ops_pack_len = 0;
+					continue;
+				}
+			}
+
+			if (!ops_pack_len) {
+				try_count = 0;
+				next_pack = pack_len;
+				try_total = (left - 1) / pack_len > find_error_pack ?
+						find_error_pack : (left - 1) / pack_len;
+
+				find_pack_len = try_total * pack_len;
+				while (try_count < try_total && *(ops_mem + next_pack) == 0x47) {
+					next_pack += pack_len;
+					try_count++;
+				}
+
+				if (try_total && try_count == try_total) {
+					ops_mem += find_pack_len;
+					next_ops_mem = ops_mem;
+					left -= find_pack_len;
+					total += find_pack_len;
+					continue;
+				}
+			}
+
+			if (ops_pack_len == pack_len) {
+				ops_mem += pack_len;
+				total += pack_len;
+				ops_pack_len = 0;
+				continue;
+			}
+
+			next_ops_mem++;
+			ops_pack_len++;
+			left--;
+		} else {
+			ops_mem++;
+			left--;
+			ops++;
+		}
+	}
+
+	if (*ops_mem == 0x47 && left == pack_len) {
+		total += pack_len;
+		left -= pack_len;
+	}
+
+	if (left > 0 && left <= pack_len) {
+		memcpy(pdmx->last_pack, ops_mem, left);
+		pdmx->last_len = left;
+	}
+
+	if (left < 0 || left > pack_len)
+		pr_err("%s last pack length=%d\n", __func__, left);
+
+	return total;
+}
+
 static int _dmx_write_from_user(struct dmx_demux *demux,
 				const char __user *buf, size_t count)
 {
 	struct aml_dmx *pdmx = (struct aml_dmx *)demux->priv;
 	int ret = 0;
+	int mode = 0;
+	char *pmem_start;
+	char *pmem_start_phys;
+	int len = 0;
+	struct aml_dvb *advb = aml_get_dvb_device();
 
 	if (pdmx->reset_init == 0 && pdmx->video_pid != -1 && pdmx->sc2_input) {
 		ts_input_write_empty(pdmx->sc2_input, pdmx->video_pid);
@@ -183,6 +404,7 @@ static int _dmx_write_from_user(struct dmx_demux *demux,
 	ret = ts_output_check_flow_control(pdmx->id, flow_control);
 	if (ret != 0) {
 		mutex_unlock(pdmx->pmutex);
+		pr_dbg("%s flow control ret:%d\n", __func__, ret);
 		return ret;
 	}
 	mutex_unlock(pdmx->pmutex);
@@ -200,12 +422,68 @@ static int _dmx_write_from_user(struct dmx_demux *demux,
 			mutex_unlock(pdmx->pmutex);
 		return -1;
 	}
+	if (pdmx->source == INPUT_LOCAL_SEC)
+		mode = 1;
 
-	ret = ts_input_write(pdmx->sc2_input, buf, count, pdmx->id);
-	if (enable_w_mutex) {
-		usleep_range(1000, 1500);
-		mutex_unlock(pdmx->pmutex);
+	if (pdmx->input_len < (count + CACHE_ALIGNMENT_LEN)) {
+		//free previous memory
+		if (pdmx->input_mem)
+			dma_free_coherent(aml_get_device(),
+				pdmx->input_len,
+				(void *)pdmx->input_mem,
+				pdmx->input_mem_phys);
+
+		//alloc new memory
+		pdmx->input_mem = (unsigned long)dma_alloc_coherent(aml_get_device(),
+				(count + CACHE_ALIGNMENT_LEN), (dma_addr_t *)&pdmx->input_mem_phys,
+				GFP_KERNEL | GFP_DMA32);
+		if (!pdmx->input_mem) {
+			dprint("can't alloc memory\n");
+			if (enable_w_mutex)
+				mutex_unlock(pdmx->pmutex);
+			return -1;
+		}
+		pdmx->input_len = count + CACHE_ALIGNMENT_LEN;
 	}
+
+	if (copy_from_user((char *)pdmx->input_mem + CACHE_ALIGNMENT_LEN, buf, count)) {
+		dprint("copy_from user error\n");
+		if (enable_w_mutex)
+			mutex_unlock(pdmx->pmutex);
+		return -EFAULT;
+	}
+
+	pmem_start = (char *)pdmx->input_mem + CACHE_ALIGNMENT_LEN;
+	pmem_start_phys = (char *)pdmx->input_mem_phys + CACHE_ALIGNMENT_LEN;
+	len = count;
+
+	/**/
+	if (mode == 0 && check_ts_alignm && pdmx->last_len) {
+		memcpy((void *)pdmx->input_mem + CACHE_ALIGNMENT_LEN - pdmx->last_len,
+			pdmx->last_pack, pdmx->last_len);
+		len += pdmx->last_len;
+		pmem_start -= pdmx->last_len;
+		pmem_start_phys -= pdmx->last_len;
+		pdmx->last_len = 0;
+	}
+	if (mode == 0 && check_ts_alignm)
+		len = check_data_pack_align((void *)pmem_start, len, pdmx);
+
+	dma_sync_single_for_device(aml_get_device(),
+		(dma_addr_t)pmem_start_phys, len, DMA_TO_DEVICE);
+
+	if (advb->ts_clone == 0) {
+		ret = ts_input_write(pdmx->sc2_input, pmem_start,
+				pmem_start_phys, len, mode, pack_len);
+		if (enable_w_mutex) {
+			usleep_range(1000, 1500);
+			mutex_unlock(pdmx->pmutex);
+		}
+	} else {
+		ret = ts_clone_write(pdmx->hw_source, pmem_start,
+				pmem_start_phys, len, mode, pack_len);
+	}
+	pr_dbg("%s done ret:%d\n", __func__, ret);
 //	if (signal_pending(current))
 //		return -EINTR;
 	return ret;
@@ -423,10 +701,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 //                      return -ENOMEM;
 //              }
 //      }
-	if (demux->source != INPUT_DEMOD)
-		sid = demux->local_sid;
-	else
-		sid = demux->demod_sid;
+	sid = demux->sid;
 
 	if (get_dvb_loop_tsn()) {
 		sid = sid >= 32 ? sid : (sid + 32);
@@ -991,10 +1266,7 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 		mutex_unlock(demux->pmutex);
 		return 0;
 	}
-	if (demux->source != INPUT_DEMOD)
-		sid = demux->local_sid;
-	else
-		sid = demux->demod_sid;
+	sid = demux->sid;
 
 	if (get_dvb_loop_tsn()) {
 		sid = sid >= 32 ? sid : (sid + 32);
@@ -1249,6 +1521,7 @@ static int _dmx_allocate_ts_feed(struct dmx_demux *dmx,
 {
 	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
 	struct sw_demux_ts_feed *feed;
+	struct aml_dvb *advb = aml_get_dvb_device();
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
@@ -1274,6 +1547,14 @@ static int _dmx_allocate_ts_feed(struct dmx_demux *dmx,
 	(*ts_feed)->stop_filtering = _dmx_ts_feed_stop_filtering;
 	(*ts_feed)->set = _dmx_ts_feed_set;
 
+	if (advb->ts_clone) {
+		demux->used_feed_num++;
+		if (demux->used_feed_num == 1) {
+			_dmx_alloc_input(demux);
+			ts_clone_connect(demux->id, demux->hw_source, demux->sc2_input);
+		}
+	}
+
 	mutex_unlock(demux->pmutex);
 
 	return 0;
@@ -1290,6 +1571,7 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 	int ret = 0;
 	struct pid_node *entry = NULL;
 	struct pid_node *tmp = NULL;
+	struct aml_dvb *advb = aml_get_dvb_device();
 
 	if (!ts_feed)
 		return 0;
@@ -1343,10 +1625,7 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 	case DMX_PES_PCR1:
 	case DMX_PES_PCR2:
 	case DMX_PES_PCR3:
-		if (demux->source != INPUT_DEMOD)
-			sid = demux->local_sid;
-		else
-			sid = demux->demod_sid;
+		sid = demux->sid;
 
 		if (feed->pes_type == DMX_PES_PCR0)
 			pcr_num = 0;
@@ -1373,6 +1652,12 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 	feed->state = DMX_STATE_FREE;
 	feed->ts_out_elem = NULL;
 
+	if (advb->ts_clone) {
+		demux->used_feed_num--;
+		if (demux->used_feed_num == 0)
+			ts_clone_disconnect(demux->id, demux->hw_source, demux->sc2_input);
+	}
+
 	mutex_unlock(demux->pmutex);
 	return 0;
 }
@@ -1383,6 +1668,7 @@ static int _dmx_allocate_section_feed(struct dmx_demux *dmx,
 {
 	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
 	struct sw_demux_sec_feed *sec_feed;
+	struct aml_dvb *advb = aml_get_dvb_device();
 	int i;
 
 	if (mutex_lock_interruptible(demux->pmutex))
@@ -1421,6 +1707,14 @@ static int _dmx_allocate_section_feed(struct dmx_demux *dmx,
 
 	sec_feed->sec_out_elem = NULL;
 
+	if (advb->ts_clone) {
+		demux->used_feed_num++;
+		if (demux->used_feed_num == 1) {
+			_dmx_alloc_input(demux);
+			ts_clone_connect(demux->id, demux->hw_source, demux->sc2_input);
+		}
+	}
+
 	pr_dbg("%s\n", __func__);
 
 	mutex_unlock(demux->pmutex);
@@ -1432,6 +1726,7 @@ static int _dmx_release_section_feed(struct dmx_demux *dmx,
 {
 	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
 	struct sw_demux_sec_feed *sec_feed;
+	struct aml_dvb *advb = aml_get_dvb_device();
 
 	sec_feed = (struct sw_demux_sec_feed *)feed;
 
@@ -1450,6 +1745,12 @@ static int _dmx_release_section_feed(struct dmx_demux *dmx,
 
 	if (sec_feed->filter)
 		vfree(sec_feed->filter);
+
+	if (advb->ts_clone) {
+		demux->used_feed_num--;
+		if (demux->used_feed_num == 0)
+			ts_clone_disconnect(demux->id, demux->hw_source, demux->sc2_input);
+	}
 
 	mutex_unlock(demux->pmutex);
 	pr_dbg("%s\n", __func__);
@@ -1637,8 +1938,9 @@ int dmx_get_stc(struct dmx_demux *dmx, unsigned int num,
 
 static int _dmx_set_input(struct dmx_demux *demux, int source)
 {
+	struct aml_dvb *advb = aml_get_dvb_device();
 	struct aml_dmx *pdmx = (struct aml_dmx *)demux;
-	int sec_level = 0;
+	int id = 0;
 
 	pr_dbg("%s local:%d, input:%d\n", __func__, pdmx->source, source);
 //      if (pdmx->source == source)
@@ -1648,39 +1950,28 @@ static int _dmx_set_input(struct dmx_demux *demux, int source)
 	if (source == INPUT_LOCAL || source == INPUT_LOCAL_SEC) {
 		pr_dbg("%s local:%d\n", __func__, source);
 		if (!pdmx->sc2_input) {
-			if (source == INPUT_LOCAL_SEC)
-				sec_level = 1;
-			pdmx->sc2_input = ts_input_open(pdmx->id, sec_level);
+			id = _dmx_find_input_id(pdmx->id);
+			if (id == -1) {
+				dprint("%s find input fail\n", __func__);
+				mutex_unlock(pdmx->pmutex);
+				return -ENODEV;
+			}
+			pdmx->sc2_input = ts_input_open(id);
 			if (!pdmx->sc2_input) {
 				dprint("ts_input_open fail\n");
 				mutex_unlock(pdmx->pmutex);
 				return -ENODEV;
 			}
-		} else {
-			if (source != pdmx->source) {
-				ts_input_close(pdmx->sc2_input);
-				pdmx->sc2_input = NULL;
-
-				if (source == INPUT_LOCAL_SEC)
-					sec_level = 1;
-				pdmx->sc2_input =
-					ts_input_open(pdmx->id, sec_level);
-				if (!pdmx->sc2_input) {
-					dprint("ts_input_open fail\n");
-					mutex_unlock(pdmx->pmutex);
-					return -ENODEV;
-				}
-			}
 		}
 	} else {
 		pr_dbg("%s remote\n", __func__);
-		if (pdmx->sc2_input) {
+		if (advb->ts_clone == 0 && pdmx->sc2_input) {
+			_dmx_free_input_id(pdmx->sc2_input->id);
 			ts_input_close(pdmx->sc2_input);
 			pdmx->sc2_input = NULL;
 		}
 	}
 	pdmx->source = source;
-	dsc_set_source(pdmx->id, source);
 	mutex_unlock(pdmx->pmutex);
 	return 0;
 }
@@ -1856,50 +2147,59 @@ static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
 
+	if (advb->ts_clone) {
+		_dmx_set_hw_source_ts_clone(dmx, hw_source);
+		dsc_set_sid(demux->id, demux->sc2_input->id);
+		mutex_unlock(demux->pmutex);
+		return 0;
+	}
+
 	if (hw_source >= DMA_0 && hw_source <= DMA_7) {
-		if (demux->local_sid != hw_source - DMA_0) {
-			demux->local_sid = hw_source - DMA_0;
-			ts_output_update_filter(demux->id, demux->local_sid);
-			dsc_set_sid(demux->id, INPUT_LOCAL, demux->local_sid);
+		if (demux->hw_source != hw_source) {
+			demux->sid = hw_source - DMA_0;
+			ts_output_update_filter(demux->id, demux->sid);
+			dsc_set_sid(demux->id, demux->sid);
 		}
-		demux->demod_sid = -1;
 		advb->tsn_flag &= (~(1 << demux->id));
 		if (!advb->tsn_flag)
 			tsn_set_double_out(0);
 	} else if (hw_source >= FRONTEND_TS0 && hw_source <= FRONTEND_TS7) {
-		demux->ts_index = hw_source - FRONTEND_TS0;
-		if (advb->ts[demux->ts_index].ts_sid != -1 &&
-			advb->ts[demux->ts_index].ts_sid != demux->demod_sid) {
-			demux->demod_sid = advb->ts[demux->ts_index].ts_sid;
-			ts_output_update_filter(demux->id, demux->demod_sid);
-			dsc_set_sid(demux->id, INPUT_DEMOD, demux->demod_sid);
+		if (demux->hw_source != hw_source) {
+			demux->ts_index = hw_source - FRONTEND_TS0;
+			if (advb->ts[demux->ts_index].ts_sid != -1 &&
+				advb->ts[demux->ts_index].ts_sid != demux->sid) {
+				demux->sid = advb->ts[demux->ts_index].ts_sid;
+				ts_output_update_filter(demux->id, demux->sid);
+				dsc_set_sid(demux->id, demux->sid);
+			}
+			advb->tsn_flag &= (~(1 << demux->id));
+			if (!advb->tsn_flag)
+				tsn_set_double_out(0);
 		}
-		demux->local_sid = -1;
-		advb->tsn_flag &= (~(1 << demux->id));
-		if (!advb->tsn_flag)
-			tsn_set_double_out(0);
 	} else if (hw_source >= DMA_0_1 && hw_source <= DMA_7_1) {
-		if (demux->local_sid != (hw_source - DMA_0_1 + 0x20)) {
-			demux->local_sid = hw_source - DMA_0_1 + 0x20;
-			ts_output_update_filter(demux->id, demux->local_sid);
-			dsc_set_sid(demux->id, INPUT_LOCAL, hw_source - DMA_0_1);
+		if (demux->hw_source != hw_source) {
+			demux->sid = hw_source - DMA_0_1 + 0x20;
+			ts_output_update_filter(demux->id, demux->sid);
+			dsc_set_sid(demux->id, hw_source - DMA_0_1);
 		}
-		demux->demod_sid = -1;
 		advb->tsn_flag |= (1 << demux->id);
 		tsn_set_double_out(1);
 	} else if (hw_source >= FRONTEND_TS0_1 && hw_source <= FRONTEND_TS7_1) {
-		demux->ts_index = hw_source - FRONTEND_TS0_1;
-		if (advb->ts[demux->ts_index].ts_sid != -1 &&
-			demux->demod_sid != (advb->ts[demux->ts_index].ts_sid ^ 0x20)) {
-			demux->demod_sid =
-				advb->ts[demux->ts_index].ts_sid ^ 0x20;
-			ts_output_update_filter(demux->id, demux->demod_sid);
-			dsc_set_sid(demux->id, INPUT_DEMOD, advb->ts[demux->ts_index].ts_sid);
+		if (demux->hw_source != hw_source) {
+			demux->ts_index = hw_source - FRONTEND_TS0_1;
+			if (advb->ts[demux->ts_index].ts_sid != -1 &&
+				demux->sid != (advb->ts[demux->ts_index].ts_sid ^ 0x20)) {
+				demux->sid =
+					advb->ts[demux->ts_index].ts_sid ^ 0x20;
+				ts_output_update_filter(demux->id, demux->sid);
+				dsc_set_sid(demux->id,
+						advb->ts[demux->ts_index].ts_sid);
+			}
+			advb->tsn_flag |= (1 << demux->id);
+			tsn_set_double_out(1);
 		}
-		demux->local_sid = -1;
-		advb->tsn_flag |= (1 << demux->id);
-		tsn_set_double_out(1);
 	}
+	demux->hw_source = hw_source;
 	mutex_unlock(demux->pmutex);
 	return 0;
 }
@@ -1907,24 +2207,13 @@ static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 static int _dmx_get_hw_source(struct dmx_demux *dmx, int *hw_source)
 {
 	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
-	struct aml_dvb *advb = aml_get_dvb_device();
 
 	pr_dbg("%s dmx%d\n", __func__, demux->id);
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
 
-	if (demux->source == INPUT_DEMOD) {
-		if (advb->tsn_flag & (1 << demux->id))
-			*hw_source = demux->ts_index + FRONTEND_TS0_1;
-		else
-			*hw_source = demux->ts_index + FRONTEND_TS0;
-	} else {
-		if (demux->local_sid >= 0x20)
-			*hw_source = demux->local_sid - 0x20 + DMA_0_1;
-		else
-			*hw_source = demux->local_sid + DMA_0;
-	}
+	*hw_source = demux->hw_source;
 	mutex_unlock(demux->pmutex);
 	return 0;
 }
@@ -1978,10 +2267,7 @@ static int _dmx_remap_pid(struct dmx_demux *dmx, u16 pids[2])
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
 
-	if (demux->source != INPUT_DEMOD)
-		sid = demux->local_sid;
-	else
-		sid = demux->demod_sid;
+	sid = demux->sid;
 
 	ts_output_remap_pid(sid, pid, pid_new);
 
@@ -1999,10 +2285,7 @@ static int _dmx_decode_info(struct dmx_demux *dmx, struct decoder_mem_info *info
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
 
-	if (demux->source != INPUT_DEMOD)
-		ts_output_set_decode_info(demux->local_sid, info);
-	else
-		ts_output_set_decode_info(demux->demod_sid, info);
+	ts_output_set_decode_info(demux->sid, info);
 	mutex_unlock(demux->pmutex);
 	return 0;
 }
@@ -2012,6 +2295,7 @@ void dmx_init_hw(void)
 	ts_output_init();
 	ts_input_init();
 	SC2_bufferid_init();
+	_dmx_init_input_id();
 	memset(jiffies_pcr_record, 0, sizeof(jiffies_pcr_record));
 }
 
@@ -2122,6 +2406,7 @@ int dmx_destroy(struct aml_dmx *pdmx)
 		vfree(pdmx->ts_feed);
 		vfree(pdmx->section_feed);
 		if (pdmx->sc2_input) {
+			_dmx_free_input_id(pdmx->sc2_input->id);
 			ts_input_close(pdmx->sc2_input);
 			pdmx->sc2_input = NULL;
 		}
@@ -2615,6 +2900,63 @@ error_handle:
 	return size;
 }
 
+static ssize_t ts_clone_show(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	int ret;
+	int r = 0;
+	int size = 0;
+	struct aml_dvb *advb = aml_get_dvb_device();
+
+	ret = sprintf(buf, "ts clone %d\n", advb->ts_clone);
+
+	size = ts_output_dump_clone_info(buf + ret);
+
+	r =  ts_clone_dump_info(buf + ret + size);
+	return r + ret + size;
+}
+
+static ssize_t ts_clone_store(struct class *class,
+				 struct class_attribute *attr,
+				 const char *buf, size_t size)
+{
+	int ts_clone = 0;
+	int cpu_type;
+	int minor_type;
+
+	struct aml_dvb *advb = aml_get_dvb_device();
+
+	if (kstrtoint(buf, 0, &ts_clone)) {
+		dprint_i("ts clone set error\n");
+		return size;
+	}
+	cpu_type = get_cpu_type();
+	if (cpu_type == MESON_CPU_MAJOR_ID_SC2) {
+		minor_type = get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR);
+		if (minor_type != 0xd) {
+			dprint_i("chip:sc2-%x not support ts clone\n", minor_type);
+			return size;
+		}
+	}
+	if (ts_clone != 1 && ts_clone != 0) {
+		dprint_i("ts clone value error, value:%d\n", ts_clone);
+		return size;
+	}
+	if (ts_clone == advb->ts_clone) {
+		dprint_i("ts clone set same %d\n", ts_clone);
+		return size;
+	}
+
+	if (ts_clone) {
+		ts_clone_init();
+		advb->ts_clone = 1;
+	} else {
+		ts_clone_destroy();
+		advb->ts_clone = 0;
+	}
+	return size;
+}
+
 #ifdef OPEN_REGISTER_NODE
 static CLASS_ATTR_RW(register_addr);
 static CLASS_ATTR_RW(register_value);
@@ -2625,6 +2967,7 @@ static CLASS_ATTR_RO(dump_av_level);
 static CLASS_ATTR_RW(cache_status);
 static CLASS_ATTR_RW(dump_ts);
 static CLASS_ATTR_RW(dmx_source);
+static CLASS_ATTR_RW(ts_clone);
 static CLASS_ATTR_RW(dump_ringbuffer);
 
 static struct attribute *aml_dmx_class_attrs[] = {
@@ -2638,6 +2981,7 @@ static struct attribute *aml_dmx_class_attrs[] = {
 	&class_attr_cache_status.attr,
 	&class_attr_dump_ts.attr,
 	&class_attr_dmx_source.attr,
+	&class_attr_ts_clone.attr,
 	&class_attr_dump_ringbuffer.attr,
 	NULL
 };

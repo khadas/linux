@@ -13,13 +13,6 @@
 #define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_DEMUX
 #include <trace/events/meson_atrace.h>
 
-struct in_elem {
-	__u8 used;
-	__u8 mem_level;
-	__u8 id;
-	struct chan_id *pchan;
-};
-
 #define MAX_INPUT_NUM			32
 static struct in_elem ts_input_table[MAX_INPUT_NUM];
 
@@ -70,17 +63,16 @@ int ts_input_destroy(void)
 /**
  * ts_input_open
  * \param id:
- * \param sec_level:
  * \retval in_elem:success.
  * \retval NULL:fail.
  */
-struct in_elem *ts_input_open(int id, int sec_level)
+struct in_elem *ts_input_open(int id)
 {
 	int ret = 0;
 	struct bufferid_attr attr;
 	struct in_elem *elem;
 
-	pr_dbg("%s line:%d\n", __func__, __LINE__);
+	pr_dbg("%s line:%d id:%d\n", __func__, __LINE__, id);
 
 	if (id >= MAX_INPUT_NUM) {
 		dprint("%s id:%d invalid\n", __func__, id);
@@ -92,13 +84,12 @@ struct in_elem *ts_input_open(int id, int sec_level)
 	if (ret != 0)
 		return NULL;
 
-	ts_input_table[id].mem_level = sec_level;
 	ts_input_table[id].id = id;
 	ts_input_table[id].used = 1;
 	elem = &ts_input_table[id];
 
 	if (SC2_bufferid_set_mem(elem->pchan,
-				 TS_INPUT_BUFF_SIZE, sec_level) != 0) {
+				 TS_INPUT_BUFF_SIZE, 0) != 0) {
 		SC2_bufferid_dealloc(ts_input_table[id].pchan);
 		ts_input_table[id].used = 0;
 		dprint("input id:%d, malloc fail\n", id);
@@ -116,6 +107,7 @@ struct in_elem *ts_input_open(int id, int sec_level)
  */
 int ts_input_close(struct in_elem *elem)
 {
+	pr_dbg("%s id:%d\n", __func__, elem->id);
 	if (elem && elem->pchan)
 		SC2_bufferid_dealloc(elem->pchan);
 	if (elem)
@@ -127,11 +119,15 @@ int ts_input_close(struct in_elem *elem)
  * ts_input_write
  * \param elem:
  * \param buf:
+ * \param buf_phys:
  * \param count:
+ * \param mode: 1:security; 0:normal
+ * \param packet_len:188 or 192
  * \retval size:written count
  * \retval -1:fail.
  */
-int ts_input_write(struct in_elem *elem, const char *buf, int count, int dmx_id)
+int ts_input_write(struct in_elem *elem, const char *buf, char *buf_phys, int count,
+		int mode, int packet_len)
 {
 	int ret = 0;
 
@@ -145,8 +141,81 @@ int ts_input_write(struct in_elem *elem, const char *buf, int count, int dmx_id)
 	pr_dbg("%s id:%d count:%d\n", __func__, elem->id, count);
 
 	ret = SC2_bufferid_write(elem->pchan,
-				buf, count, elem->mem_level ? 1 : 0, dmx_id);
+				buf, buf_phys, count, mode, packet_len);
 	ATRACE_COUNTER("demux_ts_input", ret);
+	return ret;
+}
+
+/**
+ * ts_input_non_block_write
+ * \param elem:
+ * \param buf:
+ * \param buf_phys:
+ * \param count:
+ * \param mode: 1:security; 0:normal
+ * \param packet_len:188 or 192
+ * \retval size:written count
+ * \retval -1:fail.
+ */
+int ts_input_non_block_write(struct in_elem *elem, const char *buf, char *buf_phys, int count,
+		int mode, int packet_len)
+{
+	int ret = 0;
+
+	if (!elem)
+		return -1;
+
+	if (!elem->pchan || !buf) {
+		pr_dbg("%s invalid parameter line:%d\n", __func__, __LINE__);
+		return 0;
+	}
+	pr_dbg("%s id:%d count:%d\n", __func__, elem->id, count);
+
+	ret = SC2_bufferid_non_block_write(elem->pchan,
+				buf, buf_phys, count, mode, packet_len);
+	ATRACE_COUNTER("demux_ts_input", ret);
+	return ret;
+}
+
+/**
+ * ts_input_non_block_write_status
+ * \param elem:
+ * \retval 1:done, 0:not done
+ */
+int ts_input_non_block_write_status(struct in_elem *elem)
+{
+	int ret = 0;
+
+	if (!elem)
+		return -1;
+
+	if (!elem->pchan) {
+		pr_dbg("%s invalid parameter line:%d\n", __func__, __LINE__);
+		return 0;
+	}
+	ret = SC2_bufferid_non_block_write_status(elem->pchan);
+	pr_dbg("%s id:%d, ret:%d\n", __func__, elem->id, ret);
+	return ret;
+}
+
+/**
+ * ts_input_non_block_write_free
+ * \param elem:
+ * \retval 0:success
+ */
+int ts_input_non_block_write_free(struct in_elem *elem)
+{
+	int ret = 0;
+
+	if (!elem)
+		return -1;
+
+	if (!elem->pchan) {
+		pr_dbg("%s invalid parameter line:%d\n", __func__, __LINE__);
+		return 0;
+	}
+	ret = SC2_bufferid_non_block_write_free(elem->pchan);
+	pr_dbg("%s id:%d, ret:%d\n", __func__, elem->id, ret);
 	return ret;
 }
 
