@@ -142,6 +142,10 @@ int dnlp_en_2 = 1;/* 0:disable;1:enable */
 module_param(dnlp_en_2, int, 0664);
 MODULE_PARM_DESC(dnlp_en_2, "\n enable or disable dnlp\n");
 
+int dnlp_en_dsw = 1;/* 0:disable;1:enable */
+module_param(dnlp_en_dsw, int, 0664);
+MODULE_PARM_DESC(dnlp_en_dsw, "\n enable or disable dnlp_dsw\n");
+
 int lut3d_en;/* lut3d_en enable/disable */
 int lut3d_order;/* 0 RGB 1 GBR */
 int lut3d_debug;
@@ -288,7 +292,7 @@ static void ve_dnlp_load_def_reg(void)
 
 void ve_on_vs(struct vframe_s *vf)
 {
-	if (dnlp_en_2) {
+	if (dnlp_en_dsw) {
 		/* calculate dnlp target data */
 		if (ve_dnlp_calculate_tgtx(vf)) {
 			/* calculate dnlp low-pass-filter data */
