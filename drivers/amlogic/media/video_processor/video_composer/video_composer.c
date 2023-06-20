@@ -632,9 +632,10 @@ static int vc_init_vicp_buffer(struct composer_dev *dev, bool is_tvp, size_t usa
 	struct vinfo_s *video_composer_vinfo;
 	struct vinfo_s vinfo = {.width = 1280, .height = 720, };
 	int dw_size = 0, afbc_body_size = 0, afbc_head_size = 0, afbc_table_size = 0;
-	u32 *virt_addr = NULL;
+	u32 *virt_addr = NULL, *temp_addr = NULL;
 	u32 temp_body_addr;
 	u64 output_duration;
+	ulong buf_handle, buf_phy_addr;
 
 	video_composer_vinfo = get_current_vinfo();
 	if (IS_ERR_OR_NULL(video_composer_vinfo))
@@ -726,10 +727,6 @@ static int vc_init_vicp_buffer(struct composer_dev *dev, bool is_tvp, size_t usa
 		dev->dst_buf[i].is_tvp = is_tvp;
 
 		if (vicp_output_dev != 1) {
-			vc_print(dev->index, PRINT_VICP, "dw_size = %d.\n", dw_size);
-			vc_print(dev->index, PRINT_VICP, "headsize = %d.\n", afbc_head_size);
-			vc_print(dev->index, PRINT_VICP, "bodysize = %d.\n", afbc_body_size);
-			vc_print(dev->index, PRINT_VICP, "tablesize = %d.\n", afbc_table_size);
 			dev->dst_buf[i].dw_size = dw_size;
 			dev->dst_buf[i].afbc_body_addr = dev->dst_buf[i].phy_addr + dw_size;
 			dev->dst_buf[i].afbc_body_size = afbc_body_size;
@@ -737,34 +734,31 @@ static int vc_init_vicp_buffer(struct composer_dev *dev, bool is_tvp, size_t usa
 				afbc_body_size;
 			dev->dst_buf[i].afbc_head_size = afbc_head_size;
 
-			dev->dst_buf[i].afbc_table_addr =
-				codec_mm_alloc_for_dma(ports[dev->index].name,
-						afbc_table_size / PAGE_SIZE,
-						0,
-						CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR);
+			virt_addr = (u32 *)codec_mm_dma_alloc_coherent(&buf_handle, &buf_phy_addr,
+				afbc_table_size, dev->port->name);
+			dev->dst_buf[i].afbc_table_handle = buf_handle;
+			dev->dst_buf[i].afbc_table_addr = buf_phy_addr;
 			dev->dst_buf[i].afbc_table_size = afbc_table_size;
 			if (dev->dst_buf[i].afbc_table_addr == 0) {
 				dev->buffer_status = INIT_ERROR;
 				vc_print(dev->index, PRINT_ERROR, "alloc table buf fail.\n");
 				return -1;
 			}
-
 			temp_body_addr = dev->dst_buf[i].afbc_body_addr & 0xffffffff;
-			virt_addr = codec_mm_phys_to_virt(dev->dst_buf[i].afbc_table_addr);
 			memset(virt_addr, 0, afbc_table_size);
+			temp_addr = virt_addr;
 			for (j = 0; j < afbc_body_size; j += 4096) {
 				*virt_addr = ((j + temp_body_addr) >> 12) & 0x000fffff;
 				virt_addr++;
 			}
-			codec_mm_dma_flush(codec_mm_phys_to_virt(dev->dst_buf[i].afbc_table_addr),
-				dev->dst_buf[i].afbc_table_size, DMA_TO_DEVICE);
 
-			vc_print(dev->index, PRINT_VICP, "HeadAddr = 0x%lx.\n",
-				dev->dst_buf[i].afbc_head_addr);
-			vc_print(dev->index, PRINT_VICP, "BodyAddr = 0x%lx.\n",
-				dev->dst_buf[i].afbc_body_addr);
-			vc_print(dev->index, PRINT_VICP, "tableAddr = 0x%lx.\n",
-				dev->dst_buf[i].afbc_table_addr);
+			vc_print(dev->index, PRINT_VICP, "dw_size = %d.\n", dw_size);
+			vc_print(dev->index, PRINT_VICP, "HeadAddr = 0x%lx, headsize = %d.\n",
+				dev->dst_buf[i].afbc_head_addr, afbc_head_size);
+			vc_print(dev->index, PRINT_VICP, "BodyAddr = 0x%lx, bodysize = %d.\n",
+				dev->dst_buf[i].afbc_body_addr, afbc_body_size);
+			vc_print(dev->index, PRINT_VICP, "tableAddr = 0x%lx, tablesize = %d.\n",
+				dev->dst_buf[i].afbc_table_addr, afbc_table_size);
 		}
 
 		if (!kfifo_put(&dev->free_q, &dev->dst_buf[i].frame))
@@ -832,8 +826,7 @@ static void video_composer_uninit_buffer(struct composer_dev *dev)
 					      dev->dst_buf[i].phy_addr);
 			dev->dst_buf[i].phy_addr = 0;
 			if (vicp_output_dev != 1 && dev->dev_choice == COMPOSER_WITH_VICP) {
-				codec_mm_free_for_dma(ports[dev->index].name,
-					dev->dst_buf[i].afbc_table_addr);
+				codec_mm_dma_free_coherent(dev->dst_buf[i].afbc_table_handle);
 				dev->dst_buf[i].afbc_table_addr = 0;
 			}
 		}

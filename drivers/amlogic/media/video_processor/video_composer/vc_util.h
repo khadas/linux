@@ -35,6 +35,7 @@ struct dst_buf_t {
 	ulong afbc_body_addr;
 	u32 afbc_body_size;
 	ulong afbc_table_addr;
+	ulong afbc_table_handle;
 	u32 afbc_table_size;
 };
 
