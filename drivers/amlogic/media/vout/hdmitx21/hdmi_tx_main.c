@@ -190,6 +190,10 @@ static const struct dv_info dv_dummy;
 static struct dv_info ext_dvinfo;
 static int log21_level;
 static bool hdmitx_edid_done;
+/* for SONY-KD-55A8F TV, need to mute more frames
+ * when switch DV(LL)->HLG
+ */
+static int hdr_mute_frame = 20;
 
 static struct vout_device_s hdmitx_vdev = {
 	.dv_info = &ext_dvinfo,
@@ -1507,14 +1511,14 @@ static void hdmitx_sdr_hdr_uevent(struct hdmitx_dev *hdev)
 	if (hdev->hdmi_last_hdr_mode == 0 &&
 	    hdev->hdmi_current_hdr_mode != 0) {
 		/* SDR -> HDR*/
-		hdev->hdmi_last_hdr_mode = hdev->hdmi_current_hdr_mode;
 		hdmitx21_set_uevent(HDMITX_HDR_EVENT, 1);
 	} else if ((hdev->hdmi_last_hdr_mode != 0) &&
 			(hdev->hdmi_current_hdr_mode == 0)) {
 		/* HDR -> SDR*/
-		hdev->hdmi_last_hdr_mode = hdev->hdmi_current_hdr_mode;
 		hdmitx21_set_uevent(HDMITX_HDR_EVENT, 0);
 	}
+	/* NOTE: for HDR <-> HLG, also need update last mode */
+	hdev->hdmi_last_hdr_mode = hdev->hdmi_current_hdr_mode;
 }
 
 static unsigned int hdmitx_get_frame_duration(void)
@@ -1716,6 +1720,22 @@ void hdmitx21_set_aspect_ratio(int aspect_ratio)
 	hdev->hwop.cntlconfig(hdev, CONF_ASPECT_RATIO, aspect_ratio_vic);
 	hdev->aspect_ratio = aspect_ratio;
 	pr_info("set new aspect ratio = %d\n", aspect_ratio);
+}
+
+static void hdr_unmute_work_func(struct work_struct *work)
+{
+	unsigned int mute_us;
+	struct hdmitx_dev *hdev =
+		container_of(work, struct hdmitx_dev, work_hdr_unmute);
+
+	if (hdr_mute_frame) {
+		pr_info("vid mute %d frames before play hdr/hlg video\n",
+			hdr_mute_frame);
+		mute_us = hdr_mute_frame * hdmitx_get_frame_duration();
+		usleep_range(mute_us, mute_us + 10);
+		pr_info("%s: VID_UNMUTE\n", __func__);
+		hdev->hwop.cntlconfig(hdev, CONF_VIDEO_MUTE_OP, VIDEO_UNMUTE);
+	}
 }
 
 static void hdr_work_func(struct work_struct *work)
@@ -1971,8 +1991,18 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	}
 
 	/* if sdr/hdr mode change ,notify uevent to userspace*/
-	if (hdev->hdmi_current_hdr_mode != hdev->hdmi_last_hdr_mode)
+	if (hdev->hdmi_current_hdr_mode != hdev->hdmi_last_hdr_mode) {
+		if (hdr_mute_frame) {
+			pr_info("%s: VID_MUTE\n", __func__);
+			hdev->hwop.cntlconfig(hdev, CONF_VIDEO_MUTE_OP, VIDEO_MUTE);
+			pr_info("SDR->HDR enter mute\n");
+			/* force unmute after specific frames,
+			 * no need to check hdr status when unmute
+			 */
+			schedule_work(&hdev->work_hdr_unmute);
+		}
 		schedule_work(&hdev->work_hdr);
+	}
 	spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 }
 
@@ -4845,6 +4875,26 @@ static ssize_t dsc_en_store(struct device *dev,
 	return count;
 }
 
+static ssize_t hdr_mute_frame_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\r\n", hdr_mute_frame);
+	return pos;
+}
+
+static ssize_t hdr_mute_frame_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned long mute_frame = 0;
+
+	pr_info("set hdr_mute_frame: %s\n", buf);
+	if (kstrtoul(buf, 10, &mute_frame) == 0)
+		hdr_mute_frame = mute_frame;
+	return count;
+}
+
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_rptx.h>
 
 void direct21_hdcptx14_opr(enum rptx_hdcp14_cmd cmd, void *args)
@@ -5350,6 +5400,7 @@ static DEVICE_ATTR_RW(filter_hdcp_off_period);
 static DEVICE_ATTR_RW(not_restart_hdcp);
 static DEVICE_ATTR_RW(frl_rate);
 static DEVICE_ATTR_RW(dsc_en);
+static DEVICE_ATTR_RW(hdr_mute_frame);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
@@ -6931,6 +6982,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_need_filter_hdcp_off);
 	ret = device_create_file(dev, &dev_attr_filter_hdcp_off_period);
 	ret = device_create_file(dev, &dev_attr_not_restart_hdcp);
+	ret = device_create_file(dev, &dev_attr_hdr_mute_frame);
 
 	hdev->task_hdmist_check = kthread_run(hdmitx21_status_check, (void *)hdev,
 				      "kthread_hdmist_check");
@@ -6969,7 +7021,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdev->hpd_state = !!hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0);
 	hdmitx21_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
 	INIT_WORK(&hdev->work_hdr, hdr_work_func);
-
+	INIT_WORK(&hdev->work_hdr_unmute, hdr_unmute_work_func);
 /* When init hdmi, clear the hdmitx module edid ram and edid buffer. */
 	hdmitx21_edid_clear(hdev);
 	hdmitx21_edid_ram_buffer_clear(hdev);
@@ -7042,6 +7094,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 		component_del(&pdev->dev, &meson_hdmitx_bind_ops);
 
 	cancel_work_sync(&hdev->work_hdr);
+	cancel_work_sync(&hdev->work_hdr_unmute);
 
 	if (hdev->hwop.uninit)
 		hdev->hwop.uninit(hdev);
@@ -7121,6 +7174,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_need_filter_hdcp_off);
 	device_remove_file(dev, &dev_attr_filter_hdcp_off_period);
 	device_remove_file(dev, &dev_attr_not_restart_hdcp);
+	device_remove_file(dev, &dev_attr_hdr_mute_frame);
 	cdev_del(&hdev->cdev);
 
 	device_destroy(hdmitx_class, hdev->hdmitx_id);

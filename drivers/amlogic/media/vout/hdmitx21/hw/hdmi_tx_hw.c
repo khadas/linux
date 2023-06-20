@@ -2493,22 +2493,24 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, u32 cmd,
 		break;
 	case CONF_VIDEO_MUTE_OP:
 		if (argv == VIDEO_MUTE) {
-			/*
-			hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 3, 1);
-			hd21_write_reg(VENC_VIDEO_TST_EN, 1);
-			hd21_write_reg(VENC_VIDEO_TST_MDSEL, 0);
-			hd21_write_reg(VENC_VIDEO_TST_Y, 0x0);
-			hd21_write_reg(VENC_VIDEO_TST_CB, 0x200);
-			hd21_write_reg(VENC_VIDEO_TST_CR, 0x200);
-			*/
-			set_output_mute(true);
+			if (hdev->data->chip_type == MESON_CPU_ID_S5) {
+				hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+				hd21_write_reg(VENC_VIDEO_TST_EN, 1);
+				hd21_write_reg(VENC_VIDEO_TST_MDSEL, 0);
+				hd21_write_reg(VENC_VIDEO_TST_Y, 0x0);
+				hd21_write_reg(VENC_VIDEO_TST_CB, 0x200);
+				hd21_write_reg(VENC_VIDEO_TST_CR, 0x200);
+			} else {
+				set_output_mute(true);
+			}
 		}
 		if (argv == VIDEO_UNMUTE) {
-			/*
-			hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 1, 3, 1);
-			hd21_write_reg(VENC_VIDEO_TST_EN, 0);
-			*/
-			set_output_mute(false);
+			if (hdev->data->chip_type == MESON_CPU_ID_S5) {
+				hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 1, 3, 1);
+				hd21_write_reg(VENC_VIDEO_TST_EN, 0);
+			} else {
+				set_output_mute(false);
+			}
 		}
 		break;
 	case CONF_CLR_AVI_PACKET:
