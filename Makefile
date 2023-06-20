@@ -2100,23 +2100,8 @@ endif # config-build
 endif # mixed-build
 endif # need-sub-make
 
-ifdef CONFIG_AMLOGIC_DRIVER
 PHONY += FORCE
 FORCE:
-	$(Q)-cp $(srctree)/scripts/amlogic/pre-commit $(srctree)/.git/hooks/pre-commit
-	$(Q)-cp $(srctree)/scripts/amlogic/pre-commit-common_drivers $(srctree)/$(COMMON_DRIVERS_DIR)/.git/hooks/pre-commit
-	$(Q)-chmod +x $(srctree)/$(COMMON_DRIVERS_DIR)/.git/hooks/pre-commit
-	$(Q)-mkdir -p $(srctree)/$(COMMON_DRIVERS_DIR)/scripts/amlogic
-	$(Q)-cp $(srctree)/scripts/amlogic/licence_pre.pl $(srctree)/$(COMMON_DRIVERS_DIR)/scripts/amlogic
-	$(Q)-cp $(srctree)/scripts/amlogic/licence_check.pl $(srctree)/$(COMMON_DRIVERS_DIR)/scripts/amlogic
-	$(Q)-cp $(srctree)/scripts/amlogic/merge_pre_check.pl $(srctree)/$(COMMON_DRIVERS_DIR)/scripts/amlogic
-	$(Q)-cp $(srctree)/scripts/checkpatch.pl  $(srctree)/$(COMMON_DRIVERS_DIR)/scripts/
-	$(Q)-cp $(srctree)/scripts/spelling.txt  $(srctree)/$(COMMON_DRIVERS_DIR)/scripts/
-	$(Q)-cp $(srctree)/scripts/const_structs.checkpatch  $(srctree)/$(COMMON_DRIVERS_DIR)/scripts/
-else
-PHONY += FORCE
-FORCE:
-endif
 
 # Declare the contents of the PHONY variable as phony.  We keep that
 # information in a variable so we can use it in if_changed and friends.
