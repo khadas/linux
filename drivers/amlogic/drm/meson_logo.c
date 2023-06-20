@@ -136,7 +136,7 @@ static int am_meson_logo_init_fb(struct drm_device *dev,
 
 	if (!strcmp("null", slogo->outputmode) ||
 		!strcmp("dummy_l", slogo->outputmode)) {
-		DRM_ERROR("NULL MODE or DUMMY MODE, nothing to do.");
+		DRM_INFO("NULL MODE or DUMMY MODE, nothing to do.");
 		kfree(slogo);
 		return -EINVAL;
 	}

@@ -18,6 +18,7 @@
 #include <linux/ctype.h>
 #include <drm/drmP.h>
 #include "meson_drm_main.h"
+#include <linux/amlogic/gki_module.h>
 
 static int __init meson_drm_main_init(void)
 {

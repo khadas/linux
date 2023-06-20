@@ -10,6 +10,8 @@
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/component.h>
+#include <linux/init.h>
+#include <linux/amlogic/gki_module.h>
 
 #include <uapi/linux/sched/types.h>
 
@@ -51,6 +53,21 @@
 #define MESON_VERSION_MINOR 0
 
 #define MAX_CONNECTOR_NUM (3)
+
+static int skip_logo;
+
+static int quiescent_ctl(char *str)
+{
+	if (strncmp("qui", str, 3) == 0)
+		skip_logo = 1;
+	else
+		skip_logo = 0;
+
+	return 0;
+}
+
+__setup("reboot_mode=", quiescent_ctl);
+
 
 static void am_meson_fb_output_poll_changed(struct drm_device *dev)
 {
@@ -346,7 +363,7 @@ static int am_meson_drm_bind(struct device *dev)
 	logo_skip = 0;
 	ret = of_property_read_u32(dev->of_node, "logo_skip", &logo_skip);
 	DRM_INFO("logo_skip = %d\n", logo_skip);
-	if (!ret && logo_skip == 1)
+	if ((!ret && logo_skip == 1) || skip_logo)
 		DRM_INFO("skip logo commit!\n");
 	else
 		am_meson_logo_init(drm);
