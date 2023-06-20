@@ -104,6 +104,7 @@ struct codec_mm_s {
 	struct list_head list;
 	u32 tvp_handle;
 	struct list_head release_cb_list;
+	u32 release_cb_cnt;
 };
 
 struct codec_mm_cb_s;

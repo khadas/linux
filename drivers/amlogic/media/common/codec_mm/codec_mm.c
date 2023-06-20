@@ -514,10 +514,12 @@ int codec_mm_add_release_callback(struct codec_mm_s *mem, struct codec_mm_cb_s *
 
 	spin_lock_irqsave(&mem->lock, flags);
 
-	if (cb->func)
+	if (cb->func) {
 		list_add_tail(&cb->node, &mem->release_cb_list);
-	else
+		mem->release_cb_cnt += 1;
+	} else {
 		INIT_LIST_HEAD(&cb->node);
+	}
 	spin_unlock_irqrestore(&mem->lock, flags);
 
 	return 0;
@@ -888,6 +890,7 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	mem->align2n = align2n;
 	mem->flags = memflags;
 	INIT_LIST_HEAD(&mem->release_cb_list);
+	mem->release_cb_cnt = 0;
 	ret = codec_mm_alloc_in(mgt, mem);
 	if (ret < 0 &&
 	    mgt->alloced_for_sc_cnt > 0 && /*have used for scatter.*/
@@ -966,17 +969,23 @@ void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 {
 	int index;
 	unsigned long flags;
-	int i;
+	int i, j;
 	const char *max_owner;
+	struct codec_mm_cb_s **release_cb;
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 
 	if (!mem)
 		return;
 
+	release_cb = (struct codec_mm_cb_s **)
+		vzalloc(sizeof(struct codec_mm_cb_s *) * (mem->release_cb_cnt + 1));
+
 	spin_lock_irqsave(&mgt->lock, flags);
 	if (!codec_mm_valid_mm_locked(mem)) {
 		pr_err("codec mm not invalid!\n");
 		spin_unlock_irqrestore(&mgt->lock, flags);
+		if (release_cb)
+			vfree(release_cb);
 		return;
 	}
 	index = atomic_dec_return(&mem->use_cnt);
@@ -993,17 +1002,43 @@ void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 	if (index == 0) {
 		struct codec_mm_cb_s *cur, *tmp;
 		list_del(&mem->list);
-		spin_unlock_irqrestore(&mgt->lock, flags);
+		i = 0;
 		list_for_each_entry_safe(cur,
 			tmp, &mem->release_cb_list, node) {
 			list_del_init(&cur->node);
-			cur->func(mem, cur);
+			if (release_cb)
+				release_cb[i] = cur;
+			i++;
+			if (i > mem->release_cb_cnt) {
+				pr_err("%s, error, release cnt %d less than loop %d\n",
+					__func__, mem->release_cb_cnt, i);
+				break;
+			}
+		}
+		spin_unlock_irqrestore(&mgt->lock, flags);
+
+		if (release_cb) {
+			for (j = 0; j < i; j++) {
+				cur = release_cb[j];
+				if (cur)
+					cur->func(mem, cur);
+				mem->release_cb_cnt--;
+			}
+		}
+		if (mem->release_cb_cnt != 0) {
+			pr_err("%s, error, i %d, release %d\n",
+					__func__, i, mem->release_cb_cnt);
 		}
 		codec_mm_free_in(mgt, mem);
 		kfree(mem);
+		if (release_cb)
+			vfree(release_cb);
 		return;
 	}
 	spin_unlock_irqrestore(&mgt->lock, flags);
+
+	if (release_cb)
+		vfree(release_cb);
 }
 EXPORT_SYMBOL(codec_mm_release);
 
