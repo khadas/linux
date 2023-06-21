@@ -22,6 +22,9 @@
 #define MESON_USE_VIDEO_PLANE           (1ull << 18)
 #define MESON_USE_VIDEO_AFBC            (1ull << 19)
 
+#define FBIOPUT_OSD_WINDOW_AXIS          0x4513
+#define FBIOGET_DISPLAY_MODE             0x4580
+
 /**
  * User-desired buffer creation information structure.
  *
@@ -40,6 +43,14 @@ struct drm_mode_test_attr {
 	char modename[32];
 	char attr[32];
 	__u32 valid;
+};
+
+struct drm_meson_fbdev_rect {
+	__u32 xstart;
+	__u32 ystart;
+	__u32 width;
+	__u32 height;
+	__u32 mask;
 };
 
 /*Memory related.*/

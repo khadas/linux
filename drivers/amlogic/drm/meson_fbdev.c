@@ -153,11 +153,11 @@ static int am_meson_drm_fbdev_ioctl(struct fb_info *info,
 	struct drm_plane *plane = fbdev->plane;
 	struct am_meson_fb *meson_fb;
 
-	memset(&fbdma, 0, sizeof(fbdma));
 	DRM_DEBUG("am_meson_drm_fbdev_ioctl CMD   [%x] - [%d] IN\n", cmd, plane->index);
 
 	/*amlogic fbdev ioctl, used by gpu fbdev backend.*/
 	if (cmd == FBIOGET_OSD_DMABUF) {
+		memset(&fbdma, 0, sizeof(fbdma));
 		meson_fb = container_of(helper->fb, struct am_meson_fb, base);
 		fbdma.fd = dma_buf_fd(meson_fb->bufp[0]->dmabuf, O_CLOEXEC);
 		fbdma.flags = O_CLOEXEC;
@@ -169,6 +169,26 @@ static int am_meson_drm_fbdev_ioctl(struct fb_info *info,
 			drm_wait_one_vblank(helper->dev, fbdev->modeset.crtc->index);
 			DRM_DEBUG("crtc is not set for plane [%d]\n", plane->index);
 		}
+	} else if (cmd == FBIOPUT_OSD_WINDOW_AXIS) {
+		struct drm_meson_fbdev_rect rect;
+
+		if (copy_from_user(&rect, argp, sizeof(rect)))
+			return -EFAULT;
+
+		fbdev->dst.x = rect.xstart;
+		fbdev->dst.y = rect.ystart;
+		fbdev->dst.w = rect.width;
+		fbdev->dst.h = rect.height;
+		fbdev->dst.isforce = rect.mask;
+	} else if (cmd == FBIOGET_DISPLAY_MODE) {
+		struct drm_mode_set *mode_set = &fbdev->modeset;
+		struct drm_display_mode mode;
+		char mode_name[DRM_DISPLAY_MODE_LEN];
+
+		mode = mode_set->crtc->mode;
+		strncpy(mode_name, mode.name, DRM_DISPLAY_MODE_LEN);
+		mode_name[DRM_DISPLAY_MODE_LEN - 1] = '\0';
+		ret = copy_to_user(argp, &mode_name, sizeof(mode_name)) ? -EFAULT : 0;
 	}
 
 	DRM_DEBUG("am_meson_drm_fbdev_ioctl CMD   [%x] - [%d] OUT\n", cmd, plane->index);
@@ -395,10 +415,18 @@ retry:
 	}
 
 	drm_mode_get_hv_timing(&mode_set->crtc->mode, &hdisplay, &vdisplay);
-	plane_state->crtc_x = 0;
-	plane_state->crtc_y = 0;
-	plane_state->crtc_w = hdisplay;
-	plane_state->crtc_h = vdisplay;
+
+	if (fbdev->dst.isforce) {
+		plane_state->crtc_x = fbdev->dst.x;
+		plane_state->crtc_y = fbdev->dst.y;
+		plane_state->crtc_w = fbdev->dst.w;
+		plane_state->crtc_h = fbdev->dst.h;
+	} else {
+		plane_state->crtc_x = 0;
+		plane_state->crtc_y = 0;
+		plane_state->crtc_w = hdisplay;
+		plane_state->crtc_h = vdisplay;
+	}
 
 	drm_atomic_set_fb_for_plane(plane_state, fb_helper->fb);
 	if (fb_helper->fb) {
@@ -417,11 +445,13 @@ retry:
 	/* fix alpha */
 	plane_state->pixel_blend_mode = DRM_MODE_BLEND_COVERAGE;
 
-	DRM_DEBUG("update fb [%x-%x, %x-%x]-%d->[%d-%d]",
+	DRM_DEBUG("update fb [%x-%x, %x-%x]-%d->[%d-%d-%d-%d] force-%d",
 		plane_state->src_x, plane_state->src_y,
 		plane_state->src_w, plane_state->src_h,
-		plane_state->zpos, plane_state->crtc_w,
-		plane_state->crtc_h);
+		plane_state->zpos,
+		plane_state->crtc_x, plane_state->crtc_y,
+		plane_state->crtc_w, plane_state->crtc_h,
+		fbdev->dst.isforce);
 
 	state->legacy_cursor_update = true;
 	ret = drm_atomic_commit(state);

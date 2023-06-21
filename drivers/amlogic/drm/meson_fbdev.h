@@ -23,6 +23,14 @@ struct fb_dmabuf_export {
 	__u32 flags;
 };
 
+struct meson_drm_rect {
+	u32 x;
+	u32 y;
+	u32 w;
+	u32 h;
+	u32 isforce;
+};
+
 struct meson_drm_fbdev_config {
 	u32 ui_w;
 	u32 ui_h;
@@ -37,6 +45,7 @@ struct meson_drm_fbdev {
 	//struct am_meson_fb * fb;
 	struct drm_gem_object *fb_gem;
 	struct drm_mode_set modeset;
+	struct meson_drm_rect dst;
 	u32 zorder;
 	bool blank;
 };
