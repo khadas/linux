@@ -66,6 +66,7 @@ int vpp_pq_mgr_set_aad_param(struct vpp_aad_param_s *pdata);
 int vpp_pq_mgr_set_eye_protect(struct vpp_eye_protect_s *pdata);
 int vpp_pq_mgr_set_aipq_offset_table(char *pdata_str,
 	unsigned int height, unsigned int width);
+int vpp_pq_mgr_set_aipq_data(struct vpp_aipq_table_s *pdata);
 int vpp_pq_mgr_set_overscan_table(unsigned int length,
 	struct vpp_overscan_table_s *load_table);
 void vpp_pq_mgr_set_lc_isr(void);

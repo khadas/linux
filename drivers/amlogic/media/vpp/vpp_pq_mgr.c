@@ -1258,6 +1258,27 @@ int vpp_pq_mgr_set_aipq_offset_table(char *pdata_str,
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_aipq_offset_table);
 
+int vpp_pq_mgr_set_aipq_data(struct vpp_aipq_table_s *pdata)
+{
+	int i = 0;
+	unsigned int *ptable = NULL;
+	unsigned int size = 0;
+
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
+
+	if (!pdata)
+		return RET_POINT_FAIL;
+
+	ptable = (unsigned int *)pdata->table_ptr;
+	size = pdata->width * sizeof(int);
+	for (i = 0; i < pdata->height; i++)
+		memcpy(vpp_pq_data[i], ptable + (i * pdata->width), size);
+
+	return 0;
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_aipq_data);
+
 int vpp_pq_mgr_set_overscan_table(unsigned int length,
 	struct vpp_overscan_table_s *load_table)
 {
