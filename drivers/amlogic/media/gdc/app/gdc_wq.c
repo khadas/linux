@@ -228,7 +228,7 @@ static inline void start_process(struct gdc_queue_item_s *pitem)
 	ret = gdc_run(&pitem->cmd, &pitem->dma_cfg, core_id);
 	if (ret < 0) {
 		gdc_log(LOG_ERR, "gdc process failed ret = %d\n", ret);
-		recycle_resource(pitem, core_id);
+		gdc_finish_item(pitem);
 		*core_idle = 1;
 
 		return;
@@ -269,6 +269,11 @@ inline void recycle_resource(struct gdc_queue_item_s *item, u32 core_id)
 {
 	struct gdc_context_s *context = item->context;
 	u32 dev_type = item->cmd.dev_type;
+
+	if (!context) {
+		gdc_log(LOG_ERR, "%s, current_wq is NULL\n", __func__);
+		return;
+	}
 
 	gdc_stop(&item->cmd, core_id);
 
@@ -537,6 +542,11 @@ void gdc_finish_item(struct gdc_queue_item_s *pitem)
 	struct meson_gdc_dev_t *gdc_dev = GDC_DEV_T(dev_type);
 	struct gdc_context_s *current_wq = pitem->context;
 
+	pitem->start_process = 0;
+	if (!current_wq) {
+		gdc_log(LOG_ERR, "%s, current_wq is NULL\n", __func__);
+		return;
+	}
 	recycle_resource(pitem, core_id);
 
 	/* for block mode, notify item cmd done */
