@@ -151,6 +151,7 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 	int m31_utmi_reset_level_flag = 0;
 	int u3_combx0_reset_flag = 0;
 	int m31phy_reset_level_bit_flag = 0;
+	u32 version = 0;
 
 	prop = of_get_property(dev->of_node, "portnum", NULL);
 	if (prop)
@@ -237,6 +238,12 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 	} else {
 		u3_combx0_reset_bit = 0;
 	}
+
+	prop = of_get_property(dev->of_node, "version", NULL);
+	if (prop)
+		version = of_read_ulong(prop, 1);
+	else
+		version = 0;
 
 	phy->dev		= dev;
 	phy->portnum      = portnum;
@@ -354,6 +361,12 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 		usleep_range(90, 100);
 
 		phy->phy.flags = AML_USB3_PHY_ENABLE;
+		if (version == 1) {
+			val = readl(phy->phy3_cfg + 0x81c);
+			val = (val & ~(0x7 << 13)) | (5 << 13);
+			writel(val, phy->phy3_cfg + 0x81c);
+			usleep_range(90, 100);
+		}
 	} else {
 		if (uncomposite) {
 			r0.d32 = readl(phy->phy3_cfg);

@@ -1480,6 +1480,7 @@
 			m31-utmi-reset-level-bit = <2>;
 			u3-combx0-reset-bit = <53>;
 			uncomposite = <1>;
+			version = <1>;
 		};
 
 		usb2_m31_1_phy: usb2m311phy {
@@ -1499,6 +1500,7 @@
 			m31phy-reset-level-bit = <9>;
 			m31ctl-reset-level-bit = <5>;
 			uncomposite = <1>;
+			version = <1>;
 		};
 
 		crg_phy_20: crgphy20@fe072000 {
