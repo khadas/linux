@@ -815,7 +815,6 @@ unsigned int lcd_tcon_read(struct aml_lcd_drv_s *pdrv, unsigned int reg)
 
 	return temp;
 };
-EXPORT_SYMBOL(lcd_tcon_read);
 
 void lcd_tcon_write(struct aml_lcd_drv_s *pdrv,
 		    unsigned int reg, unsigned int val)
@@ -829,7 +828,6 @@ void lcd_tcon_write(struct aml_lcd_drv_s *pdrv,
 		writel(val, p);
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 };
-EXPORT_SYMBOL(lcd_tcon_write);
 
 void lcd_tcon_setb(struct aml_lcd_drv_s *pdrv,
 		   unsigned int reg, unsigned int value,
@@ -849,7 +847,6 @@ void lcd_tcon_setb(struct aml_lcd_drv_s *pdrv,
 	}
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 }
-EXPORT_SYMBOL(lcd_tcon_setb);
 
 unsigned int lcd_tcon_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 			   unsigned int start, unsigned int len)
@@ -869,7 +866,6 @@ unsigned int lcd_tcon_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 
 	return temp;
 }
-EXPORT_SYMBOL(lcd_tcon_getb);
 
 void lcd_tcon_update_bits(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 			  unsigned int mask, unsigned int value)
@@ -891,7 +887,6 @@ void lcd_tcon_update_bits(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 	}
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 }
-EXPORT_SYMBOL(lcd_tcon_update_bits);
 
 int lcd_tcon_check_bits(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 			unsigned int mask, unsigned int value)
@@ -915,7 +910,6 @@ int lcd_tcon_check_bits(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 
 	return temp;
 }
-EXPORT_SYMBOL(lcd_tcon_check_bits);
 
 unsigned char lcd_tcon_read_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg)
 {
@@ -931,7 +925,6 @@ unsigned char lcd_tcon_read_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg)
 
 	return temp;
 };
-EXPORT_SYMBOL(lcd_tcon_read_byte);
 
 void lcd_tcon_write_byte(struct aml_lcd_drv_s *pdrv,
 			 unsigned int reg, unsigned char val)
@@ -945,7 +938,6 @@ void lcd_tcon_write_byte(struct aml_lcd_drv_s *pdrv,
 		writeb(val, p);
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 };
-EXPORT_SYMBOL(lcd_tcon_write_byte);
 
 void lcd_tcon_setb_byte(struct aml_lcd_drv_s *pdrv,
 			unsigned int reg, unsigned char value,
@@ -965,7 +957,6 @@ void lcd_tcon_setb_byte(struct aml_lcd_drv_s *pdrv,
 	}
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 }
-EXPORT_SYMBOL(lcd_tcon_setb_byte);
 
 unsigned char lcd_tcon_getb_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 				 unsigned int start, unsigned int len)
@@ -984,7 +975,6 @@ unsigned char lcd_tcon_getb_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 
 	return temp;
 }
-EXPORT_SYMBOL(lcd_tcon_getb_byte);
 
 void lcd_tcon_update_bits_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 			       unsigned char mask, unsigned char value)
@@ -1006,7 +996,6 @@ void lcd_tcon_update_bits_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 	}
 	spin_unlock_irqrestore(&lcd_reg_spinlock, flags);
 }
-EXPORT_SYMBOL(lcd_tcon_update_bits_byte);
 
 int lcd_tcon_check_bits_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 			     unsigned char mask, unsigned char value)
@@ -1030,7 +1019,6 @@ int lcd_tcon_check_bits_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 
 	return temp;
 }
-EXPORT_SYMBOL(lcd_tcon_check_bits_byte);
 
 unsigned int dptx_reg_read(struct aml_lcd_drv_s *pdrv, unsigned int reg)
 {
