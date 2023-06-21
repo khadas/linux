@@ -1,0 +1,8 @@
+#
+# Amlogic USBCAM configuration
+#
+config AMLOGIC_USBCAM
+	tristate "amlogic usbcam driver"
+	default y
+	help
+                select it to support amlogic usbcam driver.

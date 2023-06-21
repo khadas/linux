@@ -1,0 +1,1 @@
+obj-$(CONFIG_AMLOGIC_USBCAM) += amlogic-usb-cam.o

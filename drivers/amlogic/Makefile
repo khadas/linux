@@ -72,6 +72,8 @@ obj-$(CONFIG_AMLOGIC_FREERTOS)         += freertos/
 obj-$(CONFIG_AMLOGIC_MCLK_GPIO) += gpio/
 obj-$(CONFIG_AMLOGIC_KT)		+= keytable/
 obj-$(CONFIG_AMLOGIC_MKL)		+= mkl/
+obj-$(CONFIG_AMLOGIC_USBCAM)		+= usbcam/
+
 KBUILD_CFLAGS_MODULE += $(GKI_EXT_MODULE_PREDEFINE)
 
 all:

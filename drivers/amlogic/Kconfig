@@ -187,6 +187,7 @@ source "drivers/amlogic/freertos/Kconfig"
 
 source "drivers/amlogic/aes_hwkey_gcm/Kconfig"
 source "drivers/amlogic/gpio/Kconfig"
+source "drivers/amlogic/usbcam/Kconfig"
 
 endmenu
 endif
