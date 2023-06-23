@@ -1853,6 +1853,48 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 	vfh = vf->height;
 	dbg_copy("afbcdin:0x%px, pulldown[%d]\n", vf, vf->di_pulldown);
 
+	/* reset inp afbcd */
+	if (pafd_ctr->fb.ver >= AFBCD_V5) {
+		u32 reset_bit = 0;
+
+		if (dec == EAFBC_DEC2_DI)
+			reset_bit = 1 << 12;
+		if (reset_bit) {
+			reg_wr(VIUB_SW_RESET, reset_bit);
+			reg_wr(VIUB_SW_RESET, 0);
+		}
+	}
+
+	if (DIM_IS_IC_EF(T7)) {
+		union hw_sc2_ctr_pre_s *pre_top_cfg;
+		u32 val, reg = 0;
+		u8 is_4k, is_afbc;
+
+		pre_top_cfg = &get_hw_pre()->pre_top_cfg;
+		if (dec == EAFBC_DEC2_DI) {
+			reg = AFBCDM_INP_CTRL0;
+			is_4k = pre_top_cfg->b.is_inp_4k ? 1 : 0;
+			is_afbc = pre_top_cfg->b.afbc_inp ? 1 : 0;
+		} else if (dec == EAFBC_DEC3_MEM) {
+			reg = AFBCDM_MEM_CTRL0;
+			is_4k = pre_top_cfg->b.is_mem_4k ? 1 : 0;
+			is_afbc = pre_top_cfg->b.afbc_mem ? 1 : 0;
+		} else if (dec == EAFBC_DEC_CHAN2) {
+			reg = AFBCDM_CHAN2_CTRL0;
+			is_4k = pre_top_cfg->b.is_chan2_4k ? 1 : 0;
+			is_afbc = pre_top_cfg->b.afbc_chan2 ? 1 : 0;
+		}
+		if (reg) {
+			val = reg_rd(reg);
+			val &= ~(3 << 13);
+			//reg_use_4kram
+			val |= is_4k << 14;
+			//reg_afbc_vd_sel //1:afbc_dec 0:nor_rdmif
+			val |= is_afbc << 13;
+			reg_wr(reg, val);
+		}
+	}
+
 	/*use vf->di_pulldown as skip flag */
 	if (dip_cfg_afbc_skip() || vf->di_pulldown == 1)
 		skip_en = true;
@@ -3986,7 +4028,8 @@ static void afbc_check_chg_level_dvfm(struct dvfm_s *vf,
 }
 
 /* copy from enable_afbc_input_local */
-static u32 enable_afbc_input_local_dvfm(struct dvfm_s *vf, enum EAFBC_DEC dec,
+static u32 enable_afbc_input_local_dvfm(struct dim_prevpp_ds_s *ds,
+				   struct dvfm_s *vf, enum EAFBC_DEC dec,
 				   struct AFBCD_CFG_S *cfg,
 				   struct di_win_s *win,
 				   const struct reg_acc *op)
@@ -4019,6 +4062,49 @@ static u32 enable_afbc_input_local_dvfm(struct dvfm_s *vf, enum EAFBC_DEC dec,
 		 vf->vfs.compBodyAddr);
 	if (!op)
 		return false;
+
+	/* reset inp afbcd */
+	if (pafd_ctr->fb.ver >= AFBCD_V5) {
+		u32 reset_bit = 0;
+
+		if (dec == EAFBC_DEC2_DI)
+			reset_bit = 1 << 12;
+		if (reset_bit) {
+			op->wr(VIUB_SW_RESET, reset_bit);
+			op->wr(VIUB_SW_RESET, 0);
+		}
+	}
+
+	if (DIM_IS_IC_EF(T7)) {
+		union hw_sc2_ctr_pre_s *pre_top_cfg;
+		u32 val, reg = 0;
+		u8 is_4k, is_afbc;
+
+		pre_top_cfg = &ds->pre_top_cfg;
+		if (dec == EAFBC_DEC2_DI) {
+			reg = AFBCDM_INP_CTRL0;
+			is_4k = pre_top_cfg->b.is_inp_4k ? 1 : 0;
+			is_afbc = pre_top_cfg->b.afbc_inp ? 1 : 0;
+		} else if (dec == EAFBC_DEC3_MEM) {
+			reg = AFBCDM_MEM_CTRL0;
+			is_4k = pre_top_cfg->b.is_mem_4k ? 1 : 0;
+			is_afbc = pre_top_cfg->b.afbc_mem ? 1 : 0;
+		} else if (dec == EAFBC_DEC_CHAN2) {
+			reg = AFBCDM_CHAN2_CTRL0;
+			is_4k = pre_top_cfg->b.is_chan2_4k ? 1 : 0;
+			is_afbc = pre_top_cfg->b.afbc_chan2 ? 1 : 0;
+		}
+		if (reg) {
+			val = op->rd(reg);
+			val &= ~(3 << 13);
+			//reg_use_4kram
+			val |= is_4k << 14;
+			//reg_afbc_vd_sel //1:afbc_dec 0:nor_rdmif
+			val |= is_afbc << 13;
+			op->wr(reg, val);
+		}
+	}
+
 	w_aligned = round_up((vf->vfs.width), 32);
 	/* add from sc2 */
 
@@ -4626,7 +4712,7 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 		}
 		/*inp*/
 		if (pafd_ctr->en_set.b.inp)
-			enable_afbc_input_local_dvfm(inp_vf2,
+			enable_afbc_input_local_dvfm(ds, inp_vf2,
 						pafd_ctr->fb.pre_dec, pcfg,
 						win_in,
 						op_in);
@@ -4636,7 +4722,7 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 
 		if (mem_vf2 && pafd_ctr->en_set.b.mem && ndvfm->c.set_cfg.b.en_mem_afbcd) {
 			/* mem */
-			enable_afbc_input_local_dvfm(mem_vf2,
+			enable_afbc_input_local_dvfm(ds, mem_vf2,
 						pafd_ctr->fb.mem_dec,
 						pcfg,
 						win_mem,
@@ -4646,7 +4732,7 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 			pafd_ctr->en_set.b.enc_nr) {
 			/**/
 			dim_print("%s:test\n", __func__);
-			enable_afbc_input_local_dvfm(inp_vf2,
+			enable_afbc_input_local_dvfm(ds, inp_vf2,
 						pafd_ctr->fb.mem_dec,
 						pcfg,
 						win_in,
@@ -4656,7 +4742,7 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 		/*chan2_vf is write dead so comment the following codes*/
 		if (chan2_vf && pafd_ctr->en_set.b.chan2)
 			/* chan2 */
-			enable_afbc_input_local_dvfm(chan2_vf,
+			enable_afbc_input_local_dvfm(ds, chan2_vf,
 						pafd_ctr->fb.ch2_dec,
 						pcfg,
 						NULL,
@@ -4678,7 +4764,7 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 		/*mem*/
 		if (pafd_ctr->en_set.b.mem) {
 			if (is_cfg(EAFBC_CFG_FORCE_MEM))
-				enable_afbc_input_local_dvfm(mem_vf2,
+				enable_afbc_input_local_dvfm(ds, mem_vf2,
 							pafd_ctr->fb.mem_dec,
 							pcfg,
 							win_mem,
@@ -4694,7 +4780,7 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 		if (pafd_ctr->en_set.b.chan2 && chan2_vf) {
 			if (is_cfg(EAFBC_CFG_FORCE_CHAN2))
 				enable_afbc_input_local_dvfm
-					(chan2_vf,
+					(ds, chan2_vf,
 					 pafd_ctr->fb.ch2_dec,
 					 pcfg,
 					 NULL,

@@ -5735,20 +5735,42 @@ void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg, const struct reg_acc *op_in)
 		  val);
 	op->wr(DI_TOP_PRE_CTRL, val);
 	if (DIM_IS_IC_EF(T7)) {
-		op->bwr(AFBCDM_INP_CTRL0, cfg->b.is_inp_4k,  14, 1);
-		//reg_use_4kram
-		op->bwr(AFBCDM_INP_CTRL0, cfg->b.afbc_inp, 13, 1);
-		//reg_afbc_vd_sel //1:afbc_dec 0:nor_rdmif
+		u32 reg;
+		u8 is_4k, is_afbc;
 
-		op->bwr(AFBCDM_CHAN2_CTRL0, cfg->b.is_chan2_4k, 14, 1);
+		/* Must use rd/wr, not write bits */
+		reg = AFBCDM_INP_CTRL0;
+		is_4k = cfg->b.is_inp_4k ? 1 : 0;
+		is_afbc = cfg->b.afbc_inp ? 1 : 0;
+		val = op->rd(reg);
+		val &= ~(3 << 13);
 		//reg_use_4kram
-		op->bwr(AFBCDM_CHAN2_CTRL0, cfg->b.afbc_chan2, 13, 1);
+		val |= is_4k << 14;
 		//reg_afbc_vd_sel //1:afbc_dec 0:nor_rdmif
+		val |= is_afbc << 13;
+		op->wr(reg, val);
 
-		op->bwr(AFBCDM_MEM_CTRL0, cfg->b.is_mem_4k, 14, 1);
+		reg = AFBCDM_CHAN2_CTRL0;
+		is_4k = cfg->b.is_chan2_4k ? 1 : 0;
+		is_afbc = cfg->b.afbc_chan2 ? 1 : 0;
+		val = op->rd(reg);
+		val &= ~(3 << 13);
 		//reg_use_4kram
-		op->bwr(AFBCDM_MEM_CTRL0, cfg->b.afbc_mem, 13, 1);
+		val |= is_4k << 14;
 		//reg_afbc_vd_sel //1:afbc_dec 0:nor_rdmif
+		val |= is_afbc << 13;
+		op->wr(reg, val);
+
+		reg = AFBCDM_MEM_CTRL0;
+		is_4k = cfg->b.is_mem_4k ? 1 : 0;
+		is_afbc = cfg->b.afbc_mem ? 1 : 0;
+		val = op->rd(reg);
+		val &= ~(3 << 13);
+		//reg_use_4kram
+		val |= is_4k << 14;
+		//reg_afbc_vd_sel //1:afbc_dec 0:nor_rdmif
+		val |= is_afbc << 13;
+		op->wr(reg, val);
 	}
 	dbg_ic("%s:afbc_mem[%d]\n", __func__, cfg->b.afbc_mem);
 	//dbg_reg_mem(40);
