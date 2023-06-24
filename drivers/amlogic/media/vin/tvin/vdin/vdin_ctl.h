@@ -96,6 +96,9 @@
 #define MEM_ALLOC_FROM_CODEC		(BIT(0))
 
 #define VDIN_ADDRESS_DBG		BIT(0)
+#define VDIN_AFBC_RD_DBG		BIT(1)
+#define VDIN_AFBC_ADDR_CHK		BIT(2)
+
 #define VDIN_DBG_PRINT_CNT		20
 
 /* 8 is filter the abnormal frame rate diff */

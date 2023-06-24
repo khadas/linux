@@ -727,7 +727,8 @@ void tvin_sig_chg_event_process(struct vdin_dev_s *devp, u32 chg)
 	}
 
 	if (devp->starting_chg) {
-		pr_info("starting_chg send event:0X%x\n", devp->starting_chg);
+		pr_info("starting_chg send event:0X%x;dv[%d,%d]\n",
+			devp->starting_chg, devp->dv.dv_flag, devp->prop.dolby_vision);
 		chg = devp->starting_chg;
 		devp->starting_chg = 0;
 	}
@@ -759,13 +760,16 @@ void tvin_sig_chg_event_process(struct vdin_dev_s *devp, u32 chg)
 			devp->event_info.event_sts = TVIN_SIG_CHG_AFD;
 		} else if (chg & TVIN_SIG_CHG_VRR) {
 			devp->event_info.event_sts = TVIN_SIG_CHG_VRR;
-			pr_info("%s vrr chg:(%d->%d) spd:(%d->%d),vic:%d,fr:%d\n", __func__,
+			pr_info("%s vrr chg:(%d->%d) spd:(%d->%d)%d,vic:%d,fr:%d\n", __func__,
 				devp->vrr_data.vdin_vrr_en_flag,
 				devp->prop.vtem_data.vrr_en,
 				devp->pre_prop.spd_data.data[5],
 				devp->prop.spd_data.data[5],
+				devp->vrr_data.cur_spd_data5,
 				devp->prop.hw_vic,
 				devp->prop.vtem_data.base_framerate);
+			devp->vrr_data.cur_spd_data5    = devp->prop.spd_data.data[5];
+			devp->pre_prop.spd_data.data[5] = devp->prop.spd_data.data[5];
 			devp->pre_prop.vtem_data.vrr_en =
 				devp->prop.vtem_data.vrr_en;
 			devp->vrr_data.vdin_vrr_en_flag =

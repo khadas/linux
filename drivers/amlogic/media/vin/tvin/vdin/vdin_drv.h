@@ -142,7 +142,8 @@
 /* 20230504: keystone interlace update dest value */
 /* 20230526: 2560x1440 set bit to 8 */
 /* 20230608: vdin not clear ratio_control value */
-#define VDIN_VER "20230608"
+
+#define VDIN_VER "2023/06/24"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -291,6 +292,7 @@ struct match_data_s {
 /* #define VDIN_DEBUG */
 /* vdin_function_sel control bits start */
 #define VDIN_SELF_STOP_START		BIT(0)
+#define VDIN_V4L2_IOCTL_CHK		BIT(1)
 #define VDIN_VADJ1_TO_VD1		BIT(3)
 #define VDIN_ADJUST_VLOCK		BIT(4)
 #define VDIN_PROP_RX_UPDATE		BIT(5)
@@ -633,6 +635,10 @@ struct vdin_vrr_s {
 	unsigned int vrr_mode;
 	/* vrr_en in frame_lock_policy */
 	bool frame_lock_vrr_en;
+	/* vrr states may changed only once and recovery quickly
+	 * app may get wrong state if from prop.spd_data[5]
+	 */
+	u8 cur_spd_data5;
 };
 
 /* scatter start */

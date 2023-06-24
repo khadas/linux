@@ -845,6 +845,10 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 					devp->index, i,
 					devp->afbce_info->fm_table_paddr[i],
 					devp->afbce_info->frame_table_size);
+				pr_info("vdin%d fm_body_paddr[%d]=0x%lx, frame_body_size = 0x%x\n",
+					devp->index, i,
+					devp->afbce_info->fm_body_paddr[i],
+					devp->afbce_info->frame_body_size);
 			}
 		}
 	}

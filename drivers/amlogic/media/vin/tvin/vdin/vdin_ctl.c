@@ -5937,9 +5937,15 @@ bool vdin_check_spd_data_chg(struct vdin_dev_s *devp)
 	    (devp->prop.spd_data.data[0] == 0x1a &&
 	     devp->prop.spd_data.data[1] == 0x00 &&
 	     devp->prop.spd_data.data[2] == 0x00)) {
+		/* If freesync states changed or the current state is not the same as
+		 * application got before,report change event.
+		 */
 		if ((devp->pre_prop.spd_data.data[5] >> 2 & 0x3) !=
-		     (devp->prop.spd_data.data[5] >> 2 & 0x3))
+		    (devp->prop.spd_data.data[5] >> 2 & 0x3) ||
+		    (devp->prop.spd_data.data[5] >> 2 & 0x3) !=
+		    (devp->vrr_data.cur_spd_data5 >> 2 & 0x3)) {
 			return true;
+		}
 	} else {
 		return false;
 	}

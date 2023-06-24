@@ -421,8 +421,8 @@ static int vdin_vidioc_enum_input(struct file *file,
 	inp->std = V4L2_STD_ALL;
 	str = tvin_port_str(devp->v4l2_port[inp->index]);
 
-	if (str && (strlen(str) < sizeof(inp->name)))
-		strcpy(inp->name, tvin_port_str(devp->v4l2_port[inp->index]));
+	if (str)
+		strlcpy(inp->name, str, sizeof(inp->name));
 
 	dprintk(1, "%s,port[%d]:%s\n", __func__, inp->index, inp->name);
 	return 0;
@@ -1229,6 +1229,9 @@ static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	devp->v4l2_port_cur = devp->v4l2_port[i];
 	devp->unstable_flag = false;
 
+	devp->work_mode = VDIN_WORK_MD_V4L;
+	devp->afbce_flag = 0;
+
 	if (devp->index == 0 && !(devp->flags & VDIN_FLAG_DEC_OPENED)) {
 		ret = vdin_open_fe(devp->parm.port, 0, devp);
 		if (ret) {
@@ -1414,16 +1417,10 @@ static int vdin_v4l2_open(struct file *file)
 		dprintk(0, "%s error VDIN_FLAG_DEC_STARTED\n", __func__);
 		return -EPERM;
 	}
-	devp->work_mode = VDIN_WORK_MD_V4L;
-//	if (devp->work_mode != VDIN_WORK_MD_V4L) {
-//		dprintk(0, "%s err:vdin v4l mode not enabled\n", __func__);
-//		return -EPERM;
-//	}
-	devp->afbce_flag_backup = devp->afbce_flag;
-	devp->afbce_flag = 0;
 
 	dprintk(0, "%s\n", __func__);
 	/*dump_stack();*/
+	devp->afbce_flag_backup = devp->afbce_flag;
 
 	v4l2_fh_open(file);
 
@@ -1444,6 +1441,11 @@ static int vdin_v4l2_release(struct file *file)
 	if (IS_ERR_OR_NULL(devp))
 		return -EFAULT;
 
+	if (devp->flags & VDIN_FLAG_DEC_STARTED) {
+		dprintk(0, "%s error VDIN_FLAG_DEC_STARTED\n", __func__);
+		return -EPERM;
+	}
+
 	/*release que*/
 	ret = vb2_fop_release(file);
 
@@ -1462,8 +1464,9 @@ static int vdin_v4l2_release(struct file *file)
 			}
 		}
 		memset(devp->st_vdin_set_canvas_addr, 0, sizeof(devp->st_vdin_set_canvas_addr));
+
+		devp->afbce_flag = devp->afbce_flag_backup;
 	}
-	devp->afbce_flag = devp->afbce_flag_backup;
 	devp->work_mode = VDIN_WORK_MD_NORMAL;
 
 	return ret;
