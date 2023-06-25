@@ -1423,6 +1423,9 @@ static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 	if (hdev->para->cs == HDMI_COLORSPACE_YUV422)
 		aud_n_para = hdmi21_get_aud_n_paras(audio_param->sample_rate,
 						  COLORDEPTH_24B, char_rate);
+	else if (hdev->para->cs == HDMI_COLORSPACE_YUV420)
+		aud_n_para = hdmi21_get_aud_n_paras(audio_param->sample_rate,
+						  hdev->para->cd, char_rate / 2);
 	else
 		aud_n_para = hdmi21_get_aud_n_paras(audio_param->sample_rate,
 						  hdev->para->cd, char_rate);

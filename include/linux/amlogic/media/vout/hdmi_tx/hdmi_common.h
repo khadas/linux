@@ -545,8 +545,10 @@ struct hdmi_rx_audioinfo {
 struct hdmi_audio_fs_ncts {
 	struct {
 		unsigned int tmds_clk;
-		unsigned int n; /* 24 or 30 bit */
-		unsigned int cts; /* 24 or 30 bit */
+		unsigned int n; /* 24 bit */
+		unsigned int cts; /* 24 bit */
+		unsigned int n_30bit;
+		unsigned int cts_30bit;
 		unsigned int n_36bit;
 		unsigned int cts_36bit;
 		unsigned int n_48bit;
