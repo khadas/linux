@@ -4034,6 +4034,7 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 
 	if (node->r_type != AML_RECEIVER_NONE &&
 	    vfq_full(&node->q_ready)) {
+		usleep_range(5000, 6000);
 		if (amlvideo2_dbg_en & 2)
 			pr_info("q_ready full ,receiver is none\n");
 		return -1;
@@ -4072,6 +4073,8 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 				fh->src_height  =  vf->height;
 			}
 		}
+		if (vfq_full(&node->q_ready) || !vf_peek(node->recv.name))
+			usleep_range(5000, 6000);
 		return 0;
 	}
 
