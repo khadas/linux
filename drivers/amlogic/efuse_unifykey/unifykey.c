@@ -37,6 +37,7 @@ typedef int (*key_unify_dev_init)(struct key_info_t *uk_info,
 				  char *buf, unsigned int len);
 
 static struct aml_uk_dev *ukdev_global;
+static int lock;
 
 /*
  * This strange API is for LCD driver to call my internal APIs,
@@ -471,6 +472,11 @@ static int unifykey_open(struct inode *inode, struct file *file)
 {
 	struct aml_uk_dev *ukdev;
 
+	if (lock == 1) {
+		pr_err("%s: can not operate other key\n", __func__);
+		return -EPERM;
+	}
+	lock = 1;
 	ukdev = container_of(inode->i_cdev, struct aml_uk_dev, cdev);
 	file->private_data = ukdev;
 
@@ -479,6 +485,7 @@ static int unifykey_open(struct inode *inode, struct file *file)
 
 static int unifykey_release(struct inode *inode, struct file *file)
 {
+	lock = 0;
 	return 0;
 }
 
@@ -651,6 +658,7 @@ static ssize_t unifykey_read(struct file *file,
 		ret =  -EFAULT;
 		goto exit;
 	}
+	pr_info("%s: name: %s, size %d\n", __func__, item->name, (int)count);
 	ret = count;
 exit:
 	kfree(local_buf);
@@ -687,6 +695,7 @@ static ssize_t unifykey_write(struct file *file,
 	ret = key_unify_write(ukdev, item->name, local_buf, count);
 	if (ret < 0)
 		goto exit;
+	pr_info("%s: name: %s, size %d\n", __func__, item->name, (int)count);
 	ret = count;
 exit:
 	kfree(local_buf);
