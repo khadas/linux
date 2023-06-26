@@ -805,6 +805,7 @@ static int Gxtv_Demod_Dvbc_Init(struct aml_dtvdemod *demod, int mode)
 	demod->auto_flags_trig = 0;
 	demod->demod_status.adc_freq = sys.adc_clk;
 	demod->demod_status.clk_freq = sys.demod_clk;
+	demod->last_status = 0;
 
 	if (devp->dvbc_inited)
 		return 0;
@@ -2840,6 +2841,7 @@ static int dtvdemod_atsc_init(struct aml_dtvdemod *demod)
 	demod->demod_status.tmp = ADC_MODE;
 	demod->demod_status.adc_freq = sys.adc_clk;
 	demod->demod_status.clk_freq = sys.demod_clk;
+	demod->last_status = 0;
 
 	if (devp->data->hw_ver == DTVDEMOD_HW_S4D) {
 		demod->demod_status.adc_freq = sys.adc_clk;
@@ -3299,6 +3301,7 @@ int Gxtv_Demod_Dtmb_Init(struct aml_dtvdemod *demod)
 	demod->demod_status.spectrum = devp->spectrum;
 	demod->demod_status.adc_freq = sys.adc_clk;
 	demod->demod_status.clk_freq = sys.demod_clk;
+	demod->last_status = 0;
 
 	if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
@@ -5321,6 +5324,7 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 
 	demod->en_detect = 0;
 	demod->last_delsys = SYS_UNDEFINED;
+	demod->last_status = 0;
 
 	list_for_each_entry(tmp, &devp->demod_list, list) {
 		if (tmp->id != demod->id && tmp->inited) {
