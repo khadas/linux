@@ -55,7 +55,7 @@
 			clk_attr = <0 /*fr_adj_type(0=clk, 1=htotal, 2=vtotal)*/
 				0 /*clk_ss_level */
 				1 /*clk_auto_generate*/
-				120000000>; /*pixel_clk(unit in Hz)*/
+				132696000>; /*pixel_clk(unit in Hz)*/
 			mipi_attr = <4 /*lane_num*/
 				1000 /*bit_rate_max(MHz)*/
 				0 /*factor(*100, default 0 for auto)*/
@@ -153,7 +153,7 @@
 			clk_attr = <0 /*fr_adj_type(0=clk, 1=htotal, 2=vtotal)*/
 				0 /*clk_ss_level */
 				1 /*clk_auto_generate*/
-				120000000>; /*pixel_clk(unit in Hz)*/
+				132696000>; /*pixel_clk(unit in Hz)*/
 			mipi_attr = <4 /*lane_num*/
 				1000 /*bit_rate_max(MHz)*/
 				0 /*factor(*100, default 0 for auto)*/
