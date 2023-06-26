@@ -223,7 +223,7 @@
 		backlight_0{
 			index = <0>;
 			bl_name = "backlight_pwm";
-			bl_level_default_uboot_kernel = <255 255>;
+			bl_level_default_uboot_kernel = <102 102>;
 			bl_level_attr = <255 10 /*max, min*/
 				128 128>; /*mid, mid_mapping*/
 			bl_ctrl_method = <1>; /*1=pwm,2=pwm_combo*/
@@ -242,7 +242,7 @@
 		backlight_1{
 			index = <1>;
 			bl_name = "backlight_pwm";
-			bl_level_default_uboot_kernel = <255 255>;
+			bl_level_default_uboot_kernel = <102 102>;
 			bl_level_attr = <255 10 /*max, min*/
 				128 128>; /*mid, mid_mapping*/
 			bl_ctrl_method = <1>; /*1=pwm,2=pwm_combo*/
@@ -426,7 +426,7 @@
 		backlight_0{
 			index = <0>;
 			bl_name = "backlight_pwm";
-			bl_level_default_uboot_kernel = <255 255>;
+			bl_level_default_uboot_kernel = <102 102>;
 			bl_level_attr = <255 10 /*max, min*/
 				128 128>; /*mid, mid_mapping*/
 			bl_ctrl_method = <1>; /*1=pwm,2=pwm_combo*/
@@ -445,7 +445,7 @@
 		backlight_1{
 			index = <1>;
 			bl_name = "backlight_pwm";
-			bl_level_default_uboot_kernel = <255 255>;
+			bl_level_default_uboot_kernel = <102 102>;
 			bl_level_attr = <255 10 /*max, min*/
 				128 128>; /*mid, mid_mapping*/
 			bl_ctrl_method = <1>; /*1=pwm,2=pwm_combo*/
