@@ -4289,9 +4289,13 @@ static u32 enable_afbc_input_local_dvfm(struct dim_prevpp_ds_s *ds,
 	if (pafd_ctr->fb.ver >= AFBCD_V5 && cfg) {
 		regs_ofst = afbcd_v5_get_offset(dec);
 		op->bwr((regs_ofst + AFBCDM_IQUANT_ENABLE),
-			(cfg->reg_lossy_en & 0x1), 0, 1);//lossy_luma_en
+			cfg->reg_lossy_en, 0, 1);//lossy_luma_en
 		op->bwr((regs_ofst + AFBCDM_IQUANT_ENABLE),
-			(cfg->reg_lossy_en & 0x2), 4, 1);//lossy_chrm_en
+			cfg->reg_lossy_en, 4, 1);//lossy_chrm_en
+		op->bwr((regs_ofst + AFBCDM_IQUANT_ENABLE),
+			cfg->reg_lossy_en, 10, 1);
+		op->bwr((regs_ofst + AFBCDM_IQUANT_ENABLE),
+			cfg->reg_lossy_en, 11, 1);
 		op->wr((regs_ofst + AFBCDM_ROT_CTRL),
 		       ((cfg->pip_src_mode  & 0x1) << 27) |
 		       //pip_src_mode
@@ -4480,6 +4484,10 @@ static void afbce_set_dvfm(struct dvfm_s *vf, enum EAFBC_ENC enc, const struct r
 	}
 	#endif
 	vf_set_for_com_dvf(vf);
+	if (cfgg(AFBCE_LOSS_EN) == 2 ||
+	    ((vf->vfs.type & VIDTYPE_COMPRESS_LOSS) &&
+	     cfgg(AFBCE_LOSS_EN) == 1))
+		cfg->loosy_mode = 0x3;
 #ifdef AFBCP
 	di_print("%s:head[0x%lx],info[0x%lx]\n",
 		 __func__,
@@ -4711,17 +4719,32 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 				afbce_tm2_sw(false, op_in);
 		}
 		/*inp*/
-		if (pafd_ctr->en_set.b.inp)
+		if (pafd_ctr->en_set.b.inp) {
+			if (cfgg(AFBCE_LOSS_EN) == 2 ||
+				(inp_vf2->vfs.type & VIDTYPE_COMPRESS_LOSS &&
+				cfgg(AFBCE_LOSS_EN) == 1)) {
+				cfg.reg_lossy_en = 1;
+				nr_vf->vfs.type |= VIDTYPE_COMPRESS_LOSS;
+			}
 			enable_afbc_input_local_dvfm(ds, inp_vf2,
 						pafd_ctr->fb.pre_dec, pcfg,
 						win_in,
 						op_in);
+			}
 		if (is_src_i_dvfm(inp_vf2) || VFMT_IS_I(inp_vf2->vfs.type))
 			src_i_set_dvfm(nr_vf);
 			//dim_print("%s:set srci\n", __func__);
 
 		if (mem_vf2 && pafd_ctr->en_set.b.mem && ndvfm->c.set_cfg.b.en_mem_afbcd) {
 			/* mem */
+			if (cfgg(AFBCE_LOSS_EN) == 2 ||
+			    (mem_vf2->vfs.type & VIDTYPE_COMPRESS_LOSS &&
+			     cfgg(AFBCE_LOSS_EN) == 1)) {
+				cfg.reg_lossy_en = 1;
+				nr_vf->vfs.type |= VIDTYPE_COMPRESS_LOSS;
+				}
+			else
+				cfg.reg_lossy_en = 0;
 			enable_afbc_input_local_dvfm(ds, mem_vf2,
 						pafd_ctr->fb.mem_dec,
 						pcfg,
@@ -4731,6 +4754,8 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 			pafd_ctr->en_set.b.inp &&
 			pafd_ctr->en_set.b.enc_nr) {
 			/**/
+			if (mem_vf2->vfs.type & VIDTYPE_COMPRESS_LOSS)
+				cfg.reg_lossy_en = 1;
 			dim_print("%s:test\n", __func__);
 			enable_afbc_input_local_dvfm(ds, inp_vf2,
 						pafd_ctr->fb.mem_dec,
