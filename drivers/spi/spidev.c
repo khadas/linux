@@ -704,6 +704,7 @@ static const struct of_device_id spidev_dt_ids[] = {
 	{ .compatible = "dh,dhcom-board" },
 	{ .compatible = "menlo,m53cpld" },
 	{ .compatible = "cisco,spi-petra" },
+	{ .compatible = "linux,spidev" },
 	{ .compatible = "micron,spi-authenta" },
 	{},
 };
