@@ -4870,6 +4870,10 @@ static void afbc_pre_check_dvfm(void *ds_in, void *vfm) /* struct dimn_dvfm_s */
 		cfg->b.afbc_inp = 0;
 		cfg->b.is_inp_4k = 0;
 	}
+	if (nvfm->c.is_inp_4k)
+		cfg->b.is_inp_4k = 1;
+	else
+		cfg->b.is_inp_4k = 0;
 
 	if (pblk->b.mem) {
 		cfg->b.afbc_mem = 1;
