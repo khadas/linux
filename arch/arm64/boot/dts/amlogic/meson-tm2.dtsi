@@ -671,7 +671,7 @@
 		dsp-start-mode = <0>; /*0:scpi start mode,1:smc start mode*/
 		dsp-cnt = <2>;
 		dspaoffset = <0>;
-		dspboffset = <0x800000>;
+		dspboffset = <0xa00000>;
 		bootlocation = <1>;   /*1: boot from DDR, 2: from sram, 3...*/
 		boot_sram_addr = <0xfff00000>;
 		boot_sram_size = <0x80000>;

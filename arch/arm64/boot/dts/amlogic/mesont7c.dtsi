@@ -434,8 +434,9 @@
 		dspaoffset = <0xa0000>;
 		dspboffset = <0x8a0000>;
 		bootlocation = <1>;   /*1: boot from DDR, 2: from sram, 3...*/
+		bootlocation_b = <1>; /*1: boot from DDR, 2: from sram, 3...*/
 		/*remember:set dspaoffset to 0x0 when use sram longcall remap*/
-		optimize_longcall = <1 1>;
+		optimize_longcall = <1 0>;
 		sram_remap_addr = <0x40700000 0xf7000000 0x40700000 0xf7000000>;
 		boot_sram_addr = <0xf7000000>;
 		boot_sram_size = <0x100000>;
