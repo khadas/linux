@@ -3531,10 +3531,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				oft_pre_out = bypass_pre;
 				oft_post_out = bypass_pos;
 			} else {
-				if (is_meson_s5_cpu())
-					coeff_in = rgb2ycbcr_bt2020;
-				else
-					coeff_in = rgb2ycbcr_709;
+				coeff_in = rgb2ycbcr_709;
 				oft_pre_in = rgb2yuvpre;
 				oft_post_in = rgb2yuvpos;
 				oft_pre_out = bypass_pre;
