@@ -8,8 +8,6 @@
 #ifndef _INC_AML_LDIM_ALG_H_
 #define _INC_AML_LDIM_ALG_H_
 
-#define LD_BLKREGNUM     1536  /* maximum support 48*32*/
-
 enum ldc_dbg_type_e {
 	LDC_DBG_ATTR		= 0x01,
 	LDC_DBG_MEM			= 0x02,

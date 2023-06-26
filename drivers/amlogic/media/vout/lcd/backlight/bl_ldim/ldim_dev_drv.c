@@ -926,7 +926,7 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 	char propname[20];
 	struct device_node *child;
 	const char *str;
-	unsigned int *temp, val;
+	unsigned int *temp, val, size;
 	struct bl_pwm_config_s *bl_pwm;
 	struct ldim_profile_s *profile;
 	struct ldim_fw_s *fw = aml_ldim_get_fw();
@@ -936,7 +936,8 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
 		LDIMPR("load ldim_dev config from dts\n");
 
-	temp = kcalloc(LD_BLKREGNUM, sizeof(unsigned int), GFP_KERNEL);
+	size = (dev_drv->zone_num >= 10) ? dev_drv->zone_num : 10;
+	temp = kcalloc(size, sizeof(unsigned int), GFP_KERNEL);
 	if (!temp)
 		return -1;
 

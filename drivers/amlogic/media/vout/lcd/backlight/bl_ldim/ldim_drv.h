@@ -20,7 +20,8 @@
 /*20220815: correct ldim spi dma config */
 /*20221115: new driver architecture */
 /*20230619: optimize reserved memory alloc and vaddr usage */
-#define LDIM_DRV_VER    "20230619"
+/*20230620: update for fw V20230620 */
+#define LDIM_DRV_VER    "20230620"
 
 #define LDIM_SPI_DUTY_VSYNC_DIRECT
 
