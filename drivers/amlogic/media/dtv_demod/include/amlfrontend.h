@@ -95,6 +95,7 @@
 /*  V2.1.101 fix the sync of shutdown and tune */
 /*  V2.1.102 improve compatibility with dvb-t signals */
 /*  V2.1.103 improved dvbc auto qam (t5w/t5m) */
+/*  V2.1.104 fixed dvbc 16/32 qam (t5d/t3) */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -111,8 +112,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.1.103"
-#define DTVDEMOD_VER	"2023/06/25: improved dvbc auto qam (t5w/t5m)"
+#define AMLDTVDEMOD_VER "V2.1.104"
+#define DTVDEMOD_VER	"2023/06/26: fixed dvbc 16/32 qam (t5d/t3)"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
