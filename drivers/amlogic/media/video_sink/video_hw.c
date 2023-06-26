@@ -9654,6 +9654,8 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 					di_in_p.win.x_end - di_in_p.win.x_st + 1;
 				di_in_p.win.y_size =
 					di_in_p.win.y_end - di_in_p.win.y_st + 1;
+				di_in_p.plink_reverse = glayer_info[0].reverse;
+				di_in_p.plink_hv_mirror = glayer_info[0].mirror;
 				di_in_p.dmode = EPVPP_DISPLAY_MODE_NR;
 				di_in_p.unreg_bypass = 0;
 				di_in_p.follow_hold_line = vpp_hold_line;

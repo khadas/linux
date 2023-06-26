@@ -67,6 +67,9 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 			       const struct reg_acc *op_in,
 			       unsigned int diff);
 static void dpvpph_pre_data_mif_ctrl(bool enable, const struct reg_acc *op_in);
+static void dpvpph_reverse_mif_ctrl(bool reverse, unsigned int hv_mirror,
+					const struct reg_acc *op_in);
+
 static void dpvpph_gl_sw(bool on, bool pvpp_link, const struct reg_acc *op);
 static void dpvpph_prelink_sw(const struct reg_acc *op, bool p_link);
 
@@ -5244,6 +5247,7 @@ static int dpvpp_display_unreg_bypass(void)
 		//be sure vpp can display
 		dim_afds()->pvpp_sw_setting_op(false, hw->op);
 		//dpvpph_pre_data_mif_ctrl(false, hw->op);
+		dpvpph_reverse_mif_ctrl(0, 0, hw->op);
 		opl1()->pre_mif_sw(false, hw->op, true);
 		dpvpph_prelink_sw(hw->op, false);
 	}
@@ -5502,6 +5506,7 @@ DISPLAY_BYPASS:
 		dim_afds()->pvpp_sw_setting_op(false, hw->op); //disable afbcd
 		//dpvpph_pre_data_mif_ctrl(false, hw->op);
 		opl1()->pre_mif_sw(false, hw->op, true);
+		dpvpph_reverse_mif_ctrl(0, 0, hw->op);
 		dpvpph_prelink_sw(hw->op, false);
 		atomic_add(DI_BIT8, &itf->c.dbg_display_sts);	/* dbg only */
 		hw->blk_used_hd = false;
@@ -6523,6 +6528,32 @@ static void dpvpph_pre_data_mif_ctrl(bool enable, const struct reg_acc *op_in)
 				dim_afds()->inp_sw_op(false, op_in);
 		}
 		#endif
+	}
+}
+
+/*
+ * reverse_mif control mirror mode
+ * copy from dim_post_read_reverse_irq
+ */
+static void dpvpph_reverse_mif_ctrl(bool reverse, unsigned int hv_mirror,
+		const struct reg_acc *op_in)
+{
+	if (reverse) {
+		op_in->bwr(DI_INP_GEN_REG2, 3, 2, 2);
+		op_in->bwr(AFBCDM_MODE, 3, 26, 2);//AFBC_MODE
+	} else if (hv_mirror == 1) {
+		op_in->bwr(DI_INP_GEN_REG2,  1, 2, 1);
+		op_in->bwr(DI_INP_GEN_REG2,  0, 3, 1);
+		op_in->bwr(AFBCDM_MODE, 1, 26, 1);//AFBC_MODE
+		op_in->bwr(AFBCDM_MODE, 0, 27, 1);//AFBC_MODE
+	} else if (hv_mirror == 2)  {
+		op_in->bwr(DI_INP_GEN_REG2,  0, 2, 1);
+		op_in->bwr(DI_INP_GEN_REG2,  1, 3, 1);
+		op_in->bwr(AFBCDM_MODE, 0, 26, 1);//AFBC_MODE
+		op_in->bwr(AFBCDM_MODE, 1, 27, 1);//AFBC_MODE
+	} else {
+		op_in->bwr(DI_INP_GEN_REG2,  0, 2, 2);
+		op_in->bwr(AFBCDM_MODE, 0, 26, 2);//AFBC_MODE
 	}
 }
 
@@ -7573,6 +7604,8 @@ static void dpvpph_display_update_all(struct dim_prevpp_ds_s *ds,
 #else
 		opl1()->pre_mif_sw(true, op_in, true);
 #endif
+		dpvpph_reverse_mif_ctrl(ds->dis_para_demo2.plink_reverse,
+							ds->dis_para_demo2.plink_hv_mirror, op_in);
 		dpvpph_pre_frame_reset_g12(!hw->en_pst_wr_test, op_in);
 	} else { /* not test */
 		dpvpph_pre_frame_reset(op_in);
@@ -7879,6 +7912,8 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 #else
 		opl1()->pre_mif_sw(true, op_in, true);
 #endif
+		dpvpph_reverse_mif_ctrl(ds->dis_para_demo2.plink_reverse,
+							ds->dis_para_demo2.plink_hv_mirror, op_in);
 		dpvpph_pre_frame_reset_g12(!hw->en_pst_wr_test, op_in);
 	} else {
 		dpvpph_pre_frame_reset(op_in);

@@ -260,6 +260,8 @@ struct pvpp_dis_para_in_s {
 	bool unreg_bypass; //for unreg bypass: set 1; other, set 0;
 	struct di_win_s win;
 	unsigned int follow_hold_line;
+	bool plink_reverse;//reverse mirror flag at pre_vpp link
+	unsigned int plink_hv_mirror;//0x1,H-mirror;0x2,V-mirror;
 };
 
 /************************************************
