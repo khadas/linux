@@ -6911,6 +6911,12 @@ static unsigned int dpvpp_is_bypass_dvfm(struct dvfm_s *dvfm, bool en_4k)
 		return EPVPP_BYPASS_REASON_SIZE_S;
 	if (dpvpp_is_bypass())
 		return EPVPP_BYPASS_REASON_DBG;
+	if (dvfm->vfs.src_fmt.sei_magic_code == SEI_MAGIC_CODE &&
+		(dvfm->vfs.src_fmt.fmt == VFRAME_SIGNAL_FMT_DOVI ||
+		dvfm->vfs.src_fmt.fmt == VFRAME_SIGNAL_FMT_DOVI_LL))
+		return EPVPP_BYPASS_REASON_DV_PATH;
+	if (dvfm->vfs.flag & VFRAME_FLAG_GAME_MODE)
+		return EPVPP_BYPASS_REASON_GAME_MODE;
 
 	return 0;
 }

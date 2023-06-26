@@ -753,7 +753,7 @@ struct dsub_vf_s {
 	u32 video_angle;
 	u32 signal_type;
 	enum tvin_sig_fmt_e sig_fmt;
-
+	struct vframe_src_fmt_s src_fmt;
 	void *mem_handle;	/* di use this for struct dim_mm_blk_s */
 };
 

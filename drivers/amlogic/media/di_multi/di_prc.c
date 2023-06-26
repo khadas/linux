@@ -5881,7 +5881,7 @@ bool vf_2_subvf(struct dsub_vf_s *vfms, struct vframe_s *vfm)
 	vfms->video_angle	= vfm->video_angle;
 	vfms->signal_type	= vfm->signal_type;
 	vfms->sig_fmt		= vfm->sig_fmt;
-
+	memcpy(&vfms->src_fmt, &vfm->src_fmt, sizeof(vfm->src_fmt));
 	return true;
 }
 
@@ -5914,6 +5914,7 @@ bool vf_from_subvf(struct vframe_s *vfm, struct dsub_vf_s *vfms)
 	vfm->video_angle	= vfms->video_angle;
 	vfm->signal_type	= vfms->signal_type;
 	vfm->sig_fmt		= vfms->sig_fmt;
+	memcpy(&vfm->src_fmt, &vfms->src_fmt, sizeof(vfm->src_fmt));
 
 	return true;
 }
