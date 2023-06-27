@@ -396,6 +396,7 @@ static int aml_kt_config(struct file *filp, struct amlkt_cfg_param key_cfg)
 	int ret = KT_SUCCESS;
 	u32 index = 0;
 	u8 is_iv = 0;
+	u8 is_dsc = 0;
 
 	if (unlikely(!dev)) {
 		LOGE("Empty aml_kt_dev\n");
@@ -520,14 +521,17 @@ static int aml_kt_config(struct file *filp, struct amlkt_cfg_param key_cfg)
 			goto error_user;
 		break;
 	case AML_KT_USER_TSD:
+		is_dsc = 1;
 		if (!(dev->user_cap & KT_CAP_TSD))
 			goto error_user;
 		break;
 	case AML_KT_USER_TSN:
+		is_dsc = 1;
 		if (!(dev->user_cap & KT_CAP_TSN))
 			goto error_user;
 		break;
 	case AML_KT_USER_TSE:
+		is_dsc = 1;
 		if (!(dev->user_cap & KT_CAP_TSE))
 			goto error_user;
 		break;
@@ -535,8 +539,10 @@ static int aml_kt_config(struct file *filp, struct amlkt_cfg_param key_cfg)
 		goto error_user;
 	}
 
-	/* Special case for S17 key algorithm */
-	if (key_cfg.key_algo == AML_KT_ALGO_S17 && is_iv == 0) {
+	/* Special case for S17 key algorithm.
+	 * It is used only for descrambler.
+	 */
+	if (key_cfg.key_algo == AML_KT_ALGO_S17 && is_dsc) {
 		if (key_cfg.ext_value == 0) {
 			iowrite32(S17_CFG_DEFAULT,
 				(char *)dev->base_addr + dev->reg.s17_cfg_offset);
