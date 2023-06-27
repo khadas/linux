@@ -37,6 +37,7 @@
 #include <linux/sched/clock.h>
 #include <linux/amlogic/aml_sync_api.h>
 #include <linux/sched/task.h>
+#include <linux/sync_file.h>
 
 #include <asm-generic/bug.h>
 
@@ -635,7 +636,7 @@ static void vt_session_trim_lock(struct vt_session *session,
 				instance->state.buffer_put++;
 
 				vt_debug(VT_DEBUG_FILE,
-					 "vt [%d] session trim file(%p) buffer(%p) fcount=%d\n",
+					 "vt [%d] session trim file(%px) buffer(%p) fcount=%d\n",
 					 instance->id, buffer->file_buffer,
 					 buffer, instance->fcount);
 			}
@@ -694,7 +695,7 @@ static int vt_instance_trim(struct vt_session *session)
 					instance->state.buffer_put++;
 
 					vt_debug(VT_DEBUG_FILE,
-						 "vt [%d] instance trim file(%p) buffer(%p), fcount=%d\n",
+						 "vt [%d] instance trim file(%px) buffer(%p), fcount=%d\n",
 						 instance->id,
 						 buffer->file_buffer,
 						 buffer, instance->fcount);
@@ -722,7 +723,7 @@ static int vt_instance_trim(struct vt_session *session)
 					instance->state.buffer_put++;
 
 					vt_debug(VT_DEBUG_FILE,
-						 "vt [%d] instance trim file(%p) buffer(%p) fcount=%d\n",
+						 "vt [%d] instance trim file(%px) buffer(%p) fcount=%d\n",
 						 instance->id,
 						 buffer->file_buffer,
 						 buffer, instance->fcount);
@@ -1289,7 +1290,7 @@ static int vt_cancel_buffer_process(struct vt_ctrl_data *data,
 			buffer->item.buffer_status = VT_BUFFER_RELEASE;
 
 			vt_debug(VT_DEBUG_FILE,
-				 "vt [%d] cancel buffer file(%p) buffer(%p), fcount=%d\n",
+				 "vt [%d] cancel buffer file(%px) buffer(%p), fcount=%d\n",
 				 instance->id,
 				 buffer->file_buffer,
 				 buffer, instance->fcount);
@@ -1453,7 +1454,7 @@ static int vt_queue_buffer_process(struct vt_buffer_data *data,
 	buffer->item.buffer_status = VT_BUFFER_QUEUE;
 
 	vt_debug(VT_DEBUG_FILE,
-		 "vt [%d] queuebuffer fget file(%p) buffer(%p) buffer session(%p) fcount=%d\n",
+		 "vt [%d] queuebuffer fget file(%px) buffer(%p) buffer session(%p) fcount=%d\n",
 		 instance->id, buffer->file_buffer,
 		 buffer, buffer->session_pro, instance->fcount);
 
@@ -1469,7 +1470,7 @@ static int vt_queue_buffer_process(struct vt_buffer_data *data,
 	instance->state.queue_count++;
 
 	vt_debug(VT_DEBUG_BUFFERS,
-		 "vt [%d] queuebuffer pfd: %d, buffer(%p) buffer file(%p) timestamp(%lld), now(%lld)\n",
+		 "vt [%d] queuebuffer pfd: %d, buffer(%p) buffer file(%px) timestamp(%lld), now(%lld)\n",
 		 instance->id, buffer->buffer_fd_pro,
 		 buffer, buffer->file_buffer,
 		 buffer->item.time_stamp, ktime_to_us(ktime_get()));
@@ -1507,6 +1508,8 @@ static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
 	struct vt_buffer *buffer = NULL;
 	int ret = -1;
 	int fd = -1;
+	struct sync_file *sync_file = NULL;
+	struct dma_fence *fence_obj = NULL;
 
 	if (!instance || !instance->producer)
 		return -EINVAL;
@@ -1577,8 +1580,17 @@ static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
 
 		fd_install(fd, buffer->file_fence);
 
+		sync_file = (struct sync_file *)buffer->file_fence->private_data;
+		fence_obj = sync_file_get_fence(fd);
+		if (fence_obj) {
+			vt_debug(VT_DEBUG_FILE, "vt [%d] dequeuebuffer fence file=%px, sync_file=%px, seqno=%lld\n",
+			instance->id, buffer->file_fence,
+			sync_file, fence_obj->seqno);
+			dma_fence_put(fence_obj);
+		}
+
 		vt_debug(VT_DEBUG_FILE,
-			"vt [%d] dequeubuffer fence file(%p) install fence fd(%d) buffer(%p)\n",
+			"vt [%d] dequeubuffer fence file(%px) install fence fd(%d) buffer(%p)\n",
 			instance->id, buffer->file_fence, fd, buffer);
 	}
 
@@ -1656,7 +1668,7 @@ static int vt_acquire_buffer_process(struct vt_buffer_data *data,
 				instance->state.buffer_put++;
 
 				vt_debug(VT_DEBUG_FILE,
-					 "vt [%d] acquirebuffer install fd error file(%p) buffer(%p) fcount=%d\n",
+					 "vt [%d] acquirebuffer install fd error file(%px) buffer(%p) fcount=%d\n",
 					 instance->id, buffer->file_buffer,
 					 buffer, instance->fcount);
 			}
@@ -1684,7 +1696,7 @@ static int vt_acquire_buffer_process(struct vt_buffer_data *data,
 	instance->state.acquire_count++;
 
 	vt_debug(VT_DEBUG_BUFFERS,
-		 "vt [%d] acquirebuffer pfd: %d, cfd: %d, buffer(%p) buffer file(%p), timestamp(%lld), now(%lld)\n",
+		 "vt [%d] acquirebuffer pfd: %d, cfd: %d, buffer(%p) buffer file(%px), timestamp(%lld), now(%lld)\n",
 		 instance->id, buffer->buffer_fd_pro,
 		 buffer->buffer_fd_con, buffer, buffer->file_buffer,
 		 buffer->item.time_stamp, ktime_to_us(ktime_get()));
@@ -1722,7 +1734,7 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 	instance->state.buffer_close++;
 
 	vt_debug(VT_DEBUG_FILE,
-		 "vt [%d] releasebuffer file(%p) buffer(%p) buffer session(%p) fcount=%d\n",
+		 "vt [%d] releasebuffer file(%px) buffer(%p) buffer session(%p) fcount=%d\n",
 		 instance->id, buffer->file_buffer, buffer,
 		 buffer->session_pro, instance->fcount);
 
@@ -1758,7 +1770,7 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 			 instance->id);
 	else
 		vt_debug(VT_DEBUG_FILE,
-			"vt [%d] releasebuffer fence file(%p) fence fd(%d)\n",
+			"vt [%d] releasebuffer fence file(%px) fence fd(%d)\n",
 			instance->id, buffer->file_fence, data->fence_fd);
 
 	kfifo_put(&instance->fifo_to_producer, buffer);
@@ -1768,7 +1780,7 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 		wake_up_interruptible(&instance->wait_producer);
 
 	vt_debug(VT_DEBUG_BUFFERS,
-		 "vt [%d] releasebuffer pfd: %d, cfd: %d, buffer(%p) buffer file(%p) timestamp(%lld)\n",
+		 "vt [%d] releasebuffer pfd: %d, cfd: %d, buffer(%p) buffer file(%px) timestamp(%lld)\n",
 		 instance->id, buffer->buffer_fd_pro,
 		 buffer->buffer_fd_con, buffer, buffer->file_buffer, buffer->item.time_stamp);
 
