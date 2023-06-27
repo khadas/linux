@@ -194,7 +194,9 @@ EXPORT_SYMBOL_GPL(static_key_enable);
 
 void static_key_disable_cpuslocked(struct static_key *key)
 {
+#if !defined(CONFIG_AMLOGIC_MODIFY) || !defined(CONFIG_ARM)
 	STATIC_KEY_CHECK_USE(key);
+#endif
 	lockdep_assert_cpus_held();
 
 	if (atomic_read(&key->enabled) != 1) {
