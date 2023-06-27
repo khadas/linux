@@ -42,6 +42,7 @@
 
 static unsigned int dv_ll_output_mode = AMDV_OUTPUT_MODE_HDR10;
 static bool stb_core2_const_flag;
+static unsigned int copy_core1a_to_core1b;
 
 static unsigned int htotal_add = 0x140;
 static unsigned int vtotal_add = 0x40;
@@ -938,7 +939,7 @@ static int dv_core1_set(u32 dm_count,
 	u32 *last_comp = (u32 *)&dovi_setting.comp_reg;
 	bool bypass_core1 = (!hsize || !vsize ||
 			     !(amdv_mask & 1));
-	int copy_core1a_to_core1b = ((copy_core1a & 1) &&
+	copy_core1a_to_core1b = ((copy_core1a & 1) &&
 				(is_aml_tm2_stbmode() || is_aml_t7_stbmode()));
 	int copy_core1a_to_core1c = ((copy_core1a & 2) && is_aml_t7_stbmode());
 	u32 dma_ctrl = 0x1401;
@@ -1543,11 +1544,11 @@ static int dv_core1a_set(u32 dm_count,
 	bool set_lut = false;
 	bool bypass_core1 = (!hsize || !vsize ||
 				!(amdv_mask & 1));
-	int copy_core1a_to_core1b = ((copy_core1a & 1) &&
+	copy_core1a_to_core1b = ((copy_core1a & 1) &&
 				(is_aml_tm2_stbmode() || is_aml_t7_stbmode()));
 	int copy_core1a_to_core1c = ((copy_core1a & 2) && is_aml_t7_stbmode());
-	int hsize_2;
-	int vsize_2;
+	int hsize_2 = 0;
+	int vsize_2 = 0;
 	struct vd_proc_info_t *vd_proc_info;
 	static int start_render;
 	u32 dma_ctrl = 0x1401;
@@ -1678,13 +1679,13 @@ static int dv_core1a_set(u32 dm_count,
 		VSYNC_WR_DV_REG(AMDV_CORE1B_CLKGATE_CTRL, 0);
 		/* VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL0, 0); */
 		VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL1,
-			((hsize + 0x80) << 16) | (vsize + 0x40));
+			((hsize_2 + 0x80) << 16) | (vsize_2 + 0x40));
 		VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL3,
 			(hwidth << 16) | vwidth);
 		VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL4,
 			(hpotch << 16) | vpotch);
 		VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL2,
-			(hsize << 16) | vsize);
+			(hsize_2 << 16) | vsize_2);
 		VSYNC_WR_DV_REG(AMDV_CORE1B_SWAP_CTRL5, 0xa);
 
 		VSYNC_WR_DV_REG(AMDV_CORE1B_DMA_CTRL, 0x0);
@@ -2133,7 +2134,7 @@ static int dv_core1b_set(u32 dm_count,
 				!(amdv_mask & 1));
 	u32 dma_ctrl = 0x1401;
 
-	if (!core1b_enable)
+	if (!core1b_enable || copy_core1a_to_core1b)
 		return 0;
 	/* G12A: make sure the BL is enable for the very 1st frame*/
 	/* Register: dolby_path_ctrl[0] = 0 to enable BL*/
