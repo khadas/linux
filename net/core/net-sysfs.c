@@ -216,9 +216,10 @@ static ssize_t speed_show(struct device *dev,
 
 	if (netif_running(netdev) && netif_device_present(netdev)) {
 		struct ethtool_link_ksettings cmd;
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if (!__ethtool_get_link_ksettings(netdev, &cmd))
 			ret = sprintf(buf, fmt_dec, cmd.base.speed);
+#endif
 	}
 	rtnl_unlock();
 	return ret;
@@ -241,8 +242,8 @@ static ssize_t duplex_show(struct device *dev,
 		return restart_syscall();
 
 	if (netif_running(netdev)) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		struct ethtool_link_ksettings cmd;
-
 		if (!__ethtool_get_link_ksettings(netdev, &cmd)) {
 			const char *duplex;
 
@@ -259,6 +260,7 @@ static ssize_t duplex_show(struct device *dev,
 			}
 			ret = sprintf(buf, "%s\n", duplex);
 		}
+#endif
 	}
 	rtnl_unlock();
 	return ret;

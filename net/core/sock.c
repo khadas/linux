@@ -819,9 +819,11 @@ static int sock_timestamping_bind_phc(struct sock *sk, int phc_index)
 {
 	struct net *net = sock_net(sk);
 	struct net_device *dev = NULL;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	bool match = false;
 	int *vclock_index;
 	int i, num;
+#endif
 
 	if (sk->sk_bound_dev_if)
 		dev = dev_get_by_index(net, sk->sk_bound_dev_if);
@@ -830,10 +832,11 @@ static int sock_timestamping_bind_phc(struct sock *sk, int phc_index)
 		pr_err("%s: sock not bind to device\n", __func__);
 		return -EOPNOTSUPP;
 	}
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	num = ethtool_get_phc_vclocks(dev, &vclock_index);
+#endif
 	dev_put(dev);
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	for (i = 0; i < num; i++) {
 		if (*(vclock_index + i) == phc_index) {
 			match = true;
@@ -846,7 +849,7 @@ static int sock_timestamping_bind_phc(struct sock *sk, int phc_index)
 
 	if (!match)
 		return -EINVAL;
-
+#endif
 	sk->sk_bind_phc = phc_index;
 
 	return 0;

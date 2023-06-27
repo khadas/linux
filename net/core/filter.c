@@ -156,12 +156,12 @@ int sk_filter_trim_cap(struct sock *sk, struct sk_buff *skb, unsigned int cap)
 	return err;
 }
 EXPORT_SYMBOL(sk_filter_trim_cap);
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 BPF_CALL_1(bpf_skb_get_pay_offset, struct sk_buff *, skb)
 {
 	return skb_get_poff(skb);
 }
-
+#endif
 BPF_CALL_3(bpf_skb_get_nlattr, struct sk_buff *, skb, u32, a, u32, x)
 {
 	struct nlattr *nla;
@@ -428,7 +428,9 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 		/* Emit call(arg1=CTX, arg2=A, arg3=X) */
 		switch (fp->k) {
 		case SKF_AD_OFF + SKF_AD_PAY_OFFSET:
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 			*insn = BPF_EMIT_CALL(bpf_skb_get_pay_offset);
+#endif
 			break;
 		case SKF_AD_OFF + SKF_AD_NLATTR:
 			*insn = BPF_EMIT_CALL(bpf_skb_get_nlattr);
@@ -3058,6 +3060,7 @@ static const struct bpf_func_proto bpf_get_route_realm_proto = {
 	.arg1_type      = ARG_PTR_TO_CTX,
 };
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 BPF_CALL_1(bpf_get_hash_recalc, struct sk_buff *, skb)
 {
 	/* If skb_clear_hash() was called due to mangling, we can
@@ -3074,7 +3077,7 @@ static const struct bpf_func_proto bpf_get_hash_recalc_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
 };
-
+#endif
 BPF_CALL_1(bpf_set_hash_invalid, struct sk_buff *, skb)
 {
 	/* After all direct packet write, this can be used once for
@@ -7422,8 +7425,10 @@ tc_cls_act_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_redirect_peer_proto;
 	case BPF_FUNC_get_route_realm:
 		return &bpf_get_route_realm_proto;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	case BPF_FUNC_get_hash_recalc:
 		return &bpf_get_hash_recalc_proto;
+#endif
 	case BPF_FUNC_set_hash_invalid:
 		return &bpf_set_hash_invalid_proto;
 	case BPF_FUNC_set_hash:
@@ -7693,8 +7698,10 @@ lwt_out_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_get_cgroup_classid_proto;
 	case BPF_FUNC_get_route_realm:
 		return &bpf_get_route_realm_proto;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	case BPF_FUNC_get_hash_recalc:
 		return &bpf_get_hash_recalc_proto;
+#endif
 	case BPF_FUNC_perf_event_output:
 		return &bpf_skb_event_output_proto;
 	case BPF_FUNC_get_smp_processor_id:

@@ -159,7 +159,9 @@ static void eth_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *p)
 
 static const struct ethtool_ops ops = {
 	.get_drvinfo = eth_get_drvinfo,
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	.get_link = ethtool_op_get_link,
+#endif
 };
 
 static void defer_kevent(struct eth_dev *dev, int flag)

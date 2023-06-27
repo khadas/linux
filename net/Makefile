@@ -12,7 +12,10 @@ obj-$(CONFIG_COMPAT)		+= compat.o
 
 # LLC has to be linked before the files in net/802/
 obj-$(CONFIG_LLC)		+= llc/
-obj-y				+= ethernet/ 802/ sched/ netlink/ bpf/ ethtool/
+ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+obj-y				+= ethtool/
+endif
+obj-y				+= ethernet/ 802/ sched/ netlink/ bpf/
 obj-$(CONFIG_NETFILTER)		+= netfilter/
 obj-$(CONFIG_INET)		+= ipv4/
 obj-$(CONFIG_TLS)		+= tls/

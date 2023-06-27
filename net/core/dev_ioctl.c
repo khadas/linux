@@ -515,7 +515,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr,
 		if (colon)
 			*colon = ':';
 		return ret;
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	case SIOCETHTOOL:
 		dev_load(net, ifr->ifr_name);
 		rtnl_lock();
@@ -524,6 +524,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr,
 		if (colon)
 			*colon = ':';
 		return ret;
+#endif
 
 	/*
 	 *	These ioctl calls:

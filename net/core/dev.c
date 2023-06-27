@@ -2911,8 +2911,9 @@ EXPORT_SYMBOL(netdev_set_sb_channel);
 int netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 {
 	bool disabling;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	int rc;
-
+#endif
 	disabling = txq < dev->real_num_tx_queues;
 
 	if (txq < 1 || txq > dev->num_tx_queues)
@@ -2921,12 +2922,13 @@ int netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 	if (dev->reg_state == NETREG_REGISTERED ||
 	    dev->reg_state == NETREG_UNREGISTERING) {
 		ASSERT_RTNL();
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		rc = netdev_queue_update_kobjects(dev, dev->real_num_tx_queues,
 						  txq);
+
 		if (rc)
 			return rc;
-
+#endif
 		if (dev->num_tc)
 			netif_setup_tc(dev, txq);
 
@@ -2962,18 +2964,21 @@ EXPORT_SYMBOL(netif_set_real_num_tx_queues);
  */
 int netif_set_real_num_rx_queues(struct net_device *dev, unsigned int rxq)
 {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	int rc;
-
+#endif
 	if (rxq < 1 || rxq > dev->num_rx_queues)
 		return -EINVAL;
 
 	if (dev->reg_state == NETREG_REGISTERED) {
 		ASSERT_RTNL();
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		rc = net_rx_queue_update_kobjects(dev, dev->real_num_rx_queues,
 						  rxq);
+
 		if (rc)
 			return rc;
+#endif
 	}
 
 	dev->real_num_rx_queues = rxq;
@@ -3157,6 +3162,7 @@ void netif_device_attach(struct net_device *dev)
 }
 EXPORT_SYMBOL(netif_device_attach);
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 /*
  * Returns a Tx hash based on the given packet descriptor a Tx queues' number
  * to be used as a distribution range.
@@ -3193,7 +3199,7 @@ static u16 skb_tx_hash(const struct net_device *dev,
 
 	return (u16) reciprocal_scale(skb_get_hash(skb), qcount) + qoffset;
 }
-
+#endif
 static void skb_warn_bad_offload(const struct sk_buff *skb)
 {
 	static const netdev_features_t null_features;
@@ -4075,10 +4081,10 @@ u16 netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
 	if (queue_index < 0 || skb->ooo_okay ||
 	    queue_index >= dev->real_num_tx_queues) {
 		int new_index = get_xps_queue(dev, sb_dev, skb);
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if (new_index < 0)
 			new_index = skb_tx_hash(dev, sb_dev, skb);
-
+#endif
 		if (queue_index != new_index && sk &&
 		    sk_fullsock(sk) &&
 		    rcu_access_pointer(sk->sk_dst_cache))
@@ -4414,6 +4420,7 @@ set_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	return rflow;
 }
 
+#ifdef CONFIG_RPS
 /*
  * get_rps_cpu is called from netif_receive_skb and returns the target
  * CPU from the RPS map of the receiving queue for a given skb.
@@ -4513,7 +4520,7 @@ try_rps:
 done:
 	return cpu;
 }
-
+#endif
 #ifdef CONFIG_RFS_ACCEL
 
 /**
@@ -5638,6 +5645,7 @@ static int generic_xdp_install(struct net_device *dev, struct netdev_bpf *xdp)
 	return ret;
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static int netif_receive_skb_internal(struct sk_buff *skb)
 {
 	int ret;
@@ -5664,7 +5672,7 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
 	rcu_read_unlock();
 	return ret;
 }
-
+#endif
 static void netif_receive_skb_list_internal(struct list_head *head)
 {
 	struct sk_buff *skb, *next;
@@ -5698,6 +5706,7 @@ static void netif_receive_skb_list_internal(struct list_head *head)
 	rcu_read_unlock();
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 /**
  *	netif_receive_skb - process receive buffer from network
  *	@skb: buffer to process
@@ -5725,7 +5734,7 @@ int netif_receive_skb(struct sk_buff *skb)
 	return ret;
 }
 EXPORT_SYMBOL(netif_receive_skb);
-
+#endif
 /**
  *	netif_receive_skb_list - process many receive buffers from network
  *	@head: list of skbs to process.
@@ -10125,18 +10134,22 @@ static int netif_alloc_rx_queues(struct net_device *dev)
 
 	for (i = 0; i < count; i++) {
 		rx[i].dev = dev;
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		/* XDP RX-queue setup */
 		err = xdp_rxq_info_reg(&rx[i].xdp_rxq, dev, i, 0);
+#endif
 		if (err < 0)
 			goto err_rxq_info;
+
 	}
 	return 0;
 
 err_rxq_info:
 	/* Rollback successful reg's and free other resources */
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	while (i--)
 		xdp_rxq_info_unreg(&rx[i].xdp_rxq);
+#endif
 	kvfree(dev->_rx);
 	dev->_rx = NULL;
 	return err;
@@ -10144,15 +10157,16 @@ err_rxq_info:
 
 static void netif_free_rx_queues(struct net_device *dev)
 {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	unsigned int i, count = dev->num_rx_queues;
-
+#endif
 	/* netif_alloc_rx_queues alloc failed, resources have been unreg'ed */
 	if (!dev->_rx)
 		return;
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	for (i = 0; i < count; i++)
 		xdp_rxq_info_unreg(&dev->_rx[i].xdp_rxq);
-
+#endif
 	kvfree(dev->_rx);
 }
 
@@ -10240,10 +10254,11 @@ int register_netdevice(struct net_device *dev)
 	/* When net_device's are persistent, this will be fatal. */
 	BUG_ON(dev->reg_state != NETREG_UNINITIALIZED);
 	BUG_ON(!net);
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	ret = ethtool_check_ops(dev->ethtool_ops);
 	if (ret)
 		return ret;
+#endif
 
 	spin_lock_init(&dev->addr_list_lock);
 	netdev_set_addr_lockdep_class(dev);
@@ -10328,14 +10343,14 @@ int register_netdevice(struct net_device *dev)
 	ret = notifier_to_errno(ret);
 	if (ret)
 		goto err_uninit;
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	ret = netdev_register_kobject(dev);
 	write_lock(&dev_base_lock);
 	dev->reg_state = ret ? NETREG_UNREGISTERED : NETREG_REGISTERED;
 	write_unlock(&dev_base_lock);
 	if (ret)
 		goto err_uninit;
-
+#endif
 	__netdev_update_features(dev);
 
 	/*
@@ -11100,9 +11115,10 @@ void unregister_netdevice_many(struct list_head *head)
 		/* Notifier chain MUST detach us all upper devices. */
 		WARN_ON(netdev_has_any_upper_dev(dev));
 		WARN_ON(netdev_has_any_lower_dev(dev));
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		/* Remove entries from kobject tree */
 		netdev_unregister_kobject(dev);
+#endif
 #ifdef CONFIG_XPS
 		/* Remove XPS queueing entries */
 		netif_reset_xps_queues_gt(dev, 0);
@@ -11260,8 +11276,10 @@ int __dev_change_net_namespace(struct net_device *dev, struct net *net,
 	/* Adapt owner in case owning user namespace of target network
 	 * namespace is different from the original one.
 	 */
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	err = netdev_change_owner(dev, net_old, net);
 	WARN_ON(err);
+#endif
 
 	/* Add the device back in the hashes */
 	list_netdevice(dev);
@@ -11632,9 +11650,10 @@ static int __init net_dev_init(void)
 
 	if (dev_proc_init())
 		goto out;
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (netdev_kobject_init())
 		goto out;
+#endif
 
 	INIT_LIST_HEAD(&ptype_all);
 	for (i = 0; i < PTYPE_HASH_SIZE; i++)
