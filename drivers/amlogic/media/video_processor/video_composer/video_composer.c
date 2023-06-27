@@ -3663,6 +3663,9 @@ static void set_frames_info(struct composer_dev *dev,
 	bool is_tvp = false;
 	bool need_dw = false;
 	char render_layer[16] = "";
+	struct file *fence_file = NULL;
+	struct sync_file *sync_file = NULL;
+	struct dma_fence *fence_obj = NULL;
 
 	if (!frames_info ||
 	    frames_info->frame_count <= 0 ||
@@ -3787,6 +3790,29 @@ static void set_frames_info(struct composer_dev *dev,
 	}
 
 	fence_fd = video_timeline_create_fence(dev);
+	if (fence_fd >= 0) {
+		fence_file = fget(fence_fd);
+		vc_print(dev->index, PRINT_FENCE,
+				"create fence_fd=%d, fence_file=%px\n",
+				fence_fd, fence_file);
+
+		if (!IS_ERR_OR_NULL(fence_file))
+			sync_file = (struct sync_file *)fence_file->private_data;
+		else
+			vc_print(dev->index, PRINT_FENCE, "fence_file is NULL\n");
+
+		if (!IS_ERR_OR_NULL(sync_file))
+			fence_obj = sync_file->fence;
+		else
+			vc_print(dev->index, PRINT_FENCE, "sync_file is NULL\n");
+
+		if (fence_obj) {
+			vc_print(dev->index, PRINT_FENCE, "sync_file=%px, seqno=%lld\n",
+					sync_file, fence_obj->seqno);
+		}
+		if (!IS_ERR_OR_NULL(fence_file))
+			fput(fence_file);
+	}
 
 	if (transform) {
 		for (j = 0; j < frames_info->frame_count; j++)
@@ -3821,6 +3847,11 @@ static void set_frames_info(struct composer_dev *dev,
 		is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
 		is_v4l_vf =
 		is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+
+		vc_print(dev->index, PRINT_FENCE, "receive:file=%px, dma=%px\n",
+			 file_vf,
+			 file_vf->private_data);
+
 		if (frames_info->frame_info[j].transform != 0 ||
 			frames_info->frame_count != 1)
 			need_dw = true;

@@ -728,8 +728,8 @@ static int do_file_thread(struct video_queue_dev *dev)
 		pr_err("queue error but display_q is full\n");
 	dev->queue_count++;
 
-	vq_print(P_OTHER, "q buf: omx_index=%d, queue_count=%d\n",
-		vf->omx_index, dev->queue_count);
+	vq_print(P_OTHER, "q buf: omx_index=%d, queue_count=%d, file=%px\n",
+		vf->omx_index, dev->queue_count, ready_file);
 
 	dq_count = 0;
 	while (1) {
@@ -755,7 +755,7 @@ static int do_file_thread(struct video_queue_dev *dev)
 		} else {
 			fence_null_count++;
 		}
-		vq_print(P_FENCE, "dq: free_file=%px, fence_file=%px\n",
+		vq_print(P_FENCE | P_OTHER, "dq: free_file=%px, fence_file=%px\n",
 			free_file, fence_file);
 		file_pop_display_q(dev, free_file);
 		dev->dq_count++;
