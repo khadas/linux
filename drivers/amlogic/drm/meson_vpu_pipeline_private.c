@@ -545,6 +545,39 @@ meson_vpu_pipeline_get_state(struct meson_vpu_pipeline *pipeline,
 	return NULL;
 }
 
+struct meson_vpu_pipeline_state *
+meson_vpu_pipeline_get_new_state(struct meson_vpu_pipeline *pipeline,
+			     struct drm_atomic_state *state)
+{
+	struct drm_private_state *dps;
+
+	dps = drm_atomic_get_new_private_obj_state(state, &pipeline->obj);
+	if (dps) {
+		dps->state = state;
+		return priv_to_pipeline_state(dps);
+	}
+
+	return NULL;
+}
+
+struct meson_vpu_pipeline_state *
+meson_vpu_pipeline_get_old_state(struct meson_vpu_pipeline *pipeline,
+			     struct drm_atomic_state *state)
+{
+	struct drm_private_obj *obj;
+	struct drm_private_state *old_obj_state;
+	struct meson_vpu_pipeline_state *mvps = NULL;
+	int i;
+
+	for_each_old_private_obj_in_state(state, obj, old_obj_state, i) {
+		mvps = priv_to_pipeline_state(old_obj_state);
+		if (pipeline == mvps->pipeline)
+			return mvps;
+	}
+
+	return NULL;
+}
+
 int meson_vpu_block_state_init(struct meson_drm *private,
 			       struct meson_vpu_pipeline *pipeline)
 {

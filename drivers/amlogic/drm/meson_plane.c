@@ -548,6 +548,32 @@ static u32 meson_video_parse_config(struct drm_device *dev)
 	return mode_flag;
 }
 
+static bool meson_video_plane_is_repeat_frame(struct drm_plane *plane,
+				struct drm_plane_state *new_state, struct meson_vpu_video *mvv)
+{
+	struct meson_vpu_video_layer_info *plane_info, *old_plane_info;
+	struct meson_vpu_pipeline_state *mvps, *old_mvps;
+	struct am_video_plane *video_plane = to_am_video_plane(plane);
+	struct meson_drm *drv = video_plane->drv;
+
+	mvps = meson_vpu_pipeline_get_new_state(drv->pipeline, new_state->state);
+	if (mvps) {
+		plane_info = &mvps->video_plane_info[video_plane->plane_index];
+		old_mvps = meson_vpu_pipeline_get_old_state(drv->pipeline, new_state->state);
+		if (old_mvps) {
+			old_plane_info = &old_mvps->video_plane_info[video_plane->plane_index];
+			if (plane_info->dmabuf == old_plane_info->dmabuf) {
+				mvv->repeat_frame = 1;
+				DRM_DEBUG("video repeat frame!");
+				return true;
+			}
+		}
+	}
+
+	mvv->repeat_frame = 0;
+	return false;
+}
+
 static const char *am_meson_video_fence_get_driver_name(struct dma_fence *fence)
 {
 	return "meson";
@@ -559,9 +585,17 @@ am_meson_video_fence_get_timeline_name(struct dma_fence *fence)
 	return "meson_video_fence";
 }
 
+static void
+am_meson_video_fence_release(struct dma_fence *fence)
+{
+	kfree_rcu(fence, rcu);
+	fence = NULL;
+}
+
 static const struct dma_fence_ops am_meson_video_plane_fence_ops = {
 	.get_driver_name = am_meson_video_fence_get_driver_name,
 	.get_timeline_name = am_meson_video_fence_get_timeline_name,
+	.release = am_meson_video_fence_release,
 };
 
 static struct dma_fence *am_meson_video_create_fence(spinlock_t *lock)
@@ -970,7 +1004,8 @@ static void meson_video_plane_atomic_update(struct drm_plane *plane,
 	sub_pipe = &pipeline->subs[crtc_index];
 
 	DRM_DEBUG("video plane atomic_update.\n");
-	meson_video_prepare_fence(plane, old_state, mvv);
+	if (!meson_video_plane_is_repeat_frame(plane, old_state, mvv))
+		meson_video_prepare_fence(plane, old_state, mvv);
 	vpu_video_plane_update(sub_pipe, old_atomic_state, video_index);
 }
 
@@ -1272,7 +1307,8 @@ void meson_video_plane_async_update(struct drm_plane *plane,
 	plane->state->crtc_x = new_state->crtc_x;
 	plane->state->crtc_y = new_state->crtc_y;
 
-	meson_video_prepare_fence(plane, new_state, mvv);
+	if (!meson_video_plane_is_repeat_frame(plane, new_state, mvv))
+		meson_video_prepare_fence(plane, new_state, mvv);
 	vpu_pipeline_video_update(sub_pipe, new_state->state);
 }
 

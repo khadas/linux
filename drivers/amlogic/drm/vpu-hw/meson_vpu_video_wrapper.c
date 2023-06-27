@@ -324,7 +324,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_video_state *mvvs = to_video_state(state);
 	struct video_display_frame_info_t vf_info;
 	struct vframe_s *vf = NULL, *dec_vf = NULL, *vfp = NULL;
-	u32 pixel_format, src_h, byte_stride, pic_w, pic_h;
+	u32 pixel_format, src_h, byte_stride, pic_w, pic_h, repeat_frame;
 	u32 recal_src_w, recal_src_h;
 	u64 phy_addr, phy_addr2 = 0;
 
@@ -340,6 +340,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 	meson_crtc_state = to_am_meson_crtc_state(amc->base.state);
 	video_dummy_data_set(meson_crtc_state);
 
+	repeat_frame = video->repeat_frame;
 	src_h = mvvs->src_h;
 	byte_stride = mvvs->byte_stride;
 	phy_addr = mvvs->phy_addr[0];
@@ -408,6 +409,8 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		}
 
 		if (video->vfm_mode) {
+			struct dma_fence *old_fence = NULL;
+
 			vf_info.release_fence = video->fence;
 			vf_info.dmabuf = mvvs->dmabuf;
 			vf_info.dst_x = mvvs->dst_x;
@@ -422,9 +425,24 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			vf_info.buffer_h = pic_h;
 			vf_info.zorder = mvvs->zorder;
 			vf_info.reserved[0] = 0;
-			dma_resv_add_excl_fence(vf_info.dmabuf->resv, vf_info.release_fence);
-			DRM_DEBUG("dmabuf(%px), release_fence(%px)\n",
-				vf_info.dmabuf, vf_info.release_fence);
+
+			if (vf_info.dmabuf && vf_info.dmabuf->resv)
+				old_fence = dma_resv_get_excl(vf_info.dmabuf->resv);
+
+			if (repeat_frame) {
+				DRM_DEBUG("dmabuf(%px), fence%px,old_fence=%px-%d re-frame\n",
+					vf_info.dmabuf, vf_info.release_fence, old_fence,
+					old_fence ? kref_read(&old_fence->refcount) : -1);
+				dma_fence_get(vf_info.release_fence);
+			} else {
+				DRM_DEBUG("dmabuf(%px), fence%px, old_fence=%px-%d\n",
+					vf_info.dmabuf, vf_info.release_fence, old_fence,
+					old_fence ? kref_read(&old_fence->refcount) : -1);
+				if (vf_info.dmabuf && vf_info.dmabuf->resv)
+					dma_resv_add_excl_fence(vf_info.dmabuf->resv,
+						vf_info.release_fence);
+			}
+
 			DRM_DEBUG("vf-info crop:%u, %u, %u, %u, pic:%u, %u\n",
 				vf_info.crop_x, vf_info.crop_y, vf_info.crop_w, vf_info.crop_h,
 				vf_info.buffer_w, vf_info.buffer_h);
@@ -449,12 +467,30 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		}
 	} else {
 		if (video->vfm_mode) {
+			struct dma_fence *old_fence = NULL;
+
 			vf_info.release_fence = video->fence;
 			video_vfm_convert_to_vfminfo(mvvs, &vf_info);
 			vf_info.phy_addr[0] = mvvs->phy_addr[0];
 			vf_info.phy_addr[1] = mvvs->phy_addr[1];
 			vf_info.reserved[0] = video_type_get(pixel_format);
-			dma_resv_add_excl_fence(vf_info.dmabuf->resv, vf_info.release_fence);
+
+			if (vf_info.dmabuf && vf_info.dmabuf->resv)
+				old_fence = dma_resv_get_excl(vf_info.dmabuf->resv);
+
+			if (repeat_frame) {
+				DRM_DEBUG("dmabuf(%px), fence=%px, old_fence=%px-%d re-frame\n",
+					vf_info.dmabuf, vf_info.release_fence, old_fence,
+					old_fence ? kref_read(&old_fence->refcount) : -1);
+				dma_fence_get(vf_info.release_fence);
+			} else {
+				DRM_DEBUG("dmabuf(%px), fence%px, old_fence=%px-%d\n",
+					vf_info.dmabuf, vf_info.release_fence, old_fence,
+					old_fence ? kref_read(&old_fence->refcount) : -1);
+				if (vf_info.dmabuf && vf_info.dmabuf->resv)
+					dma_resv_add_excl_fence(vf_info.dmabuf->resv,
+						vf_info.release_fence);
+			}
 			video_display_setframe(vblk->index, &vf_info, 0);
 		} else {
 			if (pixel_format == DRM_FORMAT_NV12 ||
@@ -523,8 +559,8 @@ static void video_set_state(struct meson_vpu_block *vblk,
 	if (!video->vfm_mode && video->fence && vf)
 		bind_video_fence_vframe(video, video->fence,
 				mvvs->plane_index, vf);
-	DRM_DEBUG("plane_index=%d,HW-video=%d, byte_stride=%d\n",
-		  mvvs->plane_index, vblk->index, byte_stride);
+	DRM_DEBUG("plane_index=%d,HW-video=%d, repeat_frame=%d byte_stride=%d\n",
+		  mvvs->plane_index, vblk->index, repeat_frame, byte_stride);
 	DRM_DEBUG("phy_addr=0x%pa,phy_addr2=0x%pa\n",
 		  &phy_addr, &phy_addr2);
 	DRM_DEBUG("%s set_state done.\n", video->base.name);
@@ -565,6 +601,7 @@ static void video_hw_disable(struct meson_vpu_block *vblk,
 	if (video->vfm_mode) {
 		video_display_setenable(vblk->index, 0);
 		video->video_enabled = 0;
+		video->fence = NULL;
 	} else {
 		video_disable_fence(video);
 		video->fence = NULL;

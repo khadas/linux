@@ -279,6 +279,7 @@ struct meson_vpu_video {
 	u32 vfm_mode;
 	bool video_enabled;
 	struct dma_fence *fence;
+	u32 repeat_frame;
 	struct list_head vfm_node[MESON_MAX_VIDEO];
 };
 
@@ -652,6 +653,12 @@ meson_vpu_block_get_old_state(struct meson_vpu_block *mvb,
 
 struct meson_vpu_pipeline_state *
 meson_vpu_pipeline_get_state(struct meson_vpu_pipeline *pipeline,
+			     struct drm_atomic_state *state);
+struct meson_vpu_pipeline_state *
+meson_vpu_pipeline_get_new_state(struct meson_vpu_pipeline *pipeline,
+			     struct drm_atomic_state *state);
+struct meson_vpu_pipeline_state *
+meson_vpu_pipeline_get_old_state(struct meson_vpu_pipeline *pipeline,
 			     struct drm_atomic_state *state);
 int meson_vpu_block_state_init(struct meson_drm *private,
 			       struct meson_vpu_pipeline *pipeline);
