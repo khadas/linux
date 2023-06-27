@@ -130,6 +130,11 @@ static struct vpu_reset_s vpu_reset_tl1[] = {
 	{VPU_REG_END, 0},
 };
 
+static struct vpu_clk_s vpu_clk_suspend = {
+	/* frequency   clk_mux       div */
+	50000000,    FCLK_DIV5,      7
+};
+
 /* ******************************************************* */
 /*              VPU_HDMI power: before reset             */
 /* ******************************************************* */

@@ -288,11 +288,23 @@ void vpu_clktree_init_dft(struct device *dev)
 	struct clk *clk_vapb, *clk_vpu_intr;
 
 	/* init & enable vapb_clk */
-	clk_vapb = devm_clk_get(dev, "vapb_clk");
-	if (IS_ERR_OR_NULL(clk_vapb))
-		VPUERR("%s: vapb_clk\n", __func__);
-	else
-		clk_prepare_enable(clk_vapb);
+	vpu_conf.vapb_clk0 = devm_clk_get(dev, "vapb_clk0");
+	vpu_conf.vapb_clk1 = devm_clk_get(dev, "vapb_clk1");
+	vpu_conf.vapb_clk = devm_clk_get(dev, "vapb_clk");
+	if ((IS_ERR_OR_NULL(vpu_conf.vapb_clk0)) ||
+		(IS_ERR_OR_NULL(vpu_conf.vapb_clk1)) ||
+		(IS_ERR_OR_NULL(vpu_conf.vapb_clk))) {
+		clk_vapb = devm_clk_get(dev, "vapb_clk");
+		if (IS_ERR_OR_NULL(clk_vapb))
+			VPUERR("%s: vapb_clk\n", __func__);
+		else
+			clk_prepare_enable(clk_vapb);
+	} else {
+		clk_set_parent(vpu_conf.vapb_clk, vpu_conf.vapb_clk0);
+		clk_prepare_enable(vpu_conf.vapb_clk);
+		clk_set_rate(vpu_conf.vapb_clk1, 50000000);
+	}
+
 
 	clk_vpu_intr = devm_clk_get(dev, "vpu_intr_gate");
 	if (IS_ERR_OR_NULL(clk_vpu_intr))

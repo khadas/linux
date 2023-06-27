@@ -139,6 +139,9 @@ struct vpu_conf_s {
 	struct clk *vpu_clk0;
 	struct clk *vpu_clk1;
 	struct clk *vpu_clk;
+	struct clk *vapb_clk0;
+	struct clk *vapb_clk1;
+	struct clk *vapb_clk;
 
 	unsigned int *clk_vmod;
 };
