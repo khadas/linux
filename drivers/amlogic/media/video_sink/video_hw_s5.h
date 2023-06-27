@@ -266,6 +266,7 @@ struct vd2_proc_s {
 	u32 bypass_detunnel;
 	/* hdr2 */
 	u32 bypass_hdr;
+	u32 bypass_pps;
 	struct vd_proc_pps_s vd_proc_pps;
 	struct vd_proc_pi_s vd_proc_pi;
 };
@@ -278,6 +279,7 @@ struct vd_proc_s {
 	u32 bypass_hdr;
 	u32 bypass_dv;
 	u32 bypass_ve;
+	u32 bypass_vd2_pps;
 	/* vd1 */
 	struct vd_proc_vd1_info_s vd_proc_vd1_info;
 	/* vd2 */

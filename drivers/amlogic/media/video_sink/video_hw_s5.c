@@ -2413,6 +2413,11 @@ static void vd2_proc_set(u32 vpp_index, struct vd2_proc_s *vd2_proc)
 	/* hdr */
 	vd2_proc_bypass_hdr(vpp_index, vd2_proc->bypass_hdr);
 	/* pps */
+	if (vd2_proc->bypass_pps) {
+		vd_layer[1].sc_setting.sc_top_enable = false;
+		vd_layer[1].sc_setting.sc_h_enable = false;
+		vd_layer[1].sc_setting.sc_v_enable = false;
+	}
 	vdx_scaler_setting_s5(&vd_layer[1], &vd_layer[1].sc_setting);
 	if (vd2_proc->vd2_dout_dpsel == VD2_DOUT_PI) {
 		/* vd2 pi set */
@@ -5061,6 +5066,8 @@ static void vd_proc_param_set_vd1(struct vd_proc_s *vd_proc, u32 frm_idx)
 			vd_proc->vd_proc_unit[1].reg_bypass_prebld = 0;
 		else
 			vd_proc->vd_proc_unit[1].reg_bypass_prebld = 1;
+		/* disable vd2 pps */
+		vd_proc->bypass_vd2_pps = 1;
 		if (debug_flag_s5 & DEBUG_VD_PROC)
 			pr_info("vd2 din_hsize/v=0x%x, 0x%x, dout_hsize/v=0x%x,0x%x, dout x/y=%d, %d\n",
 				vd_proc_vd2_info->vd2_din_hsize,
@@ -5071,6 +5078,7 @@ static void vd_proc_param_set_vd1(struct vd_proc_s *vd_proc, u32 frm_idx)
 				vd_proc_vd2_info->vd2_dout_y_start);
 	} else {
 		vd_proc->vd_proc_unit[1].reg_bypass_prebld = 1;
+		vd_proc->bypass_vd2_pps = 0;
 	}
 
 	for (slice = 0; slice < vd_proc_vd1_info->slice_num; slice++) {
@@ -5168,6 +5176,7 @@ static void vd_proc_param_set_vd2(struct vd_proc_s *vd_proc)
 	vd2_proc->bypass_dv = vd_proc->bypass_dv;
 	vd2_proc->bypass_detunnel = vd_proc->bypass_detunnel;
 	vd2_proc->bypass_hdr = vd_proc->bypass_hdr;
+	vd2_proc->bypass_pps = vd_proc->bypass_vd2_pps;
 	//vd2_proc->dolby_en = 0;
 	if (debug_flag_s5 & DEBUG_VD_PROC)
 		pr_info("%s: din size: %d, %d, dout size: %d, %d, x/y start: %d, %d\n",
