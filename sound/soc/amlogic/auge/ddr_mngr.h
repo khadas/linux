@@ -194,6 +194,9 @@ struct toddr {
 	unsigned int resample: 1;
 	unsigned int ext_signed: 1;
 	unsigned int reg_base;
+	unsigned int rate;
+	unsigned int frame_size;
+	unsigned int buf_frames;
 
 	struct toddr_fmt fmt;
 	unsigned int start_addr;
@@ -256,7 +259,10 @@ struct frddr {
 	unsigned int rate;
 	unsigned int msb;
 	unsigned int type;
+	unsigned int frame_size;
+	unsigned int buf_frames;
 
+	unsigned int start_addr;
 	int irq;
 	bool in_use;
 	struct ddr_chipinfo *chipinfo;

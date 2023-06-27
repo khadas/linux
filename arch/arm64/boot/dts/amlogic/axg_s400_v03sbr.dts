@@ -1054,6 +1054,7 @@
 		clock-names = "mclk", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdmc_pins &tdmc_mclk>;
+		clk_tuning_enable = <1>;
 	};
 
 	aml_spdif: spdif {

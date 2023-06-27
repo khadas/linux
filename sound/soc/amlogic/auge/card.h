@@ -12,6 +12,7 @@
 #include <sound/soc.h>
 #include "card_utils.h"
 #include "../common/iec_info.h"
+#include "soft_locker.h"
 
 enum hdmitx_src {
 	HDMITX_SRC_SPDIF,
@@ -33,6 +34,7 @@ struct aml_card_info {
 	struct aml_dai codec_dai;
 };
 
+struct soft_locker *aml_get_card_locker(struct snd_soc_card *card);
 int get_aml_audio_binv(struct snd_soc_card *card);
 int get_aml_audio_binv_index(struct snd_soc_card *card);
 int set_aml_audio_binv(struct snd_soc_card *card, int audio_binv);

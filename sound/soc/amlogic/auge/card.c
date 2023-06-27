@@ -146,6 +146,8 @@ struct aml_card_data {
 	enum aud_codec_types hdmi_audio_type;
 	enum hdmitx_src hdmitx_src;
 	int i2s_to_hdmitx_mask;
+	/* soft locker attached to */
+	struct soft_locker slocker;
 };
 
 #define aml_priv_to_dev(priv) ((priv)->snd_card.dev)
@@ -153,6 +155,13 @@ struct aml_card_data {
 #define aml_priv_to_props(priv, i) ((priv)->dai_props + (i))
 #define aml_card_to_priv(card) \
 	(container_of(card, struct aml_card_data, snd_card))
+
+struct soft_locker *aml_get_card_locker(struct snd_soc_card *card)
+{
+	struct aml_card_data *priv = aml_card_to_priv(card);
+
+	return &priv->slocker;
+}
 
 #define DAI	"sound-dai"
 #define CELL	"#sound-dai-cells"
@@ -925,6 +934,8 @@ static int aml_card_dai_link_of(struct device_node *node,
 					dai_link->codecs->dai_name);
 	if (ret < 0)
 		goto dai_link_of_err;
+
+	locker_add_dai_name(&priv->slocker, idx, dai_link->cpus->dai_name);
 
 	dai_link->ops = &aml_card_ops;
 	dai_link->init = aml_card_dai_init;

@@ -48,6 +48,7 @@
 #include "iomap.h"
 #include "audio_utils.h"
 #include "card.h"
+#include "soft_locker.h"
 
 #define DRV_NAME "snd_tdm"
 
@@ -1602,6 +1603,7 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 				   p_tdm->chipinfo->use_vadtop);
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			struct snd_soc_card *card = cpu_dai->component->card;
 			/* output START sequence:
 			 * 1. Frddr/TDMOUT/SPDIF reset(may cause the AVR mute)
 			 * 2. ctrl0 set to 0
@@ -1630,6 +1632,8 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 					p_tdm->chipinfo->gain_ver);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_mute(p_tdm, false);
+
+			locker_reset(aml_get_card_locker(card));
 		} else {
 			dev_info(substream->pcm->card->dev,
 				 "TDM[%d] Capture enable\n",
@@ -1715,6 +1719,26 @@ static int aml_dai_tdm_hw_params(struct snd_pcm_substream *substream,
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
 	unsigned int rate = params_rate(params);
 	unsigned int channels = params_channels(params);
+	struct snd_soc_card *card = cpu_dai->component->card;
+	struct soft_locker *locker = aml_get_card_locker(card);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		struct frddr *fr = p_tdm->fddr;
+
+		fr->buf_frames = params_buffer_size(params);
+		fr->frame_size = snd_soc_params_to_frame_size(params) / 8;
+		fr->rate = rate;
+		locker_register_frddr(locker, fr, cpu_dai->name);
+	} else {
+		struct toddr *to = p_tdm->tddr;
+
+		to->buf_frames = params_buffer_size(params);
+		to->frame_size = snd_soc_params_to_frame_size(params) / 8;
+		to->rate = rate;
+		locker_register_toddr(locker, to, cpu_dai->name);
+	}
+	locker_en_ddr_by_dai_name(locker,
+			cpu_dai->name, substream->stream);
 
 	return aml_tdm_hw_setting_init(p_tdm, rate, channels, substream->stream);
 }
@@ -1723,6 +1747,9 @@ static int aml_dai_tdm_hw_free(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *cpu_dai)
 {
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	struct snd_soc_card *card = cpu_dai->component->card;
+	struct soft_locker *locker = aml_get_card_locker(card);
 
 	/* Disable channel number for VAD */
 	if (p_tdm->chipinfo->chnum_en &&
@@ -1738,6 +1765,13 @@ static int aml_dai_tdm_hw_free(struct snd_pcm_substream *substream,
 	}
 
 	aml_tdm_hw_setting_free(p_tdm, substream->stream);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		locker_release_frddr(locker, cpu_dai->name);
+	else
+		locker_release_toddr(locker, cpu_dai->name);
+
+	locker_en_ddr_by_dai_name(locker, cpu_dai->name, substream->stream);
 
 	return 0;
 }

@@ -516,6 +516,7 @@
 		start_clk_enable = <1>;
 		tdm5v-supply = <&vcc5v_reg>;
 		tdm3v3-supply = <&vddio3v3_reg>;
+		clk_tuning_enable = <1>;
 		status = "okay";
 	};
 
