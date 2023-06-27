@@ -155,6 +155,11 @@ static int amlvideo2_dest_h;
 module_param(amlvideo2_dest_h, uint, 0664);
 MODULE_PARM_DESC(amlvideo2_dest_h, "amlvideo2_dest_w");
 
+static int dump_num_increase;
+static int amlvideo2_continue_dump;
+module_param(amlvideo2_continue_dump, uint, 0664);
+MODULE_PARM_DESC(amlvideo2_continue_dump, "amlvideo2_continue_dump");
+
 static struct v4l2_fract amlvideo2_frmintervals_active = {
 	.numerator = 1, .denominator = DEF_FRAMERATE, };
 
@@ -3752,7 +3757,7 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 	return output_canvas;
 }
 
-static void dump_vf(struct vframe_s *vf)
+static void dump_vf(struct vframe_s *vf, int type)
 {
 	struct file *fp;
 	char name_buf[32];
@@ -3760,22 +3765,41 @@ static void dump_vf(struct vframe_s *vf)
 	u8 *data;
 	mm_segment_t fs;
 	loff_t pos;
+	struct canvas_s cs0;
 
 	if (!vf)
 		return;
 
-	snprintf(name_buf, sizeof(name_buf), "/data/vdin.yuv");
+	if (type == 1)
+		snprintf(name_buf, sizeof(name_buf), "/data/vdin.yuv");
+	else
+		snprintf(name_buf, sizeof(name_buf), "/data/vdin_%d.yuv", dump_num_increase);
+
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 	if (IS_ERR(fp))
 		return;
-	write_size = vf->canvas0_config[0].width * vf->canvas0_config[0].height
-		* 3 / 2;
-	pr_info("amlvideo2: dump in %d %d, phy_addr=%ld\n",
-		vf->canvas0_config[0].width,
-		vf->canvas0_config[0].height,
-		vf->canvas0_config[0].phy_addr);
 
-	data = codec_mm_vmap(vf->canvas0_config[0].phy_addr, write_size);
+	if (vf->canvas0Addr == (u32)-1) {
+		write_size = vf->canvas0_config[0].width * vf->canvas0_config[0].height
+			* 3 / 2;
+		data = codec_mm_vmap(vf->canvas0_config[0].phy_addr, write_size);
+		pr_info("amlvideo2: dump in %d %d, phy_addr=%ld, type=%d\n",
+			vf->canvas0_config[0].width,
+			vf->canvas0_config[0].height,
+			vf->canvas0_config[0].phy_addr,
+			type);
+	} else {
+		canvas_read(vf->canvas0Addr & 0xff, &cs0);
+		write_size = cs0.width * cs0.height
+			* 3 / 2;
+		data = codec_mm_vmap(cs0.addr, write_size);
+		pr_info("amlvideo2: dump in %d %d, phy_addr=%ld, type=%d\n",
+			cs0.width,
+			cs0.height,
+			cs0.addr,
+			type);
+	}
+
 	if (!data)
 		return;
 	fs = get_fs();
@@ -3783,13 +3807,13 @@ static void dump_vf(struct vframe_s *vf)
 	pos = 0;
 	vfs_write(fp, data, write_size, &pos);
 	vfs_fsync(fp, 0);
-	pr_info("amlvideo2: dump in %u size to addr%p\n", write_size, data);
+	pr_info("amlvideo2: dump in %u size to addr=%p\n", write_size, data);
 	codec_mm_unmap_phyaddr(data);
 	filp_close(fp, NULL);
 	set_fs(fs);
 }
 
-static void dump_output(struct amlvideo2_output *output)
+static void dump_output(struct amlvideo2_output *output, int type)
 {
 	struct file *fp;
 	char name_buf[32];
@@ -3806,14 +3830,17 @@ static void dump_output(struct amlvideo2_output *output)
 	output_canvas = output->canvas_id;
 	canvas_read(output_canvas & 0xff, &cd);
 
-	snprintf(name_buf, sizeof(name_buf), "/data/amlvideo2.yuv");
+	if (type == 1)
+		snprintf(name_buf, sizeof(name_buf), "/data/amlvideo2.yuv");
+	else
+		snprintf(name_buf, sizeof(name_buf), "/data/amlvideo2_%d.yuv", dump_num_increase);
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 	if (IS_ERR(fp))
 		return;
 	write_size = cd.width * cd.height * 3 / 2;
 	pr_info("amlvideo2: dump output %d %d, phy_addr=%ld\n",
 		cd.width,
-		cd.width,
+		cd.height,
 		cd.addr);
 
 	data = codec_mm_vmap(cd.addr, write_size);
@@ -3939,9 +3966,17 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 	}
 
 	if (amlvideo2_dump) {
-		dump_vf(vf);
-		dump_output(&output);
+		dump_vf(vf, 1);
+		dump_output(&output, 1);
 		amlvideo2_dump = 0;
+	}
+	if (amlvideo2_continue_dump) {
+		dump_num_increase++;
+		dump_vf(vf, 2);
+		dump_output(&output, 2);
+		amlvideo2_continue_dump--;
+		if (!amlvideo2_continue_dump)
+			dump_num_increase = 0;
 	}
 
 	buf->vb.state = VIDEOBUF_DONE;
