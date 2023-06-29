@@ -934,7 +934,7 @@ static void dma_cache_maint_page(struct page *page, unsigned long offset,
 		 * system will crash when do flush cache.
 		 */
 		#ifdef CONFIG_AMLOGIC_CMA
-			unsigned long tmp_pfn = pfn + (PAGE_ALIGN(len) >> PAGE_SHIFT);
+			unsigned long tmp_pfn = pfn + (offset + len) / PAGE_SIZE;
 			struct page *tmp_page = pfn_to_page(tmp_pfn);
 
 			if (PageHighMem(tmp_page))
