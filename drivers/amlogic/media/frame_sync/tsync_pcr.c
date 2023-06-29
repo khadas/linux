@@ -664,8 +664,14 @@ void tsync_pcr_pcrscr_set(void)
 			tsync_set_pcr_mode(0, ref_pcr);
 			tsync_pcr_inited_mode = INIT_PRIORITY_VIDEO;
 		} else {
-			tsync_set_pcr_mode(1, ref_pcr);
-			tsync_pcr_inited_mode = INIT_PRIORITY_PCR;
+			if (!tsync_get_video_pid_valid() &&
+				tsync_get_audio_pid_valid()) {
+				tsync_set_pcr_mode(0, ref_pcr);
+				tsync_pcr_inited_mode = INIT_PRIORITY_AUDIO;
+			} else {
+				tsync_set_pcr_mode(1, ref_pcr);
+				tsync_pcr_inited_mode = INIT_PRIORITY_PCR;
+			}
 			if (cur_pcr > first_vpts) {
 				timestamp_additional_latency_set(cur_pcr - first_vpts);
 				pr_info("additional latency set.\n");
