@@ -706,7 +706,7 @@
 			>;
 
 		spectrum = <1>;
-		cma_mem_size = <40>; // MB
+		cma_mem_size = <16>; // MB
 		//memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
 	};
 
