@@ -1791,13 +1791,6 @@ static void lcd_config_probe_work(struct work_struct *p_work)
 		goto lcd_config_probe_work_failed;
 	}
 
-	if ((pdrv->status & LCD_STATUS_VMODE_ACTIVE) &&
-	    !(pdrv->status & LCD_STATUS_ENCL_ON)) {
-		LCDPR("[%d]: %s: lcd_enable in kernel\n", pdrv->index, __func__);
-		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
-		lcd_if_enable_retry(pdrv);
-	}
-
 	return;
 
 lcd_config_probe_work_failed:

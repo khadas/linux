@@ -62,7 +62,8 @@
 /* 20230510: support tcon fw*/
 /* 20230525: update tcon debug support */
 /* 20230706: Resolve conflicts where DLG changeed and vrr set tcon data at the same time*/
-#define LCD_DRV_VERSION    "20230706"
+/* 20230710: Remove redundant lcd enable settings*/
+#define LCD_DRV_VERSION    "20230710"
 
 extern struct mutex lcd_vout_mutex;
 
