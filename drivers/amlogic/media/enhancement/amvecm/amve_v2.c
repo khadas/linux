@@ -24,6 +24,7 @@
 #include "amve_v2.h"
 #include <linux/io.h>
 #include "reg_helper.h"
+#include "set_hdr2_v0.h"
 
 static int vev2_dbg;
 module_param(vev2_dbg, int, 0644);
@@ -244,13 +245,10 @@ void vpp_mtx_config_v2(struct matrix_coef_s *coef,
 	int reg_offset2 = 0;
 	int reg_en_ctl = 0;
 
-	if (slice >= SLICE_MAX)
-		return;
-
 	switch (slice) {
 	case SLICE0:
 		if (mtx_sel == VD1_MTX) {
-			reg_pre_offset0_1 = VPP_VD1_MATRIX_COEF00_01;
+			reg_pre_offset0_1 = VPP_VD1_MATRIX_PRE_OFFSET0_1;
 			reg_pre_offset2 = VPP_VD1_MATRIX_PRE_OFFSET2;
 			reg_coef00_01 = VPP_VD1_MATRIX_COEF00_01;
 			reg_coef02_10 = VPP_VD1_MATRIX_COEF02_10;
@@ -261,7 +259,7 @@ void vpp_mtx_config_v2(struct matrix_coef_s *coef,
 			reg_offset2 = VPP_VD1_MATRIX_OFFSET2;
 			reg_en_ctl = VPP_VD1_MATRIX_EN_CTRL;
 		} else if (mtx_sel == POST2_MTX) {
-			reg_pre_offset0_1 = VPP_POST2_MATRIX_COEF00_01;
+			reg_pre_offset0_1 = VPP_POST2_MATRIX_PRE_OFFSET0_1;
 			reg_pre_offset2 = VPP_POST2_MATRIX_PRE_OFFSET2;
 			reg_coef00_01 = VPP_POST2_MATRIX_COEF00_01;
 			reg_coef02_10 = VPP_POST2_MATRIX_COEF02_10;
@@ -272,7 +270,7 @@ void vpp_mtx_config_v2(struct matrix_coef_s *coef,
 			reg_offset2 = VPP_POST2_MATRIX_OFFSET2;
 			reg_en_ctl = VPP_POST2_MATRIX_EN_CTRL;
 		} else if (mtx_sel == POST_MTX) {
-			reg_pre_offset0_1 = VPP_POST_MATRIX_COEF00_01;
+			reg_pre_offset0_1 = VPP_POST_MATRIX_PRE_OFFSET0_1;
 			reg_pre_offset2 = VPP_POST_MATRIX_PRE_OFFSET2;
 			reg_coef00_01 = VPP_POST_MATRIX_COEF00_01;
 			reg_coef02_10 = VPP_POST_MATRIX_COEF02_10;
@@ -282,6 +280,17 @@ void vpp_mtx_config_v2(struct matrix_coef_s *coef,
 			reg_offset0_1 = VPP_POST_MATRIX_OFFSET0_1;
 			reg_offset2 = VPP_POST_MATRIX_OFFSET2;
 			reg_en_ctl = VPP_POST_MATRIX_EN_CTRL;
+		} else {
+			reg_pre_offset0_1 = VPP_POST2_MATRIX_PRE_OFFSET0_1;
+			reg_pre_offset2 = VPP_POST2_MATRIX_PRE_OFFSET2;
+			reg_coef00_01 = VPP_POST2_MATRIX_COEF00_01;
+			reg_coef02_10 = VPP_POST2_MATRIX_COEF02_10;
+			reg_coef11_12 = VPP_POST2_MATRIX_COEF11_12;
+			reg_coef20_21 = VPP_POST2_MATRIX_COEF20_21;
+			reg_coef22 = VPP_POST2_MATRIX_COEF22;
+			reg_offset0_1 = VPP_POST2_MATRIX_OFFSET0_1;
+			reg_offset2 = VPP_POST2_MATRIX_OFFSET2;
+			reg_en_ctl = VPP_POST2_MATRIX_EN_CTRL;
 		}
 		break;
 	case SLICE1:
@@ -309,7 +318,7 @@ void vpp_mtx_config_v2(struct matrix_coef_s *coef,
 			reg_en_ctl = VPP_SLICE1_VD1_MATRIX_EN_CTRL +
 				ve_reg_ofst[slice - 1];
 		} else if (mtx_sel == POST2_MTX) {
-			reg_pre_offset0_1 = VPP_POST2_MATRIX_COEF00_01 +
+			reg_pre_offset0_1 = VPP_POST2_MATRIX_PRE_OFFSET0_1 +
 				pst_reg_ofst[slice];
 			reg_pre_offset2 = VPP_POST2_MATRIX_PRE_OFFSET2 +
 				pst_reg_ofst[slice];
@@ -330,7 +339,7 @@ void vpp_mtx_config_v2(struct matrix_coef_s *coef,
 			reg_en_ctl = VPP_POST2_MATRIX_EN_CTRL +
 				pst_reg_ofst[slice];
 		} else if (mtx_sel == POST_MTX) {
-			reg_pre_offset0_1 = VPP_POST_MATRIX_COEF00_01 +
+			reg_pre_offset0_1 = VPP_POST_MATRIX_PRE_OFFSET0_1 +
 				pst_reg_ofst[slice];
 			reg_pre_offset2 = VPP_POST_MATRIX_PRE_OFFSET2 +
 				pst_reg_ofst[slice];
@@ -350,10 +359,31 @@ void vpp_mtx_config_v2(struct matrix_coef_s *coef,
 				pst_reg_ofst[slice];
 			reg_en_ctl = VPP_POST_MATRIX_EN_CTRL +
 				pst_reg_ofst[slice];
+		} else {
+			reg_pre_offset0_1 = VPP_POST2_MATRIX_PRE_OFFSET0_1 +
+				pst_reg_ofst[slice];
+			reg_pre_offset2 = VPP_POST2_MATRIX_PRE_OFFSET2 +
+				pst_reg_ofst[slice];
+			reg_coef00_01 = VPP_POST2_MATRIX_COEF00_01 +
+				pst_reg_ofst[slice];
+			reg_coef02_10 = VPP_POST2_MATRIX_COEF02_10 +
+				pst_reg_ofst[slice];
+			reg_coef11_12 = VPP_POST2_MATRIX_COEF11_12 +
+				pst_reg_ofst[slice];
+			reg_coef20_21 = VPP_POST2_MATRIX_COEF20_21 +
+				pst_reg_ofst[slice];
+			reg_coef22 = VPP_POST2_MATRIX_COEF22 +
+				pst_reg_ofst[slice];
+			reg_offset0_1 = VPP_POST2_MATRIX_OFFSET0_1 +
+				pst_reg_ofst[slice];
+			reg_offset2 = VPP_POST2_MATRIX_OFFSET2 +
+				pst_reg_ofst[slice];
+			reg_en_ctl = VPP_POST2_MATRIX_EN_CTRL +
+				pst_reg_ofst[slice];
 		}
 		break;
 	default:
-		break;
+		return;
 	}
 
 	switch (mode) {
@@ -363,39 +393,131 @@ void vpp_mtx_config_v2(struct matrix_coef_s *coef,
 		WRITE_VPP_REG(reg_pre_offset2, coef->pre_offset[2]);
 		WRITE_VPP_REG(reg_coef00_01,
 			(coef->matrix_coef[0][0] << 16) | coef->matrix_coef[0][1]);
-		WRITE_VPP_REG(reg_coef00_01,
+		WRITE_VPP_REG(reg_coef02_10,
 			(coef->matrix_coef[0][2] << 16) | coef->matrix_coef[1][0]);
-		WRITE_VPP_REG(reg_coef00_01,
+		WRITE_VPP_REG(reg_coef11_12,
 			(coef->matrix_coef[1][1] << 16) | coef->matrix_coef[1][2]);
-		WRITE_VPP_REG(reg_coef00_01,
+		WRITE_VPP_REG(reg_coef20_21,
 			(coef->matrix_coef[2][0] << 16) | coef->matrix_coef[2][1]);
-		WRITE_VPP_REG(reg_coef00_01, coef->matrix_coef[2][2]);
+		WRITE_VPP_REG(reg_coef22, coef->matrix_coef[2][2]);
 		WRITE_VPP_REG(reg_offset0_1,
 			(coef->post_offset[0] << 16) | coef->post_offset[1]);
 		WRITE_VPP_REG(reg_offset2, coef->post_offset[2]);
 		WRITE_VPP_REG_BITS(reg_en_ctl, coef->en, 0, 1);
 		break;
 	case WR_DMA:
-		VSYNC_WRITE_VPP_REG(reg_pre_offset0_1,
-			(coef->pre_offset[0] << 16) | coef->pre_offset[1]);
-		VSYNC_WRITE_VPP_REG(reg_pre_offset2, coef->pre_offset[2]);
-		VSYNC_WRITE_VPP_REG(reg_coef00_01,
-			(coef->matrix_coef[0][0] << 16) | coef->matrix_coef[0][1]);
-		VSYNC_WRITE_VPP_REG(reg_coef00_01,
-			(coef->matrix_coef[0][2] << 16) | coef->matrix_coef[1][0]);
-		VSYNC_WRITE_VPP_REG(reg_coef00_01,
-			(coef->matrix_coef[1][1] << 16) | coef->matrix_coef[1][2]);
-		VSYNC_WRITE_VPP_REG(reg_coef00_01,
-			(coef->matrix_coef[2][0] << 16) | coef->matrix_coef[2][1]);
-		VSYNC_WRITE_VPP_REG(reg_coef00_01, coef->matrix_coef[2][2]);
-		VSYNC_WRITE_VPP_REG(reg_offset0_1,
-			(coef->post_offset[0] << 16) | coef->post_offset[1]);
-		VSYNC_WRITE_VPP_REG(reg_offset2, coef->post_offset[2]);
-		VSYNC_WRITE_VPP_REG_BITS(reg_en_ctl, coef->en, 0, 1);
+		VSYNC_WRITE_VPP_REG_EX(reg_pre_offset0_1,
+			(coef->pre_offset[0] << 16) | coef->pre_offset[1], 0);
+		VSYNC_WRITE_VPP_REG_EX(reg_pre_offset2, coef->pre_offset[2], 0);
+		VSYNC_WRITE_VPP_REG_EX(reg_coef00_01,
+			(coef->matrix_coef[0][0] << 16) | coef->matrix_coef[0][1], 0);
+		VSYNC_WRITE_VPP_REG_EX(reg_coef02_10,
+			(coef->matrix_coef[0][2] << 16) | coef->matrix_coef[1][0], 0);
+		VSYNC_WRITE_VPP_REG_EX(reg_coef11_12,
+			(coef->matrix_coef[1][1] << 16) | coef->matrix_coef[1][2], 0);
+		VSYNC_WRITE_VPP_REG_EX(reg_coef20_21,
+			(coef->matrix_coef[2][0] << 16) | coef->matrix_coef[2][1], 0);
+		VSYNC_WRITE_VPP_REG_EX(reg_coef22, coef->matrix_coef[2][2], 0);
+		VSYNC_WRITE_VPP_REG_EX(reg_offset0_1,
+			(coef->post_offset[0] << 16) | coef->post_offset[1], 0);
+		VSYNC_WRITE_VPP_REG_EX(reg_offset2, coef->post_offset[2], 0);
+		VSYNC_WRITE_VPP_REG_BITS_EX(reg_en_ctl, coef->en, 0, 1, 0);
 		break;
 	default:
-		break;
+		return;
 	}
+}
+
+void mtx_setting_v2(enum vpp_matrix_e mtx_sel,
+	enum wr_md_e mode,
+	enum mtx_csc_e mtx_csc,
+	int mtx_on,
+	enum vpp_slice_e slice)
+{
+	struct matrix_coef_s coef;
+
+	switch (mtx_csc) {
+	case MATRIX_RGB_YUV709:
+		coef.matrix_coef[0][0] = 0xbb;
+		coef.matrix_coef[0][1] = 0x275;
+		coef.matrix_coef[0][2] = 0x3f;
+		coef.matrix_coef[1][0] = 0x1f99;
+		coef.matrix_coef[1][1] = 0x1ea6;
+		coef.matrix_coef[1][2] = 0x1c2;
+		coef.matrix_coef[2][0] = 0x1c2;
+		coef.matrix_coef[2][1] = 0x1e67;
+		coef.matrix_coef[2][2] = 0x1fd7;
+
+		coef.pre_offset[0] = 0;
+		coef.pre_offset[1] = 0;
+		coef.pre_offset[2] = 0;
+		coef.post_offset[0] = 0x40;
+		coef.post_offset[1] = 0x200;
+		coef.post_offset[2] = 0x200;
+		coef.en = mtx_on;
+		break;
+	case MATRIX_YUV709_RGB:
+		coef.matrix_coef[0][0] = 0x4ac;
+		coef.matrix_coef[0][1] = 0x0;
+		coef.matrix_coef[0][2] = 0x731;
+		coef.matrix_coef[1][0] = 0x4ac;
+		coef.matrix_coef[1][1] = 0x1f25;
+		coef.matrix_coef[1][2] = 0x1ddd;
+		coef.matrix_coef[2][0] = 0x4ac;
+		coef.matrix_coef[2][1] = 0x879;
+		coef.matrix_coef[2][2] = 0x0;
+
+		coef.pre_offset[0] = 0x7c0;
+		coef.pre_offset[1] = 0x600;
+		coef.pre_offset[2] = 0x600;
+		coef.post_offset[0] = 0x0;
+		coef.post_offset[1] = 0x0;
+		coef.post_offset[2] = 0x0;
+		coef.en = mtx_on;
+		break;
+	case MATRIX_YUV709F_RGB:/*full to full*/
+		coef.matrix_coef[0][0] = 0x400;
+		coef.matrix_coef[0][1] = 0x0;
+		coef.matrix_coef[0][2] = 0x64D;
+		coef.matrix_coef[1][0] = 0x400;
+		coef.matrix_coef[1][1] = 0x1F41;
+		coef.matrix_coef[1][2] = 0x1E21;
+		coef.matrix_coef[2][0] = 0x400;
+		coef.matrix_coef[2][1] = 0x76D;
+		coef.matrix_coef[2][2] = 0x0;
+
+		coef.pre_offset[0] = 0x0;
+		coef.pre_offset[1] = 0x600;
+		coef.pre_offset[2] = 0x600;
+		coef.post_offset[0] = 0x0;
+		coef.post_offset[1] = 0x0;
+		coef.post_offset[2] = 0x0;
+		coef.en = mtx_on;
+		break;
+	case MATRIX_NULL:
+		coef.matrix_coef[0][0] = 0;
+		coef.matrix_coef[0][1] = 0;
+		coef.matrix_coef[0][2] = 0;
+		coef.matrix_coef[1][0] = 0;
+		coef.matrix_coef[1][1] = 0;
+		coef.matrix_coef[1][2] = 0;
+		coef.matrix_coef[2][0] = 0;
+		coef.matrix_coef[2][1] = 0;
+		coef.matrix_coef[2][2] = 0;
+
+		coef.pre_offset[0] = 0;
+		coef.pre_offset[1] = 0;
+		coef.pre_offset[2] = 0;
+		coef.post_offset[0] = 0;
+		coef.post_offset[1] = 0;
+		coef.post_offset[2] = 0;
+		coef.en = mtx_on;
+		break;
+	default:
+		return;
+	}
+
+	vpp_mtx_config_v2(&coef, mode, slice, mtx_sel);
 }
 
 void cm_top_ctl(enum wr_md_e mode, int en)

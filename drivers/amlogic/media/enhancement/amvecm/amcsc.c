@@ -74,8 +74,8 @@ MODULE_PARM_DESC(gamut_conv_enable, "\n gamut_conv_enable\n");
 
 static uint pre_gamut_conv_en;
 signed int vd1_contrast_offset;
-
 signed int saturation_offset;
+static bool cur_hdmi_out_fmt;
 
 /*hdr------------------------------------*/
 
@@ -4333,6 +4333,13 @@ int signal_type_changed(struct vframe_s *vf,
 		pr_csc(
 			1, "gamut convert changed = 0x%x\n",
 			gamut_conv_enable);
+	}
+
+	if (cur_hdmi_out_fmt != vinfo->vpp_post_out_color_fmt) {
+		cur_hdmi_out_fmt = vinfo->vpp_post_out_color_fmt;
+		change_flag |= SIG_OP_CHG;
+		pr_csc(1, "hdmi out format changed = 0x%x\n",
+			cur_hdmi_out_fmt);
 	}
 
 	return change_flag;
@@ -8986,6 +8993,16 @@ int amvecm_matrix_process(struct vframe_s *vf,
 				   vinfo->viu_color_fmt);
 		}
 
+		if (cur_hdmi_out_fmt != vinfo->vpp_post_out_color_fmt) {
+			if (is_video_layer_on(vd_path))
+				null_vf_cnt[vd_path] = 0;
+			else
+				force_fake = true;
+			//cur_hdmi_out_fmt = vinfo->vpp_post_out_color_fmt;
+			pr_csc(4, "vd%d: hdmi out format changed\n",
+				   vd_path + 1);
+		}
+
 		/* handle eye protect mode */
 		if (cur_eye_protect_mode != wb_val[0] &&
 		    vd_path == VD1_PATH) {
@@ -9106,6 +9123,15 @@ int amvecm_matrix_process(struct vframe_s *vf,
 					pr_csc(4,
 					       "%d:set video_process_status[VD%d] = MODULE_OFF\n",
 					       __LINE__, vd_path + 1);
+				}
+
+				//dv enable, hdmi 8k out dsc enable, use post matrix for yuv2rgb
+				if (cur_hdmi_out_fmt != vinfo->vpp_post_out_color_fmt) {
+					if (chip_type_id == chip_s5)
+						output_color_fmt_convert();
+					cur_hdmi_out_fmt = vinfo->vpp_post_out_color_fmt;
+					pr_csc(8, "dv on:Fake frame: hdmi out fmt changed = 0x%x\n",
+					cur_hdmi_out_fmt);
 				}
 			} else {
 #endif

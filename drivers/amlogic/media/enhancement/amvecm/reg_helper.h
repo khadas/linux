@@ -336,6 +336,17 @@ static inline void VSYNC_WRITE_VPP_REG_EX(u32 reg,
 	VSYNC_WR_MPEG_REG(reg, value);
 }
 
+static inline void VSYNC_WRITE_VPP_REG_BITS_EX(u32 reg,
+		const u32 value,
+		const u32 start,
+		const u32 len,
+		bool add_offset)
+{
+	if (add_offset)
+		reg = offset_addr(reg);
+	VSYNC_WR_MPEG_REG_BITS(reg, value, start, len);
+}
+
 static inline u32 VSYNC_READ_VPP_REG_EX(u32 reg,
 					bool add_offset)
 {
@@ -431,7 +442,7 @@ static inline void VSYNC_WR_MPEG_REG_BITS_S5(u32 reg,
 		      const u32 start,
 		      const u32 len)
 {
-	aml_write_vcbus(reg, ((aml_read_vcbus(reg) &
+	VSYNC_WR_MPEG_REG(reg, ((aml_read_vcbus(reg) &
 			     ~(((1L << (len)) - 1) << (start))) |
 			    (((value) & ((1L << (len)) - 1)) << (start))));
 }

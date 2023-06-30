@@ -30,6 +30,7 @@
 #include "set_hdr2_v0.h"
 #include "hdr/am_hdr10_plus.h"
 #include "hdr/gamut_convert.h"
+#include "amve_v2.h"
 
 static enum vd_format_e last_signal_type;
 static enum output_format_e target_format[VD_PATH_MAX];
@@ -2157,6 +2158,31 @@ int get_s5_silce_mode(void)
 	return slice_number;
 }
 
+void output_color_fmt_convert(void)
+{
+	if (vinfo_hdmi_out_fmt()) {
+		mtx_setting_v2(POST_MTX, WR_DMA,
+			MATRIX_YUV709_RGB, MTX_ON, SLICE0);
+		mtx_setting_v2(POST_MTX, WR_DMA,
+			MATRIX_YUV709_RGB, MTX_ON, SLICE1);
+		mtx_setting_v2(POST_MTX, WR_DMA,
+			MATRIX_YUV709_RGB, MTX_ON, SLICE2);
+		mtx_setting_v2(POST_MTX, WR_DMA,
+			MATRIX_YUV709_RGB, MTX_ON, SLICE3);
+	} else {
+		mtx_setting_v2(POST_MTX, WR_DMA,
+			MATRIX_NULL, MTX_OFF, SLICE0);
+		mtx_setting_v2(POST_MTX, WR_DMA,
+			MATRIX_NULL, MTX_OFF, SLICE1);
+		mtx_setting_v2(POST_MTX, WR_DMA,
+			MATRIX_NULL, MTX_OFF, SLICE2);
+		mtx_setting_v2(POST_MTX, WR_DMA,
+			MATRIX_NULL, MTX_OFF, SLICE3);
+	}
+	pr_csc(12, "%s: post matrix convert color format for hdmi out\n",
+		__func__);
+}
+
 void video_post_process(struct vframe_s *vf,
 			enum vpp_matrix_csc_e csc_type,
 			struct vinfo_s *vinfo,
@@ -2644,8 +2670,7 @@ void video_post_process(struct vframe_s *vf,
 			mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
 		else
 			mtx_setting(POST2_MTX, MATRIX_YUV709_RGB, MTX_ON);
-	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A &&
-		chip_type_id != chip_s5) {
+	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		if (!(vinfo->mode == VMODE_LCD ||
 			vinfo->mode == VMODE_DUMMY_ENCP)) {
 			pr_csc(12, "%s: vpp_index = %d mode = %d [%d]\n",
@@ -2653,12 +2678,16 @@ void video_post_process(struct vframe_s *vf,
 			    vpp_index,
 			    vinfo->mode,
 			    __LINE__);
-			if (vpp_index == VPP_TOP1)
-				mtx_setting(VPP1_POST2_MTX, MATRIX_NULL, MTX_OFF);
-			else if (vpp_index == VPP_TOP2)
-				mtx_setting(VPP2_POST2_MTX, MATRIX_NULL, MTX_OFF);
-			else
-				mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
+			if (chip_type_id == chip_s5) {
+				output_color_fmt_convert();
+			} else {
+				if (vpp_index == VPP_TOP1)
+					mtx_setting(VPP1_POST2_MTX, MATRIX_NULL, MTX_OFF);
+				else if (vpp_index == VPP_TOP2)
+					mtx_setting(VPP2_POST2_MTX, MATRIX_NULL, MTX_OFF);
+				else
+					mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
+			}
 		} else {
 			pr_csc(12, "%s: vpp_index = %d mode = %d [%d]\n",
 				__func__,

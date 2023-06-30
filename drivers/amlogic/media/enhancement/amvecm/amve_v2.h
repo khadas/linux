@@ -6,6 +6,8 @@
 #ifndef AMVE_V2_H
 #define AMVE_V2_H
 
+#include "set_hdr2_v0.h"
+
 struct cm_port_s {
 	int cm_addr_port[4];
 	int cm_data_port[4];
@@ -37,5 +39,11 @@ void post_pre_gamma_set(int *lut);
 void vpp_luma_hist_init(void);
 void get_luma_hist(struct vframe_s *vf);
 void cm_top_ctl(enum wr_md_e mode, int en);
+void mtx_setting_v2(enum vpp_matrix_e mtx_sel,
+	enum wr_md_e mode,
+	enum mtx_csc_e mtx_csc,
+	int mtx_on,
+	enum vpp_slice_e slice);
+
 #endif
 
