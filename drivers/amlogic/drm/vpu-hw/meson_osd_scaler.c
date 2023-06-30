@@ -892,7 +892,7 @@ static void scaler_size_check(struct meson_vpu_block *vblk,
 
 	pipeline_state = priv_to_pipeline_state(pipeline->obj.state);
 	if (!pipeline_state) {
-		DRM_DEBUG("pipeline_state is NULL!!\n");
+		MESON_DRM_BLOCK("pipeline_state is NULL!!\n");
 		return;
 	}
 	if (scaler_state->input_width !=
@@ -961,7 +961,7 @@ static int scaler_check_state(struct meson_vpu_block *vblk,
 	state->checked = true;
 	plane_info = &mvps->plane_info[vblk->index];
 	scaler_state->crtc_index = plane_info->crtc_index;
-	DRM_DEBUG("%s check_state called.\n", scaler->base.name);
+	MESON_DRM_BLOCK("%s check_state called.\n", scaler->base.name);
 
 	return 0;
 }
@@ -983,19 +983,19 @@ static void scaler_set_state(struct meson_vpu_block *vblk,
 		arm_fbc_start(mvps);
 
 	if (!scaler_state) {
-		DRM_DEBUG("scaler or scaler_state is NULL!!\n");
+		MESON_DRM_BLOCK("scaler or scaler_state is NULL!!\n");
 		return;
 	}
 	scaler_size_check(vblk, state);
 	scan_mode_check(vblk->pipeline, scaler_state);
 	scaler_filter_mode_check(vblk, scaler_state, mvps);
-	DRM_DEBUG("scaler_state=0x%x\n", scaler_state->state_changed);
+	MESON_DRM_BLOCK("scaler_state=0x%x\n", scaler_state->state_changed);
 	if (scaler_state->state_changed || osdscaler_force_update) {
 		osd_scaler_config(reg, scaler_state, vblk, state->sub->reg_ops);
 		scaler_state->state_changed = 0;
 		osdscaler_force_update = 0;
 	}
-	DRM_DEBUG("scaler%d input/output w/h[%d, %d, %d, %d].\n",
+	MESON_DRM_BLOCK("scaler%d input/output w/h[%d, %d, %d, %d].\n",
 		  scaler->base.index,
 		scaler_state->input_width, scaler_state->input_height,
 		scaler_state->output_width, scaler_state->output_height);
@@ -1006,7 +1006,7 @@ static void scaler_hw_enable(struct meson_vpu_block *vblk,
 {
 	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
 
-	DRM_DEBUG("%s enable done.\n", scaler->base.name);
+	MESON_DRM_BLOCK("%s enable done.\n", scaler->base.name);
 }
 
 static void scaler_hw_disable(struct meson_vpu_block *vblk,
@@ -1017,7 +1017,7 @@ static void scaler_hw_disable(struct meson_vpu_block *vblk,
 
 	/*disable sc*/
 	meson_vpu_write_reg(reg->vpp_osd_sc_ctrl0, 0);
-	DRM_DEBUG("%s disable called.\n", scaler->base.name);
+	MESON_DRM_BLOCK("%s disable called.\n", scaler->base.name);
 }
 
 static void scaler_dump_register(struct meson_vpu_block *vblk,
@@ -1081,7 +1081,7 @@ static void scaler_hw_init(struct meson_vpu_block *vblk)
 	scaler->bank_length = OSD_SCALE_BANK_LENGTH;
 
 	meson_vpu_write_reg(scaler->reg->vpp_osd_sc_ctrl0, 0);
-	DRM_DEBUG("%s hw_init called.\n", scaler->base.name);
+	MESON_DRM_BLOCK("%s hw_init called.\n", scaler->base.name);
 }
 
 static void s5_scaler_hw_init(struct meson_vpu_block *vblk)
@@ -1093,7 +1093,7 @@ static void s5_scaler_hw_init(struct meson_vpu_block *vblk)
 	scaler->bank_length = OSD_SCALE_BANK_LENGTH;
 
 	meson_vpu_write_reg(scaler->reg->vpp_osd_sc_ctrl0, 0);
-	DRM_DEBUG("%s hw_init called.\n", scaler->base.name);
+	MESON_DRM_BLOCK("%s hw_init called.\n", scaler->base.name);
 }
 
 struct meson_vpu_block_ops scaler_ops = {

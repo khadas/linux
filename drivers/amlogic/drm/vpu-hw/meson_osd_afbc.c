@@ -430,7 +430,7 @@ static int osd_afbc_check_state(struct meson_vpu_block *vblk,
 		DRM_INFO("plane%d,uhd osd plane is greater than 1,return!\n",
 			 osd_index);
 	}
-	DRM_DEBUG("%s check_state called.\n", afbc->base.name);
+	MESON_DRM_BLOCK("%s check_state called.\n", afbc->base.name);
 
 	return 0;
 }
@@ -562,7 +562,7 @@ static void g12a_osd_afbc_set_state(struct meson_vpu_block *vblk,
 	reg_ops->rdma_write_reg_bits(afbc_reg->vpu_mafbc_prefetch_cfg_s,
 				 reverse_y, 1, 1);
 
-	DRM_DEBUG("%s set_state called.\n", afbc->base.name);
+	MESON_DRM_BLOCK("%s set_state called.\n", afbc->base.name);
 }
 
 static void t7_osd_afbc_set_state(struct meson_vpu_block *vblk,
@@ -723,7 +723,7 @@ static void t7_osd_afbc_set_state(struct meson_vpu_block *vblk,
 				reg_ops->rdma_write_reg_bits(afbc_stat_reg->mali_afbcd_top_ctrl,
 							 1, 21, 1);
 			else
-				DRM_DEBUG("%s, invalid afbc top ctrl index\n", __func__);
+				MESON_DRM_BLOCK("%s, invalid afbc top ctrl index\n", __func__);
 		} else {
 			t7_osd_afbc_enable(vblk, reg_ops, afbc_stat_reg, i, 0);
 		}
@@ -737,7 +737,7 @@ static void t7_osd_afbc_set_state(struct meson_vpu_block *vblk,
 		afbc_err_irq_clear = 1;
 	}
 
-	DRM_DEBUG("%s set_state called.\n", afbc->base.name);
+	MESON_DRM_BLOCK("%s set_state called.\n", afbc->base.name);
 }
 
 static void t3_osd_afbc_set_state(struct meson_vpu_block *vblk,
@@ -902,7 +902,7 @@ static void t3_osd_afbc_set_state(struct meson_vpu_block *vblk,
 			else if (osd_index == 2)
 				reg_ops->rdma_write_reg_bits(VIU_OSD3_PATH_CTRL, 1, 31, 1);
 			else
-				DRM_DEBUG("%s, invalid afbc top ctrl index\n", __func__);
+				MESON_DRM_BLOCK("%s, invalid afbc top ctrl index\n", __func__);
 		} else {
 			if (i == 0)
 				meson_vpu_write_reg_bits(VIU_OSD1_PATH_CTRL, 0, 31, 1);
@@ -911,7 +911,7 @@ static void t3_osd_afbc_set_state(struct meson_vpu_block *vblk,
 			else if (i == 2)
 				meson_vpu_write_reg_bits(VIU_OSD3_PATH_CTRL, 0, 31, 1);
 			else
-				DRM_DEBUG("%s, invalid afbc top ctrl index\n", __func__);
+				MESON_DRM_BLOCK("%s, invalid afbc top ctrl index\n", __func__);
 
 			t7_osd_afbc_enable(vblk, reg_ops, afbc_stat_reg, i, 0);
 		}
@@ -925,7 +925,7 @@ static void t3_osd_afbc_set_state(struct meson_vpu_block *vblk,
 		afbc_err_irq_clear = 1;
 	}
 
-	DRM_DEBUG("%s set_state called.\n", afbc->base.name);
+	MESON_DRM_BLOCK("%s set_state called.\n", afbc->base.name);
 }
 
 static void s5_osd_afbc_set_state(struct meson_vpu_block *vblk,
@@ -1090,14 +1090,14 @@ static void s5_osd_afbc_set_state(struct meson_vpu_block *vblk,
 			else if (osd_index == 2)
 				meson_vpu_write_reg_bits(VPP_INTF_OSD3_CTRL, 1, 0, 1);
 			else
-				DRM_DEBUG("%s, invalid afbc top ctrl index\n", __func__);
+				MESON_DRM_BLOCK("%s, invalid afbc top ctrl index\n", __func__);
 		} else {
 			if (i == 0)
 				meson_vpu_write_reg_bits(VPP_INTF_OSD1_CTRL, 0, 0, 1);
 			else if (i == 2)
 				meson_vpu_write_reg_bits(VPP_INTF_OSD3_CTRL, 0, 0, 1);
 			else
-				DRM_DEBUG("%s, invalid afbc top ctrl index\n", __func__);
+				MESON_DRM_BLOCK("%s, invalid afbc top ctrl index\n", __func__);
 
 			t7_osd_afbc_enable(vblk, reg_ops, afbc_stat_reg, i, 0);
 		}
@@ -1111,7 +1111,7 @@ static void s5_osd_afbc_set_state(struct meson_vpu_block *vblk,
 		afbc_err_irq_clear = 1;
 	}
 
-	DRM_DEBUG("%s set_state called.\n", afbc->base.name);
+	MESON_DRM_BLOCK("%s set_state called.\n", afbc->base.name);
 }
 
 static void osd_afbc_dump_register(struct meson_vpu_block *vblk,
@@ -1192,7 +1192,7 @@ static void osd_afbc_hw_enable(struct meson_vpu_block *vblk,
 {
 	struct meson_vpu_afbc *afbc = to_afbc_block(vblk);
 
-	DRM_DEBUG("%s enable called.\n", afbc->base.name);
+	MESON_DRM_BLOCK("%s enable called.\n", afbc->base.name);
 }
 
 static void osd_afbc_hw_disable(struct meson_vpu_block *vblk,
@@ -1202,7 +1202,7 @@ static void osd_afbc_hw_disable(struct meson_vpu_block *vblk,
 	u32 osd_index = vblk->index;
 
 	osd_afbc_enable(vblk, state->sub->reg_ops, osd_index, 0);
-	DRM_DEBUG("%s disable called.\n", afbc->base.name);
+	MESON_DRM_BLOCK("%s disable called.\n", afbc->base.name);
 }
 
 static void t7_osd_afbc_hw_disable(struct meson_vpu_block *vblk,
@@ -1212,7 +1212,7 @@ static void t7_osd_afbc_hw_disable(struct meson_vpu_block *vblk,
 
 	t7_osd_afbc_enable(vblk, state->sub->reg_ops,
 					afbc->status_regs, vblk->index, 0);
-	DRM_DEBUG("%s disable called.\n", afbc->base.name);
+	MESON_DRM_BLOCK("%s disable called.\n", afbc->base.name);
 }
 
 static void osd_afbc_hw_init(struct meson_vpu_block *vblk)
@@ -1228,7 +1228,7 @@ static void osd_afbc_hw_init(struct meson_vpu_block *vblk)
     /* disable osd1 afbc */
 	osd_afbc_enable(vblk, pipeline->subs[0].reg_ops, vblk->index, 0);
 
-	DRM_DEBUG("%s hw_init called.\n", afbc->base.name);
+	MESON_DRM_BLOCK("%s hw_init called.\n", afbc->base.name);
 }
 
 static void t7_osd_afbc_hw_init(struct meson_vpu_block *vblk)
@@ -1245,7 +1245,7 @@ static void t7_osd_afbc_hw_init(struct meson_vpu_block *vblk)
 	t7_osd_afbc_enable(vblk, pipeline->subs[0].reg_ops,
 						afbc->status_regs, vblk->index, 0);
 
-	DRM_DEBUG("%s hw_init called.\n", afbc->base.name);
+	MESON_DRM_BLOCK("%s hw_init called.\n", afbc->base.name);
 }
 
 static void t3_osd_afbc_hw_init(struct meson_vpu_block *vblk)
@@ -1260,7 +1260,7 @@ static void t3_osd_afbc_hw_init(struct meson_vpu_block *vblk)
 	t7_osd_afbc_enable(vblk, pipeline->subs[0].reg_ops,
 					   afbc->status_regs, vblk->index, 0);
 
-	DRM_DEBUG("%s hw_init called.\n", afbc->base.name);
+	MESON_DRM_BLOCK("%s hw_init called.\n", afbc->base.name);
 }
 
 static void s5_osd_afbc_hw_init(struct meson_vpu_block *vblk)
@@ -1274,7 +1274,7 @@ static void s5_osd_afbc_hw_init(struct meson_vpu_block *vblk)
 	/* disable osd1 afbc */
 	t7_osd_afbc_enable(vblk, pipeline->subs[0].reg_ops, afbc->status_regs, vblk->index, 0);
 
-	DRM_DEBUG("%s hw_init called.\n", afbc->base.name);
+	MESON_DRM_BLOCK("%s hw_init called.\n", afbc->base.name);
 }
 
 void arm_fbc_start(struct meson_vpu_pipeline_state *pipeline_state)

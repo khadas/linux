@@ -24,6 +24,7 @@
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/amlogic/media/vfm/vfm_ext.h>
 #include "meson_logo.h"
+#include "meson_print.h"
 
 #define MESON_MAX_CRTC		3
 #define MESON_MAX_OSD		4

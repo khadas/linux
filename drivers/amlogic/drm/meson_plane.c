@@ -564,7 +564,7 @@ static bool meson_video_plane_is_repeat_frame(struct drm_plane *plane,
 			old_plane_info = &old_mvps->video_plane_info[video_plane->plane_index];
 			if (plane_info->dmabuf == old_plane_info->dmabuf) {
 				mvv->repeat_frame = 1;
-				DRM_DEBUG("video repeat frame!");
+				MESON_DRM_FENCE("video repeat frame!");
 				return true;
 			}
 		}
@@ -627,7 +627,7 @@ static int meson_video_prepare_fence(struct drm_plane *plane,
 		return -ENOMEM;
 
 	mvv->fence = fence;
-	DRM_DEBUG("creat fence %s fence(%px) plane_index%d\n",
+	MESON_DRM_FENCE("creat fence %s fence(%px) plane_index%d\n",
 		__func__, fence, video_plane->plane_index);
 	return 0;
 }

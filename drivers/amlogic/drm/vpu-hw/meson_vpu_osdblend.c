@@ -343,7 +343,7 @@ enum osd_channel_e osd2channel(u8 osd_index)
 		OSD_CHANNEL3, OSD_CHANNEL4};
 
 	if (osd_index >= MAX_DIN_NUM) {
-		DRM_DEBUG("osd_index:%d overflow!!.\n", osd_index);
+		MESON_DRM_BLOCK("osd_index:%d overflow!!.\n", osd_index);
 		return OSD_CHANNEL_NUM;
 	}
 	return din_channel_seq[osd_index];
@@ -423,7 +423,7 @@ static int osdblend_check_state(struct meson_vpu_block *vblk,
 	ret = 0;
 	num_plane_port0 = 0;
 	num_plane_port1 = 0;
-	DRM_DEBUG("%s check_state called.\n", vblk->name);
+	MESON_DRM_BLOCK("%s check_state called.\n", vblk->name);
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (!mvps->plane_info[i].enable ||
 		    mvps->plane_info[i].crtc_index != 0) {
@@ -444,12 +444,12 @@ static int osdblend_check_state(struct meson_vpu_block *vblk,
 	/*check the unsupport case firstly*/
 	if (num_plane_port0 > OSD_LEND_MAX_IN_NUM_PORT0 ||
 	    num_plane_port1 > OSD_LEND_MAX_IN_NUM_PORT1) {
-		DRM_DEBUG("unsupport zorder %d\n", __LINE__);
+		MESON_DRM_BLOCK("unsupport zorder %d\n", __LINE__);
 		return -1;
 	}
 	if (mvps->pipeline->osd_version <= OSD_V2 &&
 	    num_plane_port1) {
-		DRM_DEBUG("unsupport zorder %d\n", __LINE__);
+		MESON_DRM_BLOCK("unsupport zorder %d\n", __LINE__);
 		return -1;
 	}
 	/*zorder check for one dout-port with multi plane*/
@@ -463,7 +463,7 @@ static int osdblend_check_state(struct meson_vpu_block *vblk,
 				(delta_zorder[1] < 0));
 			if (num_plane_port0 >= 2 && j > 0 &&
 			    delta_zorder_flag) {
-				DRM_DEBUG("unsupport zorder %d\n", __LINE__);
+				MESON_DRM_BLOCK("unsupport zorder %d\n", __LINE__);
 				return -1;
 			}
 			delta_zorder[1] = delta_zorder[0];
@@ -477,7 +477,7 @@ static int osdblend_check_state(struct meson_vpu_block *vblk,
 		delta_zorder_flag = ((delta_zorder[2] < 0) !=
 			(delta_zorder[3] < 0));
 		if (num_plane_port1 >= 2 && i > 0 && delta_zorder_flag) {
-			DRM_DEBUG("unsupport zorder %d\n", __LINE__);
+			MESON_DRM_BLOCK("unsupport zorder %d\n", __LINE__);
 			return -1;
 		}
 		delta_zorder[3] = delta_zorder[2];
@@ -491,7 +491,7 @@ static int osdblend_check_state(struct meson_vpu_block *vblk,
 	 *according to input zorder and dout sel
 	 */
 	mvobs->input_mask = 0;
-	DRM_DEBUG("num_plane_port0=%d\n", num_plane_port0);
+	MESON_DRM_BLOCK("num_plane_port0=%d\n", num_plane_port0);
 	for (i = 0; i < num_plane_port0; i++) {
 		mvobs->input_mask |= 1 << i;
 		j = plane_index_port0[i];
@@ -512,7 +512,7 @@ static int osdblend_check_state(struct meson_vpu_block *vblk,
 			}
 		}
 	}
-	DRM_DEBUG("num_plane_port1=%d\n", num_plane_port1);
+	MESON_DRM_BLOCK("num_plane_port1=%d\n", num_plane_port1);
 	for (i = 0; i < num_plane_port1; i++) {
 		m = MAX_DIN_NUM - i - 1;
 		mvobs->input_mask |= 1 << m;
@@ -535,7 +535,7 @@ static int osdblend_check_state(struct meson_vpu_block *vblk,
 		}
 	}
 	for (i = 0; i < MAX_DIN_NUM; i++) {
-		DRM_DEBUG("mvobs->din_channel_mux[%d]=%d\n",
+		MESON_DRM_BLOCK("mvobs->din_channel_mux[%d]=%d\n",
 			  i, mvobs->din_channel_mux[i]);
 		if (!mvobs->din_channel_mux[i])
 			mvobs->din_channel_mux[i] = OSD_CHANNEL_NUM;
@@ -571,7 +571,7 @@ static int osdblend_check_state(struct meson_vpu_block *vblk,
 	mvobs->input_width[OSD_SUB_BLEND1] = max_width;
 	mvobs->input_height[OSD_SUB_BLEND0] = max_height;
 	mvobs->input_height[OSD_SUB_BLEND1] = max_height;
-	DRM_DEBUG("%s check done.\n", vblk->name);
+	MESON_DRM_BLOCK("%s check done.\n", vblk->name);
 	return 0;
 }
 
@@ -592,11 +592,11 @@ static void osdblend_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_pipeline_state *pipeline_state;
 	struct osdblend_reg_s *reg = osdblend->reg;
 
-	DRM_DEBUG("%s set_state called.\n", osdblend->base.name);
+	MESON_DRM_BLOCK("%s set_state called.\n", osdblend->base.name);
 	mvobs = to_osdblend_state(state);
 	pipeline_state = priv_to_pipeline_state(pipeline->obj.state);
 	if (!pipeline_state) {
-		DRM_DEBUG("pipeline_state is NULL!!\n");
+		MESON_DRM_BLOCK("pipeline_state is NULL!!\n");
 		return;
 	}
 
@@ -611,7 +611,7 @@ static void osdblend_set_state(struct meson_vpu_block *vblk,
 		osd_dv_core_size_set(mvobs->input_width[OSD_SUB_BLEND0],
 				     mvobs->input_height[OSD_SUB_BLEND0]);
 
-	DRM_DEBUG("%s set_state done.\n", osdblend->base.name);
+	MESON_DRM_BLOCK("%s set_state done.\n", osdblend->base.name);
 }
 
 static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
@@ -629,11 +629,11 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
 	struct osd_scope_s scope_default = {0xffff, 0xffff, 0xffff, 0xffff};
 
-	DRM_DEBUG("%s set_state called.\n", osdblend->base.name);
+	MESON_DRM_BLOCK("%s set_state called.\n", osdblend->base.name);
 	mvobs = to_osdblend_state(state);
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
 	if (!mvps) {
-		DRM_DEBUG("pipeline_state is NULL!!\n");
+		MESON_DRM_BLOCK("pipeline_state is NULL!!\n");
 		return;
 	}
 
@@ -691,9 +691,9 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 	}
 
 	for (i = 0; i < MAX_DIN_NUM; i++) {
-		DRM_DEBUG("%s, scope: %u, %u, %u, %u\n", __func__, mvps->osd_scope_pre[i].h_start,
-			  mvps->osd_scope_pre[i].h_end, mvps->osd_scope_pre[i].v_start,
-			  mvps->osd_scope_pre[i].v_end);
+		MESON_DRM_BLOCK("%s, scope: %u, %u, %u, %u\n", __func__,
+			  mvps->osd_scope_pre[i].h_start, mvps->osd_scope_pre[i].h_end,
+			  mvps->osd_scope_pre[i].v_start, mvps->osd_scope_pre[i].v_end);
 
 		if (max_width < mvps->osd_scope_pre[i].h_end + 1)
 			max_width = mvps->osd_scope_pre[i].h_end + 1;
@@ -800,7 +800,7 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 		osd_enable[OSD3_INDEX] = 0;
 	}
 
-	DRM_DEBUG("%s set_state done.\n", osdblend->base.name);
+	MESON_DRM_BLOCK("%s set_state done.\n", osdblend->base.name);
 }
 
 static void osdblend_hw_enable(struct meson_vpu_block *vblk,
@@ -808,7 +808,7 @@ static void osdblend_hw_enable(struct meson_vpu_block *vblk,
 {
 	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
 
-	DRM_DEBUG("%s enable called.\n", osdblend->base.name);
+	MESON_DRM_BLOCK("%s enable called.\n", osdblend->base.name);
 }
 
 static void osdblend_hw_disable(struct meson_vpu_block *vblk,
@@ -816,7 +816,7 @@ static void osdblend_hw_disable(struct meson_vpu_block *vblk,
 {
 	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
 
-	DRM_DEBUG("%s disable called.\n", osdblend->base.name);
+	MESON_DRM_BLOCK("%s disable called.\n", osdblend->base.name);
 }
 
 static void osdblend_dump_register(struct meson_vpu_block *vblk,
@@ -899,7 +899,7 @@ static void osdblend_hw_init(struct meson_vpu_block *vblk)
 	/*reset blend ctrl hold line*/
 	reg_ops->rdma_write_reg_bits(osdblend->reg->viu_osd_blend_ctrl, 0, 29, 3);
 
-	DRM_DEBUG("%s hw_init called.\n", osdblend->base.name);
+	MESON_DRM_BLOCK("%s hw_init called.\n", osdblend->base.name);
 }
 
 static void s5_osdblend_hw_init(struct meson_vpu_block *vblk)
@@ -919,7 +919,7 @@ static void s5_osdblend_hw_init(struct meson_vpu_block *vblk)
 
 	register_osd_func(osd_dv_get_osd_status);
 
-	DRM_DEBUG("%s hw_init called.\n", osdblend->base.name);
+	MESON_DRM_BLOCK("%s hw_init called.\n", osdblend->base.name);
 }
 
 struct meson_vpu_block_ops osdblend_ops = {

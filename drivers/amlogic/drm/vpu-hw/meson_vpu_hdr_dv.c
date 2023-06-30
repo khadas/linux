@@ -18,7 +18,7 @@ static int hdr_check_state(struct meson_vpu_block *vblk,
 
 	//vpu_block_check_input(vblk, state, mvps);
 
-	DRM_DEBUG("%s check_state called.\n", hdr->base.name);
+	MESON_DRM_BLOCK("%s check_state called.\n", hdr->base.name);
 	return 0;
 }
 
@@ -29,7 +29,7 @@ static void hdr_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_hdr *hdr = to_hdr_block(vblk);
 	//struct meson_vpu_hdr_state *hdr_state = to_hdr_state(state);
 
-	DRM_DEBUG("%s set_state called.\n", hdr->base.name);
+	MESON_DRM_BLOCK("%s set_state called.\n", hdr->base.name);
 }
 
 static void hdr_enable(struct meson_vpu_block *vblk,
@@ -37,7 +37,7 @@ static void hdr_enable(struct meson_vpu_block *vblk,
 {
 	struct meson_vpu_hdr *hdr = to_hdr_block(vblk);
 
-	DRM_DEBUG("%s enable called.\n", hdr->base.name);
+	MESON_DRM_BLOCK("%s enable called.\n", hdr->base.name);
 }
 
 static void hdr_disable(struct meson_vpu_block *vblk,
@@ -45,7 +45,7 @@ static void hdr_disable(struct meson_vpu_block *vblk,
 {
 	struct meson_vpu_hdr *hdr = to_hdr_block(vblk);
 
-	DRM_DEBUG("%s disable called.\n", hdr->base.name);
+	MESON_DRM_BLOCK("%s disable called.\n", hdr->base.name);
 }
 
 struct meson_vpu_block_ops hdr_ops = {
@@ -68,7 +68,7 @@ static int db_check_state(struct meson_vpu_block *vblk,
 
 	//vpu_block_check_input(vblk, state, mvps);
 
-	DRM_DEBUG("%s check_state called.\n", mvd->base.name);
+	MESON_DRM_BLOCK("%s check_state called.\n", mvd->base.name);
 	return 0;
 }
 
@@ -78,7 +78,7 @@ static void db_set_state(struct meson_vpu_block *vblk,
 {
 	struct meson_vpu_db *mvd = to_db_block(vblk);
 
-	DRM_DEBUG("%s set_state called.\n", mvd->base.name);
+	MESON_DRM_BLOCK("%s set_state called.\n", mvd->base.name);
 }
 
 static void db_enable(struct meson_vpu_block *vblk,
@@ -86,7 +86,7 @@ static void db_enable(struct meson_vpu_block *vblk,
 {
 	struct meson_vpu_db *mvd = to_db_block(vblk);
 
-	DRM_DEBUG("%s enable called.\n", mvd->base.name);
+	MESON_DRM_BLOCK("%s enable called.\n", mvd->base.name);
 }
 
 static void db_disable(struct meson_vpu_block *vblk,
@@ -94,7 +94,7 @@ static void db_disable(struct meson_vpu_block *vblk,
 {
 	struct meson_vpu_db *mvd = to_db_block(vblk);
 
-	DRM_DEBUG("%s disable called.\n", mvd->base.name);
+	MESON_DRM_BLOCK("%s disable called.\n", mvd->base.name);
 }
 
 struct meson_vpu_block_ops db_ops = {
