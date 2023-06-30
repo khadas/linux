@@ -505,7 +505,11 @@ static void gic_dist_init(struct gic_chip_data *gic)
 	u32 tmp;
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
+	/*disable gic distributor will result in freertos lost interrupt*/
+#else
 	writel_relaxed(GICD_DISABLE, base + GIC_DIST_CTRL);
+#endif
 
 	/*
 	 * Set all global interrupts to this CPU only.
