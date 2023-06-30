@@ -6,7 +6,7 @@
 #ifndef __AM_MESON_GEM_H
 #define __AM_MESON_GEM_H
 #include <drm/drm_gem.h>
-#include <uapi/drm/meson_drm.h>
+#include <uapi/linux/amlogic/drm/meson_drm.h>
 #include <ion/ion_private.h>
 #include <linux/amlogic/meson_uvm_core.h>
 #include "meson_drv.h"

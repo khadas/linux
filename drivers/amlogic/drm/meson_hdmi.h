@@ -7,6 +7,7 @@
 #define __MESON_HDMI_H__
 
 #include "meson_drv.h"
+#include <uapi/linux/amlogic/drm/meson_drm.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_encoder.h>
 #include <drm/amlogic/meson_connector_dev.h>
@@ -106,5 +107,7 @@ int meson_hdmitx_dev_unbind(struct drm_device *drm,
 	int type, int connector_id);
 
 void convert_attrstr(char *attr_str, struct hdmitx_color_attr *attr_param);
+int am_meson_mode_testattr_ioctl(struct drm_device *dev, void *data,
+	struct drm_file *file_priv);
 
 #endif

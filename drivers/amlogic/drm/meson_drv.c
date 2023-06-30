@@ -114,16 +114,15 @@ bool meson_drm_get_scanout_position(struct drm_device *dev,
 	return (ret == 0) ? true : false;
 }
 
-#ifdef CONFIG_DRM_MESON_USE_ION
 static const struct drm_ioctl_desc meson_ioctls[] = {
 	#ifdef CONFIG_DRM_MESON_USE_ION
 	DRM_IOCTL_DEF_DRV(MESON_GEM_CREATE, am_meson_gem_create_ioctl,
 			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
-	#endif
 	DRM_IOCTL_DEF_DRV(MESON_ASYNC_ATOMIC, meson_async_atomic_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(MESON_RMFB, am_meson_mode_rmfb_ioctl, 0),
+	#endif
+	DRM_IOCTL_DEF_DRV(MESON_TESTATTR, am_meson_mode_testattr_ioctl, 0),
 };
-#endif
 
 static const struct file_operations fops = {
 	.owner		= THIS_MODULE,

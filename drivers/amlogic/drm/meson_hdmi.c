@@ -2166,3 +2166,15 @@ int meson_hdmitx_dev_unbind(struct drm_device *drm,
 	return 0;
 }
 
+int am_meson_mode_testattr_ioctl(struct drm_device *dev,
+			void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_test_attr *f = data;
+
+	if (am_hdmi_info.hdmitx_dev->test_attr(f->modename, f->attr))
+		f->valid = 1;
+	else
+		f->valid = 0;
+
+	return 0;
+}
