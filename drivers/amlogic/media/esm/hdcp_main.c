@@ -51,6 +51,33 @@ static int verbose;
 static bool randomize_mem;
 module_param(randomize_mem, bool, 0644);
 MODULE_PARM_DESC(noverify, "Wipe memory allocations on startup (for debug)");
+static long hld_ioctl(struct file *f, unsigned int cmd, unsigned long arg);
+
+static const struct file_operations hld_file_operations = {
+	.unlocked_ioctl = hld_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = hld_ioctl,
+#endif
+	.owner = THIS_MODULE,
+};
+
+static struct miscdevice hld_device = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "esm",
+	.fops = &hld_file_operations,
+};
+
+static struct miscdevice esm_code_device = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "esm_code",
+	.fops = &hld_file_operations,
+};
+
+static struct miscdevice esm_data_device = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "esm_data",
+	.fops = &hld_file_operations,
+};
 
 struct esm_device {
 	int allocated, initialized;
@@ -70,8 +97,6 @@ struct esm_device {
 	struct debugfs_blob_wrapper blob;
 	struct resource *hpi_resource;
 	u8 __iomem *hpi;
-	struct device esm_code_dev;
-	struct device esm_data_dev;
 };
 
 static struct esm_device esm_devices[MAX_ESM_DEVICES];
@@ -110,9 +135,6 @@ static long load_code(struct esm_device *esm, struct esm_ioc_code __user *arg)
 	if (copy_from_user(esm->code, &arg->data, head.len) != 0)
 		return -EFAULT;
 
-	dma_sync_single_for_device(&esm->esm_code_dev, esm->code_base,
-			esm->code_size, DMA_TO_DEVICE);
-
 	/* esm->code_loaded = 1; */
 	return 0;
 }
@@ -132,9 +154,6 @@ static long write_data(struct esm_device *esm, struct esm_ioc_data __user *arg)
 
 	if (copy_from_user(esm->data + head.offset, &arg->data, head.len) != 0)
 		return -EFAULT;
-
-	dma_sync_single_for_device(&esm->esm_data_dev, esm->data_base,
-			esm->data_size, DMA_TO_DEVICE);
 
 	return 0;
 }
@@ -175,8 +194,6 @@ static long set_data(struct esm_device *esm, void __user *arg)
 		return -ENOSPC;
 
 	memset(esm->data + u.data.offset, u.data.data[0], u.data.len);
-	dma_sync_single_for_device(&esm->esm_data_dev, esm->data_base,
-			esm->data_size, DMA_TO_DEVICE);
 	return 0;
 }
 
@@ -249,23 +266,15 @@ static struct dentry *esm_debugfs;
 
 static void free_dma_areas(struct esm_device *esm)
 {
-	unsigned int order;
-
 	if (!esm->code_is_phys_mem && esm->code) {
-		order = get_order(esm->code_size);
-		dma_unmap_single(&esm->esm_code_dev, (unsigned long)esm->code_base,
-							esm->code_size,
-							DMA_BIDIRECTIONAL);
-		free_pages((unsigned long)esm->code, order);
+		dma_free_coherent(NULL, esm->code_size, esm->code,
+				esm->code_base);
 		esm->code = NULL;
 	}
 
 	if (!esm->data_is_phys_mem && esm->data) {
-		order = get_order(esm->data_size);
-		dma_unmap_single(&esm->esm_data_dev, (unsigned long)esm->data_base,
-							esm->data_size,
-							DMA_BIDIRECTIONAL);
-		free_pages((unsigned long)esm->data, order);
+		dma_free_coherent(NULL, esm->data_size, esm->data,
+				esm->data_base);
 		esm->data = NULL;
 	}
 
@@ -273,31 +282,27 @@ static void free_dma_areas(struct esm_device *esm)
 }
 
 static int alloc_dma_areas(struct esm_device *esm,
-			   const struct esm_ioc_meminfo *info)
+				const struct esm_ioc_meminfo *info)
 {
 	char blobname[32];
-	unsigned int order;
 
 	esm->code_size = info->code_size;
 	esm->code_is_phys_mem = (info->code_base != 0);
 
+	misc_register(&esm_code_device);
+	misc_register(&esm_data_device);
 	if (esm->code_is_phys_mem) {
 		/* TODO: support highmem */
 		esm->code_base = info->code_base;
 		esm->code = phys_to_virt(esm->code_base);
 	} else {
-		esm->esm_code_dev.coherent_dma_mask = DMA_BIT_MASK(32);
-		esm->esm_code_dev.dma_mask =
-			&esm->esm_code_dev.coherent_dma_mask;
-		of_dma_configure(&esm->esm_code_dev, esm->esm_code_dev.of_node,
-				 true);
-		order = get_order(esm->code_size);
-		esm->code = (u8 *)__get_free_pages(GFP_DMA32, order);
-		if (!esm->code)
-			return -ENOMEM;
-		esm->code_base = dma_map_single(&esm->esm_code_dev, (void *)esm->code,
-						esm->code_size,
-						DMA_BIDIRECTIONAL);
+		esm_code_device.this_device->coherent_dma_mask = DMA_BIT_MASK(32);
+		esm_code_device.this_device->dma_mask =
+			&esm_code_device.this_device->coherent_dma_mask;
+		esm->code = dma_alloc_coherent(esm_code_device.this_device,
+					esm->code_size,
+					&esm->code_base,
+					GFP_KERNEL);
 		pr_info("the esm code address is %px\n", esm->code);
 		if (!esm->code) {
 			free_dma_areas(esm);
@@ -312,18 +317,13 @@ static int alloc_dma_areas(struct esm_device *esm,
 		esm->data_base = info->data_base;
 		esm->data = phys_to_virt(esm->data_base);
 	} else {
-		esm->esm_data_dev.coherent_dma_mask = DMA_BIT_MASK(32);
-		esm->esm_data_dev.dma_mask =
-			&esm->esm_data_dev.coherent_dma_mask;
-		of_dma_configure(&esm->esm_data_dev, esm->esm_data_dev.of_node,
-				 true);
-		order = get_order(esm->data_size);
-		esm->data = (u8 *)__get_free_pages(GFP_DMA32, order);
-		if (!esm->data)
-			return -ENOMEM;
-		esm->data_base = dma_map_single(&esm->esm_data_dev, (void *)esm->data,
-						esm->data_size,
-						DMA_BIDIRECTIONAL);
+		esm_data_device.this_device->coherent_dma_mask = DMA_BIT_MASK(32);
+		esm_data_device.this_device->dma_mask =
+			&esm_data_device.this_device->coherent_dma_mask;
+		esm->data = dma_alloc_coherent(esm_data_device.this_device,
+					       esm->data_size,
+					       &esm->data_base,
+					       GFP_KERNEL);
 		pr_info("the esm data address is %px\n", esm->data);
 		if (!esm->data) {
 			free_dma_areas(esm);
@@ -467,20 +467,6 @@ static long hld_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 
 	return -ENOTTY;
 }
-
-static const struct file_operations hld_file_operations = {
-	.unlocked_ioctl = hld_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = hld_ioctl,
-#endif
-	.owner = THIS_MODULE,
-};
-
-static struct miscdevice hld_device = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "esm",
-	.fops = &hld_file_operations,
-};
 
 int __init esm_init(void)
 {
