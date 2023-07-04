@@ -3443,11 +3443,11 @@ static int secure_vdec_reserved_init(struct reserved_mem *rmem,
 	}
 
 	ret = tee_register_mem(TEE_MEM_TYPE_STREAM_INPUT,
-				(u32)rmem->base,
-				(u32)rmem->size);
+				rmem->base,
+				rmem->size);
 	if (ret) {
-		pr_err("protect vdec failed addr %x %x ret is %x\n",
-			(u32)rmem->base, (u32)rmem->size, ret);
+		pr_err("protect vdec failed addr %llx %llx ret is %x\n",
+			(u64)rmem->base, (u64)rmem->size, ret);
 	}
 
 	return ret;
