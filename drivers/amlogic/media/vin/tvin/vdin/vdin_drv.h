@@ -391,6 +391,7 @@ enum vdin_vf_put_md {
 #define DBG_RX_UPDATE_VDIN_PROP		BIT(20)
 
 #define VDIN_DBG_CNTL_IOCTL	BIT(10)
+#define VDIN_DBG_CNTL_FLUSH	BIT(11)
 
 #define SEND_LAST_FRAME_GET_PROP	2
 

@@ -251,20 +251,11 @@ void vdin_unmap_phyaddr(u8 *vaddr)
 void vdin_dma_flush(struct vdin_dev_s *devp, void *vaddr,
 		    int size, enum dma_data_direction dir)
 {
-	ulong phy_addr;
+	if (vdin_dbg_en & VDIN_DBG_CNTL_FLUSH)
+		pr_info("vdin%d flush v: %p, size:%#x, dir:%d\n",
+			devp->index, vaddr, size, dir);
 
-	if (is_vmalloc_or_module_addr(vaddr)) {
-		phy_addr = page_to_phys(vmalloc_to_page(vaddr))
-			+ offset_in_page(vaddr);
-		if (phy_addr && PageHighMem(phys_to_page(phy_addr))) {
-			if (vdin_dbg_en)
-				pr_info("----vdin flush v: %p, p: %lx\n",
-					vaddr, phy_addr);
-			dma_sync_single_for_device(&devp->this_pdev->dev,
-						   phy_addr, size, dir);
-		}
-		return;
-	}
+	codec_mm_dma_flush(vaddr, size, dir);
 }
 
 /*reset reg mif value of vdin0:
@@ -3964,11 +3955,8 @@ void vdin_get_duration_by_fps(struct vdin_dev_s *devp)
  */
 bool vdin_check_cycle(struct vdin_dev_s *devp)
 {
+	bool ret = 0;
 	unsigned int stamp, cycle;
-
-	if (!(is_meson_t7_cpu() || is_meson_t3_cpu() ||
-	     is_meson_t5w_cpu()))
-		return false;
 
 	stamp = vdin_get_meas_v_stamp(devp->addr_offset);
 
@@ -3978,12 +3966,18 @@ bool vdin_check_cycle(struct vdin_dev_s *devp)
 		cycle = stamp - devp->stamp;
 
 	if (cycle <= (devp->msr_clk_val / 1000)) {
-		return true;
+		ret = true;
 	} else {
 		devp->stamp = stamp;
 		devp->cycle  = cycle;
-		return false;
+		ret = false;
 	}
+
+	if (!(is_meson_t7_cpu() || is_meson_t3_cpu() ||
+	     is_meson_t5w_cpu()))
+		ret = false;
+
+	return ret;
 }
 
 /*function:calculate curr_wr_vf->duration

@@ -48,6 +48,7 @@
 #define SCT_PRINT_CTL_WORKER	BIT(6) /* print worker processing */
 #define SCT_PRINT_CTL_MMU_NUM	BIT(7) /* print worker processing */
 #define SCT_PRINT_CTL_GAME	BIT(8) /* print game processing */
+#define SCT_PRINT_CTL_WARN	BIT(9) /* buffer warning info */
 
 #define MAX_ADDR_SHIFT PAGE_SHIFT
 #define PAGE_ADDR(mm_page) (ulong)(((mm_page) >> MAX_ADDR_SHIFT)\
@@ -169,6 +170,9 @@ void vdin_sct_alloc(struct vdin_dev_s *devp, int vf_idx)
 		pr_err("%s:alloc_idx failed with %d\n", __func__, ret);
 	}
 
+	codec_mm_dma_flush(devp->afbce_info->fm_table_vir_paddr[vf_idx],
+			devp->afbce_info->frame_table_size, DMA_TO_DEVICE);
+
 	timer_end = cur_to_usecs();
 	diff = timer_end - timer_st;
 	if (sct_print_ctl & SCT_PRINT_CTL_ALLOC_IDX)
@@ -188,7 +192,8 @@ void vdin_sct_free_tail(struct vdin_dev_s *devp, int vf_idx, int buffer_used)
 	psct = &devp->msct_top;
 
 	if (!buffer_used) {
-		pr_err("%s:vf_idx:%d,buffer_used == 0\n", __func__, vf_idx);
+		if (sct_print_ctl & SCT_PRINT_CTL_WARN)
+			pr_warn("%s:vf_idx:%d,buffer_used == 0\n", __func__, vf_idx);
 		return;
 	}
 	if (sct_print_ctl & SCT_PRINT_CTL_FREE_TAIL)
@@ -358,7 +363,8 @@ void vdin_sct_worker(struct work_struct *work)
 	//alloc memory for the next vfe.
 	next_wr_vfe = provider_vf_peek(devp->vfp);
 	if (next_wr_vfe) {
-		if (!devp->game_mode && next_wr_vfe->sct_stat == VFRAME_SCT_STATE_FULL &&
+		if ((sct_print_ctl & SCT_PRINT_CTL_WARN) &&
+		    !devp->game_mode && next_wr_vfe->sct_stat == VFRAME_SCT_STATE_FULL &&
 		    !(devp->debug.dbg_sct_ctl & DBG_SCT_CTL_NO_FREE_TAIL) &&
 		    !(devp->debug.dbg_sct_ctl & DBG_SCT_CTL_NO_FREE_WR_LIST))
 			pr_warn("%s,full mem size!!!vf_index:%d,sct_stat:%d,status:%d\n",
@@ -372,11 +378,12 @@ void vdin_sct_worker(struct work_struct *work)
 		vdin_sct_alloc(devp, next_wr_vfe->vf.index);
 		next_wr_vfe->sct_stat = VFRAME_SCT_STATE_FULL;
 	} else {
-		pr_info("vdin%d:peek vframe failed,irq:%d,frame:%d;[%d %d %d %d]%d %d\n",
-			devp->index, devp->irq_cnt, devp->frame_cnt,
-			devp->vfp->wr_list_size, devp->vfp->wr_mode_size,
-			devp->vfp->rd_list_size, devp->vfp->rd_mode_size,
-			devp->msct_top.que_work_cnt, devp->msct_top.worker_run_cnt);
+		if (sct_print_ctl & SCT_PRINT_CTL_WARN)
+			pr_info("vdin%d:peek vframe failed,irq:%d,frame:%d;[%d %d %d %d]%d %d\n",
+				devp->index, devp->irq_cnt, devp->frame_cnt,
+				devp->vfp->wr_list_size, devp->vfp->wr_mode_size,
+				devp->vfp->rd_list_size, devp->vfp->rd_mode_size,
+				devp->msct_top.que_work_cnt, devp->msct_top.worker_run_cnt);
 	}
 	//alloc the next vfe memory end
 
@@ -400,7 +407,8 @@ void vdin_sct_worker(struct work_struct *work)
 			pr_info("%s,exit! vf_idx:%d,stat:%d %d\n", __func__,
 				vfe->vf.index, vfe->sct_stat, vfe->status);
 	} else {
-		pr_info("%s,no msct_top.vfe!!!\n", __func__);
+		if (sct_print_ctl & SCT_PRINT_CTL_WARN)
+			pr_warn("%s,no msct_top.vfe!!!\n", __func__);
 	}
 	//free redundancy memory of captured vf end
 }

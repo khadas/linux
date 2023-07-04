@@ -2451,15 +2451,12 @@ void vdin_drop_frame_info(struct vdin_dev_s *devp, char *info)
 			devp->vfp->rd_list_size, devp->vfp->rd_mode_size);
 }
 
+/* 0:check pass;others:check fail */
 int vdin_vs_duration_check(struct vdin_dev_s *devp)
 {
 	int ret = 0;
 	int cur_time, diff_time;
 	int temp;
-
-	if (!(is_meson_t7_cpu() || is_meson_t3_cpu() ||
-	     is_meson_t5w_cpu()))
-		return true;
 
 	if (devp->game_mode || !IS_HDMI_SRC(devp->parm.port))
 		return ret;
@@ -2483,8 +2480,12 @@ int vdin_vs_duration_check(struct vdin_dev_s *devp)
 			devp->unreliable_vs_idx = 0;
 		devp->unreliable_vs_time[devp->unreliable_vs_idx] = temp;
 		devp->unreliable_vs_idx++;
-		return -1;
+		ret = -1;
 	}
+
+	if (!(is_meson_t7_cpu() || is_meson_t3_cpu() ||
+	     is_meson_t5w_cpu()))
+		ret = 0;
 
 	return ret;
 }
