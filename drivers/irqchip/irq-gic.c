@@ -477,7 +477,9 @@ static void gic_dist_init(struct gic_chip_data *gic)
 	u32 tmp;
 #endif
 
+#ifndef CONFIG_AMLOGIC_FREERTOS
 	writel_relaxed(GICD_DISABLE, base + GIC_DIST_CTRL);
+#endif
 
 	/*
 	 * Set all global interrupts to this CPU only.
