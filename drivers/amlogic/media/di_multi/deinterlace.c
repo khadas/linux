@@ -1164,7 +1164,8 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 		//mm = &get_datal()->dvs_prevpp.ds->mm;
 
 		//pcvs = &get_datal()->dvs_prevpp.ds->dbuf_wr[channel][0];
-		pcvs = &itf->ds->lk_in_bf[index].c.ori_vf->canvas0_config[0];
+		//pcvs = &itf->ds->lk_in_bf[index].c.ori_vf->canvas0_config[0];
+		pcvs = &itf->ds->lk_in_bf[index].c.vf_in_cp.canvas0_config[0];
 
 		dump_adr = pcvs->phy_addr;
 

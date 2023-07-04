@@ -3935,7 +3935,8 @@ static void dct_pst(const struct reg_acc *op, struct dimn_dvfm_s *ndvfm)
 			ndvfm->c.dct_pre, pch->dct_pre);
 		return;
 	}
-	vf = ndvfm->c.ori_vf;
+	//vf = ndvfm->c.ori_vf;
+	vf = &ndvfm->c.vf_in_cp;
 	vf->decontour_pre = ndvfm->c.dct_pre;
 	dcntr_check(vf);
 	ret = dcntr_set(op);
@@ -5754,7 +5755,7 @@ static bool vf_m_in(struct dimn_itf_s *itf)
 		ndvfm = (struct dimn_dvfm_s *)mvf->private_data;
 		dim_print("%s:nvfm:0x%px\n", __func__, ndvfm);
 		memset(&ndvfm->c, 0, sizeof(ndvfm->c));
-		memcpy(&ndvfm->c.vf_in_cp, vf, sizeof(ndvfm->c.vf_in_cp));
+		//memcpy(&ndvfm->c.vf_in_cp, vf, sizeof(ndvfm->c.vf_in_cp));
 		ndvfm->c.ori_in = vf;
 		ndvfm->c.ori_vf = vf;
 		ndvfm->c.cnt_in = itf->c.sum_pre_get;
@@ -5763,6 +5764,7 @@ static bool vf_m_in(struct dimn_itf_s *itf)
 			vf->decontour_pre = NULL;
 			ds->dct_sum_in++;
 		}
+		memcpy(&ndvfm->c.vf_in_cp, vf, sizeof(ndvfm->c.vf_in_cp));
 		dim_dvf_cp(&ndvfm->c.in_dvfm, &ndvfm->c.vf_in_cp, 0);
 
 		if (IS_COMP_MODE(ndvfm->c.in_dvfm.vfs.type)) {
