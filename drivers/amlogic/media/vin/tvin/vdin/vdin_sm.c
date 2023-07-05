@@ -234,6 +234,19 @@ int vdin_get_base_fr(struct vdin_dev_s *devp)
 	return ret;
 }
 
+static bool vdin_check_fps_change(struct vdin_dev_s *devp)
+{
+	bool is_freesync = vdin_check_is_spd_data(devp) &&
+		devp->prop.spd_data.data[5] >> 1 & 0x7;
+	if (devp->pre_prop.fps != devp->prop.fps) {
+		if (devp->prop.vtem_data.vrr_en || is_freesync)
+			return false;
+		else
+			return true;
+	}
+	return false;
+}
+
 void vdin_update_prop(struct vdin_dev_s *devp)
 {
 	/*devp->pre_prop.fps = devp->prop.fps;*/
@@ -408,7 +421,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			}
 		}
 
-		if (devp->pre_prop.fps != devp->prop.fps) {
+		if (vdin_check_fps_change(devp)) {
 			signal_chg |= TVIN_SIG_CHG_VS_FRQ;
 			pr_info("%s fps chg:(0x%x->0x%x)\n", __func__,
 				devp->pre_prop.fps,
