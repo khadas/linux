@@ -1207,6 +1207,57 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 		}
 		break;
 	case E_VSI_VSI21:
+		if (hdmirx_hw_get_3d_structure() == 1) {
+			if (rx.vs_info_details._3d_structure == 0x1) {
+				/* field alternative */
+				prop->trans_fmt = TVIN_TFMT_3D_FA;
+			} else if (rx.vs_info_details._3d_structure == 0x2) {
+			/* line alternative */
+				prop->trans_fmt = TVIN_TFMT_3D_LA;
+			} else if (rx.vs_info_details._3d_structure == 0x3) {
+				/* side-by-side full */
+				prop->trans_fmt = TVIN_TFMT_3D_LRF;
+			} else if (rx.vs_info_details._3d_structure == 0x4) {
+				/* L + depth */
+				prop->trans_fmt = TVIN_TFMT_3D_LD;
+			} else if (rx.vs_info_details._3d_structure == 0x5) {
+				/* L + depth + graphics + graphics-depth */
+				prop->trans_fmt = TVIN_TFMT_3D_LDGD;
+			} else if (rx.vs_info_details._3d_structure == 0x6) {
+				/* top-and-bot */
+				prop->trans_fmt = TVIN_TFMT_3D_TB;
+			} else if (rx.vs_info_details._3d_structure == 0x8) {
+				/* Side-by-Side half */
+				switch (rx.vs_info_details._3d_ext_data) {
+				case 0x5:
+					/*Odd/Left picture, Even/Right picture*/
+					prop->trans_fmt = TVIN_TFMT_3D_LRH_OLER;
+					break;
+				case 0x6:
+					/*Even/Left picture, Odd/Right picture*/
+					prop->trans_fmt = TVIN_TFMT_3D_LRH_ELOR;
+					break;
+				case 0x7:
+					/*Even/Left picture, Even/Right picture*/
+					prop->trans_fmt = TVIN_TFMT_3D_LRH_ELER;
+					break;
+				case 0x4:
+					/*Odd/Left picture, Odd/Right picture*/
+				default:
+					prop->trans_fmt = TVIN_TFMT_3D_LRH_OLOR;
+					break;
+				}
+			}
+			if (rx.threed_info.meta_data_flag) {
+				prop->threed_info.meta_data_flag = true;
+				prop->threed_info.meta_data_type =
+					rx.threed_info.meta_data_type;
+				prop->threed_info.meta_data_length =
+					rx.threed_info.meta_data_length;
+				memcpy(prop->threed_info.meta_data, rx.threed_info.meta_data,
+					sizeof(prop->threed_info.meta_data));
+			}
+		}
 		break;
 	default:
 		break;

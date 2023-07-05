@@ -765,6 +765,7 @@ struct rx_s {
 	struct rx_video_info cur;
 	struct aud_info_s aud_info;
 	struct vsi_info_s vs_info_details;
+	struct tvin_3d_meta_data_s threed_info;
 	struct tvin_hdr_info_s hdr_info;
 	struct vtem_info_s vtem_info;
 	struct sbtm_info_s sbtm_info;

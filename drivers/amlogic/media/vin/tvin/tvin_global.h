@@ -478,6 +478,13 @@ struct tvin_hdr10plus_info_s {
 	struct tvin_hdr10p_data_s hdr10p_data;
 };
 
+struct tvin_3d_meta_data_s {
+	bool meta_data_flag;
+	u8 meta_data_type;
+	u8 meta_data_length;
+	u8 meta_data[20];
+};
+
 struct tvin_cuva_data_s {
 	u8 vsif_type;		//hb0
 	u8 visf_version;	//hb1
@@ -540,6 +547,7 @@ struct tvin_sig_property_s {
 	struct tvin_latency_s latency;
 	struct tvin_fmm_s filmmaker;
 	struct tvin_hdr10plus_info_s hdr10p_info;
+	struct tvin_3d_meta_data_s threed_info;
 	struct tvin_emp_data_s emp_data;
 	struct tvin_vtem_data_s vtem_data;
 	struct tvin_sbtm_data_s sbtm_data;
