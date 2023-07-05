@@ -5589,7 +5589,7 @@ void rx_emp_field_done_irq(void)
 	struct page *cur_start_pg_addr;
 
 	/*emp data start physical address*/
-	p_addr = hdmirx_rd_top(TOP_EMP_DDR_PTR_S_BUF) << 2;
+	p_addr = (u64)hdmirx_rd_top(TOP_EMP_DDR_PTR_S_BUF) << 2;
 
 	/*buffer number*/
 	recv_pkt_cnt = hdmirx_rd_top(TOP_EMP_RCV_CNT_BUF);
