@@ -130,6 +130,11 @@ struct uvm_alloc_info {
 	int (*gpu_realloc)(struct dma_buf *dmabuf, struct uvm_buf_obj *obj, int scalar);
 };
 
+/**
+ * please sync the file in hwcomposer
+ * if you change uvm_hook_mod_type.
+ * display/include/UvmDev.h
+ */
 enum uvm_hook_mod_type {
 	VF_SRC_DECODER,
 	VF_SRC_VDIN,
@@ -139,11 +144,11 @@ enum uvm_hook_mod_type {
 	VF_PROCESS_DECODER,
 	PROCESS_NN,
 	PROCESS_GRALLOC,
-	PROCESS_HWC,
 	PROCESS_AIPQ,
 	PROCESS_DALTON,
 	PROCESS_AIFACE,
 	PROCESS_AICOLOR,
+	PROCESS_HWC,
 	PROCESS_INVALID
 };
 

@@ -708,7 +708,7 @@ int meson_uvm_setinfo(struct dma_buf *dmabuf,
 
 	handle = dmabuf->priv;
 	meson_uvm_core_setinfo(handle, buf);
-	if (mode_type == PROCESS_INVALID)
+	if (mode_type == PROCESS_HWC)
 		return 0;
 	mutex_lock(&handle->lock);
 	uhmod = uvm_find_hook_mod(handle, mode_type);
@@ -809,7 +809,7 @@ int uvm_put_hook_mod(struct dma_buf *dmabuf, int type)
 	struct uvm_hook_mod *uhmod = NULL;
 	int ret = 0;
 
-	UVM_PRINTK(UVM_DBG, "%s, mod_type%d %s called.\n", __func__, type, current->comm);
+	UVM_PRINTK(UVM_DBG, "%s, mod_type: %d %s called.\n", __func__, type, current->comm);
 
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
 		UVM_PRINTK(UVM_ERROR, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
@@ -822,6 +822,8 @@ int uvm_put_hook_mod(struct dma_buf *dmabuf, int type)
 	UVM_PRINTK(UVM_DBG, "%s, handle->flags:%lu\n", __func__, handle->flags);
 	if (!(type & BIT(PROCESS_HWC)) ||
 			((type & BIT(PROCESS_HWC)) && (handle->flags & MUA_DETACH))) {
+		if (type & BIT(PROCESS_HWC))
+			type &= ~BIT(PROCESS_HWC);
 		uhmod = uvm_find_hook_mod(handle, type);
 
 		if (uhmod) {
