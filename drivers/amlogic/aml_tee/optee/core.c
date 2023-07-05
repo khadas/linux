@@ -209,7 +209,7 @@ static int optee_core_init(void)
 	return 0;
 }
 
-subsys_initcall(optee_core_init);
+core_initcall(optee_core_init);
 
 static void optee_core_exit(void)
 {
