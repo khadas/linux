@@ -99,10 +99,7 @@ static int mpp_add_driver(struct mpp_service *srv,
 		     &srv->grf_infos[type],
 		     grf_name);
 
-	if (IS_ENABLED(CONFIG_ROCKCHIP_MPP_AV1DEC) && type == MPP_DRIVER_AV1DEC)
-		ret = av1dec_driver_register(driver);
-	else
-		ret = platform_driver_register(driver);
+	ret = platform_driver_register(driver);
 	if (ret)
 		return ret;
 
@@ -114,12 +111,8 @@ static int mpp_add_driver(struct mpp_service *srv,
 static int mpp_remove_driver(struct mpp_service *srv, int i)
 {
 	if (srv && srv->sub_drivers[i]) {
-		if (i != MPP_DRIVER_AV1DEC) {
-			mpp_set_grf(&srv->grf_infos[i]);
-			platform_driver_unregister(srv->sub_drivers[i]);
-		} else if (IS_ENABLED(CONFIG_ROCKCHIP_MPP_AV1DEC)) {
-			av1dec_driver_unregister(srv->sub_drivers[i]);
-		}
+		mpp_set_grf(&srv->grf_infos[i]);
+		platform_driver_unregister(srv->sub_drivers[i]);
 		srv->sub_drivers[i] = NULL;
 	}
 
@@ -493,6 +486,7 @@ static struct platform_driver mpp_service_driver = {
 
 module_platform_driver(mpp_service_driver);
 
+MODULE_IMPORT_NS(DMA_BUF);
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_VERSION(MPP_VERSION);
 MODULE_AUTHOR("Ding Wei leo.ding@rock-chips.com");
