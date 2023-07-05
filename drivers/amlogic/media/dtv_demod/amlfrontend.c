@@ -2484,6 +2484,7 @@ static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 {
 	int fsm_status;//0:none;1:lock;-1:lost
 	int strength = 0;
+	u16 rf_strength = 0;
 	unsigned int sys_sts;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	static int lock_status;
@@ -2589,11 +2590,17 @@ static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 			PR_ATSC("==> lock signal times:%d\n", lock_status);
 		}
 
-		if (lock_status >= lock_continuous_cnt)
+		if (lock_status >= lock_continuous_cnt) {
 			*status = FE_HAS_LOCK | FE_HAS_SIGNAL |
 				FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC;
-		else
+
+			/* for call r842 atsc monitor */
+			if (tuner_find_by_name(fe, "r842") &&
+					fe->ops.tuner_ops.get_rf_strength)
+				fe->ops.tuner_ops.get_rf_strength(fe, &rf_strength);
+		} else {
 			*status = 0;
+		}
 	} else {
 		*status = 0;
 	}

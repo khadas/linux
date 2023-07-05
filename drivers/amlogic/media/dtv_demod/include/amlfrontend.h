@@ -98,6 +98,7 @@
 /*  V2.1.104 fixed dvbc 16/32 qam (t5d/t3) */
 /*  V2.1.105 fix dvbt signaling buf overflow when bw 6M and GI 1/4 */
 /*  V2.1.106 fix no signal after system resume */
+/*  V2.1.107 add ATSC Monitor call for r842 */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -114,8 +115,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.1.105"
-#define DTVDEMOD_VER	"2023/07/06: fix no signal after system resume"
+#define AMLDTVDEMOD_VER "V2.1.107"
+#define DTVDEMOD_VER	"2023/07/05: add ATSC Monitor call for r842"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
