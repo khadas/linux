@@ -165,6 +165,11 @@ struct codec_mm_mgt_s {
 	int tvp_enable;
 	/*1:for 1080p,2:for 4k */
 	int fastplay_enable;
+	int codec_mm_for_linear;
+	int codec_mm_scatter_watermark;
+	int codec_mm_scatter_free_size;
+	/* spin lock for protect scatter_watermark */
+	spinlock_t scatter_watermark_lock;
 	/* spin lock */
 	spinlock_t lock;
 	atomic_t tvp_user_count;
@@ -3099,6 +3104,107 @@ static ssize_t debug_keep_mode_store(struct class *class,
 	debug_keep_mode = val;
 
 	return size;
+}
+
+bool codec_mm_scatter_available_check(int alloc)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	/* if codec_mm_scatter_watermark has been configed, use scatter
+	 * free size to check, else use reserved size to check
+	 */
+	if (mgt->codec_mm_scatter_watermark) {
+		if (mgt->codec_mm_scatter_free_size > alloc)
+			return true;
+	} else {
+		if (codec_mm_get_free_size() >
+			codec_mm_scatter_get_reserved_size())
+			return true;
+	}
+	if (debug_mode & 0x80)
+		pr_info("[%s]%s not enough. (watermark:%d/%d)\n", __func__,
+				mgt->codec_mm_for_linear ? "scatter watermark" : "reserved",
+				mgt->codec_mm_scatter_free_size,
+				mgt->codec_mm_scatter_watermark);
+	return false;
+}
+
+void codec_mm_scatter_level_decrease(int alloc_size)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	unsigned long flags;
+
+	if (mgt->codec_mm_for_linear) {
+		spin_lock_irqsave(&mgt->scatter_watermark_lock, flags);
+		mgt->codec_mm_scatter_free_size -= alloc_size;
+		spin_unlock_irqrestore(&mgt->scatter_watermark_lock, flags);
+	}
+}
+
+void codec_mm_scatter_level_increase(int free_size)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	unsigned long flags;
+
+	if (mgt->codec_mm_for_linear) {
+		spin_lock_irqsave(&mgt->scatter_watermark_lock, flags);
+		mgt->codec_mm_scatter_free_size += free_size;
+		spin_unlock_irqrestore(&mgt->scatter_watermark_lock, flags);
+	}
+}
+
+void codec_mm_set_min_linear_size(int min_mem_val)
+{
+	int val = min_mem_val;
+	unsigned long flags;
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	if (val <= 0)
+		return;
+
+	if (val > codec_mm_get_total_size()) {
+		pr_err("[%s]set value %d is too large, set as %d\n",
+				__func__, val, codec_mm_get_total_size());
+		val = codec_mm_get_total_size();
+	}
+
+	if (!mgt->codec_mm_for_linear) { // first time set
+		spin_lock_init(&mgt->scatter_watermark_lock);
+		mgt->codec_mm_for_linear = val;
+		mgt->codec_mm_scatter_watermark =
+			codec_mm_get_total_size() - mgt->codec_mm_for_linear;
+		mgt->codec_mm_scatter_free_size =
+			mgt->codec_mm_scatter_watermark;
+	} else { // has been set, just need to make adjustment
+		spin_lock_irqsave(&mgt->scatter_watermark_lock, flags);
+		mgt->codec_mm_scatter_watermark += (mgt->codec_mm_for_linear - val);
+		mgt->codec_mm_scatter_free_size += (mgt->codec_mm_for_linear - val);
+		mgt->codec_mm_for_linear = val;
+		spin_unlock_irqrestore(&mgt->scatter_watermark_lock, flags);
+		if (mgt->codec_mm_scatter_free_size < 0)
+			pr_warn_once("[%s]adjust watermark, scatter need free %d cma\n",
+				__func__, mgt->codec_mm_scatter_free_size);
+	}
+
+	if (debug_mode & 0x80)
+		pr_info("[%s]linear:%d, scatter:%d/%d\n",
+					__func__, mgt->codec_mm_for_linear,
+					mgt->codec_mm_scatter_free_size,
+					mgt->codec_mm_scatter_watermark);
+}
+
+int codec_mm_get_min_linear_size(void)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	return mgt->codec_mm_for_linear;
+}
+
+int codec_mm_get_scatter_watermark(void)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	return mgt->codec_mm_scatter_watermark;
 }
 
 static CLASS_ATTR_RO(codec_mm_dump);

@@ -123,6 +123,9 @@ struct codec_mm_scatter_s {
 	u32 support_from_slot_sys;
 	u32 no_alloc_from_sys;
 	u32 config_alloc_flags;
+	u32 watermark_for_min;
+	u32 watermark_for_low;
+	u32 watermark_for_high;
 };
 
 struct codec_mm_scatter_mgt {
@@ -143,6 +146,9 @@ struct codec_mm_scatter_mgt {
 	u32 no_alloc_from_sys;
 	u32 config_alloc_flags;
 	u32 support_from_slot_sys;
+	u32 watermark_for_min;
+	u32 watermark_for_low;
+	u32 watermark_for_high;
 	int one_page_cnt;
 	int scatters_cnt;
 	int slot_cnt;
@@ -552,10 +558,14 @@ static int codec_mm_slot_free(struct codec_mm_scatter_mgt *smgt,
 	codec_mm_list_unlock(smgt);
 	switch (slot->from_type) {
 	case SLOT_FROM_CODEC_MM:
-		if (slot->mm)
+		if (slot->mm) {
+			if (!smgt->tvp_mode)
+				codec_mm_scatter_level_increase(slot->mm->page_count *
+						PAGE_SIZE);
 			codec_mm_release(slot->mm, SCATTER_MEM);
-		else
+		} else {
 			ERR_LOG("ERR:slot->mm is ERROR:%p\n", slot->mm);
+		}
 		break;
 	case SLOT_FROM_GET_FREE_PAGES:
 		if (slot->page_header != 0)
@@ -622,89 +632,104 @@ codec_mm_slot_alloc(struct codec_mm_scatter_mgt *smgt, int size, int flags)
 	int tvp_free_size = 0;
 	int cma_free_size = 0;
 
+	/* don't alloc less than one PAGE. */
 	if (try_alloc_size > 0 && try_alloc_size <= PAGE_SIZE)
-		return NULL;	/*don't alloc less than one PAGE. */
+		return NULL;
+
 	slot = kmalloc(sizeof(*slot), GFP_KERNEL);
 	if (!slot)
 		return NULL;
 	memset(slot, 0, sizeof(struct codec_mm_slot));
+
+	/*try from codec_mm */
 	do {
+		/* ignore codec_mm */
 		if (flags & 1)
-			break;	/*ignore codec_mm */
-		if ((try_alloc_size <= 0 ||
-		    try_alloc_size > 64 * 1024) &&	/*must > 512K.*/
-		    (smgt->tvp_mode ||
-				(codec_mm_get_free_size() >
-				smgt->reserved_block_mm_M * SZ_1M))) {
-			/*try from codec_mm */
-			if (try_alloc_size <= 0) {
-				try_alloc_size =
-					smgt->try_alloc_in_cma_page_cnt *
-					PAGE_SIZE;
+			break;
+
+		/* must > 64K.*/
+		if ((try_alloc_size > 0 &&
+			try_alloc_size < 64 * SZ_1K))
+			break;
+
+		/* calculate the final alloc size */
+		if (try_alloc_size <= 0) {
+			try_alloc_size =
+				smgt->try_alloc_in_cma_page_cnt *
+				PAGE_SIZE;
+		}
+		if (smgt->tvp_mode) {
+			tvp_free_size = codec_mm_get_tvp_free_size();
+			cma_free_size = codec_mm_get_free_size();
+			if (try_alloc_size > tvp_free_size &&
+				try_alloc_size > cma_free_size) {
+				try_alloc_size = cma_free_size > tvp_free_size
+					? cma_free_size : tvp_free_size;
 			}
-			if (smgt->tvp_mode) {
-				tvp_free_size = codec_mm_get_tvp_free_size();
-				cma_free_size = codec_mm_get_free_size();
-				if (try_alloc_size > tvp_free_size &&
-					try_alloc_size > cma_free_size) {
-					try_alloc_size = cma_free_size > tvp_free_size
-						? cma_free_size : tvp_free_size;
-				}
-			} else {
-				cma_free_size = codec_mm_get_free_size();
-				if (cma_free_size < try_alloc_size)
-					try_alloc_size = cma_free_size;
+		} else {
+			cma_free_size = codec_mm_get_free_size();
+			if (cma_free_size < try_alloc_size)
+				try_alloc_size = cma_free_size;
+		}
+		if (try_alloc_size <= 0 ||
+			/* not enough cma for scatter */
+			(!smgt->tvp_mode && !codec_mm_scatter_available_check(try_alloc_size))) {
+			INFO_LOG("No cma can be used for scatter");
+			break;
+		}
+
+		mm = codec_mm_alloc(SCATTER_MEM, try_alloc_size, 0,
+				    CODEC_MM_FLAGS_FOR_VDECODER |
+				    CODEC_MM_FLAGS_FOR_SCATTER |
+				    (smgt->tvp_mode ?
+					CODEC_MM_FLAGS_TVP : 0)
+				);
+		if (mm) {
+			slot->from_type = SLOT_FROM_CODEC_MM;
+			slot->mm = mm;
+			slot->page_num = mm->page_count;
+			slot->phy_addr = mm->phy_addr;
+			codec_mm_slot_init_bitmap(slot);
+			if (!slot->pagemap) {
+				codec_mm_release(mm, SCATTER_MEM);
+				break;	/*try next. */
 			}
-			if (try_alloc_size <= 0) {
-				DBG_LOG("No memory can be used for scatter");
-				break;
-			}
-			mm = codec_mm_alloc(SCATTER_MEM, try_alloc_size, 0,
-					    CODEC_MM_FLAGS_FOR_VDECODER |
-					    CODEC_MM_FLAGS_FOR_SCATTER |
-					    (smgt->tvp_mode ?
-						CODEC_MM_FLAGS_TVP : 0)
-					);
-			if (mm) {
-				slot->from_type = SLOT_FROM_CODEC_MM;
-				slot->mm = mm;
-				slot->page_num = mm->page_count;
-				slot->phy_addr = mm->phy_addr;
-				codec_mm_slot_init_bitmap(slot);
-				if (!slot->pagemap) {
-					codec_mm_release(mm, SCATTER_MEM);
-					break;	/*try next. */
-				}
-				have_alloced = 1;
-				DBG_LOG("alloced from codec mm %d!!!\n",
-					slot->page_num);
-			}
+			have_alloced = 1;
+			if (!smgt->tvp_mode)
+				codec_mm_scatter_level_decrease(mm->page_count * PAGE_SIZE);
+			DBG_LOG("alloced from codec mm %d!!!\n",
+				slot->page_num);
 		}
 	} while (0);
-	if (!have_alloced && !smgt->support_from_slot_sys) {
+
+	/* alloc from codec_mm failed, prepare from sys */
+	if (!have_alloced) {
 		/*not enabled from sys */
-		goto error;
-	}
-	if (!have_alloced) {	/*init for sys alloc */
+		if (!smgt->support_from_slot_sys)
+			goto error;
+
+		/*tvp not support alloc from sys.*/
+		if (smgt->tvp_mode || smgt->no_alloc_from_sys)
+			goto error;
+
+		/*init for sys alloc */
 		if (size <= 0)
 			try_alloc_size =
 				smgt->try_alloc_in_sys_page_cnt << PAGE_SHIFT;
 		else
 			try_alloc_size = PAGE_ALIGN(size);
+
+		/*don't alloc 1 page with slot. */
 		if (try_alloc_size <= PAGE_SIZE << 1) {
 			DBG_LOG("try too small %d, try one page now,\n",
 				try_alloc_size);
-			goto error;	/*don't alloc 1 page with slot. */
+			goto error;
 		}
 	}
-	if (!have_alloced) {
-		/*tvp not support alloc from sys.*/
-		if (smgt->tvp_mode || smgt->no_alloc_from_sys)
-			goto error;
-	}
+
+	/*try alloc from sys. */
 	while (!have_alloced) {
 		/*don't alloc 1 page with slot. */
-		/*try alloc from sys. */
 		int page_order = get_order(try_alloc_size);
 
 		if (smgt->config_alloc_flags & SC_ALLOC_SYS_DMA32) {
@@ -947,8 +972,7 @@ static int codec_mm_page_alloc_from_slot(struct codec_mm_scatter_mgt *smgt,
 	codec_mm_list_lock(smgt);
 	if (!smgt->tvp_mode &&
 	    list_empty(&smgt->free_list) &&
-	   (codec_mm_get_free_size() </*no codec mm*/
-		smgt->reserved_block_mm_M * SZ_1M) &&
+	   !codec_mm_scatter_available_check(num * PAGE_SIZE) &&
 	   !smgt->support_from_slot_sys) {/*no sys*/
 		codec_mm_list_unlock(smgt);
 		return 0;
@@ -1162,6 +1186,11 @@ int codec_mm_page_alloc_from_cache_scatter(struct codec_mm_scatter_mgt *smgt,
 	smgt->cache_allocating = false;
 	codec_mm_list_unlock(smgt);
 	return alloced;
+}
+
+int codec_mm_scatter_get_reserved_size(void)
+{
+	return scatter_mgt->reserved_block_mm_M * SZ_1M;
 }
 
 static int codec_mm_page_alloc_all_locked(struct codec_mm_scatter_mgt *smgt,
@@ -2353,8 +2382,23 @@ int codec_mm_scatter_update_config(struct codec_mm_scatter_mgt *smgt)
 	smgt->no_cache_size_M = g_scatter.no_cache_size_M;
 	smgt->no_alloc_from_sys = g_scatter.no_alloc_from_sys;
 	smgt->config_alloc_flags = g_scatter.config_alloc_flags;
+	smgt->watermark_for_min = g_scatter.watermark_for_min;
+	smgt->watermark_for_low = g_scatter.watermark_for_low;
+	smgt->watermark_for_high = g_scatter.watermark_for_high;
 
 	return 0;
+}
+
+void codec_mm_scatter_watermark_update(struct codec_mm_scatter_mgt *smgt)
+{
+	if (smgt->watermark_for_high) {
+		if ((smgt->watermark_for_high * SZ_1M) !=
+			codec_mm_get_min_linear_size())
+			codec_mm_set_min_linear_size(smgt->watermark_for_high * SZ_1M);
+		/* TO DO:
+		 * according to free mem of sys set min/low/high
+		 */
+	}
 }
 
 int codec_mm_scatter_alloc_flags_config(int is_tvp, int sc_alloc_flags)
@@ -2740,6 +2784,7 @@ static void codec_mm_scatter_monitor(struct work_struct *work)
 	int needretry = 0;
 
 	codec_mm_scatter_update_config(smgt);
+	codec_mm_scatter_watermark_update(smgt);
 	mutex_lock(&smgt->monitor_lock);
 	smgt->scatter_task_run_num++;
 
@@ -2812,6 +2857,9 @@ static struct mconfig codec_mm_sc_configs[] = {
 	MC_PU32("no_cache_size_M", &g_scatter.no_cache_size_M),
 	MC_PU32("no_alloc_from_sys", &g_scatter.no_alloc_from_sys),
 	MC_PU32("config_alloc_flags", &g_scatter.config_alloc_flags),
+	MC_PU32("watermark_for_min", &g_scatter.watermark_for_min),
+	MC_PU32("watermark_for_low", &g_scatter.watermark_for_low),
+	MC_PU32("watermark_for_high", &g_scatter.watermark_for_high),
 };
 
 static struct mconfig_node codec_mm_sc;

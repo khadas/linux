@@ -57,4 +57,6 @@ int codec_mm_scatter_free_all_ignorecache(int flags);
 
 void codec_mm_clear_alloc_infos(void);
 
+int codec_mm_scatter_get_reserved_size(void);
+
 #endif
