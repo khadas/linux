@@ -438,19 +438,17 @@ ssize_t mmc_dtb_write(struct file *file,
 		dst += write_count << bit;
 	} while (cnt != 0);
 
-	if ((*ppos + count) >= CONFIG_DTB_SIZE) {
-		ret = amlmmc_dtb_read(card_dtb, dtb_ptr, CONFIG_DTB_SIZE);
-		if (ret) {
-			pr_err("%s: read dtb failed", __func__);
-			ret = -EFAULT;
-			goto exit;
-		}
-		ret = amlmmc_dtb_write(card_dtb, dtb_ptr, CONFIG_DTB_SIZE);
-		if (ret) {
-			pr_err("%s: write dtb failed", __func__);
-			ret = -EFAULT;
-			goto exit;
-		}
+	ret = amlmmc_dtb_read(card_dtb, dtb_ptr, CONFIG_DTB_SIZE);
+	if (ret) {
+		pr_err("%s: read dtb failed", __func__);
+		ret = -EFAULT;
+		goto exit;
+	}
+	ret = amlmmc_dtb_write(card_dtb, dtb_ptr, CONFIG_DTB_SIZE);
+	if (ret) {
+		pr_err("%s: write dtb failed", __func__);
+		ret = -EFAULT;
+		goto exit;
 	}
 
 	*ppos += write_size;
