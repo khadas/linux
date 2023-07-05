@@ -30,7 +30,7 @@
 	#define MESON_SAR_ADC_REG11_VREF_SEL			BIT(0)
 	#define MESON_SAR_ADC_REG11_EOC				BIT(1)
 	#define MESON_SAR_ADC_REG11_VREFP_SEL			BIT(5)
-	#define MESON_SAR_ADC_REG11_CMV_SEL			BIT(6)
+	#define MESON_SAR_ADC_REG11_VCM_SEL			BIT(6)
 	#define MESON_SAR_ADC_REG11_TEMP_SEL			BIT(21)
 	#define MESON_SAR_ADC_REG11_CHNL_REGS_EN		BIT(30)
 	#define MESON_SAR_ADC_REG11_FIFO_EN			BIT(31)
@@ -170,9 +170,9 @@ static int meson_m8_sar_adc_extra_init(struct iio_dev *indio_dev)
 				      priv->param->vrefp_select));
 
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
-			   MESON_SAR_ADC_REG11_CMV_SEL,
-			   FIELD_PREP(MESON_SAR_ADC_REG11_CMV_SEL,
-				      priv->param->cmv_select));
+			   MESON_SAR_ADC_REG11_VCM_SEL,
+			   FIELD_PREP(MESON_SAR_ADC_REG11_VCM_SEL,
+				      priv->param->vcm_select));
 
 	return 0;
 }
@@ -360,7 +360,7 @@ const struct meson_sar_adc_param meson_sar_adc_gxbb_param __initconst = {
 	.regmap_config = &meson_sar_adc_regmap_config_gxbb,
 	.resolution = 10,
 	.vrefp_select = 1,
-	.cmv_select = 1,
+	.vcm_select = 1,
 	.calib_enable = true,
 	.dops = &meson_m8_diff_ops,
 	.channels = meson_m8_sar_adc_iio_channels,
@@ -375,7 +375,7 @@ const struct meson_sar_adc_param meson_sar_adc_gxl_param __initconst = {
 	.resolution = 12,
 	.disable_ring_counter = 1,
 	.vrefp_select = 1,
-	.cmv_select = 1,
+	.vcm_select = 1,
 	.calib_enable = true,
 	.dops = &meson_m8_diff_ops,
 	.channels = meson_m8_sar_adc_iio_channels,
@@ -391,7 +391,7 @@ const struct meson_sar_adc_param meson_sar_adc_txlx_param __initconst = {
 	.vref_is_optional = true,
 	.disable_ring_counter = 1,
 	.vrefp_select = 1,
-	.cmv_select = 1,
+	.vcm_select = 1,
 	.dops = &meson_m8_diff_ops,
 	.channels = meson_m8_sar_adc_iio_channels,
 	.num_channels = ARRAY_SIZE(meson_m8_sar_adc_iio_channels),
@@ -408,7 +408,7 @@ const struct meson_sar_adc_param meson_sar_adc_g12a_param __initconst = {
 	.disable_ring_counter = 1,
 	.has_chnl_regs = true,
 	.vrefp_select = 0,
-	.cmv_select = 0,
+	.vcm_select = 0,
 	.adc_eoc = 1,
 	.dops = &meson_m8_diff_ops,
 	.channels = meson_m8_sar_adc_iio_channels,

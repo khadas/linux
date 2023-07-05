@@ -177,7 +177,7 @@
 	#define MESON_SAR_ADC_REG11_VREF_SEL			BIT(0)
 	#define MESON_SAR_ADC_REG11_EOC				BIT(1)
 	#define MESON_SAR_ADC_REG11_VREF_EN			BIT(5)
-	#define MESON_SAR_ADC_REG11_CMV_SEL			BIT(6)
+	#define MESON_SAR_ADC_REG11_VCM_SEL			BIT(6)
 	#define MESON_SAR_ADC_REG11_TEMP_SEL			BIT(21)
 	#define MESON_SAR_ADC_REG11_CHNL_REGS_EN		BIT(30)
 	#define MESON_SAR_ADC_REG11_FIFO_EN			BIT(31)
@@ -371,7 +371,7 @@ enum meson_sar_adc_sampling_mode {
  *
  * @vref_enable: g12a and later SoCs must write 0, others SoC write 1
  *
- * @cmv_select: g12a and later SoCs must write 0, others SoC write 1
+ * @vcm_select: g12a and later SoCs must write 0, others SoC write 1
  *
  * @adc_eoc: g12a and later SoCs must write 1
  *
@@ -392,7 +392,7 @@ struct meson_sar_adc_param {
 	bool					disable_ring_counter;
 	bool					has_chnl_regs;
 	bool					vref_enable;
-	bool					cmv_select;
+	bool					vcm_select;
 	bool					adc_eoc;
 	bool					calib_enable;
 #endif
@@ -1371,9 +1371,9 @@ static int meson_sar_adc_hw_enable_unlock(struct iio_dev *indio_dev)
 				      priv->param->vref_enable));
 
 	regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
-			   MESON_SAR_ADC_REG11_CMV_SEL,
-			   FIELD_PREP(MESON_SAR_ADC_REG11_CMV_SEL,
-				      priv->param->cmv_select));
+			   MESON_SAR_ADC_REG11_VCM_SEL,
+			   FIELD_PREP(MESON_SAR_ADC_REG11_VCM_SEL,
+				      priv->param->vcm_select));
 
 	meson_sar_adc_set_bandgap(indio_dev, true);
 
@@ -1939,7 +1939,7 @@ static const struct meson_sar_adc_param meson_sar_adc_gxbb_param = {
 	.resolution = 10,
 #ifdef CONFIG_AMLOGIC_MODIFY
 	.vref_enable = 1,
-	.cmv_select = 1,
+	.vcm_select = 1,
 	.calib_enable = true,
 #endif
 };
@@ -1957,7 +1957,7 @@ static const struct meson_sar_adc_param meson_sar_adc_gxl_param = {
 #ifdef CONFIG_AMLOGIC_MODIFY
 	.disable_ring_counter = 1,
 	.vref_enable = 1,
-	.cmv_select = 1,
+	.vcm_select = 1,
 	.calib_enable = true,
 #endif
 };
@@ -1974,7 +1974,7 @@ static const struct meson_sar_adc_param meson_sar_adc_txlx_param __initconst = {
 	.vref_is_optional = true,
 	.disable_ring_counter = 1,
 	.vref_enable = 1,
-	.cmv_select = 1,
+	.vcm_select = 1,
 };
 #endif
 
@@ -1988,7 +1988,7 @@ static const struct meson_sar_adc_param meson_sar_adc_g12a_param __initconst = {
 	.disable_ring_counter = 1,
 	.has_chnl_regs = true,
 	.vref_enable = 0,
-	.cmv_select = 0,
+	.vcm_select = 0,
 	.adc_eoc = 1,
 };
 #endif

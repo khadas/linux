@@ -34,7 +34,7 @@
 
 #define MESON_C2_SAR_ADC_CHX_CTRL1_DECIM_FILTER			BIT(0)
 #define MESON_C2_SAR_ADC_CHX_CTRL1_DIFF_EN			BIT(17)
-#define MESON_C2_SAR_ADC_CHX_CTRL1_CMV_SEL			BIT(18)
+#define MESON_C2_SAR_ADC_CHX_CTRL1_VCM_SEL			BIT(18)
 #define MESON_C2_SAR_ADC_CHX_CTRL1_VREFP_SEL			BIT(19)
 #define MESON_C2_SAR_ADC_CHX_CTRL1_IN_CTRL_MASK			GENMASK(23, 21)
 
@@ -250,15 +250,15 @@ static void meson_c2_sar_adc_init_ch(struct iio_dev *indio_dev,
 
 	regmap_update_bits(priv->regmap,
 			   MESON_C2_SAR_ADC_CHX_CTRL1(chan->channel),
-			   MESON_C2_SAR_ADC_CHX_CTRL1_CMV_SEL,
-			   FIELD_PREP(MESON_C2_SAR_ADC_CHX_CTRL1_CMV_SEL,
+			   MESON_C2_SAR_ADC_CHX_CTRL1_VCM_SEL,
+			   FIELD_PREP(MESON_C2_SAR_ADC_CHX_CTRL1_VCM_SEL,
 				      priv->param->vrefp_select));
 
 	regmap_update_bits(priv->regmap,
 			   MESON_C2_SAR_ADC_CHX_CTRL1(chan->channel),
 			   MESON_C2_SAR_ADC_CHX_CTRL1_VREFP_SEL,
 			   FIELD_PREP(MESON_C2_SAR_ADC_CHX_CTRL1_VREFP_SEL,
-				      priv->param->cmv_select));
+				      priv->param->vcm_select));
 }
 
 static void meson_c2_sar_adc_enable_decim_filter(struct iio_dev *indio_dev,
@@ -333,7 +333,7 @@ const struct meson_sar_adc_param meson_sar_adc_c2_param __initconst = {
 	.vref_is_optional = true,
 	.has_chnl_regs = true,
 	.vrefp_select = 0,
-	.cmv_select = 0,
+	.vcm_select = 0,
 	.adc_eoc = 1,
 	.dops = &meson_c2_diff_ops,
 	.channels = meson_c2_sar_adc_iio_channels,

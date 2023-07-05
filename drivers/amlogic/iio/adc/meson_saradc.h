@@ -70,7 +70,7 @@ struct meson_sar_adc_diff_ops {
  *
  * @vrefp_select: g12a and later SoCs must write 0, others SoC write 1
  *
- * @cmv_select: g12a and later SoCs must write 0, others SoC write 1
+ * @vcm_select: g12a and later SoCs must write 0, others SoC write 1
  *
  * @adc_eoc: g12a and later SoCs must write 1
  *
@@ -93,7 +93,7 @@ struct meson_sar_adc_param {
 	u8					disable_ring_counter;
 	u8					has_chnl_regs;
 	u8					vrefp_select;
-	u8					cmv_select;
+	u8					vcm_select;
 	u8					adc_eoc;
 	u8					calib_enable;
 };
