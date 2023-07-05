@@ -317,6 +317,7 @@ union intr_u {
 		struct intr_t cp2tx_intr3;
 		struct intr_t scdc_intr;
 		struct intr_t intr2;
+		struct intr_t intr5;
 	} entity;
 };
 
@@ -562,4 +563,6 @@ void frl_tx_stop(struct hdmitx_dev *hdev);
 void hdcptx_en_aes_dualpipe(bool en);
 bool frl_check_full_bw(enum hdmi_colorspace cs, enum hdmi_color_depth cd, u32 pixel_clock,
 	u32 h_active, enum frl_rate_enum frl_rate, u32 *tri_bytes);
+void fifo_flow_enable_intrs(bool en);
+void hdmitx_soft_reset(u32 bits);
 #endif /* __HDMI_TX_H__ */

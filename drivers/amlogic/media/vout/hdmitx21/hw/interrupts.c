@@ -29,6 +29,7 @@
 #include "common.h"
 
 static void intr2_sw_handler(struct intr_t *);
+static void intr5_sw_handler(struct intr_t *);
 static void top_hpd_intr_stub_handler(struct intr_t *);
 
 static pf_callback earc_hdmitx_hpdst;
@@ -66,6 +67,14 @@ union intr_u hdmi_all_intrs = {
 			.intr_top_bit = BIT(0),
 			.mask_data = BIT(0),
 			.callback = intr2_sw_handler,
+		},
+		.intr5 = {
+			.intr_mask_reg = INTR5_MASK_SW_TPI_IVCTX,
+			.intr_st_reg = INTR5_SW_TPI_IVCTX,
+			.intr_clr_reg = INTR5_SW_TPI_IVCTX,
+			.intr_top_bit = BIT(0),
+			.mask_data = BIT(3),
+			.callback = intr5_sw_handler,
 		},
 		.cp2tx_intr0 = {
 			.intr_mask_reg = CP2TX_INTR0_MASK_IVCTX,
@@ -141,6 +150,14 @@ static void intr2_sw_handler(struct intr_t *intr)
 	}
 }
 
+static void intr5_sw_handler(struct intr_t *intr)
+{
+	hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 1, 2, 1);
+	hdmitx21_set_reg_bits(INTR5_SW_TPI_IVCTX, 1, 3, 1);
+	hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 0, 2, 1);
+	pr_info("%s[%d]\n", __func__, __LINE__);
+}
+
 static void ddc_stall_req_handler(struct intr_t *intr)
 {
 }
@@ -148,7 +165,8 @@ static void ddc_stall_req_handler(struct intr_t *intr)
 static void _intr_enable(struct intr_t *pint, bool en)
 {
 	hdmitx21_wr_reg(pint->intr_mask_reg, en ? pint->mask_data : 0);
-	hdmitx21_set_bit(HDMITX_TOP_INTR_MASKN, pint->intr_top_bit, en);
+	if (en)
+		hdmitx21_set_bit(HDMITX_TOP_INTR_MASKN, pint->intr_top_bit, en);
 }
 
 void hdcp_enable_intrs(bool en)
@@ -158,6 +176,13 @@ void hdcp_enable_intrs(bool en)
 	_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr1, en);
 	_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr2, en);
 	_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr3, en);
+}
+
+void fifo_flow_enable_intrs(bool en)
+{
+	if (en)
+		hdmitx21_set_reg_bits(INTR5_SW_TPI_IVCTX, 1, 3, 1);
+	_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.intr5, en);
 }
 
 static void hdmitx_phy_bandgap_en(struct hdmitx_dev *hdev)
@@ -261,11 +286,11 @@ RE_ISR:
 	 * it means there's interrupt not cleared/handled
 	 * so need to handle it before exit interrupt handler
 	 */
-	if (top_intr_state & BIT(31) ||
-		top_intr_state & BIT(2) ||
+	//if (top_intr_state & BIT(31) ||
+	if (top_intr_state & BIT(2) ||
 		top_intr_state & BIT(1) ||
 		top_intr_state & BIT(0)) {
-		pr_info("interrupt not cleared, re-handle intr\n");
+		pr_info("interrupt not cleared, re-handle intr 0x%x\n", top_intr_state);
 		goto RE_ISR;
 	}
 	return IRQ_HANDLED;

@@ -978,9 +978,7 @@ static int set_disp_mode_auto(void)
 		if (hdev->frl_rate > hdev->tx_max_frl_rate)
 			pr_info("error: Current frl_rate %d is larger than tx_max_frl_rate %d\n",
 				hdev->frl_rate, hdev->tx_max_frl_rate);
-		pr_info("----%s %d\n", __func__, __LINE__);
 #ifdef CONFIG_AMLOGIC_DSC
-		pr_info("++++%s %d\n", __func__, __LINE__);
 		/* DSC specific, automatically enable dsc if necessary */
 		if (strcmp(mode, "7680x4320p60hz") == 0) {
 			if (strstr(hdev->fmt_attr, "444") ||
@@ -1118,9 +1116,7 @@ static int set_disp_mode_auto(void)
 	if (source_test_frl_rate > FRL_NONE && source_test_frl_rate < FRL_RATE_MAX)
 		hdev->frl_rate = source_test_frl_rate;
 
-	pr_info("----%s %d\n", __func__, __LINE__);
 #ifdef CONFIG_AMLOGIC_DSC
-	pr_info("++++%s %d\n", __func__, __LINE__);
 
 	if (hdev->dsc_en && hdev->data->chip_type == MESON_CPU_ID_S5) {
 		/* notify hdmitx format to dsc, and dsc module will
@@ -5720,6 +5716,7 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
+	fifo_flow_enable_intrs(0);
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_AVI_PACKET, 0);
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_VSDB_PACKET, 0);
 	frl_tx_stop(hdev);

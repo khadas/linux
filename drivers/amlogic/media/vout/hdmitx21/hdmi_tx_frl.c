@@ -535,6 +535,7 @@ tx_lts_3:
 		if (!p->flt_running)
 			return;
 		pr_info("FRL: %s\n", flt_tx_string[FLT_TX_LTS_3]);
+		hdmitx_soft_reset(BIT(0));
 		/* LTS:3 Source conducts Link Training for the specified FRL_Rate */
 		frl_tx_pattern_init(0x8765);
 
@@ -657,6 +658,7 @@ tx_lts_p1:
 		 * and Super Block structure
 		 */
 		start_frl_transmission(p, true);
+		fifo_flow_enable_intrs(1);
 		frl_tx_pattern_stop();
 		clrear_flt_update(p);
 		pr_info("LTS:P cost %ld ms\n", (g_flt_1_e - g_flt_1 + 3) / 4);

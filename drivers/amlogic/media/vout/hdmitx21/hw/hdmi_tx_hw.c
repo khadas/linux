@@ -477,7 +477,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 	data32 |= (1 << 2);  // [  2] hpd_fall_intr
 	data32 |= (1 << 1);  // [  1] hpd_rise_intr
 	data32 |= (1 << 0);  // [ 0] core_pwd_intr_rise
-	hdmitx21_wr_reg(HDMITX_TOP_INTR_MASKN, 0x6);
+	hdmitx21_set_bit(HDMITX_TOP_INTR_MASKN, BIT(2) | BIT(1), 1);
 
 	//--------------------------------------------------------------------------
 	// Configure E-DDC interface
@@ -929,6 +929,35 @@ MODULE_PARM_DESC(dfm_type, "for dfm debug");
 /* set to 1 only for cvtem packet test */
 static int emp_dbg_en;
 
+void hdmitx_soft_reset(u32 bits_nr)
+{
+	pr_info("%s[%d]\n", __func__, __LINE__);
+	if (bits_nr & BIT(0)) {
+		/* 18or10to20 fifos Software reset */
+		hdmitx21_reset_reg_bit(PWD_SRST_IVCTX, 2);
+	}
+	if (bits_nr & BIT(1)) {
+		/* Software Reset. Reset all internal logic */
+		hdmitx21_reset_reg_bit(PWD_SRST_IVCTX, 0);
+	}
+	if (bits_nr & BIT(2)) {
+		/* reset for the cipher engine */
+		hdmitx21_reset_reg_bit(HDCP_CTRL_IVCTX, 2);
+	}
+	if (bits_nr & BIT(3)) {
+		/* HW TPI State Machine Reset */
+		hdmitx21_reset_reg_bit(AON_CYP_CTL_IVCTX, 3);
+	}
+	if (bits_nr & BIT(4)) {
+		/* Software Reset for hdcp2x logic only */
+		hdmitx21_reset_reg_bit(HDCP2X_TX_SRST_IVCTX, 5);
+	}
+	if (bits_nr & BIT(5)) {
+		/* PCLK to TCLK Video FIFO Software reset */
+		hdmitx21_reset_reg_bit(PWD_SRST_IVCTX, 1);
+	}
+}
+
 static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 {
 	struct hdmi_format_para *para = hdev->para;
@@ -936,6 +965,7 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	enum hdmi_vic vic = para->timing.vic;
 	struct vinfo_s *vinfo = NULL;
 
+	fifo_flow_enable_intrs(0);
 	/* gp2 setting has been set for fe/enc for dsc*/
 	hdmitx21_set_clk(hdev);
 
@@ -1083,6 +1113,7 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 
 	hdev->cur_VIC = hdev->para->timing.vic;
 
+	hdmitx_soft_reset(BIT(1) | BIT(2) | BIT(3) | BIT(4));
 	//[4] reg_bypass_video_path
 	// For non-DSC, set to bit4 as 0
 	if (hdev->dsc_en)
@@ -1299,22 +1330,19 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 				hdmitx_dfm_cfg(2, 0);
 			} else if (dfm_type == 0) {
 				hdmitx_dfm_cfg(0, 0);
-			} else if (hdev->dsc_en) {
+			} else {
 				if (ret)
 					hdmitx_dfm_cfg(1, tri_bytes_per_line);
 				else
 					hdmitx_dfm_cfg(2, 0);
-			} else {
-				/* for dfm setting of non-dsc, todo */
-				/* if (ret) */
-					/* hdmitx_dfm_cfg(1, tri_bytes_per_line); */
-				/* else */
-					/* hdmitx_dfm_cfg(2, 0); */
 			}
 			pr_info("%s hc_active: %d, need full_bw: %d, tri_bytes_per_line: %d, dfm_type: %d\n",
 				__func__, hc_active, ret, tri_bytes_per_line, dfm_type);
+
+		} else {
+			fifo_flow_enable_intrs(1);
 		}
-		if (hdev->rxcap.max_frl_rate)
+		if (hdev->rxcap.max_frl_rate && hdev->frl_rate)
 			frl_tx_training_handler(hdev);
 	}
 	return 0;
@@ -2881,10 +2909,12 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 	case MISC_TMDS_PHY_OP:
 		if (argv == TMDS_PHY_ENABLE) {
 			hdmitx_phy_pre_init(hdev);
-			hdmi_phy_wakeup(hdev);  /* TODO */
+			hdmi_phy_wakeup(hdev); /* TODO */
+			fifo_flow_enable_intrs(1);
 		}
 		if (argv == TMDS_PHY_DISABLE) {
 			/* as did in echo -1 > hdcp_mode in hdmitx20 */
+			fifo_flow_enable_intrs(0);
 			hdmitx21_disable_hdcp(hdev);
 			hdmi_phy_suspend();
 		}
