@@ -69,7 +69,8 @@
 /* optimize unnormal_format check logic */
 /* 2023.05.05 core reset when afifo overflow */
 /* 2023.05.24 fix 1366*768 identify to 1360*768 */
-#define RX_VER1 "ver.2023/5/24"
+/* 2023.07.05 clear dv packet when no emp */
+#define RX_VER1 "ver.2023/7/5"
 
 /*
  * Currently, a total of 5 VSIF packages are supported,

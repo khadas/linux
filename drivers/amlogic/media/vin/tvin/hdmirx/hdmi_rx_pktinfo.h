@@ -1210,6 +1210,7 @@ void rx_get_pd_fifo_param(enum pkt_type_e pkt_type,
 void rx_get_avi_info(struct avi_infoframe_st *st_pkt);
 void rx_get_em_info(void);
 void rx_get_aif_info(void);
+void rx_check_pkt_flag(void);
 void dump_pktinfo_status(void);
 int rx_is_specific_20_dev(void);
 #endif

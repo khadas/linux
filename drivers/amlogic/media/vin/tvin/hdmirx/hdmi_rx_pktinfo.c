@@ -1302,7 +1302,11 @@ u32 rx_pkt_chk_attach_vsi(void)
 
 void rx_pkt_clr_attach_vsi(void)
 {
+	u8 i = 0;
+
 	rxpktsts.pkt_attach_vsi = 0;
+	while (i < VSI_TYPE_MAX)
+		memset(&rx_pkt.multi_vs_info[i++], 0, sizeof(struct pd_infoframe_s));
 }
 
 u32 rx_pkt_chk_updated_spd(void)
@@ -1329,6 +1333,13 @@ u32 rx_pkt_chk_attach_drm(void)
 void rx_pkt_clr_attach_drm(void)
 {
 	rxpktsts.pkt_attach_drm = 0;
+}
+
+void rx_check_pkt_flag(void)
+{
+	if (!(rxpktsts.pkt_op_flag & PKT_OP_VSI))
+		rx_pkt_clr_attach_vsi();
+	//other pkts, todo
 }
 
 u32 rx_pkt_chk_busy_vsi(void)
@@ -1651,6 +1662,7 @@ void rx_get_vsi_info(void)
 	rx.emp_buff.emp_tagid = 0;
 	/* pkt->ieee = 0; */
 	/* memset(&rx_pkt.vs_info, 0, sizeof(struct pd_infoframe_s)); */
+	rxpktsts.pkt_op_flag &= ~PKT_OP_VSI;
 }
 
 void rx_pkt_buffclear(enum pkt_type_e pkt_type)
@@ -2123,7 +2135,6 @@ int rx_pkt_fifodecode(struct packet_info_s *prx,
 			pktsts->pkt_cnt_vsi++;
 		}
 		rxpktsts.dv_pkt_num++;
-		pktsts->pkt_op_flag |= PKT_OP_VSI;
 		memcpy(&prx->vs_info, pktdata,
 		       sizeof(struct pd_infoframe_s));
 #else
@@ -2164,7 +2175,7 @@ int rx_pkt_fifodecode(struct packet_info_s *prx,
 			break;
 		}
 #endif
-		pktsts->pkt_op_flag &= ~PKT_OP_VSI;
+		pktsts->pkt_op_flag |= PKT_OP_VSI;
 		break;
 	case PKT_TYPE_INFOFRAME_AVI:
 		pktsts->pkt_cnt_avi++;
