@@ -1099,9 +1099,9 @@ static void in_buffer_put(struct dimn_itf_s *itf, struct di_buffer *buffer)
 	if (itf->nitf_parm.ops.empty_input_done) {
 		itf->c.sum_pre_put++;
 		itf->nitf_parm.ops.empty_input_done(buffer);
-#if defined(DBG_QUE_IN_OUT) || defined(DBG_QUE_INTERFACE)
-		dbg_plink3("ins:empty_done:0x%px\n", buffer);
-#endif
+//#if defined(DBG_QUE_IN_OUT) || defined(DBG_QUE_INTERFACE)
+		dbg_plink2("ins:empty_done:0x%px,0x%px\n", buffer, buffer->vf);
+//#endif
 	}
 }
 
@@ -3935,7 +3935,6 @@ static void dct_pst(const struct reg_acc *op, struct dimn_dvfm_s *ndvfm)
 			ndvfm->c.dct_pre, pch->dct_pre);
 		return;
 	}
-	//vf = ndvfm->c.ori_vf;
 	vf = &ndvfm->c.vf_in_cp;
 	vf->decontour_pre = ndvfm->c.dct_pre;
 	dcntr_check(vf);
@@ -5603,6 +5602,10 @@ static void dpvpp_vf_put(struct vframe_s *vf, struct dimn_itf_s *itf)
 	}
 	ds = itf->ds;
 	dvfm = (struct dimn_dvfm_s *)vf->private_data;
+	if (!dvfm) {
+		PR_ERR("%s private_data null:\n", __func__);
+		return;
+	}
 	if (dvfm->header.code != CODE_INS_LBF) {
 		PR_ERR("%s:%px,code err 0x%x\n",
 		       __func__, vf, dvfm->header.code);
@@ -5755,7 +5758,6 @@ static bool vf_m_in(struct dimn_itf_s *itf)
 		ndvfm = (struct dimn_dvfm_s *)mvf->private_data;
 		dim_print("%s:nvfm:0x%px\n", __func__, ndvfm);
 		memset(&ndvfm->c, 0, sizeof(ndvfm->c));
-		//memcpy(&ndvfm->c.vf_in_cp, vf, sizeof(ndvfm->c.vf_in_cp));
 		ndvfm->c.ori_in = vf;
 		ndvfm->c.ori_vf = vf;
 		ndvfm->c.cnt_in = itf->c.sum_pre_get;
@@ -6944,9 +6946,9 @@ static unsigned int dpvpp_is_bypass_dvfm(struct dvfm_s *dvfm, bool en_4k)
 		return EPVPP_BYPASS_REASON_SIZE_S;
 	if (dpvpp_is_bypass())
 		return EPVPP_BYPASS_REASON_DBG;
-	if (dvfm->vfs.src_fmt.sei_magic_code == SEI_MAGIC_CODE &&
-		(dvfm->vfs.src_fmt.fmt == VFRAME_SIGNAL_FMT_DOVI ||
-		dvfm->vfs.src_fmt.fmt == VFRAME_SIGNAL_FMT_DOVI_LL))
+	if (dvfm->vfs.sei_magic_code == SEI_MAGIC_CODE &&
+		(dvfm->vfs.fmt == VFRAME_SIGNAL_FMT_DOVI ||
+		dvfm->vfs.fmt == VFRAME_SIGNAL_FMT_DOVI_LL))
 		return EPVPP_BYPASS_REASON_DV_PATH;
 	if (dvfm->vfs.flag & VFRAME_FLAG_GAME_MODE)
 		return EPVPP_BYPASS_REASON_GAME_MODE;
@@ -8165,14 +8167,14 @@ enum DI_ERRORTYPE dpvpp_empty_input_buffer(struct dimn_itf_s *itf,
 	buffer_l->flag		= 0;
 	buffer_l->crcout	= 0;
 	buffer_l->nrcrcout	= 0;
-#if defined(DBG_QUE_IN_OUT) || defined(DBG_QUE_INTERFACE)
-	dbg_plink3("ins:in:0x%px:%d:0x%x\n",
+//#if defined(DBG_QUE_IN_OUT) || defined(DBG_QUE_INTERFACE)
+	dbg_plink2("ins:in:0x%px:%d:0x%x\n",
 		   buffer, ndvfm->c.cnt_in, buffer->flag);
-	dbg_plink3("ins:buffer[0x%px:0x%x]:vf[0x%px:0x%x]\n",
+	dbg_plink2("ins:buffer[0x%px:0x%x]:vf[0x%px:0x%x]\n",
 				buffer, buffer->flag,
 				buffer->vf, buffer->vf->type);
 
-#endif
+//#endif
 
 	itf->c.sum_pre_get++;
 	if (buffer->flag & DI_FLAG_EOS) {
@@ -8344,7 +8346,7 @@ enum DI_ERRORTYPE dpvpp_fill_output_buffer(struct dimn_itf_s *itf,
 		return DI_ERR_UNSUPPORT;
 	}
 	qback = &ds->lk_que_kback;
-	dbg_plink3("fill_output_buffer:in:0x%px:0x%px,0x%x\n",
+	dbg_plink2("fill_output_buffer:in:0x%px:0x%px,0x%x\n",
 		   buffer, vf, buffer->flag);
 	qback->ops.put(qback, vf);
 	task_send_wk_timer(EDIM_WKUP_REASON_BACK_BUF);
@@ -8425,12 +8427,12 @@ void dpvpp_ins_fill_out(struct dimn_itf_s *itf)
 			itf->c.sum_pst_get++;
 			itf->nitf_parm.ops.empty_input_done(buffer);
 			itf->c.sum_pre_put++;
-#if defined(DBG_QUE_IN_OUT) || defined(DBG_QUE_INTERFACE)
-			dbg_plink3("ins:out_done:bypass:0x%px:0x%x\n",
+//#if defined(DBG_QUE_IN_OUT) || defined(DBG_QUE_INTERFACE)
+			dbg_plink2("ins:out_done:bypass:0x%px:0x%x\n",
 				   buffer, buffer->flag);
-			dbg_plink3("ins:empty_done:bypass:0x%px:0x%x\n",
+			dbg_plink2("ins:empty_done:bypass:0x%px:0x%x\n",
 				   buffer->vf, buffer->vf->type);
-#endif
+//#endif
 		} else {
 			/*tmp*/
 			ndvfm = (struct dimn_dvfm_s *)buffer->vf->private_data;
@@ -8439,14 +8441,14 @@ void dpvpp_ins_fill_out(struct dimn_itf_s *itf)
 
 			itf->nitf_parm.ops.fill_output_done(buffer);
 			itf->c.sum_pst_get++;
-#if defined(DBG_QUE_IN_OUT) || defined(DBG_QUE_INTERFACE)
-			dbg_plink3("ins:out_done:0x%px,ch[0x%x]:%d:%d:0x%x\n",
+//#if defined(DBG_QUE_IN_OUT) || defined(DBG_QUE_INTERFACE)
+			dbg_plink2("ins:out_done:0x%px,ch[0x%x]:%d:%d:0x%x\n",
 				   buffer, buffer->mng.ch, buffer->mng.index,
 				   ndvfm->c.cnt_in, buffer->flag);
-			dbg_plink3("\t:vf:0x%x,0x%x,0x%x\n",
+			dbg_plink2("\t:vf:0x%x,0x%x,0x%x\n",
 				   buffer->vf->type, buffer->vf->flag,
 				   buffer->vf->di_flag);
-#endif
+//#endif
 		}
 	}
 }
@@ -8609,6 +8611,12 @@ bool dpvpp_try_reg(struct di_ch_s *pch, struct vframe_s *vfm)
 	    (vfm->type & VIDTYPE_TYPEMASK) == VIDTYPE_PROGRESSIVE &&
 	    !(vfm->type & VIDTYPE_FORCE_SIGN_IP_JOINT)) {
 		ponly_enable = true;
+	}
+
+	if (vfm->flag & VFRAME_FLAG_GAME_MODE ||
+		get_vframe_src_fmt(vfm) == VFRAME_SIGNAL_FMT_DOVI ||
+		get_vframe_src_fmt(vfm) == VFRAME_SIGNAL_FMT_DOVI_LL) {
+		ponly_enable = false;
 	}
 
 	if (!ponly_enable) {
