@@ -268,5 +268,6 @@ void hpre_gl_read(void);
 void cvsi_cfg(struct dim_cvsi_s	*pcvsi);
 void dim_secure_sw_pre(unsigned char ch);
 void dim_secure_sw_post(unsigned char ch);
+const unsigned int *mif_reg_get_v3(void);
 
 #endif /* __DI_HW_V3_H__ */

@@ -158,6 +158,8 @@ s32 di_request_afbc_hw(u8 id, bool on);
 unsigned int afbce_read_used(enum EAFBC_ENC enc);
 void afbcd_enable_only_t5dvb(const struct reg_acc *op, bool vpp_link);
 void disable_afbcd_t5dvb(void);
+const unsigned int *afbc_get_inp_base(void);
+
 //bool cfg_pmode(void);
 //bool cfg_test4k(void);
 //bool dbg_di_prelink(void);

@@ -1791,7 +1791,7 @@ static const unsigned int mif_contr_reg_v3[MIF_REG_NUB] = {
 		RDMIFXN_LUMA_FIFO_SIZE,
 };
 
-static const unsigned int *mif_reg_get_v3(void)
+const unsigned int *mif_reg_get_v3(void)
 {
 	return &mif_contr_reg_v3[0];
 }

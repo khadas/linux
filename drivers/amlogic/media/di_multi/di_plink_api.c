@@ -23,6 +23,7 @@
 #include "di_reg_v3.h"
 #include "di_hw_v3.h"
 #include "di_reg_v2.h"
+#include "di_afbc_v3.h"
 
 #include "register.h"
 #include "register_nr4.h"
@@ -6539,25 +6540,41 @@ static void dpvpph_pre_data_mif_ctrl(bool enable, const struct reg_acc *op_in)
  * reverse_mif control mirror mode
  * copy from dim_post_read_reverse_irq
  */
+
 static void dpvpph_reverse_mif_ctrl(bool reverse, unsigned int hv_mirror,
 		const struct reg_acc *op_in)
 {
+	const unsigned int *reg;
+	unsigned int reg_addr;
+	unsigned int mif_reg_addr;
+	const unsigned int *mif_reg;
+
+	reg = afbc_get_inp_base();
+	mif_reg = mif_reg_get_v3();
+	if (!mif_reg || !reg)
+		return;
+
+	reg_addr = reg[EAFBC_MODE];
+	mif_reg_addr = mif_reg[MIF_GEN_REG2];
+	if (DIM_IS_IC(T5DB) || DIM_IS_IC(T5))
+		mif_reg_addr = DI_INP_GEN_REG2;
+
 	if (reverse) {
-		op_in->bwr(DI_INP_GEN_REG2, 3, 2, 2);
-		op_in->bwr(AFBCDM_MODE, 3, 26, 2);//AFBC_MODE
+		op_in->bwr(mif_reg_addr, 3, 2, 2);
+		op_in->bwr(reg_addr, 3, 26, 2);//AFBC_MODE
 	} else if (hv_mirror == 1) {
-		op_in->bwr(DI_INP_GEN_REG2,  1, 2, 1);
-		op_in->bwr(DI_INP_GEN_REG2,  0, 3, 1);
-		op_in->bwr(AFBCDM_MODE, 1, 26, 1);//AFBC_MODE
-		op_in->bwr(AFBCDM_MODE, 0, 27, 1);//AFBC_MODE
-	} else if (hv_mirror == 2)  {
-		op_in->bwr(DI_INP_GEN_REG2,  0, 2, 1);
-		op_in->bwr(DI_INP_GEN_REG2,  1, 3, 1);
-		op_in->bwr(AFBCDM_MODE, 0, 26, 1);//AFBC_MODE
-		op_in->bwr(AFBCDM_MODE, 1, 27, 1);//AFBC_MODE
+		op_in->bwr(mif_reg_addr,  1, 2, 1);
+		op_in->bwr(mif_reg_addr,  0, 3, 1);
+		op_in->bwr(reg_addr, 1, 26, 1);//AFBC_MODE
+		op_in->bwr(reg_addr, 0, 27, 1);//AFBC_MODE
+	} else if (hv_mirror == 2) {
+		op_in->bwr(mif_reg_addr,  0, 2, 1);
+		op_in->bwr(mif_reg_addr,  1, 3, 1);
+		op_in->bwr(reg_addr, 0, 26, 1);//AFBC_MODE
+		op_in->bwr(reg_addr, 1, 27, 1);//AFBC_MODE
 	} else {
-		op_in->bwr(DI_INP_GEN_REG2,  0, 2, 2);
-		op_in->bwr(AFBCDM_MODE, 0, 26, 2);//AFBC_MODE
+		op_in->bwr(mif_reg_addr,  0, 2, 2);
+		op_in->bwr(reg_addr, 0, 26, 2);//AFBC_MODE
 	}
 }
 
@@ -7608,8 +7625,8 @@ static void dpvpph_display_update_all(struct dim_prevpp_ds_s *ds,
 #else
 		opl1()->pre_mif_sw(true, op_in, true);
 #endif
-		dpvpph_reverse_mif_ctrl(ds->dis_para_demo2.plink_reverse,
-							ds->dis_para_demo2.plink_hv_mirror, op_in);
+		dpvpph_reverse_mif_ctrl(hw->dis_c_para.plink_reverse,
+							hw->dis_c_para.plink_hv_mirror, op_in);
 		dpvpph_pre_frame_reset_g12(!hw->en_pst_wr_test, op_in);
 	} else { /* not test */
 		dpvpph_pre_frame_reset(op_in);
@@ -7916,8 +7933,8 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 #else
 		opl1()->pre_mif_sw(true, op_in, true);
 #endif
-		dpvpph_reverse_mif_ctrl(ds->dis_para_demo2.plink_reverse,
-							ds->dis_para_demo2.plink_hv_mirror, op_in);
+		dpvpph_reverse_mif_ctrl(hw->dis_c_para.plink_reverse,
+							hw->dis_c_para.plink_hv_mirror, op_in);
 		dpvpph_pre_frame_reset_g12(!hw->en_pst_wr_test, op_in);
 	} else {
 		dpvpph_pre_frame_reset(op_in);

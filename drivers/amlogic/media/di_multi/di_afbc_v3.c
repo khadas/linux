@@ -940,7 +940,7 @@ static u32 dbg_request_afbc(bool onoff)
 	return afbc_busy;
 }
 
-static const unsigned int *afbc_get_inp_base(void)
+const unsigned int *afbc_get_inp_base(void)
 {
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
 
