@@ -100,6 +100,7 @@
 /*  V2.1.106 fix no signal after system resume */
 /*  V2.1.107 add ATSC Monitor call for r842 */
 /*  V2.1.108 fix dvbc qam instability or lock time is too long */
+/*  V2.1.109 fix dvbt overflow by new methods when BW 6M GI 1/4 */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -116,8 +117,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.1.108"
-#define DTVDEMOD_VER	"2023/07/14: fix dvbc qam instability or lock time is too long"
+#define AMLDTVDEMOD_VER "V2.1.109"
+#define DTVDEMOD_VER	"2023/07/18: fix dvbt overflow by new methods when BW 6M GI 1/4"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

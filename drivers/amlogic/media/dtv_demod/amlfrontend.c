@@ -1077,8 +1077,8 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	/* porting from ST driver FE_368dvbt_LockFec() */
 	if (ilock) {
 		if (demod->bw == BANDWIDTH_6_MHZ && (dvbt_t2_rdb(0x2744) & 0xf) == 0x3 &&
-			dvbt_t2_rdb(0x5d0) != 0x2)
-			dvbt_t2_wrb(0x5d0, 0x2);
+			dvbt_t2_rdb(0x5d0) != 0x80)
+			dvbt_t2_wrb(0x5d0, 0x80);
 
 		do {
 			dvbt_t2_wr_byte_bits(0x53d, 0, 6, 1);
