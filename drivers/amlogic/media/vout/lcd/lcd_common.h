@@ -61,7 +61,8 @@
 /* 20230406: add a4 support*/
 /* 20230510: support tcon fw*/
 /* 20230525: update tcon debug support */
-#define LCD_DRV_VERSION    "20230525"
+/* 20230706: Resolve conflicts where DLG changeed and vrr set tcon data at the same time*/
+#define LCD_DRV_VERSION    "20230706"
 
 extern struct mutex lcd_vout_mutex;
 

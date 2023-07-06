@@ -958,6 +958,7 @@ int lcd_tcon_reload_pre(struct aml_lcd_drv_s *pdrv)
 	if (ret)
 		return -1;
 
+	lcd_tcon_conf->tcon_is_busy = 1;
 	if (lcd_tcon_conf->tcon_reload_pre)
 		lcd_tcon_conf->tcon_reload_pre(pdrv);
 
@@ -974,6 +975,7 @@ int lcd_tcon_reload(struct aml_lcd_drv_s *pdrv)
 
 	if (lcd_tcon_conf->tcon_reload)
 		lcd_tcon_conf->tcon_reload(pdrv);
+	lcd_tcon_conf->tcon_is_busy = 0;
 
 	return 0;
 }
@@ -1710,6 +1712,9 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 	if ((pdrv->status & LCD_STATUS_IF_ON) == 0)
 		return;
 	if (pdrv->tcon_isr_bypass)
+		return;
+
+	if (lcd_tcon_conf->tcon_is_busy)
 		return;
 
 	if (tcon_mm_table.version) {
@@ -3079,6 +3084,7 @@ static void lcd_tcon_get_config_work(struct work_struct *p_work)
  */
 static struct lcd_tcon_config_s tcon_data_tl1 = {
 	.tcon_valid = 0,
+	.tcon_is_busy = 0,
 
 	.core_reg_ver = 0,
 	.core_reg_width = LCD_TCON_CORE_REG_WIDTH_TL1,
@@ -3124,6 +3130,7 @@ static struct lcd_tcon_config_s tcon_data_tl1 = {
 
 static struct lcd_tcon_config_s tcon_data_t5 = {
 	.tcon_valid = 0,
+	.tcon_is_busy = 0,
 
 	.core_reg_ver = 1, /* new version with header */
 	.core_reg_width = LCD_TCON_CORE_REG_WIDTH_T5,
@@ -3169,6 +3176,7 @@ static struct lcd_tcon_config_s tcon_data_t5 = {
 
 static struct lcd_tcon_config_s tcon_data_t5d = {
 	.tcon_valid = 0,
+	.tcon_is_busy = 0,
 
 	.core_reg_ver = 1, /* new version with header */
 	.core_reg_width = LCD_TCON_CORE_REG_WIDTH_T5D,
@@ -3210,6 +3218,7 @@ static struct lcd_tcon_config_s tcon_data_t5d = {
 
 static struct lcd_tcon_config_s tcon_data_t3 = {
 	.tcon_valid = 0,
+	.tcon_is_busy = 0,
 
 	.core_reg_ver = 1, /* new version with header */
 	.core_reg_width = LCD_TCON_CORE_REG_WIDTH_T5,
@@ -3255,6 +3264,7 @@ static struct lcd_tcon_config_s tcon_data_t3 = {
 
 static struct lcd_tcon_config_s tcon_data_t5w = {
 	.tcon_valid = 0,
+	.tcon_is_busy = 0,
 
 	.core_reg_ver = 1, /* new version with header */
 	.core_reg_width = LCD_TCON_CORE_REG_WIDTH_T5,

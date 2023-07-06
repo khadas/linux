@@ -22,6 +22,7 @@
 
 struct lcd_tcon_config_s {
 	unsigned char tcon_valid;
+	unsigned char tcon_is_busy;
 
 	unsigned int core_reg_ver;
 	unsigned int core_reg_width;
