@@ -21,24 +21,17 @@
 #include <linux/sched/clock.h>
 #include <linux/amlogic/media/vout/peripheral_lcd.h>
 #include <linux/io.h>
-#include "peripheral_lcd_drv.h"
-#include "peripheral_lcd_dev.h"
+#include <linux/delay.h>
+#include "../peripheral_lcd_drv.h"
 
 #define CFG_WR_DATA_TOGETHER	1
 #define CFG_VIRTUL_REG	1
 
 #define CFG_RS_SEL_OUT	(1)
 
-static int init_flag;
 static unsigned int vir_reg_pad_gpio0_o;
 static void *vir_io_base;
-static struct per_lcd_dev_config_s *dev_conf;
-unsigned int rgb565_color_data[8] = {0xffff, 0xf800, 0x7e0, 0x7ff,
-				     0xf81f, 0xffe0, 0x0000, 0x001f};
-unsigned int rgb666_color_data[8] = {0x3ffff, 0x3f000, 0x00fc0, 0x00fff,
-				     0x3f03f, 0x3ffc0, 0x00000, 0x0003f};
-unsigned int rgb888_color_data[8] = {0xffffff, 0xff0000, 0x00ff00, 0x00ffff,
-				     0xff00ff, 0xffff00, 0x000000, 0x0000ff};
+
 unsigned long long test_t[3];
 /**
  * GPIO simulating intel 8080 8bits interface
@@ -57,10 +50,10 @@ static inline void clrCS(void)
 {
 	//CLR_CS;
 #if (CFG_VIRTUL_REG)
-	vir_reg_pad_gpio0_o &= ~(1 << dev_conf->nCS_index);
+	vir_reg_pad_gpio0_o &= ~(1 << plcd_drv->pcfg->i8080_cfg.nCS_index);
 	writel(vir_reg_pad_gpio0_o, vir_io_base);
 #else
-	per_lcd_gpio_set(dev_conf->nCS_index, 0);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.nCS_index, 0);
 #endif
 };
 
@@ -68,10 +61,10 @@ static inline void setCS(void)
 {
 	//SET_CS;
 #if (CFG_VIRTUL_REG)
-	vir_reg_pad_gpio0_o |= 1 << dev_conf->nCS_index;
+	vir_reg_pad_gpio0_o |= 1 << plcd_drv->pcfg->i8080_cfg.nCS_index;
 	writel(vir_reg_pad_gpio0_o, vir_io_base);
 #else
-	per_lcd_gpio_set(dev_conf->nCS_index, 1);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.nCS_index, 1);
 #endif
 };
 
@@ -79,10 +72,10 @@ static inline void clrRESET(void)
 {
 	//clrRESET();
 #if (CFG_VIRTUL_REG)
-	vir_reg_pad_gpio0_o &= ~(1 << dev_conf->reset_index);
+	vir_reg_pad_gpio0_o &= ~(1 << plcd_drv->pcfg->i8080_cfg.reset_index);
 	writel(vir_reg_pad_gpio0_o, vir_io_base);
 #else
-	per_lcd_gpio_set(dev_conf->reset_index, 0);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.reset_index, 0);
 #endif
 };
 
@@ -90,10 +83,10 @@ static inline void setRESET(void)
 {
 	//setRESET();
 #if (CFG_VIRTUL_REG)
-	vir_reg_pad_gpio0_o |= 1 << dev_conf->reset_index;
+	vir_reg_pad_gpio0_o |= 1 << plcd_drv->pcfg->i8080_cfg.reset_index;
 	writel(vir_reg_pad_gpio0_o, vir_io_base);
 #else
-	per_lcd_gpio_set(dev_conf->reset_index, 1);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.reset_index, 1);
 #endif
 };
 
@@ -101,10 +94,10 @@ static inline void clrRS(void)
 {
 	//CLR_RS;
 #if (CFG_VIRTUL_REG)
-	vir_reg_pad_gpio0_o &= ~(1 << dev_conf->nRS_index);
+	vir_reg_pad_gpio0_o &= ~(1 << plcd_drv->pcfg->i8080_cfg.nRS_index);
 	writel(vir_reg_pad_gpio0_o, vir_io_base);
 #else
-	per_lcd_gpio_set(dev_conf->nRS_index, 0);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.nRS_index, 0);
 #endif
 };
 
@@ -112,10 +105,10 @@ static inline void setRS(void)
 {
 	//setRS();
 #if (CFG_VIRTUL_REG)
-	vir_reg_pad_gpio0_o |= 1 << dev_conf->nRS_index;
+	vir_reg_pad_gpio0_o |= 1 << plcd_drv->pcfg->i8080_cfg.nRS_index;
 	writel(vir_reg_pad_gpio0_o, vir_io_base);
 #else
-	per_lcd_gpio_set(dev_conf->nRS_index, 1);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.nRS_index, 1);
 #endif
 };
 
@@ -123,10 +116,10 @@ static inline void clrWR(void)
 {
 	//clrWR();
 #if (CFG_VIRTUL_REG)
-	vir_reg_pad_gpio0_o &= ~(1 << dev_conf->nWR_index);
+	vir_reg_pad_gpio0_o &= ~(1 << plcd_drv->pcfg->i8080_cfg.nWR_index);
 	writel(vir_reg_pad_gpio0_o, vir_io_base);
 #else
-	per_lcd_gpio_set(dev_conf->nWR_index, 0);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.nWR_index, 0);
 #endif
 };
 
@@ -134,10 +127,10 @@ static inline void setWR(void)
 {
 	//setWR();
 #if (CFG_VIRTUL_REG)
-	vir_reg_pad_gpio0_o |= 1 << dev_conf->nWR_index;
+	vir_reg_pad_gpio0_o |= 1 << plcd_drv->pcfg->i8080_cfg.nWR_index;
 	writel(vir_reg_pad_gpio0_o, vir_io_base);
 #else
-	per_lcd_gpio_set(dev_conf->nWR_index, 1);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.nWR_index, 1);
 #endif
 };
 
@@ -145,10 +138,10 @@ static inline void clrRD(void)
 {
 	//clrRD();
 #if (CFG_VIRTUL_REG)
-	vir_reg_pad_gpio0_o &= ~(1 << dev_conf->nRD_index);
+	vir_reg_pad_gpio0_o &= ~(1 << plcd_drv->pcfg->i8080_cfg.nRD_index);
 	writel(vir_reg_pad_gpio0_o, vir_io_base);
 #else
-	per_lcd_gpio_set(dev_conf->nRD_index, 0);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.nRD_index, 0);
 #endif
 };
 
@@ -156,10 +149,10 @@ static inline void setRD(void)
 {
 	//setRD();
 #if (CFG_VIRTUL_REG)
-	vir_reg_pad_gpio0_o |= 1 << dev_conf->nRD_index;
+	vir_reg_pad_gpio0_o |= 1 << plcd_drv->pcfg->i8080_cfg.nRD_index;
 	writel(vir_reg_pad_gpio0_o, vir_io_base);
 #else
-	per_lcd_gpio_set(dev_conf->nRD_index, 1);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.nRD_index, 1);
 #endif
 };
 
@@ -167,24 +160,24 @@ static inline void parallel_clk_direction(uint8_t dir)
 {
 #if (CFG_VIRTUL_REG)
 	if (dir)
-		vir_reg_pad_gpio0_o |= (1 << dev_conf->nRD_index) |
-			(1 << dev_conf->reset_index) |
-			(1 << dev_conf->nWR_index) |
-			(1 << dev_conf->nRS_index) |
-			(1 << dev_conf->nCS_index);
+		vir_reg_pad_gpio0_o |= (1 << plcd_drv->pcfg->i8080_cfg.nRD_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.reset_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.nWR_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.nRS_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.nCS_index);
 	else
-		vir_reg_pad_gpio0_o &= ~((1 << dev_conf->nRD_index) |
-			(1 << dev_conf->reset_index) |
-			(1 << dev_conf->nWR_index) |
-			(1 << dev_conf->nRS_index) |
-			(1 << dev_conf->nCS_index));
+		vir_reg_pad_gpio0_o &= ~((1 << plcd_drv->pcfg->i8080_cfg.nRD_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.reset_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.nWR_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.nRS_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.nCS_index));
 	writel(vir_reg_pad_gpio0_o, vir_io_base);
 #else
-	per_lcd_gpio_set(dev_conf->reset_index, dir);
-	per_lcd_gpio_set(dev_conf->nRS_index, dir);
-	per_lcd_gpio_set(dev_conf->nRD_index, dir);
-	per_lcd_gpio_set(dev_conf->nWR_index, dir);
-	per_lcd_gpio_set(dev_conf->nCS_index, dir);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.reset_index, dir);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.nRS_index, dir);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.nRD_index, dir);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.nWR_index, dir);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.nCS_index, dir);
 #endif
 }
 
@@ -193,36 +186,36 @@ static inline void parallel_data_direction(uint8_t dir)
 	/* TODO: */
 #if (CFG_VIRTUL_REG)
 	if (dir)
-		vir_reg_pad_gpio0_o |= (1 << dev_conf->data0_index) |
-			(1 << dev_conf->data1_index) |
-			(1 << dev_conf->data2_index) |
-			(1 << dev_conf->data3_index) |
-			(1 << dev_conf->data4_index) |
-			(1 << dev_conf->data5_index) |
-			(1 << dev_conf->data6_index) |
-			(1 << dev_conf->data7_index);
+		vir_reg_pad_gpio0_o |= (1 << plcd_drv->pcfg->i8080_cfg.data0_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.data1_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.data2_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.data3_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.data4_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.data5_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.data6_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.data7_index);
 	else
 		vir_reg_pad_gpio0_o &=
-			~((1 << dev_conf->data0_index) |
-			(1 << dev_conf->data1_index) |
-			(1 << dev_conf->data2_index) |
-			(1 << dev_conf->data3_index) |
-			(1 << dev_conf->data4_index) |
-			(1 << dev_conf->data5_index) |
-			(1 << dev_conf->data6_index) |
-			(1 << dev_conf->data7_index));
+			~((1 << plcd_drv->pcfg->i8080_cfg.data0_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.data1_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.data2_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.data3_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.data4_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.data5_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.data6_index) |
+			(1 << plcd_drv->pcfg->i8080_cfg.data7_index));
 
 	writel(vir_reg_pad_gpio0_o, vir_io_base);
 #else
-	per_lcd_gpio_set(dev_conf->data0_index, dir);
-	per_lcd_gpio_set(dev_conf->data1_index, dir);
-	per_lcd_gpio_set(dev_conf->data2_index, dir);
-	per_lcd_gpio_set(dev_conf->data3_index, dir);
-	per_lcd_gpio_set(dev_conf->data4_index, dir);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.data0_index, dir);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.data1_index, dir);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.data2_index, dir);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.data3_index, dir);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.data4_index, dir);
 	LCDPR("%s: read gpio_reg:0x%x\n", __func__, vir_reg_pad_gpio0_o);
-	per_lcd_gpio_set(dev_conf->data5_index, dir);
-	per_lcd_gpio_set(dev_conf->data6_index, dir);
-	per_lcd_gpio_set(dev_conf->data7_index, dir);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.data5_index, dir);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.data6_index, dir);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.data7_index, dir);
 #endif
 }
 
@@ -231,41 +224,34 @@ static inline void parallel_data_set(unsigned char data)
 	unsigned int mask, val;
 #if (CFG_VIRTUL_REG)
 	/* TODO */
-	mask = (0x1 << dev_conf->data0_index) |
-	       (0x1 << dev_conf->data1_index) |
-	       (0x1 << dev_conf->data2_index) |
-	       (0x1 << dev_conf->data3_index) |
-	       (0x1 << dev_conf->data4_index) |
-	       (0x1 << dev_conf->data5_index) |
-	       (0x1 << dev_conf->data6_index) |
-	       (0x1 << dev_conf->data7_index);
-	val = ((data & 0x1) << dev_conf->data0_index) |
-	      (((data >> 0x1) & 0x1) << dev_conf->data1_index) |
-	      (((data >> 0x2) & 0x1) << dev_conf->data2_index) |
-	      (((data >> 0x3) & 0x1) << dev_conf->data3_index) |
-	      (((data >> 0x4) & 0x1) << dev_conf->data4_index) |
-	      (((data >> 0x5) & 0x1) << dev_conf->data5_index) |
-	      (((data >> 0x6) & 0x1) << dev_conf->data6_index) |
-	      (((data >> 0x7) & 0x1) << dev_conf->data7_index);
+	mask = (0x1 << plcd_drv->pcfg->i8080_cfg.data0_index) |
+	       (0x1 << plcd_drv->pcfg->i8080_cfg.data1_index) |
+	       (0x1 << plcd_drv->pcfg->i8080_cfg.data2_index) |
+	       (0x1 << plcd_drv->pcfg->i8080_cfg.data3_index) |
+	       (0x1 << plcd_drv->pcfg->i8080_cfg.data4_index) |
+	       (0x1 << plcd_drv->pcfg->i8080_cfg.data5_index) |
+	       (0x1 << plcd_drv->pcfg->i8080_cfg.data6_index) |
+	       (0x1 << plcd_drv->pcfg->i8080_cfg.data7_index);
+	val = ((data & 0x1) << plcd_drv->pcfg->i8080_cfg.data0_index) |
+	      (((data >> 0x1) & 0x1) << plcd_drv->pcfg->i8080_cfg.data1_index) |
+	      (((data >> 0x2) & 0x1) << plcd_drv->pcfg->i8080_cfg.data2_index) |
+	      (((data >> 0x3) & 0x1) << plcd_drv->pcfg->i8080_cfg.data3_index) |
+	      (((data >> 0x4) & 0x1) << plcd_drv->pcfg->i8080_cfg.data4_index) |
+	      (((data >> 0x5) & 0x1) << plcd_drv->pcfg->i8080_cfg.data5_index) |
+	      (((data >> 0x6) & 0x1) << plcd_drv->pcfg->i8080_cfg.data6_index) |
+	      (((data >> 0x7) & 0x1) << plcd_drv->pcfg->i8080_cfg.data7_index);
 	vir_reg_pad_gpio0_o = ((vir_reg_pad_gpio0_o & (~mask)) | val);
 	writel(vir_reg_pad_gpio0_o, vir_io_base);
 #else
 	/* TODO */
-	per_lcd_gpio_set(dev_conf->data0_index, data & 0x1);
-	per_lcd_gpio_set(dev_conf->data1_index,
-				(data >> 1) & 0x1);
-	per_lcd_gpio_set(dev_conf->data2_index,
-				(data >> 2) & 0x1);
-	per_lcd_gpio_set(dev_conf->data3_index,
-				(data >> 3) & 0x1);
-	per_lcd_gpio_set(dev_conf->data4_index,
-				(data >> 4) & 0x1);
-	per_lcd_gpio_set(dev_conf->data5_index,
-				(data >> 5) & 0x1);
-	per_lcd_gpio_set(dev_conf->data6_index,
-				(data >> 6) & 0x1);
-	per_lcd_gpio_set(dev_conf->data7_index,
-				(data >> 7) & 0x1);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.data0_index, data & 0x1);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.data1_index, (data >> 1) & 0x1);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.data2_index, (data >> 2) & 0x1);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.data3_index, (data >> 3) & 0x1);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.data4_index, (data >> 4) & 0x1);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.data5_index, (data >> 5) & 0x1);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.data6_index, (data >> 6) & 0x1);
+	plcd_gpio_set(plcd_drv->pcfg->i8080_cfg.data7_index, (data >> 7) & 0x1);
 #endif
 }
 
@@ -274,24 +260,24 @@ static inline void parallel_data_wr_set(unsigned char data, unsigned char wr)
 {
 	unsigned int mask, val;
 	/* TODO */
-	mask = (0x1 << dev_conf->data0_index) |
-	       (0x1 << dev_conf->data1_index) |
-	       (0x1 << dev_conf->data2_index) |
-	       (0x1 << dev_conf->data3_index) |
-	       (0x1 << dev_conf->data4_index) |
-	       (0x1 << dev_conf->data5_index) |
-	       (0x1 << dev_conf->data6_index) |
-	       (0x1 << dev_conf->data7_index) |
-	       (0x1 << dev_conf->nWR_index);
-	val = ((data & 0x1) << dev_conf->data0_index) |
-	      (((data >> 0x1) & 0x1) << dev_conf->data1_index) |
-	      (((data >> 0x2) & 0x1) << dev_conf->data2_index) |
-	      (((data >> 0x3) & 0x1) << dev_conf->data3_index) |
-	      (((data >> 0x4) & 0x1) << dev_conf->data4_index) |
-	      (((data >> 0x5) & 0x1) << dev_conf->data5_index) |
-	      (((data >> 0x6) & 0x1) << dev_conf->data6_index) |
-	      (((data >> 0x7) & 0x1) << dev_conf->data7_index) |
-	      ((wr & 0x1) << dev_conf->nWR_index);
+	mask = (0x1 << plcd_drv->pcfg->i8080_cfg.data0_index) |
+	       (0x1 << plcd_drv->pcfg->i8080_cfg.data1_index) |
+	       (0x1 << plcd_drv->pcfg->i8080_cfg.data2_index) |
+	       (0x1 << plcd_drv->pcfg->i8080_cfg.data3_index) |
+	       (0x1 << plcd_drv->pcfg->i8080_cfg.data4_index) |
+	       (0x1 << plcd_drv->pcfg->i8080_cfg.data5_index) |
+	       (0x1 << plcd_drv->pcfg->i8080_cfg.data6_index) |
+	       (0x1 << plcd_drv->pcfg->i8080_cfg.data7_index) |
+	       (0x1 << plcd_drv->pcfg->i8080_cfg.nWR_index);
+	val = ((data & 0x1) << plcd_drv->pcfg->i8080_cfg.data0_index) |
+	      (((data >> 0x1) & 0x1) << plcd_drv->pcfg->i8080_cfg.data1_index) |
+	      (((data >> 0x2) & 0x1) << plcd_drv->pcfg->i8080_cfg.data2_index) |
+	      (((data >> 0x3) & 0x1) << plcd_drv->pcfg->i8080_cfg.data3_index) |
+	      (((data >> 0x4) & 0x1) << plcd_drv->pcfg->i8080_cfg.data4_index) |
+	      (((data >> 0x5) & 0x1) << plcd_drv->pcfg->i8080_cfg.data5_index) |
+	      (((data >> 0x6) & 0x1) << plcd_drv->pcfg->i8080_cfg.data6_index) |
+	      (((data >> 0x7) & 0x1) << plcd_drv->pcfg->i8080_cfg.data7_index) |
+	      ((wr & 0x1) << plcd_drv->pcfg->i8080_cfg.nWR_index);
 	vir_reg_pad_gpio0_o = ((vir_reg_pad_gpio0_o & (~mask)) | val);
 	writel(vir_reg_pad_gpio0_o, vir_io_base);
 }
@@ -312,14 +298,14 @@ static uint8_t read_data(void)
 	/* Set data to input */
 	parallel_data_direction(1);
 	clrRD();
-	per_lcd_delay_us(1);
+	plcd_usleep(1);
 	setRD();
-	per_lcd_delay_us(10);
+	plcd_usleep(10);
 	/* read from the port */
 	data = parallel_data_get();
 	/* Set data to output */
 	parallel_data_direction(0);
-	per_lcd_delay_us(10);
+	plcd_usleep(10);
 
 	return data;
 }
@@ -327,9 +313,9 @@ static uint8_t read_data(void)
 static void reset_display(void)
 {
 	clrRESET();
-	per_lcd_delay_us(15);
+	plcd_usleep(15);
 	setRESET();
-	per_lcd_delay_us(10);
+	plcd_usleep(10);
 	setRD();
 }
 
@@ -398,26 +384,6 @@ static void write_block_888(unsigned int data)
 	setWR();
 }
 
-static int frame_flush(void)
-{
-	return 0;
-}
-
-static int set_color_format(unsigned int cfmt)
-{
-	return 0;
-}
-
-static int set_gamma(unsigned char *table, unsigned int rgb_sel)
-{
-	return 0;
-}
-
-static int set_flush_rate(unsigned int rate)
-{
-	return 0;
-}
-
 static void write_color(unsigned int color)
 {
 #if (!CFG_RS_SEL_OUT)
@@ -469,14 +435,14 @@ void display_home(void)
 void enter_sleep(void)
 {
 	write_command(0x28);	// Display Off
-	per_lcd_delay_us(20);
+	plcd_usleep(20);
 	write_command(0x10);	// Sleep In (Low power mode)
 }
 
 void exit_sleep(void)
 {
 	write_command(0x11); // Exit Sleep Mode
-	per_lcd_delay_us(120);
+	plcd_usleep(120);
 	write_command(0x29); // Display on
 
 	write_command(0x2c); // Memory write
@@ -534,7 +500,7 @@ static void per_lcd_write_frame(unsigned char *addr, unsigned short x0,
 	}
 
 	/*data_format: 0: 888, 1: 666, 2: 565*/
-	if (dev_conf->data_format == 0) {
+	if (plcd_drv->pcfg->cfmt == CFMT_RGB888) {
 		for (i = 0; i < (write_size * 3); i += 3) {
 			buf[j] = (addr[i] & 0xff) |
 				((addr[i + 1] & 0xff) << 8) |
@@ -542,7 +508,7 @@ static void per_lcd_write_frame(unsigned char *addr, unsigned short x0,
 			write_block_888(buf[j]);
 			j++;
 		}
-	} else if (dev_conf->data_format == 1) {
+	} else if (plcd_drv->pcfg->cfmt == CFMT_RGB666_24B) {
 		for (i = 0; i < (write_size * 3); i += 3) {
 			buf[j] = (addr[i] & 0xff) |
 				((addr[i + 1] & 0xff) << 8) |
@@ -550,7 +516,7 @@ static void per_lcd_write_frame(unsigned char *addr, unsigned short x0,
 			write_block_888(buf[j]);
 			j++;
 		}
-	} else if (dev_conf->data_format == 2) {
+	} else if (plcd_drv->pcfg->cfmt == CFMT_RGB565) {
 		for (i = 0; i < (write_size * 2); i += 2) {
 			buf[j] = (addr[i] & 0xff) |
 				((addr[i + 1] & 0xff) << 8);
@@ -559,8 +525,7 @@ static void per_lcd_write_frame(unsigned char *addr, unsigned short x0,
 		}
 		LCDPR("buf data: %x\n", buf[0]);
 	} else {
-		LCDERR("unsupport data_format: %d\n",
-		       dev_conf->data_format);
+		LCDERR("unsupport data_format: %d\n", plcd_drv->pcfg->cfmt);
 	}
 	kfree(buf);
 	buf = NULL;
@@ -585,16 +550,16 @@ static void intel_8080_fill_screen_color(unsigned int index)
 	unsigned int size;
 	int i = 0;
 
-	if (dev_conf->data_format == 0)
+	if (plcd_drv->pcfg->cfmt == CFMT_RGB888)
 		c = rgb888_color_data[index];
-	else if (dev_conf->data_format == 1)
+	else if (plcd_drv->pcfg->cfmt == CFMT_RGB666_18B)
 		c = rgb666_color_data[index];
-	else if (dev_conf->data_format == 2)
+	else if (plcd_drv->pcfg->cfmt == CFMT_RGB565)
 		c = rgb565_color_data[i];
 	else
 		LCDERR("unsupport data_format\n");
 
-	size = dev_conf->row * dev_conf->col;
+	size = plcd_drv->pcfg->h * plcd_drv->pcfg->v;
 	buf = kmalloc((sizeof(unsigned short) * size), GFP_KERNEL);
 	if (!buf) {
 		LCDERR("%s: failed to alloc buf\n", __func__);
@@ -603,7 +568,7 @@ static void intel_8080_fill_screen_color(unsigned int index)
 	for (i = 0; i < size; i++)
 		buf[i] = c;
 
-	per_lcd_write_color(buf, 0, dev_conf->col, 0, dev_conf->row);
+	per_lcd_write_color(buf, 0, plcd_drv->pcfg->h, 0, plcd_drv->pcfg->v);
 	kfree(buf);
 	buf = NULL;
 }
@@ -631,7 +596,7 @@ void intel_8080_write_color_bars(void)
 #if (CFG_RS_SEL_OUT)
 	setRS();
 #endif
-	if (dev_conf->data_format == 0) {
+	if (plcd_drv->pcfg->cfmt == CFMT_RGB888) {
 		c0 = rgb888_color_data[0];
 		c1 = rgb888_color_data[1];
 		c2 = rgb888_color_data[2];
@@ -640,7 +605,7 @@ void intel_8080_write_color_bars(void)
 		c5 = rgb888_color_data[5];
 		c6 = rgb888_color_data[6];
 		c7 = rgb888_color_data[7];
-	} else if (dev_conf->data_format == 1) {
+	} else if (plcd_drv->pcfg->cfmt == CFMT_RGB666_18B) {
 		c0 = rgb666_color_data[0];
 		c1 = rgb666_color_data[1];
 		c2 = rgb666_color_data[2];
@@ -649,7 +614,7 @@ void intel_8080_write_color_bars(void)
 		c5 = rgb666_color_data[5];
 		c6 = rgb666_color_data[6];
 		c7 = rgb666_color_data[7];
-	} else if (dev_conf->data_format == 2) {
+	} else if (plcd_drv->pcfg->cfmt == CFMT_RGB565) {
 		c0 = rgb565_color_data[0];
 		c1 = rgb565_color_data[1];
 		c2 = rgb565_color_data[2];
@@ -662,8 +627,8 @@ void intel_8080_write_color_bars(void)
 		LCDERR("unsupport data_format\n");
 	}
 
-	for (i = 0; i < 320; i++) {
-		for (j = 0; j < 240; j++) {
+	for (i = 0; i < plcd_drv->pcfg->h; i++) {
+		for (j = 0; j < plcd_drv->pcfg->v; j++) {
 			if (i > 279)
 				write_color(c7);
 			else if (i > 239)
@@ -692,11 +657,11 @@ static int intel_8080_power_cmd_dynamic_size(int flag)
 	int delay_ms, ret = 0;
 
 	if (flag) {
-		table = dev_conf->init_on;
-		max_len = dev_conf->init_on_cnt;
+		table = plcd_drv->pcfg->init_on;
+		max_len = plcd_drv->pcfg->init_on_cnt;
 	} else {
-		table = dev_conf->init_off;
-		max_len = dev_conf->init_off_cnt;
+		table = plcd_drv->pcfg->init_off;
+		max_len = plcd_drv->pcfg->init_off_cnt;
 	}
 
 	while ((i + 1) < max_len) {
@@ -718,44 +683,34 @@ static int intel_8080_power_cmd_dynamic_size(int flag)
 			/* do nothing */
 		} else if (type == PER_LCD_CMD_TYPE_GPIO) {
 			if (cmd_size < 2) {
-				LCDERR("step %d: invalid cmd_size %d for GPIO\n",
-				      step, cmd_size);
+				LCDERR("step %d: invalid cmd_size %d for GPIO\n", step, cmd_size);
 				goto power_cmd_dynamic_next;
 			}
 			if (table[i + 2] < PER_GPIO_MAX) {
 #if (CFG_VIRTUL_REG)
 				if (table[i + 3])
-					vir_reg_pad_gpio0_o |=
-						1 << table[i + 2];
+					vir_reg_pad_gpio0_o |= 1 << table[i + 2];
 				else
-					vir_reg_pad_gpio0_o &=
-						~(1 << table[i + 2]);
-				writel(vir_reg_pad_gpio0_o,
-				       vir_io_base);
+					vir_reg_pad_gpio0_o &= ~(1 << table[i + 2]);
+				writel(vir_reg_pad_gpio0_o, vir_io_base);
 #else
-				per_lcd_gpio_set(table[i + 2],
-							table[i + 3]);
+				plcd_gpio_set(table[i + 2], table[i + 3]);
 #endif
 			}
-			if (cmd_size > 2) {
-				if (table[i + 4] > 0)
-					per_lcd_delay_ms(table[i + 4]);
-			}
+			if (cmd_size > 2)
+				plcd_usleep(table[i + 4] * 1000);
 		} else if (type == PER_LCD_CMD_TYPE_DELAY) {
 			delay_ms = 0;
 			for (j = 0; j < cmd_size; j++)
 				delay_ms += table[i + 2 + j];
-			if (delay_ms > 0)
-				per_lcd_delay_ms(delay_ms);
+			plcd_usleep(delay_ms * 1000);
 		} else if (type == PER_LCD_CMD_TYPE_CMD) {
 			intel_8080_wreg_buf(&table[i + 2], cmd_size);
-			per_lcd_delay_us(1);
+			plcd_usleep(1);
 		} else if (type == PER_LCD_CMD_TYPE_CMD_DELAY) {
 			intel_8080_wreg_buf(&table[i + 2], (cmd_size - 1));
-			per_lcd_delay_us(1);
-			if (table[i + cmd_size + 1] > 0)
-				per_lcd_delay_ms(table[i +
-							cmd_size + 1]);
+			plcd_usleep(1);
+			plcd_usleep(table[i + cmd_size + 1] * 1000);
 		} else {
 			LCDERR("%s: type 0x%02x invalid\n", __func__, type);
 		}
@@ -774,18 +729,18 @@ static int intel_8080_power_cmd_fixed_size(int flag)
 	unsigned char type, cmd_size;
 	int delay_ms, ret = 0;
 
-	cmd_size = dev_conf->cmd_size;
+	cmd_size = plcd_drv->pcfg->cmd_size;
 	if (cmd_size < 2) {
 		LCDERR("%s: invalid cmd_size %d\n", __func__, cmd_size);
 		return -1;
 	}
 
 	if (flag) {
-		table = dev_conf->init_on;
-		max_len = dev_conf->init_on_cnt;
+		table = plcd_drv->pcfg->init_on;
+		max_len = plcd_drv->pcfg->init_on_cnt;
 	} else {
-		table = dev_conf->init_off;
-		max_len = dev_conf->init_off_cnt;
+		table = plcd_drv->pcfg->init_off;
+		max_len = plcd_drv->pcfg->init_off_cnt;
 	}
 
 	while ((i + cmd_size) <= max_len) {
@@ -803,36 +758,27 @@ static int intel_8080_power_cmd_fixed_size(int flag)
 			if (table[i + 1] < PER_GPIO_MAX) {
 #if (CFG_VIRTUL_REG)
 				if (table[i + 2])
-					vir_reg_pad_gpio0_o |=
-						1 << table[i + 1];
+					vir_reg_pad_gpio0_o |= 1 << table[i + 1];
 				else
-					vir_reg_pad_gpio0_o &=
-						~(1 << table[i + 1]);
-				writel(vir_reg_pad_gpio0_o,
-				       vir_io_base);
+					vir_reg_pad_gpio0_o &= ~(1 << table[i + 1]);
+				writel(vir_reg_pad_gpio0_o, vir_io_base);
 #else
-				per_lcd_gpio_set(table[i + 1],
-							table[i + 2]);
+				plcd_gpio_set(table[i + 1], table[i + 2]);
 #endif
 			}
-			if (cmd_size > 3) {
-				if (table[i + 3] > 0)
-					per_lcd_delay_ms(table[i + 3]);
-			}
+			if (cmd_size > 3)
+				plcd_usleep(table[i + 3] * 1000);
 		} else if (type == PER_LCD_CMD_TYPE_DELAY) {
 			delay_ms = 0;
 			for (j = 0; j < (cmd_size - 1); j++)
 				delay_ms += table[i + 1 + j];
-			if (delay_ms > 0)
-				per_lcd_delay_ms(delay_ms);
+			plcd_usleep(delay_ms * 1000);
 		} else if (type == PER_LCD_CMD_TYPE_CMD) {
 			intel_8080_wreg_buf(&table[i + 1], (cmd_size - 1));
-			per_lcd_delay_us(1);
+			plcd_usleep(1);
 		} else if (type == PER_LCD_CMD_TYPE_CMD_DELAY) {
 			intel_8080_wreg_buf(&table[i + 1], cmd_size);
-			if (table[i + cmd_size - 1] > 0)
-				per_lcd_delay_ms(table[i +
-							cmd_size - 1]);
+			plcd_usleep(table[i + cmd_size - 1] * 1000);
 		} else {
 			LCDERR("%s: type 0x%02x invalid\n", __func__, type);
 		}
@@ -848,13 +794,13 @@ static void intel_8080_interface_init(void)
 #if (CFG_VIRTUL_REG)
 	int i;
 	/*set all pins input*/
-	for (i = 0; i < dev_conf->max_gpio_num; i++)
-		per_lcd_gpio_set(i, 2);
+	for (i = 0; i < plcd_drv->pcfg->i8080_cfg.max_gpio_num; i++)
+		plcd_gpio_set(i, 2);
 	vir_reg_pad_gpio0_o = readl(vir_io_base);
 	LCDPR("%s: read gpio_reg:0x%x\n", __func__, vir_reg_pad_gpio0_o);
 	/* set all pins output*/
-	for (i = 0; i < dev_conf->max_gpio_num; i++)
-		per_lcd_gpio_set(i, 0);
+	for (i = 0; i < plcd_drv->pcfg->i8080_cfg.max_gpio_num; i++)
+		plcd_gpio_set(i, 0);
 	LCDPR("%s: read gpio_reg:0x%x\n", __func__, vir_reg_pad_gpio0_o);
 #endif
 }
@@ -863,25 +809,24 @@ static int intel_8080_power_on_init(void)
 {
 	int ret = 0;
 
-	if (dev_conf->cmd_size < 1) {
-		LCDERR("%s: cmd_size %d is invalid\n",
-		       __func__, dev_conf->cmd_size);
+	if (plcd_drv->pcfg->cmd_size < 1) {
+		LCDERR("%s: cmd_size %d is invalid\n", __func__, plcd_drv->pcfg->cmd_size);
 		return -1;
 	}
-	if (!dev_conf->init_on) {
+	if (!plcd_drv->pcfg->init_on) {
 		LCDERR("%s: init_data is null\n", __func__);
 		return -1;
 	}
 	intel_8080_interface_init();
-	if (dev_conf->cmd_size == PER_LCD_CMD_SIZE_DYNAMIC)
+	if (plcd_drv->pcfg->cmd_size == PER_LCD_CMD_SIZE_DYNAMIC)
 		ret = intel_8080_power_cmd_dynamic_size(1);
 	else
 		ret = intel_8080_power_cmd_fixed_size(1);
-	init_flag = 1;
+	plcd_drv->init_flag = 1;
 	return ret;
 }
 
-static int intel_8080_test(const char *buf)
+int intel_8080_test(const char *buf)
 {
 	int ret;
 	unsigned int index;
@@ -889,17 +834,17 @@ static int intel_8080_test(const char *buf)
 	switch (buf[0]) {
 	case 'i': /*id*/
 		intel_8080_power_on_init();
-		init_flag = 1;
+		plcd_drv->init_flag = 1;
 		read_ID();
 		break;
 	case 'c': /*color fill*/
-		if (!init_flag)
+		if (!plcd_drv->init_flag)
 			intel_8080_power_on_init();
 		ret = sscanf(buf, "color %d", &index);
 		intel_8080_fill_screen_color(index);
 		break;
 	case 'b': /*colorbar*/
-		if (!init_flag)
+		if (!plcd_drv->init_flag)
 			intel_8080_power_on_init();
 		intel_8080_write_color_bars();
 		break;
@@ -907,7 +852,7 @@ static int intel_8080_test(const char *buf)
 		reset_display();
 		break;
 	default:
-		LCDPR("unsupport\n");
+		LCDPR("unsupported test\n");
 		break;
 	}
 	return 0;
@@ -981,25 +926,20 @@ int intel_8080_clk_test(char *buf)
 	return 0;
 }
 
-int per_lcd_dev_8080_probe(struct peripheral_lcd_driver_s *per_lcd_drv)
+int plcd_i8080_probe(void)
 {
 	int ret;
 
-	dev_conf = per_lcd_drv->per_lcd_dev_conf;
-	per_lcd_drv->frame_post = frame_post;
-	per_lcd_drv->frame_flush = frame_flush;
-	per_lcd_drv->set_color_format = set_color_format;
-	per_lcd_drv->set_gamma = set_gamma;
-	per_lcd_drv->set_flush_rate = set_flush_rate;
-	per_lcd_drv->enable = intel_8080_power_on_init;
-	per_lcd_drv->test = intel_8080_test;
+	plcd_drv->frame_post = frame_post;
+	plcd_drv->enable = intel_8080_power_on_init;
+	plcd_drv->test = intel_8080_test;
 
-	vir_io_base = per_lcd_drv->per_lcd_reg_map->p;
+	vir_io_base = plcd_drv->plcd_reg_map->p;
 	if (!vir_io_base) {
 		LCDERR("io base err, check reg\n");
 		return -1;
 	}
-	LCDPR("%s: io_base:0x%p", __func__, vir_io_base);
+	LCDPR("%s: io_base:0x%px", __func__, vir_io_base);
 
 	ret = intel_8080_power_on_init();
 	if (!ret)
@@ -1007,7 +947,7 @@ int per_lcd_dev_8080_probe(struct peripheral_lcd_driver_s *per_lcd_drv)
 	return 0;
 }
 
-int per_lcd_dev_8080_remove(struct peripheral_lcd_driver_s *per_lcd_drv)
+int plcd_i8080_remove(void)
 {
 	return 0;
 }

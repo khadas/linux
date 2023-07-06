@@ -5,44 +5,31 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/kernel.h>
+#include <linux/spi/spi.h>
 #include <linux/device.h>
 #include <linux/types.h>
 #include <linux/delay.h>
-#include <linux/spi/spi.h>
+#include <linux/workqueue.h>
+#include <linux/spinlock.h>
+#include <linux/irq.h>
+#include <linux/notifier.h>
+#include <linux/reboot.h>
+#include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
+#include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/amlogic/media/vout/peripheral_lcd.h>
-
-#include "peripheral_lcd_dev.h"
 #include "peripheral_lcd_drv.h"
 
-static struct per_gpio_s peripheral_gpio[PER_GPIO_NUM_MAX];
-static struct per_gpio_s *per_gpio_p;
-static struct per_lcd_reg_map_s per_lcd_reg_map;
+struct per_gpio_s plcd_gpio[PER_GPIO_NUM_MAX];
+static struct per_lcd_reg_map_s plcd_reg_map;
 
-static struct peripheral_lcd_driver_s *peripheral_lcd_drv;
-unsigned int per_lcd_debug_flag;
+struct peripheral_lcd_driver_s *plcd_drv;
+unsigned char per_lcd_debug_flag;
 
-void per_lcd_delay_us(int us)
-{
-	if (us > 0 && us < 20000)
-		usleep_range(us, us + 1);
-	else if (us > 20000)
-		msleep(us / 1000);
-}
-
-void per_lcd_delay_ms(int ms)
-{
-	if (ms > 0 && ms < 20)
-		usleep_range(ms * 1000, ms * 1000 + 1);
-	else if (ms > 20)
-		msleep(ms);
-}
-
-static void per_lcd_ioremap(struct platform_device *pdev)
+static void plcd_ioremap(struct platform_device *pdev)
 {
 	struct resource *res;
 
@@ -51,24 +38,20 @@ static void per_lcd_ioremap(struct platform_device *pdev)
 		LCDERR("%s: lcd_reg resource get error\n", __func__);
 		return;
 	}
-	per_lcd_reg_map.base_addr = res->start;
-	per_lcd_reg_map.size = resource_size(res);
-	per_lcd_reg_map.p = devm_ioremap_nocache(&pdev->dev,
-		res->start, per_lcd_reg_map.size);
-	if (!per_lcd_reg_map.p) {
-		per_lcd_reg_map.flag = 0;
-		LCDERR("%s: reg map failed: 0x%x\n",
-		       __func__, per_lcd_reg_map.base_addr);
+	plcd_reg_map.base_addr = res->start;
+	plcd_reg_map.size = resource_size(res);
+	plcd_reg_map.p = devm_ioremap_nocache(&pdev->dev, res->start, plcd_reg_map.size);
+	if (!plcd_reg_map.p) {
+		plcd_reg_map.flag = 0;
+		LCDERR("%s: reg map failed: 0x%x\n", __func__, plcd_reg_map.base_addr);
 		return;
 	}
-	per_lcd_reg_map.flag = 1;
-//	if (per_lcd_debug_flag)
-	LCDPR("%s: reg mapped: 0x%x -> %p size: 0x%x\n",
-	      __func__, per_lcd_reg_map.base_addr,
-	      per_lcd_reg_map.p, per_lcd_reg_map.size);
+	plcd_reg_map.flag = 1;
+	LCDPR("%s: reg mapped: 0x%x -> %p size: 0x%x\n", __func__, plcd_reg_map.base_addr,
+	      plcd_reg_map.p, plcd_reg_map.size);
 }
 
-static int per_lcd_get_config_dts(struct platform_device *pdev)
+static int plcd_get_basic_config_dts(struct platform_device *pdev)
 {
 	unsigned int para[5];
 	int ret;
@@ -82,376 +65,285 @@ static int per_lcd_get_config_dts(struct platform_device *pdev)
 	if (ret)
 		LCDERR("failed to get per_lcd_dev_index\n");
 	else
-		peripheral_lcd_drv->dev_index = (unsigned char)para[0];
-	if (peripheral_lcd_drv->dev_index < 0xff)
-		LCDPR("get peripheral_lcd_dev_index = %d\n",
-		      peripheral_lcd_drv->dev_index);
+		plcd_drv->dev_index = (unsigned char)para[0];
+	if (plcd_drv->dev_index < 0xff)
+		LCDPR("get peripheral_lcd_dev_index = %d\n", plcd_drv->dev_index);
 
-	peripheral_lcd_drv->res_vs_irq = platform_get_resource_byname(pdev,
+	plcd_drv->res_vs_irq = platform_get_resource_byname(pdev,
 		IORESOURCE_IRQ, "per_lcd_vsync");
-	if (!peripheral_lcd_drv->res_vs_irq)
+	if (!plcd_drv->res_vs_irq)
 		LCDPR("no per_lcd_vsync interrupts exist\n");
 
 	return 0;
 }
 
-void per_lcd_gpio_probe(unsigned int index)
+static int plcd_add_dev_driver(void)
 {
-	const char *str;
+	int index = plcd_drv->dev_index;
+	int ret = 0xff;
+
+	switch (plcd_drv->pcfg->type) {
+	case PLCD_TYPE_SPI:
+	case PLCD_TYPE_QSPI:
+		if (plcd_spi_driver_add())
+			return -1;
+		if (strcmp(plcd_drv->pcfg->name, "spi_st7789") == 0)
+			ret = plcd_st7789_probe();
+		else if (strcmp(plcd_drv->pcfg->name, "TL015WVC01-H1650A") == 0)
+			ret = plcd_spd2010_probe();
+		break;
+	case PLCD_TYPE_MCU_8080:
+		if (strcmp(plcd_drv->pcfg->name, "intel_8080") == 0)
+			ret = plcd_i8080_probe();
+		break;
+	case PLCD_TYPE_MAX:
+	default:
+		LCDPR("%s: unsupported dev type: %d\n", __func__, plcd_drv->pcfg->type);
+		return -1;
+	}
+
+	if (ret == 0xff) {
+		LCDPR("%s: add device driver failed: %s\n", __func__, plcd_drv->pcfg->name);
+		return -1;
+	}
+
+	plcd_drv->probe_flag = 1;
+	LCDPR("add device driver: %s(%d)\n", plcd_drv->pcfg->name, index);
+	return 0;
+}
+
+static void plcd_remove_dev_driver(void)
+{
+	int index = plcd_drv->dev_index;
+	int ret = -1;
+
+	if ((strcmp(plcd_drv->pcfg->name, "intel_8080") == 0) ||
+	    (strcmp(plcd_drv->pcfg->name, "8080") == 0))
+		ret = plcd_i8080_remove();
+	else if (strcmp(plcd_drv->pcfg->name, "spi_st7789") == 0)
+		ret = plcd_st7789_remove();
+	else if (strcmp(plcd_drv->pcfg->name, "TL015WVC01-H1650A") == 0)
+		ret = plcd_spd2010_remove();
+	else
+		LCDPR("%s: unsupported device: %s(%d)\n", __func__, plcd_drv->pcfg->name, index);
+
+	if (ret) {
+		LCDPR("remove device driver failed: %s(%d)\n", plcd_drv->pcfg->name, index);
+	} else {
+		plcd_drv->probe_flag = 0;
+		LCDPR("remove device driver: %s(%d)\n", plcd_drv->pcfg->name, index);
+	}
+
+	switch (plcd_drv->pcfg->type) {
+	case PLCD_TYPE_SPI:
+	case PLCD_TYPE_QSPI:
+		plcd_spi_driver_remove();
+		break;
+	case PLCD_TYPE_MCU_8080:
+		break;
+	case PLCD_TYPE_MAX:
+	default:
+		break;
+	}
+}
+
+static void plcd_config_update_dynamic_size(int flag)
+{
+	unsigned char type, size, *table;
+	unsigned int max_len = 0, i = 0, index;
+
+	if (flag) {
+		max_len = plcd_drv->pcfg->init_on_cnt;
+		table = plcd_drv->pcfg->init_on;
+	} else {
+		max_len = plcd_drv->pcfg->init_off_cnt;
+		table = plcd_drv->pcfg->init_on;
+	}
+
+	while ((i + 1) < max_len) {
+		type = table[i];
+		size = table[i + 1];
+		if (type == PER_LCD_CMD_TYPE_END)
+			break;
+		if (size == 0)
+			goto plcd_config_update_dynamic_size_next;
+		if ((i + 2 + size) > max_len)
+			break;
+
+		if (type == PER_LCD_CMD_TYPE_GPIO) {
+			/* gpio probe */
+			index = table[i + 2];
+			if (index < PER_GPIO_MAX)
+				plcd_gpio_probe(index);
+		}
+plcd_config_update_dynamic_size_next:
+		i += (size + 2);
+	}
+}
+
+static void plcd_config_update_fixed_size(int flag)
+{
+	int i = 0, max_len = 0;
+	unsigned char type, cmd_size, index;
+	unsigned char *table;
+
+	cmd_size = plcd_drv->pcfg->cmd_size;
+	if (cmd_size < 2) {
+		LCDPR("[%d]: %s: invalid cmd_size %d\n", plcd_drv->dev_index, __func__, cmd_size);
+		return;
+	}
+
+	if (flag) {
+		max_len = plcd_drv->pcfg->init_on_cnt;
+		table = plcd_drv->pcfg->init_on;
+	} else {
+		max_len = plcd_drv->pcfg->init_off_cnt;
+		table = plcd_drv->pcfg->init_on;
+	}
+
+	while ((i + cmd_size) <= max_len) {
+		type = table[i];
+		if (type == PER_LCD_CMD_TYPE_END)
+			break;
+		if (type == PER_LCD_CMD_TYPE_GPIO) {
+			/* gpio probe */
+			index = table[i + 1];
+			if (index < PER_GPIO_MAX)
+				plcd_gpio_probe(index);
+		}
+		i += cmd_size;
+	}
+}
+
+static void plcd_config_update(void)
+{
+	if (plcd_drv->pcfg->cmd_size == PER_LCD_CMD_SIZE_DYNAMIC)	{
+		LCDPR("%s dynamic\n", __func__);
+		plcd_config_update_dynamic_size(1);
+		plcd_config_update_dynamic_size(0);
+	} else {
+		LCDPR("%s fixed\n", __func__);
+		plcd_config_update_fixed_size(1);
+		plcd_config_update_fixed_size(0);
+	}
+}
+
+int plcd_dev_probe(void)
+{
 	int ret;
 
-	if (index >= PER_GPIO_NUM_MAX) {
-		LCDERR("gpio index %d, exit\n", index);
-		return;
-	}
-	per_gpio_p = &peripheral_gpio[index];
-	if (per_gpio_p->probe_flag) {
-		if (per_lcd_debug_flag) {
-			LCDPR("gpio %s[%d] is already registered\n",
-			      per_gpio_p->name, index);
-		}
-		return;
-	}
-
-	/* get gpio name */
-	ret = of_property_read_string_index(peripheral_lcd_drv->dev->of_node,
-					    "per_lcd_gpio_names", index, &str);
+	ret = plcd_get_detail_config_dts();
 	if (ret) {
-		LCDERR("failed to get lcd_per_gpio_names: %d\n", index);
-		str = "unknown";
-	}
-	strcpy(per_gpio_p->name, str);
-
-	/* init gpio flag */
-	per_gpio_p->probe_flag = 1;
-	per_gpio_p->register_flag = 0;
-}
-
-static int per_lcd_gpio_register(int index, int init_value)
-{
-	int value;
-
-	if (index >= PER_GPIO_NUM_MAX) {
-		LCDERR("%s: gpio index %d, exit\n", __func__, index);
-		return -1;
-	}
-	per_gpio_p = &peripheral_gpio[index];
-	if (per_gpio_p->probe_flag == 0) {
-		LCDERR("%s: gpio [%d] is not probed, exit\n", __func__, index);
-		return -1;
-	}
-	if (per_gpio_p->register_flag) {
-		if (per_lcd_debug_flag) {
-			LCDPR("%s: gpio %s[%d] is already registered\n",
-			      __func__, per_gpio_p->name, index);
-		}
-		return 0;
-	}
-
-	switch (init_value) {
-	case PER_GPIO_OUTPUT_LOW:
-		value = GPIOD_OUT_LOW;
-		break;
-	case PER_GPIO_OUTPUT_HIGH:
-		value = GPIOD_OUT_HIGH;
-		break;
-	case PER_GPIO_INPUT:
-	default:
-		value = GPIOD_IN;
-		break;
-	}
-	/* request gpio */
-	per_gpio_p->gpio = devm_gpiod_get_index(peripheral_lcd_drv->dev,
-					      "per_lcd", index, value);
-	if (IS_ERR(per_gpio_p->gpio)) {
-		LCDERR("register gpio %s[%d]: %p, err: %d\n",
-		       per_gpio_p->name, index, per_gpio_p->gpio,
-		       IS_ERR(per_gpio_p->gpio));
-		return -1;
-	}
-	per_gpio_p->register_flag = 1;
-	if (per_lcd_debug_flag) {
-		LCDPR("register gpio %s[%d]: %p, init value: %d\n",
-		      per_gpio_p->name, index, per_gpio_p->gpio, init_value);
-	}
-
-	return 0;
-}
-
-void per_lcd_gpio_set(int index, int value)
-{
-	if (per_lcd_debug_flag)
-		LCDPR("%s: idx:val= [%d, %d]\n", __func__, index, value);
-	if (index >= PER_GPIO_NUM_MAX) {
-		LCDERR("gpio index %d, exit\n", index);
-		return;
-	}
-	per_gpio_p = &peripheral_gpio[index];
-	if (per_gpio_p->probe_flag == 0) {
-		LCDERR("%s: gpio [%d] is not probed\n", __func__, index);
-		return;
-	}
-	if (per_gpio_p->register_flag == 1) {
-		if (per_lcd_debug_flag)
-			LCDPR("no need regist\n");
-	} else {
-		per_lcd_gpio_register(index, value);
-		return;
-	}
-
-	if (IS_ERR_OR_NULL(per_gpio_p->gpio)) {
-		LCDERR("gpio %s[%d]: %p, err: %ld\n",
-		       per_gpio_p->name, index, per_gpio_p->gpio,
-		       PTR_ERR(per_gpio_p->gpio));
-		return;
-	}
-
-	switch (value) {
-	case PER_GPIO_OUTPUT_LOW:
-	case PER_GPIO_OUTPUT_HIGH:
-		gpiod_direction_output(per_gpio_p->gpio, value);
-		break;
-	case PER_GPIO_INPUT:
-	default:
-		gpiod_direction_input(per_gpio_p->gpio);
-		break;
-	}
-	if (per_lcd_debug_flag) {
-		LCDPR("set gpio %s[%d] value: %d\n",
-		      per_gpio_p->name, index, value);
-	}
-}
-
-int per_lcd_gpio_set_irq(int index)
-{
-	int irq_pin;
-
-	if (index >= PER_GPIO_NUM_MAX) {
-		LCDERR("gpio index %d, exit\n", index);
+		LCDERR("%s: get dts config error\n", __func__);
+		plcd_drv->pcfg = NULL;
 		return -1;
 	}
 
-	per_lcd_gpio_register(index, 2);
-	irq_pin = desc_to_gpio(per_gpio_p->gpio);
-	peripheral_lcd_drv->irq_num = gpio_to_irq(irq_pin);
-	if (!peripheral_lcd_drv->irq_num) {
-		LCDERR("gpio to irq failed\n");
-		return -1;
-	}
-
-	return 0;
+	plcd_config_update();
+	ret = plcd_add_dev_driver();
+	LCDPR("%s: ret=%d\n", __func__, ret);
+	return ret;
 }
 
-int per_lcd_gpio_get(int index)
+void plcd_dev_remove(void)
 {
-	if (index >= PER_GPIO_NUM_MAX) {
-		LCDERR("gpio index %d, exit\n", index);
-		return -1;
-	}
-
-	per_gpio_p = &peripheral_gpio[index];
-	if (per_gpio_p->probe_flag == 0) {
-		LCDERR("%s: gpio [%d] is not probed, exit\n", __func__, index);
-		return -1;
-	}
-	if (per_gpio_p->register_flag == 0) {
-		LCDERR("%s: gpio %s[%d] is not registered\n",
-		       __func__, per_gpio_p->name, index);
-		return -1;
-	}
-	if (IS_ERR_OR_NULL(per_gpio_p->gpio)) {
-		LCDERR("gpio %s[%d]: %p, err: %ld\n",
-		       per_gpio_p->name, index,
-		       per_gpio_p->gpio, PTR_ERR(per_gpio_p->gpio));
-		return -1;
-	}
-
-	return gpiod_get_value(per_gpio_p->gpio);
-}
-
-static ssize_t per_lcd_info_show(struct class *class,
-				 struct class_attribute *attr, char *buf)
-{
-	struct per_lcd_dev_config_s *pconf;
-	ssize_t n = 0;
-
-	if (!peripheral_lcd_drv)
-		return sprintf(buf, "peripheral lcd driver is NULL\n");
-
-	pconf = peripheral_lcd_drv->per_lcd_dev_conf;
-	n += sprintf(buf + n,
-		"peripheral lcd driver %s(%d) info:\n"
-		"table_loaded:       %d\n"
-		"cmd_size:           %d\n"
-		"table_init_on_cnt:  %d\n"
-		"table_init_off_cnt: %d\n",
-		pconf->name,
-		peripheral_lcd_drv->dev_index,
-		pconf->init_loaded, pconf->cmd_size,
-		pconf->init_on_cnt,
-		pconf->init_off_cnt);
-	switch (pconf->type) {
-	case PER_DEV_TYPE_SPI:
-		break;
-	case PER_DEV_TYPE_MCU_8080:
-		n += sprintf(buf + n,
-			"reset_index: %d\n"
-			"nCS_index:   %d\n"
-			"nRD_index:   %d\n"
-			"nWR_index:   %d\n"
-			"nRS_index:   %d\n"
-			"data0_index: %d\n"
-			"data1_index: %d\n"
-			"data2_index: %d\n"
-			"data3_index: %d\n"
-			"data4_index: %d\n"
-			"data5_index: %d\n"
-			"data6_index: %d\n"
-			"data7_index: %d\n",
-			pconf->reset_index, pconf->nCS_index,
-			pconf->nRD_index, pconf->nWR_index,
-			pconf->nRS_index, pconf->data0_index,
-			pconf->data1_index, pconf->data2_index,
-			pconf->data3_index, pconf->data4_index,
-			pconf->data5_index, pconf->data6_index,
-			pconf->data7_index);
-		break;
-	default:
-		n += sprintf(buf + n, "not support per_type\n");
-		break;
-	}
-
-	return n;
-}
-
-static ssize_t per_lcd_init_store(struct class *class,
-				  struct class_attribute *attr,
-				  const char *buf, size_t count)
-{
-	if (!peripheral_lcd_drv) {
-		LCDPR("peripheral_lcd_drv NULL\n");
-	} else {
-		LCDPR("peripheral_lcd_drv not NULL\n");
-		peripheral_lcd_drv->enable();
-	}
-	return count;
-}
-
-static ssize_t per_lcd_test_store(struct class *class,
-				  struct class_attribute *attr,
-				  const char *buf, size_t count)
-{
-	if (!peripheral_lcd_drv)
-		peripheral_lcd_drv->test(buf);
-	return count;
-}
-
-static ssize_t per_lcd_print_store(struct class *class,
-				   struct class_attribute *attr,
-				   const char *buf, size_t count)
-{
-	int ret, flag;
-
-	ret = kstrtoint(buf, 10, &flag);
-	per_lcd_debug_flag = flag;
-	return count;
-}
-
-static ssize_t per_lcd_print_show(struct class *class,
-				  struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "per_lcd_debug_flag = %d\n",
-		       per_lcd_debug_flag);
-}
-
-static struct class_attribute per_lcd_class_attrs[] = {
-	__ATTR(info, 0644,  per_lcd_info_show, NULL),
-	__ATTR(print, 0644, per_lcd_print_show, per_lcd_print_store),
-	__ATTR(init, 0644, NULL, per_lcd_init_store),
-	__ATTR(test, 0644, NULL, per_lcd_test_store),
-};
-
-static struct class *per_lcd_class;
-static int per_lcd_class_creat(void)
-{
-	int i;
-
-	per_lcd_class = class_create(THIS_MODULE, "peripheral_lcd");
-	if (IS_ERR_OR_NULL(per_lcd_class)) {
-		LCDERR("create debug class failed\n");
-		return -1;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(per_lcd_class_attrs); i++) {
-		if (class_create_file(per_lcd_class, &per_lcd_class_attrs[i])) {
-			LCDERR("create debug attribute %s failed\n",
-			       per_lcd_class_attrs[i].attr.name);
-		}
-	}
-
-	return 0;
-}
-
-static void per_lcd_class_remove(void)
-{
-	int i;
-
-	if (!per_lcd_class)
+	if (!plcd_drv->pcfg)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(per_lcd_class_attrs); i++)
-		class_remove_file(per_lcd_class, &per_lcd_class_attrs[i]);
-
-	class_destroy(per_lcd_class);
-	per_lcd_class = NULL;
+	plcd_remove_dev_driver();
+	LCDPR("%s OK\n", __func__);
 }
 
 struct peripheral_lcd_driver_s *peripheral_lcd_get_driver(void)
 {
-	return peripheral_lcd_drv;
+	return plcd_drv;
 }
 
-static int per_lcd_probe(struct platform_device *pdev)
+int plcd_set_mem(void)
+{
+	unsigned int f_size;
+
+	if (plcd_drv->frame_addr) {
+		LCDERR("%s: internal-host mem %px alloced, unset first!!!\n",
+				__func__, plcd_drv->frame_addr);
+		return -1;
+	}
+
+	if (plcd_drv->pcfg->cfmt == CFMT_RGB888 || plcd_drv->pcfg->cfmt == CFMT_RGB666_24B)
+		f_size = plcd_drv->pcfg->v * plcd_drv->pcfg->h * 3;
+	else if (plcd_drv->pcfg->cfmt == CFMT_RGB565)
+		f_size = plcd_drv->pcfg->v * plcd_drv->pcfg->h * 2;
+	else if (plcd_drv->pcfg->cfmt == CFMT_RGB666_18B)
+		f_size = (plcd_drv->pcfg->v * plcd_drv->pcfg->h * 18 + 7) / 8;
+	else
+		f_size = plcd_drv->pcfg->v * plcd_drv->pcfg->h * 3;
+
+	plcd_drv->frame_addr = kcalloc(f_size, sizeof(unsigned char), GFP_DMA);
+	LCDPR("%s: internal-host mem(%d) -> %px\n", __func__, f_size, plcd_drv->frame_addr);
+	if (plcd_drv->frame_addr)
+		return 0;
+	return -1;
+}
+
+void plcd_unset_mem(void)
+{
+	kfree(plcd_drv->frame_addr);
+	plcd_drv->frame_addr = NULL;
+	LCDPR("%s: unset internal-host mem\n", __func__);
+}
+
+static int plcd_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	peripheral_lcd_drv = kzalloc(sizeof(*peripheral_lcd_drv), GFP_KERNEL);
-	if (!peripheral_lcd_drv) {
-		LCDERR("%s: lcd driver no enough memory\n", __func__);
+	plcd_drv = kzalloc((int)sizeof(*plcd_drv), GFP_KERNEL);
+	if (!plcd_drv) {
+		LCDERR("%s: per lcd driver no enough memory\n", __func__);
+		return -ENOMEM;
+	}
+	plcd_drv->pcfg = kzalloc(sizeof(*plcd_drv->pcfg), GFP_KERNEL);
+	if (!plcd_drv->pcfg) {
+		LCDERR("%s: per lcd config no enough memory\n", __func__);
 		return -ENOMEM;
 	}
 
-	peripheral_lcd_drv->dev = &pdev->dev;
-	peripheral_lcd_drv->per_lcd_reg_map = &per_lcd_reg_map;
-	per_lcd_ioremap(pdev);
-	memset(peripheral_gpio, 0, sizeof(*peripheral_gpio));
-	ret = per_lcd_get_config_dts(pdev);
+	plcd_drv->dev = &pdev->dev;
+	plcd_drv->plcd_reg_map = &plcd_reg_map;
+	plcd_ioremap(pdev);
+	memset(plcd_gpio, 0, sizeof(*plcd_gpio));
+	ret = plcd_get_basic_config_dts(pdev);
+
 	if (ret)
-		goto per_lcd_probe_failed;
-	ret = perl_lcd_dev_probe(peripheral_lcd_drv);
+		goto plcd_probe_failed;
+	ret = plcd_dev_probe();
 	if (ret)
-		goto per_lcd_probe_failed;
-	per_lcd_class_creat();
+		goto plcd_probe_failed;
+	plcd_class_create();
 
 	LCDPR("%s ok\n", __func__);
 	return 0;
 
-per_lcd_probe_failed:
-	kfree(peripheral_lcd_drv);
-	peripheral_lcd_drv = NULL;
+plcd_probe_failed:
+	LCDPR("%s failed\n", __func__);
+	kfree(plcd_drv);
+	plcd_drv = NULL;
 	return -1;
 }
 
-static int per_lcd_remove(struct platform_device *pdev)
+static int plcd_remove(struct platform_device *pdev)
 {
-	if (!peripheral_lcd_drv)
+	if (!plcd_drv)
 		return 0;
 
-	per_lcd_class_remove();
-	per_lcd_dev_remove(peripheral_lcd_drv);
+	plcd_class_remove();
+	plcd_dev_remove();
+	plcd_unset_mem();
 
-	kfree(peripheral_lcd_drv);
-	peripheral_lcd_drv = NULL;
+	kfree(plcd_drv->pcfg);
+	plcd_drv->pcfg = NULL;
+
+	kfree(plcd_drv);
+	plcd_drv = NULL;
 
 	LCDPR("%s ok\n", __func__);
 
@@ -475,14 +367,14 @@ static struct platform_driver peripheral_lcd_platform_driver = {
 		.of_match_table = per_lcd_dt_match,
 #endif
 	},
-	.probe   = per_lcd_probe,
-	.remove  = per_lcd_remove,
+	.probe   = plcd_probe,
+	.remove  = plcd_remove,
 };
 
 int __init peripheral_lcd_init(void)
 {
 	if (platform_driver_register(&peripheral_lcd_platform_driver)) {
-		LCDPR("failed to register ldim_dev driver module\n");
+		LCDPR("failed to register peripheral lcd driver module\n");
 		return -ENODEV;
 	}
 	return 0;
