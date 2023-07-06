@@ -2457,6 +2457,10 @@ int vdin_vs_duration_check(struct vdin_dev_s *devp)
 	int cur_time, diff_time;
 	int temp;
 
+	if (!(is_meson_t7_cpu() || is_meson_t3_cpu() ||
+	     is_meson_t5w_cpu()))
+		return true;
+
 	if (devp->game_mode || !IS_HDMI_SRC(devp->parm.port))
 		return ret;
 

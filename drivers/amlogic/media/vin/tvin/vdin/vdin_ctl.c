@@ -3966,6 +3966,10 @@ bool vdin_check_cycle(struct vdin_dev_s *devp)
 {
 	unsigned int stamp, cycle;
 
+	if (!(is_meson_t7_cpu() || is_meson_t3_cpu() ||
+	     is_meson_t5w_cpu()))
+		return false;
+
 	stamp = vdin_get_meas_v_stamp(devp->addr_offset);
 
 	if (stamp < devp->stamp)
