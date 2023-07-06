@@ -22,7 +22,7 @@
 #include <linux/ion.h>
 #include <linux/meson_ion.h>
 
-#include "meson_uvm_allocator.h"
+#include <linux/amlogic/media/meson_uvm_allocator.h>
 #include "meson_uvm_nn_processor.h"
 #include "meson_uvm_aipq_processor.h"
 #include "meson_uvm_dalton_processor.h"
