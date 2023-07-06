@@ -685,6 +685,7 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_config_s *pconf = &pdrv->config;
 	union lcd_ctrl_config_u *pctrl;
+	unsigned int count;
 
 	LCDPR("[%d]: %s, %s, %dbit, %dx%d\n",
 	      pdrv->index,
@@ -692,6 +693,15 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 	      lcd_type_type_to_str(pconf->basic.lcd_type),
 	      pconf->basic.lcd_bits,
 	      pconf->basic.h_active, pconf->basic.v_active);
+
+	count = pconf->basic.h_active + pconf->timing.hsync_width
+		+ pconf->timing.hsync_bp;
+	if (count > pconf->basic.h_period)
+		LCDERR("h_timing is invalid(%d)\n", pconf->basic.h_period);
+	count = pconf->basic.v_active + pconf->timing.vsync_width
+		+ pconf->timing.vsync_bp;
+	if (count > pconf->basic.v_period)
+		LCDERR("v_timing is invalid(%d)\n", pconf->basic.v_period);
 
 	if ((lcd_debug_print_flag & LCD_DBG_PR_NORMAL) == 0)
 		return;
