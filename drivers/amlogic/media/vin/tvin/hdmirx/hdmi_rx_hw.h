@@ -3003,11 +3003,6 @@
 #define SR_DLL_CDR_ST_DPHY_IVCRX	0x000070f1
 #define SARAH_CKDT_CTL_DPHY_IVCRX	0x000070fd
 
-enum hdcp14_key_mode_e {
-	NORMAL_MODE,
-	SECURE_MODE,
-};
-
 enum measure_clk_top_e {
 	TOP_HDMI_TMDSCLK = 0,
 	TOP_HDMI_CABLECLK,

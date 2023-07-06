@@ -8,6 +8,7 @@
 
 #include <linux/workqueue.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
+#include <uapi/linux/amlogic/hdmi_rx.h>
 
 #define K_ONEPKT_BUFF_SIZE		8
 #define K_PKT_REREAD_SIZE		2
@@ -827,61 +828,6 @@ struct avi_infoframe_st {
 	u8 additional_colorimetry;
 } __packed;
 
-/* source product descriptor infoFrame  - 0x83 */
-//0x00 "unknown",
-//0x01 "Digital STB",
-//0x02 "DVD player",
-//0x03 "D-VHS",
-//0x04 "HDD Videorecorder",
-//0x05 "DVC",
-//0x06 "DSC",
-//0x07 "Video CD",
-//0x08 "Game",
-//0x09 "PC general",
-//0x0A "Blu-Ray Disc (BD)",
-//0x0B "Super Audio CD",
-//0x0C "HD DVD",
-//0x0D "PMP",
-//0x1A "FREESYNC"
-struct spd_infoframe_st {
-	u8 pkttype;
-	u8 version;
-	u8 length;
-	//u8 rsd;  //note: T3 has not this byte. T5 has it.
-	u8 checksum;
-	//u8 ieee_oui[3]; //data[1:3]
-	union meta_u {
-		struct freesync_st {
-			/*PB1-3*/
-			u32 ieee:24;
-			u32 rsvd:8;
-			u8 rsvd1;
-			/*PB6*/
-			u8 supported:1;
-			u8 enabled:1;
-			u8 active:1;
-			//u8 cs_active:1;
-			u8 rsvd2:5;
-			//u8 ld_disable:1;
-			//u8 rsvd3:3;
-			u8 min_frame_rate;
-			u8 max_frame_rate;
-			/*pb9-pb27*/
-			u8 data[19];
-		} __packed freesync;
-		u8 data[27];
-		struct spd_data_st {
-			/*Vendor Name Character*/
-			u8 vendor_name[8];
-			/*Product Description Character*/
-			u8 product_des[16];
-			/*byte 25*/
-			u8 source_info;
-			u8 rsvd[3];
-		} __packed spddata;
-	} __packed des_u;
-} __packed;
-
 /* audio infoFrame packet - 0x84 */
 struct aud_infoframe_st {
 	u8 pkttype;
@@ -1067,17 +1013,6 @@ struct rxpkt_st {
 
 	u32 pkt_attach_vsi;
 	u32 pkt_attach_drm;
-};
-
-struct pd_infoframe_s {
-	u32 HB;
-	u32 PB0;
-	u32 PB1;
-	u32 PB2;
-	u32 PB3;
-	u32 PB4;
-	u32 PB5;
-	u32 PB6;
 };
 
 enum emp_pkt_type_e {

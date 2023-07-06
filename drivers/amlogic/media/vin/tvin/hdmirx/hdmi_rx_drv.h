@@ -15,6 +15,7 @@
 #include <linux/cdev.h>
 #include <linux/irqreturn.h>
 #include <linux/input.h>
+#include <uapi/linux/amlogic/hdmi_rx.h>
 #include "../tvin_global.h"
 #include "../tvin_frontend.h"
 //#include "hdmirx_repeater.h"
@@ -172,32 +173,6 @@ struct hdmirx_dev_s {
 	const struct meson_hdmirx_data *data;
 	struct input_dev *hdmirx_input_dev;
 };
-
-#define HDMI_IOC_MAGIC 'H'
-#define HDMI_IOC_HDCP_ON	_IO(HDMI_IOC_MAGIC, 0x01)
-#define HDMI_IOC_HDCP_OFF	_IO(HDMI_IOC_MAGIC, 0x02)
-#define HDMI_IOC_EDID_UPDATE	_IO(HDMI_IOC_MAGIC, 0x03)
-#define HDMI_IOC_PC_MODE_ON		_IO(HDMI_IOC_MAGIC, 0x04)
-#define HDMI_IOC_PC_MODE_OFF	_IO(HDMI_IOC_MAGIC, 0x05)
-#define HDMI_IOC_HDCP22_AUTO	_IO(HDMI_IOC_MAGIC, 0x06)
-#define HDMI_IOC_HDCP22_FORCE14 _IO(HDMI_IOC_MAGIC, 0x07)
-#define HDMI_IOC_HDMI_20_SET	_IO(HDMI_IOC_MAGIC, 0x08)
-#define HDMI_IOC_HDCP_GET_KSV _IOR(HDMI_IOC_MAGIC, 0x09, struct _hdcp_ksv)
-#define HDMI_IOC_PD_FIFO_PKTTYPE_EN _IOW(HDMI_IOC_MAGIC, 0x0a,\
-	u32)
-#define HDMI_IOC_PD_FIFO_PKTTYPE_DIS _IOW(HDMI_IOC_MAGIC, 0x0b,\
-		u32)
-#define HDMI_IOC_GET_PD_FIFO_PARAM _IOWR(HDMI_IOC_MAGIC, 0x0c,\
-	struct pd_infoframe_s)
-#define HDMI_IOC_HDCP14_KEY_MODE _IOR(HDMI_IOC_MAGIC, 0x0d,\
-	enum hdcp14_key_mode_e)
-#define HDMI_IOC_HDCP22_NOT_SUPPORT _IO(HDMI_IOC_MAGIC, 0x0e)
-#define HDMI_IOC_SET_AUD_SAD	_IOW(HDMI_IOC_MAGIC, 0x0f, int)
-#define HDMI_IOC_GET_AUD_SAD	_IOR(HDMI_IOC_MAGIC, 0x10, int)
-#define HDMI_IOC_GET_SPD_SRC_INFO	_IOR(HDMI_IOC_MAGIC, 0x11, struct spd_infoframe_st)
-#define HDMI_5V_PIN_STATUS	_IOR(HDMI_IOC_MAGIC, 0x12, unsigned int)
-#define HDMI_IOC_EDID_UPDATE_WITH_PORT  _IOW(HDMI_IOC_MAGIC, 0x13, unsigned char)
-
 
 #define IOC_SPD_INFO  _BIT(0)
 #define IOC_AUD_INFO  _BIT(1)
@@ -807,11 +782,6 @@ struct rx_s {
 	struct rx_aml_phy aml_phy;
 	u8 last_hdcp22_state;
 	//struct spkts_rcvd_sts pkts_sts;
-};
-
-struct _hdcp_ksv {
-	u32 bksv0;
-	u32 bksv1;
 };
 
 struct reg_map {
