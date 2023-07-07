@@ -722,6 +722,37 @@ static int temi_process(struct out_elem *pout)
 	return -1;
 }
 
+static int find_pes_pts(char *buf, int size)
+{
+	int i = 0;
+	int pts_dts_flags = 0;
+
+	pr_dbg("%s size:%d\n", __func__, size);
+	if (size >= 4)
+		pr_dbg("sub 0x%0x 0x%0x 0x%0x 0x%0x\n", buf[0], buf[1], buf[2], buf[3]);
+	for (i = 0; i < size - 4; i++) {
+		if (buf[i] == 0 &&
+			buf[i + 1] == 0 &&
+			buf[i + 2] == 1 &&
+			buf[i + 3] == 0xBD)	{
+			if (i + 8 < size) {
+				pts_dts_flags = ((buf[i + 7] >> 6) & 3);
+				if ((pts_dts_flags & 2) && i + 14 < size) {
+					u64 pts;
+
+					pts = (((u64)buf[i + 9] & 0xe) << 29)
+						| (buf[i + 10] << 22)
+						| ((buf[i + 11] & 0xfe) << 14)
+						| (buf[i + 12] << 7)
+						| ((buf[i + 13] & 0xfe) >> 1);
+					pr_dbg("%s pts:0x%lx\n", __func__, (unsigned long)pts);
+				}
+			}
+		}
+	}
+	return 0;
+}
+
 static int _task_out_func(void *data)
 {
 	int timeout = 0;
@@ -776,6 +807,7 @@ static int _task_out_func(void *data)
 					if (ptmp->pout->dump_file.file_fp)
 						dump_file_write(pread, ret, &ptmp->pout->dump_file);
 
+					find_pes_pts(pread, ret);
 					out_ts_cb_list(ptmp->pout, pread,
 										ret, 0, 0);
 				}

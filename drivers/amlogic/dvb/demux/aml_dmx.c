@@ -2188,18 +2188,144 @@ static ssize_t dump_register_store(struct class *class,
 	return size;
 }
 
+static void string_output(char *string, int type)
+{
+	if (type == 0)
+		strcpy(string, "dmx:%d %s pid:0x%0x ... buffer total:0x%0x, avail:0x%0x\n");
+	else if (type == 1)
+		strcpy(string, "dmx:%d %s pid:0x%0x buffer total:0x%0x, avail:0x%0x\n");
+	else if (type == 2)
+		strcpy(string, "dmx:%d section pid:0x%0x buffer total:0x%0x, avail:0x%0x\n");
+}
+
+static int dump_filter_ringbuffer(char *buf)
+{
+	struct aml_dvb *advb = aml_get_dvb_device();
+	int i = 0, h, j;
+	int r, total = 0;
+	struct dmx_demux *dmx;
+	struct aml_dmx *demux;
+	struct sw_demux_ts_feed *ts_feed;
+	struct sw_demux_sec_feed *section_feed;
+	struct dmxdev_filter *filter;
+	int dvr_exit = 0;
+	char tmp_buf[255];
+	ssize_t used_size, total_size;
+	struct dvb_ringbuffer *buffer;
+	char str_buf[255];
+
+	r = sprintf(buf, "********ringbuffer********\n");
+	buf += r;
+	total += r;
+
+	for (h = 0; h < DMX_DEV_COUNT; h++) {
+		if (!advb->dmx[h].swdmx)
+			continue;
+
+	dmx = &advb->dmx[h].dmx;
+	demux = (struct aml_dmx *)dmx->priv;
+	dvr_exit = 0;
+
+	for (i = 0; i < demux->ts_feed_num; i++) {
+		if (demux->ts_feed[i].state < DMX_STATE_GO)
+			continue;
+
+		memset(&tmp_buf, 0, sizeof(tmp_buf));
+		strcpy(tmp_buf, "none");
+		ts_feed = &demux->ts_feed[i];
+
+		if (ts_feed->format == ES_FORMAT) {
+			if (ts_feed->type == VIDEO_TYPE)
+				strcpy(tmp_buf, "video");
+			else
+				strcpy(tmp_buf, "audio");
+		} else if (ts_feed->format == PES_FORMAT) {
+			strcpy(tmp_buf, "pes");
+		} else if (ts_feed->format == DVR_FORMAT) {
+			if (dvr_exit == 1)
+				continue;
+
+			strcpy(tmp_buf, "dvr");
+			dvr_exit = 1;
+		} else if (ts_feed->format == TEMI_FORMAT) {
+			strcpy(tmp_buf, "temi");
+		} else {
+			if (ts_feed->pes_type == DMX_PES_PCR0 ||
+			    ts_feed->pes_type == DMX_PES_PCR1 ||
+			    ts_feed->pes_type == DMX_PES_PCR2 ||
+			    ts_feed->pes_type == DMX_PES_PCR3)
+				strcpy(tmp_buf, "pcr");
+			else
+				continue;
+		}
+
+		filter = ts_feed->ts_feed.priv;
+
+		if (filter->params.pes.output == DMX_OUT_TAP ||
+			filter->params.pes.output == DMX_OUT_TSDEMUX_TAP)
+			buffer = &filter->buffer;
+		else
+			buffer = &filter->dev->dvr_buffer;
+
+		used_size = dvb_ringbuffer_avail(buffer);
+		total_size = buffer->size;
+
+		memset(str_buf, 0, sizeof(str_buf));
+		if (ts_feed->format == DVR_FORMAT) {
+			string_output(str_buf, 0);
+			r = sprintf(buf, str_buf, demux->id, tmp_buf,
+				ts_feed->pid, total_size, used_size);
+		} else {
+			string_output(str_buf, 1);
+			r = sprintf(buf, str_buf, demux->id, tmp_buf,
+				ts_feed->pid, total_size, used_size);
+		}
+
+		buf += r;
+		total += r;
+	}
+
+	for (i = 0; i < demux->sec_feed_num; i++) {
+		if (demux->section_feed[i].state < DMX_STATE_ALLOCATED)
+			continue;
+
+		section_feed = &demux->section_feed[i];
+
+		for (j = 0; j < section_feed->sec_filter_num; j++) {
+			if (section_feed->filter[j].state != DMX_STATE_GO)
+				continue;
+
+			filter = section_feed->filter[j].section_filter.priv;
+			used_size = dvb_ringbuffer_avail(&filter->buffer);
+			total_size = filter->buffer.size;
+
+			memset(str_buf, 0, sizeof(str_buf));
+			string_output(str_buf, 2);
+			r = sprintf(buf, str_buf, demux->id,
+				section_feed->pid, total_size, used_size);
+			buf += r;
+			total += r;
+		}
+	}
+	}
+	return total;
+}
+
 static ssize_t dump_filter_show(struct class *class,
 				struct class_attribute *attr, char *buf)
 {
 	ssize_t size;
+	ssize_t size1;
 	struct aml_dvb *advb = aml_get_dvb_device();
 
 	if (mutex_lock_interruptible(&advb->mutex))
 		return -ERESTARTSYS;
 
 	size = ts_output_dump_info(buf);
+	size1 = dump_filter_ringbuffer(buf + size);
+
 	mutex_unlock(&advb->mutex);
-	return size;
+	return size + size1;
 }
 
 static ssize_t dump_filter_store(struct class *class,
