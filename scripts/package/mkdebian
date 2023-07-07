@@ -215,7 +215,7 @@ Section: kernel
 Priority: optional
 Maintainer: $maintainer
 Rules-Requires-Root: no
-Build-Depends: bc, debhelper, rsync, kmod, cpio, bison, flex $extra_build_depends
+Build-Depends: bc, rsync, kmod, cpio, bison, flex $extra_build_depends
 Homepage: https://www.kernel.org/
 
 Package: $packagename-$version
@@ -223,10 +223,6 @@ Architecture: $debarch
 Description: Linux kernel, version $version
  This package contains the Linux kernel, modules and corresponding other
  files, version: $version.
-EOF
-
-if [ "${SRCARCH}" != um ]; then
-cat <<EOF >> debian/control
 
 Package: linux-libc-dev
 Section: devel
@@ -248,7 +244,6 @@ Description: Linux kernel headers for $version on $debarch
  .
  This is useful for people who need to build external modules
 EOF
-fi
 fi
 
 if is_enabled CONFIG_DEBUG_INFO; then
