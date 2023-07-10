@@ -446,21 +446,16 @@ EXPORT_SYMBOL(unregister_cec_callback);
 
 static bool video_mute_enabled(void)
 {
-	bool ret = false;
-
 	if (rx.state != FSM_SIG_READY)
-		return ret;
+		return false;
 
-	if (!vpp_mute_enable)
-		return ret;
-
-	if ((rx.cur.it_content && rx.cur.cn_type == 3) ||
-		rx.vs_info_details.hdmi_allm ||
-		rx.vs_info_details.dv_allm ||
-		rx.vtem_info.vrr_en)
-		ret = true;
-
-	return ret;
+	/* for debug with flicker issues, especially
+	 * unplug or switch timing under game mode
+	 */
+	if (vpp_mute_enable)
+		return true;
+	else
+		return false;
 }
 
 /*
@@ -1038,6 +1033,11 @@ irqreturn_t irq_handler(int irq, void *params)
 	}
 	if (irq_err_cnt >= irq_err_max) {
 		rx_pr("DE ERR\n");
+		if (video_mute_enabled()) {
+			rx_mute_vpp();
+			set_video_mute(true);
+			rx_pr("vpp mute\n");
+		}
 		hdmirx_top_irq_en(0, 0);
 		hdmirx_output_en(false);
 		if (rx.state > FSM_WAIT_CLK_STABLE)
@@ -1085,6 +1085,7 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 			if (video_mute_enabled()) {
 				rx.vpp_mute = true;
 				set_video_mute(true);
+				rx_mute_vpp();
 				rx.var.mute_cnt = 0;
 				if (log_level & 0x100)
 					rx_pr("vpp mute\n");
@@ -3389,6 +3390,7 @@ void rx_main_state_machine(void)
 		/* video info change */
 		if (!is_tmds_valid()) {
 			if (video_mute_enabled()) {
+				rx_mute_vpp();
 				set_video_mute(true);
 				rx.vpp_mute = true;
 				rx.var.mute_cnt = 0;

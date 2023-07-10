@@ -122,6 +122,7 @@ extern u32 force_vic;
 extern u32 vpp_mute_enable;
 extern u32 dbg_cs;
 
+void rx_mute_vpp(void);
 enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void);
 void rx_main_state_machine(void);
 void rx_err_monitor(void);

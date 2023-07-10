@@ -6251,6 +6251,16 @@ static inline bool is_tv_panel(void)
 		return false;
 }
 
+void rx_mute_vpp(void)
+{
+	u32 black_val;
+
+	black_val = (0x0 << 20) | (0x200 << 10) | 0x200; /* YUV */
+	WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC0, black_val);
+	WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC1, black_val);
+}
+EXPORT_SYMBOL(rx_mute_vpp);
+
 static inline void mute_vpp(void)
 {
 	u32 black_val;

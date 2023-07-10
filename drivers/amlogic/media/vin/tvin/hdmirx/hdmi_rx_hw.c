@@ -2212,6 +2212,11 @@ bool rx_clr_tmds_valid(void)
 
 	if (rx.state >= FSM_SIG_STABLE) {
 		rx.state = FSM_WAIT_CLK_STABLE;
+		if (vpp_mute_enable) {
+			rx_mute_vpp();
+			set_video_mute(true);
+			rx_pr("vpp mute\n");
+		}
 		hdmirx_output_en(false);
 		hdmirx_top_irq_en(0, 0);
 		if (log_level & VIDEO_LOG)
@@ -3209,8 +3214,9 @@ bool rx_clk_rate_monitor(void)
 		rx.phy.clk_rate = clk_rate;
 	}
 	if (changed) {
-		if (rx.state >= FSM_WAIT_CLK_STABLE)
-			rx.state = FSM_WAIT_CLK_STABLE;
+		rx.cableclk_stb_flg = false;
+		//if (rx.state >= FSM_WAIT_CLK_STABLE)
+			//rx.state = FSM_WAIT_CLK_STABLE;
 		i2c_err_cnt = 0;
 	}
 	return changed;

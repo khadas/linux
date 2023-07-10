@@ -3156,6 +3156,7 @@ unsigned int rx_set_bits(unsigned int data,
 /*extern unsigned int hdmirx_get_cable_clock(void);*/
 /*extern unsigned int hdmirx_get_mpll_div_clk(void);*/
 /*extern unsigned int hdmirx_get_clock(int index);*/
+void rx_mute_vpp(void);
 
 /* hdcp22 */
 void rx_hdcp22_wr_reg(unsigned int addr, unsigned int data);
