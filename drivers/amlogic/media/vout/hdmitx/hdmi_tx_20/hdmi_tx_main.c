@@ -8748,6 +8748,7 @@ bool drm_hdmitx_chk_mode_attr_sup(char *mode, char *attr)
 {
 	struct hdmi_format_para *para = NULL;
 	bool valid = false;
+	mutex_lock(&valid_mode_mutex);
 
 	if (hdmitx_device.hdmi_init != 1)
 		return valid;
@@ -8768,7 +8769,7 @@ bool drm_hdmitx_chk_mode_attr_sup(char *mode, char *attr)
 	}
 
 	valid = hdmitx_edid_check_valid_mode(&hdmitx_device, para);
-
+	mutex_unlock(&valid_mode_mutex);
 	return valid;
 }
 
