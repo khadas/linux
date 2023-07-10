@@ -317,7 +317,7 @@ void adjust_vpotch_tv(void)
 			else
 				dma_start_line = 0x180;
 			if (is_aml_tvmode()) {
-				if (debug_vpotch)
+				if (debug_vpotch != 0xFFFF)
 					vpotch = debug_vpotch;
 				else if (vinfo->vbp >= 30)
 					vpotch = 0x10;
