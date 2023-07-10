@@ -200,7 +200,7 @@
 
 	deinterlace {
 		compatible = "amlogic, deinterlace";
-		status = "okay";
+		status = "disabled";
 		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
 		flag_cma = <1>;
 		//memory-region = <&di_reserved>;
@@ -208,10 +208,10 @@
 		interrupts = <0 46 1
 				0 40 1>;
 		interrupt-names = "pre_irq", "post_irq";
-		clocks = <&clkc CLKID_VPU_CLKB_TMP_COMP>,
-			<&clkc CLKID_VPU_CLKB_COMP>;
-		clock-names = "vpu_clkb_tmp_composite",
-			"vpu_clkb_composite";
+		//clocks = <&clkc CLKID_VPU_CLKB_TMP_COMP>,
+		//	<&clkc CLKID_VPU_CLKB_COMP>;
+		//clock-names = "vpu_clkb_tmp_composite",
+		//	"vpu_clkb_composite";
 		clock-range = <334 500>;
 		//clock-range = <334 667>;
 		/* buffer-size = <3621952>;(yuv422 8bit) */
@@ -255,7 +255,7 @@
 		//pinctrl-names="if_agc_pins";
 		//pinctrl-0=<&dtvdemod_agc_pins>;
 
-		clocks = <&clkc CLKID_DAC_CLK>;
+		//clocks = <&clkc CLKID_DAC_CLK>;
 		clock-names = "vdac_clk_gate";
 
 		reg = <0xff650000 0x4000	/*dtv demod base*/
@@ -478,12 +478,12 @@
 				"dvr0_irq",
 				"dvr1_irq",
 				"dvr2_irq";
-		clocks = <&clkc CLKID_DEMUX
-			&clkc CLKID_ASYNC_FIFO
-			&clkc CLKID_AHB_ARB0
-/*		&clkc CLKID_DOS_PARSER>;*/
-		&clkc CLKID_U_PARSER>;
-		clock-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
+//		clocks = <&clkc CLKID_DEMUX
+//			&clkc CLKID_ASYNC_FIFO
+//			&clkc CLKID_AHB_ARB0
+///*		&clkc CLKID_DOS_PARSER>;*/
+//		&clkc CLKID_U_PARSER>;
+//		clock-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
 	};
 
 	tvafe_avin_detect {
@@ -538,9 +538,9 @@
 		cma_size = <215>;
 		interrupts = <0 83 1>;
 		rdma-irq = <2>;
-		clocks = <&clkc CLKID_FCLK_DIV5>,
-			<&clkc CLKID_VDIN_MEAS_COMP>;
-		clock-names = "fclk_div5", "cts_vdin_meas_clk";
+//		clocks = <&clkc CLKID_FCLK_DIV5>,
+//			<&clkc CLKID_VDIN_MEAS_COMP>;
+//		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <0>;
 		/*vdin write mem color depth support:
 		 * bit0:support 8bit
@@ -573,9 +573,9 @@
 		flag_cma = <0>;
 		interrupts = <0 85 1>;
 		rdma-irq = <4>;
-		clocks = <&clkc CLKID_FCLK_DIV5>,
-			<&clkc CLKID_VDIN_MEAS_COMP>;
-		clock-names = "fclk_div5", "cts_vdin_meas_clk";
+//		clocks = <&clkc CLKID_FCLK_DIV5>,
+//			<&clkc CLKID_VDIN_MEAS_COMP>;
+//		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <1>;
 		/*vdin write mem color depth support:
 		 *bit0:support 8bit
@@ -603,7 +603,7 @@
 				2 /* TVAFE_CVBS_IN1, CVBS_IN2 */
 				4 /* TVAFE_CVBS_IN3, CVBS_IN3 */
 		>;
-		clocks = <&clkc CLKID_DAC_CLK>;
+//		clocks = <&clkc CLKID_DAC_CLK>;
 		clock-names = "vdac_clk_gate";
 
 		cutwindow_val_h = <0 0 0 0 8>; /* level 0~4 */
@@ -639,14 +639,14 @@
 	cvbsout {
 		compatible = "amlogic, cvbsout-tl1";
 		status = "disabled";
-		clocks = <&clkc CLKID_VCLK2_ENCI
-			&clkc CLKID_VCLK2_VENCI0
-			&clkc CLKID_VCLK2_VENCI1
-			&clkc CLKID_DAC_CLK>;
-		clock-names = "venci_top_gate",
-			"venci_0_gate",
-			"venci_1_gate",
-			"vdac_clk_gate";
+		//clocks = <&clkc CLKID_VCLK2_ENCI
+		//	&clkc CLKID_VCLK2_VENCI0
+		//	&clkc CLKID_VCLK2_VENCI1
+		//	&clkc CLKID_DAC_CLK>;
+		//clock-names = "venci_top_gate",
+		//	"venci_0_gate",
+		//	"venci_1_gate",
+		//	"vdac_clk_gate";
 		/* clk path */
 		/* 0:vid_pll vid2_clk */
 		/* 1:gp0_pll vid2_clk */
@@ -879,32 +879,32 @@
 		 */
 		term_lvl = <0x11>;
 		interrupts = <0 41 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc CLKID_HDMIRX_MODET_COMP>,
-			   <&clkc CLKID_HDMIRX_CFG_COMP>,
-			   <&clkc CLKID_HDMIRX_ACR_COMP>,
-			   <&clkc CLKID_HDMIRX_METER_COMP>,
-			   <&clkc CLKID_HDMIRX_AXI_COMP>,
-			   <&xtal>,
-			   <&clkc CLKID_FCLK_DIV5>,
-			   <&clkc CLKID_FCLK_DIV7>,
-			   <&clkc CLKID_HDCP22_SKP_COMP>,
-			   <&clkc CLKID_HDCP22_ESM_COMP>;
-		//	   <&clkc CLK_AUD_PLL2FS>,
-		//	   <&clkc CLK_AUD_PLL4FS>,
-		//	   <&clkc CLK_AUD_OUT>;
-		clock-names = "hdmirx_modet_clk",
-			"hdmirx_cfg_clk",
-				"hdmirx_acr_ref_clk",
-				"cts_hdmirx_meter_clk",
-				"cts_hdmi_axi_clk",
-				"xtal",
-				"fclk_div5",
-				"fclk_div7",
-				"hdcp_rx22_skp",
-				"hdcp_rx22_esm";
-		//		"hdmirx_aud_pll2fs",
-		//		"hdmirx_aud_pll4f",
-		//		"clk_aud_out";
+//		clocks = <&clkc CLKID_HDMIRX_MODET_COMP>,
+//			   <&clkc CLKID_HDMIRX_CFG_COMP>,
+//			   <&clkc CLKID_HDMIRX_ACR_COMP>,
+//			   <&clkc CLKID_HDMIRX_METER_COMP>,
+//			   <&clkc CLKID_HDMIRX_AXI_COMP>,
+//			   <&xtal>,
+//			   <&clkc CLKID_FCLK_DIV5>,
+//			   <&clkc CLKID_FCLK_DIV7>,
+//			   <&clkc CLKID_HDCP22_SKP_COMP>,
+//			   <&clkc CLKID_HDCP22_ESM_COMP>;
+//		//	   <&clkc CLK_AUD_PLL2FS>,
+//		//	   <&clkc CLK_AUD_PLL4FS>,
+//		//	   <&clkc CLK_AUD_OUT>;
+//		clock-names = "hdmirx_modet_clk",
+//			"hdmirx_cfg_clk",
+//				"hdmirx_acr_ref_clk",
+//				"cts_hdmirx_meter_clk",
+//				"cts_hdmi_axi_clk",
+//				"xtal",
+//				"fclk_div5",
+//				"fclk_div7",
+//				"hdcp_rx22_skp",
+//				"hdcp_rx22_esm";
+//		//		"hdmirx_aud_pll2fs",
+//		//		"hdmirx_aud_pll4f",
+//		//		"clk_aud_out";
 		hdmirx_id = <0>;
 		en_4k_2_2k = <0>;
 		hpd_low_cec_off = <1>;
@@ -1070,12 +1070,12 @@
 		pinctrl-0 = <&sdio_all_pins>;
 		pinctrl-1 = <&sdio_clk_cmd_pins>;
 
-		clocks = <&clkc CLKID_SD_EMMC_B>,
-			<&clkc CLKID_SD_EMMC_B_P0_COMP>,
-			<&clkc CLKID_FCLK_DIV2>,
-			<&clkc CLKID_FCLK_DIV5>,
-			<&xtal>;
-		clock-names = "core", "clkin0", "clkin1", "clkin2", "xtal";
+//		clocks = <&clkc CLKID_SD_EMMC_B>,
+//			<&clkc CLKID_SD_EMMC_B_P0_COMP>,
+//			<&clkc CLKID_FCLK_DIV2>,
+//			<&clkc CLKID_FCLK_DIV5>,
+//			<&xtal>;
+//		clock-names = "core", "clkin0", "clkin1", "clkin2", "xtal";
 
 		bus-width = <4>;
 		cap-sd-highspeed;
@@ -1872,7 +1872,7 @@
 };
 
 &dwc2_a {
-	status = "okay";
+	status = "disabled";
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
 	controller-type = <1>;
 };

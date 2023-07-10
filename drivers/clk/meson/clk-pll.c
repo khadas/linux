@@ -807,16 +807,13 @@ static int meson_secure_pll_v2_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
 	struct arm_smccc_res res;
-	unsigned int enabled, m, n, ret = 0;
-	unsigned long old_rate;
+	unsigned int m, n, ret = 0;
 #if defined CONFIG_AMLOGIC_MODIFY && defined CONFIG_ARM
 	unsigned int od;
 #endif
 
 	if (parent_rate == 0 || rate == 0)
 		return -EINVAL;
-
-	old_rate = rate;
 
 #if defined CONFIG_AMLOGIC_MODIFY && defined CONFIG_ARM
 	ret = meson_clk_get_pll_settings(rate, parent_rate, &m, &n, pll, &od);
@@ -826,10 +823,9 @@ static int meson_secure_pll_v2_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (ret)
 		return ret;
 
-	enabled = meson_parm_read(clk->map, &pll->en);
-	if (enabled)
+	if (meson_parm_read(clk->map, &pll->en))
 		meson_secure_pll_v2_disable(hw);
-	/*Send m,n for arm64 */
+
 #if defined CONFIG_AMLOGIC_MODIFY && defined CONFIG_ARM
 	arm_smccc_smc(pll->smc_id, pll->secid,
 			      m, n, od, 0, 0, 0, &res);
