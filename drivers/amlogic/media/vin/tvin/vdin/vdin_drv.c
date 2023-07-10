@@ -326,7 +326,7 @@ void tvin_notify_vdin_skip_frame(void)
 
 	vdin_vf_skip_all_disp(vdin0_devp->vfp);
 
-	if (vdin0_devp->game_mode)
+	if (vdin0_devp->game_mode || IS_TVAFE_SRC(vdin0_devp->parm.port))
 		vdin_pause_hw_write(vdin0_devp, 0);
 
 	vdin0_devp->frame_drop_num = 1;
@@ -1312,19 +1312,18 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 		return -1;
 	}
 
-	/* screenshot stress test vdin1 hw crash addr need adjust config */
-	vfe = provider_vf_peek(devp->vfp);
-	if (vfe) {
-		vdin_frame_write_ctrl_set(devp, vfe, 0);
-		if (is_meson_t3_cpu() && devp->index == 1 && devp->set_canvas_manual)
-			usleep_range(16600, 18000);
-	} else {
-		pr_info("vdin%d:peek first vframe fail\n", devp->index);
-	}
 	vdin_set_all_regs(devp);
 	vdin_hw_enable(devp);
 	vdin_set_dv_tunnel(devp);
 	vdin_write_mif_or_afbce_init(devp);
+	/* screenshot stress test vdin1 hw crash addr need adjust config */
+	vfe = provider_vf_peek(devp->vfp);
+	if (vfe)
+		vdin_frame_write_ctrl_set(devp, vfe, 0);
+	else
+		pr_info("vdin%d:peek first vframe fail\n", devp->index);
+	//for debug
+	vdin_dbg_access_reg(devp, 0);
 
 	sts = vdin_is_delay_vfe2rd_list(devp);
 	if (sts) {
@@ -1383,8 +1382,6 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	devp->unreliable_vs_cnt_pre = 0;
 	devp->unreliable_vs_idx = 0;
 	devp->drop_hdr_set_sts = 3;
-	devp->vdin1_stop_write = 0;
-	devp->vdin1_stop_write_count = 0;
 	vdin_isr_drop = vdin_isr_drop_num;
 	if (devp->dv.dv_flag)
 		color_range_force = COLOR_RANGE_AUTO;
@@ -1488,9 +1485,6 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 		return;
 	}
 
-	if (is_meson_t3_cpu() && devp->index == 1)
-		devp->vdin1_stop_write = 1;
-
 #ifdef CONFIG_CMA
 	if (devp->cma_mem_alloc == 0 && devp->cma_config_en &&
 		/* In vdin v4l2 mode,the process should goes down */
@@ -1499,17 +1493,6 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 		return;
 	}
 #endif
-
-	/* vdin1 screen capture crash need to stop write */
-	if (is_meson_t3_cpu() && devp->index == 1) {
-		while (rd_bits(0, VDIN_WRARB_REQEN_SLV, 1, 1) &&
-		       devp->vdin1_stop_write_count < 40) {
-			usleep_range(2000, 3000);
-			devp->vdin1_stop_write_count++;
-		}
-		pr_info("stop:0x12c1:0x%x\n", rd(0, VDIN_WRARB_REQEN_SLV));
-	}
-
 	//vdin_frame_lock_check(devp, 0);
 
 	disable_irq(devp->irq);
@@ -2222,16 +2205,36 @@ static struct vdin_v4l2_ops_s vdin_4v4l2_ops = {
 	.start_tvin_service_ex = start_tvin_capture_ex,
 };
 
-/*call vdin_hw_disable to pause hw*/
-void vdin_pause_dec(struct vdin_dev_s *devp)
+/* call vdin_pause_dec to pause hw
+ * type:
+ *	1: pause mif
+ *	2: pause afbce
+ *	other value: pause mif and afbce
+ */
+void vdin_pause_dec(struct vdin_dev_s *devp, unsigned int type)
 {
-	devp->pause_dec = 1;
+	if (type == 1)
+		devp->debug.pause_mif_dec = true;
+	else if (type == 2)
+		devp->debug.pause_afbce_dec = true;
+	else
+		devp->pause_dec = 1;
 }
 
-/*call vdin_hw_enable to resume hw*/
-void vdin_resume_dec(struct vdin_dev_s *devp)
+/* call vdin_resume_dec to resume hw
+ * type:
+ *	1: resume mif
+ *	2: resume afbce
+ *	other value: resume mif and afbce
+ */
+void vdin_resume_dec(struct vdin_dev_s *devp, unsigned int type)
 {
-	devp->pause_dec = 0;
+	if (type == 1)
+		devp->debug.pause_mif_dec = false;
+	else if (type == 2)
+		devp->debug.pause_afbce_dec = false;
+	else
+		devp->pause_dec = 0;
 }
 
 /*register provider & notify receiver */
@@ -2647,13 +2650,13 @@ void vdin_frame_write_ctrl_set(struct vdin_dev_s *devp,
 				struct vf_entry *vfe, bool rdma_en)
 {
 	if (devp->afbce_mode == 0 || devp->double_wr) {
-		if (devp->dtdata->hw_ver >= VDIN_HW_T7)
-			vdin_set_frame_mif_write_addr(devp, rdma_en, vfe);
-
-		vdin_set_canvas_id(devp, rdma_en, vfe);
 		/* prepare for chroma canvas*/
 		if (vfe->vf.plane_num == 2)
 			vdin_set_chroma_canvas_id(devp, rdma_en, vfe);
+
+		if (devp->dtdata->hw_ver >= VDIN_HW_T7)
+			vdin_set_frame_mif_write_addr(devp, rdma_en, vfe);
+		vdin_set_canvas_id(devp, rdma_en, vfe);
 	}
 
 	if (devp->afbce_mode == 1 || devp->double_wr)
@@ -2806,6 +2809,14 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
+	if (vdin_get_active_h(devp->addr_offset) < VDIN_INPUT_DATA_THRESHOLD ||
+	    vdin_get_active_v(devp->addr_offset) < VDIN_INPUT_DATA_THRESHOLD) {
+		devp->vdin_irq_flag = VDIN_IRQ_FLG_FAKE_IRQ;
+		vdin_drop_frame_info(devp, "abnormal data input");
+		vdin_pause_hw_write(devp, 0);
+		return IRQ_HANDLED;
+	}
+
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (for_amdv_certification())
 		vdin_set_crc_pulse(devp);
@@ -2846,21 +2857,23 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	vdin_dynamic_switch_vrr(devp);
 
 	cur_ms = jiffies_to_msecs(jiffies);
-	if (cur_ms - pre_ms <= 1)
+	if (cur_ms - pre_ms <= VDIN_INPUT_MAX_FPS)
 		err_vsync++;
 	else
 		err_vsync = 0;
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && IS_HDMI_SRC(devp->parm.port) &&
-	    err_vsync >= 10 && devp->parm.info.status == TVIN_SIG_STATUS_STABLE) {
-		err_vsync = 0;
-		if (sm_ops && sm_ops->hdmi_clr_vsync)
-			sm_ops->hdmi_clr_vsync(devp->frontend);
-		else
-			pr_err("hdmi_clr_vsync is NULL\n ");
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && err_vsync &&
+	    devp->parm.info.status == TVIN_SIG_STATUS_STABLE) {
+		if (IS_HDMI_SRC(devp->parm.port) && err_vsync >= 10) {
+			err_vsync = 0;
+			if (sm_ops && sm_ops->hdmi_clr_vsync)
+				sm_ops->hdmi_clr_vsync(devp->frontend);
+			else
+				pr_err("hdmi_clr_vsync is NULL\n ");
+		}
 		vdin_drop_frame_info(devp, "err_vsync");
+		vdin_pause_hw_write(devp, 0);
 		return IRQ_HANDLED;
 	}
-
 	pre_ms = cur_ms;
 
 	/* ignore fake irq caused by sw reset*/
@@ -3030,6 +3043,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	     state != TVIN_SM_STATUS_STABLE) &&
 	    (!(devp->flags & VDIN_FLAG_SNOW_FLAG))) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_SIG_NOT_STABLE;
+		vdin_pause_hw_write(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE);
 		vdin_drop_frame_info(devp, "sig not stable");
 		vdin_drop_cnt++;
 		goto irq_handled;
@@ -3378,6 +3392,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	devp->frame_cnt++;
 
 irq_handled:
+	//for debug
+	vdin_dbg_access_reg(devp, 1);
 	/*hdmi skip policy should adapt to all drop front vframe case*/
 	if (devp->vfp->skip_vf_num > 0 &&
 	    vf_drop_cnt < vdin_drop_cnt)
@@ -3460,20 +3476,6 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	}
 
 	spin_lock_irqsave(&devp->isr_lock, flags);
-
-	if (is_meson_t3_cpu() && devp->index == 1 && devp->vdin1_stop_write) {
-		rdma_write_reg_bits(devp->rdma_handle,
-			VDIN_WRARB_REQEN_SLV, 0, 1, 1);
-		vdin_drop_frame_info(devp, "write reqen off");
-		goto irq_handled;
-	}
-
-	if (is_meson_t3_cpu() && !rd_bits(0, VDIN_WRARB_REQEN_SLV, 1, 1)) {
-		rdma_write_reg_bits(devp->rdma_handle,
-			VDIN_WRARB_REQEN_SLV, 1, 1, 1);
-		vdin_drop_frame_info(devp, "write reqen on");
-		goto irq_handled;
-	}
 
 	if (devp->frame_drop_num) {
 		devp->frame_drop_num--;
@@ -4373,10 +4375,10 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	case TVIN_IOC_PAUSE_DEC:
-		vdin_pause_dec(devp);
+		vdin_pause_dec(devp, 0);
 		break;
 	case TVIN_IOC_RESUME_DEC:
-		vdin_resume_dec(devp);
+		vdin_resume_dec(devp, 0);
 		break;
 	case TVIN_IOC_FREEZE_VF: {
 		mutex_lock(&devp->fe_lock);
@@ -6039,9 +6041,6 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	}
 	/* register vpu clk control interface */
 	vdin_vpu_dev_register(devp);
-	/*disable vdin hardware*/
-	if (devp->index == 1 && is_meson_t3_cpu())
-		wr_bits(0, VDIN_WRARB_REQEN_SLV, 0x0, 1, 1);
 	vdin_enable_module(devp, false);
 
 	/*enable auto cut window for atv*/
