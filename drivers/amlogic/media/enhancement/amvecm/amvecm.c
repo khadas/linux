@@ -98,6 +98,7 @@
 #include <linux/amlogic/media/vpp/vpp_drv.h>
 //#include "../../vpp/vpp_vf_proc.h"
 #endif
+#include "hdr/am_hdr_sbtm.h"
 
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
@@ -6559,6 +6560,9 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 				goto free_buf;
 			s5_hdr_reg_dump(val);
 		}
+	} else if (!strcmp(parm[0], "sbtm")) {
+		sbtm_hdr10_tmo_dbg(parm);
+		sbtm_sbtmdb_reg_dbg(parm);
 	}
 
 	hdr10_tmo_dbg(parm);
@@ -8587,6 +8591,8 @@ static void pr_cm_hist(enum cm_hist_e hist_sel)
 	}
 
 	hist = kmalloc(32 * sizeof(unsigned int), GFP_KERNEL);
+	if (!hist)
+		return;
 	memset(hist, 0, 32 * sizeof(unsigned int));
 
 	switch (hist_sel) {

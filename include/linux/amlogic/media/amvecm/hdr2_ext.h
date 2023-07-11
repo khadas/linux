@@ -53,7 +53,7 @@ enum hdr_process_sel {
 	CUVAHLG_HLG = BIT(25),
 	CUVAHLG_CUVA = BIT(26),
 	SDR_AC_ENH = BIT(27),
-	PROCESS_MAX = BIT(28),
+	HDR_HDR = BIT(28),
 	/* reserved  several bits for additional info */
 	RGB_OSD = BIT(29),
 	RGB_VDIN = BIT(30),

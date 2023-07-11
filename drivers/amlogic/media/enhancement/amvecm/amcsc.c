@@ -56,6 +56,8 @@
 #include <linux/amlogic/gki_module.h>
 #include "color/ai_color.h"
 #include "hdr/am_cuva_hdr_tm.h"
+#include "hdr/am_hdr_sbtm.h"
+
 
 uint debug_csc;
 static int cur_mvc_type[VD_PATH_MAX];
@@ -7320,6 +7322,46 @@ static void hdr10_tm_process_update(struct vframe_master_display_colour_s *p,
 	}
 }
 
+static void hdr10_tm_sbtm_process_update(struct vinfo_s *vinfo,
+				    enum vd_path_e vd_path, enum vpp_index_e vpp_index)
+{
+	int silce_mode = get_s5_silce_mode();
+
+	if (!sbtm_en || !sbtm_mode)
+		return;
+
+	sbtm_tmo_hdr2hdr_process(vinfo);
+	if (vd_path == VD1_PATH) {
+		if (silce_mode == VD1_1SLICE) {
+			hdr10_tm_update(VD1_HDR, HDR_HDR, vpp_index);
+		} else if (silce_mode == VD1_2SLICE) {
+			hdr10_tm_update(VD1_HDR, HDR_HDR, vpp_index);
+			hdr10_tm_update(S5_VD1_SLICE1, HDR_HDR, vpp_index);
+		} else if (silce_mode == VD1_4SLICE) {
+			hdr10_tm_update(VD1_HDR, HDR_HDR, vpp_index);
+			hdr10_tm_update(S5_VD1_SLICE1, HDR_HDR, vpp_index);
+			hdr10_tm_update(S5_VD1_SLICE2, HDR_HDR, vpp_index);
+			hdr10_tm_update(S5_VD1_SLICE3, HDR_HDR, vpp_index);
+		}
+	} else if (vd_path == VD2_PATH) {
+		hdr10_tm_update(VD2_HDR, HDR_HDR, vpp_index);
+	} else if (vd_path == VD3_PATH) {
+		hdr10_tm_update(VD3_HDR, HDR_HDR, vpp_index);
+	}
+
+	if (chip_cls_id != TV_CHIP) {
+		hdr10_tm_update(OSD1_HDR, SDR_HDR, vpp_index);
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
+			get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
+			hdr10_tm_update(OSD2_HDR, SDR_HDR, vpp_index);
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
+			get_cpu_type() == MESON_CPU_MAJOR_ID_T7 ||
+			get_cpu_type() == MESON_CPU_MAJOR_ID_T5W ||
+			get_cpu_type() == MESON_CPU_MAJOR_ID_S5)
+			hdr10_tm_update(OSD3_HDR, SDR_HDR, vpp_index);
+	}
+}
+
 static void cuva_hdr_process_update(enum hdr_type_e src_type,
 	int proc_mode, enum vd_path_e vd_path,
 	struct vframe_master_display_colour_s *p,
@@ -8570,6 +8612,8 @@ static int vpp_matrix_update(struct vframe_s *vf,
 			else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 				get_hist(vd_path, HIST_E_RGBMAX);
 		}
+
+		sbtm_sbtmdb_set(vinfo);
 	}
 
 #ifdef T7_BRINGUP_MULTI_VPP
@@ -8685,6 +8729,17 @@ static int vpp_matrix_update(struct vframe_s *vf,
 			hdr10_tm_process_update(p, vd_path, vpp_index);
 		if (hdr10p_meta_updated &&
 		    hdr10_plus_process_mode[vd_path] == PROC_HDRP_TO_SDR)
+			hdr10_plus_process_update(0, vd_path, vpp_index);
+		if (source_format[vd_path] == HDRTYPE_HDR10 &&
+				hdr_process_mode[vd_path] == PROC_BYPASS)
+			hdr10_tm_sbtm_process_update(vinfo, vd_path, vpp_index);
+	} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1) {
+		if (hdr_process_mode[vd_path] == PROC_MATCH &&
+		    csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB &&
+			!(get_hdr_type() & HLG_FLAG))
+			hdr10_tm_process_update(p, vd_path, vpp_index);
+		if (hdr10p_meta_updated &&
+		    hdr10_plus_process_mode[vd_path] == PROC_MATCH)
 			hdr10_plus_process_update(0, vd_path, vpp_index);
 	}
 

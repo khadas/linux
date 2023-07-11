@@ -504,3 +504,30 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 
 	return 0;
 }
+
+int gamut_convert(s64 *s_prmy,
+			  s64 *d_prmy,
+			  struct matrix_s *mtx,
+			  int mtx_depth)
+{
+	int i, j;
+	s64 out[3][3];
+	s64 src_prmy[4][2];
+	s64 dest_prmy[4][2];
+
+	/*default 11bit*/
+	if (mtx_depth == 0)
+		mtx_depth = 11;
+
+	for (i = 0; i < 4; i++)
+		for (j = 0; j < 2; j++) {
+			src_prmy[i][j] = s_prmy[i * 2 + j];
+			dest_prmy[i][j] = d_prmy[i * 2 + j];
+		}
+
+	gamut_proc(src_prmy, dest_prmy, out, NORM, BL);
+	cal_mtx_seting(out, BL, BL, mtx, mtx_depth);
+
+	return 0;
+}
+

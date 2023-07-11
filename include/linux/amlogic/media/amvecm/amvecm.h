@@ -580,5 +580,7 @@ struct gamma_data_s {
 struct gamma_data_s *get_gm_data(void);
 extern u32 _get_cur_enc_line(void);
 extern int rd_vencl;
+
+int register_osd_status_cb(int (*get_osd_enable_status)(u32 index));
 #endif /* AMVECM_H */
 
