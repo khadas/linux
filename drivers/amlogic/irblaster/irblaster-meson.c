@@ -104,7 +104,7 @@ struct meson_irblaster_dev {
 static DEFINE_MUTEX(blaster_mutex);
 
 static void meson_irblaster_tasklet(unsigned long data);
-DECLARE_TASKLET_DISABLED(irblaster_tasklet, meson_irblaster_tasklet, 0);
+DECLARE_TASKLET_DISABLED_OLD(irblaster_tasklet, meson_irblaster_tasklet);
 
 static struct meson_irblaster_dev *
 to_meson_irblaster(struct irblaster_chip *chip)
