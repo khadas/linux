@@ -878,38 +878,6 @@
 		key_tolerance = <40 40 40>;
 	};
 
-	vddnpu: pwm_ef-regulator {
-		compatible = "pwm-regulator";
-		pwms = <&pwm_ef MESON_PWM_0 1500 0>;
-		regulator-name = "vddnpu";
-		regulator-min-microvolt = <720000>;
-		regulator-max-microvolt = <900000>;
-		//regulator-always-on;
-		max-duty-cycle = <1500>;
-		/* Voltage Duty-Cycle */
-		voltage-table =
-				<900000 0>,
-				<890000 5>,
-				<880000 11>,
-				<870000 17>,
-				<860000 21>,
-				<850000 28>,
-				<840000 33>,
-				<830000 39>,
-				<820000 44>,
-				<810000 50>,
-				<800000 56>,
-				<790000 61>,
-				<780000 67>,
-				<770000 72>,
-				<760000 78>,
-				<750000 83>,
-				<740000 89>,
-				<730000 95>,
-				<720000 100>;
-		status = "okay";
-	};
-
 	vddq_reg: fixedregulator@vddq {
 		compatible = "regulator-fixed";
 		vin-supply = <&vbat>;
