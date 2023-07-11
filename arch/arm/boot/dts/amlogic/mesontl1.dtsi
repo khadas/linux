@@ -392,9 +392,10 @@
 			reg = <0xff800014 0x8>,
 				  <0xff800024 0x14>,
 				  <0xff80001c 0x8>;
-			reg-names = "mux", "gpio", "drive-strength";
+			reg-names = "mux", "gpio", "ds";
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl_aobus 0 0 16>;
 		};
 
 		aoceca_mux:aoceca_mux {
@@ -428,9 +429,10 @@
 				"pull",
 				"pull-enable",
 				"gpio",
-				"drive-strength";
+				"ds";
 			gpio-controller;
 			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl_periphs 0 0 87>;
 		};
 
 		hdmirx_a_mux:hdmirx_a_mux {
