@@ -291,7 +291,7 @@ void vpp_module_ve_set_ccoring_params(unsigned int *pdata)
 	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
 }
 
-void vpp_module_ve_set_ccoring_param(enum ve_ccoring_param_e type,
+void vpp_module_ve_set_ccoring_param(enum vpp_ccoring_params_e type,
 	int val)
 {
 	unsigned char start = 0;

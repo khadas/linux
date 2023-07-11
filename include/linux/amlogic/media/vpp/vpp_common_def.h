@@ -1338,6 +1338,13 @@ enum vpp_vf_top_e {
 	EN_VF_TOP_MAX,
 };
 
+enum vpp_ccoring_params_e {
+	EN_CCORING_SLOPE = 0,
+	EN_CCORING_TH,
+	EN_CCORING_BYPASS_YTH,
+	EN_CCORING_MAX,
+};
+
 struct vpp_vf_param_s {
 	unsigned int sps_h_en;
 	unsigned int sps_v_en;

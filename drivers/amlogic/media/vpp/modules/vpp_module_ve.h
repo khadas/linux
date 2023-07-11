@@ -14,13 +14,6 @@ enum ve_blkext_param_e {
 	EN_BLKEXT_MAX,
 };
 
-enum ve_ccoring_param_e {
-	EN_CCORING_SLOPE = 0,
-	EN_CCORING_TH,
-	EN_CCORING_BYPASS_YTH,
-	EN_CCORING_MAX,
-};
-
 enum ve_blue_stretch_param_e {
 	EN_BLUE_STRETCH_EN_SEL = 0,
 	EN_BLUE_STRETCH_CB_INC,
@@ -58,7 +51,7 @@ void vpp_module_ve_set_blkext_param(enum ve_blkext_param_e type,
 	int val);
 void vpp_module_ve_ccoring_en(bool enable);
 void vpp_module_ve_set_ccoring_params(unsigned int *pdata);
-void vpp_module_ve_set_ccoring_param(enum ve_ccoring_param_e type,
+void vpp_module_ve_set_ccoring_param(enum vpp_ccoring_params_e type,
 	int val);
 void vpp_module_ve_demo_center_bar_en(bool enable);
 void vpp_module_ve_set_demo_left_top_screen_width(int val);

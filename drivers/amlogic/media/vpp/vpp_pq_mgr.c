@@ -1577,6 +1577,22 @@ void vpp_pq_mgr_get_histogram(struct vpp_histgm_param_s *pdata)
 }
 EXPORT_SYMBOL(vpp_pq_mgr_get_histogram);
 
+void vpp_pq_mgr_set_ccoring_params(unsigned int *pdata, int length)
+{
+	int i;
+
+	if (length != EN_CCORING_MAX || !pdata) {
+		pr_vpp(PR_DEBUG, "[%s] length = %d\n", __func__, length);
+		return;
+	}
+
+	for (i = 0; i < length; i++)
+		pr_vpp(PR_DEBUG, "[%s] pdata[%d] = %d\n", __func__, i, pdata[i]);
+
+	vpp_module_ve_set_ccoring_params(pdata);
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_ccoring_params);
+
 int vpp_pq_mgr_get_pc_mode(void)
 {
 	return pq_mgr_settings.pc_mode;

@@ -93,6 +93,7 @@ void vpp_pq_mgr_get_hdr_metadata(struct vpp_hdr_metadata_s *pdata);
 void vpp_pq_mgr_get_hdr_histogram(struct vpp_hdr_histgm_param_s *pdata);
 void vpp_pq_mgr_get_histogram_ave(struct vpp_histgm_ave_s *pdata);
 void vpp_pq_mgr_get_histogram(struct vpp_histgm_param_s *pdata);
+void vpp_pq_mgr_set_ccoring_params(unsigned int *pdata, int length);
 int vpp_pq_mgr_get_pc_mode(void);
 enum vpp_csc_type_e vpp_pq_mgr_get_csc_type(void);
 enum vpp_hdr_type_e vpp_pq_mgr_get_hdr_type(void);
