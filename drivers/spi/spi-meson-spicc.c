@@ -774,10 +774,6 @@ static void meson_spicc_hw_prepare(struct meson_spicc_device *spicc,
 			FIELD_PREP(SPICC_FIFORST_MASK, 3),
 			spicc->base + SPICC_TESTREG);
 
-	if (spicc->data->has_oen)
-		writel_bits_relaxed(SPICC_ENH_MAIN_CLK_AO, 0,
-				    spicc->base + SPICC_ENH_CTL0);
-
 	/* Disable all IRQs */
 	writel_relaxed(0, spicc->base + SPICC_INTREG);
 	/* Setup no wait cycles by default */
@@ -822,6 +818,10 @@ static void meson_spicc_hw_prepare(struct meson_spicc_device *spicc,
 	conf |= FIELD_PREP(SPICC_BITLENGTH_MASK, bits_per_word - 1);
 #endif
 	writel_relaxed(conf, spicc->base + SPICC_CONREG);
+
+	if (spicc->data->has_oen)
+		writel_bits_relaxed(SPICC_ENH_MAIN_CLK_AO, 0,
+				spicc->base + SPICC_ENH_CTL0);
 
 #ifndef CONFIG_AMLOGIC_MODIFY
 	/* Setup clock speed */
