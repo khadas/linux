@@ -404,7 +404,7 @@
 		//memory-region = <&nna_cma_reserved>;
 		nn_hw_version = "r1p0";
 		smmu;
-		nn_regulator = "pwm_regulator";
+		//nn_regulator = "pwm_regulator";
 	};
 
 	nna_top_ports_wrapper_0: nna_top_ports_wrapper@fe370000 {
