@@ -23,7 +23,7 @@ int vpp_check_range(int val, int down, int up)
 
 int vpp_mask_int(int val, int start, int len)
 {
-	int ret = 0xffffffff;
+	unsigned int ret = 0xffffffff;
 	int tmp = LEN_INT - len;
 
 	if (tmp < 0)
@@ -37,7 +37,7 @@ int vpp_mask_int(int val, int start, int len)
 int vpp_insert_int(int src_val, int insert_val,
 	int start, int len)
 {
-	int ret = 0xffffffff;
+	unsigned int ret = 0xffffffff;
 	int tmp = LEN_INT - len;
 	int mask;
 

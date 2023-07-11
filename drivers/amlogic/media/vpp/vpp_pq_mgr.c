@@ -390,6 +390,38 @@ int vpp_pq_mgr_set_brightness(int val)
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_brightness);
 
+void vpp_pq_mgr_set_blkext_params(int *pdata, int length)
+{
+	int i;
+
+	if (length != EN_BLKEXT_MAX || !pdata) {
+		pr_vpp(PR_DEBUG, "[%s] length = %d\n", __func__, length);
+		return;
+	}
+
+	for (i = 0; i < length; i++)
+		pr_vpp(PR_DEBUG, "[%s] pdata[%d] = %d\n", __func__, i, pdata[i]);
+
+	vpp_module_ve_set_blkext_params(pdata);
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_blkext_params);
+
+void vpp_pq_mgr_set_blue_stretch_params(int *pdata, int length)
+{
+	int i;
+
+	if (length != EN_BLUE_STRETCH_MAX || !pdata) {
+		pr_vpp(PR_DEBUG, "[%s] length = %d\n", __func__, length);
+		return;
+	}
+
+	for (i = 0; i < length; i++)
+		pr_vpp(PR_DEBUG, "[%s] pdata[%d] = %d\n", __func__, i, pdata[i]);
+
+	vpp_module_ve_set_blue_stretch_params(pdata);
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_blue_stretch_params);
+
 int vpp_pq_mgr_set_brightness_post(int val)
 {
 	int ret = 0;
@@ -932,6 +964,10 @@ int vpp_pq_mgr_set_module_status(enum vpp_module_e module, bool enable)
 		vpp_module_ve_blkext_en(enable);
 		pq_mgr_settings.pq_status.pq_cfg.black_ext_en = enable;
 		break;
+	case EN_MODULE_BLS:
+		vpp_module_ve_blue_stretch_en(enable);
+		pq_mgr_settings.pq_status.pq_cfg.blue_stretch_en = enable;
+		break;
 	case EN_MODULE_LUT3D:
 		vpp_module_lut3d_en(enable);
 		pq_mgr_settings.pq_status.pq_cfg.lut3d_en = enable;
@@ -1455,6 +1491,9 @@ void vpp_pq_mgr_get_module_status(enum vpp_module_e module,
 		break;
 	case EN_MODULE_BLE:
 		enable = pq_mgr_settings.pq_status.pq_cfg.black_ext_en;
+		break;
+	case EN_MODULE_BLS:
+		enable = pq_mgr_settings.pq_status.pq_cfg.blue_stretch_en;
 		break;
 	case EN_MODULE_LUT3D:
 		enable = pq_mgr_settings.pq_status.pq_cfg.lut3d_en;

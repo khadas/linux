@@ -1345,6 +1345,36 @@ enum vpp_ccoring_params_e {
 	EN_CCORING_MAX,
 };
 
+enum vpp_blkext_param_e {
+	EN_BLKEXT_START = 0,
+	EN_BLKEXT_SLOPE1,
+	EN_BLKEXT_MIDPT,
+	EN_BLKEXT_SLOPE2,
+	EN_BLKEXT_MAX,
+};
+
+enum vpp_blue_stretch_param_e {
+	EN_BLUE_STRETCH_EN_SEL = 0,
+	EN_BLUE_STRETCH_CB_INC,
+	EN_BLUE_STRETCH_CR_INC,
+	EN_BLUE_STRETCH_GAIN,
+	EN_BLUE_STRETCH_GAIN_CB4CR,
+	EN_BLUE_STRETCH_LUMA_HIGH,
+	EN_BLUE_STRETCH_ERR_CRP,
+	EN_BLUE_STRETCH_ERR_SIGN3,
+	EN_BLUE_STRETCH_ERR_CRP_INV,
+	EN_BLUE_STRETCH_ERR_CRN,
+	EN_BLUE_STRETCH_ERR_SIGN2,
+	EN_BLUE_STRETCH_ERR_CRN_INV,
+	EN_BLUE_STRETCH_ERR_CBP,
+	EN_BLUE_STRETCH_ERR_SIGN1,
+	EN_BLUE_STRETCH_ERR_CBP_INV,
+	EN_BLUE_STRETCH_ERR_CBN,
+	EN_BLUE_STRETCH_ERR_SIGN0,
+	EN_BLUE_STRETCH_ERR_CBN_INV,
+	EN_BLUE_STRETCH_MAX,
+};
+
 struct vpp_vf_param_s {
 	unsigned int sps_h_en;
 	unsigned int sps_v_en;
@@ -1366,6 +1396,7 @@ struct vpp_pq_en_ctrl_s {
 	unsigned char dnlp_en;
 	unsigned char lc_en;
 	unsigned char black_ext_en;
+	unsigned char blue_stretch_en;
 	unsigned char chroma_cor_en;
 	unsigned char sharpness0_en;
 	unsigned char sharpness1_en;

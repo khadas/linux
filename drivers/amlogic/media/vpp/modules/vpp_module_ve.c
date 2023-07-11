@@ -227,7 +227,7 @@ void vpp_module_ve_set_blkext_params(unsigned int *pdata)
 	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
 }
 
-void vpp_module_ve_set_blkext_param(enum ve_blkext_param_e type,
+void vpp_module_ve_set_blkext_param(enum vpp_blkext_param_e type,
 	int val)
 {
 	unsigned char start = 0;
@@ -449,7 +449,7 @@ void vpp_module_ve_set_blue_stretch_params(unsigned int *pdata)
 	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
 }
 
-void vpp_module_ve_set_blue_stretch_param(enum ve_blue_stretch_param_e type,
+void vpp_module_ve_set_blue_stretch_param(enum vpp_blue_stretch_param_e type,
 	int val)
 {
 	unsigned int addr = 0;

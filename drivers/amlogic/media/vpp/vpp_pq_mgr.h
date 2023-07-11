@@ -82,6 +82,8 @@ void vpp_pq_mgr_get_hue(int *pval);
 void vpp_pq_mgr_get_hue_post(int *pval);
 void vpp_pq_mgr_get_sharpness(int *pval);
 void vpp_pq_mgr_get_whitebalance(struct vpp_white_balance_s *pdata);
+void vpp_pq_mgr_set_blkext_params(int *pdata, int length);
+void vpp_pq_mgr_set_blue_stretch_params(int *pdata, int length);
 struct vpp_gamma_table_s *vpp_pq_mgr_get_pre_gamma_table(void);
 struct vpp_gamma_table_s *vpp_pq_mgr_get_gamma_table(void);
 void vpp_pq_mgr_get_matrix_param(struct vpp_mtrx_info_s *pdata);
