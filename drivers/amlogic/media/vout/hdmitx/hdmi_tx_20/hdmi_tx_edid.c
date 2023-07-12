@@ -2577,7 +2577,6 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	int svd_flag = 0;
 	/* Default max color depth is 24 bit */
 	enum hdmi_color_depth rx_y444_max_dc = COLORDEPTH_24B;
-	enum hdmi_color_depth rx_y420_max_dc = COLORDEPTH_24B;
 	enum hdmi_color_depth rx_rgb_max_dc = COLORDEPTH_24B;
 
 	if (!hdev || !para)
@@ -2740,15 +2739,13 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	if (para->cs == COLORSPACE_YUV420) {
 		if (!is_rx_support_y420(hdev))
 			return 0;
-		if (prxcap->dc_30bit_420)
-			rx_y420_max_dc = COLORDEPTH_30B;
-		if (prxcap->dc_36bit_420)
-			rx_y420_max_dc = COLORDEPTH_36B;
-		if (para->cd <= rx_y420_max_dc)
-			valid = 1;
-		else
-			valid = 0;
-		return valid;
+		if (!prxcap->dc_30bit_420)
+			if (para->cd == COLORDEPTH_30B)
+				return 0;
+		if (!prxcap->dc_36bit_420)
+			if (para->cd == COLORDEPTH_36B)
+				return 0;
+		valid = 1;
 	}
 
 	return valid;
