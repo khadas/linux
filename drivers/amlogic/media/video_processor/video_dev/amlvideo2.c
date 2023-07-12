@@ -3915,6 +3915,8 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 		break;
 	}
 	src_canvas = vf->canvas0Addr;
+	dma_sync_single_for_device(&node->vid_dev->pdev->dev,
+		(dma_addr_t)output.vbuf, node->vid_dev->buffer_size, DMA_TO_DEVICE);
 	if (ge2d_proc) {
 #ifdef CONFIG_PM
 		node->could_suspend = false;
@@ -6375,8 +6377,6 @@ static int amlvideo2_mmap(struct file *file, struct vm_area_struct *vma)
 
 	dpr_err(node->vid_dev, 1,
 		"mmap called, vma=0x%08lx\n", (unsigned long)vma);
-
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	ret = videobuf_mmap_mapper(&fh->vb_vidq, vma);
 
 	dpr_err(node->vid_dev, 1, "vma start=0x%08lx, size=%ld, ret=%d\n",
