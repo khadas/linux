@@ -2907,6 +2907,18 @@ void hdmitx21_edid_ram_buffer_clear(struct hdmitx_dev *hdmitx_device)
 		hdmitx_device->EDID_buf1[i] = 0;
 }
 
+static void hdmitx21_phy_addr_clear(struct hdmitx_dev *hdmitx_device)
+{
+	if (!hdmitx_device)
+		return;
+
+	hdmitx_device->hdmi_info.vsdb_phy_addr.a = 0;
+	hdmitx_device->hdmi_info.vsdb_phy_addr.b = 0;
+	hdmitx_device->hdmi_info.vsdb_phy_addr.c = 0;
+	hdmitx_device->hdmi_info.vsdb_phy_addr.d = 0;
+	hdmitx_device->hdmi_info.vsdb_phy_addr.valid = 0;
+}
+
 /* Clear the Parse result of HDMI Sink's EDID. */
 void hdmitx21_edid_clear(struct hdmitx_dev *hdmitx_device)
 {
@@ -2926,6 +2938,7 @@ void hdmitx21_edid_clear(struct hdmitx_dev *hdmitx_device)
 	hdmitx_device->edid_parsing = 0;
 	hdmitx_edid_set_default_aud(hdmitx_device);
 	rx_set_hdr_lumi(&tmp[0], 2);
+	hdmitx21_phy_addr_clear(hdmitx_device);
 	//rx_set_receiver_edid(&tmp[0], 2);
 	/* clear info */
 	hdmitx_device->hdmi_info.support_underscan_flag = 0;

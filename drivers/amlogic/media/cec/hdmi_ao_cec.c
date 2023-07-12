@@ -1606,14 +1606,21 @@ static long hdmitx_cec_ioctl(struct file *f,
 		 * physical address is cleared, it
 		 * takes the value F.F.F.F
 		 */
-		tmp = cec_get_cur_phy_addr();
+		/* Near the plugin, message 83 is received, but now the hpd = 0, get the phy addr
+		 * may be last value(if don't clear phy addr when plugout); when tring to
+		 * judgement hpd, the hpd is written as 1 again in the plugin, so the phy addr will
+		 * report a wrong value. Therefore, after judgement hpd, and get the phy addr
+		 */
 		if (cec_dev->dev_type != CEC_TV_ADDR) {
-			if (get_hpd_state() == 0)
+			if (get_hpd_state() == 0) {
 				cec_dev->phy_addr = 0xffff;
-			else if (tmp == 0)
-				cec_dev->phy_addr = 0xffff;
-			else
-				cec_dev->phy_addr = tmp;
+			} else {
+				tmp = cec_get_cur_phy_addr();
+				if (tmp == 0)
+					cec_dev->phy_addr = 0xffff;
+				else
+					cec_dev->phy_addr = tmp;
+			}
 		} else {
 			cec_dev->phy_addr = 0;
 		}
