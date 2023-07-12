@@ -661,6 +661,7 @@ extern int vpp_in_size_threshold_8k;
 extern int vdec_out_size_threshold_4k;
 extern int vpp_in_size_threshold_4k;
 extern u64 vsync_cnt[VPP_MAX];
+extern u32 vpp_hold_line[VPP_MAX];
 
 bool is_amdv_enable(void);
 bool is_amdv_on(void);
@@ -870,7 +871,6 @@ extern u32 force_switch_vf_mode;
 extern u32 video_info_change_status;
 extern u32 reference_zorder;
 extern u32 pi_enable;
-extern u32 vpp_hold_line;
 
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 enum vd_path_e {

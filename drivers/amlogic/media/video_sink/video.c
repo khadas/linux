@@ -6479,10 +6479,12 @@ s32 primary_render_frame(struct video_layer_s *layer)
 	struct mif_pos_s local_vd2_mif = {0};
 	bool update_vd2 = false;
 	struct vframe_s *dispbuf = NULL;
+	u8 vpp_index;
 
 	if (!layer)
 		return -1;
 
+	vpp_index = layer->vpp_index;
 	local_vd2_mif.p_vd_mif_reg = &vd_layer[1].vd_mif_reg;
 	local_vd2_mif.p_vd_afbc_reg = &vd_layer[1].vd_afbc_reg;
 	/* filter setting management */
@@ -6531,7 +6533,7 @@ s32 primary_render_frame(struct video_layer_s *layer)
 			di_in_p.plink_reverse = glayer_info[0].reverse;
 			di_in_p.plink_hv_mirror = glayer_info[0].mirror;
 			di_in_p.dmode = EPVPP_DISPLAY_MODE_NR;
-			di_in_p.follow_hold_line = vpp_hold_line;
+			di_in_p.follow_hold_line = vpp_hold_line[vpp_index];
 			di_in_p.unreg_bypass = 0;
 			iret = pvpp_display(dispbuf, &di_in_p, NULL);
 			if (iret <= 0) {
@@ -6552,7 +6554,7 @@ s32 primary_render_frame(struct video_layer_s *layer)
 		memset(&di_in_p, 0, sizeof(struct pvpp_dis_para_in_s));
 		di_in_p.dmode = EPVPP_DISPLAY_MODE_BYPASS;
 		di_in_p.unreg_bypass = 1;
-		di_in_p.follow_hold_line = vpp_hold_line;
+		di_in_p.follow_hold_line = vpp_hold_line[vpp_index];
 		iret = pvpp_display(NULL, &di_in_p, NULL);
 		if (layer->global_debug & DEBUG_FLAG_PRELINK)
 			pr_info("%s: unreg_bypass pre-link mode ret %d\n", __func__, iret);
@@ -21158,6 +21160,7 @@ static int amvideom_probe(struct platform_device *pdev)
 	const void *prop;
 	int display_device_cnt = 1;
 	int ex_rdma = 0;
+	char propname[16];
 
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
@@ -21268,6 +21271,13 @@ static int amvideom_probe(struct platform_device *pdev)
 			ex_vsync_rdma_register();
 		else
 			pr_info("ex_vsync_rdma_register function can not be used\n");
+	}
+
+	for (i = 0; i < VPP_MAX; i++) {
+		snprintf(propname, sizeof(propname), "vpp%d_hold_line", i);
+		prop = of_get_property(pdev->dev.of_node, propname, NULL);
+		if (prop)
+			vpp_hold_line[i] = of_read_ulong(prop, 1);
 	}
 
 	video_cap_set(&amvideo_meson_dev);

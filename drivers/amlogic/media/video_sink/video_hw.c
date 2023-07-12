@@ -740,7 +740,8 @@ EXPORT_SYMBOL(get_dv_vpu_mem_power_status);
 /*********************************************************/
 struct vframe_pic_mode_s gpic_info[MAX_VD_LAYERS];
 u32 reference_zorder = 128;
-u32 vpp_hold_line = 8;
+static int param_vpp_num = VPP_MAX;
+u32 vpp_hold_line[VPP_MAX] = {8, 8, 8};
 static unsigned int cur_vf_flag;
 static u32 vpp_ofifo_size = 0x1000;
 static u32 conv_lbuf_len[MAX_VD_LAYER] = {0x100, 0x100, 0x100};
@@ -2028,7 +2029,7 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 		if (!legacy_vpp || is_meson_txlx_cpu())
 			burst_len = 2;
 		r = (3 << 24) |
-			(vpp_hold_line << 16) |
+			(vpp_hold_line[vpp_index] << 16) |
 			(burst_len << 14) | /* burst1 */
 			(vf->bitdepth & BITDEPTH_MASK);
 
@@ -2269,13 +2270,13 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 
 	if (cur_dev->display_module != C3_DISPLAY_MODULE)
 		r = (3 << VDIF_URGENT_BIT) |
-			(vpp_hold_line << VDIF_HOLD_LINES_BIT) |
+			(vpp_hold_line[vpp_index] << VDIF_HOLD_LINES_BIT) |
 			VDIF_FORMAT_SPLIT |
 			VDIF_CHRO_RPT_LAST | VDIF_ENABLE;
 	else
 		r = (3 << VDIF_URGENT_BIT) |
 			VDIF_LUMA_END_AT_LAST_LINE |
-			(vpp_hold_line << VDIF_HOLD_LINES_BIT) |
+			(vpp_hold_line[vpp_index] << VDIF_HOLD_LINES_BIT) |
 			VDIF_LAST_LINE |
 			VDIF_FORMAT_SPLIT |
 			(2 << VDIF_BURSTSIZE_Y_BIT) |
@@ -2581,7 +2582,7 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 		if (!legacy_vpp || is_meson_txlx_cpu())
 			burst_len = 2;
 		r = (3 << 24) |
-		    (vpp_hold_line << 16) |
+		    (vpp_hold_line[vpp_index] << 16) |
 		    (burst_len << 14) | /* burst1 */
 		    (vf->bitdepth & BITDEPTH_MASK);
 
@@ -2774,7 +2775,7 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 			(vd_afbc_reg->afbc_enable, 0);
 
 	r = (3 << VDIF_URGENT_BIT) |
-		(vpp_hold_line << VDIF_HOLD_LINES_BIT) |
+		(vpp_hold_line[vpp_index] << VDIF_HOLD_LINES_BIT) |
 		VDIF_FORMAT_SPLIT |
 		VDIF_CHRO_RPT_LAST | VDIF_ENABLE;
 	/*  | VDIF_RESET_ON_GO_FIELD;*/
@@ -9493,9 +9494,12 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 	bool ret = false;
 	int iret = 0xff;
 	struct pvpp_dis_para_in_s di_in_p;
+	u8 vpp_index = 0;
 
 	if (!layer || !vf || layer->layer_id != 0)
 		return ret;
+
+	vpp_index = layer->vpp_index;
 
 	if (!layer->need_disable_prelink &&
 	    is_pre_link_on(layer)) {
@@ -9550,7 +9554,7 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 				memset(&di_in_p, 0, sizeof(struct pvpp_dis_para_in_s));
 				di_in_p.dmode = EPVPP_DISPLAY_MODE_BYPASS;
 				di_in_p.unreg_bypass = 0; /* 1? */
-				di_in_p.follow_hold_line = vpp_hold_line;
+				di_in_p.follow_hold_line = vpp_hold_line[vpp_index];
 				iret = pvpp_display(vf, &di_in_p, NULL);
 				if (layer->global_debug & DEBUG_FLAG_PRELINK)
 					pr_info("Disable/Bypass pre-link mode ret %d\n", iret);
@@ -9578,7 +9582,7 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 			memset(&di_in_p, 0, sizeof(struct pvpp_dis_para_in_s));
 			di_in_p.dmode = EPVPP_DISPLAY_MODE_BYPASS;
 			di_in_p.unreg_bypass = 1;
-			di_in_p.follow_hold_line = vpp_hold_line;
+			di_in_p.follow_hold_line = vpp_hold_line[vpp_index];
 			iret = pvpp_display(NULL, &di_in_p, NULL);
 			if (layer->global_debug & DEBUG_FLAG_PRELINK)
 				pr_info("%s: unreg_bypass pre-link mode ret %d\n",
@@ -9618,7 +9622,7 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 			memset(&di_in_p, 0, sizeof(struct pvpp_dis_para_in_s));
 			di_in_p.dmode = EPVPP_DISPLAY_MODE_BYPASS;
 			di_in_p.unreg_bypass = 0;
-			di_in_p.follow_hold_line = vpp_hold_line;
+			di_in_p.follow_hold_line = vpp_hold_line[vpp_index];
 			iret = pvpp_display(vf, &di_in_p, NULL);
 			if (iret >= 0) {
 				iret = pvpp_sw(false);
@@ -9658,7 +9662,7 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 				di_in_p.plink_hv_mirror = glayer_info[0].mirror;
 				di_in_p.dmode = EPVPP_DISPLAY_MODE_NR;
 				di_in_p.unreg_bypass = 0;
-				di_in_p.follow_hold_line = vpp_hold_line;
+				di_in_p.follow_hold_line = vpp_hold_line[vpp_index];
 				iret = pvpp_display(vf, &di_in_p, NULL);
 				if (iret > 0) {
 					layer->pre_link_en = true;
@@ -12860,13 +12864,14 @@ int video_hw_init(void)
 		}
 	}
 
-	/* set vpp1/2 holdline */
-	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
-		if (cur_dev->has_vpp1)
-			WRITE_VCBUS_REG_BITS(VPP1_BLEND_CTRL, 16, 20, 5);
-		if (cur_dev->has_vpp2)
-			WRITE_VCBUS_REG_BITS(VPP2_BLEND_CTRL, 16, 20, 5);
-	}
+	/* set vpp1/2 holdline
+	 * if (cur_dev->display_module == T7_DISPLAY_MODULE) {
+	 *	if (cur_dev->has_vpp1)
+	 *		WRITE_VCBUS_REG_BITS(VPP1_BLEND_CTRL, 16, 20, 5);
+	 *	if (cur_dev->has_vpp2)
+	 *		WRITE_VCBUS_REG_BITS(VPP2_BLEND_CTRL, 16, 20, 5);
+	 * }
+	 */
 	/* select afbcd output to di pre */
 	if (video_is_meson_t5d_revb_cpu() && vd1_vd2_mux_dts) {
 		/* default false */
@@ -12927,9 +12932,9 @@ int video_hw_init(void)
 	}
 
 	if (cur_hold_line > 0x1f)
-		vpp_hold_line = 0x1f;
+		vpp_hold_line[0] = 0x1f;
 	else
-		vpp_hold_line = cur_hold_line;
+		vpp_hold_line[0] = cur_hold_line;
 
 	/* Temp force set dmc */
 	if (!legacy_vpp) {
@@ -13423,7 +13428,7 @@ int video_late_uninit(void)
 }
 
 MODULE_PARM_DESC(vpp_hold_line, "\n vpp_hold_line\n");
-module_param(vpp_hold_line, uint, 0664);
+module_param_array(vpp_hold_line, uint, &param_vpp_num, 0664);
 
 MODULE_PARM_DESC(bypass_cm, "\n bypass_cm\n");
 module_param(bypass_cm, bool, 0664);
