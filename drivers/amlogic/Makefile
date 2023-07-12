@@ -59,7 +59,6 @@ obj-$(CONFIG_AMLOGIC_DVB_DMX)		+= dvb/
 obj-$(CONFIG_DOLBY_FW) += dolby_fw/
 obj-$(CONFIG_AMLOGIC_CPU_INFO)          += cpu_info/
 obj-$(CONFIG_AMLOGIC_SOC_INFO) 		+= soc_info/
-obj-$(CONFIG_AMLOGIC_BOARD_INFO) 	+= board_info/
 obj-$(CONFIG_GATOR)	+= gator-driver/
 obj-$(CONFIG_AMLOGIC_MFD) += mfd/
 obj-$(CONFIG_AMLOGIC_REGULATOR) += regulator/

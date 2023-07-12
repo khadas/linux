@@ -157,10 +157,6 @@
 		};
 	};
 
-	board_info {
-		id-reg = <0xfe010310 0x8 0x8>;
-	};
-
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13 0xff08>,
