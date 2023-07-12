@@ -1393,11 +1393,14 @@
 			card_type = <1>;
 			ignore_desc_busy;
 			mmc_debug_flag;
-			tx_delay = <0x16>;
+			tx_delay = <0x8>;
+			hs4_core_phase = <0x3>;
 			src_clk_rate = <1152000000>;
+			//nwr_cnt = <12>;
 			//enable-ctrl-power;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};
+
 		/* no portB clock */
 		sd_emmc_b: sd@fe08a000 {
 			compatible = "amlogic,meson-axg-mmc";
