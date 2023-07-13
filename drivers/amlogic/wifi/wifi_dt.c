@@ -44,6 +44,8 @@
 #include "../../gpio/gpiolib-of.h"
 #define OWNER_NAME "sdio_wifi"
 
+static char aml_wifi_chip_type[10] = "NULL";
+
 struct pcie_wifi_chip {
 	unsigned int vendor;
 	unsigned int device;
@@ -114,6 +116,7 @@ struct wifi_plat_info {
 #define WIFI_POWER_DOWN  _IO('m', 4)
 #define SDIO_GET_DEV_TYPE  _IO('m', 5)
 #define CLR_BT_POWER_BIT   _IO('m', 6)
+#define GET_AML_WIIF_MODULE  _IO('m', 7)
 static struct wifi_plat_info wifi_info;
 static dev_t wifi_power_devno;
 static struct cdev *wifi_power_cdev;
@@ -438,6 +441,12 @@ static long wifi_power_ioctl(struct file *filp,
 			  dev_type, (int)strlen(dev_type));
 		if (copy_to_user((char __user *)arg,
 				 dev_type, strlen(dev_type)))
+			return -ENOTTY;
+		break;
+	case GET_AML_WIIF_MODULE:
+		WIFI_INFO("aml module chip is %s", aml_wifi_chip_type);
+		if (copy_to_user((char __user *)arg,
+					aml_wifi_chip_type, 10))
 			return -ENOTTY;
 		break;
 	case CLR_BT_POWER_BIT:
@@ -1019,6 +1028,12 @@ u8 *wifi_get_mac(void)
 	return WIFI_MAC;
 }
 EXPORT_SYMBOL(wifi_get_mac);
+
+void aml_wifi_chip(const char *type)
+{
+	memcpy(aml_wifi_chip_type, type, 10);
+}
+EXPORT_SYMBOL(aml_wifi_chip);
 
 void extern_wifi_set_enable(int is_on)
 {
