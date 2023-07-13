@@ -999,7 +999,7 @@ static int vpp_process_speed_check
 	vpu_clk = vpu_clk_get();
 #endif
 	/* the output is only up to 1080p */
-	if (vpu_clk <= 250000000) {
+	if (vpu_clk <= 400000000) {
 		/* ((3840 * 2160) / 1920) *  (vpu_clk / 1000000) / 666 */
 		max_height =  4320 *  (vpu_clk / 1000000) / 666;
 	}
@@ -1052,32 +1052,56 @@ static int vpp_process_speed_check
 	 *if di work need check mif input and vpu process speed
 	 */
 	if (IS_DI_POST(vf->type)) {
+		u32 input_time_us_per_line10 = 0, display_time_us_per_line10 = 0;
+
 		htotal = vinfo->htotal;
 #ifdef CONFIG_AMLOGIC_VPU
 		clk_vpu = vpu_clk_get();
 #endif
 		clk_temp = clk_in_pps / 1000000;
-		if (clk_temp)
+		if (clk_temp) {
 			input_time_us = height_in * width_in / clk_temp;
+			input_time_us_per_line10 = (width_in * 10) / clk_temp;
+		}
 		clk_temp = clk_vpu / 1000000;
-		if (IS_DI_PRELINK(vf->di_flag))
-			width_out = htotal;
-		else
-			width_out = next_frame_par->VPP_hsc_endp -
-				next_frame_par->VPP_hsc_startp + 1;
-		if (clk_temp)
-			dummy_time_us = (vtotal * htotal -
-			height_out * width_out) / clk_temp;
 		display_time_us = 1000000 * sync_duration_den /
 			vinfo->sync_duration_num;
-		if (super_debug)
+		display_time_us_per_line10 = (display_time_us * 10) / vtotal;
+		if (IS_DI_PRELINK(vf->di_flag)) {
+			u32 orig_w;
+
+			if (vf->type & VIDTYPE_COMPRESS)
+				orig_w = vf->compWidth;
+			else
+				orig_w = vf->width;
+			/* w <= 1280, DI will enable dm chroma, pixel clock need x3 */
+			if (orig_w <= 1280)
+				input_time_us *= 3;
+
+			dummy_time_us = display_time_us;
+			display_time_us = (height_out * display_time_us) / vtotal;
+			dummy_time_us = dummy_time_us - display_time_us;
+		} else {
+			width_out = next_frame_par->VPP_hsc_endp -
+				next_frame_par->VPP_hsc_startp + 1;
+			if (clk_temp)
+				dummy_time_us = (vtotal * htotal -
+				height_out * width_out) / clk_temp;
+
+			if (display_time_us > dummy_time_us)
+				display_time_us = display_time_us - dummy_time_us;
+		}
+		if (super_debug) {
 			pr_info("%s:input_time_us=%d, display_time_us=%d, dummy_time_us=%d\n",
 				__func__,
 				input_time_us,
 				display_time_us,
 				dummy_time_us);
-		if (display_time_us > dummy_time_us)
-			display_time_us = display_time_us - dummy_time_us;
+			pr_info("%s:input_time_us_per_line10=%d, display_time_us_per_line10=%d\n",
+				__func__,
+				input_time_us_per_line10,
+				display_time_us_per_line10);
+		}
 		if (input_time_us > display_time_us)
 			return SPEED_CHECK_VSKIP;
 	}
@@ -1133,12 +1157,12 @@ static int vpp_process_speed_check
 				    (vpp_flags & VPP_FLAG_FROM_TOGGLE_FRAME))
 					cur_skip_ratio = cur_ratio;
 				if (super_debug)
-					pr_info("%s:line=%d,cur_ratio=%d, min_ratio_1000=%d, type:%x\n",
+					pr_info("%s:line=%d,cur_ratio=%d, min_ratio_1000=%d, type:%x, max_height:%d\n",
 						__func__,
 						__LINE__,
 						cur_ratio,
 						min_ratio_1000,
-						vf->type);
+						vf->type, max_height);
 				if (cur_ratio > min_ratio_1000 &&
 				    vf->source_type !=
 				    VFRAME_SOURCE_TYPE_TUNER &&
