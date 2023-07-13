@@ -43,6 +43,10 @@ MODULE_PARM_DESC(testbus_read_only, "\n\t\t testbus_read_only");
 static unsigned int testbus_read_only;
 module_param(testbus_read_only, int, 0644);
 
+MODULE_PARM_DESC(testbus_test_mode, "\n\t\t testbus_test_mode");
+static unsigned char testbus_test_mode;
+module_param(testbus_test_mode, byte, 0644);
+
 static void get_chip_name(struct amldtvdemod_device_s *devp, char *str)
 {
 	switch (devp->data->hw_ver) {
@@ -103,75 +107,6 @@ static void get_chip_name(struct amldtvdemod_device_s *devp, char *str)
 		break;
 	}
 }
-
-static int dvbc_fast_search_open(struct inode *inode, struct file *file)
-{
-	PR_DVBC("dvbc fast channel search Open\n");
-	return 0;
-}
-
-static int dvbc_fast_search_release(struct inode *inode,
-	struct file *file)
-{
-	PR_DVBC("dvbc fast channel search Release\n");
-	return 0;
-}
-
-#define BUFFER_SIZE 100
-static ssize_t dvbc_fast_search_show(struct file *file,
-	char __user *userbuf, size_t count, loff_t *ppos)
-{
-	char buf[BUFFER_SIZE];
-	unsigned int len;
-
-	len = snprintf(buf, BUFFER_SIZE, "channel fast search en : %d\n",
-		demod_dvbc_get_fast_search());
-	/*len += snprintf(buf + len, BUFFER_SIZE - len, "");*/
-
-	return simple_read_from_buffer(userbuf, count, ppos, buf, len);
-}
-
-static ssize_t dvbc_fast_search_store(struct file *file,
-		const char __user *userbuf, size_t count, loff_t *ppos)
-{
-	char buf[80];
-	char cmd[80], para[80];
-	int ret;
-
-	count = min_t(size_t, count, (sizeof(buf)-1));
-	if (copy_from_user(buf, userbuf, count))
-		return -EFAULT;
-
-	buf[count] = 0;
-
-	ret = sscanf(buf, "%s %s", cmd, para);
-
-	if (!strcmp(cmd, "fast_search")) {
-		PR_INFO("channel fast search: ");
-
-		if (!strcmp(para, "on")) {
-			PR_INFO("on\n");
-			demod_dvbc_set_fast_search(1);
-		} else if (!strcmp(para, "off")) {
-			PR_INFO("off\n");
-			demod_dvbc_set_fast_search(0);
-		}
-	}
-
-	return count;
-}
-
-#define DEFINE_SHOW_STORE_DEMOD(__name) \
-static const struct file_operations __name ## _fops = {	\
-	.owner = THIS_MODULE,		\
-	.open = __name ## _open,	\
-	.release = __name ## _release,	\
-	.read = __name ## _show,		\
-	.write = __name ## _store,	\
-}
-
-/*echo fast_search on > /sys/kernel/debug/demod/dvbc_channel_fast*/
-DEFINE_SHOW_STORE_DEMOD(dvbc_fast_search);
 
 static void seq_dump_regs(struct seq_file *seq)
 {
@@ -404,7 +339,6 @@ DEFINE_SHOW_DEMOD(demod_version_info);
 static struct demod_debugfs_files_t demod_debug_files[] = {
 	{"dump_info", S_IFREG | 0644, &demod_dump_info_fops},
 	{"version_info", S_IFREG | 0644, &demod_version_info_fops},
-	{"dvbc_channel_fast", S_IFREG | 0644, &dvbc_fast_search_fops},
 };
 
 static void dtv_dmd_parse_param(char *buf_orig, char **parm)
@@ -784,7 +718,7 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 	front_write_bits(0x39, addr, 0, 16);
 
 	/* disable test_mode */
-	if (test_mode)
+	if (test_mode || testbus_test_mode)
 		front_write_bits(0x3a, 1, 13, 1);
 	else
 		front_write_bits(0x3a, 0, 13, 1);
@@ -826,8 +760,10 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 	else
 		size = demod_ddr_size;
 
-	PR_INFO("%s: capture_mode:%d, test_mode:%d, addr offset:%dM, cap_size:%dM.\n",
-			__func__, capture_mode, test_mode, offset / SZ_1M, size / SZ_1M);
+	PR_INFO("%s: capture_mode:%d, test_mode:%d, start_addr:0x%x, offset:%dM, size:%dM.\n",
+			__func__, capture_mode, test_mode || testbus_test_mode,
+			start_addr, offset / SZ_1M, size / SZ_1M);
+
 	start_addr += offset;
 	front_write_reg(0x3c, start_addr);
 	front_write_reg(0x3d, start_addr + size);
@@ -879,11 +815,6 @@ unsigned int clear_ddr_bus_data(struct aml_dtvdemod *demod)
 	unsigned int start_addr = 0;
 	unsigned int top_saved = 0, polling_en = 0;
 	unsigned int offset = 0, size = 0;
-
-	if (unlikely(!devp)) {
-		PR_ERR("%s:devp is NULL\n", __func__);
-		return -1;
-	}
 
 	testbus_addr = 0x1000;
 	width = 9;
@@ -1676,6 +1607,8 @@ static ssize_t atsc_para_store(struct class *cls, struct class_attribute *attr,
 		atsc_mode_para = ATSC_READ_SER;
 	else if (buf[0] == '4')
 		atsc_mode_para = ATSC_READ_FREQ;
+	else if (buf[0] == '5')
+		atsc_mode_para = ATSC_READ_CK;
 	else
 		PR_INFO("invalid command.\n");
 

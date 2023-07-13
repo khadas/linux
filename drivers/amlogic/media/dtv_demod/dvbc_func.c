@@ -12,12 +12,6 @@
 
 /*#include "dvbc_func.h"*/
 
-MODULE_PARM_DESC(debug_amldvbc, "\n\t\t Enable frontend demod debug information");
-static int debug_amldvbc;
-module_param(debug_amldvbc, int, 0644);
-
-/*#define dprintk(a ...) do { if (debug_amldvbc) printk(a); } while (0)*/
-
 /*move to dvbc_old.c*/
 /* static struct task_struct *cci_task; */
 /*int cciflag = 0;*/
@@ -304,12 +298,6 @@ int dvbc_set_ch(struct aml_dtvdemod *demod, struct aml_demod_dvbc *demod_dvbc,
 		/* auto QAM mode, force to QAM256 */
 		mode = QAM_MODE_256;
 		PR_DVBC("[id %d] auto QAM, set mode %d.\n", demod->id, mode);
-	}
-
-	if (ch_freq < 1000 || ch_freq > 900000) {
-		PR_DVBC("[id %d] Error: Invalid Channel Freq option %d\n", demod->id, ch_freq);
-		ch_freq = 474000;
-		ret = -1;
 	}
 
 	demod->demod_status.ch_mode = mode;

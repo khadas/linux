@@ -17,15 +17,6 @@
 
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 
-
-MODULE_PARM_DESC(debug_demod, "\n\t\t Enable frontend debug information");
-static int debug_demod;
-module_param(debug_demod, int, 0644);
-
-MODULE_PARM_DESC(demod_mobile_power, "\n\t\t demod_mobile_power debug information");
-static int demod_mobile_power = 100;
-module_param(demod_mobile_power, int, 0644);
-
 /* protect register access */
 static struct mutex mp;
 static struct mutex dtvpll_init_lock;
@@ -62,7 +53,6 @@ int get_dtvpll_init_flag(void)
 	return val;
 }
 
-
 int adc_dpll_setup(int clk_a, int clk_b, int clk_sys, struct aml_demod_sta *demod_sta)
 {
 	int unit, found, ena, enb, div2;
@@ -80,6 +70,7 @@ int adc_dpll_setup(int clk_a, int clk_b, int clk_sys, struct aml_demod_sta *demo
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		dtvpll_init_flag(1);
+
 		return sts_pll;
 	}
 
@@ -501,8 +492,8 @@ void demod_power_switch(int pwr_cntl)
 void demod_set_mode_ts(enum fe_delivery_system delsys)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
-	union demod_cfg0 cfg0;
-	unsigned int dvbt_mode = 0x11;
+	union demod_cfg0 cfg0 = { .d32 = 0, };
+	unsigned int dvbt_mode = 0x11; // demod_cfg3
 
 	cfg0.b.adc_format = 1;
 	cfg0.b.adc_regout = 1;
@@ -578,7 +569,7 @@ void demod_set_mode_ts(enum fe_delivery_system delsys)
 
 int clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk)
 {
-	union demod_cfg2 cfg2;
+	union demod_cfg2 cfg2 = { .d32 = 0, };
 	int sts_pll = 0;
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
 	struct dfe_adcpll_para ddemod_pll;
@@ -599,7 +590,6 @@ int clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk)
 
 	sts_pll = adc_set_pll_cntl(1, ADC_DTV_DEMOD, &ddemod_pll);
 #endif
-
 	if (sts_pll < 0) {
 		/*set pll fail*/
 		PR_ERR("%s: set pll default fail %d !\n", __func__, sts_pll);
@@ -1042,8 +1032,8 @@ void demod_init_mutex(void)
 int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 {
 	int ret = 0;
-	unsigned int clk_adc, clk_dem;
-	int nco_rate;
+	unsigned int clk_adc = 0, clk_dem = 0;
+	int nco_rate = 0;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
 	clk_adc = demod_sys->adc_clk;

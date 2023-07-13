@@ -234,8 +234,15 @@ void demod_dvbc_restore_qam_cfg(struct aml_dtvdemod *demod)
 
 void demod_dvbc_set_qam(struct aml_dtvdemod *demod, enum qam_md_e qam, bool auto_sr)
 {
-	PR_DVBC("%s last_qam_mode %d, qam %d.\n",
-			__func__, demod->last_qam_mode, qam);
+	if (demod->last_qam_mode != qam) {
+		PR_DVBC("%s last_qam_mode %d, switch to qam %d.\n",
+				__func__, demod->last_qam_mode, qam);
+	} else {
+		PR_DVBC("%s last_qam_mode == qam %d is the same.\n",
+				__func__, qam);
+
+		return;
+	}
 
 	demod_dvbc_restore_qam_cfg(demod);
 
@@ -479,7 +486,12 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	/* blind search, configure max symbol_rate      for 7218  fb=3.6M */
 	/*dvbc_write_reg(QAM_BASE+0x048, 3600*256);*/
 	/* // configure min symbol_rate fb = 6.95M*/
-	qam_write_reg(demod, 0x12, (qam_read_reg(demod, 0x12) & ~(0xff << 8)) | 3400 * 256);
+	if (demod->auto_sr)
+		qam_write_reg(demod, 0x12,
+			(qam_read_reg(demod, 0x12) & ~(0xffff << 8)) | 3400 * 256);
+	else
+		qam_write_reg(demod, 0x12,
+			(qam_read_reg(demod, 0x12) & ~(0xffff << 8)) | symb_rate * 256);
 
 /************* hw state machine config **********/
 	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
@@ -579,13 +591,6 @@ u32 dvbc_set_auto_symtrack(struct aml_dtvdemod *demod)
 
 int dvbc_status(struct aml_dtvdemod *demod, struct aml_demod_sts *demod_sts, struct seq_file *seq)
 {
-	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-
-	if (unlikely(!devp)) {
-		PR_ERR("devp is NULL, return\n");
-		return -1;
-	}
-
 	demod_sts->ch_sts = qam_read_reg(demod, 0x6);
 	demod_sts->ch_pow = dvbc_get_ch_power(demod);
 	demod_sts->ch_snr = dvbc_get_snr(demod);
@@ -643,7 +648,12 @@ void dvbc_init_reg_ext(struct aml_dtvdemod *demod)
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		/* set min sr to 3000 for cover 3500 ~ 7000 */
-		qam_write_reg(demod, 0x12, 0x50bb800);//0x50e1000 -->0x50bb800
+		if (demod->auto_sr)
+			qam_write_reg(demod, 0x12, 0x50bb800);//0x50e1000 -->0x50bb800
+		else
+			qam_write_reg(demod, 0x12, 0x5000000 |
+					(((demod->sr_val_hw - 100) & 0xffff) << 8));
+
 		qam_write_reg(demod, 0x30, 0x41f2f69);
 	}
 
@@ -733,6 +743,9 @@ void dvbc_cfg_sw_hw_sr_max(struct aml_dtvdemod *demod, unsigned int max_sr)
 
 	/* bit[8-23]: hw_symbol_rate_max. */
 	qam_write_bits(demod, 0x11, max_sr & 0xffff, 8, 16);
+
+	/* bit[8-23]: hw_symbol_rate_min. */
+	qam_write_bits(demod, 0x12, (max_sr - 100) & 0xffff, 8, 16);
 }
 
 static void sort_with_index(int size, int data[], int index[])

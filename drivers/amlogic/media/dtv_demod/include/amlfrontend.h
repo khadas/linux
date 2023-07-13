@@ -99,6 +99,7 @@
 /*  V2.1.105 fix dvbt signaling buf overflow when bw 6M and GI 1/4 */
 /*  V2.1.106 fix no signal after system resume */
 /*  V2.1.107 add ATSC Monitor call for r842 */
+/*  V2.1.108 fix dvbc qam instability or lock time is too long */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -115,8 +116,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.1.107"
-#define DTVDEMOD_VER	"2023/07/05: add ATSC Monitor call for r842"
+#define AMLDTVDEMOD_VER "V2.1.108"
+#define DTVDEMOD_VER	"2023/07/14: fix dvbc qam instability or lock time is too long"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -135,7 +136,7 @@
 #define TIMEOUT_DVBS		2000
 #define TIMEOUT_DVBC		3000
 #define TIMEOUT_DVBT2		5000
-#define TIMEOUT_DDR_LEAVE   50
+#define TIMEOUT_DDR_LEAVE	50
 #define TIMEOUT_ISDBT		3000
 
 enum DEMOD_TUNER_IF {
@@ -330,18 +331,16 @@ struct aml_dtvdemod {
 	int auto_flags_trig;
 	unsigned int p1_peak;
 
-	unsigned int times;
-	unsigned int no_sig_cnt;
-
 	enum qam_md_e auto_qam_mode;
 	enum qam_md_e auto_qam_list[5];
 	enum qam_md_e last_qam_mode;
 	unsigned int auto_times;
 	unsigned int auto_done_times;
 	bool auto_qam_done;
+	bool fsm_reset;
 	unsigned int auto_qam_index;
 	unsigned int auto_no_sig_cnt;
-	unsigned int fast_search_finish;
+	bool fast_search_finish;
 
 	enum fe_status atsc_dbg_lst_status;
 
@@ -421,8 +420,6 @@ struct amldtvdemod_device_s {
 	unsigned int			cma_mem_alloc;
 #endif
 
-	/*for dtv spectrum*/
-	int			spectrum;
 	/*for atsc version*/
 	int			atsc_version;
 	/*for dtv priv*/
@@ -619,8 +616,6 @@ unsigned int dtmb_is_update_delay(struct aml_dtvdemod *demod);
 unsigned int dtmb_get_delay_clear(struct aml_dtvdemod *demod);
 unsigned int dtmb_is_have_check(void);
 void dtmb_poll_v3(struct aml_dtvdemod *demod);
-unsigned int demod_dvbc_get_fast_search(void);
-void demod_dvbc_set_fast_search(unsigned int en);
 unsigned int dtvdemod_get_atsc_lock_sts(struct aml_dtvdemod *demod);
 const char *dtvdemod_get_cur_delsys(enum fe_delivery_system delsys);
 void aml_dtv_demode_isr_en(struct amldtvdemod_device_s *devp, u32 en);
