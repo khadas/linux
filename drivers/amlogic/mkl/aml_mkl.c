@@ -22,6 +22,8 @@
 #include <linux/io.h>
 #include <linux/printk.h>
 #include <linux/mutex.h>
+#include <linux/fs.h>
+#include <linux/uaccess.h>
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/aml_kt.h>
 #include "aml_mkl_log.h"
