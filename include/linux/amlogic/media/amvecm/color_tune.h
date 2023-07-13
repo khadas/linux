@@ -6,6 +6,8 @@
 #ifndef COLOR_TUNE_H
 #define COLOR_TUNE_H
 
+#include <uapi/linux/amlogic/amvecm_ext.h>
+
 struct color_param_s {
 	int en;
 	int rgain_r;
