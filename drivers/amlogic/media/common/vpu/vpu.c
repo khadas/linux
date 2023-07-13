@@ -36,7 +36,8 @@
 /* v20220803: add axg support */
 /* v20220517: add s5 support */
 /* v20230103: bypass debug print for vpu api */
-#define VPU_VERSION        "v20230103"
+/* v20230713: add tl1 support */
+#define VPU_VERSION        "v20230713"
 
 int vpu_debug_print_flag;
 static spinlock_t vpu_mem_lock;
@@ -1764,7 +1765,6 @@ static struct vpu_data_s vpu_data_g12b = {
 	.clktree_init = vpu_clktree_init_dft,
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct vpu_data_s vpu_data_tl1 = {
 	.chip_type = VPU_CHIP_TL1,
 	.chip_name = "tl1",
@@ -1806,7 +1806,6 @@ static struct vpu_data_s vpu_data_tl1 = {
 	.clk_apply = vpu_clk_apply_dft,
 	.clktree_init = vpu_clktree_init_dft,
 };
-#endif
 
 static struct vpu_data_s vpu_data_sm1 = {
 	.chip_type = VPU_CHIP_SM1,
@@ -2421,12 +2420,10 @@ static const struct of_device_id vpu_of_table[] = {
 		.compatible = "amlogic, vpu-g12b",
 		.data = &vpu_data_g12b,
 	},
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, vpu-tl1",
 		.data = &vpu_data_tl1,
 	},
-#endif
 	{
 		.compatible = "amlogic, vpu-sm1",
 		.data = &vpu_data_sm1,
