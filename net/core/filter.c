@@ -79,6 +79,7 @@
 #include <net/tls.h>
 #include <net/xdp.h>
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 static const struct bpf_func_proto *
 bpf_sk_base_func_proto(enum bpf_func_id func_id);
 
@@ -104,6 +105,7 @@ int copy_bpf_fprog_from_user(struct sock_fprog *dst, sockptr_t src, int len)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(copy_bpf_fprog_from_user);
+#endif
 
 /**
  *	sk_filter_trim_cap - run a packet through a socket filter
@@ -156,12 +158,13 @@ int sk_filter_trim_cap(struct sock *sk, struct sk_buff *skb, unsigned int cap)
 	return err;
 }
 EXPORT_SYMBOL(sk_filter_trim_cap);
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 BPF_CALL_1(bpf_skb_get_pay_offset, struct sk_buff *, skb)
 {
 	return skb_get_poff(skb);
 }
-#endif
+
 BPF_CALL_3(bpf_skb_get_nlattr, struct sk_buff *, skb, u32, a, u32, x)
 {
 	struct nlattr *nla;
@@ -428,9 +431,7 @@ static bool convert_bpf_extensions(struct sock_filter *fp,
 		/* Emit call(arg1=CTX, arg2=A, arg3=X) */
 		switch (fp->k) {
 		case SKF_AD_OFF + SKF_AD_PAY_OFFSET:
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 			*insn = BPF_EMIT_CALL(bpf_skb_get_pay_offset);
-#endif
 			break;
 		case SKF_AD_OFF + SKF_AD_NLATTR:
 			*insn = BPF_EMIT_CALL(bpf_skb_get_nlattr);
@@ -3069,7 +3070,6 @@ static const struct bpf_func_proto bpf_get_route_realm_proto = {
 	.arg1_type      = ARG_PTR_TO_CTX,
 };
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 BPF_CALL_1(bpf_get_hash_recalc, struct sk_buff *, skb)
 {
 	/* If skb_clear_hash() was called due to mangling, we can
@@ -3086,7 +3086,7 @@ static const struct bpf_func_proto bpf_get_hash_recalc_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_PTR_TO_CTX,
 };
-#endif
+
 BPF_CALL_1(bpf_set_hash_invalid, struct sk_buff *, skb)
 {
 	/* After all direct packet write, this can be used once for
@@ -7176,10 +7176,12 @@ bool bpf_helper_changes_pkt_data(void *func)
 
 	return false;
 }
+#endif
 
 const struct bpf_func_proto bpf_event_output_data_proto __weak;
 const struct bpf_func_proto bpf_sk_storage_get_cg_sock_proto __weak;
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 static const struct bpf_func_proto *
 sock_filter_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
@@ -7332,10 +7334,12 @@ sk_filter_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return bpf_sk_base_func_proto(func_id);
 	}
 }
+#endif
 
 const struct bpf_func_proto bpf_sk_storage_get_proto __weak;
 const struct bpf_func_proto bpf_sk_storage_delete_proto __weak;
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 static const struct bpf_func_proto *
 cg_skb_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
@@ -7437,7 +7441,7 @@ tc_cls_act_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_redirect_peer_proto;
 	case BPF_FUNC_get_route_realm:
 		return &bpf_get_route_realm_proto;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	case BPF_FUNC_get_hash_recalc:
 		return &bpf_get_hash_recalc_proto;
 #endif
@@ -7548,16 +7552,19 @@ xdp_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return bpf_sk_base_func_proto(func_id);
 	}
 }
-
+#endif
 const struct bpf_func_proto bpf_sock_map_update_proto __weak;
 const struct bpf_func_proto bpf_sock_hash_update_proto __weak;
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 static const struct bpf_func_proto *
 sock_ops_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	case BPF_FUNC_setsockopt:
 		return &bpf_sock_ops_setsockopt_proto;
+#endif
 	case BPF_FUNC_getsockopt:
 		return &bpf_sock_ops_getsockopt_proto;
 	case BPF_FUNC_sock_ops_cb_flags_set:
@@ -7592,10 +7599,11 @@ sock_ops_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return bpf_sk_base_func_proto(func_id);
 	}
 }
-
+#endif
 const struct bpf_func_proto bpf_msg_redirect_map_proto __weak;
 const struct bpf_func_proto bpf_msg_redirect_hash_proto __weak;
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 static const struct bpf_func_proto *
 sk_msg_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
@@ -7640,16 +7648,19 @@ sk_msg_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return bpf_sk_base_func_proto(func_id);
 	}
 }
-
+#endif
 const struct bpf_func_proto bpf_sk_redirect_map_proto __weak;
 const struct bpf_func_proto bpf_sk_redirect_hash_proto __weak;
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 static const struct bpf_func_proto *
 sk_skb_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	case BPF_FUNC_skb_store_bytes:
 		return &bpf_skb_store_bytes_proto;
+#endif
 	case BPF_FUNC_skb_load_bytes:
 		return &bpf_skb_load_bytes_proto;
 	case BPF_FUNC_skb_pull_data:
@@ -7702,15 +7713,17 @@ lwt_out_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	switch (func_id) {
 	case BPF_FUNC_skb_load_bytes:
 		return &bpf_skb_load_bytes_proto;
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	case BPF_FUNC_skb_pull_data:
 		return &bpf_skb_pull_data_proto;
+#endif
 	case BPF_FUNC_csum_diff:
 		return &bpf_csum_diff_proto;
 	case BPF_FUNC_get_cgroup_classid:
 		return &bpf_get_cgroup_classid_proto;
 	case BPF_FUNC_get_route_realm:
 		return &bpf_get_route_realm_proto;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	case BPF_FUNC_get_hash_recalc:
 		return &bpf_get_hash_recalc_proto;
 #endif
@@ -10233,6 +10246,7 @@ out:
 	release_sock(sk);
 	return ret;
 }
+#endif
 
 #ifdef CONFIG_INET
 static void bpf_init_reuseport_kern(struct sk_reuseport_kern *reuse_kern,
@@ -10690,6 +10704,7 @@ const struct bpf_verifier_ops sk_lookup_verifier_ops = {
 
 #endif /* CONFIG_INET */
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 DEFINE_BPF_DISPATCHER(xdp)
 
 void bpf_prog_change_xdp(struct bpf_prog *prev_prog, struct bpf_prog *prog)
@@ -10866,3 +10881,4 @@ bpf_sk_base_func_proto(enum bpf_func_id func_id)
 
 	return func;
 }
+#endif

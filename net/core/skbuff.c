@@ -774,7 +774,9 @@ void kfree_skb_reason(struct sk_buff *skb, enum skb_drop_reason reason)
 		return;
 
 	trace_android_vh_kfree_skb(skb);
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_kfree_skb(skb, __builtin_return_address(0), reason);
+#endif
 	__kfree_skb(skb);
 }
 EXPORT_SYMBOL(kfree_skb_reason);
@@ -926,7 +928,9 @@ void consume_skb(struct sk_buff *skb)
 	if (!skb_unref(skb))
 		return;
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_consume_skb(skb);
+#endif
 	__kfree_skb(skb);
 }
 EXPORT_SYMBOL(consume_skb);
@@ -941,7 +945,9 @@ EXPORT_SYMBOL(consume_skb);
  */
 void __consume_stateless_skb(struct sk_buff *skb)
 {
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_consume_skb(skb);
+#endif
 	skb_release_data(skb);
 	kfree_skbmem(skb);
 }
@@ -997,7 +1003,9 @@ void napi_consume_skb(struct sk_buff *skb, int budget)
 		return;
 
 	/* if reaching here SKB is ready to free */
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_consume_skb(skb);
+#endif
 
 	/* if SKB is a clone, don't handle this case */
 	if (skb->fclone != SKB_FCLONE_UNAVAILABLE) {
@@ -3039,6 +3047,7 @@ __wsum skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 }
 EXPORT_SYMBOL(skb_copy_and_csum_bits);
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 __sum16 __skb_checksum_complete_head(struct sk_buff *skb, int len)
 {
 	__sum16 sum;
@@ -3097,6 +3106,7 @@ __sum16 __skb_checksum_complete(struct sk_buff *skb)
 	return sum;
 }
 EXPORT_SYMBOL(__skb_checksum_complete);
+#endif
 
 static __wsum warn_crc32c_csum_update(const void *buff, int len, __wsum sum)
 {

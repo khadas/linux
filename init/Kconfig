@@ -1246,7 +1246,7 @@ config PID_NS
 config NET_NS
 	bool "Network namespace"
 	depends on NET
-	default y
+	default y if !AMLOGIC_ZAPPER_NET_CUT
 	help
 	  Allow user space to create what appear to be multiple instances
 	  of the network stack.

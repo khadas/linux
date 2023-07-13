@@ -112,7 +112,7 @@ int eth_header(struct sk_buff *skb, struct net_device *dev,
 }
 EXPORT_SYMBOL(eth_header);
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 /**
  * eth_get_headlen - determine the length of header for an ethernet frame
  * @dev: pointer to network device
@@ -504,7 +504,7 @@ unsigned char * __weak arch_get_platform_mac_address(void)
 	return NULL;
 }
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 int eth_platform_get_mac_address(struct device *dev, u8 *mac_addr)
 {
 	unsigned char *addr;

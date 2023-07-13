@@ -135,9 +135,7 @@ static u32 always_on(struct net_device *dev)
 
 static const struct ethtool_ops loopback_ethtool_ops = {
 	.get_link		= always_on,
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	.get_ts_info		= ethtool_op_get_ts_info,
-#endif
 };
 
 static int loopback_dev_init(struct net_device *dev)

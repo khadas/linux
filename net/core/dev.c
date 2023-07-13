@@ -159,12 +159,15 @@
 /* This should be increased if a protocol with a bigger head is added. */
 #define GRO_MAX_HEAD (MAX_HEADER + 128)
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 static DEFINE_SPINLOCK(ptype_lock);
 static DEFINE_SPINLOCK(offload_lock);
+#endif
 struct list_head ptype_base[PTYPE_HASH_SIZE] __read_mostly;
 struct list_head ptype_all __read_mostly;	/* Taps */
 static struct list_head offload_base __read_mostly;
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 static int netif_rx_internal(struct sk_buff *skb);
 static int call_netdevice_notifiers_info(unsigned long val,
 					 struct netdev_notifier_info *info);
@@ -172,6 +175,7 @@ static int call_netdevice_notifiers_extack(unsigned long val,
 					   struct net_device *dev,
 					   struct netlink_ext_ack *extack);
 static struct napi_struct *napi_by_id(unsigned int napi_id);
+#endif
 
 /*
  * The @dev_base_head list is protected by @dev_base_lock and the rtnl
@@ -198,10 +202,12 @@ EXPORT_SYMBOL(dev_base_lock);
 static DEFINE_MUTEX(ifalias_mutex);
 
 /* protects napi_hash addition/deletion and napi_gen_id */
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 static DEFINE_SPINLOCK(napi_hash_lock);
 
 static unsigned int napi_gen_id = NR_CPUS;
 static DEFINE_READ_MOSTLY_HASHTABLE(napi_hash, 8);
+#endif
 
 static DECLARE_RWSEM(devnet_rename_sem);
 
@@ -237,6 +243,7 @@ static inline void rps_unlock(struct softnet_data *sd)
 #endif
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 static struct netdev_name_node *netdev_name_node_alloc(struct net_device *dev,
 						       const char *name)
 {
@@ -400,6 +407,7 @@ static void unlist_netdevice(struct net_device *dev, bool lock)
  */
 
 static RAW_NOTIFIER_HEAD(netdev_chain);
+#endif
 
 /*
  *	Device drivers call our routines to queue packets here. We empty the
@@ -498,7 +506,7 @@ static inline void netdev_set_addr_lockdep_class(struct net_device *dev)
  *
  *******************************************************************************/
 
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 /*
  *	Add a protocol ID to the list. Now that the input handler is
  *	smarter we can dispense with all the messy stuff that used to be
@@ -606,7 +614,6 @@ void dev_remove_pack(struct packet_type *pt)
 }
 EXPORT_SYMBOL(dev_remove_pack);
 
-
 /**
  *	dev_add_offload - register offload handlers
  *	@po: protocol offload declaration
@@ -684,6 +691,7 @@ void dev_remove_offload(struct packet_offload *po)
 	synchronize_net();
 }
 EXPORT_SYMBOL(dev_remove_offload);
+#endif
 
 /*******************************************************************************
  *
@@ -780,6 +788,7 @@ int dev_fill_forward_path(const struct net_device *dev, const u8 *daddr,
 }
 EXPORT_SYMBOL_GPL(dev_fill_forward_path);
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 /**
  *	__dev_get_by_name	- find a device by its name
  *	@net: the applicable net namespace
@@ -1306,6 +1315,7 @@ rollback:
 
 	return err;
 }
+#endif
 
 /**
  *	dev_set_alias - change ifalias of a device
@@ -1366,6 +1376,7 @@ int dev_get_alias(const struct net_device *dev, char *name, size_t len)
 	return ret;
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 /**
  *	netdev_features_change - device changes features
  *	@dev: device to cause notification
@@ -1630,7 +1641,6 @@ void dev_close(struct net_device *dev)
 	}
 }
 EXPORT_SYMBOL(dev_close);
-
 
 /**
  *	dev_disable_lro - disable Large Receive Offload on a device
@@ -2053,6 +2063,7 @@ static int call_netdevice_notifiers_mtu(unsigned long val,
 
 	return call_netdevice_notifiers_info(val, &info.info);
 }
+#endif
 
 #ifdef CONFIG_NET_INGRESS
 static DEFINE_STATIC_KEY_FALSE(ingress_needed_key);
@@ -2157,6 +2168,7 @@ static inline void net_timestamp_set(struct sk_buff *skb)
 			__net_timestamp(SKB);			\
 	}							\
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 bool is_skb_forwardable(const struct net_device *dev, const struct sk_buff *skb)
 {
 	return __is_skb_forwardable(dev, skb, true);
@@ -2210,6 +2222,7 @@ int dev_forward_skb_nomtu(struct net_device *dev, struct sk_buff *skb)
 {
 	return __dev_forward_skb2(dev, skb, false) ?: netif_rx_internal(skb);
 }
+#endif
 
 static inline int deliver_skb(struct sk_buff *skb,
 			      struct packet_type *pt_prev,
@@ -2334,6 +2347,7 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(dev_queue_xmit_nit);
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 /**
  * netif_setup_tc - Handle tc mappings on real_num_tx_queues change
  * @dev: Network device
@@ -2371,6 +2385,7 @@ static void netif_setup_tc(struct net_device *dev, unsigned int txq)
 		}
 	}
 }
+#endif
 
 int netdev_txq_to_tc(struct net_device *dev, unsigned int txq)
 {
@@ -2787,7 +2802,6 @@ int netif_set_xps_queue(struct net_device *dev, const struct cpumask *mask,
 }
 EXPORT_SYMBOL(netif_set_xps_queue);
 
-#endif
 static void netdev_unbind_all_sb_channels(struct net_device *dev)
 {
 	struct netdev_queue *txq = &dev->_tx[dev->num_tx_queues];
@@ -2913,7 +2927,7 @@ EXPORT_SYMBOL(netdev_set_sb_channel);
 int netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 {
 	bool disabling;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	int rc;
 #endif
 	disabling = txq < dev->real_num_tx_queues;
@@ -2924,15 +2938,16 @@ int netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 	if (dev->reg_state == NETREG_REGISTERED ||
 	    dev->reg_state == NETREG_UNREGISTERING) {
 		ASSERT_RTNL();
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 		rc = netdev_queue_update_kobjects(dev, dev->real_num_tx_queues,
 						  txq);
 
 		if (rc)
 			return rc;
-#endif
+
 		if (dev->num_tc)
 			netif_setup_tc(dev, txq);
+#endif
 
 		dev_qdisc_change_real_num_tx(dev, txq);
 
@@ -2952,7 +2967,9 @@ int netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 	return 0;
 }
 EXPORT_SYMBOL(netif_set_real_num_tx_queues);
+#endif
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 #ifdef CONFIG_SYSFS
 /**
  *	netif_set_real_num_rx_queues - set actual number of RX queues used
@@ -2966,7 +2983,7 @@ EXPORT_SYMBOL(netif_set_real_num_tx_queues);
  */
 int netif_set_real_num_rx_queues(struct net_device *dev, unsigned int rxq)
 {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	int rc;
 #endif
 	if (rxq < 1 || rxq > dev->num_rx_queues)
@@ -2974,7 +2991,7 @@ int netif_set_real_num_rx_queues(struct net_device *dev, unsigned int rxq)
 
 	if (dev->reg_state == NETREG_REGISTERED) {
 		ASSERT_RTNL();
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 		rc = net_rx_queue_update_kobjects(dev, dev->real_num_rx_queues,
 						  rxq);
 
@@ -3066,6 +3083,7 @@ void __netif_schedule(struct Qdisc *q)
 		__netif_reschedule(q);
 }
 EXPORT_SYMBOL(__netif_schedule);
+#endif
 
 struct dev_kfree_skb_cb {
 	enum skb_free_reason reason;
@@ -3076,6 +3094,7 @@ static struct dev_kfree_skb_cb *get_kfree_skb_cb(const struct sk_buff *skb)
 	return (struct dev_kfree_skb_cb *)skb->cb;
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 void netif_schedule_queue(struct netdev_queue *txq)
 {
 	rcu_read_lock();
@@ -3100,6 +3119,7 @@ void netif_tx_wake_queue(struct netdev_queue *dev_queue)
 	}
 }
 EXPORT_SYMBOL(netif_tx_wake_queue);
+#endif
 
 void __dev_kfree_skb_irq(struct sk_buff *skb, enum skb_free_reason reason)
 {
@@ -3134,7 +3154,7 @@ void __dev_kfree_skb_any(struct sk_buff *skb, enum skb_free_reason reason)
 }
 EXPORT_SYMBOL(__dev_kfree_skb_any);
 
-
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 /**
  * netif_device_detach - mark device as removed
  * @dev: network device
@@ -3166,7 +3186,6 @@ void netif_device_attach(struct net_device *dev)
 }
 EXPORT_SYMBOL(netif_device_attach);
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 /*
  * Returns a Tx hash based on the given packet descriptor a Tx queues' number
  * to be used as a distribution range.
@@ -3377,6 +3396,7 @@ static inline bool skb_needs_check(struct sk_buff *skb, bool tx_path)
 	return skb->ip_summed == CHECKSUM_NONE;
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 /**
  *	__skb_gso_segment - Perform segmentation on skb.
  *	@skb: buffer to segment
@@ -3603,9 +3623,13 @@ static int xmit_one(struct sk_buff *skb, struct net_device *dev,
 
 	len = skb->len;
 	PRANDOM_ADD_NOISE(skb, dev, txq, len + jiffies);
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_net_dev_start_xmit(skb, dev);
+#endif
 	rc = netdev_start_xmit(skb, dev, txq, more);
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_net_dev_xmit(skb, rc, dev, len);
+#endif
 
 	return rc;
 }
@@ -3800,8 +3824,10 @@ static int dev_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *q,
 	int rc;
 
 	rc = q->enqueue(skb, q, to_free) & NET_XMIT_MASK;
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	if (rc == NET_XMIT_SUCCESS)
 		trace_qdisc_enqueue(q, txq, skb);
+#endif
 	return rc;
 }
 
@@ -4085,7 +4111,7 @@ u16 netdev_pick_tx(struct net_device *dev, struct sk_buff *skb,
 	if (queue_index < 0 || skb->ooo_okay ||
 	    queue_index >= dev->real_num_tx_queues) {
 		int new_index = get_xps_queue(dev, sb_dev, skb);
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 		if (new_index < 0)
 			new_index = skb_tx_hash(dev, sb_dev, skb);
 #endif
@@ -4198,7 +4224,9 @@ static int __dev_queue_xmit(struct sk_buff *skb, struct net_device *sb_dev)
 	txq = netdev_core_pick_tx(dev, skb, sb_dev);
 	q = rcu_dereference_bh(txq->qdisc);
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_net_dev_queue(skb);
+#endif
 	if (q->enqueue) {
 		rc = __dev_xmit_skb(skb, q, dev, txq);
 		goto out;
@@ -4315,6 +4343,7 @@ drop:
 	return NET_XMIT_DROP;
 }
 EXPORT_SYMBOL(__dev_direct_xmit);
+#endif
 
 /*************************************************************************
  *			Receiver routines
@@ -4578,6 +4607,7 @@ static void rps_trigger_softirq(void *data)
 
 #endif /* CONFIG_RPS */
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 /*
  * Check if this softnet_data structure is another cpu one
  * If yes, queue it to our IPI list and return 1
@@ -4598,11 +4628,13 @@ static int rps_ipi_queued(struct softnet_data *sd)
 #endif /* CONFIG_RPS */
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_NET_FLOW_LIMIT
 int netdev_flow_limit_table_len __read_mostly = (1 << 12);
 #endif
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 static bool skb_flow_limit(struct sk_buff *skb, unsigned int qlen)
 {
 #ifdef CONFIG_NET_FLOW_LIMIT
@@ -4916,7 +4948,9 @@ static int netif_rx_internal(struct sk_buff *skb)
 
 	net_timestamp_check(READ_ONCE(netdev_tstamp_prequeue), skb);
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_netif_rx(skb);
+#endif
 
 #ifdef CONFIG_RPS
 	if (static_branch_unlikely(&rps_needed)) {
@@ -4964,10 +4998,14 @@ int netif_rx(struct sk_buff *skb)
 {
 	int ret;
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_netif_rx_entry(skb);
+#endif
 
 	ret = netif_rx_internal(skb);
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_netif_rx_exit(ret);
+#endif
 
 	return ret;
 }
@@ -4977,14 +5015,18 @@ int netif_rx_ni(struct sk_buff *skb)
 {
 	int err;
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_netif_rx_ni_entry(skb);
+#endif
 
 	preempt_disable();
 	err = netif_rx_internal(skb);
 	if (local_softirq_pending())
 		do_softirq();
 	preempt_enable();
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_netif_rx_ni_exit(err);
+#endif
 
 	return err;
 }
@@ -5023,11 +5065,13 @@ static __latent_entropy void net_tx_action(struct softirq_action *h)
 			clist = clist->next;
 
 			WARN_ON(refcount_read(&skb->users));
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 			if (likely(get_kfree_skb_cb(skb)->reason == SKB_REASON_CONSUMED))
 				trace_consume_skb(skb);
 			else
 				trace_kfree_skb(skb, net_tx_action,
 						SKB_DROP_REASON_NOT_SPECIFIED);
+#endif
 
 			if (skb->fclone != SKB_FCLONE_UNAVAILABLE)
 				__kfree_skb(skb);
@@ -5086,6 +5130,7 @@ static __latent_entropy void net_tx_action(struct softirq_action *h)
 
 	xfrm_dev_backlog(sd);
 }
+#endif
 
 #if IS_ENABLED(CONFIG_BRIDGE) && IS_ENABLED(CONFIG_ATM_LANE)
 /* This hook is defined here for ATM LANE */
@@ -5156,6 +5201,7 @@ sch_handle_ingress(struct sk_buff *skb, struct packet_type **pt_prev, int *ret,
 	return skb;
 }
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 /**
  *	netdev_is_rx_handler_busy - check if receive handler is registered
  *	@dev: device to check
@@ -5276,7 +5322,9 @@ static int __netif_receive_skb_core(struct sk_buff **pskb, bool pfmemalloc,
 
 	net_timestamp_check(!READ_ONCE(netdev_tstamp_prequeue), skb);
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_netif_receive_skb(skb);
+#endif
 
 	orig_dev = skb->dev;
 
@@ -5651,7 +5699,6 @@ static int generic_xdp_install(struct net_device *dev, struct netdev_bpf *xdp)
 	return ret;
 }
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static int netif_receive_skb_internal(struct sk_buff *skb)
 {
 	int ret;
@@ -5678,7 +5725,7 @@ static int netif_receive_skb_internal(struct sk_buff *skb)
 	rcu_read_unlock();
 	return ret;
 }
-#endif
+
 static void netif_receive_skb_list_internal(struct list_head *head)
 {
 	struct sk_buff *skb, *next;
@@ -5712,7 +5759,6 @@ static void netif_receive_skb_list_internal(struct list_head *head)
 	rcu_read_unlock();
 }
 
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 /**
  *	netif_receive_skb - process receive buffer from network
  *	@skb: buffer to process
@@ -5740,7 +5786,7 @@ int netif_receive_skb(struct sk_buff *skb)
 	return ret;
 }
 EXPORT_SYMBOL(netif_receive_skb);
-#endif
+
 /**
  *	netif_receive_skb_list - process many receive buffers from network
  *	@head: list of skbs to process.
@@ -5757,12 +5803,16 @@ void netif_receive_skb_list(struct list_head *head)
 
 	if (list_empty(head))
 		return;
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	if (trace_netif_receive_skb_list_entry_enabled()) {
 		list_for_each_entry(skb, head, list)
 			trace_netif_receive_skb_list_entry(skb);
 	}
+#endif
 	netif_receive_skb_list_internal(head);
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_netif_receive_skb_list_exit(0);
+#endif
 }
 EXPORT_SYMBOL(netif_receive_skb_list);
 
@@ -6239,12 +6289,16 @@ gro_result_t napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	gro_result_t ret;
 
 	skb_mark_napi_id(skb, napi);
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_napi_gro_receive_entry(skb);
+#endif
 
 	skb_gro_reset_offset(skb, 0);
 
 	ret = napi_skb_finish(napi, skb, dev_gro_receive(napi, skb));
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_napi_gro_receive_exit(ret);
+#endif
 
 	return ret;
 }
@@ -6368,10 +6422,14 @@ gro_result_t napi_gro_frags(struct napi_struct *napi)
 	gro_result_t ret;
 	struct sk_buff *skb = napi_frags_skb(napi);
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_napi_gro_frags_entry(skb);
+#endif
 
 	ret = napi_frags_finish(napi, skb, dev_gro_receive(napi, skb));
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_napi_gro_frags_exit(ret);
+#endif
 
 	return ret;
 }
@@ -6497,6 +6555,7 @@ static int process_backlog(struct napi_struct *napi, int quota)
 
 	return work;
 }
+#endif
 
 /**
  * __napi_schedule - schedule for receive
@@ -6567,6 +6626,7 @@ void __napi_schedule_irqoff(struct napi_struct *n)
 }
 EXPORT_SYMBOL(__napi_schedule_irqoff);
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 bool napi_complete_done(struct napi_struct *n, int work_done)
 {
 	unsigned long flags, val, new, timeout = 0;
@@ -6651,6 +6711,7 @@ static struct napi_struct *napi_by_id(unsigned int napi_id)
 
 	return NULL;
 }
+#endif
 
 #if defined(CONFIG_NET_RX_BUSY_POLL)
 
@@ -6711,7 +6772,9 @@ static void busy_poll_stop(struct napi_struct *napi, void *have_poll_lock, bool 
 	 * rearmed the napi (napi_complete_done()) in which case it could
 	 * already be running on another CPU.
 	 */
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	trace_napi_poll(napi, rc, budget);
+#endif
 	netpoll_poll_unlock(have_poll_lock);
 	if (rc == budget)
 		__busy_poll_stop(napi, skip_schedule);
@@ -6764,7 +6827,9 @@ restart:
 			napi_poll = napi->poll;
 		}
 		work = napi_poll(napi, budget);
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 		trace_napi_poll(napi, work, budget);
+#endif
 		gro_normal_list(napi);
 count:
 		if (work > 0)
@@ -6797,6 +6862,7 @@ EXPORT_SYMBOL(napi_busy_loop);
 
 #endif /* CONFIG_NET_RX_BUSY_POLL */
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 static void napi_hash_add(struct napi_struct *napi)
 {
 	if (test_bit(NAPI_STATE_NO_BUSY_POLL, &napi->state))
@@ -7026,7 +7092,9 @@ static int __napi_poll(struct napi_struct *n, bool *repoll)
 	work = 0;
 	if (test_bit(NAPI_STATE_SCHED, &n->state)) {
 		work = n->poll(n, weight);
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 		trace_napi_poll(n, work, weight);
+#endif
 	}
 
 	if (unlikely(work > weight))
@@ -7202,6 +7270,7 @@ static __latent_entropy void net_rx_action(struct softirq_action *h)
 
 	net_rps_action_and_irq_enable(sd);
 }
+#endif
 
 struct netdev_adjacent {
 	struct net_device *dev;
@@ -7222,6 +7291,7 @@ struct netdev_adjacent {
 	struct rcu_head rcu;
 };
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 static struct netdev_adjacent *__netdev_find_adj(struct net_device *adj_dev,
 						 struct list_head *adj_list)
 {
@@ -10140,10 +10210,9 @@ static int netif_alloc_rx_queues(struct net_device *dev)
 
 	for (i = 0; i < count; i++) {
 		rx[i].dev = dev;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+
 		/* XDP RX-queue setup */
 		err = xdp_rxq_info_reg(&rx[i].xdp_rxq, dev, i, 0);
-#endif
 		if (err < 0)
 			goto err_rxq_info;
 
@@ -10152,10 +10221,9 @@ static int netif_alloc_rx_queues(struct net_device *dev)
 
 err_rxq_info:
 	/* Rollback successful reg's and free other resources */
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	while (i--)
 		xdp_rxq_info_unreg(&rx[i].xdp_rxq);
-#endif
+
 	kvfree(dev->_rx);
 	dev->_rx = NULL;
 	return err;
@@ -10163,16 +10231,15 @@ err_rxq_info:
 
 static void netif_free_rx_queues(struct net_device *dev)
 {
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	unsigned int i, count = dev->num_rx_queues;
-#endif
+
 	/* netif_alloc_rx_queues alloc failed, resources have been unreg'ed */
 	if (!dev->_rx)
 		return;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+
 	for (i = 0; i < count; i++)
 		xdp_rxq_info_unreg(&dev->_rx[i].xdp_rxq);
-#endif
+
 	kvfree(dev->_rx);
 }
 
@@ -10260,11 +10327,10 @@ int register_netdevice(struct net_device *dev)
 	/* When net_device's are persistent, this will be fatal. */
 	BUG_ON(dev->reg_state != NETREG_UNINITIALIZED);
 	BUG_ON(!net);
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+
 	ret = ethtool_check_ops(dev->ethtool_ops);
 	if (ret)
 		return ret;
-#endif
 
 	spin_lock_init(&dev->addr_list_lock);
 	netdev_set_addr_lockdep_class(dev);
@@ -10349,14 +10415,14 @@ int register_netdevice(struct net_device *dev)
 	ret = notifier_to_errno(ret);
 	if (ret)
 		goto err_uninit;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+
 	ret = netdev_register_kobject(dev);
 	write_lock(&dev_base_lock);
 	dev->reg_state = ret ? NETREG_UNREGISTERED : NETREG_REGISTERED;
 	write_unlock(&dev_base_lock);
 	if (ret)
 		goto err_uninit;
-#endif
+
 	__netdev_update_features(dev);
 
 	/*
@@ -11119,10 +11185,10 @@ void unregister_netdevice_many(struct list_head *head)
 		/* Notifier chain MUST detach us all upper devices. */
 		WARN_ON(netdev_has_any_upper_dev(dev));
 		WARN_ON(netdev_has_any_lower_dev(dev));
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+
 		/* Remove entries from kobject tree */
 		netdev_unregister_kobject(dev);
-#endif
+
 #ifdef CONFIG_XPS
 		/* Remove XPS queueing entries */
 		netif_reset_xps_queues_gt(dev, 0);
@@ -11280,7 +11346,7 @@ int __dev_change_net_namespace(struct net_device *dev, struct net *net,
 	/* Adapt owner in case owning user namespace of target network
 	 * namespace is different from the original one.
 	 */
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+#ifndef CONFIG_AMLOGIC_ZAPPER_NET_CUT
 	err = netdev_change_owner(dev, net_old, net);
 	WARN_ON(err);
 #endif
@@ -11654,10 +11720,9 @@ static int __init net_dev_init(void)
 
 	if (dev_proc_init())
 		goto out;
-#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+
 	if (netdev_kobject_init())
 		goto out;
-#endif
 
 	INIT_LIST_HEAD(&ptype_all);
 	for (i = 0; i < PTYPE_HASH_SIZE; i++)
@@ -11724,3 +11789,4 @@ out:
 }
 
 subsys_initcall(net_dev_init);
+#endif
