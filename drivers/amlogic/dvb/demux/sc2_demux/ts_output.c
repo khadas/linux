@@ -252,6 +252,10 @@ MODULE_PARM_DESC(ts_output_max_pid_num_per_sid, "\n\t\t max pid num per sid in s
 static int ts_output_max_pid_num_per_sid = 32;
 module_param(ts_output_max_pid_num_per_sid, int, 0644);
 
+MODULE_PARM_DESC(debug_es_len, "\n\t\t print es 5 bytes");
+static int debug_es_len;
+module_param(debug_es_len, int, 0644);
+
 #define VIDEOES_DUMP_FILE   "/data/video_dump"
 #define AUDIOES_DUMP_FILE   "/data/audio_dump"
 #define DVR_DUMP_FILE       "/data/dvr_dump"
@@ -1894,7 +1898,7 @@ static int write_sec_video_es_data(struct out_elem *pout,
 //		pr_dbg("video data start:0x%x,data end:0x%x\n",
 //				sec_es_data.data_start, sec_es_data.data_end);
 
-	if (es_params->has_splice == 0)
+	if (es_params->has_splice == 0) {
 		pr_dbg("video pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
 			pout->es_pes->pid,
 			pout->sid,
@@ -1903,7 +1907,14 @@ static int write_sec_video_es_data(struct out_elem *pout,
 			(unsigned long)sec_es_data.dts,
 			(unsigned long)(sec_es_data.data_start -
 				sec_es_data.buf_start));
-	else
+			if (len >= debug_es_len && flag == 0 && debug_es_len) {
+				int tt = 0;
+
+				for (tt = 0; tt < debug_es_len; tt++)
+					dprint("0x%0x ", ptmp[tt]);
+				dprint("\n");
+			}
+	} else {
 		pr_dbg("last splice video pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
 			pout->es_pes->pid,
 			pout->sid,
@@ -1912,7 +1923,7 @@ static int write_sec_video_es_data(struct out_elem *pout,
 			(unsigned long)sec_es_data.dts,
 			(unsigned long)(sec_es_data.data_start -
 				sec_es_data.buf_start));
-
+	}
 	out_ts_cb_list(pout, (char *)&sec_es_data,
 			sizeof(struct dmx_sec_es_data), 0, 0);
 
@@ -1940,6 +1951,29 @@ static int transfer_header(struct dmx_non_sec_es_header *pheader, char *cur_head
 	    | ((__u64)cur_header[12]);
 
 	pheader->pts &= 0x1FFFFFFFF;
+	return 0;
+}
+
+static int _find_es_header(struct out_elem *pout)
+{
+	int count = 0;
+	unsigned int h_len = 0;
+
+	do {
+		if (pout->aucpu_pts_handle >= 0) {
+			unsigned int w_offset;
+
+			w_offset = SC2_bufferid_get_wp_offset(pout->pchan1);
+			if (w_offset != pout->aucpu_pts_r_offset)
+				return 1;
+		} else {
+			h_len = SC2_bufferid_get_data_len(pout->pchan1);
+			if (h_len != 0)
+				return 1;
+		}
+		count++;
+	} while (count < 4);
+
 	return 0;
 }
 
@@ -1981,21 +2015,10 @@ static int _handle_es_splice(struct out_elem *pout, struct es_params_t *es_param
 
 	/*read es header length*/
 	mutex_lock(&pout->pts_mutex);
-	if (pout->aucpu_pts_handle >= 0) {
-		unsigned int w_offset;
-
-		w_offset = SC2_bufferid_get_wp_offset(pout->pchan1);
-		if (w_offset != pout->aucpu_pts_r_offset) {
-			mutex_unlock(&pout->pts_mutex);
-			return -1;
-		}
-	} else {
-		h_len = SC2_bufferid_get_data_len(pout->pchan1);
-		if (h_len != 0) {
-//			dprint("pengcc have es header\n");
-			mutex_unlock(&pout->pts_mutex);
-			return -1;
-		}
+	if (_find_es_header(pout)) {
+		pr_dbg("find es header\n");
+		mutex_unlock(&pout->pts_mutex);
+		return -1;
 	}
 	mutex_unlock(&pout->pts_mutex);
 
@@ -2059,6 +2082,13 @@ static int _handle_es_splice(struct out_elem *pout, struct es_params_t *es_param
 			sec_es_data.pts_dts_flag = es_params->header.pts_dts_flag;
 			sec_es_data.dts = es_params->header.dts;
 			sec_es_data.pts = es_params->header.pts;
+			if (len >= debug_es_len && flag == 0 && debug_es_len) {
+				int tt = 0;
+
+				for (tt = 0; tt < debug_es_len; tt++)
+					dprint("0x%0x ", ptmp[tt]);
+				dprint("\n");
+			}
 		}
 		sec_es_data.buf_start = pout->pchan->mem_phy;
 		sec_es_data.buf_end = pout->pchan->mem_phy + pout->pchan->mem_size;
