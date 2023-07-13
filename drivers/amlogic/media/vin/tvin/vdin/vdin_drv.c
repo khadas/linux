@@ -561,8 +561,7 @@ static void vdin_game_mode_check(struct vdin_dev_s *devp)
 	}
 
 	/* dv is auto game not support manual set game */
-	if (devp->dv.dv_flag && !devp->prop.latency.allm_mode &&
-	    !devp->prop.low_latency && !devp->vrr_data.vrr_mode)
+	if (vdin_dv_not_manual_game(devp))
 		devp->game_mode = 0;
 
 	if (vdin_force_game_mode)
@@ -672,9 +671,11 @@ static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
 	}
 
 	/* dv is auto game not support manual set game */
-	if (devp->dv.dv_flag && !devp->prop.latency.allm_mode &&
-	    !devp->prop.low_latency && !devp->vrr_data.vrr_mode)
+	if (vdin_dv_not_manual_game(devp))
 		devp->game_mode = 0;
+
+	if (vdin_force_game_mode)
+		devp->game_mode = vdin_force_game_mode;
 
 	if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
 		pr_info("%s vrr_mode:%d,game:pre(%#x)cur(%#x)in fps:%d out fps:%d cycle:%#x\n",
@@ -2583,10 +2584,11 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 				 1000));
 
 		if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
-			pr_info("vdin.%d vf:%d sig_type:0x%x type:0x%x dur:%u disp:%d\n",
-				devp->index, devp->vfp->last_last_vfe->vf.index,
+			pr_info("vdin%d cnt:%d vf:%d sg_type:%#x type:%#x flag:%u dur:%u disp:%d\n",
+				devp->index, devp->irq_cnt, devp->vfp->last_last_vfe->vf.index,
 				devp->vfp->last_last_vfe->vf.signal_type,
 				devp->vfp->last_last_vfe->vf.type,
+				devp->vfp->last_last_vfe->vf.flag,
 				devp->vfp->last_last_vfe->vf.duration,
 				devp->vfp->last_last_vfe->vf.index_disp);
 
@@ -2960,9 +2962,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			devp->dv.dv_next_index = devp->curr_wr_vfe->vf.index;
 			schedule_delayed_work(&devp->dv.dv_dwork,
 				dv_work_dolby);
-		} else if (((dv_dbg_mask & DV_UPDATE_DATA_MODE_DOLBY_WORK) == 0) &&
-			   devp->dv.dv_config && !devp->dv.low_latency &&
-			   (devp->prop.dolby_vision == 1)) {
+		} else if (vdin_dv_is_visf_data(devp)) {
 			vdin_dolby_buffer_update(devp,
 						 devp->last_wr_vfe->vf.index);
 			vdin_dolby_addr_update(devp,
@@ -3327,10 +3327,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			devp->dv.dv_next_index = next_wr_vfe->vf.index;
 			schedule_delayed_work(&devp->dv.dv_dwork,
 					      dv_work_dolby);
-		} else if (((dv_dbg_mask &
-			      DV_UPDATE_DATA_MODE_DOLBY_WORK) == 0) &&
-			   devp->dv.dv_config && !devp->dv.low_latency &&
-			   (devp->prop.dolby_vision == 1)) {
+		} else if (vdin_dv_is_visf_data(devp)) {
 			vdin_dolby_buffer_update(devp, curr_wr_vfe->vf.index);
 			vdin_dolby_addr_update(devp, next_wr_vfe->vf.index);
 		} else {
@@ -3694,8 +3691,7 @@ static void vdin_dv_dwork(struct work_struct *work)
 		pr_info("%s, dwork error !!!\n", __func__);
 		return;
 	}
-	if (devp->dv.dv_config && devp->prop.dolby_vision == 1 &&
-	    !devp->dv.low_latency) {
+	if (vdin_dv_is_visf_data(devp)) {
 		vdin_dolby_buffer_update(devp, devp->dv.dv_cur_index);
 		vdin_dolby_addr_update(devp, devp->dv.dv_next_index);
 	}

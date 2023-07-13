@@ -44,6 +44,7 @@
 #include "vdin_canvas.h"
 #include "vdin_afbce.h"
 #include "vdin_dv.h"
+#include "vdin_hw.h"
 
 #define VDIN_V_SHRINK_H_LIMIT 1280
 #define TVIN_MAX_PIX_CLK 20000
@@ -801,8 +802,8 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 		devp->mif_fmt = MIF_FMT_NV12_21;
 	else
 		devp->mif_fmt = MIF_FMT_YUV422;
-	pr_info("%s pc mode:%d(%d), man_md:0x%x, cfmt:%d, dst cfmt:%d convert md:%d mif_fmt:%d\n",
-		__func__, vdin_pc_mode, devp->vdin_pc_mode, manual_md,
+	pr_info("%s pc mode:%d(%d) game:%d man_md:%d cfmt:%d dst cfmt:%d convert md:%d mif_fmt:%d\n",
+		__func__, vdin_pc_mode, devp->vdin_pc_mode, game_mode, manual_md,
 		devp->prop.color_format, devp->prop.dest_cfmt, format_convert,
 		devp->mif_fmt);
 }
@@ -1249,9 +1250,7 @@ void vdin_set_top(struct vdin_dev_s *devp, unsigned int offset,
 	default:
 		break;
 	}
-	if (devp->dv.dv_flag && !(is_amdv_stb_mode() &&
-	    cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) &&
-	    devp->prop.color_format == TVIN_YUV422) {
+	if (vdin_dv_is_need_tunnel(devp)) {
 		vdin_data_bus_0 = VDIN_MAP_BPB;
 		vdin_data_bus_1 = VDIN_MAP_Y_G;
 		vdin_data_bus_2 = VDIN_MAP_RCR;
@@ -3252,11 +3251,7 @@ void vdin_set_dv_tunnel(struct vdin_dev_s *devp)
 
 	sm_ops = devp->frontend->sm_ops;
 
-	if (devp->dv.dv_flag/* && is_amdv_enable()*/ &&
-	    (!(is_amdv_stb_mode() && cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) ||
-	    (is_amdv_stb_mode() && !is_hdmi_ll_as_hdr10())) &&
-		/*&& (devp->dv.low_latency)*/
-	    devp->prop.color_format == TVIN_YUV422) {
+	if (vdin_dv_is_need_tunnel(devp)) {
 		offset = devp->addr_offset;
 		/*channel map*/
 		wr_bits(offset, VDIN_COM_CTRL0, vdin_data_bus_0,
@@ -3753,12 +3748,6 @@ void vdin_hw_close(struct vdin_dev_s *devp)
 		vdin_dv_desc_to_4448bit(devp, 0);
 		vdin_dv_de_tunnel_to_44410bit(devp, 0);
 	}
-}
-
-/* get current vsync field type 0:top 1 bottom */
-unsigned int vdin_get_field_type(unsigned int offset)
-{
-	return rd_bits(offset, VDIN_COM_STATUS0, 0, 1);
 }
 
 bool vdin_check_vdi6_afifo_overflow(unsigned int offset)

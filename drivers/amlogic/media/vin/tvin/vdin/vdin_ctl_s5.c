@@ -990,9 +990,7 @@ void vdin_set_top_s5(struct vdin_dev_s *devp, enum tvin_port_e port,
 	default:
 		break;
 	}
-	if (devp->dv.dv_flag && !(is_amdv_stb_mode() &&
-	    cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) &&
-	    devp->prop.color_format == TVIN_YUV422) {
+	if (vdin_dv_is_need_tunnel(devp)) {
 		vdin_data_bus_0 = VDIN_MAP_BPB;
 		vdin_data_bus_1 = VDIN_MAP_Y_G;
 		vdin_data_bus_2 = VDIN_MAP_RCR;

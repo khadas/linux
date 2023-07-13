@@ -196,7 +196,8 @@ enum vdin_hw_ver_e {
 
 /* 20230607: game mode optimize and add debug */
 /* 20230609: add get vdin status */
-#define VDIN_VER_V1 "20230609: add get vdin status"
+/* 20230713: bc302 get field type */
+#define VDIN_VER_V1 "20230713: bc302 get field type"
 
 enum vdin_irq_flg_e {
 	VDIN_IRQ_FLG_NO_END = 1,
@@ -543,6 +544,7 @@ struct vdin_debug_s {
 	/* vdin1 hdr set bypass */
 	bool vdin1_set_hdr_bypass;
 	bool dbg_force_shrink_en;
+	bool bypass_tunnel;
 	bool pause_mif_dec;
 	bool pause_afbce_dec;
 	bool bypass_filter_vsync;

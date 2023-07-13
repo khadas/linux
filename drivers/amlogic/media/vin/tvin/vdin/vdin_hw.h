@@ -8,5 +8,5 @@
 
 void vdin_wr(struct vdin_dev_s *devp, u32 reg, const u32 val);
 void vdin_wr_bits(struct vdin_dev_s *devp, u32 reg, const u32 val, const u32 start, const u32 len);
-
+unsigned int vdin_get_field_type(unsigned int offset);
 #endif

@@ -4,6 +4,7 @@
  */
 
 #include "../tvin_global.h"
+#include "vdin_regs.h"
 #include "vdin_drv.h"
 
 void vdin_wr(struct vdin_dev_s *devp, u32 reg, const u32 val)
@@ -26,5 +27,11 @@ void vdin_wr_bits(struct vdin_dev_s *devp, u32 reg, const u32 val, const u32 sta
 	else
 #endif
 		wr_bits(0, reg, val, start, len);
+}
+
+/* get current vsync field type 0:top 1 bottom */
+unsigned int vdin_get_field_type(unsigned int offset)
+{
+	return rd_bits(offset, VDIN_COM_STATUS0, 0, 1);
 }
 

@@ -3589,6 +3589,14 @@ start_chk:
 				color_range_force = 0;
 			pr_info("color_range_force:%d\n", color_range_force);
 		}
+	} else if (!strcmp(parm[0], "bypass_tunnel")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			if (temp)
+				devp->debug.bypass_tunnel = true;
+			else
+				devp->debug.bypass_tunnel = false;
+			pr_info("bypass_tunnel:%d\n", devp->debug.bypass_tunnel);
+		}
 	} else if (!strcmp(parm[0], "set_unstable_sig")) {
 		devp->parm.info.status = TVIN_SIG_STATUS_UNSTABLE;
 		devp->frame_drop_num = 8;

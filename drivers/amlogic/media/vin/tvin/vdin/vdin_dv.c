@@ -240,3 +240,48 @@ irqreturn_t vdin_wrmif2_dv_meta_wr_done_isr(int irq, void *dev_id)
 	return sts;
 }
 
+/*
+ * return value:
+ *	true: dv is need tunnel
+ *	false: dv not need tunnel
+ */
+bool vdin_dv_is_need_tunnel(struct vdin_dev_s *devp)
+{
+	if (devp->dv.dv_flag && /* && (devp->dv.low_latency) */ /* && is_amdv_enable() */
+	    (!(is_amdv_stb_mode() && cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) ||
+	    (is_amdv_stb_mode() && !is_hdmi_ll_as_hdr10())) &&
+	    devp->prop.color_format == TVIN_YUV422 &&
+	     !devp->debug.bypass_tunnel)
+		return true;
+	else
+		return false;
+}
+
+/*
+ * return value:
+ *	true: dv is visf data
+ *	false: dv no visf data
+ */
+bool vdin_dv_is_visf_data(struct vdin_dev_s *devp)
+{
+	if (((dv_dbg_mask & DV_UPDATE_DATA_MODE_DOLBY_WORK) == 0) &&
+	    devp->dv.dv_config && !devp->dv.low_latency &&
+	    devp->prop.dolby_vision == 1)
+		return true;
+	else
+		return false;
+}
+
+/*
+ * return value:
+ *	true: dv is auto game not support manual set game
+ *	false: support set game
+ */
+bool vdin_dv_not_manual_game(struct vdin_dev_s *devp)
+{
+	if (devp->dv.dv_flag && !devp->prop.latency.allm_mode &&
+	    !devp->prop.low_latency && !devp->vrr_data.vrr_mode)
+		return true;
+	else
+		return false;
+}

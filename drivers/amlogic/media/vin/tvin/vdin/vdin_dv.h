@@ -26,4 +26,7 @@ void vdin_wrmif2_enable(struct vdin_dev_s *devp, u32 en, unsigned int rdma_enabl
 void vdin_wrmif2_initial(struct vdin_dev_s *devp);
 void vdin_wrmif2_addr_update(struct vdin_dev_s *devp);
 irqreturn_t vdin_wrmif2_dv_meta_wr_done_isr(int irq, void *dev_id);
+bool vdin_dv_is_need_tunnel(struct vdin_dev_s *devp);
+bool vdin_dv_is_visf_data(struct vdin_dev_s *devp);
+bool vdin_dv_not_manual_game(struct vdin_dev_s *devp);
 #endif
