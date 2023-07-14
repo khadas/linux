@@ -11,6 +11,7 @@
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pwm/meson.h>
 #include <dt-bindings/clock/tl1-clkc.h>
+#include <dt-bindings/clock/tl1-aoclkc.h>
 #include <dt-bindings/clock/amlogic,tl1-audio-clk.h>
 #include "mesong12a-bifrost.dtsi"
 #include <dt-bindings/iio/adc/amlogic-saradc.h>
@@ -551,12 +552,15 @@
 		pinctrl-0=<&jtag_apao_pins>;
 	};
 
-	saradc:saradc {
+	saradc: saradc {
 		compatible = "amlogic,meson-g12a-saradc";
 		status = "disabled";
 		#io-channel-cells = <1>;
-		//clocks = <&xtal>, <&clkc CLKID_SARADC_GATE>;
-		//clock-names = "xtal", "saradc_clk";
+		clocks = <&xtal>,
+			 <&clkc_AO CLKID_AO_SAR_ADC>,
+			 <&clkc_AO CLKID_AO_SAR_ADC_CLK>,
+			 <&clkc_AO CLKID_AO_SAR_ADC_SEL>;
+		clock-names = "clkin", "core", "adc_clk", "adc_sel";
 		interrupts = <GIC_SPI 200 IRQ_TYPE_EDGE_RISING>;
 		reg = <0xff809000 0x48>;
 	};
