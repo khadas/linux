@@ -666,7 +666,9 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 					| V4L2_STD_PAL_DK;
 					p->audmode = V4L2_STD_PAL_DK;
 				}
-
+				pr_dbg("%s:%d set new std:%#x %#x %s\n", __func__,
+					i, (unsigned int)p->std, p->audmode,
+					v4l2_std_to_str(p->std & 0xFF000000));
 				p->frequency += 1;
 				params.frequency = p->frequency;
 				params.mode = p->afc_range;

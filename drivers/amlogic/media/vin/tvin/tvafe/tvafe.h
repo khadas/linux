@@ -36,7 +36,8 @@
 /* 20230423: white level detection is enabled by default */
 /* 20230509: adjust nostd_stable_cnt */
 /* 20230607: optimized snow config */
-#define TVAFE_VER "20230607: optimized snow config"
+/* 20230804: atv add filter format */
+#define TVAFE_VER "20230804: atv add filter format"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010

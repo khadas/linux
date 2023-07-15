@@ -47,6 +47,11 @@
 /* default de start value for pal */
 #define TVAFE_H_UNLOCK_CNT_THRESHOLD	20
 
+//atv not filter control
+#define NOT_FILTER_NTSC_443		BIT(0)
+#define NOT_FILTER_NTSC_50		BIT(1)
+#define NOT_FILTER_PAL_60		BIT(2)
+
 /* test with vlsi guys */
 #define TVAFE_VS_VE_VAL		20
 /**************************************** */

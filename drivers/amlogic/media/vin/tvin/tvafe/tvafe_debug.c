@@ -282,8 +282,7 @@ static ssize_t debug_store(struct device *dev,
 			devp->tvafe.cvd2.manual_fmt = TVIN_SIG_FMT_CVBS_NTSC_M;
 		} else if (!strncmp(buff + fmt_index,
 					"ntsc443", strlen("ntsc443"))) {
-			devp->tvafe.cvd2.manual_fmt =
-					TVIN_SIG_FMT_CVBS_NTSC_443;
+			devp->tvafe.cvd2.manual_fmt = TVIN_SIG_FMT_CVBS_NTSC_443;
 		} else if (!strncmp(buff + fmt_index, "pali", strlen("pali"))) {
 			devp->tvafe.cvd2.manual_fmt = TVIN_SIG_FMT_CVBS_PAL_I;
 		} else if (!strncmp(buff + fmt_index, "palm", strlen("plam"))) {
@@ -299,6 +298,7 @@ static ssize_t debug_store(struct device *dev,
 		} else {
 			tvafe_pr_info("%s:invalid command.", buff);
 		}
+		tvafe_pr_info("manual_fmt:%#x\n", devp->tvafe.cvd2.manual_fmt);
 	} else if (!strncmp(buff, "disable_api", strlen("disable_api"))) {
 		if (kstrtouint(buff + strlen("disable_api") + 1, 10, &val) == 0)
 			disable_api = val;
@@ -375,20 +375,6 @@ static ssize_t debug_store(struct device *dev,
 		} else {
 			devp->tvafe.cvd2.nonstd_detect_dis = false;
 			pr_info("[tvafe..]%s:enable nonstd detect\n",
-				__func__);
-		}
-	} else if (!strncmp(buff, "rf_ntsc50_en", strlen("rf_ntsc50_en"))) {
-		if (!parm[1])
-			goto tvafe_store_err;
-		if (kstrtouint(parm[1], 10, &val) < 0)
-			goto tvafe_store_err;
-		if (val) {
-			tvafe_cvd2_rf_ntsc50_en(true);
-			pr_info("[tvafe..]%s:tvafe_cvd2_rf_ntsc50_en\n",
-				__func__);
-		} else {
-			tvafe_cvd2_rf_ntsc50_en(false);
-			pr_info("[tvafe..]%s:tvafe_cvd2_rf_ntsc50_dis\n",
 				__func__);
 		}
 	} else if (!strncmp(buff, "force_nostd", strlen("force_nostd"))) {
