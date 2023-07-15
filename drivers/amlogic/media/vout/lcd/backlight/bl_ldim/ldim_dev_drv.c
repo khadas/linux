@@ -25,6 +25,7 @@
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
+#include <linux/amlogic/aml_spi.h>
 #include "ldim_drv.h"
 #include "ldim_dev_drv.h"
 #include "../../lcd_reg.h"
@@ -45,13 +46,23 @@ struct bl_gpio_s ldim_gpio[BL_GPIO_NUM_MAX] = {
 	{.probe_flag = 0, .register_flag = 0,},
 };
 
+static struct spicc_controller_data ldim_spi_controller_data = {
+	.ccxfer_en = 0,
+	.timing_en = 1,
+	.ss_leading_gap = 1,
+	.ss_trailing_gap = 0,
+	.tx_tuning = 0,
+	.rx_tuning = 7,
+	.dummy_ctl = 0,
+};
+
 static struct spi_board_info ldim_spi_info = {
 	.modalias = "ldim_dev",
 	.mode = SPI_MODE_0,
 	.max_speed_hz = 1000000, /* 1MHz */
 	.bus_num = 0, /* SPI bus No. */
 	.chip_select = 0, /* the cs pin index on the spi bus */
-	.controller_data = NULL,
+	.controller_data = &ldim_spi_controller_data,
 };
 
 static int ldim_dev_probe_flag;
@@ -60,6 +71,7 @@ struct ldim_dev_driver_s ldim_dev_drv = {
 	.index = 0xff,
 	.type = LDIM_DEV_TYPE_NORMAL,
 	.dma_support = 0,
+	.spi_sync = 0,
 	.cs_hold_delay = 0,
 	.cs_clk_delay = 0,
 	.en_gpio = LCD_EXT_GPIO_INVALID,
@@ -306,7 +318,7 @@ static char *ldim_pinmux_str[] = {
 	"ldim_pwm_vs_combo",      /* 3 */
 	"ldim_pwm_off",           /* 4 */
 	"ldim_pwm_combo_off",     /* 5 */
-	"custome",
+	"custom",
 };
 
 static int ldim_pwm_pinmux_ctrl(struct ldim_dev_driver_s *dev_drv, int status)
@@ -546,12 +558,12 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 	}
 	bl_pwm = &ldim_drv->dev_drv->ldim_pwm_config;
 	if (bl_pwm->pwm_port < BL_PWM_MAX) {
-		pr_info("lidm_pwm_port:       %d\n"
-			"lidm_pwm_pol:        %d\n"
-			"lidm_pwm_freq:       %d\n"
-			"lidm_pwm_cnt:        %d\n"
-			"lidm_pwm_level:      %d\n"
-			"lidm_pwm_duty:       %d / %d\n",
+		pr_info("ldim_pwm_port:       %d\n"
+			"ldim_pwm_pol:        %d\n"
+			"ldim_pwm_freq:       %d\n"
+			"ldim_pwm_cnt:        %d\n"
+			"ldim_pwm_level:      %d\n"
+			"ldim_pwm_duty:       %d / %d\n",
 			bl_pwm->pwm_port, bl_pwm->pwm_method,
 			bl_pwm->pwm_freq, bl_pwm->pwm_cnt,
 			bl_pwm->pwm_level,
@@ -564,13 +576,13 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 		case BL_PWM_E:
 		case BL_PWM_F:
 			if (IS_ERR_OR_NULL(bl_pwm->pwm_data.pwm)) {
-				pr_info("lidm_pwm invalid\n");
+				pr_info("ldim_pwm invalid\n");
 				break;
 			}
-			pr_info("lidm_pwm_pointer:    0x%p\n",
+			pr_info("ldim_pwm_pointer:    0x%p\n",
 				bl_pwm->pwm_data.pwm);
 			pwm_get_state(bl_pwm->pwm_data.pwm, &pstate);
-			pr_info("lidm_pwm state:\n"
+			pr_info("ldim_pwm state:\n"
 				"  period:            %lld\n"
 				"  duty_cycle:        %lld\n"
 				"  polarity:          %d\n"
@@ -579,10 +591,10 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 				pstate.polarity, pstate.enabled);
 			break;
 		case BL_PWM_VS:
-			pr_info("lidm_pwm_reg0:       0x%08x\n"
-				"lidm_pwm_reg1:       0x%08x\n"
-				"lidm_pwm_reg2:       0x%08x\n"
-				"lidm_pwm_reg3:       0x%08x\n",
+			pr_info("ldim_pwm_reg0:       0x%08x\n"
+				"ldim_pwm_reg1:       0x%08x\n"
+				"ldim_pwm_reg2:       0x%08x\n"
+				"ldim_pwm_reg3:       0x%08x\n",
 				lcd_vcbus_read(VPU_VPU_PWM_V0),
 				lcd_vcbus_read(VPU_VPU_PWM_V1),
 				lcd_vcbus_read(VPU_VPU_PWM_V2),
@@ -1021,7 +1033,7 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 		if (ret) {
 			LDIMERR("failed to get spi_dma_support\n");
 		} else {
-			dev_drv->dma_support = val;
+			dev_drv->dma_support = (unsigned char)val;
 			if (ldim_debug_print) {
 				LDIMPR("spi_dma_support: %d\n",
 				       dev_drv->dma_support);
@@ -1044,6 +1056,7 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 
 	/* ldim pwm config */
 	bl_pwm = &dev_drv->ldim_pwm_config;
+	bl_pwm->drv_index = 0; /* only venc0 support ldim */
 	ret = of_property_read_string(child, "ldim_pwm_port", &str);
 	if (ret) {
 		LDIMERR("failed to get ldim_pwm_port\n");
@@ -1080,6 +1093,7 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 
 	/* analog pwm config */
 	bl_pwm = &dev_drv->analog_pwm_config;
+	bl_pwm->drv_index = 0; /* only venc0 support ldim */
 	ret = of_property_read_string(child, "analog_pwm_port", &str);
 	if (ret)
 		bl_pwm->pwm_port = BL_PWM_MAX;
@@ -1112,7 +1126,7 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 	if (ret) {
 		strcpy(dev_drv->pinmux_name, "invalid");
 	} else {
-		LDIMPR("find custome ldim_pwm_pinmux_sel: %s\n", str);
+		LDIMPR("find customer ldim_pwm_pinmux_sel: %s\n", str);
 		strcpy(dev_drv->pinmux_name, str);
 	}
 
@@ -1317,11 +1331,14 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 
 	key_len = LCD_UKEY_LDIM_DEV_SIZE;
 	para = kcalloc(key_len, (sizeof(unsigned char)), GFP_KERNEL);
-	if (!para)
+	if (!para) {
+		LDIMERR("para kcalloc failed!!\n");
 		return -1;
+	}
 
 	ret = lcd_unifykey_get("ldim_dev", para, &key_len);
 	if (ret < 0) {
+		LDIMERR("get ldim_dev unifykey failed!!\n");
 		kfree(para);
 		return -1;
 	}
@@ -1400,6 +1417,7 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 
 	/* pwm (48Byte) */
 	bl_pwm = &dev_drv->ldim_pwm_config;
+	bl_pwm->drv_index = 0; /* only venc0 support ldim */
 	bl_pwm->pwm_port = *(p + LCD_UKEY_LDIM_DEV_PWM_VS_PORT);
 	if (bl_pwm->pwm_port < BL_PWM_MAX) {
 		bl_pwm->pwm_method = *(p + LCD_UKEY_LDIM_DEV_PWM_VS_POL);
@@ -1421,6 +1439,7 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 	}
 
 	bl_pwm = &dev_drv->analog_pwm_config;
+	bl_pwm->drv_index = 0; /* only venc0 support ldim */
 	bl_pwm->pwm_port = *(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_PORT);
 	if (bl_pwm->pwm_port < BL_PWM_VS) {
 		bl_pwm->pwm_method = *(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_POL);
@@ -1452,7 +1471,7 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 		strcpy(dev_drv->pinmux_name, "invalid");
 	} else {
 		strncpy(dev_drv->pinmux_name, str, (LDIM_DEV_NAME_MAX - 1));
-		LDIMPR("find custome ldim_pwm_pinmux_sel: %s\n", str);
+		LDIMPR("find customer ldim_pwm_pinmux_sel: %s\n", str);
 	}
 
 	/* ctrl (271Byte) */
@@ -2084,6 +2103,7 @@ static void ldim_dev_probe_func(struct work_struct *work)
 	ldim_drv->dev_drv = &ldim_dev_drv;
 	ldim_dev_drv.bl_row = ldim_drv->conf->seg_row;
 	ldim_dev_drv.bl_col = ldim_drv->conf->seg_col;
+	ldim_dev_drv.spi_sync = ldim_drv->data->spi_sync;
 	ldim_dev_drv.ldim_pwm_config.pwm_duty_max = 4095;
 	ldim_dev_drv.analog_pwm_config.pwm_duty_max = 4095;
 	val = ldim_dev_drv.bl_row * ldim_dev_drv.bl_col;

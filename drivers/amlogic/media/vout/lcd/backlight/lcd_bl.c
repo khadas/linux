@@ -778,8 +778,7 @@ static inline unsigned int bl_brightness_level_map(struct aml_bl_drv_s *bdrv,
 	return level;
 }
 
-static inline unsigned int bl_gd_level_map(struct aml_bl_drv_s *bdrv,
-					   unsigned int gd_level)
+static inline unsigned int bl_gd_level_map(struct aml_bl_drv_s *bdrv, unsigned int gd_level)
 {
 	unsigned int max, min, val;
 
@@ -790,8 +789,7 @@ static inline unsigned int bl_gd_level_map(struct aml_bl_drv_s *bdrv,
 	return val;
 }
 
-static unsigned int aml_bl_init_level(struct aml_bl_drv_s *bdrv,
-				      unsigned int level)
+static unsigned int aml_bl_init_level(struct aml_bl_drv_s *bdrv, unsigned int level)
 {
 	unsigned int bl_level = level;
 
@@ -1123,6 +1121,7 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 
 		bl_pwm = bconf->bl_pwm;
 		bl_pwm->index = 0;
+		bl_pwm->drv_index = bdrv->index;
 
 		bl_pwm->level_max = bconf->level_max;
 		bl_pwm->level_min = bconf->level_min;
@@ -1192,6 +1191,8 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 
 		pwm_combo0->index = 0;
 		pwm_combo1->index = 1;
+		pwm_combo0->drv_index = bdrv->index;
+		pwm_combo1->drv_index = bdrv->index;
 
 		ret = of_property_read_string_index(child, "bl_pwm_combo_port", 0, &str);
 		if (ret) {
@@ -1452,7 +1453,7 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 
 	/* check ldim_flag */
 	BLPR("row: %d col: %d\n", *(p + LCD_UKEY_BL_LDIM_ROW), *(p + LCD_UKEY_BL_LDIM_COL));
-	if ((*(p + LCD_UKEY_BL_LDIM_ROW) > 1) && (*(p + LCD_UKEY_BL_LDIM_COL) > 1)) {
+	if ((*(p + LCD_UKEY_BL_LDIM_ROW) > 0) && (*(p + LCD_UKEY_BL_LDIM_COL) > 0)) {
 		bconf->ldim_flag = 1;
 		BLPR("[%d]: ldim_flag: %d\n", bdrv->index, bconf->ldim_flag);
 	}
@@ -1467,6 +1468,7 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 		}
 		bl_pwm = bconf->bl_pwm;
 		bl_pwm->index = 0;
+		bl_pwm->drv_index = bdrv->index;
 
 		bl_pwm->level_max = bconf->level_max;
 		bl_pwm->level_min = bconf->level_min;
@@ -1511,6 +1513,8 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 		pwm_combo1 = bconf->bl_pwm_combo1;
 		pwm_combo0->index = 0;
 		pwm_combo1->index = 1;
+		pwm_combo0->drv_index = bdrv->index;
+		pwm_combo1->drv_index = bdrv->index;
 
 		bconf->pwm_on_delay = (*(p + LCD_UKEY_BL_PWM_ON_DELAY) |
 			((*(p + LCD_UKEY_BL_PWM_ON_DELAY + 1)) << 8));
@@ -1758,7 +1762,7 @@ static void bl_on_function(struct aml_bl_drv_s *bdrv)
 	mutex_unlock(&bl_level_mutex);
 }
 
-static void bl_delayd_on(struct work_struct *p_work)
+static void bl_delayed_on(struct work_struct *p_work)
 {
 	struct delayed_work *d_work;
 	struct aml_bl_drv_s *bdrv;
@@ -2198,7 +2202,7 @@ static int bl_brightness_dimming_notifier(struct notifier_block *nb,
 	unsigned int level;
 
 	/* If we aren't interested in this event, skip it immediately */
-	if (event != LCD_EVENT_BACKLIGHT_BRTNESS_DIM)
+	if (event != LCD_EVENT_BACKLIGHT_BRIGHTNESS_DIM)
 		return NOTIFY_DONE;
 
 	if (aml_bl_check_driver(bdrv))
@@ -2570,7 +2574,7 @@ static ssize_t bl_debug_pwm_info_show(struct device *dev,
 				       "pwm_max:            %d\n"
 				       "pwm_min:            %d\n"
 				       "pwm_level:          %d\n"
-				       "pwm_mapping:		%d_%d_%d_%d_%d\n",
+				       "pwm_mapping:		%d_%d_%d_%d_%d %d_%d\n",
 				       bl_pwm->index,
 				       bl_pwm_num_to_str(bl_pwm->pwm_port),
 				       bl_pwm->pwm_port,
@@ -2586,7 +2590,9 @@ static ssize_t bl_debug_pwm_info_show(struct device *dev,
 				       bl_pwm->pwm_mapping[1],
 				       bl_pwm->pwm_mapping[2],
 				       bl_pwm->pwm_mapping[3],
-				       bl_pwm->pwm_mapping[4]);
+				       bl_pwm->pwm_mapping[4],
+				       bl_pwm->pwm_mapping[5],
+				       bl_pwm->pwm_mapping[6]);
 			if (bl_pwm->pwm_duty_max > 100) {
 				len += sprintf(buf + len,
 					       "pwm_duty:           %d(%d%%)\n",
@@ -2604,6 +2610,14 @@ static ssize_t bl_debug_pwm_info_show(struct device *dev,
 			case BL_PWM_D:
 			case BL_PWM_E:
 			case BL_PWM_F:
+			case BL_PWM_G:
+			case BL_PWM_H:
+			case BL_PWM_I:
+			case BL_PWM_J:
+			case BL_PWM_K:
+			case BL_PWM_L:
+			case BL_PWM_M:
+			case BL_PWM_N:
 			case BL_PWM_AO_A:
 			case BL_PWM_AO_B:
 			case BL_PWM_AO_C:
@@ -2666,7 +2680,7 @@ static ssize_t bl_debug_pwm_info_show(struct device *dev,
 				       "pwm_0_max:          %d\n"
 				       "pwm_0_min:          %d\n"
 				       "pwm_0_level:        %d\n"
-				       "pwm_0_mapping:		%d_%d_%d_%d_%d\n",
+				       "pwm_0_mapping:		%d_%d_%d_%d_%d %d_%d\n",
 				       bl_pwm->index,
 				       bl_pwm_num_to_str(bl_pwm->pwm_port),
 				       bl_pwm->pwm_port,
@@ -2682,7 +2696,9 @@ static ssize_t bl_debug_pwm_info_show(struct device *dev,
 				       bl_pwm->pwm_mapping[1],
 				       bl_pwm->pwm_mapping[2],
 				       bl_pwm->pwm_mapping[3],
-				       bl_pwm->pwm_mapping[4]);
+				       bl_pwm->pwm_mapping[4],
+				       bl_pwm->pwm_mapping[5],
+				       bl_pwm->pwm_mapping[6]);
 			if (bl_pwm->pwm_duty_max > 100) {
 				len += sprintf(buf + len,
 					       "pwm_0_duty:         %d(%d%%)\n",
@@ -2700,6 +2716,14 @@ static ssize_t bl_debug_pwm_info_show(struct device *dev,
 			case BL_PWM_D:
 			case BL_PWM_E:
 			case BL_PWM_F:
+			case BL_PWM_G:
+			case BL_PWM_H:
+			case BL_PWM_I:
+			case BL_PWM_J:
+			case BL_PWM_K:
+			case BL_PWM_L:
+			case BL_PWM_M:
+			case BL_PWM_N:
 			case BL_PWM_AO_A:
 			case BL_PWM_AO_B:
 			case BL_PWM_AO_C:
@@ -2757,7 +2781,7 @@ static ssize_t bl_debug_pwm_info_show(struct device *dev,
 				       "pwm_1_max:          %d\n"
 				       "pwm_1_min:          %d\n"
 				       "pwm_1_level:        %d\n"
-				       "pwm_1_mapping:		%d_%d_%d_%d_%d\n",
+				       "pwm_1_mapping:		%d_%d_%d_%d_%d %d_%d\n",
 				       bl_pwm->index,
 				       bl_pwm_num_to_str(bl_pwm->pwm_port),
 				       bl_pwm->pwm_port,
@@ -2773,7 +2797,9 @@ static ssize_t bl_debug_pwm_info_show(struct device *dev,
 				       bl_pwm->pwm_mapping[1],
 				       bl_pwm->pwm_mapping[2],
 				       bl_pwm->pwm_mapping[3],
-				       bl_pwm->pwm_mapping[4]);
+				       bl_pwm->pwm_mapping[4],
+				       bl_pwm->pwm_mapping[5],
+				       bl_pwm->pwm_mapping[6]);
 			if (bl_pwm->pwm_duty_max > 100) {
 				len += sprintf(buf + len,
 					       "pwm_1_duty:         %d(%d%%)\n",
@@ -2791,6 +2817,14 @@ static ssize_t bl_debug_pwm_info_show(struct device *dev,
 			case BL_PWM_D:
 			case BL_PWM_E:
 			case BL_PWM_F:
+			case BL_PWM_G:
+			case BL_PWM_H:
+			case BL_PWM_I:
+			case BL_PWM_J:
+			case BL_PWM_K:
+			case BL_PWM_L:
+			case BL_PWM_M:
+			case BL_PWM_N:
 			case BL_PWM_AO_A:
 			case BL_PWM_AO_B:
 			case BL_PWM_AO_C:
@@ -3050,7 +3084,7 @@ static ssize_t bl_debug_pwm_store(struct device *dev,
 	struct aml_bl_drv_s *bdrv = dev_get_drvdata(dev);
 	unsigned int ret;
 	unsigned int index = 0, val = 0;
-	unsigned int val1 = 0, val2 = 0, val3 = 0, val4 = 0;
+	unsigned int val1 = 0, val2 = 0, val3 = 0, val4 = 0, val5 = 0, val6 = 0;
 	struct bl_config_s *bconf = &bdrv->bconf;
 	struct bl_pwm_config_s *bl_pwm = NULL;
 
@@ -3120,9 +3154,9 @@ static ssize_t bl_debug_pwm_store(struct device *dev,
 		}
 		break;
 	case 'c': /* curve */
-		ret = sscanf(buf, "curve %d %d %d %d %d %d",
-			&index, &val, &val1, &val2, &val3, &val4);
-		if (ret == 6) {
+		ret = sscanf(buf, "curve %d %d %d %d %d %d %d %d",
+			&index, &val, &val1, &val2, &val3, &val4, &val5, &val6);
+		if (ret == 8) {
 			switch (bconf->method) {
 			case BL_CTRL_PWM:
 				bl_pwm = bconf->bl_pwm;
@@ -3143,6 +3177,8 @@ static ssize_t bl_debug_pwm_store(struct device *dev,
 				bl_pwm->pwm_mapping[2] = val2;
 				bl_pwm->pwm_mapping[3] = val3;
 				bl_pwm->pwm_mapping[4] = val4;
+				bl_pwm->pwm_mapping[5] = val5;
+				bl_pwm->pwm_mapping[6] = val6;
 			}
 		} else {
 			BLERR("invalid parameters\n");
@@ -4009,7 +4045,7 @@ static void aml_bl_config_probe_work(struct work_struct *p_work)
 	bdrv->probe_done = 1;
 
 	/* init workqueue */
-	INIT_DELAYED_WORK(&bdrv->delayed_on_work, bl_delayd_on);
+	INIT_DELAYED_WORK(&bdrv->delayed_on_work, bl_delayed_on);
 
 	bl_init_status_update(bdrv);
 

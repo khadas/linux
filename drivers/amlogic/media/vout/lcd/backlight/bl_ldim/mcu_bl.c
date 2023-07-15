@@ -37,7 +37,7 @@ static DEFINE_MUTEX(dev_mutex);
 
 struct blmcu_s {
 	unsigned int dev_on_flag;
-	unsigned int dma_support;
+	unsigned char dma_support;
 	unsigned short vsync_cnt;
 	unsigned int rbuf_size;
 	unsigned int tbuf_size;
@@ -224,7 +224,10 @@ static int blmcu_smr(struct aml_ldim_driver_s *ldim_drv, unsigned int *buf,
 				  dev_drv->zone_num);
 	ldim_vs_debug_info(ldim_drv);
 
-	ret = ldim_spi_write_async(dev_drv->spi_dev, bl_mcu->tbuf, bl_mcu->rbuf,
+	if (dev_drv->spi_sync)
+		ret = ldim_spi_write(dev_drv->spi_dev, bl_mcu->tbuf, bl_mcu->tbuf_size);
+	else
+		ret = ldim_spi_write_async(dev_drv->spi_dev, bl_mcu->tbuf, bl_mcu->rbuf,
 		bl_mcu->tbuf_size, bl_mcu->dma_support, bl_mcu->tbuf_size);
 
 	return ret;
@@ -345,6 +348,7 @@ static ssize_t blmcu_store(struct class *class, struct class_attribute *attr,
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_dev_driver_s *dev_drv;
+	unsigned int val;
 	int n = 0;
 	char *buf_orig, *ps, *token;
 	char **parm = NULL;
@@ -400,8 +404,9 @@ static ssize_t blmcu_store(struct class *class, struct class_attribute *attr,
 		LDIMPR("command: 0x%x\n", bl_mcu->header);
 	} else if (!strcmp(parm[0], "dma")) {
 		if (parm[1]) {
-			if (kstrtouint(parm[1], 0, &bl_mcu->dma_support) < 0)
+			if (kstrtouint(parm[1], 0, &val) < 0)
 				goto blmcu_store_err;
+			bl_mcu->dma_support = (unsigned char)val;
 		}
 		LDIMPR("dma_support: %d\n", bl_mcu->dma_support);
 	} else {
@@ -470,7 +475,7 @@ int ldim_dev_blmcu_probe(struct aml_ldim_driver_s *ldim_drv)
 
 	/* each zone 2 bytes */
 	bl_mcu->rbuf_size = 2 * dev_drv->zone_num;
-	bl_mcu->rbuf = kcalloc(bl_mcu->rbuf_size, sizeof(unsigned char), GFP_KERNEL);
+	bl_mcu->rbuf = kcalloc(bl_mcu->rbuf_size, sizeof(unsigned char), GFP_KERNEL | GFP_DMA);
 	if (!bl_mcu->rbuf) {
 		LDIMERR("%s: bl_mcu->rbuf is error\n", __func__);
 		goto ldim_dev_blmcu_probe_err0;
@@ -492,7 +497,7 @@ int ldim_dev_blmcu_probe(struct aml_ldim_driver_s *ldim_drv)
 		bl_mcu->tbuf_size = ldim_spi_dma_cycle_align_byte(n);
 		LDIMPR("%s: bl_mcu->tbuf_size is %d --> %d\n", __func__, n, bl_mcu->tbuf_size);
 	}
-	bl_mcu->tbuf = kcalloc(bl_mcu->tbuf_size, sizeof(unsigned char), GFP_KERNEL);
+	bl_mcu->tbuf = kcalloc(bl_mcu->tbuf_size, sizeof(unsigned char), GFP_KERNEL | GFP_DMA);
 	if (!bl_mcu->tbuf) {
 		LDIMERR("%s: bl_mcu->tbuf is error\n", __func__);
 		goto ldim_dev_blmcu_probe_err1;

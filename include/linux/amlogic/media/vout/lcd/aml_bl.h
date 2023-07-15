@@ -67,6 +67,10 @@ enum bl_pwm_port_e {
 	BL_PWM_H,
 	BL_PWM_I,
 	BL_PWM_J,
+	BL_PWM_K,
+	BL_PWM_L,
+	BL_PWM_M,
+	BL_PWM_N,
 	BL_PWM_AO_A = 0x50,
 	BL_PWM_AO_B,
 	BL_PWM_AO_C,
@@ -110,6 +114,7 @@ struct pwm_data_s {
 
 struct bl_pwm_config_s {
 	unsigned int index;
+	unsigned int drv_index;
 	struct pwm_data_s pwm_data;
 	enum bl_pwm_method_e pwm_method;
 	enum bl_pwm_port_e pwm_port;
@@ -125,7 +130,7 @@ struct bl_pwm_config_s {
 	unsigned int pwm_max; /* internal used for pwm control */
 	unsigned int pwm_min; /* internal used for pwm control */
 	unsigned int pwm_level; /* internal used for pwm control */
-	unsigned int pwm_mapping[5]; /* mapping curve for pwm control */
+	unsigned int pwm_mapping[7]; /* mapping curve for pwm control */
 };
 
 #define BL_NAME_MAX    30

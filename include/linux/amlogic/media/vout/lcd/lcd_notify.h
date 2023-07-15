@@ -80,7 +80,7 @@
 /* lcd backlight brightness on/off by local dimming */
 #define LCD_EVENT_BACKLIGHT_LD_SEL     BIT(28)
 /* lcd backlight brightness update by driver api */
-#define LCD_EVENT_BACKLIGHT_BRTNESS_DIM     BIT(29)
+#define LCD_EVENT_BACKLIGHT_BRIGHTNESS_DIM     BIT(29)
 
 
 /* blocking notify */

@@ -12,6 +12,7 @@
 struct lcd_venc_op_s {
 	int init_flag;
 	void (*wait_vsync)(struct aml_lcd_drv_s *pdrv);
+	unsigned int (*get_max_lcnt)(struct aml_lcd_drv_s *pdrv);
 	void (*gamma_test_en)(struct aml_lcd_drv_s *pdrv, int flag);
 	int (*venc_debug_test)(struct aml_lcd_drv_s *pdrv, unsigned int num);
 	void (*venc_set_timing)(struct aml_lcd_drv_s *pdrv);

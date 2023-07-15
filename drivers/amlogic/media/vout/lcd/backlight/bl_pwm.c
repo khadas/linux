@@ -26,6 +26,7 @@
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include "lcd_bl.h"
 #include "../lcd_reg.h"
+#include "../lcd_common.h"
 
 struct bl_pwm_init_config_s {
 	unsigned int *pwm_vs_reg;
@@ -49,7 +50,11 @@ static char *bl_pwm_name[] = {
 	"PWM_G",
 	"PWM_H",
 	"PWM_I",
-	"PWM_J"
+	"PWM_J",
+	"PWM_K",
+	"PWM_L",
+	"PWM_M",
+	"PWM_N"
 };
 
 static char *bl_pwm_ao_name[] = {
@@ -186,6 +191,11 @@ static void bl_set_pwm_vs(struct bl_pwm_config_s *bl_pwm,
 	unsigned int reg[5], vs[8], ve[8];
 	int i;
 
+	if (bl_pwm->pwm_cnt == 0) {
+		BLERR("%s: pwm_cnt is 0\n", __func__);
+		return;
+	}
+
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV) {
 		BLPR("%s: pwm_duty=%d, out_level=%d\n",
 		     __func__, bl_pwm->pwm_duty, out_level);
@@ -278,6 +288,10 @@ static void bl_set_pwm_normal(struct bl_pwm_config_s *bl_pwm,
 		BLERR("%s: invalid bl_pwm_ch\n", __func__);
 		return;
 	}
+	if (bl_pwm->pwm_cnt == 0) {
+		BLERR("%s: pwm_cnt is 0\n", __func__);
+		return;
+	}
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV) {
 		BLPR("pwm: pwm=0x%p, port=%d, meson_index=%d\n",
@@ -331,6 +345,10 @@ void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status)
 		case BL_PWM_H:
 		case BL_PWM_I:
 		case BL_PWM_J:
+		case BL_PWM_K:
+		case BL_PWM_L:
+		case BL_PWM_M:
+		case BL_PWM_N:
 		case BL_PWM_AO_A:
 		case BL_PWM_AO_B:
 		case BL_PWM_AO_C:
@@ -362,6 +380,10 @@ void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status)
 		case BL_PWM_H:
 		case BL_PWM_I:
 		case BL_PWM_J:
+		case BL_PWM_K:
+		case BL_PWM_L:
+		case BL_PWM_M:
+		case BL_PWM_N:
 		case BL_PWM_AO_A:
 		case BL_PWM_AO_B:
 		case BL_PWM_AO_C:
@@ -376,14 +398,8 @@ void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status)
 			}
 
 			pwm_get_state(bl_pwm->pwm_data.pwm, &pstate);
-			pwm_constant_enable(bl_pwm->pwm_data.meson,
-					    bl_pwm->pwm_data.meson_index);
-			if (bl_pwm->pwm_method)
-				pstate.polarity = 0;
-			else
-				pstate.polarity = 1;
 			pstate.duty_cycle = 0;
-			pstate.enabled = 1;
+			pstate.enabled = 0;
 			pstate.period = bl_pwm->pwm_data.state.period;
 			if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV)
 				bl_pwm_normal_state_print(&pstate);
@@ -420,6 +436,10 @@ void bl_pwm_set_duty(struct aml_bl_drv_s *bdrv, struct bl_pwm_config_s *bl_pwm)
 
 	if (bdrv->pwm_bypass)
 		return;
+	if (bl_pwm->pwm_cnt == 0) {
+		BLERR("%s: pwm_cnt is 0\n", __func__);
+		return;
+	}
 
 	if (bdrv->pwm_duty_free) {
 		if (bl_pwm->pwm_duty_max > 255) {
@@ -499,9 +519,12 @@ void bl_pwm_mapping_init(struct aml_bl_drv_s *bdrv)
 			bl_pwm->pwm_mapping[3] = bl_pwm->level_min +
 				3 * ((bl_pwm->level_max - bl_pwm->level_min + 2) / 4);
 			bl_pwm->pwm_mapping[4] = bl_pwm->level_max;
-			BLPR("pwm curve: %d  %d  %d  %d  %d", bl_pwm->pwm_mapping[0],
+			bl_pwm->pwm_mapping[5] = bl_pwm->level_max;
+			bl_pwm->pwm_mapping[6] = bl_pwm->level_max;
+			BLPR("pwm curve: %d  %d  %d  %d  %d tp:%d %d", bl_pwm->pwm_mapping[0],
 				bl_pwm->pwm_mapping[1], bl_pwm->pwm_mapping[2],
-				bl_pwm->pwm_mapping[3], bl_pwm->pwm_mapping[4]);
+				bl_pwm->pwm_mapping[3], bl_pwm->pwm_mapping[4],
+				bl_pwm->pwm_mapping[5], bl_pwm->pwm_mapping[6]);
 		}
 		break;
 	case BL_CTRL_PWM_COMBO:
@@ -515,9 +538,12 @@ void bl_pwm_mapping_init(struct aml_bl_drv_s *bdrv)
 			bl_pwm->pwm_mapping[3] = bl_pwm->level_min +
 				3 * ((bl_pwm->level_max - bl_pwm->level_min + 2) / 4);
 			bl_pwm->pwm_mapping[4] = bl_pwm->level_max;
-			BLPR("pwm0 curve: %d  %d  %d  %d  %d", bl_pwm->pwm_mapping[0],
+			bl_pwm->pwm_mapping[5] = bl_pwm->level_max;
+			bl_pwm->pwm_mapping[6] = bl_pwm->level_max;
+			BLPR("pwm curve: %d  %d  %d  %d  %d tp:%d %d", bl_pwm->pwm_mapping[0],
 				bl_pwm->pwm_mapping[1], bl_pwm->pwm_mapping[2],
-				bl_pwm->pwm_mapping[3], bl_pwm->pwm_mapping[4]);
+				bl_pwm->pwm_mapping[3], bl_pwm->pwm_mapping[4],
+				bl_pwm->pwm_mapping[5], bl_pwm->pwm_mapping[6]);
 		}
 
 		bl_pwm = bdrv->bconf.bl_pwm_combo1;
@@ -530,9 +556,12 @@ void bl_pwm_mapping_init(struct aml_bl_drv_s *bdrv)
 			bl_pwm->pwm_mapping[3] = bl_pwm->level_min +
 				3 * ((bl_pwm->level_max - bl_pwm->level_min + 2) / 4);
 			bl_pwm->pwm_mapping[4] = bl_pwm->level_max;
-			BLPR("pwm1 curve: %d  %d  %d  %d  %d", bl_pwm->pwm_mapping[0],
+			bl_pwm->pwm_mapping[5] = bl_pwm->level_max;
+			bl_pwm->pwm_mapping[6] = bl_pwm->level_max;
+			BLPR("pwm curve: %d  %d  %d  %d  %d tp:%d %d", bl_pwm->pwm_mapping[0],
 				bl_pwm->pwm_mapping[1], bl_pwm->pwm_mapping[2],
-				bl_pwm->pwm_mapping[3], bl_pwm->pwm_mapping[4]);
+				bl_pwm->pwm_mapping[3], bl_pwm->pwm_mapping[4],
+				bl_pwm->pwm_mapping[5], bl_pwm->pwm_mapping[6]);
 		}
 		break;
 	default:
@@ -545,36 +574,57 @@ static unsigned int bl_pwm_set_mapping(struct bl_pwm_config_s *bl_pwm, unsigned 
 	unsigned int levelout;
 	unsigned int p0, p1, p2, p3, p4, delta, step, step2, step3, step4;
 	unsigned long long levelin;
+	unsigned int tp[2];
 
 	p0 = bl_pwm->pwm_mapping[0];
 	p1 = bl_pwm->pwm_mapping[1];
 	p2 = bl_pwm->pwm_mapping[2];
 	p3 = bl_pwm->pwm_mapping[3];
 	p4 = bl_pwm->pwm_mapping[4];
+	tp[0] = bl_pwm->pwm_mapping[5];
+	tp[1] = bl_pwm->pwm_mapping[6];
 	levelin = level;
 
 	if (p0 < bl_pwm->level_min || p4 > bl_pwm->level_max)
 		BLERR("pwm mapping curve is out of pwm level range!!!");
 
-	step = (bl_pwm->level_max - bl_pwm->level_min + 2) / 4;
-	delta = step / 2;
-	step2 = 2 * step;
-	step3 = 3 * step;
-	step4 = bl_pwm->level_max - step3 - bl_pwm->level_min;
+	if (tp[1] < p4) {
+		if (tp[bl_pwm->index] == p4) { /*pdim*/
+			if (levelin >= tp[1] && levelin <= bl_pwm->level_max) {
+				levelout = p4;
+			} else {
+				levelout = bl_do_div(((levelin - bl_pwm->level_min) * (p4 - p0)),
+				(tp[1] - bl_pwm->level_min)) + p0;
+			}
+		} else { /*adim*/
+			if (levelin < tp[1]) {
+				levelout = p0;
+			} else {
+				levelout = bl_do_div(((levelin - tp[1]) * (p4 - p0)),
+				(bl_pwm->level_max - tp[1])) + p0;
+			}
+		}
+	} else {
+		step = (bl_pwm->level_max - bl_pwm->level_min + 2) / 4;
+		delta = step / 2;
+		step2 = 2 * step;
+		step3 = 3 * step;
+		step4 = bl_pwm->level_max - step3 - bl_pwm->level_min;
 
-	/*pwm curve mapping*/
-	if (levelin < (step + bl_pwm->level_min))
-		levelout = bl_do_div(((p1 - p0) * (levelin - bl_pwm->level_min)
-			+ delta), step) + p0;
-	else if (levelin < (step2 + bl_pwm->level_min))
-		levelout = bl_do_div(((p2 - p1) * (levelin - step - bl_pwm->level_min)
-			+ delta), step) + p1;
-	else if (levelin < (step3 + bl_pwm->level_min))
-		levelout = bl_do_div(((p3 - p2) * (levelin - step2 - bl_pwm->level_min)
-			+ delta), step) + p2;
-	else
-		levelout = bl_do_div(((p4 - p3) * (levelin - step3 - bl_pwm->level_min)
-			+ (step4 / 2)), step4) + p3;
+		/*pwm curve mapping*/
+		if (levelin < (step + bl_pwm->level_min))
+			levelout = bl_do_div(((p1 - p0) * (levelin - bl_pwm->level_min)
+				+ delta), step) + p0;
+		else if (levelin < (step2 + bl_pwm->level_min))
+			levelout = bl_do_div(((p2 - p1) * (levelin - step - bl_pwm->level_min)
+				+ delta), step) + p1;
+		else if (levelin < (step3 + bl_pwm->level_min))
+			levelout = bl_do_div(((p3 - p2) * (levelin - step2 - bl_pwm->level_min)
+				+ delta), step) + p2;
+		else
+			levelout = bl_do_div(((p4 - p3) * (levelin - step3 - bl_pwm->level_min)
+				+ (step4 / 2)), step4) + p3;
+	}
 
 	if (levelout < bl_pwm->level_min)
 		levelout = bl_pwm->level_min;
@@ -582,8 +632,8 @@ static unsigned int bl_pwm_set_mapping(struct bl_pwm_config_s *bl_pwm, unsigned 
 		levelout = bl_pwm->level_max;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV)
-		BLPR("curve: %d %d %d %d %d: levelin=%d, levelout=%d",
-			p0, p1, p2, p3, p4, level, levelout);
+		BLPR("curve: %d %d %d %d %d, tp=%d_%d, levelin=%d, levelout=%d",
+			p0, p1, p2, p3, p4, tp[0], tp[1], level, levelout);
 
 	return levelout;
 }
@@ -599,6 +649,10 @@ void bl_pwm_set_level(struct aml_bl_drv_s *bdrv,
 
 	if (bdrv->pwm_bypass)
 		return;
+	if (bl_pwm->pwm_cnt == 0) {
+		BLERR("%s: pwm_cnt is 0\n", __func__);
+		return;
+	}
 
 	level = bl_level_mapping(bdrv, level);
 	level = bl_pwm_set_mapping(bl_pwm, level);
@@ -646,7 +700,7 @@ void bl_pwm_set_level(struct aml_bl_drv_s *bdrv,
 
 void bl_pwm_config_init(struct bl_pwm_config_s *bl_pwm)
 {
-	unsigned int cnt;
+	struct aml_lcd_drv_s *pdrv;
 	unsigned long long temp;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
@@ -656,8 +710,8 @@ void bl_pwm_config_init(struct bl_pwm_config_s *bl_pwm)
 
 	switch (bl_pwm->pwm_port) {
 	case BL_PWM_VS:
-		cnt = lcd_vcbus_read(ENCL_VIDEO_MAX_LNCNT) + 1;
-		bl_pwm->pwm_cnt = cnt;
+		pdrv = aml_lcd_get_driver(bl_pwm->drv_index);
+		bl_pwm->pwm_cnt = lcd_get_max_line_cnt(pdrv);
 		break;
 	default:
 		/* for pwm api: pwm_period */

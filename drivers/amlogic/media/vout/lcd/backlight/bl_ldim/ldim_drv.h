@@ -20,11 +20,10 @@
 /*20210806: add fw support */
 /*20220815: correct ldim spi dma config */
 /*20221115: new driver architecture */
+/*20230208: update local dimming reserved memory init method */
 /*20230619: optimize reserved memory alloc and vaddr usage */
-/*20230620: update for fw V20230620 */
+/*20230620: add t3x support */
 #define LDIM_DRV_VER    "20230620"
-
-#define LDIM_SPI_DUTY_VSYNC_DIRECT
 
 extern unsigned char ldim_debug_print;
 

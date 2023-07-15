@@ -47,7 +47,7 @@ static DEFINE_MUTEX(dev_mutex);
 
 struct iw7027_s {
 	unsigned int dev_on_flag;
-	unsigned int dma_support;
+	unsigned char dma_support;
 	unsigned short vsync_cnt;
 	unsigned short fault_cnt;
 	unsigned int fault_cnt_save;
@@ -246,7 +246,7 @@ static int spi_wregs_all(struct spi_device *spi, unsigned int chip_cnt,
 }
 
 /* write diff data to all device */
-static int spi_wregs_duty(struct spi_device *spi, unsigned int chip_cnt,
+static int spi_wregs_duty(struct spi_device *spi, unsigned int chip_cnt, unsigned char spi_sync,
 			  unsigned char reg, unsigned char *data_buf, int tlen)
 {
 	unsigned char *tbuf, *rbuf;
@@ -291,7 +291,11 @@ static int spi_wregs_duty(struct spi_device *spi, unsigned int chip_cnt,
 			memcpy(&tbuf[3 + i * tlen], &data_buf[i * tlen], tlen);
 		memset(&tbuf[3 + tlen * chip_cnt], 0, n);
 	}
-	ret = ldim_spi_write_async(spi, tbuf, rbuf, xlen,
+
+	if (spi_sync)
+		ret = ldim_spi_write(spi, tbuf,	xlen);
+	else
+		ret = ldim_spi_write_async(spi, tbuf, rbuf, xlen,
 			bl_iw7027->dma_support, bl_iw7027->tbuf_size);
 
 	return ret;
@@ -350,24 +354,22 @@ static int iw7027_reg_write_duty(struct ldim_dev_driver_s *dev_drv,
 				 unsigned char reg, unsigned char *buf, unsigned int len)
 {
 	int ret;
-#ifdef LDIM_SPI_DUTY_VSYNC_DIRECT
 	unsigned long flags = 0;
-#endif
 
-#ifdef LDIM_SPI_DUTY_VSYNC_DIRECT
-	spin_lock_irqsave(&spi_lock, flags);
-#elif
-	mutex_lock(&spi_mutex);
-#endif
-	ret = spi_wregs_duty(dev_drv->spi_dev, dev_drv->chip_cnt, reg, buf, len);
+	if (dev_drv->spi_sync)
+		mutex_lock(&spi_mutex);
+	else
+		spin_lock_irqsave(&spi_lock, flags);
+
+	ret = spi_wregs_duty(dev_drv->spi_dev, dev_drv->chip_cnt, dev_drv->spi_sync, reg, buf, len);
 	if (ret)
 		LDIMERR("%s: reg 0x%x, len %d error\n", __func__, reg, len);
 
-#ifdef LDIM_SPI_DUTY_VSYNC_DIRECT
-	spin_unlock_irqrestore(&spi_lock, flags);
-#elif
-	mutex_unlock(&spi_mutex);
-#endif
+	if (dev_drv->spi_sync)
+		mutex_unlock(&spi_mutex);
+	else
+		spin_unlock_irqrestore(&spi_lock, flags);
+
 	return ret;
 }
 
@@ -963,7 +965,8 @@ int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv)
 
 	/* 16 each device, each zone 2 bytes */
 	bl_iw7027->reg_buf_size = 16 * 2 * dev_drv->chip_cnt;
-	bl_iw7027->reg_buf = kcalloc(bl_iw7027->reg_buf_size, sizeof(unsigned char), GFP_KERNEL);
+	bl_iw7027->reg_buf = kcalloc(bl_iw7027->reg_buf_size,
+		sizeof(unsigned char), GFP_KERNEL | GFP_DMA);
 	if (!bl_iw7027->reg_buf)
 		goto ldim_dev_iw7027_probe_err0;
 
@@ -973,7 +976,8 @@ int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv)
 		n = bl_iw7027->tbuf_size;
 		bl_iw7027->tbuf_size = ldim_spi_dma_cycle_align_byte(n);
 	}
-	bl_iw7027->tbuf = kcalloc(bl_iw7027->tbuf_size, sizeof(unsigned char), GFP_KERNEL);
+	bl_iw7027->tbuf = kcalloc(bl_iw7027->tbuf_size,
+		sizeof(unsigned char), GFP_KERNEL | GFP_DMA);
 	if (!bl_iw7027->tbuf)
 		goto ldim_dev_iw7027_probe_err1;
 
@@ -981,7 +985,8 @@ int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv)
 	bl_iw7027->rbuf_size = 3 + IW7027_REG_MAX + dev_drv->chip_cnt * 2;
 	if (bl_iw7027->rbuf_size < bl_iw7027->tbuf_size) /* for dma use */
 		bl_iw7027->rbuf_size = bl_iw7027->tbuf_size;
-	bl_iw7027->rbuf = kcalloc(bl_iw7027->rbuf_size, sizeof(unsigned char), GFP_KERNEL);
+	bl_iw7027->rbuf = kcalloc(bl_iw7027->rbuf_size,
+		sizeof(unsigned char), GFP_KERNEL | GFP_DMA);
 	if (!bl_iw7027->rbuf)
 		goto ldim_dev_iw7027_probe_err2;
 
@@ -996,9 +1001,9 @@ int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv)
 		}
 	}
 
-#ifdef LDIM_SPI_DUTY_VSYNC_DIRECT
-	spin_lock_init(&spi_lock);
-#endif
+	if (dev_drv->spi_sync == 0)
+		spin_lock_init(&spi_lock);
+
 	bl_iw7027->dev_on_flag = 1; /* default enable in uboot */
 
 	LDIMPR("%s ok\n", __func__);

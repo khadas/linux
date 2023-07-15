@@ -52,7 +52,8 @@ struct ldim_dev_driver_s {
 	char pinmux_name[LDIM_DEV_NAME_MAX];
 	unsigned char key_valid;
 	unsigned char type;
-	unsigned int dma_support;
+	unsigned char dma_support;
+	unsigned char spi_sync;/*1:spi_sync, 0:dirspi_async*/
 	int cs_hold_delay;
 	int cs_clk_delay;
 	int en_gpio;
