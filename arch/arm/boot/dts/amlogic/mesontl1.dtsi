@@ -632,6 +632,13 @@
 			dev_name = "aml_sha_dma";
 			status = "okay";
 		};
+
+		aml_tdes {
+			compatible = "amlogic,tdes_dma";
+			dev_name = "aml_tdes_dma";
+			status = "okay";
+		};
+
 	};
 
 	rng {
