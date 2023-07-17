@@ -16,6 +16,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/fb.h>
+#include <linux/fdtable.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -48,7 +49,6 @@
 
 #include <linux/iommu.h>
 #include <linux/iova.h>
-#include <linux/dma-iommu.h>
 #include <linux/pagemap.h>
 
 #ifdef CONFIG_DMABUF_CACHE
@@ -87,7 +87,7 @@
 
 #define DRIVER_MAJOR_VERISON		1
 #define DRIVER_MINOR_VERSION		2
-#define DRIVER_REVISION_VERSION		26
+#define DRIVER_REVISION_VERSION		27
 #define DRIVER_PATCH_VERSION
 
 #define DRIVER_VERSION (STR(DRIVER_MAJOR_VERISON) "." STR(DRIVER_MINOR_VERSION) \
