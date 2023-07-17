@@ -366,22 +366,6 @@
 		/* 4: 333.3M    5: 400.0M    6: 500.0M    7: 666.7M */
 	};
 
-	ethmac: ethernet@ff3f0000 {
-		compatible = "amlogic, g12a-eth-dwmac","snps,dwmac";
-		reg = <0xff3f0000 0x10000
-			0xff634540 0x8
-			0xff64c000 0xa0
-			0xffd01008 0x4>;
-		reg-names = "eth_base", "eth_cfg", "eth_pll", "eth_reset";
-		interrupts = <0 8 1>;
-		interrupt-names = "macirq";
-		status = "disabled";
-		//clocks = <&clkc CLKID_ETH_CORE>;
-		//clock-names = "ethclk81";
-		pll_val = <0x9c0040a 0x927e0000 0xac5f49e5>;
-		analog_val = <0x20200000 0x0000c000 0x00000023>;
-	};
-
 	pinctrl_aobus: pinctrl@ff800014 {
 		compatible = "amlogic,meson-tl1-aobus-pinctrl";
 		#address-cells = <1>;
@@ -880,6 +864,66 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
+			};
+		};
+
+		eth_phy: mdio-multiplexer@0xff64c000 {
+			compatible = "amlogic,g12a-mdio-mux";
+			reg = <0xff64c000 0xa4>;
+
+			clocks = <&clkc CLKID_CLK81_ETH_PHY>,
+				 <&xtal>,
+				 <&clkc CLKID_MPLL_50M>;
+			clock-names = "pclk", "clkin0", "clkin1";
+			mdio-parent-bus = <&mdio0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			enet_type = <0>;
+
+			ext_mdio: mdio@0 {
+				reg = <0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			int_mdio: mdio@1 {
+				reg = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				internal_ephy: ethernet_phy@8 {
+					compatible = "ethernet-phy-id0180.3301",
+						     "ethernet-phy-ieee802.3-c22";
+					interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+					reg = <8>;
+					max-speed = <100>;
+				};
+			};
+		};
+
+		ethmac: ethernet@ff3f0000 {
+			compatible = "amlogic,meson-axg-dwmac",
+				     "snps,dwmac-3.70a",
+				     "snps,dwmac";
+			reg = <0xff3f0000 0x10000>,
+			      <0xff634540 0x8>;
+			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq";
+			clocks = <&clkc CLKID_CLK81_ETH_CORE>,
+				 <&clkc CLKID_FCLK_DIV2>,
+				 <&clkc CLKID_MPLL_50M>;
+			clock-names = "stmmaceth", "clkin0", "clkin1";
+			rx-fifo-depth = <4096>;
+			tx-fifo-depth = <2048>;
+			/*1:inphy; 2:exphy;*/
+			internal_phy = <1>;
+			mc_val = <0x4be04>;
+			status = "disabled";
+
+			mdio0: mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "snps,dwmac-mdio";
 			};
 		};
 
