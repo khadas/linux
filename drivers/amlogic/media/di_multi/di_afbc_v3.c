@@ -3197,7 +3197,7 @@ void disable_afbcd_t5dvb(void)
 	const unsigned int *reg;
 	unsigned int reg_AFBC_ENABLE;
 
-	if (!afbc_is_supported() || !DIM_IS_IC(T5DB))
+	if (!afbc_is_supported() || !DIM_IS_IC(T5DB) || cfgg(EN_PRE_LINK))
 		return;
 	dbg_mem2("%s\n", __func__);
 	reg = afbc_get_addrp(pafd_ctr->fb.pre_dec);
