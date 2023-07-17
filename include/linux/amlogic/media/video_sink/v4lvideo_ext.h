@@ -47,6 +47,7 @@ struct file_private_data {
 	int keep_id;
 	int keep_id_1;
 	int keep_head_id;
+	int keep_dw_id;
 	struct file *file;
 	ulong vb_handle;
 	ulong v4l_dec_ctx;

@@ -443,6 +443,7 @@ static void vf_keep(struct v4lvideo_dev *dev,
 	int keep_id = 0;
 	int keep_id_1 = 0;
 	int keep_head_id = 0;
+	int keep_dw_id = 0;
 	u32 flag;
 	u32 inst_id = dev->inst;
 
@@ -497,11 +498,14 @@ static void vf_keep(struct v4lvideo_dev *dev,
 	video_keeper_keep_mem(vf_p->mem_handle,	type, &keep_id);
 	video_keeper_keep_mem(vf_p->mem_handle_1, type, &keep_id_1);
 	video_keeper_keep_mem(vf_p->mem_head_handle, MEM_TYPE_CODEC_MM,
-			      &keep_head_id);
+		&keep_head_id);
+	video_keeper_keep_mem(vf_p->mem_dw_handle, MEM_TYPE_CODEC_MM,
+		&keep_dw_id);
 
 	file_private_data->keep_id = keep_id;
 	file_private_data->keep_id_1 = keep_id_1;
 	file_private_data->keep_head_id = keep_head_id;
+	file_private_data->keep_dw_id = keep_dw_id;
 	file_private_data->is_keep = true;
 }
 
@@ -513,6 +517,7 @@ void v4lvideo_keep_vf(struct file *file)
 	int keep_id = 0;
 	int keep_id_1 = 0;
 	int keep_head_id = 0;
+	int keep_dw_id = 0;
 	struct file_private_data *file_private_data;
 
 	file_private_data = v4lvideo_get_file_private_data(file, false);
@@ -548,12 +553,15 @@ void v4lvideo_keep_vf(struct file *file)
 
 	video_keeper_keep_mem(vf_p->mem_handle, type, &keep_id);
 	video_keeper_keep_mem(vf_p->mem_handle_1, type, &keep_id_1);
-	video_keeper_keep_mem(vf_p->mem_head_handle,
-			      MEM_TYPE_CODEC_MM, &keep_head_id);
+	video_keeper_keep_mem(vf_p->mem_head_handle, MEM_TYPE_CODEC_MM,
+		&keep_head_id);
+	video_keeper_keep_mem(vf_p->mem_dw_handle, MEM_TYPE_CODEC_MM,
+		&keep_dw_id);
 
 	file_private_data->keep_id = keep_id;
 	file_private_data->keep_id_1 = keep_id_1;
 	file_private_data->keep_head_id = keep_head_id;
+	file_private_data->keep_dw_id = keep_dw_id;
 	file_private_data->is_keep = true;
 }
 
@@ -577,6 +585,11 @@ static void vf_free(struct file_private_data *file_private_data)
 		video_keeper_free_mem(file_private_data->keep_id_1, 0);
 		file_private_data->keep_id_1 = -1;
 	}
+	if (file_private_data->keep_dw_id > 0) {
+		video_keeper_free_mem(file_private_data->keep_dw_id, 0);
+		file_private_data->keep_dw_id = -1;
+	}
+
 	vf = &file_private_data->vf;
 	vf_p = file_private_data->vf_p;
 	flag = file_private_data->flag;
