@@ -950,8 +950,6 @@
 				clock-names = "clk_uart";
 				xtal_tick_en = <2>;
 				fifosize = < 64 >;
-				//pinctrl-names = "default";
-				//pinctrl-0 = <&ao_a_uart_pins>;
 				/* 0 not support; 1 support */
 				support-sysrq = <0>;
 			};
@@ -961,8 +959,8 @@
 				reg = <0x4000 0x18>;
 				interrupts = <0 197 1>;
 				status = "disabled";
-				clocks = <&xtal>;
-				clock-names = "clk_uart";
+				clocks = <&xtal &clkc_AO CLKID_AO_UART2>;
+				clock-names = "clk_uart", "clk_gate";
 				fifosize = < 64 >;
 				pinctrl-names = "default";
 				pinctrl-0 = <&ao_b_uart_pins1>;
@@ -1175,10 +1173,10 @@
 		reg = <0xffd24000 0x18>;
 		interrupts = <0 26 1>;
 		status = "disabled";
-	//	clocks = <&xtal
-	//		&clkc CLKID_UART0>;
-	//	clock-names = "clk_uart",
-	//		"clk_gate";
+		clocks = <&xtal
+			&clkc CLKID_CLK81_UART0>;
+		clock-names = "clk_uart",
+			"clk_gate";
 		fifosize = < 128 >;
 		pinctrl-names = "default";
 		pinctrl-0 = <&a_uart_pins>;
@@ -1189,10 +1187,10 @@
 		reg = <0xffd23000 0x18>;
 		interrupts = <0 75 1>;
 		status = "disabled";
-	//	clocks = <&xtal
-	//		&clkc CLKID_UART1>;
-	//	clock-names = "clk_uart",
-	//		"clk_gate";
+		clocks = <&xtal
+			&clkc CLKID_CLK81_UART1>;
+		clock-names = "clk_uart",
+			"clk_gate";
 		fifosize = < 64 >;
 		pinctrl-names = "default";
 		pinctrl-0 = <&b_uart_pins>;
@@ -1203,10 +1201,10 @@
 		reg = <0xffd22000 0x18>;
 		interrupts = <0 93 1>;
 		status = "disabled";
-	//	clocks = <&xtal
-	//		&clkc CLKID_UART1>;
-	//	clock-names = "clk_uart",
-	//		"clk_gate";
+		clocks = <&xtal
+			&clkc CLKID_CLK81_UART2>;
+		clock-names = "clk_uart",
+			"clk_gate";
 		fifosize = < 64 >;
 		pinctrl-names = "default";
 		pinctrl-0 = <&c_uart_pins>;
@@ -1959,6 +1957,8 @@
 			groups = "uart_ao_b_tx_2",
 				"uart_ao_b_rx_3";
 			function = "uart_ao_b";
+			bias-pull-up;
+			drive-strength = <3>;
 		};
 	};
 
@@ -1967,6 +1967,8 @@
 			groups = "uart_ao_b_tx_8",
 				"uart_ao_b_rx_9";
 			function = "uart_ao_b";
+			bias-pull-up;
+			drive-strength = <3>;
 		};
 	};
 
@@ -2613,6 +2615,8 @@
 				"uart_a_cts",
 				"uart_a_rts";
 			function = "uart_a";
+			bias-pull-up;
+			drive-strength = <3>;
 		};
 	};
 
@@ -2621,6 +2625,8 @@
 			groups = "uart_b_tx",
 				"uart_b_rx";
 			function = "uart_b";
+			bias-pull-up;
+			drive-strength = <3>;
 		};
 	};
 
@@ -2629,6 +2635,8 @@
 			groups = "uart_c_tx",
 				"uart_c_rx";
 			function = "uart_c";
+			bias-pull-up;
+			drive-strength = <3>;
 		};
 	};
 
