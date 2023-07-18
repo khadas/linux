@@ -64,7 +64,7 @@ static struct vpu_sub_desc vpu_sub_desc_txlx[] __initdata = {
 	{ .sub_id = 0xF, .vpu_r0_2 = "NULL", .vpu_r1 = "NULL",
 			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		}
 };
-
+#endif
 //static struct vpu_sub_desc vpu_sub_desc_txl[] __initdata = vpu_sub_desc_txlx[]
 //static struct vpu_sub_desc vpu_sub_desc_txhd[] __initdata = vpu_sub_desc_txlx[]
 
@@ -117,7 +117,6 @@ static struct vpu_sub_desc vpu_sub_desc_tl1[] __initdata = {
 	{ .sub_id = 0xF, .vpu_r0_2 = "NULL", .vpu_r1 = "NULL",
 			.vpu_w0 = "NULL", .vpu_w1 = "NULL"		}
 };
-#endif
 
 static struct vpu_sub_desc vpu_sub_desc_sm1[] __initdata = {
 	{ .sub_id = 0x0, .vpu_r0_2 = "OSD1", .vpu_r1 = "DI_IF1",
@@ -643,11 +642,11 @@ int __init dmc_find_port_sub(int cpu_type, struct vpu_sub_desc **desc)
 		*desc = vpu_sub_desc_txlx;
 		desc_size = ARRAY_SIZE(vpu_sub_desc_txlx);
 		break;
+#endif
 	case DMC_TYPE_TL1:
 		*desc = vpu_sub_desc_tl1;
 		desc_size = ARRAY_SIZE(vpu_sub_desc_tl1);
 		break;
-#endif
 	case DMC_TYPE_G12A:
 	case DMC_TYPE_G12B:
 	case DMC_TYPE_SM1:

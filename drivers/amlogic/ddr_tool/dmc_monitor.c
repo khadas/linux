@@ -1148,10 +1148,6 @@ static const struct of_device_id dmc_monitor_match[] = {
 		.data = (void *)DMC_TYPE_TXHD,
 	},
 	{
-		.compatible = "amlogic,dmc_monitor-tl1",
-		.data = (void *)DMC_TYPE_TL1,
-	},
-	{
 		.compatible = "amlogic,dmc_monitor-c1",
 		.data = (void *)DMC_TYPE_C1,
 	},
@@ -1219,6 +1215,10 @@ static const struct of_device_id dmc_monitor_match[] = {
 	{
 		.compatible = "amlogic,dmc_monitor-a4",
 		.data = (void *)DMC_TYPE_A4,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-tl1",
+		.data = (void *)DMC_TYPE_TL1,
 	},
 	{}
 };

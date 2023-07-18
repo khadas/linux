@@ -141,7 +141,7 @@
 			};
 			SYSTEM_SLEEP_0: system-sleep-0 {
 				compatible = "arm,idle-state";
-				arm,psci-suspend-param = <0x0020000>;
+				arm,psci-suspend-param = <0x0000000>;
 				entry-latency-us = <0x3fffffff>;
 				exit-latency-us = <0x40000000>;
 				min-residency-us = <0xffffffff>;
@@ -1494,7 +1494,7 @@
 	};
 
 	ddr_bandwidth {
-		compatible = "amlogic, ddr-bandwidth";
+		compatible = "amlogic,ddr-bandwidth-tl1";
 		status = "okay";
 		reg = <0xff638000 0x100
 		       0xff638c00 0x100>;
@@ -1504,8 +1504,9 @@
 	};
 
 	dmc_monitor {
-		compatible = "amlogic, dmc_monitor";
+		compatible = "amlogic,dmc_monitor-tl1";
 		status = "okay";
+		reg = <0xff638000 0x400>;
 		reg_base = <0xff639000>;
 		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
 	};

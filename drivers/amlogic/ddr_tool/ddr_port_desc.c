@@ -328,41 +328,6 @@ static struct ddr_port_desc ddr_port_desc_txhd[] __initdata = {
 	{ .port_id = 47, .port_name = "DEMOD"         }
 };
 
-static struct ddr_port_desc ddr_port_desc_tl1[] __initdata = {
-	{ .port_id =  0, .port_name = "ARM"           },
-	{ .port_id =  1, .port_name = "MALI0"         },
-	{ .port_id =  3, .port_name = "HDCP_HDMI"     },
-	{ .port_id =  4, .port_name = "HEVC FRONT"    },
-	{ .port_id =  5, .port_name = "TEST"          },
-	{ .port_id =  6, .port_name = "USB3.0"        },
-	{ .port_id =  7, .port_name = "DEVICE"        },
-	{ .port_id =  8, .port_name = "HEVC BACK"     },
-	{ .port_id = 16, .port_name = "VPU0 READ"     },
-	{ .port_id = 17, .port_name = "VPU1 READ"     },
-	{ .port_id = 18, .port_name = "VPU2 READ"     },
-	{ .port_id = 19, .port_name = "VPU0 WRITE"    },
-	{ .port_id = 20, .port_name = "VPU1 WRITE"    },
-	{ .port_id = 21, .port_name = "VDEC"          },
-	{ .port_id = 22, .port_name = "HCODEC"        },
-	{ .port_id = 23, .port_name = "GE2D"          },
-	/* start of each device */
-	{ .port_id = 32, .port_name = "SPICC1"        },
-	{ .port_id = 33, .port_name = "USB0"          },
-	{ .port_id = 34, .port_name = "DMA"           },
-	{ .port_id = 35, .port_name = "ARB0"          },
-	{ .port_id = 36, .port_name = "SD_EMMC_B"     },
-	{ .port_id = 37, .port_name = "USB1"          },
-	{ .port_id = 38, .port_name = "AUDIO"         },
-	{ .port_id = 39, .port_name = "AIFIFO"        },
-	{ .port_id = 41, .port_name = "PARSER"        },
-	{ .port_id = 42, .port_name = "AO CPU"        },
-	{ .port_id = 43, .port_name = "SD_EMMC_C"     },
-	{ .port_id = 44, .port_name = "SPICC2"        },
-	{ .port_id = 45, .port_name = "ETHERNET"      },
-	{ .port_id = 46, .port_name = "SANA"          },
-	{ .port_id = 47, .port_name = "DEMOD"         }
-};
-
 static struct ddr_port_desc ddr_port_desc_a1[] __initdata = {
 	{ .port_id =  0, .port_name = "ARM"           },
 	{ .port_id =  1, .port_name = "DSPA"          },
@@ -402,6 +367,41 @@ static struct ddr_port_desc ddr_port_desc_c1[] __initdata = {
 	{ .port_id = 20, .port_name = "DMC_TEST"      }
 };
 #endif
+
+static struct ddr_port_desc ddr_port_desc_tl1[] __initdata = {
+	{ .port_id =  0, .port_name = "ARM"           },
+	{ .port_id =  1, .port_name = "MALI0"         },
+	{ .port_id =  3, .port_name = "HDCP_HDMI"     },
+	{ .port_id =  4, .port_name = "HEVC FRONT"    },
+	{ .port_id =  5, .port_name = "TEST"          },
+	{ .port_id =  6, .port_name = "USB3.0"        },
+	{ .port_id =  7, .port_name = "DEVICE"        },
+	{ .port_id =  8, .port_name = "HEVC BACK"     },
+	{ .port_id = 16, .port_name = "VPU0 READ"     },
+	{ .port_id = 17, .port_name = "VPU1 READ"     },
+	{ .port_id = 18, .port_name = "VPU2 READ"     },
+	{ .port_id = 19, .port_name = "VPU0 WRITE"    },
+	{ .port_id = 20, .port_name = "VPU1 WRITE"    },
+	{ .port_id = 21, .port_name = "VDEC"          },
+	{ .port_id = 22, .port_name = "HCODEC"        },
+	{ .port_id = 23, .port_name = "GE2D"          },
+	/* start of each device */
+	{ .port_id = 32, .port_name = "SPICC1"        },
+	{ .port_id = 33, .port_name = "USB0"          },
+	{ .port_id = 34, .port_name = "DMA"           },
+	{ .port_id = 35, .port_name = "ARB0"          },
+	{ .port_id = 36, .port_name = "SD_EMMC_B"     },
+	{ .port_id = 37, .port_name = "USB1"          },
+	{ .port_id = 38, .port_name = "AUDIO"         },
+	{ .port_id = 39, .port_name = "AIFIFO"        },
+	{ .port_id = 41, .port_name = "PARSER"        },
+	{ .port_id = 42, .port_name = "AO CPU"        },
+	{ .port_id = 43, .port_name = "SD_EMMC_C"     },
+	{ .port_id = 44, .port_name = "SPICC2"        },
+	{ .port_id = 45, .port_name = "ETHERNET"      },
+	{ .port_id = 46, .port_name = "SANA"          },
+	{ .port_id = 47, .port_name = "DEMOD"         }
+};
 
 static struct ddr_port_desc ddr_port_desc_g12a[] __initdata = {
 	{ .port_id =  0, .port_name = "ARM"           },
@@ -1012,11 +1012,6 @@ int __init ddr_find_port_desc_type(int cpu_type, struct ddr_port_desc **desc, in
 		desc_size = ARRAY_SIZE(ddr_port_desc_txhd);
 		break;
 
-	case DMC_TYPE_TL1:
-		*desc = ddr_port_desc_tl1;
-		desc_size = ARRAY_SIZE(ddr_port_desc_tl1);
-		break;
-
 	case DMC_TYPE_A1:
 		*desc = ddr_port_desc_a1;
 		desc_size = ARRAY_SIZE(ddr_port_desc_a1);
@@ -1102,6 +1097,11 @@ int __init ddr_find_port_desc_type(int cpu_type, struct ddr_port_desc **desc, in
 			*desc = ddr_port_desc_a4_prot;
 			desc_size = ARRAY_SIZE(ddr_port_desc_a4_prot);
 		}
+		break;
+
+	case DMC_TYPE_TL1:
+		*desc = ddr_port_desc_tl1;
+		desc_size = ARRAY_SIZE(ddr_port_desc_tl1);
 		break;
 
 	default:

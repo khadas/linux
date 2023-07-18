@@ -1280,10 +1280,6 @@ static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 		.data = (void *)DMC_TYPE_TXHD,
 	},
 	{
-		.compatible = "amlogic,ddr-bandwidth-tl1",
-		.data = (void *)DMC_TYPE_TL1,
-	},
-	{
 		.compatible = "amlogic,ddr-bandwidth-a1",
 		.data = (void *)DMC_TYPE_A1,
 	},
@@ -1351,6 +1347,10 @@ static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 	{
 		.compatible = "amlogic,ddr-bandwidth-a4",
 		.data = (void *)DMC_TYPE_A4,
+	},
+	{
+		.compatible = "amlogic,ddr-bandwidth-tl1",
+		.data = (void *)DMC_TYPE_TL1,
 	},
 	{}
 };
