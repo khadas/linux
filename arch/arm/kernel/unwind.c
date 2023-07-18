@@ -394,7 +394,7 @@ int unwind_frame(struct stackframe *frame)
 		return -URC_FAILURE;
 
 	idx = unwind_find_idx(frame->pc);
-#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_MISC)
+#if IS_ENABLED(CONFIG_AMLOGIC_ARM_UNWIND)
 	if (!idx)
 		idx = unwind_find_idx(frame->lr);
 	if (!idx) {

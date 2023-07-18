@@ -6,10 +6,6 @@
 
 #include <asm/ptrace.h>
 
-#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG) && !defined(SKIP_LOCKUP_CHECK) && (IS_ENABLED(CONFIG_AMLOGIC_BREAK_GKI_20) || defined(MODULE))
-#include <linux/amlogic/irqflags_debug_arm.h>
-#else
-
 /*
  * CPU interrupt mask handling.
  */
@@ -187,6 +183,5 @@ static inline int arch_irqs_disabled_flags(unsigned long flags)
 
 #include <asm-generic/irqflags.h>
 
-#endif /* CONFIG_AMLOGIC_DEBUG */
 #endif /* ifdef __KERNEL__ */
 #endif /* ifndef __ASM_ARM_IRQFLAGS_H */

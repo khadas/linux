@@ -81,14 +81,6 @@ endchoice
 config ARM_UNWIND
 	bool
 
-config AMLOGIC_ARM_UNWIND
-	bool "Amlogic modify in arm unwind"
-	depends on ARM_UNWIND
-	default n
-	help
-	  This option enable Amlogic arm unwind function
-	  If in doubt, say "Y"
-
 config FRAME_POINTER
 	bool
 
