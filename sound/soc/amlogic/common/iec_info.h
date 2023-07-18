@@ -297,6 +297,7 @@ void iec_get_channel_status_info(struct iec958_chsts *chsts,
 
 void spdif_notify_to_hdmitx(struct snd_pcm_substream *substream,
 			    enum aud_codec_types codec_type);
+void notify_hdmitx_to_prepare(void);
 
 #ifdef CONFIG_AMLOGIC_HDMITX
 int aml_get_hdmi_out_audio(struct snd_kcontrol *kcontrol,

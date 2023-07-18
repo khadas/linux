@@ -395,8 +395,6 @@ static int hdmitx_src_select_put_enum(struct snd_kcontrol *kcontrol,
 	}
 
 	card_data->hdmitx_src = ucontrol->value.enumerated.item[0];
-	if (src <= HDMITX_SRC_SPDIF_B)
-		set_spdif_to_hdmitx_id(card_data->hdmitx_src);
 
 	return 0;
 }
@@ -737,7 +735,6 @@ static int aml_card_hw_params(struct snd_pcm_substream *substream,
 		aml_priv_to_props(priv, rtd->num);
 	unsigned int mclk = 0, mclk_fs = 0;
 	int i = 0, ret = 0;
-	int clk_idx = substream->stream;
 
 	if (priv->mclk_fs)
 		mclk_fs = priv->mclk_fs;
@@ -756,13 +753,6 @@ static int aml_card_hw_params(struct snd_pcm_substream *substream,
 				pr_err("codec_dai soc dai set sysclk failed\n");
 				goto err;
 			}
-		}
-
-		ret = snd_soc_dai_set_sysclk(cpu_dai, clk_idx, mclk,
-					     SND_SOC_CLOCK_OUT);
-		if (ret && ret != -ENOTSUPP) {
-			pr_err("cpu_dai soc dai set sysclk failed\n");
-			goto err;
 		}
 
 		ret = snd_soc_dai_set_fmt(cpu_dai, dai_link->dai_fmt);

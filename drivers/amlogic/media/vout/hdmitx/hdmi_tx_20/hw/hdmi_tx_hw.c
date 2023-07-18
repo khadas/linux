@@ -2847,12 +2847,6 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	else
 		hsty_hdmiaud_config_num = 8;
 
-	/* if hdev->aud_output_ch is true, select I2S as 8ch in, 2ch out */
-	if (hdev->aud_output_ch) {
-		audio_param->aud_src_if = 1;
-		pr_info("hdmitx aud_output_ch %d\n", hdev->aud_output_ch);
-	}
-
 /* config IP */
 /* Configure audio */
 	/* I2S Sampler config */
@@ -2869,15 +2863,6 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
  */
 	data32 |= (1 << 4);
 	hdmitx_wr_reg(HDMITX_DWC_AUD_INT1,  data32);
-/* [  5] 0=select SPDIF; 1=select I2S. */
-	data32 = 0;
-	data32 |= (0 << 7);  /* [  7] sw_audio_fifo_rst */
-	data32 |= (!!audio_param->aud_src_if << 5);
-	data32 |= (0 << 0);  /* [3:0] i2s_in_en: enable it later in test.c */
-/* if enable it now, fifo_overrun will happen, because packet don't get sent
- * out until initial DE detected.
- */
-	hdmitx_wr_reg(HDMITX_DWC_AUD_CONF0, data32);
 
 	data32 = 0;
 	data32 |= (0 << 5);  /* [7:5] i2s_mode: 0=standard I2S mode */
@@ -2911,26 +2896,24 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 
 	set_aud_chnls(hdev, audio_param);
 
-	hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, !!audio_param->aud_src_if, 5, 1);
 	if (audio_param->aud_src_if == 1) {
-		if (GET_OUTCHN_MSK(hdev->aud_output_ch))
-			hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0,
-					    GET_OUTCHN_MSK(hdev->aud_output_ch),
-					    0, 4);
-		else
-			hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0xf, 0, 4);
 		/* Enable audi2s_fifo_overrun interrupt */
 		hdmitx_wr_reg(HDMITX_DWC_AUD_INT1,
 			      hdmitx_rd_reg(HDMITX_DWC_AUD_INT1) & (~(1 << 4)));
 		/* Wait for 40 us for TX I2S decoder to settle */
-		msleep(20);
+		usleep_range(40, 50);
 	}
 	set_aud_fifo_rst();
 	usleep_range(9, 11);
-	if (acr_update)
-		hdmitx_wr_reg(HDMITX_DWC_AUD_N1, hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
+	hdmitx_wr_reg(HDMITX_DWC_AUD_N1, hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 1, 0, 1);
-	usleep_range(4000, 5000);
+	if (GET_OUTCHN_MSK(hdev->aud_output_ch))
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0,
+			GET_OUTCHN_MSK(hdev->aud_output_ch), 0, 4);
+	else
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0xf, 0, 4);
+	hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, !!audio_param->aud_src_if, 5, 1);
+	usleep_range(2000, 3000);
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
 	mutex_unlock(&aud_mutex);
 
@@ -5919,6 +5902,10 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 		hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, !!argv, 6, 1);
 		hd_set_reg_bits(P_CLKCTRL_HDCP22_CLK_CTRL, !!argv, 8, 1);
 		break;
+	case MISC_AUDIO_PREPARE:
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0, 0, 4);
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 1, 5, 1);
+		break;
 	case MISC_DIS_HPLL:
 		/* RESET set as 1, delay 50us, Enable set as 0 */
 		/* G12A reset/enable bit position is different */
@@ -6338,15 +6325,6 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	hdmitx_wr_reg(HDMITX_DWC_AUD_INT1,  data32);
 
 	hdmitx_wr_reg(HDMITX_DWC_FC_MULTISTREAM_CTRL, 0);
-
-/* if enable it now, fifo_overrun will happen, because packet don't get
- * sent out until initial DE detected.
- */
-	data32  = 0;
-	data32 |= (0 << 7);
-	data32 |= (!!hdev->cur_audio_param.aud_src_if << 5);
-	data32 |= (0 << 0);
-	hdmitx_wr_reg(HDMITX_DWC_AUD_CONF0, data32);
 
 	data32  = 0;
 	data32 |= (0 << 5);

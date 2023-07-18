@@ -1303,6 +1303,8 @@ static int earc_dai_hw_params(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		earctx_update_clk(p_earc, channels, rate);
 
+	snd_soc_dai_set_sysclk(cpu_dai, substream->stream, rate, SND_SOC_CLOCK_OUT);
+
 	return 0;
 }
 

@@ -876,6 +876,17 @@ static int aml_pdm_dai_set_sysclk(struct snd_soc_dai *cpu_dai,
 	return 0;
 }
 
+static int aml_pdm_dai_hw_params(struct snd_pcm_substream *substream,
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *cpu_dai)
+{
+	unsigned int rate = params_rate(params);
+
+	snd_soc_dai_set_sysclk(cpu_dai, 0, rate, SND_SOC_CLOCK_OUT);
+
+	return 0;
+}
+
 int aml_pdm_dai_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai)
 {
@@ -934,6 +945,7 @@ void aml_pdm_dai_shutdown(struct snd_pcm_substream *substream,
 static const struct snd_soc_dai_ops aml_pdm_dai_ops = {
 	.prepare     = aml_pdm_dai_prepare,
 	.trigger     = aml_pdm_dai_trigger,
+	.hw_params   = aml_pdm_dai_hw_params,
 	.set_sysclk  = aml_pdm_dai_set_sysclk,
 	.startup     = aml_pdm_dai_startup,
 	.shutdown    = aml_pdm_dai_shutdown,

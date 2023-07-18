@@ -623,6 +623,7 @@ int aml_tdm_hw_setting_init(struct aml_tdm *p_tdm,
 	dump_pcm_setting(setting);
 
 	/* set pcm dai hw params */
+	p_tdm->setting.standard_sysclk = setting->sysclk;
 	aml_set_tdm_mclk(p_tdm, setting->sysclk, false);
 	aml_tdm_set_clkdiv(p_tdm, setting->sysclk_bclk_ratio);
 	aml_set_bclk_ratio(p_tdm, setting->bclk_lrclk_ratio);
@@ -1746,6 +1747,10 @@ static int aml_dai_tdm_hw_params(struct snd_pcm_substream *substream,
 	locker_en_ddr_by_dai_name(locker,
 			cpu_dai->name, substream->stream);
 
+	if (get_hdmitx_audio_src(card) == (p_tdm->id + HDMITX_SRC_TDM_A))
+		/* notify HDMITX to disable audio packet */
+		notify_hdmitx_to_prepare();
+
 	return aml_tdm_hw_setting_init(p_tdm, rate, channels, substream->stream);
 }
 
@@ -1787,15 +1792,6 @@ static int aml_dai_set_tdm_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
 
 	return aml_tdm_set_fmt(p_tdm, fmt, cpu_dai->capture_active);
-}
-
-static int aml_dai_set_tdm_sysclk(struct snd_soc_dai *cpu_dai,
-				int clk_id, unsigned int freq, int dir)
-{
-	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
-	p_tdm->setting.standard_sysclk = freq;
-
-	return aml_set_tdm_mclk(p_tdm, freq, false);
 }
 
 static int aml_dai_set_bclk_ratio(struct snd_soc_dai *cpu_dai,
@@ -2003,7 +1999,6 @@ static struct snd_soc_dai_ops aml_dai_tdm_ops = {
 	.hw_params = aml_dai_tdm_hw_params,
 	.hw_free = aml_dai_tdm_hw_free,
 	.set_fmt = aml_dai_set_tdm_fmt,
-	.set_sysclk = aml_dai_set_tdm_sysclk,
 	.set_bclk_ratio = aml_dai_set_bclk_ratio,
 	.set_clkdiv = aml_dai_set_clkdiv,
 	.set_tdm_slot = aml_dai_set_tdm_slot,

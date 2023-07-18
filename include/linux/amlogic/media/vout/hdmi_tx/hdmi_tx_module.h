@@ -712,6 +712,7 @@ struct hdmitx_dev {
 #define MISC_DIS_HPLL		(CMD_MISC_OFFSET + 0x17)
 #define MISC_AUDIO_ACR_CTRL	(CMD_MISC_OFFSET + 0x18)
 #define MISC_ESMCLK_CTRL        (CMD_MISC_OFFSET + 0x19)
+#define MISC_AUDIO_PREPARE	(CMD_MISC_OFFSET + 0x1a)
 
 /***********************************************************************
  *                          Get State //getstate

@@ -107,6 +107,7 @@ enum hdmi_audio_type {
 	CT_CXT = 0xf, /* Audio Coding Extension Type */
 	CT_DTS_HD_MA = CT_DTS_HD + (DTS_HD_MA),
 	CT_MAX,
+	CT_PREPARE, /* prepare for audio mode switching */
 };
 
 #define CT_DOLBY_D CT_DD_P
@@ -143,10 +144,11 @@ struct aud_para {
 	enum hdmi_audio_fs rate;
 	enum hdmi_audio_sampsize size;
 	enum hdmi_audio_chnnum chs;
-	bool fifo_rst;
 	enum hdmi_audio_source_if aud_src_if;
 	unsigned char status[24]; /* AES/IEC958 channel status bits */
 	u8 i2s_ch_mask;
+	bool fifo_rst;
+	bool prepare; /* when prepare is true, mute tx audio sample */
 };
 
 typedef void (*pf_callback)(bool st);

@@ -492,6 +492,16 @@ void spdif_notify_to_hdmitx(struct snd_pcm_substream *substream,
 	}
 }
 
+/* notify hdmitx to prepare for changing audio format or settings */
+void notify_hdmitx_to_prepare(void)
+{
+	struct aud_para aud_param;
+
+	memset(&aud_param, 0, sizeof(aud_param));
+	aud_param.prepare = true;
+	aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &aud_param);
+}
+
 #ifdef CONFIG_AMLOGIC_HDMITX
 unsigned int aml_audio_hdmiout_mute_flag;
 /* call HDMITX API to enable/disable internal audio out */
