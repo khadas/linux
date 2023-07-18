@@ -1477,6 +1477,12 @@
 		interrupt-names = "vsync";
 	};
 
+	video_composer {
+		compatible = "amlogic, video_composer";
+		dev_name = "video_composer";
+		status = "okay";
+	};
+
 	ionvideo {
 		compatible = "amlogic, ionvideo";
 		status = "okay";
