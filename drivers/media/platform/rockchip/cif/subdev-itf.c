@@ -862,6 +862,12 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	if (!stream)
 		return -EINVAL;
 
+	if (dbufs->sequence == 0) {
+		spin_lock_irqsave(&stream->vbq_lock, flags);
+		cif_dev->is_stop_skip = true;
+		spin_unlock_irqrestore(&stream->vbq_lock, flags);
+	}
+
 	rx_buf = to_cif_rx_buf(dbufs);
 	v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev, "buf back to vicap 0x%x\n",
 		 (u32)rx_buf->dummy.dma_addr);

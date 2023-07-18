@@ -25,6 +25,7 @@
 #include "mipi-csi2.h"
 #include "common.h"
 #include "rkcif-externel.h"
+#include "../../../i2c/cam-tb-setup.h"
 
 #define CIF_REQ_BUFS_MIN	1
 #define CIF_MIN_WIDTH		64
@@ -2048,6 +2049,41 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 	u32 frm_addr_y, buff_addr_y;
 	unsigned long flags;
 
+	spin_lock_irqsave(&stream->vbq_lock, flags);
+	if (dev->is_stop_skip) {
+		dev->is_stop_skip = false;
+		if (((stream->frame_idx - 1) % stream->thunderboot_skip_interval) != 0) {
+			stream->thunderboot_skip_interval = 0;
+			stream->frame_idx = stream->sequence + 1;
+			spin_unlock_irqrestore(&stream->vbq_lock, flags);
+			return 0;
+		} else {
+			stream->thunderboot_skip_interval = 0;
+			stream->frame_idx = stream->sequence + 2;
+		}
+	}
+	if (dev->is_thunderboot &&
+	    stream->thunderboot_skip_interval &&
+	    ((stream->frame_idx - 1) % stream->thunderboot_skip_interval) != 0) {
+		spin_unlock_irqrestore(&stream->vbq_lock, flags);
+		return 0;
+	}
+	if (stream->thunderboot_skip_interval) {
+		if (stream->frame_idx < stream->thunderboot_skip_interval)
+			stream->sequence = stream->frame_idx - 1;
+		else
+			stream->sequence = stream->frame_idx / stream->thunderboot_skip_interval;
+	} else {
+		stream->sequence = stream->frame_idx - 1;
+	}
+	if (dev->rdbk_debug &&
+	    stream->frame_idx < 15)
+		v4l2_info(&dev->v4l2_dev,
+			  "stream[%d] done seq %d, real seq %d\n",
+			  stream->id,
+			  stream->sequence,
+			  stream->frame_idx - 1);
+	spin_unlock_irqrestore(&stream->vbq_lock, flags);
 
 	if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
 	    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY ||
@@ -2085,7 +2121,7 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 					goto out_get_buf;
 				if (stream->frame_idx == 1)
 					active_buf->dbufs.is_first = true;
-				active_buf->dbufs.sequence = stream->frame_idx - 1;
+				active_buf->dbufs.sequence = stream->sequence;
 				active_buf->dbufs.timestamp = stream->readout.fs_timestamp;
 				active_buf->fe_timestamp = rkcif_time_get_ns(dev);
 				stream->last_frame_idx = stream->frame_idx;
@@ -2116,7 +2152,7 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 					goto out_get_buf;
 				if (stream->frame_idx == 1)
 					active_buf->dbufs.is_first = true;
-				active_buf->dbufs.sequence = stream->frame_idx - 1;
+				active_buf->dbufs.sequence = stream->sequence;
 				active_buf->dbufs.timestamp = stream->readout.fs_timestamp;
 				active_buf->fe_timestamp = rkcif_time_get_ns(dev);
 				stream->last_frame_idx = stream->frame_idx;
@@ -2177,7 +2213,7 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 		if (active_buf) {
 			if (stream->frame_idx == 1)
 				active_buf->dbufs.is_first = true;
-			active_buf->dbufs.sequence = stream->frame_idx - 1;
+			active_buf->dbufs.sequence = stream->sequence;
 			active_buf->dbufs.timestamp = stream->readout.fs_timestamp;
 			active_buf->fe_timestamp = rkcif_time_get_ns(dev);
 			stream->last_frame_idx = stream->frame_idx;
@@ -6867,6 +6903,7 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id)
 	stream->rx_buf_num = 0;
 	init_completion(&stream->stop_complete);
 	stream->is_wait_stop_complete = false;
+	stream->thunderboot_skip_interval = get_rk_cam_skip_frame_interval();
 }
 
 static int rkcif_fh_open(struct file *filp)
@@ -9208,6 +9245,23 @@ static void rkcif_line_wake_up_rdbk(struct rkcif_stream *stream, int mipi_id)
 	unsigned long flags;
 	int ret = 0;
 
+	spin_lock_irqsave(&stream->vbq_lock, flags);
+	if (stream->cifdev->is_thunderboot &&
+	    stream->thunderboot_skip_interval &&
+	    ((stream->frame_idx - 1) % stream->thunderboot_skip_interval != 0)) {
+		spin_unlock_irqrestore(&stream->vbq_lock, flags);
+		return;
+	}
+	if (stream->thunderboot_skip_interval) {
+		if (stream->frame_idx < stream->thunderboot_skip_interval)
+			stream->sequence = stream->frame_idx - 1;
+		else
+			stream->sequence = stream->frame_idx / stream->thunderboot_skip_interval;
+	} else {
+		stream->sequence = stream->frame_idx - 1;
+	}
+	spin_unlock_irqrestore(&stream->vbq_lock, flags);
+
 	mode = stream->line_int_cnt % 2;
 	if (mode) {
 		if (stream->curr_buf_toisp)
@@ -9260,7 +9314,7 @@ static void rkcif_line_wake_up_rdbk(struct rkcif_stream *stream, int mipi_id)
 				}
 			}
 			spin_unlock_irqrestore(&stream->vbq_lock, flags);
-			active_buf->dbufs.sequence = stream->frame_idx - 1;
+			active_buf->dbufs.sequence = stream->sequence;
 			active_buf->dbufs.timestamp = stream->readout.fs_timestamp;
 			active_buf->fe_timestamp = rkcif_time_get_ns(stream->cifdev);
 			stream->last_frame_idx = stream->frame_idx;
@@ -10492,6 +10546,7 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 	u32 val = 0;
 	u64 cur_time = 0;
 	int on = 0;
+	unsigned long flags;
 
 	for (i = 0; i < TOISP_CH_MAX; i++) {
 		ch = rkcif_g_toisp_ch(intstat_glb, index);
@@ -10566,9 +10621,17 @@ static void rkcif_toisp_check_stop_status(struct sditf_priv *priv,
 				stream = &priv->cif_dev->stream[0];
 			else
 				stream = &priv->cif_dev->stream[src_id % 4];
-			if (stream->id == 0)
-				rkcif_send_sof(stream->cifdev);
-			stream->frame_idx++;
+			if (stream->id == 0) {
+				spin_lock_irqsave(&stream->vbq_lock, flags);
+				if (!stream->thunderboot_skip_interval ||
+				   (stream->thunderboot_skip_interval &&
+				   (stream->frame_idx % stream->thunderboot_skip_interval) == 0))
+					rkcif_send_sof(stream->cifdev);
+				stream->frame_idx++;
+				spin_unlock_irqrestore(&stream->vbq_lock, flags);
+			} else {
+				stream->frame_idx++;
+			}
 			cur_time = rkcif_time_get_ns(stream->cifdev);
 			stream->readout.readout_time = cur_time - stream->readout.fs_timestamp;
 			stream->readout.fs_timestamp = cur_time;
@@ -10742,14 +10805,27 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 		}
 	} else {
 		if (!cif_dev->sditf[0] || cif_dev->sditf[0]->mode.rdbk_mode) {
-			rkcif_send_sof(cif_dev);
+			spin_lock_irqsave(&detect_stream->vbq_lock, flags);
+			if (!detect_stream->thunderboot_skip_interval ||
+			    (detect_stream->thunderboot_skip_interval &&
+			    (detect_stream->frame_idx % detect_stream->thunderboot_skip_interval) == 0)) {
+				rkcif_send_sof(cif_dev);
+				if (detect_stream->cifdev->rdbk_debug &&
+				    detect_stream->frame_idx < 15)
+					v4l2_info(&cif_dev->v4l2_dev,
+						  "stream[%d] send sof %d, real sof %d\n",
+						  detect_stream->id,
+						  rkcif_get_sof(cif_dev),
+						  detect_stream->frame_idx);
+			}
 			detect_stream->frame_idx++;
+			spin_unlock_irqrestore(&detect_stream->vbq_lock, flags);
 		}
 		if (detect_stream->cifdev->rdbk_debug &&
 		    detect_stream->frame_idx < 15 &&
 		    (!cif_dev->sditf[0] || cif_dev->sditf[0]->mode.rdbk_mode))
 			v4l2_info(&cif_dev->v4l2_dev,
-				  "stream[%d] sof %d %lld\n",
+				  "stream[%d] real sof %d %lld\n",
 				  detect_stream->id,
 				  detect_stream->frame_idx - 1,
 				  rkcif_time_get_ns(cif_dev));

@@ -572,6 +572,8 @@ struct rkcif_stream {
 	struct rkcif_toisp_buf_state	toisp_buf_state;
 	u32				skip_frame;
 	u32				cur_skip_frame;
+	int				thunderboot_skip_interval;
+	int				sequence;
 	bool				stopping;
 	bool				crop_enable;
 	bool				crop_dyn_en;
@@ -927,6 +929,7 @@ struct rkcif_device {
 	bool				sensor_state_change;
 	bool				is_toisp_reset;
 	bool				use_hw_interlace;
+	bool				is_stop_skip;
 	int				rdbk_debug;
 	struct rkcif_sync_cfg		sync_cfg;
 	int				sditf_cnt;
