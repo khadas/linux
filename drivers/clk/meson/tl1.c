@@ -110,10 +110,9 @@ static struct clk_regmap tl1_fixed_pll = {
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table tl1_sys_pll_params_table[] = {
-	PLL_PARAMS(168, 1, 2), /*DCO=4032M OD=1008M*/
 	PLL_PARAMS(200, 1, 2), /*DCO=4800M OD=1200M*/
 	PLL_PARAMS(234, 1, 2), /*DCO=5616M OD=1404M*/
-	PLL_PARAMS(126, 1, 1), /*DCO=3024M OD=1512M*/
+	PLL_PARAMS(125, 1, 1), /*DCO=3000M OD=1500M*/
 	PLL_PARAMS(134, 1, 1), /*DCO=3216M OD=1608M*/
 	PLL_PARAMS(142, 1, 1), /*DCO=3408M OD=1704M*/
 	PLL_PARAMS(150, 1, 1), /*DCO=3600M OD=1800M*/
@@ -122,10 +121,9 @@ static const struct pll_params_table tl1_sys_pll_params_table[] = {
 };
 #else
 static const struct pll_params_table tl1_sys_pll_params_table[] = {
-	PLL_PARAMS(168, 1), /*DCO=4032M OD=1008M*/
 	PLL_PARAMS(200, 1), /*DCO=4800M OD=1200M*/
 	PLL_PARAMS(234, 1), /*DCO=5616M OD=1404M*/
-	PLL_PARAMS(126, 1), /*DCO=3024M OD=1512M*/
+	PLL_PARAMS(125, 1), /*DCO=3000M OD=1500M*/
 	PLL_PARAMS(134, 1), /*DCO=3216M OD=1608M*/
 	PLL_PARAMS(142, 1), /*DCO=3408M OD=1704M*/
 	PLL_PARAMS(150, 1), /*DCO=3600M OD=1800M*/
@@ -519,10 +517,19 @@ static struct clk_regmap tl1_gp0_pll_dco = {
 	},
 };
 
-static const struct pll_mult_range tl1_gp1_pll_mult_range = {
-	.min = 128,
-	.max = 250,
+#ifdef CONFIG_ARM
+static const struct pll_params_table tl1_gp1_pll_params_table[] = {
+	PLL_PARAMS(200, 1, 2), /*DCO=4800M OD=1200M*/
+	PLL_PARAMS(125, 1, 1), /*DCO=3000M OD=1500M*/
+	{ /* sentinel */ },
 };
+#else
+static const struct pll_params_table tl1_gp1_pll_params_table[] = {
+	PLL_PARAMS(200, 1), /*DCO=4800M OD=1200M*/
+	PLL_PARAMS(125, 1), /*DCO=3000M OD=1500M*/
+	{ /* sentinel */ },
+};
+#endif
 
 static struct clk_regmap tl1_gp1_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
@@ -548,11 +555,6 @@ static struct clk_regmap tl1_gp1_pll_dco = {
 			.width	 = 3,
 		},
 #endif
-		.frac = {
-			.reg_off = HHI_GP1_PLL_CNTL1,
-			.shift   = 0,
-			.width   = 19,
-		},
 		.l = {
 			.reg_off = HHI_GP1_PLL_CNTL0,
 			.shift   = 31,
@@ -563,6 +565,7 @@ static struct clk_regmap tl1_gp1_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
+		.table = tl1_gp1_pll_params_table
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp1_pll_dco",
@@ -644,13 +647,25 @@ static struct clk_regmap tl1_gp1_pll = {
  * Internal hifi pll emulation configuration parameters
  */
 static const struct reg_sequence tl1_hifi_init_regs[] = {
-	{ .reg = HHI_HIFI_PLL_CNTL1,	.def = 0x00000000 },
+	{ .reg = HHI_HIFI_PLL_CNTL1,	.def = 0x00010E56 },
 	{ .reg = HHI_HIFI_PLL_CNTL2,	.def = 0x00000000 },
 	{ .reg = HHI_HIFI_PLL_CNTL3,	.def = 0x6a285c00 },
 	{ .reg = HHI_HIFI_PLL_CNTL4,	.def = 0x65771290 },
 	{ .reg = HHI_HIFI_PLL_CNTL5,	.def = 0x39272000 },
 	{ .reg = HHI_HIFI_PLL_CNTL6,	.def = 0x56540000 },
 };
+
+#ifdef CONFIG_ARM
+static const struct pll_params_table tl1_hifi_pll_params_table[] = {
+	PLL_PARAMS(150, 1, 1), /*DCO=3600M OD=1800M*/
+	{ /* sentinel */ },
+};
+#else
+static const struct pll_params_table tl1_hifi_pll_params_table[] = {
+	PLL_PARAMS(150, 1), /*DCO=3600M OD=1800M*/
+	{ /* sentinel */ },
+};
+#endif
 
 static struct clk_regmap tl1_hifi_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
@@ -691,7 +706,7 @@ static struct clk_regmap tl1_hifi_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
-		.range = &tl1_gp1_pll_mult_range,
+		.table = tl1_hifi_pll_params_table,
 		.init_regs = tl1_hifi_init_regs,
 		.init_count = ARRAY_SIZE(tl1_hifi_init_regs),
 		.flags = CLK_MESON_PLL_ROUND_CLOSEST,
@@ -3627,22 +3642,6 @@ static struct clk_regmap tl1_dsu_clk = {
 	},
 };
 
-static int tl1_cpu_clk_mux_notifier_cb(struct notifier_block *nb,
-				       unsigned long event, void *data)
-{
-	if (event == POST_RATE_CHANGE || event == PRE_RATE_CHANGE) {
-		/* Wait for clock propagation before/after changing the mux */
-		udelay(100);
-		return NOTIFY_OK;
-	}
-
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block tl1_cpu_clk_mux_nb = {
-	.notifier_call = tl1_cpu_clk_mux_notifier_cb,
-};
-
 struct tl1_cpu_clk_postmux_nb_data {
 	struct notifier_block nb;
 	struct clk_hw *fclk_div2;
@@ -5257,14 +5256,6 @@ static int meson_tl1_dvfs_setup_common(struct platform_device *pdev,
 		return ret;
 	}
 
-	/* Setup clock notifier for cpu_clk_dyn mux */
-	notifier_clk = tl1_cpu_clk_dyn.hw.clk;
-	ret = clk_notifier_register(notifier_clk, &tl1_cpu_clk_mux_nb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register the cpu_clk_dyn notifier\n");
-		return ret;
-	}
-
 	/* Setup clock notifier for dsu */
 	/* set tl1_dsu_clk_premux1 parent to fclk_div2 1G */
 	ret = clk_set_parent(tl1_dsu_clk_premux1.hw.clk,
@@ -5293,14 +5284,6 @@ static int meson_tl1_dvfs_setup(struct platform_device *pdev)
 	ret = meson_tl1_dvfs_setup_common(pdev, hws);
 	if (ret)
 		return ret;
-
-	/* Setup clock notifier for cpu_clk mux */
-	notifier_clk = tl1_cpu_clk.hw.clk;
-	ret = clk_notifier_register(notifier_clk, &tl1_cpu_clk_mux_nb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register the cpu_clk notifier\n");
-		return ret;
-	}
 
 	/* Setup clock notifier for sys_pll */
 	notifier_clk = tl1_sys_pll.hw.clk;
