@@ -6701,6 +6701,31 @@ static void hdmitx_init_parameters(struct hdmitx_info *info)
 	info->audio_out_changing_flag = 1;
 }
 
+static void hdmitx_hdr_state_init(struct hdmitx_dev *hdev)
+{
+	enum hdmi_tf_type hdr_type = HDMI_NONE;
+	unsigned int colorimetry = 0;
+	unsigned int hdr_mode = 0;
+
+	hdr_type = hdmitx21_get_cur_hdr_st();
+	colorimetry = get_extended_colorimetry_from_avi(hdev);
+	/* 1:standard HDR, 2:non-standard, 3:HLG, 0:other */
+	if (hdr_type == HDMI_HDR_SMPTE_2084) {
+		if (colorimetry == HDMI_EXTENDED_COLORIMETRY_BT2020)
+			hdr_mode = 1;
+		else
+			hdr_mode = 2;
+	} else if (hdr_type == HDMI_HDR_HLG) {
+		if (colorimetry == HDMI_EXTENDED_COLORIMETRY_BT2020)
+			hdr_mode = 3;
+	} else {
+		hdr_mode = 0;
+	}
+
+	hdev->hdmi_last_hdr_mode = hdr_mode;
+	hdev->hdmi_current_hdr_mode = hdr_mode;
+}
+
 static int amhdmitx21_device_init(struct hdmitx_dev *hdmi_dev)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
@@ -7218,6 +7243,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdev->nb.notifier_call = hdmitx_reboot_notifier;
 	register_reboot_notifier(&hdev->nb);
 	hdmitx21_meson_init(hdev);
+	hdmitx_hdr_state_init(hdev);
 	mutex_init(&hdev->hdmimode_mutex);
 	hdev->hpd_state = !!(hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0));
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE

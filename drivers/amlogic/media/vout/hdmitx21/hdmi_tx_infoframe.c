@@ -182,6 +182,16 @@ void hdmi_avi_infoframe_rawset(u8 *hb, u8 *pb)
 	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_AVI, body);
 }
 
+int hdmi_avi_infoframe_get(struct hdmitx_dev *hdev, u8 *body)
+{
+	int ret;
+
+	if (!hdev || !body)
+		return 0;
+	ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_AVI, body);
+	return ret;
+}
+
 void hdmi_avi_infoframe_config(enum avi_component_conf conf, u8 val)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();

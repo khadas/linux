@@ -301,6 +301,29 @@ static enum hdmi_color_depth _get_colordepth(void)
 	return depth;
 }
 
+int get_extended_colorimetry_from_avi(struct hdmitx_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	union hdmi_infoframe *infoframe = &hdev->infoframes.avi;
+	struct hdmi_avi_infoframe *avi = &infoframe->avi;
+
+	ret = hdmi_avi_infoframe_get(hdev, body);
+	if (ret == -1 || ret == 0)
+		return -1;
+	ret = hdmi_infoframe_unpack(infoframe, body, sizeof(body));
+	if (ret < 0) {
+		pr_info("hdmitx21: parsing avi failed %d\n", ret);
+	} else {
+		/* colorimetry 3: extended */
+		if (avi->colorimetry == HDMI_COLORIMETRY_EXTENDED)
+			ret = avi->extended_colorimetry;
+		else
+			ret = -1;
+	}
+	return ret;
+}
+
 static enum hdmi_vic _get_vic_from_vsif(struct hdmitx_dev *hdev)
 {
 	int ret;
