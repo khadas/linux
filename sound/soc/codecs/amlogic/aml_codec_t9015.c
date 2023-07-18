@@ -207,12 +207,12 @@ static const struct snd_soc_dapm_widget T9015_audio_dapm_widgets[] = {
 
 	/*DAC playback stream */
 	SND_SOC_DAPM_DAC("Left DAC", "HIFI Playback",
-			 AUDIO_CONFIG_BLOCK_ENABLE, DACL_EN, 0),
+			 SND_SOC_NOPM, DACL_EN, 0),
 	SND_SOC_DAPM_DAC("Right DAC", "HIFI Playback",
-			 AUDIO_CONFIG_BLOCK_ENABLE, DACR_EN, 0),
+			 SND_SOC_NOPM, DACR_EN, 0),
 
 	/*DRV output */
-	SND_SOC_DAPM_OUT_DRV("LOLP_OUT_EN", AUDIO_CONFIG_BLOCK_ENABLE,
+	SND_SOC_DAPM_OUT_DRV("LOLP_OUT_EN", SND_SOC_NOPM,
 			     VMID_GEN_EN, 0, NULL, 0),
 	SND_SOC_DAPM_OUT_DRV("LOLN_OUT_EN", SND_SOC_NOPM,
 			     0, 0, NULL, 0),
