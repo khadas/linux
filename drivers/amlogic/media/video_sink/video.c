@@ -8037,8 +8037,10 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		if (vf) {
 			if (hdmi_in_onvideo == 0) {
 				if (!nopostvideostart) {
-					if (vf_source_from_vdin(vf))
+					if (vf_source_from_vdin(vf)) {
 						tsync_set_enable(0);
+						tsync_set_mode(TSYNC_MODE_VMASTER);
+					}
 					tsync_avevent_locked
 						(VIDEO_START,
 						(vf->pts) ? vf->pts :

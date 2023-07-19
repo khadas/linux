@@ -1031,6 +1031,7 @@ enum {
 static inline void tsync_avevent_locked(enum avevent_e event, u32 param) {}
 static inline void tsync_avevent(enum avevent_e event, u32 param) {}
 static inline int tsync_get_mode(void) { return 0; }
+static inline void tsync_set_mode(int mode) {}
 static inline void tsync_set_enable(int enable) {}
 static inline void tsync_set_syncthresh(unsigned int sync_thresh) {}
 
