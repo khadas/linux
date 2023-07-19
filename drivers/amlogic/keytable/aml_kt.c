@@ -151,7 +151,6 @@ static int aml_kt_lock(struct aml_kt_dev *dev)
 	int cnt = 0;
 	int ret = KT_SUCCESS;
 
-	mutex_lock(&dev->lock);
 	while (ioread32((char *)dev->base_addr + dev->reg.rdy_offset) ==
 	       KT_STS_OK) {
 		if (cnt++ > KT_PENDING_WAIT_TIMEOUT) {
@@ -160,15 +159,12 @@ static int aml_kt_lock(struct aml_kt_dev *dev)
 		}
 	}
 
-	mutex_unlock(&dev->lock);
 	return ret;
 }
 
 static void aml_kt_unlock(struct aml_kt_dev *dev)
 {
-	mutex_lock(&dev->lock);
 	iowrite32(1, (char *)dev->base_addr + dev->reg.rdy_offset);
-	mutex_unlock(&dev->lock);
 }
 
 static bool aml_kt_handle_valid(struct aml_kt_dev *dev, u32 handle)
@@ -279,10 +275,11 @@ static int aml_kt_get_flag(struct aml_kt_dev *dev, u32 handle)
 		return KT_ERROR;
 	}
 
+	mutex_lock(&dev->lock);
 	if (aml_kt_lock(dev) != KT_SUCCESS) {
 		LOGE("lock error\n");
 		ret = KT_ERROR;
-		goto exit;
+		goto unlock_mutex;
 	}
 
 	reg_offset = dev->reg.cfg_offset;
@@ -294,18 +291,20 @@ static int aml_kt_get_flag(struct aml_kt_dev *dev, u32 handle)
 	if (aml_kt_read_pending(dev) != KT_SUCCESS) {
 		LOGE("pending error kte[%d]\n", kte);
 		ret = KT_ERROR;
-		goto exit;
+		goto unlock_kt;
 	}
 
 	reg_ret = ioread32((char *)dev->base_addr + dev->reg.sts_offset);
 	if (reg_ret != KT_ERROR) {
 		LOGD("kte=%d KT_REE_STS=0x%08x\n", kte, reg_ret);
 		ret = KT_SUCCESS;
-		goto exit;
+		goto unlock_kt;
 	}
 
-exit:
+unlock_kt:
 	aml_kt_unlock(dev);
+unlock_mutex:
+	mutex_unlock(&dev->lock);
 
 	return ret;
 }
@@ -633,9 +632,11 @@ static int aml_kt_set_inter_key(struct aml_kt_dev *dev, u32 handle, struct amlkt
 		return KT_ERROR;
 	}
 
+	mutex_lock(&dev->lock);
 	if (aml_kt_lock(dev) != KT_SUCCESS) {
 		LOGE("lock error\n");
-		return KT_ERROR;
+		ret = KT_ERROR;
+		goto unlock_mutex;
 	}
 
 	LOGD("--------------------------------------------------------------\n");
@@ -659,7 +660,7 @@ static int aml_kt_set_inter_key(struct aml_kt_dev *dev, u32 handle, struct amlkt
 		ret = aml_kt_write_cfg(dev, handle, key_mode, key_cfg, func_id);
 		if (ret == KT_ERROR) {
 			LOGE("aml_kt_write_cfg error\n");
-			goto exit;
+			goto unlock_kt;
 		} else {
 			ret = KT_SUCCESS;
 		}
@@ -680,7 +681,7 @@ static int aml_kt_set_inter_key(struct aml_kt_dev *dev, u32 handle, struct amlkt
 		ret = aml_kt_write_cfg(dev, handle, key_mode, key_cfg, func_id);
 		if (ret == KT_ERROR) {
 			LOGE("aml_kt_write_cfg error\n");
-			goto exit;
+			goto unlock_kt;
 		} else {
 			ret = KT_SUCCESS;
 		}
@@ -700,18 +701,20 @@ static int aml_kt_set_inter_key(struct aml_kt_dev *dev, u32 handle, struct amlkt
 		ret = aml_kt_write_cfg(dev, handle, key_mode, key_cfg, func_id);
 		if (ret == KT_ERROR) {
 			LOGE("aml_kt_write_cfg error\n");
-			goto exit;
+			goto unlock_kt;
 		} else {
 			ret = KT_SUCCESS;
 		}
 	} else {
 		LOGE("Error: unsupported keylen:%d\n", keylen);
 		ret = KT_ERROR;
-		goto exit;
+		goto unlock_kt;
 	}
 
-exit:
+unlock_kt:
 	aml_kt_unlock(dev);
+unlock_mutex:
+	mutex_unlock(&dev->lock);
 
 	return ret;
 }
@@ -727,9 +730,11 @@ static int aml_kt_set_inter_hw_key(struct aml_kt_dev *dev, u32 handle,
 		return KT_ERROR;
 	}
 
+	mutex_lock(&dev->lock);
 	if (aml_kt_lock(dev) != KT_SUCCESS) {
 		LOGE("lock error\n");
-		return KT_ERROR;
+		ret = KT_ERROR;
+		goto unlock_mutex;
 	}
 
 	LOGD("--------------------------------------------------------------\n");
@@ -739,13 +744,15 @@ static int aml_kt_set_inter_hw_key(struct aml_kt_dev *dev, u32 handle,
 	ret = aml_kt_write_cfg(dev, handle, key_mode, key_cfg, func_id);
 	if (ret == KT_ERROR) {
 		LOGE("aml_kt_write_cfg error\n");
-		goto exit;
+		goto unlock_kt;
 	} else {
 		ret = KT_SUCCESS;
 	}
 
-exit:
+unlock_kt:
 	aml_kt_unlock(dev);
+unlock_mutex:
+	mutex_unlock(&dev->lock);
 
 	return ret;
 }
@@ -875,8 +882,11 @@ static int aml_kt_invalidate(struct file *filp, u32 handle)
 		return ret;
 	}
 
-	if (aml_kt_lock(dev) != KT_SUCCESS)
-		return KT_ERROR;
+	mutex_lock(&dev->lock);
+	if (aml_kt_lock(dev) != KT_SUCCESS) {
+		ret = KT_ERROR;
+		goto unlock_mutex;
+	}
 
 	reg_offset = dev->reg.cfg_offset;
 	reg_val = (KT_PENDING << KTE_PENDING_OFFSET |
@@ -888,13 +898,15 @@ static int aml_kt_invalidate(struct file *filp, u32 handle)
 	if (aml_kt_read_pending(dev) != KT_SUCCESS) {
 		LOGE("pending error\n");
 		ret = KT_ERROR;
-		goto exit;
+		goto unlock_kt;
 	} else {
 		ret = KT_SUCCESS;
 	}
 
-exit:
+unlock_kt:
 	aml_kt_unlock(dev);
+unlock_mutex:
+	mutex_unlock(&dev->lock);
 
 	return ret;
 }
