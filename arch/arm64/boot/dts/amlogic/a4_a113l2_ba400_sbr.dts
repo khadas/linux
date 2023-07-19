@@ -702,7 +702,7 @@
 		capture_sample_rate = <16000>;
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
-		status = "okay";
+		status = "disabled";
 	};
 
 	vad:vad {

@@ -627,7 +627,7 @@
 		/*this resample is only used for loopback_A.*/
 		capture_sample_rate = <16000>;
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	vad:vad {
