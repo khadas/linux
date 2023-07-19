@@ -1364,18 +1364,21 @@
 		#sound-dai-cells = <0>;
 		reg = <0x31>;
 		status = "okay";
+		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
 	};
 	ad82128_c_34: ad82128_c_34@34 {
 		compatible = "ESMT,ad82128";
 		#sound-dai-cells = <0>;
 		reg = <0x34>;
 		status = "okay";
+		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
 	};
 	ad82128_c_35: ad82128_c_35@35 {
 		compatible = "ESMT,ad82128";
 		#sound-dai-cells = <0>;
 		reg = <0x35>;
 		status = "okay";
+		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
 	};
 	aml_pca9557: aml_pca9557@1f {
 		compatible = "aml, ledring";
@@ -1400,24 +1403,28 @@
 		#sound-dai-cells = <0>;
 		reg = <0x30>;
 		status = "okay";
+		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
 	};
 	ad82128_d_31: ad82128_d_31@31 {
 		compatible = "ESMT,ad82128";
 		#sound-dai-cells = <0>;
 		reg = <0x31>;
 		status = "okay";
+		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
 	};
 	ad82128_d_34: ad82128_d_34@34 {
 		compatible = "ESMT,ad82128";
 		#sound-dai-cells = <0>;
 		reg = <0x34>;
 		status = "okay";
+		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
 	};
 	ad82128_d_35: ad82128_d_35@35 {
 		compatible = "ESMT,ad82128";
 		#sound-dai-cells = <0>;
 		reg = <0x35>;
 		status = "okay";
+		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
 
 	};
 };
