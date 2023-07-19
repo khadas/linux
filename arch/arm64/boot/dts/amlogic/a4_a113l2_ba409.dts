@@ -25,7 +25,7 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
-		//spi0 = &spifc;
+		spi0 = &spi_nfc;
 		spi1 = &spicc0;
 		spi2 = &spicc1;
 		tsensor0 = &p_tsensor;
@@ -1264,10 +1264,67 @@
 	pinctrl-0 = <&spicc1_pins_t>;
 };
 
-&spifc {
+&spi_nfc {
 	status = "disabled";
-	spi-nor@0 {
-		status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi_nfc_pins>;
+	spi-nand@0 {
+		compatible = "spi-nand";
+		status = "okay";
+		reg = <0>;
+		spi-max-frequency = <24000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		bl_mode = <2>; /* advance mode */
+		fip_copies = <4>;
+		info_p_mode = <1>; /* Info page on page 0 */
+		partition = <&snand_partitions>;
+		snand_partitions: snand_partitions{
+			bootloader{
+				offset=<0x0 0x0>;
+				size=<0x0 0x200000>;
+			};
+			bl2e{
+				offset=<0x0 0x0>;
+				size=<0x0 0x80000>;
+			};
+			bl2x{
+				offset=<0x0 0x0>;
+				size=<0x0 0x80000>;
+			};
+			ddrfip{
+				offset=<0x0 0x0>;
+				size=<0x0 0x100000>;
+			};
+			devfip{
+				offset=<0x0 0x0>;
+				size=<0x0 0xc00000>;
+			};
+			logo{
+				offset=<0x0 0x0>;
+				size=<0x0 0x200000>;
+			};
+			misc{
+				offset=<0x0 0x0>;
+				size=<0x0 0x200000>;
+			};
+			recovery{
+				offset=<0x0 0x0>;
+				size=<0x0 0x1000000>;
+			};
+			boot{
+				offset=<0x0 0x0>;
+				size=<0x0 0x1000000>;
+			};
+			system{
+				offset=<0x0 0x0>;
+				size=<0x0 0x2000000>;
+			};
+			data{
+				offset=<0xffffffff 0xffffffff>;
+				size=<0x0 0x0>;
+			};
+		};
 	};
 };
 

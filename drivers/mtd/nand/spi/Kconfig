@@ -14,6 +14,7 @@ config MTD_SPI_NAND_MESON
         default n
 	select MTD_RESV_MESON
 	select SPI_MESON_SPIFC
+	select SPI_MESON_SPI_NFC
         depends on MTD_SPI_NAND && AMLOGIC_MODIFY
         help
           This is based on MTD_SPI_NAND, adding partition and rsv management.

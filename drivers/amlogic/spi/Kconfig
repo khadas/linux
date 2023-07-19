@@ -1,0 +1,18 @@
+
+config SPI_MESON_SPI_NFC
+	tristate "Amlogic Meson SPI NFC controller"
+	depends on ARCH_MESON || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  This enables master mode support for the SPI NFC (SPI flash
+	  controller with host ECC) available in Amlogic Meson SoCs.
+
+if SPI_MESON_SPI_NFC
+config AML_SPI_NFC_DISABLE_HOST_ECC
+	bool "disable Host ECC Driver"
+	default y
+	help
+	  Disable host ECC on meson SoCs.
+	  It should be set when user use SPI NAND without ECC or want to use
+	  Host ECC.
+endif
