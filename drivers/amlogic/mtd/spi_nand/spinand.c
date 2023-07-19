@@ -24,6 +24,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/aml_rsv.h>
 #include <linux/amlogic/aml_spi_nand.h>
+#include <linux/spi/spi-mem.h>
 
 #define NAND_BLOCK_GOOD	0
 #define NAND_BLOCK_BAD	1
@@ -42,6 +43,26 @@ struct meson_spinand {
 
 struct meson_spinand *meson_spinand_global;
 
+bool meson_spinand_isbad(struct nand_device *nand, const struct nand_pos *pos)
+{
+	struct meson_spinand *meson_spinand = meson_spinand_global;
+	u8 block_status;
+
+	BUG_ON(!meson_spinand->block_status);
+
+	block_status = meson_spinand->block_status[pos->eraseblock];
+	if (block_status == NAND_BLOCK_BAD ||
+	    block_status == NAND_FACTORY_BAD) {
+		pr_err("NAND bbt detect%sBad block at %llx\n",
+		       (block_status == NAND_FACTORY_BAD) ? " factory " : " ",
+		       (u64)nanddev_pos_to_offs(nand, pos));
+		return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(meson_spinand_isbad);
+
 static int spinand_mtd_block_isbad(struct mtd_info *mtd, loff_t offs)
 {
 	struct meson_spinand *meson_spinand = meson_spinand_global;
@@ -52,25 +73,10 @@ static int spinand_mtd_block_isbad(struct mtd_info *mtd, loff_t offs)
 
 	nanddev_offs_to_pos(nand, offs, &pos);
 	mutex_lock(&spinand->lock);
-	if (meson_spinand->block_status) {
-		/* TODO: Keep one plane */
-		block_status = meson_spinand->block_status[pos.eraseblock];
-		if (block_status != NAND_BLOCK_BAD &&
-		    block_status != NAND_FACTORY_BAD &&
-		    block_status != NAND_BLOCK_GOOD) {
-			pr_err("bad block table is mixed\n");
-			mutex_unlock(&spinand->lock);
-			return NAND_BLOCK_BAD;
-		}
-		if (block_status != NAND_BLOCK_GOOD)
-			pr_info("bad block at 0x%x\n", (u32)offs);
-		mutex_unlock(&spinand->lock);
-		return block_status;
-	}
-	pr_info("bbt table is not initial");
-	block_status = nand->ops->isbad(nand, &pos);
+	block_status = meson_spinand_isbad(nand, &pos);
 	mutex_unlock(&spinand->lock);
-	return block_status ? NAND_FACTORY_BAD : NAND_BLOCK_GOOD;
+
+	return block_status;
 }
 
 static int spinand_mtd_block_markbad(struct mtd_info *mtd, loff_t offs)
@@ -154,6 +160,8 @@ int meson_spinand_init(struct spinand_device *spinand, struct mtd_info *mtd)
 		goto exit_error1;
 	}
 
+	spi_mem_set_mtd(mtd);
+
 	mtd->_block_isbad = spinand_mtd_block_isbad;
 	mtd->_block_markbad = spinand_mtd_block_markbad;
 	mtd->_block_isreserved = NULL;
@@ -228,8 +236,8 @@ struct meson_partition_platform_data {
 	u32 bl_mode;
 	u32 fip_copies;
 	u32 fip_size;
-	struct mtd_partition *part;
 	u32 part_num;
+	struct mtd_partition part[0];
 };
 
 static struct meson_partition_platform_data *
@@ -265,7 +273,6 @@ static struct meson_partition_platform_data *
 
 	pdata = kzalloc(sizeof(*pdata) + sizeof(*part) * part_num,
 			GFP_KERNEL);
-	pdata->part = (struct mtd_partition *)&pdata[1];
 	pdata->part_num = part_num;
 
 	ret = of_property_read_u32(np, "bl_mode", &pdata->bl_mode);
@@ -284,6 +291,8 @@ static struct meson_partition_platform_data *
 			goto parse_err;
 		if (of_property_read_u64(child, "size", &part->size))
 			goto parse_err;
+		pr_info("part->offset 0x%llx pdata->fip_size = 0x%llx\n",
+			part->offset, part->size);
 		part++;
 	}
 
@@ -298,11 +307,17 @@ static void meson_partition_relocate(struct mtd_info *mtd,
 				     struct mtd_partition *part)
 {
 #ifndef CONFIG_NOT_SKIP_BAD_BLOCK
+	struct meson_spinand *meson_spinand = meson_spinand_global;
+	struct nand_device *nand = mtd_to_nanddev(mtd);
+	struct nand_pos pos;
 	loff_t offset = part->offset;
 	loff_t end = offset + part->size;
 
+	BUG_ON(!meson_spinand->block_status);
 	while (offset < end) {
-		if (mtd->_block_isbad(mtd, offset) == NAND_FACTORY_BAD) {
+		nanddev_offs_to_pos(nand, offset, &pos);
+		if (meson_spinand->block_status[pos.eraseblock] == NAND_FACTORY_BAD) {
+			pr_err("add partition detect FBB at %llx\n", (u64)offset);
 			part->size += mtd->erasesize;
 			end += mtd->erasesize;
 			if (end > mtd->size)
@@ -315,7 +330,6 @@ static void meson_partition_relocate(struct mtd_info *mtd,
 
 int meson_add_mtd_partitions(struct mtd_info *mtd)
 {
-	//struct nand_device *nand = mtd_to_nanddev(mtd);
 	struct meson_partition_platform_data *pdata;
 	struct mtd_partition *part;
 	loff_t offset;
@@ -338,12 +352,12 @@ int meson_add_mtd_partitions(struct mtd_info *mtd)
 	offset += NAND_RSV_BLOCK_NUM * (loff_t)mtd->erasesize;
 
 	/* tpl, support NAND_FIPMODE_DISCRETE only */
-	part++;
-	part->offset = offset;
-	part->size = pdata->fip_copies * pdata->fip_size;
-	offset += part->size;
+	//part++;
+	//part->offset = offset;
+	//part->size = pdata->fip_copies * pdata->fip_size;
+	//offset += part->size;
 
-	i = pdata->part_num - 3;
+	i = pdata->part_num - 2;
 	while (i--) {
 		part++;
 		part->offset = offset;

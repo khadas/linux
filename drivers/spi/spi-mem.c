@@ -12,6 +12,8 @@
 
 #include "internals.h"
 
+u8 xfer_flag;
+
 #define SPI_MEM_MAX_BUSWIDTH		8
 
 /**
@@ -322,6 +324,7 @@ int spi_mem_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	spi_message_init(&msg);
 
 	tmpbuf[0] = op->cmd.opcode;
+	xfers[xferpos].rx_nbits = 1;
 	xfers[xferpos].tx_buf = tmpbuf;
 	xfers[xferpos].len = sizeof(op->cmd.opcode);
 	xfers[xferpos].tx_nbits = op->cmd.buswidth;
@@ -336,6 +339,7 @@ int spi_mem_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 			tmpbuf[i + 1] = op->addr.val >>
 					(8 * (op->addr.nbytes - i - 1));
 
+		xfers[xferpos].rx_nbits = 2;
 		xfers[xferpos].tx_buf = tmpbuf + 1;
 		xfers[xferpos].len = op->addr.nbytes;
 		xfers[xferpos].tx_nbits = op->addr.buswidth;
@@ -346,6 +350,7 @@ int spi_mem_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 
 	if (op->dummy.nbytes) {
 		memset(tmpbuf + op->addr.nbytes + 1, 0xff, op->dummy.nbytes);
+		xfers[xferpos].rx_nbits = 3;
 		xfers[xferpos].tx_buf = tmpbuf + op->addr.nbytes + 1;
 		xfers[xferpos].len = op->dummy.nbytes;
 		xfers[xferpos].tx_nbits = op->dummy.buswidth;
@@ -798,3 +803,34 @@ void spi_mem_driver_unregister(struct spi_mem_driver *memdrv)
 	spi_unregister_driver(&memdrv->spidrv);
 }
 EXPORT_SYMBOL_GPL(spi_mem_driver_unregister);
+
+void spi_mem_set_xfer_flag(u8 flag)
+{
+	xfer_flag |= flag;
+}
+EXPORT_SYMBOL_GPL(spi_mem_set_xfer_flag);
+
+u8 spi_mem_get_xfer_flag(void)
+{
+	return xfer_flag;
+}
+EXPORT_SYMBOL_GPL(spi_mem_get_xfer_flag);
+
+void spi_mem_umask_xfer_flags(void)
+{
+	xfer_flag &= ~SPI_XFER_NFC_MASK_FLAG;
+}
+EXPORT_SYMBOL_GPL(spi_mem_umask_xfer_flags);
+
+struct mtd_info *spi_nfc_mtd;
+void spi_mem_set_mtd(struct mtd_info *mtd)
+{
+	spi_nfc_mtd = mtd;
+}
+EXPORT_SYMBOL_GPL(spi_mem_set_mtd);
+
+struct mtd_info *spi_mem_get_mtd(void)
+{
+	return spi_nfc_mtd;
+}
+EXPORT_SYMBOL_GPL(spi_mem_get_mtd);
