@@ -16,9 +16,11 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <linux/io.h>
 
 #include "optee_smc.h"
 #include "log.h"
+#include "optee_private.h"
 
 #define LOGGER_LOOPBUFFER_MAGIC       0xAA00AA00
 #define LOGGER_LOOPBUFFER_OFFSET      0x00000080
@@ -136,21 +138,58 @@ static void do_log_timer(struct work_struct *work)
 		pr_err("%s:%d Failed to join the workqueue\n", __func__, __LINE__);
 }
 
-int optee_log_init(void *va, phys_addr_t pa, size_t size)
+int optee_log_init(void)
 {
 	int rc = 0;
-	struct arm_smccc_res smccc;
+	struct arm_smccc_res smccc = { 0 };
 	struct loopbuffer_ctl_s *log_ctl = NULL;
+	size_t size = 0;
+	phys_addr_t begin = 0;
+	phys_addr_t end = 0;
 
-	arm_smccc_smc(OPTEE_SMC_ENABLE_LOGGER, 1, 0, 0, 0, 0, 0, 0,
-			&smccc);
+	arm_smccc_smc(OPTEE_SMC_GET_LOGGER_CONFIG, 0, 0, 0, 0, 0, 0, 0, &smccc);
+	if (smccc.a0 == TEEC_SUCCESS) {
+		/* v3, get log buffer config from BL32 */
+		begin = roundup(smccc.a1, PAGE_SIZE);
+		end = rounddown(smccc.a1 + smccc.a2, PAGE_SIZE);
+		size = end - begin;
+	} else if (smccc.a0 == OPTEE_SMC_RETURN_UNKNOWN_FUNCTION) {
+		/* v1 & v2, can not get log buffer config, use log buffer in share memory */
+		memset(&smccc, 0, sizeof(smccc));
+		arm_smccc_smc(OPTEE_SMC_GET_SHM_CONFIG, 0, 0, 0, 0, 0, 0, 0, &smccc);
+		if (smccc.a0 != TEEC_SUCCESS) {
+			pr_err("tee get share memory config failed, res = 0x%lx\n", smccc.a0);
+			rc = -EACCES;
+			goto err;
+		}
 
-	log_buf_va = va;
-	log_ctl = (struct loopbuffer_ctl_s *)va;
+		begin = rounddown(smccc.a1 + smccc.a2, PAGE_SIZE) - DEF_LOGGER_SHM_SIZE;
+		size = DEF_LOGGER_SHM_SIZE;
+	} else {
+		/* Logger disabled */
+		rc = -EACCES;
+		goto err;
+	}
+
+	log_buf_va = memremap(begin, size, MEMREMAP_WB);
+	if (!log_buf_va) {
+		pr_err("tee log buffer memremap failed\n");
+		rc = -ENOMEM;
+		goto err;
+	}
+
+	memset(&smccc, 0, sizeof(smccc));
+	arm_smccc_smc(OPTEE_SMC_ENABLE_LOGGER, 1, 0, 0, 0, 0, 0, 0, &smccc);
+	if (smccc.a0 != TEEC_SUCCESS) {
+		pr_err("tee log buffer enable failed, res = 0x%lx\n", smccc.a0);
+		rc = -EACCES;
+		goto err;
+	}
+
+	log_ctl = (struct loopbuffer_ctl_s *)log_buf_va;
 	if (log_ctl->magic != LOGGER_LOOPBUFFER_MAGIC || log_ctl->inited != 1) {
 		pr_err("tee log buffer init failed\n");
-		rc = -1;
-
+		rc = -EINVAL;
 		goto err;
 	}
 
@@ -159,8 +198,7 @@ int optee_log_init(void *va, phys_addr_t pa, size_t size)
 	INIT_DELAYED_WORK(&log_work, do_log_timer);
 	if (queue_delayed_work(log_workqueue, &log_work, OPTEE_LOG_TIMER_INTERVAL * HZ) == 0) {
 		pr_err("%s:%d failed to join the workqueue.\n", __func__, __LINE__);
-		rc = -1;
-
+		rc = -EBUSY;
 		goto err;
 	}
 

@@ -1260,16 +1260,21 @@ optee_config_shm_memremap(optee_invoke_fn *invoke_fn, void **memremaped_shm)
 	}
 	vaddr = (unsigned long)va;
 
-	rc = tee_shm_pool_alloc_res_mem(vaddr, paddr, size - DEF_LOGGER_SHM_SIZE,
-					OPTEE_MIN_STATIC_POOL_ALIGN);
+	memset(&res, 0, sizeof(res));
+	invoke_fn(OPTEE_SMC_GET_LOGGER_CONFIG, 0, 0, 0, 0, 0, 0, 0, &res.smccc);
+	if (res.smccc.a0 == OPTEE_SMC_RETURN_UNKNOWN_FUNCTION) {
+		rc = tee_shm_pool_alloc_res_mem(vaddr, paddr,
+				size - DEF_LOGGER_SHM_SIZE,
+				OPTEE_MIN_STATIC_POOL_ALIGN);
+	} else {
+		rc = tee_shm_pool_alloc_res_mem(vaddr, paddr,
+				size, OPTEE_MIN_STATIC_POOL_ALIGN);
+	}
+
 	if (IS_ERR(rc))
 		memunmap(va);
 	else
 		*memremaped_shm = va;
-
-	optee_log_init(va + size - DEF_LOGGER_SHM_SIZE,
-			end - DEF_LOGGER_SHM_SIZE,
-			DEF_LOGGER_SHM_SIZE);
 
 	return rc;
 }
@@ -1452,6 +1457,8 @@ static int optee_probe(struct platform_device *pdev)
 
 	if (IS_ERR(pool))
 		return PTR_ERR(pool);
+
+	optee_log_init();
 
 	optee = kzalloc(sizeof(*optee), GFP_KERNEL);
 	if (!optee) {
