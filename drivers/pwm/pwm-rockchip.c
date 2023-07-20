@@ -96,9 +96,9 @@ static inline struct rockchip_pwm_chip *to_rockchip_pwm_chip(struct pwm_chip *c)
 	return container_of(c, struct rockchip_pwm_chip, chip);
 }
 
-static void rockchip_pwm_get_state(struct pwm_chip *chip,
-				   struct pwm_device *pwm,
-				   struct pwm_state *state)
+static int rockchip_pwm_get_state(struct pwm_chip *chip,
+				  struct pwm_device *pwm,
+				  struct pwm_state *state)
 {
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	u32 enable_conf = pc->data->enable_conf;
@@ -110,7 +110,7 @@ static void rockchip_pwm_get_state(struct pwm_chip *chip,
 	if (!pc->oneshot_en) {
 		ret = clk_enable(pc->pclk);
 		if (ret)
-			return;
+			return 0;
 	}
 
 	dclk_div = pc->oneshot_en ? 2 : 1;
@@ -135,6 +135,8 @@ static void rockchip_pwm_get_state(struct pwm_chip *chip,
 
 	if (!pc->oneshot_en)
 		clk_disable(pc->pclk);
+
+	return 0;
 }
 
 static irqreturn_t rockchip_pwm_oneshot_irq(int irq, void *data)

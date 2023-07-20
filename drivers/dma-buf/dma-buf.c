@@ -431,7 +431,7 @@ EXPORT_SYMBOL_GPL(dma_buf_set_name);
 static long dma_buf_set_name_user(struct dma_buf *dmabuf, const char __user *buf)
 {
 	char *name = strndup_user(buf, DMA_BUF_NAME_LEN);
-	long ret;
+	long ret = 0;
 
 	if (IS_ERR(name))
 		return PTR_ERR(name);

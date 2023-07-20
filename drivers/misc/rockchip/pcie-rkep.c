@@ -228,7 +228,7 @@ static int pcie_rkep_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	addr = page_to_phys(pcie_rkep->user_pages);
-	vma->vm_flags |= VM_IO;
+	vm_flags_set(vma, VM_IO);
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 
 	if (io_remap_pfn_range(vma, vma->vm_start, addr >> PAGE_SHIFT, size, vma->vm_page_prot)) {

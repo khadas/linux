@@ -277,6 +277,29 @@ static int fix_hyp_pgtable_refcnt_walker(u64 addr, u64 end, u32 level,
 	return 0;
 }
 
+static int pin_table_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
+			    enum kvm_pgtable_walk_flags flag, void * const arg)
+{
+	struct kvm_pgtable_mm_ops *mm_ops = arg;
+	kvm_pte_t pte = *ptep;
+
+	if (kvm_pte_valid(pte))
+		mm_ops->get_page(kvm_pte_follow(pte, mm_ops));
+
+	return 0;
+}
+
+static int pin_host_tables(void)
+{
+	struct kvm_pgtable_walker walker = {
+		.cb	= pin_table_walker,
+		.flags	= KVM_PGTABLE_WALK_TABLE_POST,
+		.arg	= &host_mmu.mm_ops,
+	};
+
+	return kvm_pgtable_walk(&host_mmu.pgt, 0, BIT(host_mmu.pgt.ia_bits), &walker);
+}
+
 static int fix_host_ownership(void)
 {
 	struct kvm_pgtable_walker walker = {
@@ -318,7 +341,9 @@ static int unmap_protected_regions(void)
 		reg = &pkvm_moveable_regs[i];
 		if (reg->type != PKVM_MREG_PROTECTED_RANGE)
 			continue;
-		ret = host_stage2_protect_pages_locked(reg->start, reg->size);
+
+		ret = host_stage2_set_owner_locked(reg->start, reg->size,
+						   PKVM_ID_PROTECTED);
 		if (ret)
 			return ret;
 	}
@@ -355,10 +380,6 @@ void __noreturn __pkvm_init_finalise(void)
 	};
 	pkvm_pgtable.mm_ops = &pkvm_pgtable_mm_ops;
 
-	ret = fix_host_ownership();
-	if (ret)
-		goto out;
-
 	ret = fix_hyp_pgtable_refcnt();
 	if (ret)
 		goto out;
@@ -367,7 +388,15 @@ void __noreturn __pkvm_init_finalise(void)
 	if (ret)
 		goto out;
 
+	ret = fix_host_ownership();
+	if (ret)
+		goto out;
+
 	ret = unmap_protected_regions();
+	if (ret)
+		goto out;
+
+	ret = pin_host_tables();
 	if (ret)
 		goto out;
 

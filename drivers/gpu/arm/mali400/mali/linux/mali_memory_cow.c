@@ -391,13 +391,13 @@ _mali_osk_errcode_t mali_memory_cow_modify_range(mali_mem_backend *backend,
 			}
 		} else {
 			/* used to trigger page fault for swappable cowed memory. */
-			alloc->cpu_mapping.vma->vm_flags |= VM_PFNMAP;
-			alloc->cpu_mapping.vma->vm_flags |= VM_MIXEDMAP;
+			vm_flags_set(alloc->cpu_mapping.vma, VM_PFNMAP);
+			vm_flags_set(alloc->cpu_mapping.vma, VM_MIXEDMAP);
 
 			zap_vma_ptes(alloc->cpu_mapping.vma, alloc->cpu_mapping.vma->vm_start + range_start, range_size);
 			/* delete this flag to let swappble is ummapped regard to stauct page not page frame. */
-			alloc->cpu_mapping.vma->vm_flags &= ~VM_PFNMAP;
-			alloc->cpu_mapping.vma->vm_flags &= ~VM_MIXEDMAP;
+			vm_flags_clear(alloc->cpu_mapping.vma, VM_PFNMAP);
+			vm_flags_clear(alloc->cpu_mapping.vma, VM_MIXEDMAP);
 		}
 	}
 
