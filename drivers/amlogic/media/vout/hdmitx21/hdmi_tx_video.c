@@ -36,7 +36,8 @@ static void construct_avi_packet(struct hdmitx_dev *hdev)
 		pr_info("init avi infoframe failed\n");
 	info->version = 2;
 	info->colorspace = para->cs;
-	info->scan_mode = HDMI_SCAN_MODE_NONE;
+	/* underscan */
+	info->scan_mode = HDMI_SCAN_MODE_UNDERSCAN;
 	if (para->timing.v_active <= 576)
 		info->colorimetry = HDMI_COLORIMETRY_ITU_601;
 	else

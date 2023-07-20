@@ -6493,7 +6493,8 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	data32  = 0;
 	data32 |= (((output_color_format >> 2) & 0x1) << 7);
 	data32 |= (1 << 6);
-	data32 |= (0 << 4);
+	/* underscan */
+	data32 |= (2 << 4);
 	data32 |= (0 << 2);
 	data32 |= (0x2 << 0);    /* FIXED YCBCR 444 */
 	hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF0, data32);
