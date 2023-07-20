@@ -1496,6 +1496,10 @@
 	status = "okay";
 };
 
+&uart_C {
+    status = "okay";
+};
+
 &pcie_A {
 	reset-gpio = <&gpio GPIOA_8 GPIO_ACTIVE_HIGH>;
 	status = "disable";
