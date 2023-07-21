@@ -616,10 +616,20 @@ static  char *pwm_t5d_parent_names[] __initdata = {
 	"xtal", "clk81", "fclk_div4", "fclk_div5"
 };
 
+static char *pwm_tl1_ee_parent_names[] __initdata = {
+	"xtal", "vid_pll", "fclk_div4", "fclk_div3"
+};
+
 static struct meson_pwm_data pwm_t5d_data __refdata = {
 	.parent_names = pwm_t5d_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_t5d_parent_names),
 	.double_channel = true,
+};
+
+static struct meson_pwm_data pwm_tl1_ee_data __refdata = {
+	.double_channel = true,
+	.parent_names = pwm_tl1_ee_parent_names,
+	.num_parents = ARRAY_SIZE(pwm_tl1_ee_parent_names),
 };
 
 static struct meson_pwm_data pwm_v2_data __initdata = {
@@ -678,6 +688,14 @@ static const struct of_device_id meson_pwm_matches[] = {
 	},
 	{
 		.compatible = "amlogic,meson-t5d-ee-pwm",
+		.data = &pwm_t5d_data
+	},
+	{
+		.compatible = "amlogic,tl1-ee-pwm",
+		.data = &pwm_tl1_ee_data
+	},
+	{
+		.compatible = "amlogic,tl1-ao-pwm",
 		.data = &pwm_t5d_data
 	},
 	{
