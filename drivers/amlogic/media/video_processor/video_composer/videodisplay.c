@@ -637,7 +637,7 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 	struct timeval time1;
 	struct timeval time2;
 	u64 time_vsync;
-	int interval_time;
+	u64 interval_time;
 	bool expired = true;
 	bool expired_tmp = true;
 	bool open_pulldown = false;

@@ -5991,6 +5991,7 @@ void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		if (vf->flag & VFRAME_FLAG_MIRROR_V)
 			mirror = V_MIRROR;
 		_set_video_mirror(layer_info, mirror);
+		set_alpha_scpxn(layer, vf->composer_info);
 		layer_info->zorder = vf->zorder;
 	} else {
 		_set_video_mirror(layer_info, 0);
@@ -6157,6 +6158,7 @@ void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		if (vf->flag & VFRAME_FLAG_MIRROR_V)
 			mirror = V_MIRROR;
 		_set_video_mirror(layer_info, mirror);
+		set_alpha_scpxn(layer, vf->composer_info);
 		layer_info->zorder = vf->zorder;
 	} else {
 		_set_video_mirror(layer_info, 0);
@@ -6344,6 +6346,7 @@ void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1, int l
 		if (vf->flag & VFRAME_FLAG_MIRROR_V)
 			mirror = V_MIRROR;
 		_set_video_mirror(&glayer_info[0], mirror);
+		set_alpha_scpxn(layer, vf->composer_info);
 		glayer_info[0].zorder = vf->zorder;
 	} else {
 		_set_video_mirror(&glayer_info[0], 0);
