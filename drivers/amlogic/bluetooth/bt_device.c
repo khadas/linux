@@ -52,6 +52,15 @@
 static struct early_suspend bt_early_suspend;
 #endif
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/async.h>
+struct async_initrd_data {
+	struct bt_dev_data *pbt_dev;
+};
+
+static struct async_initrd_data data;
+#endif
+
 #define BT_RFKILL "bt_rfkill"
 #define QCA_ID 0x271
 #define RTK_ID 0x24C
@@ -453,6 +462,16 @@ static int bt_resume(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static void __init do_bt_device_on_async(void *_data, async_cookie_t cookie)
+{
+	struct async_initrd_data *data;
+
+	data = _data;
+	bt_device_on(data->pbt_dev, 100, 0);
+}
+#endif
+
 static int bt_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -564,7 +583,12 @@ static int bt_probe(struct platform_device *pdev)
 
 	if (pdata->power_down_disable == 1) {
 		pdata->power_down_disable = 0;
+#ifdef CONFIG_AMLOGIC_MODIFY
+		data.pbt_dev = pdata;
+		async_schedule(do_bt_device_on_async, &data);
+#else
 		bt_device_on(pdata, 100, 0);
+#endif
 		pdata->power_down_disable = 1;
 	}
 
@@ -711,6 +735,7 @@ static struct platform_driver bt_driver = {
 	.driver		= {
 		.name	= "aml_bt",
 		.of_match_table = bt_dev_dt_match,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe		= bt_probe,
 	.remove		= bt_remove,
