@@ -38,6 +38,7 @@ static const char * const wss_576i_cmd[] = {"ar", "mode", "coding", "helper",
 		"ttxsubt", "opensubt", "surrsnd", "cgms", "full", "CC",
 		"mvsn", "off"};
 static unsigned int cgms_ntsc_crc[] = {0x0, 0x5, 0xa, 0xf};
+static unsigned int cvbsout_wss_flag;
 
 static void wss_set_output(unsigned int cmd, unsigned int mode,
 			   unsigned int line, unsigned int data,
@@ -45,11 +46,10 @@ static void wss_set_output(unsigned int cmd, unsigned int mode,
 {
 	unsigned int value;
 
-	pr_info("[%s], line = %d, data = 0x%x, start_bit = %d, length = %d\n",
-		__func__, line, data, start, length);
 	switch (cmd) {
 	case WSS_576I_CMD_CC:
 	case WSS_480I_CMD_CC:
+		cvbsout_wss_flag |= WSS_CC_EN_BIT;
 		cvbs_out_reg_write(ENCI_VBI_CCDT_EVN, data);
 		/*cvbs_out_reg_write(ENCI_VBI_CCDT_ODD, data);*/
 		/*480cvbs default envline 21,oddline 21 */
@@ -57,6 +57,7 @@ static void wss_set_output(unsigned int cmd, unsigned int mode,
 		cvbs_out_reg_setb(ENCI_VBI_SETTING, 0x1, 0, 2);
 		break;
 	case WSS_480I_CMD_CGMS_A:
+		cvbsout_wss_flag |= WSS_480I_CGMS_A_EN_BIT;
 		data = (data > 3) ? 0 : data;
 		value = ((data << start) | (cgms_ntsc_crc[data] << 14));
 
@@ -72,15 +73,32 @@ static void wss_set_output(unsigned int cmd, unsigned int mode,
 	case WSS_576I_CMD_MVSN:
 	case WSS_480I_CMD_MVSN:
 		if (!data) {
+			cvbsout_wss_flag &= (~WSS_MVSN_EN_BIT);
 			cvbs_out_reg_setb(ENCI_VIDEO_MODE_ADV, 0, 15, 1);
 			cvbs_out_reg_write(ENCI_MACV_N0, 0x0);
 		} else {
+			cvbsout_wss_flag |= WSS_MVSN_EN_BIT;
 			cvbs_out_reg_setb(ENCI_VIDEO_MODE_ADV, 1, 15, 1);
 			cvbs_out_reg_write(ENCI_MACV_N0, 0x3e);
 		}
 		break;
 	case WSS_576I_CMD_CGMS_A:
+		cvbsout_wss_flag |= WSS_576I_CGMS_A_EN_BIT;
+		cvbs_out_reg_setb(ENCI_VBI_WSSDT, data, start, length);
+		value = cvbs_out_reg_read(ENCI_VBI_WSSDT);
+		if ((value & 0xf) == 0x0)/* correct the bit3: odd_parity_bit */
+			cvbs_out_reg_setb(ENCI_VBI_WSSDT, 1, 3, 1);
+		cvbs_out_reg_write(ENCI_VBI_WSS_LN, line - 1);
+		if (mode == 480)
+			cvbs_out_reg_setb(ENCI_VBI_SETTING, 0x3, 2, 2);
+		/*480i, enable even field for line 20*/
+		/*enable odd field for line 283 */
+		else if (mode == 576)
+			cvbs_out_reg_setb(ENCI_VBI_SETTING, 0x1, 2, 2);
+		/* 576i, should enable odd field for line 23 */
+		break;
 	default:
+		cvbsout_wss_flag |= WSS_OTHER_BIT;
 		cvbs_out_reg_setb(ENCI_VBI_WSSDT, data, start, length);
 		value = cvbs_out_reg_read(ENCI_VBI_WSSDT);
 		if ((value & 0xf) == 0x0)/* correct the bit3: odd_parity_bit */
@@ -95,15 +113,37 @@ static void wss_set_output(unsigned int cmd, unsigned int mode,
 		/* 576i, should enable odd field for line 23 */
 		break;
 	}
+	pr_info("[%s] line = %d data = 0x%x start_bit = %d length = %d cmd:%#x wss_flag:%#x\n",
+		__func__, line, data, start, length, cmd, cvbsout_wss_flag);
 }
 
 static void wss_close_output(unsigned int mode)
 {
-	pr_info("[%s] close mode = %d\n", __func__, mode);
-	if (mode == 480)
+	//close mvsn
+	if (cvbsout_wss_flag & WSS_MVSN_EN_BIT) {
+		cvbsout_wss_flag &= (~WSS_MVSN_EN_BIT);
+		cvbs_out_reg_setb(ENCI_VIDEO_MODE_ADV, 0, 15, 1);
+		cvbs_out_reg_write(ENCI_MACV_N0, 0x0);
+	}
+	//close cgms-a and other
+	if (mode == 480) {
+		cvbsout_wss_flag &= (~WSS_480I_CGMS_A_EN_BIT);
 		cvbs_out_reg_setb(ENCI_VBI_SETTING, 0x0, 2, 4);
-	else
+	} else {
+		cvbsout_wss_flag &= (~WSS_576I_CGMS_A_EN_BIT);
+		cvbsout_wss_flag &= (~WSS_OTHER_BIT);
 		cvbs_out_reg_setb(ENCI_VBI_SETTING, 0x0, 2, 2);
+	}
+
+	if (cvbsout_wss_flag & WSS_CC_EN_BIT) {
+		cvbsout_wss_flag &= (~WSS_CC_EN_BIT);
+		cvbs_out_reg_setb(ENCI_VBI_SETTING, 0x0, 0, 2);
+	}
+	pr_info("[%s]close mode=%d cvbsout_wss_flag:%#x %#x:%#x %#x:%#X %#x:%#X\n",
+		__func__, mode, cvbsout_wss_flag,
+		ENCI_VBI_SETTING, cvbs_out_reg_read(ENCI_VBI_SETTING),
+		ENCI_VIDEO_MODE_ADV, cvbs_out_reg_read(ENCI_VIDEO_MODE_ADV),
+		ENCI_MACV_N0, cvbs_out_reg_read(ENCI_MACV_N0));
 }
 
 /* for 576i, according to <ETSI EN 300294 V1.4.1> */
@@ -401,7 +441,8 @@ static void wss_show_status(unsigned int mode, char *wss_cmd)
 		pr_info("%s wss_cmd is null\n", __func__);
 		return;
 	}
-/* pr_info("[%s] mode = %d, wss_cmd = |%s|\n", __FUNCTION__, mode, wss_cmd); */
+	pr_info("[%s] mode = %d, wss_cmd = |%s| cvbsout_wss_flag:%#x\n",
+		__func__, mode, wss_cmd, cvbsout_wss_flag);
 	if (mode == MODE_576CVBS) {
 		if (!strncmp(wss_cmd, "cgms", strlen("cgms"))) {
 			data = (data >> WSS_576I_CGMS_A_START) &
@@ -519,6 +560,7 @@ ssize_t aml_CVBS_attr_wss_show(struct class *class,
 {
 	unsigned int line = 0;
 	unsigned int data = 0;
+	ssize_t len = 0;
 	unsigned int enable = ((cvbs_out_reg_read(ENCI_VBI_SETTING) & 0x3c)
 						== 0) ? 0 : 1;
 	if (get_local_cvbs_mode() == MODE_576CVBS) {
@@ -534,9 +576,29 @@ ssize_t aml_CVBS_attr_wss_show(struct class *class,
 		data &= 0xff;
 	}
 
-	if (enable == 1)
-		return sprintf(buf, "wss line:%d data 0x%x\n", line, data);
-	return sprintf(buf, "wss is closed!\n");
+	len += sprintf(buf + len, "cvbsout_wss_flag:%#x\n", cvbsout_wss_flag);
+	len += sprintf(buf + len, "CC info\n");
+	len += sprintf(buf + len, "%#x:%#x %#x:%#x\n",
+			ENCI_VBI_CCDT_EVN, cvbs_out_reg_read(ENCI_VBI_CCDT_EVN),
+			ENCI_VBI_SETTING, cvbs_out_reg_read(ENCI_VBI_SETTING));
+	len += sprintf(buf + len, "480i cgms-a info\n");
+	len += sprintf(buf + len, "wss line:%d data %#x enable:%#x\n", line, data, enable);
+	len += sprintf(buf + len, "%#x:%#x %#x:%#x %#x:%#x %#x:%#x\n",
+			ENCI_VBI_CGMSDT_L, cvbs_out_reg_read(ENCI_VBI_CGMSDT_L),
+			ENCI_VBI_CGMSDT_H, cvbs_out_reg_read(ENCI_VBI_CGMSDT_H),
+			ENCI_VBI_CGMS_LN, cvbs_out_reg_read(ENCI_VBI_CGMS_LN),
+			ENCI_VBI_SETTING, cvbs_out_reg_read(ENCI_VBI_SETTING));
+	len += sprintf(buf + len, "MVSN info\n");
+	len += sprintf(buf + len, "%#x:%#x %#x:%#x\n",
+			ENCI_VIDEO_MODE_ADV, cvbs_out_reg_read(ENCI_VIDEO_MODE_ADV),
+			ENCI_MACV_N0, cvbs_out_reg_read(ENCI_MACV_N0));
+	len += sprintf(buf + len, "576i cgms-a or other info\n");
+	len += sprintf(buf + len, "wss line:%d data %#x enable:%#x\n", line, data, enable);
+	len += sprintf(buf + len, "%#x:%#x %#x:%#x %#x:%#x\n",
+			ENCI_VBI_WSSDT, cvbs_out_reg_read(ENCI_VBI_WSSDT),
+			ENCI_VBI_WSS_LN, cvbs_out_reg_read(ENCI_VBI_WSS_LN),
+			ENCI_VBI_SETTING, cvbs_out_reg_read(ENCI_VBI_SETTING));
+	return len;
 }
 
 ssize_t aml_CVBS_attr_wss_store(struct class *class,
