@@ -746,7 +746,6 @@ static const struct proto_ops netproto_ops = {
 	.sendmsg =	sock_no_sendmsg,
 	.recvmsg =	sock_no_recvmsg,
 	.mmap =		sock_no_mmap,
-	.sendpage =	sock_no_sendpage,
 };
 
 /*
