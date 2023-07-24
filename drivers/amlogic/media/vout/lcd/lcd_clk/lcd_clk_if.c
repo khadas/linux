@@ -666,11 +666,9 @@ static void lcd_clk_config_chip_init(struct aml_lcd_drv_s *pdrv, struct lcd_clk_
 	case LCD_CHIP_G12B:
 		lcd_clk_config_chip_init_g12b(pdrv, cconf);
 		break;
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case LCD_CHIP_TL1:
 		lcd_clk_config_chip_init_tl1(pdrv, cconf);
 		break;
-#endif
 	case LCD_CHIP_TM2:
 		lcd_clk_config_chip_init_tm2(pdrv, cconf);
 		break;

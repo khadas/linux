@@ -10,16 +10,16 @@
 		mode = "tv";
 		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <1>;
-		//clocks = <&clkc CLKID_VCLK2_ENCL
-		//	&clkc CLKID_VCLK2_VENCL
-		//	&clkc CLKID_TCON
-		//	&clkc CLKID_FCLK_DIV5
-		//	&clkc CLKID_TCON_PLL_COMP>;
-		//clock-names = "encl_top_gate",
-		//	"encl_int_gate",
-		//	"tcon_gate",
-		//	"fclk_div5",
-		//	"clk_tcon";
+		clocks = <&clkc CLKID_CLK81_VCLK2_ENCL
+			&clkc CLKID_CLK81_VCLK2_VENCL
+			&clkc CLKID_CLK81_TCON
+			&clkc CLKID_FCLK_DIV5
+			&clkc CLKID_TCON_PLL>;
+		clock-names = "encl_top_gate",
+			"encl_int_gate",
+			"tcon_gate",
+			"fclk_div5",
+			"clk_tcon";
 		reg = <0xff660000 0xd000
 			0xff634400 0x300>;
 		interrupts = <0 3 1

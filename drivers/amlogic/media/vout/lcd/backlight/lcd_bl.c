@@ -3747,13 +3747,11 @@ static struct bl_data_s bl_data_g12b = {
 	.pwm_vs_flag = 0,
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct bl_data_s bl_data_tl1 = {
 	.chip_type = LCD_CHIP_TL1,
 	.chip_name = "tl1",
 	.pwm_vs_flag = 1,
 };
-#endif
 
 static struct bl_data_s bl_data_sm1 = {
 	.chip_type = LCD_CHIP_SM1,
@@ -3822,12 +3820,10 @@ static const struct of_device_id bl_dt_match_table[] = {
 		.compatible = "amlogic, backlight-g12b",
 		.data = &bl_data_g12b,
 	},
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, backlight-tl1",
 		.data = &bl_data_tl1,
 	},
-#endif
 	{
 		.compatible = "amlogic, backlight-sm1",
 		.data = &bl_data_sm1,

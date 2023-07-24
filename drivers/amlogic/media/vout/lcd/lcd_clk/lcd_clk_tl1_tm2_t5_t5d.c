@@ -662,7 +662,6 @@ static struct lcd_clk_ctrl_s pll_ctrl_table_tl1[] = {
 	{LCD_CLK_CTRL_END,  LCD_CLK_REG_END,                  0,  0},
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct lcd_clk_data_s lcd_clk_data_tl1 = {
 	.pll_od_fb = 0,
 	.pll_m_max = 511,
@@ -714,7 +713,6 @@ static struct lcd_clk_data_s lcd_clk_data_tl1 = {
 	.clk_config_print = lcd_clk_config_print_dft,
 	.prbs_test = lcd_clk_prbs_test,
 };
-#endif
 
 static struct lcd_clk_data_s lcd_clk_data_tm2 = {
 	.pll_od_fb = 0,
@@ -872,14 +870,12 @@ static struct lcd_clk_data_s lcd_clk_data_t5d = {
 	.prbs_test = NULL,
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 void lcd_clk_config_chip_init_tl1(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf)
 {
 	cconf->data = &lcd_clk_data_tl1;
 	cconf->pll_od_fb = lcd_clk_data_tl1.pll_od_fb;
 	cconf->clk_path_change = NULL;
 }
-#endif
 
 void lcd_clk_config_chip_init_tm2(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf)
 {
