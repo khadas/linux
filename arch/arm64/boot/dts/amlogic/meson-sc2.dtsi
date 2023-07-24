@@ -1842,12 +1842,16 @@
 		reg =	<0x0 0xfe000000 0x0 0x100    /* clk */
 			 0x0 0xfe00c000 0x0 0x70     /* pwrctrl */
 			 0x0 0xff000000 0x0 0xa000>; /* vcbus */
-		clocks = <&clkc CLKID_VAPB>,
+		clocks = <&clkc CLKID_VAPB_0>,
+			<&clkc CLKID_VAPB_1>,
+			<&clkc CLKID_VAPB>,
 			<&clkc CLKID_VPU_INTR>,
 			<&clkc CLKID_VPU_0>,
 			<&clkc CLKID_VPU_1>,
 			<&clkc CLKID_VPU>;
-		clock-names =	"vapb_clk",
+		clock-names =	"vapb_clk0",
+				"vapb_clk1",
+				"vapb_clk",
 				"vpu_intr_gate",
 				"vpu_clk0",
 				"vpu_clk1",
