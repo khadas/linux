@@ -962,8 +962,8 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	spin_unlock_irqrestore(&mgt->lock, flags);
 	mem->alloced_jiffies = get_jiffies_64();
 	if (debug_mode & 0x20)
-		pr_err("%s alloc size %d at 0x%lx from %d,2n:%d,flags:%d\n",
-		       owner, size, mem->phy_addr,
+		pr_err("mem_id [%d] %s alloc size %d at 0x%lx from %d,2n:%d,flags:%d\n",
+		       mem->mem_id, owner, size, mem->phy_addr,
 		       mem->from_flags,
 		       align2n,
 		       memflags);
@@ -1001,8 +1001,8 @@ void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 			mem->owner[i] = max_owner;
 	}
 	if (debug_mode & 0x20)
-		pr_err("%s free mem size %d at %lx from %d,index =%d\n",
-		       owner, mem->buffer_size, mem->phy_addr,
+		pr_err("mem_id [%d] %s free mem size %d at %lx from %d,index =%d\n",
+		       mem->mem_id, owner, mem->buffer_size, mem->phy_addr,
 		       mem->from_flags, index);
 	mem->owner[index] = NULL;
 	if (index == 0) {
@@ -1113,8 +1113,8 @@ void *codec_mm_dma_alloc_coherent(ulong *handle,
 	spin_unlock_irqrestore(&mgt->lock, flags);
 
 	if (debug_mode & 0x20) {
-		pr_info("[%s] alloc coherent mem (phy %lx, vddr %px) size (%d).\n",
-			owner, mem->phy_addr, vaddr, buf_size);
+		pr_info("mem_id [%d] [%s] alloc coherent mem (phy %lx, vddr %px) size (%d).\n",
+			mem->mem_id, owner, mem->phy_addr, vaddr, buf_size);
 	}
 	return vaddr;
 err:
@@ -1156,8 +1156,8 @@ void codec_mm_dma_free_coherent(ulong handle)
 	spin_unlock_irqrestore(&mgt->lock, flags);
 
 	if (debug_mode & 0x20) {
-		pr_info("[%s] free coherent mem (phy %lx, vddr %px) size (%d)\n",
-			mem->owner[0], mem->phy_addr, mem->vbuffer,
+		pr_info("mem_id [%d] [%s] free coherent mem (phy %lx, vddr %px) size (%d)\n",
+			mem->mem_id, mem->owner[0], mem->phy_addr, mem->vbuffer,
 			mem->buffer_size);
 	}
 
@@ -2582,8 +2582,8 @@ struct codec_mm_s *v4l_reqbufs_from_codec_mm(const char *owner,
 	spin_unlock_irqrestore(&mgt->lock, flags);
 
 	if (debug_mode & 0x20)
-		pr_info("%s alloc coherent size %d at %lx from %d.\n",
-			owner, buf_size, mem->phy_addr, mem->from_flags);
+		pr_info("mem_id [%d] %s alloc coherent size %d at %lx from %d.\n",
+			mem->mem_id, owner, buf_size, mem->phy_addr, mem->from_flags);
 out:
 	return mem;
 }
@@ -2611,8 +2611,8 @@ void v4l_freebufs_back_to_codec_mm(const char *owner, struct codec_mm_s *mem)
 	spin_unlock_irqrestore(&mgt->lock, flags);
 
 	if (debug_mode & 0x20)
-		pr_info("%s free mem size %d at %lx from %d\n", mem->owner[0],
-			mem->buffer_size, mem->phy_addr, mem->from_flags);
+		pr_info("mem_id [%d] %s free mem size %d at %lx from %d\n", mem->mem_id,
+			mem->owner[0], mem->buffer_size, mem->phy_addr, mem->from_flags);
 out:
 	kfree(mem);
 }
