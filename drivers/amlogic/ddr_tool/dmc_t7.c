@@ -123,13 +123,10 @@ static size_t t7_dmc_dump_reg(char *buf)
 static void check_violation(struct dmc_monitor *mon, void *io)
 {
 	char rw = 'n';
-	char title[10] = "";
-	char id_str[MAX_NAME];
+	char title[10];
 	int port, subport;
-	unsigned long addr = 0;
-	unsigned long status = 0, irqreg;
-	struct page *page;
-	struct page_trace *trace;
+	unsigned long irqreg;
+	unsigned long addr = 0, status = 0;
 
 	irqreg = dmc_prot_rw(io, DMC_PROT_IRQ_CTRL_STS, 0, DMC_READ);
 	if (irqreg & DMC_WRITE_VIOLATION) {
@@ -139,8 +136,7 @@ static void check_violation(struct dmc_monitor *mon, void *io)
 		addr  = (addr << 32ULL);
 		addr |= dmc_prot_rw(io, DMC_PROT_VIO_0, 0, DMC_READ);
 		rw = 'w';
-	}
-	if (irqreg & DMC_READ_VIOLATION) {
+	} else if (irqreg & DMC_READ_VIOLATION) {
 		status = dmc_prot_rw(io, DMC_PROT_VIO_3, 0, DMC_READ);
 		addr  = (status >> 15) & 0x03;
 		addr  = (addr << 32ULL);
@@ -148,99 +144,38 @@ static void check_violation(struct dmc_monitor *mon, void *io)
 		rw = 'r';
 	}
 
+	/* clear irq */
+	if (dmc_mon->debug & DMC_DEBUG_SUSPEND)
+		irqreg &= ~0x04;
+	else
+		irqreg |= 0x04;		/* en */
+	dmc_prot_rw(io, DMC_PROT_IRQ_CTRL_STS, irqreg, DMC_WRITE);
+
 	if (!(status & (DMC_VIO_PROT_RANGE0 | DMC_VIO_PROT_RANGE1)))
 		return;
 
 	if (addr > mon->addr_end)
 		return;
 
-	/* ignore violation on same page/same port */
-	if ((addr & PAGE_MASK) == mon->last_addr &&
-	    status == mon->last_status) {
-		mon->same_page++;
-		if (mon->debug & DMC_DEBUG_CMA)
-			sprintf(title, "%s", "_SAME");
-		else
-			return;
-	}
-
-	/* ignore cma driver pages */
-	page = phys_to_page(addr);
-	trace = find_page_base(page);
-	if (trace && trace->migrate_type == MIGRATE_CMA) {
-		if (mon->debug & DMC_DEBUG_CMA)
-			sprintf(title, "%s", "_CMA");
-		else
-			return;
-	}
-
 	port = status & 0xff;
 	subport = (status >> 9) & 0xf;
 
-	if ((mon->debug & DMC_DEBUG_CMA) == 0) {
-		if (strstr(to_ports(port), "EMMC"))
-			return;
-		if (strstr(to_ports(port), "USB"))
-			return;
-		if (strstr(to_ports(port), "ETH"))
-			return;
+	if (dmc_violation_ignore(title, addr, status | DMC_VIO_PROT_RANGE0 | DMC_VIO_PROT_RANGE1,
+				 port, subport, rw))
+		return;
+
+#if IS_ENABLED(CONFIG_EVENT_TRACING)
+	if (mon->debug & DMC_DEBUG_TRACE) {
+		show_violation_mem_trace_event(addr, status, port, subport, rw);
+		return;
 	}
-
-	pr_emerg(DMC_TAG "%s, addr:%08lx, s:%08lx, ID:%s, sub:%s, c:%ld, d:%p, rw:%c\n",
-		 title, addr, status, to_ports(port),
-		 to_sub_ports_name(port, subport, id_str, rw),
-		 mon->same_page, io, rw);
-
-	if (rw == 'w')
-		show_violation_mem(addr);
-	mon->same_page   = 0;
-	mon->last_addr   = addr & PAGE_MASK;
-	mon->last_status = status;
-}
-
-static void __t7_dmc_mon_irq(struct dmc_monitor *mon, void *io)
-{
-	unsigned long value;
-
-	value = dmc_prot_rw(io, DMC_PROT_IRQ_CTRL_STS, 0, DMC_READ);
-	if (in_interrupt()) {
-		if (value & (DMC_WRITE_VIOLATION | DMC_READ_VIOLATION))
-			check_violation(mon, io);
-
-		/* check irq flags just after IRQ handler */
-		mod_delayed_work(system_wq, &mon->work, 0);
-	}
-	/* clear irq */
-	dmc_prot_rw(io, DMC_PROT_IRQ_CTRL_STS, value, DMC_WRITE);
+#endif
+	show_violation_mem_printk(title, addr, status, port, subport, rw);
 }
 
 static void t7_dmc_mon_irq(struct dmc_monitor *mon, void *io)
 {
-	int i;
-
-	if (io) {
-		__t7_dmc_mon_irq(mon, io);
-	} else {
-		for (i = 0; i < dmc_mon->mon_number; i++) {
-			switch (i) {
-			case 0:
-				io = dmc_mon->io_mem1;
-				break;
-			case 1:
-				io = dmc_mon->io_mem2;
-				break;
-			case 2:
-				io = dmc_mon->io_mem3;
-				break;
-			case 3:
-				io = dmc_mon->io_mem4;
-				break;
-			default:
-				break;
-			}
-			__t7_dmc_mon_irq(mon, io);
-		}
-	}
+	check_violation(mon, io);
 }
 
 static int t7_dmc_mon_set(struct dmc_monitor *mon)
@@ -258,6 +193,27 @@ static int t7_dmc_mon_set(struct dmc_monitor *mon)
 	end   = end >> PAGE_SHIFT;
 	dev1  = mon->device & 0xffffffff;
 	dev2  = mon->device >> 32;
+
+	for (i = 0; i < dmc_mon->mon_number; i++) {
+		switch (i) {
+		case 0:
+			io = dmc_mon->io_mem1;
+			break;
+		case 1:
+			io = dmc_mon->io_mem2;
+			break;
+		case 2:
+			io = dmc_mon->io_mem3;
+			break;
+		case 3:
+			io = dmc_mon->io_mem4;
+			break;
+		default:
+			break;
+		}
+		dmc_prot_rw(io, DMC_PROT_IRQ_CTRL_STS, 0x3, DMC_WRITE);
+	}
+
 	for (i = 0; i < dmc_mon->mon_number; i++) {
 		switch (i) {
 		case 0:
@@ -285,7 +241,7 @@ static int t7_dmc_mon_set(struct dmc_monitor *mon)
 		}
 
 		/* when set exclude, PROT1 can not be used */
-		if (dev2 && (dmc_mon->configs & POLICY_INCLUDE)) {
+		if (dev2 && (dmc_mon->debug & DMC_DEBUG_INCLUDE)) {
 			dmc_prot_rw(io, DMC_PROT1_STA, start, DMC_WRITE);
 			dmc_prot_rw(io, DMC_PROT1_EDA, end, DMC_WRITE);
 		} else {
@@ -300,7 +256,7 @@ static int t7_dmc_mon_set(struct dmc_monitor *mon)
 		if (dmc_mon->debug & DMC_DEBUG_READ)
 			val |= (1 << 26);
 
-		if (dmc_mon->configs & POLICY_INCLUDE)
+		if (dmc_mon->debug & DMC_DEBUG_INCLUDE)
 			val |= (1 << 8);
 		else
 			val &= ~(1 << 8);
@@ -314,13 +270,19 @@ static int t7_dmc_mon_set(struct dmc_monitor *mon)
 		}
 
 		/* when set exclude, PROT1 can not be used */
-		if (dev2 && (dmc_mon->configs & POLICY_INCLUDE)) {
+		if (dev2 && (dmc_mon->debug & DMC_DEBUG_INCLUDE)) {
 			dmc_prot_rw(io, DMC_PROT1_CTRL,  val,  DMC_WRITE);
 			dmc_prot_rw(io, DMC_PROT1_CTRL1, dev2, DMC_WRITE);
 		} else {
 			dmc_prot_rw(io, DMC_PROT1_CTRL,  0UL,  DMC_WRITE);
 			dmc_prot_rw(io, DMC_PROT1_CTRL1, 0UL, DMC_WRITE);
 		}
+
+		if (dmc_mon->debug & DMC_DEBUG_SUSPEND)
+			val = 0X3;
+		else
+			val = 0X7;
+		dmc_prot_rw(io, DMC_PROT_IRQ_CTRL_STS, val, DMC_WRITE);
 	}
 
 	pr_emerg("range:%08lx - %08lx, device:%16llx\n",
@@ -364,9 +326,102 @@ void t7_dmc_mon_disable(struct dmc_monitor *mon)
 	mon->device     = 0;
 }
 
+static int t7_reg_analysis(char *input, char *output)
+{
+	unsigned long status, vio_reg0, vio_reg1, vio_reg2, vio_reg3;
+	int port, subport, count = 0;
+	unsigned long addr;
+	char rw = 'n';
+
+	if (sscanf(input, "%lx %lx %lx %lx %lx",
+			 &status, &vio_reg0, &vio_reg1,
+			 &vio_reg2, &vio_reg3) != 5) {
+		pr_emerg("%s parma input error, buf:%s\n", __func__, input);
+		return 0;
+	}
+
+	if (status & 0x1) { /* read */
+		rw = 'r';
+		addr  = (vio_reg3 >> 15) & 0x03;
+		addr  = (addr << 32ULL);
+		addr |= vio_reg2;
+		port = vio_reg3 & 0xff;
+		subport = (vio_reg3 >> 9) & 0x7;
+		count += sprintf(output + count, "DMC READ:");
+		count += sprintf(output + count, "addr=%09lx port=%s sub=%s\n",
+				 addr, to_ports(port), to_sub_ports_name(port, subport, rw));
+	}
+
+	if (status & 0x2) { /* write */
+		rw = 'w';
+		addr  = (vio_reg1 >> 15) & 0x03;
+		addr  = (addr << 32ULL);
+		addr |= vio_reg0;
+		port = vio_reg1 & 0xff;
+		subport = (vio_reg1 >> 9) & 0x7;
+		count += sprintf(output + count, "DMC WRITE:");
+		count += sprintf(output + count, "addr=%09lx port=%s sub=%s\n",
+				 addr, to_ports(port), to_sub_ports_name(port, subport, rw));
+	}
+	return count;
+}
+
+static int t7_dmc_reg_control(char *input, char control, char *output)
+{
+	int s = 0, i, j;
+	unsigned long val, base;
+
+	switch (control) {
+	case 'a':	/* analysis sec vio reg */
+		s = t7_reg_analysis(input, output);
+		break;
+	case 'c':
+	case 'd':
+		for (j = 0; j < dmc_mon->mon_number; j++) {
+			switch (j) {
+			case 0:
+				base = 0xfe036000;
+				break;
+			case 1:
+				base = 0xfe034000;
+				break;
+			case 2:
+				base = 0xfe032000;
+				break;
+			case 3:
+				base = 0xfe030000;
+				break;
+			default:
+				break;
+			}
+
+			switch (control) {
+			case 'c':	/* clear sec statue reg */
+				dmc_rw(base + DMC_SEC_STATUS, 0x3, DMC_WRITE);
+				break;
+			case 'd':	/* dump sec vio reg */
+				s += sprintf(output + s, "DMC%d SEC INFO:\n", j);
+				val = dmc_rw(base + DMC_SEC_STATUS, 0, DMC_READ);
+				s += sprintf(output + s, "DMC_SEC_STATUS:%lx\n", val);
+				for (i = 0; i < 4; i++) {
+					val = dmc_rw(base + DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
+					s += sprintf(output + s, "DMC_VIO_ADDR%d:%lx\n", i, val);
+				}
+				break;
+			}
+		}
+		break;
+	default:
+		break;
+	}
+
+	return s;
+}
+
 struct dmc_mon_ops t7_dmc_mon_ops = {
 	.handle_irq = t7_dmc_mon_irq,
 	.set_monitor = t7_dmc_mon_set,
 	.disable    = t7_dmc_mon_disable,
 	.dump_reg   = t7_dmc_dump_reg,
+	.reg_control = t7_dmc_reg_control,
 };

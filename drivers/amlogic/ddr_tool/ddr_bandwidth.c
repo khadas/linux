@@ -82,7 +82,7 @@ static int dmc_pll_is_sec(struct ddr_bandwidth *db)
 
 static int dmc_dev_is_byte(struct ddr_bandwidth *db)
 {
-	if (db && (db->soc_feature & DMC_DEVICE_8BIT))
+	if (db && (db->soc_feature & DDR_DEVICE_8BIT))
 		return 1;
 	return 0;
 }
@@ -1018,7 +1018,7 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		band->ops            = &t7_ddr_bw_ops;
 		band->channels     = 8;
 		band->dmc_number   = 2;
-		band->soc_feature |= DMC_DEVICE_8BIT;
+		band->soc_feature |= DDR_DEVICE_8BIT;
 		band->mali_port[0] = 3; /* port3: mali */
 		band->mali_port[1] = 4;
 		break;
@@ -1026,7 +1026,7 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		band->ops            = &t7_ddr_bw_ops;
 		band->channels     = 8;
 		band->dmc_number   = 4;
-		band->soc_feature |= DMC_DEVICE_8BIT;
+		band->soc_feature |= DDR_DEVICE_8BIT;
 		band->soc_feature |= DDR_WIDTH_IS_16BIT;
 		band->mali_port[0] = 3; /* port3: mali */
 		band->mali_port[1] = 4;
@@ -1062,7 +1062,7 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		band->ops            = &s5_ddr_bw_ops;
 		band->channels     = 8;
 		band->dmc_number   = 4;
-		band->soc_feature |= DMC_DEVICE_8BIT;
+		band->soc_feature |= DDR_DEVICE_8BIT;
 		band->soc_feature |= DDR_WIDTH_IS_16BIT;
 		band->mali_port[0] = 4;
 		band->mali_port[1] = -1;

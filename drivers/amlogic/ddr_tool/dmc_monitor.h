@@ -6,6 +6,7 @@
 #ifndef __DMC_MONITOR_H__
 #define __DMC_MONITOR_H__
 
+#include "ddr_port.h"
 #define PROTECT_READ		BIT(0)
 #define PROTECT_WRITE		BIT(1)
 
@@ -14,10 +15,6 @@
 #define DMC_READ_VIOLATION	BIT(0)
 #define DMC_WRITE_VIOLATION	BIT(1)
 
-#define DMC_DEBUG_WRITE		BIT(0)
-#define DMC_DEBUG_READ		BIT(1)
-#define DMC_DEBUG_CMA		BIT(2)
-
 /*
  * Address is aligned to 64 KB
  */
@@ -25,15 +22,31 @@
 #define DMC_TAG			"DMC VIOLATION"
 
 /* for configs */
-#define DMC_DEVICE_8BIT		BIT(2)
-#define POLICY_INCLUDE		BIT(1)
+#define DMC_DEVICE_8BIT		BIT(0)
+
+/* for debug */
+#define DMC_DEBUG_WRITE		BIT(0)
+#define DMC_DEBUG_READ		BIT(1)
+#define DMC_DEBUG_CMA		BIT(2)
+#define DMC_DEBUG_SAME		BIT(3)
+#define DMC_DEBUG_INCLUDE	BIT(4)
+#define DMC_DEBUG_TRACE		BIT(5)
+#define DMC_DEBUG_SUSPEND	BIT(6)
+#define DMC_DEBUG_SERROR	BIT(7)
 
 struct dmc_monitor;
+
 struct dmc_mon_ops {
 	void (*handle_irq)(struct dmc_monitor *mon, void *data);
 	int  (*set_monitor)(struct dmc_monitor *mon);
 	void (*disable)(struct dmc_monitor *mon);
 	size_t (*dump_reg)(char *buf);
+	int (*reg_control)(char *input, char control, char *output);
+};
+
+struct black_dev_list {
+	unsigned int num;
+	unsigned char device[10][MAX_NAME];
 };
 
 struct dmc_monitor {
@@ -46,18 +59,17 @@ struct dmc_monitor {
 	unsigned long  addr_end;	/* monitor end address */
 	u64            device;		/* monitor device mask */
 	u32            mon_number;	/* monitor number */
-	u8             debug;		/* monitor debug */
+	u32             debug;		/* monitor debug */
 	unsigned short port_num;	/* how many devices? */
 	unsigned short vpu_port_num;	/* vpu sub number */
 	unsigned char  chip;		/* chip ID */
 	unsigned char  configs;		/* config for dmc */
 	unsigned long  last_addr;
-	unsigned long  same_page;
 	unsigned long  last_status;
+	unsigned int   last_trace;
 	struct ddr_port_desc *port;
 	struct vpu_sub_desc *vpu_port;
 	struct dmc_mon_ops   *ops;
-	struct delayed_work work;
 };
 
 void dmc_monitor_disable(void);
@@ -90,9 +102,13 @@ unsigned long dmc_prot_rw(void __iomem *base, unsigned long addr,
 			  unsigned long value, int rw);
 
 char *to_ports(int id);
-char *to_sub_ports_name(int mid, int sid, char *id_str, char rw);
-char *to_sub_ports(int mid, int sid, char *id_str);
-void show_violation_mem(unsigned long addr);
+char *to_sub_ports_name(int mid, int sid, char rw);
+int dmc_violation_ignore(char *title, unsigned long addr, unsigned long status,
+				int port, int subport, char rw);
+void show_violation_mem_printk(char *title, unsigned long addr, unsigned long status,
+				int port, int sub_port, char rw);
+void show_violation_mem_trace_event(unsigned long addr, unsigned long status,
+				    int port, int sub_port, char rw);
 
 extern struct dmc_monitor *dmc_mon;
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_GX

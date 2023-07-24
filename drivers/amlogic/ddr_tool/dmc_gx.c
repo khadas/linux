@@ -58,6 +58,7 @@ static size_t gx_dmc_dump_reg(char *buf)
 	sz += sprintf(buf + sz, "DMC_PROT1_RANGE:%lx\n", val);
 	val = dmc_prot_rw(NULL, DMC_PROT1_CTRL, 0, DMC_READ);
 	sz += sprintf(buf + sz, "DMC_PROT1_CTRL:%lx\n", val);
+
 	val = dmc_prot_rw(NULL, DMC_SEC_STATUS, 0, DMC_READ);
 	sz += sprintf(buf + sz, "DMC_SEC_STATUS:%lx\n", val);
 	for (i = 0; i < 8; i++) {
@@ -70,89 +71,57 @@ static size_t gx_dmc_dump_reg(char *buf)
 
 static void check_violation(struct dmc_monitor *mon, void *data)
 {
+	char rw = 'n';
 	int i, port, subport;
-	unsigned long addr = 0, status = 0, irqreg;
-	char id_str[MAX_NAME];
-	char title[10] = "";
-	struct page *page;
-	struct page_trace *trace;
+	unsigned long addr[2], status[2], irqreg;
+	char title[10];
 
-	for (i = 1; i < 4; i += 2) {
-		irqreg = dmc_prot_rw(NULL, DMC_SEC_STATUS, 0, DMC_READ);
-		if (irqreg & DMC_WRITE_VIOLATION) {
-			status = dmc_prot_rw(NULL, DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
-			addr = dmc_prot_rw(NULL, DMC_VIO_ADDR0 + ((i - 1) << 2), 0, DMC_READ);
-		}
-		if (irqreg & DMC_READ_VIOLATION) {
-			status = dmc_prot_rw(NULL, DMC_VIO_ADDR4 + (i << 2), 0, DMC_READ);
-			addr = dmc_prot_rw(NULL, DMC_VIO_ADDR4 + ((i - 1) << 2), 0, DMC_READ);
-		}
+	irqreg = dmc_prot_rw(NULL, DMC_SEC_STATUS, 0, DMC_READ);
+	if (irqreg & DMC_WRITE_VIOLATION) {
+		status[0] = dmc_prot_rw(NULL, DMC_VIO_ADDR0, 0, DMC_READ);
+		addr[0] = dmc_prot_rw(NULL, DMC_VIO_ADDR1, 0, DMC_READ);
+		status[1] = dmc_prot_rw(NULL, DMC_VIO_ADDR2, 0, DMC_READ);
+		addr[1] = dmc_prot_rw(NULL, DMC_VIO_ADDR3, 0, DMC_READ);
+		rw = 'w';
+	} else if (irqreg & DMC_READ_VIOLATION) {
+		status[0] = dmc_prot_rw(NULL, DMC_VIO_ADDR4, 0, DMC_READ);
+		addr[0] = dmc_prot_rw(NULL, DMC_VIO_ADDR5, 0, DMC_READ);
+		status[1] = dmc_prot_rw(NULL, DMC_VIO_ADDR6, 0, DMC_READ);
+		addr[1] = dmc_prot_rw(NULL, DMC_VIO_ADDR7, 0, DMC_READ);
+		rw = 'r';
+	}
 
-		if (!(status & DMC_VIO_PROT_RANGE0))
+	/* clear irq */
+	dmc_prot_rw(NULL, DMC_SEC_STATUS, irqreg, DMC_WRITE);
+
+	for (i = 0; i < 2; i++) {
+		if (!(status[i] & (DMC_VIO_PROT_RANGE0 | DMC_VIO_PROT_RANGE1)))
+			continue;
+		if (addr[i] > mon->addr_end)
 			continue;
 
-		if (addr > mon->addr_end)
+		port = (status[i] >> 10) & 0xf;
+		subport = (status[i] >> 6) & 0xf;
+
+		if (dmc_violation_ignore(title, addr[i],
+					 status[i] | DMC_VIO_PROT_RANGE0 | DMC_VIO_PROT_RANGE1,
+					 port, subport, rw))
 			continue;
 
-		/* ignore violation on same page/same port */
-		if ((addr & PAGE_MASK) == mon->last_addr &&
-		    status == mon->last_status) {
-			mon->same_page++;
-			if (mon->debug & DMC_DEBUG_CMA)
-				sprintf(title, "%s", "_SAME");
-			else
-				continue;
+	#if IS_ENABLED(CONFIG_EVENT_TRACING)
+		if (mon->debug & DMC_DEBUG_TRACE) {
+			show_violation_mem_trace_event(addr[i], status[i], port, subport, rw);
+			continue;
 		}
-		/* ignore cma driver pages */
-		page = phys_to_page(addr);
-		trace = find_page_base(page);
-		if (trace && trace->migrate_type == MIGRATE_CMA) {
-			if (mon->debug & DMC_DEBUG_CMA)
-				sprintf(title, "%s", "_CMA");
-			else
-				continue;
-		}
-
-		port = (status >> 10) & 0xf;
-		subport = (status >> 6) & 0xf;
-
-		if ((mon->debug & DMC_DEBUG_CMA) == 0) {
-			if (strstr(to_sub_ports(port, subport, id_str), "EMMC"))
-				continue;
-			if (strstr(to_sub_ports(port, subport, id_str), "USB"))
-				continue;
-			if (strstr(to_sub_ports(port, subport, id_str), "ETH"))
-				continue;
-		}
-
-		pr_emerg(DMC_TAG "%s, addr:%08lx, s:%08lx, ID:%s, sub:%s, c:%ld, d:%p\n",
-			 title, addr, status, to_ports(port),
-			 to_sub_ports(port, subport, id_str),
-			 mon->same_page, data);
-		show_violation_mem(addr);
-		if (!port) /* dump stack for CPU write */
-			dump_stack();
-
-		mon->same_page   = 0;
-		mon->last_addr   = addr & PAGE_MASK;
-		mon->last_status = status;
+	#endif
+		show_violation_mem_printk(title, addr[i], status[i], port, subport, rw);
 	}
 }
 
 static void gx_dmc_mon_irq(struct dmc_monitor *mon, void *data)
 {
-	unsigned long value;
 
-	value = dmc_prot_rw(NULL, DMC_SEC_STATUS, 0, DMC_READ);
-	if (in_interrupt()) {
-		if (value & DMC_WRITE_VIOLATION)
-			check_violation(mon, data);
-
-		/* check irq flags just after IRQ handler */
-		mod_delayed_work(system_wq, &mon->work, 0);
-	}
-	/* clear irq */
-	dmc_prot_rw(NULL, DMC_SEC_STATUS, value, DMC_WRITE);
+	check_violation(mon, data);
 }
 
 static int gx_dmc_mon_set(struct dmc_monitor *mon)
@@ -163,10 +132,18 @@ static int gx_dmc_mon_set(struct dmc_monitor *mon)
 	/* aligned to 64KB */
 	wb = mon->addr_start & 0x01;
 	end = ALIGN(mon->addr_end, DMC_ADDR_SIZE);
+
+	dmc_prot_rw(NULL, DMC_SEC_STATUS, 0x3, DMC_WRITE);
+
 	value = (mon->addr_start >> 16) | ((end >> 16) << 16);
 	dmc_prot_rw(NULL, DMC_PROT0_RANGE, value, DMC_WRITE);
 
-	value = (wb << 17) | (1 << 19) | mon->device;
+	value = (wb << 17) | mon->device;
+	if (dmc_mon->debug & DMC_DEBUG_WRITE)
+		value |= (1 << 19);
+	/* if set, will be crash when read access */
+	if (dmc_mon->debug & DMC_DEBUG_READ)
+		value |= (1 << 18);
 	dmc_prot_rw(NULL, DMC_PROT0_CTRL, value, DMC_WRITE);
 
 	pr_emerg("range:%08lx - %08lx, device:%llx\n",
@@ -183,9 +160,99 @@ void gx_dmc_mon_disable(struct dmc_monitor *mon)
 	mon->addr_end   = 0;
 }
 
+static int gx_reg_analysis(char *input, char *output)
+{
+	unsigned long status, vio_reg0, vio_reg1, vio_reg2, vio_reg3;
+	unsigned long vio_reg4, vio_reg5, vio_reg6, vio_reg7;
+	int port, subport, count = 0;
+	unsigned long addr;
+	char rw = 'n', offset = 20;
+
+	if (sscanf(input, "%lx %lx %lx %lx %lx %lx %lx %lx %lx",
+			 &status, &vio_reg0, &vio_reg1,
+			 &vio_reg2, &vio_reg3,
+			 &vio_reg4, &vio_reg5,
+			 &vio_reg6, &vio_reg7) != 9) {
+		pr_emerg("%s parma input error, buf:%s\n", __func__, input);
+		return 0;
+	}
+
+	if (status & 0x1) { /* read */
+		rw = 'r';
+		if (vio_reg5 & (0x7 << offset)) {
+			addr = vio_reg4;
+			port = (vio_reg5 >> 10) & 0xf;
+			subport = (vio_reg5 >> 6) & 0xf;
+			count += sprintf(output + count, "DMC READ:");
+			count += sprintf(output + count, "addr=%09lx port=%s sub=%s\n",
+				 addr, to_ports(port), to_sub_ports_name(port, subport, rw));
+		}
+		if (vio_reg7 & (0x7 << offset)) {
+			addr = vio_reg6;
+			port = (vio_reg7 >> 10) & 0xf;
+			subport = (vio_reg7 >> 6) & 0xf;
+			count += sprintf(output + count, "DMC READ:");
+			count += sprintf(output + count, "addr=%09lx port=%s sub=%s\n",
+				 addr, to_ports(port), to_sub_ports_name(port, subport, rw));
+		}
+	}
+
+	if (status & 0x2) { /* write */
+		rw = 'w';
+		if (vio_reg1 & (0x7 << offset)) {
+			addr = vio_reg0;
+			port = (vio_reg1 >> 10) & 0xf;
+			subport = (vio_reg1 >> 6) & 0xf;
+			count += sprintf(output + count, "DMC WRITE:");
+			count += sprintf(output + count, "addr=%09lx port=%s sub=%s\n",
+					 addr, to_ports(port),
+					 to_sub_ports_name(port, subport, rw));
+		}
+		if (vio_reg3 & (0x7 << offset)) {
+			addr = vio_reg2;
+			port = (vio_reg3 >> 10) & 0xf;
+			subport = (vio_reg3 >> 6) & 0xf;
+			count += sprintf(output + count, "DMC WRITE:");
+			count += sprintf(output + count, "addr=%09lx port=%s sub=%s\n",
+					 addr, to_ports(port),
+					 to_sub_ports_name(port, subport, rw));
+		}
+	}
+	return count;
+}
+
+static int gx_dmc_reg_control(char *input, char control, char *output)
+{
+	int count = 0, i;
+	unsigned long val;
+
+	switch (control) {
+	case 'a':	/* analysis sec vio reg */
+		count = gx_reg_analysis(input, output);
+		break;
+	case 'c':	/* clear sec statue reg */
+		dmc_prot_rw(NULL, DMC_SEC_STATUS, 0x3, DMC_WRITE);
+		break;
+	case 'd':	/* dump sec vio reg */
+		count += sprintf(output + count, "DMC SEC INFO:\n");
+		val = dmc_prot_rw(NULL, DMC_SEC_STATUS, 0, DMC_READ);
+		count += sprintf(output + count, "DMC_SEC_STATUS:%lx\n", val);
+		for (i = 0; i < 8; i++) {
+			val = dmc_prot_rw(NULL, DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
+			count += sprintf(output + count, "DMC_VIO_ADDR%d:%lx\n", i, val);
+		}
+		break;
+	default:
+		break;
+	}
+
+	return count;
+}
+
 struct dmc_mon_ops gx_dmc_mon_ops = {
 	.handle_irq = gx_dmc_mon_irq,
 	.set_monitor = gx_dmc_mon_set,
 	.disable    = gx_dmc_mon_disable,
 	.dump_reg   = gx_dmc_dump_reg,
+	.reg_control   = gx_dmc_reg_control,
 };

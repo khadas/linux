@@ -20,7 +20,7 @@
 
 /* for soc_feature */
 #define DDR_WIDTH_IS_16BIT	BIT(3)
-#define DMC_DEVICE_8BIT		BIT(2)
+#define DDR_DEVICE_8BIT		BIT(2)
 #define PLL_IS_SEC		BIT(1)
 
 #include "ddr_port.h"
