@@ -303,11 +303,11 @@
 	};
 
 	rtc{
-		compatible = "amlogic, aml_vrtc";
-		alarm_reg_addr = <0xff8000a8>;
-		timer_e_addr = <0xffd0f188>;
-		init_date = "2018/01/01";
+		compatible = "amlogic,meson-vrtc";
+		reg = <0xff8000a8 0x4>;	/*AO_DEBUG_REG2*/
 		status = "okay";
+		mboxes = <&mailbox 1>;
+		mbox_data_packet;
 	};
 
 	reboot {
