@@ -209,6 +209,7 @@ struct meson_host {
 	bool src_clk_cfg_done;
 	bool ctrl_pwr_flag;
 	struct dentry *debugfs_root;
+	struct clk *src_clk;
 };
 
 int sdio_reset_comm(struct mmc_card *card);
