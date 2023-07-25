@@ -2315,20 +2315,40 @@ static ssize_t dump_filter_show(struct class *class,
 				struct class_attribute *attr, char *buf)
 {
 	ssize_t size;
-	ssize_t size1;
 	struct aml_dvb *advb = aml_get_dvb_device();
 
 	if (mutex_lock_interruptible(&advb->mutex))
 		return -ERESTARTSYS;
 
 	size = ts_output_dump_info(buf);
-	size1 = dump_filter_ringbuffer(buf + size);
 
 	mutex_unlock(&advb->mutex);
-	return size + size1;
+	return size;
 }
 
 static ssize_t dump_filter_store(struct class *class,
+				 struct class_attribute *attr,
+				 const char *buf, size_t size)
+{
+	return size;
+}
+
+static ssize_t dump_ringbuffer_show(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	ssize_t size;
+	struct aml_dvb *advb = aml_get_dvb_device();
+
+	if (mutex_lock_interruptible(&advb->mutex))
+		return -ERESTARTSYS;
+
+	size = dump_filter_ringbuffer(buf);
+
+	mutex_unlock(&advb->mutex);
+	return size;
+}
+
+static ssize_t dump_ringbuffer_store(struct class *class,
 				 struct class_attribute *attr,
 				 const char *buf, size_t size)
 {
@@ -2597,6 +2617,7 @@ static CLASS_ATTR_RO(dump_av_level);
 static CLASS_ATTR_RW(cache_status);
 static CLASS_ATTR_RW(dump_ts);
 static CLASS_ATTR_RW(dmx_source);
+static CLASS_ATTR_RW(dump_ringbuffer);
 
 static struct attribute *aml_dmx_class_attrs[] = {
 #ifdef OPEN_REGISTER_NODE
@@ -2609,6 +2630,7 @@ static struct attribute *aml_dmx_class_attrs[] = {
 	&class_attr_cache_status.attr,
 	&class_attr_dump_ts.attr,
 	&class_attr_dmx_source.attr,
+	&class_attr_dump_ringbuffer.attr,
 	NULL
 };
 
