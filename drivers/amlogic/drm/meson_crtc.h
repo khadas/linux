@@ -26,6 +26,14 @@ enum {
 	HDMI_EOTF_MESON_DOLBYVISION_LL,
 };
 
+struct am_meson_crtc_present_fence {
+	u32 fd;
+	struct dma_fence *fence;
+	struct sync_file *sync_file;
+	/* lock to protect process context and interrupt context */
+	spinlock_t lock;
+};
+
 struct am_meson_crtc_state {
 	struct drm_crtc_state base;
 
@@ -82,6 +90,9 @@ struct am_meson_crtc {
 	int dump_index;
 	char osddump_path[64];
 
+	/*present fence*/
+	struct am_meson_crtc_present_fence present_fence;
+
 	int vpp_crc_enable;
 	/*forced to detect crc several times after bootup.*/
 	int force_crc_chk;
@@ -99,6 +110,8 @@ struct am_meson_crtc {
 
 struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv,
 	int idx);
+int meson_crtc_creat_present_fence_ioctl(struct drm_device *dev,
+			void *data, struct drm_file *file_priv);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 void set_amdv_policy(int policy);

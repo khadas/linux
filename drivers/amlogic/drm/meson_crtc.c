@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
+#include <linux/sync_file.h>
 
 #include "meson_crtc.h"
 #include "meson_vpu_pipeline.h"
@@ -147,6 +148,95 @@ static void meson_crtc_reset(struct drm_crtc *crtc)
 	crtc->state->crtc = crtc;
 
 	meson_crtc_init_hdr_preference(meson_crtc_state);
+}
+
+static const char *meson_crtc_fence_get_driver_name(struct dma_fence *fence)
+{
+	return "meson";
+}
+
+static const char *meson_crtc_fence_get_timeline_name(struct dma_fence *fence)
+{
+	return "present_fence";
+}
+
+static const struct dma_fence_ops meson_crtc_fence_ops = {
+	.get_driver_name = meson_crtc_fence_get_driver_name,
+	.get_timeline_name = meson_crtc_fence_get_timeline_name,
+};
+
+struct dma_fence *meson_crtc_create_fence(spinlock_t *lock)
+{
+	struct dma_fence *fence;
+
+	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	if (!fence)
+		return NULL;
+
+	dma_fence_init(fence, &meson_crtc_fence_ops, lock,
+		       0, 0);
+
+	return fence;
+}
+
+int meson_crtc_creat_present_fence_ioctl(struct drm_device *dev,
+			void *data, struct drm_file *file_priv)
+{
+	struct drm_meson_present_fence *arg = data;
+	struct am_meson_crtc_present_fence *pre_fence;
+	struct am_meson_crtc *amcrtc;
+	struct drm_crtc *crtc;
+	struct dma_fence *fence;
+	struct sync_file *sync_file;
+	int fd, ret;
+
+	if (arg->crtc_idx >= dev->num_crtcs)
+		return -EINVAL;
+
+	crtc = drm_crtc_from_index(dev, arg->crtc_idx);
+	if (!crtc)
+		return -EINVAL;
+
+	amcrtc = to_am_meson_crtc(crtc);
+	pre_fence = &amcrtc->present_fence;
+
+	if (pre_fence->fence) {
+		DRM_DEBUG("fence already created, return!");
+		return -EEXIST;
+	}
+
+	fence = meson_crtc_create_fence(&pre_fence->lock);
+	if (!fence)
+		return -ENOMEM;
+
+	fd = get_unused_fd_flags(O_CLOEXEC);
+	if (fd < 0) {
+		ret = fd;
+		goto err_put_fence;
+	}
+
+	sync_file = sync_file_create(fence);
+	//dma_fence_put(fence);
+	if (!sync_file) {
+		ret = -ENOMEM;
+		goto err_put_fd;
+	}
+
+	fd_install(fd, sync_file->file);
+	arg->fd = fd;
+	pre_fence->fd = fd;
+	pre_fence->fence = fence;
+	pre_fence->sync_file = sync_file;
+	DRM_DEBUG("%s fd=%d, fence=%px\n", __func__,
+		pre_fence->fd, pre_fence->fence);
+
+	return 0;
+
+err_put_fd:
+	put_unused_fd(fd);
+err_put_fence:
+	dma_fence_put(fence);
+	return ret;
 }
 
 static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
@@ -832,6 +922,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	amcrtc->get_scanout_position = meson_crtc_get_scanout_position;
 	amcrtc->force_crc_chk = 8;
 	atomic_set(&amcrtc->commit_num, 0);
+	spin_lock_init(&amcrtc->present_fence.lock);
 	meson_crtc_init_property(priv->drm, amcrtc);
 	meson_crtc_init_hdmi_eotf_property(priv->drm, amcrtc);
 	meson_crtc_init_dv_enable_property(priv->drm, amcrtc);

@@ -17,6 +17,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/dma-contiguous.h>
 #include <linux/cma.h>
+#include <linux/sync_file.h>
 #ifdef CONFIG_DRM_MESON_USE_ION
 #include <ion/ion_private.h>
 #endif
@@ -112,6 +113,19 @@ static void meson_drm_handle_vpp_crc(struct am_meson_crtc *amcrtc)
 	}
 }
 
+static void meson_drm_signal_present_fence(struct am_meson_crtc *amcrtc)
+{
+	struct am_meson_crtc_present_fence *pre_fence = &amcrtc->present_fence;
+
+	if (pre_fence->fence) {
+		DRM_DEBUG("%s fd=%d, fence=%px\n", __func__,
+			pre_fence->fd, pre_fence->fence);
+		dma_fence_signal(pre_fence->fence);
+		dma_fence_put(pre_fence->fence);
+		pre_fence->fence = NULL;
+	}
+}
+
 void am_meson_crtc_handle_vsync(struct am_meson_crtc *amcrtc)
 {
 	unsigned long flags;
@@ -127,6 +141,7 @@ void am_meson_crtc_handle_vsync(struct am_meson_crtc *amcrtc)
 	}
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 
+	meson_drm_signal_present_fence(amcrtc);
 	meson_drm_handle_vpp_crc(amcrtc);
 }
 

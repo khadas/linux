@@ -53,6 +53,11 @@ struct drm_meson_fbdev_rect {
 	__u32 mask;
 };
 
+struct drm_meson_present_fence {
+	__u32 crtc_idx;
+	__u32 fd;
+};
+
 /*Memory related.*/
 #define DRM_IOCTL_MESON_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + \
 		0x00, struct drm_meson_gem_create)
@@ -66,5 +71,9 @@ struct drm_meson_fbdev_rect {
 /*hdmitx relatde*/
 #define DRM_IOCTL_MESON_TESTATTR DRM_IOWR(DRM_COMMAND_BASE + \
 		0x11, struct drm_mode_test_attr)
+
+/*present fence*/
+#define DRM_IOCTL_MESON_CREAT_PRESENT_FENCE	DRM_IOWR(DRM_COMMAND_BASE + \
+		0x20, struct drm_meson_present_fence)
 
 #endif /* _MESON_DRM_H */
