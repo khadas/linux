@@ -1210,24 +1210,24 @@
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
 		status = "okay";
-		//clocks = <&clkc CLKID_U_PARSER
-		//	&clkc CLKID_DEMUX
-		//	&clkc CLKID_AHB_ARB0
-		//	&clkc CLKID_CLK81
-		//	&clkc CLKID_DOS
-		//	&clkc CLKID_VDEC_MUX
-		//	&clkc CLKID_HCODEC_MUX
-		//	&clkc CLKID_HEVC_MUX
-		//	&clkc CLKID_HEVCF_MUX>;
-		//clock-names = "parser_top",
-		//	"demux",
-		//	"ahbarb0",
-		//	"clk_81",
-		//	"vdec",
-		//	"clk_vdec_mux",
-		//	"clk_hcodec_mux",
-		//	"clk_hevc_mux",
-		//	"clk_hevcb_mux";
+		clocks = <&clkc CLKID_CLK81_U_PARSER
+			&clkc CLKID_CLK81_DEMUX
+			&clkc CLKID_CLK81_AHB_ARB0
+			&clkc CLKID_CLK81
+			&clkc CLKID_CLK81_DOS
+			&clkc CLKID_VDEC
+			&clkc CLKID_HCODEC
+			&clkc CLKID_HEVC
+			&clkc CLKID_HEVCF>;
+		clock-names = "parser_top",
+			"demux",
+			"ahbarb0",
+			"clk_81",
+			"vdec",
+			"clk_vdec_mux",
+			"clk_hcodec_mux",
+			"clk_hevc_mux",
+			"clk_hevcb_mux";
 	};
 
 	vcodec-dec {
@@ -1250,6 +1250,10 @@
 			"mailbox_0",
 			"mailbox_1",
 			"mailbox_2";
+	};
+
+	cpu_ver_name {
+		compatible = "amlogic, cpu-major-id-tl1";
 	};
 
 	canvas: canvas {
