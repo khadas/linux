@@ -76,6 +76,7 @@ static int ad82128_hw_params(struct snd_pcm_substream *substream,
 	unsigned int rate = params_rate(params);
 	bool ssz_ds;
 	int ret;
+
 	switch (rate) {
 	case 44100:
 	case 48000:
@@ -281,6 +282,7 @@ static int ad82128_mute_locked_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+#ifdef DEBUG_AD82128_SDZ
 static void ad82128_fault_check_work(struct work_struct *work)
 {
 	struct ad82128_data *ad82128 = container_of(work, struct ad82128_data,
@@ -340,6 +342,7 @@ out:
 	schedule_delayed_work(&ad82128->fault_check_work,
 		msecs_to_jiffies(AD82128_FAULT_CHECK_INTERVAL));
 }
+#endif
 
 static void ad82128_init_func(struct work_struct *p_work)
 {
@@ -415,7 +418,11 @@ static void ad82128_init_func(struct work_struct *p_work)
 
 	/* Set device to unmute */
 	ad82128_mute(component, 0);
+
+#ifdef DEBUG_AD82128_SDZ
 	INIT_DELAYED_WORK(&ad82128->fault_check_work, ad82128_fault_check_work);
+#endif
+
 	ad82128->init_done = 1;
 	return;
 error_snd_soc_component_update_bits:
@@ -447,7 +454,9 @@ static void ad82128_codec_remove(struct snd_soc_component *component)
 	struct ad82128_data *ad82128 = snd_soc_component_get_drvdata(component);
 	int ret;
 
+#ifdef DEBUG_AD82128_SDZ
 	cancel_delayed_work_sync(&ad82128->fault_check_work);
+#endif
 
 	ret = regulator_bulk_disable(ARRAY_SIZE(ad82128->supplies),
 		ad82128->supplies);
@@ -481,12 +490,17 @@ static int ad82128_dac_event(struct snd_soc_dapm_widget *w,
 			ad82128_mute(component, 0);
 		/* Turn on AD82128 periodic fault checking/handling */
 		ad82128->last_fault = 0xFE;
+
+#ifdef DEBUG_AD82128_SDZ
 		schedule_delayed_work(&ad82128->fault_check_work,
 			msecs_to_jiffies(AD82128_FAULT_CHECK_INTERVAL));
+#endif
 	} else if (event & SND_SOC_DAPM_PRE_PMD) {
 		/* Disable AD82128 periodic fault checking/handling */
-		cancel_delayed_work_sync(&ad82128->fault_check_work);
 
+#ifdef DEBUG_AD82128_SDZ
+		cancel_delayed_work_sync(&ad82128->fault_check_work);
+#endif
 		/* Place AD82128 in shutdown mode to minimize current draw */
 		if (!ad82128->mute)
 			ad82128_mute(component, 1);
@@ -563,6 +577,7 @@ static int ad82128_resume(struct snd_soc_component *component)
 		return ret;
 	}
 	ad82128_mute(component, ad82128->mute);
+	pr_info("%s(), mute = %d\n", __func__, ad82128->mute);
 
 	return 0;
 }
@@ -641,6 +656,31 @@ static const struct snd_kcontrol_new ad82128_snd_controls[] = {
 	},
 };
 
+static int ad82128_trigger(struct snd_pcm_substream *substream, int cmd,
+			       struct snd_soc_dai *codec_dai)
+{
+	struct ad82128_data *ad82128 = snd_soc_dai_get_drvdata(codec_dai);
+	struct snd_soc_component *component = ad82128->component;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		switch (cmd) {
+		case SNDRV_PCM_TRIGGER_START:
+		case SNDRV_PCM_TRIGGER_RESUME:
+		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+			if (!ad82128->mute)
+				ad82128_mute(component, 0);
+			break;
+		case SNDRV_PCM_TRIGGER_STOP:
+		case SNDRV_PCM_TRIGGER_SUSPEND:
+		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+			if (!ad82128->mute)
+				ad82128_mute(component, 1);
+			break;
+		}
+	}
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget ad82128_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("DAC IN", "Playback", 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_NOPM, 0, 0, ad82128_dac_event,
@@ -680,9 +720,28 @@ static const struct snd_soc_component_driver soc_component_dev_ad82128 = {
 	SNDRV_PCM_FMTBIT_S24_LE | \
 	SNDRV_PCM_FMTBIT_S32_LE)
 
+static int ad82128_mute_stream
+		(struct snd_soc_dai *dai, int mute,
+		int stream)
+{
+	struct snd_soc_component *component = dai->component;
+	struct ad82128_data *ad82128 = snd_soc_component_get_drvdata(component);
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (mute)
+			ad82128_mute(component, 1);
+		else if (!mute && !ad82128->mute)
+			ad82128_mute(component, 0);
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops ad82128_speaker_dai_ops = {
 	.hw_params = ad82128_hw_params,
 	.set_fmt = ad82128_set_dai_fmt,
+	.mute_stream = ad82128_mute_stream,
+	.trigger = ad82128_trigger,
 };
 
 /*
@@ -738,6 +797,7 @@ static int ad82128_probe(struct i2c_client *client,
 	int ret;
 	int i;
 
+	pr_info("%s(), Start!\n", __func__);
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
