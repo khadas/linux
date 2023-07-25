@@ -395,19 +395,8 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	mutex_unlock(&hdev->hdmimode_mutex);
 }
 
-static int hdmitx_is_hdmi_vmode(char *mode_name)
-{
-	enum hdmi_vic vic = hdmitx21_edid_vic_tab_map_vic(mode_name);
-
-	if (vic == HDMI_0_UNKNOWN)
-		return 0;
-
-	return 1;
-}
-
 static void hdmitx_late_resume(struct early_suspend *h)
 {
-	const struct vinfo_s *info = hdmitx_get_current_vinfo(NULL);
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)h->param;
 
 	if (hdev->aon_output) {
@@ -416,8 +405,6 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	}
 
 	mutex_lock(&hdev->hdmimode_mutex);
-	if (info && info->name && (hdmitx_is_hdmi_vmode(info->name) == 1))
-		hdev->hwop.cntlmisc(hdev, MISC_HPLL_FAKE, 0);
 
 	hdev->hpd_lock = 0;
 
