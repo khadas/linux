@@ -1285,6 +1285,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	devp->dv.chg_cnt = 0;
 	devp->prop.hdr_info.hdr_check_cnt = 0;
 	devp->vrr_data.vrr_chg_cnt = 0;
+	devp->sg_chg_fps_cnt = 0;
 	devp->vrr_data.cur_spd_data5 = devp->prop.spd_data.data[5];
 	devp->last_wr_vfe = NULL;
 	irq_max_count = 0;
@@ -2818,16 +2819,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	if (sm_ops && sm_ops->get_sig_property) {
 		if (vdin_get_prop_in_vs_en) {
 			sm_ops->get_sig_property(devp->frontend, &devp->prop);
-			/* 100 to 120 rx not change need to send event */
-			if (!devp->game_mode && IS_HDMI_SRC(devp->parm.port) &&
-			    devp->dtdata->hw_ver >= VDIN_HW_T7) {
-				if (devp->duration == DURATION_VALUE_120_FPS)
-					devp->prop.fps = 120;
-				if (devp->duration == DURATION_VALUE_100_FPS)
-					devp->prop.fps = 100;
-				if (devp->duration == DURATION_VALUE_23_97_FPS)
-					devp->prop.fps = FPS_23_97_SET_TO_23;
-			}
+			vdin_get_base_fr(devp);
 			if (vdin_isr_monitor & VDIN_ISR_MONITOR_VRR_DATA)
 				pr_info("vdin vrr_en:%d spd:%d %d\n",
 					devp->prop.vtem_data.vrr_en,

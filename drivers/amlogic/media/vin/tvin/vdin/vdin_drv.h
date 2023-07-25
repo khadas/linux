@@ -143,7 +143,8 @@
 /* 20230526: 2560x1440 set bit to 8 */
 /* 20230608: vdin not clear ratio_control value */
 /* 20230710: bc302 filter unstable vsync and add debug */
-#define VDIN_VER "20230710: bc302 filter unstable vsync and add debug"
+/* 20230725: notify fps change event when not game mode */
+#define VDIN_VER "20230725: notify fps change event when not game mode"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -963,6 +964,7 @@ struct vdin_dev_s {
 
 	/*signal change counter*/
 	unsigned int sg_chg_afd_cnt;
+	unsigned int sg_chg_fps_cnt;
 
 	unsigned int matrix_pattern_mode;
 	unsigned int pause_num;

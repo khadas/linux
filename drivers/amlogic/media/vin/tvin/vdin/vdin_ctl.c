@@ -45,6 +45,7 @@
 #include "vdin_afbce.h"
 #include "vdin_dv.h"
 #include "vdin_hw.h"
+#include "../hdmirx/hdmi_rx_drv_ext.h"
 
 #define VDIN_V_SHRINK_H_LIMIT 1280
 #define TVIN_MAX_PIX_CLK 20000
@@ -5996,6 +5997,12 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 		else
 			devp->sg_chg_afd_cnt = 0;
 
+		/*hdmi source fps check*/
+		if (devp->prop.fps && devp->pre_prop.fps != devp->prop.fps)
+			devp->sg_chg_fps_cnt++;
+		else
+			devp->sg_chg_fps_cnt = 0;
+
 		if (devp->vrr_data.vdin_vrr_en_flag != devp->prop.vtem_data.vrr_en ||
 			vdin_check_spd_data_chg(devp))
 			devp->vrr_data.vrr_chg_cnt++;
@@ -6637,4 +6644,48 @@ void vdin_bist(struct vdin_dev_s *devp, unsigned int mode)
 {
 	if (is_meson_s5_cpu())
 		vdin_bist_s5(devp, mode);
+}
+
+/* get base or maxmun value when vrr or freesync
+ * return:
+ * = 0:get correct base framerate from vrr/freesync
+ * < 0:no correct base framerate from vrr/freesync
+ */
+int vdin_get_base_fr(struct vdin_dev_s *devp)
+{
+	u32 fps = 0;
+	int ret = -1;
+
+	if (!IS_HDMI_SRC(devp->parm.port))
+		return ret;
+
+	if (devp->prop.vtem_data.vrr_en) { /* vrr */
+		if (devp->prop.hw_vic != 0) {
+		#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+			fps = hdmirx_get_base_fps(devp->prop.hw_vic);
+		#endif
+		} else {
+			fps = devp->prop.vtem_data.base_framerate;
+		}
+	} else if (vdin_check_is_spd_data(devp) &&
+		(devp->prop.spd_data.data[5] >> 1 & 0x7)) { /* FreeSync */
+		/* FreeSync Maximum refresh rate (Hz) */
+		fps = devp->prop.spd_data.data[7];
+	}
+
+	if (fps) {
+		/* upper get this value prevent frequent changes */
+		if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
+			devp->parm.info.fps = fps;
+		devp->prop.fps = fps;
+		ret = 0;
+	}
+
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_RATIO)
+		pr_info("%s vrr_en:%d,vic=%d,base_fr=%d,spd[5]:%#x,spd[7]:%#x,fps:%d,%d\n",
+			__func__, devp->prop.vtem_data.vrr_en, devp->prop.hw_vic,
+			devp->prop.vtem_data.base_framerate, devp->prop.spd_data.data[5],
+			devp->prop.spd_data.data[7], devp->parm.info.fps, devp->prop.fps);
+
+	return ret;
 }

@@ -33,7 +33,6 @@
 #include "vdin_sm.h"
 #include "vdin_ctl.h"
 #include "vdin_drv.h"
-#include "../hdmirx/hdmi_rx_drv_ext.h"
 
 /* Stay in TVIN_SIG_STATE_NOSIG for some
  * cycles => be sure TVIN_SIG_STATE_NOSIG
@@ -190,60 +189,6 @@ enum tvin_color_fmt_range_e
 			fmt_range = TVIN_RGB_FULL;
 	}
 	return fmt_range;
-}
-
-/*
- * return:
- * = 0:get correct base framerate from vrr/freesync
- * < 0:no correct base framerate from vrr/freesync
- */
-int vdin_get_base_fr(struct vdin_dev_s *devp)
-{
-	u32 fps = 0;
-	int ret = -1;
-
-	if (!IS_HDMI_SRC(devp->parm.port))
-		return ret;
-
-	if (devp->prop.vtem_data.vrr_en) { /* vrr */
-		if (devp->prop.hw_vic != 0) {
-		#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
-			fps = hdmirx_get_base_fps(devp->prop.hw_vic);
-		#endif
-		} else {
-			fps = devp->prop.vtem_data.base_framerate;
-		}
-	} else if (vdin_check_is_spd_data(devp) &&
-		(devp->prop.spd_data.data[5] >> 1 & 0x7)) { /* FreeSync */
-		/* FreeSync Maximum refresh rate (Hz) */
-		fps = devp->prop.spd_data.data[7];
-	}
-
-	if (fps) {
-		devp->parm.info.fps = fps;
-		ret = 0;
-	}
-
-	if (sm_debug_enable & VDIN_SM_LOG_L_6)
-		pr_info("%s vrr_en:%d,vic=%d,base_fr=%d,spd[5]:%#x,spd[7]:%#x,fps:%d\n",
-			__func__, devp->prop.vtem_data.vrr_en, devp->prop.hw_vic,
-			devp->prop.vtem_data.base_framerate, devp->prop.spd_data.data[5],
-			devp->prop.spd_data.data[7], devp->parm.info.fps);
-
-	return ret;
-}
-
-static bool vdin_check_fps_change(struct vdin_dev_s *devp)
-{
-	bool is_freesync = vdin_check_is_spd_data(devp) &&
-		devp->prop.spd_data.data[5] >> 1 & 0x7;
-	if (devp->pre_prop.fps != devp->prop.fps) {
-		if (devp->prop.vtem_data.vrr_en || is_freesync)
-			return false;
-		else
-			return true;
-	}
-	return false;
 }
 
 void vdin_update_prop(struct vdin_dev_s *devp)
@@ -420,13 +365,16 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			}
 		}
 
-		if (vdin_check_fps_change(devp)) {
-			signal_chg |= TVIN_SIG_CHG_VS_FRQ;
-			pr_info("%s fps chg:(0x%x->0x%x)\n", __func__,
-				devp->pre_prop.fps,
-				devp->prop.fps);
-			devp->pre_prop.fps = devp->prop.fps;
-			devp->parm.info.fps = devp->prop.fps;
+		if (devp->pre_prop.fps != devp->prop.fps &&
+		    IS_HDMI_SRC(devp->parm.port)) {
+			if (devp->sg_chg_fps_cnt > 3) {
+				devp->sg_chg_fps_cnt = 0;
+				signal_chg |= TVIN_SIG_CHG_VS_FRQ;
+				pr_info("%s fps chg:(0x%x->0x%x)\n", __func__,
+					devp->pre_prop.fps, devp->prop.fps);
+				devp->pre_prop.fps = devp->prop.fps;
+				devp->parm.info.fps = devp->prop.fps;
+			}
 		}
 
 		if (devp->pre_prop.aspect_ratio !=
