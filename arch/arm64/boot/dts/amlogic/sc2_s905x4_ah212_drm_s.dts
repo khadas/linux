@@ -819,7 +819,7 @@
 		compatible = "amlogic,aw9523b_led";
 		reg = <0x5b>;
 		status = "okay";
-		reset-gpio = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
+		// reset-gpio = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
 		platform = <4>;
 
 		led3 {

@@ -155,7 +155,7 @@ struct meson_aw9523 *aw9523;
 
 static int aw9523_i2c_write(struct meson_aw9523 *aw9523,
 				unsigned char reg_addr,  unsigned char reg_data);
-static int aw9523_hw_reset(struct meson_aw9523 *aw9523);
+static int aw9523_reset(struct meson_aw9523 *aw9523);
 
 static int *all_data[32] = {0};//[2+16*N]: N command,each command consists of 16 bits
 static int length_data[32] = {0};
@@ -276,7 +276,7 @@ static void meson_aw9523_set_colors(unsigned int *colors, unsigned int counts)
 
 static void init_leds_config(void)
 {
-	aw9523_hw_reset(aw9523);
+	aw9523_reset(aw9523);
 	//aw9523_i2c_write(aw9523, 0x7F, 0x00);//0x7F  SW_RSTN
 	/*0x12 P0 mode, <0x00: all PWM mode> */
 	aw9523_i2c_write(aw9523, 0x12, 0x00);
@@ -392,24 +392,19 @@ static int aw9523_parse_dt(struct device *dev, struct meson_aw9523 *aw9523,
 	int ret;
 
 	aw9523->reset_gpio = of_get_named_gpio(np, "reset-gpio", 0);
-	if (aw9523->reset_gpio < 0) {
-		dev_err(dev, "%s: no reset gpio provided, will not HW reset device\n", __func__);
-		return -1;
-	}
 	if (gpio_is_valid(aw9523->reset_gpio)) {
 		ret = devm_gpio_request(dev, aw9523->reset_gpio, "reset-gpio");
 		if (ret) {
 			dev_err(dev, "failed to request gpio\n");
 			return ret;
 		}
+		gpio_direction_output(aw9523->reset_gpio, 1);
 	}
-	dev_info(dev, "%s: reset gpio provided ok\n", __func__);
-	gpio_direction_output(aw9523->reset_gpio, 1);
 
 	return 0;
 }
 
-static int aw9523_hw_reset(struct meson_aw9523 *aw9523)
+static int aw9523_reset(struct meson_aw9523 *aw9523)
 {
 	if (gpio_is_valid(aw9523->reset_gpio)) {
 		gpio_set_value_cansleep(aw9523->reset_gpio, 0);
@@ -417,22 +412,22 @@ static int aw9523_hw_reset(struct meson_aw9523 *aw9523)
 		gpio_set_value_cansleep(aw9523->reset_gpio, 1);
 		msleep(20);
 	} else {
-		//aw9523_i2c_write(aw9523, 0x7F, 0x00);   //0x7F  SW_RSTN
-		dev_err(aw9523->dev, "%s:  failed\n", __func__);
+		aw9523_i2c_write(aw9523, 0x7F, 0x00);   //0x7F  SW_RSTN
+		// dev_err(aw9523->dev, "%s:  failed\n", __func__);
 	}
 
 	return 0;
 }
 
-static int aw9523_hw_off(struct meson_aw9523 *aw9523)
+static int aw9523_off(struct meson_aw9523 *aw9523)
 {
 	pr_info("Tiger]%s enter,Line:%d\n", __func__, __LINE__);
 	if (gpio_is_valid(aw9523->reset_gpio)) {
 		gpio_set_value_cansleep(aw9523->reset_gpio, 0);
 		msleep(20);
 	} else {
-		//aw9523_i2c_write(aw9523, 0x7F, 0x00);   //0x7F  SW_RSTN
-		dev_err(aw9523->dev, "%s:  failed\n", __func__);
+		aw9523_i2c_write(aw9523, 0x7F, 0x00);   //0x7F  SW_RSTN
+		// dev_err(aw9523->dev, "%s:  failed\n", __func__);
 	}
 
 	return 0;
@@ -534,13 +529,13 @@ static ssize_t hwen_store(struct device *dev, struct device_attribute *attr,
 
 	if (kstrtoint(buf, 16, &databuf[0]) == 0) {
 		if (databuf[0] == 1)
-			aw9523_hw_reset(aw9523);
+			aw9523_reset(aw9523);
 		else if (databuf[0] == 2)//sw-reset
 			aw9523_i2c_write(aw9523, 0x7F, 0x00);//0x7F  SW_RSTN
 		else if (databuf[0] == 3)//sw-init
 			init_leds_data();
 		else
-			aw9523_hw_off(aw9523);
+			aw9523_off(aw9523);
 		hwen_id = databuf[0];
 	}
 
@@ -965,7 +960,7 @@ static int aw9523_i2c_remove(struct i2c_client *i2c)
 	sysfs_remove_group(&aw9523->cdev.dev->kobj,
 			&aw9523_attribute_group);
 	led_classdev_unregister(&aw9523->cdev);
-	aw9523_hw_reset(aw9523);
+	aw9523_reset(aw9523);
 	cancel_work_sync(&aw9523->leds_work);
 	destroy_workqueue(aw9523->leds_wq);
 
