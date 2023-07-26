@@ -10,6 +10,7 @@ Required properties:
 
  - compatible: should be one of the following.
    - "rockchip,rk3368-mbox" for rk3368
+   - "rockchip,rk3576-mbox" for rk3576
  - reg: physical base address of the controller and length of memory mapped
 	region.
  - interrupts: The interrupt number to the cpu. The interrupt specifier format
@@ -21,6 +22,8 @@ Optional properties :
 
  - wakeup-source: Mailbox irq can be used as a wakeup source.
  - rockchip,txpoll-period-ms: TX Done polling interval in milliseconds.
+ - rockchip,enable-cmd-trigger: Enable write cmd register to trigger interrupt.
+	This is only support from rockchip,rk3576-mbox.
 
 Example:
 --------
