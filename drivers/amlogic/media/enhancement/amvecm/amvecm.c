@@ -2672,6 +2672,10 @@ static int parse_aipq_ofst_table(int *table_ptr,
 	for (i = 0; i < height; i++)
 		memcpy(vpp_pq_data[i], table_ptr + (i * width), size);
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+		update_aipq_data();
+#endif
+
 	return 0;
 }
 

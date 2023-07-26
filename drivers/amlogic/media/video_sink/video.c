@@ -21355,6 +21355,18 @@ static int amvideom_probe(struct platform_device *pdev)
 	return ret;
 }
 
+void update_aipq_data(void)
+{
+	int i, j;
+
+	for (i = 0; i < AI_SCENES_MAX; i++) {
+		vpp_scenes[i].pq_scenes = (enum ai_scenes)i;
+		for (j = 0; j < SCENES_VALUE; j++)
+			vpp_scenes[i].pq_values[j] = vpp_pq_data[i][j];
+	}
+}
+EXPORT_SYMBOL_GPL(update_aipq_data);
+
 static int amvideom_remove(struct platform_device *pdev)
 {
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
