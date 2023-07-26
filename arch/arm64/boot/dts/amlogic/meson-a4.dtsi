@@ -1433,12 +1433,13 @@
 				<&clkc CLKID_SD_EMMC_A_CLK_SEL>,
 				 <&clkc CLKID_SD_EMMC_A_CLK>,
 				 <&xtal>,
-				 <&clkc CLKID_FCLK_DIV2>;
+				 <&clkc CLKID_GP0_PLL>;
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1";
 			mmc_debug_flag;
 			sdr_core_phase = <3>;
 			use_intf3_tuning;
+			src_clk_rate = <1152000000>;
 			//resets = <&reset RESET_SD_EMMC_A>;
 		};
 
