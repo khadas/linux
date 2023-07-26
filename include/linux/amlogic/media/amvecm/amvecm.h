@@ -187,9 +187,6 @@ void amdv_set_toggle_flag(int flag);
 #define CSC_FLAG_CHECK_OUTPUT	2
 #define CSC_FLAG_FORCE_SIGNAL	4
 
-#define _DI_	'D'
-
-#define AMDI_IOC_SET_PQ_PARM  _IOW(_DI_, 0x51, struct am_pq_parm_s)
 //48-56hz gm_tb[1][3]
 //57-64hz gm_tb[2][3]
 //65-72hz gm_tb[3][3]
@@ -303,19 +300,6 @@ struct ve_pq_overscan_s {
 	unsigned int he;
 	unsigned int vs;
 	unsigned int ve;
-};
-
-struct am_pq_parm_s {
-	unsigned int table_name;
-	unsigned int table_len;
-	union {
-	void *table_ptr;
-	long long l_table;
-	};
-	union {
-	void *reserved;
-	long long l_reserved;
-	};
 };
 
 extern struct ve_pq_overscan_s overscan_table[TIMING_MAX];

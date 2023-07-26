@@ -39,6 +39,7 @@
 #define MAX_SOURCE      10
 
 #define _VE_CM  'C'
+#define _DI_	'D'
 
 /* Register table structure */
 struct am_reg_s {
@@ -163,6 +164,19 @@ struct ve_pq_load_s {
 	union {
 	void *reserved;
 	long long reserved_len;
+	};
+};
+
+struct am_pq_parm_s {
+	unsigned int table_name;
+	unsigned int table_len;
+	union {
+	void *table_ptr;
+	long long l_table;
+	};
+	union {
+	void *reserved;
+	long long l_reserved;
 	};
 };
 
@@ -549,6 +563,7 @@ struct ve_ble_whe_param_s {
 #define AMVECM_IOC_3D_SYNC_EN			_IO(_VE_CM, 0x49)
 #define AMVECM_IOC_GAMMA_SET			_IOW(_VE_CM, 0X4a, struct gm_tbl_s)
 #define AMVECM_IOC_3D_SYNC_DIS			_IO(_VE_CM, 0x50)
+#define AMDI_IOC_SET_PQ_PARM			_IOW(_DI_, 0x51, struct am_pq_parm_s)
 #define AMVECM_IOC_SET_OVERSCAN			_IOW(_VE_CM, 0x52, struct ve_pq_load_s)
 /*DNLP IOCTL command list*/
 #define AMVECM_IOC_G_DNLP_STATE			_IOR(_VE_CM, 0x53, enum dnlp_state_e)
