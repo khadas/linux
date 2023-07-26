@@ -994,6 +994,126 @@
 		status = "okay";
 	};
 
+	v_12v: fixed@v_12v {
+		compatible = "regulator-fixed";
+		regulator-name = "v_12v";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		regulator-always-on;
+	};
+
+	vddq_reg: fixed@vddq_reg{
+		compatible = "regulator-fixed";
+		vin-supply = <&v_12v>;
+		regulator-name = "VDDQ1.5V";
+		regulator-min-microvolt = <1350000>;
+		regulator-max-microvolt = <1350000>;
+		gpio = <&gpio_ao GPIO_TEST_N GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vcc5v_reg: fixed@v_5v_reg{
+		compatible = "regulator-fixed";
+		vin-supply = <&v_12v>;
+		regulator-name = "VCC5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio_ao GPIOAO_3 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	usb5v_reg: fixed@usb5v_reg{
+		compatible = "regulator-fixed";
+		vin-supply = <&vcc5v_reg>;
+		regulator-name = "USB5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		//regulator-always-on;
+	};
+
+	wifi5v_reg: fixed@wifi5v_reg{
+		compatible = "regulator-fixed";
+		vin-supply = <&vcc5v_reg>;
+		regulator-name = "WIFI_5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		//regulator-always-on;
+	};
+
+	vddao3v3_reg: fixed@vddao3v3_reg{
+		vin-supply = <&v_12v>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDDAO_3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddao1v8_reg: fixed@vddao1v8_reg{
+		compatible = "regulator-fixed";
+		vin-supply = <&vddao3v3_reg>;
+		regulator-name = "VDDAO_1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		//regulator-always-on;
+	};
+
+	vad3v3_reg: fixed@vad3v3_reg{
+		compatible = "regulator-fixed";
+		vin-supply = <&vddao3v3_reg>;
+		regulator-name = "VAD_3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		// GPIOE_2 JUST for vddcpu at X301
+		gpio = <&gpio_ao GPIOE_2 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	afe1v8_reg: fixed@afe1v8_reg{
+		compatible = "regulator-fixed";
+		vin-supply = <&vad3v3_reg>;
+		regulator-name = "AFE_1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		//regulator-always-on;
+	};
+
+	vddio3v3_reg: fixed@vddio3v3_reg{
+		compatible = "regulator-fixed";
+		vin-supply = <&vddao3v3_reg>;
+		regulator-name = "VDDIO_3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio_ao GPIOAO_2 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	emmc1v8_reg: fixed@emmc1v8_reg{
+		compatible = "regulator-fixed";
+		vin-supply = <&vddio3v3_reg>;
+		regulator-name = "EMMC_1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		//regulator-always-on;
+	};
+
 	atv-demod {
 		compatible = "amlogic, atv-demod";
 		status = "okay";
