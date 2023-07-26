@@ -11229,7 +11229,7 @@ static const struct vecm_match_data_s vecm_dt_xxx = {
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+//#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct vecm_match_data_s vecm_dt_tl1 = {
 	.chip_id = chip_other,
 	.chip_cls = TV_CHIP,
@@ -11240,7 +11240,6 @@ static const struct vecm_match_data_s vecm_dt_tl1 = {
 	.vlk_phlock_en = true,
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 };
-#endif
 
 static const struct vecm_match_data_s vecm_dt_sm1 = {
 	.chip_id = chip_other,
@@ -11362,12 +11361,12 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 		.compatible = "amlogic, vecm",
 		.data = &vecm_dt_xxx,
 	},
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+//#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, vecm-tl1",
 		.data = &vecm_dt_tl1,
 	},
-#endif
+//#endif
 	{
 		.compatible = "amlogic, vecm-sm1",
 		.data = &vecm_dt_sm1,
@@ -11904,7 +11903,7 @@ int __init aml_vecm_init(void)
 {
 	/*unsigned int hiu_reg_base;*/
 
-	pr_info("%s:module init\n", __func__);
+	pr_info("%s:module init 20230726\n", __func__);
 
 	if (platform_driver_register(&aml_vecm_driver)) {
 		pr_err("failed to register bl driver module\n");
