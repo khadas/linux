@@ -884,32 +884,32 @@
 		 */
 		term_lvl = <0x11>;
 		interrupts = <0 41 IRQ_TYPE_LEVEL_HIGH>;
-//		clocks = <&clkc CLKID_HDMIRX_MODET_COMP>,
-//			   <&clkc CLKID_HDMIRX_CFG_COMP>,
-//			   <&clkc CLKID_HDMIRX_ACR_COMP>,
-//			   <&clkc CLKID_HDMIRX_METER_COMP>,
-//			   <&clkc CLKID_HDMIRX_AXI_COMP>,
-//			   <&xtal>,
-//			   <&clkc CLKID_FCLK_DIV5>,
-//			   <&clkc CLKID_FCLK_DIV7>,
-//			   <&clkc CLKID_HDCP22_SKP_COMP>,
-//			   <&clkc CLKID_HDCP22_ESM_COMP>;
-//		//	   <&clkc CLK_AUD_PLL2FS>,
-//		//	   <&clkc CLK_AUD_PLL4FS>,
-//		//	   <&clkc CLK_AUD_OUT>;
-//		clock-names = "hdmirx_modet_clk",
-//			"hdmirx_cfg_clk",
-//				"hdmirx_acr_ref_clk",
-//				"cts_hdmirx_meter_clk",
-//				"cts_hdmi_axi_clk",
-//				"xtal",
-//				"fclk_div5",
-//				"fclk_div7",
-//				"hdcp_rx22_skp",
-//				"hdcp_rx22_esm";
-//		//		"hdmirx_aud_pll2fs",
-//		//		"hdmirx_aud_pll4f",
-//		//		"clk_aud_out";
+		clocks = <&clkc CLKID_HDMIRX_CFG_GATE>,
+			   <&clkc CLKID_HDMIRX_CFG_DIV>,
+			   <&clkc CLKID_HDMIRX_MODET_DIV>,
+			   <&clkc CLKID_HDMIRX_MODET_MUX>,
+			   <&clkc CLKID_HDMIRX_ACR_DIV>,
+			   <&xtal>,
+			   <&clkc CLKID_FCLK_DIV3_DIV>,
+			   <&clkc CLKID_FCLK_DIV4_DIV>,
+			   <&clkc CLKID_HDMIRX_MODET_GATE>,
+			   <&clkc CLKID_HDMIRX_ACR_MUX>;
+		//	   <&clkc CLK_AUD_PLL2FS>,
+		//	   <&clkc CLK_AUD_PLL4FS>,
+		//	   <&clkc CLK_AUD_OUT>;
+		clock-names = "hdmirx_modet_clk",
+			"hdmirx_cfg_clk",
+				"hdmirx_acr_ref_clk",
+				"cts_hdmirx_meter_clk",
+				"cts_hdmi_axi_clk",
+				"xtal",
+				"fclk_div5",
+				"fclk_div7",
+				"hdcp_rx22_skp",
+				"hdcp_rx22_esm";
+		//		"hdmirx_aud_pll2fs",
+		//		"hdmirx_aud_pll4f",
+		//		"clk_aud_out";
 		hdmirx_id = <0>;
 		en_4k_2_2k = <0>;
 		hpd_low_cec_off = <1>;
