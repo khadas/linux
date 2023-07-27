@@ -145,6 +145,42 @@ static int rfkill_rk_setup_gpio(struct platform_device *pdev,
 	return 0;
 }
 
+/**
+ * @brief: Init bluetooth device
+ * @param {platform_device} *pdev
+ * @param {rfkill_rk_platform_data} *pdata
+ * @param {rfkill_rk_data} *rfkill
+ * @return {NULL}
+ */
+#if 1
+static void bt_device_init(struct platform_device *pdev, struct rfkill_rk_platform_data *pdata, struct rfkill_rk_data *rfkill)
+{
+	int ret = 1;
+	ret = rfkill_rk_setup_gpio(pdev, &pdata->poweron_gpio, pdata->name,
+				   "poweron");
+	if (ret)
+		goto fail_gpio;
+
+	ret = rfkill_rk_setup_gpio(pdev, &pdata->reset_gpio, pdata->name,
+				   "reset");
+	if (ret)
+		goto fail_gpio;
+
+	ret = rfkill_rk_setup_gpio(pdev, &pdata->wake_gpio, pdata->name,
+				   "wake");
+	if (ret)
+		goto fail_gpio;
+
+	ret = rfkill_rk_setup_gpio(pdev, &pdata->rts_gpio, rfkill->pdata->name,
+				   "rts");
+	if (ret)
+		goto fail_gpio;
+
+	return ;
+fail_gpio:
+	g_rfkill = NULL;
+}
+#endif
 static int rfkill_rk_setup_wake_irq(struct rfkill_rk_data *rfkill, int flag)
 {
 	int ret = 0;
@@ -275,14 +311,103 @@ int rfkill_get_bt_power_state(int *power, bool *toggle)
 	return 0;
 }
 
+/**
+ * @brief: turn off bluetooth device
+ * @param {rfkill_rk_platform_data} *pdata
+ * @return { }
+ */
+static void bt_device_off(struct rfkill_rk_platform_data *pdata)
+{
+	if (pdata->power_down_disable == 0)
+	{
+		if (gpio_is_valid(pdata->poweron_gpio.io)) 
+		{
+			gpio_direction_output(pdata->poweron_gpio.io,
+					      !pdata->poweron_gpio.enable);
+			msleep(20);
+		}
+		if (gpio_is_valid(pdata->reset_gpio.io)) 
+		{
+			gpio_direction_output(pdata->reset_gpio.io,
+					      !pdata->reset_gpio.enable);
+			msleep(20);
+		}
+	}
+	else 
+	{
+		if (gpio_is_valid(pdata->poweron_gpio.io)) 
+		{
+			gpio_direction_output(pdata->poweron_gpio.io,
+					      !pdata->poweron_gpio.enable);
+			msleep(20);
+		}
+	}
+	return ;
+}
+
+/**
+ * @brief: turn on bluetooth device
+ * @param {rfkill_rk_platform_data} *pdata
+ * @return { }
+ */
+static void bt_device_on(struct rfkill_rk_platform_data *pdata)
+{
+	struct rfkill_rk_gpio *wake_host = &pdata->wake_host_irq.gpio;
+	struct rfkill_rk_gpio *poweron = &pdata->poweron_gpio;
+	struct rfkill_rk_gpio *reset = &pdata->reset_gpio;
+	struct rfkill_rk_gpio *rts = &pdata->rts_gpio;
+	struct pinctrl *pinctrl = pdata->pinctrl;
+	if (gpio_is_valid(wake_host->io)) 
+	{
+		LOG("%s: set bt wake_host high!\n", __func__);
+		gpio_direction_output(wake_host->io, 1);
+		msleep(20);
+	}
+
+	if (gpio_is_valid(poweron->io)) 
+	{
+		if (gpio_get_value(poweron->io) == !poweron->enable) 
+		{
+			gpio_direction_output(poweron->io, !poweron->enable);
+			msleep(20);
+			gpio_direction_output(poweron->io, poweron->enable);
+			msleep(20);
+			if (gpio_is_valid(wake_host->io))
+				gpio_direction_input(wake_host->io);
+		}
+	}
+	if (gpio_is_valid(reset->io)) 
+	{
+		if (gpio_get_value(reset->io) == !reset->enable) 
+		{
+			gpio_direction_output(reset->io, !reset->enable);
+			msleep(20);
+			gpio_direction_output(reset->io, reset->enable);
+		}
+	}
+
+	if (gpio_is_valid(wake_host->io)) {
+		LOG("%s: set bt wake_host input!\n", __func__);
+		gpio_direction_input(wake_host->io);
+	}
+	
+	if (pinctrl && gpio_is_valid(rts->io)) 
+	{
+		pinctrl_select_state(pinctrl, rts->gpio_state);
+		LOG("ENABLE UART_RTS\n");
+		gpio_direction_output(rts->io, rts->enable);
+		msleep(100);
+		LOG("DISABLE UART_RTS\n");
+		gpio_direction_output(rts->io, !rts->enable);
+		pinctrl_select_state(pinctrl, rts->default_state);
+	}
+
+	return ;
+}
+
 static int rfkill_rk_set_power(void *data, bool blocked)
 {
 	struct rfkill_rk_data *rfkill = data;
-	struct rfkill_rk_gpio *wake_host = &rfkill->pdata->wake_host_irq.gpio;
-	struct rfkill_rk_gpio *poweron = &rfkill->pdata->poweron_gpio;
-	struct rfkill_rk_gpio *reset = &rfkill->pdata->reset_gpio;
-	struct rfkill_rk_gpio *rts = &rfkill->pdata->rts_gpio;
-	struct pinctrl *pinctrl = rfkill->pdata->pinctrl;
 	int wifi_power = 0;
 	bool toggle = false;
 
@@ -307,70 +432,18 @@ static int rfkill_rk_set_power(void *data, bool blocked)
 			msleep(100);
 		}
 
+
 		rfkill_rk_sleep_bt(BT_WAKEUP); // ensure bt is wakeup
-
-		if (gpio_is_valid(wake_host->io)) {
-			LOG("%s: set bt wake_host high!\n", __func__);
-			gpio_direction_output(wake_host->io, 1);
-			msleep(20);
-		}
-
-		if (gpio_is_valid(poweron->io)) {
-			if (gpio_get_value(poweron->io) == !poweron->enable) {
-				gpio_direction_output(poweron->io,
-						      !poweron->enable);
-				msleep(20);
-				gpio_direction_output(poweron->io,
-						      poweron->enable);
-				msleep(20);
-			}
-		}
-
-		if (gpio_is_valid(reset->io)) {
-			if (gpio_get_value(reset->io) == !reset->enable) {
-				gpio_direction_output(reset->io,
-						      !reset->enable);
-				msleep(20);
-				gpio_direction_output(reset->io, reset->enable);
-			}
-		}
-
-		if (gpio_is_valid(wake_host->io)) {
-			LOG("%s: set bt wake_host input!\n", __func__);
-			gpio_direction_input(wake_host->io);
-		}
-
-		if (pinctrl && gpio_is_valid(rts->io)) {
-			pinctrl_select_state(pinctrl, rts->gpio_state);
-			LOG("ENABLE UART_RTS\n");
-			gpio_direction_output(rts->io, rts->enable);
-			msleep(100);
-			LOG("DISABLE UART_RTS\n");
-			gpio_direction_output(rts->io, !rts->enable);
-			pinctrl_select_state(pinctrl, rts->default_state);
-		}
+		bt_device_on(rfkill->pdata);
+		rfkill_rk_setup_wake_irq(rfkill, 1);
 
 		bt_power_state = 1;
 		LOG("bt turn on power\n");
-		rfkill_rk_setup_wake_irq(rfkill, 1);
 	} else {
-		if (gpio_is_valid(poweron->io)) {
-			if (gpio_get_value(poweron->io) == poweron->enable) {
-				gpio_direction_output(poweron->io,
-						      !poweron->enable);
-				msleep(20);
-			}
-		}
-
+		bt_device_off(rfkill->pdata);
 		bt_power_state = 0;
 		LOG("bt shut off power\n");
-		if (gpio_is_valid(reset->io)) {
-			if (gpio_get_value(reset->io) == reset->enable) {
-				gpio_direction_output(reset->io,
-						      !reset->enable);
-				msleep(20);
-			}
-		}
+
 		if (toggle) {
 			if (!wifi_power) {
 				LOG("%s: bt will set vbat to low\n", __func__);
@@ -598,12 +671,14 @@ static const struct proc_ops bluesleep_btwrite = {
 	.proc_write = bluesleep_write_proc_btwrite,
 };
 
+
 static int rfkill_rk_probe(struct platform_device *pdev)
 {
 	struct rfkill_rk_data *rfkill;
 	struct rfkill_rk_platform_data *pdata = pdev->dev.platform_data;
 	int ret = 0;
 	struct proc_dir_entry *ent;
+
 
 	DBG("Enter %s\n", __func__);
 
@@ -666,25 +741,8 @@ static int rfkill_rk_probe(struct platform_device *pdev)
 
 	DBG("init gpio\n");
 
-	ret = rfkill_rk_setup_gpio(pdev, &pdata->poweron_gpio, pdata->name,
-				   "poweron");
-	if (ret)
-		goto fail_gpio;
-
-	ret = rfkill_rk_setup_gpio(pdev, &pdata->reset_gpio, pdata->name,
-				   "reset");
-	if (ret)
-		goto fail_gpio;
-
-	ret = rfkill_rk_setup_gpio(pdev, &pdata->wake_gpio, pdata->name,
-				   "wake");
-	if (ret)
-		goto fail_gpio;
-
-	ret = rfkill_rk_setup_gpio(pdev, &pdata->rts_gpio, rfkill->pdata->name,
-				   "rts");
-	if (ret)
-		goto fail_gpio;
+	bt_device_init(pdev, pdata, rfkill);
+	LOG("init ok\n");
 
 	wake_lock_init(&rfkill->bt_irq_wl, WAKE_LOCK_SUSPEND,
 		       "rfkill_rk_irq_wl");
@@ -709,17 +767,21 @@ static int rfkill_rk_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&rfkill->bt_sleep_delay_work,
 			  rfkill_rk_delay_sleep_bt);
 
-	//rfkill_rk_set_power(rfkill, BT_BLOCKED);
-	// bt turn off power
-	if (gpio_is_valid(pdata->poweron_gpio.io)) {
-		gpio_direction_output(pdata->poweron_gpio.io,
-				      !pdata->poweron_gpio.enable);
+	ret = of_property_read_u32(pdev->dev.of_node, "power_down_disable", &pdata->power_down_disable);
+	if (ret == 0)
+	{
+		if (pdata->power_down_disable == 1)
+		{
+			pdata->power_down_disable = 0;
+			bt_device_off(pdata);
+			pdata->power_down_disable = 1;
+		}
 	}
-	if (gpio_is_valid(pdata->reset_gpio.io)) {
-		gpio_direction_output(pdata->reset_gpio.io,
-				      !pdata->reset_gpio.enable);
+	else
+	{
+		pdata->power_down_disable = 0;
+		bt_device_off(pdata);
 	}
-
 	platform_set_drvdata(pdev, rfkill);
 
 	LOG("%s device registered.\n", pdata->name);
@@ -728,15 +790,14 @@ static int rfkill_rk_probe(struct platform_device *pdev)
 
 fail_rfkill:
 	rfkill_destroy(rfkill->rfkill_dev);
-fail_alloc:
 
+fail_alloc:
 	remove_proc_entry("btwrite", sleep_dir);
 	remove_proc_entry("lpm", sleep_dir);
+
 fail_setup_wake_irq:
 	wake_lock_destroy(&rfkill->bt_irq_wl);
-fail_gpio:
 
-	g_rfkill = NULL;
 	return ret;
 }
 
