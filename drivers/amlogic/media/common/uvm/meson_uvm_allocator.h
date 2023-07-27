@@ -86,6 +86,13 @@ struct uvm_pid_data {
 	int pid;
 };
 
+/*get video info from uvm vframe */
+struct uvm_fd_info {
+	int fd;
+	int type;
+	u64 timestamp;
+};
+
 struct uvm_fd_data {
 	int fd;
 	int data;
@@ -113,6 +120,7 @@ union uvm_ioctl_arg {
 	struct uvm_alloc_data alloc_data;
 	struct uvm_pid_data pid_data;
 	struct uvm_fd_data fd_data;
+	struct uvm_fd_info fd_info;
 	struct uvm_usage_data usage_data;
 	struct uvm_meta_data meta_data;
 	struct uvm_hook_data hook_data;
@@ -141,8 +149,8 @@ union uvm_ioctl_arg {
 				struct uvm_usage_data)
 #define UVM_IOC_GET_USAGE _IOWR(UVM_IOC_MAGIC, 10, \
 				struct uvm_usage_data)
-#define UVM_IOC_GET_TYPE _IOWR(UVM_IOC_MAGIC, 11, \
-				struct uvm_fd_data)
+#define UVM_IOC_GET_VIDEO_INFO _IOWR(UVM_IOC_MAGIC, 11, \
+				struct uvm_fd_info)
 
 #endif
 

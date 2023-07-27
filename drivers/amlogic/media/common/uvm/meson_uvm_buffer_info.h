@@ -19,6 +19,6 @@ enum uvm_video_type {
 	AM_VIDEO_8K          = 0x100,
 };
 
-int get_uvm_video_type(int fd);
+int get_uvm_video_info(const int fd, int *videotype, u64 *timestamp);
 
 #endif

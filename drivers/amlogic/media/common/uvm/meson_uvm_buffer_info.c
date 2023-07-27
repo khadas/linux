@@ -132,7 +132,7 @@ exit_ret:
 	return p_vf;
 }
 
-int get_uvm_video_type(const int fd)
+int get_uvm_video_info(const int fd, int *videotype, u64 *timestamp)
 {
 	struct dma_buf *dmabuf;
 	struct vframe_s *vfp;
@@ -178,11 +178,11 @@ int get_uvm_video_type(const int fd)
 
 	type |= get_resolution_vframe(vfp);
 
+	*videotype = (int)type;
+	*timestamp = vfp->timestamp;
+
 exit_ret:
 	dma_buf_put(dmabuf);
 
-	if (ret < 0)
-		return ret;
-	else
-		return (int)type;
+	return ret;
 }
