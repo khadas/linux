@@ -144,7 +144,8 @@
 /* 20230608: vdin not clear ratio_control value */
 /* 20230710: bc302 filter unstable vsync and add debug */
 /* 20230725: notify fps change event when not game mode */
-#define VDIN_VER "20230725: notify fps change event when not game mode"
+/* 20230727: drop the first frame for vdin1 */
+#define VDIN_VER "20230727: drop the first frame for vdin1"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
