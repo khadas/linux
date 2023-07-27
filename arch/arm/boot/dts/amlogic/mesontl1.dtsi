@@ -1292,7 +1292,7 @@
 	};
 
 	meson_fb: fb {
-		compatible = "amlogic, meson-tl1";
+		compatible = "amlogic, fb-tl1";
 		memory-region = <&logo_reserved>;
 		status = "disabled";
 		interrupts = <0 3 1
@@ -1348,7 +1348,7 @@
 
 	vout: vout {
 		compatible = "amlogic, vout";
-		status = "disabled";
+		status = "okay";
 
 		fr_policy = <0>;
 	};
