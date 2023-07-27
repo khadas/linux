@@ -11736,7 +11736,22 @@ void dim_get_vpu_clkb(struct device *dev, struct di_dev_s *pdev)
 
 unsigned int dim_get_vpu_clk_ext(void)
 {
+	struct di_dev_s  *de_devp = get_dim_de_devp();
+
+	if (IS_ERR_OR_NULL(de_devp))
+		return 0;
 	return get_dim_de_devp()->clkb_max_rate;
+}
+
+bool dim_pre_link_state(void)
+{
+	struct di_dev_s  *de_devp = get_dim_de_devp();
+
+	if (IS_ERR_OR_NULL(de_devp))
+		return false;
+	if (DIM_IS_IC_BF(SC2))
+		return false;
+	return (cfgg(EN_PRE_LINK) && IS_IC_SUPPORT(PRE_VPP_LINK));
 }
 
 module_param_named(invert_top_bot, invert_top_bot, int, 0664);

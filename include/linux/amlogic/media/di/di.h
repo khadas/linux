@@ -29,6 +29,8 @@ void dil_set_diff_ver_flag(unsigned int para);
 
 unsigned int dim_get_vpuclkb_ext(void);
 
+bool dim_get_pre_link(void);
+
 struct reg_acc {
 	void (*wr)(unsigned int adr, unsigned int val);
 	unsigned int (*rd)(unsigned int adr);

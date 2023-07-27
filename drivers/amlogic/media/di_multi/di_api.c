@@ -47,7 +47,8 @@ static const struct di_ext_ops di_ext = {
 	.pre_vpp_link_check_act = dpvpp_check_di_act,
 	.pre_vpp_link_sw	= dpvpp_sw,
 	.pre_vpp_get_ins_id	= dpvpp_get_ins_id,
-	.get_vpu_clkb_ext	= dim_get_vpu_clk_ext
+	.get_vpu_clkb_ext	= dim_get_vpu_clk_ext,
+	.is_pre_link		= dim_pre_link_state
 };
 
 void dim_attach_to_local(void)

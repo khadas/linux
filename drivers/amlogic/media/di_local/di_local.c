@@ -336,6 +336,14 @@ unsigned int dim_get_vpuclkb_ext(void)
 }
 EXPORT_SYMBOL(dim_get_vpuclkb_ext);
 
+bool dim_get_pre_link(void)
+{
+	if (dil_api && dil_api->is_pre_link)
+		return dil_api->is_pre_link();
+	return 0;
+}
+EXPORT_SYMBOL(dim_get_pre_link);
+
 int di_s_bypass_ch(int index, bool on)
 {
 	if (dil_api && dil_api->s_bypass_ch)

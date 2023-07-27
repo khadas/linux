@@ -775,6 +775,7 @@ void dim_rdma_exit(void);
 void dim_set_di_flag(void);
 void dim_get_vpu_clkb(struct device *dev, struct di_dev_s *pdev);
 unsigned int dim_get_vpu_clk_ext(void);
+bool dim_pre_link_state(void);
 void dim_log_buffer_state(unsigned char *tag, unsigned int channel);
 
 unsigned char dim_pre_de_buf_config(unsigned int channel);
