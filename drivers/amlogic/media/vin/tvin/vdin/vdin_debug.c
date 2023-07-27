@@ -37,6 +37,10 @@
 #ifdef CONFIG_AMLOGIC_PIXEL_PROBE
 #include <linux/amlogic/pixel_probe.h>
 #endif
+#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
+#include <linux/amlogic/dmc_dev_access.h>
+#endif
+
 /* Local Headers */
 #include "../tvin_format_table.h"
 #include "vdin_drv.h"
@@ -1271,9 +1275,10 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	/*			i, (devp->vf_mem_start[i] + devp->vf_mem_size -*/
 	/*			dolby_size_byte), dolby_size_byte);*/
 
-	for (i = 0; i < devp->canvas_max_num; i++)
-		pr_info("dv_mem(%d):0x%x\n",
-			devp->vfp->dv_buf_size[i], devp->vfp->dv_buf_mem[i]);
+	for (i = 0; i < devp->canvas_max_num; i++) {
+		pr_info("dv_mem(%d):0x%x;mem_handle:%p\n", devp->vfp->dv_buf_size[i],
+			devp->vfp->dv_buf_mem[i], devp->vf_codec_mem[i]);
+	}
 
 	pr_info("dvEn:%d,dv_flag:%d;dv_config:%d,dolby_ver:%d,low_latency:(%d,%d,%d) allm:%d\n",
 		is_amdv_enable(),
@@ -2993,7 +2998,7 @@ start_chk:
 			pr_err("miss parameters .\n");
 		} else if (kstrtoul(parm[1], 0, &val) == 0) {
 			devp->dbg_force_one_buffer = val;
-			pr_info("dbg_force_one_buffer(%d):%d\n\n", devp->index,
+			pr_info("vdin%d,dbg_force_one_buffer(%d)\n\n", devp->index,
 				devp->dbg_force_one_buffer);
 		}
 	} else if (!strcmp(parm[0], "no_wr_check")) {
@@ -3603,6 +3608,15 @@ start_chk:
 	} else if (!strcmp(parm[0], "set_unstable_sig")) {
 		devp->parm.info.status = TVIN_SIG_STATUS_UNSTABLE;
 		devp->frame_drop_num = 8;
+	} else if (!strcmp(parm[0], "vdin_dmc_notifier")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &devp->debug.dbg_device_id) == 0)) {
+			pr_info("vdin%d,vdin_dmc_notifier,device_id:%d\n", devp->index,
+				devp->debug.dbg_device_id);
+			vdin_reg_dmc_notifier(devp->index);
+		} else {
+			pr_info("vdin%d,vdin_unreg_dmc_notifier\n", devp->index);
+			vdin_unreg_dmc_notifier(devp->index);
+		}
 	} else {
 		pr_info("unknown command:%s\n", parm[0]);
 	}
@@ -3953,6 +3967,7 @@ static void vdin_dump_sct_state(struct vdin_dev_s *devp)
 		pr_info("[%d],index:%d,sct_stat:%d,status:%d,cur_page_cnt:%d\n",
 			i, vfe->vf.index, vfe->sct_stat, vfe->status,
 			devp->msct_top.sct_stat[i].cur_page_cnt);
+		pr_info("mem_handle[%d]:%p\n", i, vfe->vf.mem_handle);
 	}
 	pr_info("max_buf_mum:%d,mmu number:%d,total pages vf:%d,size:%ld KB\n",
 		devp->msct_top.max_buf_num, devp->msct_top.mmu_4k_number,
@@ -4376,4 +4391,120 @@ void vdin_dump_frames(struct vdin_dev_s *devp)
 		}
 	}
 }
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
+#define DEV0_NAME "VPU0"
+static char vdin_id;
+static unsigned long addr, size;
+
+static unsigned int vdin_idx;
+enum vdin_dmc_device_id_e {
+	VDIN_DMC_DEVICE_META = 0,
+	VDIN_DMC_DEVICE_AFBCE,
+	VDIN_DMC_DEVICE_WRMIF,
+	VDIN_DMC_DEVICE_MAX,
+};
+
+static int vdin_dmc_meta(struct vdin_dev_s *devp)
+{
+	pr_info("%s,%d;vdin%d\n", __func__, __LINE__, devp->index);
+	devp->dv.meta_data_raw_p_buffer0 = addr;
+	vdin_wrmif2_addr_update(devp);
+
+	return 0;
+}
+
+static int vdin_dmc_afbce(struct vdin_dev_s *devp)
+{
+	pr_info("%s,%d;vdin%d\n", __func__, __LINE__, devp->index);
+	if (devp->afbce_info && devp->afbce_valid) {
+		devp->afbce_info->fm_body_paddr[0] = addr;
+		vdin_afbce_maptable_init(devp);
+	}
+
+	return 0;
+}
+
+static int vdin_dmc_wrmif(struct vdin_dev_s *devp)
+{
+	struct vf_entry *vfe;
+
+	pr_info("%s,%d;vdin%d\n", __func__, __LINE__, devp->index);
+	vfe = provider_vf_peek(devp->vfp);
+	if (!vfe) {
+		pr_info("receiver_vf_peek failed\n");
+		return 0;
+	}
+	vfe->vf.canvas0_config[0].phy_addr = addr;
+
+	return 0;
+}
+
+//notifier handle func
+static int vdin_dmc_dev_access_notify(struct notifier_block *nb, unsigned long id, void *data)
+{
+	struct dmc_dev_access_data *tmp = (struct dmc_dev_access_data *)data;
+	struct vdin_dev_s *devp = NULL;
+	unsigned int device_id = 0; /* refer to xx_vpu_arb assignment.xlsx */
+
+	if (vdin_id == id) {
+		addr = tmp->addr;
+		size = tmp->size;
+		pr_info("vdin this is %ld trust handle func,addr:%lx,size:%lx\n", id,
+			addr, size);
+		devp = vdin_get_dev(vdin_idx);
+		device_id = devp->debug.dbg_device_id;
+		if (device_id == VDIN_DMC_DEVICE_META)
+			vdin_dmc_meta(devp);
+		else if (device_id == VDIN_DMC_DEVICE_AFBCE)
+			vdin_dmc_afbce(devp);
+		else if (device_id == VDIN_DMC_DEVICE_WRMIF)
+			vdin_dmc_wrmif(devp);
+	}
+
+	return 0;
+}
+
+static struct notifier_block vdin_dmc_dev_access_nb = {
+	.notifier_call = vdin_dmc_dev_access_notify,
+};
+#endif
+
+//register notifier
+void vdin_reg_dmc_notifier(unsigned int index)
+{
+#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
+	vdin_idx = index;
+	if (is_meson_s5_cpu() || is_meson_t3_cpu() || is_meson_t7_cpu())
+		vdin_id = register_dmc_dev_access_notifier("VPU0",
+			&vdin_dmc_dev_access_nb);
+	else if (is_meson_t5w_cpu())
+		vdin_id = register_dmc_dev_access_notifier("VPU WRITE0",
+			&vdin_dmc_dev_access_nb);
+	else
+		vdin_id = register_dmc_dev_access_notifier("VPU WRITE1",
+			&vdin_dmc_dev_access_nb);
+#else
+	pr_info("%s CONFIG_AMLOGIC_DMC_DEV_ACCESS not enabled\n", __func__);
+#endif
+}
+
+//unregister notifier
+void vdin_unreg_dmc_notifier(unsigned int index)
+{
+#if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
+	if (is_meson_s5_cpu() || is_meson_t3_cpu() || is_meson_t7_cpu())
+		vdin_id = unregister_dmc_dev_access_notifier("VPU0",
+			&vdin_dmc_dev_access_nb);
+	else if (is_meson_t5w_cpu())
+		vdin_id = unregister_dmc_dev_access_notifier("VPU WRITE0",
+			&vdin_dmc_dev_access_nb);
+	else
+		vdin_id = unregister_dmc_dev_access_notifier("VPU WRITE1",
+			&vdin_dmc_dev_access_nb);
+#else
+	pr_info("%s CONFIG_AMLOGIC_DMC_DEV_ACCESS not enabled\n", __func__);
+#endif
+}
+
 /*------------------------------------------*/

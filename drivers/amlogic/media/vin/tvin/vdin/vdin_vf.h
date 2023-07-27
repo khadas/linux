@@ -132,6 +132,9 @@ struct vf_entry {
 	unsigned int flag;
 	unsigned char af_num;/*afbce num*/
 	enum vframe_sct_status_e sct_stat;/* scatter */
+	/* for one buffer mode,backup the initial mif phy address */
+	unsigned long phy_y_addr_bak;
+	unsigned long phy_c_addr_bak;
 };
 
 struct vf_pool {

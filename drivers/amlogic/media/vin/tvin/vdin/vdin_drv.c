@@ -805,13 +805,20 @@ void vdin_game_mode_chg(struct vdin_dev_s *devp,
 
 static void vdin_handle_game_mode_chg(struct vdin_dev_s *devp)
 {
+	int i;
+	struct vf_entry *master = NULL;
+
 	if (devp->game_mode_chg != VDIN_GAME_MODE_UN_CHG &&
 		devp->game_mode_chg < VDIN_GAME_MODE_NUM) {
-		if (devp->curr_wr_vfe)
-			receiver_vf_put(&devp->curr_wr_vfe->vf, devp->vfp);
+		/* recycle all vf in write mode list */
+		for (i = 0; i < devp->vfp->size; i++) {
+			master = vf_get_master(devp->vfp, i);
+			if (!master)
+				break;
+			if (master->status == VF_STATUS_WM)
+				receiver_vf_put(&master->vf, devp->vfp);
+		}
 		devp->curr_wr_vfe = NULL;
-		if (devp->last_wr_vfe)
-			receiver_vf_put(&devp->last_wr_vfe->vf, devp->vfp);
 		devp->last_wr_vfe = NULL;
 		devp->game_chg_drop_frame_cnt = 2;
 		if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
@@ -934,6 +941,8 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 				/*		vf->canvas0_config[0].width,*/
 				/*		vf->canvas0_config[0].height);*/
 			}
+			master->phy_y_addr_bak = vf->canvas0_config[0].phy_addr;
+			master->phy_c_addr_bak = vf->canvas0_config[1].phy_addr;
 		} else {
 			vf->canvas0Addr = addr;
 			vf->canvas1Addr = addr;
@@ -1224,7 +1233,6 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 
 	/* reverse/non-reverse write buffer */
 	vdin_wr_reverse(devp->addr_offset, devp->parm.h_reverse, devp->parm.v_reverse);
-	vdin_set_to_vpp_parm(devp);
 
 #ifdef CONFIG_CMA
 	vdin_cma_malloc_mode(devp);
@@ -1353,6 +1361,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 			devp->index, devp->rdma_enable, devp->rdma_handle);
 	}
 #endif
+	vdin_set_to_vpp_parm(devp);
 
 	if (vdin_dbg_en)
 		pr_info("****[%s]ok!****\n", __func__);
@@ -1390,7 +1399,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	devp->vrr_off_add_cnt = 0;
 
 	devp->vdin_drop_ctl_cnt = 0;
-
+	devp->af_num = VDIN_CANVAS_MAX_CNT;
 	/* write vframe as default */
 	devp->vframe_wr_en = 1;
 	devp->vframe_wr_en_pre = 1;
@@ -2515,7 +2524,7 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 			receiver_vf_put(&vfe->vf, devp->vfp);
 		ret = -1;
 	} else if (devp->game_chg_drop_frame_cnt > 0) {
-		if (vfe && !(vfe->flag & VF_FLAG_ONE_BUFFER_MODE))
+		if (vfe)
 			receiver_vf_put(&vfe->vf, devp->vfp);
 		devp->game_chg_drop_frame_cnt--;
 		ret = -1;
@@ -2731,6 +2740,49 @@ static void vdin_set_vfe_info(struct vdin_dev_s *devp, struct vf_entry *vfe)
 		vfe->vf.type_ext = VIDTYPE_EXT_VDIN_SCATTER;
 	else
 		vfe->vf.type_ext &= ~VIDTYPE_EXT_VDIN_SCATTER;
+}
+
+static void vdin_set_one_buffer_mode(struct vdin_dev_s *devp, struct vf_entry *next_wr_vfe)
+{
+	struct vf_entry *master = NULL;
+
+	/* vrr lock,and game mode 2, enter one buffer mode */
+	if ((devp->game_mode & VDIN_GAME_MODE_2) &&
+		devp->dbg_force_one_buffer != 2  &&
+		(devp->vrr_data.vrr_mode || devp->dbg_force_one_buffer)) {
+		/* all vf will use this phy address of current next_wr_vfe */
+		if (devp->af_num >= VDIN_CANVAS_MAX_CNT) {
+			devp->af_num = next_wr_vfe->af_num;
+			next_wr_vfe->flag |= VF_FLAG_ONE_BUFFER_MODE;
+			return;
+		}
+
+		if (!(next_wr_vfe->flag & VF_FLAG_ONE_BUFFER_MODE)) {
+			next_wr_vfe->flag |= VF_FLAG_ONE_BUFFER_MODE;
+			master = vf_get_master(devp->vfp, devp->af_num);
+			if (!master) {
+				pr_err("ERR:vdin%d,af_num=%d\n",
+					devp->index, devp->af_num);
+				return;
+			}
+			/* mif:use address the first time enter one buffer mode */
+			next_wr_vfe->vf.canvas0_config[0].phy_addr =
+				master->vf.canvas0_config[0].phy_addr;
+			next_wr_vfe->vf.canvas0_config[1].phy_addr =
+				master->vf.canvas0_config[1].phy_addr;
+			/* afbce:update address in vdin_afbce_set_next_frame */
+		}
+	} else {
+		devp->af_num = VDIN_CANVAS_MAX_CNT;
+		/* exiting one buffer mode, recovery to the initial phy address */
+		if (next_wr_vfe->flag & VF_FLAG_ONE_BUFFER_MODE) {
+			next_wr_vfe->flag &= (~VF_FLAG_ONE_BUFFER_MODE);
+			/* mif */
+			next_wr_vfe->vf.canvas0_config[0].phy_addr = next_wr_vfe->phy_y_addr_bak;
+			next_wr_vfe->vf.canvas0_config[1].phy_addr = next_wr_vfe->phy_c_addr_bak;
+			/* afbce:update address in vdin_afbce_set_next_frame */
+		}
+	}
 }
 
 /*
@@ -3189,25 +3241,16 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		}
 	}
 
-	/* hdmi in signal is VRR or Freesync,and game mode 2 */
-	if (((devp->game_mode & VDIN_GAME_MODE_2) && devp->vrr_data.vrr_mode) &&
-		 devp->dbg_force_one_buffer) {
-		next_wr_vfe = devp->curr_wr_vfe;
-		if (next_wr_vfe)
-			next_wr_vfe->flag |= VF_FLAG_ONE_BUFFER_MODE;
-	} else {
-		/* prepare for next input data */
-		next_wr_vfe = provider_vf_get(devp->vfp);
-		if (next_wr_vfe)
-			next_wr_vfe->flag &= (~VF_FLAG_ONE_BUFFER_MODE);
-	}
+	/* prepare for next input data */
+	next_wr_vfe = provider_vf_get(devp->vfp);
 	if (!next_wr_vfe) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_NO_NEXT_FE;
 		vdin_drop_frame_info(devp, "no next wr vfe-2");
-
 		/* vdin_drop_cnt++; no need skip frame,only drop one */
 		goto irq_handled;
 	}
+
+	vdin_set_one_buffer_mode(devp, next_wr_vfe);
 
 	if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -3336,8 +3379,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		vdin_vframe_put_and_recycle(devp, curr_wr_vfe, put_md);
 	}
 
-	vdin_game_mode_transfer(devp);
-
 	vdin_frame_write_ctrl_set(devp, next_wr_vfe,
 				  devp->flags & VDIN_FLAG_RDMA_ENABLE);
 
@@ -3364,6 +3405,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		/* game mode 2 */
 		vdin_vframe_put_and_recycle(devp, next_wr_vfe, put_md);
 	}
+
+	vdin_game_mode_transfer(devp);
 	devp->frame_cnt++;
 
 irq_handled:

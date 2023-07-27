@@ -1279,8 +1279,7 @@ void hdmirx_get_spd_info(struct tvin_sig_property_s *prop)
  */
 void hdmirx_get_repetition_info(struct tvin_sig_property_s *prop)
 {
-	prop->decimation_ratio = rx.pre.repeat |
-			HDMI_DE_REPEAT_DONE_FLAG;
+	prop->decimation_ratio = 0;
 }
 
 /*

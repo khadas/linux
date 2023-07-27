@@ -21,6 +21,11 @@
 
 #include "vdin_regs_s5.h"
 
+//VPU QoS
+#define VPU_WRARB_UGT_L2C1 0x27c3
+#define VPU_WRARB_UGT_VDIN_BIT	0
+#define VPU_WRARB_UGT_VDIN_WID	2
+
 /* mmc */
 #define VPU_VDIN_ASYNC_HOLD_CTRL 0x2743
 #define VPU_VDISP_ASYNC_HOLD_CTRL 0x2744

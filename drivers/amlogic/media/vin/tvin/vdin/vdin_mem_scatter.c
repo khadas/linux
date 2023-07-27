@@ -49,6 +49,7 @@
 #define SCT_PRINT_CTL_MMU_NUM	BIT(7) /* print worker processing */
 #define SCT_PRINT_CTL_GAME	BIT(8) /* print game processing */
 #define SCT_PRINT_CTL_WARN	BIT(9) /* buffer warning info */
+#define SCT_PRINT_CTL_MEM_HLD	BIT(10) /* for keeper,scatter mem handle */
 
 #define MAX_ADDR_SHIFT PAGE_SHIFT
 #define PAGE_ADDR(mm_page) (ulong)(((mm_page) >> MAX_ADDR_SHIFT)\
@@ -100,7 +101,6 @@ void vdin_sct_free_wr_list_idx(struct vf_pool *p, struct vframe_s *vf)
 		if (devp->debug.dbg_sct_ctl & DBG_SCT_CTL_NO_FREE_WR_LIST) {
 			vdin_sct_free(p, vf->index);
 			vfe->sct_stat = VFRAME_SCT_STATE_INIT;
-			devp->afbce_info->fm_body_paddr[vf->index] = 0;
 		}
 	}
 }
@@ -332,11 +332,13 @@ void vdin_sct_free_idx_in_game(struct vdin_dev_s *devp)
 		next_wr_vfe = provider_vf_peek(devp->vfp);
 		if (next_wr_vfe && vfe->vf.index == next_wr_vfe->vf.index)
 			continue;
+		/* donot free it, other vf still use it's memory in one buffer mode */
+		if (vfe->vf.index == devp->af_num)
+			continue;
 		if (vfe->status == VF_STATUS_WL &&
 		    vfe->sct_stat == VFRAME_SCT_STATE_FULL) {
 			vdin_sct_free(devp->vfp, vfe->vf.index);
 			vfe->sct_stat = VFRAME_SCT_STATE_INIT;
-			devp->afbce_info->fm_body_paddr[vfe->vf.index] = 0;
 		}
 	}
 }
@@ -375,8 +377,16 @@ void vdin_sct_worker(struct work_struct *work)
 				__func__, next_wr_vfe->vf.index,
 				devp->msct_top.sct_stat[next_wr_vfe->vf.index].cur_page_cnt);
 		next_wr_vfe->vf.afbce_num = 0;
-		vdin_sct_alloc(devp, next_wr_vfe->vf.index);
-		next_wr_vfe->sct_stat = VFRAME_SCT_STATE_FULL;
+		next_wr_vfe->vf.mem_handle =
+			vdin_mmu_box_get_mem_handle(devp->msct_top.box, next_wr_vfe->vf.index);
+		if (sct_print_ctl & SCT_PRINT_CTL_MEM_HLD)
+			pr_info("vdin%d,mem handle[%d]:%p\n", devp->index, next_wr_vfe->vf.index,
+			next_wr_vfe->vf.mem_handle);
+		//this memory is used for every vf in one buffer mode,donot alloc again or free it
+		if (next_wr_vfe->vf.index != devp->af_num) {
+			vdin_sct_alloc(devp, next_wr_vfe->vf.index);
+			next_wr_vfe->sct_stat = VFRAME_SCT_STATE_FULL;
+		}
 	} else {
 		if (sct_print_ctl & SCT_PRINT_CTL_WARN)
 			pr_info("vdin%d:peek vframe failed,irq:%d,frame:%d;[%d %d %d %d]%d %d\n",

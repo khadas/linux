@@ -571,8 +571,6 @@ void vdin_afbce_maptable_init(struct vdin_dev_s *devp)
 
 		if (highmem_flag)
 			vdin_unmap_phyaddr(p);
-
-		virt_addr = NULL;
 	}
 }
 
@@ -609,7 +607,7 @@ static void vdin_afbce_addr_check(struct vdin_dev_s *devp, unsigned long fm_tabl
 	for (j = 0; j < size; j += 4096) {
 		if ((*virt_addr != (((j + body) >> 12) & 0x000fffff)) ||
 			(devp->debug.dbg_print_cntl & VDIN_AFBC_RD_DBG)) {
-			pr_err("offset[%#x] should:(%#x),readback:(%#x)\n",
+			pr_err("offset[%#x] should be:(%#x),readback:(%#x)\n",
 				cnt, (((j + body) >> 12) & 0x000fffff), *virt_addr);
 		}
 		cnt++;
@@ -620,55 +618,57 @@ static void vdin_afbce_addr_check(struct vdin_dev_s *devp, unsigned long fm_tabl
 void vdin_afbce_set_next_frame(struct vdin_dev_s *devp,
 			       unsigned int rdma_enable, struct vf_entry *vfe)
 {
-	unsigned char i;
+	unsigned char vf_idx;
+	unsigned long compHeadAddr;
+	unsigned long compTableAddr;
+	unsigned long compBodyAddr;
 
 	if (!devp->afbce_info)
 		return;
 
-	i = vfe->af_num;
-	vfe->vf.compHeadAddr = devp->afbce_info->fm_head_paddr[i];
-	vfe->vf.compBodyAddr = devp->afbce_info->fm_body_paddr[i];
+	if ((vfe->flag & VF_FLAG_ONE_BUFFER_MODE) &&
+	     devp->af_num < VDIN_CANVAS_MAX_CNT)
+		vf_idx = devp->af_num; //one buffer mode
+	else
+		vf_idx = vfe->af_num;
+
+	compHeadAddr	= devp->afbce_info->fm_head_paddr[vf_idx];
+	compTableAddr	= devp->afbce_info->fm_table_paddr[vf_idx];
+	compBodyAddr	= devp->afbce_info->fm_body_paddr[vf_idx];
+
+	vfe->vf.compHeadAddr = compHeadAddr;
+	vfe->vf.compBodyAddr = compBodyAddr;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (rdma_enable) {
 		if (devp->dtdata->hw_ver >= VDIN_HW_T7) {
 			rdma_write_reg(devp->rdma_handle, AFBCE_HEAD_BADDR,
-				       devp->afbce_info->fm_head_paddr[i] >> 4);
-			rdma_write_reg_bits(devp->rdma_handle,
-					    AFBCE_MMU_RMIF_CTRL4,
-					    devp->afbce_info->fm_table_paddr[i] >> 4,
-					    0, 32);
+				compHeadAddr >> 4);
+			rdma_write_reg(devp->rdma_handle, AFBCE_MMU_RMIF_CTRL4,
+				compTableAddr >> 4);
 		} else {
 			rdma_write_reg(devp->rdma_handle, AFBCE_HEAD_BADDR,
-				       devp->afbce_info->fm_head_paddr[i]);
-			rdma_write_reg_bits(devp->rdma_handle,
-					    AFBCE_MMU_RMIF_CTRL4,
-					    devp->afbce_info->fm_table_paddr[i],
-					    0, 32);
+				compHeadAddr);
+			rdma_write_reg(devp->rdma_handle, AFBCE_MMU_RMIF_CTRL4,
+				compTableAddr);
 		}
 		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 1,
-				    AFBCE_START_PULSE_BIT, AFBCE_START_PULSE_WID);
+				AFBCE_START_PULSE_BIT, AFBCE_START_PULSE_WID);
 
 		if (devp->pause_dec || devp->msct_top.sct_pause_dec ||
 		    devp->debug.pause_afbce_dec)
 			rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 0,
-					    AFBCE_EN_BIT, AFBCE_EN_WID);
+				AFBCE_EN_BIT, AFBCE_EN_WID);
 		else
 			rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 1,
-					    AFBCE_EN_BIT, AFBCE_EN_WID);
+				AFBCE_EN_BIT, AFBCE_EN_WID);
 	} else {
 		if (devp->dtdata->hw_ver >= VDIN_HW_T7) {
-			W_VCBUS(AFBCE_HEAD_BADDR,
-				       devp->afbce_info->fm_head_paddr[i] >> 4);
-			W_VCBUS_BIT(AFBCE_MMU_RMIF_CTRL4,
-					    devp->afbce_info->fm_table_paddr[i] >> 4,
-					    0, 32);
+			W_VCBUS(AFBCE_HEAD_BADDR, compHeadAddr >> 4);
+			W_VCBUS(AFBCE_MMU_RMIF_CTRL4, compTableAddr >> 4);
 		} else {
-			W_VCBUS(AFBCE_HEAD_BADDR,
-				       devp->afbce_info->fm_head_paddr[i]);
-			W_VCBUS_BIT(AFBCE_MMU_RMIF_CTRL4,
-					    devp->afbce_info->fm_table_paddr[i],
-					    0, 32);
+			W_VCBUS(AFBCE_HEAD_BADDR, compHeadAddr);
+			W_VCBUS(AFBCE_MMU_RMIF_CTRL4, compTableAddr);
 		}
 	}
 #endif
@@ -676,11 +676,11 @@ void vdin_afbce_set_next_frame(struct vdin_dev_s *devp,
 
 	if (devp->debug.dbg_print_cntl & VDIN_ADDRESS_DBG &&
 	    devp->irq_cnt < VDIN_DBG_PRINT_CNT) {
-		pr_err("%s %#x:%#x(%#lx) %#x:%#x(%#lx)\n",
+		pr_err("%s head,%#x:%#x(%#lx) table,%#x:%#x(%#lx) body,%#lx\n",
 			__func__, AFBCE_HEAD_BADDR, rd(0, AFBCE_HEAD_BADDR),
-			devp->afbce_info->fm_head_paddr[i],
+			compHeadAddr,
 			AFBCE_MMU_RMIF_CTRL4, rd(0, AFBCE_MMU_RMIF_CTRL4) << 4,
-			devp->afbce_info->fm_table_paddr[i]);
+			compTableAddr, compBodyAddr);
 		if (devp->debug.dbg_print_cntl & VDIN_AFBC_ADDR_CHK)
 			vdin_afbce_addr_check(devp, rd(0, AFBCE_MMU_RMIF_CTRL4) << 4);
 	}

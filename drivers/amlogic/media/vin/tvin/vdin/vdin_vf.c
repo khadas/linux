@@ -412,8 +412,7 @@ int vf_pool_init(struct vf_pool *p, int size)
 		master->af_num = i;
 		master->status = VF_STATUS_WL;
 		master->sct_stat = VFRAME_SCT_STATE_INIT;
-		master->flag |= VF_FLAG_NORMAL_FRAME;
-		master->flag &= (~VF_FLAG_FREEZED_FRAME);
+		master->flag = VF_FLAG_NORMAL_FRAME;
 		spin_lock_irqsave(&p->wr_lock, flags);
 		list_add(&master->list, &p->wr_list);
 		p->wr_list_size++;
