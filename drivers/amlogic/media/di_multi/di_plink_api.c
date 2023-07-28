@@ -1977,6 +1977,7 @@ static bool dpvpp_unreg_val(struct dimn_itf_s *itf)
 	bool flg_disable = false;
 	ulong irq_flag = 0;
 	int i;
+	struct di_ch_s *pch;
 
 	if (!itf) {
 		PR_ERR("%s:no itf\n", __func__);
@@ -2003,6 +2004,9 @@ static bool dpvpp_unreg_val(struct dimn_itf_s *itf)
 		dpvpp_reg_link_sw(false); //block;
 	}
 	dpvpp_dbg_unreg_log_print();
+
+	pch = get_chdata(itf->bind_ch);
+	dim_polic_unreg(pch);
 
 	//not need set this flg 2022-01-13 set_hw_reg_flg(true);
 	//use flg replace dpvpph_unreg_setting();
