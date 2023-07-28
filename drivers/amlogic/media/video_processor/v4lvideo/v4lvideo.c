@@ -446,6 +446,7 @@ static void vf_keep(struct v4lvideo_dev *dev,
 	int keep_dw_id = 0;
 	u32 flag;
 	u32 inst_id = dev->inst;
+	bool di_pw = false;
 
 	if (!file_private_data) {
 		V4LVID_ERR("%s error: file_private_data is NULL", __func__);
@@ -485,6 +486,8 @@ static void vf_keep(struct v4lvideo_dev *dev,
 	}
 
 	if (file_private_data->flag & V4LVIDEO_FLAG_DI_NR) {
+		if (vf_p->type & VIDTYPE_DI_PW)
+			di_pw = true;
 		vf_ext_p = file_private_data->vf_ext_p;
 		if (!vf_ext_p) {
 			V4LVID_ERR("%s error: vf_ext is NULL", __func__);
@@ -495,12 +498,25 @@ static void vf_keep(struct v4lvideo_dev *dev,
 
 	if (vf_p->type & VIDTYPE_SCATTER)
 		type = MEM_TYPE_CODEC_MM_SCATTER;
-	video_keeper_keep_mem(vf_p->mem_handle,	type, &keep_id);
-	video_keeper_keep_mem(vf_p->mem_handle_1, type, &keep_id_1);
-	video_keeper_keep_mem(vf_p->mem_head_handle, MEM_TYPE_CODEC_MM,
-		&keep_head_id);
-	video_keeper_keep_mem(vf_p->mem_dw_handle, MEM_TYPE_CODEC_MM,
-		&keep_dw_id);
+	/*mem_handle	    yuv data	       afbc body */
+	/*mem_handle_1	     NULL	       afbc body only for S5 */
+	/*mem_head_handle    NULL	       afbc head (h265 include dw data) */
+	/*mem_dw_handle	     NULL	       dw data(non-h265, h265 is NULL)*/
+
+	/*has di buffer, decoder has afbc: decoder only need keep dw*/
+	if (di_pw && (vf_p->type & VIDTYPE_SCATTER)) {
+		video_keeper_keep_mem(vf_p->mem_head_handle, MEM_TYPE_CODEC_MM,
+			&keep_head_id);
+		video_keeper_keep_mem(vf_p->mem_dw_handle, MEM_TYPE_CODEC_MM,
+			&keep_dw_id);
+	} else {
+		video_keeper_keep_mem(vf_p->mem_handle,	type, &keep_id);
+		video_keeper_keep_mem(vf_p->mem_handle_1, type, &keep_id_1);
+		video_keeper_keep_mem(vf_p->mem_head_handle, MEM_TYPE_CODEC_MM,
+			&keep_head_id);
+		video_keeper_keep_mem(vf_p->mem_dw_handle, MEM_TYPE_CODEC_MM,
+			&keep_dw_id);
+	}
 
 	file_private_data->keep_id = keep_id;
 	file_private_data->keep_id_1 = keep_id_1;
