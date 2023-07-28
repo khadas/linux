@@ -819,7 +819,7 @@
 			&tdm_d3_pins
 			&tdm_d4_pins
 			&tdm_clk_pins>;
-
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -861,7 +861,7 @@
 
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
-
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -875,6 +875,7 @@
 				&clkc CLKID_MPLL2>;
 		clock-names = "mclk", "clk_srcpll";
 		i2s2hdmi = <1>;
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -902,7 +903,7 @@
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
-
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 	spdifb: spdif@1 {
@@ -916,7 +917,7 @@
 				&clkaudio CLKID_AUDIO_SPDIFOUT_B>;
 		clock-names = "sysclk",
 				"gate_spdifout", "clk_spdifout";
-
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 	apdm: pdm {
@@ -941,7 +942,7 @@
 		filter_mode = <1>;
 
 		train_sample_count = <0xe>;
-
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -1138,6 +1139,7 @@
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0x3>;
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 }; /* end of audiobus */
