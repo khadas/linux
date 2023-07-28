@@ -42,7 +42,7 @@
 #define videoqueue_DEVICE_NAME "videoqueue"
 
 #define HDMI_DELAY_FIRST_CHECK_COUNT 60
-#define HDMI_DELAY_CHECK_INDEX 500
+#define HDMI_DELAY_CHECK_INDEX 300
 
 #define P_ERROR		0X0
 #define P_OTHER		0X1
@@ -191,10 +191,10 @@ void videoqueue_pcrscr_update(s32 inc, u32 base)
 	if (is_vlock_locked && is_special_fps) {
 		if (vsync_pts_inc == 24000) {
 			vq_print(P_SYNC, "use 59.94 fps.\n");
-			vsync_pts_inc = 24015;
+			vsync_pts_inc = 24024;
 		} else if (vsync_pts_inc == 12000) {
 			vq_print(P_SYNC, "use 119.88 fps.\n");
-			vsync_pts_inc = 12015;
+			vsync_pts_inc = 12012;
 		} else {
 			vq_print(P_SYNC, "invalid case.\n");
 		}
@@ -221,9 +221,16 @@ void videoqueue_pcrscr_update(s32 inc, u32 base)
 
 static inline int DUR2PTS(int x)
 {
-	int var = x;
+	int var = 0, count = 0;
 
-	var = var * 15;
+	if ((x % 10) == 0) {
+		var = x * 15;
+	} else {
+		var = 12012;
+		count = x / 800;
+		var = var * count;
+	}
+
 	return var;
 }
 

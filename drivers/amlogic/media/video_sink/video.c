@@ -5123,7 +5123,7 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 		vf->source_type != VFRAME_SOURCE_TYPE_TUNER)
 		return;
 
-	if (vf->type & VIDTYPE_DI_PW) {
+	if (vf->type & VIDTYPE_DI_PW || vf->di_flag & DI_FLAG_DI_PVPPLINK) {
 		if (vf->type_original & VIDTYPE_INTERLACE)
 			di_keep_count = DI_KEEP_COUNT_I;
 		else
@@ -5208,9 +5208,10 @@ void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	hdmin_delay_max_ms = div64_u64(hdmin_delay_max, 1000);
 	hdmin_delay_max_ms += memc_delay;
 
-	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
-		pr_info("%s: range(%d, %d).\n",
-			__func__, hdmin_delay_min_ms, hdmin_delay_max_ms);
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG) {
+		pr_info("%s: di_has_vdin_vf=%d, do_di =%d.\n", __func__, di_has_vdin_vf, do_di);
+		pr_info("%s: range(%d, %d).\n", __func__, hdmin_delay_min_ms, hdmin_delay_max_ms);
+	}
 }
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
@@ -5233,7 +5234,7 @@ static void hdmi_in_delay_maxmin_new1(struct tvin_to_vpp_info_s *tvin_info)
 	if (!tvin_info->is_dv && tvin_info->width <= 3840 &&
 		tvin_info->cfmt == TVIN_YUV422) {
 		do_di = true;
-		if (tvin_info->width > 1920 && tvin_info->width <= 3840)
+		if ((tvin_info->width > 1920 && tvin_info->width <= 3840) || dim_get_pre_link())
 			di_has_vdin_vf = true;
 		if (tvin_info->scan_mode == TVIN_SCAN_MODE_INTERLACED)
 			di_keep_count = DI_KEEP_COUNT_I;
@@ -5312,9 +5313,10 @@ static void hdmi_in_delay_maxmin_new1(struct tvin_to_vpp_info_s *tvin_info)
 		tvin_info->height,
 		tvin_info->fps,
 		tvin_info->is_dv);
-	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
-		pr_info("%s: range(%d, %d).\n",
-			__func__, hdmin_delay_min_ms, hdmin_delay_max_ms);
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG) {
+		pr_info("%s: di_has_vdin_vf=%d, do_di =%d.\n", __func__, di_has_vdin_vf, do_di);
+		pr_info("%s: range(%d, %d).\n", __func__, hdmin_delay_min_ms, hdmin_delay_max_ms);
+	}
 }
 
 void vdin_start_notify_vpp(struct tvin_to_vpp_info_s *tvin_info)
