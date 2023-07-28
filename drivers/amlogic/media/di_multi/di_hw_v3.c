@@ -5715,6 +5715,9 @@ void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg, const struct reg_acc *op_in)
 	val &= ~((3	<< 0)	|
 		(7	<< 4)	|
 		(7	<< 7)	| /* bit[9:7] */
+		(7	<< 12)	| /* bit[14:12] */
+		(7	<< 16)	| /* bit[18:16] */
+		(1	<< 19)	| /* bit[19] */
 		(3	<< 30));
 
 	val |= ((cfg->b.mif_en		<< 0)	|
