@@ -8636,10 +8636,13 @@ bool dpvpp_try_reg(struct di_ch_s *pch, struct vframe_s *vfm)
 		ponly_enable = false;
 	}
 
+	if (get_datal()->fg_bypass_en && vfm->fgs_valid)
+		ponly_enable = false;
+
 	if (!ponly_enable) {
-		dbg_plink1("%s:not ponly:%d:0x%x\n",
+		dbg_plink1("%s:not ponly:%d:0x%x, fgs_valid:[0x%x]\n",
 			__func__,
-			cfgg(PONLY_MODE), vfm->type);
+			cfgg(PONLY_MODE), vfm->type, vfm->fgs_valid);
 		return false;
 	}
 	if (dpvpp_create_internal(pch) < 0) {
