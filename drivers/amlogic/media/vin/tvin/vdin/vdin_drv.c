@@ -3089,7 +3089,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	     VIDTYPE_INTERLACE_BOTTOM)) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_FMT_TRANS_CHG;
 		vdin_drop_frame_info(devp, "tran fmt chg");
-		vdin_drop_cnt++;
 		goto irq_handled;
 	}
 	/* Check whether frame written done */
