@@ -5914,6 +5914,10 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 		if (argv == 1)
 			hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
 		break;
+	case MISC_ESMCLK_CTRL:
+		hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, !!argv, 6, 1);
+		hd_set_reg_bits(P_CLKCTRL_HDCP22_CLK_CTRL, !!argv, 8, 1);
+		break;
 	case MISC_DIS_HPLL:
 		/* RESET set as 1, delay 50us, Enable set as 0 */
 		/* G12A reset/enable bit position is different */

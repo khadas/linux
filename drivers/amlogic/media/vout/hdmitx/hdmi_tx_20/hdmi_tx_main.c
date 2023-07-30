@@ -8216,6 +8216,7 @@ static void _amhdmitx_suspend(void)
 	hdmitx_device.hwop.cntlmisc(&hdmitx_device, MISC_DIS_HPLL, 0);
 	hdmitx_device.hwop.cntlddc(&hdmitx_device,
 		DDC_RESET_HDCP, 0);
+	hdmitx_device.hwop.cntlmisc(&hdmitx_device, MISC_ESMCLK_CTRL, 0);
 	pr_info("amhdmitx: suspend and reset hdcp\n");
 }
 
@@ -8234,6 +8235,7 @@ static int amhdmitx_resume(struct platform_device *pdev)
 	/* may resume after start hdcp22, i2c
 	 * reactive will force mux to hdcp14
 	 */
+	hdmitx_device.hwop.cntlmisc(&hdmitx_device, MISC_ESMCLK_CTRL, 1);
 	if (hdmitx_device.hdcp_ctl_lvl > 0)
 		return 0;
 
