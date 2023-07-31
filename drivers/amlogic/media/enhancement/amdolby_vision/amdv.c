@@ -572,6 +572,8 @@ static bool update_control_path_flag;
 static bool hdmi_in_allm;
 static bool local_allm;
 
+static int dv_dual_layer;
+
 #define MAX_PARAM   8
 bool is_aml_gxm(void)
 {
@@ -2980,6 +2982,21 @@ static enum signal_format_enum get_cur_src_format(void)
 	return ret;
 }
 
+static bool is_dual_layer_dv(struct vframe_s *vf)
+{
+	if (!dv_dual_layer)
+		return false;
+	if (vf) {
+		pr_dv_dbg("vf ext_signal_type is=%d\n", vf->ext_signal_type);
+		if ((vf->ext_signal_type & (1 << 1)) ||
+		(vf->ext_signal_type & (1 << 2)))
+			return true;
+		else
+			return false;
+	}
+	return false;
+}
+
 static int amdv_policy_process_v1(struct vframe_s *vf,
 				int *mode, enum signal_format_enum src_format)
 {
@@ -3755,6 +3772,37 @@ static int amdv_policy_process_v2_stb(struct vframe_s *vf,
 					/* HLG to SDR */
 					pr_dv_dbg("hlg->AMDV_OUTPUT_MODE_SDR8, cap=%x\n",
 							  sink_hdr_support(vinfo));
+					*mode = AMDV_OUTPUT_MODE_SDR8;
+					mode_change = 1;
+				}
+			}
+		} else if (is_dual_layer_dv(vf)) {
+			if (vinfo && sink_support_dv(vinfo)) {
+				/* TV support DOVI, DOVI -> DOVI */
+				if (dolby_vision_mode !=
+				AMDV_OUTPUT_MODE_IPT_TUNNEL) {
+					pr_dv_dbg("dovi->AMDV_OUTPUT_MODE_IPT_TUNNEL\n");
+					pr_dv_dbg("double dv ipt _tunnel process:\n");
+					*mode = AMDV_OUTPUT_MODE_IPT_TUNNEL;
+					mode_change = 1;
+				}
+			} else if (vinfo && sink_support_hdr(vinfo)) {
+				/* TV support HDR, DOVI -> HDR */
+				if (dolby_vision_mode !=
+				AMDV_OUTPUT_MODE_HDR10) {
+					pr_dv_dbg("dovi->AMDV_OUTPUT_MODE_HDR10, cap=%x\n",
+							  sink_hdr_support(vinfo));
+					pr_dv_dbg("double dv hdr10 process:\n");
+					*mode = AMDV_OUTPUT_MODE_HDR10;
+					mode_change = 1;
+				}
+			} else {
+				/* TV not support DOVI and HDR, DOVI -> SDR */
+				if (dolby_vision_mode !=
+				AMDV_OUTPUT_MODE_SDR8) {
+					pr_dv_dbg("dovi->AMDV_OUTPUT_MODE_SDR8, cap=%x\n",
+							  sink_hdr_support(vinfo));
+					pr_dv_dbg("double dv sdr8 process:\n");
 					*mode = AMDV_OUTPUT_MODE_SDR8;
 					mode_change = 1;
 				}
@@ -14910,6 +14958,31 @@ LOAD_END:
 	return count;
 }
 
+static ssize_t amdolby_vision_dual_layer_show
+	 (struct class *cla,
+	  struct class_attribute *attr,
+	  char *buf)
+{
+	return sprintf(buf, "%d\n", dv_dual_layer);
+}
+
+static ssize_t amdolby_vision_dual_layer_store
+	 (struct class *cla,
+	  struct class_attribute *attr,
+	  const char *buf, size_t count)
+{
+	size_t r;
+	int value = 0;
+
+	pr_info("set dual layer: %s\n", buf);
+	r = kstrtoint(buf, 0, &value);
+	if (r != 0)
+		return -EINVAL;
+	dv_dual_layer = value;
+	pr_info("current dual layer is %d\n", value);
+	return count;
+}
+
 static int amdv_notify_callback(struct notifier_block *block,
 	unsigned long cmd,
 	void *para)
@@ -15061,6 +15134,9 @@ static struct class_attribute amdolby_vision_class_attrs[] = {
 	__ATTR(inst_res_debug, 0644,
 	       amdolby_vision_inst_debug_show,
 	       amdolby_vision_inst_debug_store),
+	__ATTR(dv_dual_layer, 0644,
+	       amdolby_vision_dual_layer_show,
+		   amdolby_vision_dual_layer_store),
 	__ATTR_NULL
 };
 
