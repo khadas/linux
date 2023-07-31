@@ -2332,13 +2332,13 @@ int rx_set_port_hpd(u8 port_id, bool val)
 	if (port_id < E_PORT_NUM) {
 		if (val) {
 			if (rx.chip_id >= CHIP_ID_T7)
-				hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, 0x1);
+				hdmirx_wr_bits_cor(RX_C0_SRST2_AON_IVCRX, _BIT(5), 0);
 			hdmirx_wr_bits_top(TOP_HPD_PWR5V, _BIT(port_id), 1);
 			rx_i2c_edid_cfg_with_port(0xf, true);
 			rx_set_term_value(port_id, 1);
 		} else {
-			if (rx.chip_id >= CHIP_ID_T7)
-				hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, 0x0);
+			if (rx.chip_id >= CHIP_ID_T7 && rx.port == port_id)
+				hdmirx_wr_bits_cor(RX_C0_SRST2_AON_IVCRX, _BIT(5), 1);
 			rx_i2c_edid_cfg_with_port(port_id, false);
 			hdmirx_wr_bits_top(TOP_HPD_PWR5V, _BIT(port_id), 0);
 			rx_set_term_value(port_id, 0);
@@ -2346,7 +2346,7 @@ int rx_set_port_hpd(u8 port_id, bool val)
 	} else if (port_id == ALL_PORTS) {
 		if (val) {
 			if (rx.chip_id >= CHIP_ID_T7)
-				hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, 0x1);
+				hdmirx_wr_bits_cor(RX_C0_SRST2_AON_IVCRX, _BIT(5), 0);
 			rx_i2c_edid_cfg_with_port(0xf, true);
 			hdmirx_wr_bits_top(TOP_HPD_PWR5V, MSK(4, 0), 0xF);
 			rx_set_term_value(port_id, 1);

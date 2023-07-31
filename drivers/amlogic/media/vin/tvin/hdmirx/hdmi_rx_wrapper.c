@@ -2931,6 +2931,8 @@ void rx_5v_monitor(void)
 		if (rx.cur_5v_sts == 0) {
 			set_fsm_state(FSM_5V_LOST);
 			rx.err_code = ERR_5V_LOST;
+			rx_set_cur_hpd(0, 6);
+			port_hpd_rst_flag |= 1 << rx.port;
 			vic_check_en = false;
 			dvi_check_en = true;
 			if (hdmirx_repeat_support()) {
