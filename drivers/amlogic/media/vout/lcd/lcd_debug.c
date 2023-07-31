@@ -356,7 +356,7 @@ static int lcd_info_print_vbyone(struct aml_lcd_drv_s *pdrv, char *buf, int offs
 		"region_num      %u\n"
 		"byte_mode       %u\n"
 		"color_fmt       %u\n"
-		"bit_rate        %uHz\n"
+		"bit_rate        %lluHz\n"
 		"phy_vswing      0x%x\n"
 		"phy_preem       0x%x\n"
 		"intr_en         %u\n"
@@ -435,7 +435,7 @@ static int lcd_info_print_edp(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		"sync_clk_mode        %d\n\n"
 		"lane_count           %d\n"
 		"link_rate            %d\n"
-		"bit_rate             %uHz\n"
+		"bit_rate             %lluHz\n"
 		"training_settings    0x%x\n"
 		"main_stream_enable   %d\n"
 		"phy_vswing           0x%x\n"
@@ -477,7 +477,7 @@ static int lcd_info_print_mlvds(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		"bit_swap          %u\n"
 		"phy_vswing        0x%x\n"
 		"phy_preem         0x%x\n"
-		"bit_rate          %uHz\n"
+		"bit_rate          %lluHz\n"
 		"pi_clk_sel        0x%03x\n\n",
 		pdrv->config.control.mlvds_cfg.channel_num,
 		pdrv->config.control.mlvds_cfg.channel_sel0,
@@ -512,7 +512,7 @@ static int lcd_info_print_p2p(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		"channel_sel1      0x%08x\n"
 		"pn_swap           %u\n"
 		"bit_swap          %u\n"
-		"bit_rate          %uHz\n"
+		"bit_rate          %lluHz\n"
 		"phy_vswing        0x%x\n"
 		"phy_preem         0x%x\n\n",
 		pdrv->config.control.p2p_cfg.p2p_type,
@@ -538,11 +538,10 @@ static int lcd_info_print_p2p(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 {
 	struct lcd_config_s *pconf;
-	unsigned int lcd_clk, sync_duration, mute_state = 0;
+	unsigned int sync_duration, mute_state = 0;
 	int n, len = 0;
 
 	pconf = &pdrv->config;
-	lcd_clk = (pconf->timing.lcd_clk / 1000);
 	sync_duration = pconf->timing.sync_duration_num * 100;
 	sync_duration = sync_duration / pconf->timing.sync_duration_den;
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
@@ -580,26 +579,26 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
-		"lcd_clk         %u.%03uMHz\n"
-		"ss_level        %d\n"
-		"ss_freq         %d\n"
-		"ss_mode         %d\n"
-		"clk_auto        %d\n"
-		"fr_adj_type     %d\n\n",
-		(lcd_clk / 1000), (lcd_clk % 1000),
-		pconf->timing.ss_level, pconf->timing.ss_freq, pconf->timing.ss_mode,
+		"lcd_clk        %uHz\n"
+		"ss_level       %d\n"
+		"ss_freq        %d\n"
+		"ss_mode        %d\n"
+		"clk_auto       %d\n"
+		"fr_adj_type    %d\n\n",
+		pconf->timing.lcd_clk, pconf->timing.ss_level,
+		pconf->timing.ss_freq, pconf->timing.ss_mode,
 		pconf->timing.clk_auto, pconf->timing.fr_adjust_type);
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
-		"h_period        %d\n"
-		"v_period        %d\n"
-		"hs_width        %d\n"
-		"hs_backporch    %d\n"
-		"hs_pol          %d\n"
-		"vs_width        %d\n"
-		"vs_backporch    %d\n"
-		"vs_pol          %d\n\n",
+		"h_period       %d\n"
+		"v_period       %d\n"
+		"hs_width       %d\n"
+		"hs_backporch   %d\n"
+		"hs_pol         %d\n"
+		"vs_width       %d\n"
+		"vs_backporch   %d\n"
+		"vs_pol         %d\n\n",
 		pconf->basic.h_period, pconf->basic.v_period,
 		pconf->timing.hsync_width, pconf->timing.hsync_bp,
 		pconf->timing.hsync_pol,
@@ -607,14 +606,14 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		pconf->timing.vsync_pol);
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
-		"h_period_min    %d\n"
-		"h_period_max    %d\n"
-		"v_period_min    %d\n"
-		"v_period_max    %d\n"
-		"frame_rate_min  %d\n"
-		"frame_rate_max  %d\n"
-		"pclk_min        %d\n"
-		"pclk_max        %d\n\n",
+		"h_period_min   %d\n"
+		"h_period_max   %d\n"
+		"v_period_min   %d\n"
+		"v_period_max   %d\n"
+		"frame_rate_min %d\n"
+		"frame_rate_max %d\n"
+		"pclk_min       %d\n"
+		"pclk_max       %d\n\n",
 		pconf->basic.h_period_min, pconf->basic.h_period_max,
 		pconf->basic.v_period_min, pconf->basic.v_period_max,
 		pconf->basic.frame_rate_min, pconf->basic.frame_rate_max,
@@ -622,11 +621,11 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
-		"pll_ctrl        0x%08x\n"
-		"div_ctrl        0x%08x\n"
-		"clk_ctrl        0x%08x\n"
-		"video_on_pixel  %d\n"
-		"video_on_line   %d\n\n",
+		"pll_ctrl       0x%08x\n"
+		"div_ctrl       0x%08x\n"
+		"clk_ctrl       0x%08x\n"
+		"video_on_pixel %d\n"
+		"video_on_line  %d\n\n",
 		pconf->timing.pll_ctrl, pconf->timing.div_ctrl,
 		pconf->timing.clk_ctrl,
 		pconf->timing.hstart,
@@ -693,8 +692,6 @@ static int lcd_info_adv_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 			pdrv->config.cus_ctrl.dlg_time,
 			pdrv->config.cus_ctrl.attr_0_para0,
 			pdrv->config.cus_ctrl.attr_0_para1);
-
-	len += lcd_clk_clkmsr_print(pdrv, (buf + len), (len + offset));
 
 	return len;
 }
@@ -2363,6 +2360,9 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 		memset(print_buf, 0, PR_BUF_MAX);
 		lcd_optical_info_print(pdrv, print_buf, 0);
 		lcd_debug_info_print(print_buf);
+		i = lcd_clk_config_print(pdrv, print_buf, 0);
+		lcd_clk_clkmsr_print(pdrv, (print_buf + i), i);
+		lcd_debug_info_print(print_buf);
 		kfree(print_buf);
 		break;
 	case 'k': /* key */
@@ -3094,7 +3094,7 @@ static ssize_t lcd_debug_clk_show(struct device *dev,
 		return sprintf(buf, "%s: buf malloc error\n", __func__);
 
 	n = lcd_clk_config_print(pdrv, print_buf, 0);
-	lcd_clk_clkmsr_print(pdrv, (buf + n), n);
+	lcd_clk_clkmsr_print(pdrv, (print_buf + n), n);
 
 	n = sprintf(buf, "%s\n", print_buf);
 	kfree(print_buf);
@@ -3636,13 +3636,14 @@ static ssize_t lcd_debug_vlock_show(struct device *dev,
 #define LCD_DEBUG_DUMP_REG_PHY        7
 #define LCD_DEBUG_DUMP_REG_PINMUX     8
 #define LCD_DEBUG_DUMP_OPTICAL        9
+#define LCD_DEBUG_DUMP_CLK_PARA       10
 static int lcd_debug_dump_state;
 static ssize_t lcd_debug_dump_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	char *print_buf;
-	int len = 0;
+	int i, len = 0;
 
 	print_buf = kcalloc(PR_BUF_MAX, sizeof(char), GFP_KERNEL);
 	if (!print_buf)
@@ -3678,6 +3679,10 @@ static ssize_t lcd_debug_dump_show(struct device *dev,
 		break;
 	case LCD_DEBUG_DUMP_OPTICAL:
 		lcd_optical_info_print(pdrv, print_buf, 0);
+		break;
+	case LCD_DEBUG_DUMP_CLK_PARA:
+		i = lcd_clk_config_print(pdrv, print_buf, 0);
+		lcd_clk_clkmsr_print(pdrv, (print_buf + i), i);
 		break;
 	default:
 		sprintf(print_buf, "%s: invalid command\n", __func__);
@@ -3728,6 +3733,8 @@ static ssize_t lcd_debug_dump_store(struct device *dev, struct device_attribute 
 		lcd_debug_dump_state = LCD_DEBUG_DUMP_OPTICAL;
 	} else if (strcmp(parm[0], "hdr") == 0) {
 		lcd_debug_dump_state = LCD_DEBUG_DUMP_OPTICAL;
+	} else if (strcmp(parm[0], "clk") == 0) {
+		lcd_debug_dump_state = LCD_DEBUG_DUMP_CLK_PARA;
 	} else {
 		LCDERR("invalid command\n");
 		kfree(buf_orig);

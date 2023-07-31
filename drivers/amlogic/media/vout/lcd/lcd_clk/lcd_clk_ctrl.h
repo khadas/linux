@@ -12,17 +12,6 @@
 #include "lcd_clk_config.h"
 
 /* **********************************
- * COMMON
- * **********************************
- */
-#define PLL_M_MIN                   2
-#define PLL_M_MAX                   511
-#define PLL_N_MIN                   1
-#define PLL_N_MAX                   1
-#define PLL_FREF_MIN                (5 * 1000)
-#define PLL_FREF_MAX                (25 * 1000)
-
-/* **********************************
  * AXG
  * **********************************
  */
@@ -35,18 +24,6 @@
 #define LCD_PLL_N_AXG               9
 #define LCD_PLL_M_AXG               0
 
-/* ******** frequency limit (unit: kHz) ******** */
-#define PLL_OD_FB_AXG               0
-#define PLL_FRAC_RANGE_AXG          BIT(10)
-#define PLL_FRAC_SIGN_BIT_AXG       11
-#define PLL_OD_SEL_MAX_AXG          3
-#define PLL_VCO_MIN_AXG             (960 * 1000)
-#define PLL_VCO_MAX_AXG             (1920 * 1000)
-
-/* video */
-#define CRT_VID_CLK_IN_MAX_AXG      (1920 * 1000)
-#define ENCL_CLK_IN_MAX_AXG         (200 * 1000)
-
 /* G12A */
 /* ******** register bit ******** */
 /* PLL_CNTL bit: GP0 */
@@ -56,14 +33,6 @@
 #define LCD_PLL_OD_GP0_G12A         16
 #define LCD_PLL_N_GP0_G12A          10
 #define LCD_PLL_M_GP0_G12A          0
-
-/* ******** frequency limit (unit: kHz) ******** */
-#define PLL_OD_FB_GP0_G12A          0
-#define PLL_FRAC_RANGE_GP0_G12A     BIT(17)
-#define PLL_FRAC_SIGN_BIT_GP0_G12A  18
-#define PLL_OD_SEL_MAX_GP0_G12A     5
-#define PLL_VCO_MIN_GP0_G12A        (3000 * 1000)
-#define PLL_VCO_MAX_GP0_G12A        (6000 * 1000)
 
 /* PLL_CNTL bit: hpll */
 #define LCD_PLL_LOCK_HPLL_G12A      31
@@ -75,18 +44,6 @@
 #define LCD_PLL_OD3_HPLL_G12A       20
 #define LCD_PLL_OD2_HPLL_G12A       18
 #define LCD_PLL_OD1_HPLL_G12A       16
-
-/* ******** frequency limit (unit: kHz) ******** */
-#define PLL_OD_FB_HPLL_G12A         0
-#define PLL_FRAC_RANGE_HPLL_G12A    BIT(17)
-#define PLL_FRAC_SIGN_BIT_HPLL_G12A 18
-#define PLL_OD_SEL_MAX_HPLL_G12A    3
-#define PLL_VCO_MIN_HPLL_G12A       (3000 * 1000)
-#define PLL_VCO_MAX_HPLL_G12A       (6000 * 1000)
-
-/* video */
-#define CRT_VID_CLK_IN_MAX_G12A     (6000 * 1000)
-#define ENCL_CLK_IN_MAX_G12A        (200 * 1000)
 
 /* **********************************
  * TL1
@@ -104,35 +61,6 @@
 #define LCD_PLL_OD2_TL1             23
 #define LCD_PLL_OD1_TL1             21
 
-/* ******** frequency limit (unit: kHz) ******** */
-#define PLL_OD_FB_TL1               0
-#define PLL_FRAC_RANGE_TL1          BIT(17)
-#define PLL_FRAC_SIGN_BIT_TL1       18
-#define PLL_OD_SEL_MAX_TL1          3
-#define PLL_VCO_MIN_TL1             (3384 * 1000)
-#define PLL_VCO_MAX_TL1             (6024 * 1000)
-
-/* video */
-#define CLK_DIV_IN_MAX_TL1          (3100 * 1000)
-#define CRT_VID_CLK_IN_MAX_TL1      (3100 * 1000)
-#define ENCL_CLK_IN_MAX_TL1         (750 * 1000)
-
-/* **********************************
- * TM2
- * **********************************
- */
-#define PLL_VCO_MIN_TM2             (3000 * 1000)
-#define PLL_VCO_MAX_TM2             (6000 * 1000)
-
-/* **********************************
- * T5D
- * **********************************
- */
-/* video */
-#define CLK_DIV_IN_MAX_T5D          (3100 * 1000)
-#define CRT_VID_CLK_IN_MAX_T5D      (3100 * 1000)
-#define ENCL_CLK_IN_MAX_T5D         (400 * 1000)
-
 /* **********************************
  * T7
  * **********************************
@@ -141,12 +69,6 @@
 #define LCD_PLL_OD2_T7               21
 #define LCD_PLL_OD1_T7               19
 #define LCD_PLL_LOCK_T7              31
-
-/* **********************************
- * A4
- * **********************************
- */
-#define VPU_VOUT_CLK_IN_MAX_A4       (75 * 1000)
 
 /* **********************************
  * Spread Spectrum
@@ -161,9 +83,9 @@
 /* ******** clk calculation ******** */
 #define PLL_WAIT_LOCK_CNT           200
  /* frequency unit: kHz */
-#define FIN_FREQ                    (24 * 1000)
+#define FIN_FREQ                    (24 * 1000000)
 /* clk max error */
-#define MAX_ERROR                   (2 * 1000)
+#define MAX_ERROR                   (2 * 1000000)
 
 /* ******** register bit ******** */
 /* divider */

@@ -445,7 +445,7 @@ enum tv_enc_lcd_type_e {
 
 /* DPHY standard timing */
 /* unit: MHz */
-#define MIPI_PHY_CLK_MAX            1000
+#define MIPI_PHY_CLK_MAX            1000000000
 
 /* **** DPHY timing parameter       Value (unit: 0.01ns) **** */
 /* >100ns (4M) */

@@ -69,11 +69,11 @@ struct lcd_clk_data_s {
 	unsigned int pll_od_sel_max;
 	unsigned int pll_ref_fmax;
 	unsigned int pll_ref_fmin;
-	unsigned int pll_vco_fmax;
-	unsigned int pll_vco_fmin;
-	unsigned int pll_out_fmax;
-	unsigned int pll_out_fmin;
-	unsigned int div_in_fmax;
+	unsigned long long pll_vco_fmax;
+	unsigned long long pll_vco_fmin;
+	unsigned long long pll_out_fmax;
+	unsigned long long pll_out_fmin;
+	unsigned long long div_in_fmax;
 	unsigned int div_out_fmax;
 	unsigned int xd_out_fmax;
 
@@ -103,7 +103,7 @@ struct lcd_clk_data_s {
 	int (*clk_config_print)(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 };
 
-struct lcd_clk_config_s { /* unit: kHz */
+struct lcd_clk_config_s { /* unit: Hz */
 	/* IN-OUT parameters */
 	unsigned int fin;
 	unsigned int fout;
@@ -115,7 +115,7 @@ struct lcd_clk_config_s { /* unit: kHz */
 	unsigned int pll_od_fb;
 	unsigned int pll_m;
 	unsigned int pll_n;
-	unsigned int pll_fvco;
+	unsigned long long pll_fvco;
 	unsigned int pll_od1_sel;
 	unsigned int pll_od2_sel;
 	unsigned int pll_od3_sel;
@@ -123,7 +123,8 @@ struct lcd_clk_config_s { /* unit: kHz */
 	unsigned int pll_level;
 	unsigned int pll_frac;
 	unsigned int pll_frac_half_shift;
-	unsigned int pll_fout;
+	unsigned long long pll_fout;
+	unsigned long long phy_clk;
 	unsigned int ss_level;
 	unsigned int ss_freq;
 	unsigned int ss_mode;

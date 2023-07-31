@@ -24,11 +24,11 @@
 
 static unsigned int fclk_div_table[][2] = {
 /*  sel,  divclk */
-	{1, 666667},
-	{2, 500000},
-	{3, 400000},
-	{6, 800000},
-	{7, 285714},
+	{1, 666666667},
+	{2, 500000000},
+	{3, 400000000},
+	{6, 800000000},
+	{7, 285714286},
 	{LCD_CLK_CTRL_END, LCD_CLK_CTRL_END}
 };
 
@@ -38,18 +38,19 @@ static void lcd_set_fclk_div(struct aml_lcd_drv_s *pdrv)
 	unsigned int f_target;
 	unsigned int max_div = 256;
 	unsigned int i = 0, div = 0, min_err_sel_idx = 0, min_err_div = 1;
-	unsigned int min_err = 100000, error;
+	unsigned int min_err = 100000000, error;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf)
 		return;
 
-	f_target = pdrv->config.timing.lcd_clk / 1000;
+	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+
+	f_target = pdrv->config.timing.lcd_clk;
 	if (f_target >= cconf->data->xd_out_fmax) {
-		LCDERR("%s: freq(%dKHz) out of limit(%dkHz)\n", __func__,
-			f_target, VPU_VOUT_CLK_IN_MAX_A4);
+		LCDERR("%s: freq(%dHz) out of limit(%dHz)\n", __func__,
+			f_target, cconf->data->xd_out_fmax);
 		return;
 	}
 
@@ -72,7 +73,7 @@ static void lcd_set_fclk_div(struct aml_lcd_drv_s *pdrv)
 	cconf->data->vclk_sel = fclk_div_table[min_err_sel_idx][0];
 	cconf->fout = fclk_div_table[min_err_sel_idx][1] / min_err_div;
 
-	LCDPR("[%d]: f_tar:%d, f_out:%d, fclk:%dkHz, div:%d, error:%d\n", pdrv->index,
+	LCDPR("[%d]: f_tar:%d, f_out:%d, fclk:%dHz, div:%d, error:%d\n", pdrv->index,
 		f_target, cconf->fout, fclk_div_table[min_err_sel_idx][1], min_err_div, min_err);
 }
 
@@ -122,7 +123,7 @@ static int lcd_clk_config_print_a4(struct aml_lcd_drv_s *pdrv, char *buf, int of
 		"lcd clk config:\n"
 		"vclk_sel      %d\n"
 		"xd:           %d\n"
-		"fout:         %dkHz\n\n",
+		"fout:         %dHz\n\n",
 		cconf->data->vclk_sel,
 		cconf->xd, cconf->fout);
 
@@ -130,23 +131,23 @@ static int lcd_clk_config_print_a4(struct aml_lcd_drv_s *pdrv, char *buf, int of
 }
 
 static struct lcd_clk_data_s lcd_clk_data_a4 = {
-	.pll_od_fb = PLL_OD_FB_TL1,
-	.pll_m_max = PLL_M_MAX,
-	.pll_m_min = PLL_M_MIN,
-	.pll_n_max = PLL_N_MAX,
-	.pll_n_min = PLL_N_MIN,
+	.pll_od_fb = 0,
+	.pll_m_max = 511,
+	.pll_m_min = 2,
+	.pll_n_max = 1,
+	.pll_n_min = 1,
 	.pll_frac_range = 0,
 	.pll_frac_sign_bit = 0,
 	.pll_od_sel_max = 0,
-	.pll_ref_fmax = PLL_FREF_MAX,
-	.pll_ref_fmin = PLL_FREF_MIN,
+	.pll_ref_fmax = 25000000,
+	.pll_ref_fmin = 5000000,
 	.pll_vco_fmax = 0,
 	.pll_vco_fmin = 0,
 	.pll_out_fmax = 0,
 	.pll_out_fmin = 0,
 	.div_in_fmax = 0,
 	.div_out_fmax = 0,
-	.xd_out_fmax = VPU_VOUT_CLK_IN_MAX_A4,
+	.xd_out_fmax = 75000000,
 
 	.vclk_sel = 0xff, //unassigned
 	.enc_clk_msr_id = LCD_CLK_MSR_INVALID,

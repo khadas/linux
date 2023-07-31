@@ -175,7 +175,7 @@ set_pll_retry_t7:
 	udelay(10);
 	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL2 + offset, 0x0000110c);
 	udelay(10);
-	if (cconf->pll_fvco < 3800000)
+	if (cconf->pll_fvco < 3800000000ULL)
 		lcd_ana_write(ANACTRL_TCON_PLL0_CNTL3 + offset, 0x10051100);
 	else
 		lcd_ana_write(ANACTRL_TCON_PLL0_CNTL3 + offset, 0x10051400);
@@ -895,7 +895,7 @@ set_pll_retry_t3:
 	udelay(10);
 	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL2 + offset, 0x0000110c);
 	udelay(10);
-	if (cconf->pll_fvco < 3800000)
+	if (cconf->pll_fvco < 3800000000ULL)
 		lcd_ana_write(ANACTRL_TCON_PLL0_CNTL3 + offset, 0x10051100);
 	else
 		lcd_ana_write(ANACTRL_TCON_PLL0_CNTL3 + offset, 0x10051400);
@@ -1560,23 +1560,23 @@ static struct lcd_clk_ctrl_s pll_ctrl_table_t7[] = {
 };
 
 static struct lcd_clk_data_s lcd_clk_data_t7 = {
-	.pll_od_fb = PLL_OD_FB_TL1,
-	.pll_m_max = PLL_M_MAX,
-	.pll_m_min = PLL_M_MIN,
-	.pll_n_max = PLL_N_MAX,
-	.pll_n_min = PLL_N_MIN,
-	.pll_frac_range = PLL_FRAC_RANGE_TL1,
-	.pll_frac_sign_bit = PLL_FRAC_SIGN_BIT_TL1,
-	.pll_od_sel_max = PLL_OD_SEL_MAX_TL1,
-	.pll_ref_fmax = PLL_FREF_MAX,
-	.pll_ref_fmin = PLL_FREF_MIN,
-	.pll_vco_fmax = PLL_VCO_MAX_TM2,
-	.pll_vco_fmin = PLL_VCO_MIN_TM2,
-	.pll_out_fmax = CLK_DIV_IN_MAX_TL1,
-	.pll_out_fmin = PLL_VCO_MIN_TL1 / 16,
-	.div_in_fmax = CLK_DIV_IN_MAX_TL1,
-	.div_out_fmax = CRT_VID_CLK_IN_MAX_TL1,
-	.xd_out_fmax = ENCL_CLK_IN_MAX_TL1,
+	.pll_od_fb = 0,
+	.pll_m_max = 511,
+	.pll_m_min = 2,
+	.pll_n_max = 1,
+	.pll_n_min = 1,
+	.pll_frac_range = (1 << 17),
+	.pll_frac_sign_bit = 18,
+	.pll_od_sel_max = 3,
+	.pll_ref_fmax = 25000000,
+	.pll_ref_fmin = 5000000,
+	.pll_vco_fmax = 6000000000ULL,
+	.pll_vco_fmin = 3000000000ULL,
+	.pll_out_fmax = 3100000000ULL,
+	.pll_out_fmin = 187500000,
+	.div_in_fmax = 3100000000ULL,
+	.div_out_fmax = 750000000,
+	.xd_out_fmax = 750000000,
 
 	.vclk_sel = 0,
 	.enc_clk_msr_id = 222,
@@ -1605,23 +1605,23 @@ static struct lcd_clk_data_s lcd_clk_data_t7 = {
 };
 
 static struct lcd_clk_data_s lcd_clk_data_t3 = {
-	.pll_od_fb = PLL_OD_FB_TL1,
-	.pll_m_max = PLL_M_MAX,
-	.pll_m_min = PLL_M_MIN,
-	.pll_n_max = PLL_N_MAX,
-	.pll_n_min = PLL_N_MIN,
-	.pll_frac_range = PLL_FRAC_RANGE_TL1,
-	.pll_frac_sign_bit = PLL_FRAC_SIGN_BIT_TL1,
-	.pll_od_sel_max = PLL_OD_SEL_MAX_TL1,
-	.pll_ref_fmax = PLL_FREF_MAX,
-	.pll_ref_fmin = PLL_FREF_MIN,
-	.pll_vco_fmax = PLL_VCO_MAX_TM2,
-	.pll_vco_fmin = PLL_VCO_MIN_TM2,
-	.pll_out_fmax = CLK_DIV_IN_MAX_TL1,
-	.pll_out_fmin = PLL_VCO_MIN_TL1 / 16,
-	.div_in_fmax = CLK_DIV_IN_MAX_TL1,
-	.div_out_fmax = CRT_VID_CLK_IN_MAX_TL1,
-	.xd_out_fmax = ENCL_CLK_IN_MAX_TL1,
+	.pll_od_fb = 0,
+	.pll_m_max = 511,
+	.pll_m_min = 2,
+	.pll_n_max = 1,
+	.pll_n_min = 1,
+	.pll_frac_range = (1 << 17),
+	.pll_frac_sign_bit = 18,
+	.pll_od_sel_max = 3,
+	.pll_ref_fmax = 25000000,
+	.pll_ref_fmin = 5000000,
+	.pll_vco_fmax = 6000000000ULL,
+	.pll_vco_fmin = 3000000000ULL,
+	.pll_out_fmax = 3100000000ULL,
+	.pll_out_fmin = 187500000,
+	.div_in_fmax = 3100000000ULL,
+	.div_out_fmax = 750000000,
+	.xd_out_fmax = 750000000,
 
 	.vclk_sel = 0,
 	.enc_clk_msr_id = 222,

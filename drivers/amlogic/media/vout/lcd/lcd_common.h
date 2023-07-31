@@ -65,7 +65,8 @@
 /* 20230710: Remove redundant lcd enable settings*/
 /* 20230802: add t5m,t5w,t3x set phy lane amp*/
 /* 20230815: add full-link-training and EDID-timing for eDP */
-#define LCD_DRV_VERSION    "20230815"
+/* 20230816: optimize clk accuracy*/
+#define LCD_DRV_VERSION    "20230816"
 
 extern struct mutex lcd_vout_mutex;
 
@@ -73,13 +74,13 @@ extern spinlock_t lcd_reg_spinlock;
 extern int lcd_vout_serve_bypass;
 extern struct mutex lcd_tcon_dbg_mutex;
 
-static inline unsigned int lcd_do_div(unsigned long long num, unsigned int den)
+static inline unsigned long long lcd_do_div(unsigned long long num, unsigned int den)
 {
 	unsigned long long ret = num;
 
 	do_div(ret, den);
 
-	return (unsigned int)ret;
+	return ret;
 }
 
 /* lcd common */
