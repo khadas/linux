@@ -4595,6 +4595,80 @@ static unsigned int dvbs_get_bitrate(int sr)
 	return sr * cr_b / cr_t / modu_ratio;
 }
 
+static int calc_ave(int *val_arr, int cnt, unsigned int mode, int par)
+{
+	int i, j, k, tot, ave, *val, calc_cnt, *val_tmp, calc_cnt_tmp, need_order;
+
+	need_order = (mode >> 31) & 1 ? 0 : 1;
+	mode = mode & 0x7FFFFFFF;
+
+	if (!val_arr || cnt <= 0 || mode < 0 || mode > 2)
+		return 0;
+
+	if (mode != 0 && par <= 0)
+		return 0;
+
+	if (mode == 1 && (par * 2) >= cnt)
+		return 0;
+
+	tot = 0;
+	calc_cnt = cnt;
+	if (need_order) {
+		val = kmalloc_array(calc_cnt, sizeof(int), GFP_KERNEL);
+		if (!val)
+			return 0;
+
+		memset(val, 0, sizeof(int) * calc_cnt);
+		for (i = 0; i < calc_cnt; i++) {
+			tot += val_arr[i];
+			for (j = 0; j < i; j++) {
+				if (val_arr[i] < val[j]) {
+					for (k = i; k > j; k--)
+						val[k] = val[k - 1];
+					break;
+				}
+			}
+			val[j] = val_arr[i];
+		}
+	} else {
+		for (i = 0; i < calc_cnt; i++)
+			tot += val_arr[i];
+		val = val_arr;
+	}
+
+	if (mode == 1) {
+		for (i = 0; i < par; i++) {
+			tot -= val[i];
+			tot -= val[calc_cnt - 1 - i];
+		}
+		calc_cnt -= par * 2;
+	}
+
+	ave = tot / calc_cnt;
+	ave += (tot % calc_cnt) >= (calc_cnt / 2) ? 1 : 0;
+
+	if (mode == 2) {
+		val_tmp = val;
+		calc_cnt_tmp = calc_cnt;
+		for (i = 0; i < calc_cnt; i++) {
+			if (val[i] < (ave - par)) {
+				val_tmp = &val[i + 1];
+				calc_cnt_tmp--;
+			} else if (val[i] > (ave + par)) {
+				calc_cnt_tmp -= calc_cnt - i;
+				break;
+			}
+		}
+		if (calc_cnt_tmp < calc_cnt)
+			ave = calc_ave(val_tmp, calc_cnt_tmp, mode | 0x80000000, par);
+	}
+
+	if (need_order)
+		kfree(val);
+
+	return ave;
+}
+
 static int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status,
 		unsigned int if_freq_khz, bool re_tune)
 {
@@ -4610,7 +4684,7 @@ static int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *st
 	char *band = NULL;
 	unsigned int pkt_err_cnt, br;
 	static unsigned int pkt_err_cnt_last;
-	static unsigned int times, snr[5];
+	static unsigned int times, snr[8];
 
 	if (re_tune) {
 		pkt_err_cnt_last = 0;
@@ -4618,7 +4692,7 @@ static int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *st
 		*status = 0;
 		demod->last_status = 0;
 		times = 0;
-		memset(snr, 0, sizeof(unsigned int) * 5);
+		memset(snr, 0, sizeof(unsigned int) * 8);
 
 		return 0;
 	}
@@ -4651,8 +4725,19 @@ static int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *st
 	PR_DVBS("sr=%d, br=%d, ber=%d.%d E-8\n", c->symbol_rate, br,
 		demod->real_para.ber / 100, demod->real_para.ber % 100);
 	pkt_err_cnt_last = pkt_err_cnt;
-	snr[times++ % 5] = dvbs_get_quality();
-	demod->real_para.snr = (snr[0] + snr[1] + snr[2] + snr[3] + snr[4]) / 5;
+	//snr[times % 8] = dvbs_get_quality();
+	//demod->real_para.snr = (snr[0] + snr[1] + snr[2] + snr[3] +
+	//	snr[4] + snr[5] + snr[6] + snr[7]) / 8;
+	//PR_DVBS("==testSNR== snr=%d, ave8=%d, fun:ave8=%d, ave8-1-1=%d, ave8-1-2=%d,"
+	//	" ave8-2-1=%d, ave8-2-2=%d\n", snr[times % 8], demod->real_para.snr,
+	//	calc_ave(snr, 8, 0, 0), calc_ave(snr, 8, 1, 1), calc_ave(snr, 8, 1, 2),
+	//	calc_ave(snr, 8, 2, 1), calc_ave(snr, 8, 2, 2));
+	//times++;
+	snr[times++ % 8] = dvbs_get_quality();
+	//PR_DVBS("calc_ave cnt:%d ==>%d, %d, %d, %d, %d, %d, %d, %d<==\n",
+	//	cnt, snr[0], snr[1], snr[2], snr[3], snr[4], snr[5], snr[6], snr[7]);
+	demod->real_para.snr = calc_ave(snr, 8, 1, 1);
+	PR_DVBS("calc snr = %d\n", demod->real_para.snr);
 
 	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
 	if (demod->time_passed >= 500) {
