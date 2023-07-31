@@ -1871,13 +1871,22 @@ static int lcd_config_load_from_unifykey_v2(struct lcd_config_s *pconf,
 			phy_cfg->lane[i].preem =
 				*(p + LCD_UKEY_PHY_LANE_CTRL + 4 * i) |
 				(*(p + LCD_UKEY_PHY_LANE_CTRL + 4 * i + 1) << 8);
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+				LCDPR("%s: lane[%d]: preem=0x%x\n",
+				      __func__, i,
+				      phy_cfg->lane[i].preem);
+			}
+		}
+	}
+
+	if (phy_cfg->flag & (1 << 13)) {
+		for (i = 0; i < phy_cfg->lane_num; i++) {
 			phy_cfg->lane[i].amp =
 				*(p + LCD_UKEY_PHY_LANE_CTRL + 4 * i + 2) |
 				(*(p + LCD_UKEY_PHY_LANE_CTRL + 4 * i + 3) << 8);
 			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-				LCDPR("%s: lane[%d]: preem=0x%x, amp=0x%x\n",
+				LCDPR("%s: lane[%d]: amp=0x%x\n",
 				      __func__, i,
-				      phy_cfg->lane[i].preem,
 				      phy_cfg->lane[i].amp);
 			}
 		}
