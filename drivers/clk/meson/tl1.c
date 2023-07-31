@@ -3597,7 +3597,7 @@ static struct clk_regmap tl1_dsu_clk = {
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "dsu_clk",
-		.ops = &clk_regmap_mux_ro_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&tl1_cpu_clk.hw,
 			&tl1_dsu_final_clk.hw,
