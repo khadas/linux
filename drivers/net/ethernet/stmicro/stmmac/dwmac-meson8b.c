@@ -128,6 +128,8 @@ struct meson8b_dwmac_clk_configs {
 	struct clk_gate		rgmii_tx_en;
 };
 
+extern void realtek_setup_wol(int enable, bool is_shutdown);
+
 static void meson8b_dwmac_mask_bits(struct meson8b_dwmac *dwmac, u32 reg,
 				    u32 mask, u32 value)
 {
@@ -637,6 +639,8 @@ static void meson8b_dwmac_shutdown(struct platform_device *pdev)
 		if (dwmac->data->suspend)
 			ret = dwmac->data->suspend(dwmac);
 	}
+
+	realtek_setup_wol(1, 1);
 }
 
 static int dwmac_suspend(struct meson8b_dwmac *dwmac)
@@ -718,6 +722,7 @@ static int meson8b_suspend(struct device *dev)
 		without_reset = 0;
 	}
 
+	realtek_setup_wol(1, 0);
 	return ret;
 }
 
@@ -763,6 +768,8 @@ static int meson8b_resume(struct device *dev)
 		if (phy_mode == 2)
 			stmmac_global_err(priv);
 	}
+
+	realtek_setup_wol(0, 0);
 	return ret;
 }
 
