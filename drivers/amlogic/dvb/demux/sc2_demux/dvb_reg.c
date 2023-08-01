@@ -13,7 +13,6 @@
 #include "dsc_reg.h"
 #include "demod_reg.h"
 #include "mem_desc_reg.h"
-#include "../key_reg.h"
 #include "../dmx_log.h"
 
 #define pr_verify(fmt, args...)   \
@@ -42,7 +41,6 @@ void aml_write_self(unsigned int reg, unsigned int val)
 		    reg == TSN_PID_READY ||
 		    reg == TSD_PID_READY ||
 		    reg == TSE_PID_READY ||
-		    reg == KT_REE_RDY ||
 		    (reg >= TS_DMA_RCH_READY(0) &&
 		     reg <= TS_DMA_RCH_READY(31)) ||
 		    ((reg >= TS_DMA_WCH_READY(0) &&

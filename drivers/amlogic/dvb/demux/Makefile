@@ -10,7 +10,6 @@ ccflags-y += -I$(srctree)/include
 dvb_demux-objs += aml_dvb.o
 dvb_demux-objs += aml_dsc.o
 dvb_demux-objs += aml_dmx.o
-dvb_demux-objs += aml_key.o
 
 dvb_demux-objs += sw_demux/swdmx_cb_list.o
 dvb_demux-objs += sw_demux/swdmx_crc32.o

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/amlogic/aml_kt.h>
@@ -25,6 +25,7 @@
 #include <linux/vmalloc.h>
 #include <linux/amlogic/iomap.h>
 #include "aml_kt_log.h"
+#include "aml_kt_dev.h"
 
 #define AML_KT_DEVICE_NAME "aml_kt"
 #define DEVICE_INSTANCES 1
@@ -42,7 +43,6 @@
 #define KT_ERROR      (-1)
 
 #define KT_IV_SPEC_ALGO	  (0xff)
-#define KT_IV_FLAG_OFFSET (31)
 
 #define KT_PENDING_WAIT_TIMEOUT (20000)
 
@@ -98,39 +98,14 @@ enum KT_UID_CAPABILITY {
  */
  /*variant: 6, frobenious cycles:0x5a5*/
 #define S17_CFG_DEFAULT     (0x15a5)
-#define KT_KTE_MAX (128)
-#define KT_IVE_MAX (32)
-
-struct aml_kt_dev {
-	struct cdev cdev;
-	struct mutex lock; /*define mutex*/
-	struct amlkt_cfg_param *kt_slot[KT_KTE_MAX];
-	struct amlkt_cfg_param *kt_iv_slot[KT_IVE_MAX];
-	void __iomem *base_addr;
-	struct reg {
-		u32 rdy_offset;
-		u32 cfg_offset;
-		u32 sts_offset;
-		u32 key0_offset;
-		u32 key1_offset;
-		u32 key2_offset;
-		u32 key3_offset;
-		u32 s17_cfg_offset;
-	} reg;
-	u32 user_cap;
-	u32 algo_cap;
-	u32 kte_start;
-	u32 kte_end;
-	u32 ive_start;
-	u32 ive_end;
-	u32 kt_reserved;
-};
 
 static dev_t aml_kt_devt;
-static struct aml_kt_dev aml_kt_dev;
+struct aml_kt_dev aml_kt_dev;
+EXPORT_SYMBOL(aml_kt_dev);
+
 static struct class *aml_kt_class;
 static struct dentry *aml_kt_debug_dent;
-int kt_log_level = 3;
+u32 kt_log_level = 3;
 
 static int aml_kt_init_dbgfs(void)
 {
@@ -187,7 +162,7 @@ static bool aml_kt_handle_valid(struct aml_kt_dev *dev, u32 handle)
 	return true;
 }
 
-static int aml_kt_handle_to_kte(struct aml_kt_dev *dev, u32 handle, u32 *kte)
+int aml_kt_handle_to_kte(struct aml_kt_dev *dev, u32 handle, u32 *kte)
 {
 	if (unlikely(!dev)) {
 		LOGE("Empty aml_kt_dev\n");
@@ -208,6 +183,7 @@ static int aml_kt_handle_to_kte(struct aml_kt_dev *dev, u32 handle, u32 *kte)
 
 	return KT_SUCCESS;
 }
+EXPORT_SYMBOL(aml_kt_handle_to_kte);
 
 static int aml_kt_read_pending(struct aml_kt_dev *dev)
 {
@@ -256,7 +232,7 @@ static bool aml_kt_slot_reserved(u32 index)
 	return reserved;
 }
 
-static int aml_kt_get_flag(struct aml_kt_dev *dev, u32 handle)
+int aml_kt_get_status(struct aml_kt_dev *dev, u32 handle, u32 *key_sts)
 {
 	int ret = KT_SUCCESS;
 	u32 kte = 0;
@@ -297,6 +273,7 @@ static int aml_kt_get_flag(struct aml_kt_dev *dev, u32 handle)
 	reg_ret = ioread32((char *)dev->base_addr + dev->reg.sts_offset);
 	if (reg_ret != KT_ERROR) {
 		LOGD("kte=%d KT_REE_STS=0x%08x\n", kte, reg_ret);
+		memcpy(key_sts, &reg_ret, sizeof(reg_ret));
 		ret = KT_SUCCESS;
 		goto unlock_kt;
 	}
@@ -308,10 +285,10 @@ unlock_mutex:
 
 	return ret;
 }
+EXPORT_SYMBOL(aml_kt_get_status);
 
-static int aml_kt_alloc(struct file *filp, u32 flag, u32 *handle)
+int aml_kt_alloc(struct aml_kt_dev *dev, u32 flag, u32 *handle)
 {
-	struct aml_kt_dev *dev = filp->private_data;
 	int res = KT_SUCCESS;
 	u32 entry = 0;
 	u8 is_iv = 0;
@@ -388,10 +365,10 @@ exit:
 
 	return res;
 }
+EXPORT_SYMBOL(aml_kt_alloc);
 
-static int aml_kt_config(struct file *filp, struct amlkt_cfg_param key_cfg)
+int aml_kt_config(struct aml_kt_dev *dev, struct amlkt_cfg_param key_cfg)
 {
-	struct aml_kt_dev *dev = filp->private_data;
 	int ret = KT_SUCCESS;
 	u32 index = 0;
 	u8 is_iv = 0;
@@ -570,6 +547,7 @@ error_user:
 exit:
 	return KT_ERROR;
 }
+EXPORT_SYMBOL(aml_kt_config);
 
 static int aml_kt_write_cfg(struct aml_kt_dev *dev,
 	u32 handle, u32 key_mode, struct amlkt_cfg_param *key_cfg, u32 func_id)
@@ -661,8 +639,6 @@ static int aml_kt_set_inter_key(struct aml_kt_dev *dev, u32 handle, struct amlkt
 		if (ret == KT_ERROR) {
 			LOGE("aml_kt_write_cfg error\n");
 			goto unlock_kt;
-		} else {
-			ret = KT_SUCCESS;
 		}
 
 		if (keylen >= 20)
@@ -682,8 +658,6 @@ static int aml_kt_set_inter_key(struct aml_kt_dev *dev, u32 handle, struct amlkt
 		if (ret == KT_ERROR) {
 			LOGE("aml_kt_write_cfg error\n");
 			goto unlock_kt;
-		} else {
-			ret = KT_SUCCESS;
 		}
 	} else if (keylen <= 16) {
 		if (keylen >= 4)
@@ -702,8 +676,6 @@ static int aml_kt_set_inter_key(struct aml_kt_dev *dev, u32 handle, struct amlkt
 		if (ret == KT_ERROR) {
 			LOGE("aml_kt_write_cfg error\n");
 			goto unlock_kt;
-		} else {
-			ret = KT_SUCCESS;
 		}
 	} else {
 		LOGE("Error: unsupported keylen:%d\n", keylen);
@@ -745,8 +717,6 @@ static int aml_kt_set_inter_hw_key(struct aml_kt_dev *dev, u32 handle,
 	if (ret == KT_ERROR) {
 		LOGE("aml_kt_write_cfg error\n");
 		goto unlock_kt;
-	} else {
-		ret = KT_SUCCESS;
 	}
 
 unlock_kt:
@@ -757,13 +727,13 @@ unlock_mutex:
 	return ret;
 }
 
-static int aml_kt_set_host_key(struct file *filp, struct amlkt_set_key_param *key_param)
+int aml_kt_set_host_key(struct aml_kt_dev *dev, struct amlkt_set_key_param *key_param)
 {
-	struct aml_kt_dev *dev = filp->private_data;
 	int ret = KT_SUCCESS;
 	u32 index = 0;
 	u32 key_source = 0;
 	u8 is_iv = 0;
+	u32 key_sts = 0;
 
 	ret = aml_kt_handle_to_kte(dev, key_param->handle, &index);
 	if (ret != KT_SUCCESS) {
@@ -797,21 +767,22 @@ static int aml_kt_set_host_key(struct file *filp, struct amlkt_set_key_param *ke
 	default:
 		LOGE("Not support key_source[%d]\n", key_source);
 		ret = KT_ERROR;
-		break;
+		return ret;
 	}
 
-	if (ret == KT_SUCCESS)
-		aml_kt_get_flag(dev, key_param->handle);
+	if (ret == KT_SUCCESS && kt_log_level <= LOG_DEBUG)
+		aml_kt_get_status(dev, key_param->handle, &key_sts);
 
 	return ret;
 }
+EXPORT_SYMBOL(aml_kt_set_host_key);
 
-static int aml_kt_set_hw_key(struct file *filp, u32 handle)
+int aml_kt_set_hw_key(struct aml_kt_dev *dev, u32 handle)
 {
-	struct aml_kt_dev *dev = filp->private_data;
 	int ret = KT_SUCCESS;
 	u32 index = 0;
 	u32 key_source = 0;
+	u32 key_sts = 0;
 	u8 is_iv = 0;
 
 	ret = aml_kt_handle_to_kte(dev, handle, &index);
@@ -857,15 +828,15 @@ static int aml_kt_set_hw_key(struct file *filp, u32 handle)
 		break;
 	}
 
-	if (ret == KT_SUCCESS)
-		aml_kt_get_flag(dev, handle);
+	if (ret == KT_SUCCESS && kt_log_level <= LOG_DEBUG)
+		aml_kt_get_status(dev, handle, &key_sts);
 
 	return ret;
 }
+EXPORT_SYMBOL(aml_kt_set_hw_key);
 
-static int aml_kt_invalidate(struct file *filp, u32 handle)
+static int aml_kt_invalidate(struct aml_kt_dev *dev, u32 handle)
 {
-	struct aml_kt_dev *dev = filp->private_data;
 	int ret = KT_SUCCESS;
 	u32 kte = 0;
 	u32 reg_val = 0;
@@ -911,9 +882,8 @@ unlock_mutex:
 	return ret;
 }
 
-static int aml_kt_free(struct file *filp, u32 handle)
+int aml_kt_free(struct aml_kt_dev *dev, u32 handle)
 {
-	struct aml_kt_dev *dev = filp->private_data;
 	int ret = KT_SUCCESS;
 	u32 kte = 0;
 	u8 is_iv = 0;
@@ -930,7 +900,7 @@ static int aml_kt_free(struct file *filp, u32 handle)
 	}
 
 	is_iv = handle >> KT_IV_FLAG_OFFSET;
-	ret = aml_kt_invalidate(filp, handle);
+	ret = aml_kt_invalidate(dev, handle);
 
 	mutex_lock(&dev->lock);
 	if (is_iv) {
@@ -944,13 +914,14 @@ static int aml_kt_free(struct file *filp, u32 handle)
 
 	if (ret != KT_SUCCESS) {
 		LOGE("Error: KT invalidate clean kte error\n");
-		return KT_ERROR;
+		ret = KT_ERROR;
 	} else {
 		ret = KT_SUCCESS;
 	}
 
 	return ret;
 }
+EXPORT_SYMBOL(aml_kt_free);
 
 int aml_kt_open(struct inode *inode, struct file *filp)
 {
@@ -999,7 +970,7 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		}
 
-		ret = aml_kt_alloc(filp, alloc_param.flag, &alloc_param.handle);
+		ret = aml_kt_alloc(dev, alloc_param.flag, &alloc_param.handle);
 		if (ret != 0) {
 			LOGE("aml_kt_alloc failed retval=0x%08x\n", ret);
 			return -EFAULT;
@@ -1018,7 +989,7 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		}
 
-		ret = aml_kt_config(filp, cfg_param);
+		ret = aml_kt_config(dev, cfg_param);
 		if (ret != 0) {
 			LOGE("aml_kt_config failed retval=0x%08x\n", ret);
 			return -EFAULT;
@@ -1031,7 +1002,7 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		}
 
-		ret = aml_kt_set_host_key(filp, &key_param);
+		ret = aml_kt_set_host_key(dev, &key_param);
 		if (ret != 0) {
 			LOGE("aml_kt_set failed retval=0x%08x\n", ret);
 			return -EFAULT;
@@ -1044,7 +1015,7 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return ret;
 		}
 
-		ret = aml_kt_set_hw_key(filp, handle);
+		ret = aml_kt_set_hw_key(dev, handle);
 		if (ret != 0) {
 			LOGE("aml_kt_hw_set failed retval=0x%08x\n", ret);
 			return -EFAULT;
@@ -1057,7 +1028,7 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return ret;
 		}
 
-		ret = aml_kt_free(filp, handle);
+		ret = aml_kt_free(dev, handle);
 		if (ret != 0) {
 			LOGE("aml_kt_free failed retval=0x%08x\n", ret);
 			return -EFAULT;
@@ -1070,7 +1041,7 @@ static long aml_kt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return ret;
 		}
 
-		ret = aml_kt_invalidate(filp, handle);
+		ret = aml_kt_invalidate(dev, handle);
 		if (ret != 0) {
 			LOGE("aml_kt_invalidate failed retval=0x%08x\n", ret);
 			return -EFAULT;

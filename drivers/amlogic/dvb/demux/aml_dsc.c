@@ -31,14 +31,12 @@
 #include <linux/dvb/ca.h>
 #include <linux/dvb/dmx.h>
 #include <linux/version.h>
-#include <linux/amlogic/aml_key.h>
 #include <linux/compat.h>
 #include "aml_dvb.h"
 #include "dmx_log.h"
 
 //#include "sc2_demux/dvb_reg.h"
 #include "aml_dsc.h"
-#include "am_key.h"
 #include "sc2_demux/sc2_control.h"
 
 #define DSC_CHANNEL_NUM 8

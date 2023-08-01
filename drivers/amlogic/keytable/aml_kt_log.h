@@ -17,7 +17,8 @@
 #define GREEN_COLOR  "\033[1;32m"
 #define YELLOW_COLOR "\033[1;33m"
 
-extern int kt_log_level;
+extern u32 kt_log_level;
+extern u32 old_kt_log_level;
 
 #define LOGD(fmt, ...)                                                   \
 	do {                                                             \
@@ -38,6 +39,29 @@ extern int kt_log_level;
 #define LOGE(fmt, ...)                                                        \
 	do {                                                                  \
 		if (kt_log_level <= LOG_ERR)                                      \
+			pr_err(RED_COLOR "[%s][%d]" NORMAL_COLOR " " fmt, \
+			    __func__, __LINE__, ##__VA_ARGS__);       \
+	} while (0)
+
+#define KT_LOGD(fmt, ...)                                                   \
+	do {                                                             \
+		if (old_kt_log_level <= LOG_DEBUG)                               \
+			pr_info(GREEN_COLOR "[%s][%d]" NORMAL_COLOR  \
+					    " " fmt,                     \
+				__func__, __LINE__, ##__VA_ARGS__); \
+	} while (0)
+
+#define KT_LOGI(fmt, ...)                                                   \
+	do {                                                             \
+		if (old_kt_log_level <= LOG_INFO)                                \
+			pr_info(YELLOW_COLOR "[%s][%d]" NORMAL_COLOR \
+					     " " fmt,                    \
+				__func__, __LINE__, ##__VA_ARGS__); \
+	} while (0)
+
+#define KT_LOGE(fmt, ...)                                                        \
+	do {                                                                  \
+		if (old_kt_log_level <= LOG_ERR)                                      \
 			pr_err(RED_COLOR "[%s][%d]" NORMAL_COLOR " " fmt, \
 			    __func__, __LINE__, ##__VA_ARGS__);       \
 	} while (0)
