@@ -1806,6 +1806,8 @@ static inline struct page *alloc_slab_page(struct kmem_cache *s,
 #ifdef CONFIG_AMLOGIC_SLAB_TRACE
 	slab_trace_add_page(page, order, s, flags);
 #endif
+	trace_android_vh_slab_page_alloced(page, s->size, flags);
+
 	return page;
 }
 

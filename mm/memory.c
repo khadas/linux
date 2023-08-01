@@ -259,6 +259,11 @@ void put_vma(struct vm_area_struct *vma)
 		vm_area_free_no_check(vma);
 }
 
+#if ALLOC_SPLIT_PTLOCKS
+static void wait_for_smp_sync(void *arg)
+{
+}
+#endif
 #endif	/* CONFIG_SPECULATIVE_PAGE_FAULT */
 
 /*
@@ -278,6 +283,14 @@ static void free_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
 	 */
 	spinlock_t *ptl = pmd_lock(tlb->mm, pmd);
 	spin_unlock(ptl);
+#if ALLOC_SPLIT_PTLOCKS
+	/*
+	 * The __pte_map_lock can still be working on the ->ptl in the read side
+	 * critical section while ->ptl is freed which results into the use-after
+	 * -free. Sync it using the smp_call_().
+	 */
+	smp_call_function(wait_for_smp_sync, NULL, 1);
+#endif
 #endif
 	pmd_clear(pmd);
 	pte_free_tlb(tlb, token, addr);
@@ -3654,8 +3667,21 @@ static vm_fault_t remove_device_exclusive_entry(struct vm_fault *vmf)
 	struct vm_area_struct *vma = vmf->vma;
 	struct mmu_notifier_range range;
 
-	if (!lock_page_or_retry(page, vma->vm_mm, vmf->flags))
+	/*
+	 * We need a reference to lock the page because we don't hold
+	 * the PTL so a racing thread can remove the device-exclusive
+	 * entry and unmap it. If the page is free the entry must
+	 * have been removed already. If it happens to have already
+	 * been re-allocated after being freed all we do is lock and
+	 * unlock it.
+	 */
+	if (!get_page_unless_zero(page))
+		return 0;
+
+	if (!lock_page_or_retry(page, vma->vm_mm, vmf->flags)) {
+		put_page(page);
 		return VM_FAULT_RETRY;
+	}
 	mmu_notifier_range_init_owner(&range, MMU_NOTIFY_EXCLUSIVE, 0, vma,
 				vma->vm_mm, vmf->address & PAGE_MASK,
 				(vmf->address & PAGE_MASK) + PAGE_SIZE, NULL);
@@ -3668,6 +3694,7 @@ static vm_fault_t remove_device_exclusive_entry(struct vm_fault *vmf)
 
 	pte_unmap_unlock(vmf->pte, vmf->ptl);
 	unlock_page(page);
+	put_page(page);
 
 	mmu_notifier_invalidate_range_end(&range);
 	return 0;

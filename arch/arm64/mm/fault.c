@@ -45,6 +45,7 @@
 #include <asm/virt.h>
 
 #include <trace/hooks/fault.h>
+#include <trace/hooks/mm.h>
 
 #ifdef CONFIG_AMLOGIC_USER_FAULT
 #include <linux/amlogic/user_fault.h>
@@ -323,7 +324,7 @@ static void die_kernel_fault(const char *msg, unsigned long addr,
 	show_pte(addr);
 	die("Oops", regs, esr);
 	bust_spinlocks(0);
-	do_exit(SIGKILL);
+	make_task_dead(SIGKILL);
 }
 
 #ifdef CONFIG_KASAN_HW_TAGS
@@ -490,8 +491,8 @@ static void do_bad_area(unsigned long far, unsigned int esr,
 	}
 }
 
-#define VM_FAULT_BADMAP		0x010000
-#define VM_FAULT_BADACCESS	0x020000
+#define VM_FAULT_BADMAP		((__force vm_fault_t)0x010000)
+#define VM_FAULT_BADACCESS	((__force vm_fault_t)0x020000)
 
 static vm_fault_t __do_page_fault(struct mm_struct *mm, unsigned long addr,
 				  unsigned int mm_flags, unsigned long vm_flags,
@@ -548,6 +549,7 @@ static int __kprobes do_page_fault(unsigned long far, unsigned int esr,
 #ifndef CONFIG_AMLOGIC_CMA
 #ifdef CONFIG_SPECULATIVE_PAGE_FAULT
 	struct vm_area_struct *vma;
+	struct vm_area_struct pvma;
 	unsigned long seq;
 #endif
 #endif
@@ -633,17 +635,17 @@ static int __kprobes do_page_fault(unsigned long far, unsigned int esr,
 		count_vm_spf_event(SPF_ABORT_NO_SPECULATE);
 		goto spf_abort;
 	}
-
+	pvma = *vma;
 	if (!mmap_seq_read_check(mm, seq, SPF_ABORT_VMA_COPY)) {
 		put_vma(vma);
 		goto spf_abort;
 	}
-	if (!(vma->vm_flags & vm_flags)) {
+	if (!(pvma.vm_flags & vm_flags)) {
 		put_vma(vma);
 		count_vm_spf_event(SPF_ABORT_ACCESS_ERROR);
 		goto spf_abort;
 	}
-	fault = do_handle_mm_fault(vma, addr & PAGE_MASK,
+	fault = do_handle_mm_fault(&pvma, addr & PAGE_MASK,
 			mm_flags | FAULT_FLAG_SPECULATIVE, seq, regs);
 	put_vma(vma);
 
@@ -1019,6 +1021,8 @@ struct page *alloc_zeroed_user_highpage_movable(struct vm_area_struct *vma,
 {
 	gfp_t flags = GFP_HIGHUSER_MOVABLE | __GFP_ZERO | __GFP_CMA;
 
+	trace_android_vh_alloc_highpage_movable_gfp_adjust(&flags);
+	trace_android_vh_anon_gfp_adjust(&flags);
 	/*
 	 * If the page is mapped with PROT_MTE, initialise the tags at the
 	 * point of allocation and page zeroing as this is usually faster than

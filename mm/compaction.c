@@ -51,6 +51,11 @@ static inline void count_compact_events(enum vm_event_item item, long delta)
 #define CREATE_TRACE_POINTS
 #include <trace/events/compaction.h>
 
+#undef CREATE_TRACE_POINTS
+#ifndef __GENKSYMS__
+#include <trace/hooks/mm.h>
+#endif
+
 #define block_start_pfn(pfn, order)	round_down(pfn, 1UL << (order))
 #define block_end_pfn(pfn, order)	ALIGN((pfn) + 1, 1UL << (order))
 #define pageblock_start_pfn(pfn)	block_start_pfn(pfn, pageblock_order)
@@ -813,7 +818,7 @@ static bool too_many_isolated(pg_data_t *pgdat)
  * @cc:		Compaction control structure.
  * @low_pfn:	The first PFN to isolate
  * @end_pfn:	The one-past-the-last PFN to isolate, within same pageblock
- * @isolate_mode: Isolation mode to be used.
+ * @mode:	Isolation mode to be used.
  *
  * Isolate all pages that can be migrated from the range specified by
  * [low_pfn, end_pfn). The range is expected to be within same pageblock.
@@ -826,7 +831,7 @@ static bool too_many_isolated(pg_data_t *pgdat)
  */
 static int
 isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
-			unsigned long end_pfn, isolate_mode_t isolate_mode)
+			unsigned long end_pfn, isolate_mode_t mode)
 {
 	pg_data_t *pgdat = cc->zone->zone_pgdat;
 	unsigned long nr_scanned = 0, nr_isolated = 0;
@@ -834,6 +839,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 	unsigned long flags = 0;
 	struct lruvec *locked = NULL;
 	struct page *page = NULL, *valid_page = NULL;
+	struct address_space *mapping;
 	unsigned long start_pfn = low_pfn;
 	bool skip_on_failure = false;
 	unsigned long next_skip_pfn = 0;
@@ -1041,7 +1047,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 					locked = NULL;
 				}
 
-				if (!isolate_movable_page(page, isolate_mode))
+				if (!isolate_movable_page(page, mode))
 					goto isolate_success;
 			}
 
@@ -1054,22 +1060,30 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		}
 
 		/*
+		 * Be careful not to clear PageLRU until after we're
+		 * sure the page is not being freed elsewhere -- the
+		 * page release code relies on it.
+		 */
+		if (unlikely(!get_page_unless_zero(page)))
+			goto isolate_fail;
+
+		/*
 		 * Migration will fail if an anonymous page is pinned in memory,
 		 * so avoid taking lru_lock and isolating it unnecessarily in an
 		 * admittedly racy check.
 		 */
 	#ifdef CONFIG_AMLOGIC_CMA
-		if (!page_mapping(page) &&
-		    page_count(page) > page_mapcount(page)) {
+		mapping = page_mapping(page);
+		if (!mapping && (page_count(page) - 1) > total_mapcount(page)) {
 			if (cc->alloc_contig)
 				cma_debug(1, page, "mc/rc miss match, low_pfn:%lx\n",
 					  low_pfn);
-			goto isolate_fail;
+			goto isolate_fail_put;
 		}
 	#else
-		if (!page_mapping(page) &&
-		    page_count(page) > page_mapcount(page))
-			goto isolate_fail;
+		mapping = page_mapping(page);
+		if (!mapping && (page_count(page) - 1) > total_mapcount(page))
+			goto isolate_fail_put;
 	#endif
 
 		/*
@@ -1077,52 +1091,72 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		 * because those do not depend on fs locks.
 		 */
 	#ifdef CONFIG_AMLOGIC_CMA
-		if (!(cc->gfp_mask & __GFP_FS) && page_mapping(page)) {
+		if (!(cc->gfp_mask & __GFP_FS) && mapping) {
 			if (cc->alloc_contig)
 				cma_debug(1, page, "no fs ctx, low_pfn:%lx\n",
 					  low_pfn);
-			goto isolate_fail;
+			goto isolate_fail_put;
 		}
 	#else
-		if (!(cc->gfp_mask & __GFP_FS) && page_mapping(page))
-			goto isolate_fail;
+		if (!(cc->gfp_mask & __GFP_FS) && mapping)
+			goto isolate_fail_put;
 	#endif
+
+		/* Only take pages on LRU: a check now makes later tests safe */
+		if (!PageLRU(page))
+			goto isolate_fail_put;
+
+		/* Compaction might skip unevictable pages but CMA takes them */
+		if (!(mode & ISOLATE_UNEVICTABLE) && PageUnevictable(page))
+			goto isolate_fail_put;
 
 		/*
-		 * Be careful not to clear PageLRU until after we're
-		 * sure the page is not being freed elsewhere -- the
-		 * page release code relies on it.
+		 * To minimise LRU disruption, the caller can indicate with
+		 * ISOLATE_ASYNC_MIGRATE that it only wants to isolate pages
+		 * it will be able to migrate without blocking - clean pages
+		 * for the most part.  PageWriteback would require blocking.
 		 */
-	#ifdef CONFIG_AMLOGIC_CMA
-		if (unlikely(!get_page_unless_zero(page))) {
-			if (cc->alloc_contig)
-				cma_debug(1, page, "none zero ref, low_pfn:%lx\n",
-					  low_pfn);
-			goto isolate_fail;
-		}
-	#else
-		if (unlikely(!get_page_unless_zero(page)))
-			goto isolate_fail;
-	#endif
 
 	#ifdef CONFIG_AMLOGIC_CMA
-		if (!__isolate_lru_page_prepare(page, isolate_mode)) {
+		if ((mode & ISOLATE_ASYNC_MIGRATE) && PageWriteback(page)) {
 			if (cc->alloc_contig)
-				cma_debug(1, page, "isolate fail, low_pfn:%lx, mode:%x\n",
-					  low_pfn, isolate_mode);
+				cma_debug(1, page, "isolate fail, low_pfn:%lx",
+					  low_pfn);
 			goto isolate_fail_put;
 		}
 	#else
-		if (!__isolate_lru_page_prepare(page, isolate_mode))
+		if ((mode & ISOLATE_ASYNC_MIGRATE) && PageWriteback(page))
 			goto isolate_fail_put;
 	#endif
+
+		if ((mode & ISOLATE_ASYNC_MIGRATE) && PageDirty(page)) {
+			bool migrate_dirty;
+
+			/*
+			 * Only pages without mappings or that have a
+			 * ->migratepage callback are possible to migrate
+			 * without blocking. However, we can be racing with
+			 * truncation so it's necessary to lock the page
+			 * to stabilise the mapping as truncation holds
+			 * the page lock until after the page is removed
+			 * from the page cache.
+			 */
+			if (!trylock_page(page))
+				goto isolate_fail_put;
+
+			mapping = page_mapping(page);
+			migrate_dirty = !mapping || mapping->a_ops->migratepage;
+			unlock_page(page);
+			if (!migrate_dirty)
+				goto isolate_fail_put;
+		}
 
 		/* Try isolate the page */
 	#ifdef CONFIG_AMLOGIC_CMA
 		if (!TestClearPageLRU(page)) {
 			if (cc->alloc_contig)
-				cma_debug(1, page, "clear lru fail, low_pfn:%lx, mode:%x\n",
-					  low_pfn, isolate_mode);
+				cma_debug(1, page, "clear lru fail, low_pfn:%lx",
+					  low_pfn);
 			goto isolate_fail_put;
 		}
 	#else
@@ -1148,8 +1182,8 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 			#ifdef CONFIG_AMLOGIC_CMA
 				if (test_and_set_skip(cc, page, low_pfn)) {
 					if (cc->alloc_contig)
-						cma_debug(1, page, "skip fail, low_pfn:%lx, mode:%x\n",
-							  low_pfn, isolate_mode);
+						cma_debug(1, page, "skip fail, low_pfn:%lx",
+							  low_pfn);
 					goto isolate_abort;
 				}
 			#else
@@ -1430,7 +1464,7 @@ move_freelist_tail(struct list_head *freelist, struct page *freepage)
 }
 
 static void
-fast_isolate_around(struct compact_control *cc, unsigned long pfn, unsigned long nr_isolated)
+fast_isolate_around(struct compact_control *cc, unsigned long pfn)
 {
 	unsigned long start_pfn, end_pfn;
 	struct page *page;
@@ -1451,21 +1485,13 @@ fast_isolate_around(struct compact_control *cc, unsigned long pfn, unsigned long
 	if (!page)
 		return;
 
-	/* Scan before */
-	if (start_pfn != pfn) {
-		isolate_freepages_block(cc, &start_pfn, pfn, &cc->freepages, 1, false);
-		if (cc->nr_freepages >= cc->nr_migratepages)
-			return;
-	}
-
-	/* Scan after */
-	start_pfn = pfn + nr_isolated;
-	if (start_pfn < end_pfn)
-		isolate_freepages_block(cc, &start_pfn, end_pfn, &cc->freepages, 1, false);
+	isolate_freepages_block(cc, &start_pfn, end_pfn, &cc->freepages, 1, false);
 
 	/* Skip this pageblock in the future as it's full or nearly full */
 	if (cc->nr_freepages < cc->nr_migratepages)
 		set_pageblock_skip(page);
+
+	return;
 }
 
 /* Search orders in round-robin fashion */
@@ -1641,7 +1667,7 @@ fast_isolate_freepages(struct compact_control *cc)
 		return cc->free_pfn;
 
 	low_pfn = page_to_pfn(page);
-	fast_isolate_around(cc, low_pfn, nr_isolated);
+	fast_isolate_around(cc, low_pfn);
 	return low_pfn;
 }
 
@@ -2167,6 +2193,7 @@ static enum compact_result __compact_finished(struct compact_control *cc)
 	unsigned int order;
 	const int migratetype = cc->migratetype;
 	int ret;
+	bool abort_compact = false;
 
 	/* Compaction run completes if the migrate and free scanner meet */
 	if (compact_scanners_met(cc)) {
@@ -2266,7 +2293,8 @@ static enum compact_result __compact_finished(struct compact_control *cc)
 	}
 
 out:
-	if (cc->contended || fatal_signal_pending(current))
+	trace_android_vh_compact_finished(&abort_compact);
+	if (cc->contended || fatal_signal_pending(current) || abort_compact)
 		ret = COMPACT_CONTENDED;
 
 	return ret;

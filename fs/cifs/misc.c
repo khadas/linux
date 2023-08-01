@@ -139,9 +139,6 @@ tconInfoFree(struct cifs_tcon *buf_to_free)
 	kfree(buf_to_free->nativeFileSystem);
 	kfree_sensitive(buf_to_free->password);
 	kfree(buf_to_free->crfid.fid);
-#ifdef CONFIG_CIFS_DFS_UPCALL
-	kfree(buf_to_free->dfs_path);
-#endif
 	kfree(buf_to_free);
 }
 
@@ -736,7 +733,9 @@ cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode)
 	list_for_each_entry(cfile, &cifs_inode->openFileList, flist) {
 		if (delayed_work_pending(&cfile->deferred)) {
 			if (cancel_delayed_work(&cfile->deferred)) {
+				spin_lock(&cifs_inode->deferred_lock);
 				cifs_del_deferred_close(cfile);
+				spin_unlock(&cifs_inode->deferred_lock);
 
 				tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
 				if (tmp_list == NULL)
@@ -749,7 +748,7 @@ cifs_close_deferred_file(struct cifsInodeInfo *cifs_inode)
 	spin_unlock(&cifs_inode->open_file_lock);
 
 	list_for_each_entry_safe(tmp_list, tmp_next_list, &file_head, list) {
-		_cifsFileInfo_put(tmp_list->cfile, true, false);
+		_cifsFileInfo_put(tmp_list->cfile, false, false);
 		list_del(&tmp_list->list);
 		kfree(tmp_list);
 	}
@@ -769,7 +768,9 @@ cifs_close_all_deferred_files(struct cifs_tcon *tcon)
 		cfile = list_entry(tmp, struct cifsFileInfo, tlist);
 		if (delayed_work_pending(&cfile->deferred)) {
 			if (cancel_delayed_work(&cfile->deferred)) {
+				spin_lock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
 				cifs_del_deferred_close(cfile);
+				spin_unlock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
 
 				tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
 				if (tmp_list == NULL)
@@ -806,7 +807,9 @@ cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon, const char *path)
 		if (strstr(full_path, path)) {
 			if (delayed_work_pending(&cfile->deferred)) {
 				if (cancel_delayed_work(&cfile->deferred)) {
+					spin_lock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
 					cifs_del_deferred_close(cfile);
+					spin_unlock(&CIFS_I(d_inode(cfile->dentry))->deferred_lock);
 
 					tmp_list = kmalloc(sizeof(struct file_list), GFP_ATOMIC);
 					if (tmp_list == NULL)
@@ -1137,8 +1140,8 @@ cifs_free_hash(struct crypto_shash **shash, struct sdesc **sdesc)
  * @len: Where to store the length for this page:
  * @offset: Where to store the offset for this page
  */
-void rqst_page_get_length(struct smb_rqst *rqst, unsigned int page,
-				unsigned int *len, unsigned int *offset)
+void rqst_page_get_length(const struct smb_rqst *rqst, unsigned int page,
+			  unsigned int *len, unsigned int *offset)
 {
 	*len = rqst->rq_pagesz;
 	*offset = (page == 0) ? rqst->rq_offset : 0;
@@ -1299,69 +1302,20 @@ out:
 	return rc;
 }
 
-static void tcon_super_cb(struct super_block *sb, void *arg)
+int cifs_update_super_prepath(struct cifs_sb_info *cifs_sb, char *prefix)
 {
-	struct super_cb_data *sd = arg;
-	struct cifs_tcon *tcon = sd->data;
-	struct cifs_sb_info *cifs_sb;
-
-	if (sd->sb)
-		return;
-
-	cifs_sb = CIFS_SB(sb);
-	if (tcon->dfs_path && cifs_sb->origin_fullpath &&
-	    !strcasecmp(tcon->dfs_path, cifs_sb->origin_fullpath))
-		sd->sb = sb;
-}
-
-static inline struct super_block *cifs_get_tcon_super(struct cifs_tcon *tcon)
-{
-	return __cifs_get_super(tcon_super_cb, tcon);
-}
-
-static inline void cifs_put_tcon_super(struct super_block *sb)
-{
-	__cifs_put_super(sb);
-}
-#else
-static inline struct super_block *cifs_get_tcon_super(struct cifs_tcon *tcon)
-{
-	return ERR_PTR(-EOPNOTSUPP);
-}
-
-static inline void cifs_put_tcon_super(struct super_block *sb)
-{
-}
-#endif
-
-int update_super_prepath(struct cifs_tcon *tcon, char *prefix)
-{
-	struct super_block *sb;
-	struct cifs_sb_info *cifs_sb;
-	int rc = 0;
-
-	sb = cifs_get_tcon_super(tcon);
-	if (IS_ERR(sb))
-		return PTR_ERR(sb);
-
-	cifs_sb = CIFS_SB(sb);
-
 	kfree(cifs_sb->prepath);
 
 	if (prefix && *prefix) {
-		cifs_sb->prepath = kstrdup(prefix, GFP_ATOMIC);
-		if (!cifs_sb->prepath) {
-			rc = -ENOMEM;
-			goto out;
-		}
+		cifs_sb->prepath = cifs_sanitize_prepath(prefix, GFP_ATOMIC);
+		if (!cifs_sb->prepath)
+			return -ENOMEM;
 
 		convert_delimiter(cifs_sb->prepath, CIFS_DIR_SEP(cifs_sb));
 	} else
 		cifs_sb->prepath = NULL;
 
 	cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_USE_PREFIX_PATH;
-
-out:
-	cifs_put_tcon_super(sb);
-	return rc;
+	return 0;
 }
+#endif
