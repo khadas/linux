@@ -466,7 +466,9 @@ static void __init do_bt_device_on_async(void *_data, async_cookie_t cookie)
 	struct async_initrd_data *data;
 
 	data = _data;
+	data->pbt_dev->power_down_disable = 0;
 	bt_device_on(data->pbt_dev, 100, 0);
+	data->pbt_dev->power_down_disable = 1;
 }
 #endif
 
