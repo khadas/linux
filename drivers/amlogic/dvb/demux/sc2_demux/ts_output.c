@@ -1959,6 +1959,8 @@ static int _find_es_header(struct out_elem *pout)
 	int count = 0;
 	unsigned int h_len = 0;
 
+	//wait header write to es header buffer
+	usleep_range(20, 30);
 	do {
 		if (pout->aucpu_pts_handle >= 0) {
 			unsigned int w_offset;
