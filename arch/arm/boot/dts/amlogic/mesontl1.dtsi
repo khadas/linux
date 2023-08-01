@@ -1062,7 +1062,8 @@
 		ion_dev {
 			compatible = "amlogic, ion_dev";
 			status = "okay";
-			memory-region = <&ion_cma_reserved>;
+			memory-region = <&ion_cma_reserved
+					 &ion_fb_reserved>;
 		};/* end of ion_dev*/
 	}; /* end of soc*/
 
@@ -2608,6 +2609,24 @@
 };
 
 &gpu{
+	clocks = <&clkc CLKID_MALI>;
+	clock-names = "gpu_mux";
+
+	/*
+	 * Mali clocking is provided by two identical clock paths
+	 * MALI_0 and MALI_1 muxed to a single clock by a glitch
+	 * free mux to safely change frequency while running.
+	 */
+	assigned-clocks = <&clkc CLKID_MALI_0_SEL>,
+			  <&clkc CLKID_MALI_0>,
+			  <&clkc CLKID_MALI>; /* Glitch free mux */
+	assigned-clock-parents = <&clkc CLKID_FCLK_DIV4>,
+				 <0>, /* Do Nothing */
+				 <&clkc CLKID_MALI_0>;
+	assigned-clock-rates = <0>, /* Do Nothing */
+				<500000000>,
+				<0>; /* Do Nothing */
+
 	tbl =  <&dvfs285_cfg
 		&dvfs400_cfg
 		&dvfs500_cfg
