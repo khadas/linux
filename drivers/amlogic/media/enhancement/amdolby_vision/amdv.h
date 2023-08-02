@@ -582,7 +582,12 @@ struct tv_input_info_s {
 	s32 content_fps;
 	s32 gd_rf_adjust;
 	s32 tid;
-	s32 debug_buf[497];
+	u8 content_type;
+	u8 white_point;
+	u8 L11_byte2;
+	u8 L11_byte3;
+	int enable_debug;
+	s32 debug_buf[495];
 };
 
 #define PREFIX_SEI_NUT_NAL 39
@@ -597,6 +602,9 @@ struct tv_input_info_s {
 
 #define MAX_LEN_2086_SEI 256
 #define MAX_LEN_2094_SEI 256
+
+#define MAX_CFG_SIZE (1024 * 10)
+#define MAX_BIN_SIZE (1024 * 150)
 
 /* vui params for ATSC 3.0*/
 struct dv_vui_parameters {
@@ -903,5 +911,6 @@ void calculate_panel_max_pq
 int layer_id_to_dv_id(enum vd_path_e vd_path);
 bool layerid_valid(int layerid);
 bool dv_inst_valid(int id);
+struct device *get_amdv_device(void);
 
 #endif

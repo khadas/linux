@@ -75,6 +75,7 @@
 #include "../common/vfm/vfm.h"
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#include "../enhancement/amdolby_vision/amdv_uevent.h"
 #endif
 #include "video_receiver.h"
 #ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
@@ -126,7 +127,8 @@ static DEFINE_SPINLOCK(videox_vpp2_onoff_lock);
 #define VPU_DELAYWORK_MEM_POWER_OFF_DOLBY2		BIT(12)
 #define VPU_DELAYWORK_MEM_POWER_OFF_DOLBY_CORE3		BIT(13)
 #define VPU_DELAYWORK_MEM_POWER_OFF_PRIME_DOLBY		BIT(14)
-#define VPU_PRIMARY_FMT_CHANGED		BIT(15)
+#define VPU_PRIMARY_FMT_CHANGED		                BIT(15)
+#define VPU_DELAYWORK_APO_FLAG_DOLBY		        BIT(16)
 
 #define VPU_MEM_POWEROFF_DELAY	100
 #define DV_MEM_POWEROFF_DELAY	2
@@ -4973,6 +4975,12 @@ s32 config_dvel_blend(struct video_layer_s *layer,
 		dvel_vf->compHeight :
 		dvel_vf->height) - 1;
 	return 0;
+}
+
+void set_amdv_delay_work_flag(void)
+{
+	if (get_amdv_apo_enable())
+		vpu_delay_work_flag |= VPU_DELAYWORK_APO_FLAG_DOLBY;
 }
 #endif
 
@@ -10606,6 +10614,14 @@ static void do_vpu_delay_work(struct work_struct *work)
 	unsigned long flags;
 	unsigned int r;
 	enum vframe_signal_fmt_e fmt = VFRAME_SIGNAL_FMT_INVALID;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+			if (vpu_delay_work_flag & VPU_DELAYWORK_APO_FLAG_DOLBY) {
+				vpu_delay_work_flag &= ~VPU_DELAYWORK_APO_FLAG_DOLBY;
+				set_amdv_apo_enable(false);
+				amdv_send_uevent(AMDV_CONT_EVENT, &apo_value);
+			}
+#endif
 
 	if (vpu_delay_work_flag & VPU_PRIMARY_FMT_CHANGED) {
 		vpu_delay_work_flag &= ~VPU_PRIMARY_FMT_CHANGED;

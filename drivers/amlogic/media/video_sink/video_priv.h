@@ -708,6 +708,7 @@ s32 config_dvel_pps(struct video_layer_s *layer,
 s32 config_dvel_blend(struct video_layer_s *layer,
 			struct blend_setting_s *setting,
 			struct vframe_s *dvel_vf);
+void set_amdv_delay_work_flag(void);
 #endif
 
 #ifdef TV_3D_FUNCTION_OPEN

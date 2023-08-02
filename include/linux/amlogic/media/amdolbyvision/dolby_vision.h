@@ -50,6 +50,7 @@ struct vframe_s;
 #define HDR10P 0x02000000
 
 extern unsigned int debug_dolby;
+extern struct apo_value_s apo_value;
 
 struct composer_reg_ipcore {
 	/* offset 0xc8 */
@@ -128,6 +129,13 @@ enum OSD_INDEX {
 	OSD3_INDEX = 2,
 	OSD4_INDEX = 3,
 	OSD_MAX_INDEX = 4
+};
+
+struct apo_value_s {
+	u8 content_type;
+	u8 white_point;
+	u8 L11_byte2;
+	u8 L11_byte3;
 };
 
 void enable_amdv(int enable);
@@ -215,6 +223,8 @@ void dv_inst_unmap(int inst);
 bool is_hdmi_ll_as_hdr10(void);
 bool is_multi_dv_mode(void);
 bool support_multi_core1(void);
+int get_amdv_apo_enable(void);
+void set_amdv_apo_enable(bool enable);
 
 #define AMDV_UPDATE_OSD_MODE 0x00000001
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION

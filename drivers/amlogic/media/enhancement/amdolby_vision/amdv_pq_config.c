@@ -39,6 +39,11 @@ static unsigned int panel_max_lumin = 350;
 struct pq_config *bin_to_cfg;
 struct dv_cfg_info_s cfg_info[MAX_DV_PICTUREMODES];
 
+/* end-user calibration config info */
+struct dv_user_target_config user_target_config[MAX_DV_PICTUREMODES];
+struct dv_user_cfg_info user_cfg_info[MAX_DV_PICTUREMODES];
+bool dv_user_cfg_flag;
+
 static s16 pq_center[MAX_DV_PICTUREMODES][4];
 static struct dv_pq_range_s pq_range[4];
 
@@ -83,6 +88,8 @@ static int use_inter_pq;
 static unsigned int force_hdr_tonemapping;
 module_param(force_hdr_tonemapping, uint, 0664);
 MODULE_PARM_DESC(force_hdr_tonemapping, "\n force_hdr_tonemapping\n");
+
+static u32 last_front_lux;
 
 u16 L2PQ_100_500[] = {
 	2081, /* 100 */
@@ -145,6 +152,201 @@ u16 L2PQ_500_4000[] = {
 	3674, /* 3800 */
 	3686, /* 3900 */
 	3697, /* 4000 */
+};
+
+u16 USER_MAX_PQ_100_500[] = {
+	2081, /* 100 */
+	2120, /* 110 */
+	2156, /* 120 */
+	2189, /* 130 */
+	2221, /* 140 */
+	2249, /* 150 */
+	2277, /* 160 */
+	2302, /* 170 */
+	2327, /* 180 */
+	2350, /* 190 */
+	2372, /* 200 */
+	2392, /* 210 */
+	2413, /* 220 */
+	2432, /* 230 */
+	2450, /* 240 */
+	2467, /* 250 */
+	2485, /* 260 */
+	2501, /* 270 */
+	2517, /* 280 */
+	2532, /* 290 */
+	2547, /* 300 */
+	2561, /* 310 */
+	2575, /* 320 */
+	2588, /* 330 */
+	2602, /* 340 */
+	2614, /* 350 */
+	2627, /* 360 */
+	2638, /* 370 */
+	2651, /* 380 */
+	2661, /* 390 */
+	2673, /* 400 */
+	2683, /* 410 */
+	2694, /* 420 */
+	2704, /* 430 */
+	2715, /* 440 */
+	2724, /* 450 */
+	2734, /* 460 */
+	2743, /* 470 */
+	2753, /* 480 */
+	2762, /* 490 */
+	2771, /* 500 */
+};
+
+u16 USER_MAX_PQ_500_4000[] = {
+	2771, /* 500 */
+	2813, /* 550 */
+	2851, /* 600 */
+	2887, /* 650 */
+	2920, /* 700 */
+	2950, /* 750 */
+	2979, /* 800 */
+	3006, /* 850 */
+	3032, /* 900 */
+	3056, /* 950 */
+	3079, /* 1000 */
+	3100, /* 1050 */
+	3122, /* 1100 */
+	3141, /* 1150 */
+	3161, /* 1200 */
+	3178, /* 1250 */
+	3197, /* 1300 */
+	3213, /* 1350 */
+	3230, /* 1400 */
+	3245, /* 1450 */
+	3261, /* 1500 */
+	3275, /* 1550 */
+	3289, /* 1600 */
+	3302, /* 1650 */
+	3317, /* 1700 */
+	3329, /* 1750 */
+	3342, /* 1800 */
+	3354, /* 1850 */
+	3366, /* 1900 */
+	3377, /* 1950 */
+	3389, /* 2000 */
+	3399, /* 2050 */
+	3411, /* 2100 */
+	3421, /* 2150 */
+	3432, /* 2200 */
+	3441, /* 2250 */
+	3451, /* 2300 */
+	3460, /* 2350 */
+	3470, /* 2400 */
+	3479, /* 2450 */
+	3489, /* 2500 */
+	3497, /* 2550 */
+	3506, /* 2600 */
+	3514, /* 2650 */
+	3523, /* 2700 */
+	3530, /* 2750 */
+	3539, /* 2800 */
+	3546, /* 2850 */
+	3554, /* 2900 */
+	3561, /* 2950 */
+	3570, /* 3000 */
+	3576, /* 3050 */
+	3584, /* 3100 */
+	3590, /* 3150 */
+	3598, /* 3200 */
+	3604, /* 3250 */
+	3612, /* 3300 */
+	3618, /* 3350 */
+	3625, /* 3400 */
+	3631, /* 3450 */
+	3638, /* 3500 */
+	3643, /* 3550 */
+	3651, /* 3600 */
+	3656, /* 3650 */
+	3662, /* 3700 */
+	3668, /* 3750 */
+	3674, /* 3800 */
+	3679, /* 3850 */
+	3686, /* 3900 */
+	3690, /* 3950 */
+	3697, /* 4000 */
+};
+
+u16 USER_MIN_PQ_1_4[] = {
+	26,  /* 0.001 */
+	38,  /* 0.002 */
+	47,  /* 0.003 */
+	55,  /* 0.004 */
+	62,  /* 0.005 */
+	68,  /* 0.006 */
+	73,  /* 0.007 */
+	79,  /* 0.008 */
+	83,  /* 0.009 */
+	88,  /* 0.010 */
+	92,  /* 0.011 */
+	96,  /* 0.012 */
+	100, /* 0.013 */
+	104, /* 0.014 */
+	108, /* 0.015 */
+	111, /* 0.016 */
+	114, /* 0.017 */
+	117, /* 0.018 */
+	121, /* 0.019 */
+	124, /* 0.020 */
+	126, /* 0.021 */
+	129, /* 0.022 */
+	132, /* 0.023 */
+	135, /* 0.024 */
+	137, /* 0.025 */
+	140, /* 0.026 */
+	142, /* 0.027 */
+	145, /* 0.028 */
+	147, /* 0.029 */
+	150, /* 0.030 */
+	152, /* 0.031 */
+	154, /* 0.032 */
+	156, /* 0.033 */
+	159, /* 0.034 */
+	161, /* 0.035 */
+	163, /* 0.036 */
+	165, /* 0.037 */
+	167, /* 0.038 */
+	169, /* 0.039 */
+	171, /* 0.040 */
+};
+
+u16 USER_MIN_PQ_4_10[] = {
+	171, /* 0.040 */
+	175, /* 0.042 */
+	179, /* 0.044 */
+	182, /* 0.046 */
+	185, /* 0.048 */
+	189, /* 0.050 */
+	192, /* 0.052 */
+	195, /* 0.054 */
+	199, /* 0.056 */
+	202, /* 0.058 */
+	205, /* 0.060 */
+	208, /* 0.062 */
+	211, /* 0.064 */
+	213, /* 0.066 */
+	216, /* 0.068 */
+	219, /* 0.070 */
+	222, /* 0.072 */
+	224, /* 0.074 */
+	227, /* 0.076 */
+	230, /* 0.078 */
+	232, /* 0.080 */
+	235, /* 0.082 */
+	239, /* 0.084 */
+	242, /* 0.086 */
+	230, /* 0.088 */
+	244, /* 0.090 */
+	246, /* 0.092 */
+	249, /* 0.094 */
+	251, /* 0.096 */
+	253, /* 0.098 */
+	255, /* 0.100 */
 };
 
 /*update flag=>bit0: front,bit1: rear, bit2:whitexy, bit3:mode,bit4:darkdetail*/
@@ -297,6 +499,12 @@ struct ambient_cfg_s ambient_test_cfg_3[AMBIENT_CFG_FRAMES] = {
 	{11, 65536, 6840, 13834, 21921, 16056, 1},
 	{13, 65536, 6840, 21597, 25755, 26673, 1},
 	{5, 65536, 6840, 17788, 3571, 28508, 1},
+};
+
+struct ambient_cfg_s lightsense_test_cfg[2] = {
+	/* update_flag, ambient, rear, front, whitex, whitey,dark_detail */
+	{ 9, 65536, 0, 242, 0, 0, 0},
+	{ 9, 65536, 0, 62768, 0, 0, 0},
 };
 
 struct target_config def_tgt_display_cfg_bestpq = {
@@ -619,6 +827,52 @@ void calculate_panel_max_pq(enum signal_format_enum src_format,
 	}
 }
 
+void calculate_user_pq_config(void)
+{
+	int i = 0;
+	u16 tmax = 0;
+	u16 max_pq = 0;
+	u32 tmin = 0;
+	u32 min_pq = 0;
+
+	tmax = user_cfg_info[cur_pic_mode].tmax;
+	if (tmax < 500) {
+		tmax = tmax - 100 + 5;
+		tmax = (tmax / 10) * 10 + 100;
+		max_pq = USER_MAX_PQ_100_500[(tmax - 100) / 10];
+	} else {
+		tmax = tmax - 500 + 25;
+		tmax = (tmax / 50) * 50 + 500;
+		max_pq = USER_MAX_PQ_500_4000[(tmax - 500) / 50];
+	}
+
+	tmin = user_cfg_info[cur_pic_mode].tmin;
+	if (tmin < 40) {
+		tmin = tmin - 1;
+		min_pq = USER_MIN_PQ_1_4[tmin];
+	} else {
+		tmin = tmin - 40 + 1;
+		tmin = (tmin / 2) * 2 + 40;
+		min_pq = USER_MIN_PQ_4_10[(tmin - 40) / 2];
+	}
+
+	user_target_config[cur_pic_mode].max_pq =
+		user_target_config[cur_pic_mode].max_pq_dm3 = max_pq;
+	user_target_config[cur_pic_mode].min_pq = min_pq;
+	user_target_config[cur_pic_mode].max_lin =
+		user_target_config[cur_pic_mode].max_lin_dm3 =
+		user_cfg_info[cur_pic_mode].tmax * (1 << 18);
+	user_target_config[cur_pic_mode].min_lin =
+		user_cfg_info[cur_pic_mode].tmin * (1 << 18) / 1000;
+	user_target_config[cur_pic_mode].gamma =
+		user_cfg_info[cur_pic_mode].tgamma * 16384 / 10;
+	for (i = 0; i < 8; i++) {
+		user_target_config[cur_pic_mode].t_primaries[i] =
+			user_cfg_info[cur_pic_mode].tprimaries[i] * (1 << 26) / 10000;
+	}
+	dv_user_cfg_flag = true;
+}
+
 /*to do*/
 static void update_vsvdb_to_rx(void)
 {
@@ -634,6 +888,7 @@ static void update_vsvdb_to_rx(void)
 void update_cp_cfg(void)
 {
 	struct target_config *tdc;
+	int i = 0;
 
 	if (cur_pic_mode >= num_picture_mode || num_picture_mode == 0 ||
 	    !bin_to_cfg) {
@@ -651,6 +906,20 @@ void update_cp_cfg(void)
 	tdc->d_color_shift = cfg_info[cur_pic_mode].colorshift;
 	tdc->d_saturation = cfg_info[cur_pic_mode].saturation;
 
+	if (dv_user_cfg_flag) {
+		tdc->gamma = user_target_config[cur_pic_mode].gamma;
+		tdc->max_lin = user_target_config[cur_pic_mode].max_lin;
+		tdc->max_lin_dm3 = user_target_config[cur_pic_mode].max_lin_dm3;
+		tdc->max_pq = user_target_config[cur_pic_mode].max_pq;
+		tdc->max_pq_dm3 = user_target_config[cur_pic_mode].max_pq_dm3;
+		tdc->min_lin = user_target_config[cur_pic_mode].min_lin;
+		tdc->min_pq = user_target_config[cur_pic_mode].min_pq;
+		for (i = 0; i < 8; i++) {
+			tdc->t_primaries[i] =
+				user_target_config[cur_pic_mode].t_primaries[i];
+		}
+	}
+
 	if (debug_tprimary) {
 		tdc->t_primaries[0] = cur_debug_tprimary[0][0]; /*rx*/
 		tdc->t_primaries[1] = cur_debug_tprimary[0][1]; /*ry*/
@@ -661,6 +930,34 @@ void update_cp_cfg(void)
 	}
 
 	set_update_cfg(true);
+}
+
+void update_ambient_lightsense(struct ambient_cfg_s *p_ambient)
+{
+	int print_flag = 0;
+
+	if (cfg_info[cur_pic_mode].light_sense == 0)
+		return;
+
+	/*for idk 1.6.1.4*/
+	if (cur_pic_mode == 0 ||
+		cur_pic_mode == 2 ||
+		apo_value.content_type == 1) {
+		if (debug_dolby & 0x200)
+			pr_dv_dbg("not support lightsense, cur_pic_mode %d, content_type %d\n",
+				cur_pic_mode, apo_value.content_type);
+		return;
+	}
+
+	p_ambient->update_flag |= 9;
+	p_ambient->ambient = (1 << 16);
+	p_ambient->t_frontLux = cfg_info[cur_pic_mode].t_front_lux;
+	print_flag = (p_ambient->t_frontLux - last_front_lux > 1000) ? 1 : 0;
+
+	if ((debug_dolby & 0x200) && print_flag)
+		pr_dv_dbg("%s: sensor frontLux %d, last frontLux %d\n",
+			__func__, p_ambient->t_frontLux, last_front_lux);
+	last_front_lux = p_ambient->t_frontLux;
 }
 
 /*0: reset picture mode and reset pq for all picture mode*/
@@ -963,6 +1260,67 @@ release:
 	return ret;
 }
 
+static void get_user_cfg_info(char *cfg_buf)
+{
+	int ret = 0;
+	int count = 0;
+	int value = 0;
+	int val = 0;
+	int pri[8] = {0};
+	bool eof_flag = false;
+	char *u_cfg_buf = cfg_buf;
+	char *ptr_line;
+
+	eof_flag = false;
+	while (!eof_flag) {
+		eof_flag = get_one_line(&u_cfg_buf, (char *)&cur_line, true);
+		ptr_line = cur_line;
+		if (eof_flag && (strlen(cur_line) == 0))
+			break;
+		if ((strncmp(ptr_line, "[PictureMode",
+			strlen("[PictureMode")) == 0)) {
+			ret = sscanf(ptr_line, "[PictureMode = %d]", &count);
+			if (ret == 1)
+				user_cfg_info[count].id = count;
+		}
+		if ((strncmp(ptr_line, "Tmax",
+			strlen("Tmax")) == 0)) {
+			ret = sscanf(ptr_line, "Tmax = %d", &value);
+			if (ret == 1)
+				user_cfg_info[count].tmax = value;
+		}
+		if ((strncmp(ptr_line, "Tmin",
+			strlen("Tmin")) == 0)) {
+			ret = sscanf(ptr_line, "Tmin = 0.%d", &value);
+			if (ret == 1)
+				user_cfg_info[count].tmin = value;
+		}
+		if ((strncmp(ptr_line, "Tgamma",
+			strlen("Tgamma")) == 0)) {
+			ret = sscanf(ptr_line, "Tgamma = %d.%d", &value, &val);
+			if (ret == 2)
+				user_cfg_info[count].tgamma = value * 10 + val;
+		}
+		if ((strncmp(ptr_line, "TPrimaries",
+			strlen("TPrimaries")) == 0)) {
+			ret = sscanf(ptr_line,
+				"TPrimaries = 0.%d 0.%d 0.%d 0.%d 0.%d 0.%d 0.%d 0.%d",
+				&pri[0], &pri[1], &pri[2], &pri[3],
+				&pri[4], &pri[5], &pri[6], &pri[7]);
+			if (ret == 8) {
+				user_cfg_info[count].tprimaries[0] = pri[0];
+				user_cfg_info[count].tprimaries[1] = pri[1];
+				user_cfg_info[count].tprimaries[2] = pri[2];
+				user_cfg_info[count].tprimaries[3] = pri[3];
+				user_cfg_info[count].tprimaries[4] = pri[4];
+				user_cfg_info[count].tprimaries[5] = pri[5];
+				user_cfg_info[count].tprimaries[6] = pri[6];
+				user_cfg_info[count].tprimaries[7] = pri[7];
+			}
+		}
+	}
+}
+
 bool load_dv_pq_config_data(char *bin_path, char *txt_path)
 {
 	struct file *filp = NULL;
@@ -1075,6 +1433,80 @@ bool cp_dv_pq_config_data(void)
 		pr_info("DV config: load %d picture mode\n", num_picture_mode);
 	}
 	return true;
+}
+
+/*load user cfg file*/
+int load_user_pq_config_data(char *cfg_path)
+{
+	struct file *filp = NULL;
+	bool ret = true;
+	loff_t pos = 0;
+	mm_segment_t old_fs = get_fs();
+	struct kstat stat;
+	unsigned int length = 0;
+	char *txt_buf = NULL;
+	int error;
+
+	/***read user cfg txt to get user cfg info****/
+	set_fs(KERNEL_DS);
+	filp = filp_open(cfg_path, O_RDONLY, 0444);
+	if (IS_ERR(filp)) {
+		ret = false;
+		pr_info("[%s] failed to open file: |%s|\n", __func__, cfg_path);
+		filp_close(filp, NULL);
+		goto LOAD_END;
+	} else {
+		error = vfs_stat(cfg_path, &stat);
+		if (error < 0) {
+			ret = false;
+			filp_close(filp, NULL);
+			goto LOAD_END;
+		}
+
+		length = stat.size;
+		txt_buf = vmalloc(length + 2);
+		memset(txt_buf, 0, length + 2);
+
+		if (txt_buf) {
+			vfs_read(filp, txt_buf, length, &pos);
+			get_user_cfg_info(txt_buf);
+		}
+	}
+	/*************read user cfg txt done***********/
+
+	calculate_user_pq_config();
+	restore_dv_pq_setting(RESET_ALL);
+
+	filp_close(filp, NULL);
+
+LOAD_END:
+	if (txt_buf)
+		vfree(txt_buf);
+	set_fs(old_fs);
+	return ret;
+}
+
+bool user_cfg_to_bin(char *user_cfg_data, int user_cfg_size)
+{
+	int ret = 0;
+	char *cfg_buf = NULL;
+
+	cfg_buf = vmalloc(user_cfg_size + 2);
+	memset(cfg_buf, 0, user_cfg_size + 2);
+
+	if (!cfg_buf) {
+		ret = -ENOMEM;
+		goto release;
+	}
+	memcpy(cfg_buf, user_cfg_data, user_cfg_size);
+	get_user_cfg_info(cfg_buf);
+	calculate_user_pq_config();
+	restore_dv_pq_setting(RESET_ALL);
+
+release:
+	if (cfg_buf)
+		vfree(cfg_buf);
+	return ret;
 }
 
 static inline s16 clamps(s16 value, s16 v_min, s16 v_max)
@@ -1214,6 +1646,8 @@ void set_pic_mode(int mode)
 {
 	if (cur_pic_mode != mode) {
 		cur_pic_mode = mode;
+		if (dv_user_cfg_flag)
+			calculate_user_pq_config();
 		update_cp_cfg();
 		update_vsvdb_to_rx();
 		update_pwm_control();
@@ -1542,6 +1976,7 @@ int get_dv_pq_info(char *buf)
 	"echo colorshift value   > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo saturation value   > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo darkdetail value   > /sys/class/amdolby_vision/dv_pq_info;\n"
+	"echo lightsense value   > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo all v1 v2 v3 v4 v5 > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo reset value        > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"\n"
@@ -1551,6 +1986,7 @@ int get_dv_pq_info(char *buf)
 	"colorshift   range: [-256, 256]\n"
 	"saturation   range: [-256, 256]\n"
 	"darkdetail   range: [0, 1]\n"
+	"lightsense   range: [0, 1]\n"
 	"reset            0: reset pict mode/all pq for all pict mode]\n"
 	"                 1: reset pq for all picture mode]\n"
 	"                 2: reset pq for current picture mode]\n"
@@ -1610,6 +2046,72 @@ int get_dv_pq_info(char *buf)
 	pos += sprintf(buf + pos,
 		       "current darkdetail:        [%d]\n",
 		       cfg_info[cur_pic_mode].dark_detail);
+
+	pos += sprintf(buf + pos,
+		       "current lightsense:        [%d]\n",
+		       cfg_info[cur_pic_mode].light_sense);
+
+	if (dv_user_cfg_flag) {
+		pos += sprintf(buf + pos,
+				"\n==== show end-user calibration cfg info ====\n");
+		pos += sprintf(buf + pos,
+					"current picture mode:      [%d]\n", cur_pic_mode);
+		pos += sprintf(buf + pos,
+					"current picture mode name: [%s]\n",
+					cfg_info[cur_pic_mode].pic_mode_name);
+		pos += sprintf(buf + pos,
+					"user cfg Tgamma:           [%d/10]\n",
+					user_cfg_info[cur_pic_mode].tgamma);
+		pos += sprintf(buf + pos,
+					"user cfg Tmax:             [%d]\n",
+					user_cfg_info[cur_pic_mode].tmax);
+		pos += sprintf(buf + pos,
+					"user cfg Tmin:             [%d/1000]\n",
+					user_cfg_info[cur_pic_mode].tmin);
+		pos += sprintf(buf + pos,
+					"user cfg TPrimaries:       ");
+		pos += sprintf(buf + pos, "[0.%d][0.%d][0.%d][0.%d][0.%d][0.%d][0.%d][0.%d]\n\n",
+					user_cfg_info[cur_pic_mode].tprimaries[0],
+					user_cfg_info[cur_pic_mode].tprimaries[1],
+					user_cfg_info[cur_pic_mode].tprimaries[2],
+					user_cfg_info[cur_pic_mode].tprimaries[3],
+					user_cfg_info[cur_pic_mode].tprimaries[4],
+					user_cfg_info[cur_pic_mode].tprimaries[5],
+					user_cfg_info[cur_pic_mode].tprimaries[6],
+					user_cfg_info[cur_pic_mode].tprimaries[7]);
+		pos += sprintf(buf + pos,
+					"user bin gamma:            [%d]\n",
+					user_target_config[cur_pic_mode].gamma);
+		pos += sprintf(buf + pos,
+					"user bin max_lin:          [%d]\n",
+					user_target_config[cur_pic_mode].max_lin);
+		pos += sprintf(buf + pos,
+					"user bin max_line_dm3:     [%d]\n",
+					user_target_config[cur_pic_mode].max_lin_dm3);
+		pos += sprintf(buf + pos,
+					"user bin max_pq:           [%d]\n",
+					user_target_config[cur_pic_mode].max_pq);
+		pos += sprintf(buf + pos,
+					"user bin max_pq_dm3:       [%d]\n",
+					user_target_config[cur_pic_mode].max_pq_dm3);
+		pos += sprintf(buf + pos,
+					"user bin min_lin:          [%d]\n",
+					user_target_config[cur_pic_mode].min_lin);
+		pos += sprintf(buf + pos,
+					"user bin min_pq:           [%d]\n",
+					user_target_config[cur_pic_mode].min_pq);
+		pos += sprintf(buf + pos,
+					"user bin tPrimaries:       ");
+		pos += sprintf(buf + pos, "[%d][%d][%d][%d][%d][%d][%d][%d]\n",
+					user_target_config[cur_pic_mode].t_primaries[0],
+					user_target_config[cur_pic_mode].t_primaries[1],
+					user_target_config[cur_pic_mode].t_primaries[2],
+					user_target_config[cur_pic_mode].t_primaries[3],
+					user_target_config[cur_pic_mode].t_primaries[4],
+					user_target_config[cur_pic_mode].t_primaries[5],
+					user_target_config[cur_pic_mode].t_primaries[6],
+					user_target_config[cur_pic_mode].t_primaries[7]);
+	}
 	pos += sprintf(buf + pos, "========================================\n");
 
 	pos += sprintf(buf + pos, "%s\n", pq_usage_str);
@@ -1714,6 +2216,17 @@ int set_dv_pq_info(const char *buf, size_t count)
 		if (val != cfg_info[cur_pic_mode].dark_detail) {
 			set_update_cfg(true);
 			cfg_info[cur_pic_mode].dark_detail = val;
+		}
+	} else if (!strcmp(parm[0], "lightsense")) {
+		if (kstrtoint(parm[1], 10, &val) != 0)
+			goto ERR;
+		if (debug_dolby & 0x200)
+			pr_info("[DV]: set mode %d light sense %d\n",
+				cur_pic_mode, val);
+		val = val > 0 ? 1 : 0;
+		if (val != cfg_info[cur_pic_mode].light_sense) {
+			set_update_cfg(true);
+			cfg_info[cur_pic_mode].light_sense = val;
 		}
 	} else {
 		pr_info("unsupport cmd\n");

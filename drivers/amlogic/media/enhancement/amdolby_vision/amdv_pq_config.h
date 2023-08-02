@@ -164,6 +164,8 @@ struct dv_cfg_info_s {
 	s16  saturation;        /*Saturation or color */
 	u8  vsvdb[7];
 	int dark_detail;        /*dark detail, on or off*/
+	int light_sense;        /*light sense, on or off*/
+	int t_front_lux;
 };
 
 struct dv_pq_center_value_s {
@@ -178,6 +180,25 @@ struct dv_pq_range_s {
 	s16  right;
 };
 
+struct dv_user_cfg_info {
+	int id;
+	u32 tmax;
+	u32 tmin;            /* 1/1000 */
+	u16 tgamma;          /* 1/10 */
+	s32 tprimaries[8];   /* 1/10000 */
+};
+
+struct dv_user_target_config {
+	u16 gamma;
+	u16 max_pq;
+	u16 min_pq;
+	u16 max_pq_dm3;
+	u32 min_lin;
+	u32 max_lin;
+	u32 max_lin_dm3;
+	s32 t_primaries[8];
+};
+
 extern struct pq_config *bin_to_cfg;
 extern struct dv_cfg_info_s cfg_info[MAX_DV_PICTUREMODES];
 extern const char *pq_item_str[];
@@ -187,14 +208,18 @@ extern int cur_pic_mode;/*current picture mode id*/
 extern struct ambient_cfg_s ambient_test_cfg[AMBIENT_CFG_FRAMES];
 extern struct ambient_cfg_s ambient_test_cfg_2[AMBIENT_CFG_FRAMES];
 extern struct ambient_cfg_s ambient_test_cfg_3[AMBIENT_CFG_FRAMES];
+extern struct ambient_cfg_s lightsense_test_cfg[2];
+extern bool dv_user_cfg_flag;
 
 void restore_dv_pq_setting(enum pq_reset_e pq_reset);
 bool load_dv_pq_config_data(char *bin_path, char *txt_path);
 bool cp_dv_pq_config_data(void);
+bool user_cfg_to_bin(char *user_cfg_data, int user_cfg_size);
 void set_pic_mode(int mode);
 int get_pic_mode_num(void);
 int get_pic_mode(void);
 char *get_cur_pic_mode_name(void);
+int load_user_pq_config_data(char *cfg_path);
 
 char *get_pic_mode_name(int mode);
 s16 get_single_pq_value(int mode, enum pq_item_e item);
@@ -213,5 +238,8 @@ int get_inter_pq_flag(void);
 void set_inter_pq_flag(int flag);
 void set_cfg_id(uint id);
 void update_cp_cfg(void);
+void update_user_cfg_to_bin(void);
+void calculate_user_pq_config(void);
+void update_ambient_lightsense(struct ambient_cfg_s *p_ambient);
 
 #endif
