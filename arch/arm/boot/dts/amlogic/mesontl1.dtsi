@@ -207,6 +207,11 @@
 		reserve_mem_size = <0x00300000>;
 	};
 
+	optee {
+		compatible = "linaro,optee-tz";
+		method = "smc";
+	};
+
 	pixel_probe: pixel_probe {
 		compatible = "amlogic, pixel_probe";
 		vpp_probe_func = <0x820000f1>;
