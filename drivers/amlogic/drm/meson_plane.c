@@ -102,7 +102,7 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 		crtc_state = drm_atomic_get_crtc_state(atomic_state, crtc);
 		mode = &crtc_state->mode;
 	} else {
-		DRM_INFO("Disabling plane %d, so skip postion calc",
+		DRM_DEBUG("Disabling plane %d, so skip postion calc",
 			 plane_info->plane_index);
 		return;
 	}
@@ -224,7 +224,7 @@ meson_video_plane_position_calc(struct meson_vpu_video_layer_info *plane_info,
 		crtc_state = drm_atomic_get_crtc_state(atomic_state, crtc);
 		mode = &crtc_state->mode;
 	} else {
-		DRM_INFO("Disabling video plane %d, so skip postion calc",
+		DRM_DEBUG("Disabling video plane %d, so skip postion calc",
 			 plane_info->plane_index);
 		return;
 	}

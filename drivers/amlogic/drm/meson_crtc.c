@@ -922,6 +922,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	amcrtc->get_scanout_position = meson_crtc_get_scanout_position;
 	amcrtc->force_crc_chk = 8;
 	atomic_set(&amcrtc->commit_num, 0);
+	mutex_init(&amcrtc->commit_mutex);
 	spin_lock_init(&amcrtc->present_fence.lock);
 	meson_crtc_init_property(priv->drm, amcrtc);
 	meson_crtc_init_hdmi_eotf_property(priv->drm, amcrtc);

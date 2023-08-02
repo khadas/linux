@@ -7,6 +7,7 @@
 #define __MESON_CRTC_H
 
 #include <linux/kernel.h>
+#include <linux/mutex.h>
 #include <drm/drmP.h>
 #include <drm/drm_plane.h>
 #include <drm/drm_atomic.h>
@@ -73,7 +74,6 @@ struct am_meson_crtc {
 	unsigned int irq;
 	int crtc_index;
 	int vout_index;
-	atomic_t commit_num;
 	struct drm_pending_vblank_event *event;
 	struct meson_vpu_pipeline *pipeline;
 
@@ -92,6 +92,10 @@ struct am_meson_crtc {
 
 	/*present fence*/
 	struct am_meson_crtc_present_fence present_fence;
+
+	/*commit*/
+	struct mutex commit_mutex;
+	atomic_t commit_num;
 
 	int vpp_crc_enable;
 	/*forced to detect crc several times after bootup.*/

@@ -54,6 +54,12 @@ enum vpu_enc_type {
 	ENCODER_MAX
 };
 
+enum atomic_mode_type {
+	BLOCK_MODE = 0,
+	NONBLOCK_MODE,
+	ASYNC_MODE
+};
+
 struct meson_drm {
 	struct device *dev;
 
