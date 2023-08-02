@@ -1034,10 +1034,9 @@
 				"rx_dmac_srcpll";
 
 			interrupts = <
-				GIC_SPI 88 IRQ_TYPE_EDGE_RISING
 				GIC_SPI 87 IRQ_TYPE_EDGE_RISING
 			>;
-			interrupt-names = "rx_cmdc", "rx_dmac";
+			interrupt-names = "earc_rx";
 
 			status = "okay";
 		};
