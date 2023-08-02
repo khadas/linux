@@ -1591,6 +1591,12 @@ static int dv_core1a_set(u32 dm_count,
 		copy_core1a_to_core1b = (copy_core1a & 1);
 		if (copy_core1a_to_core1b) {
 			vd_proc_info = get_vd_proc_amdv_info();
+
+			if (vd_proc_info) {
+				if (debug_dolby & 2)
+					pr_dv_dbg("amdv_wait_on %d %d\n", amdv_wait_on,
+					vd_proc_info->vd2_prebld_4k120_en);
+			}
 			if (vd_proc_info && vd_proc_info->vd2_prebld_4k120_en) {
 				hsize = vd_proc_info->slice[0].hsize;/*slice 0*/
 				vsize = vd_proc_info->slice[0].vsize;

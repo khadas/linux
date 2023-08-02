@@ -10931,7 +10931,7 @@ void set_video_slice_policy(struct video_layer_s *layer,
 				(vinfo->sync_duration_num /
 			    vinfo->sync_duration_den > 60)) {
 				slice_num = 2;
-				if (is_amdv_enable())
+				if (is_amdv_on())
 					vd1s1_vd2_prebld_en = 1;
 			} else {
 				slice_num = 1;

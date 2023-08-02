@@ -451,7 +451,7 @@ struct dv_core1_inst_s dv_core1[NUM_IPCORE1];
 
 static bool amdv_el_disable;
 
-static bool amdv_wait_on;
+bool amdv_wait_on;
 module_param(amdv_wait_on, bool, 0664);
 MODULE_PARM_DESC(amdv_wait_on, "\n amdv_wait_on\n");
 
@@ -1477,6 +1477,9 @@ void set_amdv_wait_on(void)
 void clear_dolby_vision_wait(void)
 {
 	int i;
+
+	if (debug_dolby & 2)
+		pr_info("clear amdv_wait_on\n");
 
 	amdv_wait_on = false;
 	if (multi_dv_mode) {
