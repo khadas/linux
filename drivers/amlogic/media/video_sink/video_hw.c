@@ -8659,8 +8659,10 @@ static bool is_vframe_changed
 		return true;
 	if (cur_vf && new_vf &&
 	    (((cur_vf->type & VIDTYPE_COMPRESS) &&
-	      (cur_vf->compWidth != new_vf->compWidth ||
-	       cur_vf->compHeight != new_vf->compHeight)) ||
+	      ((cur_vf->compWidth != new_vf->compWidth ||
+	       cur_vf->compHeight != new_vf->compHeight) ||
+	       (cur_vf->flag & VFRAME_FLAG_COMPOSER_DONE) !=
+	       (new_vf->flag & VFRAME_FLAG_COMPOSER_DONE))) ||
 	     cur_vf->bufWidth != new_vf->bufWidth ||
 	     cur_vf->width != new_vf->width ||
 	     cur_vf->height != new_vf->height ||
