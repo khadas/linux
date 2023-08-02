@@ -1067,51 +1067,40 @@
 		};
 	};
 
-	sd_emmc_b: sdio@ffe05000 {
-		status = "okay";
-		compatible = "amlogic, meson-mmc-tl1";
-		reg = <0xffe05000 0x800>;
-		interrupts = <0 190 4>;
+sd_emmc_b: sdio@ffe05000 {
+				status = "disabled";
+				compatible = "amlogic,meson-axg-mmc";
+				reg = <0xffe05000 0x800>,
+				<0xffe05000 0x4>,
+				<0xffe05000 0x4>;
+				clocks = <&clkc CLKID_CLK81_SD_EMMC_B>,
+							<&clkc CLKID_SD_EMMC_B_SEL>,
+							<&clkc CLKID_SD_EMMC_B>,
+							<&xtal>,
+							<&clkc CLKID_FCLK_DIV2>;
+				clock-names = "core","mux0","mux1",
+								"clkin0","clkin1";
 
-		pinctrl-names = "sdio_all_pins",
-			"sdio_clk_cmd_pins";
-		pinctrl-0 = <&sdio_all_pins>;
-		pinctrl-1 = <&sdio_clk_cmd_pins>;
+				no-mmc;
+				pinctrl-names = "default",
+								"clk-gate";
+				pinctrl-0 = <&sdio_all_pins>;
+				pinctrl-1 = <&sdio_clk_gate_pins>;
+				interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
+				bus-width = <4>;
+				cap-sd-highspeed;
+				sd-uhs-sdr12;
+				sd-uhs-sdr25;
+				sd-uhs-sdr50;
+				sd-uhs-sdr104;
+				max-frequency = <200000000>;
+				non-removable;
+				keep-power-in-suspend;
+				cap-sdio-irq;
+				card_type = <3>;
 
-		//clocks = <&clkc CLKID_SD_EMMC_B>,
-		//	<&clkc CLKID_SD_EMMC_B_P0_COMP>,
-		//	<&clkc CLKID_FCLK_DIV2>,
-		//	<&clkc CLKID_FCLK_DIV5>,
-		//	<&xtal>;
-		//clock-names = "core", "clkin0", "clkin1", "clkin2", "xtal";
-
-		bus-width = <4>;
-		cap-sd-highspeed;
-		cap-mmc-highspeed;
-		max-frequency = <100000000>;
-		disable-wp;
-		sdio {
-			pinname = "sdio";
-			ocr_avail = <0x200080>; /**VDD voltage 3.3 ~ 3.4 */
-			caps = "MMC_CAP_4_BIT_DATA",
-				"MMC_CAP_MMC_HIGHSPEED",
-				"MMC_CAP_SD_HIGHSPEED",
-				"MMC_CAP_NONREMOVABLE", /**ptm debug */
-				 "MMC_CAP_UHS_SDR12",
-				 "MMC_CAP_UHS_SDR25",
-				 "MMC_CAP_UHS_SDR50",
-				 "MMC_CAP_UHS_SDR104",
-				 "MMC_PM_KEEP_POWER",
-				 "MMC_CAP_SDIO_IRQ";
-			f_min = <400000>;
-			f_max = <200000000>;
-			max_req_size = <0x20000>; /**128KB*/
-			card_type = <3>;
-			/* 3:sdio device(ie:sdio-wifi),
-			 * 4:SD combo (IO+mem) card
-			 */
-		};
-	};
+				disable-wp;
+};
 
 	aml_pm {
 		vad_wakeup_disable = <0x0>;
@@ -1759,20 +1748,18 @@
 
 &sd_emmc_c {
 	status = "okay";
-	emmc {
-		caps = "MMC_CAP_8_BIT_DATA",
-			 "MMC_CAP_MMC_HIGHSPEED",
-			 "MMC_CAP_SD_HIGHSPEED",
-			 "MMC_CAP_NONREMOVABLE",
-			 "MMC_CAP_1_8V_DDR",
-			 "MMC_CAP_HW_RESET",
-			 "MMC_CAP_ERASE",
-			 "MMC_CAP_CMD23",
-			 "MMC_CAP_DRIVER_TYPE_D";
-		caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";
-		f_min = <400000>;
-		f_max = <198000000>;
-	};
+	pinctrl-names = "default","clk-gate";
+	pinctrl-0 = <&emmc_conf_pull_up &emmc_conf_pull_done>;
+	pinctrl-1 = <&emmc_clk_gate_pins>;
+
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	max-frequency = <198000000>;
+	non-removable;
+	disable-wp;
 };
 
 &spifc {

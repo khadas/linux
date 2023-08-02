@@ -212,7 +212,44 @@
 		nrds-enable = <1>;
 		pps-enable = <1>;
 	};
+	sd_emmc_b: sd@ffe05000 {
+			status = "okay";
+			compatible = "amlogic,meson-axg-mmc";
+			reg = <0xffe05000 0x800>,
+			<0xffe05000 0x4>,
+			<0xffe05000 0x4>;
 
+			clocks = <&clkc CLKID_CLK81_SD_EMMC_B>,
+				<&clkc CLKID_SD_EMMC_B_SEL>,
+				<&clkc CLKID_SD_EMMC_B>,
+				<&xtal>,
+				<&clkc CLKID_FCLK_DIV2>;
+			clock-names = "core","mux0","mux1",
+					"clkin0","clkin1";
+
+			no-mmc;
+			no-sdio;
+			interrupts = <GIC_SPI 190 IRQ_TYPE_EDGE_RISING>;
+			pinctrl-names = "sd_default",
+					"clk-gate",
+					"sd_1bit_pins";
+			pinctrl-0 = <&sd_all_pins>;
+			pinctrl-1 = <&sdio_clk_gate_pins>;
+			pinctrl-2 = <&sd_1bit_pins>;
+
+			bus-width = <4>;
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
+			//      sd-uhs-sdr12;
+			//      sd-uhs-sdr25;
+			//      sd-uhs-sdr50;
+			//      sd-uhs-sdr104;
+			max-frequency = <50000000>;
+			disable-wp;
+			//broken-cd;
+			cd-gpios = <&gpio GPIOC_10 GPIO_ACTIVE_HIGH>;
+			card_type = <5>;
+	};
 	/* Audio Related start */
 	pdm_codec:dummy {
 		#sound-dai-cells = <0>;
@@ -985,54 +1022,23 @@
 		reg_23cf = <0x88188832>;
 		/*default:0x88188832;r840 on haier:0x48188832*/
 	};
-
-	sd_emmc_b: sd@ffe05000 {
-		status = "okay";
-		compatible = "amlogic, meson-mmc-tl1";
-		reg = <0xffe05000 0x800>;
-		interrupts = <0 190 1>;
-
-		pinctrl-names = "sd_all_pins",
-			"sd_clk_cmd_pins",
-			"sd_1bit_pins";
-		pinctrl-0 = <&sd_all_pins>;
-		pinctrl-1 = <&sd_clk_cmd_pins>;
-		pinctrl-2 = <&sd_1bit_pins>;
-
-//		clocks = <&clkc CLKID_SD_EMMC_B>,
-//			<&clkc CLKID_SD_EMMC_B_P0_COMP>,
-//			<&clkc CLKID_FCLK_DIV2>,
-//			<&clkc CLKID_FCLK_DIV5>,
-//			<&xtal>;
-//		clock-names = "core", "clkin0", "clkin1", "clkin2", "xtal";
-
-		bus-width = <4>;
-		cap-sd-highspeed;
-		cap-mmc-highspeed;
-		max-frequency = <100000000>;
-		disable-wp;
-		sd {
-			pinname = "sd";
-			ocr_avail = <0x200080>; /**VDD voltage 3.3 ~ 3.4 */
-			caps = "MMC_CAP_4_BIT_DATA",
-				"MMC_CAP_MMC_HIGHSPEED",
-				"MMC_CAP_SD_HIGHSPEED";
-				//"MMC_CAP_NONREMOVABLE"; /**ptm debug */
-			f_min = <400000>;
-			f_max = <200000000>;
-			max_req_size = <0x20000>; /**128KB*/
-			no_sduart = <1>;
-			gpio_dat3 = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
-			jtag_pin = <&gpio GPIOC_0 GPIO_ACTIVE_HIGH>;
-			gpio_cd = <&gpio GPIOC_10 GPIO_ACTIVE_HIGH>;
-			card_type = <5>;
-			/* 3:sdio device(ie:sdio-wifi),
-			 * 4:SD combo (IO+mem) card
-			 */
-		};
-	};
-
 }; /* end of / */
+
+&sd_emmc_c {
+		status = "okay";
+		pinctrl-names = "default","clk-gate";
+		pinctrl-0 = <&emmc_conf_pull_up &emmc_conf_pull_done>;
+		pinctrl-1 = <&emmc_clk_gate_pins>;
+
+		bus-width = <8>;
+		cap-mmc-highspeed;
+		mmc-ddr-1_8v;
+		mmc-hs200-1_8v;
+		mmc-hs400-1_8v;
+		max-frequency = <50000000>;
+		non-removable;
+		disable-wp;
+};
 
 &i2c0 {
 	status = "okay";
@@ -1596,23 +1602,6 @@
 		reset_pin = <&gpio_ao GPIOAO_6 0>;
 	};
 
-};
-
-&sd_emmc_c {
-	status = "okay";
-	emmc {
-		caps = "MMC_CAP_8_BIT_DATA",
-			 "MMC_CAP_MMC_HIGHSPEED",
-			 "MMC_CAP_SD_HIGHSPEED",
-			 "MMC_CAP_NONREMOVABLE",
-			 "MMC_CAP_1_8V_DDR",
-			 "MMC_CAP_HW_RESET",
-			 "MMC_CAP_ERASE",
-			 "MMC_CAP_CMD23";
-		caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";
-		f_min = <400000>;
-		f_max = <198000000>;
-	};
 };
 
 &spifc {
