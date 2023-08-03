@@ -309,6 +309,10 @@ struct match_data_s {
 #define VDIN_INTERLACE_GAME_MODE	BIT(12)
 #define VDIN_SACALE_4096_2_3840		BIT(13)
 #define VDIN_CUTWIN_4096_2_3840		BIT(14)
+#define VDIN_MUX_VDIN0_HIST		BIT(15) //sel vdin0 hist for txhd2
+#define VDIN_SET_PCS_RESET		BIT(16) //for report_active abnormal callback rx pcs_reset
+#define VDIN_AFBCE_DOLBY		BIT(17)
+
 /* vdin_function_sel control bits end */
 
 #define VDIN_2K_SIZE			0x07800438 /* 0x780 = 1920 0x438 = 1080 */
@@ -616,6 +620,7 @@ struct vdin_dts_config_s {
 	bool chk_write_done_en;
 	bool urgent_en;
 	bool v4l_en;
+	unsigned int afbce_flag_cfg;
 };
 
 struct vdin_s5_s {

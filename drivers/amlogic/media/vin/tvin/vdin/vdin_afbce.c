@@ -770,13 +770,21 @@ void vdin_afbce_mode_init(struct vdin_dev_s *devp)
 		 */
 	}
 
+	devp->afbce_flag = devp->dts_config.afbce_flag_cfg;
+	/* In dolby afbce mode,disable lossy */
+	if (devp->afbce_valid && vdin_is_dolby_signal_in(devp) &&
+		(devp->vdin_function_sel & VDIN_AFBCE_DOLBY))
+		devp->afbce_flag &= ~(VDIN_AFBCE_EN_LOSSY);
+
 	/* default non-afbce mode
 	 * switch to afbce_mode if need by vpp notify
 	 */
 	devp->afbce_mode = 0;
 	devp->afbce_mode_pre = devp->afbce_mode;
 	if (vdin_dbg_en)
-		pr_info("vdin%d init afbce_mode: %d\n", devp->index, devp->afbce_mode);
+		pr_info("vdin%d init afbce_mode: %d,afbce_flag:%#x %#x\n",
+			devp->index, devp->afbce_mode,
+			devp->dts_config.afbce_flag_cfg, devp->afbce_flag);
 }
 
 void vdin_afbce_mode_update(struct vdin_dev_s *devp)

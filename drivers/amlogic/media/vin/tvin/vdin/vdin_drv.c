@@ -1019,17 +1019,20 @@ static struct rdma_op_s vdin_rdma_op[VDIN_MAX_DEVS];
 static void vdin_double_write_confirm(struct vdin_dev_s *devp)
 {
 	/* enable double write only afbce is supported */
-	if (devp->double_wr_cfg && devp->afbce_valid)
+	if (devp->double_wr_cfg && devp->afbce_valid) {
 		devp->double_wr = 1;
-	else
+	} else {
 		devp->double_wr = 0;
+		devp->afbce_valid = 0;
+	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	/* CAN NOT use dw due to h shrink lose color when dv tunnel signal in */
-	if (vdin_is_dolby_signal_in(devp)) {
+	if (vdin_is_dolby_signal_in(devp) &&
+		!(devp->vdin_function_sel & VDIN_AFBCE_DOLBY)) {
 		/*if (devp->dtdata->hw_ver < VDIN_HW_T7)*/
 		devp->double_wr = 0;
-
+		devp->afbce_valid = 0;
 		if (vdin_dbg_en)
 			pr_info("dv in dw %d\n", devp->double_wr);
 	}
@@ -5917,16 +5920,17 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	/*set afbce config*/
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && devp->index == 0) {
 		ret = of_property_read_u32(pdev->dev.of_node,
-					   "afbce_bit_mode", &devp->afbce_flag);
+					   "afbce_bit_mode", &devp->dts_config.afbce_flag_cfg);
 		if (ret)
-			devp->afbce_flag = 0;
+			devp->dts_config.afbce_flag_cfg = 0;
 
-		if (devp->afbce_flag & 0x1) {
+		if (devp->dts_config.afbce_flag_cfg & 0x1) {
 			devp->afbce_info =
 				devm_kzalloc(devp->dev, sizeof(struct vdin_afbce_s), GFP_KERNEL);
 			if (!devp->afbce_info)
 				goto fail_kzalloc_vdev;
 		}
+		devp->afbce_flag = devp->dts_config.afbce_flag_cfg;
 	}
 
 	vdin_get_dts_config(devp, pdev);

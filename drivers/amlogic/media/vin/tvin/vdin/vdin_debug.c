@@ -1239,7 +1239,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->prop.vdin_vrr_flag);
 	pr_info("vdin_pc_mode:%d pc_mode cur:%d\n", vdin_pc_mode, devp->vdin_pc_mode);
 
-	pr_info("afbce_flag: 0x%x\n", devp->afbce_flag);
+	pr_info("afbce_flag: %#x %#x\n", devp->dts_config.afbce_flag_cfg, devp->afbce_flag);
 	pr_info("afbce_mode: %d, afbce_valid: %d\n", devp->afbce_mode,
 		devp->afbce_valid);
 	pr_info("write vframe en: %d, pre: %d\n", devp->vframe_wr_en,
@@ -3258,12 +3258,12 @@ start_chk:
 		}
 	} else if (!strcmp(parm[0], "afbce_flag")) {
 		if (parm[1]) {
-			if (kstrtouint(parm[1], 16, &devp->afbce_flag) == 0) {
-				pr_info("set vdin_afbce_flag: 0x%x\n",
-					devp->afbce_flag);
+			if (kstrtouint(parm[1], 16, &devp->dts_config.afbce_flag_cfg) == 0) {
+				pr_info("set vdin_afbce_flag_cfg: 0x%x\n",
+					devp->dts_config.afbce_flag_cfg);
 			}
 		} else {
-			pr_info("vdin_afbce_flag: 0x%x\n", devp->afbce_flag);
+			pr_info("vdin_afbce_flag_cfg: 0x%x\n", devp->dts_config.afbce_flag_cfg);
 		}
 	} else if (!strcmp(parm[0], "afbce_mode")) {
 		if (parm[2]) {
