@@ -102,6 +102,7 @@
 	mmc-pwrseq = <&sdio_pwrseq>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk>;
+	/delete-property/ rockchip,use-v2-tuning;
 	sd-uhs-sdr104;
 	status = "okay";
 };
