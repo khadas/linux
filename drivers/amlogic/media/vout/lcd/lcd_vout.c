@@ -636,6 +636,7 @@ static int lcd_vsync_print_cnt;
 static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned long flags = 0;
+	unsigned int temp;
 
 	if (!pdrv)
 		return;
@@ -676,6 +677,24 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 	if (pdrv->test_flag != pdrv->test_state) {
 		pdrv->test_state = pdrv->test_flag;
 		lcd_debug_test(pdrv, pdrv->test_state);
+	}
+	if (pdrv->vs_msr && pdrv->vs_msr_rt && pdrv->vs_msr_en) {
+		temp = vout_frame_rate_msr_high_res(pdrv->viu_sel);
+		pdrv->vs_msr_rt[pdrv->vs_msr_i++] = temp;
+		pdrv->vs_msr_sum_temp += temp;
+		if (temp > pdrv->vs_msr_max)
+			pdrv->vs_msr_max = temp;
+		if (temp < pdrv->vs_msr_min)
+			pdrv->vs_msr_min = temp;
+		if (pdrv->vs_msr_i >= pdrv->config.timing.frame_rate) {
+			pdrv->vs_msr[pdrv->vs_msr_cnt++] =
+				lcd_do_div(pdrv->vs_msr_sum_temp, pdrv->vs_msr_i);
+			pdrv->vs_msr_sum_temp = 0;
+			if (pdrv->vs_msr_cnt >= pdrv->vs_msr_cnt_max)
+				pdrv->vs_msr_en = 0;
+			else
+				pdrv->vs_msr_i = 0;
+		}
 	}
 	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 

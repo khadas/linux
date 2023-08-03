@@ -686,6 +686,17 @@ struct aml_lcd_drv_s {
 #endif
 	void *debug_info;
 
+	unsigned int *vs_msr_rt;
+	unsigned int *vs_msr;
+	unsigned int vs_msr_max;
+	unsigned int vs_msr_min;
+	unsigned long long vs_msr_sum_temp;
+	unsigned int vs_msr_i;
+	unsigned int vs_msr_cnt;
+	unsigned int vs_msr_cnt_max;
+	unsigned int vs_msr_err_th;
+	unsigned char vs_msr_en;
+
 	unsigned int vout_state;
 	unsigned int fr_auto_policy;
 	unsigned int fr_mode;

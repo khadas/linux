@@ -507,6 +507,18 @@ static ssize_t vout_frame_rate_show(struct class *class,
 	return ret;
 }
 
+static ssize_t vout_frame_rate_high_res_show(struct class *class,
+					     struct class_attribute *attr, char *buf)
+{
+	unsigned int fr;
+	int ret = 0;
+
+	fr = vout_frame_rate_msr_high_res(1);
+	ret = sprintf(buf, "%d.%06d\n", (fr / 1000000), (fr % 1000000));
+
+	return ret;
+}
+
 static ssize_t vout_bist_show(struct class *class,
 			      struct class_attribute *attr, char *buf)
 {
@@ -773,6 +785,7 @@ static struct class_attribute vout_class_attrs[] = {
 	__ATTR(fr_hint,    0644, vout_fr_hint_show, vout_fr_hint_store),
 	__ATTR(fr_range,   0644, vout_fr_range_show, NULL),
 	__ATTR(frame_rate, 0644, vout_frame_rate_show, NULL),
+	__ATTR(fr_high_res, 0644, vout_frame_rate_high_res_show, NULL),
 	__ATTR(bist,       0644, vout_bist_show, vout_bist_store),
 	__ATTR(bl_brightness, 0644, vout_bl_brightness_show, vout_bl_brightness_store),
 	__ATTR(vinfo,      0444, vout_vinfo_show, NULL),

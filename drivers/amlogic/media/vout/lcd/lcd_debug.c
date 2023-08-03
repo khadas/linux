@@ -3897,6 +3897,190 @@ static ssize_t lcd_debug_vinfo_show(struct device *dev,
 	return len;
 }
 
+//make sure 30min diff is less than half frame
+#define LCD_VS_MSR_ERR_MAX    280   //unit:0.000001
+
+#define LCD_VS_MSR_DUMP       1
+#define LCD_VS_MSR_AVG        2
+#define LCD_VS_MSR_SNAPSHOT   3
+static unsigned int lcd_vs_msr_sel;
+
+static ssize_t lcd_debug_vs_msr_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	ssize_t len = 0, n = PR_BUF_MAX;
+	unsigned long long sum = 0, target;
+	unsigned int avg, err, i;
+
+	if (!pdrv->vs_msr || !pdrv->vs_msr_rt)
+		return sprintf(buf, "vs_msr buffer is NULL\n");
+
+	target = pdrv->config.timing.sync_duration_num;
+	target = lcd_do_div(target * 1000000, pdrv->config.timing.sync_duration_den);
+	switch (lcd_vs_msr_sel) {
+	case LCD_VS_MSR_DUMP:
+		for (i = 0; i < pdrv->vs_msr_cnt; i++) {
+			if (target >= pdrv->vs_msr[i])
+				err = target - pdrv->vs_msr[i];
+			else
+				err = pdrv->vs_msr[i] - target;
+			if (len >= PR_BUF_MAX)
+				return len;
+			n = PR_BUF_MAX - len;
+			len += snprintf(buf + len, n, "[%d]: %d, %d%s\n",
+				i, pdrv->vs_msr[i],
+				err, (err > pdrv->vs_msr_err_th) ? "(X)" : "");
+		}
+		break;
+	case LCD_VS_MSR_AVG:
+		for (i = 0; i < pdrv->vs_msr_cnt; i++)
+			sum += pdrv->vs_msr[i];
+		avg = lcd_do_div(sum, pdrv->vs_msr_cnt);
+		if (target >= avg)
+			err = target - avg;
+		else
+			err = avg - target;
+		len = sprintf(buf, "vs_msr avg: %d, err: %d%s\n",
+			avg, err, (err > pdrv->vs_msr_err_th) ? "(X)" : "");
+		break;
+	case LCD_VS_MSR_SNAPSHOT:
+		for (i = 0; i < pdrv->vs_msr_i; i++) {
+			if (target >= pdrv->vs_msr_rt[i])
+				err = target - pdrv->vs_msr_rt[i];
+			else
+				err = pdrv->vs_msr_rt[i] - target;
+			if (len >= PR_BUF_MAX)
+				return len;
+			n = PR_BUF_MAX - len;
+			len += snprintf(buf + len, n, "[%d]: %d, %d%s\n",
+				i, pdrv->vs_msr_rt[i],
+				err, (err > pdrv->vs_msr_err_th) ? "(X)" : "");
+		}
+		break;
+	default:
+		break;
+	}
+	if (len >= PR_BUF_MAX)
+		return len;
+	n = PR_BUF_MAX - len;
+	len += snprintf(buf + len, n,
+		"vs_msr max:%d, min:%d\n"
+		"vs_msr en:%d, err_th:%d, i:%d, cnt:%d, cnt_max:%d\n",
+		pdrv->vs_msr_max, pdrv->vs_msr_min,
+		pdrv->vs_msr_en, pdrv->vs_msr_err_th,
+		pdrv->vs_msr_i, pdrv->vs_msr_cnt, pdrv->vs_msr_cnt_max);
+
+	return len;
+}
+
+static ssize_t lcd_debug_vs_msr_store(struct device *dev, struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	char *buf_orig;
+	char *parm[8] = {NULL};
+	unsigned int temp, msr_en;
+	int ret;
+
+	if (!buf)
+		return count;
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig) {
+		LCDERR("%s: buf malloc error\n", __func__);
+		return count;
+	}
+	lcd_debug_parse_param(buf_orig, (char **)&parm);
+
+	if (strcmp(parm[0], "init") == 0) {
+		if (!parm[1]) {
+			pr_err("invalid data\n");
+			goto lcd_debug_vs_msr_store_next;
+		}
+		ret = kstrtouint(parm[1], 10, &temp);
+		if (ret) {
+			pr_err("invalid data\n");
+			goto lcd_debug_vs_msr_store_next;
+		}
+		if (temp) {
+			pdrv->vs_msr_cnt_max = temp;
+			pdrv->vs_msr = kcalloc(pdrv->vs_msr_cnt_max,
+					sizeof(unsigned int), GFP_KERNEL);
+			if (!pdrv->vs_msr)
+				goto lcd_debug_vs_msr_store_next;
+			pdrv->vs_msr_rt = kcalloc(300, sizeof(unsigned int), GFP_KERNEL);
+			if (!pdrv->vs_msr_rt)
+				goto lcd_debug_vs_msr_store_next;
+			pr_info("vs_msr buffer init ok, size: %d\n", pdrv->vs_msr_cnt_max);
+		} else {
+			if (pdrv->vs_msr_en) {
+				pr_err("vs_msr is still enabled, can't release buffer\n");
+				goto lcd_debug_vs_msr_store_next;
+			}
+			pdrv->vs_msr_i = 0;
+			pdrv->vs_msr_cnt = 0;
+			pdrv->vs_msr_cnt_max = 0;
+
+			kfree(pdrv->vs_msr);
+			pdrv->vs_msr = NULL;
+			kfree(pdrv->vs_msr_rt);
+			pdrv->vs_msr_rt = NULL;
+		}
+	} else if (strcmp(parm[0], "en") == 0) {
+		if (parm[1]) {
+			ret = kstrtouint(parm[1], 10, &temp);
+			if (ret) {
+				pr_err("invalid data\n");
+				goto lcd_debug_vs_msr_store_next;
+			}
+			if (temp) {
+				if (!pdrv->vs_msr || !pdrv->vs_msr_rt) {
+					pr_err("vs_msr buffer is NULL, can't enable\n");
+					goto lcd_debug_vs_msr_store_next;
+				}
+				pdrv->vs_msr_cnt = 0;
+				pdrv->vs_msr_i = 0;
+				pdrv->vs_msr_max = 0;
+				pdrv->vs_msr_min = 0xffffffff;
+				msr_en = 1; //waiting for behind parameters
+			} else {
+				pdrv->vs_msr_en = 0;
+			}
+		}
+		if (parm[2]) {
+			ret = kstrtouint(parm[2], 10, &temp);
+			if (ret) {
+				pr_err("invalid data\n");
+				goto lcd_debug_vs_msr_store_next;
+			}
+			pdrv->vs_msr_err_th = temp;
+		} else {
+			if (pdrv->vs_msr_err_th == 0)
+				pdrv->vs_msr_err_th = LCD_VS_MSR_ERR_MAX;
+		}
+		if (msr_en)
+			pdrv->vs_msr_en = 1;
+		pr_info("vs_msr en:%d, err_th:%d\n"
+			"i:%d, cnt:%d, cnt_max:%d\n",
+			pdrv->vs_msr_en, pdrv->vs_msr_err_th,
+			pdrv->vs_msr_i, pdrv->vs_msr_cnt, pdrv->vs_msr_cnt_max);
+	} else if (strcmp(parm[0], "dump") == 0) {
+		lcd_vs_msr_sel = LCD_VS_MSR_DUMP;
+	} else if (strcmp(parm[0], "avg") == 0) {
+		lcd_vs_msr_sel = LCD_VS_MSR_AVG;
+	} else if (strcmp(parm[0], "snapshot") == 0) {
+		lcd_vs_msr_sel = LCD_VS_MSR_SNAPSHOT;
+	} else {
+		LCDERR("invalid command\n");
+		kfree(buf_orig);
+		return -EINVAL;
+	}
+
+lcd_debug_vs_msr_store_next:
+	kfree(buf_orig);
+	return count;
+}
+
 static struct device_attribute lcd_debug_attrs[] = {
 	__ATTR(help,        0444, lcd_debug_common_help, NULL),
 	__ATTR(debug,       0644, lcd_debug_show, lcd_debug_store),
@@ -3920,7 +4104,8 @@ static struct device_attribute lcd_debug_attrs[] = {
 	__ATTR(dump,        0644, lcd_debug_dump_show, lcd_debug_dump_store),
 	__ATTR(print,       0644, lcd_debug_print_show, lcd_debug_print_store),
 	__ATTR(cus_ctrl,    0444, lcd_debug_cus_ctrl_show, NULL),
-	__ATTR(vinfo,       0444, lcd_debug_vinfo_show, NULL)
+	__ATTR(vinfo,       0444, lcd_debug_vinfo_show, NULL),
+	__ATTR(vs_msr,      0644, lcd_debug_vs_msr_show, lcd_debug_vs_msr_store)
 };
 
 static const char *lcd_rgb_debug_usage_str = {

@@ -1620,6 +1620,11 @@
 			0x0 0xff646000 0x0 0x4a0>; /* clk reg */
 	};
 
+	vout_mux: vout_mux {
+		compatible = "amlogic, vout_mux";
+		status = "okay";
+	};
+
 	vout: vout {
 		compatible = "amlogic, vout";
 		status = "okay";
