@@ -200,10 +200,10 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 	case LC_MTX_RGB_YUV601L:
 		if (mtx_sel & (INP_MTX | OUTP_MTX)) {
 			WRITE_VPP_REG(matrix_coef00_01, 0x1070204);
-			WRITE_VPP_REG(matrix_coef02_10, 0x640f68);
-			WRITE_VPP_REG(matrix_coef11_12, 0xed601c2);
-			WRITE_VPP_REG(matrix_coef20_21, 0x01c20e87);
-			WRITE_VPP_REG(matrix_coef22, 0x0000fb7);
+			WRITE_VPP_REG(matrix_coef02_10, 0x641f68);
+			WRITE_VPP_REG(matrix_coef11_12, 0x1ed601c2);
+			WRITE_VPP_REG(matrix_coef20_21, 0x01c21e87);
+			WRITE_VPP_REG(matrix_coef22, 0x00001fb7);
 			if (bitdepth == 10) {
 				WRITE_VPP_REG(matrix_offset0_1, 0x00400200);
 				WRITE_VPP_REG(matrix_clip, 0x3ff);
