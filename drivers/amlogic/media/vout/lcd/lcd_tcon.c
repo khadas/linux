@@ -182,6 +182,7 @@ void lcd_tcon_dbg_trace_print(unsigned int flag)
 			}
 		}
 	}
+	kfree(buf);
 }
 
 /* **********************************
@@ -2987,7 +2988,7 @@ static int lcd_tcon_load_init_data_from_unifykey_new(void)
 		return -1;
 	data_header = kzalloc(LCD_TCON_DATA_BLOCK_HEADER_SIZE, GFP_KERNEL);
 	if (!data_header)
-		return -1;
+		goto lcd_tcon_load_init_data_new_err;
 	tcon_mm_table.core_reg_header = data_header;
 
 	key_len = data_len;

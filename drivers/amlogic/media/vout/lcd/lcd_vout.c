@@ -1193,7 +1193,7 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct ioctl_phy_config_s *ioctl_phy_cfg = &ioctl_phy_config, ioctl_phy_usr;
 	unsigned int ss_level = 0xffffffff, ss_freq = 0xffffffff, ss_mode = 0xffffffff;
 	struct aml_lcd_ss_ctl_s ss_ctl = {0xffffffff, 0xffffffff, 0xffffffff};
-	unsigned int temp, i = 0;
+	unsigned int temp, i = 0, lane_num;
 	int ret = 0;
 
 	if (!pdrv)
@@ -1297,7 +1297,8 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ioctl_phy_cfg->ext_pullup = phy_cfg->ext_pullup;
 		ioctl_phy_cfg->vswing_level = phy_cfg->vswing_level;
 		ioctl_phy_cfg->preem_level = phy_cfg->preem_level;
-		for (i = 0; i < phy_cfg->lane_num; i++) {
+		lane_num = phy_cfg->lane_num > CH_LANE_MAX ? CH_LANE_MAX : phy_cfg->lane_num;
+		for (i = 0; i < lane_num; i++) {
 			ioctl_phy_cfg->ioctl_lane[i].preem = phy_cfg->lane[i].preem;
 			ioctl_phy_cfg->ioctl_lane[i].amp = phy_cfg->lane[i].amp;
 		}
@@ -1357,7 +1358,9 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			phy_cfg->vswing =
 				lcd_phy_vswing_level_to_value(pdrv, phy_cfg->vswing_level);
 			temp = lcd_phy_preem_level_to_value(pdrv, phy_cfg->preem_level);
-			for (i = 0; i < phy_cfg->lane_num; i++) {
+			lane_num = phy_cfg->lane_num > CH_LANE_MAX ?
+				CH_LANE_MAX : phy_cfg->lane_num;
+			for (i = 0; i < lane_num; i++) {
 				phy_cfg->lane[i].preem = temp;
 				phy_cfg->lane[i].amp = ioctl_phy_usr.ioctl_lane[i].amp;
 			}

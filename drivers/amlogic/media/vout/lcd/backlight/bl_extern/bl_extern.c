@@ -277,7 +277,7 @@ static int bl_extern_init_table_dynamic_load_dts(struct device_node *np,
 				econf->name, propname, step);
 			table[i] = LCD_EXT_CMD_TYPE_END;
 			table[i + 1] = 0;
-			return -1;
+			goto init_table_dynamic_dts_err;
 		}
 		table[i] = (unsigned char)val;
 		type = table[i];
@@ -288,7 +288,7 @@ static int bl_extern_init_table_dynamic_load_dts(struct device_node *np,
 				econf->name, propname, step);
 			table[i] = LCD_EXT_CMD_TYPE_END;
 			table[i + 1] = 0;
-			return -1;
+			goto init_table_dynamic_dts_err;
 		}
 		table[i + 1] = (unsigned char)val;
 		cmd_size = table[i + 1];
@@ -302,7 +302,7 @@ static int bl_extern_init_table_dynamic_load_dts(struct device_node *np,
 				econf->name, propname, step);
 			table[i] = LCD_EXT_CMD_TYPE_END;
 			table[i + 1] = 0;
-			return -1;
+			goto init_table_dynamic_dts_err;
 		}
 
 		/* data */
@@ -313,7 +313,7 @@ static int bl_extern_init_table_dynamic_load_dts(struct device_node *np,
 					econf->name, propname, step);
 				table[i] = LCD_EXT_CMD_TYPE_END;
 				table[i + 1] = 0;
-				return -1;
+				goto init_table_dynamic_dts_err;
 			}
 			table[i + 2 + j] = (unsigned char)val;
 		}
