@@ -803,7 +803,7 @@ struct vdin_dev_s {
 	unsigned int v_active_org;/*vdin scaler in*/
 	unsigned int canvas_h;
 	unsigned int canvas_w;
-	unsigned int canvas_active_w;
+	unsigned int canvas_active_w;/* mif stride */
 	unsigned int canvas_align_w;
 	unsigned int canvas_max_size;
 	unsigned int canvas_max_num;
