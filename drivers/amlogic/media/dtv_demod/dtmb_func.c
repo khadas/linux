@@ -404,6 +404,10 @@ int dtmb_bch_check(struct dvb_frontend *fe)
 	int fec_bch_add, i, strength;
 	char *info1 = "fec lock,but bch add ,need reset,wait not to reset";
 	char *info2 = "fec lock,but bch add ,need reset,now is lock";
+	int strength_limit = THRD_TUNER_STRENGTH_DTMB;
+
+	if (tuner_find_by_name(fe, "atbm253"))
+		strength_limit = THRD_TUNER_STRENGTH_DTMB + 5;
 
 	fec_bch_add = dtmb_reg_r_bch();
 	/*PR_DTMB("[debug]fec lock,fec_bch_add is %d\n", fec_bch_add);*/
@@ -445,7 +449,7 @@ int dtmb_bch_check(struct dvb_frontend *fe)
 			}
 			if (i % 2 == 0) {
 				strength = tuner_get_ch_power(fe);
-				if (strength < THRD_TUNER_STRENGTH_DTMB) {
+				if (strength < strength_limit) {
 					/*weak signal,return*/
 					PR_DTMB("%s strength=%d, return\n",
 						 __func__, strength);
