@@ -5042,7 +5042,9 @@ static void hdmi_in_delay_maxmin_old(struct vframe_s *vf)
 		vf->source_type != VFRAME_SOURCE_TYPE_TUNER)
 		return;
 
-	if (vf->type & VIDTYPE_DI_PW) {
+	if (vf->type & VIDTYPE_DI_PW || vf->di_flag & DI_FLAG_DI_PVPPLINK) {
+		if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+			pr_info("%s: start check DI count.\n", __func__);
 		if (vf->type_original & VIDTYPE_INTERLACE)
 			di_keep_count = DI_KEEP_COUNT_I;
 		else
@@ -5076,6 +5078,9 @@ static void hdmi_in_delay_maxmin_old(struct vframe_s *vf)
 	 *if do di: count = (1 + 1/2) * vdin_vsync + vpp_vsync * 2;
 	 *if no di: count = (1 + 0) * vdin_vsync + vpp_vsync * 2;
 	 */
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("%s: vdin:count=%d vsync=%lld, di:count=%d vsync=%lld.\n",
+			__func__, vdin_keep_count, vdin_vsync, di_keep_count, vpp_vsync);
 	hdmin_delay_min = (vdin_keep_count + di_keep_count) * vdin_vsync
 			+ vpp_vsync * 2;
 	hdmin_delay_min_ms = div64_u64(hdmin_delay_min, 1000);
@@ -5093,8 +5098,7 @@ static void hdmi_in_delay_maxmin_old(struct vframe_s *vf)
 	hdmin_delay_max_ms += memc_delay;
 
 	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
-		pr_info("%s: range(%d, %d).\n",
-			__func__, hdmin_delay_min_ms, hdmin_delay_max_ms);
+		pr_info("%s: range(%d, %d).\n", __func__, hdmin_delay_min_ms, hdmin_delay_max_ms);
 }
 
 void hdmi_in_delay_maxmin_new(struct vframe_s *vf)

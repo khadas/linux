@@ -1675,11 +1675,6 @@ unsigned int is_bypass2(struct vframe_s *vf_in, unsigned int ch)
 		reason = 0x82;
 		goto tag_bypass;
 	}
-	if (dimp_get(edi_mp_bypass_3d)	&&
-	    vf_in->trans_fmt != 0) {
-		reason = 0x86;
-		goto tag_bypass;
-	}
 
 /*prot is conflict with di post*/
 	if (vf_in->video_angle) {
@@ -11001,6 +10996,8 @@ static unsigned int dim_bypass_check(struct vframe_s *vf)
 				reason = 5;
 			}
 		}
+	} else if (dimp_get(edi_mp_bypass_3d) && vf->trans_fmt != 0) {
+		reason = 0x86;
 	}
 
 	return reason;
