@@ -7161,9 +7161,6 @@ int kswapd(void *p)
 
 	WRITE_ONCE(pgdat->kswapd_order, 0);
 	WRITE_ONCE(pgdat->kswapd_highest_zoneidx, MAX_NR_ZONES);
-#ifdef CONFIG_AMLOGIC_CMA
-	set_user_nice(current, -5);
-#endif /* CONFIG_AMLOGIC_CMA */
 	for ( ; ; ) {
 		bool ret;
 
