@@ -1007,7 +1007,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 			if (IS_HDMI_SRC(port)) {
 				/* for tvstart, do not judge VDIN_FLAG_DEC_STARTED */
 				if (/*!(devp->flags & VDIN_FLAG_DEC_STARTED) &&*/
-				    !mutex_is_locked(&devp->fe_lock)) {
+				    !mutex_is_locked(&devp->fe_lock) && info->fmt) {
 					sm_p->state = TVIN_SM_STATUS_STABLE;
 					info->status = TVIN_SIG_STATUS_STABLE;
 					vdin_update_prop(devp);

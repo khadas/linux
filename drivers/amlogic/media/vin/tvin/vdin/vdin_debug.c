@@ -1229,7 +1229,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("vdin_drop_cnt: %d frame_cnt:%d ignore_frames:%d\n",
 		vdin_drop_cnt, devp->frame_cnt, devp->ignore_frames);
 	pr_info("game_mode cfg :  0x%x\n", game_mode);
-	pr_info("game_mode cur:  0x%x\n", devp->game_mode);
+	pr_info("game_mode cur:  0x%x force_game_mode:%#x\n",
+		devp->game_mode, devp->debug.force_game_mode);
 	pr_info("vrr_mode:  0x%x,vdin_vrr_en_flag=%d\n", devp->vrr_mode,
 		devp->vrr_data.vdin_vrr_en_flag);
 	pr_info("vrr_en:  pre=%d,cur:%d,base_fr:%d\n",
@@ -1237,7 +1238,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->prop.vtem_data.base_framerate);
 	pr_info("vdin_vrr_flag:  pre=%d,cur:%d\n", devp->pre_prop.vdin_vrr_flag,
 		devp->prop.vdin_vrr_flag);
-	pr_info("vdin_pc_mode:%d pc_mode cur:%d\n", vdin_pc_mode, devp->vdin_pc_mode);
+	pr_info("vdin_pc_mode:%d force_pc_mode:%d\n", vdin_pc_mode, devp->debug.force_pc_mode);
 
 	pr_info("afbce_flag: %#x %#x\n", devp->dts_config.afbce_flag_cfg, devp->afbce_flag);
 	pr_info("afbce_mode: %d, afbce_valid: %d\n", devp->afbce_mode,
@@ -2303,7 +2304,7 @@ static ssize_t attr_store(struct device *dev,
 	struct vdin_dev_s *devp;
 	unsigned int time_start = 0, time_end = 0, time_delta;
 	long val = 0;
-	unsigned int temp, addr = 0, val_tmp = 0;
+	unsigned int temp = 0, addr = 0, val_tmp = 0;
 	unsigned int mode = 0, flag = 0;
 	unsigned int offset;
 
@@ -3361,10 +3362,50 @@ start_chk:
 			pr_info("vf crc:0x%x\n", rd(devp->addr_offset, VDIN_RO_CRC));
 	} else if (!strcmp(parm[0], "game_mode")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
-			devp->game_mode = temp;
-			vdin_force_game_mode = temp;
-			pr_info("set game mode: 0x%x\n", temp);
+			if (temp) {
+				devp->debug.force_game_mode = true;
+				if (temp == 1) {
+					//upper not control and open game
+					game_mode = 1;
+				} else if (temp <= 0xb) {
+					//upper not control and force game mode
+					game_mode = 1;
+					vdin_force_game_mode = temp;
+				} else {
+					//upper not control and close game mode
+					game_mode = 0;
+				}
+			} else {
+				//open upper control and close force game mode
+				devp->debug.force_game_mode = false;
+				vdin_force_game_mode = 0;
+				game_mode = 0;
+			}
 		}
+		pr_info("temp:%#x game mode:%d %#x %d(%d)\n", temp, game_mode,
+			devp->game_mode, devp->debug.force_game_mode, vdin_force_game_mode);
+	} else if (!strcmp(parm[0], "game_mode_chg")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			pr_info("set new game mode to: 0x%x,pre:%#x\n", temp, game_mode);
+			if (game_mode != temp)
+				vdin_game_mode_chg(devp, game_mode, temp);
+			game_mode = temp;
+		}
+	} else if (!strcmp(parm[0], "pc_mode")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
+			if (temp) {
+				devp->debug.force_pc_mode = true;
+				if (temp == 1)
+					vdin_pc_mode = 1;
+				else
+					vdin_pc_mode = 0;
+			} else {
+				devp->debug.force_pc_mode = false;
+				vdin_pc_mode = 0;
+			}
+		}
+		pr_info("force_pc_mode:%d pc_mode:%d\n",
+			devp->debug.force_pc_mode, vdin_pc_mode);
 	} else if (!strcmp(parm[0], "vrr_mode")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			devp->vrr_mode = temp;
@@ -3519,13 +3560,6 @@ start_chk:
 				R_VCBUS(devp->debug.dbg_reg_bit[i * 4]),
 				devp->debug.dbg_reg_bit[i * 4 + 2],
 				devp->debug.dbg_reg_bit[i * 4 + 3]);
-	} else if (!strcmp(parm[0], "game_mode_chg")) {
-		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
-			pr_info("set new game mode to: 0x%x,pre:%#x\n", temp, game_mode);
-			if (game_mode != temp)
-				vdin_game_mode_chg(devp, game_mode, temp);
-			game_mode = temp;
-		}
 	} else if (!strcmp(parm[0], "self_restart")) {
 		vdin_self_stop_dec(devp);
 		vdin_self_start_dec(devp);

@@ -4300,6 +4300,9 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		 */
 		if (copy_to_user(argp, &parm, sizeof(struct tvin_parm_s)))
 			ret = -EFAULT;
+		if (vdin_dbg_en)
+			pr_info("TVIN_IOC_G_PARM signal_type:%#x status:%#x\n",
+				devp->parm.info.signal_type, devp->parm.info.status);
 		break;
 	}
 	case TVIN_IOC_G_SIG_INFO: {
@@ -4481,14 +4484,17 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 			break;
 		}
+		if (devp->debug.force_game_mode)
+			break;
+
 		mutex_lock(&devp->fe_lock);
 		if (game_mode != tmp)
 			vdin_game_mode_chg(devp, game_mode, tmp);
 		game_mode = tmp;
+		mutex_unlock(&devp->fe_lock);
 		if (vdin_dbg_en)
 			pr_info("TVIN_IOC_GAME_MODE(cfg:%d,cur:%#x) done\n",
 				game_mode, devp->game_mode);
-		mutex_unlock(&devp->fe_lock);
 		break;
 	}
 	case TVIN_IOC_VRR_MODE:
@@ -4558,10 +4564,11 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		pr_info("force color range-%d\n\n", color_range_force);
 		break;
 	case TVIN_IOC_GET_LATENCY_MODE:
-		mutex_lock(&devp->fe_lock);
+		if (devp->parm.info.status != TVIN_SIG_STATUS_STABLE)
+			pr_info("get TVIN_IOC_GET_ALLM_MODE signal not stable\n");
+
 		if (copy_to_user(argp, &devp->prop.latency,
 				 sizeof(struct tvin_latency_s))) {
-			mutex_unlock(&devp->fe_lock);
 			ret = -EFAULT;
 			pr_info("TVIN_IOC_GET_ALLM_MODE err\n\n");
 			break;
@@ -4572,7 +4579,6 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				devp->prop.latency.allm_mode,
 				devp->prop.latency.it_content,
 				devp->prop.latency.cn_type);
-		mutex_unlock(&devp->fe_lock);
 		break;
 	case TVIN_IOC_G_VDIN_HIST:
 		if (devp->index == 0) {
@@ -4808,14 +4814,19 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 			break;
 		}
+		if (devp->debug.force_pc_mode)
+			break;
+
 		if (vdin_dbg_en)
-			pr_err("Enter,TVIN_IOC_S_PC_MODE:%d tmp:%d func_sel:0x%x\n",
+			pr_err("Enter,TVIN_IOC_S_PC_MODE:%d->tmp:%d func_sel:0x%x\n",
 				vdin_pc_mode, tmp, devp->vdin_function_sel);
 
 		mutex_lock(&devp->fe_lock);
 		if (vdin_pc_mode != tmp &&
 		    (devp->vdin_function_sel & VDIN_SELF_STOP_START)) {
-			if (devp->flags & VDIN_FLAG_DEC_STARTED) {
+			if (devp->flags & VDIN_FLAG_DEC_STARTED &&
+			    (devp->frame_cnt < devp->vdin_drop_num ||
+			     devp->frame_cnt > VDIN_SET_MODE_MAX_FRAME)) {
 				_video_set_disable(1);
 				/* disable video one vsync effective */
 				usleep_range(21000, 22000);
@@ -4830,9 +4841,6 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		vdin_pc_mode = tmp;
 		mutex_unlock(&devp->fe_lock);
-
-		if (vdin_dbg_en)
-			pr_info("TVIN_IOC_S_PC_MODE done.vdin_pc_mode:%d\n", vdin_pc_mode);
 		break;
 	case TVIN_IOC_S_FRAME_WR_EN:
 		if (copy_from_user(&devp->vframe_wr_en, argp,
