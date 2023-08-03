@@ -661,7 +661,6 @@ static int gxtv_demod_dvbc_read_status_timer
 				demod->auto_qam_index = 0;
 				demod->auto_times = 0;
 				demod->auto_done_times = 0;
-				demod_dvbc_fsm_reset(demod);
 			}
 		}
 	}
@@ -839,10 +838,15 @@ static int gxtv_demod_dvbc_set_frontend(struct dvb_frontend *fe)
 	demod_dvbc_store_qam_cfg(demod);
 
 	/* auto QAM mode, force to QAM256 */
-	if (param.mode == QAM_MODE_AUTO)
+	if (param.mode == QAM_MODE_AUTO) {
 		demod_dvbc_set_qam(demod, QAM_MODE_256, demod->auto_sr);
-	else
+		demod->auto_qam_mode = QAM_MODE_256;
+	} else {
 		demod_dvbc_set_qam(demod, param.mode, demod->auto_sr);
+		demod->auto_qam_mode = param.mode;
+	}
+
+	demod_dvbc_fsm_reset(demod);
 
 	/* Wait for R842 if output to stabilize when automatic sr. */
 	if (demod->auto_sr &&
@@ -3320,17 +3324,14 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 		demod->auto_no_sig_cnt = 0;
 		demod->auto_times = 0;
 		demod->auto_done_times = 0;
-		demod->auto_qam_mode = QAM_MODE_256;
+		demod->auto_qam_done = false;
+		demod->auto_qam_index = 0;
 		demod->auto_sr_done = false;
 		demod->sr_val_hw_stable = 0;
 		demod->sr_val_hw_count = 0;
 		demod->sr_val_uf_count = 0;
-		demod->auto_qam_done = false;
 		demod->fsm_reset = false;
-		demod->auto_qam_index = 0;
 		sym_speed_high = 0;
-		demod_dvbc_set_qam(demod, demod->auto_qam_mode, demod->auto_sr);
-		demod_dvbc_fsm_reset(demod);
 
 		time_start = jiffies_to_msecs(jiffies);
 		PR_DVBC("%s: retune reset, sr %d.\n", __func__, demod->sr_val_hw);
@@ -3341,18 +3342,10 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 	if (strength < THRD_TUNER_STRENGTH_DVBC) {
 		demod->auto_no_sig_cnt = 0;
 		demod->auto_times = 0;
-		*delay = HZ / 4;
-		demod->auto_qam_mode = QAM_MODE_256;
 		demod->auto_done_times = 0;
-		/* loss lock, reset 256qam, start auto qam again. */
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5W) &&
-			demod->auto_qam_done) {
-			demod_dvbc_set_qam(demod, demod->auto_qam_mode, demod->auto_sr);
-			demod->auto_qam_done = false;
-			demod->fsm_reset = false;
-			demod->auto_qam_index = 0;
-			demod->auto_times = 0;
-		}
+
+		*delay = HZ / 4;
+
 		PR_DVBC("%s: [id %d] tuner strength [%d] no signal(%d).\n",
 				__func__, demod->id, strength, THRD_TUNER_STRENGTH_DVBC);
 
@@ -3476,7 +3469,7 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 			demod->auto_no_sig_cnt = 0;
 			demod->auto_times = 0;
 			*delay = HZ / 4;
-			demod->auto_qam_mode = QAM_MODE_256;
+
 			return 0;
 		}
 	} else if ((fsm_state & 0xf) == 5) {
@@ -3487,7 +3480,7 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 		demod->real_para.symbol = demod->auto_sr ?
 			demod->sr_val_hw_stable * 1000 :
 			fe->dtv_property_cache.symbol_rate;
-		demod->auto_qam_mode = QAM_MODE_256;
+
 		return 1;
 	}
 
@@ -3497,7 +3490,7 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 		demod->auto_times = 0;
 		demod->auto_no_sig_cnt = 0;
 		*delay = HZ / 4;
-		demod->auto_qam_mode = QAM_MODE_256;
+
 		return 0;
 	}
 
@@ -3506,16 +3499,6 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_T5W)) {
 		demod->auto_qam_mode = dvbc_switch_qam(demod->auto_qam_mode);
 		demod_dvbc_set_qam(demod, demod->auto_qam_mode, false);
-
-		if (demod->auto_qam_mode == QAM_MODE_256 ||
-			demod->auto_qam_mode == QAM_MODE_128) {
-			*delay = HZ / 2;//500ms
-		} else {
-			*delay = HZ / 5;//200ms
-		}
-
-		if (tuner_find_by_name(fe, "r836"))
-			*delay = HZ / 2;//500ms
 	} else {
 		if (demod->auto_qam_done) {
 			demod->auto_done_times++;
@@ -3574,7 +3557,7 @@ static unsigned int dvbc_fast_search(struct dvb_frontend *fe, unsigned int *dela
 		demod->sr_val_hw_count = 0;
 		demod->sr_val_uf_count = 0;
 		sym_speed_high = 0;
-		demod_dvbc_fsm_reset(demod);
+
 		time_start = jiffies_to_msecs(jiffies);
 		PR_DVBC("%s: retune reset, sr %d.\n", __func__, demod->sr_val_hw);
 		return 2;
@@ -3726,17 +3709,6 @@ static int gxtv_demod_dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 		demod->fast_search_finish = false;
 		*status = 0;
 		*delay = HZ / 8;
-		qam_write_reg(demod, 0x65, 0x700c); // offset
-		qam_write_reg(demod, 0xb4, 0x32030);
-		qam_write_reg(demod, 0xb7, 0x3084);
-
-		// agc gain
-		qam_write_reg(demod, 0x24, (qam_read_reg(demod, 0x24) | (1 << 17)));
-		qam_write_reg(demod, 0x60, 0x10466000);
-		qam_write_reg(demod, 0xac, (qam_read_reg(demod, 0xac) & (~0xff00))
-			| 0x800);
-		qam_write_reg(demod, 0xae, (qam_read_reg(demod, 0xae)
-			& (~0xff000000)) | 0x8000000);
 
 		if (auto_qam)
 			dvbc_auto_fast(fe, delay, re_tune);
@@ -3773,7 +3745,6 @@ static int gxtv_demod_dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 				demod->auto_times = 0;
 				demod->auto_done_times = 0;
 			}
-			demod_dvbc_fsm_reset(demod);
 			PR_DBG("%s [id %d] [%d] >>>unlock<<<\n",
 				__func__, demod->id, c->frequency);
 			break;
