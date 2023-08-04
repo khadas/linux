@@ -9086,7 +9086,7 @@ static ssize_t amvecm_debug_store(struct class *cla,
 
 		if (!parm[3]) {
 			pr_info("misss param3,default is 0\n");
-			param2 = 0;
+			goto free_buf;
 		}
 		if (kstrtoul(parm[3], 10, &val) < 0)
 			goto free_buf;
