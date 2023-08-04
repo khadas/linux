@@ -117,8 +117,8 @@ struct mem_region {
 	struct mem_region *pnext;
 };
 
-struct dmc_mem {
-	int init;
+struct dmc_range {
+	u8 used;
 	u8 level;
 	unsigned int handle;
 	unsigned int size;
@@ -127,6 +127,14 @@ struct dmc_mem {
 	unsigned int free_start_phy;
 	unsigned int free_len;
 	struct mem_region *region_list;
+};
+
+struct dmc_mem {
+	int init;
+	u8 level;
+	unsigned int total_size;
+	u8 range_num;
+	struct dmc_range *range;
 };
 
 #define DMC_MEM_DEFAULT_SIZE (20 * 1024 * 1024)
@@ -407,14 +415,14 @@ int cache_status_info(char *buf)
 	return total;
 }
 
-static int dmc_mem_init(struct dmc_mem *mem, int sec_level)
+static int dmc_range_init(struct dmc_range *range, int sec_level)
 {
 	int flags = 0;
 	int buf_page_num = 0;
 	unsigned long buf_start = 0;
 	unsigned long buf_start_virt = 0;
 	u32 ret = -1;
-	u32 len = mem->size;
+	u32 len = range->size;
 
 	flags = CODEC_MM_FLAGS_DMA_CPU | CODEC_MM_FLAGS_FOR_VDECODER;
 
@@ -436,33 +444,36 @@ static int dmc_mem_init(struct dmc_mem *mem, int sec_level)
 		buf_start, buf_start_virt, len);
 	memset((char *)buf_start_virt, 0, len);
 	codec_mm_dma_flush((void *)buf_start_virt, len, DMA_TO_DEVICE);
-	mem->level = sec_level;
+	range->level = sec_level;
 	if (sec_level) {
 		sec_level = sec_level == 1 ? 0 : sec_level;
-		ret = tee_protect_mem(TEE_MEM_TYPE_DEMUX, sec_level, buf_start, len, &mem->handle);
+		ret = tee_protect_mem(TEE_MEM_TYPE_DEMUX,
+			sec_level, buf_start, len, &range->handle);
 		dprint("%s, protect 0x%lx, len:%d, ret:0x%x\n",
 				__func__, buf_start, len, ret);
 	}
-	mem->buf_start_phy = buf_start;
-	mem->free_start_phy = buf_start;
-	mem->free_len = len;
-	mem->ref = 0;
-	mem->region_list = NULL;
-	mem->init = 1;
+	range->buf_start_phy = buf_start;
+	range->free_start_phy = buf_start;
+	range->free_len = len;
+	range->ref = 0;
+	range->region_list = NULL;
+	range->used = 1;
 	return 0;
 }
 
-static int dmc_mem_destroy(struct dmc_mem *mem)
+static int dmc_range_destroy(struct dmc_range *range)
 {
 	struct mem_region *header = NULL;
 	struct mem_region *tmp = NULL;
 
-	tee_unprotect_mem(mem->handle);
-	codec_mm_free_for_dma("dmx", mem->buf_start_phy);
-	mem->handle = 0;
-	mem->buf_start_phy = 0;
+	if (!range->used)
+		return 0;
+	tee_unprotect_mem(range->handle);
+	codec_mm_free_for_dma("dmx", range->buf_start_phy);
+	range->handle = 0;
+	range->buf_start_phy = 0;
 
-	header = mem->region_list;
+	header = range->region_list;
 	while (header) {
 		tmp = header->pnext;
 		if (header->status == 1)
@@ -471,18 +482,18 @@ static int dmc_mem_destroy(struct dmc_mem *mem)
 		header = tmp;
 	}
 
-	mem->region_list = NULL;
+	range->region_list = NULL;
 //	mem->size = 0;
-	mem->free_len = 0;
-	mem->free_start_phy = 0;
-	mem->init = 0;
+	range->free_len = 0;
+	range->free_start_phy = 0;
+	range->used = 0;
 	return 0;
 }
 
-static int dmc_mem_get_block(struct dmc_mem *mem, unsigned int len,
+static int dmc_range_get_block(struct dmc_range *range, unsigned int len,
 	unsigned long *p_virt, unsigned long *p_phys)
 {
-	struct mem_region *header = mem->region_list;
+	struct mem_region *header = range->region_list;
 	struct mem_region *temp = NULL;
 
 	while (header) {
@@ -491,24 +502,22 @@ static int dmc_mem_get_block(struct dmc_mem *mem, unsigned int len,
 			header->status = 1;
 			*p_virt = header->start_virt;
 			*p_phys = header->start_phy;
-			mem->ref++;
+			range->ref++;
 			return 0;
 		}
 		header = header->pnext;
 	}
 
-	if (mem->free_len < len) {
-		dprint("%s err free len:%d, req len:%d\n",
-			__func__, mem->free_len, len);
+	if (range->free_len < len)
 		return -1;
-	}
+
 	temp = vmalloc(sizeof(*temp));
 	if (!temp) {
 		dprint("%s err vmalloc\n", __func__);
 		return -1;
 	}
 	temp->len = len;
-	temp->start_phy = mem->free_start_phy;
+	temp->start_phy = range->free_start_phy;
 	temp->start_virt = (unsigned long)codec_mm_phys_to_virt(temp->start_phy);
 	if (!temp->start_virt) {
 		vfree(temp);
@@ -516,33 +525,117 @@ static int dmc_mem_get_block(struct dmc_mem *mem, unsigned int len,
 		return -1;
 	}
 	temp->status = 1;
-	temp->pnext = mem->region_list;
+	temp->pnext = range->region_list;
 
-	mem->region_list = temp;
-	mem->free_len -= len;
-	mem->free_start_phy += len;
-	mem->ref++;
+	range->region_list = temp;
+	range->free_len -= len;
+	range->free_start_phy += len;
+	range->ref++;
 
 	*p_virt = temp->start_virt;
 	*p_phys = temp->start_phy;
 	return 0;
 }
 
-static int dmc_mem_free_block(struct dmc_mem *mem, unsigned long phys_mem)
+static int dmc_range_free_block(struct dmc_range *range, unsigned long phys_mem)
 {
-	struct mem_region *header = mem->region_list;
+	struct mem_region *header = range->region_list;
 
 	while (header) {
 		if (header->start_phy == phys_mem &&
 			header->status == 1) {
 			header->status = 0;
-			mem->ref--;
+			range->ref--;
 			return 0;
 		}
 		header = header->pnext;
 	}
 	dprint("%s no find block\n", __func__);
+	return -1;
+}
+
+static int dmc_mem_init(struct dmc_mem *mem, int sec_level)
+{
+	struct dmc_range *temp = NULL;
+	int i = 0;
+	int num = 0;
+
+	mem->range_num = 2;
+	temp = vmalloc(sizeof(*temp) * mem->range_num);
+	if (!temp) {
+		dprint("%s err vmalloc\n", __func__);
+		return -1;
+	}
+	memset(temp, 0, sizeof(*temp) * mem->range_num);
+
+	num = mem->total_size / DMC_MEM_DEFAULT_SIZE;
+	if (num >= mem->range_num || num >= 3) {
+		for (i = 0; i < mem->range_num; i++)
+			temp[i].size = mem->total_size / mem->range_num;
+	} else {
+		if (num == 1) {
+			temp[0].size = mem->total_size;
+		} else {
+			temp[0].size = mem->total_size - DMC_MEM_DEFAULT_SIZE;
+			temp[1].size = DMC_MEM_DEFAULT_SIZE;
+		}
+	}
+	mem->range = temp;
+	mem->level = sec_level;
+	mem->init = 1;
 	return 0;
+}
+
+static int dmc_mem_destroy(struct dmc_mem *mem)
+{
+	int i = 0;
+	int not_free = 0;
+
+	for (i = 0; i < mem->range_num; i++) {
+		if (mem->range[i].used) {
+			if (mem->range[i].ref == 0)
+				dmc_range_destroy(&mem->range[i]);
+			else
+				not_free = 1;
+		}
+	}
+	if (not_free)
+		return 0;
+	vfree(mem->range);
+	mem->range = NULL;
+	mem->init = 0;
+	return 0;
+}
+
+static int dmc_mem_get_block(struct dmc_mem *mem, unsigned int len,
+	unsigned long *p_virt, unsigned long *p_phys)
+{
+	int i = 0;
+
+	for (i = 0; i < mem->range_num; i++) {
+		if (!mem->range[i].used && mem->range[i].size != 0)
+			if (dmc_range_init(&mem->range[i], mem->level) != 0)
+				return -1;
+		if (dmc_range_get_block(&mem->range[i], len, p_virt, p_phys) == 0)
+			return 0;
+	}
+	return -1;
+}
+
+static int dmc_mem_free_block(struct dmc_mem *mem, unsigned long phys_mem)
+{
+	int i = 0;
+
+	for (i = 0; i < mem->range_num; i++) {
+		if (mem->range[i].used && mem->range[i].size != 0) {
+			if (dmc_range_free_block(&mem->range[i], phys_mem) == 0) {
+				if (!mem->range[i].ref && !dmc_keep_alive)
+					dmc_mem_destroy(mem);
+				return 0;
+			}
+		}
+	}
+	return -1;
 }
 
 static int dmc_mem_malloc(int sec_level, int len,
@@ -578,11 +671,10 @@ static int dmc_mem_free(unsigned long buf, unsigned int len, int sec_level)
 		return -1;
 	}
 	ret = dmc_mem_free_block(&dmc_mem_level[dmc_index], buf);
-	if (ret != 0)
+	if (ret != 0) {
+		dprint("err: can't free dmc mem buf:0x%lx", buf);
 		return -1;
-	if (!dmc_mem_level[dmc_index].ref && !dmc_keep_alive)
-		ret = dmc_mem_destroy(&dmc_mem_level[dmc_index]);
-
+	}
 	return ret;
 }
 
@@ -595,29 +687,62 @@ int dmc_mem_set_size(int sec_level, unsigned int mem_size)
 		return -1;
 	}
 	if (!dmc_mem_level[dmc_index].init)
-		dmc_mem_level[dmc_index].size = mem_size / (64 * 1024) * (64 * 1024);
+		dmc_mem_level[dmc_index].total_size = mem_size / (64 * 1024) * (64 * 1024);
 	else
 		dprint("%s should set size before app\n", __func__);
 	return 0;
+}
+
+static int dmc_mem_dump(char *buf, struct dmc_mem *mem)
+{
+	int i = 0;
+	int r, total = 0;
+	int n = 0;
+
+	if (mem->init) {
+		r = sprintf(buf, "%d status: using level:%d total size:%d\n",
+			i,
+		mem->level,
+		mem->total_size);
+		buf += r;
+		total += r;
+		if (!mem->range)
+			return total;
+
+		for (n = 0; n < mem->range_num; n++) {
+			r = sprintf(buf, " %d status:%d size 0x%0x ref:%d free:0x%0x\n",
+				n + 1,
+			mem->range[n].used,
+			mem->range[n].size,
+			mem->range[n].ref,
+			mem->range[n].free_len);
+			buf += r;
+			total += r;
+		}
+	} else {
+		r = sprintf(buf, "%d status: no use level:%d total size:%d\n",
+			i,
+		mem->level,
+		mem->total_size);
+		buf += r;
+		total += r;
+	}
+	return total;
 }
 
 int dmc_mem_dump_info(char *buf)
 {
 	int i = 0;
 	int r, total = 0;
+	struct dmc_mem *mem;
 
 	r = sprintf(buf, "********dmc mem********\n");
 	buf += r;
 	total += r;
 
 	for (i = 0; i < 7; i++) {
-		r = sprintf(buf, "%d status %s level:%d size:%d ref:%d, free:%d\n",
-			i,
-			dmc_mem_level[i].init ? "using" : "no use",
-			dmc_mem_level[i].level,
-			dmc_mem_level[i].size,
-			dmc_mem_level[i].ref,
-			dmc_mem_level[i].free_len);
+		mem = &dmc_mem_level[i];
+		r = dmc_mem_dump(buf, mem);
 		buf += r;
 		total += r;
 	}
@@ -640,6 +765,7 @@ int _alloc_buff(unsigned int len, int sec_level,
 			*phy_mem = buf_start;
 			return 0;
 		}
+		dprint("err:can't get mem len 0x%0x\n", len);
 		return -1;
 	}
 
