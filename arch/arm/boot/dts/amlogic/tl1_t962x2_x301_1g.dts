@@ -1045,18 +1045,18 @@
 	};
 
 	bt-dev{
-		compatible = "amlogic, bt-dev";
+		compatible = "amlogic, aml-bt";
 		status = "okay";
-		gpio_reset = <&gpio       GPIOC_13       GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio       GPIOC_13       GPIO_ACTIVE_HIGH>;
 	};
 
 	wifi{
-		compatible = "amlogic, aml_wifi";
+		compatible = "amlogic, aml-wifi";
 		status = "okay";
-		interrupt_pin = <&gpio       GPIOC_12       GPIO_ACTIVE_HIGH>;
+		interrupt-gpios = <&gpio       GPIOC_12       GPIO_ACTIVE_HIGH>;
 		irq_trigger_type = "GPIO_IRQ_LOW";
 		dhd_static_buf;    //dhd_static_buf support
-		power_on_pin = <&gpio       GPIOC_11       GPIO_ACTIVE_HIGH>;
+		power_on-gpios = <&gpio       GPIOC_11       GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwm_b_pins1>;
 		pwm_config = <&wifi_pwm_conf>;
