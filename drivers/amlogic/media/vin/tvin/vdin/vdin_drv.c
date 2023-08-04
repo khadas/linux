@@ -314,7 +314,7 @@ void tvin_update_vdin_prop(void)
 }
 EXPORT_SYMBOL(tvin_update_vdin_prop);
 
-void tvin_notify_vdin_skip_frame(void)
+void tvin_notify_vdin_skip_frame(unsigned int drop_num)
 {
 	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
 
@@ -326,7 +326,7 @@ void tvin_notify_vdin_skip_frame(void)
 	if (vdin0_devp->game_mode || IS_TVAFE_SRC(vdin0_devp->parm.port))
 		vdin_pause_hw_write(vdin0_devp, 0);
 
-	vdin0_devp->frame_drop_num = 1;
+	vdin0_devp->frame_drop_num = drop_num;
 	vdin_drop_frame_info(vdin0_devp, "tvin notify skip frame");
 }
 EXPORT_SYMBOL(tvin_notify_vdin_skip_frame);

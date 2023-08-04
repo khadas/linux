@@ -169,7 +169,7 @@ static int stable_check_lvl;
  * Compared with other brands TV, delay 1.5S to avoid this noise.
  */
 static int edid_update_delay = 150;
-int skip_frame_cnt = 1;
+int skip_frame_cnt = 2;
 u32 hdcp22_reauth_enable = 1;
 unsigned int edid_update_flag;
 unsigned int downstream_hpd_flag;
@@ -2735,7 +2735,7 @@ void skip_frame(unsigned int cnt)
 		rx_pr("rx.skip = %d\n", rx.skip);
 	}
 	//do not depent on state mechine condition
-	tvin_notify_vdin_skip_frame();
+	tvin_notify_vdin_skip_frame(skip_frame_cnt);
 }
 
 void wait_ddc_idle(void)

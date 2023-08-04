@@ -870,7 +870,7 @@ static void tvafe_check_skip_frame(struct tvafe_cvd2_s *cvd2)
 	    !cvd2->hw.acc3xx_cnt && !cvd2->hw.acc358_cnt &&
 	    cvd2->info.h_unlock_cnt > user_param->unlock_cnt_max &&
 	    cvd2->info.v_unlock_cnt > user_param->unlock_cnt_max)
-		tvin_notify_vdin_skip_frame();
+		tvin_notify_vdin_skip_frame(1);
 }
 
 /*
@@ -1957,7 +1957,7 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 
 			if (IS_TVAFE_AVIN_SRC(cvd2->vd_port) &&
 			    !cvd2->info.non_std_enable)
-				tvin_notify_vdin_skip_frame();
+				tvin_notify_vdin_skip_frame(1);
 
 			/* if no color burst,*/
 			/*pal flag can not be trusted */
