@@ -43,7 +43,7 @@ static inline void soc_dsp_top_reg_dump(char *name,
 					void __iomem *reg_base,
 					u32 reg_offset)
 {
-	pr_info("%s (%lx) = 0x%x\n", name,
+	pr_debug("%s (%lx) = 0x%x\n", name,
 		(unsigned long)(reg_base + reg_offset),
 		readl(reg_base + reg_offset));
 }
@@ -127,7 +127,7 @@ static void start_dsp(u32 dsp_id, u32 reset_addr)
 		read = read & ~(1 << 31);         //dreset assert
 		read = read & ~(1 << 30);     //Breset
 	}
-	pr_info("REG_DSP_CFG0 read=0x%x\n", readl(reg + REG_DSP_CFG0));
+	pr_debug("REG_DSP_CFG0 read=0x%x\n", readl(reg + REG_DSP_CFG0));
 	writel(read, reg + REG_DSP_CFG0);
 	soc_dsp_top_reg_dump("REG_DSP_CFG0", reg, REG_DSP_CFG0);
 

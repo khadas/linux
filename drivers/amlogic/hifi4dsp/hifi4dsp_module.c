@@ -3,7 +3,7 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#define DEBUG
+//#define DEBUG
 
 #define pr_fmt(fmt) "hifi4dsp: " fmt
 

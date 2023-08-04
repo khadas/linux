@@ -113,7 +113,7 @@ int hifi4dsp_dump_memory(const void *buf, unsigned int bytes, int col)
 			sprintf(a_str, "%02x ", *(pdata + i));
 			strcat(str, a_str);
 		}
-		pr_info("%s\n", str);
+		pr_debug("%s\n", str);
 		memset(str, '\0', sizeof(str));/*re-init buf*/
 		pdata += col;
 		n += col;
@@ -148,7 +148,7 @@ int hifi4dsp_fw_copy_to_ddr(const struct firmware *fw,
 				   dsp_fw->paddr,
 				   dsp_fw->size,
 				   DMA_TO_DEVICE);
-	pr_info("\n after copy to ddr and clean cache:\n");
+	pr_debug("\n after copy to ddr and clean cache:\n");
 	hifi4dsp_dump_memory(dsp_fw->buf, 32, 16);
 	hifi4dsp_dump_memory(dsp_fw->buf + dsp_fw->size - 32, 32, 16);
 
@@ -172,7 +172,7 @@ int hifi4dsp_fw_copy_to_sram(const struct firmware *fw,
 		 __func__, fw_src, fw_dst, fw_bytes);
 
 	/*copy firmware to sram*/
-	pr_info("\ncopy firmware from ddr to sram\n");
+	pr_debug("\ncopy firmware from ddr to sram\n");
 	memcpy_toio(fw_dst, fw_src, fw_bytes);
 
 	hifi4dsp_dump_memory(fw_dst, 32, 16);
