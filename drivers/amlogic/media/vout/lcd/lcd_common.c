@@ -817,14 +817,13 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 
 		LCDPR("lane_count          = %d\n", pctrl->edp_cfg.lane_count);
 		LCDPR("link_rate           = %d\n", pctrl->edp_cfg.link_rate);
-		LCDPR("bit_rate            = %d\n", pctrl->edp_cfg.bit_rate);
 		LCDPR("training_settings   = %d\n",
 		      pctrl->edp_cfg.training_settings);
 		LCDPR("main_stream_enable  = %d\n",
 		      pctrl->edp_cfg.main_stream_enable);
 
-		LCDPR("phy_vswing = 0x%x\n", pctrl->edp_cfg.phy_vswing);
-		LCDPR("phy_preem  = 0x%x\n", pctrl->edp_cfg.phy_preem);
+		LCDPR("phy_vswing = 0x%x\n", pctrl->edp_cfg.phy_vswing_preset);
+		LCDPR("phy_preem  = 0x%x\n", pctrl->edp_cfg.phy_preem_preset);
 	}
 }
 
@@ -1777,21 +1776,21 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		ret = of_property_read_u32_array(child, "phy_attr", &para[0], 2);
 		if (ret) {
 			LCDPR("[%d]: failed to get phy_attr\n", pdrv->index);
-			pctrl->edp_cfg.phy_vswing = 0x5;
-			pctrl->edp_cfg.phy_preem  = 0x1;
+			pctrl->edp_cfg.phy_vswing_preset = 0x5;
+			pctrl->edp_cfg.phy_preem_preset  = 0x1;
 		} else {
-			pctrl->edp_cfg.phy_vswing = para[0];
-			pctrl->edp_cfg.phy_preem = para[1];
+			pctrl->edp_cfg.phy_vswing_preset = para[0];
+			pctrl->edp_cfg.phy_preem_preset = para[1];
 			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 				LCDPR("[%d]: phy vswing_level=0x%x, preem_level=0x%x\n",
 				      pdrv->index,
-				      pctrl->edp_cfg.phy_vswing,
-				      pctrl->edp_cfg.phy_preem);
+				      pctrl->edp_cfg.phy_vswing_preset,
+				      pctrl->edp_cfg.phy_preem_preset);
 			}
 		}
 		phy_cfg->lane_num = 4;
-		phy_cfg->vswing_level = pctrl->edp_cfg.phy_vswing & 0xf;
-		phy_cfg->preem_level = pctrl->edp_cfg.phy_preem;
+		phy_cfg->vswing_level = pctrl->edp_cfg.phy_vswing_preset & 0xf;
+		phy_cfg->preem_level = pctrl->edp_cfg.phy_preem_preset;
 		break;
 	default:
 		LCDERR("[%d]: invalid lcd type\n", pdrv->index);

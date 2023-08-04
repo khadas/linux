@@ -1100,7 +1100,7 @@
 				44 148 0   /*hs_width, hs_bp, hs_pol*/
 				5  30  0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				0 /*fr_adj_type
+				0xff /*fr_adj_type
 				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
 				   * 4=hdmi_mode)
 				   */
@@ -1110,8 +1110,8 @@
 			edp_attr = <
 				2 /*max_lane_count: 1,2,4*/
 				1 /*max_link_rate: 0=1.62G, 1=2.7G*/
-				0 /*training_mode*/
-				0 /*reserved*/
+				3 /*training_mode*/
+				1 /*EDID EN*/
 				0 /*reserved */
 				0 /*reserved */
 				0 /*reserved */

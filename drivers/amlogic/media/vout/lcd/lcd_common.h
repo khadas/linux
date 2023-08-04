@@ -64,7 +64,8 @@
 /* 20230706: Resolve conflicts where DLG changeed and vrr set tcon data at the same time*/
 /* 20230710: Remove redundant lcd enable settings*/
 /* 20230802: add t5m,t5w,t3x set phy lane amp*/
-#define LCD_DRV_VERSION    "20230802"
+/* 20230815: add full-link-training and EDID-timing for eDP */
+#define LCD_DRV_VERSION    "20230815"
 
 extern struct mutex lcd_vout_mutex;
 
@@ -245,18 +246,20 @@ void lcd_tv_clk_update(struct aml_lcd_drv_s *pdrv);
 int lcd_mode_tv_init(struct aml_lcd_drv_s *pdrv);
 int lcd_mode_tv_remove(struct aml_lcd_drv_s *pdrv);
 #endif
+
 #ifdef CONFIG_AMLOGIC_LCD_TABLET
 int lcd_mipi_dsi_init_table_detect(struct aml_lcd_drv_s *pdrv,
 				   struct device_node *m_node, int on_off);
 void mipi_dsi_config_init(struct aml_lcd_drv_s *pdrv);
 int lcd_mipi_test_read(struct aml_lcd_drv_s *pdrv, struct dsi_read_s *dread);
 int dsi_set_operation_mode(struct aml_lcd_drv_s *pdrv, unsigned char op_mode);
-int dptx_edid_dump(struct aml_lcd_drv_s *pdrv);
-int dptx_edid_timing_probe(struct aml_lcd_drv_s *pdrv);
-int dptx_dpcd_read(struct aml_lcd_drv_s *pdrv, unsigned char *buf,
-		   unsigned int reg, int len);
-int dptx_dpcd_write(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned char val);
-void dptx_dpcd_dump(struct aml_lcd_drv_s *pdrv);
+
+void dptx_EDID_dump(struct aml_lcd_drv_s *pdrv);
+int dptx_aux_write_single(struct aml_lcd_drv_s *pdrv, unsigned int addr, unsigned char val);
+int dptx_aux_read(struct aml_lcd_drv_s *pdrv, unsigned int addr, int len, unsigned char *buf);
+void dptx_DPCD_dump(struct aml_lcd_drv_s *pdrv);
+int edp_debug_test(struct aml_lcd_drv_s *pdrv, char *str, int num);
+
 void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv);
 void lcd_tablet_vout_server_remove(struct aml_lcd_drv_s *pdrv);
 void lcd_tablet_clk_config_change(struct aml_lcd_drv_s *pdrv);

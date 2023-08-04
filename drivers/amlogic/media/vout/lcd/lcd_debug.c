@@ -450,8 +450,8 @@ static int lcd_info_print_edp(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		pdrv->config.timing.bit_rate,
 		pdrv->config.control.edp_cfg.training_settings,
 		pdrv->config.control.edp_cfg.main_stream_enable,
-		pdrv->config.control.edp_cfg.phy_vswing,
-		pdrv->config.control.edp_cfg.phy_preem);
+		pdrv->config.control.edp_cfg.phy_vswing_preset,
+		pdrv->config.control.edp_cfg.phy_preem_preset);
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
@@ -3272,10 +3272,10 @@ static void lcd_debug_reg_write(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 			reg, data, dptx_reg_read(pdrv, reg));
 		break;
 	case LCD_REG_DBG_EDPDPCD_BUS:
-		ret = dptx_dpcd_write(pdrv, reg, data);
+		ret = dptx_aux_write_single(pdrv, reg, data);
 		if (ret)
 			break;
-		ret = dptx_dpcd_read(pdrv, &temp, reg, 1);
+		ret = dptx_aux_read(pdrv, reg, 1, &temp);
 		if (ret)
 			break;
 		pr_info("write edp dpcd [0x%04x] = 0x%02x, readback 0x%02x\n",
@@ -3336,7 +3336,7 @@ static void lcd_debug_reg_read(struct aml_lcd_drv_s *pdrv,
 			reg, dptx_reg_read(pdrv, reg));
 		break;
 	case LCD_REG_DBG_EDPDPCD_BUS:
-		ret = dptx_dpcd_read(pdrv, &temp, reg, 1);
+		ret = dptx_aux_read(pdrv, reg, 1, &temp);
 		if (ret)
 			break;
 		pr_info("read edp dpcd [0x%04x] = 0x%02x\n", reg, temp);
@@ -3422,7 +3422,7 @@ static void lcd_debug_reg_dump(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 		buf = kcalloc(num, sizeof(unsigned char), GFP_KERNEL);
 		if (!buf)
 			break;
-		ret = dptx_dpcd_read(pdrv, buf, reg, num);
+		ret = dptx_aux_read(pdrv, reg, num, buf);
 		if (ret) {
 			kfree(buf);
 			break;
@@ -4151,21 +4151,6 @@ static ssize_t lcd_edp_debug_show(struct device *dev, struct device_attribute *a
 	return len;
 }
 
-static ssize_t lcd_edp_edid_debug_show(struct device *dev,
-				       struct device_attribute *attr, char *buf)
-{
-	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
-	struct edp_config_s *edp_conf;
-	int len = 0;
-
-	edp_conf = &pdrv->config.control.edp_cfg;
-
-	len = sprintf(buf, "edid_en: %d, edid_state: 0x%x, edid_retry_cnt: %d\n",
-		      edp_conf->edid_en, edp_conf->edid_state, edp_conf->edid_retry_cnt);
-
-	return len;
-}
-
 static ssize_t lcd_mlvds_debug_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
@@ -4451,11 +4436,12 @@ static ssize_t lcd_edp_debug_store(struct device *dev, struct device_attribute *
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	struct edp_config_s *edp_conf;
 	unsigned int val[3];
+	unsigned char cmd[20];
 	int ret = 0;
 
 	edp_conf = &pdrv->config.control.edp_cfg;
 	ret = sscanf(buf, "%d %d %d", &val[0], &val[1], &val[2]);
-	if (ret >= 2) {
+	if (ret == 3) {
 		edp_conf->max_lane_count = (unsigned char)val[0];
 		edp_conf->max_link_rate = (unsigned char)val[1];
 		edp_conf->training_mode = (unsigned char)val[2];
@@ -4465,11 +4451,17 @@ static ssize_t lcd_edp_debug_store(struct device *dev, struct device_attribute *
 			edp_conf->max_link_rate,
 			edp_conf->training_mode);
 		lcd_debug_config_update(pdrv);
-	} else {
-		pr_info("invalid data\n");
-		return -EINVAL;
+		return count;
+	}
+	if (count > 19) {
+		LCDERR("eDP debug cmd error\n");
+		return count;
 	}
 
+	ret = sscanf(buf, "%s %d", cmd, &val[0]);
+#ifdef CONFIG_AMLOGIC_LCD_TABLET
+	edp_debug_test(pdrv, cmd, val[0]);
+#endif
 	return count;
 }
 
@@ -4477,33 +4469,21 @@ static ssize_t lcd_edp_dpcd_debug_store(struct device *dev, struct device_attrib
 					const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
-
-	dptx_dpcd_dump(pdrv);
-
+#ifdef CONFIG_AMLOGIC_LCD_TABLET
+	dptx_DPCD_dump(pdrv);
+#endif
 	return count;
 }
 
-static ssize_t lcd_edp_edid_debug_store(struct device *dev, struct device_attribute *attr,
-					const char *buf, size_t count)
+static ssize_t lcd_edp_edid_debug_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-#ifdef CONFIG_AMLOGIC_LCD_TABLET
+	unsigned char len;
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
-	struct edp_config_s *edp_conf;
-
-	edp_conf = &pdrv->config.control.edp_cfg;
-	switch (buf[0]) {
-	case 'r': /* read */
-		dptx_edid_dump(pdrv);
-		break;
-	case 's': /* set */
-		dptx_edid_timing_probe(pdrv);
-		break;
-	default:
-		LCDERR("invalid command\n");
-		break;
-	}
+#ifdef CONFIG_AMLOGIC_LCD_TABLET
+	dptx_EDID_dump(pdrv);
 #endif
-	return count;
+	len = sprintf(buf, "edid_en: %d\n", pdrv->config.control.edp_cfg.edid_en);
+	return len;
 }
 
 static ssize_t lcd_mlvds_debug_store(struct device *dev, struct device_attribute *attr,
@@ -4684,8 +4664,8 @@ static ssize_t lcd_phy_debug_store(struct device *dev, struct device_attribute *
 				pctrl->p2p_cfg.phy_preem = para[1];
 				break;
 			case LCD_EDP:
-				pctrl->edp_cfg.phy_vswing = para[0];
-				pctrl->edp_cfg.phy_preem = para[1];
+				pctrl->edp_cfg.phy_vswing_preset = para[0];
+				pctrl->edp_cfg.phy_preem_preset = para[1];
 				break;
 			default:
 				LCDERR("%s: not support lcd_type: %s\n",
@@ -4999,7 +4979,7 @@ static struct device_attribute lcd_debug_attrs_edp[] = {
 	__ATTR(edp,   0644, lcd_edp_debug_show, lcd_edp_debug_store),
 	__ATTR(dpcd,  0200, NULL, lcd_edp_dpcd_debug_store),
 	__ATTR(phy,   0644, lcd_phy_debug_show, lcd_phy_debug_store),
-	__ATTR(edid,  0644, lcd_edp_edid_debug_show, lcd_edp_edid_debug_store),
+	__ATTR(edid,  0444, lcd_edp_edid_debug_show, NULL),
 	__ATTR(null,  0644, NULL, NULL)
 };
 

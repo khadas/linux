@@ -1335,8 +1335,8 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				pctrl->p2p_cfg.phy_preem  = ioctl_phy_usr.preem_level;
 				break;
 			case LCD_EDP:
-				pctrl->edp_cfg.phy_vswing = ioctl_phy_usr.vswing_level;
-				pctrl->edp_cfg.phy_preem  = ioctl_phy_usr.preem_level;
+				pctrl->edp_cfg.phy_vswing_preset = ioctl_phy_usr.vswing_level;
+				pctrl->edp_cfg.phy_preem_preset  = ioctl_phy_usr.preem_level;
 				break;
 			default:
 				LCDERR("%s: not support lcd_type: %s\n",
