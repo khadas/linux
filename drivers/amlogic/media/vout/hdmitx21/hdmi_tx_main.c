@@ -362,13 +362,13 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 		msleep(100);
 	pr_info("HDMITX: Early Suspend\n");
 	frl_tx_stop(hdev);
+	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
+		HDMITX_EARLY_SUSPEND);
 	aml_dsc_enable(false);
 	hdmitx_dsc_cvtem_pkt_disable();
 	hdmitx21_disable_hdcp(hdev);
 	hdmitx21_rst_stream_type(hdev->am_hdcp);
 	hdmitx_set_frlrate_none(hdev);
-	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
-		HDMITX_EARLY_SUSPEND);
 	hdev->cur_VIC = HDMI_0_UNKNOWN;
 	hdev->output_blank_flag = 0;
 	hdmitx_set_vsif_pkt(0, 0, NULL, true);
