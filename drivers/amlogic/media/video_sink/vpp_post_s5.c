@@ -480,10 +480,18 @@ static void vpp_vd1_hwin_set(u32 vpp_index,
 	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
 	struct vpp_post_misc_reg_s *vpp_reg = &vpp_post_reg.vpp_post_misc_reg;
 	u32 vd1_win_in_hsize = 0;
+	u32 vd1_proc_dout_hsize = 0;
+	struct vd_proc_s *vd_proc = get_vd_proc_info();
 
+	vd1_proc_dout_hsize =
+			vd_proc->vd_proc_vd1_info.vd1_proc_unit_dout_hsize[0];
 	if (vpp_post->vd1_hwin.vd1_hwin_en) {
-		vd1_win_in_hsize = (vpp_post->vd1_hwin.vd1_hwin_in_hsize +
-			SLICE_NUM - 1) / SLICE_NUM;
+		if (!vd_proc->vd_proc_vd1_info.slice_out_calc)
+			vd1_win_in_hsize =
+				(vpp_post->vd1_hwin.vd1_hwin_in_hsize +
+				SLICE_NUM - 1) / SLICE_NUM;
+		else
+			vd1_win_in_hsize = vd1_proc_dout_hsize / 2;
 
 		rdma_wr(vpp_reg->vpp_post_vd1_win_cut_ctrl,
 			 vpp_post->vd1_hwin.vd1_hwin_en << 31  |
