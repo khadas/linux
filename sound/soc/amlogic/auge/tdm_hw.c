@@ -1232,7 +1232,7 @@ void aml_tdmout_auto_gain_enable(unsigned int tdm_id)
 	 */
 	audiobus_update_bits(reg,
 			     0x1 << 31 | 0xFF << 16 | 0xFFFF << 0,
-			     0x1 << 31 | 0x01 << 16 | 0x0002 << 0);
+			     0x1 << 31 | 0xA << 16 | 0x0002 << 0);
 }
 
 void aml_tdmout_set_gain(int tdmout_id, int value)
