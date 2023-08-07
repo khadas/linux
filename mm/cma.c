@@ -42,10 +42,6 @@
 #include <linux/sched/clock.h>
 #endif /* CONFIG_AMLOGIC_CMA */
 
-#ifdef CONFIG_AMLOGIC_SEC
-#include <linux/amlogic/secmon.h>
-#endif
-
 #include "cma.h"
 
 #undef CREATE_TRACE_POINTS
@@ -166,15 +162,6 @@ static int __init cma_init_reserved_areas(void)
 	for (i = 0; i < cma_area_count; i++)
 		cma_activate_area(&cma_areas[i]);
 
-#ifdef CONFIG_AMLOGIC_SEC
-	/*
-	 * A73 cache speculate prefetch may cause SError when boot.
-	 * because it may prefetch cache line in secure memory range
-	 * which have already reserved by bootloader. So we must
-	 * clear mmu of secmon range before A73 core boot up
-	 */
-	secmon_clear_cma_mmu();
-#endif
 	return 0;
 }
 
