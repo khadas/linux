@@ -42,6 +42,8 @@
 #define MAX_MC_UNDONE_CNT          1
 #define MAX_VP_UNDONE_CNT          1
 
+#define FRC_DBG_DUMP_TABLE_NUM       18
+
 //Bit 28:24  reg_buf_cfg_en       // unsigned ,    RW, default = 0
 // [0]:force mc buf_idx [1] force logo buf_idx [2]:force me_phase
 // [3] force mc_phase [4] force input_buf_idx

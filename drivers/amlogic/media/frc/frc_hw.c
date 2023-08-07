@@ -1696,7 +1696,7 @@ void recfg_memc_mif_base_addr(u32 base_ofst)
 	}
 }
 
-static const struct dbg_dump_tab frc_reg_tab[] = {
+static const struct dbg_dump_tab frc_reg_tab[FRC_DBG_DUMP_TABLE_NUM] = {
 	{"FRC_TOP_CTRL->reg_frc_en_in", FRC_TOP_CTRL, 0, 1},
 	{"FRC_REG_INP_MODULE_EN", FRC_REG_INP_MODULE_EN, 0, 0},
 
@@ -1741,10 +1741,7 @@ void frc_dump_reg_tab(void)
 	pr_frc(0, "ENCL_VIDEO_VAVON_BLINE:0x%x->val: 0x%x\n",
 		ENCL_VIDEO_VAVON_BLINE, vpu_reg_read(ENCL_VIDEO_VAVON_BLINE) & 0xffff);
 
-	while (frc_reg_tab[i].addr < 0x3fff) {
-		if (frc_reg_tab[i].addr == 0xffffffff)
-			break;
-
+	for (i = 0; i < FRC_DBG_DUMP_TABLE_NUM; i++) {
 		if (frc_reg_tab[i].len != 0) {
 			pr_frc(0, "%s (0x%x) val:0x%x\n",
 			frc_reg_tab[i].name, frc_reg_tab[i].addr,
@@ -1755,7 +1752,6 @@ void frc_dump_reg_tab(void)
 			frc_reg_tab[i].name, frc_reg_tab[i].addr,
 			READ_FRC_REG(frc_reg_tab[i].addr));
 		}
-		i++;
 	}
 }
 
