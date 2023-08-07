@@ -15,6 +15,12 @@
 #include <linux/clk-provider.h>
 #include <linux/amlogic/iomap.h>
 #include <linux/timer.h>
+#include <linux/amlogic/pm.h>
+#include <linux/amlogic/power_domain.h>
+#include <linux/io.h>
+#include <linux/of_device.h>
+#include <linux/pm_domain.h>
+#include <linux/platform_device.h>
 
 #include <sound/soc.h>
 #include <sound/tlv.h>
@@ -738,12 +744,16 @@ static int resample_platform_suspend(struct platform_device *pdev,
 {
 	struct audioresample *p_resample = dev_get_drvdata(&pdev->dev);
 
-	if (p_resample->suspend_clk_off) {
-		if (!IS_ERR(p_resample->clk)) {
-			while (__clk_is_enabled(p_resample->clk))
-				clk_disable_unprepare(p_resample->clk);
+	if (p_resample->suspend_clk_off && !is_pm_s2idle_mode()) {
+		/* warning:parent clk already close */
+		if (__clk_is_enabled(p_resample->sclk)) {
+			if (!IS_ERR(p_resample->clk)) {
+				while (__clk_is_enabled(p_resample->clk))
+					clk_disable_unprepare(p_resample->clk);
+			}
 		}
 	}
+
 	return 0;
 }
 
@@ -752,19 +762,25 @@ static int resample_platform_resume(struct platform_device *pdev)
 	struct audioresample *p_resample = dev_get_drvdata(&pdev->dev);
 	int ret = 0;
 
-	if (p_resample->suspend_clk_off) {
+	if (p_resample->suspend_clk_off && !is_pm_s2idle_mode()) {
+		audiobus_write(EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
+		audiobus_write(EE_AUDIO_CLK_GATE_EN1, 0xffffffff);
 		if (!IS_ERR(p_resample->sclk) && !IS_ERR(p_resample->pll)) {
+			pr_info("%s clk_set_parent\n", __func__);
+			clk_set_parent(p_resample->sclk, NULL);
 			ret = clk_set_parent(p_resample->sclk, p_resample->pll);
 			if (ret)
 				dev_err(p_resample->dev, "Can't resume set p_resample->sclk parent clock\n");
 		}
 		if (!IS_ERR(p_resample->clk) && !IS_ERR(p_resample->sclk)) {
+			clk_set_parent(p_resample->clk, NULL);
 			ret = clk_set_parent(p_resample->clk, p_resample->sclk);
 			if (ret)
 				dev_err(p_resample->dev, "Can't resume set p_resample->clk clock\n");
+			new_resample_init(p_resample);
 			ret = clk_prepare_enable(p_resample->clk);
 			if (ret)
-				dev_err(p_resample->dev, "Can't resume enable earc clk_tx_dmac\n");
+				dev_err(p_resample->dev, "Can't resume enable p_resample->clk\n");
 		}
 	}
 
