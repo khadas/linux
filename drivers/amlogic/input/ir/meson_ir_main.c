@@ -30,7 +30,7 @@
 #include <linux/amlogic/gki_module.h>
 
 static void meson_ir_tasklet(unsigned long data);
-DECLARE_TASKLET_DISABLED(tasklet, meson_ir_tasklet, 0);
+DECLARE_TASKLET_DISABLED_OLD(tasklet, meson_ir_tasklet);
 
 static void meson_ir_input_device_init(struct input_dev *dev,
 				       struct device *parent, const char *name);

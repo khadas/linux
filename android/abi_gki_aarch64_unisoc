@@ -137,6 +137,8 @@
   __crypto_xor
   csum_ipv6_magic
   csum_partial
+  debugfs_attr_read
+  debugfs_attr_write
   debugfs_create_bool
   debugfs_create_dir
   debugfs_create_file
@@ -457,6 +459,7 @@
   kernel_kobj
   kernel_neon_begin
   kernel_neon_end
+  kernel_sock_shutdown
   kern_mount
   kern_unmount
   __kfifo_alloc
@@ -572,6 +575,7 @@
   of_device_is_available
   of_device_is_compatible
   of_dev_put
+  of_dma_is_coherent
   of_find_compatible_node
   of_find_device_by_node
   of_find_node_by_name
@@ -1945,6 +1949,7 @@
   unregister_netdev
 
 # required by sfp_core.ko
+  br_fdb_find_port
   csum_tcpudp_nofold
   dev_get_by_index_rcu
   ip_send_check
@@ -2785,6 +2790,7 @@
 
 # required by wcn_bsp.ko
   gpiod_set_value
+  in_aton
   memdup_user
   pci_disable_device
   pci_disable_msi
