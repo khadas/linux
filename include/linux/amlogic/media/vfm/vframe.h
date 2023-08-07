@@ -655,6 +655,7 @@ struct vframe_s {
 	u32 signal_type;
 	/*
 	 *bit 0: FMM flag
+	 *bit 2-1: dv_dual_layer_flag
 	 */
 	u32 ext_signal_type;
 	u32 orientation;
