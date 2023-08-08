@@ -3683,6 +3683,11 @@ static const struct di_meson_data  data_sm1 = {
 	.ic_id	= DI_IC_ID_SM1,
 };
 
+static const struct di_meson_data  data_tl1 = {
+	.name = "dim_tl1",
+	.ic_id	= DI_IC_ID_TL1,
+};
+
 static const struct di_meson_data  data_tm2_vb = {
 	.name = "dim_tm2_vb",
 	.ic_id	= DI_IC_ID_TM2B,
@@ -3748,6 +3753,8 @@ static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 		.data = &data_g12b,
 	}, {	.compatible = "amlogic, dim-sm1",
 		.data = &data_sm1,
+	}, {	.compatible = "amlogic, dim-tl1",
+		.data = &data_tl1,
 	}, {	.compatible = "amlogic, dim-tm2vb",
 		.data = &data_tm2_vb,
 	}, {	.compatible = "amlogic, dim-sc2",

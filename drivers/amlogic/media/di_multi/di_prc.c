@@ -4442,7 +4442,7 @@ void bufq_ndis_unreg(struct di_ch_s *pch)
 			memset(&ndis->c, 0, sizeof(ndis->c));
 			ndis->etype = EDIM_NIN_TYPE_NONE;
 			qbuf_in(pbufq, QBF_NDIS_Q_IDLE, ndis->header.index);
-			PR_INF("%s:used 2 idle %d\n", __func__, ndis->header.index);
+			dbg_reg("%s:used 2 idle %d\n", __func__, ndis->header.index);
 		}
 	}
 	//dbg_unreg_flg = 1;
