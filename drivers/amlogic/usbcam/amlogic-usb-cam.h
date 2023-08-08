@@ -140,11 +140,11 @@ struct aml_usbcam {
 	struct usb_endpoint_descriptor *in, *out;//input/output endpoint descriptor
 
 	enum aml_usbcam_device_type device_type;//device type(command or media)
-	enum aml_usbcam_device_status device_status;//device status(match,runnnig,disconnect)
+	enum aml_usbcam_device_status device_status;//device status(match,running,disconnect)
 
 	unsigned char *read_buf;//read buffer(media 0x40000,cmd 0x4000)
 	enum aml_read_status read_status;//read buffer status
-	size_t in_transfor;//read poninter
+	size_t in_transfor;//read pointer
 	struct mutex read_mux;//read mutex
 	struct urb *read_urb;//read urb
 	size_t read_len;//read length
