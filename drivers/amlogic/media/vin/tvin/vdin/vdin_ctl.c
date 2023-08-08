@@ -5118,10 +5118,11 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 	u32 crc1 = 0;
 	u32 max_pkt = 15;
 	static u32 cnt;
-	u32 rpt_cnt = 0, tail_cnt = 0, rev_cnt = 0, end_flag = 0;
+	u32 rpt_cnt = 0; //start type pkt num
+	u32 tail_cnt = 0, rev_cnt = 0, end_flag = 0;
 	u8 pkt_type;
 	struct dv_meta_pkt *pkt_p;
-	u32 cp_size, cp_offset, cp_sum = 0;
+	u32 cp_size = 0, cp_offset = 0, cp_sum = 0;
 	u32 *src_meta = devp->dv.meta_data_raw_buffer1;
 
 	devp->dv.dv_crc_check = true;
@@ -5187,8 +5188,9 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 					}
 					if (((cnt % dv_dbg_log_du) == 0) &&
 					    (dv_dbg_log & DV_DEBUG_NORMAL))
-						pr_info("pkt_type %d:0x%x\n", i,
-							pkt_type);
+						pr_info("pkt_type(%d-%d):%02x %02x %02x %02x %02x %02x\n",
+							count, i, pkt_type, c[i * 4], c[i * 4 + 1],
+							c[i * 4 + 2], c[i * 4  + 3], c[i * 4 + 4]);
 				}
 
 				if (i == 31 && multimeta_flag == 0)
@@ -5196,13 +5198,21 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 			}
 		}
 
+		//print raw meta data
+		if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & DV_DEBUG_META_PKT_DATA)) {
+			vdin_dv_pr_meta_data(c, 128 * 2, index);
+			pr_info("raw data(%d-%d) rpt_cnt:%d tail_cnt:%d rev_cnt:%d max_pkt:%d\n",
+				devp->irq_cnt, count, rpt_cnt, tail_cnt, rev_cnt, max_pkt);
+		}
+
 		meta_size = (c[3] << 8) | c[4];
 		if (meta_size > 1024 || rev_cnt > 20 ||
 		    rpt_cnt != tail_cnt ||
 		    (meta_size > 128 && rev_cnt == 1)) {
 			if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & DV_DEBUG_NORMAL))
-				pr_info("err size:%d rp_cnt:%d, tal_cnt:%d, rv_cnt:%d max_pkt:%d\n",
-					meta_size, rpt_cnt, tail_cnt, rev_cnt, max_pkt);
+				pr_info("err:%d-%d-%d size:%d rpt:%d tal:%d rv_cnt:%d max_pkt:%d\n",
+					devp->irq_cnt, index, count, meta_size, rpt_cnt,
+					tail_cnt, rev_cnt, max_pkt);
 
 			devp->dv.dv_crc_check = false;
 			return;
@@ -5227,10 +5237,6 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 					crc1 = pkt_p->crc;
 					crc1_r = crc32(0, (char *)pkt_p, 124);
 					crc1_r = swap32(crc1_r);
-					if (((cnt % dv_dbg_log_du) == 0) &&
-					    (dv_dbg_log & DV_DEBUG_NORMAL))
-						pr_info("crc:0x%x, 0x%x\n",
-							crc1, crc1_r);
 					if (crc1 == crc1_r) {
 						cp_offset += j + 128 * i;
 						memcpy(cp,
@@ -5243,7 +5249,7 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 				if (rpt_cnt == 0)
 					break;
 				if (((cnt % dv_dbg_log_du) == 0) &&
-				    (dv_dbg_log & DV_DEBUG_NORMAL))
+				    (dv_dbg_log & DV_DEBUG_HW_META_DATA))
 					pr_info("data idx %d:0x%x\n",
 						j, c[j] & 0xc0);
 			}
@@ -5254,10 +5260,11 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 		}
 
 		if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & DV_DEBUG_NORMAL)) {
-			pr_info("mult_flag=%d tail_flag=%d meta_size=%d\n",
-				multimeta_flag, multimetatail_flag, meta_size);
-			pr_info("rpt_cnt:%d tail_cnt:%d rev_cnt:%d cp_sum:%d\n",
-				rpt_cnt, tail_cnt, rev_cnt, cp_sum);
+			pr_info("irq_cnt:%d count:%d mult_flag=%d tail_flag=%d crc:(%#x:%#x %#x:%#x)\n",
+				devp->irq_cnt, count, multimeta_flag, multimetatail_flag,
+				crc, crc_r, crc1, crc1_r);
+			pr_info("meta_size:%d rpt_cnt:%d tail_cnt:%d rev_cnt:%d pkt:%d cp_sum:%d\n",
+				meta_size, rpt_cnt, tail_cnt, rev_cnt, max_pkt, cp_sum);
 		}
 
 		if (crc == crc_r) {
@@ -5271,10 +5278,6 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 		}
 	}
 
-	/*meta data pkt data*/
-	if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & DV_DEBUG_META_PKT_DATA))
-		vdin_dv_pr_meta_data(c, 128 * rev_cnt, index);
-
 	if (crc != crc_r ||
 	    (multimeta_flag == 1 && multimetatail_flag == 1 &&
 	    crc1 != crc1_r)) {
@@ -5283,15 +5286,14 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 		 */
 		devp->vfp->dv_buf[index] = &c[5];
 		devp->vfp->dv_buf_size[index] = 4;
-		if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & DV_DEBUG_ERR_META_DATA)) {
-			pr_err("%s:hdmi dovi meta crc error:%08x!=%08x\n",
-			       __func__, crc, crc_r);
-			pr_info("%s:index:%d dma:%x vaddr:%p size:%d\n",
+		if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & DV_DEBUG_NORMAL)) {
+			pr_err("%s irq:%d meta crc error(%#x:%#x %#x:%#x)\n",
+			       __func__, devp->irq_cnt, crc, crc_r, crc1, crc1_r);
+			pr_info("%s index:%d dma:%x vaddr:%p size:%d\n",
 				__func__, index,
 				devp->vfp->dv_buf_mem[index],
 				devp->vfp->dv_buf_vmem[index],
 				meta_size);
-			vdin_dv_pr_meta_data(p, 128, index);
 		}
 		devp->dv.dv_crc_check = false;
 	} else {
@@ -5303,18 +5305,14 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 			cp = devp->dv.temp_meta_data;
 			memcpy(c, cp, meta_size);
 			if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & DV_DEBUG_NORMAL))
-				pr_info("cp %d meta to buff\n", meta_size);
+				pr_info("irq:%d cp %d meta to buff ok\n", devp->irq_cnt, meta_size);
 		} else if (meta_size > DV_META_SINGLE_PKT_SIZE) {
 			devp->dv.dv_crc_check = false;
+			if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & DV_DEBUG_NORMAL))
+				pr_info("irq:%d cp %d meta to buff ng\n", devp->irq_cnt, meta_size);
 		}
 
-		if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & DV_DEBUG_NORMAL))
-			pr_info("%s:index:%d dma:%x vaddr:%p size:%d crc:%x crc1:%x\n",
-				__func__, index,
-				devp->vfp->dv_buf_mem[index],
-				devp->vfp->dv_buf_vmem[index],
-				meta_size, crc, crc1);
-		/*meta data raw data*/
+		/* print meta data packet body */
 		if (((cnt % dv_dbg_log_du) == 0) && (dv_dbg_log & DV_DEBUG_OK_META_DATA))
 			vdin_dv_pr_meta_data(c, meta_size, index);
 	}
@@ -5615,7 +5613,7 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 		spin_unlock_irqrestore(&p->dv_lock, flags);
 
 		if (dv_dbg_log & DV_DEBUG_EVENT_META_DATA) {
-			pr_info("%s(type 0x%x vf index 0x%x)=>size 0x%x\n",
+			pr_info("%s(type %#x vf index %#x)=>size %#x\n",
 				__func__, type, index, req->aux_size);
 			vdin_dv_pr_event_meta_data(req->aux_buf,
 					req->aux_size, index);

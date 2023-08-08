@@ -77,11 +77,12 @@
 
 #define DV_DEBUG_NORMAL			(BIT(0))
 #define DV_DEBUG_ERR_META_DATA		(BIT(3))
-#define DV_DEBUG_OK_META_DATA		(BIT(4))
-#define DV_DEBUG_META_PKT_DATA		(BIT(5))
-#define DV_DEBUG_RAW_DATA		(BIT(6))
+#define DV_DEBUG_OK_META_DATA		(BIT(4)) //print meta data packet body
+#define DV_DEBUG_META_PKT_DATA		(BIT(5)) //print raw meta data
+#define DV_DEBUG_RAW_DATA		(BIT(6)) //print tvin_dv_vsif_raw_s
 #define DV_DEBUG_CANVAS_NUM		(BIT(7))
-#define DV_DEBUG_EVENT_META_DATA	(BIT(8))
+#define DV_DEBUG_EVENT_META_DATA	(BIT(8)) //print dv get data
+#define DV_DEBUG_HW_META_DATA		(BIT(9))
 
 #define CTL_DEBUG_NORMAL		(BIT(0))
 #define CTL_DEBUG_EVENT_INDEX		(BIT(2))

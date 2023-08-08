@@ -1238,7 +1238,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->prop.vtem_data.base_framerate);
 	pr_info("vdin_vrr_flag:  pre=%d,cur:%d\n", devp->pre_prop.vdin_vrr_flag,
 		devp->prop.vdin_vrr_flag);
-	pr_info("vdin_pc_mode:%d force_pc_mode:%d\n", vdin_pc_mode, devp->debug.force_pc_mode);
+	pr_info("vdin_pc_mode:%d vdin_cur_mode:%d force_pc_mode:%d\n", vdin_pc_mode,
+		devp->vdin_pc_mode, devp->debug.force_pc_mode);
 
 	pr_info("afbce_flag: %#x %#x\n", devp->dts_config.afbce_flag_cfg, devp->afbce_flag);
 	pr_info("afbce_mode: %d, afbce_valid: %d\n", devp->afbce_mode,

@@ -201,7 +201,8 @@ enum vdin_hw_ver_e {
 /* 20230609: add get vdin status */
 /* 20230713: bc302 get field type */
 /* 20230718: optimize get video format process */
-#define VDIN_VER_V1 "20230718: optimize get video format process"
+/* 20230808: dv debug optimize */
+#define VDIN_VER_V1 "20230808: dv debug optimize"
 
 enum vdin_irq_flg_e {
 	VDIN_IRQ_FLG_NO_END = 1,
@@ -584,7 +585,7 @@ struct vdin_dv_s {
 	void *meta_data_raw_v_buffer0;/*for t7*/
 	void *meta_data_raw_buffer1;/*for t7*/
 	unsigned int dv_flag_cnt;/*cnt for no dv input*/
-	u8 dv_flag;
+	u8 dv_flag; /*is signal dolby version 1:vsif 2:emp */
 	bool dv_config;
 	bool dv_path_idx;
 	bool dv_crc_check;/*0:fail;1:ok*/
