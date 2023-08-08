@@ -31,6 +31,7 @@
 
 /* Amlogic Headers */
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <uapi/linux/amlogic/vout_ioc.h>
 
 /* Local Headers */
 #include "vout_func.h"

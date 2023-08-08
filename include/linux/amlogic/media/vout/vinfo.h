@@ -5,27 +5,13 @@
 
 #ifndef _VINFO_H_
 #define _VINFO_H_
-#include <linux/amlogic/media/video_common.h>
 #include <linux/types.h>
+#include <uapi/linux/amlogic/vout_ioc.h>
 
 /* the MSB is represent vmode set by vmode_init */
 #define	VMODE_INIT_BIT_MASK	0x8000
 #define	VMODE_MODE_BIT_MASK	0xff
 #define VMODE_NULL_DISP_MAX	2
-
-enum vmode_e {
-	VMODE_HDMI = 0,
-	VMODE_CVBS,
-	VMODE_LCD,
-	VMODE_NULL, /* null mode is used as temporary witch mode state */
-	VMODE_INVALID,
-	VMODE_DUMMY_ENCP,
-	VMODE_DUMMY_ENCI,
-	VMODE_DUMMY_ENCL,
-	VMODE_MAX,
-	VMODE_INIT_NULL,
-	VMODE_MASK = 0xFF,
-};
 
 enum viu_mux_e {
 	VIU_MUX_ENCL = 0,
@@ -326,41 +312,6 @@ struct vout_device_s {
 	void (*get_attr)(char attr[16]);
 	void (*setup_attr)(const char *buf);
 	void (*video_mute)(unsigned int flag);
-};
-
-struct vinfo_base_s {
-	enum vmode_e mode;
-	u32 width;
-	u32 height;
-	u32 field_height;
-	u32 aspect_ratio_num;
-	u32 aspect_ratio_den;
-	u32 sync_duration_num;
-	u32 sync_duration_den;
-	u32 screen_real_width;
-	u32 screen_real_height;
-	u32 video_clk;
-	enum color_fmt_e viu_color_fmt;
-};
-
-struct optical_base_s {
-	u32 primaries[3][2];	/* normalized 50000 in G,B,R order */
-	u32 white_point[2];	/* normalized 50000 */
-	u32 lumi_max; /* max/min lumin, normalized 10000 */
-	u32 lumi_min; /* max/min lumin, normalized 10000 */
-	u32 lumi_avg; /* max/min lumin, normalized 10000 */
-	u32 lumi_peak;
-
-	u8 ldim_support;
-	u8 dummy_flag1;
-	u8 dummy_flag2;
-	u8 dummy_flag3;
-	u32 dummy_val[8];
-};
-
-struct venc_base_s {
-	u8 venc_index; /*such as 0, 1, 2*/
-	u8 venc_sel;  /*such as 0=encl, 1=enci, 2=encp, 3=invalid*/
 };
 
 #define LATENCY_INVALID_UNKNOWN	0

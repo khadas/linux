@@ -376,26 +376,6 @@ static inline unsigned int get_vout3_bl_brightness(void)
 #define VOUT_EVENT_OSD_PREBLEND_ENABLE 0x00050000
 #define VOUT_EVENT_SYS_INIT            0x00060000
 
-/* ********** vout_ioctl ********** */
-#define VOUT_IOC_TYPE                   'C'
-#define VOUT_IOC_NR_GET_VINFO           0x0
-#define VOUT_IOC_NR_GET_OPTICAL_INFO    0x1
-#define VOUT_IOC_NR_GET_VENC_INFO       0x2
-#define VOUT_IOC_NR_GET_BL_BRIGHTNESS   0x3
-#define VOUT_IOC_NR_SET_BL_BRIGHTNESS   0x4
-
-#define VOUT_IOC_CMD_GET_VINFO   \
-		_IOR(VOUT_IOC_TYPE, VOUT_IOC_NR_GET_VINFO, struct vinfo_base_s)
-#define VOUT_IOC_CMD_GET_OPTICAL_INFO   \
-		_IOR(VOUT_IOC_TYPE, VOUT_IOC_NR_GET_OPTICAL_INFO, struct optical_base_s)
-#define VOUT_IOC_CMD_GET_VENC_INFO   \
-		_IOR(VOUT_IOC_TYPE, VOUT_IOC_NR_GET_VENC_INFO, struct venc_base_s)
-#define VOUT_IOC_CMD_GET_BL_BRIGHTNESS   \
-		_IOR(VOUT_IOC_TYPE, VOUT_IOC_NR_GET_BL_BRIGHTNESS, unsigned int)
-#define VOUT_IOC_CMD_SET_BL_BRIGHTNESS   \
-		_IOW(VOUT_IOC_TYPE, VOUT_IOC_NR_SET_BL_BRIGHTNESS, unsigned int)
-/* ******************************** */
-
 char *get_vout_mode_internal(void);
 char *get_vout_mode_uboot(void);
 char *get_vout2_mode_uboot(void);
