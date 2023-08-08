@@ -2815,8 +2815,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	long long vlock_delay_jiffies, vlock_t1;
 	enum vdin_vf_put_md put_md = VDIN_VF_PUT;
 	int ret;
-	static unsigned int pre_ms, cur_ms;
-	static unsigned int err_vsync;
 
 	/* avoid null pointer oops */
 	if (!devp)
@@ -2824,22 +2822,12 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	devp->irq_cnt++;
 	if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
-		pr_info("vdin frame_cnt:%d vdin_cur_time:%lld\n",
-			devp->frame_cnt, ktime_to_us(ktime_get()));
+		pr_info("vdin%d irq_cnt:%d,frame_cnt:%d vdin_cur_time:%lld\n", devp->index,
+			devp->irq_cnt, devp->frame_cnt, ktime_to_us(ktime_get()));
 
-	if (vdin_check_cycle(devp)) {
-		vdin_drop_frame_info(devp, "cycle error");
-		vdin_pause_hw_write(devp, 0);
-		return IRQ_HANDLED;
-	}
-	/* debug interrupt interval time
-	 *
-	 * this code about system time must be outside of spinlock.
-	 * because the spinlock may affect the system time.
-	 */
-	if (vdin_vs_duration_check(devp) < 0) {
-		vdin_drop_frame_info(devp, "duration error");
-		vdin_pause_hw_write(devp, 0);
+	if (vdin_isr_drop) {
+		vdin_isr_drop--;
+		vdin_drop_frame_info(devp, "drop debug");
 		return IRQ_HANDLED;
 	}
 
@@ -2849,9 +2837,20 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	if (vdin_isr_drop) {
-		vdin_isr_drop--;
-		vdin_drop_frame_info(devp, "drop debug");
+	if (vdin_check_cycle(devp)) {
+		vdin_drop_frame_info(devp, "cycle error");
+		vdin_pause_hw_write(devp, 0);
+		return IRQ_HANDLED;
+	}
+
+	/* debug interrupt interval time
+	 *
+	 * this code about system time must be outside of spinlock.
+	 * because the spinlock may affect the system time.
+	 */
+	if (vdin_vs_duration_check(devp) < 0) {
+		vdin_drop_frame_info(devp, "duration error");
+		vdin_pause_hw_write(devp, 0);
 		return IRQ_HANDLED;
 	}
 
@@ -2890,26 +2889,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	}
 
 	vdin_dynamic_switch_vrr(devp);
-
-	cur_ms = jiffies_to_msecs(jiffies);
-	if (cur_ms - pre_ms <= VDIN_INPUT_MAX_FPS)
-		err_vsync++;
-	else
-		err_vsync = 0;
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && err_vsync &&
-	    devp->parm.info.status == TVIN_SIG_STATUS_STABLE) {
-		if (IS_HDMI_SRC(devp->parm.port) && err_vsync >= 10) {
-			err_vsync = 0;
-			if (sm_ops && sm_ops->hdmi_clr_vsync)
-				sm_ops->hdmi_clr_vsync(devp->frontend);
-			else
-				pr_err("hdmi_clr_vsync is NULL\n ");
-		}
-		vdin_drop_frame_info(devp, "err_vsync");
-		vdin_pause_hw_write(devp, 0);
-		return IRQ_HANDLED;
-	}
-	pre_ms = cur_ms;
 
 	/* ignore fake irq caused by sw reset*/
 	if (devp->vdin_reset_flag) {

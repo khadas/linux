@@ -104,6 +104,7 @@
 
 /* 8 is filter the abnormal frame rate diff */
 #define VDIN_DURATION_FILTER_VALUE	8
+#define VDIN_CONTINUOUS_CYCLE_ERR_MAX	10
 
 enum vdin_output_mif_e {
 	VDIN_OUTPUT_TO_MIF = 0,

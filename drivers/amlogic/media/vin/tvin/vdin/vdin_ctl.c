@@ -3953,6 +3953,7 @@ bool vdin_check_cycle(struct vdin_dev_s *devp)
 {
 	bool ret = 0;
 	unsigned int stamp, cycle;
+	struct tvin_state_machine_ops_s *sm_ops = NULL;
 
 	stamp = vdin_get_meas_v_stamp(devp->addr_offset);
 
@@ -3961,17 +3962,34 @@ bool vdin_check_cycle(struct vdin_dev_s *devp)
 	else
 		cycle = stamp - devp->stamp;
 
+	devp->stamp = stamp;
+	devp->cycle  = cycle;
+
 	if (cycle <= (devp->msr_clk_val / 1000)) {
+		devp->stats.cycle_err_cnt_con++;
 		ret = true;
 	} else {
-		devp->stamp = stamp;
-		devp->cycle  = cycle;
+		devp->stats.cycle_err_cnt_con = 0;
 		ret = false;
 	}
 
+	/* TODO:whether T5/TL1/TXHD2/T3X support cycle check */
 	if (!(is_meson_t7_cpu() || is_meson_t3_cpu() ||
 	     is_meson_t5w_cpu()))
-		ret = false;
+		return false;
+
+	/* if continuous cycle error over 10 times,call hdmi_clr_vsync to recovery */
+	if (devp->frontend)
+		sm_ops = devp->frontend->sm_ops;
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && IS_HDMI_SRC(devp->parm.port) &&
+	    devp->stats.cycle_err_cnt_con >= VDIN_CONTINUOUS_CYCLE_ERR_MAX &&
+	    devp->parm.info.status == TVIN_SIG_STATUS_STABLE) {
+		devp->stats.cycle_err_cnt_con = 0;
+		if (sm_ops && sm_ops->hdmi_clr_vsync)
+			sm_ops->hdmi_clr_vsync(devp->frontend);
+		else
+			pr_err("hdmi_clr_vsync is NULL\n ");
+	}
 
 	return ret;
 }

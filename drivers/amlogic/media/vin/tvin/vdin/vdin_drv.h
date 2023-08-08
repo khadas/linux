@@ -654,6 +654,8 @@ struct vdin_frame_stat_s {
 	unsigned int wmif_normal_cnt;
 	unsigned int wr_done_irq_cnt;
 	unsigned int meta_wr_done_irq_cnt;
+	/* Continuous cycle error counting */
+	unsigned int cycle_err_cnt_con;
 };
 
 struct vdin_v4l2_s {
