@@ -2701,6 +2701,7 @@ static u32 afbc_pst_set(struct vframe_s *if0_vf,
 		dim_print("%s:if1:chg 2\n", __func__);
 		afbc_update_level1(if1_vf2, pafd_ctr->fb.if1_dec);
 	} else if (!if1_vf2 || !pafd_ctr->en_set_pst.b.if1) {
+		/* coverity[overrun-call] */
 		afbcd_reg_bwr(EAFBC_DEC_IF1, EAFBC_ENABLE, 0, 8, 1);
 		pafd_ctr->b.en_pst_if1 = 0;
 	//	cfg->b.afbc_if1 = 0;

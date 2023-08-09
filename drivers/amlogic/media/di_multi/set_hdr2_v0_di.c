@@ -868,7 +868,7 @@ void dim_hdr_prob(void)
 	if (!IS_IC_SUPPORT(HDR) || !cfgg(HDR_EN))
 		return;
 	hdr = (struct di_hdr_s *)get_datal()->hw_hdr;
-	if (!hdr) {
+	if (hdr) {
 		vfree(hdr);
 		hdr = NULL;
 		PR_INF("%s:hdr is not null, clear\n", __func__);
