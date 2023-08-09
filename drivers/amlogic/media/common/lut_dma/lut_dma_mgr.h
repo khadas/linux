@@ -83,6 +83,7 @@ struct lut_dma_ins {
 	unsigned char dir;
 	unsigned char mode;
 	unsigned char baddr_set;
+	unsigned char force_disable;
 	u32 trigger_irq_type;
 	u32 rd_table_size[DMA_BUF_NUM];
 	ulong rd_phy_addr[DMA_BUF_NUM];

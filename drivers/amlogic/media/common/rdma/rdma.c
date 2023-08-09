@@ -917,6 +917,15 @@ int set_vsync_rdma_id(u8 id)
 }
 EXPORT_SYMBOL(set_vsync_rdma_id);
 
+void set_rdma_channel_enable(u8 rdma_en)
+{
+	int i;
+
+	for (i = 0; i < RDMA_NUM; i++)
+		enable[i] = rdma_en;
+}
+EXPORT_SYMBOL(set_rdma_channel_enable);
+
 struct rdma_op_s *get_rdma_ops(int rdma_type)
 {
 	if (has_multi_vpp) {

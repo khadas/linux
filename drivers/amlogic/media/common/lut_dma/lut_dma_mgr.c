@@ -1224,6 +1224,36 @@ fail_create_class:
 	return ret;
 }
 
+#ifdef CONFIG_PM
+static int lut_dma_suspend(struct platform_device *dev, pm_message_t state)
+{
+	struct lut_dma_device_info *info = &lut_dma_info;
+	int i;
+
+	for (i = 0; i < LUT_DMA_CHANNEL; i++)
+		if (info->ins[i].registered) {
+			if (info->ins[i].enable) {
+				lut_dma_disable(info->ins[i].dir, i);
+				info->ins[i].force_disable = true;
+			}
+		}
+	return 0;
+}
+
+static int lut_dma_resume(struct platform_device *dev)
+{
+	struct lut_dma_device_info *info = &lut_dma_info;
+	int i;
+
+	for (i = 0; i < LUT_DMA_CHANNEL; i++)
+		if (info->ins[i].registered) {
+			if (!info->ins[i].enable && info->ins[i].force_disable)
+				lut_dma_enable(info->ins[i].dir, i);
+		}
+	return 0;
+}
+#endif
+
 /* static int __devexit rdma_remove(struct platform_device *pdev) */
 static int lut_dma_remove(struct platform_device *pdev)
 {
@@ -1244,6 +1274,10 @@ static int lut_dma_remove(struct platform_device *pdev)
 static struct platform_driver lut_dma_driver = {
 	.probe = lut_dma_probe,
 	.remove = lut_dma_remove,
+#ifdef CONFIG_PM
+	.suspend  = lut_dma_suspend,
+	.resume    = lut_dma_resume,
+#endif
 	.driver = {
 		.name = "amlogic_lut_dma",
 		.of_match_table = lut_dma_dt_match,

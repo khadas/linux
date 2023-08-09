@@ -15382,6 +15382,16 @@ void  osd_suspend_hw(void)
 			osd_reg_write(VPU_MAFBC_SURFACE_CFG, 0);
 			osd_reg_write(VPU_MAFBC_COMMAND, 1);
 		}
+
+		if (osd_hw.hw_rdma_en) {
+			osd_rdma_enable(VPU_VPP0, 0);
+			if (osd_hw.osd_meson_dev.has_vpp1 &&
+			   osd_hw.display_dev_cnt == 2)
+				osd_rdma_enable(VPU_VPP1, 0);
+			if (osd_hw.osd_meson_dev.has_vpp2 &&
+			   osd_hw.display_dev_cnt == 3)
+				osd_rdma_enable(VPU_VPP2, 0);
+		}
 		spin_unlock_irqrestore(&osd_lock, lock_flags);
 
 		if (supsend_delay)
@@ -15420,6 +15430,15 @@ void osd_resume_hw(void)
 
 		spin_lock_irqsave(&osd_lock, lock_flags);
 		suspend_flag = false;
+		if (osd_hw.hw_rdma_en) {
+			osd_rdma_enable(VPU_VPP0, 2);
+			if (osd_hw.osd_meson_dev.has_vpp1 &&
+			   osd_hw.display_dev_cnt == 2)
+				osd_rdma_enable(VPU_VPP1, 2);
+			if (osd_hw.osd_meson_dev.has_vpp2 &&
+			   osd_hw.display_dev_cnt == 3)
+				osd_rdma_enable(VPU_VPP2, 2);
+		}
 		for (i = 0; i < osd_hw.osd_meson_dev.osd_count; i++) {
 			if (osd_hw.enable_save[i]) {
 				osd_hw.enable[i] = ENABLE;

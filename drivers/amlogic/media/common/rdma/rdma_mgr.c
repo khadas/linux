@@ -1909,6 +1909,20 @@ static int __init rdma_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int rdma_suspend(struct platform_device *dev, pm_message_t state)
+{
+	set_rdma_channel_enable(0);
+	return 0;
+}
+
+static int rdma_resume(struct platform_device *dev)
+{
+	set_rdma_channel_enable(1);
+	return 0;
+}
+#endif
+
 /* static int __devexit rdma_remove(struct platform_device *pdev) */
 static int rdma_remove(struct platform_device *pdev)
 {
@@ -1923,6 +1937,10 @@ static int rdma_remove(struct platform_device *pdev)
 
 static struct platform_driver rdma_driver = {
 	.remove = rdma_remove,
+#ifdef CONFIG_PM
+	.suspend  = rdma_suspend,
+	.resume    = rdma_resume,
+#endif
 	.driver = {
 		.name = "amlogic-rdma",
 		.of_match_table = rdma_dt_match,
