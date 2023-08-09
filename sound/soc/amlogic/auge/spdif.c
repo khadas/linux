@@ -147,18 +147,6 @@ static const unsigned int spdifin_extcon[] = {
 	EXTCON_NONE,
 };
 
-/* current sample mode and its sample rate */
-static const char *const spdifin_samplerate[] = {
-	"N/A",
-	"32000",
-	"44100",
-	"48000",
-	"88200",
-	"96000",
-	"176400",
-	"192000"
-};
-
 static void spdif_sharebuffer_prepare(struct snd_pcm_substream *substream,
 	struct aml_spdif *p_spdif)
 {
@@ -434,11 +422,6 @@ static int spdifin_samplerate_get_enum(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
-
-static const struct soc_enum spdifin_sample_rate_enum[] = {
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(spdifin_samplerate),
-			spdifin_samplerate),
-};
 
 static const struct soc_enum spdif_audio_type_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_type_texts),

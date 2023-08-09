@@ -195,6 +195,7 @@ struct earc {
 	int rx_ui_flag;
 	/* get from hdmitx */
 	int earcrx_5v;
+	int rx_cs_ready;
 };
 
 static struct earc *s_earc;
@@ -1271,6 +1272,7 @@ static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 			earcrx_enable(p_earc->rx_cmdc_map,
 				      p_earc->rx_dmac_map,
 				      true);
+			p_earc->rx_cs_ready = true;
 		}
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -1287,6 +1289,7 @@ static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				      p_earc->chipinfo->rterm_on);
 			aml_frddr_enable(p_earc->fddr, false);
 		} else {
+			p_earc->rx_cs_ready = false;
 			dev_info(substream->pcm->card->dev, "eARC/ARC RX disable\n");
 
 			earcrx_enable(p_earc->rx_cmdc_map,
@@ -1730,7 +1733,7 @@ int earcrx_get_freq(struct snd_kcontrol *kcontrol,
 	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map))
 		return 0;
 
-	if (!p_earc->rx_dmac_clk_on)
+	if (!p_earc->rx_cs_ready)
 		return 0;
 
 	type = earcrx_cmdc_get_attended_type(p_earc->rx_cmdc_map);
@@ -1742,6 +1745,32 @@ int earcrx_get_freq(struct snd_kcontrol *kcontrol,
 	spin_unlock_irqrestore(&p_earc->rx_lock, flags);
 
 	ucontrol->value.integer.value[0] = freq;
+
+	return 0;
+}
+
+static int earcrx_get_freq_by_pll(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	int val = 0x7;
+	unsigned long flags;
+
+	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map))
+		return 0;
+
+	spin_lock_irqsave(&p_earc->rx_lock, flags);
+	if (p_earc->rx_dmac_clk_on)
+		val = earcrx_get_sample_rate(p_earc->rx_dmac_map);
+	spin_unlock_irqrestore(&p_earc->rx_lock, flags);
+
+	if (val == 0x7)
+		val = 0;
+	else
+		val += 1;
+
+	ucontrol->value.integer.value[0] = val;
 
 	return 0;
 }
@@ -1980,20 +2009,23 @@ static int earcrx_get_iec958(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct earc *p_earc = dev_get_drvdata(component->dev);
 	unsigned long flags;
-	int cs = 0;
+	int cs = 0, i;
 
 	if (!p_earc || IS_ERR(p_earc->rx_dmac_map))
 		return 0;
 
 	spin_lock_irqsave(&p_earc->rx_lock, flags);
-	if (p_earc->rx_dmac_clk_on)
-		cs = earcrx_get_cs_iec958(p_earc->rx_dmac_map);
-	spin_unlock_irqrestore(&p_earc->rx_lock, flags);
+	if (p_earc->rx_dmac_clk_on) {
+		for (i = 0; i < 6; i++) {
+			cs = earcrx_get_cs_iec958(p_earc->rx_dmac_map, i);
 
-	ucontrol->value.iec958.status[0] = (cs >> 0) & 0xff;
-	ucontrol->value.iec958.status[1] = (cs >> 8) & 0xff;
-	ucontrol->value.iec958.status[2] = (cs >> 16) & 0xff;
-	ucontrol->value.iec958.status[3] = (cs >> 24) & 0xff;
+			ucontrol->value.iec958.status[i * 4] = (cs >> 0) & 0xff;
+			ucontrol->value.iec958.status[i * 4 + 1] = (cs >> 8) & 0xff;
+			ucontrol->value.iec958.status[i * 4 + 2] = (cs >> 16) & 0xff;
+			ucontrol->value.iec958.status[i * 4 + 3] = (cs >> 24) & 0xff;
+		}
+	}
+	spin_unlock_irqrestore(&p_earc->rx_lock, flags);
 
 	dev_info(p_earc->dev,
 		"x get[AES0=%#x AES1=%#x AES2=%#x AES3=%#x]\n",
@@ -2367,6 +2399,11 @@ static const struct snd_kcontrol_new earc_controls[] = {
 		       0, 0, 384000, 0,
 		       earcrx_get_freq,
 		       NULL),
+
+	SOC_ENUM_EXT("eARC_RX Audio Sample Frequency by pll",
+				spdifin_sample_rate_enum,
+				earcrx_get_freq_by_pll,
+				NULL),
 
 	SOC_SINGLE_EXT("eARC_RX Audio Word Length",
 		       0, 0, 32, 0,

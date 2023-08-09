@@ -17,6 +17,11 @@ const struct soc_enum audio_coding_type_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_coding_type_names),
 			audio_coding_type_names);
 
+const struct soc_enum spdifin_sample_rate_enum[] = {
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(spdifin_samplerate),
+			spdifin_samplerate),
+};
+
 bool audio_coding_is_lpcm(enum audio_coding_types coding_type)
 {
 	return ((coding_type >= AUDIO_CODING_TYPE_STEREO_LPCM) &&

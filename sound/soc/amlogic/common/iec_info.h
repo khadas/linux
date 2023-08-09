@@ -211,10 +211,24 @@ static const char *const audio_type_texts[] = {
 	"PAUSE"
 };
 
+/* current sample mode and its sample rate */
+static const char *const spdifin_samplerate[] = {
+	"N/A",
+	"32000",
+	"44100",
+	"48000",
+	"88200",
+	"96000",
+	"176400",
+	"192000"
+};
+
 extern const struct spdif_audio_info type_texts[];
 extern const char *const audio_type_texts[];
 
 extern const struct soc_enum audio_coding_type_enum;
+
+extern const struct soc_enum spdifin_sample_rate_enum[];
 
 bool audio_coding_is_lpcm(enum audio_coding_types coding_type);
 bool audio_coding_is_non_lpcm(enum audio_coding_types coding_type);
