@@ -91,6 +91,40 @@ struct cuva_info {
 	u8 rx_mode_sup;
 };
 
+struct sbtm_info {
+	unsigned char sbtm_support: 1;
+	unsigned char max_sbtm_ver: 4;
+	unsigned char grdm_support: 2;
+	unsigned char drdm_ind: 1;
+	unsigned char hgig_cat_drdm_sel: 3;
+	unsigned char: 1;
+	unsigned char use_hgig_drdm: 1;
+	unsigned char maxrgb: 1;
+	unsigned char gamut: 2;
+	unsigned short red_x;
+	unsigned short red_y;
+	unsigned short green_x;
+	unsigned short green_y;
+	unsigned short blue_x;
+	unsigned short blue_y;
+	unsigned short white_x;
+	unsigned short white_y;
+	unsigned char min_bright_10;
+	unsigned char peak_bright_100;
+	unsigned char p0_exp: 2;
+	unsigned char p0_mant: 6;
+	unsigned char peak_bright_p0;
+	unsigned char p1_exp: 2;
+	unsigned char p1_mant: 6;
+	unsigned char peak_bright_p1;
+	unsigned char p2_exp: 2;
+	unsigned char p2_mant: 6;
+	unsigned char peak_bright_p2;
+	unsigned char p3_exp: 2;
+	unsigned char p3_mant: 6;
+	unsigned char peak_bright_p3;
+};
+
 struct hdr_info {
 /* RX EDID hdr support types */
 	/* hdr_support: bit0/SDR bit1/HDR bit2/SMPTE2084 bit3/HLG */
@@ -114,6 +148,7 @@ struct hdr_info {
 	u32 lumi_avg; /* RX EDID Lumi Avg value */
 	u32 lumi_min; /* RX EDID Lumi Min value */
 	struct cuva_info cuva_info;
+	struct sbtm_info sbtm_info;
 
 	u8 ldim_support;
 	u32 lumi_peak;

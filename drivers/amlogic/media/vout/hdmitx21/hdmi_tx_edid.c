@@ -60,6 +60,7 @@
 #define EXTENSION_Y420_CMDB_TAG	0xf
 #define EXTENSION_DOLBY_VSADB	0x11
 #define EXTENSION_SCDB_EXT_TAG	0x79
+#define EXTENSION_SBTM_EXT_TAG	0x7a /* 122 */
 
 #define EDID_DETAILED_TIMING_DES_BLOCK0_POS 0x36
 #define EDID_DETAILED_TIMING_DES_BLOCK1_POS 0x48
@@ -77,6 +78,9 @@
 #define TAG_CVT_TIMING_CODES 0xF8
 #define TAG_ESTABLISHED_TIMING_III 0xF7
 #define TAG_DUMMY_DES 0x10
+
+#define GET_BITS_FILED(val, start, len) \
+	(((val) >> (start)) & ((1 << (len)) - 1))
 
 static u8 __nosavedata edid_checkvalue[4] = {0};
 static u32 hdmitx_edid_check_valid_blocks(u8 *buf);
@@ -1240,6 +1244,7 @@ static void hdmitx21_edid_parse_ifdb(struct rx_cap *prxcap, u8 *blockbuf)
 		}
 	}
 }
+
 static void hdmitx21_edid_parse_hfscdb(struct rx_cap *prxcap,
 	u8 offset, u8 *blockbuf, u8 count)
 {
@@ -1304,6 +1309,92 @@ static void hdmitx21_edid_parse_hfscdb(struct rx_cap *prxcap,
 		 * 1024 x (1+DSC_ TotalChunkKBytes)
 		 */
 		prxcap->dsc_total_chunk_bytes = blockbuf[offset + 12] & 0x3f;
+	}
+}
+
+static unsigned short get_2_bytes(u8 *addr)
+{
+	if (!addr)
+		return 0;
+	return addr[0] | (addr[1] << 8);
+}
+
+static void hdmitx21_edid_parse_sbtmdb(struct rx_cap *prxcap,
+	u8 offset, u8 *blockbuf, u8 len)
+{
+	struct sbtm_info *info;
+
+	if (!prxcap || !blockbuf || !len)
+		return;
+	if (len < 2)
+		return;
+	blockbuf = blockbuf + offset;
+	/* length should be 2, 3, 5, 7, ... or 29 */
+	if (!(len == 2 || (len <= 29 && ((len % 2) == 1))))
+		pr_info("%s[%d] len is %d\n", __func__, __LINE__, len);
+	info = &prxcap->hdr_info.sbtm_info;
+
+	blockbuf++;
+	len--;
+	if (blockbuf[0])
+		info->sbtm_support = 1;
+	if (!info->sbtm_support)
+		return;
+	info->max_sbtm_ver = GET_BITS_FILED(blockbuf[0], 0, 4);
+	info->grdm_support = GET_BITS_FILED(blockbuf[0], 5, 2);
+	info->drdm_ind = GET_BITS_FILED(blockbuf[0], 7, 1);
+	if (info->drdm_ind == 0)
+		return;
+	info->hgig_cat_drdm_sel = GET_BITS_FILED(blockbuf[1], 0, 3);
+	info->use_hgig_drdm = GET_BITS_FILED(blockbuf[1], 4, 1);
+	info->maxrgb = GET_BITS_FILED(blockbuf[1], 5, 1);
+	info->gamut = GET_BITS_FILED(blockbuf[1], 6, 2);
+	blockbuf += 2;
+	len -= 2;
+	if (info->drdm_ind && !info->gamut && len >= 16) {
+		info->red_x = get_2_bytes(&blockbuf[0]);
+		info->red_y = get_2_bytes(&blockbuf[2]);
+		info->green_x = get_2_bytes(&blockbuf[4]);
+		info->green_y = get_2_bytes(&blockbuf[6]);
+		info->blue_x = get_2_bytes(&blockbuf[8]);
+		info->blue_y = get_2_bytes(&blockbuf[10]);
+		info->white_x = get_2_bytes(&blockbuf[12]);
+		info->white_y = get_2_bytes(&blockbuf[14]);
+		len -= 16;
+		blockbuf += 16;
+	}
+	if (info->drdm_ind && !info->use_hgig_drdm && len >= 2) {
+		info->min_bright_10 = blockbuf[0];
+		info->peak_bright_100 = blockbuf[1];
+		len -= 2;
+		blockbuf += 2;
+		if (len >= 2) {
+			info->p0_exp = GET_BITS_FILED(blockbuf[0], 0, 2);
+			info->p0_mant = GET_BITS_FILED(blockbuf[0], 2, 6);
+			info->peak_bright_p0 = blockbuf[1];
+			len -= 2;
+			blockbuf += 2;
+		}
+		if (len >= 2) {
+			info->p1_exp = GET_BITS_FILED(blockbuf[0], 0, 2);
+			info->p1_mant = GET_BITS_FILED(blockbuf[0], 2, 6);
+			info->peak_bright_p1 = blockbuf[1];
+			len -= 2;
+			blockbuf += 2;
+		}
+		if (len >= 2) {
+			info->p2_exp = GET_BITS_FILED(blockbuf[0], 0, 2);
+			info->p2_mant = GET_BITS_FILED(blockbuf[0], 2, 6);
+			info->peak_bright_p2 = blockbuf[1];
+			len -= 2;
+			blockbuf += 2;
+		}
+		if (len >= 2) {
+			info->p3_exp = GET_BITS_FILED(blockbuf[0], 0, 2);
+			info->p3_mant = GET_BITS_FILED(blockbuf[0], 2, 6);
+			info->peak_bright_p3 = blockbuf[1];
+			/* end parsing */
+		}
 	}
 }
 
@@ -1476,6 +1567,10 @@ static int hdmitx_edid_cta_block_parse(struct hdmitx_dev *hdev,
 					break;
 				case EXTENSION_SCDB_EXT_TAG:
 					hdmitx21_edid_parse_hfscdb(prxcap, offset + 1,
+							 blockbuf, count);
+					break;
+				case EXTENSION_SBTM_EXT_TAG:
+					hdmitx21_edid_parse_sbtmdb(prxcap, offset + 1,
 							 blockbuf, count);
 					break;
 				case EXTENSION_IFDB_TAG:
@@ -3216,6 +3311,8 @@ int hdmitx21_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 	if (prxcap->hdr_info2.hdr_support)
 		pos += snprintf(buffer + pos, buffer_len - pos, "  HDR/%d",
 			prxcap->hdr_info2.hdr_support);
+	if (prxcap->hdr_info.sbtm_info.sbtm_support)
+		pos += snprintf(buffer + pos, buffer_len - pos, "  SBTM");
 	if (prxcap->dc_y444 || prxcap->dc_30bit || prxcap->dc_30bit_420)
 		pos += snprintf(buffer + pos, buffer_len - pos, "  DeepColor");
 	pos += snprintf(buffer + pos, buffer_len - pos, "\n");
