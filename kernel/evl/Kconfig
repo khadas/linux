@@ -144,7 +144,7 @@ config EVL_NR_CLOCKS
 config EVL_NR_XBUFS
 	int "Maximum number of x-buffers"
 	range 1 16384
-	default 16
+	default 128
 	help
 
 	This value gives the maximum number of x-buffers which can be
