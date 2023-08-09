@@ -515,12 +515,12 @@
 				"dvr0_irq",
 				"dvr1_irq",
 				"dvr2_irq";
-		//clocks = <&clkc CLKID_DEMUX
-		//	&clkc CLKID_ASYNC_FIFO
-		//	&clkc CLKID_AHB_ARB0
-/*		//&clkc CLKID_DOS_PARSER>;*/
-		//&clkc CLKID_U_PARSER>;
-		//clock-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
+
+		clocks = <&clkc CLKID_CLK81_DEMUX
+			&clkc CLKID_CLK81_ASYNC_FIFO
+			&clkc CLKID_CLK81_AHB_ARB0
+		&clkc CLKID_CLK81_U_PARSER>;
+		clock-names = "demux", "asyncfifo", "ahbarb0", "uparsertop";
 	};
 
 	tvafe_avin_detect {
