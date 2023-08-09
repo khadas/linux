@@ -1705,17 +1705,13 @@ void hdmitx21_video_mute_op(u32 flag, unsigned int path)
  */
 static void hdmitx_sdr_hdr_uevent(struct hdmitx_dev *hdev)
 {
-	if (hdev->hdmi_last_hdr_mode == 0 &&
-	    hdev->hdmi_current_hdr_mode != 0) {
+	if (hdev->hdmi_current_hdr_mode != 0) {
 		/* SDR -> HDR*/
 		hdmitx21_set_uevent(HDMITX_HDR_EVENT, 1);
-	} else if ((hdev->hdmi_last_hdr_mode != 0) &&
-			(hdev->hdmi_current_hdr_mode == 0)) {
+	} else if (hdev->hdmi_current_hdr_mode == 0) {
 		/* HDR -> SDR*/
 		hdmitx21_set_uevent(HDMITX_HDR_EVENT, 0);
 	}
-	/* NOTE: for HDR <-> HLG, also need update last mode */
-	hdev->hdmi_last_hdr_mode = hdev->hdmi_current_hdr_mode;
 }
 
 static unsigned int hdmitx_get_frame_duration(void)
@@ -2189,6 +2185,8 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 
 	/* if sdr/hdr mode change ,notify uevent to userspace*/
 	if (hdev->hdmi_current_hdr_mode != hdev->hdmi_last_hdr_mode) {
+		/* NOTE: for HDR <-> HLG, also need update last mode */
+		hdev->hdmi_last_hdr_mode = hdev->hdmi_current_hdr_mode;
 		if (hdr_mute_frame) {
 			pr_info("%s: VID_MUTE\n", __func__);
 			hdev->hwop.cntlconfig(hdev, CONF_VIDEO_MUTE_OP, VIDEO_MUTE);
