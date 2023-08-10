@@ -87,8 +87,9 @@
 // frc_20221123 check input size
 // frc_20230104 clean up kasan log error
 // frc_20230129 frc sync ko 2795
+// frc_20230524 frc remove dynamic buf
 
-#define FRC_FW_VER			"2023-0524 frc remove dynamic buf"
+#define FRC_FW_VER			"2023-0817 add frc security workaround"
 #define FRC_KERDRV_VER                  2795
 
 #define FRC_DEVNO	1
@@ -332,6 +333,7 @@ struct st_frc_in_sts {
 	u8 frc_source_chg;
 	u16 frc_vf_rate;
 	u32 frc_last_disp_count;
+	u32 frm_delay;
 };
 
 struct st_frc_out_sts {
@@ -531,6 +533,7 @@ struct frc_dev_s {
 	//struct workqueue_struct *frc_wq;
 	//struct work_struct frc_work;
 	struct work_struct frc_clk_work;
+	struct work_struct frc_secure_work;
 
 	struct st_frc_sts frc_sts;
 	struct st_frc_in_sts in_sts;

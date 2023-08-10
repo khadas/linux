@@ -15,6 +15,8 @@
 #define MIN_HIST2 7150000
 #define LIMIT 10
 
+#define FRC_RE_CFG_CNT  3
+
 enum vf_sts {
 	VFRAME_NO = 0,
 	VFRAME_HAVE = 1,
