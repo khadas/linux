@@ -877,7 +877,7 @@ static void vrr_init_game_para(struct tx_vrr_params *para)
 	memset(&para->emp_vrr_pkt, 0, sizeof(para->emp_vrr_pkt));
 
 	memset(vrr_pkt, 0, sizeof(*vrr_pkt));
-	vrr_pkt->type = conf->type;
+	vrr_pkt->type = (enum emp_type)conf->type;
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_HEADER_INIT,
 		HDMI_INFOFRAME_TYPE_EMP);
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_HEADER_FIRST, 1);
@@ -937,7 +937,7 @@ static void vrr_init_qms_para(struct tx_vrr_params *para)
 		brr_rate = 120;
 
 	memset(vrr_pkt, 0, sizeof(*vrr_pkt));
-	vrr_pkt->type = conf->type;
+	vrr_pkt->type = (enum emp_type)conf->type;
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_HEADER_INIT,
 		HDMI_INFOFRAME_TYPE_EMP);
 	hdmi_emp_frame_set_member(vrr_pkt, CONF_HEADER_FIRST, 1);
@@ -1260,7 +1260,7 @@ static void hdmitx_vrr_game_handler(struct hdmitx_dev *hdev)
 	vrr->game_val.vtotal_fixed = vtotal_tmp;
 	vrr_debug_info("game-vrr vtotal = %d\n", vrr->game_val.vtotal_fixed);
 
-	hdmi_emp_infoframe_set(&vrr->emp_vrr_pkt);
+	hdmi_emp_infoframe_set(EMP_TYPE_VRR_GAME, &vrr->emp_vrr_pkt);
 	hdmitx_vrr_set_maxlncnt(vrr->game_val.vtotal_fixed);
 	vrr_cur_vtotal_debug(vrr->frame_cnt, m_const, vrr->game_val.vtotal_fixed);
 	vrr->frame_cnt++;
@@ -1298,7 +1298,7 @@ irqreturn_t hdmitx_vrr_vsync_handler(struct hdmitx_dev *hdev)
 		m_const = 0;
 		hdmi_emp_frame_set_member(&vrr->emp_vrr_pkt, CONF_M_CONST,
 			m_const);
-		hdmi_emp_infoframe_set(&vrr->emp_vrr_pkt);
+		hdmi_emp_infoframe_set(EMP_TYPE_VRR_QMS, &vrr->emp_vrr_pkt);
 		vrr_cur_vtotal_debug(vrr->frame_cnt, m_const, vrr->mconst_val->vtotal_fixed);
 		return IRQ_HANDLED;
 	}
@@ -1317,7 +1317,7 @@ irqreturn_t hdmitx_vrr_vsync_handler(struct hdmitx_dev *hdev)
 		m_const = 1;
 
 	hdmi_emp_frame_set_member(&vrr->emp_vrr_pkt, CONF_M_CONST, m_const);
-	hdmi_emp_infoframe_set(&vrr->emp_vrr_pkt);
+	hdmi_emp_infoframe_set(EMP_TYPE_VRR_GAME, &vrr->emp_vrr_pkt);
 	hdmitx_vrr_set_maxlncnt(vtotal_tmp);
 	vrr_cur_vtotal_debug(vrr->frame_cnt, m_const, vrr->mconst_val->vtotal_fixed);
 	/* the frame count will add 1 at end */

@@ -36,7 +36,7 @@
 #define AVMUTE_PATH_2 0x40 //mute by upstream side request re-auth
 
 struct emp_packet_st;
-enum vrr_component_conf;
+enum emp_component_conf;
 
 struct hdmi_packet_t {
 	u8 hb[3];
@@ -68,6 +68,27 @@ enum ddc_err_t {
 	DDC_ERR_HW = 0x04,
 	DDC_ERR_LIM_EXCEED = 0x05,
 };
+
+enum vrr_type {
+	T_VRR_NONE,
+	T_VRR_GAME,
+	T_VRR_QMS,
+};
+
+enum emp_type {
+	EMP_TYPE_NONE,
+	EMP_TYPE_VRR_GAME = T_VRR_GAME,
+	EMP_TYPE_VRR_QMS = T_VRR_QMS,
+	EMP_TYPE_SBTM,
+	EMP_TYPE_DSC,
+	EMP_TYPE_DHDR,
+};
+
+#define HDMI_INFOFRAME_EMP_VRR_GAME ((HDMI_INFOFRAME_TYPE_EMP << 8) | (EMP_TYPE_VRR_GAME))
+#define HDMI_INFOFRAME_EMP_VRR_QMS ((HDMI_INFOFRAME_TYPE_EMP << 8) | (EMP_TYPE_VRR_QMS))
+#define HDMI_INFOFRAME_EMP_VRR_SBTM ((HDMI_INFOFRAME_TYPE_EMP << 8) | (EMP_TYPE_SBTM))
+#define HDMI_INFOFRAME_EMP_VRR_DSC ((HDMI_INFOFRAME_TYPE_EMP << 8) | (EMP_TYPE_DSC))
+#define HDMI_INFOFRAME_EMP_VRR_DHDR ((HDMI_INFOFRAME_TYPE_EMP << 8) | (EMP_TYPE_DHDR))
 
 u8 hdmi_ddc_status_check(void);
 u8 hdmi_ddc_busy_check(void);
@@ -101,15 +122,9 @@ void hdmi_audio_infoframe_set(struct hdmi_audio_infoframe *info);
 void hdmi_audio_infoframe_rawset(u8 *hb, u8 *pb);
 void hdmi_drm_infoframe_set(struct hdmi_drm_infoframe *info);
 void hdmi_drm_infoframe_rawset(u8 *hb, u8 *pb);
-void hdmi_emp_infoframe_set(struct emp_packet_st *info);
+void hdmi_emp_infoframe_set(enum emp_type type, struct emp_packet_st *info);
 void hdmi_emp_frame_set_member(struct emp_packet_st *info,
-	enum vrr_component_conf conf, u32 val);
-
-enum vrr_type {
-	T_VRR_NONE,
-	T_VRR_GAME,
-	T_VRR_QMS,
-};
+	enum emp_component_conf conf, u32 val);
 
 /* refer to HDMI2.1A P447 */
 enum TARGET_FRAME_RATE {
@@ -208,6 +223,7 @@ struct emp_packet_0_body {
 	union {
 		struct vtem_gamevrr_st game_md;
 		struct vtem_qmsvrr_st qms_md;
+		struct vtem_sbtm_st sbtm_md;
 		u8 md[21]; /* pb7~pb27, md0~md20 */
 	} md;
 };
@@ -218,7 +234,7 @@ struct emp_packet_n_body {
 
 /* extended metadata packet, 2.1A P304, no checksum in the PB0 */
 struct emp_packet_st {
-	enum vrr_type type;
+	enum emp_type type;
 	struct emp_packet_header header;
 	union {
 		struct emp_packet_0_body emp0;
@@ -249,7 +265,7 @@ enum avi_component_conf {
 	CONF_AVI_CT_TYPE,
 };
 
-enum vrr_component_conf {
+enum emp_component_conf {
 	CONF_HEADER_INIT,
 	CONF_HEADER_LAST,
 	CONF_HEADER_FIRST,
@@ -270,6 +286,12 @@ enum vrr_component_conf {
 	CONF_BASE_VFRONT,
 	CONF_NEXT_TFR,
 	CONF_BASE_REFRESH_RATE,
+	CONF_SBTM_VER,
+	CONF_SBTM_MODE,
+	CONF_SBTM_TYPE,
+	CONF_SBTM_GRDM_MIN,
+	CONF_SBTM_GRDM_LUM,
+	CONF_SBTM_FRMPBLIMITINT,
 };
 
 /* CONF_AVI_BT2020 */

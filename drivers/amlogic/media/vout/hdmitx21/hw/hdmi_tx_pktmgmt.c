@@ -161,8 +161,13 @@ static int _tpi_infoframe_wrrd(u8 wr, u16 info_type, u8 *body)
 	case HDMI_INFOFRAME_TYPE_VENDOR2:
 		sel = 8;
 		break;
-	case HDMI_INFOFRAME_TYPE_EMP:
+	case HDMI_INFOFRAME_EMP_VRR_GAME:
+	case HDMI_INFOFRAME_EMP_VRR_QMS:
 		sel = 9;
+		no_chksum_flag = 1;
+		break;
+	case HDMI_INFOFRAME_EMP_VRR_SBTM:
+		sel = 10;
 		no_chksum_flag = 1;
 		break;
 	default:

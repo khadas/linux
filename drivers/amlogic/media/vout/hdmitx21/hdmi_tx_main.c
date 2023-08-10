@@ -74,6 +74,7 @@ static struct class *hdmitx_class;
 static int set_disp_mode_auto(void);
 static void hdmitx_get_edid(struct hdmitx_dev *hdev);
 static void hdmitx_set_drm_pkt(struct master_display_info_s *data);
+static void hdmitx_set_sbtm_pkt(struct vtem_sbtm_st *data);
 static void hdmitx_set_vsif_pkt(enum eotf_type type, enum mode_type
 	tunnel_mode, struct dv_vsif_para *data, bool signal_sdr);
 static void hdmitx_set_hdr10plus_pkt(u32 flag,
@@ -199,6 +200,7 @@ static int hdr_mute_frame = 20;
 static struct vout_device_s hdmitx_vdev = {
 	.dv_info = &ext_dvinfo,
 	.fresh_tx_hdr_pkt = hdmitx_set_drm_pkt,
+	.fresh_tx_sbtm_pkt = hdmitx_set_sbtm_pkt,
 	.fresh_tx_vsif_pkt = hdmitx_set_vsif_pkt,
 	.fresh_tx_hdr10plus_pkt = hdmitx_set_hdr10plus_pkt,
 	.fresh_tx_cuva_hdr_vsif = hdmitx_set_cuva_hdr_vsif,
@@ -2209,6 +2211,39 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 }
 
+static struct emp_packet_st pkt_sbtm;
+static void hdmitx_set_sbtm_pkt(struct vtem_sbtm_st *data)
+{
+	struct emp_packet_st *sbtm = &pkt_sbtm;
+
+	if (!data) {
+		hdmi_emp_infoframe_set(EMP_TYPE_SBTM, NULL);
+		return;
+	}
+	memset(sbtm, 0, sizeof(*sbtm));
+	sbtm->type = EMP_TYPE_SBTM;
+	hdmi_emp_frame_set_member(sbtm, CONF_HEADER_INIT, HDMI_INFOFRAME_TYPE_EMP);
+	hdmi_emp_frame_set_member(sbtm, CONF_HEADER_FIRST, 1);
+	hdmi_emp_frame_set_member(sbtm, CONF_HEADER_LAST, 1);
+	hdmi_emp_frame_set_member(sbtm, CONF_HEADER_SEQ_INDEX, 0);
+	hdmi_emp_frame_set_member(sbtm, CONF_DS_TYPE, 1);
+	hdmi_emp_frame_set_member(sbtm, CONF_SYNC, 1);
+	hdmi_emp_frame_set_member(sbtm, CONF_VFR, 1);
+	hdmi_emp_frame_set_member(sbtm, CONF_AFR, 0);
+	hdmi_emp_frame_set_member(sbtm, CONF_NEW, 0);
+	hdmi_emp_frame_set_member(sbtm, CONF_END, 0);
+	hdmi_emp_frame_set_member(sbtm, CONF_ORG_ID, 1);
+	hdmi_emp_frame_set_member(sbtm, CONF_DATA_SET_TAG, 3);
+	hdmi_emp_frame_set_member(sbtm, CONF_DATA_SET_LENGTH, 4);
+	hdmi_emp_frame_set_member(sbtm, CONF_SBTM_VER, data->sbtm_ver);
+	hdmi_emp_frame_set_member(sbtm, CONF_SBTM_MODE, data->sbtm_mode);
+	hdmi_emp_frame_set_member(sbtm, CONF_SBTM_TYPE, data->sbtm_type);
+	hdmi_emp_frame_set_member(sbtm, CONF_SBTM_GRDM_MIN, data->grdm_min);
+	hdmi_emp_frame_set_member(sbtm, CONF_SBTM_GRDM_LUM, data->grdm_lum);
+	hdmi_emp_frame_set_member(sbtm, CONF_SBTM_FRMPBLIMITINT, data->frmpblimitint);
+	hdmi_emp_infoframe_set(EMP_TYPE_SBTM, sbtm);
+}
+
 static void update_current_para(struct hdmitx_dev *hdev)
 {
 	struct vinfo_s *info = NULL;
@@ -3105,6 +3140,16 @@ static ssize_t config_store(struct device *dev,
 	} else if (strncmp(buf, "hdr", 3) == 0) {
 		data.features = 0x00091000;
 		hdmitx_set_drm_pkt(&data);
+	} else if (strncmp(buf, "sbtm", 4) == 0) {
+		struct vtem_sbtm_st sbtm = {
+			.sbtm_ver = 0x2,
+			.sbtm_mode = 0x3,
+			.sbtm_type = 0x1,
+			.grdm_min = 0x1,
+			.grdm_lum = 2,
+			.frmpblimitint = 0xdcba, /* MD2/3 */
+		};
+		hdmitx_set_sbtm_pkt(&sbtm);
 	} else if (strncmp(buf, "hlg", 3) == 0) {
 		data.features = 0x00091200;
 		hdmitx_set_drm_pkt(&data);

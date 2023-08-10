@@ -58,6 +58,17 @@ struct master_display_info_s {
 	u32 max_frame_average;	/* Maximum Frame-average Light Level */
 };
 
+/* SBTM packet info */
+struct vtem_sbtm_st {
+	u8 sbtm_ver: 4; /* MD0 */
+	unsigned char: 4;
+	u8 sbtm_mode: 2; /* MD1 */
+	u8 sbtm_type: 2;
+	u8 grdm_min: 2;
+	u8 grdm_lum: 2;
+	u16 frmpblimitint; /* MD2/3 */
+};
+
 /*
  *hdr_dynamic_type
  * 0x0001: type_1_hdr_metadata_version
@@ -91,6 +102,7 @@ struct cuva_info {
 	u8 rx_mode_sup;
 };
 
+/* SBTM EDID capabilities */
 struct sbtm_info {
 	unsigned char sbtm_support: 1;
 	unsigned char max_sbtm_ver: 4;
@@ -148,7 +160,7 @@ struct hdr_info {
 	u32 lumi_avg; /* RX EDID Lumi Avg value */
 	u32 lumi_min; /* RX EDID Lumi Min value */
 	struct cuva_info cuva_info;
-	struct sbtm_info sbtm_info;
+	struct sbtm_info sbtm_info; /* TV SBTM EDID capabilities */
 
 	u8 ldim_support;
 	u32 lumi_peak;
@@ -334,6 +346,7 @@ struct dv_info {
 struct vout_device_s {
 	const struct dv_info *dv_info;
 	void (*fresh_tx_hdr_pkt)(struct master_display_info_s *data);
+	void (*fresh_tx_sbtm_pkt)(struct vtem_sbtm_st *data);
 	void (*fresh_tx_vsif_pkt)(enum eotf_type type,
 				  enum mode_type tunnel_mode,
 				  struct dv_vsif_para *data,
@@ -394,6 +407,7 @@ struct vinfo_s {
 	 */
 	unsigned int viu_mux;
 	struct master_display_info_s master_display_info;
+	struct vtem_sbtm_st sbtm_pkt;
 	struct hdr_info hdr_info;
 	struct rx_av_latency rx_latency;
 	struct vout_device_s *vout_device;
