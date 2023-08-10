@@ -592,7 +592,7 @@ static void hdmitx_set_frlrate_none(struct hdmitx_dev *hdev)
 	u8 data;
 
 	/* such as T7 unsupport FRL, skip frl flow */
-	if (hdev->data && hdev->data->chip_type < MESON_CPU_ID_S5)
+	if (hdev->data && hdev->data->chip_type != MESON_CPU_ID_S5)
 		return;
 
 	if (hdev->rxcap.max_frl_rate > FRL_NONE &&

@@ -1068,11 +1068,13 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	else
 		hdmitx21_set_reg_bits(PCLK2TMDS_MISC1_IVCTX, 0, 4, 1);
 
-	/* block hsync, this is need to enable when in DSC mode */
-	if (hdev->dsc_en)
-		hdmitx21_set_reg_bits(H21TXSB_CTRL_1_IVCTX, 1, 2, 1);
-	else
-		hdmitx21_set_reg_bits(H21TXSB_CTRL_1_IVCTX, 0, 2, 1);
+	if (hdev->data->chip_type == MESON_CPU_ID_S5) {
+		/* block hsync, this is need to enable when in DSC mode */
+		if (hdev->dsc_en)
+			hdmitx21_set_reg_bits(H21TXSB_CTRL_1_IVCTX, 1, 2, 1);
+		else
+			hdmitx21_set_reg_bits(H21TXSB_CTRL_1_IVCTX, 0, 2, 1);
+	}
 	hdmitx_set_hw(hdev);
 
 	/* dsc program step8.4: Configure VENC timing gen to be slave mode
@@ -1246,7 +1248,7 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	}
 
 	hdmitx_set_phy(hdev);
-	if (hdev->data->chip_type >= MESON_CPU_ID_S5) {
+	if (hdev->data->chip_type == MESON_CPU_ID_S5) {
 		hdmitx_dfm_cfg(0, 0);
 
 		if (hdev->frl_rate) {
