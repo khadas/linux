@@ -20,8 +20,9 @@
 #include <linux/amlogic/media/vrr/vrr.h>
 #include <drm/amlogic/meson_connector_dev.h>
 #include <linux/miscdevice.h>
+#ifdef CONFIG_AMLOGIC_DSC
 #include <linux/amlogic/media/vout/dsc/dsc.h>
-
+#endif
 #define DEVICE_NAME "amhdmitx21"
 
 /* HDMITX driver version */
@@ -446,8 +447,10 @@ struct hdmitx_dev {
 	enum frl_rate_enum tx_max_frl_rate; /* configure in dts file */
 	u8 dsc_en;
 	u8 dsc_policy;
+#ifdef CONFIG_AMLOGIC_DSC
 	/* pps data and clk info from dsc module */
 	struct dsc_offer_tx_data dsc_data;
+#endif
 	struct hdmitx_info hdmi_info;
 	u32 log;
 	u32 tx_aud_cfg; /* 0, off; 1, on */

@@ -193,6 +193,7 @@ int hdmitx_infoframe_rawget(u16 info_type, u8 *body)
 	return _tpi_infoframe_wrrd(0, info_type, body);
 }
 
+#ifdef CONFIG_AMLOGIC_DSC
 /* refer to VESA-DSC-1.2a.pdf Page 50 */
 static void pps_data_map(u8 *body, struct dsc_pps_data_s *pps,
 	struct hdmi_timing *timing)
@@ -357,6 +358,7 @@ void hdmitx_dsc_cvtem_pkt_send(struct dsc_pps_data_s *pps,
 	//hdmitx21_wr_reg(DSC_PKT_INSERT_CTRL_IVCTX, 0x0); // [0] reg_pkt_gen; [1]reg_pkt_gen_en
 	//hdmitx21_set_reg_bits(PCLK2TMDS_MISC1_IVCTX, 1, 4, 1); //[4] reg_bypass_video_path
 }
+#endif
 
 void hdmitx_dsc_cvtem_pkt_disable(void)
 {
@@ -369,7 +371,9 @@ module_param(emp_no, int, 0644);
 
 irqreturn_t hdmitx_emp_vsync_handler(struct hdmitx_dev *hdev)
 {
+#ifdef CONFIG_AMLOGIC_DSC
 	struct dsc_offer_tx_data dsc_data;
+#endif
 	struct hdmi_timing *timing;
 
 	if (!hdev->dsc_en || emp_no == 0)
@@ -379,8 +383,10 @@ irqreturn_t hdmitx_emp_vsync_handler(struct hdmitx_dev *hdev)
 		emp_no--;
 
 	timing = &hdev->para->timing;
+#ifdef CONFIG_AMLOGIC_DSC
 	hdmitx_get_dsc_data(&dsc_data);
 	hdmitx_dsc_cvtem_pkt_send(&dsc_data.pps_data, timing);
+#endif
 	return IRQ_HANDLED;
 }
 

@@ -364,8 +364,11 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	frl_tx_stop(hdev);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
 		HDMITX_EARLY_SUSPEND);
+
+#ifdef CONFIG_AMLOGIC_DSC
 	aml_dsc_enable(false);
 	hdmitx_dsc_cvtem_pkt_disable();
+#endif
 	hdmitx21_disable_hdcp(hdev);
 	hdmitx21_rst_stream_type(hdev->am_hdcp);
 	hdmitx_set_frlrate_none(hdev);
@@ -472,8 +475,10 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 	else
 		msleep(100);
 	frl_tx_stop(hdev);
+#ifdef CONFIG_AMLOGIC_DSC
 	aml_dsc_enable(false);
 	hdmitx_dsc_cvtem_pkt_disable();
+#endif
 	if (hdev->rxsense_policy)
 		cancel_delayed_work(&hdev->work_rxsense);
 	if (hdev->cedst_policy)
@@ -859,7 +864,9 @@ static int set_disp_mode_auto(void)
 	struct hdmi_format_para *para = NULL;
 	u8 mode[32];
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
+#ifdef CONFIG_AMLOGIC_DSC
 	struct dsc_notifier_data_s dsc_notifier_data;
+#endif
 	enum frl_rate_enum source_test_frl_rate = FRL_NONE;
 
 	mutex_lock(&hdev->hdmimode_mutex);
@@ -971,7 +978,9 @@ static int set_disp_mode_auto(void)
 		if (hdev->frl_rate > hdev->tx_max_frl_rate)
 			pr_info("error: Current frl_rate %d is larger than tx_max_frl_rate %d\n",
 				hdev->frl_rate, hdev->tx_max_frl_rate);
-
+		pr_info("----%s %d\n", __func__, __LINE__);
+#ifdef CONFIG_AMLOGIC_DSC
+		pr_info("++++%s %d\n", __func__, __LINE__);
 		/* DSC specific, automatically enable dsc if necessary */
 		if (strcmp(mode, "7680x4320p60hz") == 0) {
 			if (strstr(hdev->fmt_attr, "444") ||
@@ -1097,6 +1106,7 @@ static int set_disp_mode_auto(void)
 			if (hdev->dsc_policy != 2)
 				hdev->dsc_en = 0;
 		}
+#endif
 	}
 
 	/* if (strstr(mode, "i")) { */
@@ -1107,6 +1117,10 @@ static int set_disp_mode_auto(void)
 	/* source_test_frl_rate has the highest priority */
 	if (source_test_frl_rate > FRL_NONE && source_test_frl_rate < FRL_RATE_MAX)
 		hdev->frl_rate = source_test_frl_rate;
+
+	pr_info("----%s %d\n", __func__, __LINE__);
+#ifdef CONFIG_AMLOGIC_DSC
+	pr_info("++++%s %d\n", __func__, __LINE__);
 
 	if (hdev->dsc_en && hdev->data->chip_type == MESON_CPU_ID_S5) {
 		/* notify hdmitx format to dsc, and dsc module will
@@ -1139,6 +1153,7 @@ static int set_disp_mode_auto(void)
 				hdev->dsc_data.cts_hdmi_tx_pixel_clk);
 		}
 	}
+#endif
 	/* if manual_frl_rate is true, set to force frl_rate */
 	if (hdev->manual_frl_rate) {
 		hdev->frl_rate = hdev->manual_frl_rate;
@@ -5643,6 +5658,7 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 			vinfo->cur_enc_ppc = 1;
 			if (hdev->hwop.cntlmisc(hdev, MISC_GET_FRL_MODE, 0))
 				vinfo->cur_enc_ppc = 4;
+#ifdef CONFIG_AMLOGIC_DSC
 			if (get_dsc_en()) {
 				hdev->dsc_en = 1;
 				if (hdev->para->cs == HDMI_COLORSPACE_RGB)
@@ -5652,6 +5668,7 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 			} else {
 				vinfo->vpp_post_out_color_fmt = 0;
 			}
+#endif
 			pr_info("vinfo: set cur_enc_ppc as %d, vpp color: %d\n",
 				vinfo->cur_enc_ppc, vinfo->vpp_post_out_color_fmt);
 		}
@@ -5710,6 +5727,7 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data)
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 
 	/* turn off encp timing gen->disable dsc encoder */
+#ifdef CONFIG_AMLOGIC_DSC
 	if (hdev->data->chip_type == MESON_CPU_ID_S5) {
 		hdmitx21_venc_en(0, 1);
 		/* if (dsc_dis_dbg >= 0) { */
@@ -5717,6 +5735,7 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data)
 		hdmitx_dsc_cvtem_pkt_disable();
 		/* } */
 	}
+#endif
 	/* hdmitx21_disable_clk(hdev); */
 	hdev->para = hdmitx21_get_fmtpara("invalid", hdev->fmt_attr);
 	hdmitx_validate_vmode("null", 0, NULL);

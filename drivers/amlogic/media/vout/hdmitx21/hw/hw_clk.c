@@ -1160,6 +1160,7 @@ static void hdmitx_set_fpll_without_dsc(struct hdmitx_dev *hdev)
 	hdmitx_set_s5_fpll(fpll_vco, div, pixel_od);
 }
 
+#ifdef CONFIG_AMLOGIC_DSC
 /* debug only */
 static int fpll_pixel_clk; /* = 438504; for DSC 8k60 444 FRL6G4L 8 */
 static void hdmitx_set_fpll_with_dsc(struct hdmitx_dev *hdev)
@@ -1208,6 +1209,11 @@ static void hdmitx_set_fpll_with_dsc(struct hdmitx_dev *hdev)
 
 	hdmitx_set_s5_fpll(fpll_vco, div, pixel_od);
 }
+#else
+static void hdmitx_set_fpll_with_dsc(struct hdmitx_dev *hdev)
+{
+}
+#endif
 
 void hdmitx_set_fpll(struct hdmitx_dev *hdev)
 {
@@ -1217,6 +1223,7 @@ void hdmitx_set_fpll(struct hdmitx_dev *hdev)
 		hdmitx_set_fpll_without_dsc(hdev);
 }
 
+#ifdef CONFIG_AMLOGIC_DSC
 /* for debug only */
 static int gp2_pll_enc0_clk;
 void hdmitx_set_gp2pll(struct hdmitx_dev *hdev)
@@ -1260,6 +1267,11 @@ void hdmitx_set_gp2pll(struct hdmitx_dev *hdev)
 
 	hdmitx_set_s5_gp2pll(gp2pll_vco, div);
 }
+#else
+void hdmitx_set_gp2pll(struct hdmitx_dev *hdev)
+{
+}
+#endif
 
 void hdmitx_set_clkdiv(struct hdmitx_dev *hdev)
 {

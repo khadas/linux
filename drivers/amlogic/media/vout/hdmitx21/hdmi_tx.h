@@ -550,8 +550,10 @@ bool frl_tx_tx_phy_init(bool disable_ffe);
 void frl_tx_tx_init(void);
 void frl_tx_tx_phy_set(void);
 void tmds_tx_phy_set(void);
+#ifdef CONFIG_AMLOGIC_DSC
 void hdmitx_dsc_cvtem_pkt_send(struct dsc_pps_data_s *pps,
 	struct hdmi_timing *timing);
+#endif
 void hdmitx_dsc_cvtem_pkt_disable(void);
 enum frl_rate_enum hdmitx21_select_frl_rate(bool dsc_en, enum hdmi_vic vic,
 	enum hdmi_colorspace cs, enum hdmi_color_depth cd);

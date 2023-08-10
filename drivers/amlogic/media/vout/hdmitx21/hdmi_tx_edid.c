@@ -2434,6 +2434,7 @@ u8 dsc_max_slices_num[] = {
 	16
 };
 
+#ifdef CONFIG_AMLOGIC_DSC
 /* get the needed frl rate, refer to 2.1 spec table 7-37/38,
  * actually it may also need to check bpp
  */
@@ -2609,6 +2610,7 @@ static bool edid_check_dsc_support(struct hdmitx_dev *hdev, struct hdmi_format_p
 
 	return true;
 }
+#endif
 
 /* For some TV's EDID, there maybe exist some information ambiguous.
  * Such as EDID declare support 2160p60hz(Y444 8bit), but no valid
@@ -2720,6 +2722,7 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 		if (calc_tmds_clk > rx_max_tmds_clk)
 			return 0;
 	} else {
+#ifdef CONFIG_AMLOGIC_DSC
 		if (hdev->dsc_policy == 1) {
 			if (edid_check_dsc_support(hdev, para))
 				return 1;
@@ -2727,6 +2730,7 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 			/* for debug test */
 			return 1;
 		}
+#endif
 		if (!must_frl_flag) {
 			/* used TMDS, calc_tmds_clk must less than 594, not
 			 * need repeat judgment(calc_tmds_clk < tx_bandwidth_cap)
@@ -2748,10 +2752,15 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 				if (tx_frl_bandwidth <= tx_bandwidth_cap &&
 					tx_frl_bandwidth <= rx_frl_bandwidth)
 					; // non-dsc bandwidth is within cap, continue check
+#ifdef CONFIG_AMLOGIC_DSC
 				else if (hdev->dsc_policy == 3) //forcely filter out dsc mode output
 					return 0;
 				else if (!edid_check_dsc_support(hdev, para))
 					return 0;
+#else
+				else
+					return 0;
+#endif
 			}
 			valid = 1;
 		}

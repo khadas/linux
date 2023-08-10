@@ -35,7 +35,6 @@
 #include "common.h"
 #include "../hdmi_tx_ext.h"
 #include <linux/amlogic/clk_measure.h>
-#include <linux/amlogic/media/vout/dsc/dsc.h>
 
 #define MESON_CPU_ID_T7 0
 static void hdmi_phy_suspend(void);
@@ -1219,7 +1218,7 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 
 	/* recommend flow: dsc mux->dsc configure/dsc_enc_en/dsc_tmg_en->venc_enable */
 	hd21_set_reg_bits(VPU_HDMI_SETTING, !!hdev->dsc_en, 31, 1);
-
+#ifdef CONFIG_AMLOGIC_DSC
 	if (hdev->dsc_en) {
 		hdmitx_dsc_cvtem_pkt_send(&hdev->dsc_data.pps_data, &hdev->para->timing);
 		/* dsc program step8.5: Program DSC settings. */
@@ -1232,6 +1231,7 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 		hdmitx_get_dsc_data(&hdev->dsc_data);
 		hdmitx_dsc_cvtem_pkt_send(&hdev->dsc_data.pps_data, &hdev->para->timing);
 	}
+#endif
 
 	/* enable venc */
 	hd21_set_reg_bits(VPU_HDMI_SETTING, 1, (hdev->enc_idx == 0) ? 0 : 1, 1);
@@ -1280,11 +1280,13 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 			int hc_active = 0;
 
 			if (hdev->dsc_en) {
+#ifdef CONFIG_AMLOGIC_DSC
 				hc_active = dsc_get_hc_active_by_mode(hdev->dsc_data.dsc_mode);
 				/* the pixel_clk is for dual pixel, need double when calculate */
 				ret = frl_check_full_bw(HDMI_COLORSPACE_YUV444, COLORDEPTH_24B,
 					hdev->dsc_data.cts_hdmi_tx_pixel_clk / 1000 * 2,
 					hc_active, hdev->frl_rate, &tri_bytes_per_line);
+#endif
 			} else {
 				ret = frl_check_full_bw(hdev->para->cs, hdev->para->cd,
 					hdev->para->timing.pixel_freq, hdev->para->timing.h_active,
@@ -1309,7 +1311,6 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 				/* else */
 					/* hdmitx_dfm_cfg(2, 0); */
 			}
-
 			pr_info("%s hc_active: %d, need full_bw: %d, tri_bytes_per_line: %d, dfm_type: %d\n",
 				__func__, hc_active, ret, tri_bytes_per_line, dfm_type);
 		}
@@ -2322,8 +2323,10 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		if (value == 0) {
 			hdmitx_dsc_cvtem_pkt_disable();
 		} else {
+#ifdef CONFIG_AMLOGIC_DSC
 			hdmitx_get_dsc_data(&hdev->dsc_data);
 			hdmitx_dsc_cvtem_pkt_send(&hdev->dsc_data.pps_data, &hdev->para->timing);
+#endif
 		}
 		pr_info("dsc emp test %s\n", value ? "enable" : "disable");
 	} else if (strncmp(tmpbuf, "venc", 4) == 0) {
