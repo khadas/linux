@@ -23,6 +23,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/gki_module.h>
+#include <linux/reboot.h>
 
 struct mtd_info *aml_mtd_info[NAND_MAX_DEVICE];
 u8 aml_mtd_devnum;
@@ -782,7 +783,8 @@ static void meson_nfc_check_ecc_pages_valid(struct meson_nfc *nfc,
 	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
 	__le64 *info;
 	u32 neccpages;
-	int ret;
+	int ret, cnt = 100000;
+	int info_len = nand->ecc.steps * PER_INFO_BYTE;
 
 	neccpages = raw ? 1 : nand->ecc.steps;
 	info = &meson_chip->info_buf[neccpages - 1];
@@ -790,8 +792,16 @@ static void meson_nfc_check_ecc_pages_valid(struct meson_nfc *nfc,
 		usleep_range(10, 15);
 		/* info is updated by nfc dma engine*/
 		smp_rmb();
+		dma_sync_single_for_cpu(nfc->dev, nfc->iaddr, info_len, DMA_FROM_DEVICE);
 		ret = *info & ECC_COMPLETE;
-	} while (!ret);
+		if (ret)
+			return;
+
+	} while (cnt--);
+
+	dev_err(nfc->dev, "NAND ECC timeout, reboot! 0x%llx, 0x%x\n", *info, nand->ecc.steps);
+	dump_stack();
+	kernel_restart(NULL);
 }
 
 static int meson_nfc_read_page_sub(struct nand_chip *nand,
@@ -830,9 +840,8 @@ static int meson_nfc_read_page_sub(struct nand_chip *nand,
 
 	ret = meson_nfc_wait_dma_finish(nfc);
 
-	/* first unmap dma ,then read the info data, */
-	meson_nfc_dma_buffer_release(nand, data_len, info_len, DMA_FROM_DEVICE);
 	meson_nfc_check_ecc_pages_valid(nfc, nand, raw);
+	meson_nfc_dma_buffer_release(nand, data_len, info_len, DMA_FROM_DEVICE);
 
 	return ret;
 }
@@ -864,11 +873,10 @@ static int meson_nfc_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 {
 	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
-	struct nand_ecc_ctrl *ecc = &nand->ecc;
 	u64 correct_bitmap = 0;
 	u32 bitflips = 0;
 	u8 *oob_buf = nand->oob_poi;
-	int ret, i;
+	int ret, pages_per_blk_shift;
 
 	ret = meson_nfc_read_page_sub(nand, page, 0);
 	if (ret)
@@ -881,32 +889,10 @@ static int meson_nfc_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 			memset(buf, 0xff, mtd->writesize);
 		memset(oob_buf, 0xff, mtd->oobsize);
 	} else if (ret < 0) {
-		if ((nand->options & NAND_NEED_SCRAMBLING) || !buf) {
-			mtd->ecc_stats.failed++;
-			return bitflips;
-		}
-		/*really need this??? lxj*/
-		ret  = meson_nfc_read_page_raw(nand, buf, 0, page);
-		if (ret)
-			return -ENODATA;
-
-		for (i = 0; i < nand->ecc.steps ; i++) {
-			u8 *data = buf + i * ecc->size;
-			u8 *oob = nand->oob_poi + i * (ecc->bytes + 2);
-
-			if (correct_bitmap & (1 << i))
-				continue;
-			ret = nand_check_erased_ecc_chunk(data,	ecc->size,
-							  oob, ecc->bytes + 2,
-							  NULL, 0,
-							  ecc->strength);
-			if (ret < 0) {
-				mtd->ecc_stats.failed++;
-			} else {
-				mtd->ecc_stats.corrected += ret;
-				bitflips =  max_t(u32, bitflips, ret);
-			}
-		}
+		mtd->ecc_stats.failed++;
+		pages_per_blk_shift = (nand->phys_erase_shift - nand->page_shift);
+		pr_err("read ecc failed here at page:%d, blk:%d\n",
+			page, (page >> pages_per_blk_shift));
 	} else if (buf && buf != meson_chip->data_buf) {
 		memcpy(buf, meson_chip->data_buf, mtd->writesize);
 	}
