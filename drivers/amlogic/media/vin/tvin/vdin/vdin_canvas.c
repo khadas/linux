@@ -897,6 +897,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 void vdin_cma_release(struct vdin_dev_s *devp)
 {
 	char vdin_name[6];
+	vdin_name[0] = '\0';
 	unsigned int i;
 
 	if (devp->cma_config_en == 0 || devp->cma_mem_alloc == 0) {

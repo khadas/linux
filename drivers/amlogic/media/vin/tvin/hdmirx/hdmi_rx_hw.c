@@ -5465,7 +5465,8 @@ void aml_phy_power_off(void)
 	} else if (rx.phy_ver == PHY_VER_T5) {
 		/* pll power down */
 		aml_phy_power_off_t5();
-	} else if (rx.phy_ver >= PHY_VER_T7) {
+	} else if (rx.phy_ver >= PHY_VER_T7  &&
+		rx.phy_ver <= PHY_VER_T5W) {
 		/* pll power down */
 		aml_phy_power_off_t7();
 	} else if (rx.phy_ver == PHY_VER_T5M) {
@@ -5631,31 +5632,16 @@ void rx_emp_field_done_irq(void)
 		src_addr = kmap_atomic(cur_start_pg_addr);
 		dma_sync_single_for_cpu(hdmirx_dev, (p_addr + i * PAGE_SIZE),
 					PAGE_SIZE, DMA_TO_DEVICE);
-		if (recv_byte_cnt >= PAGE_SIZE) {
-			for (j = 0; j < PAGE_SIZE;) {
-				//if (src_addr[j] == 0x7f) {
-					emp_pkt_cnt++;
-					/*32 bytes per emp pkt*/
-					for (k = 0; k < 32; k++) {
-						dst_addr[data_cnt] = src_addr[j + k];
-						data_cnt++;
-					}
-				//}
-				j += 32;
+		for (j = 0; j < recv_byte_cnt;) {
+			//if (src_addr[j] == 0x7f) {
+			emp_pkt_cnt++;
+			/*32 bytes per emp pkt*/
+			for (k = 0; k < 32; k++) {
+				dst_addr[data_cnt] = src_addr[j + k];
+				data_cnt++;
 			}
-			recv_byte_cnt -= PAGE_SIZE;
-		} else {
-			for (j = 0; j < recv_byte_cnt;) {
-				//if (src_addr[j] == 0x7f) {
-					emp_pkt_cnt++;
-					/*32 bytes per emp pkt*/
-					for (k = 0; k < 32; k++) {
-						dst_addr[data_cnt] = src_addr[j + k];
-						data_cnt++;
-					}
-				//}
-				j += 32;
-			}
+			//}
+			j += 32;
 		}
 		/*release*/
 		/*__kunmap_atomic(src_addr);*/
