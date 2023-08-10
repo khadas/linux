@@ -1160,7 +1160,7 @@
 	};
 
 sd_emmc_b: sdio@ffe05000 {
-				status = "disabled";
+				status = "okay";
 				compatible = "amlogic,meson-axg-mmc";
 				reg = <0xffe05000 0x800>,
 				<0xffe05000 0x4>,
