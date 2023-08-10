@@ -1686,11 +1686,6 @@ unsigned int vpp_vf_get_signal_type(enum vpp_vd_path_e vd_path)
 	return cur_signal_type[vd_path];
 }
 
-enum vpp_data_src_e vpp_vf_get_src_type(enum vpp_vd_path_e vd_path)
-{
-	return EN_SRC_VGA;
-}
-
 enum vpp_hdr_type_e vpp_vf_get_hdr_type(void)
 {
 	return cur_hdr_type;

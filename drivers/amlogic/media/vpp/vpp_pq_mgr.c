@@ -763,6 +763,15 @@ int vpp_pq_mgr_set_cm_curve(enum vpp_cm_curve_type_e type, int *pdata)
 	case EN_CM_HUE_BY_HS:
 		vpp_module_cm_set_cm2_hue_by_hs(pdata);
 		break;
+	case EN_CM_SAT_BY_L:
+		vpp_module_cm_set_cm2_sat_by_l(pdata);
+		break;
+	case EN_CM_SAT_BY_HL:
+		vpp_module_cm_set_cm2_sat_by_hl(pdata);
+		break;
+	case EN_CM_HUE_BY_HL:
+		vpp_module_cm_set_cm2_hue_by_hl(pdata);
+		break;
 	}
 
 	return 0;
@@ -791,6 +800,8 @@ int vpp_pq_mgr_set_cm_offset_curve(enum vpp_cm_curve_type_e type, char *pdata)
 		break;
 	case EN_CM_HUE_BY_HS:
 		vpp_module_cm_set_cm2_offset_hue_by_hs(pdata);
+		break;
+	default:
 		break;
 	}
 
@@ -1314,6 +1325,34 @@ int vpp_pq_mgr_set_aipq_data(struct vpp_aipq_table_s *pdata)
 	return 0;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_aipq_data);
+
+int vpp_pq_mgr_set_sr_param(struct vpp_sr0_param_s *sr0_data,
+	struct vpp_sr1_param_s *sr1_data)
+{
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
+
+	if (!sr0_data || !sr1_data)
+		return RET_POINT_FAIL;
+
+	return 0;
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_sr_param);
+
+int vpp_pq_mgr_set_aisr_param(struct vpp_aisr_param_s *sr_data,
+	struct vpp_aisr_nn_param_s *nn_data)
+{
+	if (pq_mgr_settings.bypass_top_set)
+		return 0;
+
+	if (!sr_data || !nn_data)
+		return RET_POINT_FAIL;
+
+	vpp_module_sr_set_aisr_param(sr_data, nn_data);
+
+	return 0;
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_aisr_param);
 
 int vpp_pq_mgr_set_overscan_table(unsigned int length,
 	struct vpp_overscan_table_s *load_table)

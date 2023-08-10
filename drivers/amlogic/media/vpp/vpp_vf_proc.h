@@ -34,7 +34,6 @@ void vpp_vf_set_overscan_table(unsigned int length,
 void vpp_vf_get_signal_info(enum vpp_vd_path_e vd_path,
 	struct vpp_vf_signal_info_s *pinfo);
 unsigned int vpp_vf_get_signal_type(enum vpp_vd_path_e vd_path);
-enum vpp_data_src_e vpp_vf_get_src_type(enum vpp_vd_path_e vd_path);
 enum vpp_hdr_type_e vpp_vf_get_hdr_type(void);
 enum vpp_color_primary_e vpp_vf_get_color_primary(void);
 struct vpp_hdr_metadata_s *vpp_vf_get_hdr_metadata(void);

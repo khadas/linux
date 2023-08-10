@@ -18,6 +18,7 @@
 #endif //CAL_FMETER_SCORE
 
 #define FMETER_TUNING_SIZE_MAX (11)
+#define LRHF_LPF_COEF_MASK (0x7ff)
 
 struct _sr_fmeter_size_cfg_s {
 	unsigned int sr_w;
@@ -58,11 +59,10 @@ struct _sr_bit_cfg_s {
 	struct _bit_s bit_freq_meter_en;
 	struct _bit_s bit_fmeter_mode;
 	struct _bit_s bit_fmeter_win;
-	struct _bit_s bit_nn_adp_coring;
 };
 
 struct _sr_reg_cfg_s {
-	unsigned char page[5];
+	unsigned char page[4];
 	unsigned char reg_srscl_gclk_ctrl;
 	unsigned char reg_srsharp0_ctrl;
 	unsigned char reg_srsharp1_ctrl;
@@ -88,19 +88,94 @@ struct _sr_reg_cfg_s {
 	unsigned char reg_fmeter_ratio_h;
 	unsigned char reg_fmeter_ratio_v;
 	unsigned char reg_fmeter_ratio_d;
-	unsigned char reg_sr7_pklong_pf_gain;
 	unsigned char reg_fmeter_h_flt0_9tap_0;
 	unsigned char reg_fmeter_h_flt0_9tap_1;
 	unsigned char reg_fmeter_h_flt1_9tap_0;
 	unsigned char reg_fmeter_h_flt1_9tap_1;
 	unsigned char reg_fmeter_h_flt2_9tap_0;
 	unsigned char reg_fmeter_h_flt2_9tap_1;
-	unsigned char reg_nn_adp_coring;
+	unsigned char reg_sr7_pklong_pf_gain;
+};
+
+struct _nn_sr_bit_cfg_s {
+	struct _bit_s bit_qt_clip_value;
+	struct _bit_s bit_hf_dering_en;
+	struct _bit_s bit_hf_dering_prot_thd;
+	struct _bit_s bit_hf_dering_thd0;
+	struct _bit_s bit_hf_dering_thd1;
+	struct _bit_s bit_hf_dering_slope;
+	struct _bit_s bit_dering_coring_en;
+	struct _bit_s bit_dering_coring_thd;
+	struct _bit_s bit_adj_gain_neg;
+	struct _bit_s bit_adj_gain_pos;
+	struct _bit_s bit_adj_pos_en;
+	struct _bit_s bit_adj_pos_thd0;
+	struct _bit_s bit_adj_pos_thd1;
+	struct _bit_s bit_adj_pos_thd2;
+	struct _bit_s bit_adj_pos_top0;
+	struct _bit_s bit_adj_pos_top1;
+	struct _bit_s bit_adj_pos_top2;
+	struct _bit_s bit_adj_pos_top3;
+	struct _bit_s bit_adj_pos_slope0;
+	struct _bit_s bit_adj_pos_slope1;
+	struct _bit_s bit_adj_pos_slope2;
+	struct _bit_s bit_adj_pos_slope3;
+	struct _bit_s bit_adj_neg_en;
+	struct _bit_s bit_adj_neg_thd0;
+	struct _bit_s bit_adj_neg_thd1;
+	struct _bit_s bit_adj_neg_thd2;
+	struct _bit_s bit_adj_neg_top0;
+	struct _bit_s bit_adj_neg_top1;
+	struct _bit_s bit_adj_neg_top2;
+	struct _bit_s bit_adj_neg_top3;
+	struct _bit_s bit_adj_neg_slope0;
+	struct _bit_s bit_adj_neg_slope1;
+	struct _bit_s bit_adj_neg_slope2;
+	struct _bit_s bit_adj_neg_slope3;
+	struct _bit_s bit_adp_coring_en;
+	struct _bit_s bit_adp_coring_thd;
+	struct _bit_s bit_adp_glb_coring_thd;
+};
+
+struct _nn_sr_reg_cfg_s {
+	unsigned char page;
+	unsigned char reg_qt_clip;
+	unsigned char reg_hf_dering_ctrl_0;
+	unsigned char reg_hf_dering_ctrl_1;
+	unsigned char reg_dering_coring_ctrl;
+	unsigned char reg_adj_pos_ctrl_0;
+	unsigned char reg_adj_pos_ctrl_1;
+	unsigned char reg_adj_pos_ctrl_2;
+	unsigned char reg_adj_pos_ctrl_3;
+	unsigned char reg_adj_pos_ctrl_4;
+	unsigned char reg_adj_pos_ctrl_5;
+	unsigned char reg_adj_neg_ctrl_0;
+	unsigned char reg_adj_neg_ctrl_1;
+	unsigned char reg_adj_neg_ctrl_2;
+	unsigned char reg_adj_neg_ctrl_3;
+	unsigned char reg_adj_neg_ctrl_4;
+	unsigned char reg_adj_neg_ctrl_5;
+	unsigned char reg_adp_coring_ctrl;
+};
+
+struct _nn_bit_cfg_s {
+	struct _bit_s bit_lrhf_hf_gain_neg;
+	struct _bit_s bit_lrhf_hf_gain_pos;
+};
+
+struct _nn_reg_cfg_s {
+	unsigned char page;
+	unsigned char reg_lrhf_hf_gain;
+	unsigned char reg_lrhf_lpf_coeff00_01;
+	unsigned char reg_lrhf_lpf_coeff02_10;
+	unsigned char reg_lrhf_lpf_coeff11_12;
+	unsigned char reg_lrhf_lpf_coeff20_21;
+	unsigned char reg_lrhf_lpf_coeff22;
 };
 
 /*Default table from T3*/
 static struct _sr_reg_cfg_s sr_reg_cfg = {
-	{0x50, 0x51, 0x52, 0x53, 0x1d},
+	{0x50, 0x51, 0x52, 0x53},
 	0x77,
 	0x91,
 	0x92,
@@ -126,14 +201,13 @@ static struct _sr_reg_cfg_s sr_reg_cfg = {
 	0x8d,
 	0x8e,
 	0x8f,
-	0x34,
 	0x6b,
 	0x6c,
 	0x6d,
 	0x6e,
 	0x6f,
 	0x70,
-	0x92
+	0x34
 };
 
 static struct _sr_bit_cfg_s sr_bit_cfg = {
@@ -169,8 +243,83 @@ static struct _sr_bit_cfg_s sr_bit_cfg = {
 	{23, 1},
 	{0, 1},
 	{4, 4},
-	{8, 4},
-	{8, 8}
+	{8, 4}
+};
+
+static struct _nn_sr_reg_cfg_s nn_sr_reg_cfg = {
+	0x53,
+	0x82,
+	0x83,
+	0x84,
+	0x85,
+	0x86,
+	0x87,
+	0x88,
+	0x89,
+	0x8a,
+	0x8b,
+	0x8c,
+	0x8d,
+	0x8e,
+	0x8f,
+	0x91,
+	0x92,
+	0x93
+};
+
+static struct _nn_sr_bit_cfg_s nn_sr_bit_cfg = {
+	{0, 9},
+	{26, 1},
+	{16, 10},
+	{0, 10},
+	{16, 10},
+	{0, 16},
+	{26, 1},
+	{16, 10},
+	{0, 10},
+	{17, 10},
+	{16, 1},
+	{0, 9},
+	{16, 9},
+	{0, 9},
+	{16, 9},
+	{0, 9},
+	{16, 9},
+	{0, 9},
+	{16, 16},
+	{0, 16},
+	{16, 16},
+	{0, 16},
+	{26, 1},
+	{16, 10},
+	{0, 10},
+	{16, 10},
+	{0, 10},
+	{16, 10},
+	{0, 10},
+	{16, 10},
+	{0, 16},
+	{16, 16},
+	{0, 16},
+	{0, 16},
+	{16, 1},
+	{8, 8},
+	{0, 8}
+};
+
+static struct _nn_reg_cfg_s nn_reg_cfg = {
+	0x20,
+	0x14,
+	0x15,
+	0x16,
+	0x17,
+	0x18,
+	0x19
+};
+
+static struct _nn_bit_cfg_s nn_bit_cfg = {
+	{16, 10},
+	{0, 10}
 };
 
 static bool fm_support;
@@ -215,6 +364,11 @@ static int fm_nn_coring[FMETER_TUNING_SIZE_MAX] = {
 static bool sr_ai_pq_update;
 static struct sr_ai_pq_param_s sr_ai_pq_offset;
 static struct sr_ai_pq_param_s sr_ai_pq_base;
+
+/*For ai sr*/
+static bool ai_sr_update;
+static struct vpp_aisr_param_s ai_sr_param;
+static struct vpp_aisr_nn_param_s ai_sr_nn_param;
 
 /*Internal functions*/
 static void _set_sr_pk_final_gain(enum sr_mode_e mode, int val,
@@ -384,11 +538,323 @@ static void _set_sr_fmeter_tuning_table(enum io_mode_e io_mode)
 		sr_bit_cfg.bit_pk_cirbpcon2gain2.len);
 
 	val = fm_nn_coring[index] & 0xff;
-	addr = ADDR_PARAM(sr_reg_cfg.page[3],
-		sr_reg_cfg.reg_nn_adp_coring);
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_adp_coring_ctrl);
 	WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, val,
-		sr_bit_cfg.bit_nn_adp_coring.start,
-		sr_bit_cfg.bit_nn_adp_coring.len);
+		nn_sr_bit_cfg.bit_adp_coring_thd.start,
+		nn_sr_bit_cfg.bit_adp_coring_thd.len);
+}
+
+static void _set_sr_aisr_param(enum io_mode_e io_mode,
+	struct vpp_aisr_param_s *sr_data)
+{
+	unsigned int addr = 0;
+	unsigned int val = 0;
+
+	if (!sr_data)
+		return;
+
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_qt_clip);
+	val = sr_data->param[EN_AISR_QT_CLIP];
+	WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, val,
+		nn_sr_bit_cfg.bit_qt_clip_value.start,
+		nn_sr_bit_cfg.bit_qt_clip_value.len);
+
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_hf_dering_ctrl_0);
+	val = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_HF_DERING_EN],
+		nn_sr_bit_cfg.bit_hf_dering_en.start,
+		nn_sr_bit_cfg.bit_hf_dering_en.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_HF_DERING_PROT_THD],
+		nn_sr_bit_cfg.bit_hf_dering_prot_thd.start,
+		nn_sr_bit_cfg.bit_hf_dering_prot_thd.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_HF_DERING_THD0],
+		nn_sr_bit_cfg.bit_hf_dering_thd0.start,
+		nn_sr_bit_cfg.bit_hf_dering_thd0.len);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_hf_dering_ctrl_1);
+	val = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_HF_DERING_THD1],
+		nn_sr_bit_cfg.bit_hf_dering_thd1.start,
+		nn_sr_bit_cfg.bit_hf_dering_thd1.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_HF_DERING_SLOPE],
+		nn_sr_bit_cfg.bit_hf_dering_slope.start,
+		nn_sr_bit_cfg.bit_hf_dering_slope.len);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_dering_coring_ctrl);
+	val = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_DERING_CORING_EN],
+		nn_sr_bit_cfg.bit_dering_coring_en.start,
+		nn_sr_bit_cfg.bit_dering_coring_en.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_DERING_CORING_THD],
+		nn_sr_bit_cfg.bit_dering_coring_thd.start,
+		nn_sr_bit_cfg.bit_dering_coring_thd.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_GAIN_NEG],
+		nn_sr_bit_cfg.bit_adj_gain_neg.start,
+		nn_sr_bit_cfg.bit_adj_gain_neg.len);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_adj_pos_ctrl_0);
+	val = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_GAIN_POS],
+		nn_sr_bit_cfg.bit_adj_gain_pos.start,
+		nn_sr_bit_cfg.bit_adj_gain_pos.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_POS_EN],
+		nn_sr_bit_cfg.bit_adj_pos_en.start,
+		nn_sr_bit_cfg.bit_adj_pos_en.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_POS_THD0],
+		nn_sr_bit_cfg.bit_adj_pos_thd0.start,
+		nn_sr_bit_cfg.bit_adj_pos_thd0.len);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_adj_pos_ctrl_1);
+	val = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_POS_THD1],
+		nn_sr_bit_cfg.bit_adj_pos_thd1.start,
+		nn_sr_bit_cfg.bit_adj_pos_thd1.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_POS_THD2],
+		nn_sr_bit_cfg.bit_adj_pos_thd2.start,
+		nn_sr_bit_cfg.bit_adj_pos_thd2.len);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_adj_pos_ctrl_2);
+	val = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_POS_TOP0],
+		nn_sr_bit_cfg.bit_adj_pos_top0.start,
+		nn_sr_bit_cfg.bit_adj_pos_top0.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_POS_TOP1],
+		nn_sr_bit_cfg.bit_adj_pos_top1.start,
+		nn_sr_bit_cfg.bit_adj_pos_top1.len);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_adj_pos_ctrl_3);
+	val = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_POS_TOP2],
+		nn_sr_bit_cfg.bit_adj_pos_top2.start,
+		nn_sr_bit_cfg.bit_adj_pos_top2.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_POS_TOP3],
+		nn_sr_bit_cfg.bit_adj_pos_top3.start,
+		nn_sr_bit_cfg.bit_adj_pos_top3.len);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_adj_pos_ctrl_4);
+	val = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_POS_SLOPE0],
+		nn_sr_bit_cfg.bit_adj_pos_slope0.start,
+		nn_sr_bit_cfg.bit_adj_pos_slope0.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_POS_SLOPE1],
+		nn_sr_bit_cfg.bit_adj_pos_slope1.start,
+		nn_sr_bit_cfg.bit_adj_pos_slope1.len);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_adj_pos_ctrl_5);
+	val = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_POS_SLOPE2],
+		nn_sr_bit_cfg.bit_adj_pos_slope2.start,
+		nn_sr_bit_cfg.bit_adj_pos_slope2.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_POS_SLOPE3],
+		nn_sr_bit_cfg.bit_adj_pos_slope3.start,
+		nn_sr_bit_cfg.bit_adj_pos_slope3.len);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_adj_neg_ctrl_0);
+	val = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_NEG_EN],
+		nn_sr_bit_cfg.bit_adj_neg_en.start,
+		nn_sr_bit_cfg.bit_adj_neg_en.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_NEG_THD0],
+		nn_sr_bit_cfg.bit_adj_neg_thd0.start,
+		nn_sr_bit_cfg.bit_adj_neg_thd0.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_NEG_THD1],
+		nn_sr_bit_cfg.bit_adj_neg_thd1.start,
+		nn_sr_bit_cfg.bit_adj_neg_thd1.len);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_adj_neg_ctrl_1);
+	val = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_NEG_THD2],
+		nn_sr_bit_cfg.bit_adj_neg_thd2.start,
+		nn_sr_bit_cfg.bit_adj_neg_thd2.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_NEG_TOP0],
+		nn_sr_bit_cfg.bit_adj_neg_top0.start,
+		nn_sr_bit_cfg.bit_adj_neg_top0.len);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_adj_neg_ctrl_2);
+	val = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_NEG_TOP1],
+		nn_sr_bit_cfg.bit_adj_neg_top1.start,
+		nn_sr_bit_cfg.bit_adj_neg_top1.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_NEG_TOP2],
+		nn_sr_bit_cfg.bit_adj_neg_top2.start,
+		nn_sr_bit_cfg.bit_adj_neg_top2.len);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_adj_neg_ctrl_3);
+	val = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_NEG_TOP3],
+		nn_sr_bit_cfg.bit_adj_neg_top3.start,
+		nn_sr_bit_cfg.bit_adj_neg_top3.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_NEG_SLOPE0],
+		nn_sr_bit_cfg.bit_adj_neg_slope0.start,
+		nn_sr_bit_cfg.bit_adj_neg_slope0.len);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_adj_neg_ctrl_4);
+	val = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_NEG_SLOPE1],
+		nn_sr_bit_cfg.bit_adj_neg_slope1.start,
+		nn_sr_bit_cfg.bit_adj_neg_slope1.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_NEG_SLOPE2],
+		nn_sr_bit_cfg.bit_adj_neg_slope2.start,
+		nn_sr_bit_cfg.bit_adj_neg_slope2.len);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_adj_neg_ctrl_5);
+	val = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADJ_NEG_SLOPE3],
+		nn_sr_bit_cfg.bit_adj_neg_slope3.start,
+		nn_sr_bit_cfg.bit_adj_neg_slope3.len);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_sr_reg_cfg.page,
+		nn_sr_reg_cfg.reg_adp_coring_ctrl);
+	val = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADP_CORING_EN],
+		nn_sr_bit_cfg.bit_adp_coring_en.start,
+		nn_sr_bit_cfg.bit_adp_coring_en.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADP_CORING_THD],
+		nn_sr_bit_cfg.bit_adp_coring_thd.start,
+		nn_sr_bit_cfg.bit_adp_coring_thd.len);
+	val = vpp_insert_int(val,
+		sr_data->param[EN_AISR_ADP_GLB_CORING_THD],
+		nn_sr_bit_cfg.bit_adp_glb_coring_thd.start,
+		nn_sr_bit_cfg.bit_adp_glb_coring_thd.len);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+}
+
+static void _set_sr_aisr_nn_param(enum io_mode_e io_mode,
+	struct vpp_aisr_nn_param_s *nn_data)
+{
+	unsigned int addr = 0;
+	unsigned int val = 0;
+	unsigned int coef00 = 0;
+	unsigned int coef01 = 0;
+	unsigned int coef02 = 0;
+	unsigned int coef10 = 0;
+	unsigned int coef11 = 0;
+	unsigned int coef12 = 0;
+	unsigned int coef20 = 0;
+	unsigned int coef21 = 0;
+	unsigned int coef22 = 0;
+
+	if (!nn_data)
+		return;
+
+	coef00 = nn_data->param[EN_AISR_NN_LRHF_LPF_COEF_00];
+	coef01 = nn_data->param[EN_AISR_NN_LRHF_LPF_COEF_01];
+	coef02 = nn_data->param[EN_AISR_NN_LRHF_LPF_COEF_02];
+	coef10 = nn_data->param[EN_AISR_NN_LRHF_LPF_COEF_10];
+	coef11 = nn_data->param[EN_AISR_NN_LRHF_LPF_COEF_11];
+	coef12 = nn_data->param[EN_AISR_NN_LRHF_LPF_COEF_12];
+	coef20 = nn_data->param[EN_AISR_NN_LRHF_LPF_COEF_20];
+	coef21 = nn_data->param[EN_AISR_NN_LRHF_LPF_COEF_21];
+	coef22 = nn_data->param[EN_AISR_NN_LRHF_LPF_COEF_22];
+
+	addr = ADDR_PARAM(nn_reg_cfg.page,
+		nn_reg_cfg.reg_lrhf_hf_gain);
+	val = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
+	val = vpp_insert_int(val,
+		nn_data->param[EN_AISR_NN_LRHF_HF_GAIN_NEG],
+		nn_bit_cfg.bit_lrhf_hf_gain_neg.start,
+		nn_bit_cfg.bit_lrhf_hf_gain_neg.len);
+	val = vpp_insert_int(val,
+		nn_data->param[EN_AISR_NN_LRHF_HF_GAIN_POS],
+		nn_bit_cfg.bit_lrhf_hf_gain_pos.start,
+		nn_bit_cfg.bit_lrhf_hf_gain_pos.len);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_reg_cfg.page,
+		nn_reg_cfg.reg_lrhf_lpf_coeff00_01);
+	val = ((coef00 & LRHF_LPF_COEF_MASK) << 16) |
+		(coef01 & LRHF_LPF_COEF_MASK);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_reg_cfg.page,
+		nn_reg_cfg.reg_lrhf_lpf_coeff02_10);
+	val = ((coef02 & LRHF_LPF_COEF_MASK) << 16) |
+		(coef10 & LRHF_LPF_COEF_MASK);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_reg_cfg.page,
+		nn_reg_cfg.reg_lrhf_lpf_coeff11_12);
+	val = ((coef11 & LRHF_LPF_COEF_MASK) << 16) |
+		(coef12 & LRHF_LPF_COEF_MASK);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_reg_cfg.page,
+		nn_reg_cfg.reg_lrhf_lpf_coeff20_21);
+	val = ((coef20 & LRHF_LPF_COEF_MASK) << 16) |
+		(coef21 & LRHF_LPF_COEF_MASK);
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
+
+	addr = ADDR_PARAM(nn_reg_cfg.page,
+		nn_reg_cfg.reg_lrhf_lpf_coeff22);
+	val = coef22 & LRHF_LPF_COEF_MASK;
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
 }
 
 static void _get_sr_fmeter_hcnt(enum sr_mode_e mode)
@@ -423,7 +889,7 @@ static void _dump_sr_reg_info(void)
 	int i = 0;
 
 	PR_DRV("sr_reg_cfg info:\n");
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < 4; i++)
 		PR_DRV("page[%d] = %x\n", i, sr_reg_cfg.page[i]);
 
 	PR_DRV("reg_srscl_gclk_ctrl = %x\n",
@@ -458,6 +924,24 @@ static void _dump_sr_data_info(void)
 	for (i = 0; i < EN_MODE_SR_MAX; i++)
 		PR_DRV("%d\t%d\n", pre_fm_size_cfg[i].sr_w,
 			pre_fm_size_cfg[i].sr_h);
+
+	PR_DRV("sr ai pq info:\n");
+	for (i = 0; i < EN_MODE_SR_MAX; i++) {
+		PR_DRV("base_hp/bp_final_gain[%d] = %d/%d\n", i,
+			sr_ai_pq_base.hp_final_gain[i],
+			sr_ai_pq_base.bp_final_gain[i]);
+		PR_DRV("offset_hp/bp_final_gain[%d] = %d/%d\n", i,
+			sr_ai_pq_offset.hp_final_gain[i],
+			sr_ai_pq_offset.bp_final_gain[i]);
+	}
+
+	PR_DRV("ai sr param info:\n");
+	for (i = 0; i < EN_AISR_PARAM_MAX; i++)
+		PR_DRV("[%d]%d\n", i, ai_sr_param.param[i]);
+
+	PR_DRV("ai sr nn param info:\n");
+	for (i = 0; i < EN_AISR_NN_PARAM_MAX; i++)
+		PR_DRV("[%d]%d\n", i, ai_sr_nn_param.param[i]);
 }
 
 static void _sr_fmeter_init(enum sr_mode_e mode)
@@ -564,8 +1048,12 @@ int vpp_module_sr_init(struct vpp_dev_s *pdev)
 	memset(&pre_fm_size_cfg, 0, sizeof(struct _sr_fmeter_size_cfg_s));
 
 	sr_ai_pq_update = false;
-	memset(&sr_ai_pq_offset, 0, sizeof(sr_ai_pq_offset));
-	memset(&sr_ai_pq_base, 0, sizeof(sr_ai_pq_base));
+	memset(&sr_ai_pq_offset, 0, sizeof(struct sr_ai_pq_param_s));
+	memset(&sr_ai_pq_base, 0, sizeof(struct sr_ai_pq_param_s));
+
+	ai_sr_update = false;
+	memset(&ai_sr_param, 0, sizeof(struct vpp_aisr_param_s));
+	memset(&ai_sr_nn_param, 0, sizeof(struct vpp_aisr_nn_param_s));
 
 	return 0;
 }
@@ -588,37 +1076,9 @@ void vpp_module_sr_en(enum sr_mode_e mode, bool enable)
 	switch (mode) {
 	case EN_MODE_SR_0:
 		i = 0;
-		/*addr = ADDR_PARAM(sr_reg_cfg.page[4],
-		 *	sr_reg_cfg.reg_srscl_gclk_ctrl);
-		 *WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, gating_clock,
-		 *sr_bit_cfg.bit_gclk_ctrl_sr0.start,
-		 *	sr_bit_cfg.bit_gclk_ctrl_sr0.len);
-		 *addr = ADDR_PARAM(sr_reg_cfg.page[4],
-		 *	sr_reg_cfg.reg_srsharp0_ctrl);
-		 *WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, enable,
-		 *	sr_bit_cfg.bit_srsharp0_en.start,
-		 *	sr_bit_cfg.bit_srsharp0_en.len);
-		 *WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, enable,
-		 *	sr_bit_cfg.bit_srsharp0_buf_en.start,
-		 *	sr_bit_cfg.bit_srsharp0_buf_en.len);
-		 */
 		break;
 	case EN_MODE_SR_1:
 		i = 2;
-		/*addr = ADDR_PARAM(sr_reg_cfg.page[4],
-		 *	sr_reg_cfg.reg_srscl_gclk_ctrl);
-		 *WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, gating_clock,
-		 *	sr_bit_cfg.bit_gclk_ctrl_sr1.start,
-		 *	sr_bit_cfg.bit_gclk_ctrl_sr1.len);
-		 *addr = ADDR_PARAM(sr_reg_cfg.page[4],
-		 *	sr_reg_cfg.reg_srsharp1_ctrl);
-		 *WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, enable,
-		 *	sr_bit_cfg.bit_srsharp1_en.start,
-		 *	sr_bit_cfg.bit_srsharp1_en.len);
-		 *WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, enable,
-		 *	sr_bit_cfg.bit_srsharp1_buf_en.start,
-		 *	sr_bit_cfg.bit_srsharp1_buf_en.len);
-		 */
 		break;
 	default:
 		break;
@@ -819,6 +1279,18 @@ void vpp_module_sr_set_osd_gain(enum sr_mode_e mode,
 		sr_bit_cfg.bit_bp_final_gain.len);
 }
 
+void vpp_module_sr_set_aisr_param(struct vpp_aisr_param_s *sr_data,
+	struct vpp_aisr_nn_param_s *nn_data)
+{
+	if (!sr_data || !nn_data)
+		return;
+
+	memcpy(&ai_sr_param, sr_data, sizeof(struct vpp_aisr_param_s));
+	memcpy(&ai_sr_nn_param, nn_data, sizeof(struct vpp_aisr_nn_param_s));
+
+	ai_sr_update = true;
+}
+
 bool vpp_module_sr_get_fmeter_support(void)
 {
 	return fm_support;
@@ -873,6 +1345,13 @@ void vpp_module_sr_on_vs(struct sr_vs_param_s *pvs_param)
 			sr_ai_pq_base.bp_final_gain[EN_MODE_SR_1]);
 
 		sr_ai_pq_update = false;
+	}
+
+	if (ai_sr_update) {
+		_set_sr_aisr_param(io_mode, &ai_sr_param);
+		_set_sr_aisr_nn_param(io_mode, &ai_sr_nn_param);
+
+		ai_sr_update = false;
 	}
 }
 

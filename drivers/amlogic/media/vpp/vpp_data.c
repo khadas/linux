@@ -30,7 +30,7 @@ static struct vpp_pq_tuning_reg_s lc_param[EN_LC_PARAM_MAX] = {
 	{0x09, 8, 15, 0},
 };
 
-static struct vpp_pq_tuning_reg_s sharpness0_param[EN_SHARPNESS0_PARAM_MAX] = {
+static struct vpp_pq_tuning_reg_s sharpness0_param[EN_SR0_PARAM_MAX] = {
 	{0x00, 0, 12, 0},
 	{0x01, 0, 7, 0},
 	{0x02, 0, 1, 0},
@@ -434,7 +434,7 @@ static struct vpp_pq_tuning_reg_s sharpness0_param[EN_SHARPNESS0_PARAM_MAX] = {
 	{0x7f, 0, 3, 0},
 };
 
-static struct vpp_pq_tuning_reg_s sharpness1_param[EN_SHARPNESS1_PARAM_MAX] = {
+static struct vpp_pq_tuning_reg_s sharpness1_param[EN_SR1_PARAM_MAX] = {
 	{0x00, 0, 12, 0},
 	{0x01, 0, 7, 0},
 	{0x02, 0, 1, 0},
@@ -1032,7 +1032,7 @@ void vpp_data_updata_reg_lc(struct vpp_lc_param_s *pdata)
 	_update_data_page_reg(&page);
 }
 
-void vpp_data_updata_reg_sharpness0(struct vpp_sharpness0_param_s *pdata)
+void vpp_data_updata_reg_sr0(struct vpp_sr0_param_s *pdata)
 {
 	int i;
 	struct vpp_pq_tuning_page_s page;
@@ -1040,18 +1040,18 @@ void vpp_data_updata_reg_sharpness0(struct vpp_sharpness0_param_s *pdata)
 	if (!pdata)
 		return;
 
-	for (i = 0; i < EN_SHARPNESS0_PARAM_MAX; i++)
+	for (i = 0; i < EN_SR0_PARAM_MAX; i++)
 		sharpness0_param[i].val = pdata->param[i];
 
 	page.page_addr = pq_table[EN_PAGE_MODULE_SR_0].page_addr;
-	page.reg_count = EN_SHARPNESS0_PARAM_MAX;
+	page.reg_count = EN_SR0_PARAM_MAX;
 	page.page_idx = 0;
 	page.preg_list = &sharpness0_param[0];
 
 	_update_data_page_reg(&page);
 }
 
-void vpp_data_updata_reg_sharpness1(struct vpp_sharpness1_param_s *pdata)
+void vpp_data_updata_reg_sr1(struct vpp_sr1_param_s *pdata)
 {
 	int i;
 	struct vpp_pq_tuning_page_s page;
@@ -1059,11 +1059,11 @@ void vpp_data_updata_reg_sharpness1(struct vpp_sharpness1_param_s *pdata)
 	if (!pdata)
 		return;
 
-	for (i = 0; i < EN_SHARPNESS1_PARAM_MAX; i++)
+	for (i = 0; i < EN_SR1_PARAM_MAX; i++)
 		sharpness1_param[i].val = pdata->param[i];
 
 	page.page_addr = pq_table[EN_PAGE_MODULE_SR_1].page_addr;
-	page.reg_count = EN_SHARPNESS1_PARAM_MAX;
+	page.reg_count = EN_SR1_PARAM_MAX;
 	page.page_idx = 0;
 	page.preg_list = &sharpness1_param[0];
 

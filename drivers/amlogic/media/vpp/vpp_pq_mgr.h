@@ -67,6 +67,10 @@ int vpp_pq_mgr_set_eye_protect(struct vpp_eye_protect_s *pdata);
 int vpp_pq_mgr_set_aipq_offset_table(char *pdata_str,
 	unsigned int height, unsigned int width);
 int vpp_pq_mgr_set_aipq_data(struct vpp_aipq_table_s *pdata);
+int vpp_pq_mgr_set_sr_param(struct vpp_sr0_param_s *sr0_data,
+	struct vpp_sr1_param_s *sr1_data);
+int vpp_pq_mgr_set_aisr_param(struct vpp_aisr_param_s *sr_data,
+	struct vpp_aisr_nn_param_s *nn_data);
 int vpp_pq_mgr_set_overscan_table(unsigned int length,
 	struct vpp_overscan_table_s *load_table);
 void vpp_pq_mgr_set_lc_isr(void);

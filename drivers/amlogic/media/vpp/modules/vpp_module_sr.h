@@ -53,6 +53,8 @@ void vpp_module_sr_sub_module_en(enum sr_mode_e mode,
 void vpp_module_sr_set_demo_mode(bool enable, bool left_side);
 void vpp_module_sr_set_osd_gain(enum sr_mode_e mode,
 	int hp_val, int bp_val);
+void vpp_module_sr_set_aisr_param(struct vpp_aisr_param_s *sr_data,
+	struct vpp_aisr_nn_param_s *nn_data);
 bool vpp_module_sr_get_fmeter_support(void);
 void vpp_module_sr_fetch_fmeter_report(void);
 struct sr_fmeter_report_s *vpp_module_sr_get_fmeter_report(void);
