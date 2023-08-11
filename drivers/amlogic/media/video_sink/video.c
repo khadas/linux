@@ -19211,6 +19211,31 @@ static ssize_t aisr_info_show(struct class *cla,
 			_cur_frame_par->nnhf_input_h);
 }
 
+static ssize_t slice_out_hsize_show(struct class *cla,
+		struct class_attribute *attr,
+		char *buf)
+{
+	int p[4];
+
+	get_slice_out_hsize_debug(&p[0], &p[1], &p[2], &p[3]);
+
+	return snprintf(buf, 40, "%d %d %d %d\n", p[0], p[1], p[2], p[3]);
+}
+
+static ssize_t slice_out_hsize_store(struct class *cla,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	int p[4];
+
+	if (likely(parse_para(buf, 4, p) == 4))
+		set_slice_out_hsize_debug(p[0], p[1], p[2], p[3]);
+	else
+		pr_info("%s: err\n", __func__);
+
+	return strnlen(buf, count);
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -19756,6 +19781,7 @@ static struct class_attribute amvideo_class_attrs[] = {
 		mosaic_axis_pic_show,
 		mosaic_axis_pic_store),
 	__ATTR_RO(cur_ai_face),
+	__ATTR_RW(slice_out_hsize),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {

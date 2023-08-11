@@ -820,6 +820,10 @@ struct mosaic_frame_s *get_mosaic_vframe_info(u32 slice);
 void get_mosaic_axis(void);
 void set_mosaic_axis(u32 pic_index, u32 x_start, u32 y_start,
 	u32 x_end, u32 y_end);
+void get_slice_out_hsize_debug(int *debug, int *slice0_hsize,
+			       int *slice1_hsize, int *slice_w_max);
+void set_slice_out_hsize_debug(int debug, int slice0_hsize,
+			       int slice1_hsize, int slice_w_max);
 
 /* from video.c */
 extern u32 osd_vpp_misc;

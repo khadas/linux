@@ -155,6 +155,147 @@ static void _vd_fgrain_config_s5(struct video_layer_s *layer,
 static void _vd_fgrain_setting_s5(struct video_layer_s *layer,
 		    struct vframe_s *vf);
 #endif
+
+static int slice_out_debug, slice0_out_hsize, slice1_out_hsize;
+static int slice2ppc_w_max = 2048;
+
+void get_slice_out_hsize_debug(int *debug, int *slice0_hsize,
+			       int *slice1_hsize, int *slice_w_max)
+{
+	*debug = slice_out_debug;
+	*slice0_hsize = slice0_out_hsize;
+	*slice1_hsize = slice1_out_hsize;
+	*slice_w_max = slice2ppc_w_max;
+}
+
+void set_slice_out_hsize_debug(int debug, int slice0_hsize,
+			   int slice1_hsize, int slice_w_max)
+{
+	slice_out_debug = debug;
+	slice0_out_hsize = slice0_hsize;
+	slice1_out_hsize = slice1_hsize;
+	if (slice_w_max)
+		slice2ppc_w_max = slice_w_max;
+	pr_info("slice_out: debug-%d, slice0-%d slice1-%d slice_w_max-%d\n",
+		slice_out_debug, slice0_out_hsize, slice1_out_hsize,
+		slice2ppc_w_max);
+}
+
+/* use the smaller sr limit value */
+static void dup_sr_core_width_limit(struct vd_proc_sr_s *sr1,
+				  struct vd_proc_sr_s *sr0)
+{
+	int width0 = sr0->core_v_enable_width_max;
+	int width1 = sr1->core_v_enable_width_max;
+
+	if (width0 < width1) {
+		sr1->core_v_enable_width_max = sr0->core_v_enable_width_max;
+		sr1->core_v_disable_width_max = sr0->core_v_disable_width_max;
+	} else {
+		sr0->core_v_enable_width_max = sr1->core_v_enable_width_max;
+		sr0->core_v_disable_width_max = sr1->core_v_disable_width_max;
+	}
+	if (debug_flag_s5 & DEBUG_VD_PROC)
+		pr_info("%s, %d %d\n", __func__,
+			sr1->core_v_enable_width_max,
+			sr1->core_v_disable_width_max);
+}
+
+/* check the slice sr din limit and recalculate the slice_out_size.
+ *
+ * if slice0 sr din limit is greater than slice1 sr din limit,
+ * try to config more hsize for slice0.
+ */
+static bool need_calc_slice_out_size(u32 dst_w, u32 slice, u32 *hsize)
+{
+	struct vd_proc_s *vd_proc = &g_vd_proc;
+	struct vd_proc_unit_s *vd_proc_unit = &vd_proc->vd_proc_unit[1];
+	u32 ret = false, factor = 100;
+	u32 slice0_sr_in_max_w = 0, slice1_sr_in_max_w = 0;
+	u32 slice0_sr_out_max_w = 0, slice1_sr_out_max_w = 0;
+	u32 slice0_hsize = SIZE_ALIG16(dst_w) / 2 * factor;
+	u32 slice1_hsize = (dst_w - SIZE_ALIG16(dst_w) / 2) * factor;
+	u32 src_w = vd_proc->vd_proc_vd1_info.vd1_src_din_hsize[0];
+	u32 overlap = vd_proc->vd_proc_vd1_info.vd1_overlap_hsize;
+	u32 margin = 32 * factor;
+	struct vd_proc_sr_s *slice0_sr = &vd_proc->vd_proc_unit[0].vd_proc_sr1;
+	struct vd_proc_sr_s *slice1_sr = &vd_proc->vd_proc_unit[1].vd_proc_sr0;
+
+	/* skip this function */
+	if (slice_out_debug == 2)
+		goto dup_sr;
+
+	/* set parameters manually for debugging */
+	if (slice_out_debug == 1) {
+		if (slice == 0)
+			*hsize = slice0_out_hsize;
+		else
+			*hsize = slice1_out_hsize;
+		vd_proc->vd_proc_vd1_info.slice_out_calc = 1;
+		return true;
+	}
+
+	if (!(slice0_sr->sr_support && slice1_sr->sr_support))
+		return false;
+
+	if (vd_proc_unit->sr0_dpath_sel != SR0_IN_SLICE1) {
+		if (debug_flag_s5 & DEBUG_VD_PROC)
+			pr_info("%s: sr0 is not in slice0, don't calculate\n",
+				__func__);
+		goto dup_sr;
+	}
+
+	slice0_sr_in_max_w = slice0_sr->core_v_enable_width_max;
+	slice1_sr_in_max_w = slice1_sr->core_v_enable_width_max;
+
+	if (slice0_sr_in_max_w <= slice1_sr_in_max_w) {
+		if (debug_flag_s5 & DEBUG_VD_PROC)
+			pr_info("%s: %d %d, slice0 sr limit <= slice1 sr limit\n",
+				__func__, slice0_sr_in_max_w,
+				slice1_sr_in_max_w);
+		return false;
+	}
+
+	slice1_sr_out_max_w = slice1_sr_in_max_w * 2 * factor;
+	slice1_hsize += overlap * (dst_w * factor / src_w) + margin;
+	/* check slice1 sr limit
+	 * slice1 hsize is greater than slice1_sr_out_max_w, slice0 uses more hsize
+	 */
+	if (slice1_hsize > slice1_sr_out_max_w) {
+		slice0_hsize += slice1_hsize - slice1_sr_out_max_w;
+		slice0_hsize /= factor;
+		slice0_hsize = SIZE_ALIG8(slice0_hsize);
+		slice0_sr_out_max_w = slice0_sr_in_max_w * 2;
+		/* check slice0 sr limit */
+		if (slice0_hsize > slice0_sr_out_max_w ||
+		    slice0_hsize > slice2ppc_w_max) {
+			if (debug_flag_s5 & DEBUG_VD_PROC)
+				pr_info("%s: %d %d %d, over slice0 sr or slice2ppc limit\n",
+					__func__, slice0_hsize,
+					slice0_sr_out_max_w, slice2ppc_w_max);
+			goto dup_sr;
+		}
+
+		ret = true;
+		vd_proc->vd_proc_vd1_info.slice_out_calc = 1;
+
+		if (slice == 1)
+			*hsize = dst_w - slice0_hsize;
+		else
+			*hsize = slice0_hsize;
+
+		if (debug_flag_s5 & DEBUG_VD_PROC)
+			pr_info("%s: after calculation slice%d_out_size:%d\n",
+				__func__, slice, *hsize);
+	}
+
+	return ret;
+dup_sr:
+	dup_sr_core_width_limit(slice0_sr, slice1_sr);
+
+	return false;
+}
+
 static inline u32 slice_out_hsize(u32 slice,
 	u32 slice_num, u32 frm_hsize)
 {
@@ -165,6 +306,8 @@ static inline u32 slice_out_hsize(u32 slice,
 		hsize = frm_hsize;
 		break;
 	case 2:
+		if (need_calc_slice_out_size(frm_hsize, slice, &hsize))
+			return hsize;
 		if (slice == slice_num - 1)
 			hsize = frm_hsize - SIZE_ALIG16(frm_hsize) *
 				(slice_num - 1) / slice_num;
@@ -2442,12 +2585,15 @@ static void vd_proc_set(u32 vpp_index, struct vd_proc_s *vd_proc)
 	u32 vd1_slices_dout_dpsel = 0;
 	u32 mosaic_mode, hsize = 0;
 	u32 vd1_dout_hsize = 0, vd1_dout_vsize = 0;
+	u32 vd1_proc_dout_hsize = 0;
 	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
 	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
 	struct vd_proc_mosaic_s *vd_proc_mosaic = NULL;
 
 	vd1_work_mode = vd_proc->vd_proc_vd1_info.vd1_work_mode;
 	vd1_slices_dout_dpsel = vd_proc->vd_proc_vd1_info.vd1_slices_dout_dpsel;
+	vd1_proc_dout_hsize =
+		vd_proc->vd_proc_vd1_info.vd1_proc_unit_dout_hsize[0];
 	mosaic_mode = vd1_work_mode == VD1_2_2SLICES_MODE &&
 			vd1_slices_dout_dpsel == VD1_SLICES_DOUT_4S4P;
 	if (mosaic_mode) {
@@ -2487,8 +2633,15 @@ static void vd_proc_set(u32 vpp_index, struct vd_proc_s *vd_proc)
 		if (vd1_slices_dout_dpsel == VD1_SLICES_DOUT_2S4P) {
 			/* vd1 dout 2s2p path */
 			rdma_wr_bits(VPP_VD_SYS_CTRL, 2, 0, 2);
-			rdma_wr(SLICE2PPC_H_V_SIZE, vd1_dout_vsize << 16 |
-				SIZE_ALIG16(vd1_dout_hsize) / 2);
+			if (!vd_proc->vd_proc_vd1_info.slice_out_calc) {
+				rdma_wr(SLICE2PPC_H_V_SIZE,
+					vd1_dout_vsize << 16 |
+					SIZE_ALIG16(vd1_dout_hsize) / 2);
+			} else {
+				rdma_wr(SLICE2PPC_H_V_SIZE,
+					vd1_dout_vsize << 16 |
+					vd1_proc_dout_hsize);
+			}
 		}
 		break;
 	case VD1_4SLICES_MODE:
@@ -2794,6 +2947,7 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 	vd_proc_unit = &vd_proc->vd_proc_unit[slice];
 	sr = get_super_scaler_info();
 
+	vd_proc_vd1_info->slice_out_calc = 0;
 	vd_proc_vd1_info->slice_num = layer->slice_num;
 	/* get vd input and output info */
 	src_w = cur_frame_par->video_input_w;
@@ -2887,6 +3041,101 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 			vd_proc_unit->sr0_dpath_sel = SR0_IN_SLICE0;
 		}
 
+		for (slice = 0; slice < slice_num; slice++) {
+			vd_proc_unit = &vd_proc->vd_proc_unit[slice];
+			vd_proc_unit->vd_proc_pps.horz_phase_step =
+				horz_phase_step;
+			vd_proc_unit->vd_proc_pps.vert_phase_step =
+				vert_phase_step;
+			vd_proc_unit->vd_proc_pps.prehsc_en = vpp_pre_hsc_en;
+			vd_proc_unit->vd_proc_pps.prevsc_en = vpp_pre_vsc_en;
+			vd_proc_unit->vd_proc_pps.prehsc_rate = 1;
+			vd_proc_unit->vd_proc_pps.prevsc_rate = 1;
+			sr0_h_scaleup_en = cur_frame_par->supsc0_enable &&
+				cur_frame_par->supsc0_hori_ratio;
+			sr1_h_scaleup_en = cur_frame_par->supsc1_enable &&
+				cur_frame_par->supsc1_hori_ratio;
+			if (slice_num == 2) {
+				/* 2 slice case, move sr0 to slice1 */
+				if (slice == 0) {
+					/* slice0, used sr1, get info from sr1 */
+					vd_proc_unit->sr1_en = sr1_h_scaleup_en;
+					vd_proc_unit->vd_proc_sr1.sr_en =
+						cur_frame_par->supsc1_enable;
+					vd_proc_unit->vd_proc_sr1.h_scaleup_en =
+						cur_frame_par->supsc1_hori_ratio;
+					vd_proc_unit->vd_proc_sr1.v_scaleup_en =
+						cur_frame_par->supsc1_vert_ratio;
+					vd_proc_unit->vd_proc_sr1.core_v_disable_width_max =
+						sr->core1_v_disable_width_max;
+					vd_proc_unit->vd_proc_sr1.core_v_enable_width_max =
+						sr->core1_v_enable_width_max;
+					vd_proc_unit->vd_proc_sr1.sr_support =
+						sr->sr_support & SUPER_CORE1_SUPPORT;
+					if (debug_flag_s5 & DEBUG_VD_PROC)
+						pr_info("s0: sr1_en=%d,h/v_scaleup_en=%d,%d, phase step:%x,%x\n",
+							vd_proc_unit->vd_proc_sr1.sr_en,
+							vd_proc_unit->vd_proc_sr1.h_scaleup_en,
+							vd_proc_unit->vd_proc_sr1.v_scaleup_en,
+							vd_proc_unit->vd_proc_pps.horz_phase_step,
+							vd_proc_unit->vd_proc_pps.vert_phase_step);
+				}
+				if (slice == 1) {
+					/* slice1, used sr0, get info from sr1 */
+					vd_proc_unit->sr0_en = sr1_h_scaleup_en;
+					vd_proc_unit->vd_proc_sr0.sr_en =
+						cur_frame_par->supsc1_enable;
+					vd_proc_unit->vd_proc_sr0.h_scaleup_en =
+						cur_frame_par->supsc1_hori_ratio;
+					vd_proc_unit->vd_proc_sr0.v_scaleup_en =
+						cur_frame_par->supsc1_vert_ratio;
+					vd_proc_unit->vd_proc_sr0.core_v_disable_width_max =
+						sr->core0_v_disable_width_max;
+					vd_proc_unit->vd_proc_sr0.core_v_enable_width_max =
+						sr->core0_v_enable_width_max;
+					vd_proc_unit->vd_proc_sr0.sr_support =
+						sr->sr_support & SUPER_CORE0_SUPPORT;
+					vd_proc_unit->sr0_dpath_sel = SR0_IN_SLICE1;
+					vd_proc_unit->sr0_pps_dpsel = SR0_AFTER_PPS;
+					if (debug_flag_s5 & DEBUG_VD_PROC)
+						pr_info("s1: sr0_en=%d, h/v_scaleup_en=%d, %d, phase step:%x, %x\n",
+							vd_proc_unit->vd_proc_sr0.sr_en,
+							vd_proc_unit->vd_proc_sr0.h_scaleup_en,
+							vd_proc_unit->vd_proc_sr0.v_scaleup_en,
+							vd_proc_unit->vd_proc_pps.horz_phase_step,
+							vd_proc_unit->vd_proc_pps.vert_phase_step);
+				}
+			} else {
+				vd_proc_unit->sr0_en = sr0_h_scaleup_en;
+				vd_proc_unit->sr1_en = sr1_h_scaleup_en;
+				vd_proc_unit->vd_proc_sr0.sr_en =
+					cur_frame_par->supsc0_enable;
+				vd_proc_unit->vd_proc_sr0.h_scaleup_en =
+					cur_frame_par->supsc0_hori_ratio;
+				vd_proc_unit->vd_proc_sr0.v_scaleup_en =
+					cur_frame_par->supsc0_vert_ratio;
+				vd_proc_unit->vd_proc_sr0.core_v_disable_width_max =
+					sr->core0_v_disable_width_max;
+				vd_proc_unit->vd_proc_sr0.core_v_enable_width_max =
+					sr->core0_v_enable_width_max;
+				vd_proc_unit->vd_proc_sr0.sr_support =
+					sr->sr_support & SUPER_CORE0_SUPPORT;
+
+				vd_proc_unit->vd_proc_sr1.sr_en =
+					cur_frame_par->supsc1_enable;
+				vd_proc_unit->vd_proc_sr1.h_scaleup_en =
+					cur_frame_par->supsc1_hori_ratio;
+				vd_proc_unit->vd_proc_sr1.v_scaleup_en =
+					cur_frame_par->supsc1_vert_ratio;
+				vd_proc_unit->vd_proc_sr1.core_v_disable_width_max =
+					sr->core1_v_disable_width_max;
+				vd_proc_unit->vd_proc_sr1.core_v_enable_width_max =
+					sr->core1_v_enable_width_max;
+				vd_proc_unit->vd_proc_sr1.sr_support =
+					sr->sr_support & SUPER_CORE1_SUPPORT;
+			}
+		}
+
 		switch (vd_proc_vd1_info->vd1_work_mode) {
 		case VD1_1SLICES_MODE:
 			/* if one pic */
@@ -2954,6 +3203,9 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 				/* whole frame in hsize */
 				vd_proc_vd1_info->vd1_src_din_hsize[0] = src_w;
 				vd_proc_vd1_info->vd1_src_din_vsize[0] = src_h;
+				vd_proc_vd1_info->vd1_dout_hsize[0] = dst_w;
+				vd_proc_vd1_info->vd1_dout_vsize[0] = dst_h;
+				vd_proc_vd1_info->vd1_overlap_hsize = 32;
 				/* without overlap */
 				for (slice = 0; slice < 2; slice++) {
 					vd_proc_vd1_info->vd1_proc_unit_dout_hsize[slice] =
@@ -2963,109 +3215,12 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 					vd_proc_vd1_info->vd1_dout_y_start[slice] = v_start;
 				}
 				/* whole vd1 output size */
-				vd_proc_vd1_info->vd1_dout_hsize[0] = dst_w;
-				vd_proc_vd1_info->vd1_dout_vsize[0] = dst_h;
-				vd_proc_vd1_info->vd1_overlap_hsize = 32;
 				break;
 			case VD1_SLICES_DOUT_PI:
 				/* 4 pic */
 				break;
 			}
 			break;
-		}
-		for (slice = 0; slice < slice_num; slice++) {
-			vd_proc_unit = &vd_proc->vd_proc_unit[slice];
-			vd_proc_unit->vd_proc_pps.horz_phase_step =
-				horz_phase_step;
-			vd_proc_unit->vd_proc_pps.vert_phase_step =
-				vert_phase_step;
-			vd_proc_unit->vd_proc_pps.prehsc_en = vpp_pre_hsc_en;
-			vd_proc_unit->vd_proc_pps.prevsc_en = vpp_pre_vsc_en;
-			vd_proc_unit->vd_proc_pps.prehsc_rate = 1;
-			vd_proc_unit->vd_proc_pps.prevsc_rate = 1;
-			sr0_h_scaleup_en = cur_frame_par->supsc0_enable &&
-				cur_frame_par->supsc0_hori_ratio;
-			sr1_h_scaleup_en = cur_frame_par->supsc1_enable &&
-				cur_frame_par->supsc1_hori_ratio;
-			if (slice_num == 2) {
-				/* 2 slice case, move sr0 to slice1 */
-				if (slice == 0) {
-					/* slice0, used sr1, get info from sr1 */
-					vd_proc_unit->sr1_en = sr1_h_scaleup_en;
-					vd_proc_unit->vd_proc_sr1.sr_en =
-						cur_frame_par->supsc1_enable;
-					vd_proc_unit->vd_proc_sr1.h_scaleup_en =
-						cur_frame_par->supsc1_hori_ratio;
-					vd_proc_unit->vd_proc_sr1.v_scaleup_en =
-						cur_frame_par->supsc1_vert_ratio;
-					vd_proc_unit->vd_proc_sr1.core_v_disable_width_max =
-						sr->core0_v_disable_width_max;
-					vd_proc_unit->vd_proc_sr1.core_v_enable_width_max =
-						sr->core0_v_enable_width_max;
-					vd_proc_unit->vd_proc_sr1.sr_support =
-						sr->sr_support & SUPER_CORE1_SUPPORT;
-					if (debug_flag_s5 & DEBUG_VD_PROC)
-						pr_info("s0: sr1_en=%d,h/v_scaleup_en=%d,%d, phase step:%x,%x\n",
-							vd_proc_unit->vd_proc_sr1.sr_en,
-							vd_proc_unit->vd_proc_sr1.h_scaleup_en,
-							vd_proc_unit->vd_proc_sr1.v_scaleup_en,
-							vd_proc_unit->vd_proc_pps.horz_phase_step,
-							vd_proc_unit->vd_proc_pps.vert_phase_step);
-				}
-				if (slice == 1) {
-					/* slice1, used sr0, get info from sr1 */
-					vd_proc_unit->sr0_en = sr1_h_scaleup_en;
-					vd_proc_unit->vd_proc_sr0.sr_en =
-						cur_frame_par->supsc1_enable;
-					vd_proc_unit->vd_proc_sr0.h_scaleup_en =
-						cur_frame_par->supsc1_hori_ratio;
-					vd_proc_unit->vd_proc_sr0.v_scaleup_en =
-						cur_frame_par->supsc1_vert_ratio;
-					vd_proc_unit->vd_proc_sr0.core_v_disable_width_max =
-						sr->core0_v_disable_width_max;
-					vd_proc_unit->vd_proc_sr0.core_v_enable_width_max =
-						sr->core0_v_enable_width_max;
-					vd_proc_unit->vd_proc_sr0.sr_support =
-						sr->sr_support & SUPER_CORE0_SUPPORT;
-					vd_proc_unit->sr0_dpath_sel = SR0_IN_SLICE1;
-					vd_proc_unit->sr0_pps_dpsel = SR0_AFTER_PPS;
-					if (debug_flag_s5 & DEBUG_VD_PROC)
-						pr_info("s1: sr0_en=%d, h/v_scaleup_en=%d, %d, phase step:%x, %x\n",
-							vd_proc_unit->vd_proc_sr0.sr_en,
-							vd_proc_unit->vd_proc_sr0.h_scaleup_en,
-							vd_proc_unit->vd_proc_sr0.v_scaleup_en,
-							vd_proc_unit->vd_proc_pps.horz_phase_step,
-							vd_proc_unit->vd_proc_pps.vert_phase_step);
-				}
-			} else {
-				vd_proc_unit->sr0_en = sr0_h_scaleup_en;
-				vd_proc_unit->sr1_en = sr1_h_scaleup_en;
-				vd_proc_unit->vd_proc_sr0.sr_en =
-					cur_frame_par->supsc0_enable;
-				vd_proc_unit->vd_proc_sr0.h_scaleup_en =
-					cur_frame_par->supsc0_hori_ratio;
-				vd_proc_unit->vd_proc_sr0.v_scaleup_en =
-					cur_frame_par->supsc0_vert_ratio;
-				vd_proc_unit->vd_proc_sr0.core_v_disable_width_max =
-					sr->core0_v_disable_width_max;
-				vd_proc_unit->vd_proc_sr0.core_v_enable_width_max =
-					sr->core0_v_enable_width_max;
-				vd_proc_unit->vd_proc_sr0.sr_support =
-					sr->sr_support & SUPER_CORE0_SUPPORT;
-
-				vd_proc_unit->vd_proc_sr1.sr_en =
-					cur_frame_par->supsc1_enable;
-				vd_proc_unit->vd_proc_sr1.h_scaleup_en =
-					cur_frame_par->supsc1_hori_ratio;
-				vd_proc_unit->vd_proc_sr1.v_scaleup_en =
-					cur_frame_par->supsc1_vert_ratio;
-				vd_proc_unit->vd_proc_sr1.core_v_disable_width_max =
-					sr->core1_v_disable_width_max;
-				vd_proc_unit->vd_proc_sr1.core_v_enable_width_max =
-					sr->core1_v_enable_width_max;
-				vd_proc_unit->vd_proc_sr1.sr_support =
-					sr->sr_support & SUPER_CORE1_SUPPORT;
-			}
 		}
 		/* if 4 pic, todo */
 	} else if (layer->layer_id == 1) {
