@@ -3118,22 +3118,29 @@ static void video_composer_task(struct composer_dev *dev)
 		vf->axis[1] = frame_info->dst_y;
 		vf->axis[2] = frame_info->dst_w + frame_info->dst_x - 1;
 		vf->axis[3] = frame_info->dst_h + frame_info->dst_y - 1;
-		vf->crop[0] = frame_info->crop_y;
-		vf->crop[1] = frame_info->crop_x;
+
+		vc_print(dev->index, PRINT_AXIS,
+			"frame_info crop: x y w h %d %d %d %d\n",
+			frame_info->crop_x,
+			frame_info->crop_y,
+			frame_info->crop_w,
+			frame_info->crop_h);
 		if (is_dec_vf || is_v4l_vf) {
 			if ((vf->type & VIDTYPE_COMPRESS) != 0) {
-				pic_w = vf->compWidth;
-				pic_h = vf->compHeight;
+				if (is_src_crop_valid(vf->src_crop)) {
+					pic_w = vf->compWidth -
+						vf->src_crop.left - vf->src_crop.right;
+					pic_h = vf->compHeight -
+						vf->src_crop.top - vf->src_crop.bottom;
+				} else {
+					pic_w = vf->compWidth;
+					pic_h = vf->compHeight;
+				}
 			} else {
 				pic_w = vf->width;
 				pic_h = vf->height;
 			}
-			vf->crop[2] = pic_h
-				- frame_info->crop_h
-				- frame_info->crop_y;
-			vf->crop[3] = pic_w
-				- frame_info->crop_w
-				- frame_info->crop_x;
+
 			if (frame_info->source_type == SOURCE_DTV_FIX_TUNNEL) {
 				vf->flag |= VFRAME_FLAG_FIX_TUNNEL;
 				vf->crop[0] = frame_info->crop_x;
@@ -3143,15 +3150,11 @@ static void video_composer_task(struct composer_dev *dev)
 				vf->crop[3] = frame_info->crop_y +
 					frame_info->crop_h;
 				vc_print(dev->index, PRINT_AXIS,
-					"dtv crop: x y w h %d %d %d %d\n",
-					frame_info->crop_x,
-					frame_info->crop_y,
-					frame_info->crop_w,
-					frame_info->crop_h);
-				vc_print(dev->index, PRINT_AXIS,
-					"dtv set vf crop:%d %d %d %d\n",
-					vf->crop[0], vf->crop[1],
-					vf->crop[2], vf->crop[3]);
+					"tunnel set vf crop:%d %d %d %d\n",
+					vf->crop[0],
+					vf->crop[1],
+					vf->crop[2],
+					vf->crop[3]);
 			} else if (pic_w > frame_info->buffer_w ||
 				pic_h > frame_info->buffer_h) {
 			/*omx receive w*h is small than actual w*h;such as 8k*/
@@ -3161,15 +3164,37 @@ static void video_composer_task(struct composer_dev *dev)
 				vf->crop[3] = 0;
 				vc_print(dev->index, PRINT_AXIS,
 					"crop info is error!\n");
+			} else {
+				vf->crop[0] = frame_info->crop_y;
+				vf->crop[1] = frame_info->crop_x;
+				vf->crop[2] = pic_h
+					- frame_info->crop_h
+					- frame_info->crop_y;
+				vf->crop[3] = pic_w
+					- frame_info->crop_w
+					- frame_info->crop_x;
+				vc_print(dev->index, PRINT_AXIS,
+					"none-tunnel set vf crop:%d %d %d %d\n",
+					vf->crop[0],
+					vf->crop[1],
+					vf->crop[2],
+					vf->crop[3]);
 			}
 		} else {
 			if (frame_info->type == 1) {
+				vf->crop[0] = frame_info->crop_y;
+				vf->crop[1] = frame_info->crop_x;
 				vf->crop[2] = frame_info->buffer_h
 					- frame_info->crop_h
 					- frame_info->crop_y;
 				vf->crop[3] = frame_info->buffer_w
 					- frame_info->crop_w
 					- frame_info->crop_x;
+			} else {
+				vf->crop[0] = 0;
+				vf->crop[1] = 0;
+				vf->crop[2] = 0;
+				vf->crop[3] = 0;
 			}
 		}
 		vf->zorder = frames_info->disp_zorder;
