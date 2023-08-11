@@ -314,9 +314,18 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
 	pmd = pmd_offset(pud, addr);
 #ifndef CONFIG_AMLOGIC_MODIFY
 	WARN_ON_ONCE(pmd_bad(*pmd));
-#endif
 	if (pmd_none(*pmd) || pmd_bad(*pmd))
 		return NULL;
+#else
+	if (pmd_none(*pmd))
+		return NULL;
+#ifdef CONFIG_ARM64
+	if (pmd_sect(*pmd))
+		return pmd_page(*pmd);
+#endif
+	if (pmd_bad(*pmd))
+		return NULL;
+#endif
 
 	ptep = pte_offset_map(pmd, addr);
 	pte = *ptep;
