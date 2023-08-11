@@ -3359,11 +3359,16 @@ isp_sharp_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 	u32 value;
 
 	value = isp3_param_read_cache(params_vdev, ISP3X_SHARP_EN);
+	if ((en && (value & ISP32_MODULE_EN)) ||
+	    (!en && !(value & ISP32_MODULE_EN)))
+		return;
+
 	value &= ~ISP32_MODULE_EN;
-
-	if (en)
+	if (en) {
+		isp3_param_set_bits(params_vdev,
+			ISP3X_ISP_CTRL1, ISP32_SHP_FST_FRAME);
 		value |= ISP32_MODULE_EN;
-
+	}
 	isp3_param_write(params_vdev, value, ISP3X_SHARP_EN);
 }
 
@@ -5300,10 +5305,15 @@ rkisp_params_cfg_v32(struct rkisp_isp_params_vdev *params_vdev,
 		struct rkisp_isp_params_val_v32 *priv_val =
 			(struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
 
-		priv_val->last_hdrmge = priv_val->cur_hdrmge;
-		priv_val->last_hdrdrc = priv_val->cur_hdrdrc;
-		priv_val->cur_hdrmge = new_params->others.hdrmge_cfg;
-		priv_val->cur_hdrdrc = new_params->others.drc_cfg;
+		if (new_params->module_cfg_update & ISP32_MODULE_HDRMGE) {
+			priv_val->last_hdrmge = priv_val->cur_hdrmge;
+			priv_val->cur_hdrmge = new_params->others.hdrmge_cfg;
+		}
+
+		if (new_params->module_cfg_update & ISP32_MODULE_DRC) {
+			priv_val->last_hdrdrc = priv_val->cur_hdrdrc;
+			priv_val->cur_hdrdrc = new_params->others.drc_cfg;
+		}
 		new_params->module_cfg_update = 0;
 		vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		cur_buf = NULL;
@@ -5321,7 +5331,7 @@ rkisp_params_clear_fstflg(struct rkisp_isp_params_vdev *params_vdev)
 
 	value &= (ISP3X_YNR_FST_FRAME | ISP3X_ADRC_FST_FRAME |
 		  ISP3X_DHAZ_FST_FRAME | ISP3X_CNR_FST_FRAME |
-		  ISP3X_RAW3D_FST_FRAME);
+		  ISP3X_RAW3D_FST_FRAME | ISP32_SHP_FST_FRAME);
 	if (value) {
 		isp3_param_clear_bits(params_vdev, ISP3X_ISP_CTRL1, value);
 	}

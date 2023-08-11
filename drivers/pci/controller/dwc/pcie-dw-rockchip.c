@@ -192,6 +192,7 @@ struct rk_pcie {
 	u32				msi_vector_num;
 	struct workqueue_struct		*hot_rst_wq;
 	struct work_struct		hot_rst_work;
+	u32				comp_prst[2];
 };
 
 struct rk_pcie_of_data {
@@ -2081,17 +2082,39 @@ retry_regulator:
 		rk_pcie->is_signal_test = true;
 	}
 
-	/* Force into compliance mode */
-	if (device_property_read_bool(dev, "rockchip,compliance-mode")) {
-		val = dw_pcie_readl_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS);
-		val |= BIT(4);
-		dw_pcie_writel_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS, val);
+	/*
+	 * Force into compliance mode
+	 * comp_prst is a two dimensional array of which the first element
+	 * stands for speed mode, and the second one is preset value encoding:
+	 * [0] 0->SMA tool control the signal switch, 1/2/3 is for manual Gen setting
+	 * [1] transmitter setting for manual Gen setting, valid only if [0] isn't zero.
+	 */
+	if (device_property_read_u32_array(dev, "rockchip,compliance-mode",
+					   rk_pcie->comp_prst, 2)) {
+		BUG_ON(rk_pcie->comp_prst[0] > 3 || rk_pcie->comp_prst[1] > 10);
+		if (!rk_pcie->comp_prst[0]) {
+			dev_info(dev, "Auto compliance mode for SMA tool.\n");
+		} else {
+			dev_info(dev, "compliance mode for soldered board Gen%d, P%d.\n",
+				 rk_pcie->comp_prst[0], rk_pcie->comp_prst[1]);
+			val = dw_pcie_readl_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS);
+			val |= BIT(4) | rk_pcie->comp_prst[0] | (rk_pcie->comp_prst[1] << 12);
+			dw_pcie_writel_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS, val);
+		}
 		rk_pcie->is_signal_test = true;
 	}
 
 	/* Skip waiting for training to pass in system PM routine */
 	if (device_property_read_bool(dev, "rockchip,skip-scan-in-resume"))
 		rk_pcie->skip_scan_in_resume = true;
+
+	rk_pcie->hot_rst_wq = create_singlethread_workqueue("rk_pcie_hot_rst_wq");
+	if (!rk_pcie->hot_rst_wq) {
+		dev_err(dev, "failed to create hot_rst workqueue\n");
+		ret = -ENOMEM;
+		goto remove_irq_domain;
+	}
+	INIT_WORK(&rk_pcie->hot_rst_work, rk_pcie_hot_rst_work);
 
 	switch (rk_pcie->mode) {
 	case RK_PCIE_RC_TYPE:
@@ -2106,12 +2129,12 @@ retry_regulator:
 		return 0;
 
 	if (ret)
-		goto remove_irq_domain;
+		goto remove_rst_wq;
 
 	ret = rk_pcie_init_dma_trx(rk_pcie);
 	if (ret) {
 		dev_err(dev, "failed to add dma extension\n");
-		goto remove_irq_domain;
+		goto remove_rst_wq;
 	}
 
 	if (rk_pcie->dma_obj) {
@@ -2123,18 +2146,10 @@ retry_regulator:
 		/* hold link reset grant after link-up */
 		ret = rk_pcie_reset_grant_ctrl(rk_pcie, false);
 		if (ret)
-			goto remove_irq_domain;
+			goto remove_rst_wq;
 	}
 
 	dw_pcie_dbi_ro_wr_dis(pci);
-
-	rk_pcie->hot_rst_wq = create_singlethread_workqueue("rk_pcie_hot_rst_wq");
-	if (!rk_pcie->hot_rst_wq) {
-		dev_err(dev, "failed to create hot_rst workqueue\n");
-		ret = -ENOMEM;
-		goto remove_irq_domain;
-	}
-	INIT_WORK(&rk_pcie->hot_rst_work, rk_pcie_hot_rst_work);
 
 	device_init_wakeup(dev, true);
 
@@ -2159,6 +2174,8 @@ retry_regulator:
 
 	return 0;
 
+remove_rst_wq:
+	destroy_workqueue(rk_pcie->hot_rst_wq);
 remove_irq_domain:
 	if (rk_pcie->irq_domain)
 		irq_domain_remove(rk_pcie->irq_domain);

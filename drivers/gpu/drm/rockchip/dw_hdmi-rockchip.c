@@ -1666,10 +1666,14 @@ static void dw_hdmi_rockchip_encoder_disable(struct drm_encoder *encoder)
 {
 	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
 	struct drm_crtc *crtc = encoder->crtc;
-	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
+	struct rockchip_crtc_state *s;
 
-	if (WARN_ON(!crtc || !crtc->state))
+	if (!crtc || !crtc->state) {
+		dev_info(hdmi->dev, "%s old crtc state is null\n", __func__);
 		return;
+	}
+
+	s = to_rockchip_crtc_state(crtc->state);
 
 	if (crtc->state->active_changed) {
 		if (hdmi->plat_data->split_mode) {
@@ -1697,8 +1701,10 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	int mux;
 	int ret;
 
-	if (WARN_ON(!crtc || !crtc->state))
+	if (!crtc || !crtc->state) {
+		dev_info(hdmi->dev, "%s old crtc state is null\n", __func__);
 		return;
+	}
 
 	if (hdmi->phy)
 		phy_set_bus_width(hdmi->phy, hdmi->phy_bus_width);
@@ -3650,7 +3656,20 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 			drm_encoder_cleanup(&hdmi->encoder);
 		}
 
-		if (plat_data->connector) {
+		if (plat_data->bridge) {
+			struct drm_connector *connector = NULL;
+			struct list_head *connector_list =
+				&plat_data->bridge->dev->mode_config.connector_list;
+
+			list_for_each_entry(connector, connector_list, head)
+				if (drm_connector_has_possible_encoder(connector,
+							&hdmi->encoder))
+					break;
+
+			hdmi->sub_dev.connector = connector;
+			hdmi->sub_dev.of_node = dev->of_node;
+			rockchip_drm_register_sub_dev(&hdmi->sub_dev);
+		} else if (plat_data->connector) {
 			hdmi->sub_dev.connector = plat_data->connector;
 			hdmi->sub_dev.loader_protect = dw_hdmi_rockchip_encoder_loader_protect;
 			if (secondary && device_property_read_bool(secondary->dev, "split-mode"))

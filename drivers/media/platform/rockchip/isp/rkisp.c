@@ -739,18 +739,28 @@ run_next:
 	if (hw->is_multi_overflow && !dev->is_first_double) {
 		stats_vdev->rdbk_drop = false;
 		if (dev->sw_rd_cnt) {
+			/* the frame first running to off mi to save bandwidth */
 			rkisp_multi_overflow_hdl(dev, false);
+			/* FST_FRAME for YNR/CNR/SHP/ADRC/DHAZ no to refer to sram info */
+			val = ISP3X_YNR_FST_FRAME | ISP3X_CNR_FST_FRAME | ISP32_SHP_FST_FRAME |
+			      ISP3X_ADRC_FST_FRAME | ISP3X_DHAZ_FST_FRAME;
+			rkisp_unite_set_bits(dev, ISP3X_ISP_CTRL1, 0, val, false, hw->is_unite);
 			params_vdev->rdbk_times += dev->sw_rd_cnt;
 			stats_vdev->rdbk_drop = true;
 			is_upd = true;
 		} else if (is_try) {
 			rkisp_multi_overflow_hdl(dev, true);
 			rkisp_update_regs(dev, ISP_LDCH_BASE, ISP_LDCH_BASE);
+			val = ISP3X_YNR_FST_FRAME | ISP3X_CNR_FST_FRAME | ISP32_SHP_FST_FRAME |
+			      ISP3X_ADRC_FST_FRAME | ISP3X_DHAZ_FST_FRAME;
+			rkisp_unite_clear_bits(dev, ISP3X_ISP_CTRL1, val, false, hw->is_unite);
 			is_upd = true;
 		}
 	}
 
-	/* read 3d lut at frame end */
+	/* disable isp force update to read 3dlut
+	 * 3dlut auto update at frame end for single sensor
+	 */
 	if (hw->is_single && is_upd &&
 	    rkisp_read_reg_cache(dev, ISP_3DLUT_UPDATE) & 0x1) {
 		rkisp_unite_write(dev, ISP_3DLUT_UPDATE, 0, true, hw->is_unite);
@@ -761,7 +771,7 @@ run_next:
 		val |= CIF_ISP_CTRL_ISP_CFG_UPD;
 		rkisp_unite_write(dev, ISP_CTRL, val, true, hw->is_unite);
 		/* bayer pat after ISP_CFG_UPD for multi sensor to read lsc r/g/b table */
-		rkisp_update_regs(dev, ISP_ACQ_PROP, ISP_ACQ_PROP);
+		rkisp_update_regs(dev, ISP3X_ISP_CTRL1, ISP3X_ISP_CTRL1);
 		/* fix ldch multi sensor case:
 		 * ldch will pre-read data when en and isp force upd or frame end,
 		 * udelay for ldch pre-read data.
@@ -2110,6 +2120,7 @@ end:
 	dev->irq_ends_mask = 0;
 	dev->hdr.op_mode = 0;
 	dev->sw_rd_cnt = 0;
+	dev->stats_vdev.rdbk_drop = false;
 	rkisp_set_state(&dev->isp_state, ISP_STOP);
 
 	if (dev->isp_ver >= ISP_V20)
@@ -4058,9 +4069,14 @@ void rkisp_isp_isr(unsigned int isp_mis,
 		}
 
 		if (IS_HDR_RDBK(dev->hdr.op_mode)) {
-			/* read 3d lut at isp readback */
-			if (!dev->hw_dev->is_single)
-				rkisp_write(dev, ISP_3DLUT_UPDATE, 0, true);
+			/* disabled frame end to read 3dlut for multi sensor
+			 * 3dlut will update at isp readback
+			 */
+			if (!dev->hw_dev->is_single) {
+				writel(0, hw->base_addr + ISP_3DLUT_UPDATE);
+				if (hw->is_unite)
+					writel(0, hw->base_next_addr + ISP_3DLUT_UPDATE);
+			}
 			rkisp_stats_rdbk_enable(&dev->stats_vdev, true);
 			goto vs_skip;
 		}
