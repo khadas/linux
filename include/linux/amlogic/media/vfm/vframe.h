@@ -590,6 +590,17 @@ struct vf_lossycomp_param_s {
 	u32 ofset_burst4_en;
 };
 
+#define SRC_CROP_MAGIC_CODE 0x554450FF
+#define is_src_crop_valid(ud) ((ud.magic_code) == SRC_CROP_MAGIC_CODE)
+
+struct src_crop_s {
+	u32 magic_code;
+	u32 top;
+	u32 left;
+	u32 bottom;
+	u32 right;
+};
+
 struct vframe_s {
 	u32 index;
 	u32 index_disp;
@@ -799,6 +810,7 @@ struct vframe_s {
 	/* link to uvm src_vf */
 	struct vframe_s *uvm_vf;
 	struct vf_lossycomp_param_s vf_lossycomp_param;
+	struct src_crop_s src_crop;
 } /*vframe_t */;
 
 #define VC_FLAG_AI_SR		0x1
