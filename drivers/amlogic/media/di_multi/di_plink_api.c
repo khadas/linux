@@ -4629,9 +4629,12 @@ static int dpvpp_reg_link_sw(bool vpp_disable_async)
 	else
 		ton = 0;
 
-	if (ton ==
-	    atomic_read(&hw->link_sts))
+	if (ton == atomic_read(&hw->link_sts)) {
+		if (atomic_read(&hw->link_in_busy))
+			PR_ERR("%s: error state: check:<ton_vpp %d, ton_di %d> hw->link_sts:%d\n",
+				__func__, ton_vpp, ton_di, atomic_read(&hw->link_sts));
 		return 0;
+	}
 
 	if (ton) {
 		//bypass other ch:
@@ -4652,7 +4655,7 @@ static int dpvpp_reg_link_sw(bool vpp_disable_async)
 
 			atomic_set(&hw->link_sts, ton);//on
 			get_datal()->pre_vpp_set = true; /* interface */
-
+			atomic_set(&hw->link_in_busy, 0);
 			ext_vpp_prelink_state_changed_notify();
 			PR_INF("%s:set active:<%d, %d> op:%px\n",
 			       __func__, ton_vpp, ton_di, hw->op_n);
@@ -4677,6 +4680,8 @@ static int dpvpp_reg_link_sw(bool vpp_disable_async)
 			ext_vpp_prelink_real_sw(false, true);
 		atomic_set(&hw->link_sts, 0);//on
 		get_datal()->pre_vpp_active = false;/* interface */
+		atomic_set(&hw->link_in_busy, 0);
+		ext_vpp_prelink_state_changed_notify();
 		PR_INF("%s:set inactive<%d, %d>\n", __func__, ton_vpp, ton_di);
 	}
 	return 0;
@@ -4685,15 +4690,23 @@ static int dpvpp_reg_link_sw(bool vpp_disable_async)
 static int dpvpp_link_sw_api(bool sw)
 {
 	struct dim_pvpp_hw_s *hw;
+	int cur_sts = 0;
 
 	hw = &get_datal()->dvs_prevpp.hw;
 
+	cur_sts = atomic_read(&hw->link_on_byvpp);
 	if (sw)
 		atomic_set(&hw->link_on_byvpp, 1);
 	else
 		atomic_set(&hw->link_on_byvpp, 0);
 
-	dim_print("%s:%d\n", __func__, sw);
+	if (!sw && cur_sts && atomic_read(&hw->link_sts))
+		atomic_set(&hw->link_in_busy, 1);
+
+	dim_print("%s: link_on_byvpp:%d link_on_bydi:%d link_in_busy:%d\n",
+		__func__, sw,
+		atomic_read(&hw->link_on_bydi),
+		atomic_read(&hw->link_in_busy));
 	return true;
 }
 
@@ -5232,6 +5245,8 @@ static int dpvpp_check_pre_vpp_link_by_di_api(void)
 		return EPVPP_DISPLAY_MODE_NR;
 	if (!atomic_read(&hw->link_on_bydi))
 		return EPVPP_ERROR_DI_OFF;
+	if (atomic_read(&hw->link_in_busy))
+		return EPVPP_ERROR_DI_IN_BUSY;
 
 	return EPVPP_DISPLAY_MODE_NR;
 }
@@ -5265,7 +5280,7 @@ static int dpvpp_display_unreg_bypass(void)
 	hw->dis_last_dvf	= NULL;
 	hw->blk_used_hd = false;
 	hw->blk_used_uhd = false;
-
+	atomic_set(&hw->link_instance_id, DIM_PLINK_INSTANCE_ID_INVALID);
 	spin_unlock_irqrestore(&lock_pvpp, irq_flag);
 	dbg_plink1("%s:end\n", "unreg_bypass");
 	return EPVPP_DISPLAY_MODE_BYPASS;

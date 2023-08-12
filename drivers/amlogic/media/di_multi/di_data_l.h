@@ -2504,6 +2504,7 @@ struct dim_pvpp_hw_s {
 	atomic_t link_on_byvpp;
 	atomic_t link_on_bydi;
 	atomic_t link_sts;
+	atomic_t link_in_busy;
 	atomic_t link_instance_id;
 //no used	atomic_t dbg_display_cnt; //use this to cnt display is called
 	struct pvpp_dis_para_in_s	dis_last_para;
