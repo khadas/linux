@@ -677,6 +677,12 @@ struct di_hdct_s {
 	unsigned int pic_struct;
 	unsigned int h_avg;
 
+	/* grid input information */
+	unsigned int grid_x_start;
+	unsigned int grid_x_size;
+	unsigned int grid_y_start;
+	unsigned int grid_y_size;
+
 	unsigned int ds_out_width/* = 0*/; /*dct ds output*/
 	unsigned int ds_out_height/* = 0*/;
 	int skip/* = 0*/;
@@ -2458,6 +2464,7 @@ struct dimn_dvfm_s {
 		struct dvfm_s in_dvfm_crop;
 		struct dvfm_s out_dvfm;
 		struct dvfm_s mem_dvfm; //add for afbcd
+		struct dvfm_s nr_wr_dvfm; //add for afbcd
 		//struct vframe_s out_vfm;
 		atomic_t wr_set;	/* vpp have called display */
 		atomic_t wr_cvs_set;
@@ -2548,6 +2555,7 @@ struct dim_pvpp_hw_s {
 
 	unsigned char blkt_n[K_BLK_T_NUB]; /*for mem alloc*/
 	int dbg_m_mode;
+	unsigned char last_dct_bypass;
 };
 
 /* ds */
@@ -2677,6 +2685,10 @@ struct dimn_pvpp_ops_api_s {
 	int (*vpp_sw)(bool on);
 	int (*vpp_get)(struct vframe_s *vfm);
 	int (*vpp_put)(struct vframe_s *vfm);
+	int (*get_di_in_win)(struct di_ch_s *pch,
+		unsigned int src_w,
+		unsigned int src_h,
+		struct di_win_s *out);
 };
 
 struct dimn_ins_ops_s {
@@ -2738,6 +2750,7 @@ struct dimn_itf_s {
 		//move atomic_t dbg_display_cnt; //use this to cnt display is called
 		atomic_t dbg_display_sts;
 		unsigned long jiff_display;
+		unsigned int last_ds_ratio; /* for pre-link */
 		//move to hw bool	has_notify_vpp;
 	} c;
 	struct di_init_parm nitf_parm;

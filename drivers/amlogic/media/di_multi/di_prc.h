@@ -347,6 +347,7 @@ void dcntr_reg(unsigned int on);
 void dcntr_check(struct vframe_s *vfm);
 void dcntr_check_bypass(struct vframe_s *vfm);
 void dcntr_dis(void);
+void dcntr_hw_bypass(const struct reg_acc *op_in);
 bool dcntr_set(const struct reg_acc *op_in);
 void dct_pre_plink_unreg_mem(struct di_ch_s *pch);
 bool dct_pre_plink_reg_mem(struct di_ch_s *pch, unsigned long addr_dct);

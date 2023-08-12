@@ -123,6 +123,9 @@
 #define DI_FLAG_DI_BYPASS			0x08000000
 #define DI_FLAG_DI_GET			0x10000000
 #define DI_FLAG_DI_PVPPLINK			0x20000000
+#define DI_FLAG_DCT_DS_RATIO_MASK    0xff
+#define DI_FLAG_DCT_DS_RATIO_BIT     0
+#define DI_FLAG_DCT_DS_RATIO_MAX     0xff
 
 /* need check folllowing bits when toggle frame, to trigger property change */
 /* add more bits which indicates display attr change in vf->flag */
@@ -479,6 +482,15 @@ struct dcntr_mem_s {
 	bool cds_canvas_mode;
 	unsigned int ori_w; //add for copy from vfm
 	unsigned int ori_h; //add for copy from vfm
+	/* crop information of original frame */
+	unsigned int x_start;
+	unsigned int x_size;
+	unsigned int y_start;
+	unsigned int y_size;
+	/* grid output information */
+	unsigned int grid_out_x_size;
+	unsigned int grid_out_y_size;
+	bool plink;
 };
 
 struct hf_info_t {

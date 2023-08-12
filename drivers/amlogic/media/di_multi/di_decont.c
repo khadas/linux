@@ -246,6 +246,8 @@ struct dcntr_mif_s {
 };
 
 struct dcntr_in_s {
+	unsigned int x_start;
+	unsigned int y_start;
 	unsigned int x_size;
 	unsigned int y_size;
 	unsigned int ds_x;
@@ -284,8 +286,11 @@ struct dcntr_core_s {
 			n_demo	: 1,
 			n_bypass : 1, // for post can't do
 			burst	: 2, /* for cvs */
-			rev	: 2;
+			use_org	: 1,
+			rev	: 1;
+	unsigned int l_xstart;
 	unsigned int l_xsize;
+	unsigned int l_ystart;
 	unsigned int l_ysize;
 	unsigned int l_ds_x;
 	unsigned int l_ds_y;
@@ -308,15 +313,17 @@ void dbg_dct_core_other(struct dcntr_core_s *pcore)
 		return;
 	dim_print("%s:\n", __func__);
 
-	dim_print("\tlsize<%d,%d,%d,%d>:\n",
-		  pcore->l_xsize, pcore->l_ysize,
-		  pcore->l_ds_x, pcore->l_ds_y);
+	dim_print("\tlsize<%d,%d,%d,%d,%d,%d>:\n",
+		pcore->l_xstart, pcore->l_xsize,
+		pcore->l_ystart, pcore->l_ysize,
+		pcore->l_ds_x, pcore->l_ds_y);
 	dim_print("\tint[%d],sup[%d],st_set[%d],st_pause[%d]\n",
-		  pcore->flg_int, pcore->support,
-		  pcore->st_set, pcore->st_pause);
+		pcore->flg_int, pcore->support,
+		pcore->st_set, pcore->st_pause);
 	dim_print("\tst_off[%d],n_set[%d],n_up[%d],cvs_y[%d],cvs_uv[%d]\n",
-		  pcore->st_off, pcore->n_set, pcore->n_up,
-		  pcore->cvs_y, pcore->cvs_uv);
+		pcore->st_off, pcore->n_set, pcore->n_up,
+		pcore->cvs_y, pcore->cvs_uv);
+	dim_print("\t:use_org:%d\n", pcore->use_org);
 	dim_print("\t:bypass:%d\n", pcore->n_bypass);
 }
 
@@ -329,8 +336,10 @@ void dbg_dct_in(struct dcntr_in_s *pin)
 	if (!(di_dbg & DBG_M_DCT))
 		return;
 	dim_print("%s:\n", __func__);
-	dim_print("\tsize<%d,%d,%d,%d>:\n", pin->x_size, pin->y_size,
-		  pin->ds_x, pin->ds_y);
+	dim_print("\tsize<%d,%d,%d,%d,%d,%d>:\n",
+		pin->x_start, pin->x_size,
+		pin->y_start, pin->y_size,
+		pin->ds_x, pin->ds_y);
 	dim_print("\tgrd_x[%d],y[%d],ration[%d]:\n", pin->grd_x, pin->grd_y,
 		  pin->DS_RATIO);
 	for (i = 0; i < 4; i++) {
@@ -682,7 +691,18 @@ static void dt_set_change(const struct reg_acc *op)
 	//const struct reg_acc *op = &di_pre_regset;
 	struct dcntr_core_s *pcfg = &di_dcnt;
 	unsigned int off = 0; //for t3
+	unsigned int x_start, y_start, x_size, y_size, ds_ratio;
 
+	x_size = pcfg->in.x_size;
+	y_size = pcfg->in.y_size;
+	ds_ratio = pcfg->in.DS_RATIO;
+	if (pcfg->use_org) {
+		x_start = pcfg->in.x_start;
+		y_start = pcfg->in.y_start;
+	} else {
+		x_start = 0;
+		y_start = 0;
+	}
 	/*************************/
 	if (DIM_IS_IC_EF(T3))
 		off = 0x200;
@@ -711,8 +731,10 @@ static void dt_set_change(const struct reg_acc *op)
 	pmif->sw_64bit	= pcfg->in_cfg.yds_swap_64bit;
 	pmif->little	= pcfg->in_cfg.yds_little_endian;
 	pmif->src_fmt = 1;
-	pmif->mif_x_end = ((pcfg->in.x_size) >> pcfg->in.DS_RATIO) - 1;
-	pmif->mif_y_end = ((pcfg->in.y_size) >> pcfg->in.DS_RATIO) - 1;
+	pmif->mif_x_start = x_start >> ds_ratio;
+	pmif->mif_x_end = pmif->mif_x_start + (x_size >> ds_ratio) - 1;
+	pmif->mif_y_start = y_start >> ds_ratio;
+	pmif->mif_y_end = pmif->mif_y_start + (y_size >> ds_ratio) - 1;
 	pmif->burst	= pcfg->burst;
 	if (pcfg->in.divrsmap_blk0_sft == 0)
 		pmif->vstep = 1;
@@ -757,8 +779,10 @@ static void dt_set_change(const struct reg_acc *op)
 	pmif->sw_64bit	= pcfg->in_cfg.yds_swap_64bit;
 	pmif->little	= pcfg->in_cfg.yds_little_endian;
 	pmif->src_fmt = 1;
-	pmif->mif_x_end = ((pcfg->in.x_size) >> pcfg->in.DS_RATIO) - 1;
-	pmif->mif_y_end = ((pcfg->in.y_size) >> pcfg->in.DS_RATIO) - 1;
+	pmif->mif_x_start = x_start >> ds_ratio;
+	pmif->mif_x_end = pmif->mif_x_start + (x_size >> ds_ratio) - 1;
+	pmif->mif_y_start = y_start >> ds_ratio;
+	pmif->mif_y_end = pmif->mif_y_start + (y_size >> ds_ratio) - 1;
 	pmif->burst	= pcfg->burst;
 
 	/* mif 3:cflt */
@@ -776,8 +800,10 @@ static void dt_set_change(const struct reg_acc *op)
 	pmif->sw_64bit	= pcfg->in_cfg.cds_swap_64bit;
 	pmif->little	= pcfg->in_cfg.cds_little_endian;
 	pmif->src_fmt = 2;
-	pmif->mif_x_end = ((pcfg->in.x_size) >> (pcfg->in.DS_RATIO + 1)) - 1;
-	pmif->mif_y_end = ((pcfg->in.y_size) >> (pcfg->in.DS_RATIO + 1)) - 1;
+	pmif->mif_x_start = x_start >> (ds_ratio + 1);
+	pmif->mif_x_end = pmif->mif_x_start + (x_size >> (ds_ratio + 1)) - 1;
+	pmif->mif_y_start = y_start >> (ds_ratio + 1);
+	pmif->mif_y_end = pmif->mif_y_start + (y_size >> (ds_ratio + 1)) - 1;
 	pmif->burst	= 2;
 
 	for (i = 0; i < 4; i++) {
@@ -1262,6 +1288,23 @@ void dcntr_dis(void)
 	}
 }
 
+void dcntr_hw_bypass(const struct reg_acc *op_in)
+{
+	const struct reg_acc *op;
+	struct dcntr_core_s *pcfg = &di_dcnt;
+
+	if (!op_in)
+		op = &di_pre_regset;
+	else
+		op = op_in;
+
+	if (pcfg->st_pause) {
+		dim_print("%s\n", __func__);
+		op->bwr(DI_PRE_CTRL, 0, 15, 1);// decontour enable
+		pcfg->st_pause	= 0;
+	}
+}
+
 bool dcntr_set(const struct reg_acc *op_in)
 {
 	struct dcntr_core_s *pcfg = &di_dcnt;
@@ -1311,35 +1354,44 @@ void dim_dbg_dct_info(struct dcntr_mem_s *pprecfg)
 	if (!pprecfg)
 		return;
 	dim_print("index[%d],free[%d]\n",
-		  pprecfg->index, pprecfg->free);
+		pprecfg->index, pprecfg->free);
 
 	dim_print("use_org[%d],ration[%d]\n",
-		  pprecfg->use_org, pprecfg->ds_ratio);
+		pprecfg->use_org, pprecfg->ds_ratio);
 	dim_print("grd_addr[0x%lx],y_addr[0x%lx], c_addr[0x%lx]\n",
-		  pprecfg->grd_addr,
-		  pprecfg->yds_addr,
-		  pprecfg->cds_addr);
+		pprecfg->grd_addr,
+		pprecfg->yds_addr,
+		pprecfg->cds_addr);
 	dim_print("grd_size[%d],yds_size[%d], cds_size[%d]\n",
-		  pprecfg->grd_size,
-		  pprecfg->yds_size,
-		  pprecfg->cds_size);
+		pprecfg->grd_size,
+		pprecfg->yds_size,
+		pprecfg->cds_size);
 	dim_print("out_fmt[0x%x],y_len[%d],c_len[%d]\n",
-		  pprecfg->pre_out_fmt,
-		  pprecfg->yflt_wrmif_length,
-		  pprecfg->cflt_wrmif_length);
+		pprecfg->pre_out_fmt,
+		pprecfg->yflt_wrmif_length,
+		pprecfg->cflt_wrmif_length);
 	dim_print("yswap_64 little[%d,%d],c:[%d,%d],grd:[%d,%d]\n",
-		  pprecfg->yds_swap_64bit,
-		  pprecfg->yds_little_endian,
-		  pprecfg->cds_swap_64bit,
-		  pprecfg->cds_little_endian,
-		  pprecfg->grd_swap_64bit,
-		  pprecfg->grd_little_endian);
+		pprecfg->yds_swap_64bit,
+		pprecfg->yds_little_endian,
+		pprecfg->cds_swap_64bit,
+		pprecfg->cds_little_endian,
+		pprecfg->grd_swap_64bit,
+		pprecfg->grd_little_endian);
 	dim_print("yds_canvas_mode[%d],cds_canvas_mode[%d]\n",
 		pprecfg->yds_canvas_mode,
 		pprecfg->cds_canvas_mode);
 	dim_print("ori_w[%d],ori_h[%d]\n",
 		pprecfg->ori_w,
 		pprecfg->ori_h);
+	dim_print("x_start[%d],x_size[%d]\n",
+		pprecfg->x_start,
+		pprecfg->x_size);
+	dim_print("y_start[%d],y_size[%d]\n",
+		pprecfg->y_start,
+		pprecfg->y_size);
+	dim_print("grid_out_x_size[%d],grid_out_y_size[%d]\n",
+		pprecfg->grid_out_x_size,
+		pprecfg->grid_out_y_size);
 }
 
 struct linear_para_s {
@@ -1402,7 +1454,7 @@ void dcntr_check(struct vframe_s *vfm)
 	struct dcntr_core_s	*pcfg = &di_dcnt;
 	struct dcntr_mem_s	*pdcn;
 	bool chg = false;
-	unsigned int x, y, ds_x, ds_y, ratio;
+	unsigned int x, y, ds_x, ds_y, ratio, orig_x, orig_y, x_start, y_start;
 	//unsigned int in_ds_mode;/*default is 0*/
 	//unsigned int sig_path;/*default is 0*/
 	//unsigned int grd_num_mode;
@@ -1451,17 +1503,19 @@ void dcntr_check(struct vframe_s *vfm)
 	pcfg->p_in_cfg = pdcn;
 
 	if (IS_COMP_MODE(vfm->type)) {
-		x = vfm->compWidth;
-		y = vfm->compHeight;
-
+		orig_x = vfm->compWidth;
+		orig_y = vfm->compHeight;
 	} else {
-		x = pdcn->ori_w;//vfm->width;
-		y = pdcn->ori_h;//vfm->height;
+		orig_x = pdcn->ori_w;//vfm->width;
+		orig_y = pdcn->ori_h;//vfm->height;
 	}
-
+	x = pdcn->x_size;
+	y = pdcn->y_size;
+	x_start = pdcn->x_start;
+	y_start = pdcn->y_start;
 	if (pdcn->use_org) {
-		ds_x = pdcn->ori_w;//vfm->width;
-		ds_y = pdcn->ori_h;//vfm->height;
+		ds_x = pdcn->grid_out_x_size;
+		ds_y = pdcn->grid_out_y_size;
 		if (DIM_IS_IC(T5)) {
 			pcfg->in.use_cvs = 1;
 		} else if (cfgg(LINEAR)) {
@@ -1480,18 +1534,20 @@ void dcntr_check(struct vframe_s *vfm)
 			ds_addc = opara.c_addr;
 			check_burst = true;
 		}
+		pcfg->use_org = 1;
 	} else {
-		ds_x = pdcn->ori_w >> pdcn->ds_ratio;
-		ds_y = pdcn->ori_h >> pdcn->ds_ratio;
-
+		ds_x = pdcn->grid_out_x_size;
+		ds_y = pdcn->grid_out_y_size;
 		ds_addy = pdcn->yds_addr;
 		ds_addc = pdcn->cds_addr;
 		pcfg->in.use_cvs = 0;
+		pcfg->use_org = 0;
 	}
 
 	if (IS_I_SRC(vfm->type)) {
-		y	= (y >> 1);
-		ds_y	= (ds_y >> 1);
+		y >>= 1;
+		ds_y >>= 1;
+		orig_y >>= 1;
 	}
 
 	grd_add = pdcn->grd_addr;
@@ -1512,7 +1568,9 @@ void dcntr_check(struct vframe_s *vfm)
 	}
 
 	/* check ds_x */
-	if (ds_x & DI_BIT0)
+	if (pdcn->plink)
+		pcfg->n_bypass = 0;
+	else if (ds_x & DI_BIT0)
 		pcfg->n_bypass = 1;
 	else
 		pcfg->n_bypass = 0;
@@ -1522,20 +1580,25 @@ void dcntr_check(struct vframe_s *vfm)
 
 	if (pcfg->l_xsize != x ||
 	    pcfg->l_ysize != y ||
+	    pcfg->l_xstart != x_start ||
+	    pcfg->l_ystart != y_start ||
 	    pcfg->l_ds_x  != ds_x ||
 	    pcfg->l_ds_y  != ds_y) {
 		chg = true;
+		pcfg->in.x_start = x_start;
 		pcfg->in.x_size = x;
+		pcfg->in.y_start = y_start;
 		pcfg->in.y_size = y;
 		pcfg->in.ds_x	= ds_x;
 		pcfg->in.ds_y	= ds_y;
 		pcfg->in.DS_RATIO = ratio;
 
+		pcfg->l_xstart	= x_start;
+		pcfg->l_ystart	= y_start;
 		pcfg->l_xsize	= x;
 		pcfg->l_ysize	= y;
 		pcfg->l_ds_x	= ds_x;
 		pcfg->l_ds_y	= ds_y;
-
 		if (pcfg->in.use_cvs) {
 			cvss = &get_datal()->cvs;
 			cvs_y = cvss->post_idx[1][1]; //note: use by copy function
@@ -1545,26 +1608,36 @@ void dcntr_check(struct vframe_s *vfm)
 		}
 	}
 
+	if (chg)
+		dim_print
+		("%s:use_org:%d o:(%d %d)(%d %d) ds:%d c:%d %d %d %d g:%d %d bypass:%d pl:%d\n",
+		__func__, pcfg->use_org,
+		orig_x, orig_y, pdcn->ori_w, pdcn->ori_h,
+		pdcn->ds_ratio,
+		x_start, y_start, x, y,
+		pdcn->grid_out_x_size, pdcn->grid_out_y_size,
+		pcfg->n_bypass, pdcn->plink ? 1 : 0);
+
 	demo = (dbg_dct & 0x3000) >> 12;
 	if (pcfg->demo != demo || chg) {
 		pcfg->demo = demo;
 		pcfg->n_demo = 1;
 	}
 	if (chg) {
-		xy = x * y;
+		xy = orig_x * orig_y;
 		/* divr map */
 		if (xy > (1920 * 1080))
 			divrsmap_blk0_sft = 1;
 		else if (xy > (960 * 540))
 			divrsmap_blk0_sft = 1;
-		else if (x > 480)
+		else if (orig_x > 480)
 			divrsmap_blk0_sft = 1;
 		else
 			divrsmap_blk0_sft = 0;
 
 		pcfg->in.divrsmap_blk0_sft = divrsmap_blk0_sft;
-		yflt_wrmif_length = ((x >> ratio) * 8) >> 7;
-		cflt_wrmif_length = ((x >> ratio) * 16) >> 7; //
+		yflt_wrmif_length = ((ds_x * 8) + 127) >> 7;
+		cflt_wrmif_length = ((ds_x * 16) + 127) >> 7; //
 
 		if (pcfg->in.use_cvs) {
 			pcfg->in.len[ECNTR_MIF_IDX_YFLT] = yflt_wrmif_length;
@@ -1651,6 +1724,8 @@ void dcntr_reg(unsigned int on)
 		memset(&pcfg->in, 0, sizeof(pcfg->in));
 		pcfg->l_ds_x	= 0;
 		pcfg->l_ds_y	= 0;
+		pcfg->l_xstart	= 0;
+		pcfg->l_ystart	= 0;
 		pcfg->l_xsize	= 0;
 		pcfg->l_ysize	= 0;
 
@@ -1659,6 +1734,7 @@ void dcntr_reg(unsigned int on)
 		pcfg->n_set	= 0;
 		pcfg->n_up	= 0;
 		pcfg->n_rp	= 0;
+		pcfg->use_org = 0;
 
 		pcfg->in.grd_num_mode	= 2;
 		pcfg->in.use_cvs	= 1;
@@ -1727,15 +1803,16 @@ int dbg_dct_core_show(struct seq_file *s, void *v)
 
 	seq_printf(s, "%s:\n", __func__);
 
-	seq_printf(s, "\tlsize<%d,%d,%d,%d>:\n",
-		   pcore->l_xsize, pcore->l_ysize,
+	seq_printf(s, "\tlsize<%d,%d,%d,%d,%d,%d>:\n",
+		   pcore->l_xstart, pcore->l_xsize,
+		   pcore->l_ystart, pcore->l_ysize,
 		   pcore->l_ds_x, pcore->l_ds_y);
 	seq_printf(s, "\tint[%d],sup[%d],st_set[%d],st_pause[%d]\n",
 		   pcore->flg_int, pcore->support, pcore->st_set,
 		   pcore->st_pause);
-	seq_printf(s, "\tst_off[%d],n_set[%d],n_up[%d],cvs_y[%d],cvs_uv[%d]\n",
+	seq_printf(s, "\tst_off[%d],n_set[%d],n_up[%d],cvs_y[%d],cvs_uv[%d],use_org[%d]\n",
 		   pcore->st_off, pcore->n_set, pcore->n_up,
-		   pcore->cvs_y, pcore->cvs_uv);
+		   pcore->cvs_y, pcore->cvs_uv, pcore->use_org);
 	seq_printf(s, "\t:bypass:%d\n", pcore->n_bypass);
 
 	seq_printf(s, "%s:\n", "dct_bl2");

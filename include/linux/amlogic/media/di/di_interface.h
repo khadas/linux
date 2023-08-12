@@ -254,6 +254,10 @@ struct di_win_s {
 	unsigned int y_st;
 	unsigned int x_end;
 	unsigned int y_end;
+	unsigned int orig_w;
+	unsigned int orig_h;
+	unsigned int x_check_sum;
+	unsigned int y_check_sum;
 };
 
 struct pvpp_dis_para_in_s {

@@ -1693,9 +1693,10 @@ void dip_chst_process_ch(void)
 		case EDI_TOP_STATE_PREVPP_LINK:
 			if (dpvpp_ops()		&&
 			    dpvpp_is_allowed()	&&
-			    dpvpp_is_insert())
+				dpvpp_is_insert()) {
+				dip_itf_vf_op_polling(pch);
 				dpvpp_ops()->parser(NULL);
-
+			}
 			break;
 		default:
 			break;

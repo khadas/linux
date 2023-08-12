@@ -2060,18 +2060,44 @@ RESTART:
 	if (!(disable_adapted & DISABLE_ADAPTIVE_ALIGN)) {
 		if (!next_frame_par->vscale_skip_count &&
 		    IS_DI_PRELINK(vf->di_flag)) {
-			if (next_frame_par->VPP_vd_start_lines_ & 1)
-				next_frame_par->VPP_vd_start_lines_--;
-			if (next_frame_par->VPP_pic_in_height_ & 1) {
-				if (next_frame_par->VPP_pic_in_height_ < height_in)
-					next_frame_par->VPP_pic_in_height_++;
-				else
-					next_frame_par->VPP_pic_in_height_--;
+			u32 align_val = 2, ds_ratio;
+			u32 aligned_start, aligned_size;
+
+			ds_ratio = (vf->di_flag & DI_FLAG_DCT_DS_RATIO_MASK);
+			ds_ratio >>= DI_FLAG_DCT_DS_RATIO_BIT;
+			/* reset the ds ratio if invalid */
+			if (ds_ratio == DI_FLAG_DCT_DS_RATIO_MAX)
+				ds_ratio = 0;
+			if ((1 << ds_ratio) > align_val) {
+				if (cur_super_debug)
+					pr_info("layer%d: ds_ratio=%d, align_val=%d\n",
+						input->layer_id, ds_ratio, align_val);
+				align_val = 1 << ds_ratio;
 			}
+			aligned_start = round_down
+				(next_frame_par->VPP_vd_start_lines_, align_val);
+			aligned_size = round_up
+				(next_frame_par->VPP_pic_in_height_, align_val);
+			if (cur_super_debug)
+				pr_info("layer%d: v start: %d->%d v size %d->%d align_val:%d ds_ratio:%d\n",
+					input->layer_id,
+					next_frame_par->VPP_vd_start_lines_, aligned_start,
+					next_frame_par->VPP_pic_in_height_, aligned_size,
+					align_val, ds_ratio);
+			if (aligned_size > height_in) {
+				aligned_size = round_down
+					(next_frame_par->VPP_pic_in_height_, align_val);
+				if (cur_super_debug)
+					pr_info("layer%d: v size overflow adjusted:%d->%d\n",
+						input->layer_id,
+						next_frame_par->VPP_pic_in_height_, aligned_size);
+			}
+			next_frame_par->VPP_vd_start_lines_ = aligned_start;
+			next_frame_par->VPP_pic_in_height_ = aligned_size;
 			next_frame_par->VPP_vd_end_lines_ =
 				next_frame_par->VPP_pic_in_height_ +
 				next_frame_par->VPP_vd_start_lines_ - 1;
-			/* TODO: re-calculate ratio y if VPP_pic_in_height_-- */
+			/* TODO: re-calculate ratio y if VPP_pic_in_height_ round_down */
 		} else if ((next_frame_par->VPP_pic_in_height_ & 1) &&
 		    IS_DI_POST(vf->type)) {
 			/* DI POST link, need make pps input size is even */
@@ -2215,18 +2241,41 @@ RESTART:
 	if (!(disable_adapted & DISABLE_ADAPTIVE_ALIGN)) {
 		if (!next_frame_par->hscale_skip_count &&
 		    IS_DI_PRELINK(vf->di_flag)) {
-			if (next_frame_par->VPP_hd_start_lines_ & 1)
-				next_frame_par->VPP_hd_start_lines_--;
-			if (next_frame_par->VPP_line_in_length_ & 1) {
-				if (next_frame_par->VPP_line_in_length_ < width_in)
-					next_frame_par->VPP_line_in_length_++;
-				else
-					next_frame_par->VPP_line_in_length_--;
+			u32 align_val = 2, ds_ratio;
+			u32 aligned_start, aligned_size;
+
+			ds_ratio = (vf->di_flag & DI_FLAG_DCT_DS_RATIO_MASK);
+			ds_ratio >>= DI_FLAG_DCT_DS_RATIO_BIT;
+			/* reset the ds ratio if invalid */
+			if (ds_ratio == DI_FLAG_DCT_DS_RATIO_MAX)
+				ds_ratio = 0;
+			if (1 << ds_ratio > align_val)
+				align_val = 1 << ds_ratio;
+
+			aligned_start = round_down
+				(next_frame_par->VPP_hd_start_lines_, align_val);
+			aligned_size = round_up
+				(next_frame_par->VPP_line_in_length_, align_val);
+			if (cur_super_debug)
+				pr_info("layer%d: h start: %d->%d h size %d->%d align_val:%d ds_ratio:%d\n",
+					input->layer_id,
+					next_frame_par->VPP_hd_start_lines_, aligned_start,
+					next_frame_par->VPP_line_in_length_, aligned_size,
+					align_val, ds_ratio);
+			if (aligned_size > width_in) {
+				aligned_size = round_down
+					(next_frame_par->VPP_line_in_length_, align_val);
+				if (cur_super_debug)
+					pr_info("layer%d: h size overflow adjusted:%d->%d\n",
+						input->layer_id,
+						next_frame_par->VPP_line_in_length_, aligned_size);
 			}
+			next_frame_par->VPP_hd_start_lines_ = aligned_start;
+			next_frame_par->VPP_line_in_length_ = aligned_size;
 			next_frame_par->VPP_hd_end_lines_ =
 				next_frame_par->VPP_line_in_length_ +
 				next_frame_par->VPP_hd_start_lines_ - 1;
-			/* TODO: re-calculate ratio x if VPP_line_in_length_-- */
+			/* TODO: re-calculate ratio x if VPP_line_in_length_ round_down */
 		}
 	}
 

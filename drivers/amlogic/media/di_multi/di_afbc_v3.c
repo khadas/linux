@@ -4532,14 +4532,16 @@ static void afbce_set_dvfm(struct dvfm_s *vf, enum EAFBC_ENC enc, const struct r
 	else
 		cfg->rot_en = 0;
 
-	dim_print("%s:win:<%d><%d><%d><%d><%d><%d>\n",
+	dim_print("%s:win:<%d><%d><%d><%d><%d><%d><%d><%d>\n",
 		  __func__,
 		  cfg->enc_win_bgn_h,
-		  cfg->hsize_in,
 		  cfg->enc_win_bgn_v,
-		  cfg->vsize_in,
 		  cfg->enc_win_end_h,
-		  cfg->enc_win_end_v);
+		  cfg->enc_win_end_v,
+		  cfg->hsize_in,
+		  cfg->vsize_in,
+		  vf->vfs.width,
+		  vf->vfs.height);
 	/*for sc2*/
 	if (pafd_ctr->fb.ver >= AFBCD_V5)
 		flg_v5 = true;
@@ -4661,7 +4663,7 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 	//mem_vf2 = mem_vf;
 	inp_vf2 = &ndvfm->c.in_dvfm_crop;
 	mem_vf2 = &ndvfm->c.mem_dvfm;
-	nr_vf	= &ndvfm->c.out_dvfm;
+	nr_vf	= &ndvfm->c.nr_wr_dvfm;
 	chan2_vf = NULL; //tmp
 	win_in = &ds->mifpara_in.win;
 	win_mem = &ds->mifpara_mem.win;
@@ -4743,7 +4745,7 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 						pafd_ctr->fb.pre_dec, pcfg,
 						win_in,
 						op_in);
-			}
+		}
 		if (is_src_i_dvfm(inp_vf2) || VFMT_IS_I(inp_vf2->vfs.type))
 			src_i_set_dvfm(nr_vf);
 			//dim_print("%s:set srci\n", __func__);
@@ -4755,9 +4757,9 @@ static u32 enable_afbc_input_dvfm(void *ds_in, void *nvfm_in,
 			     cfgg(AFBCE_LOSS_EN) == 1)) {
 				cfg.reg_lossy_en = 1;
 				nr_vf->vfs.type |= VIDTYPE_COMPRESS_LOSS;
-				}
-			else
+			} else {
 				cfg.reg_lossy_en = 0;
+			}
 			enable_afbc_input_local_dvfm(ds, mem_vf2,
 						pafd_ctr->fb.mem_dec,
 						pcfg,

@@ -294,12 +294,24 @@ static void set_dcntr_grid_fmt(u32 hfmt_en,
 	u32 vfmt_en,
 	u32 vt_yc_ratio,
 	u32 vt_ini_phase,
-	u32 y_length)
+	u32 y_length,
+	int src_hsize,
+	int src_fmt,
+	int mif_x_start)
 {
 	u32 vt_phase_step = (16 >> vt_yc_ratio);
 	u32 vfmt_w = (y_length >> hz_yc_ratio);
+	u32 temp_w;
 	const struct reg_acc *op = &di_pre_regset;
 
+	/* src_fmt 422 need a workaround for crop odd x_start or h_size */
+	if (src_fmt == 0 &&
+	    ((mif_x_start & 1) || (y_length & 1))) {
+		temp_w = vfmt_w + 1;
+		temp_w <<= hz_yc_ratio;
+		if (temp_w <= src_hsize)
+			vfmt_w++;
+	}
 	op->wr(DCNTR_GRID_FMT_CTRL,
 		(0 << 28)       |
 		(hz_ini_phase << 24) |
@@ -423,7 +435,10 @@ static void dcntr_grid_rdmif(int canvas_id0,
 		vfmt_en,
 		vt_yc_ratio,
 		0,
-		fmt_hsize);
+		fmt_hsize,
+		src_hsize,
+		src_fmt,
+		mif_x_start);
 }
 
 static void dcntr_grid_wrmif(int mif_index,
@@ -836,7 +851,7 @@ static void decontour_uninit(struct di_ch_s *pch)
 	dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_CH);
 	dct->src_cnt--;
 	dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_ACT);
-	pr_info("ch[%d]decontour: uninit\n", pch->ch_id);
+	PR_INF("ch[%d]decontour: uninit %px\n", pch->ch_id, pdct);
 }
 
 void dct_pre_plink_unreg_mem(struct di_ch_s *pch)
@@ -954,7 +969,7 @@ static void dct_pre_plink_init(struct di_ch_s *pch)
 	dct->statusx[pch->ch_id] |= DCT_PRE_LS_MEM;
 
 	dbg_dctp("dctp:alloc success %lx\n",
-			 pdct->decontour_addr);
+		 pdct->decontour_addr);
 
 	for (i = 0; i < pdct->buf_nub; i++) {
 		memcpy(&pdct->dcntr_mem_info[i],
@@ -986,7 +1001,7 @@ static void dct_pre_plink_init(struct di_ch_s *pch)
 		dct->state = EDI_DCT_IDLE;
 		di_tout_int(&dct->tout, 20);
 	}
-	dbg_tst("ch[%d]:dctp: init\n", pch->ch_id);
+	dbg_tst("ch[%d]:dctp: init %px\n", pch->ch_id, pdct);
 }
 
 void dct_pre_plink_reg(struct di_ch_s *pch)
@@ -1396,6 +1411,7 @@ static unsigned int dct_sft_prepare(struct di_ch_s *pch,
 	struct di_hdct_s	*hdct = &get_datal()->hw_dct;
 	struct dim_nins_s *nins = NULL;
 	struct vframe_s *vf, *vf_get;
+	struct di_win_s out;
 
 	*pnin_out = NULL; //
 	/* get vfm_in*/
@@ -1493,6 +1509,10 @@ static unsigned int dct_sft_prepare(struct di_ch_s *pch,
 
 	hdct->ds_out_width = hdct->mif_out_width >> hdct->ds_ratio;
 	hdct->ds_out_height = hdct->mif_out_height >> hdct->ds_ratio;
+	hdct->grid_x_start = 0;
+	hdct->grid_x_size = hdct->mif_read_width;
+	hdct->grid_y_start = 0;
+	hdct->grid_y_size = hdct->mif_read_height;
 
 	if (hdct->ds_out_width < 16 || hdct->ds_out_height < 120) {
 		dbg_dctp("not supported: vf:%d * %d", vf->width, vf->height);
@@ -1531,12 +1551,18 @@ static unsigned int dct_sft_prepare(struct di_ch_s *pch,
 		return DCT_SFT_BYPSS_BIT | (DDIM_DCT_BYPASS_BY_PRE_BASE + 3);
 	}
 
+	memset(&out, 0, sizeof(struct di_win_s));
 	*pnin_out = nins;
 	hdct->curr_nins = nins;
 	dcntr_mem->use_org = true;
 	dcntr_mem->ds_ratio = 0;
 	dcntr_mem->ori_w = vf->width;
 	dcntr_mem->ori_h = vf->height;
+	dcntr_mem->x_start = 0;
+	dcntr_mem->x_size = vf_org_width;
+	dcntr_mem->y_start = 0;
+	dcntr_mem->y_size = vf_org_height;
+	dcntr_mem->plink = false;
 	if (hdct->ds_ratio || hdct->skip || hdct->need_ds)
 		dcntr_mem->use_org = false;
 
@@ -1557,6 +1583,14 @@ static unsigned int dct_sft_prepare(struct di_ch_s *pch,
 			if ((vf->compHeight / vf->height) * vf->height !=
 			    vf->compHeight)
 				unsupported_resolution = true;
+			if (vf->width == vf->compWidth)
+				dcntr_mem->ds_ratio = 0;
+			else if (vf->width >= (vf->compWidth >> 1))
+				dcntr_mem->ds_ratio = 1;
+			else if (vf->width >= (vf->compWidth >> 2))
+				dcntr_mem->ds_ratio = 2;
+			else
+				dcntr_mem->ds_ratio = 3;
 		}
 	} else {
 		if ((hdct->ds_out_width << dcntr_mem->ds_ratio) != vf_org_width)
@@ -1574,9 +1608,81 @@ static unsigned int dct_sft_prepare(struct di_ch_s *pch,
 		mem_put_free(dcntr_mem);
 		return DCT_SFT_BYPSS_BIT | (DDIM_DCT_BYPASS_BY_PRE_BASE + 4);
 	}
+
+	if (dpvpp_ops_api() &&
+	    dpvpp_ops_api()->get_di_in_win &&
+	    !(vf->type & VIDTYPE_INTERLACE)) {
+		int iret;
+		bool crop_flag = false;
+
+		iret = dpvpp_ops_api()->get_di_in_win(pch,
+			vf_org_width, vf_org_height, &out);
+		if (!iret) {
+			dcntr_mem->x_start = out.x_st;
+			dcntr_mem->x_size = out.x_size;
+			dcntr_mem->y_start = out.y_st;
+			dcntr_mem->y_size = out.y_size;
+			if (dcntr_mem->x_size != vf_org_width ||
+			    dcntr_mem->y_size != vf_org_height) {
+				u32 x_ratio = 1, y_ratio = 1;
+
+				/* re-calculate all mif size after source crop */
+				if (hdct->mif_read_width) {
+					x_ratio = vf_org_width / hdct->mif_read_width;
+					hdct->grid_x_start = dcntr_mem->x_start / x_ratio;
+					hdct->grid_x_size = dcntr_mem->x_size / x_ratio;
+				}
+				if (hdct->mif_read_height) {
+					y_ratio = vf_org_height / hdct->mif_read_height;
+					hdct->grid_y_start = dcntr_mem->y_start / y_ratio;
+					hdct->grid_y_size = dcntr_mem->y_size / y_ratio;
+				}
+
+				if (hdct->mif_out_width) {
+					x_ratio = vf_org_width / hdct->mif_out_width;
+					hdct->mif_out_width = dcntr_mem->x_size / x_ratio;
+				}
+				if (hdct->mif_out_height) {
+					y_ratio = vf_org_height / hdct->mif_out_height;
+					hdct->mif_out_height = dcntr_mem->y_size / y_ratio;
+				}
+
+				if (hdct->ds_out_width) {
+					x_ratio = vf_org_width / hdct->ds_out_width;
+					hdct->ds_out_width = dcntr_mem->x_size / x_ratio;
+				}
+				if (hdct->ds_out_height) {
+					y_ratio = vf_org_height / hdct->ds_out_height;
+					hdct->ds_out_height = dcntr_mem->y_size / y_ratio;
+				}
+				crop_flag = true;
+				if (hdct->ds_out_width < 16 || hdct->ds_out_height < 120) {
+					dbg_dctp("not supported after crop: vf:%d * %d",
+						vf->width, vf->height);
+					mem_put_free(dcntr_mem);
+					return DCT_SFT_BYPSS_BIT |
+						(DDIM_DCT_BYPASS_BY_PRE_BASE + 5);
+				}
+			}
+		}
+		if (crop_flag)
+			dbg_dctp
+			("%s:c:%d %d %d %d g:%d %d %d %d ds:%d %d o:%d %d %d %d fmt:%d ratio:%d\n",
+			__func__,
+			dcntr_mem->x_start, dcntr_mem->x_size,
+			dcntr_mem->y_start, dcntr_mem->y_size,
+			hdct->grid_x_start, hdct->grid_x_size,
+			hdct->grid_y_start, hdct->grid_y_size,
+			hdct->ds_out_width, hdct->ds_out_height,
+			dcntr_mem->ori_w, dcntr_mem->ori_h,
+			vf_org_width, vf_org_height,
+			hdct->src_fmt, dcntr_mem->ds_ratio);
+	}
+	/* backup the grid wrmif output for dct post */
+	dcntr_mem->grid_out_x_size = hdct->ds_out_width;
+	dcntr_mem->grid_out_y_size = hdct->ds_out_height;
 	dcntr_mem->cnt_in = nins->c.cnt;
 	vf->decontour_pre = (void *)dcntr_mem;
-
 	return DCT_SFT_DO_DCT;
 }
 
@@ -1660,6 +1766,12 @@ static void dct_hw_set(struct dim_nins_s *pnin)
 		(hdct->debug_decontour & DCT_PRE_REWRITE_REG))
 		format_changed = true;
 
+	if (hdct->info_last.x_start != dcntr_mem->x_start ||
+	    hdct->info_last.x_size != dcntr_mem->x_size ||
+	    hdct->info_last.y_start != dcntr_mem->y_start ||
+	    hdct->info_last.y_size != dcntr_mem->y_size)
+		format_changed = true;
+
 	if (!format_changed) {
 		dcntr_mem->grd_swap_64bit = hdct->info_last.grd_swap_64bit;
 		dcntr_mem->yds_swap_64bit = hdct->info_last.yds_swap_64bit;
@@ -1721,10 +1833,10 @@ static void dct_hw_set(struct dim_nins_s *pnin)
 		src_vsize,   /*int src_vsize,*/
 		hdct->src_fmt, /*1 = RGB/YCBCR(3 bytes/pixel), */
 		/*0=422 (2 bytes/pixel) 2:420 (two canvas)*/
-		0,	     /*int mif_x_start,*/
-		hdct->mif_read_width - 1, /*int mif_x_end  ,*/
-		0,	     /*int mif_y_start,*/
-		hdct->mif_read_height - 1, /*int mif_y_end  ,*/
+		hdct->grid_x_start,	     /*int mif_x_start,*/
+		hdct->grid_x_start + hdct->grid_x_size - 1, /*int mif_x_end  ,*/
+		hdct->grid_y_start,	     /*int mif_y_start,*/
+		hdct->grid_y_start + hdct->grid_y_size - 1, /*int mif_y_end  ,*/
 		0,	      /*int mif_reverse  // 0 : no reverse*/
 		hdct->pic_struct,
 		/*0 : frame; 2:top_field; 3:bot_field; 4:y skip, uv no skip;*/
@@ -1758,8 +1870,9 @@ static void dct_hw_set(struct dim_nins_s *pnin)
 		/* DDR read length = linear_length*128 bits*/
 
 	if (hdct->ds_ratio || hdct->skip || hdct->need_ds) {
-		yflt_wrmif_length = yflt_wrmif_length * 8 / 128;
-		cflt_wrmif_length = cflt_wrmif_length * 8 / 128;
+		yflt_wrmif_length = ((yflt_wrmif_length * 8) + 127) / 128;
+		cflt_wrmif_length = ((cflt_wrmif_length * 8) + 127) / 128; /* 420 or 422 */
+		//cflt_wrmif_length = ((cflt_wrmif_length * 16) + 127) / 128; /* 444 */
 		dcntr_mem->yflt_wrmif_length = yflt_wrmif_length;
 		dcntr_mem->cflt_wrmif_length = cflt_wrmif_length;
 
@@ -2321,32 +2434,39 @@ void dim_dbg_dct_info_show(struct seq_file *s, void *v,
 	if (!pprecfg)
 		return;
 	seq_printf(s, "index[%d],free[%d],cnt[%d]\n",
-			  pprecfg->index, pprecfg->free, pprecfg->cnt_in);
+		pprecfg->index, pprecfg->free, pprecfg->cnt_in);
 
 	seq_printf(s, "use_org[%d],ration[%d]\n",
-		  pprecfg->use_org, pprecfg->ds_ratio);
+		pprecfg->use_org, pprecfg->ds_ratio);
 	seq_printf(s, "grd_addr[0x%lx],y_addr[0x%lx], c_addr[0x%lx]\n",
-		  pprecfg->grd_addr,
-		  pprecfg->yds_addr,
-		  pprecfg->cds_addr);
+		pprecfg->grd_addr,
+		pprecfg->yds_addr,
+		pprecfg->cds_addr);
 	seq_printf(s, "grd_size[%d],yds_size[%d], cds_size[%d]\n",
-		  pprecfg->grd_size,
-		  pprecfg->yds_size,
-		  pprecfg->cds_size);
+		pprecfg->grd_size,
+		pprecfg->yds_size,
+		pprecfg->cds_size);
 	seq_printf(s, "out_fmt[0x%x],y_len[%d],c_len[%d]\n",
-		  pprecfg->pre_out_fmt,
-		  pprecfg->yflt_wrmif_length,
-		  pprecfg->cflt_wrmif_length);
+		pprecfg->pre_out_fmt,
+		pprecfg->yflt_wrmif_length,
+		pprecfg->cflt_wrmif_length);
 	seq_printf(s, "yswap_64 little[%d,%d],c:[%d,%d],grd:[%d,%d]\n",
-		  pprecfg->yds_swap_64bit,
-		  pprecfg->yds_little_endian,
-		  pprecfg->cds_swap_64bit,
-		  pprecfg->cds_little_endian,
-		  pprecfg->grd_swap_64bit,
-		  pprecfg->grd_little_endian);
+		pprecfg->yds_swap_64bit,
+		pprecfg->yds_little_endian,
+		pprecfg->cds_swap_64bit,
+		pprecfg->cds_little_endian,
+		pprecfg->grd_swap_64bit,
+		pprecfg->grd_little_endian);
 	seq_printf(s, "yds_canvas_mode[%d],cds_canvas_mode[%d]\n",
 		pprecfg->yds_canvas_mode,
 		pprecfg->cds_canvas_mode);
+	seq_printf(s, "mif size x:[%d,%d], y:[%d,%d], grd:[%d,%d]\n",
+		pprecfg->x_start,
+		pprecfg->x_size,
+		pprecfg->y_start,
+		pprecfg->y_size,
+		pprecfg->grid_out_x_size,
+		pprecfg->grid_out_y_size);
 }
 
 int dct_pre_show(struct seq_file *s, void *v)
@@ -2414,6 +2534,14 @@ int dct_pre_show(struct seq_file *s, void *v)
 		   dct->pic_struct);
 	seq_printf(s, "\t%s<0x%x>:\n", "h_avg",
 		   dct->h_avg);
+	seq_printf(s, "\t%s<0x%x>:\n", "grid_x_start",
+		   dct->grid_x_start);
+	seq_printf(s, "\t%s<0x%x>:\n", "grid_x_size",
+		   dct->grid_x_size);
+	seq_printf(s, "\t%s<0x%x>:\n", "grid_y_start",
+		   dct->grid_y_start);
+	seq_printf(s, "\t%s<0x%x>:\n", "grid_y_size",
+		   dct->grid_y_size);
 	seq_printf(s, "\t%s<0x%x>:\n", "ds_out_width",
 		   dct->ds_out_width);
 	seq_printf(s, "\t%s<0x%x>:\n", "ds_out_height",

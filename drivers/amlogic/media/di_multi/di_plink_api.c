@@ -80,9 +80,10 @@ static void mif_cfg_v2(struct DI_MIF_S *di_mif,
 		    struct dvfm_s *pvfm,
 		    struct dim_mifpara_s *ppara);
 static bool dpvpp_parser_nr(struct dimn_itf_s *itf);
-static bool vtype_fill_d(struct vframe_s *vfmt,
-			 struct vframe_s *vfmf,
-			 struct dvfm_s *by_dvfm);
+static bool vtype_fill_d(struct dimn_itf_s *itf,
+		struct vframe_s *vfmt,
+		struct vframe_s *vfmf,
+		struct dvfm_s *by_dvfm);
 //disable irq sw static void unreg_irq(void);
 static struct vframe_s *dpvpp_get_vf_base(struct dimn_itf_s *itf);
 //static
@@ -159,6 +160,8 @@ bool timer_cnt(unsigned long *ptimer, unsigned int hs_nub)
  * bit [19]: force bypass top	//in parser
  * bit [20]: force pause
  * bit [21]: insert vfm?
+ * bit [22]: force not crop win;
+ * bit [23]: force bypass dct post;
  * bit [24]: dbg irq en
  * bit [25]: force not bypass mem
  * bit [28]: bypass in display
@@ -311,9 +314,24 @@ static bool dpvpp_dbg_force_bypass_2(void)
 {
 	if (tst_pre_vpp & DI_BIT19)
 		return true;
+
 	if (dimp_get(edi_mp_di_debug_flag) & 0x100000)
 		return true;
 
+	return false;
+}
+
+static bool dpvpp_dbg_force_no_crop(void)
+{
+	if (tst_pre_vpp & DI_BIT22)
+		return true;
+	return false;
+}
+
+static bool dpvpp_dbg_force_bypass_dct_post(void)
+{
+	if (tst_pre_vpp & DI_BIT23)
+		return true;
 	return false;
 }
 
@@ -2127,6 +2145,7 @@ static bool dpvpp_reg(struct dimn_itf_s *itf)
 	memset(&itf->c, 0, sizeof(itf->c));
 	itf->c.reg_di = true;
 	itf->c.src_state = itf->src_need;
+	itf->c.last_ds_ratio = DI_FLAG_DCT_DS_RATIO_MAX;
 	/* dbg */
 	di_g_plink_dbg()->display_sts = -10;
 	di_g_plink_dbg()->flg_check_di_act = -10;
@@ -3916,6 +3935,8 @@ static void dct_pst(const struct reg_acc *op, struct dimn_dvfm_s *ndvfm)
 	struct dim_pvpp_hw_s *hw;
 	bool ret;
 	struct di_ch_s *pch;
+	struct dcntr_mem_s	*pdcn;
+	unsigned char dct_bypass_sts = 0;
 
 	hw = &get_datal()->dvs_prevpp.hw;
 	if (hw->dis_ch == 0xff)
@@ -3942,10 +3963,40 @@ static void dct_pst(const struct reg_acc *op, struct dimn_dvfm_s *ndvfm)
 	}
 	vf = &ndvfm->c.vf_in_cp;
 	vf->decontour_pre = ndvfm->c.dct_pre;
+	pdcn = (struct dcntr_mem_s *)vf->decontour_pre;
+	/* set pre-link flag to notify the dct pst process*/
+	if (pdcn)
+		pdcn->plink = true;
 	dcntr_check(vf);
 	ret = dcntr_set(op);
 	if (ret)
 		hw->dct_sum_d++;
+	if (pdcn && !dpvpp_dbg_force_no_crop()) {
+		if (pdcn->x_start != hw->dis_c_para.win.x_st ||
+		    pdcn->x_size != hw->dis_c_para.win.x_size ||
+		    pdcn->y_start != hw->dis_c_para.win.y_st ||
+		    pdcn->y_size != hw->dis_c_para.win.y_size) {
+			dcntr_hw_bypass(op);
+			dct_bypass_sts = 1;
+			dim_print("%s: dct_bypass: (%d %d %d %d) -- (%d %d %d %d)\n",
+				__func__,
+				pdcn->x_start, pdcn->y_start,
+				pdcn->x_size, pdcn->y_size,
+				hw->dis_c_para.win.x_st,
+				hw->dis_c_para.win.y_st,
+				hw->dis_c_para.win.x_size,
+				hw->dis_c_para.win.y_size);
+		}
+	}
+	if (dpvpp_dbg_force_bypass_dct_post()) {
+		dcntr_hw_bypass(op);
+		dct_bypass_sts = 1;
+	}
+	if (dct_bypass_sts != hw->last_dct_bypass)
+		dim_print("%s: dct_bypass:%d->%d, force:%d\n",
+			__func__, hw->last_dct_bypass, dct_bypass_sts,
+			dpvpp_dbg_force_bypass_dct_post());
+	hw->last_dct_bypass = dct_bypass_sts;
 	dcntr_pq_tune(&hw->pq_rpt, op);
 	vf->decontour_pre = NULL;
 }
@@ -5050,9 +5101,9 @@ enum EDIM_DVPP_DIFF {
 };
 
 /* enum EDIM_DVPP_DIFF */
-static  unsigned int check_diff(struct dimn_itf_s *itf,
-				struct dimn_dvfm_s *dvfm_c,
-				      struct pvpp_dis_para_in_s *in_para)
+static unsigned int check_diff(struct dimn_itf_s *itf,
+		struct dimn_dvfm_s *dvfm_c,
+		struct pvpp_dis_para_in_s *in_para)
 {
 	struct pvpp_dis_para_in_s *pa_l, *pa_c;
 	struct di_win_s *win_l, *win_c;
@@ -5071,6 +5122,7 @@ static  unsigned int check_diff(struct dimn_itf_s *itf,
 	if (!ds || !dvfm_c || !in_para || !itf)
 		return EDIM_DVPP_DIFF_NONE;
 
+	dvfmc = &dvfm_c->c.in_dvfm.vfs;
 	/* copy current para */
 	pa_c = &hw->dis_c_para;
 	hw->id_c = itf->id;
@@ -5079,6 +5131,12 @@ static  unsigned int check_diff(struct dimn_itf_s *itf,
 	win_c = &pa_c->win;
 	win_c->x_end = win_c->x_st + win_c->x_size - 1;
 	win_c->y_end = win_c->y_st + win_c->y_size - 1;
+	win_c->orig_w = dvfmc->width;
+	win_c->orig_h = dvfmc->height;
+	win_c->x_check_sum = ((win_c->x_size & 0xffff) << 16) |
+		((win_c->x_st + win_c->x_end) & 0xffff);
+	win_c->y_check_sum = ((win_c->y_size & 0xffff) << 16) |
+		((win_c->y_st + win_c->y_end) & 0xffff);
 
 	if (dpvpp_dbg_force_same())
 		return EDIM_DVPP_DIFF_SAME_FRAME;
@@ -5122,7 +5180,6 @@ static  unsigned int check_diff(struct dimn_itf_s *itf,
 		return EDIM_DVPP_DIFF_SAME_FRAME;
 
 	dvfml = &hw->dis_last_dvf->c.in_dvfm.vfs;
-	dvfmc = &dvfm_c->c.in_dvfm.vfs;
 	if (dvfml->bitdepth != dvfmc->bitdepth	||
 	    dvfml->type != dvfmc->type		||
 	    dvfml->width != dvfmc->width	||
@@ -5152,6 +5209,71 @@ static  unsigned int check_diff(struct dimn_itf_s *itf,
 		state = EDIM_DVPP_DIFF_MEM;
 	}
 	return state | EDIM_DVPP_DIFF_ONLY_ADDR;
+}
+
+static int dpvpp_get_plink_input_win(struct di_ch_s *pch,
+		unsigned int src_w, unsigned int src_h, struct di_win_s *out)
+{
+	struct di_win_s *win_c;
+	struct dim_pvpp_hw_s *hw;
+	struct di_win_s tmp;
+	u32 val;
+	//ulong irq_flag = 0;
+	int ret = 0;
+
+	if (!pch) {
+		PR_ERR("%s:1\n", __func__);
+		return -1;
+	}
+
+	//spin_lock_irqsave(&lock_pvpp, irq_flag);
+	hw = &get_datal()->dvs_prevpp.hw;
+	if (!out ||
+	    hw->dis_ch != pch->ch_id ||
+	    !atomic_read(&hw->link_sts)) {
+		PR_WARN("%s:2 %d %d %px, sts:%d\n",
+			__func__, hw->dis_ch, pch->ch_id,
+			out, atomic_read(&hw->link_sts) ? 1 : 0);
+		//spin_unlock_irqrestore(&lock_pvpp, irq_flag);
+		return -1;
+	}
+
+	if (dpvpp_dbg_force_no_crop())
+		return -2;
+
+	/* copy current win para */
+	win_c = &hw->dis_c_para.win;
+	memcpy(&tmp, win_c, sizeof(*win_c));
+	/* x size check */
+	val = (tmp.x_check_sum >> 16) & 0xffff;
+	if (val != tmp.x_size)
+		ret++;
+	val = tmp.x_check_sum & 0xffff;
+	if (val != ((tmp.x_st + tmp.x_end) & 0xffff))
+		ret++;
+
+	/* y size check */
+	val = (tmp.y_check_sum >> 16) & 0xffff;
+	if (val != tmp.y_size)
+		ret++;
+	val = tmp.y_check_sum & 0xffff;
+	if (val != ((tmp.y_st + tmp.y_end) & 0xffff))
+		ret++;
+
+	if (src_w != tmp.orig_w)
+		ret++;
+	if (src_h != tmp.orig_h)
+		ret++;
+
+	if (ret)
+		PR_WARN("%s: win info incompleted (%d %d; %d %d) x:%x %x %x %x; y:%x %x %x %x\n",
+			__func__, src_w, src_h, tmp.orig_w, tmp.orig_h,
+			tmp.x_st, tmp.x_end, tmp.x_size, tmp.x_check_sum,
+			tmp.y_st, tmp.y_end, tmp.y_size, tmp.y_check_sum);
+	if (!ret)
+		memcpy(out, &tmp, sizeof(*out));
+	//spin_unlock_irqrestore(&lock_pvpp, irq_flag);
+	return ret;
 }
 
 static void dpvpp_set_default_para(struct dim_prevpp_ds_s *ds,
@@ -5601,6 +5723,7 @@ static const struct dimn_pvpp_ops_api_s dvpp_api_ops = {
 	.check_di_act	= dpvpp_check_pre_vpp_link_by_di_api,
 	.vpp_get	= dpvpp_vpp_get,
 	.vpp_put	= dpvpp_vpp_put,
+	.get_di_in_win = dpvpp_get_plink_input_win,
 };
 
 //static
@@ -7104,6 +7227,8 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 			       in_dvfm->vfs.height,
 			       in_dvfm->vfs.source_type,
 			       ndvfm->c.cnt_in);
+		/* reset last_ds_ratio when source size change */
+		itf->c.last_ds_ratio = DI_FLAG_DCT_DS_RATIO_MAX;
 		ds->set_cfg_cur.b.en_linear_cp = hw->en_linear;
 		ds->is_inp_4k = false;
 		ds->is_out_4k = false;
@@ -7295,7 +7420,7 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 	vfm = (struct vframe_s *)qin->ops.get(qin);
 
 	if (!hw->en_pst_wr_test) {
-		vtype_fill_d(vfm, &ndvfm->c.vf_in_cp, &ndvfm->c.out_dvfm);
+		vtype_fill_d(itf, vfm, &ndvfm->c.vf_in_cp, &ndvfm->c.out_dvfm);
 		dim_print("%s:link\n", __func__);
 		didbg_vframe_out_save(itf->bind_ch, vfm, 6);
 		dpvpp_put_ready_vf(itf, ds, vfm);
@@ -7315,7 +7440,7 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 		}
 
 		/**************************/
-		vtype_fill_d(vfm, &ndvfm->c.vf_in_cp, &ndvfm->c.out_dvfm);
+		vtype_fill_d(itf, vfm, &ndvfm->c.vf_in_cp, &ndvfm->c.out_dvfm);
 		dbg_check_vf(ds, vfm, 2);
 
 		dpvpp_put_ready_vf(itf, ds, vfm);
@@ -7403,7 +7528,7 @@ static void dpvpph_display_update_all(struct dim_prevpp_ds_s *ds,
 			       const struct reg_acc *op_in)
 {
 	struct dim_cvspara_s *cvsp;
-	struct dvfm_s *in_dvfm, *out_dvfm;
+	struct dvfm_s *in_dvfm, *out_dvfm, *nr_dvfm;
 	unsigned char *cvs, pos;
 	struct di_win_s *winc;
 	bool ref_en = true;
@@ -7506,6 +7631,19 @@ static void dpvpph_display_update_all(struct dim_prevpp_ds_s *ds,
 		mifp->cvs_id[1] = (unsigned int)(*(cvsp->cvs_id + 1));
 	}
 
+	/* copy out_dvfm to nr_wr_dvfm, then adjust size by crop */
+	memcpy(&ndvfm->c.nr_wr_dvfm,
+		&ndvfm->c.out_dvfm,
+		sizeof(ndvfm->c.out_dvfm));
+	nr_dvfm = &ndvfm->c.nr_wr_dvfm;
+	if (winc->x_size != nr_dvfm->vfs.width ||
+	    winc->y_size != nr_dvfm->vfs.height) {
+		nr_dvfm->vfs.width = winc->x_size;
+		nr_dvfm->vfs.height = winc->y_size;
+		nr_dvfm->src_w = nr_dvfm->vfs.width;
+		nr_dvfm->src_h = nr_dvfm->vfs.height;
+	}
+
 	/* check mem */
 	if (!ndvfm->c.cnt_display || !ndvfm_last) {//tmp
 		ref_en = false;
@@ -7516,7 +7654,7 @@ static void dpvpph_display_update_all(struct dim_prevpp_ds_s *ds,
 	} else {
 		/* have mem */
 		memcpy(&ndvfm->c.mem_dvfm,
-			&ndvfm_last->c.out_dvfm,
+			&ndvfm_last->c.nr_wr_dvfm,
 			sizeof(ndvfm->c.mem_dvfm));
 	}
 	dim_print("display:set_cfg:0x%x\n", ndvfm->c.set_cfg.d32);
@@ -7568,9 +7706,9 @@ static void dpvpph_display_update_all(struct dim_prevpp_ds_s *ds,
 	}
 	/* mif wr */
 	if (ndvfm->c.set_cfg.b.en_wr_mif) {
-		mif_cfg_v2(&ds->mif_wr, &ndvfm->c.out_dvfm, &ds->mifpara_out);
+		mif_cfg_v2(&ds->mif_wr, &ndvfm->c.nr_wr_dvfm, &ds->mifpara_out);
 #ifdef DBG_FLOW_SETTING
-		print_dvfm(&ndvfm->c.out_dvfm, "set:out_dvfm");
+		print_dvfm(&ndvfm->c.nr_wr_dvfm, "set:nr_wr_dvfm");
 		dim_dump_mif_state(&ds->mif_wr, "set:mif_wr");
 		print_dim_mifpara(&ds->mifpara_out, "display:all:out_use");
 #endif
@@ -7579,16 +7717,16 @@ static void dpvpph_display_update_all(struct dim_prevpp_ds_s *ds,
 	}
 	if (ndvfm->c.set_cfg.b.en_mem_mif) {
 		mif_cfg_v2(&ds->mif_mem,
-			   &ndvfm_last->c.out_dvfm, &ds->mifpara_mem);
+			   &ndvfm_last->c.nr_wr_dvfm, &ds->mifpara_mem);
 #ifdef DBG_FLOW_SETTING
-		print_dvfm(&ndvfm_last->c.out_dvfm, "set:mem_dvfm");
+		print_dvfm(&ndvfm_last->c.nr_wr_dvfm, "set:mem_dvfm");
 		dim_dump_mif_state(&ds->mif_mem, "set:mif_mem");
 		print_dim_mifpara(&ds->mifpara_mem, "display:all:mem_use");
 #endif
 		opl1()->pre_mif_set(&ds->mif_mem, DI_MIF0_ID_MEM, op_in);
 	} else {
 		//use current output
-		mif_cfg_v2(&ds->mif_mem, &ndvfm->c.out_dvfm, &ds->mifpara_mem);
+		mif_cfg_v2(&ds->mif_mem, &ndvfm->c.nr_wr_dvfm, &ds->mifpara_mem);
 		opl1()->pre_mif_set(&ds->mif_mem, DI_MIF0_ID_MEM, op_in);
 	}
 	/* afbc */
@@ -7728,7 +7866,7 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 			       unsigned int diff)
 {
 	struct dim_cvspara_s *cvsp;
-	struct dvfm_s *in_dvfm, *out_dvfm;
+	struct dvfm_s *in_dvfm, *out_dvfm, *nr_dvfm;
 	unsigned char *cvs, pos;
 	struct di_win_s *winc;
 	bool ref_en = true;
@@ -7828,6 +7966,19 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 		mifp->cvs_id[1] = (unsigned int)(*(cvsp->cvs_id + 1));
 	}
 
+	/* copy out_dvfm to nr_wr_dvfm, then adjust size by crop */
+	memcpy(&ndvfm->c.nr_wr_dvfm,
+		&ndvfm->c.out_dvfm,
+		sizeof(ndvfm->c.out_dvfm));
+	nr_dvfm = &ndvfm->c.nr_wr_dvfm;
+	if (winc->x_size != nr_dvfm->vfs.width ||
+	    winc->y_size != nr_dvfm->vfs.height) {
+		nr_dvfm->vfs.width = winc->x_size;
+		nr_dvfm->vfs.height = winc->y_size;
+		nr_dvfm->src_w = nr_dvfm->vfs.width;
+		nr_dvfm->src_h = nr_dvfm->vfs.height;
+	}
+
 	/* check mem */
 	if (!ndvfm->c.cnt_display || !ndvfm_last) {//tmp
 		ref_en = false;
@@ -7837,16 +7988,16 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 		dbg_plink1("display:%d:up mem:0\n", ndvfm->c.cnt_in);
 	} else {
 #ifdef HIS_CODE
-		if (ndvfm->c.mem_dvfm.vfs.type != ndvfm_last->c.out_dvfm.vfs.type) {
+		if (ndvfm->c.mem_dvfm.vfs.type != ndvfm_last->c.nr_wr_dvfm.vfs.type) {
 			dbg_plink1("mem:%d:type:0x%x->0x%x\n",
 				ndvfm->c.cnt_in,
 				ndvfm->c.mem_dvfm.vfs.type,
-				ndvfm_last->c.out_dvfm.vfs.type);
+				ndvfm_last->c.nr_wr_dvfm.vfs.type);
 		}
 #endif
 		/* have mem */
 		memcpy(&ndvfm->c.mem_dvfm,
-			&ndvfm_last->c.out_dvfm,
+			&ndvfm_last->c.nr_wr_dvfm,
 			sizeof(ndvfm->c.mem_dvfm));
 	}
 
@@ -7881,13 +8032,13 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 	}
 	/* mif wr */
 	if (ndvfm->c.set_cfg.b.en_wr_mif) {
-		//mif_cfg_v2(&ds->mif_wr, &ndvfm->c.out_dvfm, &ds->mifpara_out);
+		//mif_cfg_v2(&ds->mif_wr, &ndvfm->c.nr_wr_dvfm, &ds->mifpara_out);
 		mif_cfg_v2_update_addr(&ds->mif_wr,
-				       &ndvfm->c.out_dvfm, &ds->mifpara_out);
+				       &ndvfm->c.nr_wr_dvfm, &ds->mifpara_out);
 
 		opl1()->wrmif_update_addr(&ds->mif_wr, op_in, EDI_MIFSM_NR);
 #ifdef DBG_FLOW_SETTING
-		print_dvfm(&ndvfm->c.out_dvfm, "set:out_dvfm");
+		print_dvfm(&ndvfm->c.nr_wr_dvfm, "set:nr_wr_dvfm");
 		dim_dump_mif_state(&ds->mif_wr, "set:mif_wr");
 		print_dim_mifpara(&ds->mifpara_out, "display:all:out_use");
 #endif
@@ -7895,17 +8046,17 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 	if (ndvfm->c.set_cfg.b.en_mem_mif) {
 		if (diff & EDIM_DVPP_DIFF_MEM) {
 			mif_cfg_v2(&ds->mif_mem,
-				   &ndvfm_last->c.out_dvfm, &ds->mifpara_mem);
+				   &ndvfm_last->c.nr_wr_dvfm, &ds->mifpara_mem);
 			opl1()->pre_mif_set(&ds->mif_mem, DI_MIF0_ID_MEM, op_in);
 		} else {
 			mif_cfg_v2_update_addr(&ds->mif_mem,
-					       &ndvfm_last->c.out_dvfm,
+					       &ndvfm_last->c.nr_wr_dvfm,
 					       &ds->mifpara_mem);
 			opl1()->mif_rd_update_addr(&ds->mif_mem,
 						   DI_MIF0_ID_MEM, op_in);
 
 #ifdef DBG_FLOW_SETTING
-			print_dvfm(&ndvfm_last->c.out_dvfm, "set:mem_dvfm");
+			print_dvfm(&ndvfm_last->c.nr_wr_dvfm, "set:mem_dvfm");
 			dim_dump_mif_state(&ds->mif_mem, "set:mif_mem");
 			print_dim_mifpara(&ds->mifpara_mem, "display:all:mem_use");
 #endif
@@ -7982,15 +8133,17 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 	}
 }
 
-static bool vtype_fill_d(struct vframe_s *vfmt,
-			 struct vframe_s *vfmf,
-			 struct dvfm_s *by_dvfm)
+static bool vtype_fill_d(struct dimn_itf_s *itf,
+		struct vframe_s *vfmt,
+		struct vframe_s *vfmf,
+		struct dvfm_s *by_dvfm)
 {
 	int i;
 	void *priv;
 	unsigned int index;
+	struct dcntr_mem_s *dcntr_mem = NULL;
 
-	if (!vfmt || !vfmf || !by_dvfm)
+	if (!vfmt || !vfmf || !by_dvfm || !itf)
 		return false;
 	/* keep private and index */
 	priv = vfmt->private_data;
@@ -8048,6 +8201,30 @@ static bool vtype_fill_d(struct vframe_s *vfmt,
 			vfmt->width		= by_dvfm->vfs.width; //tmp
 			vfmt->height		= by_dvfm->vfs.height;
 			dbg_plink1("dbg:force deh\n");
+		}
+		if (vfmt->di_flag & DI_FLAG_DI_PVPPLINK) {
+			struct dimn_dvfm_s *dvfm;
+			unsigned int ds_ratio = 0;
+
+			dvfm = (struct dimn_dvfm_s *)vfmt->private_data;
+			if (dvfm)
+				dcntr_mem = (struct dcntr_mem_s *)dvfm->c.dct_pre;
+			if (dcntr_mem) {
+				ds_ratio = dcntr_mem->ds_ratio;
+				if (itf->c.last_ds_ratio != ds_ratio)
+					dbg_plink1("%s: ds_ratio:%d->%d\n",
+						__func__, itf->c.last_ds_ratio, ds_ratio);
+				itf->c.last_ds_ratio = ds_ratio;
+			} else {
+				/* keep the last_ds_ratio if meet dct pre timeout */
+				ds_ratio = itf->c.last_ds_ratio;
+			}
+			ds_ratio = ds_ratio << DI_FLAG_DCT_DS_RATIO_BIT;
+			ds_ratio &= DI_FLAG_DCT_DS_RATIO_MASK;
+			vfmt->di_flag &= ~DI_FLAG_DCT_DS_RATIO_MASK;
+			vfmt->di_flag |= ds_ratio;
+		} else {
+			vfmt->di_flag &= ~DI_FLAG_DCT_DS_RATIO_MASK;
 		}
 	} else {
 		if (IS_COMP_MODE(by_dvfm->vfs.type)) {

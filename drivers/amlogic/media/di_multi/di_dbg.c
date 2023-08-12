@@ -804,6 +804,8 @@ int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 		   (pvfm->di_flag & DI_FLAG_DI_BYPASS) ? true : false);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:_DI_PVPPLINK",
 		   (pvfm->di_flag & DI_FLAG_DI_PVPPLINK) ? true : false);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:_DCT_DS_RATIO",
+		   (pvfm->di_flag >> DI_FLAG_DCT_DS_RATIO_BIT) & DI_FLAG_DCT_DS_RATIO_MASK);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:VIDTYPE_PRE_INTERLACE",
 		   (pvfm->type & VIDTYPE_PRE_INTERLACE) ? true : false);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:VIDTYPE_COMPRESS_LOSS",

@@ -8715,6 +8715,19 @@ static bool is_vframe_changed
 		if (old_flag != new_flag)
 			return true;
 	}
+
+	if (cur_vf && new_vf &&
+	    IS_DI_PRELINK(cur_vf->di_flag) &&
+	    IS_DI_PRELINK(new_vf->di_flag)) {
+		u32 cur_ratio, new_ratio;
+
+		cur_ratio = (cur_vf->di_flag & DI_FLAG_DCT_DS_RATIO_MASK);
+		cur_ratio >>= DI_FLAG_DCT_DS_RATIO_BIT;
+		new_ratio = (new_vf->di_flag & DI_FLAG_DCT_DS_RATIO_MASK);
+		new_ratio >>= DI_FLAG_DCT_DS_RATIO_BIT;
+		if (cur_ratio != new_ratio)
+			return true;
+	}
 	return false;
 }
 
