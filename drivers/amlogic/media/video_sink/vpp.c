@@ -5028,10 +5028,9 @@ RERTY:
 		}
 		aspect_ratio = (sar_height << 8) / sar_width;
 	}
-	/* the height from vdin afbc will be half */
-	/* so need no interlace in */
-	if ((vf->type & VIDTYPE_INTERLACE) &&
-	    !(vf->type & VIDTYPE_COMPRESS))
+	/* fro interlace:the height from vdin & decoder afbc will be half */
+	/* fro interlace:non-afbc is really interlaced */
+	if (vf->type & VIDTYPE_INTERLACE)
 		vpp_flags = VPP_FLAG_INTERLACE_IN;
 
 	if (vf->ratio_control & DISP_RATIO_PORTRAIT_MODE)
