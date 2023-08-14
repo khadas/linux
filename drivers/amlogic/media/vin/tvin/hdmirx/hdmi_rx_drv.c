@@ -538,14 +538,14 @@ int hdmirx_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	parm = &devp->param;
 
-	if (!rx.var.force_pattern && rx.chip_id < CHIP_ID_T7) {
+	if (!rx.var.force_pattern) {
 		/*prevent spurious pops or noise when pw down*/
 		if (rx.state == FSM_SIG_READY) {
 			avmute_flag = rx_get_avmute_sts();
 			if (avmute_flag == 1) {
 				rx.avmute_skip += 1;
 				hdmirx_set_video_mute(1);
-				skip_frame(2);
+				//skip_frame(2);
 				/* return TVIN_BUF_SKIP; */
 			} else {
 				hdmirx_set_video_mute(0);

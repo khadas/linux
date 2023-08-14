@@ -3310,4 +3310,5 @@ int is_rx_hdcp14key_crc_pass(void);
 int is_rx_hdcp22key_crc0_pass(void);
 int is_rx_hdcp22key_crc1_pass(void);
 int rx_get_hdcp_auth_sts(void);
+void vdin_set_black_pattern(bool mute);
 #endif

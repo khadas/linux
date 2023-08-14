@@ -1923,6 +1923,18 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 }
 EXPORT_SYMBOL(start_tvin_service);
 
+void vdin_set_black_pattern(bool mute)
+{
+	struct vdin_dev_s *devp = vdin_devp[0];
+
+	if (mute)
+		devp->matrix_pattern_mode = 5;
+	else
+		devp->matrix_pattern_mode = 0;
+	vdin_set_matrix_color(devp);
+}
+EXPORT_SYMBOL(vdin_set_black_pattern);
+
 /*
  *call vdin_stop_dec to stop the frontend
  *close frontend

@@ -4448,9 +4448,17 @@ void hdmirx_set_vp_mapping(enum colorspace_e cs)
  */
 void hdmirx_set_video_mute(bool mute)
 {
+	static bool pre_mute_flag;
+
 	/* bluescreen cfg */
-	if (rx.chip_id >= CHIP_ID_T7) {
-		/* TODO */
+	if (rx.chip_id >= CHIP_ID_T7 && rx.chip_id < CHIP_ID_T5M) {
+		if (mute && (rx_pkt_chk_attach_drm() ||
+			rx.vs_info_details.dolby_vision_flag != DV_NULL))
+			return;
+		if (mute != pre_mute_flag) {
+			vdin_set_black_pattern(mute);
+			pre_mute_flag = mute;
+		}
 	} else {
 		if (rx.pre.colorspace == E_COLOR_RGB) {
 			hdmirx_wr_bits_dwc(DWC_HDMI_VM_CFG_CH2, MSK(16, 0), 0x00);

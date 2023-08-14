@@ -1609,6 +1609,10 @@ vdin_set_color_matrix(enum vdin_matrix_sel_e matrix_sel, unsigned int offset,
 	/*struct vdin_matrix_lup_s *matrix_tbl;*/
 	struct tvin_format_s *fmt_info = tvin_fmt_p;
 
+	if (!fmt_info) {
+		pr_err("%s fmt_info NULL\n", __func__);
+		return VDIN_MATRIX_NULL;
+	}
 	switch (format_convert)	{
 	case VDIN_MATRIX_XXX_YUV_BLACK:
 		matrix_csc = VDIN_MATRIX_XXX_YUV601_BLACK;
@@ -4770,6 +4774,42 @@ bool vdin_is_convert_to_nv21(u32 format_convert)
 		return false;
 }
 
+static bool vdin_is_convert_to_yuv(u32 format_convert)
+{
+	if (format_convert == VDIN_FORMAT_CONVERT_YUV_YUV422 ||
+	    format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444 ||
+	    format_convert == VDIN_FORMAT_CONVERT_RGB_YUV422 ||
+	    format_convert == VDIN_FORMAT_CONVERT_GBR_YUV422 ||
+	    format_convert == VDIN_FORMAT_CONVERT_BRG_YUV422 ||
+	    format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444)
+		return true;
+	else
+		return false;
+}
+
+static bool vdin_is_convert_to_rgb(u32 format_convert)
+{
+	if (format_convert == VDIN_FORMAT_CONVERT_YUV_RGB ||
+	    format_convert == VDIN_FORMAT_CONVERT_YUV_GBR ||
+	    format_convert == VDIN_FORMAT_CONVERT_YUV_BRG ||
+	    format_convert == VDIN_FORMAT_CONVERT_RGB_RGB)
+		return true;
+	else
+		return false;
+}
+
+static bool vdin_is_rgb_input(enum tvin_color_fmt_e color_format)
+{
+	if (color_format == TVIN_RGB444 ||
+	    color_format == TVIN_BGGR ||
+	    color_format == TVIN_RGGB ||
+	    color_format == TVIN_GBRG ||
+	    color_format == TVIN_GRBG)
+		return true;
+	else
+		return false;
+}
+
 bool vdin_is_4k(struct vdin_dev_s *devp)
 {
 	if (devp->h_active >= 2500 && devp->v_active >= 1400)
@@ -6580,15 +6620,29 @@ void vdin_set_matrix_color(struct vdin_dev_s *devp)
 	} else if (mode == 4) {
 		wr(offset, VDIN_MATRIX_OFFSET0_1, 0x1ff01ff);
 		wr(offset, VDIN_MATRIX_OFFSET2, 0x1ff);
-	} else {
-		wr(offset, VDIN_MATRIX_OFFSET0_1, 0x1ff010f);
-		wr(offset, VDIN_MATRIX_OFFSET2, 0x2ff);
+	} else if (mode == 5) {
+		if (vdin_dbg_en)
+			pr_info("format_convert:%d\n", devp->format_convert);
+		if (vdin_is_convert_to_rgb(devp->format_convert)) {
+			wr(offset, VDIN_MATRIX_OFFSET0_1, rd(offset, VDIN_MATRIX_OFFSET0_1) &
+				0xfc00fc00);
+			wr(offset, VDIN_MATRIX_OFFSET2, rd(offset, VDIN_MATRIX_OFFSET0_1) &
+				0xfffffc00);
+		} else if (vdin_is_convert_to_yuv(devp->format_convert)) {
+			wr(offset, VDIN_MATRIX_OFFSET0_1, 0x00000200);
+			wr(offset, VDIN_MATRIX_OFFSET2, 0x00000200);
+		}
+		devp->frame_drop_num = 1;
 	}
 
-	if (mode)
+	if (mode) {
 		wr(offset, VDIN_MATRIX_CTRL, 0x6);
-	else
-		wr(offset, VDIN_MATRIX_CTRL, 0x0);
+	} else {
+		if (vdin_is_rgb_input(devp->prop.color_format))
+			vdin_set_matrix(devp);
+		else
+			wr(offset, VDIN_MATRIX_CTRL, 0x0);
+	}
 	if (vdin_dbg_en)
 		pr_info("%s offset:%d, md:%d\n", __func__, offset, mode);
 }
