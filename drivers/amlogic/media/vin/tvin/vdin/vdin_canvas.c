@@ -345,17 +345,10 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 		break;
 	}
 
-	/* dw only support 8 bit mode */
-	if (devp->force_yuv444_malloc == 1 && !devp->double_wr) {
-		/* 4k is not support 10 bit mode in order to save memory */
-		if (devp->source_bitdepth > VDIN_MIN_SOURCE_BITDEPTH &&
-		    !vdin_is_4k(devp))
-			devp->canvas_w = h_active * VDIN_YUV444_10BIT_PER_PIXEL_BYTE;
-		else
-			devp->canvas_w = h_active * VDIN_YUV444_8BIT_PER_PIXEL_BYTE;
-	}
+	/*backup before roundup*/
+	devp->canvas_active_w = devp->canvas_w;
 	/*canvas_w must ensure divided exact by 256bit(32byte)*/
-	devp->canvas_w = devp->canvas_active_w;
+	devp->canvas_w = roundup(devp->canvas_w, devp->canvas_align);
 	devp->canvas_h = v_active;
 
 	switch (devp->format_convert) {
@@ -576,11 +569,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				devp->vf_mem_size / devp->v_shrink_times;
 		else
 			devp->vf_mem_size_small = 0;
-		/* dw only support 8bit mode */
-		devp->canvas_active_w = devp->h_shrink_out * VDIN_YUV422_8BIT_PER_PIXEL_BYTE;
 	} else {
 		devp->vf_mem_size_small = 0;
-		devp->canvas_active_w = h_size;
 	}
 
 	if (devp->vf_mem_size_small)
