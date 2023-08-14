@@ -299,7 +299,11 @@ static struct dentry *__sdcardfs_lookup(struct dentry *dentry,
 		}
 		err = iterate_dir(file, &buffer.ctx);
 		fput(file);
+#ifdef CONFIG_AMLOGIC_MODIFY
+		if (err < 0)
+#else
 		if (err)
+#endif
 			goto put_name;
 
 		if (buffer.found)
