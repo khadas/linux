@@ -125,6 +125,7 @@ static u32 tvp_dynamic_alloc_max_size;
 static u32 tvp_dynamic_alloc_force_small_segment;
 static u32 tvp_dynamic_alloc_force_small_segment_size;
 static bool dbuf_trace;
+static u32 tvp_pool_early_release_switch;
 
 #define TVP_POOL_SEGMENT_MAX_USED 4
 #define TVP_MAX_SLOT 8
@@ -869,6 +870,34 @@ static void codec_mm_free_in(struct codec_mm_mgt_s *mgt,
 	return;
 }
 
+static void dump_tvp_pool_info(void)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	struct extpool_mgt_s *tvp_pool = &mgt->tvp_pool;
+	int i, ret, size = 0;
+	char *buf, *pbuf;
+
+	buf = kzalloc(120, GFP_KERNEL);
+	if (!buf)
+		return;
+	pbuf = buf;
+
+	for (i = 0; i < TVP_POOL_SEGMENT_MAX_USED; i++) {
+		struct gen_pool *gpool = tvp_pool->gen_pool[i];
+
+		if (gpool) {
+			ret = snprintf(pbuf, 120 - size,
+					"TVP_POOL[%d]%lx/%lx\n", i,
+					(ulong)(gen_pool_size(gpool) - gen_pool_avail(gpool)),
+					(ulong)gen_pool_size(gpool));
+			pbuf += ret;
+			size += ret;
+		}
+	}
+	pr_info("%s", buf);
+	kfree(buf);
+}
+
 struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 				  int align2n, int memflags)
 {
@@ -909,16 +938,24 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	INIT_LIST_HEAD(&mem->release_cb_list);
 	mem->release_cb_cnt = 0;
 	ret = codec_mm_alloc_in(mgt, mem);
-	if (ret < 0 &&
-	    mgt->alloced_for_sc_cnt > 0 && /*have used for scatter.*/
-	    !(memflags & CODEC_MM_FLAGS_FOR_SCATTER)) {
-		/*if not scatter, free scatter caches. */
-		pr_err(" No mem ret=%d, clear scatter cache!!\n", ret);
-		dump_free_mem_infos(NULL, 0);
-		if (memflags & CODEC_MM_FLAGS_TVP)
-			codec_mm_scatter_free_all_ignorecache(2);
-		else
-			codec_mm_scatter_free_all_ignorecache(1);
+	if (ret < 0) {
+		if (mgt->alloced_for_sc_cnt > 0 && /*have used for scatter.*/
+			!(memflags & CODEC_MM_FLAGS_FOR_SCATTER)) {
+			/*if not scatter, free scatter caches. */
+			pr_err(" No mem ret=%d, clear scatter cache!!\n", ret);
+			dump_free_mem_infos(NULL, 0);
+			if (memflags & CODEC_MM_FLAGS_TVP)
+				codec_mm_scatter_free_all_ignorecache(2);
+			else
+				codec_mm_scatter_free_all_ignorecache(1);
+		}
+		if (atomic_read(&mgt->tvp_user_count) != 0 &&
+			!(memflags & CODEC_MM_FLAGS_TVP) &&
+			strncmp((void *)mem->owner, TVP_POOL_NAME, strlen(TVP_POOL_NAME)) &&
+			tvp_pool_early_release_switch) {
+			codec_mm_tvp_pool_unprotect_and_release(&mgt->tvp_pool);
+			dump_tvp_pool_info();
+		}
 		ret = codec_mm_alloc_in(mgt, mem);
 	}
 	if (ret < 0) {
@@ -932,6 +969,8 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 			memflags, mem->flags, align2n);
 		kfree(mem);
 		dump_mem_infos();
+		if (mgt->tvp_enable)
+			dump_tvp_pool_info();
 		return NULL;
 	}
 
@@ -1088,6 +1127,7 @@ void *codec_mm_dma_alloc_coherent(ulong *handle,
 	mem->phy_addr	= dma_handle;
 	mem->buffer_size = buf_size;
 	mem->from_flags	= AMPORTS_MEM_FLAGS_FROM_GET_FROM_COHERENT;
+	mem->alloced_jiffies = get_jiffies_64();
 
 	space = codec_mm_alloc_pre_check_in(mgt, mem->buffer_size, 0);
 	if (!space)
@@ -1802,6 +1842,10 @@ static int codec_mm_extpool_pool_release(struct extpool_mgt_s *tvp_pool)
 					tvp_pool->gen_pool[i];
 				tvp_pool->mm[before_free_slot] =
 					tvp_pool->mm[i];
+				swap(default_tvp_pool_segment_size[i],
+					default_tvp_pool_segment_size[before_free_slot]);
+				tvp_pool->gen_pool[i] = NULL;
+				tvp_pool->mm[i] = NULL;
 				before_free_slot++;
 			}
 			if (!tvp_pool->gen_pool[i] && before_free_slot > i) {
@@ -1865,6 +1909,10 @@ static int codec_mm_tvp_pool_unprotect_and_release(struct extpool_mgt_s *tvp_poo
 					tvp_pool->mm[i];
 				tvp_pool->mm[before_free_slot]->tvp_handle =
 					tvp_pool->mm[i]->tvp_handle;
+				swap(default_tvp_pool_segment_size[i],
+					default_tvp_pool_segment_size[before_free_slot]);
+				tvp_pool->gen_pool[i] = NULL;
+				tvp_pool->mm[i] = NULL;
 				before_free_slot++;
 			}
 			if (!tvp_pool->gen_pool[i] && before_free_slot > i) {
@@ -3545,3 +3593,6 @@ MODULE_PARM_DESC(tvp_dynamic_alloc_force_small_segment,
 module_param(tvp_dynamic_alloc_force_small_segment_size, uint, 0664);
 MODULE_PARM_DESC(tvp_dynamic_alloc_force_small_segment_size,
 	"\n setting tvp_dynamic_alloc_force_small_segment_size\n");
+module_param(tvp_pool_early_release_switch, uint, 0664);
+MODULE_PARM_DESC(tvp_pool_early_release_switch,
+	"\n forbiden tvp pool release when tvp not disable\n");
