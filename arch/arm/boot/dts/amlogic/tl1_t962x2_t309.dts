@@ -1731,7 +1731,7 @@
 	cs-gpios = <&gpio GPIOH_20 0>;
 };
 
-&meson_fb {
+&fb {
 	status = "okay";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x800000>;

@@ -1339,7 +1339,7 @@
 		interrupt-names = "rdma";
 	};
 
-	meson_fb: fb {
+	fb: fb {
 		compatible = "amlogic, fb-tl1";
 		memory-region = <&logo_reserved>;
 		status = "disabled";
