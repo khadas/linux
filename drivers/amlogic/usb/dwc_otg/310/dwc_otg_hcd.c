@@ -752,7 +752,7 @@ static void reset_tasklet_func(void *data)
 
 static void qh_list_free(dwc_otg_hcd_t *hcd, dwc_list_link_t *qh_list)
 {
-	dwc_list_link_t *item;
+	dwc_list_link_t *item, *tmp;
 	dwc_otg_qh_t *qh;
 	dwc_irqflags_t flags;
 
@@ -768,7 +768,7 @@ static void qh_list_free(dwc_otg_hcd_t *hcd, dwc_list_link_t *qh_list)
 	kill_urbs_in_qh_list(hcd, qh_list);
 	DWC_SPINUNLOCK_IRQRESTORE(hcd->lock, flags);
 
-	DWC_LIST_FOREACH(item, qh_list) {
+	list_for_each_safe(item, tmp, qh_list) {
 		qh = DWC_LIST_ENTRY(item, dwc_otg_qh_t, qh_list_entry);
 		dwc_otg_hcd_qh_remove_and_free(hcd, qh);
 	}

@@ -716,7 +716,9 @@ static ssize_t linkspeed_show(struct class *class,
 	if (c_phy_dev) {
 		phy_print_status(c_phy_dev);
 
-		genphy_update_link(c_phy_dev);
+		ret = genphy_update_link(c_phy_dev);
+		if (ret)
+			return ret;
 		if (c_phy_dev->link)
 			strcpy(buff, "link status: link\n");
 		else
