@@ -410,7 +410,7 @@ static struct clk_fixed_factor tl1_fclk_div2p5_div = {
 		.name = "fclk_div2p5_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&tl1_fixed_pll_dco.hw
+			&tl1_fixed_pll.hw
 		},
 		.num_parents = 1,
 	},
@@ -766,7 +766,7 @@ static struct clk_fixed_factor tl1_mpll_50m_div = {
 		.name = "mpll_50m_div",
 		.ops = &clk_fixed_factor_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&tl1_fixed_pll_dco.hw
+			&tl1_fixed_pll.hw
 		},
 		.num_parents = 1,
 	},
@@ -789,19 +789,6 @@ static struct clk_regmap tl1_mpll_50m = {
 	},
 };
 
-static struct clk_fixed_factor tl1_mpll_prediv = {
-	.mult = 1,
-	.div = 2,
-	.hw.init = &(struct clk_init_data){
-		.name = "mpll_prediv",
-		.ops = &clk_fixed_factor_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&tl1_fixed_pll_dco.hw
-		},
-		.num_parents = 1,
-	},
-};
-
 /*
  * put it in init regs, in kernel 4.9 it is dealing in set rate
  */
@@ -810,6 +797,7 @@ static const struct reg_sequence tl1_mpll0_init_regs[] = {
 	{ .reg = HHI_MPLL_CNTL2,	.def = 0x40000033 },
 };
 
+/* mpll parent rate = 2G, use fixed_pll as it parent */
 static struct clk_regmap tl1_mpll0_div = {
 	.data = &(struct meson_clk_mpll_data){
 		.sdm = {
@@ -840,7 +828,7 @@ static struct clk_regmap tl1_mpll0_div = {
 		.name = "mpll0_div",
 		.ops = &meson_clk_mpll_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&tl1_mpll_prediv.hw
+			&tl1_fixed_pll.hw
 		},
 		.num_parents = 1,
 	},
@@ -894,7 +882,7 @@ static struct clk_regmap tl1_mpll1_div = {
 		.name = "mpll1_div",
 		.ops = &meson_clk_mpll_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&tl1_mpll_prediv.hw
+			&tl1_fixed_pll.hw
 		},
 		.num_parents = 1,
 	},
@@ -948,7 +936,7 @@ static struct clk_regmap tl1_mpll2_div = {
 		.name = "mpll2_div",
 		.ops = &meson_clk_mpll_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&tl1_mpll_prediv.hw
+			&tl1_fixed_pll.hw
 		},
 		.num_parents = 1,
 	},
@@ -1002,7 +990,7 @@ static struct clk_regmap tl1_mpll3_div = {
 		.name = "mpll3_div",
 		.ops = &meson_clk_mpll_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&tl1_mpll_prediv.hw
+			&tl1_fixed_pll.hw
 		},
 		.num_parents = 1,
 	},
@@ -4649,7 +4637,6 @@ static struct clk_hw_onecell_data tl1_hw_onecell_data = {
 		[CLKID_MPEG_SEL]		= &tl1_mpeg_clk_sel.hw,
 		[CLKID_MPEG_DIV]		= &tl1_mpeg_clk_div.hw,
 		[CLKID_CLK81]			= &tl1_clk81.hw,
-		[CLKID_MPLL_PREDIV]		= &tl1_mpll_prediv.hw,
 		[CLKID_MPLL0_DIV]		= &tl1_mpll0_div.hw,
 		[CLKID_MPLL1_DIV]		= &tl1_mpll1_div.hw,
 		[CLKID_MPLL2_DIV]		= &tl1_mpll2_div.hw,
