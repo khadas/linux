@@ -1390,6 +1390,16 @@
 		status = "okay";
 	};
 
+	meson_uvm {
+		compatible = "amlogic, meson_uvm";
+		status = "okay";
+	};
+
+	meson_videotunnel{
+		compatible = "amlogic, meson_videotunnel";
+		status = "okay";
+	};
+
 	vout: vout {
 		compatible = "amlogic, vout";
 		status = "okay";
