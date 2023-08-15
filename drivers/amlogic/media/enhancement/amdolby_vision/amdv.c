@@ -1279,6 +1279,7 @@ static int is_graphic_changed(void)
 		if (i == 0 || is_aml_s5()) {
 			if (osd_graphic_width[i] != new_osd_graphic_width[i] ||
 			    osd_graphic_height[i] != new_osd_graphic_height[i]) {
+				set_force_reset_core2(true);
 				if (debug_dolby & 0x2)
 					pr_dv_dbg("osd changed %d %d-%d %d\n",
 						     osd_graphic_width[i],

@@ -253,20 +253,28 @@ static void osd_dv_core_size_set(u32 h_size, u32 v_size)
 #endif
 }
 
-static void osd_dv_core_size_set_s5(u32 h_size, u32 v_size, int i)
+static void osd_dv_core_size_set_s5(u32 h_size, u32 v_size, enum OSD_INDEX index)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	u32 tmp_h = h_size;
 	u32 tmp_v = v_size;
 
 	update_dvcore2_timing(&tmp_h, &tmp_v);
-	meson_vpu_write_reg(DOLBY_CORE2A_SWAP_CTRL1_S5,
-			    ((tmp_h + 0x40) << 16) |
-			     (tmp_v + 0x80));
-	meson_vpu_write_reg(DOLBY_CORE2A_SWAP_CTRL2_S5,
-			    (tmp_h << 16) | tmp_v);
-
-	update_graphic_width_height(h_size, v_size, i);
+	if (index == OSD1_INDEX) {
+		meson_vpu_write_reg(DOLBY_CORE2A_SWAP_CTRL1_S5,
+				    ((tmp_h + 0x40) << 16) |
+				     (tmp_v + 0x80));
+		meson_vpu_write_reg(DOLBY_CORE2A_SWAP_CTRL2_S5,
+				    (tmp_h << 16) | tmp_v);
+	}
+	if (index == OSD3_INDEX) {
+		meson_vpu_write_reg(DOLBY_CORE2C_SWAP_CTRL1_S5,
+				    ((tmp_h + 0x40) << 16) |
+				     (tmp_v + 0x80));
+		meson_vpu_write_reg(DOLBY_CORE2C_SWAP_CTRL2_S5,
+				    (tmp_h << 16) | tmp_v);
+	}
+	update_graphic_width_height(h_size, v_size, index);
 #endif
 }
 
