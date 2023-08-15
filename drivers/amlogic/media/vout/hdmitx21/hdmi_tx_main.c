@@ -7314,6 +7314,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	hdev->tx_aud_cfg = 1; /* default audio configure is on */
 	hdmitx21_hdcp_init();
+	intr_status_init_clear();
 	hdmitx_setupirqs(hdev);
 
 	if (hdev->hpd_state) {

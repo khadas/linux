@@ -434,6 +434,7 @@ u8 hdcp2x_get_state_st(void);
 void hdcptx1_query_aksv(struct hdcp_ksv_t *p_val);
 void hdmitx_top_intr_handler(struct work_struct *work);
 void hdmitx_setupirqs(struct hdmitx_dev *phdev);
+void intr_status_init_clear(void);
 void ddc_toggle_sw_tpi(void);
 bool hdmitx_ddcm_read(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 *p_buf, u16 len);
 bool hdmitx_ddcm_write(u8 seg_index, u8 slave_addr, u8 reg_addr, u8 data);

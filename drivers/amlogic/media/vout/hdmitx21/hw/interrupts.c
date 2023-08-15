@@ -270,6 +270,20 @@ static void intr_status_save_and_clear(void)
 	}
 }
 
+void intr_status_init_clear(void)
+{
+	int i;
+	u32 st_data;
+	struct intr_t *pint = (struct intr_t *)&hdmi_all_intrs;
+
+	for (i = 0; i < sizeof(union intr_u) / sizeof(struct intr_t); i++) {
+		st_data = hdmitx21_rd_reg(pint->intr_st_reg);
+		hdmitx21_wr_reg(pint->intr_clr_reg, st_data);
+		pint->st_data = 0;
+		pint++;
+	}
+}
+
 static irqreturn_t intr_handler(int irq, void *dev)
 {
 	unsigned int top_intr_state;
