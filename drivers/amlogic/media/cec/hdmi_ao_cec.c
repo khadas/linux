@@ -1508,14 +1508,20 @@ static ssize_t hdmitx_cec_read(struct file *f, char __user *buf,
 	if (cec_dev->msg_num) {
 		cec_dev->msg_num--;
 		idx = store_msg_rd_idx;
+		if (idx >= CEC_MSG_BUFF_MAX) {
+			CEC_ERR("rcv too many msg during resume, discard %d\n", cec_dev->msg_num);
+			return 0;
+		}
 		len = cec_dev->msgbuff[idx].len;
 		store_msg_rd_idx++;
 		if (copy_to_user(buf, &cec_dev->msgbuff[idx].msg[0], len))
 			return -EINVAL;
-		CEC_INFO("read msg from buff len=%d\n", len);
+		CEC_INFO("read msg from buff len=%d, idx=%d\n", len, idx);
 		/* notify uplayer to read all stored msg */
 		if (cec_dev->msg_num > 0)
 			cec_stored_msg_push();
+		else
+			store_msg_rd_idx = 0;
 		return len;
 	}
 	store_msg_rd_idx = 0;
