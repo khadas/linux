@@ -231,6 +231,8 @@ struct vt_instance {
 
 	struct vt_buffer vt_buffers[VT_POOL_SIZE];
 	struct vt_state state;
+	struct vt_krect backup_sourcecrop;
+	struct vt_krect backup_displayframe;
 };
 
 #endif /* __VIDEO_TUNNEL_PRIV_H */

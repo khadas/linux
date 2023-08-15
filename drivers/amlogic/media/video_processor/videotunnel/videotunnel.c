@@ -910,6 +910,8 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 	struct vt_instance *instance;
 	struct vt_instance *replace;
 	struct vt_cmd *cmd;
+	struct vt_cmd *cmd_sourcecrop;
+	struct vt_cmd *cmd_displayframe;
 	int id = data->tunnel_id;
 	int ret = 0;
 	char name[64];
@@ -974,6 +976,8 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 			return -EINVAL;
 		}
 		instance->producer = session;
+		memset(&instance->backup_sourcecrop, -1, sizeof(instance->backup_sourcecrop));
+		memset(&instance->backup_displayframe, -1, sizeof(instance->backup_displayframe));
 	} else if (data->role == VT_ROLE_CONSUMER) {
 		if (instance->consumer &&
 		    instance->consumer != session) {
@@ -1004,6 +1008,56 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 			session->cmd_status++;
 			vt_debug(VT_DEBUG_CMD, "vt [%d] resend cmd:%d data:%d\n",
 				instance->id, cmd->cmd, cmd->cmd_data);
+			mutex_unlock(&instance->cmd_lock);
+		}
+
+		if (instance->backup_sourcecrop.left >= 0 ||
+			instance->backup_sourcecrop.top >= 0 ||
+			instance->backup_sourcecrop.right >= 0 ||
+			instance->backup_sourcecrop.bottom >= 0) {
+			cmd_sourcecrop = kzalloc(sizeof(*cmd_sourcecrop), GFP_KERNEL);
+			if (!cmd_sourcecrop) {
+				mutex_unlock(&instance->lock);
+				vt_instance_put(instance);
+				pr_err("Connect to vt [%d] err, resend cmd fail\n",
+				    id);
+				return -ENOMEM;
+			}
+
+			cmd_sourcecrop->cmd = VT_VIDEO_SET_SOURCE_CROP;
+			cmd_sourcecrop->rect = instance->backup_sourcecrop;
+
+			mutex_lock(&instance->cmd_lock);
+			kfifo_put(&instance->fifo_cmd, cmd_sourcecrop);
+			session->cmd_status++;
+			vt_debug(VT_DEBUG_CMD, "restore source crop rect (%d %d %d %d)\n",
+				cmd_sourcecrop->rect.left, cmd_sourcecrop->rect.top,
+				cmd_sourcecrop->rect.right, cmd_sourcecrop->rect.bottom);
+			mutex_unlock(&instance->cmd_lock);
+		}
+
+		if (instance->backup_displayframe.left >= 0 ||
+			instance->backup_displayframe.top >= 0 ||
+			instance->backup_displayframe.right >= 0 ||
+			instance->backup_displayframe.bottom >= 0) {
+			cmd_displayframe = kzalloc(sizeof(*cmd_displayframe), GFP_KERNEL);
+			if (!cmd_displayframe) {
+				mutex_unlock(&instance->lock);
+				vt_instance_put(instance);
+				pr_err("Connect to vt [%d] err, resend cmd fail\n",
+				    id);
+				return -ENOMEM;
+			}
+
+			cmd_displayframe->cmd = VT_VIDEO_SET_DISPLAY_FRAME;
+			cmd_displayframe->rect = instance->backup_displayframe;
+
+			mutex_lock(&instance->cmd_lock);
+			kfifo_put(&instance->fifo_cmd, cmd_displayframe);
+			session->cmd_status++;
+			vt_debug(VT_DEBUG_CMD, "restore display frame rect (%d %d %d %d)\n",
+				cmd_displayframe->rect.left, cmd_displayframe->rect.top,
+				cmd_displayframe->rect.right, cmd_displayframe->rect.bottom);
 			mutex_unlock(&instance->cmd_lock);
 		}
 
@@ -1046,6 +1100,8 @@ static int vt_disconnect_process(struct vt_ctrl_data *data,
 		vt_session_trim_lock(session, instance);
 		instance->producer = NULL;
 		instance->mode = VT_MODE_NONE_BLOCK;
+		memset(&instance->backup_sourcecrop, -1, sizeof(instance->backup_sourcecrop));
+		memset(&instance->backup_displayframe, -1, sizeof(instance->backup_displayframe));
 	} else if (data->role == VT_ROLE_CONSUMER) {
 		if (!instance->consumer)
 			goto disconnect_fail;
@@ -1119,6 +1175,12 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 	kfifo_put(&instance->fifo_cmd, cmd);
 
 	vt_debug(VT_DEBUG_CMD, "vt [%d] send cmd:%d ", instance->id, cmd->cmd);
+
+	if (cmd->cmd == VT_VIDEO_SET_SOURCE_CROP)
+		instance->backup_sourcecrop = cmd->rect;
+	if (cmd->cmd == VT_VIDEO_SET_DISPLAY_FRAME)
+		instance->backup_displayframe = cmd->rect;
+
 	if (cmd->cmd == VT_VIDEO_SET_SOURCE_CROP ||
 		cmd->cmd == VT_VIDEO_SET_DISPLAY_FRAME)
 		vt_debug(VT_DEBUG_CMD, "rect (%d %d %d %d)\n",
