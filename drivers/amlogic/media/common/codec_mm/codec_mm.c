@@ -68,7 +68,14 @@
 
 #define MAP_RANGE (SZ_1M)
 
-static int dump_mem_infos(void *buf, int size);
+#ifdef CONFIG_PRINTK_CALLER
+#define PREFIX_MAX		48
+#else
+#define PREFIX_MAX		32
+#endif
+#define LOG_LINE_MAX		(1536 - PREFIX_MAX)
+
+static void dump_mem_infos(void);
 static int dump_free_mem_infos(void *buf, int size);
 static int __init secure_vdec_res_setup(struct reserved_mem *rmem);
 
@@ -911,13 +918,16 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 		ret = codec_mm_alloc_in(mgt, mem);
 	}
 	if (ret < 0) {
-		pr_err("not enough mem for %s size %d, ret=%d\n",
-		       owner, size, ret);
+		if (mgt->total_codec_mem_size - mgt->total_alloced_size <= size)
+			pr_err("not enough mem for %s size %d, ret=%d\n",
+				owner, size, ret);
+		else
+			pr_err("not enough mem for %s size %d, ret=%d due to mem fragmentation\n",
+				owner, size, ret);
 		pr_err("mem flags %d %d, %d\n",
-		       memflags, mem->flags, align2n);
+			memflags, mem->flags, align2n);
 		kfree(mem);
-		if (debug_mode & 0x10)
-			dump_mem_infos(NULL, 0);
+		dump_mem_infos();
 		return NULL;
 	}
 
@@ -1996,7 +2006,7 @@ static int codec_mm_cal_dump_buf_size(void)
 	spin_lock_irqsave(&mgt->lock, flags);
 	if (!list_empty(&mgt->mem_list)) {
 		list_for_each_entry(mem, &mgt->mem_list, list) {
-			size += 128;
+			size += 128 + PREFIX_MAX;
 		}
 	}
 	spin_unlock_irqrestore(&mgt->lock, flags);
@@ -2004,42 +2014,65 @@ static int codec_mm_cal_dump_buf_size(void)
 	return codec_mm_align_up2n(size, PAGE_SHIFT);
 }
 
-static int dump_mem_infos(void *buf, int size)
+int get_string_offset(int *buf_len, int *pos, int len)
+{
+	int log_line_step = len + PREFIX_MAX;
+	int remain = LOG_LINE_MAX -
+		 ((*pos + log_line_step) % LOG_LINE_MAX);
+
+	*pos = (remain > 256) ?
+		(*pos + log_line_step) :
+		((((*pos + log_line_step) / LOG_LINE_MAX) + 1) * LOG_LINE_MAX);
+	len = (remain > 256) ?
+		(len) : (*pos - *buf_len);
+	*buf_len += len;
+
+	return len;
+}
+
+int get_string_segment(int size)
+{
+	return (size % LOG_LINE_MAX == 0) ?
+		(size / LOG_LINE_MAX) :
+		(size / LOG_LINE_MAX + 1);
+}
+
+static void dump_mem_infos(void)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	struct codec_mm_s *mem = NULL;
 	unsigned long flags = 0;
 	char *alloc_buf = NULL;
-	int alloc_size = 0;
 	int buf_size = 0;
 	char *pbuf = NULL;
 	int tsize = 0;
 	int s = 0;
-	int buf_full = 0;
+	int buf_len = 0;
+	int segment_count = 0;
+	int i = 0;
 
-	alloc_size = codec_mm_cal_dump_buf_size();
-	alloc_buf = kzalloc(alloc_size, GFP_KERNEL);
-	if (alloc_buf) {
-		pbuf = alloc_buf;
-		buf_size = alloc_size;
-	} else {
-		pbuf = buf;
-		alloc_size = 0;
-		buf_size = size;
-	}
+	buf_size = codec_mm_cal_dump_buf_size();
+	alloc_buf = vzalloc(buf_size);
+	pbuf = alloc_buf;
 
 	s = snprintf(pbuf, buf_size - tsize,
-			"codec mem info:\n\ttotal codec mem size:%d MB\n",
+			"codec mem info:\n");
+	pbuf += get_string_offset(&buf_len, &tsize, s);
+
+	s = snprintf(pbuf, buf_size - tsize,
+			"\ttotal codec mem size:%d MB\n",
 			mgt->total_codec_mem_size / SZ_1M);
-	tsize += s;
-	pbuf += s;
+	pbuf += get_string_offset(&buf_len, &tsize, s);
 
 	s = snprintf(pbuf, buf_size - tsize,
-			"\talloced size= %d MB\n\tmax alloced: %d MB\n",
-			mgt->total_alloced_size / SZ_1M,
+			"\talloced size= %d MB\n",
+			mgt->total_alloced_size / SZ_1M);
+	pbuf += get_string_offset(&buf_len, &tsize, s);
+
+	s = snprintf(pbuf, buf_size - tsize,
+			"\tmax alloced: %d MB\n",
 			mgt->max_used_mem_size / SZ_1M);
-	tsize += s;
-	pbuf += s;
+	pbuf += get_string_offset(&buf_len, &tsize, s);
 
 	s = snprintf(pbuf, buf_size - tsize,
 		"\tCMA:%d,RES:%d,TVP:%d,SYS:%d,COHER:%d,VMAPED:%d MB\n",
@@ -2049,8 +2082,7 @@ static int dump_mem_infos(void *buf, int size)
 		mgt->alloced_sys_size / SZ_1M,
 		mgt->alloced_from_coherent / SZ_1M,
 		(mgt->phys_vmaped_page_cnt << PAGE_SHIFT) / SZ_1M);
-	tsize += s;
-	pbuf += s;
+	pbuf += get_string_offset(&buf_len, &tsize, s);
 
 	if (mgt->res_pool) {
 		s = snprintf(pbuf, buf_size - tsize,
@@ -2059,8 +2091,7 @@ static int dump_mem_infos(void *buf, int size)
 				(int)(gen_pool_size(mgt->res_pool) / SZ_1M),
 				(int)(mgt->alloced_res_size / SZ_1M),
 				(int)(gen_pool_avail(mgt->res_pool) / SZ_1M));
-		tsize += s;
-		pbuf += s;
+		pbuf += get_string_offset(&buf_len, &tsize, s);
 	}
 
 	s = snprintf(pbuf, buf_size - tsize,
@@ -2070,8 +2101,7 @@ static int dump_mem_infos(void *buf, int size)
 			(int)(mgt->alloced_cma_size / SZ_1M),
 			(int)((mgt->total_cma_size -
 			mgt->alloced_cma_size) / SZ_1M));
-	tsize += s;
-	pbuf += s;
+	pbuf += get_string_offset(&buf_len, &tsize, s);
 
 	if (mgt->tvp_pool.slot_num > 0) {
 		s = snprintf(pbuf, buf_size - tsize,
@@ -2081,8 +2111,7 @@ static int dump_mem_infos(void *buf, int size)
 				(int)(mgt->tvp_pool.alloced_size / SZ_1M),
 				(int)((mgt->tvp_pool.total_size -
 					mgt->tvp_pool.alloced_size) / SZ_1M));
-		tsize += s;
-		pbuf += s;
+		pbuf += get_string_offset(&buf_len, &tsize, s);
 	}
 
 	if (mgt->cma_res_pool.slot_num > 0) {
@@ -2093,8 +2122,7 @@ static int dump_mem_infos(void *buf, int size)
 				(int)(mgt->cma_res_pool.alloced_size / SZ_1M),
 				(int)((mgt->cma_res_pool.total_size -
 				mgt->cma_res_pool.alloced_size) / SZ_1M));
-		tsize += s;
-		pbuf += s;
+		pbuf += get_string_offset(&buf_len, &tsize, s);
 	}
 
 	spin_lock_irqsave(&mgt->lock, flags);
@@ -2115,39 +2143,23 @@ static int dump_mem_infos(void *buf, int size)
 				"flags=%d,used:%u ms\n",
 				mem->flags, jiffies_to_msecs(get_jiffies_64() -
 				mem->alloced_jiffies));
-			pbuf += s;
-			tsize += s;
+			pbuf += get_string_offset(&buf_len, &tsize, s);
+
 			if (tsize > buf_size - 256) {
-				s = snprintf(pbuf, size - tsize,
+				s = snprintf(pbuf, buf_size - tsize,
 					"\n\t\t**NOT END**\n");
 				tsize += s;
-				buf_full = 1;
 				break;/*no memory for dump now.*/
 			}
 		}
 	}
 	spin_unlock_irqrestore(&mgt->lock, flags);
 
-	if (alloc_buf) {
-		if (buf) {
-			if (tsize > size)
-				tsize = size;
-			memcpy(buf, alloc_buf, tsize);
-			if (buf_full) {
-				pr_info("%s", alloc_buf);
-				pr_info("dump full end\n");
-				pbuf = buf;
-				pbuf[0] = '\0';
-				tsize = 0;
-			}
-		} else {
-			pr_info("%s", alloc_buf);
-			tsize = 0;
-		}
-		kfree(alloc_buf);
-	}
+	segment_count = get_string_segment(tsize);
+	for (i = 0; i < segment_count; i++)
+		pr_info("%s", alloc_buf + i * LOG_LINE_MAX);
 
-	return tsize;
+	vfree(alloc_buf);
 }
 
 int codec_mm_alloc_cma_size(void)
@@ -2515,7 +2527,7 @@ int codec_mm_get_free_size(void)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	if (debug_mode & 0x20)
-		dump_mem_infos(NULL, 0);
+		dump_mem_infos();
 	return codec_mm_get_total_size() -
 		mgt->tvp_pool.total_size  + mgt->tvp_pool.alloced_size -
 		mgt->total_alloced_size;
@@ -2526,7 +2538,7 @@ int codec_mm_get_tvp_free_size(void)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	if (debug_mode & 0x20)
-		dump_mem_infos(NULL, 0);
+		dump_mem_infos();
 	return mgt->tvp_pool.total_size -
 		mgt->tvp_pool.alloced_size;
 }
@@ -2635,7 +2647,7 @@ int codec_mm_enough_for_size(int size, int with_wait, int mem_flags)
 		if (have_mem)
 			return 1;
 		if (debug_mode & 0x20)
-			dump_mem_infos(NULL, 0);
+			dump_mem_infos();
 		msleep(50);
 		return 0;
 	}
@@ -2724,9 +2736,9 @@ static int __init amstream_test_init(void)
 static ssize_t codec_mm_dump_show(struct class *class,
 				  struct class_attribute *attr, char *buf)
 {
-	size_t ret;
+	size_t ret = 0;
 
-	ret = dump_mem_infos(buf, PAGE_SIZE);
+	dump_mem_infos();
 	return ret;
 }
 
@@ -3023,7 +3035,7 @@ static ssize_t debug_store(struct class *class,
 		codec_mm_keeper_free_all_keep(1);
 		break;
 	case 11:
-		dump_mem_infos(NULL, 0);
+		dump_mem_infos();
 		break;
 	case 12:
 		dump_free_mem_infos(NULL, 0);
