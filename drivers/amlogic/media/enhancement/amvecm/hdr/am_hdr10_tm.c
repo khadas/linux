@@ -444,13 +444,13 @@ int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p)
 	int scn_chang_flag = 1;
 	struct aml_tmo_reg_sw *pre_tmo_reg;
 
-	if (p->luminance[0] > 10000)
-		p->luminance[0] /= 10000;
-	/*no luminance*/
-	if (p->luminance[0] == 0)
-		p->luminance[0] = 1200;
-
 	primary_maxl = p->luminance[0];
+
+	if (primary_maxl > 10000)
+		primary_maxl /= 10000;
+	/*no luminance*/
+	if (primary_maxl == 0)
+		primary_maxl = 1200;
 
 	/*use 95% maxl because of high percert flicker*/
 	maxl = (percentile[8] > primary_maxl) ? primary_maxl : percentile[8];
