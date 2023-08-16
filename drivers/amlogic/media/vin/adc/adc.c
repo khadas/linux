@@ -1268,13 +1268,13 @@ static const struct adc_platform_data_s adc_data_txlx = {
 static const struct adc_platform_data_s adc_data_gxlx = {
 	.chip_id = ADC_CHIP_GXLX,
 };
+#endif
 
 static const struct adc_platform_data_s adc_data_tl1 = {
 	ADC_ADDR_TL1_TO_S4,
 	ADC_PLL_ADDR_TL1,
 	.chip_id = ADC_CHIP_TL1,
 };
-#endif
 
 static const struct adc_platform_data_s adc_data_tm2 = {
 	ADC_ADDR_TL1_TO_S4,
@@ -1339,11 +1339,11 @@ static const struct of_device_id adc_dt_match[] = {
 		.compatible = "amlogic, adc-gxlx",
 		.data = &adc_data_gxlx,
 	},
+#endif
 	{
 		.compatible = "amlogic, adc-tl1",
 		.data = &adc_data_tl1,
 	},
-#endif
 	{
 		.compatible = "amlogic, adc-tm2",
 		.data = &adc_data_tm2,

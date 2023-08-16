@@ -1420,7 +1420,8 @@
 	adc: adc {
 		compatible = "amlogic, adc-tl1";
 		status = "okay";
-		reg = <0xff654000 0x2000>;/* afe reg base */
+		reg = <0xff654000 0x2000/* ana reg base */
+			0xff63c000 0x2000>;/* afe reg base */
 	};
 
 	dummy_venc: dummy_venc {
