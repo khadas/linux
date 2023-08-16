@@ -55,6 +55,7 @@ struct es_params_t {
 	u32 header_wp;
 	int has_splice;
 	unsigned int have_sent_len;
+	u32 dirty_len;
 };
 
 struct ts_out {
@@ -1744,10 +1745,9 @@ static int write_aucpu_sec_es_data(struct out_elem *pout,
 	return 0;
 }
 
-static int clean_aucpu_data(struct out_elem *pout, unsigned int len)
+static int start_aucpu(struct out_elem *pout)
 {
 	int ret;
-	char *ptmp;
 
 	if (pout->aucpu_handle < 0)
 		return -1;
@@ -1768,17 +1768,47 @@ static int clean_aucpu_data(struct out_elem *pout, unsigned int len)
 		}
 	}
 
+	return 0;
+}
+
+static int clean_aucpu_data(struct out_elem *pout, unsigned int len)
+{
+	int ret;
+	char *ptmp;
+	static int times;
+
+	if (pout->aucpu_handle < 0)
+		return len;
+
+	if (!pout->aucpu_start &&
+		pout->format == ES_FORMAT &&
+		pout->type == AUDIO_TYPE && pout->aucpu_handle >= 0) {
+		if (wdma_get_active(pout->pchan->id)) {
+			ret = aml_aucpu_strm_start(pout->aucpu_handle);
+			if (ret >= 0) {
+				pr_dbg("%s aucpu start success\n", __func__);
+				pout->aucpu_start = 1;
+			} else {
+				pr_dbg("aucpu start fail ret:%d\n",
+					   ret);
+				return len;
+			}
+		}
+	}
+
 	while (len) {
 		ret = aucpu_bufferid_read(pout, &ptmp, len, 0);
 		if (ret != 0) {
 			len -= ret;
 		} else {
-			dprint("%s ret:%d\n", __func__, len);
-			return -1;
+			times++;
+			dprint("%s ret:%d times:%d\n", __func__, len, times);
+			return len;
 		}
 		if (pout->running == TASK_DEAD || !pout->enable)
-			return -1;
+			return len;
 	}
+	times = 0;
 	return 0;
 }
 
@@ -2174,6 +2204,17 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 
 	if (es_params->have_header == 0) {
 		mutex_lock(&pout->pts_mutex);
+		//dirty len need clean first.
+		if (pout->pchan->sec_level &&
+			pout->type != VIDEO_TYPE &&
+			es_params->dirty_len) {
+			ret = clean_aucpu_data(pout, es_params->dirty_len);
+			es_params->dirty_len = ret;
+			if (ret != 0) {
+				mutex_unlock(&pout->pts_mutex);
+				return 0;
+			}
+		}
 		ret =
 		    get_non_sec_es_header(pout, plast_header, pcur_header,
 					  pheader);
@@ -2191,11 +2232,13 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 		} else if (ret > 0) {
 			dirty_len = ret;
 			if (pout->pchan->sec_level &&
-					pout->type != VIDEO_TYPE)
-				ret = clean_aucpu_data(pout, dirty_len);
-			else
+					pout->type != VIDEO_TYPE) {
+				start_aucpu(pout);
+				es_params->dirty_len = dirty_len;
+			} else {
 				ret = clean_es_data(pout,
 						pout->pchan, dirty_len);
+			}
 			memcpy(&es_params->last_last_header,
 				&es_params->last_header, 16);
 			memcpy(&es_params->last_header, pcur_header,
@@ -2203,7 +2246,7 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 			if (pout->type == VIDEO_TYPE)
 				dprint("video: clean dirty len:0x%0x\n", dirty_len);
 			else
-				dprint("audio: clean dirty len:0x%0x\n", dirty_len);
+				dprint("audio: record dirty len:0x%0x\n", dirty_len);
 			return 0;
 		}
 		if (pheader->len == 0) {
@@ -2304,6 +2347,7 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 				sizeof(es_params->last_header));
 		es_params->have_header = 1;
 	}
+
 	if (pout->output_mode || pout->pchan->sec_level) {
 		if (es_params->have_header == 0)
 			return -1;
