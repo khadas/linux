@@ -1894,6 +1894,7 @@ static int meson_nfc_probe(struct platform_device *pdev)
 	ret = meson_nfc_nand_chips_init(dev, nfc);
 	if (ret) {
 		dev_err(dev, "failed to init NAND chips\n");
+		deregister_mtd_parser(&ofpart_meson_parser);
 		goto err_clk;
 	}
 	ret = readl(nfc->nand_clk_reg);
