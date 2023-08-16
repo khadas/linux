@@ -3077,8 +3077,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	 *  give up bottom field to avoid odd/even phase different
 	 */
 	trans_fmt = devp->parm.info.trans_fmt;
-	if (((devp->parm.flag & TVIN_PARM_FLAG_2D_TO_3D) ||
-	     (trans_fmt && trans_fmt != TVIN_TFMT_3D_FP)) &&
+	if (vdin_is_3d_interlace_signal(devp) &&
 	    ((last_field_type & VIDTYPE_INTERLACE_BOTTOM) ==
 	     VIDTYPE_INTERLACE_BOTTOM)) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_FMT_TRANS_CHG;

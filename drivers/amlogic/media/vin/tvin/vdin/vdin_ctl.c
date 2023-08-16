@@ -3956,6 +3956,11 @@ void vdin_get_duration_by_fps(struct vdin_dev_s *devp)
 		devp->duration = 96000 / (devp->parm.info.fps);
 	else
 		devp->duration = devp->fmt_info_p->duration;
+
+	if (vdin_is_3d_interlace_signal(devp)) {
+		/* 3d interlace give up bottom field need change duration for avsync */
+		devp->duration <<= 1;
+	}
 }
 
 /*
@@ -4029,9 +4034,12 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 
 	/* dynamic duration update */
 	if (devp->dtdata->hw_ver >= VDIN_HW_T7) {
-		/* 59.94 for 1601 so need special handling */
-		/* value is 834170 add 56 and minus 56 */
-		if (devp->cycle > 834114 && devp->cycle < 834226) {
+		if (vdin_is_3d_interlace_signal(devp)) {
+			/* 3d interlace give up bottom field need change duration for avsync */
+			curr_wr_vf->duration = devp->duration;
+		} else if (devp->cycle > 834114 && devp->cycle < 834226) {
+			/* 59.94 for 1601 so need special handling */
+			/* value is 834170 add 56 and minus 56 */
 			curr_wr_vf->duration = 1601;
 		} else if (devp->cycle) {
 			fps = devp->cycle * 96;
@@ -4039,6 +4047,7 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 		} else {
 			curr_wr_vf->duration = devp->duration;
 		}
+
 		if (!devp->game_mode) {
 			duration_diff = curr_wr_vf->duration - devp->duration;
 			if (abs(duration_diff) > VDIN_DURATION_FILTER_VALUE)
@@ -6773,4 +6782,26 @@ int vdin_get_base_fr(struct vdin_dev_s *devp)
 			devp->prop.spd_data.data[7], devp->parm.info.fps, devp->prop.fps);
 
 	return ret;
+}
+
+/* check 3D interlace signal:
+ *	true: 3D interlace signal
+ *	false: not 3D interlace signal
+ */
+bool vdin_is_3d_interlace_signal(struct vdin_dev_s *devp)
+{
+	enum tvin_trans_fmt trans_fmt = devp->parm.info.trans_fmt;
+	const struct tvin_format_s *fmt_info = devp->fmt_info_p;
+
+	if (!fmt_info) {
+		pr_err("%s:fmt_info is null\n", __func__);
+		return false;
+	}
+
+	if ((devp->parm.flag & TVIN_PARM_FLAG_2D_TO_3D ||
+	     (trans_fmt && devp->parm.info.trans_fmt != TVIN_TFMT_3D_FP)) &&
+	    fmt_info->scan_mode == TVIN_SCAN_MODE_INTERLACED)
+		return true;
+	else
+		return false;
 }
