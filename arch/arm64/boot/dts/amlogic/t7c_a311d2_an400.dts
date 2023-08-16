@@ -1405,58 +1405,26 @@
 	pinctrl-0 = <&i2c2_pins3>;
 	//pinctrl-1 = <&i2c2_sleep_pins2>;
 	clock-frequency = <100000>; /* default 100k */
-	imx290_2: sensor1@1a {
-		compatible = "sony, imx290","sony, imx415";
+	amlsens_0: sensor0@1a {
+		compatible = "amlogic, sensor";
 		index = <0>;
 		reg = <0x1a>;
 		reg-addr-type = <2>;
 		reg-data-type = <1>;
 
 		clocks = <&clkc CLKID_MCLK_0>,
+				<&clkc CLKID_MCLK_0_SEL>,
 				<&clkc CLKID_MCLK_0_PRE>,
 				<&clkc CLKID_MCLK_PLL>,
 				<&xtal>;
-		clock-names = "mclk","mclk_pre","mclk_p","mclk_x";
-		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
-		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
-		ports {
-			port@0 {
-				imx290_2_ep: imx290 {
-					reg = <0>;
-					data-lanes = <0 1 2 3>;
-					link-frequencies = /bits/ 64 <222750000>;
-					remote-endpoint = <&csiphy0_ep>;
-				};
-			};
-			port@1 {
-				imx415_4_ep: imx415 {
-					reg = <1>;
-					data-lanes = <0 1 2 3>;
-					link-frequencies = /bits/ 64 <1440000000>;
-					remote-endpoint = <&csiphy0_ep_4>;
-				};
-			};
-		};
-	};
-	ov08a10_0: sensor2@36 {
-		compatible = "omini, ov08a10";
-		index = <1>;
-		reg = <0x36>;
-		reg-addr-type = <2>;
-		reg-data-type = <1>;
-
-		clocks = <&clkc CLKID_MCLK_0>,
-				<&clkc CLKID_MCLK_0_PRE>,
-				<&clkc CLKID_MCLK_PLL>,
-				<&xtal>;
-		clock-names = "mclk","mclk_pre","mclk_p","mclk_x";
-		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
-		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+		clock-names = "mclk","mclk_sel","mclk_pre","mclk_p","mclk_x";
+		pwdn-gpios = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
 		port {
-			ov08a10_0_ep: ov08a10 {
+			amlsens_0_ep: endpoint {
 				data-lanes = <0 1 2 3>;
-				link-frequencies = /bits/ 64 <1440000000>;
-				remote-endpoint = <&csiphy0_ep_2>;
+				link-frequencies = /bits/ 64 <222750000>;
+				remote-endpoint = <&csiphy0_ep>;
 			};
 		};
 	};
@@ -1467,28 +1435,26 @@
 	pinctrl-names = "default";//, "sleep"
 	pinctrl-0 = <&i2c3_pins1>;
 	clock-frequency = <100000>; /* default 100k */
-	imx290_1: sensor2@1a {
-		compatible = "sony, imx290";
-		index = <0>;
+	amlsens_2: sensor2@1a {
+		compatible = "amlogic, sensor";
+		index = <2>;
 		reg = <0x1a>;
 		reg-addr-type = <2>;
 		reg-data-type = <1>;
 
 		clocks = <&clkc CLKID_MCLK_1>,
+				<&clkc CLKID_MCLK_1_SEL>,
 				<&clkc CLKID_MCLK_1_PRE>,
 				<&clkc CLKID_MCLK_PLL>,
 				<&xtal>;
-		clock-names = "mclk","mclk_pre","mclk_p","mclk_x";
-		pwdn = <&gpio GPIOM_4 GPIO_ACTIVE_HIGH>;
-		reset = <&gpio GPIOM_9 GPIO_ACTIVE_HIGH>;
-		ports {
-			port@0 {
-				imx290_1_ep: imx290 {
-					reg = <0>;
-					data-lanes = <0 1 2 3>;
-					link-frequencies = /bits/ 64 <222750000>;
-					remote-endpoint = <&csiphy2_ep>;
-				};
+		clock-names = "mclk","mclk_sel","mclk_pre","mclk_p","mclk_x";
+		pwdn-gpios = <&gpio GPIOM_4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio GPIOM_10 GPIO_ACTIVE_HIGH>;
+		port {
+			amlsens_2_ep: endpoint {
+				data-lanes = <0 1 2 3>;
+				link-frequencies = /bits/ 64 <222750000>;
+				remote-endpoint = <&csiphy2_ep>;
 			};
 		};
 	};
@@ -1590,33 +1556,12 @@
 };
 
 &csiphy0 {
-	ports {
-		port@0 {
-			csiphy0_ep_2: endpoint {
-				reg = <0>;
-				status = "disable";
-				clock-lanes = <4>;
-				data-lanes = <0 1 2 3>;
-				remote-endpoint = <&ov08a10_0_ep>;
-			};
-		};
-		port@1 {
-			csiphy0_ep: endpoint {
-				reg = <1>;
-				status = "okay";
-				clock-lanes = <4>;
-				data-lanes = <0 1 2 3>;
-				remote-endpoint = <&imx290_2_ep>;
-			};
-		};
-		port@2 {
-			csiphy0_ep_4: endpoint {
-				reg = <2>;
-				status = "disable";
-				clock-lanes = <4>;
-				data-lanes = <0 1 2 3>;
-				remote-endpoint = <&imx415_4_ep>;
-			};
+	port {
+		csiphy0_ep: endpoint {
+			status = "okay";
+			clock-lanes = <4>;
+			data-lanes = <0 1 2 3>;
+			remote-endpoint = <&amlsens_0_ep>;
 		};
 	};
 };
@@ -1630,15 +1575,12 @@
 };
 
 &csiphy2 {
-	ports {
-		port@0 {
-			csiphy2_ep: endpoint {
-				reg = <2>;
-				status = "okay";
-				clock-lanes = <4>;
-				data-lanes = <0 1 2 3>;
-				remote-endpoint = <&imx290_1_ep>;
-			};
+	port {
+		csiphy2_ep: endpoint {
+			status = "okay";
+			clock-lanes = <4>;
+			data-lanes = <0 1 2 3>;
+			remote-endpoint = <&amlsens_2_ep>;
 		};
 	};
 };
@@ -1730,7 +1672,7 @@
 	pdmin_pins: pdmin_pin {
 		mux { /* GPIOM_3, GPIOM_4, GPIOM_5, GPIOM_1, GPIOM_2 */
 			groups = "pdm_dclk",
-				"pdm_din0",
+				/*"pdm_din0",*/
 				/*"pdm_din1_m5",*/
 				"pdm_din2",
 				"pdm_din3";
