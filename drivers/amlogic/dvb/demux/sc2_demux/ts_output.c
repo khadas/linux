@@ -2216,7 +2216,7 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 					!(pheader->pts_dts_flag & 0x8))
 					return 0;
 
-				if (pout->output_mode || pout->pchan->sec_level) {
+				if (pout->output_mode) {
 					if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE) {
 						struct dmx_sec_es_data sec_es_data;
 
