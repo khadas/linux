@@ -782,7 +782,7 @@ static struct clk_regmap t7_mclk_pll_dco = {
 			.fw_name = "xtal",
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED
+		.flags = CLK_GET_RATE_NOCACHE | CLK_IS_CRITICAL
 	},
 };
 
