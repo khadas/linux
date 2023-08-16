@@ -109,6 +109,7 @@
 /*  V2.1.115 bring up new dvbc blind scan feature */
 /*  V2.2.000 brinup TL1 */
 /*  V2.2.001 improve the accuracy of dvbs cn value */
+/*  V2.2.002 fix j83b qam setting when auto qam */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -125,8 +126,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.2.001"
-#define DTVDEMOD_VER	"2023/08/29: improve the accuracy of dvbs cn value"
+#define AMLDTVDEMOD_VER "V2.2.002"
+#define DTVDEMOD_VER	"2023/08/30: fix j83b qam setting when auto qam"
 #define AMLDTVDEMOD_T2_FW_VER "V1558.20230628"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

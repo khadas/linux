@@ -2048,11 +2048,15 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 		}
 		param_j83b.ch_freq = c->frequency / 1000;
 		param_j83b.mode = amdemod_qam(c->modulation);
-		PR_ATSC("gxtv_demod_atsc_set_frontend, modulation: %d\n", c->modulation);
-		if (c->modulation == QAM_64)
-			param_j83b.symb_rate = 5057;
-		else
+		if (param_j83b.mode == QAM_MODE_AUTO ||
+			param_j83b.mode == QAM_MODE_256) {
 			param_j83b.symb_rate = 5361;
+			param_j83b.mode = QAM_MODE_256;
+			demod->auto_qam_mode = QAM_MODE_256;
+		} else {
+			param_j83b.symb_rate = 5057;
+			demod->auto_qam_mode = param_j83b.mode;
+		}
 
 		dvbc_set_ch(demod, &param_j83b, fe);
 
@@ -2065,6 +2069,8 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 
 		demod_dvbc_store_qam_cfg(demod);
 		demod_dvbc_set_qam(demod, param_j83b.mode, false);
+
+		PR_ATSC("j83b mode: %d.\n", param_j83b.mode);
 	} else if (c->modulation > QAM_AUTO) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			Val_0x6a.bits = atsc_read_reg_v4(ATSC_DEMOD_REG_0X6A);
@@ -2124,9 +2130,9 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 			else
 				atsc_write_reg(0x716, atsc_read_reg(0x716) & ~0x4);
 		}
-	}
 
-	PR_DBG("atsc_mode is %d\n", demod->atsc_mode);
+		PR_ATSC("atsc_mode is %d\n", demod->atsc_mode);
+	}
 
 	return 0;
 }
@@ -2153,11 +2159,20 @@ static int atsc_j83b_set_frontend_mode(struct dvb_frontend *fe, int mode)
 	demod_set_mode_ts(demod, SYS_DVBC_ANNEX_A);
 	param_j83b.ch_freq = temp_freq / 1000;
 	param_j83b.mode = amdemod_qam(c->modulation);
-	if (c->modulation == QAM_64)
-		param_j83b.symb_rate = 5057;
-	else
+	if (param_j83b.mode == QAM_MODE_AUTO ||
+		param_j83b.mode == QAM_MODE_256) {
 		param_j83b.symb_rate = 5361;
+		param_j83b.mode = QAM_MODE_256;
+		demod->auto_qam_mode = QAM_MODE_256;
+	} else {
+		param_j83b.symb_rate = 5057;
+		demod->auto_qam_mode = param_j83b.mode;
+	}
+
 	dvbc_set_ch(demod, &param_j83b, fe);
+
+	demod_dvbc_store_qam_cfg(demod);
+	demod_dvbc_set_qam(demod, param_j83b.mode, false);
 
 	return 0;
 }
@@ -2260,7 +2275,6 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 	int str = 0;
 	unsigned int s;
 	unsigned int curTime, time_passed_qam;
-	static enum qam_md_e qam;
 	static int check_first;
 	static unsigned int time_start_qam;
 	static unsigned int timeout;
@@ -2273,7 +2287,6 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 		demod->time_start = jiffies_to_msecs(jiffies);
 		time_start_qam = 0;
 		if (c->modulation == QAM_AUTO) {
-			qam = QAM_MODE_256;
 			check_first = 1;
 		} else {
 			check_first = 0;
@@ -2318,9 +2331,9 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 
 		*status = FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
 			FE_HAS_VITERBI | FE_HAS_SYNC;
-		demod->real_para.modulation = amdemod_qam_fe(qam);
+		demod->real_para.modulation = amdemod_qam_fe(demod->auto_qam_mode);
 
-		PR_ATSC("locked at Qam:%s\n", get_qam_name(qam));
+		PR_ATSC("locked at Qam:%s\n", get_qam_name(demod->auto_qam_mode));
 	} else if (s < 3) {
 		if (time_start_qam == 0)
 			time_start_qam = curTime;
@@ -2340,8 +2353,9 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 			}
 
 			if (c->modulation == QAM_AUTO) {
-				qam = qam == QAM_MODE_64 ? QAM_MODE_256 : QAM_MODE_64;
-				atsc_j83b_switch_qam(fe, qam);
+				demod->auto_qam_mode = demod->auto_qam_mode == QAM_MODE_64 ?
+						QAM_MODE_256 : QAM_MODE_64;
+				atsc_j83b_switch_qam(fe, demod->auto_qam_mode);
 				time_start_qam = 0;
 			}
 		}
@@ -2387,8 +2401,8 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 		if (demod->last_lock == 1)
 			PR_ATSC("!! >> lock continue << !!\n");
 		else
-			PR_INFO("!! >> LOCK << !!, freq=%d, time_passed:%u\n",
-				c->frequency, demod->time_passed);
+			PR_INFO("!! >> LOCK << !!, freq=%d, qam %d, time_passed:%u\n",
+				c->frequency, demod->real_para.modulation, demod->time_passed);
 		demod->last_lock = 1;
 	}
 
