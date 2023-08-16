@@ -4225,12 +4225,12 @@ static int dtvdemod_dvbs_blind_check_signal(struct dvb_frontend *fe,
 #endif
 	/* set tuner */
 	c->frequency = freq_khz; // KHz
-	if (tuner_find_by_name(fe, "rt710") || tuner_find_by_name(fe, "rt720")) {
+	if (tuner_find_by_name(fe, "av2018")) {
+		c->bandwidth_hz = 40000000;
+		c->symbol_rate = 40000000;
+	} else {
 		c->bandwidth_hz = 45000000;
 		c->symbol_rate = 45000000;
-	} else {
-		c->bandwidth_hz = 40000000; //other must 40M.
-		c->symbol_rate = 40000000;
 	}
 
 	//in Unicable blind scan mode, when try signal, the actual IF freq
@@ -4314,12 +4314,12 @@ static int dtvdemod_dvbs_blind_set_frontend(struct dvb_frontend *fe,
 	spectr_ana_data.in_bw_center_frc = (spectr_ana_data.flow +  spectr_ana_data.fup) >> 1;
 
 	fe->dtv_property_cache.frequency = spectr_ana_data.in_bw_center_frc * 1000;
-	if (tuner_find_by_name(fe, "rt710") || tuner_find_by_name(fe, "rt720")) {
+	if (tuner_find_by_name(fe, "av2018")) {
+		fe->dtv_property_cache.bandwidth_hz = 40000000;
+		fe->dtv_property_cache.symbol_rate = 40000000;
+	} else {
 		fe->dtv_property_cache.bandwidth_hz = 45000000;
 		fe->dtv_property_cache.symbol_rate = 45000000;
-	} else {
-		fe->dtv_property_cache.bandwidth_hz = 40000000; //other must 40M.
-		fe->dtv_property_cache.symbol_rate = 40000000;
 	}
 
 	if (!devp->blind_scan_stop && demod->demod_status.is_blind_scan &&
@@ -5833,6 +5833,12 @@ int dtvdemod_set_iccfg_by_dts(struct platform_device *pdev)
 	} else {
 		devp->diseqc.irq_num = 0;
 		PR_INFO("no diseqc isr.\n");
+	}
+
+	ret = of_property_read_u32(pdev->dev.of_node, "iq_swap", &value);
+	if (!ret) {
+		dvbs_set_iq_swap(value);
+		PR_INFO("iq_swap: %d.\n", value);
 	}
 
 	return 0;

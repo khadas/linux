@@ -104,6 +104,7 @@
 /*  V2.1.110 improve the stability of new dvbc driver scanning */
 /*  V2.1.111 fix dvbc qam config and flow */
 /*  V2.1.112 adjust the sensitivity limit of atbm253 tuner in DTMB mode */
+/*  V2.1.113 fix rda5815m bandwidth and dvbs iq swap config */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -120,8 +121,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.1.112"
-#define DTVDEMOD_VER	"2023/08/09: adjust the sensitivity limit of atbm253 tuner in DTMB mode"
+#define AMLDTVDEMOD_VER "V2.1.113"
+#define DTVDEMOD_VER	"2023/08/16: fix rda5815m bandwidth and dvbs iq swap config"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
