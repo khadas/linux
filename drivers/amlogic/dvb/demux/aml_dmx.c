@@ -318,8 +318,8 @@ static void _sec_cb(u8 *sec, int len, void *data)
 	spin_lock(&dmxdevfilter->dev->lock);
 	free = dvb_ringbuffer_free(&dmxdevfilter->buffer);
 	if (len > free) {
-		pr_info("dvb-core: pid:0x%0x sec buffer isn't enough\n",
-			sec_feed->pid);
+//		pr_info("dvb-core: pid:0x%0x sec buffer isn't enough\n",
+//			sec_feed->pid);
 		spin_unlock(&dmxdevfilter->dev->lock);
 		return;
 	}
@@ -1160,7 +1160,7 @@ int check_dmx_filter_buff(struct dmx_ts_feed *feed, int req_len)
 	}
 	free = dvb_ringbuffer_free(buffer);
 	if (req_len > free) {
-		pr_info("dvb-core: buffer isn't enough\n");
+//		pr_info("dvb-core: buffer isn't enough\n");
 		spin_unlock(&dmxdevfilter->dev->lock);
 		return 1;
 	}
