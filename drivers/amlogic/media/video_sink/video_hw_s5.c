@@ -11125,9 +11125,11 @@ void set_video_slice_policy(struct video_layer_s *layer,
 				slice_num = 1;
 			}
 		}
-		if (src_width > 4096 && src_height > 2160)
+		if (src_width > 4096 && src_height > 2160) {
 			/* input: (4k-8k] */
 			slice_num = 4;
+			vd1s1_vd2_prebld_en = 0;
+		}
 		layer->slice_num = slice_num;
 		layer->pi_enable = pi_en;
 		layer->vd1s1_vd2_prebld_en = vd1s1_vd2_prebld_en;
