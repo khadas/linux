@@ -63,5 +63,8 @@
 #define CLKID_AUDIO_EQDRC                       (MCLK_BASE + 16)
 #define CLKID_AUDIO_VAD                         (MCLK_BASE + 17)
 
-#define NUM_AUDIO_CLKS                          (MCLK_BASE + 18)
+#define CLKID_AUDIO_MCLK_PAD0                   (MCLK_BASE + 18)
+#define CLKID_AUDIO_MCLK_PAD1                   (MCLK_BASE + 19)
+
+#define NUM_AUDIO_CLKS                          (MCLK_BASE + 20)
 #endif /* __TL1_AUDIO_CLK_H__ */

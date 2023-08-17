@@ -734,6 +734,7 @@
 			#size-cells = <1>;
 			reg = <0xff600000 0x10000>;
 			ranges = <0x0 0xff600000 0x10000>;
+			reg-names = "audio_bus";
 			chip_id = <0x2E>;
 			clkaudio:audio_clocks {
 				compatible = "amlogic, tl1-audio-clocks";
@@ -758,6 +759,10 @@
 					"toddr_d",
 					"frddr_a", "frddr_b", "frddr_c",
 					"frddr_d";
+			};
+			pinctrl_audio: pinctrl {
+				compatible = "amlogic, tl1-audio-pinctrl";
+				status = "okay";
 			};
 		};/* end of audiobus*/
 

@@ -498,7 +498,7 @@ static int aml_set_tdm_mclk_2(struct aml_tdm *p_tdm,
 		clk_set_rate(p_tdm->mclk, freq);
 	p_tdm->last_mclk_freq = freq;
 
-	pr_info("set mclk:%d, get mclk:%lu, mpll:%lu, clk_src_cd:%lu\n",
+	pr_debug("set mclk:%d, get mclk:%lu, mpll:%lu, clk_src_cd:%lu\n",
 		freq,
 		clk_get_rate(p_tdm->mclk),
 		clk_get_rate(p_tdm->clk),

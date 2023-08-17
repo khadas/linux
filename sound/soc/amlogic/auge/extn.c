@@ -1116,13 +1116,12 @@ static const struct snd_soc_component_driver extn_component = {
 	.num_controls   = ARRAY_SIZE(extn_controls),
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 struct extn_chipinfo tl1_extn_chipinfo = {
 	.arc_version	= TL1_ARC,
 	.PAO_channel_sync = false,
 	.frhdmirx_version = TL1_FRHDMIRX,
 };
-#endif
+
 
 struct extn_chipinfo tm2_extn_chipinfo = {
 	.arc_version	= TM2_ARC,
@@ -1137,7 +1136,6 @@ struct extn_chipinfo t7_extn_chipinfo = {
 };
 
 static const struct of_device_id extn_device_id[] = {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, snd-extn",
 	},
@@ -1145,7 +1143,7 @@ static const struct of_device_id extn_device_id[] = {
 		.compatible = "amlogic, tl1-snd-extn",
 		.data       = &tl1_extn_chipinfo,
 	},
-#endif
+
 	{
 		.compatible = "amlogic, tm2-snd-extn",
 		.data       = &tm2_extn_chipinfo,

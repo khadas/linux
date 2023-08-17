@@ -162,7 +162,6 @@ struct tdm_chipinfo g12a_tdmc_chipinfo = {
 	.use_arb = true,
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 struct tdm_chipinfo tl1_tdma_chipinfo = {
 	.id          = TDM_A,
 	.sclk_ws_inv = true,
@@ -204,7 +203,6 @@ struct tdm_chipinfo tl1_tdmc_chipinfo = {
 	.gain_ver = GAIN_VER1,
 	.use_arb = true,
 };
-#endif
 
 struct tdm_chipinfo sm1_tdma_chipinfo = {
 	.id          = TDM_A,
@@ -672,7 +670,7 @@ static const struct of_device_id aml_tdm_device_id[] = {
 		.compatible = "amlogic, g12a-snd-tdmc",
 		.data       = &g12a_tdmc_chipinfo,
 	},
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+
 	{
 		.compatible = "amlogic, tl1-snd-tdma",
 		.data       = &tl1_tdma_chipinfo,
@@ -685,7 +683,7 @@ static const struct of_device_id aml_tdm_device_id[] = {
 		.compatible = "amlogic, tl1-snd-tdmc",
 		.data       = &tl1_tdmc_chipinfo,
 	},
-#endif
+
 	{
 		.compatible = "amlogic, sm1-snd-tdma",
 		.data       = &sm1_tdma_chipinfo,

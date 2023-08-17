@@ -374,9 +374,14 @@ static int ap_get_groups(struct pinctrl_dev *pctldev, unsigned int selector,
 	return 0;
 }
 
+struct audio_pinctrl_chipinfo {
+	int chip_version;
+};
+
 struct ap_data {
 	struct aml_audio_controller *actrl;
 	struct device *dev;
+	struct audio_pinctrl_chipinfo *info;
 };
 
 /* refer to audio_functions[] */
@@ -430,19 +435,36 @@ static int ap_set_mux(struct pinctrl_dev *pctldev,
 		aml_audiobus_update_bits(actrl, EE_AUDIO_DAT_PAD_CTRLF,
 			1 << group, 0);
 	} else if (selector <= FUNC_TDM_CLK_IN_LAST) {
-		base = EE_AUDIO_SCLK_PAD_CTRL0;
-		addr = (group - GRP_TDM_SCLK_START) / 5 + base;
-		offset = ((group - GRP_TDM_SCLK_START) % 5) * 4;
-
-		if (selector <= FUNC_TDM_CLK_OUT_LAST)
-			val = selector - FUNC_TDM_CLK_OUT_START;
-		else
-			val = selector - FUNC_TDM_CLK_IN_START;
-
-		if (selector == FUNC_TDM_CLK_IN_START)
-			val |= 1 << 3;
-		aml_audiobus_update_bits(actrl, addr,
-			0xf << offset, val << offset);
+		if (ap && ap->info) {
+			if (ap->info->chip_version == 0) {
+				base = EE_AUDIO_MST_PAD_CTRL1(1);
+				if (group < GRP_TDM_SCLK_START + 5) {
+					offset = ((group - GRP_TDM_SCLK_START) % 5) * 4;
+				} else if (group < GRP_TDM_SCLK_START + 10) {
+					offset =  (group - (GRP_TDM_SCLK_START + 5)) * 4 + 16;
+				} else if (group < GRP_TDM_SCLK_START + 15) {
+					offset = group - (GRP_TDM_SCLK_START + 10);
+					base = EE_AUDIO_MST_PAD_CTRL0(1);
+				}
+				if (selector <= FUNC_TDM_CLK_OUT_LAST)
+					val = selector - FUNC_TDM_CLK_OUT_START;
+				if (offset < 32)
+					aml_audiobus_update_bits(actrl, base,
+						0x7 << offset, val << offset);
+			} else {
+				base = EE_AUDIO_SCLK_PAD_CTRL0;
+				addr = (group - GRP_TDM_SCLK_START) / 5 + base;
+				offset = ((group - GRP_TDM_SCLK_START) % 5) * 4;
+				if (selector <= FUNC_TDM_CLK_OUT_LAST)
+					val = selector - FUNC_TDM_CLK_OUT_START;
+				else
+					val = selector - FUNC_TDM_CLK_IN_START;
+				if (selector == FUNC_TDM_CLK_IN_START)
+					val |= 1 << 3;
+				aml_audiobus_update_bits(actrl, addr,
+						0xf << offset, val << offset);
+			}
+		}
 	} else if (selector < FUNC_TDMD_DIN_LAST) {
 		base = EE_AUDIO_DAT_PAD_CTRLG;
 		addr = base + (selector - FUNC_TDMD_DIN_START) / 4;
@@ -540,9 +562,22 @@ struct pinctrl_desc audio_pin_desc = {
 	.owner = THIS_MODULE,
 };
 
+struct audio_pinctrl_chipinfo tl1_chip_info = {
+	.chip_version = 0,
+};
+
+struct audio_pinctrl_chipinfo sc2_chip_info = {
+	.chip_version = 1,
+};
+
 static const struct of_device_id audio_pinctrl_of_match[] = {
 	{
 		.compatible = "amlogic, audio-pinctrl",
+		.data       = &sc2_chip_info,
+	},
+	{
+		.compatible = "amlogic, tl1-audio-pinctrl",
+		.data       = &tl1_chip_info,
 	},
 	{}
 };
@@ -556,12 +591,17 @@ static int audio_pinctrl_probe(struct platform_device *pdev)
 	struct platform_device *pdev_parent;
 	struct pinctrl_dev *ap_dev;
 	struct ap_data *ap;
+	struct audio_pinctrl_chipinfo *p_chipinfo;
 
 	ap = devm_kzalloc(dev, sizeof(*ap), GFP_KERNEL);
 	if (!ap)
 		return -ENOMEM;
 
 	ap->dev = dev;
+	/* match data */
+	p_chipinfo = (struct audio_pinctrl_chipinfo *)
+		of_device_get_match_data(dev);
+	ap->info = p_chipinfo;
 	/* get audio controller */
 	node_prt = of_get_parent(node);
 	if (!node_prt) {

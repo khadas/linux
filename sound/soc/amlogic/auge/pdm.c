@@ -1045,6 +1045,7 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 	struct pdm_chipinfo *p_chipinfo;
 	int ret;
 	int pdm_id = 0;
+
 	p_pdm = devm_kzalloc(&pdev->dev, sizeof(struct aml_pdm), GFP_KERNEL);
 	if (!p_pdm) {
 		/*dev_err(&pdev->dev, "Can't allocate pcm_p\n");*/

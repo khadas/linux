@@ -68,7 +68,6 @@ struct spdif_chipinfo g12a_spdif_b_chipinfo = {
 	.use_arb        = true,
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 struct spdif_chipinfo tl1_spdif_a_chipinfo = {
 	.id           = SPDIF_A,
 	.chnum_en     = true,
@@ -88,7 +87,7 @@ struct spdif_chipinfo tl1_spdif_b_chipinfo = {
 	.spdifout_lane_mask = SPDIFOUT_LANE_MASK_V1,
 	.use_arb      = true,
 };
-#endif
+
 
 struct spdif_chipinfo sm1_spdif_a_chipinfo = {
 	.id           = SPDIF_A,
@@ -196,6 +195,14 @@ static const struct of_device_id aml_spdif_device_id[] = {
 	{
 		.compatible = "amlogic, axg-snd-spdif",
 		.data		= &axg_spdif_chipinfo,
+	},
+	{
+		.compatible = "amlogic, tl1-snd-spdif-a",
+		.data       = &tl1_spdif_a_chipinfo,
+	},
+	{
+		.compatible = "amlogic, tl1-snd-spdif-b",
+		.data       = &tl1_spdif_b_chipinfo,
 	},
 
 	{}

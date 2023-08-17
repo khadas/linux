@@ -13,14 +13,13 @@ static struct pdm_chipinfo g12a_pdm_chipinfo = {
 	.use_arb         = true,
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct pdm_chipinfo tl1_pdm_chipinfo = {
 	.id              = PDM_A,
 	.mute_fn         = true,
 	.truncate_data   = false,
 	.use_arb         = true,
 };
-#endif
+
 
 static struct pdm_chipinfo sm1_pdm_chipinfo = {
 	.id              = PDM_A,
@@ -90,12 +89,11 @@ static struct pdm_chipinfo axg_pdm_chipinfo = {
 };
 
 static const struct of_device_id aml_pdm_device_id[] = {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, tl1-snd-pdm",
 		.data       = &tl1_pdm_chipinfo,
 	},
-#endif
+
 	{
 		.compatible = "amlogic, g12a-snd-pdm",
 		.data       = &g12a_pdm_chipinfo,

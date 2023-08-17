@@ -1085,13 +1085,13 @@ static int aml_card_parse_gpios(struct device_node *node,
 				msleep(500);
 			gpiod_direction_output(priv->avout_mute_desc,
 				GPIOF_OUT_INIT_HIGH);
-			pr_info("av out status: %s\n",
+			pr_debug("av out status: %s\n",
 				gpiod_get_value(priv->avout_mute_desc) ?
 				"high" : "low");
 		} else {
 			gpiod_direction_output(priv->avout_mute_desc,
 				GPIOF_OUT_INIT_LOW);
-			pr_info("av out status: %s\n",
+			pr_debug("av out status: %s\n",
 				gpiod_get_value(priv->avout_mute_desc) ?
 				"high" : "low");
 		}

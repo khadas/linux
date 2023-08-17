@@ -2126,8 +2126,6 @@ struct toddr_src_conf toddr_srcs_v4[] = {
 	{ /* sentinel */ }
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
-
 static struct ddr_chipinfo tl1_ddr_chipinfo = {
 	.same_src_fn           = true,
 	.ugt                   = true,
@@ -2152,7 +2150,7 @@ static struct ddr_chipinfo a1_ddr_chipinfo = {
 	.to_srcs               = &toddr_srcs_v2[0],
 	.use_arb               = true,
 };
-#endif
+
 
 static struct ddr_chipinfo axg_ddr_chipinfo = {
 	.int_start_same_addr   = true,
@@ -2277,7 +2275,6 @@ static struct ddr_chipinfo s5_ddr_chipinfo = {
 };
 
 static const struct of_device_id aml_ddr_mngr_device_id[] = {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 
 	{
 		.compatible = "amlogic, tl1-audio-ddr-manager",
@@ -2287,7 +2284,7 @@ static const struct of_device_id aml_ddr_mngr_device_id[] = {
 		.compatible = "amlogic, a1-audio-ddr-manager",
 		.data       = &a1_ddr_chipinfo,
 	},
-#endif
+
 	{
 		.compatible = "amlogic, axg-audio-ddr-manager",
 		.data       = &axg_ddr_chipinfo,
