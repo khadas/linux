@@ -178,7 +178,7 @@ int vfm_map_add(char *id, char *name_chain)
 		memcpy(p->id, id, VFM_NAME_LEN - 1);
 		p->id[VFM_NAME_LEN - 1] = '\0';
 	} else {
-		memcpy(p->id, id, strlen(id));
+		memcpy(p->id, id, strlen(id) + 1);
 	}
 	p->valid = 1;
 

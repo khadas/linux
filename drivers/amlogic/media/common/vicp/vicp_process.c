@@ -1321,7 +1321,6 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_s *rd_mif, int urgent, int hold_line)
 		hz_ini_phase = 0;
 		vfmt_en = 1;
 		vt_yc_ratio = 1;
-		vt_ini_phase = 0;
 		y_length = rd_mif->luma_x_end0 - rd_mif->luma_x_start0 + 1;
 		c_length = rd_mif->chrm_x_end0 - rd_mif->chrm_x_start0 + 1;
 		hz_rpt = 0;
@@ -1331,7 +1330,6 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_s *rd_mif, int urgent, int hold_line)
 		hz_ini_phase = 0;
 		vfmt_en = 0;
 		vt_yc_ratio = 0;
-		vt_ini_phase = 0;
 		y_length = rd_mif->luma_x_end0 - rd_mif->luma_x_start0 + 1;
 		c_length = ((rd_mif->luma_x_end0 >> 1) - (rd_mif->luma_x_start0 >> 1) + 1);
 		hz_rpt	 = 0;
@@ -1341,7 +1339,6 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_s *rd_mif, int urgent, int hold_line)
 		hz_ini_phase = 0;
 		vfmt_en = 0;
 		vt_yc_ratio = 0;
-		vt_ini_phase = 0;
 		y_length = rd_mif->luma_x_end0 - rd_mif->luma_x_start0 + 1;
 		c_length = rd_mif->luma_x_end0 - rd_mif->luma_x_start0 + 1;
 		hz_rpt = 0;
@@ -1743,6 +1740,7 @@ static void set_vid_cmpr_basic_param(struct vid_cmpr_top_s *vid_cmpr_top)
 		set_rdmif_base_addr(RDMIF_BASEADDR_TYPE_CR, vid_cmpr_top->rdmif_canvas0_addr2);
 	}
 
+	memset(&fgrain, 0, sizeof(struct vid_cmpr_fgrain_s));
 	if (vid_cmpr_top->film_grain_en) {
 		fgrain.enable = true;
 		fgrain.start_x = vid_cmpr_top->src_win_bgn_h;
@@ -1960,6 +1958,7 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 		set_vid_cmpr_rmif(&vid_cmpr_rmif, 0, 2);
 	}
 
+	memset(&fgrain, 0, sizeof(struct vid_cmpr_fgrain_s));
 	if (vid_cmpr_top->film_grain_en) {
 		fgrain.enable = true;
 		fgrain.start_x = vid_cmpr_top->src_win_bgn_h;

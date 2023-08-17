@@ -120,7 +120,9 @@ struct vicp_afbce_reg_s vicp_afbce_reg_array[VICP_SUPPORT_CHIP_MAX] = {
 	}
 };
 
-struct vicp_lossy_compress_reg_s vicp_loss_reg_array[VICP_SUPPORT_CHIP_MAX - 1] = {
+struct vicp_lossy_compress_reg_s vicp_loss_reg_array[VICP_SUPPORT_CHIP_MAX] = {
+	{
+	},
 	{
 		T3X_VID_CMPR_AFBCE_LOSS_CTRL,
 		T3X_VID_CMPR_AFBCE_LOSS_BURST_NUM,
@@ -252,7 +254,7 @@ u32 vicp_reg_array_init(enum vicp_support_chip_e chip, enum vicp_module_e module
 			break;
 		case VICP_MODULE_LOSSY_COMPRESS:
 			memcpy(array,
-				&vicp_loss_reg_array[chip - 1],
+				&vicp_loss_reg_array[chip],
 				sizeof(struct vicp_lossy_compress_reg_s));
 			break;
 		case VICP_MODULE_MAX:
