@@ -495,26 +495,17 @@
 		tuner0_xtal_cap = <38>; /* when tuner_xtal_mode = 3, set 25 */
 	};
 
-	demux {
+	dvb-demux {
 		compatible = "amlogic, dvb-demux";
+		dev_name = "dvb-demux";
 		status = "okay";
+
+		dmx = <&demux>;
 
 		/*"parallel","serial","disable"*/
 		ts2 = "parallel";
 		ts2_control = <0>;
 		ts2_invert = <0>;
-		interrupts = <0 23 1
-				0 5 1
-				0 53 1
-				0 19 1
-				0 25 1
-				0 17 1>;
-		interrupt-names = "demux0_irq",
-				"demux1_irq",
-				"demux2_irq",
-				"dvr0_irq",
-				"dvr1_irq",
-				"dvr2_irq";
 
 		clocks = <&clkc CLKID_CLK81_DEMUX
 			&clkc CLKID_CLK81_ASYNC_FIFO
