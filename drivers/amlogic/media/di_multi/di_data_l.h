@@ -2623,6 +2623,7 @@ struct dim_prevpp_ds_s {
 	struct di_dbg_datax_s dbg_data;
 	unsigned int pre_done_nub;
 	unsigned int dbg_last_diff;
+	int	field_count_for_cont;
 };
 
 struct dimn_vfm_s {

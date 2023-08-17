@@ -5503,7 +5503,7 @@ static int dpvpp_display(struct vframe_s *vfm,
 			atomic_add(DI_BIT7, &itf->c.dbg_display_sts);
 		}
 	}
-
+	ds->field_count_for_cont++;
 	if (cfgg(DCT) &&
 	    hw->dis_ch != 0xff		&&
 	    hw->dis_ch != hw->dct_ch	&&
@@ -7413,6 +7413,7 @@ static void dpvpph_display_update_all(struct dim_prevpp_ds_s *ds,
 	unsigned int bypass_mem = 0;
 	struct dim_pvpp_hw_s *hw;
 	struct pvpp_buf_cfg_s *buf_cfg;
+	unsigned short t5d_cnt;
 
 	hw = &get_datal()->dvs_prevpp.hw;
 	/* ndvfm_last */
@@ -7624,7 +7625,15 @@ static void dpvpph_display_update_all(struct dim_prevpp_ds_s *ds,
 
 	atomic_set(&ndvfm->c.wr_set, 1);
 	/*********************************/
-
+	if (DIM_IS_IC(T5DB)) {
+		t5d_cnt = cfgg(T5DB_P_NOTNR_THD);
+		if (t5d_cnt < 5)
+			t5d_cnt = 5;
+		if (ds->field_count_for_cont < t5d_cnt)
+			bypass_mem = 1;
+		else
+			bypass_mem = 0;
+	}
 	if (!ndvfm->c.set_cfg.b.en_mem_mif && !ndvfm->c.set_cfg.b.en_mem_afbcd)
 		bypass_mem = 1;
 	if (dpvpp_dbg_force_mem_bypass())
@@ -7729,6 +7738,7 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 	int i;
 	unsigned int bypass_mem = 0;
 	struct dim_pvpp_hw_s *hw;
+	unsigned short t5d_cnt;
 
 	hw = &get_datal()->dvs_prevpp.hw;
 
@@ -7928,6 +7938,15 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 		dpvpph_nr_ddr_switch(ds->pre_top_cfg.b.nr_ch0_en, op_in);
 	}
 	/************************************/
+	if (DIM_IS_IC(T5DB)) {
+		t5d_cnt = cfgg(T5DB_P_NOTNR_THD);
+		if (t5d_cnt < 5)
+			t5d_cnt = 5;
+		if (ds->field_count_for_cont < t5d_cnt)
+			bypass_mem = 1;
+		else
+			bypass_mem = 0;
+	}
 	if (!ndvfm->c.set_cfg.b.en_mem_mif && !ndvfm->c.set_cfg.b.en_mem_afbcd)
 		bypass_mem = 1;
 	if (dpvpp_dbg_force_mem_bypass())
