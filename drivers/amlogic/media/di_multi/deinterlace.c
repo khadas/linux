@@ -10987,6 +10987,8 @@ static unsigned int dim_bypass_check(struct vframe_s *vf)
 		reason = 7;
 	} else if (vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH) {
 		reason = 0xa;
+	} else if (vf->duration < 1600) {
+		reason = 120;
 	} else if (vf->type & VIDTYPE_COMPRESS) {
 		if (dim_afds() && !dim_afds()->is_supported()) {
 			reason = 3;

@@ -8649,13 +8649,67 @@ bool dpvpp_is_en_polling(void)
 	return get_datal()->dvs_prevpp.en_polling;
 }
 
+unsigned int dpvpp_bypass_check(struct vframe_s *vfm)
+{
+	unsigned int reason = 0;
+	bool is_4k = false;
+	unsigned int x, y;
+
+	dim_vf_x_y(vfm, &x, &y);
+	if (x > 1920 || y > 1088)
+		is_4k = true;
+	dbg_dbg("vfm_type:0x%x", vfm->type);
+	if (vfm->type & DIM_BYPASS_VF_TYPE)
+		reason = EPVPP_BYPASS_REASON_TYPE;
+	if (vfm->duration < 1600)
+		reason = EPVPP_BYPASS_REASON_120HZ;
+	if (VFMT_IS_P(vfm->type) &&
+		   (vfm->width > 1920	||
+		    vfm->height > (1080 + 8)))
+		reason = EPVPP_BYPASS_REASON_SIZE_L;
+	if (vfm->flag & VFRAME_FLAG_GAME_MODE)
+		reason = EPVPP_BYPASS_REASON_GAME_MODE;
+	if (vfm->flag & VFRAME_FLAG_HIGH_BANDWIDTH)
+		reason = EPVPP_BYPASS_REASON_HIGH_BANDWIDTH;
+	if (VFMT_IS_I(vfm->type))
+		reason = EPVPP_BYPASS_REASON_I;
+	if (VFMT_IS_EOS(vfm->type))
+		reason = EPVPP_BYPASS_REASON_EOS;
+	if (vfm->type & DIM_BYPASS_VF_TYPE)
+		reason = EPVPP_BYPASS_REASON_TYPE;
+	if (cfgg(4K)) {
+		if (vfm->width > 3840 ||
+		    vfm->height > 2160)
+			reason = EPVPP_BYPASS_REASON_SIZE_L;
+	}
+	if (IS_COMP_MODE(vfm->type)) {
+		if (dim_afds() && !dim_afds()->is_supported_plink())
+			reason = EPVPP_BYPASS_REASON_NO_AFBC;
+	}
+	if (vfm->width < 128 || vfm->height < 16)
+		reason = EPVPP_BYPASS_REASON_SIZE_S;
+	if (dpvpp_is_bypass())
+		reason = EPVPP_BYPASS_REASON_DBG;
+	if (vfm->src_fmt.sei_magic_code == SEI_MAGIC_CODE &&
+		(vfm->src_fmt.fmt == VFRAME_SIGNAL_FMT_DOVI ||
+		vfm->src_fmt.fmt == VFRAME_SIGNAL_FMT_DOVI_LL))
+		reason = EPVPP_BYPASS_REASON_DV_PATH;
+
+	return reason;
+}
+
 bool dpvpp_try_reg(struct di_ch_s *pch, struct vframe_s *vfm)
 {
 	bool ponly_enable = false;
+	unsigned int reason = 0;
 
 	if (!dpvpp_ops()	||
 	    !dpvpp_is_allowed()	||
 	    !dpvpp_is_insert())
+		return false;
+	reason = dpvpp_bypass_check(vfm);
+	dim_bypass_set(pch, 0, reason);
+	if (reason != 0)
 		return false;
 	//check  ponly:
 	if ((vfm->flag & VFRAME_FLAG_DI_P_ONLY)/* || bget(&dim_cfg, 1)*/)
@@ -8666,12 +8720,6 @@ bool dpvpp_try_reg(struct di_ch_s *pch, struct vframe_s *vfm)
 	    (vfm->type & VIDTYPE_TYPEMASK) == VIDTYPE_PROGRESSIVE &&
 	    !(vfm->type & VIDTYPE_FORCE_SIGN_IP_JOINT)) {
 		ponly_enable = true;
-	}
-
-	if (vfm->flag & VFRAME_FLAG_GAME_MODE ||
-		get_vframe_src_fmt(vfm) == VFRAME_SIGNAL_FMT_DOVI ||
-		get_vframe_src_fmt(vfm) == VFRAME_SIGNAL_FMT_DOVI_LL) {
-		ponly_enable = false;
 	}
 
 	if (get_datal()->fg_bypass_en && vfm->fgs_valid)
