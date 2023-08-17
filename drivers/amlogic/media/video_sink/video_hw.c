@@ -6278,6 +6278,13 @@ void rx_mute_vpp(void)
 	u32 black_val;
 
 	black_val = (0x0 << 20) | (0x200 << 10) | 0x200; /* YUV */
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_T7) ||
+		cur_dev->display_module == OLD_DISPLAY_MODULE) {
+		/* vd1 hdr core after vd1 clip */
+		if (vd_layer[0].dispbuf)
+			if (vd_layer[0].dispbuf->type & VIDTYPE_RGB_444)
+				black_val = (0x0 << 20) | (0x0 << 10) | 0x0; /* RGB */
+	}
 	WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC0, black_val);
 	WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC1, black_val);
 }
@@ -6292,6 +6299,13 @@ static inline void mute_vpp(void)
 	black_val = (0x0 << 20) | (0x200 << 10) | 0x200; /* YUV */
 
 	if (is_tv_panel()) {
+		if (!cpu_after_eq(MESON_CPU_MAJOR_ID_T7) ||
+			cur_dev->display_module == OLD_DISPLAY_MODULE) {
+			/* vd1 hdr core after vd1 clip */
+			if (vd_layer[0].dispbuf)
+				if (vd_layer[0].dispbuf->type & VIDTYPE_RGB_444)
+					black_val = (0x0 << 20) | (0x0 << 10) | 0x0; /* RGB */
+		}
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(VPP_VD1_CLIP_MISC0,
 			black_val);
@@ -6800,11 +6814,6 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 	bool force_flush = false;
 	int i;
 	u8 vpp_index = VPP0;
-
-	check_video_pattern_output();
-	check_postblend_pattern_output();
-	check_video_mute();
-	check_output_mute();
 
 	if (vd_layer[0].enable_3d_mode == mode_3d_mvc_enable)
 		mode |= COMPOSE_MODE_3D;
