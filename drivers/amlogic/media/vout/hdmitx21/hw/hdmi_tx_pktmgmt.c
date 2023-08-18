@@ -346,6 +346,12 @@ void hdmitx_dsc_cvtem_pkt_send(struct dsc_pps_data_s *pps,
 	hdmitx21_wr_reg(DSC_PKT_MEM_WADDR_RST_IVCTX, 0);
 	hdmitx21_wr_reg(DSC_PKT_MEM_WADDR_RST_IVCTX, 1);
 	hdmitx21_wr_reg(DSC_PKT_MEM_WADDR_RST_IVCTX, 0);
+
+	/* fix packet send */
+	hdmitx21_set_reg_bits(DSC_PKT_GEN_CTL_IVCTX, 1, 3, 1);
+	usleep_range(100, 110);
+	hdmitx21_set_reg_bits(DSC_PKT_GEN_CTL_IVCTX, 0, 3, 1);
+
 	for (i = 0; i < dsc_pkt_insert; i++) {
 		if (emp_verbose)
 			pr_info("body[%d]=0x%02x\n", i, body[i]);

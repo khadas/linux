@@ -481,6 +481,7 @@ static void tx_train_fsm(struct work_struct *work)
 			frl_tx_tx_phy_set();
 		else
 			tmds_tx_phy_set();
+		frl_tx_lts_1_hdmi21_config();
 		stop_frl_transmission(p);
 		/* LTS:1 Source reads EDID
 		 * if Source selects legacy TMDS Mode, EXIT to LTS:L

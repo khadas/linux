@@ -552,6 +552,7 @@ bool frl_tx_tx_phy_init(bool disable_ffe);
 void frl_tx_tx_init(void);
 void frl_tx_tx_phy_set(void);
 void tmds_tx_phy_set(void);
+void frl_tx_lts_1_hdmi21_config(void);
 #ifdef CONFIG_AMLOGIC_DSC
 void hdmitx_dsc_cvtem_pkt_send(struct dsc_pps_data_s *pps,
 	struct hdmi_timing *timing);

@@ -2028,7 +2028,7 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 			frl_tx_stop(hdev);
 			return;
 		}
-		/* hdev->manual_frl_rate = tmpbuf[3] - '0'; */
+		hdev->frl_rate = tmpbuf[3] - '0';
 		frl_tx_training_handler(hdev);
 		return;
 	} else if (strncmp(tmpbuf, "clkmsr", 6) == 0) {

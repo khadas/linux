@@ -122,6 +122,22 @@ void frl_tx_tx_phy_set(void)
 	hdmitx21_set_reg_bits(SW_RST_IVCTX, 1, 7, 1);
 }
 
+/* sync from uboot */
+void frl_tx_lts_1_hdmi21_config(void)
+{
+	u8 data8;
+
+	//Step1:Tx reads EDID
+	//Assume that Rx supports FRL
+
+	//Step2:initial Tx Phy,TODO
+
+	//Step3:initial Tx Controller
+	data8  = 0;
+	data8 |= (1 << 0); //[7:0] reg_pkt_period
+	hdmitx21_wr_reg(H21TXSB_PKT_PRD_IVCTX, data8);
+}
+
 /* FRL link training pattern transmission start */
 bool frl_tx_pattern_init(u16 patterns)
 {

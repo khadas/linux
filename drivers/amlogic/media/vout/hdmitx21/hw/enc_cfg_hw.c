@@ -422,7 +422,8 @@ void set_tv_encp_new(struct hdmitx_dev *hdev, u32 enc_index, enum hdmi_vic vic,
 		config_tv_enc_calc(hdev, vic);
 		break;
 	}
-
+	if (hdev->bist_lock)
+		hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 3, 1);
 	/* for dsc mode enable, vpp post 4 slice->4ppc to hdmi, no up_sample
 	 * for frl mode enable & non_y420 mode, vpp post 4 slice into VENC
 	 * with vpp horizontal size divide 4(7680 / 4), VENC get sample from
