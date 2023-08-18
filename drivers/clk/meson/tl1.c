@@ -660,11 +660,14 @@ static const struct reg_sequence tl1_hifi_init_regs[] = {
 #ifdef CONFIG_ARM
 static const struct pll_params_table tl1_hifi_pll_params_table[] = {
 	PLL_PARAMS(150, 1, 1), /*DCO=3600M OD=1800M*/
+	PLL_PARAMS(163, 1, 3), /*DCO=3912M OD=489M*/
+	PLL_PARAMS(150, 1, 3), /*DCO=3600M OD=450M*/
 	{ /* sentinel */ },
 };
 #else
 static const struct pll_params_table tl1_hifi_pll_params_table[] = {
 	PLL_PARAMS(150, 1), /*DCO=3600M OD=1800M*/
+	PLL_PARAMS(163, 1), /*DCO=3912M OD=489M*/
 	{ /* sentinel */ },
 };
 #endif
