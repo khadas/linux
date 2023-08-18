@@ -60,10 +60,12 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include <uapi/linux/amlogic/msync.h>
 #endif
 #include <linux/amlogic/gki_module.h>
+#include <linux/amlogic/media/video_processor/video_pp_common.h>
 
 #include <linux/math64.h>
 #include "video_receiver.h"
 #include "video_low_latency.h"
+#include "video_common.h"
 
 static u32 lowlatency_proc_drop;
 static u32 lowlatency_err_drop;
@@ -231,22 +233,23 @@ static int lowlatency_vsync(u8 instance_id)
 	}
 #endif
 
-	if (gvideo_recv[0]) {
-		gvideo_recv[0]->irq_mode = false;
-		gvideo_recv[0]->func->early_proc(gvideo_recv[0],
-						 over_sync ? 1 : 0);
+	if (!get_lowlatency_mode()) {
+		if (gvideo_recv[0]) {
+			gvideo_recv[0]->irq_mode = false;
+			gvideo_recv[0]->func->early_proc(gvideo_recv[0],
+							 over_sync ? 1 : 0);
+		}
+		if (gvideo_recv[1]) {
+			gvideo_recv[1]->irq_mode = false;
+			gvideo_recv[1]->func->early_proc(gvideo_recv[1],
+							 over_sync ? 1 : 0);
+		}
+		if (gvideo_recv[2]) {
+			gvideo_recv[2]->irq_mode = false;
+			gvideo_recv[2]->func->early_proc(gvideo_recv[2],
+							 over_sync ? 1 : 0);
+		}
 	}
-	if (gvideo_recv[1]) {
-		gvideo_recv[1]->irq_mode = false;
-		gvideo_recv[1]->func->early_proc(gvideo_recv[1],
-						 over_sync ? 1 : 0);
-	}
-	if (gvideo_recv[2]) {
-		gvideo_recv[2]->irq_mode = false;
-		gvideo_recv[2]->func->early_proc(gvideo_recv[2],
-						 over_sync ? 1 : 0);
-	}
-
 	/* video_render.0 toggle frame */
 	if (gvideo_recv[0]) {
 		u32 frame_cnt = 0;
@@ -494,7 +497,8 @@ static int lowlatency_vsync(u8 instance_id)
 			blackout, blackout_pip, blackout_pip2, force_blackout);
 	}
 	if (debug_flag & DEBUG_FLAG_PRINT_DISBUF_PER_VSYNC)
-		pr_info("VID: path id: %d, %d, %d; new_frame:%p, %p, %p, %p, %p, %p cur:%p, %p, %p, %p, %p, %p; vd dispbuf:%p, %p, %p; vf_ext:%p, %p, %p; local:%p, %p, %p, %p, %p, %p\n",
+		pr_info("VID(%s): path id: %d, %d, %d; new_frame:%p, %p, %p, %p, %p, %p cur:%p, %p, %p, %p, %p, %p; vd dispbuf:%p, %p, %p; vf_ext:%p, %p, %p; local:%p, %p, %p, %p, %p, %p\n",
+			__func__,
 			vd1_path_id, vd2_path_id, vd2_path_id,
 			path0_new_frame, path1_new_frame,
 			path2_new_frame, path3_new_frame,
@@ -735,7 +739,8 @@ static int lowlatency_vsync(u8 instance_id)
 	}
 
 	if (debug_flag & DEBUG_FLAG_PRINT_DISBUF_PER_VSYNC)
-		pr_info("VID: layer enable status: VD1:e:%d,e_save:%d,g:%d,d:%d,f:%s; VD2:e:%d,e_save:%d,g:%d,d:%d,f:%s; VD3:e:%d,e_save:%d,g:%d,d:%d,f:%s",
+		pr_info("VID(%s): layer enable status: VD1:e:%d,e_save:%d,g:%d,d:%d,f:%s; VD2:e:%d,e_save:%d,g:%d,d:%d,f:%s; VD3:e:%d,e_save:%d,g:%d,d:%d,f:%s",
+			__func__,
 			vd_layer[0].enabled, vd_layer[0].enabled_status_saved,
 			vd_layer[0].global_output, vd_layer[0].disable_video,
 			vd_layer[0].force_disable ? "true" : "false",

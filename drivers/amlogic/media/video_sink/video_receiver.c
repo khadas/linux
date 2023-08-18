@@ -85,6 +85,12 @@ static inline struct vframe_s *common_vf_get(struct video_recv_s *ins)
 		vf->index_disp, ktime_to_us(ktime_get()));
 
 	if (vf) {
+		if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
+			pr_info("%s:vf=%p, vf->type=0x%x, vf->flag=0x%x,canvas adr:0x%lx, canvas0:%x, pnum:%d, afbc:0x%lx-0x%lx,\n",
+				__func__,
+				vf, vf->type, vf->flag,
+				vf->canvas0_config[0].phy_addr, vf->canvas0Addr, vf->plane_num,
+				vf->compHeadAddr, vf->compBodyAddr);
 		vpp_trace_vframe("common_vf_get",
 			(void *)vf, vf->type, vf->flag,
 			ins->vpp_id, vsync_cnt[ins->vpp_id]);
@@ -135,6 +141,12 @@ static inline void common_vf_put(struct video_recv_s *ins,
 			(void *)vf, vf->type, vf->flag,
 			ins->vpp_id, vsync_cnt[ins->vpp_id]);
 		vf_put(vf, ins->recv_name);
+		if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
+			pr_info("%s:vf=%p, vf->type=0x%x, vf->flag=0x%x,canvas adr:0x%lx, canvas0:%x, pnum:%d, afbc:0x%lx-0x%lx,\n",
+				__func__,
+				vf, vf->type, vf->flag,
+				vf->canvas0_config[0].phy_addr, vf->canvas0Addr, vf->plane_num,
+				vf->compHeadAddr, vf->compBodyAddr);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if ((glayer_info[0].display_path_id == ins->path_id || is_multi_dv_mode()) &&
 		    is_amdv_enable())
@@ -142,6 +154,12 @@ static inline void common_vf_put(struct video_recv_s *ins,
 #endif
 		ins->notify_flag |= VIDEO_NOTIFY_PROVIDER_PUT;
 	}
+}
+
+static void init_receiver_buffer_q(struct video_recv_s *ins)
+{
+	INIT_KFIFO(ins->put_q);
+	kfifo_reset(&ins->put_q);
 }
 
 /* TODO: need add keep frame function */
@@ -185,6 +203,7 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 	ins->buf_to_put_num = 0;
 	for (i = 0; i < DISPBUF_TO_PUT_MAX; i++)
 		ins->buf_to_put[i] = NULL;
+	init_receiver_buffer_q(ins);
 	ins->rdma_buf = NULL;
 	ins->original_vf = NULL;
 	ins->switch_vf = false;
@@ -376,6 +395,7 @@ static void common_vf_light_unreg_provider(struct video_recv_s *ins)
 	for (i = 0; i < DISPBUF_TO_PUT_MAX; i++)
 		ins->buf_to_put[i] = NULL;
 	ins->rdma_buf = NULL;
+	init_receiver_buffer_q(ins);
 
 	if (ins->cur_buf) {
 		ins->local_buf = *ins->cur_buf;
@@ -482,6 +502,20 @@ static bool is_vsync_vppx_rdma_enable(u8 vpp_index)
 	return enable;
 }
 
+void put_receiver_buffer_q(struct video_recv_s *ins)
+{
+	struct vframe_s *vf = NULL;
+
+	while (kfifo_len(&ins->put_q) > 0) {
+		if (kfifo_get(&ins->put_q, &vf)) {
+			if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
+				pr_info("%s, put vf=0x%p\n",
+					__func__, vf);
+			common_vf_put(ins, vf);
+		}
+	}
+}
+
 static void common_toggle_frame(struct video_recv_s *ins,
 				struct vframe_s *vf)
 {
@@ -505,12 +539,26 @@ static void common_toggle_frame(struct video_recv_s *ins,
 				if (ins->buf_to_put_num < DISPBUF_TO_PUT_MAX) {
 					ins->buf_to_put[ins->buf_to_put_num] =
 					    ins->original_vf;
+					if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
+						pr_info("%s(%d):ins->buf_to_put[%d]=%p\n",
+							__func__, __LINE__,
+							ins->buf_to_put_num,
+							ins->buf_to_put[ins->buf_to_put_num]);
 					ins->buf_to_put_num++;
 				} else {
-					common_vf_put(ins, ins->original_vf);
+					if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
+						pr_info("%s(%d):ins->buf_to_put_num=%d\n",
+							__func__, __LINE__,
+							ins->buf_to_put_num);
+						kfifo_put(&ins->put_q, ins->original_vf);
 				}
 			} else {
-				common_vf_put(ins, ins->original_vf);
+				if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
+					pr_info("%s(%d):ins->rdma_buf=%p, ins->cur_buf=%p\n",
+						__func__, __LINE__,
+						ins->rdma_buf,
+						ins->cur_buf);
+				kfifo_put(&ins->put_q, ins->original_vf);
 			}
 		} else {
 			for (i = 0; i < ins->buf_to_put_num; i++) {
@@ -550,10 +598,16 @@ static s32 recv_common_early_process(struct video_recv_s *ins, u32 op)
 
 	/* not over vsync */
 	if (!op) {
+		put_receiver_buffer_q(ins);
 		for (i = 0; i < ins->buf_to_put_num; i++) {
 			if (ins->buf_to_put[i]) {
 				ins->buf_to_put[i]->rendered = true;
 				common_vf_put(ins, ins->buf_to_put[i]);
+				if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
+					pr_info("%s(%d):i=%d, ins->buf_to_put[i]=%p\n",
+						__func__, __LINE__,
+						i,
+						ins->buf_to_put[i]);
 				ins->buf_to_put[i] = NULL;
 			}
 		}
@@ -681,8 +735,14 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 			}
 		} else {
 			vf = common_vf_get(ins);
-			if (vf)
-				common_vf_put(ins, vf);
+			if (vf) {
+				if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)
+					pr_info("%s(%d):vf=%p\n",
+						__func__, __LINE__,
+						vf);
+				kfifo_put(&ins->put_q, vf);
+				//common_vf_put(ins, vf);
+			}
 		}
 		drop_count++;
 		vf = common_vf_peek(ins);

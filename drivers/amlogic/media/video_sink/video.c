@@ -121,6 +121,7 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
 #include <linux/amlogic/media/amprime_sl/prime_sl.h>
 #endif
+#include <linux/amlogic/media/video_processor/video_pp_common.h>
 
 #include <linux/math64.h>
 #include "video_receiver.h"
@@ -128,6 +129,7 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include "video_hw.h"
 #include "video_hw_s5.h"
 #include "vpp_post_s5.h"
+#include "video_common.h"
 
 #include <linux/amlogic/gki_module.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_MSYNC
@@ -8020,20 +8022,22 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	}
 #endif
 
-	if (gvideo_recv[0]) {
-		gvideo_recv[0]->irq_mode = true;
-		gvideo_recv[0]->func->early_proc(gvideo_recv[0],
-						 over_field ? 1 : 0);
-	}
-	if (gvideo_recv[1]) {
-		gvideo_recv[1]->irq_mode = true;
-		gvideo_recv[1]->func->early_proc(gvideo_recv[1],
-						 over_field ? 1 : 0);
-	}
-	if (gvideo_recv[2]) {
-		gvideo_recv[2]->irq_mode = true;
-		gvideo_recv[2]->func->early_proc(gvideo_recv[2],
-						 over_field ? 1 : 0);
+	if (!get_lowlatency_mode()) {
+		if (gvideo_recv[0]) {
+			gvideo_recv[0]->irq_mode = true;
+			gvideo_recv[0]->func->early_proc(gvideo_recv[0],
+							 over_field ? 1 : 0);
+		}
+		if (gvideo_recv[1]) {
+			gvideo_recv[1]->irq_mode = true;
+			gvideo_recv[1]->func->early_proc(gvideo_recv[1],
+							 over_field ? 1 : 0);
+		}
+		if (gvideo_recv[2]) {
+			gvideo_recv[2]->irq_mode = true;
+			gvideo_recv[2]->func->early_proc(gvideo_recv[2],
+							 over_field ? 1 : 0);
+		}
 	}
 	over_field = false;
 	if (!cur_dispbuf || cur_dispbuf == &vf_local) {
@@ -8820,7 +8824,8 @@ SET_FILTER:
 	}
 
 	if (debug_flag & DEBUG_FLAG_PRINT_DISBUF_PER_VSYNC)
-		pr_info("VID: path id: %d, %d, %d; new_frame:%p, %p, %p, %p, %p, %p cur:%p, %p, %p, %p, %p, %p; vd dispbuf:%p, %p, %p; vf_ext:%p, %p, %p; local:%p, %p, %p, %p, %p, %p\n",
+		pr_info("VID(%s): path id: %d, %d, %d; new_frame:%p, %p, %p, %p, %p, %p cur:%p, %p, %p, %p, %p, %p; vd dispbuf:%p, %p, %p; vf_ext:%p, %p, %p; local:%p, %p, %p, %p, %p, %p\n",
+			__func__,
 			vd1_path_id, vd2_path_id, vd2_path_id,
 			path0_new_frame, path1_new_frame,
 			path2_new_frame, path3_new_frame,
@@ -9079,7 +9084,8 @@ SET_FILTER:
 	}
 
 	if (debug_flag & DEBUG_FLAG_PRINT_DISBUF_PER_VSYNC)
-		pr_info("VID: layer enable status: VD1:e:%d,e_save:%d,g:%d,d:%d,f:%s; VD2:e:%d,e_save:%d,g:%d,d:%d,f:%s; VD3:e:%d,e_save:%d,g:%d,d:%d,f:%s",
+		pr_info("VID(%s): layer enable status: VD1:e:%d,e_save:%d,g:%d,d:%d,f:%s; VD2:e:%d,e_save:%d,g:%d,d:%d,f:%s; VD3:e:%d,e_save:%d,g:%d,d:%d,f:%s",
+			__func__,
 			vd_layer[0].enabled, vd_layer[0].enabled_status_saved,
 			vd_layer[0].global_output, vd_layer[0].disable_video,
 			vd_layer[0].force_disable ? "true" : "false",
@@ -10216,9 +10222,21 @@ RUN_FIRST_RDMA:
 #endif
 }
 
+void put_buffer_proc(void)
+{
+	int i;
+
+	for (i = 0; i < 3; i++) {
+		if (gvideo_recv[i])
+			gvideo_recv[i]->func->early_proc(gvideo_recv[i], 0);
+	}
+}
+
 #ifdef FIQ_VSYNC
 void vsync_fisr(void)
 {
+	if (get_lowlatency_mode())
+		put_buffer_proc();
 	lowlatency_vsync_count++;
 	atomic_set(&video_inirq_flag, 1);
 	vsync_fisr_in();
@@ -10229,6 +10247,8 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 {
 	irqreturn_t ret;
 
+	if (get_lowlatency_mode())
+		put_buffer_proc();
 	lowlatency_vsync_count++;
 	if (atomic_inc_return(&video_proc_lock) > 1) {
 		vsync_proc_drop++;

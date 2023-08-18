@@ -256,3 +256,9 @@ bool is_layer_aisr_supported(struct video_layer_s *layer)
 		return true;
 }
 
+#ifndef CONFIG_AMLOGIC_VIDEO_COMPOSER
+bool get_lowlatency_mode(void)
+{
+	return 0;
+}
+#endif

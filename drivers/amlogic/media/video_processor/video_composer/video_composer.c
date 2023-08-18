@@ -2865,6 +2865,12 @@ static bool check_vf_has_afbc(struct composer_dev *dev, struct file *file_vf)
 	return false;
 }
 
+bool get_lowlatency_mode(void)
+{
+	return use_low_latency;
+}
+EXPORT_SYMBOL(get_lowlatency_mode);
+
 static bool check_mosaic_22(struct composer_dev *dev, struct received_frames_t *received_frames)
 {
 	struct vinfo_s *video_composer_vinfo;
@@ -3958,7 +3964,7 @@ static void set_frames_info(struct composer_dev *dev,
 				vf->source_type == VFRAME_SOURCE_TYPE_CVBS)
 				tv_fence_creat_count++;
 			vc_print(dev->index, PRINT_FENCE | PRINT_PATTERN,
-				 "received_cnt=%lld,new_cnt=%lld,i=%d,z=%d,omx_index=%d, fence_fd=%d, fc_no=%d, index_disp=%d,pts=%lld\n",
+				 "received_cnt=%lld,new_cnt=%lld,i=%d,z=%d,omx_index=%d, fence_fd=%d, fc_no=%d, index_disp=%d,pts=%lld, vf=%p\n",
 				 dev->received_count + 1,
 				 dev->received_new_count,
 				 i,
@@ -3967,7 +3973,8 @@ static void set_frames_info(struct composer_dev *dev,
 				 fence_fd,
 				 dev->cur_streamline_val,
 				 vf->index_disp,
-				 vf->pts_us64);
+				 vf->pts_us64,
+				 vf);
 #ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
 			ATRACE_COUNTER("video_composer_sf_omx_index", vf->omx_index);
 			ATRACE_COUNTER("video_composer_sf_omx_index", 0);

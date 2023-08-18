@@ -19,8 +19,11 @@
 #ifndef VIDEO_RECEIVER_HEADER_HH
 #define VIDEO_RECEIVER_HEADER_HH
 
+#include <linux/kfifo.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "video_priv.h"
+
+#define RECEIVER_BUFFER_POOL_SIZE 4
 
 struct video_layer_s;
 
@@ -43,6 +46,7 @@ struct video_recv_s {
 	struct vframe_s *rdma_buf;
 	struct vframe_s *buf_to_put[DISPBUF_TO_PUT_MAX];
 	struct vframe_s *original_vf;
+	DECLARE_KFIFO(put_q, struct vframe_s *, RECEIVER_BUFFER_POOL_SIZE);
 
 	bool switch_vf;
 	bool last_switch_state;
