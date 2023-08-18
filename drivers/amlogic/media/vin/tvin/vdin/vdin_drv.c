@@ -3087,8 +3087,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	}
 	/* Check whether frame written done */
 	if (devp->dts_config.chk_write_done_en && !devp->dbg_no_wr_check) {
-		if (devp->frame_cnt > devp->vdin_drop_num &&
-			!vdin_write_done_check(offset, devp)) {
+		if (!vdin_write_done_check(offset, devp)) {
 			devp->vdin_irq_flag = VDIN_IRQ_FLG_SKIP_FRAME;
 			vdin_drop_frame_info(devp, "write done check");
 			vdin_drop_cnt++;

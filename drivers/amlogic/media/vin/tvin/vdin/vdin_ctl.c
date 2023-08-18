@@ -5650,7 +5650,8 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 		if (!req->vf || !(devp->flags & VDIN_FLAG_ISR_EN)) {
 			req->aux_size = 0;
 			req->low_latency = 0;
-			pr_err("%s:req->vf is NULL! or isr disable\n", __func__);
+			if (vdin_ctl_dbg & CTL_DEBUG_EVENT_DISP_MODE)
+				pr_err("%s:req->vf is NULL! or isr disable\n", __func__);
 			return -1;
 		}
 		spin_lock_irqsave(&p->dv_lock, flags);
@@ -5683,7 +5684,8 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 
 		if (!req->vf || !(devp->flags & VDIN_FLAG_ISR_EN)) {
 			req->disp_mode = VFRAME_DISP_MODE_SKIP;
-			pr_err("%s:req->vf is NULL! or isr disable\n", __func__);
+			if (vdin_ctl_dbg & CTL_DEBUG_EVENT_DISP_MODE)
+				pr_err("%s:req->vf is NULL! or isr disable\n", __func__);
 			return -1;
 		}
 		index_disp = req->vf->index_disp & 0xff;
