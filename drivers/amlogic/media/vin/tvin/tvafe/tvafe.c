@@ -1650,7 +1650,6 @@ static void tvafe_user_parameters_config(struct device_node *of_node)
 	}
 }
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct meson_tvafe_data meson_tl1_tvafe_data = {
 	.cpu_id = TVAFE_CPU_TYPE_TL1,
 	.name = "meson-tl1-tvafe",
@@ -1658,7 +1657,6 @@ static struct meson_tvafe_data meson_tl1_tvafe_data = {
 	.cvbs_pq_conf = NULL,
 	.rf_pq_conf = NULL,
 };
-#endif
 
 static struct meson_tvafe_data meson_tm2_tvafe_data = {
 	.cpu_id = TVAFE_CPU_TYPE_TM2,
@@ -1709,12 +1707,10 @@ static struct meson_tvafe_data meson_t5w_tvafe_data = {
 };
 
 static const struct of_device_id meson_tvafe_dt_match[] = {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, tvafe-tl1",
 		.data		= &meson_tl1_tvafe_data,
 	},
-#endif
 	{
 		.compatible = "amlogic, tvafe-tm2",
 		.data		= &meson_tm2_tvafe_data,

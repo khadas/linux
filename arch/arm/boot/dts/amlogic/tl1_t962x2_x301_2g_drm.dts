@@ -487,7 +487,7 @@
 
 	tvafe_avin_detect {
 		compatible = "amlogic, tl1_tvafe_avin_detect";
-		status = "disabled";
+		status = "okay";
 		device_mask = <1>;/*bit0:ch1;bit1:ch2*/
 		interrupts = <0 12 1>,
 				<0 13 1>;
@@ -516,7 +516,7 @@
 	};
 
 	vdin@0 {
-		compatible = "amlogic, vdin";
+		compatible = "amlogic, vdin-tl1";
 		/*memory-region = <&vdin0_cma_reserved>;*/
 		status = "okay";
 		/*bit0:(1:share with codec_mm;0:cma alone)
@@ -534,9 +534,9 @@
 		cma_size = <215>;
 		interrupts = <0 83 1>;
 		rdma-irq = <2>;
-//		clocks = <&clkc CLKID_FCLK_DIV5>,
-//			<&clkc CLKID_VDIN_MEAS_COMP>;
-//		clock-names = "fclk_div5", "cts_vdin_meas_clk";
+		clocks = <&clkc CLKID_FCLK_DIV5>,
+			<&clkc CLKID_VDIN_MEAS>;
+		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <0>;
 		/*vdin write mem color depth support:
 		 * bit0:support 8bit
@@ -560,7 +560,7 @@
 	};
 
 	vdin@1 {
-		compatible = "amlogic, vdin";
+		compatible = "amlogic, vdin-tl1";
 		memory-region = <&vdin1_cma_reserved>;
 		status = "okay";
 		/*bit0:(1:share with codec_mm;0:cma alone)
