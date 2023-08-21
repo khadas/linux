@@ -1767,9 +1767,9 @@
 
 &sd_emmc_c {
 	status = "okay";
-	pinctrl-names = "default","clk-gate";
+	pinctrl-names = "default";//,"clk-gate";
 	pinctrl-0 = <&emmc_conf_pull_up &emmc_conf_pull_done>;
-	pinctrl-1 = <&emmc_clk_gate_pins>;
+	//pinctrl-1 = <&emmc_clk_gate_pins>;
 
 	bus-width = <8>;
 	cap-mmc-highspeed;
