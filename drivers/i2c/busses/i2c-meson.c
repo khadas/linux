@@ -107,6 +107,7 @@ struct meson_i2c {
 	u32			tokens[2];
 	int			num_tokens;
 #ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned long		clk_rate;
 	unsigned int		frequency;
 	int retain_fastmode;
 	int irq;
@@ -156,7 +157,7 @@ static void meson_i2c_add_token(struct meson_i2c *i2c, int token)
  */
 static void meson_i2c_set_clk_div_std(struct meson_i2c *i2c)
 {
-	unsigned long clk_rate = clk_get_rate(i2c->clk);
+	unsigned long clk_rate = i2c->clk_rate;
 	unsigned int div_h, div_l;
 	unsigned int div_temp;
 
@@ -202,7 +203,7 @@ static void meson_i2c_set_clk_div_std(struct meson_i2c *i2c)
  */
 static void meson_i2c_set_clk_div_fast(struct meson_i2c *i2c)
 {
-	unsigned long clk_rate = clk_get_rate(i2c->clk);
+	unsigned long clk_rate = i2c->clk_rate;
 	unsigned int div_h, div_l;
 	unsigned int div_temp;
 
@@ -649,6 +650,7 @@ static int meson_i2c_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_AMLOGIC_MODIFY
+	i2c->clk_rate = clk_get_rate(i2c->clk);
 	meson_i2c_set_clk_div(i2c);
 	pm_runtime_mark_last_busy(i2c->dev);
 	pm_runtime_put_autosuspend(i2c->dev);
