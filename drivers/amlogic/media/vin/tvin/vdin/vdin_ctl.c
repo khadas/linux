@@ -3973,7 +3973,9 @@ bool vdin_check_cycle(struct vdin_dev_s *devp)
 	bool ret = 0;
 	unsigned int stamp, cycle;
 	struct tvin_state_machine_ops_s *sm_ops = NULL;
+	u64 interval_value;
 
+	interval_value = vdin_calculate_isr_interval_value(devp);
 	stamp = vdin_get_meas_v_stamp(devp->addr_offset);
 
 	if (stamp < devp->stamp)
@@ -3984,7 +3986,8 @@ bool vdin_check_cycle(struct vdin_dev_s *devp)
 	devp->stamp = stamp;
 	devp->cycle  = cycle;
 
-	if (cycle <= (devp->msr_clk_val / 1000)) {
+	if ((cycle <= (devp->msr_clk_val / 1000)) ||
+	    interval_value <= VDIN_INPUT_MAX_FPS) {
 		devp->stats.cycle_err_cnt_con++;
 		ret = true;
 	} else {
@@ -3994,7 +3997,8 @@ bool vdin_check_cycle(struct vdin_dev_s *devp)
 
 	/* TODO:whether T5/TL1/TXHD2/T3X support cycle check */
 	if (!(is_meson_t7_cpu() || is_meson_t3_cpu() ||
-	     is_meson_t5w_cpu()))
+	     is_meson_t5w_cpu()) &&
+	    interval_value > VDIN_INPUT_MAX_FPS)
 		return false;
 
 	/* if continuous cycle error over 10 times,call hdmi_clr_vsync to recovery */
@@ -6804,4 +6808,21 @@ bool vdin_is_3d_interlace_signal(struct vdin_dev_s *devp)
 		return true;
 	else
 		return false;
+}
+
+/* vdin_calculate_isr_interval_value
+ *	return: interval value
+ *	attention: first call function pre_us is unknown value
+ */
+u64 vdin_calculate_isr_interval_value(struct vdin_dev_s *devp)
+{
+	u64 interval_us = 0;
+
+	devp->cur_us = ktime_to_us(ktime_get());
+	interval_us = devp->cur_us - devp->pre_us;
+	devp->pre_us = devp->cur_us;
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
+		pr_info("vdin%d irq_cnt:%u cur_time:%llu interval_us:%llu\n",
+			devp->index, devp->irq_cnt, devp->cur_us, interval_us);
+	return interval_us;
 }

@@ -820,7 +820,7 @@ static void vdin_handle_game_mode_chg(struct vdin_dev_s *devp)
 		}
 		devp->curr_wr_vfe = NULL;
 		devp->last_wr_vfe = NULL;
-		devp->game_chg_drop_frame_cnt = 2;
+		devp->chg_drop_frame_cnt = 2;
 		if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
 			pr_info("%s,game_mode_chg:%d,game_mode_bak:%#x\n", __func__,
 				devp->game_mode_chg, devp->game_mode_bak);
@@ -1397,7 +1397,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	if (devp->dv.dv_flag)
 		color_range_force = COLOR_RANGE_AUTO;
 	devp->game_mode_chg = VDIN_GAME_MODE_UN_CHG;
-	devp->game_chg_drop_frame_cnt = 0;
+	devp->chg_drop_frame_cnt = 0;
 	devp->vrr_on_add_cnt = 0;
 	devp->vrr_off_add_cnt = 0;
 
@@ -1440,6 +1440,7 @@ void vdin_self_start_dec(struct vdin_dev_s *devp)
 		/*enable irq */
 		enable_irq(devp->irq);
 		devp->flags |= VDIN_FLAG_ISR_EN;
+		vdin_calculate_isr_interval_value(devp); //init pre cur us value
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
 		    devp->index == 0 && devp->vpu_crash_irq > 0)
@@ -1911,6 +1912,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 			/*enable irq */
 			enable_irq(devp->irq);
 			devp->flags |= VDIN_FLAG_ISR_EN;
+			vdin_calculate_isr_interval_value(devp); //init pre cur us value
 			if (vdin_dbg_en)
 				pr_info("vdin.%d enable irq %d\n", devp->index,
 					devp->irq);
@@ -2538,10 +2540,10 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 		if (vfe)
 			receiver_vf_put(&vfe->vf, devp->vfp);
 		ret = -1;
-	} else if (devp->game_chg_drop_frame_cnt > 0) {
+	} else if (devp->chg_drop_frame_cnt > 0) {
 		if (vfe)
 			receiver_vf_put(&vfe->vf, devp->vfp);
-		devp->game_chg_drop_frame_cnt--;
+		devp->chg_drop_frame_cnt--;
 		ret = -1;
 	} else if (devp->dbg_fr_ctl > 1 && (devp->frame_cnt % devp->dbg_fr_ctl) != 0) {
 		if (vfe)
@@ -2690,6 +2692,8 @@ void vdin_pause_hw_write(struct vdin_dev_s *devp, bool rdma_en)
 
 	if (devp->afbce_mode == 1 || devp->double_wr)
 		vdin_pause_afbce_write(devp, rdma_en);
+
+	devp->chg_drop_frame_cnt = 2; //2 is drop abnormal frame
 }
 
 static inline void vdin_dynamic_switch_vrr(struct vdin_dev_s *devp)
@@ -2833,9 +2837,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	devp->irq_cnt++;
-	if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
-		pr_info("vdin%d irq_cnt:%d,frame_cnt:%d vdin_cur_time:%lld\n", devp->index,
-			devp->irq_cnt, devp->frame_cnt, ktime_to_us(ktime_get()));
 
 	if (vdin_isr_drop) {
 		vdin_isr_drop--;
@@ -2948,11 +2949,17 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		goto irq_handled;
 	}
 
-	if (devp->frame_drop_num ||
-	    (devp->pause_num > 0 && devp->irq_cnt >= devp->pause_num)) {
+	if (devp->pause_num > 0 && devp->frame_cnt >= devp->pause_num) {
+		devp->vdin_irq_flag = VDIN_IRQ_FLG_BUFF_SKIP;
+		vdin_drop_frame_info(devp, "pause hw");
+		vdin_pause_dec(devp, 0);
+	}
+
+	if (devp->frame_drop_num) {
 		devp->frame_drop_num--;
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_DROP_FRAME;
 		vdin_drop_frame_info(devp, "drop frame");
+		vdin_drop_cnt++;
 		goto irq_handled;
 	}
 	stamp = vdin_get_meas_v_stamp(offset);
@@ -4154,6 +4161,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			/*enable irq */
 			enable_irq(devp->irq);
 			devp->flags |= VDIN_FLAG_ISR_EN;
+			vdin_calculate_isr_interval_value(devp); //init pre cur us value
 
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
 			    devp->index == 0 && devp->vpu_crash_irq > 0)

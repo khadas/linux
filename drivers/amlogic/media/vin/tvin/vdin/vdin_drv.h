@@ -770,6 +770,8 @@ struct vdin_dev_s {
 	unsigned int curr_dv_flag;
 	unsigned int drop_hdr_set_sts;
 	unsigned int starting_chg;
+	u64 cur_us; //isr cur_us
+	u64 pre_us; //isr pre_us
 
 	char name[15];
 	/* bit0 TVIN_PARM_FLAG_CAP bit31: TVIN_PARM_FLAG_WORK_ON */
@@ -917,7 +919,7 @@ struct vdin_dev_s {
 	unsigned int game_mode_bak;
 	unsigned char af_num;/* for one buffer mode */
 
-	int game_chg_drop_frame_cnt;
+	int chg_drop_frame_cnt;
 	unsigned int vdin_pc_mode;
 	unsigned int vrr_mode;
 	unsigned int vrr_on_add_cnt;
