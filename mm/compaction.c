@@ -929,9 +929,6 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		nr_scanned++;
 
 		page = pfn_to_page(low_pfn);
-	#ifdef CONFIG_AMLOGIC_CMA
-		check_page_to_cma(cc, page);
-	#endif
 
 		/*
 		 * Check if the pageblock has already been marked skipped.
@@ -1080,6 +1077,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 					  low_pfn);
 			goto isolate_fail_put;
 		}
+		check_page_to_cma(cc, mapping, page);
 	#else
 		mapping = page_mapping(page);
 		if (!mapping && (page_count(page) - 1) > total_mapcount(page))
