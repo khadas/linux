@@ -379,6 +379,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	clear_rx_vinfo(hdev);
 	hdmitx21_edid_clear(hdev);
 	hdmitx21_edid_ram_buffer_clear(hdev);
+	hdmitx_edid_done = false;
 	edidinfo_detach_to_vinfo(hdev);
 	/* clear audio/video mute flag of stream type */
 	hdmitx21_video_mute_op(1, VIDEO_MUTE_PATH_2);
@@ -456,6 +457,10 @@ static void hdmitx_late_resume(struct early_suspend *h)
 		HDMITX_LATE_RESUME);
 	hdev->hwop.cntlmisc(hdev, MISC_SUSFLAG, 0);
 	pr_info("HDMITX: Late Resume\n");
+
+	/*notify to drm hdmi*/
+	if (!hdev->suspend_flag && hdmitx21_device.drm_hpd_cb.callback)
+		hdmitx21_device.drm_hpd_cb.callback(hdmitx21_device.drm_hpd_cb.data);
 	mutex_unlock(&hdev->hdmimode_mutex);
 }
 
@@ -6339,7 +6344,7 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	mutex_unlock(&hdev->hdmimode_mutex);
 	mutex_unlock(&setclk_mutex);
 	/*notify to drm hdmi*/
-	if (hdmitx21_device.drm_hpd_cb.callback)
+	if (!hdev->suspend_flag && hdmitx21_device.drm_hpd_cb.callback)
 		hdmitx21_device.drm_hpd_cb.callback(hdmitx21_device.drm_hpd_cb.data);
 }
 
