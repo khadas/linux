@@ -729,6 +729,7 @@ struct aml_lcd_drv_s *aml_lcd_get_driver(int index);
 
 void lcd_vlock_m_update(int index, unsigned int vlock_m);
 void lcd_vlock_frac_update(int index, unsigned int vlock_farc);
+int lcd_ss_enable(int index, unsigned int flag);
 
 extern struct mutex lcd_power_mutex;
 

@@ -57,6 +57,8 @@ struct lcd_clktree_s {
 	struct clk *tcon_clk;
 };
 
+struct lcd_clk_config_s;
+
 struct lcd_clk_data_s {
 	/* clk path node parameters */
 	unsigned int pll_od_fb;
@@ -77,19 +79,26 @@ struct lcd_clk_data_s {
 	unsigned int div_out_fmax;
 	unsigned int xd_out_fmax;
 
+	unsigned int ss_support;
+	unsigned int ss_level_max;
+	unsigned int ss_freq_max;
+	unsigned int ss_mode_max;
+	unsigned int ss_dep_base;
+	unsigned int ss_dep_sel_max;
+	unsigned int ss_str_m_max;
+
 	unsigned char vclk_sel;
 	int enc_clk_msr_id;
 	int fifo_clk_msr_id;
 	int tcon_clk_msr_id;
 	struct lcd_clk_ctrl_s *pll_ctrl_table;
 
-	unsigned int ss_support;
-
 	void (*clk_generate_parameter)(struct aml_lcd_drv_s *pdrv);
 	void (*pll_frac_generate)(struct aml_lcd_drv_s *pdrv);
 	void (*set_ss_level)(struct aml_lcd_drv_s *pdrv);
 	void (*set_ss_advance)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_ss_enable)(struct aml_lcd_drv_s *pdrv, int status);
+	void (*clk_ss_init)(struct lcd_clk_config_s *cconf);
 	void (*clk_set)(struct aml_lcd_drv_s *pdrv);
 	void (*vclk_crt_set)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_disable)(struct aml_lcd_drv_s *pdrv);
@@ -126,6 +135,9 @@ struct lcd_clk_config_s { /* unit: Hz */
 	unsigned long long pll_fout;
 	unsigned long long phy_clk;
 	unsigned int ss_level;
+	unsigned int ss_dep_sel;
+	unsigned int ss_str_m;
+	unsigned int ss_ppm;
 	unsigned int ss_freq;
 	unsigned int ss_mode;
 	unsigned int ss_en;

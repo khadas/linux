@@ -18,7 +18,7 @@
 #define PLL_CLK_CHECK_MAX    2000000 /* Hz */
 inline unsigned long long lcd_abs(unsigned long long a, unsigned long long b);
 int lcd_clk_msr_check(struct aml_lcd_drv_s *pdrv);
-int lcd_pll_ss_level_generate(unsigned int *data, unsigned int level, unsigned int step);
+int lcd_pll_ss_level_generate(struct lcd_clk_config_s *cconf);
 int lcd_pll_wait_lock(unsigned int reg, unsigned int lock_bit);
 
 /* ****************************************************

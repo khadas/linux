@@ -66,7 +66,8 @@
 /* 20230802: add t5m,t5w,t3x set phy lane amp*/
 /* 20230815: add full-link-training and EDID-timing for eDP */
 /* 20230816: optimize clk accuracy*/
-#define LCD_DRV_VERSION    "20230816"
+/* 20230821: update clk ss support*/
+#define LCD_DRV_VERSION    "20230821"
 
 extern struct mutex lcd_vout_mutex;
 

@@ -495,6 +495,7 @@ static struct lcd_clk_data_s lcd_clk_data_axg = {
 	.set_ss_level = NULL,
 	.set_ss_advance = NULL,
 	.clk_ss_enable = NULL,
+	.clk_ss_init = NULL,
 	.clk_set = lcd_clk_set,
 	.vclk_crt_set = lcd_set_vclk_crt,
 	.clk_disable = lcd_clk_disable,

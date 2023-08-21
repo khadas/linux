@@ -126,11 +126,4 @@ enum div_sel_e {
 extern char *lcd_clk_div_sel_table[];
 extern unsigned int lcd_clk_div_table[][3];
 
-extern char *lcd_ss_level_table_tl1[];
-extern char *lcd_ss_freq_table_tl1[];
-extern char *lcd_ss_mode_table_tl1[];
-extern unsigned char ss_level_max;
-extern unsigned char ss_freq_max;
-extern unsigned char ss_mode_max;
-
 #endif

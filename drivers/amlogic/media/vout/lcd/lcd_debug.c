@@ -3074,6 +3074,15 @@ static ssize_t lcd_debug_ss_store(struct device *dev, struct device_attribute *a
 			return -EINVAL;
 		}
 		break;
+	case 'e':
+		ret = sscanf(buf, "en %d", &value);
+		if (ret == 1) {
+			lcd_ss_enable(pdrv->index, value);
+		} else {
+			pr_info("invalid data\n");
+			return -EINVAL;
+		}
+		break;
 	default:
 		pr_info("invalid data\n");
 		break;
