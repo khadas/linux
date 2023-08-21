@@ -73,6 +73,11 @@ enum khadas_board {
 	KHADAS_BOARD_VIM1S
 };
 
+enum mcu_usb_pcie_switch_mode {
+	MCU_USB_PCIE_SWITCH_MODE_USB3 = 0,
+	MCU_USB_PCIE_SWITCH_MODE_PCIE
+};
+
 struct mcu_fan_data {
 	struct platform_device *pdev;
 	struct class *fan_class;
@@ -90,7 +95,9 @@ struct mcu_data {
 	struct i2c_client *client;
 	struct class *wol_class;
 	struct class *mcu_class;
+	struct class *usb_pcie_switch_class;
 	int wol_enable;
+	u8 usb_pcie_switch_mode;
 
 	enum khadas_board board;
 	enum khadas_board_hwver hwver;
@@ -219,9 +226,15 @@ static bool is_mcu_wol_supported(void)
 		return 1;
 	else
 		return 0;
+}
 
-
-
+static bool is_mcu_usb_pcie_switch_supported(void) {
+	// MCU USB PCIe switch is supported for:
+	// 1. Khadas VIM3
+	if (KHADAS_BOARD_VIM3 == g_mcu_data->board)
+		return 1;
+	else
+		return 0;
 }
 
 static void mcu_fan_level_set(struct mcu_fan_data *fan_data, int level)
@@ -641,7 +654,41 @@ static struct class_attribute wol_class_attrs[] = {
 	__ATTR(enable, 0644, show_wol_enable, store_wol_enable),
 };
 
+static ssize_t store_usb_pcie_switch_mode(struct class *cls, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	int ret;
+	int mode;
+
+	if (kstrtoint(buf, 0, &mode))
+		return -EINVAL;
+
+	if (0 != mode && 1 != mode)
+		return -EINVAL;
+
+	if ((mode < MCU_USB_PCIE_SWITCH_MODE_USB3) || (mode > MCU_USB_PCIE_SWITCH_MODE_PCIE))
+		return -EINVAL;
+
+	g_mcu_data->usb_pcie_switch_mode = (u8)mode;
+	ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_USB_PCIE_SWITCH_REG, &g_mcu_data->usb_pcie_switch_mode, 1);
+	if (ret < 0) {
+		printk("write USB PCIe switch error\n");
+		return ret;
+	};
+
+	printk("Set USB PCIe Switch Mode: %s\n", g_mcu_data->usb_pcie_switch_mode ? "PCIe" : "USB3.0");
+	return count;
+};
+
+static ssize_t show_usb_pcie_switch_mode(struct class *cls,
+				struct class_attribute *attr, char *buf)
+{
+	printk("USB PCIe Switch Mode: %s\n", g_mcu_data->usb_pcie_switch_mode ? "PCIe" : "USB3.0");
+	return sprintf(buf, "%d\n", g_mcu_data->usb_pcie_switch_mode);
+}
+
 static struct class_attribute mcu_class_attrs[] = {
+	__ATTR(usb_pcie_switch_mode, 0644, show_usb_pcie_switch_mode, store_usb_pcie_switch_mode),
 	__ATTR(poweroff, 0644, NULL, store_mcu_poweroff),
 	__ATTR(rst, 0644, NULL, store_mcu_rst),
 };
@@ -669,6 +716,12 @@ static void create_mcu_attrs(void)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(mcu_class_attrs); i++) {
+		if (strstr(mcu_class_attrs[i].attr.name,
+					"usb_pcie_switch_mode")) {
+			if (!is_mcu_usb_pcie_switch_supported())
+				continue;
+		}
+
 		if (class_create_file(g_mcu_data->mcu_class,
 					&mcu_class_attrs[i]))
 			pr_err("create mcu attribute %s fail\n",
@@ -808,6 +861,13 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	//printk("hlm wol_enable=%d\n", g_mcu_data->wol_enable);
 /*	if (g_mcu_data->wol_enable)
                 mcu_enable_wol(g_mcu_data->wol_enable, false);*/
+
+	if (is_mcu_usb_pcie_switch_supported()) {
+		ret = mcu_i2c_read_regs(client, MCU_USB_PCIE_SWITCH_REG, reg, 1);
+		if (ret < 0)
+			goto exit;
+		g_mcu_data->usb_pcie_switch_mode = (u8)reg[0];
+	}
 
 	if (is_mcu_fan_control_supported()) {
 		g_mcu_data->fan_data.mode = MCU_FAN_MODE_AUTO;
