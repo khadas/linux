@@ -388,6 +388,11 @@ struct vd_proc_amvecm_info_t {
 	u32 vd2_dout_vsize;
 };
 
+struct video_input_info {
+	u32 width;
+	u32 height;
+};
+
 void set_video_mute(bool on);
 int get_video_mute(void);
 void set_output_mute(bool on);
@@ -463,6 +468,7 @@ u32 get_tvin_delay(void);
 u32 get_tvin_delay_max_ms(void);
 u32 get_tvin_delay_min_ms(void);
 u32 get_tvin_dv_flag(void);
+void get_vdx_axis(u32 index, int *buf);
 
 void vpu_module_clk_enable(u32 vpp_index, u32 module, bool async);
 void vpu_module_clk_disable(u32 vpp_index, u32 module, bool async);
@@ -484,6 +490,7 @@ int get_receiver_id(u8 layer_id);
 int proc_lowlatency_frame(u8 instance_id);
 bool check_av1_hdr10p(char *p);
 int get_output_pcrscr_info(s32 *inc, u32 *base);
+void  get_video_input_info(struct video_input_info *input_info);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 #define OVER_FIELD_NORMAL 0

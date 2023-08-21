@@ -728,6 +728,7 @@ enum port_vpp_e {
 	PORT_VPP1_VIDEO_ONLY = 3,/* vpp2 video only */
 	PORT_VPP2_OSD_VIDEO  = 4,/* vpp2 osd+video */
 	PORT_VPP2_VIDEO_ONLY = 5,/* vpp2 video only */
+	PORT_VPP0_VIDEO_ONLY_NO_PQ = 6,/* vpp0 video only no pq*/
 
 	PORT_VPP0_OSD1_ONLY,/* vpp0 osd1 only */
 	PORT_VPP0_OSD2_ONLY,/* vpp0 osd2 only */

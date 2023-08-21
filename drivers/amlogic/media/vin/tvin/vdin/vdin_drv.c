@@ -1749,14 +1749,9 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	}
 
 	devp->parm.port = para->port;
-	if (devp->vdin_function_sel & VDIN_VADJ1_TO_VD1) {
-		if (para->port == TVIN_PORT_VIU1_WB0_VD1) {
-			devp->parm.port = TVIN_PORT_VIU1_VIDEO;
-			devp->flags |= VDIN_FLAG_V4L2_DEBUG;
-			pr_info("[%s]port:0x%x function_sel:%x\n",
-				__func__, devp->parm.port, devp->vdin_function_sel);
-		}
-	}
+	if (devp->parm.port == TVIN_PORT_VIU1_VIDEO)
+		devp->flags |= VDIN_FLAG_V4L2_DEBUG;
+
 	devp->parm.info.fmt = para->fmt;
 	fmt = devp->parm.info.fmt;
 	/* add for camera random resolution */
@@ -2050,6 +2045,8 @@ int start_tvin_capture_ex(int dev_num, enum port_vpp_e port, struct vdin_parm_s 
 		loop_port = TVIN_PORT_VIU1_WB0_OSD1;
 	else if (port == PORT_VPP0_OSD2_ONLY)
 		loop_port = TVIN_PORT_VIU1_WB0_OSD2;
+	else if (port == PORT_VPP0_VIDEO_ONLY_NO_PQ)
+		loop_port = TVIN_PORT_VIU1_VIDEO;
 	else if (port == PORT_VPP1_VIDEO_ONLY)		/* vpp1 */
 		loop_port = TVIN_PORT_VIU2_VD1;
 	else if (port == PORT_VPP1_OSD_VIDEO)

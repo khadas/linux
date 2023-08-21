@@ -299,7 +299,6 @@ struct match_data_s {
 /* vdin_function_sel control bits start */
 #define VDIN_SELF_STOP_START		BIT(0)
 #define VDIN_V4L2_IOCTL_CHK		BIT(1)
-#define VDIN_VADJ1_TO_VD1		BIT(3)
 #define VDIN_ADJUST_VLOCK		BIT(4)
 #define VDIN_PROP_RX_UPDATE		BIT(5)
 #define VDIN_GAME_NOT_TANSFER		BIT(6) //control for tx output when game mode
