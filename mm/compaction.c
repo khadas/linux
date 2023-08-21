@@ -775,19 +775,21 @@ static bool too_many_isolated(pg_data_t *pgdat)
 }
 
 #ifdef CONFIG_AMLOGIC_CMA
-static void check_page_to_cma(struct compact_control *cc, struct page *page)
+static void check_page_to_cma(struct compact_control *cc,
+			      struct address_space *mapping,
+			      struct page *page)
 {
-	struct address_space *mapping;
-
 	if (cc->forbid_to_cma)	/* no need check once it is true */
 		return;
 
-	mapping = page_mapping(page);
 	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
 		mapping = NULL;
 
-	if (PageKsm(page) && !PageSlab(page))
+#ifdef CONFIG_KSM
+	if ((((unsigned long)mapping & PAGE_MAPPING_FLAGS) == PAGE_MAPPING_KSM) &&
+	    !PageSlab(page))
 		cc->forbid_to_cma = true;
+#endif
 
 	if (mapping && cma_forbidden_mask(mapping_gfp_mask(mapping)))
 		cc->forbid_to_cma = true;
@@ -827,6 +829,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 	unsigned long next_skip_pfn = 0;
 	bool skip_updated = false;
 #ifdef CONFIG_AMLOGIC_CMA
+	struct address_space *mapping;
 	int cma = 0;
 
 	if (cc->page_type == COMPACT_CMA)
@@ -919,9 +922,6 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 
 		page = pfn_to_page(low_pfn);
 
-	#ifdef CONFIG_AMLOGIC_CMA
-		check_page_to_cma(cc, page);
-	#endif
 		/*
 		 * Check if the pageblock has already been marked skipped.
 		 * Only the aligned PFN is checked as the caller isolates
@@ -1012,10 +1012,18 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		 * so avoid taking lru_lock and isolating it unnecessarily in an
 		 * admittedly racy check.
 		 */
-		if (!page_mapping(page) &&
+	#ifdef CONFIG_AMLOGIC_CMA
+		mapping = page_mapping(page);
+		if (!mapping &&
 		    page_count(page) > page_mapcount(page))
 			goto isolate_fail;
 
+		check_page_to_cma(cc, mapping, page);
+	#else
+		if (!page_mapping(page) &&
+		    page_count(page) > page_mapcount(page))
+			goto isolate_fail;
+	#endif
 		/*
 		 * Only allow to migrate anonymous pages in GFP_NOFS context
 		 * because those do not depend on fs locks.
