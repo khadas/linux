@@ -907,7 +907,7 @@ static int update_page_trace(struct seq_file *m, struct zone *zone,
 	unsigned long pfn;
 	unsigned long start_pfn = zone->zone_start_pfn;
 	unsigned long end_pfn = zone_end_pfn(zone);
-	int    ret = 0, mt;
+	int    ret = 0, mt = 0;
 	struct page_trace *trace;
 	struct page_summary *p;
 	struct rb_root root[MIGRATE_TYPES];
@@ -1444,6 +1444,7 @@ int slab_trace_mark_object(void *object, unsigned long ip,
 	struct slab_trace_group *group;
 	unsigned long addr, flags, index;
 	unsigned long stack[SLAB_STACK_DEP] = {0};
+	unsigned int *tmp_stack = (unsigned int *)stack;
 	unsigned int hash, len;
 
 	if (!slab_trace_en || !object || !s || !s->trace_group)
@@ -1464,7 +1465,7 @@ int slab_trace_mark_object(void *object, unsigned long ip,
 	WARN_ON(index >= trace->object_count);
 	if (save_obj_stack(stack, SLAB_STACK_DEP))
 		return -EINVAL;
-	hash = jhash2((unsigned int *)stack, len, 0x9747b28c);
+	hash = jhash2(tmp_stack, len, 0x9747b28c);
 	record_stack(hash, stack);
 	trace->object_ip[index] = hash;
 	pr_debug("%s, mk object:%p,%lx, idx:%ld, trace:%p, group:%p,%ld, %ps\n",

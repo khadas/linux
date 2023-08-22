@@ -264,28 +264,25 @@ static int check_storage_mounted(char **root)
 	/* for android */
 	sprintf(mnt_dev, "/dev/block/%s", ram->storage_device);
 	mnt_ptr = strstr((char *)ram->mnt_buf, mnt_dev);
-	if (mnt_ptr) {
-		pr_debug("%s, find %s in buffer, ptr:%p\n",
-			 __func__, mnt_dev, mnt_ptr);
-		root_dir = strstr(mnt_ptr, " ");
-		root_dir++;
-		*root = root_dir;
-		pr_info("mount:%s root:%s\n", mnt_ptr, root_dir);
-	} else {
+	if (!mnt_ptr) {
 		/* for build root */
 		memset(mnt_dev, 0, sizeof(mnt_dev));
 		sprintf(mnt_dev, "/dev/%s", ram->storage_device);
 		mnt_ptr = strstr((char *)ram->mnt_buf, mnt_dev);
-		if (mnt_ptr) {
-			pr_debug("%s, find %s in buffer, ptr:%p\n",
-				 __func__, mnt_dev, mnt_ptr);
-			root_dir = strstr(mnt_ptr, " ");
+	}
+	if (mnt_ptr) {
+		pr_debug("%s, find %s in buffer, ptr:%p\n",
+				__func__, mnt_dev, mnt_ptr);
+		root_dir = strstr(mnt_ptr, " ");
+		if (root_dir) {
 			root_dir++;
 			*root = root_dir;
 			pr_info("mount:%s root:%s\n", mnt_ptr, root_dir);
 		} else {
 			ret = -ENODEV;
 		}
+	} else {
+		ret = -ENODEV;
 	}
 exit:
 	ksys_close(fd);
