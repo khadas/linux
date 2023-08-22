@@ -105,6 +105,7 @@
 /*  V2.1.111 fix dvbc qam config and flow */
 /*  V2.1.112 adjust the sensitivity limit of atbm253 tuner in DTMB mode */
 /*  V2.1.113 fix rda5815m bandwidth and dvbs iq swap config */
+/*  V2.1.114 multi path interference unqualified problem */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -121,9 +122,9 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.1.113"
-#define DTVDEMOD_VER	"2023/08/16: fix rda5815m bandwidth and dvbs iq swap config"
-#define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
+#define AMLDTVDEMOD_VER "V2.1.114"
+#define DTVDEMOD_VER	"2023/08/22: multi path interference unqualified problem"
+#define AMLDTVDEMOD_T2_FW_VER "V1558.20230628"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENGTH_ATSC (-87)
