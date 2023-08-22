@@ -36,8 +36,6 @@
 #include "mpp_common.h"
 #include "mpp_iommu.h"
 
-#define MPP_WAIT_TIMEOUT_DELAY		(2000)
-
 /* Use 'v' as magic number */
 #define MPP_IOC_MAGIC		'v'
 
@@ -355,9 +353,9 @@ void mpp_session_cleanup_detach(struct mpp_taskqueue *queue, struct kthread_work
 		mutex_unlock(&queue->session_lock);
 
 		if (task_count) {
-			mpp_dbg_session("session %d:%d task not finished %d\n",
-					session->pid, session->index,
-					atomic_read(&queue->detach_count));
+			mpp_dbg_session("session %d:%d not finished %d task cnt %d\n",
+					session->device_type, session->index,
+					atomic_read(&queue->detach_count), task_count);
 
 			mpp_session_clear_pending(session);
 		} else {
@@ -821,12 +819,19 @@ static int mpp_task_run(struct mpp_dev *mpp,
 		mpp_set_grf(mpp->grf_info);
 	}
 	/*
+	 * Lock the reader locker of the device resource lock here,
+	 * release at the finish operation
+	 */
+	mpp_reset_down_read(mpp->reset_group);
+
+	/*
 	 * for iommu share hardware, should attach to ensure
 	 * working in current device
 	 */
 	ret = mpp_iommu_attach(mpp->iommu_info);
 	if (ret) {
 		dev_err(mpp->dev, "mpp_iommu_attach failed\n");
+		mpp_reset_up_read(mpp->reset_group);
 		return -ENODATA;
 	}
 
@@ -836,11 +841,6 @@ static int mpp_task_run(struct mpp_dev *mpp,
 
 	if (mpp->auto_freq_en && mpp->hw_ops->set_freq)
 		mpp->hw_ops->set_freq(mpp, task);
-	/*
-	 * TODO: Lock the reader locker of the device resource lock here,
-	 * release at the finish operation
-	 */
-	mpp_reset_down_read(mpp->reset_group);
 
 	mpp_iommu_dev_activate(mpp->iommu_info, mpp);
 	if (mpp->dev_ops->run)
@@ -922,23 +922,15 @@ static int mpp_wait_result_default(struct mpp_session *session,
 	}
 	mpp = mpp_get_task_used_device(task, session);
 
-	ret = wait_event_timeout(task->wait,
-				 test_bit(TASK_STATE_DONE, &task->state),
-				 msecs_to_jiffies(MPP_WAIT_TIMEOUT_DELAY));
-	if (ret > 0) {
-		if (mpp->dev_ops->result)
-			ret = mpp->dev_ops->result(mpp, task, msgs);
-	} else {
-		atomic_inc(&task->abort_request);
-		set_bit(TASK_STATE_ABORT, &task->state);
-		mpp_err("timeout, pid %d session %d:%d count %d cur_task %p id %d\n",
-			session->pid, session->pid, session->index,
-			atomic_read(&session->task_count), task,
-			task->task_id);
-	}
+	ret = wait_event_interruptible(task->wait, test_bit(TASK_STATE_DONE, &task->state));
+	if (ret == -ERESTARTSYS)
+		mpp_err("wait task break by signal\n");
 
-	mpp_debug_func(DEBUG_TASK_INFO, "task %d kref_%d\n",
-		       task->task_id, kref_read(&task->ref));
+	if (mpp->dev_ops->result)
+		ret = mpp->dev_ops->result(mpp, task, msgs);
+	mpp_debug_func(DEBUG_TASK_INFO, "wait done session %d:%d count %d task %d state %lx\n",
+		       session->device_type, session->index, atomic_read(&session->task_count),
+		       task->task_index, task->state);
 
 	mpp_session_pop_pending(session, task);
 
