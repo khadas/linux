@@ -1083,12 +1083,10 @@ struct meson_bt656in_data meson_g12b_bt656in_data = {
 	.name = "meson-g12b-bt656in",
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 struct meson_bt656in_data meson_tl1_bt656in_data = {
 	.cpu_id = BT656_CPU_TYPE_TL1,
 	.name = "meson-tl1-bt656in",
 };
-#endif
 
 struct meson_bt656in_data meson_sm1_bt656in_data = {
 	.cpu_id = BT656_CPU_TYPE_SM1,
@@ -1113,12 +1111,10 @@ static const struct of_device_id meson_bt656in_dt_match[] = {
 		.compatible = "amlogic, bt656in-g12b",
 		.data		= &meson_g12b_bt656in_data,
 	},
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, bt656in-tl1",
 		.data		= &meson_tl1_bt656in_data,
 	},
-#endif
 	{
 		.compatible = "amlogic, bt656in-sm1",
 		.data		= &meson_sm1_bt656in_data,

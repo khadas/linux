@@ -1726,7 +1726,6 @@ struct meson_cvbsout_data meson_g12b_cvbsout_data = {
 	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 struct meson_cvbsout_data meson_tl1_cvbsout_data = {
 	.cpu_id = CVBS_CPU_TYPE_TL1,
 	.name = "meson-tl1-cvbsout",
@@ -1741,7 +1740,6 @@ struct meson_cvbsout_data meson_tl1_cvbsout_data = {
 	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
 	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
 };
-#endif
 
 struct meson_cvbsout_data meson_sm1_cvbsout_data = {
 	.cpu_id = CVBS_CPU_TYPE_SM1,
@@ -1886,12 +1884,10 @@ static const struct of_device_id meson_cvbsout_dt_match[] = {
 		.compatible = "amlogic, cvbsout-g12b",
 		.data		= &meson_g12b_cvbsout_data,
 	},
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, cvbsout-tl1",
 		.data		= &meson_tl1_cvbsout_data,
 	},
-#endif
 	{
 		.compatible = "amlogic, cvbsout-sm1",
 		.data		= &meson_sm1_cvbsout_data,

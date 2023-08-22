@@ -80,7 +80,6 @@ static struct meson_vdac_data meson_g12ab_vdac_data = {
 	.ctrl_table = vdac_ctrl_enable_g12ab,
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct meson_vdac_data meson_tl1_vdac_data = {
 	.cpu_id = VDAC_CPU_TL1,
 	.name = "meson-tl1-vdac",
@@ -91,7 +90,6 @@ static struct meson_vdac_data meson_tl1_vdac_data = {
 	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.ctrl_table = vdac_ctrl_enable_tl1,
 };
-#endif
 
 static struct meson_vdac_data meson_sm1_vdac_data = {
 	.cpu_id = VDAC_CPU_SM1,
@@ -200,12 +198,10 @@ const struct of_device_id meson_vdac_dt_match[] = {
 		.compatible = "amlogic, vdac-g12b",
 		.data		= &meson_g12ab_vdac_data,
 	},
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, vdac-tl1",
 		.data		= &meson_tl1_vdac_data,
 	},
-#endif
 	{
 		.compatible = "amlogic, vdac-sm1",
 		.data		= &meson_sm1_vdac_data,
