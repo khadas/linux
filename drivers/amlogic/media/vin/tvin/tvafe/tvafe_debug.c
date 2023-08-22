@@ -52,8 +52,8 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("devp->cma_mem_size:0x%x\n", devp->cma_mem_size);
 	tvafe_pr_info("devp->cma_mem_alloc:%d\n", devp->cma_mem_alloc);
 	#endif
-	tvafe_pr_info("devp->mem.start:0x%x\n", devp->mem.start);
-	tvafe_pr_info("devp->mem.end:%d\n", devp->mem.start + devp->mem.size);
+	tvafe_pr_info("devp->mem.start:0x%lx\n", devp->mem.start);
+	tvafe_pr_info("devp->mem.end:%#lx\n", devp->mem.start + devp->mem.size);
 	tvafe_pr_info("devp->mem.size:0x%x\n", devp->mem.size);
 	tvafe_pr_info("tvafe_info_s->aspect_ratio:%d\n",
 		devp->tvafe.aspect_ratio);
@@ -636,10 +636,10 @@ static DEVICE_ATTR_RW(debug);
 
 static void tvafe_dumpmem_adc(struct tvafe_dev_s *devp)
 {
-	unsigned int mem_start, mem_end;
+	unsigned long mem_start, mem_end;
 	unsigned int i, n;
 
-	tvafe_pr_info("%s: mem_start: 0x%x, mem_end: 0x%x, size: 0x%x\n",
+	tvafe_pr_info("%s: mem_start: 0x%lx, mem_end: 0x%lx, size: 0x%x\n",
 		     __func__, devp->mem.start,
 		     devp->mem.start + devp->mem.size,
 		     devp->mem.size);
@@ -715,7 +715,7 @@ static int tvafe_dumpmem_save_buf(struct tvafe_dev_s *devp, const char *str)
 	filp_close(filp, NULL);
 	set_fs(old_fs);
 
-	tvafe_pr_info("write mem 0x%x (size 0x%x) to %s done\n",
+	tvafe_pr_info("write mem 0x%lx (size 0x%x) to %s done\n",
 		      devp->mem.start, devp->mem.size, str);
 	return 0;
 }

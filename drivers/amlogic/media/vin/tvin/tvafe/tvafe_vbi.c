@@ -30,6 +30,7 @@
 #include <linux/poll.h>
 #include <linux/vmalloc.h>
 #include <linux/io.h> /* for virt_to_phys */
+#include <linux/amlogic/media/codec_mm/codec_mm.h>
 
 /* Local include */
 #include "tvafe_regs.h"
@@ -52,9 +53,10 @@ static struct class *vbi_clsp;
 static struct vbi_dev_s *vbi_dev_local;
 
 static struct resource vbi_memobj;
-#define VBI_MEM_NONE        0
-#define VBI_MEM_RESERVED    1
-#define VBI_MEM_MALLOC      2
+#define VBI_MEM_NONE		0
+#define VBI_MEM_RESERVED	1
+#define VBI_MEM_MALLOC		2
+#define VBI_MEM_CODEC_MALLOC	3
 static unsigned int vbi_mem_flag;
 static char *vbi_pr_isr_buf, *vbi_pr_read_buf;
 #define VBI_PR_MAX    500
@@ -292,6 +294,8 @@ static void vbi_hw_init(struct vbi_dev_s *devp)
 {
 	/* vbi memory setting */
 	memset(devp->pac_addr_start, 0, devp->mem_size);
+	if (vbi_mem_flag == VBI_MEM_CODEC_MALLOC)
+		codec_mm_dma_flush(devp->pac_addr_start, devp->mem_size, DMA_TO_DEVICE);
 	cvd_vbi_mem_set(devp->mem_start >> 4, devp->mem_size >> 4);
 	/*disable vbi*/
 	W_VBI_APB_REG(CVD2_VBI_FRAME_CODE_CTL,   0x10);
@@ -451,10 +455,15 @@ static int copy_vbi_to(unsigned char *table_start_addr,
 		return -1;
 	}
 
-	if (source + size > table_end_addr)
+	if (source + size > table_end_addr) {
+		if (vbi_mem_flag == VBI_MEM_CODEC_MALLOC)
+			codec_mm_dma_flush(table_start_addr, size, DMA_FROM_DEVICE);
 		memcpy((table_end_addr + 1), table_start_addr, size);
+	}
 
 	memcpy(desc, source, size);
+	if (vbi_mem_flag == VBI_MEM_CODEC_MALLOC)
+		codec_mm_dma_flush(desc, size, DMA_TO_DEVICE);
 	return 0;
 }
 
@@ -503,6 +512,8 @@ static unsigned char *search_table(unsigned char *table_start_addr,
 	while (count++ < table_size) {
 		if (((table_end_addr - p + 1) < search_size) && !cflag) {
 			cflag = 1;
+			if (vbi_mem_flag == VBI_MEM_CODEC_MALLOC)
+				codec_mm_dma_flush(table_start_addr, search_size, DMA_FROM_DEVICE);
 			memcpy((table_end_addr + 1),
 				table_start_addr, search_size);
 			if (vbi_dbg_en & VBI_DBG_ISR3) {
@@ -588,6 +599,9 @@ static unsigned char *search_table_for_vcnt(unsigned char *table_start_addr,
 		if (((p + VBI_WRITE_BURST_BYTE - 1) > table_end_addr) &&
 			!cflag) {
 			cflag = 1;
+			if (vbi_mem_flag == VBI_MEM_CODEC_MALLOC)
+				codec_mm_dma_flush(table_start_addr, (VBI_WRITE_BURST_BYTE * 2),
+							DMA_FROM_DEVICE);
 			memcpy((table_end_addr + 1),
 				table_start_addr, (VBI_WRITE_BURST_BYTE * 2));
 			if (vbi_dbg_en & VBI_DBG_INFO2) {
@@ -1122,6 +1136,8 @@ static void vbi_slicer_work(struct work_struct *p_work)
 				      local_rptr, devp->temp_addr_end,
 				      vbi_data.nbytes);
 		}
+		if (vbi_mem_flag == VBI_MEM_CODEC_MALLOC)
+			codec_mm_dma_flush(local_rptr, vbi_data.nbytes, DMA_FROM_DEVICE);
 		memcpy(&vbi_data.b[0], local_rptr, vbi_data.nbytes);
 		local_rptr += vbi_data.nbytes;
 		/* capture data to vbi buffer */
@@ -1850,6 +1866,8 @@ static void vbi_dump_mem(char *path, struct vbi_dev_s *devp)
 		return;
 	}
 
+	if (vbi_mem_flag == VBI_MEM_CODEC_MALLOC)
+		codec_mm_dma_flush(devp->pac_addr_start, devp->mem_size, DMA_FROM_DEVICE);
 	vfs_write(filp, devp->pac_addr_start, devp->mem_size, &pos);
 	tvafe_pr_info("write buffer addr:0x%p size: %2u  to %s.\n",
 			devp->pac_addr_start, devp->mem_size, path);
@@ -1947,7 +1965,7 @@ static ssize_t debug_store(struct device *dev,
 		tvafe_pr_info("dump buf done!!\n");
 	} else if (!strncmp(parm[0], "status", strlen("status"))) {
 		tvafe_pr_info("vcnt:0x%x\n", vcnt);
-		tvafe_pr_info("mem_start:0x%x,mem_size:0x%x\n",
+		tvafe_pr_info("mem_start:0x%lx,mem_size:0x%x\n",
 			devp->mem_start, devp->mem_size);
 		tvafe_pr_info("vbi_start:%d,vbi_data_type:0x%x,vbi_start_code:0x%x,slicer_enable:%d\n",
 			devp->vbi_start, devp->vbi_data_type,
@@ -2147,6 +2165,8 @@ static int vbi_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct resource *res;
 	struct vbi_dev_s *vbi_dev;
+	int flags = CODEC_MM_FLAGS_CMA_FIRST | CODEC_MM_FLAGS_CMA_CLEAR |
+			CODEC_MM_FLAGS_DMA;
 
 	ret = alloc_chrdev_region(&vbi_id, 0, 1, VBI_NAME);
 	if (ret < 0) {
@@ -2194,6 +2214,13 @@ static int vbi_probe(struct platform_device *pdev)
 		goto fail_create_dbg_file;
 	}
 
+	ret = of_property_read_u32(pdev->dev.of_node,
+			"flag_cma", &vbi_dev->cma_config_flag);
+	if (ret) {
+		tvafe_pr_err("vbi don't find flag_cma use kzalloc\n");
+		vbi_dev->cma_config_flag = 0;
+	}
+
 	/* get device memory */
 	res = &vbi_memobj;
 	ret = of_reserved_mem_device_init(&pdev->dev);
@@ -2203,7 +2230,7 @@ static int vbi_probe(struct platform_device *pdev)
 		vbi_dev->mem_size = res->end - res->start + 1;
 		if (vbi_dev->mem_size > DECODER_VBI_SIZE)
 			vbi_dev->mem_size = DECODER_VBI_SIZE;
-		tvafe_pr_info("vbi: reserved memory phy start_addr is:0x%x, size is:0x%x\n",
+		tvafe_pr_info("vbi: reserved memory phy start_addr is:0x%lx, size is:0x%x\n",
 				vbi_dev->mem_start, vbi_dev->mem_size);
 		/* remap the package vbi hardware address for our conversion */
 		vbi_dev->pac_addr_start = phys_to_virt(vbi_dev->mem_start);
@@ -2213,7 +2240,7 @@ static int vbi_probe(struct platform_device *pdev)
 			tvafe_pr_err(": ioremap error!!!\n");
 			goto fail_alloc_mem;
 		}
-	} else {
+	} else if (vbi_dev->cma_config_flag == 0) {
 		/*vbi memory alloc*/
 		tvafe_pr_info("vbi: alloc memory resource\n");
 		vbi_dev->mem_size = DECODER_VBI_SIZE;
@@ -2225,8 +2252,26 @@ static int vbi_probe(struct platform_device *pdev)
 			tvafe_pr_err(": vbi mem malloc failed!!!\n");
 			goto fail_alloc_mem;
 		}
-		tvafe_pr_info("vbi: dma_alloc phy start_addr is:0x%x, size is:0x%x\n",
+		tvafe_pr_info("vbi: dma_alloc phy start_addr is:0x%lx, size is:0x%x\n",
 			vbi_dev->mem_start, vbi_dev->mem_size);
+	} else {
+		tvafe_pr_info("vbi: share with codec_mm\n");
+		vbi_dev->mem_size = DECODER_VBI_SIZE;
+		vbi_mem_flag = VBI_MEM_CODEC_MALLOC;
+		vbi_dev->mem_start =
+			codec_mm_alloc_for_dma("tvfe_vbi", vbi_dev->mem_size / PAGE_SIZE, 0, flags);
+		/* remap the package vbi hardware address for our conversion */
+		vbi_dev->pac_addr_start =
+			(unsigned char *)codec_mm_phys_to_virt(vbi_dev->mem_start);
+		if (!vbi_dev->pac_addr_start) {
+			tvafe_pr_err("vbi:codec_mm ioremap error!!!\n");
+			goto fail_alloc_mem;
+		}
+		/*ioremap_nocache(vbi_dev->mem_start, vbi_dev->mem_size);*/
+		memset(vbi_dev->pac_addr_start, 0, vbi_dev->mem_size);
+		codec_mm_dma_flush(vbi_dev->pac_addr_start, vbi_dev->mem_size, DMA_TO_DEVICE);
+		tvafe_pr_info("vbi: dma_alloc phy start_addr is:0x%lx, size is:0x%x\n",
+				vbi_dev->mem_start, vbi_dev->mem_size);
 	}
 
 	vbi_dev->mem_size = vbi_dev->mem_size / 2;
@@ -2320,6 +2365,8 @@ static int vbi_remove(struct platform_device *pdev)
 			iounmap(vbi_dev->pac_addr_start);
 		else if (vbi_mem_flag == VBI_MEM_MALLOC)
 			kfree(vbi_dev->pac_addr_start);
+		else if (vbi_mem_flag == VBI_MEM_CODEC_MALLOC)
+			codec_mm_free_for_dma("tvfe_vbi", vbi_dev->mem_start);
 	}
 	vfree(vbi_dev->slicer);
 	device_destroy(vbi_clsp, MKDEV(MAJOR(vbi_id), 0));

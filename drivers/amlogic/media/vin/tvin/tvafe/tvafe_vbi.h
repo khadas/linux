@@ -256,7 +256,7 @@ struct vbi_dev_s {
 	spinlock_t vbi_isr_lock; /* vbi isr lock */
 
 	/* vbi memory */
-	unsigned int mem_start;
+	unsigned long mem_start;
 	unsigned int mem_size;
 
 	unsigned char *pac_addr;
@@ -273,6 +273,8 @@ struct vbi_dev_s {
 	unsigned int vbi_dto_tt;
 	unsigned int vbi_dto_wss;
 	unsigned int vbi_dto_vps;
+	/* cma_config_flag: 1:share with codec_mm 0:kzalloc */
+	unsigned int cma_config_flag;
 	struct vbi_slicer_s *slicer;
 	bool vbi_start;
 	struct mutex mutex; /* vbi_dev lock */

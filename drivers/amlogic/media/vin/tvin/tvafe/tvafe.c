@@ -267,7 +267,7 @@ static int tvafe_cma_alloc(struct tvafe_dev_s *devp)
 			return 1;
 		} else {
 			devp->cma_mem_alloc = 1;
-			tvafe_pr_info("mem_start = 0x%x, mem_size = 0x%x\n",
+			tvafe_pr_info("mem_start = 0x%lx, mem_size = 0x%x\n",
 				devp->mem.start, devp->mem.size);
 			tvafe_pr_info("codec cma alloc ok!\n");
 		}
@@ -279,7 +279,7 @@ static int tvafe_cma_alloc(struct tvafe_dev_s *devp)
 			devp->mem.start = page_to_phys(devp->venc_pages);
 			devp->mem.size  = mem_size;
 			devp->cma_mem_alloc = 1;
-			tvafe_pr_info("mem_start = 0x%x, mem_size = 0x%x\n",
+			tvafe_pr_info("mem_start = 0x%lx, mem_size = 0x%x\n",
 				devp->mem.start, devp->mem.size);
 			tvafe_pr_info("cma alloc ok!\n");
 		} else {
@@ -1853,7 +1853,7 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 	if (tdevp->cma_config_en != 1) {
 		tdevp->mem.start = res->start;
 		tdevp->mem.size = res->end - res->start + 1;
-		tvafe_pr_info("tvafe cvd memory addr is:0x%x, cvd mem_size is:0x%x .\n",
+		tvafe_pr_info("tvafe cvd memory addr is:0x%lx, cvd mem_size is:0x%x .\n",
 				tdevp->mem.start,
 				tdevp->mem.size);
 	}

@@ -104,7 +104,7 @@ struct tvafe_cvd2_hw_data_s {
 
 /* cvd2 memory */
 struct tvafe_cvd2_mem_s {
-	unsigned int start;
+	unsigned long start;
 	/* memory start addr for cvd2 module */
 	unsigned int size;
 	/* memory size for cvd2 module */

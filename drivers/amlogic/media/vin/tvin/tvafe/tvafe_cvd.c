@@ -192,7 +192,7 @@ static unsigned int noise3;
 /* test */
 #define NOSTD_DEBUG_PRINT_CNT     100
 
-unsigned int vbi_mem_start;
+unsigned long vbi_mem_start;
 
 static int acd_2d_adjust = 0x94;
 module_param(acd_2d_adjust, int, 0644);
