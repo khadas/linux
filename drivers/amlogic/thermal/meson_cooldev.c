@@ -242,6 +242,9 @@ static struct platform_driver meson_cooldev_platdrv = {
 		.name		= "meson-cooldev",
 		.owner		= THIS_MODULE,
 		.of_match_table = meson_cooldev_of_match,
+#if IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+#endif
 	},
 	.probe	= meson_cooldev_probe,
 	.remove	= meson_cooldev_remove,

@@ -25,6 +25,13 @@ config AMLOGIC_DEBUG_ATRACE
 		Add android atrace compatible function.
 		Support Tags
 
+config AMLOGIC_BOOT_TIME
+	bool "AMLOGIC boot time optimization"
+	default n
+	help
+	  This option is set up for Amlogic boot time optimization,
+	  if you want to optimize boot time, please set this config to y.
+
 config AMLOGIC_DEBUG_FTRACE_PSTORE
 	bool "Amlogic ftrace pstore debug"
 	depends on AMLOGIC_DEBUG

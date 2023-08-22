@@ -870,6 +870,9 @@ struct platform_driver meson_tsensor_driver = {
 		.name   = "meson-tsensor",
 		.pm     = &meson_tsensor_pm_ops,
 		.of_match_table = meson_tsensor_match,
+#if IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+#endif
 	},
 	.probe	= meson_tsensor_probe,
 	.remove	= meson_tsensor_remove,

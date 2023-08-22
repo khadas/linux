@@ -16,6 +16,18 @@
 #include <linux/preempt.h>
 #include <asm/xor.h>
 
+#if IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
+#include <linux/async.h>
+
+struct async_data {
+	void *b1;
+	void *b2;
+	struct xor_block_template *fastest;
+};
+
+static struct async_data data;
+#endif
+
 #ifndef XOR_SELECT_TEMPLATE
 #define XOR_SELECT_TEMPLATE(x) (x)
 #endif
@@ -99,6 +111,37 @@ do_xor_speed(struct xor_block_template *tmpl, void *b1, void *b2)
 	       speed / 1000, speed % 1000);
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
+static void __init
+async_calibrate_xor_blocks(void *_data, async_cookie_t cookie)
+{
+	struct async_data *data = _data;
+	struct xor_block_template *f;
+	/*
+	 * If this arch/cpu has a short-circuited selection, don't loop through
+	 * all the possible functions, just test the best one
+	 */
+
+#define xor_speed(templ)	do_xor_speed((templ), data->b1, data->b2)
+
+	printk(KERN_INFO "xor: measuring software checksum speed\n");
+	XOR_TRY_TEMPLATES;
+	data->fastest = template_list;
+	for (f = data->fastest; f; f = f->next)
+		if (f->speed > data->fastest->speed)
+			data->fastest = f;
+
+	printk(KERN_INFO "xor: using function: %s (%d.%03d MB/sec)\n",
+	       data->fastest->name, data->fastest->speed / 1000, data->fastest->speed % 1000);
+
+#undef xor_speed
+
+	free_pages((unsigned long)data->b1, 2);
+
+	active_template = data->fastest;
+}
+#endif
+
 static int __init
 calibrate_xor_blocks(void)
 {
@@ -120,6 +163,14 @@ calibrate_xor_blocks(void)
 		return -ENOMEM;
 	}
 	b2 = b1 + 2*PAGE_SIZE + BENCH_SIZE;
+
+#if IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
+	data.b1 = b1;
+	data.b2 = b2;
+	data.fastest = fastest;
+	async_schedule(async_calibrate_xor_blocks, &data);
+	return 0;
+#endif
 
 	/*
 	 * If this arch/cpu has a short-circuited selection, don't loop through
