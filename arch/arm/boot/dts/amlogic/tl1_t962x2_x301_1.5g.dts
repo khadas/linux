@@ -627,7 +627,7 @@
 				2 /* TVAFE_CVBS_IN1, CVBS_IN2 */
 				4 /* TVAFE_CVBS_IN3, CVBS_IN3 */
 		>;
-		//clocks = <&clkc CLKID_CDAC_CLK>;
+		clocks = <&clkc CLKID_CLK81_DAC_CLK>;
 		clock-names = "vdac_clk_gate";
 
 		cutwindow_val_h = <0 0 0 0 8>; /* level 0~4 */
@@ -662,7 +662,7 @@
 
 	cvbsout {
 		compatible = "amlogic, cvbsout-tl1";
-		status = "disabled";
+		status = "okay";
 		//clocks = <&clkc CLKID_VCLK2_ENCI
 		//	&clkc CLKID_VCLK2_VENCI0
 		//	&clkc CLKID_VCLK2_VENCI1
