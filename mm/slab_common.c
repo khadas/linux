@@ -1358,6 +1358,14 @@ static inline void *aml_slub_alloc_large(size_t size, gfp_t flags, int order)
 		fun = get_page_trace(page);
 	#endif
 
+		if (memcg_kmem_enabled() && PageKmemcg(page)) {
+			for (i = 1; i < total_pages; i++) {
+				p = page + i;
+				p->mem_cgroup = page->mem_cgroup;
+				__SetPageKmemcg(p);
+			}
+		}
+
 		for (i = 1; i < used_pages; i++) {
 			p = page + i;
 			set_compound_head(p, page);

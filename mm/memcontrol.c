@@ -3058,10 +3058,6 @@ int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
 {
 	struct mem_cgroup *memcg;
 	int ret = 0;
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
-	unsigned int nr_pages = 1 << order;
-	int i = 0;
-#endif
 
 	if (memcg_kmem_bypass())
 		return 0;
@@ -3070,15 +3066,8 @@ int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
 	if (!mem_cgroup_is_root(memcg)) {
 		ret = __memcg_kmem_charge_memcg(page, gfp, order, memcg);
 		if (!ret) {
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
-			for (i = 0; i < nr_pages; i++) {
-				(page + i)->mem_cgroup = memcg;
-				__SetPageKmemcg(page + i);
-			}
-#else
 			page->mem_cgroup = memcg;
 			__SetPageKmemcg(page);
-#endif
 		}
 	}
 	css_put(&memcg->css);
