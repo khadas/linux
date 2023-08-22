@@ -1539,7 +1539,8 @@
 	audio_data: audio_data {
 		compatible = "amlogic, audio_data";
 		query_licence_cmd = <0x82000050>;
-		status = "disabled";
+		mem_in_base_cmd = <0x82000020>;
+		status = "okay";
 	};
 
 	defendkey: defendkey {
