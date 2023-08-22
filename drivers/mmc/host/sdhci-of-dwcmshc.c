@@ -782,21 +782,32 @@ static int dwcmshc_resume(struct device *dev)
 	if (!IS_ERR(priv->bus_clk)) {
 		ret = clk_prepare_enable(priv->bus_clk);
 		if (ret)
-			return ret;
+			goto disable_clk;
 	}
 
 	if (rk_priv) {
 		ret = clk_bulk_prepare_enable(RK35xx_MAX_CLKS,
 					      rk_priv->rockchip_clks);
 		if (ret)
-			return ret;
+			goto disable_bus_clk;
 	}
 
 	ret = sdhci_resume_host(host);
 	if (ret)
-		return ret;
+		goto disable_rockchip_clks;
 
 	return mmc_hsq_resume(host->mmc);
+
+disable_rockchip_clks:
+	if (rk_priv)
+		clk_bulk_disable_unprepare(RK35xx_MAX_CLKS,
+					   rk_priv->rockchip_clks);
+disable_bus_clk:
+	if (!IS_ERR(priv->bus_clk))
+		clk_disable_unprepare(priv->bus_clk);
+disable_clk:
+	clk_disable_unprepare(pltfm_host->clk);
+	return ret;
 }
 
 static int dwcmshc_runtime_suspend(struct device *dev)
