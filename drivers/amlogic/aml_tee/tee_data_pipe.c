@@ -655,6 +655,11 @@ u32 tee_ioctl_open_data_pipe(struct tee_context *tee_ctx,
 		return TEEC_ERROR_SECURITY;
 	}
 
+	if (pipe_ctx.cache_size > MAX_SIZE_ALL_CACHE) {
+		ERROR("cache size too large 0x%x\n", pipe_ctx.cache_size);
+		return TEEC_ERROR_OUT_OF_MEMORY;
+	}
+
 	pipe_ptr = get_adapted_pipe(pipe_ctx.cache_size, pipe_ctx.mode);
 	if (pipe_ptr) {
 		dump_pipe_info(pipe_ptr);
@@ -770,6 +775,11 @@ u32 tee_ioctl_write_pipe_data(struct tee_context *tee_ctx,
 	}
 
 	to_write_size = pipe_ctx.data_size;
+	if (to_write_size > MAX_SIZE_ALL_CACHE) {
+		ERROR("write size too large 0x%x\n", to_write_size);
+		return TEEC_ERROR_OUT_OF_MEMORY;
+	}
+
 	res = write_cache(pipe_ptr, cache, (void *)(unsigned long)pipe_ctx.data_ptr,
 			&pipe_ctx.data_size);
 	if (res != TEEC_SUCCESS || (pipe_ptr->mode == MODE_BLOCKING &&
@@ -841,6 +851,11 @@ u32 tee_ioctl_read_pipe_data(struct tee_context *tee_ctx,
 	}
 
 	to_read_size = pipe_ctx.data_size;
+	if (to_read_size > MAX_SIZE_ALL_CACHE) {
+		ERROR("read size too large 0x%x\n", to_read_size);
+		return TEEC_ERROR_OUT_OF_MEMORY;
+	}
+
 	res = read_cache(pipe_ptr, cache, (void *)(unsigned long)pipe_ctx.data_ptr,
 			&pipe_ctx.data_size);
 	if (res != TEEC_SUCCESS || (pipe_ptr->mode == MODE_BLOCKING &&

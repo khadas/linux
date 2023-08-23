@@ -272,8 +272,8 @@ struct optee_timer_data {
 
 static void timer_work_task(struct work_struct *work)
 {
-	struct tee_ioctl_invoke_arg arg;
-	struct tee_param params[4];
+	struct tee_ioctl_invoke_arg arg = { 0 };
+	struct tee_param params[4] = { 0 };
 	struct optee_timer_data *timer_data = container_of((struct delayed_work *)work,
 			struct optee_timer_data, work);
 	struct tee_context *ctx = timer_data->ctx;

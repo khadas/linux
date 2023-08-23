@@ -141,11 +141,11 @@ static void do_log_timer(struct work_struct *work)
 int optee_log_init(void)
 {
 	int rc = 0;
-	struct arm_smccc_res smccc = { 0 };
-	struct loopbuffer_ctl_s *log_ctl = NULL;
 	size_t size = 0;
 	phys_addr_t begin = 0;
 	phys_addr_t end = 0;
+	struct arm_smccc_res smccc = { 0 };
+	struct loopbuffer_ctl_s *log_ctl = NULL;
 
 	arm_smccc_smc(OPTEE_SMC_GET_LOGGER_CONFIG, 0, 0, 0, 0, 0, 0, 0, &smccc);
 	if (smccc.a0 == TEEC_SUCCESS) {
