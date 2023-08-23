@@ -2080,9 +2080,6 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 		nr_taken += nr_pages;
 		nr_zone_taken[page_zonenum(page)] += nr_pages;
 		move_to = dst;
-move:
-		list_move(&page->lru, move_to);
-		trace_android_vh_del_page_from_lrulist(page, false, lru);
 	#ifdef CONFIG_AMLOGIC_LMK
 		migrate_type = get_pageblock_migratetype(page);
 		if (is_migrate_cma(migrate_type) ||
@@ -2090,6 +2087,9 @@ move:
 			__mod_zone_page_state(page_zone(page),
 					      lru + num, -nr_pages);
 	#endif /* CONFIG_AMLOGIC_LMK */
+move:
+		list_move(&page->lru, move_to);
+		trace_android_vh_del_page_from_lrulist(page, false, lru);
 	}
 
 	/*
@@ -2219,10 +2219,6 @@ static unsigned int move_pages_to_lru(struct lruvec *lruvec,
 	int nr_pages, nr_moved = 0;
 	LIST_HEAD(pages_to_free);
 	struct page *page;
-#ifdef CONFIG_AMLOGIC_LMK
-	int num = NR_INACTIVE_ANON_CMA - NR_ZONE_INACTIVE_ANON;
-	int migrate_type = 0;
-#endif /* CONFIG_AMLOGIC_LMK */
 
 	while (!list_empty(list)) {
 		page = lru_to_page(list);
@@ -2271,14 +2267,6 @@ static unsigned int move_pages_to_lru(struct lruvec *lruvec,
 		nr_moved += nr_pages;
 		if (PageActive(page))
 			workingset_age_nonresident(lruvec, nr_pages);
-	#ifdef CONFIG_AMLOGIC_LMK
-		migrate_type = get_pageblock_migratetype(page);
-		if (is_migrate_cma(migrate_type) ||
-		    is_migrate_isolate(migrate_type))
-			__mod_zone_page_state(page_zone(page),
-					      NR_ZONE_LRU_BASE + page_lru(page) + num,
-					      nr_pages);
-	#endif /* CONFIG_AMLOGIC_LMK */
 	}
 
 	/*
