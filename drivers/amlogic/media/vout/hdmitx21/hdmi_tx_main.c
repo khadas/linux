@@ -2212,7 +2212,7 @@ static void update_current_para(struct hdmitx_dev *hdev)
 	u8 mode[32];
 
 	info = hdmitx_get_current_vinfo(NULL);
-	if (!info)
+	if (!info || !info->name)
 		return;
 
 	memset(mode, 0, sizeof(mode));
