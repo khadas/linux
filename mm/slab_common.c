@@ -1358,6 +1358,7 @@ static inline void *aml_slub_alloc_large(size_t size, gfp_t flags, int order)
 		fun = get_page_trace(page);
 	#endif
 
+	#ifdef CONFIG_MEMCG
 		if (memcg_kmem_enabled() && PageKmemcg(page)) {
 			for (i = 1; i < total_pages; i++) {
 				p = page + i;
@@ -1365,6 +1366,7 @@ static inline void *aml_slub_alloc_large(size_t size, gfp_t flags, int order)
 				__SetPageKmemcg(p);
 			}
 		}
+	#endif
 
 		for (i = 1; i < used_pages; i++) {
 			p = page + i;
