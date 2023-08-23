@@ -331,13 +331,6 @@ void arc_enable(bool enable, int version)
 
 	pr_info("%s enable: %d, type %d, is_reset_hpd %d\n",
 		__func__, enable, type, is_reset_hpd);
-	aml_earctx_dmac_mute(!enable);
-	/*
-	 * 1. can't disable earc as the heartbeat lost
-	 * 2. can't disable earc during reset hpd by earc driver
-	 */
-	if (type == ATNDTYP_EARC || is_reset_hpd)
-		return;
 
 	/* open bandgap, bit [1] = 0 */
 	if (enable) {
@@ -346,6 +339,13 @@ void arc_enable(bool enable, int version)
 		else if (version >= T7_ARC)
 			hdmirx_arc_update_reg(HDMIRX_PHY_MISC2, 0x1 << 1, 0);
 	}
+
+	/*
+	 * 1. can't disable earc as the heartbeat lost
+	 * 2. can't disable earc during reset hpd by earc driver
+	 */
+	if (type == ATNDTYP_EARC || is_reset_hpd)
+		return;
 
 	if (is_earc_spdif()) {
 		aml_earctx_enable_d2a(enable);

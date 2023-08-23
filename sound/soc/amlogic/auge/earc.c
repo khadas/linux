@@ -278,19 +278,6 @@ void aml_earctx_enable_d2a(int enable)
 	return earctx_enable_d2a(s_earc->tx_top_map, enable);
 }
 
-void aml_earctx_dmac_mute(int enable)
-{
-	unsigned long flags;
-
-	if (!s_earc)
-		return;
-	s_earc->tx_mute = enable;
-	spin_lock_irqsave(&s_earc->tx_lock, flags);
-	if (s_earc->tx_dmac_clk_on)
-		earctx_dmac_mute(s_earc->tx_dmac_map, enable);
-	spin_unlock_irqrestore(&s_earc->tx_lock, flags);
-}
-
 static void earctx_init(int earc_port, bool st)
 {
 	struct earc *p_earc = s_earc;
@@ -2324,6 +2311,36 @@ static int arcrx_set_ui_flag(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int arc_spdifout_reg_mute_get(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+
+	ucontrol->value.integer.value[0] = p_earc->tx_mute;
+
+	return 0;
+}
+
+static int arc_spdifout_reg_mute_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	int mute = ucontrol->value.integer.value[0];
+	unsigned long flags;
+
+	if (!p_earc)
+		return 0;
+	p_earc->tx_mute = mute;
+	spin_lock_irqsave(&p_earc->tx_lock, flags);
+	if (s_earc->tx_dmac_clk_on)
+		earctx_dmac_mute(p_earc->tx_dmac_map, mute);
+	spin_unlock_irqrestore(&p_earc->tx_lock, flags);
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new earc_controls[] = {
 	SOC_SINGLE_BOOL_EXT("eARC RX ARC Switch",
 			    0,
@@ -2426,6 +2443,11 @@ static const struct snd_kcontrol_new earc_controls[] = {
 			    0,
 			    arcrx_get_ui_flag,
 			    arcrx_set_ui_flag),
+
+	SOC_SINGLE_BOOL_EXT("ARC eARC Spdifout Reg Mute",
+			    0,
+			    arc_spdifout_reg_mute_get,
+			    arc_spdifout_reg_mute_put),
 
 	/* Status channel controller */
 	SND_IEC958(SNDRV_CTL_NAME_IEC958("", CAPTURE, DEFAULT),
