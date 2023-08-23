@@ -4072,9 +4072,6 @@ int hdmitx_pkt_dump(struct hdmitx_dev *hdmitx_device, char *buf, int len)
 	pos += snprintf(buf + pos, len - pos, "AUDI.coding_type: %s\n", conf);
 
 	switch ((reg_val & 0x70) >> 4) {
-	case CC_REFER_TO_STREAM:
-		conf = "refer to stream header";
-		break;
 	case CC_2CH:
 		conf = "2 channels";
 		break;
@@ -4096,8 +4093,10 @@ int hdmitx_pkt_dump(struct hdmitx_dev *hdmitx_device, char *buf, int len)
 	case CC_8CH:
 		conf = "8 channels";
 		break;
+	case CC_REFER_TO_STREAM:
 	default:
-		conf = "MAX";
+		conf = "refer to stream header";
+		break;
 	}
 	pos += snprintf(buf + pos, len - pos, "AUDI.channel_count: %s\n", conf);
 
@@ -4132,9 +4131,6 @@ int hdmitx_pkt_dump(struct hdmitx_dev *hdmitx_device, char *buf, int len)
 	pos += snprintf(buf + pos, len - pos, "AUDI.sample_frequency: %s\n", conf);
 
 	switch ((reg_val & 0x30) >> 4) {
-	case SS_REFER_TO_STREAM:
-		conf = "refer to stream header";
-		break;
 	case SS_16BITS:
 		conf = "16bit";
 		break;
@@ -4144,8 +4140,10 @@ int hdmitx_pkt_dump(struct hdmitx_dev *hdmitx_device, char *buf, int len)
 	case SS_24BITS:
 		conf = "24bit";
 		break;
+	case SS_REFER_TO_STREAM:
 	default:
-		conf = "MAX";
+		conf = "refer to stream header";
+		break;
 	}
 	pos += snprintf(buf + pos, len - pos, "AUDI.sample_size: %s\n", conf);
 

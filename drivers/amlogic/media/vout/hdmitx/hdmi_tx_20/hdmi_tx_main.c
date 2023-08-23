@@ -8538,7 +8538,7 @@ static int drm_hdmitx_get_timing_para(int vic, struct drm_hdmitx_timing_para *pa
 
 	timing = &hdmi_para->timing;
 
-	strncpy(para->name, hdmi_para->hdmitx_vinfo.name, DRM_DISPLAY_MODE_LEN);
+	strncpy(para->name, hdmi_para->hdmitx_vinfo.name, DRM_DISPLAY_MODE_LEN - 1);
 	para->sync_dura_num = hdmi_para->hdmitx_vinfo.sync_duration_num;
 	para->sync_dura_den = hdmi_para->hdmitx_vinfo.sync_duration_den;
 	if (hdmi_para->hdmitx_vinfo.field_height !=

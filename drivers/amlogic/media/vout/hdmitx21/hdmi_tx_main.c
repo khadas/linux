@@ -6831,8 +6831,10 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 	/* pinmux set */
 	if (pdev->dev.of_node) {
 		pin = devm_pinctrl_get(&pdev->dev);
-		if (!pin)
+		if (!pin) {
 			pr_info("get pin control fail\n");
+			return -1;
+		}
 
 		hdev->pinctrl_default = pinctrl_lookup_state(pin, "hdmitx_hpd");
 		pinctrl_select_state(pin, hdev->pinctrl_default);

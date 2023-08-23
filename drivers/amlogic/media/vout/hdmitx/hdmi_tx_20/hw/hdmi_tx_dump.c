@@ -603,9 +603,6 @@ static void hdmitx_parsing_audpkt(struct seq_file *s)
 	seq_printf(s, "coding_type: %s\n", conf);
 
 	switch ((reg_val & 0x70) >> 4) {
-	case CC_REFER_TO_STREAM:
-		conf = "refer to stream header";
-		break;
 	case CC_2CH:
 		conf = "2 channels";
 		break;
@@ -627,8 +624,10 @@ static void hdmitx_parsing_audpkt(struct seq_file *s)
 	case CC_8CH:
 		conf = "8 channels";
 		break;
+	case CC_REFER_TO_STREAM:
 	default:
-		conf = "MAX";
+		conf = "refer to stream header";
+		break;
 	}
 	seq_printf(s, "channel_count: %s\n", conf);
 
@@ -663,9 +662,6 @@ static void hdmitx_parsing_audpkt(struct seq_file *s)
 	seq_printf(s, "sample_frequency: %s\n", conf);
 
 	switch ((reg_val & 0x30) >> 4) {
-	case SS_REFER_TO_STREAM:
-		conf = "refer to stream header";
-		break;
 	case SS_16BITS:
 		conf = "16bit";
 		break;
@@ -675,8 +671,10 @@ static void hdmitx_parsing_audpkt(struct seq_file *s)
 	case SS_24BITS:
 		conf = "24bit";
 		break;
+	case SS_REFER_TO_STREAM:
 	default:
-		conf = "MAX";
+		conf = "refer to stream header";
+		break;
 	}
 	seq_printf(s, "sample_size: %s\n", conf);
 
