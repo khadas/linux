@@ -1451,12 +1451,13 @@ static void hdcp1x_auth_stop(struct hdcp_t *p_hdcp)
 	ddc_toggle_sw_tpi();
 }
 
-static bool ddc_bus_wait_free(void)
+bool ddc_bus_wait_free(void)
 {
 	u8 tmo1 = 10;
 	u8 tmo2 = 2;
 
 	while (tmo2--) {
+		tmo1 = 10;
 		while (tmo1--) {
 			if (!hdmi_ddc_busy_check())
 				return true;
@@ -1491,8 +1492,15 @@ static bool ddc_check_busy(struct hdcp_t *p_hdcp)
 static void hdcp2x_auth_stop(struct hdcp_t *p_hdcp)
 {
 	hdcp_stop_work(&p_hdcp->timer_ddc_check_nak);
-	if (ddc_check_busy(p_hdcp))
-		hdcptx2_auth_stop();
+	/* should always stop auth, otherwise the hw DDC may be
+	 * free currently but will transact later,
+	 * if do AON_CYP_CTL bit3 reset(DDC Master) during
+	 * DDC transaction may pull SCL low.
+	 * ddc busy check will add delay for ddc free before
+	 * ddc stop
+	 */
+	ddc_check_busy(p_hdcp);
+	hdcptx2_auth_stop();
 }
 
 static void hdcp_reset_hw(struct hdcp_t *p_hdcp)

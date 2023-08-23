@@ -324,8 +324,7 @@ void hdcptx2_reauth_send(void)
 
 	hdmitx21_wr_reg(CP2TX_CTRL_1_IVCTX, 0x21);
 	hdmitx21_wr_reg(CP2TX_CTRL_1_IVCTX, 0x20);
-
-	hdmitx21_set_bit(AON_CYP_CTL_IVCTX, BIT(3), false);
+	/* hdmitx21_set_bit(AON_CYP_CTL_IVCTX, BIT(3), false); */
 }
 
 u8 hdcptx2_topology_get(void)
@@ -376,7 +375,13 @@ void hdcptx2_src_auth_start(u8 content_type)
 
 	if (content_type != 0 && content_type != 1)
 		content_type = 0;
+
 	/* reset hdcp2x logic and HW state machine */
+	/* mostly, ddc bus is already free after previous stop
+	 * operation, now double check
+	 */
+	if (!ddc_bus_wait_free())
+		pr_info("%s: reset during ddc busy!!\n", __func__);
 	reset_val = hdmitx21_rd_reg(HDCP2X_TX_SRST_IVCTX);
 	//hdmitx21_set_bit(HDCP2X_TX_SRST_IVCTX, BIT(5), true);
 	hdmitx21_wr_reg(HDCP2X_TX_SRST_IVCTX, reset_val | 0x20);
@@ -384,6 +389,7 @@ void hdcptx2_src_auth_start(u8 content_type)
 	hdmitx21_wr_reg(HDCP2X_TX_SRST_IVCTX, reset_val &  (~0x20));
 
 	hdmitx21_set_bit(AON_CYP_CTL_IVCTX, BIT(3), true);
+	hdmitx21_set_bit(AON_CYP_CTL_IVCTX, BIT(3), false);
 
 	hdmitx21_set_bit(HDCP2X_CTL_1_IVCTX, BIT_HDCP2X_CTL_1_HPD_SW, true);
 	hdmitx21_set_bit(HDCP2X_CTL_1_IVCTX, BIT_HDCP2X_CTL_1_HPD_OVR, true);

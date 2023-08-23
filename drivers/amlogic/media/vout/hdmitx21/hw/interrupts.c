@@ -137,12 +137,16 @@ void intr_status_save_clr_cp2txs(u8 regs[])
 
 static void top_hpd_intr_stub_handler(struct intr_t *intr)
 {
+	/* clear intr state asp */
+	/* intr->st_data = 0; */
 }
 
 static void intr2_sw_handler(struct intr_t *intr)
 {
 	static u32 vsync_cnt;
 
+	/* clear intr state asp */
+	intr->st_data = 0;
 	vsync_cnt++;
 	if (vsync_cnt % 64 == 0) {
 		/* blank here */
@@ -150,16 +154,23 @@ static void intr2_sw_handler(struct intr_t *intr)
 	}
 }
 
+/* will handle intr5 in top half of interrupt handle
+ * as this intr only stop come after reset
+ */
 static void intr5_sw_handler(struct intr_t *intr)
 {
-	hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 1, 2, 1);
-	hdmitx21_set_reg_bits(INTR5_SW_TPI_IVCTX, 1, 3, 1);
-	hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 0, 2, 1);
-	pr_info("%s[%d]\n", __func__, __LINE__);
+	/* clear intr state asp */
+	/* intr->st_data = 0; */
+	/* hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 1, 2, 1); */
+	/* hdmitx21_set_reg_bits(INTR5_SW_TPI_IVCTX, 1, 3, 1); */
+	/* hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 0, 2, 1); */
+	/* pr_info("%s[%d]\n", __func__, __LINE__); */
 }
 
 static void ddc_stall_req_handler(struct intr_t *intr)
 {
+	/* clear intr state asp */
+	intr->st_data = 0;
 }
 
 static void _intr_enable(struct intr_t *pint, bool en)
@@ -175,7 +186,8 @@ void hdcp_enable_intrs(bool en)
 	_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr0, en);
 	_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr1, en);
 	_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr2, en);
-	_intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr3, en);
+	/* hpd rising/falling intr have no actual handle, no need to enable */
+	/* _intr_enable((struct intr_t *)&hdmi_all_intrs.entity.cp2tx_intr3, en); */
 }
 
 void fifo_flow_enable_intrs(bool en)
@@ -208,6 +220,7 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 		u32 dat_top;
 
 		dat_top = pint->st_data;
+		/* clear intr state asp */
 		pint->st_data = 0;
 		/* check HPD status */
 		if (!hdev->pxp_mode && ((dat_top & (1 << 1)) && (dat_top & (1 << 2)))) {
@@ -246,26 +259,57 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 next:
 	/* already called top_intr.callback, next others */
 
+	/* note: the callback sequence is as the member sequence of
+	 * intr_u.entity, instead of the sequence of hdmi_all_intrs
+	 */
 	for (i = 1; i < sizeof(union intr_u) / sizeof(struct intr_t); i++) {
 		pint++;
-		/* pr_info("-----i = %d, pint->st_data = %x\n", i, pint->st_data); */
-		if (pint->st_data) {
+		/* pr_info("-----i = %d, pint->st_data = 0x%x\n", i, pint->st_data); */
+		/* only process the enabled interrupt */
+		if ((hdmitx21_rd_reg(pint->intr_mask_reg) & pint->mask_data) &&
+			(pint->st_data & pint->mask_data)) {
 			val = pint->st_data;
+			/* clear st_data asap in callback function */
 			pint->callback(pint);
+		} else {
+			pint->st_data = 0;
 		}
 	}
 }
 
+/* there may be such case: after plugout interrupt come and save its
+ * interrupt state in st_data, before excute its bottom handle, there's
+ * another INTR5 come, then will do RE_ISR in intr_handler(), it will read
+ * plugin/out interrupt state and over-write the previous saved plug
+ * interrupt state in st_data. when excute the bottom handle of interrupt,
+ * and find that the plug interrupt is cleared, so won't do plug process
+ */
 static void intr_status_save_and_clear(void)
 {
 	int i;
 	struct intr_t *pint = (struct intr_t *)&hdmi_all_intrs;
+	u32 tmp;
 
 	for (i = 0; i < sizeof(union intr_u) / sizeof(struct intr_t); i++) {
-		pint->st_data = hdmitx21_rd_reg(pint->intr_st_reg);
-		/* if (pint->intr_st_reg == TPI_INTR_ST0_IVCTX) */
-			/* pr_info("TPI_INTR_ST0_IVCTX :0x%x\n", pint->st_data); */
-		hdmitx21_wr_reg(pint->intr_clr_reg, pint->st_data);
+		/* if last bottom half of interrupt is not finished, should keep
+		 * the interrupt state, only clear it after it is already
+		 * used in bottom half of interrupt handle
+		 */
+		tmp = hdmitx21_rd_reg(pint->intr_st_reg);
+		pint->st_data |= tmp;
+
+		if (pint->intr_st_reg == INTR5_SW_TPI_IVCTX &&
+			(hdmitx21_rd_reg(pint->intr_mask_reg) & pint->mask_data) &&
+			(pint->st_data & pint->mask_data)) {
+			/* clear pfifo intr and reset asap */
+			hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 1, 2, 1);
+			hdmitx21_set_reg_bits(INTR5_SW_TPI_IVCTX, 1, 3, 1);
+			hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 0, 2, 1);
+			pint->st_data = 0;
+			pr_info("INTR5_SW_TPI_IVCTX pfifo rst\n");
+		} else {
+			hdmitx21_wr_reg(pint->intr_clr_reg, pint->st_data);
+		}
 		pint++;
 	}
 }

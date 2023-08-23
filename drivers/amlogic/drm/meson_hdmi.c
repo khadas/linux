@@ -1989,7 +1989,7 @@ static void meson_hdmitx_hpd_cb(void *data)
 	/*get hdcp ver property immediately after plugin in case hdcp14
 	 *authentication snow screen issue
 	 */
-	if (am_hdmi->hdmitx_dev->detect())
+	if (am_hdmi->hdmitx_dev->detect() && !am_hdmi->android_path)
 		am_hdmi_info.hdcp_rx_type = am_hdmi_info.hdmitx_dev->get_rx_hdcp_cap();
 
 #ifdef CONFIG_CEC_NOTIFIER

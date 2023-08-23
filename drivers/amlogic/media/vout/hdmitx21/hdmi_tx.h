@@ -567,4 +567,6 @@ bool frl_check_full_bw(enum hdmi_colorspace cs, enum hdmi_color_depth cd, u32 pi
 	u32 h_active, enum frl_rate_enum frl_rate, u32 *tri_bytes);
 void fifo_flow_enable_intrs(bool en);
 void hdmitx_soft_reset(u32 bits);
+bool ddc_bus_wait_free(void);
+
 #endif /* __HDMI_TX_H__ */

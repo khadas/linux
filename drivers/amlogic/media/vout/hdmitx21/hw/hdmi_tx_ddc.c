@@ -126,10 +126,11 @@ static u8 ddc_tx_busy_check(void)
 static bool ddc_wait_free(void)
 {
 	u8 val;
-	s8 tmo1 = 5; /* unit: ms */
-	s8 tmo2 = 2;
+	u8 tmo1 = 5; /* unit: ms */
+	u8 tmo2 = 2;
 
 	while (tmo2--) {
+		tmo1 = 5;
 		while (tmo1--) {
 			val = ddc_tx_busy_check();
 			if (!val)
@@ -228,6 +229,10 @@ static enum ddc_err_t _hdmitx_ddcm_read_(u8 seg_index,
 			break;
 
 		if (!ddc_wait_free()) {
+			/* need to clr DDC_STALL_REQ, otherwise
+			 * DDC will always be ocuppied by SCDC
+			 */
+			ddc_tx_scdc_clr(val);
 			mutex_unlock(&ddc_mutex);
 			return DDC_ERR_BUSY;
 		}
@@ -285,6 +290,7 @@ static enum ddc_err_t _hdmitx_ddcm_write_(u8 seg_index,
 
 	mutex_lock(&ddc_mutex);
 	if (!ddc_wait_free()) {
+		ddc_tx_scdc_clr(val);
 		mutex_unlock(&ddc_mutex);
 		return DDC_ERR_BUSY;
 	}
