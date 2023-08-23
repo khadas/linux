@@ -365,7 +365,7 @@ static void inbound_signal_output(struct xbuf_ring *ring, bool sigpoll)
 	if (sigpoll)
 		evl_signal_poll_events(&xbuf->poll_head, POLLOUT|POLLWRNORM);
 
-	evl_raise_flag(&xbuf->ibnd.o_event);
+	evl_raise_flag_nosched(&xbuf->ibnd.o_event);
 }
 
 static ssize_t xbuf_read(struct file *filp, char __user *u_buf,
