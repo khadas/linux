@@ -1,0 +1,3 @@
+drivers/amlogic/input/touchscreen/gt9xx/gt9xx.ko
+drivers/amlogic/input/touchscreen/gt9xx/gt9xx_update.ko
+drivers/amlogic/input/touchscreen/gt9xx/goodix_tool.ko
