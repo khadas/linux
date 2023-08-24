@@ -5,6 +5,8 @@
 #ifndef _EVL_UAPI_DEVICES_SPIDEV_H
 #define _EVL_UAPI_DEVICES_SPIDEV_H
 
+#include <linux/types.h>
+
 /* Manage out-of-band mode (master only) */
 struct spi_ioc_oob_setup {
 	/* Input */
