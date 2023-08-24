@@ -2086,7 +2086,7 @@ bool hdmi_rx_top_edid_update(void)
 		 * 1.4 or 2.0 EDID independently, and 1.4/2.0
 		 * for each port can be different
 		 */
-		if (rx.chip_id < CHIP_ID_TM2) {
+		if (rx.chip_id < CHIP_ID_TL1) {
 			rx_pr("err: independent edid only for >= TM2\n");
 			return false;
 		}
