@@ -353,7 +353,7 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 	int master_mode;
 	unsigned int clkctl = 0;
 	unsigned int tdmin_ws_inv = 0;
-
+	bool is_i2s = false;
 	id = index;
 
 	binv = 0;
@@ -400,9 +400,10 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 			bclkout_skew = 1;
 		}
 		bclkin_skew = 3;
-
-		clkctl |= MST_CLK_INVERT_PH0_PAD_FCLK
-			| MST_CLK_INVERT_PH2_TDMOUT_FCLK;
+		is_i2s = true;
+		clkctl |= MST_CLK_INVERT_PH0_PAD_FCLK |
+			MST_CLK_INVERT_PH1_TDMIN_FCLK |
+			MST_CLK_INVERT_PH2_TDMOUT_FCLK;
 		finv = 1;
 
 		if (master_mode) {
@@ -469,7 +470,10 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 			binv ^= 1;
 
 		finv |= 1;
-		tdmin_ws_inv = 1;
+		if (is_i2s)
+			tdmin_ws_inv = 0;
+		else
+			tdmin_ws_inv = 1;
 		clkctl ^= MST_CLK_INVERT_PH0_PAD_BCLK;
 		clkctl ^= MST_CLK_INVERT_PH0_PAD_FCLK;
 		break;
@@ -477,16 +481,27 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 		/* Invert bit clock */
 		if (!master_mode)
 			binv ^= 1;
+		if (is_i2s)
+			tdmin_ws_inv = 1;
+		else
+			tdmin_ws_inv = 0;
 		clkctl ^= MST_CLK_INVERT_PH0_PAD_BCLK;
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
 		/* Invert frame clock */
 		finv ^= 1;
-		tdmin_ws_inv = 1;
+		if (is_i2s)
+			tdmin_ws_inv = 0;
+		else
+			tdmin_ws_inv = 1;
 		clkctl ^= MST_CLK_INVERT_PH0_PAD_FCLK;
 		break;
 	case SND_SOC_DAIFMT_NB_NF:
 		/* normal cases */
+		if (is_i2s)
+			tdmin_ws_inv = 1;
+		else
+			tdmin_ws_inv = 0;
 		break;
 	default:
 		return;
