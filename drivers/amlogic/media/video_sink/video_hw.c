@@ -13008,23 +13008,14 @@ static void video_hw_init_c3(void)
 #endif
 }
 
-int video_hw_init(void)
+static int _video_hw_init(void)
 {
-	u32 cur_hold_line, ofifo_size;
-#ifdef CONFIG_AMLOGIC_VPU
-	struct vpu_dev_s *arb_vpu_dev;
-#endif
-	int i;
-#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
-	void *video_secure_op[VPP_TOP_MAX] = {VSYNC_WR_MPEG_REG_BITS,
-					       VSYNC_WR_MPEG_REG_BITS_VPP1,
-					       VSYNC_WR_MPEG_REG_BITS_VPP2};
-#endif
+	u32 ofifo_size;
+
 	if (cur_dev->display_module == C3_DISPLAY_MODULE) {
 		video_hw_init_c3();
 		return 0;
 	}
-
 	if (!legacy_vpp) {
 		if (vpp_ofifo_size == 0xff)
 			ofifo_size = 0x1000;
@@ -13098,39 +13089,7 @@ int video_hw_init(void)
 		vd_layer[0].vd1_vd2_mux = false;
 		di_used_vd1_afbc(false);
 	}
-#ifdef CONFIG_AMLOGIC_VPU
-	/* temp: enable VPU arb mem */
-	vd1_vpu_dev = vpu_dev_register(VPU_VIU_VD1, "VD1");
-	afbc_vpu_dev = vpu_dev_register(VPU_AFBC_DEC, "VD1_AFBC");
-#ifdef DI_POST_PWR
-	di_post_vpu_dev = vpu_dev_register(VPU_DI_POST, "DI_POST");
-#endif
-	vd1_scale_vpu_dev = vpu_dev_register(VPU_VD1_SCALE, "VD1_SCALE");
-	if (glayer_info[0].fgrain_support)
-		vpu_fgrain0 = vpu_dev_register(VPU_FGRAIN0, "VPU_FGRAIN0");
-	vd2_vpu_dev = vpu_dev_register(VPU_VIU_VD2, "VD2");
-	afbc2_vpu_dev = vpu_dev_register(VPU_AFBC_DEC1, "VD2_AFBC");
-	vd2_scale_vpu_dev = vpu_dev_register(VPU_VD2_SCALE, "VD2_SCALE");
-	if (glayer_info[1].fgrain_support)
-		vpu_fgrain1 = vpu_dev_register(VPU_FGRAIN1, "VPU_FGRAIN1");
-#ifdef DEPEND_VPU
-	vd3_vpu_dev = vpu_dev_register(VPU_VIU_VD3, "VD3");
-	afbc3_vpu_dev = vpu_dev_register(VPU_AFBC_DEC2, "VD3_AFBC");
-	vd3_scale_vpu_dev = vpu_dev_register(VPU_VD3_SCALE, "VD3_SCALE");
-	if (glayer_info[2].fgrain_support)
-		vpu_fgrain2 = vpu_dev_register(VPU_FGRAIN2, "VPU_FGRAIN2");
 
-#endif
-	vpu_dolby0 = vpu_dev_register(VPU_DOLBY0, "DOLBY0");
-	vpu_dolby1a = vpu_dev_register(VPU_DOLBY1A, "DOLBY1A");
-	vpu_dolby1b = vpu_dev_register(VPU_DOLBY1B, "DOLBY1B");
-	vpu_dolby2 = vpu_dev_register(VPU_DOLBY2, "DOLBY2");
-	vpu_dolby_core3 = vpu_dev_register(VPU_DOLBY_CORE3, "DOLBY_CORE3");
-	vpu_prime_dolby_ram = vpu_dev_register(VPU_PRIME_DOLBY_RAM, "PRIME_DOLBY_RAM");
-
-	arb_vpu_dev = vpu_dev_register(VPU_VPU_ARB, "ARB");
-	vpu_dev_mem_power_on(arb_vpu_dev);
-#endif
 	/*disable sr default when power up*/
 	if (cur_dev->display_module != C3_DISPLAY_MODULE) {
 		WRITE_VCBUS_REG(VPP_SRSHARP0_CTRL, 0);
@@ -13139,17 +13098,6 @@ int video_hw_init(void)
 	/* disable aisr_sr1_nn func */
 	if (cur_dev->aisr_support)
 		aisr_sr1_nn_enable(0);
-	if (cur_dev->display_module != C3_DISPLAY_MODULE) {
-		cur_hold_line = READ_VCBUS_REG(VPP_HOLD_LINES + cur_dev->vpp_off);
-		cur_hold_line = cur_hold_line & 0xff;
-	} else {
-		cur_hold_line = 4;
-	}
-
-	if (cur_hold_line > 0x1f)
-		vpp_hold_line[0] = 0x1f;
-	else
-		vpp_hold_line[0] = cur_hold_line;
 
 	/* Temp force set dmc */
 	if (!legacy_vpp) {
@@ -13191,6 +13139,68 @@ int video_hw_init(void)
 	/* force bypass dolby for TL1/T5, no dolby function */
 	if (!glayer_info[0].dv_support && !is_meson_s4d_cpu())
 		WRITE_VCBUS_REG_BITS(AMDV_PATH_CTRL, 0xf, 0, 6);
+	return 0;
+}
+
+int video_hw_init(void)
+{
+	u32 cur_hold_line;
+#ifdef CONFIG_AMLOGIC_VPU
+	struct vpu_dev_s *arb_vpu_dev;
+#endif
+	int i;
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	void *video_secure_op[VPP_TOP_MAX] = {VSYNC_WR_MPEG_REG_BITS,
+					       VSYNC_WR_MPEG_REG_BITS_VPP1,
+					       VSYNC_WR_MPEG_REG_BITS_VPP2};
+#endif
+
+	_video_hw_init();
+
+#ifdef CONFIG_AMLOGIC_VPU
+	/* temp: enable VPU arb mem */
+	vd1_vpu_dev = vpu_dev_register(VPU_VIU_VD1, "VD1");
+	afbc_vpu_dev = vpu_dev_register(VPU_AFBC_DEC, "VD1_AFBC");
+#ifdef DI_POST_PWR
+	di_post_vpu_dev = vpu_dev_register(VPU_DI_POST, "DI_POST");
+#endif
+	vd1_scale_vpu_dev = vpu_dev_register(VPU_VD1_SCALE, "VD1_SCALE");
+	if (glayer_info[0].fgrain_support)
+		vpu_fgrain0 = vpu_dev_register(VPU_FGRAIN0, "VPU_FGRAIN0");
+	vd2_vpu_dev = vpu_dev_register(VPU_VIU_VD2, "VD2");
+	afbc2_vpu_dev = vpu_dev_register(VPU_AFBC_DEC1, "VD2_AFBC");
+	vd2_scale_vpu_dev = vpu_dev_register(VPU_VD2_SCALE, "VD2_SCALE");
+	if (glayer_info[1].fgrain_support)
+		vpu_fgrain1 = vpu_dev_register(VPU_FGRAIN1, "VPU_FGRAIN1");
+#ifdef DEPEND_VPU
+	vd3_vpu_dev = vpu_dev_register(VPU_VIU_VD3, "VD3");
+	afbc3_vpu_dev = vpu_dev_register(VPU_AFBC_DEC2, "VD3_AFBC");
+	vd3_scale_vpu_dev = vpu_dev_register(VPU_VD3_SCALE, "VD3_SCALE");
+	if (glayer_info[2].fgrain_support)
+		vpu_fgrain2 = vpu_dev_register(VPU_FGRAIN2, "VPU_FGRAIN2");
+#endif
+	vpu_dolby0 = vpu_dev_register(VPU_DOLBY0, "DOLBY0");
+	vpu_dolby1a = vpu_dev_register(VPU_DOLBY1A, "DOLBY1A");
+	vpu_dolby1b = vpu_dev_register(VPU_DOLBY1B, "DOLBY1B");
+	vpu_dolby2 = vpu_dev_register(VPU_DOLBY2, "DOLBY2");
+	vpu_dolby_core3 = vpu_dev_register(VPU_DOLBY_CORE3, "DOLBY_CORE3");
+	vpu_prime_dolby_ram = vpu_dev_register(VPU_PRIME_DOLBY_RAM, "PRIME_DOLBY_RAM");
+	arb_vpu_dev = vpu_dev_register(VPU_VPU_ARB, "ARB");
+	vpu_dev_mem_power_on(arb_vpu_dev);
+#endif
+
+	if (cur_dev->display_module != C3_DISPLAY_MODULE) {
+		cur_hold_line = READ_VCBUS_REG(VPP_HOLD_LINES + cur_dev->vpp_off);
+		cur_hold_line = cur_hold_line & 0xff;
+	} else {
+		cur_hold_line = 4;
+	}
+
+	if (cur_hold_line > 0x1f)
+		vpp_hold_line[0] = 0x1f;
+	else
+		vpp_hold_line[0] = cur_hold_line;
+
 	for (i = 0; i < MAX_VD_LAYER; i++) {
 		if (glayer_info[i].fgrain_support)
 			fgrain_init(i, FGRAIN_TBL_SIZE);
@@ -13631,6 +13641,17 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 		vd_layer_vpp[i].global_output = 1;
 	}
 	return r;
+}
+
+void video_resume_hw_recovery(void)
+{
+	_video_hw_init();
+	vpp_probe_en_set(1);
+	vd_layer[0].property_changed = true;
+	vd_layer[1].property_changed = true;
+	vd_layer[2].property_changed = true;
+	vd_layer_vpp[0].property_changed = true;
+	vd_layer_vpp[1].property_changed = true;
 }
 
 int video_late_uninit(void)

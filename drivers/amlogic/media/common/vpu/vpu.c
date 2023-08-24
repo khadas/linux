@@ -2602,6 +2602,13 @@ static int vpu_resume(struct platform_device *pdev)
 {
 	unsigned int clk;
 
+	int ret;
+
+	ret = vpu_power_init_check();
+	vpu_clktree_init(&pdev->dev);
+	if (ret)
+		vpu_power_init();
+
 	if (!vpu_conf.data)
 		return 0;
 

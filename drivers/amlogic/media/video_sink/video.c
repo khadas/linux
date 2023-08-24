@@ -20516,6 +20516,7 @@ static void video_early_suspend(struct early_suspend *h)
 
 static void video_late_resume(struct early_suspend *h)
 {
+	video_resume_hw_recovery();
 	video_suspend_cycle = 0;
 	video_suspend = false;
 	log_out = 1;

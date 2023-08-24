@@ -827,6 +827,7 @@ void get_slice_out_hsize_debug(int *debug, int *slice0_hsize,
 			       int *slice1_hsize, int *slice_w_max);
 void set_slice_out_hsize_debug(int debug, int slice0_hsize,
 			       int slice1_hsize, int slice_w_max);
+void video_resume_hw_recovery(void);
 
 /* from video.c */
 extern u32 osd_vpp_misc;
