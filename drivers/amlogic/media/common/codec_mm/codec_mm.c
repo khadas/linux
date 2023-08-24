@@ -32,6 +32,7 @@
 #include "codec_mm_priv.h"
 #include "codec_mm_scatter_priv.h"
 #include "codec_mm_keeper_priv.h"
+#include "codec_mm_track_priv.h"
 #include <linux/highmem.h>
 #include <linux/page-flags.h>
 #include <linux/vmalloc.h>
@@ -123,6 +124,7 @@ static u32 tvp_dynamic_increase_disable;
 static u32 tvp_dynamic_alloc_max_size;
 static u32 tvp_dynamic_alloc_force_small_segment;
 static u32 tvp_dynamic_alloc_force_small_segment_size;
+static bool dbuf_trace;
 
 #define TVP_POOL_SEGMENT_MAX_USED 4
 #define TVP_MAX_SLOT 8
@@ -140,6 +142,7 @@ struct extpool_mgt_s {
 	int total_size;
 	/* mutex lock */
 	struct mutex pool_lock;
+	struct task_struct *tvp_kthread;
 };
 
 struct codec_mm_mgt_s {
@@ -182,6 +185,7 @@ struct codec_mm_mgt_s {
 	atomic_t tvp_user_count;
 	/* for tvp operator used */
 	struct mutex tvp_protect_lock;
+	void *trk_h;
 };
 
 #define PHY_OFF() offsetof(struct codec_mm_s, phy_addr)
@@ -2956,6 +2960,10 @@ static ssize_t debug_show(struct class *class,
 
 	size += sprintf(buf + size,
 	"n==100: cmd mode p1 p ##mode:0,dump, 1,alloc 2,more,3,free some,4,free all\n");
+
+	size += sprintf(buf + size,
+	"n=200: walk dmabuf infos.\n");
+
 	return size;
 }
 
@@ -3056,6 +3064,9 @@ static ssize_t debug_store(struct class *class,
 			ret = sscanf(buf, "%d %d %d %d", &cmd, &mode, &p1, &p2);
 			codec_mm_scatter_test(mode, p1, p2);
 		}
+		break;
+	case 200:
+		codec_mm_walk_dbuf();
 		break;
 	default:
 		pr_err("unknown cmd! %d\n", val);
@@ -3219,6 +3230,43 @@ int codec_mm_get_scatter_watermark(void)
 	return mgt->codec_mm_scatter_watermark;
 }
 
+static ssize_t dbuf_trace_show(struct class *class,
+			       struct class_attribute *attr, char *buf)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	char *pbuf = buf;
+
+	pbuf += sprintf(pbuf, "Dmabuf tracking [%s]\n",
+		mgt->trk_h ? "enable" : "disable");
+
+	return pbuf - buf;
+}
+
+static ssize_t dbuf_trace_store(struct class *class,
+			       struct class_attribute *attr,
+			       const char *buf, size_t size)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+
+	bool val = false;
+	ssize_t ret;
+
+	ret = kstrtobool(buf, &val);
+	if (ret != 0)
+		return -EINVAL;
+
+	if (val) {
+		codec_mm_track_open(&mgt->trk_h);
+	} else {
+		codec_mm_track_close(mgt->trk_h);
+		mgt->trk_h = NULL;
+	}
+
+	dbuf_trace = val;
+
+	return size;
+}
+
 static CLASS_ATTR_RO(codec_mm_dump);
 static CLASS_ATTR_RO(codec_mm_scatter_dump);
 static CLASS_ATTR_RO(codec_mm_keeper_dump);
@@ -3230,6 +3278,7 @@ static CLASS_ATTR_RW(debug);
 //static CLASS_ATTR_RW(debug_mode);
 static CLASS_ATTR_RW(debug_sc_mode);
 static CLASS_ATTR_RW(debug_keep_mode);
+static CLASS_ATTR_RW(dbuf_trace);
 
 static struct attribute *codec_mm_class_attrs[] = {
 	&class_attr_codec_mm_dump.attr,
@@ -3243,6 +3292,7 @@ static struct attribute *codec_mm_class_attrs[] = {
 	//&class_attr_debug_mode.attr,
 	&class_attr_debug_sc_mode.attr,
 	&class_attr_debug_keep_mode.attr,
+	&class_attr_dbuf_trace.attr,
 	NULL
 };
 

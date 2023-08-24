@@ -512,6 +512,11 @@ static inline void get_dma_buf(struct dma_buf *dmabuf)
 	get_file(dmabuf->file);
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+int get_each_dmabuf(int (*callback)(const struct dma_buf *dmabuf,
+		    void *private), void *private);
+#endif
+
 struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
 							struct device *dev);
 void dma_buf_detach(struct dma_buf *dmabuf,
