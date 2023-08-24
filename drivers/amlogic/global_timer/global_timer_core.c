@@ -92,6 +92,7 @@ u64 meson_global_timer_global_snapshot(void)
 	u32 ts_l;
 	u32 ts_h;
 	u64 ts;
+	int ret;
 	struct regmap *regmap;
 
 	if (!glb_pdata) {
@@ -101,7 +102,12 @@ u64 meson_global_timer_global_snapshot(void)
 
 	regmap = glb_pdata->regmap;
 
-	hwspin_lock_timeout(glb_pdata->hwlock, HWSPIN_LOCK_TIMEOUT);
+	ret = hwspin_lock_timeout(glb_pdata->hwlock, HWSPIN_LOCK_TIMEOUT);
+	if (ret) {
+		pr_err("Can't get hwspinlock !\n");
+		return 0;
+	}
+
 	regmap_read(regmap, TOP_TS0, &ts_l);
 	regmap_read(regmap, TOP_TS1, &ts_h);
 	hwspin_unlock(glb_pdata->hwlock);
