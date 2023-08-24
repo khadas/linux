@@ -944,17 +944,19 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 		pr_err("failed to alloc dsu_opp_table.\n");
 		dsu_opp_table = NULL;
 	} else {
-		if (of_property_read_u32_array(np, "dsu-opp-table", &dsu_opp_table[0], 4))
+		if (of_property_read_u32_array(np, "dsu-opp-table", &dsu_opp_table[0], 4)) {
+			kfree(dsu_opp_table);
 			dsu_opp_table = NULL;
-		else
+		} else {
 			show_dsu_opp_table(dsu_opp_table, cur_cluster);
+		}
 	}
 	cpu_reg = devm_regulator_get(cpu_dev, CORE_SUPPLY);
 	if (IS_ERR(cpu_reg)) {
 		pr_err("%s:failed to get regulator, %ld\n", __func__,
 		       PTR_ERR(cpu_reg));
 		cpu_reg = NULL;
-		goto free_clk;
+		goto free_dsutable;
 	}
 
 	dsu_reg = regulator_get_optional(cpu_dev, DSU_SUPPLY);
@@ -1053,6 +1055,8 @@ free_reg:
 		devm_regulator_put(cpu_reg);
 	if (!IS_ERR(dsu_reg))
 		regulator_put(dsu_reg);
+free_dsutable:
+	kfree(dsu_opp_table);
 free_clk:
 	if (!IS_ERR(clk[cur_cluster]))
 		clk_put(clk[cur_cluster]);
