@@ -532,6 +532,7 @@
 		 *worst case:(4096*2160*4 + 2M(afbce issue)) *6buf = 214.5M
 		 */
 		cma_size = <215>;
+		frame_buff_num = <8>;
 		interrupts = <0 83 1>;
 		rdma-irq = <2>;
 		clocks = <&clkc CLKID_FCLK_DIV5>,
