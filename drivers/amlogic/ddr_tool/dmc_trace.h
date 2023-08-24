@@ -26,6 +26,7 @@ TRACE_EVENT(dmc_violation,
 		__field(int, port)
 		__field(int, sub_port)
 		__field(char, rw)
+		__field(unsigned long, page_trace)
 	),
 
 	TP_fast_assign(
@@ -34,6 +35,7 @@ TRACE_EVENT(dmc_violation,
 		__entry->port = port;
 		__entry->sub_port = sub_port;
 		__entry->rw = rw;
+		__entry->page_trace = get_page_trace(phys_to_page(__entry->addr));
 	),
 
 	TP_printk("addr=%09lx val=%016lx s=%08lx port=%s sub=%s rw:%c a:%ps",
@@ -43,7 +45,7 @@ TRACE_EVENT(dmc_violation,
 		  to_ports(__entry->port),
 		  to_sub_ports_name(__entry->port, __entry->sub_port, __entry->rw),
 		  __entry->rw,
-		  (void *)get_page_trace(phys_to_page(__entry->addr)))
+		  (void *)__entry->page_trace)
 );
 
 #endif /*  _TRACE_DMC_MONITOR_H */
