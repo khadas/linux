@@ -520,6 +520,11 @@ static void dump_vf(struct vframe_s *vf, phys_addr_t addr, struct uvm_aipq_info 
 		return;
 	}
 
+	if (vf->flag & VFRAME_FLAG_VIDEO_SECURE) {
+		aipq_print(PRINT_ERROR, "%s: security vf.\n", __func__);
+		return;
+	}
+
 	snprintf(name_buf, sizeof(name_buf), "/data/aipq_ge2dOut.rgb");
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 	if (IS_ERR(fp))

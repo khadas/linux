@@ -1751,6 +1751,11 @@ static void dump_vf(int vc_index, struct vframe_s *vf, int flag)
 	if (!vf)
 		return;
 
+	if (vf->flag & VFRAME_FLAG_VIDEO_SECURE) {
+		vc_print(vc_index, PRINT_ERROR, "%s: security vf.\n", __func__);
+		return;
+	}
+
 	if (flag == 0)
 		snprintf(name_buf, sizeof(name_buf),
 			"/data/src_vframe_%d.yuv", dump_vframe);
@@ -3444,6 +3449,15 @@ static void video_composer_task(struct composer_dev *dev)
 				 "ready len=%d\n", kfifo_len(&dev->ready_q));
 		}
 		dev->fake_vf = *vf;
+
+		if (dump_vframe != dev->vframe_dump_flag) {
+			if (vf->type & VIDTYPE_COMPRESS)
+				vd_vframe_afbc_soft_decode(vf, 0);
+			else
+				dump_vf(dev->index, vf, 0);
+			dev->vframe_dump_flag = dump_vframe;
+		}
+
 		atomic_set(&received_frames->on_use, false);
 		if (use_low_latency && dev->index == 0)
 			proc_lowlatency_frame(0);

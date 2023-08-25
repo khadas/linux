@@ -350,15 +350,23 @@ static void dump_vf(struct vframe_s *vf)
 	if (!vf)
 		return;
 
+	if (vf->flag & VFRAME_FLAG_VIDEO_SECURE) {
+		nn_print(PRINT_ERROR, "%s: security vf.\n", __func__);
+		return;
+	}
+
 	snprintf(name_buf, sizeof(name_buf), "/data/aisr_DI.bin");
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 	if (IS_ERR(fp))
 		return;
+
 	write_size = vf->canvas0_config[0].width * vf->canvas0_config[0].height
 		* 2 * 10 / 8;
+
 	data = codec_mm_vmap(vf->canvas0_config[0].phy_addr, write_size);
 	if (!data)
 		return;
+
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 	pos = 0;
