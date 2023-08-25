@@ -10,6 +10,7 @@ obj-$(CONFIG_VIDEO_M5MOLS)	+= m5mols/
 obj-$(CONFIG_VIDEO_NVP6158)	+= nvp6158_drv/
 obj-$(CONFIG_VIDEO_NVP6188)	+= nvp6188.o
 obj-$(CONFIG_VIDEO_NVP6324)	+= jaguar1_drv/
+obj-$(CONFIG_VIDEO_DES_MAXIM4C)	+= maxim4c/
 
 obj-$(CONFIG_VIDEO_APTINA_PLL) += aptina-pll.o
 obj-$(CONFIG_VIDEO_TVAUDIO) += tvaudio.o
@@ -126,6 +127,7 @@ obj-$(CONFIG_VIDEO_MT9V111) += mt9v111.o
 obj-$(CONFIG_VIDEO_SC031GS) += sc031gs.o
 obj-$(CONFIG_VIDEO_SC035GS) += sc035gs.o
 obj-$(CONFIG_VIDEO_SC132GS) += sc132gs.o
+obj-$(CONFIG_VIDEO_SC1346) += sc1346.o
 obj-$(CONFIG_VIDEO_SC200AI) += sc200ai.o
 obj-$(CONFIG_VIDEO_SC210IOT) += sc210iot.o
 obj-$(CONFIG_VIDEO_SC2232) += sc2232.o

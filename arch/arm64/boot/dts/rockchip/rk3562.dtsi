@@ -368,7 +368,7 @@
 					 <1 0x00a000a8 0x7c39>,
 					 <2 0x00a000a8 0x7c39>,
 					 <3 0x00a000a8 0x7c39>,
-					 <4 0x00a000a5 0xb007>,
+					 <4 0x00a000a4 0xb007>,
 					 <5 0x00a000a8 0x7034>,
 					 <6 0x00a000a8 0x7034>,
 					 <7 0x00a000a8 0x7034>,
@@ -844,6 +844,8 @@
 			snps,dis-del-phy-power-chg-quirk;
 			snps,dis-tx-ipgap-linecheck-quirk;
 			snps,dis_rxdet_inp3_quirk;
+			snps,parkmode-disable-hs-quirk;
+			snps,parkmode-disable-ss-quirk;
 			quirk-skip-phy-init;
 			status = "disabled";
 		};

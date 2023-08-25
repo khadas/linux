@@ -2597,7 +2597,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 			hdmi_modb(hdmi, PKTSCHED_GCP_TX_EN, PKTSCHED_GCP_TX_EN, PKTSCHED_PKT_EN);
 			mdelay(50);
 		} else if (!hdmi->disabled) {
-			if (mode.clock > 600000)
+			if (hdmi->previous_mode.clock > 600000 && mode.clock > 600000)
 				hdmi->frl_switch = true;
 			hdmi->update = false;
 			crtc_state->mode_changed = true;
@@ -3158,6 +3158,11 @@ static int dw_hdmi_ctrl_show(struct seq_file *s, void *v)
 	struct dw_hdmi_qp *hdmi = s->private;
 	u32 i = 0, j = 0, val = 0;
 
+	if (hdmi->disabled) {
+		dev_err(hdmi->dev, "hdmi is disabled\n");
+		return -EACCES;
+	}
+
 	seq_puts(s, "\n---------------------------------------------------");
 
 	for (i = 0; i < ARRAY_SIZE(hdmi_reg_table); i++) {
@@ -3188,6 +3193,11 @@ dw_hdmi_ctrl_write(struct file *file, const char __user *buf,
 		((struct seq_file *)file->private_data)->private;
 	u32 reg, val;
 	char kbuf[25];
+
+	if (hdmi->disabled) {
+		dev_err(hdmi->dev, "hdmi is disabled\n");
+		return -EACCES;
+	}
 
 	if (count > 24) {
 		dev_err(hdmi->dev, "out of buf range\n");
