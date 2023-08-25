@@ -10,10 +10,14 @@
 
 #include <linux/interrupt.h>
 
+#ifdef CONFIG_AMLOGIC_ARM_KASAN
+#define __exception_irq_entry   __irq_entry
+#else
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 #define __exception_irq_entry	__irq_entry
 #else
 #define __exception_irq_entry
+#endif
 #endif
 
 #endif /* __ASM_ARM_EXCEPTION_H */

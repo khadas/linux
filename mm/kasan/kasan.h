@@ -168,7 +168,11 @@ struct kasan_global {
  * Structures to keep alloc and free tracks *
  */
 
+#ifdef CONFIG_AMLOGIC_ARM_KASAN
+#define KASAN_STACK_DEPTH 32
+#else
 #define KASAN_STACK_DEPTH 64
+#endif
 
 struct kasan_track {
 	u32 pid;
