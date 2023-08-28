@@ -3359,11 +3359,16 @@ isp_sharp_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 	u32 value;
 
 	value = isp3_param_read_cache(params_vdev, ISP3X_SHARP_EN);
+	if ((en && (value & ISP32_MODULE_EN)) ||
+	    (!en && !(value & ISP32_MODULE_EN)))
+		return;
+
 	value &= ~ISP32_MODULE_EN;
-
-	if (en)
+	if (en) {
+		isp3_param_set_bits(params_vdev,
+			ISP3X_ISP_CTRL1, ISP32_SHP_FST_FRAME);
 		value |= ISP32_MODULE_EN;
-
+	}
 	isp3_param_write(params_vdev, value, ISP3X_SHARP_EN);
 }
 
@@ -4281,18 +4286,6 @@ void __isp_isr_meas_en(struct rkisp_isp_params_vdev *params_vdev,
 		ops->rawawb_enable(params_vdev, !!(module_ens & ISP32_MODULE_RAWAWB));
 }
 
-static __maybe_unused
-void __isp_config_hdrshd(struct rkisp_isp_params_vdev *params_vdev)
-{
-	struct rkisp_isp_params_ops_v32 *ops =
-		(struct rkisp_isp_params_ops_v32 *)params_vdev->priv_ops;
-	struct rkisp_isp_params_val_v32 *priv_val =
-		(struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
-
-	ops->hdrmge_config(params_vdev, &priv_val->last_hdrmge, RKISP_PARAMS_SHD);
-	ops->hdrdrc_config(params_vdev, &priv_val->last_hdrdrc, RKISP_PARAMS_SHD);
-}
-
 static
 void rkisp_params_cfgsram_v32(struct rkisp_isp_params_vdev *params_vdev)
 {
@@ -4855,11 +4848,6 @@ rkisp_params_first_cfg_v32(struct rkisp_isp_params_vdev *params_vdev)
 	__isp_isr_other_config(params_vdev, params_vdev->isp32_params, RKISP_PARAMS_ALL);
 	__isp_isr_other_en(params_vdev, params_vdev->isp32_params, RKISP_PARAMS_ALL);
 	__isp_isr_meas_en(params_vdev, params_vdev->isp32_params, RKISP_PARAMS_ALL);
-
-	priv_val->cur_hdrmge = params_vdev->isp32_params->others.hdrmge_cfg;
-	priv_val->cur_hdrdrc = params_vdev->isp32_params->others.drc_cfg;
-	priv_val->last_hdrmge = priv_val->cur_hdrmge;
-	priv_val->last_hdrdrc = priv_val->cur_hdrdrc;
 	spin_unlock(&params_vdev->config_lock);
 
 	if (dev->hw_dev->is_frm_buf && priv_val->buf_frm.mem_priv) {
@@ -5244,8 +5232,6 @@ rkisp_params_cfg_v32(struct rkisp_isp_params_vdev *params_vdev,
 {
 	struct isp32_isp_params_cfg *new_params = NULL;
 	struct rkisp_buffer *cur_buf = params_vdev->cur_buf;
-	struct rkisp_device *dev = params_vdev->dev;
-	struct rkisp_hw_dev *hw_dev = dev->hw_dev;
 
 	spin_lock(&params_vdev->config_lock);
 	if (!params_vdev->streamon)
@@ -5293,22 +5279,8 @@ rkisp_params_cfg_v32(struct rkisp_isp_params_vdev *params_vdev,
 	__isp_isr_other_config(params_vdev, new_params, type);
 	__isp_isr_other_en(params_vdev, new_params, type);
 	__isp_isr_meas_en(params_vdev, new_params, type);
-	if (!hw_dev->is_single && type != RKISP_PARAMS_SHD)
-		__isp_config_hdrshd(params_vdev);
 
 	if (type != RKISP_PARAMS_IMD) {
-		struct rkisp_isp_params_val_v32 *priv_val =
-			(struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
-
-		if (new_params->module_cfg_update & ISP32_MODULE_HDRMGE) {
-			priv_val->last_hdrmge = priv_val->cur_hdrmge;
-			priv_val->cur_hdrmge = new_params->others.hdrmge_cfg;
-		}
-
-		if (new_params->module_cfg_update & ISP32_MODULE_DRC) {
-			priv_val->last_hdrdrc = priv_val->cur_hdrdrc;
-			priv_val->cur_hdrdrc = new_params->others.drc_cfg;
-		}
 		new_params->module_cfg_update = 0;
 		vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		cur_buf = NULL;
@@ -5326,7 +5298,7 @@ rkisp_params_clear_fstflg(struct rkisp_isp_params_vdev *params_vdev)
 
 	value &= (ISP3X_YNR_FST_FRAME | ISP3X_ADRC_FST_FRAME |
 		  ISP3X_DHAZ_FST_FRAME | ISP3X_CNR_FST_FRAME |
-		  ISP3X_RAW3D_FST_FRAME);
+		  ISP3X_RAW3D_FST_FRAME | ISP32_SHP_FST_FRAME);
 	if (value) {
 		isp3_param_clear_bits(params_vdev, ISP3X_ISP_CTRL1, value);
 	}

@@ -4655,6 +4655,7 @@ static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
 	struct rkcif_dummy_buffer *dummy_buf = &hw->dummy_buf;
 	struct rkcif_device *tmp_dev = NULL;
 	struct v4l2_subdev_frame_interval_enum fie;
+	struct v4l2_subdev_format fmt;
 	u32 max_size = 0;
 	u32 size = 0;
 	int ret = 0;
@@ -4689,6 +4690,21 @@ static int rkcif_create_dummy_buf(struct rkcif_stream *stream)
 			continue;
 		}
 	}
+
+	if (max_size == 0 && dev->terminal_sensor.sd) {
+		fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		ret = v4l2_subdev_call(dev->terminal_sensor.sd,
+				       pad, get_fmt, NULL, &fmt);
+		if (!ret) {
+			if (fmt.format.code == MEDIA_BUS_FMT_RGB888_1X24)
+				size = fmt.format.width  * fmt.format.height * 3;
+			else
+				size = fmt.format.width * fmt.format.height * 2;
+			if (size > max_size)
+				max_size = size;
+		}
+	}
+
 	dummy_buf->size = max_size;
 
 	dummy_buf->is_need_vaddr = true;
@@ -5286,6 +5302,7 @@ static void rkcif_sync_crop_info(struct rkcif_stream *stream)
 			stream->crop_mask |= CROP_SRC_SENSOR_MASK;
 			dev->terminal_sensor.selection = input_sel;
 		} else {
+			stream->crop_mask &= ~CROP_SRC_SENSOR_MASK;
 			dev->terminal_sensor.selection.r = dev->terminal_sensor.raw_rect;
 		}
 	}
@@ -5306,8 +5323,10 @@ static void rkcif_sync_crop_info(struct rkcif_stream *stream)
 			stream->crop[CROP_SRC_ACT].top = stream->crop[CROP_SRC_USR].top +
 							  stream->crop[CROP_SRC_SENSOR].top;
 		}
-	} else {
+	} else if (stream->crop_mask & CROP_SRC_SENSOR_MASK) {
 		stream->crop[CROP_SRC_ACT] = stream->crop[CROP_SRC_SENSOR];
+	} else {
+		stream->crop[CROP_SRC_ACT] = dev->terminal_sensor.raw_rect;
 	}
 }
 

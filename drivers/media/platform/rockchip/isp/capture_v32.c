@@ -1408,7 +1408,10 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 		    (stream->frame_early && state == FRAME_IRQ))
 			goto end;
 	} else {
+		spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 		buf = stream->curr_buf;
+		stream->curr_buf = NULL;
+		spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 	}
 
 	if (buf) {
@@ -1546,6 +1549,7 @@ static int rkisp_start(struct rkisp_stream *stream)
 	struct rkisp_device *dev = stream->ispdev;
 	int ret;
 
+	stream->is_pause = false;
 	if (stream->ops->set_data_path)
 		stream->ops->set_data_path(stream);
 	if (stream->ops->config_mi) {
