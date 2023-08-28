@@ -692,12 +692,16 @@
 	vpu: vpu {
 		compatible = "amlogic, vpu-t5w";
 		status = "okay";
-		clocks = <&clkc CLKID_VAPB>,
+		clocks = <&clkc CLKID_VAPB_0>,
+			<&clkc CLKID_VAPB_1>,
+			<&clkc CLKID_VAPB>,
 			<&clkc CLKID_VPU_0>,
 			<&clkc CLKID_VPU_1>,
 			<&clkc CLKID_VPU>,
 			<&clkc CLKID_CLK81_VPU_INTR>;
-		clock-names = "vapb_clk",
+		clock-names = "vapb_clk0",
+			"vapb_clk1",
+			"vapb_clk",
 			"vpu_clk0",
 			"vpu_clk1",
 			"vpu_clk",

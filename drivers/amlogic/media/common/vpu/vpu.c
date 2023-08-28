@@ -2583,8 +2583,7 @@ static int vpu_suspend(struct platform_device *pdev, pm_message_t state)
 
 	if (!vpu_conf.data)
 		return 0;
-	if (vpu_conf.data->chip_type >= VPU_CHIP_S5 ||
-		vpu_conf.data->chip_type == VPU_CHIP_SC2) {
+	if (vpu_conf.data->chip_type >= VPU_CHIP_SC2) {
 		/* down vpu clk when suspend */
 		vpu_clk_level_saved = vpu_conf.clk_level;
 		vapb_clk_level_saved = clk_get_rate(vpu_conf.vapb_clk);
@@ -2606,8 +2605,7 @@ static int vpu_resume(struct platform_device *pdev)
 	if (!vpu_conf.data)
 		return 0;
 
-	if (vpu_conf.data->chip_type >= VPU_CHIP_S5 ||
-		vpu_conf.data->chip_type == VPU_CHIP_SC2) {
+	if (vpu_conf.data->chip_type >= VPU_CHIP_SC2) {
 		clk = vpu_clk_level_saved;
 
 		vapb_clk_switch(1);
