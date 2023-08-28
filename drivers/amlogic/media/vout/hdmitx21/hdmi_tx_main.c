@@ -362,6 +362,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 		msleep(100);
 	pr_info("HDMITX: Early Suspend\n");
 	frl_tx_stop(hdev);
+	fifo_flow_enable_intrs(0);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
 		HDMITX_EARLY_SUSPEND);
 
@@ -589,6 +590,7 @@ static  int  set_disp_mode(const char *mode)
 			hdev->mux_hpd_if_pin_high_flag = 0;
 		}
 		if (hdev->hwop.cntl) {
+			fifo_flow_enable_intrs(0);
 			hdev->hwop.cntl(hdev,
 				HDMITX_HWCMD_TURNOFF_HDMIHW,
 				(hdev->hpdmode == 2) ? 1 : 0);
@@ -1184,6 +1186,7 @@ static int set_disp_mode_auto(void)
 		}
 		/* If current display is NOT panel, needn't TURNOFF_HDMIHW */
 		if (strncmp(mode, "panel", 5) == 0) {
+			fifo_flow_enable_intrs(0);
 			hdev->hwop.cntl(hdev, HDMITX_HWCMD_TURNOFF_HDMIHW,
 				(hdev->hpdmode == 2) ? 1 : 0);
 		}

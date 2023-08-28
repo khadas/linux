@@ -1899,6 +1899,7 @@ static void hdmitx_uninit(struct hdmitx_dev *phdev)
 	free_irq(phdev->irq_hpd, (void *)phdev);
 	pr_info(HW "power off hdmi, unmux hpd\n");
 
+	fifo_flow_enable_intrs(0);
 	phy_hpll_off();
 	hdmitx21_hpd_hw_op(HPD_UNMUX_HPD);
 }
