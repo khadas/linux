@@ -12273,9 +12273,25 @@ enum vframe_signal_fmt_e get_vframe_src_fmt(struct vframe_s *vf)
 		return VFRAME_SIGNAL_FMT_INVALID;
 
 	/* invalid src fmt case */
-	if (vf->src_fmt.sei_magic_code != SEI_MAGIC_CODE)
-		return VFRAME_SIGNAL_FMT_INVALID;
-
+	if (vf->src_fmt.sei_magic_code != SEI_MAGIC_CODE) {
+		if ((signal_transfer_characteristic == 14 ||
+			 signal_transfer_characteristic == 18) &&
+			signal_color_primaries == 9) {
+			if (signal_cuva)
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_CUVA_HLG;
+			else
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HLG;
+		} else if ((signal_transfer_characteristic == 16) &&
+				 ((signal_color_primaries == 9) ||
+				  (signal_color_primaries == 2))) {
+			if (signal_cuva)
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_CUVA_HDR;
+			else
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
+		} else {
+			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_SDR;
+		}
+	}
 	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
 		pr_info("[%s]  %d\n", __func__, vf->src_fmt.fmt);
 
@@ -15867,6 +15883,7 @@ static ssize_t process_fmt_show
 	bool amdv_on = false;
 	bool hdr_bypass = false;
 	int l;
+	int output_mode;
 
 	amdv_on = is_amdv_on();
 	dispbuf = get_dispbuf(0);
@@ -15888,7 +15905,15 @@ static ssize_t process_fmt_show
 			hdr_bypass = true;
 
 		if (amdv_on) {
-			ret += sprintf(buf + ret, "out_fmt = IPT\n");
+			output_mode = get_amdv_mode();
+			if (output_mode == 0 || output_mode == 1)
+				ret += sprintf(buf + ret, "out_fmt = IPT\n");
+			else if (output_mode == 2)
+				ret += sprintf(buf + ret, "out_fmt = HDR10\n");
+			else if (output_mode == 3)
+				ret += sprintf(buf + ret, "out_fmt = SDR10\n");
+			else if (output_mode == 4)
+				ret += sprintf(buf + ret, "out_fmt = SDR8\n");
 		} else if (hdr_bypass) {
 			if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
 			    fmt < VFRAME_SIGNAL_FMT_MAX)
