@@ -268,6 +268,7 @@
 		compatible = "amlogic, tl1_acodec";
 		status = "okay";
 		reg = <0xff632000 0x1c>;
+		lane_offset = <4>;
 		tdmout_index = <0>;
 		tdmin_index = <0>;
 		dat1_ch_sel = <1>;
@@ -296,7 +297,7 @@
 	};
 
 	auge_sound {
-		compatible = "amlogic, tl1-sound-card";
+		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		avout_mute-gpios = <&gpio GPIODV_3 GPIO_ACTIVE_HIGH>;
@@ -335,7 +336,6 @@
 		};
 
 		aml-audio-card,dai-link@1 {
-			status = "disabled";
 
 			format = "i2s";
 			mclk-fs = <256>;
@@ -371,8 +371,6 @@
 		};
 
 		aml-audio-card,dai-link@2 {
-			status = "disabled";
-
 			format = "i2s";
 			mclk-fs = <256>;
 			//continuous-clock;
@@ -413,6 +411,7 @@
 
 		aml-audio-card,dai-link@4 {
 			mclk-fs = <128>;
+			continuous-clock;
 			/* suffix-name, sync with android audio hal used for */
 			suffix-name = "alsaPORT-spdif";
 			cpu {
@@ -453,17 +452,6 @@
 			suffix-name = "alsaPORT-loopback";
 			cpu {
 				sound-dai = <&loopbacka>;
-				system-clock-frequency = <12288000>;
-			};
-			codec {
-				sound-dai = <&dummy_codec>;
-			};
-		};
-		aml-audio-card,dai-link@8 {
-			mclk-fs = <256>;
-			suffix-name = "alsaPORT-loopbackb";
-			cpu {
-				sound-dai = <&loopbackb>;
 				system-clock-frequency = <12288000>;
 			};
 			codec {
@@ -1028,12 +1016,13 @@
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
 				&clkc CLKID_MPLL0
 				&clkc CLKID_MPLL1
-				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
+				&clkaudio CLKID_AUDIO_SPDIFOUT_A
+				&clkaudio CLKID_AUDIO_MCLK_PAD0>;
 		clock-names = "mclk", "clk_srcpll",
-			"samesource_srcpll", "samesource_clk";
+			"samesource_srcpll", "samesource_clk", "mclk_pad";
 
 		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
-		pinctrl-0 = <&tdma_mclk &tdmout_a>;
+		pinctrl-0 = <&tdma_mclk &tdmout_a &tdma_clk_pins>;
 		pinctrl-1 = <&tdmout_a_gpio>;
 
 		/*
@@ -1047,8 +1036,6 @@
 
 		/* In for ACODEC_ADC */
 		acodec_adc = <1>;
-		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
-
 		/*enable default mclk(12.288M), before extern codec start*/
 		start_clk_enable = <1>;
 
@@ -1208,7 +1195,7 @@
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
 			&clkc CLKID_FCLK_DIV3
-			&clkc CLKID_MPLL3
+			&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1>;
 		clock-names = "gate",
@@ -1216,7 +1203,8 @@
 			"dclk_srcpll",
 			"pdm_dclk",
 			"pdm_sysclk";
-
+		train_sample_count = <0x12>;
+		src-clk-freq = <491520000>;
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
 
@@ -1312,7 +1300,7 @@
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_TOVAD
-			&clkc CLKID_FCLK_DIV5
+			&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_VAD>;
 		clock-names = "gate", "pll", "clk";
 
@@ -1340,7 +1328,7 @@
 		 */
 		level = <1>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	loopbacka:loopback@0 {
@@ -1348,8 +1336,8 @@
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
-			&clkc CLKID_FCLK_DIV3
-			&clkc CLKID_MPLL3
+			&clkc CLKID_HIFI_PLL
+			&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1
 			&clkc CLKID_MPLL0
@@ -1374,7 +1362,7 @@
 		datain_chmask = <0xf>;
 		/* config which data pin for loopback */
 		datain-lane-mask-in = <1 0 1 0>;
-
+		src-clk-freq = <491520000>;
 		/* calc mclk for datalb */
 		mclk-fs = <256>;
 
@@ -1403,8 +1391,8 @@
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
-			&clkc CLKID_FCLK_DIV3
-			&clkc CLKID_MPLL3
+			&clkc CLKID_HIFI_PLL
+			&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1
 			&clkc CLKID_MPLL0
@@ -1450,9 +1438,18 @@
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
 
-		status = "okay";
+		status = "disabled";
 	};
 }; /* end of audiobus */
+
+&pinctrl_audio {
+	tdma_clk_pins: tdma_clk_pin {
+		mux {
+			groups = "tdm_sclk0", "tdm_lrclk0";
+			function = "tdm_clk_outa";
+		};
+	};
+};
 
 &pinctrl_periphs {
 	/* audio pin mux */
@@ -1583,6 +1580,14 @@
 	pinctrl-0 = <&i2c2_z_pins>;
 	pinctrl-1 = <&i2c2_z_pins_slp_input>;
 	clock-frequency = <400000>;
+
+	tas5805: tas5805@36 {
+		compatible = "ti,tas5805";
+		#sound-dai-cells = <0>;
+		codec_name = "tas5805";
+		reg = <0x2d>;
+		status = "disable";
+	};
 
 	ad82584f: ad82584f@62 {
 		compatible = "ESMT, ad82584f";

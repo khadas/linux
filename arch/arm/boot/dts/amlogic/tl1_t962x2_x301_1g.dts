@@ -279,6 +279,7 @@
 		compatible = "amlogic, tl1_acodec";
 		status = "okay";
 		reg = <0xff632000 0x1c>;
+		lane_offset = <4>;
 		tdmout_index = <0>;
 		tdmin_index = <0>;
 		dat1_ch_sel = <1>;
@@ -1433,7 +1434,7 @@
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
-			&clkc CLKID_HIFI_PLL
+			&clkc CLKID_FCLK_DIV3
 			&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1>;
@@ -1442,7 +1443,8 @@
 			"dclk_srcpll",
 			"pdm_dclk",
 			"pdm_sysclk";
-
+		train_sample_count = <0x12>;
+		src-clk-freq = <491520000>;
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
 		/* mode 0~4, defalut:1 */
@@ -1599,7 +1601,7 @@
 		datain_chmask = <0xf>;
 		/* config which data pin for loopback */
 		datain-lane-mask-in = <1 0 1 0>;
-
+		src-clk-freq = <491520000>;
 		/* calc mclk for datalb */
 		mclk-fs = <256>;
 

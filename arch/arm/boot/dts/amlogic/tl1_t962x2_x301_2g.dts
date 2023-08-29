@@ -274,6 +274,7 @@
 		compatible = "amlogic, tl1_acodec";
 		status = "okay";
 		reg = <0xff632000 0x1c>;
+		lane_offset = <4>;
 		tdmout_index = <0>;
 		tdmin_index = <0>;
 		dat1_ch_sel = <1>;
@@ -302,7 +303,7 @@
 	};
 
 	auge_sound {
-		compatible = "amlogic, tl1-sound-card";
+		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		avout_mute-gpios = <&gpio GPIODV_3 GPIO_ACTIVE_HIGH>;
@@ -341,7 +342,6 @@
 		};
 
 		aml-audio-card,dai-link@1 {
-			status = "disabled";
 
 			format = "i2s";
 			mclk-fs = <256>;
@@ -377,8 +377,6 @@
 		};
 
 		aml-audio-card,dai-link@2 {
-			status = "disabled";
-
 			format = "i2s";
 			mclk-fs = <256>;
 			//continuous-clock;
@@ -1252,12 +1250,13 @@
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
 				&clkc CLKID_MPLL0
 				&clkc CLKID_MPLL1
-				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
+				&clkaudio CLKID_AUDIO_SPDIFOUT_A
+				&clkaudio CLKID_AUDIO_MCLK_PAD0>;
 		clock-names = "mclk", "clk_srcpll",
-			"samesource_srcpll", "samesource_clk";
+			"samesource_srcpll", "samesource_clk", "mclk_pad";
 
 		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
-		pinctrl-0 = <&tdma_mclk &tdmout_a>;
+		pinctrl-0 = <&tdma_mclk &tdmout_a &tdma_clk_pins>;
 		pinctrl-1 = <&tdmout_a_gpio>;
 
 		/*
@@ -1271,8 +1270,6 @@
 
 		/* In for ACODEC_ADC */
 		acodec_adc = <1>;
-		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
-
 		/*enable default mclk(12.288M), before extern codec start*/
 		start_clk_enable = <1>;
 
@@ -1433,7 +1430,7 @@
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
-			&clkc CLKID_HIFI_PLL
+			&clkc CLKID_FCLK_DIV3
 			&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1>;
@@ -1442,7 +1439,8 @@
 			"dclk_srcpll",
 			"pdm_dclk",
 			"pdm_sysclk";
-
+		train_sample_count = <0x12>;
+		src-clk-freq = <491520000>;
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
 
@@ -1600,7 +1598,7 @@
 		datain_chmask = <0xf>;
 		/* config which data pin for loopback */
 		datain-lane-mask-in = <1 0 1 0>;
-
+		src-clk-freq = <491520000>;
 		/* calc mclk for datalb */
 		mclk-fs = <256>;
 
@@ -1679,6 +1677,15 @@
 		status = "disabled";
 	};
 }; /* end of audiobus */
+
+&pinctrl_audio {
+	tdma_clk_pins: tdma_clk_pin {
+		mux {
+			groups = "tdm_sclk0", "tdm_lrclk0";
+			function = "tdm_clk_outa";
+		};
+	};
+};
 
 &pinctrl_periphs {
 	/* audio pin mux */
