@@ -1985,6 +1985,8 @@ bool hdmi_rx_top_edid_update(void)
 	hdmirx_wr_top(TOP_SW_RESET, 0);
 	/* get edid from buffer, return buffer addr */
 	size = rx_get_edid_size(edid_index);
+	if (rx.chip_id <= CHIP_ID_TL1)
+		size = 2 * EDID_SIZE;
 
 	/* in previous mode, tvserver load 256bytes edid,
 	 * now support tvserver to load 256bytes edid(to
@@ -2161,24 +2163,13 @@ bool hdmi_rx_top_edid_update(void)
 		/* reset phy addr to 0 firstly for calc checksum */
 		pedid_data2[phy_addr_off2] = 0x0;
 		pedid_data2[phy_addr_off2 + 1] = 0x0;
-		if (rx.chip_id >= CHIP_ID_TM2) {
-			for (i = 0; i < E_PORT_NUM; i++) {
-				rx.edid_auto_mode.edid_ver[i] =
-					get_edid_selection(i);
-				if (rx.edid_auto_mode.edid_ver[i] == EDID_V20)
-					phy_addr_offset[i] = phy_addr_off2;
-				else
-					phy_addr_offset[i] = phy_addr_off1;
-			}
-		} else {
-			/* only edid for current port is used */
-			rx.edid_auto_mode.edid_ver[rx.port] =
-				get_edid_selection(rx.port);
-			if (rx.edid_auto_mode.edid_ver[rx.port] == EDID_V20)
-				phy_addr_offset[0] = phy_addr_off2;
-			else
-				phy_addr_offset[0] = phy_addr_off1;
-		}
+		/* only edid for current port is used */
+		rx.edid_auto_mode.edid_ver[rx.port] =
+			get_edid_selection(rx.port);
+		if (rx.edid_auto_mode.edid_ver[rx.port] == EDID_V20)
+			phy_addr_offset[0] = phy_addr_off2;
+		else
+			phy_addr_offset[0] = phy_addr_off1;
 		/* write edid to register, and calculate checksum */
 		rx_edid_fill_to_register(pedid_data1, pedid_data2,
 					phy_addr_offset, phy_addr, checksum);
