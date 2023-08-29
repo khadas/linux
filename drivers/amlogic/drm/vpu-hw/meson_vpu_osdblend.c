@@ -22,8 +22,6 @@ MODULE_PARM_DESC(align_proc, "align_proc");
 #define BLEND_DOUT_DEF_HSIZE 3840
 #define BLEND_DOUT_DEF_VSIZE 2160
 
-static int osd_enable[MESON_MAX_OSDS] = {1, 0, 1, 0};
-
 static struct osdblend_reg_s osdblend_reg = {
 	VIU_OSD_BLEND_CTRL,
 	VIU_OSD_BLEND_DIN0_SCOPE_H,
@@ -277,20 +275,6 @@ static void osd_dv_core_size_set_s5(u32 h_size, u32 v_size, enum OSD_INDEX index
 	update_graphic_width_height(h_size, v_size, index);
 #endif
 }
-
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-/* -1: invalid osd index
- *  0: osd is disabled
- *  1: osd is enabled
- */
-int osd_dv_get_osd_status(enum OSD_INDEX index)
-{
-	if (index < MESON_MAX_OSDS)
-		return osd_enable[index];
-	else
-		return -1;
-}
-#endif
 
 /*osd blend0 & blend1 4 din inputs premult flag config as 0 default*/
 void osd_blend01_premult_config(struct meson_vpu_block *vblk,
@@ -784,20 +768,14 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 	reg_ops->rdma_write_reg_bits(OSD_SYS_5MUX4_SEL, 0x1, 0, 20);
 	if (mvps->plane_info[0].enable) {
 		reg_ops->rdma_write_reg_bits(VIU_OSD1_MISC, 1, 17, 1);
-		osd_enable[OSD1_INDEX] = 1;
 		osd_dv_core_size_set_s5(mvsps->scaler_din_hsize[0],
 					mvsps->scaler_din_vsize[0], OSD1_INDEX);
-	} else {
-		osd_enable[OSD1_INDEX] = 0;
 	}
 
 	if (mvps->plane_info[2].enable) {
 		reg_ops->rdma_write_reg_bits(VIU_OSD3_MISC, 1, 17, 1);
-		osd_enable[OSD3_INDEX] = 1;
 		osd_dv_core_size_set_s5(mvsps->scaler_din_hsize[2],
 					mvsps->scaler_din_vsize[2], OSD3_INDEX);
-	} else {
-		osd_enable[OSD3_INDEX] = 0;
 	}
 
 	MESON_DRM_BLOCK("%s set_state done.\n", osdblend->base.name);
@@ -916,8 +894,6 @@ static void s5_osdblend_hw_init(struct meson_vpu_block *vblk)
 
 	/*reset blend ctrl hold line*/
 	reg_ops->rdma_write_reg_bits(osdblend->reg->viu_osd_blend_ctrl, 4, 29, 3);
-
-	register_osd_func(osd_dv_get_osd_status);
 
 	MESON_DRM_BLOCK("%s hw_init called.\n", osdblend->base.name);
 }
