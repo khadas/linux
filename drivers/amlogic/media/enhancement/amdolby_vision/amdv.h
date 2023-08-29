@@ -689,7 +689,7 @@ extern int core2_sel;
 extern bool force_bypass_from_prebld_to_vadj1;
 extern struct hdr10_parameter hdr10_param;
 extern int cur_valid_video_num;
-extern int (*get_osd_status)(enum OSD_INDEX index);
+extern int (*get_osd_status)(u32 index);
 extern bool amdv_wait_on;
 extern struct vpp_post_info_t core3_slice_info;
 /************/

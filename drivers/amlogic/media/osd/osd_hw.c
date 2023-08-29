@@ -8403,12 +8403,13 @@ static int get_viu2_src_format(void)
 	return RGBA;
 }
 
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION) ||\
+	defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 /* -1: invalid osd index
  *  0: osd is disabled
  *  1: osd is enabled
  */
-static int get_osd_status(enum OSD_INDEX index)
+static int get_osd_status(u32 index)
 {
 	unsigned int sw_index;
 
