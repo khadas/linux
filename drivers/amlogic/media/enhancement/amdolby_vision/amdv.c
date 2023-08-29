@@ -9027,8 +9027,10 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 		current_mode = dolby_vision_mode;
 		if (amdv_policy_process
 			(vf, &current_mode, check_format)) {
-			if (!dv_inst[pri_input].amdv_wait_init)
+			if (!dv_inst[pri_input].amdv_wait_init) {
 				amdv_set_toggle_flag(1);
+			    amdv_wait_on = true;
+			}
 			pr_info("[%s] output change from %d to %d(%d, %p, %d)\n",
 				__func__, dolby_vision_mode, current_mode,
 				toggle_mode, vf, src_format);

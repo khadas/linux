@@ -11094,6 +11094,7 @@ void set_video_slice_policy(struct video_layer_s *layer,
 	u32 slice_num = 1, pi_en = 0;
 	u32 vd1s1_vd2_prebld_en = 0;
 	const struct vinfo_s *vinfo = get_current_vinfo();
+	static bool last_vd1s1_vd2_prebld_en;
 
 	if (cur_dev->display_module != S5_DISPLAY_MODULE)
 		return;
@@ -11119,8 +11120,13 @@ void set_video_slice_policy(struct video_layer_s *layer,
 				(vinfo->sync_duration_num /
 			    vinfo->sync_duration_den > 60)) {
 				slice_num = 2;
+				if (debug_flag_s5 & DEBUG_VD_PROC)
+					pr_info("%s:dv on=%d\n", __func__, is_amdv_on());
 				if (is_amdv_on())
 					vd1s1_vd2_prebld_en = 1;
+				if (vd1s1_vd2_prebld_en != last_vd1s1_vd2_prebld_en)
+					vd_layer[0].property_changed = true;
+				last_vd1s1_vd2_prebld_en = vd1s1_vd2_prebld_en;
 			} else {
 				slice_num = 1;
 			}

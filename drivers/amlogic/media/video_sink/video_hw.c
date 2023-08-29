@@ -9827,6 +9827,8 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 			layer->property_changed = true;
 	}
 
+	set_video_slice_policy(layer, vf);
+
 	if (layer->property_changed) {
 		layer->force_config_cnt = 2;
 		layer->property_changed = false;
@@ -9836,7 +9838,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		layer->force_config_cnt--;
 		force_toggle = true;
 	}
-	set_video_slice_policy(layer, vf);
+
 	set_mosaic_vframe_info(layer, layer_info, vf);
 
 	if (!vf_ext) {
