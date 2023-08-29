@@ -8438,8 +8438,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	memcpy(&receiver_hdr_info, &vinfo->hdr_info,
 	       sizeof(struct hdr_info));
 
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) ||
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_TL1)
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 		hdr_support_process(vinfo, vd_path, vpp_index);
 
 	if (vf && vinfo)
@@ -8500,8 +8499,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	    !cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)))
 		return 0;
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
-	    get_cpu_type() != MESON_CPU_MAJOR_ID_TL1) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		enum vd_path_e oth_path[VD_PATH_MAX - 1];
 
 		k = 0;
@@ -8661,16 +8659,14 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
 			video_post_process_t7(vf, csc_type, vinfo,
 					      vd_path, p, source_format);
-		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
-			 (get_cpu_type() != MESON_CPU_MAJOR_ID_TL1))
+		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 			video_post_process(vf, csc_type, vinfo,
 					   vd_path, p, source_format, vpp_index);
 		else
 			video_process(vf, csc_type, signal_change_flag,
 				      vinfo, p, vd_path, source_format, vpp_index);
 #else
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
-			 (get_cpu_type() != MESON_CPU_MAJOR_ID_TL1))
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 			video_post_process(vf, csc_type, vinfo,
 					   vd_path, p, source_format, vpp_index);
 		else
@@ -8682,22 +8678,13 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		cur_primary_policy = get_primary_policy();
 	}
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
-	    (get_cpu_type() != MESON_CPU_MAJOR_ID_TL1)) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		if (hdr_process_mode[vd_path] == PROC_HDR_TO_SDR &&
 		    csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB &&
 			!(get_hdr_type() & HLG_FLAG))
 			hdr10_tm_process_update(p, vd_path, vpp_index);
 		if (hdr10p_meta_updated &&
 		    hdr10_plus_process_mode[vd_path] == PROC_HDRP_TO_SDR)
-			hdr10_plus_process_update(0, vd_path, vpp_index);
-	} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1) {
-		if (hdr_process_mode[vd_path] == PROC_MATCH &&
-		    csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB &&
-			!(get_hdr_type() & HLG_FLAG))
-			hdr10_tm_process_update(p, vd_path, vpp_index);
-		if (hdr10p_meta_updated &&
-		    hdr10_plus_process_mode[vd_path] == PROC_MATCH)
 			hdr10_plus_process_update(0, vd_path, vpp_index);
 	}
 
