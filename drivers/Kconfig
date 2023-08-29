@@ -247,18 +247,18 @@ config AMLOGIC_DRIVER
 	  Note: All amlogic driver should be placed in
 	  directory $(COMMON_DRIVERS_DIR)/drivers/
 
+if AMLOGIC_DRIVER
 config AMLOGIC_BREAK_GKI_20
 	bool "Amlogic Break GKI 2.0"
-	depends on AMLOGIC_BREAK_GKI
 	default n
 	help
 	  this option is provide for control Break GKI 2.0,
 	  if you want to break gki2.0 rule, should enable it,
 	  all break gki2.0 modify should be depends on this option
 
-if AMLOGIC_DRIVER
 config AMLOGIC_BREAK_GKI
 	bool "Amlogic Break GKI"
+	select AMLOGIC_BREAK_GKI_20
 	default n
 	help
 	  this option is provide for control Break GKI,
