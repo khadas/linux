@@ -233,6 +233,10 @@ MODULE_PARM_DESC(dump_pes, "\n\t\t dump pes packet");
 static int dump_pes;
 module_param(dump_pes, int, 0644);
 
+MODULE_PARM_DESC(dump_section, "\n\t\t dump section packet");
+static int dump_section;
+module_param(dump_section, int, 0644);
+
 MODULE_PARM_DESC(debug_section, "\n\t\t debug section");
 static int debug_section;
 module_param(debug_section, int, 0644);
@@ -262,6 +266,7 @@ module_param(debug_es_len, int, 0644);
 #define DVR_DUMP_FILE       "/data/dvr_dump"
 #define PES_DUMP_FILE		"/data/pes_dump"
 #define TS_DUMP_FILE		"/data/ts_dump"
+#define SECTION_DUMP_FILE	"/data/section_dump"
 
 #define READ_CACHE_SIZE      (188)
 #define INVALID_DECODE_RP	(0xFFFFFFFF)
@@ -293,6 +298,9 @@ static void dump_file_open(char *path, struct dump_file *dump_file_fp,
 		else if (is_ts == 2)
 			snprintf((char *)&whole_path, sizeof(whole_path),
 			"%s_0x%0x_%03d.ts", path, sid, i);
+		else if (is_ts == 3)
+			snprintf((char *)&whole_path, sizeof(whole_path),
+			"%s_0x%0x_0x%0x_%03d.ts", path, sid, pid, i);
 		else
 			snprintf((char *)&whole_path, sizeof(whole_path),
 			"%s_0x%0x_0x%0x_%03d.es", path, sid, pid, i);
@@ -583,8 +591,18 @@ static int section_process(struct out_elem *pout)
 		if (pout->cb_sec_list) {
 			w_size = out_sec_cb_list(pout, pread, ret);
 			ATRACE_COUNTER(pout->name, w_size);
-			pr_sec_dbg("%s send:%d, w:%d wwwwww\n", __func__,
-			       ret, w_size);
+			pr_sec_dbg("%s pid:0x%0x send:%d, w:%d wwwwww\n", __func__,
+			       pout->es_pes->pid, ret, w_size);
+			if (dump_section == 0xFFFFFFFF)
+				dump_file_open(SECTION_DUMP_FILE,
+						&pout->dump_file,
+						pout->sid,
+						pout->es_pes->pid, 3);
+			if (pout->dump_file.file_fp && dump_section == 0)
+				dump_file_close(&pout->dump_file);
+			if (pout->dump_file.file_fp && w_size)
+				dump_file_write(pread, w_size, &pout->dump_file);
+
 			remain_len = ret - w_size;
 			if (remain_len) {
 				if (pout->pchan->sec_level)
