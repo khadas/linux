@@ -715,9 +715,18 @@ void earcrx_enable(struct regmap *cmdc_map,
 		/* mute block check */
 		earcrx_mute_block_enable(dmac_map, true);
 
+		mmio_update_bits(dmac_map,
+				 EARCRX_SPDIFIN_SAMPLE_CTRL0,
+				 0x1 << 31, /* reg_work_enable */
+				 enable << 31);
+
 		mmio_update_bits(dmac_map, EARCRX_DMAC_SYNC_CTRL0,
 				 1 << 31,	 /* reg_work_en */
 				 enable << 31);
+
+		mmio_update_bits(dmac_map, EARCRX_DMAC_TOP_CTRL0,
+			 1 << 16,
+			 1 << 16);
 	} else if (type == ATNDTYP_ARC) {
 		/* mute block check */
 		earcrx_mute_block_enable(dmac_map, false);
@@ -728,6 +737,9 @@ void earcrx_enable(struct regmap *cmdc_map,
 				 enable << 31);
 
 		mmio_write(dmac_map, EARCRX_DMAC_SYNC_CTRL0, 0x0);
+		mmio_update_bits(dmac_map, EARCRX_DMAC_TOP_CTRL0,
+			 1 << 16,
+			 0);
 	}
 
 	mmio_update_bits(dmac_map, EARCRX_DMAC_UBIT_CTRL0,
