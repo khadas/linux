@@ -11837,8 +11837,9 @@ static int amvecm_drv_suspend(struct platform_device *pdev,
 	if (probe_ok == 1)
 		probe_ok = 0;
 
-	//if (is_meson_t5d_cpu())
-	vlock_clk_suspend();
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
+		vlock_clk_suspend();
+
 	pr_info("amvecm: suspend module\n");
 	return 0;
 }
@@ -11848,8 +11849,9 @@ static int amvecm_drv_resume(struct platform_device *pdev)
 	if (probe_ok == 0)
 		probe_ok = 1;
 
-	//if (is_meson_t5d_cpu())
-	vlock_clk_resume();
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
+		vlock_clk_resume();
+
 	pr_info("amvecm: resume module\n");
 	return 0;
 }

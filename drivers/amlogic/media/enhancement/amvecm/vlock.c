@@ -2119,7 +2119,8 @@ void vlock_status_init(void)
 		offset_vlck = pvlock->offset_vlck;
 		offset_enc = pvlock->offset_encl;
 		/*initial pll register address*/
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) ||
+			is_meson_tl1_cpu()) {
 			pvlock->hhi_pll_reg_m = HHI_TCON_PLL_CNTL0;
 			pvlock->hhi_pll_reg_frac = HHI_TCON_PLL_CNTL1;
 			/*hhi_pll_reg_vlock_ctl = HHI_HDMI_PLL_VLOCK_CNTL;*/

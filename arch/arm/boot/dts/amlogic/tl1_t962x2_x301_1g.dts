@@ -530,7 +530,7 @@
 		cm_en = <1>;/*1:enable ;0:disable*/
 		wb_sel = <0>;/*1:mtx ;0:gainoff*/
 		vlock_en = <1>;/*1:enable;0:disable*/
-		vlock_mode = <0x4>;
+		vlock_mode = <0x8>;
 		/* vlock work mode:
 		 *bit0:auto ENC
 		 *bit1:auto PLL
@@ -540,7 +540,7 @@
 		 *bit5:manual MIX PLL ENC
 		 */
 		 vlock_pll_m_limit = <1>;
-		 vlock_line_limit = <3>;
+		 vlock_line_limit = <2>;
 	};
 
 	vdin@0 {
