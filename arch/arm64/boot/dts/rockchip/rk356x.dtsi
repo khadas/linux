@@ -1734,7 +1734,7 @@
 		status = "disabled";
 	};
 
-	sdmmc2: mmc@fe000000 {
+	sdmmc2: dwmmc@fe000000 {
 		compatible = "rockchip,rk3568-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xfe000000 0x0 0x4000>;
 		interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
@@ -2366,7 +2366,7 @@
 		};
 	};
 
-	sdmmc0: mmc@fe2b0000 {
+	sdmmc0: dwmmc@fe2b0000 {
 		compatible = "rockchip,rk3568-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xfe2b0000 0x0 0x4000>;
 		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
@@ -2380,7 +2380,7 @@
 		status = "disabled";
 	};
 
-	sdmmc1: mmc@fe2c0000 {
+	sdmmc1: dwmmc@fe2c0000 {
 		compatible = "rockchip,rk3568-dw-mshc", "rockchip,rk3288-dw-mshc";
 		reg = <0x0 0xfe2c0000 0x0 0x4000>;
 		interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
@@ -2407,7 +2407,7 @@
 		status = "disabled";
 	};
 
-	sdhci: mmc@fe310000 {
+	sdhci: sdhci@fe310000 {
 		compatible = "rockchip,rk3568-dwcmshc", "rockchip,dwcmshc-sdhci";
 		reg = <0x0 0xfe310000 0x0 0x10000>;
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
