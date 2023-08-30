@@ -496,7 +496,7 @@ static enum drm_connector_status am_hdmitx_connector_detect
 
 static int get_hdr_info(void)
 {
-	static int hdr_cap_value;
+	int hdr_cap_value = 0;
 	const struct hdr_info *hdr = am_hdmi_info.hdmitx_dev->get_hdr_info();
 	const struct hdr10_plus_info *hdr10p = &hdr->hdr10plus_info;
 	unsigned int hdr_priority =  am_hdmi_info.hdmitx_dev->get_hdr_priority();
