@@ -273,10 +273,17 @@ static bool update_frl_rate(struct frl_train_t *p)
  */
 static void start_frl_transmission(struct frl_train_t *p, bool gap_only)
 {
-	if (gap_only)
+	if (gap_only) {
 		frl_tx_av_enable(false); /* Disable the video */
-	else
+	} else {
+		/* for dsc snow screen issue, reset pfifo before av enable */
+		hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 1, 1, 1);
+		hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 0, 1, 1);
+		/* clear pfifo intr */
+		hdmitx21_set_reg_bits(INTR2_SW_TPI_IVCTX, 0, 1, 1);
+
 		frl_tx_av_enable(true); /* Enable the video */
+	}
 	pr_info("FRL with %s\n", gap_only ? "Gap" : "Video");
 	/* enable the super block */
 	frl_tx_sb_enable(true, p->frl_rate);
