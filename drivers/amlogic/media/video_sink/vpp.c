@@ -1873,6 +1873,27 @@ RESTART:
 	video_left = video_layer_left;
 	video_width = video_layer_width;
 	video_height = video_layer_height;
+	/* for inupt 8192, video_width not 32 aligned */
+	/* pps input > 2048(max is 2048) */
+	if (width_in >= 8192 && slice_num == 4 &&
+		video_width / 32) {
+		u32 width_adj;
+
+		width_adj = roundup(video_width, 32);
+		//must 32 aligned
+		if (video_left + width_adj >= vinfo->width - 1) {
+			video_left = rounddown(video_left, 32);
+			if (video_left < 0)
+				video_left = 0;
+		}
+		video_width = width_adj;
+		if (cur_super_debug)
+			pr_info("%s: 8192 input, adjust video_left=%d, video_width=%d\n",
+				__func__,
+				video_left,
+				video_width);
+	}
+
 	if (!(vpp_flags & VPP_FLAG_FORCE_NO_OFFSET)) {
 		video_top += video_layer_global_offset_y;
 		video_left += video_layer_global_offset_x;
