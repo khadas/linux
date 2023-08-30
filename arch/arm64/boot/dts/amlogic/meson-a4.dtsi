@@ -815,8 +815,8 @@
 	};
 
 	saradc: saradc@fe026000 {
-		compatible = "amlogic,meson-c2-saradc",
-			   "amlogic,meson-saradc";
+		compatible = "amlogic,meson-a4-saradc",
+			     "amlogic,meson-saradc";
 		status = "disabled";
 		#io-channel-cells = <1>;
 		clocks = <&xtal>,

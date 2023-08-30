@@ -1321,6 +1321,11 @@ static const struct meson_sar_adc_data meson_sar_adc_c2_data __initconst = {
 	.name = "meson-c2-saradc",
 };
 
+static const struct meson_sar_adc_data meson_sar_adc_a4_data __initconst = {
+	.param = &meson_sar_adc_a4_param,
+	.name = "meson-a4-saradc",
+};
+
 static const struct of_device_id meson_sar_adc_of_match[] __initconst = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -1360,6 +1365,10 @@ static const struct of_device_id meson_sar_adc_of_match[] __initconst = {
 	{
 		.compatible = "amlogic,meson-c2-saradc",
 		.data = &meson_sar_adc_c2_data,
+	},
+	{
+		.compatible = "amlogic,meson-a4-saradc",
+		.data = &meson_sar_adc_a4_data,
 	},
 	{},
 };

@@ -20,7 +20,9 @@
 
 #define MESON_C2_SAR_ADC_REG13					0x34
 	#define MESON_C2_SAR_ADC_REG13_VREF_SEL			BIT(19)
+	#define MESON_C2_SAR_ADC_REG13_VCM_SEL			BIT(18)
 	#define MESON_C2_SAR_ADC_REG13_VBG_SEL			BIT(16)
+	#define MESON_C2_SAR_ADC_REG13_DEM_EN			BIT(7)
 	#define MESON_C2_SAR_ADC_REG13_EN_VCM0P9		BIT(1)
 
 #define	MESON_C2_SAR_ADC_REG14					0x38
@@ -109,6 +111,37 @@ static struct iio_chan_spec meson_c2_sar_adc_iio_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(8),
 };
 
+#define MESON_A4_SAR_ADC_CHAN(_chan) {					       \
+	.type = IIO_VOLTAGE,						       \
+	.indexed = 1,							       \
+	.channel = _chan,						       \
+	.address = _chan,						       \
+	.scan_index = _chan,						       \
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			       \
+			      BIT(IIO_CHAN_INFO_AVERAGE_RAW) |	               \
+			      BIT(IIO_CHAN_INFO_PROCESSED),		       \
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),		       \
+	.scan_type = {							       \
+		.sign = 'u',						       \
+		.storagebits = 32,					       \
+		.shift = 0,						       \
+		.endianness = IIO_CPU,					       \
+	},								       \
+	.datasheet_name = "SAR_ADC_CH"#_chan,				       \
+}
+
+static struct iio_chan_spec meson_a4_sar_adc_iio_channels[] = {
+	MESON_A4_SAR_ADC_CHAN(0),
+	MESON_A4_SAR_ADC_CHAN(1),
+	MESON_A4_SAR_ADC_CHAN(2),
+	MESON_A4_SAR_ADC_CHAN(3),
+	MESON_A4_SAR_ADC_CHAN(4),
+	MESON_A4_SAR_ADC_CHAN(5),
+	MESON_A4_SAR_ADC_CHAN(6),
+	MESON_A4_SAR_ADC_CHAN(7),
+	IIO_CHAN_SOFT_TIMESTAMP(8),
+};
+
 static int meson_c2_sar_adc_extra_init(struct iio_dev *indio_dev)
 {
 	unsigned char i;
@@ -132,13 +165,64 @@ static int meson_c2_sar_adc_extra_init(struct iio_dev *indio_dev)
 			   MESON_C2_SAR_ADC_REG13_EN_VCM0P9,
 			   priv->param->vref_is_optional ? regval : 0);
 
-	for (i = 0; i < indio_dev->num_channels; i++)
+	regmap_update_bits(priv->regmap, MESON_C2_SAR_ADC_REG13,
+			   MESON_C2_SAR_ADC_REG13_DEM_EN |
+			   MESON_C2_SAR_ADC_REG13_VREF_SEL |
+			   MESON_C2_SAR_ADC_REG13_VCM_SEL, 0);
+	regmap_update_bits(priv->regmap, MESON_C2_SAR_ADC_REG14,
+			   MESON_C2_SAR_ADC_REG13_DEM_EN |
+			   MESON_C2_SAR_ADC_REG13_VREF_SEL |
+			   MESON_C2_SAR_ADC_REG13_VCM_SEL, 0);
+
+	for (i = 0; i < indio_dev->num_channels; i++) {
 		regmap_update_bits(priv->regmap, MESON_C2_SAR_ADC_CHX_CTRL1(i),
 				   MESON_C2_SAR_ADC_REG13_VBG_SEL |
 				   MESON_C2_SAR_ADC_REG13_EN_VCM0P9,
 				   priv->param->vref_is_optional ? regval : 0);
+		regmap_update_bits(priv->regmap, MESON_C2_SAR_ADC_CHX_CTRL1(i),
+				   MESON_C2_SAR_ADC_REG13_DEM_EN |
+				   MESON_C2_SAR_ADC_REG13_VREF_SEL |
+				   MESON_C2_SAR_ADC_REG13_VCM_SEL, 0);
+	}
 
 	return 0;
+}
+
+static int meson_a4_sar_adc_extra_init(struct iio_dev *indio_dev)
+{
+	unsigned char i;
+	unsigned int regval;
+	int ret = 0;
+	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
+
+	/* The calibration algorithm is not used when the buffer mode is enabled */
+	if (iio_buffer_enabled(indio_dev)) {
+		ret = meson_c2_sar_adc_extra_init(indio_dev);
+	} else {
+		regval = FIELD_PREP(MESON_C2_SAR_ADC_REG11_EOC,
+				    priv->param->adc_eoc);
+		regmap_update_bits(priv->regmap, MESON_C2_SAR_ADC_REG11,
+				   MESON_C2_SAR_ADC_REG11_EOC, regval);
+
+		/* Use VDDA as vref and configure in single-ended mode */
+		regval = MESON_C2_SAR_ADC_REG13_DEM_EN |
+			 MESON_C2_SAR_ADC_REG13_VBG_SEL |
+			 MESON_C2_SAR_ADC_REG13_EN_VCM0P9 |
+			 MESON_C2_SAR_ADC_REG13_VREF_SEL |
+			 MESON_C2_SAR_ADC_REG13_VCM_SEL;
+
+		regmap_update_bits(priv->regmap, MESON_C2_SAR_ADC_REG13,
+				   regval, regval);
+		regmap_update_bits(priv->regmap, MESON_C2_SAR_ADC_REG14,
+				   regval, regval);
+
+		for (i = 0; i < indio_dev->num_channels; i++)
+			regmap_update_bits(priv->regmap,
+					   MESON_C2_SAR_ADC_CHX_CTRL1(i),
+					   regval, regval);
+	}
+
+	return ret;
 }
 
 static void meson_c2_sar_adc_set_ch7_mux(struct iio_dev *indio_dev,
@@ -177,6 +261,30 @@ static int meson_c2_sar_adc_read_fifo(struct iio_dev *indio_dev,
 	}
 
 	return FIELD_GET(MESON_C2_SAR_ADC_FIFO_RD_SAMPLE_VALUE_MASK, regval);
+}
+
+static int meson_a4_sar_adc_read_fifo(struct iio_dev *indio_dev,
+				      const struct iio_chan_spec *chan,
+				      bool chk_channel)
+{
+	int retval;
+
+	retval = meson_c2_sar_adc_read_fifo(indio_dev, chan, chk_channel);
+	if (retval < 0)
+		return retval;
+
+	if (!iio_buffer_enabled(indio_dev)) {
+		/*
+		 * Calibration formula (output the code is 10-bit):
+		 *   code = round((adc_code - 1023) / 2)
+		 */
+		/* Keep as 12-bit value after calibration */
+		retval = retval > 0x3ff ? retval - 0x3ff : 0;
+		retval <<= 1;
+		retval = retval > 0xfff ? 0xfff : retval;
+	}
+
+	return retval;
 }
 
 static void meson_c2_sar_adc_enable_chnl(struct iio_dev *indio_dev, bool en)
@@ -338,4 +446,30 @@ const struct meson_sar_adc_param meson_sar_adc_c2_param __initconst = {
 	.dops = &meson_c2_diff_ops,
 	.channels = meson_c2_sar_adc_iio_channels,
 	.num_channels = ARRAY_SIZE(meson_c2_sar_adc_iio_channels),
+};
+
+static const struct meson_sar_adc_diff_ops meson_a4_diff_ops = {
+	.extra_init = meson_a4_sar_adc_extra_init,
+	.set_ch7_mux = meson_c2_sar_adc_set_ch7_mux,
+	.read_fifo  = meson_a4_sar_adc_read_fifo,
+	.enable_chnl = meson_c2_sar_adc_enable_chnl,
+	.read_chnl = meson_c2_sar_adc_read_chnl,
+	.init_ch = meson_c2_sar_adc_init_ch,
+	.enable_decim_filter = meson_c2_sar_adc_enable_decim_filter,
+	.tuning_clock = meson_c2_sar_adc_tuning_clock,
+};
+
+const struct meson_sar_adc_param meson_sar_adc_a4_param __initconst = {
+	.has_bl30_integration = false,
+	.clock_rate = 600000,
+	.regmap_config = &meson_sar_adc_regmap_config_c2,
+	.resolution = 12,
+	.vref_is_optional = true,
+	.has_chnl_regs = true,
+	.vrefp_select = 0,
+	.vcm_select = 0,
+	.adc_eoc = 1,
+	.dops = &meson_a4_diff_ops,
+	.channels = meson_a4_sar_adc_iio_channels,
+	.num_channels = ARRAY_SIZE(meson_a4_sar_adc_iio_channels),
 };
