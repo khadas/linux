@@ -1822,6 +1822,7 @@ static ssize_t osd_read(struct fb_info *info, char __user *buf,
 
 	while (count) {
 		c  = (count > PAGE_SIZE) ? PAGE_SIZE : count;
+		/*coverity[Unused value]*/
 		dst = buffer;
 
 		if ((src + c) > (vaddr + PAGE_SIZE * npages)) {

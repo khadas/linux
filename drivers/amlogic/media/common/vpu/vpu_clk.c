@@ -193,7 +193,9 @@ int vpu_clk_apply_dft(unsigned int clk_level)
 	ret = clk_set_rate(vpu_conf.vpu_clk1, clk);
 	if (ret)
 		return ret;
-	clk_set_parent(vpu_conf.vpu_clk, vpu_conf.vpu_clk1);
+	ret = clk_set_parent(vpu_conf.vpu_clk, vpu_conf.vpu_clk1);
+	if (ret)
+		VPUERR("%s: %d clk_set_parent error\n", __func__, __LINE__);
 	usleep_range(10, 15);
 	/* step 2:  adjust 1st vpu clk frequency */
 	clk = vpu_conf.data->clk_table[clk_level].freq;
@@ -202,7 +204,9 @@ int vpu_clk_apply_dft(unsigned int clk_level)
 		return ret;
 	usleep_range(20, 25);
 	/* step 3:  switch back to 1st vpu clk patch */
-	clk_set_parent(vpu_conf.vpu_clk, vpu_conf.vpu_clk0);
+	ret = clk_set_parent(vpu_conf.vpu_clk, vpu_conf.vpu_clk0);
+	if (ret)
+		VPUERR("%s: %d clk_set_parent error\n", __func__, __LINE__);
 
 	clk = clk_get_rate(vpu_conf.vpu_clk);
 	VPUPR("set vpu clk: %uHz(%d), readback: %uHz(0x%x)\n",
@@ -286,6 +290,7 @@ int set_vpu_clk(unsigned int vclk)
 void vpu_clktree_init_dft(struct device *dev)
 {
 	struct clk *clk_vapb, *clk_vpu_intr;
+	int ret = 0;
 
 	/* init & enable vapb_clk */
 	vpu_conf.vapb_clk0 = devm_clk_get(dev, "vapb_clk0");
@@ -300,9 +305,13 @@ void vpu_clktree_init_dft(struct device *dev)
 		else
 			clk_prepare_enable(clk_vapb);
 	} else {
-		clk_set_parent(vpu_conf.vapb_clk, vpu_conf.vapb_clk0);
+		ret = clk_set_parent(vpu_conf.vapb_clk, vpu_conf.vapb_clk0);
+		if (ret)
+			VPUERR("%s: %d clk_set_parent error\n", __func__, __LINE__);
 		clk_prepare_enable(vpu_conf.vapb_clk);
-		clk_set_rate(vpu_conf.vapb_clk1, 50000000);
+		ret = clk_set_rate(vpu_conf.vapb_clk1, 50000000);
+		if (ret)
+			VPUERR("%s: clk_set_rate error\n", __func__);
 	}
 
 
@@ -327,7 +336,9 @@ void vpu_clktree_init_dft(struct device *dev)
 	    (IS_ERR_OR_NULL(vpu_conf.vpu_clk))) {
 		VPUERR("%s: vpu_clk\n", __func__);
 	} else {
-		clk_set_parent(vpu_conf.vpu_clk, vpu_conf.vpu_clk0);
+		ret = clk_set_parent(vpu_conf.vpu_clk, vpu_conf.vpu_clk0);
+		if (ret)
+			VPUERR("%s: %d clk_set_parent error\n", __func__, __LINE__);
 		clk_prepare_enable(vpu_conf.vpu_clk);
 	}
 }

@@ -913,8 +913,8 @@ int VSYNCOSD_WR_MPEG_REG_VPP2(u32 addr, u32 val)
 
 static int _VSYNCOSD_WR_MPEG_REG_BITS(u32 vpp_index, u32 addr, u32 val, u32 start, u32 len)
 {
-	u32 read_val;
-	u32 write_val;
+	u32 read_val = 0;
+	u32 write_val = 0;
 	int ret = 0, k = 0;
 	u32 rdma_en = 0, trace_num = 0;
 

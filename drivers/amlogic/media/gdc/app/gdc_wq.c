@@ -657,6 +657,7 @@ int gdc_wq_init(void)
 	init_completion(&gdc_manager.event.d_com);
 	for (i = 0; i < CORE_NUM; i++)
 		init_completion(&gdc_manager.event.process_complete[i]);
+	/* coverity[Data race condition] init not need lock */
 	INIT_LIST_HEAD(&gdc_manager.process_queue);
 	gdc_manager.last_wq = NULL;
 	gdc_manager.gdc_thread = NULL;

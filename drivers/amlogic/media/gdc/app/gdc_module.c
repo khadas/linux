@@ -573,6 +573,7 @@ static void meson_gdc_deinit_dma_addr(struct gdc_context_s *context)
 
 	switch (gc->format & FORMAT_TYPE_MASK) {
 	case NV12:
+		/*coverity[Double free] free different dma_cfg*/
 		dma_cfg = &context->y_dma_cfg;
 		meson_gdc_dma_unmap(dma_cfg);
 

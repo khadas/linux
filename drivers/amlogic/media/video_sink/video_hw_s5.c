@@ -3824,6 +3824,7 @@ static void set_vd_proc_info_mosaic(struct video_layer_s *layer, u32 frm_idx)
 			sr1_h_scaleup_en = cur_frame_par->supsc1_enable &&
 				cur_frame_par->supsc1_hori_ratio;
 
+#ifdef CONFIG_COVERITY
 			if (slice_num == 2) {
 				/* 2 slice case, move sr0 to slice1 */
 				/*coverity[dead_error_line] reserve code*/
@@ -3904,6 +3905,7 @@ static void set_vd_proc_info_mosaic(struct video_layer_s *layer, u32 frm_idx)
 				vd_proc_unit->vd_proc_sr1.sr_support =
 					sr->sr_support & SUPER_CORE1_SUPPORT;
 			}
+#endif
 		}
 	}
 	if (debug_flag_s5 & DEBUG_VD_PROC) {
