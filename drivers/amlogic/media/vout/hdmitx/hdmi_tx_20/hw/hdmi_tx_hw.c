@@ -4996,9 +4996,14 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned int cmd,
 		memset(hdev->tmp_edid_buf, 0, ARRAY_SIZE(hdev->tmp_edid_buf));
 		break;
 	case DDC_EDID_READ_DATA:
-		hdmitx_read_edid(hdev->tmp_edid_buf);
+		if (!hdev->forced_edid)
+			hdmitx_read_edid(hdev->tmp_edid_buf);
+		else
+			pr_info("edid: using the fixed edid\n");
 		break;
 	case DDC_EDID_GET_DATA:
+		if (hdev->forced_edid)
+			break;
 		if (argv == 0)
 			hdmitx_getediddata(hdev->EDID_buf, hdev->tmp_edid_buf);
 		else

@@ -2979,6 +2979,9 @@ void hdmitx21_edid_ram_buffer_clear(struct hdmitx_dev *hdmitx_device)
 {
 	u32 i = 0;
 
+	if (hdmitx_device->forced_edid)
+		return;
+
 	/* Clear HDMI Hardware Module EDID RAM */
 	hdmitx_device->hwop.cntlddc(hdmitx_device, DDC_EDID_CLEAR_RAM, 0);
 

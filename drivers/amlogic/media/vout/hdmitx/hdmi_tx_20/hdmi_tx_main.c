@@ -1071,12 +1071,13 @@ PROCESS_END:
 	return 0;
 }
 
-static int load_edid_data(unsigned int type, char *path)
+static int load_edid_bin_data(char *path)
 {
 	struct file *filp = NULL;
 	loff_t pos = 0;
 	mm_segment_t old_fs = get_fs();
-
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+	int ret = 0;
 	struct kstat stat;
 	unsigned int length = 0, max_len = EDID_MAX_BLOCK * 128;
 	char *buf = NULL;
@@ -1086,6 +1087,7 @@ static int load_edid_data(unsigned int type, char *path)
 	filp = filp_open(path, O_RDONLY, 0444);
 	if (IS_ERR(filp)) {
 		pr_info("[%s] failed to open file: |%s|\n", __func__, path);
+		ret = 0;
 		goto PROCESS_END;
 	}
 
@@ -1094,24 +1096,100 @@ static int load_edid_data(unsigned int type, char *path)
 	length = (stat.size > max_len) ? max_len : stat.size;
 
 	buf = kmalloc(length, GFP_KERNEL);
-	if (!buf)
+	if (!buf) {
+		ret = 0;
 		goto PROCESS_END;
-
+	}
 	vfs_read(filp, buf, length, &pos);
 
+	hdmitx_edid_ram_buffer_clear(hdev);
 	memcpy(hdmitx_device.EDID_buf, buf, length);
 
 	kfree(buf);
 	filp_close(filp, NULL);
 
-	pr_info("[%s] %d bytes loaded from file %s\n", __func__, length, path);
+	hdmitx_edid_clear(hdev);
+	hdmitx_edid_parse(hdev);
+	hdmitx_edid_buf_compare_print(hdev);
 
-	hdmitx_edid_clear(&hdmitx_device);
-	hdmitx_edid_parse(&hdmitx_device);
-	pr_info("[%s] new edid loaded!\n", __func__);
+	pr_info("[%s] %d bytes loaded from file %s\n", __func__, length, path);
+	ret = 1;
 
 PROCESS_END:
 	set_fs(old_fs);
+	return ret;
+}
+
+static int load_edid_string_data(char *string)
+{
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+	size_t str_len;
+	int i;
+	bool valid_len;
+	unsigned char *buf = NULL;
+	bool ret;
+	size_t edid_len;
+	unsigned char tmp[3];
+
+	if (!string)
+		return 0;
+
+	str_len = strlen(string);
+	valid_len = 0;
+	for (i = 1; i <= EDID_MAX_BLOCK; i++) {
+		if (str_len == (256 * i + 1)) {
+			valid_len = 1;
+			break;
+		}
+	}
+	if (valid_len == 0)
+		return 0;
+
+	edid_len = (str_len - 1) / 2;
+	buf = kmalloc(edid_len, GFP_KERNEL);
+	if (!buf)
+		return 0;
+	memset(buf, 0, edid_len);
+	/* convert the edid string to hex data */
+	for (i = 0; i < edid_len; i++) {
+		tmp[0] = string[i * 2];
+		tmp[1] = string[i * 2 + 1];
+		tmp[2] = '\0';
+		ret = kstrtou8(tmp, 16, &buf[i]);
+		if (ret)
+			pr_info("%s[%d] covert error %c%c ret = %d\n", __func__, __LINE__,
+				string[i * 2], string[i * 2 + 1], ret);
+	}
+	hdmitx_edid_ram_buffer_clear(hdev);
+	memcpy(hdev->EDID_buf, buf, edid_len);
+
+	kfree(buf);
+
+	hdmitx_edid_clear(hdev);
+	hdmitx_edid_parse(hdev);
+	hdmitx_edid_buf_compare_print(hdev);
+
+	pr_info("%s: %zu bytes loaded from edid string\n", __func__, str_len);
+	return 1;
+}
+
+static bool edid_string_test(const char *string)
+{
+	if (!string)
+		return 0;
+
+	if (!strstr(string, ".bin"))
+		return 1;
+
+	return 0;
+}
+
+static int load_edid_data(u32 type, char *path)
+{
+	if (type == 0)
+		return load_edid_bin_data(path);
+	if (type == 1)
+		return load_edid_string_data(path);
 	return 0;
 }
 
@@ -1123,6 +1201,8 @@ static ssize_t edid_store(struct device *dev,
 	char *p = NULL, *para = NULL, *argv[8] = {NULL};
 	unsigned int path_length = 0;
 	unsigned int index = 0, tmp = 0;
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+	int ret = 0;
 
 	p = kstrdup(buf, GFP_KERNEL);
 	if (!p)
@@ -1210,12 +1290,26 @@ static ssize_t edid_store(struct device *dev,
 				__func__);
 			goto PROCESS_END;
 		}
-
+		/* get the EDID from current RX device */
+		if (strncmp(argv[1], "0000000000000000", 16) == 0) {
+			pr_info("%s[%d] get current RX edid\n", __func__, __LINE__);
+			hdev->forced_edid = 0;
+			hdmitx_get_edid(hdev);
+			goto PROCESS_END;
+		}
 		/* clean '\n' from file path*/
 		path_length = strlen(argv[1]);
-		if (argv[1][path_length - 1] == '\n')
-			argv[1][path_length - 1] = 0x0;
-		load_edid_data(0, argv[1]);
+		if (edid_string_test(argv[1])) {
+			ret = load_edid_data(1, argv[1]); /* edid data as string for debug */
+		} else {
+			if (argv[1][path_length - 1] == '\n')
+				argv[1][path_length - 1] = 0x0;
+			ret = load_edid_data(0, argv[1]); /* edid data as binary file for debug */
+		}
+		if (ret == 1) {
+			hdev->forced_edid = 1;
+			pr_info("%s[%d] using the fixed edid\n", __func__, __LINE__);
+		}
 	}
 
 PROCESS_END:

@@ -2709,9 +2709,14 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, u32 cmd,
 		/* if running on pxp, then skip EDID reading */
 		if (hdev->pxp_mode)
 			return 0;
-		hdmitx21_read_edid(hdev->tmp_edid_buf);
+		if (!hdev->forced_edid)
+			hdmitx21_read_edid(hdev->tmp_edid_buf);
+		else
+			pr_info("edid: using the fixed edid\n");
 		break;
 	case DDC_EDID_GET_DATA:
+		if (hdev->forced_edid)
+			break;
 		if (argv == 0)
 			hdmitx_getediddata(hdev->EDID_buf, hdev->tmp_edid_buf);
 		else

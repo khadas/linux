@@ -557,6 +557,7 @@ struct hdmitx_dev {
 	unsigned int cedst_en:1; /* configure in DTS */
 	unsigned int bist_lock:1;
 	unsigned int vend_id_hit:1;
+	unsigned int forced_edid:1;
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
 
 	bool systemcontrol_on;

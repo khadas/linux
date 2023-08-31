@@ -509,9 +509,10 @@ struct hdmitx_dev {
 	u32 cedst_en:1; /* configure in DTS */
 	u32 hdr_8bit_en:1; /* hdr can output with 8bit */
 	u32 aon_output:1; /* always output in bl30 */
-	u32 hdr_priority;
 	u32 bist_lock:1;
 	u32 vend_id_hit:1;
+	u32 forced_edid:1;
+	u32 hdr_priority;
 	u32 fr_duration;
 	spinlock_t edid_spinlock; /* edid hdr/dv cap lock */
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
