@@ -849,16 +849,16 @@
 		 */
 		term_lvl = <0x11>;
 		interrupts = <0 41 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc CLKID_HDMIRX_CFG_GATE>,
-			   <&clkc CLKID_HDMIRX_CFG_DIV>,
-			   <&clkc CLKID_HDMIRX_MODET_DIV>,
-			   <&clkc CLKID_HDMIRX_MODET_MUX>,
-			   <&clkc CLKID_HDMIRX_ACR_DIV>,
+				clocks = <&clkc CLKID_HDMIRX_MODET_GATE>,
+			   <&clkc CLKID_HDMIRX_CFG_GATE>,
+			   <&clkc CLKID_HDMIRX_ACR_GATE>,
+			   <&clkc CLKID_HDMIRX_METER_GATE>,
+			   <&clkc CLKID_HDMIRX_AXI_GATE>,
 			   <&xtal>,
-			   <&clkc CLKID_FCLK_DIV3_DIV>,
-			   <&clkc CLKID_FCLK_DIV4_DIV>,
-			   <&clkc CLKID_HDMIRX_MODET_GATE>,
-			   <&clkc CLKID_HDMIRX_ACR_MUX>;
+			   <&clkc CLKID_FCLK_DIV5>,
+			   <&clkc CLKID_FCLK_DIV7>,
+			   <&clkc CLKID_HDMIRX_SKP_GATE>,
+			   <&clkc CLKID_HDMIRX_ESM_GATE>;
 		//	   <&clkc CLK_AUD_PLL2FS>,
 		//	   <&clkc CLK_AUD_PLL4FS>,
 		//	   <&clkc CLK_AUD_OUT>;
