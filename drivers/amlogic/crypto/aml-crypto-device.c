@@ -58,7 +58,6 @@ struct aml_crypto_dev {
 
 	u32 algo_cap;
 
-	wait_queue_head_t waiter;
 	struct task_struct *processing;
 };
 
@@ -654,6 +653,7 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 	const u32 DMA_BUF_SIZE = kcop->ivlen > 16 ?
 				 DMA_KEY_IV_BUF_SIZE_64B : DMA_KEY_IV_BUF_SIZE;
 	u8 begin = 0;
+	int lock_ret = 0;
 
 	if (unlikely(!ses_ptr || !kcop)) {
 		dbgp(2, "no ses_ptr or no kcop\n");
@@ -790,11 +790,11 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 	aml_dma_debug(dsc, s + i + 1, __func__,
 		      crypto_dd->thread, crypto_dd->status);
 
-	mutex_lock(&crypto_dd->lock);
+	lock_ret = mutex_lock_interruptible(&crypto_dd->lock);
+	if (lock_ret)
+		goto error;
 	crypto_dd->dma_busy = 1;
 	crypto_dd->processing = current;
-	mutex_unlock(&crypto_dd->lock);
-
 #if !USE_BUSY_POLLING
 	set_current_state(TASK_INTERRUPTIBLE);
 #endif
@@ -809,6 +809,9 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 	schedule();
 	err = crypto_dd->err;
 #endif
+	crypto_dd->dma_busy = 0;
+	mutex_unlock(&crypto_dd->lock);
+
 	if (err & DMA_STATUS_KEY_ERROR) {
 		rc = -EACCES;
 		goto error;
@@ -824,10 +827,6 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 	}
 
 error:
-	mutex_lock(&crypto_dd->lock);
-	crypto_dd->dma_busy = 0;
-	mutex_unlock(&crypto_dd->lock);
-
 	if (iv)
 		dma_free_coherent(dev, kcop->ivlen, iv, dma_iv_addr);
 	if (dsc)
@@ -931,6 +930,7 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 	const u32 DMA_BUF_SIZE = kcop->ivlen > 16 ?
 				 DMA_KEY_IV_BUF_SIZE_64B : DMA_KEY_IV_BUF_SIZE;
 	u8 begin = 0;
+	int lock_ret = 0;
 
 	if (unlikely(!ses_ptr || !kcop)) {
 		dbgp(2, "no ses_ptr or no kcop\n");
@@ -1007,10 +1007,6 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 		}
 	}
 
-	mutex_lock(&crypto_dd->lock);
-	crypto_dd->dma_busy = 1;
-	crypto_dd->processing = current;
-	mutex_unlock(&crypto_dd->lock);
 
 	if (ses_ptr->cdata.cipher == CRYPTO_OP_S17_ECB ||
 	    ses_ptr->cdata.cipher == CRYPTO_OP_S17_CBC ||
@@ -1061,6 +1057,11 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 
 		begin = 0;
 
+		lock_ret = mutex_lock_interruptible(&crypto_dd->lock);
+		if (lock_ret)
+			goto error;
+		crypto_dd->dma_busy = 1;
+		crypto_dd->processing = current;
 #if !USE_BUSY_POLLING
 		set_current_state(TASK_INTERRUPTIBLE);
 #endif
@@ -1078,6 +1079,8 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 		schedule();
 		err = crypto_dd->err;
 #endif
+		crypto_dd->dma_busy = 0;
+		mutex_unlock(&crypto_dd->lock);
 		dma_unmap_single(dev, dma_buf, length, DMA_TO_DEVICE);
 		if (err & DMA_STATUS_KEY_ERROR) {
 			rc = -EACCES;
@@ -1102,6 +1105,11 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 	dsc[0].dsc_cfg.b.eoc = 1;
 	dsc[0].dsc_cfg.b.owner = 1;
 
+	lock_ret = mutex_lock_interruptible(&crypto_dd->lock);
+	if (lock_ret)
+		goto error;
+	crypto_dd->dma_busy = 1;
+	crypto_dd->processing = current;
 	aml_dma_debug(dsc, 1, __func__, crypto_dd->thread, crypto_dd->status);
 	aml_write_crypto_reg(crypto_dd->thread, (uintptr_t)dsc_addr | 2);
 #if USE_BUSY_POLLING
@@ -1112,6 +1120,8 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 	schedule();
 	err = crypto_dd->err;
 #endif
+	crypto_dd->dma_busy = 0;
+	mutex_unlock(&crypto_dd->lock);
 	if (err & DMA_STATUS_KEY_ERROR) {
 		rc = -EACCES;
 		goto error;
@@ -1127,11 +1137,6 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 	}
 
 error:
-
-	mutex_lock(&crypto_dd->lock);
-	crypto_dd->dma_busy = 0;
-	mutex_unlock(&crypto_dd->lock);
-
 	if (iv)
 		dma_free_coherent(dev, kcop->ivlen, iv, dma_iv_addr);
 	if (dsc)
@@ -1171,6 +1176,7 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 	const u32 DMA_BUF_SIZE = kcop->ivlen > 16 ?
 				 DMA_KEY_IV_BUF_SIZE_64B : DMA_KEY_IV_BUF_SIZE;
 	u8 begin = 0;
+	int lock_ret = 0;
 
 	if (unlikely(!ses_ptr || !kcop)) {
 		dbgp(2, "no ses_ptr or no kcop\n");
@@ -1236,10 +1242,6 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 
 	/* Do nothing for IV: We do not know IV in encrypt */
 
-	mutex_lock(&crypto_dd->lock);
-	crypto_dd->dma_busy = 1;
-	crypto_dd->processing = current;
-	mutex_unlock(&crypto_dd->lock);
 
 	if (ses_ptr->cdata.cipher == CRYPTO_OP_S17_ECB ||
 	    ses_ptr->cdata.cipher == CRYPTO_OP_S17_CBC ||
@@ -1284,6 +1286,11 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 
 		begin = 0;
 
+		lock_ret = mutex_lock_interruptible(&crypto_dd->lock);
+		if (lock_ret)
+			goto error;
+		crypto_dd->dma_busy = 1;
+		crypto_dd->processing = current;
 #if !USE_BUSY_POLLING
 		set_current_state(TASK_INTERRUPTIBLE);
 #endif
@@ -1301,6 +1308,8 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 		schedule();
 		err = crypto_dd->err;
 #endif
+		crypto_dd->dma_busy = 0;
+		mutex_unlock(&crypto_dd->lock);
 		dma_unmap_single(dev, dma_buf, length, DMA_FROM_DEVICE);
 		if (err & DMA_STATUS_KEY_ERROR) {
 			rc = -EACCES;
@@ -1332,6 +1341,11 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 	dsc[0].dsc_cfg.b.eoc = 1;
 	dsc[0].dsc_cfg.b.owner = 1;
 
+	lock_ret = mutex_lock_interruptible(&crypto_dd->lock);
+	if (lock_ret)
+		goto error;
+	crypto_dd->dma_busy = 1;
+	crypto_dd->processing = current;
 	aml_dma_debug(dsc, 1, __func__, crypto_dd->thread, crypto_dd->status);
 	aml_write_crypto_reg(crypto_dd->thread, (uintptr_t)dsc_addr | 2);
 #if USE_BUSY_POLLING
@@ -1342,6 +1356,8 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 	schedule();
 	err = crypto_dd->err;
 #endif
+	crypto_dd->dma_busy = 0;
+	mutex_unlock(&crypto_dd->lock);
 	if (err & DMA_STATUS_KEY_ERROR) {
 		rc = -EACCES;
 		goto error;
@@ -1361,10 +1377,6 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 	}
 
 error:
-	mutex_lock(&crypto_dd->lock);
-	crypto_dd->dma_busy = 0;
-	mutex_unlock(&crypto_dd->lock);
-
 	if (iv)
 		dma_free_coherent(dev, kcop->ivlen, iv, dma_iv_addr);
 	if (dsc)
@@ -1406,6 +1418,7 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 	const u32 DMA_BUF_SIZE = kcop->ivlen > 16 ?
 				 DMA_KEY_IV_BUF_SIZE_64B : DMA_KEY_IV_BUF_SIZE;
 	u8 begin = 0;
+	int lock_ret = 0;
 
 	if (unlikely(!ses_ptr || !kcop)) {
 		dbgp(2, "no ses_ptr or no kcop\n");
@@ -1502,10 +1515,6 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 		}
 	}
 
-	mutex_lock(&crypto_dd->lock);
-	crypto_dd->dma_busy = 1;
-	crypto_dd->processing = current;
-	mutex_unlock(&crypto_dd->lock);
 
 	if (ses_ptr->cdata.cipher == CRYPTO_OP_S17_ECB ||
 	    ses_ptr->cdata.cipher == CRYPTO_OP_S17_CBC ||
@@ -1536,6 +1545,11 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 
 		begin = 0;
 
+		lock_ret = mutex_lock_interruptible(&crypto_dd->lock);
+		if (lock_ret)
+			goto error;
+		crypto_dd->dma_busy = 1;
+		crypto_dd->processing = current;
 #if !USE_BUSY_POLLING
 		set_current_state(TASK_INTERRUPTIBLE);
 #endif
@@ -1553,6 +1567,8 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 		schedule();
 		err = crypto_dd->err;
 #endif
+		crypto_dd->dma_busy = 0;
+		mutex_unlock(&crypto_dd->lock);
 		dma_sync_single_for_cpu(dev, dma_buf,
 					PAGE_SIZE, DMA_FROM_DEVICE);
 		if (err & DMA_STATUS_KEY_ERROR) {
@@ -1586,6 +1602,11 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 	dsc[0].dsc_cfg.b.eoc = 1;
 	dsc[0].dsc_cfg.b.owner = 1;
 
+	lock_ret = mutex_lock_interruptible(&crypto_dd->lock);
+	if (lock_ret)
+		goto error;
+	crypto_dd->dma_busy = 1;
+	crypto_dd->processing = current;
 	aml_dma_debug(dsc, 1, __func__, crypto_dd->thread, crypto_dd->status);
 	aml_write_crypto_reg(crypto_dd->thread, (uintptr_t)dsc_addr | 2);
 #if USE_BUSY_POLLING
@@ -1596,6 +1617,8 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 	schedule();
 	err = crypto_dd->err;
 #endif
+	crypto_dd->dma_busy = 0;
+	mutex_unlock(&crypto_dd->lock);
 	if (err & DMA_STATUS_KEY_ERROR) {
 		rc = -EACCES;
 		goto error;
@@ -1615,10 +1638,6 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 	}
 
 error:
-	mutex_lock(&crypto_dd->lock);
-	crypto_dd->dma_busy = 0;
-	mutex_unlock(&crypto_dd->lock);
-
 	if (dma_buf)
 		dma_unmap_single(dev, dma_buf, PAGE_SIZE, DMA_TO_DEVICE);
 	if (iv)
@@ -1646,10 +1665,6 @@ int crypto_run(struct fcrypt *fcr, struct kernel_crypt_op *kcop)
 		dbgp(2, "invalid operation op=%u", cop->op);
 		return -EINVAL;
 	}
-
-	if (crypto_dd->dma_busy)
-		wait_event_interruptible(crypto_dd->waiter,
-					 crypto_dd->dma_busy == 0);
 
 	/* this also enters ses_ptr->sem */
 	ses_ptr = crypto_get_session_by_sid(fcr, cop->ses);
@@ -1706,7 +1721,6 @@ out_unlock:
 	crypto_put_session(ses_ptr);
 
 out:
-	wake_up_interruptible(&crypto_dd->waiter);
 	return ret;
 }
 
@@ -2067,7 +2081,6 @@ static int aml_crypto_dev_probe(struct platform_device *pdev)
 	crypto_dd->algo_cap = priv_data->algo_cap;
 	crypto_dd->irq = res_irq->start;
 	crypto_dd->processing = NULL;
-	init_waitqueue_head(&crypto_dd->waiter);
 	mutex_init(&crypto_dd->lock);
 	platform_set_drvdata(pdev, crypto_dd);
 
