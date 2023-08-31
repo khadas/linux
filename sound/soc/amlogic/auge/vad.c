@@ -422,7 +422,8 @@ static int vad_freeze_thread(void *data)
 		    !p_vad->wake_up_flag) {
 			dev_info(p_vad->dev, "vad: thread entry schedule\n");
 			set_current_state(TASK_INTERRUPTIBLE);
-			schedule();
+			if (!kthread_should_stop())
+				schedule();
 			set_current_state(TASK_RUNNING);
 			init = true;
 			dev_info(p_vad->dev, "vad: thread wake up\n");
@@ -444,7 +445,8 @@ static int vad_freeze_thread(void *data)
 		}
 		init = false;
 		/* can't use sleep as cpd is idle, timer is invalid */
-		schedule();
+		if (!kthread_should_stop())
+			schedule();
 	}
 
 	kfree(p_vad->vad_whole_buf);
