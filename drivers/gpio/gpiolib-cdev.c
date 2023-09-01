@@ -2436,6 +2436,7 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	irqflags |= IRQF_ONESHOT;
 
 	INIT_KFIFO(le->events);
+	init_waitqueue_head(&le->wait);
 
 	le->device_unregistered_nb.notifier_call = lineevent_unregistered_notify;
 	ret = blocking_notifier_chain_register(&gdev->device_notifier,
