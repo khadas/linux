@@ -1193,7 +1193,11 @@ void vdin_set_top(struct vdin_dev_s *devp, unsigned int offset,
 	case 0xc0: /* viu2 */
 	case 0xd0: /* viu3 */
 		vdin_mux = VDIN_MUX_VIU1_WB0;
-		if (port != TVIN_PORT_VIU2) {
+		if (port == TVIN_PORT_VIU2_ENCL) { //before t7
+			wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xd4,
+				VDI6_ASFIFO_CTRL_BIT,
+				VDI_ASFIFO_CTRL_WID);
+		} else if (port != TVIN_PORT_VIU2) {
 			if (devp->prop.polarity_vs == 0) /* positive */
 				wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xe4,
 					VDI6_ASFIFO_CTRL_BIT,

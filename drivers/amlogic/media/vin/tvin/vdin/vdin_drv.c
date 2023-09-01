@@ -2061,7 +2061,13 @@ int start_tvin_capture_ex(int dev_num, enum port_vpp_e port, struct vdin_parm_s 
 		loop_port = TVIN_PORT_VIU3_OSD1;
 	else
 		loop_port = para->port;
-		//loop_port = TVIN_PORT_VIU1_WB0_VD1;
+
+	/* For chips before T7,only vpp0 + VIU2 ENCP/I/L */
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
+		(para->port > TVIN_PORT_VIU2 && para->port < TVIN_PORT_VIU3_MAX)) {
+		loop_port = TVIN_PORT_VIU2_ENCL;
+	}
+
 	para->port = loop_port;
 
 	if (dev_num == 0)
