@@ -1601,6 +1601,10 @@
 		status = "okay";
 	};
 
+	multi-di {
+		po_fmt = <0>;
+	};
+
 	ddr_bandwidth {
 		compatible = "amlogic,ddr-bandwidth-g12a";
 		status = "okay";
