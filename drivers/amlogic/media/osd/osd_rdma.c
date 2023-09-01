@@ -1889,6 +1889,11 @@ int read_rdma_table(u32 vpp_index)
 }
 EXPORT_SYMBOL(read_rdma_table);
 
+u32 get_osd_rdma_enalbe(u32 vpp_index)
+{
+	return rdma_enable[vpp_index];
+}
+
 int osd_rdma_enable(u32 vpp_index, u32 enable)
 {
 	int ret = 0;

@@ -72,6 +72,7 @@ static u32 rdma_trace_reg[MAX_TRACE_NUM];
 static int rdma_table_size = RDMA_TABLE_SIZE;
 static int g_vsync_rdma_item_count;
 static int g_vsync_rdma_item_count_max;
+static int enable[RDMA_NUM];
 
 MODULE_PARM_DESC(g_vsync_rdma_item_count, "\n g_vsync_rdma_item_count\n");
 module_param(g_vsync_rdma_item_count, uint, 0664);
@@ -584,6 +585,9 @@ int rdma_config(int handle, u32 trigger_type)
 		 __func__, handle);
 		return -1;
 	}
+
+	if (!enable[handle])
+		return 0;
 
 	spin_lock_irqsave(&rdma_lock, flags);
 	if (!ins->op) {
@@ -1667,13 +1671,15 @@ static ssize_t rdma_irq_count_show(struct class *cla,
 
 	sprintf(str_info, "rdma_isr_count:%d\n", rdma_isr_count);
 	for (i = 1; i < RDMA_NUM; i++) {
-		sprintf(chan_info,
-			"rdma handle=%d, cb irq_count=%d, empty_config=%d, rdma_config_count=%d",
-			i, info->rdma_ins[i].irq_count,
-			info->rdma_ins[i].rdma_empty_config_count,
-			info->rdma_ins[i].rdma_config_count);
-		strcat(str_info, chan_info);
-		strcat(str_info, "\n");
+		if (info->rdma_ins[i].rdma_table_size) {
+			sprintf(chan_info,
+				"rdma handle=%d, cb irq_count=%d, empty_config=%d, rdma_config_count=%d",
+				i, info->rdma_ins[i].irq_count,
+				info->rdma_ins[i].rdma_empty_config_count,
+				info->rdma_ins[i].rdma_config_count);
+			strcat(str_info, chan_info);
+			strcat(str_info, "\n");
+		}
 	}
 
 	i = snprintf(buf, PAGE_SIZE, "%s\n", str_info);
@@ -1699,6 +1705,49 @@ static ssize_t rdma_mgr_trace_channel_stroe(struct class *cla,
 	return count;
 }
 
+static ssize_t store_rdma_reset(struct class *class,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	rdma_reset(res);
+
+	return count;
+}
+
+static ssize_t show_enable(struct class *class,
+			   struct class_attribute *attr,
+			   char *buf)
+{
+	int i;
+	int enable_flag = 0;
+
+	for (i = 0; i < RDMA_NUM; i++)
+		if (enable[i])
+			enable_flag |= (1 << i);
+
+	return snprintf(buf, PAGE_SIZE, "enable_flag: 0x%x\n",
+			enable_flag);
+}
+
+static ssize_t store_enable(struct class *class,
+			    struct class_attribute *attr,
+			    const char *buf, size_t count)
+{
+	int i = 0;
+	int enable_flag = 0, ret;
+
+	ret = kstrtoint(buf, 0, &enable_flag);
+	for (i = 0; i < RDMA_NUM; i++) {
+		enable[i] = (enable_flag >> i) & 1;
+		pr_info("enable[%d]=%d\n", i, enable[i]);
+	}
+	return count;
+}
+
 static struct class_attribute rdma_mgr_attrs[] = {
 	__ATTR(debug_flag, 0664,
 	       show_debug_flag, store_debug_flag),
@@ -1720,6 +1769,10 @@ static struct class_attribute rdma_mgr_attrs[] = {
 		   rdma_irq_count_show, NULL),
 	__ATTR(trace_channel, 0664,
 	       rdma_mgr_trace_channel_show, rdma_mgr_trace_channel_stroe),
+	__ATTR(reset, 0664,
+	       NULL, store_rdma_reset),
+	__ATTR(enable, 0664,
+	       show_enable, store_enable),
 };
 
 static struct class *rdma_mgr_class;
@@ -1847,6 +1900,7 @@ static int __init rdma_probe(struct platform_device *pdev)
 		info->rdma_ins[i].prev_trigger_type = 0;
 		info->rdma_ins[i].rdma_write_count = 0;
 		info->rdma_ins[i].lock_flag = 0;
+		enable[i] = 1;
 	}
 
 	if (rdma_meson_dev.cpu_type >= CPU_SC2) {

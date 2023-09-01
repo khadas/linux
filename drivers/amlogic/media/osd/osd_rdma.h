@@ -135,4 +135,5 @@ int get_rdma_recovery_stat(u32 vpp_index);
 int get_rdma_not_hit_recovery_stat(u32 vpp_index);
 int get_rdma_irq_done_line(u32 vpp_index);
 void osd_rdma_flag_init(void);
+u32 get_osd_rdma_enalbe(u32 vpp_index);
 #endif

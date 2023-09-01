@@ -3134,6 +3134,37 @@ static ssize_t store_slice2ppc_test(struct device *device,
 	return count;
 }
 
+static ssize_t show_rdma_enable(struct device *device,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	int i;
+	u32 rdma_status = 0;
+
+	for (i = 0; i < VIU_COUNT; i++)
+		rdma_status |= get_osd_rdma_enalbe(i);
+	return snprintf(buf, 80, "rdma_status(0x%x)\n",
+			rdma_status);
+}
+
+static ssize_t store_rdma_enable(struct device *device,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int parsed[2];
+	u32 vpp_index, enable;
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		vpp_index = parsed[0];
+		enable = parsed[1];
+		osd_rdma_enable(vpp_index, enable);
+	} else {
+		osd_log_err("usage: echo vpp_index enable > rdma_enable\n");
+	}
+
+	return count;
+}
+
 /* Todo: how to use uboot logo */
 static ssize_t free_scale_switch(struct device *device,
 				 struct device_attribute *attr,
@@ -4293,6 +4324,8 @@ static struct device_attribute osd_attrs[] = {
 	       show_pi_test, store_pi_test),
 	__ATTR(slice2ppc_test, 0644,
 	       show_slice2ppc_test, store_slice2ppc_test),
+	__ATTR(rdma_enable, 0644,
+	       show_rdma_enable, store_rdma_enable),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {
@@ -4350,6 +4383,8 @@ static struct device_attribute osd_attrs_viu2[] = {
 	       NULL, store_do_hwc),
 	__ATTR(fence_count, 0440,
 	       show_fence_count, NULL),
+	__ATTR(rdma_enable, 0644,
+	       show_rdma_enable, store_rdma_enable),
 };
 
 #ifdef CONFIG_PM
