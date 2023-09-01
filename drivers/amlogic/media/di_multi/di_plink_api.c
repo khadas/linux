@@ -8826,7 +8826,7 @@ bool dpvpp_is_en_polling(void)
 	return get_datal()->dvs_prevpp.en_polling;
 }
 
-unsigned int dpvpp_bypass_check(struct vframe_s *vfm)
+unsigned int dpvpp_bypass_check(struct vframe_s *vfm, bool first)
 {
 	unsigned int reason = 0;
 	bool is_4k = false;
@@ -8838,8 +8838,6 @@ unsigned int dpvpp_bypass_check(struct vframe_s *vfm)
 	dbg_dbg("vfm_type:0x%x", vfm->type);
 	if (vfm->type & DIM_BYPASS_VF_TYPE)
 		reason = EPVPP_BYPASS_REASON_TYPE;
-	if (vfm->duration < 1600)
-		reason = EPVPP_BYPASS_REASON_120HZ;
 	if (VFMT_IS_P(vfm->type) &&
 		   (vfm->width > 1920	||
 		    vfm->height > (1080 + 8)))
@@ -8850,10 +8848,6 @@ unsigned int dpvpp_bypass_check(struct vframe_s *vfm)
 		reason = EPVPP_BYPASS_REASON_HIGH_BANDWIDTH;
 	if (VFMT_IS_I(vfm->type))
 		reason = EPVPP_BYPASS_REASON_I;
-	if (VFMT_IS_EOS(vfm->type))
-		reason = EPVPP_BYPASS_REASON_EOS;
-	if (vfm->type & DIM_BYPASS_VF_TYPE)
-		reason = EPVPP_BYPASS_REASON_TYPE;
 	if (cfgg(4K)) {
 		if (vfm->width > 3840 ||
 		    vfm->height > 2160)
@@ -8863,8 +8857,6 @@ unsigned int dpvpp_bypass_check(struct vframe_s *vfm)
 		if (dim_afds() && !dim_afds()->is_supported_plink())
 			reason = EPVPP_BYPASS_REASON_NO_AFBC;
 	}
-	if (vfm->width < 128 || vfm->height < 16)
-		reason = EPVPP_BYPASS_REASON_SIZE_S;
 	if (dpvpp_is_bypass())
 		reason = EPVPP_BYPASS_REASON_DBG;
 	if (vfm->src_fmt.sei_magic_code == SEI_MAGIC_CODE &&
@@ -8872,6 +8864,17 @@ unsigned int dpvpp_bypass_check(struct vframe_s *vfm)
 		vfm->src_fmt.fmt == VFRAME_SIGNAL_FMT_DOVI_LL))
 		reason = EPVPP_BYPASS_REASON_DV_PATH;
 
+	/* First EOS, vframe information maybe invalid. Just ignore it to create pre-link*/
+	if (VFMT_IS_EOS(vfm->type) && first && !reason)
+		return 0;
+
+	/* If vframe is EOS, information below maybe invalid */
+	if (vfm->duration < 1600)
+		reason = EPVPP_BYPASS_REASON_120HZ;
+	if (vfm->width < 128 || vfm->height < 16)
+		reason = EPVPP_BYPASS_REASON_SIZE_S;
+	if (VFMT_IS_EOS(vfm->type))
+		reason = EPVPP_BYPASS_REASON_EOS;
 	return reason;
 }
 
@@ -8884,7 +8887,7 @@ bool dpvpp_try_reg(struct di_ch_s *pch, struct vframe_s *vfm)
 	    !dpvpp_is_allowed()	||
 	    !dpvpp_is_insert())
 		return false;
-	reason = dpvpp_bypass_check(vfm);
+	reason = dpvpp_bypass_check(vfm, true);
 	dim_bypass_set(pch, 0, reason);
 	if (reason != 0)
 		return false;
