@@ -1756,7 +1756,7 @@ void dvbt_info(struct aml_dtvdemod *demod, struct seq_file *seq)
 	unsigned int gi = gi_st1 & 0xf;
 	unsigned int cfo = (dvbt_t2_rdb(0x28CD) << 8) + dvbt_t2_rdb(0x28CC);
 	unsigned int snr = dvbt_t2_rdb(0x2a08) + ((dvbt_t2_rdb(0x2a09)) << 8);
-	unsigned int csnr = snr * 3 / 64;
+	unsigned int csnr = snr * 30 / 64; //dBx10.
 	unsigned int ber = dvbt_t2_rdb(0x53b);
 	unsigned int per = get_per_val();
 	unsigned int p1_dlok = dvbt_t2_rdb(0x53e);
@@ -1908,13 +1908,13 @@ void dvbt_info(struct aml_dtvdemod *demod, struct seq_file *seq)
 	}
 
 	if (seq) {
-		seq_printf(seq, "FSM 0x%x, ST %s, CST %s, GI %s, GI_Q %s, CFO %dKHz, SNR %ddB\n",
+		seq_printf(seq, "FSM 0x%x, ST %s, CST %s, GI %s, GI_Q %s, CFO %dKHz, SNR %d dBx10\n",
 			sm, str_sm_st, str_sm_cst, str_gi, str_giq, cfo, csnr);
 		seq_printf(seq, "pwr_meter 0x%x,ber %d, per %d, TS 0x%x, VIT lock %d, Punc %s\n\n",
 			(dvbt_t2_rdb(0x82f) << 8) + dvbt_t2_rdb(0x82e), ber, per,
 			dvbt_t2_rdb(0x581) & 0x8 >> 3, p1_dlok, str_punc);
 	} else {
-		PR_DVBT("FSM 0x%x, ST %s, CST %s, GI %s, GI_Q %s, CFO %dKHz, SNR %ddB\n",
+		PR_DVBT("FSM 0x%x, ST %s, CST %s, GI %s, GI_Q %s, CFO %dKHz, SNR %d dBx10\n",
 			sm, str_sm_st, str_sm_cst, str_gi, str_giq, cfo, csnr);
 		PR_DVBT("pwr_meter 0x%x,ber %d, per %d, TS 0x%x, VIT lock %d, Punc %s\n\n",
 			(dvbt_t2_rdb(0x82f) << 8) + dvbt_t2_rdb(0x82e), ber, per,

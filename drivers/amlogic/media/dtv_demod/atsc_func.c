@@ -1979,26 +1979,27 @@ int check_atsc_fsm_status(void)
 	return atsc_snr;
 }
 
-void atsc_check_fsm_status(void)
+void atsc_check_fsm_status(struct aml_dtvdemod *demod)
 {
 	union ATSC_FA_REG_0XE7_BITS val_0xe7;
 	union ATSC_DEMOD_REG_0X72_BITS val_0x72;
 	union ATSC_AGC_REG_0X44_BITS val_0x44;
-	unsigned int snr, snr_db;
-	int cr, ck, sm, ber, ser;
+	unsigned int snr_db = 0;
+	int cr = 0, ck = 0, sm = 0, ber = 0, ser = 0;
 
-	val_0xe7.bits =	atsc_read_reg_v4(ATSC_FA_REG_0XE7);
+	val_0xe7.bits = atsc_read_reg_v4(ATSC_FA_REG_0XE7);
 	val_0x72.bits = atsc_read_reg_v4(ATSC_DEMOD_REG_0X72);
-	val_0x44.bits =	atsc_read_reg_v4(ATSC_AGC_REG_0X44);
+	val_0x44.bits = atsc_read_reg_v4(ATSC_AGC_REG_0X44);
 
-	snr = atsc_read_reg_v4(ATSC_EQ_REG_0XC3);
-	snr_db = SNR_dB_table[atsc_find(snr, SNR_table, 56)];
+	snr_db = atsc_read_snr_10();
+	demod->real_para.snr = snr_db;
+
 	cr = atsc_read_reg_v4(ATSC_DEMOD_REG_0X73);
 	ck = atsc_read_reg_v4(ATSC_DEMOD_REG_0X75);
 	sm = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E);
 	ber = atsc_read_reg_v4(ATSC_FEC_BER);
 	ser = atsc_read_reg_v4(ATSC_FEC_REG_0XFB);
 
-	PR_ATSC("SNR:0x%x,SNRdB:%d FSM:0x%x,cr:%d,ck:0x%x,ber is 0x%x, ser is 0x%x\n",
-		snr, snr_db / 10, sm, cr, ck, ber, ser);
+	PR_ATSC("SNRdB:%d FSM:0x%x,cr:%d,ck:0x%x,ber is 0x%x, ser is 0x%x\n",
+		snr_db / 10, sm, cr, ck, ber, ser);
 }

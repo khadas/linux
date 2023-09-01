@@ -112,6 +112,7 @@
 /*  V2.2.002 fix j83b qam setting when auto qam */
 /*  V2.2.003 fix discarding signal when dvbt2 level is very low */
 /*  V2.2.004 fix delete debug logs in probe */
+/*  V2.2.005 add DTV_STAT_SIGNAL_STRENGTH and DTV_STAT_CNR */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -128,8 +129,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.2.004"
-#define DTVDEMOD_VER	"2023/10/11: delete debug logs in probe"
+#define AMLDTVDEMOD_VER "V2.2.005"
+#define DTVDEMOD_VER	"2023/10/16: add DTV_STAT_SIGNAL_STRENGTH and DTV_STAT_CNR"
 #define AMLDTVDEMOD_T2_FW_VER "V1558.20230628"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
