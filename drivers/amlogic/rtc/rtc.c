@@ -542,14 +542,6 @@ static int meson_rtc_resume(struct device *dev)
 		reg_val = readl(rtc->reg_base + RTC_INT_MASK);
 		reg_val |= (1 << RTC_ALRM0_IRQ_MSK_BIT);
 		writel(reg_val, rtc->reg_base + RTC_INT_MASK);
-
-		reg_val = readl(rtc->reg_base + RTC_INT_STATUS)
-					& (1 << RTC_ALRM0_IRQ_STATUS_BIT);
-		/* Clear alarm0 int status */
-		if (reg_val) {
-			writel((1 << RTC_ALRM0_CLR_STATUS_BIT),
-					rtc->reg_base + RTC_INT_CLR);
-		}
 	}
 
 	return 0;
