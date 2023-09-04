@@ -2187,13 +2187,16 @@ static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 	} else if (hw_source >= FRONTEND_TS0_1 && hw_source <= FRONTEND_TS7_1) {
 		if (demux->hw_source != hw_source) {
 			demux->ts_index = hw_source - FRONTEND_TS0_1;
-			if (advb->ts[demux->ts_index].ts_sid != -1 &&
-				demux->sid != (advb->ts[demux->ts_index].ts_sid ^ 0x20)) {
-				demux->sid =
-					advb->ts[demux->ts_index].ts_sid ^ 0x20;
-				ts_output_update_filter(demux->id, demux->sid);
-				dsc_set_sid(demux->id,
-						advb->ts[demux->ts_index].ts_sid);
+			if (advb->ts[demux->ts_index].ts_sid != -1) {
+				if (demux->sid !=
+					(advb->ts[demux->ts_index].ts_sid ^ 0x20)) {
+					demux->sid =
+						advb->ts[demux->ts_index].ts_sid ^ 0x20;
+					ts_output_update_filter(demux->id, demux->sid);
+				}
+				if (advb->dsc[demux->id].sid !=
+					advb->ts[demux->ts_index].ts_sid)
+					dsc_set_sid(demux->id, advb->ts[demux->ts_index].ts_sid);
 			}
 			advb->tsn_flag |= (1 << demux->id);
 			tsn_set_double_out(1);
