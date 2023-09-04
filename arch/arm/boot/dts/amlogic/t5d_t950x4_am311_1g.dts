@@ -103,8 +103,8 @@
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1280x720x4x3 round up 4M align */
-			size = <0xc00000>;
+			/* 1920x1080x4x3 round up 4M align */
+			size = <0x1c00000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x0 0x3f400000>;
 		};
