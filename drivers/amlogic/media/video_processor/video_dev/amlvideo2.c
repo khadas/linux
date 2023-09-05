@@ -6266,6 +6266,7 @@ static int amlvideo2_open(struct file *file)
 		pr_info("%s: %s alloc canvas failed, %d\n",
 			(node->vid == 0) ? canvas_owner0 : canvas_owner1,
 			__func__, __LINE__);
+		mutex_unlock(&node->mutex);
 		return -ENOMEM;
 	}
 	fh = node->fh;
