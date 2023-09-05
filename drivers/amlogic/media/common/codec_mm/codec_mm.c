@@ -64,6 +64,7 @@
 	(((flags) & CODEC_MM_FLAGS_FROM_MASK) == CODEC_MM_FLAGS_DMA_CPU)
 
 #define RESERVE_MM_ALIGNED_2N	17
+#define TVP_MM_ALIGNED_2N	16
 
 #define RES_MEM_FLAGS_HAVE_MAPED 0x4
 
@@ -716,10 +717,10 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 			}
 		}
 		if (can_from_tvp &&
-			align_2n <= RESERVE_MM_ALIGNED_2N) {
+			align_2n <= TVP_MM_ALIGNED_2N) {
 			/* 64k,aligend */
 			int aligned_buffer_size = ALIGN(mem->buffer_size,
-					(1 << RESERVE_MM_ALIGNED_2N));
+					(1 << TVP_MM_ALIGNED_2N));
 			alloc_trace_mask |= 1 << 5;
 			if (tvp_dynamic_increase_disable) {
 				mem->mem_handle = (void *)codec_mm_extpool_alloc(&mgt->tvp_pool,
@@ -1397,7 +1398,7 @@ static int codec_mm_init_tvp_pool(struct extpool_mgt_s *tvp_pool,
 	struct gen_pool *pool;
 	int ret;
 
-	pool = gen_pool_create(RESERVE_MM_ALIGNED_2N, -1);
+	pool = gen_pool_create(TVP_MM_ALIGNED_2N, -1);
 	if (!pool)
 		return -ENOMEM;
 	ret = gen_pool_add(pool, mm->phy_addr, mm->buffer_size, -1);
