@@ -16,6 +16,8 @@
 #ifdef CONFIG_AMLOGIC_MODIFY
 #include <linux/of_device.h>
 #include <linux/interrupt.h>
+#include <linux/debugfs.h>
+#include <linux/amlogic/gki_module.h>
 
 #define DRIVER_NAME		"meson_gxbb_wdt"
 #endif
@@ -56,8 +58,20 @@ struct meson_gxbb_wdt {
 #ifdef CONFIG_AMLOGIC_MODIFY
 	unsigned int feed_watchdog_mode;
 	void __iomem *reg_offset;
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+	struct dentry *debugfs_dir;
+#endif
 #endif
 };
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+static unsigned int watchdog_enabled = 1;
+static int get_watchdog_enabled_env(char *str)
+{
+	return kstrtouint(str, 1, &watchdog_enabled);
+}
+__setup("watchdog_enabled=", get_watchdog_enabled_env);
+#endif
 
 static int meson_gxbb_wdt_start(struct watchdog_device *wdt_dev)
 {
@@ -197,8 +211,9 @@ static int __maybe_unused meson_gxbb_wdt_resume(struct device *dev)
 	struct meson_gxbb_wdt *data = dev_get_drvdata(dev);
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-	if (watchdog_active(&data->wdt_dev) ||
-	    watchdog_hw_running(&data->wdt_dev))
+	if ((watchdog_active(&data->wdt_dev) ||
+	    watchdog_hw_running(&data->wdt_dev)) &&
+	    watchdog_enabled)
 		meson_gxbb_wdt_start(&data->wdt_dev);
 #else
 	if (watchdog_active(&data->wdt_dev))
@@ -268,6 +283,58 @@ static void meson_gxbb_wdt_shutdown(struct platform_device *pdev)
 	    watchdog_hw_running(&data->wdt_dev))
 		meson_gxbb_wdt_stop(&data->wdt_dev);
 };
+
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+static ssize_t debugfs_read(struct file *file, char __user *buffer,
+			    size_t size, loff_t *pos)
+{
+	int ret;
+	struct meson_gxbb_wdt *data = file->private_data;
+	char *enabled = "false\n";
+
+	if (readl(data->reg_base + GXBB_WDT_CTRL_REG) & GXBB_WDT_CTRL_EN)
+		enabled = "true\n";
+
+	ret = simple_read_from_buffer(buffer, size, pos, enabled, strlen(enabled));
+
+	return ret;
+}
+
+static ssize_t debugfs_write(struct file *file, const char __user *buffer,
+			     size_t size, loff_t *pos)
+{
+	struct meson_gxbb_wdt *data = file->private_data;
+	struct watchdog_device *wdt_dev = &data->wdt_dev;
+	char buff[5] = {0};
+	ssize_t ret;
+
+	ret = simple_write_to_buffer(buff, 5, pos, buffer, size);
+	if (ret < 0)
+		return ret;
+
+	if (!memcmp(buff, "false", 5)) {
+		meson_gxbb_wdt_stop(&data->wdt_dev);
+		meson_gxbb_wdt_ping(&data->wdt_dev);
+		watchdog_enabled = 0;
+		dev_info(wdt_dev->parent, "watchdog stop\n");
+	} else if (!memcmp(buff, "true", 4)) {
+		meson_gxbb_wdt_ping(&data->wdt_dev);
+		meson_gxbb_wdt_start(&data->wdt_dev);
+		watchdog_enabled = 1;
+		dev_info(wdt_dev->parent, "watchdog start\n");
+	}
+
+	return size;
+}
+
+static const struct file_operations debugfs_ops = {
+	.owner = THIS_MODULE,
+	.open  = simple_open,
+	.read  = debugfs_read,
+	.write = debugfs_write,
+	.llseek = default_llseek,
+};
+#endif
 #endif
 
 static int meson_gxbb_wdt_probe(struct platform_device *pdev)
@@ -379,14 +446,33 @@ static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 		data->feed_watchdog_mode = 1;
 	if (data->feed_watchdog_mode == 1) {
 		set_bit(WDOG_HW_RUNNING, &data->wdt_dev.status);
-		meson_gxbb_wdt_start(&data->wdt_dev);
+		/*
+		 * For the convenience of debugging, you can disable
+		 * the watchdog in the boot parameters
+		 */
+		if (watchdog_enabled)
+			meson_gxbb_wdt_start(&data->wdt_dev);
+		else
+			dev_info(&pdev->dev, "disabled watchdog in boot parameters\n");
 	}
 	dev_info(&pdev->dev, "feeding watchdog mode: [%s]\n",
 		 data->feed_watchdog_mode ? "kernel" : "userspace");
 #endif
 
 	watchdog_stop_on_reboot(&data->wdt_dev);
-	return devm_watchdog_register_device(dev, &data->wdt_dev);
+
+	ret = devm_watchdog_register_device(dev, &data->wdt_dev);
+	if (ret)
+		return ret;
+
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+	/* Provided for debugging, can dynamically disable the watchdog */
+	data->debugfs_dir = debugfs_create_dir("watchdog", NULL);
+	debugfs_create_file("enabled", 0644,
+			    data->debugfs_dir, data, &debugfs_ops);
+#endif
+
+	return ret;
 }
 
 static struct platform_driver meson_gxbb_wdt_driver = {
