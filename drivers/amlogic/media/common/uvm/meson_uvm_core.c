@@ -254,7 +254,8 @@ static int meson_uvm_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 		UVM_PRINTK(UVM_ERROR, "buffer was not allocated.\n");
 		return -EINVAL;
 	}
-	vma->vm_page_prot = pgprot_dmacoherent(vma->vm_page_prot);
+	if (!(handle->flags & BIT(UVM_USAGE_CACHED)))
+		vma->vm_page_prot = pgprot_dmacoherent(vma->vm_page_prot);
 	for_each_sg(table->sgl, sg, table->nents, i) {
 		struct page *page = sg_page(sg);
 		unsigned long remainder = vma->vm_end - addr;
