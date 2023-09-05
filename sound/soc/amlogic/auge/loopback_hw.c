@@ -55,10 +55,11 @@ void tdminlb_set_format(int i2s_fmt)
 void tdminlb_set_ctrl(enum datalb_src src)
 {
 	audiobus_update_bits(EE_AUDIO_TDMIN_LB_CTRL,
-			     0xf << 20 | 0x7 << 16 | 0x1f << 0,
-			     src << 20 |  /* in src */
-			     3   << 16 |  /* skew */
-			     31  << 0     /* bit width */
+				0x1 << 25 | 0xf << 20 | 0x7 << 16 | 0x1f << 0,
+				0x1 << 25 |  /* invert ws */
+				src << 20 |  /* in src */
+				3   << 16 |  /* skew */
+				31  << 0     /* bit width */
 	);
 }
 
