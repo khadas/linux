@@ -12366,6 +12366,9 @@ int amdolby_vision_process(struct vframe_s *vf, u32 display_size,
 	if (!is_amdv_stb_mode() && !is_aml_tvmode())
 		return -1;
 
+	if (!module_installed)
+		return -1;
+
 	/* vd1 toggle_mode priority is high than vd2*/
 	toggle_mode = toggle_mode_1 ? toggle_mode_1 : toggle_mode_2;
 
