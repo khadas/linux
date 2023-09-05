@@ -219,7 +219,7 @@ static int lcd_framerate_automation_set_mode(struct aml_lcd_drv_s *pdrv)
 	lcd_vout_notify_mode_change_pre(pdrv);
 
 	/* update clk & timing config */
-	lcd_tablet_config_update(pdrv);
+	lcd_timing_config_update(pdrv);
 	/* update interface timing if needed, current no need */
 #ifdef CONFIG_AMLOGIC_VPU
 	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.lcd_clk);
@@ -227,7 +227,6 @@ static int lcd_framerate_automation_set_mode(struct aml_lcd_drv_s *pdrv)
 
 	/* change clk parameter */
 	lcd_clk_change(pdrv);
-	lcd_tablet_config_post_update(pdrv);
 	lcd_venc_change(pdrv);
 
 	lcd_vout_notify_mode_change(pdrv);
@@ -589,9 +588,9 @@ static void lcd_config_init(struct aml_lcd_drv_s *pdrv)
 
 	lcd_tablet_vinfo_update(pdrv);
 
-	lcd_tablet_config_update(pdrv);
+	lcd_timing_config_update(pdrv);
 
-	lcd_clk_ss_config_init(pdrv);
+	lcd_clk_config_parameter_init(pdrv);
 	lcd_clk_generate_parameter(pdrv);
 
 	lcd_tablet_config_post_update(pdrv);
@@ -614,14 +613,13 @@ static void lcd_frame_rate_adjust(struct aml_lcd_drv_s *pdrv, int duration)
 	pdrv->config.timing.sync_duration_den = 100;
 
 	/* update interface timing */
-	lcd_tablet_config_update(pdrv);
+	lcd_timing_config_update(pdrv);
 #ifdef CONFIG_AMLOGIC_VPU
 	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.lcd_clk);
 #endif
 
 	/* change clk parameter */
 	lcd_clk_change(pdrv);
-	lcd_tablet_config_post_update(pdrv);
 	lcd_venc_change(pdrv);
 
 	lcd_vout_notify_mode_change(pdrv);

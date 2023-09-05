@@ -21,14 +21,17 @@
 #include <linux/amlogic/media/vout/lcd/lcd_tcon_data.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
-#include "lcd_reg.h"
-#include "lcd_common.h"
+#ifdef CONFIG_AMLOGIC_VPU
+#include <linux/amlogic/media/vpu/vpu.h>
+#endif
 #ifdef CONFIG_AMLOGIC_LCD_TABLET
 #include <linux/amlogic/media/vout/lcd/lcd_mipi.h>
 #include "lcd_tablet/mipi_dsi_util.h"
 #endif
-#include "lcd_debug.h"
 #include "./lcd_clk/lcd_clk_config.h"
+#include "lcd_reg.h"
+#include "lcd_common.h"
+#include "lcd_debug.h"
 
 /*device attribute buf max size 4k*/
 #define PR_BUF_MAX          (4 * 1024)
@@ -1776,7 +1779,6 @@ static int lcd_reg_clk_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 {
 	struct lcd_debug_info_s *lcd_debug_info;
 	int i, n, len = 0;
-	struct lcd_config_s *pconf;
 	unsigned int *table;
 
 	lcd_debug_info = (struct lcd_debug_info_s *)pdrv->debug_info;
@@ -1785,8 +1787,6 @@ static int lcd_reg_clk_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		len += snprintf((buf + len), n, "%s: debug_info is null\n", __func__);
 		return len;
 	}
-
-	pconf = &pdrv->config;
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n, "\nclk regs:\n");
@@ -1828,6 +1828,20 @@ static int lcd_reg_clk_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 			len += snprintf((buf + len), n,
 				"hiu     [0x%02x] = 0x%08x\n",
 				table[i], lcd_hiu_read(table[i]));
+			i++;
+		}
+	}
+
+	if (lcd_debug_info->reg_clk_combo_dphy_table) {
+		table = lcd_debug_info->reg_clk_combo_dphy_table;
+		i = 0;
+		while (i < LCD_DEBUG_REG_CNT_MAX) {
+			if (table[i] == LCD_DEBUG_REG_END)
+				break;
+			n = lcd_debug_info_len(len + offset);
+			len += snprintf((buf + len), n,
+				"combo_dphy [0x%02x] = 0x%08x\n",
+				table[i], lcd_combo_dphy_read(pdrv, table[i]));
 			i++;
 		}
 	}
@@ -2102,21 +2116,16 @@ static void lcd_debug_clk_change(struct aml_lcd_drv_s *pdrv)
 	pdrv->vinfo.std_duration = sync_duration / 100;
 	pdrv->vinfo.video_clk = pclk;
 
-	switch (pdrv->mode) {
-#ifdef CONFIG_AMLOGIC_LCD_TV
-	case LCD_MODE_TV:
-		lcd_tv_clk_update(pdrv);
-		break;
+#ifdef CONFIG_AMLOGIC_VPU
+	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.lcd_clk);
 #endif
-#ifdef CONFIG_AMLOGIC_LCD_TABLET
-	case LCD_MODE_TABLET:
-		lcd_tablet_clk_update(pdrv);
-		break;
-#endif
-	default:
-		LCDPR("invalid lcd mode\n");
-		break;
-	}
+	lcd_clk_generate_parameter(pdrv);
+
+	if (pdrv->config.basic.lcd_type == LCD_VBYONE)
+		lcd_vbyone_interrupt_enable(pdrv, 0);
+	lcd_set_clk(pdrv);
+	if (pdrv->config.basic.lcd_type == LCD_VBYONE)
+		lcd_vbyone_wait_stable(pdrv);
 
 	lcd_vout_notify_mode_change(pdrv);
 }
@@ -2441,21 +2450,10 @@ static void lcd_debug_change_clk_change(struct aml_lcd_drv_s *pdrv)
 	pdrv->vinfo.std_duration = sync_duration / 100;
 	pdrv->vinfo.video_clk = pclk;
 
-	switch (pdrv->mode) {
-#ifdef CONFIG_AMLOGIC_LCD_TV
-	case LCD_MODE_TV:
-		lcd_tv_clk_config_change(pdrv);
-		break;
+#ifdef CONFIG_AMLOGIC_VPU
+	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.lcd_clk);
 #endif
-#ifdef CONFIG_AMLOGIC_LCD_TABLET
-	case LCD_MODE_TABLET:
-		lcd_tablet_clk_config_change(pdrv);
-		break;
-#endif
-	default:
-		LCDPR("invalid lcd mode\n");
-		break;
-	}
+	lcd_clk_generate_parameter(pdrv);
 }
 
 static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribute *attr,
@@ -2681,6 +2679,7 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 					pctrl->mlvds_cfg.clk_phase,
 					pctrl->mlvds_cfg.pn_swap,
 					pctrl->mlvds_cfg.bit_swap);
+				lcd_mlvds_phy_ckdi_config(pdrv);
 				lcd_debug_change_clk_change(pdrv);
 				pconf->change_flag = 1;
 			} else {
@@ -4710,6 +4709,7 @@ static ssize_t lcd_mlvds_debug_store(struct device *dev, struct device_attribute
 			mlvds_conf->channel_sel0, mlvds_conf->channel_sel1,
 			mlvds_conf->clk_phase,
 			mlvds_conf->pn_swap, mlvds_conf->bit_swap);
+		lcd_mlvds_phy_ckdi_config(pdrv);
 		lcd_debug_config_update(pdrv);
 	} else {
 		pr_info("invalid data\n");
@@ -5401,6 +5401,7 @@ static struct lcd_debug_info_s lcd_debug_info_axg = {
 	.reg_pll_table = NULL,
 	.reg_clk_table = NULL,
 	.reg_clk_hiu_table = lcd_reg_dump_clk_axg,
+	.reg_clk_combo_dphy_table = NULL,
 	.reg_encl_table = lcd_reg_dump_encl_dft,
 	.reg_pinmux_table = NULL,
 
@@ -5419,6 +5420,7 @@ static struct lcd_debug_info_s lcd_debug_info_g12a_clk_path0 = {
 	.reg_pll_table = NULL,
 	.reg_clk_table = lcd_reg_dump_clk_hpll_g12a,
 	.reg_clk_hiu_table = NULL,
+	.reg_clk_combo_dphy_table = NULL,
 	.reg_encl_table = lcd_reg_dump_encl_dft,
 	.reg_pinmux_table = NULL,
 
@@ -5437,6 +5439,7 @@ static struct lcd_debug_info_s lcd_debug_info_g12a_clk_path1 = {
 	.reg_pll_table = NULL,
 	.reg_clk_table = lcd_reg_dump_clk_gp0_g12a,
 	.reg_clk_hiu_table = NULL,
+	.reg_clk_combo_dphy_table = NULL,
 	.reg_encl_table = lcd_reg_dump_encl_dft,
 	.reg_pinmux_table = NULL,
 
@@ -5455,6 +5458,7 @@ static struct lcd_debug_info_s lcd_debug_info_tl1 = {
 	.reg_pll_table = NULL,
 	.reg_clk_table = lcd_reg_dump_clk_tl1,
 	.reg_clk_hiu_table = NULL,
+	.reg_clk_combo_dphy_table = NULL,
 	.reg_encl_table = lcd_reg_dump_encl_tl1,
 	.reg_pinmux_table = lcd_reg_dump_pinmux_tl1,
 
@@ -5473,6 +5477,7 @@ static struct lcd_debug_info_s lcd_debug_info_t5 = {
 	.reg_pll_table = lcd_reg_dump_pll_t5,
 	.reg_clk_table = lcd_reg_dump_clk_t5,
 	.reg_clk_hiu_table = NULL,
+	.reg_clk_combo_dphy_table = NULL,
 	.reg_encl_table = lcd_reg_dump_encl_tl1,
 	.reg_pinmux_table = lcd_reg_dump_pinmux_t5,
 
@@ -5491,6 +5496,7 @@ static struct lcd_debug_info_s lcd_debug_info_t7_0 = {
 	.reg_pll_table = lcd_reg_dump_pll_t7_0,
 	.reg_clk_table = lcd_reg_dump_clk_t7_0,
 	.reg_clk_hiu_table = NULL,
+	.reg_clk_combo_dphy_table = lcd_reg_dump_clk_combo_dphy_t7_0,
 	.reg_encl_table = lcd_reg_dump_encl_t7_0,
 	.reg_pinmux_table = lcd_reg_dump_pinmux_t7,
 
@@ -5509,6 +5515,7 @@ static struct lcd_debug_info_s lcd_debug_info_t7_1 = {
 	.reg_pll_table = lcd_reg_dump_pll_t7_1,
 	.reg_clk_table = lcd_reg_dump_clk_t7_1,
 	.reg_clk_hiu_table = NULL,
+	.reg_clk_combo_dphy_table = lcd_reg_dump_clk_combo_dphy_t7_1,
 	.reg_encl_table = lcd_reg_dump_encl_t7_1,
 	.reg_pinmux_table = lcd_reg_dump_pinmux_t7,
 
@@ -5527,6 +5534,7 @@ static struct lcd_debug_info_s lcd_debug_info_t7_2 = {
 	.reg_pll_table = lcd_reg_dump_pll_t7_2,
 	.reg_clk_table = lcd_reg_dump_clk_t7_2,
 	.reg_clk_hiu_table = NULL,
+	.reg_clk_combo_dphy_table = lcd_reg_dump_clk_combo_dphy_t7_2,
 	.reg_encl_table = lcd_reg_dump_encl_t7_2,
 	.reg_pinmux_table = lcd_reg_dump_pinmux_t7,
 
@@ -5563,6 +5571,7 @@ static struct lcd_debug_info_s lcd_debug_info_t3_1 = {
 	.reg_pll_table = lcd_reg_dump_pll_t3_0,
 	.reg_clk_table = lcd_reg_dump_clk_t7_1,
 	.reg_clk_hiu_table = NULL,
+	.reg_clk_combo_dphy_table = NULL,
 	.reg_encl_table = lcd_reg_dump_encl_t7_1,
 	.reg_pinmux_table = lcd_reg_dump_pinmux_t3,
 
@@ -5581,6 +5590,7 @@ static struct lcd_debug_info_s lcd_debug_info_t5w = {
 	.reg_pll_table = lcd_reg_dump_pll_t5,
 	.reg_clk_table = lcd_reg_dump_clk_t5w,
 	.reg_clk_hiu_table = NULL,
+	.reg_clk_combo_dphy_table = NULL,
 	.reg_encl_table = lcd_reg_dump_encl_t7_0,
 	.reg_pinmux_table = lcd_reg_dump_pinmux_tl1,
 
@@ -5599,6 +5609,7 @@ static struct lcd_debug_info_s lcd_debug_info_a4 = {
 	.reg_pll_table = NULL,
 	.reg_clk_table = NULL,
 	.reg_clk_hiu_table = lcd_reg_dump_clk_a4,
+	.reg_clk_combo_dphy_table = NULL,
 	.reg_encl_table = lcd_reg_dump_encl_a4,
 	.reg_pinmux_table = NULL,
 

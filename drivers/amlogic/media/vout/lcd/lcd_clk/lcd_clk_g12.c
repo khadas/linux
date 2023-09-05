@@ -24,6 +24,72 @@
 #include "lcd_clk_ctrl.h"
 #include "lcd_clk_utils.h"
 
+static void lcd_pll_frac_set_gp0(struct aml_lcd_drv_s *pdrv, unsigned int frac)
+{
+	unsigned int val;
+
+	val = lcd_ana_read(HHI_GP0_PLL_CNTL1);
+	lcd_ana_setb(HHI_GP0_PLL_CNTL1, frac, 0, 19);
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("%s: reg 0x%x: 0x%08x->0x%08x\n",
+			__func__, HHI_GP0_PLL_CNTL1,
+			val, lcd_ana_read(HHI_GP0_PLL_CNTL1));
+	}
+}
+
+static void lcd_pll_m_set_gp0(struct aml_lcd_drv_s *pdrv, unsigned int m)
+{
+	unsigned int val;
+
+	val = lcd_ana_read(HHI_GP0_PLL_CNTL0);
+	lcd_ana_setb(HHI_GP0_PLL_CNTL0, m, 0, 8);
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("%s: reg 0x%x: 0x%08x->0x%08x\n",
+			__func__, HHI_GP0_PLL_CNTL0,
+			val, lcd_ana_read(HHI_GP0_PLL_CNTL0));
+	}
+}
+
+static void lcd_pll_reset_gp0(struct aml_lcd_drv_s *pdrv)
+{
+	lcd_ana_setb(HHI_GP0_PLL_CNTL0, 1, 29, 1);
+	usleep_range(10, 11);
+	lcd_ana_setb(HHI_GP0_PLL_CNTL0, 0, 29, 1);
+}
+
+static void lcd_pll_frac_set_hpll(struct aml_lcd_drv_s *pdrv, unsigned int frac)
+{
+	unsigned int val;
+
+	val = lcd_ana_read(HHI_HDMI_PLL_CNTL1);
+	lcd_ana_setb(HHI_HDMI_PLL_CNTL1, frac, 0, 19);
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("%s: reg 0x%x: 0x%08x->0x%08x\n",
+			__func__, HHI_HDMI_PLL_CNTL1,
+			val, lcd_ana_read(HHI_HDMI_PLL_CNTL1));
+	}
+}
+
+static void lcd_pll_m_set_hpll(struct aml_lcd_drv_s *pdrv, unsigned int m)
+{
+	unsigned int val;
+
+	val = lcd_ana_read(HHI_HDMI_PLL_CNTL0);
+	lcd_ana_setb(HHI_HDMI_PLL_CNTL0, m, 0, 8);
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("%s: reg 0x%x: 0x%08x->0x%08x\n",
+			__func__, HHI_HDMI_PLL_CNTL0,
+			val, lcd_ana_read(HHI_HDMI_PLL_CNTL0));
+	}
+}
+
+static void lcd_pll_reset_hpll(struct aml_lcd_drv_s *pdrv)
+{
+	lcd_ana_setb(HHI_HDMI_PLL_CNTL0, 1, 29, 1);
+	usleep_range(10, 11);
+	lcd_ana_setb(HHI_HDMI_PLL_CNTL0, 0, 29, 1);
+}
+
 #define PLL_WAIT_LOCK_CNT_G12A    1000
 static int lcd_pll_wait_lock_g12a(int path)
 {
@@ -333,6 +399,74 @@ static void lcd_clk_set_g12b_path1(struct aml_lcd_drv_s *pdrv)
 	lcd_set_gp0_pll_g12b(pdrv);
 	lcd_set_dsi_meas_clk();
 	lcd_set_dsi_phy_clk(1);
+}
+
+static void lcd_set_vclk_crt(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_clk_config_s *cconf;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
+		LCDPR("%s\n", __func__);
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf)
+		return;
+
+	if (pdrv->lcd_pxp) {
+		/* setup the XD divider value */
+		lcd_clk_setb(HHI_VIID_CLK_DIV, cconf->xd, VCLK2_XD, 8);
+		udelay(5);
+
+		/* select vid_pll_clk */
+		lcd_clk_setb(HHI_VIID_CLK_CNTL, 7, VCLK2_CLK_IN_SEL, 3);
+	} else {
+		/* setup the XD divider value */
+		lcd_clk_setb(HHI_VIID_CLK_DIV, (cconf->xd - 1), VCLK2_XD, 8);
+		udelay(5);
+
+		/* select vid_pll_clk */
+		lcd_clk_setb(HHI_VIID_CLK_CNTL, cconf->data->vclk_sel, VCLK2_CLK_IN_SEL, 3);
+	}
+	lcd_clk_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_EN, 1);
+	udelay(2);
+
+	/* [15:12] encl_clk_sel, select vclk2_div1 */
+	lcd_clk_setb(HHI_VIID_CLK_DIV, 8, ENCL_CLK_SEL, 4);
+	/* release vclk2_div_reset and enable vclk2_div */
+	lcd_clk_setb(HHI_VIID_CLK_DIV, 1, VCLK2_XD_EN, 2);
+	udelay(5);
+
+	lcd_clk_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_DIV1_EN, 1);
+	lcd_clk_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_SOFT_RST, 1);
+	usleep_range(10, 11);
+	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_SOFT_RST, 1);
+	udelay(5);
+
+	/* enable CTS_ENCL clk gate */
+	lcd_clk_setb(HHI_VID_CLK_CNTL2, 1, ENCL_GATE_VCLK, 1);
+}
+
+static void lcd_clk_disable_gp0(struct aml_lcd_drv_s *pdrv)
+{
+	lcd_clk_setb(HHI_VID_CLK_CNTL2, 0, 3, 1);
+
+	/* close vclk2_div gate: 0x104b[4:0] */
+	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, 0, 5);
+	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, 19, 1);
+
+	lcd_ana_setb(HHI_GP0_PLL_CNTL0, 0, 28, 1);  //disable
+	lcd_ana_setb(HHI_GP0_PLL_CNTL0, 1, 29, 1);  //reset
+}
+
+static void lcd_clk_disable_hpll(struct aml_lcd_drv_s *pdrv)
+{
+	lcd_clk_setb(HHI_VID_CLK_CNTL2, 0, 3, 1);
+
+	/* close vclk2_div gate: 0x104b[4:0] */
+	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, 0, 5);
+	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, 19, 1);
+
+	lcd_ana_setb(HHI_HDMI_PLL_CNTL0, 0, 28, 1);  //disable
+	lcd_ana_setb(HHI_HDMI_PLL_CNTL0, 1, 29, 1);  //reset
 }
 
 static void lcd_clk_gate_switch_g12a(struct aml_lcd_drv_s *pdrv, int status)
@@ -762,68 +896,6 @@ static int lcd_clk_config_print_g12a(struct aml_lcd_drv_s *pdrv, char *buf, int 
 	return len;
 }
 
-static void lcd_set_vclk_crt(struct aml_lcd_drv_s *pdrv)
-{
-	struct lcd_clk_config_s *cconf;
-
-	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
-		LCDPR("%s\n", __func__);
-	cconf = get_lcd_clk_config(pdrv);
-	if (!cconf)
-		return;
-
-	if (pdrv->lcd_pxp) {
-		/* setup the XD divider value */
-		lcd_clk_setb(HHI_VIID_CLK_DIV, cconf->xd, VCLK2_XD, 8);
-		udelay(5);
-
-		/* select vid_pll_clk */
-		lcd_clk_setb(HHI_VIID_CLK_CNTL, 7, VCLK2_CLK_IN_SEL, 3);
-	} else {
-		/* setup the XD divider value */
-		lcd_clk_setb(HHI_VIID_CLK_DIV, (cconf->xd - 1), VCLK2_XD, 8);
-		udelay(5);
-
-		/* select vid_pll_clk */
-		lcd_clk_setb(HHI_VIID_CLK_CNTL, cconf->data->vclk_sel, VCLK2_CLK_IN_SEL, 3);
-	}
-	lcd_clk_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_EN, 1);
-	udelay(2);
-
-	/* [15:12] encl_clk_sel, select vclk2_div1 */
-	lcd_clk_setb(HHI_VIID_CLK_DIV, 8, ENCL_CLK_SEL, 4);
-	/* release vclk2_div_reset and enable vclk2_div */
-	lcd_clk_setb(HHI_VIID_CLK_DIV, 1, VCLK2_XD_EN, 2);
-	udelay(5);
-
-	lcd_clk_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_DIV1_EN, 1);
-	lcd_clk_setb(HHI_VIID_CLK_CNTL, 1, VCLK2_SOFT_RST, 1);
-	udelay(10);
-	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_SOFT_RST, 1);
-	udelay(5);
-
-	/* enable CTS_ENCL clk gate */
-	lcd_clk_setb(HHI_VID_CLK_CNTL2, 1, ENCL_GATE_VCLK, 1);
-}
-
-static struct lcd_clk_ctrl_s pll_ctrl_table_g12a_path0[] = {
-	/* flag             reg                  bit                    len*/
-	{LCD_CLK_CTRL_EN,   HHI_HDMI_PLL_CNTL0,  LCD_PLL_EN_HPLL_G12A,   1},
-	{LCD_CLK_CTRL_RST,  HHI_HDMI_PLL_CNTL0,  LCD_PLL_RST_HPLL_G12A,  1},
-	{LCD_CLK_CTRL_M,    HHI_HDMI_PLL_CNTL0,  LCD_PLL_M_HPLL_G12A,    8},
-	{LCD_CLK_CTRL_FRAC, HHI_HDMI_PLL_CNTL1,                      0, 19},
-	{LCD_CLK_CTRL_END,  LCD_CLK_REG_END,                         0,  0},
-};
-
-static struct lcd_clk_ctrl_s pll_ctrl_table_g12a_path1[] = {
-	/* flag             reg                bit                   len*/
-	{LCD_CLK_CTRL_EN,   HHI_GP0_PLL_CNTL0, LCD_PLL_EN_GP0_G12A,   1},
-	{LCD_CLK_CTRL_RST,  HHI_GP0_PLL_CNTL0, LCD_PLL_RST_GP0_G12A,  1},
-	{LCD_CLK_CTRL_M,    HHI_GP0_PLL_CNTL0, LCD_PLL_M_GP0_G12A,    8},
-	{LCD_CLK_CTRL_FRAC, HHI_GP0_PLL_CNTL1,                    0, 19},
-	{LCD_CLK_CTRL_END,  LCD_CLK_REG_END,                      0,  0},
-};
-
 static struct lcd_clk_data_s lcd_clk_data_g12a_path0 = { //HPLL
 	.pll_od_fb = 0,
 	.pll_m_max = 511,
@@ -842,24 +914,31 @@ static struct lcd_clk_data_s lcd_clk_data_g12a_path0 = { //HPLL
 	.div_in_fmax = 0,
 	.div_out_fmax = 750000000,
 	.xd_out_fmax = 200000000,
+	.od_cnt = 3,
+	.have_tcon_div = 0,
+	.have_pll_div = 1,
+	.phy_clk_location = 2,
 
 	.vclk_sel = 0,
 	.enc_clk_msr_id = 9,
 	.fifo_clk_msr_id = LCD_CLK_MSR_INVALID,
 	.tcon_clk_msr_id = LCD_CLK_MSR_INVALID,
-	.pll_ctrl_table = pll_ctrl_table_g12a_path0,
 
 	.ss_support = 0,
 
+	.clk_parameter_init = NULL,
 	.clk_generate_parameter = lcd_clk_generate_hpll_g12a,
 	.pll_frac_generate = lcd_pll_frac_generate_dft,
 	.set_ss_level = NULL,
 	.set_ss_advance = NULL,
 	.clk_ss_enable = NULL,
 	.clk_ss_init = NULL,
+	.pll_frac_set = lcd_pll_frac_set_hpll,
+	.pll_m_set = lcd_pll_m_set_hpll,
+	.pll_reset = lcd_pll_reset_hpll,
 	.clk_set = lcd_clk_set_g12a_path0,
 	.vclk_crt_set = lcd_set_vclk_crt,
-	.clk_disable = lcd_clk_disable_dft,
+	.clk_disable = lcd_clk_disable_hpll,
 	.clk_gate_switch = lcd_clk_gate_switch_g12a,
 	.clk_gate_optional_switch = NULL,
 	.clktree_set = NULL,
@@ -888,24 +967,31 @@ static struct lcd_clk_data_s lcd_clk_data_g12a_path1 = {  //GP0
 	.div_in_fmax = 0,
 	.div_out_fmax = 750000000,
 	.xd_out_fmax = 200000000,
+	.od_cnt = 1,
+	.have_tcon_div = 0,
+	.have_pll_div = 0,
+	.phy_clk_location = 1,
 
 	.vclk_sel = 1,
 	.enc_clk_msr_id = 9,
 	.fifo_clk_msr_id = LCD_CLK_MSR_INVALID,
 	.tcon_clk_msr_id = LCD_CLK_MSR_INVALID,
-	.pll_ctrl_table = pll_ctrl_table_g12a_path1,
 
 	.ss_support = 0,
 
+	.clk_parameter_init = NULL,
 	.clk_generate_parameter = lcd_clk_generate_g12a,
 	.pll_frac_generate = lcd_pll_frac_generate_g12a,
 	.set_ss_level = NULL,
 	.set_ss_advance = NULL,
 	.clk_ss_enable = NULL,
 	.clk_ss_init = NULL,
+	.pll_frac_set = lcd_pll_frac_set_gp0,
+	.pll_m_set = lcd_pll_m_set_gp0,
+	.pll_reset = lcd_pll_reset_gp0,
 	.clk_set = lcd_clk_set_g12a_path1,
 	.vclk_crt_set = lcd_set_vclk_crt,
-	.clk_disable = lcd_clk_disable_dft,
+	.clk_disable = lcd_clk_disable_gp0,
 	.clk_gate_switch = lcd_clk_gate_switch_g12a,
 	.clk_gate_optional_switch = NULL,
 	.clktree_set = NULL,
@@ -934,24 +1020,31 @@ static struct lcd_clk_data_s lcd_clk_data_g12b_path0 = {  //HPLL
 	.div_in_fmax = 0,
 	.div_out_fmax = 750000000,
 	.xd_out_fmax = 200000000,
+	.od_cnt = 3,
+	.have_tcon_div = 0,
+	.have_pll_div = 1,
+	.phy_clk_location = 2,
 
 	.vclk_sel = 0,
 	.enc_clk_msr_id = 9,
 	.fifo_clk_msr_id = LCD_CLK_MSR_INVALID,
 	.tcon_clk_msr_id = LCD_CLK_MSR_INVALID,
-	.pll_ctrl_table = pll_ctrl_table_g12a_path0,
 
 	.ss_support = 0,
 
+	.clk_parameter_init = NULL,
 	.clk_generate_parameter = lcd_clk_generate_hpll_g12a,
 	.pll_frac_generate = lcd_pll_frac_generate_dft,
 	.set_ss_level = NULL,
 	.set_ss_advance = NULL,
 	.clk_ss_enable = NULL,
 	.clk_ss_init = NULL,
+	.pll_frac_set = lcd_pll_frac_set_hpll,
+	.pll_m_set = lcd_pll_m_set_hpll,
+	.pll_reset = lcd_pll_reset_hpll,
 	.clk_set = lcd_clk_set_g12b_path0,
 	.vclk_crt_set = lcd_set_vclk_crt,
-	.clk_disable = lcd_clk_disable_dft,
+	.clk_disable = lcd_clk_disable_hpll,
 	.clk_gate_switch = lcd_clk_gate_switch_g12a,
 	.clk_gate_optional_switch = NULL,
 	.clktree_set = NULL,
@@ -980,24 +1073,31 @@ static struct lcd_clk_data_s lcd_clk_data_g12b_path1 = { //GP0
 	.div_in_fmax = 0,
 	.div_out_fmax = 750000000,
 	.xd_out_fmax = 200000000,
+	.od_cnt = 1,
+	.have_tcon_div = 0,
+	.have_pll_div = 0,
+	.phy_clk_location = 1,
 
 	.vclk_sel = 1,
 	.enc_clk_msr_id = 9,
 	.fifo_clk_msr_id = LCD_CLK_MSR_INVALID,
 	.tcon_clk_msr_id = LCD_CLK_MSR_INVALID,
-	.pll_ctrl_table = pll_ctrl_table_g12a_path1,
 
 	.ss_support = 0,
 
+	.clk_parameter_init = NULL,
 	.clk_generate_parameter = lcd_clk_generate_g12a,
 	.pll_frac_generate = lcd_pll_frac_generate_g12a,
 	.set_ss_level = NULL,
 	.set_ss_advance = NULL,
 	.clk_ss_enable = NULL,
 	.clk_ss_init = NULL,
+	.pll_frac_set = lcd_pll_frac_set_gp0,
+	.pll_m_set = lcd_pll_m_set_gp0,
+	.pll_reset = lcd_pll_reset_gp0,
 	.clk_set = lcd_clk_set_g12b_path1,
 	.vclk_crt_set = lcd_set_vclk_crt,
-	.clk_disable = lcd_clk_disable_dft,
+	.clk_disable = lcd_clk_disable_gp0,
 	.clk_gate_switch = lcd_clk_gate_switch_g12a,
 	.clk_gate_optional_switch = NULL,
 	.clktree_set = NULL,

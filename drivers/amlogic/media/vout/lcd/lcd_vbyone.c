@@ -822,7 +822,7 @@ static void lcd_pll_monitor_timer_handler(struct timer_list *timer)
 	if (lcd_encl_clk_err_cnt >= LCD_ENCL_CLK_ERR_CNT_MAX) {
 		LCDPR("[%d]: %s: pll frequency error: %d\n",
 		      pdrv->index, __func__, encl_clk);
-		lcd_pll_reset(pdrv);
+		lcd_clk_pll_reset(pdrv);
 		lcd_encl_clk_err_cnt = 0;
 	}
 

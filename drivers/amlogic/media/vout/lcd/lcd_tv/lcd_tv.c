@@ -869,7 +869,7 @@ static int lcd_framerate_automation_set_mode(struct aml_lcd_drv_s *pdrv)
 	lcd_vout_notify_mode_change_pre(pdrv);
 
 	/* update interface timing */
-	lcd_tv_config_update(pdrv);
+	lcd_timing_config_update(pdrv);
 #ifdef CONFIG_AMLOGIC_VPU
 	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.lcd_clk);
 #endif
@@ -1239,9 +1239,9 @@ static void lcd_config_init(struct aml_lcd_drv_s *pdrv)
 	/* before vmode_init to avoid period changing */
 	lcd_timing_init_config(pdrv);
 	lcd_vmode_init(pdrv);
-	lcd_tv_config_update(pdrv);
+	lcd_timing_config_update(pdrv);
 
-	lcd_clk_ss_config_init(pdrv);
+	lcd_clk_config_parameter_init(pdrv);
 	lcd_clk_generate_parameter(pdrv);
 }
 
@@ -1262,7 +1262,7 @@ static void lcd_frame_rate_adjust(struct aml_lcd_drv_s *pdrv, int duration)
 	pdrv->config.timing.sync_duration_den = 100;
 
 	/* update interface timing */
-	lcd_tv_config_update(pdrv);
+	lcd_timing_config_update(pdrv);
 #ifdef CONFIG_AMLOGIC_VPU
 	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.lcd_clk);
 #endif

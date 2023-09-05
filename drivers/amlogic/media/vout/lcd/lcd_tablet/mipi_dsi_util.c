@@ -1948,6 +1948,8 @@ static void mipi_dsi_host_on(struct aml_lcd_drv_s *pdrv)
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("%s\n", __func__);
 
+	lcd_mipi_dsi_config_post(pdrv);
+
 	/* disable encl */
 	lcd_venc_enable(pdrv, 0);
 	lcd_delay_us(100);
@@ -2013,20 +2015,12 @@ void mipi_dsi_tx_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 int lcd_mipi_test_read(struct aml_lcd_drv_s *pdrv, struct dsi_read_s *dread)
 {
 	unsigned char payload[3] = {DT_GEN_RD_1, 1, 0x04};
-	unsigned int reg, offset;
 	int ret = 0;
 
 	if (!dread)
 		return 1;
 
-	if (pdrv->data->chip_type == LCD_CHIP_T7) {
-		offset = pdrv->data->offset_venc[pdrv->index];
-		reg = VPU_VENCP_STAT + offset;
-	} else {
-		reg = ENCL_INFO_READ;
-	}
-
-	dread->line_start = lcd_vcbus_getb(reg, 16, 13);
+	dread->line_start = lcd_get_encl_line_cnt(pdrv);
 
 	payload[2] = dread->reg;
 	ret = dsi_read_single(pdrv, payload, dread->value, dread->cnt);
@@ -2039,7 +2033,7 @@ int lcd_mipi_test_read(struct aml_lcd_drv_s *pdrv, struct dsi_read_s *dread)
 		return 3;
 	}
 
-	dread->line_end = lcd_vcbus_getb(reg, 16, 13);
+	dread->line_end = lcd_get_encl_line_cnt(pdrv);
 
 	dread->ret_code = 0;
 	return 0;

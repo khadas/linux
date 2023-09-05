@@ -78,6 +78,11 @@ struct lcd_clk_data_s {
 	unsigned long long div_in_fmax;
 	unsigned int div_out_fmax;
 	unsigned int xd_out_fmax;
+	unsigned int od_cnt;
+	unsigned int have_tcon_div;
+	unsigned int have_pll_div;
+	//0:pll_clk_phase, 1:pll_clk2, 2:vid_pll_clk
+	unsigned int phy_clk_location;
 
 	unsigned int ss_support;
 	unsigned int ss_level_max;
@@ -91,14 +96,18 @@ struct lcd_clk_data_s {
 	int enc_clk_msr_id;
 	int fifo_clk_msr_id;
 	int tcon_clk_msr_id;
-	struct lcd_clk_ctrl_s *pll_ctrl_table;
 
+	//for some parameter changed to different lcd interface
+	void (*clk_parameter_init)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_generate_parameter)(struct aml_lcd_drv_s *pdrv);
 	void (*pll_frac_generate)(struct aml_lcd_drv_s *pdrv);
 	void (*set_ss_level)(struct aml_lcd_drv_s *pdrv);
 	void (*set_ss_advance)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_ss_enable)(struct aml_lcd_drv_s *pdrv, int status);
 	void (*clk_ss_init)(struct lcd_clk_config_s *cconf);
+	void (*pll_frac_set)(struct aml_lcd_drv_s *pdrv, unsigned int frac);
+	void (*pll_m_set)(struct aml_lcd_drv_s *pdrv, unsigned int m);
+	void (*pll_reset)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_set)(struct aml_lcd_drv_s *pdrv);
 	void (*vclk_crt_set)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_disable)(struct aml_lcd_drv_s *pdrv);

@@ -832,72 +832,6 @@ static void lcd_p2p_disable(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
-void lcd_tv_clk_config_change(struct aml_lcd_drv_s *pdrv)
-{
-#ifdef CONFIG_AMLOGIC_VPU
-	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.lcd_clk);
-#endif
-
-	switch (pdrv->config.basic.lcd_type) {
-	case LCD_VBYONE:
-		lcd_vbyone_config_set(pdrv);
-		break;
-	case LCD_MLVDS:
-		lcd_mlvds_config_set(pdrv);
-		break;
-	case LCD_P2P:
-		lcd_p2p_config_set(pdrv);
-		break;
-	default:
-		break;
-	}
-
-	lcd_clk_generate_parameter(pdrv);
-}
-
-void lcd_tv_clk_update(struct aml_lcd_drv_s *pdrv)
-{
-	lcd_tv_clk_config_change(pdrv);
-
-	if (pdrv->config.basic.lcd_type == LCD_VBYONE)
-		lcd_vbyone_interrupt_enable(pdrv, 0);
-	lcd_set_clk(pdrv);
-	if (pdrv->config.basic.lcd_type == LCD_VBYONE)
-		lcd_vbyone_wait_stable(pdrv);
-}
-
-void lcd_tv_config_update(struct aml_lcd_drv_s *pdrv)
-{
-	struct vinfo_s *info;
-
-	/* update vinfo */
-	info = &pdrv->vinfo;
-	info->sync_duration_num = pdrv->config.timing.sync_duration_num;
-	info->sync_duration_den = pdrv->config.timing.sync_duration_den;
-	info->frac = pdrv->config.timing.frac;
-	info->std_duration = pdrv->config.timing.frame_rate;
-
-	/* update clk & timing config */
-	lcd_vmode_change(pdrv);
-	info->video_clk = pdrv->config.timing.lcd_clk;
-	info->htotal = pdrv->config.basic.h_period;
-	info->vtotal = pdrv->config.basic.v_period;
-	/* update interface timing */
-	switch (pdrv->config.basic.lcd_type) {
-	case LCD_VBYONE:
-		lcd_vbyone_config_set(pdrv);
-		break;
-	case LCD_MLVDS:
-		lcd_mlvds_config_set(pdrv);
-		break;
-	case LCD_P2P:
-		lcd_p2p_config_set(pdrv);
-		break;
-	default:
-		break;
-	}
-}
-
 void lcd_tv_driver_init_pre(struct aml_lcd_drv_s *pdrv)
 {
 	int ret;
@@ -1049,7 +983,7 @@ int lcd_tv_driver_change(struct aml_lcd_drv_s *pdrv)
 	if (ret)
 		return -1;
 
-	lcd_tv_config_update(pdrv);
+	lcd_timing_config_update(pdrv);
 #ifdef CONFIG_AMLOGIC_VPU
 	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.lcd_clk);
 #endif

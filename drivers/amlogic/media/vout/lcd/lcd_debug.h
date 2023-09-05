@@ -37,6 +37,7 @@ struct lcd_debug_info_s {
 	unsigned int *reg_pll_table;
 	unsigned int *reg_clk_table;
 	unsigned int *reg_clk_hiu_table;
+	unsigned int *reg_clk_combo_dphy_table;
 	unsigned int *reg_encl_table;
 	unsigned int *reg_pinmux_table;
 	void (*prbs_test)(struct aml_lcd_drv_s *pdrv, unsigned int s,
@@ -182,6 +183,21 @@ static unsigned int lcd_reg_dump_clk_t7_2[] = {
 	CLKCTRL_VIID_CLK2_DIV,
 	CLKCTRL_VIID_CLK2_CTRL,
 	CLKCTRL_VID_CLK2_CTRL2,
+	LCD_DEBUG_REG_END
+};
+
+static unsigned int lcd_reg_dump_clk_combo_dphy_t7_0[] = {
+	COMBO_DPHY_VID_PLL0_DIV,
+	LCD_DEBUG_REG_END
+};
+
+static unsigned int lcd_reg_dump_clk_combo_dphy_t7_1[] = {
+	COMBO_DPHY_VID_PLL1_DIV,
+	LCD_DEBUG_REG_END
+};
+
+static unsigned int lcd_reg_dump_clk_combo_dphy_t7_2[] = {
+	COMBO_DPHY_VID_PLL2_DIV,
 	LCD_DEBUG_REG_END
 };
 
