@@ -39,6 +39,7 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 #include <linux/amlogic/media/video_sink/video.h>
 #endif
+#include <linux/kthread.h>
 
 /*the same as audio hal type define!*/
 static const char * const audio_format[] = {
@@ -148,6 +149,9 @@ struct aml_card_data {
 	int i2s_to_hdmitx_mask;
 	/* soft locker attached to */
 	struct soft_locker slocker;
+	struct task_struct *thread;
+	int gpio_set_flag;
+	wait_queue_head_t wq;
 };
 
 #define aml_priv_to_dev(priv) ((priv)->snd_card.dev)
@@ -1090,56 +1094,6 @@ static int aml_card_parse_gpios(struct device_node *node,
 	return 0;
 }
 
-static void aml_init_work(struct work_struct *init_work)
-{
-	struct aml_card_data *priv = NULL;
-	struct device *dev = NULL;
-	struct device_node *np = NULL;
-
-	priv = container_of(init_work,
-			struct aml_card_data, init_work);
-	dev = aml_priv_to_dev(priv);
-	np = dev->of_node;
-	aml_card_parse_gpios(np, priv);
-}
-
-static void aml_card_gpio(struct aml_card_data *priv)
-{
-	struct device *dev = aml_priv_to_dev(priv);
-	enum of_gpio_flags flags;
-	bool active_low;
-	int gpio;
-
-	gpio = of_get_named_gpio_flags(dev->of_node, "spk_mute-gpios", 0, &flags);
-	priv->spk_mute_gpio = gpio;
-
-	if (gpio_is_valid(priv->spk_mute_gpio)) {
-		active_low = !!(flags & OF_GPIO_ACTIVE_LOW);
-		flags = active_low ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
-		priv->spk_mute_active_low = active_low;
-		if (priv->spk_mute_enable) {
-			gpio_set_value(priv->spk_mute_gpio,
-				(active_low) ? GPIOF_OUT_INIT_LOW :
-				GPIOF_OUT_INIT_HIGH);
-		} else {
-			if (!priv->spk_mute_flag)
-				gpio_set_value(priv->spk_mute_gpio,
-					(active_low) ? GPIOF_OUT_INIT_HIGH :
-					GPIOF_OUT_INIT_LOW);
-		}
-	}
-
-	if (!IS_ERR(priv->avout_mute_desc)) {
-		if (!priv->av_mute_enable) {
-			gpiod_direction_output(priv->avout_mute_desc,
-				GPIOF_OUT_INIT_HIGH);
-		} else {
-			gpiod_direction_output(priv->avout_mute_desc,
-				GPIOF_OUT_INIT_LOW);
-		}
-	}
-}
-
 static int aml_card_parse_of(struct device_node *node,
 				     struct aml_card_data *priv)
 {
@@ -1214,14 +1168,53 @@ static const struct of_device_id auge_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, auge_of_match);
 
+static int card_work_thread(void *data)
+{
+	struct aml_card_data *priv = data;
+	struct device *dev = NULL;
+	struct device_node *np = NULL;
+
+	pr_info("%s card thread start\n", __func__);
+
+	if (!priv)
+		return 0;
+
+	dev = aml_priv_to_dev(priv);
+	np = dev->of_node;
+
+	do {
+		if (wait_event_interruptible(priv->wq,
+						priv->gpio_set_flag == 1 ||
+						 kthread_should_stop()) == 0) {
+			if (!kthread_should_stop()) {
+				aml_card_parse_gpios(np, priv);
+				priv->gpio_set_flag = 0;
+			}
+		}
+	} while (!kthread_should_stop());
+
+	pr_info("%s card thread exit\n", __func__);
+
+	return 0;
+}
+
 static int card_suspend_pre(struct snd_soc_card *card)
 {
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
+	struct device *dev = aml_priv_to_dev(priv);
+	struct device_node *np = dev->of_node;
 
 	priv->av_mute_enable = 1;
 	priv->spk_mute_enable = 1;
-	aml_card_gpio(priv);
+	aml_card_parse_gpios(np, priv);
+
 	pr_info("it is card_pre_suspend\n");
+
+	if (priv->thread) {
+		kthread_stop(priv->thread);
+		priv->thread = NULL;
+	}
+
 	return 0;
 }
 
@@ -1231,8 +1224,24 @@ static int card_resume_post(struct snd_soc_card *card)
 
 	priv->av_mute_enable = 0;
 	priv->spk_mute_enable = 0;
-	aml_card_gpio(priv);
 	pr_info("it is card_post_resume\n");
+
+	priv->gpio_set_flag = 1;
+	if (!priv->thread) {
+		priv->thread =
+			kthread_create(card_work_thread, priv,
+					   "card_process_thread");
+		if (IS_ERR(priv->thread)) {
+			int err = PTR_ERR(priv->thread);
+
+			priv->thread = NULL;
+			pr_info("card : Creating thread failed\n");
+			return err;
+		}
+		wake_up_process(priv->thread);
+	}
+	wake_up_interruptible(&priv->wq);
+
 	return 0;
 
 }
@@ -1475,8 +1484,25 @@ static int aml_card_probe(struct platform_device *pdev)
 
 	priv->av_mute_enable = 0;
 	priv->spk_mute_enable = 0;
-	INIT_WORK(&priv->init_work, aml_init_work);
-	schedule_work(&priv->init_work);
+	priv->thread = NULL;
+	priv->gpio_set_flag = 1;
+	init_waitqueue_head(&priv->wq);
+
+	if (!priv->thread) {
+		priv->thread =
+			kthread_create(card_work_thread, priv,
+					   "card_process_thread");
+		if (IS_ERR(priv->thread)) {
+			int err = PTR_ERR(priv->thread);
+
+			priv->thread = NULL;
+			pr_info("card : Creating thread failed\n");
+			return err;
+		}
+		wake_up_process(priv->thread);
+	}
+	wake_up_interruptible(&priv->wq);
+
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	card_early_suspend_handler.param = pdev;
@@ -1496,6 +1522,11 @@ static int aml_card_remove(struct platform_device *pdev)
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
 
+	if (priv->thread) {
+		kthread_stop(priv->thread);
+		priv->thread = NULL;
+	}
+
 	aml_card_remove_jack(&priv->hp_jack);
 	aml_card_remove_jack(&priv->mic_jack);
 	jack_audio_stop_timer(priv);
@@ -1514,6 +1545,11 @@ static void aml_card_platform_shutdown(struct platform_device *pdev)
 	priv->av_mute_enable = 1;
 	priv->spk_mute_enable = 1;
 	aml_card_parse_gpios(pdev->dev.of_node, priv);
+
+	if (priv->thread) {
+		kthread_stop(priv->thread);
+		priv->thread = NULL;
+	}
 }
 
 static struct platform_driver aml_card = {
