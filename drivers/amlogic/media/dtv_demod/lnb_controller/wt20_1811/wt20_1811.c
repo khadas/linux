@@ -4,6 +4,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/delay.h>
 #include "lnb_controller.h"
 #include "wt20_1811.h"
 #include "i2c_func.h"
@@ -100,6 +101,11 @@ static int wt20_1811_set_voltage(struct lnbc *lnbc,
 	ret = aml_demod_i2c_write(lnbc->i2c_adap, lnbc->i2c_addr, buffer, len);
 	if (ret)
 		return ret;
+
+	if (voltage == LNBC_VOLTAGE_LOW && lnbc->voltage == LNBC_VOLTAGE_HIGH)
+		usleep_range(9000, 10000);
+	else if (voltage == LNBC_VOLTAGE_HIGH && lnbc->voltage == LNBC_VOLTAGE_LOW)
+		usleep_range(24000, 25000);
 
 	lnbc->voltage = voltage;
 	lnbc->state = LNBC_STATE_ACTIVE;

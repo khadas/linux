@@ -73,7 +73,7 @@ void aml_diseqc_toneburst_sa(void)
 {
 	/* tone burst a is 12.5ms continus tone*/
 	dvbs2_diseqc_continuous_tone(true);
-	msleep(13);
+	usleep_range(15000, 16000);
 	dvbs2_diseqc_continuous_tone(false);
 }
 
@@ -392,7 +392,7 @@ int aml_diseqc_send_master_cmd(struct dvb_frontend *fe,
 	/* disable continuous tone */
 	if (tone) {
 		aml_diseqc_tone_on(diseqc, false);
-		msleep(12);
+		usleep_range(15000, 16000);
 	}
 
 	/* Single cable1.0X EN50494
@@ -424,7 +424,7 @@ int aml_diseqc_send_master_cmd(struct dvb_frontend *fe,
 		if (diseqc->voltage != SEC_VOLTAGE_18)
 			aml_diseqc_set_lnb_voltage(diseqc, SEC_VOLTAGE_18);
 
-		msleep(10);
+		usleep_range(4000, 5000);
 	}
 
 	dprintk(1, "%s: len %d, msg: [0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X].\n",
@@ -434,7 +434,7 @@ int aml_diseqc_send_master_cmd(struct dvb_frontend *fe,
 	ret = aml_diseqc_send_cmd(diseqc, cmd);
 
 	if (unicable_cmd) {
-		msleep(10);
+		usleep_range(2000, 3000);
 
 		aml_diseqc_set_lnb_voltage(diseqc, SEC_VOLTAGE_13);
 	}
@@ -442,14 +442,17 @@ int aml_diseqc_send_master_cmd(struct dvb_frontend *fe,
 	/* diseqc2.0 with reply. */
 	if (!ret && (cmd->msg[0] == 0xE2 || cmd->msg[0] == 0xE3 ||
 		(0x7A <= cmd->msg[0] && 0x7E >= cmd->msg[0]))) {
-		msleep(5);
+		if (0x7A <= cmd->msg[0] && 0x7E >= cmd->msg[0])
+			usleep_range(15000, 16000);
+		else
+			usleep_range(5000, 6000);
 		ret = aml_diseqc_get_reply_msg(diseqc);
 	}
 
 	/* Send burst SA or SB */
 	if (sendburst_on && cmd->msg_len == 4 && cmd->msg[2] == 0x38 &&
 		cmd->msg[3] >= 0xf0) {
-		msleep(16);
+		usleep_range(15000, 16000);
 		if ((cmd->msg[3] >= 0xf0 && cmd->msg[3] <= 0xf3) &&
 			(cmd->msg[3] >= 0xf8 && cmd->msg[3] <= 0xfb))
 			aml_diseqc_toneburst_sa();
@@ -461,7 +464,7 @@ int aml_diseqc_send_master_cmd(struct dvb_frontend *fe,
 
 	/* Is tone on, need set tone on */
 	if (tone) {
-		msleep(16);
+		usleep_range(15000, 16000);
 		aml_diseqc_tone_on(diseqc, true);
 	}
 
