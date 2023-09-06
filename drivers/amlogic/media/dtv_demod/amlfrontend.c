@@ -117,8 +117,16 @@ static unsigned int dvbc_lock_continuous_cnt = 1;
 module_param(dvbc_lock_continuous_cnt, int, 0644);
 
 MODULE_PARM_DESC(dvbc_lost_continuous_cnt, "\n\t\t dvbc lost signal continuous counting");
-static unsigned int dvbc_lost_continuous_cnt = 5;
+static unsigned int dvbc_lost_continuous_cnt = 10;
 module_param(dvbc_lost_continuous_cnt, int, 0644);
+
+MODULE_PARM_DESC(dvbc_qam_try_cnt, "\n\t\t dvbc qam try counting");
+static unsigned int dvbc_qam_try_cnt = 1;
+module_param(dvbc_qam_try_cnt, int, 0644);
+
+MODULE_PARM_DESC(dvbc_check_agc_time, "\n\t\t dvbc check agc time");
+static unsigned int dvbc_check_agc_time = 200;
+module_param(dvbc_check_agc_time, int, 0644);
 
 int aml_demod_debug = DBG_INFO;
 module_param(aml_demod_debug, int, 0644);
@@ -3918,10 +3926,10 @@ static int dvbc_read_status(struct dvb_frontend *fe, enum fe_status *status, boo
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	s16 strength = 0;
 	int fsm_status = 0;//0:none;1:lock;-1:lost
-	unsigned int s = 0;
+	unsigned int s = 0, r29;
 	unsigned int sr = 0;
 	unsigned int curTime = 0, time_passed_qam = 0;
-	static int peak;
+	static int peak, agc;
 	static int AQAM_times;
 	static int ASR_times;
 	static unsigned int time_start_qam;
@@ -3929,9 +3937,18 @@ static int dvbc_read_status(struct dvb_frontend *fe, enum fe_status *status, boo
 	static int lock_status;
 	int lock_continuous_cnt = dvbc_lock_continuous_cnt > 1 ? dvbc_lock_continuous_cnt : 1;
 	int lost_continuous_cnt = dvbc_lost_continuous_cnt > 1 ? dvbc_lost_continuous_cnt : 1;
+	int qam_try_cnt = dvbc_qam_try_cnt > 1 ? dvbc_qam_try_cnt : 1;
+	int check_agc_time = dvbc_check_agc_time > 0 ? dvbc_check_agc_time : 200;
+	static unsigned int last_locked_freq, last_locked_time;
+	static unsigned int last_agc_freq, last_agc_time;
+	static unsigned int last_freq, is_blind, first = 1;
+
+	curTime = jiffies_to_msecs(jiffies);
+	demod->time_passed = curTime - demod->time_start;
 
 	if (re_tune) {
 		peak = 0;
+		agc = 0;
 		AQAM_times = 0;
 		time_start_qam = 0;
 		if (c->symbol_rate == 0) {
@@ -3948,6 +3965,25 @@ static int dvbc_read_status(struct dvb_frontend *fe, enum fe_status *status, boo
 		dvbc_set_srspeed(demod, c->symbol_rate == 0 ? 1 : 0);
 		demod_dvbc_fsm_reset(demod);
 
+		if (c->frequency - last_freq == 1000000) {
+			is_blind++;
+		} else if (c->frequency - last_freq != 6000000 &&
+			c->frequency - last_freq != 7000000 &&
+			c->frequency - last_freq != 8000000) {
+			is_blind = 0;
+			first = 1;
+		}
+		last_freq = c->frequency;
+
+		if (c->frequency - last_locked_freq >= 1000000 &&
+			c->frequency - last_locked_freq <= 5000000 &&
+			curTime - last_locked_time < 3000) {
+			*status = FE_TIMEDOUT;
+			real_para_clear(&demod->real_para);
+
+			goto finish;
+		}
+
 		lock_status = 0;
 		*status = 0;
 		demod->last_status = 0;
@@ -3956,19 +3992,51 @@ static int dvbc_read_status(struct dvb_frontend *fe, enum fe_status *status, boo
 	}
 
 	gxtv_demod_dvbc_read_signal_strength(fe, &strength);
+	PR_DVBC("%s:tuner strength=%ddBm\n", __func__, strength);
 	if (strength < THRD_TUNER_STRENGTH_DVBC) {
 		PR_DVBC("%s: tuner strength [%d] no signal(%d).\n",
 				__func__, strength, THRD_TUNER_STRENGTH_DVBC);
 		*status = FE_TIMEDOUT;
-		demod->last_status = *status;
 		real_para_clear(&demod->real_para);
 		time_start_qam = 0;
 
 		goto finish;
 	}
 
-	curTime = jiffies_to_msecs(jiffies);
-	demod->time_passed = curTime - demod->time_start;
+	if (tuner_find_by_name(fe, "r842") && c->symbol_rate == 0 && is_blind >= 3 &&
+		agc == 0 && demod->last_lock == 0) {
+		r29 = qam_read_reg(demod, 0x29);
+		PR_DVBC("%s: r29=0x%x, time_passed=%u\n", __func__, r29, demod->time_passed);
+		if (((r29 >> 16) & 0xf) == 7)
+			agc = 1;
+
+		if (agc == 0) {
+			if (demod->time_passed < check_agc_time) {
+				*status = 0;
+			} else {
+				*status = FE_TIMEDOUT;
+				real_para_clear(&demod->real_para);
+				time_start_qam = 0;
+
+				last_agc_freq = c->frequency;
+				last_agc_time = curTime;
+			}
+
+			goto finish;
+		} else if (agc == 1 && curTime - last_agc_time < 3000 &&
+			c->frequency - last_agc_freq >= 1000000 &&
+			c->frequency - last_agc_freq <= 5000000) {
+			if (first) {
+				first = 0;
+			} else {
+				*status = FE_TIMEDOUT;
+				real_para_clear(&demod->real_para);
+
+				goto finish;
+			}
+		}
+	}
+
 	s = qam_read_reg(demod, 0x31) & 0xf;
 	sr = dvbc_get_symb_rate(demod);
 	PR_DVBC("s=%d, demod->time_passed=%u\n", s, demod->time_passed);
@@ -3984,17 +4052,12 @@ static int dvbc_read_status(struct dvb_frontend *fe, enum fe_status *status, boo
 		demod->real_para.modulation = dvbc_get_dvbc_qam(demod->auto_qam_mode);
 		demod->real_para.symbol = sr * 1000;
 
+		last_locked_freq = c->frequency;
+		last_locked_time = curTime;
+
 		PR_DVBC("locked at sr:%d,Qam:%s\n", sr, get_qam_name(demod->auto_qam_mode));
 	} else if (s < 3) {
-		time_start_qam = 0;
-		if (demod->last_lock == 0 && (demod->time_passed < 600 ||
-			(demod->time_passed < 2000 && ASR_times < 2) ||
-			(peak == 1 && AQAM_times < 3 && c->modulation == QAM_AUTO)))
-			fsm_status = 0;
-		else
-			fsm_status = -1;
-
-		PR_DVBC("sr : %d, c->symbol_rate=%d\n", sr, c->symbol_rate);
+		PR_DVBC("sr : %d, set sr=%d\n", sr, c->symbol_rate);
 		if (c->symbol_rate == 0 && sr < ASR_end) {
 			demod->sr_val_hw = 7000;
 			qam_write_bits(demod, 0xd, 7000, 0, 16);
@@ -4003,13 +4066,27 @@ static int dvbc_read_status(struct dvb_frontend *fe, enum fe_status *status, boo
 			ASR_end = ASR_end == 3480 ? 6780 : 3480;
 			dvbc_set_srspeed(demod, ASR_end == 3480 ? 1 : 0);
 			demod_dvbc_fsm_reset(demod);
-			ASR_times++;
+			if (ASR_times <= 2)
+				ASR_times++;
 		} else if (c->symbol_rate != 0 && sr < ASR_end) {
 			demod->sr_val_hw = c->symbol_rate / 1000;
 			qam_write_bits(demod, 0xd, c->symbol_rate / 1000, 0, 16);
 			qam_write_bits(demod, 0x11, c->symbol_rate / 1000, 8, 16);
-			dvbc_set_srspeed(demod, 0);
+			//dvbc_set_srspeed(demod, 0);
 			demod_dvbc_fsm_reset(demod);
+		}
+
+		time_start_qam = 0;
+		if (demod->last_lock == 0 && (demod->time_passed < 600 ||
+			(demod->time_passed < 2000 && ASR_times < 2) ||
+			(peak == 1 && AQAM_times < qam_try_cnt && c->modulation == QAM_AUTO))) {
+			fsm_status = 0;
+		} else if (demod->last_lock == 0) {
+			*status = FE_TIMEDOUT;
+
+			goto finish;
+		} else {
+			fsm_status = -1;
 		}
 	} else if (s == 4 || s == 7) {
 		fsm_status = 0;
@@ -4017,15 +4094,9 @@ static int dvbc_read_status(struct dvb_frontend *fe, enum fe_status *status, boo
 		if (peak == 0)
 			peak = 1;
 
-		PR_DVBC("true sr:%d, try Qam:%s, eq_state=0x%x, time_passed:%u\n",
-			sr, get_qam_name(demod->auto_qam_mode),
-			qam_read_reg(demod, 0x5d), demod->time_passed);
+		PR_DVBC("true sr:%d, eq_state=0x%x, time_passed:%u\n",
+			sr, qam_read_reg(demod, 0x5d), demod->time_passed);
 		PR_DVBC("time_start_qam=%u\n", time_start_qam);
-		if (demod->last_lock == 0 && (demod->time_passed < TIMEOUT_DVBC ||
-			(AQAM_times < 3 && c->modulation == QAM_AUTO)))
-			fsm_status = 0;
-		else
-			fsm_status = -1;
 
 		if (c->modulation != QAM_AUTO) {
 			PR_DVBC("Qam is not auto\n");
@@ -4034,9 +4105,9 @@ static int dvbc_read_status(struct dvb_frontend *fe, enum fe_status *status, boo
 		} else {
 			time_passed_qam = curTime - time_start_qam;
 			if ((demod->auto_qam_mode == QAM_MODE_256 && time_passed_qam >
-				(650 + 300 * (AQAM_times % 3))) ||
+				(650 + 300 * (AQAM_times % qam_try_cnt))) ||
 				(demod->auto_qam_mode != QAM_MODE_256 && time_passed_qam >
-				(350 + 100 * (AQAM_times % 3)))) {
+				(350 + 100 * (AQAM_times % qam_try_cnt)))) {
 				time_start_qam = curTime;
 				demod->auto_qam_mode = dvbc_switch_qam(demod->auto_qam_mode);
 				PR_DVBC("to next qam:%s\n", get_qam_name(demod->auto_qam_mode));
@@ -4053,7 +4124,20 @@ static int dvbc_read_status(struct dvb_frontend *fe, enum fe_status *status, boo
 				} else if (demod->auto_qam_mode == QAM_MODE_256) {
 					AQAM_times++;
 				}
+			} else {
+				PR_DVBC("try Qam:%s\n", get_qam_name(demod->auto_qam_mode));
 			}
+		}
+
+		if (demod->last_lock == 0 && (demod->time_passed < TIMEOUT_DVBC ||
+			(AQAM_times < qam_try_cnt && c->modulation == QAM_AUTO))) {
+			fsm_status = 0;
+		} else if (demod->last_lock == 0) {
+			*status = FE_TIMEDOUT;
+
+			goto finish;
+		} else {
+			fsm_status = -1;
 		}
 	}
 
@@ -4123,7 +4207,7 @@ static int dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 
-	*delay = HZ / 10;
+	*delay = HZ / 20;
 
 	if (re_tune) {
 		PR_INFO("%s [id %d]: re_tune.\n", __func__, demod->id);
