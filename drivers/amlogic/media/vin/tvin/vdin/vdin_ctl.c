@@ -4002,8 +4002,10 @@ bool vdin_check_cycle(struct vdin_dev_s *devp)
 	/* TODO:whether T5/TL1/TXHD2/T3X support cycle check */
 	if (!(is_meson_t7_cpu() || is_meson_t3_cpu() ||
 	     is_meson_t5w_cpu()) &&
-	    interval_value > VDIN_INPUT_MAX_FPS)
+	    interval_value > VDIN_INPUT_MAX_FPS) {
+		devp->stats.cycle_err_cnt_con = 0;
 		return false;
+	}
 
 	/* if continuous cycle error over 10 times,call hdmi_clr_vsync to recovery */
 	if (devp->frontend)

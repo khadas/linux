@@ -836,8 +836,10 @@ static void tvafe_cvd2_info_init(struct tvafe_cvd2_s *cvd2)
 inline void tvafe_cvd2_try_format(struct tvafe_cvd2_s *cvd2,
 			struct tvafe_cvd2_mem_s *mem, enum tvin_sig_fmt_e fmt)
 {
-	if (always_try_format)
+	if (always_try_format) {
 		fmt = always_try_format;
+		cvd2->manual_fmt = always_try_format;
+	}
 
 	/* check format validation */
 	if (fmt < TVIN_SIG_FMT_CVBS_NTSC_M ||
