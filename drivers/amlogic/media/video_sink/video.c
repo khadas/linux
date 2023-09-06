@@ -7075,9 +7075,13 @@ void set_alpha_scpxn(struct video_layer_s *layer,
 
 	memset(&alpha_win, 0, sizeof(struct pip_alpha_scpxn_s));
 
-	if (composer_info)
-		win_num = composer_info->count;
-
+	if (!composer_info)
+		return;
+	win_num = composer_info->count;
+	if (win_num >= MAX_COMPOSER_COUNT || win_num >= MAX_PIP_WINDOW) {
+		pr_info("%s, win_num%d is wrong\n", __func__, win_num);
+		return;
+	}
 	for (i = 0; i < win_num; i++) {
 		alpha_win.scpxn_bgn_h[i] = composer_info->axis[i][0];
 		alpha_win.scpxn_end_h[i] = composer_info->axis[i][2];
