@@ -173,7 +173,7 @@ void dptx_timing_update(struct aml_lcd_drv_s *pdrv, struct dptx_detail_timing_s 
 
 	pconf->timing.lcd_clk = timing->pclk;
 	sync_duration = timing->pclk / pconf->basic.h_period;
-	sync_duration = sync_duration * 100 / pconf->basic.v_period;
+	sync_duration = (sync_duration * 100) / pconf->basic.v_period;
 	pconf->timing.frame_rate = sync_duration / 100;
 	pconf->timing.sync_duration_num = sync_duration;
 	pconf->timing.sync_duration_den = 100;
@@ -220,7 +220,7 @@ search_done:
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		fr100 = (dt->pclk * 100) / ((dt->v_a + dt->v_b) * (dt->h_a + dt->h_b));
-		LCDPR("    - add timing: %d * %d @ %ld.%2ldHz (h_blank:%d, v_blank:%d, pclk:%ld)\n",
+		LCDPR(" - add: %4u * %4u @ %3lu.%2luHz (h_blank:%3u, v_blank:%3u, pclk:%10lu)\n",
 			timing_list[pdrv->index][idx]->h_a, timing_list[pdrv->index][idx]->v_a,
 			fr100 / 100, fr100 % 100, timing_list[pdrv->index][idx]->h_b,
 			timing_list[pdrv->index][idx]->v_b, timing_list[pdrv->index][idx]->pclk);
@@ -282,7 +282,7 @@ void dptx_manage_timing(struct aml_lcd_drv_s *pdrv, struct dptx_EDID_s *EDID_p)
 {
 	unsigned char timing_cnt, b_idx, dt_idx, fr_idx, pidx;
 	unsigned char range_limit_valid = 0, detail_timing_valid = 0;
-	//enum DP_TIMING_RES max_timing = DP_TIMING_SPEC;
+	enum DP_TIMING_RES max_timing = DP_TIMING_SPEC;
 	struct dptx_detail_timing_s tmp_dt;
 
 	pidx = pdrv->index;
@@ -311,23 +311,17 @@ void dptx_manage_timing(struct aml_lcd_drv_s *pdrv, struct dptx_EDID_s *EDID_p)
 		}
 	LCDPR("[%d]: Collect %d form detail timing\n", pidx, timing_cnt);
 
-	//timing_cnt = 0;
-	//for (dt_idx = 0; dt_idx < DP_MAX_TIMING; dt_idx++)
-	//	max_timing = timing_list[pidx][dt_idx]->timing_res > max_timing ?
-	//		timing_list[pidx][dt_idx]->timing_res : max_timing;
-	//switch (max_timing) {
-	//case DP_TIMING_4K_UPPER:
-	//	timing_cnt += add_timing_list(pdrv, &DP_std_4K60);
-	//case DP_TIMING_4K:
-	//case DP_TIMING_4K_2K:
-	//	timing_cnt += add_timing_list(pdrv, &DP_std_2K60);
-	//case DP_TIMING_2K:
-	//case DP_TIMING_2K_1080p:
-	//	timing_cnt += add_timing_list(pdrv, &DP_std_1080P60);
-	//default:
-	//	break;
-	//}
-	//LCDPR("[%d]: Collect %d form preset timing\n", pdrv->index, timing_cnt);
+	timing_cnt = 0;
+	for (dt_idx = 0; dt_idx < DP_MAX_TIMING; dt_idx++)
+		max_timing = timing_list[pidx][dt_idx]->timing_res > max_timing ?
+			timing_list[pidx][dt_idx]->timing_res : max_timing;
+	if (max_timing > DP_TIMING_4K)
+		timing_cnt += add_timing_list(pdrv, &DP_std_4K60);
+	if (max_timing > DP_TIMING_2K)
+		timing_cnt += add_timing_list(pdrv, &DP_std_2K60);
+	if (max_timing > DP_TIMING_1080P)
+		timing_cnt += add_timing_list(pdrv, &DP_std_1080P60);
+	LCDPR("[%d]: Collect %d form preset timing\n", pdrv->index, timing_cnt);
 
 	timing_cnt = 0;
 	if (!range_limit_valid)
@@ -357,7 +351,7 @@ void dptx_manage_timing(struct aml_lcd_drv_s *pdrv, struct dptx_EDID_s *EDID_p)
 	LCDPR("[%d]: Collect %d from frame_rate step\n", pidx, timing_cnt);
 collect_timing_done:
 
-	//add_timing_list(pdrv, &DP_safemode_640x480);
+	add_timing_list(pdrv, &DP_safemode_640x480);
 
 	timing_list_reorder(pdrv);
 
@@ -432,7 +426,7 @@ void dptx_print_timing(struct aml_lcd_drv_s *pdrv, unsigned char print_flag)
 			((timing_list[pdrv->index][idx]->v_a + timing_list[pdrv->index][idx]->v_b))
 			);
 
-		pr_info(" %s %2d: [%4d * %4d] @ %3ld.%2ld, pclk: %ldHz, %s timing, fr_step:%d\n",
+		pr_info(" %s %2d: %4d * %4d @ %3ld.%2ldhz, pclk: %10luHz, %s timing, fr_step:%d\n",
 			(timing_list[pdrv->index][idx]->flag & TIMING_FLAG_SUPPORT) ? "*" : "-",
 			idx,
 			timing_list[pdrv->index][idx]->h_a, timing_list[pdrv->index][idx]->v_a,

@@ -22,12 +22,12 @@ static void dptx_edid_print(struct dptx_EDID_s *edp_edid)
 {
 	int i;
 
-	pr_info("Manufacturer ID:       %s\n"
-		"Product ID:            0x%04x\n"
-		"Product SN:            0x%08x\n"
-		"Week:                  %d\n"
-		"Year:                  %d\n"
-		"EDID Version:          %04x\n",
+	pr_info("Manufacturer ID: %s\n"
+		"Product ID:      0x%04x\n"
+		"Product SN:      0x%08x\n"
+		"Week:            %d\n"
+		"Year:            %d\n"
+		"EDID Version:    %04x\n",
 		edp_edid->manufacturer_id,
 		edp_edid->product_id,
 		edp_edid->product_sn,
@@ -39,44 +39,44 @@ static void dptx_edid_print(struct dptx_EDID_s *edp_edid)
 		switch (edp_edid->block_identity[i]) {
 		case BLOCK_ID_SN:
 			pr_info("--------- block %d ---------\n"
-				" - Monitor SN:            %s\n", i, edp_edid->serial_num);
+				"Monitor SN:           %s\n", i, edp_edid->serial_num);
 			break;
 		case BLOCK_ID_ASCII_STR:
 			pr_info("--------- block %d ---------\n"
-				" - Monitor Scii String:   %s\n", i, edp_edid->asc_string);
+				"Monitor Ascii String: %s\n", i, edp_edid->asc_string);
 			break;
 		case BLOCK_ID_RANGE_TIMING:
 			pr_info("--------- block %d ---------\n"
-				" - Monitor Range Timing:\n"
-				" -     V freq: %d - %d Hz\n"
-				" -     H freq: %d - %d kHz\n"
-				" -     Max PixelClk: %d MHz\n", i,
+				"Monitor Range Timing:\n"
+				"    V freq: %d - %d Hz\n"
+				"    H freq: %d - %d kHz\n"
+				"    Max PixelClk: %d MHz\n", i,
 				edp_edid->range_limit.min_vfreq, edp_edid->range_limit.max_v_freq,
 				edp_edid->range_limit.min_hfreq, edp_edid->range_limit.max_hfreq,
 				edp_edid->range_limit.max_pclk / 1000000);
 			break;
 		case BLOCK_ID_PRODUCK_NAME:
 			pr_info("--------- block %d ---------\n"
-				" - Monitor Name:          %s\n", i, edp_edid->name);
+				"Monitor Name:      %s\n", i, edp_edid->name);
 			break;
 		case BLOCK_ID_DETAIL_TIMING:
 			pr_info("--------- block %d ---------\n"
-				" - Detail Timing:\n"
-				" -     Pixel Clock:   %ld.%ld MHz\n"
-				" -     H Active:      %d\n"
-				" -     H Blank:       %d\n"
-				" -     V Active:      %d\n"
-				" -     V Blank:       %d\n"
-				" -     H FP:          %d\n"
-				" -     H PW:          %d\n"
-				" -     V FP:          %d\n"
-				" -     V PW:          %d\n"
-				" -     H Size:        %dmm\n"
-				" -     V Size:        %dmm\n"
-				" -     H Border:      %d\n"
-				" -     V Border:      %d\n"
-				" -     Hsync Pol:     %d\n"
-				" -     Vsync Pol:     %d\n", i,
+				"Detail Timing:\n"
+				"    Pixel Clock:   %ld.%ld MHz\n"
+				"    H Active:      %d\n"
+				"    H Blank:       %d\n"
+				"    V Active:      %d\n"
+				"    V Blank:       %d\n"
+				"    H FP:          %d\n"
+				"    H PW:          %d\n"
+				"    V FP:          %d\n"
+				"    V PW:          %d\n"
+				"    H Size:        %dmm\n"
+				"    V Size:        %dmm\n"
+				"    H Border:      %d\n"
+				"    V Border:      %d\n"
+				"    Hsync Pol:     %d\n"
+				"    Vsync Pol:     %d\n", i,
 				edp_edid->detail_timing[i].pclk / 1000000,
 				(edp_edid->detail_timing[i].pclk % 1000000) / 1000,
 				edp_edid->detail_timing[i].h_a,
@@ -197,10 +197,10 @@ static void dptx_edid_parse(unsigned char *edid_buf, struct dptx_EDID_s *edp_edi
 				range->min_hfreq = edid_buf[j + 7];
 				range->max_hfreq = edid_buf[j + 8];
 				range->max_pclk = edid_buf[j + 9] * 10 * 1000000; // Hz
-				range->GTF_ctrl = ((edid_buf[j + 11] << 8) | edid_buf[j + 10]);
+				range->GTF_ctrl = (edid_buf[j + 11] << 8) | edid_buf[j + 10];
 				range->GTF_start_hfreq = edid_buf[j + 12] * 2000;
 				range->GTF_C = edid_buf[j + 13] / 2;
-				range->GTF_M = ((edid_buf[j + 15] << 8) | edid_buf[j + 14]);
+				range->GTF_M = (edid_buf[j + 15] << 8) | edid_buf[j + 14];
 				range->GTF_K = edid_buf[j + 16];
 				range->GTF_J = edid_buf[j + 17] / 2;
 				break;
@@ -277,7 +277,7 @@ dptx_EDID_probe_retry:
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		str = kcalloc(400, sizeof(char), GFP_KERNEL);
 		if (str) {
-			LCDPR("[%d]: EDID Raw data:\n", pdrv->index);
+			LCDPR("[%d]: EDID Raw data:", pdrv->index);
 			n = 0;
 			for (i = 0; i < 128; i++) {
 				if (i % 16 == 0)
@@ -296,10 +296,10 @@ dptx_EDID_probe_retry:
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		dptx_edid_print(edp_edid);
 
-	LCDPR("%s ok\n", __func__);
+	LCDPR("[%d]: %s ok\n", pdrv->index, __func__);
 	return 0;
 
 dptx_EDID_probe_err:
-	LCDPR("%s failed\n", __func__);
+	LCDERR("[%d]: %s failed\n", pdrv->index, __func__);
 	return -1;
 }
