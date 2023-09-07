@@ -1540,8 +1540,10 @@ void reset_dv_param(void)
 			dv_core1[i].core1_on_cnt = 0;
 			dv_core1[i].core1_disp_hsize = 0;
 			dv_core1[i].core1_disp_vsize = 0;
+			dv_core1[i].amdv_setting_video_flag = 0;
 		}
 		amdv_core2_on_cnt = 0;
+		cur_valid_video_num = 0;
 	} else {
 		core1_disp_hsize = 0;
 		core1_disp_vsize = 0;
