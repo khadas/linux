@@ -863,11 +863,11 @@
 				hactive = <1080>;
 				vactive = <1920>;
 				hfront-porch = <104>;
-				hsync-len = <4>;
+				hsync-len = <6>;
 				hback-porch = <127>;
-				vfront-porch = <4>;
-				vsync-len = <2>;
-				vback-porch = <3>;
+				vfront-porch = <12>;
+				vsync-len = <6>;
+				vback-porch = <10>;
 				hsync-active = <0>;
 				vsync-active = <0>;
 				de-active = <0>;
