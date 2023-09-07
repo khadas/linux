@@ -391,6 +391,10 @@ struct vd_proc_amvecm_info_t {
 struct video_input_info {
 	u32 width;
 	u32 height;
+	u32 crop_left;
+	u32 crop_right;
+	u32 crop_top;
+	u32 crop_bottom;
 };
 
 void set_video_mute(bool on);

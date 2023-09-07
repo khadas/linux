@@ -5991,6 +5991,10 @@ void  get_video_input_info(struct video_input_info *input_info)
 		return;
 	input_info->height = cur_frame_par->video_input_h;
 	input_info->width = cur_frame_par->video_input_w;
+	input_info->crop_top = cur_frame_par->crop_top;
+	input_info->crop_bottom = cur_frame_par->crop_bottom;
+	input_info->crop_left = cur_frame_par->crop_left;
+	input_info->crop_right = cur_frame_par->crop_right;
 }
 
 void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,

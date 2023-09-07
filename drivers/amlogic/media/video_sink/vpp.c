@@ -2253,6 +2253,8 @@ RESTART:
 	if (h_crop_enable) {
 		next_frame_par->VPP_hd_start_lines_ += crop_left;
 		next_frame_par->VPP_hd_end_lines_ += crop_left;
+		next_frame_par->crop_left = crop_left;
+		next_frame_par->crop_right = crop_right;
 	}
 
 	next_frame_par->VPP_line_in_length_ =
