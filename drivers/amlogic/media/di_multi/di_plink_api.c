@@ -8869,7 +8869,7 @@ unsigned int dpvpp_bypass_check(struct vframe_s *vfm, bool first)
 		return 0;
 
 	/* If vframe is EOS, information below maybe invalid */
-	if (vfm->duration < 1600)
+	if (vfm->duration < 1600 && vfm->duration != 0)
 		reason = EPVPP_BYPASS_REASON_120HZ;
 	if (vfm->width < 128 || vfm->height < 16)
 		reason = EPVPP_BYPASS_REASON_SIZE_S;
