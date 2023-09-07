@@ -46,7 +46,8 @@
  *          4. coordinates & keys optimization
  *                  By Meta, 2014/01/14
  */
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-result"
 #include <linux/irq.h>
 #include "gt9xx.h"
 #include "gt9xx_cfg.h"
@@ -3294,3 +3295,4 @@ module_exit(goodix_ts_exit);
 
 MODULE_DESCRIPTION("GTP Series Driver");
 MODULE_LICENSE("GPL");
+#pragma GCC diagnostic pop

@@ -34,6 +34,8 @@
  *          2. flashless update no pid vid compare
  *                          By Meta, 2014/01/14
  */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 #include <linux/kthread.h>
 #include "gt9xx.h"
 
@@ -3633,5 +3635,5 @@ file_fail:
 }
 
 #endif
-
+#pragma GCC diagnostic pop
 //**************** For GT9XXF End ********************//

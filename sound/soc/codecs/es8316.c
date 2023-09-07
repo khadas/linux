@@ -9,7 +9,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
 #include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -1314,3 +1315,4 @@ module_i2c_driver(es8316_i2c_driver);
 MODULE_DESCRIPTION("ASoC es8316 driver");
 MODULE_AUTHOR("Will <will@everset-semi.com>");
 MODULE_LICENSE("GPL");
+#pragma GCC diagnostic pop
