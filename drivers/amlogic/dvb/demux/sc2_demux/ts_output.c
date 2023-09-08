@@ -3043,7 +3043,7 @@ int ts_output_alloc_pcr_temi_entry(int pid, int sid, int type)
 	break;
 	}
 
-	return 0;
+	return index;
 }
 
 int ts_output_free_pcr_temi_entry(int index, int type)
