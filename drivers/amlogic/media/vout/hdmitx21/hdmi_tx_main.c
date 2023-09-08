@@ -5869,7 +5869,12 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data)
 	/* turn off encp timing gen->disable dsc encoder */
 #ifdef CONFIG_AMLOGIC_DSC
 	if (hdev->data->chip_type == MESON_CPU_ID_S5) {
-		hdmitx21_venc_en(0, 1);
+		/* during drm sending data, it may plugout hdmi
+		 * and disable venc, before enable dummy_mode,
+		 * drm side may block on sending data to display
+		 * as no vsync.
+		 */
+		/* hdmitx21_venc_en(0, 1); */
 		/* if (dsc_dis_dbg >= 0) { */
 		aml_dsc_enable(false);
 		hdmitx_dsc_cvtem_pkt_disable();
