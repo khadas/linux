@@ -14951,7 +14951,6 @@ void osd_init_viu2(void)
 
 	idx = osd_hw.osd_meson_dev.viu2_index;
 	if (osd_get_logo_index() != LOGO_DEV_VIU2_OSD0) {
-		set_viu2_rgb2yuv(1);
 		osd_vpu_power_on_viu2();
 		/* here we will init default value, these value only set once */
 		/* init vpu fifo control register */
