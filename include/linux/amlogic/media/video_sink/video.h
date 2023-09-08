@@ -405,6 +405,7 @@ void set_vdx_test_pattern(u32 index, bool on, u32 color);
 void get_vdx_test_pattern(u32 index, bool *on, u32 *color);
 void set_postblend_test_pattern(bool on, u32 color);
 void get_postblend_test_pattern(bool *on, u32 *color);
+bool is_panel_output(void);
 u32 get_first_pic_coming(void);
 u32 get_toggle_frame_count(void);
 

@@ -520,7 +520,11 @@ static int do_file_thread(struct video_queue_dev *dev)
 	if (vlock_locked && !dev->vlock_locked) {
 		need_resync = true;
 		vq_print(P_OTHER, "vlock locked\n");
+	} else if (!vlock_locked && !is_panel_output()) {
+		need_resync = true;
+		vq_print(P_OTHER, "Not pannel output.\n");
 	} else if (resync_open) {
+		vq_print(P_OTHER, "Force resync.\n");
 		need_resync = true;
 	}
 
