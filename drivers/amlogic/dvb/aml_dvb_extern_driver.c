@@ -27,7 +27,7 @@
 #define AML_DVB_EXTERN_MODULE_NAME    "aml_dvb_extern"
 #define AML_DVB_EXTERN_CLASS_NAME     "aml_dvb_extern"
 
-#define AML_DVB_EXTERN_VERSION    "V1.13"
+#define AML_DVB_EXTERN_VERSION    "V1.14"
 
 static struct dvb_extern_device *dvb_extern_dev;
 static struct mutex dvb_extern_mutex;
@@ -1585,9 +1585,18 @@ static int aml_dvb_extern_remove(struct platform_device *pdev)
 static void aml_dvb_extern_shutdown(struct platform_device *pdev)
 {
 	struct dvb_extern_device *dvbdev = platform_get_drvdata(pdev);
+	struct tuner_ops *tops = NULL;
+	struct dvb_tuner *tuner = get_dvb_tuners();
 
 	if (IS_ERR_OR_NULL(dvbdev))
 		return;
+
+	list_for_each_entry(tops, &tuner->list, list) {
+		if (tops->fe.ops.tuner_ops.suspend)
+			tops->fe.ops.tuner_ops.suspend(&tops->fe);
+		else if (tops->fe.ops.tuner_ops.sleep)
+			tops->fe.ops.tuner_ops.sleep(&tops->fe);
+	}
 
 	aml_dvb_extern_set_power(&dvbdev->dvb_power, 0);
 }
