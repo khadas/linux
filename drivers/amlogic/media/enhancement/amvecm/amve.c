@@ -739,6 +739,24 @@ void amve_write_gamma_table(u16 *data, u32 rgb_mask)
 	spin_unlock_irqrestore(&vpp_lcd_gamma_lock, flags);
 }
 
+void amve_write_gamma_table_sub(u16 *data, u32 rgb_mask)
+{
+	if (is_meson_t7_cpu()) {
+		lcd_gamma_api(gamma_index_sub,
+			gamma_data_r, gamma_data_g, gamma_data_b, 0, 1);
+
+		if (rgb_mask == H_SEL_R)
+			memcpy(gamma_data_r, data, sizeof(u16) * 256);
+		else if (rgb_mask == H_SEL_G)
+			memcpy(gamma_data_g, data, sizeof(u16) * 256);
+		else if (rgb_mask == H_SEL_B)
+			memcpy(gamma_data_b, data, sizeof(u16) * 256);
+
+		lcd_gamma_api(gamma_index_sub,
+			gamma_data_r, gamma_data_g, gamma_data_b, 0, 0);
+	}
+}
+
 #define COEFF_NORM(a) ((int)((((a) * 2048.0) + 1) / 2))
 #define MATRIX_5x3_COEF_SIZE 24
 
@@ -1283,13 +1301,13 @@ void ve_lcd_gamma_process(void)
 	if (is_meson_t7_cpu()) {
 		if (vecm_latch_flag2 & FLAG_GAMMA_TABLE_EN_SUB) {
 			vecm_latch_flag2 &= ~FLAG_GAMMA_TABLE_EN_SUB;
-			vpp_enable_lcd_gamma_table(gamma_index_sub, 0);
+			vpp_enable_lcd_gamma_table(gamma_index_sub, 1);
 			pr_amve_dbg("\n[amve..] set enable_lcd_gamma_sub OK!!!\n");
 		}
 
 		if (vecm_latch_flag2 & FLAG_GAMMA_TABLE_DIS_SUB) {
 			vecm_latch_flag2 &= ~FLAG_GAMMA_TABLE_DIS_SUB;
-			vpp_disable_lcd_gamma_table(gamma_index_sub, 0);
+			vpp_disable_lcd_gamma_table(gamma_index_sub, 1);
 			pr_amve_dbg("\n[amve..] set disable_lcd_gamma_sub OK!!!\n");
 		}
 
@@ -2370,18 +2388,22 @@ void lut3d_update(unsigned int p3dlut_in[][3])
 {
 	int d0, d1, d2, index0;
 	int i;
+	int offset = 0;
 
 	if (p3dlut_in) {
+		if (is_meson_t7_cpu())
+			offset = 2;
+
 		for (d0 = 0; d0 < 17; d0++) {
 			for (d1 = 0; d1 < 17; d1++) {
 				for (d2 = 0; d2 < 17; d2++) {
 					index0 = d0 * 289 + d1 * 17 + d2;
 					plut3d[index0 * 3 + 0] =
-					p3dlut_in[index0][0] & 0xfff;
+					(p3dlut_in[index0][0] << offset) & 0xfff;
 					plut3d[index0 * 3 + 1] =
-					p3dlut_in[index0][1] & 0xfff;
+					(p3dlut_in[index0][1] << offset) & 0xfff;
 					plut3d[index0 * 3 + 2] =
-					p3dlut_in[index0][2] & 0xfff;
+					(p3dlut_in[index0][2] << offset) & 0xfff;
 				}
 			}
 		}
@@ -2508,6 +2530,7 @@ void vpp_lut3d_table_init(int r, int g, int b)
 	    is_meson_t5w_cpu())
 		max_val = 1023;
 
+	/*T7 is 12bit, max_val = 4095*/
 	step = (max_val + 1) / 16;
 
 	/*initialize the lut3d ad same input and output;*/
@@ -2713,6 +2736,14 @@ void amvecm_wb_enable(int enable)
 		else
 			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 0, 31, 1);
 	}
+}
+
+void amvecm_wb_enable_sub(int enable)
+{
+	if (enable)
+		WRITE_VPP_REG_BITS(0x59a1, 1, 31, 1);
+	else
+		WRITE_VPP_REG_BITS(0x59a1, 0, 31, 1);
 }
 
 /*frequence meter init*/

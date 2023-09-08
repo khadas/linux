@@ -98,6 +98,7 @@ extern struct tcon_gamma_table_s video_gamma_table_b_adj;
 extern struct tcon_rgb_ogo_s     video_rgb_ogo;
 extern struct gm_tbl_s gt;
 extern unsigned int gamma_index;
+extern unsigned int gamma_index_sub;
 extern unsigned int gm_par_idx;
 extern unsigned int *plut3d;
 
@@ -142,6 +143,7 @@ void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write);
 void vpp_disable_lcd_gamma_table(int viu_sel, int rdma_write);
 void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask, int viu_sel);
 void amve_write_gamma_table(u16 *data, u32 rgb_mask);
+void amve_write_gamma_table_sub(u16 *data, u32 rgb_mask);
 void vpp_set_rgb_ogo_sub(struct tcon_rgb_ogo_s *p);
 void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p);
 void vpp_phase_lock_on_vs(unsigned int cycle,
@@ -229,6 +231,7 @@ void dump_plut3d_reg_table(void);
 void amvecm_gamma_init(bool en);
 void set_gamma_regs(int en, int sel);
 void amvecm_wb_enable(int enable);
+void amvecm_wb_enable_sub(int enable);
 int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md);
 unsigned int skip_pq_ctrl_load(struct am_reg_s *p);
 void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb);

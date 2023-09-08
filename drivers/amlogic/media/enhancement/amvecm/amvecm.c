@@ -351,6 +351,10 @@ int rd_vencl;
 module_param(rd_vencl, int, 0664);
 MODULE_PARM_DESC(rd_vencl, "\n rd_vencl\n");
 
+unsigned int data_path;  /* 0:main;1:sub */
+module_param(data_path, int, 0664);
+MODULE_PARM_DESC(data_path, "\n data_path\n");
+
 unsigned int pq_user_value;
 enum hdr_type_e hdr_source_type = HDRTYPE_NONE;
 
@@ -5159,6 +5163,7 @@ static ssize_t amvecm_gamma_show(struct class *cls,
 
 	pr_info("Usage:");
 	pr_info("	echo sgr|sgg|sgb xxx...xx > /sys/class/amvecm/gamma\n");
+	pr_info("	echo sgr_sub|sgg_sub|sgb_sub xxx...xx > /sys/class/amvecm/gamma\n");
 	pr_info("Notes:\n");
 	pr_info("	if the string xxx......xx is less than 256*3,");
 	pr_info("	then the remaining will be set value 0\n");
@@ -5166,6 +5171,7 @@ static ssize_t amvecm_gamma_show(struct class *cls,
 	pr_info("	then the remaining will be ignored\n");
 	pr_info("Usage:");
 	pr_info("	echo ggr|ggg|ggb xxx > /sys/class/amvecm/gamma\n");
+	pr_info("	echo ggr_sub|ggg_sub|ggb_sub xxx > /sys/class/amvecm/gamma\n");
 	pr_info("Notes:\n");
 	pr_info("	read all as point......xxx is 'all'.\n");
 	pr_info("	read all as strings......xxx is 'all_str'.\n");
@@ -5188,6 +5194,7 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 	char delim1[3] = " ";
 	char delim2[2] = "\n";
 	char *stemp = NULL;
+	unsigned int rgb_mask;
 	unsigned int len;
 	unsigned int crc_data;
 
@@ -5268,21 +5275,29 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 
 		switch (parm[0][2]) {
 		case 'r':
-			amve_write_gamma_table(gamma_r, H_SEL_R);
+			rgb_mask = H_SEL_R;
 			break;
-
 		case 'g':
-			amve_write_gamma_table(gamma_r, H_SEL_G);
+			rgb_mask = H_SEL_G;
 			break;
-
 		case 'b':
-			amve_write_gamma_table(gamma_r, H_SEL_B);
+			rgb_mask = H_SEL_B;
 			break;
 		default:
 			break;
 		}
+
+		if (!data_path)
+			amve_write_gamma_table(gamma_r, rgb_mask);
+		else
+			amve_write_gamma_table_sub(gamma_r, rgb_mask);
+
 	} else if (!strcmp(parm[0], "ggr")) {
-		vpp_get_lcd_gamma_table(H_SEL_R);
+		if (!data_path)
+			vpp_get_lcd_gamma_table(H_SEL_R);
+		else
+			vpp_get_lcd_gamma_table_sub();
+
 		if (!strcmp(parm[1], "all")) {
 			for (i = 0; i < 256; i++)
 				pr_info("gamma_r[%d] = %x\n",
@@ -5306,7 +5321,11 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 					i, gamma_data_r[i]);
 		}
 	} else if (!strcmp(parm[0], "ggg")) {
-		vpp_get_lcd_gamma_table(H_SEL_G);
+		if (!data_path)
+			vpp_get_lcd_gamma_table(H_SEL_G);
+		else
+			vpp_get_lcd_gamma_table_sub();
+
 		if (!strcmp(parm[1], "all")) {
 			for (i = 0; i < 256; i++)
 				pr_info("gamma_g[%d] = %x\n",
@@ -5331,7 +5350,11 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 		}
 
 	} else if (!strcmp(parm[0], "ggb")) {
-		vpp_get_lcd_gamma_table(H_SEL_B);
+		if (!data_path)
+			vpp_get_lcd_gamma_table(H_SEL_B);
+		else
+			vpp_get_lcd_gamma_table_sub();
+
 		if (!strcmp(parm[1], "all")) {
 			for (i = 0; i < 256; i++)
 				pr_info("gamma_b[%d] = %x\n",
@@ -5744,9 +5767,24 @@ static ssize_t set_gamma_pattern_store(struct class *cls,
 	}
 
 	if (!strcmp(parm[0], "disable")) {
-		vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
-		vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
-		vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
+		if (!data_path) {
+			vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
+			vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
+			vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
+		} else {
+			vecm_latch_flag |= FLAG_GAMMA_TABLE_R_SUB;
+			vecm_latch_flag |= FLAG_GAMMA_TABLE_G_SUB;
+			vecm_latch_flag |= FLAG_GAMMA_TABLE_B_SUB;
+		}
+
+		kfree(buf_orig);
+		return count;
+	}
+
+	if (!strcmp(parm[0], "disable_sub")) {
+		vecm_latch_flag |= FLAG_GAMMA_TABLE_R_SUB;
+		vecm_latch_flag |= FLAG_GAMMA_TABLE_G_SUB;
+		vecm_latch_flag |= FLAG_GAMMA_TABLE_B_SUB;
 		kfree(buf_orig);
 		return count;
 	}
@@ -5805,7 +5843,10 @@ static ssize_t set_gamma_pattern_store(struct class *cls,
 	}
 
 	if (cpu_after_eq_t7()) {
-		lcd_gamma_api(gamma_index, r_val, g_val, b_val, 0, 0);
+		if (!data_path)
+			lcd_gamma_api(gamma_index, r_val, g_val, b_val, 0, 0);
+		else
+			lcd_gamma_api(gamma_index_sub, r_val, g_val, b_val, 0, 0);
 	} else {
 		amve_write_gamma_table(r_val, H_SEL_R);
 		amve_write_gamma_table(g_val, H_SEL_G);
@@ -5859,6 +5900,50 @@ void white_balance_adjust(int sel, int value)
 	ve_ogo_param_update();
 }
 
+void white_balance_adjust_sub(int sel, int value)
+{
+	switch (sel) {
+	/*0: en*/
+	/*1: pre r   2: pre g   3: pre b*/
+	/*4: gain r  5: gain g  6: gain b*/
+	/*7: post r  8: post g  9: post b*/
+	case 0:
+		video_rgb_ogo_sub.en = value;
+		break;
+	case 1:
+		video_rgb_ogo_sub.r_pre_offset = value;
+		break;
+	case 2:
+		video_rgb_ogo_sub.g_pre_offset = value;
+		break;
+	case 3:
+		video_rgb_ogo_sub.b_pre_offset = value;
+		break;
+	case 4:
+		video_rgb_ogo_sub.r_gain = value;
+		break;
+	case 5:
+		video_rgb_ogo_sub.g_gain = value;
+		break;
+	case 6:
+		video_rgb_ogo_sub.b_gain = value;
+		break;
+	case 7:
+		video_rgb_ogo_sub.r_post_offset = value;
+		break;
+	case 8:
+		video_rgb_ogo_sub.g_post_offset = value;
+		break;
+	case 9:
+		video_rgb_ogo_sub.b_post_offset = value;
+		break;
+	default:
+		break;
+	}
+
+	ve_ogo_param_update_sub();
+}
+
 static int wb_dbg_flag;
 static int wb_rd_val;
 static ssize_t amvecm_wb_show(struct class *cla,
@@ -5887,6 +5972,7 @@ static ssize_t amvecm_wb_store(struct class *cls,
 {
 	char *buf_orig, *parm[8] = {NULL};
 	long value;
+	struct tcon_rgb_ogo_s *ogo_data;
 
 	if (!buffer)
 		return count;
@@ -5896,105 +5982,236 @@ static ssize_t amvecm_wb_store(struct class *cls,
 	parse_param_amvecm(buf_orig, (char **)&parm);
 
 	if (!strncmp(parm[0], "r", 1)) {
+		if (!data_path)
+			ogo_data = &video_rgb_ogo;
+		else
+			ogo_data = &video_rgb_ogo_sub;
+
 		if (!strncmp(parm[1], "pre_r", 5)) {
 			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
-			wb_rd_val = video_rgb_ogo.r_pre_offset;
+			wb_rd_val = ogo_data->r_pre_offset;
 		} else if (!strncmp(parm[1], "pre_g", 5)) {
 			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
-			wb_rd_val = video_rgb_ogo.g_pre_offset;
+			wb_rd_val = ogo_data->g_pre_offset;
 		} else if (!strncmp(parm[1], "pre_b", 5)) {
 			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
-			wb_rd_val = video_rgb_ogo.b_pre_offset;
+			wb_rd_val = ogo_data->b_pre_offset;
 		} else if (!strncmp(parm[1], "gain_r", 6)) {
 			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
-			wb_rd_val = video_rgb_ogo.r_gain;
+			wb_rd_val = ogo_data->r_gain;
 		} else if (!strncmp(parm[1], "gain_g", 6)) {
 			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
-			wb_rd_val = video_rgb_ogo.g_gain;
+			wb_rd_val = ogo_data->g_gain;
 		} else if (!strncmp(parm[1], "gain_b", 6)) {
 			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
-			wb_rd_val = video_rgb_ogo.b_gain;
+			wb_rd_val = ogo_data->b_gain;
 		} else if (!strncmp(parm[1], "post_r", 6)) {
 			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
-			wb_rd_val = video_rgb_ogo.r_post_offset;
+			wb_rd_val = ogo_data->r_post_offset;
 		} else if (!strncmp(parm[1], "post_g", 6)) {
 			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
-			wb_rd_val = video_rgb_ogo.g_post_offset;
+			wb_rd_val = ogo_data->g_post_offset;
 		} else if (!strncmp(parm[1], "post_b", 6)) {
 			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
-			wb_rd_val = video_rgb_ogo.b_post_offset;
+			wb_rd_val = ogo_data->b_post_offset;
 		} else if (!strncmp(parm[1], "en", 2)) {
 			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
-			wb_rd_val = video_rgb_ogo.en;
+			wb_rd_val = ogo_data->en;
+		} else if (!strncmp(parm[1], "pre_r_sub", 9)) {
+			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
+			wb_rd_val = video_rgb_ogo_sub.r_pre_offset;
+		} else if (!strncmp(parm[1], "pre_g_sub", 9)) {
+			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
+			wb_rd_val = video_rgb_ogo_sub.g_pre_offset;
+		} else if (!strncmp(parm[1], "pre_b_sub", 9)) {
+			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
+			wb_rd_val = video_rgb_ogo_sub.b_pre_offset;
+		} else if (!strncmp(parm[1], "gain_r_sub", 10)) {
+			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
+			wb_rd_val = video_rgb_ogo_sub.r_gain;
+		} else if (!strncmp(parm[1], "gain_g_sub", 10)) {
+			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
+			wb_rd_val = video_rgb_ogo_sub.g_gain;
+		} else if (!strncmp(parm[1], "gain_b_sub", 10)) {
+			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
+			wb_rd_val = video_rgb_ogo_sub.b_gain;
+		} else if (!strncmp(parm[1], "post_r_sub", 10)) {
+			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
+			wb_rd_val = video_rgb_ogo_sub.r_post_offset;
+		} else if (!strncmp(parm[1], "post_g_sub", 10)) {
+			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
+			wb_rd_val = video_rgb_ogo_sub.g_post_offset;
+		} else if (!strncmp(parm[1], "post_b_sub", 10)) {
+			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
+			wb_rd_val = video_rgb_ogo_sub.b_post_offset;
+		} else if (!strncmp(parm[1], "en_sub", 6)) {
+			wb_dbg_flag |= WB_PARAM_RD_UPDATE;
+			wb_rd_val = video_rgb_ogo_sub.en;
 		}
 	} else {
 		if (kstrtol(parm[1], 10, &value) < 0)
 			return -EINVAL;
 		if (!strncmp(parm[0], "wb_en", 5)) {
-			white_balance_adjust(0, value);
+			if (!data_path)
+				white_balance_adjust(0, value);
+			else
+				white_balance_adjust_sub(0, value);
 			pr_info("\t set wb en\n");
 		} else if (!strncmp(parm[0], "preofst_r", 9)) {
 			if (value > 1023 || value < -1024) {
 				pr_info("\t preofst r over range\n");
 			} else {
-				white_balance_adjust(1, value);
+				if (!data_path)
+					white_balance_adjust(1, value);
+				else
+					white_balance_adjust_sub(1, value);
 				pr_info("\t set wb preofst r\n");
 			}
 		} else if (!strncmp(parm[0], "preofst_g", 9)) {
 			if (value > 1023 || value < -1024) {
 				pr_info("\t preofst g over range\n");
 			} else {
-				white_balance_adjust(2, value);
+				if (!data_path)
+					white_balance_adjust(2, value);
+				else
+					white_balance_adjust_sub(2, value);
 				pr_info("\t set wb preofst g\n");
 			}
 		} else if (!strncmp(parm[0], "preofst_b", 9)) {
 			if (value > 1023 || value < -1024) {
 				pr_info("\t preofst b over range\n");
 			} else {
-				white_balance_adjust(3, value);
+				if (!data_path)
+					white_balance_adjust(3, value);
+				else
+					white_balance_adjust_sub(3, value);
 				pr_info("\t set wb preofst b\n");
 			}
 		} else if (!strncmp(parm[0], "gain_r", 6)) {
 			if (value > 2047 || value < 0) {
 				pr_info("\t gain r over range\n");
 			} else {
-				white_balance_adjust(4, value);
+				if (!data_path)
+					white_balance_adjust(4, value);
+				else
+					white_balance_adjust_sub(4, value);
 				pr_info("\t set wb gain r\n");
 			}
 		} else if (!strncmp(parm[0], "gain_g", 6)) {
 			if (value > 2047 || value < 0) {
 				pr_info("\t gain g over range\n");
 			} else {
-				white_balance_adjust(5, value);
+				if (!data_path)
+					white_balance_adjust(5, value);
+				else
+					white_balance_adjust_sub(5, value);
 				pr_info("\t set wb gain g\n");
 			}
 		} else if (!strncmp(parm[0], "gain_b", 6)) {
 			if (value > 2047 || value < 0) {
 				pr_info("\t gain b over range\n");
 			} else {
-				white_balance_adjust(6, value);
+				if (!data_path)
+					white_balance_adjust(6, value);
+				else
+					white_balance_adjust_sub(6, value);
 				pr_info("\t set wb gain b\n");
 			}
 		} else if (!strncmp(parm[0], "postofst_r", 10)) {
 			if (value > 1023 || value < -1024) {
 				pr_info("\t postofst r over range\n");
 			} else {
-				white_balance_adjust(7, value);
+				if (!data_path)
+					white_balance_adjust(7, value);
+				else
+					white_balance_adjust_sub(7, value);
 				pr_info("\t set wb postofst r\n");
 			}
 		} else if (!strncmp(parm[0], "postofst_g", 10)) {
 			if (value > 1023 || value < -1024) {
 				pr_info("\t postofst g over range\n");
 			} else {
-				white_balance_adjust(8, value);
+				if (!data_path)
+					white_balance_adjust(8, value);
+				else
+					white_balance_adjust_sub(8, value);
 				pr_info("\t set wb postofst g\n");
 			}
 		} else if (!strncmp(parm[0], "postofst_b", 10)) {
 			if (value > 1023 || value < -1024) {
 				pr_info("\t postofst b over range\n");
 			} else {
-				white_balance_adjust(9, value);
+				if (!data_path)
+					white_balance_adjust(9, value);
+				else
+					white_balance_adjust_sub(9, value);
 				pr_info("\t set wb postofst b\n");
+			}
+		} else if (!strncmp(parm[0], "wb_en_sub", 9)) {
+			white_balance_adjust_sub(0, value);
+			pr_info("\t set sub wb en\n");
+		} else if (!strncmp(parm[0], "preofst_r_sub", 13)) {
+			if (value > 1023 || value < -1024) {
+				pr_info("\t sub preofst r over range\n");
+			} else {
+				white_balance_adjust_sub(1, value);
+				pr_info("\t set sub wb preofst r\n");
+			}
+		} else if (!strncmp(parm[0], "preofst_g_sub", 13)) {
+			if (value > 1023 || value < -1024) {
+				pr_info("\t sub preofst g over range\n");
+			} else {
+				white_balance_adjust_sub(2, value);
+				pr_info("\t set sub wb preofst g\n");
+			}
+		} else if (!strncmp(parm[0], "preofst_b_sub", 13)) {
+			if (value > 1023 || value < -1024) {
+				pr_info("\t sub preofst b over range\n");
+			} else {
+				white_balance_adjust_sub(3, value);
+				pr_info("\t set sub wb preofst b\n");
+			}
+		} else if (!strncmp(parm[0], "gain_r_sub", 10)) {
+			if (value > 2047 || value < 0) {
+				pr_info("\t sub gain r over range\n");
+			} else {
+				white_balance_adjust_sub(4, value);
+				pr_info("\t set sub wb gain r\n");
+			}
+		} else if (!strncmp(parm[0], "gain_g_sub", 10)) {
+			if (value > 2047 || value < 0) {
+				pr_info("\t sub gain g over range\n");
+			} else {
+				white_balance_adjust_sub(5, value);
+				pr_info("\t set sub wb gain g\n");
+			}
+		} else if (!strncmp(parm[0], "gain_b_sub", 10)) {
+			if (value > 2047 || value < 0) {
+				pr_info("\t sub gain b over range\n");
+			} else {
+				white_balance_adjust_sub(6, value);
+				pr_info("\t set sub wb gain b\n");
+			}
+		} else if (!strncmp(parm[0], "postofst_r_sub", 14)) {
+			if (value > 1023 || value < -1024) {
+				pr_info("\t sub postofst r over range\n");
+			} else {
+				white_balance_adjust_sub(7, value);
+				pr_info("\t set sub wb postofst r\n");
+			}
+		} else if (!strncmp(parm[0], "postofst_g_sub", 14)) {
+			if (value > 1023 || value < -1024) {
+				pr_info("\t sub postofst g over range\n");
+			} else {
+				white_balance_adjust_sub(8, value);
+				pr_info("\t set sub wb postofst g\n");
+			}
+		} else if (!strncmp(parm[0], "postofst_b_sub", 14)) {
+			if (value > 1023 || value < -1024) {
+				pr_info("\t sub postofst b over range\n");
+			} else {
+				white_balance_adjust_sub(9, value);
+				pr_info("\t set sub wb postofst b\n");
 			}
 		}
 	}
@@ -8816,6 +9033,12 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		dump_vpp_size_info();
 	} else if (!strncmp(parm[0], "vpp_state", 9)) {
 		pr_info("amvecm driver version :  %s\n", AMVECM_VER);
+	} else if (!strncmp(parm[0], "main_path", 9)) {
+		data_path = 0;
+		pr_info("main data_path: %d\n", data_path);
+	} else if (!strncmp(parm[0], "sub_path", 8)) {
+		data_path = 1;
+		pr_info("sub data_path: %d\n", data_path);
 	} else if (!strncmp(parm[0], "checkpattern", 12)) {
 		if (!strncmp(parm[1], "enable", 6)) {
 			pattern_detect_debug = 1;
@@ -8838,18 +9061,30 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		}
 	} else if (!strncmp(parm[0], "wb", 2)) {
 		if (!strncmp(parm[1], "enable", 6)) {
-			amvecm_wb_enable(1);
+			if (!data_path)
+				amvecm_wb_enable(1);
+			else
+				amvecm_wb_enable_sub(1);
 			pr_info("enable wb\n");
 		} else if (!strncmp(parm[1], "disable", 7)) {
-			amvecm_wb_enable(0);
+			if (!data_path)
+				amvecm_wb_enable(0);
+			else
+				amvecm_wb_enable_sub(0);
 			pr_info("disable wb\n");
 		}
 	} else if (!strncmp(parm[0], "gamma", 5)) {
 		if (!strncmp(parm[1], "enable", 6)) {
-			vecm_latch_flag |= FLAG_GAMMA_TABLE_EN;	/* gamma off */
+			if (!data_path)
+				vecm_latch_flag |= FLAG_GAMMA_TABLE_EN;	/* gamma off */
+			else
+				vecm_latch_flag |= FLAG_GAMMA_TABLE_EN_SUB;
 			pr_info("enable gamma\n");
 		} else if (!strncmp(parm[1], "disable", 7)) {
-			vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;/* gamma off */
+			if (!data_path)
+				vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;/* gamma off */
+			else
+				vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS_SUB;
 			pr_info("disable gamma\n");
 		} else if (!strncmp(parm[1], "load_protect_en", 15)) {
 			gamma_loadprotect_en = 1;
@@ -8857,6 +9092,14 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		} else if (!strncmp(parm[1], "load_protect_dis", 16)) {
 			gamma_loadprotect_en = 0;
 			pr_info("loading new gamma without protect");
+		}
+	} else if (!strncmp(parm[0], "gamma_sub", 9)) {
+		if (!strncmp(parm[1], "enable", 6)) {
+			vecm_latch_flag |= FLAG_GAMMA_TABLE_EN_SUB; /* gamma on */
+			pr_info("enable gamma\n");
+		} else if (!strncmp(parm[1], "disable", 7)) {
+			vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS_SUB; /* gamma off */
+			pr_info("disable gamma\n");
 		}
 	} else if (!strncmp(parm[0], "sr", 2)) {
 		if (!strncmp(parm[1], "peaking_en", 10)) {
