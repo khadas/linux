@@ -15981,8 +15981,16 @@ static ssize_t process_fmt_show
 		    !strncmp(process_name[1], "CUVA_BYPASS", l))
 			hdr_bypass = true;
 
-		if (amdv_on) {
-			ret += sprintf(buf + ret, "out_fmt = IPT\n");
+		if (amdv_on && support_multi_core1()) {
+			output_mode = get_amdv_mode();
+			if (output_mode == 0 || output_mode == 1)
+				ret += sprintf(buf + ret, "out_fmt = IPT\n");
+			else if (output_mode == 2)
+				ret += sprintf(buf + ret, "out_fmt = HDR10\n");
+			else if (output_mode == 3)
+				ret += sprintf(buf + ret, "out_fmt = SDR10\n");
+			else if (output_mode == 4)
+				ret += sprintf(buf + ret, "out_fmt = SDR8\n");
 		} else if (hdr_bypass) {
 			if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
 			    fmt < VFRAME_SIGNAL_FMT_MAX)
