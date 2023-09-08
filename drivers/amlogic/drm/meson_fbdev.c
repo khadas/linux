@@ -560,12 +560,19 @@ static int am_meson_drm_fbdev_probe(struct drm_fb_helper *helper,
 	unsigned int bytes_per_pixel;
 	int ret;
 
-	sizes.fb_width = private->ui_config.ui_w;
-	sizes.fb_height = private->ui_config.ui_h;
-	sizes.surface_width = private->ui_config.fb_w;
-	sizes.surface_height = private->ui_config.fb_h;
-	sizes.surface_bpp = private->ui_config.fb_bpp;
-	sizes.surface_depth = PREFERRED_DEPTH;
+	if (private->ui_config.overlay_flag == 1) {
+		sizes.fb_width = private->ui_config.overlay_ui_w;
+		sizes.fb_height = private->ui_config.overlay_ui_h;
+		sizes.surface_width = private->ui_config.overlay_fb_w;
+		sizes.surface_height = private->ui_config.overlay_fb_h;
+		sizes.surface_bpp = private->ui_config.overlay_fb_bpp;
+	} else {
+		sizes.fb_width = private->ui_config.ui_w;
+		sizes.fb_height = private->ui_config.ui_h;
+		sizes.surface_width = private->ui_config.fb_w;
+		sizes.surface_height = private->ui_config.fb_h;
+		sizes.surface_bpp = private->ui_config.fb_bpp;
+	}
 
 	bytes_per_pixel = DIV_ROUND_UP(sizes.surface_bpp, 8);
 	mode_cmd.width = sizes.surface_width;
@@ -617,17 +624,31 @@ static const struct drm_fb_helper_funcs meson_drm_fb_helper_funcs = {
 static int am_meson_fbdev_parse_config(struct drm_device *dev)
 {
 	struct meson_drm *private = dev->dev_private;
-	u32 sizes[5];
-	int ret;
+	u32 sizes[5], overlay_sizes[5];
+	int ret, tmp;
 
 	ret = of_property_read_u32_array(dev->dev->of_node,
 				   "fbdev_sizes", sizes, 5);
+	tmp = of_property_read_u32_array(dev->dev->of_node,
+				   "fbdev_overlay_sizes", overlay_sizes, 5);
 	if (!ret) {
 		private->ui_config.ui_w = sizes[0];
 		private->ui_config.ui_h = sizes[1];
 		private->ui_config.fb_w = sizes[2];
 		private->ui_config.fb_h = sizes[3];
 		private->ui_config.fb_bpp = sizes[4];
+		private->ui_config.overlay_ui_w = sizes[0];
+		private->ui_config.overlay_ui_h = sizes[1];
+		private->ui_config.overlay_fb_w = sizes[2];
+		private->ui_config.overlay_fb_h = sizes[3];
+		private->ui_config.overlay_fb_bpp = sizes[4];
+	}
+	if (!tmp) {
+		private->ui_config.overlay_ui_w = overlay_sizes[0];
+		private->ui_config.overlay_ui_h = overlay_sizes[1];
+		private->ui_config.overlay_fb_w = overlay_sizes[2];
+		private->ui_config.overlay_fb_h = overlay_sizes[3];
+		private->ui_config.overlay_fb_bpp = overlay_sizes[4];
 	}
 
 	return ret;
@@ -746,6 +767,7 @@ int am_meson_drm_fbdev_init(struct drm_device *dev)
 	}
 
 	if (drmdev->primary_plane) {
+		drmdev->ui_config.overlay_flag = 0;
 		fbdev = am_meson_create_drm_fbdev(dev, drmdev->primary_plane);
 		fbdev->zorder = OSD_PLANE_BEGIN_ZORDER;
 		DRM_INFO("create fbdev for primary plane [%p]\n", fbdev);
@@ -760,6 +782,7 @@ int am_meson_drm_fbdev_init(struct drm_device *dev)
 		if (osd_plane->base.type == DRM_PLANE_TYPE_PRIMARY)
 			continue;
 
+		drmdev->ui_config.overlay_flag = 1;
 		fbdev = am_meson_create_drm_fbdev(dev, &osd_plane->base);
 		fbdev->zorder = OSD_PLANE_BEGIN_ZORDER + fbdev_cnt;
 		fbdev_cnt++;

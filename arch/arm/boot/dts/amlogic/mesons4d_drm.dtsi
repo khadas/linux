@@ -85,6 +85,7 @@
 		compatible = "amlogic, drm-subsystem";
 		ports = <&vpu_out>,<&connectors_dev>;
 		fbdev_sizes = <1920 1080 1920 2160 32>;
+		fbdev_overlay_sizes = <640 360 640 720 32>;
 		vfm_mode = <1>; /** 0:drm mode 1:composer mode */
 		memory-region = <&logo_reserved>;
 		primary_plane_index = <0>; /* primary plane index for crtcs */

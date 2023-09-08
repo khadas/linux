@@ -37,6 +37,12 @@ struct meson_drm_fbdev_config {
 	u32 fb_w;
 	u32 fb_h;
 	u32 fb_bpp;
+	u32 overlay_ui_w;
+	u32 overlay_ui_h;
+	u32 overlay_fb_w;
+	u32 overlay_fb_h;
+	u32 overlay_fb_bpp;
+	int overlay_flag;
 };
 
 struct meson_drm_fbdev {
