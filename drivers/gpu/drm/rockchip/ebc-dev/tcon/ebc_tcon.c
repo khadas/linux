@@ -10,7 +10,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -128,11 +128,130 @@
 #define DSP_FRM_INT_CLR		BIT(10)
 #define LINE_FLAG_INT_CLR	BIT(11)
 
-enum ebc_win_data_fmt {
+#define RK3576_EBC_DSP_START		0x0000
+#define RK3576_EBC_EPD_CTRL		0x0004
+#define RK3576_EBC_DSP_CTRL		0x0008
+#define RK3576_EBC_DSP_HTIMING0		0x000C
+#define RK3576_EBC_DSP_HTIMING1		0x0010
+#define RK3576_EBC_DSP_VTIMING0		0x0014
+#define RK3576_EBC_DSP_VTIMING1		0x0018
+#define RK3576_EBC_DSP_ACT_INFO		0x001C
+#define RK3576_EBC_WIN_CTRL		0x0020
+#define RK3576_EBC_WIN_MST0		0x0024
+#define RK3576_EBC_WIN_MST1		0x0028
+#define RK3576_EBC_WIN_VIR		0x002C
+#define RK3576_EBC_WIN_ACT		0x0030
+#define RK3576_EBC_WIN_DSP		0x0034
+#define RK3576_EBC_WIN_DSP_ST		0x0038
+#define RK3576_EBC_INT_STATUS		0x003C
+#define RK3576_EBC_VCOM0		0x0040
+#define RK3576_EBC_VCOM1		0x0044
+#define RK3576_EBC_VCOM2		0x0048
+#define RK3576_EBC_VCOM3		0x004C
+#define RK3576_EBC_CONFIG_DONE		0x0050
+#define RK3576_EBC_VNUM			0x0054
+#define RK3576_EBC_WIN_MST2		0x0058
+#define RK3576_EBC_DSP_CTRL2		0x005C
+#define RK3576_EBC_DSP_CTRL3		0x0060
+#define RK3576_EBC_WIN0_CTRL		0x0064
+#define RK3576_EBC_WIN1_CTRL		0x0068
+#define RK3576_EBC_WIN2_CTRL		0x006C
+#define RK3576_EBC_SYS_CTRL		0x0070
+#define RK3576_EBC_LUT_ADDRESS_MAP_0	0x1000
+
+#define RK3576_DSP_FRM_START		BIT(0)
+#define RK3576_DSP_FRM_START_MASK	BIT(0)
+
+#define RK3576_EINK_MODE_SWAP(x)	UPDATE(x, 31, 31)
+#define RK3576_EINK_MODE_FRM_SEL(x)	UPDATE(x, 30, 30)
+#define RK3576_DSP_THREE_WIN_MODE(x)	UPDATE(x, 29, 29)
+#define RK3576_THREE_WIN_MODE_MASK	BIT(29)
+#define RK3576_DSP_GD_END(x)		UPDATE(x, 26, 16)
+#define RK3576_DSP_GD_ST(x)		UPDATE(x, 15, 8)
+#define RK3576_DSP_SDDW_MODE(x)		UPDATE(x, 7, 6)
+#define RK3576_EPD_AUO(x)		UPDATE(x, 5, 5)
+#define RK3576_EPD_PWR(x)		UPDATE(x, 4, 2)
+#define RK3576_EPD_GDRL(x)		UPDATE(x, 1, 1)
+#define RK3576_EPD_SDSHR(x)		UPDATE(x, 0, 0)
+
+#define RK3576_DSP_SWAP_MODE(x)		UPDATE(x, 31, 30)
+#define RK3576_DSP_UPDATE_MODE(x)	UPDATE(x, 29, 29)
+#define RK3576_DSP_DISPLAY_MODE(x)	UPDATE(x, 28, 28)
+#define RK3576_UPDATE_MODE_MASK		BIT(29)
+#define RK3576_DISPLAY_MODE_MASK	BIT(28)
+#define RK3576_DSP_VCOM_MODE(x)		UPDATE(x, 27, 27)
+#define RK3576_DSP_SDCLK_DIV(x)		UPDATE(x, 19, 16)
+#define RK3576_DSP_SDCLK_DIV_MASK	GENMASK(19, 16)
+
+#define RK3576_DSP_HTOTAL(x)		UPDATE(x, 31, 16)
+#define RK3576_DSP_HS_END(x)		UPDATE(x, 15, 0)
+#define RK3576_DSP_HACT_END(x)		UPDATE(x, 31, 16)
+#define RK3576_DSP_HACT_ST(x)		UPDATE(x, 15, 0)
+#define RK3576_DSP_VTOTAL(x)		UPDATE(x, 31, 16)
+#define RK3576_DSP_VS_END(x)		UPDATE(x, 15, 0)
+#define RK3576_DSP_VACT_END(x)		UPDATE(x, 31, 16)
+#define RK3576_DSP_VACT_ST(x)		UPDATE(x, 15, 0)
+#define RK3576_DSP_HEIGHT(x)		UPDATE(x, 31, 16)
+#define RK3576_DSP_WIDTH(x)		UPDATE(x, 15, 0)
+
+#define RK3576_WIN_VIR_HEIGHT(x)	UPDATE(x, 31, 16)
+#define RK3576_WIN_VIR_WIDTH(x)		UPDATE(x, 15, 0)
+#define RK3576_WIN_ACT_HEIGHT(x)	UPDATE(x, 31, 16)
+#define RK3576_WIN_ACT_WIDTH(x)		UPDATE(x, 15, 0)
+#define RK3576_WIN_DSP_HEIGHT(x)	UPDATE(x, 31, 16)
+#define RK3576_WIN_DSP_WIDTH(x)		UPDATE(x, 15, 0)
+#define RK3576_WIN_DSP_YST(x)		UPDATE(x, 31, 16)
+#define RK3576_WIN_DSP_XST(x)		UPDATE(x, 15, 0)
+
+#define RK3576_DMA_BURST_LENGTH(x)		UPDATE(x, 25, 24)
+#define RK3576_WIN2_FIFO_ALMOST_FULL_LEVEL(x)	UPDATE(x, 20, 12)
+#define RK3576_WIN_FIFO_ALMOST_FULL_LEVEL(x)	UPDATE(x, 11, 4)
+#define RK3576_WIN_FMT(x)			UPDATE(x, 2, 0)
+#define RK3576_WIN_FMT_MASK			GENMASK(2, 0)
+
+#define RK3576_WIN_RID(x)		UPDATE(x, 7, 4)
+#define RK3576_WIN_AXI_GATHER_NUM(x)	UPDATE(x, 11, 8)
+#define RK3576_WIN_AXI_GATHER_EN	BIT(1)
+#define RK3576_WIN_EN			BIT(0)
+
+#define RK3576_WIN2_EMPTY_INT_MASK	BIT(26)
+#define RK3576_WIN1_EMPTY_INT_MASK	BIT(25)
+#define RK3576_WIN0_EMPTY_INT_MASK	BIT(24)
+#define RK3576_FRM_END_INT_MASK		BIT(4)
+#define RK3576_DSP_FRM_INT_MASK		BIT(6)
+#define RK3576_LINE_FLAG_INT_MASK	BIT(7)
+
+#define RK3576_DSP_SDCE_WIDTH(x)	UPDATE(x, 23, 12)
+#define RK3576_DSP_SDCE_WIDTH_MASK(x)	GENMASK(x, 23, 12)
+#define RK3576_DSP_FRM_TOTAL(x)		UPDATE(x, 11, 4)
+#define RK3576_DSP_FRM_TOTAL_MASK	GENMASK(11, 4)
+#define RK3576_DSP_EINK_MODE(x)		UPDATE(x, 2, 2)
+#define RK3576_DSP_EINK_MODE_MASK	BIT(2)
+#define RK3576_SW_BURST_CTRL		BIT(1)
+#define RK3576_DSP_OUT_LOW		BIT(0)
+
+#define RK3576_SW_AXI_RD_URGENCY_EN		BIT(24)
+#define RK3576_SW_AXI_MAX_OUTSTAND_NUM(x)	UPDATE(x, 20, 16)
+#define RK3576_SW_AXI_MAX_OUTSTAND_EN		BIT(12)
+#define RK3576_SW_NOC_HURRY_THRESHOLD(x)	UPDATE(x, 11, 8)
+#define RK3576_SW_NOC_HURRY_VALUE(x)		UPDATE(x, 6, 5)
+#define RK3576_SW_NOC_HURRY_EN			BIT(4)
+#define RK3576_SW_NOC_QOS_VALUE(x)		UPDATE(x, 2, 1)
+#define RK3576_SW_NOC_QOS_EN			BIT(0)
+
+#define RK3576_REG_CONFIG_DONE		BIT(0)
+
+enum ebc_win_data_format {
 	Y_DATA_4BPP = 0,
 	Y_DATA_8BPP = 1,
 	RGB888 = 2,
 	RGB565 = 3,
+	Y_DATA_5BPP = 4,
+};
+
+struct rockchip_ebc_tcon_data {
+	bool (*volatile_reg)(struct device *dev, unsigned int reg);
+	struct ebc_tcon tcon;
 };
 
 static inline void tcon_write(struct ebc_tcon *tcon, unsigned int reg,
@@ -159,6 +278,192 @@ static inline void tcon_update_bits(struct ebc_tcon *tcon, unsigned int reg,
 static inline void tcon_cfg_done(struct ebc_tcon *tcon)
 {
 	regmap_write(tcon->regmap_base, EBC_CONFIG_DONE, REG_LOAD_GLOBAL_EN);
+}
+
+static inline void rk3576_tcon_cfg_done(struct ebc_tcon *tcon)
+{
+	regmap_write(tcon->regmap_base, RK3576_EBC_CONFIG_DONE, RK3576_REG_CONFIG_DONE);
+}
+
+static int rk3576_tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
+{
+	u32 width, height, vir_width, vir_height;
+
+	clk_prepare_enable(tcon->hclk);
+	clk_prepare_enable(tcon->aclk);
+	clk_prepare_enable(tcon->dclk);
+	pm_runtime_get_sync(tcon->dev);
+
+	if (panel->rearrange) {
+		width = panel->width * 2;
+		height = panel->height / 2;
+		vir_width = panel->vir_width * 2;
+		vir_height = panel->vir_height / 2;
+	} else {
+		width = panel->width;
+		height = panel->height;
+		vir_width = panel->vir_width;
+		vir_height = panel->vir_height;
+	}
+
+	/* panel timing and win info config */
+	tcon_write(tcon, RK3576_EBC_DSP_HTIMING0,
+		   RK3576_DSP_HTOTAL(panel->lsl + panel->lbl + panel->ldl + panel->lel) |
+		   RK3576_DSP_HS_END(panel->lsl + 2));
+	tcon_write(tcon, RK3576_EBC_DSP_HTIMING1,
+		   RK3576_DSP_HACT_END(panel->lsl + panel->lbl + panel->ldl) |
+		   RK3576_DSP_HACT_ST(panel->lsl + panel->lbl - 1));
+	tcon_write(tcon, RK3576_EBC_DSP_VTIMING0,
+		   RK3576_DSP_VTOTAL(panel->fsl + panel->fbl + panel->fdl + panel->fel) |
+		   RK3576_DSP_VS_END(panel->fsl));
+	tcon_write(tcon, RK3576_EBC_DSP_VTIMING1,
+		   RK3576_DSP_VACT_END(panel->fsl + panel->fbl + panel->fdl) |
+		   RK3576_DSP_VACT_ST(panel->fsl + panel->fbl));
+	tcon_write(tcon, RK3576_EBC_DSP_ACT_INFO, RK3576_DSP_HEIGHT(height) |
+		   RK3576_DSP_WIDTH(width));
+	tcon_write(tcon, RK3576_EBC_WIN_VIR, RK3576_WIN_VIR_HEIGHT(vir_height) |
+		   RK3576_WIN_VIR_WIDTH(vir_width));
+	tcon_write(tcon, RK3576_EBC_WIN_ACT, RK3576_WIN_ACT_HEIGHT(height) |
+		   RK3576_WIN_ACT_WIDTH(width));
+	tcon_write(tcon, RK3576_EBC_WIN_DSP, RK3576_WIN_DSP_HEIGHT(height) |
+		   RK3576_WIN_DSP_WIDTH(width));
+	tcon_write(tcon, RK3576_EBC_WIN_DSP_ST, RK3576_WIN_DSP_YST(panel->fsl + panel->fbl) |
+		   RK3576_WIN_DSP_XST(panel->lsl + panel->lbl));
+
+	/*
+	 * win2 fifo is 512x64, win fifo is 256x64,
+	 * we set fifo almost value (fifo_size - 16(brust_length))
+	 *
+	 * dma_burst_length mean axi burst length = 16
+	 */
+	tcon_write(tcon, RK3576_EBC_WIN_CTRL, RK3576_WIN2_FIFO_ALMOST_FULL_LEVEL(496) |
+		   RK3576_DMA_BURST_LENGTH(0) | RK3576_WIN_FIFO_ALMOST_FULL_LEVEL(240) |
+		   RK3576_WIN_FMT(Y_DATA_4BPP));
+
+	/* win0 always enable */
+	tcon_write(tcon, RK3576_EBC_WIN0_CTRL, RK3576_WIN_AXI_GATHER_NUM(8) |
+		   RK3576_WIN_AXI_GATHER_EN | RK3576_WIN_RID(1) | RK3576_WIN_EN);
+	tcon_write(tcon, RK3576_EBC_WIN1_CTRL, RK3576_WIN_RID(2));
+	tcon_write(tcon, RK3576_EBC_WIN2_CTRL, RK3576_WIN_RID(3));
+
+	/*
+	 * RK3576_EBC_EPD_CTRL info:
+	 * DSP_GD_END : GCLK falling edge point(SCLK), which count from the rising edge of hsync
+	 * DSP_GD_ST: GCLK rising edge point(SCLK), which count from the rising edge of hsync
+	 * DSP_THREE_WIN_MODE: 0: lut mode or direct mode; 1: three win mode
+	 * DSP_SDDW_MODE: 0: 8 bit data output; 1: 16 bit data output
+	 * EPD_AUO: 0: EINK; 1:AUO
+	 * EPD_GDRL: gate scanning direction: 1: button to top 0: top to button
+	 * EPD_SDSHR: source scanning direction 1: right to left 0: left to right
+	 */
+	tcon_write(tcon, RK3576_EBC_EPD_CTRL, RK3576_EINK_MODE_SWAP(1) |
+		   RK3576_DSP_GD_ST(panel->lsl + panel->gdck_sta) |
+		   RK3576_DSP_GD_END(panel->lsl + panel->gdck_sta + panel->lgonl) |
+		   RK3576_DSP_THREE_WIN_MODE(0) | RK3576_DSP_SDDW_MODE(!!panel->panel_16bit) |
+		   RK3576_EPD_AUO(0) | RK3576_EPD_GDRL(1) | RK3576_EPD_SDSHR(1));
+
+	tcon_write(tcon, RK3576_EBC_DSP_START, 0);
+	tcon_write(tcon, RK3576_EBC_DSP_CTRL2, RK3576_SW_BURST_CTRL |
+		   RK3576_DSP_SDCE_WIDTH(panel->ldl));
+
+	tcon_write(tcon, RK3576_EBC_DSP_CTRL,
+		   RK3576_DSP_SWAP_MODE(panel->panel_16bit ? 2 : 3) | RK3576_DSP_VCOM_MODE(1) |
+		   RK3576_DSP_SDCLK_DIV(panel->panel_16bit ? 7 : 3));
+	rk3576_tcon_cfg_done(tcon);
+
+	enable_irq(tcon->irq);
+
+	return 0;
+}
+
+static void rk3576_tcon_disable(struct ebc_tcon *tcon)
+{
+	disable_irq(tcon->irq);
+	/* output low */
+	tcon_update_bits(tcon, RK3576_EBC_DSP_CTRL2, RK3576_DSP_OUT_LOW, RK3576_DSP_OUT_LOW);
+
+	pm_runtime_put_sync(tcon->dev);
+	clk_disable_unprepare(tcon->dclk);
+	clk_disable_unprepare(tcon->aclk);
+	clk_disable_unprepare(tcon->hclk);
+}
+
+static void rk3576_tcon_dsp_mode_set(struct ebc_tcon *tcon, int update_mode,
+				     int display_mode, int three_win_mode,
+				     int eink_mode)
+{
+	tcon_write(tcon, RK3576_EBC_WIN1_CTRL, RK3576_WIN_AXI_GATHER_NUM(8) |
+		   RK3576_WIN_AXI_GATHER_EN | RK3576_WIN_RID(2) | ((!!display_mode) |
+		   (!!three_win_mode)));
+	tcon_write(tcon, RK3576_EBC_WIN2_CTRL, RK3576_WIN_AXI_GATHER_NUM(8) |
+		   RK3576_WIN_AXI_GATHER_EN | RK3576_WIN_RID(3) | (!!three_win_mode));
+
+	tcon_update_bits(tcon, RK3576_EBC_DSP_CTRL, RK3576_UPDATE_MODE_MASK |
+			 RK3576_DISPLAY_MODE_MASK, RK3576_DSP_UPDATE_MODE(!!update_mode) |
+			 RK3576_DSP_DISPLAY_MODE(!!display_mode));
+	tcon_update_bits(tcon, RK3576_EBC_EPD_CTRL, RK3576_THREE_WIN_MODE_MASK,
+			 RK3576_DSP_THREE_WIN_MODE(!!three_win_mode));
+	/* always set frm start bit 0 before real frame start */
+	tcon_update_bits(tcon, RK3576_EBC_DSP_CTRL2, RK3576_DSP_EINK_MODE_MASK,
+			 RK3576_DSP_EINK_MODE(!!eink_mode));
+	rk3576_tcon_cfg_done(tcon);
+}
+
+static void rk3576_tcon_image_addr_set(struct ebc_tcon *tcon, u32 pre_image_addr,
+				       u32 cur_image_addr)
+{
+	tcon_write(tcon, RK3576_EBC_WIN_MST0, pre_image_addr);
+	tcon_write(tcon, RK3576_EBC_WIN_MST1, cur_image_addr);
+	rk3576_tcon_cfg_done(tcon);
+}
+
+static void rk3576_tcon_frame_addr_set(struct ebc_tcon *tcon, u32 frame_addr)
+{
+	tcon_write(tcon, RK3576_EBC_WIN_MST2, frame_addr);
+	rk3576_tcon_cfg_done(tcon);
+}
+
+static void rk3576_tcon_data_format_set(struct ebc_tcon *tcon, enum ebc_tcon_data_format format)
+{
+	tcon_update_bits(tcon, RK3576_EBC_WIN_CTRL, RK3576_WIN_FMT_MASK, RK3576_WIN_FMT(format));
+	rk3576_tcon_cfg_done(tcon);
+}
+
+static int rk3576_tcon_lut_data_set(struct ebc_tcon *tcon, unsigned int *lut_data,
+				    int frame_count, int lut_32)
+{
+	int i;
+	int lut_size;
+
+	if ((!lut_32 && frame_count > 256) || (lut_32 && frame_count > 64)) {
+		dev_err(tcon->dev, "frame count over flow\n");
+		return -1;
+	}
+
+	if (lut_32)
+		lut_size = frame_count * 64;
+	else
+		lut_size = frame_count * 16;
+
+	for (i = 0; i < lut_size; i++) {
+		tcon_write(tcon, RK3576_EBC_LUT_ADDRESS_MAP_0 + (i * 4),
+			   lut_data[i]);
+	}
+	rk3576_tcon_cfg_done(tcon);
+
+	return 0;
+}
+
+static void rk3576_tcon_frame_start(struct ebc_tcon *tcon, int frame_total)
+{
+	tcon_write(tcon, RK3576_EBC_INT_STATUS, RK3576_LINE_FLAG_INT_MASK |
+		   RK3576_DSP_FRM_INT_MASK | RK3576_FRM_END_INT_MASK | RK3576_WIN2_EMPTY_INT_MASK |
+		   RK3576_WIN1_EMPTY_INT_MASK | RK3576_WIN0_EMPTY_INT_MASK);
+	/* always set frm start bit 0 before real frame start */
+	tcon_update_bits(tcon, RK3576_EBC_DSP_CTRL2, RK3576_DSP_FRM_TOTAL_MASK,
+			 RK3576_DSP_FRM_TOTAL(frame_total - 1));
+	tcon_cfg_done(tcon);
+	tcon_write(tcon, RK3576_EBC_DSP_START, 1);
 }
 
 static int tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
@@ -272,8 +577,8 @@ static int tcon_lut_data_set(struct ebc_tcon *tcon, unsigned int *lut_data, int 
 	int lut_size;
 
 	if ((!lut_32 && frame_count > 256) || (lut_32 && frame_count > 64)) {
-		dev_err(tcon->dev, "frame count over flow\n");
-		return -1;
+		dev_err(tcon->dev, "frame count: %d over flow, lut_32:%d\n", frame_count, lut_32);
+		return -EINVAL;
 	}
 
 	if (lut_32)
@@ -328,6 +633,21 @@ static bool tcon_is_volatile_reg(struct device *dev, unsigned int reg)
 	return true;
 }
 
+static bool rk3576_tcon_is_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case RK3576_EBC_DSP_START:
+	case RK3576_EBC_EPD_CTRL:
+	case RK3576_EBC_DSP_CTRL:
+	case RK3576_EBC_DSP_CTRL2:
+	case RK3576_EBC_DSP_CTRL3:
+	case RK3576_EBC_WIN_CTRL:
+		return false;
+	}
+
+	return true;
+}
+
 static struct regmap_config ebc_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
@@ -339,13 +659,16 @@ static struct regmap_config ebc_regmap_config = {
 static int ebc_tcon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct rockchip_ebc_tcon_data *data;
 	struct ebc_tcon *tcon;
 	struct resource *res;
 	int ret;
 
-	tcon = devm_kzalloc(dev, sizeof(*tcon), GFP_KERNEL);
-	if (!tcon)
-		return -ENOMEM;
+	data = (struct rockchip_ebc_tcon_data *)of_device_get_match_data(dev);
+	if (!data)
+		return -EINVAL;
+
+	tcon = &data->tcon;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	tcon->regs = devm_ioremap_resource(dev, res);
@@ -355,6 +678,7 @@ static int ebc_tcon_probe(struct platform_device *pdev)
 	tcon->len = resource_size(res);
 	ebc_regmap_config.max_register = resource_size(res) - 4;
 	ebc_regmap_config.name = "rockchip,ebc_tcon";
+	ebc_regmap_config.volatile_reg = data->volatile_reg;
 	tcon->regmap_base = devm_regmap_init_mmio(dev, tcon->regs, &ebc_regmap_config);
 	if (IS_ERR(tcon->regmap_base))
 		return PTR_ERR(tcon->regmap_base);
@@ -362,14 +686,21 @@ static int ebc_tcon_probe(struct platform_device *pdev)
 	tcon->hclk = devm_clk_get(dev, "hclk");
 	if (IS_ERR(tcon->hclk)) {
 		ret = PTR_ERR(tcon->hclk);
-		dev_err(dev, "failed to get hclk clock: %d\n", ret);
+		dev_err(dev, "failed to get hclk: %d\n", ret);
 		return ret;
 	}
 
 	tcon->dclk = devm_clk_get(dev, "dclk");
 	if (IS_ERR(tcon->dclk)) {
 		ret = PTR_ERR(tcon->dclk);
-		dev_err(dev, "failed to get dclk clock: %d\n", ret);
+		dev_err(dev, "failed to get dclk: %d\n", ret);
+		return ret;
+	}
+
+	tcon->aclk = devm_clk_get_optional(dev, "aclk");
+	if (IS_ERR(tcon->aclk)) {
+		ret = PTR_ERR(tcon->aclk);
+		dev_err(dev, "failed to get aclk: %d\n", ret);
 		return ret;
 	}
 
@@ -388,13 +719,6 @@ static int ebc_tcon_probe(struct platform_device *pdev)
 	}
 
 	tcon->dev = dev;
-	tcon->enable = tcon_enable;
-	tcon->disable = tcon_disable;
-	tcon->dsp_mode_set = tcon_dsp_mode_set;
-	tcon->image_addr_set = tcon_image_addr_set;
-	tcon->frame_addr_set = tcon_frame_addr_set;
-	tcon->lut_data_set = tcon_lut_data_set;
-	tcon->frame_start = tcon_frame_start;
 	platform_set_drvdata(pdev, tcon);
 
 	pm_runtime_enable(dev);
@@ -409,8 +733,36 @@ static int ebc_tcon_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct rockchip_ebc_tcon_data rk3568_ebc_data = {
+	.volatile_reg = tcon_is_volatile_reg,
+	.tcon = {
+		.enable = tcon_enable,
+		.disable = tcon_disable,
+		.dsp_mode_set = tcon_dsp_mode_set,
+		.image_addr_set = tcon_image_addr_set,
+		.frame_addr_set = tcon_frame_addr_set,
+		.lut_data_set = tcon_lut_data_set,
+		.frame_start = tcon_frame_start,
+	},
+};
+
+static struct rockchip_ebc_tcon_data rk3576_ebc_data = {
+	.volatile_reg = rk3576_tcon_is_volatile_reg,
+	.tcon = {
+		.enable = rk3576_tcon_enable,
+		.disable = rk3576_tcon_disable,
+		.dsp_mode_set = rk3576_tcon_dsp_mode_set,
+		.image_addr_set = rk3576_tcon_image_addr_set,
+		.frame_addr_set = rk3576_tcon_frame_addr_set,
+		.lut_data_set = rk3576_tcon_lut_data_set,
+		.frame_start = rk3576_tcon_frame_start,
+		.data_format_set = rk3576_tcon_data_format_set,
+	},
+};
+
 static const struct of_device_id ebc_tcon_of_match[] = {
-	{ .compatible = "rockchip,rk3568-ebc-tcon" },
+	{ .compatible = "rockchip,rk3568-ebc-tcon", .data = &rk3568_ebc_data },
+	{ .compatible = "rockchip,rk3576-ebc-tcon", .data = &rk3576_ebc_data },
 	{}
 };
 MODULE_DEVICE_TABLE(of, ebc_tcon_of_match);

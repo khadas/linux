@@ -20,12 +20,21 @@
 #define THREE_WIN_MODE	1
 #define EINK_MODE	1
 
+enum ebc_tcon_data_format {
+	EBC_Y4_FORMAT = 0,
+	EBC_Y8_FORMAT = 1,
+	EBC_RGB565_FORMAT = 2,
+	EBC_XBGR8888_FORMAT = 3,
+	EBC_Y5_FORMAT = 4,
+};
+
 struct ebc_tcon {
 	struct device *dev;
 	void __iomem *regs;
 	unsigned int len;
 	int irq;
 
+	struct clk *aclk;
 	struct clk *hclk;
 	struct clk *dclk;
 	struct regmap *regmap_base;
@@ -36,6 +45,7 @@ struct ebc_tcon {
 	void (*image_addr_set)(struct ebc_tcon *tcon, u32 pre_image_addr, u32 cur_image_addr);
 	void (*frame_addr_set)(struct ebc_tcon *tcon, u32 frame_addr);
 	int (*lut_data_set)(struct ebc_tcon *tcon, unsigned int *lut_data, int frame_count, int lut_32);
+	void (*data_format_set)(struct ebc_tcon *tcon, enum ebc_tcon_data_format format);
 	void (*frame_start)(struct ebc_tcon *tcon, int frame_total);
 	void (*dsp_end_callback)(void);
 };
@@ -74,6 +84,11 @@ static inline int ebc_tcon_lut_data_set(struct ebc_tcon *tcon, unsigned int *lut
 static inline void ebc_tcon_frame_start(struct ebc_tcon *tcon, int frame_total)
 {
 	tcon->frame_start(tcon, frame_total);
+}
+
+static inline void ebc_tcon_data_format_set(struct ebc_tcon *tcon, enum ebc_tcon_data_format format)
+{
+	tcon->data_format_set(tcon, format);
 }
 
 struct eink_tcon {
