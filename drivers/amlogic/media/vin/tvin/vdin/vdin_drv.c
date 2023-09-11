@@ -503,10 +503,13 @@ static bool vdin_need_game_mode(struct vdin_dev_s *devp)
 	// 1080i maybe has game mode demand
 	if ((devp->vdin_function_sel & VDIN_INTERLACE_GAME_MODE) &&
 	    devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED &&
-	    devp->fmt_info_p->v_active == 540)
+	    devp->fmt_info_p->v_active == 540) {
+		if (devp->vdin_function_sel & VDIN_INTERLACE_DROP_BOTTOM)
+			devp->interlace_drop_bottom = true;
 		return true;
-	else
+	} else {
 		return false;
+	}
 }
 
 static void vdin_game_mode_check(struct vdin_dev_s *devp)
@@ -1612,6 +1615,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	devp->game_mode_bak = 0;
 	devp->game_mode_chg = VDIN_GAME_MODE_UN_CHG;
 	devp->common_divisor = 0;
+	devp->interlace_drop_bottom = 0;
 
 	if ((devp->vdin_function_sel & VDIN_SELF_STOP_START) &&
 		devp->self_stop_start) {
@@ -3087,11 +3091,11 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	 *  give up bottom field to avoid odd/even phase different
 	 */
 	trans_fmt = devp->parm.info.trans_fmt;
-	if (vdin_is_3d_interlace_signal(devp) &&
+	if ((vdin_is_3d_interlace_signal(devp) || devp->interlace_drop_bottom) &&
 	    ((last_field_type & VIDTYPE_INTERLACE_BOTTOM) ==
 	     VIDTYPE_INTERLACE_BOTTOM)) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_FMT_TRANS_CHG;
-		vdin_drop_frame_info(devp, "tran fmt chg");
+		vdin_drop_frame_info(devp, "3d tran fmt or game interlace");
 		goto irq_handled;
 	}
 	/* Check whether frame written done */

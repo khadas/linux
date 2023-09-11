@@ -313,6 +313,7 @@ struct match_data_s {
 #define VDIN_MUX_VDIN0_HIST		BIT(15) //sel vdin0 hist for txhd2
 #define VDIN_SET_PCS_RESET		BIT(16) //for report_active abnormal callback rx pcs_reset
 #define VDIN_AFBCE_DOLBY		BIT(17)
+#define VDIN_INTERLACE_DROP_BOTTOM	BIT(18)
 
 /* vdin_function_sel control bits end */
 
@@ -956,6 +957,7 @@ struct vdin_dev_s {
 	bool black_bar_enable;
 	bool hist_bar_enable;
 	bool rdma_not_register;
+	bool interlace_drop_bottom;
 	unsigned int ignore_frames;
 	/*use frame rate to cal duration*/
 	unsigned int use_frame_rate;

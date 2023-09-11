@@ -743,6 +743,7 @@ void tvin_sig_chg_event_process(struct vdin_dev_s *devp, u32 chg)
 		if (sm_debug_enable & VDIN_SM_LOG_L_1)
 			pr_info("vdin reconfig, set unstable\n");
 		devp->parm.info.status = TVIN_SIG_STATUS_UNSTABLE;
+		sm_dev[devp->index].state = TVIN_SM_STATUS_UNSTABLE;
 		devp->frame_drop_num = vdin_re_cfg_drop_cnt;
 	}
 	devp->pre_event_info.event_sts = devp->event_info.event_sts;

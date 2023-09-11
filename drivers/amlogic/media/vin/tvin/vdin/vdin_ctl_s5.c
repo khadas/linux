@@ -2489,8 +2489,6 @@ void vdin_set_all_regs_s5(struct vdin_dev_s *devp)
 	/* bbar sub-module */
 	//vdin_set_bbar_s5(devp->addr_offset, devp->v_active, devp->h_active);
 #ifdef CONFIG_AML_LOCAL_DIMMING
-		devp->h_active, devp->v_active);
-
 	/* ldim sub-module */
 	/* vdin_set_ldim_max_init(devp->addr_offset, 1920, 1080, 8, 2); */
 	vdin_set_ldim_max_init_s5(devp->addr_offset, devp->h_active,
