@@ -358,12 +358,12 @@ static int rockchip_sai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	pm_runtime_get_sync(dai->dev);
 	mask = SAI_CKR_MSS_MASK;
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_BP_FP:
 		val = SAI_CKR_MSS_MASTER;
 		sai->is_master_mode = true;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_BC_FC:
 		val = SAI_CKR_MSS_SLAVE;
 		sai->is_master_mode = false;
 		break;
@@ -1262,6 +1262,7 @@ static const struct snd_soc_component_driver rockchip_sai_component = {
 	.name = DRV_NAME,
 	.controls = rockchip_sai_controls,
 	.num_controls = ARRAY_SIZE(rockchip_sai_controls),
+	.legacy_dai_naming = 1,
 };
 
 static irqreturn_t rockchip_sai_isr(int irq, void *devid)
