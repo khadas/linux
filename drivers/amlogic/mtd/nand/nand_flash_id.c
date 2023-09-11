@@ -107,6 +107,17 @@ struct nand_flash_dev aml_nand_flash_ids[] = {
 		{0, 0},
 		NAND_TIMING_MODE5},
 
+	{"HYN4G08UHTCC1/GSS04GPAL0",
+		{ .id = {NAND_MFR_HYNIX, 0xdc, 0x0, 0x05, 0x04, 0x41}},
+		2048,
+		512,
+		0x20000,
+		0,
+		6,
+		128,
+		{0, 0},
+		NAND_TIMING_MODE5},
+
 	{"B revision NAND 8GiB MT29F64G08CBABA",
 		{ .id = {NAND_MFR_MICRON, 0x64, 0x44, 0x4B, 0xA9}},
 		8192,
