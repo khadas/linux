@@ -481,6 +481,13 @@ static ssize_t use_fifo_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t receive_scancode_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct remote_chip *chip = dev_get_drvdata(dev);
+	return sprintf(buf, "0x%x\n", chip->receive_scancode);
+}
+
 DEVICE_ATTR_RW(use_fifo);
 DEVICE_ATTR_RO(sum_cnt0);
 DEVICE_ATTR_RO(sum_cnt1);
@@ -494,6 +501,7 @@ DEVICE_ATTR_RW(keymap);
 DEVICE_ATTR_RW(debug_enable);
 DEVICE_ATTR_RW(debug_log);
 DEVICE_ATTR_RO(map_tables);
+DEVICE_ATTR_RO(receive_scancode);
 
 static struct attribute *remote_attrs[] = {
 	&dev_attr_protocol.attr,
@@ -509,6 +517,7 @@ static struct attribute *remote_attrs[] = {
 	&dev_attr_sum_cnt0.attr,
 	&dev_attr_sum_cnt1.attr,
 	&dev_attr_use_fifo.attr,
+	&dev_attr_receive_scancode.attr,
 	NULL,
 };
 

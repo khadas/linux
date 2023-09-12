@@ -344,6 +344,7 @@ static void amlremote_tasklet(unsigned long data)
 	if (chip->ir_contr[chip->ir_work].get_decode_status)
 		status = chip->ir_contr[chip->ir_work].get_decode_status(chip);
 	if (status == REMOTE_NORMAL) {
+		chip->receive_scancode = scancode;  //Assign scancode to the new node variable
 		remote_dbg(chip->dev, "receive scancode=0x%x\n", scancode);
 		remote_keydown(chip->r_dev, scancode, status);
 	} else if (status & REMOTE_REPEAT) {
