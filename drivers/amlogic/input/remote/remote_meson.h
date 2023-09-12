@@ -117,6 +117,7 @@ struct remote_chip {
 	struct cdev chrdev;
 	struct mutex  file_lock;
 	spinlock_t slock;
+	int receive_scancode;
 
 	bool debug_enable;
 	bool repeat_enable;
