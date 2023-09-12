@@ -32,17 +32,17 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, struct phy_config_s *ph
 				int bypass, unsigned int mode, unsigned int ckdi)
 {
 	unsigned int cntl15 = 0, cntl16 = 0;
-	unsigned int data = 0, chreg = 0;
-	unsigned int tmp = 0;
-	unsigned int amp = 0;
-	int i = 0;
+	unsigned int data = 0, chreg = 0, amp = 0;
+	unsigned int chdig[6] = { 0 };
+	unsigned int i = 0, j = 0;
 
 	if (!phy_ctrl_p)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
-		LCDPR("%s: %d\n", __func__, status);
+		LCDPR("%s: %d, bypass:%d\n", __func__, status, bypass);
 
+	memset(chdig, 0, sizeof(chdig));
 	if (status) {
 		chreg |= ((phy_ctrl_p->ctrl_bit_on << 16) |
 			  (phy_ctrl_p->ctrl_bit_on << 0));
@@ -56,8 +56,14 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, struct phy_config_s *ph
 				phy->lane[i].amp = 0;
 		}
 
-		if (bypass)
-			tmp |= ((1 << 18) | (1 << 2));
+		if (bypass) {
+			for (i = 0, j = 0; i < 12; i += 2, j++) {
+				if (((ckdi >> 12) & (1 << i)) == 0)
+					chdig[j] |= (1 << 2);
+				if (((ckdi >> 12) & (1 << (i + 1))) == 0)
+					chdig[j] |= (1 << 18);
+			}
+		}
 
 		if (mode) {
 			chreg |= lvds_vx1_p2p_phy_ch_tl1;
@@ -83,32 +89,32 @@ static void lcd_phy_cntl_set(struct aml_lcd_drv_s *pdrv, struct phy_config_s *ph
 	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL15, cntl15);
 	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL16, cntl16);
 	amp = ((phy->lane[0].amp & 0x7) << 3 | (phy->lane[1].amp & 0x7) << 19);
-	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL8, tmp | amp);
+	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL8, chdig[0] | amp);
 	data = ((phy->lane[0].preem & 0xff) << 8 |
 	       (phy->lane[1].preem & 0xff) << 24);
 	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL1, chreg | data);
 	amp = ((phy->lane[2].amp & 0x7) << 3 | (phy->lane[3].amp & 0x7) << 19);
-	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL9, tmp | amp);
+	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL9, chdig[1] | amp);
 	data = ((phy->lane[2].preem & 0xff) << 8 |
 	       (phy->lane[3].preem & 0xff) << 24);
 	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL2, chreg | data);
 	amp = ((phy->lane[4].amp & 0x7) << 3 | (phy->lane[5].amp & 0x7) << 19);
-	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL10, tmp | amp);
+	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL10, chdig[2] | amp);
 	data = ((phy->lane[4].preem & 0xff) << 8 |
 	       (phy->lane[5].preem & 0xff) << 24);
 	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL3, chreg | data);
 	amp = ((phy->lane[6].amp & 0x7) << 3 | (phy->lane[7].amp & 0x7) << 19);
-	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL11, tmp | amp);
+	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL11, chdig[3] | amp);
 	data = ((phy->lane[6].preem & 0xff) << 8 |
 	       (phy->lane[7].preem & 0xff) << 24);
 	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL4, chreg | data);
 	amp = ((phy->lane[8].amp & 0x7) << 3 | (phy->lane[9].amp & 0x7) << 19);
-	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL12, tmp | amp);
+	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL12, chdig[4] | amp);
 	data = ((phy->lane[8].preem & 0xff) << 8 |
 	       (phy->lane[9].preem & 0xff) << 24);
 	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL6, chreg | data);
 	amp = ((phy->lane[10].amp & 0x7) << 3 | (phy->lane[11].amp & 0x7) << 19);
-	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL13, tmp | amp);
+	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL13, chdig[5] | amp);
 	data = ((phy->lane[10].preem & 0xff) << 8 |
 	       (phy->lane[11].preem & 0xff) << 24);
 	lcd_ana_write(HHI_DIF_CSI_PHY_CNTL7, chreg | data);
@@ -146,9 +152,9 @@ static void lcd_lvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 			cntl14 |= (phy->odt & 0xff) << 24;
 		}
 		lcd_ana_write(HHI_DIF_CSI_PHY_CNTL14, cntl14);
-		lcd_phy_cntl_set(pdrv, phy, status, 0, 1, 0);
+		lcd_phy_cntl_set(pdrv, phy, status, 1, 1, 0);
 	} else {
-		lcd_phy_cntl_set(pdrv, phy, status, 0, 0, 0);
+		lcd_phy_cntl_set(pdrv, phy, status, 1, 0, 0);
 	}
 }
 
@@ -200,7 +206,7 @@ static void lcd_mlvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
 	struct mlvds_config_s *mlvds_conf;
 	struct phy_config_s *phy = &pdrv->config.phy_cfg;
-	unsigned int ckdi, cntl14 = 0;
+	unsigned int ckdi, bypass, cntl14 = 0;
 
 	if (status == LCD_PHY_LOCK_LANE)
 		return;
@@ -230,11 +236,15 @@ static void lcd_mlvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 			cntl14 |= (phy->odt & 0xff) << 24;
 		}
 		ckdi = (mlvds_conf->pi_clk_sel << 12);
+		if (pdrv->data->chip_type == LCD_CHIP_T5W)
+			bypass = 1;
+		else
+			bypass = (mlvds_conf->clk_phase >> 12) & 0x1;
 
 		lcd_ana_write(HHI_DIF_CSI_PHY_CNTL14, cntl14);
-		lcd_phy_cntl_set(pdrv, phy, status, 0, 1, ckdi);
+		lcd_phy_cntl_set(pdrv, phy, status, bypass, 1, ckdi);
 	} else {
-		lcd_phy_cntl_set(pdrv, phy, status, 0, 0, 0);
+		lcd_phy_cntl_set(pdrv, phy, status, 1, 0, 0);
 	}
 }
 

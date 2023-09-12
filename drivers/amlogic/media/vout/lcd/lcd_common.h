@@ -68,7 +68,8 @@
 /* 20230816: optimize clk accuracy*/
 /* 20230821: update clk ss support*/
 /* 20230824: support high resolution vsync measure debug*/
-#define LCD_DRV_VERSION    "20230824"
+/* 20230912: bypass phy data buffer */
+#define LCD_DRV_VERSION    "20230912"
 
 extern struct mutex lcd_vout_mutex;
 

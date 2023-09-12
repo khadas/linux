@@ -386,7 +386,8 @@ struct mlvds_config_s {
 	unsigned int channel_num;
 	unsigned int channel_sel0;
 	unsigned int channel_sel1;
-	unsigned int clk_phase; /* [13:12]=clk01_pi_sel,
+	unsigned int clk_phase; /* [14:13]=clk01_pi_sel,
+				 * [12]=data bypass buffer
 				 * [11:8]=pi2, [7:4]=pi1, [3:0]=pi0
 				 */
 	unsigned int pn_swap;

@@ -4214,7 +4214,7 @@ static const char *lcd_mlvds_debug_usage_str = {
 "    echo <channel_num> <channel_sel0> <channel_sel1> <clk_phase> <pn_swap> <bit_swap> > minilvds ; set minilvds config\n"
 "data format:\n"
 "    <channel_sel> : minilvds 8 channels mapping in tx 10 channels\n"
-"    <clk_phase>   : bit[13:12]=clk01_pi_sel, bit[11:8]=pi2, bit[7:4]=pi1, bit[3:0]=pi0\n"
+"    <clk_phase>   : bit[14:13]=clk01_pi_sel, bit[12]=data byass buffer, bit[11:8]=pi2, bit[7:4]=pi1, bit[3:0]=pi0\n"
 "    <pn_swap>     : 0=normal, 1=swap p/n channels\n"
 "    <bit_swap>    : 0=normal, 1=swap bit LSB/MSB\n"
 "\n"
