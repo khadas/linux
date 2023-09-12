@@ -854,8 +854,6 @@ unsigned int aml_bl_get_level_brightness(struct aml_bl_drv_s *bdrv)
 	if (aml_bl_check_driver(bdrv))
 		return 0;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV)
-		BLPR("aml bl state: 0x%x\n", bdrv->state);
 	return bdrv->level_brightness;
 }
 
