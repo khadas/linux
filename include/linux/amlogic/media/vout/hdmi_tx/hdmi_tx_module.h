@@ -712,7 +712,7 @@ struct hdmitx_dev {
 #define MISC_DIS_HPLL		(CMD_MISC_OFFSET + 0x17)
 #define MISC_AUDIO_ACR_CTRL	(CMD_MISC_OFFSET + 0x18)
 #define MISC_ESMCLK_CTRL        (CMD_MISC_OFFSET + 0x19)
-#define MISC_AUDIO_PREPARE	(CMD_MISC_OFFSET + 0x1a)
+#define MISC_AUDIO_PREPARE     (CMD_MISC_OFFSET + 0x1a)
 
 /***********************************************************************
  *                          Get State //getstate
@@ -1012,4 +1012,5 @@ int hdmitx_uboot_already_display(int type);
 int read_phy_status(void);
 int hdmitx_set_uevent_state(enum hdmitx_event type, int state);
 int hdmitx_set_uevent(enum hdmitx_event type, int val);
+int get_hdmi_hdr_status(struct hdmitx_dev *hdev);
 #endif

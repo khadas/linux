@@ -2476,6 +2476,55 @@ static void hdmitx_set_packet(int type, unsigned char *DB, unsigned char *HB)
 	}
 }
 
+int get20_extended_colorimetry_from_avi(struct hdmitx_dev *hdev)
+{
+	unsigned int reg_addr;
+	unsigned int reg_val;
+	unsigned int extended_colorimetry = 0;
+	unsigned int colorimetry = HDMI_COLORIMETRY_NONE;
+
+	reg_addr = HDMITX_DWC_FC_AVICONF1;
+	reg_val = hdmitx_rd_reg(reg_addr);
+	colorimetry = (reg_val & 0xC0) >> 6;
+	if (colorimetry == HDMI_COLORIMETRY_EXTENDED) {
+		reg_val = hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2);
+		extended_colorimetry = (reg_val & 0x70) >> 4;
+	}
+
+	return extended_colorimetry;
+}
+
+int get_hdmi_hdr_status(struct hdmitx_dev *hdev)
+{
+	unsigned int extended_colorimetry;
+	unsigned int status = SDR;
+	enum hdmi_tf_type mytype = HDMI_NONE;
+
+	extended_colorimetry = get20_extended_colorimetry_from_avi(hdev);
+	if (hdmitx_hdr_en()) {
+		mytype = hdmitx_get_cur_hdr_st();
+		if (mytype == HDMI_HDR_SMPTE_2084) {
+			if (extended_colorimetry == HDMI_EXTENDED_COLORIMETRY_BT2020)
+				status = HDR10_GAMMA_ST2084;
+			else
+				status = HDR10_others;
+		} else if (mytype == HDMI_HDR_HLG) {
+			status = HDR10_GAMMA_HLG;
+		}
+	} else if (hdmitx_dv_en()) {
+		mytype = hdmitx_get_cur_dv_st();
+		if (mytype == HDMI_DV_VSIF_LL)
+			status = dolbyvision_lowlatency;
+		else if (mytype == HDMI_DV_VSIF_STD)
+			status = dolbyvision_std;
+	} else if (hdmitx_hdr10p_en()) {
+		mytype = hdmitx_get_cur_hdr10p_st();
+		if (mytype == HDMI_HDR10P_DV_VSIF)
+			status = HDR10PLUS_VSIF;
+	}
+	return status;
+}
+
 static void hdmitx_disable_packet(int type)
 {
 	switch (type) {

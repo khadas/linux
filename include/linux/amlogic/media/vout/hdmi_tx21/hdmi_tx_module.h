@@ -876,4 +876,5 @@ bool hdmitx21_hdr10p_en(void);
 u32 aud_sr_idx_to_val(enum hdmi_audio_fs e_sr_idx);
 bool hdmitx21_uboot_already_display(struct hdmitx_dev *hdev);
 int get_extended_colorimetry_from_avi(struct hdmitx_dev *hdev);
+int get_hdmitx21_hdr_status(struct hdmitx_dev *hdev);
 #endif

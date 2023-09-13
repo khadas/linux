@@ -3622,6 +3622,7 @@ static ssize_t hdmi_hdr_status_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
 	int pos = 0;
+	int hdr_status = 0;
 	struct hdmitx_dev *hdev = &hdmitx_device;
 
 	/* pos = 3 */
@@ -3663,9 +3664,30 @@ static ssize_t hdmi_hdr_status_show(struct device *dev,
 			return pos;
 		}
 	}
-
-	/* default is SDR */
-	pos += snprintf(buf + pos, PAGE_SIZE, "SDR");
+	hdr_status = get_hdmi_hdr_status(hdev);
+	switch (hdr_status) {
+	case SDR:
+		pos += snprintf(buf + pos, PAGE_SIZE, "SDR");
+		break;
+	case HDR10_GAMMA_ST2084:
+		pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-GAMMA_ST2084");
+		break;
+	case HDR10_others:
+		pos += snprintf(buf + pos, PAGE_SIZE, "HDR10-others");
+		break;
+	case HDR10PLUS_VSIF:
+		pos += snprintf(buf + pos, PAGE_SIZE, "HDR10Plus-VSIF");
+		break;
+	case dolbyvision_std:
+		pos += snprintf(buf + pos, PAGE_SIZE, "DolbyVision-Std");
+		break;
+	case dolbyvision_lowlatency:
+		pos += snprintf(buf + pos, PAGE_SIZE, "DolbyVision-Lowlatency");
+		break;
+	default:
+		pos += snprintf(buf + pos, PAGE_SIZE, "SDR");
+		break;
+	}
 
 	return pos;
 }

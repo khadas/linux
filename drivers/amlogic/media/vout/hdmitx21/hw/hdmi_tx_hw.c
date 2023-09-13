@@ -3452,3 +3452,34 @@ void hdmitx_dhdr_send(u8 *body, int max_size)
 	hdmitx21_wr_reg(D_HDR_INSERT_CTRL_IVCTX, 0x3);
 }
 
+int get_hdmitx21_hdr_status(struct hdmitx_dev *hdev)
+{
+	unsigned int extended_colorimetry;
+	unsigned int status = SDR;
+	enum hdmi_tf_type mytype = HDMI_NONE;
+
+	extended_colorimetry = get_extended_colorimetry_from_avi(hdev);
+	if (hdmitx21_hdr_en()) {
+		mytype = hdmitx21_get_cur_hdr_st();
+		if (mytype == HDMI_HDR_SMPTE_2084) {
+			if (extended_colorimetry == HDMI_EXTENDED_COLORIMETRY_BT2020)
+				status = HDR10_GAMMA_ST2084;
+			else
+				status = HDR10_others;
+		} else if (mytype == HDMI_HDR_HLG) {
+			status = HDR10_GAMMA_HLG;
+		}
+	} else if (hdmitx21_dv_en()) {
+		mytype = hdmitx21_get_cur_dv_st();
+		if (mytype == HDMI_DV_VSIF_LL)
+			status = dolbyvision_lowlatency;
+		else if (mytype == HDMI_DV_VSIF_STD)
+			status = dolbyvision_std;
+	} else if (hdmitx21_hdr10p_en()) {
+		mytype = hdmitx21_get_cur_hdr10p_st();
+		if (mytype == HDMI_HDR10P_DV_VSIF)
+			status = HDR10PLUS_VSIF;
+	}
+	return status;
+}
+
