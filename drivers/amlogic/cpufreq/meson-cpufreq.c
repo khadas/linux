@@ -1098,6 +1098,11 @@ static int meson_cpufreq_exit(struct cpufreq_policy *policy)
 					      &freq_table[cur_cluster]);
 		dev_pm_opp_of_cpumask_remove_table(policy->related_cpus);
 	}
+
+	if (!IS_ERR_OR_NULL(cpufreq_data->reg))
+		devm_regulator_put(cpufreq_data->reg);
+	if (!IS_ERR_OR_NULL(cpufreq_data->reg_dsu))
+		regulator_put(cpufreq_data->reg_dsu);
 	dev_dbg(cpu_dev, "%s: Exited, cpu: %d\n", __func__, policy->cpu);
 	kfree(cpufreq_data);
 
