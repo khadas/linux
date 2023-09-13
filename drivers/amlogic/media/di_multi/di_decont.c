@@ -1481,6 +1481,7 @@ void dcntr_check(struct vframe_s *vfm)
 
 	pcfg->n_set	= 0;
 	pcfg->n_up	= 0;
+	pcfg->n_rp	= 0;
 
 	if (disable_di_decontour() && !pcfg->st_off) {
 		pcfg->st_off = 1;
@@ -1701,11 +1702,13 @@ void dcntr_check(struct vframe_s *vfm)
 	if (pcfg->n_bypass) {
 		pcfg->n_set	= 0;
 		pcfg->n_up	= 0;
+		pcfg->n_rp	= 0;
 	} else {
 		if (chg || (dbg_dct & DI_BIT5))
 			pcfg->n_set	= 1;
 		else
 			pcfg->n_up	= 1;
+		pcfg->n_rp	= 1;
 	}
 
 	dbg_dct_in(&pcfg->in);
