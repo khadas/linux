@@ -1342,6 +1342,15 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 		} else {
 			fifo_flow_enable_intrs(1);
 		}
+
+		/* fix dsc snow screen issue and dsc cts HFR1-85,Iter-04 snow screen:
+		 * reset pfifo before training
+		 */
+		if (hdev->dsc_en) {
+			hdmitx_soft_reset(BIT(5));
+			/* clear pfifo intr */
+			hdmitx21_set_reg_bits(INTR2_SW_TPI_IVCTX, 0, 1, 1);
+		}
 		if (hdev->rxcap.max_frl_rate && hdev->frl_rate)
 			frl_tx_training_handler(hdev);
 	}
