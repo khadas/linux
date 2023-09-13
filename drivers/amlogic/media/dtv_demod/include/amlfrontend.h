@@ -110,6 +110,7 @@
 /*  V2.2.000 brinup TL1 */
 /*  V2.2.001 improve the accuracy of dvbs cn value */
 /*  V2.2.002 fix j83b qam setting when auto qam */
+/*  V2.2.003 fix discarding signal when dvbt2 level is very low */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -126,8 +127,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.2.002"
-#define DTVDEMOD_VER	"2023/08/30: fix j83b qam setting when auto qam"
+#define AMLDTVDEMOD_VER "V2.2.003"
+#define DTVDEMOD_VER	"2023/09/14: fix discarding signal when dvbt2 level is very low"
 #define AMLDTVDEMOD_T2_FW_VER "V1558.20230628"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

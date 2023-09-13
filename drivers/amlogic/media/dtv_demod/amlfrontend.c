@@ -1248,6 +1248,11 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		if (devp->tuner_strength_limit)
 			strength_limit = devp->tuner_strength_limit;
 
+		if (tuner_find_by_name(fe, "r842"))
+			strength += 7;
+		else if (tuner_find_by_name(fe, "mxl661"))
+			strength += 3;
+
 		if (strength < strength_limit) {
 			if (!(no_signal_cnt++ % 20))
 				dvbt2_reset(demod, fe);
