@@ -141,6 +141,12 @@ static int vt_debug_instance_show(struct seq_file *s, void *unused)
 		   ref_count,
 		   instance->fcount,
 		   vt_debug_mode_status_to_string(instance->mode));
+	seq_printf(s, "backup_sourcecrop (%d %d %d %d)\n",
+		   instance->backup_sourcecrop.left, instance->backup_sourcecrop.top,
+		   instance->backup_sourcecrop.right, instance->backup_sourcecrop.bottom);
+	seq_printf(s, "backup_displayframe(%d %d %d %d)\n",
+		   instance->backup_displayframe.left, instance->backup_displayframe.top,
+		   instance->backup_displayframe.right, instance->backup_displayframe.bottom);
 	seq_puts(s, "-----------------------------------------------\n");
 	if (instance->consumer)
 		seq_printf(s, "consumer session (%s) %p\n",
@@ -433,6 +439,8 @@ static struct vt_instance *vt_instance_create_lock(struct vt_dev *dev)
 	if (!instance)
 		return ERR_PTR(-ENOMEM);
 
+	memset(&instance->backup_sourcecrop, -1, sizeof(instance->backup_sourcecrop));
+	memset(&instance->backup_displayframe, -1, sizeof(instance->backup_displayframe));
 	instance->dev = dev;
 	instance->fcount = 0;
 	instance->mode = VT_MODE_NONE_BLOCK;
