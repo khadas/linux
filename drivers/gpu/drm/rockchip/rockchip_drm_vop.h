@@ -29,6 +29,7 @@
 #define VOP_VERSION_RK3528	VOP2_VERSION(0x50, 0x17, 0x1263)
 #define VOP_VERSION_RK3562	VOP2_VERSION(0x50, 0x17, 0x4350)
 #define VOP_VERSION_RK3568	VOP2_VERSION(0x40, 0x15, 0x8023)
+#define VOP_VERSION_RK3576	VOP2_VERSION(0x50, 0x19, 0x9765)
 #define VOP_VERSION_RK3588	VOP2_VERSION(0x40, 0x17, 0x6786)
 
 /* register one connector */
@@ -56,6 +57,8 @@
 #define VOP_FEATURE_VIVID_HDR		BIT(7)
 #define VOP_FEATURE_POST_ACM		BIT(8)
 #define VOP_FEATURE_POST_CSC		BIT(9)
+#define VOP_FEATURE_POST_FRC_V2		BIT(10)
+#define VOP_FEATURE_POST_SHARP		BIT(11)
 
 #define VOP_FEATURE_OUTPUT_10BIT	VOP_FEATURE_OUTPUT_RGB10
 
@@ -78,6 +81,7 @@
 #define WIN_FEATURE_MIRROR		BIT(6)
 #define WIN_FEATURE_MULTI_AREA		BIT(7)
 #define WIN_FEATURE_Y2R_13BIT_DEPTH	BIT(8)
+#define WIN_FEATURE_DCI			BIT(9)
 
 
 #define VOP2_SOC_VARIANT		4
@@ -124,6 +128,8 @@ enum vop3_esmart_lb_mode {
 	VOP3_ESMART_4K_4K_MODE,
 	VOP3_ESMART_4K_2K_2K_MODE,
 	VOP3_ESMART_2K_2K_2K_2K_MODE,
+	VOP3_ESMART_4K_4K_4K_MODE,
+	VOP3_ESMART_4K_4K_2K_2K_MODE,
 };
 
 /*
@@ -144,6 +150,7 @@ enum vop3_esmart_lb_mode {
 #define VOP2_PD_DSC_8K		BIT(5)
 #define VOP2_PD_DSC_4K		BIT(6)
 #define VOP2_PD_ESMART		BIT(7)
+#define VOP2_PD_CLUSTER		BIT(8)
 
 /*
  * vop2 submem power gate,
@@ -238,6 +245,10 @@ struct vop_afbc {
 	struct vop_reg transform_offset;
 	struct vop_reg hdr_ptr;
 	struct vop_reg half_block_en;
+	struct vop_reg pld_offset_en;
+	struct vop_reg pld_ptr_offset;
+	struct vop_reg pld_range_en;
+	struct vop_reg pld_ptr_range;
 	struct vop_reg xmirror;
 	struct vop_reg ymirror;
 	struct vop_reg rotate_270;
@@ -725,6 +736,8 @@ struct vop2_scl_regs {
 	struct vop_reg cbcr_hscl_filter_mode;
 	struct vop_reg cbcr_hor_scl_mode;
 	struct vop_reg cbcr_vscl_filter_mode;
+	struct vop_reg zme_dering_en;
+	struct vop_reg zme_dering_para;
 	struct vop_reg vsd_cbcr_gt2;
 	struct vop_reg vsd_cbcr_gt4;
 	struct vop_reg vsd_yrgb_gt2;
@@ -745,6 +758,7 @@ struct vop2_win_regs {
 	struct vop_reg gate;
 	struct vop_reg enable;
 	struct vop_reg format;
+	struct vop_reg format_argb1555;
 	struct vop_reg tile_mode;
 	struct vop_reg csc_mode;
 	struct vop_reg csc_13bit_en;
@@ -762,6 +776,7 @@ struct vop2_win_regs {
 	struct vop_reg yuv_clip;
 	struct vop_reg lb_mode;
 	struct vop_reg y2r_en;
+	struct vop_reg csc_y2r_path_sel;
 	struct vop_reg r2y_en;
 	struct vop_reg channel;
 	struct vop_reg dst_alpha_ctl;
@@ -811,14 +826,15 @@ struct vop2_video_port_regs {
 	struct vop_reg dither_up_en;
 	struct vop_reg bg_dly;
 
-	struct vop_reg core_dclk_div;
 	struct vop_reg p2i_en;
 	struct vop_reg dual_channel_en;
 	struct vop_reg dual_channel_swap;
 	struct vop_reg dsp_lut_en;
 
-	struct vop_reg dclk_div2;
-	struct vop_reg dclk_div2_phase_lock;
+	struct vop_reg core_dclk_div;		/* dclk core */
+	struct vop_reg dclk_div2;		/* dclk out */
+
+	struct vop_reg dclk_div2_phase_lock;	/* used to adjust phase when yuv420 output */
 
 	struct vop_reg hdr10_en;
 	struct vop_reg hdr_lut_update_en;
@@ -937,6 +953,7 @@ struct vop2_power_domain_regs {
 	struct vop_reg pd;
 	struct vop_reg status;
 	struct vop_reg bisr_en_status;
+	struct vop_reg otp_bisr_en_status;
 	struct vop_reg pmu_status;
 };
 
@@ -995,11 +1012,15 @@ struct vop2_wb_regs {
 	struct vop_reg scale_y_en;
 	struct vop_reg axi_yrgb_id;
 	struct vop_reg axi_uv_id;
+	struct vop_reg vir_stride;
+	struct vop_reg vir_stride_en;
+	struct vop_reg act_width;
+	struct vop_reg one_frame_mode;
 };
 
 struct vop2_power_domain_data {
-	uint8_t id;
-	uint8_t parent_id;
+	uint16_t id;
+	uint16_t parent_id;
 	/*
 	 * @module_id_mask: module id of which module this power domain is belongs to.
 	 * PD_CLUSTER0,1,2,3 only belongs to CLUSTER0/1/2/3, PD_Esmart0 shared by Esmart1/2/3
@@ -1029,7 +1050,7 @@ struct vop2_win_data {
 	const char *name;
 	uint8_t phys_id;
 	uint8_t splice_win_id;
-	uint8_t pd_id;
+	uint16_t pd_id;
 	uint8_t axi_id;
 	uint8_t axi_yrgb_id;
 	uint8_t axi_uv_id;
@@ -1074,7 +1095,7 @@ struct dsc_error_info {
 
 struct vop2_dsc_data {
 	uint8_t id;
-	uint8_t pd_id;
+	uint16_t pd_id;
 	uint8_t max_slice_num;
 	uint8_t max_linebuf_depth;	/* used to generate the bitstream */
 	uint8_t min_bits_per_pixel;	/* bit num after encoder compress */
@@ -1103,6 +1124,7 @@ struct vop3_ovl_mix_regs {
 struct vop3_ovl_regs {
 	const struct vop3_ovl_mix_regs *layer_mix_regs;
 	const struct vop3_ovl_mix_regs *hdr_mix_regs;
+	const struct vop3_ovl_mix_regs *extra_mix_regs;
 };
 
 struct vop2_video_port_data {
@@ -1121,6 +1143,7 @@ struct vop2_video_port_data {
 	const u8 layer_mix_dly;
 	const u8 hdr_mix_dly;
 	const u8 win_dly;
+	const u8 pixel_rate;
 	const struct vop_intr *intr;
 	const struct vop_hdr_table *hdr_table;
 	const struct vop2_video_port_regs *regs;
@@ -1208,16 +1231,21 @@ struct vop2_ctrl {
 	struct vop_reg version;
 	struct vop_reg standby;
 	struct vop_reg dma_stop;
+	struct vop_reg rkmmu_v2_en;
+	struct vop_reg rkmmu_v2_sel_axi;
 	struct vop_reg dsp_vs_t_sel;
 	struct vop_reg lut_dma_en;
 	struct vop_reg axi_outstanding_max_num;
 	struct vop_reg axi_max_outstanding_en;
 	struct vop_reg hdmi_dclk_out_en;
+	struct vop_reg hdmi0_r2y_en;
+	struct vop_reg hdmi0_r2y_mode;
 	struct vop_reg rgb_en;
 	struct vop_reg hdmi0_en;
 	struct vop_reg hdmi1_en;
 	struct vop_reg dp0_en;
 	struct vop_reg dp1_en;
+	struct vop_reg dp2_en;
 	struct vop_reg edp0_en;
 	struct vop_reg edp1_en;
 	struct vop_reg mipi0_en;
@@ -1244,10 +1272,13 @@ struct vop2_ctrl {
 	struct vop_reg dp0_pin_pol;
 	struct vop_reg dp1_dclk_pol;
 	struct vop_reg dp1_pin_pol;
+	struct vop_reg dp2_dclk_pol;
+	struct vop_reg dp2_pin_pol;
 
 	/* This will be reference by win_phy_id */
 	struct vop_reg win_vp_id[16];
 	struct vop_reg win_dly[16];
+	struct vop_reg win_alpha_map[16];
 
 	/* connector mux */
 	struct vop_reg rgb_mux;
@@ -1255,6 +1286,7 @@ struct vop2_ctrl {
 	struct vop_reg hdmi1_mux;
 	struct vop_reg dp0_mux;
 	struct vop_reg dp1_mux;
+	struct vop_reg dp2_mux;
 	struct vop_reg edp0_mux;
 	struct vop_reg edp1_mux;
 	struct vop_reg mipi0_mux;
@@ -1270,9 +1302,10 @@ struct vop2_ctrl {
 	struct vop_reg edp_dual_en;
 	struct vop_reg hdmi_dual_en;
 	struct vop_reg mipi_dual_en;
+	struct vop_reg rgb_dual_en;
 
 	struct vop_reg hdmi0_dclk_div;
-	struct vop_reg hdmi0_pixclk_div;
+	struct vop_reg hdmi0_pixclk_div;/* crtc last pipeline clk to connector */
 	struct vop_reg edp0_dclk_div;
 	struct vop_reg edp0_pixclk_div;
 
@@ -1286,6 +1319,18 @@ struct vop2_ctrl {
 	struct vop_reg mipi0_ds_mode;
 	struct vop_reg mipi1_ds_mode;
 
+	struct vop_reg hdmi0_dclk_sel;/* sel from dclk_core or dclk_out */
+	struct vop_reg edp0_dclk_sel;
+	struct vop_reg mipi0_dclk_sel;
+	struct vop_reg rgb_dclk_sel;
+	struct vop_reg dp0_dclk_sel;
+	struct vop_reg dp1_dclk_sel;
+	struct vop_reg dp2_dclk_sel;
+
+	struct vop_reg dp0_pixclk_div;/* crtc last pipeline clk to connector */
+	struct vop_reg dp1_pixclk_div;
+	struct vop_reg dp2_pixclk_div;
+
 	struct vop_reg src_color_ctrl;
 	struct vop_reg dst_color_ctrl;
 	struct vop_reg src_alpha_ctrl;
@@ -1296,8 +1341,31 @@ struct vop2_ctrl {
 	struct vop_reg gamma_port_sel;
 	struct vop_reg pd_off_imd;
 
+	struct vop_reg mipi0_regdone_imd_en;
+	struct vop_reg mipi0_data1_sel;
+	struct vop_reg mipi0_dclk_out_en;
+	struct vop_reg hdmi0_regdone_imd_en;
+	struct vop_reg hdmi0_data1_sel;
+	struct vop_reg hdmi0_dclk_out_en;
+	struct vop_reg edp0_regdone_imd_en;
+	struct vop_reg edp0_data1_sel;
+	struct vop_reg edp0_dclk_out_en;
+	struct vop_reg dp0_regdone_imd_en;
+	struct vop_reg dp0_data1_sel;
+	struct vop_reg dp0_dclk_out_en;
+	struct vop_reg dp1_regdone_imd_en;
+	struct vop_reg dp1_data1_sel;
+	struct vop_reg dp1_dclk_out_en;
+	struct vop_reg dp2_regdone_imd_en;
+	struct vop_reg dp2_data1_sel;
+	struct vop_reg dp2_dclk_out_en;
+	struct vop_reg rgb_regdone_imd_en;
+	struct vop_reg rgb_data1_sel;
+	struct vop_reg rgb_dclk_out_en;
+
 	struct vop_reg otp_en;
 	struct vop_reg esmart_lb_mode;
+	struct vop_reg vp_intr_merge_en;
 	struct vop_reg reg_done_frm;
 	struct vop_reg cfg_done;
 };
@@ -1307,12 +1375,18 @@ struct vop_dump_regs {
 	const char *name;
 	struct vop_reg state;
 	bool enable_state;
+	uint32_t size;
 };
 
 struct vop2_vp_plane_mask {
 	u8 primary_plane_id;
 	u8 attached_layers_nr;
 	u8 attached_layers[ROCKCHIP_MAX_LAYER];
+};
+
+struct vop2_esmart_lb_map {
+	u8 lb_mode;
+	u8 lb_map_value;
 };
 
 /**
@@ -1337,6 +1411,8 @@ struct vop2_data {
 	uint8_t nr_mem_pgs;
 	uint8_t esmart_lb_mode;
 	bool delayed_pd;
+	uint8_t esmart_lb_mode_num;
+	const struct vop2_esmart_lb_map *esmart_lb_mode_map;
 	const struct vop_intr *axi_intr;
 	const struct vop2_ctrl *ctrl;
 	const struct vop2_dsc_data *dsc;
@@ -1355,6 +1431,7 @@ struct vop2_data {
 	const struct vop_grf_ctrl *grf;
 	const struct vop_grf_ctrl *vo0_grf;
 	const struct vop_grf_ctrl *vo1_grf;
+	const struct vop_grf_ctrl *ioc_grf;
 	const struct vop_dump_regs *dump_regs;
 	uint32_t dump_regs_size;
 	struct vop_rect max_input;
@@ -1388,6 +1465,7 @@ struct vop2_data {
 #define WB_UV_FIFO_FULL_INTR		BIT(17)
 #define WB_YRGB_FIFO_FULL_INTR		BIT(18)
 #define WB_COMPLETE_INTR		BIT(19)
+#define MMU_EN_INTR			BIT(20)
 
 #define INTR_MASK			(DSP_HOLD_VALID_INTR | FS_INTR | \
 					 LINE_FLAG_INTR | BUS_ERROR_INTR | \
@@ -1397,7 +1475,7 @@ struct vop2_data {
 					 HWC_EMPTY_INTR | \
 					 POST_BUF_EMPTY_INTR | \
 					 DMA_FINISH_INTR | FS_FIELD_INTR | \
-					 FE_INTR)
+					 FE_INTR | WB_COMPLETE_INTR | MMU_EN_INTR)
 #define DSP_HOLD_VALID_INTR_EN(x)	((x) << 4)
 #define FS_INTR_EN(x)			((x) << 5)
 #define LINE_FLAG_INTR_EN(x)		((x) << 6)
@@ -1525,12 +1603,14 @@ enum vop2_scale_up_mode {
 	VOP2_SCALE_UP_NRST_NBOR,
 	VOP2_SCALE_UP_BIL,
 	VOP2_SCALE_UP_BIC,
+	VOP2_SCALE_UP_ZME,
 };
 
 enum vop2_scale_down_mode {
 	VOP2_SCALE_DOWN_NRST_NBOR,
 	VOP2_SCALE_DOWN_BIL,
 	VOP2_SCALE_DOWN_AVG,
+	VOP2_SCALE_DOWN_ZME,
 };
 
 enum vop3_pre_scale_down_mode {

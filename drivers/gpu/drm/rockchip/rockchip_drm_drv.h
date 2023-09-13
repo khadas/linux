@@ -53,6 +53,7 @@ struct iommu_domain;
 #define VOP_OUTPUT_IF_DP1	BIT(10)
 #define VOP_OUTPUT_IF_HDMI0	BIT(11)
 #define VOP_OUTPUT_IF_HDMI1	BIT(12)
+#define VOP_OUTPUT_IF_DP2	BIT(13)
 
 #ifndef DRM_FORMAT_NV20
 #define DRM_FORMAT_NV20		fourcc_code('N', 'V', '2', '0') /* 2x1 subsampled Cr:Cb plane */
