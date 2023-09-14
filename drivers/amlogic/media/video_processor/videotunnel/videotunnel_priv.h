@@ -233,6 +233,8 @@ struct vt_instance {
 	struct vt_state state;
 	struct vt_krect backup_sourcecrop;
 	struct vt_krect backup_displayframe;
+	bool need_refresh;
+	struct vt_cmd last_cmd;
 };
 
 #endif /* __VIDEO_TUNNEL_PRIV_H */
