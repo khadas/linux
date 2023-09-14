@@ -958,11 +958,19 @@ static int _complete(dwc_otg_pcd_t *pcd, void *ep_handle,
 
 		ep = ep_from_handle(pcd, ep_handle);
 		if (GET_CORE_IF(pcd)->dma_enable) {
-			if (req->length != 0)
-				dma_unmap_single(dev, req->dma, req->length,
+			if (req->length != 0) {
+				if (ep->dwc_ep.num == 0) {
+					dma_unmap_single(dev, req->dma, req->length,
+						ep->dwc_ep.is_in ?
+						DMA_FROM_DEVICE :
+						DMA_TO_DEVICE);
+				} else {
+					dma_unmap_single(dev, req->dma, req->length,
 						ep->dwc_ep.
 						is_in ? DMA_TO_DEVICE :
 						DMA_FROM_DEVICE);
+				}
+			}
 		}
 		req->actual = actual;
 		DWC_SPINUNLOCK(pcd->lock);
