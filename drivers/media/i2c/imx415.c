@@ -2563,7 +2563,7 @@ static int imx415_probe(struct i2c_client *client,
 	imx415->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(imx415->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
-	imx415->power_gpio = devm_gpiod_get(dev, "power", GPIOD_ASIS);
+	imx415->power_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_ASIS);
 	if (IS_ERR(imx415->power_gpio))
 		dev_warn(dev, "Failed to get power-gpios\n");
 	imx415->pinctrl = devm_pinctrl_get(dev);
