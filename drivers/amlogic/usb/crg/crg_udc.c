@@ -263,7 +263,10 @@ struct crg_udc_request {
 	atomic_t used;
 };
 
-#define CRE_REQ_NUM 100
+/* Besides adb, the mtp server needs 128 requests in the worst case and around 20 requests
+ * are reserved by the gadget driver in the android config.
+ */
+#define CRE_REQ_NUM 200
 struct crg_udc_request g_udc_req_ptr[CRE_REQ_NUM];
 
 struct crg_udc_ep {
@@ -1936,6 +1939,10 @@ crg_udc_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 	for (i = 0; i < CRE_REQ_NUM; i++) {
 		if (atomic_xchg(&g_udc_req_ptr[i].used, 1) == 0) {
 			udc_req_ptr = &g_udc_req_ptr[i];
+			/* Only clear the request after acquired. other fields
+			 * are cleared when enqueued and req_done().
+			 */
+			memset(&udc_req_ptr->usb_req, 0x00, sizeof(struct usb_request));
 			break;
 		}
 	}
