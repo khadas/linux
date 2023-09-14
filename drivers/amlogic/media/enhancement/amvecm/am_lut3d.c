@@ -20,6 +20,9 @@ void bs_ct_tbl(void)
 {
 	int i, j;
 
+	if (!plut3d)
+		return;
+
 	if (bs_3dlut_en) {
 		//memcpy(&plut[0][0], plut3d, 14739 * sizeof(int));
 		for (i = 0; i < 4913; i++)

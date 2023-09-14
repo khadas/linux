@@ -214,6 +214,9 @@ void bls_set(void)
 
 	vpp_lut3d_table_init(-1, -1, -1);
 
+	if (!plut3d)
+		return;
+
 	for (d0 = 0; d0 < 17; d0++) {
 		for (d1 = 0; d1 < 17; d1++) {
 			for (d2 = 0; d2 < 17; d2++) {

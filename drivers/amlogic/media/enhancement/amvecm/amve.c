@@ -2390,6 +2390,9 @@ void lut3d_update(unsigned int p3dlut_in[][3])
 	int i;
 	int offset = 0;
 
+	if (!plut3d)
+		return;
+
 	if (p3dlut_in) {
 		if (is_meson_t7_cpu())
 			offset = 2;

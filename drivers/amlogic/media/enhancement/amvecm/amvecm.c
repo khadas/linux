@@ -11296,9 +11296,11 @@ void amvecm_3dlut_init(bool en)
 			color_lut_init(ct_en);
 		vpp_enable_lut3d(ct_en);
 	} else {
-		vpp_lut3d_table_init(-1, -1, -1);
-		vpp_set_lut3d(0, 0, 0, 0);
-		vpp_lut3d_table_release();
+		if (en) {
+			vpp_lut3d_table_init(-1, -1, -1);
+			vpp_set_lut3d(0, 0, 0, 0);
+			/*vpp_lut3d_table_release();*/
+		}
 
 		vpp_enable_lut3d(en);
 	}
