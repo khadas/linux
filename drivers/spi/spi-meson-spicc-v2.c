@@ -804,6 +804,12 @@ static void dirspi_stop(struct spi_device *spi)
 {
 }
 
+/*
+ * Return
+ * <0: error code if the transfer is failed
+ * 0: if the transfer is finished.(callback executed)
+ * >0: if the transfer is still in progress
+ */
 static int dirspi_async(struct spi_device *spi,
 			u8 *tx_buf,
 			u8 *rx_buf,
@@ -870,7 +876,7 @@ static int dirspi_async(struct spi_device *spi,
 	spicc_writel(spicc, spicc->cfg_start.d32 | SPICC_DESC_PENDING, SPICC_REG_CFG_START);
 
 	if (complete)
-		return 0;
+		return 1;
 
 	ret = spicc_wait_complete(spicc, SPICC_DESC_DONE, msecs_to_jiffies(ms));
 	spicc_sem_up_write(spicc);

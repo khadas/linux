@@ -29,6 +29,7 @@
 #include <linux/reset.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
+#include <linux/amlogic/aml_spi.h>
 
 /*
  * The Meson SPICC controller could support DMA based transfers, but is not
@@ -335,6 +336,18 @@ struct meson_spicc_device {
 static int meson_spicc_runtime_suspend(struct device *dev);
 static int meson_spicc_runtime_resume(struct device *dev);
 static void dirspi_set_cs(struct spi_device *spi, bool enable);
+static void dirspi_start(struct spi_device *spi);
+static void dirspi_stop(struct spi_device *spi);
+static int dirspi_async(struct spi_device *spi,
+			u8 *tx_buf,
+			u8 *rx_buf,
+			int len,
+			void (*complete)(void *context),
+			void *context);
+static int dirspi_sync(struct spi_device *spi,
+			u8 *tx_buf,
+			u8 *rx_buf,
+			int len);
 
 static int xLimitRange(int val, int min, int max)
 {
@@ -727,9 +740,10 @@ static inline void meson_spicc_tx(struct meson_spicc_device *spicc)
 
 static inline void meson_spicc_txrx(struct meson_spicc_device *spicc)
 {
-	int xfer;
+	int xfer = 1;
+	int rx_retry = 1000;
 
-	while (1) {
+	while (xfer) {
 		xfer = 0;
 		if (spicc->tx_remain && !meson_spicc_txfull(spicc)) {
 			xfer = 1;
@@ -738,13 +752,17 @@ static inline void meson_spicc_txrx(struct meson_spicc_device *spicc)
 		}
 
 		if (spicc->rx_remain && meson_spicc_rxready(spicc)) {
+			rx_retry = 1000;
 			xfer = 1;
 			meson_spicc_push_data(spicc,
 				readl_relaxed(spicc->base + SPICC_RXDATA));
 		}
 
-		if (!xfer)
-			break;
+		if (spicc->rx_remain && !spicc->tx_remain && rx_retry) {
+			rx_retry--;
+			xfer = 1;
+			udelay(1);
+		}
 	}
 }
 
@@ -858,6 +876,7 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 
 	/* Enable TC interrupt since we transferred everything */
 	if (!spicc->tx_remain && !spicc->rx_remain) {
+		writel_relaxed(0, spicc->base + SPICC_INTREG);
 		if (spicc->xfer != &spicc->async_xfer) {
 			spi_finalize_current_transfer(spicc->controller);
 		} else {
@@ -935,8 +954,8 @@ static int meson_spicc_transfer_one(struct spi_controller *ctlr,
 		writel_bits_relaxed(SPICC_SMC, SPICC_SMC,
 				    spicc->base + SPICC_CONREG);
 		meson_spicc_txrx(spicc);
-		if (!spicc->tx_remain && !spicc->rx_remain)
-			return 0;
+		if (!spicc->tx_remain)
+			return spicc->rx_remain ? -EIO : 0;
 		writel_relaxed(spi_controller_is_slave(spicc->controller) ?
 			SPICC_RR_EN : SPICC_TC_EN, spicc->base + SPICC_INTREG);
 	}
@@ -984,46 +1003,36 @@ static int meson_spicc_setup(struct spi_device *spi)
 {
 #ifdef CONFIG_AMLOGIC_MODIFY
 	struct meson_spicc_device *spicc = spi_controller_get_devdata(spi->controller);
-#endif
-	int ret = 0;
-
-	if (!spi->controller_state)
-		spi->controller_state = spi_controller_get_devdata(spi->controller);
-	else if (gpio_is_valid(spi->cs_gpio))
-		goto out_gpio;
-	else if (spi->cs_gpio == -ENOENT)
-		return 0;
+	struct  spicc_controller_data *cdata;
+	int ret;
 
 	if (gpio_is_valid(spi->cs_gpio)) {
-		ret = gpio_request(spi->cs_gpio, dev_name(&spi->dev));
-		if (ret) {
-			dev_err(&spi->dev, "failed to request cs gpio\n");
+		ret = gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
+		if (ret)
 			return ret;
-		}
-#ifndef CONFIG_AMLOGIC_MODIFY
 	}
-#else
-	} else {
-		dev_err(&spi->dev, "cs gpio invalid\n");
-		return 0;
-	}
-#endif
 
-out_gpio:
-	ret = gpio_direction_output(spi->cs_gpio,
-			!(spi->mode & SPI_CS_HIGH));
-#ifdef CONFIG_AMLOGIC_MODIFY
+	cdata = (struct spicc_controller_data *)spi->controller_data;
+	if (cdata) {
+		cdata->dirspi_start = dirspi_start;
+		cdata->dirspi_stop = dirspi_stop;
+		cdata->dirspi_async = dirspi_async;
+		cdata->dirspi_sync = dirspi_sync;
+	}
+
+	meson_spicc_hw_prepare(spicc, spi->mode);
+	meson_spicc_set_width(spicc, spi->bits_per_word);
 	meson_spicc_set_speed(spicc, spi->max_speed_hz);
 #endif
 
-	return ret;
+	if (!spi->controller_state)
+		spi->controller_state = spi_controller_get_devdata(spi->controller);
+
+	return 0;
 }
 
 static void meson_spicc_cleanup(struct spi_device *spi)
 {
-	if (gpio_is_valid(spi->cs_gpio))
-		gpio_free(spi->cs_gpio);
-
 	spi->controller_state = NULL;
 }
 
@@ -1118,19 +1127,24 @@ void dirspi_start(struct spi_device *spi)
 
 	dirspi_set_cs(spi, true);
 }
-EXPORT_SYMBOL(dirspi_start);
 
 void dirspi_stop(struct spi_device *spi)
 {
 	dirspi_set_cs(spi, false);
 }
-EXPORT_SYMBOL(dirspi_stop);
 
+/*
+ * Return
+ * <0: error code if the transfer is failed
+ * 0: if the transfer is finished.(callback executed)
+ * >0: if the transfer is still in progress
+ */
 int dirspi_async(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len,
 		 void (*complete)(void *context), void *context)
 {
 	struct meson_spicc_device *spicc = spi_controller_get_devdata(spi->controller);
 	struct spi_transfer *t = &spicc->async_xfer;
+	int ret;
 
 	spicc->spi = spi;
 	spicc->is_dma_mapped = 0;
@@ -1143,11 +1157,14 @@ int dirspi_async(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len,
 	t->len = len;
 
 	dirspi_start(spi);
-	meson_spicc_transfer_one(spi->controller, spi, t);
+	ret = meson_spicc_transfer_one(spi->controller, spi, t);
+	if (ret <= 0)
+		dirspi_stop(spi);
+	if (!ret && spicc->complete)
+		spicc->complete(spicc->context);
 
-	return 0;
+	return ret;
 }
-EXPORT_SYMBOL(dirspi_async);
 
 static void dirspi_complete(void *arg)
 {
@@ -1159,12 +1176,13 @@ int dirspi_sync(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len)
 	DECLARE_COMPLETION_ONSTACK(done);
 	int ret;
 
-	dirspi_async(spi, tx_buf, rx_buf, len, dirspi_complete, &done);
+	ret = dirspi_async(spi, tx_buf, rx_buf, len, dirspi_complete, &done);
+	if (ret < 0)
+		return ret;
 	ret = wait_for_completion_timeout(&done, msecs_to_jiffies(200));
 
 	return ret ? 0 : -ETIMEDOUT;
 }
-EXPORT_SYMBOL(dirspi_sync);
 
 #endif
 
@@ -1239,8 +1257,10 @@ static ssize_t test_store(struct device *dev, struct device_attribute *attr,
 	t.rx_buf = (void *)rx_buf;
 	t.len = num;
 	spi_message_add_tail(&t, &m);
-	ret = spi_sync(m.spi, &m);
-
+	if (mode & (1 << 17))
+		ret = dirspi_sync(m.spi, tx_buf, rx_buf, num);
+	else
+		ret = spi_sync(m.spi, &m);
 	if (!ret && (mode & (SPI_LOOP | (1 << 16)))) {
 		ret = 0;
 		for (i = 0; i < num; i++) {
@@ -1589,7 +1609,7 @@ dev_test:
 				     SPI_BPW_MASK(8);
 	ctlr->flags = (SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX);
 #endif
-	ctlr->min_speed_hz = rate >> 9;
+	ctlr->flags = (SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX);
 	ctlr->setup = meson_spicc_setup;
 	ctlr->cleanup = meson_spicc_cleanup;
 	ctlr->prepare_message = meson_spicc_prepare_message;

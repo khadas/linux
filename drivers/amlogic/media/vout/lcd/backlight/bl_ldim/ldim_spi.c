@@ -158,7 +158,7 @@ int ldim_spi_write_async(struct spi_device *spi, unsigned char *tbuf,
 	ldim_spi_async_busy = 1;
 	ret = cdata->dirspi_async(spi, tbuf, rbuf, xlen,
 		ldim_spi_async_callback, (void *)&ldim_spi_async_busy);
-	if (ret)
+	if (ret < 0)
 		LDIMERR("%s\n", __func__);
 
 	return ret;
