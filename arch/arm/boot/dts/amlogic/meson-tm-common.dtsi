@@ -2024,14 +2024,14 @@
 				 "emmc_cmd";
 			function = "emmc";
 			bias-pull-up;
-			drive-strength-microamp = <4000>;
+			drive-strength-microamp = <3000>;
 		};
 
 		mux-1 {
 			groups = "emmc_clk";
 			function = "emmc";
 			bias-disable;
-			drive-strength-microamp = <4000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -2049,7 +2049,7 @@
 			groups = "BOOT_8";
 			function = "gpio_periphs";
 			bias-pull-down;
-			drive-strength-microamp = <4000>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
