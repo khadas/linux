@@ -566,6 +566,7 @@ static int force_two_valid;
 module_param(force_two_valid, int, 0664);
 MODULE_PARM_DESC(force_two_valid,    "\n force_two_valid\n");
 
+static int sdr_transition_delay;
 static int dv_core1_detunnel = 1;
 static bool update_control_path_flag;
 
@@ -5941,7 +5942,6 @@ static bool send_hdmi_pkt
 	struct hdr10_infoframe *p_hdr;
 	int i;
 	bool flag = false;
-	static int sdr_transition_delay;
 	struct vd_signal_info_s vd_signal;
 	bool dovi_ll_enable = false;
 	bool diagnostic_enable = false;
@@ -11357,7 +11357,8 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 				}
 			}
 		}
-		dolby_vision_flags &= ~FLAG_TOGGLE_FRAME;
+		if (sdr_transition_delay == 0)
+			dolby_vision_flags &= ~FLAG_TOGGLE_FRAME;
 	} else if (amdv_core1_on &&
 		!(dolby_vision_flags & FLAG_CERTIFICATION)) {
 		bool reset_flag =
@@ -12285,7 +12286,8 @@ static int amdolby_vision_process_v2_stb
 					 vinfo, vf);
 			}
 		}
-		dolby_vision_flags &= ~FLAG_TOGGLE_FRAME;
+		if (sdr_transition_delay == 0)
+			dolby_vision_flags &= ~FLAG_TOGGLE_FRAME;
 	} else if ((dv_core1[0].core1_on ||
 		   dv_core1[1].core1_on) &&
 		!(dolby_vision_flags & FLAG_CERTIFICATION)) {
