@@ -148,6 +148,7 @@ enum ge2d_memtype_s {
 #define GE2D_DST_REPEAT_4               BIT(27)
 #define GE2D_DST_REPEAT_8               (BIT(31) | BIT(27))
 #define GE2D_DST_SIGN_MDOE              BIT(26)
+#define GE2D_SWAP64BIT                  BIT(25)
 
 #define GE2D_FORMAT_BT_STANDARD         BIT(28)
 #define GE2D_FORMAT_BT601               (0 << 28)
@@ -501,6 +502,7 @@ struct ge2d_src2_dst_data_s {
 	unsigned int dst_stride[MAX_PLANE];
 	unsigned int dst_stride_mode[MAX_PLANE];
 	unsigned char dst_rpt;
+	unsigned char dst_swap64bit;
 };
 
 struct ge2d_src2_dst_gen_s {

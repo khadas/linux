@@ -585,6 +585,7 @@ void ge2d_set_src2_dst_data(struct ge2d_src2_dst_data_s *cfg, unsigned int mask)
 	ge2d_reg_set_bits(mask | GE2D_GEN_CTRL2, cfg->src2_color_map, 11, 4);
 	ge2d_reg_set_bits(mask | GE2D_GEN_CTRL2, cfg->src2_format, 8, 2);
 	ge2d_reg_set_bits(mask | GE2D_GEN_CTRL2, cfg->dst_endian, 23, 1);
+	ge2d_reg_set_bits(mask | GE2D_GEN_CTRL5, cfg->dst_swap64bit, 31, 1);
 	ge2d_reg_set_bits(mask | GE2D_GEN_CTRL2, cfg->dst_color_map, 19, 4);
 	ge2d_reg_set_bits(mask | GE2D_GEN_CTRL2, cfg->dst_format, 16, 2);
 	ge2d_reg_set_bits(mask | GE2D_GEN_CTRL0, cfg->src2_mode_8b_sel, 15, 2);

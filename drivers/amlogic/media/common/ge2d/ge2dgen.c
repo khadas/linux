@@ -65,6 +65,8 @@ void _set_dst_format(struct ge2d_src2_dst_data_s *src2_dst_data_cfg,
 	src2_dst_data_cfg->dst_format = (format_dst >> 8) & 3;
 	src2_dst_data_cfg->dst_endian = (format_dst & GE2D_ENDIAN_MASK) >>
 					GE2D_ENDIAN_SHIFT;
+	src2_dst_data_cfg->dst_swap64bit =
+		(format_dst & GE2D_EXT_MASK) == GE2D_SWAP64BIT ? 1 : 0;
 	src2_dst_data_cfg->dst_color_map = (format_dst & GE2D_COLOR_MAP_MASK) >>
 					   GE2D_COLOR_MAP_SHIFT;
 
