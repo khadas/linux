@@ -366,7 +366,7 @@ struct panel_cmds {
 	int cmd_cnt;
 };
 
-struct panel_simple {
+struct rk628_panel_simple {
 	struct backlight_device *backlight;
 
 	struct regulator *supply;
@@ -374,6 +374,15 @@ struct panel_simple {
 	struct gpio_desc *reset_gpio;
 	struct panel_cmds *on_cmds;
 	struct panel_cmds *off_cmds;
+
+	struct {
+		unsigned int prepare;
+		unsigned int enable;
+		unsigned int disable;
+		unsigned int unprepare;
+		unsigned int reset;
+		unsigned int init;
+	} delay;
 };
 
 struct rk628_dsi {
@@ -427,7 +436,7 @@ struct rk628 {
 	struct delayed_work delay_work;
 	struct workqueue_struct *dsi_wq;
 	struct delayed_work dsi_delay_work;
-	struct panel_simple *panel;
+	struct rk628_panel_simple *panel;
 	void *hdmirx;
 	bool display_enabled;
 	enum rk628_input_mode input_mode;
