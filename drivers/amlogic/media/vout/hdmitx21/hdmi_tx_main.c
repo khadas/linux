@@ -100,6 +100,7 @@ static void hdmitx_resend_div40(struct hdmitx_dev *hdev);
 static int hdmitx_check_vic(int vic);
 static unsigned int hdmitx_get_frame_duration(void);
 static void hdmitx_set_frlrate_none(struct hdmitx_dev *hdev);
+static void hdmitx21_vid_pll_clk_check(struct hdmitx_dev *hdev);
 
 /*
  * Normally, after the HPD in or late resume, there will reading EDID, and
@@ -6535,6 +6536,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	rx_hdcp2_ver = 0;
 	hdev->dw_hdcp22_cap = false;
 	is_passthrough_switch = 0;
+	hdmitx21_vid_pll_clk_check(hdev);
 	pr_info("plugout\n");
 	/* when plugout before systemcontrol boot, setavmute
 	 * but keep output not changed, and wait for plugin
@@ -7242,6 +7244,7 @@ static void amhdmitx_infoframe_init(struct hdmitx_dev *hdev)
 	hdmi_drm_infoframe_init(&hdev->infoframes.drm.drm);
 }
 
+/* used for status check when hdmi output setting done */
 static int hdmitx21_status_check(void *data)
 {
 	int clk[3];
@@ -7290,6 +7293,42 @@ static int hdmitx21_status_check(void *data)
 		}
 	}
 	return 0;
+}
+
+/* check clk status when plug out in case no vsync */
+static void hdmitx21_vid_pll_clk_check(struct hdmitx_dev *hdev)
+{
+	int clk[3];
+	int idx[3];
+
+	if (hdev->data && hdev->data->chip_type != MESON_CPU_ID_S5)
+		return;
+	/* frl mode use fpll or gp2 pll, and won't go through
+	 * vid_clk0_div_top/tmds20_clk_div_top, no need to check.
+	 */
+	if (hdev->hwop.cntlmisc(hdev, MISC_GET_FRL_MODE, 0))
+		return;
+
+	/* for S5, here need check the clk index 89 & 16 */
+	idx[0] = 92; /* cts_htx_tmds_clk */
+	idx[1] = 16; /* vid_pll0_clk */
+	idx[2] = 89; /* htx_tmds20_clk */
+
+	clk[0] = meson_clk_measure(idx[0]);
+	clk[1] = meson_clk_measure(idx[1]);
+	if (clk[0] && clk[1])
+		return;
+
+	if (!clk[0]) {
+		pr_debug("%s the clock[%d] is %d\n", __func__, idx[0], clk[0]);
+		hdev->hwop.cntlmisc(hdev, MISC_CLK_DIV_RST, idx[0]);
+		pr_info("after reset the clock[%d] is %d\n", idx[0], meson_clk_measure(idx[0]));
+	}
+	if (!clk[1]) {
+		pr_debug("%s the clock[%d] is %d\n",  __func__, idx[1], clk[1]);
+		hdev->hwop.cntlmisc(hdev, MISC_CLK_DIV_RST, idx[1]);
+		pr_info("after reset the clock[%d] is %d\n", idx[1], meson_clk_measure(idx[1]));
+	}
 }
 
 static int amhdmitx_probe(struct platform_device *pdev)
