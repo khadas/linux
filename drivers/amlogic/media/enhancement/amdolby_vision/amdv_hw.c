@@ -5511,8 +5511,11 @@ void enable_amdv_v2_stb(int enable)
 	int vd2_dv_id = 1;
 
 	if (debug_dolby & 8)
-		pr_dv_dbg("enable %d, dv on %d, mode %d %d\n",
-			  enable, dolby_vision_on, dolby_vision_mode,
+		pr_dv_dbg("enable %d, dv on %d,%d %d, mode %d %d\n",
+			  enable, dolby_vision_on,
+			  dv_core1[0].core1_on,
+			  dv_core1[1].core1_on,
+			  dolby_vision_mode,
 			  get_amdv_target_mode());
 
 	if (enable) {

@@ -8415,8 +8415,9 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 		//dv_id = layer_id_to_dv_id(vd_path);
 	//}
 	if (debug_dolby & 0x1000)
-		pr_dv_dbg("[inst%d]parse_metadata %p on vd%d, toggle %d\n",
-			     dv_id + 1, vf, vd_path + 1, toggle_mode);
+		pr_dv_dbg("[inst%d]parse_metadata %p on vd%d, toggle %d, mode %d %d\n",
+			     dv_id + 1, vf, vd_path + 1, toggle_mode,
+			     dolby_vision_mode, amdv_target_mode);
 
 	if (vf && vf->source_type == VFRAME_SOURCE_TYPE_OTHERS) {
 		enum vframe_signal_fmt_e fmt;
@@ -9021,7 +9022,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 		last_current_format = check_format;
 	}
 
-	if (vd_path != VD2_PATH) {//only policy process for pri input, VD1.
+	if (vd_path == VD1_PATH && !support_multi_core1()) {//only process vd1 in multi-dv mode.
 		if (dolby_vision_request_mode != 0xff) {
 			dolby_vision_mode = dolby_vision_request_mode;
 			dolby_vision_request_mode = 0xff;
@@ -9040,6 +9041,52 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 			dolby_vision_mode = current_mode;
 			if (is_amdv_stb_mode())
 				new_m_dovi_setting.mode_changed = 1;
+		} else {
+			/*not clear target mode when:*/
+			/*no mode change && no vf && target is not bypass */
+			if ((!vf && amdv_target_mode != dolby_vision_mode &&
+			    amdv_target_mode !=
+			    AMDV_OUTPUT_MODE_BYPASS)) {
+				if (debug_dolby & 8)
+					pr_dv_dbg("not update target mode %d\n",
+						  amdv_target_mode);
+			} else if (amdv_target_mode != dolby_vision_mode) {
+				if (debug_dolby & 8)
+					pr_dv_dbg("update target mode %d=>%d\n",
+						  amdv_target_mode, dolby_vision_mode);
+				amdv_target_mode = dolby_vision_mode;
+			}
+		}
+	} else if (support_multi_core1()) {
+		if (dolby_vision_request_mode != 0xff) {
+			dolby_vision_mode = dolby_vision_request_mode;
+			dolby_vision_request_mode = 0xff;
+		}
+		current_mode = dolby_vision_mode;
+		if (amdv_policy_process
+			(vf, &current_mode, check_format)) {
+			if (current_mode == AMDV_OUTPUT_MODE_BYPASS &&
+				((vd_path == VD1_PATH && dv_core1[1].core1_on) ||
+				(vd_path == VD2_PATH && dv_core1[0].core1_on)) &&
+				amdv_target_mode !=  AMDV_OUTPUT_MODE_BYPASS) {
+				/*if vd1 dv enable and vd2 dv bypass, keep dv mode*/
+				/*if vd2 dv enable and vd1 dv bypass, keep dv mode*/
+				video_frame = false;
+				pr_dv_dbg("keep dv mode when one dv core on %d %d\n",
+						  dv_core1[0].core1_on, dv_core1[1].core1_on);
+			} else {
+				if (!dv_inst[pri_input].amdv_wait_init) {
+					amdv_set_toggle_flag(1);
+				    amdv_wait_on = true;
+				}
+				pr_info("[%s]output change from %d to %d(%d, %p, %d)\n",
+					__func__, dolby_vision_mode, current_mode,
+					toggle_mode, vf, src_format);
+				amdv_target_mode = current_mode;
+				dolby_vision_mode = current_mode;
+				if (is_amdv_stb_mode())
+					new_m_dovi_setting.mode_changed = 1;
+			}
 		} else {
 			/*not clear target mode when:*/
 			/*no mode change && no vf && target is not bypass */
