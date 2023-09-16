@@ -5227,6 +5227,11 @@ static int dpvpp_get_plink_input_win(struct di_ch_s *pch,
 		return -1;
 	}
 
+	if (!pch->itf.pre_vpp_link) {
+		dbg_plink3("%s: ch[%d] is not prelink mode\n",
+			__func__, pch->ch_id);
+		return -10;
+	}
 	//spin_lock_irqsave(&lock_pvpp, irq_flag);
 	hw = &get_datal()->dvs_prevpp.hw;
 	if (!out ||
@@ -5266,6 +5271,13 @@ static int dpvpp_get_plink_input_win(struct di_ch_s *pch,
 			__func__, src_w, src_h, tmp.orig_w, tmp.orig_h,
 			tmp.x_st, tmp.x_end, tmp.x_size, tmp.x_check_sum,
 			tmp.y_st, tmp.y_end, tmp.y_size, tmp.y_check_sum);
+
+	/* just skip warning if only source size change */
+	if (src_w != tmp.orig_w)
+		ret++;
+	if (src_h != tmp.orig_h)
+		ret++;
+
 	if (!ret)
 		memcpy(out, &tmp, sizeof(*out));
 	//spin_unlock_irqrestore(&lock_pvpp, irq_flag);
@@ -6678,7 +6690,6 @@ static void dpvpph_pre_data_mif_ctrl(bool enable, const struct reg_acc *op_in)
  * reverse_mif control mirror mode
  * copy from dim_post_read_reverse_irq
  */
-
 static void dpvpph_reverse_mif_ctrl(bool reverse, unsigned int hv_mirror,
 		const struct reg_acc *op_in)
 {
@@ -8865,13 +8876,13 @@ unsigned int dpvpp_bypass_check(struct vframe_s *vfm, bool first)
 
 	if (!first) {
 		/* Skip the first check to keep prelink pipeline will be activated */
-		if (VFMT_IS_P(vfm->type) &&
-			   (vfm->width > 1920	||
-			    vfm->height > (1080 + 8)))
-			reason = EPVPP_BYPASS_REASON_SIZE_L;
 		if (cfgg(4K)) {
 			if (vfm->width > 3840 ||
 			    vfm->height > 2160)
+				reason = EPVPP_BYPASS_REASON_SIZE_L;
+		} else {
+			if (VFMT_IS_P(vfm->type) &&
+			    (vfm->width > 1920 || vfm->height > (1080 + 8)))
 				reason = EPVPP_BYPASS_REASON_SIZE_L;
 		}
 		if (vfm->width < 128 || vfm->height < 16)

@@ -28,6 +28,7 @@
 #define DCT_PRE_LS_MEM	DI_BIT29
 
 static DEFINE_SPINLOCK(dct_pre);
+static void dct_reset_all(void);
 
 static void ini_dcntr_pre(int hsize, int vsize, int grd_num_mode, u32 ratio)
 {
@@ -831,6 +832,7 @@ static void decontour_uninit(struct di_ch_s *pch)
 {
 	struct di_pre_dct_s *pdct = dim_pdct_alloc(pch);
 	struct di_hdct_s  *dct;
+	bool pre_link = false;
 
 	if (!pdct)
 		return;
@@ -839,6 +841,7 @@ static void decontour_uninit(struct di_ch_s *pch)
 		/* TODO: need check to add lock_pvpp->spin_lock_irqsave */
 		dpvpp_dct_mem_unreg(pch);
 		pdct->plink = false;
+		pre_link = true;
 	} else {
 		if (pdct->decontour_addr)
 			codec_mm_free_for_dma("di-decontour",
@@ -851,7 +854,19 @@ static void decontour_uninit(struct di_ch_s *pch)
 	dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_CH);
 	dct->src_cnt--;
 	dct->statusx[pch->ch_id] &= (~DCT_PRE_LS_ACT);
-	PR_INF("ch[%d]decontour: uninit %px\n", pch->ch_id, pdct);
+
+	PR_INF("ch[%d]decontour:uninit: pdct:%px curr_nins:%px pre-link:%d\n",
+		pch->ch_id, pdct, dct->curr_nins, pre_link);
+	if (dct->curr_nins) {
+		PR_WARN("%s:ch[%d]:state:%d sdt_mode:%d\n",
+			__func__, dct->curr_ch, dct->state, dct->sdt_mode.op_crr);
+		//mem_put_free(dct->curr_nins->c.vfm_cp.decontour_pre);
+		dct->curr_nins->c.vfm_cp.decontour_pre = NULL;
+		nins_dct_2_done(pch, dct->curr_nins);
+		/* TODO: need check if reset under non-prelink mode */
+		if (!dct->src_cnt && pre_link)
+			dct_reset_all();
+	}
 }
 
 void dct_pre_plink_unreg_mem(struct di_ch_s *pch)
@@ -1610,6 +1625,8 @@ static unsigned int dct_sft_prepare(struct di_ch_s *pch,
 	}
 
 	if (dpvpp_ops_api() &&
+	    dpvpp_is_allowed() &&
+	    dpvpp_is_insert() &&
 	    dpvpp_ops_api()->get_di_in_win &&
 	    !(vf->type & VIDTYPE_INTERLACE)) {
 		int iret;
@@ -2021,7 +2038,7 @@ SET_ADDR:
 /* wait or finish */
 static bool dct_wait_int(void)
 {
-	struct di_hdct_s	*hdct = &get_datal()->hw_dct;
+	struct di_hdct_s *hdct = &get_datal()->hw_dct;
 	bool state;
 	struct di_ch_s *pch;
 
@@ -2338,6 +2355,25 @@ static void dct_unreg_all(void)
 
 	dct->src_cnt = 0;
 	dct->state = EDI_DCT_EXIT;
+}
+
+static void dct_reset_all(void)
+{
+	struct di_hdct_s  *dct;
+
+	dct = &get_datal()->hw_dct;
+
+	atomic_set(&dct->irq_wait, 0);
+	di_tout_contr(EDI_TOUT_CONTR_FINISH, &dct->tout);
+	dct->curr_nins = NULL;
+	do_table_cmd(&dct->sdt_mode, EDO_TABLE_CMD_STOP);
+
+	dct->last_type = 0;
+	dct->last_h = 0;
+	dct->last_w = 0;
+
+	dct->src_cnt = 0;
+	dct->state = EDI_DCT_IDLE;
 }
 
 static const struct di_dct_ops_s dim_dct_ops = {
