@@ -30,8 +30,7 @@ CONFIG_MACH_PLATFORM := y
 #CONFIG_BCMDHD_DTS := y
 
 DHDCFLAGS = -Wall -Wstrict-prototypes -Wno-date-time                      \
-	-Wno-implicit-fallthrough -Wno-declaration-after-statement            \
-	-Dlinux -DLINUX -DBCMDRIVER                                           \
+	-Dlinux -DLINUX -DBCMDRIVER -Wno-implicit-fallthrough                 \
 	-DBCMDONGLEHOST -DBCMDMA32 -DBCMFILEIMAGE                             \
 	-DDHDTHREAD -DDHD_DEBUG -DSHOW_EVENTS -DGET_OTP_MAC_ENABLE            \
 	-DWIFI_ACT_FRAME -DARP_OFFLOAD_SUPPORT -DSUPPORT_PM2_ONLY             \
