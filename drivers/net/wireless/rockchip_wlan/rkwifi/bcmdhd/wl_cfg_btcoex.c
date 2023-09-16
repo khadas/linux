@@ -406,7 +406,7 @@ void* wl_cfg80211_btcoex_init(struct net_device *ndev)
 	return btco_inf;
 }
 
-void wl_cfg80211_btcoex_deinit(void)
+void wl_cfg80211_btcoex_deinit()
 {
 	if (!btcoex_info_loc)
 		return;

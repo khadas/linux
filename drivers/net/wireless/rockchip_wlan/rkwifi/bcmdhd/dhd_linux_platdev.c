@@ -51,7 +51,7 @@
 #endif /* CONFIG_DTS */
 
 #if defined(CUSTOMER_HW)
-extern int dhd_wlan_init_plat_data(wifi_adapter_info_t *adapter);
+extern int dhd_wlan_init_plat_data(void);
 extern void dhd_wlan_deinit_plat_data(wifi_adapter_info_t *adapter);
 #endif /* CUSTOMER_HW */
 
@@ -170,11 +170,7 @@ void* wifi_platform_prealloc(wifi_adapter_info_t *adapter, int section, unsigned
 		return NULL;
 	plat_data = adapter->wifi_plat_data;
 	if (plat_data->mem_prealloc) {
-#ifdef BCMDHD_MDRIVER
-		alloc_ptr = plat_data->mem_prealloc(adapter->bus_type, adapter->index, section, size);
-#else
 		alloc_ptr = plat_data->mem_prealloc(section, size);
-#endif
 		if (alloc_ptr) {
 			DHD_INFO(("success alloc section %d\n", section));
 			if (size != 0L)
@@ -260,7 +256,11 @@ int wifi_platform_set_power(wifi_adapter_info_t *adapter, bool on, unsigned long
 		}
 #endif /* ENABLE_4335BT_WAR */
 
+#ifdef BUS_POWER_RESTORE
 		err = plat_data->set_power(on, adapter);
+#else
+		err = plat_data->set_power(on);
+#endif
 	}
 
 	if (msec && !err)
@@ -301,7 +301,7 @@ int wifi_platform_bus_enumerate(wifi_adapter_info_t *adapter, bool device_presen
 }
 
 int wifi_platform_get_mac_addr(wifi_adapter_info_t *adapter, unsigned char *buf,
-	int ifidx)
+	char *name)
 {
 	struct wifi_platform_data *plat_data;
 
@@ -310,7 +310,11 @@ int wifi_platform_get_mac_addr(wifi_adapter_info_t *adapter, unsigned char *buf,
 		return -EINVAL;
 	plat_data = adapter->wifi_plat_data;
 	if (plat_data->get_mac_addr) {
-		return plat_data->get_mac_addr(buf, ifidx);
+#ifdef CUSTOM_MULTI_MAC
+		return plat_data->get_mac_addr(buf, name);
+#else
+		return plat_data->get_mac_addr(buf);
+#endif
 	}
 	return -EOPNOTSUPP;
 }
@@ -415,13 +419,8 @@ static int wifi_plat_dev_drv_probe(struct platform_device *pdev)
 	adapter->irq_num = irq;
 
 	/* need to change the flags according to our requirement */
-#ifdef HW_OOB
 	adapter->intr_flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL |
 		IORESOURCE_IRQ_SHAREABLE;
-#else
-	adapter->intr_flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
-		IORESOURCE_IRQ_SHAREABLE;
-#endif
 #endif
 #endif /* CONFIG_DTS */
 
@@ -569,16 +568,6 @@ static int wifi_ctrlfunc_register_drv(void)
 		return -ENOMEM;
 	}
 	adapter->name = "DHD generic adapter";
-	adapter->index = -1;
-#if defined(BCMDHD_MDRIVER) && !defined(DHD_STATIC_IN_DRIVER)
-#ifdef BCMSDIO
-	adapter->index = 0;
-#elif defined(BCMPCIE)
-	adapter->index = 1;
-#elif defined(BCMDBUS)
-	adapter->index = 2;
-#endif
-#endif
 	adapter->bus_type = -1;
 	adapter->bus_num = -1;
 	adapter->slot_num = -1;
@@ -611,12 +600,16 @@ static int wifi_ctrlfunc_register_drv(void)
 
 #if !defined(CONFIG_DTS)
 	if (dts_enabled) {
+		struct resource *resource;
 		adapter->wifi_plat_data = (void *)&dhd_wlan_control;
+		resource = &dhd_wlan_resources;
 #ifdef CUSTOMER_HW
-		wifi_plat_dev_probe_ret = dhd_wlan_init_plat_data(adapter);
+		wifi_plat_dev_probe_ret = dhd_wlan_init_plat_data();
 		if (wifi_plat_dev_probe_ret)
 			return wifi_plat_dev_probe_ret;
 #endif
+		adapter->irq_num = resource->start;
+		adapter->intr_flags = resource->flags & IRQF_TRIGGER_MASK;
 #ifdef DHD_ISR_NO_SUSPEND
 		adapter->intr_flags |= IRQF_NO_SUSPEND;
 #endif
@@ -1067,7 +1060,7 @@ static int dhd_wifi_platform_load_usb(void)
 }
 #endif /* BCMDBUS */
 
-static int dhd_wifi_platform_load(void)
+static int dhd_wifi_platform_load()
 {
 	int err = 0;
 	printf("%s: Enter\n", __FUNCTION__);

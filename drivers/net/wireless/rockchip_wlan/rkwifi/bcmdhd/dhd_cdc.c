@@ -176,7 +176,8 @@ dhdcdc_cmplt(dhd_pub_t *dhd, uint32 id, uint32 len)
 		if ((!timeout) || (!prot->ctl_completed)) {
 			DHD_ERROR(("Rxctl timeout %d ctl_completed %d\n",
 				timeout, prot->ctl_completed));
-			ret = -ETIMEDOUT;
+			ret = -1;
+
 			goto done;
 		}
 

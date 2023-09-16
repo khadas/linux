@@ -332,13 +332,6 @@ extern char *dhd_dbg_get_system_timestamp(void);
 #endif /* SUPPORT_AP_RADIO_PWRSAVE */
 
 #ifdef BCMWAPI_WPI
-#ifdef CFG80211_WAPI_BKPORT
-#define IS_WAPI_VER(version) (version == NL80211_WAPI_VERSION_1)
-#undef WLAN_AKM_SUITE_WAPI_PSK
-#define WLAN_AKM_SUITE_WAPI_PSK			0x000FAC13
-#undef WLAN_AKM_SUITE_WAPI_CERT
-#define WLAN_AKM_SUITE_WAPI_CERT		0x000FAC14
-#else
 #ifdef OEM_ANDROID
 #undef NL80211_WAPI_VERSION_1
 #define NL80211_WAPI_VERSION_1		0
@@ -361,7 +354,6 @@ extern char *dhd_dbg_get_system_timestamp(void);
 #define NL80211_WAPI_VERSION_1			1 << 2
 #define IS_WAPI_VER(version) (version & NL80211_WAPI_VERSION_1)
 #endif /* OEM_ANDROID */
-#endif /* CFG80211_WAPI_BKPORT */
 #endif /* BCMWAPI_WPI */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
@@ -433,19 +425,19 @@ extern char *dhd_dbg_get_system_timestamp(void);
 #define CFG80211_TRACE_TEXT		USER_PREFIX_CFG80211
 #define CFG80211_DEBUG_TEXT		USER_PREFIX_CFG80211
 #else
-#define CFG80211_INFO_TEXT		"CFG80211-INFO) "
+#define CFG80211_INFO_TEXT		DHD_LOG_PREFIXS "CFG80211-INFO) "
 /* Samsung want to print INFO2 instead of ERROR
  * because most of case, ERROR message is not a real ERROR.
  * but it can be regarded as real error case for Tester
  */
 #ifdef CUSTOMER_HW4_DEBUG
-#define CFG80211_ERROR_TEXT		"CFG80211-INFO2) "
+#define CFG80211_ERROR_TEXT		DHD_LOG_PREFIXS "CFG80211-INFO2) "
 #else
-#define CFG80211_ERROR_TEXT		"CFG80211-ERROR) "
+#define CFG80211_ERROR_TEXT		DHD_LOG_PREFIXS "CFG80211-ERROR) "
 #endif /* CUSTOMER_HW4_DEBUG */
-#define CFG80211_SCAN_TEXT		"CFG80211-SCAN) "
-#define CFG80211_TRACE_TEXT		"CFG80211-TRACE) "
-#define CFG80211_DEBUG_TEXT		"CFG80211-DEBUG) "
+#define CFG80211_SCAN_TEXT		DHD_LOG_PREFIXS "CFG80211-SCAN) "
+#define CFG80211_TRACE_TEXT		DHD_LOG_PREFIXS "CFG80211-TRACE) "
+#define CFG80211_DEBUG_TEXT		DHD_LOG_PREFIXS "CFG80211-DEBUG) "
 #endif /* defined(CUSTOMER_DBG_PREFIX_ENABLE) */
 
 #ifdef DHD_DEBUG
@@ -453,7 +445,8 @@ extern char *dhd_dbg_get_system_timestamp(void);
 #define	WL_ERR_MSG(x, args...)	\
 do {	\
 	if (wl_dbg_level & WL_DBG_ERR) {	\
-		printf(CFG80211_ERROR_TEXT "%s : " x, __func__, ## args);	\
+		WL_DBG_PRINT_SYSTEM_TIME;				\
+		pr_cont(CFG80211_ERROR_TEXT "%s : " x, __func__, ## args);	\
 		DHD_LOG_DUMP_WRITE_TS_FN;	\
 		DHD_LOG_DUMP_WRITE(x, ## args);	\
 	}	\
@@ -462,7 +455,8 @@ do {	\
 #define WL_ERR_KERN_MSG(x, args...)	\
 do {	\
 	if (wl_dbg_level & WL_DBG_ERR) {	\
-		printf(CFG80211_ERROR_TEXT "%s : " x, __func__, ## args);	\
+		WL_DBG_PRINT_SYSTEM_TIME;				\
+		pr_cont(CFG80211_ERROR_TEXT "%s : " x, __func__, ## args);	\
 	}	\
 } while (0)
 #define WL_ERR_KERN(x) WL_ERR_KERN_MSG x
@@ -479,7 +473,8 @@ do {	\
 #define	WL_DBG_MEM_MSG(x, args...)	\
 do {	\
 	if (wl_dbg_level & WL_DBG_DBG) {	\
-		printf(CFG80211_INFO_TEXT "%s : " x, __func__, ## args);	\
+		WL_DBG_PRINT_SYSTEM_TIME;				\
+		pr_cont(CFG80211_INFO_TEXT "%s : " x, __func__, ## args);	\
 	}	\
 	DHD_LOG_DUMP_WRITE_TS_FN;		\
 	DHD_LOG_DUMP_WRITE(x, ## args);	\
@@ -489,7 +484,8 @@ do {	\
 #define	WL_INFORM_MEM_MSG(x, args...)	\
 do {	\
 	if (wl_dbg_level & WL_DBG_INFO) {	\
-		printf(CFG80211_INFO_TEXT "%s : " x, __func__, ## args);	\
+		WL_DBG_PRINT_SYSTEM_TIME;				\
+		pr_cont(CFG80211_INFO_TEXT "%s : " x, __func__, ## args);	\
 		DHD_LOG_DUMP_WRITE_TS_FN;	\
 		DHD_LOG_DUMP_WRITE(x, ## args);	\
 	}	\
@@ -498,7 +494,8 @@ do {	\
 #define	WL_ERR_EX_MSG(x, args...)	\
 do {	\
 	if (wl_dbg_level & WL_DBG_ERR) {	\
-		printf(CFG80211_ERROR_TEXT "%s : " x, __func__, ## args);	\
+		WL_DBG_PRINT_SYSTEM_TIME;				\
+		pr_cont(CFG80211_ERROR_TEXT "%s : " x, __func__, ## args);	\
 		DHD_LOG_DUMP_WRITE_EX_TS_FN;	\
 		DHD_LOG_DUMP_WRITE_EX(x, ## args);	\
 	}	\
@@ -513,7 +510,8 @@ do {	\
 #define	WL_ERR_MSG(x, args...)									\
 do {										\
 	if (wl_dbg_level & WL_DBG_ERR) {				\
-		printf(CFG80211_ERROR_TEXT "%s : " x, __func__, ## args);	\
+		WL_DBG_PRINT_SYSTEM_TIME;				\
+		pr_cont(CFG80211_ERROR_TEXT "%s : " x, __func__, ## args);	\
 	}								\
 } while (0)
 #define WL_ERR(x) WL_ERR_MSG x
@@ -528,7 +526,8 @@ do {										\
 #define	WL_ERR_MSG(x, args...)									\
 do {										\
 	if ((wl_dbg_level & WL_DBG_ERR) && net_ratelimit()) {				\
-		printf(CFG80211_ERROR_TEXT "%s : " x, __func__, ## args);	\
+		WL_DBG_PRINT_SYSTEM_TIME;				\
+		pr_cont(CFG80211_ERROR_TEXT "%s : " x, __func__, ## args);	\
 	}								\
 } while (0)
 #define WL_ERR(x) WL_ERR_MSG x
@@ -573,7 +572,8 @@ do {	\
 #define	WL_INFORM_MSG(x, args...)									\
 do {										\
 	if (wl_dbg_level & WL_DBG_INFO) {				\
-		printf(CFG80211_INFO_TEXT "%s : " x, __func__, ## args);	\
+		WL_DBG_PRINT_SYSTEM_TIME;				\
+		pr_cont(CFG80211_INFO_TEXT "%s : " x, __func__, ## args);	\
 	}								\
 } while (0)
 #define WL_INFORM(x) WL_INFORM_MSG x
@@ -584,7 +584,8 @@ do {										\
 #define	WL_SCAN_MSG(x, args...)								\
 do {									\
 	if (wl_dbg_level & WL_DBG_SCAN) {			\
-		printf(CFG80211_SCAN_TEXT "%s : " x, __func__, ## args);	\
+		WL_DBG_PRINT_SYSTEM_TIME;				\
+		pr_cont(CFG80211_SCAN_TEXT "%s : " x, __func__, ## args);	\
 	}									\
 } while (0)
 #define WL_SCAN(x) WL_SCAN_MSG x
@@ -594,7 +595,8 @@ do {									\
 #define	WL_TRACE_MSG(x, args...)								\
 do {									\
 	if (wl_dbg_level & WL_DBG_TRACE) {			\
-		printf(CFG80211_TRACE_TEXT "%s : " x, __func__, ## args); \
+		WL_DBG_PRINT_SYSTEM_TIME;				\
+		pr_cont(CFG80211_TRACE_TEXT "%s : " x, __func__, ## args); \
 	}									\
 } while (0)
 #define WL_TRACE(x) WL_TRACE_MSG x
@@ -605,7 +607,8 @@ do {									\
 #define	WL_TRACE_HW4_MSG(x, args...)					\
 do {										\
 	if (wl_dbg_level & WL_DBG_ERR) {				\
-		printf(CFG80211_TRACE_TEXT "%s : " x, __func__, ## args); \
+		WL_DBG_PRINT_SYSTEM_TIME;				\
+		pr_cont(CFG80211_TRACE_TEXT "%s : " x, __func__, ## args); \
 	}								\
 } while (0)
 #define WL_TRACE_HW4(x) WL_TRACE_HW4_MSG x
@@ -616,7 +619,8 @@ do {										\
 #define	WL_DBG_MSG(x, args...)								\
 do {									\
 	if (wl_dbg_level & WL_DBG_DBG) {			\
-		printf(CFG80211_DEBUG_TEXT "%s : " x, __func__, ## args); \
+		WL_DBG_PRINT_SYSTEM_TIME;				\
+		pr_cont(CFG80211_DEBUG_TEXT "%s : " x, __func__, ## args); \
 	}									\
 } while (0)
 #define WL_DBG(x) WL_DBG_MSG x
@@ -1932,8 +1936,8 @@ struct bcm_cfg80211 {
 	struct mutex bcn_sync;  /* mainly for bcn resume/suspend synchronization */
 	wl_bcnrecv_info_t bcnrecv_info;
 #endif /* WL_BCNRECV */
-	struct net_device *static_ndev[DHD_MAX_STATIC_IFS];
-	uint8 static_ndev_state[DHD_MAX_STATIC_IFS];
+	struct net_device *static_ndev;
+	uint8 static_ndev_state;
 	bool hal_started;
 	wl_wlc_version_t wlc_ver;
 	bool scan_params_v2;
@@ -1959,14 +1963,10 @@ struct bcm_cfg80211 {
 	u32 join_iovar_ver;
 	struct delayed_work ap_work;     /* AP linkup timeout handler */
 	wl_event_idx_t eidx;	/* event state tracker */
-#if defined (WL_SCHED_SCAN) && defined (SCHED_SCAN_DELAYED_WORK)
-	struct delayed_work sched_scan_stop_work;
-#endif
 #ifdef WL_P2P_6G
 	bool p2p_6g_enabled;	/* P2P 6G support enabled */
 #endif /* WL_P2P_6G */
 	u32 halpid;
-	u8 country[WLC_CNTRY_BUF_SZ];
 #if defined(RSSIAVG)
 	wl_rssi_cache_ctrl_t g_rssi_cache_ctrl;
 	wl_rssi_cache_ctrl_t g_connected_rssi_cache_ctrl;
@@ -1977,7 +1977,6 @@ struct bcm_cfg80211 {
 	int autochannel;
 	int best_2g_ch;
 	int best_5g_ch;
-	int best_6g_ch;
 };
 
 /* Max auth timeout allowed in case of EAP is 70sec, additional 5 sec for
@@ -1993,7 +1992,7 @@ enum wl_state_type {
 	WL_STATE_AUTHORIZING /* Assocated to authorized */
 };
 
-#define WL_STATIC_IFIDX	(DHD_MAX_IFS)
+#define WL_STATIC_IFIDX	(DHD_MAX_IFS + DHD_MAX_STATIC_IFS - 1)
 enum static_ndev_states {
 	NDEV_STATE_NONE,
 	NDEV_STATE_OS_IF_CREATED,
@@ -2001,13 +2000,14 @@ enum static_ndev_states {
 	NDEV_STATE_FW_IF_FAILED,
 	NDEV_STATE_FW_IF_DELETED
 };
-#ifdef WL_STATIC_IF
-bool wl_cfg80211_static_if(struct bcm_cfg80211 *cfg, struct net_device *ndev);
-int wl_cfg80211_static_ifidx(struct bcm_cfg80211 *cfg, struct net_device *ndev);
-struct net_device *wl_cfg80211_static_if_active(struct bcm_cfg80211 *cfg);
-int wl_cfg80211_static_if_name(struct bcm_cfg80211 *cfg, const char *name);
-void wl_cfg80211_static_if_dev_close(struct net_device *dev);
-#endif /* WL_STATIC_IF */
+#define IS_CFG80211_STATIC_IF(cfg, ndev) \
+	((cfg && (cfg->static_ndev == ndev)) ? true : false)
+#define IS_CFG80211_STATIC_IF_ACTIVE(cfg) \
+	((cfg && cfg->static_ndev && \
+	(cfg->static_ndev_state & NDEV_STATE_FW_IF_CREATED)) ? true : false)
+#define IS_CFG80211_STATIC_IF_NAME(cfg, name) \
+	(cfg && cfg->static_ndev && \
+	  !strncmp(cfg->static_ndev->name, name, strlen(name)))
 
 #ifdef WL_SAE
 typedef struct wl_sae_key_info {
@@ -2964,12 +2964,12 @@ s32 wl_cfg80211_delete_iface(struct bcm_cfg80211 *cfg, wl_iftype_t sec_data_if_t
 
 #ifdef WL_STATIC_IF
 extern struct net_device *wl_cfg80211_register_static_if(struct bcm_cfg80211 *cfg,
-	u16 iftype, char *ifname, int static_ifidx);
+	u16 iftype, char *ifname);
 extern void wl_cfg80211_unregister_static_if(struct bcm_cfg80211 * cfg);
 extern s32 wl_cfg80211_static_if_open(struct net_device *net);
 extern s32 wl_cfg80211_static_if_close(struct net_device *net);
 extern struct net_device * wl_cfg80211_post_static_ifcreate(struct bcm_cfg80211 *cfg,
-	wl_if_event_info *event, u8 *addr, s32 iface_type, int static_ifidx);
+	wl_if_event_info *event, u8 *addr, s32 iface_type);
 extern s32 wl_cfg80211_post_static_ifdel(struct bcm_cfg80211 *cfg, struct net_device *ndev);
 #endif  /* WL_STATIC_IF */
 extern struct wireless_dev *wl_cfg80211_get_wdev_from_ifname(struct bcm_cfg80211 *cfg,
@@ -3091,10 +3091,5 @@ extern s32 wl_handle_auth_event(struct bcm_cfg80211 *cfg, struct net_device *nde
 extern bool wl_customer6_legacy_chip_check(struct bcm_cfg80211 *cfg,
 	struct net_device *ndev);
 #endif /* CUSTOMER_HW6 */
-void wl_wlfc_enable(struct bcm_cfg80211 *cfg, bool enable);
-s32 wl_handle_join(struct bcm_cfg80211 *cfg, struct net_device *dev,
-	wlcfg_assoc_info_t *assoc_info);
-s32 wl_handle_reassoc(struct bcm_cfg80211 *cfg, struct net_device *dev,
-	wlcfg_assoc_info_t *info);
 s32 wl_cfg80211_autochannel(struct net_device *dev, char* command, int total_len);
 #endif /* _wl_cfg80211_h_ */

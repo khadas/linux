@@ -29,7 +29,6 @@
 
 #include <ethernet.h>
 #include <802.11.h>
-#include <linux/compat.h>
 
 /* XXX happens to mirror a section of linux's net_device_stats struct */
 typedef struct {

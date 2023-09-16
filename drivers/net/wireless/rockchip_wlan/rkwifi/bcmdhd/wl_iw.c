@@ -2,13 +2,13 @@
  * Linux Wireless Extensions support
  *
  * Copyright (C) 1999-2017, Broadcom Corporation
- *
+ * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
  * following added to such license:
- *
+ * 
  *      As a special exception, the copyright holders of this software give you
  * permission to link this software with independent modules, and to copy and
  * distribute the resulting executable under terms of your choice, provided that
@@ -16,7 +16,7 @@
  * the license of that module.  An independent module is a module which is not
  * derived from this software.  The special exception does not apply to any
  * modifications of the software.
- *
+ * 
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
@@ -56,32 +56,32 @@ uint iw_msg_level = WL_ERROR_LEVEL;
 #define WL_ERROR_MSG(x, args...) \
 	do { \
 		if (iw_msg_level & WL_ERROR_LEVEL) { \
-			printf("WEXT-ERROR) %s : " x, __func__, ## args); \
+			printk(KERN_ERR DHD_LOG_PREFIXS "WEXT-ERROR) %s : " x, __func__, ## args); \
 		} \
 	} while (0)
 #define WL_TRACE_MSG(x, args...) \
 	do { \
 		if (iw_msg_level & WL_TRACE_LEVEL) { \
-			printf("WEXT-TRACE) %s : " x, __func__, ## args); \
+			printk(KERN_INFO DHD_LOG_PREFIXS "WEXT-TRACE) %s : " x, __func__, ## args); \
 		} \
 	} while (0)
 #define WL_SCAN_MSG(x, args...) \
 	do { \
 		if (iw_msg_level & WL_SCAN_LEVEL) { \
-			printf("WEXT-SCAN) %s : " x, __func__, ## args); \
+			printk(KERN_INFO DHD_LOG_PREFIXS "WEXT-SCAN) %s : " x, __func__, ## args); \
 		} \
 	} while (0)
 #define WL_WSEC_MSG(x, args...) \
 	do { \
 		if (iw_msg_level & WL_WSEC_LEVEL) { \
-			printf("WEXT-WSEC) %s : " x, __func__, ## args); \
+			printk(KERN_INFO DHD_LOG_PREFIXS "WEXT-WSEC) %s : " x, __func__, ## args); \
 		} \
 	} while (0)
 #define WL_ERROR(x) WL_ERROR_MSG x
 #define WL_TRACE(x) WL_TRACE_MSG x
 #define WL_SCAN(x) WL_SCAN_MSG x
 #define WL_WSEC(x) WL_WSEC_MSG x
-
+ 
 #ifdef BCMWAPI_WPI
 /* these items should evetually go into wireless.h of the linux system headfile dir */
 #ifndef IW_ENCODE_ALG_SM4
@@ -607,7 +607,7 @@ done:
 }
 
 #define DHD_CHECK(dhd, dev) \
-	if (!dhd) { \
+ 	if (!dhd) { \
 		WL_ERROR (("[%s] dhd is NULL\n", dev->name)); \
 		return -ENODEV; \
 	} \
@@ -1056,7 +1056,7 @@ wl_iw_set_wap(
 
 	WL_TRACE(("%s: SIOCSIWAP\n", dev->name));
 	DHD_CHECK(dhd, dev);
-	wext_info = dhd->wext_info;
+ 	wext_info = dhd->wext_info;
 	if (awrq->sa_family != ARPHRD_ETHER) {
 		WL_ERROR(("Invalid Header...sa_family\n"));
 		return -EINVAL;
@@ -1071,7 +1071,8 @@ wl_iw_set_wap(
 			WL_ERROR(("WLC_DISASSOC failed (%d).\n", error));
 		}
 #ifdef WL_EXT_IAPSTA
-		wl_ext_in4way_sync_wext(dev, STA_NO_BTC_IN4WAY|STA_WAIT_DISCONNECTED,
+		wl_ext_in4way_sync_wext(dev,
+			STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY|STA_WAIT_DISCONNECTED,
 			WL_EXT_STATUS_DISCONNECTING, NULL);
 #endif
 		return 0;
@@ -1093,7 +1094,8 @@ wl_iw_set_wap(
 		WL_MSG(dev->name, "join BSSID="MACSTR"\n", MAC2STR((u8 *)awrq->sa_data));
 	}
 #ifdef WL_EXT_IAPSTA
-	wl_ext_in4way_sync_wext(dev, STA_NO_BTC_IN4WAY, WL_EXT_STATUS_CONNECTING, NULL);
+	wl_ext_in4way_sync_wext(dev, STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY,
+		WL_EXT_STATUS_CONNECTING, NULL);
 #endif
 
 	return 0;
@@ -1158,7 +1160,8 @@ wl_iw_mlme(
 		return error;
 	}
 #ifdef WL_EXT_IAPSTA
-	wl_ext_in4way_sync_wext(dev, STA_NO_BTC_IN4WAY|STA_WAIT_DISCONNECTED,
+	wl_ext_in4way_sync_wext(dev,
+			STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY|STA_WAIT_DISCONNECTED,
 			WL_EXT_STATUS_DISCONNECTING, NULL);
 #endif
 
@@ -1265,7 +1268,7 @@ wl_iw_iscan_get_aplist(
 
 	WL_TRACE(("%s: SIOCGIWAPLIST\n", dev->name));
 	DHD_CHECK(dhd, dev);
-	wext_info = dhd->wext_info;
+ 	wext_info = dhd->wext_info;
 	iscan = &wext_info->iscan;
 
 	if (!extra)
@@ -1367,17 +1370,20 @@ wl_iw_iscan_set_scan(
 	struct dhd_pub *dhd = dhd_get_pub(dev);
 	wl_wext_info_t *wext_info = NULL;
 	wlc_ssid_t ssid;
-#ifdef WL_ESCAN
-	wl_scan_info_t scan_info;
-#else
-	iscan_info_t *iscan;
 #ifdef WL_EXT_IAPSTA
 	int err;
 #endif
+#ifndef WL_ESCAN
+	iscan_info_t *iscan;
 #endif
 
 	DHD_CHECK(dhd, dev);
 	wext_info = dhd->wext_info;
+#ifdef WL_EXT_IAPSTA
+	err = wl_ext_in4way_sync_wext(dev, STA_NO_SCAN_IN4WAY, WL_EXT_STATUS_SCAN, NULL);
+	if (err)
+		return err;
+#endif
 #ifdef WL_ESCAN
 	/* default Broadcast scan */
 	memset(&ssid, 0, sizeof(ssid));
@@ -1392,19 +1398,10 @@ wl_iw_iscan_set_scan(
 		}
 	}
 #endif
-	memset(&scan_info, 0, sizeof(wl_scan_info_t));
-	scan_info.bcast_ssid = TRUE;
-	memcpy(scan_info.ssid.SSID, ssid.SSID, ssid.SSID_len);
-	scan_info.ssid.SSID_len = ssid.SSID_len;
-	return wl_escan_set_scan(dev, &scan_info);
+	return wl_escan_set_scan(dev, dhd, &ssid, 0, TRUE);
 #else
 	iscan = &wext_info->iscan;
 	WL_TRACE(("%s: SIOCSIWSCAN iscan=%p\n", dev->name, iscan));
-#ifdef WL_EXT_IAPSTA
-	err = wl_ext_in4way_sync_wext(dev, STA_NO_SCAN_IN4WAY, WL_EXT_STATUS_SCAN, NULL);
-	if (err)
-		return err;
-#endif
 
 	/* use backup if our thread is not successful */
 	if ((!iscan) || (iscan->sysioc_pid < 0)) {
@@ -1594,7 +1591,7 @@ wl_iw_handle_scanresults_ies(char **event_p, char *end,
 				break;
 			}
 		}
-
+		
 #ifdef BCMWAPI_WPI
 		ptr = ((uint8 *)bi) + sizeof(wl_bss_info_t);
 		ptr_len = bi->ie_length;
@@ -1791,7 +1788,7 @@ wl_iw_iscan_get_scan(
 	DHD_CHECK(dhd, dev);
 	wext_info = dhd->wext_info;
 #ifdef WL_ESCAN
-	return wl_escan_get_scan(dev, info, dwrq, extra);
+	return wl_escan_get_scan(dev, dhd, info, dwrq, extra);
 #else
 	WL_TRACE(("%s SIOCGIWSCAN\n", dev->name));
 
@@ -1958,7 +1955,8 @@ wl_iw_set_essid(
 			WL_MSG(dev->name, "join SSID=\"%s\"\n", ssid.SSID);
 		}
 #ifdef WL_EXT_IAPSTA
-		wl_ext_in4way_sync_wext(dev, STA_NO_BTC_IN4WAY, WL_EXT_STATUS_CONNECTING, NULL);
+		wl_ext_in4way_sync_wext(dev, STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY,
+			WL_EXT_STATUS_CONNECTING, NULL);
 #endif
 	}
 	/* If essid null then it is "iwconfig <interface> essid off" command */
@@ -1971,7 +1969,8 @@ wl_iw_set_essid(
 			return error;
 		}
 #ifdef WL_EXT_IAPSTA
-		wl_ext_in4way_sync_wext(dev, STA_NO_BTC_IN4WAY|STA_WAIT_DISCONNECTED,
+		wl_ext_in4way_sync_wext(dev,
+			STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY|STA_WAIT_DISCONNECTED,
 			WL_EXT_STATUS_DISCONNECTING, NULL);
 #endif
 	}
@@ -2782,7 +2781,8 @@ wl_iw_set_encodeext(
 		if (error)
 			return error;
 #ifdef WL_EXT_IAPSTA
-		wl_ext_in4way_sync_wext(dev, STA_NO_BTC_IN4WAY, WL_EXT_STATUS_ADD_KEY, NULL);
+		wl_ext_in4way_sync_wext(dev, STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY,
+			WL_EXT_STATUS_ADD_KEY, NULL);
 #endif
 	}
 	return 0;
@@ -2808,7 +2808,7 @@ wl_iw_set_pmksa(
 	WL_TRACE(("%s: SIOCSIWPMKSA\n", dev->name));
 	DHD_CHECK(dhd, dev);
 	wext_info = dhd->wext_info;
-	pmk_list = &wext_info->pmk_list;
+ 	pmk_list = &wext_info->pmk_list;
 	if (pmk_list)
 		pmkid_array = pmk_list->pmkids.pmkid;
 	iwpmksa = (struct iw_pmksa *)extra;
@@ -2935,7 +2935,7 @@ wl_iw_set_wpaauth(
 
 	case IW_AUTH_CIPHER_PAIRWISE:
 	case IW_AUTH_CIPHER_GROUP: {
-//		int fbt_cap = 0;
+		int fbt_cap = 0;
 
 		if (paramid == IW_AUTH_CIPHER_PAIRWISE) {
 			iw->pwsec = paramval;
@@ -2984,7 +2984,6 @@ wl_iw_set_wpaauth(
 			return error;
 		}
 
-#if 0
 		/* Ensure in-dongle supplicant is turned on when FBT wants to do the 4-way
 		 * handshake.
 		 */
@@ -3005,7 +3004,6 @@ wl_iw_set_wpaauth(
 				}
 			}
 		}
-#endif
 		break;
 	}
 
@@ -3625,7 +3623,8 @@ wl_iw_event(struct net_device *dev, void *argu,
 	case WLC_E_DEAUTH:
 	case WLC_E_DISASSOC:
 #ifdef WL_EXT_IAPSTA
-		wl_ext_in4way_sync_wext(dev, STA_NO_BTC_IN4WAY,
+		wl_ext_in4way_sync_wext(dev,
+			STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY|STA_WAIT_DISCONNECTED,
 			WL_EXT_STATUS_DISCONNECTED, NULL);
 #endif
 		WL_MSG_RLMT(dev->name, &e->addr, ETHER_ADDR_LEN,
@@ -3640,7 +3639,8 @@ wl_iw_event(struct net_device *dev, void *argu,
 		bzero(wrqu.addr.sa_data, ETHER_ADDR_LEN);
 		bzero(&extra, ETHER_ADDR_LEN);
 #ifdef WL_EXT_IAPSTA
-		wl_ext_in4way_sync_wext(dev, STA_NO_BTC_IN4WAY,
+		wl_ext_in4way_sync_wext(dev,
+			STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY|STA_WAIT_DISCONNECTED,
 			WL_EXT_STATUS_DISCONNECTED, NULL);
 #endif
 		break;
@@ -3653,7 +3653,8 @@ wl_iw_event(struct net_device *dev, void *argu,
 			bzero(wrqu.addr.sa_data, ETHER_ADDR_LEN);
 			bzero(&extra, ETHER_ADDR_LEN);
 #ifdef WL_EXT_IAPSTA
-			wl_ext_in4way_sync_wext(dev, STA_NO_BTC_IN4WAY,
+			wl_ext_in4way_sync_wext(dev,
+				STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY|STA_WAIT_DISCONNECTED,
 				WL_EXT_STATUS_DISCONNECTED, NULL);
 #endif
 		} else {
@@ -4179,9 +4180,8 @@ _iscan_sysioc_thread(void *data)
 #endif /* !WL_ESCAN */
 
 void
-wl_iw_detach(struct net_device *dev)
+wl_iw_detach(struct net_device *dev, dhd_pub_t *dhdp)
 {
-	struct dhd_pub *dhdp = dhd_get_pub(dev);
 	wl_wext_info_t *wext_info = dhdp->wext_info;
 #ifndef WL_ESCAN
 	iscan_buf_t  *buf;
@@ -4211,9 +4211,8 @@ wl_iw_detach(struct net_device *dev)
 }
 
 int
-wl_iw_attach(struct net_device *dev)
+wl_iw_attach(struct net_device *dev, dhd_pub_t *dhdp)
 {
-	struct dhd_pub *dhdp = dhd_get_pub(dev);
 	wl_wext_info_t *wext_info = NULL;
 	int ret = 0;
 #ifndef WL_ESCAN
@@ -4269,7 +4268,36 @@ wl_iw_attach(struct net_device *dev)
 
 	return ret;
 exit:
-	wl_iw_detach(dev);
+	wl_iw_detach(dev, dhdp);
+	return ret;
+}
+
+void
+wl_iw_down(struct net_device *dev, dhd_pub_t *dhdp)
+{
+	wl_wext_info_t *wext_info = NULL;
+
+	if (dhdp) {
+		wext_info = dhdp->wext_info;
+ 	} else {
+		WL_ERROR (("dhd is NULL\n"));
+		return;
+	}
+}
+
+int
+wl_iw_up(struct net_device *dev, dhd_pub_t *dhdp)
+{
+	wl_wext_info_t *wext_info = NULL;
+	int ret = 0;
+
+	if (dhdp) {
+		wext_info = dhdp->wext_info;
+ 	} else {
+		WL_ERROR (("dhd is NULL\n"));
+		return -ENODEV;
+	}
+
 	return ret;
 }
 
