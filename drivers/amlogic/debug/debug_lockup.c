@@ -19,6 +19,9 @@
 #include <linux/arm-smccc.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#ifdef CONFIG_AMLOGIC_RAMDUMP
+#include <linux/amlogic/ramdump.h>
+#endif
 
 /*isr trace*/
 #define ns2ms			(1000 * 1000)
@@ -462,6 +465,10 @@ void atf_fiq_debug_entry(void)
 	regs.ARM_r2 = (unsigned long)atf_regs.regs[2];
 	regs.ARM_r1 = (unsigned long)atf_regs.regs[1];
 	regs.ARM_r0 = (unsigned long)atf_regs.regs[0];
+#endif
+#ifdef CONFIG_AMLOGIC_RAMDUMP
+	pr_err("\n");
+	do_flush_cpu_cache();
 #endif
 
 	pr_err("\n\n--------fiq_dump CPU%d--------\n\n", cpu);

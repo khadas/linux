@@ -67,6 +67,10 @@
 #include <linux/amlogic/freertos.h>
 #endif
 
+#ifdef CONFIG_AMLOGIC_RAMDUMP
+#include <linux/amlogic/ramdump.h>
+#endif
+
 DEFINE_PER_CPU_READ_MOSTLY(int, cpu_number);
 EXPORT_PER_CPU_SYMBOL(cpu_number);
 
@@ -953,6 +957,9 @@ static void do_handle_IPI(int ipinr)
 		break;
 
 	case IPI_CPU_STOP:
+#ifdef CONFIG_AMLOGIC_RAMDUMP
+		do_flush_cpu_cache();
+#endif
 		trace_android_vh_ipi_stop_rcuidle(regs);
 		local_cpu_stop();
 		break;

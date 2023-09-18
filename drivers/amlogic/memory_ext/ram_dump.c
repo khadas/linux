@@ -15,7 +15,6 @@
  * more details.
  *
  */
-
 #include <linux/version.h>
 #include <linux/types.h>
 #include <linux/fs.h>
@@ -42,28 +41,63 @@
 #include <linux/namei.h>
 #include <linux/capability.h>
 #include <asm/cacheflush.h>
+#include <linux/of_address.h>
 
 static unsigned long ramdump_base	__initdata;
 static unsigned long ramdump_size	__initdata;
 static bool ramdump_disable	__initdata	=	1;
 
 #define WAIT_TIMEOUT		(40ULL * 1000 * 1000 * 1000)
+#define SAVE_DATA_BY_INIT_RC_SHELL			1
+#define RESERVE_MEM_BY_RAMDUMP_DTS_NODE		1
 
 struct ramdump {
-	unsigned long		mem_base;
 	unsigned long		mem_size;
+	unsigned long		mem_base;
+#ifdef SAVE_DATA_BY_INIT_RC_SHELL
+	//void __iomem		*mem_base;
+	struct mutex		lock;
+	struct kobject		*kobj;
+#else
 	unsigned long long	tick;
-	void			*mnt_buf;
-	const char		*storage_device;
+	void				*mnt_buf;
+	const char			*storage_device;
+#endif
 	struct delayed_work	work;
 	int			disable;
 };
 
 static struct ramdump *ram;
 
-static int __init early_ramdump_para(char *buf)
+static void ramdump_parse_info(void)
+{
+#if !IS_MODULE(CONFIG_AMLOGIC_MEMORY_EXTEND)
+	pr_info("%s, .text : 0x%px - 0x%px, pa(.text): 0x%lx\n",
+			__func__, (unsigned long *)_text,
+			(unsigned long *)_etext, (unsigned long)__pa_symbol(_text));
+#endif
+
+#ifdef CONFIG_ARM64
+	pr_info("%s, kimage_vaddr: 0x%px, v2p: 0x%lx\n",
+			__func__, (unsigned long *)kimage_vaddr,
+			(unsigned long)__pa_symbol(kimage_vaddr));
+	pr_info("%s, KIMAGE_VADDR: 0x%px, v2p: 0x%lx\n",
+			__func__, (unsigned long *)KIMAGE_VADDR,
+			(unsigned long)__pa_symbol(KIMAGE_VADDR));
+	pr_info("%s, kimage_voffset = 0x%lx\n", __func__,
+			(unsigned long)kimage_vaddr - (unsigned long)__pa_symbol(kimage_vaddr));
+	pr_info("%s, kaslr_offset   = 0x%lx\n", __func__, kaslr_offset());
+	pr_info("%s, vabits_actual  = %d\n", __func__, (unsigned int)vabits_actual);
+#endif
+}
+
+static int early_ramdump_para(char *buf)
 {
 	int ret;
+#ifdef	RESERVE_MEM_BY_RAMDUMP_DTS_NODE
+	struct device_node *node;
+	struct resource res;
+#endif
 
 	if (!buf)
 		return -EINVAL;
@@ -80,18 +114,172 @@ static int __init early_ramdump_para(char *buf)
 		ramdump_disable = 0;
 		pr_info("%s, base:%lx, size:%lx\n",
 			__func__, ramdump_base, ramdump_size);
+#ifdef	RESERVE_MEM_BY_RAMDUMP_DTS_NODE
+		node = of_find_node_by_path("/reserved-memory/ramdump_bl33z");
+		ret = of_address_to_resource(node, 0, &res);
+		pr_info("%s, dts reserved-memory %lx - %lx\n",
+					__func__, (unsigned long)res.start, (unsigned long)res.end);
+#else
 		ret = memblock_reserve(ramdump_base, PAGE_ALIGN(ramdump_size));
 		if (ret < 0) {
-			pr_info("reserve memblock %lx - %lx failed\n",
-				ramdump_base,
+			pr_info("%s, reserve memblock %lx - %lx failed\n",
+				__func__, ramdump_base,
 				ramdump_base + PAGE_ALIGN(ramdump_size));
 			ramdump_disable = 1;
+		} else {
+			pr_info("%s, reserve memblock %lx - %lx OK\n",
+				__func__, ramdump_base,
+				ramdump_base + PAGE_ALIGN(ramdump_size));
 		}
+#endif
+		ramdump_parse_info();
 	}
 	return 0;
 }
 
 early_param("ramdump", early_ramdump_para);
+
+#ifdef SAVE_DATA_BY_INIT_RC_SHELL
+static ssize_t ramdump_bin_read(struct file *filp, struct kobject *kobj,
+				struct bin_attribute *attr,
+				char *buf, loff_t off, size_t count)
+{
+	void *p = NULL;
+
+	if (!ram->mem_base || off >= ram->mem_size) {
+		pr_info("%s, crash sysfsnode data err.\n", __func__);
+		return 0;
+	}
+
+	if (off + count > ram->mem_size)
+		count = ram->mem_size - off;
+
+	p = (void *)phys_to_virt(ram->mem_base + off);
+
+	mutex_lock(&ram->lock);
+	memcpy(buf, p, count);
+	mutex_unlock(&ram->lock);
+
+	/* debug when read end */
+	if (off + count >= ram->mem_size)
+		pr_info("%s, p=%p %p, off:%lli, c:%zi\n",
+			__func__, buf, p, off, count);
+
+	return count;
+}
+
+int ramdump_disabled(void)
+{
+	if (ram)
+		return ram->disable;
+	return 0;
+}
+EXPORT_SYMBOL(ramdump_disabled);
+
+static void meson_set_reboot_reason(int reboot_reason)
+{
+	struct arm_smccc_res smccc;
+
+	arm_smccc_smc(SET_REBOOT_REASON,
+		      reboot_reason, 0, 0, 0, 0, 0, 0, &smccc);
+}
+
+static ssize_t ramdump_bin_write(struct file *filp,
+				 struct kobject *kobj,
+				 struct bin_attribute *bin_attr,
+				 char *buf, loff_t off, size_t count)
+{
+	if (ram->mem_base && !strncmp("reboot", buf, 6))
+		kernel_restart("RAM-DUMP finished\n");
+
+	if (!strncmp("disable", buf, 7)) {
+		ram->disable = 1;
+		meson_set_reboot_reason(MESON_NORMAL_BOOT);
+	}
+	if (!strncmp("enable", buf, 6)) {
+		ram->disable = 0;
+		meson_set_reboot_reason(MESON_KERNEL_PANIC);
+	}
+
+	return count;
+}
+
+static struct bin_attribute ramdump_attr = {
+	.attr = {
+		.name = "compmsg",
+		.mode = 0664,
+	},
+	.read  = ramdump_bin_read,
+	.write = ramdump_bin_write,
+};
+
+#ifdef CONFIG_ARM64
+noinline void ramdump_sync_data(void)
+{
+	/*
+	 * back port from old kernel version for function
+	 * flush_cache_all(), we need it for ram dump
+	 */
+	asm volatile
+		("mov	x12, x30\n"
+		"dsb	sy\n"
+		"mrs	x0, clidr_el1\n"
+		"and	x3, x0, #0x7000000\n"
+		"lsr	x3, x3, #23\n"
+		"cbz	x3, finished\n"
+		"mov	x10, #0\n"
+	"loop1:\n"
+		"add	x2, x10, x10, lsr #1\n"
+		"lsr	x1, x0, x2\n"
+		"and	x1, x1, #7\n"
+		"cmp	x1, #2\n"
+		"b.lt	skip\n"
+		"mrs	x9, daif\n"
+		"msr    daifset, #2\n"
+		"msr	csselr_el1, x10\n"
+		"isb\n"
+		"mrs	x1, ccsidr_el1\n"
+		"msr    daif, x9\n"
+		"and	x2, x1, #7\n"
+		"add	x2, x2, #4\n"
+		"mov	x4, #0x3ff\n"
+		"and	x4, x4, x1, lsr #3\n"
+		"clz	w5, w4\n"
+		"mov	x7, #0x7fff\n"
+		"and	x7, x7, x1, lsr #13\n"
+	"loop2:\n"
+		"mov	x9, x4\n"
+	"loop3:\n"
+		"lsl	x6, x9, x5\n"
+		"orr	x11, x10, x6\n"
+		"lsl	x6, x7, x2\n"
+		"orr	x11, x11, x6\n"
+		"dc	cisw, x11\n"
+		"subs	x9, x9, #1\n"
+		"b.ge	loop3\n"
+		"subs	x7, x7, #1\n"
+		"b.ge	loop2\n"
+	"skip:\n"
+		"add	x10, x10, #2\n"
+		"cmp	x3, x10\n"
+		"b.gt	loop1\n"
+	"finished:\n"
+		"mov	x10, #0\n"
+		"msr	csselr_el1, x10\n"
+		"dsb	sy\n"
+		"isb\n"
+		"mov	x0, #0\n"
+		"ic	ialluis\n"
+		"ret	x12\n");
+}
+#else
+noinline void ramdump_sync_data(void)
+{
+	flush_cache_all();
+}
+#endif
+
+#endif /* end SAVE_DATA_BY_INIT_RC_SHELL */
 
 /*
  * clear memory to avoid large amount of memory not used.
@@ -109,7 +297,7 @@ static void lazy_clear_work(struct work_struct *work)
 	unsigned long clear = 0, size = 0, free = 0, tick;
 
 	INIT_LIST_HEAD(&head);
-	order = MAX_ORDER - 1;
+	order = MAX_ORDER - 3;
 	tick = sched_clock();
 	do {
 		page = alloc_pages(flags, order);
@@ -129,294 +317,51 @@ static void lazy_clear_work(struct work_struct *work)
 		__free_pages(page, order);
 		free += size;
 	}
-	pr_info("clear:%lx, free:%lx, tick:%ld us\n",
+	pr_info("ramdump, clear:%lx, free:%lx, tick:%ld us\n",
 		clear, free, tick / 1000);
 }
 
-#ifdef CONFIG_ARM64
-void ramdump_sync_data(void)
+void do_flush_cpu_cache(void)
 {
-	/*
-	 * back port from old kernel version for function
-	 * flush_cache_all(), we need it for ram dump
-	 */
-	asm volatile (
-		"mov	x12, x30			\n"
-		"dsb	sy				\n"
-		"mrs	x0, clidr_el1			\n"
-		"and	x3, x0, #0x7000000		\n"
-		"lsr	x3, x3, #23			\n"
-		"cbz	x3, finished			\n"
-		"mov	x10, #0				\n"
-	"loop1:						\n"
-		"add	x2, x10, x10, lsr #1		\n"
-		"lsr	x1, x0, x2			\n"
-		"and	x1, x1, #7			\n"
-		"cmp	x1, #2				\n"
-		"b.lt	skip				\n"
-		"mrs	x9, daif			\n"
-		"msr    daifset, #2 			\n"
-		"msr	csselr_el1, x10			\n"
-		"isb					\n"
-		"mrs	x1, ccsidr_el1			\n"
-		"msr    daif, x9			\n"
-		"and	x2, x1, #7			\n"
-		"add	x2, x2, #4			\n"
-		"mov	x4, #0x3ff			\n"
-		"and	x4, x4, x1, lsr #3		\n"
-		"clz	w5, w4				\n"
-		"mov	x7, #0x7fff			\n"
-		"and	x7, x7, x1, lsr #13		\n"
-	"loop2:						\n"
-		"mov	x9, x4				\n"
-	"loop3:						\n"
-		"lsl	x6, x9, x5			\n"
-		"orr	x11, x10, x6			\n"
-		"lsl	x6, x7, x2			\n"
-		"orr	x11, x11, x6			\n"
-		"dc	cisw, x11			\n"
-		"subs	x9, x9, #1			\n"
-		"b.ge	loop3				\n"
-		"subs	x7, x7, #1			\n"
-		"b.ge	loop2				\n"
-	"skip:						\n"
-		"add	x10, x10, #2			\n"
-		"cmp	x3, x10				\n"
-		"b.gt	loop1				\n"
-	"finished:					\n"
-		"mov	x10, #0				\n"
-		"msr	csselr_el1, x10			\n"
-		"dsb	sy				\n"
-		"isb					\n"
-		"mov	x0, #0				\n"
-		"ic	ialluis				\n"
-		"ret	x12				\n"
-	);
-}
-#else
-void ramdump_sync_data(void)
-{
-	flush_cache_all();
-}
-#endif
+	int cpu = smp_processor_id();
 
-#ifdef CONFIG_64BIT
-static void free_reserved_highmem(unsigned long start, unsigned long end)
-{
-}
-#else
-static void free_reserved_highmem(unsigned long start, unsigned long end)
-{
-	for (; start < end; ) {
-		free_highmem_page(phys_to_page(start));
-		start += PAGE_SIZE;
-	}
-}
-#endif
-
-static void free_reserved_mem(unsigned long start, unsigned long size)
-{
-	unsigned long end = PAGE_ALIGN(start + size);
-	struct page *page, *epage;
-
-	page = phys_to_page(start);
-	if (PageHighMem(page)) {
-		free_reserved_highmem(start, end);
-	} else {
-		epage = phys_to_page(end);
-		if (!PageHighMem(epage)) {
-			free_reserved_area(__va(start),
-					   __va(end), 0, "ramdump");
-		} else {
-			/* reserved area cross zone */
-			struct zone *zone;
-			unsigned long bound;
-
-			zone  = page_zone(page);
-			bound = zone_end_pfn(zone);
-			free_reserved_area(__va(start),
-					   __va(bound << PAGE_SHIFT),
-					   0, "ramdump");
-			zone  = page_zone(epage);
-			bound = zone->zone_start_pfn;
-			free_reserved_highmem(bound << PAGE_SHIFT, end);
-		}
-	}
+	pr_info("ramdump: CPU-%d flush cache ...\n", cpu);
+	ramdump_sync_data();
+	pr_info("ramdump: CPU-%d flush cache finish.\n", cpu);
 }
 
-static int check_storage_mounted(char **root)
+static int panic_notify(struct notifier_block *self,
+			unsigned long cmd, void *ptr)
 {
-	int fd, cnt, ret = 0;
-	char mnt_dev[64] =  {}, *mnt_ptr, *root_dir;
-
-	fd = ksys_open("/proc/mounts", O_RDONLY, 0);
-	if (!fd) {
-		pr_debug("%s, open mounts failed:%d\n", __func__, fd);
-		return -EINVAL;
-	}
-	cnt = ksys_read(fd, ram->mnt_buf, PAGE_SIZE);
-	if (cnt < 0) {
-		pr_debug("%s, read mounts failed:%d\n", __func__, cnt);
-		ret = -ENODEV;
-		goto exit;
-	}
-	pr_debug("read:%d, %s\n", cnt, (char *)ram->mnt_buf);
-	/* for android */
-	sprintf(mnt_dev, "/dev/block/%s", ram->storage_device);
-	mnt_ptr = strstr((char *)ram->mnt_buf, mnt_dev);
-	if (!mnt_ptr) {
-		/* for build root */
-		memset(mnt_dev, 0, sizeof(mnt_dev));
-		sprintf(mnt_dev, "/dev/%s", ram->storage_device);
-		mnt_ptr = strstr((char *)ram->mnt_buf, mnt_dev);
-	}
-	if (mnt_ptr) {
-		pr_debug("%s, find %s in buffer, ptr:%p\n",
-				__func__, mnt_dev, mnt_ptr);
-		root_dir = strstr(mnt_ptr, " ");
-		if (root_dir) {
-			root_dir++;
-			*root = root_dir;
-			pr_info("mount:%s root:%s\n", mnt_ptr, root_dir);
-		} else {
-			ret = -ENODEV;
-		}
-	} else {
-		ret = -ENODEV;
-	}
-exit:
-	ksys_close(fd);
-	return ret;
+	do_flush_cpu_cache();
+	return NOTIFY_DONE;
 }
 
-static size_t save_data(int fd)
+static struct notifier_block panic_notifier = {
+	.notifier_call	= panic_notify,
+};
+
+static int __init register_flush_panic_cpu_cache(void)
 {
-	unsigned long saved = 0, off = 0, s = 0, e;
-	void *buffer;
-	int block = (1 << (PAGE_SHIFT + MAX_ORDER - 1)), wsize = 0, ret, i;
-	struct vm_struct *area;
-	struct page *page, **pages = NULL;
+	/* flush cache for panic cpu */
+	atomic_notifier_chain_register(&panic_notifier_list, &panic_notifier);
 
-	area = get_vm_area(block, VM_ALLOC);
-	if (!area) {
-		pr_err("%s, get vma failed\n", __func__);
-		return -ENOMEM;
-	}
-
-	pages = kzalloc(sizeof(unsigned long) * MAX_ORDER_NR_PAGES, GFP_KERNEL);
-	if (!pages)
-		goto out;
-
-	buffer = area->addr;
-	while (saved < ram->mem_size) {
-		s = ram->mem_size - saved;
-		if (s >= block)
-			wsize = block;
-		else
-			wsize = s;
-
-		s = ram->mem_base + off;
-		e = s + PAGE_ALIGN(wsize);
-
-		page = phys_to_page(s);
-		for (i = 0; i < MAX_ORDER_NR_PAGES; i++) {
-			pages[i] = page;
-			page++;
-		}
-		ret = map_kernel_range_noflush((unsigned long)buffer,
-					       PAGE_ALIGN(wsize),
-					       PAGE_KERNEL,
-					       pages);
-		if (!ret) {
-			pr_err("map page:%lx failed\n", page_to_pfn(page));
-			goto out;
-		}
-		ret = ksys_write(fd, buffer, wsize);
-		if (ret != wsize) {
-			unmap_kernel_range((unsigned long)buffer,
-					   PAGE_ALIGN(wsize));
-			pr_err("%s, write failed\n", __func__);
-			goto out;
-		}
-		unmap_kernel_range((unsigned long)buffer, PAGE_ALIGN(wsize));
-		free_reserved_mem(s, PAGE_ALIGN(wsize));
-		saved += wsize;
-		off   += wsize;
-		pr_debug("%s, write %08lx, size:%08x, saved:%08lx, off:%lx\n",
-			 __func__, s, wsize, saved, off);
-	}
-out:
-	free_vm_area(area);
-	kfree(pages);
-	pr_info("%s, write %08lx, size:%08x, saved:%08lx, off:%lx\n",
-		__func__, s, wsize, saved, off);
-	return saved;
+	return 0;
 }
-
-#define OPEN_FLAGS	(O_WRONLY | O_CREAT | O_DSYNC | O_TRUNC)
-
-static void wait_to_save(struct work_struct *work)
-{
-	char *root;
-	int fd, ret = 0;
-	int need_reboot = 0;
-
-	if ((sched_clock() - ram->tick) >= WAIT_TIMEOUT) {
-		pr_err("can't find mounted device, free saved data\n");
-		need_reboot = 3;
-		goto exit;
-	}
-
-	if (!check_storage_mounted(&root)) {
-		char wname[64] = {}, *next_token;
-
-		/* write compressed data to storage device */
-		next_token = strstr(root, " ");
-		if (next_token)
-			*next_token = '\0';
-		sprintf(wname, "%s/crashdump-1.bin", root);
-		fd = ksys_open(wname, OPEN_FLAGS, 0644);
-		if (fd < 0) {
-			pr_info("open %s failed:%d\n", wname, fd);
-			need_reboot = 3;
-			goto exit;
-		}
-		ret = save_data(fd);
-		if (ret != ram->mem_size) {
-			pr_err("write size %d not match %ld\n",
-			       ret, ram->mem_size);
-		}
-		ksys_close(fd);
-		ksys_sync();
-		need_reboot = 1;
-	} else {
-		schedule_delayed_work(&ram->work, 500);
-	}
-
-exit:
-	/* Nomatter what happened, reboot must be done in this function */
-	if (need_reboot) {
-		if (need_reboot & 0x1)
-			kfree(ram->mnt_buf);
-		if (need_reboot & 0x02)
-			free_reserved_mem(ram->mem_base, ram->mem_size);
-		kernel_restart("RAM-DUMP finished");
-	}
-}
+device_initcall(register_flush_panic_cpu_cache);
 
 static int __init ramdump_probe(struct platform_device *pdev)
 {
-	void __iomem *p = NULL;
-	struct device_node *np;
 	unsigned long total_mem;
 	struct resource *res;
 	unsigned int dump_set;
-	int ret;
 	void __iomem *base;
-	const char *dev_name = NULL;
+	void *vaddr = NULL;
+	int ret = 0;
 
 	total_mem = get_num_physpages() << PAGE_SHIFT;
-	pr_info("Total Memory:[%lx]\n", total_mem);
+	if (total_mem)
+		pr_info("ramdump, Total Memory:[%ld MB]\n", total_mem / 1024 / 1024);
 
 	ram = kzalloc(sizeof(*ram), GFP_KERNEL);
 	if (!ram)
@@ -425,33 +370,45 @@ static int __init ramdump_probe(struct platform_device *pdev)
 	if (ramdump_disable)
 		ram->disable = 1;
 
-	np  = pdev->dev.of_node;
-	ret = of_property_read_string(np, "store_device", &dev_name);
-	if (!ret) {
-		ram->storage_device = dev_name;
-		pr_info("%s, storage device:%s\n", __func__, dev_name);
-	}
-
+	ram->mem_base = 0;
+	ram->mem_size = ramdump_size;
 	if (!ramdump_base || !ramdump_size) {
 		pr_info("NO valid ramdump args:%lx %lx\n",
 			ramdump_base, ramdump_size);
 	} else {
-		ram->mem_base = ramdump_base;
-		ram->mem_size = ramdump_size;
-		pr_info("%s, mem_base:%p, %lx, size:%lx\n",
-			__func__, p, ramdump_base, ramdump_size);
+		pr_info("%s, memremap start, paddr area: 0x%08lx - 0x%08lx\n",
+				__func__, ramdump_base, ramdump_base + PAGE_ALIGN(ramdump_size));
+		//vaddr = ioremap_cache(ramdump_base, PAGE_ALIGN(ramdump_size));
+		vaddr = memremap(ramdump_base, PAGE_ALIGN(ramdump_size), MEMREMAP_WB);
+		if (vaddr)
+			ram->mem_base = (unsigned long)vaddr;
+
+		pr_info("%s, memremap end, vaddr_base:%lx, size:%lx\n",
+			__func__, ram->mem_base, ram->mem_size);
 	}
 
 	if (!ram->disable) {
 		if (!ram->mem_base) {	/* No compressed data */
 			INIT_DELAYED_WORK(&ram->work, lazy_clear_work);
+			schedule_delayed_work(&ram->work, msecs_to_jiffies(100));
 		} else {		/* with compressed data */
-			INIT_DELAYED_WORK(&ram->work, wait_to_save);
-			ram->tick = sched_clock();
-			ram->mnt_buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-			WARN_ON(!ram->mnt_buf);
+#ifdef	SAVE_DATA_BY_INIT_RC_SHELL
+			pr_info("%s, SAVE_DATA_BY_INIT_RC_SHELL\n", __func__);
+			ram->kobj = kobject_create_and_add("mdump", kernel_kobj);
+			if (!ram->kobj) {
+				pr_err("%s, create sysfs /mdump failed\n", __func__);
+				goto err;
+			}
+
+			ramdump_attr.size = ram->mem_size;
+			pr_info("%s, creat /sys/kernel/mdump/compmsg\n", __func__);
+			if (sysfs_create_bin_file(ram->kobj, &ramdump_attr)) {
+				pr_err("%s, create sysfs compmsg failed\n", __func__);
+				goto err1;
+			}
+#endif	/* end SAVE_DATA_BY_INIT_RC_SHELL */
 		}
-		schedule_delayed_work(&ram->work, 1);
+
 		/* if ramdump is disabled in env, no need to set sticky reg */
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   "SYSCTRL_STICKY_REG6");
@@ -466,10 +423,15 @@ static int __init ramdump_probe(struct platform_device *pdev)
 			dump_set &= ~RAMDUMP_STICKY_DATA_MASK;
 			dump_set |= ((total_mem >> 20) | AMLOGIC_KERNEL_BOOTED);
 			writel(dump_set, base);
-			pr_info("%s, set sticky to %x\n", __func__, dump_set);
+			pr_info("%s, set sticky(0x%08x) to 0x%x\n",
+					__func__, (unsigned int)res->start, dump_set);
 		}
 	}
-	return 0;
+	return ret;
+#ifdef	SAVE_DATA_BY_INIT_RC_SHELL
+err1:
+	kobject_put(ram->kobj);
+#endif
 
 err:
 	kfree(ram);
@@ -479,6 +441,11 @@ err:
 
 static int ramdump_remove(struct platform_device *pdev)
 {
+#ifdef SAVE_DATA_BY_INIT_RC_SHELL
+	sysfs_remove_bin_file(ram->kobj, &ramdump_attr);
+	iounmap((void *)ram->mem_base);
+	kobject_put(ram->kobj);
+#endif
 	kfree(ram);
 	return 0;
 }
