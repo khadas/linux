@@ -2,6 +2,7 @@
 #
 # Makefile for USB Network drivers
 #
+KBUILD_CFLAGS += -Wno-implicit-fallthrough
 
 obj-$(CONFIG_USB_CATC)		+= catc.o
 obj-$(CONFIG_USB_KAWETH)	+= kaweth.o
@@ -42,3 +43,5 @@ obj-$(CONFIG_USB_NET_CDC_MBIM)	+= cdc_mbim.o
 obj-$(CONFIG_USB_NET_CH9200)	+= ch9200.o
 obj-$(CONFIG_USB_NET_AQC111)	+= aqc111.o
 obj-$(CONFIG_USB_RTL8153_ECM)	+= r8153_ecm.o
+obj-$(CONFIG_USB_GOBI_NET)      += GobiNet.o
+GobiNet-objs := GobiUSBNet.o QMIDevice.o QMI.o
