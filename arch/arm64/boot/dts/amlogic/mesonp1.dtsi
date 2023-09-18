@@ -666,10 +666,10 @@
 		compatible = "amlogic, hifi4dsp";
 		memory-region = <&dsp_fw_reserved>;
 		reg = <0 0xfe340018 0 0x114>,   /*dspa base address*/
-			  <0 0xfe350018 0 0x114>,   /*dspb base address*/
-			  <0 0xfe010258 0 0x4>,     /*dspa status counter*/
-			  <0 0xfe01025c 0 0x4>,     /*dspb status counter*/
-			  <0 0x30820000 0 0x80000>; /*dsp shm region*/
+		      <0 0xfe350018 0 0x114>,   /*dspb base address*/
+		      <0 0xfe010258 0 0x4>,     /*dspa status counter*/
+		      <0 0xfe01025c 0 0x4>,     /*dspb status counter*/
+		      <0 0x7ef80000 0 0x80000>; /*dsp shm region*/
 		dsp-monitor-period-ms = <1000>;
 		reg-names = "dspa_top_reg", "dspb_top_reg";
 		clocks = <&clkc CLKID_DSPA>, <&clkc CLKID_DSPB>;
@@ -680,16 +680,16 @@
 		dspboffset = <0x1000000>;
 		bootlocation = <2>;   /*1: boot from DDR, 2: from sram, 3...*/
 		optimize_longcall = <1 0>;
-		sram_remap_addr = <0x7ef00000 0xf7100000 0x7ff00000 0xf7100000>;
+		sram_remap_addr = <0x7ed00000 0xf7100000 0x7ff00000 0xf7200000>;
 		boot_sram_addr = <0xf7100000>;
 		boot_sram_size = <0x100000>;
 		bootlocation_b = <1>; /*1:pure ddr,2:pure sram,3:ddr+sram*/
-		dspb_sram_addr = <0xf7100000>;
+		dspb_sram_addr = <0xf7200000>;
 		dspb_sram_size = <0x100000>;
-		//dspsrambase = <0xf7100000>;
+		//dspsrambase = <0xf7200000>;
 		//dspsramsize = <0x100000>;
 		power-domains = <&pwrdm PDID_P1_DSPA>,
-						<&pwrdm PDID_P1_DSPB>;
+				<&pwrdm PDID_P1_DSPB>;
 		power-domain-names = "dspa", "dspb";
 		iommu = <&smmu P1_SID_DSP_A>,<&smmu P1_SID_DSP_B>;
 		dma-ranges = <0x0 0x0 0x0 0x0 0x0 0x80000000>;
