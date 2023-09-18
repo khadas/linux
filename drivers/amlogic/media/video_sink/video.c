@@ -8775,34 +8775,35 @@ SET_FILTER:
 		}
 #endif
 
-		if (path3_new_frame) {
-			if (path3_new_frame->ext_signal_type & 0x1) {
-				if (!atomic_read(&fmm_changed)) {
-					video_prop_status |= VIDEO_PROP_CHANGE_FMM;
-					atomic_set(&fmm_changed, 1);
-					if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
-						pr_info("VD1 FMM changed: %d->. cur:%p, new:%p\n",
-						path3_new_frame ?
-						(path3_new_frame->ext_signal_type & 0x1) :
-						(vd_layer[0].dispbuf->ext_signal_type & 0x1),
-						vd_layer[0].dispbuf, vf);
-				}
-			} else {
-				if (atomic_read(&fmm_changed)) {
-					video_prop_status |= VIDEO_PROP_CHANGE_FMM_DISABLE;
-					atomic_set(&fmm_changed, 0);
-					if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
-						pr_info("VD1 FMM changed: %d->. cur:%p, new:%p\n",
-						path3_new_frame ?
-						(path3_new_frame->ext_signal_type & 0x1) :
-						(vd_layer[0].dispbuf->ext_signal_type & 0x1),
-						vd_layer[0].dispbuf, vf);
+		if ((path3_new_frame || vd_layer[0].dispbuf) &&
+			get_video_enabled()) {
+			if (path3_new_frame) {
+				if (path3_new_frame->ext_signal_type & 0x1) {
+					if (!atomic_read(&fmm_changed)) {
+						video_prop_status |= VIDEO_PROP_CHANGE_FMM;
+						atomic_set(&fmm_changed, 1);
+						if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
+							pr_info("New vf:VD1 FMM changed: %d->. cur:%p, new:%p\n",
+							path3_new_frame->ext_signal_type & 0x1,
+							vd_layer[0].dispbuf, path3_new_frame);
+					}
+				} else {
+					if (atomic_read(&fmm_changed)) {
+						video_prop_status |= VIDEO_PROP_CHANGE_FMM_DISABLE;
+						atomic_set(&fmm_changed, 0);
+						if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
+							pr_info("New vf:VD1 FMM changed: %d->. cur:%p, new:%p\n",
+							path3_new_frame->ext_signal_type & 0x1,
+							vd_layer[0].dispbuf, path3_new_frame);
+					}
 				}
 			}
 		} else {
 			if (atomic_read(&fmm_changed)) {
 				video_prop_status |= VIDEO_PROP_CHANGE_FMM_DISABLE;
 				atomic_set(&fmm_changed, 0);
+				if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
+					pr_info("NULL vf:VD1 FMM changed\n");
 			}
 		}
 	}
