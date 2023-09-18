@@ -2044,7 +2044,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 				adpscl_shift[0] =
 					hdr_lut_param->adp_scal_x_shift - 1;
 				adpscl_shift[1] = OO_NOR -
-				_log2((1 << OO_NOR) / ogain_lut_148)
+				_log2((1 << OO_NOR) / 64)
 				- 1;
 			}
 		} else if (hdr_mtx_param->p_sel & CUVA_SDR) {
