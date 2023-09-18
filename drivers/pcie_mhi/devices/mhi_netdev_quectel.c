@@ -1330,7 +1330,7 @@ static struct net_device * rmnet_vnd_register_device(struct mhi_netdev *pQmapDev
 	priv->pQmapDev = pQmapDev;
 	priv->qmap_version = pQmapDev->qmap_version;
 	priv->mux_id = mux_id;
-	sprintf(qmap_net->name, "%s.%d", real_dev->name, offset_id + 1);
+	sprintf(qmap_net->name, "%s_%d", real_dev->name, offset_id + 1);
 	memcpy (qmap_net->dev_addr, real_dev->dev_addr, ETH_ALEN);
 #if defined(MHI_NETDEV_STATUS64)
 	priv->stats64 = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
