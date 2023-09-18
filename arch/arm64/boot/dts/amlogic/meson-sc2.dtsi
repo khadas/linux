@@ -860,7 +860,7 @@
 		clocks = <&clkc CLKID_DSPA_CLK>;
 		clock-names = "dspa_clk";
 		power-domains = <&pwrdm PDID_SC2_DSP>;
-		dspa_clkfreq = <500000000>;
+		dsp_clk_freqs = <800000000>;
 		dsp-start-mode = <1>; /*0:scpi start mode,1:smc start mode*/
 		dsp-cnt = <1>;
 		dspaoffset = <0>;
