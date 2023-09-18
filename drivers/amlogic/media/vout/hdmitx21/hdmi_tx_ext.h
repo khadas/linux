@@ -35,8 +35,6 @@ void hdmitx20_audio_mute_op(unsigned int flag);
 void hdmitx20_video_mute_op(unsigned int flag);
 void hdmitx20_ext_set_audio_output(int enable);
 int hdmitx20_ext_get_audio_status(void);
-void hdmitx20_ext_set_i2s_mask(char ch_num, char ch_msk);
-char hdmitx20_ext_get_i2s_mask(void);
 #endif
 
 #ifdef CONFIG_AMLOGIC_HDMITX21

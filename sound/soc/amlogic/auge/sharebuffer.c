@@ -66,9 +66,11 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 	spdif_set_validity(0, spdif_id);
 
 	/* for samesource case, always 2ch substream to hdmitx */
+	aud_param.aud_src_if = AUD_SRC_IF_SPDIF;
 	aud_param.rate = runtime->rate;
 	aud_param.size = runtime->sample_bits;
 	aud_param.chs = 2;
+	aud_param.i2s_ch_mask = 0x1;
 
 	/* notify hdmitx audio */
 	if (get_hdmitx_audio_src(rtd->card) == spdif_id) {

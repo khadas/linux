@@ -504,8 +504,6 @@ struct hdmitx_dev {
 	/* 4: 24bit  5: 30bit  6: 36bit  7: 48bit */
 	/* if equals to 1, means current video & audio output are blank */
 	unsigned int output_blank_flag;
-	unsigned int audio_notify_flag;
-	unsigned int audio_step;
 	bool hdcp22_type;
 	unsigned int repeater_tx;
 	struct hdcprp_topo *topo_info;

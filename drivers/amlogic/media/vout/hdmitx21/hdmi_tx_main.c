@@ -6341,7 +6341,6 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 	enum hdmi_audio_sampsize n_size = aud_size_map(aud_param->size);
 
 	hdev->audio_param_update_flag = 0;
-	hdev->audio_notify_flag = 0;
 
 	if (hdmitx_set_i2s_mask(aud_param->chs, aud_param->i2s_ch_mask))
 		hdev->audio_param_update_flag = 1;
@@ -6398,20 +6397,11 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 		hdev->audio_param_update_flag = 0;
 	}
 	}
-	if (hdev->audio_param_update_flag == 0)
-		;
-	else
-		hdev->audio_notify_flag = 1;
 
 	if ((!(hdev->hdmi_audio_off_flag)) && hdev->audio_param_update_flag) {
 		/* plug-in & update audio param */
 		if (hdev->hpd_state == 1) {
-			hdmitx21_set_audio(hdev,
-					 &hdev->cur_audio_param);
-			if (hdev->audio_notify_flag == 1 || hdev->audio_step == 1) {
-				hdev->audio_notify_flag = 0;
-				hdev->audio_step = 0;
-			}
+			hdmitx21_set_audio(hdev, &hdev->cur_audio_param);
 			hdev->audio_param_update_flag = 0;
 			pr_info("set audio param\n");
 		}

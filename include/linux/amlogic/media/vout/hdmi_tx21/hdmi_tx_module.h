@@ -459,8 +459,6 @@ struct hdmitx_dev {
 	/* 4: 24bit  5: 30bit  6: 36bit  7: 48bit */
 	/* if equals to 1, means current video & audio output are blank */
 	u32 output_blank_flag;
-	u32 audio_notify_flag;
-	u32 audio_step;
 	u32 repeater_tx;
 	/* 0.1% clock shift, 1080p60hz->59.94hz */
 	u32 frac_rate_policy;

@@ -464,6 +464,7 @@ void spdif_notify_to_hdmitx(struct snd_pcm_substream *substream,
 	aud_param.rate = substream->runtime->rate;
 	aud_param.size = substream->runtime->sample_bits;
 	aud_param.chs  = substream->runtime->channels;
+	aud_param.i2s_ch_mask = 0x1;
 	aud_param.aud_src_if = AUD_SRC_IF_SPDIF;
 
 	if (codec_type == AUD_CODEC_TYPE_AC3) {
