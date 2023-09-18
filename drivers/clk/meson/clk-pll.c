@@ -74,21 +74,25 @@ static unsigned long __pll_params_to_rate(unsigned long parent_rate,
 {
 	u64 rate = (u64)parent_rate * m;
 	u64 frac_rate;
+	unsigned int frac_max;
 
-	if (frac && MESON_PARM_APPLICABLE(&pll->frac)) {
+	/*
+	 * Assume that pll->frac.width = n, each bit represents the following:
+	 * bit(n-1): positive or negative
+	 * bit(n-2): fixed set to 1 by default
+	 * bit(n-3) ~ bit0: frac value
+	 */
+	if (frac && pll->frac.width > 2) {
 		frac_rate = (u64)parent_rate * frac;
+		if (pll->flags & CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION)
+			frac_max = FRAC_BASE;
+		else
+			frac_max = 1 << (pll->frac.width - 2);
+
 		if (frac & (1 << (pll->frac.width - 1))) {
-			if (pll->flags & CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION)
-				rate -= DIV_ROUND_UP_ULL(frac_rate, FRAC_BASE);
-			else
-				rate -= DIV_ROUND_UP_ULL(frac_rate,
-						 (1 << (pll->frac.width - 2)));
+			rate -= DIV_ROUND_UP_ULL(frac_rate, frac_max);
 		} else {
-			if (pll->flags & CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION)
-				rate += DIV_ROUND_UP_ULL(frac_rate, FRAC_BASE);
-			else
-				rate += DIV_ROUND_UP_ULL(frac_rate,
-						 (1 << (pll->frac.width - 2)));
+			rate += DIV_ROUND_UP_ULL(frac_rate, frac_max);
 		}
 	}
 
@@ -159,6 +163,9 @@ static unsigned int __pll_params_with_frac(unsigned long rate,
 	unsigned int frac_max;
 	u64 val = ((u64)rate * n) << od;
 
+	if (pll->frac.width <= 2)
+		return 0;
+
 	if (pll->flags & CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION)
 		frac_max = FRAC_BASE;
 	else
@@ -172,7 +179,7 @@ static unsigned int __pll_params_with_frac(unsigned long rate,
 	else
 		val = div_u64(val * frac_max, parent_rate);
 
-	val -= m * frac_max;
+	val -= (u64)m * frac_max;
 
 	return min((unsigned int)val, (frac_max - 1));
 }
@@ -185,6 +192,9 @@ static unsigned int __pll_params_with_frac(unsigned long rate,
 {
 	unsigned int frac_max;
 	u64 val = (u64)rate * n;
+
+	if (pll->frac.width <= 2)
+		return 0;
 
 	if (pll->flags & CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION)
 		frac_max = FRAC_BASE;
@@ -199,7 +209,7 @@ static unsigned int __pll_params_with_frac(unsigned long rate,
 	else
 		val = div_u64(val * frac_max, parent_rate);
 
-	val -= m * frac_max;
+	val -= (u64)m * frac_max;
 
 	return min((unsigned int)val, (frac_max - 1));
 }

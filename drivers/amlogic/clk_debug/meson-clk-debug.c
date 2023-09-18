@@ -50,7 +50,7 @@ static ssize_t parent_write(struct file *file, const char __user *buffer,
 
 	input[count] = '\0';
 
-	ret = sscanf(input, "%s", clk_name);
+	ret = sscanf(input, "%23s", clk_name);
 	if (ret != 1) {
 		pr_err("wrong usage, try: echo clk_name  > clk\n");
 		return -EINVAL;
@@ -201,7 +201,7 @@ static ssize_t clk_read(struct file *file, char __user *buffer,
 	char buf[48];
 	unsigned int len;
 
-	len = sprintf(buf, "get %s clock, its rate = %lu\n",
+	len = snprintf(buf, 48, "get %s clock, its rate = %lu\n",
 		      __clk_get_name(debug_clk),
 		      clk_get_rate(debug_clk));
 
@@ -224,7 +224,7 @@ static ssize_t clk_write(struct file *file, const char __user *buffer,
 
 	input[count] = '\0';
 
-	ret = sscanf(input, "%s", clk_name);
+	ret = sscanf(input, "%23s", clk_name);
 	if (ret != 1) {
 		pr_err("wrong usage, try: echo clk_name  > clk\n");
 		return -EINVAL;
