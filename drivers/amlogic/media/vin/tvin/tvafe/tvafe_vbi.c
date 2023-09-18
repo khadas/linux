@@ -1366,6 +1366,15 @@ static int vbi_slicer_set(struct vbi_dev_s *vbi_dev,
 	return 0;/* vbi_slicer_start(vbi_dev); */
 }
 
+/* manual reset vbi */
+static void vbi_manual_reset(void)
+{
+	W_APB_REG(ACD_REG_22, 0x07080000);
+	W_APB_REG(ACD_REG_22, 0x87080000);
+	W_APB_REG(ACD_REG_22, 0x04080000);
+	udelay(9);
+}
+
 void tvafe_vbi_set_wss(void)
 {
 	struct vbi_dev_s *devp = vbi_dev_local;
@@ -1373,6 +1382,7 @@ void tvafe_vbi_set_wss(void)
 	if (tvafe_clk_status && devp) {
 		devp->slicer->type = VBI_TYPE_WSS625;
 		vbi_slicer_type_set(devp);
+		vbi_manual_reset();
 		W_VBI_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x11);
 	}
 }
@@ -1732,6 +1742,8 @@ static long vbi_ioctl(struct file *file,
 			break;
 		}
 		if (tvafe_clk_status) {
+			if (vbi_slicer->type == VBI_TYPE_USCC)
+				vbi_manual_reset();
 			ret = vbi_slicer_set(vbi_dev, vbi_slicer);
 		} else {
 			ret = -EFAULT;
@@ -2057,10 +2069,7 @@ static ssize_t debug_store(struct device *dev,
 		}
 		tvafe_pr_info("data_wmode:%d\n", vbi_buffer->data_wmode);
 	} else if (!strncmp(parm[0], "start", strlen("start"))) {
-		W_APB_REG(ACD_REG_22, 0x07080000);
-		/* manual reset vbi */
-		W_APB_REG(ACD_REG_22, 0x87080000);
-		W_APB_REG(ACD_REG_22, 0x04080000);
+		vbi_manual_reset();
 		vbi_hw_init(devp);
 		vbi_slicer_start(devp);
 
