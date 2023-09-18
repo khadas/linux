@@ -408,6 +408,7 @@
 		//dspsramsize = <0x100000>;
 		suspend_resume_support = <1 0>;
 		power-domains = <&pwrdm PDID_T3_DSPA>;
+		dsp_clk_freqs = <800000000>;
 		power-domain-names = "dspa";
 		status = "okay";
 	};
