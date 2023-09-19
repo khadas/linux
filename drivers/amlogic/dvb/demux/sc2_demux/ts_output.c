@@ -1627,7 +1627,7 @@ static int write_aucpu_es_data(struct out_elem *pout,
 		if (!(es_params->header.pts_dts_flag & 0x4) ||
 			(pout->type == AUDIO_TYPE &&
 			 es_params->header.len < audio_es_len_limit))
-			out_ts_cb_list(pout, (char *)&es_params->header,
+			out_ts_cb_list(pout, (char *)&header,
 				h_len,
 				(h_len + header.len),
 				&es_params->es_overflow);
