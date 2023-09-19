@@ -824,6 +824,24 @@ static u32 line_stride_calc(u32 drm_format,
 	return line_stride;
 }
 
+static int osd_format_is_rgbx(u32 pixel_format)
+{
+	int is_rgbx = 0;
+
+	switch (pixel_format) {
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_RGBX8888:
+	case DRM_FORMAT_BGRX8888:
+		is_rgbx = 1;
+		break;
+	default:
+		break;
+	}
+
+	return is_rgbx;
+}
+
 static void osd_set_state(struct meson_vpu_block *vblk,
 			  struct meson_vpu_block_state *state,
 			  struct meson_vpu_block_state *old_state)
@@ -876,7 +894,9 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	}
 
 	afbc_en = mvos->afbc_en ? 1 : 0;
-	if (mvos->pixel_blend == DRM_MODE_BLEND_PREMULTI)
+	pixel_format = mvos->pixel_format;
+	if (mvos->pixel_blend == DRM_MODE_BLEND_PREMULTI &&
+		!osd_format_is_rgbx(pixel_format))
 		alpha_div_en = 1;
 
 	/*drm alaph 16bit, amlogic alpha 8bit*/
@@ -907,8 +927,6 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 			scope_src.h_start = scope_src.h_end -
 				mvps->scaler_param[vblk->index].input_width + 1;
 	}
-
-	pixel_format = mvos->pixel_format;
 
 	reverse_x = (mvos->rotation & DRM_MODE_REFLECT_X) ? 1 : 0;
 	reverse_y = (mvos->rotation & DRM_MODE_REFLECT_Y) ? 1 : 0;
