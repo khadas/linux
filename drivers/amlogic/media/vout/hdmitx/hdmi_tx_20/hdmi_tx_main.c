@@ -7115,7 +7115,6 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdmitx_edid_ram_buffer_clear(hdev);
 	hdmitx_edid_done = false;
 	hdev->hpd_state = 0;
-	hdev->pre_tmds_clk_div40 = false;
 	hdmitx_notify_hpd(hdev->hpd_state, NULL);
 	/* under early suspend, only update uevent state, not
 	 * post to system

@@ -6593,7 +6593,6 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdmitx21_edid_ram_buffer_clear(hdev);
 	hdmitx_edid_done = false;
 	hdev->hpd_state = 0;
-	hdev->pre_tmds_clk_div40 = false;
 	hdev->ll_enabled_in_auto_mode = false;
 	if (hdev->tv_usage == 0) {
 		rx_edid_physical_addr(0, 0, 0, 0);
