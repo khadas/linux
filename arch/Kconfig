@@ -1027,7 +1027,7 @@ config ARCH_NO_PREEMPT
 	bool
 
 config ARCH_SUPPORTS_RT
-	bool
+	def_bool y
 
 config CPU_NO_EFFICIENT_FFS
 	def_bool n
