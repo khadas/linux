@@ -1283,7 +1283,7 @@
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
 		status = "okay";
-
+		ctrl_gain = <1>;
 		/* !!!For --TV platform-- ONLY */
 		Channel_Mask {
 			/*i2s has 4 pins, 8channel, mux output*/

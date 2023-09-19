@@ -1205,7 +1205,7 @@
 		 * 4: spdifout_b;
 		 */
 		samesource_sel = <3>;
-
+		ctrl_gain = <1>;
 		/* In for ACODEC_ADC */
 		acodec_adc = <1>;
 		/*enable default mclk(12.288M), before extern codec start*/

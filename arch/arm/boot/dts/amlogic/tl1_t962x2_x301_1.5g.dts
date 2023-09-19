@@ -1272,7 +1272,7 @@ sd_emmc_b: sdio@ffe05000 {
 		 * 4: spdifout_b;
 		 */
 		samesource_sel = <3>;
-
+		ctrl_gain = <1>;
 		/* In for ACODEC_ADC */
 		acodec_adc = <1>;
 		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
