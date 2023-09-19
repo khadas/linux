@@ -1,0 +1,140 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+#include "firmware.dtsi"
+
+/ {
+    partitions: partitions{
+		parts = <20>;
+		part-0 = <&recovery>;
+		part-1 = <&frp>;
+		part-2 = <&factory>;
+		part-3 = <&vendor_boot>;
+		part-4 = <&tee>;
+		part-5 = <&logo>;
+		part-6 = <&misc>;
+		part-7 = <&dtbo>;
+		part-8 = <&cri_data>;
+		part-9 = <&param>;
+		part-10 = <&boot>;
+		part-11 = <&odm_ext>;
+		part-12 = <&oem>;
+		part-13 = <&rsv>;
+		part-14 = <&metadata>;
+		part-15 = <&vbmeta>;
+		part-16 = <&vbmeta_system>;
+		part-17 = <&super>;
+		part-18 = <&cache>;
+		part-19 = <&userdata>;
+
+		recovery:recovery{
+			pname = "recovery";
+			size = <0x0 0x3000000>;
+			mask = <1>;
+		};
+		frp:frp{
+			pname = "frp";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		factory:factory{
+			pname = "factory";
+			size = <0x0 0x800000>;
+			mask = <0x11>;
+		};
+		vendor_boot:vendor_boot{
+			pname = "vendor_boot";
+			size = <0x0 0x1800000>;
+			mask = <1>;
+		};
+		tee:tee{
+			pname = "tee";
+			size = <0x0 0x2000000>;
+			mask = <1>;
+		};
+		logo:logo{
+			pname = "logo";
+			size = <0x0 0x800000>;
+			mask = <1>;
+		};
+		misc:misc{
+			pname = "misc";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		dtbo:dtbo{
+			pname = "dtbo";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		cri_data:cri_data
+		{
+			pname = "cri_data";
+			size = <0x0 0x800000>;
+			mask = <2>;
+		};
+		param:param{
+			pname = "param";
+			size = <0x0 0x1000000>;
+			mask = <2>;
+		};
+		boot:boot
+		{
+			pname = "boot";
+			size = <0x0 0x4000000>;
+			mask = <1>;
+		};
+		odm_ext:odm_ext
+		{
+			pname = "odm_ext";
+			size = <0x0 0x1000000>;
+			mask = <1>;
+		};
+		oem:oem
+		{
+			pname = "oem";
+			size = <0x0 0x2000000>;
+			mask = <1>;
+		};
+		rsv:rsv{
+			pname = "rsv";
+			size = <0x0 0x1000000>;
+			mask = <1>;
+		};
+		metadata:metadata{
+			pname = "metadata";
+			size = <0x0 0x1000000>;
+			mask = <1>;
+		};
+		vbmeta:vbmeta{
+			pname = "vbmeta";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		vbmeta_system:vbmeta_system{
+			pname = "vbmeta_system";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		super:super
+		{
+			pname = "super";
+			size = <0x0 0xbb800000>;
+			mask = <1>;
+		};
+		cache:cache
+		{
+			pname = "cache";
+			size = <0x0 0x5dc00000>;
+			mask = <2>;
+		};
+		userdata:userdata
+		{
+			pname = "userdata";
+			size = <0xffffffff 0xffffffff>;
+			mask = <4>;
+		};
+	};
+};/* end of / */
