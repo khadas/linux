@@ -48,6 +48,9 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
+#include <media/v4l2-fwnode.h>
+#include <media/v4l2-mediabus.h>
+#include <linux/of_graph.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
@@ -69,6 +72,7 @@
 #define OF_CAMERA_HDR_MODE		"rockchip,camera-hdr-mode"
 
 #define IMX415_XVCLK_FREQ_37M		37125000
+#define IMX415_XVCLK_FREQ_24M		24000000
 
 /* TODO: Get the real chip id from reg */
 #define CHIP_ID				0xE0
@@ -232,6 +236,7 @@ struct imx415 {
 	u32			cur_vts;
 	bool			has_init_exp;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
+	struct v4l2_fwnode_endpoint bus_cfg;
 };
 
 static struct rkmodule_csi_dphy_param dcphy_param = {
@@ -745,6 +750,141 @@ static __maybe_unused const struct regval imx415_hdr2_12bit_1932x1096_891M_regs[
 	{REG_NULL, 0x00},
 };
 
+static __maybe_unused const struct regval imx415_global_10bit_3864x2192_regs_2lane[] = {
+	{REG_NULL, 0x00},
+};
+
+static __maybe_unused const struct regval imx415_linear_10bit_3864x2192_regs_2lane[] = {
+	{0x3002, 0x00},
+	{0x3008, 0x54},
+	{0x300A, 0x3B},
+	{0x3024, 0xCB},
+	{0x3028, 0x2A},
+	{0x3029, 0x04},
+	{0x3031, 0x00},
+	{0x3032, 0x00},
+	{0x3033, 0x08},
+	{0x3050, 0x08},
+	{0x30C1, 0x00},
+	{0x3116, 0x23},
+	{0x3118, 0xB4},
+	{0x311A, 0xFC},
+	{0x311E, 0x23},
+	{0x32D4, 0x21},
+	{0x32EC, 0xA1},
+	{0x344C, 0x2B},
+	{0x344D, 0x01},
+	{0x344E, 0xED},
+	{0x344F, 0x01},
+	{0x3450, 0xF6},
+	{0x3451, 0x02},
+	{0x3452, 0x7F},
+	{0x3453, 0x03},
+	{0x358A, 0x04},
+	{0x35A1, 0x02},
+	{0x35EC, 0x27},
+	{0x35EE, 0x8D},
+	{0x35F0, 0x8D},
+	{0x35F2, 0x29},
+	{0x36BC, 0x0C},
+	{0x36CC, 0x53},
+	{0x36CD, 0x00},
+	{0x36CE, 0x3C},
+	{0x36D0, 0x8C},
+	{0x36D1, 0x00},
+	{0x36D2, 0x71},
+	{0x36D4, 0x3C},
+	{0x36D6, 0x53},
+	{0x36D7, 0x00},
+	{0x36D8, 0x71},
+	{0x36DA, 0x8C},
+	{0x36DB, 0x00},
+	{0x3701, 0x00},
+	{0x3720, 0x00},
+	{0x3724, 0x02},
+	{0x3726, 0x02},
+	{0x3732, 0x02},
+	{0x3734, 0x03},
+	{0x3736, 0x03},
+	{0x3742, 0x03},
+	{0x3862, 0xE0},
+	{0x38CC, 0x30},
+	{0x38CD, 0x2F},
+	{0x395C, 0x0C},
+	{0x39A4, 0x07},
+	{0x39A8, 0x32},
+	{0x39AA, 0x32},
+	{0x39AC, 0x32},
+	{0x39AE, 0x32},
+	{0x39B0, 0x32},
+	{0x39B2, 0x2F},
+	{0x39B4, 0x2D},
+	{0x39B6, 0x28},
+	{0x39B8, 0x30},
+	{0x39BA, 0x30},
+	{0x39BC, 0x30},
+	{0x39BE, 0x30},
+	{0x39C0, 0x30},
+	{0x39C2, 0x2E},
+	{0x39C4, 0x2B},
+	{0x39C6, 0x25},
+	{0x3A42, 0xD1},
+	{0x3A4C, 0x77},
+	{0x3AE0, 0x02},
+	{0x3AEC, 0x0C},
+	{0x3B00, 0x2E},
+	{0x3B06, 0x29},
+	{0x3B98, 0x25},
+	{0x3B99, 0x21},
+	{0x3B9B, 0x13},
+	{0x3B9C, 0x13},
+	{0x3B9D, 0x13},
+	{0x3B9E, 0x13},
+	{0x3BA1, 0x00},
+	{0x3BA2, 0x06},
+	{0x3BA3, 0x0B},
+	{0x3BA4, 0x10},
+	{0x3BA5, 0x14},
+	{0x3BA6, 0x18},
+	{0x3BA7, 0x1A},
+	{0x3BA8, 0x1A},
+	{0x3BA9, 0x1A},
+	{0x3BAC, 0xED},
+	{0x3BAD, 0x01},
+	{0x3BAE, 0xF6},
+	{0x3BAF, 0x02},
+	{0x3BB0, 0xA2},
+	{0x3BB1, 0x03},
+	{0x3BB2, 0xE0},
+	{0x3BB3, 0x03},
+	{0x3BB4, 0xE0},
+	{0x3BB5, 0x03},
+	{0x3BB6, 0xE0},
+	{0x3BB7, 0x03},
+	{0x3BB8, 0xE0},
+	{0x3BBA, 0xE0},
+	{0x3BBC, 0xDA},
+	{0x3BBE, 0x88},
+	{0x3BC0, 0x44},
+	{0x3BC2, 0x7B},
+	{0x3BC4, 0xA2},
+	{0x3BC8, 0xBD},
+	{0x3BCA, 0xBD},
+	{0x4001, 0x01},
+	{0x4004, 0x00},
+	{0x4005, 0x06},
+	{0x4018, 0x9F},
+	{0x401A, 0x57},
+	{0x401C, 0x57},
+	{0x401E, 0x87},
+	{0x4020, 0x5F},
+	{0x4022, 0xA7},
+	{0x4024, 0x5F},
+	{0x4026, 0x97},
+	{0x4028, 0x4F},
+	{REG_NULL, 0x00},
+};
+
 /*
  * The width and height must be configured to be
  * the same as the current output resolution of the sensor.
@@ -757,7 +897,10 @@ static __maybe_unused const struct regval imx415_hdr2_12bit_1932x1096_891M_regs[
  *	.get_selection
  * }
  */
-static const struct imx415_mode supported_modes[] = {
+
+static const struct imx415_mode *supported_modes = NULL;
+
+static const struct imx415_mode supported_modes_4lane[] = {
 	/*
 	 * frame rate = 1 / (Vtt * 1H) = 1 / (VMAX * 1H)
 	 * VMAX >= (PIX_VWIDTH / 2) + 46 = height + 46
@@ -969,6 +1112,31 @@ static const struct imx415_mode supported_modes[] = {
 	},
 };
 
+static const struct imx415_mode supported_modes_2lane[] = {
+	/*
+	 * frame rate = 1 / (Vtt * 1H) = 1 / (VMAX * 1H)
+	 * VMAX >= (PIX_VWIDTH / 2) + 46 = height + 46
+	 */
+	{
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.width = 3864,
+		.height = 2192,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x08ca - 0x08,
+		.hts_def = 0x044c * 4,
+		.vts_def = 0x08cb,
+		.global_reg_list = imx415_global_10bit_3864x2192_regs_2lane,
+		.reg_list = imx415_linear_10bit_3864x2192_regs_2lane,
+		.hdr_mode = NO_HDR,
+		.mipi_freq_idx = 2,
+		.bpp = 10,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+	},
+};
+
 static const s64 link_freq_items[] = {
 	MIPI_FREQ_297M,
 	MIPI_FREQ_446M,
@@ -1106,6 +1274,7 @@ static int imx415_set_fmt(struct v4l2_subdev *sd,
 	const struct imx415_mode *mode;
 	s64 h_blank, vblank_def, vblank_min;
 	u64 pixel_rate = 0;
+	int lanes = imx415->bus_cfg.bus.mipi_csi2.num_data_lanes;
 
 	mutex_lock(&imx415->mutex);
 
@@ -1134,7 +1303,7 @@ static int imx415_set_fmt(struct v4l2_subdev *sd,
 					 1, vblank_def);
 		__v4l2_ctrl_s_ctrl(imx415->vblank, vblank_def);
 		__v4l2_ctrl_s_ctrl(imx415->link_freq, mode->mipi_freq_idx);
-		pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * IMX415_4LANES;
+		pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * lanes;
 		__v4l2_ctrl_s_ctrl_int64(imx415->pixel_rate,
 					 pixel_rate);
 	}
@@ -1227,8 +1396,9 @@ static int imx415_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 	struct imx415 *imx415 = to_imx415(sd);
 	const struct imx415_mode *mode = imx415->cur_mode;
 	u32 val = 0;
+	int lanes = imx415->bus_cfg.bus.mipi_csi2.num_data_lanes;
 
-	val = 1 << (IMX415_4LANES - 1) |
+	val = 1 << (lanes - 1) |
 	      V4L2_MBUS_CSI2_CHANNEL_0 |
 	      V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	if (mode->hdr_mode != NO_HDR)
@@ -1687,6 +1857,7 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	const struct imx415_mode *mode;
 	u64 pixel_rate = 0;
 	struct rkmodule_csi_dphy_param *dphy_param;
+	int lanes = imx415->bus_cfg.bus.mipi_csi2.num_data_lanes;
 
 	switch (cmd) {
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -1741,7 +1912,7 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				IMX415_VTS_MAX - mode->height,
 				1, h);
 			__v4l2_ctrl_s_ctrl(imx415->link_freq, mode->mipi_freq_idx);
-			pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * IMX415_4LANES;
+			pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * lanes;
 			__v4l2_ctrl_s_ctrl_int64(imx415->pixel_rate,
 						 pixel_rate);
 			mutex_unlock(&imx415->mutex);
@@ -1771,8 +1942,7 @@ static long imx415_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKMODULE_GET_CSI_DPHY_PARAM:
 		if (imx415->cur_mode->hdr_mode == HDR_X2) {
 			dphy_param = (struct rkmodule_csi_dphy_param *)arg;
-			if (dphy_param->vendor == dcphy_param.vendor)
-				*dphy_param = dcphy_param;
+			*dphy_param = dcphy_param;
 			dev_info(&imx415->client->dev,
 				 "get sensor dphy param\n");
 		} else
@@ -2046,6 +2216,8 @@ int __imx415_power_on(struct imx415 *imx415)
 {
 	int ret;
 	struct device *dev = &imx415->client->dev;
+	u32 mclk_rate = 0;
+	int lanes = imx415->bus_cfg.bus.mipi_csi2.num_data_lanes;
 
 	if (imx415->is_thunderboot)
 		return 0;
@@ -2073,10 +2245,14 @@ int __imx415_power_on(struct imx415 *imx415)
 	/* At least 1us between XCLR and clk */
 	/* fix power on timing if insmod this ko */
 	usleep_range(10 * 1000, 20 * 1000);
-	ret = clk_set_rate(imx415->xvclk, IMX415_XVCLK_FREQ_37M);
+	if (lanes == 4)
+		mclk_rate = IMX415_XVCLK_FREQ_37M;
+	else
+		mclk_rate = IMX415_XVCLK_FREQ_24M;
+	ret = clk_set_rate(imx415->xvclk, mclk_rate);
 	if (ret < 0)
 		dev_warn(dev, "Failed to set xvclk rate\n");
-	if (clk_get_rate(imx415->xvclk) != IMX415_XVCLK_FREQ_37M)
+	if (clk_get_rate(imx415->xvclk) != mclk_rate)
 		dev_warn(dev, "xvclk mismatched\n");
 	ret = clk_prepare_enable(imx415->xvclk);
 	if (ret < 0) {
@@ -2404,6 +2580,7 @@ static int imx415_initialize_controls(struct imx415 *imx415)
 	u64 pixel_rate;
 	u32 h_blank;
 	int ret;
+	int lanes = imx415->bus_cfg.bus.mipi_csi2.num_data_lanes;
 
 	handler = &imx415->ctrl_handler;
 	mode = imx415->cur_mode;
@@ -2419,7 +2596,7 @@ static int imx415_initialize_controls(struct imx415 *imx415)
 	v4l2_ctrl_s_ctrl(imx415->link_freq, mode->mipi_freq_idx);
 
 	/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
-	pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * IMX415_4LANES;
+	pixel_rate = (u32)link_freq_items[mode->mipi_freq_idx] / mode->bpp * 2 * lanes;
 	imx415->pixel_rate = v4l2_ctrl_new_std(handler, NULL,
 		V4L2_CID_PIXEL_RATE, 0, IMX415_MAX_PIXEL_RATE,
 		1, pixel_rate);
@@ -2515,6 +2692,7 @@ static int imx415_probe(struct i2c_client *client,
 	char facing[2];
 	int ret;
 	u32 i, hdr_mode = 0;
+	struct device_node *endpoint;
 
 	dev_info(dev, "driver version: %02x.%02x.%02x",
 		DRIVER_VERSION >> 16,
@@ -2543,8 +2721,21 @@ static int imx415_probe(struct i2c_client *client,
 		hdr_mode = NO_HDR;
 		dev_warn(dev, " Get hdr mode failed! no hdr default\n");
 	}
+	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
+	if (!endpoint) {
+		dev_err(dev, "Failed to get endpoint\n");
+		return -EINVAL;
+	}
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
+					 &imx415->bus_cfg);
 	imx415->client = client;
-	imx415->cfg_num = ARRAY_SIZE(supported_modes);
+	if (imx415->bus_cfg.bus.mipi_csi2.num_data_lanes == 4) {
+		supported_modes = supported_modes_4lane;
+		imx415->cfg_num = ARRAY_SIZE(supported_modes_4lane);
+	} else {
+		supported_modes = supported_modes_2lane;
+		imx415->cfg_num = ARRAY_SIZE(supported_modes_2lane);
+	}
 	for (i = 0; i < imx415->cfg_num; i++) {
 		if (hdr_mode == supported_modes[i].hdr_mode) {
 			imx415->cur_mode = &supported_modes[i];
