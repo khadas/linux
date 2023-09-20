@@ -3956,7 +3956,7 @@ static void dct_pst(const struct reg_acc *op, struct dimn_dvfm_s *ndvfm)
 		return;
 	}
 	if (!get_datal()->dct_op->mem_check(pch, ndvfm->c.dct_pre)) {
-		PR_WARN("%s:ch[%d]:dct_pre not match: %px %px\n",
+		dbg_plink1("%s:ch[%d]:dct_pre not match: %px %px\n",
 			__func__, ndvfm->itf->bind_ch,
 			ndvfm->c.dct_pre, pch->dct_pre);
 		return;
@@ -4920,7 +4920,7 @@ static bool recycle_in(struct dimn_itf_s *itf, ud buf)
 			if (get_datal()->dct_op->mem_check(pch, ndvfm->c.dct_pre))
 				get_datal()->dct_op->mem_put_free(ndvfm->c.dct_pre);
 			else
-				PR_WARN("%s:dct_pre not match %px %px\n",
+				dbg_plink1("%s:dct_pre not match %px %px\n",
 					__func__, ndvfm->c.dct_pre, pch->dct_pre);
 		} else {
 			PR_WARN("%s:ch or NULL:%d %d:(%d %d) %px %px %px %px(%px) %s\n",
@@ -5258,11 +5258,6 @@ static int dpvpp_get_plink_input_win(struct di_ch_s *pch,
 		ret++;
 	val = tmp.y_check_sum & 0xffff;
 	if (val != ((tmp.y_st + tmp.y_end) & 0xffff))
-		ret++;
-
-	if (src_w != tmp.orig_w)
-		ret++;
-	if (src_h != tmp.orig_h)
 		ret++;
 
 	if (ret)
@@ -8141,6 +8136,7 @@ static bool vtype_fill_d(struct dimn_itf_s *itf,
 	int i;
 	void *priv;
 	unsigned int index;
+	struct di_ch_s *pch;
 	struct dcntr_mem_s *dcntr_mem = NULL;
 
 	if (!vfmt || !vfmf || !by_dvfm || !itf)
@@ -8207,9 +8203,14 @@ static bool vtype_fill_d(struct dimn_itf_s *itf,
 			unsigned int ds_ratio = 0;
 
 			dvfm = (struct dimn_dvfm_s *)vfmt->private_data;
-			if (dvfm)
+			if (dvfm) {
 				dcntr_mem = (struct dcntr_mem_s *)dvfm->c.dct_pre;
-			if (dcntr_mem) {
+				dbg_plink1("%s: private_data:0x%px\n",
+						__func__, vfmt->private_data);
+			}
+			pch = get_chdata(itf->bind_ch);
+			if (dcntr_mem && pch && pch->dct_pre &&
+				get_datal()->dct_op->mem_check(pch, dcntr_mem)) {
 				ds_ratio = dcntr_mem->ds_ratio;
 				if (itf->c.last_ds_ratio != ds_ratio)
 					dbg_plink1("%s: ds_ratio:%d->%d\n",
@@ -8217,6 +8218,8 @@ static bool vtype_fill_d(struct dimn_itf_s *itf,
 				itf->c.last_ds_ratio = ds_ratio;
 			} else {
 				/* keep the last_ds_ratio if meet dct pre timeout */
+				dbg_plink1("%s:dct_pre not match %px\n",
+					__func__, pch->dct_pre);
 				ds_ratio = itf->c.last_ds_ratio;
 			}
 			ds_ratio = ds_ratio << DI_FLAG_DCT_DS_RATIO_BIT;

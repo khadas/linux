@@ -9980,6 +9980,11 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 			for_amdv_certification()),
 			op_flag);
 #ifdef ENABLE_PRE_LINK
+		if (!IS_ERR_OR_NULL(vinfo) && vinfo->sync_duration_den > 0 &&
+			vinfo->sync_duration_num > 0) {
+			if ((vinfo->sync_duration_num / vinfo->sync_duration_den) > 60)
+				layer->prelink_bypass_check = true;
+		}
 		if (layer->layer_id == 0 &&
 		    update_pre_link_state(layer, vf))
 			ret = vppfilter_success_and_switched;
