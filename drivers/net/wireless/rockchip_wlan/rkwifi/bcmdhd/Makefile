@@ -322,19 +322,6 @@ endif
 	DHDCFLAGS += -DCUSTOMER_HW_ROCKCHIP
 endif
 
-ifeq ($(CONFIG_BCMDHD_REQUEST_FW),y)
-	DHDCFLAGS += -DDHD_LINUX_STD_FW_API
-	DHDCFLAGS += -DDHD_FW_NAME="\"fw_bcmdhd.bin\""
-	DHDCFLAGS += -DDHD_NVRAM_NAME="\"nvram.txt\""
-	DHDCFLAGS += -DDHD_CLM_NAME="\"clm_bcmdhd.blob\""
-else
-ifeq ($(CONFIG_BCMDHD_FW_PATH),)
-	DHDCFLAGS += -DCONFIG_BCMDHD_FW_PATH="\"/system/etc/firmware/fw_bcmdhd.bin\""
-	DHDCFLAGS += -DCONFIG_BCMDHD_NVRAM_PATH="\"/system/etc/firmware/nvram.txt\""
-	DHDCFLAGS += -DCONFIG_BCMDHD_CLM_PATH="\"/system/etc/firmware/clm_bcmdhd.blob\""
-endif
-endif
-
 ifeq ($(CONFIG_BCMDHD_AG),y)
 	DHDCFLAGS += -DBAND_AG
 endif
