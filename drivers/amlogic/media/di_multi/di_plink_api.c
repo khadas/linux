@@ -5231,7 +5231,7 @@ static int dpvpp_get_plink_input_win(struct di_ch_s *pch,
 	if (!out ||
 	    hw->dis_ch != pch->ch_id ||
 	    !atomic_read(&hw->link_sts)) {
-		PR_WARN("%s:2 %d %d %px, sts:%d\n",
+		dbg_plink2("%s:2 %d %d %px, sts:%d\n",
 			__func__, hw->dis_ch, pch->ch_id,
 			out, atomic_read(&hw->link_sts) ? 1 : 0);
 		//spin_unlock_irqrestore(&lock_pvpp, irq_flag);

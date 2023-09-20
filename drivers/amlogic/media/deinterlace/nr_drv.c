@@ -59,6 +59,7 @@ static bool nr4ne_en;
 module_param_named(nr4ne_en, nr4ne_en, bool, 0644);
 
 static bool nr_ctrl_reg;
+module_param_named(nr_ctrl_reg, nr_ctrl_reg, bool, 0644);
 
 bool nr_demo_flag;
 
@@ -418,7 +419,7 @@ static void nr4_config_op(struct NR4_PARM_s *nr4_parm_p,
 	if (dim_config_crc_ic()) {
 		op->wr(NR4_MCNR_LUMAPRE_CAL_PRAM, 0);
 		op->wr(NR4_MCNR_LUMACUR_CAL_PRAM, 0);
-		op->wr(NR4_MCNR_MV_CTRL_REG, 0x2408);
+		Wr(NR4_MCNR_MV_CTRL_REG, 0x2408);
 	} //add for crc @2k22-0102
 	/* noise meter */
 	op->wr(NR4_NM_X_CFG, (val << 16) | (width - val - 1));
@@ -428,13 +429,13 @@ static void nr4_config_op(struct NR4_PARM_s *nr4_parm_p,
 		op->wr(NR4_NE_Y, height - 1);
 	}
 	/* enable nr4 */
-	op->bwr(NR4_TOP_CTRL, 1, 16, 1);
-	op->bwr(NR4_TOP_CTRL, 1, 18, 1);
-	op->bwr(NR4_TOP_CTRL, 1, 3, 1);
-	op->bwr(NR4_TOP_CTRL, 1, 5, 1);
+	Wr_reg_bits(NR4_TOP_CTRL, 1, 16, 1);
+	Wr_reg_bits(NR4_TOP_CTRL, 1, 18, 1);
+	Wr_reg_bits(NR4_TOP_CTRL, 1, 3, 1);
+	Wr_reg_bits(NR4_TOP_CTRL, 1, 5, 1);
 	//add for crc @2k22-0102
 	if (dim_config_crc_ic())
-		op->bwr(NR4_TOP_CTRL, 0, 0, 1);
+		Wr_reg_bits(NR4_TOP_CTRL, 0, 0, 1);
 	nr4_parm_p->width = width - val - val - 1;
 	nr4_parm_p->height = height - val - val - 1;
 }
@@ -488,9 +489,9 @@ static void nr2_config_op(unsigned short width, unsigned short height,
 		IS_IC(dil_get_cpuver_flag(), T5D)	||
 		IS_IC(dil_get_cpuver_flag(), T5DB)	||
 		cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
-		op->bwr(NR4_TOP_CTRL, nr2_en, 2, 1);
-		op->bwr(NR4_TOP_CTRL, nr2_en, 15, 1);
-		op->bwr(NR4_TOP_CTRL, nr2_en, 17, 1);
+		Wr_reg_bits(NR4_TOP_CTRL, nr2_en, 2, 1);
+		Wr_reg_bits(NR4_TOP_CTRL, nr2_en, 15, 1);
+		Wr_reg_bits(NR4_TOP_CTRL, nr2_en, 17, 1);
 	} else {
 		/*set max height to disable nfram cnt in cue*/
 		if (is_meson_gxlx_cpu())
@@ -531,13 +532,13 @@ static void cue_config_op(struct CUE_PARM_s *pcue_parm, unsigned short field_typ
 	    (!IS_IC(dil_get_cpuver_flag(), T5)) && (!IS_IC(dil_get_cpuver_flag(), T5DB))) {
 		if (field_type != VIDTYPE_PROGRESSIVE) {
 			op->bwr(NR2_CUE_PRG_DIF, 0, 20, 1);
-			op->bwr(NR4_TOP_CTRL, 0, 1, 1);
+			Wr_reg_bits(NR4_TOP_CTRL, 0, 1, 1);
 			/* cur row mode avoid seek error */
 			op->bwr(NR2_CUE_MODE, 5, 0, 4);
 		} else {
 			op->bwr(NR2_CUE_PRG_DIF, 1, 20, 1);
 			/* disable cue for progressive issue */
-			op->bwr(NR4_TOP_CTRL, 0, 1, 1);
+			Wr_reg_bits(NR4_TOP_CTRL, 0, 1, 1);
 		}
 	} else {
 		if (field_type != VIDTYPE_PROGRESSIVE) {
@@ -635,7 +636,7 @@ static void secam_cfr_fun_op(int top,
 		return;
 	}
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
-		op->bwr(NR4_TOP_CTRL, 1, 12, 1);/*set cfr_en:1*/
+		Wr_reg_bits(NR4_TOP_CTRL, 1, 12, 1);/*set cfr_en:1*/
 	else
 		op->bwr(NR2_SW_EN, 1, 7, 1);/*set cfr_en:1*/
 	op->bwr(NR2_CFR_PARA_CFG0, 1, 2, 2);
@@ -659,7 +660,7 @@ void secam_cfr_adjust_op(unsigned int sig_fmt, unsigned int frame_type,
 			      VIDTYPE_INTERLACE_TOP, op);
 	} else {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
-			op->bwr(NR4_TOP_CTRL, 0, 12, 1);/*set cfr_en:0*/
+			Wr_reg_bits(NR4_TOP_CTRL, 0, 12, 1);/*set cfr_en:0*/
 		else
 			op->bwr(NR2_SW_EN, 0, 7, 1);/*set cfr_en:0*/
 		op->bwr(NR2_CFR_PARA_CFG0, 2, 2, 2);
@@ -769,7 +770,7 @@ static void noise_meter_process_op(struct NR4_PARM_s *nr4_param_p,
 		val1 = find_lut16(val2, &nr4_param_p->sw_nr4_sad2gain_lut[0]);
 	} else
 		val1 = 64;
-	op->bwr(NR4_MCNR_MV_CTRL_REG, val1, 4, 8);
+	Wr_reg_bits(NR4_MCNR_MV_CTRL_REG, val1, 4, 8);
 	/*add for TL1------*/
 	if (nr4_param_p->sw_nr4_noise_ctrl_dm_en == 1) {
 		if (nr4_param_p->sw_nr4_noise_sel == 0) {
@@ -799,9 +800,9 @@ static void noise_meter_process_op(struct NR4_PARM_s *nr4_param_p,
 		nr4_param_p->sw_nr4_scene_change_flg[2] = 0;
 	if (nr4_param_p->sw_nr4_scene_change_flg[1] ||
 		nr4_param_p->sw_nr4_scene_change_flg[2])
-		op->bwr(NR4_TOP_CTRL, 1, 0, 1);
+		Wr_reg_bits(NR4_TOP_CTRL, 1, 0, 1);
 	else
-		op->bwr(NR4_TOP_CTRL, 0, 0, 1);
+		Wr_reg_bits(NR4_TOP_CTRL, 0, 0, 1);
 
 	/*fot TL1 **************/
 	if (nr4_param_p->sw_dm_scene_change_en == 1) {
@@ -1356,10 +1357,10 @@ static void cue_process_irq_op(const struct reg_acc *op)
 			    (!IS_IC(dil_get_cpuver_flag(), T5D)) &&
 			    (!IS_IC(dil_get_cpuver_flag(), T5)) &&
 			    (!IS_IC(dil_get_cpuver_flag(), T5DB)))
-				op->bwr(NR4_TOP_CTRL,
+				Wr_reg_bits(NR4_TOP_CTRL,
 					       cue_en ? 1 : 0, 1, 1);
 			else
-				op->bwr(DI_NR_CTRL0,
+				Wr_reg_bits(DI_NR_CTRL0,
 					       cue_en ? 1 : 0, 26, 1);
 			/*confirm with vlsi,fix jira SWPL-31571*/
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2) &&
@@ -1408,7 +1409,7 @@ void cue_int_op(struct vframe_s *vf, const struct reg_acc *op)
 		    (!IS_IC(dil_get_cpuver_flag(), T5D)) &&
 		    (!IS_IC(dil_get_cpuver_flag(), T5)) &&
 		    (!IS_IC(dil_get_cpuver_flag(), T5DB)))
-			op->bwr(NR4_TOP_CTRL, 0, 1, 1);
+			Wr_reg_bits(NR4_TOP_CTRL, 0, 1, 1);
 		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX))
 			op->bwr(DI_NR_CTRL0, 0, 26, 1);
 	}
@@ -2291,7 +2292,7 @@ static DEVICE_ATTR(dnr_param, 0664, dnr_param_show, dnr_param_store);
 static void nr_all_ctrl(bool enable, const struct reg_acc *op)
 {
 	unsigned char value = 0;
-
+	unsigned int data;
 	if (!op) {
 		pr_error("%s:no op\n", __func__);
 		return;
@@ -2301,13 +2302,21 @@ static void nr_all_ctrl(bool enable, const struct reg_acc *op)
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 		/* nr4 nr2*/
-		op->bwr(NR4_TOP_CTRL, value, 18, 1);
-		op->bwr(NR4_TOP_CTRL, value, 2, 1);
+		if (value) {
+			data = Rd(NR4_TOP_CTRL);
+			Wr(NR4_TOP_CTRL, data | 0x00040004);
+			data = Rd(DNR_CTRL);
+			Wr(DNR_CTRL, data | 0x00010000);
+		} else {
+			data = Rd(NR4_TOP_CTRL);
+			Wr(NR4_TOP_CTRL, data & 0xfffbfffb);
+			data = Rd(DNR_CTRL);
+			Wr(DNR_CTRL, data & 0xfffeffff);
+		}
 	} else {
 		op->bwr(NR2_SW_EN, value, 4, 1);
+		op->bwr(DNR_CTRL, value, 16, 1);
 	}
-	op->bwr(DNR_CTRL, value, 16, 1);
-
 }
 
 static void nr_demo_mode(bool enable, const struct reg_acc *op)
@@ -2318,10 +2327,10 @@ static void nr_demo_mode(bool enable, const struct reg_acc *op)
 	}
 
 	if (enable) {
-		op->bwr(NR4_TOP_CTRL, 0, 6, 3);
+		Wr_reg_bits(NR4_TOP_CTRL, 0, 6, 3);
 		nr_demo_flag = 1;
 	} else {
-		op->bwr(NR4_TOP_CTRL, 7, 6, 3);
+		Wr_reg_bits(NR4_TOP_CTRL, 7, 6, 3);
 		nr_demo_flag = 0;
 	}
 }
