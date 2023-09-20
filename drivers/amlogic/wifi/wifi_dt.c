@@ -444,7 +444,8 @@ static long wifi_power_ioctl(struct file *filp,
 			return -ENOTTY;
 		break;
 	case GET_AML_WIIF_MODULE:
-		WIFI_INFO("aml module chip is %s", aml_wifi_chip_type);
+		if (memcmp(aml_wifi_chip_type, "NULL", 4))
+			WIFI_INFO("aml module chip is %s", aml_wifi_chip_type);
 		if (copy_to_user((char __user *)arg,
 					aml_wifi_chip_type, 10))
 			return -ENOTTY;
