@@ -85,9 +85,9 @@ struct es8316_priv {
 	int hp_det_invert;
 	struct delayed_work work;
 
-	int spk_ctl_gpio;
-	int spk_mute_gpio;
-	int hp_det_gpio;
+	//int spk_ctl_gpio;
+	//int spk_mute_gpio;
+	//int hp_det_gpio;
 	bool muted;
 	bool hp_inserted;
 	bool spk_active_level;
@@ -120,14 +120,14 @@ static int es8316_reset(struct snd_soc_codec *codec)
 
 static void es8316_enable_spk(struct es8316_priv *es8316, bool enable)
 {
-	bool level;
+	/*bool level;
 
 	level = enable ? es8316->spk_active_level : !es8316->spk_active_level;
 	printk("es8316 spk_ctl_gpio %d\n",level);
 	gpio_set_value(es8316->spk_ctl_gpio, level);
 	level = !level;
 	printk("es8316 spk_mute_gpio %d\n",level);
-	gpio_set_value(es8316->spk_mute_gpio, level);
+	gpio_set_value(es8316->spk_mute_gpio, level);*/
 }
 
 static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -9600, 50, 1);
@@ -738,8 +738,9 @@ static int es8316_pcm_startup(struct snd_pcm_substream *substream,
 static void es8316_pcm_shutdown(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	//struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	//struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct es8316_priv *es8316 = snd_soc_codec_get_drvdata(codec);
 	bool playback = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
 
@@ -878,7 +879,7 @@ static int es8316_set_bias_level(struct snd_soc_codec *codec,
 #define es8316_RATES SNDRV_PCM_RATE_8000_96000
 
 #define es8316_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
-	SNDRV_PCM_FMTBIT_S24_LE)
+	SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct snd_soc_dai_ops es8316_ops = {
 	.startup = es8316_pcm_startup,
@@ -890,7 +891,7 @@ static struct snd_soc_dai_ops es8316_ops = {
 };
 
 static struct snd_soc_dai_driver es8316_dai = {
-	.name = "ES8316 HiFi",
+	.name = "ES8316-HiFi",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 1,
@@ -1009,7 +1010,7 @@ static int es8316_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static irqreturn_t es8316_irq_handler(int irq, void *data)
+/*static irqreturn_t es8316_irq_handler(int irq, void *data)
 {
 	struct es8316_priv *es8316 = data;
 
@@ -1017,7 +1018,7 @@ static irqreturn_t es8316_irq_handler(int irq, void *data)
 			   msecs_to_jiffies(es8316->debounce_time));
 
 	return IRQ_HANDLED;
-}
+}*/
 
 /*
  * Call from rk_headset_irq_hook_adc.c
@@ -1047,7 +1048,7 @@ int es8316_headset_detect(int jack_insert)
 }
 EXPORT_SYMBOL(es8316_headset_detect);
 
-static void hp_work(struct work_struct *work)
+/*static void hp_work(struct work_struct *work)
 {
 	struct es8316_priv *es8316;
 	int enable;
@@ -1064,7 +1065,7 @@ static void hp_work(struct work_struct *work)
 		else
 			es8316_enable_spk(es8316, true);
 	}
-}
+}*/
 
 static void hp_det_work(struct work_struct *work)
 {
@@ -1073,9 +1074,9 @@ static void hp_det_work(struct work_struct *work)
 	hp = container_of(work, struct es8316_adc_hp_det, work.work);
 	if (iio_read_channel_processed(hp->pchan[hp->chan],&value) >= 0) {
 		if ((value >= hp->value - hp->tolerance) && (value <= hp->value + hp->tolerance)) {
-		    hdmitx_ext_set_audio_output(1);
+		    //hdmitx_ext_set_audio_output(1);
         }else{
-			hdmitx_ext_set_audio_output(0);//disable hdmi audio output
+			//hdmitx_ext_set_audio_output(0);//disable hdmi audio output
 		}
 	}
    queue_delayed_work(system_wq, &hp->work,msecs_to_jiffies(500));
@@ -1194,14 +1195,14 @@ static int es8316_adc_hp_det_get_devtree_pdata(struct device *dev,
 	if (IS_ERR(hp->pchan[chanspec.args[0]]))
 		return PTR_ERR(hp->pchan[chanspec.args[0]]);
 
-	ret = of_property_read_u32_index(dev->of_node,
+	/*ret = of_property_read_u32_index(dev->of_node,
 		"hp_chan", 0, &hp->chan);
 	if (ret < 0) {
 		dev_err(dev, "invalid hp chan index\n");
 		state = -EINVAL;
 		goto err;
-	}
-
+	}*/
+	hp->chan = chanspec.args[0];
 	if (!hp->pchan[hp->chan]) {
 		dev_err(dev, "invalid channel[%u], please enable it first by DTS\n",
 				hp->chan);
@@ -1240,9 +1241,9 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 	struct es8316_adc_hp_det *hp;
 	int ret = -1;
 	int hpret = -1;
-	int hp_irq;
-	enum of_gpio_flags flags;
-	struct device_node *np = i2c->dev.of_node;
+	//int hp_irq;
+	//enum of_gpio_flags flags;
+	//struct device_node *np = i2c->dev.of_node;
 	//return ret;
 	es8316 = devm_kzalloc(&i2c->dev, sizeof(*es8316), GFP_KERNEL);
 	if (!es8316)
@@ -1253,7 +1254,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 	es8316->debounce_time = 200;
 	es8316->hp_det_invert = 0;
 	es8316->pwr_count = 0;
-	es8316->hp_inserted = false;
+	es8316->hp_inserted = true;
 	es8316->muted = true;
 	es8316->regmap = devm_regmap_init_i2c(i2c, &es8316_regmap_config);
 	if (IS_ERR(es8316->regmap)) {
@@ -1263,7 +1264,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 	}
 	i2c_set_clientdata(i2c, es8316);
 	
-	es8316->spk_mute_gpio = of_get_named_gpio_flags(np,
+	/*es8316->spk_mute_gpio = of_get_named_gpio_flags(np,
 						       "spk-mute-gpio",
 						       0,
 						       &flags);
@@ -1325,7 +1326,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 		}
 		schedule_delayed_work(&es8316->work,
 				      msecs_to_jiffies(es8316->debounce_time));
-	}
+	}*/
 	printk("es8316_i2c_probe %d\n",__LINE__);
 	ret = snd_soc_register_codec(&i2c->dev,
 				     &soc_codec_dev_es8316,
