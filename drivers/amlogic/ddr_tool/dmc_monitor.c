@@ -283,7 +283,7 @@ int dmc_violation_ignore(char *title, unsigned long addr, unsigned long status,
 
 	page = phys_to_page(addr);
 	trace = find_page_base(page);
-	if (trace && trace->migrate_type == MIGRATE_CMA) {
+	if (trace && trace->order != IP_INVALID && trace->migrate_type == MIGRATE_CMA) {
 		if (dmc_mon->debug & DMC_DEBUG_CMA) {
 			sprintf(title, "%s", "_CMA");
 			is_ignore = 0;
