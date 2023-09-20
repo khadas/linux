@@ -18,7 +18,7 @@
 			mipi_in_dcphy0: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&imx415b_out0>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 		};
 		port@1 {
@@ -52,7 +52,7 @@
 			mipi_in_dcphy1: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&imx415f_out1>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 		};
 		port@1 {
@@ -86,7 +86,7 @@
 			mipidphy0_in_ucam0: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&imx415c_out0>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 		};
 		port@1 {
@@ -145,7 +145,7 @@
 		port {
 			imx415b_out0: endpoint {
 				remote-endpoint = <&mipi_in_dcphy0>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 		};
 	};
@@ -190,7 +190,7 @@
 		port {
 			imx415f_out1: endpoint {
 				remote-endpoint = <&mipi_in_dcphy1>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 		};
 	};
@@ -211,7 +211,7 @@
 		rockchip,vcm-start-current = <20>;
 		rockchip,vcm-rated-current = <76>;
 		rockchip,vcm-step-mode = <0>;
-		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-index = <2>;
 		rockchip,camera-module-facing = "back";
 	};
 
@@ -225,7 +225,7 @@
 		power-domains = <&power RK3588_PD_VI>;
 		reset-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_LOW>;	
 		pwdn-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
-		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-index = <2>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT2022-PX1";
 		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
@@ -233,7 +233,7 @@
 		port {
 			imx415c_out0: endpoint {
 				remote-endpoint = <&mipidphy0_in_ucam0>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 		};
 	};
