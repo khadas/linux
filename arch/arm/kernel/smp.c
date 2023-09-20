@@ -774,6 +774,14 @@ void smp_send_reschedule(int cpu)
 	smp_cross_call(cpumask_of(cpu), IPI_RESCHEDULE);
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS_IPI_SEND)
+void arch_send_ipi_rtos(int cpu)
+{
+	smp_cross_call(cpumask_of(cpu), IPI_FREERTOS);
+}
+EXPORT_SYMBOL(arch_send_ipi_rtos);
+#endif
+
 void smp_send_stop(void)
 {
 	unsigned long timeout;
