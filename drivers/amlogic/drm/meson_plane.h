@@ -21,6 +21,7 @@
 
 struct am_meson_plane_state {
 	struct drm_plane_state base;
+	u32 sec_en;
 };
 
 enum meson_max_fb_enum {
@@ -42,6 +43,7 @@ struct am_osd_plane {
 	int plane_type;
 
 	struct drm_property *occupied_property;
+	struct drm_property *prop_sec_en;
 	bool osd_occupied;
 
 	/*osd extend*/

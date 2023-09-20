@@ -435,6 +435,7 @@ int secure_register(enum secure_module_e module,
 	pr_info("%s module=%d ok\n", __func__, module);
 	return 0;
 }
+EXPORT_SYMBOL(secure_register);
 
 int secure_unregister(enum secure_module_e module)
 {
@@ -477,6 +478,7 @@ int secure_config(enum secure_module_e module, int secure_src, u32 vpp_index)
 						    vpp_index);
 	return 0;
 }
+EXPORT_SYMBOL(secure_config);
 
 static ssize_t vpu_security_info_show(struct class *cla,
 				      struct class_attribute *attr, char *buf)

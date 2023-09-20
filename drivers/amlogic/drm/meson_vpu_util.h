@@ -34,6 +34,8 @@ u32 meson_vpu_read_reg(u32 addr);
 int meson_vpu_write_reg(u32 addr, u32 val);
 int meson_vpu_write_reg_bits(u32 addr, u32 val, u32 start, u32 len);
 u32 meson_drm_read_reg(u32 addr);
+int meson_vpu1_write_reg_bits(u32 addr, u32 val, u32 start, u32 len);
+int meson_vpu2_write_reg_bits(u32 addr, u32 val, u32 start, u32 len);
 void meson_drm_write_reg(u32 addr, u32 val);
 void meson_drm_write_reg_bits(u32 addr, u32 val, u32 start, u32 len);
 

@@ -155,7 +155,6 @@ struct meson_vpu_block_state {
 	struct meson_vpu_block_link outputs[MESON_BLOCK_MAX_OUTPUTS];
 	int in_stack;
 	int active;
-
 };
 
 struct meson_vpu_osd_layer_info {
@@ -188,6 +187,7 @@ struct meson_vpu_osd_layer_info {
 	u32 crtc_index;
 	u32 read_ports;
 	u32 status_changed;
+	int sec_en;
 };
 
 enum osd_mif_acc_mode {
@@ -237,6 +237,7 @@ struct meson_vpu_osd_state {
 	u32 blend_bypass;
 	u32 crtc_index;
 	u32 read_ports;
+	int sec_en;
 };
 
 struct meson_vpu_video_layer_info {
@@ -264,6 +265,7 @@ struct meson_vpu_video_layer_info {
 	struct dma_buf *dmabuf;
 	u32 vfm_mode;
 	bool is_uvm;
+	int sec_en;
 };
 
 struct meson_vpu_video {
@@ -320,6 +322,7 @@ struct meson_vpu_video_state {
 	struct vframe_s *vf;
 	struct dma_buf *dmabuf;
 	bool is_uvm;
+	int sec_en;
 };
 
 struct meson_vpu_afbc {
@@ -583,6 +586,7 @@ struct meson_vpu_pipeline_state {
 	struct meson_vpu_block *scale_blk[MESON_MAX_OSDS][MESON_MAX_SCALERS];
 	u32 dout_zorder[MAX_DOUT_NUM];
 	u32 global_afbc;
+	int sec_src;
 };
 
 #define to_osd_block(x) container_of(x, struct meson_vpu_osd, base)
