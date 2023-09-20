@@ -30,6 +30,7 @@
 		PORT_FLAG_AID | PORT_FLAG_SID | PORT_FLAG_UD)
 #define PORT_FLAG_INITED    0x100
 #define PORT_FLAG_DMABUF    0x200
+#define PORT_FLAG_TSYNC     0x400
 
 #define PORT_TYPE_VIDEO         0x01
 #define PORT_TYPE_AUDIO         0x02
