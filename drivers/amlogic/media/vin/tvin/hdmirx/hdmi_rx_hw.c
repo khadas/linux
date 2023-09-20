@@ -5981,11 +5981,11 @@ void rx_ddc_active_monitor(void)
 	/*0x0a, 0x15 for hengyi ops-pc. refer to 88378
 	 *0x14 for special spliter. refer to 72949
 	 *0x13 for 8268 refer to 73940
+	 *0x2 need to be removed for white pc
 	 *fix edid filter setting
 	 */
 	if (temp < 0x3f &&
 		temp != 0x1 &&
-		temp != 0x2 &&
 		temp != 0x3 &&
 		temp != 0x8 &&
 		temp != 0xa &&
@@ -5998,7 +5998,7 @@ void rx_ddc_active_monitor(void)
 		if (log_level & EDID_LOG)
 			rx_pr("port: %d, edid_status: 0x%x,\n", rx.port, temp);
 	} else {
-		if ((log_level & EDID_LOG) && rx.ddc_filter_en)
+		if (log_level & EDID_LOG)
 			rx_pr("port: %d, edid_status: 0x%x,\n", rx.port, temp);
 		rx.ddc_filter_en = false;
 	}

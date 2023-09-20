@@ -71,7 +71,9 @@
 /* 2023.05.05 core reset when afifo overflow */
 /* 2023.05.24 fix 1366*768 identify to 1360*768 */
 /* 2023.07.05 clear dv packet when no emp */
-#define RX_VER1 "ver.2023/7/5"
+/* optimize i2c monitor logic */
+#define RX_VER1 "ver.2023/9/20"
+
 
 /*
  * Currently, a total of 5 VSIF packages are supported,
