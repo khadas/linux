@@ -10689,6 +10689,7 @@ void di_unreg_variable(unsigned int channel)
 	pch->crc_cnt = 0;
 	pch->sumx.need_local = 0;
 	pch->self_trig_need = 0;
+	pch->rsc_bypass.d32 = 0;
 	set_bypass2_complete(channel, false);
 	init_completion(&tsk->fcmd[channel].alloc_done);
 	dbg_timer_clear(channel);

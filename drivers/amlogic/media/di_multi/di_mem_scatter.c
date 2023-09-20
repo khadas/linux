@@ -1067,8 +1067,10 @@ static void sct_mng_working(struct di_ch_s *pch)
 		}
 	}
 	dim_tr_ops.sct_sts(dbg_mng_sts);
-	if (err)
+	if (err) {
+		PR_WARN("scr_err bypass\n");
 		pch->rsc_bypass.b.scr_err = 1;
+	}
 }
 
 /* now no use */
