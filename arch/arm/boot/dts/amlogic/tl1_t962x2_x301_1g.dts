@@ -63,7 +63,7 @@
 			compatible = "amlogic, meson-fb";
 			size = <0x800000>;
 			alignment = <0x400000>;
-			reg = <0x3f800000 0x800000>;
+			reg = <0x2ec00000 0x800000>;
 		};
 
 		lcd_tcon_reserved:linux,lcd_tcon {
@@ -78,7 +78,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0xdc00000>;
+			size = <0x10000000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x30000000 0x10000000>;
@@ -126,7 +126,7 @@
 			 */
 			size = <0x1400000>;/*20M*/
 			alignment = <0x400000>;
-			alloc-ranges = <0x30000000 0x10000000>;
+			alloc-ranges = <0x00000000 0x2ec00000>;
 		};
 
 		/*demod_reserved:linux,demod {
@@ -144,7 +144,7 @@
 			/* 8M */
 			size = <0x0800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x30000000 0x10000000>;
+			alloc-ranges = <0x00000000 0x30000000>;
 		};
 
 		/*di CMA pool */
@@ -1971,7 +1971,7 @@
 	status = "okay";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x800000>;
-	logo_addr = "0x3f800000";
+	logo_addr = "0x2ec00000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
