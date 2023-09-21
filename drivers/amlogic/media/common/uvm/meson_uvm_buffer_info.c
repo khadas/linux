@@ -23,9 +23,14 @@ module_param(mubi_debug_level, int, 0644);
 static bool is_dv_video(const struct vframe_s *vfp)
 {
 	/* dolby vision: bit 30 */
+	/*
 	u32 dv_flag = (1 << 30);
 
 	if (vfp->signal_type & dv_flag)
+		return true;
+	*/
+
+	if (!vfp->discard_dv_data)
 		return true;
 
 	return false;
@@ -181,6 +186,8 @@ int get_uvm_video_info(const int fd, int *videotype, u64 *timestamp)
 	*videotype = (int)type;
 	*timestamp = vfp->timestamp;
 
+	MUBI_PRINTK(1, "%s, videotype:0x%x timestamp:%lld\n",
+			__func__, *videotype, *timestamp);
 exit_ret:
 	dma_buf_put(dmabuf);
 
