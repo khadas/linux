@@ -843,6 +843,19 @@ run_next:
 	else
 		dev->irq_ends_mask &= ~ISP_FRAME_BP;
 
+	if (hw->is_frm_buf) {
+		val = ISP32L_WR_FRM_BUF_EN | ISP32L_RD_FRM_BUF_EN |
+		      ISP32L_AXI_CONF_RD_ST_MODE | ISP32L_AXI_CONF_RD_DIS |
+		      ISP32L_FRM_BUF_FORCE_UPD;
+		rkisp_write(dev, ISP32L_AXI_CONF_RD_CTRL, val, true);
+
+		val = ISP32L_WR_FRM_BUF_EN | ISP32L_RD_FRM_BUF_EN |
+		      ISP32L_AXI_CONF_RD_ST_MODE | ISP32L_AXI_CONF_RD_DIS |
+		      ISP32L_AXI_CONF_RD_ST;
+		rkisp_write(dev, ISP32L_AXI_CONF_RD_CTRL, val, true);
+		udelay(25);
+	}
+
 	val = rkisp_read(dev, CSI2RX_CTRL0, true);
 	val &= ~SW_IBUF_OP_MODE(0xf);
 	tmp = SW_IBUF_OP_MODE(dev->rd_mode);
