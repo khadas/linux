@@ -73,6 +73,7 @@
   bin2hex
   bio_endio
   bio_end_io_acct_remapped
+  bio_split
   bio_start_io_acct
   bitmap_allocate_region
   __bitmap_and
@@ -739,6 +740,22 @@
   divider_recalc_rate
   divider_ro_round_rate_parent
   divider_round_rate_parent
+  dm_bufio_client_create
+  dm_bufio_client_destroy
+  dm_bufio_mark_buffer_dirty
+  dm_bufio_new
+  dm_bufio_read
+  dm_bufio_release
+  dm_bufio_write_dirty_buffers
+  dm_disk
+  dm_get_device
+  dm_kobject_release
+  dm_read_arg_group
+  dm_register_target
+  dm_shift_arg
+  dm_table_get_md
+  dm_table_get_mode
+  dm_unregister_target
   dma_alloc_attrs
   dma_alloc_noncontiguous
   dma_alloc_pages
@@ -3401,6 +3418,7 @@
   __traceiter_android_vh_rproc_recovery_set
   __traceiter_android_vh_save_cpu_resume
   __traceiter_android_vh_save_hib_resume_bdev
+  __traceiter_android_vh_scan_abort_check_wmarks
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_setscheduler_uclamp
   __traceiter_android_vh_show_resume_epoch_val
@@ -3546,6 +3564,7 @@
   __tracepoint_android_vh_rproc_recovery_set
   __tracepoint_android_vh_save_cpu_resume
   __tracepoint_android_vh_save_hib_resume_bdev
+  __tracepoint_android_vh_scan_abort_check_wmarks
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_setscheduler_uclamp
   __tracepoint_android_vh_show_resume_epoch_val
