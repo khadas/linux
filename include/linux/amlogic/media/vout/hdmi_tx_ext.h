@@ -18,6 +18,9 @@
 #define HDMITX_PHY_ADDR_VALID		3
 #define HDMITX_KSVLIST	4
 
+/* the default max_tmds_clk is 165MHz/5 in H14b Table 8-16 */
+#define DEFAULT_MAX_TMDS_CLK    33
+
 enum hdcp_ver_e {
 	HDCPVER_NONE = 0,
 	HDCPVER_14,

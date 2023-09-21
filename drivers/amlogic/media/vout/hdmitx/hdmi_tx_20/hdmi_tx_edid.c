@@ -1191,7 +1191,7 @@ static void hdmitx_edid_parse_hdmi14(struct rx_cap *prxcap,
 	(count > 5) ? blockbuf[offset + 5] : 0;
 	set_vsdb_dc_cap(prxcap);
 	prxcap->Max_TMDS_Clock1 =
-		(count > 6) ? blockbuf[offset + 6] : 0;
+		(count > 6) ? blockbuf[offset + 6] : DEFAULT_MAX_TMDS_CLK;
 	if (count > 7) {
 		tmp = blockbuf[offset + 7];
 		idx = offset + 8;
@@ -2038,7 +2038,7 @@ static void check_dv_truly_support(struct hdmitx_dev *hdev, struct dv_info *dv)
 		} else {
 			/* Default min is 74.25 / 5 */
 			if (prxcap->Max_TMDS_Clock1 < 0xf)
-				prxcap->Max_TMDS_Clock1 = 0x1e;
+				prxcap->Max_TMDS_Clock1 = DEFAULT_MAX_TMDS_CLK;
 			max_tmds_clk = prxcap->Max_TMDS_Clock1 * 5;
 		}
 		if (dv->ver == 0)
@@ -2126,7 +2126,7 @@ static void edid_set_fallback_mode(struct hdmitx_dev *hdev)
 	phyaddr->valid = 0;
 	hdev->physical_addr = 0xffff;
 
-	prxcap->Max_TMDS_Clock1 = 0x1e; /* 150MHZ / 5 */
+	prxcap->Max_TMDS_Clock1 = DEFAULT_MAX_TMDS_CLK; /* 165MHZ / 5 */
 	prxcap->native_Mode = 0; /* only RGB */
 	prxcap->dc_y444 = 0; /* only 8bit */
 	prxcap->VIC_count = 0x3;
@@ -2242,11 +2242,6 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 			hdmitx_edid_cta_block_parse(hdmitx_device, &EDID_buf[i * 0x80]);
 	}
 
-	/* EDID parsing complete - check if 4k60/50 DV can be truly supported */
-	dv = &prxcap->dv_info;
-	check_dv_truly_support(hdmitx_device, dv);
-	dv = &prxcap->dv_info2;
-	check_dv_truly_support(hdmitx_device, dv);
 	edid_check_pcm_declare(&hdmitx_device->rxcap);
 	/* move parts that may contain cea timing parse behind
 	 * VDB parse, so that to not affect VDB index which
@@ -2337,21 +2332,13 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		prxcap->ieeeoui = HDMI_IEEEOUI;
 		pr_info(EDID "Invalid edid, consider RX as HDMI device\n");
 	}
+
+	/* EDID parsing complete - check if 4k60/50 DV can be truly supported */
 	dv = &prxcap->dv_info;
-	/* if sup_2160p60hz of dv or dv2 is true, check the MAX_TMDS*/
-	if (dv->sup_2160p60hz) {
-		if (prxcap->Max_TMDS_Clock2 * 5 < 590) {
-			dv->sup_2160p60hz = 0;
-			pr_info(EDID "clear sup_2160p60hz\n");
-		}
-	}
+	check_dv_truly_support(hdmitx_device, dv);
 	dv = &prxcap->dv_info2;
-	if (dv->sup_2160p60hz) {
-		if (prxcap->Max_TMDS_Clock2 * 5 < 590) {
-			dv->sup_2160p60hz = 0;
-			pr_info(EDID "clear sup_2160p60hz\n");
-		}
-	}
+	check_dv_truly_support(hdmitx_device, dv);
+
 	hdmitx_device->vend_id_hit = hdmitx_find_philips(hdmitx_device);
 	/* For some receivers, they don't claim the screen size
 	 * and re-calculate it from the h/v image size from dtd
@@ -2661,7 +2648,7 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	} else {
 		/* Default min is 74.25 / 5 */
 		if (prxcap->Max_TMDS_Clock1 < 0xf)
-			prxcap->Max_TMDS_Clock1 = 0x1e;
+			prxcap->Max_TMDS_Clock1 = DEFAULT_MAX_TMDS_CLK;
 		rx_max_tmds_clk = prxcap->Max_TMDS_Clock1 * 5;
 	}
 	/* if current status already limited to 1080p, so here also needs to
