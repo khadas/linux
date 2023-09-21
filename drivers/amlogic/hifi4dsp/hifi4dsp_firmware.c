@@ -182,14 +182,14 @@ int hifi4dsp_fw_copy_to_sram(const struct firmware *fw,
 
 int hifi4dsp_fw_load(struct hifi4dsp_firmware *dsp_fw)
 {
-	const struct firmware *fw;
+	const struct firmware *fw = NULL;
 	struct hifi4dsp_dsp *dsp;
 	int err = 0;
 
-	pr_info("%s loading firmware %s\n", __func__, dsp_fw->name);
-
 	if (!dsp_fw || !dsp_fw->dsp)
 		return -1;
+
+	pr_info("%s loading firmware %s\n", __func__, dsp_fw->name);
 
 	dsp = dsp_fw->dsp;
 	err = request_firmware(&fw, dsp_fw->name, dsp_fw->dsp->dev);
@@ -216,14 +216,14 @@ done:
 
 int hifi4dsp_fw_sram_load(struct hifi4dsp_firmware *dsp_fw)
 {
-	const struct firmware *fw;
+	const struct firmware *fw = NULL;
 	struct hifi4dsp_dsp *dsp;
 	int err = 0;
 
-	pr_info("%s loading firmware %s\n", __func__, dsp_fw->name);
-
 	if (!dsp_fw || !dsp_fw->dsp)
 		return -1;
+
+	pr_info("%s loading firmware %s\n", __func__, dsp_fw->name);
 
 	dsp = dsp_fw->dsp;
 	err = request_firmware(&fw, dsp_fw->name, dsp_fw->dsp->dev);

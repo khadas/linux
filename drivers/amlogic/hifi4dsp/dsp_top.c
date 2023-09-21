@@ -74,7 +74,7 @@ static inline void __iomem *get_dsp_addr(int dsp_id)
 
 unsigned long init_dsp_psci_smc(u32 id, u32 addr, u32 cfg0)
 {
-	struct arm_smccc_res res;
+	struct arm_smccc_res res = {0};
 
 	if (id == DSPA && bootlocation == 2 && hifi4dsp_p[DSPA]->dsp->optimize_longcall) {
 		addr = hifi4dsp_p[DSPA]->dsp->sram_remap_addr[0];
@@ -136,7 +136,7 @@ static void start_dsp(u32 dsp_id, u32 reset_addr)
 
 static noinline int __invoke_dsp_power_smc(u64 function_id, u64 arg0, u64 arg1)
 {
-	struct arm_smccc_res res;
+	struct arm_smccc_res res = {0};
 
 	arm_smccc_smc((unsigned long)function_id,
 		      (unsigned long)arg0,

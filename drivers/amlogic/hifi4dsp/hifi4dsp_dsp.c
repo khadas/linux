@@ -293,7 +293,7 @@ struct hifi4dsp_dsp *hifi4dsp_dsp_new(struct hifi4dsp_priv *priv,
 	if (dsp->ops->init) {
 		err = dsp->ops->init(dsp, pdata);
 		if (err < 0)
-			return NULL;
+			goto dsp_malloc_error;
 	}
 
 	/*Register the ISR here if necessary*/

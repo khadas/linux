@@ -304,7 +304,7 @@ static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 		}
 		pr_debug("%s HIFI4DSP_GET_INFO %s\n", __func__,
 			 usrinfo->fw_name);
-		strcpy(usrinfo->fw_name, "1234abcdef");
+		strncpy(usrinfo->fw_name, "1234abcdef", sizeof(usrinfo->fw_name));
 		usrinfo->phy_addr = priv->pdata->fw_paddr;
 		usrinfo->size = priv->pdata->fw_max_size;
 		ret = copy_to_user(argp, usrinfo,
@@ -677,6 +677,7 @@ static int hifi4dsp_driver_dsp_start(struct hifi4dsp_dsp *dsp)
 {
 	struct  hifi4dsp_info_t *info;
 	struct dsp_ring_buffer *rb;
+	int ret;
 	char requestinfo[] = "AP request dsp logbuffer info";
 
 	pr_debug("%s\n", __func__);
@@ -696,7 +697,11 @@ static int hifi4dsp_driver_dsp_start(struct hifi4dsp_dsp *dsp)
 		return -EINVAL;
 	}
 
-	clk_set_rate(dsp->dsp_clk, dsp->freq);
+	ret = clk_set_rate(dsp->dsp_clk, dsp->freq);
+	if (ret) {
+		pr_debug("Can not set clock rate\n");
+		return ret;
+	}
 	clk_prepare_enable(dsp->dsp_clk);
 
 	switch (dsp->id) {
@@ -777,7 +782,7 @@ static int hifi4dsp_driver_dsp_stop(struct hifi4dsp_dsp *dsp)
 
 	info = (struct  hifi4dsp_info_t *)dsp->info;
 	pr_debug("%s\n", __func__);
-	strcpy(message, "SCPI_CMD_HIFI4STOP");
+	strncpy(message, "SCPI_CMD_HIFI4STOP", sizeof(message));
 
 	if (!dsp->dspstarted)
 		goto out;
@@ -875,7 +880,7 @@ static int hifi4dsp_driver_init(struct hifi4dsp_dsp *dsp,
 				struct hifi4dsp_pdata *pdata)
 {
 	struct device *dev;
-	int ret = -ENODEV;
+	int ret;
 
 	dev = dsp->dev;
 	pr_debug("%s\n", __func__);
@@ -941,8 +946,8 @@ static struct hifi4dsp_priv *hifi4dsp_privdata(void)
 static int hifi4dsp_platform_remove(struct platform_device *pdev)
 {
 	struct hifi4dsp_priv *priv;
-	int id = 0, dsp_cnt = 0;
-	int ret = 0;
+	int id = 0, ret = 0;
+	u32 dsp_cnt = 0;
 
 	ret = of_property_read_u32(pdev->dev.of_node, "dsp-cnt", &dsp_cnt);
 	if (ret < 0) {
@@ -1054,10 +1059,10 @@ static inline struct clk *of_read_dsp_clk(struct platform_device *pdev,
 	char clk_name[20];
 
 	if (dsp_id == 0) {
-		strcpy(clk_name, "dspa_clk");
+		strncpy(clk_name, "dspa_clk", sizeof(clk_name));
 		p_clk = devm_clk_get(&pdev->dev, clk_name);
 	} else if (dsp_id == 1) {
-		strcpy(clk_name, "dspb_clk");
+		strncpy(clk_name, "dspb_clk", sizeof(clk_name));
 		p_clk = devm_clk_get(&pdev->dev, clk_name);
 	}
 	if (!p_clk)
@@ -1161,7 +1166,7 @@ static int hifi4dsp_attach_pd(struct device *dev, int dsp_cnt)
 
 static int get_hifi_firmware_mem(struct reserved_mem *fwmem, struct platform_device *pdev)
 {
-	int ret = -1;
+	int ret;
 	struct device_node *mem_node;
 	struct reserved_mem *tmp = NULL;
 	struct page *cma_pages = NULL;
@@ -1303,7 +1308,7 @@ static int hifi4dsp_driver_dsp_suspend(struct hifi4dsp_dsp *dsp)
 {
 	char message[30];
 
-	strcpy(message, "SCPI_CMD_HIFI4SUSPEND");
+	strncpy(message, "SCPI_CMD_HIFI4SUSPEND", sizeof(message));
 
 	if (!dsp->id)
 		scpi_send_data(message, sizeof(message),
@@ -1325,7 +1330,7 @@ static int hifi4dsp_driver_dsp_resume(struct hifi4dsp_dsp *dsp)
 	/*switch dsp clk to normal*/
 	hifi4dsp_clk_to_normal(dsp);
 
-	strcpy(message, "SCPI_CMD_HIFI4RESUME");
+	strncpy(message, "SCPI_CMD_HIFI4RESUME", sizeof(message));
 
 	if (!dsp->id)
 		scpi_send_data(message, sizeof(message),
@@ -1341,7 +1346,7 @@ static int hifi4dsp_driver_dsp_resume(struct hifi4dsp_dsp *dsp)
 int of_read_dsp_cnt(struct platform_device *pdev)
 {
 	int ret;
-	int dsp_cnt;
+	u32 dsp_cnt = 0;
 
 	ret = of_property_read_u32(pdev->dev.of_node, "dsp-cnt", &dsp_cnt);
 	if (ret < 0) {
@@ -1403,7 +1408,7 @@ static ssize_t suspend_store(struct device *dev,
 	struct hifi4dsp_dsp *dsp = NULL;
 	int dspid;
 
-	strcpy(message, "SCPI_CMD_HIFI4RESUME");
+	strncpy(message, "SCPI_CMD_HIFI4SUSPEND", sizeof(message));
 
 	if (!strncmp(buf, "hifi4a", 6)) {
 		dspid = 0;
@@ -1435,7 +1440,7 @@ static ssize_t resume_store(struct device *dev,
 	struct hifi4dsp_dsp *dsp = NULL;
 	int dspid;
 
-	strcpy(message, "SCPI_CMD_HIFI4RESUME");
+	strncpy(message, "SCPI_CMD_HIFI4RESUME", sizeof(message));
 
 	if (!strncmp(buf, "hifi4a", 6)) {
 		dspid = 0;
@@ -1622,7 +1627,7 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "of get logbuff-polling-period-ms property failed\n");
 
 	/*init hifi4dsp_dsp*/
-	dsp = kcalloc(dsp_cnt, sizeof(*dsp), GFP_KERNEL);
+	dsp = devm_kzalloc(&pdev->dev, sizeof(*dsp), GFP_KERNEL);
 	if (!dsp)
 		goto err2;
 	/*
@@ -1631,41 +1636,41 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	/* coverity[leaked_storage:SUPPRESS] */
 
 	/*init hifi4dsp_info_t*/
-	hifi_info = kzalloc(sizeof(*hifi_info), GFP_KERNEL);
+	hifi_info = devm_kzalloc(&pdev->dev, sizeof(*hifi_info), GFP_KERNEL);
 	if (!hifi_info)
 		goto hifi_info_malloc_error;
 
 	/*init miscdev_t, miscdevice*/
-	p_dsp_miscdev = kcalloc(dsp_cnt, sizeof(struct hifi4dsp_miscdev_t),
+	p_dsp_miscdev = devm_kzalloc(&pdev->dev, sizeof(struct hifi4dsp_miscdev_t),
 				GFP_KERNEL);
 	if (!p_dsp_miscdev) {
-		HIFI4DSP_PRNT("kzalloc for p_dsp_miscdev error\n");
+		HIFI4DSP_PRNT("devm_kzalloc for p_dsp_miscdev error\n");
 		goto miscdev_malloc_error;
 	}
 
 	/*init hifi4dsp_priv*/
-	priv = kcalloc(dsp_cnt, sizeof(struct hifi4dsp_priv),
+	priv = devm_kzalloc(&pdev->dev, sizeof(struct hifi4dsp_priv),
 		       GFP_KERNEL);
 
 	if (!priv) {
-		HIFI4DSP_PRNT("kzalloc for hifi4dsp_priv error\n");
+		HIFI4DSP_PRNT("devm_kzalloc for hifi4dsp_priv error\n");
 		goto priv_malloc_error;
 	}
 
 	/*init hifi4dsp_pdata*/
-	pdata = kcalloc(dsp_cnt, sizeof(struct hifi4dsp_pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(&pdev->dev, sizeof(struct hifi4dsp_pdata), GFP_KERNEL);
 	if (!pdata) {
-		HIFI4DSP_PRNT("kzalloc for hifi4dsp_pdata error\n");
+		HIFI4DSP_PRNT("devm_kzalloc for hifi4dsp_pdata error\n");
 		goto pdata_malloc_error;
 	}
 
 	/*init dsp firmware*/
-	dsp_firmware = kcalloc(dsp_cnt, sizeof(*dsp_firmware), GFP_KERNEL);
+	dsp_firmware = devm_kzalloc(&pdev->dev, sizeof(*dsp_firmware), GFP_KERNEL);
 	if (!dsp_firmware)
 		goto dsp_firmware_malloc_error;
 
 	/*init real dsp firmware*/
-	fw = kzalloc(sizeof(*fw), GFP_KERNEL);
+	fw = devm_kzalloc(&pdev->dev, sizeof(*fw), GFP_KERNEL);
 	if (!fw)
 		goto real_fw_malloc_error;
 
