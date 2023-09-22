@@ -943,6 +943,8 @@ static void adc_pll_down(void)
 		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0, 0, 28, 1);
 		if (adc_devp->plat_data->is_tv_chip)
 			adc_wr_hiu_bits(adc_addr->s2_dadc_cntl_2, 0, 8, 1);
+		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0, 1, 29, 1);
+		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0, 0, 29, 1);
 	}
 
 	if (adc_devp->plat_data->is_tv_chip) {
