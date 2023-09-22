@@ -6,6 +6,12 @@
 #ifndef __AML_SPI_H_
 #define __AML_SPI_H_
 
+enum {
+	DMA_TRIG_NORMAL = 0,
+	DMA_TRIG_VSYNC,
+	DMA_TRIG_LINE_N,
+};
+
 struct spicc_controller_data {
 	unsigned	ccxfer_en:1;
 	unsigned	timing_en:1;
@@ -26,6 +32,13 @@ struct spicc_controller_data {
 			   u8 *tx_buf,
 			   u8 *rx_buf,
 			   int len);
+	int (*dirspi_dma_trig)(struct spi_device *spi,
+			       dma_addr_t tx_dma,
+			       dma_addr_t rx_dma,
+			       int len,
+			       u8 src);
+	int (*dirspi_dma_trig_start)(struct spi_device *spi);
+	int (*dirspi_dma_trig_stop)(struct spi_device *spi);
 };
 
 struct spicc_transfer {

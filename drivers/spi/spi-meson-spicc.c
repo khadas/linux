@@ -181,8 +181,13 @@
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 #define SPICC_LD_CNTL0	0x28
+#define VSYNC_IRQ_SRC_SELECT		BIT(0)
+#define DMA_EN_SET_BY_VSYNC		BIT(2)
+#define XCH_EN_SET_BY_VSYNC		BIT(3)
 #define DMA_READ_COUNTER_EN		BIT(4)
 #define DMA_WRITE_COUNTER_EN		BIT(5)
+#define DMA_RADDR_LOAD_BY_VSYNC		BIT(6)
+#define DMA_WADDR_LOAD_BY_VSYNC		BIT(7)
 
 #define SPICC_LD_CNTL1	0x2c
 #define DMA_READ_COUNTER		GENMASK(15, 0)
@@ -190,6 +195,10 @@
 #define SMC_REQ_CNT_MAX		0xffff
 #define DMA_BURST_MAX		(DMA_REQ_DEFAULT * SMC_REQ_CNT_MAX)
 #define SPICC_DMA_BYTES_PER_WORD	8
+
+#define SPICC_LD_RADDR	0x30
+
+#define SPICC_LD_WADDR	0x34
 
 #define SPICC_ENH_CTL0	0x38	/* Enhanced Feature */
 #define SPICC_ENH_CLK_CS_DELAY_MASK	GENMASK(15, 0)
@@ -348,6 +357,13 @@ static int dirspi_sync(struct spi_device *spi,
 			u8 *tx_buf,
 			u8 *rx_buf,
 			int len);
+static int dirspi_dma_trig(struct spi_device *spi,
+			   dma_addr_t tx_dma,
+			   dma_addr_t rx_dma,
+			   int len,
+			   u8 src);
+static int dirspi_dma_trig_start(struct spi_device *spi);
+static int dirspi_dma_trig_stop(struct spi_device *spi);
 
 static int xLimitRange(int val, int min, int max)
 {
@@ -597,7 +613,8 @@ static u32 meson_spicc_calc_dma_len(struct meson_spicc_device *spicc, u32 *req)
 	return len;
 }
 
-static void meson_spicc_setup_dma_burst(struct meson_spicc_device *spicc)
+static void meson_spicc_setup_dma_burst(struct meson_spicc_device *spicc,
+					bool tx, bool rx, u8 trig_src)
 {
 	unsigned int words, req;
 	unsigned int count_en = 0;
@@ -611,17 +628,24 @@ static void meson_spicc_setup_dma_burst(struct meson_spicc_device *spicc)
 
 	/* Setup Xfer variables */
 	spicc->tx_remain -= words;
-
 	words /= req;
-	if (spicc->tx_buf) {
+
+	if (trig_src == DMA_TRIG_LINE_N)
+		count_en |= VSYNC_IRQ_SRC_SELECT;
+
+	if (tx) {
 		count_en |= DMA_READ_COUNTER_EN;
+		if (trig_src == DMA_TRIG_VSYNC || trig_src == DMA_TRIG_LINE_N)
+			count_en |= DMA_RADDR_LOAD_BY_VSYNC;
 		txfifo_thres = SPICC_FIFO_SIZE + 1 - req;
 		read_req = req - 1;
 		ld_ctr1 |= FIELD_PREP(DMA_READ_COUNTER, words);
 	}
 
-	if (spicc->rx_buf) {
+	if (rx) {
 		count_en |= DMA_WRITE_COUNTER_EN;
+		if (trig_src == DMA_TRIG_VSYNC || trig_src == DMA_TRIG_LINE_N)
+			count_en |= DMA_WADDR_LOAD_BY_VSYNC;
 		rxfifo_thres = req - 1;
 		write_req = req - 1;
 		ld_ctr1 |= FIELD_PREP(DMA_WRITE_COUNTER, words);
@@ -666,7 +690,10 @@ static void meson_spicc_dma_irq(struct meson_spicc_device *spicc)
 	}
 
 	/* Setup burst */
-	meson_spicc_setup_dma_burst(spicc);
+	meson_spicc_setup_dma_burst(spicc,
+			spicc->tx_buf ? true : false,
+			spicc->rx_buf ? true : false,
+			DMA_TRIG_NORMAL);
 }
 #endif
 
@@ -944,7 +971,10 @@ static int meson_spicc_transfer_one(struct spi_controller *ctlr,
 		writel_relaxed(xfer->rx_dma, spicc->base + SPICC_DWADDR);
 		writel_relaxed(xfer->speed_hz >> 25,
 			       spicc->base + SPICC_PERIODREG);
-		meson_spicc_setup_dma_burst(spicc);
+		meson_spicc_setup_dma_burst(spicc,
+				spicc->tx_buf ? true : false,
+				spicc->rx_buf ? true : false,
+				DMA_TRIG_NORMAL);
 		writel_relaxed(spicc->data->has_enh_intr ?
 					SPICC_DMA_DONE_EN : SPICC_TE_EN,
 			       spicc->base + SPICC_INTREG);
@@ -1018,6 +1048,9 @@ static int meson_spicc_setup(struct spi_device *spi)
 		cdata->dirspi_stop = dirspi_stop;
 		cdata->dirspi_async = dirspi_async;
 		cdata->dirspi_sync = dirspi_sync;
+		cdata->dirspi_dma_trig = dirspi_dma_trig;
+		cdata->dirspi_dma_trig_start = dirspi_dma_trig_start;
+		cdata->dirspi_dma_trig_stop = dirspi_dma_trig_stop;
 	}
 
 	meson_spicc_hw_prepare(spicc, spi->mode);
@@ -1112,25 +1145,24 @@ static void dirspi_set_cs(struct spi_device *spi, bool enable)
 		gpio_set_value(spi->cs_gpio, !enable);
 }
 
-void dirspi_start(struct spi_device *spi)
+static void dirspi_start(struct spi_device *spi)
 {
-#ifndef CONFIG_AMLOGIC_MODIFY
-	struct meson_spicc_device *spicc = spi_controller_get_devdata(spi->controller);
-#endif
-
 	if (spi->controller->auto_runtime_pm)
 		pm_runtime_get_sync(spi->controller->dev.parent);
-#ifndef CONFIG_AMLOGIC_MODIFY
-	meson_spicc_hw_prepare(spicc, spi->mode, spi->bits_per_word,
-			       spi->max_speed_hz);
-#endif
 
 	dirspi_set_cs(spi, true);
 }
 
-void dirspi_stop(struct spi_device *spi)
+static void dirspi_stop(struct spi_device *spi)
 {
+	struct meson_spicc_device *spicc = spi_controller_get_devdata(spi->controller);
+
 	dirspi_set_cs(spi, false);
+	writel_relaxed(0, spicc->base + SPICC_INTREG);
+	writel_relaxed(0, spicc->base + SPICC_DMAREG);
+	writel_relaxed(0, spicc->base + SPICC_LD_CNTL0);
+	writel_bits_relaxed(SPICC_XCH | SPICC_SMC, 0,
+			    spicc->base + SPICC_CONREG);
 }
 
 /*
@@ -1139,7 +1171,7 @@ void dirspi_stop(struct spi_device *spi)
  * 0: if the transfer is finished.(callback executed)
  * >0: if the transfer is still in progress
  */
-int dirspi_async(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len,
+static int dirspi_async(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len,
 		 void (*complete)(void *context), void *context)
 {
 	struct meson_spicc_device *spicc = spi_controller_get_devdata(spi->controller);
@@ -1147,7 +1179,6 @@ int dirspi_async(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len,
 	int ret;
 
 	spicc->spi = spi;
-	spicc->is_dma_mapped = 0;
 	spicc->complete = complete;
 	spicc->context = context;
 	t->bits_per_word = spi->bits_per_word;
@@ -1171,7 +1202,7 @@ static void dirspi_complete(void *arg)
 	complete(arg);
 }
 
-int dirspi_sync(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len)
+static int dirspi_sync(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len)
 {
 	DECLARE_COMPLETION_ONSTACK(done);
 	int ret;
@@ -1184,6 +1215,64 @@ int dirspi_sync(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len)
 	return ret ? 0 : -ETIMEDOUT;
 }
 
+/*
+ * @tx_dma: DMA address of tx buf
+ * @rx_dma: DMA address of rx buf
+ * @src: trigger source, DMA_TRIG_VSYNC or DMA_TRIG_LINE_N
+ */
+static int dirspi_dma_trig(struct spi_device *spi,
+			   dma_addr_t tx_dma,
+			   dma_addr_t rx_dma,
+			   int len,
+			   u8 src)
+{
+	struct meson_spicc_device *spicc;
+
+	spicc = spi_controller_get_devdata(spi->controller);
+	spicc->using_dma = 1;
+	spicc->bytes_per_word = DIV_ROUND_UP(spi->bits_per_word, 8);
+
+	meson_spicc_hw_prepare(spicc, spi->mode);
+	meson_spicc_set_width(spicc, spi->bits_per_word);
+	meson_spicc_set_speed(spicc, spi->max_speed_hz);
+	meson_spicc_set_endian(spicc, spi->mode & SPI_LSB_FIRST);
+	meson_spicc_set_word_mode(spicc);
+
+	spicc->tx_remain = len / SPICC_DMA_BYTES_PER_WORD;
+	meson_spicc_setup_dma_burst(spicc,
+			tx_dma ? true : false,
+			rx_dma ? true : false,
+			src);
+
+	writel_relaxed(spi->max_speed_hz >> 25, spicc->base + SPICC_PERIODREG);
+	writel_relaxed(tx_dma, spicc->base + SPICC_LD_RADDR);
+	writel_relaxed(rx_dma, spicc->base + SPICC_LD_WADDR);
+	writel_bits_relaxed(SPICC_SMC, SPICC_SMC, spicc->base + SPICC_CONREG);
+
+	return 0;
+}
+
+static int dirspi_dma_trig_start(struct spi_device *spi)
+{
+	struct meson_spicc_device *spicc;
+
+	spicc = spi_controller_get_devdata(spi->controller);
+	writel_bits_relaxed(DMA_EN_SET_BY_VSYNC, DMA_EN_SET_BY_VSYNC,
+			    spicc->base + SPICC_LD_CNTL0);
+
+	return 0;
+}
+
+static int dirspi_dma_trig_stop(struct spi_device *spi)
+{
+	struct meson_spicc_device *spicc;
+
+	spicc = spi_controller_get_devdata(spi->controller);
+	writel_bits_relaxed(DMA_EN_SET_BY_VSYNC, 0,
+			    spicc->base + SPICC_LD_CNTL0);
+
+	return 0;
+}
 #endif
 
 #define TEST_PARAM_NUM 5
