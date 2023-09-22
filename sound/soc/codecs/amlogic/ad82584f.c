@@ -43,6 +43,26 @@ static void ad82584f_late_resume(struct early_suspend *h);
 	SNDRV_PCM_FMTBIT_S24_LE | \
 	SNDRV_PCM_FMTBIT_S32_LE)
 
+/* codec private data */
+struct ad82584f_priv {
+	struct regmap *regmap;
+	struct snd_soc_component *component;
+	struct ad82584f_platform_data *pdata;
+
+	unsigned char Ch1_vol;
+	unsigned char Ch2_vol;
+	unsigned char master_vol;
+	int mute_val;
+
+	char *m_ram1_tab;
+	char *m_ram2_tab;
+	char *m_reg_tab;
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	struct early_suspend early_suspend;
+#endif
+};
+
 static const DECLARE_TLV_DB_SCALE(mvol_tlv, -10300, 50, 1);
 static const DECLARE_TLV_DB_SCALE(chvol_tlv, -10300, 50, 1);
 static int ad82584f_get_ram_param(struct snd_kcontrol *kcontrol,
@@ -57,6 +77,31 @@ static int ad82584f_get_reg(struct snd_kcontrol *kcontrol,
 static int ad82584f_set_reg(struct snd_kcontrol *kcontrol,
 			    const unsigned int __user *bytes,
 			    unsigned int size);
+
+static int ad82584f_mute_locked_put(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct ad82584f_priv *ad82584f = snd_soc_component_get_drvdata(component);
+
+	ad82584f->mute_val = ucontrol->value.integer.value[0];
+	if (ad82584f->mute_val)
+		snd_soc_component_write(component, MUTE, 0x7f);
+	else
+		snd_soc_component_write(component, MUTE, 0x0);
+	return 0;
+}
+
+static int ad82584f_mute_locked_get(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct ad82584f_priv *ad82584f = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = ad82584f->mute_val;
+
+	return 0;
+}
 
 static const struct snd_kcontrol_new ad82584f_snd_controls[] = {
 	SOC_SINGLE_TLV("Master Volume", MVOL, 0,
@@ -76,6 +121,10 @@ static const struct snd_kcontrol_new ad82584f_snd_controls[] = {
 	SND_SOC_BYTES_TLV("Reg table", AD82584F_REGISTER_TABLE_SIZE,
 			  ad82584f_get_reg,
 			  ad82584f_set_reg),
+	SOC_SINGLE_BOOL_EXT("Master Mute",
+			    0,
+			    ad82584f_mute_locked_get,
+			    ad82584f_mute_locked_put),
 };
 
 /* Power-up register defaults */
@@ -618,26 +667,6 @@ static char m_ram2_tab[AD82584F_RAM_TABLE_COUNT][4] = {
 	{0x7f, 0x00, 0x00, 0x00},//##Reserve
 };
 
-/* codec private data */
-struct ad82584f_priv {
-	struct regmap *regmap;
-	struct snd_soc_component *component;
-	struct ad82584f_platform_data *pdata;
-
-	unsigned char Ch1_vol;
-	unsigned char Ch2_vol;
-	unsigned char master_vol;
-	unsigned char mute_val;
-
-	char *m_ram1_tab;
-	char *m_ram2_tab;
-	char *m_reg_tab;
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	struct early_suspend early_suspend;
-#endif
-};
-
 static int ad82584f_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
 			     struct snd_soc_dai *dai)
@@ -743,16 +772,18 @@ static int ad82584f_trigger(struct snd_pcm_substream *substream, int cmd,
 		case SNDRV_PCM_TRIGGER_RESUME:
 		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 			pr_debug("%s(), start\n", __func__);
-			if (!ad82584f->mute_val)
-				snd_soc_component_write(component, MUTE, 0x00);
+			/*depend on user space to mute or unmute*/
+			if (ad82584f->mute_val)
+				snd_soc_component_write(component, MUTE, 0x7f);
+			else
+				snd_soc_component_write(component, MUTE, 0x0);
 			break;
 		case SNDRV_PCM_TRIGGER_STOP:
 		case SNDRV_PCM_TRIGGER_SUSPEND:
 		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 			pr_debug("%s(), stop\n", __func__);
-			ad82584f->mute_val = snd_soc_component_read32(component, MUTE);
-			if (!ad82584f->mute_val)
-				snd_soc_component_write(component, MUTE, 0x7f);
+			/*when dac stop ,mute dac output */
+			snd_soc_component_write(component, MUTE, 0x7f);
 			break;
 		}
 	}
@@ -1021,7 +1052,6 @@ static int ad82584f_suspend(struct snd_soc_component *component)
 	ad82584f->Ch1_vol = snd_soc_component_read32(component, C1VOL);
 	ad82584f->Ch2_vol = snd_soc_component_read32(component, C2VOL);
 	ad82584f->master_vol = snd_soc_component_read32(component, MVOL);
-	ad82584f->mute_val = snd_soc_component_read32(component, MUTE);
 
 	ad82584f_set_bias_level(component, SND_SOC_BIAS_OFF);
 
@@ -1041,7 +1071,10 @@ static int ad82584f_resume(struct snd_soc_component *component)
 	snd_soc_component_write(component, C1VOL, ad82584f->Ch1_vol);
 	snd_soc_component_write(component, C2VOL, ad82584f->Ch2_vol);
 	snd_soc_component_write(component, MVOL, ad82584f->master_vol);
-	snd_soc_component_write(component, MUTE, ad82584f->mute_val);
+	if (ad82584f->mute_val)
+		snd_soc_component_write(component, MUTE, 0x7f);
+	else
+		snd_soc_component_write(component, MUTE, 0);
 
 	ad82584f_set_bias_level(component, SND_SOC_BIAS_STANDBY);
 
