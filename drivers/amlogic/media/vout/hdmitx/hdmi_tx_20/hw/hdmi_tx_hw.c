@@ -6459,6 +6459,12 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 
 	hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF1, 0x8);
 	hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF2, 0);
+	/* refer to 861-H, Page 83, A Source shall always explicitly signal
+	 * the RGB Quantization Range as either Limited Range (Q=1)or Full
+	 * Range (Q=2).
+	 */
+	if (output_color_format == COLORSPACE_RGB444)
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF2, 1, 2, 2);
 
 	/* set Aspect Ratio in AVIInfo */
 	switch (para->vic) {
