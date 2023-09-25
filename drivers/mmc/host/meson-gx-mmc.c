@@ -1209,7 +1209,7 @@ tuning:
 		}
 	}
 
-	len += sprintf(adj_print + len, ">\n");
+	sprintf(adj_print + len, ">\n");
 	pr_info("%s", host->adj_win);
 
 	find_best_win(mmc, rx_adj, clk_div, &best_s, &best_sz, true);
