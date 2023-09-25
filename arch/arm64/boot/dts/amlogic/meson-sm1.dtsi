@@ -404,6 +404,14 @@
 		<0x0 0xff63c100 0x0 0x10>;
 	};
 
+	vrtc: rtc@ff8000a8 {
+		compatible = "amlogic,meson-vrtc";
+		reg = <0x0 0xff8000a8 0x0 0x4>;	/*AO_DEBUG_REG2*/
+		mboxes = <&mailbox 0>;
+		mbox_data_packet;
+		status = "okay";
+	};
+
 	aml_reboot{
 		compatible = "aml, reboot";
 		sys_reset = <0x84000009>;
