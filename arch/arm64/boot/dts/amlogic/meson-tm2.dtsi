@@ -154,9 +154,11 @@
 			<0x0 0xff80023c 0x0 0x4>; /*SYSCTRL_SEC_STATUS_REG31*/
 	};
 
-	vrtc: rtc@0xfe010288 {
+	vrtc: rtc@0xff8000a8 {
 		compatible = "amlogic,meson-vrtc";
-		reg = <0x0 0xff8000a8 0x0 0x4>;
+		reg = <0x0 0xff8000a8 0x0 0x4>;	/*AO_DEBUG_REG2*/
+		mboxes = <&mailbox 1>;
+		mbox_data_packet;
 		status = "okay";
 	};
 
