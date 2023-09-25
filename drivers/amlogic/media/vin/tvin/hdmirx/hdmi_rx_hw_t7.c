@@ -1903,11 +1903,16 @@ bool aml_get_tmds_valid_t7(void)
 
 void aml_phy_power_off_t7(void)
 {
+	u32 data32;
+
 	/* pll power down */
 	hdmirx_wr_bits_amlphy(T7_HHI_RX_APLL_CNTL0, MSK(2, 28), 2);
 	hdmirx_wr_amlphy(T7_HHI_RX_PHY_MISC_CNTL0, 0x800800);
 	hdmirx_wr_amlphy(T7_HHI_RX_PHY_MISC_CNTL1, 0x0);
-	hdmirx_wr_amlphy(T7_HHI_RX_PHY_MISC_CNTL2, 0x60000002);
+	data32 = hdmirx_rd_amlphy(T7_HHI_RX_PHY_MISC_CNTL2);
+	data32 |= 1 << 29; //low speed clock enable bar
+	data32 |= 1 << 30; //high speed clock enable bar
+	hdmirx_wr_amlphy(T7_HHI_RX_PHY_MISC_CNTL2, data32);
 	hdmirx_wr_amlphy(T7_HHI_RX_PHY_MISC_CNTL3, 0x0);
 	hdmirx_wr_amlphy(T7_HHI_RX_PHY_DCHA_CNTL0, 0x10000000);
 	hdmirx_wr_amlphy(T7_HHI_RX_PHY_DCHA_CNTL1, 0x0);
