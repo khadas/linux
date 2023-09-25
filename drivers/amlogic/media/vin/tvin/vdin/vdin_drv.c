@@ -1409,6 +1409,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	/* write vframe as default */
 	devp->vframe_wr_en = 1;
 	devp->vframe_wr_en_pre = 1;
+	devp->keystone_vframe_ready = 0;
 	memset(&devp->stats, 0, sizeof(devp->stats));
 	if (vdin_time_en)
 		pr_info("vdin.%d start time: %ums, run time:%ums.\n",
@@ -3574,11 +3575,6 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		}
 	}
 
-	if (devp->set_canvas_manual == 1 && check_vdin_read_list(devp)) {
-		devp->keystone_vframe_ready = 1;
-		wake_up_interruptible(&vframe_waitq);
-	}
-
 	next_wr_vfe = provider_vf_peek(devp->vfp);
 
 	if (devp->last_wr_vfe) {
@@ -3593,8 +3589,10 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 					    put_md);
 		devp->last_wr_vfe = NULL;
 
-		if (devp->set_canvas_manual != 1 &&
-			devp->work_mode != VDIN_WORK_MD_V4L) {
+		if (devp->set_canvas_manual == 1) {
+			devp->keystone_vframe_ready = 1;
+			wake_up_interruptible(&vframe_waitq);
+		} else if (devp->work_mode != VDIN_WORK_MD_V4L) {
 			vf_notify_receiver(devp->name,
 					   VFRAME_EVENT_PROVIDER_VFRAME_READY,
 					   NULL);
