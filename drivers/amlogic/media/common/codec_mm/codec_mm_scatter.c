@@ -827,6 +827,11 @@ codec_mm_slot_alloc(struct codec_mm_scatter_mgt *smgt, int size, int flags)
 		slot->page_num = 1 << page_order;
 		slot->phy_addr =
 			virt_to_phys((unsigned long *)slot->page_header);
+		/* Invalidate range of cache lines. */
+		dma_sync_single_for_device(smgt->dev,
+			slot->phy_addr,
+			(slot->page_num * PAGE_SIZE),
+			DMA_FROM_DEVICE);
 		codec_mm_slot_init_bitmap(slot);
 		if (!slot->pagemap) {
 			free_pages(slot->page_header, page_order);

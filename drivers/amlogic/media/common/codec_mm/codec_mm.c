@@ -424,17 +424,22 @@ static void *codec_mm_search_vaddr(unsigned long phy_addr)
 	return vaddr;
 }
 
-u8 *codec_mm_vmap(ulong addr, u32 size)
+static u8 *__codec_mm_vmap(ulong addr, u32 size, bool is_cache)
 {
 	u8 *vaddr = NULL;
 	struct page **pages = NULL;
 	u32 i, npages, offset = 0;
 	ulong phys, page_start;
 	pgprot_t pgprot = PAGE_KERNEL;
+	ulong vm_flags = VM_MAP;
 
-	if (!PageHighMem(phys_to_page(addr)))
+	if (!PageHighMem(phys_to_page(addr)) && is_cache)
 		return phys_to_virt(addr);
 
+	if (!is_cache) { /* remap for noncached. */
+		pgprot = pgprot_dmacoherent(PAGE_KERNEL);
+		vm_flags = VM_DMA_COHERENT;
+	}
 	offset = offset_in_page(addr);
 	page_start = addr - offset;
 	npages = DIV_ROUND_UP(size + offset, PAGE_SIZE);
@@ -448,7 +453,7 @@ u8 *codec_mm_vmap(ulong addr, u32 size)
 		pages[i] = pfn_to_page(phys >> PAGE_SHIFT);
 	}
 
-	vaddr = vmap(pages, npages, VM_MAP, pgprot);
+	vaddr = vmap(pages, npages, vm_flags, pgprot);
 	if (!vaddr) {
 		pr_err("the phy(%lx) vmaped fail, size: %d\n",
 		       page_start, npages << PAGE_SHIFT);
@@ -459,14 +464,25 @@ u8 *codec_mm_vmap(ulong addr, u32 size)
 	kfree(pages);
 
 	if (debug_mode & 0x20) {
-		pr_info("[HIGH-MEM-MAP] %s, pa(%lx) to va(%lx), size: %d\n",
+		pr_info("[VMAP] %s, pa(%lx) to va(%lx), size: %d, cache:%d\n",
 			__func__, page_start, (ulong)vaddr,
-			npages << PAGE_SHIFT);
+			npages << PAGE_SHIFT, is_cache);
 	}
 
 	return vaddr + offset;
 }
+
+u8 *codec_mm_vmap(ulong addr, u32 size)
+{
+	return __codec_mm_vmap(addr, size, true);
+}
 EXPORT_SYMBOL(codec_mm_vmap);
+
+u8 *codec_mm_vmap_noncache(ulong addr, u32 size)
+{
+	return __codec_mm_vmap(addr, size, false);
+}
+EXPORT_SYMBOL(codec_mm_vmap_noncache);
 
 void codec_mm_memset(ulong phys, u32 val, u32 size)
 {
@@ -607,6 +623,10 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 			if (mem->mem_handle) {
 				mem->vbuffer = mem->mem_handle;
 				mem->phy_addr = virt_to_phys(mem->mem_handle);
+				dma_sync_single_for_device(mgt->dev,
+					mem->phy_addr,
+					PAGE_ALIGN(mem->buffer_size),
+					DMA_FROM_DEVICE);
 				break;
 			}
 			try_alloced_from_sys = 1;
@@ -626,7 +646,13 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 			if (mem->mem_handle) {
 				mem->vbuffer = mem->mem_handle;
 				mem->phy_addr =
-				 page_to_phys((struct page *)mem->mem_handle);
+					page_to_phys((struct page *)mem->mem_handle);
+				if (!mgt->tvp_enable) {
+					dma_sync_single_for_device(mgt->dev,
+						mem->phy_addr,
+						mem->page_count << PAGE_SHIFT,
+						DMA_FROM_DEVICE);
+				}
 #ifdef CONFIG_ARM64
 				if (mem->flags & CODEC_MM_FLAGS_CMA_CLEAR) {
 					/*dma_clear_buffer((struct page *)*/
@@ -703,7 +729,12 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 				mem->phy_addr =
 					page_to_phys((struct page *)
 						mem->mem_handle);
-
+				if (!mgt->tvp_enable) {
+					dma_sync_single_for_device(mgt->dev,
+						mem->phy_addr,
+						mem->page_count << PAGE_SHIFT,
+						DMA_FROM_DEVICE);
+				}
 				if (mem->flags & CODEC_MM_FLAGS_CPU)
 					mem->vbuffer =
 						codec_mm_map_phyaddr(mem);
@@ -772,6 +803,10 @@ static int codec_mm_alloc_in(struct codec_mm_mgt_s *mgt, struct codec_mm_s *mem)
 				mem->vbuffer = mem->mem_handle;
 				mem->phy_addr =
 					virt_to_phys((void *)mem->mem_handle);
+				dma_sync_single_for_device(mgt->dev,
+					mem->phy_addr,
+					PAGE_ALIGN(mem->buffer_size),
+					DMA_FROM_DEVICE);
 				break;
 			}
 		}

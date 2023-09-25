@@ -145,6 +145,7 @@ int codec_mm_free_for_dma(const char *owner, unsigned long phy_addr);
 void *codec_mm_phys_to_virt(unsigned long phy_addr);
 unsigned long codec_mm_virt_to_phys(void *vaddr);
 u8 *codec_mm_vmap(ulong addr, u32 size);
+u8 *codec_mm_vmap_noncache(ulong addr, u32 size);
 void codec_mm_unmap_phyaddr(u8 *vaddr);
 
 void codec_mm_dma_flush(void *vaddr, int size, enum dma_data_direction dir);
