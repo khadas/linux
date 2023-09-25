@@ -1031,6 +1031,7 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	int ilock;
 	unsigned char s = 0;
 	s16 strength = 0;
+	u16 rf_strength = 0;
 	int strength_limit = THRD_TUNER_STRENGTH_DVBT;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
@@ -1164,6 +1165,10 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 //			dvbt_t2_wrb(R368TER_INC_CONF3, 0x0d);
 //		else
 //			dvbt_t2_wrb(R368TER_INC_CONF3, 0x0a);
+
+		/* for call r842 dvbt agc slow */
+		if (tuner_find_by_name(fe, "r842") && fe->ops.tuner_ops.get_rf_strength)
+			fe->ops.tuner_ops.get_rf_strength(fe, &rf_strength);
 	} else {
 		if (((dvbt_t2_rdb(0x2901) & 0x0f) == 0x09) &&
 			((dvbt_t2_rdb(0x2901) & 0x40) == 0x40)) {
@@ -1227,6 +1232,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	unsigned char s = 0;
 	s16 strength = 0;
+	u16 rf_strength = 0;
 	int strength_limit = THRD_TUNER_STRENGTH_DVBT;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
@@ -1345,6 +1351,10 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		demod->real_para.coderate = cr;
 		demod->real_para.plp_num = plp_num;
 		demod->real_para.fef_info = fef_info;
+
+		/* for call r842 dvbt agc slow */
+		if (tuner_find_by_name(fe, "r842") && fe->ops.tuner_ops.get_rf_strength)
+			fe->ops.tuner_ops.get_rf_strength(fe, &rf_strength);
 	} else if (demod->last_lock == -CONTINUE_TIMES_UNLOCK) {
 		*status = FE_TIMEDOUT;
 		real_para_clear(&demod->real_para);
