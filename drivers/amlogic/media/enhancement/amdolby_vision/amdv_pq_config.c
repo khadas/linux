@@ -900,6 +900,69 @@ static void get_picture_mode_info(char *cfg_buf)
 	}
 }
 
+/*cp bin data*/
+static int cp_bin_data(void)
+{
+	int ret = 0;
+	unsigned int bin_len = sizeof(struct pq_config) * MAX_DV_PICTUREMODES;
+	int i = 0;
+	unsigned int length = 0;
+
+	if (!bin_to_cfg)
+		bin_to_cfg = vmalloc(bin_len);
+	if (!bin_to_cfg)
+		return false;
+
+	length = (bin_size > bin_len) ? bin_len : bin_size;
+	num_picture_mode = length / sizeof(struct pq_config);
+
+	if (num_picture_mode >
+	    sizeof(cfg_info) / sizeof(struct dv_cfg_info_s)) {
+		pr_dv_dbg("dv_config.bin size(%d) larger than cfg_info(%d)\n",
+			num_picture_mode,
+			(int)(sizeof(cfg_info) / sizeof(struct dv_cfg_info_s)));
+		num_picture_mode =
+			sizeof(cfg_info) / sizeof(struct dv_cfg_info_s);
+	}
+	if (num_picture_mode == 1)
+		default_pic_mode = 0;
+
+	memcpy((char *)bin_to_cfg, bin_data, length);
+
+	for (i = 0; i < num_picture_mode; i++) {
+		cfg_info[i].id = i;
+		strcpy(cfg_info[i].pic_mode_name, "uninitialized");
+	}
+
+	pr_dv_dbg("cp bin size: %d\n", length);
+
+	return ret;
+}
+
+/*cp cfg file*/
+static int cp_cfg_data(void)
+{
+	int ret = 0;
+	char *txt_buf = NULL;
+
+	txt_buf = vmalloc(cfg_size);
+	memset(txt_buf, 0, cfg_size);
+
+	if (!txt_buf) {
+		ret = -ENOMEM;
+		goto release;
+	}
+	memcpy(txt_buf, cfg_data, cfg_size);
+	get_picture_mode_info(txt_buf);
+
+	pr_dv_dbg("cp cfg size: %d\n", cfg_size);
+
+release:
+	if (txt_buf)
+		vfree(txt_buf);
+	return ret;
+}
+
 bool load_dv_pq_config_data(char *bin_path, char *txt_path)
 {
 	struct file *filp = NULL;
@@ -998,6 +1061,20 @@ LOAD_END:
 		vfree(txt_buf);
 	set_fs(old_fs);
 	return ret;
+}
+
+bool cp_dv_pq_config_data(void)
+{
+	if (cp_bin_data() >= 0 && cp_cfg_data() >= 0) {
+		set_dv_pq_center();
+		set_dv_pq_range();
+		restore_dv_pq_setting(RESET_ALL);
+		update_vsvdb_to_rx();
+		use_target_lum_from_cfg = true;
+		load_bin_config = true;
+		pr_info("DV config: load %d picture mode\n", num_picture_mode);
+	}
+	return true;
 }
 
 static inline s16 clamps(s16 value, s16 v_min, s16 v_max)

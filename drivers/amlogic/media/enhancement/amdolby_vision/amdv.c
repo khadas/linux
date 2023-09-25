@@ -387,6 +387,12 @@ static int force_pri_input = -1;
 
 int cur_valid_video_num;
 
+/* cfg bin data */
+char *cfg_data;
+char *bin_data;
+int cfg_size;
+int bin_size;
+
 static unsigned int atsc_sei = 1;
 module_param(atsc_sei, uint, 0664);
 MODULE_PARM_DESC(atsc_sei, "\n atsc_sei\n");
@@ -13426,6 +13432,7 @@ static long amdolby_vision_ioctl(struct file *file,
 	struct dv_pq_info_s pq_info;
 	struct dv_full_pq_info_s pq_full_info;
 	struct dv_config_file_s config_file;
+	struct dv_config_data_s config_data;
 	void __user *argp = (void __user *)arg;
 	unsigned char bin_name[MAX_BYTES] = "";
 	unsigned char cfg_name[MAX_BYTES] = "";
@@ -13440,7 +13447,8 @@ static long amdolby_vision_ioctl(struct file *file,
 		return ret;
 	}
 
-	if (!get_load_config_status() && cmd != DV_IOC_SET_DV_CONFIG_FILE) {
+	if (!get_load_config_status() && cmd != DV_IOC_SET_DV_CONFIG_FILE &&
+		cmd != DV_IOC_SET_DV_CONFIG_DATA) {
 		pr_info("[DV] no config file, pq ioctl disable!\n");
 		return ret;
 	}
@@ -13569,6 +13577,42 @@ static long amdolby_vision_ioctl(struct file *file,
 				pr_info("[DV]: config_file %s, %s\n",
 					config_file.bin_name,
 					config_file.cfg_name);
+		} else {
+			ret = -EFAULT;
+		}
+		break;
+	case DV_IOC_SET_DV_CONFIG_DATA:
+		if (copy_from_user(&config_data, argp,
+				   sizeof(struct dv_config_data_s)) == 0) {
+			if (config_data.file_name == 0) {
+				cfg_size = config_data.file_size;
+				cfg_data = kmalloc(cfg_size, GFP_KERNEL);
+				argp = (void __user *)config_data.file_data;
+				if (copy_from_user(cfg_data, argp, cfg_size))
+					ret = -EFAULT;
+			}
+			if (config_data.file_name == 1) {
+				bin_size = config_data.file_size;
+				bin_data = kmalloc(bin_size, GFP_KERNEL);
+				argp = (void __user *)config_data.file_data;
+				if (copy_from_user(bin_data, argp, bin_size))
+					ret = -EFAULT;
+			}
+			if (!cfg_data || !bin_data) {
+				if (debug_dolby & 0x200)
+					pr_info("[DV]: set config fail, cfg_size=%d, bin_size=%d\n",
+					cfg_size, bin_size);
+				return ret;
+			}
+			if (is_aml_tm2_tvmode() ||
+			    is_aml_t7_tvmode() ||
+			    is_aml_t3_tvmode() ||
+			    is_aml_t5w() ||
+			    p_funcs_tv)
+				cp_dv_pq_config_data();
+			if (debug_dolby & 0x200)
+				pr_info("[DV]: set config success, cfg_size=%d, bin_size=%d\n",
+					cfg_size, bin_size);
 		} else {
 			ret = -EFAULT;
 		}

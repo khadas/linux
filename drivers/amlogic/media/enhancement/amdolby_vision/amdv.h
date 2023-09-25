@@ -692,6 +692,10 @@ extern int cur_valid_video_num;
 extern int (*get_osd_status)(u32 index);
 extern bool amdv_wait_on;
 extern struct vpp_post_info_t core3_slice_info;
+extern char *cfg_data;
+extern char *bin_data;
+extern int cfg_size;
+extern int bin_size;
 /************/
 
 #define pr_dv_dbg(fmt, args...)\

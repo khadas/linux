@@ -190,6 +190,7 @@ extern struct ambient_cfg_s ambient_test_cfg_3[AMBIENT_CFG_FRAMES];
 
 void restore_dv_pq_setting(enum pq_reset_e pq_reset);
 bool load_dv_pq_config_data(char *bin_path, char *txt_path);
+bool cp_dv_pq_config_data(void);
 void set_pic_mode(int mode);
 int get_pic_mode_num(void);
 int get_pic_mode(void);
