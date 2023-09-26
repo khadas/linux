@@ -156,6 +156,7 @@ struct amlogic_pcie {
 	u32 phy_type;
 
 	int reset_gpio;
+	bool do_reset_gpio;
 	u32 gpio_type;
 
 	struct clk *pcie_400m_clk;

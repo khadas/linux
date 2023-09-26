@@ -819,6 +819,11 @@ static int amlogic_pcie_set_reset_gpio(struct amlogic_pcie *amlogic)
 	struct device *dev = amlogic->dev;
 	int ret = 0;
 
+	if (!amlogic->do_reset_gpio) {
+		dev_info(dev, "GPIO no need reset for W2 when resume\n");
+		return 0;
+	}
+
 	/*reset-gpio-type 0:Shared pad(no reset)1:OD pad2:Normal pad*/
 	if (amlogic->gpio_type == 0) {
 		dev_info(dev, "gpio multiplex, don't reset!\n");
