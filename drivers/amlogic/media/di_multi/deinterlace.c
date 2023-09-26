@@ -11651,7 +11651,8 @@ void dim_set_di_flag(void)
 		pldn_dly1 = 2;
 	}
 
-	if (DIM_IS_IC(T5)	||
+	if (DIM_IS_IC(TL1)	||
+	    DIM_IS_IC(T5)	||
 	    DIM_IS_IC(TM2B)	||
 	    DIM_IS_IC(T5DB)	||
 	    DIM_IS_IC(T5D)	||
