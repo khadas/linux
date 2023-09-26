@@ -550,7 +550,7 @@ static void common_toggle_frame(struct video_recv_s *ins,
 						pr_info("%s(%d):ins->buf_to_put_num=%d\n",
 							__func__, __LINE__,
 							ins->buf_to_put_num);
-						kfifo_put(&ins->put_q, ins->original_vf);
+					kfifo_put(&ins->put_q, ins->original_vf);
 				}
 			} else {
 				if (debug_flag & DEBUG_FLAG_PRINT_FRAME_DETAIL)

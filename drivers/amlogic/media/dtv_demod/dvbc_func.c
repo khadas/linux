@@ -440,8 +440,8 @@ static unsigned int fe_l2a_blind_check_agc2_bandwidth(struct aml_dtvdemod *demod
 			if (i == 44)
 				PR_DVBC("i is %d,agc2level is %d,maxagc2level is %d\n",
 						i, agc2level, maxagc2level);
-				PR_DVBC("minagc2level is %d, midagc2level is %d\n",
-						minagc2level, midagc2level);
+			PR_DVBC("minagc2level is %d, midagc2level is %d\n",
+					minagc2level, midagc2level);
 
 			if ((minagc2level > (agc2level * 2)) && i == 44)
 				agc2leveltab[k] = midagc2level;

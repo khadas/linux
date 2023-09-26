@@ -514,7 +514,7 @@ static int pa1_mixer_set_3D_Surround_params(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
-	unsigned int tmp_data[PA1_FILTER_PARAM_SIZE + 1] = {0};
+	unsigned int tmp_data[PA1_FILTER_PARAM_SIZE + 2] = {0};
 	unsigned int *p_data = &tmp_data[0];
 	char tmp_string[PA1_FILTER_PARAM_BYTE];
 	char *p_string = &tmp_string[0];
