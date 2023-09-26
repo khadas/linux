@@ -675,6 +675,7 @@ void dbg_set_DI_PRE_CTRL(void);
 void di_async_reset2(void);	/*2019-04-05 add for debug*/
 void di_pre_data_mif_ctrl(bool enable, const struct reg_acc *op_in,
 			  bool en_link);
+void di_async_txhd2(void);
 
 enum DI_HW_POST_CTRL {
 	DI_HW_POST_CTRL_INIT,

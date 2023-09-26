@@ -11055,6 +11055,9 @@ void di_reg_setting(unsigned int channel, struct vframe_s *vframe)
 	    dimp_get(edi_mp_post_wr_support))
 		dim_set_power_control(1);
 
+	if (DIM_IS_IC(T5DB))
+		di_async_txhd2();
+
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 		/*if (!use_2_interlace_buff) {*/
 		if (1) {
