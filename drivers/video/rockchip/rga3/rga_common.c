@@ -88,6 +88,8 @@ bool rga_is_alpha_format(uint32_t format)
 	case RGA_FORMAT_ABGR_8888:
 	case RGA_FORMAT_ABGR_5551:
 	case RGA_FORMAT_ABGR_4444:
+
+	case RGA_FORMAT_A8:
 		return true;
 	default:
 		return false;
@@ -335,6 +337,8 @@ const char *rga_get_format_name(uint32_t format)
 	case RGA_FORMAT_RGBA_2BPP:
 		return "RGBA2BPP";
 
+	case RGA_FORMAT_A8:
+		return "alpha-8";
 	default:
 		return "UNF";
 	}
@@ -398,6 +402,7 @@ int rga_get_format_bits(uint32_t format)
 		break;
 	case RGA_FORMAT_YCbCr_400:
 	case RGA_FORMAT_BPP8:
+	case RGA_FORMAT_A8:
 		bits = 8;
 		break;
 	case RGA_FORMAT_Y4:
@@ -468,6 +473,7 @@ int rga_get_pixel_stride_from_format(uint32_t format)
 	case RGA_FORMAT_BPP4:
 	case RGA_FORMAT_BPP8:
 	case RGA_FORMAT_YCbCr_400:
+	case RGA_FORMAT_A8:
 	case RGA_FORMAT_YCbCr_420_SP:
 	case RGA_FORMAT_YCbCr_420_P:
 	case RGA_FORMAT_YCrCb_420_SP:
@@ -737,6 +743,7 @@ int rga_image_size_cal(int w, int h, int format,
 		v = uv;
 		break;
 	case RGA_FORMAT_YCbCr_400:
+	case RGA_FORMAT_A8:
 		yrgb = w * h;
 		break;
 	case RGA_FORMAT_Y4:
