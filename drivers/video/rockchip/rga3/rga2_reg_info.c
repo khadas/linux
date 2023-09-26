@@ -804,6 +804,10 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 		bbp_shift = 2;
 		src1_alpha_swp = msg->osd_info.bpp2_info.ac_swap;
 		break;
+	case RGA_FORMAT_A8:
+		src1_format = 0x3;
+		spw = 1;
+		break;
 	default:
 		spw = 4;
 		break;
