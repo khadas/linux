@@ -1067,7 +1067,7 @@ static void vlock_setting(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 		/*	temp_value + 1, 16, 14);*/
 		WRITE_VPP_REG_BITS(VPU_VLOCK_ADJ_EN_SYNC_CTRL + offset_vlck,
 				   vlock_latch_en_cnt, 8, 8);
-		WRITE_VPP_REG_BITS(pvlock->enc_video_mode_addr + offset_enc, 1, 15, 1);
+		//WRITE_VPP_REG_BITS(pvlock->enc_video_mode_addr + offset_enc, 1, 15, 1);
 	}
 	if ((vlock_mode & (VLOCK_MODE_AUTO_PLL |
 		VLOCK_MODE_MANUAL_PLL))) {
@@ -1338,7 +1338,7 @@ static void vlock_disable_step1(struct stvlock_sig_sts *pvlock)
 	if (IS_ENC_MODE(vlock_mode)) {
 		pvlock->err_accum = 0;
 		WRITE_VPP_REG_BITS(pvlock->enc_video_mode_adv_addr + offset_enc, 0, 14, 1);
-		WRITE_VPP_REG_BITS(pvlock->enc_video_mode_addr + offset_enc, 0, 15, 1);
+		//WRITE_VPP_REG_BITS(pvlock->enc_video_mode_addr + offset_enc, 0, 15, 1);
 		/*restore h,v total*/
 		WRITE_VPP_REG_BITS(pvlock->enc_max_line_switch_addr + offset_enc, 0x1fff, 0, 13);
 		WRITE_VPP_REG(pvlock->enc_max_line_addr + offset_enc,
