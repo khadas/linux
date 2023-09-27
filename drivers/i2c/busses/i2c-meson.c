@@ -636,6 +636,11 @@ static int meson_i2c_probe(struct platform_device *pdev)
 	ret = meson_i2c_speed_debug(&pdev->dev);
 	if (ret)
 		dev_err(&pdev->dev, "Creat i2c speed debug sysfs failed\n");
+	i2c->clk_rate = clk_get_rate(i2c->clk);
+	if (i2c->clk_rate == 0) {
+		dev_err(&pdev->dev, "failed to get clk rate\n");
+		return -EINVAL;
+	}
 #endif
 	/*
 	 * A transfer is triggered when START bit changes from 0 to 1.
@@ -650,7 +655,6 @@ static int meson_i2c_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-	i2c->clk_rate = clk_get_rate(i2c->clk);
 	meson_i2c_set_clk_div(i2c);
 	pm_runtime_mark_last_busy(i2c->dev);
 	pm_runtime_put_autosuspend(i2c->dev);
