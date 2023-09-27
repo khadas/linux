@@ -1588,6 +1588,7 @@
 
 &drm_subsystem {
 	fbdev_sizes = <1280 720 1280 1440 32>;
+	fbdev_overlay_sizes = <1280 720 1280 1440 32>;
 };
 
 &amlogic_codec {
