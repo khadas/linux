@@ -497,6 +497,8 @@ struct rockchip_crtc_funcs {
 	void (*te_handler)(struct drm_crtc *crtc);
 	int (*wait_vact_end)(struct drm_crtc *crtc, unsigned int mstimeout);
 	void (*crtc_standby)(struct drm_crtc *crtc, bool standby);
+	void (*crtc_output_post_enable)(struct drm_crtc *crtc, int intf);
+	void (*crtc_output_pre_disable)(struct drm_crtc *crtc, int intf);
 	int (*crtc_set_color_bar)(struct drm_crtc *crtc, enum rockchip_color_bar_mode mode);
 	int (*set_aclk)(struct drm_crtc *crtc, enum rockchip_drm_vop_aclk_mode aclk_mode);
 };
@@ -587,6 +589,8 @@ int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
 				 const struct rockchip_crtc_funcs *crtc_funcs);
 void rockchip_unregister_crtc_funcs(struct drm_crtc *crtc);
 void rockchip_drm_crtc_standby(struct drm_crtc *crtc, bool standby);
+void rockchip_drm_crtc_output_post_enable(struct drm_crtc *crtc, int intf);
+void rockchip_drm_crtc_output_pre_disable(struct drm_crtc *crtc, int intf);
 
 void rockchip_drm_register_sub_dev(struct rockchip_drm_sub_dev *sub_dev);
 void rockchip_drm_unregister_sub_dev(struct rockchip_drm_sub_dev *sub_dev);

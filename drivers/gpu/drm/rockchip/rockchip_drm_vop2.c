@@ -1164,6 +1164,36 @@ static void vop2_crtc_standby(struct drm_crtc *crtc, bool standby)
 	}
 }
 
+static void vop2_crtc_output_post_enable(struct drm_crtc *crtc, int intf)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+
+	if (intf & VOP_OUTPUT_IF_DP0)
+		VOP_CTRL_SET(vop2, dp0_en, 1);
+	else if (intf & VOP_OUTPUT_IF_DP1)
+		VOP_CTRL_SET(vop2, dp1_en, 1);
+	else if (intf & VOP_OUTPUT_IF_DP2)
+		VOP_CTRL_SET(vop2, dp2_en, 1);
+
+	dev_info(vop2->dev, "vop enable intf:%x\n", intf);
+}
+
+static void vop2_crtc_output_pre_disable(struct drm_crtc *crtc, int intf)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+
+	if (intf & VOP_OUTPUT_IF_DP0)
+		VOP_CTRL_SET(vop2, dp0_en, 0);
+	else if (intf & VOP_OUTPUT_IF_DP1)
+		VOP_CTRL_SET(vop2, dp1_en, 0);
+	else if (intf & VOP_OUTPUT_IF_DP2)
+		VOP_CTRL_SET(vop2, dp2_en, 0);
+
+	dev_info(vop2->dev, "vop disable intf:%x\n", intf);
+}
+
 static inline const struct vop2_win_regs *vop2_get_win_regs(struct vop2_win *win,
 							    const struct vop_reg *reg)
 {
@@ -7297,6 +7327,8 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.crtc_send_mcu_cmd = vop3_crtc_send_mcu_cmd,
 	.wait_vact_end = vop2_crtc_wait_vact_end,
 	.crtc_standby = vop2_crtc_standby,
+	.crtc_output_post_enable = vop2_crtc_output_post_enable,
+	.crtc_output_pre_disable = vop2_crtc_output_pre_disable,
 	.crtc_set_color_bar = vop2_crtc_set_color_bar,
 	.set_aclk = vop2_devfreq_set_aclk,
 };
@@ -8592,9 +8624,8 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 		ret = vop2_calc_cru_cfg(crtc, VOP_OUTPUT_IF_DP0, &if_pixclk, &if_dclk);
 		if (ret < 0)
 			goto out;
-		VOP_CTRL_SET(vop2, dp0_regdone_imd_en, 1);
+
 		VOP_CTRL_SET(vop2, dp0_dclk_out_en, 1);
-		VOP_CTRL_SET(vop2, dp0_en, 1);
 		VOP_CTRL_SET(vop2, dp0_mux, vp_data->id);
 		VOP_CTRL_SET(vop2, dp0_dclk_pol, 0);
 		VOP_CTRL_SET(vop2, dp0_pin_pol, val);
@@ -8605,9 +8636,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 		if (ret < 0)
 			goto out;
 
-		VOP_CTRL_SET(vop2, dp1_regdone_imd_en, 1);
 		VOP_CTRL_SET(vop2, dp1_dclk_out_en, 1);
-		VOP_CTRL_SET(vop2, dp1_en, 1);
 		VOP_CTRL_SET(vop2, dp1_mux, vp_data->id);
 		VOP_CTRL_SET(vop2, dp1_dclk_pol, 0);
 		VOP_CTRL_SET(vop2, dp1_pin_pol, val);
@@ -8618,9 +8647,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 		if (ret < 0)
 			goto out;
 
-		VOP_CTRL_SET(vop2, dp2_regdone_imd_en, 1);
 		VOP_CTRL_SET(vop2, dp2_dclk_out_en, 1);
-		VOP_CTRL_SET(vop2, dp2_en, 1);
 		VOP_CTRL_SET(vop2, dp2_mux, vp_data->id);
 		VOP_CTRL_SET(vop2, dp2_dclk_pol, 0);
 		VOP_CTRL_SET(vop2, dp2_pin_pol, val);
