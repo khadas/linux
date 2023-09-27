@@ -3387,6 +3387,32 @@ static int dw_dp_set_vcpid_tables(struct dw_dp *dp,
 	return 0;
 }
 
+static void dw_dp_enable_vop_gate(struct dw_dp *dp, struct drm_crtc *crtc,
+				  int stream_id, bool enable)
+{
+	int output_if;
+
+	switch (stream_id) {
+	case 0:
+		output_if = VOP_OUTPUT_IF_DP0;
+		break;
+	case 1:
+		output_if = VOP_OUTPUT_IF_DP1;
+		break;
+	case 2:
+		output_if = VOP_OUTPUT_IF_DP2;
+		break;
+	default:
+		dev_err(dp->dev, "invalid stream id:%d\n", stream_id);
+		return;
+	}
+
+	if (enable)
+		rockchip_drm_crtc_output_post_enable(crtc, output_if);
+	else
+		rockchip_drm_crtc_output_pre_disable(crtc, output_if);
+}
+
 static void dw_dp_mst_encoder_atomic_enable(struct drm_encoder *encoder,
 					    struct drm_atomic_state *state)
 {
@@ -3473,6 +3499,7 @@ static void dw_dp_mst_encoder_atomic_enable(struct drm_encoder *encoder,
 		return;
 	}
 
+	dw_dp_enable_vop_gate(dp, encoder->crtc, mst_enc->stream_id, true);
 	drm_dp_add_payload_part2(&dp->mst_mgr, state, payload);
 }
 
@@ -3531,6 +3558,8 @@ static void dw_dp_mst_encoder_atomic_disable(struct drm_encoder *encoder,
 
 	dp->active_mst_links--;
 	mst_enc->active = false;
+
+	dw_dp_enable_vop_gate(dp, encoder->crtc, mst_enc->stream_id, false);
 
 	if (!(crtc->state->encoder_mask & drm_encoder_mask(encoder))) {
 		switch (mst_enc->stream_id) {
@@ -4037,6 +4066,8 @@ static void dw_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 		return;
 	}
 
+	dw_dp_enable_vop_gate(dp, bridge->encoder->crtc, 0, true);
+
 	if (dp->panel)
 		drm_panel_enable(dp->panel);
 
@@ -4052,6 +4083,7 @@ static void dw_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 	if (dp->panel)
 		drm_panel_disable(dp->panel);
 
+	dw_dp_enable_vop_gate(dp, bridge->encoder->crtc, 0, false);
 	dw_dp_hdcp_disable(dp);
 	dw_dp_video_disable(dp, 0);
 	dw_dp_link_disable(dp);
