@@ -785,17 +785,16 @@ static void pmu_sleep_config(void)
 	writel_relaxed(BITS_WITH_WMASK(0x1, 0xf, 4), ioc_base[1] + 0);
 
 	/* pmu count */
-	writel_relaxed(clk_freq_khz * 32, pmu_base + RV1106_PMU_OSC_STABLE_CNT);
-	writel_relaxed(clk_freq_khz * 32, pmu_base + RV1106_PMU_PMIC_STABLE_CNT);
-	writel_relaxed(clk_freq_khz * 3000, pmu_base + RV1106_PMU_WAKEUP_TIMEOUT_CNT);
+	writel_relaxed(clk_freq_khz * 10, pmu_base + RV1106_PMU_OSC_STABLE_CNT);
+	writel_relaxed(clk_freq_khz * 5, pmu_base + RV1106_PMU_PMIC_STABLE_CNT);
 
 	/* Pmu's clk has switched to 24M back When pmu FSM counts
 	 * the follow counters, so we should use 24M to calculate
 	 * these counters.
 	 */
-	writel_relaxed(24000 * 2, pmu_base + RV1106_PMU_WAKEUP_RSTCLR_CNT);
-	writel_relaxed(24000 * 5, pmu_base + RV1106_PMU_PLL_LOCK_CNT);
-	writel_relaxed(24000 * 5, pmu_base + RV1106_PMU_PWM_SWITCH_CNT);
+	writel_relaxed(12000, pmu_base + RV1106_PMU_WAKEUP_RSTCLR_CNT);
+	writel_relaxed(12000, pmu_base + RV1106_PMU_PLL_LOCK_CNT);
+	writel_relaxed(24000 * 2, pmu_base + RV1106_PMU_PWM_SWITCH_CNT);
 
 	/* pmu reset hold */
 	writel_relaxed(0xffffffff, pmugrf_base + RV1106_PMUGRF_SOC_CON(4));
@@ -1036,7 +1035,18 @@ static int rockchip_lpmode_enter(unsigned long arg)
 
 	cpu_do_idle();
 
-	pr_err("%s: Failed to suspend\n", __func__);
+#if RV1106_WAKEUP_TO_SYSTEM_RESET
+	/* If reaches here, it means wakeup source cames before cpu enter wfi.
+	 * So we should do system reset if RV1106_WAKEUP_TO_SYSTEM_RESET.
+	 */
+	writel_relaxed(0x000c000c, cru_base + RV1106_CRU_GLB_RST_CON);
+	writel_relaxed(0xffff0000, pmugrf_base + RV1106_PMUGRF_SOC_CON(4));
+	writel_relaxed(0xffff0000, pmugrf_base + RV1106_PMUGRF_SOC_CON(5));
+	dsb(sy);
+	writel_relaxed(0xfdb9, cru_base + RV1106_CRU_GLB_SRST_FST);
+#endif
+
+	rkpm_printstr("Failed to suspend\n");
 
 	return 1;
 }
@@ -1090,7 +1100,7 @@ RE_ENTER_SLEEP:
 	rkpm_printch('-');
 
 	/* Check whether it's time_out wakeup */
-	if (IS_ENABLED(CONFIG_RV1106_HPMCU_FAST_WAKEUP) && ddr_data.pmu_wkup_int_st == 0) {
+	if (IS_ENABLED(CONFIG_RV1106_HPMCU_FAST_WAKEUP)) {
 		if (hpmcu_fast_wkup()) {
 			rkpm_gicv2_dist_restore(gicd_base, &gicd_ctx_save);
 			goto RE_ENTER_SLEEP;
