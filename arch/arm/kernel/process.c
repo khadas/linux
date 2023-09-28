@@ -186,41 +186,11 @@ static void show_user_data(unsigned long addr, int nbytes, const char *name)
 	int	i, j;
 	int	nlines;
 	u32	*p;
+	char	buf[128] = {0};
+	int	len = 0;
 
 	if (!access_ok((void *)addr, nbytes))
 		return;
-
-#ifdef CONFIG_AMLOGIC_MODIFY
-	/*
-	 * Treating data in general purpose register as an address
-	 * and dereferencing it is quite a dangerous behaviour,
-	 * especially when it is an address belonging to secure
-	 * region or ioremap region, which can lead to external
-	 * abort on non-linefetch and can not be protected by
-	 * probe_kernel_address.
-	 * We need more strict filtering rules
-	 */
-
-#ifdef CONFIG_AMLOGIC_SEC
-	/*
-	 * filter out secure monitor region
-	 */
-	if (addr <= (unsigned long)high_memory)
-		if (within_secmon_region(addr)) {
-			pr_info("\n%s: %#lx S\n", name, addr);
-			return;
-		}
-#endif
-
-	/*
-	 * filter out ioremap region
-	 */
-	if ((addr >= VMALLOC_START) && (addr <= VMALLOC_END))
-		if (!pfn_valid(vmalloc_to_pfn((void *)addr))) {
-			pr_info("\n%s: %#lx V\n", name, addr);
-			return;
-		}
-#endif
 
 	pr_info("\n%s: %#lx:\n", name, addr);
 
@@ -237,27 +207,22 @@ static void show_user_data(unsigned long addr, int nbytes, const char *name)
 		 * just display low 16 bits of address to keep
 		 * each line of the dump < 80 characters
 		 */
-		pr_info("%04lx ", (unsigned long)p & 0xffff);
-		if (irqs_disabled())
-			continue;
+		len = 0;
+		len += snprintf(buf + len, sizeof(buf) - len,
+						"%04lx ", (unsigned long)p & 0xffff);
 		for (j = 0; j < 8; j++) {
-			u32 data;
 			int bad;
+			unsigned char data[4];
 
-			bad = __get_user(data, p);
-			if (bad) {
-				if (j != 7)
-					pr_cont(" ********");
-				else
-					pr_cont(" ********\n");
-			} else {
-				if (j != 7)
-					pr_cont(" %08x", data);
-				else
-					pr_cont(" %08x\n", data);
-			}
+			bad = __copy_from_user_inatomic(data, (const void *)p, sizeof(u32));
+			if (bad)
+				len += snprintf(buf + len, sizeof(buf) - len, " ********");
+			else
+				len += snprintf(buf + len, sizeof(buf) - len,
+								" %08x", *(u32 *)data);
 			++p;
 		}
+		pr_info("%s\n", buf);
 	}
 }
 #endif /* CONFIG_AMLOGIC_USER_FAULT */
@@ -290,10 +255,6 @@ static void show_extra_register_data(struct pt_regs *regs, int nbytes)
 #ifdef CONFIG_AMLOGIC_USER_FAULT
 static void show_user_extra_register_data(struct pt_regs *regs, int nbytes)
 {
-	mm_segment_t fs;
-
-	fs = get_fs();
-	set_fs(KERNEL_DS);
 	show_user_data(regs->ARM_pc - nbytes, nbytes * 2, "PC");
 	show_user_data(regs->ARM_lr - nbytes, nbytes * 2, "LR");
 	show_user_data(regs->ARM_sp - nbytes, nbytes * 2, "SP");
@@ -310,7 +271,6 @@ static void show_user_extra_register_data(struct pt_regs *regs, int nbytes)
 	show_user_data(regs->ARM_r8 - nbytes, nbytes * 2, "R8");
 	show_user_data(regs->ARM_r9 - nbytes, nbytes * 2, "R9");
 	show_user_data(regs->ARM_r10 - nbytes, nbytes * 2, "R10");
-	set_fs(fs);
 }
 
 void show_vma(struct mm_struct *mm, unsigned long addr)

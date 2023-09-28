@@ -333,19 +333,11 @@ static void show_user_data(unsigned long addr, int nbytes, const char *name)
 	int	i, j;
 	int	nlines;
 	u32	*p;
+	char	buf[128] = {0};
+	int	len = 0;
 
 	if (!access_ok((void *)addr, nbytes))
 		return;
-
-#ifdef CONFIG_AMLOGIC_SEC
-	/*
-	 * filter out secure monitor region
-	 */
-	if (within_secmon_region(addr)) {
-		pr_info("\n%s: %#lx S\n", name, addr);
-		return;
-	}
-#endif
 
 	pr_info("\n%s: %#lx:\n", name, addr);
 
@@ -362,21 +354,22 @@ static void show_user_data(unsigned long addr, int nbytes, const char *name)
 		 * just display low 16 bits of address to keep
 		 * each line of the dump < 80 characters
 		 */
-		pr_info("%04lx ", (unsigned long)p & 0xffff);
-		if (irqs_disabled())
-			continue;
+		len = 0;
+		len += snprintf(buf + len, sizeof(buf) - len,
+						"%04lx ", (unsigned long)p & 0xffff);
 		for (j = 0; j < 8; j++) {
-			u32	data;
 			int bad;
+			unsigned char data[4];
 
-			bad = __get_user(data, p);
+			bad = __copy_from_user_inatomic(data, (const void *)p, sizeof(u32));
 			if (bad)
-				pr_cont(" ********");
+				len += snprintf(buf + len, sizeof(buf) - len, " ********");
 			else
-				pr_cont(" %08x", data);
+				len += snprintf(buf + len, sizeof(buf) - len,
+								" %08x", *(u32 *)data);
 			++p;
 		}
-		pr_cont("\n");
+		pr_info("%s\n", buf);
 	}
 }
 
