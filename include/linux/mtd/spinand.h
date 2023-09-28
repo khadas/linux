@@ -239,6 +239,8 @@ extern const struct spinand_manufacturer micron_spinand_manufacturer;
 extern const struct spinand_manufacturer paragon_spinand_manufacturer;
 extern const struct spinand_manufacturer toshiba_spinand_manufacturer;
 extern const struct spinand_manufacturer winbond_spinand_manufacturer;
+extern const struct spinand_manufacturer dosilicon_spinand_manufacturer;
+
 #ifdef CONFIG_AMLOGIC_MODIFY
 /* spinand add zetta support */
 extern const struct spinand_manufacturer zetta_spinand_manufacturer;
