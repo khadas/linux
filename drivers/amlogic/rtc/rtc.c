@@ -194,6 +194,8 @@ static int meson_rtc_alarm_enable(struct device *dev, unsigned int enabled)
 		reg_val = readl(rtc->reg_base + RTC_CTRL);
 		reg_val &= (~(1 << RTC_ALRM0_EN_BIT));
 		writel(reg_val, rtc->reg_base + RTC_CTRL);
+		/* clear alarm */
+		meson_set_alarm(rtc, 0);
 	}
 
 	rtc->alarm_enabled = enabled;
