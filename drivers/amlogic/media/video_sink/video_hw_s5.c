@@ -1590,6 +1590,15 @@ u32 get_pi_enabled(u32 layer_id)
 		return vd_layer[layer_id].pi_enable;
 }
 
+u32 get_vd1s1_vd2_prebld_en(u32 layer_id)
+{
+	if (layer_id >= MAX_VD_CHAN_S5 ||
+		cur_dev->display_module != S5_DISPLAY_MODULE)
+		return 0;
+	else
+		return vd_layer[layer_id].vd1s1_vd2_prebld_en;
+}
+
 int vpp_crc_check_s5(u32 vpp_crc_en, u8 vpp_index)
 {
 	u32 val = 0;
