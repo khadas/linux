@@ -13795,6 +13795,18 @@ static void str_sapr_conv(const char *s, unsigned int size, int *dest, int num)
 	kfree(s1);
 }
 
+static int is_interlaced(struct vinfo_s *vinfo)
+{
+	if (!vinfo)
+		return 0;
+	if (vinfo->mode == VMODE_CVBS)
+		return 1;
+	if (vinfo->height != vinfo->field_height)
+		return 1;
+	else
+		return 0;
+}
+
 static ssize_t video_3d_scale_store(struct class *cla,
 				    struct class_attribute *attr,
 				    const char *buf, size_t count)
@@ -13877,13 +13889,17 @@ static ssize_t real_axis_show(struct class *cla, struct class_attribute *attr,
 	int x_start, y_start, x_end, y_end;
 	ssize_t len = 0;
 	struct vpp_frame_par_s *_cur_frame_par = cur_frame_par;
+	struct vinfo_s *vinfo = get_current_vinfo();
 
 	if (!_cur_frame_par)
 		return len;
 	x_start = _cur_frame_par->VPP_hsc_startp;
 	y_start = _cur_frame_par->VPP_vsc_startp;
 	x_end = _cur_frame_par->VPP_hsc_endp;
-	y_end = _cur_frame_par->VPP_vsc_endp;
+	if (is_interlaced(vinfo))
+		y_end = (_cur_frame_par->VPP_vsc_endp << 1) + 1;
+	else
+		y_end = _cur_frame_par->VPP_vsc_endp;
 	return snprintf(buf, 40, "%d %d %d %d\n", x_start, y_start, x_end, y_end);
 }
 
