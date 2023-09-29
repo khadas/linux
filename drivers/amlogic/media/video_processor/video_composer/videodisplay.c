@@ -835,9 +835,12 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 			 vsync_index_diff,
 			 vf->duration);
 
+		vc_print(dev->index, PRINT_FENCE,
+			"%s: vf: %px, vf_type: 0x%x.\n", __func__, vf, vf->type);
+
 		vc_print(dev->index, PRINT_DEWARP,
 			 "get:vf_w: %d, vf_h: %d\n", vf->width, vf->height);
-		vc_print(dev->index, PRINT_DEWARP,
+		vc_print(dev->index, PRINT_AXIS,
 			 "get:crop: %d %d %d %d, axis: %d %d %d %d.\n",
 			 vf->crop[0], vf->crop[1], vf->crop[2], vf->crop[3],
 			 vf->axis[0], vf->axis[1], vf->axis[2], vf->axis[3]);
@@ -845,7 +848,6 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 			 "get:canvas_w: %d, canvas_h: %d\n",
 			  vf->canvas0_config[0].width, vf->canvas0_config[0].height);
 
-		vc_print(dev->index, PRINT_VICP, "vf_type: 0x%x.\n", vf->type);
 
 		if (vf->vc_private) {
 			vf->vc_private->last_disp_count =
@@ -888,6 +890,8 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 
 	if (!vf)
 		return;
+
+	vc_print(dev->index, PRINT_FENCE, "%s: vf is %px.\n", __func__, vf);
 
 	if (dev->is_drm_enable) {
 		if (vf->flag & VFRAME_FLAG_FAKE_FRAME) {
@@ -940,6 +944,8 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 		vf_pop_display_q(dev, vf);
 		videocomposer_vf_put(vf, op_arg);
 	}
+
+	vc_print(dev->index, PRINT_FENCE, "%s end.\n", __func__);
 }
 
 static int vc_event_cb(int type, void *data, void *private_data)

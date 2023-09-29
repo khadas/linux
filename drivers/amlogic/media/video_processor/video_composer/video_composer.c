@@ -1345,7 +1345,9 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 	bool is_composer;
 	bool is_mosaic_22;
 	int i;
-	struct file *file_vf;
+	struct file *file_vf[4] = {NULL};
+	int src_omx_index[4] = {0};
+	int dst_omx_index[4] = {0};
 	struct vd_prepare_s *vd_prepare;
 
 	if (!vf)
@@ -1369,68 +1371,10 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 			vf->vc_private->srout_data->nn_status = NN_DISPLAYED;
 	}
 
-	if (vf->vc_private && !is_mosaic_22) {
-		vc_private_q_recycle(dev, vf->vc_private);
-		vf->vc_private = NULL;
-	}
-
 	vc_print(dev->index, PRINT_FENCE,
 		 "put: repeat_count =%d, omx_index=%d, index_disp=%x\n",
 		 repeat_count, omx_index, index_disp);
-
-	if (rendered) {
-		video_timeline_increase(dev, repeat_count
-					+ 1 + dev->drop_frame_count);
-		dev->drop_frame_count = 0;
-	} else {
-		dev->drop_frame_count += repeat_count + 1;
-		vc_print(dev->index, PRINT_PERFORMANCE | PRINT_FENCE,
-			 "put: drop repeat_count=%d\n", repeat_count);
-	}
-
 	if (!is_composer && !is_mosaic_22) {
-		vd_prepare = container_of(vf, struct vd_prepare_s, dst_frame);
-		if (IS_ERR_OR_NULL(vd_prepare)) {
-			vc_print(dev->index, PRINT_ERROR,
-				"%s: prepare is NULL.\n",
-				__func__);
-			return;
-		}
-		file_vf = vd_prepare->src_frame->file_vf;
-		for (i = 0; i <= repeat_count; i++) {
-			if (file_vf) {
-				fput(file_vf);
-				total_put_count++;
-				dev->fput_count++;
-			} else {
-				vc_print(dev->index, PRINT_ERROR,
-					"%s error:src_index=%d,dst_index=%d.\n",
-					__func__,
-					vd_prepare->src_frame->omx_index,
-					vd_prepare->dst_frame.omx_index);
-			}
-		}
-		vd_prepare_data_q_put(dev, vd_prepare);
-	} else if (is_mosaic_22) {
-		for (i = 0; i < 4; i++) {
-			if (!vf->vc_private) {
-				vc_print(dev->index, PRINT_ERROR, "put mosaic no priv!!!\n");
-				break;
-			}
-			file_vf = vf->vc_private->mosaic_vf[i]->file_vf;
-			if (file_vf) {
-				fput(file_vf);
-				total_put_count++;
-				dev->fput_count++;
-			} else {
-				vc_print(dev->index, PRINT_ERROR,
-					"%s error: i=%d,src_index=%d,dst_index=%d.\n",
-					__func__,
-					i,
-					vf->vc_private->mosaic_src_vf[i]->omx_index,
-					vf->vc_private->mosaic_dst_vf[i].omx_index);
-			}
-		}
 		if (vf->vc_private) {
 			vc_private_q_recycle(dev, vf->vc_private);
 			vf->vc_private = NULL;
@@ -1443,7 +1387,90 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 				__func__);
 			return;
 		}
+
+		if (IS_ERR_OR_NULL(vd_prepare->src_frame)) {
+			vc_print(dev->index, PRINT_ERROR,
+				"%s: vd_prepare->src_frame is NULL.\n",
+				__func__);
+			return;
+		}
+
+		file_vf[0] = vd_prepare->src_frame->file_vf;
+		src_omx_index[0] = vd_prepare->src_frame->omx_index;
+		dst_omx_index[0] = vd_prepare->dst_frame.omx_index;
 		vd_prepare_data_q_put(dev, vd_prepare);
+	} else if (is_mosaic_22) {
+		vd_prepare = container_of(vf, struct vd_prepare_s, dst_frame);
+		for (i = 0; i < 4; i++) {
+			if (IS_ERR_OR_NULL(vf->vc_private)) {
+				vc_print(dev->index, PRINT_ERROR, "put mosaic no private!!!\n");
+				break;
+			}
+
+			if (IS_ERR_OR_NULL(vf->vc_private->mosaic_vf[i])) {
+				vc_print(dev->index, PRINT_ERROR, "mosaic_vf is NULL.\n");
+				break;
+			}
+
+			file_vf[i] = vf->vc_private->mosaic_vf[i]->file_vf;
+			src_omx_index[i] = vf->vc_private->mosaic_src_vf[i]->omx_index,
+			src_omx_index[i] = vf->vc_private->mosaic_dst_vf[i].omx_index;
+		}
+
+		if (vf->vc_private) {
+			vc_private_q_recycle(dev, vf->vc_private);
+			vf->vc_private = NULL;
+		}
+
+		vd_prepare_data_q_put(dev, vd_prepare);
+	} else {
+		if (vf->vc_private) {
+			vc_private_q_recycle(dev, vf->vc_private);
+			vf->vc_private = NULL;
+		}
+	}
+
+	//all the vframe param used must beforce fence release
+	if (rendered) {
+		video_timeline_increase(dev, repeat_count
+					+ 1 + dev->drop_frame_count);
+		dev->drop_frame_count = 0;
+	} else {
+		dev->drop_frame_count += repeat_count + 1;
+		vc_print(dev->index, PRINT_PERFORMANCE | PRINT_FENCE,
+			 "put: drop repeat_count=%d\n", repeat_count);
+	}
+
+	if (!is_composer && !is_mosaic_22) {
+		for (i = 0; i <= repeat_count; i++) {
+			if (file_vf[0]) {
+				fput(file_vf[0]);
+				total_put_count++;
+				dev->fput_count++;
+			} else {
+				vc_print(dev->index, PRINT_ERROR,
+					"%s error:src_index=%d,dst_index=%d.\n",
+					__func__,
+					src_omx_index[0],
+					dst_omx_index[0]);
+			}
+		}
+
+	} else if (is_mosaic_22) {
+		for (i = 0; i < 4; i++) {
+			if (file_vf[i]) {
+				fput(file_vf[i]);
+				total_put_count++;
+				dev->fput_count++;
+			} else {
+				vc_print(dev->index, PRINT_ERROR,
+					"%s error: i=%d,src_index=%d,dst_index=%d.\n",
+					__func__,
+					i,
+					src_omx_index[i],
+					dst_omx_index[i]);
+			}
+		}
 	} else {
 		videocom_vf_put(vf, dev);
 	}
