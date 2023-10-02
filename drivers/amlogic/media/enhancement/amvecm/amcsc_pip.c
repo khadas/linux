@@ -3044,8 +3044,10 @@ void video_post_process(struct vframe_s *vf,
 					__func__,
 					vd_path + 1,
 					source_type[vd_path]);
-				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 1, 1);
-				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 1, 1);
+				/*VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 1, 1);*/
+				/*VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 1, 1);*/
+				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 0, 1, 1);
+				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 0, 1, 1);
 				if (csc_type == VPP_MATRIX_YUV709F_RGB)
 					mtx_csc = MATRIX_YUV709F_RGB;
 				else

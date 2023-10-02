@@ -8324,8 +8324,8 @@ static void video_process(struct vframe_s *vf,
 					mtx_setting(POST2_MTX,
 						MATRIX_YUV709F_RGB, MTX_ON);
 			} else {
-				WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 1, 1);
-				WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 1, 1);
+				/*WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 1, 1);*/
+				/*WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 1, 1);*/
 				if (vpp_index == VPP_TOP1)
 					mtx_setting(VPP1_POST2_MTX,
 					    (enum mtx_csc_e)csc_type, MTX_ON);
