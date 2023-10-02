@@ -2272,6 +2272,7 @@ static int create_session(u32 id)
 		msync_dbg(LOG_ERR, "session %d empty\n", id);
 		return -EFAULT;
 	}
+	memset(session, 0, sizeof(*session));
 
 	session->wq = alloc_ordered_workqueue("avs_wq",
 			WQ_MEM_RECLAIM | WQ_FREEZABLE);
