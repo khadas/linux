@@ -58,6 +58,24 @@
 
 #define GAMMA_RETRY        1000
 unsigned int gamma_loadprotect_en;
+module_param(gamma_loadprotect_en, int, 0664);
+MODULE_PARM_DESC(gamma_loadprotect_en, "gamma_loadprotect_en");
+
+unsigned int gamma_update_flag_r;
+module_param(gamma_update_flag_r, int, 0664);
+MODULE_PARM_DESC(gamma_update_flag_r, "gamma_update_flag_r");
+
+unsigned int gamma_update_flag_g;
+module_param(gamma_update_flag_g, int, 0664);
+MODULE_PARM_DESC(gamma_update_flag_g, "gamma_update_flag_g");
+
+unsigned int gamma_update_flag_b;
+module_param(gamma_update_flag_b, int, 0664);
+MODULE_PARM_DESC(gamma_update_flag_b, "gamma_update_flag_b");
+
+unsigned int gamma_disable_flag;
+module_param(gamma_disable_flag, int, 0664);
+MODULE_PARM_DESC(gamma_disable_flag, "gamma_disable_flag");
 
 /* 0: Invalid */
 /* 1: Valid */
@@ -427,6 +445,8 @@ void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write)
 		VSYNC_WRITE_VPP_REG_BITS(reg, 1, GAMMA_EN, 1);
 	else
 		WRITE_VPP_REG_BITS(reg, 1, GAMMA_EN, 1);
+
+	pr_amve_dbg("\n[amve..] set enable_lcd_gamma_table.\n");
 }
 
 void vpp_disable_lcd_gamma_table(int viu_sel, int rdma_write)
@@ -462,6 +482,8 @@ void vpp_disable_lcd_gamma_table(int viu_sel, int rdma_write)
 		VSYNC_WRITE_VPP_REG_BITS(reg, 0, GAMMA_EN, 1);
 	else
 		WRITE_VPP_REG_BITS(reg, 0, GAMMA_EN, 1);
+
+	pr_amve_dbg("\n[amve..] set disable_lcd_gamma_table.\n");
 }
 
 /*new gamma interface, start from T7*/
@@ -544,9 +566,6 @@ void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask, int viu_sel)
 
 	spin_lock_irqsave(&vpp_lcd_gamma_lock, flags);
 
-	if (gamma_loadprotect_en)
-		WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT, 0, GAMMA_EN, 1);
-
 	while (!(READ_VPP_REG(L_GAMMA_CNTL_PORT) & (0x1 << ADR_RDY))) {
 		udelay(10);
 		if (cnt++ > GAMMA_RETRY)
@@ -573,16 +592,6 @@ void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask, int viu_sel)
 	WRITE_VPP_REG(L_GAMMA_ADDR_PORT, (0x1 << H_AUTO_INC) |
 				    (0x1 << rgb_mask)   |
 				    (0x23 << HADR));
-
-	if (gamma_loadprotect_en) {
-		if (viu_sel == 1) { /* viu1 vsync rdma */
-			VSYNC_WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
-						 gamma_en, GAMMA_EN, 1);
-		} else { /* viu2 directly write, rdma todo */
-			WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
-					   gamma_en, GAMMA_EN, 1);
-		}
-	}
 
 	spin_unlock_irqrestore(&vpp_lcd_gamma_lock, flags);
 }
@@ -1205,6 +1214,7 @@ void ve_lcd_gamma_process(void)
 	int viu_sel;
 	struct tcon_gamma_table_s *ptable;
 	struct gamma_data_s *p_gm;
+	unsigned int tmp = 0;
 
 	if (cpu_after_eq_t7()) {
 		viu_sel = vpp_get_vout_viu_mux();
@@ -1212,56 +1222,138 @@ void ve_lcd_gamma_process(void)
 		if (viu_sel < 0)
 			viu_sel = 0;
 		gamma_index = viu_sel;
+
 		if (is_meson_t7_cpu()) {
 			if (gamma_index == 0)
 				gamma_index_sub = 1;
 			else
 				gamma_index_sub = 0;
 		}
-
 	} else {
 		viu_sel = vpp_get_encl_viu_mux();
+
+		if (gamma_loadprotect_en && gamma_disable_flag) {
+			if (gamma_update_flag_r) {
+				vpp_set_lcd_gamma_table(video_gamma_table_r.data,
+					H_SEL_R, viu_sel);
+				gamma_update_flag_r = 0;
+				pr_amve_dbg("\n[amve..] update R_lcd_gamma_table OK!!!\n");
+			}
+
+			if (gamma_update_flag_g) {
+				vpp_set_lcd_gamma_table(video_gamma_table_g.data,
+					H_SEL_G, viu_sel);
+				gamma_update_flag_g = 0;
+				pr_amve_dbg("\n[amve..] update G_lcd_gamma_table OK!!!\n");
+			}
+
+			if (gamma_update_flag_b) {
+				vpp_set_lcd_gamma_table(video_gamma_table_b.data,
+					H_SEL_B, viu_sel);
+				gamma_update_flag_b = 0;
+				pr_amve_dbg("\n[amve..] update B_lcd_gamma_table OK!!!\n");
+			}
+
+			if (!gamma_update_flag_r &&
+				!gamma_update_flag_g &&
+				!gamma_update_flag_b) {
+				tmp = READ_VPP_REG(L_GAMMA_CNTL_PORT);
+				tmp = (tmp & 0xfffffffe) | gamma_en;
+
+				pr_amve_dbg("[amve..] enable_val/gamma_en = %d/%d\n",
+					tmp, gamma_en);
+
+				if (viu_sel == 1) { /* viu1 vsync rdma */
+					VSYNC_WRITE_VPP_REG(L_GAMMA_CNTL_PORT, tmp);
+				} else { /* viu2 directly write, rdma todo */
+					WRITE_VPP_REG(L_GAMMA_CNTL_PORT, tmp);
+				}
+
+				gamma_disable_flag = 0;
+			}
+		}
 	}
+
 	if (vecm_latch_flag & FLAG_GAMMA_TABLE_EN) {
 		vecm_latch_flag &= ~FLAG_GAMMA_TABLE_EN;
 		vpp_enable_lcd_gamma_table(viu_sel, 1);
 		pr_amve_dbg("\n[amve..] set vpp_enable_lcd_gamma_table OK!!!\n");
 	}
+
 	if (vecm_latch_flag & FLAG_GAMMA_TABLE_DIS) {
 		vecm_latch_flag &= ~FLAG_GAMMA_TABLE_DIS;
 		vpp_disable_lcd_gamma_table(viu_sel, 1);
 		pr_amve_dbg("\n[amve..] set vpp_disable_lcd_gamma_table OK!!!\n");
 	}
-	if ((vecm_latch_flag & FLAG_GAMMA_TABLE_R) &&
-	    (vecm_latch_flag & FLAG_GAMMA_TABLE_G) &&
-	    (vecm_latch_flag & FLAG_GAMMA_TABLE_B)) {
-		vecm_latch_flag &= ~FLAG_GAMMA_TABLE_R;
-		vecm_latch_flag &= ~FLAG_GAMMA_TABLE_G;
-		vecm_latch_flag &= ~FLAG_GAMMA_TABLE_B;
-		if (cpu_after_eq_t7() ||
-			chip_type_id == chip_a4) {
+
+	if (cpu_after_eq_t7() || chip_type_id == chip_a4) {
+		if ((vecm_latch_flag & FLAG_GAMMA_TABLE_R) &&
+			(vecm_latch_flag & FLAG_GAMMA_TABLE_G) &&
+			(vecm_latch_flag & FLAG_GAMMA_TABLE_B)) {
+			vecm_latch_flag &= ~FLAG_GAMMA_TABLE_R;
+			vecm_latch_flag &= ~FLAG_GAMMA_TABLE_G;
+			vecm_latch_flag &= ~FLAG_GAMMA_TABLE_B;
 			if (chip_type_id == chip_a4) {
 				p_gm = get_gm_data();
 				lcd_gamma_api(gamma_index, p_gm->gm_tbl.gamma_r,
-						p_gm->gm_tbl.gamma_g,
-						p_gm->gm_tbl.gamma_b,
-						1, 0);
+					p_gm->gm_tbl.gamma_g,
+					p_gm->gm_tbl.gamma_b,
+					1, 0);
 			} else {
 				lcd_gamma_api(gamma_index, video_gamma_table_r.data,
-						video_gamma_table_g.data,
-						video_gamma_table_b.data,
-						1, 0);
+					video_gamma_table_g.data,
+					video_gamma_table_b.data,
+					1, 0);
 			}
-		} else {
-			vpp_set_lcd_gamma_table(video_gamma_table_r.data, H_SEL_R,
-				viu_sel);
-			vpp_set_lcd_gamma_table(video_gamma_table_g.data, H_SEL_G,
-				viu_sel);
-			vpp_set_lcd_gamma_table(video_gamma_table_b.data, H_SEL_B,
-				viu_sel);
+			pr_amve_dbg("\n[amve..] set vpp_set_lcd_gamma_table OK!!!\n");
 		}
-		pr_amve_dbg("\n[amve..] set vpp_set_lcd_gamma_table OK!!!\n");
+	} else {
+		if (vecm_latch_flag & FLAG_GAMMA_TABLE_R) {
+			vecm_latch_flag &= ~FLAG_GAMMA_TABLE_R;
+			if (!gamma_loadprotect_en) {
+				vpp_set_lcd_gamma_table(video_gamma_table_r.data,
+					H_SEL_R, viu_sel);
+				pr_amve_dbg("\n[amve..] set R vpp_set_lcd_gamma_table OK!!!\n");
+			} else {
+				gamma_update_flag_r = 1;
+				if (!gamma_disable_flag) {
+					vpp_disable_lcd_gamma_table(viu_sel, 0);
+					gamma_disable_flag = 1;
+				}
+			}
+		}
+
+		if (vecm_latch_flag & FLAG_GAMMA_TABLE_G) {
+			vecm_latch_flag &= ~FLAG_GAMMA_TABLE_G;
+			if (!gamma_loadprotect_en) {
+				vpp_set_lcd_gamma_table(video_gamma_table_g.data,
+					H_SEL_G, viu_sel);
+				pr_amve_dbg("\n[amve..] set G vpp_set_lcd_gamma_table OK!!!\n");
+			} else {
+				gamma_update_flag_g = 1;
+				if (!gamma_disable_flag) {
+					vpp_disable_lcd_gamma_table(viu_sel, 0);
+					gamma_disable_flag = 1;
+				}
+			}
+		}
+
+		if (vecm_latch_flag & FLAG_GAMMA_TABLE_B) {
+			vecm_latch_flag &= ~FLAG_GAMMA_TABLE_B;
+			if (!gamma_loadprotect_en) {
+				vpp_set_lcd_gamma_table(video_gamma_table_b.data,
+					H_SEL_B, viu_sel);
+				pr_amve_dbg("\n[amve..] set B vpp_set_lcd_gamma_table OK!!!\n");
+			} else {
+				gamma_update_flag_b = 1;
+				if (!gamma_disable_flag) {
+					vpp_disable_lcd_gamma_table(viu_sel, 0);
+					gamma_disable_flag = 1;
+				}
+			}
+		}
 	}
+
 	if (vecm_latch_flag & FLAG_RGB_OGO) {
 		vecm_latch_flag &= ~FLAG_RGB_OGO;
 		if (video_rgb_ogo_mode_sw) {
