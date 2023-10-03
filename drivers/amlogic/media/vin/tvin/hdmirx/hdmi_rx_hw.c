@@ -2910,7 +2910,7 @@ void hdmirx_20_init(void)
 	hdmirx_wr_dwc(DWC_SCDC_CONFIG,   data32);
 
 	data32  = 0;
-	data32 |= 0xabcdef << 8;  /* [31:8]   manufacture_oui */
+	data32 |= 0 << 8;  /* [31:8]   manufacture_oui */
 	data32 |= 1	<< 0;  /* [7:0]    sink_version */
 	hdmirx_wr_dwc(DWC_SCDC_WRDATA0,	data32);
 

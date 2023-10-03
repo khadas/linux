@@ -3119,6 +3119,8 @@ void rx_main_state_machine(void)
 		rx.state = FSM_INIT;
 		break;
 	case FSM_INIT:
+		if (!rx.cur_5v_sts)
+			break;
 		signal_status_init();
 		rx.clk.cable_clk = 0;
 		rx.state = FSM_HPD_HIGH;

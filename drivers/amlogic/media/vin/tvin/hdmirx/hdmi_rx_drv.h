@@ -43,7 +43,9 @@
 //add aud pkt rev status parsing in HBR mode
 //2023.05.16
 //disable de-repeat for 640x480p
-#define RX_VER0 "ver.2023/05/16"
+//2023.10.03
+//CTS 2-79
+#define RX_VER0 "ver.2023/10/03"
 
 /*print type*/
 #define	LOG_EN		0x01
