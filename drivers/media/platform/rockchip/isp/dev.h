@@ -114,13 +114,24 @@ enum {
 	ISP_UNITE_ONE = 2,
 };
 
-/* left and right index
- * ISP_UNITE_LEFT: left of image to isp process
- * ISP_UNITE_RIGHT: right of image to isp process
+/* image segmentation index
+ * ISP_UNITE_LEFT: left of image, or left top of image
+ * ISP_UNITE_RIGHT: right of image, or right top of image
+ * ISP_UNITE_LEFT_B: left bottom of image
+ * ISP_UNITE_RIGHT_B: right bottom of image
  */
 enum {
 	ISP_UNITE_LEFT = 0,
-	ISP_UNITE_RIGHT = 1,
+	ISP_UNITE_RIGHT,
+	ISP_UNITE_LEFT_B,
+	ISP_UNITE_RIGHT_B,
+	ISP_UNITE_MAX,
+};
+
+enum {
+	ISP_UNITE_DIV1 = 1,
+	ISP_UNITE_DIV2 = 2,
+	ISP_UNITE_DIV4 = 4,
 };
 
 /*
@@ -286,32 +297,36 @@ struct rkisp_device {
 	u8 multi_index;
 	u8 rawaf_irq_cnt;
 	u8 unite_index;
+	u8 unite_div;
 };
 
 static inline void
 rkisp_unite_write(struct rkisp_device *dev, u32 reg, u32 val, bool is_direct)
 {
-	rkisp_write(dev, reg, val, is_direct);
-	if (dev->hw_dev->unite)
-		rkisp_next_write(dev, reg, val, is_direct);
+	int i;
+
+	for (i = 0; i < dev->unite_div; i++)
+		rkisp_idx_write(dev, reg, val, i, is_direct);
 }
 
 static inline void
 rkisp_unite_set_bits(struct rkisp_device *dev, u32 reg, u32 mask,
 		     u32 val, bool is_direct)
 {
-	rkisp_set_bits(dev, reg, mask, val, is_direct);
-	if (dev->hw_dev->unite)
-		rkisp_next_set_bits(dev, reg, mask, val, is_direct);
+	int i;
+
+	for (i = 0; i < dev->unite_div; i++)
+		rkisp_idx_set_bits(dev, reg, mask, val, i, is_direct);
 }
 
 static inline void
 rkisp_unite_clear_bits(struct rkisp_device *dev, u32 reg, u32 mask,
 		       bool is_direct)
 {
-	rkisp_clear_bits(dev, reg, mask, is_direct);
-	if (dev->hw_dev->unite)
-		rkisp_next_clear_bits(dev, reg, mask, is_direct);
+	int i;
+
+	for (i = 0; i < dev->unite_div; i++)
+		rkisp_idx_clear_bits(dev, reg, mask, i, is_direct);
 }
 
 static inline bool rkisp_link_sensor(u32 isp_inp)

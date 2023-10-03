@@ -635,7 +635,8 @@ static int fbc_config_mi(struct rkisp_stream *stream)
 		u32 left_w = (stream->out_fmt.width / 2) & ~0xf;
 
 		offs += left_w * mult;
-		rkisp_next_write(stream->ispdev, ISP3X_MPFBC_HEAD_OFFSET, offs, false);
+		rkisp_idx_write(stream->ispdev, ISP3X_MPFBC_HEAD_OFFSET,
+				offs, ISP_UNITE_RIGHT, false);
 	}
 	rkisp_unite_set_bits(stream->ispdev, ISP3X_MI_WR_CTRL, 0,
 			     CIF_MI_CTRL_INIT_BASE_EN | CIF_MI_CTRL_INIT_OFFSET_EN, false);
@@ -784,18 +785,18 @@ static void update_mi(struct rkisp_stream *stream)
 			reg = stream->config->mi.y_base_ad_init;
 			val = stream->next_buf->buff_addr[RKISP_PLANE_Y];
 			val += ((stream->out_fmt.width / div) & ~0xf);
-			rkisp_next_write(dev, reg, val, false);
+			rkisp_idx_write(dev, reg, val, ISP_UNITE_RIGHT, false);
 
 			reg = stream->config->mi.cb_base_ad_init;
 			val = stream->next_buf->buff_addr[RKISP_PLANE_CB];
 			val += ((stream->out_fmt.width / div) & ~0xf) * mult;
-			rkisp_next_write(dev, reg, val, false);
+			rkisp_idx_write(dev, reg, val, ISP_UNITE_RIGHT, false);
 
 			if (stream->id != RKISP_STREAM_FBC && stream->id != RKISP_STREAM_BP) {
 				reg = stream->config->mi.cr_base_ad_init;
 				val = stream->next_buf->buff_addr[RKISP_PLANE_CR];
 				val += ((stream->out_fmt.width / div) & ~0xf);
-				rkisp_next_write(dev, reg, val, false);
+				rkisp_idx_write(dev, reg, val, ISP_UNITE_RIGHT, false);
 			}
 		}
 
@@ -836,9 +837,12 @@ static void update_mi(struct rkisp_stream *stream)
 		v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
 			 "%s stream:%d Y:0x%x CB:0x%x | Y_SHD:0x%x, right\n",
 			 __func__, stream->id,
-			 rkisp_next_read(dev, stream->config->mi.y_base_ad_init, false),
-			 rkisp_next_read(dev, stream->config->mi.cb_base_ad_init, false),
-			 rkisp_next_read(dev, stream->config->mi.y_base_ad_shd, true));
+			 rkisp_idx_read(dev, stream->config->mi.y_base_ad_init,
+					ISP_UNITE_RIGHT, false),
+			 rkisp_idx_read(dev, stream->config->mi.cb_base_ad_init,
+					ISP_UNITE_RIGHT, false),
+			 rkisp_idx_read(dev, stream->config->mi.y_base_ad_shd,
+					ISP_UNITE_RIGHT, true));
 }
 
 static struct streams_ops rkisp_mp_streams_ops = {
