@@ -176,16 +176,16 @@ u32 rkisp_read_reg_cache(struct rkisp_device *dev, u32 reg);
 void rkisp_set_reg_cache_bits(struct rkisp_device *dev, u32 reg, u32 mask, u32 val);
 void rkisp_clear_reg_cache_bits(struct rkisp_device *dev, u32 reg, u32 mask);
 
-/* for dual isp, config for next isp reg */
-void rkisp_next_write(struct rkisp_device *dev, u32 reg, u32 val, bool is_direct);
-u32 rkisp_next_read(struct rkisp_device *dev, u32 reg, bool is_direct);
-void rkisp_next_set_bits(struct rkisp_device *dev, u32 reg, u32 mask, u32 val, bool is_direct);
-void rkisp_next_clear_bits(struct rkisp_device *dev, u32 reg, u32 mask, bool is_direct);
+/* for unite mode, config for diff isp reg */
+void rkisp_idx_write(struct rkisp_device *dev, u32 reg, u32 val, int idx, bool is_direct);
+u32 rkisp_idx_read(struct rkisp_device *dev, u32 reg, int idx, bool is_direct);
+void rkisp_idx_set_bits(struct rkisp_device *dev, u32 reg, u32 mask, u32 val, int idx, bool is_direct);
+void rkisp_idx_clear_bits(struct rkisp_device *dev, u32 reg, u32 mask, int idx, bool is_direct);
 
-void rkisp_next_write_reg_cache(struct rkisp_device *dev, u32 reg, u32 val);
-u32 rkisp_next_read_reg_cache(struct rkisp_device *dev, u32 reg);
-void rkisp_next_set_reg_cache_bits(struct rkisp_device *dev, u32 reg, u32 mask, u32 val);
-void rkisp_next_clear_reg_cache_bits(struct rkisp_device *dev, u32 reg, u32 mask);
+void rkisp_idx_write_reg_cache(struct rkisp_device *dev, u32 reg, u32 val, int idx);
+u32 rkisp_idx_read_reg_cache(struct rkisp_device *dev, u32 reg, int idx);
+void rkisp_idx_set_reg_cache_bits(struct rkisp_device *dev, u32 reg, u32 mask, u32 val, int idx);
+void rkisp_idx_clear_reg_cache_bits(struct rkisp_device *dev, u32 reg, u32 mask, int idx);
 
 void rkisp_update_regs(struct rkisp_device *dev, u32 start, u32 end);
 

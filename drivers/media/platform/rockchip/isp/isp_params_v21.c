@@ -4105,6 +4105,7 @@ rkisp_get_param_size_v2x(struct rkisp_isp_params_vdev *params_vdev,
 			 unsigned int sizes[])
 {
 	sizes[0] = sizeof(struct isp2x_isp_params_cfg);
+	params_vdev->vdev_fmt.fmt.meta.buffersize = sizes[0];
 }
 
 static void
@@ -4350,13 +4351,16 @@ int rkisp_init_params_vdev_v21(struct rkisp_isp_params_vdev *params_vdev)
 {
 	struct device *dev = params_vdev->dev->dev;
 	struct rkisp_isp_params_val_v21 *priv_val;
-	int i, ret;
+	int i, ret, size;
 
 	priv_val = kzalloc(sizeof(*priv_val), GFP_KERNEL);
 	if (!priv_val)
 		return -ENOMEM;
 
-	params_vdev->isp21_params = vmalloc(sizeof(*params_vdev->isp21_params));
+	size = sizeof(struct isp21_isp_params_cfg);
+	if (params_vdev->dev->hw_dev->unite)
+		size *= ISP_UNITE_MAX;
+	params_vdev->isp21_params = vmalloc(size);
 	if (!params_vdev->isp21_params) {
 		kfree(priv_val);
 		return -ENOMEM;
