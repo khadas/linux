@@ -66,9 +66,9 @@ static inline struct evl_socket *evl_sk_from_file(struct file *filp)
 		NULL;
 }
 
-static inline struct evl_socket *evl_sk(struct socket *sock)
+static inline struct evl_socket *evl_sk(struct sock *sk)
 {
-	return sock->sk->oob_data;
+	return sk->oob_data;
 }
 
 static int load_iov_native(struct iovec *iov,
@@ -442,7 +442,7 @@ int sock_oob_attach(struct socket *sock)
 	 * in-band network stack already holds a ref. on the net
 	 * struct for that socket.
 	 */
-	esk->net = sock_net(sock->sk);
+	esk->net = sock_net(sk);
 	mutex_init(&esk->lock);
 	INIT_LIST_HEAD(&esk->input);
 	INIT_LIST_HEAD(&esk->next_sub);
@@ -476,10 +476,9 @@ fail_open:
  * In-band call from the common network stack which is about to
  * release a socket (@sock is out-of-band capable).
  */
-void sock_oob_detach(struct socket *sock)
+void sock_oob_detach(struct sock *sk)
 {
-	struct sock *sk = sock->sk;
-	struct evl_socket *esk = evl_sk(sock);
+	struct evl_socket *esk = evl_sk(sk);
 
 	evl_release_file(&esk->efile);
 	/* Wait for the stack to drain in-flight outgoing buffers. */
@@ -494,7 +493,7 @@ void sock_oob_detach(struct socket *sock)
 		esk->proto->detach(esk);
 
 	if (sk->sk_family != PF_OOB)
-		kfree(esk);	/* i.e. sk->oob_data. */
+		kfree(esk);	/* meaning sk != esk. */
 
 	sk->oob_data = NULL;
 }
@@ -507,8 +506,7 @@ void sock_oob_detach(struct socket *sock)
  */
 int sock_oob_bind(struct socket *sock, struct sockaddr *addr, int len)
 {
-	struct sock *sk = sock->sk;
-	struct evl_socket *esk = evl_sk(sock);
+	struct evl_socket *esk = evl_sk(sock->sk);
 
 	/*
 	 * If @sock belongs to PF_OOB, then evl_sock_bind() already
@@ -516,7 +514,7 @@ int sock_oob_bind(struct socket *sock, struct sockaddr *addr, int len)
 	 * for which we have an out-of-band extension
 	 * (e.g. AF_PACKET).
 	 */
-	if (sk->sk_family == PF_OOB)
+	if (sock->sk->sk_family == PF_OOB)
 		return 0;
 
 	return esk->proto->bind(esk, addr, len);
@@ -716,7 +714,7 @@ long sock_inband_ioctl_redirect(struct socket *sock, /* in-band hook */
 
 static int evl_sock_bind(struct socket *sock, struct sockaddr *u_addr, int len)
 {
-	struct evl_socket *esk = evl_sk(sock);
+	struct evl_socket *esk = evl_sk(sock->sk);
 
 	return esk->proto->bind(esk, u_addr, len);
 }
