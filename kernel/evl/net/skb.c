@@ -167,10 +167,12 @@ static inline void maybe_kick_recycler(void)
 
 static void free_skb_inband(struct sk_buff *skb)
 {
-	raw_spin_lock(&recycling_lock);
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&recycling_lock, flags);
 	list_add(&skb->list, &recycling_queue);
 	recycling_count++;
-	raw_spin_unlock(&recycling_lock);
+	raw_spin_unlock_irqrestore(&recycling_lock, flags);
 }
 
 static void free_skb_to_dev(struct sk_buff *skb)
@@ -296,7 +298,7 @@ struct sk_buff *evl_net_clone_skb(struct sk_buff *skb)
  *
  *	@skb the packet to release. Not linked to any upstream queue.
  */
-void evl_net_free_skb(struct sk_buff *skb)
+void evl_net_free_skb(struct sk_buff *skb) /* in-band/oob */
 {
 	EVL_WARN_ON(NET, hard_irqs_disabled());
 

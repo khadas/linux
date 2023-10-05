@@ -15,7 +15,7 @@ static LIST_HEAD(all_net_qdisc);
 
 static DEFINE_MUTEX(qdisc_list_lock);
 
-void evl_net_register_qdisc(struct evl_net_qdisc_ops *ops)
+void evl_net_register_qdisc(struct evl_net_qdisc_ops *ops) /* in-band */
 {
 	mutex_lock(&qdisc_list_lock);
 	list_add(&ops->next, &all_net_qdisc);
@@ -23,7 +23,7 @@ void evl_net_register_qdisc(struct evl_net_qdisc_ops *ops)
 }
 EXPORT_SYMBOL_GPL(evl_net_register_qdisc);
 
-void evl_net_unregister_qdisc(struct evl_net_qdisc_ops *ops)
+void evl_net_unregister_qdisc(struct evl_net_qdisc_ops *ops) /* in-band */
 {
 	mutex_lock(&qdisc_list_lock);
 	list_del(&ops->next);
@@ -31,7 +31,7 @@ void evl_net_unregister_qdisc(struct evl_net_qdisc_ops *ops)
 }
 EXPORT_SYMBOL_GPL(evl_net_unregister_qdisc);
 
-struct evl_net_qdisc *evl_net_alloc_qdisc(struct evl_net_qdisc_ops *ops)
+struct evl_net_qdisc *evl_net_alloc_qdisc(struct evl_net_qdisc_ops *ops) /* in-band */
 {
 	struct evl_net_qdisc *qdisc;
 	int ret;
@@ -53,7 +53,7 @@ struct evl_net_qdisc *evl_net_alloc_qdisc(struct evl_net_qdisc_ops *ops)
 }
 EXPORT_SYMBOL_GPL(evl_net_alloc_qdisc);
 
-void evl_net_free_qdisc(struct evl_net_qdisc *qdisc)
+void evl_net_free_qdisc(struct evl_net_qdisc *qdisc) /* in-band */
 {
 	evl_net_destroy_skb_queue(&qdisc->inband_q);
 	qdisc->oob_ops->destroy(qdisc);
@@ -75,7 +75,7 @@ EXPORT_SYMBOL_GPL(evl_net_free_qdisc);
  *
  *	@dev the device to pass the packet to.
  */
-int evl_net_sched_packet(struct net_device *dev, struct sk_buff *skb) /* oob or in-band */
+int evl_net_sched_packet(struct net_device *dev, struct sk_buff *skb) /* oob/in-band */
 {
 	struct evl_net_qdisc *qdisc = dev->oob_context.dev_state.estate->qdisc;
 
