@@ -39,9 +39,6 @@ void evl_net_do_rx(void *arg)
 			list_del(&skb->list);
 			EVL_NET_CB(skb)->handler->ingress(skb);
 		}
-
-		/* Do NOT wait for evl_wait_flag() for this. */
-		evl_schedule();
 	}
 }
 
