@@ -2636,9 +2636,18 @@ static int is_policy_changed(void)
 
 static bool vf_is_hlg(struct vframe_s *vf)
 {
+	if (signal_transfer_characteristic == 18 &&
+	     signal_color_primaries == 9 && !signal_cuva)
+		return true;
+
+	return false;
+}
+
+static bool vf_is_sdr2020(struct vframe_s *vf)
+{
 	if ((signal_transfer_characteristic == 14 ||
-	     signal_transfer_characteristic == 18) &&
-	    signal_color_primaries == 9 && !signal_cuva)
+		signal_transfer_characteristic == 1) &&
+		signal_color_primaries == 9)
 		return true;
 	return false;
 }
@@ -2653,8 +2662,7 @@ static bool is_hlg_frame(struct vframe_s *vf)
 	/* 3. stb v2.4 when hlg not processed by dv, why?*/
 	if ((is_aml_tvmode() || multi_dv_mode ||
 		(get_amdv_hdr_policy() & 2) == 0) &&
-		(signal_transfer_characteristic == 14 ||
-		 signal_transfer_characteristic == 18) &&
+		(signal_transfer_characteristic == 18) &&
 		signal_color_primaries == 9 && !signal_cuva)
 		return true;
 
@@ -2748,7 +2756,7 @@ static bool is_cuva_frame(struct vframe_s *vf)
 	return false;
 }
 
-static const char *input_str[10] = {
+const char *input_str[11] = {
 	"NONE",
 	"HDR",
 	"HDR+",
@@ -2758,7 +2766,8 @@ static const char *input_str[10] = {
 	"SDR",
 	"MVC",
 	"CUVA_HDR",
-	"CUVA_HLG"
+	"CUVA_HLG",
+	"SDR2020"
 };
 
 /*update pwm control when src changed or pic mode changed*/
@@ -2802,8 +2811,7 @@ static void update_src_format_v1(enum signal_format_enum src_format, struct vfra
 	} else {
 		if (vf) {
 			if (is_cuva_frame(vf)) {
-				if ((signal_transfer_characteristic == 14 ||
-				     signal_transfer_characteristic == 18) &&
+				if (signal_transfer_characteristic == 18 &&
 				    signal_color_primaries == 9)
 					amdv_src_format = 9;
 				else if (signal_transfer_characteristic == 16)
@@ -2819,6 +2827,8 @@ static void update_src_format_v1(enum signal_format_enum src_format, struct vfra
 				amdv_src_format = 5;
 			} else if (is_mvc_frame(vf)) {
 				amdv_src_format = 7;
+			} else if (vf_is_sdr2020(vf)) {
+				amdv_src_format = 10;
 			} else {
 				amdv_src_format = 6;
 			}
@@ -2856,8 +2866,7 @@ static void update_src_format_v2(enum signal_format_enum src_format, struct vfra
 	} else {
 		if (vf) {
 			if (is_cuva_frame(vf)) {
-				if ((signal_transfer_characteristic == 14 ||
-				     signal_transfer_characteristic == 18) &&
+				if (signal_transfer_characteristic == 18 &&
 				    signal_color_primaries == 9)
 					dv_inst[dv_id].amdv_src_format = 9;
 				else if (signal_transfer_characteristic == 16)
@@ -2873,6 +2882,8 @@ static void update_src_format_v2(enum signal_format_enum src_format, struct vfra
 				dv_inst[dv_id].amdv_src_format = 5;
 			} else if (is_mvc_frame(vf)) {
 				dv_inst[dv_id].amdv_src_format = 7;
+			}  else if (vf_is_sdr2020(vf)) {
+				dv_inst[dv_id].amdv_src_format = 10;
 			} else {
 				dv_inst[dv_id].amdv_src_format = 6;
 			}

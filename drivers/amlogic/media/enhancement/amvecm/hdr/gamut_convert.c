@@ -407,7 +407,8 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 			  enum hdr_type_e *source_type,
 			  enum vd_path_e vd_path,
 			  struct matrix_s *mtx,
-			  int mtx_depth)
+			  int mtx_depth,
+			  enum dest_hdr_type_e dest_type)
 {
 	int i, j;
 	s64 out[3][3];
@@ -448,6 +449,18 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 						std_bt2020_white_point[j];
 				}
 		}
+	} else if (source_type[vd_path] == HDRTYPE_SDR2020) {
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++) {
+				src_prmy[i][j] = std_bt2020_prmy[(i + 2) % 3][j];
+				src_prmy[3][j] = std_bt2020_white_point[j];
+			}
+	} else {
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++) {
+				src_prmy[i][j] = std_bt709_prmy[(i + 2) % 3][j];
+				src_prmy[3][j] = std_bt709_white_point[j];
+			}
 	}
 
 	if (vinfo->master_display_info.present_flag &&
@@ -464,6 +477,15 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 				dest_prmy[i][j] =
 					std_bt709_prmy[(i + 2) % 3][j];
 				dest_prmy[3][j] = std_bt709_white_point[j];
+			}
+	}
+
+	if (dest_type == DEST_HDR10) {
+		for (i = 0; i < 3; i++)
+			for (j = 0; j < 2; j++) {
+				dest_prmy[i][j] =
+					std_bt2020_prmy[(i + 2) % 3][j];
+				dest_prmy[3][j] = std_bt2020_white_point[j];
 			}
 	}
 

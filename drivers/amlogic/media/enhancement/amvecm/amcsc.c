@@ -4379,8 +4379,7 @@ enum vpp_matrix_csc_e get_csc_type(void)
 					pr_csc(1, "\tWARNING: non-standard HDR!!!\n");
 				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
 			}
-		} else if (signal_transfer_characteristic == 14 ||
-				signal_transfer_characteristic == 18) {
+		} else if (signal_transfer_characteristic == 18) {
 			/* bt2020-10 */
 			if (signal_cuva)
 				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA;
@@ -4403,6 +4402,19 @@ enum vpp_matrix_csc_e get_csc_type(void)
 				       "\tWARNING: non-standard HDR10+!!!\n");
 				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
 			}
+		} else if (signal_transfer_characteristic == 14) {
+			if (signal_color_primaries == 9) {
+				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB_SDR;
+			} else {
+				if (signal_range == 0)
+					csc_type = VPP_MATRIX_YUV709_RGB;
+				else
+					csc_type = VPP_MATRIX_YUV709F_RGB;
+			}
+		} else if (signal_color_primaries == 9 &&
+			signal_transfer_characteristic == 1) {
+			csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB_SDR;
+			pr_csc(1, "\tWARNING: SDR2020!!!\n");
 		} else {
 			/* unknown transfer characteristic */
 			pr_csc(1, "\tWARNING: unknown HDR!!!\n");
@@ -4428,8 +4440,7 @@ static int get_hdr_type(void)
 {
 	int change_flag = 0;
 
-	if (signal_transfer_characteristic == 18 ||
-	    signal_transfer_characteristic == 14)
+	if (signal_transfer_characteristic == 18)
 		change_flag |= HLG_FLAG;
 
 	return change_flag;
@@ -4439,8 +4450,7 @@ enum hdr_type_e get_hdr_source_type(void)
 {
 	enum hdr_type_e hdr_type;
 
-	if ((signal_transfer_characteristic == 14 ||
-	     signal_transfer_characteristic == 18) &&
+	if (signal_transfer_characteristic == 18 &&
 	    signal_color_primaries == 9)
 		hdr_source_type =
 			signal_cuva ? CUVA_HLG_SOURCE : HLG_SOURCE;
@@ -5067,7 +5077,7 @@ static int hdr_process(enum vpp_matrix_csc_e csc_type,
 	int i, j;
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
-		gamut_convert_process(vinfo, source_type, vd_path, &m, 8);
+		gamut_convert_process(vinfo, source_type, vd_path, &m, 8, DEST_NONE);
 		eo_clip_proc(master_info, 0);
 		hdr_func(OSD1_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL, vpp_index);
 		hdr_func(OSD2_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL, vpp_index);
@@ -5314,7 +5324,7 @@ static int hdr10p_process(enum vpp_matrix_csc_e csc_type,
 	int s5_silce_mode = get_s5_silce_mode();
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
-		gamut_convert_process(vinfo, source_type, vd_path, &m, 8);
+		gamut_convert_process(vinfo, source_type, vd_path, &m, 8, DEST_NONE);
 		hdr_func(OSD1_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL, vpp_index);
 		hdr_func(OSD2_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL, vpp_index);
 		hdr_func(OSD3_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL, vpp_index);
@@ -5407,7 +5417,7 @@ static int hlg_process(enum vpp_matrix_csc_e csc_type,
 	int s5_silce_mode = get_s5_silce_mode();
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
-		gamut_convert_process(vinfo, source_type, vd_path, &m, 8);
+		gamut_convert_process(vinfo, source_type, vd_path, &m, 8, DEST_NONE);
 		if (vd_path == VD1_PATH) {
 			if (s5_silce_mode == VD1_1SLICE) {
 				hdr_func(VD1_HDR, HLG_SDR | hdr_ex, vinfo, &m, vpp_index);
@@ -5658,8 +5668,7 @@ static void bypass_hdr_process(enum vpp_matrix_csc_e csc_type,
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		if (gamut_conv_enable)
 			gamut_convert_process(vinfo, source_type,
-					      vd_path, &m, 10);
-
+					      vd_path, &m, 10, DEST_NONE);
 		p_sel = gamut_conv_enable ? SDR_GMT_CONVERT : HDR_BYPASS;
 		p_sel |= hdr_ex;
 
@@ -7054,8 +7063,7 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path,
 	    == HDRTYPE_DOVI)
 		return HDRTYPE_DOVI;
 #endif
-	if ((signal_transfer_characteristic == 14 ||
-	     signal_transfer_characteristic == 18) &&
+	if (signal_transfer_characteristic == 18 &&
 	     signal_color_primaries == 9) {
 		if (signal_cuva)
 			return HDRTYPE_CUVA_HLG;
@@ -7079,6 +7087,12 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path,
 			return HDRTYPE_CUVA_HDR;
 		else
 			return HDRTYPE_HDR10;
+	} else if (signal_transfer_characteristic == 14 ||
+		signal_transfer_characteristic == 1) {
+		if (signal_color_primaries == 9)
+			return HDRTYPE_SDR2020;
+		else
+			return HDRTYPE_SDR;
 	} else {
 		return HDRTYPE_SDR;
 	}
