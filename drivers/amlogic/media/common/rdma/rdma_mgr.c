@@ -1228,26 +1228,32 @@ int rdma_write_reg_bits(int handle, u32 adr, u32 val, u32 start, u32 len)
 	for (j = 0; j < rdma_trace_num; j++) {
 		if (adr == rdma_trace_reg[j]) {
 			if (read_from == 3)
-				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from conflict table(%d)\n",
+				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from conflict table(%d %d %d)\n",
 					__func__,
 					handle, adr,
 					read_val,
 					write_val,
-					ins->rdma_write_count);
+					ins->rdma_write_count,
+					match,
+					match ? i : ins->rdma_write_count);
 			else if (read_from == 2)
-				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from write table(%d)\n",
+				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from write table(%d %d %d)\n",
 					__func__,
 					handle, adr,
 					read_val,
 					write_val,
-					ins->rdma_write_count);
+					ins->rdma_write_count,
+					match,
+					match ? i : ins->rdma_write_count);
 			else if (read_from == 1)
-				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from item table(%d)\n",
+				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from item table(%d %d %d)\n",
 					__func__,
 					handle, adr,
 					read_val,
 					write_val,
-					ins->rdma_item_count);
+					ins->rdma_item_count,
+					match,
+					match ? i : ins->rdma_item_count);
 			else
 				pr_info("(%s) handle %d, %04x=0x%08x->0x%08x from real reg\n",
 					__func__,

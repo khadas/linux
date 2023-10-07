@@ -3760,6 +3760,7 @@ static void afbc_input_sw_op(bool on, const struct reg_acc *op)
 	const unsigned int *reg;// = afbc_get_regbase();
 	unsigned int reg_AFBC_ENABLE;
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
+	u32 reg_val;
 
 	if (!afbc_is_supported_for_plink())
 		return;
@@ -3769,30 +3770,37 @@ static void afbc_input_sw_op(bool on, const struct reg_acc *op)
 		reg_AFBC_ENABLE = reg[EAFBC_ENABLE];
 
 		dim_print("%s:reg=0x%x:sw=%d\n", __func__, reg_AFBC_ENABLE, on);
-		if (on)
-			op->bwr(reg_AFBC_ENABLE, 1, 8, 1);
-		else
+		if (on) {
+			reg_val = op->rd(reg_AFBC_ENABLE);
+			reg_val |= 1 << 8;
+			op->wr(reg_AFBC_ENABLE, reg_val);
+		} else {
 			;//reg_wrb(reg_AFBC_ENABLE, 0, 8, 1);
+		}
 	}
 
 	if (pafd_ctr->en_set.b.mem) {
 		/*mem*/
 		reg = afbc_get_addrp(pafd_ctr->fb.mem_dec);
 		reg_AFBC_ENABLE = reg[EAFBC_ENABLE];
+		reg_val = op->rd(reg_AFBC_ENABLE);
 		if (on)
-			op->bwr(reg_AFBC_ENABLE, 1, 8, 1);
+			reg_val |= 1 << 8;
 		else
-			op->bwr(reg_AFBC_ENABLE, 0, 8, 1);
+			reg_val &= ~(1 << 8);
+		op->wr(reg_AFBC_ENABLE, reg_val);
 	}
 
 	if (pafd_ctr->en_set.b.chan2) {
 		/* chan2 */
 		reg = afbc_get_addrp(pafd_ctr->fb.ch2_dec);
 		reg_AFBC_ENABLE = reg[EAFBC_ENABLE];
+		reg_val = op->rd(reg_AFBC_ENABLE);
 		if (on)
-			op->bwr(reg_AFBC_ENABLE, 1, 8, 1);
+			reg_val |= 1 << 8;
 		else
-			op->bwr(reg_AFBC_ENABLE, 0, 8, 1);
+			reg_val &= ~(1 << 8);
+		op->wr(reg_AFBC_ENABLE, reg_val);
 	}
 }
 
@@ -4302,15 +4310,31 @@ static u32 enable_afbc_input_local_dvfm(struct dim_prevpp_ds_s *ds,
 	op->wr(reg[EAFBC_BODY_BADDR], vf->vfs.compBodyAddr >> 4);
 
 	if (pafd_ctr->fb.ver >= AFBCD_V5 && cfg) {
+		u32 reg_val;
+
 		regs_ofst = afbcd_v5_get_offset(dec);
-		op->bwr((regs_ofst + AFBCDM_IQUANT_ENABLE),
-			cfg->reg_lossy_en, 0, 1);//lossy_luma_en
-		op->bwr((regs_ofst + AFBCDM_IQUANT_ENABLE),
-			cfg->reg_lossy_en, 4, 1);//lossy_chrm_en
-		op->bwr((regs_ofst + AFBCDM_IQUANT_ENABLE),
-			cfg->reg_lossy_en, 10, 1);
-		op->bwr((regs_ofst + AFBCDM_IQUANT_ENABLE),
-			cfg->reg_lossy_en, 11, 1);
+		//op->bwr((regs_ofst + AFBCDM_IQUANT_ENABLE),
+		//	cfg->reg_lossy_en, 0, 1);//lossy_luma_en
+		//op->bwr((regs_ofst + AFBCDM_IQUANT_ENABLE),
+		//	cfg->reg_lossy_en, 4, 1);//lossy_chrm_en
+		//op->bwr((regs_ofst + AFBCDM_IQUANT_ENABLE),
+		//	cfg->reg_lossy_en, 10, 1);
+		//op->bwr((regs_ofst + AFBCDM_IQUANT_ENABLE),
+		//	cfg->reg_lossy_en, 11, 1);
+		reg_val = op->rd(regs_ofst + AFBCDM_IQUANT_ENABLE);
+		if (cfg->reg_lossy_en)
+			reg_val |=
+				((1 << 11) | //lossy_luma_en
+				 (1 << 10) | //lossy_chrm_en
+				 (1 << 4) |
+				 (1 << 0));
+		else
+			reg_val &=
+				~((1 << 11) | //lossy_luma_en
+				 (1 << 10) | //lossy_chrm_en
+				 (1 << 4) |
+				 (1 << 0));
+		op->wr((regs_ofst + AFBCDM_IQUANT_ENABLE), reg_val);
 		op->wr((regs_ofst + AFBCDM_ROT_CTRL),
 		       ((cfg->pip_src_mode  & 0x1) << 27) |
 		       //pip_src_mode
