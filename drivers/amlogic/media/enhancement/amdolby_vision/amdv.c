@@ -3783,7 +3783,7 @@ static int amdv_policy_process_v2_stb(struct vframe_s *vf,
 					mode_change = 1;
 				}
 			}
-		} else if (is_dual_layer_dv(vf)) {
+		} else if (is_dual_layer_dv(vf) && src_format != FORMAT_HDR10PLUS) {
 			if (vinfo && sink_support_dv(vinfo)) {
 				/* TV support DOVI, DOVI -> DOVI */
 				if (dolby_vision_mode !=
@@ -3793,24 +3793,12 @@ static int amdv_policy_process_v2_stb(struct vframe_s *vf,
 					*mode = AMDV_OUTPUT_MODE_IPT_TUNNEL;
 					mode_change = 1;
 				}
-			} else if (vinfo && sink_support_hdr(vinfo)) {
-				/* TV support HDR, DOVI -> HDR */
+			}  else {
+				/* HDR/SDR bypass */
 				if (dolby_vision_mode !=
-				AMDV_OUTPUT_MODE_HDR10) {
-					pr_dv_dbg("dovi->AMDV_OUTPUT_MODE_HDR10, cap=%x\n",
-							  sink_hdr_support(vinfo));
-					pr_dv_dbg("double dv hdr10 process:\n");
-					*mode = AMDV_OUTPUT_MODE_HDR10;
-					mode_change = 1;
-				}
-			} else {
-				/* TV not support DOVI and HDR, DOVI -> SDR */
-				if (dolby_vision_mode !=
-				AMDV_OUTPUT_MODE_SDR8) {
-					pr_dv_dbg("dovi->AMDV_OUTPUT_MODE_SDR8, cap=%x\n",
-							  sink_hdr_support(vinfo));
-					pr_dv_dbg("double dv sdr8 process:\n");
-					*mode = AMDV_OUTPUT_MODE_SDR8;
+				AMDV_OUTPUT_MODE_BYPASS) {
+					pr_dv_dbg("double dv bypass process:\n");
+					*mode = AMDV_OUTPUT_MODE_BYPASS;
 					mode_change = 1;
 				}
 			}
