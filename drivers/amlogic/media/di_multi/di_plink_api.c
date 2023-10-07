@@ -5009,6 +5009,7 @@ static bool dpvpp_parser(struct dimn_itf_s *itf)
 		if (itf->c.src_state & EDVPP_SRC_NEED_MSK_BYPASS)
 			itf->c.bypass_reason = EPVPP_NO_MEM;
 		dpvpp_parser_bypass(itf, 0);
+		recycle_back(itf);
 		dim_print("%s:SRC_NEED_MSK_BYPASS:0x%x\n", __func__, itf->c.src_state);
 		return true;
 	}
