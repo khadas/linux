@@ -771,8 +771,9 @@ static int meson8b_resume(struct device *dev)
 				dwmac->data->resume(dwmac);
 		}
 		ret = stmmac_resume(dev);
-		pr_info("wzh %s\n", __func__);
-		stmmac_global_err(priv);
+		/*this flow only for txhd2, not for common anymore*/
+		if (phy_mode == 2)
+			stmmac_global_err(priv);
 	}
 	return ret;
 }
