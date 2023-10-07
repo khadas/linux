@@ -599,7 +599,7 @@ static ssize_t mbox_message_read(struct file *filp, char __user *userbuf,
 	}
 
 	if (list == &mbox_list[channel]) {
-		dev_err(dev, "List is null or not find data\n");
+		dev_err(dev, "List is not find data\n");
 		spin_unlock_irqrestore(&mbox_dev->mhu_lock, flags);
 		return -ENXIO;
 	}
@@ -608,7 +608,7 @@ static ssize_t mbox_message_read(struct file *filp, char __user *userbuf,
 				      msg->data, MBOX_DATA_SIZE);
 
 	spin_lock_irqsave(&mbox_dev->mhu_lock, flags);
-	list_del(list);
+	list_del(&msg->list);
 	spin_unlock_irqrestore(&mbox_dev->mhu_lock, flags);
 	kfree(msg->data);
 	kfree(msg);
