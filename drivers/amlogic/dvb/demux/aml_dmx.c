@@ -284,9 +284,10 @@ static int check_data_pack_align(char *mem, int len, struct aml_dmx *pdmx)
 	char *next_ops_mem = mem;
 	int ops_pack_len = 0;
 	int next_pack = 0;
-	int find_pack_len = pack_len * find_error_pack;
+	int find_pack_len = 0;
 	int try_count = 0;
-	int try_total = find_error_pack;
+	int try_total = 0;
+	int pack_len_div = pack_len ? pack_len : 1;
 
 	if (pack_len == 0)
 		return len;
@@ -303,8 +304,8 @@ static int check_data_pack_align(char *mem, int len, struct aml_dmx *pdmx)
 			if (*next_ops_mem == 0x47 && ops_pack_len && ops_pack_len != pack_len) {
 				try_count = 0;
 				next_pack = pack_len;
-				try_total = (left - 1) / pack_len > find_error_pack ?
-						find_error_pack : (left - 1) / pack_len;
+				try_total = (left - 1) / pack_len_div > find_error_pack ?
+						find_error_pack : (left - 1) / pack_len_div;
 
 				find_pack_len = try_total * pack_len;
 				while (try_count < try_total &&
@@ -327,8 +328,8 @@ static int check_data_pack_align(char *mem, int len, struct aml_dmx *pdmx)
 			if (!ops_pack_len) {
 				try_count = 0;
 				next_pack = pack_len;
-				try_total = (left - 1) / pack_len > find_error_pack ?
-						find_error_pack : (left - 1) / pack_len;
+				try_total = (left - 1) / pack_len_div > find_error_pack ?
+						find_error_pack : (left - 1) / pack_len_div;
 
 				find_pack_len = try_total * pack_len;
 				while (try_count < try_total && *(ops_mem + next_pack) == 0x47) {
