@@ -15507,6 +15507,19 @@ static int get_amdv_uboot_status(char *str)
 
 __setup("dolby_vision_on=", get_amdv_uboot_status);
 
+static int get_amdv_uboot_policy(char *str)
+{
+	if (strncmp("1", str, 1) == 0) {
+		dolby_vision_policy = AMDV_FOLLOW_SOURCE;
+		pr_debug("boot dolby_vision_policy: 1\n");
+	} else if (strncmp("0", str, 1) == 0) {
+		dolby_vision_policy = AMDV_FOLLOW_SINK;
+		pr_debug("boot dolby_vision_policy: 0\n");
+	}
+	return 0;
+}
+__setup("hdr_policy=", get_amdv_uboot_policy);
+
 static int recovery_mode_check(char *str)
 {
 	char recovery_status[DV_NAME_LEN_MAX] = {0};
