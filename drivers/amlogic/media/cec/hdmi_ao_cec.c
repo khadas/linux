@@ -1624,16 +1624,6 @@ static long hdmitx_cec_ioctl(struct file *f,
 		} else {
 			cec_dev->phy_addr = 0;
 		}
-
-		if (!phy_addr_test) {
-			cec_config2_phyaddr(cec_dev->phy_addr, 1);
-			/*CEC_INFO("type %d, save phy_addr:0x%x\n",*/
-			/*	 (unsigned int)cec_dev->dev_type,*/
-			/*	 cec_dev->phy_addr);*/
-		} else {
-			tmp = cec_dev->phy_addr;
-		}
-
 		if (copy_to_user(argp, &cec_dev->phy_addr, _IOC_SIZE(cmd))) {
 			mutex_unlock(&cec_dev->cec_ioctl_mutex);
 			return -EINVAL;
@@ -2328,13 +2318,31 @@ static void cec_hdmi_plug_handler(struct work_struct *work)
 	/* struct ao_cec_dev *pcec_dev = container_of((struct delayed_work *)work, */
 		/* struct ao_cec_dev, work_hdmitx_plug); */
 	unsigned int tmp = 0;
-
+	unsigned int phy_addr = 0xffff;
 #if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	tmp |= (get_hpd_state() << 4);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 	tmp |= (hdmirx_get_connect_info() & 0xF);
 #endif
+
+	//update phy_addr when recv plug in event
+	if (cec_dev->dev_type != CEC_TV_ADDR) {
+		if ((tmp & 0x10) != 0) {
+			phy_addr = cec_get_cur_phy_addr();
+			CEC_INFO("[plug_handler],cec_get_cur_phy_addr=%d", phy_addr);
+			if (phy_addr == 0)
+				cec_dev->phy_addr = 0xffff;
+			else
+				cec_dev->phy_addr = phy_addr;
+
+			cec_config2_phyaddr(cec_dev->phy_addr, 1);
+		} else {
+			cec_dev->phy_addr = 0xffff;
+		}
+	} else {
+		cec_dev->phy_addr = 0;
+	}
 
 	cec_set_uevent(HDMI_PLUG_EVENT, tmp);
 }
