@@ -380,7 +380,7 @@ static int mpp_service_probe(struct platform_device *pdev)
 
 		kthread_init_worker(&queue->worker);
 		queue->kworker_task = kthread_run(kthread_worker_fn, &queue->worker,
-						  "queue_work%d", i);
+						  "mpp_worker_%d", i);
 		srv->task_queues[i] = queue;
 	}
 

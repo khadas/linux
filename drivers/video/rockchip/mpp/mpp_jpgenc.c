@@ -612,7 +612,7 @@ static int jpgenc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ret = devm_request_threaded_irq(dev, mpp->irq, mpp_dev_irq, mpp_dev_isr_sched,
+	ret = devm_request_threaded_irq(dev, mpp->irq, mpp_dev_irq, NULL,
 					IRQF_SHARED, dev_name(dev), mpp);
 
 	if (ret) {

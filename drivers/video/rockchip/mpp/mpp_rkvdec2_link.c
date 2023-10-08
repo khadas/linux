@@ -1631,9 +1631,6 @@ static int rkvdec2_soft_ccu_dequeue(struct mpp_taskqueue *queue)
 
 				mpp_task->on_cancel_timeout = mpp_task->on_irq;
 				set_bit(TASK_TIMING_TO_CANCEL, &mpp_task->state);
-
-				mpp_task->on_isr = mpp_task->on_irq;
-				set_bit(TASK_TIMING_ISR, &mpp_task->state);
 			}
 
 			set_bit(TASK_STATE_HANDLE, &mpp_task->state);

@@ -1886,7 +1886,7 @@ static int rkvdec_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(dev, mpp->irq,
 					mpp_dev_irq,
-					mpp_dev_isr_sched,
+					NULL,
 					IRQF_SHARED,
 					dev_name(dev), mpp);
 	if (ret) {
