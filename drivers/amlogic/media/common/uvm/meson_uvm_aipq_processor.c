@@ -166,6 +166,7 @@ struct vframe_s *aipq_get_dw_vf(struct uvm_aipq_info *aipq_info)
 		vf = dmabuf_get_vframe(dmabuf);
 		if (IS_ERR_OR_NULL(vf)) {
 			aipq_print(PRINT_ERROR, "%s: vf is NULL.\n", __func__);
+			dma_buf_put(dmabuf);
 			return NULL;
 		}
 

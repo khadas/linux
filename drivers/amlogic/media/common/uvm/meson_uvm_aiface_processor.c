@@ -100,6 +100,7 @@ struct vframe_s *aiface_get_dw_vf(struct uvm_aiface_info *aiface_info)
 		vf = dmabuf_get_vframe(dmabuf);
 		if (IS_ERR_OR_NULL(vf)) {
 			aiface_print(PRINT_ERROR, "%s: vf is NULL.\n", __func__);
+			dma_buf_put(dmabuf);
 			return NULL;
 		}
 

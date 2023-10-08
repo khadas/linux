@@ -97,6 +97,7 @@ struct vframe_s *aicolor_get_dw_vf(struct uvm_aicolor_info *aicolor_info)
 		vf = dmabuf_get_vframe(dmabuf);
 		if (IS_ERR_OR_NULL(vf)) {
 			aicolor_print(PRINT_ERROR, "%s: vf is NULL.\n", __func__);
+			dma_buf_put(dmabuf);
 			return NULL;
 		}
 
