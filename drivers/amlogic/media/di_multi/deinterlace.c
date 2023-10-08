@@ -11034,6 +11034,7 @@ bool dim_need_bypass(unsigned int ch, struct vframe_s *vf)
 void di_reg_setting(unsigned int channel, struct vframe_s *vframe)
 {
 	unsigned short nr_height = 0, first_field_type;
+	unsigned short nr_width = 0;
 	struct di_dev_s *de_devp = get_dim_de_devp();
 	unsigned int x, y;
 
@@ -11124,13 +11125,14 @@ void di_reg_setting(unsigned int channel, struct vframe_s *vframe)
 	/*--------------------------*/
 	dim_vf_x_y(vframe, &x, &y);
 	nr_height = (unsigned short)y;
+	nr_width = (unsigned short)x;
 	if (IS_I_SRC(vframe->type))
 		nr_height = (nr_height >> 1);/*temp*/
-	dbg_reg("%s:0x%x:%d,%d,%d\n", __func__, vframe->type, x, y, nr_height);
+	dbg_reg("%s:0x%x:%d,%d,%d,%d\n", __func__, vframe->type, x, y, nr_height, nr_width);
 	/*--------------------------*/
 	dimh_calc_lmv_init();
 	first_field_type = (vframe->type & VIDTYPE_TYPEMASK);
-	di_pre_size_change(vframe->width, nr_height,
+	di_pre_size_change(nr_width, nr_height,
 			   first_field_type, channel);
 	get_ops_nr()->cue_int(vframe);
 	dim_ddbg_mod_save(EDI_DBG_MOD_REGE, channel, 0);
