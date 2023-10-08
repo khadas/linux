@@ -225,6 +225,9 @@
 #define m_RGA2_SRC_INFO_SW_SW_VSP_MODE_SEL		(0x1 << 26)
 #define m_RGA2_SRC_INFO_SW_SW_YUV10_E			(0x1 << 27)
 #define m_RGA2_SRC_INFO_SW_SW_YUV10_ROUND_E		(0x1 << 28)
+#define m_RGA2_SRC_INFO_SW_SW_VSD_MODE_SEL		(0x1 << 29)
+#define m_RGA2_SRC_INFO_SW_SW_HSP_MODE_SEL		(0x1 << 30)
+#define m_RGA2_SRC_INFO_SW_SW_HSD_MODE_SEL		(0x1 << 31)
 
 
 #define s_RGA2_SRC_INFO_SW_SRC_FMT(x)			((x & 0xf) << 0)
@@ -245,6 +248,9 @@
 #define s_RGA2_SRC_INFO_SW_SW_VSP_MODE_SEL(x)		((x & 0x1) << 26)
 #define s_RGA2_SRC_INFO_SW_SW_YUV10_E(x)		((x & 0x1) << 27)
 #define s_RGA2_SRC_INFO_SW_SW_YUV10_ROUND_E(x)		((x & 0x1) << 28)
+#define s_RGA2_SRC_INFO_SW_SW_VSD_MODE_SEL(x)		((x & 0x1) << 29)
+#define s_RGA2_SRC_INFO_SW_SW_HSP_MODE_SEL(x)		((x & 0x1) << 30)
+#define s_RGA2_SRC_INFO_SW_SW_HSD_MODE_SEL(x)		((x & 0x1) << 31)
 
 /* RGA_SRC_VIR_INFO */
 #define m_RGA2_SRC_VIR_INFO_SW_SRC_VIR_STRIDE		(0x7fff << 0)

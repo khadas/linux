@@ -826,6 +826,7 @@ void rga_cmd_print_debug_info(struct rga_req *req)
 		req->mmu_info.mmu_flag, req->mmu_info.mmu_en);
 	pr_info("alpha: rop_mode = %x\n", req->alpha_rop_mode);
 	pr_info("yuv2rgb mode is %x\n", req->yuv2rgb_mode);
+	pr_info("imterplotion: horiz = 0x%x, verti = 0x%x\n", req->interp.horiz, req->interp.verti);
 	pr_info("set core = %d, priority = %d, in_fence_fd = %d\n",
 		req->core, req->priority, req->in_fence_fd);
 }
