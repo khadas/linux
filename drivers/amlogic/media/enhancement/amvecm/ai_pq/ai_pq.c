@@ -455,6 +455,13 @@ int contrast_scene_process(int offset, int enable)
 
 	bld_offset = smooth_process(base_val, reg_val, offset, bld_rs);
 
+	if (reg_val != base_val + offset) {
+		if (aipq_smooth_dbg)
+			pr_info("%s, smooth, bld_ofst: %d, baseval: %d, regval: %d, offset: %d, bld_rs: %d\n",
+						__func__, bld_offset, base_val, reg_val,
+						offset, bld_rs);
+	}
+
 	if (bld_offset == 0) {
 		if (aipq_debug) {
 			pr_aipq_dbg("%s, bld_ofst = 0, keep setting, baseval: %d, regval: %d, offset: %d, bld_rs %d\n",

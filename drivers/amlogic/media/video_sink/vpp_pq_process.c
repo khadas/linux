@@ -541,7 +541,8 @@ void aipq_scs_proc_s5(struct vframe_s *vf,
 		   int (*cfg)[SCENES_VALUE],
 		   int (*prob)[2],
 		   int *out,
-		   int *pq_debug)
+		   int *pq_debug,
+		   int new_vf_flag)
 {
 	static int pre_top_one = -1;
 	int top_one, top_one_prob;
@@ -558,7 +559,9 @@ void aipq_scs_proc_s5(struct vframe_s *vf,
 	top_three = prob[2][0];
 	top_three_prob = prob[2][1];
 
-	sc_flag = sc_det(vf, pq_debug);
+	if (new_vf_flag) {
+		sc_flag = sc_det(vf, pq_debug);
+	}
 
 	if (pre_top_one == top_one) {
 		memcpy(out, cfg[pre_top_one], sizeof(int) * SCENES_VALUE);
@@ -924,7 +927,7 @@ void vf_pq_process(struct vframe_s *vf,
 	if (aipq_set_policy == 1)
 		aipq_scs_bld_proc(vpp_pq_data, prob, bld_ofst, pq_debug);
 	else if (aipq_set_policy == 2)
-		aipq_scs_proc_s5(vf, vpp_pq_data, prob, bld_ofst, pq_debug);
+		aipq_scs_proc_s5(vf, vpp_pq_data, prob, bld_ofst, pq_debug, new_vf_flag);
 	else
 		aipq_scs_proc(vf, vpp_pq_data, prob, bld_ofst, pq_debug);
 
