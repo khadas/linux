@@ -92,6 +92,13 @@ enum RGA_SCHEDULER_CORE {
 	RGA_SCHEDULER_RGA2_CORE0 = 1 << 2,
 };
 
+enum rga_scale_interp {
+	RGA_INTERP_DEFAULT   = 0x0,
+	RGA_INTERP_LINEAR    = 0x1,
+	RGA_INTERP_BICUBIC   = 0x2,
+	RGA_INTERP_AVERAGE   = 0x3,
+};
+
 /* RGA process mode enum */
 enum {
 	BITBLT_MODE			= 0x0,
@@ -580,6 +587,11 @@ struct rga_feature {
 	uint32_t user_close_fence:1;
 };
 
+struct rga_interp {
+	uint8_t horiz:4;
+	uint8_t verti:4;
+};
+
 struct rga_req {
 	/* (enum) process mode sel */
 	uint8_t render_mode;
@@ -613,8 +625,11 @@ struct rga_req {
 	/* ([7] = 1 AA_enable)			 */
 	uint16_t alpha_rop_flag;
 
-	/* 0 nearst / 1 bilnear / 2 bicubic */
-	uint8_t scale_mode;
+	union {
+		struct rga_interp interp;
+		/* 0 nearst / 1 bilnear / 2 bicubic */
+		uint8_t scale_mode;
+	};
 
 	/* color key max */
 	uint32_t color_key_max;
@@ -833,6 +848,8 @@ struct rga2_req {
 	uint8_t uvvds_mode;
 
 	struct rga_osd_info osd_info;
+
+	struct rga_interp interp;
 };
 
 struct rga3_req {

@@ -14,6 +14,13 @@
 #include "rga_hw_config.h"
 #include "rga_debugger.h"
 
+enum rga2_scale_mode_reg {
+	RGA2_SCALE_BYPASS = 0x0,
+	RGA2_SCALE_DOWN = 0x1,
+	RGA2_SCALE_UP = 0x2,
+	RGA2_SCALE_FORCE_TILE = 0x3,
+};
+
 unsigned int rga2_rop_code[256] = {
 	0x00000007, 0x00000451, 0x00006051, 0x00800051,
 	0x00007041, 0x00800041, 0x00804830, 0x000004f0,//0
@@ -227,6 +234,9 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	u32 dw, dh;
 	u8 rotate_mode;
 	u8 vsp_scale_mode = 0;
+	u8 vsd_scale_mode = 0;
+	u8 hsp_scale_mode = 0;
+	u8 hsd_scale_mode = 0;
 	u8 scale_w_flag, scale_h_flag;
 
 	bRGA_SRC_INFO = (u32 *) (base + RGA2_SRC_INFO_OFFSET);
@@ -266,21 +276,21 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 		}
 
 		if (sw > dw)
-			scale_w_flag = 1;
+			scale_w_flag = RGA2_SCALE_DOWN;
 		else if (sw < dw)
-			scale_w_flag = 2;
+			scale_w_flag = RGA2_SCALE_UP;
 		else {
-			scale_w_flag = 0;
+			scale_w_flag = RGA2_SCALE_BYPASS;
 			if (msg->rotate_mode >> 6)
 				scale_w_flag = 3;
 		}
 
 		if (sh > dh)
-			scale_h_flag = 1;
+			scale_h_flag = RGA2_SCALE_DOWN;
 		else if (sh < dh)
-			scale_h_flag = 2;
+			scale_h_flag = RGA2_SCALE_UP;
 		else {
-			scale_h_flag = 0;
+			scale_h_flag = RGA2_SCALE_BYPASS;
 			if (msg->rotate_mode >> 6)
 				scale_h_flag = 3;
 		}
@@ -290,16 +300,56 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 			scale_w_flag = 3;
 	}
 
-	/* VSP scale mode select, HSD > VSD > VSP > HSP */
-	if (scale_h_flag == 0x2) {
-		/* After HSD, VSP needs to check dst_width */
-		if ((scale_w_flag == 0x1) && (dw < RGA2_VSP_BICUBIC_LIMIT))
-			vsp_scale_mode = 0x0;
-		else if (sw < RGA2_VSP_BICUBIC_LIMIT)
-			vsp_scale_mode = 0x0;
-		else
-			/* default select bilinear */
-			vsp_scale_mode = 0x1;
+	if (scale_h_flag == RGA2_SCALE_UP) {
+		switch (msg->interp.verti) {
+		case RGA_INTERP_BICUBIC:
+			/*
+			 * VSP scale mode select, HSD > VSD > VSP > HSP
+			 * After HSD, VSP needs to check dst_width.
+			 */
+			if (((scale_w_flag == RGA2_SCALE_DOWN) && (dw < RGA2_VSP_BICUBIC_LIMIT)) ||
+			    (sw < RGA2_VSP_BICUBIC_LIMIT)) {
+				vsp_scale_mode = 0x0;
+			} else {
+				/* force select bi-linear */
+				pr_err("Horizontal scaling will be forcibly switched to bilinear.\n");
+				vsp_scale_mode = 0x1;
+			}
+			break;
+		case RGA_INTERP_LINEAR:
+			vsp_scale_mode = 1;
+			break;
+		}
+
+	} else if (scale_h_flag == RGA2_SCALE_DOWN) {
+		switch (msg->interp.verti) {
+		case RGA_INTERP_AVERAGE:
+			vsd_scale_mode = 0;
+			break;
+		case RGA_INTERP_LINEAR:
+			vsd_scale_mode = 1;
+			break;
+		}
+	}
+
+	if (scale_w_flag == RGA2_SCALE_UP) {
+		switch (msg->interp.horiz) {
+		case RGA_INTERP_BICUBIC:
+			hsp_scale_mode = 0;
+			break;
+		case RGA_INTERP_LINEAR:
+			hsp_scale_mode = 1;
+			break;
+		}
+	} else if (scale_w_flag == RGA2_SCALE_DOWN) {
+		switch (msg->interp.horiz) {
+		case RGA_INTERP_AVERAGE:
+			hsd_scale_mode = 0;
+			break;
+		case RGA_INTERP_LINEAR:
+			hsd_scale_mode = 1;
+			break;
+		}
 	}
 
 	switch (msg->src.format) {
@@ -580,6 +630,12 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	reg =
 		((reg & (~m_RGA2_SRC_INFO_SW_SW_YUV10_ROUND_E)) |
 		 (s_RGA2_SRC_INFO_SW_SW_YUV10_ROUND_E((yuv10))));
+	reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_VSD_MODE_SEL)) |
+	       (s_RGA2_SRC_INFO_SW_SW_VSD_MODE_SEL((vsd_scale_mode))));
+	reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_HSP_MODE_SEL)) |
+	       (s_RGA2_SRC_INFO_SW_SW_HSP_MODE_SEL((hsp_scale_mode))));
+	reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_HSD_MODE_SEL)) |
+	       (s_RGA2_SRC_INFO_SW_SW_HSD_MODE_SEL((hsd_scale_mode))));
 
 	RGA2_reg_get_param(base, msg);
 
@@ -2006,6 +2062,7 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 		break;
 	}
 
+	req->interp = req_rga->interp;
 	req->LUT_addr = req_rga->LUT_addr;
 	req->rop_mask_addr = req_rga->rop_mask_addr;
 
