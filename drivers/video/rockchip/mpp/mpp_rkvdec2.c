@@ -1613,6 +1613,7 @@ static int rkvdec2_probe_default(struct platform_device *pdev)
 	struct rkvdec2_dev *dec = NULL;
 	struct mpp_dev *mpp = NULL;
 	const struct of_device_id *match = NULL;
+	irq_handler_t irq_proc = NULL;
 	int ret = 0;
 
 	dec = devm_kzalloc(dev, sizeof(*dec), GFP_KERNEL);
@@ -1637,20 +1638,18 @@ static int rkvdec2_probe_default(struct platform_device *pdev)
 	rkvdec2_alloc_rcbbuf(pdev, dec);
 	rkvdec2_link_init(pdev, dec);
 
+	irq_proc = mpp_dev_irq;
 	if (dec->link_dec) {
-		ret = devm_request_threaded_irq(dev, mpp->irq,
-						rkvdec2_link_irq_proc, NULL,
-						IRQF_SHARED, dev_name(dev), mpp);
+		irq_proc = rkvdec2_link_irq_proc;
 		mpp->dev_ops->process_task = rkvdec2_link_process_task;
 		mpp->dev_ops->wait_result = rkvdec2_link_wait_result;
 		mpp->dev_ops->task_worker = rkvdec2_link_worker;
 		mpp->dev_ops->deinit = rkvdec2_link_session_deinit;
 		kthread_init_work(&mpp->work, rkvdec2_link_worker);
-	} else {
-		ret = devm_request_threaded_irq(dev, mpp->irq,
-						mpp_dev_irq, mpp_dev_isr_sched,
-						IRQF_SHARED, dev_name(dev), mpp);
 	}
+
+	ret = devm_request_threaded_irq(dev, mpp->irq, irq_proc, NULL,
+					IRQF_SHARED, dev_name(dev), mpp);
 	if (ret) {
 		dev_err(dev, "register interrupter runtime failed\n");
 		return -EINVAL;

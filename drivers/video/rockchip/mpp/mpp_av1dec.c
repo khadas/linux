@@ -1187,7 +1187,7 @@ static int av1dec_probe(struct platform_device *pdev)
 	dec->reg_base[AV1DEC_CLASS_VCD] = mpp->reg_base;
 	ret = devm_request_threaded_irq(dev, mpp->irq,
 					mpp_dev_irq,
-					mpp_dev_isr_sched,
+					NULL,
 					IRQF_SHARED,
 					dev_name(dev), mpp);
 	if (ret) {
