@@ -8,7 +8,7 @@
 
 #include <linux/regmap.h>
 
-#define TOP_CTRL_BASE				(0x0000)
+#define TOP_CTRL_BASE				(0x00)
 #define PA1_RESET_CTRL				(TOP_CTRL_BASE + 0x1)
 #define PA1_DEVICE_CTRL2			(TOP_CTRL_BASE + 0x3)
 #define PA1_EFUSE_CTRL				(TOP_CTRL_BASE + 0x6)
@@ -16,10 +16,14 @@
 #define PA1_ANA_FORCE2				(TOP_CTRL_BASE + 0x12)
 #define PA1_ANA_FORCE6				(TOP_CTRL_BASE + 0x16)
 #define PA1_ANA_FORCE7				(TOP_CTRL_BASE + 0x17)
+#define PA1_PINMUX_IE				(TOP_CTRL_BASE + 0x18)
 #define PA1_PINMUX_OE				(TOP_CTRL_BASE + 0x19)
 #define PA1_PINMUX_SEL				(TOP_CTRL_BASE + 0x1c)
+#define PA1_PLL_CTRL0				(TOP_CTRL_BASE + 0x2a)
+#define PA1_PLL_CTRL1				(TOP_CTRL_BASE + 0x2b)
 #define PA1_TOP_TEST1				(TOP_CTRL_BASE + 0x2f)
 #define PA1_SAP_CTRL3				(TOP_CTRL_BASE + 0x35)
+#define PA1_AUTOCONFIG_CTRL			(TOP_CTRL_BASE + 0x3a)
 #define PA1_ANA_CTRL0				(TOP_CTRL_BASE + 0x51)
 #define PA1_ANA_CTRL1				(TOP_CTRL_BASE + 0x52)
 #define PA1_ANA_CTRL2				(TOP_CTRL_BASE + 0x53)
@@ -32,11 +36,15 @@
 #define PA1_SS_CTRL2				(TOP_CTRL_BASE + 0x6d)
 #define PA1_PIN_CONTROL1			(TOP_CTRL_BASE + 0x74)
 #define PA1_PIN_CONTROL2			(TOP_CTRL_BASE + 0x75)
+#define PA1_MISC_CONTROL			(TOP_CTRL_BASE + 0x76)
 #define PA1_FAULT_CLEAR				(TOP_CTRL_BASE + 0x78)
 #define PA1_DEBUG_SEL1				(TOP_CTRL_BASE + 0x7d)
 #define PA1_DEBUG_SEL2				(TOP_CTRL_BASE + 0x7e)
 
-#define DSP_CTRL_BASE				(0x400)
+/* Switch the top and dsp registers*/
+#define PA1_PAGE_NUM				(TOP_CTRL_BASE + 0xFF)
+
+#define DSP_CTRL_BASE				(0x00)
 #define PA1_AEQ_COEF_ADDR			(DSP_CTRL_BASE + (0x0 << 2))
 #define PA1_AEQ_COEF_DATA			(DSP_CTRL_BASE + (0x1 << 2))
 #define PA1_AEQ_IRQ_MASK			(DSP_CTRL_BASE + (0x7 << 2))
@@ -255,28 +263,27 @@ static unsigned int PA1_MULTIBAND_DRC_COEFF[PA1_AED_MULTIBAND_DRC_SIZE] = {
 };
 
 static const int pa1_reg_set[][2] = {
-	/* dig reg set */
-	{ PA1_PINMUX_OE, 0x20 },
-	{ PA1_DEBUG_SEL1, 0x3 },
-	{ PA1_PINMUX_SEL, 0x0 },
+	/* vision C dig reg set */
 	{ PA1_ANA_TRIM_4, 0x72 },
-	{ PA1_EFUSE_CTRL, 0x29 },
-	{ PA1_PIN_CONTROL2, 0x1f },
-	{ PA1_PIN_CONTROL1, 0x0 },
-	{ PA1_ANA_FORCE7, 0xc },
-	{ PA1_FAULT_CLEAR, 0x20 },
+	{ PA1_PLL_CTRL1, 0xb4 },
+	{ PA1_PLL_CTRL0, 0x34 },
+	{ PA1_AUTOCONFIG_CTRL, 0x1 },
+	{ PA1_PINMUX_IE, 0x1b },
+	{ PA1_DEVICE_CTRL2, 0x84 },
+	{ PA1_PIN_CONTROL1, 0x2 },
+	{ PA1_ANA_FORCE2, 0x10 },
+	{ PA1_ANA_FORCE6, 0x20 },
+	{ PA1_FAULT_CLEAR, 0xFF },
+	{ PA1_FAULT_CLEAR, 0x0 },
+	{ PA1_MISC_CONTROL, 0x20 },
+	{ PA1_MISC_CONTROL, 0x0 },
+	{ PA1_PIN_CONTROL2, 0x3f },
+	{ PA1_PINMUX_IE, 0x1f },
 	/* ana reg set */
-	{ PA1_VCM_ADJ, 0xb8 },
-	{ PA1_DEBUG_SEL2, 0x1c },
-	{ PA1_SS_CTRL1, 0x20 },
-	{ PA1_SS_CTRL2, 0x10 },
-	{ PA1_DAC_CTRL1, 0x61 },
-	{ PA1_DAC_CTRL2, 0x61 },
-	{ PA1_H_BRIDGE_CTRL, 0x5D },
-	{ PA1_ANA_CTRL2, 0x5 },
-	{ PA1_ANA_CTRL1, 0xfc },
-	{ PA1_ANA_CTRL0, 0xf4 },
-	{ PA1_TOP_TEST1, 0xe0 },
+	{ PA1_VCM_ADJ, 0xc8 },
+	{ PA1_DAC_CTRL1, 0x5d },
+	{ PA1_DAC_CTRL2, 0x5d },
+	{ PA1_ANA_CTRL1, 0xbc },
 	/* enter play mode */
 	{ PA1_DEVICE_CTRL2, 0x85 },
 };
