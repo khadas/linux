@@ -49,6 +49,7 @@ struct am_meson_crtc_state {
 	u8 crtc_eotf_type;
 	/*dv core enabled, control by userspace not driver*/
 	bool crtc_dv_enable;
+	/* dv mode: 0 dobly std 1:dobly ll*/
 	bool dv_mode;
 	/*hdr core enabled, always on if soc support hdr.*/
 	bool crtc_hdr_enable;
@@ -121,6 +122,7 @@ int meson_crtc_creat_present_fence_ioctl(struct drm_device *dev,
 void set_amdv_policy(int policy);
 int get_amdv_policy(void);
 void set_amdv_ll_policy(int policy);
+int get_amdv_ll_policy(void);
 void set_amdv_enable(bool enable);
 int get_dv_support_info(void);
 bool is_amdv_enable(void);

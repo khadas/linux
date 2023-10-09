@@ -120,8 +120,10 @@ static void meson_crtc_init_hdr_preference
 	crtc_state->crtc_hdr_process_policy = get_hdr_policy();
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	crtc_state->crtc_dv_enable = is_amdv_enable();
+	crtc_state->dv_mode = get_amdv_ll_policy() ? 1 : 0;
 #else
 	crtc_state->crtc_dv_enable = false;
+	crtc_state->dv_mode = false;
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM

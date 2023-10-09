@@ -12586,6 +12586,12 @@ void set_amdv_ll_policy(int policy)
 }
 EXPORT_SYMBOL(set_amdv_ll_policy);
 
+int get_amdv_ll_policy(void)
+{
+	return dolby_vision_ll_policy;
+}
+EXPORT_SYMBOL(get_amdv_ll_policy);
+
 void set_amdv_policy(int policy)
 {
 	dolby_vision_policy = policy;
