@@ -82,6 +82,14 @@
 			clear-map;
 		};
 
+		linux,above_4g_mem {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x20000000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x1 0x0000000 0x0 0x20000000>;
+		};
+
 		dsp_fw_reserved:linux,dsp_fw {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -215,6 +223,7 @@
 			reusable;
 			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 	};
 
