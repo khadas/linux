@@ -1449,6 +1449,11 @@ struct file_private_data *v4lvideo_get_file_private_data(struct file *file_vf,
 		return file_private_data;
 	}
 
+	if (!dmabuf_is_uvm((struct dma_buf *)file_vf->private_data)) {
+		pr_err("v4lvideo: dma file private data is not uvm\n");
+		return NULL;
+	}
+
 	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
 				 VF_PROCESS_V4LVIDEO);
 	if (uhmod && uhmod->arg) {
