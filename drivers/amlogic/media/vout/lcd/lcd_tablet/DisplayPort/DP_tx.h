@@ -102,7 +102,6 @@ enum DP_training_status_e {
 
 enum DP_training_mode_e {
 	DP_LINK_TRAINING_AUTO,
-	DP_NO_LINK_TRAINING,
 	DP_FAST_LINK_TRAINING,
 	DP_FULL_LINK_TRAINING,
 };

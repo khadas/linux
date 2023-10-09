@@ -19,6 +19,12 @@
 #include "../../lcd_reg.h"
 #include "../../lcd_common.h"
 
+#define DP_TPS_DISABLE 0
+#define DP_TPS1        1
+#define DP_TPS2        2
+#define DP_TPS3        3
+#define DP_TPS4        4
+
 static void dptx_training_status_print(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned char aux_data[3];
@@ -200,15 +206,15 @@ static int dptx_training_phy_update_apply(struct aml_lcd_drv_s *pdrv)
 /* *************** full link training ****************** */
 static int dptx_set_training_pattern(struct aml_lcd_drv_s *pdrv, unsigned char pattern)
 {
-	unsigned char p_data = 0;
+	unsigned char p_data;
 	int ret;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: pattern %u\n", pdrv->index, __func__, pattern);
 	//disable scrambling for any active test pattern
-	//! EDP_SCRAMBLING NOT TURN ON EVEN NOT TRAINING
-	// if (pattern && pattern <= 3)
-	p_data = (1 << 5) | pattern;
+	p_data = (pattern & 0x3) | (pattern ? BIT(5) : 0);
+
+	dptx_reg_write(pdrv, EDP_TX_SCRAMBLING_DISABLE, pattern ? 1 : 0);
 
 	dptx_reg_write(pdrv, EDP_TX_TRAINING_PATTERN_SET, pattern);
 	ret = dptx_aux_write(pdrv, DPCD_TRAINING_PATTERN_SET, 1, &p_data);
@@ -274,7 +280,7 @@ static int dptx_check_channel_equalization(struct aml_lcd_drv_s *pdrv)
 
 	if (cr_done != lane_cnt)
 		return 1;
-	if (channel_eq_done == lane_cnt && symbol_lock_done == lane_cnt && lane_align_done == 1)
+	if (channel_eq_done == lane_cnt && symbol_lock_done == lane_cnt && lane_align_done)
 		return 0;
 
 	return 2;
@@ -282,17 +288,14 @@ static int dptx_check_channel_equalization(struct aml_lcd_drv_s *pdrv)
 
 static int dptx_run_channel_equalization_loop(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned char tps_sel;
 	int i = 0, ret = 0;
 
 	if (pdrv->config.control.edp_cfg.TPS_support & BIT(1))
-		tps_sel = 4;
+		dptx_set_training_pattern(pdrv, DP_TPS4);
 	else if (pdrv->config.control.edp_cfg.TPS_support & BIT(0))
-		tps_sel = 3;
+		dptx_set_training_pattern(pdrv, DP_TPS3);
 	else
-		tps_sel = 2;
-
-	dptx_set_training_pattern(pdrv, tps_sel);
+		dptx_set_training_pattern(pdrv, DP_TPS2);
 
 	//channel equalization & symbol lock loop
 	while (i++ < DP_TRAINING_EQ_ATTEMPTS) {
@@ -349,7 +352,7 @@ static int dptx_run_clk_recovery_loop(struct aml_lcd_drv_s *pdrv)
 {
 	int i = 0, ret = 0;
 
-	dptx_set_training_pattern(pdrv, 1);
+	dptx_set_training_pattern(pdrv, DP_TPS1);
 
 	while (i++ < DP_TRAINING_CR_ATTEMPTS) {
 		dptx_training_phy_update_apply(pdrv);
@@ -396,9 +399,6 @@ static int dptx_run_training_loop(struct aml_lcd_drv_s *pdrv, unsigned int retry
 		pdrv->config.control.edp_cfg.curr_preem[i] = 0;
 		pdrv->config.control.edp_cfg.curr_vswing[i] = 0;
 	}
-
-	//turn off scrambling for training
-	dptx_reg_write(pdrv, EDP_TX_SCRAMBLING_DISABLE, 0x01);
 
 	//enter training loop
 	while (!(state == DP_TRAINING_SUCCESS || state == DP_TRAINING_FAILED)) {
@@ -478,10 +478,7 @@ static int dptx_run_training_loop(struct aml_lcd_drv_s *pdrv, unsigned int retry
 	}
 
 	//training pattern off
-	dptx_set_training_pattern(pdrv, 0);
-	//turn on scrambling after training
-	//! EDP_SCRAMBLING NOT TURN ON
-	dptx_reg_write(pdrv, EDP_TX_SCRAMBLING_DISABLE, 0x01);
+	dptx_set_training_pattern(pdrv, DP_TPS_DISABLE);
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		dptx_training_status_print(pdrv);
@@ -557,82 +554,34 @@ int dptx_full_link_training(struct aml_lcd_drv_s *pdrv)
 /* *************** fast link training ****************** */
 int dptx_fast_link_training(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned char p_data = 0;
-	unsigned char aux_data[4];
-	int ret = 0;
+	int ret;
 
 	if (!pdrv)
 		return -1;
 
-	// disable scrambling
-	dptx_reg_write(pdrv, EDP_TX_SCRAMBLING_DISABLE, 0x1);
-
-	// set training pattern 1
-	dptx_reg_write(pdrv, EDP_TX_TRAINING_PATTERN_SET, 0x1);
-	p_data = 0x21;
-	ret = dptx_aux_write(pdrv, DPCD_TRAINING_PATTERN_SET, 1, &p_data);
-	if (ret)
-		LCDERR("[%d]: edp training pattern 1 failed.....\n", pdrv->index);
+	// set training pattern for CR
+	dptx_set_training_pattern(pdrv, DP_TPS1);
 	usleep_range(1000, 1200);
 
-	// set training pattern 2
-	dptx_reg_write(pdrv, EDP_TX_TRAINING_PATTERN_SET, 0x2);
-	p_data = 0x22;
-	ret = dptx_aux_write(pdrv, DPCD_TRAINING_PATTERN_SET, 1, &p_data);
-	if (ret & 0x02)
-		LCDERR("[%d]: edp training pattern 2 failed.....\n", pdrv->index);
-	usleep_range(1000, 1200);
-
-	// set training pattern 3
-	dptx_reg_write(pdrv, EDP_TX_TRAINING_PATTERN_SET, 0x3);
-	p_data = 0x23;
-	ret = dptx_aux_write(pdrv, DPCD_TRAINING_PATTERN_SET, 1, &p_data);
-	if (ret)
-		LCDERR("[%d]: edp training pattern 3 failed.....\n", pdrv->index);
+	// set training pattern for EQ
+	if (pdrv->config.control.edp_cfg.TPS_support & BIT(1))
+		dptx_set_training_pattern(pdrv, DP_TPS4);
+	else if (pdrv->config.control.edp_cfg.TPS_support & BIT(0))
+		dptx_set_training_pattern(pdrv, DP_TPS3);
+	else
+		dptx_set_training_pattern(pdrv, DP_TPS2);
 	usleep_range(1000, 1200);
 
 	// disable the training pattern
-	p_data = 0x20;
-	ret = dptx_aux_write(pdrv, DPCD_TRAINING_PATTERN_SET, 1, &p_data);
-	if (ret & 0x04)
-		LCDERR("[%d]: edp training pattern off failed.....\n", pdrv->index);
+	dptx_set_training_pattern(pdrv, DP_TPS_DISABLE);
 
-	dptx_reg_write(pdrv, EDP_TX_TRAINING_PATTERN_SET, 0x0);
+	ret = dptx_check_channel_equalization(pdrv);
+	ret += dptx_check_clk_recovery(pdrv);
 
-	ret = dptx_aux_read(pdrv, DPCD_TRAINING_SCORE_LANE0, 4, aux_data);
-
-	LCDPR("[%d]: %s result: [0x%02x, 0x%02x, 0x%02x, 0x%02x]\n", pdrv->index, __func__,
-		aux_data[0], aux_data[1], aux_data[2], aux_data[3]);
-	/* read fast train result */
-	// return 1;
-
-	return 0;
+	return ret;
 }
 
 /* ******************* link training ********************* */
-
-/* return:
- * -1: aux failed
- * 0: Requires AUX CH handshake
- * 1: Does not require AUX CH handshake
- */
-static int dptx_sink_handshake_check(struct aml_lcd_drv_s *pdrv)
-{
-	unsigned char data;
-	int ret;
-
-	ret = dptx_aux_read(pdrv, DPCD_MAX_DOWNSPREAD, 1, &data);
-	if (ret) {
-		LCDPR("%s aux read DPCD_MAX_DOWNSPREAD failed\n", __func__);
-		return -1;
-	}
-	data = (data >> 6) & 0x1;
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s: DPCD(0x%x)[6] = %d\n", pdrv->index, __func__,
-			DPCD_MAX_DOWNSPREAD, data);
-	return data;
-}
-
 int dptx_link_training(struct aml_lcd_drv_s *pdrv)
 {
 	int ret = -1;
@@ -644,10 +593,6 @@ int dptx_link_training(struct aml_lcd_drv_s *pdrv)
 	train_mode = pdrv->config.control.edp_cfg.training_mode & 0x0f;
 
 	switch (train_mode) {
-	case DP_NO_LINK_TRAINING:
-		LCDPR("[%d]%s: NO link training required\n", pdrv->index, __func__);
-		ret = 0;
-		break;
 	case DP_FAST_LINK_TRAINING:
 		ret = dptx_fast_link_training(pdrv);
 		break;
@@ -656,22 +601,13 @@ int dptx_link_training(struct aml_lcd_drv_s *pdrv)
 		break;
 	case DP_LINK_TRAINING_AUTO:
 	default:
-		//if (pdrv->config.basic.lcd_type == LCD_DP) {
-		//	ret = dptx_full_link_training(pdrv);
-		//}
-		ret = dptx_sink_handshake_check(pdrv);
-		if (ret < 0)
-			return -1;
-
-		if (ret == 1) {
-			ret = dptx_fast_link_training(pdrv);
-			break;
-		}
-		ret = dptx_full_link_training(pdrv);
+		ret = dptx_fast_link_training(pdrv);
+		if (ret)
+			ret = dptx_full_link_training(pdrv);
 		break;
 	}
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
 		dptx_DPCD_dump(pdrv);
 
 	return ret;
