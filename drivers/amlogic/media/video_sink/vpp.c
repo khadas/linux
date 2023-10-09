@@ -1707,9 +1707,9 @@ RESTART_ALL:
 		h_in -= crop_bottom;
 		v_crop_enable = true;
 	}
-	if (width_in > src_width_max)
+	if (w_in > src_width_max)
 		next_frame_par->hscale_skip_count++;
-	if (height_in > src_height_max)
+	if (h_in > src_height_max)
 		next_frame_par->vscale_skip_count++;
 
 RESTART:
