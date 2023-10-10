@@ -11,6 +11,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/notifier.h>
 #include <linux/regmap.h>
 #include <linux/version.h>
 #include <linux/of.h>
@@ -452,6 +453,7 @@ struct rk628 {
 	struct rk628_combtxphy combtxphy;
 	int sync_pol;
 	void *csi;
+	struct notifier_block fb_nb;
 };
 
 static inline int rk628_i2c_write(struct rk628 *rk628, u32 reg, u32 val)

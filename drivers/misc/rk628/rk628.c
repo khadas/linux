@@ -357,6 +357,25 @@ static const struct regmap_config rk628_regmap_config[RK628_DEV_MAX] = {
 	},
 };
 
+static void rk628_power_on(struct rk628 *rk628, bool on)
+{
+	if (!rk628->display_enabled && on) {
+		gpiod_set_value(rk628->enable_gpio, 1);
+		usleep_range(10000, 11000);
+		gpiod_set_value(rk628->reset_gpio, 0);
+		usleep_range(10000, 11000);
+		gpiod_set_value(rk628->reset_gpio, 1);
+		usleep_range(10000, 11000);
+		gpiod_set_value(rk628->reset_gpio, 0);
+		usleep_range(10000, 11000);
+	}
+
+	if (!on) {
+		gpiod_set_value(rk628->reset_gpio, 1);
+		gpiod_set_value(rk628->enable_gpio, 0);
+	}
+}
+
 static void rk628_display_disable(struct rk628 *rk628)
 {
 	if (!rk628->display_enabled)
@@ -374,58 +393,15 @@ static void rk628_display_disable(struct rk628 *rk628)
 	if (rk628->output_mode == OUTPUT_MODE_DSI)
 		rk628_dsi_disable(rk628);
 
+	if (rk628->output_mode == OUTPUT_MODE_RGB)
+		rk628_rgb_tx_disable(rk628);
+
 	rk628_post_process_disable(rk628);
 
 	if (rk628->input_mode == INPUT_MODE_HDMI)
 		rk628_hdmirx_disable(rk628);
 
 	rk628->display_enabled = false;
-}
-
-static void rk628_display_resume(struct rk628 *rk628)
-{
-	u8 ret = 0;
-
-	if (rk628->display_enabled)
-		return;
-
-	if (rk628->input_mode == INPUT_MODE_HDMI) {
-		ret = rk628_hdmirx_enable(rk628);
-		if ((ret == HDMIRX_PLUGOUT) || (ret & HDMIRX_NOSIGNAL)) {
-			rk628_display_disable(rk628);
-			return;
-		}
-	}
-
-	if (rk628->input_mode == INPUT_MODE_RGB)
-		rk628_rgb_rx_enable(rk628);
-
-	if (rk628->input_mode == INPUT_MODE_BT1120)
-		rk628_bt1120_rx_enable(rk628);
-
-	rk628_post_process_init(rk628);
-	rk628_post_process_enable(rk628);
-
-	if (rk628->output_mode == OUTPUT_MODE_DSI) {
-		rk628_mipi_dsi_pre_enable(rk628);
-		rk628_mipi_dsi_enable(rk628);
-	}
-
-	if (rk628->output_mode == OUTPUT_MODE_LVDS)
-		rk628_lvds_enable(rk628);
-
-	if (rk628->output_mode == OUTPUT_MODE_GVI)
-		rk628_gvi_enable(rk628);
-
-	if (rk628->output_mode == OUTPUT_MODE_CSI)
-		rk628_csi_enable(rk628);
-
-#ifdef CONFIG_RK628_MISC_HDMITX
-	if (rk628->output_mode == OUTPUT_MODE_HDMI)
-		rk628_hdmitx_enable(rk628);
-#endif
-
-	rk628->display_enabled = true;
 }
 
 static void rk628_display_enable(struct rk628 *rk628)
@@ -441,8 +417,8 @@ static void rk628_display_enable(struct rk628 *rk628)
 	if (rk628->input_mode == INPUT_MODE_BT1120)
 		rk628_bt1120_rx_enable(rk628);
 
-	if (rk628->output_mode == OUTPUT_MODE_BT1120)
-		rk628_bt1120_tx_enable(rk628);
+	if (rk628->output_mode == OUTPUT_MODE_RGB)
+		rk628_rgb_tx_enable(rk628);
 
 	if (rk628->output_mode == OUTPUT_MODE_DSI)
 		queue_delayed_work(rk628->dsi_wq, &rk628->dsi_delay_work, msecs_to_jiffies(10));
@@ -454,6 +430,9 @@ static void rk628_display_enable(struct rk628 *rk628)
 			return;
 		}
 	}
+
+	if (rk628->output_mode == OUTPUT_MODE_BT1120)
+		rk628_bt1120_tx_enable(rk628);
 
 	if (rk628->output_mode != OUTPUT_MODE_HDMI) {
 		rk628_post_process_init(rk628);
@@ -477,6 +456,60 @@ static void rk628_display_enable(struct rk628 *rk628)
 	rk628->display_enabled = true;
 }
 
+#ifdef CONFIG_FB
+static int rk628_fb_notifier_callback(struct notifier_block *nb,
+				      unsigned long event, void *data)
+{
+	struct rk628 *rk628 = container_of(nb, struct rk628, fb_nb);
+	struct fb_event *ev_data = data;
+	int *blank;
+
+	if ((event != FB_EVENT_BLANK) || (!ev_data) || (!ev_data->data))
+		return NOTIFY_DONE;
+
+	blank = ev_data->data;
+
+	switch (*blank) {
+	case FB_BLANK_UNBLANK:
+		rk628_power_on(rk628, true);
+		/* select int io function */
+		rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x30002000);
+		rk628_cru_init(rk628);
+
+		if (rk628->input_mode == INPUT_MODE_HDMI) {
+			rk628_i2c_write(rk628, GRF_INTR0_EN, 0x01000100);
+			/*
+			 * make hdmi rx register domain polling
+			 * access to be normal by setting hdmi in
+			 */
+			rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
+					      SW_INPUT_MODE_MASK,
+					      SW_INPUT_MODE(INPUT_MODE_HDMI));
+
+			queue_delayed_work(rk628->monitor_wq,
+					   &rk628->delay_work,
+					   msecs_to_jiffies(50));
+
+			return NOTIFY_OK;
+		}
+
+		rk628_display_enable(rk628);
+
+		return NOTIFY_OK;
+	case FB_BLANK_POWERDOWN:
+		if (rk628->input_mode == INPUT_MODE_HDMI)
+			cancel_delayed_work_sync(&rk628->delay_work);
+
+		rk628_display_disable(rk628);
+		rk628_power_on(rk628, false);
+
+		return NOTIFY_OK;
+	default:
+		return NOTIFY_DONE;
+	}
+}
+#endif
+
 static void rk628_display_work(struct work_struct *work)
 {
 	u8 ret = 0;
@@ -486,6 +519,7 @@ static void rk628_display_work(struct work_struct *work)
 
 	if (rk628->input_mode == INPUT_MODE_HDMI) {
 		ret = rk628_hdmirx_detect(rk628);
+		dev_info(rk628->dev, "%s: hdmirx detect status:0x%x\n", __func__, ret);
 		if (!(ret & (HDMIRX_CHANGED | HDMIRX_NOLOCK))) {
 			if (!rk628->plugin_det_gpio)
 				queue_delayed_work(rk628->monitor_wq,
@@ -572,13 +606,17 @@ static int rk628_display_route_info_parse(struct rk628 *rk628)
 	} else if (of_find_node_by_name(rk628->dev->of_node, "rk628-gvi")) {
 		np = of_find_node_by_name(rk628->dev->of_node, "rk628-gvi");
 		ret = rk628_gvi_parse(rk628, np);
-	} else if (of_find_node_by_name(rk628->dev->of_node, "rk628-bt1120")) {
+	} else if (of_property_read_bool(rk628->dev->of_node, "rk628-bt1120")) {
 		rk628->output_mode = OUTPUT_MODE_BT1120;
+	} else if (of_property_read_bool(rk628->dev->of_node, "rk628,hdmi-out")) {
+		rk628->output_mode = OUTPUT_MODE_HDMI;
+	} else if (of_property_read_bool(rk628->dev->of_node, "rk628,csi-out")) {
+		rk628->output_mode = OUTPUT_MODE_CSI;
+	} else if (of_property_read_bool(rk628->dev->of_node, "rk628-rgb")) {
+		ret = rk628_rgb_parse(rk628, NULL);
+		rk628->output_mode = OUTPUT_MODE_RGB;
 	} else {
-		if (of_property_read_bool(rk628->dev->of_node, "rk628,hdmi-out"))
-			rk628->output_mode = OUTPUT_MODE_HDMI;
-		else if (of_property_read_bool(rk628->dev->of_node, "rk628,csi-out"))
-			rk628->output_mode = OUTPUT_MODE_CSI;
+		rk628->output_mode = OUTPUT_MODE_RGB;
 	}
 
 	if (of_property_read_u32(rk628->dev->of_node, "mode-sync-pol", &val) < 0)
@@ -613,7 +651,7 @@ rk628_display_mode_from_videomode(const struct rk628_videomode *vm,
 static void
 of_parse_rk628_display_timing(struct device_node *np, struct rk628_videomode *vm)
 {
-	u8 val;
+	u32 val;
 
 	of_property_read_u32(np, "clock-frequency", &vm->pixelclock);
 	of_property_read_u32(np, "hactive", &vm->hactive);
@@ -627,10 +665,10 @@ of_parse_rk628_display_timing(struct device_node *np, struct rk628_videomode *vm
 	of_property_read_u32(np, "vsync-len", &vm->vsync_len);
 
 	vm->flags = 0;
-	of_property_read_u8(np, "hsync-active", &val);
+	of_property_read_u32(np, "hsync-active", &val);
 	vm->flags |= val ? DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
 
-	of_property_read_u8(np, "vsync-active", &val);
+	of_property_read_u32(np, "vsync-active", &val);
 	vm->flags |= val ? DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
 }
 
@@ -1076,10 +1114,9 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return ret;
 	}
 
-	if (rk628->output_mode != OUTPUT_MODE_HDMI &&
-	    rk628->output_mode != OUTPUT_MODE_CSI) {
+	if (rk628->output_mode != OUTPUT_MODE_CSI) {
 		ret = rk628_display_timings_get(rk628);
-		if (ret) {
+		if (ret && rk628->output_mode != OUTPUT_MODE_HDMI) {
 			dev_info(dev, "display timings err\n");
 			return ret;
 		}
@@ -1120,14 +1157,7 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return ret;
 	}
 
-	gpiod_set_value(rk628->enable_gpio, 1);
-	usleep_range(10000, 11000);
-	gpiod_set_value(rk628->reset_gpio, 0);
-	usleep_range(10000, 11000);
-	gpiod_set_value(rk628->reset_gpio, 1);
-	usleep_range(10000, 11000);
-	gpiod_set_value(rk628->reset_gpio, 0);
-	usleep_range(10000, 11000);
+	rk628_power_on(rk628, true);
 
 	for (i = 0; i < RK628_DEV_MAX; i++) {
 		const struct regmap_config *config = &rk628_regmap_config[i];
@@ -1151,6 +1181,10 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return ret;
 	}
 
+#ifdef CONFIG_FB
+	rk628->fb_nb.notifier_call = rk628_fb_notifier_callback;
+	fb_register_client(&rk628->fb_nb);
+#endif
 	rk628->monitor_wq = alloc_ordered_workqueue("%s",
 		WQ_MEM_RECLAIM | WQ_FREEZABLE, "rk628-monitor-wq");
 	INIT_DELAYED_WORK(&rk628->delay_work, rk628_display_work);
@@ -1231,6 +1265,9 @@ static int rk628_i2c_remove(struct i2c_client *client)
 		destroy_workqueue(rk628->dsi_wq);
 	}
 
+#ifdef CONFIG_FB
+	fb_unregister_client(&rk628->fb_nb);
+#endif
 	cancel_delayed_work_sync(&rk628->delay_work);
 	destroy_workqueue(rk628->monitor_wq);
 	pm_runtime_disable(dev);
@@ -1238,12 +1275,14 @@ static int rk628_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifndef CONFIG_FB
 #ifdef CONFIG_PM_SLEEP
 static int rk628_suspend(struct device *dev)
 {
 	struct rk628 *rk628 = dev_get_drvdata(dev);
 
 	rk628_display_disable(rk628);
+	rk628_power_on(rk628, false);
 
 	return 0;
 }
@@ -1252,18 +1291,40 @@ static int rk628_resume(struct device *dev)
 {
 	struct rk628 *rk628 = dev_get_drvdata(dev);
 
-	rk628_display_resume(rk628);
+	rk628_power_on(rk628, true);
+	/* select int io function */
+	rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x30002000);
+	rk628_cru_init(rk628);
+
+	if (rk628->input_mode == INPUT_MODE_HDMI) {
+		rk628_i2c_write(rk628, GRF_INTR0_EN, 0x01000100);
+		/*
+		 * make hdmi rx register domain polling
+		 * access to be normal by setting hdmi in
+		 */
+		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
+				      SW_INPUT_MODE_MASK,
+				      SW_INPUT_MODE(INPUT_MODE_HDMI));
+
+		return 0;
+	}
+
+	rk628_display_enable(rk628);
 
 	return 0;
 }
 #endif
+#endif
 
 static const struct dev_pm_ops rk628_pm_ops = {
+#ifndef CONFIG_FB
 #ifdef CONFIG_PM_SLEEP
 	.suspend = rk628_suspend,
 	.resume = rk628_resume,
 #endif
+#endif
 };
+
 static const struct of_device_id rk628_of_match[] = {
 	{ .compatible = "rockchip,rk628", },
 	{}
