@@ -76,11 +76,19 @@ enum st7789v_command {
  */
 static int init_display(struct fbtft_par *par)
 {
-	par->fbtftops.reset(par);
-
-	/* turn off sleep mode */
-	write_reg(par, MIPI_DCS_EXIT_SLEEP_MODE);
-	mdelay(120);
+	write_reg(par, 0x11);
+	usleep_range(100, 200);
+	write_reg(par, 0x36, 0x00);
+	write_reg(par, 0x3a, 0x55);
+	write_reg(par, 0xb2, 0x0c, 0x0c, 0x00, 0x33, 0x33);
+	write_reg(par, 0xb7, 0x35);
+	write_reg(par, 0xbb, 0x19);
+	write_reg(par, 0xc0, 0x2c);
+	write_reg(par, 0xc2, 0x01);
+	write_reg(par, 0xc3, 0x12);
+	write_reg(par, 0xc4, 0x20);
+	write_reg(par, 0xc6, 0x0f);
+	write_reg(par, 0xd0, 0xa4, 0xa1);
 
        /* gamma setting */
 	write_reg(par, 0xe0, 0xd0, 0x04, 0x0d, 0x11, 0x13,

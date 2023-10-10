@@ -83,8 +83,14 @@ static int fbtft_request_one_gpio(struct fbtft_par *par,
 	struct device *dev = par->info->device;
 	int ret = 0;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	*gpiop = devm_gpiod_get_index_optional(dev, name, index,
+					       GPIOD_OUT_HIGH);
+#else
 	*gpiop = devm_gpiod_get_index_optional(dev, name, index,
 					       GPIOD_OUT_LOW);
+#endif
+
 	if (IS_ERR(*gpiop)) {
 		ret = PTR_ERR(*gpiop);
 		dev_err(dev,
