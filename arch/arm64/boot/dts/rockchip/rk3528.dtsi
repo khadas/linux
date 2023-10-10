@@ -2095,6 +2095,7 @@
 				pinctrl-0 = <&fephym0_led_link &fephym0_led_spd>;
 				nvmem-cells = <&macphy_txlevel>;
 				nvmem-cell-names = "txlevel";
+				rockchip,thermal-zone = "soc-thermal";
 			};
 		};
 
