@@ -1576,7 +1576,7 @@
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
-			&clkc CLKID_HIFI_PLL
+			&clkc CLKID_FCLK_DIV3
 			&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1
