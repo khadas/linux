@@ -104,7 +104,8 @@ struct amlkl_params {
 	__u8 func_id;
 	__u8 reserved1;
 	__u8 eks[6][16];
-	__u8 reserved[16];
+	__u16 vid;
+	__u8 reserved[14];
 };
 
 #define AML_MKL_IOCTL_RUN _IOW('L', 1, struct amlkl_params)

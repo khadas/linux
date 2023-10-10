@@ -58,6 +58,7 @@
 #define KL_FUNC_ID_MASK (0xf)
 #define KL_MID_OFFSET (24)
 #define KL_MID_MASK (0xff)
+#define KL_VID_OFFSET (8)
 #define KL_MID_EXTRA_OFFSET (8)
 #define KL_TEE_PRIV_OFFSET (7)
 #define KL_TEE_PRIV_MASK (1)
@@ -286,12 +287,20 @@ static int aml_mkl_etsi_run(struct file *filp, struct amlkl_params *param)
 		}
 	}
 
-	/* 3. Program KL_REE_MID */
+	/* 3. Program KL_REE_CMD */
 	reg_val = 0;
 	reg_offset = dev->reg.cmd_offset;
-	reg_val = (param->module_id << KL_MID_OFFSET |
-		   KL_ETSI_MID_MSG << KL_MID_EXTRA_OFFSET |
-		   tee_priv << KL_TEE_PRIV_OFFSET);
+	if (param->vid != 0) {
+		/* This part is applicable when ETSI_SW_VID is set in OTP */
+		reg_val = (param->module_id << KL_MID_OFFSET |
+			param->vid << KL_VID_OFFSET |
+			tee_priv << KL_TEE_PRIV_OFFSET);
+	} else {
+		/* aka MKL_REE_MID for SC2 or before */
+		reg_val = (param->module_id << KL_MID_OFFSET |
+			KL_ETSI_MID_MSG << KL_MID_EXTRA_OFFSET |
+			tee_priv << KL_TEE_PRIV_OFFSET);
+	}
 	iowrite32(reg_val, (char *)dev->base_addr + reg_offset);
 
 	/* 4. Program KL_REE_CFG with KL_pending to 1 */
@@ -368,8 +377,7 @@ static int aml_mkl_etsi_t5w_run(struct file *filp, struct amlkl_params *param)
 	reg_val = 0;
 	reg_offset = dev->t5w_reg.start0_offset;
 	reg_val = (param->kl_num << 24 | 0 << 22 |
-		   param->kt_handle << 16 |
-		   param->reserved[1] << 8 | param->reserved[0]);
+		   param->kt_handle << 16 | param->vid);
 	iowrite32(reg_val, (char *)dev->base_addr + reg_offset);
 
 	/* 3. Wait Busy Done */
