@@ -252,7 +252,6 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
     }else{
         tsdata->is_sleeped=false;
     }
-	ts_hlm = tsdata;
 
 	memset(rdbuf, 0, sizeof(rdbuf));
 	datalen = tplen * tsdata->max_support_points + offset + crclen;
@@ -1152,6 +1151,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		tsdata->wake_gpio ? desc_to_gpio(tsdata->wake_gpio) : -1,
 		tsdata->reset_gpio ? desc_to_gpio(tsdata->reset_gpio) : -1);
 
+	ts_hlm = tsdata;
 	return 0;
 }
 
