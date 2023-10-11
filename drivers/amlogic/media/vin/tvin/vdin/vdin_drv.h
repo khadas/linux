@@ -314,6 +314,7 @@ struct match_data_s {
 #define VDIN_SET_PCS_RESET		BIT(16) //for report_active abnormal callback rx pcs_reset
 #define VDIN_AFBCE_DOLBY		BIT(17)
 #define VDIN_INTERLACE_DROP_BOTTOM	BIT(18)
+#define VDIN_HV_REVERSE_EN		BIT(19) //hv_reverse is disabled by default
 
 /* vdin_function_sel control bits end */
 
