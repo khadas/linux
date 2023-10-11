@@ -875,6 +875,32 @@ unsigned int clear_ddr_bus_data(struct aml_dtvdemod *demod)
 	return 0;
 }
 
+static void dbg_ic_cfg_addr(struct amldtvdemod_device_s *devp)
+{
+	char *name_reg[ES_MAP_ADDR_NUM] = {
+		"demod",
+		"iohiu",
+		"aobus",
+		"reset",
+	};
+	struct ss_reg_phy *preg = &devp->reg_p[0];
+	struct ss_reg_vt *regv = &devp->reg_v[0];
+	int i = 0;
+
+	PR_INFO("demod top :0x%x\n", devp->data->regoff.off_demod_top);
+	PR_INFO("dvbc      :0x%x\n", devp->data->regoff.off_dvbc);
+	PR_INFO("dtmb      :0x%x\n", devp->data->regoff.off_dtmb);
+	PR_INFO("dvbt/isdbt:0x%x\n", devp->data->regoff.off_dvbt_isdbt);
+	PR_INFO("isdbt     :0x%x\n", devp->data->regoff.off_isdbt);
+	PR_INFO("atsc      :0x%x\n", devp->data->regoff.off_atsc);
+	PR_INFO("front     :0x%x\n", devp->data->regoff.off_front);
+	PR_INFO("dvbt/t2   :0x%x\n", devp->data->regoff.off_dvbt_t2);
+
+	for (i = 0; i < ES_MAP_ADDR_NUM; i++)
+		PR_INFO("%s: phy_addr=0x%x size=0x%x vir_addr=0x%p.\n",
+			name_reg[i], preg[i].phy_addr, preg[i].size, regv[i].v);
+}
+
 static void info_show(void)
 {
 	int snr, lock_status, agc_if_gain[3];
@@ -894,6 +920,13 @@ static void info_show(void)
 	PR_INFO("hw version chip: %d, %s.\n", devp->data->hw_ver, chip_name);
 	PR_INFO("version: %s-%s, T2 FW ver: %s.\n", AMLDTVDEMOD_VER,
 			DTVDEMOD_VER, AMLDTVDEMOD_T2_FW_VER);
+
+	dbg_ic_cfg_addr(devp);
+
+	PR_INFO("agc_pin_direction: %d.\n", devp->agc_direction);
+
+	PR_INFO("iq_swap: %d.\n", dvbs_get_iq_swap());
+
 	aml_diseqc_status(&devp->diseqc);
 
 	list_for_each_entry(demod, &devp->demod_list, list) {
@@ -1702,8 +1735,6 @@ void aml_demod_dbg_init(void)
 	struct dentry *root_entry = dtvdemod_get_dev()->demod_root;
 	struct dentry *entry;
 	unsigned int i;
-
-	PR_INFO("%s\n", __func__);
 
 	root_entry = debugfs_create_dir("demod", NULL);
 	if (!root_entry) {

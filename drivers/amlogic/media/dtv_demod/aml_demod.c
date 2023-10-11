@@ -482,8 +482,6 @@ static int __init aml_demod_init(void)
 {
 	int r = 0;
 
-	pr_dbg("Amlogic Demod DVB-T/C DebugIF Init\n");
-
 	init_waitqueue_head(&lock_wq);
 
 	/* hook demod isr */
@@ -534,7 +532,9 @@ static int __init aml_demod_init(void)
 		pr_dbg("Can't create aml_demod device\n");
 		goto err5;
 	}
-	pr_dbg("Amlogic Demod DVB-T/C DebugIF Init ok----------------\n");
+
+	pr_dbg("%s ok.\n", __func__);
+
 #if defined(CONFIG_AM_AMDEMOD_FPGA_VER) && !defined(CONFIG_AM_DEMOD_DVBAPI)
 	pr_dbg("sdio_init\n");
 	sdio_init();

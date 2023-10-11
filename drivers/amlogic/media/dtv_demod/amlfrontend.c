@@ -138,13 +138,6 @@ static bool blind_scan_new = true;
 module_param(blind_scan_new, bool, 0644);
 MODULE_PARM_DESC(blind_scan_new, "blind_scan_new");
 
-const char *name_reg[] = {
-	"demod",
-	"iohiu",
-	"aobus",
-	"reset",
-};
-
 #define END_SYS_DELIVERY	19
 const char *name_fe_delivery_system[] = {
 	"UNDEFINED",
@@ -5858,8 +5851,6 @@ int dtvdemod_set_iccfg_by_dts(struct platform_device *pdev)
 	struct amldtvdemod_device_s *devp =
 			(struct amldtvdemod_device_s *)platform_get_drvdata(pdev);
 
-	PR_DBG("%s:\n", __func__);
-
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret != 0)
 		PR_INFO("no reserved mem.\n");
@@ -5867,16 +5858,13 @@ int dtvdemod_set_iccfg_by_dts(struct platform_device *pdev)
 	//dvb-s/s2 tuner agc pin direction set
 	//have "agc_pin_direction" agc_direction = 1;donot have agc_direction = 0
 	devp->agc_direction = of_property_read_bool(pdev->dev.of_node, "agc_pin_direction");
-	PR_INFO("agc_pin_direction:%d\n", devp->agc_direction);
 
 #ifdef CONFIG_OF
 	ret = of_property_read_u32(pdev->dev.of_node, "atsc_version", &value);
-	if (!ret) {
+	if (!ret)
 		devp->atsc_version = value;
-		PR_INFO("atsc_version: %d\n", value);
-	} else {
+	else
 		devp->atsc_version = 0;
-	}
 #else
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 					"atsc_version");
@@ -5925,12 +5913,10 @@ int dtvdemod_set_iccfg_by_dts(struct platform_device *pdev)
 	/* diseqc sel */
 	ret = of_property_read_string(pdev->dev.of_node, "diseqc_name",
 			&devp->diseqc.name);
-	if (ret) {
-		PR_INFO("diseqc name: not define in dts.\n");
+	if (ret)
 		devp->diseqc.name = NULL;
-	} else {
+	else
 		PR_INFO("diseqc name: %s.\n", devp->diseqc.name);
-	}
 
 	/*get demod irq*/
 	ret = of_irq_get_byname(pdev->dev.of_node, "demod_isr");
@@ -5943,53 +5929,15 @@ int dtvdemod_set_iccfg_by_dts(struct platform_device *pdev)
 
 		disable_irq(devp->diseqc.irq_num);
 		devp->diseqc.irq_en = false;
-		PR_INFO("demod_isr num:%d\n", devp->diseqc.irq_num);
 	} else {
 		devp->diseqc.irq_num = 0;
-		PR_INFO("no diseqc isr.\n");
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node, "iq_swap", &value);
-	if (!ret) {
+	if (!ret)
 		dvbs_set_iq_swap(value);
-		PR_INFO("iq_swap: %d.\n", value);
-	}
 
 	return 0;
-}
-
-/* It's a correspondence with enum es_map_addr*/
-
-void dbg_ic_cfg(struct amldtvdemod_device_s *devp)
-{
-	struct ss_reg_phy *preg = &devp->reg_p[0];
-	int i;
-
-	for (i = 0; i < ES_MAP_ADDR_NUM; i++)
-		PR_INFO("reg:%s:st=0x%x,size=0x%x\n",
-			name_reg[i], preg[i].phy_addr, preg[i].size);
-}
-
-void dbg_reg_addr(struct amldtvdemod_device_s *devp)
-{
-	struct ss_reg_vt *regv = &devp->reg_v[0];
-	int i;
-
-	PR_INFO("%s\n", __func__);
-
-	PR_INFO("reg address offset:\n");
-	PR_INFO("\tdemod top:\t0x%x\n", devp->data->regoff.off_demod_top);
-	PR_INFO("\tdvbc:\t0x%x\n", devp->data->regoff.off_dvbc);
-	PR_INFO("\tdtmb:\t0x%x\n", devp->data->regoff.off_dtmb);
-	PR_INFO("\tdvbt/isdbt:\t0x%x\n", devp->data->regoff.off_dvbt_isdbt);
-	PR_INFO("\tisdbt:\t0x%x\n", devp->data->regoff.off_isdbt);
-	PR_INFO("\tatsc:\t0x%x\n", devp->data->regoff.off_atsc);
-	PR_INFO("\tfront:\t0x%x\n", devp->data->regoff.off_front);
-	PR_INFO("\tdvbt/t2:\t0x%x\n", devp->data->regoff.off_dvbt_t2);
-
-	PR_INFO("virtual addr:\n");
-	for (i = 0; i < ES_MAP_ADDR_NUM; i++)
-		PR_INFO("\t%s:\t0x%p\n", name_reg[i], regv[i].v);
 }
 
 static void dtvdemod_clktree_probe(struct device *dev)
@@ -6551,8 +6499,6 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	struct amldtvdemod_device_s *devp;
 
-	PR_INFO("%s\n", __func__);
-	/*memory*/
 	dtvdd_devp = kzalloc(sizeof(*dtvdd_devp), GFP_KERNEL);
 	devp = dtvdd_devp;
 
@@ -6587,10 +6533,6 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 	if (ret)
 		goto fail_ic_config;
 
-	/*debug:*/
-	dbg_ic_cfg(dtvdd_devp);
-	dbg_reg_addr(dtvdd_devp);
-
 	/**/
 	dtvpll_lock_init();
 	demod_init_mutex();
@@ -6607,7 +6549,6 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 	devp->blind_debug_min_frc = 0;
 	devp->blind_same_frec = 0;
 
-	//ary temp:
 	aml_demod_init();
 
 	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
@@ -6632,8 +6573,8 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 	}
 
 	demod_attach_register_cb(AM_DTV_DEMOD_AMLDTV, aml_dtvdm_attach);
-	PR_INFO("[amldtvdemod.] : version: %s (%s),T2 fw version: %s, probe ok.\n",
-			AMLDTVDEMOD_VER, DTVDEMOD_VER, AMLDTVDEMOD_T2_FW_VER);
+	PR_INFO("%s: version: %s (%s), T2 fw version: %s. ok.\n",
+			__func__, AMLDTVDEMOD_VER, DTVDEMOD_VER, AMLDTVDEMOD_T2_FW_VER);
 
 	return 0;
 fail_ic_config:
@@ -6683,7 +6624,7 @@ static int __exit aml_dtvdemod_remove(struct platform_device *pdev)
 
 	dtvdd_devp = NULL;
 
-	PR_INFO("%s:remove.\n", __func__);
+	PR_INFO("%s ok.\n", __func__);
 
 	mutex_unlock(&amldtvdemod_device_mutex);
 
@@ -6881,14 +6822,14 @@ int __init aml_dtvdemod_init(void)
 		return -ENODEV;
 	}
 
-	PR_INFO("[amldtvdemod..]%s.\n", __func__);
+	PR_INFO("%s ok.\n", __func__);
 	return 0;
 }
 
 void __exit aml_dtvdemod_exit(void)
 {
 	platform_driver_unregister(&aml_dtvdemod_driver);
-	PR_INFO("[amldtvdemod..]%s: driver removed ok.\n", __func__);
+	PR_INFO("%s ok.\n", __func__);
 }
 
 static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
