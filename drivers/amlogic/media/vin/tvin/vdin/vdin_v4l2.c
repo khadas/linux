@@ -58,7 +58,7 @@ int v4l2_vdin_ops_init(struct vdin_v4l2_ops_s *vdin_v4l2p)
 }
 EXPORT_SYMBOL(v4l2_vdin_ops_init);
 
-struct vdin_v4l2_ops_s *get_vdin_v4l2_ops()
+struct vdin_v4l2_ops_s *get_vdin_v4l2_ops(void)
 {
 	if (ops.start_tvin_service &&
 	    ops.stop_tvin_service)
