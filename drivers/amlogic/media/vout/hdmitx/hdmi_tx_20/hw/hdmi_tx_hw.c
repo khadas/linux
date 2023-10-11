@@ -5949,7 +5949,10 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 		break;
 	case MISC_ESMCLK_CTRL:
 		hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, !!argv, 6, 1);
-		hd_set_reg_bits(P_CLKCTRL_HDCP22_CLK_CTRL, !!argv, 8, 1);
+		if (hdev->data->chip_type >= MESON_CPU_ID_SC2)
+			hd_set_reg_bits(P_CLKCTRL_HDCP22_CLK_CTRL, !!argv, 8, 1);
+		else
+			hd_set_reg_bits(P_HHI_HDCP22_CLK_CNTL, !!argv, 8, 1);
 		break;
 	case MISC_AUDIO_PREPARE:
 		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0, 0, 4);
