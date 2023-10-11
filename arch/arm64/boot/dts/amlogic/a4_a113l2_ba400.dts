@@ -1278,6 +1278,13 @@
 	pinctrl-0 = <&spicc1_pins_t>;
 };
 
+&spifc {
+	status = "disabled";
+	spi-nor@0 {
+		status = "disabled";
+	};
+};
+
 &aml_wifi{
 	status = "okay";
 	interrupt-gpios = <&ao_gpio  GPIOAO_2  GPIO_ACTIVE_HIGH>;

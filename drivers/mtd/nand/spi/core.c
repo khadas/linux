@@ -18,9 +18,6 @@
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-mem.h>
-#if IS_ENABLED(CONFIG_MTD_SPI_NAND_MESON)
-#include <linux/amlogic/aml_spi_nand.h>
-#endif
 
 static int spinand_read_reg_op(struct spinand_device *spinand, u8 reg, u8 *val)
 {
@@ -54,7 +51,8 @@ static int spinand_get_cfg(struct spinand_device *spinand, u8 *cfg)
 {
 	struct nand_device *nand = spinand_to_nand(spinand);
 
-	if (WARN_ON(spinand->cur_target >= nand->memorg.ntargets))
+	if (WARN_ON(spinand->cur_target < 0 ||
+		    spinand->cur_target >= nand->memorg.ntargets))
 		return -EINVAL;
 
 	*cfg = spinand->cfg_cache[spinand->cur_target];
@@ -66,7 +64,8 @@ static int spinand_set_cfg(struct spinand_device *spinand, u8 cfg)
 	struct nand_device *nand = spinand_to_nand(spinand);
 	int ret;
 
-	if (WARN_ON(spinand->cur_target >= nand->memorg.ntargets))
+	if (WARN_ON(spinand->cur_target < 0 ||
+		    spinand->cur_target >= nand->memorg.ntargets))
 		return -EINVAL;
 
 	if (spinand->cfg_cache[spinand->cur_target] == cfg)
@@ -221,9 +220,6 @@ static int spinand_read_from_cache_op(struct spinand_device *spinand,
 	u16 column = 0;
 	ssize_t ret;
 
-	if (req->mode == MTD_OPS_RAW)
-		spi_mem_set_xfer_flag(SPI_XFER_RAW);
-
 	if (req->datalen) {
 		buf = spinand->databuf;
 		nbytes = nanddev_page_size(nand);
@@ -231,38 +227,27 @@ static int spinand_read_from_cache_op(struct spinand_device *spinand,
 	}
 
 	if (req->ooblen) {
-		spi_mem_set_xfer_flag(SPI_XFER_OOB);
 		nbytes += nanddev_per_page_oobsize(nand);
 		if (!buf) {
-			spi_mem_set_xfer_flag(SPI_XFER_OOB_ONLY);
 			buf = spinand->oobbuf;
 			column = nanddev_page_size(nand);
 		}
 	}
 
-	if (req->mode == MTD_OPS_AUTO_OOB)
-		spi_mem_set_xfer_flag(SPI_XFER_AUTO_OOB);
-
 	rdesc = spinand->dirmaps[req->pos.plane].rdesc;
 
 	while (nbytes) {
 		ret = spi_mem_dirmap_read(rdesc, column, nbytes, buf);
-		if (ret < 0) {
-			spi_mem_umask_xfer_flags();
+		if (ret < 0)
 			return ret;
-		}
 
-		if (!ret || ret > nbytes) {
-			spi_mem_umask_xfer_flags();
+		if (!ret || ret > nbytes)
 			return -EIO;
-		}
 
 		nbytes -= ret;
 		column += ret;
 		buf += ret;
 	}
-
-	spi_mem_umask_xfer_flags();
 
 	if (req->datalen)
 		memcpy(req->databuf.in, spinand->databuf + req->dataoffs,
@@ -307,17 +292,14 @@ static int spinand_write_to_cache_op(struct spinand_device *spinand,
 		       req->datalen);
 
 	if (req->ooblen) {
-		if (req->mode == MTD_OPS_AUTO_OOB) {
+		if (req->mode == MTD_OPS_AUTO_OOB)
 			mtd_ooblayout_set_databytes(mtd, req->oobbuf.out,
 						    spinand->oobbuf,
 						    req->ooboffs,
 						    req->ooblen);
-			spi_mem_set_xfer_flag(SPI_XFER_AUTO_OOB);
-		} else {
+		else
 			memcpy(spinand->oobbuf + req->ooboffs, req->oobbuf.out,
 			       req->ooblen);
-		}
-		spi_mem_set_xfer_flag(SPI_XFER_OOB);
 	}
 
 	wdesc = spinand->dirmaps[req->pos.plane].wdesc;
@@ -627,7 +609,6 @@ static int spinand_mtd_write(struct mtd_info *mtd, loff_t to,
 	return ret;
 }
 
-#if !IS_ENABLED(CONFIG_MTD_SPI_NAND_MESON)
 static bool spinand_isbad(struct nand_device *nand, const struct nand_pos *pos)
 {
 	struct spinand_device *spinand = nand_to_spinand(nand);
@@ -647,7 +628,6 @@ static bool spinand_isbad(struct nand_device *nand, const struct nand_pos *pos)
 
 	return false;
 }
-#endif
 
 static int spinand_mtd_block_isbad(struct mtd_info *mtd, loff_t offs)
 {
@@ -812,11 +792,7 @@ static int spinand_create_dirmaps(struct spinand_device *spinand)
 static const struct nand_ops spinand_ops = {
 	.erase = spinand_erase,
 	.markbad = spinand_markbad,
-#if IS_ENABLED(CONFIG_MTD_SPI_NAND_MESON)
-	.isbad = meson_spinand_isbad,
-#else
 	.isbad = spinand_isbad,
-#endif
 };
 
 static const struct spinand_manufacturer *spinand_manufacturers[] = {

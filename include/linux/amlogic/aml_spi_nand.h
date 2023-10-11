@@ -49,7 +49,4 @@ struct spinand_info_page {
 	} dev;
 
 };
-
-bool meson_spinand_isbad(struct nand_device *nand, const struct nand_pos *pos);
-
 #endif/* __AML_SPI_NAND_H_ */

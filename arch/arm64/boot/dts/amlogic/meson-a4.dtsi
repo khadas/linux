@@ -921,6 +921,24 @@
 				status = "disabled";
 			};
 
+			spifc: spi@56000 {
+				compatible = "amlogic,meson-spifc";
+				status = "disabled";
+				reg = <0x0 0x56000 0x0 0x80>;
+				//clock-names = "default";
+				//clocks = <&clkc CLKID_SYS_CLK_SPIFC>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spifc_pins>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				spi-nor@0 {
+					compatible = "jedec,spi-nor";
+					status = "disabled";
+					reg = <0>;
+					spi-max-frequency = <16000000>;
+				};
+			};
+
 			pwm_ab: pwm@58000 {
 				compatible = "amlogic,meson-v2-pwm";
 				reg = <0x0 0x58000 0x0 0x24>;
@@ -1436,19 +1454,6 @@
 			//clock-names = "gate", "fdiv2pll";
 			nand_clk_ctrl = <0xfe08c000>;
 			//power-domains = <&pwrdm PDID_A5_EMMC>;
-		};
-
-		spi_nfc: spi@fe08d000 {
-			compatible = "amlogic,spi-nfc";
-			status = "disabled";
-			reg = <0x0 0xfe08d000 0x0 0x200>,
-			      <0x0 0xfe08c000 0x0 0xc>;
-			clocks = <&clkc CLKID_SYS_CLK_SD_EMMCC>,
-					<&clkc CLKID_FCLK_DIV2>;
-			clock-names = "gate", "fdiv2pll";
-			nand_clk_ctrl = <0xfe08c000>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 		};
 
 		ethmac: ethernet@fdc00000 {
@@ -2608,21 +2613,15 @@
 		};
 	};
 
-	spi_nfc_pins: spi_nfc_pins {
+	spifc_pins:spifc_pins {
 		mux {
-			groups = "spinf_mo_d0",
-				 "spinf_mi_d1",
-				 "spinf_wp_d2",
-				 "spinf_hold_d3",
-				 "spinf_d4",
-				 "spinf_d5",
-				 "spinf_d6",
-				 "spinf_d7",
-				 "spinf_rst",
-				 "spinf_clk",
-				 "spinf_cs1",
-				 "spinf_cs0";
-			function = "spinf";
+			groups = "spif_hold",
+				 "spif_mo",
+				 "spif_mi",
+				 "spif_clk",
+				 "spif_wp",
+				 "spif_cs";
+			function = "spif";
 			drive-strength-microamp = <3000>;
 		};
 	};

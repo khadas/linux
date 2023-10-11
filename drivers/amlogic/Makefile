@@ -54,7 +54,6 @@ obj-$(CONFIG_AMLOGIC_BT_DEVICE)		+= bluetooth/
 obj-$(CONFIG_AMLOGIC_SMARTCARD)		+= smartcard/
 obj-$(CONFIG_AMLOGIC_SMARTCARD)		+= smartcard_sc2/
 obj-$(CONFIG_MMC_MESON_GX)		+= mmc/
-obj-$(CONFIG_SPI_MESON_SPI_NFC)		+= spi/
 obj-$(CONFIG_AMLOGIC_USB)               += usb/
 obj-$(CONFIG_AMLOGIC_DVB_DMX)		+= dvb/
 obj-$(CONFIG_DOLBY_FW) += dolby_fw/
