@@ -1278,7 +1278,7 @@ static void __exit tee_exit(void)
 	tee_class = NULL;
 }
 
-core_initcall(tee_init);
+subsys_initcall(tee_init);
 module_exit(tee_exit);
 
 MODULE_AUTHOR("Linaro");

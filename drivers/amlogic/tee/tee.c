@@ -894,7 +894,7 @@ static int __init aml_tee_modinit(void)
 	return tee_create_sysfs();
 }
 
-arch_initcall(aml_tee_modinit);
+subsys_initcall(aml_tee_modinit);
 
 static void __exit aml_tee_modexit(void)
 {
