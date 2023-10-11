@@ -27,7 +27,7 @@
 #define AML_DVB_EXTERN_MODULE_NAME    "aml_dvb_extern"
 #define AML_DVB_EXTERN_CLASS_NAME     "aml_dvb_extern"
 
-#define AML_DVB_EXTERN_VERSION    "V1.14"
+#define AML_DVB_EXTERN_VERSION    "V1.15"
 
 static struct dvb_extern_device *dvb_extern_dev;
 static struct mutex dvb_extern_mutex;
@@ -1387,7 +1387,7 @@ static int aml_dvb_extern_probe(struct platform_device *pdev)
 	} else {
 		dvbdev->dvb_power.pin = of_get_named_gpio_flags(pdev->dev.of_node,
 				"dvb_power_gpio", 0, NULL);
-		pr_err("get dvb_power_gpio: %d.\n", dvbdev->dvb_power.pin);
+		//pr_err("get dvb_power_gpio: %d.\n", dvbdev->dvb_power.pin);
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node, "dvb_power_dir", &val);
@@ -1395,8 +1395,8 @@ static int aml_dvb_extern_probe(struct platform_device *pdev)
 		dvbdev->dvb_power.dir = 0;
 	} else {
 		dvbdev->dvb_power.dir = val;
-		pr_err("get dvb_power_dir: %d (%s).\n",
-				dvbdev->dvb_power.pin, val ? "IN" : "OUT");
+		//pr_err("get dvb_power_dir: %d (%s).\n",
+		//		dvbdev->dvb_power.pin, val ? "IN" : "OUT");
 	}
 
 	ret = of_property_read_u32(pdev->dev.of_node, "dvb_power_value", &val);
@@ -1404,7 +1404,7 @@ static int aml_dvb_extern_probe(struct platform_device *pdev)
 		dvbdev->dvb_power.value = 0;
 	} else {
 		dvbdev->dvb_power.value = val;
-		pr_err("get dvb_power_value: %d.\n", dvbdev->dvb_power.value);
+		//pr_err("get dvb_power_value: %d.\n", dvbdev->dvb_power.value);
 	}
 
 	/* PROPERTY_TUNER */
