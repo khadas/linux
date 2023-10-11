@@ -692,7 +692,7 @@ static irqreturn_t intr_handler(int irq, void *dev)
 	hdmitx_wr_reg(HDMITX_TOP_INTR_STAT_CLR, ~0);
 	hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_STAT, 0xff);
 
-	pr_info(SYS "irq %x %x\n", dat_top, dat_dwc);
+	pr_debug(SYS "irq %x %x\n", dat_top, dat_dwc);
 	/* bit[2:1] of dat_top means HPD falling and rising */
 	if ((dat_top & 0x6) && hdev->hdmitx_gpios_hpd != -EPROBE_DEFER) {
 		struct timespec64 kts;
@@ -700,7 +700,7 @@ static irqreturn_t intr_handler(int irq, void *dev)
 
 		ktime_get_real_ts64(&kts);
 		rtc_time64_to_tm(kts.tv_sec, &tm);
-		pr_info("UTC+0 %ptRd %ptRt HPD %s\n", &tm, &tm,
+		pr_debug("UTC+0 %ptRd %ptRt HPD %s\n", &tm, &tm,
 			gpio_get_value(hdev->hdmitx_gpios_hpd) ? "HIGH" : "LOW");
 	}
 
@@ -2046,7 +2046,7 @@ do { \
 
 static void set_tmds_clk_div40(unsigned int div40)
 {
-	pr_info(HW "div40: %d\n", div40);
+	pr_debug(HW "div40: %d\n", div40);
 	if (div40) {
 		hdmitx_wr_reg(HDMITX_TOP_TMDS_CLK_PTTN_01, 0);
 		hdmitx_wr_reg(HDMITX_TOP_TMDS_CLK_PTTN_23, 0x03ff03ff);
@@ -2277,7 +2277,7 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 		enc_vpu_bridge_reset(1);
 		break;
 	}
-	pr_info("adjust decouple fifo\n");
+	pr_debug("adjust decouple fifo\n");
 	/* For 3D, enable phy by SystemControl at last step */
 	if (!hdev->flag_3dfp && !hdev->flag_3dtb && !hdev->flag_3dss)
 		hdmitx_set_phy(hdev);
@@ -2612,7 +2612,7 @@ static void set_aud_chnls(struct hdmitx_dev *hdev,
 {
 	int i;
 
-	pr_info(HW "set channel status\n");
+	pr_debug(HW "set channel status\n");
 	for (i = 0; i < 9; i++)
 		/* First, set all status to 0 */
 		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS0 + i, 0x00);
@@ -2772,7 +2772,7 @@ static int set_aud_acr_pkt(struct hdmitx_dev *hdev,
 	hdmitx_wr_reg(HDMITX_DWC_AUD_N2,
 		      (aud_n_para >> 8) & 0xff); /* AudN[15:8] */
 	hdmitx_wr_reg(HDMITX_DWC_AUD_N1, aud_n_para & 0xff); /* AudN[7:0] */
-	pr_info("update audio N %d", aud_n_para);
+	pr_debug("update audio N %d", aud_n_para);
 	return 1;
 }
 
@@ -2883,7 +2883,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		return 0;
 	if (!audio_param)
 		return 0;
-	pr_info(HW "set audio\n");
+	pr_debug(HW "set audio\n");
 	mutex_lock(&aud_mutex);
 	memcpy(&hdmiaud_config_data,
 		   audio_param, sizeof(struct hdmitx_audpara));
@@ -3085,7 +3085,7 @@ do { \
 	for (addr = start; addr < end + 1; addr += 4) {	\
 		val = hd_read_reg(addr); \
 		if (val) \
-			pr_info("0x%08x[0x%04x]: 0x%08x\n", addr, \
+			pr_debug("0x%08x[0x%04x]: 0x%08x\n", addr, \
 				((addr & 0xffff) >> 2), val); \
 		} \
 } while (0)
@@ -3100,7 +3100,7 @@ do { \
 	for (addr = start; addr < end + 1; addr++) { \
 		val = hdmitx_rd_reg(addr); \
 		if (val) \
-			pr_info("[0x%08x]: 0x%08x\n", addr, val); \
+			pr_debug("[0x%08x]: 0x%08x\n", addr, val); \
 	} \
 } while (0)
 

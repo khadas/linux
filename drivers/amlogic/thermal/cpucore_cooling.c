@@ -300,7 +300,7 @@ cpucore_cooling_register(struct device_node *np, int cluster_id)
 
 	cores = get_cpunum_by_cluster(cluster_id);
 	cpucore_dev->max_cpu_core_num = cores;
-	pr_info("%s, max_cpu_core_num:%d\n", __func__, cores);
+	pr_debug("%s, max_cpu_core_num:%d\n", __func__, cores);
 
 	snprintf(dev_name, sizeof(dev_name), "thermal-cpucore-%d",
 		 cpucore_dev->id);

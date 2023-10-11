@@ -444,7 +444,7 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 
 		kfree(vics);
 	} else {
-		DRM_ERROR("get vic_list from hdmitx dev return 0.\n");
+		DRM_INFO("get vic_list from hdmitx dev return 0.\n");
 	}
 
 	/*TODO:add dummy mode temp.*/

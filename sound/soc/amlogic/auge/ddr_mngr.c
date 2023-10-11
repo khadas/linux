@@ -2413,7 +2413,7 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 		if (!strncmp(name, "toddr", sizeof("toddr") - 1) && j < DDRMAX) {
 			strncpy(toddrs[j].toddr_name, name, 30);
 			toddrs[j].irq = platform_get_irq(pdev, i);
-			dev_info(&pdev->dev, "toddr name %s, irq id %d\n",
+			dev_dbg(&pdev->dev, "toddr name %s, irq id %d\n",
 				toddrs[j].toddr_name, toddrs[j].irq);
 			j++;
 		}

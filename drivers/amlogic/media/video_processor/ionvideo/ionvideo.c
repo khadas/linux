@@ -990,7 +990,7 @@ static int ionvideo_create_instance(int inst,
 			 &video_vf_receiver, dev);
 	vf_reg_receiver(&dev->video_vf_receiver);
 	if (inst == n_devs - 1 || inst == 0)
-		v4l2_info(&dev->v4l2_dev, "V4L2 device registered as %s\n",
+		v4l2_dbg(0, debug, &dev->v4l2_dev, "V4L2 device registered as %s\n",
 			  video_device_node_name(vfd));
 
 	/* add to device list */

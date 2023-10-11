@@ -838,7 +838,7 @@ static int viuin_probe(struct platform_device *pdev)
 				__func__);
 	}
 	platform_set_drvdata(pdev, viuin_devp);
-	pr_info("[viuin..]%s probe ok.\n", __func__);
+	pr_debug("[viuin..]%s probe ok.\n", __func__);
 	return 0;
 }
 
@@ -865,7 +865,7 @@ static struct platform_device *viuin_device;
 
 int __init viuin_init_module(void)
 {
-	pr_info("[viuin..]%s viuin module init\n", __func__);
+	pr_debug("[viuin..]%s viuin module init\n", __func__);
 	viuin_device = platform_device_alloc(DEVICE_NAME, 0);
 	if (!viuin_device) {
 		pr_err("[viuin..]%s failed to alloc viuin_device.\n",
@@ -886,13 +886,13 @@ int __init viuin_init_module(void)
 		return -ENODEV;
 	}
 
-	pr_info("[viuin..]%s done\n", __func__);
+	pr_debug("[viuin..]%s done\n", __func__);
 	return 0;
 }
 
 void __exit viuin_exit_module(void)
 {
-	pr_info("[viuin..]%s viuin module remove.\n", __func__);
+	pr_debug("[viuin..]%s viuin module remove.\n", __func__);
 	platform_driver_unregister(&viuin_driver);
 	platform_device_unregister(viuin_device);
 }

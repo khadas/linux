@@ -970,10 +970,10 @@ void __init thread_stack_cache_init(void)
 		unsigned long addr;
 
 		addr = (unsigned long)per_cpu_ptr(vmap_stack, i);
-		pr_info("cpu %d, vmap_stack:[%lx-%lx]\n",
+		pr_debug("cpu %d, vmap_stack:[%lx-%lx]\n",
 			i, addr, addr + THREAD_START_SP);
 		addr = (unsigned long)per_cpu_ptr(irq_stack, i);
-		pr_info("cpu %d, irq_stack: [%lx-%lx]\n",
+		pr_debug("cpu %d, irq_stack: [%lx-%lx]\n",
 			i, addr, addr + THREAD_START_SP);
 	}
 #endif

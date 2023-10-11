@@ -1924,7 +1924,7 @@ next:
 			t->vic = dtd_timing->vic;
 		}
 		prxcap->preferred_mode = prxcap->dtd[0].vic; /* Select dtd0 */
-		pr_info(EDID "get dtd%d vic: %d\n",
+		pr_debug(EDID "get dtd%d vic: %d\n",
 			prxcap->dtd_idx, t->vic);
 		prxcap->dtd_idx++;
 		if (t->vic < HDMITX_VESA_OFFSET)
@@ -1995,7 +1995,7 @@ static void edid_descriptor_pmt(struct rx_cap *prxcap,
 	para = hdmitx21_get_vesa_paras(t);
 	if (para && (para->timing.vic < (HDMI_107_3840x2160p60_64x27 + 1))) {
 		prxcap->native_vic = para->timing.vic;
-		pr_info("hdmitx: get PMT vic: %d\n", para->timing.vic);
+		pr_debug("hdmitx: get PMT vic: %d\n", para->timing.vic);
 	}
 	if (para && para->timing.vic >= HDMITX_VESA_OFFSET)
 		store_vesa_idx(prxcap, para->timing.vic);
@@ -2260,7 +2260,7 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 		hdmitx_device->edid_parsing = 1;
 
 	hdmitx_device->edid_ptr = EDID_buf;
-	pr_info(EDID "EDID Parser:\n");
+	pr_debug(EDID "EDID Parser:\n");
 	/* Calculate the EDID hash for special use */
 	memset(hdmitx_device->EDID_hash, 0,
 	       ARRAY_SIZE(hdmitx_device->EDID_hash));
@@ -2350,7 +2350,7 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 
 	if (hdmitx_edid_search_IEEEOUI(&EDID_buf[128])) {
 		prxcap->ieeeoui = HDMI_IEEE_OUI;
-		pr_info(EDID "find IEEEOUT\n");
+		pr_debug(EDID "find IEEEOUT\n");
 	} else {
 		prxcap->ieeeoui = 0x0;
 		pr_info(EDID "not find IEEEOUT\n");
@@ -3072,7 +3072,7 @@ static u32 hdmitx_edid_check_valid_blocks(u8 *buf)
 		if (tmp_chksum != 0) {
 			valid_blk_no++;
 			if ((tmp_chksum & 0xff) == 0)
-				pr_info(EDID "check sum valid\n");
+				pr_debug(EDID "check sum valid\n");
 			else
 				pr_info(EDID "check sum invalid\n");
 		}

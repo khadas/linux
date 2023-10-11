@@ -405,7 +405,7 @@ static void vt_instance_destroy(struct kref *kref)
 
 	debugfs_remove_recursive(instance->debug_root);
 
-	vt_debug(VT_DEBUG_USER, "vt [%d] destroy fcount:%d\n",
+	vt_debug(VT_DEBUG_NONE, "vt [%d] destroy fcount:%d\n",
 		 instance->id, instance->fcount);
 
 	kfree(instance);
@@ -596,7 +596,7 @@ static struct vt_session *vt_session_create_internal(struct vt_dev *dev,
 
 	up_write(&dev->session_lock);
 
-	vt_debug(VT_DEBUG_USER, "vt session %s create\n",
+	vt_debug(VT_DEBUG_NONE, "vt session %s create\n",
 		 session->display_name);
 
 	return session;
@@ -758,7 +758,7 @@ void vt_session_destroy(struct vt_session *session)
 {
 	struct vt_dev *dev = session->dev;
 
-	vt_debug(VT_DEBUG_USER, "vt session %s destroy\n",
+	vt_debug(VT_DEBUG_NONE, "vt session %s destroy\n",
 		 session->display_name);
 
 	/* release dev session rb tree node */
@@ -879,7 +879,7 @@ static int vt_alloc_id_process(struct vt_alloc_id_data *data,
 	data->tunnel_id = instance->id;
 	mutex_unlock(&dev->instance_lock);
 
-	vt_debug(VT_DEBUG_USER, "vt alloc instance [%d], ref %d\n",
+	vt_debug(VT_DEBUG_NONE, "vt alloc instance [%d], ref %d\n",
 		 instance->id,
 		 atomic_read(&instance->ref.refcount.refs));
 
@@ -901,7 +901,7 @@ static int vt_free_id_process(struct vt_alloc_id_data *data,
 		       data->tunnel_id);
 		ret = -EINVAL;
 	} else {
-		vt_debug(VT_DEBUG_USER, "vt free instance [%d], ref %d\n",
+		vt_debug(VT_DEBUG_NONE, "vt free instance [%d], ref %d\n",
 			 instance->id,
 			 atomic_read(&instance->ref.refcount.refs));
 

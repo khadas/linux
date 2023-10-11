@@ -314,7 +314,7 @@ static int snd_iomap_probe(struct platform_device *pdev)
 			}
 			aml_snd_reg_map[i] =
 				ioremap_nocache(res.start, resource_size(&res));
-			pr_info("aml_snd_reg_map[%d], reg:%x, size:%x\n",
+			pr_debug("aml_snd_reg_map[%d], reg:%x, size:%x\n",
 				i, (u32)res.start, (u32)resource_size(&res));
 		}
 	}

@@ -4011,7 +4011,7 @@ unsigned int hdmi_get_aud_n_paras(enum hdmi_audio_fs fs,
 	unsigned int i, n;
 	unsigned int N_multiples = 1;
 
-	pr_info("hdmitx: fs = %d, cd = %d, pixel_clk = %d\n", fs, cd, tmds_clk);
+	pr_debug("hdmitx: fs = %d, cd = %d, pixel_clk = %d\n", fs, cd, tmds_clk);
 	switch (fs) {
 	case FS_32K:
 		p = all_aud_paras[0];

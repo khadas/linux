@@ -859,7 +859,7 @@ static int __init codec_io_probe(struct platform_device *pdev)
 				pr_err("cannot map codec_io registers\n");
 				return -ENOMEM;
 			}
-			pr_err("codec map io source 0x%lx,size=%d to 0x%lx\n",
+			pr_debug("codec map io source 0x%lx,size=%d to 0x%lx\n",
 			       (unsigned long)res.start,
 				 (int)resource_size(&res),
 				 (unsigned long)codecio_reg_map[i]);

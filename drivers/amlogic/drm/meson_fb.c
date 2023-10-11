@@ -68,7 +68,7 @@ am_meson_fb_alloc(struct drm_device *dev,
 			ret);
 		goto err_free_fb;
 	}
-	DRM_INFO("meson_fb[id:%d,ref:%d]=0x%p,meson_fb->bufp[0]=0x%p\n",
+	DRM_DEBUG("meson_fb[id:%d,ref:%d]=0x%p,meson_fb->bufp[0]=0x%p\n",
 		 meson_fb->base.base.id,
 		 kref_read(&meson_fb->base.base.refcount),
 		 meson_fb, meson_fb->bufp[0]);

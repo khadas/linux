@@ -168,10 +168,10 @@ static void parse_vpu_node(struct device_node *child_node,
 		}
 		para->outputs_mask = out_mask;
 	}
-	DRM_INFO("id=%d,index=%d,num_in_links=%d,num_out_links=%d\n",
+	DRM_DEBUG("id=%d,index=%d,num_in_links=%d,num_out_links=%d\n",
 		 para->id, para->index,
 		para->num_inputs, para->num_outputs);
-	DRM_INFO("in_mask=0x%llx,out_mask=0x%llx\n", in_mask, out_mask);
+	DRM_DEBUG("in_mask=0x%llx,out_mask=0x%llx\n", in_mask, out_mask);
 }
 
 static struct meson_vpu_block *

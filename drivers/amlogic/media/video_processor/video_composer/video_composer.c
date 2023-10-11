@@ -4238,7 +4238,7 @@ static long video_composer_ioctl(struct file *file,
 		get_video_src_max_buffer(dev->index, &w, &h);
 		capability_info.max_w = w;
 		capability_info.max_h = h;
-		vc_print(dev->index, PRINT_ERROR,
+		vc_print(dev->index, PRINT_OTHER,
 			"get capability: min %d %d; max %d %d\n",
 			 capability_info.min_w, capability_info.min_h, w, h);
 		ret = copy_to_user(argp, &capability_info, sizeof(struct capability_info_t));

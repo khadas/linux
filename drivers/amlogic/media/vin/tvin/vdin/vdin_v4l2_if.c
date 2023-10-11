@@ -2135,7 +2135,7 @@ void vdin_v4l2_init(struct vdin_dev_s *devp, struct platform_device *pl_dev)
 		}
 		devp->v4l2_port[devp->v4l2_port_num] = tmp_u32;
 		devp->v4l2_port_num++;
-		dprintk(0, "index:%d,fe_port[%d]:%#x\n", i, devp->v4l2_port_num,
+		dprintk(1, "index:%d,fe_port[%d]:%#x\n", i, devp->v4l2_port_num,
 			devp->v4l2_port[i]);
 	}
 	/* default port */

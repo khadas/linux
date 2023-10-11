@@ -580,9 +580,9 @@ static int am_meson_drm_fbdev_probe(struct drm_fb_helper *helper,
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes.surface_bpp, PREFERRED_DEPTH);
 	mode_cmd.pitches[0] = ALIGN(mode_cmd.width * bytes_per_pixel, 64);
 
-	DRM_INFO("mode_cmd.width = %d\n", mode_cmd.width);
-	DRM_INFO("mode_cmd.height = %d\n", mode_cmd.height);
-	DRM_INFO("mode_cmd.pixel_format = %d-%d\n", mode_cmd.pixel_format, DRM_FORMAT_ARGB8888);
+	DRM_DEBUG("mode_cmd.width = %d\n", mode_cmd.width);
+	DRM_DEBUG("mode_cmd.height = %d\n", mode_cmd.height);
+	DRM_DEBUG("mode_cmd.pixel_format = %d-%d\n", mode_cmd.pixel_format, DRM_FORMAT_ARGB8888);
 
 	fbi = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(fbi)) {
@@ -738,7 +738,7 @@ struct meson_drm_fbdev *am_meson_create_drm_fbdev(struct drm_device *dev,
 
 	fbdev->blank = false;
 
-	DRM_INFO("create fbdev success.\n");
+	DRM_DEBUG("create fbdev success.\n");
 	return fbdev;
 
 err_drm_fb_helper_fini:
@@ -770,7 +770,7 @@ int am_meson_drm_fbdev_init(struct drm_device *dev)
 		drmdev->ui_config.overlay_flag = 0;
 		fbdev = am_meson_create_drm_fbdev(dev, drmdev->primary_plane);
 		fbdev->zorder = OSD_PLANE_BEGIN_ZORDER;
-		DRM_INFO("create fbdev for primary plane [%p]\n", fbdev);
+		DRM_DEBUG("create fbdev for primary plane [%p]\n", fbdev);
 	}
 
 	/*only create fbdev for viu1*/
@@ -786,10 +786,10 @@ int am_meson_drm_fbdev_init(struct drm_device *dev)
 		fbdev = am_meson_create_drm_fbdev(dev, &osd_plane->base);
 		fbdev->zorder = OSD_PLANE_BEGIN_ZORDER + fbdev_cnt;
 		fbdev_cnt++;
-		DRM_INFO("create fbdev for plane [%d]-[%p]\n", osd_plane->plane_index, fbdev);
+		DRM_DEBUG("create fbdev for plane [%d]-[%p]\n", osd_plane->plane_index, fbdev);
 	}
 
-	DRM_INFO("%s create %d out\n", __func__, fbdev_cnt);
+	DRM_DEBUG("%s create %d out\n", __func__, fbdev_cnt);
 	return 0;
 }
 

@@ -69,7 +69,7 @@ static int register_cool_dev(struct platform_device *pdev,
 	int c_id, pp, coeff;
 	const char *node_name;
 
-	pr_info("meson_cdev index: %d\n", index);
+	pr_debug("meson_cdev index: %d\n", index);
 
 	if (of_property_read_string(child, "node_name", &node_name)) {
 		pr_err("thermal: read node_name failed\n");
@@ -209,7 +209,7 @@ static int meson_cooldev_probe(struct platform_device *pdev)
 {
 	struct meson_cooldev *mcooldev;
 
-	pr_info("meson_cdev probe\n");
+	pr_debug("meson_cdev probe\n");
 	mcooldev = devm_kzalloc(&pdev->dev,
 				sizeof(struct meson_cooldev),
 				GFP_KERNEL);
@@ -223,7 +223,7 @@ static int meson_cooldev_probe(struct platform_device *pdev)
 	/*save pdev for mali ko api*/
 	meson_gcooldev = platform_get_drvdata(pdev);
 
-	pr_info("meson_cdev probe done\n");
+	pr_debug("meson_cdev probe done\n");
 	return 0;
 }
 

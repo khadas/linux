@@ -6832,7 +6832,7 @@ static int amlvideo2_create_node(struct platform_device *pdev, int node_id)
 	vid_node->aml2_canvas[2] = -1;
 	vid_dev->node[node_id] = vid_node;
 	if (vid_dev->node_num == node_id + 1)
-		v4l2_info(&vid_dev->v4l2_dev,
+		v4l2_dbg(0, debug, &vid_dev->v4l2_dev,
 			  "V4L2 device registered as %s\n",
 			  video_device_node_name(vfd));
 	amlvideo2_node[node_id] = vid_node;

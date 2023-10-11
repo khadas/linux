@@ -894,7 +894,7 @@ struct video_recv_s *create_video_receiver(const char *recv_name,
 		       __func__, recv_name);
 		goto CREATE_FAIL;
 	}
-	pr_info("%s %s  %p, path_id:%d success\n",
+	pr_debug("%s %s  %p, path_id:%d success\n",
 		__func__, recv_name, ins, ins->path_id);
 	return ins;
 CREATE_FAIL:

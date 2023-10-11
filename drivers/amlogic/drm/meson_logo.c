@@ -452,7 +452,7 @@ static void am_meson_load_logo(struct drm_device *dev,
 	struct am_meson_fb *meson_fb;
 	u32 found, num_modes;
 
-	DRM_INFO("%s idx[%d]\n", __func__, idx);
+	DRM_DEBUG("%s idx[%d]\n", __func__, idx);
 
 	if (!logo.alloc_flag) {
 		DRM_INFO("%s: logo memory is not cma alloc\n", __func__);

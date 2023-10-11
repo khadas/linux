@@ -14919,7 +14919,7 @@ __setup("recovery_part=", recovery_mode_check);
 
 int __init amdolby_vision_init(void)
 {
-	pr_info("%s:module init\n", __func__);
+	pr_debug("%s:module init\n", __func__);
 
 	if (platform_driver_register(&aml_amdolby_vision_driver)) {
 		pr_err("failed to register amdolby_vision module\n");
@@ -14931,7 +14931,7 @@ int __init amdolby_vision_init(void)
 
 void __exit amdolby_vision_exit(void)
 {
-	pr_info("%s:module exit\n", __func__);
+	pr_debug("%s:module exit\n", __func__);
 	amdv_unregister_client(&amdv_notifier);
 	platform_driver_unregister(&aml_amdolby_vision_driver);
 }

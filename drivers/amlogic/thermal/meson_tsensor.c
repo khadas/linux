@@ -467,7 +467,7 @@ static int r1p1_tsensor_read(struct meson_tsensor_data *data)
 		pr_debug("%s  vall: %u, cnt: %u\n",
 			 __func__, value_all, cnt);
 	} else {
-		pr_info("[%s %s]valid cnt is 0, tvalue:%d\n", __func__, data->tzd->type, tvalue);
+		pr_debug("[%s %s]valid cnt is 0, tvalue:%d\n", __func__, data->tzd->type, tvalue);
 		tvalue = 0;
 	}
 	return tvalue;
@@ -599,7 +599,7 @@ static int meson_of_sensor_conf(struct platform_device *pdev,
 			 TS_DEF_RTEMP);
 		pdata->reboot_temp = TS_DEF_RTEMP;
 	}
-	pr_info("tsensor rtemp :%d\n", pdata->reboot_temp);
+	pr_debug("tsensor rtemp :%d\n", pdata->reboot_temp);
 	return 0;
 }
 
@@ -638,7 +638,7 @@ static int meson_map_dt_data(struct platform_device *pdev)
 	if (!data || !pdev->dev.of_node)
 		return -ENODEV;
 	data->id = of_alias_get_id(pdev->dev.of_node, "tsensor");
-	pr_info("tsensor id: %d\n", data->id);
+	pr_debug("tsensor id: %d\n", data->id);
 	if (data->id < 0)
 		data->id = 0;
 
@@ -740,7 +740,7 @@ static int meson_tsensor_probe(struct platform_device *pdev)
 	struct meson_tsensor_data *data;
 	int ret;
 
-	pr_info("meson ts init\n");
+	pr_debug("meson ts init\n");
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;

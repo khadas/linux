@@ -367,7 +367,7 @@ static bool resman_acquire_resource(struct resman_session *sess,
 				atomic_read(&resource->pending_acquire) == 0);
 
 	mutex_lock(&resource->lock);
-	dprintk(1, "%d acquire [%s], preempt %s\n",
+	dprintk(2, "%d acquire [%s], preempt %s\n",
 		sess->id,
 		resource->name,
 		preempt ? "yes" : "no");
@@ -379,7 +379,7 @@ static bool resman_acquire_resource(struct resman_session *sess,
 		node->resource_ptr = (void *)resource;
 		ret = true;
 		sess->status = RESMAN_STATUS_ACQUIRED;
-		dprintk(1, "%d acquire [%s] success\n",
+		dprintk(2, "%d acquire [%s] success\n",
 			sess->id,
 			resource->name);
 	} else {
@@ -405,7 +405,7 @@ static void resman_release_resource(struct resman_node *node)
 	resource->release(sess, resource, node);
 	list_del(&node->rlist);
 	list_del(&node->slist);
-	dprintk(1, "%d release [%s]\n",
+	dprintk(2, "%d release [%s]\n",
 		sess->id,
 		resource->name);
 	wake_up_interruptible_all(&resource->wq_release);
@@ -978,7 +978,7 @@ static bool resman_codec_mm_acquire(struct resman_session *sess,
 		else if (!strcmp(opt, "secure"))
 			secure = true;
 	}
-	dprintk(1, "%d score %d secure %s\n",
+	dprintk(2, "%d score %d secure %s\n",
 		sess->id,
 		score,
 		secure ? "yes" : "no");
@@ -1925,7 +1925,7 @@ static long resman_ioctl_setappinfo(struct resman_session *sess,
 		sess->app_name[sizeof(sess->app_name) - 1] = '\0';
 		sess->app_type = appinfo.app_type;
 		sess->prio = appinfo.prio;
-		dprintk(1, "%d appname:%s, type = %d prio = %d\n",
+		dprintk(2, "%d appname:%s, type = %d prio = %d\n",
 			sess->id,
 			sess->app_name,
 			sess->app_type,

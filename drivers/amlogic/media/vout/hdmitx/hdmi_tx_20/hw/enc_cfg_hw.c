@@ -1687,7 +1687,7 @@ void set_vmode_enc_hw(struct hdmitx_dev *hdev)
 
 	/*hd_set_reg_bits(P_VENC_VDAC_SETTING, 0x1f, 0, 5);*/
 	if (s) {
-		pr_info("set enc for VIC: %d\n",
+		pr_debug("set enc for VIC: %d\n",
 			hdev->cur_video_param->VIC);
 		while (s->reg != MREG_END_MARKER)
 			setreg(s++);
