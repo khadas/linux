@@ -1191,6 +1191,7 @@ static int meson_nfc_clk_init(struct meson_nfc *nfc)
 	int ret;
 	struct clk_init_data init = {0};
 	const char *fix_div2_pll_name[1];
+	unsigned int reg_val = 0;
 
 	nfc->clk_gate = devm_clk_get(nfc->dev, "gate");
 	if (IS_ERR(nfc->clk_gate)) {
@@ -1215,6 +1216,11 @@ static int meson_nfc_clk_init(struct meson_nfc *nfc)
 		dev_err(nfc->dev, "failed to enable fix pll");
 		return ret;
 	}
+
+	/* select fix PLL, 1000MHz(fixdiv2pll) */
+	reg_val = readl(nfc->nand_clk_reg);
+	writel(CLK_SELECT_SRC_FIXDIV2PLL | (reg_val & ~CLK_SELECT_SRC_MASK),
+			nfc->nand_clk_reg);
 
 	init.name = devm_kstrdup(nfc->dev, "nfc#div", GFP_KERNEL);
 	init.ops = &clk_divider_ops;
