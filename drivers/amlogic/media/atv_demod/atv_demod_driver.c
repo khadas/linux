@@ -66,7 +66,8 @@
 /*                          add new agc pwm config. */
 /*                          fix nicam bg output again. */
 /* 2023/09/11 --- V2.37 --- Fix afc(+/-2MHz). */
-#define AMLATVDEMOD_VER "V2.37"
+/* 2023/10/09 --- V2.38 --- Delete debug logs in probe. */
+#define AMLATVDEMOD_VER "V2.38"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
@@ -550,22 +551,10 @@ static void aml_atvdemod_dt_parse(struct aml_atvdemod_device *pdev)
 	ret = of_property_read_u32(node, "common_agc", &val);
 	if (ret) {
 		atvdemod_agc_new = 0;
-		pr_err("can't find common_agc.\n");
+		//pr_err("can't find common_agc.\n");
 	} else {
 		atvdemod_agc_new = val;
 	}
-
-	ret = of_property_read_u32(node, "audio_gain_val", &val);
-	if (ret)
-		pr_err("can't find audio_gain_val.\n");
-	else
-		set_audio_gain_val(val);
-
-	ret = of_property_read_u32(node, "video_gain_val", &val);
-	if (ret)
-		pr_err("can't find video_gain_val.\n");
-	else
-		set_video_gain_val(val);
 
 	/* agc pin mux */
 	ret = of_property_read_string(node, "pinctrl-names", &pdev->pin_name);
@@ -671,10 +660,10 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev->irq = -1;
-		pr_err("can't get irq resource.\n");
+		//pr_err("can't get irq resource.\n");
 	} else {
 		dev->irq = res->start;
-		pr_err("get irq resource %d.\n", dev->irq);
+		//pr_err("get irq resource %d.\n", dev->irq);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -693,9 +682,9 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 		goto fail_get_resource;
 	}
 
-	pr_info("demod start = 0x%p, size = 0x%x, base = 0x%p.\n",
-			(void *) res->start, size_io_reg,
-			dev->demod_reg_base);
+	//pr_info("demod start = 0x%p, size = 0x%x, base = 0x%p.\n",
+	//		(void *) res->start, size_io_reg,
+	//		dev->demod_reg_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
@@ -711,9 +700,9 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 			goto fail_get_resource;
 		}
 
-		pr_info("hiu start = 0x%p, size = 0x%x, base = 0x%p.\n",
-					(void *) res->start, size_io_reg,
-					dev->hiu_reg_base);
+		//pr_info("hiu start = 0x%p, size = 0x%x, base = 0x%p.\n",
+		//			(void *) res->start, size_io_reg,
+		//			dev->hiu_reg_base);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
@@ -730,9 +719,9 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 			/* goto fail_get_resource; */
 		}
 
-		pr_info("periphs start = 0x%p, size = 0x%x, base = 0x%p.\n",
-					(void *) res->start, size_io_reg,
-					dev->periphs_reg_base);
+		//pr_info("periphs start = 0x%p, size = 0x%x, base = 0x%p.\n",
+		//			(void *) res->start, size_io_reg,
+		//			dev->periphs_reg_base);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
@@ -749,9 +738,9 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 			goto fail_get_resource;
 		}
 
-		pr_info("audiodemod start = 0x%p, size = 0x%x, base = 0x%p.\n",
-					(void *) res->start, size_io_reg,
-					dev->audiodemod_reg_base);
+		//pr_info("audiodemod start = 0x%p, size = 0x%x, base = 0x%p.\n",
+		//			(void *) res->start, size_io_reg,
+		//			dev->audiodemod_reg_base);
 	}
 
 	/* add for audio system control */
@@ -759,20 +748,20 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		dev->audio_reg_base = ioremap(round_down(0xffd0d340, 0x3), 4);
 
-		pr_info("audio_reg_base = 0x%p.\n", dev->audio_reg_base);
+		//pr_info("audio_reg_base = 0x%p.\n", dev->audio_reg_base);
 #endif
 	} else if (is_meson_t3_cpu()) {
 		dev->audio_reg_base = ioremap(round_down(0xfe33074c, 0x3), 4);
 
-		pr_info("audio_reg_base = 0x%p.\n", dev->audio_reg_base);
+		//pr_info("audio_reg_base = 0x%p.\n", dev->audio_reg_base);
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		dev->audio_reg_base = ioremap(round_down(0xff60074c, 0x3), 4);
 
-		pr_info("audio_reg_base = 0x%p.\n", dev->audio_reg_base);
+		//pr_info("audio_reg_base = 0x%p.\n", dev->audio_reg_base);
 	} else {
 		dev->audio_reg_base = NULL;
 
-		pr_info("audio_reg_base = NULL.\n");
+		//pr_info("audio_reg_base = NULL.\n");
 	}
 
 	aml_atvdemod_dt_parse(dev);
