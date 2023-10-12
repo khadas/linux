@@ -1455,6 +1455,8 @@ static int dtvdemod_dvbs_read_signal_strength(struct dvb_frontend *fe,
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	unsigned int agc_level = 0;
+	unsigned int i = 0, if_agc_value = 0;
+	u16 rf_strength = 0;
 
 	if (demod->last_status != 0x1F) {
 		*strength = -100;
@@ -1480,8 +1482,21 @@ static int dtvdemod_dvbs_read_signal_strength(struct dvb_frontend *fe,
 			if (agc_level == 0)
 				*strength = -95;
 		}
+	} else if (tuner_find_by_name(fe, "rt710") ||
+			tuner_find_by_name(fe, "rt720")) {
+		for (i = 0; i < 10; i++)
+			//IF AGC1 integrator value
+			if_agc_value +=
+				(unsigned int)MAKEWORD(dvbs_rd_byte(0x91a), dvbs_rd_byte(0x91b));
+
+		if_agc_value /= 10;
+		rf_strength = (u16)if_agc_value;
+		if (fe->ops.tuner_ops.get_rf_strength)
+			fe->ops.tuner_ops.get_rf_strength(fe, &rf_strength);
+		PR_DBGL("if_agc_code %d\n", if_agc_value);
+
+		*strength = (s16)tuner_get_ch_power(fe);
 	} else {
-		// rt710/720.
 		*strength = (s16)tuner_get_ch_power(fe);
 		if (*strength <= -57)
 			*strength += (s16)dvbs_get_signal_strength_off();
@@ -7938,12 +7953,12 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 	case DTV_STAT_CNR:
 		tvp->u.st.len = 1;
 		tvp->u.st.stat[0].scale = FE_SCALE_DECIBEL;
-		tvp->u.st.stat[0].uvalue = demod->real_para.snr * 10;
+		tvp->u.st.stat[0].uvalue = demod->real_para.snr * 100;
 
 		c->cnr = tvp->u.st;
 
 		PR_DBG("demod id [%d] [cnr %d dBx1000].\n",
-				demod->id, demod->real_para.snr * 1000);
+				demod->id, demod->real_para.snr * 100);
 		break;
 
 	case DTV_TS_INPUT:
@@ -8000,12 +8015,12 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 
 		tvp->u.st.len = 1;
 		tvp->u.st.stat[0].scale = FE_SCALE_DECIBEL;
-		tvp->u.st.stat[0].uvalue = (109 + strength) * 1000;
+		tvp->u.st.stat[0].svalue = strength * 1000;
 
 		c->strength = tvp->u.st;
 
-		PR_DBG("demod id [%d] [strength %llu dBx1000].\n",
-				demod->id, tvp->u.st.stat[0].uvalue);
+		PR_DBG("demod id [%d] [strength %lld dBx1000].\n",
+				demod->id, tvp->u.st.stat[0].svalue);
 
 		break;
 

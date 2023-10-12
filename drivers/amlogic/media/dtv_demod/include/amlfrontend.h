@@ -116,6 +116,7 @@
 /*  V2.2.006 fix r842 dvbt/t2 LTE interferer test fail */
 /*  V2.2.007 fix power management flow */
 /*  V2.2.008 Support ignoring common plp in dvbt2 */
+/*  V2.2.009 optimize dvbs rssi for rt720 */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -132,8 +133,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.2.8"
-#define DTVDEMOD_VER	"2023/10/25: Support ignoring common plp in dvbt2"
+#define AMLDTVDEMOD_VER "V2.2.9"
+#define DTVDEMOD_VER	"2023/10/27: optimize dvbs rssi for rt720"
 #define AMLDTVDEMOD_T2_FW_VER "20231019_141000"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
