@@ -60,6 +60,7 @@ static int print_dmx;
 static int tso_src = -1;
 static int cpu_type;
 static int minor_type;
+static int force_tsn_source;
 
 #define MAX_DMX_DEV_NUM      32
 #define DEFAULT_DMX_DEV_NUM  3
@@ -79,8 +80,7 @@ static void demux_config_pipeline(int cfg_demod_tsn, int cfg_tsn_out)
 	else
 		ret = tee_write_reg_bits(0xfe440320, value, 0, 2);
 
-	if (ret != 0)
-		dprint("tee_write_reg_bits value:%d, ret:%d\n", value, ret);
+	pr_dbg("tee_write_reg_bits value:%d, ret:%d\n", value, ret);
 }
 
 ssize_t get_pcr_show(struct class *class,
@@ -268,8 +268,7 @@ ssize_t tsn_source_show(struct class *class,
 		ret = tee_read_reg_bits(0xff610320, &value, 0, 2);
 	else
 		ret = tee_read_reg_bits(0xfe440320, &value, 0, 2);
-	if (ret != 0)
-		dprint("tee_read_reg_bits value:%d, ret:%d\n", value, ret);
+	pr_dbg("tee_read_reg_bits value:%d, ret:%d\n", value, ret);
 
 	return total;
 }
@@ -280,6 +279,10 @@ ssize_t tsn_source_store(struct class *class,
 {
 	struct aml_dvb *advb = aml_get_dvb_device();
 	int tsn_in_reg = 0;
+
+	//don't set tsn_source
+	if (force_tsn_source)
+		return count;
 
 	if (!strncmp(buf, "demod", 5))
 		tsn_in = INPUT_DEMOD;
@@ -295,6 +298,8 @@ ssize_t tsn_source_store(struct class *class,
 
 	if (tsn_in == INPUT_DEMOD)
 		tsn_in_reg = 1;
+
+	pr_dbg("force_tsn_source is %d\n", force_tsn_source);
 
 //	pr_dbg("tsn_in:%d, tsn_out:%d\n", tsn_in_reg, tsn_out);
 	advb->dsc_pipeline = tsn_in_reg;
@@ -318,6 +323,26 @@ int tsn_set_double_out(int flag)
 		tsn_in_reg = 1;
 
 	demux_config_pipeline(tsn_in_reg, tsn_out);
+	return 0;
+}
+
+int tsn_source_force_set(int source)
+{
+	struct aml_dvb *advb = aml_get_dvb_device();
+	int tsn_in_reg = 0;
+
+	if (source == INPUT_DEMOD)
+		tsn_in_reg = 1;
+	else
+		tsn_in_reg = 0;
+
+	pr_dbg("%s source is %d\n", __func__, source);
+
+	tsn_in = source;
+	advb->dsc_pipeline = tsn_in_reg;
+
+	demux_config_pipeline(tsn_in_reg, 0);
+	force_tsn_source = 1;
 	return 0;
 }
 

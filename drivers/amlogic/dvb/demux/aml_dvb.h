@@ -67,6 +67,7 @@ struct device *aml_get_device(void);
 int tsn_set_double_out(int flag);
 void set_dvb_loop_tsn(int flag);
 int get_dvb_loop_tsn(void);
+int tsn_source_force_set(int source);
 
 extern int is_security_dmx;
 ssize_t dmx_setting_show(struct class *class,

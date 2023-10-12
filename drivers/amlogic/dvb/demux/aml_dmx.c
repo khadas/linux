@@ -2940,7 +2940,11 @@ static ssize_t ts_clone_store(struct class *class,
 		if (minor_type != 0xd) {
 			dprint_i("chip:sc2-%x not support ts clone\n", minor_type);
 			return size;
+		} else {
+			tsn_source_force_set(INPUT_LOCAL);
 		}
+	} else {
+		tsn_source_force_set(INPUT_DEMOD);
 	}
 	if (ts_clone != 1 && ts_clone != 0) {
 		dprint_i("ts clone value error, value:%d\n", ts_clone);
