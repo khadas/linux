@@ -1361,7 +1361,12 @@ static void ntfs_fs_free(struct fs_context *fc)
 	struct ntfs_mount_options *opts = fc->fs_private;
 	struct ntfs_sb_info *sbi = fc->s_fs_info;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/* kernel will panic if sbi->sb is null */
+	if (sbi && sbi->sb)
+#else
 	if (sbi)
+#endif
 		put_ntfs(sbi);
 
 	if (opts)
