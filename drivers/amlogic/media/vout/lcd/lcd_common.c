@@ -827,6 +827,118 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
+int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
+{
+	const struct device_node *np;
+	const char *str = "none";
+	unsigned int val;
+	int ret = 0;
+
+	if (!pdrv->dev->of_node) {
+		LCDERR("dev of_node is null\n");
+		pdrv->mode = LCD_MODE_MAX;
+		return -1;
+	}
+	np = pdrv->dev->of_node;
+
+	/* lcd driver assign */
+	switch (pdrv->debug_ctrl->debug_lcd_mode) {
+	case 1:
+		LCDPR("[%d]: debug_lcd_mode: 1,tv mode\n", pdrv->index);
+		pdrv->mode = LCD_MODE_TV;
+		break;
+	case 2:
+		LCDPR("[%d]: debug_lcd_mode: 2,tablet mode\n", pdrv->index);
+		pdrv->mode = LCD_MODE_TABLET;
+		break;
+	default:
+		ret = of_property_read_string(np, "mode", &str);
+		if (ret) {
+			LCDERR("[%d]: failed to get mode\n", pdrv->index);
+			return -1;
+		}
+		pdrv->mode = lcd_mode_str_to_mode(str);
+		break;
+	}
+
+	ret = of_property_read_u32(np, "pxp", &val);
+	if (ret) {
+		pdrv->lcd_pxp = 0;
+	} else {
+		pdrv->lcd_pxp = (unsigned char)val;
+		LCDPR("[%d]: find lcd_pxp: %d\n", pdrv->index, pdrv->lcd_pxp);
+	}
+
+	ret = of_property_read_u32(np, "fr_auto_policy", &val);
+	if (ret) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("failed to get fr_auto_policy\n");
+		pdrv->fr_auto_policy = 0;
+	} else {
+		pdrv->fr_auto_policy = (unsigned char)val;
+	}
+
+	switch (pdrv->debug_ctrl->debug_para_source) {
+	case 1:
+		LCDPR("[%d]: debug_para_source: 1,dts\n", pdrv->index);
+		pdrv->key_valid = 0;
+		break;
+	case 2:
+		LCDPR("[%d]: debug_para_source: 2,unifykey\n", pdrv->index);
+		pdrv->key_valid = 1;
+		break;
+	default:
+		ret = of_property_read_u32(np, "key_valid", &val);
+		if (ret) {
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+				LCDPR("failed to get key_valid\n");
+			pdrv->key_valid = 0;
+		} else {
+			pdrv->key_valid = (unsigned char)val;
+		}
+		break;
+	}
+	LCDPR("[%d]: detect mode: %s, fr_auto_policy: %d, key_valid: %d\n",
+	      pdrv->index, str, pdrv->fr_auto_policy, pdrv->key_valid);
+
+	ret = of_property_read_u32(np, "clk_path", &val);
+	if (ret) {
+		pdrv->clk_path = 0;
+	} else {
+		pdrv->clk_path = (unsigned char)val;
+		LCDPR("[%d]: detect clk_path: %d\n",
+		      pdrv->index, pdrv->clk_path);
+	}
+
+	ret = of_property_read_u32(np, "auto_test", &val);
+	if (ret) {
+		pdrv->auto_test = 0;
+	} else {
+		pdrv->auto_test = (unsigned char)val;
+		LCDPR("[%d]: detect auto_test: %d\n",
+		      pdrv->index, pdrv->auto_test);
+	}
+
+	ret = of_property_read_u32(np, "resume_type", &val);
+	if (ret) {
+		pdrv->resume_type = 1; /* default workqueue */
+	} else {
+		pdrv->resume_type = (unsigned char)val;
+		LCDPR("[%d]: detect resume_type: %d\n",
+		      pdrv->index, pdrv->resume_type);
+	}
+
+	/* only for test */
+	ret = of_property_read_string(np, "lcd_propname_sel", &str);
+	if (ret == 0) {
+		strcpy(pdrv->config.propname, str);
+		LCDPR("[%d]: find lcd_propname_sel: %s\n",
+			pdrv->index, pdrv->config.propname);
+	}
+
+	return 0;
+}
+
 static int lcd_power_load_from_dts(struct aml_lcd_drv_s *pdrv, struct device_node *child)
 {
 	struct lcd_power_ctrl_s *power_step = &pdrv->config.power;
@@ -2228,33 +2340,6 @@ static int lcd_config_load_init(struct aml_lcd_drv_s *pdrv)
 
 	if (pdrv->status & LCD_STATUS_ENCL_ON)
 		lcd_clk_gate_switch(pdrv, 1);
-
-	/* lock pinmux if lcd in on */
-	if (pdrv->status & LCD_STATUS_IF_ON) {
-		switch (pdrv->config.basic.lcd_type) {
-		case LCD_RGB:
-			lcd_rgb_pinmux_set(pdrv, 1);
-			break;
-		case LCD_BT656:
-		case LCD_BT1120:
-			lcd_bt_pinmux_set(pdrv, 1);
-			break;
-		case LCD_VBYONE:
-			lcd_vbyone_pinmux_set(pdrv, 1);
-			break;
-		case LCD_MLVDS:
-			lcd_mlvds_pinmux_set(pdrv, 1);
-			break;
-		case LCD_P2P:
-			lcd_p2p_pinmux_set(pdrv, 1);
-			break;
-		case LCD_EDP:
-			lcd_edp_pinmux_set(pdrv, 1);
-			break;
-		default:
-			break;
-		}
-	}
 
 	return 0;
 }

@@ -138,7 +138,6 @@ static struct aml_lcd_drv_s *lcd_driver_add(int index)
 
 	/* default config */
 	strcpy(pdrv->config.propname, lcd_propname[index]);
-	strcpy(pdrv->config.basic.model_name, lcd_panel_name[index]);
 	pdrv->config.basic.lcd_type = LCD_TYPE_MAX;
 	pdrv->config.power.power_on_step[0].type = LCD_POWER_TYPE_MAX;
 	pdrv->config.power.power_off_step[0].type = LCD_POWER_TYPE_MAX;
@@ -155,8 +154,6 @@ static struct aml_lcd_drv_s *lcd_driver_add(int index)
 	/* boot ctrl */
 	pdrv->boot_ctrl = &lcd_boot_ctrl_config[index];
 	pdrv->debug_ctrl = &lcd_debug_ctrl_config;
-
-	pdrv->config.custom_pinmux = pdrv->boot_ctrl->custom_pinmux;
 
 	return pdrv;
 }
@@ -1855,115 +1852,10 @@ static void lcd_config_default(struct aml_lcd_drv_s *pdrv)
 	      pdrv->index, pdrv->status, pdrv->init_flag);
 }
 
-static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *pdev)
+static void lcd_bootup_config_init(struct aml_lcd_drv_s *pdrv)
 {
-	const struct device_node *np;
-	const char *str = "none";
 	unsigned int val;
-	int ret = 0;
 
-	if (!pdrv->dev->of_node) {
-		LCDERR("dev of_node is null\n");
-		pdrv->mode = LCD_MODE_MAX;
-		return -1;
-	}
-	np = pdrv->dev->of_node;
-
-	/* lcd driver assign */
-	switch (pdrv->debug_ctrl->debug_lcd_mode) {
-	case 1:
-		LCDPR("[%d]: debug_lcd_mode: 1,tv mode\n", pdrv->index);
-		pdrv->mode = LCD_MODE_TV;
-		break;
-	case 2:
-		LCDPR("[%d]: debug_lcd_mode: 2,tablet mode\n", pdrv->index);
-		pdrv->mode = LCD_MODE_TABLET;
-		break;
-	default:
-		ret = of_property_read_string(np, "mode", &str);
-		if (ret) {
-			LCDERR("[%d]: failed to get mode\n", pdrv->index);
-			return -1;
-		}
-		pdrv->mode = lcd_mode_str_to_mode(str);
-		break;
-	}
-
-	ret = of_property_read_u32(np, "pxp", &val);
-	if (ret) {
-		pdrv->lcd_pxp = 0;
-	} else {
-		pdrv->lcd_pxp = (unsigned char)val;
-		LCDPR("[%d]: find lcd_pxp: %d\n", pdrv->index, pdrv->lcd_pxp);
-	}
-
-	ret = of_property_read_u32(np, "fr_auto_policy", &val);
-	if (ret) {
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-			LCDPR("failed to get fr_auto_policy\n");
-		pdrv->fr_auto_policy = 0;
-	} else {
-		pdrv->fr_auto_policy = (unsigned char)val;
-	}
-
-	switch (pdrv->debug_ctrl->debug_para_source) {
-	case 1:
-		LCDPR("[%d]: debug_para_source: 1,dts\n", pdrv->index);
-		pdrv->key_valid = 0;
-		break;
-	case 2:
-		LCDPR("[%d]: debug_para_source: 2,unifykey\n", pdrv->index);
-		pdrv->key_valid = 1;
-		break;
-	default:
-		ret = of_property_read_u32(np, "key_valid", &val);
-		if (ret) {
-			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-				LCDPR("failed to get key_valid\n");
-			pdrv->key_valid = 0;
-		} else {
-			pdrv->key_valid = (unsigned char)val;
-		}
-		break;
-	}
-	LCDPR("[%d]: detect mode: %s, fr_auto_policy: %d, key_valid: %d\n",
-	      pdrv->index, str, pdrv->fr_auto_policy, pdrv->key_valid);
-
-	ret = of_property_read_u32(np, "clk_path", &val);
-	if (ret) {
-		pdrv->clk_path = 0;
-	} else {
-		pdrv->clk_path = (unsigned char)val;
-		LCDPR("[%d]: detect clk_path: %d\n",
-		      pdrv->index, pdrv->clk_path);
-	}
-
-	ret = of_property_read_u32(np, "auto_test", &val);
-	if (ret) {
-		pdrv->auto_test = 0;
-	} else {
-		pdrv->auto_test = (unsigned char)val;
-		LCDPR("[%d]: detect auto_test: %d\n",
-		      pdrv->index, pdrv->auto_test);
-	}
-
-	ret = of_property_read_u32(np, "resume_type", &val);
-	if (ret) {
-		pdrv->resume_type = 1; /* default workqueue */
-	} else {
-		pdrv->resume_type = (unsigned char)val;
-		LCDPR("[%d]: detect resume_type: %d\n",
-		      pdrv->index, pdrv->resume_type);
-	}
-
-	pdrv->res_vsync_irq[0] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
-	pdrv->res_vsync_irq[1] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync2");
-	pdrv->res_vsync_irq[2] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync3");
-	pdrv->res_vx1_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vbyone");
-	pdrv->res_tcon_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "tcon");
-
-	pdrv->test_state = pdrv->debug_ctrl->debug_test_pattern;
-	pdrv->test_flag = 0;
 	pdrv->mute_state = 0;
 	pdrv->mute_flag = 0;
 	pdrv->mute_count = 0;
@@ -1974,11 +1866,78 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	pdrv->viu_sel = LCD_VIU_SEL_NONE;
 	pdrv->vsync_none_timer_flag = 0;
 	pdrv->module_reset = lcd_module_reset;
+
+	pdrv->test_flag = pdrv->debug_ctrl->debug_test_pattern;
+	pdrv->test_state = pdrv->test_flag;
+
+	strcpy(pdrv->config.basic.model_name, lcd_panel_name[pdrv->index]);
+	pdrv->config.custom_pinmux = pdrv->boot_ctrl->custom_pinmux;
+
+	pdrv->config.basic.lcd_type = pdrv->boot_ctrl->lcd_type;
+
+	val = pdrv->boot_ctrl->advanced_flag;
+	switch (pdrv->config.basic.lcd_type) {
+	case LCD_RGB:
+		pdrv->config.basic.lcd_bits = pdrv->boot_ctrl->lcd_bits;
+		pdrv->config.control.rgb_cfg.de_valid = val & 0x1;
+		pdrv->config.control.rgb_cfg.sync_valid = (val >> 1) & 0x1;
+		break;
+	case LCD_P2P:
+		pdrv->config.control.p2p_cfg.p2p_type = val;
+		break;
+	default:
+		break;
+	}
+}
+
+static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *pdev)
+{
+	int ret = 0;
+
+	lcd_bootup_config_init(pdrv);
+
+	ret = lcd_base_config_load_from_dts(pdrv);
+	if (ret)
+		return -1;
+
+	pdrv->res_vsync_irq[0] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
+	pdrv->res_vsync_irq[1] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync2");
+	pdrv->res_vsync_irq[2] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync3");
+	pdrv->res_vx1_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vbyone");
+	pdrv->res_tcon_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "tcon");
+
 	lcd_clk_config_probe(pdrv);
 	lcd_phy_config_init(pdrv);
 	lcd_venc_probe(pdrv);
 	lcd_config_default(pdrv);
 	lcd_init_vout(pdrv);
+
+	/* lock pinmux as earlier as possible if lcd in on */
+	if (pdrv->status & LCD_STATUS_IF_ON) {
+		switch (pdrv->config.basic.lcd_type) {
+		case LCD_RGB:
+			lcd_rgb_pinmux_set(pdrv, 1);
+			break;
+		case LCD_BT656:
+		case LCD_BT1120:
+			lcd_bt_pinmux_set(pdrv, 1);
+			break;
+		case LCD_VBYONE:
+			lcd_vbyone_pinmux_set(pdrv, 1);
+			break;
+		case LCD_MLVDS:
+			lcd_mlvds_pinmux_set(pdrv, 1);
+			break;
+		case LCD_P2P:
+			lcd_p2p_pinmux_set(pdrv, 1);
+			break;
+		case LCD_EDP:
+			lcd_edp_pinmux_set(pdrv, 1);
+			break;
+		default:
+			break;
+		}
+	}
 
 	if (pdrv->key_valid) {
 		lcd_queue_delayed_work(&pdrv->config_probe_dly_work, 0);
@@ -1991,34 +1950,6 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 		}
 	}
 
-	if ((pdrv->status & LCD_STATUS_IF_ON) == 0)
-		return 0;
-	if (pdrv->config.basic.lcd_type == LCD_TYPE_MAX) {
-		val = pdrv->boot_ctrl->advanced_flag;
-		switch (pdrv->boot_ctrl->lcd_type) {
-		case LCD_RGB:
-			pdrv->config.basic.lcd_bits = pdrv->boot_ctrl->lcd_bits;
-			pdrv->config.control.rgb_cfg.de_valid = val & 0x1;
-			pdrv->config.control.rgb_cfg.sync_valid = (val >> 1) & 0x1;
-			lcd_rgb_pinmux_set(pdrv, 1);
-			break;
-		case LCD_VBYONE:
-			lcd_vbyone_pinmux_set(pdrv, 1);
-			break;
-		case LCD_MLVDS:
-			lcd_mlvds_pinmux_set(pdrv, 1);
-			break;
-		case LCD_P2P:
-			pdrv->config.control.p2p_cfg.p2p_type = val;
-			lcd_p2p_pinmux_set(pdrv, 1);
-			break;
-		case LCD_EDP:
-			lcd_edp_pinmux_set(pdrv, 1);
-			break;
-		default:
-			break;
-		}
-	}
 	return 0;
 }
 
