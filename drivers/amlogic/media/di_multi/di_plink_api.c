@@ -6564,11 +6564,17 @@ static void dpvpph_enable_di_pre_aml(const struct reg_acc *op_in,
 					    (sc2_tfbf << 11)	|
 					    /* nrds mif enable */
 					    (pre_vdin_link << 13)	   |
-					/* pre go line link */
+					    /* pre go line link */
 					    (pre_vdin_link << 14)	   |
 					    (1 << 21)	| /*chan2 t/b reverse*/
-					    (0 << 25)   |
+					    /* under prelink mode, need enable upsample filter */
+					    (2 << 23)	|
+					    /* mode_422c444 [24:23] */
+					    (0 << 25)	|
 					    /* contrd en */
+					    /* under prelink mode, need enable upsample filter */
+					    (2 << 26)  |
+					    /* mode_444c422 [27:26] */
 					    ((mem_bypass ? 1 : 0) << 28)   |
 					    pre_field_num << 29);
 				val = op_in->rd(DI_TOP_PRE_CTRL);
@@ -6601,7 +6607,13 @@ static void dpvpph_enable_di_pre_aml(const struct reg_acc *op_in,
 					  (pre_vdin_link << 14)	|
 					  (1 << 21)	| /*invertNRfield num*/
 					  (1 << 22)	| /* MTN after NR. */
+					  /* under prelink mode, need enable upsample filter */
+					  (2 << 23)  |
+					  /* mode_422c444 [24:23] */
 					  (0 << 25)	| /* contrd en */
+					  /* under prelink mode, need enable upsample filter */
+					  (2 << 26)  |
+					  /* mode_444c422 [27:26] */
 					  ((mem_bypass ? 1 : 0) << 28)   |
 					  pre_field_num << 29);
 				dim_print("%s:c:%d\n", __func__, pre_field_num);

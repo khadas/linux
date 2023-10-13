@@ -4191,7 +4191,8 @@ static u32 enable_afbc_input_local_dvfm(struct dim_prevpp_ds_s *ds,
 		cvfmt_en = 1;
 		vt_ini_phase = 0xc;
 		cvfm_h = out_height >> 1;
-		rpt_pix = 1;
+		/* under prelink mode, need enable upsample filter */
+		rpt_pix = 0;
 		phase_step = 8;
 	} else {
 		cvfm_h = out_height;
