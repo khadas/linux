@@ -766,9 +766,15 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 			/*rx will tunneled to 444*/
 			format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
 		} else if (devp->prop.color_format == TVIN_RGB444) {
-			format_convert = VDIN_FORMAT_CONVERT_RGB_RGB;
+			if (vdin_dv_is_not_std_source_led(devp))
+				format_convert = VDIN_FORMAT_CONVERT_BRG_YUV422;
+			else
+				format_convert = VDIN_FORMAT_CONVERT_RGB_RGB;
 		} else {
-			format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
+			if (vdin_dv_is_not_std_source_led(devp))
+				format_convert = VDIN_FORMAT_CONVERT_YUV_YUV422;
+			else
+				format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
 		}
 	}
 #endif
@@ -1884,7 +1890,7 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 		} else {
 			matrix_sel = VDIN_SEL_MATRIX0;
 		}
-		if (!devp->dv.dv_flag) {
+		if (!devp->dv.dv_flag || vdin_dv_is_not_std_source_led(devp)) {
 			devp->csc_idx = vdin_set_color_matrix(matrix_sel,
 				devp->addr_offset,
 				devp->fmt_info_p,

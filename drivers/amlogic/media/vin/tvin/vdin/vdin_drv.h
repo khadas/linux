@@ -146,7 +146,8 @@
 /* 20230725: notify fps change event when not game mode */
 /* 20230727: drop the first frame for vdin1 */
 /* 20230803: pc and game mode switch optimization */
-#define VDIN_VER "20230803: pc and game mode switch optimization"
+/* 20231013: dv 444 low-latency need convert to 422 */
+#define VDIN_VER "20231013: dv 444 low-latency need convert to 422"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK

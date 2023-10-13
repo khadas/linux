@@ -285,3 +285,21 @@ bool vdin_dv_not_manual_game(struct vdin_dev_s *devp)
 	else
 		return false;
 }
+
+/* some device force send dv 444 source-led need convert to 422 and bypass detunnel
+ * return value:
+ *	true: dv is not standard source-led
+ *	false: dv is yuv422/420 12bit source-led
+ */
+bool vdin_dv_is_not_std_source_led(struct vdin_dev_s *devp)
+{
+	if (devp->dv.dv_flag &&
+	    (devp->dv.low_latency || devp->prop.latency.allm_mode ||
+	     devp->vrr_data.vrr_mode) &&
+	    ((devp->prop.color_format == TVIN_RGB444 ||
+	      devp->prop.color_format == TVIN_YUV444) ||
+	     devp->prop.colordepth == 8))
+		return true;
+	else
+		return false;
+}

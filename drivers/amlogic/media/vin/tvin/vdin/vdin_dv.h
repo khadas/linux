@@ -29,4 +29,5 @@ irqreturn_t vdin_wrmif2_dv_meta_wr_done_isr(int irq, void *dev_id);
 bool vdin_dv_is_need_tunnel(struct vdin_dev_s *devp);
 bool vdin_dv_is_visf_data(struct vdin_dev_s *devp);
 bool vdin_dv_not_manual_game(struct vdin_dev_s *devp);
+bool vdin_dv_is_not_std_source_led(struct vdin_dev_s *devp);
 #endif

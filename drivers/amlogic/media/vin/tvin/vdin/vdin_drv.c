@@ -877,6 +877,10 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 			vf->flag |= VFRAME_FLAG_GAME_MODE;
 		if (devp->vdin_pc_mode)
 			vf->flag |= VFRAME_FLAG_PC_MODE;
+		if (vdin_dv_is_not_std_source_led(devp) || devp->debug.bypass_tunnel)
+			vf->type_ext |= VIDTYPE_EXT_BYPASS_DETUNNEL;
+		else
+			vf->type_ext &= ~VIDTYPE_EXT_BYPASS_DETUNNEL;
 		scan_mode = devp->fmt_info_p->scan_mode;
 		if ((scan_mode == TVIN_SCAN_MODE_INTERLACED &&
 		     (!(devp->parm.flag & TVIN_PARM_FLAG_2D_TO_3D) &&
@@ -1269,7 +1273,8 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	vdin_dolby_addr_alloc(devp, devp->vfp->size);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (vdin_is_dolby_signal_in(devp) &&
-	    devp->index == devp->dv.dv_path_idx) {
+	    devp->index == devp->dv.dv_path_idx &&
+	    !vdin_dv_is_not_std_source_led(devp)) {
 		/* config dolby vision */
 		vdin_dolby_config(devp);
 		#ifndef VDIN_BRINGUP_NO_VF
@@ -1569,7 +1574,8 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	vdin_set_def_wr_canvas(devp);
 
 	if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
-		if (devp->dv.dv_config && devp->index == devp->dv.dv_path_idx) {
+		if (devp->dv.dv_config && devp->index == devp->dv.dv_path_idx &&
+		    !vdin_dv_is_not_std_source_led(devp)) {
 			devp->dv.dv_config = 0;
 			vf_unreg_provider(&devp->dv.dv_vf_provider);
 			pr_info("vdin%d provider: dv unreg\n", devp->index);
