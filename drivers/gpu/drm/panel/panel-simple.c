@@ -159,6 +159,7 @@ struct panel_simple {
 	struct drm_dsc_picture_parameter_set *pps;
 	enum drm_panel_orientation orientation;
 };
+extern void lcd_reset_pin_reset(void);
 
 static inline struct panel_simple *to_panel_simple(struct drm_panel *panel)
 {
@@ -505,6 +506,7 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 	}
 
 	//gpiod_direction_output(p->reset_gpio, 0);
+	lcd_reset_pin_reset();
 	gpiod_direction_output(p->enable_gpio, 0);
 
 	panel_simple_regulator_disable(p);
