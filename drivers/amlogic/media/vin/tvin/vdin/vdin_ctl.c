@@ -6451,10 +6451,6 @@ void vdin_set_display_ratio(struct vdin_dev_s *devp,
 			vf->ratio_control = 0x0 << DISP_RATIO_ASPECT_RATIO_BIT;
 	}
 
-	if ((devp->vdin_function_sel & VDIN_NO_TVAFE_ASPECT_RATIO_CHK) &&
-	    IS_TVAFE_SRC(devp->parm.port))
-		aspect_ratio = TVIN_ASPECT_NULL;
-
 	switch (aspect_ratio) {
 	case TVIN_ASPECT_4x3_FULL:
 		/* vf->width*vf->sar_width : vf->height*vf->sar_height = 4 : 3 */

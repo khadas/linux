@@ -3154,7 +3154,7 @@ enum tvin_aspect_ratio_e tvafe_cvd2_get_wss(void)
 	unsigned int full_format = 0;
 	enum tvin_aspect_ratio_e aspect_ratio = TVIN_ASPECT_NULL;
 
-	full_format = R_APB_REG(CVD2_VBI_WSS_DATA1);
+	full_format = R_APB_BIT(CVD2_VBI_WSS_DATA1, WSSDATA1_BYTE1_BIT, WSSDATA1_BYTE1_WID);
 
 	if (full_format == TVIN_AR_14x9_LB_CENTER_VAL)
 		aspect_ratio = TVIN_ASPECT_14x9_LB_CENTER;
@@ -3400,3 +3400,18 @@ int cvd_set_debug_parm(const char *buff, char **parm)
 cvd_store_err:
 	return -EINVAL;
 }
+
+/* return value:
+ *	true: signal stable
+ *	false: signal not stable
+ */
+bool get_tvafe_signal_state(void)
+{
+	struct tvafe_dev_s *devp = tvafe_get_dev();
+
+	if (devp->tvafe.parm.info.status == TVIN_SIG_STATUS_STABLE)
+		return true;
+	else
+		return false;
+}
+EXPORT_SYMBOL(get_tvafe_signal_state);

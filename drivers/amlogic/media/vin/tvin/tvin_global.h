@@ -332,14 +332,14 @@ enum tvin_buffer_ctl_e {
 /* Hs_cnt        Pixel_Clk(Khz/10) */
 
 enum tvin_ar_b3_b0_val_e {
-	TVIN_AR_14x9_LB_CENTER_VAL = 0x11,
-	TVIN_AR_14x9_LB_TOP_VAL = 0x12,
-	TVIN_AR_16x9_LB_TOP_VAL = 0x14,
-	TVIN_AR_16x9_FULL_VAL = 0x17,
-	TVIN_AR_4x3_FULL_VAL = 0x18,
-	TVIN_AR_16x9_LB_CENTER_VAL = 0x1b,
-	TVIN_AR_16x9_LB_CENTER1_VAL = 0x1d,
-	TVIN_AR_14x9_FULL_VAL = 0x1e,
+	TVIN_AR_14x9_LB_CENTER_VAL = 0x1,
+	TVIN_AR_14x9_LB_TOP_VAL = 0x2,
+	TVIN_AR_16x9_LB_TOP_VAL = 0x4,
+	TVIN_AR_16x9_FULL_VAL = 0x7,
+	TVIN_AR_4x3_FULL_VAL = 0x8,
+	TVIN_AR_16x9_LB_CENTER_VAL = 0xb,
+	TVIN_AR_16x9_LB_CENTER1_VAL = 0xd,
+	TVIN_AR_14x9_FULL_VAL = 0xe,
 };
 const char *tvin_aspect_ratio_str(enum tvin_aspect_ratio_e aspect_ratio);
 

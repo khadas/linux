@@ -230,6 +230,7 @@ void cvd_vbi_config(void);
 void tvafe_cvd2_rf_ntsc50_en(bool v);
 void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2);
 int cvd_set_debug_parm(const char *buff, char **parm);
+bool get_tvafe_signal_state(void);
 
 extern bool tvafe_snow_function_flag;
 extern bool reinit_scan;

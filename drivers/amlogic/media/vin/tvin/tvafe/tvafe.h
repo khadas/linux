@@ -49,6 +49,8 @@
 #define TVAFE_PORT_AV1 0x1
 #define TVAFE_PORT_AV2 0x2
 
+#define TVAFE_WSS_FUNCTION		BIT(0)
+
 /************************************************************ */
 /* *** enum definitions ********************************************* */
 /************************************************************ */
@@ -146,6 +148,7 @@ struct tvafe_dev_s {
 #endif
 	unsigned int frame_skip_enable;
 	unsigned int sizeof_tvafe_dev_s;
+	unsigned int tvafe_function_sel;
 };
 
 bool tvafe_get_snow_cfg(void);

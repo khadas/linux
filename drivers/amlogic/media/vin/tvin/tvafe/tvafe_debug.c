@@ -238,6 +238,7 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("try_fmt_max_atv:%d\n", try_fmt_max_atv);
 	tvafe_pr_info("try_fmt_max_av:%d\n", try_fmt_max_av);
 	tvafe_pr_info("avout_en:%d\n", user_param->avout_en);
+	tvafe_pr_info("tvafe_function_sel:%#x\n", devp->tvafe_function_sel);
 	tvafe_pr_info("tvafe version :  %s\n", TVAFE_VER);
 }
 
@@ -578,6 +579,10 @@ static ssize_t debug_store(struct device *dev,
 			pr_info("[tvafe]%s low_amp_level, ori val = %u\n",
 				__func__, user_param->low_amp_level);
 		}
+	} else if (!strcmp(parm[0], "tvafe_function_sel")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &val) == 0))
+			devp->tvafe_function_sel = val;
+		pr_info("[%s]tvafe_function_sel:%#x\n", __func__, devp->tvafe_function_sel);
 	} else {
 		tvafe_pr_info("[%s]:invalid command.\n", __func__);
 	}

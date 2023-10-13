@@ -306,7 +306,6 @@ struct match_data_s {
 #define VDIN_PROP_RX_UPDATE		BIT(5)
 #define VDIN_GAME_NOT_TANSFER		BIT(6) //control for tx output when game mode
 #define VDIN_FORCE_444_NOT_CONVERT	BIT(7) //commercial display control
-#define VDIN_NO_TVAFE_ASPECT_RATIO_CHK	BIT(8) //no tvafe aspect_ratio check
 #define VDIN_SET_DISPLAY_RATIO		BIT(9)
 #define VDIN_NOT_DATA_INPUT_DROP	BIT(10)
 #define VDIN_BYPASS_HDR_SEI_CHECK	BIT(11) //bypass non-standard hdr stream detection

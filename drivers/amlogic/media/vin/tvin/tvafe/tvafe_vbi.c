@@ -113,6 +113,9 @@ static void vbi_state_reset(struct vbi_dev_s *devp)
 	devp->vs_delay = VBI_VS_DELAY;
 	devp->isr_cnt = 0;
 	devp->slicer->slicer_cnt = 0;
+	devp->no_rcv_data_enable = false;
+	devp->rcv_data_cnt = 0;
+	devp->no_rcv_data_cnt = 0;
 	vcnt = 1;
 	vbi_read_wakeup_cnt = 0;
 	init_vbi_flag = 0;
@@ -150,7 +153,8 @@ static void vbi_data_type_set(struct vbi_dev_s *devp)
 	W_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE20, vbi_data_type);
 	W_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE21, vbi_data_type);
 	W_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE22, vbi_data_type);
-	W_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE23, vbi_data_type);
+	if (devp->vbi_dto_wss != VBI_DTO_WSS625)
+		W_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE23, vbi_data_type);
 	W_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE24, vbi_data_type);
 	W_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE25, vbi_data_type);
 	/*W_VBI_APB_REG(CVD2_VBI_DATA_TYPE_LINE26, vbi_data_type);*/
@@ -909,6 +913,68 @@ static void vbi_tt_raw_data_test(struct vbi_data_s *vbi_data)
 	}
 }
 
+/* vbi_is_not_valid_data; only check teletext
+ *	check whether has vbi data, empirical value
+ * return value:
+ *	true: not vbi data
+ *	false: has vbi data
+ */
+static inline bool vbi_is_not_valid_data(struct vbi_data_s vbi_data)
+{
+	if (vbi_data.nbytes <= 2 && vbi_data.b[1] <= 0x3f)
+		return true;
+	else
+		return false;
+}
+
+static void vbi_check_is_valid_data(struct vbi_data_s vbi_data, struct vbi_dev_s *devp)
+{
+	if (devp->slicer->type < VBI_TYPE_TT_625A ||
+	    devp->slicer->type > VBI_TYPE_TT_525D)
+		return;
+
+	if (devp->no_rcv_data_enable) {
+		if (!vbi_is_not_valid_data(vbi_data)) {
+			devp->rcv_data_cnt++;
+			devp->no_rcv_data_cnt = 0;
+		} else {
+			devp->rcv_data_cnt = 0;
+		}
+	} else {
+		if (vbi_is_not_valid_data(vbi_data)) {
+			devp->no_rcv_data_cnt++;
+			devp->rcv_data_cnt = 0;
+			if (vbi_data.line_num == 23) //quick detected not data
+				devp->no_rcv_data_cnt++;
+		} else {
+			devp->no_rcv_data_cnt = 0;
+		}
+	}
+}
+
+static void vbi_check_is_data_rev(struct vbi_dev_s *devp)
+{
+	if (devp->no_rcv_data_enable) {
+		if (devp->rcv_data_cnt > VBI_HAS_DATA_CNT) {
+			devp->no_rcv_data_enable = false;
+			devp->rcv_data_cnt = 0;
+			devp->no_rcv_data_cnt = 0;
+			if (vbi_dbg_en & VBI_DBG_ISR4)
+				pr_info("%s:rcv data  no_rcv_data_enable:%d\n",
+					__func__, devp->no_rcv_data_enable);
+		}
+	} else {
+		if (devp->no_rcv_data_cnt > VBI_NO_DATA_CNT) {
+			devp->no_rcv_data_enable = true;
+			devp->rcv_data_cnt = 0;
+			devp->no_rcv_data_cnt = 0;
+			if (vbi_dbg_en & VBI_DBG_ISR4)
+				pr_info("%s:no rcv data no_rcv_data_enable:%d\n",
+					__func__, devp->no_rcv_data_enable);
+		}
+	}
+}
+
 static void vbi_slicer_work(struct work_struct *p_work)
 {
 	struct vbi_dev_s *devp = vbi_dev_local;
@@ -1007,6 +1073,10 @@ static void vbi_slicer_work(struct work_struct *p_work)
 			tvafe_pr_info("%s: no vbi data, len %d, vcnt:%d\n",
 				__func__, len, vcnt);
 		}
+		if (devp->slicer->type >= VBI_TYPE_TT_625A &&
+		    devp->slicer->type <= VBI_TYPE_TT_525D &&
+		    !devp->no_rcv_data_enable)
+			devp->no_rcv_data_cnt++;
 		goto vbi_slicer_work_next;
 	}
 
@@ -1176,6 +1246,7 @@ static void vbi_slicer_work(struct work_struct *p_work)
 		}
 
 		ch_len_bak = ch_len;
+		vbi_check_is_valid_data(vbi_data, devp);
 	}
 
 vbi_slicer_work_next:
@@ -1208,6 +1279,7 @@ vbi_slicer_work_next:
 
 vbi_slicer_work_exit:
 	devp->slicer->busy = 0;
+	vbi_check_is_data_rev(devp);
 	mutex_unlock(&devp->slicer->mutex);
 }
 
@@ -1505,13 +1577,14 @@ static ssize_t vbi_ringbuffer_read_user(struct vbi_ringbuffer_s *rbuf,
 	return len;
 }
 
-static ssize_t vbi_buffer_read(struct vbi_ringbuffer_s *src,
+static ssize_t vbi_buffer_read(struct vbi_dev_s *vbi_dev,
 		      int non_blocking, char __user *buf,
 		      size_t count, loff_t *ppos)
 {
 	ssize_t avail;
 	ssize_t ret = 0;
 	ssize_t timeout = 0;
+	struct vbi_ringbuffer_s *src = &vbi_dev->slicer->buffer;
 
 	if (!src || !src->data) {
 		tvafe_pr_info("%s: data null\n", __func__);
@@ -1544,6 +1617,15 @@ static ssize_t vbi_buffer_read(struct vbi_ringbuffer_s *src,
 				__func__, src->pread, src->pwrite);
 		return ret;
 	}
+
+	/* fake data get return no data */
+	if (vbi_dev->no_rcv_data_enable || !get_tvafe_signal_state()) {
+		if (vbi_dbg_en & VBI_DBG_READ)
+			tvafe_pr_info("[vbi..]%s: no data rcv_data:%d stable:%d\n",
+				__func__, vbi_dev->no_rcv_data_enable, get_tvafe_signal_state());
+		return 0;
+	}
+
 	if (src->error) {
 		ret = src->error;
 		vbi_ringbuffer_flush(src);
@@ -1582,8 +1664,7 @@ static ssize_t vbi_read(struct file *file, char __user *buf, size_t count,
 		return -ERESTARTSYS;
 	}
 
-	ret = vbi_buffer_read(&vbi_slicer->buffer,
-		file->f_flags & O_NONBLOCK, buf, count, ppos);
+	ret = vbi_buffer_read(vbi_dev, file->f_flags & O_NONBLOCK, buf, count, ppos);
 
 	mutex_unlock(&vbi_slicer->mutex);
 
@@ -1984,8 +2065,8 @@ static ssize_t debug_store(struct device *dev,
 			devp->vbi_start_code, devp->slicer_enable);
 		tvafe_pr_info("vbi_dto_cc:0x%x,vbi_dto_tt:0x%x\n",
 			devp->vbi_dto_cc, devp->vbi_dto_tt);
-		tvafe_pr_info("vbi_dto_wss:0x%x,vbi_dto_vps:0x%x\n",
-			devp->vbi_dto_wss, devp->vbi_dto_vps);
+		tvafe_pr_info("vbi_dto_wss:0x%x,vbi_dto_vps:0x%x no_rcv_data_enable:%d\n",
+			devp->vbi_dto_wss, devp->vbi_dto_vps, devp->no_rcv_data_enable);
 		tvafe_pr_info("mem_start:0x%p,pac_addr_start:0x%p,pac_addr_end:0x%p\n",
 			devp->pac_addr, devp->pac_addr_start,
 			devp->pac_addr_end);

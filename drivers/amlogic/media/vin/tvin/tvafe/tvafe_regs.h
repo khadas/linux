@@ -4176,8 +4176,10 @@
 #define WSSDATA2_WID                     8
 
 #define CVD2_VBI_WSS_DATA1               ((CVD_BASE_ADD + 0x6E) << 2)
-#define WSSDATA1_BIT                     0
-#define WSSDATA1_WID                     8
+#define WSSDATA1_BYTE1_BIT                     0
+#define WSSDATA1_BYTE1_WID                     4
+#define WSSDATA1_BYTE2_BIT                     4
+#define WSSDATA1_BYTE2_WID                     4
 
 #define CVD2_VBI_WSS_DATA0               ((CVD_BASE_ADD + 0x6F) << 2)
 #define WSSDATA0_BIT                     0

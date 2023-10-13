@@ -117,6 +117,9 @@
 #define VBI_LINE_MIN               6
 #define VBI_LINE_MAX               25
 
+#define VBI_NO_DATA_CNT            15
+#define VBI_HAS_DATA_CNT           2
+
 enum vbi_package_type_e {
 	VBI_PACKAGE_CC1 = 1,
 	VBI_PACKAGE_CC2 = 2,
@@ -275,8 +278,11 @@ struct vbi_dev_s {
 	unsigned int vbi_dto_vps;
 	/* cma_config_flag: 1:share with codec_mm 0:kzalloc */
 	unsigned int cma_config_flag;
+	unsigned int no_rcv_data_cnt;
+	unsigned int rcv_data_cnt;
 	struct vbi_slicer_s *slicer;
 	bool vbi_start;
+	bool no_rcv_data_enable;//true:has data false:no data
 	struct mutex mutex; /* vbi_dev lock */
 	spinlock_t lock; /* slicer buffer lock */
 	struct timer_list timer;
