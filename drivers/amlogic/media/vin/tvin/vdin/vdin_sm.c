@@ -264,6 +264,8 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 						vdin_hdr_flag);
 				pre_prop->vdin_hdr_flag = prop->vdin_hdr_flag;
 			}
+		} else {
+			prop->hdr_info.hdr_check_cnt = 0;
 		}
 
 		cur_dv_flag = prop->dolby_vision;
@@ -375,6 +377,8 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 				devp->pre_prop.fps = devp->prop.fps;
 				devp->parm.info.fps = devp->prop.fps;
 			}
+		} else {
+			devp->sg_chg_fps_cnt = 0;
 		}
 
 		if (devp->pre_prop.aspect_ratio !=
@@ -392,6 +396,8 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 				devp->parm.info.aspect_ratio =
 					prop->aspect_ratio;
 			}
+		} else {
+			devp->sg_chg_afd_cnt = 0;
 		}
 
 		if (devp->vrr_data.vdin_vrr_en_flag != devp->prop.vtem_data.vrr_en ||
@@ -413,6 +419,8 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 						devp->prop.spd_data.data[0]);
 				devp->pre_prop.spd_data.data[5] = devp->prop.spd_data.data[5];
 			}
+		} else {
+			devp->vrr_data.vrr_chg_cnt = 0;
 		}
 
 		if (color_range_force)
@@ -586,10 +594,7 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 				signal_type = ((9 << 0) |
 					(signal_type & (~0xFF)));
 			} else {
-				if (devp->prop.hdr_info.hdr_data.eotf ==
-				    EOTF_SDR)
-					devp->prop.vdin_hdr_flag = false;
-
+				devp->prop.vdin_hdr_flag = false;
 				signal_type &= ~(1 << 29);
 				signal_type &= ~(1 << 25);
 				/* default is bt709,if change need sync */

@@ -753,8 +753,7 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 			if (devp->vrr_data.vrr_mode && !(devp->game_mode & VDIN_GAME_MODE_2))
 				vdin_game_mode_dynamic_check(devp);
 		}
-		if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME &&
-		    phase_lock_flag && !(phase_lock_flag % 10))
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
 			pr_info("lock_cnt:%d, mode:%x in fps:%d out fps:%d\n",
 				phase_lock_flag, devp->game_mode,
 				devp->vdin_std_duration, devp->vinfo_std_duration);
@@ -2858,23 +2857,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	if (vdin_check_cycle(devp)) {
-		vdin_drop_frame_info(devp, "cycle error");
-		vdin_pause_hw_write(devp, 0);
-		return IRQ_HANDLED;
-	}
-
-	/* debug interrupt interval time
-	 *
-	 * this code about system time must be outside of spinlock.
-	 * because the spinlock may affect the system time.
-	 */
-	if (vdin_vs_duration_check(devp) < 0) {
-		vdin_drop_frame_info(devp, "duration error");
-		vdin_pause_hw_write(devp, 0);
-		return IRQ_HANDLED;
-	}
-
 	if (devp->dbg_force_stop_frame_num &&
 		devp->frame_cnt > devp->dbg_force_stop_frame_num) {
 		vdin_drop_frame_info(devp, "force stop");
@@ -2907,6 +2889,23 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			return IRQ_HANDLED;
 		}
 		devp->drop_hdr_set_sts = 0;
+	}
+
+	if (vdin_check_cycle(devp)) {
+		vdin_drop_frame_info(devp, "cycle error");
+		vdin_pause_hw_write(devp, 0);
+		return IRQ_HANDLED;
+	}
+
+	/* debug interrupt interval time
+	 *
+	 * this code about system time must be outside of spinlock.
+	 * because the spinlock may affect the system time.
+	 */
+	if (vdin_vs_duration_check(devp) < 0) {
+		vdin_drop_frame_info(devp, "duration error");
+		vdin_pause_hw_write(devp, 0);
+		return IRQ_HANDLED;
 	}
 
 	vdin_dynamic_switch_vrr(devp);
