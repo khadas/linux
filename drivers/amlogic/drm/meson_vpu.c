@@ -202,6 +202,8 @@ static int am_meson_vpu_bind(struct device *dev,
 	DRM_INFO("[%s] in\n", __func__);
 
 	vpu_data = (struct meson_vpu_data *)of_device_get_match_data(dev);
+	if (!vpu_data)
+		return -EFAULT;
 	private->vpu_data = vpu_data;
 	pipeline->ops = private->vpu_data->pipe_ops;
 

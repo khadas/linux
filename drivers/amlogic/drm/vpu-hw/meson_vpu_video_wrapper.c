@@ -425,6 +425,8 @@ static void video_set_state(struct meson_vpu_block *vblk,
 			vf_info.buffer_h = pic_h;
 			vf_info.zorder = mvvs->zorder;
 			vf_info.reserved[0] = 0;
+			vf_info.phy_addr[0] = mvvs->phy_addr[0];
+			vf_info.phy_addr[1] = mvvs->phy_addr[1];
 
 			if (vf_info.dmabuf && vf_info.dmabuf->resv)
 				old_fence = dma_resv_get_excl(vf_info.dmabuf->resv);
