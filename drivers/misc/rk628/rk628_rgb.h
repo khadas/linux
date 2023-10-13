@@ -9,6 +9,7 @@
 #define RK628_RGB_H
 #include "rk628.h"
 
+int rk628_rgb_parse(struct rk628 *rk628, struct device_node *rgb_np);
 void rk628_rgb_rx_enable(struct rk628 *rk628);
 void rk628_rgb_tx_enable(struct rk628 *rk628);
 void rk628_rgb_tx_disable(struct rk628 *rk628);

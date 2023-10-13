@@ -10,6 +10,11 @@
 #include "rk628_config.h"
 #include "panel.h"
 
+int rk628_rgb_parse(struct rk628 *rk628, struct device_node *rgb_np)
+{
+	return rk628_panel_info_get(rk628, rgb_np);
+}
+
 void rk628_rgb_decoder_enable(struct rk628 *rk628)
 {
 		/* config sw_input_mode RGB */
@@ -39,12 +44,25 @@ void rk628_rgb_encoder_enable(struct rk628 *rk628)
 			      SW_OUTPUT_MODE(OUTPUT_MODE_RGB));
 	rk628_i2c_update_bits(rk628, GRF_POST_PROC_CON, SW_DCLK_OUT_INV_EN,
 			      SW_DCLK_OUT_INV_EN);
+
+	/* pinctrl for vop pin */
+	rk628_i2c_write(rk628, GRF_GPIO2AB_SEL_CON, 0xffffffff);
+	rk628_i2c_write(rk628, GRF_GPIO2C_SEL_CON, 0xffff5555);
+	rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x10b010b);
+
+	/* rk628: modify IO drive strength for RGB */
+	rk628_i2c_write(rk628, GRF_GPIO2A_D0_CON, 0xffff7777);
+	rk628_i2c_write(rk628, GRF_GPIO2A_D1_CON, 0xffff7777);
+	rk628_i2c_write(rk628, GRF_GPIO2B_D0_CON, 0xffff7777);
+	rk628_i2c_write(rk628, GRF_GPIO2B_D1_CON, 0xffff7777);
+	rk628_i2c_write(rk628, GRF_GPIO2C_D0_CON, 0xffff7777);
+	rk628_i2c_write(rk628, GRF_GPIO2C_D1_CON, 0xffff7777);
+	rk628_i2c_write(rk628, GRF_GPIO3A_D0_CON, 0xffff7077);
+	rk628_i2c_write(rk628, GRF_GPIO3B_D_CON, 0xf0007);
 }
 
 void rk628_rgb_encoder_disable(struct rk628 *rk628)
 {
-	rk628_panel_disable(rk628);
-	rk628_panel_unprepare(rk628);
 }
 
 
@@ -66,12 +84,16 @@ void rk628_rgb_tx_enable(struct rk628 *rk628)
 void rk628_rgb_tx_disable(struct rk628 *rk628)
 {
 	rk628_panel_disable(rk628);
+	rk628_panel_unprepare(rk628);
+
+	rk628_rgb_encoder_disable(rk628);
 }
 
 void rk628_bt1120_decoder_enable(struct rk628 *rk628)
 {
 	struct rk628_display_mode *mode = rk628_display_get_src_mode(rk628);
 
+	rk628_set_input_bus_format(rk628, BUS_FMT_YUV420);
 	/* pinctrl for vop pin */
 	rk628_i2c_write(rk628, GRF_GPIO2AB_SEL_CON, 0xffffffff);
 	rk628_i2c_write(rk628, GRF_GPIO2C_SEL_CON, 0xffff5555);
@@ -85,7 +107,7 @@ void rk628_bt1120_decoder_enable(struct rk628 *rk628)
 	rk628_i2c_write(rk628, GRF_GPIO2C_D0_CON, 0xffff1111);
 	rk628_i2c_write(rk628, GRF_GPIO2C_D1_CON, 0xffff1111);
 	rk628_i2c_write(rk628, GRF_GPIO3A_D0_CON, 0xffff1011);
-	rk628_i2c_write(rk628, GRF_GPIO3B_D_CON, 0x10001);
+	rk628_i2c_write(rk628, GRF_GPIO3B_D_CON, 0xf0001);
 
 	/* config sw_input_mode bt1120 */
 	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_INPUT_MODE_MASK,
@@ -122,6 +144,7 @@ void rk628_bt1120_encoder_enable(struct rk628 *rk628)
 {
 	u32 val = 0;
 
+	rk628_set_output_bus_format(rk628, BUS_FMT_YUV420);
 	/* pinctrl for vop pin */
 	rk628_i2c_write(rk628, GRF_GPIO2AB_SEL_CON, 0xffffffff);
 	rk628_i2c_write(rk628, GRF_GPIO2C_SEL_CON, 0xffff5555);
@@ -135,7 +158,7 @@ void rk628_bt1120_encoder_enable(struct rk628 *rk628)
 	rk628_i2c_write(rk628, GRF_GPIO2C_D0_CON, 0xffff1111);
 	rk628_i2c_write(rk628, GRF_GPIO2C_D1_CON, 0xffff1111);
 	rk628_i2c_write(rk628, GRF_GPIO3A_D0_CON, 0xffff1011);
-	rk628_i2c_write(rk628, GRF_GPIO3B_D_CON, 0x10001);
+	rk628_i2c_write(rk628, GRF_GPIO3B_D_CON, 0xf0001);
 
 	/* config sw_input_mode bt1120 */
 	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
