@@ -276,7 +276,7 @@ static int aml_DAC_source_sel_get_enum
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	struct tl1_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
-	u32 val = 0;
+	int val = 0;
 
 	if (aml_acodec->lane_offset == 4) {
 		val = (audiobus_read(EE_AUDIO_TOACODEC_CTRL0) >> 16) & (0xf);
@@ -302,7 +302,7 @@ static int aml_DAC_source_sel_set_enum
 	struct tl1_acodec_priv *aml_acodec = snd_soc_component_get_drvdata(component);
 	u32 val = ucontrol->value.enumerated.item[0];
 
-	if (val < 0 || val > 3) {
+	if (val > 3) {
 		pr_info("Warning: tdmout_index = %d, val = 0x%x\n", aml_acodec->tdmout_index, val);
 		return 0;
 	}

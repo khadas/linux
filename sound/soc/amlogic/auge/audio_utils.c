@@ -426,7 +426,7 @@ static const struct soc_enum tdmout_c_binv_enum =
 static int tdmout_c_binv_get_enum(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
-	unsigned int val;
+	int val;
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 
 	val = get_aml_audio_binv(card);

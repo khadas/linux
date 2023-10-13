@@ -78,7 +78,7 @@ static long vad_unlocked_ioctl(struct file *file,
 		if (copy_from_user(&xferi, _xferi, sizeof(xferi)))
 			return 0;
 
-		if (xferi.frames > 1024 || xferi.frames < 0)
+		if (xferi.frames > 1024)
 			return 0;
 		result = vad_transfer_chunk_data((unsigned long)xferi.buf,
 						 xferi.frames);
