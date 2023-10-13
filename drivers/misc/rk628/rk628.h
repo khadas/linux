@@ -451,6 +451,7 @@ struct rk628 {
 	struct delayed_work dsi_delay_work;
 	struct rk628_panel_simple *panel;
 	void *hdmirx;
+	void *hdmitx;
 	bool display_enabled;
 	u32 input_mode;
 	u32 output_mode;

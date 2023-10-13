@@ -345,6 +345,18 @@ enum {
 
 #define HDMI_MAX_REG			HDMITX_REG(0xed)
 
+#ifdef CONFIG_RK628_MISC_HDMITX
+void rk628_hdmitx_disable(struct rk628 *rk628);
 int rk628_hdmitx_enable(struct rk628 *rk628);
+#else
+static inline void rk628_hdmitx_disable(struct rk628 *rk628)
+{
+}
+
+static inline int rk628_hdmitx_enable(struct rk628 *rk628)
+{
+	return 0;
+}
+#endif
 
 #endif

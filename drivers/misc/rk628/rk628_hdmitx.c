@@ -709,13 +709,6 @@ static void rk628_hdmi_bridge_enable(struct drm_bridge *bridge)
 	rk628_hdmi_set_pwr_mode(hdmi, NORMAL);
 }
 
-static void rk628_hdmi_bridge_disable(struct drm_bridge *bridge)
-{
-	struct rk628_hdmi *hdmi = bridge_to_hdmi(bridge);
-
-	rk628_hdmi_set_pwr_mode(hdmi, LOWER_PWR);
-}
-
 static int rk628_hdmi_bridge_attach(struct drm_bridge *bridge,
 				    enum drm_bridge_attach_flags flags)
 {
@@ -760,7 +753,6 @@ static const struct drm_bridge_funcs rk628_hdmi_bridge_funcs = {
 	.mode_set = rk628_hdmi_bridge_mode_set,
 	.mode_fixup = rk628_hdmi_bridge_mode_fixup,
 	.enable = rk628_hdmi_bridge_enable,
-	.disable = rk628_hdmi_bridge_disable,
 };
 
 static int
@@ -1091,12 +1083,47 @@ static struct i2c_adapter *rk628_hdmi_i2c_adapter(struct rk628_hdmi *hdmi)
 	return adap;
 }
 
+void rk628_hdmitx_disable(struct rk628 *rk628)
+{
+	rk628_i2c_update_bits(rk628, HDMI_SYS_CTRL, POWER_MASK, PWR_OFF(1));
+	rk628_i2c_write(rk628, HDMI_PHY_DRIVER, 0x00);
+	rk628_i2c_write(rk628, HDMI_PHY_PRE_EMPHASIS, 0x00);
+	rk628_i2c_write(rk628, HDMI_PHY_CHG_PWR, 0x00);
+	rk628_i2c_write(rk628, HDMI_PHY_SYS_CTL, 0x15);
+}
+
 int rk628_hdmitx_enable(struct rk628 *rk628)
 {
 	struct device *dev = rk628->dev;
 	struct rk628_hdmi *hdmi;
 	int irq;
 	int ret;
+
+	/* select int io function */
+	rk628_i2c_write(rk628, GRF_GPIO0AB_SEL_CON, 0x70007000);
+	rk628_i2c_write(rk628, GRF_GPIO0AB_SEL_CON, 0x055c055c);
+
+	/* hdmitx vclk pllref select Pin_vclk */
+	rk628_i2c_update_bits(rk628, GRF_POST_PROC_CON,
+			   SW_HDMITX_VCLK_PLLREF_SEL_MASK,
+			   SW_HDMITX_VCLK_PLLREF_SEL(1));
+	/* set output mode to HDMI */
+	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_OUTPUT_MODE_MASK,
+			   SW_OUTPUT_MODE(OUTPUT_MODE_HDMI));
+	/* hdmitx int en */
+	rk628_i2c_write(rk628, GRF_INTR0_EN, 0x00040004);
+
+
+	if (rk628->hdmitx) {
+		hdmi = rk628->hdmitx;
+		rk628_hdmi_reset(hdmi);
+		rk628_hdmi_i2c_init(hdmi);
+		/* Unmute hotplug interrupt */
+		hdmi_modb(hdmi, HDMI_STATUS, MASK_INT_HOTPLUG_MASK,
+			  MASK_INT_HOTPLUG(1));
+
+		return 0;
+	}
 
 	if (!of_device_is_available(dev->of_node))
 		return -ENODEV;
@@ -1108,23 +1135,12 @@ int rk628_hdmitx_enable(struct rk628 *rk628)
 
 	hdmi->dev = dev;
 	hdmi->rk628 = rk628;
+	rk628->hdmitx = hdmi;
 
 	irq = rk628->client->irq;
 	if (irq < 0)
 		return irq;
 	dev_set_drvdata(dev, hdmi);
-
-	/* selete int io function */
-	rk628_i2c_write(rk628, GRF_GPIO0AB_SEL_CON, 0x70007000);
-	rk628_i2c_write(rk628, GRF_GPIO0AB_SEL_CON, 0x055c055c);
-
-	/* hdmitx vclk pllref select Pin_vclk */
-	rk628_i2c_update_bits(rk628, GRF_POST_PROC_CON,
-			   SW_HDMITX_VCLK_PLLREF_SEL_MASK,
-			   SW_HDMITX_VCLK_PLLREF_SEL(1));
-	/* set output mode to HDMI */
-	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_OUTPUT_MODE_MASK,
-			   SW_OUTPUT_MODE(OUTPUT_MODE_HDMI));
 
 	rk628_hdmi_reset(hdmi);
 
@@ -1142,9 +1158,6 @@ int rk628_hdmitx_enable(struct rk628 *rk628)
 	 * and reconfigure the DDC clock.
 	 */
 	hdmi->tmds_rate = 24000 * 1000;
-
-	/* hdmitx int en */
-	rk628_i2c_write(rk628, GRF_INTR0_EN, 0x00040004);
 	rk628_hdmi_i2c_init(hdmi);
 
 	rk628_hdmi_audio_codec_init(hdmi, dev);
@@ -1190,6 +1203,8 @@ int rk628_hdmitx_enable(struct rk628 *rk628)
 	return 0;
 
 fail:
+	devm_kfree(dev, hdmi);
+	rk628->hdmitx = NULL;
 	return ret;
 }
 

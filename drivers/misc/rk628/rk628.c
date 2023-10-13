@@ -401,6 +401,9 @@ static void rk628_display_disable(struct rk628 *rk628)
 	if (rk628_input_is_hdmi(rk628))
 		rk628_hdmirx_disable(rk628);
 
+	if (rk628_output_is_hdmi(rk628))
+		rk628_hdmitx_disable(rk628);
+
 	rk628->display_enabled = false;
 }
 
@@ -448,10 +451,8 @@ static void rk628_display_enable(struct rk628 *rk628)
 	if (rk628_output_is_csi(rk628))
 		rk628_csi_enable(rk628);
 
-#ifdef CONFIG_RK628_MISC_HDMITX
 	if (rk628_output_is_hdmi(rk628))
 		rk628_hdmitx_enable(rk628);
-#endif
 
 	rk628->display_enabled = true;
 }
