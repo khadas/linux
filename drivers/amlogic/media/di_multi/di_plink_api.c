@@ -5876,13 +5876,6 @@ static bool vf_m_in(struct dimn_itf_s *itf)
 			break;
 #endif
 		vf = in_patch_first_buffer(itf);
-		if (!vf) {
-			vf = in_vf_peek(itf);
-			if (!vf)
-				break;
-
-			vf = in_vf_get(itf);
-		}
 		if (!vf)
 			break;
 		mvf = (struct vframe_s *)qidle->ops.get(qidle);
