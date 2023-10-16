@@ -2613,7 +2613,7 @@ void vpp_lut3d_table_init(int r, int g, int b)
 	unsigned int i, index;
 
 	if (!plut3d)
-		plut3d = kzalloc(14739 * sizeof(int), GFP_KERNEL);
+		plut3d = kzalloc(14739 * sizeof(int), GFP_ATOMIC);
 
 	if (!plut3d)
 		return;

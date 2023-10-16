@@ -20,7 +20,7 @@ void bs_ct_tbl(void)
 {
 	int i, j;
 
-	if (!plut3d)
+	if (!plut3d || !plut)
 		return;
 
 	if (bs_3dlut_en) {
