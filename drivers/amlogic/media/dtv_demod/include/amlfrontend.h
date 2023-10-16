@@ -114,6 +114,7 @@
 /*  V2.2.004 fix delete debug logs in probe */
 /*  V2.2.005 add DTV_STAT_SIGNAL_STRENGTH and DTV_STAT_CNR */
 /*  V2.2.006 fix r842 dvbt/t2 LTE interferer test fail */
+/*  V2.2.007 fix power management flow */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -130,8 +131,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.2.006"
-#define DTVDEMOD_VER	"2023/10/20: fix r842 dvbt/t2 LTE interferer test fail"
+#define AMLDTVDEMOD_VER "V2.2.007"
+#define DTVDEMOD_VER	"2023/10/24: fix power management flow"
 #define AMLDTVDEMOD_T2_FW_VER "V1558.20230628"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

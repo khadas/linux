@@ -6514,8 +6514,6 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 
 	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
 		pm_runtime_enable(devp->dev);
-		if (pm_runtime_get_sync(devp->dev) < 0)
-			pr_err("failed to set pwr\n");
 
 		devp->fw_buf = kzalloc(FW_BUFF_SIZE, GFP_KERNEL);
 		if (!devp->fw_buf)
@@ -6573,7 +6571,6 @@ static int __exit aml_dtvdemod_remove(struct platform_device *pdev)
 
 	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
 		kfree(devp->fw_buf);
-		pm_runtime_put_sync(devp->dev);
 		pm_runtime_disable(devp->dev);
 	}
 
@@ -6971,6 +6968,9 @@ static int aml_dtvdm_init(struct dvb_frontend *fe)
 	demod->last_delsys = SYS_UNDEFINED;
 	fe->ops.info.type = 0xFF; /* undefined */
 
+	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D)
+		if (pm_runtime_get_sync(devp->dev))
+			PR_INFO("[%s] pm get sync ERROR.\n", __func__);
 	PR_INFO("%s [id %d] OK.\n", __func__, demod->id);
 
 	mutex_unlock(&devp->lock);
@@ -6995,6 +6995,10 @@ static int aml_dtvdm_sleep(struct dvb_frontend *fe)
 			delsys_exit(demod, delsys, SYS_UNDEFINED);
 	}
 
+	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+		if (pm_runtime_put_sync(devp->dev))
+			PR_INFO("[%s] pm put sync ERROR !\n", __func__);
+	}
 	PR_INFO("%s [id %d] OK.\n", __func__, demod->id);
 
 	mutex_unlock(&devp->lock);
