@@ -1061,7 +1061,7 @@ void rx_set_irq_t5(bool enable)
 		#ifdef VSIF_PKT_READ_FROM_PD_FIFO
 			data32 |= 0 << 15; /* VSI_RCV */
 		#else
-			data32 |= 1 << 15; /* VSI_RCV */
+			data32 |= 0 << 15; /* VSI_RCV */
 		#endif
 			data32 |= 0 << 14; /* AMP_RCV */
 			data32 |= 0 << 13; /* AMP_CHG */
@@ -1671,7 +1671,7 @@ int packet_init_t5(void)
 	data32 |= 1 << 31;	/* PFIFO_STORE_FILTER_EN */
 	data32 |= 0 << 30;  /* Enable packet FIFO store EMP pkt*/
 	#ifdef VSIF_PKT_READ_FROM_PD_FIFO
-	data32 |= 1 << 22;
+	data32 |= 1 << 22;  //vsi
 	#endif
 	data32 |= 1 << 4;	/* PD_FIFO_WE */
 	data32 |= 0 << 1;	/* emp pkt rev int,0:last 1:every */
@@ -5602,17 +5602,20 @@ void rx_emp_field_done_irq(void)
 	unsigned int i, j, k;
 	unsigned int data_cnt = 0;
 	struct page *cur_start_pg_addr;
+	struct emp_buff *emp_buf_p = NULL;
 
 	/*emp data start physical address*/
 	p_addr = (u64)hdmirx_rd_top(TOP_EMP_DDR_PTR_S_BUF) << 2;
 
 	/*buffer number*/
 	recv_pkt_cnt = hdmirx_rd_top(TOP_EMP_RCV_CNT_BUF);
+	emp_buf_p = &rx.emp_buff;
+
 	recv_byte_cnt = recv_pkt_cnt * 32;
 	if (recv_byte_cnt > (EMP_BUFFER_SIZE >> 1))
 		recv_byte_cnt = EMP_BUFFER_SIZE >> 1;
-	if (log_level & PACKET_LOG)
-		rx_pr("recv_byte_cnt=0x%x\n", recv_byte_cnt);
+	//if (log_level & PACKET_LOG)
+		//rx_pr("recv_byte_cnt=0x%x\n", recv_byte_cnt);
 	recv_pagenum = (recv_byte_cnt >> PAGE_SHIFT) + 1;
 
 	if (rx.emp_buff.irq_cnt & 0x1)
@@ -5629,7 +5632,13 @@ void rx_emp_field_done_irq(void)
 	for (i = 0; i < recv_pagenum;) {
 		/*one page 4k*/
 		cur_start_pg_addr = phys_to_page(p_addr + i * PAGE_SIZE);
-		src_addr = kmap_atomic(cur_start_pg_addr);
+		if (p_addr == emp_buf_p->p_addr_a)
+			src_addr = kmap_atomic(cur_start_pg_addr);
+		else
+			src_addr = kmap_atomic(cur_start_pg_addr) + (emp_buf_p->p_addr_b -
+				emp_buf_p->p_addr_a) % PAGE_SIZE;
+		if (!src_addr)
+			return;
 		dma_sync_single_for_cpu(hdmirx_dev, (p_addr + i * PAGE_SIZE),
 					PAGE_SIZE, DMA_TO_DEVICE);
 		for (j = 0; j < recv_byte_cnt;) {

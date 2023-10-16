@@ -120,6 +120,7 @@ enum fps_e {
 /* signal */
 extern u32 force_vic;
 extern u32 vpp_mute_enable;
+extern u32 emp_dbg;
 extern u32 dbg_cs;
 
 void rx_mute_vpp(void);

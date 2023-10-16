@@ -187,6 +187,7 @@ static bool term_flag = 1;
  * in companion with vlock phase = 84
  */
 u32 vpp_mute_enable = 1;
+u32 emp_dbg;
 int clk_chg_cnt;
 int clk_chg_max = 3;
 // 1. connected to a non-hdcp device
@@ -2371,6 +2372,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(eq_dbg_lvl, i++);
 	pr_var(edid_select, i++);
 	pr_var(vpp_mute_enable, i++);
+	pr_var(emp_dbg, i++);
 	pr_var(dbg_cs, i++);
 	pr_var(dbg_pkt, i++);
 	pr_var(aud_compose_type, i++);
@@ -2644,6 +2646,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(edid_select, index);
 	if (set_pr_var(tmpbuf, var_to_str(vpp_mute_enable), &vpp_mute_enable, value))
 		return pr_var(vpp_mute_enable, index);
+	if (set_pr_var(tmpbuf, var_to_str(emp_dbg), &emp_dbg, value))
+		return pr_var(emp_dbg, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx.var.dbg_ve), &rx.var.dbg_ve, value))
 		return pr_var(rx.var.dbg_ve, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx.var.avi_chk_frames), &rx.var.avi_chk_frames, value))

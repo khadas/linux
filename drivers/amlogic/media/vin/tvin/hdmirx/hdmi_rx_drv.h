@@ -45,7 +45,8 @@
 //disable de-repeat for 640x480p
 //2023.10.03
 //CTS 2-79
-#define RX_VER0 "ver.2023/10/03"
+//emp dbg
+#define RX_VER0 "ver.2023/10/17"
 
 /*print type*/
 #define	LOG_EN		0x01

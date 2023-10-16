@@ -1077,92 +1077,197 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 	}
 	if (rx.pre.colorspace != E_COLOR_YUV420)
 		prop->dolby_vision = rx.vs_info_details.dolby_vision_flag;
-#ifdef MULTI_VSIF_EXPORT_TO_EMP
-	if (log_level & PACKET_LOG && rx.new_emp_pkt)
-		rx_pr("vsi_state:0x%x\n", rx.vs_info_details.vsi_state);
 
-	if (rx.vs_info_details.vsi_state & E_VSI_DV10 || rx.vs_info_details.vsi_state & E_VSI_DV15)
-		rx.vs_info_details.vsi_state = E_VSI_DV15;
-	else if (rx.vs_info_details.vsi_state & E_VSI_HDR10PLUS)
-		rx.vs_info_details.vsi_state = E_VSI_HDR10PLUS;
-	else if (rx.vs_info_details.vsi_state & E_VSI_CUVAHDR)
-		rx.vs_info_details.vsi_state = E_VSI_CUVAHDR;
-	else if (rx.vs_info_details.vsi_state & E_VSI_FILMMAKER)
-		rx.vs_info_details.vsi_state = E_VSI_FILMMAKER;
-	else if (rx.vs_info_details.vsi_state & E_VSI_VSI21)
-		rx.vs_info_details.vsi_state = E_VSI_VSI21;
-	else
-		rx.vs_info_details.vsi_state = E_VSI_4K3D;
+	if (rx.chip_id >= CHIP_ID_T7) {
+		if (log_level & PACKET_LOG && rx.new_emp_pkt)
+			rx_pr("vsi_state:0x%x\n", rx.vs_info_details.vsi_state);
 
-	switch (rx.vs_info_details.vsi_state) {
-	case E_VSI_DV10:
-	case E_VSI_DV15:
-		prop->low_latency = rx.vs_info_details.low_latency;
-		if (rx.vs_info_details.dolby_vision_flag == DV_VSIF) {
-			memcpy(&prop->dv_vsif_raw,
-			       &rx_pkt.multi_vs_info[DV15], 3);
-			memcpy((char *)(&prop->dv_vsif_raw) + 3,
-			       &rx_pkt.multi_vs_info[DV15].PB0,
-			       sizeof(struct tvin_dv_vsif_raw_s) - 4);
+		if (rx.vs_info_details.vsi_state & E_VSI_DV10 ||
+			rx.vs_info_details.vsi_state & E_VSI_DV15)
+			rx.vs_info_details.vsi_state = E_VSI_DV15;
+		else if (rx.vs_info_details.vsi_state & E_VSI_HDR10PLUS)
+			rx.vs_info_details.vsi_state = E_VSI_HDR10PLUS;
+		else if (rx.vs_info_details.vsi_state & E_VSI_CUVAHDR)
+			rx.vs_info_details.vsi_state = E_VSI_CUVAHDR;
+		else if (rx.vs_info_details.vsi_state & E_VSI_FILMMAKER)
+			rx.vs_info_details.vsi_state = E_VSI_FILMMAKER;
+		else if (rx.vs_info_details.vsi_state & E_VSI_VSI21)
+			rx.vs_info_details.vsi_state = E_VSI_VSI21;
+		else
+			rx.vs_info_details.vsi_state = E_VSI_4K3D;
+
+		switch (rx.vs_info_details.vsi_state) {
+		case E_VSI_DV10:
+		case E_VSI_DV15:
+			prop->low_latency = rx.vs_info_details.low_latency;
+			if (rx.vs_info_details.dolby_vision_flag == DV_VSIF) {
+				memcpy(&prop->dv_vsif_raw,
+				       &rx_pkt.multi_vs_info[DV15], 3);
+				memcpy((char *)(&prop->dv_vsif_raw) + 3,
+				       &rx_pkt.multi_vs_info[DV15].PB0,
+				       sizeof(struct tvin_dv_vsif_raw_s) - 4);
+			}
+			break;
+		case E_VSI_HDR10PLUS:
+			prop->hdr10p_info.hdr10p_on = rx.vs_info_details.hdr10plus;
+			memcpy(&prop->hdr10p_info.hdr10p_data, &rx_pkt.multi_vs_info[HDR10PLUS],
+				sizeof(struct tvin_hdr10p_data_s));
+			break;
+		case E_VSI_CUVAHDR:
+			prop->cuva_info.cuva_on = true;
+			if (rx.vs_info_details.cuva_hdr) {
+				memset(&prop->cuva_info.cuva_data, 0,
+					sizeof(struct tvin_cuva_data_s));
+				memcpy(&prop->cuva_info.cuva_data,
+				       &rx_pkt.multi_vs_info[CUVAHDR],
+				       sizeof(struct tvin_cuva_data_s));
+			}
+			break;
+		case E_VSI_FILMMAKER:
+			if (rx.vs_info_details.filmmaker && !rx.vs_info_details.hdmi_allm) {
+				rx.vsif_fmm_flag = true;
+				memset(&prop->filmmaker.fmm_data, 0,
+					sizeof(struct tvin_fmm_data_s));
+				memcpy((u8 *)&prop->filmmaker.fmm_data,
+					(u8 *)&rx_pkt.multi_vs_info[FILMMAKER], 3);
+				memcpy((u8 *)&prop->filmmaker.fmm_data + 3,
+					(u8 *)&rx_pkt.multi_vs_info[FILMMAKER] + 4,
+					sizeof(struct tvin_fmm_data_s) - 3);
+			}
+			break;
+		case E_VSI_4K3D:
+			if (hdmirx_hw_get_3d_structure() == 1) {
+				if (rx.vs_info_details._3d_structure == 0x1) {
+					/* field alternative */
+					prop->trans_fmt = TVIN_TFMT_3D_FA;
+				} else if (rx.vs_info_details._3d_structure == 0x2) {
+					/* line alternative */
+					prop->trans_fmt = TVIN_TFMT_3D_LA;
+				} else if (rx.vs_info_details._3d_structure == 0x3) {
+					/* side-by-side full */
+					prop->trans_fmt = TVIN_TFMT_3D_LRF;
+				} else if (rx.vs_info_details._3d_structure == 0x4) {
+					/* L + depth */
+					prop->trans_fmt = TVIN_TFMT_3D_LD;
+				} else if (rx.vs_info_details._3d_structure == 0x5) {
+					/* L + depth + graphics + graphics-depth */
+					prop->trans_fmt = TVIN_TFMT_3D_LDGD;
+				} else if (rx.vs_info_details._3d_structure == 0x6) {
+					/* top-and-bot */
+					prop->trans_fmt = TVIN_TFMT_3D_TB;
+				} else if (rx.vs_info_details._3d_structure == 0x8) {
+					/* Side-by-Side half */
+					switch (rx.vs_info_details._3d_ext_data) {
+					case 0x5:
+						/*Odd/Left picture, Even/Right picture*/
+						prop->trans_fmt = TVIN_TFMT_3D_LRH_OLER;
+						break;
+					case 0x6:
+						/*Even/Left picture, Odd/Right picture*/
+						prop->trans_fmt = TVIN_TFMT_3D_LRH_ELOR;
+						break;
+					case 0x7:
+						/*Even/Left picture, Even/Right picture*/
+						prop->trans_fmt = TVIN_TFMT_3D_LRH_ELER;
+						break;
+					case 0x4:
+						/*Odd/Left picture, Odd/Right picture*/
+					default:
+						prop->trans_fmt = TVIN_TFMT_3D_LRH_OLOR;
+						break;
+					}
+				}
+			}
+			break;
+		case E_VSI_VSI21:
+			if (hdmirx_hw_get_3d_structure() == 1) {
+				if (rx.vs_info_details._3d_structure == 0x1) {
+					/* field alternative */
+					prop->trans_fmt = TVIN_TFMT_3D_FA;
+				} else if (rx.vs_info_details._3d_structure == 0x2) {
+				/* line alternative */
+					prop->trans_fmt = TVIN_TFMT_3D_LA;
+				} else if (rx.vs_info_details._3d_structure == 0x3) {
+					/* side-by-side full */
+					prop->trans_fmt = TVIN_TFMT_3D_LRF;
+				} else if (rx.vs_info_details._3d_structure == 0x4) {
+					/* L + depth */
+					prop->trans_fmt = TVIN_TFMT_3D_LD;
+				} else if (rx.vs_info_details._3d_structure == 0x5) {
+					/* L + depth + graphics + graphics-depth */
+					prop->trans_fmt = TVIN_TFMT_3D_LDGD;
+				} else if (rx.vs_info_details._3d_structure == 0x6) {
+					/* top-and-bot */
+					prop->trans_fmt = TVIN_TFMT_3D_TB;
+				} else if (rx.vs_info_details._3d_structure == 0x8) {
+					/* Side-by-Side half */
+					switch (rx.vs_info_details._3d_ext_data) {
+					case 0x5:
+						/*Odd/Left picture, Even/Right picture*/
+						prop->trans_fmt = TVIN_TFMT_3D_LRH_OLER;
+						break;
+					case 0x6:
+						/*Even/Left picture, Odd/Right picture*/
+						prop->trans_fmt = TVIN_TFMT_3D_LRH_ELOR;
+						break;
+					case 0x7:
+						/*Even/Left picture, Even/Right picture*/
+						prop->trans_fmt = TVIN_TFMT_3D_LRH_ELER;
+						break;
+					case 0x4:
+						/*Odd/Left picture, Odd/Right picture*/
+					default:
+						prop->trans_fmt = TVIN_TFMT_3D_LRH_OLOR;
+						break;
+					}
+				}
+				if (rx.threed_info.meta_data_flag) {
+					prop->threed_info.meta_data_flag = true;
+					prop->threed_info.meta_data_type =
+						rx.threed_info.meta_data_type;
+					prop->threed_info.meta_data_length =
+						rx.threed_info.meta_data_length;
+					memcpy(prop->threed_info.meta_data,
+						rx.threed_info.meta_data,
+						sizeof(prop->threed_info.meta_data));
+				}
+			}
+			break;
+		default:
+			break;
 		}
+
+	} else {
+		switch (rx.vs_info_details.vsi_state) {
+		case E_VSI_HDR10PLUS:
+			prop->hdr10p_info.hdr10p_on = rx.vs_info_details.hdr10plus;
+			memcpy(&prop->hdr10p_info.hdr10p_data,
+			       &rx_pkt.vs_info, sizeof(struct tvin_hdr10p_data_s));
+			break;
+		case E_VSI_DV10:
+		case E_VSI_DV15:
+			prop->low_latency = rx.vs_info_details.low_latency;
+			if (rx.vs_info_details.dolby_vision_flag == DV_VSIF) {
+				memcpy(&prop->dv_vsif_raw,
+				       &rx_pkt.vs_info, 3);
+				memcpy((char *)(&prop->dv_vsif_raw) + 3,
+				       &rx_pkt.vs_info.PB0,
+				       sizeof(struct tvin_dv_vsif_raw_s) - 4);
+			}
+			break;
+		case E_VSI_FILMMAKER:
+			if (rx.vs_info_details.filmmaker) {
+				rx.vsif_fmm_flag = true;
+				memset(&prop->filmmaker.fmm_data, 0,
+					sizeof(struct tvin_fmm_data_s));
+				memcpy((u8 *)&prop->filmmaker.fmm_data,
+					(u8 *)&rx_pkt.vs_info, 3);
+				memcpy((u8 *)&prop->filmmaker.fmm_data + 3,
+					(u8 *)&rx_pkt.vs_info + 4,
+					sizeof(struct tvin_fmm_data_s) - 3);
+			}
 		break;
-	case E_VSI_HDR10PLUS:
-		prop->hdr10p_info.hdr10p_on = rx.vs_info_details.hdr10plus;
-		memcpy(&prop->hdr10p_info.hdr10p_data, &rx_pkt.multi_vs_info[HDR10PLUS],
-			sizeof(struct tvin_hdr10p_data_s));
-		break;
-	case E_VSI_CUVAHDR:
-		prop->cuva_info.cuva_on = true;
-		if (rx.vs_info_details.cuva_hdr) {
-			memset(&prop->cuva_info.cuva_data, 0,
-				sizeof(struct tvin_cuva_data_s));
-			memcpy(&prop->cuva_info.cuva_data,
-			       &rx_pkt.multi_vs_info[CUVAHDR], sizeof(struct tvin_cuva_data_s));
-		}
-		break;
-	case E_VSI_FILMMAKER:
-		if (rx.vs_info_details.filmmaker && !rx.vs_info_details.hdmi_allm) {
-			rx.vsif_fmm_flag = true;
-			memset(&prop->filmmaker.fmm_data, 0,
-				sizeof(struct tvin_fmm_data_s));
-			memcpy((u8 *)&prop->filmmaker.fmm_data,
-				(u8 *)&rx_pkt.multi_vs_info[FILMMAKER], 3);
-			memcpy((u8 *)&prop->filmmaker.fmm_data + 3,
-				(u8 *)&rx_pkt.multi_vs_info[FILMMAKER] + 4,
-				sizeof(struct tvin_fmm_data_s) - 3);
-		}
-		break;
-#else
-	switch (rx.vs_info_details.vsi_state) {
-	case E_VSI_HDR10PLUS:
-		prop->hdr10p_info.hdr10p_on = rx.vs_info_details.hdr10plus;
-		memcpy(&prop->hdr10p_info.hdr10p_data,
-		       &rx_pkt.vs_info, sizeof(struct tvin_hdr10p_data_s));
-		break;
-	case E_VSI_DV10:
-	case E_VSI_DV15:
-		prop->low_latency = rx.vs_info_details.low_latency;
-		if (rx.vs_info_details.dolby_vision_flag == DV_VSIF) {
-			memcpy(&prop->dv_vsif_raw,
-			       &rx_pkt.vs_info, 3);
-			memcpy((char *)(&prop->dv_vsif_raw) + 3,
-			       &rx_pkt.vs_info.PB0,
-			       sizeof(struct tvin_dv_vsif_raw_s) - 4);
-		}
-		break;
-	case E_VSI_FILMMAKER:
-		if (rx.vs_info_details.filmmaker) {
-			rx.vsif_fmm_flag = true;
-			memset(&prop->filmmaker.fmm_data, 0,
-				sizeof(struct tvin_fmm_data_s));
-			memcpy((u8 *)&prop->filmmaker.fmm_data,
-				(u8 *)&rx_pkt.vs_info, 3);
-			memcpy((u8 *)&prop->filmmaker.fmm_data + 3,
-				(u8 *)&rx_pkt.vs_info + 4, sizeof(struct tvin_fmm_data_s) - 3);
-		}
-		break;
-#endif
-	case E_VSI_4K3D:
+		case E_VSI_4K3D:
 		if (hdmirx_hw_get_3d_structure() == 1) {
 			if (rx.vs_info_details._3d_structure == 0x1) {
 				/* field alternative */
@@ -1206,61 +1311,63 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 			}
 		}
 		break;
-	case E_VSI_VSI21:
-		if (hdmirx_hw_get_3d_structure() == 1) {
-			if (rx.vs_info_details._3d_structure == 0x1) {
-				/* field alternative */
-				prop->trans_fmt = TVIN_TFMT_3D_FA;
-			} else if (rx.vs_info_details._3d_structure == 0x2) {
-			/* line alternative */
-				prop->trans_fmt = TVIN_TFMT_3D_LA;
-			} else if (rx.vs_info_details._3d_structure == 0x3) {
-				/* side-by-side full */
-				prop->trans_fmt = TVIN_TFMT_3D_LRF;
-			} else if (rx.vs_info_details._3d_structure == 0x4) {
-				/* L + depth */
-				prop->trans_fmt = TVIN_TFMT_3D_LD;
-			} else if (rx.vs_info_details._3d_structure == 0x5) {
-				/* L + depth + graphics + graphics-depth */
-				prop->trans_fmt = TVIN_TFMT_3D_LDGD;
-			} else if (rx.vs_info_details._3d_structure == 0x6) {
-				/* top-and-bot */
-				prop->trans_fmt = TVIN_TFMT_3D_TB;
-			} else if (rx.vs_info_details._3d_structure == 0x8) {
-				/* Side-by-Side half */
-				switch (rx.vs_info_details._3d_ext_data) {
-				case 0x5:
-					/*Odd/Left picture, Even/Right picture*/
-					prop->trans_fmt = TVIN_TFMT_3D_LRH_OLER;
-					break;
-				case 0x6:
-					/*Even/Left picture, Odd/Right picture*/
-					prop->trans_fmt = TVIN_TFMT_3D_LRH_ELOR;
-					break;
-				case 0x7:
-					/*Even/Left picture, Even/Right picture*/
-					prop->trans_fmt = TVIN_TFMT_3D_LRH_ELER;
-					break;
-				case 0x4:
-					/*Odd/Left picture, Odd/Right picture*/
-				default:
-					prop->trans_fmt = TVIN_TFMT_3D_LRH_OLOR;
-					break;
+		case E_VSI_VSI21:
+			if (hdmirx_hw_get_3d_structure() == 1) {
+				if (rx.vs_info_details._3d_structure == 0x1) {
+					/* field alternative */
+					prop->trans_fmt = TVIN_TFMT_3D_FA;
+				} else if (rx.vs_info_details._3d_structure == 0x2) {
+				/* line alternative */
+					prop->trans_fmt = TVIN_TFMT_3D_LA;
+				} else if (rx.vs_info_details._3d_structure == 0x3) {
+					/* side-by-side full */
+					prop->trans_fmt = TVIN_TFMT_3D_LRF;
+				} else if (rx.vs_info_details._3d_structure == 0x4) {
+					/* L + depth */
+					prop->trans_fmt = TVIN_TFMT_3D_LD;
+				} else if (rx.vs_info_details._3d_structure == 0x5) {
+					/* L + depth + graphics + graphics-depth */
+					prop->trans_fmt = TVIN_TFMT_3D_LDGD;
+				} else if (rx.vs_info_details._3d_structure == 0x6) {
+					/* top-and-bot */
+					prop->trans_fmt = TVIN_TFMT_3D_TB;
+				} else if (rx.vs_info_details._3d_structure == 0x8) {
+					/* Side-by-Side half */
+					switch (rx.vs_info_details._3d_ext_data) {
+					case 0x5:
+						/*Odd/Left picture, Even/Right picture*/
+						prop->trans_fmt = TVIN_TFMT_3D_LRH_OLER;
+						break;
+					case 0x6:
+						/*Even/Left picture, Odd/Right picture*/
+						prop->trans_fmt = TVIN_TFMT_3D_LRH_ELOR;
+						break;
+					case 0x7:
+						/*Even/Left picture, Even/Right picture*/
+						prop->trans_fmt = TVIN_TFMT_3D_LRH_ELER;
+						break;
+					case 0x4:
+						/*Odd/Left picture, Odd/Right picture*/
+					default:
+						prop->trans_fmt = TVIN_TFMT_3D_LRH_OLOR;
+						break;
+					}
+				}
+				if (rx.threed_info.meta_data_flag) {
+					prop->threed_info.meta_data_flag = true;
+					prop->threed_info.meta_data_type =
+						rx.threed_info.meta_data_type;
+					prop->threed_info.meta_data_length =
+						rx.threed_info.meta_data_length;
+					memcpy(prop->threed_info.meta_data,
+						rx.threed_info.meta_data,
+						sizeof(prop->threed_info.meta_data));
 				}
 			}
-			if (rx.threed_info.meta_data_flag) {
-				prop->threed_info.meta_data_flag = true;
-				prop->threed_info.meta_data_type =
-					rx.threed_info.meta_data_type;
-				prop->threed_info.meta_data_length =
-					rx.threed_info.meta_data_length;
-				memcpy(prop->threed_info.meta_data, rx.threed_info.meta_data,
-					sizeof(prop->threed_info.meta_data));
-			}
+			break;
+		default:
+			break;
 		}
-		break;
-	default:
-		break;
 	}
 }
 
