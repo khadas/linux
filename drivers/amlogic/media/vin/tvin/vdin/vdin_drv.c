@@ -3224,13 +3224,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		} else {
 			devp->vdin_irq_flag = VDIN_IRQ_FLG_NO_NEXT_FE;
 			vdin_drop_frame_info(devp, "no next wr vfe-1");
-			/* I need drop two frame */
-			if ((devp->curr_field_type & VIDTYPE_INTERLACE)
-				== VIDTYPE_INTERLACE) {
-				devp->frame_drop_num = 1;
-				/*devp->interlace_force_drop = 1;*/
-				vdin_drop_frame_info(devp, "interlace drop");
-			}
 			/* vdin_drop_cnt++; no need skip frame,only drop one */
 			goto irq_handled;
 		}
