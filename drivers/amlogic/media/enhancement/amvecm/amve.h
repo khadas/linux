@@ -32,23 +32,6 @@ enum pq_ctl_cfg_e {
 	PQ_CFG_MAX
 };
 
-struct pq_ctrl_s {
-	u8 sharpness0_en;
-	u8 sharpness1_en;
-	u8 dnlp_en;
-	u8 cm_en;
-	u8 vadj1_en;
-	u8 vd1_ctrst_en;
-	u8 vadj2_en;
-	u8 post_ctrst_en;
-	u8 wb_en;
-	u8 gamma_en;
-	u8 lc_en;
-	u8 black_ext_en;
-	u8 chroma_cor_en;
-	u8 reserved;
-};
-
 struct ve_regs_s {
 	unsigned int val:32;
 	unsigned int reg:14;

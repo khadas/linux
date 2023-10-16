@@ -327,6 +327,23 @@ struct cm_color_md {
 	int color_value;
 };
 
+struct pq_ctrl_s {
+	__u8 sharpness0_en;
+	__u8 sharpness1_en;
+	__u8 dnlp_en;
+	__u8 cm_en;
+	__u8 vadj1_en;
+	__u8 vd1_ctrst_en;
+	__u8 vadj2_en;
+	__u8 post_ctrst_en;
+	__u8 wb_en;
+	__u8 gamma_en;
+	__u8 lc_en;
+	__u8 black_ext_en;
+	__u8 chroma_cor_en;
+	__u8 reserved;
+};
+
 struct vpp_pq_ctrl_s {
 	unsigned int length;
 	union {
