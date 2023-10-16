@@ -3980,11 +3980,11 @@ static void vdin_dump_sct_state(struct vdin_dev_s *devp)
 	struct vdin_mmu_box *box = NULL;
 
 	pr_info("mem_type:%d\n", devp->mem_type);
-	pr_info("irq:%d,frm:%d,que:%d,run:%d,pause:%d\n",
+	pr_info("irq:%d,frm:%d,que:%d,run:%d,pause:%d,af_num:%d\n",
 		devp->irq_cnt, devp->frame_cnt,
 		devp->msct_top.que_work_cnt,
 		devp->msct_top.worker_run_cnt,
-		devp->msct_top.sct_pause_dec);
+		devp->msct_top.sct_pause_dec, devp->af_num);
 
 	pr_info("pool,size:%d,wr_list:%d,wr_mode:%d,rd_list:%d,rd_mode:%d\n",
 		devp->vfp->size, devp->vfp->wr_list_size,
@@ -3999,9 +3999,10 @@ static void vdin_dump_sct_state(struct vdin_dev_s *devp)
 			break;
 		}
 		sum += devp->msct_top.sct_stat[i].cur_page_cnt;
-		pr_info("[%d],index:%d,sct_stat:%d,status:%d,cur_page_cnt:%d\n",
+		pr_info("[%d],index:%d,sct_stat:%d,status:%d,cur_page_cnt:%d,addr:%#lx\n",
 			i, vfe->vf.index, vfe->sct_stat, vfe->status,
-			devp->msct_top.sct_stat[i].cur_page_cnt);
+			devp->msct_top.sct_stat[i].cur_page_cnt,
+			devp->afbce_info->fm_body_paddr[i]);
 		pr_info("mem_handle[%d]:%p\n", i, vfe->vf.mem_handle);
 	}
 	pr_info("max_buf_mum:%d,mmu number:%d,total pages vf:%d,size:%ld KB\n",

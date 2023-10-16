@@ -177,8 +177,8 @@ void vdin_sct_alloc(struct vdin_dev_s *devp, int vf_idx)
 	diff = timer_end - timer_st;
 	if (sct_print_ctl & SCT_PRINT_CTL_ALLOC_IDX)
 		pr_info("%s:use %u us\n", __func__, (unsigned int)diff);
-	if ((unsigned int)diff > 10000)
-		pr_info("%s:use %uus too long\n", __func__, (unsigned int)diff);
+	if (diff > 10000)
+		pr_info("%s:takes %llu us,too long\n", __func__, diff);
 }
 
 void vdin_sct_free_tail(struct vdin_dev_s *devp, int vf_idx, int buffer_used)
@@ -237,10 +237,12 @@ void vdin_sct_free(struct vf_pool *p, int index)
 		return;
 	}
 	ret = vdin_mmu_box_free_idx(psct->box, index);
-	if (ret == 0)
+	if (ret == 0) {
+		devp->afbce_info->fm_body_paddr[index] = 0;
 		psct->sct_stat[index].cur_page_cnt = 0;
-	else
+	} else {
 		pr_err("%s:box_free_idx failed with %d\n", __func__, ret);
+	}
 
 	timer_end = cur_to_usecs();
 	diff = timer_end - timer_st;
@@ -376,9 +378,6 @@ void vdin_sct_worker(struct work_struct *work)
 			pr_info("%s,vf_idx:%d,cur_page_cnt:%d\n",
 				__func__, next_wr_vfe->vf.index,
 				devp->msct_top.sct_stat[next_wr_vfe->vf.index].cur_page_cnt);
-		next_wr_vfe->vf.afbce_num = 0;
-		next_wr_vfe->vf.mem_handle =
-			vdin_mmu_box_get_mem_handle(devp->msct_top.box, next_wr_vfe->vf.index);
 		if (sct_print_ctl & SCT_PRINT_CTL_MEM_HLD)
 			pr_info("vdin%d,mem handle[%d]:%p\n", devp->index, next_wr_vfe->vf.index,
 			next_wr_vfe->vf.mem_handle);
@@ -387,6 +386,10 @@ void vdin_sct_worker(struct work_struct *work)
 			vdin_sct_alloc(devp, next_wr_vfe->vf.index);
 			next_wr_vfe->sct_stat = VFRAME_SCT_STATE_FULL;
 		}
+
+		next_wr_vfe->vf.afbce_num = 0;
+		next_wr_vfe->vf.mem_handle =
+			vdin_mmu_box_get_mem_handle(devp->msct_top.box, next_wr_vfe->vf.index);
 	} else {
 		if (sct_print_ctl & SCT_PRINT_CTL_WARN)
 			pr_info("vdin%d:peek vframe failed,irq:%d,frame:%d;[%d %d %d %d]%d %d\n",

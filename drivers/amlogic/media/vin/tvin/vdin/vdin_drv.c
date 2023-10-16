@@ -2549,7 +2549,8 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 		md = VDIN_VF_RECYCLE;
 
 	/*force recycle one frame*/
-	if (devp->frame_cnt <= devp->vdin_drop_num) {
+	if (devp->frame_cnt <= devp->vdin_drop_num ||
+		devp->vdin_irq_flag) {
 		if (vfe)
 			receiver_vf_put(&vfe->vf, devp->vfp);
 		ret = -1;
@@ -2777,6 +2778,9 @@ static void vdin_set_vfe_info(struct vdin_dev_s *devp, struct vf_entry *vfe)
 static void vdin_set_one_buffer_mode(struct vdin_dev_s *devp, struct vf_entry *next_wr_vfe)
 {
 	struct vf_entry *master = NULL;
+
+	if (!next_wr_vfe)
+		return;
 
 	/* vrr lock,and game mode 2, enter one buffer mode */
 	if ((devp->game_mode & VDIN_GAME_MODE_2) &&
@@ -3234,11 +3238,15 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			goto irq_handled;
 		}
 	}
+
+	vdin_set_one_buffer_mode(devp, next_wr_vfe);
+
 	if (devp->mem_type == VDIN_MEM_TYPE_SCT && next_wr_vfe) {
 		if (next_wr_vfe->sct_stat != VFRAME_SCT_STATE_FULL) {
 			devp->msct_top.sct_pause_dec = true;
 			devp->vdin_irq_flag = VDIN_IRQ_FLG_NO_NEXT_FE;
 			vdin_drop_frame_info(devp, "sct no next wr vfe");
+			vdin_pause_hw_write(devp, 0);
 			goto irq_handled;
 		} else if (devp->msct_top.sct_pause_dec) {
 			devp->msct_top.sct_pause_dec = false;
@@ -3253,8 +3261,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		/* vdin_drop_cnt++; no need skip frame,only drop one */
 		goto irq_handled;
 	}
-
-	vdin_set_one_buffer_mode(devp, next_wr_vfe);
 
 	if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -3420,6 +3426,8 @@ irq_handled:
 	if (devp->vfp->skip_vf_num > 0 &&
 	    vf_drop_cnt < vdin_drop_cnt)
 		vdin_vf_disp_mode_skip(devp->vfp);
+
+	devp->vdin_irq_flag = 0;
 
 	spin_unlock_irqrestore(&devp->isr_lock, flags);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
@@ -3693,6 +3701,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	devp->frame_cnt++;
 
 irq_handled:
+	devp->vdin_irq_flag = 0;
 	spin_unlock_irqrestore(&devp->isr_lock, flags);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if ((devp->flags & VDIN_FLAG_RDMA_ENABLE) &&
