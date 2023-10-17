@@ -2959,8 +2959,12 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 static enum hdmi_vic get_vic_from_pkt(void)
 {
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	vic = hdmitx21_rd_reg(TPI_AVI_BYTE4_IVCTX) & 0x7f;
+	//todo vesa mode
+	vic = hdmitx21_rd_reg(TPI_AVI_BYTE4_IVCTX) & 0xff;
+	if (vic == HDMI_0_UNKNOWN)
+		vic = _get_vic_from_vsif(hdev);
 
 	return vic;
 }
