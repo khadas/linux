@@ -26,9 +26,7 @@ struct hifi4dsp_firmware {
 int  hifi4dsp_fw_load(struct hifi4dsp_firmware *dsp_fw);
 int  hifi4dsp_fw_sram_load(struct hifi4dsp_firmware *dsp_fw);
 int  hifi4dsp_fw_unload(struct hifi4dsp_firmware *dsp_fw);
-void hifi4dsp_fw_free(struct hifi4dsp_firmware *dsp_fw);
 int  hifi4dsp_fw_add(struct hifi4dsp_firmware *dsp_fw);
-void hifi4dsp_fw_free_all(struct hifi4dsp_dsp *dsp);
 struct hifi4dsp_firmware *hifi4dsp_fw_new(struct hifi4dsp_dsp *dsp,
 					  const struct firmware *fw,
 					  void *private);
