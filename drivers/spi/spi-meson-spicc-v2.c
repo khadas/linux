@@ -25,7 +25,9 @@
 #include <linux/delay.h>
 #include <asm/cacheflush.h>
 #include <linux/amlogic/aml_spi.h>
-
+#ifdef CONFIG_SPICC_TEST
+#include "spicc_test.h"
+#endif
 #define MESON_SPICC_HW_IF
 
 /* Register Map */
@@ -164,15 +166,6 @@ struct spicc_descriptor {
 	dma_addr_t			rx_paddr;
 };
 
-struct spicc_test_device {
-	struct spi_device		*spi;
-	struct spicc_controller_data	cdata;
-	struct spi_message		msg;
-	struct spicc_transfer		ccxfers[8];
-	int				nxfers;
-	bool				busy;
-};
-
 struct spicc_device {
 	struct spi_controller		*controller;
 	struct platform_device		*pdev;
@@ -188,7 +181,6 @@ struct spicc_device {
 	union spicc_cfg_start		cfg_start;
 	union spicc_cfg_bus		cfg_bus;
 	u8				config_ss_trailing_gap;
-	struct spicc_test_device	*testdev;
 #ifdef MESON_SPICC_HW_IF
 	void (*dirspi_complete)(void *context);
 	void *dirspi_context;
@@ -211,9 +203,6 @@ struct spicc_device {
 #else
 #define spicc_dbg(fmt, args...)
 #endif
-
-#define spicc_hexdump(buf, len)	\
-	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1, buf, len, true)
 
 #define spicc_writel(_spicc, _val, _offset) \
 	 writel(_val, (_spicc)->base + (_offset))
@@ -899,490 +888,10 @@ static int dirspi_sync(struct spi_device *spi,
 }
 #endif	/* end of MESON_SPICC_HW_IF */
 
-static int make_argv(char *s, int argvsz, char *argv[], char *delim)
-{
-	char *tok;
-	int i;
-
-	/* split into argv */
-	for (i = 0; i < argvsz; i++) {
-		tok = strsep(&s, delim);
-		if (!tok)
-			break;
-
-		if  (*tok == '\0')
-			tok = strsep(&s, delim);
-
-		tok = strim(tok);
-		argv[i] = tok;
-	}
-
-	return i;
-}
-
-static int spicc_getopt(int argc, char *argv[], char *name,
-		unsigned long *value, char **str, unsigned int base)
-{
-	unsigned long v;
-	char *s;
-	int i, ret = -EINVAL;
-
-	for (i = 0; i < argc; i++) {
-		s = argv[i] + strlen(name);
-		ret = memcmp(name, argv[i], strlen(name));
-		if (!ret && ((*s == ' ') || (*s == '\0'))) {
-			if (value) {
-				ret = kstrtoul(s + 1, base, &v);
-				if (!ret)
-					*value = v;
-			}
-			if (str)
-				*str = s + 1;
-			break;
-		}
-	}
-
-	return ret;
-}
-
-static void spicc_strtohex(char *str, int pass, u8 *buf, int len)
-{
-	char *token;
-	unsigned long v;
-	int i;
-
-	/* pass over */
-	for (i = 0; i < pass; i++)
-		strsep(&str, ", ");
-
-	/* filled buffer with str data */
-	for (i = 0; i < len; i++) {
-		token = strsep(&str, ", ");
-		if (token == 0 || kstrtoul(token, 16, &v))
-			break;
-		buf[i] = (u8)(v & 0xff);
-	}
-
-	/* set first tx data default 1 if no any str data */
-	if (i == 0) {
-		buf[0] = 0x1;
-		i++;
-	}
-
-	/* fill next buffer incrementally */
-	for (; i < len; i++)
-		buf[i] = buf[i - 1] + 1;
-}
-
-static int spicc_compare(u8 *buf1, u8 *buf2, int len, bool print_diff)
-{
-	int i, diff = 0;
-
-	for (i = 0; i < len; i++) {
-		if (buf1[i] != buf2[i]) {
-			diff++;
-			if (print_diff)
-				pr_info("[%d]: 0x%x, 0x%x\n",
-					i, buf1[i], buf2[i]);
-		}
-	}
-	pr_info("total %d, diff %d\n", len,  diff);
-
-	return diff;
-}
-
-static void test_free_xfer_buf(struct spicc_test_device *testdev, u32 flags)
-{
-	struct spi_transfer *xfer;
-
-	list_for_each_entry(xfer, &testdev->msg.transfers, transfer_list) {
-		if (xfer) {
-			if ((flags & BIT(0)) && xfer->rx_buf)
-				spicc_hexdump(xfer->rx_buf, xfer->len);
-			if ((flags & BIT(1)) && xfer->tx_buf && xfer->rx_buf)
-				spicc_compare((u8 *)xfer->tx_buf,
-					      xfer->rx_buf,
-					      xfer->len,
-					      !!(flags & BIT(2)));
-
-			if (is_vmalloc_addr(xfer->tx_buf))
-				vfree(xfer->tx_buf);
-			else
-				kfree(xfer->tx_buf);
-
-			if (is_vmalloc_addr(xfer->rx_buf))
-				vfree(xfer->rx_buf);
-			else
-				kfree(xfer->rx_buf);
-		}
-	}
-}
-
-static ssize_t test_dev_store(struct device *dev,
-			      struct device_attribute *attr,
-			      const char *buf, size_t count)
-{
-	struct spicc_device *spicc = dev_get_drvdata(dev);
-	struct spi_device *spi;
-	struct spicc_test_device *testdev;
-	struct spicc_controller_data *cdata;
-	bool need_setup = true;
-	char *kstr, *argv[20];
-	unsigned long v;
-	int argc;
-
-	kstr = kstrdup(buf, GFP_KERNEL);
-	if (IS_ERR_OR_NULL(kstr)) {
-		dev_err(dev, "kstrdup failed\n");
-		return count;
-	}
-	memset(argv, 0, sizeof(argv));
-	argc = make_argv(kstr, ARRAY_SIZE(argv), argv, "-");
-
-	if (!spicc_getopt(argc, argv, "destroy", NULL, NULL, 0)) {
-		if (spicc->testdev) {
-			spi_dev_put(spicc->testdev->spi);
-			test_free_xfer_buf(spicc->testdev, 0);
-			kfree(spicc->testdev);
-			spicc->testdev = NULL;
-			dev_info(dev, "destroy test device success\n");
-		} else {
-			dev_warn(dev, "there isn't test device\n");
-		}
-		need_setup = false;
-	}
-
-	if (!spicc_getopt(argc, argv, "create", NULL, NULL, 0)) {
-		if (!spicc->testdev) {
-			testdev = kzalloc(sizeof(*testdev), GFP_KERNEL);
-			spi = spi_alloc_device(spicc->controller);
-			if (IS_ERR_OR_NULL(spi)) {
-				kfree(testdev);
-				dev_err(dev, "spi alloc failed\n");
-				need_setup = false;
-			} else {
-				spicc->testdev = testdev;
-				testdev->spi = spi;
-				spi->controller_data = (void *)&testdev->cdata;
-				memset(spi->controller_data, 0,
-					sizeof(struct spicc_controller_data));
-				testdev->spi->chip_select = 0;
-				testdev->spi->cs_gpio = -ENOENT;
-				testdev->spi->max_speed_hz = 10000000;
-				testdev->spi->bits_per_word = 8;
-				testdev->nxfers = 0;
-				spi_message_init(&testdev->msg);
-				dev_info(dev, "create test device success\n");
-			}
-		} else {
-			need_setup = false;
-			dev_warn(dev, "there is a test device already\n");
-		}
-	}
-
-	if (!spicc->testdev)
-		goto exit;
-	testdev = spicc->testdev;
-	spi = testdev->spi;
-	cdata = (struct spicc_controller_data *)spi->controller_data;
-
-	if (!spicc_getopt(argc, argv, "cs_gpio", &v, NULL, 10))
-		spi->cs_gpio = v;
-	if (!spicc_getopt(argc, argv, "cs", &v, NULL, 10))
-		spi->chip_select = v;
-	if (!spicc_getopt(argc, argv, "speed", &v, NULL, 10))
-		spi->max_speed_hz = v;
-	if (!spicc_getopt(argc, argv, "mode", &v, NULL, 16))
-		spi->mode = v;
-	if (!spicc_getopt(argc, argv, "bw", &v, NULL, 10))
-		spi->bits_per_word = v;
-
-	if (!spicc_getopt(argc, argv, "ccxfer_en", &v, NULL, 10))
-		cdata->ccxfer_en = v;
-	if (!spicc_getopt(argc, argv, "timing_en", &v, NULL, 10))
-		cdata->timing_en = v;
-	if (!spicc_getopt(argc, argv, "ss_leading_gap", &v, NULL, 10))
-		cdata->ss_leading_gap = v;
-	if (!spicc_getopt(argc, argv, "ss_trailing_gap", &v, NULL, 10))
-		cdata->ss_trailing_gap = v;
-	if (!spicc_getopt(argc, argv, "tx_tuning", &v, NULL, 10))
-		cdata->tx_tuning = v;
-	if (!spicc_getopt(argc, argv, "rx_tuning", &v, NULL, 10))
-		cdata->rx_tuning = v;
-	if (!spicc_getopt(argc, argv, "dummy", &v, NULL, 10))
-		cdata->dummy_ctl = v;
-
-	if (need_setup && spi_setup(spi)) {
-		spi_dev_put(spi);
-		test_free_xfer_buf(testdev, 0);
-		kfree(testdev);
-		spicc->testdev = NULL;
-		dev_err(dev, "setup failed\n");
-	}
-
-exit:
-	kfree(kstr);
-	return count;
-}
-
-static ssize_t test_dev_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	struct spicc_device *spicc = dev_get_drvdata(dev);
-	struct spi_device *spi;
-	struct spicc_test_device *testdev;
-	struct spicc_controller_data *cdata;
-	ssize_t len;
-
-	if (!spicc->testdev) {
-		len = snprintf(buf, PAGE_SIZE, "there isn't test device\n");
-		return len;
-	}
-	testdev = spicc->testdev;
-	spi = testdev->spi;
-	cdata = (struct spicc_controller_data *)spi->controller_data;
-
-	len = snprintf(buf, PAGE_SIZE, "cs_gpio: %d\n", spi->cs_gpio);
-	len += snprintf(buf + len, PAGE_SIZE, "cs: %d\n", spi->chip_select);
-	len += snprintf(buf + len, PAGE_SIZE, "speed: %d\n", spi->max_speed_hz);
-	len += snprintf(buf + len, PAGE_SIZE, "mode: 0x%x\n", spi->mode);
-	len += snprintf(buf + len, PAGE_SIZE, "bw: %d\n", spi->bits_per_word);
-	len += snprintf(buf + len, PAGE_SIZE, "ccxfer_en: %d\n", cdata->ccxfer_en);
-	len += snprintf(buf + len, PAGE_SIZE, "timing_en: %d\n", cdata->timing_en);
-	len += snprintf(buf + len, PAGE_SIZE, "ss_leading_gap: %d\n", cdata->ss_leading_gap);
-	len += snprintf(buf + len, PAGE_SIZE, "ss_trailing_gap: %d\n", cdata->ss_trailing_gap);
-	len += snprintf(buf + len, PAGE_SIZE, "tx_tuning: %d\n", cdata->tx_tuning);
-	len += snprintf(buf + len, PAGE_SIZE, "rx_tuning: %d\n", cdata->rx_tuning);
-	len += snprintf(buf + len, PAGE_SIZE, "dummy: %d\n", cdata->dummy_ctl);
-	len += snprintf(buf + len, PAGE_SIZE, "nxfers: max %d, used %d\n",
-			(int)ARRAY_SIZE(testdev->ccxfers), testdev->nxfers);
-
-	return len;
-}
-
-#ifdef MESON_SPICC_HW_IF
-static void test_callback(void *context)
-{
-	struct spicc_test_device *testdev = (struct spicc_test_device *)context;
-
-	if (testdev)
-		testdev->busy = false;
-}
-#endif
-
-static ssize_t test_xfer_store(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
-{
-	struct spicc_device *spicc = dev_get_drvdata(dev);
-	struct spi_device *spi;
-	struct spicc_test_device *testdev;
-	struct spicc_controller_data *cdata;
-	struct spicc_transfer *ccxfer;
-	struct spi_transfer *xfer;
-	char *kstr, *data_str, *argv[20];
-	unsigned long v;
-	int argc, ret;
-	int api = 0;
-	char *api_name;
-	u32 flags = 0;
-	bool vm = false;
-
-	kstr = kstrdup(buf, GFP_KERNEL);
-	if (IS_ERR_OR_NULL(kstr)) {
-		dev_err(dev, "kstrdup failed\n");
-		return count;
-	}
-	memset(argv, 0, sizeof(argv));
-	argc = make_argv(kstr, ARRAY_SIZE(argv), argv, "-");
-
-	if (!spicc->testdev) {
-		dev_warn(dev, "there isn't test device\n");
-		goto exit;
-	}
-	testdev = spicc->testdev;
-	spi = testdev->spi;
-	cdata = (struct spicc_controller_data *)spi->controller_data;
-	ccxfer = (struct spicc_transfer *)&testdev->ccxfers[testdev->nxfers];
-	memset(ccxfer, 0, sizeof(*ccxfer));
-	xfer = &ccxfer->xfer;
-
-	if (!spicc_getopt(argc, argv, "api", &v, NULL, 10))
-		api = v;
-	if (!spicc_getopt(argc, argv, "vm", NULL, NULL, 0))
-		vm = true;
-	if (!spicc_getopt(argc, argv, "flags", &v, NULL, 16))
-		flags = v;
-	if (!spicc_getopt(argc, argv, "dc_level", &v, NULL, 10))
-		ccxfer->dc_level = v;
-	if (!spicc_getopt(argc, argv, "read_turn_around", &v, NULL, 10))
-		ccxfer->read_turn_around = v;
-	if (!spicc_getopt(argc, argv, "dc_mode", &v, NULL, 10))
-		ccxfer->dc_mode = v;
-	if (!spicc_getopt(argc, argv, "speed", &v, NULL, 10))
-		xfer->speed_hz = v;
-	if (!spicc_getopt(argc, argv, "bw", &v, NULL, 10))
-		xfer->bits_per_word = v;
-	if (!spicc_getopt(argc, argv, "txnbits", &v, NULL, 10))
-		xfer->tx_nbits = v;
-	if (!spicc_getopt(argc, argv, "rxnbits", &v, NULL, 10))
-		xfer->rx_nbits = v;
-	if (!spicc_getopt(argc, argv, "len", &v, NULL, 10))
-		xfer->len = v;
-	if (!xfer->len) {
-		dev_err(dev, "data length invalid\n");
-		goto exit;
-	}
-
-	if (spicc_getopt(argc, argv, "notx", NULL, NULL, 0)) {
-		if (vm)
-			xfer->tx_buf = vmalloc(xfer->len);
-		else
-			xfer->tx_buf = kzalloc(xfer->len, GFP_KERNEL | GFP_DMA);
-		if (IS_ERR_OR_NULL(xfer->tx_buf)) {
-			dev_err(dev, "alloc tx buf failed\n");
-			goto exit;
-		}
-
-		spicc_getopt(argc, argv, "data", NULL, &data_str, 0);
-		spicc_strtohex(data_str, 0, (u8 *)xfer->tx_buf, xfer->len);
-	}
-
-	if (spicc_getopt(argc, argv, "norx", NULL, NULL, 0)) {
-		if (vm)
-			xfer->rx_buf = vmalloc(xfer->len);
-		else
-			xfer->rx_buf = kzalloc(xfer->len, GFP_KERNEL | GFP_DMA);
-		if (IS_ERR_OR_NULL(xfer->rx_buf)) {
-			dev_err(dev, "alloc rx buf failed\n");
-			kfree(xfer->tx_buf);
-			goto exit;
-		}
-	}
-
-	if (!xfer->tx_buf && !xfer->rx_buf) {
-		dev_err(dev, "either tx or rx must be exist\n");
-		goto exit;
-	}
-
-	spi_message_add_tail(xfer, &testdev->msg);
-	testdev->nxfers++;
-
-	if (!spicc_getopt(argc, argv, "end", NULL, NULL, 0) ||
-	    testdev->nxfers >= ARRAY_SIZE(testdev->ccxfers)) {
-#ifdef MESON_SPICC_HW_IF
-		if (cdata && cdata->dirspi_sync && api == 1) {
-			/* only the last xfer be tranfered */
-			api_name = "dirspi_sync";
-			ret = cdata->dirspi_sync(spi,
-					(u8 *)xfer->tx_buf,
-					xfer->rx_buf,
-					xfer->len);
-		} else if (cdata && cdata->dirspi_async && api == 2) {
-			/* only the last xfer be tranfered */
-			api_name = "dirspi_async";
-			testdev->busy = true;
-			ret = cdata->dirspi_async(spi,
-					(u8 *)xfer->tx_buf,
-					xfer->rx_buf,
-					xfer->len,
-					test_callback,
-					(void *)testdev);
-			if (!ret) {
-				while (testdev->busy)
-					cpu_relax();
-			}
-		} else {
-			api_name = "spi_sync";
-			ret = spi_sync(spi, &testdev->msg);
-		}
-#else
-		ret = spi_sync(spi, &testdev->msg);
-#endif
-
-		test_free_xfer_buf(testdev, ret ? 0 : flags);
-		testdev->nxfers = 0;
-		spi_message_init(&testdev->msg);
-		dev_info(dev, "%s test %s(%d) @%dMHz\n", api_name,
-			 ret ? "failed" : "success", ret,
-			 spicc->effective_speed_hz);
-	} else {
-		dev_info(dev, "wait next xfer...\n");
-	}
-
-exit:
-	kfree(kstr);
-	return count;
-}
-
-#define TEST_PARAM_NUM 5
-static ssize_t test_store(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
-{
-	struct spicc_device *spicc = dev_get_drvdata(dev);
-	unsigned int cs_gpio, speed, mode, bits_per_word, num;
-	u8 *tx_buf, *rx_buf;
-	char *kstr;
-	int ret;
-	struct spi_transfer t;
-	struct spi_message m;
-
-	if (sscanf(buf, "%d%d%x%d%d", &cs_gpio, &speed,
-		   &mode, &bits_per_word, &num) != TEST_PARAM_NUM) {
-		dev_err(dev, "error format\n");
-		return count;
-	}
-
-	kstr = kstrdup(buf, GFP_KERNEL);
-	tx_buf = kzalloc(num, GFP_KERNEL | GFP_DMA);
-	rx_buf = kzalloc(num, GFP_KERNEL | GFP_DMA);
-	if (IS_ERR(kstr) || IS_ERR(tx_buf) || IS_ERR(rx_buf)) {
-		dev_err(dev, "failed to alloc tx rx buffer\n");
-		goto test_end2;
-	}
-
-	/* pass over "cs_gpio speed mode bits_per_word num" */
-	spicc_strtohex(kstr, TEST_PARAM_NUM, tx_buf, num);
-
-	spi_message_init(&m);
-	m.spi = spi_alloc_device(spicc->controller);
-	if (IS_ERR_OR_NULL(m.spi)) {
-		dev_err(dev, "spi alloc failed\n");
-		goto test_end;
-	}
-
-	m.spi->cs_gpio = (cs_gpio > 0) ? cs_gpio : -ENOENT;
-	m.spi->max_speed_hz = speed;
-	m.spi->mode = mode & 0xffff;
-	m.spi->bits_per_word = bits_per_word;
-	if (spi_setup(m.spi)) {
-		dev_err(dev, "setup failed\n");
-		goto test_end;
-	}
-
-	memset(&t, 0, sizeof(t));
-	t.tx_buf = (void *)tx_buf;
-	t.rx_buf = (void *)rx_buf;
-	t.len = num;
-	spi_message_add_tail(&t, &m);
-	ret = spi_sync(m.spi, &m);
-	if (!ret)
-		spicc_compare(tx_buf, rx_buf, num, !!(mode & BIT(16)));
-	dev_info(dev, "test ret %d @%dHz\n", ret, spicc->effective_speed_hz);
-
-test_end:
-	meson_spicc_cleanup(m.spi);
-	spi_dev_put(m.spi);
-test_end2:
-	kfree(kstr);
-	kfree(tx_buf);
-	kfree(rx_buf);
-	return count;
-}
-
-static DEVICE_ATTR_RW(test_dev);
-static DEVICE_ATTR_WO(test_xfer);
+#ifdef CONFIG_SPICC_TEST
 static DEVICE_ATTR_WO(test);
+static DEVICE_ATTR_RW(testdev);
+#endif
 
 static int meson_spicc_probe(struct platform_device *pdev)
 {
@@ -1464,17 +973,10 @@ static int meson_spicc_probe(struct platform_device *pdev)
 
 	init_completion(&spicc->completion);
 
-	ret = device_create_file(&pdev->dev, &dev_attr_test_dev);
-	if (ret)
-		dev_warn(&pdev->dev, "Create test_dev attribute failed\n");
-
-	ret = device_create_file(&pdev->dev, &dev_attr_test_xfer);
-	if (ret)
-		dev_warn(&pdev->dev, "Create test_xfer attribute failed\n");
-
-	ret = device_create_file(&pdev->dev, &dev_attr_test);
-	if (ret)
-		dev_warn(&pdev->dev, "Create test attribute failed\n");
+#ifdef CONFIG_SPICC_TEST
+	device_create_file(&ctlr->dev, &dev_attr_test);
+	device_create_file(&ctlr->dev, &dev_attr_testdev);
+#endif
 
 	spicc->cfg_spi.d32 = 0;
 	spicc->cfg_start.d32 = 0;
@@ -1506,10 +1008,10 @@ static int meson_spicc_remove(struct platform_device *pdev)
 	if (spicc->sys_clk)
 		clk_disable_unprepare(spicc->sys_clk);
 	clk_disable_unprepare(spicc->spi_clk);
+#ifdef CONFIG_SPICC_TEST
 	device_remove_file(&pdev->dev, &dev_attr_test);
-	device_remove_file(&pdev->dev, &dev_attr_test_dev);
-	device_remove_file(&pdev->dev, &dev_attr_test_xfer);
-
+	device_remove_file(&pdev->dev, &dev_attr_testdev);
+#endif
 	return 0;
 }
 
