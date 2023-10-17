@@ -164,8 +164,22 @@ static int crg_core_get_phy(struct crg_drd *crg)
 
 static void crg_host_exit(struct crg_drd *crg)
 {
+	/* amlogic_crg_otg_work may call crg_exit (which calls crg_remove)
+	 * after crg_shutdown. It is err-prone to dereference crg->xhci member and
+	 * unregister crg->xhci. Set crg->xhci to NULL to avoid this.
+	 * Since the xhci plat dev have been removed by crg_shutdown, this function
+	 * should have been called already. It is safe to return here.
+	 */
+	if (!crg->xhci) {
+		dev_warn(crg->dev,
+			"%s: crg->xhci already removed, exit...\n",
+			__func__);
+		return;
+	}
+
 	crg_reset_thread_stop(crg->xhci);
 	platform_device_unregister(crg->xhci);
+	crg->xhci = NULL;
 }
 
 static int crg_host_init(struct crg_drd *crg)
