@@ -406,7 +406,7 @@ int cec_ll_tx(const unsigned char *msg, unsigned char len, unsigned char signal_
 	 *	address already set. Must clear it before poll again
 	 * self polling mode
 	 */
-	if (is_poll_message(msg[0]))
+	if (cec_sel == CEC_A && is_poll_message(msg[0]))
 		cec_clear_all_logical_addr(cec_sel);
 
 	/*
