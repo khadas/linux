@@ -5,6 +5,7 @@
  * Author: Wyon Bi <bivvy.bi@rock-chips.com>
  */
 
+#include "asm-generic/errno-base.h"
 #include "rk628.h"
 #include "rk628_cru.h"
 
@@ -65,6 +66,9 @@ static unsigned long rk628_cru_clk_get_rate_pll(struct rk628 *rk628,
 	u64 foutvco, foutpostdiv;
 	u32 offset, val;
 
+	if (id == CGU_CLK_APLL && rk628->version < RK628F_VERSION)
+		return 0;
+
 	rk628_i2c_read(rk628, CRU_MODE_CON00, &val);
 	if (id == CGU_CLK_CPLL) {
 		val &= CLK_CPLL_MODE_MASK;
@@ -73,13 +77,20 @@ static unsigned long rk628_cru_clk_get_rate_pll(struct rk628 *rk628,
 			return parent_rate;
 
 		offset = 0x00;
-	} else {
+	} else if (id == CGU_CLK_GPLL) {
 		val &= CLK_GPLL_MODE_MASK;
 		val >>= CLK_GPLL_MODE_SHIFT;
 		if (val == CLK_GPLL_MODE_OSC)
 			return parent_rate;
 
 		offset = 0x20;
+	} else {
+		val &= CLK_APLL_MODE_MASK;
+		val >>= CLK_APLL_MODE_SHIFT;
+		if (val == CLK_APLL_MODE_OSC)
+			return parent_rate;
+
+		offset = 0x40;
 	}
 
 	rk628_i2c_read(rk628, offset + CRU_CPLL_CON0, &con0);
@@ -140,8 +151,10 @@ static unsigned long rk628_cru_clk_set_rate_pll(struct rk628 *rk628,
 
 	if (id == CGU_CLK_CPLL)
 		offset = 0x00;
-	else
+	else if (id == CGU_CLK_GPLL)
 		offset = 0x20;
+	else
+		offset = 0x40;
 
 	rk628_i2c_write(rk628, offset + CRU_CPLL_CON1, PLL_PD(1));
 
@@ -419,7 +432,11 @@ static unsigned long rk628_cru_clk_set_rate_bt1120_dec(struct rk628 *rk628,
 int rk628_cru_clk_set_rate(struct rk628 *rk628, unsigned int id,
 			   unsigned long rate)
 {
+	if (id == CGU_CLK_APLL && rk628->version < RK628F_VERSION)
+		return -EINVAL;
+
 	switch (id) {
+	case CGU_CLK_APLL:
 	case CGU_CLK_CPLL:
 	case CGU_CLK_GPLL:
 		rk628_cru_clk_set_rate_pll(rk628, id, rate);
@@ -437,7 +454,7 @@ int rk628_cru_clk_set_rate(struct rk628 *rk628, unsigned int id,
 		rk628_cru_clk_set_rate_bt1120_dec(rk628, rate);
 		break;
 	default:
-		return -1;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -447,7 +464,11 @@ unsigned long rk628_cru_clk_get_rate(struct rk628 *rk628, unsigned int id)
 {
 	unsigned long rate;
 
+	if (id == CGU_CLK_APLL && rk628->version < RK628F_VERSION)
+		return 0;
+
 	switch (id) {
+	case CGU_CLK_APLL:
 	case CGU_CLK_CPLL:
 	case CGU_CLK_GPLL:
 		rate = rk628_cru_clk_get_rate_pll(rk628, id);
@@ -472,7 +493,7 @@ void rk628_cru_init(struct rk628 *rk628)
 
 	rk628_i2c_read(rk628, GRF_SYSTEM_STATUS0, &val);
 	mcu_mode = (val & I2C_ONLY_FLAG) ? 0 : 1;
-	if (mcu_mode)
+	if (mcu_mode || rk628->version >= RK628F_VERSION)
 		return;
 
 	rk628_i2c_write(rk628, CRU_GPLL_CON0, 0xffff701d);

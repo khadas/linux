@@ -47,6 +47,10 @@
 #define CRU_GPLL_CON3		CRU_REG(0x002c)
 #define CRU_GPLL_CON4		CRU_REG(0x0030)
 #define CRU_MODE_CON00		CRU_REG(0x0060)
+#define CLK_APLL_MODE_MASK	BIT(4)
+#define CLK_APLL_MODE_SHIFT	4
+#define CLK_APLL_MODE_GPLL	1
+#define CLK_APLL_MODE_OSC	0
 #define CLK_GPLL_MODE_MASK	BIT(2)
 #define CLK_GPLL_MODE_SHIFT	2
 #define CLK_GPLL_MODE_GPLL	1
@@ -152,6 +156,7 @@
 #define CGU_I2S_MCLKOUT		36
 #define CGU_BT1120DEC		37
 #define CGU_SCLK_UART		38
+#define CGU_CLK_APLL		39
 
 unsigned long rk628_cru_clk_get_rate(struct rk628 *rk628, unsigned int id);
 int rk628_cru_clk_set_rate(struct rk628 *rk628, unsigned int id,
