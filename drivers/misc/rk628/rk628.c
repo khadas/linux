@@ -1087,6 +1087,34 @@ static const struct file_operations rk628_debugfs_summary_fops = {
 
 };
 
+static int rk628_version_info(struct rk628 *rk628)
+{
+	int ret;
+	char *version;
+
+	ret = rk628_i2c_read(rk628, GRF_SOC_VERSION, &rk628->version);
+	if (ret) {
+		dev_err(rk628->dev, "failed to access register: %d\n", ret);
+		return ret;
+	}
+
+	switch (rk628->version) {
+	case RK628D_VERSION:
+		version = "D/E";
+		break;
+	case RK628F_VERSION:
+		version = "F/H";
+		break;
+	default:
+		version = "unknown";
+		ret = -EINVAL;
+	}
+
+	dev_info(rk628->dev, "the driver version is %s of RK628-%s\n", DRIVER_VERSION, version);
+
+	return ret;
+}
+
 static int
 rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
@@ -1096,8 +1124,6 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int err;
 	unsigned long irq_flags;
 	struct dentry *debug_dir;
-
-	dev_info(dev, "RK628 misc driver version: %s\n", DRIVER_VERSION);
 
 	rk628 = devm_kzalloc(dev, sizeof(*rk628), GFP_KERNEL);
 	if (!rk628)
@@ -1174,17 +1200,18 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		}
 	}
 
-	/* selete int io function */
-	ret = rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x30002000);
-	if (ret) {
-		dev_err(dev, "failed to access register: %d\n", ret);
+	ret = rk628_version_info(rk628);
+	if (ret)
 		return ret;
-	}
+
+	/* select int io function */
+	rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x30002000);
 
 #ifdef CONFIG_FB
 	rk628->fb_nb.notifier_call = rk628_fb_notifier_callback;
 	fb_register_client(&rk628->fb_nb);
 #endif
+
 	rk628->monitor_wq = alloc_ordered_workqueue("%s",
 		WQ_MEM_RECLAIM | WQ_FREEZABLE, "rk628-monitor-wq");
 	INIT_DELAYED_WORK(&rk628->delay_work, rk628_display_work);

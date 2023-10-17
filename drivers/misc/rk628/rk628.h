@@ -19,7 +19,7 @@
 #include <linux/workqueue.h>
 #include <linux/regulator/consumer.h>
 
-#define DRIVER_VERSION				"0.0.1"
+#define DRIVER_VERSION				"0.1.0"
 #define UPDATE(x, h, l)		(((x) << (l)) & GENMASK((h), (l)))
 #define HIWORD_UPDATE(v, h, l)	((((v) << (l)) & GENMASK((h), (l))) | \
 				 (GENMASK((h), (l)) << 16))
@@ -180,6 +180,7 @@
 #define GRF_GPIO3A_D1_CON		0x00e4
 #define GRF_GPIO3B_D_CON		0x00e8
 #define GRF_GPIO_SR_CON			0x00ec
+#define GRF_SW_HDMIRXPHY_CRTL		0x00f4
 #define GRF_INTR0_EN			0x0100
 #define GRF_INTR0_CLR_EN		0x0104
 #define GRF_INTR0_STATUS		0x0108
@@ -197,13 +198,16 @@
 #define GRF_OS_REG1			0x0144
 #define GRF_OS_REG2			0x0148
 #define GRF_OS_REG3			0x014c
-#define GRF_SOC_VERSION			0x0150
+#define GRF_SOC_VERSION			0x0200
 #define GRF_MAX_REGISTER		GRF_SOC_VERSION
 
 #define DRM_MODE_FLAG_PHSYNC                    (1<<0)
 #define DRM_MODE_FLAG_NHSYNC                    (1<<1)
 #define DRM_MODE_FLAG_PVSYNC                    (1<<2)
 #define DRM_MODE_FLAG_NVSYNC                    (1<<3)
+
+#define RK628D_VERSION 0x20200326
+#define RK628F_VERSION 0x20230321
 
 enum {
 	COMBTXPHY_MODULEA_EN = BIT(0),
@@ -454,6 +458,7 @@ struct rk628 {
 	int sync_pol;
 	void *csi;
 	struct notifier_block fb_nb;
+	u32 version;
 };
 
 static inline int rk628_i2c_write(struct rk628 *rk628, u32 reg, u32 val)
