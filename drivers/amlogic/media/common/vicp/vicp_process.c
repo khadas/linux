@@ -448,10 +448,14 @@ static int get_presc_out_size(int presc_en, int presc_rate, int src_size)
 	int size = 0;
 
 	if (presc_en) {
-		if (presc_rate == 1)
+		if (presc_rate == 0)
+			size = src_size;
+		else if (presc_rate == 1)
 			size = (src_size + 1) >> 1;
 		else if (presc_rate == 2)
 			size = (src_size + 3) >> 2;
+		else if (presc_rate == 3)
+			size = (src_size + 7) >> 3;
 		else
 			size = src_size;
 	} else {
@@ -541,11 +545,6 @@ void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_s *scaler)
 	if (bot_conv != 0)
 		bot_conv_type = (enum f2v_vphase_type_e)(bot_conv - 1);
 
-	if (scaler->din_hsize != scaler->dout_hsize)
-		vsc_en = 1;
-	if (scaler->din_vsize != scaler->dout_vsize)
-		hsc_en = 1;
-
 	p_src_h = get_presc_out_size(scaler->prevsc_en, scaler->prevsc_rate, scaler->din_vsize);
 	vert_phase_step = get_phase_step(p_src_h, scaler->dout_vsize);
 
@@ -559,6 +558,11 @@ void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_s *scaler)
 		vicp_print(VICP_ERROR,
 			"%s: horz_phase_step or vert_phase_step should be set correctly!",
 			__func__);
+
+	if (p_src_w != scaler->dout_hsize)
+		vsc_en = 1;
+	if (p_src_h != scaler->dout_vsize)
+		hsc_en = 1;
 
 	if (scaler->high_res_coef_en)
 		coef_s_bits = 9;
@@ -1989,17 +1993,6 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 		vid_cmpr_scaler.dout_hsize = vid_cmpr_top->out_hsize_in;
 		vid_cmpr_scaler.dout_vsize = vid_cmpr_top->out_vsize_in;
 	}
-	vid_cmpr_scaler.vert_bank_length = 4;
-	vid_cmpr_scaler.prehsc_en = 0;
-	vid_cmpr_scaler.prevsc_en = 0;
-	vid_cmpr_scaler.prehsc_rate = 0;
-	vid_cmpr_scaler.prevsc_rate = 0;
-	vid_cmpr_scaler.high_res_coef_en = 1;
-	vid_cmpr_scaler.phase_step_en = 0;
-	vid_cmpr_scaler.phase_step = 0;
-	vid_cmpr_scaler.device_index = 5;
-	vid_cmpr_scaler.vphase_type_top = F2V_P2P;
-	vid_cmpr_scaler.vphase_type_bot = F2V_P2P;
 
 	if (!scaler_en)
 		scaler_enable = 0;
@@ -2014,8 +2007,43 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 		vid_cmpr_scaler.din_hsize = vid_cmpr_scaler.din_hsize >> 1;
 		vid_cmpr_scaler.din_vsize = vid_cmpr_scaler.din_vsize >> 1;
 	}
-
 	set_input_size(vid_cmpr_scaler.din_vsize, vid_cmpr_scaler.din_hsize);
+
+	vid_cmpr_scaler.vert_bank_length = 4;
+	if (vid_cmpr_scaler.dout_hsize <= ((vid_cmpr_scaler.din_hsize + 1) >> 1))
+		vid_cmpr_scaler.prehsc_en = 1;
+	else
+		vid_cmpr_scaler.prehsc_en = 0;
+
+	if (vid_cmpr_scaler.dout_vsize <= ((vid_cmpr_scaler.din_vsize + 1) >> 1))
+		vid_cmpr_scaler.prevsc_en = 1;
+	else
+		vid_cmpr_scaler.prevsc_en = 0;
+
+	if (((vid_cmpr_scaler.din_hsize + 7) / vid_cmpr_scaler.dout_hsize) >> 3)
+		vid_cmpr_scaler.prehsc_rate = 3;
+	else if (((vid_cmpr_scaler.din_hsize + 3) / vid_cmpr_scaler.dout_hsize) >> 2)
+		vid_cmpr_scaler.prehsc_rate = 2;
+	else if (((vid_cmpr_scaler.din_hsize + 1) / vid_cmpr_scaler.dout_hsize) >> 1)
+		vid_cmpr_scaler.prehsc_rate = 1;
+	else
+		vid_cmpr_scaler.prehsc_rate = 0;
+
+	if (((vid_cmpr_scaler.din_vsize + 7) / vid_cmpr_scaler.dout_vsize) >> 3)
+		vid_cmpr_scaler.prevsc_rate = 3;
+	else if (((vid_cmpr_scaler.din_vsize + 3) / vid_cmpr_scaler.dout_vsize) >> 2)
+		vid_cmpr_scaler.prevsc_rate = 2;
+	else if (((vid_cmpr_scaler.din_vsize + 1) / vid_cmpr_scaler.dout_vsize) >> 1)
+		vid_cmpr_scaler.prevsc_rate = 1;
+	else
+		vid_cmpr_scaler.prevsc_rate = 0;
+
+	vid_cmpr_scaler.high_res_coef_en = 1;
+	vid_cmpr_scaler.phase_step_en = 0;
+	vid_cmpr_scaler.phase_step = 0;
+	vid_cmpr_scaler.device_index = 5;
+	vid_cmpr_scaler.vphase_type_top = F2V_P2P;
+	vid_cmpr_scaler.vphase_type_bot = F2V_P2P;
 	set_vid_cmpr_scale(scaler_enable, &vid_cmpr_scaler);
 	set_output_size(vid_cmpr_top->out_vsize_in, vid_cmpr_top->out_hsize_in);
 
