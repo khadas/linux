@@ -125,7 +125,6 @@ static u32 tvp_dynamic_increase_disable;
 static u32 tvp_dynamic_alloc_max_size;
 static u32 tvp_dynamic_alloc_force_small_segment;
 static u32 tvp_dynamic_alloc_force_small_segment_size;
-static bool dbuf_trace;
 static u32 tvp_pool_early_release_switch;
 
 #define TVP_POOL_SEGMENT_MAX_USED 4
@@ -3346,7 +3345,41 @@ static ssize_t dbuf_trace_store(struct class *class,
 		mgt->trk_h = NULL;
 	}
 
-	dbuf_trace = val;
+	return size;
+}
+
+static ssize_t dbuf_dump_show(struct class *class,
+			     struct class_attribute *attr, char *buf)
+{
+	codec_mm_walk_dbuf();
+
+	return 0;
+}
+
+static ssize_t dbuf_dump_store(struct class *class,
+			     struct class_attribute *attr,
+			     const char *buf, size_t size)
+{
+	u32 type = UINT_MAX;
+	ssize_t ret;
+
+	switch (buf[0]) {
+	case 'a':
+		codec_mm_track_type_store(type);
+		return size;
+	case 'h':
+		pr_info("Help for dmabuf status dumping.\n"
+			"Bit-0: enable UVM dmabuf status dumping.\n"
+			"Bit-1: enable ES  dmabuf status dumping.\n"
+			"Bit-2: enable Codec mm heap dmabuf status dumping.\n");
+		return -EINVAL;
+	}
+
+	ret = kstrtouint(buf, 0, &type);
+	if (ret != 0)
+		return -EINVAL;
+
+	codec_mm_track_type_store(type);
 
 	return size;
 }
@@ -3363,6 +3396,7 @@ static CLASS_ATTR_RW(debug);
 static CLASS_ATTR_RW(debug_sc_mode);
 static CLASS_ATTR_RW(debug_keep_mode);
 static CLASS_ATTR_RW(dbuf_trace);
+static CLASS_ATTR_RW(dbuf_dump);
 
 static struct attribute *codec_mm_class_attrs[] = {
 	&class_attr_codec_mm_dump.attr,
@@ -3377,6 +3411,7 @@ static struct attribute *codec_mm_class_attrs[] = {
 	&class_attr_debug_sc_mode.attr,
 	&class_attr_debug_keep_mode.attr,
 	&class_attr_dbuf_trace.attr,
+	&class_attr_dbuf_dump.attr,
 	NULL
 };
 

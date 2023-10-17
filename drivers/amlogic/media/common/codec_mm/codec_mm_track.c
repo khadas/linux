@@ -24,10 +24,17 @@
 #include <linux/mm.h>
 #include <linux/dma-heap.h>
 #include <linux/amlogic/meson_uvm_core.h>
+#include <linux/amlogic/media/codec_mm/dmabuf_manage.h>
 
 #include "codec_mm_track_priv.h"
 
+#define DBUF_TRACK_TYPE_UVM	(0x1)
+#define DBUF_TRACK_TYPE_ES	(0x2)
+#define DBUF_TRACK_TYPE_HEAP	(0x4)
+
 #define DBUF_TRACE_HASH_BITS	(10)
+
+static u32 dbuf_track_type_flag = DBUF_TRACK_TYPE_UVM;
 
 struct codec_mm_track_s {
 	struct list_head leader_head;
@@ -49,7 +56,7 @@ static ulong get_dbuf_addr(struct dma_buf *dbuf)
 	struct sg_table *sgt;
 	ulong addr;
 
-	heap = dma_heap_find("system");
+	heap = dma_heap_find("system-uncached");
 	if (!heap) {
 		pr_err("%s: heap is NULL\n", __func__);
 		return 0;
@@ -124,8 +131,9 @@ static bool find_match_file(struct task_struct *tsk, struct file *file)
 			break;
 
 		if (f == file) {
-			pr_info("|   |-- FD:%4u, PID:%4d, comm: %s\n",
-				fd, tsk->pid, tsk->comm);
+			pr_info("|   |-- FD:%4u, PID:%4d, comm: %s, leader: %s\n",
+				fd, tsk->pid, tsk->comm,
+				tsk->group_leader->comm);
 			found = true;
 		}
 	}
@@ -156,14 +164,38 @@ static void find_ref_process(const struct dma_buf *dbuf)
 	read_unlock(&tasklist_lock);
 }
 
+static bool is_need_track(const struct dma_buf *d)
+{
+	struct dma_buf *dbuf = (struct dma_buf *)((ulong)d);
+
+#ifdef CONFIG_AMLOGIC_UVM_CORE
+	if ((dbuf_track_type_flag & DBUF_TRACK_TYPE_UVM) &&
+		dmabuf_is_uvm(dbuf))
+		return true;
+#endif
+
+#ifdef CONFIG_AMLOGIC_HEAP_CODEC_MM
+	if ((dbuf_track_type_flag & DBUF_TRACK_TYPE_HEAP) &&
+		dmabuf_is_codec_mm_heap_buf(dbuf))
+		return true;
+#endif
+
+	if ((dbuf_track_type_flag & DBUF_TRACK_TYPE_ES) &&
+		dmabuf_is_esbuf(dbuf))
+		return true;
+
+	//Add more...
+
+	return false;
+}
+
 static int walk_dbuf_callback(const struct dma_buf *dbuf, void *private)
 {
 	struct file *f = dbuf->file;
 
-#ifdef CONFIG_AMLOGIC_UVM_CORE
-	if (!dmabuf_is_uvm((struct dma_buf *)((ulong)dbuf)))
+	if (!is_need_track(dbuf))
 		return 0;
-#endif
+
 	pr_info("|-- exp-name:%s, addr:0x%lx, size:%zu, ino:%lu, Ref:%lu\n",
 		dbuf->exp_name,
 		get_dbuf_addr((struct dma_buf *)((ulong)dbuf)),
@@ -176,11 +208,28 @@ static int walk_dbuf_callback(const struct dma_buf *dbuf, void *private)
 	return 0;
 }
 
+void codec_mm_track_type_store(u32 type)
+{
+	dbuf_track_type_flag = type;
+
+	if (dbuf_track_type_flag & DBUF_TRACK_TYPE_UVM)
+		pr_info("UVM dmabuf will be tracked.\n");
+
+	if (dbuf_track_type_flag & DBUF_TRACK_TYPE_ES)
+		pr_info("ES dmabuf will be tracked.\n");
+
+	if (dbuf_track_type_flag & DBUF_TRACK_TYPE_HEAP)
+		pr_info("Codec mm heap dmabuf will be tracked.\n");
+
+	if (!dbuf_track_type_flag)
+		pr_info("Disable dmabuf tracking.\n");
+}
+
 int codec_mm_walk_dbuf(void)
 {
 	int ret;
 
-	pr_info("Dbuf walk.\n");
+	pr_info("Dbuf walk type:%x.\n", dbuf_track_type_flag);
 
 	ret = get_each_dmabuf(walk_dbuf_callback, NULL);
 

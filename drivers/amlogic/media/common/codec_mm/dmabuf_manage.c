@@ -326,6 +326,12 @@ static struct dma_buf_ops dmabuf_manage_ops = {
 	.mmap = dmabuf_manage_mmap
 };
 
+bool dmabuf_is_esbuf(struct dma_buf *dmabuf)
+{
+	return dmabuf->ops == &dmabuf_manage_ops;
+}
+EXPORT_SYMBOL(dmabuf_is_esbuf);
+
 static struct dma_buf *get_dmabuf(struct dmabuf_manage_block *block,
 				  unsigned long flags)
 {

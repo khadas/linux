@@ -6,6 +6,8 @@
 #ifndef _CODEC_MM_TRACKING_H
 #define _CODEC_MM_TRACKING_H
 
+void codec_mm_track_type_store(u32 type);
+
 int codec_mm_walk_dbuf(void);
 
 int codec_mm_track_open(void **trk_out);

@@ -102,6 +102,8 @@ unsigned int dmabuf_manage_get_secure_heap_version(void);
 unsigned int dmabuf_manage_get_type(struct dma_buf *dbuf);
 void *dmabuf_manage_get_info(struct dma_buf *dbuf, unsigned int type);
 
+bool dmabuf_is_esbuf(struct dma_buf *dmabuf);
+
 #define DMABUF_MANAGE_IOC_MAGIC			'S'
 
 #define DMABUF_MANAGE_EXPORT_DMA		_IOWR(DMABUF_MANAGE_IOC_MAGIC, 1, int)
