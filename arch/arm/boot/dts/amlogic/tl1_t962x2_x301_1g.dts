@@ -61,7 +61,7 @@
 
 		logo_reserved:linux,meson-fb {
 			compatible = "amlogic, meson-fb";
-			size = <0x800000>;
+			size = <0x400000>;
 			alignment = <0x400000>;
 			reg = <0x2ec00000 0x800000>;
 		};
