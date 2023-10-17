@@ -1036,6 +1036,14 @@ static int vpp_process_speed_check
 	else
 		min_ratio_1000 = 1750;
 
+	/* for s5 non-afbc and 480i output*/
+	if (video_is_meson_s5_cpu() &&
+		(((vf->type & VIDTYPE_COMPRESS) == 0) ||
+		next_frame_par->nocomp))
+		if (vinfo->height == 480 &&
+			vinfo->field_height == 240)
+			min_ratio_1000 = 886;
+
 	if (vinfo->field_height < vinfo->height)
 		vtotal = vinfo->vtotal / 2;
 	else
