@@ -678,7 +678,14 @@ static unsigned int vlock_check_input_hz(struct vframe_s *vf)
 			ret_hz = 50;
 		else if (diff(ret_hz, 30) <= 1)
 			ret_hz = 30;
-
+		else if (diff(ret_hz, 100) <= 1)
+			ret_hz = 100;
+		else if (diff(ret_hz, 120) <= 1)
+			ret_hz = 120;
+		else if (diff(ret_hz, 240) <= 1)
+			ret_hz = 240;
+		else if (diff(ret_hz, 288) <= 1)
+			ret_hz = 288;
 	} else if (vf->source_type == VFRAME_SOURCE_TYPE_CVBS &&
 		   (vlock_support & VLOCK_SUPPORT_CVBS)) {
 		if (vf->source_mode == VFRAME_SOURCE_MODE_NTSC)
@@ -712,6 +719,10 @@ static unsigned int vlock_check_output_hz(unsigned int sync_duration_num,
 		ret_hz = 100;
 	else if (tempHz == 12000)
 		ret_hz = 120;
+	else if (tempHz == 24000)
+		ret_hz = 240;
+	else if (tempHz == 28800)
+		ret_hz = 288;
 	else
 		ret_hz = 0;
 
