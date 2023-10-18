@@ -1554,6 +1554,7 @@ static int vpp_set_filters_internal
 	bool vd1s1_vd2_prebld_en = false;
 	bool force_dw = false;
 	u32 force_skip_cnt = 0, slice_num = 0;
+	u32 w_out, h_out;
 
 	if (!input)
 		return vppfilter_fail;
@@ -2509,6 +2510,32 @@ RESTART:
 		filter->vpp_hf_start_phase_step >>= 1;
 		filter->vpp_hsc_start_phase_step >>= 1;
 		next_frame_par->VPP_line_in_length_ >>= 1;
+	}
+
+	w_out = next_frame_par->VPP_hsc_endp -
+		next_frame_par->VPP_hsc_startp + 1;
+	h_out = next_frame_par->VPP_vsc_endp -
+		next_frame_par->VPP_vsc_startp + 1;
+	w_in = w_in / (next_frame_par->hscale_skip_count + 1);
+	h_in = h_in / (next_frame_par->vscale_skip_count + 1);
+	if ((w_in << 18) / w_out << 6 != filter->vpp_hsc_start_phase_step) {
+		if (cur_super_debug)
+			pr_info("recalc hf phase_step: 0x%x->0x%x, w_in=%d, w_out=%d\n",
+				filter->vpp_hsc_start_phase_step,
+				(w_in  << 18) / w_out << 6,
+				w_in,
+				w_out);
+		filter->vpp_hsc_start_phase_step = (w_in  << 18) / w_out << 6;
+		filter->vpp_hf_start_phase_step = filter->vpp_hsc_start_phase_step;
+	}
+	if ((h_in << 18) / h_out << 6 != filter->vpp_vsc_start_phase_step) {
+		if (cur_super_debug)
+			pr_info("recalc vsc phase_step: 0x%x->0x%x, h_in=%d, h_out=%d\n",
+				filter->vpp_vsc_start_phase_step,
+				(h_in  << 18) / h_out << 6,
+				h_in,
+				h_out);
+		filter->vpp_vsc_start_phase_step = (h_in  << 18) / h_out << 6;
 	}
 
 	/* only check vd1 */
