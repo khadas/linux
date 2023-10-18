@@ -189,6 +189,7 @@ struct meson_nfc {
 
 	struct para_form_dts {
 		u32 clk_ctrl_base;
+		u32 spi_cfg;
 		u32 bl_mode;
 		u32 fip_copies;
 		u32 fip_size;

@@ -1713,6 +1713,7 @@ static irqreturn_t meson_nfc_irq(int irq, void *id)
 
 const char *para_name[] = {
 	"nand_clk_ctrl",
+	"spi_cfg",
 	"bl_mode",
 	"fip_copies",
 	"fip_size",
@@ -1731,9 +1732,10 @@ static int prase_nand_parameter_from_dtb(struct meson_nfc *nfc,
 		return 1;
 	of_node_get(np);
 
+	memset(dts_param, 0, sizeof(dts_param));
 	for (i = 0; i < ARRAY_SIZE(para_name); i++) {
 		ret = of_property_read_u32(np, para_name[i], &dts_param[i]);
-		if (ret) {
+		if (ret && strncmp(para_name[i], "spi_cfg", strlen("spi_cfg"))) {
 			pr_info("%s %d,please config para item %d in dts\n",
 				__func__, __LINE__, i);
 			return ret;
@@ -1744,6 +1746,7 @@ static int prase_nand_parameter_from_dtb(struct meson_nfc *nfc,
 	pr_info("fip copies %d\n", nfc->param_from_dts.fip_copies);
 	pr_info("fip size 0x%x\n", nfc->param_from_dts.fip_size);
 	pr_info("nand clk ctrl: 0x%x\n", nfc->param_from_dts.clk_ctrl_base);
+	pr_info("nand spi_cfg: 0x%x\n", nfc->param_from_dts.spi_cfg);
 	pr_info("%s bad_block\n", nfc->param_from_dts.skip_bad_block ?
 		"skip" : "not skip");
 	pr_info("disa_irq_hand vale: %d\n", nfc->param_from_dts.disa_irq_hand);
@@ -1794,6 +1797,7 @@ static int meson_nfc_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, irq;
 	u32 nfc_base;
+	void __iomem *spi_cfg_vaddr;
 
 	nfc = devm_kzalloc(dev, sizeof(*nfc), GFP_KERNEL);
 	if (!nfc)
@@ -1872,6 +1876,16 @@ static int meson_nfc_probe(struct platform_device *pdev)
 
 	writel(0, nfc->reg_base + NFC_REG_CFG);
 
+	/* select slc mode */
+	if (nfc->param_from_dts.spi_cfg) {
+		spi_cfg_vaddr = devm_ioremap_nocache(&pdev->dev,
+						 nfc->param_from_dts.spi_cfg,
+						 sizeof(int));
+		if (IS_ERR_OR_NULL(spi_cfg_vaddr))
+			goto err_mem;
+		writel(0, spi_cfg_vaddr);
+	}
+
 	if (!nfc->param_from_dts.disa_irq_hand) {
 		irq = platform_get_irq(pdev, 0);
 		if (irq < 0) {
@@ -1907,8 +1921,11 @@ static int meson_nfc_probe(struct platform_device *pdev)
 	ret = clk_get_rate(nfc->nand_div_clk);
 	ret = readl(nfc->reg_base + NFC_REG_CFG);
 
+	devm_iounmap(&pdev->dev, spi_cfg_vaddr);
 	return 0;
+
 err_clk:
+	devm_iounmap(&pdev->dev, spi_cfg_vaddr);
 	meson_nfc_disable_clk(nfc);
 err_mem:
 	devm_kfree(dev, nfc);
