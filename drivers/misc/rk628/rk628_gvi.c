@@ -21,8 +21,6 @@ int rk628_gvi_parse(struct rk628 *rk628, struct device_node *gvi_np)
 	if (!of_device_is_available(gvi_np))
 		return -EINVAL;
 
-	rk628->output_mode = OUTPUT_MODE_GVI;
-
 	if (!of_property_read_u32(gvi_np, "gvi,lanes", &val))
 		rk628->gvi.lanes = val;
 
@@ -196,14 +194,21 @@ void rk628_gvi_enable(struct rk628 *rk628)
 {
 	struct rk628_gvi *gvi = &rk628->gvi;
 	unsigned int rate;
+	u32 mask = SW_OUTPUT_MODE_MASK;
+	u32 val = SW_OUTPUT_MODE(OUTPUT_MODE_GVI);
 
 	rk628_gvi_get_info(gvi);
 	rate = rk628_gvi_get_lane_rate(rk628);
 
 	/* set gvi_hpd and gvi_lock mux */
 	rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x06000600);
-	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_OUTPUT_MODE_MASK,
-			      SW_OUTPUT_MODE(OUTPUT_MODE_GVI));
+
+	if (rk628->version == RK628F_VERSION) {
+		mask = SW_OUTPUT_COMBTX_MODE_MASK;
+		val = SW_OUTPUT_COMBTX_MODE(OUTPUT_MODE_GVI);
+	}
+
+	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, mask, val);
 	rk628_combtxphy_set_bus_width(rk628, rate);
 	rk628_combtxphy_set_gvi_division_mode(rk628, gvi->division_mode);
 	rk628_combtxphy_set_mode(rk628, PHY_MODE_VIDEO_GVI);

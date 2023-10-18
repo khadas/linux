@@ -183,7 +183,7 @@ int rk628_panel_info_get(struct rk628 *rk628, struct device_node *np)
 
 	rk628->panel = panel;
 
-	if (rk628->output_mode == OUTPUT_MODE_DSI) {
+	if (rk628_output_is_dsi(rk628)) {
 		ret = dsi_panel_get_cmds(rk628, np);
 		if (ret) {
 			dev_err(dev, "failed to get cmds\n");

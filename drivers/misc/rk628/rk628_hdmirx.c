@@ -655,7 +655,9 @@ static int rk628_hdmirx_init(struct rk628 *rk628)
 
 	/* if GVI and HDMITX OUT, HDMIRX missing signal */
 	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
-			      SW_OUTPUT_MODE_MASK, SW_OUTPUT_MODE(OUTPUT_MODE_RGB));
+			      SW_OUTPUT_RGB_MODE_MASK,
+			      SW_OUTPUT_RGB_MODE(OUTPUT_MODE_RGB >> 3));
+
 	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
 			      SW_INPUT_MODE_MASK, SW_INPUT_MODE(INPUT_MODE_HDMI));
 	rk628_hdmirx_set_edid(rk628);

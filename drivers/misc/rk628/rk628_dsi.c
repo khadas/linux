@@ -237,7 +237,6 @@ int rk628_dsi_parse(struct rk628 *rk628, struct device_node *dsi_np)
 	if (!of_device_is_available(dsi_np))
 		return -EINVAL;
 
-	rk628->output_mode = OUTPUT_MODE_DSI;
 	rk628->dsi0.id = 0;
 	rk628->dsi0.channel = 0;
 	rk628->dsi0.rk628 = rk628;
@@ -1210,9 +1209,15 @@ void rk628_mipi_dsi_pre_enable(struct rk628 *rk628)
 	const struct rk628_dsi *dsi1 = &rk628->dsi1;
 	u32 rate = rk628_dsi_get_lane_rate(dsi);
 	int bus_width;
+	u32 mask = SW_OUTPUT_MODE_MASK;
+	u32 val = SW_OUTPUT_MODE(OUTPUT_MODE_DSI);
 
-	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_OUTPUT_MODE_MASK,
-			      SW_OUTPUT_MODE(OUTPUT_MODE_DSI));
+	if (rk628->version == RK628F_VERSION) {
+		mask = SW_OUTPUT_COMBTX_MODE_MASK;
+		val = SW_OUTPUT_COMBTX_MODE(OUTPUT_MODE_DSI - 2);
+	}
+
+	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, mask, val);
 	rk628_i2c_update_bits(rk628, GRF_POST_PROC_CON, SW_SPLIT_EN,
 			      dsi->slave ? SW_SPLIT_EN : 0);
 

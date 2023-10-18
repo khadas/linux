@@ -39,8 +39,16 @@
 #define SW_BT_DATA_OEN			BIT(9)
 #define SW_EFUSE_HDCP_EN_MASK		BIT(8)
 #define SW_EFUSE_HDCP_EN(x)		UPDATE(x, 8, 8)
-#define SW_OUTPUT_MODE_MASK		GENMASK(7, 3)
-#define SW_OUTPUT_MODE(x)		UPDATE(x, 7, 3)
+#define SW_OUTPUT_MODE_MASK		GENMASK(5, 3)
+#define SW_OUTPUT_MODE(x)		UPDATE(x, 5, 3)
+/* compatible with rk628f */
+#define SW_OUTPUT_RGB_MODE_MASK		GENMASK(7, 6)
+#define SW_OUTPUT_RGB_MODE(x)		UPDATE(x, 7, 6)
+#define SW_HDMITX_EN_MASK		BIT(5)
+#define SW_HDMITX_EN(x)			UPDATE(x, 5, 5)
+#define SW_OUTPUT_COMBTX_MODE_MASK	GENMASK(4, 3)
+#define SW_OUTPUT_COMBTX_MODE(x)	UPDATE(x, 4, 3)
+
 #define SW_INPUT_MODE_MASK		GENMASK(2, 0)
 #define SW_INPUT_MODE(x)		UPDATE(x, 2, 0)
 #define GRF_SYSTEM_CON1			0x0004
@@ -444,8 +452,8 @@ struct rk628 {
 	struct rk628_panel_simple *panel;
 	void *hdmirx;
 	bool display_enabled;
-	enum rk628_input_mode input_mode;
-	enum rk628_output_mode output_mode;
+	u32 input_mode;
+	u32 output_mode;
 	struct rk628_display_mode src_mode;
 	struct rk628_display_mode dst_mode;
 	enum bus_format input_fmt;
@@ -460,6 +468,56 @@ struct rk628 {
 	struct notifier_block fb_nb;
 	u32 version;
 };
+
+static inline bool rk628_input_is_hdmi(struct rk628 *rk628)
+{
+	return rk628->input_mode & BIT(INPUT_MODE_HDMI);
+}
+
+static inline bool rk628_input_is_rgb(struct rk628 *rk628)
+{
+	return rk628->input_mode & BIT(INPUT_MODE_RGB);
+}
+
+static inline bool rk628_input_is_bt1120(struct rk628 *rk628)
+{
+	return rk628->input_mode & BIT(INPUT_MODE_BT1120);
+}
+
+static inline bool rk628_output_is_rgb(struct rk628 *rk628)
+{
+	return rk628->output_mode & BIT(OUTPUT_MODE_RGB);
+}
+
+static inline bool rk628_output_is_bt1120(struct rk628 *rk628)
+{
+	return rk628->output_mode & BIT(OUTPUT_MODE_BT1120);
+}
+
+static inline bool rk628_output_is_gvi(struct rk628 *rk628)
+{
+	return rk628->output_mode & BIT(OUTPUT_MODE_GVI);
+}
+
+static inline bool rk628_output_is_lvds(struct rk628 *rk628)
+{
+	return rk628->output_mode & BIT(OUTPUT_MODE_LVDS);
+}
+
+static inline bool rk628_output_is_dsi(struct rk628 *rk628)
+{
+	return rk628->output_mode & BIT(OUTPUT_MODE_DSI);
+}
+
+static inline bool rk628_output_is_csi(struct rk628 *rk628)
+{
+	return rk628->output_mode & BIT(OUTPUT_MODE_CSI);
+}
+
+static inline bool rk628_output_is_hdmi(struct rk628 *rk628)
+{
+	return rk628->output_mode & BIT(OUTPUT_MODE_HDMI);
+}
 
 static inline int rk628_i2c_write(struct rk628 *rk628, u32 reg, u32 val)
 {

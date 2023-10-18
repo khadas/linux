@@ -213,7 +213,7 @@ void rk628_post_process_init(struct rk628 *rk628)
 	rk628_cru_clk_set_rate(rk628, CGU_CLK_RX_READ, src->clock * 1000);
 	rk628_cru_clk_set_rate(rk628, CGU_SCLK_VOP, dst_rate * 1000);
 
-	if (rk628->output_mode == OUTPUT_MODE_HDMI) {
+	if (rk628_output_is_hdmi(rk628)) {
 		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_VSYNC_POL_MASK,
 				      SW_VSYNC_POL(rk628->sync_pol));
 		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_HSYNC_POL_MASK,

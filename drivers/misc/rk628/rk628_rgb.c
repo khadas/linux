@@ -40,8 +40,8 @@ void rk628_rgb_decoder_enable(struct rk628 *rk628)
 void rk628_rgb_encoder_enable(struct rk628 *rk628)
 {
 	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
-			      SW_BT_DATA_OEN_MASK | SW_OUTPUT_MODE_MASK,
-			      SW_OUTPUT_MODE(OUTPUT_MODE_RGB));
+			      SW_BT_DATA_OEN_MASK | SW_OUTPUT_RGB_MODE_MASK,
+			      SW_OUTPUT_RGB_MODE(OUTPUT_MODE_RGB >> 3));
 	rk628_i2c_update_bits(rk628, GRF_POST_PROC_CON, SW_DCLK_OUT_INV_EN,
 			      SW_DCLK_OUT_INV_EN);
 
@@ -160,10 +160,9 @@ void rk628_bt1120_encoder_enable(struct rk628 *rk628)
 	rk628_i2c_write(rk628, GRF_GPIO3A_D0_CON, 0xffff1011);
 	rk628_i2c_write(rk628, GRF_GPIO3B_D_CON, 0xf0001);
 
-	/* config sw_input_mode bt1120 */
 	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
-			      SW_BT_DATA_OEN_MASK | SW_OUTPUT_MODE_MASK,
-			      SW_OUTPUT_MODE(OUTPUT_MODE_BT1120));
+			      SW_BT_DATA_OEN_MASK | SW_OUTPUT_RGB_MODE_MASK,
+			      SW_OUTPUT_RGB_MODE(OUTPUT_MODE_BT1120 >> 3));
 	rk628_i2c_write(rk628, GRF_CSC_CTRL_CON, SW_R2Y_EN(1));
 	rk628_i2c_update_bits(rk628, GRF_POST_PROC_CON,
 			      SW_DCLK_OUT_INV_EN, SW_DCLK_OUT_INV_EN);
