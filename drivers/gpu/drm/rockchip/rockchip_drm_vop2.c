@@ -4547,6 +4547,13 @@ static int vop2_cluster_two_win_mode_check(struct drm_plane_state *pstate)
 
 	main_pstate = drm_atomic_get_new_plane_state(state, &main_win->base);
 
+	if (!main_pstate || !main_pstate->fb) {
+		DRM_INFO("force to disable %s when cluster-win0 is disabled\n", win->name);
+		pstate->visible = false;
+
+		return 0;
+	}
+
 	if (pstate->fb->modifier != main_pstate->fb->modifier) {
 		DRM_ERROR("%s(fb->modifier: 0x%llx) must use same data layout as %s(fb->modifier: 0x%llx)\n",
 				win->name, pstate->fb->modifier, main_win->name, main_pstate->fb->modifier);
