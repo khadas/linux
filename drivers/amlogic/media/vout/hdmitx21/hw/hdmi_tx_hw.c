@@ -1720,12 +1720,6 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		return 0;
 	pr_info(HW "set audio\n");
 
-	/* if hdev->aud_output_ch is true, select I2S as 8ch in, 2ch out */
-	if (hdev->aud_output_ch) {
-		audio_param->aud_src_if = 1;
-		pr_info("hdmitx aud_output_ch 0x%x\n", hdev->aud_output_ch);
-	}
-
 	hdmitx21_set_reg_bits(AIP_RST_IVCTX, 1, 0, 1);
 	if (audio_param->type == CT_MAT || audio_param->type == CT_DTS_HD_MA) {
 		hbr_audio = true;
