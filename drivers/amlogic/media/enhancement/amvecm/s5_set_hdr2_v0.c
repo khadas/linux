@@ -805,6 +805,9 @@ void s5_set_hdr_matrix(enum hdr_module_sel module_sel,
 			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift  - 2;
 			adpscl_shift[1] = OO_NOR -
 			_log2((1 << OO_NOR) / ogain_lut_148) - 2;
+		} else if (hdr_mtx_param->p_sel == HDR_HDR) {
+			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
+			adpscl_shift[1] = OO_NOR - _log2((1 << OO_NOR) / 64);
 		} else {
 			adpscl_shift[0] = hdr_lut_param->adp_scal_x_shift;
 			adpscl_shift[1] = OO_NOR;

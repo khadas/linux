@@ -7341,7 +7341,7 @@ static void hdr10_tm_sbtm_process_update(struct vinfo_s *vinfo,
 {
 	int silce_mode = get_s5_silce_mode();
 
-	if (!sbtm_en || !sbtm_mode)
+	if (!sbtm_en || !sbtm_mode || sbtm_tmo_static)
 		return;
 
 	sbtm_tmo_hdr2hdr_process(vinfo);

@@ -325,7 +325,7 @@ uint sbtm_tmo_static;/* sbtm_tmo_static 0/1 dynamic/static */
 module_param(sbtm_tmo_static, uint, 0664);
 MODULE_PARM_DESC(sbtm_tmo_static, "\n sbtm_tmo_static\n");
 
-uint sbtm_en = 1;/* sbtm_en enable/disable */
+uint sbtm_en;/* sbtm_en enable/disable */
 module_param(sbtm_en, uint, 0664);
 MODULE_PARM_DESC(sbtm_en, "\n sbtm_en\n");
 
@@ -990,7 +990,6 @@ void sbtm_tmo_alg_hdr2hdr_static(struct vinfo_s *vinfo, uint lum_tgr, int *oolut
 
 	for (i = 0; i < HDR2_OOTF_LUT_SIZE; i++)
 		oo_lut[i] = (64 * lum_tgr + (metadate_maxl >> 1)) / metadate_maxl;
-
 	pr_sbtm_dbg("%s: hdr2hdr_tmo convert OK.  metadate_maxl = %d, lum_tgr = %d, oo_lut[10] = %d\n",
 		__func__, metadate_maxl, lum_tgr, oo_lut[10]);
 
@@ -1336,12 +1335,14 @@ int sbtm_convert_process(enum sbtm_hdr_proc_sel sbtm_proc_sel,
 	sbtm_gamut_convert_proc(sbtm_proc_sel, mtx, mtx_depth);
 
 	if (sbtm_mode == SBTM_MODE_DRDM) {
-		if (sbtm_proc_sel == SBTM_HDR_HDR_PROC)
+		if (sbtm_proc_sel == SBTM_HDR_HDR_PROC &&
+			!sbtm_tmo_static)
 			pr_sbtm_dbg("DRDM HDR_HDR tmo_dynamic.\n");
 		else
 			sbtm_drdm_tmo_convert_proc(sbtm_proc_sel, vinfo);
 	} else {
-		if (sbtm_proc_sel == SBTM_HDR_HDR_PROC)
+		if (sbtm_proc_sel == SBTM_HDR_HDR_PROC &&
+			!sbtm_tmo_static)
 			pr_sbtm_dbg("GRDM HDR_HDR tmo_dynamic.\n");
 		else
 			sbtm_grdm_tmo_convert_proc(sbtm_proc_sel, vinfo);
