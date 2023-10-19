@@ -1846,10 +1846,10 @@ RESTART:
 		/* avoid the bit length overflow */
 		u64 tmp = (u64)((u64)(width_out * width_in) * aspect_ratio_out);
 
-		tmp = tmp >> 2;
+		tmp = tmp >> 4;
 		if (tmp != 0)
 			height_after_ratio =
-				div_u64((u64)256ULL *
+				div_u64((u64)64ULL *
 					(u64)w_in *
 					(u64)height_out *
 					(u64)sar_height *
@@ -1866,11 +1866,11 @@ RESTART:
 		/* avoid the bit length overflow */
 		u64 tmp = (u64)((u64)(width_out * h_in) * aspect_ratio_out);
 
-		tmp = tmp >> 2;
+		tmp = tmp >> 4;
 		if (tmp != 0)
 			aspect_factor =
 				div_u64((unsigned long long)w_in * height_out *
-					(aspect_factor << 8),
+					(aspect_factor << 6),
 					(u32)tmp);
 		height_after_ratio = (h_in * aspect_factor) >> 8;
 	}
