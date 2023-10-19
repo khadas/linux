@@ -434,8 +434,10 @@ static long aml_irblaster_ioctl(struct file *filp, unsigned int cmd,
 			return -ENOMEM;
 		}
 		if (copy_from_user(sendcode, (char *)argp,
-					psize))
+					psize)) {
+			kfree(sendcode);
 			return -EFAULT;
+		}
 		pr_info("send code is %s\n", sendcode);
 		mutex_lock(&blaster_mutex);
 		r = send(dev, sendcode, psize);
