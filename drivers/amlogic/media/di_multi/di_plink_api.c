@@ -3936,7 +3936,7 @@ static void dct_pst(const struct reg_acc *op, struct dimn_dvfm_s *ndvfm)
 	bool ret;
 	struct di_ch_s *pch;
 	struct dcntr_mem_s	*pdcn;
-	unsigned char dct_bypass_sts = 0;
+	bool dct_bypass_sts = false;
 
 	hw = &get_datal()->dvs_prevpp.hw;
 	if (hw->dis_ch == 0xff)
@@ -3977,7 +3977,7 @@ static void dct_pst(const struct reg_acc *op, struct dimn_dvfm_s *ndvfm)
 		    pdcn->y_start != hw->dis_c_para.win.y_st ||
 		    pdcn->y_size != hw->dis_c_para.win.y_size) {
 			dcntr_hw_bypass(op);
-			dct_bypass_sts = 1;
+			dct_bypass_sts = true;
 			dim_print("%s: dct_bypass: (%d %d %d %d) -- (%d %d %d %d)\n",
 				__func__,
 				pdcn->x_start, pdcn->y_start,
@@ -3990,8 +3990,17 @@ static void dct_pst(const struct reg_acc *op, struct dimn_dvfm_s *ndvfm)
 	}
 	if (dpvpp_dbg_force_bypass_dct_post()) {
 		dcntr_hw_bypass(op);
-		dct_bypass_sts = 1;
+		dct_bypass_sts = true;
 	}
+	if (hw->last_dct_bypass != dct_bypass_sts && !dct_bypass_sts)
+		hw->cur_dct_delay = 0;
+
+	if (hw->cur_dct_delay < hw->dct_delay_cnt) {
+		dcntr_hw_bypass(op);
+		dim_print("dct enable delay:%d %d\n", hw->cur_dct_delay, hw->dct_delay_cnt);
+		hw->cur_dct_delay++;
+	}
+
 	if (dct_bypass_sts != hw->last_dct_bypass)
 		dim_print("%s: dct_bypass:%d->%d, force:%d\n",
 			__func__, hw->last_dct_bypass, dct_bypass_sts,
@@ -5393,6 +5402,7 @@ static int dpvpp_display_unreg_bypass(void)
 	if (hw->dis_last_para.dmode != EPVPP_DISPLAY_MODE_BYPASS) {
 		dbg_plink1("%s:trig dis_ch:%d->255\n", __func__, hw->dis_ch);
 		hw->dis_ch = 0xff;
+		hw->last_dct_bypass = true;
 		/* from pre-vpp link to bypass */
 		//be sure vpp can display
 		dim_afds()->pvpp_sw_setting_op(false, hw->op);
@@ -5650,7 +5660,7 @@ static int dpvpp_display(struct vframe_s *vfm,
 DISPLAY_BYPASS:
 	if (hw->dis_last_para.dmode != EPVPP_DISPLAY_MODE_BYPASS) {
 		hw->dis_ch = 0xff;
-
+		hw->last_dct_bypass = true;
 		/* from pre-vpp link to bypass */
 		//be sure vpp can display
 		dim_afds()->pvpp_sw_setting_op(false, hw->op); //disable afbcd
@@ -6060,6 +6070,9 @@ void dpvpp_prob(void)
 		hw->en_dct = false;
 	hw->dct_ch = 0xff;
 	hw->dis_ch = 0xff;
+	hw->dct_delay_cnt = 0;
+	hw->cur_dct_delay = 0;
+	hw->last_dct_bypass = true;
 	atomic_set(&hw->link_instance_id, DIM_PLINK_INSTANCE_ID_INVALID);
 	dbg_tst("%s:size[0x%zx]k\n",
 		__func__, (sizeof(*dv_prevpp) >> 10));

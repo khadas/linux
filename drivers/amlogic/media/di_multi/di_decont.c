@@ -869,15 +869,18 @@ static bool dcntr_post(const struct reg_acc *op)
 	int32_t reg_grd_yidx_div;
 	int i;
 	unsigned int off = 0; //for t3
+	const struct reg_acc *op_org = NULL;
 
 	/****************************************/
 	if (!pcfg->flg_int || !pcfg->n_set)
 		return false;
+	if (DIM_IS_IC_EF(T3))
+		off = 0x200;
+	op_org = &di_pre_regset;
+	op_org->wr(REG_DCTR_GCLK_CTRL0 + off, 0x3c0000); //avg_flt_y/uv
 	op->bwr(VIUB_GCLK_CTRL3, 0x3f, 16, 6);
 	op->bwr(DI_PRE_CTRL, 1, 15, 1);// decontour enable
 
-	if (DIM_IS_IC_EF(T3))
-		off = 0x200;
 	/* int */
 	hsize		= pcfg->in.x_size;
 	vsize		= pcfg->in.y_size;
