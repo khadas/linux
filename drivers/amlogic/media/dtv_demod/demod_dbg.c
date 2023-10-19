@@ -913,13 +913,16 @@ static void info_show(void)
 	char chip_name[30];
 	struct aml_demod_sts demod_sts;
 	u32 ber;
+	int fw_ver = 0;
 
 	PR_INFO("DTV DEMOD state:\n");
 	PR_INFO("demod_thread: %d.\n", devp->demod_thread);
 	get_chip_name(devp, chip_name);
 	PR_INFO("hw version chip: %d, %s.\n", devp->data->hw_ver, chip_name);
-	PR_INFO("version: %s-%s, T2 FW ver: %s.\n", AMLDTVDEMOD_VER,
-			DTVDEMOD_VER, AMLDTVDEMOD_T2_FW_VER);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T3))
+		fw_ver = dvbt_t2_rdb(0x48);
+	PR_INFO("version: %s-%s, T2 FW ver: V%d.%s.\n", AMLDTVDEMOD_VER,
+		DTVDEMOD_VER, fw_ver, AMLDTVDEMOD_T2_FW_VER);
 
 	dbg_ic_cfg_addr(devp);
 

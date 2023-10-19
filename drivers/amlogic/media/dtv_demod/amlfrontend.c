@@ -261,6 +261,7 @@ static void real_para_clear(struct aml_demod_para_real *para)
 	para->symbol = 0;
 	para->snr = 0;
 	para->plp_num = 0;
+	para->plp_common = 0;
 	para->fef_info = 0;
 	para->tps_cell_id = 0;
 	para->ber = 0;
@@ -1222,6 +1223,25 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	return 0;
 }
 
+static u64_t get_common_plp(void)
+{
+	int i, id, common_cnt;
+	u64_t plp_common = 0;
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T3)) {
+		common_cnt = dvbt_t2_rdb(0xe0);
+		for (i = 0; i < common_cnt; i++) {
+			id = dvbt_t2_rdb(0xa0 + i);
+			if (id < 64)
+				plp_common |= 1ULL << id;
+		}
+	}
+
+	PR_DVBT("get common plp : 0x%llx\n", plp_common);
+
+	return plp_common;
+}
+
 #define DVBT2_DEBUG_INFO
 #define TIMEOUT_SIGNAL_T2 800
 #define CONTINUE_TIMES_LOCK 3
@@ -1240,6 +1260,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	static int no_signal_cnt, unlock_cnt;
 	int snr, modu, cr, l1post, ldpc;
 	unsigned int plp_num, fef_info = 0;
+	u64_t plp_common;
 
 	if (devp->tuner_strength_limit)
 		strength_limit = devp->tuner_strength_limit;
@@ -1286,6 +1307,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		snr = val >> 13;
 		l1post = (val >> 30) & 0x1;
 		plp_num = (val >> 24) & 0x3f;
+		plp_common = 0;
 	} else {
 		snr = (dvbt_t2_rdb(0x2a09) << 8) | dvbt_t2_rdb(0x2a08);
 		cr = (dvbt_t2_rdb(0x8c3) >> 1) & 0x7;
@@ -1293,6 +1315,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		ldpc = dvbt_t2_rdb(0xa50);
 		l1post = (dvbt_t2_rdb(0x839) >> 3) & 0x1;
 		plp_num = dvbt_t2_rdb(0x805);
+		plp_common = get_common_plp();
 	}
 	snr &= 0x7ff;
 	snr = snr * 30 / 64; //dBx10.
@@ -1350,6 +1373,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		demod->real_para.modulation = modu;
 		demod->real_para.coderate = cr;
 		demod->real_para.plp_num = plp_num;
+		demod->real_para.plp_common = plp_common;
 		demod->real_para.fef_info = fef_info;
 
 		/* for call r842 dvbt agc slow */
@@ -7890,21 +7914,25 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 		/* plp nums & ids */
 		tvp->u.buffer.reserved1[0] = demod->real_para.plp_num;
 		if (tvp->u.buffer.reserved2 && demod->real_para.plp_num > 0) {
-			unsigned char i, *plp_ids;
+			unsigned char i, *plp_ids, common_cnt = 0;
 
 			plp_ids = kmalloc(demod->real_para.plp_num, GFP_KERNEL);
 			if (plp_ids) {
-				for (i = 0; i < demod->real_para.plp_num; i++)
-					plp_ids[i] = i;
+				for (i = 0; i < demod->real_para.plp_num; i++) {
+					if ((demod->real_para.plp_common >> i) & 1)
+						common_cnt++;
+					plp_ids[i] = i + common_cnt;
+				}
+				tvp->u.buffer.reserved1[0] -= common_cnt;
 				if (copy_to_user(tvp->u.buffer.reserved2,
-					plp_ids, demod->real_para.plp_num))
+					plp_ids, tvp->u.buffer.reserved1[0]))
 					PR_ERR("copy plp ids to user err\n");
 
 				kfree(plp_ids);
 			}
 		}
-		PR_INFO("[id %d] get plp num = %d\n",
-			demod->id, demod->real_para.plp_num);
+		PR_INFO("[id %d] get plp num = %d, common=0x%llx\n",
+			demod->id, tvp->u.buffer.reserved1[0], demod->real_para.plp_common);
 		break;
 
 	case DTV_STAT_CNR:

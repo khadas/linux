@@ -115,6 +115,7 @@
 /*  V2.2.005 add DTV_STAT_SIGNAL_STRENGTH and DTV_STAT_CNR */
 /*  V2.2.006 fix r842 dvbt/t2 LTE interferer test fail */
 /*  V2.2.007 fix power management flow */
+/*  V2.2.008 Support ignoring common plp in dvbt2 */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -131,9 +132,9 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.2.007"
-#define DTVDEMOD_VER	"2023/10/24: fix power management flow"
-#define AMLDTVDEMOD_T2_FW_VER "V1558.20230628"
+#define AMLDTVDEMOD_VER "V2.2.8"
+#define DTVDEMOD_VER	"2023/10/25: Support ignoring common plp in dvbt2"
+#define AMLDTVDEMOD_T2_FW_VER "20231019_141000"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENGTH_ATSC (-87)
@@ -282,6 +283,7 @@ struct aml_demod_para_real {
 	u32_t symbol;
 	u32_t snr;
 	u32_t plp_num;
+	u64_t plp_common;
 	u32_t fef_info;
 	u32_t tps_cell_id;
 	u32_t ber;
