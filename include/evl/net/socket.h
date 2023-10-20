@@ -26,7 +26,7 @@ struct net_device;
 
 struct evl_net_proto {
 	int (*attach)(struct evl_socket *esk,
-		struct evl_net_proto *proto, __be16 protocol);
+		struct evl_net_proto *proto, int protocol);
 	void (*detach)(struct evl_socket *esk);
 	int (*bind)(struct evl_socket *esk,
 		struct sockaddr *addr, int len);
@@ -47,7 +47,7 @@ struct evl_net_proto {
 
 struct evl_socket_domain {
 	int af_domain;
-	struct evl_net_proto *(*match)(int type, __be16 protocol);
+	struct evl_net_proto *(*match)(int type, int protocol);
 	struct list_head next;
 };
 
@@ -68,7 +68,7 @@ struct evl_socket {
 	int wmem_max;
 	struct evl_wait_queue wmem_wait;
 	struct evl_crossing wmem_drain;
-	__be16 protocol;
+	int protocol;
 	struct {
 		int real_ifindex;
 		int vlan_ifindex;
