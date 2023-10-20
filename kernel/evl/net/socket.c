@@ -354,8 +354,7 @@ void evl_uncharge_socket_wmem(struct sk_buff *skb)
 }
 
 /* in-band */
-static struct evl_net_proto *
-find_oob_proto(int domain, int type, __be16 protocol)
+static struct evl_net_proto *find_oob_proto(int domain, int type, int protocol)
 {
 	struct evl_net_proto *proto = NULL;
 	struct domain_list_head *head;
@@ -455,7 +454,7 @@ int sock_oob_attach(struct socket *sock)
 	esk->wmem_max = sk->sk_sndbuf;
 	evl_init_crossing(&esk->wmem_drain);
 
-	ret = proto->attach(esk, proto, sk->sk_protocol);
+	ret = proto->attach(esk, proto, ntohs(sk->sk_protocol));
 	if (ret)
 		goto fail_attach;
 
@@ -765,7 +764,7 @@ static void destroy_evl_socket(struct sock *sk)
 }
 
 static int create_evl_socket(struct net *net, struct socket *sock,
-			int protocol, int kern)
+			     int protocol, int kern)
 {
 	struct sock *sk;
 

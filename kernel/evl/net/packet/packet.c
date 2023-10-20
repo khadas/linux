@@ -28,8 +28,7 @@
 #include <evl/uaccess.h>
 
 static struct evl_net_proto *
-find_packet_proto(__be16 protocol,
-		struct evl_net_proto *default_proto);
+find_packet_proto(int protocol, struct evl_net_proto *default_proto);
 
 /*
  * Lock nesting: protocol_lock -> rxq->lock -> esk->input_wait.wchan.lock
@@ -48,7 +47,7 @@ static DEFINE_EVL_SPINLOCK(protocol_lock);
 
 /* oob, hard irqs off */
 static bool __packet_deliver(struct evl_net_rxqueue *rxq,
-			struct sk_buff *skb, __be16 protocol)
+			struct sk_buff *skb, int protocol)
 {
 	struct net_device *dev = skb->dev;
 	bool delivered = false;
@@ -100,7 +99,7 @@ static bool __packet_deliver(struct evl_net_rxqueue *rxq,
 		 * consumes the incoming buffer.
 		 */
 		qskb = skb;
-		if (protocol == htons(ETH_P_ALL)) {
+		if (protocol == ETH_P_ALL) {
 			qskb = evl_net_clone_skb(skb);
 			if (qskb == NULL) {
 				evl_flush_wait(&esk->input_wait, EVL_T_NOMEM);
@@ -119,7 +118,7 @@ static bool __packet_deliver(struct evl_net_rxqueue *rxq,
 
 		evl_signal_poll_events(&esk->poll_head,	POLLIN|POLLRDNORM);
 		delivered = true;
-		if (protocol != htons(ETH_P_ALL))
+		if (protocol != ETH_P_ALL)
 			break;
 	}
 
@@ -140,14 +139,14 @@ static struct evl_net_rxqueue *find_rxqueue(u32 hkey)
 	return NULL;
 }
 
-static inline u32 get_protocol_hash(__be16 protocol)
+static inline u32 get_protocol_hash(int protocol)
 {
 	u32 hsrc = protocol;
 
 	return jhash2(&hsrc, 1, 0);
 }
 
-static bool packet_deliver(struct sk_buff *skb, __be16 protocol) /* oob */
+static bool packet_deliver(struct sk_buff *skb, int protocol) /* oob */
 {
 	struct evl_net_rxqueue *rxq;
 	unsigned long flags;
@@ -187,14 +186,14 @@ static bool packet_deliver(struct sk_buff *skb, __be16 protocol) /* oob */
  */
 bool evl_net_packet_deliver(struct sk_buff *skb) /* oob */
 {
-	packet_deliver(skb, htons(ETH_P_ALL));
+	packet_deliver(skb, ETH_P_ALL);
 
-	return packet_deliver(skb, skb->protocol);
+	return packet_deliver(skb, ntohs(skb->protocol));
 }
 
 /* in-band. */
 static int attach_packet_socket(struct evl_socket *esk,
-				struct evl_net_proto *proto, __be16 protocol)
+				struct evl_net_proto *proto, int protocol)
 {
 	struct evl_net_rxqueue *rxq, *_rxq;
 	unsigned long flags;
@@ -285,7 +284,7 @@ static int bind_packet_socket(struct evl_socket *esk,
 	if (sll->sll_family != AF_PACKET)
 		return -EINVAL;
 
-	proto = find_packet_proto(sll->sll_protocol, esk->proto);
+	proto = find_packet_proto(ntohs(sll->sll_protocol), esk->proto);
 	if (proto == NULL)
 		return -EINVAL;
 
@@ -316,7 +315,7 @@ static int bind_packet_socket(struct evl_socket *esk,
 	 */
 	sll->sll_ifindex = real_ifindex;
 
-	if (esk->protocol != sll->sll_protocol) {
+	if (esk->protocol != ntohs(sll->sll_protocol)) {
 		detach_packet_socket(esk);
 		/*
 		 * Since the old binding was dropped, we would not
@@ -325,7 +324,7 @@ static int bind_packet_socket(struct evl_socket *esk,
 		 * root issue would be way more problematic than a
 		 * dead socket.
 		 */
-		ret = attach_packet_socket(esk, proto, sll->sll_protocol);
+		ret = attach_packet_socket(esk, proto, ntohs(sll->sll_protocol));
 		if (ret)
 			goto out;
 	}
@@ -462,7 +461,7 @@ static ssize_t send_packet(struct evl_socket *esk,
 	}
 
 	skb_reset_mac_header(skb);
-	skb->protocol = esk->protocol;
+	skb->protocol = htons(esk->protocol);
 	skb->dev = real_dev;
 	skb->priority = esk->sk->sk_priority;
 
@@ -669,12 +668,11 @@ static struct evl_net_proto ether_packet_proto = {
 };
 
 static struct evl_net_proto *
-find_packet_proto(__be16 protocol,
-		struct evl_net_proto *default_proto)
+find_packet_proto(int protocol,	struct evl_net_proto *default_proto)
 {
 	switch (protocol) {
-	case htons(ETH_P_ALL):
-	case htons(ETH_P_IP):
+	case ETH_P_ALL:
+	case ETH_P_IP:
 		return &ether_packet_proto;
 	case 0:
 		return default_proto;
@@ -683,8 +681,7 @@ find_packet_proto(__be16 protocol,
 	}
 }
 
-static struct evl_net_proto *
-match_packet_domain(int type, __be16 protocol)
+static struct evl_net_proto *match_packet_domain(int type, int protocol)
 {
 	static struct evl_net_proto *proto;
 
