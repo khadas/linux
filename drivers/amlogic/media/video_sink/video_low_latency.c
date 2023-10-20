@@ -809,7 +809,7 @@ static int lowlatency_vsync(u8 instance_id)
 		if (vd_layer[0].dispbuf->flag & VFRAME_FLAG_MIRROR_H)
 			mirror = H_MIRROR;
 		if (vd_layer[0].dispbuf->flag & VFRAME_FLAG_MIRROR_V)
-			mirror = V_MIRROR;
+			mirror |= V_MIRROR;
 		_set_video_mirror(&glayer_info[0], mirror);
 		set_alpha_scpxn(&vd_layer[0], vd_layer[0].dispbuf->composer_info);
 		glayer_info[0].zorder = vd_layer[0].dispbuf->zorder;
@@ -1198,7 +1198,7 @@ static int lowlatency_vsync(u8 instance_id)
 		if (vd_layer[1].dispbuf->flag & VFRAME_FLAG_MIRROR_H)
 			mirror = H_MIRROR;
 		if (vd_layer[1].dispbuf->flag & VFRAME_FLAG_MIRROR_V)
-			mirror = V_MIRROR;
+			mirror |= V_MIRROR;
 		_set_video_mirror(&glayer_info[1], mirror);
 		set_alpha_scpxn(&vd_layer[1], vd_layer[1].dispbuf->composer_info);
 		glayer_info[1].zorder = vd_layer[1].dispbuf->zorder;

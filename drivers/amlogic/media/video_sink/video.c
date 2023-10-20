@@ -5864,10 +5864,24 @@ void _set_video_mirror(struct disp_info_s *layer, int mirror)
 		} else if (mirror == V_MIRROR) {
 			mirror = H_MIRROR;
 			revser_temp = false;
+		} else if (mirror == HV_MIRROR) {
+			mirror = NO_MIRROR;
+			revser_temp = false;
 		}
 	}
 #endif
-	if (video_mirror == H_MIRROR) {
+	if (video_mirror == NO_MIRROR) {
+		switch (mirror) {
+		case NO_MIRROR:
+		case H_MIRROR:
+		case V_MIRROR:
+			break;
+		case HV_MIRROR:
+			mirror = NO_MIRROR;
+			revser_temp = true;
+			break;
+		}
+	} else if (video_mirror == H_MIRROR) {
 		switch (mirror) {
 		case NO_MIRROR:
 			mirror = H_MIRROR;
@@ -5878,6 +5892,9 @@ void _set_video_mirror(struct disp_info_s *layer, int mirror)
 		case V_MIRROR:
 			mirror = NO_MIRROR;
 			revser_temp = true;
+			break;
+		case HV_MIRROR:
+			mirror = V_MIRROR;
 			break;
 		}
 	} else if (video_mirror == V_MIRROR) {
@@ -5891,6 +5908,9 @@ void _set_video_mirror(struct disp_info_s *layer, int mirror)
 			break;
 		case V_MIRROR:
 			mirror = NO_MIRROR;
+			break;
+		case HV_MIRROR:
+			mirror = H_MIRROR;
 			break;
 		}
 	}
@@ -6035,7 +6055,7 @@ void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		if (vf->flag & VFRAME_FLAG_MIRROR_H)
 			mirror = H_MIRROR;
 		if (vf->flag & VFRAME_FLAG_MIRROR_V)
-			mirror = V_MIRROR;
+			mirror |= V_MIRROR;
 		_set_video_mirror(layer_info, mirror);
 		set_alpha_scpxn(layer, vf->composer_info);
 		layer_info->zorder = vf->zorder;
@@ -6202,7 +6222,7 @@ void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		if (vf->flag & VFRAME_FLAG_MIRROR_H)
 			mirror = H_MIRROR;
 		if (vf->flag & VFRAME_FLAG_MIRROR_V)
-			mirror = V_MIRROR;
+			mirror |= V_MIRROR;
 		_set_video_mirror(layer_info, mirror);
 		set_alpha_scpxn(layer, vf->composer_info);
 		layer_info->zorder = vf->zorder;
@@ -6390,7 +6410,7 @@ void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1, int l
 		if (vf->flag & VFRAME_FLAG_MIRROR_H)
 			mirror = H_MIRROR;
 		if (vf->flag & VFRAME_FLAG_MIRROR_V)
-			mirror = V_MIRROR;
+			mirror |= V_MIRROR;
 		_set_video_mirror(&glayer_info[0], mirror);
 		set_alpha_scpxn(layer, vf->composer_info);
 		glayer_info[0].zorder = vf->zorder;
@@ -9197,7 +9217,7 @@ SET_FILTER:
 		if (vd_layer[0].dispbuf->flag & VFRAME_FLAG_MIRROR_H)
 			mirror = H_MIRROR;
 		if (vd_layer[0].dispbuf->flag & VFRAME_FLAG_MIRROR_V)
-			mirror = V_MIRROR;
+			mirror |= V_MIRROR;
 		_set_video_mirror(&glayer_info[0], mirror);
 		set_alpha_scpxn(&vd_layer[0], vd_layer[0].dispbuf->composer_info);
 		glayer_info[0].zorder = vd_layer[0].dispbuf->zorder;
@@ -9606,7 +9626,7 @@ SET_FILTER:
 		if (vd_layer[1].dispbuf->flag & VFRAME_FLAG_MIRROR_H)
 			mirror = H_MIRROR;
 		if (vd_layer[1].dispbuf->flag & VFRAME_FLAG_MIRROR_V)
-			mirror = V_MIRROR;
+			mirror |= V_MIRROR;
 		_set_video_mirror(&glayer_info[1], mirror);
 		set_alpha_scpxn(&vd_layer[1], vd_layer[1].dispbuf->composer_info);
 		glayer_info[1].zorder = vd_layer[1].dispbuf->zorder;

@@ -9061,7 +9061,7 @@ static void set_mosaic_vframe_info(struct video_layer_s *layer,
 			if (mosaic_vf->flag & VFRAME_FLAG_MIRROR_H)
 				mirror = H_MIRROR;
 			if (mosaic_vf->flag & VFRAME_FLAG_MIRROR_V)
-				mirror = V_MIRROR;
+				mirror |= V_MIRROR;
 			_set_video_mirror(&g_mosaic_frame[i].virtual_layer_info, mirror);
 		}
 		layer->property_changed = false;
