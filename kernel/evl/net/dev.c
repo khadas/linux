@@ -35,14 +35,14 @@
 
 /*
  * The default number of socket buffers which should be available on a
- * per-device basis for conveying out-of-band traffic (if not
- * specified by the EVL_SOCKIOC_DIVERT_ON request).
+ * per-device basis for conveying out-of-band traffic if not specified
+ * by an EVL_SOCKIOC_ACTIVATE request.
  */
 #define EVL_DEFAULT_NETDEV_POOLSZ  128
 /*
  * The default fixed payload size available in skbs for conveying
- * out-of-band traffic through the device (if not specified by the
- * EVL_SOCKIOC_DIVERT_ON request).
+ * out-of-band traffic through the device if not specified by an
+ * EVL_SOCKIOC_ACTIVATE request.
  */
 #define EVL_DEFAULT_NETDEV_BUFSZ   2048
 /*
@@ -111,8 +111,8 @@ static int enable_oob_port(struct net_device *dev,
 	 * evl_net_get_dev(). More resources are needed by the real
 	 * device backing it.
 	 *
-	 * NOTE: the diversion flag is beared by the real device
-	 * exclusively, _never_ by a VLAN device.
+	 * NOTE: the diversion flag is set for a real device only,
+	 * _never_ for a VLAN device.
 	 */
 	real_dev = vlan_dev_real_dev(dev);
 	nds = &real_dev->oob_context.dev_state;
