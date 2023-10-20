@@ -30,6 +30,8 @@ struct evl_net_proto {
 	void (*detach)(struct evl_socket *esk);
 	int (*bind)(struct evl_socket *esk,
 		struct sockaddr *addr, int len);
+	int (*connect)(struct evl_socket *esk,
+		struct sockaddr *addr, int len, int flags);
 	int (*ioctl)(struct evl_socket *esk, unsigned int cmd,
 		unsigned long arg);
 	ssize_t (*oob_send)(struct evl_socket *esk,
@@ -121,5 +123,9 @@ ssize_t evl_import_iov(const struct iovec *iov, size_t iovlen,
 int evl_charge_socket_wmem(struct evl_socket *esk,
 			struct sk_buff *skb,
 			ktime_t timeout, enum evl_tmode tmode);
+
+int evl_proto_no_connect(struct evl_socket *esk,
+			struct sockaddr *addr,
+			int len, int flags);
 
 #endif /* !_EVL_NET_SOCKET_H */
