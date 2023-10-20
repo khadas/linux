@@ -119,7 +119,8 @@ static inline void early_suspend(void)
 	pr_info("%s: call handlers\n", __func__);
 	list_for_each_entry(pos, &early_suspend_handlers, link)
 		if (pos->suspend) {
-			pr_info("%s: %ps\n", __func__, pos->suspend);
+			if (initcall_debug)
+				pr_info("%s: %ps\n", __func__, pos->suspend);
 			pos->suspend(pos);
 		}
 
@@ -143,7 +144,8 @@ static inline void late_resume(void)
 	pr_info("%s: call handlers\n", __func__);
 	list_for_each_entry_reverse(pos, &early_suspend_handlers, link)
 		if (pos->resume) {
-			pr_info("%s: %ps\n", __func__, pos->resume);
+			if (initcall_debug)
+				pr_info("%s: %ps\n", __func__, pos->resume);
 			pos->resume(pos);
 		}
 
