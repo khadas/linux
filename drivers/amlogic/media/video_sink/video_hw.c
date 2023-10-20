@@ -1925,12 +1925,12 @@ static void vd_set_blk_mode(struct video_layer_s *layer, u8 block_mode)
 	}
 }
 
-static void set_vd1_vd2_mux(void)
+static void set_vd1_vd2_mux_reg(void)
 {
 	VSYNC_WR_MPEG_REG(VPP_INPUT_CTRL, 0x280);
 }
 
-static void set_vd1_vd2_unmux(void)
+static void set_vd1_vd2_unmux_reg(void)
 {
 	VSYNC_WR_MPEG_REG(VPP_INPUT_CTRL, 0x440);
 }
@@ -1991,9 +1991,9 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 		if (layer->vd1_vd2_mux) {
 			vd_mif_reg = &vd_layer[1].vd_mif_reg;
 			vd_afbc_reg = &vd_layer[1].vd_afbc_reg;
-			set_vd1_vd2_mux();
+			set_vd1_vd2_mux_reg();
 		} else {
-			set_vd1_vd2_unmux();
+			set_vd1_vd2_unmux_reg();
 		}
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE

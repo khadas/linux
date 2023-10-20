@@ -453,6 +453,8 @@ void set_post_blend_dummy_data(u32 vpp_index,
 struct vpp_post_info_t *get_vpp_post_amdv_info(void);
 struct vd_proc_info_t *get_vd_proc_amdv_info(void);
 struct vd_proc_amvecm_info_t *get_vd_proc_amvecm_info(void);
+bool get_vd1_vd2_mux(void);
+void set_vd1_vd2_mux(bool en);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 int tsync_set_tunnel_mode(int mode);

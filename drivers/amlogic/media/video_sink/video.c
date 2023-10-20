@@ -11923,6 +11923,21 @@ void di_prelink_force_dmc_priority(bool urgent, bool wait)
 }
 EXPORT_SYMBOL(di_prelink_force_dmc_priority);
 
+bool get_vd1_vd2_mux(void)
+{
+	return vd1_vd2_mux;
+}
+EXPORT_SYMBOL(get_vd1_vd2_mux);
+
+void set_vd1_vd2_mux(bool en)
+{
+	if (video_is_meson_t5d_revb_cpu()) {
+		vd1_vd2_mux = en;
+		vd_layer[0].vd1_vd2_mux = en;
+		pr_info("%s:mux=%d\n", __func__, en);
+	}
+}
+EXPORT_SYMBOL(set_vd1_vd2_mux);
 /*********************************************************
  * Vframe src fmt API
  *********************************************************/
@@ -21465,7 +21480,7 @@ static int amvideom_probe(struct platform_device *pdev)
 	vdtemp = of_property_read_u32(pdev->dev.of_node, "vd1_vd2_mux",
 				      &vd1_vd2_mux_dts);
 	if (vdtemp < 0)
-		vd1_vd2_mux_dts = 1;
+		vd1_vd2_mux_dts = 0;
 	set_rdma_func_handler();
 	if (amvideo_meson_dev.display_module == S5_DISPLAY_MODULE) {
 		video_early_init_s5(&amvideo_meson_dev);
