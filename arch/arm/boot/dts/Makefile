@@ -1002,6 +1002,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rv1106g-evb1-v11-facial-gate.dtb \
 	rv1106g-evb1-v10-spi-nand.dtb \
 	rv1106g-evb1-v10-spi-nor.dtb \
+	rv1106g-evb1-v11-fastboot-emmc.dtb \
 	rv1106g-evb1-v11-nofastae-spi-nand.dtb \
 	rv1106g-evb1-v11-cvr-ext-dual-cam.dtb \
 	rv1106g-evb2-v10.dtb \
