@@ -691,24 +691,14 @@ static int hdmi_rx_ctrl_irq_handler(void)
 		if (rx_get_bits(intr_aud_fifo, OVERFL) != 0) {
 			if (log_level & 0x100)
 				rx_pr("[irq] OVERFL\n");
-			/* rx.irq_flag |= IRQ_AUD_FLAG; */
-			/* when afifo overflow in multi-channel case(VG-877),
-			 * then store all subpkts into afifo, 8ch in and 8ch out
-			 */
-			if (rx.aud_info.auds_layout)
-				rx_afifo_store_all_subpkt(true);
-			else
-				rx_afifo_store_all_subpkt(false);
-			//if (rx.aud_info.real_sr != 0)
-			error |= hdmirx_audio_fifo_rst();
+			if (rx.state == FSM_SIG_READY)
+				hdmirx_audio_fifo_rst();
 		}
 		if (rx_get_bits(intr_aud_fifo, UNDERFL) != 0) {
 			if (log_level & 0x100)
 				rx_pr("[irq] UNDERFL\n");
-			/* rx.irq_flag |= IRQ_AUD_FLAG; */
-			rx_afifo_store_all_subpkt(false);
-			//if (rx.aud_info.real_sr != 0)
-			error |= hdmirx_audio_fifo_rst();
+			if (rx.state == FSM_SIG_READY)
+				hdmirx_audio_fifo_rst();
 		}
 	}
 	if (vsi_handle_flag)
@@ -2348,7 +2338,6 @@ void rx_get_global_variable(const char *buf)
 	pr_var(vdin_drop_frame_cnt, i++);
 	pr_var(atmos_edid_update_hpd_en, i++);
 	pr_var(suspend_pddq_sel, i++);
-	pr_var(aud_ch_map, i++);
 	pr_var(hdcp_none_wait_max, i++);
 	pr_var(pll_unlock_max, i++);
 	pr_var(esd_phy_rst_max, i++);
@@ -2596,8 +2585,6 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(atmos_edid_update_hpd_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(suspend_pddq_sel), &suspend_pddq_sel, value))
 		return pr_var(suspend_pddq_sel, index);
-	if (set_pr_var(tmpbuf, var_to_str(aud_ch_map), &aud_ch_map, value))
-		return pr_var(aud_ch_map, index);
 	if (set_pr_var(tmpbuf, var_to_str(hdcp_none_wait_max), &hdcp_none_wait_max, value))
 		return pr_var(hdcp_none_wait_max, index);
 	if (set_pr_var(tmpbuf, var_to_str(pll_unlock_max), &pll_unlock_max, value))
@@ -3106,8 +3093,6 @@ static bool sepcail_dev_need_extra_wait(int wait_cnt)
  */
 void rx_main_state_machine(void)
 {
-	int pre_auds_ch_alloc;
-	int pre_auds_hbr;
 	int one_frame_cnt;
 
 	switch (rx.state) {
@@ -3353,7 +3338,7 @@ void rx_main_state_machine(void)
 				rx_get_aud_info(&rx.aud_info);
 				hdmirx_config_audio();
 				rx_aud_pll_ctl(1);
-				rx_afifo_store_all_subpkt(false);
+				rx_afifo_store_valid(true);
 				hdmirx_audio_fifo_rst();
 				rx.hdcp.hdcp_pre_ver = rx.hdcp.hdcp_version;
 				rx.stable_timestamp = rx.timestamp;
@@ -3503,21 +3488,10 @@ void rx_main_state_machine(void)
 			break;
 		packet_update();
 		hdcp_sts_update();
-		pre_auds_ch_alloc = rx.aud_info.auds_ch_alloc;
-		pre_auds_hbr = rx.aud_info.aud_hbr_rcv;
 		rx_get_aud_info(&rx.aud_info);
 
 		if (check_real_sr_change())
 			rx_audio_pll_sw_update();
-		if (pre_auds_ch_alloc != rx.aud_info.auds_ch_alloc ||
-		    (pre_auds_hbr != rx.aud_info.aud_hbr_rcv &&
-			hbr_force_8ch)) {
-			if (log_level & AUDIO_LOG)
-				dump_state(RX_DUMP_AUDIO);
-			hdmirx_config_audio();
-			hdmirx_audio_fifo_rst();
-			rx_audio_pll_sw_update();
-		}
 		if (is_aud_pll_error()) {
 			rx.aud_sr_unstable_cnt++;
 			if (rx.aud_sr_unstable_cnt > aud_sr_stb_max) {
@@ -3780,7 +3754,7 @@ static void dump_video_status(void)
 	      edid_ver == EDID_V20 ? "2.0" : "1.4");
 }
 
-static void dump_audio_status(void)
+void dump_audio_status(void)
 {
 	static struct aud_info_s a;
 	u32 val0, val1;
@@ -3795,6 +3769,8 @@ static void dump_audio_status(void)
 	rx_pr("CTS=%d, N=%d,", a.cts, a.n);
 	rx_pr("acr clk=%d\n", a.arc);
 	rx_get_audio_N_CTS(&val0, &val1);
+	rx_pr("layout=%d\n", a.auds_layout);
+	rx_pr("afifo cfg=%d\n", a.afifo_cfg);
 	rx_pr("top CTS:%d, N:%d\n", val1, val0);
 	rx_pr("audio receive data:%d\n", auds_rcv_sts);
 	rx_pr("aud mute = %d", a.aud_mute_en);

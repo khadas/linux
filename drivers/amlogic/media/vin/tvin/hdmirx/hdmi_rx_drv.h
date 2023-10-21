@@ -46,7 +46,8 @@
 //2023.10.03
 //CTS 2-79
 //emp dbg
-#define RX_VER0 "ver.2023/10/17"
+//optimize afifo configuration
+#define RX_VER0 "ver.2023/10/21"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -598,6 +599,7 @@ struct aud_info_s {
 	int aud_packet_received;
 	/* aud mute by gcp_avmute or aud_spflat mute */
 	bool aud_mute_en;
+	bool afifo_cfg;
 	/* channel status */
 	unsigned char channel_status[CHANNEL_STATUS_SIZE];
 	unsigned char channel_status_bak[CHANNEL_STATUS_SIZE];

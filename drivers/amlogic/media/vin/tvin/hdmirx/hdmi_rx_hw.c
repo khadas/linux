@@ -103,7 +103,6 @@ int hbr_force_8ch;
  * SECURE_MODE:secure OS path
  */
 int hdcp14_key_mode = NORMAL_MODE;
-int aud_ch_map;
 int ignore_sscp_charerr = 1;
 int ignore_sscp_tmds = 1;
 int find_best_eq;
@@ -1053,7 +1052,7 @@ void rx_set_irq_t5(bool enable)
 			data32 |= 1 << 24; /* AVI_CKS_CHG */
 			data32 |= 0 << 23; /* ACR_N_CHG */
 			data32 |= 0 << 22; /* ACR_CTS_CHG */
-			data32 |= 1 << 21; /* GCP_AV_MUTE_CHG */
+			data32 |= 0 << 21; /* GCP_AV_MUTE_CHG */
 			data32 |= 0 << 20; /* GMD_RCV */
 			data32 |= 0 << 19; /* AIF_RCV */
 			data32 |= 1 << 18; /* AVI_RCV */
@@ -1090,7 +1089,7 @@ void rx_set_irq_t5(bool enable)
 			data32 |= 1 << 24; /* AVI_CKS_CHG */
 			data32 |= 0 << 23; /* ACR_N_CHG */
 			data32 |= 0 << 22; /* ACR_CTS_CHG */
-			data32 |= 1 << 21; /* GCP_AV_MUTE_CHG */
+			data32 |= 0 << 21; /* GCP_AV_MUTE_CHG */
 			data32 |= 0 << 20; /* GMD_RCV */
 			data32 |= 0 << 19; /* AIF_RCV */
 			data32 |= 0 << 18; /* AVI_RCV */
@@ -1117,7 +1116,7 @@ void rx_set_irq_t5(bool enable)
 			data32 |= 1 << 24; /* AVI_CKS_CHG */
 			data32 |= 0 << 23; /* ACR_N_CHG */
 			data32 |= 0 << 22; /* ACR_CTS_CHG */
-			data32 |= 1 << 21; /* GCP_AV_MUTE_CHG */
+			data32 |= 0 << 21; /* GCP_AV_MUTE_CHG */
 			data32 |= 0 << 20; /* GMD_RCV */
 			data32 |= 0 << 19; /* AIF_RCV */
 			data32 |= 0 << 18; /* AVI_RCV */
@@ -1143,7 +1142,7 @@ void rx_set_irq_t5(bool enable)
 			data32 |= 1 << 24; /* AVI_CKS_CHG */
 			data32 |= 0 << 23; /* ACR_N_CHG */
 			data32 |= 0 << 22; /* ACR_CTS_CHG */
-			data32 |= 1 << 21; /* GCP_AV_MUTE_CHG */
+			data32 |= 0 << 21; /* GCP_AV_MUTE_CHG */
 			data32 |= 0 << 20; /* GMD_RCV */
 			data32 |= 0 << 19; /* AIF_RCV */
 			data32 |= 0 << 18; /* AVI_RCV */
@@ -1384,6 +1383,7 @@ void rx_get_aud_info(struct aud_info_s *audio_info)
 			? false : true;
 		audio_info->cts = hdmirx_rd_dwc(DWC_PDEC_ACR_CTS);
 		audio_info->n = hdmirx_rd_dwc(DWC_PDEC_ACR_N);
+		audio_info->afifo_cfg = rx_get_afifo_cfg();
 	}
 	if (audio_info->cts != 0) {
 		audio_info->arc =
@@ -1539,52 +1539,55 @@ bool is_clk_stable(void)
 	}
 }
 
-void rx_afifo_store_all_subpkt(bool all_pkt)
+void rx_afifo_store_valid(bool en)
 {
-	static bool flag = true;
-
-	if (rx.chip_id > CHIP_ID_T7)
+	if (rx.chip_id >= CHIP_ID_T7)
 		return;
 
-	if (all_pkt) {
+	if (!en) {
+		hdmirx_wr_bits_dwc(DWC_AUD_FIFO_CTRL,
+						   AFIF_SUBPACKETS, 0);
+		rx.aud_info.afifo_cfg = false;
 		if (log_level & AUDIO_LOG)
-			rx_pr("afifo store all sub_pkts: %d\n", flag);
-		/* when afifo overflow, try afifo store
-		 * configuration alternatively
-		 */
-		if (flag)
-			hdmirx_wr_bits_dwc(DWC_AUD_FIFO_CTRL,
-					   AFIF_SUBPACKETS, 0);
-		else
-			hdmirx_wr_bits_dwc(DWC_AUD_FIFO_CTRL,
-					   AFIF_SUBPACKETS, 1);
-		flag = !flag;
+			rx_pr("afifo store all\n");
 	} else {
 		hdmirx_wr_bits_dwc(DWC_AUD_FIFO_CTRL,
-				   AFIF_SUBPACKETS, 1);
+						   AFIF_SUBPACKETS, 1);
+		rx.aud_info.afifo_cfg = true;
+		if (log_level & AUDIO_LOG)
+			rx_pr("afifo store valid\n");
 	}
+}
+
+bool rx_get_afifo_cfg(void)
+{
+	if (rx.chip_id >= CHIP_ID_T7)
+		return true;
+
+	if (hdmirx_rd_bits_dwc(DWC_AUD_FIFO_CTRL, AFIF_SUBPACKETS))
+		return true;
+	else
+		return false;
 }
 
 /*
  * hdmirx_audio_fifo_rst - reset afifo
  */
-unsigned int hdmirx_audio_fifo_rst(void)
+void  hdmirx_audio_fifo_rst(void)
 {
-	int error = 0;
 
 	if (rx.chip_id >= CHIP_ID_T7) {
 		hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(1), 1);
 		udelay(1);
 		hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(1), 0);
 	} else {
+		hdmirx_wr_dwc(DWC_DMI_SW_RST, 0x10);
 		hdmirx_wr_bits_dwc(DWC_AUD_FIFO_CTRL, AFIF_INIT, 1);
 		udelay(1);
 		hdmirx_wr_bits_dwc(DWC_AUD_FIFO_CTRL, AFIF_INIT, 0);
-		hdmirx_wr_dwc(DWC_DMI_SW_RST, 0x10);
 	}
 	if (log_level & AUDIO_LOG)
 		rx_pr("%s\n", __func__);
-	return error;
 }
 
 void hdmirx_audio_disabled(void)
@@ -2958,20 +2961,15 @@ int hdmirx_audio_init(void)
 	data32 |= 8	<< 0; /* min */
 	hdmirx_wr_dwc(DWC_AUD_FIFO_TH, data32);
 
-	/* recover to default value.*/
-	/*remain code for some time.*/
-	/*if no side effect then remove it */
-	/*
-	 *data32  = 0;
-	 *data32 |= 1	<< 16;
-	 *data32 |= 0	<< 0;
-	 *hdmirx_wr_dwc(DWC_AUD_FIFO_CTRL, data32);
-	 */
+	data32  = 0;
+	data32 |= 1	<< 16;
+	data32 |= 0	<< 0;
+	hdmirx_wr_dwc(DWC_AUD_FIFO_CTRL, data32);
 
 	data32  = 0;
 	data32 |= 0	<< 8;
-	data32 |= 1	<< 7;
-	data32 |= aud_ch_map << 2;
+	data32 |= 0	<< 7;
+	data32 |= 0 << 2;
 	data32 |= 1	<< 0;
 	hdmirx_wr_dwc(DWC_AUD_CHEXTR_CTRL, data32);
 
@@ -3240,10 +3238,25 @@ static void hdmirx_cor_reset(void)
 
 void rx_afifo_monitor(void)
 {
-	if (rx.chip_id < CHIP_ID_T7)
-		return;
 	if (rx.state != FSM_SIG_READY)
 		return;
+
+	if (rx.chip_id < CHIP_ID_T7) {
+		if (rx.aud_info.auds_layout || rx.aud_info.aud_hbr_rcv) {
+			if (rx.aud_info.afifo_cfg) {
+				dump_audio_status();
+				rx_afifo_store_valid(false);
+				hdmirx_audio_fifo_rst();
+			}
+		} else {
+			if (!rx.aud_info.afifo_cfg) {
+				dump_audio_status();
+				rx_afifo_store_valid(true);
+				hdmirx_audio_fifo_rst();
+			}
+		}
+		return;
+	}
 	if (rx_afifo_dbg_en) {
 		afifo_overflow_cnt = 0;
 		afifo_underflow_cnt = 0;
@@ -3920,7 +3933,7 @@ bool is_aud_fifo_error(void)
 		(OVERFL_STS | UNDERFL_STS)) &&
 		rx.aud_info.aud_packet_received) {
 		ret = true;
-		if (log_level & AUDIO_LOG)
+		if (log_level & DBG_LOG)
 			rx_pr("afifo err\n");
 	}
 	return ret;
@@ -4564,22 +4577,6 @@ void hdmirx_config_audio(void)
 		/* set MCLK for I2S/SPDIF */
 		hdmirx_wr_cor(AAC_MCLK_SEL_AUD_IVCRX, 0x80);
 		hdmirx_hbr2spdif(1);
-	} else {
-		/* if audio layout bit = 1, set audio channel map
-		 * according to audio speaker allocation, if layout
-		 * bit = 0, use ch1 & ch2 by default.
-		 */
-		if (rx.aud_info.aud_hbr_rcv && hbr_force_8ch) {
-			hdmirx_wr_dwc(DWC_AUD_CHEXTR_CTRL, 0xff);
-			if (log_level & AUDIO_LOG)
-				rx_pr("HBR rcv, force 8ch\n");
-		} else if (rx.aud_info.auds_layout) {
-			hdmirx_wr_bits_dwc(DWC_AUD_CHEXTR_CTRL,
-					   AUD_CH_MAP_CFG,
-					   rx.aud_info.auds_ch_alloc);
-		} else {
-			hdmirx_wr_bits_dwc(DWC_AUD_CHEXTR_CTRL, AUD_CH_MAP_CFG, 0);
-		}
 	}
 }
 
