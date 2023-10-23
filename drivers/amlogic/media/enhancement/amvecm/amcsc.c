@@ -8485,6 +8485,12 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	static struct hdr10plus_para *para;
 	static int signal_change_latch;
 	int i, k;
+	int dv_hdr_policy = 0;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (is_amdv_enable())
+		dv_hdr_policy = get_amdv_hdr_policy();
+#endif
 
 	if (!vinfo || vinfo->mode == VMODE_NULL ||
 	    vinfo->mode == VMODE_INVALID)
@@ -8550,10 +8556,22 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	    (video_process_flags[vd_path] & PROC_FLAG_FORCE_PROCESS))
 		signal_change_flag |= SIG_FORCE_CHG;
 
+	source_format[VD1_PATH] = get_source_type(VD1_PATH, vpp_index);
+	source_format[VD2_PATH] = get_source_type(VD2_PATH, vpp_index);
+	source_format[VD3_PATH] = get_source_type(VD3_PATH, vpp_index);
+
 	if (is_amdv_on() &&
 	    (vd_path == VD1_PATH ||
-	    !cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)))
-		return 0;
+	    !cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))) {
+		if (vd_path == VD1_PATH && source_format[VD1_PATH] == HDRTYPE_HLG &&
+			!(dv_hdr_policy & 2) && hdr_policy == 0) {
+			/*dv proc is after amvecm. If hlg not support by dv,should ignore amdv on.*/
+			/*otherwise hlg processed by amvecm is one vsync delay*/
+			pr_csc(16, "%d: hlg will be processed by amvecm, continue\n", __LINE__);
+		} else {
+			return 0;
+		}
+	}
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		enum vd_path_e oth_path[VD_PATH_MAX - 1];
@@ -8580,9 +8598,6 @@ static int vpp_matrix_update(struct vframe_s *vf,
 			signal_change_flag |= SIG_HDR_MODE;
 		}
 
-		source_format[VD1_PATH] = get_source_type(VD1_PATH, vpp_index);
-		source_format[VD2_PATH] = get_source_type(VD2_PATH, vpp_index);
-		source_format[VD3_PATH] = get_source_type(VD3_PATH, vpp_index);
 		get_cur_vd_signal_type(vd_path);
 #ifdef T7_BRINGUP_MULTI_VPP
 		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
@@ -8788,7 +8803,7 @@ static int last_vf_signal_type[VD_PATH_MAX];
 static int null_vf_cnt[VD_PATH_MAX] = {2, 2, 2};
 static int prev_color_fmt[3];
 static int prev_vmode[3] = {0xff, 0xff, 0xff};
-static bool dovi_on;
+static bool amdv_on;
 
 static unsigned int fg_vf_sw_dbg;
 unsigned int null_vf_max = 2;
@@ -8811,6 +8826,13 @@ int amvecm_matrix_process(struct vframe_s *vf,
 	int dv_hdr_policy = 0;
 	static bool amdv_enable;
 	int s5_silce_mode = get_s5_silce_mode();
+	enum hdr_type_e source_format[VD_PATH_MAX];
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (is_amdv_enable())
+		dv_hdr_policy = get_amdv_hdr_policy();
+#endif
+	source_format[VD1_PATH] = get_source_type(VD1_PATH, vpp_index);
 
 	if (vpp_index == VPP_TOP1)
 		vinfo = get_current_vinfo2();
@@ -8858,10 +8880,24 @@ int amvecm_matrix_process(struct vframe_s *vf,
 	pr_csc(16, "amvecm process vd%d %s %p %p, %d, %d\n",
 		vd_path + 1,
 		is_video_layer_on(vd_path) ? "on" : "off",
-		vf, vf_rpt, is_amdv_on(), dovi_on);
+		vf, vf_rpt, is_amdv_on(), amdv_on);
 	if (vd_path == VD1_PATH) {
-		if (is_amdv_on()) {
-			if (!dovi_on) {
+		/*dv process is after amvecm. If hlg not support by dv,should ignore amdv on.*/
+		/*otherwise hlg processed by amvecm is one vsync delay*/
+		if (source_format[VD1_PATH] == HDRTYPE_HLG &&
+			!(dv_hdr_policy & 2) && hdr_policy == 0) {
+			/* dv from on to off */
+			if (amdv_on) {
+				cap_changed = true;
+				if (flags &
+				    (CSC_FLAG_TOGGLE_FRAME |
+				    CSC_FLAG_CHECK_OUTPUT))
+					flags |= CSC_FLAG_FORCE_SIGNAL;
+				amdv_on = false;
+			}
+			pr_csc(16, "update %d\n", amdv_on);
+		} else if (is_amdv_on()) {
+			if (!amdv_on) {
 				if (s5_silce_mode == VD1_1SLICE) {
 					hdr_func(VD1_HDR, HDR_BYPASS,
 						 get_current_vinfo(),
@@ -8888,7 +8924,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 						 NULL, vpp_index);
 				}
 			}
-			dovi_on = true;
+			amdv_on = true;
 			if (video_process_status[vd_path]
 				== HDR_MODULE_BYPASS &&
 				(vf || vf_rpt))
@@ -8901,13 +8937,13 @@ int amvecm_matrix_process(struct vframe_s *vf,
 				return 0;
 		} else {
 			/* dv from on to off */
-			if (dovi_on) {
+			if (amdv_on) {
 				cap_changed = true;
 				if (flags &
 				    (CSC_FLAG_TOGGLE_FRAME |
 				    CSC_FLAG_CHECK_OUTPUT))
 					flags |= CSC_FLAG_FORCE_SIGNAL;
-				dovi_on = false;
+				amdv_on = false;
 			}
 		}
 	}
