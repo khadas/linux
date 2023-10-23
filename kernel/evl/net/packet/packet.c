@@ -104,7 +104,7 @@ static bool __packet_deliver(struct evl_net_rxqueue *rxq,
 			qskb = evl_net_clone_skb(skb);
 			if (qskb == NULL) {
 				evl_flush_wait(&esk->input_wait, EVL_T_NOMEM);
-				evl_net_uncharge_skb_rmem(esk, skb);
+				evl_net_uncharge_skb_rmem(skb);
 				break;
 			}
 		}
@@ -464,7 +464,7 @@ static ssize_t send_packet(struct evl_socket *esk,
 	skb_reset_mac_header(skb);
 	skb->protocol = htons(esk->protocol);
 	skb->dev = real_dev;
-	skb->priority = esk->sk->sk_priority;
+	skb->priority = READ_ONCE(esk->sk->sk_priority);
 
 	count = evl_copy_from_uio(iov, iovlen, skb->data, skb_tailroom(skb), &rem);
 	if (rem || count + dev->hard_header_len + VLAN_HLEN > READ_ONCE(dev->mtu))
@@ -493,7 +493,7 @@ static ssize_t send_packet(struct evl_socket *esk,
 	if (ret)
 		goto cleanup;
 
-	ret = evl_net_ether_transmit(dev, skb);
+	ret = evl_net_ether_transmit_raw(dev, skb);
 	if (ret) {
 		evl_net_uncharge_skb_wmem(skb);
 		goto cleanup;
@@ -612,7 +612,7 @@ static ssize_t receive_packet(struct evl_socket *esk,
 			/* Restore the MAC header. */
 			skb_push(skb, skb->data - skb_mac_header(skb));
 			ret = copy_packet_to_user(u_msghdr, iov, iovlen, skb);
-			evl_net_uncharge_skb_rmem(esk, skb);
+			evl_net_uncharge_skb_rmem(skb);
 			evl_net_free_skb(skb);
 			return ret;
 		}

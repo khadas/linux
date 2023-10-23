@@ -90,7 +90,7 @@ static unsigned int clone_count;
  *
  *	Returns true if the oob stack consumed the packet.
  */
-bool skb_oob_recycle(struct sk_buff *skb) /* in-band */
+bool skb_oob_recycle(struct sk_buff *skb) /* in-band hook */
 {
 	if (EVL_WARN_ON(NET, !skb->oob || skb->dev == NULL))
 		return false;
@@ -121,6 +121,19 @@ static void skb_recycler(struct evl_work *work)
 	}
 }
 
+/*
+ * get_headroom - Get the headroom length for a buffer.
+ *
+ * The current assumption is that we are going to deal with ethernet
+ * devices. Therefore the length of a VLAN header is included in the
+ * headroom, so that the lower layers never have to reallocate because
+ * of the 802.1q encapsulation.
+ */
+static inline size_t get_headroom(struct net_device *dev)
+{
+	return VLAN_HLEN + LL_RESERVED_SPACE(dev);
+}
+
 struct sk_buff *evl_net_dev_alloc_skb(struct net_device *dev,
 				      ktime_t timeout, enum evl_tmode tmode)
 {
@@ -129,8 +142,21 @@ struct sk_buff *evl_net_dev_alloc_skb(struct net_device *dev,
 	unsigned long flags;
 	int ret;
 
+	/*
+	 * Ensure the basic sanity of our assumptions:
+	 *
+	 * - the size of our control block fits into the space
+	 * reserved for this purpose in the generic socket buffer.
+	 *
+	 * - the list head we use for queuing buffers does not overlap
+	 * the device pointer in the unionized layout (this is
+	 * definitely ugly, for sure).
+	 */
+	BUILD_BUG_ON(sizeof(struct evl_net_cb) > sizeof(skb->cb));
+	BUILD_BUG_ON(sizeof(skb->list) > sizeof(struct sk_buff_list));
+
 	if (EVL_WARN_ON(NET, is_vlan_dev(dev)))
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	for (;;) {
 		raw_spin_lock_irqsave(&est->pool_wait.wchan.lock, flags);
@@ -207,25 +233,19 @@ static void free_skb_clone(struct sk_buff *skb)
 	raw_spin_unlock_irqrestore(&clone_lock, flags);
 }
 
-static void free_skb(struct sk_buff *skb)
+static void __free_skb(struct net_device *dev, struct sk_buff *skb)
 {
-	struct net_device *dev = skb->dev;
 	struct sk_buff *origin;
 	int dref;
-
-	if (EVL_WARN_ON(NET, dev == NULL))
-		return;
-
-	if (EVL_WARN_ON(NET, is_vlan_dev(dev)))
-		return;
 
 	/*
 	 * We might receive requests to free regular skbs, or
 	 * associated to devices for which diversion was just turned
 	 * off: pass them on to the in-band stack if so.
-	 * FIXME: should we receive that?
+	 *
+	 * XXX: should we really receive that?
 	 */
-	if (unlikely(!netif_oob_diversion(skb->dev)))
+	if (unlikely(!netif_oob_diversion(dev)))
 		skb->oob = false;
 
 	if (!skb_is_oob(skb)) {
@@ -251,9 +271,36 @@ static void free_skb(struct sk_buff *skb)
 	}
 
 	if (!dref) {
-		netdev_reset_oob_skb(dev, skb, VLAN_HLEN);
+		netdev_reset_oob_skb(dev, skb, get_headroom(dev));
 		free_skb_to_dev(skb);
 	}
+}
+
+static void free_skb(struct sk_buff *skb)
+{
+	struct net_device *dev = skb->dev;
+	struct sk_buff *fskb, *nskb;
+
+	if (EVL_WARN_ON(NET, dev == NULL))
+		return;
+
+	if (EVL_WARN_ON(NET, is_vlan_dev(dev)))
+		return;
+
+	/*
+	 * All skbs on a frag list are guaranteed to belong to the
+	 * same device.
+	 */
+	for (fskb = skb_shinfo(skb)->frag_list; fskb; fskb = nskb) {
+		netdev_dbg(dev, "releasing frag %px from %px\n", fskb, skb);
+		nskb = fskb->next;
+		__free_skb(dev, fskb);
+	}
+
+	netdev_dbg(dev, "releasing skb %px (has_frags=%d)\n",
+		skb, skb_has_frag_list(skb));
+
+	__free_skb(dev, skb);
 }
 
 /**
@@ -264,6 +311,8 @@ static void free_skb(struct sk_buff *skb)
  *	(i.e. shell + data) until all its clones are freed.
  *
  *	@skb the packet to clone.
+ *
+ *      CAUTION: fragments are not cloned.
  */
 struct sk_buff *evl_net_clone_skb(struct sk_buff *skb)
 {
@@ -391,13 +440,8 @@ static struct sk_buff *alloc_one_skb(struct net_device *dev)
 
 	if (!netdev_is_oob_capable(dev)) {
 		est = dev->oob_context.dev_state.estate;
-		/*
-		 *  Add the length of a VLAN header to the default
-		 *  headroom, so that the lower layers do not need to
-		 *  reallocate because of the 802.1q encapsulation.
-		 */
 		return __netdev_alloc_oob_skb(dev, est->buf_size,
-					VLAN_HLEN,
+					get_headroom(dev),
 					GFP_KERNEL|GFP_DMA);
 	}
 
@@ -410,12 +454,24 @@ static struct sk_buff *alloc_one_skb(struct net_device *dev)
 
 bool evl_net_charge_skb_rmem(struct evl_socket *esk, struct sk_buff *skb)
 {
-	return evl_charge_socket_rmem(esk, skb->truesize);
+	int ret;
+
+	EVL_NET_CB(skb)->tracker = NULL;
+	ret = evl_charge_socket_rmem(esk, skb->truesize);
+	if (likely(!ret))
+		EVL_NET_CB(skb)->tracker = esk;
+
+	return ret;
 }
 
-void evl_net_uncharge_skb_rmem(struct evl_socket *esk, struct sk_buff *skb)
+void evl_net_uncharge_skb_rmem(struct sk_buff *skb)
 {
-	evl_uncharge_socket_rmem(esk, skb->truesize);
+	struct evl_socket *esk = EVL_NET_CB(skb)->tracker;
+
+	if (esk) {
+		EVL_NET_CB(skb)->tracker = NULL;
+		evl_uncharge_socket_rmem(esk, skb->truesize);
+	}
 }
 
 int evl_net_charge_skb_wmem(struct evl_socket *esk,
@@ -426,7 +482,7 @@ int evl_net_charge_skb_wmem(struct evl_socket *esk,
 
 	EVL_NET_CB(skb)->tracker = NULL;
 	ret = evl_charge_socket_wmem(esk, skb->truesize, timeout, tmode);
-	if (!ret)
+	if (likely(!ret))
 		EVL_NET_CB(skb)->tracker = esk;
 
 	return ret;
@@ -509,29 +565,181 @@ ssize_t evl_net_show_clones(char *buf, size_t len)
 
 int __init evl_net_init_pools(void)
 {
-	struct sk_buff *clone, *tmp;
+	struct sk_buff *clone;
 	unsigned int n;
 
 	clone_count = net_clones;
 
 	for (n = 0; n < clone_count; n++) {
 		clone = skb_alloc_oob_head(GFP_KERNEL);
-		if (clone == NULL)
-			goto fail;
+		if (clone == NULL) {
+			evl_net_cleanup_pools();
+			return -ENOMEM;
+		}
 		list_add(&clone->list, &clone_heads);
 	}
 
 	evl_init_work(&recycler_work, skb_recycler);
 
 	return 0;
+}
 
-fail:
+void evl_net_cleanup_pools(void)
+{
+	struct sk_buff *clone, *tmp;
+
 	list_for_each_entry_safe(clone, tmp, &clone_heads, list) {
 		list_del(&clone->list);
 		kfree_skb(clone);
 	}
 
 	clone_count = 0;
+}
 
-	return -ENOMEM;
+/*
+ * evl_net_wget_skb - allocate a buffer with contention management for
+ * output.
+ *
+ * If the allocation causes the per-socket write contention threshold
+ * to be crossed, the caller may sleep according to the timeout
+ * specification.
+ */
+struct sk_buff *evl_net_wget_skb(struct evl_socket *esk,
+				struct net_device *dev, ktime_t timeout)
+{
+	enum evl_tmode tmode = timeout ? EVL_ABS : EVL_REL;
+	struct sk_buff *skb;
+	int ret;
+
+	skb = evl_net_dev_alloc_skb(dev, timeout, tmode);
+	if (IS_ERR(skb))
+		return skb;
+
+	ret = evl_net_charge_skb_wmem(esk, skb, timeout, tmode);
+
+	return ret ? ERR_PTR(ret) : skb;
+}
+
+/*
+ * evl_net_wput_skb - deallocate a buffer obtained from
+ * evl_net_wget_skb() for output.
+ *
+ * Fragments are deallocated if present.
+ */
+void evl_net_wput_skb(struct sk_buff *skb)
+{
+	struct sk_buff *fskb;
+
+	skb_walk_frags(skb, fskb) {
+		evl_net_uncharge_skb_wmem(fskb);
+	}
+	evl_net_uncharge_skb_wmem(skb);
+	evl_net_free_skb(skb);
+}
+
+/*
+ * evl_net_rput_skb - deallocate a buffer obtained from the ingress
+ * path.
+ *
+ * Fragments are deallocated if present.
+ */
+void evl_net_rput_skb(struct sk_buff *skb)
+{
+	struct sk_buff *fskb;
+
+	skb_walk_frags(skb, fskb) {
+		evl_net_uncharge_skb_rmem(fskb);
+	}
+	evl_net_uncharge_skb_rmem(skb);
+	evl_net_free_skb(skb);
+}
+
+static ssize_t __skb_to_uio(const struct iovec *iov, size_t iovlen,
+			size_t *vpos, size_t *bpos,
+			const void *data, size_t len)
+{
+	size_t rem = len;
+	ssize_t ret = 0;
+
+	while (rem > 0) {
+		size_t avail = iov[*vpos].iov_len - *bpos, copy = rem;
+		if (avail == 0) {
+			if (++(*vpos) >= iovlen)
+				break;
+			*bpos = 0;
+			continue;
+		}
+		if (copy > avail)
+			copy = avail;
+		if (raw_copy_to_user(iov[*vpos].iov_base + *bpos, data + ret, copy))
+			return -EFAULT;
+		*bpos += copy;
+		ret += copy;
+		rem -= copy;
+	}
+
+	return ret;
+}
+
+static ssize_t skb_to_uio(const struct iovec *iov, size_t iovlen,
+			size_t *vpos, size_t *bpos,
+			const void *data, size_t len)
+{
+	size_t rem = len;
+	ssize_t ret = 0;
+
+	while (rem > 0) {
+		ssize_t partial = __skb_to_uio(iov, iovlen, vpos, bpos,
+					data + ret, rem);
+		if (partial <= 0)
+			return partial;
+		ret += partial;
+		rem -= partial;
+	}
+
+	return ret;
+}
+
+/*
+ * evl_net_skb_to_uio - copy the content of a socket buffer to a user
+ * I/O vector. @skb may contain fragments.
+ *
+ * Returns the count of bytes written to @iov, or -EFAULT on uaccess
+ * error. @short_write is set on return if not enough space is
+ * available from @iov for storing the entire content.
+ */
+ssize_t evl_net_skb_to_uio(const struct iovec *iov, size_t iovlen,
+			struct sk_buff *skb,
+			size_t skip,
+			bool *short_write)
+{
+	size_t vpos = 0, bpos = 0;
+	struct sk_buff *fskb;
+	ssize_t ret, out;
+
+	if (skip)
+		skb_pull_inline(skb, skip);
+
+	ret = skb_to_uio(iov, iovlen, &vpos, &bpos, skb->data, skb->len);
+	if (ret < skb->len) {
+		*short_write = true;
+		return ret;
+	}
+
+	skb_walk_frags(skb, fskb) {
+		if (skip)
+			skb_pull_inline(fskb, skip);
+		out = skb_to_uio(iov, iovlen, &vpos, &bpos, fskb->data, fskb->len);
+		if (out < 0)
+			return out;
+		ret += out;
+		if (out < fskb->len) {
+			*short_write = true;
+			break;
+		}
+	}
+
+	*short_write = false;
+
+	return ret;
 }

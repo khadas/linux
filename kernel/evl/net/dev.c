@@ -14,13 +14,13 @@
 #include <evl/sched.h>
 #include <evl/thread.h>
 #include <evl/crossing.h>
-#include <evl/net/neighbour.h>
 #include <evl/net/socket.h>
 #include <evl/net/device.h>
 #include <evl/net/skb.h>
 #include <evl/net/qdisc.h>
 #include <evl/net/input.h>
 #include <evl/net/output.h>
+#include <evl/net/route.h>
 
 /*
  * Since we need an EVL kthread to handle traffic from the out-of-band
@@ -428,8 +428,10 @@ int evl_netdev_event(struct notifier_block *ev_block,
 	 * Disable the oob port enabled on a VLAN device before the
 	 * latter goes down. rtnl_lock is held.
 	 */
-	if (event == NETDEV_GOING_DOWN && netdev_is_oob_port(dev))
+	if (event == NETDEV_GOING_DOWN && netdev_is_oob_port(dev)) {
 		disable_oob_port(dev);
+		evl_net_flush_routes(dev_net(dev), dev);
+	}
 
 	return NOTIFY_DONE;
 }

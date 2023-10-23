@@ -17,6 +17,7 @@ struct net_device;
 struct evl_net_handler;
 struct evl_net_skb_queue;
 struct evl_socket;
+struct iovec;
 
 struct evl_net_cb {
 	struct evl_net_handler *handler;
@@ -46,6 +47,14 @@ int evl_net_dev_build_pool(struct net_device *dev);
 
 void evl_net_dev_purge_pool(struct net_device *dev);
 
+struct sk_buff *evl_net_wget_skb(struct evl_socket *esk,
+				struct net_device *dev,
+				ktime_t timeout);
+
+void evl_net_wput_skb(struct sk_buff *skb);
+
+void evl_net_rput_skb(struct sk_buff *skb);
+
 struct sk_buff *evl_net_dev_alloc_skb(struct net_device *dev,
 				      ktime_t timeout,
 				      enum evl_tmode tmode);
@@ -59,8 +68,7 @@ struct sk_buff *evl_net_clone_skb(struct sk_buff *skb);
 bool evl_net_charge_skb_rmem(struct evl_socket *esk,
 			struct sk_buff *skb);
 
-void evl_net_uncharge_skb_rmem(struct evl_socket *esk,
-			struct sk_buff *skb);
+void evl_net_uncharge_skb_rmem(struct sk_buff *skb);
 
 int evl_net_charge_skb_wmem(struct evl_socket *esk,
 			struct sk_buff *skb,
@@ -68,7 +76,13 @@ int evl_net_charge_skb_wmem(struct evl_socket *esk,
 
 void evl_net_uncharge_skb_wmem(struct sk_buff *skb);
 
+ssize_t evl_net_skb_to_uio(const struct iovec *iov, size_t iovlen,
+			struct sk_buff *skb, size_t skip,
+			bool *short_write);
+
 int evl_net_init_pools(void);
+
+void evl_net_cleanup_pools(void);
 
 ssize_t evl_net_show_clones(char *buf, size_t len);
 

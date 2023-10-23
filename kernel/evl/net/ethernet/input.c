@@ -7,31 +7,31 @@
 #include <linux/if_vlan.h>
 #include <linux/netdevice.h>
 #include <linux/bitmap.h>
-#include <evl/lock.h>
 #include <evl/net/skb.h>
 #include <evl/net/input.h>
-#include <evl/net/output.h>
 #include <evl/net/packet.h>
+#include <evl/net/ipv4.h>
 
 static DECLARE_BITMAP(vlan_map, VLAN_N_VID);
 
 static struct evl_net_handler evl_net_ether;
 
 /**
- *	evl_net_ether_accept - Stage dispatcher for ethernet packets
+ * evl_net_ether_accept - Stage dispatcher for ethernet packets
  *
- *	Decide whether an incoming ethernet packet should be delivered
- *	via the out-of-band networking stack instead of the in-band
- *	one. Since all out-of-band ethernet traffic is required to go
- *	through VLANs, all we need to do is checking whether the VLAN
- *	information stored into the packet matches a VID reserved for
- *	such traffic.
+ * Decide whether an incoming ethernet packet should be delivered via
+ * the out-of-band networking stack instead of the in-band one. Since
+ * all out-of-band ethernet traffic is required to go through VLANs,
+ * all we need to do is checking whether the VLAN information stored
+ * into the packet matches a VID reserved for such traffic.
  *
- *	@skb the packet to deliver. May be linked to some upstream
- *	queue.
+ * Currently, we only deal with IP input on ethernet medium.
  *
- *	Returns true if the out-of-band stack will handle and deliver
- *	the packet.
+ * @skb the packet to deliver. May be linked to some upstream
+ * queue.
+ *
+ * Returns true if the out-of-band stack will handle and deliver the
+ * packet.
  */
 bool evl_net_ether_accept(struct sk_buff *skb)
 {
@@ -89,27 +89,29 @@ pick:
 }
 
 /**
- *	net_ether_ingress - pass an ethernet packet up to the stack
+ *	net_ether_ingress - pass an ethernet packet upward to the
+ *	stack.
  *
  *	We are called from the RX kthread from oob context, hard irqs
  *	on.  skb is not linked to any queue.
  */
 static void net_ether_ingress(struct sk_buff *skb) /* oob */
 {
-	/* Try to deliver to a packet socket first. */
+	/* Try to deliver to a raw packet socket first. */
 	if (evl_net_packet_deliver(skb))
 		return;
 
 	switch (ntohs(skb->protocol)) {
 	case ETH_P_IP:
-		break;		/* Try UDP.. */
+		if (!evl_net_ipv4_deliver(skb))
+			return;
 	}
 
 	evl_net_free_skb(skb);	/* Dropped. */
 }
 
 static struct evl_net_handler evl_net_ether = {
-	.ingress	=	net_ether_ingress,
+	.ingress = net_ether_ingress,
 };
 
 ssize_t evl_net_store_vlans(const char *buf, size_t len)

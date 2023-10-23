@@ -9,14 +9,37 @@
 #include <linux/socket.h>
 #include <linux/export.h>
 #include <linux/slab.h>
-#include <evl/net/neighbour.h>
+#include <linux/nsproxy.h>
+#include <net/net_namespace.h>
+#include <evl/factory.h>
 #include <evl/net/qdisc.h>
 #include <evl/net/packet.h>
 #include <evl/net/device.h>
 #include <evl/net/input.h>
 #include <evl/net/output.h>
 #include <evl/net/skb.h>
+#include <evl/net/ipv4/arp.h>
+#include <evl/net/ipv4/route.h>
+#include <evl/net/ipv4.h>
 #include <evl/net.h>
+
+/*
+ * Called by the in-band stack to setup the oob state which is going
+ * to be maintained by EVL in a network namespace.
+ */
+void net_init_oob_state(struct net *net)
+{
+	evl_net_init_ipv4(net);
+}
+
+/*
+ * Converse to net_init_oob_state(), called to cleanup the oob state
+ * which is being dismanted by the in-band stack.
+ */
+void net_cleanup_oob_state(struct net *net)
+{
+	evl_net_cleanup_ipv4(net);
+}
 
 static struct notifier_block netdev_notifier = {
 	.notifier_call = evl_netdev_event
@@ -38,13 +61,13 @@ int __init evl_net_init(void)
 	if (ret)
 		goto fail_notifier;
 
-	ret = evl_net_init_neighbour();
-	if (ret)
-		goto fail_neighbour;
-
 	ret = evl_register_socket_domain(&evl_net_packet);
 	if (ret)
-		goto fail_domain;
+		goto fail_packet;
+
+	ret = evl_register_socket_domain(&evl_net_ipv4);
+	if (ret)
+		goto fail_ipv4;
 
 	/* AF_OOB is given no dedicated socket cache. */
 	ret = proto_register(&evl_af_oob_proto, 0);
@@ -56,13 +79,14 @@ int __init evl_net_init(void)
 	return 0;
 
 fail_proto:
+	evl_unregister_socket_domain(&evl_net_ipv4);
+fail_ipv4:
 	evl_unregister_socket_domain(&evl_net_packet);
-fail_neighbour:
+fail_packet:
 	unregister_netdevice_notifier(&netdev_notifier);
-fail_domain:
-	evl_net_cleanup_neighbour();
 fail_notifier:
 	evl_net_cleanup_qdisc();
+	evl_net_cleanup_pools();
 
 	return ret;
 }
@@ -73,8 +97,8 @@ void __init evl_net_cleanup(void)
 	proto_unregister(&evl_af_oob_proto);
 	evl_unregister_socket_domain(&evl_net_packet);
 	unregister_netdevice_notifier(&netdev_notifier);
-	evl_net_cleanup_neighbour();
 	evl_net_cleanup_qdisc();
+	evl_net_cleanup_pools();
 }
 
 static const struct file_operations net_fops;
@@ -102,9 +126,35 @@ static ssize_t clones_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(clones);
 
+static ssize_t ipv4_routes_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct net *net = current->nsproxy->net_ns;
+
+	evl_net_flush_ipv4_routes(net, NULL);
+
+	return count;
+}
+static DEVICE_ATTR_WO(ipv4_routes);
+
+static ssize_t arp_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct net *net = current->nsproxy->net_ns;
+
+	evl_net_flush_arp(net);
+
+	return count;
+}
+static DEVICE_ATTR_WO(arp);
+
 static struct attribute *net_attrs[] = {
 	&dev_attr_vlans.attr,
 	&dev_attr_clones.attr,
+	&dev_attr_ipv4_routes.attr,
+	&dev_attr_arp.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(net);
