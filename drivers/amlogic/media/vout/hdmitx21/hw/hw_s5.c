@@ -552,6 +552,11 @@ void set21_hpll_sspll_s5(enum hdmi_vic vic)
 	case HDMI_19_1280x720p50_16x9:
 	case HDMI_5_1920x1080i60_16x9:
 	case HDMI_20_1920x1080i50_16x9:
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL5, 3, 2, 2);
+		/* 2: 1000ppm  1: 500ppm */
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL5, 2, 12, 4);
+		/* s5_sspll enable */
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL5, 1, 11, 1);
 		break;
 	default:
 		break;

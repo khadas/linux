@@ -938,6 +938,8 @@ static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev,
 
 	if (hdev->data->chip_type >= MESON_CPU_ID_S5) {
 		set_hdmitx_s5_htx_pll(hdev);
+		if (!hdev->frl_rate && cd == COLORDEPTH_24B && hdev->sspll)
+			set_hpll_sspll(vic);
 		/* will overwrite the od already set in set_hdmitx_s5_htx_pll */
 		if (hdev->frl_rate)
 			set_frl_hpll_od(hdev->frl_rate);
