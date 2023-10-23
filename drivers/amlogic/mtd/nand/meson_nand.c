@@ -908,8 +908,10 @@ static int meson_nfc_boot_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
 	struct meson_nfc *nfc = nand_get_controller_data(nand);
 	struct _nand_page0 *p_nand_page0 = NULL;
+	struct _nand_page0_sc2 *p_nand_page0_sc2 = NULL;
 	struct _ext_info *p_ext_info = NULL;
 	struct _nand_setup *p_nand_setup = NULL;
+	struct _nand_setup_sc2 *p_nand_setup_sc2 = NULL;
 
 	u8 boot_num, dir;
 	u32 each_boot_pages, remainder;
@@ -966,11 +968,18 @@ static int meson_nfc_boot_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 		nand->options &= ~NAND_NEED_SCRAMBLING;
 
 		/*check page 0 info here*/
-		p_nand_page0 = (struct _nand_page0 *)buf;
-		p_ext_info = &p_nand_page0->ext_info;
-		p_nand_setup = &p_nand_page0->nand_setup;
+		if (nfc->data->bl2ex_mode) {
+			p_nand_page0_sc2 = (struct _nand_page0_sc2 *)buf;
+			p_nand_setup_sc2 = &p_nand_page0_sc2->nand_setup;
+			p_ext_info = &p_nand_page0_sc2->ext_info;
+			configure_data = p_nand_setup_sc2->cfg.b.cmd;
+		} else {
+			p_nand_page0 = (struct _nand_page0 *)buf;
+			p_nand_setup = &p_nand_page0->nand_setup;
+			p_ext_info = &p_nand_page0->ext_info;
+			configure_data = p_nand_setup->cfg.b.cmd;
+		}
 
-		configure_data = p_nand_setup->cfg.b.cmd;
 		pages_per_blk = p_ext_info->pages_per_blk;
 		pages_per_blk_w =
 			(1 << (nand->phys_erase_shift -
