@@ -26,6 +26,8 @@ void evl_net_get_dev(struct net_device *dev);
 
 void evl_net_put_dev(struct net_device *dev);
 
+void evl_net_wake_rx(struct net_device *dev);
+
 #endif
 
 #endif /* !_EVL_NET_DEVICE_H */

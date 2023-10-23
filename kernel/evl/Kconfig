@@ -161,19 +161,19 @@ config EVL_NR_PROXIES
 	applications.
 
 config EVL_NR_OBSERVABLES
-	int "Maximum number of observables"
-	range 1 16384
-	default 64
-	help
+       int "Maximum number of observables"
+       range 1 16384
+       default 64
+       help
 
-	This value gives the maximum number of observable elements
-	which can live concurrently in the EVL core. Observables
-	enable the observer design pattern, in which any number of
-	observer threads can be notified of updates to any number of
-	observable subjects, in a loosely coupled fashion. An EVL
-	thread is in and of itself an observable which can be
-	monitored for events; observables attached to threads are not
-	accounted for in this value.
+       This value gives the maximum number of observable elements
+       which can live concurrently in the EVL core. Observables enable
+       the observer design pattern, in which any number of observer
+       threads can be notified of updates to any number of observable
+       subjects, in a loosely coupled fashion. An EVL thread is in and
+       of itself an observable which can be monitored for events;
+       observables attached to threads are not accounted for in this
+       value.
 
 endmenu
 

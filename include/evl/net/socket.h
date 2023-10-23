@@ -16,6 +16,7 @@
 #include <evl/file.h>
 #include <evl/poll.h>
 #include <evl/crossing.h>
+#include <evl/work.h>
 #include <uapi/evl/types.h>
 #include <uapi/evl/fcntl.h>
 #include <uapi/evl/net/socket-abi.h>
@@ -23,6 +24,8 @@
 struct evl_socket;
 struct net;
 struct net_device;
+struct evl_net_offload;
+struct evl_net_udp_receiver;
 
 struct evl_net_proto {
 	int (*attach)(struct evl_socket *esk,
@@ -47,6 +50,7 @@ struct evl_net_proto {
 	__poll_t (*oob_poll)(struct evl_socket *esk,
 			struct oob_poll_wait *wait);
 	struct net_device *(*get_netif)(struct evl_socket *esk);
+	void (*handle_offload)(struct evl_socket *esk);
 };
 
 struct evl_socket_domain {
@@ -74,13 +78,28 @@ struct evl_socket {
 	struct evl_crossing wmem_drain;
 	int protocol;
 	refcount_t refs;	/* release vs destroy */
+	struct evl_work inband_offload;
 	union {
+		/* Packet interface data. */
 		struct {
 			int real_ifindex;
 			int vlan_ifindex;
 			u16 vlan_id;
 			u32 proto_hash;
 		} packet;
+		/* Used by all IP protocols we support. */
+		struct {
+			/* Offload descriptors. */
+			struct list_head pending_output;
+			/* UDP bindings. */
+			union {
+				struct {
+					u32 rcv_addr;
+					u16 rcv_port;
+					struct evl_net_udp_receiver *receiver;
+				} udp;
+			};
+		} ip;
 	} u;
 	hard_spinlock_t oob_lock;
 };
@@ -119,8 +138,8 @@ int evl_register_socket_domain(struct evl_socket_domain *domain);
 
 void evl_unregister_socket_domain(struct evl_socket_domain *domain);
 
-int evl_charge_socket_wmem(struct evl_socket *esk,
-			struct sk_buff *skb,
-			ktime_t timeout, enum evl_tmode tmode);
+void evl_net_offload_inband(struct evl_socket *esk,
+			struct evl_net_offload *ofld,
+			struct list_head *q);
 
 #endif /* !_EVL_NET_SOCKET_H */
