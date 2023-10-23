@@ -2051,23 +2051,18 @@ int dump_cec_status(char *buf)
 unsigned int cec_get_cur_phy_addr(void)
 {
 		unsigned int a, b, c, d;
-		unsigned int tmp = 0, i;
+		unsigned int tmp = 0;
 		struct vsdb_phyaddr *tx_phy_addr = get_hdmitx_phy_addr();
 
 		if (!tx_phy_addr || cec_dev->dev_type == CEC_TV_ADDR) {
 			tmp = 0;
 		} else {
-			for (i = 0; i < 5; i++) {
-				/*hpd attach and wait read edid*/
+			if (tx_phy_addr->valid == 1) {
 				a = tx_phy_addr->a;
 				b = tx_phy_addr->b;
 				c = tx_phy_addr->c;
 				d = tx_phy_addr->d;
 				tmp = ((a << 12) | (b << 8) | (c << 4) | (d));
-
-				if (tx_phy_addr->valid == 1)
-					break;
-				msleep(20);
 			}
 		}
 
