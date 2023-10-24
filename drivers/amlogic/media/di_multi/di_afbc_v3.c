@@ -48,7 +48,7 @@
 #include <linux/of_device.h>
 
 #include <linux/amlogic/media/vfm/vframe.h>
-
+#include <linux/amlogic/media/video_sink/video.h>
 /*dma_get_cma_size_int_byte*/
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 
@@ -3215,11 +3215,19 @@ void afbcd_enable_only_t5dvb(const struct reg_acc *op, bool vpp_link)
 
 	if (!DIM_IS_IC(T5DB))
 		return;
-	if (vpp_link && afbc_is_supported_for_plink())
+	if (vpp_link && afbc_is_supported_for_plink()) {
+		if (get_vd1_vd2_mux()) {
+			PR_WARN("%s: vd1_vd2_mux 1\n", __func__);
+			set_vd1_vd2_mux(0);
+		}
 		en = true;
-	else if (!vpp_link && afbc_is_supported())
+	} else if (!vpp_link && afbc_is_supported()) {
+		if (!get_vd1_vd2_mux()) {
+			PR_WARN("%s: vd1_vd2_mux 0\n", __func__);
+			set_vd1_vd2_mux(1);
+		}
 		en = true;
-
+	}
 	if (en) {
 		PR_INF("t5dvb afbcd on\n");
 		/* afbcd is shared */
