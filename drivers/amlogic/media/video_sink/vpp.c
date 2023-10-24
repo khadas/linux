@@ -2093,7 +2093,8 @@ RESTART:
 
 	if (!(disable_adapted & DISABLE_ADAPTIVE_ALIGN)) {
 		if (!next_frame_par->vscale_skip_count &&
-		    IS_DI_PRELINK(vf->di_flag)) {
+		    (IS_DI_PRELINK(vf->di_flag) ||
+		     IS_DI_PRELINK_BYPASS(vf->di_flag))) {
 			u32 align_val = 2, ds_ratio;
 			u32 aligned_start, aligned_size;
 
@@ -2276,7 +2277,8 @@ RESTART:
 
 	if (!(disable_adapted & DISABLE_ADAPTIVE_ALIGN)) {
 		if (!next_frame_par->hscale_skip_count &&
-		    IS_DI_PRELINK(vf->di_flag)) {
+		    (IS_DI_PRELINK(vf->di_flag) ||
+		     IS_DI_PRELINK_BYPASS(vf->di_flag))) {
 			u32 align_val = 2, ds_ratio;
 			u32 aligned_start, aligned_size;
 

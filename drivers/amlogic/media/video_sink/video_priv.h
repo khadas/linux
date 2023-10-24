@@ -125,6 +125,7 @@
 	 == VIDTYPE_PRE_INTERLACE)
 #define IS_DI_POSTWRTIE(vftype) ((vftype) & VIDTYPE_DI_PW)
 #define IS_DI_PRELINK(di_flag) ((di_flag) & DI_FLAG_DI_PVPPLINK)
+#define IS_DI_PRELINK_BYPASS(di_flag) ((di_flag) & DI_FLAG_DI_PVPPLINK_BYPASS)
 
 #define MAX_PIP_WINDOW    16
 #define VPP_FILER_COEFS_NUM   33
