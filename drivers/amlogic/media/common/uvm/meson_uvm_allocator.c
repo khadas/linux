@@ -427,7 +427,12 @@ static int mua_get_meta_data(int fd, ulong arg)
 	}
 
 	vfp = dmabuf_get_vframe(dmabuf);
-
+	if (IS_ERR_OR_NULL(vfp)) {
+		dmabuf_put_vframe(dmabuf);
+		dma_buf_put(dmabuf);
+		MUA_PRINTK(MUA_DBG, "vframe is null.\n");
+		return -EINVAL;
+	}
 	/* check source type. */
 	if (!vfp->meta_data_size ||
 		vfp->meta_data_size > META_DATA_SIZE) {
