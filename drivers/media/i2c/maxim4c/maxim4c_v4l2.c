@@ -589,21 +589,20 @@ static int maxim4c_s_stream(struct v4l2_subdev *sd, int on)
 		goto unlock_and_return;
 
 	if (on) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
+		if (ret < 0)
 			goto unlock_and_return;
-		}
 
 		ret = __maxim4c_start_stream(maxim4c);
 		if (ret) {
 			v4l2_err(sd, "start stream failed while write regs\n");
-			pm_runtime_put(&client->dev);
+			pm_runtime_put_sync(&client->dev);
 			goto unlock_and_return;
 		}
 	} else {
 		__maxim4c_stop_stream(maxim4c);
-		pm_runtime_put(&client->dev);
+		pm_runtime_mark_last_busy(&client->dev);
+		pm_runtime_put_autosuspend(&client->dev);
 	}
 
 	maxim4c->streaming = on;
@@ -787,21 +786,9 @@ static int maxim4c_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 
 	val |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 	val |= (1 << (data_lanes - 1));
-	switch (data_lanes) {
-	case 4:
-		val |= V4L2_MBUS_CSI2_CHANNEL_3;
-		fallthrough;
-	case 3:
-		val |= V4L2_MBUS_CSI2_CHANNEL_2;
-		fallthrough;
-	case 2:
-		val |= V4L2_MBUS_CSI2_CHANNEL_1;
-		fallthrough;
-	case 1:
-	default:
-		val |= V4L2_MBUS_CSI2_CHANNEL_0;
-		break;
-	}
+
+	val |= V4L2_MBUS_CSI2_CHANNEL_3 | V4L2_MBUS_CSI2_CHANNEL_2 |
+	       V4L2_MBUS_CSI2_CHANNEL_1 | V4L2_MBUS_CSI2_CHANNEL_0;
 
 	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
