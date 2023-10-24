@@ -824,13 +824,13 @@ static void do_fence_thread(struct video_queue_dev *dev)
 	if (!IS_ERR_OR_NULL(fence_file))
 		sync_file = (struct sync_file *)fence_file->private_data;
 	else
-		vq_print(P_ERROR, "fence_file is NULL\n");
+		vq_print(P_OTHER, "fence_file is NULL\n");
 
 	/*coverity[var_deref_op] IS_ERR_OR_NULL can judge sync_file whether null ptr*/
 	if (!IS_ERR_OR_NULL(sync_file))
 		fence_obj = sync_file->fence;
 	else
-		vq_print(P_ERROR, "sync_file is NULL\n");
+		vq_print(P_OTHER, "sync_file is NULL\n");
 
 	if (fence_obj) {
 		vq_print(P_FENCE, "sync_file=%px, seqno=%lld\n",
