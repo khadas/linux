@@ -107,6 +107,7 @@ int meson_rsv_erase_protect(struct meson_rsv_handler_t *handler,
 int meson_free_rsv_info(struct meson_rsv_info_t *rsv_info)
 {
 	struct mtd_info *mtd = rsv_info->mtd;
+	struct meson_rsv_ops *rsv_ops = &rsv_handler->rsv_ops;
 	struct free_node_t *tmp_node, *next_node = NULL;
 	int error = 0;
 	loff_t addr = 0;
@@ -122,7 +123,7 @@ int meson_free_rsv_info(struct meson_rsv_info_t *rsv_info)
 		erase_info.addr = addr;
 		erase_info.len = mtd->erasesize;
 		_aml_rsv_disprotect();
-		error = mtd->_erase(mtd, &erase_info);
+		error = rsv_ops->_erase(mtd, &erase_info);
 		_aml_rsv_protect();
 		pr_info("erasing valid info block: %llx\n", addr);
 		rsv_info->valid_node->phy_blk_addr = -1;
@@ -146,6 +147,7 @@ int meson_free_rsv_info(struct meson_rsv_info_t *rsv_info)
 int meson_rsv_write(struct meson_rsv_info_t *rsv_info, u_char *buf)
 {
 	struct mtd_info *mtd = rsv_info->mtd;
+	struct meson_rsv_ops *rsv_ops = &rsv_handler->rsv_ops;
 	struct oobinfo_t oobinfo;
 	struct mtd_oob_ops oob_ops;
 	size_t length = 0;
@@ -169,7 +171,7 @@ int meson_rsv_write(struct meson_rsv_info_t *rsv_info, u_char *buf)
 		oob_ops.datbuf = buf + length;
 		oob_ops.oobbuf = (u8 *)&oobinfo;
 
-		ret = mtd->_write_oob(mtd, offset, &oob_ops);
+		ret = rsv_ops->_write_oob(mtd, offset, &oob_ops);
 		if (ret) {
 			pr_info("blk check good but write failed: %llx, %d\n",
 				(u64)offset, ret);
@@ -184,6 +186,7 @@ int meson_rsv_write(struct meson_rsv_info_t *rsv_info, u_char *buf)
 int meson_rsv_save(struct meson_rsv_info_t *rsv_info, u_char *buf)
 {
 	struct mtd_info *mtd = rsv_info->mtd;
+	struct meson_rsv_ops *rsv_ops = &rsv_handler->rsv_ops;
 	struct free_node_t *free_node, *temp_node;
 	struct erase_info erase_info;
 	int ret = 0, i = 1, pages_per_blk;
@@ -214,7 +217,7 @@ RE_SEARCH:
 				erase_info.addr = offset;
 				erase_info.len = mtd->erasesize;
 				_aml_rsv_disprotect();
-				ret = mtd->_erase(mtd, &erase_info);
+				ret = rsv_ops->_erase(mtd, &erase_info);
 				_aml_rsv_protect();
 				if (ret) {
 					pr_info("rsv free blk erase failed %d\n",
@@ -264,7 +267,7 @@ RE_SEARCH:
 	offset += rsv_info->valid_node->phy_page_addr * (loff_t)mtd->writesize;
 
 	if (rsv_info->valid_node->phy_page_addr == 0) {
-		ret = mtd->_block_isbad(mtd, offset);
+		ret = rsv_ops->_block_isbad(mtd, offset);
 		if (ret) {
 			/*
 			 *bad block here, need fix it
@@ -283,12 +286,13 @@ RE_SEARCH:
 		erase_info.addr = offset;
 		erase_info.len = mtd->erasesize;
 		_aml_rsv_disprotect();
-		ret = mtd->_erase(mtd, &erase_info);
+		ret = rsv_ops->_erase(mtd, &erase_info);
 		_aml_rsv_protect();
 		if (ret) {
 			pr_info("env free blk erase failed %d\n", ret);
 			mtd->_block_markbad(mtd, offset);
-			return ret;
+			rsv_info->valid_node->phy_page_addr = pages_per_blk;
+			goto RE_SEARCH;
 		}
 		rsv_info->valid_node->ec++;
 	}
@@ -306,6 +310,7 @@ RE_SEARCH:
 int meson_rsv_scan(struct meson_rsv_info_t *rsv_info)
 {
 	struct mtd_info *mtd = rsv_info->mtd;
+	struct meson_rsv_ops *rsv_ops = &rsv_handler->rsv_ops;
 	struct mtd_oob_ops oob_ops;
 	struct oobinfo_t oobinfo;
 	struct free_node_t *free_node, *temp_node;
@@ -338,8 +343,7 @@ RE_RSV_INFO:
 	oob_ops.oobbuf = (u8 *)&oobinfo;
 
 	memset((u8 *)&oobinfo, 0, sizeof(struct oobinfo_t));
-
-	error = mtd_read_oob(mtd, offset, &oob_ops);
+	error = rsv_ops->_read_oob(mtd, offset, &oob_ops);
 	if (error != 0 && error != -EUCLEAN) {
 		pr_info("blk check good but read failed: %llx, %d\n",
 			(u64)offset, error);
@@ -452,7 +456,7 @@ RE_RSV_INFO:
 		offset = rsv_info->valid_node->phy_blk_addr;
 		offset *= mtd->erasesize;
 		offset += i * (u64)mtd->writesize;
-		error = mtd_read_oob(mtd, offset, &oob_ops);
+		error = rsv_ops->_read_oob(mtd, offset, &oob_ops);
 		if (error != 0 && error != -EUCLEAN) {
 			pr_info("blk good but read failed:%llx,%d\n",
 				(u64)offset, error);
@@ -518,6 +522,7 @@ EXPORT_SYMBOL(meson_rsv_scan);
 int meson_rsv_read(struct meson_rsv_info_t *rsv_info, u_char *buf)
 {
 	struct mtd_info *mtd = rsv_info->mtd;
+	struct meson_rsv_ops *rsv_ops = &rsv_handler->rsv_ops;
 	struct oobinfo_t oobinfo;
 	struct mtd_oob_ops oob_ops;
 	size_t length = 0;
@@ -542,7 +547,7 @@ READ_RSV_AGAIN:
 
 		memset((u8 *)&oobinfo, 0, oob_ops.ooblen);
 
-		ret = mtd_read_oob(mtd, offset, &oob_ops);
+		ret = rsv_ops->_read_oob(mtd, offset, &oob_ops);
 		if (ret != 0 && ret != -EUCLEAN) {
 			pr_info("blk good but read failed: %llx, %d\n",
 				(u64)offset, ret);

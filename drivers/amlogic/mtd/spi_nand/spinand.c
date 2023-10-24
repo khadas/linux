@@ -169,7 +169,11 @@ int meson_spinand_init(struct spinand_device *spinand, struct mtd_info *mtd)
 	mtd->writesize_shift = ffs(mtd->writesize) - 1;
 
 	meson_rsv_init(mtd, meson_spinand->rsv);
-
+	meson_spinand->rsv->rsv_ops._erase = mtd->_erase;
+	meson_spinand->rsv->rsv_ops._write_oob = mtd->_write_oob;
+	meson_spinand->rsv->rsv_ops._read_oob = mtd->_read_oob;
+	meson_spinand->rsv->rsv_ops._block_markbad = NULL;
+	meson_spinand->rsv->rsv_ops._block_isbad = mtd->_block_isbad;
 	err = meson_spinand_bbt_check(mtd);
 	if (err) {
 		pr_err("Couldn't search or uncorrected bad block table\n");

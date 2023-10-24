@@ -65,6 +65,14 @@ struct oobinfo_t {
 	unsigned status_page:1;
 };
 
+struct meson_rsv_ops {
+	int (*_erase)(struct mtd_info *mtd, struct erase_info *einfo);
+	int (*_write_oob)(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops);
+	int (*_read_oob)(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops);
+	int (*_block_markbad)(struct mtd_info *mtd, loff_t off);
+	int (*_block_isbad)(struct mtd_info *mtd, loff_t off);
+};
+
 struct meson_rsv_handler_t {
 	struct mtd_info *mtd;
 	unsigned long long freeNodeBitmask;
@@ -72,7 +80,8 @@ struct meson_rsv_handler_t {
 	struct meson_rsv_info_t *bbt;
 	struct meson_rsv_info_t *env;
 	struct meson_rsv_info_t *key;
-	struct meson_rsv_info_t *dtb;
+	struct meson_rsv_info_t	*dtb;
+	struct meson_rsv_ops rsv_ops;
 	void *priv;
 };
 
