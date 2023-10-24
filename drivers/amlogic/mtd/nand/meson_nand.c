@@ -1745,20 +1745,20 @@ static int prase_nand_parameter_from_dtb(struct meson_nfc *nfc,
 	for (i = 0; i < ARRAY_SIZE(para_name); i++) {
 		ret = of_property_read_u32(np, para_name[i], &dts_param[i]);
 		if (ret && strncmp(para_name[i], "spi_cfg", strlen("spi_cfg"))) {
-			pr_info("%s %d,please config para item %d in dts\n",
+			pr_err("%s %d,please config para item %d in dts\n",
 				__func__, __LINE__, i);
 			return ret;
 		}
 	}
 	memcpy(&nfc->param_from_dts, dts_param, i * sizeof(u32));
-	pr_info("bl_mode %s\n", nfc->param_from_dts.bl_mode ? "discrete" : "compact");
-	pr_info("fip copies %d\n", nfc->param_from_dts.fip_copies);
-	pr_info("fip size 0x%x\n", nfc->param_from_dts.fip_size);
-	pr_info("nand clk ctrl: 0x%x\n", nfc->param_from_dts.clk_ctrl_base);
-	pr_info("nand spi_cfg: 0x%x\n", nfc->param_from_dts.spi_cfg);
-	pr_info("%s bad_block\n", nfc->param_from_dts.skip_bad_block ?
+	pr_debug("bl_mode %s\n", nfc->param_from_dts.bl_mode ? "discrete" : "compact");
+	pr_debug("fip copies %d\n", nfc->param_from_dts.fip_copies);
+	pr_debug("fip size 0x%x\n", nfc->param_from_dts.fip_size);
+	pr_debug("nand clk ctrl: 0x%x\n", nfc->param_from_dts.clk_ctrl_base);
+	pr_debug("nand spi_cfg: 0x%x\n", nfc->param_from_dts.spi_cfg);
+	pr_debug("%s bad_block\n", nfc->param_from_dts.skip_bad_block ?
 		"skip" : "not skip");
-	pr_info("disa_irq_hand vale: %d\n", nfc->param_from_dts.disa_irq_hand);
+	pr_debug("disa_irq_hand vale: %d\n", nfc->param_from_dts.disa_irq_hand);
 
 	return ret;
 }
@@ -1930,11 +1930,9 @@ static int meson_nfc_probe(struct platform_device *pdev)
 	ret = clk_get_rate(nfc->nand_div_clk);
 	ret = readl(nfc->reg_base + NFC_REG_CFG);
 
-	devm_iounmap(&pdev->dev, spi_cfg_vaddr);
 	return 0;
 
 err_clk:
-	devm_iounmap(&pdev->dev, spi_cfg_vaddr);
 	meson_nfc_disable_clk(nfc);
 err_mem:
 	devm_kfree(dev, nfc);
