@@ -249,7 +249,7 @@ void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 
 			/* for 4k fb */
 			if (graphics_h > 1440)
-				g_vpotch = 0x10;
+				g_vpotch = 0x15;
 
 			if (vinfo->width > 1920)
 				htotal_add = 0xc0;
