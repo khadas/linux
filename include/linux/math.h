@@ -36,6 +36,17 @@
 
 #define DIV_ROUND_UP __KERNEL_DIV_ROUND_UP
 
+/**
+ * DIV_ROUND_UP_NO_OVERFLOW - divide two numbers and always round up
+ * @n: numerator / dividend
+ * @d: denominator / divisor
+ *
+ * This functions does the same as DIV_ROUND_UP, but internally uses a
+ * division and a modulo operation instead of math tricks. This way it
+ * avoids overflowing when handling big numbers.
+ */
+#define DIV_ROUND_UP_NO_OVERFLOW(n, d) (((n) / (d)) + !!((n) % (d)))
+
 #define DIV_ROUND_DOWN_ULL(ll, d) \
 	({ unsigned long long _tmp = (ll); do_div(_tmp, d); _tmp; })
 
