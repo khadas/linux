@@ -475,6 +475,29 @@ void rk628_post_process_en(struct rk628 *rk628,
 }
 EXPORT_SYMBOL(rk628_post_process_en);
 
+static const char * const rk628_version[] = {
+	"UNKNOWN",
+	"RK628D",
+	"RK628F/H",
+};
+
+void rk628_version_parse(struct rk628 *rk628)
+{
+	u32 version;
+
+	rk628_i2c_read(rk628, GRF_SOC_VERSION, &version);
+	if (version == 0x20200326)
+		rk628->version = RK628D_VERSION;
+	else if (version == 0x20230321)
+		rk628->version = RK628F_VERSION;
+	else
+		rk628->version = RK628_UNKNOWN;
+
+	dev_info(rk628->dev, "rk628 version is: %s (%x)\n",
+		 rk628_version[rk628->version], version);
+}
+EXPORT_SYMBOL(rk628_version_parse);
+
 MODULE_AUTHOR("Shunqing Chen <csq@rock-chips.com>");
 MODULE_DESCRIPTION("Rockchip RK628 driver");
 MODULE_LICENSE("GPL");

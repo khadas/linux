@@ -190,7 +190,7 @@
 #define GRF_OS_REG1			0x0144
 #define GRF_OS_REG2			0x0148
 #define GRF_OS_REG3			0x014c
-#define GRF_SOC_VERSION			0x0150
+#define GRF_SOC_VERSION			0x0200
 #define GRF_MAX_REGISTER		GRF_SOC_VERSION
 
 enum {
@@ -236,10 +236,17 @@ enum {
 	RK628_DEV_MAX,
 };
 
+enum {
+	RK628_UNKNOWN,
+	RK628D_VERSION,
+	RK628F_VERSION,
+};
+
 struct rk628 {
 	struct device *dev;
 	struct i2c_client *client;
 	struct regmap *regmap[RK628_DEV_MAX];
+	u8 version;
 	void *txphy;
 };
 
@@ -280,5 +287,6 @@ void rk628_post_process_en(struct rk628 *rk628,
 			   struct videomode *src,
 			   struct videomode *dst,
 			   u64 *dst_pclk);
+void rk628_version_parse(struct rk628 *rk628);
 
 #endif
