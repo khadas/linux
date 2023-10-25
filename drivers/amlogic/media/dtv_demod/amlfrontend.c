@@ -128,6 +128,11 @@ MODULE_PARM_DESC(dvbc_check_agc_time, "\n\t\t dvbc check agc time");
 static unsigned int dvbc_check_agc_time = 200;
 module_param(dvbc_check_agc_time, int, 0644);
 
+//dvb-t
+MODULE_PARM_DESC(dvbt_reset_per_times, "\n\t\t dvbt reset cycle cnt");
+static unsigned int dvbt_reset_per_times = 40;
+module_param(dvbt_reset_per_times, int, 0644);
+
 int aml_demod_debug = DBG_INFO;
 module_param(aml_demod_debug, int, 0644);
 MODULE_PARM_DESC(aml_demod_debug, "set debug level (info=bit1, reg=bit2, atsc=bit4,");
@@ -2752,8 +2757,10 @@ static int dvbt_tune(struct dvb_frontend *fe, bool re_tune,
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	unsigned int fsm = 0;
+	unsigned int reset_per_times = dvbt_reset_per_times;
+	static int tps_lock_times;
 
-	*delay = HZ / 5;
+	*delay = HZ / 20;
 
 	if (re_tune) {
 		PR_INFO("%s [id %d]: re_tune.\n", __func__, demod->id);
@@ -2762,7 +2769,8 @@ static int dvbt_tune(struct dvb_frontend *fe, bool re_tune,
 		dvbt_set_frontend(fe);
 		timer_begain(demod, D_TIMER_DETECT);
 		dvbt_read_status(fe, status);
-		demod->t_cnt = 1;
+		demod->t_cnt = 0;
+		tps_lock_times = 0;
 		return 0;
 	}
 
@@ -2788,21 +2796,31 @@ static int dvbt_tune(struct dvb_frontend *fe, bool re_tune,
 	    (FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC)) {
 		dvbt_t2_wr_byte_bits(0x2906, 2, 3, 4);
 		dvbt_t2_wrb(0x2815, 0x02);
+		demod->t_cnt = 0;
+		tps_lock_times = 0;
 	} else {
 		dvbt_t2_wr_byte_bits(0x2906, 0, 3, 4);
 		dvbt_t2_wrb(0x2815, 0x03);
+
+		if (reset_per_times) {
+			fsm = dvbt_t2_rdb(DVBT_STATUS);
+			if ((fsm & 0xf) == 9 && (fsm >> 6 & 1)) {
+				tps_lock_times++;
+			} else {
+				tps_lock_times = 0;
+				demod->t_cnt++;
+			}
+
+			if (tps_lock_times > reset_per_times ||
+				(tps_lock_times == 0 && demod->t_cnt > reset_per_times)) {
+				dvbt_rst_demod(demod, fe);
+				PR_INFO("[id %d] rst, tps(%d) or ts unlock(%d)\n",
+					demod->id, tps_lock_times, demod->t_cnt);
+				demod->t_cnt = 0;
+				tps_lock_times = 0;
+			}
+		}
 	}
-
-	fsm = dvbt_t2_rdb(DVBT_STATUS);
-
-	if (((demod->t_cnt % 5) == 2 && (fsm & 0xf) < 9) ||
-	    (demod->t_cnt >= 5 && (fsm & 0xf) == 9 && (fsm >> 6 & 1) && (*status != 0x1f))) {
-		dvbt_rst_demod(demod, fe);
-		demod->t_cnt = 0;
-		PR_INFO("[id %d] rst, tps or ts unlock\n", demod->id);
-	}
-
-	demod->t_cnt++;
 
 	return 0;
 }
