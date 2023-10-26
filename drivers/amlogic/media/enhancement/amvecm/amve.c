@@ -1926,12 +1926,22 @@ void amvecm_bricon_process(signed int bri_val,
 			   signed int cont_val, struct vframe_s *vf)
 {
 	if (vecm_latch_flag & FLAG_VADJ1_BRI) {
-		vecm_latch_flag &= ~FLAG_VADJ1_BRI;
-		vpp_vd_adj1_brightness(bri_val, vf);
-		pr_amve_dbg("\n[amve..] set vd1_brightness OK!!!\n");
-		if (amve_debug & 0x100)
-			pr_info("\n[amve..]%s :brightness:%d!!!\n",
-				__func__, bri_val);
+		if (vf->source_type != VFRAME_SOURCE_TYPE_HWC &&
+			!get_video_mute() && get_video_enabled()) {
+			vecm_latch_flag &= ~FLAG_VADJ1_BRI;
+			vpp_vd_adj1_brightness(bri_val, vf);
+			pr_amve_dbg("\n[%s] set OK, brightness:%d, type:%d\n",
+				__func__, bri_val, vf->source_type);
+		} else {
+			pr_amve_dbg("\n[%s] HWC or mute or video disable skip.\n",
+				__func__);
+		}
+	}
+
+	if (vf && vf->source_type == VFRAME_SOURCE_TYPE_HWC) {
+		vpp_vd_adj1_brightness(0, vf);
+		pr_amve_dbg("\n[%s] HWC reset brightness.\n",
+			__func__);
 	}
 
 	if (vecm_latch_flag & FLAG_VADJ1_CON) {
