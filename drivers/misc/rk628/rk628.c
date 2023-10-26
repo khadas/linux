@@ -29,6 +29,7 @@
 #include "rk628_gvi.h"
 #include "rk628_csi.h"
 #include "rk628_hdmitx.h"
+#include "rk628_efuse.h"
 
 static const struct regmap_range rk628_cru_readable_ranges[] = {
 	regmap_reg_range(CRU_CPLL_CON0, CRU_CPLL_CON4),
@@ -108,6 +109,15 @@ static const struct regmap_range rk628_key_readable_ranges[] = {
 static const struct regmap_access_table rk628_key_readable_table = {
 	.yes_ranges     = rk628_key_readable_ranges,
 	.n_yes_ranges   = ARRAY_SIZE(rk628_key_readable_ranges),
+};
+
+static const struct regmap_range rk628_efuse_readable_ranges[] = {
+	regmap_reg_range(EFUSE_BASE, EFUSE_BASE + EFUSE_REVISION),
+};
+
+static const struct regmap_access_table rk628_efuse_readable_table = {
+	.yes_ranges     = rk628_efuse_readable_ranges,
+	.n_yes_ranges   = ARRAY_SIZE(rk628_efuse_readable_ranges),
 };
 
 static const struct regmap_range rk628_combtxphy_readable_ranges[] = {
@@ -254,6 +264,16 @@ static const struct regmap_config rk628_regmap_config[RK628_DEV_MAX] = {
 		.reg_format_endian = REGMAP_ENDIAN_NATIVE,
 		.val_format_endian = REGMAP_ENDIAN_NATIVE,
 		.rd_table = &rk628_key_readable_table,
+	},
+	[RK628_DEV_EFUSE] = {
+		.name = "efuse",
+		.reg_bits = 32,
+		.val_bits = 32,
+		.reg_stride = 4,
+		.max_register = EFUSE_BASE + EFUSE_REVISION,
+		.reg_format_endian = REGMAP_ENDIAN_NATIVE,
+		.val_format_endian = REGMAP_ENDIAN_NATIVE,
+		.rd_table = &rk628_efuse_readable_table,
 	},
 	[RK628_DEV_COMBTXPHY] = {
 		.name = "combtxphy",
