@@ -336,9 +336,9 @@ static int do_element_visibility(struct evl_element *e,
 		e->clone_flags |= EVL_CLONE_COREDEV;
 
 	/*
-	 * Unlike a private one, a publically visible element exports
-	 * a cdev in the /dev/evl hierarchy so that any process can
-	 * see it.  Both types are backed by a kernel device object so
+	 * Unlike a private one, a publicly visible element exports a
+	 * cdev in the /dev/evl hierarchy so that any process can see
+	 * it.  Both types are backed by a kernel device object so
 	 * that we can export their state to userland via /sysfs.
 	 */
 
