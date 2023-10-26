@@ -45,6 +45,7 @@
 #include <linux/amlogic/media/vrr/vrr.h>
 /*#include <linux/amlogic/amports/vframe.h>*/
 #include <linux/amlogic/media/vout/hdmi_tx_ext.h>
+#include <linux/amlogic/media/video_sink/video.h>
 #include <linux/of_gpio.h>
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
@@ -475,7 +476,7 @@ void hdmirx_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	parm = &devp->param;
 	if (vpp_mute_enable) {
 		if (get_video_mute() && rx.vpp_mute)
-			set_video_mute(false);
+			set_video_mute(HDMI_RX_MUTE_SET, false);
 		rx.vpp_mute = false;
 	}
 	/* parm->info.fmt = TVIN_SIG_FMT_NULL; */
@@ -519,7 +520,7 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe)
 	/* clear vpp mute, such as after unplug */
 	if (vpp_mute_enable) {
 		if (get_video_mute() && rx.vpp_mute)
-			set_video_mute(false);
+			set_video_mute(HDMI_RX_MUTE_SET, false);
 		rx.vpp_mute = false;
 	}
 	rx_pr("%s ok\n", __func__);

@@ -210,7 +210,7 @@ u32 get_video_enabled(void);
 u32 get_videopip_enabled(void);
 u32 get_videopip2_enabled(void);
 
-void set_video_mute(bool on);
+void set_video_mute(u32 owner, bool on);
 int get_video_mute(void);
 
 void get_cur_vd_signal_type(enum vd_path_e vd_path);

@@ -24,6 +24,7 @@
 #include <linux/of_gpio.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/media/sound/hdmi_earc.h>
+#include <linux/amlogic/media/video_sink/video.h>
 #include <linux/sched/clock.h>
 
 /* Local include */
@@ -1036,7 +1037,7 @@ irqreturn_t irq_handler(int irq, void *params)
 		rx_pr("DE ERR\n");
 		if (video_mute_enabled()) {
 			rx_mute_vpp();
-			set_video_mute(true);
+			set_video_mute(HDMI_RX_MUTE_SET, true);
 			rx_pr("vpp mute\n");
 		}
 		hdmirx_top_irq_en(0, 0);
@@ -1085,7 +1086,7 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 		if (hdmirx_top_intr_stat & (1 << 29)) {
 			if (video_mute_enabled()) {
 				rx.vpp_mute = true;
-				set_video_mute(true);
+				set_video_mute(HDMI_RX_MUTE_SET, true);
 				rx_mute_vpp();
 				rx.var.mute_cnt = 0;
 				if (log_level & 0x100)
@@ -3399,7 +3400,7 @@ void rx_main_state_machine(void)
 		if (!is_tmds_valid()) {
 			if (video_mute_enabled()) {
 				rx_mute_vpp();
-				set_video_mute(true);
+				set_video_mute(HDMI_RX_MUTE_SET, true);
 				rx.vpp_mute = true;
 				rx.var.mute_cnt = 0;
 				if (log_level & 0x100)
@@ -3494,7 +3495,7 @@ void rx_main_state_machine(void)
 						break;
 					rx.var.mute_cnt = 0;
 					rx.vpp_mute = false;
-					set_video_mute(false);
+					set_video_mute(HDMI_RX_MUTE_SET, false);
 				}
 			}
 		}
@@ -4078,9 +4079,9 @@ int hdmirx_debug(const char *buf, int size)
 		rx_pr("mute sts: %x\n", get_video_mute());
 	} else if (strncmp(tmpbuf, "muteset", 7) == 0) {
 		if (tmpbuf[7] == '0')
-			set_video_mute(false);
+			set_video_mute(HDMI_RX_MUTE_SET, false);
 		else
-			set_video_mute(true);
+			set_video_mute(HDMI_RX_MUTE_SET, true);
 	} else if (strncmp(tmpbuf, "bist", 4) == 0) {
 		rx_phy_short_bist();
 	} else if (strncmp(tmpbuf, "eye", 3) == 0) {

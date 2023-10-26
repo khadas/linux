@@ -4621,10 +4621,10 @@ static inline bool dv_vf_crc_check(struct vframe_s *vf)
 
 	/*mute when err crc > = 6*/
 	if (vdin_err_crc_cnt >= ERR_CRC_COUNT) {
-		set_video_mute(true);
+		set_video_mute(VIDEO_MUTE_SET, true);
 		dv_mute_vpp_flag = true;
 	} else if (dv_mute_vpp_flag) {
-		set_video_mute(false);
+		set_video_mute(VIDEO_MUTE_SET, false);
 		dv_mute_vpp_flag = false;
 	}
 	return crc_err;
@@ -14809,6 +14809,43 @@ static ssize_t video_nonlinear_t_factor_store(struct class *cla,
 	return count;
 }
 
+static ssize_t video_mute_show(struct class *cla,
+				  struct class_attribute *attr, char *buf)
+{
+	ssize_t ret = 0;
+
+	get_video_mute_info();
+	return ret;
+}
+
+static ssize_t video_mute_store(struct class *cla,
+				   struct class_attribute *attr,
+				   const char *buf, size_t count)
+{
+	int r, val, ret;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	if (val)
+		ret = set_video_mute_info(USER_MUTE_SET, true);
+	else
+		ret = set_video_mute_info(USER_MUTE_SET, false);
+	if (ret == 0) {
+		if (val == 0)
+			pr_info("VIDEO UNMUTE by %s ret = %d\n", current->comm, ret);
+		else if (val == 1)
+			pr_info("VIDEO MUTE by %s ret = %d\n", current->comm, ret);
+		else
+			pr_info("set 1 mute video,set 0 unmute video\n");
+	}
+	if (ret < 0)
+		return -EINVAL;
+
+	return count;
+}
+
 static ssize_t video_disable_show(struct class *cla,
 				  struct class_attribute *attr, char *buf)
 {
@@ -19439,6 +19476,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       video_seek_flag_show,
 	       video_seek_flag_store),
+	__ATTR(video_mute,
+	       0664,
+	       video_mute_show,
+	       video_mute_store),
 	__ATTR(disable_video,
 	       0664,
 	       video_disable_show,

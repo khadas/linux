@@ -332,6 +332,13 @@ enum vpu_module_e {
 	DV_TVCORE,
 };
 
+#define VIDEO_MUTE_SET         0
+#define HDMI_RX_MUTE_SET       1
+#define USER_MUTE_SET          2
+#define AML_DOLBY_MUTE_SET     3
+#define DRM_MUTE_SET           4
+
+#define MAX_VIDEO_MUTE_OWNER 5
 #define AMVIDEO_UPDATE_OSD_MODE	0x00000001
 #define AMVIDEO_UPDATE_PREBLEND_MODE	0x00000002
 #define AMVIDEO_UPDATE_SIGNAL_MODE      0x00000003
@@ -397,7 +404,7 @@ struct video_input_info {
 	u32 crop_bottom;
 };
 
-void set_video_mute(bool on);
+void set_video_mute(u32 owner, bool on);
 int get_video_mute(void);
 void set_output_mute(bool on);
 int get_output_mute(void);

@@ -94,6 +94,7 @@ struct disp_info_s glayer_info[MAX_VD_LAYER];
 struct video_dev_s video_dev;
 struct video_dev_s *cur_dev = &video_dev;
 bool legacy_vpp = true;
+static bool video_mute_array[MAX_VIDEO_MUTE_OWNER];
 
 static bool bypass_cm;
 bool hscaler_8tap_enable[MAX_VD_LAYER];
@@ -6192,9 +6193,9 @@ void proc_vd_vsc_phase_per_vsync(struct video_layer_s *layer,
 /*********************************************************
  * Vpp APIs
  *********************************************************/
-void set_video_mute(bool on)
+void set_video_mute(u32 owner, bool on)
 {
-	video_mute_on = on;
+	set_video_mute_info(owner, on);
 }
 EXPORT_SYMBOL(set_video_mute);
 
@@ -6332,6 +6333,46 @@ static inline void mute_vpp(void)
 	}
 }
 
+int set_video_mute_info(u32 owner, bool on)
+{
+	if (on) {
+		if (video_mute_array[owner])
+			return -EINVAL;
+		video_mute_array[owner] = true;
+		pr_info("%d mute video\n", owner);
+	} else {
+		if (!video_mute_array[owner])
+			return -EINVAL;
+		video_mute_array[owner] = false;
+		pr_info("%d unmute video\n", owner);
+	}
+	return 0;
+}
+
+void get_video_mute_info(void)
+{
+	int i;
+
+	pr_info("video mute owner list:\n");
+	for (i = 0; i < MAX_VIDEO_MUTE_OWNER; i++) {
+		if (video_mute_array[i])
+			pr_info("%d\n", i);
+	}
+}
+
+static void check_video_mute_state(void)
+{
+	int i;
+
+	for (i = 0; i < MAX_VIDEO_MUTE_OWNER; i++) {
+		if (video_mute_array[i]) {
+			video_mute_on = true;
+			return;
+		}
+	}
+	video_mute_on = false;
+}
+
 static inline void unmute_vpp(void)
 {
 	u8 vpp_index = VPP0;
@@ -6361,6 +6402,7 @@ static inline void unmute_vpp(void)
 
 static void check_video_mute(void)
 {
+	check_video_mute_state();
 	if (video_mute_on) {
 		if (is_amdv_on()) {
 			if (is_tv_panel()) {
@@ -13506,9 +13548,6 @@ module_param(bypass_cm, bool, 0664);
 
 MODULE_PARM_DESC(reference_zorder, "\n reference_zorder\n");
 module_param(reference_zorder, uint, 0664);
-
-MODULE_PARM_DESC(video_mute_on, "\n video_mute_on\n");
-module_param(video_mute_on, bool, 0664);
 
 MODULE_PARM_DESC(cur_vf_flag, "cur_vf_flag");
 module_param(cur_vf_flag, uint, 0444);
