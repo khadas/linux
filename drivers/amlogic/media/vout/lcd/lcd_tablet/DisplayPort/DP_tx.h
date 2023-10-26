@@ -25,32 +25,17 @@ int dptx_aux_read(struct aml_lcd_drv_s *pdrv, unsigned int addr, int len, unsign
 
 //! DP_utils.c
 enum DP_link_rate_e {
-	DP_LINK_RATE_RBR,		// 1.64 GHz
-	DP_LINK_RATE_HBR,		// 2.7 GHz
-	DP_LINK_RATE_HBR2,		// 5.4 GHz
-	DP_LINK_RATE_HBR3,		// 8.1 GHz
-	DP_LINK_RATE_UBR10,		// 10 GHz
-	DP_LINK_RATE_UBR13_5,		// 13.5 GHz
-	DP_LINK_RATE_UBR20,		// 20 GHz
-	DP_LINK_RATE_INVALID = 0xff,	// invalid
+	DP_LINK_RATE_RBR  = 0x06,
+	DP_LINK_RATE_HBR  = 0x0a,
+	DP_LINK_RATE_HBR2 = 0x14,
+	DP_LINK_RATE_HBR3 = 0x1e,
+
+	DP_LINK_RATE_UBR10  = 0x01,
+	DP_LINK_RATE_UBR20  = 0x02,
+	DP_LINK_RATE_UBR135 = 0x04,
+	DP_LINK_RATE_INVALID = 0,
 };
 
-enum DP_link_rate_val_e {
-	DP_LINK_RATE_VAL_RBR	= 0x06,
-	DP_LINK_RATE_VAL_HBR	= 0x0a,
-	DP_LINK_RATE_VAL_HBR2	= 0x14,
-	DP_LINK_RATE_VAL_HBR3	= 0x1e,
-	DP_LINK_RATE_VAL_UBR10	= 0x28,
-	DP_LINK_RATE_VAL_UBR13_5 = 0x32,
-	DP_LINK_RATE_VAL_UBR20	= 0x50,
-	DP_LINK_RATE_VAL_INVALID = 0xff,
-};
-
-extern enum DP_link_rate_val_e DP_link_rate_to_val[8];
-
-enum DP_link_rate_e DP_val_to_link_rate(enum DP_link_rate_val_e lkr_val);
-
-extern char *DP_link_rate_str[8];
 #define VAL_DPTX_PHY_VSWING_0	0x03   // 0.4
 #define VAL_DPTX_PHY_VSWING_1	0x06   // 0.6
 #define VAL_DPTX_PHY_VSWING_2	0x09   // 0.8
@@ -59,6 +44,9 @@ extern char *DP_link_rate_str[8];
 #define VAL_DPTX_PHY_PREEM_1	0x05   // 3.5 db
 #define VAL_DPTX_PHY_PREEM_2	0x0a   // 6 db
 #define VAL_DPTX_PHY_PREEM_3	0x0f   // 9.5 db
+
+extern u16 DP_training_rd_interval[5];
+extern char *edp_ver_str[5];
 
 enum DPCD_level_e { //both vswing and preem
 	VAL_DP_std_LEVEL_0 = 0,
@@ -86,10 +74,9 @@ unsigned char to_DPCD_LANESET(enum DPCD_level_e vswing, enum DPCD_level_e preem)
 // Link training constants
 #define DP_FULL_LINK_TRAINING_ATTEMPTS 3
 #define DP_TRAINING_LINKRATE_ATTEMPTS  3
+#define DP_CLOCK_REC_TIMEOUT    150
 #define DP_TRAINING_EQ_ATTEMPTS 5
-#define DP_CHAN_EQ_TIMEOUT      5
 #define DP_TRAINING_CR_ATTEMPTS 5
-#define DP_CLOCK_REC_TIMEOUT    3
 enum DP_training_status_e {
 	DP_TRAINING_CLOCK_REC,
 	DP_TRAINING_CHANNEL_EQ,
@@ -129,7 +116,7 @@ enum DP_EDID_TIMING_FLAG_e {
 };
 
 struct dptx_detail_timing_s {
-	unsigned long pclk;
+	unsigned int pclk;
 	unsigned short h_a;
 	unsigned short h_b;
 	unsigned short v_a;
@@ -213,10 +200,11 @@ enum DP_TIMING_RES {
 
 unsigned char dptx_check_timing(struct aml_lcd_drv_s *pdrv, struct dptx_detail_timing_s *timing);
 void dptx_timing_update(struct aml_lcd_drv_s *pdrv, struct dptx_detail_timing_s *timing);
+void dptx_timing_apply(struct aml_lcd_drv_s *pdrv);
 void dptx_manage_timing(struct aml_lcd_drv_s *pdrv, struct dptx_EDID_s *EDID_p);
 void dptx_clear_timing(struct aml_lcd_drv_s *pdrv);
 void dptx_print_timing(struct aml_lcd_drv_s *pdrv, unsigned char print_flag);
-struct dptx_detail_timing_s *dptx_get_timing(struct aml_lcd_drv_s *pdrv, unsigned char th);
+struct dptx_detail_timing_s *dptx_get_timing(struct aml_lcd_drv_s *pdrv, u8 th);
 struct dptx_detail_timing_s *dptx_get_optimum_timing(struct aml_lcd_drv_s *pdrv);
 
 /* dptx func */
@@ -228,28 +216,34 @@ void dptx_set_msa(struct aml_lcd_drv_s *pdrv);
 void dptx_reset_part(struct aml_lcd_drv_s *pdrv, unsigned char part);
 void dptx_reset(struct aml_lcd_drv_s *pdrv);
 int dptx_wait_phy_ready(struct aml_lcd_drv_s *pdrv);
-int dptx_band_width_check(enum DP_link_rate_e link_rate, unsigned char lane_cnt,
-				unsigned long pclk, unsigned char bit_per_pixel);
+int dptx_band_width_check(enum DP_link_rate_e link_rate, u8 lane_cnt, u32 pclk, u8 bit_per_pixel);
 int dptx_link_config_update(struct aml_lcd_drv_s *pdrv);
 
 struct DP_dev_support_s {
-	unsigned char DPCD_rev;
-	unsigned char link_rate;
-	unsigned char line_cnt;
-	unsigned char enhanced_frame;
-	unsigned char TPS3;
-	unsigned char TPS4;
-	unsigned char down_spread;
-	unsigned char i2c_speed;
-	unsigned char train_aux_rd_interval; //0:100us, 1:4ms, 2:8ms, 3:12ms, 4:16ms
+	u8 DPCD_rev;
+	u32 link_rate;
+	u8 line_cnt;
+	u8 enhanced_frame;
+	u8 TPS_support; //[0]:TPS3; [1]:TPS4
+	u8 down_spread;
+	u8 coding_support; //[0]:8b/10b; [1]:128b/132b
+	u8 msa_timing_par_ignored;
+	u8 train_aux_rd_interval; //0:400us, 1:4ms, 2:8ms, 3:12ms, 4:16ms
+	u8 extended_receiver_cap; //DPCD[2200h~22ffh]
+	u8 DACP_support; //[0]:1.HDCP; [1]:panel auth; [2]:eDP ASSR
 
-	unsigned int h_active;
-	unsigned int v_active;
-	unsigned int frame_rate;
+	u8 edp_ver;
+	u8 edp_DPCD_reg; //DPCD[0700h~07ffh]
+
+	u16 h_active;
+	u16 v_active;
+	u16 frame_rate;
 };
+
+//! Content Protect
+void dptx_set_ContentProtection(struct aml_lcd_drv_s *pdrv);
 
 #define CAP_COMP(X, Y) ({typeof(X) x_ = (X); typeof(Y) y_ = (Y); (x_ < y_) ? x_ : y_; })
 extern struct DP_dev_support_s source_support_T7;
-int DPCD_capability_detect(struct aml_lcd_drv_s *pdrv);
 
 #endif

@@ -577,28 +577,33 @@ p2p_clk_with_tcon_div_done:
 static int lcd_clk_generate_DP_1PLL(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
+	u8 clk_level_sel = 0;
 	unsigned int edp_div0, edp_div1, tmp_div;
 	unsigned int min_err_div0 = 0, min_err_div1 = 0, min_err_div = 0;
 	unsigned long long tmp_fout, error, min_err = 1000000000;
-	unsigned long long eDP_PLL_setting_t7[2][5] = {
-		{1, 135, 0x0, 3240000000ULL, 1620000000ULL},
-		{1, 225, 0x0, 5400000000ULL, 2700000000ULL},
+	unsigned long long eDP_PLL_setting_t7[2][3] = {
+		{135, 3240000000ULL, 1620000000ULL},
+		{225, 5400000000ULL, 2700000000ULL},
 	};
 
 	if (!cconf)
 		return 0;
 
-	cconf->pll_n    = eDP_PLL_setting_t7[pdrv->config.control.edp_cfg.link_rate][0];
-	cconf->pll_m    = eDP_PLL_setting_t7[pdrv->config.control.edp_cfg.link_rate][1];
-	cconf->pll_frac = eDP_PLL_setting_t7[pdrv->config.control.edp_cfg.link_rate][2];
-	cconf->pll_fvco = eDP_PLL_setting_t7[pdrv->config.control.edp_cfg.link_rate][3];
-	cconf->pll_fout = eDP_PLL_setting_t7[pdrv->config.control.edp_cfg.link_rate][4];
-	cconf->phy_clk  = eDP_PLL_setting_t7[pdrv->config.control.edp_cfg.link_rate][4];
+	if (pdrv->config.control.edp_cfg.link_rate == 0x0a) //2.7G
+		clk_level_sel = 1;
+	else
+		clk_level_sel = 0;
+
+	cconf->pll_m    = eDP_PLL_setting_t7[clk_level_sel][0];
+	cconf->pll_fvco = eDP_PLL_setting_t7[clk_level_sel][1];
+	cconf->pll_fout = eDP_PLL_setting_t7[clk_level_sel][2];
+	cconf->phy_clk  = eDP_PLL_setting_t7[clk_level_sel][2];
+	cconf->pll_n    = 1;
+	cconf->pll_frac = 0;
 	cconf->pll_od1_sel = 1;
 	cconf->pll_od2_sel = 0;
 	cconf->pll_od3_sel = 0;
 	cconf->pll_tcon_div_sel = 1;
-
 	cconf->pll_frac_half_shift = 0;
 	cconf->div_sel = CLK_DIV_SEL_1;
 	cconf->xd = 1;
@@ -615,11 +620,6 @@ static int lcd_clk_generate_DP_1PLL(struct aml_lcd_drv_s *pdrv)
 			min_err_div0 = edp_div0;
 			min_err_div1 = edp_div1;
 			min_err_div = tmp_div;
-
-			if (!(lcd_debug_print_flag & LCD_DBG_PR_ADV2))
-				continue;
-			pr_info("  fout=%10llu error=%10llu div=%3u [%2u, %2u]\n", tmp_fout, error,
-				tmp_div, edp_div0_table[edp_div0], edp_div1_table[edp_div1]);
 		}
 	}
 	cconf->err_fmin = min_err;

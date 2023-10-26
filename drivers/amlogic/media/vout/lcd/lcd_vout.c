@@ -1885,6 +1885,11 @@ static void lcd_bootup_config_init(struct aml_lcd_drv_s *pdrv)
 	case LCD_P2P:
 		pdrv->config.control.p2p_cfg.p2p_type = val;
 		break;
+	case LCD_EDP:
+		pdrv->config.control.edp_cfg.link_rate = 1 + (val & 0xc0);
+		pdrv->config.control.edp_cfg.lane_count = 1 + (val & 0x30);
+		pdrv->config.control.edp_cfg.timing_idx = val & 0x0f;
+		break;
 	default:
 		break;
 	}

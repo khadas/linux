@@ -771,6 +771,11 @@ void lcd_tablet_config_post_update(struct aml_lcd_drv_s *pdrv)
 	case LCD_MIPI:
 		lcd_mipi_dsi_config_post(pdrv);
 		break;
+	case LCD_EDP:
+		DPCD_capability_detect(pdrv);
+		dptx_uboot_config_load(pdrv);
+		dptx_load_uboot_edid_timing(pdrv);
+		break;
 	default:
 		break;
 	}

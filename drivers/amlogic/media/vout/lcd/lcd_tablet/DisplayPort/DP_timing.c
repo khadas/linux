@@ -189,17 +189,22 @@ void dptx_timing_update(struct aml_lcd_drv_s *pdrv, struct dptx_detail_timing_s 
 	pconf->basic.screen_height = timing->v_size;
 
 	lcd_timing_init_config(pdrv);
-	lcd_timing_config_update(pdrv);
 	lcd_clk_generate_parameter(pdrv);
+}
 
+void dptx_timing_apply(struct aml_lcd_drv_s *pdrv)
+{
 	lcd_set_clk(pdrv);
 	lcd_set_venc_timing(pdrv);
+
+	lcd_vinfo_update(pdrv);
 }
 
 static int add_timing_list(struct aml_lcd_drv_s *pdrv, struct dptx_detail_timing_s *dt)
 {
 	int idx;
-	unsigned long fr100;
+	unsigned long long pclk100;
+	unsigned int fr100;
 
 	for (idx = 0; idx < DP_MAX_TIMING; idx++) {
 		if (!(timing_list[pdrv->index][idx]->flag & TIMING_FLAG_VALID))
@@ -215,55 +220,34 @@ search_done:
 	timing_list[pdrv->index][idx]->flag = dt->flag | TIMING_FLAG_VALID; //set flag
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		fr100 = (dt->pclk * 100) / ((dt->v_a + dt->v_b) * (dt->h_a + dt->h_b));
-		LCDPR(" - add: %4u * %4u @ %3lu.%2luHz (h_blank:%3u, v_blank:%3u, pclk:%10lu)\n",
+		pclk100 = dt->pclk;
+		fr100 = lcd_do_div(pclk100 * 100, ((dt->v_a + dt->v_b) * (dt->h_a + dt->h_b)));
+		LCDPR(" - add: %4u * %4u @%3u.%-2uHz (h_blank:%3u, v_blank:%3u, pclk:%9u)\n",
 			timing_list[pdrv->index][idx]->h_a, timing_list[pdrv->index][idx]->v_a,
-			fr100 / 100, fr100 % 100, timing_list[pdrv->index][idx]->h_b,
-			timing_list[pdrv->index][idx]->v_b, timing_list[pdrv->index][idx]->pclk);
+			fr100 / 100, fr100 % 100,
+			timing_list[pdrv->index][idx]->h_b, timing_list[pdrv->index][idx]->v_b,
+			timing_list[pdrv->index][idx]->pclk);
 	}
 	return 1;
 }
 
 static void timing_list_reorder(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned int x, y, fr100_a, fr100_b, s_size, pidx;
+	unsigned int x, y, s_size, pidx;
 	struct dptx_detail_timing_s temp_timing;
 
 	pidx = pdrv->index;
 	s_size = sizeof(struct dptx_detail_timing_s);
 
-	for (x = 0; x < DP_MAX_TIMING; x++)
+	for (x = 0; x < DP_MAX_TIMING; x++) {
 		for (y = 0; y + 1 < DP_MAX_TIMING - x; y++) {
-			fr100_a = (timing_list[pidx][y]->pclk * 100) /
-				((timing_list[pidx][y]->h_a + timing_list[pidx][y]->h_b) *
-				((timing_list[pidx][y]->v_a + timing_list[pidx][y]->v_b)));
-
-			fr100_b = (timing_list[pidx][y + 1]->pclk * 100) /
-				((timing_list[pidx][y + 1]->h_a + timing_list[pidx][y + 1]->h_b) *
-				((timing_list[pidx][y + 1]->v_a + timing_list[pidx][y + 1]->v_b)));
-
-			if (fr100_a < fr100_b) {
+			if (timing_list[pidx][y]->pclk < timing_list[pidx][y + 1]->pclk) {
 				memcpy(&temp_timing, timing_list[pidx][y], s_size);
 				memcpy(timing_list[pidx][y], timing_list[pidx][y + 1], s_size);
 				memcpy(timing_list[pidx][y + 1], &temp_timing, s_size);
 			}
 		}
-
-	for (x = 0; x < DP_MAX_TIMING; x++)
-		for (y = 0; y + 1 < DP_MAX_TIMING - x; y++)
-			if (timing_list[pidx][y]->v_a < timing_list[pidx][y + 1]->v_a) {
-				memcpy(&temp_timing, timing_list[pidx][y], s_size);
-				memcpy(timing_list[pidx][y], timing_list[pidx][y + 1], s_size);
-				memcpy(timing_list[pidx][y + 1], &temp_timing, s_size);
-			}
-
-	for (x = 0; x < DP_MAX_TIMING; x++)
-		for (y = 0; y + 1 < DP_MAX_TIMING - x; y++)
-			if (timing_list[pidx][y]->h_a < timing_list[pidx][y + 1]->h_a) {
-				memcpy(&temp_timing, timing_list[pidx][y], s_size);
-				memcpy(timing_list[pidx][y], timing_list[pidx][y + 1], s_size);
-				memcpy(timing_list[pidx][y + 1], &temp_timing, s_size);
-			}
+	}
 }
 
 /* dptx_manage_timing: gen timing
@@ -372,13 +356,15 @@ void dptx_clear_timing(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
-struct dptx_detail_timing_s *dptx_get_timing(struct aml_lcd_drv_s *pdrv, unsigned char th)
+struct dptx_detail_timing_s *dptx_get_timing(struct aml_lcd_drv_s *pdrv, u8 th)
 {
 	if (th >= DP_MAX_TIMING)
 		return NULL;
 
-	if (timing_list[pdrv->index][th]->flag & TIMING_FLAG_VALID)
+	if (timing_list[pdrv->index][th]->flag & TIMING_FLAG_VALID) {
+		pdrv->config.control.edp_cfg.timing_idx = th;
 		return timing_list[pdrv->index][th];
+	}
 
 	LCDERR("[%d]: %s %dth not available\n", pdrv->index, __func__, th);
 	return NULL;
@@ -394,8 +380,10 @@ struct dptx_detail_timing_s *dptx_get_optimum_timing(struct aml_lcd_drv_s *pdrv)
 		i++;
 		if (!tm)
 			continue;
-		if (tm->flag & TIMING_FLAG_VALID && tm->flag & TIMING_FLAG_SUPPORT)
+		if (tm->flag & TIMING_FLAG_VALID && tm->flag & TIMING_FLAG_SUPPORT) {
+			pdrv->config.control.edp_cfg.timing_idx = i;
 			return tm;
+		}
 	}
 	LCDERR("[%d]: %s no timing available", pdrv->index, __func__);
 	return NULL;
@@ -407,7 +395,8 @@ struct dptx_detail_timing_s *dptx_get_optimum_timing(struct aml_lcd_drv_s *pdrv)
 void dptx_print_timing(struct aml_lcd_drv_s *pdrv, unsigned char print_flag)
 {
 	unsigned char idx;
-	unsigned long fr100;
+	unsigned long long pclk100;
+	unsigned int h_total, v_total, fr100;
 
 	LCDPR("[%d]: DPtx Timing Table:\n", pdrv->index);
 
@@ -417,12 +406,12 @@ void dptx_print_timing(struct aml_lcd_drv_s *pdrv, unsigned char print_flag)
 		if (!(print_flag == 0xff || print_flag == idx))
 			continue;
 
-		fr100 = (timing_list[pdrv->index][idx]->pclk * 100) /
-			((timing_list[pdrv->index][idx]->h_a + timing_list[pdrv->index][idx]->h_b) *
-			((timing_list[pdrv->index][idx]->v_a + timing_list[pdrv->index][idx]->v_b))
-			);
+		pclk100 = timing_list[pdrv->index][idx]->pclk;
+		h_total = timing_list[pdrv->index][idx]->h_a + timing_list[pdrv->index][idx]->h_b;
+		v_total = timing_list[pdrv->index][idx]->v_a + timing_list[pdrv->index][idx]->v_b;
+		fr100 = lcd_do_div(pclk100 * 100, h_total * v_total);
 
-		pr_info(" %s %2d: %4d * %4d @ %3ld.%2ldhz, pclk: %10luHz, %s timing, fr_step:%d\n",
+		pr_info(" %s %2d: %4d * %4d @%3u.%-2uhz, pclk: %9uHz, %s timing, fr_step:%d\n",
 			(timing_list[pdrv->index][idx]->flag & TIMING_FLAG_SUPPORT) ? "*" : "-",
 			idx,
 			timing_list[pdrv->index][idx]->h_a, timing_list[pdrv->index][idx]->v_a,

@@ -141,6 +141,7 @@ static void dptx_EDID_timing_select(struct aml_lcd_drv_s *pdrv, int idx)
 		return;
 	}
 	dptx_timing_update(pdrv, tm);
+	dptx_timing_apply(pdrv);
 }
 
 static void dptx_scramble_ctrl(struct aml_lcd_drv_s *pdrv, int en)
@@ -164,10 +165,11 @@ int edp_debug_test(struct aml_lcd_drv_s *pdrv, char *str, int num)
 		dptx_fast_link_training(pdrv);
 	} else if (strcmp(str, "full") == 0) {
 		dptx_full_link_training(pdrv);
-	} else if (strcmp(str, "timing_probe") == 0) {
-		dptx_EDID_timing_probe(pdrv);
-	} else if (strcmp(str, "timing_select") == 0) {
-		dptx_EDID_timing_select(pdrv, num);
+	} else if (strcmp(str, "timing") == 0) {
+		if (num >= 0)
+			dptx_EDID_timing_select(pdrv, num);
+		else
+			dptx_EDID_timing_probe(pdrv);
 	} else if (strcmp(str, "main_stream") == 0) {
 		if (num)
 			dptx_reg_write(pdrv, EDP_TX_MAIN_STREAM_ENABLE, 0x1);

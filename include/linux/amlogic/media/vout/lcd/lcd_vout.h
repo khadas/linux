@@ -332,8 +332,6 @@ struct dsi_config_s {
 	struct dsi_read_s *dread;
 };
 
-#define EDP_EDID_STATE_LOAD     BIT(0)
-#define EDP_EDID_STATE_APPLY    BIT(1)
 #define EDP_EDID_RETRY_MAX      3
 struct edp_config_s {
 	unsigned char HPD_level;
@@ -342,28 +340,25 @@ struct edp_config_s {
 	/* eDP: preset in dts */
 	unsigned char max_lane_count;
 	unsigned char max_link_rate;
-	unsigned char enhanced_framing_en;
 	/* current actually use */
 	unsigned char lane_count;
 	unsigned char link_rate;
 	// unsigned int bit_rate; // kHz
 
-	unsigned char down_ss;
-
-	unsigned char dpcd_caps_en;
 	unsigned char sync_clk_mode;
-	unsigned char scramb_mode;
-	unsigned char pn_swap;
-	unsigned char link_rate_update;
 
 	/* internal used */
-	unsigned char training_settings;
-	unsigned char main_stream_enable;
+	unsigned char enhanced_framing_en;
+	unsigned char train_aux_rd_interval;
+	unsigned char down_ss;
 
-	unsigned char training_mode;
 	unsigned char TPS_support;
-	unsigned char phy_update;
+	unsigned char coding_support;
+	unsigned char DACP_support;
 
+	unsigned char link_rate_update;
+	unsigned char phy_update;
+	unsigned char training_mode;
 	/* last known-good (DP), in range: 0~3 */
 	unsigned char last_good_vswing[4];
 	unsigned char last_good_preem[4];
@@ -380,6 +375,7 @@ struct edp_config_s {
 
 	/* edid */
 	unsigned char edid_en;
+	unsigned char timing_idx;
 };
 
 struct mlvds_config_s {

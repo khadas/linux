@@ -16,6 +16,7 @@
 #endif
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include "DP_tx.h"
+#include "../lcd_tablet.h"
 #include "../../lcd_reg.h"
 #include "../../lcd_common.h"
 
@@ -69,13 +70,8 @@ void edp_tx_init(struct aml_lcd_drv_s *pdrv)
 		return;
 	}
 
-	if (edp_cfg->edid_en) {
-		dptx_EDID_probe(pdrv, &edp_edid1);
-		dptx_manage_timing(pdrv, &edp_edid1);
-		tm = dptx_get_optimum_timing(pdrv);
-		if (tm)
-			dptx_timing_update(pdrv, tm);
-	}
+	edp_cfg->lane_count = edp_cfg->max_lane_count;
+	edp_cfg->link_rate = edp_cfg->max_link_rate;
 
 	dptx_set_lane_config(pdrv);
 	dptx_set_phy_config(pdrv, 1);
@@ -93,7 +89,21 @@ void edp_tx_init(struct aml_lcd_drv_s *pdrv)
 
 	dptx_link_training(pdrv);
 
+	if (edp_cfg->edid_en) {
+		dptx_EDID_probe(pdrv, &edp_edid1);
+		dptx_manage_timing(pdrv, &edp_edid1);
+		tm = dptx_get_optimum_timing(pdrv);
+		if (tm) {
+			dptx_timing_update(pdrv, tm);
+			dptx_timing_apply(pdrv);
+		}
+	}
+
+	dptx_set_ContentProtection(pdrv);
+
 	dptx_set_msa(pdrv);
+
+	dptx_fast_link_training(pdrv);
 
 	lcd_vcbus_write(ENCL_VIDEO_EN + offset, 1);
 	dptx_reg_write(pdrv, EDP_TX_FORCE_SCRAMBLER_RESET, 0x1);
@@ -126,8 +136,6 @@ static void edp_power_init(int index)
 #ifdef CONFIG_SECURE_POWER_CONTROL
 //#define PM_EDP0          48
 //#define PM_EDP1          49
-//#define PM_MIPI_DSI1     50
-//#define PM_MIPI_DSI0     41
 	if (index)
 		pwr_ctrl_psci_smc(PM_EDP1, 1);
 	else

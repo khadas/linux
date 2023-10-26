@@ -783,45 +783,26 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 		LCDPR("phy_preem = 0x%x\n", pctrl->p2p_cfg.phy_preem);
 	} else if (pconf->basic.lcd_type == LCD_MIPI) {
 		if (pctrl->mipi_cfg.check_en) {
-			LCDPR("check_reg = 0x%02x\n",
-				pctrl->mipi_cfg.check_reg);
-			LCDPR("check_cnt = %d\n",
-				pctrl->mipi_cfg.check_cnt);
+			LCDPR("check_reg = 0x%02x\n", pctrl->mipi_cfg.check_reg);
+			LCDPR("check_cnt = %d\n", pctrl->mipi_cfg.check_cnt);
 		}
 		LCDPR("lane_num = %d\n", pctrl->mipi_cfg.lane_num);
 		LCDPR("bit_rate_max = %d\n", pctrl->mipi_cfg.bit_rate_max);
-		LCDPR("pclk_lanebyteclk_factor = %d\n",
-		      pctrl->mipi_cfg.factor_numerator);
-		LCDPR("operation_mode_init = %d\n",
-		      pctrl->mipi_cfg.operation_mode_init);
-		LCDPR("operation_mode_disp = %d\n",
-		      pctrl->mipi_cfg.operation_mode_display);
-		LCDPR("video_mode_type = %d\n",
-		      pctrl->mipi_cfg.video_mode_type);
+		LCDPR("pclk_lanebyteclk_factor = %d\n", pctrl->mipi_cfg.factor_numerator);
+		LCDPR("operation_mode_init = %d\n", pctrl->mipi_cfg.operation_mode_init);
+		LCDPR("operation_mode_disp = %d\n", pctrl->mipi_cfg.operation_mode_display);
+		LCDPR("video_mode_type = %d\n", pctrl->mipi_cfg.video_mode_type);
 		LCDPR("clk_always_hs = %d\n", pctrl->mipi_cfg.clk_always_hs);
 		LCDPR("phy_switch = %d\n", pctrl->mipi_cfg.phy_switch);
 		LCDPR("extern_init = %d\n", pctrl->mipi_cfg.extern_init);
 	} else if (pconf->basic.lcd_type == LCD_EDP) {
-		LCDPR("max_lane_count      = %d\n",
-		      pctrl->edp_cfg.max_lane_count);
-		LCDPR("max_link_rate       = %d\n",
-		      pctrl->edp_cfg.max_link_rate);
-		LCDPR("training_mode       = %d\n",
-		      pctrl->edp_cfg.training_mode);
-		LCDPR("edid_en             = %d\n",
-		      pctrl->edp_cfg.edid_en);
-		LCDPR("dpcd_caps_en        = %d\n",
-		      pctrl->edp_cfg.dpcd_caps_en);
-		LCDPR("sync_clk_mode       = %d\n",
-		      pctrl->edp_cfg.sync_clk_mode);
-
-		LCDPR("lane_count          = %d\n", pctrl->edp_cfg.lane_count);
-		LCDPR("link_rate           = %d\n", pctrl->edp_cfg.link_rate);
-		LCDPR("training_settings   = %d\n",
-		      pctrl->edp_cfg.training_settings);
-		LCDPR("main_stream_enable  = %d\n",
-		      pctrl->edp_cfg.main_stream_enable);
-
+		LCDPR("max_lane_count = %d\n", pctrl->edp_cfg.max_lane_count);
+		LCDPR("max_link_rate  = %d\n", pctrl->edp_cfg.max_link_rate);
+		LCDPR("training_mode  = %d\n", pctrl->edp_cfg.training_mode);
+		LCDPR("edid_en        = %d\n", pctrl->edp_cfg.edid_en);
+		LCDPR("sync_clk_mode  = %d\n", pctrl->edp_cfg.sync_clk_mode);
+		LCDPR("lane_count     = %d\n", pctrl->edp_cfg.lane_count);
+		LCDPR("link_rate      = %d\n", pctrl->edp_cfg.link_rate);
 		LCDPR("phy_vswing = 0x%x\n", pctrl->edp_cfg.phy_vswing_preset);
 		LCDPR("phy_preem  = 0x%x\n", pctrl->edp_cfg.phy_preem_preset);
 	}
@@ -1952,17 +1933,9 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 			return -1;
 		}
 		pctrl->edp_cfg.max_lane_count = (unsigned char)para[0];
-		pctrl->edp_cfg.max_link_rate = (unsigned char)para[1];
+		pctrl->edp_cfg.max_link_rate = (unsigned char)(para[1] < 0x6 ? 0 : para[1]);
 		pctrl->edp_cfg.training_mode = (unsigned char)para[2];
 		pctrl->edp_cfg.edid_en = (unsigned char)para[3];
-		pctrl->edp_cfg.dpcd_caps_en = (unsigned char)para[4];
-		pctrl->edp_cfg.sync_clk_mode = (unsigned char)para[5];
-		pctrl->edp_cfg.scramb_mode = (unsigned char)para[6];
-		pctrl->edp_cfg.enhanced_framing_en = (unsigned char)para[7];
-		pctrl->edp_cfg.pn_swap = (unsigned char)para[8];
-
-		pctrl->edp_cfg.lane_count = pctrl->edp_cfg.max_lane_count;
-		pctrl->edp_cfg.link_rate = pctrl->edp_cfg.max_link_rate;
 
 		ret = of_property_read_u32_array(child, "phy_attr", &para[0], 2);
 		if (ret) {

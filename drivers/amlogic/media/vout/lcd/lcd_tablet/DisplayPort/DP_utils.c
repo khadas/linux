@@ -20,60 +20,22 @@
 #include "../../lcd_common.h"
 
 struct DP_dev_support_s source_support_T7 = {
-	.DPCD_rev       = 0xff,
-	.link_rate      = DP_LINK_RATE_HBR,
+	.link_rate      = 1UL << DP_LINK_RATE_HBR |
+			  1UL << DP_LINK_RATE_RBR,
 	.line_cnt       = 4,
 	.enhanced_frame = 1,
-	.TPS3           = 1,
-	.TPS4           = 0,
+	.TPS_support    = 0x01,
 	.down_spread    = 1,
-
-	.v_active       = 2160,
-	.h_active       = 3840,
-	.frame_rate     = 144,
+	.coding_support = 0x01,
+	.DACP_support   = 0x4,
+	.v_active   = 2160,
+	.h_active   = 3840,
+	.frame_rate = 144,
 };
 
-enum DP_link_rate_val_e DP_link_rate_to_val[8] = {
-	DP_LINK_RATE_VAL_RBR,
-	DP_LINK_RATE_VAL_HBR,
-	DP_LINK_RATE_VAL_HBR2,
-	DP_LINK_RATE_VAL_HBR3,
-	DP_LINK_RATE_VAL_UBR10,
-	DP_LINK_RATE_VAL_UBR13_5,
-	DP_LINK_RATE_VAL_UBR20,
-	DP_LINK_RATE_VAL_INVALID
-};
+u16 DP_training_rd_interval[5] = {400, 4000, 8000, 12000, 16000};
 
-enum DP_link_rate_e DP_val_to_link_rate(enum DP_link_rate_val_e lkr_val)
-{
-	if (lkr_val == DP_LINK_RATE_VAL_RBR)
-		return DP_LINK_RATE_RBR;
-	if (lkr_val == DP_LINK_RATE_VAL_HBR)
-		return DP_LINK_RATE_HBR;
-	if (lkr_val == DP_LINK_RATE_VAL_HBR2)
-		return DP_LINK_RATE_HBR2;
-	if (lkr_val == DP_LINK_RATE_VAL_HBR3)
-		return DP_LINK_RATE_HBR3;
-	if (lkr_val == DP_LINK_RATE_VAL_UBR10)
-		return DP_LINK_RATE_UBR10;
-	if (lkr_val == DP_LINK_RATE_VAL_UBR13_5)
-		return DP_LINK_RATE_UBR13_5;
-	if (lkr_val == DP_LINK_RATE_VAL_UBR20)
-		return DP_LINK_RATE_UBR20;
-
-	return DP_LINK_RATE_INVALID;
-}
-
-char *DP_link_rate_str[8] = {
-	"RBR (1.64 GHz)",
-	"HBR (2.7 GHz)",
-	"HBR2 (5.4 GHz)",
-	"HBR3 (8.1 GHz)",
-	"UBR10 (10 GHz)",
-	"UBR13_5 (13.5 GHz)",
-	"UBR20 (20 GHz)",
-	"invalid"
-};
+char *edp_ver_str[5] = {"eDP 1.1", "eDP 1.2", "eDP 1.3", "eDP 1.4a", "eDP 1.4b"};
 
 //ANACTRL phy value(0~0xf) to DP standard value(2bit)
 enum DPCD_level_e dptx_vswing_phy_to_std(unsigned int phy_vswing)

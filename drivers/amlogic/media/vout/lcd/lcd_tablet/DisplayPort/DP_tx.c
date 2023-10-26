@@ -11,6 +11,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
+#include <linux/amlogic/gki_module.h>
 #ifdef CONFIG_AMLOGIC_VPU
 #include <linux/amlogic/media/vpu/vpu.h>
 #endif
@@ -67,24 +68,20 @@ int dptx_set_lane_config(struct aml_lcd_drv_s *pdrv)
 	lane_cnt = pdrv->config.control.edp_cfg.lane_count;
 	link_rate = pdrv->config.control.edp_cfg.link_rate;
 	ss_enable = pdrv->config.control.edp_cfg.down_ss;
+	enhance_framing = pdrv->config.control.edp_cfg.enhanced_framing_en;
 
-	LCDPR("[%d]: %s: %s, %d lane, ss_en: %d\n", pdrv->index, __func__,
-		DP_link_rate_str[link_rate], lane_cnt, ss_enable);
-
-	enhance_framing = dptx_reg_read(pdrv, EDP_TX_ENHANCED_FRAME_EN) & 0x01;
-	enhance_framing = 0;
+	LCDPR("[%d]: %s: %d lane, %u.%u GHz, ss_en: %d\n", pdrv->index, __func__,
+		lane_cnt, (link_rate * 27) / 100, (link_rate * 27) % 100, ss_enable);
 
 	// tx Link-rate and Lane_count
-	dptx_reg_write(pdrv, EDP_TX_LINK_BW_SET, DP_link_rate_to_val[link_rate]);
+	dptx_reg_write(pdrv, EDP_TX_LINK_BW_SET, link_rate);
 	dptx_reg_write(pdrv, EDP_TX_LINK_COUNT_SET, lane_cnt);
 	dptx_reg_write(pdrv, EDP_TX_ENHANCED_FRAME_EN, enhance_framing);
-
 	dptx_reg_write(pdrv, EDP_TX_PHY_POWER_DOWN, (0xf << lane_cnt) & 0xf);
-
 	dptx_reg_write(pdrv, EDP_TX_DOWNSPREAD_CTRL, ss_enable);
 
 	// sink Link-rate and Lane_count
-	auxdata[0] = DP_link_rate_to_val[link_rate];  //DPCD_LINK_BANDWIDTH_SET
+	auxdata[0] = link_rate;  //DPCD_LINK_BANDWIDTH_SET
 	auxdata[1] = lane_cnt | enhance_framing << 7; //DPCD_LANE_COUNT_SET
 	ret = dptx_aux_write(pdrv, DPCD_LINK_BW_SET, 2, auxdata);
 	if (ret)
@@ -124,18 +121,11 @@ void dptx_set_msa(struct aml_lcd_drv_s *pdrv)
 	vbp = pconf->timing.vsync_bp;
 
 	m_vid = pconf->timing.lcd_clk / 1000;
-	switch (pconf->control.edp_cfg.link_rate) {
-	case DP_LINK_RATE_HBR2: /* 5.4G */
-		n_vid = 540000;
-		break;
-	case DP_LINK_RATE_HBR: /* 2.7G */
+	if (pconf->control.edp_cfg.link_rate == DP_LINK_RATE_HBR)
 		n_vid = 270000;
-		break;
-	case DP_LINK_RATE_RBR: /* 1.62G */
-	default:
+	else
 		n_vid = 162000;
-		break;
-	}
+
 	 /*6bit:0x0, 8bit:0x1, 10bit:0x2, 12bit:0x3 */
 	if (pconf->basic.lcd_bits == 6)
 		bit_depth = 0x0;
@@ -233,28 +223,30 @@ int dptx_wait_phy_ready(struct aml_lcd_drv_s *pdrv)
 	return -1;
 }
 
-int dptx_band_width_check(enum DP_link_rate_e link_rate, unsigned char lane_cnt,
-					unsigned long pclk, unsigned char bit_per_pixel)
+int dptx_band_width_check(enum DP_link_rate_e link_rate, u8 lane_cnt, u32 pclk, u8 bit_per_pixel)
 {
-	unsigned long bw_req, bw_cal, bit_rate;
+	unsigned int bw_req, bw_cal, bit_rate;
 
 	switch (link_rate) {
+	case DP_LINK_RATE_HBR3:
+		bit_rate = 8100; //MHz
+		break;
 	case DP_LINK_RATE_HBR2:
-		bit_rate = 5400000; //khz
+		bit_rate = 5400; //MHz
 		break;
 	case DP_LINK_RATE_HBR:
-		bit_rate = 2700000; //khz
+		bit_rate = 2700; //MHz
 		break;
 	case DP_LINK_RATE_RBR:
 	default:
-		bit_rate = 1620000; //khz
+		bit_rate = 1620; //MHz
 		break;
 	}
 
 	bw_cal = bit_rate * lane_cnt * 8 / 10;
-	bw_req = ((pclk + 999) / 1000) * bit_per_pixel; //kbps
+	bw_req = (pclk / 1000000 + 1) * bit_per_pixel; //Mbps
 	if (bw_cal < bw_req) {
-		LCDERR("%s: bw_cal %ld not enough, bw_req %ld\n", __func__, bw_cal, bw_req);
+		LCDERR("%s: link BW %u MHz not enough, require %u MHz\n", __func__, bw_cal, bw_req);
 		return 1;
 	}
 	return 0;
@@ -262,31 +254,52 @@ int dptx_band_width_check(enum DP_link_rate_e link_rate, unsigned char lane_cnt,
 
 int DPCD_capability_detect(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned char auxdata[5];
-	int ret = 0;
+	u8 auxdata[8], sink_max_lkr;
+	int ret = 0, i = 0;
 	struct DP_dev_support_s sink_sp, *source_sp;
 	struct edp_config_s *DP_cfg = &pdrv->config.control.edp_cfg;
 
-	ret = dptx_aux_read(pdrv, DPCD_DPCD_REV, 5, auxdata);
+	ret = dptx_aux_read(pdrv, DPCD_DPCD_REV, 8, auxdata);
 	if (ret)
 		return ret;
 
-	//DPCD_REVISION
+	//DPCD_REVISION: 0x0000
 	sink_sp.DPCD_rev       = auxdata[0];
-	//DPCD_MAX_LINK_RATE
-	sink_sp.link_rate      = DP_val_to_link_rate(auxdata[1]);
-	//DPCD_MAX_LANE_COUNT
+	//DPCD_MAX_LINK_RATE: 0x0001
+	sink_max_lkr           = auxdata[1];
+	sink_sp.link_rate      = (0xffffffff >> (31 - sink_max_lkr)) & 0xffffff80;
+	//DPCD_MAX_LANE_COUNT: 0x0002
 	sink_sp.line_cnt       = auxdata[2] & 0xf;
+	sink_sp.TPS_support    = (auxdata[2] >> 6) & 0x1;
 	sink_sp.enhanced_frame = (auxdata[2] >> 7) & 0x1;
-	sink_sp.TPS3           = (auxdata[2] >> 6) & 0x1;
-	//DPCD_MAX_DOWNSPREAD
+	//DPCD_MAX_DOWNSPREAD: 0x0003
 	sink_sp.down_spread    = auxdata[3] & 0x1;
-	sink_sp.TPS4           = (auxdata[3] >> 7) & 0x1;
+	sink_sp.TPS_support   |= ((auxdata[3] >> 7) & 0x1) << 1;
+	//MAIN_LINK_CHANNEL_CODING_CAP: 0x0006
+	sink_sp.coding_support = auxdata[6] & 0x3;
+	//DOWN_STREAM_PORT_COUNT: 0x0007
+	sink_sp.msa_timing_par_ignored = (auxdata[7] >> 6) & 0x1;
 
-	ret = dptx_aux_read(pdrv, DPCD_TRAINING_AUX_RD_INTERVAL, 1, auxdata);
+	ret = dptx_aux_read(pdrv, DPCD_eDP_CONFIGURATION_CAP, 2, auxdata);
 	if (ret)
 		return ret;
-	sink_sp.train_aux_rd_interval = auxdata[0];
+	//eDP_CONFIGURATION_CAP: 0x000d
+	sink_sp.DACP_support  = (auxdata[0] & 0x1) << 2; //eDP ASSR
+	sink_sp.edp_DPCD_reg  = (auxdata[0] >> 3) & 0x1;
+	//8b/10b_TRAINING_AUX_RD_INTERVAL: 0x000e
+	sink_sp.train_aux_rd_interval = auxdata[1] & 0x7f;
+	sink_sp.extended_receiver_cap = (auxdata[1] >> 7) & 0x1;
+
+	if (sink_sp.edp_DPCD_reg) {
+		ret = dptx_aux_read(pdrv, DPCD_EDP_DPCD_REV, 1, auxdata);
+		if (ret)
+			return ret;
+		sink_sp.edp_ver = auxdata[0] > 5 ? 0 : auxdata[0];
+	}
+
+	//limit to prevent out of bound
+	sink_sp.train_aux_rd_interval = sink_sp.train_aux_rd_interval > 4 ?
+		4 : sink_sp.train_aux_rd_interval;
 
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_T7:
@@ -295,30 +308,132 @@ int DPCD_capability_detect(struct aml_lcd_drv_s *pdrv)
 		break;
 	}
 
-	DP_cfg->max_lane_count = CAP_COMP(source_sp->line_cnt, sink_sp.line_cnt);
-	DP_cfg->max_link_rate = CAP_COMP(source_sp->link_rate, sink_sp.link_rate);
+	if (!DP_cfg->max_lane_count)
+		DP_cfg->max_lane_count = CAP_COMP(source_sp->line_cnt, sink_sp.line_cnt);
+	if (!DP_cfg->max_link_rate) {
+		while (((source_sp->link_rate & sink_sp.link_rate) >> i) != 0x01)
+			i++;
+		DP_cfg->max_link_rate = i;
+	}
 	DP_cfg->enhanced_framing_en = CAP_COMP(source_sp->enhanced_frame, sink_sp.enhanced_frame);
 	DP_cfg->down_ss = CAP_COMP(source_sp->down_spread, sink_sp.down_spread);
-	DP_cfg->TPS_support =
-		(source_sp->TPS3 && sink_sp.TPS3) << 0 |
-		(source_sp->TPS4 && sink_sp.TPS4) << 1;
+	DP_cfg->TPS_support = source_sp->TPS_support & sink_sp.TPS_support;
+	DP_cfg->coding_support = source_sp->coding_support & sink_sp.coding_support;
+	DP_cfg->DACP_support = source_sp->DACP_support & sink_sp.DACP_support;
+	DP_cfg->train_aux_rd_interval = sink_sp.train_aux_rd_interval;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		sink_sp.link_rate = sink_sp.link_rate > 6 ? 7 : sink_sp.link_rate;
-		DP_cfg->max_link_rate = DP_cfg->max_link_rate > 6 ? 7 : DP_cfg->max_link_rate;
 		LCDPR("[%d]: %s:\n"
-			" - DPCD reversion: %01x.%01x\n"
-			" - link_rate:      %s -> %s\n"
-			" - lane_cnt:       %d\n"
-			" - enhanced_frame: %d\n"
-			" - TPS3 :          %d\n"
-			" - TPS4 :          %d\n"
-			" - down_spread:    %d\n",
+			" - DPCD reversion:  %01x.%01x\n"
+			" - link capability: %u lane, %u.%u GHz\n"
+			" - enhanced frame:  %u\n"
+			" - TPS support:     [TPS3:%u, TPS4:%u]\n"
+			" - down spread:     %u\n"
+			" - coding support:  [8b/10b:%u, 128b/132b:%u]\n"
+			" - MSA ignore:      %u\n"
+			" - train aux rd:    %uus\n"
+			" - HDCP:            %u\n"
+			" - ext DPCD cap:    %u\n",
 			pdrv->index, __func__, sink_sp.DPCD_rev >> 4, sink_sp.DPCD_rev & 0xf,
-			DP_link_rate_str[sink_sp.link_rate],
-			DP_link_rate_str[DP_cfg->max_link_rate],
-			DP_cfg->max_lane_count, DP_cfg->enhanced_framing_en,
-			sink_sp.TPS3, sink_sp.TPS4, sink_sp.down_spread);
+			sink_sp.line_cnt, (sink_max_lkr * 27) / 100, (sink_max_lkr * 27) % 100,
+			sink_sp.enhanced_frame,
+			sink_sp.TPS_support & 0x1, (sink_sp.TPS_support >> 1) & 0x1,
+			sink_sp.down_spread,
+			sink_sp.coding_support & 0x1, (sink_sp.coding_support >> 1) & 0x1,
+			sink_sp.msa_timing_par_ignored,
+			DP_training_rd_interval[sink_sp.train_aux_rd_interval],
+			sink_sp.DACP_support & 0x1,
+			sink_sp.extended_receiver_cap);
+		if (sink_sp.edp_DPCD_reg) {
+			pr_info(" - eDP version:     %s\n"
+				" - eDP ASSR:        %u\n"
+				" - eDP DPCD:        %u\n",
+				edp_ver_str[sink_sp.edp_ver],
+				(sink_sp.DACP_support & 0x4) >> 2,
+				sink_sp.edp_DPCD_reg);
+		}
 	}
 	return 0;
 }
+
+u32 dptx_boot_ctrl[2] = {0x0, 0x0};
+
+void dptx_uboot_config_load(struct aml_lcd_drv_s *pdrv)
+{
+	u8 lane_count = (dptx_boot_ctrl[pdrv->index] >> 8) & 0x3;
+
+	if (!lane_count) {
+		LCDPR("[%d]: invalid dptx boot_ctrl\n", pdrv->index);
+		pdrv->config.control.edp_cfg.link_rate =
+			pdrv->config.control.edp_cfg.max_link_rate;
+		pdrv->config.control.edp_cfg.lane_count =
+			pdrv->config.control.edp_cfg.max_lane_count;
+		pdrv->config.control.edp_cfg.timing_idx = 0xf;
+		return;
+	}
+
+	if (lane_count == 1)
+		pdrv->config.control.edp_cfg.lane_count = 1;
+	else if (lane_count == 2)
+		pdrv->config.control.edp_cfg.lane_count = 2;
+	else
+		pdrv->config.control.edp_cfg.lane_count = 4;
+
+	pdrv->config.control.edp_cfg.link_rate = dptx_boot_ctrl[pdrv->index] & 0xff;
+
+	pdrv->config.control.edp_cfg.timing_idx = (dptx_boot_ctrl[pdrv->index] >> 10) & 0xf;
+}
+
+void dptx_load_uboot_edid_timing(struct aml_lcd_drv_s *pdrv)
+{
+	struct dptx_detail_timing_s *tm;
+	struct dptx_EDID_s edp_edid;
+	struct edp_config_s *edp_cfg = &pdrv->config.control.edp_cfg;
+
+	if (edp_cfg->timing_idx == 0xf)
+		return;
+
+	dptx_EDID_probe(pdrv, &edp_edid);
+	dptx_clear_timing(pdrv);
+	dptx_manage_timing(pdrv, &edp_edid);
+	tm = dptx_get_timing(pdrv, edp_cfg->timing_idx);
+	if (tm)
+		dptx_timing_update(pdrv, tm);
+}
+
+static int dptx0_boot_ctrl_setup(char *str)
+{
+	int ret = 0;
+
+	if (!str)
+		return -EINVAL;
+
+	ret = kstrtouint(str, 16, &dptx_boot_ctrl[0]);
+	if (ret) {
+		LCDERR("%s:invalid data\n", __func__);
+		return -EINVAL;
+	}
+
+	LCDPR("dptx0_boot_ctrl: 0x%08x\n", dptx_boot_ctrl[0]);
+	return 0;
+}
+
+static int dptx1_boot_ctrl_setup(char *str)
+{
+	int ret = 0;
+
+	if (!str)
+		return -EINVAL;
+
+	ret = kstrtouint(str, 16, &dptx_boot_ctrl[1]);
+	if (ret) {
+		LCDERR("%s:invalid data\n", __func__);
+		return -EINVAL;
+	}
+
+	LCDPR("dptx1_boot_ctrl: 0x%08x\n", dptx_boot_ctrl[1]);
+	return 0;
+}
+
+__setup("dptx0_ctrl=", dptx0_boot_ctrl_setup);
+__setup("dptx1_ctrl=", dptx1_boot_ctrl_setup);

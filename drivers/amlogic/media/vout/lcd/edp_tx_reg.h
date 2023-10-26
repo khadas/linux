@@ -195,6 +195,8 @@
 #define DPCD_BRANCH_DEVICE_IEEE_OUI_2		0x0502 // Branch Device IEEE OUI 23:16
 #define DPCD_SET_POWER				0x0600 // Set Power
 
+#define DPCD_EDP_DPCD_REV			0x0700
+
 //HDCP field in DPCD
 #define DPCD_HDCP_BKSV				0x68000
 #define DPCD_HDCP_ROPRIME			0x68005

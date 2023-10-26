@@ -313,7 +313,7 @@
 		};
 
 		edp_0{
-			model_name = "edp_1080p";
+			model_name = "edp_1080p60";
 			interface = "edp"; /*lcd_interface(lvds, vbyone)*/
 			basic_setting = <
 				1920 1080 /*h_active, v_active*/
@@ -336,9 +336,9 @@
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			edp_attr = <
-				2 /*max_lane_count: 1,2,4*/
-				1 /*max_link_rate: 0=1.62G, 1=2.7G*/
-				0 /*training_mode*/
+				2 /*max_lane_count: 0:auto, 1, 2, 4*/
+				0xa /*max_link_rate: 0:auto, 0x6:1.62G, 0xa:2.7G*/
+				0 /*training_mode: 0:auto, 1:fast, 2:full*/
 				0 /*edid_en, auto timing by edid*/
 				0 /*reserved */
 				0 /*reserved */
@@ -358,6 +358,49 @@
 				0xff 0 0 0>; /*ending*/
 			backlight_index = <0x0>;
 		};
+		edp_1{
+			model_name = "edp_edid";
+			interface = "edp"; /*lcd_interface(lvds, vbyone)*/
+			basic_setting = <
+				2560 1440 /*h_active, v_active*/
+				2640 1481 /*h_period, v_period*/
+				8      /*lcd_bits*/
+				344 193>; /*screen_widht, screen_height*/
+			lcd_timing = <
+				32 40 0   /*hs_width, hs_bp, hs_pol*/
+				8  6  0>; /*vs_width, vs_bp, vs_pol*/
+			clk_attr = <
+				2 /*fr_adj_type
+				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
+				   * 4=hdmi_mode)
+				   */
+				0 /*clk_ss_level */
+				1 /*clk_auto_generate*/
+				235000000>; /*pixel_clk(unit in Hz)*/
+			edp_attr = <
+				0 /*max_lane_count: 0:auto, 1, 2, 4*/
+				0 /*max_link_rate: 0:auto, 0x6:1.62G, 0xa:2.7G*/
+				0 /*training_mode: 0:auto, 1:fast, 2:full*/
+				1 /*edid_en, auto timing by edid*/
+				0 /*reserved */
+				0 /*reserved */
+				0 /*reserved */
+				0 /*reserved */
+				0>; /*reserved*/
+			phy_attr=<0x5 1>; /*vswing_level, preem_level*/
+
+			/* power step: type, index, value, delay(ms) */
+			power_on_step = <
+				0 0 1 50  /*panel power on*/
+				2 0 0 0   /*signal enable*/
+				0xff 0 0 0>; /*ending*/
+			power_off_step = <
+				2 0 0 10  /*signal disable*/
+				0 0 0 200  /*panel power on*/
+				0xff 0 0 0>; /*ending*/
+			backlight_index = <0x0>;
+		};
+
 		mipi_0{
 			model_name = "TL070WSH27";
 			interface = "mipi";
@@ -1085,7 +1128,7 @@
 		};
 
 		edp_0{
-			model_name = "edp_1080p";
+			model_name = "edp_1080p60";
 			interface = "edp"; /*lcd_interface(lvds, vbyone)*/
 			basic_setting = <
 				1920 1080 /*h_active, v_active*/
@@ -1108,10 +1151,10 @@
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			edp_attr = <
-				2 /*max_lane_count: 1,2,4*/
-				1 /*max_link_rate: 0=1.62G, 1=2.7G*/
-				3 /*training_mode*/
-				1 /*EDID EN*/
+				2 /*max_lane_count: 0:auto, 1, 2, 4*/
+				0xa /*max_link_rate: 0:auto, 0x6:1.62G, 0xa:2.7G*/
+				0 /*training_mode: 0:auto, 1:fast, 2:full*/
+				0 /*edid en*/
 				0 /*reserved */
 				0 /*reserved */
 				0 /*reserved */
@@ -1130,6 +1173,49 @@
 				0xff 0 0 0>; /*ending*/
 			backlight_index = <0x0>;
 		};
+		edp_1{
+			model_name = "edp_edid";
+			interface = "edp"; /*lcd_interface(lvds, vbyone)*/
+			basic_setting = <
+				2560 1440 /*h_active, v_active*/
+				2640 1481 /*h_period, v_period*/
+				8      /*lcd_bits*/
+				344 193>; /*screen_widht, screen_height*/
+			lcd_timing = <
+				32 40 0   /*hs_width, hs_bp, hs_pol*/
+				8  6  0>; /*vs_width, vs_bp, vs_pol*/
+			clk_attr = <
+				2 /*fr_adj_type
+				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
+				   * 4=hdmi_mode)
+				   */
+				0 /*clk_ss_level */
+				1 /*clk_auto_generate*/
+				235000000>; /*pixel_clk(unit in Hz)*/
+			edp_attr = <
+				0 /*max_lane_count: 0:auto, 1, 2, 4*/
+				0 /*max_link_rate: 0:auto, 0x6:1.62G, 0xa:2.7G*/
+				0 /*training_mode: 0:auto, 1:fast, 2:full*/
+				1 /*edid_en, auto timing by edid*/
+				0 /*reserved */
+				0 /*reserved */
+				0 /*reserved */
+				0 /*reserved */
+				0>; /*reserved*/
+			phy_attr=<0x5 1>; /*vswing_level, preem_level*/
+
+			/* power step: type, index, value, delay(ms) */
+			power_on_step = <
+				0 0 1 50  /*panel power on*/
+				2 0 0 0   /*signal enable*/
+				0xff 0 0 0>; /*ending*/
+			power_off_step = <
+				2 0 0 10  /*signal disable*/
+				0 0 0 200  /*panel power on*/
+				0xff 0 0 0>; /*ending*/
+			backlight_index = <0x0>;
+		};
+
 		mipi_0{
 			model_name = "TL070WSH27";
 			interface = "mipi";

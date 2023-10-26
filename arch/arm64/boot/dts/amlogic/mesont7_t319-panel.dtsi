@@ -63,9 +63,9 @@
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			edp_attr = <
-				2 /*max_lane_count: 1,2,4*/
-				1 /*max_link_rate: 0=1.62G, 1=2.7G*/
-				0 /*training_mode*/
+				2 /*max_lane_count: 0:auto, 1, 2, 4*/
+				0xa /*max_link_rate: 0:auto, 0x6:1.62G, 0xa:2.7G*/
+				0 /*training_mode: 0:auto, 1:fast, 2:full*/
 				0 /*edid_en, auto timing by edid*/
 				0 /*reserved */
 				0 /*reserved */

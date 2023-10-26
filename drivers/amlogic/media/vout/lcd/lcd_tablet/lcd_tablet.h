@@ -18,5 +18,8 @@ void lcd_tablet_driver_disable(struct aml_lcd_drv_s *pdrv);
 void mipi_dsi_link_off(struct aml_lcd_drv_s *pdrv);
 void mipi_dsi_tx_ctrl(struct aml_lcd_drv_s *pdrv, int status);
 void edp_tx_ctrl(struct aml_lcd_drv_s *pdrv, int flag);
+int DPCD_capability_detect(struct aml_lcd_drv_s *pdrv);
+void dptx_uboot_config_load(struct aml_lcd_drv_s *pdrv);
+void dptx_load_uboot_edid_timing(struct aml_lcd_drv_s *pdrv);
 
 #endif

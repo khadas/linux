@@ -434,25 +434,19 @@ static int lcd_info_print_edp(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		"max_lane_count       %d\n"
 		"max_link_rate        %d\n"
 		"training_mode        %d\n"
-		"dpcd_caps_en         %d\n"
-		"sync_clk_mode        %d\n\n"
+		"sync_clk_mode        %d\n"
 		"lane_count           %d\n"
 		"link_rate            %d\n"
 		"bit_rate             %lluHz\n"
-		"training_settings    0x%x\n"
-		"main_stream_enable   %d\n"
 		"phy_vswing           0x%x\n"
 		"phy_preem            0x%x\n\n",
 		pdrv->config.control.edp_cfg.max_lane_count,
 		pdrv->config.control.edp_cfg.max_link_rate,
 		pdrv->config.control.edp_cfg.training_mode,
-		pdrv->config.control.edp_cfg.dpcd_caps_en,
 		pdrv->config.control.edp_cfg.sync_clk_mode,
 		pdrv->config.control.edp_cfg.lane_count,
 		pdrv->config.control.edp_cfg.link_rate,
 		pdrv->config.timing.bit_rate,
-		pdrv->config.control.edp_cfg.training_settings,
-		pdrv->config.control.edp_cfg.main_stream_enable,
 		pdrv->config.control.edp_cfg.phy_vswing_preset,
 		pdrv->config.control.edp_cfg.phy_preem_preset);
 
@@ -4660,7 +4654,10 @@ static ssize_t lcd_edp_debug_store(struct device *dev, struct device_attribute *
 
 	ret = sscanf(buf, "%s %d", cmd, &val[0]);
 #ifdef CONFIG_AMLOGIC_LCD_TABLET
-	edp_debug_test(pdrv, cmd, val[0]);
+	if (ret == 2)
+		edp_debug_test(pdrv, cmd, val[0]);
+	else
+		edp_debug_test(pdrv, cmd, -1);
 #endif
 	return count;
 }
