@@ -1576,12 +1576,6 @@ int meson_nand_bbt_check(struct nand_chip *nand)
 		meson_rsv_bbt_write((u_char *)buf, nfc->rsv->bbt->size);
 	}
 
-	if (nand->options & NAND_SKIP_BBTSCAN) {
-		/* sync with nand chip bbt */
-		nand->bbt = nfc->block_status;
-		mtd_to_nand(aml_mtd_info[0])->bbt = nfc->block_status;
-	}
-
 	return 0;
 }
 
@@ -1698,6 +1692,21 @@ meson_nfc_nand_chip_init(struct device *dev,
 		mtd->writesize_shift = 0;
 
 	mtd->_block_markbad = meson_nand_block_markbad;
+
+	if (aml_mtd_devnum == 0) {
+		nfc->block_status = kzalloc((mtd->size >> mtd->erasesize_shift),
+				GFP_KERNEL);
+		if (!nfc->block_status) {
+			ret = -ENOMEM;
+			pr_info("Allocated memory for block status failed\n");
+			goto exit_err2;
+		}
+	}
+
+	if (nand->options & NAND_SKIP_BBTSCAN)
+		/* sync with nand chip bbt */
+		nand->bbt = nfc->block_status;
+
 	if (aml_mtd_devnum != 0) {
 		nfc->rsv->mtd = mtd;
 		nfc->rsv->rsv_ops._erase = meson_nand_rsv_erase;
@@ -1709,14 +1718,6 @@ meson_nfc_nand_chip_init(struct device *dev,
 		nfc->rsv->rsv_ops._release_device = meson_nand_rsv_release_device;
 		meson_rsv_init(mtd, nfc->rsv);
 
-		nfc->block_status = kzalloc((mtd->size >> mtd->erasesize_shift),
-					    GFP_KERNEL);
-		if (!nfc->block_status) {
-			ret = -ENOMEM;
-			pr_info("Allocated memory for block status failed\n");
-			goto exit_err2;
-		}
-
 		ret = meson_nand_bbt_check(nand);
 		if (ret) {
 			pr_info("invalid nand bbt\n");
@@ -1727,6 +1728,7 @@ meson_nfc_nand_chip_init(struct device *dev,
 		meson_rsv_check(nfc->rsv->key);
 		meson_rsv_check(nfc->rsv->dtb);
 	}
+
 	ret = mtd_device_parse_register(mtd, meson_types, NULL, NULL, 0);
 	if (ret) {
 		dev_err(dev, "failed to register MTD device: %d\n", ret);
