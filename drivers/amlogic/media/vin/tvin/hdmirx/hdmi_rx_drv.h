@@ -101,7 +101,8 @@
 /* 2023.5.12 fix silent issue, switch to FSM_HPD_LOW */
 /* 2023.5.31 fix use-after-free in rx_emp_field_done_irq */
 /* 2023.8.5 support black pattern for t7~t5w */
-#define RX_VER2 "ver.2023/08/05"
+/* 2023.11.1 change vid and pid */
+#define RX_VER2 "ver.2023/11/01"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368

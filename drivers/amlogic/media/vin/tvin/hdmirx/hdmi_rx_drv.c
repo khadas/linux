@@ -3703,8 +3703,8 @@ static int hdmirx_probe(struct platform_device *pdev)
 		set_bit(EV_KEY, input_dev->evbit);
 		input_dev->name = "input_hdmirx";
 		input_dev->id.bustype = BUS_ISA;
-		input_dev->id.vendor = 0x0001;
-		input_dev->id.product = 0x0001;
+		input_dev->id.vendor = 0x0003;
+		input_dev->id.product = 0x0002;
 		input_dev->id.version = 0x0001;
 
 		ret = input_register_device(input_dev);
