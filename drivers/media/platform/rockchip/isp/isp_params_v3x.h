@@ -183,9 +183,9 @@ struct rkisp_isp_params_val_v3x {
 	struct rkisp_dummy_buffer buf_cac[ISP3_UNITE_MAX][ISP3X_MESH_BUF_NUM];
 	u32 buf_cac_idx[ISP3_UNITE_MAX];
 
-	struct rkisp_dummy_buffer buf_3dnr_iir[ISP3_UNITE_MAX];
-	struct rkisp_dummy_buffer buf_3dnr_cur[ISP3_UNITE_MAX];
-	struct rkisp_dummy_buffer buf_3dnr_ds[ISP3_UNITE_MAX];
+	struct rkisp_dummy_buffer buf_3dnr_iir;
+	struct rkisp_dummy_buffer buf_3dnr_cur;
+	struct rkisp_dummy_buffer buf_3dnr_ds;
 
 	bool dhaz_en;
 	bool drc_en;

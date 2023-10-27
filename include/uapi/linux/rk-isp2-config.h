@@ -58,6 +58,9 @@
 #define RKISP_CMD_MULTI_DEV_FORCE_ENUM \
 	_IO('V', BASE_VIDIOC_PRIVATE + 13)
 
+#define RKISP_CMD_GET_BAY3D_BUFFD \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 15, struct rkisp_bay3dbuf_info)
+
 /****************ISP VIDEO IOCTL******************************/
 
 #define RKISP_CMD_GET_CSI_MEMORY_MODE \
@@ -316,6 +319,23 @@ struct rkisp_meshbuf_size {
 struct isp2x_mesh_head {
 	enum isp2x_mesh_buf_stat stat;
 	__u32 data_oft;
+} __attribute__ ((packed));
+
+struct rkisp_bay3dbuf_info {
+	int iir_fd;
+	int iir_size;
+	union {
+		struct {
+			int cur_fd;
+			int cur_size;
+			int ds_fd;
+			int ds_size;
+		} v30;
+		struct {
+			int ds_fd;
+			int ds_size;
+		} v32;
+	} u;
 } __attribute__ ((packed));
 
 #define RKISP_CMSK_WIN_MAX 12

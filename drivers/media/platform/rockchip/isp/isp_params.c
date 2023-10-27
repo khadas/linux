@@ -487,6 +487,14 @@ int rkisp_params_info2ddr_cfg(struct rkisp_isp_params_vdev *params_vdev,
 	return ret;
 }
 
+void rkisp_params_get_bay3d_buffd(struct rkisp_isp_params_vdev *params_vdev,
+				  struct rkisp_bay3dbuf_info *bay3dbuf)
+{
+	memset(bay3dbuf, -1, sizeof(*bay3dbuf));
+	if (params_vdev->ops->get_bay3d_buffd)
+		params_vdev->ops->get_bay3d_buffd(params_vdev, bay3dbuf);
+}
+
 int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,
 				struct v4l2_device *v4l2_dev,
 				struct rkisp_device *dev)
