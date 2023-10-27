@@ -10,7 +10,7 @@
 #include <linux/amlogic/meson_uvm_core.h>
 #define VDIN_V4L2_GET_LOOPBACK_FMT_BY_VOUT_SERVE
 
-#define VDIN_DEV_VER		0x20220325
+#define VDIN_DEV_VER		0x20231019
 #define VDIN_DEV_VER2		"v4l2 base func ok"
 #define VDIN_V4L_DV_NAME	"vdin_video"
 #define VDIN1_V4L_DV_NAME	"vdin1_video"

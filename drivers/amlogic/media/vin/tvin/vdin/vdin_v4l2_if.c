@@ -454,23 +454,24 @@ static int vdin_vidioc_reqbufs(struct file *file, void *priv,
 	if (reqbufs->count == 0) {
 		dprintk(0, "%s type:%d count:%d\n", __func__,
 			reqbufs->type, reqbufs->count);
-		return 0;
+		//return 0;
 	}
-	if (reqbufs->count < devp->vb_queue.min_buffers_needed ||
-		reqbufs->count > VDIN_CANVAS_MAX_CNT) {
+	if (reqbufs->count && (reqbufs->count < devp->vb_queue.min_buffers_needed ||
+		reqbufs->count > VDIN_CANVAS_MAX_CNT)) {
 		dprintk(0, "%s err,count=%d,out of range[%d,%d]\n", __func__,
 			reqbufs->count, devp->vb_queue.min_buffers_needed, VDIN_CANVAS_MAX_CNT);
 		return -EINVAL;
 	}
 
-	dprintk(1, "%s type:%d buff_num:%d\n", __func__, reqbufs->type, reqbufs->count);
+	dprintk(1, "%s memory:%d,type:%d buff_num:%d\n", __func__,
+		reqbufs->memory, reqbufs->type, reqbufs->count);
 
 	/*need config by input source type*/
 	devp->source_bitdepth = VDIN_COLOR_DEEPS_8BIT;
 	devp->vb_queue.type = reqbufs->type;
 
 	//vdin_buffer_calculate(devp, req_buffs_num);
-	vdin_fill_pix_format(devp);
+	//vdin_fill_pix_format(devp);
 
 	ret = vb2_ioctl_reqbufs(file, priv, reqbufs);
 	if (ret < 0)
@@ -615,7 +616,7 @@ static int vdin_vidioc_expbuf(struct file *file, void *priv,
 			      struct v4l2_exportbuffer *p)
 {
 	struct vdin_dev_s *devp = video_drvdata(file);
-	struct dma_buf *dmabuf;
+	//struct dma_buf *dmabuf;
 	int ret;
 
 	if (IS_ERR_OR_NULL(devp))
@@ -625,9 +626,9 @@ static int vdin_vidioc_expbuf(struct file *file, void *priv,
 
 	ret = vb2_ioctl_expbuf(file, priv, p);
 
-	dmabuf = dma_buf_get(p->fd);
-	if (IS_ERR_OR_NULL(dmabuf))
-		dprintk(0, "get dma buf err\n");
+	//dmabuf = dma_buf_get(p->fd);
+	//if (IS_ERR_OR_NULL(dmabuf))
+	//	dprintk(0, "get dma buf err\n");
 
 	return ret;
 }
@@ -662,9 +663,11 @@ static int vdin_vidioc_streamoff(struct file *file, void *priv,
 
 	ret = vb2_ioctl_streamoff(file, priv, i);
 	if (ret < 0)
-		dprintk(0, "%s failed with %d\n", __func__, ret);
+		dprintk(0, "%s vb2_ioctl_streamoff failed with %d\n", __func__, ret);
 
 	ret = vdin_v4l2_stop_tvin(devp);
+	if (ret < 0)
+		dprintk(0, "%s vdin_v4l2_stop_tvin failed with %d\n", __func__, ret);
 
 	return ret;
 }
@@ -775,7 +778,12 @@ static int vdin_vidioc_s_fmt_vid_cap_mplane(struct file *file,
 		fmt->fmt.pix_mp.quantization,	fmt->fmt.pix_mp.ycbcr_enc,
 		fmt->fmt.pix_mp.field,		fmt->fmt.pix_mp.pixelformat,
 		fmt->fmt.pix_mp.num_planes);
-
+	if (devp->v4l2_dbg_ctl.dbg_pix_fmt) {
+		devp->v4l2_fmt.fmt.pix_mp.pixelformat = devp->v4l2_dbg_ctl.dbg_pix_fmt;
+		dprintk(2, "%s:force pixelformat to 0x%x\n", __func__,
+			devp->v4l2_fmt.fmt.pix_mp.pixelformat);
+	}
+#ifndef VDIN_V4L2_FILL_PIXFMT_MP
 	devp->v4l2_fmt.fmt.pix_mp.width	       = fmt->fmt.pix_mp.width;
 	devp->v4l2_fmt.fmt.pix_mp.height       = fmt->fmt.pix_mp.height;
 	devp->v4l2_fmt.fmt.pix_mp.quantization = fmt->fmt.pix_mp.quantization;
@@ -784,11 +792,6 @@ static int vdin_vidioc_s_fmt_vid_cap_mplane(struct file *file,
 	devp->v4l2_fmt.fmt.pix_mp.pixelformat  = fmt->fmt.pix_mp.pixelformat;
 	devp->v4l2_fmt.fmt.pix_mp.num_planes   = fmt->fmt.pix_mp.num_planes;
 
-	if (devp->v4l2_dbg_ctl.dbg_pix_fmt) {
-		devp->v4l2_fmt.fmt.pix_mp.pixelformat = devp->v4l2_dbg_ctl.dbg_pix_fmt;
-		dprintk(2, "%s:force pixelformat to 0x%x\n", __func__,
-			devp->v4l2_fmt.fmt.pix_mp.pixelformat);
-	}
 	vdin_fill_pix_format(devp);
 	for (i = 0; i < fmt->fmt.pix_mp.num_planes; i++) {
 		fmt->fmt.pix_mp.plane_fmt[i].bytesperline =
@@ -796,6 +799,10 @@ static int vdin_vidioc_s_fmt_vid_cap_mplane(struct file *file,
 		fmt->fmt.pix_mp.plane_fmt[i].sizeimage =
 			devp->v4l2_fmt.fmt.pix_mp.plane_fmt[i].sizeimage;
 	}
+#else
+	v4l2_fill_pixfmt_mp(&devp->v4l2_fmt.fmt.pix_mp,
+		fmt->fmt.pix_mp.pixelformat, fmt->fmt.pix_mp.width, fmt->fmt.pix_mp.height);
+#endif
 	dprintk(2, "width=%d height=%d,quant:%d,enc:%x,\n",
 		fmt->fmt.pix_mp.width, fmt->fmt.pix_mp.height,
 		fmt->fmt.pix_mp.quantization, fmt->fmt.pix_mp.ycbcr_enc);
