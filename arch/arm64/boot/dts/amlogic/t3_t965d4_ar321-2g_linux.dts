@@ -940,6 +940,12 @@
 		status = "disabled";
 		pq_en = <1>;
 	};
+
+	aml_vpq {
+		compatible = "amlogic, vpq-t3";
+		dev_name = "aml_vpq";
+		status = "disabled";
+	};
 }; /* end of / */
 
 &thermal_zones {

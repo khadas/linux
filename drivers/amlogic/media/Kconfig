@@ -90,6 +90,7 @@ source "drivers/amlogic/media/dtv_demod/Kconfig"
 source "drivers/amlogic/media/frc/Kconfig"
 source "drivers/amlogic/media/di_v4l/Kconfig"
 source "drivers/amlogic/media/vpp/Kconfig"
+source "drivers/amlogic/media/vpq/Kconfig"
 endif
 endmenu
 

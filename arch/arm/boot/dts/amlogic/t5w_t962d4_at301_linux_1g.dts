@@ -897,6 +897,11 @@
 		clocks = <&clkc CLKID_CLK81_SMARTCARD>;
 		clock-names = "smartcard";
 	};
+	aml_vpq {
+		compatible = "amlogic, vpq-t5w";
+		dev_name = "aml_vpq";
+		status = "disabled";
+	};
 }; /* end of reserved-memory */
 
 /*audio soc*/
