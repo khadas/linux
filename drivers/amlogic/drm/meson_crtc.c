@@ -269,6 +269,9 @@ static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
 	} else if (property == meson_crtc->dv_mode_property) {
 		*val = crtc_state->dv_mode;
 		return 0;
+	} else if (property == meson_crtc->force_output) {
+		*val = crtc_state->force_output_type;
+		return 0;
 	}
 
 	return ret;
@@ -299,6 +302,9 @@ static int meson_crtc_atomic_set_property(struct drm_crtc *crtc,
 		return 0;
 	} else if (property == meson_crtc->dv_mode_property) {
 		crtc_state->dv_mode = val;
+		return 0;
+	} else if (property == meson_crtc->force_output) {
+		crtc_state->force_output_type = val;
 		return 0;
 	}
 
@@ -463,6 +469,8 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	struct am_meson_crtc_state *meson_crtc_state =
 					to_am_meson_crtc_state(crtc->state);
 	struct meson_drm *priv = amcrtc->priv;
+	struct am_meson_crtc_state *old_am_crtc_state =
+					to_am_meson_crtc_state(old_state);
 	int hdrpolicy = 0;
 
 	if (!adjusted_mode) {
@@ -505,6 +513,10 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 		}
 		/*force eotf by property*/
 		set_eotf_by_property(meson_crtc_state);
+		if (meson_crtc_state->force_output_type !=
+			old_am_crtc_state->force_output_type) {
+			set_force_output(meson_crtc_state->force_output_type);
+		}
 	}
 
 	/*update mode*/
@@ -750,6 +762,10 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 		old_crtc_state->crtc_hdr_process_policy) {
 		set_hdr_policy(meson_crtc_state->crtc_hdr_process_policy);
 	}
+	if (meson_crtc_state->force_output_type !=
+		old_crtc_state->force_output_type) {
+		set_force_output(meson_crtc_state->force_output_type);
+	}
 #endif
 }
 
@@ -791,6 +807,34 @@ static int meson_crtc_get_scanout_position(struct am_meson_crtc *crtc,
 	return ret;
 }
 
+static const struct drm_prop_enum_list force_output_list[] = {
+	{ UNKNOWN_FMT, "UNKNOWN_FMT" },
+	{ BT709, "BT709" },
+	{ BT2020, "BT2020" },
+	{ BT2020_PQ, "BT2020_PQ" },
+	{ BT2020_PQ_DYNAMIC, "BT2020_PQ_DYNAMIC" },
+	{ BT2020_HLG, "BT2020_HLG" },
+	{ BT2100_IPT, "BT2100_IPT" },
+	{ BT2020YUV_BT2020RGB_CUVA, "BT2020YUV_BT2020RGB_CUVA" },
+	{ BT_BYPASS, "BT_BYPASS" }
+};
+
+static void meson_crtc_init_force_output_property(struct drm_device *drm_dev,
+						   struct am_meson_crtc *amcrtc)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_enum(drm_dev, 0, "force_output",
+					force_output_list,
+					ARRAY_SIZE(force_output_list));
+	if (prop) {
+		amcrtc->force_output = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, UNKNOWN_FMT);
+	} else {
+		DRM_ERROR("Failed to force_output property\n");
+	}
+}
+
 /* Optional eotf properties. */
 static const struct drm_prop_enum_list hdmi_eotf_enum_list[] = {
 	{ HDMI_EOTF_TRADITIONAL_GAMMA_SDR, "SDR" },
@@ -816,15 +860,24 @@ static void meson_crtc_init_hdmi_eotf_property(struct drm_device *drm_dev,
 	}
 }
 
+static const struct drm_prop_enum_list hdr_policy_enum_list[] = {
+	{ HDR_POLICY_FOLLOW_SINK, "HDR_POLICY_FOLLOW_SINK" },
+	{ HDR_POLICY_FOLLOW_SOURCE, "HDR_POLICY_FOLLOW_SOURCE" },
+	{ HDR_POLICY_FOLLOW_FORCE_MODE, "HDR_POLICY_FOLLOW_FORCE_MODE" },
+};
+
 static void meson_crtc_init_property(struct drm_device *drm_dev,
 						  struct am_meson_crtc *amcrtc)
 {
 	struct drm_property *prop;
 
-	prop = drm_property_create_bool(drm_dev, 0, "meson.crtc.hdr_policy");
+	prop = drm_property_create_enum(drm_dev, 0, "meson.crtc.hdr_policy",
+					hdr_policy_enum_list,
+					ARRAY_SIZE(hdr_policy_enum_list));
+
 	if (prop) {
 		amcrtc->hdr_policy = prop;
-		drm_object_attach_property(&amcrtc->base.base, prop, 0);
+		drm_object_attach_property(&amcrtc->base.base, prop, HDR_POLICY_FOLLOW_SINK);
 	} else {
 		DRM_ERROR("Failed to UPDATE property\n");
 	}
@@ -931,6 +984,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	meson_crtc_init_dv_enable_property(priv->drm, amcrtc);
 	meson_crtc_init_dv_mode_property(priv->drm, amcrtc);
 	meson_crtc_add_bgcolor_property(priv->drm, amcrtc);
+	meson_crtc_init_force_output_property(priv->drm, amcrtc);
 	amcrtc->pipeline = pipeline;
 	strcpy(amcrtc->osddump_path, OSD_DUMP_PATH);
 	priv->crtcs[priv->num_crtcs++] = amcrtc;

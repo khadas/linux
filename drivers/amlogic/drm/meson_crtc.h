@@ -27,6 +27,12 @@ enum {
 	HDMI_EOTF_MESON_DOLBYVISION_LL,
 };
 
+enum {
+	HDR_POLICY_FOLLOW_SINK = 0,
+	HDR_POLICY_FOLLOW_SOURCE,
+	HDR_POLICY_FOLLOW_FORCE_MODE,
+};
+
 struct am_meson_crtc_present_fence {
 	u32 fd;
 	struct dma_fence *fence;
@@ -59,6 +65,7 @@ struct am_meson_crtc_state {
 	u8 eotf_type_by_property;
 	/*crtc background*/
 	u64 crtc_bgcolor;
+	u64 force_output_type;
 	/*basic refresh rate*/
 	u32 brr;
 	u32 valid_brr;
@@ -83,6 +90,7 @@ struct am_meson_crtc {
 	struct drm_property *dv_enable_property;
 	struct drm_property *dv_mode_property;
 	struct drm_property *bgcolor_property;
+	struct drm_property *force_output;
 
 	/*debug*/
 	int dump_enable;
