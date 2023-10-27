@@ -5209,9 +5209,9 @@ rkisp_params_info2ddr_cfg_v32(struct rkisp_isp_params_vdev *params_vdev, void *a
 		priv_val->buf_info_owner = cfg->owner;
 		return 0;
 	case RKISP_INFO2DRR_OWNER_GAIN:
-		ctrl = ISP3X_GAIN_2DDR_mode(cfg->u.gain.gain2ddr_mode);
+		ctrl = ISP3X_GAIN_2DDR_MODE(cfg->u.gain.gain2ddr_mode);
 		ctrl |= ISP3X_GAIN_2DDR_EN;
-		mask = ISP3X_GAIN_2DDR_mode(3);
+		mask = ISP3X_GAIN_2DDR_MODE(3);
 		reg = ISP3X_GAIN_CTRL;
 
 		if (cfg->wsize)
@@ -5294,6 +5294,26 @@ err:
 	cfg->owner = RKISP_INFO2DRR_OWNER_NULL;
 	cfg->buf_cnt = 0;
 	return -ENOMEM;
+}
+
+static void
+rkisp_params_get_bay3d_buffd_v32(struct rkisp_isp_params_vdev *params_vdev,
+				 struct rkisp_bay3dbuf_info *bay3dbuf)
+{
+	struct rkisp_isp_params_val_v32 *priv_val = params_vdev->priv_val;
+	struct rkisp_dummy_buffer *buf;
+
+	buf = &priv_val->buf_3dnr_iir;
+	if (rkisp_buf_get_fd(params_vdev->dev, buf, true) < 0)
+		return;
+	bay3dbuf->iir_fd = buf->dma_fd;
+	bay3dbuf->iir_size = buf->size;
+
+	buf = &priv_val->buf_3dnr_ds;
+	if (rkisp_buf_get_fd(params_vdev->dev, buf, true) < 0)
+		return;
+	bay3dbuf->u.v32.ds_fd = buf->dma_fd;
+	bay3dbuf->u.v32.ds_size = buf->size;
 }
 
 static void
@@ -5529,6 +5549,7 @@ static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 	.fop_release = rkisp_params_fop_release_v32,
 	.check_bigmode = rkisp_params_check_bigmode_v32,
 	.info2ddr_cfg = rkisp_params_info2ddr_cfg_v32,
+	.get_bay3d_buffd = rkisp_params_get_bay3d_buffd_v32,
 };
 
 int rkisp_init_params_vdev_v32(struct rkisp_isp_params_vdev *params_vdev)

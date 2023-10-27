@@ -189,6 +189,7 @@ void rkisp_next_clear_reg_cache_bits(struct rkisp_device *dev, u32 reg, u32 mask
 
 void rkisp_update_regs(struct rkisp_device *dev, u32 start, u32 end);
 
+int rkisp_buf_get_fd(struct rkisp_device *dev, struct rkisp_dummy_buffer *buf, bool try_fd);
 int rkisp_alloc_buffer(struct rkisp_device *dev, struct rkisp_dummy_buffer *buf);
 void rkisp_free_buffer(struct rkisp_device *dev, struct rkisp_dummy_buffer *buf);
 void rkisp_prepare_buffer(struct rkisp_device *dev, struct rkisp_dummy_buffer *buf);

@@ -192,6 +192,42 @@ void rkisp_update_regs(struct rkisp_device *dev, u32 start, u32 end)
 	}
 }
 
+int rkisp_buf_get_fd(struct rkisp_device *dev,
+		     struct rkisp_dummy_buffer *buf, bool try_fd)
+{
+	const struct vb2_mem_ops *g_ops = dev->hw_dev->mem_ops;
+	bool new_dbuf = false;
+
+	if (!buf || !buf->mem_priv)
+		return -EINVAL;
+	if (try_fd && buf->is_need_dmafd)
+		return 0;
+	if (try_fd) {
+		buf->is_need_dbuf = true;
+		buf->is_need_dmafd = true;
+	}
+
+	if (buf->is_need_dbuf && !buf->dbuf) {
+		buf->dbuf = g_ops->get_dmabuf(&buf->vb, buf->mem_priv, O_RDWR);
+		new_dbuf = true;
+	}
+
+	if (buf->is_need_dmafd) {
+		buf->dma_fd = dma_buf_fd(buf->dbuf, O_CLOEXEC);
+		if (buf->dma_fd < 0) {
+			if (new_dbuf) {
+				dma_buf_put(buf->dbuf);
+				buf->dbuf = NULL;
+				buf->is_need_dbuf = false;
+			}
+			buf->is_need_dmafd = false;
+			return -EINVAL;
+		}
+		get_dma_buf(buf->dbuf);
+	}
+	return 0;
+}
+
 static void rkisp_init_dummy_vb2(struct rkisp_device *dev,
 				 struct rkisp_dummy_buffer *buf)
 {
@@ -240,17 +276,13 @@ int rkisp_alloc_buffer(struct rkisp_device *dev,
 	}
 	if (buf->is_need_vaddr)
 		buf->vaddr = g_ops->vaddr(&buf->vb, mem_priv);
-	if (buf->is_need_dbuf) {
-		buf->dbuf = g_ops->get_dmabuf(&buf->vb, mem_priv, O_RDWR);
-		if (buf->is_need_dmafd) {
-			buf->dma_fd = dma_buf_fd(buf->dbuf, O_CLOEXEC);
-			if (buf->dma_fd < 0) {
-				dma_buf_put(buf->dbuf);
-				ret = buf->dma_fd;
-				goto err;
-			}
-			get_dma_buf(buf->dbuf);
-		}
+	ret = rkisp_buf_get_fd(dev, buf, false);
+	if (ret < 0) {
+		g_ops->put(buf->mem_priv);
+		buf->mem_priv = NULL;
+		buf->vaddr = NULL;
+		buf->size = 0;
+		goto err;
 	}
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s buf:0x%x~0x%x size:%d\n", __func__,

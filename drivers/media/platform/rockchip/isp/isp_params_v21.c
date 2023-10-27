@@ -3973,6 +3973,19 @@ end:
 	return ispdev->is_bigmode = is_bigmode;
 }
 
+static void
+rkisp_params_get_bay3d_buffd_v21(struct rkisp_isp_params_vdev *params_vdev,
+				 struct rkisp_bay3dbuf_info *bay3dbuf)
+{
+	struct rkisp_isp_params_val_v21 *priv_val = params_vdev->priv_val;
+	struct rkisp_dummy_buffer *buf = &priv_val->buf_3dnr;
+
+	if (rkisp_buf_get_fd(params_vdev->dev, buf, true) < 0)
+		return;
+	bay3dbuf->iir_fd = buf->dma_fd;
+	bay3dbuf->iir_size = buf->size;
+}
+
 /* Not called when the camera active, thus not isr protection. */
 static void
 rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
@@ -4330,6 +4343,7 @@ static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 	.stream_stop = rkisp_params_stream_stop_v2x,
 	.fop_release = rkisp_params_fop_release_v2x,
 	.check_bigmode = rkisp_params_check_bigmode_v21,
+	.get_bay3d_buffd = rkisp_params_get_bay3d_buffd_v21,
 };
 
 int rkisp_init_params_vdev_v21(struct rkisp_isp_params_vdev *params_vdev)

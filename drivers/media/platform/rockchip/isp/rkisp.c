@@ -3595,6 +3595,9 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKISP_VICAP_CMD_MODE:
 		ret = rkisp_set_work_mode_by_vicap(isp_dev, arg);
 		break;
+	case RKISP_CMD_GET_BAY3D_BUFFD:
+		rkisp_params_get_bay3d_buffd(&isp_dev->params_vdev, arg);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	}
@@ -3607,103 +3610,91 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 				 unsigned int cmd, unsigned long arg)
 {
 	void __user *up = compat_ptr(arg);
-	struct isp2x_csi_trigger trigger;
-	struct rkisp_thunderboot_resmem resmem;
-	struct rkisp_ldchbuf_info ldchbuf;
-	struct rkisp_ldchbuf_size ldchsize;
-	struct rkisp_meshbuf_info meshbuf;
-	struct rkisp_meshbuf_size meshsize;
-	struct rkisp_thunderboot_shmem shmem;
-	struct isp2x_buf_idxfd idxfd;
-	struct rkisp_info2ddr info2ddr;
+	void *pbuf = NULL;
 	long ret = 0;
-	u64 module_id;
+	u32 size = 0;
+	bool cp_t_us = false, cp_f_us = false;
 
-	if (!up && cmd != RKISP_CMD_FREE_SHARED_BUF)
+	if (!up &&
+	    cmd != RKISP_CMD_FREE_SHARED_BUF &&
+	    cmd != RKISP_CMD_MULTI_DEV_FORCE_ENUM)
 		return -EINVAL;
 
 	switch (cmd) {
 	case RKISP_CMD_TRIGGER_READ_BACK:
-		if (copy_from_user(&trigger, up, sizeof(trigger)))
-			return -EFAULT;
-		ret = rkisp_ioctl(sd, cmd, &trigger);
+		size = sizeof(struct isp2x_csi_trigger);
+		cp_f_us = true;
 		break;
 	case RKISP_CMD_GET_SHARED_BUF:
-		if (!IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)) {
-			ret = -ENOIOCTLCMD;
-			break;
-		}
-		ret = rkisp_ioctl(sd, cmd, &resmem);
-		if (!ret && copy_to_user(up, &resmem, sizeof(resmem)))
-			ret = -EFAULT;
+		if (!IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP))
+			return -ENOIOCTLCMD;
+		size = sizeof(struct rkisp_thunderboot_resmem);
+		cp_t_us = true;
 		break;
 	case RKISP_CMD_FREE_SHARED_BUF:
-		if (!IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)) {
-			ret = -ENOIOCTLCMD;
-			break;
-		}
-		ret = rkisp_ioctl(sd, cmd, NULL);
+		if (!IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP))
+			return -ENOIOCTLCMD;
+	case RKISP_CMD_MULTI_DEV_FORCE_ENUM:
 		break;
 	case RKISP_CMD_GET_LDCHBUF_INFO:
-		ret = rkisp_ioctl(sd, cmd, &ldchbuf);
-		if (!ret && copy_to_user(up, &ldchbuf, sizeof(ldchbuf)))
-			ret = -EFAULT;
+		size = sizeof(struct rkisp_ldchbuf_info);
+		cp_t_us = true;
 		break;
 	case RKISP_CMD_SET_LDCHBUF_SIZE:
-		if (copy_from_user(&ldchsize, up, sizeof(ldchsize)))
-			return -EFAULT;
-		ret = rkisp_ioctl(sd, cmd, &ldchsize);
+		size = sizeof(struct rkisp_ldchbuf_size);
+		cp_f_us = true;
 		break;
 	case RKISP_CMD_GET_MESHBUF_INFO:
-		if (copy_from_user(&meshbuf, up, sizeof(meshbuf)))
-			return -EFAULT;
-		ret = rkisp_ioctl(sd, cmd, &meshbuf);
-		if (!ret && copy_to_user(up, &meshbuf, sizeof(meshbuf)))
-			ret = -EFAULT;
+		size = sizeof(struct rkisp_meshbuf_info);
+		cp_f_us = true;
+		cp_t_us = true;
 		break;
 	case RKISP_CMD_SET_MESHBUF_SIZE:
-		if (copy_from_user(&meshsize, up, sizeof(meshsize)))
-			return -EFAULT;
-		ret = rkisp_ioctl(sd, cmd, &meshsize);
+		size = sizeof(struct rkisp_meshbuf_size);
+		cp_f_us = true;
 		break;
 	case RKISP_CMD_GET_SHM_BUFFD:
-		if (!IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)) {
-			ret = -ENOIOCTLCMD;
-			break;
-		}
-		if (copy_from_user(&shmem, up, sizeof(shmem)))
-			return -EFAULT;
-		ret = rkisp_ioctl(sd, cmd, &shmem);
-		if (!ret && copy_to_user(up, &shmem, sizeof(shmem)))
-			ret = -EFAULT;
+		if (!IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP))
+			return -ENOIOCTLCMD;
+		size = sizeof(struct rkisp_thunderboot_shmem);
+		cp_f_us = true;
+		cp_t_us = true;
 		break;
 	case RKISP_CMD_GET_FBCBUF_FD:
-		ret = rkisp_ioctl(sd, cmd, &idxfd);
-		if (!ret && copy_to_user(up, &idxfd, sizeof(idxfd)))
-			ret = -EFAULT;
+		size = sizeof(struct isp2x_buf_idxfd);
+		cp_t_us = true;
 		break;
 	case RKISP_CMD_INFO2DDR:
-		if (copy_from_user(&info2ddr, up, sizeof(info2ddr)))
-			return -EFAULT;
-		ret = rkisp_ioctl(sd, cmd, &info2ddr);
-		if (!ret && copy_to_user(up, &info2ddr, sizeof(info2ddr)))
-			ret = -EFAULT;
+		size = sizeof(struct rkisp_info2ddr);
+		cp_f_us = true;
+		cp_t_us = true;
 		break;
 	case RKISP_CMD_MESHBUF_FREE:
-		if (copy_from_user(&module_id, up, sizeof(module_id)))
-			return -EFAULT;
-		ret = rkisp_ioctl(sd, cmd, &module_id);
+		size = sizeof(u64);
+		cp_f_us = true;
 		break;
-	case RKISP_CMD_MULTI_DEV_FORCE_ENUM:
-		ret = rkisp_ioctl(sd, cmd, NULL);
-		break;
-	case RKISP_VICAP_CMD_SET_STREAM:
-		ret = rkisp_ioctl(sd, cmd, NULL);
+	case RKISP_CMD_GET_BAY3D_BUFFD:
+		size = sizeof(struct rkisp_bay3dbuf_info);
+		cp_t_us = true;
 		break;
 	default:
-		ret = -ENOIOCTLCMD;
+		return -ENOIOCTLCMD;
 	}
 
+	if (size) {
+		pbuf = kmalloc(size, GFP_KERNEL);
+		if (!pbuf)
+			return -ENOMEM;
+	}
+	if (cp_f_us && copy_from_user(pbuf, up, size)) {
+		ret = -EFAULT;
+		goto free_buf;
+	}
+	ret = rkisp_ioctl(sd, cmd, pbuf);
+	if (!ret && cp_t_us && copy_to_user(up, pbuf, size))
+		ret = -EFAULT;
+free_buf:
+	kfree(pbuf);
 	return ret;
 }
 #endif

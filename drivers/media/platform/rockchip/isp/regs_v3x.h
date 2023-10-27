@@ -2230,7 +2230,7 @@
 
 /* GAIN */
 #define ISP3X_GAIN_2DDR_EN		BIT(24)
-#define ISP3X_GAIN_2DDR_mode(a)		(((a) & 0x3) << 25)
+#define ISP3X_GAIN_2DDR_MODE(a)		(((a) & 0x3) << 25)
 
 /* DPCC */
 #define ISP3X_DPCC_WORKING		BIT(30)
