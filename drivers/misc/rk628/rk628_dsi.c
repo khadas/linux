@@ -1215,6 +1215,12 @@ void rk628_mipi_dsi_pre_enable(struct rk628 *rk628)
 	if (rk628->version == RK628F_VERSION) {
 		mask = SW_OUTPUT_COMBTX_MODE_MASK;
 		val = SW_OUTPUT_COMBTX_MODE(OUTPUT_MODE_DSI - 2);
+
+		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON3,
+				      GRF_DPHY_CH1_EN_MASK |
+				      GRF_AS_DSIPHY_MASK,
+				      (dsi->slave ? GRF_DPHY_CH1_EN(1) : 0) |
+				      GRF_AS_DSIPHY(1));
 	}
 
 	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, mask, val);
