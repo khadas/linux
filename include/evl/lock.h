@@ -10,21 +10,18 @@
 
 #ifdef CONFIG_LOCKDEP
 /*
- * might_hard_lock() disables lazy lock class registration for a given
- * lock, by forcing it immediately from the current in-band stage so
- * that this is not postponed until the first acquisition which might
- * happen from the oob stage, which would be unsafe. We need to make
- * sure that no oob context potentially grabbing the same lock can
- * preempt us during the lock->unlock sequence might_lock() performs
- * not to create invalid chains lockdep could observe, hence the
- * _full() irq disabling.
+ * might_hard_lock() forces immediate lock class registration from the
+ * current stage.  Keep the lock->unlock sequence safe from preemption
+ * from any stage by disabling hard irqs, so that lockdep cannot
+ * observe invalid chains.
  */
 #define might_hard_lock(__lock)				\
 	do {						\
 		unsigned long __flags;			\
-		inband_context_only();			\
 		local_irq_save_full(__flags);		\
+		rcu_read_lock();			\
 		might_lock(__lock);			\
+		rcu_read_unlock();			\
 		local_irq_restore_full(__flags);	\
 	} while (0)
 #else
