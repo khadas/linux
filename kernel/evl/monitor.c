@@ -1045,20 +1045,17 @@ monitor_factory_build(struct evl_factory *fac, const char __user *u_name,
 		switch (attrs.protocol) {
 		case EVL_GATE_PP:
 			state->u.gate.ceiling = attrs.initval;
-			evl_init_named_mutex_pp(&mon->mutex, clock,
+			evl_init_mutex_pp(&mon->mutex, clock,
 					&state->u.gate.owner,
-					&state->u.gate.ceiling,
-					evl_element_name(&mon->element));
-			INIT_LIST_HEAD(&mon->events);
+					&state->u.gate.ceiling);
 			break;
 		case EVL_GATE_PI:
-			evl_init_named_mutex_pi(&mon->mutex, clock,
-					&state->u.gate.owner,
-					evl_element_name(&mon->element));
-			INIT_LIST_HEAD(&mon->events);
+			evl_init_mutex_pi(&mon->mutex, clock,
+					&state->u.gate.owner);
 			break;
 		}
 		raw_spin_lock_init(&mon->lock);
+		INIT_LIST_HEAD(&mon->events);
 		break;
 	case EVL_MONITOR_EVENT:
 		evl_init_named_wait(&mon->wait_queue, clock, EVL_WAIT_PRIO,
