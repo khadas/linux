@@ -32,6 +32,8 @@
 #define HOT_PLUG_DETECT_MASK		BIT(0)
 #define HOT_PLUG_DETECT(x)		UPDATE(x, 0, 0)
 #define HDMI_RX_HDMI_TIMER_CTRL		(HDMI_RX_BASE + 0x0008)
+#define VIDEO_PERIOD_MASK		BIT(11)
+#define VIDEO_PERIOD(x)			UPDATE(x, 11, 11)
 #define HDMI_RX_HDMI_RES_OVR		(HDMI_RX_BASE + 0x0010)
 #define HDMI_RX_HDMI_PLL_FRQSET2	(HDMI_RX_BASE + 0x0020)
 #define HDMI_RX_HDMI_PCB_CTRL		(HDMI_RX_BASE + 0x0038)
@@ -189,6 +191,15 @@
 #define HDMI_RX_AUDPLL_GEN_N		(HDMI_RX_BASE + 0x0284)
 #define HDMI_RX_SNPS_PHYG3_CTRL		(HDMI_RX_BASE + 0x02c0)
 #define PORTSELECT(x)			UPDATE(x, 3, 2)
+#define HDMI_RX_I2CM_PHYG3_SLAVE	(HDMI_RX_BASE + 0x02c4)
+#define HDMI_RX_I2CM_PHYG3_ADDRESS	(HDMI_RX_BASE + 0x02c8)
+#define HDMI_RX_I2CM_PHYG3_DATAO	(HDMI_RX_BASE + 0x02cc)
+#define HDMI_RX_I2CM_PHYG3_DATAI	(HDMI_RX_BASE + 0x02d0)
+#define HDMI_RX_I2CM_PHYG3_OPERATION	(HDMI_RX_BASE + 0x02d4)
+#define HDMI_RX_I2CM_PHYG3_MODE		(HDMI_RX_BASE + 0x02d8)
+#define HDMI_RX_I2CM_PHYG3_SS_CNTS	(HDMI_RX_BASE + 0x02e0)
+#define HDMI_RX_I2CM_PHYG3_FS_HCNT	(HDMI_RX_BASE + 0x02e4)
+
 #define HDMI_RX_PDEC_CTRL		(HDMI_RX_BASE + 0x0300)
 #define PFIFO_STORE_FILTER_EN_MASK	BIT(31)
 #define PFIFO_STORE_FILTER_EN(x)	UPDATE(x, 31, 31)
@@ -234,6 +245,7 @@
 #define HDMI_RX_PDEC_STS		(HDMI_RX_BASE + 0x0360)
 #define DVI_DET				BIT(28)
 #define HDMI_RX_PDEC_GCP_AVMUTE		(HDMI_RX_BASE + 0x0380)
+#define PKTDEC_GCP_CD_MASK		GENMASK(7, 4)
 #define HDMI_RX_PDEC_AVI_PB		(HDMI_RX_BASE + 0x03a4)
 #define VIDEO_FORMAT_MASK		GENMASK(6, 5)
 #define VIDEO_FORMAT(x)			UPDATE(x, 6, 5)
@@ -248,6 +260,7 @@
 #define PVO1UNMUTE(x)			UPDATE(x, 29, 29)
 #define PIXELMODE(x)			UPDATE(x, 28, 28)
 #define CTRLCHECKEN(x)			UPDATE(x, 8, 8)
+#define SCDC_ENABLE_MASK		BIT(4)
 #define SCDC_ENABLE(x)			UPDATE(x, 4, 4)
 #define SCRAMBEN_SEL(x)			UPDATE(x, 1, 0)
 #define HDMI_RX_SCDC_I2CCONFIG		(HDMI_RX_BASE + 0x0804)
@@ -259,6 +272,7 @@
 #define MILISECTIMERLIMIT(x)		UPDATE(x, 15, 0)
 #define HDMI_RX_HDCP22_CONTROL		(HDMI_RX_BASE + 0x081c)
 #define HDMI_RX_SCDC_REGS0		(HDMI_RX_BASE + 0x0820)
+#define SCDC_TMDSBITCLKRATIO		BIT(17)
 #define HDMI_RX_SCDC_REGS1		(HDMI_RX_BASE + 0x0824)
 #define HDMI_RX_SCDC_REGS2		(HDMI_RX_BASE + 0x0828)
 #define HDMI_RX_SCDC_REGS3		(HDMI_RX_BASE + 0x082c)
@@ -359,6 +373,14 @@
 
 #define HDMIRX_HDCP1X_ID		13
 
+enum bus_format {
+	BUS_FMT_RGB = 0,
+	BUS_FMT_YUV422 = 1,
+	BUS_FMT_YUV444 = 2,
+	BUS_FMT_YUV420 = 3,
+	BUS_FMT_UNKNOWN,
+};
+
 struct hdcp_keys {
 	u8 KSV[HDCP_KEY_KSV_SIZE];
 	u8 devicekey[HDCP_PRIVATE_KEY_SIZE];
@@ -392,5 +414,10 @@ bool rk628_audio_ctsnints_enabled(HAUDINFO info);
 void rk628_csi_isr_ctsn(HAUDINFO info, u32 pdec_ints);
 void rk628_csi_isr_fifoints(HAUDINFO info, u32 fifo_ints);
 int rk628_is_avi_ready(struct rk628 *rk628, bool avi_rcv_rdy);
+void rk628_hdmirx_verisyno_phy_power_on(struct rk628 *rk628);
+void rk628_hdmirx_phy_prepclk_cfg(struct rk628 *rk628);
+int rk628_hdmirx_verisyno_phy_init(struct rk628 *rk628);
+u8 rk628_hdmirx_get_format(struct rk628 *rk628);
+u32 rk628_hdmirx_get_tmdsclk_cnt(struct rk628 *rk628);
 
 #endif

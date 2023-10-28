@@ -53,6 +53,13 @@ struct rk628_audioinfo {
 	struct device *dev;
 };
 
+struct hdmirx_tmdsclk_cnt {
+	u32 tmds_cnt;
+	u8  cnt;
+};
+
+#define HDMIRX_GET_TMDSCLK_TIME		21
+
 static int hdcp_load_keys_cb(struct rk628 *rk628, struct rk628_hdcp *hdcp)
 {
 	int size;
@@ -190,6 +197,7 @@ void rk628_hdmirx_controller_setup(struct rk628 *rk628)
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_CKM_EVLTM, 0x00103e70);
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_CKM_F, 0x0c1c0b54);
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_RESMPL_CTRL, 0x00000001);
+	rk628_i2c_update_bits(rk628, HDMI_RX_HDMI_TIMER_CTRL, VIDEO_PERIOD_MASK, VIDEO_PERIOD(1));
 
 	rk628_i2c_update_bits(rk628, HDMI_RX_HDCP_SETTINGS,
 			      HDMI_RESERVED_MASK |
@@ -616,6 +624,9 @@ int rk628_is_avi_ready(struct rk628 *rk628, bool avi_rcv_rdy)
 	u8 cnt = 0, max_cnt = 2;
 	u32 hdcp_ctrl_val = 0;
 
+	if (rk628->version == RK628F_VERSION)
+		return 1;
+
 	rk628_i2c_read(rk628, HDMI_RX_HDCP_CTRL, &val);
 	if ((val & HDCP_ENABLE_MASK))
 		max_cnt = 5;
@@ -646,3 +657,168 @@ int rk628_is_avi_ready(struct rk628 *rk628, bool avi_rcv_rdy)
 	return 1;
 }
 EXPORT_SYMBOL(rk628_is_avi_ready);
+
+static void hdmirxphy_write(struct rk628 *rk628,  u32 offset, u32 val)
+{
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_ADDRESS, offset);
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_DATAO, val);
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_OPERATION, 1);
+}
+
+u32 hdmirxphy_read(struct rk628 *rk628,  u32 offset)
+{
+	u32 val;
+
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_ADDRESS, offset);
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_OPERATION, 2);
+	rk628_i2c_read(rk628, HDMI_RX_I2CM_PHYG3_DATAI, &val);
+
+	return val;
+}
+
+static void rk628_hdmirxphy_enable(struct rk628 *rk628, bool is_hdmi2)
+{
+	hdmirxphy_write(rk628, 0x02, 0x1860);
+	hdmirxphy_write(rk628, 0x03, 0x0060);
+	hdmirxphy_write(rk628, 0x0d, 0x00c0);
+	hdmirxphy_write(rk628, 0x0d, 0x00c0);
+	hdmirxphy_write(rk628, 0x27, 0x1c94);
+	hdmirxphy_write(rk628, 0x28, 0x3713);
+	hdmirxphy_write(rk628, 0x29, 0x24da);
+	hdmirxphy_write(rk628, 0x2a, 0x5492);
+	hdmirxphy_write(rk628, 0x2b, 0x4b0d);
+	hdmirxphy_write(rk628, 0x2d, 0x008c);
+	hdmirxphy_write(rk628, 0x2e, 0x0001);
+
+	if (is_hdmi2)
+		hdmirxphy_write(rk628, 0x0e, 0x0108);
+	else
+		hdmirxphy_write(rk628, 0x0e, 0x0008);
+
+}
+
+static void rk628_hdmirxphy_set_clrdpt(struct rk628 *rk628, bool is_8bit)
+{
+	if (is_8bit)
+		hdmirxphy_write(rk628, 0x03, 0x0000);
+	else
+		hdmirxphy_write(rk628, 0x03, 0x0060);
+}
+
+void rk628_hdmirx_verisyno_phy_power_on(struct rk628 *rk628)
+{
+	bool is_hdmi2 = false;
+	u32 val;
+	int i;
+
+	/* wait tx to write scdc tmds ratio */
+	for (i = 0; i < 50; i++) {
+		rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS0, &val);
+		if (val & SCDC_TMDSBITCLKRATIO)
+			break;
+		msleep(20);
+	}
+
+	if (val & SCDC_TMDSBITCLKRATIO)
+		is_hdmi2 = true;
+
+	dev_info(rk628->dev, "%s: %s\n", __func__, is_hdmi2 ? "hdmi2.0" : "hdmi1.4");
+	/* power down phy */
+	rk628_i2c_write(rk628, GRF_SW_HDMIRXPHY_CRTL, 0x17);
+	usleep_range(20, 30);
+	rk628_i2c_write(rk628, GRF_SW_HDMIRXPHY_CRTL, 0x15);
+	/* init phy i2c */
+	rk628_i2c_write(rk628, HDMI_RX_SNPS_PHYG3_CTRL, 0);
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_SS_CNTS, 0x018c01d2);
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_FS_HCNT, 0x003c0081);
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_MODE, 1);
+	rk628_i2c_write(rk628, GRF_SW_HDMIRXPHY_CRTL, 0x11);
+	/* enable rx phy */
+	rk628_hdmirxphy_enable(rk628, is_hdmi2);
+	rk628_i2c_write(rk628, GRF_SW_HDMIRXPHY_CRTL, 0x14);
+	msleep(20);
+}
+EXPORT_SYMBOL(rk628_hdmirx_verisyno_phy_power_on);
+
+void rk628_hdmirx_phy_prepclk_cfg(struct rk628 *rk628)
+{
+	u32 format;
+	bool is_clrdpt_8bit = false;
+
+	usleep_range(20 * 1000, 30 * 1000);
+	rk628_i2c_read(rk628, HDMI_RX_PDEC_AVI_PB, &format);
+	format = (format & VIDEO_FORMAT_MASK) >> 5;
+	dev_info(rk628->dev, "%s: format = %d from AVI\n", __func__, format);
+
+	/* yuv420 should set phy color depth 8bit */
+	if (format == 3)
+		is_clrdpt_8bit = true;
+
+	rk628_i2c_read(rk628, HDMI_RX_PDEC_GCP_AVMUTE, &format);
+	format = (format & PKTDEC_GCP_CD_MASK) >> 4;
+	dev_info(rk628->dev, "%s: format = %d from GCP\n", __func__, format);
+
+	/* 10bit color depth should set phy color depth 8bit */
+	if (format == 5)
+		is_clrdpt_8bit = true;
+
+	rk628_hdmirxphy_set_clrdpt(rk628, is_clrdpt_8bit);
+}
+EXPORT_SYMBOL(rk628_hdmirx_phy_prepclk_cfg);
+
+static const char * const bus_format_str[] = {
+	"RGB",
+	"YUV422",
+	"YUV444",
+	"YUV420",
+	"UNKNOWN",
+};
+
+u8 rk628_hdmirx_get_format(struct rk628 *rk628)
+{
+	u32 val;
+	u8 video_fmt;
+
+	rk628_i2c_read(rk628, HDMI_RX_PDEC_AVI_PB, &val);
+	video_fmt = (val & VIDEO_FORMAT_MASK) >> 5;
+	if (video_fmt > BUS_FMT_UNKNOWN)
+		video_fmt = BUS_FMT_UNKNOWN;
+	dev_info(rk628->dev, "%s: format = %s\n", __func__, bus_format_str[video_fmt]);
+
+	return video_fmt;
+}
+EXPORT_SYMBOL(rk628_hdmirx_get_format);
+
+u32 rk628_hdmirx_get_tmdsclk_cnt(struct rk628 *rk628)
+{
+	int i, j;
+	u32 val, tmdsclk_cnt = 0;
+	struct hdmirx_tmdsclk_cnt tmdsclk[HDMIRX_GET_TMDSCLK_TIME] = {0};
+
+	for (i = 0; i < HDMIRX_GET_TMDSCLK_TIME; i++) {
+		rk628_i2c_read(rk628, HDMI_RX_HDMI_CKM_RESULT, &val);
+		tmdsclk_cnt = val & 0xffff;
+		for (j = 0; j < HDMIRX_GET_TMDSCLK_TIME; j++) {
+			if (tmdsclk_cnt == tmdsclk[j].tmds_cnt || !tmdsclk[j].tmds_cnt) {
+				tmdsclk[j].tmds_cnt = tmdsclk_cnt;
+				tmdsclk[j].cnt++;
+				break;
+			}
+		}
+	}
+
+	for (i = 0; i < HDMIRX_GET_TMDSCLK_TIME; i++) {
+		if (!tmdsclk[i].tmds_cnt)
+			return tmdsclk_cnt;
+
+		dev_info(rk628->dev, "tmdsclk_cnt: %d, cnt: %d\n",
+			 tmdsclk[i].tmds_cnt, tmdsclk[i].cnt);
+		if (!i)
+			tmdsclk_cnt = tmdsclk[i].tmds_cnt;
+		else if (tmdsclk[i].cnt > tmdsclk[i - 1].cnt)
+			tmdsclk_cnt = tmdsclk[i].tmds_cnt;
+	}
+
+	return tmdsclk_cnt;
+}
+EXPORT_SYMBOL(rk628_hdmirx_get_tmdsclk_cnt);
