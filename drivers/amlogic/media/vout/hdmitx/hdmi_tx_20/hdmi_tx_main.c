@@ -1849,8 +1849,6 @@ static void hdr_work_func(struct work_struct *work)
 		}
 		if (hdev->hdr_transfer_feature == T_BT709 &&
 		    hdev->hdr_color_feature == C_BT709) {
-			pr_info("%s: disable DRM\n", __func__);
-			hdev->hwop.setpacket(HDMI_PACKET_DRM, NULL, NULL);
 			hdev->hdmi_current_hdr_mode = 0;
 			hdmitx_sdr_hdr_uevent(hdev);
 		} else {
@@ -2255,12 +2253,12 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 
 	/* if DRM/HDR packet is enabled, disable it */
 	hdr_type = hdmitx_get_cur_hdr_st();
-	if (hdr_type != HDMI_NONE && hdr_type != HDMI_HDR_SDR) {
+	if (hdr_type != HDMI_NONE) {
 		hdev->hdr_transfer_feature = T_BT709;
 		hdev->hdr_color_feature = C_BT709;
 		hdev->colormetry = 0;
 		hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020, hdev->colormetry);
-		schedule_work(&hdev->work_hdr);
+		hdev->hwop.setpacket(HDMI_PACKET_DRM, NULL, NULL);
 	}
 
 	/*ver0 and ver1_15 and ver1_12bit with ll= 0 use hdmi 1.4b VSIF*/
