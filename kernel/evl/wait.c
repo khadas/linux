@@ -25,18 +25,8 @@ void __evl_init_wait(struct evl_wait_queue *wq,
 	wq->wchan.name = name;
 	INIT_LIST_HEAD(&wq->wchan.wait_list);
 	raw_spin_lock_init(&wq->wchan.lock);
-#ifdef CONFIG_LOCKDEP
-	if (lock_key) {
-		wq->lock_key_addr.addr = lock_key;
-		lockdep_set_class_and_name(&wq->wchan.lock, lock_key, name);
-	} else {
-		lock_key = &wq->wchan.lock_key;
-		wq->lock_key_addr.addr = lock_key;
-		lockdep_register_key(lock_key);
-		lockdep_set_class_and_name(&wq->wchan.lock, lock_key, name);
-		might_hard_lock(&wq->wchan.lock);
-	}
-#endif
+	lockdep_set_class_and_name(&wq->wchan.lock, lock_key, name);
+	might_hard_lock(&wq->wchan.lock);
 }
 EXPORT_SYMBOL_GPL(__evl_init_wait);
 
@@ -44,11 +34,6 @@ void evl_destroy_wait(struct evl_wait_queue *wq)
 {
 	evl_flush_wait(wq, EVL_T_RMID);
 	evl_schedule();
-#ifdef CONFIG_LOCKDEP
-	/* Drop dynamic key. */
-	if (wq->lock_key_addr.addr == &wq->wchan.lock_key)
-		lockdep_unregister_key(&wq->wchan.lock_key);
-#endif
 }
 EXPORT_SYMBOL_GPL(evl_destroy_wait);
 

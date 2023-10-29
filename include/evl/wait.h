@@ -20,7 +20,6 @@ struct evl_thread;
 
 struct evl_wait_channel {
 	hard_spinlock_t lock;
-	struct lock_class_key lock_key;	/* lockdep disambiguation */
 	struct evl_thread *owner;
 	bool (*requeue_wait)(struct evl_wait_channel *wchan,
 			struct evl_thread *waiter);
@@ -28,27 +27,15 @@ struct evl_wait_channel {
 	const char *name;
 };
 
-#ifdef CONFIG_LOCKDEP
-struct evl_lock_key_addr {
-	struct lock_class_key *addr;
-};
-#define __EVL_LOCK_KEY_ADDR_INITIALIZER  (struct evl_lock_key_addr){ .addr = NULL }
-#else
-struct evl_lock_key_addr { };
-#define __EVL_LOCK_KEY_ADDR_INITIALIZER  (struct evl_lock_key_addr){ }
-#endif
-
 struct evl_wait_queue {
 	int flags;
 	struct evl_clock *clock;
 	struct evl_wait_channel wchan;
-	struct evl_lock_key_addr lock_key_addr;
 };
 
 #define EVL_WAIT_INITIALIZER(__name) {					\
 		.flags = EVL_WAIT_PRIO,					\
 		.clock = &evl_mono_clock,				\
-		.lock_key_addr = __EVL_LOCK_KEY_ADDR_INITIALIZER,	\
 		.wchan = {						\
 			.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
 			.pi_serial = 0,					\
@@ -122,19 +109,16 @@ void __evl_init_wait(struct evl_wait_queue *wq,
 		struct evl_clock *clock,
 		int flags,
 		const char *name,
-		struct lock_class_key *lock_key);
+		struct lock_class_key *key);
 
-#define evl_init_named_wait(__wq, __clock, __flags, __name)	\
-	__evl_init_wait(__wq, __clock, __flags, __name, NULL)
-
-#define evl_init_wait(__wq, __clock, __flags)	\
-	evl_init_named_wait(__wq, __clock, __flags, #__wq)
-
-#define evl_init_wait_on_stack(__wq, __clock, __flags)	\
+#define evl_init_wait(__wq, __clock, __flags)				\
 	do {								\
 		static struct lock_class_key __key;			\
 		__evl_init_wait(__wq, __clock, __flags, #__wq, &__key); \
 	} while (0)
+
+#define evl_init_wait_on_stack(__wq, __clock, __flags)	\
+	evl_init_wait(__wq, __clock, __flags)
 
 void evl_destroy_wait(struct evl_wait_queue *wq);
 
