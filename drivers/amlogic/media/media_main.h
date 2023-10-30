@@ -703,4 +703,13 @@ static inline int amprime_sl_init(void)
 	return 0;
 }
 #endif
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VPQ
+int vpq_init(void);
+#else
+static inline int vpq_init(void)
+{
+	return 0;
+}
+#endif
 #endif

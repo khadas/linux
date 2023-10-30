@@ -45,3 +45,5 @@ include drivers/amlogic/media/frc/Makefile
 include drivers/amlogic/media/di_v4l/Makefile
 
 include drivers/amlogic/media/vpp/Makefile
+
+include drivers/amlogic/media/vpq/Makefile

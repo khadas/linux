@@ -1,0 +1,11 @@
+#
+# Vpq driver configuration
+#
+
+
+config AMLOGIC_MEDIA_VPQ
+	tristate "VPQ driver"
+	default n
+	help
+		Select to enable AMLOGIC vpq process driver
+		process hal pq modules
