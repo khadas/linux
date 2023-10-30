@@ -766,12 +766,12 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 			/*rx will tunneled to 444*/
 			format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
 		} else if (devp->prop.color_format == TVIN_RGB444) {
-			if (vdin_dv_is_not_std_source_led(devp))
+			if (devp->dv_is_not_std)
 				format_convert = VDIN_FORMAT_CONVERT_BRG_YUV422;
 			else
 				format_convert = VDIN_FORMAT_CONVERT_RGB_RGB;
 		} else {
-			if (vdin_dv_is_not_std_source_led(devp))
+			if (devp->dv_is_not_std)
 				format_convert = VDIN_FORMAT_CONVERT_YUV_YUV422;
 			else
 				format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
@@ -1890,7 +1890,7 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 		} else {
 			matrix_sel = VDIN_SEL_MATRIX0;
 		}
-		if (!devp->dv.dv_flag || vdin_dv_is_not_std_source_led(devp)) {
+		if (!devp->dv.dv_flag || devp->dv_is_not_std) {
 			devp->csc_idx = vdin_set_color_matrix(matrix_sel,
 				devp->addr_offset,
 				devp->fmt_info_p,
@@ -5161,8 +5161,8 @@ void vdin_pr_emp_data(struct vdin_dev_s *devp, struct vframe_s *vf)
 static void vdin_pr_sei_hdr_data(struct vdin_dev_s *devp)
 {
 	if (vdin_isr_monitor & VDIN_ISR_MONITOR_HDR_SEI_DATA)
-		pr_info("sei_data idx:%d et:%d sta:%x id:%02x len:%02x data:[0]%x [0]%x [1]%x [1]%x [2]%x [2]%x %x %x %x %x\n",
-			devp->curr_wr_vfe->vf.index,
+		pr_info("sei_data cnt:%d et:%d sta:%x id:%02x len:%02x data:[0]%x [0]%x [1]%x [1]%x [2]%x [2]%x %x %x %x %x\n",
+			devp->irq_cnt,
 			devp->prop.hdr_info.hdr_data.eotf,
 			devp->prop.hdr_info.hdr_state,
 			devp->prop.hdr_info.hdr_data.metadata_id,
@@ -6774,13 +6774,20 @@ int vdin_get_base_fr(struct vdin_dev_s *devp)
 		#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 			fps = hdmirx_get_base_fps(devp->prop.hw_vic);
 		#endif
-		} else {
+		} else if (devp->prop.vtem_data.base_framerate) {
 			fps = devp->prop.vtem_data.base_framerate;
+		} else {
+			fps = devp->parm.info.fps;
 		}
+		(fps <= 60) ? (fps = 60) : (fps = 120);
 	} else if (vdin_check_is_spd_data(devp) &&
 		(devp->prop.spd_data.data[5] >> 1 & 0x7)) { /* FreeSync */
 		/* FreeSync Maximum refresh rate (Hz) */
-		fps = devp->prop.spd_data.data[7];
+		if (devp->prop.spd_data.data[7])
+			fps = devp->prop.spd_data.data[7];
+		else
+			fps = devp->parm.info.fps;
+		(fps <= 60) ? (fps = 60) : (fps = 120);
 	}
 
 	if (fps) {
@@ -6837,4 +6844,45 @@ u64 vdin_calculate_isr_interval_value(struct vdin_dev_s *devp)
 		pr_info("vdin%d irq_cnt:%u cur_time:%llu interval_us:%llu\n",
 			devp->index, devp->irq_cnt, devp->cur_us, interval_us);
 	return interval_us;
+}
+
+/*
+ * return value:
+ *	true: is game mode
+ *	false: not game mode
+ */
+bool vdin_is_auto_game_mode(struct vdin_dev_s *devp)
+{
+	if (devp->debug.bypass_game_mode)
+		return false;
+
+	if (devp->parm.info.status != TVIN_SIG_STATUS_STABLE)
+		return false;
+
+	if (devp->prop.latency.allm_mode || devp->prop.vtem_data.vrr_en ||
+	    (vdin_check_is_spd_data(devp) && (devp->prop.spd_data.data[5] >> 2 & 0x3)) ||
+	    (devp->prop.latency.it_content && devp->prop.latency.cn_type == GAME))
+		return true;
+	else
+		return false;
+}
+
+/*
+ * return value:
+ *	true: is pc mode
+ *	false: not pc mode
+ */
+bool vdin_is_auto_pc_mode(struct vdin_dev_s *devp)
+{
+	if (devp->debug.bypass_pc_mode)
+		return false;
+
+	if (devp->parm.info.status != TVIN_SIG_STATUS_STABLE)
+		return false;
+
+	if (devp->parm.info.is_dvi ||
+	    (devp->prop.latency.it_content && devp->prop.latency.cn_type == GRAPHICS))
+		return true;
+	else
+		return false;
 }

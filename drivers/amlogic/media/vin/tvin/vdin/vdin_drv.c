@@ -277,6 +277,10 @@ unsigned int get_vdin_buffer_num(void)
 }
 EXPORT_SYMBOL(get_vdin_buffer_num);
 
+/* describe:
+ *	hdmirx call this function update prop when package reception done
+ *	this call after vdin_isr
+ */
 void tvin_update_vdin_prop(void)
 {
 	struct tvin_state_machine_ops_s *sm_ops;
@@ -877,7 +881,7 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 			vf->flag |= VFRAME_FLAG_GAME_MODE;
 		if (devp->vdin_pc_mode)
 			vf->flag |= VFRAME_FLAG_PC_MODE;
-		if (vdin_dv_is_not_std_source_led(devp) || devp->debug.bypass_tunnel)
+		if (devp->dv_is_not_std || devp->debug.bypass_tunnel)
 			vf->type_ext |= VIDTYPE_EXT_BYPASS_DETUNNEL;
 		else
 			vf->type_ext &= ~VIDTYPE_EXT_BYPASS_DETUNNEL;
@@ -1197,7 +1201,24 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	if (devp->dts_config.urgent_en && devp->index == 0)
 		vdin_urgent_patch_resume(devp->addr_offset);
 
-	devp->vdin_pc_mode = vdin_pc_mode;
+	if (vdin_dv_is_not_std_source_led(devp))
+		devp->dv_is_not_std = true;
+
+	if ((devp->vdin_function_sel & VDIN_AUTO_GAME_MODE) &&
+	    vdin_is_auto_game_mode(devp) && !game_mode) {
+		game_mode = 1;
+		devp->auto_game_flag = true;
+	}
+
+	if ((devp->vdin_function_sel & VDIN_AUTO_PC_MODE) &&
+	    vdin_is_auto_pc_mode(devp) && !vdin_pc_mode) {
+		vdin_pc_mode = 1;
+		devp->vdin_pc_mode = vdin_pc_mode;
+		devp->auto_pc_flag = true;
+	} else {
+		devp->vdin_pc_mode = vdin_pc_mode;
+	}
+
 	vdin_get_format_convert(devp);
 	devp->curr_wr_vfe = NULL;
 	devp->frame_drop_num = 0;
@@ -1274,7 +1295,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (vdin_is_dolby_signal_in(devp) &&
 	    devp->index == devp->dv.dv_path_idx &&
-	    !vdin_dv_is_not_std_source_led(devp)) {
+	    !devp->dv_is_not_std) {
 		/* config dolby vision */
 		vdin_dolby_config(devp);
 		#ifndef VDIN_BRINGUP_NO_VF
@@ -1303,7 +1324,6 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	devp->dv.chg_cnt = 0;
 	devp->prop.hdr_info.hdr_check_cnt = 0;
 	devp->vrr_data.vrr_chg_cnt = 0;
-	devp->sg_chg_fps_cnt = 0;
 	devp->vrr_data.cur_spd_data5 = devp->prop.spd_data.data[5];
 	devp->last_wr_vfe = NULL;
 	irq_max_count = 0;
@@ -1409,6 +1429,8 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	devp->vrr_off_add_cnt = 0;
 
 	devp->vdin_drop_ctl_cnt = 0;
+	devp->dv.allm_chg_cnt = 0;
+	devp->sg_chg_fps_cnt = 0;
 	devp->af_num = VDIN_CANVAS_MAX_CNT;
 	/* write vframe as default */
 	devp->vframe_wr_en = 1;
@@ -1575,7 +1597,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 
 	if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
 		if (devp->dv.dv_config && devp->index == devp->dv.dv_path_idx &&
-		    !vdin_dv_is_not_std_source_led(devp)) {
+		    !devp->dv_is_not_std) {
 			devp->dv.dv_config = 0;
 			vf_unreg_provider(&devp->dv.dv_vf_provider);
 			pr_info("vdin%d provider: dv unreg\n", devp->index);
@@ -1622,6 +1644,16 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	devp->game_mode_chg = VDIN_GAME_MODE_UN_CHG;
 	devp->common_divisor = 0;
 	devp->interlace_drop_bottom = 0;
+	if (devp->auto_game_flag) {//remove auto game mode
+		game_mode = 0;
+		devp->auto_game_flag = false;
+	}
+	if (devp->auto_pc_flag) {//remove auto pc mode
+		vdin_pc_mode = 0;
+		devp->auto_pc_flag = false;
+	}
+	devp->vdin_pc_mode = 0;
+	devp->dv_is_not_std = false;
 
 	if ((devp->vdin_function_sel & VDIN_SELF_STOP_START) &&
 		devp->self_stop_start) {
@@ -2496,7 +2528,8 @@ int vdin_vs_duration_check(struct vdin_dev_s *devp)
 	int cur_time, diff_time;
 	int temp;
 
-	if (devp->game_mode || !IS_HDMI_SRC(devp->parm.port))
+	if (devp->game_mode || !IS_HDMI_SRC(devp->parm.port) ||
+	    vdin_is_auto_game_mode(devp))
 		return ret;
 
 	cur_time = devp->cycle;
@@ -2941,10 +2974,11 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	spin_lock_irqsave(&devp->isr_lock, flags);
 
-	if (devp->dv.chg_cnt || devp->dv.allm_chg_cnt) {
+	if (devp->dv.chg_cnt || devp->dv.allm_chg_cnt ||
+	    devp->vrr_data.vrr_chg_cnt) {
 		if (devp->game_mode)
 			vdin_pause_hw_write(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE);
-		vdin_drop_frame_info(devp, "dv or allm chg");
+		vdin_drop_frame_info(devp, "dv or vrr allm chg");
 		vdin_vf_skip_all_disp(devp->vfp);
 		vdin_drop_cnt++;
 		goto irq_handled;
@@ -3190,7 +3224,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		curr_wr_vf->width = devp->h_active;
 
 	dec_ops = devp->frontend->dec_ops;
-	if (dec_ops->decode_isr(devp->frontend, devp->h_cnt64) == TVIN_BUF_SKIP) {
+	if (!dec_ops || !dec_ops->decode_isr ||
+	    dec_ops->decode_isr(devp->frontend, devp->h_cnt64) == TVIN_BUF_SKIP) {
 		if (devp->game_mode)
 			vdin_pause_hw_write(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE);
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_BUFF_SKIP;
@@ -4493,17 +4528,21 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 			break;
 		}
-		if (devp->debug.force_game_mode)
+
+		if (vdin_dbg_en)
+			pr_info("TVIN_IOC_GAME_MODE(%d->%d) flags:%#x force:%d auto:%d,%d\n",
+				game_mode, tmp, devp->flags, devp->debug.bypass_game_mode,
+				devp->auto_game_flag, vdin_is_auto_game_mode(devp));
+
+		if (devp->debug.bypass_game_mode)
 			break;
 
 		mutex_lock(&devp->fe_lock);
 		if (game_mode != tmp)
 			vdin_game_mode_chg(devp, game_mode, tmp);
 		game_mode = tmp;
+		devp->auto_game_flag = false;
 		mutex_unlock(&devp->fe_lock);
-		if (vdin_dbg_en)
-			pr_info("TVIN_IOC_GAME_MODE(cfg:%d,cur:%#x) done\n",
-				game_mode, devp->game_mode);
 		break;
 	}
 	case TVIN_IOC_VRR_MODE:
@@ -4823,13 +4862,13 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 			break;
 		}
-		if (devp->debug.force_pc_mode)
-			break;
-
 		if (vdin_dbg_en)
-			pr_err("Enter,TVIN_IOC_S_PC_MODE:%d->tmp:%d func_sel:0x%x\n",
-				vdin_pc_mode, tmp, devp->vdin_function_sel);
+			pr_info("TVIN_IOC_S_PC_MODE(%d->%d) flags:%#x chg:%d %d\n",
+				vdin_pc_mode, tmp, devp->flags,
+				devp->debug.bypass_pc_mode, devp->auto_pc_flag);
 
+		if (devp->debug.bypass_pc_mode)
+			break;
 		mutex_lock(&devp->fe_lock);
 		if (vdin_pc_mode != tmp &&
 		    (devp->vdin_function_sel & VDIN_SELF_STOP_START)) {
@@ -4849,6 +4888,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			}
 		}
 		vdin_pc_mode = tmp;
+		devp->auto_pc_flag = false;
 		mutex_unlock(&devp->fe_lock);
 		break;
 	case TVIN_IOC_S_FRAME_WR_EN:
