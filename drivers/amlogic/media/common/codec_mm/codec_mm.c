@@ -3339,9 +3339,8 @@ static ssize_t dbuf_trace_store(struct class *class,
 		return -EINVAL;
 
 	if (val) {
-		codec_mm_track_open(&mgt->trk_h);
+		//TODO.
 	} else {
-		codec_mm_track_close(mgt->trk_h);
 		mgt->trk_h = NULL;
 	}
 
@@ -3360,26 +3359,37 @@ static ssize_t dbuf_dump_store(struct class *class,
 			     struct class_attribute *attr,
 			     const char *buf, size_t size)
 {
-	u32 type = UINT_MAX;
+	u32 val = UINT_MAX;
+	char *pval = NULL;
 	ssize_t ret;
+
+	ret = kstrtouint(buf, 0, &val);
+	if (ret) {
+		pval = strchr(buf, ' ');
+		if (pval)
+			ret = kstrtouint(strim(pval), 0, &val);
+	}
 
 	switch (buf[0]) {
 	case 'a':
-		codec_mm_track_type_store(type);
-		return size;
-	case 'h':
-		pr_info("Help for dmabuf status dumping.\n"
-			"Bit-0: enable UVM dmabuf status dumping.\n"
-			"Bit-1: enable ES  dmabuf status dumping.\n"
-			"Bit-2: enable Codec mm heap dmabuf status dumping.\n");
-		return -EINVAL;
+	{
+		codec_mm_dbuf_dump_config(val);
+		break;
 	}
-
-	ret = kstrtouint(buf, 0, &type);
-	if (ret != 0)
-		return -EINVAL;
-
-	codec_mm_track_type_store(type);
+	case 'd':
+	{
+		if (val)
+			codec_mm_sampling_open();
+		else
+			codec_mm_sampling_close();
+		break;
+	}
+	case 'h':
+		codec_mm_dbuf_dump_help();
+		break;
+	default:
+		codec_mm_dbuf_dump_config(val);
+	}
 
 	return size;
 }
