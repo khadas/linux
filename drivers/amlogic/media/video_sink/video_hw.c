@@ -6598,13 +6598,15 @@ static void check_video_pattern_output(void)
 		if (vdx_test_pattern_on[index]) {
 			if (video_testpattern_status[index] != VIDEO_TESTPATTERN_ON) {
 				vdx_test_pattern_output(index, 1, vdx_color[index]);
-				pr_info("%s: VD%d TESTPATTERN ON\n", __func__, index);
+				if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+					pr_info("%s: VD%d TESTPATTERN ON\n", __func__, index);
 			}
 			video_testpattern_status[index] = VIDEO_TESTPATTERN_ON;
 		} else {
 			if (video_testpattern_status[index] != VIDEO_TESTPATTERN_OFF) {
 				vdx_test_pattern_output(index, 0, vdx_color[index]);
-				pr_info("%s: VD%d TESTPATTERN OFF\n", __func__, index);
+				if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+					pr_info("%s: VD%d TESTPATTERN OFF\n", __func__, index);
 			}
 			video_testpattern_status[index] = VIDEO_TESTPATTERN_OFF;
 		}
@@ -6670,13 +6672,15 @@ static void check_postblend_pattern_output(void)
 	if (postblend_test_pattern_on) {
 		if (postblend_testpattern_status != VIDEO_TESTPATTERN_ON) {
 			postblend_test_pattern_output(1, postblend_color);
-			pr_info("%s: VPP TESTPATTERN ON\n", __func__);
+			if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+				pr_info("%s: VPP TESTPATTERN ON\n", __func__);
 		}
 		postblend_testpattern_status = VIDEO_TESTPATTERN_ON;
 	} else {
 		if (postblend_testpattern_status != VIDEO_TESTPATTERN_OFF) {
 			postblend_test_pattern_output(0, postblend_color);
-			pr_info("%s: VPP TESTPATTERN OFF\n", __func__);
+			if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+				pr_info("%s: VPP TESTPATTERN OFF\n", __func__);
 		}
 		postblend_testpattern_status = VIDEO_TESTPATTERN_OFF;
 	}
