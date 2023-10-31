@@ -1096,6 +1096,8 @@ int rk628_hdmitx_enable(struct rk628 *rk628)
 {
 	struct device *dev = rk628->dev;
 	struct rk628_hdmi *hdmi;
+	u32 mask = SW_OUTPUT_MODE_MASK;
+	u32 val = SW_OUTPUT_MODE(OUTPUT_MODE_HDMI);
 	int irq;
 	int ret;
 
@@ -1107,9 +1109,14 @@ int rk628_hdmitx_enable(struct rk628 *rk628)
 	rk628_i2c_update_bits(rk628, GRF_POST_PROC_CON,
 			   SW_HDMITX_VCLK_PLLREF_SEL_MASK,
 			   SW_HDMITX_VCLK_PLLREF_SEL(1));
+
+	if (rk628->version == RK628F_VERSION) {
+		mask = SW_HDMITX_EN_MASK;
+		val = SW_HDMITX_EN(1);
+	}
+
 	/* set output mode to HDMI */
-	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_OUTPUT_MODE_MASK,
-			   SW_OUTPUT_MODE(OUTPUT_MODE_HDMI));
+	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, mask, val);
 	/* hdmitx int en */
 	rk628_i2c_write(rk628, GRF_INTR0_EN, 0x00040004);
 
