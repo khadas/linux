@@ -12,6 +12,8 @@
 #include <linux/amlogic/aml_rsv.h>
 #include <linux/module.h>
 
+extern struct meson_rsv_handler_t *rsv_handler;
+
 static int __meson_rsv_open(struct inode *node, struct file *file)
 {
 	struct meson_rsv_user_t *user;
@@ -26,6 +28,7 @@ static loff_t __meson_rsv_llseek(struct file *file, loff_t off, int whence)
 {
 	struct meson_rsv_user_t *user = file->private_data;
 	struct meson_rsv_info_t *info = user->info;
+	struct meson_rsv_ops *rsv_ops = &rsv_handler->rsv_ops;
 	loff_t newpos;
 
 	if (!info->valid) {
@@ -33,7 +36,7 @@ static loff_t __meson_rsv_llseek(struct file *file, loff_t off, int whence)
 		return -EFAULT;
 	}
 
-	mutex_lock(&user->lock);
+	rsv_ops->_get_device(rsv_handler->mtd);
 	switch (whence) {
 	case 0: /* SEEK_SET (start postion)*/
 		newpos = off;
@@ -49,17 +52,17 @@ static loff_t __meson_rsv_llseek(struct file *file, loff_t off, int whence)
 		break;
 
 	default: /* can't happen */
-		mutex_unlock(&user->lock);
+		rsv_ops->_release_device(rsv_handler->mtd);
 		return -EINVAL;
 	}
 
 	if (newpos < 0 || newpos >= info->size) {
-		mutex_unlock(&user->lock);
+		rsv_ops->_release_device(rsv_handler->mtd);
 		return -EINVAL;
 	}
 
 	file->f_pos = newpos;
-	mutex_unlock(&user->lock);
+	rsv_ops->_release_device(rsv_handler->mtd);
 
 	return newpos;
 }
@@ -69,6 +72,7 @@ static ssize_t __meson_rsv_read(struct file *file, char __user *buf,
 {
 	struct meson_rsv_user_t *user = file->private_data;
 	struct meson_rsv_info_t *info = user->info;
+	struct meson_rsv_ops *rsv_ops = &rsv_handler->rsv_ops;
 	u8 *vbuf;
 	size_t count_backup = count;
 	int ret = 0;
@@ -90,7 +94,7 @@ static ssize_t __meson_rsv_read(struct file *file, char __user *buf,
 	if (!vbuf)
 		return -ENOMEM;
 
-	mutex_lock(&user->lock);
+	rsv_ops->_get_device(rsv_handler->mtd);
 	ret = info->read(vbuf, info->size);
 	if (ret) {
 		pr_info("%s: %s: failed %d\n", __func__, info->name, ret);
@@ -103,7 +107,7 @@ static ssize_t __meson_rsv_read(struct file *file, char __user *buf,
 	ret = copy_to_user(buf, vbuf + *ppos, count);
 	*ppos += count;
 exit:
-	mutex_unlock(&user->lock);
+	rsv_ops->_release_device(rsv_handler->mtd);
 	vfree(vbuf);
 	return count_backup;
 }
@@ -113,6 +117,7 @@ static ssize_t __meson_rsv_write(struct file *file, const char __user *buf,
 {
 	struct meson_rsv_user_t *user = file->private_data;
 	struct meson_rsv_info_t *info = user->info;
+	struct meson_rsv_ops *rsv_ops = &rsv_handler->rsv_ops;
 	u8 *vbuf;
 	size_t count_backup = count;
 	int ret = 0;
@@ -134,7 +139,7 @@ static ssize_t __meson_rsv_write(struct file *file, const char __user *buf,
 	if (!vbuf)
 		return -ENOMEM;
 
-	mutex_lock(&user->lock);
+	rsv_ops->_get_device(rsv_handler->mtd);
 	if (info->valid) {
 		ret = info->read(vbuf, info->size);
 		if (ret) {
@@ -154,7 +159,7 @@ static ssize_t __meson_rsv_write(struct file *file, const char __user *buf,
 	}
 	*ppos += count;
 exit:
-	mutex_unlock(&user->lock);
+	rsv_ops->_release_device(rsv_handler->mtd);
 	vfree(vbuf);
 	return count_backup;
 }
@@ -187,7 +192,6 @@ int meson_rsv_register_cdev(struct meson_rsv_info_t *info, char *name)
 		return -ENOMEM;
 
 	user->info = info;
-	mutex_init(&user->lock);
 
 	ret = alloc_chrdev_region(&user->devt, 0, 1, name);
 	if (ret < 0) {

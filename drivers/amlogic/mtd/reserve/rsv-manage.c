@@ -35,7 +35,7 @@ static inline int _aml_rsv_isprotect(void)
 	return rsv_protect;
 }
 
-static struct meson_rsv_handler_t *rsv_handler;
+struct meson_rsv_handler_t *rsv_handler;
 
 static struct free_node_t *get_free_node(struct meson_rsv_info_t *rsv_info)
 {

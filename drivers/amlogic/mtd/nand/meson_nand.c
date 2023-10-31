@@ -179,8 +179,9 @@ int meson_nand_rsv_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_op
 	if (!ops->datbuf) {
 		ret = chip->ecc.read_oob(chip, page);
 	} else {
-		ret = chip->ecc.read_page(chip, ops->datbuf,
+		ret = chip->ecc.read_page(chip, chip->data_buf,
 				oob_required, page);
+		memcpy(ops->datbuf, chip->data_buf, ops->len);
 	}
 	meson_nfc_select_chip(chip, -1);
 
@@ -204,6 +205,16 @@ int meson_nand_rsv_isbad(struct mtd_info *mtd, loff_t offs)
 	status = nfc->block_status[block];
 
 	return status ? 1 : 0;
+}
+
+int meson_nand_rsv_get_device(struct mtd_info *mtd)
+{
+	return nand_get_device(mtd_to_nand(mtd));
+}
+
+void meson_nand_rsv_release_device(struct mtd_info *mtd)
+{
+	nand_release_device(mtd_to_nand(mtd));
 }
 
 static void meson_nfc_cmd_idle(struct meson_nfc *nfc, u32 time)
@@ -1537,12 +1548,11 @@ int meson_nand_scan_shipped_bbt(struct nand_chip *nand)
 
 int meson_nand_bbt_check(struct nand_chip *nand)
 {
+	struct mtd_info *mtd = nand_to_mtd(nand);
+	struct meson_nfc *nfc = nand_get_controller_data(mtd_to_nand(mtd));
 	int phys_erase_shift;
 	int ret = 0;
 	s8 *buf = NULL;
-
-	struct mtd_info *mtd = nand_to_mtd(nand);
-	struct meson_nfc *nfc = nand_get_controller_data(mtd_to_nand(mtd));
 
 	phys_erase_shift = mtd->erasesize_shift;
 	ret = meson_rsv_scan(nfc->rsv->bbt);
@@ -1689,12 +1699,16 @@ meson_nfc_nand_chip_init(struct device *dev,
 
 	mtd->_block_markbad = meson_nand_block_markbad;
 	if (aml_mtd_devnum != 0) {
-		meson_rsv_init(mtd, nfc->rsv);
+		nfc->rsv->mtd = mtd;
 		nfc->rsv->rsv_ops._erase = meson_nand_rsv_erase;
 		nfc->rsv->rsv_ops._write_oob = meson_nand_rsv_write_oob;
 		nfc->rsv->rsv_ops._read_oob = meson_nand_rsv_read_oob;
 		nfc->rsv->rsv_ops._block_markbad = NULL;
 		nfc->rsv->rsv_ops._block_isbad = meson_nand_rsv_isbad;
+		nfc->rsv->rsv_ops._get_device = meson_nand_rsv_get_device;
+		nfc->rsv->rsv_ops._release_device = meson_nand_rsv_release_device;
+		meson_rsv_init(mtd, nfc->rsv);
+
 		nfc->block_status = kzalloc((mtd->size >> mtd->erasesize_shift),
 					    GFP_KERNEL);
 		if (!nfc->block_status) {
