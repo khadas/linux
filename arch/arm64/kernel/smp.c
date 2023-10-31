@@ -705,7 +705,7 @@ static void __init of_parse_and_init_cpus(void)
 		u64 hwid = of_get_cpu_mpidr(dn);
 
 #ifdef CONFIG_AMLOGIC_APU
-		if (cpu_count == apu_id) {
+		if (cpu_count == apu_id && hwid != apu_hwid) {
 			set_cpu_logical_map(cpu_count, apu_hwid);
 			early_map_cpu_to_node(cpu_count, 0);
 			cpu_count++;
@@ -713,7 +713,6 @@ static void __init of_parse_and_init_cpus(void)
 				apu_enable, apu_id, apu_hwid);
 		}
 #endif
-
 		if (hwid == INVALID_HWID)
 			goto next;
 
