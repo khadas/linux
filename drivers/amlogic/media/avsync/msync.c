@@ -1018,13 +1018,17 @@ static void session_stop_audio_wait(struct sync_session *session)
 	if (session->wait_work_on) {
 		cancel_delayed_work_sync(&session->wait_work);
 		session->wait_work_on = false;
+		msync_dbg(LOG_DEBUG, "[%d]stop audio wait\n", session->id);
 	} else {
 		goto exit;
 	}
+	if (!session->a_active)
+		goto exit;
 	session->a_active = false;
-
 	mutex_unlock(&session->session_mutex);
-	wakeup_poll(session, WAKE_A);
+
+	session->event_pending |= WAKE_A;
+	wake_up_interruptible(&session->poll_wait);
 	return;
 exit:
 	mutex_unlock(&session->session_mutex);
