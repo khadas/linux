@@ -688,11 +688,6 @@ static int rk628_display_route_info_parse(struct rk628 *rk628)
 		rk628->output_mode |= BIT(OUTPUT_MODE_BT1120);
 	}
 
-	if (!rk628_display_route_check(rk628))
-		return -EINVAL;
-
-	rk628_final_display_route(rk628);
-
 	if (of_property_read_u32(rk628->dev->of_node, "mode-sync-pol", &val) < 0)
 		rk628->sync_pol = MODE_FLAG_PSYNC;
 	else
@@ -1207,7 +1202,7 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	ret = rk628_display_route_info_parse(rk628);
 	if (ret) {
-		dev_err(dev, "display route err\n");
+		dev_err(dev, "display route parse err\n");
 		return ret;
 	}
 
@@ -1274,6 +1269,13 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	ret = rk628_version_info(rk628);
 	if (ret)
 		return ret;
+
+	if (!rk628_display_route_check(rk628)) {
+		dev_err(dev, "display route check err\n");
+		return -EINVAL;
+	}
+
+	rk628_final_display_route(rk628);
 
 	/* select int io function */
 	rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x30002000);
