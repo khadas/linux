@@ -14459,11 +14459,11 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 #endif
 	} else if (osd_meson->cpu_id >= __MESON_CPU_MAJOR_ID_G12A) {
 		if (osd_dev_hw.display_type != C3_DISPLAY) {
-			if (osd_dev_hw.multi_afbc_core)
-				backup_regs_init(HW_RESET_NONE);
-			else
+			if (osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_G12A)
 				backup_regs_init(HW_RESET_MALI_AFBCD_REGS);
-		}
+			else
+				backup_regs_init(HW_RESET_NONE);
+			}
 	} else {
 		backup_regs_init(HW_RESET_NONE);
 	}
