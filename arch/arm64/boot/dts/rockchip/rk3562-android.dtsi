@@ -36,6 +36,10 @@
 	};
 };
 
+&u2phy_otg {
+	rockchip,dis-u2-susphy;
+};
+
 &vop {
 	support-multi-area;
 };
