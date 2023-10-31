@@ -176,6 +176,12 @@
 		status = "okay";
 	};
 
+	video_queue {
+		compatible = "amlogic, video_queue";
+		dev_name = "videoqueue";
+		status = "okay";
+	};
+
 	ionvideo {
 		compatible = "amlogic, ionvideo";
 		status = "okay";
