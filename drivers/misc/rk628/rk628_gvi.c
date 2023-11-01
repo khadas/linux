@@ -120,6 +120,8 @@ static void rk628_gvi_pre_enable(struct rk628 *rk628, struct rk628_gvi *gvi)
 	rk628_i2c_update_bits(rk628, GVI_SYS_RST, SYS_RST_SOFT_RST, 0);
 	udelay(10);
 
+	rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_8_PIXEL_ALIGN(1));
+
 	rk628_i2c_update_bits(rk628, GVI_SYS_CTRL0, SYS_CTRL0_LANE_NUM_MASK,
 			      SYS_CTRL0_LANE_NUM(gvi->lanes - 1));
 	rk628_i2c_update_bits(rk628, GVI_SYS_CTRL0, SYS_CTRL0_BYTE_MODE_MASK,
