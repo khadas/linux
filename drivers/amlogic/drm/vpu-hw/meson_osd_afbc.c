@@ -1001,6 +1001,9 @@ static void s5_osd_afbc_set_state(struct meson_vpu_block *vblk,
 			afbc_reg = &afbc->afbc_regs[osd_index];
 			plane_info = &mvps->plane_info[osd_index];
 
+			if (mvps->sec_src)
+				mvps->sec_src |= MALI_AFBCD_SECURE;
+
 			t7_osd_afbc_enable(vblk, reg_ops, afbc_stat_reg, osd_index, 1);
 
 			aligned_32 = 1;

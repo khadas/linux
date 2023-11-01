@@ -439,6 +439,10 @@ static void s5_postblend_set_state(struct meson_vpu_block *vblk,
 
 	vpp_osd1_blend_scope_set(vblk, reg_ops, reg, scope);
 
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+		secure_config(OSD_MODULE, mvps->sec_src, crtc_index);
+#endif
+
 	if (amc->blank_enable) {
 		vpp_osd1_postblend_5mux_set(vblk, reg_ops, reg, VPP_NULL);
 	} else {

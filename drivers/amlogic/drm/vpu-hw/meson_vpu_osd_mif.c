@@ -214,7 +214,7 @@ static unsigned int osd_canvas[3][2];
 static u32 osd_canvas_index[3] = {0, 0, 0};
 
 static u32 osd_secure_input_index[] = {OSD1_INPUT_SECURE,
-	OSD2_INPUT_SECURE, OSD3_INPUT_SECURE};
+	OSD2_INPUT_SECURE, OSD3_INPUT_SECURE, OSD4_INPUT_SECURE};
 
 /*
  * Internal function to query information for a given format. See
@@ -1110,9 +1110,9 @@ static void osd_hw_init(struct meson_vpu_block *vblk)
 	osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
 	osd->mif_acc_mode = CANVAS_MODE;
 
-		/* osd secure function init */
+	/* osd secure function init */
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
-		secure_register(OSD_MODULE, 0, osd_secure_op, osd_secure_cb);
+	secure_register(OSD_MODULE, 0, osd_secure_op, osd_secure_cb);
 #endif
 
 	MESON_DRM_BLOCK("%s hw_init done.\n", osd->base.name);
@@ -1138,6 +1138,10 @@ static void t7_osd_hw_init(struct meson_vpu_block *vblk)
 	osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
 	osd->mif_acc_mode = LINEAR_MIF;
 
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	secure_register(OSD_MODULE, 0, osd_secure_op, osd_secure_cb);
+#endif
+
 	MESON_DRM_BLOCK("%s hw_init done.\n", osd->base.name);
 }
 
@@ -1160,6 +1164,10 @@ static void s5_osd_hw_init(struct meson_vpu_block *vblk)
 	osd->reg = &s5_osd_mif_reg[vblk->index];
 	osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
 	osd->mif_acc_mode = LINEAR_MIF;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	secure_register(OSD_MODULE, 0, osd_secure_op, osd_secure_cb);
+#endif
 
 	MESON_DRM_BLOCK("%s hw_init done.\n", osd->base.name);
 }
