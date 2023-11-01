@@ -6179,6 +6179,7 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 	int asperity = 0, next_step_khz = 0, signal_state = 0, freq_add = 0, freq_add_dly = 0;
 	int scan_time = 1;
 	bool found_tp = false;
+	unsigned int last_step_num = 50, cur_step_num = 0, percent_base = 0;
 
 	PR_INFO("a new blind scan thread\n");
 
@@ -6201,9 +6202,6 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 		return;
 	}
 
-	/* map blind scan fft process to 0% - 50%*/
-	freq_one_percent = (freq_max - freq_min) / 50;
-	PR_INFO("freq_one_percent: %d.\n", freq_one_percent);
 	timer_set_max(demod, D_TIMER_DETECT, 600);
 	fe->ops.info.type = FE_QPSK;
 	c = &fe->dtv_property_cache;
@@ -6243,6 +6241,12 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 	total_result.tp_num = 0;
 	if (blind_scan_new && freq_max == 2150000)
 		freq_max = freq_max + freq_step;
+
+	//map blind scan fft process to 0% - 50%
+	freq_one_percent =
+		scan_time == 2 ? (freq_max - freq_min) / 25 : (freq_max - freq_min) / 50;
+	PR_DVBS("freq_one_percent: %d.\n", freq_one_percent);
+
 	/* 950MHz ~ 2150MHz. */
 	do {
 		for (freq = freq_min; freq <= freq_max;) {
@@ -6282,16 +6286,19 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 				}
 			}
 
-			if (freq < freq_max) {
-				c->frequency = (freq - freq_min) / freq_one_percent;
-				demod->blind_result_frequency = c->frequency;
+			cur_step_num = (freq - freq_min) / freq_one_percent + percent_base;
+			PR_DVBS("last %d cur_step_num %d\n",
+					demod->blind_result_frequency, cur_step_num);
+			if (freq <= freq_max &&
+					cur_step_num > demod->blind_result_frequency &&
+					cur_step_num <= (scan_time == 1 ? 50 : 25)) {
+				demod->blind_result_frequency = cur_step_num;
 				demod->blind_result_symbol_rate = 0;
 
 				status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
 				PR_INFO("FFT search: blind scan process: [%d%%].\n",
-					fe->dtv_property_cache.frequency);
-				if (c->frequency < 100)
-					dvb_frontend_add_event(fe, status);
+						demod->blind_result_frequency);
+				dvb_frontend_add_event(fe, status);
 			}
 
 			if (blind_scan_new) {
@@ -6323,6 +6330,7 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 			dvbs_set_iq_swap(iq_swap_default ? 0 : 1);
 			cur_iq = dvbs_get_iq_swap();
 			PR_INFO("%s set dvbs_iq_swap %d.\n", __func__, cur_iq);
+			percent_base = 25;
 		}
 		scan_time--;
 	} while (scan_time && !devp->blind_scan_stop);
@@ -6331,8 +6339,8 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 	PR_INFO("------TOTAL FIND TP NUM: %d-----\n", total_result.tp_num);
 
 	if (total_result.tp_num > 0 && !devp->blind_scan_stop) {
-		/* map blind scan try lock process */
-		freq_one_percent = 50 / total_result.tp_num;
+		// map blind scan try lock process to 51% ~ 99%
+		freq_one_percent = total_result.tp_num * 50 / 50;
 
 		dvbs_blind_fft_result_handle(&total_result);
 
@@ -6380,16 +6388,6 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 			}
 
 			if (status == FE_TIMEDOUT || status == 0) {
-				/*try lock process map to 51% - 99%*/
-				c->frequency = k * freq_one_percent + 50;
-				demod->blind_result_frequency = c->frequency;
-				demod->blind_result_symbol_rate = 0;
-
-				status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
-				PR_INFO("Try lock: blind scan process: [%d%%].\n",
-						c->frequency);
-				if (c->frequency < 100)
-					dvb_frontend_add_event(fe, status);
 				found_tp = false;
 			} else {
 				freq_offset = dvbs_get_freq_offset(&polarity) / 1000;
@@ -6461,6 +6459,22 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 				PR_INFO("Get actual TP: [%d KHz, %d bps].\n",
 						cur_freq, cur_sr);
 
+				dvb_frontend_add_event(fe, status);
+			}
+
+			//map trying lock process to 51% - 99%
+			cur_step_num = (k + 1) * 50 / freq_one_percent + 50;
+			PR_DBGL("last_step_num %d cur_step_num %d\n",
+					last_step_num, cur_step_num);
+			if (total_result.tp_num > 1 && cur_step_num < 100 &&
+					cur_step_num > last_step_num) {
+				last_step_num = cur_step_num;
+				demod->blind_result_frequency = cur_step_num;
+				demod->blind_result_symbol_rate = 0;
+
+				status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
+				PR_INFO("Try lock: blind scan process: [%d%%].\n",
+						demod->blind_result_frequency);
 				dvb_frontend_add_event(fe, status);
 			}
 		}
