@@ -51,5 +51,8 @@ struct spinand_info_page {
 };
 
 bool meson_spinand_isbad(struct nand_device *nand, const struct nand_pos *pos);
-
+int spinand_mtd_read_unlock(struct mtd_info *mtd, loff_t from,
+			    struct mtd_oob_ops *ops);
+int spinand_mtd_write_unlock(struct mtd_info *mtd, loff_t to,
+			    struct mtd_oob_ops *ops);
 #endif/* __AML_SPI_NAND_H_ */

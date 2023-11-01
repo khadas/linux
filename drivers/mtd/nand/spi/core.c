@@ -505,6 +505,7 @@ static int spinand_write_page(struct spinand_device *spinand,
 	return ret;
 }
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 static int spinand_mtd_read(struct mtd_info *mtd, loff_t from,
 			    struct mtd_oob_ops *ops)
 {
@@ -548,12 +549,71 @@ static int spinand_mtd_read(struct mtd_info *mtd, loff_t from,
 	}
 
 	mutex_unlock(&spinand->lock);
+	if (ecc_failed && !ret)
+		ret = -EBADMSG;
+
+	return ret ? ret : max_bitflips;
+}
+#else
+int spinand_mtd_read_unlock(struct mtd_info *mtd, loff_t from,
+			    struct mtd_oob_ops *ops)
+{
+	struct spinand_device *spinand = mtd_to_spinand(mtd);
+	struct nand_device *nand = mtd_to_nanddev(mtd);
+	unsigned int max_bitflips = 0;
+	struct nand_io_iter iter;
+	bool enable_ecc = false;
+	bool ecc_failed = false;
+	int ret = 0;
+
+	if (ops->mode != MTD_OPS_RAW && spinand->eccinfo.ooblayout)
+		enable_ecc = true;
+
+	nanddev_io_for_each_page(nand, from, ops, &iter) {
+		ret = spinand_select_target(spinand, iter.req.pos.target);
+		if (ret)
+			break;
+
+		ret = spinand_ecc_enable(spinand, enable_ecc);
+		if (ret)
+			break;
+
+		ret = spinand_read_page(spinand, &iter.req, enable_ecc);
+		if (ret < 0 && ret != -EBADMSG)
+			break;
+
+		if (ret == -EBADMSG) {
+			ecc_failed = true;
+			mtd->ecc_stats.failed++;
+		} else {
+			mtd->ecc_stats.corrected += ret;
+			max_bitflips = max_t(unsigned int, max_bitflips, ret);
+		}
+
+		ret = 0;
+		ops->retlen += iter.req.datalen;
+		ops->oobretlen += iter.req.ooblen;
+	}
 
 	if (ecc_failed && !ret)
 		ret = -EBADMSG;
 
 	return ret ? ret : max_bitflips;
 }
+
+static int spinand_mtd_read(struct mtd_info *mtd, loff_t from,
+			    struct mtd_oob_ops *ops)
+{
+	struct spinand_device *spinand = mtd_to_spinand(mtd);
+	int ret;
+
+	mutex_lock(&spinand->lock);
+	ret = spinand_mtd_read_unlock(mtd, from, ops);
+	mutex_unlock(&spinand->lock);
+
+	return ret;
+}
+#endif
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 static int spinand_append_info_page(struct mtd_info *mtd,
@@ -584,6 +644,7 @@ static int spinand_append_info_page(struct mtd_info *mtd,
 }
 #endif
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 static int spinand_mtd_write(struct mtd_info *mtd, loff_t to,
 			     struct mtd_oob_ops *ops)
 {
@@ -626,6 +687,59 @@ static int spinand_mtd_write(struct mtd_info *mtd, loff_t to,
 
 	return ret;
 }
+#else
+int spinand_mtd_write_unlock(struct mtd_info *mtd, loff_t to,
+			    struct mtd_oob_ops *ops)
+{
+	struct spinand_device *spinand = mtd_to_spinand(mtd);
+	struct nand_device *nand = mtd_to_nanddev(mtd);
+	struct nand_io_iter iter;
+	bool enable_ecc = false;
+	int ret = 0;
+
+	if (ops->mode != MTD_OPS_RAW && mtd->ooblayout)
+		enable_ecc = true;
+
+	nanddev_io_for_each_page(nand, to, ops, &iter) {
+		ret = spinand_select_target(spinand, iter.req.pos.target);
+		if (ret)
+			break;
+
+		ret = spinand_ecc_enable(spinand, enable_ecc);
+		if (ret)
+			break;
+
+		ret = spinand_write_page(spinand, &iter.req);
+		if (ret)
+			break;
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+		/* spinand add info page support */
+		ret = spinand_append_info_page(mtd, &iter.req);
+		if (ret)
+			break;
+#endif
+
+		ops->retlen += iter.req.datalen;
+		ops->oobretlen += iter.req.ooblen;
+	}
+
+	return ret;
+}
+
+static int spinand_mtd_write(struct mtd_info *mtd, loff_t to,
+			    struct mtd_oob_ops *ops)
+{
+	struct spinand_device *spinand = mtd_to_spinand(mtd);
+	int ret;
+
+	mutex_lock(&spinand->lock);
+	ret = spinand_mtd_write_unlock(mtd, to, ops);
+	mutex_unlock(&spinand->lock);
+
+	return ret;
+}
+#endif
 
 #if !IS_ENABLED(CONFIG_MTD_SPI_NAND_MESON)
 static bool spinand_isbad(struct nand_device *nand, const struct nand_pos *pos)
