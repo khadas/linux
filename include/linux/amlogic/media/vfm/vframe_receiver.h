@@ -41,6 +41,7 @@
 #define VFRAME_EVENT_PROVIDER_FR_END_HINT                      14
 #define VFRAME_EVENT_PROVIDER_QUREY_DISPLAY_INFO    15
 #define VFRAME_EVENT_PROVIDER_PROPERTY_CHANGED 16
+#define VFRAME_EVENT_PROVIDER_FCC                              17
 
 enum receiver_start_e {
 	RECEIVER_STATE_NULL = -1,

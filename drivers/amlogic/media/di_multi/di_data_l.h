@@ -1433,6 +1433,7 @@ struct di_mm_st_s {
 struct div2_mm_s {
 	struct di_mm_cfg_s cfg; /* clear in dip_init_value */
 	struct di_mm_st_s sts;
+	u32 fcc_value;
 };
 
 struct dim_sum_s {

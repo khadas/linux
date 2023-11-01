@@ -577,6 +577,14 @@ static void  di_ori_event_set_3D(int type, void *data, unsigned int channel)
 #endif
 }
 
+static void  di_ori_event_set_fcc(unsigned int channel)
+{
+	struct div2_mm_s *mm = dim_mm_get(channel);
+
+	mm->fcc_value = 2;
+	pr_info("%s: ch[%d] %d\n", __func__, channel, mm->fcc_value);
+}
+
 /*************************/
 /************************************/
 /************************************/
@@ -903,10 +911,12 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 	int ret = 0;
 	struct di_ch_s *pch;
 	char *provider_name = (char *)data;
+	struct div2_mm_s *mm = NULL;
 
 	ch = *(int *)arg;
 	pch = get_chdata(ch);
 	pvfm = get_dev_vframe(ch);
+	mm = dim_mm_get(ch);
 
 	if (type <= VFRAME_EVENT_PROVIDER_CMD_MAX	&&
 	    di_receiver_event_cmd[type]) {
@@ -931,6 +941,8 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		dim_trig_unreg(ch);
 		dim_api_unreg(DIME_REG_MODE_VFM, pch);
 		mutex_unlock(&pch->itf.lock_reg);
+		if (mm->fcc_value != 0)
+			mm->fcc_value--;
 		break;
 	case VFRAME_EVENT_PROVIDER_REG:
 
@@ -980,6 +992,9 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 	case VFRAME_EVENT_PROVIDER_FR_HINT:
 	case VFRAME_EVENT_PROVIDER_FR_END_HINT:
 		vf_notify_receiver(pvfm->name, type, data);
+		break;
+	case VFRAME_EVENT_PROVIDER_FCC:
+		di_ori_event_set_fcc(ch);
 		break;
 
 	default:

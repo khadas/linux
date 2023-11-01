@@ -6595,6 +6595,7 @@ static int amlvideo2_receiver_event_fun(int type, void *data,
 		break;
 	case VFRAME_EVENT_PROVIDER_FR_HINT:
 	case VFRAME_EVENT_PROVIDER_FR_END_HINT:
+	case VFRAME_EVENT_PROVIDER_FCC:
 		vf_notify_receiver(name, type, data);
 		break;
 	default:

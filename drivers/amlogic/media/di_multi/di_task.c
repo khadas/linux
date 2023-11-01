@@ -197,9 +197,15 @@ void task_polling_cmd_keep(unsigned int ch, unsigned int top_sts)
 		if (!atomic_read(&pbm->trig_unreg[ch]))
 			sct_polling(pch, 2);
 	}
+
+	/*unreg->reg->release buf to di: the buf will not free until get new vf.
+	 *so FCC switch channel, the other two channel not work but also has di buffer.
+	 *We need free the buffer when EDI_TOP_STATE_REG_STEP1 (reg but no vf)
+	 */
 	if (top_sts != EDI_TOP_STATE_IDLE	&&
 	    top_sts != EDI_TOP_STATE_READY	&&
-	    top_sts != EDI_TOP_STATE_BYPASS)
+	    top_sts != EDI_TOP_STATE_BYPASS &&
+	    top_sts != EDI_TOP_STATE_REG_STEP1)
 		return;
 
 //ary 2020-12-09	spin_lock_irqsave(&plist_lock, flags);

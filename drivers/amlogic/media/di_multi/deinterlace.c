@@ -3057,6 +3057,15 @@ void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index)
 		mm->sts.flg_release++;
 		break;
 	case EDI_TOP_STATE_REG_STEP1:
+		/*unreg->reg->release buf to di: the buf will not free until get new vf.
+		 *so FCC switch channel, the other two channel not work but also has di buffer.
+		 *We need free the buffer when EDI_TOP_STATE_REG_STEP1 (reg but no vf)
+		 */
+		if (mm->fcc_value)
+			dim_post_keep_release_one_check(ch, index);
+		else
+			ndkb_qin_byidx(pch, index);
+		break;
 	case EDI_TOP_STATE_REG_STEP1_P1:
 	case EDI_TOP_STATE_REG_STEP2:
 		ndkb_qin_byidx(pch, index);
