@@ -6714,7 +6714,7 @@ static struct size_map aud_size_map_ss[] = {
 	{16,	SS_16BITS},
 	{20,	SS_20BITS},
 	{24,	SS_24BITS},
-	{32,	SS_MAX},
+	{32,	SS_24BITS}, /* for hdmitx, max is 24bits */
 };
 
 static enum hdmi_audio_sampsize aud_size_map(unsigned int bits)
