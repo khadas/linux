@@ -412,8 +412,8 @@ unsigned int capture_adc_data_mass(void)
 	front_write_bits(0x3a, 0, 13, 1);
 	start_addr = devp->mem_start;
 
-	/* 5M for DTMB working use */
-	start_addr += (5 * 1024 * 1024);
+	/* 16M for T2 working use */
+	start_addr += (16 * SZ_1M);
 	front_write_reg(0x3c, start_addr);
 	front_write_reg(0x3d, start_addr + ((CAP_SIZE + 2) << 20));
 	tb_depth = CAP_SIZE + 2;
@@ -731,7 +731,7 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 	switch (demod->last_delsys) {
 	case SYS_DTMB:
 	case SYS_ISDBT:
-		offset = 5 * 1024 * 1024;
+		offset = 8 * SZ_1M;
 		break;
 
 	case SYS_DVBC_ANNEX_A:
@@ -742,15 +742,15 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 	case SYS_DVBT:
 	case SYS_DVBS:
 	case SYS_DVBS2:
-		offset = 0 * 1024 * 1024;
+		offset = 0 * SZ_1M;
 		break;
 
 	case SYS_DVBT2:
-		offset = 32 * 1024 * 1024;
+		offset = 16 * SZ_1M;
 		break;
 
 	default:
-		offset = 32 * 1024 * 1024;
+		offset = 16 * SZ_1M;
 		PR_ERR("%s: unknown delivery system\n", __func__);
 		break;
 	}
@@ -839,7 +839,7 @@ unsigned int clear_ddr_bus_data(struct aml_dtvdemod *demod)
 	front_write_bits(0x3a, 1, 13, 1);
 	start_addr = devp->mem_start;
 
-	offset = 0 * 1024 * 1024;
+	offset = 0 * SZ_1M;
 
 	size = (1 * 1024) - offset;
 	start_addr += offset;
