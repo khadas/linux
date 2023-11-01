@@ -151,6 +151,8 @@ static void amlogic_pcie_msi_handler(struct irq_desc *desc)
 	while (status) {
 		if (status & INT_MSI)
 			amlogic_pcie_handle_msi_irq(rc);
+		else
+			break;
 
 		status = (amlogic_pcieinter_read(amlogic, ISTATUS_LOCAL) &
 			  INT_MASK);
