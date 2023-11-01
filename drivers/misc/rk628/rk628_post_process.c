@@ -94,6 +94,10 @@ static void rk628_post_process_scaler_init(struct rk628 *rk628,
 	u32 dst_vsync_len, dst_vback_porch, dst_vfront_porch, dst_vactive;
 	u32 src_hactive;
 	u32 src_vactive;
+	int gvi_offset = 0;
+
+	if (rk628->version == RK628F_VERSION && rk628->gvi.division_mode)
+		gvi_offset = 4;
 
 	src_hactive = src->hdisplay;
 	src_vactive = src->vdisplay;
@@ -113,8 +117,8 @@ static void rk628_post_process_scaler_init(struct rk628 *rk628,
 		     dst_vactive + dst_vfront_porch;
 	dsp_hs_end = dst_hsync_len;
 	dsp_vs_end = dst_vsync_len;
-	dsp_hbor_end = dst_hsync_len + dst_hback_porch + dst_hactive;
-	dsp_hbor_st = dst_hsync_len + dst_hback_porch;
+	dsp_hbor_end = dst_hsync_len + dst_hback_porch + dst_hactive - gvi_offset;
+	dsp_hbor_st = dst_hsync_len + dst_hback_porch - gvi_offset;
 	dsp_vbor_end = dst_vsync_len + dst_vback_porch + dst_vactive;
 	dsp_vbor_st = dst_vsync_len + dst_vback_porch;
 	dsp_hact_st = dsp_hbor_st + bor_left;
