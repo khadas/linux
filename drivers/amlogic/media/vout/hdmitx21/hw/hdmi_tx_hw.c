@@ -1702,6 +1702,7 @@ static void audio_mute_op(bool flag)
 		hdmitx21_set_reg_bits(AUDP_TXCTRL_IVCTX, 0, 7, 1);
 		hdmitx21_set_reg_bits(TPI_AUD_CONFIG_IVCTX, 0, 4, 1);
 	}
+	pr_info("audio state %s\n", flag == 0 ? "AUDIO_MUTE" : "AUDIO_UNMUTE");
 }
 
 static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
@@ -1799,6 +1800,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		data32 = (0 << 1);
 	}
 	//AUDP_TXCTRL : [1] layout; [7] aud_mute_en
+	data32 |= (1 << 7);
 	hdmitx21_wr_reg(AUDP_TXCTRL_IVCTX, data32 & 0xff);
 
 	set_aud_acr_pkt(hdev, audio_param);
@@ -2949,6 +2951,16 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 		hdmitx_clks_gate_ctrl(!!argv);
 		break;
 	case MISC_I2C_REACTIVE:
+		break;
+	case MISC_AUDIO_PREPARE:
+		//mute aud sample
+		hdmitx21_set_reg_bits(AUDP_TXCTRL_IVCTX, 1, 7, 1);
+		break;
+	case MISC_AUDIO_ACR_CTRL:
+		if (argv == 0)	//disable
+			hdmitx21_set_reg_bits(ACR_CTRL_IVCTX, 0, 1, 1);
+		if (argv == 1)	//enable
+			hdmitx21_set_reg_bits(ACR_CTRL_IVCTX, 1, 1, 1);
 		break;
 	default:
 		break;

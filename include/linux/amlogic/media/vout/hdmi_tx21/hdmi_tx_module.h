@@ -623,17 +623,19 @@ struct hdmitx_dev {
 	#define OFF_AVMUTE	0x0
 	#define CLR_AVMUTE	0x1
 	#define SET_AVMUTE	0x2
-#define MISC_HPLL_FAKE			(CMD_MISC_OFFSET + 0x0c)
+#define MISC_HPLL_FAKE		(CMD_MISC_OFFSET + 0x0c)
 #define MISC_TMDS_RXSENSE	(CMD_MISC_OFFSET + 0x0f)
-#define MISC_I2C_REACTIVE       (CMD_MISC_OFFSET + 0x10) /* For gxl */
+#define MISC_I2C_REACTIVE	(CMD_MISC_OFFSET + 0x10) /* For gxl */
 #define MISC_I2C_RESET		(CMD_MISC_OFFSET + 0x11) /* For g12 */
-#define MISC_READ_AVMUTE_OP     (CMD_MISC_OFFSET + 0x12)
+#define MISC_READ_AVMUTE_OP	(CMD_MISC_OFFSET + 0x12)
 #define MISC_TMDS_CEDST		(CMD_MISC_OFFSET + 0x13)
-#define MISC_TRIGGER_HPD        (CMD_MISC_OFFSET + 0X14)
+#define MISC_TRIGGER_HPD	(CMD_MISC_OFFSET + 0X14)
 #define MISC_SUSFLAG		(CMD_MISC_OFFSET + 0X15)
 #define MISC_GET_FRL_MODE	(CMD_MISC_OFFSET + 0X16)
 #define MISC_CLK_DIV_RST	(CMD_MISC_OFFSET + 0X17)
-#define MISC_HDMI_CLKS_CTRL     (CMD_MISC_OFFSET + 0X18)
+#define MISC_HDMI_CLKS_CTRL	(CMD_MISC_OFFSET + 0X18)
+#define MISC_AUDIO_PREPARE	(CMD_MISC_OFFSET + 0x19)
+#define MISC_AUDIO_ACR_CTRL	(CMD_MISC_OFFSET + 0x1a)
 
 /***********************************************************************
  *                          Get State //getstate

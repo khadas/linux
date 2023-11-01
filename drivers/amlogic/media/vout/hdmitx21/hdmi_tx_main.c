@@ -6289,23 +6289,19 @@ static bool hdmitx_set_i2s_mask(char ch_num, char ch_msk)
 	if (!(ch_num == 2 || ch_num == 4 ||
 	      ch_num == 6 || ch_num == 8)) {
 		pr_info("err chn setting, must be 2, 4, 6 or 8, Rst as def\n");
-		hdev->aud_output_ch = 0;
-		if (update_flag != hdev->aud_output_ch) {
-			update_flag = hdev->aud_output_ch;
-			hdev->hdmi_ch = 0;
-		}
 		return 0;
 	}
 	if (ch_msk == 0) {
 		pr_info("err chn msk, must larger than 0\n");
 		return 0;
 	}
-	hdev->aud_output_ch = (ch_num << 4) + ch_msk;
+	update_flag = (ch_num << 4) + ch_msk;
 	if (update_flag != hdev->aud_output_ch) {
-		update_flag = hdev->aud_output_ch;
-		hdev->hdmi_ch = 0;
+		hdev->aud_output_ch = update_flag;
+		hdev->hdmi_ch = ch_num;
+		return 1;
 	}
-	return 1;
+	return 0;
 }
 
 static int hdmitx_notify_callback_a(struct notifier_block *block,
@@ -6317,42 +6313,49 @@ static struct notifier_block hdmitx_notifier_nb_a = {
 static int hdmitx_notify_callback_a(struct notifier_block *block,
 				    unsigned long cmd, void *para)
 {
-	int i, audio_check = 0;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
-	struct rx_cap *prxcap = &hdev->rxcap;
+	/* front audio module callback parameters */
 	struct aud_para *aud_param = (struct aud_para *)para;
 	struct hdmitx_audpara *audio_param = &hdev->cur_audio_param;
 	enum hdmi_audio_fs n_rate = aud_samp_rate_map(aud_param->rate);
 	enum hdmi_audio_sampsize n_size = aud_size_map(aud_param->size);
 
+	if (aud_param->prepare) {
+		aud_param->prepare = 0;
+		hdev->hwop.cntlmisc(hdev, MISC_AUDIO_PREPARE, 0);
+		//hdev->hwop.cntlmisc(hdev, MISC_AUDIO_ACR_CTRL, 0);
+		audio_param->type = CT_PREPARE;
+		pr_info("%s[%d] audio prepare\n", __func__, __LINE__);
+		return 0;
+	}
 	hdev->audio_param_update_flag = 0;
 
+	pr_info("%s[%d] type:%lu rate:%d size:%d chs:%d i2s_ch_mask:%d aud_src_if:%d\n",
+		__func__, __LINE__, cmd, n_rate, n_size, aud_param->chs,
+		aud_param->i2s_ch_mask, aud_param->aud_src_if);
 	if (hdmitx_set_i2s_mask(aud_param->chs, aud_param->i2s_ch_mask))
 		hdev->audio_param_update_flag = 1;
 
 	if (audio_param->sample_rate != n_rate) {
 		audio_param->sample_rate = n_rate;
 		hdev->audio_param_update_flag = 1;
-		pr_info("aout notify sample rate: %d\n", n_rate);
 	}
 
 	if (audio_param->type != cmd) {
 		audio_param->type = cmd;
+		hdev->audio_param_update_flag = 1;
 		pr_info("aout notify format %s\n",
 			aud_type_string[audio_param->type & 0xff]);
-		hdev->audio_param_update_flag = 1;
 	}
 
 	if (audio_param->sample_size != n_size) {
 		audio_param->sample_size = n_size;
 		hdev->audio_param_update_flag = 1;
-		pr_info("aout notify sample size: %d\n", n_size);
 	}
 
 	if (audio_param->channel_num != (aud_param->chs - 1)) {
 		audio_param->channel_num = aud_param->chs - 1;
 		hdev->audio_param_update_flag = 1;
-		pr_info("aout notify channel num: %d\n", aud_param->chs);
 	}
 	if (audio_param->aud_src_if != aud_param->aud_src_if) {
 		pr_info("cur aud_src_if %d, new aud_src_if: %d\n",
@@ -6361,29 +6364,8 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 		hdev->audio_param_update_flag = 1;
 	}
 	memcpy(audio_param->status, aud_param->status, sizeof(aud_param->status));
-	if (log21_level == 1) {
-		for (i = 0; i < sizeof(audio_param->status); i++)
-			pr_info("%02x", audio_param->status[i]);
-		pr_info("\n");
-	}
-	if (hdev->tx_aud_cfg == 2) {
-		pr_info("auto mode\n");
-	/* Detect whether Rx is support current audio format */
-	for (i = 0; i < prxcap->AUD_count; i++) {
-		if (prxcap->RxAudioCap[i].audio_format_code == cmd)
-			audio_check = 1;
-	}
-	/* sink don't support current audio mode */
-	if (!audio_check && cmd != CT_PCM) {
-		pr_info("Sink not support this audio format %lu\n",
-			cmd);
-		hdev->hwop.cntlconfig(hdev,
-			CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
-		hdev->audio_param_update_flag = 0;
-	}
-	}
 
-	if ((!(hdev->hdmi_audio_off_flag)) && hdev->audio_param_update_flag) {
+	if (hdev->audio_param_update_flag) {
 		/* plug-in & update audio param */
 		if (hdev->hpd_state == 1) {
 			hdmitx21_set_audio(hdev, &hdev->cur_audio_param);
