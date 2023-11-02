@@ -117,6 +117,7 @@ void resume_xhci_port_a(void)
 			writel(0xa0, g_phy_v2->xhci_port_a_addr);
 	}
 }
+EXPORT_SYMBOL(resume_xhci_port_a);
 
 void force_disable_xhci_port_a(void)
 {
@@ -126,6 +127,7 @@ void force_disable_xhci_port_a(void)
 	if (g_phy_v2->xhci_port_a_addr)
 		writel(0xa0, g_phy_v2->xhci_port_a_addr);
 }
+EXPORT_SYMBOL(force_disable_xhci_port_a);
 
 void aml_new_usb_v2_init(void)
 {
