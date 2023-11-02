@@ -5831,6 +5831,9 @@ unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
 		else
 			page_array[nr_populated] = page;
 		nr_populated++;
+	#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+		set_page_trace(page, 0, gfp, NULL);
+	#endif /* CONFIG_AMLOGIC_PAGE_TRACE */
 	}
 
 	pcp_spin_unlock_irqrestore(pcp, flags);
