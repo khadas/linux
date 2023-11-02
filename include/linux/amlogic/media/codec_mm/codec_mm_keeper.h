@@ -17,7 +17,7 @@
  */
 int codec_mm_keeper_mask_keep_mem(void *mem_handle, int type);
 
-int is_codec_mm_keeped(void *mem_handle);
+int is_codec_mm_kept(void *mem_handle);
 /*
  *can call in irq
  */

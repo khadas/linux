@@ -46,11 +46,11 @@ static struct codec_mm_keeper_mgr *get_codec_mm_keeper_mgr(void)
 	return &codec_keeper_mgr_private;
 }
 
-int is_codec_mm_keeped(void *mem_handle)
+int is_codec_mm_kept(void *mem_handle)
 {
 	return codec_mm_has_owner(mem_handle, KEEP_NAME);
 }
-EXPORT_SYMBOL(is_codec_mm_keeped);
+EXPORT_SYMBOL(is_codec_mm_kept);
 /*
  * not call in interrupt;
  */
@@ -116,7 +116,7 @@ int codec_mm_keeper_mask_keep_mem(void *mem_handle, int type)
 			keep_id = -1;
 	}
 	if (codec_mm_get_keep_debug_mode() & 1) {
-		/*keeped info */
+		/*kept info */
 		pr_err("%s %p id=%d\n", __func__,
 		       mem_handle, keep_id);
 	}
