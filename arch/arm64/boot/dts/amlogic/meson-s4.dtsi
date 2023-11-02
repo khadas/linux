@@ -2148,6 +2148,7 @@
 		compatible = "amlogic,aml_mkl";
 		reg = <0x0 0xfe440200 0x0 0xf0>;
 		kl_type = <1>;
+		kl_vid_type = <0>;
 		kl_offset = <0x80 0x88 0x8c 0x90>;
 		status = "okay";
 	};

@@ -111,6 +111,7 @@ struct aml_mkl_dev {
 		} t5w_reg;
 	};
 	u32 kl_type;
+	u32 kl_vid_type;
 };
 
 static dev_t aml_mkl_devt;
@@ -290,7 +291,7 @@ static int aml_mkl_etsi_run(struct file *filp, struct amlkl_params *param)
 	/* 3. Program KL_REE_CMD */
 	reg_val = 0;
 	reg_offset = dev->reg.cmd_offset;
-	if (param->vid != 0) {
+	if (dev->kl_vid_type != 0) {
 		/* This part is applicable when ETSI_SW_VID is set in OTP */
 		reg_val = (param->module_id << KL_MID_OFFSET |
 			param->vid << KL_VID_OFFSET |
@@ -670,6 +671,12 @@ static int aml_mkl_get_dts_info(struct aml_mkl_dev *dev, struct platform_device 
 	ret = of_property_read_u32(pdev->dev.of_node, "kl_type", &dev->kl_type);
 	if (ret) {
 		LOGE("%s: not found 0x%x\n", "kl_type", dev->kl_type);
+		return -1;
+	}
+
+	ret = of_property_read_u32(pdev->dev.of_node, "kl_vid_type", &dev->kl_vid_type);
+	if (ret) {
+		LOGE("%s: not found 0x%x\n", "kl_vid_type", dev->kl_vid_type);
 		return -1;
 	}
 
