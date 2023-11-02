@@ -371,10 +371,10 @@ int vdin_open_fe(enum tvin_port_e port, int index,  struct vdin_dev_s *devp)
 	memset(&devp->prop, 0, sizeof(devp->prop));
 
 	/* vdin msr clock gate enable */
-	if (devp->msr_clk) {
-		devp->vdin_clk_flag = 1;
+	if (devp->msr_clk && !devp->vdin_clk_flag) {
 		clk_prepare_enable(devp->msr_clk);
-		}
+		devp->vdin_clk_flag = 1;
+	}
 
 	if (devp->frontend->dec_ops && devp->frontend->dec_ops->open)
 		ret = devp->frontend->dec_ops->open(devp->frontend, port);
@@ -410,10 +410,10 @@ void vdin_close_fe(struct vdin_dev_s *devp)
 		return;
 	}
 	/* bt656 clock gate disable */
-	if (devp->msr_clk) {
-		devp->vdin_clk_flag = 0;
+	if (devp->msr_clk && devp->vdin_clk_flag) {
 		clk_disable_unprepare(devp->msr_clk);
-		}
+		devp->vdin_clk_flag = 0;
+	}
 
 	del_timer_sync(&devp->timer);
 	if (devp->frontend && devp->frontend->dec_ops->close) {
@@ -6267,8 +6267,10 @@ static int vdin_drv_suspend(struct platform_device *pdev, pm_message_t state)
 		vdin_clk_on_off(devp, false);
 	/* vdin msr clock gate disable */
 	if (!devp->index && devp->msr_clk &&
-		devp->vdin_clk_flag)
+		devp->vdin_clk_flag) {
 		clk_disable_unprepare(devp->msr_clk);
+		devp->vdin_clk_flag = 0;
+	}
 
 	pr_info("%s vdin-id:%d ok.\n", __func__, devp->index);
 	return 0;
