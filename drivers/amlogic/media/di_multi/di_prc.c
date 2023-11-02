@@ -4995,6 +4995,8 @@ bool di_buf_clear(struct di_ch_s *pch, struct di_buf_s *di_buf)
 	unsigned int canvas_width[3];/* nr/mtn/mv */
 	unsigned int channel;
 	int i;
+	u8 *meta_ptr, *ud_ptr;
+	u32 meta_size, ud_size;
 
 	/* back */
 	vfm = di_buf->vframe;
@@ -5007,6 +5009,10 @@ bool di_buf_clear(struct di_ch_s *pch, struct di_buf_s *di_buf)
 //	is_i	= di_buf->buf_is_i;
 	for (i = 0; i < 3; i++)
 		canvas_width[i] = di_buf->canvas_width[i];
+	meta_ptr = di_buf->local_meta;
+	meta_size = di_buf->local_meta_total_size;
+	ud_ptr = di_buf->local_ud;
+	ud_size = di_buf->local_ud_total_size;
 
 	memset(di_buf, 0, sizeof(*di_buf));
 	di_buf->vframe = vfm;
@@ -5020,6 +5026,10 @@ bool di_buf_clear(struct di_ch_s *pch, struct di_buf_s *di_buf)
 //	di_buf->buf_is_i = is_i;
 	for (i = 0; i < 3; i++)
 		di_buf->canvas_width[i] = canvas_width[i];
+	di_buf->local_meta = meta_ptr;
+	di_buf->local_meta_total_size = meta_size;
+	di_buf->local_ud = ud_ptr;
+	di_buf->local_ud_total_size = ud_size;
 
 	return true;
 }
