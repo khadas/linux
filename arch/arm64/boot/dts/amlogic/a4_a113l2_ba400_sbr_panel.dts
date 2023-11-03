@@ -90,7 +90,7 @@
 			/* fox example:logo_addr = "0x3f800000"*/
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			reg = <0x0 0x3f000000 0x0 0x0>;
+			reg = <0x0 0x3f000000 0x0 0xc00000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -117,13 +117,13 @@
 		};
 	};
 
-	codec_mm {
+/*	codec_mm {
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved>;
 		dev_name = "codec_mm";
 		status = "okay";
 	};
-
+*/
 	vcc5v_reg: fixed@vcc5v_reg{
 		vin-supply = <&dc_12v>;
 		compatible = "regulator-fixed";
@@ -341,110 +341,6 @@
 	};
 };
 
-&acodec {
-	diff_input = <1>;
-};
-
-&periphs_pinctrl {
-
-	tdmin_a_pins: tdmin_a_pin {
-		mux { /* GPIOT_11, GPIOT_12, GPIOT_13, GPIOT_14, GPIOT_15, GPIOT_16 */
-			groups = "tdm_fs2_t11",
-				"tdm_sclk2_t12",
-				"tdm_d8",
-				"tdm_d9",
-				"tdm_d10",
-				"tdm_d11";
-			function = "tdm";
-		};
-	};
-
-	tdm_b_pins: tdm_b_pin {
-		mux {
-			/*
-			 * GPIOT_2, GPIOT_3, GPIOT_0, GPIOT_1, GPIOT_5, GPIOT_6,
-			 * GPIOT_7, GPIOT_8, GPIOT_18, GPIOT_19
-			 */
-			groups = "tdm_fs1_t2",
-				"tdm_sclk1_t3",
-				"tdm_d2_t0",
-				"tdm_d3_t1",
-				"tdm_d4_t5",
-				"tdm_d5_t6",
-				"tdm_d6_t7",
-				"tdm_d7",
-				"tdm_d12_t18",
-				"tdm_d13_t19";
-			function = "tdm";
-		};
-	};
-
-	tdmin_a_gpio: tdmin_a_gpio {
-		mux {
-			groups ="GPIOT_17",
-				"GPIOT_11",
-				"GPIOT_12",
-				"GPIOT_13",
-				"GPIOT_14",
-				"GPIOT_15",
-				"GPIOT_16";
-			function = "gpio_periphs";
-			output-low;
-		};
-	};
-
-	tdmout_b_gpio: tdmout_b_gpio {
-		mux {
-			groups ="GPIOT_0",
-				"GPIOT_1",
-				"GPIOT_2",
-				"GPIOT_3",
-				"GPIOT_4",
-				"GPIOT_5",
-				"GPIOT_6",
-				"GPIOT_7",
-				"GPIOT_8",
-				"GPIOT_18",
-				"GPIOT_19";
-			function = "gpio_periphs";
-			output-low;
-		};
-	};
-	tdmin_c_gpio: tdmin_c_gpio {
-		mux {
-			groups ="GPIOX_7",
-				"GPIOX_8",
-				"GPIOX_9",
-				"GPIOX_10";
-			function = "gpio_periphs";
-			output-low;
-		};
-	};
-	tdmin_c_pins: tdmin_c_pin {
-		mux { /* GPIOX_7, GPIOX_8, GPIOX_9, GPIOX_10, */
-			groups = "tdm_d1",
-				"tdm_d0_x8",
-				"tdm_fs0_x9",
-				"tdm_sclk0_x10";
-			function = "tdm";
-		};
-	};
-
-	pdmin: pdmin {
-		mux { /* GPIOD_2, GPIOD_3, GPIOD_4 */
-			groups = "pdm_din1_d2",
-				"pdm_din0_d3",
-				"pdm_dclk_d4";
-			function = "pdm";
-		};
-	};
-
-}; /* end of periphs_pinctrl */
-
-&audio_data {
-	status = "disabled";
-};
-
 &crg_udc_2 {
 	status = "okay";
 };
@@ -477,7 +373,7 @@
 };
 
 &crg_phy_21 {
-	status = "okay";
+	status = "disabled";
 	portnum = <1>;
 	gpio-vbus-power = "GPIOD_10";
 	gpios = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
@@ -698,7 +594,7 @@
 };
 
 &aml_bt {
-	status = "okay";
+	status = "disabled";
 	reset-gpios = <&gpio GPIOX_16 GPIO_ACTIVE_HIGH>;
 	//btwakeup-gpios = <&gpio    GPIOX_18 GPIO_ACTIVE_HIGH>;
 	//hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
@@ -738,45 +634,6 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c2_pins1>;
 	clock-frequency = <100000>;
-	ad82128_c_30: ad82128_c_30@30 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x30>;
-		status = "okay";
-		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
-	};
-	ad82128_c_31: ad82128_c_31@31 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x31>;
-		status = "okay";
-		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
-	};
-	ad82128_c_34: ad82128_c_34@34 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x34>;
-		status = "okay";
-		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
-	};
-	ad82128_c_35: ad82128_c_35@35 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x35>;
-		status = "okay";
-		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
-	};
-	aml_pca9557: aml_pca9557@1f {
-		compatible = "aml, ledring";
-		reg = <0x1f>;
-		mode = <0>; /*0: 6-led 1: 4key+2led */
-		key_num = <4>;
-		led_dev_name = "aml_ledring";
-		key_dev_name = "aml_pca_key";
-		key_name = "mute", "pause", "vol+", "vol-";
-		key_value = <200 201 202 203>;
-		status = "okay";
-	};
 };
 
 &i2c3 {
@@ -784,35 +641,20 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_pins1>;
 	clock-frequency = <100000>;
-	ad82128_d_30: ad82128_d_30@30 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x30>;
-		status = "okay";
-		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
-	};
-	ad82128_d_31: ad82128_d_31@31 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x31>;
-		status = "okay";
-		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
-	};
-	ad82128_d_34: ad82128_d_34@34 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x34>;
-		status = "okay";
-		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
-	};
-	ad82128_d_35: ad82128_d_35@35 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x35>;
-		status = "okay";
-		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
 
+	gt9xx@5d {
+		compatible = "goodix,gt9xx";
+		status = "okay";
+		reg = <0x5d>;
+		irq-gpios = <&gpio GPIOD_10 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio GPIOD_11 GPIO_ACTIVE_LOW>;
+
+		touchscreen-size-x = <1024>;
+		touchscreen-size-y = <600>;
+		touchscreen-max-w = <1024>;
+		touchscreen-max-p = <1024>;
 	};
+
 };
 
 &custom_maps{
@@ -1050,4 +892,3 @@
 &jtag {
 	status = "disabled";
 };
-
