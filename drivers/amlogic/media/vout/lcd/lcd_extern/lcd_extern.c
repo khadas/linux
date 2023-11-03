@@ -1618,11 +1618,6 @@ static void lcd_extern_dev_probe_work(struct work_struct *p_work)
 	return;
 
 lcd_ext_dev_probe_work_err:
-	/* free drvdata */
-	platform_set_drvdata(edrv->pdev, NULL);
-	/* free drv */
-	kfree(edrv);
-	ext_driver[index] = NULL;
 	EXTPR("[%d]: %s: failed\n", index, __func__);
 }
 
