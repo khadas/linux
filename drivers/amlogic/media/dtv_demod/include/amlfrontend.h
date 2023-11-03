@@ -120,6 +120,7 @@
 /*  V2.2.010 increase the speed of dvbc blind scanning */
 /*  V2.2.011 optimize dvbs blind scan progress */
 /*  V2.2.012 fix dvbt lock failed in weak signal */
+/*  V2.2.013 fix pm runtime error */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -136,8 +137,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.2.12"
-#define DTVDEMOD_VER	"2023/11/07: fix dvbt lock failed in weak signal"
+#define AMLDTVDEMOD_VER "V2.2.13"
+#define DTVDEMOD_VER	"2023/11/08: fix pm runtime error"
 #define AMLDTVDEMOD_T2_FW_VER "20231019_141000"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
