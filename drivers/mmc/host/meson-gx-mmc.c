@@ -408,7 +408,7 @@ static int meson_mmc_clk_set(struct meson_host *host, struct mmc_ios *ios,
  */
 static int meson_mmc_clk_init(struct meson_host *host)
 {
-	struct clk_init_data init;
+	struct clk_init_data init = {0};
 	struct clk_divider *div;
 	char clk_name[32], name[16];
 	int i, ret = 0;
