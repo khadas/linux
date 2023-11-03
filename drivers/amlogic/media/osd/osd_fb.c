@@ -4385,6 +4385,8 @@ static struct device_attribute osd_attrs_viu2[] = {
 	       show_fence_count, NULL),
 	__ATTR(rdma_enable, 0644,
 	       show_rdma_enable, store_rdma_enable),
+	__ATTR(game_mode, 0644,
+	       show_game_mode, store_game_mode),
 };
 
 #ifdef CONFIG_PM

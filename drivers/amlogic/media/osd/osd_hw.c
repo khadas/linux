@@ -3207,7 +3207,28 @@ static s64 get_adjust_vsynctime(u32 output_index)
 	int thresh_line, vsync_time;
 	s64 adjust_nsec;
 
-	vinfo = get_current_vinfo();
+	switch (output_index) {
+	case VIU1:
+	#ifdef CONFIG_AMLOGIC_VOUT_SERVE
+		vinfo = get_current_vinfo();
+	#endif
+		break;
+	case VIU2:
+	#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+		vinfo = get_current_vinfo2();
+	#endif
+		break;
+	case VIU3:
+	#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+		vinfo = get_current_vinfo3();
+	#endif
+		break;
+	default:
+		osd_log_err("%s, set output_index %u error\n",
+			    __func__, output_index);
+		break;
+	};
+
 	if (vinfo && vinfo->name && (!strcmp(vinfo->name, "invalid") ||
 		      !strcmp(vinfo->name, "null"))) {
 		active_begin_line = get_active_begin_line(output_index);
@@ -4422,16 +4443,9 @@ static void osd_wait_vsync_hw_viux(u32 output_index)
 {
 	unsigned long timeout;
 	wait_queue_head_t *wait_queue = &osd_rdma_vpp0_done_wq;
+	int ret = -1;
 
 	if (osd_hw.fb_drvier_probe) {
-		/* for the independent viu2 HW module,
-		 * use the latch, waiting for vsync (not rdma interrupt).
-		 */
-		if (osd_hw.osd_meson_dev.has_viu2 && output_index == VIU2) {
-			osd_wait_vsync_event_viu2();
-			return;
-		}
-
 		vsync_hit[output_index] = false;
 
 		if (pxp_mode) {
@@ -4471,8 +4485,25 @@ static void osd_wait_vsync_hw_viux(u32 output_index)
 			else
 				timeout = msecs_to_jiffies(1000);
 		}
-		wait_event_interruptible_timeout(*wait_queue,
-						 vsync_hit[output_index], timeout);
+
+		/* for the independent viu2 HW module,
+		 * use the latch, waiting for vsync (not rdma interrupt).
+		 */
+		if (osd_hw.osd_meson_dev.has_viu2 && output_index == VIU2) {
+			ktime_t stime;
+
+			stime = ktime_get();
+			ret = wait_event_interruptible_timeout
+				(osd_vsync2_wq, timestamp[VIU2] > stime,
+				 timeout);
+		} else {
+			ret = wait_event_interruptible_timeout
+				(*wait_queue, vsync_hit[output_index], timeout);
+		}
+
+		if (ret <= 0 && timeout == msecs_to_jiffies(1000))
+			osd_log_err("wait for viu%d, error %d\n",
+				    output_index + 1, ret);
 	}
 }
 
@@ -7429,6 +7460,7 @@ static void _osd_pan_display_layers_fence
 	/* osd_count need -1 when VIU2 enable */
 	struct layer_fence_map_s *layer_map = NULL;
 	u32 inc_cnt = fence_map->inc_cnt;
+	int need_lock = 0;
 
 	if (output_index == VIU1) {
 		osd_count = osd_hw.osd_meson_dev.viu1_osd_count;
@@ -7500,9 +7532,14 @@ static void _osd_pan_display_layers_fence
 	}
 	/* set hw regs */
 	if (osd_hw.osd_display_debug[output_index] != OSD_DISP_DEBUG) {
-		mutex_lock(&preblend_lock);
+		if (osd_hw.osd_preblend_en && osd_hw.display_dev_cnt == 1)
+			need_lock = 1;
+
+		if (need_lock)
+			mutex_lock(&preblend_lock);
 		osd_setting_blend(output_index);
-		mutex_unlock(&preblend_lock);
+		if (need_lock)
+			mutex_unlock(&preblend_lock);
 	}
 out:
 	/* signal out fence */
