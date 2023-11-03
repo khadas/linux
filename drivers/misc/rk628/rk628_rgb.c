@@ -89,6 +89,44 @@ void rk628_rgb_tx_disable(struct rk628 *rk628)
 	rk628_rgb_encoder_disable(rk628);
 }
 
+static void rk628_bt1120_decoder_timing_cfg(struct rk628 *rk628)
+{
+	u32 src_hsync_len, src_hback_porch, src_hfront_porch, src_hactive;
+	u32 src_vsync_len, src_vback_porch, src_vfront_porch, src_vactive;
+	u32 dsp_htotal, dsp_hs_end, dsp_hact_st;
+	u32 dsp_vtotal, dsp_vs_end, dsp_vact_st;
+	u32 dsp_hbor_st, dsp_vbor_st;
+	u16 bor_left = 0, bor_up = 0;
+	struct rk628_display_mode *src = &rk628->src_mode;
+
+	src_hactive = src->hdisplay;
+	src_hsync_len = src->hsync_end - src->hsync_start;
+	src_hback_porch = src->htotal - src->hsync_end;
+	src_hfront_porch = src->hsync_start - src->hdisplay;
+	src_vsync_len = src->vsync_end - src->vsync_start;
+	src_vback_porch = src->vtotal - src->vsync_end;
+	src_vfront_porch = src->vsync_start - src->vdisplay;
+	src_vactive = src->vdisplay;
+
+	dsp_htotal = src_hsync_len + src_hback_porch +
+		     src_hactive + src_hfront_porch;
+	dsp_vtotal = src_vsync_len + src_vback_porch +
+		     src_vactive + src_vfront_porch;
+	dsp_hs_end = src_hsync_len;
+	dsp_vs_end = src_vsync_len;
+	dsp_hbor_st = src_hsync_len + src_hback_porch;
+	dsp_vbor_st = src_vsync_len + src_vback_porch;
+	dsp_hact_st = dsp_hbor_st + bor_left;
+	dsp_vact_st = dsp_vbor_st + bor_up;
+
+	rk628_i2c_write(rk628, GRF_BT1120_TIMING_CTRL0, BT1120_DSP_HS_END(dsp_hs_end) |
+			BT1120_DSP_HTOTAL(dsp_htotal));
+	rk628_i2c_write(rk628, GRF_BT1120_TIMING_CTRL1, BT1120_DSP_HACT_ST(dsp_hact_st));
+	rk628_i2c_write(rk628, GRF_BT1120_TIMING_CTRL2, BT1120_DSP_VS_END(dsp_vs_end) |
+			BT1120_DSP_VTOTAL(dsp_vtotal));
+	rk628_i2c_write(rk628, GRF_BT1120_TIMING_CTRL3, BT1120_DSP_VACT_ST(dsp_vact_st));
+}
+
 void rk628_bt1120_decoder_enable(struct rk628 *rk628)
 {
 	struct rk628_display_mode *mode = rk628_display_get_src_mode(rk628);
@@ -112,6 +150,9 @@ void rk628_bt1120_decoder_enable(struct rk628 *rk628)
 	/* config sw_input_mode bt1120 */
 	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_INPUT_MODE_MASK,
 			      SW_INPUT_MODE(INPUT_MODE_BT1120));
+
+	if (rk628->version == RK628F_VERSION)
+		rk628_bt1120_decoder_timing_cfg(rk628);
 
 	/* operation resetn_bt1120dec */
 	rk628_i2c_write(rk628, CRU_SOFTRST_CON00, 0x10001000);
