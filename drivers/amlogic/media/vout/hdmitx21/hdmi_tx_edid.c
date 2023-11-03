@@ -1433,18 +1433,6 @@ static int hdmitx_edid_cta_block_parse(struct hdmitx_dev *hdev,
 	struct rx_cap *prxcap = &hdev->rxcap;
 	u32 aud_flag = 0;
 
-	/* CEA-861 implementations are required to use Tag = 0x02
-	 * for the CEA Extension Tag and Sources should ignore
-	 * Tags that are not understood. but for Samsung LA32D400E1
-	 * its extension tag is 0x0 while other bytes normal,
-	 * so continue parse as other sources do
-	 */
-	if (blockbuf[0] == 0x0) {
-		pr_info(EDID "unknown Extension Tag detected, continue\n");
-	} else if (blockbuf[0] != 0x02) {
-		pr_info("skip the block of tag: 0x%02x%02x", blockbuf[0], blockbuf[1]);
-		return -1; /* not a CEA BLOCK. */
-	}
 	end = blockbuf[2]; /* CEA description. */
 	prxcap->native_Mode = blockbuf[1] >= 2 ? blockbuf[3] : 0;
 	prxcap->number_of_dtd += blockbuf[1] >= 2 ? (blockbuf[3] & 0xf) : 0;
@@ -1722,8 +1710,12 @@ static int edid_check_valid(u8 *buf)
 /* check the checksum for each sub block */
 static int _check_edid_blk_chksum(u8 *block)
 {
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	u32 chksum = 0;
 	u32 i = 0;
+
+	if (hdev->edid_check & 0x02)
+		return 1;
 
 	for (chksum = 0, i = 0; i < 0x80; i++)
 		chksum += block[i];
@@ -1736,15 +1728,18 @@ static int _check_edid_blk_chksum(u8 *block)
 /* check the first edid block */
 static int _check_base_structure(u8 *buf)
 {
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	u32 i = 0;
 
-	/* check block 0 first 8 bytes */
-	if (buf[0] != 0 && buf[7] != 0)
-		return 0;
-
-	for (i = 1; i < 7; i++) {
-		if (buf[i] != 0xff)
+	if (!(hdev->edid_check & 0x01)) {
+		/* check block 0 first 8 bytes */
+		if (buf[0] != 0 && buf[7] != 0)
 			return 0;
+
+		for (i = 1; i < 7; i++) {
+			if (buf[i] != 0xff)
+				return 0;
+		}
 	}
 
 	if (_check_edid_blk_chksum(buf) == 0)
@@ -1761,6 +1756,7 @@ static int _check_base_structure(u8 *buf)
 
 int check21_dvi_hdmi_edid_valid(u8 *buf)
 {
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	int i;
 	int blk_cnt = buf[0x7e] + 1;
 
@@ -1777,8 +1773,10 @@ int check21_dvi_hdmi_edid_valid(u8 *buf)
 
 	/* check extension block 1 and more */
 	for (i = 1; i < blk_cnt; i++) {
-		if (buf[i * 0x80] == 0)
-			return 0;
+		if (!(hdev->edid_check & 0x01)) {
+			if (buf[i * 0x80] == 0)
+				return 0;
+		}
 		if (_check_edid_blk_chksum(&buf[i * 0x80]) == 0)
 			return 0;
 	}
@@ -2290,7 +2288,7 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 	if (cta_block_count > EDID_MAX_BLOCK - 1)
 		cta_block_count = EDID_MAX_BLOCK - 1;
 	for (i = 1; i <= cta_block_count; i++) {
-		if (EDID_buf[i * 0x80] == 0x02)
+		if (EDID_buf[i * 0x80] == 0x02 || hdmitx_device->edid_check & 0x01)
 			hdmitx_edid_cta_block_parse(hdmitx_device, &EDID_buf[i * 0x80]);
 	}
 

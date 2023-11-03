@@ -5152,6 +5152,42 @@ static ssize_t sspll_show(struct device *dev,
 	return pos;
 }
 
+static ssize_t edid_check_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf,
+			   size_t count)
+{
+	int val = 0;
+
+	if (isdigit(buf[0])) {
+		val = buf[0] - '0';
+		pr_info("*****edid_check*****\n");
+		pr_info("edid_check = 0 is default check\n");
+		pr_info("Bit 0     (0x01)  don't check block header\n");
+		pr_info("Bit 1     (0x02)  don't check edid checksum\n");
+		pr_info("Bit 0+1   (0x03)  don't check both block header and checksum\n");
+		pr_info("set edid_check_policy : %d\n", val);
+		if (val == 0 || val == 1 || val == 2 || val == 3)
+			hdmitx_device.edid_check = val;
+		else
+			pr_info(SYS "error: only accept as 0, 1, 2, 3\n");
+	}
+
+	return count;
+}
+
+static ssize_t edid_check_show(struct device *dev,
+			  struct device_attribute *attr,
+			  char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n",
+		hdmitx_device.edid_check);
+
+	return pos;
+}
+
 static ssize_t frac_rate_policy_store(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf,
@@ -6455,6 +6491,11 @@ next:/* Detect RX support HDCP14 */
 	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n", hdmitx_device.sspll);
 	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
 
+	pos += snprintf(buf + pos, PAGE_SIZE, "******edid_check******\n");
+	pos += snprintf(buf + pos, PAGE_SIZE, "edid_check:");
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n", hdmitx_device.edid_check);
+	pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+
 	pos += snprintf(buf + pos, PAGE_SIZE, "******dv_vsif_info******\n");
 	data = &vsif_debug_info.data;
 	pos += snprintf(buf + pos, PAGE_SIZE, "type: %u, tunnel: %u, sigsdr: %u\n",
@@ -6856,6 +6897,7 @@ static DEVICE_ATTR_RW(swap);
 static DEVICE_ATTR_RW(vic);
 static DEVICE_ATTR_RW(phy);
 static DEVICE_ATTR_RW(sspll);
+static DEVICE_ATTR_RW(edid_check);
 static DEVICE_ATTR_RW(frac_rate_policy);
 static DEVICE_ATTR_RW(rxsense_policy);
 static DEVICE_ATTR_RW(cedst_policy);
@@ -8497,6 +8539,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_phy);
 	ret = device_create_file(dev, &dev_attr_frac_rate_policy);
 	ret = device_create_file(dev, &dev_attr_sspll);
+	ret = device_create_file(dev, &dev_attr_edid_check);
 	ret = device_create_file(dev, &dev_attr_rxsense_policy);
 	ret = device_create_file(dev, &dev_attr_rxsense_state);
 	ret = device_create_file(dev, &dev_attr_cedst_policy);
@@ -8724,6 +8767,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_vic);
 	device_remove_file(dev, &dev_attr_frac_rate_policy);
 	device_remove_file(dev, &dev_attr_sspll);
+	device_remove_file(dev, &dev_attr_edid_check);
 	device_remove_file(dev, &dev_attr_hdmitx_cur_status);
 	device_remove_file(dev, &dev_attr_rxsense_policy);
 	device_remove_file(dev, &dev_attr_rxsense_state);
@@ -8985,6 +9029,21 @@ static int hdmitx_boot_frac_rate(char *str)
 }
 
 __setup("frac_rate_policy=", hdmitx_boot_frac_rate);
+
+static int hdmitx_boot_edid_check(char *str)
+{
+	unsigned int val = 0;
+
+	if ((strncmp("0", str, 1) == 0) || (strncmp("1", str, 1) == 0) ||
+		(strncmp("2", str, 1) == 0) || (strncmp("3", str, 1) == 0)) {
+		val = str[0] - '0';
+		hdmitx_device.edid_check = val;
+		pr_info("hdmitx boot edid_check: %d\n", val);
+	}
+	return 0;
+}
+
+__setup("edid_check=", hdmitx_boot_edid_check);
 
 static int hdmitx_boot_hdr_priority(char *str)
 {

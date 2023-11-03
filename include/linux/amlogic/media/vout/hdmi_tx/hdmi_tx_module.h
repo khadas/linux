@@ -528,6 +528,12 @@ struct hdmitx_dev {
 	unsigned int allm_mode; /* allm_mode: 1/on 0/off */
 	unsigned int ct_mode; /* 0/off 1/game, 2/graphics, 3/photo, 4/cinema */
 	unsigned int sspll;
+	/* edid_check = 0 is default check
+	 * Bit 0     (0x01)  don't check block header
+	 * Bit 1     (0x02)  don't check edid checksum
+	 * Bit 0+1   (0x03)  don't check both block header and checksum
+	 */
+	unsigned int edid_check;
 	unsigned int hdmi_rext; /* Rext resistor */
 	/* if HDMI plugin even once time, then set 1 */
 	/* if never hdmi plugin, then keep as 0 */
