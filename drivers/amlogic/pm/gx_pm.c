@@ -116,7 +116,8 @@ static inline void early_suspend(void)
 	else
 		goto end_early_suspend;
 
-	pr_info("%s: call handlers\n", __func__);
+	if (initcall_debug)
+		pr_info("%s: call handlers\n", __func__);
 	list_for_each_entry(pos, &early_suspend_handlers, link)
 		if (pos->suspend) {
 			if (initcall_debug)
@@ -124,7 +125,8 @@ static inline void early_suspend(void)
 			pos->suspend(pos);
 		}
 
-	pr_info("%s: done\n", __func__);
+	if (initcall_debug)
+		pr_info("%s: done\n", __func__);
 
 end_early_suspend:
 	mutex_unlock(&early_suspend_lock);
@@ -141,7 +143,8 @@ static inline void late_resume(void)
 	else
 		goto end_late_resume;
 
-	pr_info("%s: call handlers\n", __func__);
+	if (initcall_debug)
+		pr_info("%s: call handlers\n", __func__);
 	list_for_each_entry_reverse(pos, &early_suspend_handlers, link)
 		if (pos->resume) {
 			if (initcall_debug)
@@ -149,7 +152,8 @@ static inline void late_resume(void)
 			pos->resume(pos);
 		}
 
-	pr_info("%s: done\n", __func__);
+	if (initcall_debug)
+		pr_info("%s: done\n", __func__);
 
 end_late_resume:
 	mutex_unlock(&early_suspend_lock);
