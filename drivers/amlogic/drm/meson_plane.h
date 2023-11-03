@@ -110,5 +110,7 @@ meson_create_scaling_filter_prop(struct drm_device *dev,
 
 void meson_video_set_vfmmode(struct device_node *of_node,
 	struct meson_drm *priv);
+int meson_plane_mute_ioctl(struct drm_device *dev,
+	void *data, struct drm_file *file_priv);
 
 #endif

@@ -11,7 +11,7 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #endif
-
+#include <linux/amlogic/media/video_sink/video.h>
 #include "meson_plane.h"
 #include "meson_crtc.h"
 #include "meson_vpu.h"
@@ -91,6 +91,50 @@ static const u32 video_supported_drm_formats[] = {
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_VUY888,
 };
+
+static void osd_plane_mute(bool mute)
+{
+	/* to do */
+	DRM_DEBUG("mute osd plane.\n");
+}
+
+static void video_plane_mute(bool mute)
+{
+	DRM_DEBUG("mute video plane.\n");
+	set_video_mute(DRM_MUTE_SET, mute);
+}
+
+int meson_plane_mute_ioctl(struct drm_device *dev,
+	void *data, struct drm_file *file_priv)
+{
+	struct drm_meson_plane_mute *arg = data;
+
+	if (!arg) {
+		DRM_ERROR("%s, para is NULL!\n", __func__);
+		return -EINVAL;
+	}
+	if (arg->plane_type == OSD_PLANE) {
+		if (arg->plane_mute) {
+			DRM_DEBUG("%s mute osd plane!\n", __func__);
+			osd_plane_mute(true);
+		} else {
+			DRM_DEBUG("%s unmute osd plane!\n", __func__);
+			osd_plane_mute(false);
+		}
+		return 0;
+	}
+	if (arg->plane_type == VIDEO_PLANE) {
+		if (arg->plane_mute) {
+			DRM_DEBUG("%s mute video plane!\n", __func__);
+			video_plane_mute(true);
+		} else {
+			DRM_DEBUG("%s unmute video plane!\n", __func__);
+			video_plane_mute(false);
+		}
+		return 0;
+	}
+	return -EINVAL;
+}
 
 static void
 meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,

@@ -93,24 +93,29 @@ struct drm_meson_present_fence {
 	__u32 fd;
 };
 
+struct drm_meson_plane_mute {
+	__u32 plane_type; /* 0:osd plane, 1:video plane */
+	__u32 plane_mute; /* 0:umute plane, 1:mute plane */
+};
+
 /*Memory related.*/
 #define DRM_IOCTL_MESON_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + \
 		0x00, struct drm_meson_gem_create)
-#define DRM_IOCTL_MESON_DMABUF_EXPORT_SYNC_FILE	DRM_IOWR(DRM_COMMAND_BASE + \
-		0x02, struct drm_meson_dma_buf_export_sync_file)
 #define DRM_IOCTL_MESON_RMFB	DRM_IOWR(DRM_COMMAND_BASE + \
 		0x01, unsigned int)
+#define DRM_IOCTL_MESON_DMABUF_EXPORT_SYNC_FILE	DRM_IOWR(DRM_COMMAND_BASE + \
+		0x02, struct drm_meson_dma_buf_export_sync_file)
 
 /*KMS related.*/
 #define DRM_IOCTL_MESON_ASYNC_ATOMIC    DRM_IOWR(DRM_COMMAND_BASE + \
 		0x10, struct drm_mode_atomic)
+#define DRM_IOCTL_MESON_TESTATTR DRM_IOWR(DRM_COMMAND_BASE + \
+		0x11, struct drm_mode_test_attr) /*hdmitx related.*/
+#define DRM_IOCTL_MESON_MUTE_PLANE DRM_IOWR(DRM_COMMAND_BASE + \
+		0x12, struct drm_meson_plane_mute)
 
 /*present fence*/
 #define DRM_IOCTL_MESON_CREAT_PRESENT_FENCE	DRM_IOWR(DRM_COMMAND_BASE + \
 		0x20, struct drm_meson_present_fence)
-
-/*hdmitx relatde*/
-#define DRM_IOCTL_MESON_TESTATTR DRM_IOWR(DRM_COMMAND_BASE + \
-		0x11, struct drm_mode_test_attr)
 
 #endif /* _MESON_DRM_H_ */
