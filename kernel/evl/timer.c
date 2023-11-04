@@ -6,13 +6,8 @@
  * Copyright (C) 2001, 2018 Philippe Gerum  <rpm@xenomai.org>
  */
 
-#include <linux/sched.h>
-#include <linux/cred.h>
-#include <linux/err.h>
-#include <evl/sched.h>
 #include <evl/thread.h>
 #include <evl/timer.h>
-#include <evl/clock.h>
 #include <evl/tick.h>
 #include <asm/div64.h>
 #include <trace/events/evl.h>

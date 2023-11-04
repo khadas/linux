@@ -4,7 +4,6 @@
  * Copyright (C) 2020 Philippe Gerum  <rpm@xenomai.org>
  */
 
-#include <evl/factory.h>
 #include <evl/work.h>
 
 static void do_wq_work(struct work_struct *wq_work)

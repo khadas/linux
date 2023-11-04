@@ -7,9 +7,8 @@
 #ifndef _EVL_MONITOR_H
 #define _EVL_MONITOR_H
 
-#include <evl/factory.h>
 #include <evl/thread.h>
-#include <evl/sched.h>
+#include <uapi/evl/monitor-abi.h>
 
 int evl_signal_monitor_targeted(struct evl_thread *target,
 				int monfd);

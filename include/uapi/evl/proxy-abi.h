@@ -4,8 +4,8 @@
  * Copyright (C) 2019 Philippe Gerum  <rpm@xenomai.org>
  */
 
-#ifndef _EVL_UAPI_PROXY_H
-#define _EVL_UAPI_PROXY_H
+#ifndef _EVL_UAPI_PROXY_ABI_H
+#define _EVL_UAPI_PROXY_ABI_H
 
 #include <linux/types.h>
 
@@ -17,4 +17,4 @@ struct evl_proxy_attrs {
 	__u32 granularity;
 };
 
-#endif /* !_EVL_UAPI_PROXY_H */
+#endif /* !_EVL_UAPI_PROXY_ABI_H */

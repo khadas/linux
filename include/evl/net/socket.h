@@ -16,7 +16,9 @@
 #include <evl/file.h>
 #include <evl/poll.h>
 #include <evl/crossing.h>
-#include <uapi/evl/net/socket.h>
+#include <uapi/evl/types.h>
+#include <uapi/evl/fcntl.h>
+#include <uapi/evl/net/socket-abi.h>
 
 struct evl_socket;
 struct net;

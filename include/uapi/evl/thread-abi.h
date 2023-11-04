@@ -5,11 +5,10 @@
  * Copyright (C) 2005, 2018 Philippe Gerum <rpm@xenomai.org>
  */
 
-#ifndef _EVL_UAPI_THREAD_H
-#define _EVL_UAPI_THREAD_H
+#ifndef _EVL_UAPI_THREAD_ABI_H
+#define _EVL_UAPI_THREAD_ABI_H
 
-#include <linux/types.h>
-#include <uapi/evl/sched.h>
+#include <evl/sched-abi.h>
 
 #define EVL_THREAD_DEV		"thread"
 
@@ -131,4 +130,4 @@ struct evl_thread_state {
 #define EVL_THRIOC_DEMOTE		_IO(EVL_THREAD_IOCBASE, 11)
 #define EVL_THRIOC_YIELD		_IO(EVL_THREAD_IOCBASE, 12)
 
-#endif /* !_EVL_UAPI_THREAD_H */
+#endif /* !_EVL_UAPI_THREAD_ABI_H */

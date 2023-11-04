@@ -8,7 +8,7 @@
 #include <linux/err.h>
 #include <evl/sched.h>
 #include <evl/memory.h>
-#include <uapi/evl/sched.h>
+#include <uapi/evl/sched-abi.h>
 
 static void tp_schedule_next(struct evl_sched_tp *tp)
 {

@@ -4,10 +4,10 @@
  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
  */
 
-#ifndef _EVL_UAPI_POLL_H
-#define _EVL_UAPI_POLL_H
+#ifndef _EVL_UAPI_POLL_ABI_H
+#define _EVL_UAPI_POLL_ABI_H
 
-#include <uapi/evl/types.h>
+#include <evl/types.h>
 
 #define EVL_POLL_DEV		"poll"
 
@@ -39,4 +39,4 @@ struct evl_poll_waitreq {
 #define EVL_POLIOC_CTL		_IOW(EVL_POLL_IOCBASE, 0, struct evl_poll_ctlreq)
 #define EVL_POLIOC_WAIT		_IOWR(EVL_POLL_IOCBASE, 1, struct evl_poll_waitreq)
 
-#endif /* !_EVL_UAPI_POLL_H */
+#endif /* !_EVL_UAPI_POLL_ABI_H */

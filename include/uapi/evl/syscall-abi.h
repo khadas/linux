@@ -4,8 +4,8 @@
  * Copyright (C) 2018 Philippe Gerum <rpm@xenomai.org>
  */
 
-#ifndef _EVL_UAPI_SYSCALL_H
-#define _EVL_UAPI_SYSCALL_H
+#ifndef _EVL_UAPI_SYSCALL_ABI_H
+#define _EVL_UAPI_SYSCALL_ABI_H
 
 #define sys_evl_read	0	/* oob_read() */
 #define sys_evl_write	1	/* oob_write() */
@@ -13,4 +13,4 @@
 
 #define NR_EVL_SYSCALLS 3
 
-#endif /* !_EVL_UAPI_SYSCALL_H */
+#endif /* !_EVL_UAPI_SYSCALL_ABI_H */

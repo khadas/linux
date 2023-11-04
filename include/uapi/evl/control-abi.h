@@ -4,11 +4,10 @@
  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
  */
 
-#ifndef _EVL_UAPI_CONTROL_H
-#define _EVL_UAPI_CONTROL_H
+#ifndef _EVL_UAPI_CONTROL_ABI_H
+#define _EVL_UAPI_CONTROL_ABI_H
 
 #include <linux/types.h>
-#include <uapi/evl/sched.h>
 
 /* Earliest ABI level we support. */
 #define EVL_ABI_BASE   23
@@ -40,4 +39,4 @@ struct evl_cpu_state {
 #define EVL_CTLIOC_SCHEDCTL		_IOWR(EVL_CONTROL_IOCBASE, 1, struct evl_sched_ctlreq)
 #define EVL_CTLIOC_GET_CPUSTATE		_IOR(EVL_CONTROL_IOCBASE, 2, struct evl_cpu_state)
 
-#endif /* !_EVL_UAPI_CONTROL_H */
+#endif /* !_EVL_UAPI_CONTROL_ABI_H */

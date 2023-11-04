@@ -27,10 +27,9 @@
 #include <evl/assert.h>
 #include <evl/file.h>
 #include <evl/control.h>
-#include <evl/syscall.h>
 #include <evl/factory.h>
 #include <evl/uaccess.h>
-#include <uapi/evl/factory.h>
+#include <uapi/evl/syscall-abi.h>
 
 static struct class *evl_class;
 

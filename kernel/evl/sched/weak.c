@@ -6,7 +6,7 @@
  */
 
 #include <evl/sched.h>
-#include <uapi/evl/sched.h>
+#include <uapi/evl/sched-abi.h>
 
 static void weak_init(struct evl_rq *rq)
 {

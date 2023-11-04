@@ -9,7 +9,7 @@
 #include <asm/div64.h>
 #include <evl/sched.h>
 #include <evl/memory.h>
-#include <uapi/evl/sched.h>
+#include <uapi/evl/sched-abi.h>
 
 /*
  * With this policy, each per-CPU runqueue maintains a list of active

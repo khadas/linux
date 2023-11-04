@@ -5,10 +5,10 @@
  * Copyright (C) 2005, 2018 Philippe Gerum  <rpm@xenomai.org>
  */
 
-#ifndef _EVL_UAPI_SCHED_H
-#define _EVL_UAPI_SCHED_H
+#ifndef _EVL_UAPI_SCHED_ABI_H
+#define _EVL_UAPI_SCHED_ABI_H
 
-#include <uapi/evl/types.h>
+#include <evl/types.h>
 
 #define EVL_CPU_OOB      (1 << 0)
 #define EVL_CPU_ISOL     (1 << 1)
@@ -130,4 +130,4 @@ struct evl_sched_ctlreq {
 	__u64 info_ptr;	 /* (union evl_sched_ctlinfo __user *info) */
 };
 
-#endif /* !_EVL_UAPI_SCHED_H */
+#endif /* !_EVL_UAPI_SCHED_ABI_H */

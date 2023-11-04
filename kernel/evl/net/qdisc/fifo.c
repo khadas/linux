@@ -9,7 +9,6 @@
 #include <linux/skbuff.h>
 #include <evl/list.h>
 #include <evl/net/qdisc.h>
-#include <uapi/evl/net/sched.h>
 
 struct qdisc_fifo_priv {
 	struct evl_net_skb_queue q;

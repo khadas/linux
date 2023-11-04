@@ -4,10 +4,10 @@
  * Copyright (C) 2018 Philippe Gerum <rpm@xenomai.org>
  */
 
-#ifndef _EVL_UAPI_CLOCK_H
-#define _EVL_UAPI_CLOCK_H
+#ifndef _EVL_UAPI_CLOCK_ABI_H
+#define _EVL_UAPI_CLOCK_ABI_H
 
-#include <uapi/evl/types.h>
+#include <linux/types.h>
 
 #define EVL_CLOCK_MONOTONIC_DEV		"monotonic"
 #define EVL_CLOCK_REALTIME_DEV		"realtime"
@@ -34,4 +34,4 @@ struct evl_timerfd_setreq {
 #define EVL_TFDIOC_SET	 _IOWR(EVL_TIMERFD_IOCBASE, 0, struct evl_timerfd_setreq)
 #define EVL_TFDIOC_GET	 _IOR(EVL_TIMERFD_IOCBASE, 1, struct __evl_itimerspec)
 
-#endif /* !_EVL_UAPI_CLOCK_H */
+#endif /* !_EVL_UAPI_CLOCK_ABI_H */

@@ -12,16 +12,13 @@
 #include <linux/wait.h>
 #include <linux/log2.h>
 #include <linux/atomic.h>
-#include <evl/wait.h>
 #include <evl/thread.h>
-#include <evl/clock.h>
 #include <evl/xbuf.h>
-#include <evl/memory.h>
 #include <evl/factory.h>
 #include <evl/sched.h>
 #include <evl/poll.h>
 #include <evl/flag.h>
-#include <uapi/evl/xbuf.h>
+#include <uapi/evl/xbuf-abi.h>
 
 struct xbuf_ring {
 	void *bufmem;

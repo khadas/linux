@@ -34,8 +34,6 @@
 #include <evl/irq.h>
 #include <evl/uaccess.h>
 #include <asm/evl/calibration.h>
-#include <uapi/evl/factory.h>
-#include <uapi/evl/clock.h>
 #include <trace/events/evl.h>
 
 static const struct file_operations clock_fops;

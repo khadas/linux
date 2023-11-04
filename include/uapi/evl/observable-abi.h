@@ -4,10 +4,10 @@
  * Copyright (C) 2020 Philippe Gerum  <rpm@xenomai.org>
  */
 
-#ifndef _EVL_UAPI_OBSERVABLE_H
-#define _EVL_UAPI_OBSERVABLE_H
+#ifndef _EVL_UAPI_OBSERVABLE_ABI_H
+#define _EVL_UAPI_OBSERVABLE_ABI_H
 
-#include <uapi/evl/types.h>
+#include <evl/types.h>
 
 #define EVL_OBSERVABLE_DEV	"observable"
 
@@ -42,4 +42,4 @@ struct __evl_notification {
 #define EVL_OBSIOC_SUBSCRIBE		_IOW(EVL_OBSERVABLE_IOCBASE, 0, struct evl_subscription)
 #define EVL_OBSIOC_UNSUBSCRIBE		_IO(EVL_OBSERVABLE_IOCBASE, 1)
 
-#endif /* !_EVL_UAPI_OBSERVABLE_H */
+#endif /* !_EVL_UAPI_OBSERVABLE_ABI_H */
