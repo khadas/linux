@@ -8,17 +8,11 @@
 #include <linux/cpumask.h>
 #include <linux/clockchips.h>
 #include <linux/tick.h>
-#include <linux/irqdomain.h>
 #include <linux/ktime.h>
 #include <linux/kernel.h>
 #include <linux/timekeeping.h>
 #include <linux/irq_pipeline.h>
-#include <linux/slab.h>
-#include <evl/sched.h>
-#include <evl/timer.h>
-#include <evl/clock.h>
 #include <evl/tick.h>
-#include <evl/control.h>
 #include <trace/events/evl.h>
 
 static DEFINE_PER_CPU(struct clock_proxy_device *, proxy_device);

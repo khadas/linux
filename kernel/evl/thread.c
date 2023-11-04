@@ -23,16 +23,9 @@
 #include <linux/ptrace.h>
 #include <linux/math64.h>
 #include <linux/cn_proc.h>
-#include <uapi/linux/sched/types.h>
-#include <evl/sched.h>
-#include <evl/timer.h>
-#include <evl/wait.h>
-#include <evl/clock.h>
-#include <evl/stat.h>
 #include <evl/assert.h>
 #include <evl/thread.h>
 #include <evl/memory.h>
-#include <evl/file.h>
 #include <evl/monitor.h>
 #include <evl/mutex.h>
 #include <evl/poll.h>
@@ -41,6 +34,7 @@
 #include <evl/observable.h>
 #include <evl/uaccess.h>
 #include <evl/lock.h>
+#include <uapi/linux/sched/types.h>
 #include <trace/events/evl.h>
 
 #define EVL_THREAD_CLONE_FLAGS	\

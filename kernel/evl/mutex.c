@@ -2,17 +2,14 @@
  * SPDX-License-Identifier: GPL-2.0
  *
  * Derived from Xenomai Cobalt, https://xenomai.org/
- * Copyright (C) 2001, 2019 Philippe Gerum  <rpm@xenomai.org>
+ * Copyright (C) 2001, 2019, 2022 Philippe Gerum  <rpm@xenomai.org>
+ * Copyright (C) 2008, 2009 Jan Kiszka <jan.kiszka@siemens.com>.
  */
 
 #include <linux/kernel.h>
 #include <evl/timer.h>
-#include <evl/clock.h>
-#include <evl/sched.h>
 #include <evl/thread.h>
 #include <evl/mutex.h>
-#include <evl/monitor.h>
-#include <evl/wait.h>
 #include <evl/lock.h>
 #include <uapi/evl/signal.h>
 #include <trace/events/evl.h>

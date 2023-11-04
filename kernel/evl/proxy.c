@@ -19,7 +19,7 @@
 #include <evl/work.h>
 #include <evl/flag.h>
 #include <evl/poll.h>
-#include <uapi/evl/proxy.h>
+#include <uapi/evl/proxy-abi.h>
 
 #define EVL_PROXY_CLONE_FLAGS	\
 	(EVL_CLONE_PUBLIC|EVL_CLONE_OUTPUT|EVL_CLONE_INPUT)

@@ -14,7 +14,8 @@
 #include <linux/poll.h>
 #include <evl/wait.h>
 #include <evl/factory.h>
-#include <uapi/evl/poll.h>
+#include <uapi/evl/types.h>
+#include <uapi/evl/poll-abi.h>
 
 struct file;
 

@@ -15,7 +15,6 @@
 #include <evl/timer.h>
 #include <evl/wait.h>
 #include <evl/sched.h>
-#include <uapi/evl/mutex.h>
 
 struct evl_clock;
 struct evl_thread;
@@ -92,6 +91,12 @@ bool evl_requeue_mutex_wait(struct evl_wait_channel *wchan,
 			struct evl_thread *waiter);
 
 void evl_drop_current_ownership(void);
+
+static inline bool
+evl_is_mutex_owner(atomic_t *fastlock, fundle_t ownerh)
+{
+	return evl_get_index(atomic_read(fastlock)) == ownerh;
+}
 
 struct evl_kmutex {
 	struct evl_mutex mutex;

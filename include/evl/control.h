@@ -10,6 +10,8 @@
 #include <linux/atomic.h>
 #include <linux/notifier.h>
 #include <evl/factory.h>
+#include <uapi/evl/sched-abi.h>
+#include <uapi/evl/control-abi.h>
 
 enum evl_run_states {
 	EVL_STATE_DISABLED,

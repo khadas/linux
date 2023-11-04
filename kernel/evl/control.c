@@ -9,17 +9,13 @@
 #include <linux/sched/isolation.h>
 #include <linux/bitmap.h>
 #include <evl/memory.h>
-#include <evl/thread.h>
 #include <evl/factory.h>
-#include <evl/flag.h>
 #include <evl/tick.h>
-#include <evl/sched.h>
 #include <evl/control.h>
 #include <evl/net/input.h>
 #include <evl/net/skb.h>
 #include <evl/uaccess.h>
 #include <asm/evl/fptest.h>
-#include <uapi/evl/control.h>
 
 static BLOCKING_NOTIFIER_HEAD(state_notifier_list);
 

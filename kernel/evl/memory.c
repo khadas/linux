@@ -18,11 +18,9 @@
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #include <evl/memory.h>
-#include <evl/factory.h>
+#include <evl/monitor.h>
 #include <evl/assert.h>
 #include <evl/init.h>
-#include <uapi/evl/thread.h>
-#include <uapi/evl/monitor.h>
 
 static unsigned long sysheap_size_arg;
 module_param_named(sysheap_size, sysheap_size_arg, ulong, 0444);

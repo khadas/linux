@@ -4,8 +4,8 @@
  * Copyright (C) 2018 Philippe Gerum <rpm@xenomai.org>
  */
 
-#ifndef _EVL_UAPI_FACTORY_H
-#define _EVL_UAPI_FACTORY_H
+#ifndef _EVL_UAPI_FACTORY_ABI_H
+#define _EVL_UAPI_FACTORY_ABI_H
 
 #include <linux/types.h>
 
@@ -45,4 +45,4 @@ struct evl_clone_req {
 
 #define EVL_IOC_CLONE	_IOWR(EVL_FACTORY_IOCBASE, 0, struct evl_clone_req)
 
-#endif /* !_EVL_UAPI_FACTORY_H */
+#endif /* !_EVL_UAPI_FACTORY_ABI_H */

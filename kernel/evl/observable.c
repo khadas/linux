@@ -9,7 +9,6 @@
 #include <linux/rbtree.h>
 #include <linux/poll.h>
 #include <linux/rbtree.h>
-#include <evl/list.h>
 #include <evl/sched.h>
 #include <evl/thread.h>
 #include <evl/clock.h>

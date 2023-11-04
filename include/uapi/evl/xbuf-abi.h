@@ -4,8 +4,8 @@
  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
  */
 
-#ifndef _EVL_UAPI_XBUF_H
-#define _EVL_UAPI_XBUF_H
+#ifndef _EVL_UAPI_XBUF_ABI_H
+#define _EVL_UAPI_XBUF_ABI_H
 
 #include <linux/types.h>
 
@@ -16,4 +16,4 @@ struct evl_xbuf_attrs {
 	__u32 o_bufsz;
 };
 
-#endif /* !_EVL_UAPI_XBUF_H */
+#endif /* !_EVL_UAPI_XBUF_ABI_H */

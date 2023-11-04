@@ -17,17 +17,12 @@
 #include <linux/atomic.h>
 #include <linux/sched/task_stack.h>
 #include <linux/sched/signal.h>
-#include <evl/control.h>
 #include <evl/thread.h>
-#include <evl/timer.h>
-#include <evl/monitor.h>
-#include <evl/clock.h>
 #include <evl/sched.h>
-#include <evl/file.h>
-#include <trace/events/evl.h>
 #include <asm/syscall.h>
-#include <uapi/evl/syscall.h>
+#include <uapi/evl/syscall-abi.h>
 #include <asm/evl/syscall.h>
+#include <trace/events/evl.h>
 
 #define EVL_SYSCALL(__name, __args)		\
 	long EVL_ ## __name __args

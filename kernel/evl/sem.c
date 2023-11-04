@@ -4,9 +4,6 @@
  * Copyright (C) 2019 Philippe Gerum  <rpm@xenomai.org>
  */
 
-#include <evl/timer.h>
-#include <evl/wait.h>
-#include <evl/clock.h>
 #include <evl/sched.h>
 #include <evl/sem.h>
 

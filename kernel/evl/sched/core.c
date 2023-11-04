@@ -19,7 +19,6 @@
 #include <evl/thread.h>
 #include <evl/timer.h>
 #include <evl/memory.h>
-#include <evl/clock.h>
 #include <evl/tick.h>
 #include <evl/monitor.h>
 #include <evl/mutex.h>

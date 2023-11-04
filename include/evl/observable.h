@@ -14,7 +14,8 @@
 #include <evl/factory.h>
 #include <evl/wait.h>
 #include <evl/poll.h>
-#include <uapi/evl/observable.h>
+#include <uapi/evl/types.h>
+#include <uapi/evl/observable-abi.h>
 
 struct file;
 

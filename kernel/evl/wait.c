@@ -6,10 +6,8 @@
  */
 
 #include <evl/lock.h>
-#include <evl/sched.h>
 #include <evl/wait.h>
 #include <evl/thread.h>
-#include <evl/clock.h>
 #include <uapi/evl/signal.h>
 #include <trace/events/evl.h>
 

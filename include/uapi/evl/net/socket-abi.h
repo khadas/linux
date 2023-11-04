@@ -4,11 +4,10 @@
  * Copyright (C) 2020 Philippe Gerum  <rpm@xenomai.org>
  */
 
-#ifndef _EVL_UAPI_NET_SOCKET_H
-#define _EVL_UAPI_NET_SOCKET_H
+#ifndef _EVL_UAPI_NET_SOCKET_ABI_H
+#define _EVL_UAPI_NET_SOCKET_ABI_H
 
-#include <uapi/evl/types.h>
-#include <uapi/evl/fcntl.h>
+#include <evl/types.h>
 
 #define AF_OOB		46	/* Out-of-band domain sockets */
 
@@ -42,4 +41,4 @@ struct evl_netdev_activation {
 #define EVL_SOCKIOC_SETRECVSZ	_IOW(EVL_SOCKET_IOCBASE, 6, int)
 #define EVL_SOCKIOC_SETSENDSZ	_IOW(EVL_SOCKET_IOCBASE, 7, int)
 
-#endif /* !_EVL_UAPI_NET_SOCKET_H */
+#endif /* !_EVL_UAPI_NET_SOCKET_ABI_H */

@@ -4,12 +4,10 @@
  * Copyright (C) 2018 Philippe Gerum  <rpm@xenomai.org>
  */
 
-#ifndef _EVL_UAPI_MONITOR_H
-#define _EVL_UAPI_MONITOR_H
+#ifndef _EVL_UAPI_MONITOR_ABI_H
+#define _EVL_UAPI_MONITOR_ABI_H
 
-#include <linux/types.h>
-#include <uapi/evl/types.h>
-#include <uapi/evl/factory.h>
+#include <evl/factory-abi.h>
 
 #define EVL_MONITOR_DEV		"monitor"
 
@@ -39,14 +37,14 @@ struct evl_monitor_state {
 	__u32 flags;
 	union {
 		struct {
-			atomic_t owner;
+			__u32 owner; /* atomic_t */
 			__u32 ceiling;
 			__u32 recursive: 1,
 				nesting : 31;
 		} gate;
 		struct {
-			atomic_t value;
-			atomic_t pollrefs;
+			__u32 value; /* atomic_t */
+			__u32 pollrefs; /* atomic_t */
 			__u32 gate_offset;
 		} event;
 	} u;
@@ -87,4 +85,4 @@ struct evl_monitor_binding {
 #define EVL_MONIOC_TRYWAIT		_IOWR(EVL_MONITOR_IOCBASE, 9, struct evl_monitor_trywaitreq)
 #define EVL_MONIOC_TRYWAIT_EXACT	_IOWR(EVL_MONITOR_IOCBASE, 10, struct evl_monitor_trywaitreq)
 
-#endif /* !_EVL_UAPI_MONITOR_H */
+#endif /* !_EVL_UAPI_MONITOR_ABI_H */
