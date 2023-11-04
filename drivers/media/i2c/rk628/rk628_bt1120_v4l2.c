@@ -580,7 +580,7 @@ static void enable_bt1120tx(struct v4l2_subdev *sd)
 		/* rgb data: cfg SW_R2Y_EN */
 		rk628_i2c_write(bt1120->rk628, GRF_CSC_CTRL_CON,
 				SW_YUV2VYU_SWP(0) |
-				SW_R2Y_EN(1));
+				SW_R2Y_EN(1) | SW_R2Y_CSC_MODE(2));
 	}
 
 	/* if avi packet is not stable, reset ctrl*/

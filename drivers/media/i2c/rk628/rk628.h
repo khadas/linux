@@ -92,6 +92,8 @@
 #define SW_YUV2VYU_SWP(x)		HIWORD_UPDATE(x, 8, 8)
 #define SW_R2Y_EN(x)			HIWORD_UPDATE(x, 4, 4)
 #define SW_Y2R_EN(x)			HIWORD_UPDATE(x, 0, 0)
+#define SW_R2Y_CSC_MODE(x)		HIWORD_UPDATE(x, 7, 6)
+#define SW_Y2R_CSC_MODE(x)		HIWORD_UPDATE(x, 3, 2)
 #define GRF_LVDS_TX_CON			0x003c
 #define SW_LVDS_CON_DUAL_SEL(x)		HIWORD_UPDATE(x, 12, 12)
 #define SW_LVDS_CON_DEN_POLARITY(x)	HIWORD_UPDATE(x, 11, 11)
