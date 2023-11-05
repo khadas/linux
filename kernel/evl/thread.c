@@ -224,7 +224,6 @@ int evl_init_thread(struct evl_thread *thread,
 	INIT_LIST_HEAD(&thread->boosters);
 	INIT_LIST_HEAD(&thread->owned_mutexes);
 	raw_spin_lock_init(&thread->lock);
-	might_hard_lock(&thread->lock);
 	init_completion(&thread->exited);
 	INIT_LIST_HEAD(&thread->ptsync_next);
 	thread->oob_mm = NULL;
@@ -246,6 +245,18 @@ int evl_init_thread(struct evl_thread *thread,
 				&iattr->sched_param);
 	if (ret)
 		goto err_out;
+
+#ifdef CONFIG_LOCKDEP
+	if (state & EVL_T_ROOT) {
+		lockdep_set_class_and_name(&thread->lock, &rq->root_lock_key,
+					thread->name);
+	} else {
+		lockdep_register_key(&thread->lock_key);
+		lockdep_set_class_and_name(&thread->lock, &thread->lock_key,
+					thread->name);
+	}
+	might_hard_lock(&thread->lock);
+#endif
 
 	trace_evl_init_thread(thread, iattr, ret);
 
@@ -281,6 +292,9 @@ static void uninit_thread(struct evl_thread *thread)
 	rq = evl_get_thread_rq(thread, flags);
 	evl_forget_thread(thread);
 	evl_put_thread_rq(thread, rq, flags);
+
+	if (!(thread->state & EVL_T_ROOT))
+		lockdep_unregister_key(&thread->lock_key);
 
 	kfree(thread->name);
 }
