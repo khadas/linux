@@ -1,3 +1,3 @@
 obj-y += lib.o
 
-lib-y := uio.o
+lib-y := cache.o uio.o
