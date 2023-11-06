@@ -96,6 +96,18 @@ static unsigned int meson_mmc_get_timeout_msecs(struct mmc_data *data)
 	return min(timeout, 32768U); /* max. 2^15 ms */
 }
 
+static unsigned int meson_mmc_get_cmd_timeout_msecs(struct mmc_command *cmd)
+{
+	unsigned int timeout = cmd->busy_timeout;
+
+	if (!timeout)
+		return SD_EMMC_CMD_TIMEOUT;
+
+	timeout = roundup_pow_of_two(timeout);
+
+	return min(timeout, 32768U); /* max. 2^15 ms */
+}
+
 static void meson_mmc_get_transfer_mode(struct mmc_host *mmc,
 					struct mmc_request *mrq)
 {
@@ -1735,11 +1747,9 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 			return;
 		}
 	} else {
-		/* secure erase or sanitize may take more time than SD_EMMC_CMD_TIMEOUT */
-		val = (cmd->opcode == MMC_ERASE || (MMC_EXTRACT_INDEX_FROM_ARG(cmd->arg) ==
-			EXT_CSD_SANITIZE_START && cmd->opcode == MMC_SWITCH)) ?
-			SD_EMMC_CMD_MAX_TIMEOUT : SD_EMMC_CMD_TIMEOUT;
-		cmd_cfg |= FIELD_PREP(CMD_CFG_TIMEOUT_MASK, ilog2(val));
+		/* Set timeout according to the setting value in ext_csd */
+		cmd_cfg |= FIELD_PREP(CMD_CFG_TIMEOUT_MASK,
+				      ilog2(meson_mmc_get_cmd_timeout_msecs(cmd)));
 	}
 
 	/* Last descriptor */
