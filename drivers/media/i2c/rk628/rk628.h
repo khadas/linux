@@ -47,6 +47,8 @@
 #define GRF_GPIO_RXDDC_SDA_SEL(x)	UPDATE(x, 6, 6)
 #define GRF_GPIO_RXDDC_SCL_SEL_MASK	BIT(5)
 #define GRF_GPIO_RXDDC_SCL_SEL(x)	UPDATE(x, 5, 5)
+#define GRF_DPHY_CH1_EN_MASK		BIT(1)
+#define GRF_DPHY_CH1_EN(x)		UPDATE(x, 1, 1)
 #define GRF_SCALER_CON0			0x0010
 #define SCL_VER_DOWN_MODE(x)		HIWORD_UPDATE(x, 8, 8)
 #define SCL_HOR_DOWN_MODE(x)		HIWORD_UPDATE(x, 7, 7)
@@ -248,6 +250,7 @@ enum {
 	RK628_DEV_GPIO1,
 	RK628_DEV_GPIO2,
 	RK628_DEV_GPIO3,
+	RK628_DEV_CSI1 = 0x14,
 	RK628_DEV_MAX,
 };
 
@@ -257,12 +260,25 @@ enum {
 	RK628F_VERSION,
 };
 
+struct mipi_timing {
+	u8 data_prepare;
+	u8 data_zero;
+	u8 data_trail;
+	u8 clk_prepare;
+	u8 clk_zero;
+	u8 clk_trail;
+	u8 clk_post;
+};
+
 struct rk628 {
 	struct device *dev;
 	struct i2c_client *client;
 	struct regmap *regmap[RK628_DEV_MAX];
 	u8 version;
 	void *txphy;
+	u8 dphy_lane_en;
+	bool dual_mipi;
+	struct mipi_timing mipi_timing[2];
 };
 
 static inline int rk628_i2c_write(struct rk628 *rk628, u32 reg, u32 val)

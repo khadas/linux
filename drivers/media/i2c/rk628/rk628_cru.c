@@ -519,6 +519,7 @@ static const struct rk628_rgu_data rk628_rgu_data[] = {
 	RSTGEN(RGU_HDMIRX_PON,	CRU_SOFTRST_CON02, 12),
 	RSTGEN(RGU_TXBYTEHS,	CRU_SOFTRST_CON02, 13),
 	RSTGEN(RGU_TXESC,	CRU_SOFTRST_CON02, 14),
+	RSTGEN(RGU_CSI1,	CRU_SOFTRST_CON02, 15),
 };
 
 static int rk628_rgu_update(struct rk628 *rk628, unsigned long id, int assert)

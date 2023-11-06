@@ -72,7 +72,7 @@ static void mipi_dphy_power_on_dsi(struct rk628_dsi *dsi)
 	dsi_update_bits(rk628, 0, DSI_PHY_RSTZ, PHY_ENABLECLK, 0);
 	dsi_update_bits(rk628, 0, DSI_PHY_RSTZ, PHY_SHUTDOWNZ, 0);
 	dsi_update_bits(rk628, 0, DSI_PHY_RSTZ, PHY_RSTZ, 0);
-	testif_testclr_assert(dsi->rk628);
+	testif_testclr_assert(dsi->rk628, 0);
 
 	/* Set all REQUEST inputs to zero */
 	rk628_i2c_update_bits(rk628, GRF_MIPI_TX0_CON,
@@ -80,9 +80,9 @@ static void mipi_dphy_power_on_dsi(struct rk628_dsi *dsi)
 			      FORCETXSTOPMODE(0) | FORCERXMODE(0));
 	udelay(1);
 
-	testif_testclr_deassert(dsi->rk628);
+	testif_testclr_deassert(dsi->rk628, 0);
 
-	mipi_dphy_init_hsfreqrange(dsi->rk628, dsi->lane_mbps);
+	mipi_dphy_init_hsfreqrange(dsi->rk628, dsi->lane_mbps, 0);
 
 	dsi_update_bits(rk628, 0, DSI_PHY_RSTZ,
 			PHY_ENABLECLK, PHY_ENABLECLK);

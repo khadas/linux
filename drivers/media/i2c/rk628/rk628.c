@@ -113,6 +113,7 @@ static const struct regmap_range rk628_csi_readable_ranges[] = {
 	regmap_reg_range(CSITX_CONFIG_DONE, CSITX_CSITX_VERSION),
 	regmap_reg_range(CSITX_SYS_CTRL0_IMD, CSITX_TIMING_HPW_PADDING_NUM),
 	regmap_reg_range(CSITX_VOP_PATH_CTRL, CSITX_VOP_PATH_CTRL),
+	regmap_reg_range(CSITX_VOP_FILTER_CTRL, CSITX_VOP_FILTER_CTRL),
 	regmap_reg_range(CSITX_VOP_PATH_PKT_CTRL, CSITX_VOP_PATH_PKT_CTRL),
 	regmap_reg_range(CSITX_CSITX_STATUS0, CSITX_LPDT_DATA_IMD),
 	regmap_reg_range(CSITX_DPHY_CTRL, CSITX_DPHY_CTRL),
@@ -121,6 +122,21 @@ static const struct regmap_range rk628_csi_readable_ranges[] = {
 static const struct regmap_access_table rk628_csi_readable_table = {
 	.yes_ranges     = rk628_csi_readable_ranges,
 	.n_yes_ranges   = ARRAY_SIZE(rk628_csi_readable_ranges),
+};
+
+static const struct regmap_range rk628_csi1_readable_ranges[] = {
+	regmap_reg_range(CSITX1_CONFIG_DONE, CSITX1_CSITX_VERSION),
+	regmap_reg_range(CSITX1_SYS_CTRL0_IMD, CSITX1_TIMING_HPW_PADDING_NUM),
+	regmap_reg_range(CSITX1_VOP_PATH_CTRL, CSITX1_VOP_PATH_CTRL),
+	regmap_reg_range(CSITX1_VOP_FILTER_CTRL, CSITX1_VOP_FILTER_CTRL),
+	regmap_reg_range(CSITX1_VOP_PATH_PKT_CTRL, CSITX1_VOP_PATH_PKT_CTRL),
+	regmap_reg_range(CSITX1_CSITX_STATUS0, CSITX1_LPDT_DATA_IMD),
+	regmap_reg_range(CSITX1_DPHY_CTRL, CSITX1_DPHY_CTRL),
+};
+
+static const struct regmap_access_table rk628_csi1_readable_table = {
+	.yes_ranges     = rk628_csi1_readable_ranges,
+	.n_yes_ranges   = ARRAY_SIZE(rk628_csi1_readable_ranges),
 };
 
 static const struct regmap_range rk628_dsi0_readable_ranges[] = {
@@ -231,6 +247,16 @@ static const struct regmap_config rk628_regmap_config[RK628_DEV_MAX] = {
 		.reg_format_endian = REGMAP_ENDIAN_LITTLE,
 		.val_format_endian = REGMAP_ENDIAN_LITTLE,
 		.rd_table = &rk628_csi_readable_table,
+	},
+	[RK628_DEV_CSI1] = {
+		.name = "csi1",
+		.reg_bits = 32,
+		.val_bits = 32,
+		.reg_stride = 4,
+		.max_register = CSI1_MAX_REGISTER,
+		.reg_format_endian = REGMAP_ENDIAN_LITTLE,
+		.val_format_endian = REGMAP_ENDIAN_LITTLE,
+		.rd_table = &rk628_csi1_readable_table,
 	},
 };
 

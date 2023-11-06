@@ -178,6 +178,7 @@
 #define RGU_HDMIRX_PON		28
 #define RGU_TXBYTEHS		29
 #define RGU_TXESC		30
+#define RGU_CSI1		31
 
 unsigned long rk628_clk_get_rate(struct rk628 *rk628, unsigned int id);
 int rk628_clk_set_rate(struct rk628 *rk628, unsigned int id,
