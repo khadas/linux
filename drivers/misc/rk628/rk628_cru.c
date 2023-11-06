@@ -400,6 +400,40 @@ static unsigned long rk628_cru_clk_set_rate_sclk_uart(struct rk628 *rk628,
 	return rate;
 }
 
+static unsigned long rk628_cru_clk_set_rate_sclk_hdmirx_aud(struct rk628 *rk628, unsigned long rate)
+{
+	u64 parent_rate;
+	u8 div;
+
+	parent_rate = rk628_cru_clk_set_rate_pll(rk628, CGU_CLK_APLL, rate*4);
+	div = DIV_ROUND_CLOSEST_ULL(parent_rate, rate);
+	rate = parent_rate / div;
+	rk628_i2c_write(rk628, CRU_CLKSEL_CON05,
+			0x3fc0 << 16 | ((div - 1) << 6) |
+			CLK_HDMIRX_AUD_SEL(2));
+	return rate;
+}
+
+static unsigned long rk628_cru_clk_get_rate_sclk_hdmirx_aud(struct rk628 *rk628)
+{
+	unsigned long rate;
+	u64 parent_rate;
+	u8 div;
+	u32 val;
+
+	rk628_i2c_read(rk628, CRU_CLKSEL_CON05, &val);
+	div = ((val&0x3fc0) >> 6) + 1;
+	val &= CLK_HDMIRX_AUD_SEL_MASK;
+	if (val == 0)
+		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_CPLL);
+	else if (val == (1 << 14))
+		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_GPLL);
+	else
+		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_APLL);
+	rate = parent_rate / div;
+	return rate;
+}
+
 static unsigned long
 rk628_cru_clk_get_rate_bt1120_dec_parent(struct rk628 *rk628)
 {
@@ -453,6 +487,9 @@ int rk628_cru_clk_set_rate(struct rk628 *rk628, unsigned int id,
 	case CGU_BT1120DEC:
 		rk628_cru_clk_set_rate_bt1120_dec(rk628, rate);
 		break;
+	case CGU_CLK_HDMIRX_AUD:
+		rk628_cru_clk_set_rate_sclk_hdmirx_aud(rk628, rate);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -478,6 +515,9 @@ unsigned long rk628_cru_clk_get_rate(struct rk628 *rk628, unsigned int id)
 		break;
 	case CGU_CLK_IMODET:
 		rate = rk628_cru_clk_get_rate_clk_imodet(rk628);
+		break;
+	case CGU_CLK_HDMIRX_AUD:
+		rate = rk628_cru_clk_get_rate_sclk_hdmirx_aud(rk628);
 		break;
 	default:
 		return 0;
