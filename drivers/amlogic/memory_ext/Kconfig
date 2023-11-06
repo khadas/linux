@@ -135,3 +135,14 @@ config AMLOGIC_FAKE_SMMU
 	default n
 	help
 		Register a fake smmu device to replace ops for 64bit
+
+config AMLOGIC_MIX_ZRAM
+	bool "Amlogic mixed zram"
+	depends on AMLOGIC_MEMORY_EXTEND
+	depends on CRYPTO_ZSTD
+	depends on CRYPTO_LZ4
+	default n
+	help
+		Mix compress algorithm of zram. This can get speed benifit of lz4 and
+		compress ratio of zstd.
+

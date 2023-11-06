@@ -9,3 +9,4 @@ obj-$(CONFIG_AMLOGIC_MEMORY_EXTEND)     += memory.o
 obj-$(CONFIG_AMLOGIC_VMALLOC_SHRINKER)  += vmalloc_shrinker.o
 obj-$(CONFIG_AMLOGIC_PCIE_DMA_OPS)	+= dma_pcie_mapping.o
 obj-$(CONFIG_AMLOGIC_FAKE_SMMU)		+= aml_smmu.o
+obj-$(CONFIG_AMLOGIC_MIX_ZRAM)		+= mix_zram.o
