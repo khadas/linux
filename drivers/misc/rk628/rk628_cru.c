@@ -134,7 +134,7 @@ static unsigned long rk628_cru_clk_set_rate_pll(struct rk628 *rk628,
 	u8 dsmpd = 1, postdiv1 = 0, postdiv2 = 0, refdiv = 0;
 	u16 fbdiv = 0;
 	u32 frac = 0;
-	u64 foutvco, foutpostdiv;
+	u64 foutvco, foutpostdiv, div1, div2;
 	u32 offset, val;
 
 	/*
@@ -156,7 +156,8 @@ static unsigned long rk628_cru_clk_set_rate_pll(struct rk628 *rk628,
 	else
 		offset = 0x40;
 
-	rk628_i2c_write(rk628, offset + CRU_CPLL_CON1, PLL_PD(1));
+	if (id != CGU_CLK_APLL)
+		rk628_i2c_write(rk628, offset + CRU_CPLL_CON1, PLL_PD(1));
 
 	if (fin == fout) {
 		rk628_i2c_write(rk628, offset + CRU_CPLL_CON0, PLL_BYPASS(1));
@@ -175,21 +176,24 @@ static unsigned long rk628_cru_clk_set_rate_pll(struct rk628 *rk628,
 		max_refdiv = 64;
 
 	if (fout < MIN_FVCO_RATE) {
-		postdiv = MIN_FVCO_RATE / fout + 1;
-
-		for (postdiv2 = 1; postdiv2 < 8; postdiv2++) {
-			if (postdiv % postdiv2)
+		div1 = DIV_ROUND_UP(MIN_FVCO_RATE, fout);
+		div2 = DIV_ROUND_UP(MAX_FVCO_RATE, fout);
+		for (postdiv = div1; postdiv <= div2; postdiv++) {
+			/* fix prime number that can not find right div*/
+			for (postdiv2 = 1; postdiv2 < 8; postdiv2++) {
+				if (postdiv % postdiv2)
+					continue;
+				postdiv1 = postdiv / postdiv2;
+				if (postdiv1 > 0 && postdiv1 < 8)
+					break;
+			}
+			if (postdiv2 > 7)
 				continue;
-
-			postdiv1 = postdiv / postdiv2;
-
-			if (postdiv1 > 0 && postdiv1 < 8)
+			else
 				break;
 		}
-
-		if (postdiv2 > 7)
+		if (postdiv > div2)
 			return 0;
-
 		fout *= postdiv1 * postdiv2;
 	} else {
 		postdiv1 = 1;
@@ -257,7 +261,9 @@ static unsigned long rk628_cru_clk_set_rate_pll(struct rk628 *rk628,
 			PLL_REFDIV(refdiv));
 	rk628_i2c_write(rk628, offset + CRU_CPLL_CON2, PLL_FRAC(frac));
 
-	rk628_i2c_write(rk628, offset + CRU_CPLL_CON1, PLL_PD(0));
+	if (id != CGU_CLK_APLL)
+		rk628_i2c_write(rk628, offset + CRU_CPLL_CON1, PLL_PD(0));
+
 	while (1) {
 		rk628_i2c_read(rk628, offset + CRU_CPLL_CON1, &val);
 		if (val & PLL_LOCK)
@@ -533,9 +539,10 @@ void rk628_cru_init(struct rk628 *rk628)
 
 	rk628_i2c_read(rk628, GRF_SYSTEM_STATUS0, &val);
 	mcu_mode = (val & I2C_ONLY_FLAG) ? 0 : 1;
-	if (mcu_mode || rk628->version >= RK628F_VERSION)
+	if (mcu_mode || rk628->version >= RK628F_VERSION) {
+		rk628_i2c_write(rk628, CRU_MODE_CON00, HIWORD_UPDATE(1, 4, 4));
 		return;
-
+	}
 	rk628_i2c_write(rk628, CRU_GPLL_CON0, 0xffff701d);
 	mdelay(1);
 	rk628_i2c_write(rk628, CRU_MODE_CON00, 0xffff0004);
