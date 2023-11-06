@@ -531,6 +531,51 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
 	return end_creating(dentry);
 }
 
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+static char * const allow_trace[] = {
+	"sched",
+	"irq",
+	"freq",
+	"idle",
+	"block",
+	"binder",
+	"bpf_trace",
+	"cgroup",
+	"compaction",
+	"ext4",
+	"f2fs",
+	"ftrace",
+	"kmem",
+	"ion",
+	"mmap",
+	"power",
+	"rcu",
+	"task",
+	"events",
+	"signal",
+	"options",
+	"dmc_monitor",
+	"kprobes",
+	"vmscan",
+	"timer",
+	"workqueue",
+};
+
+static int is_allowed_trace(const char *name)
+{
+	int i;
+
+	for (i = 0; i  < ARRAY_SIZE(allow_trace); i++) {
+		if (!strcmp(name, allow_trace[i]))
+			return 1;
+	}
+	return 0;
+}
+
+static int allow_trace_enable = 1;
+core_param(allow_trace_enable, allow_trace_enable, int, 0644);
+#endif
+
 /**
  * tracefs_create_dir - create a directory in the tracefs filesystem
  * @name: a pointer to a string containing the name of the directory to
@@ -550,6 +595,10 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
  */
 struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
 {
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	if (allow_trace_enable && !is_allowed_trace(name))
+		return NULL;
+#endif
 	return __create_dir(name, parent, &simple_dir_inode_operations);
 }
 
