@@ -41,6 +41,17 @@ unsigned int lcd_phy_preem_level_to_value(struct aml_lcd_drv_s *pdrv, unsigned i
 	return lcd_phy_ctrl->phy_preem_level_to_val(pdrv, level);
 }
 
+unsigned int lcd_phy_amp_dft_value(struct aml_lcd_drv_s *pdrv)
+{
+	if (!lcd_phy_ctrl)
+		return 0;
+
+	if (!lcd_phy_ctrl->phy_amp_dft_val)
+		return 0;
+
+	return lcd_phy_ctrl->phy_amp_dft_val(pdrv);
+}
+
 void lcd_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
 	if (!pdrv->phy_set) {

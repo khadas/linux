@@ -19,24 +19,6 @@
 
 static struct lcd_phy_ctrl_s *phy_ctrl_p;
 
-static unsigned int lcd_phy_vswing_level_to_value_t7(struct aml_lcd_drv_s *pdrv, unsigned int level)
-{
-	unsigned int vswing_value = 0;
-
-	vswing_value = level;
-
-	return vswing_value;
-}
-
-static unsigned int lcd_phy_preem_level_to_value_t7(struct aml_lcd_drv_s *pdrv, unsigned int level)
-{
-	unsigned int preem_value = 0;
-
-	preem_value = level;
-
-	return preem_value;
-}
-
 static void lcd_phy_cntl_set(unsigned int flag,
 				unsigned int data_lane0_aux,
 				unsigned int data_lane1_aux,
@@ -92,33 +74,16 @@ static void lcd_lvds_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 		LCDPR("%s: %d\n", __func__, status);
 
 	lvds_conf = &pdrv->config.control.lvds_cfg;
-	switch (pdrv->index) {
-	case 0:
-		if (lvds_conf->dual_port) {
-			LCDERR("don't support lvds dual_port for drv_index %d\n",
-			       pdrv->index);
-			return;
-		}
-		flag = 0x1f;
-		break;
-	case 1:
-		if (lvds_conf->dual_port) {
-			LCDERR("don't support lvds dual_port for drv_index %d\n",
-			       pdrv->index);
-			return;
-		}
-		flag = (0x1f << 10);
-		break;
-	case 2:
+	flag = pdrv->config.basic.lcd_bits == 6 ? 0x0f : 0x1f;
+	if (pdrv->index == 2) {
 		if (lvds_conf->dual_port)
-			flag = (0x3ff << 5);
+			flag = (flag << 5) | (flag << 10);
 		else
-			flag = (0x1f << 5);
-		break;
-	default:
-		LCDERR("invalid drv_index %d for lvds\n", pdrv->index);
-		return;
+			flag = flag << (lvds_conf->port_swap ? 10 : 5);
+	} else if (pdrv->index == 1) {
+		flag = flag << 10;
 	}
+	//else: flag = flag; (pdrv->index == 0)
 
 	if (status) {
 		if ((phy_ctrl_p->lane_lock & flag) &&
@@ -163,14 +128,11 @@ static void lcd_vbyone_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
 		LCDPR("%s: %d\n", __func__, status);
 
-	switch (pdrv->index) {
-	case 0:
+	if (pdrv->index == 0) {
 		flag = 0xff;
-		break;
-	case 1:
+	} else if (pdrv->index == 1) {
 		flag = (0xff << 8);
-		break;
-	default:
+	} else {
 		LCDERR("invalid drv_index %d for vbyone\n", pdrv->index);
 		return;
 	}
@@ -210,22 +172,19 @@ phy_set_done:
 
 static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
-	unsigned int flag, data_lane0_aux, data_lane1_aux, data_lane, temp;
+	unsigned int flag, data_lane0_aux, data_lane1_aux, data_lane;
 
 	if (!phy_ctrl_p)
 		return;
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
 		LCDPR("%s: %d\n", __func__, status);
 
-	switch (pdrv->index) {
-	case 0:
+	if (pdrv->index == 0) {
 		flag = 0x1f;
-		break;
-	case 1:
+	} else if (pdrv->index == 1) {
 		flag = (0x1f << 8);
-		break;
-	default:
-		LCDERR("invalid drv_index %d for mipi-dsi\n", pdrv->index);
+	} else {
+		LCDERR("invalid drv_index %d for mipi dsi\n", pdrv->index);
 		return;
 	}
 
@@ -249,13 +208,10 @@ static void lcd_mipi_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 		else
 			lcd_ana_write(ANACTRL_DIF_PHY_CNTL4, 0x822a0028);
 		lcd_ana_write(ANACTRL_DIF_PHY_CNTL19, 0x1e406253);
-		if (pdrv->index) {
-			temp = 0xffff;
-			lcd_ana_write(ANACTRL_DIF_PHY_CNTL21, temp);
-		} else {
-			temp = (0xffff << 16);
-			lcd_ana_write(ANACTRL_DIF_PHY_CNTL20, temp);
-		}
+		if (pdrv->index)
+			lcd_ana_write(ANACTRL_DIF_PHY_CNTL21, 0xffff);
+		else
+			lcd_ana_write(ANACTRL_DIF_PHY_CNTL20, (0xffff << 16));
 	} else {
 		phy_ctrl_p->lane_lock &= ~flag;
 		lcd_phy_cntl_set(flag, 0, 0, 0);
@@ -282,14 +238,11 @@ static void lcd_edp_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
 		LCDPR("%s: %d\n", __func__, status);
 
-	switch (pdrv->index) {
-	case 0:
+	if (pdrv->index == 0) {
 		flag = 0x1f;
-		break;
-	case 1:
+	} else if (pdrv->index == 1) {
 		flag = (0x1f << 8);
-		break;
-	default:
+	} else {
 		LCDERR("invalid drv_index %d for edp\n", pdrv->index);
 		return;
 	}
@@ -330,8 +283,9 @@ phy_set_done:
 struct lcd_phy_ctrl_s lcd_phy_ctrl_t7 = {
 	.ctrl_bit_on = 1,
 	.lane_lock = 0,
-	.phy_vswing_level_to_val = lcd_phy_vswing_level_to_value_t7,
-	.phy_preem_level_to_val = lcd_phy_preem_level_to_value_t7,
+	.phy_vswing_level_to_val = lcd_phy_vswing_level_to_value_dft,
+	.phy_amp_dft_val = NULL,
+	.phy_preem_level_to_val = lcd_phy_preem_level_to_value_dft,
 	.phy_set_lvds = lcd_lvds_phy_set,
 	.phy_set_vx1 = lcd_vbyone_phy_set,
 	.phy_set_mlvds = NULL,

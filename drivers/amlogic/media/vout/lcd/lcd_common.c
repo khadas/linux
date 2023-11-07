@@ -1746,7 +1746,7 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 	struct lcd_detail_timing_s *ptiming = &pdrv->config.timing.dft_timing;
 	union lcd_ctrl_config_u *pctrl = &pdrv->config.control;
 	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
-	unsigned int para[10], val;
+	unsigned int para[10], val, val2;
 	const char *str;
 	int i, ret = 0;
 
@@ -1980,8 +1980,9 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		phy_cfg->vswing = lcd_phy_vswing_level_to_value(pdrv, phy_cfg->vswing_level);
 		phy_cfg->preem_level = pctrl->lvds_cfg.phy_preem;
 		val = lcd_phy_preem_level_to_value(pdrv, phy_cfg->preem_level);
+		val2 = lcd_phy_amp_dft_value(pdrv);
 		for (i = 0; i < phy_cfg->lane_num; i++) {
-			phy_cfg->lane[i].amp = 0;
+			phy_cfg->lane[i].amp = val2;
 			phy_cfg->lane[i].preem = val;
 		}
 		break;
@@ -2025,8 +2026,9 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		phy_cfg->vswing = lcd_phy_vswing_level_to_value(pdrv, phy_cfg->vswing_level);
 		phy_cfg->preem_level = pctrl->vbyone_cfg.phy_preem;
 		val = lcd_phy_preem_level_to_value(pdrv, phy_cfg->preem_level);
+		val2 = lcd_phy_amp_dft_value(pdrv);
 		for (i = 0; i < phy_cfg->lane_num; i++) {
-			phy_cfg->lane[i].amp = 0;
+			phy_cfg->lane[i].amp = val2;
 			phy_cfg->lane[i].preem = val;
 		}
 
@@ -2109,8 +2111,9 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		phy_cfg->vswing = lcd_phy_vswing_level_to_value(pdrv, phy_cfg->vswing_level);
 		phy_cfg->preem_level = pctrl->mlvds_cfg.phy_preem;
 		val = lcd_phy_preem_level_to_value(pdrv, phy_cfg->preem_level);
+		val2 = lcd_phy_amp_dft_value(pdrv);
 		for (i = 0; i < phy_cfg->lane_num; i++) {
-			phy_cfg->lane[i].amp = 0;
+			phy_cfg->lane[i].amp = val2;
 			phy_cfg->lane[i].preem = val;
 		}
 
@@ -2150,8 +2153,9 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		phy_cfg->vswing = lcd_phy_vswing_level_to_value(pdrv, phy_cfg->vswing_level);
 		phy_cfg->preem_level = pctrl->p2p_cfg.phy_preem;
 		val = lcd_phy_preem_level_to_value(pdrv, phy_cfg->preem_level);
+		val2 = lcd_phy_amp_dft_value(pdrv);
 		for (i = 0; i < phy_cfg->lane_num; i++) {
-			phy_cfg->lane[i].amp = 0;
+			phy_cfg->lane[i].amp = val2;
 			phy_cfg->lane[i].preem = val;
 		}
 		break;
@@ -2361,7 +2365,7 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 	struct lcd_detail_timing_s *ptiming = &pdrv->config.timing.dft_timing;
 	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
 	union lcd_ctrl_config_u *pctrl = &pdrv->config.control;
-	unsigned int temp;
+	unsigned int temp, temp2;
 	int ret, i = 0;
 
 	key_len = LCD_UKEY_LCD_SIZE;
@@ -2509,8 +2513,9 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 		phy_cfg->vswing = lcd_phy_vswing_level_to_value(pdrv, phy_cfg->vswing_level);
 		phy_cfg->preem_level = pctrl->lvds_cfg.phy_preem;
 		temp = lcd_phy_preem_level_to_value(pdrv, phy_cfg->preem_level);
+		temp2 = lcd_phy_amp_dft_value(pdrv);
 		for (i = 0; i < phy_cfg->lane_num; i++) {
-			phy_cfg->lane[i].amp = 0;
+			phy_cfg->lane[i].amp = temp2;
 			phy_cfg->lane[i].preem = temp;
 		}
 		break;
@@ -2544,8 +2549,9 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 		phy_cfg->vswing = lcd_phy_vswing_level_to_value(pdrv, phy_cfg->vswing_level);
 		phy_cfg->preem_level = pctrl->vbyone_cfg.phy_preem;
 		temp = lcd_phy_preem_level_to_value(pdrv, phy_cfg->preem_level);
+		temp2 = lcd_phy_amp_dft_value(pdrv);
 		for (i = 0; i < phy_cfg->lane_num; i++) {
-			phy_cfg->lane[i].amp = 0;
+			phy_cfg->lane[i].amp = temp2;
 			phy_cfg->lane[i].preem = temp;
 		}
 		break;
@@ -2577,8 +2583,9 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 		phy_cfg->vswing = lcd_phy_vswing_level_to_value(pdrv, phy_cfg->vswing_level);
 		phy_cfg->preem_level = pctrl->mlvds_cfg.phy_preem;
 		temp = lcd_phy_preem_level_to_value(pdrv, phy_cfg->preem_level);
+		temp2 = lcd_phy_amp_dft_value(pdrv);
 		for (i = 0; i < phy_cfg->lane_num; i++) {
-			phy_cfg->lane[i].amp = 0;
+			phy_cfg->lane[i].amp = temp2;
 			phy_cfg->lane[i].preem = temp;
 		}
 
@@ -2612,8 +2619,9 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 		phy_cfg->vswing = lcd_phy_vswing_level_to_value(pdrv, phy_cfg->vswing_level);
 		phy_cfg->preem_level = pctrl->p2p_cfg.phy_preem;
 		temp = lcd_phy_preem_level_to_value(pdrv, phy_cfg->preem_level);
+		temp2 = lcd_phy_amp_dft_value(pdrv);
 		for (i = 0; i < phy_cfg->lane_num; i++) {
-			phy_cfg->lane[i].amp = 0;
+			phy_cfg->lane[i].amp = temp2;
 			phy_cfg->lane[i].preem = temp;
 		}
 		break;
