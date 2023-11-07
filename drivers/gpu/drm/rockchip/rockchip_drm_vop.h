@@ -408,6 +408,7 @@ struct vop_ctrl {
 	struct vop_reg mcu_rw_bypass_port;
 
 	/* bt1120 */
+	struct vop_reg bt1120_uv_swap;
 	struct vop_reg bt1120_yc_swap;
 	struct vop_reg bt1120_en;
 
@@ -416,6 +417,13 @@ struct vop_ctrl {
 
 	struct vop_reg reg_done_frm;
 	struct vop_reg cfg_done;
+
+	/* ebc vop */
+	struct vop_reg enable;
+	struct vop_reg inf_out_en;
+	struct vop_reg mipi_1to4_en;
+	struct vop_reg hdmi_1to4_en;
+	struct vop_reg out_dresetn;
 };
 
 struct vop_intr {
@@ -1164,6 +1172,7 @@ struct vop_grf_ctrl {
 	struct vop_reg grf_hdmi1_dsc_en;
 	struct vop_reg grf_hdmi0_pin_pol;
 	struct vop_reg grf_hdmi1_pin_pol;
+	struct vop_reg grf_vopl_sel;
 };
 
 struct vop_data {

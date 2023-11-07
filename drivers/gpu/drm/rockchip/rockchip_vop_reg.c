@@ -112,6 +112,13 @@ static const uint32_t formats_win_lite[] = {
 	DRM_FORMAT_BGR565,
 };
 
+static const uint32_t formats_win_ebc[] = {
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_RGB565,
+};
+
 static const uint64_t format_modifiers[] = {
 	DRM_FORMAT_MOD_LINEAR,
 	DRM_FORMAT_MOD_INVALID,
@@ -1984,6 +1991,128 @@ static const struct vop_data rv1106_vop = {
 	.win_size = ARRAY_SIZE(rv1106_vop_win_data),
 };
 
+static const struct vop_ctrl rk3576_lit_ctrl_data = {
+	.cfg_done = VOP_REG(EBC_CONFIG_DONE, 0x1, 0),
+
+	.enable = VOP_REG(EBC_VOP_SYS_CTRL, 0x1, 0),
+	.bcsh_r2y_en = VOP_REG(EBC_VOP_SYS_CTRL, 0x1, 1),
+	.bcsh_r2y_csc_mode = VOP_REG(EBC_VOP_SYS_CTRL, 0x1, 2),
+	.bt1120_yc_swap = VOP_REG(EBC_VOP_SYS_CTRL, 0x1, 6),
+	.bt1120_uv_swap = VOP_REG(EBC_VOP_SYS_CTRL, 0x1, 7),
+	.inf_out_en = VOP_REG(EBC_VOP_SYS_CTRL, 0x1, 8),
+
+	.rgb_en = VOP_REG(EBC_VOP_DSP_CTRL0, 0x1, 0),
+	.bt1120_en = VOP_REG(EBC_VOP_DSP_CTRL0, 0x1, 1),
+	.bt656_en = VOP_REG(EBC_VOP_DSP_CTRL0, 0x1, 2),
+	.core_dclk_div = VOP_REG(EBC_VOP_DSP_CTRL0, 0x1, 3),
+	.dclk_pol = VOP_REG(EBC_VOP_DSP_CTRL0, 0x1, 4),
+	.rgb_pin_pol = VOP_REG(EBC_VOP_DSP_CTRL0, 0x7, 5),
+	.standby = VOP_REG(EBC_VOP_DSP_CTRL0, 0x1, 15),
+	.mipi_1to4_en = VOP_REG(EBC_VOP_DSP_CTRL0, 0x1, 24),
+	.mipi_pin_pol = VOP_REG(EBC_VOP_DSP_CTRL0, 0x3, 25),
+	.hdmi_1to4_en = VOP_REG(EBC_VOP_DSP_CTRL0, 0x1, 28),
+	.hdmi_pin_pol = VOP_REG(EBC_VOP_DSP_CTRL0, 0x3, 29),
+	.out_dresetn = VOP_REG(EBC_VOP_DSP_CTRL0, 0x1, 31),
+
+	.dsp_interlace = VOP_REG(EBC_VOP_DSP_CTRL1, 0x1, 0),
+	.dsp_interlace_pol = VOP_REG(EBC_VOP_DSP_CTRL1, 0x1, 1),
+	.dither_up_en = VOP_REG(EBC_VOP_DSP_CTRL1, 0x1, 4),
+	.dither_down_en = VOP_REG(EBC_VOP_DSP_CTRL1, 0x1, 5),
+	.dither_down_mode = VOP_REG(EBC_VOP_DSP_CTRL1, 0x1, 6),
+	.dither_down_sel = VOP_REG(EBC_VOP_DSP_CTRL1, 0x1, 7),
+	.dsp_data_swap = VOP_REG(EBC_VOP_DSP_CTRL1, 0x1f, 9),
+	.dsp_bg_swap = VOP_REG(EBC_VOP_DSP_CTRL1, 0x1, 8),
+	.dsp_rb_swap = VOP_REG(EBC_VOP_DSP_CTRL1, 0x1, 9),
+	.dsp_rg_swap = VOP_REG(EBC_VOP_DSP_CTRL1, 0x1, 10),
+	.dsp_delta_swap = VOP_REG(EBC_VOP_DSP_CTRL1, 0x1, 11),
+	.dsp_dummy_swap = VOP_REG(EBC_VOP_DSP_CTRL1, 0x1, 12),
+	.dsp_black = VOP_REG(EBC_VOP_DSP_CTRL1, 0x1, 14),
+	.dsp_blank = VOP_REG(EBC_VOP_DSP_CTRL1, 0x1, 15),
+	.out_mode = VOP_REG(EBC_VOP_DSP_CTRL1, 0xf, 16),
+
+	.mcu_pix_total = VOP_REG(EBC_VOP_MCU_CTRL, 0x3f, 0),
+	.mcu_cs_pst = VOP_REG(EBC_VOP_MCU_CTRL, 0xf, 6),
+	.mcu_cs_pend = VOP_REG(EBC_VOP_MCU_CTRL, 0x3f, 10),
+	.mcu_rw_pst = VOP_REG(EBC_VOP_MCU_CTRL, 0xf, 16),
+	.mcu_rw_pend = VOP_REG(EBC_VOP_MCU_CTRL, 0x3f, 20),
+	.mcu_hold_mode = VOP_REG(EBC_VOP_MCU_CTRL, 0x1, 27),
+	.mcu_frame_st = VOP_REG(EBC_VOP_MCU_CTRL, 0x1, 28),
+	.mcu_rs = VOP_REG(EBC_VOP_MCU_CTRL, 0x1, 29),
+	.mcu_bypass = VOP_REG(EBC_VOP_MCU_CTRL, 0x1, 30),
+	.mcu_type = VOP_REG(EBC_VOP_MCU_CTRL, 0x1, 31),
+	.mcu_rw_bypass_port = VOP_REG(EBC_MCU_RW_BYPASS_PORT, 0xffffffff, 0),
+
+	.htotal_pw = VOP_REG(EBC_DSP_HTOTAL_HS_END, 0x0fff0fff, 0),
+	.hact_st_end = VOP_REG(EBC_DSP_HACT_ST_END, 0x0fff0fff, 0),
+	.vtotal_pw = VOP_REG(EBC_DSP_VTOTAL_VS_END, 0x0fff0fff, 0),
+	.vact_st_end = VOP_REG(EBC_DSP_VACT_ST_END, 0x0fff0fff, 0),
+	.vs_st_end_f1 = VOP_REG(EBC_DSP_VS_ST_END_F1, 0x0fff0fff, 0),
+	.vact_st_end_f1 = VOP_REG(EBC_DSP_VACT_ST_END_F1, 0x0fff0fff, 0),
+
+	.dsp_background = VOP_REG(EBC_DSP_BG, 0xffffffff, 0),
+};
+
+static const int rk3576_vop_lit_intrs[] = {
+	FS_INTR,
+	DMA_FINISH_INTR,
+	LINE_FLAG_INTR,
+	LINE_FLAG1_INTR,
+	BUS_ERROR_INTR,
+	DSP_HOLD_VALID_INTR,
+};
+
+static const struct vop_intr rk3576_lit_intr = {
+	.intrs = rk3576_vop_lit_intrs,
+	.nintrs = ARRAY_SIZE(rk3576_vop_lit_intrs),
+	.line_flag_num[0] = VOP_REG(EBC_LINE_FLAG, 0xfff, 0),
+	.line_flag_num[1] = VOP_REG(EBC_LINE_FLAG, 0xfff, 16),
+	.status = VOP_REG_MASK(EBC_VOP_INT_STATUS, 0xffff, 0),
+	.enable = VOP_REG_MASK(EBC_VOP_INT_EN, 0xffff, 0),
+	.clear = VOP_REG_MASK(EBC_VOP_INT_CLR, 0xffff, 0),
+};
+
+static const struct vop_win_phy rk3576_lit_win2_data = {
+	.data_formats = formats_win_ebc,
+	.nformats = ARRAY_SIZE(formats_win_ebc),
+
+	.dsp_info = VOP_REG(EBC_VOP_WIN_DSP_INFO, 0xffffffff, 0),
+	.dsp_st = VOP_REG(EBC_VOP_WIN_DSP_ST, 0xffffffff, 0),
+
+	.yrgb_mst = VOP_REG(EBC_WIN_MST2, 0xffffffff, 0),
+
+	.enable = VOP_REG(EBC_WIN2_CTRL, 0x1, 0),
+
+	.interlace_read = VOP_REG(EBC_VOP_SYS_CTRL, 0x1, 3),
+	.format = VOP_REG(EBC_VOP_SYS_CTRL, 0x3, 4),
+
+	.yrgb_vir = VOP_REG(EBC_VOP_WIN_VIR, 0x1fff, 0),
+};
+
+static const struct vop_win_data rk3576_lit_win_data[] = {
+	{ .phy = NULL },
+	{ .phy = NULL },
+	{ .base = 0x00, .phy = &rk3576_lit_win2_data,
+	  .type = DRM_PLANE_TYPE_PRIMARY },
+};
+
+static const struct vop_grf_ctrl rk3576_lit_grf_ctrl = {
+	.grf_dclk_inv = VOP_REG(RK3576_IOC_GRF_MISC_CON8, 0x1, 9),
+	.grf_vopl_sel = VOP_REG(RK3576_IOC_GRF_MISC_CON8, 0x1, 11),
+};
+
+static const struct vop_data rk3576_vop_lit = {
+	.soc_id = 0x3576,
+	.vop_id = 0,
+	.version = VOP_VERSION(2, 0xd),
+	.max_input = {1920, 1920},
+	.max_output = {1920, 1920},
+	.ctrl = &rk3576_lit_ctrl_data,
+	.intr = &rk3576_lit_intr,
+	.grf_ctrl = &rk3576_lit_grf_ctrl,
+	.win = rk3576_lit_win_data,
+	.win_size = ARRAY_SIZE(rk3576_lit_win_data),
+};
+
 static const struct of_device_id vop_driver_dt_match[] = {
 #if IS_ENABLED(CONFIG_CPU_RK3036)
 	{ .compatible = "rockchip,rk3036-vop",
@@ -2040,6 +2169,10 @@ static const struct of_device_id vop_driver_dt_match[] = {
 #if IS_ENABLED(CONFIG_CPU_RK3328)
 	{ .compatible = "rockchip,rk3328-vop",
 	  .data = &rk3328_vop },
+#endif
+#if IS_ENABLED(CONFIG_CPU_RK3576)
+	{ .compatible = "rockchip,rk3576-vop-lit",
+	  .data = &rk3576_vop_lit },
 #endif
 	{},
 };

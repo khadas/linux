@@ -1655,6 +1655,11 @@ static void vop_initial(struct drm_crtc *crtc)
 	}
 	VOP_CTRL_SET(vop, afbdc_en, 0);
 	vop_enable_debug_irq(crtc);
+
+	if (vop->version == VOP_VERSION(2, 0xd)) {
+		VOP_GRF_SET(vop, grf_vopl_sel, 1);
+		VOP_CTRL_SET(vop, enable, 1);
+	}
 }
 
 static void vop_crtc_atomic_disable_for_psr(struct drm_crtc *crtc,
@@ -2103,7 +2108,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 			dsp_h = 4;
 		actual_h = dsp_h * actual_h / drm_rect_height(dest);
 	}
-	if ((adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) && vop->version == VOP_VERSION(2, 2))
+	if ((vop->version == VOP_VERSION(2, 2) || vop->version == VOP_VERSION(2, 0xd)) &&
+	    (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE))
 		dsp_h = dsp_h / 2;
 
 	act_info = (actual_h - 1) << 16 | ((actual_w - 1) & 0xffff);
@@ -2117,7 +2123,8 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 
 	dsp_stx = dest->x1 + mode->crtc_htotal - mode->crtc_hsync_start;
 	dsp_sty = dest->y1 + mode->crtc_vtotal - mode->crtc_vsync_start;
-	if ((adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) && vop->version == VOP_VERSION(2, 2))
+	if ((vop->version == VOP_VERSION(2, 2) || vop->version == VOP_VERSION(2, 0xd)) &&
+	    (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE))
 		dsp_sty = dest->y1 / 2 + mode->crtc_vtotal - mode->crtc_vsync_start;
 	dsp_st = dsp_sty << 16 | (dsp_stx & 0xffff);
 
@@ -3120,25 +3127,72 @@ static void vop_set_out_mode(struct vop *vop, u32 mode)
 				 1000, 500 * 1000);
 	if (ret)
 		dev_err(vop->dev, "wait mode 0x%x timeout\n", mode);
+}
 
+static void vop_mcu_bypass_mode_setup(struct drm_crtc *crtc)
+{
+	struct vop *vop = to_vop(crtc);
+
+	/*
+	 * If mcu_hold_mode is 1, set 1 to mcu_frame_st will
+	 * refresh one frame from ddr. So mcu_frame_st is needed
+	 * to be initialized as 0.
+	 */
+	VOP_CTRL_SET(vop, mcu_frame_st, 0);
+	VOP_CTRL_SET(vop, mcu_clk_sel, 1);
+	VOP_CTRL_SET(vop, mcu_type, 1);
+
+	VOP_CTRL_SET(vop, mcu_hold_mode, 1);
+	VOP_CTRL_SET(vop, mcu_pix_total, 53);
+	VOP_CTRL_SET(vop, mcu_cs_pst, 6);
+	VOP_CTRL_SET(vop, mcu_cs_pend, 48);
+	VOP_CTRL_SET(vop, mcu_rw_pst, 12);
+	VOP_CTRL_SET(vop, mcu_rw_pend, 30);
+}
+
+static void vop_mcu_mode_setup(struct drm_crtc *crtc)
+{
+	struct vop *vop = to_vop(crtc);
+
+	/*
+	 * If mcu_hold_mode is 1, set 1 to mcu_frame_st will
+	 * refresh one frame from ddr. So mcu_frame_st is needed
+	 * to be initialized as 0.
+	 */
+	VOP_CTRL_SET(vop, mcu_frame_st, 0);
+	VOP_CTRL_SET(vop, mcu_clk_sel, 1);
+	VOP_CTRL_SET(vop, mcu_type, 1);
+
+	VOP_CTRL_SET(vop, mcu_hold_mode, 1);
+	VOP_CTRL_SET(vop, mcu_pix_total, vop->mcu_timing.mcu_pix_total);
+	VOP_CTRL_SET(vop, mcu_cs_pst, vop->mcu_timing.mcu_cs_pst);
+	VOP_CTRL_SET(vop, mcu_cs_pend, vop->mcu_timing.mcu_cs_pend);
+	VOP_CTRL_SET(vop, mcu_rw_pst, vop->mcu_timing.mcu_rw_pst);
+	VOP_CTRL_SET(vop, mcu_rw_pend, vop->mcu_timing.mcu_rw_pend);
 }
 
 static void vop_crtc_send_mcu_cmd(struct drm_crtc *crtc,  u32 type, u32 value)
 {
-	struct rockchip_crtc_state *state;
+	struct drm_display_mode *adjusted_mode;
 	struct vop *vop = NULL;
 
 	if (!crtc)
 		return;
 
 	vop = to_vop(crtc);
-	state = to_rockchip_crtc_state(crtc->state);
+	adjusted_mode = &crtc->state->adjusted_mode;
 
-	/*
-	 * set output mode to P888 when start send cmd.
-	 */
-	if ((type == MCU_SETBYPASS) && value)
-		vop_set_out_mode(vop, ROCKCHIP_OUT_MODE_P888);
+	if (vop->version == VOP_VERSION(2, 0xd)) {
+		/*
+		 * 1.set mcu bypass mode timing.
+		 * 2.set dclk rate to 150M.
+		 */
+		if ((type == MCU_SETBYPASS) && value) {
+			vop_mcu_bypass_mode_setup(crtc);
+			clk_set_rate(vop->dclk, 150000000);
+		}
+	}
+
 	mutex_lock(&vop->vop_lock);
 	if (vop && vop->is_enabled) {
 		switch (type) {
@@ -3160,11 +3214,16 @@ static void vop_crtc_send_mcu_cmd(struct drm_crtc *crtc,  u32 type, u32 value)
 	}
 	mutex_unlock(&vop->vop_lock);
 
-	/*
-	 * restore output mode at the end
-	 */
-	if ((type == MCU_SETBYPASS) && !value)
-		vop_set_out_mode(vop, state->output_mode);
+	if (vop->version == VOP_VERSION(2, 0xd)) {
+		/*
+		 * 1.restore mcu data mode timing.
+		 * 2.restore dclk rate to crtc_clock.
+		 */
+		if ((type == MCU_SETBYPASS) && !value) {
+			vop_mcu_mode_setup(crtc);
+			clk_set_rate(vop->dclk, adjusted_mode->crtc_clock * 1000);
+		}
+	}
 }
 
 static int vop_crtc_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout)
@@ -3364,6 +3423,8 @@ static void vop_update_csc(struct drm_crtc *crtc)
 	 */
 	if (!is_yuv_output(s->bus_format))
 		val = 0;
+	else if (vop->version == VOP_VERSION(2, 0xd))
+		val = 0;
 	else if (VOP_MAJOR(vop->version) == 3 && VOP_MINOR(vop->version) == 8 &&
 		 s->hdr.pre_overlay)
 		val = 0;
@@ -3409,27 +3470,6 @@ static bool vop_crtc_mode_update(struct drm_crtc *crtc)
 		return true;
 
 	return false;
-}
-
-static void vop_mcu_mode(struct drm_crtc *crtc)
-{
-	struct vop *vop = to_vop(crtc);
-
-	/*
-	 * If mcu_hold_mode is 1, set 1 to mcu_frame_st will
-	 * refresh one frame from ddr. So mcu_frame_st is needed
-	 * to be initialized as 0.
-	 */
-	VOP_CTRL_SET(vop, mcu_frame_st, 0);
-	VOP_CTRL_SET(vop, mcu_clk_sel, 1);
-	VOP_CTRL_SET(vop, mcu_type, 1);
-
-	VOP_CTRL_SET(vop, mcu_hold_mode, 1);
-	VOP_CTRL_SET(vop, mcu_pix_total, vop->mcu_timing.mcu_pix_total);
-	VOP_CTRL_SET(vop, mcu_cs_pst, vop->mcu_timing.mcu_cs_pst);
-	VOP_CTRL_SET(vop, mcu_cs_pend, vop->mcu_timing.mcu_cs_pend);
-	VOP_CTRL_SET(vop, mcu_rw_pst, vop->mcu_timing.mcu_rw_pst);
-	VOP_CTRL_SET(vop, mcu_rw_pend, vop->mcu_timing.mcu_rw_pend);
 }
 
 static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
@@ -3484,8 +3524,13 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	if (vop->lut_active)
 		vop_crtc_load_lut(crtc);
 
-	if (vop->mcu_timing.mcu_pix_total)
-		vop_mcu_mode(crtc);
+	if (vop->mcu_timing.mcu_pix_total) {
+		if (vop->version == VOP_VERSION(2, 0xd))
+			vop_set_out_mode(vop, s->output_mode);
+		else
+			vop_set_out_mode(vop, ROCKCHIP_OUT_MODE_P888);
+		vop_mcu_mode_setup(crtc);
+	}
 
 	dclk_inv = (s->bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE) ? 1 : 0;
 	/* For improving signal quality, dclk need to be inverted by default on rv1106. */
