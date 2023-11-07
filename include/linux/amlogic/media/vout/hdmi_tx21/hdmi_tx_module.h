@@ -53,6 +53,7 @@ struct amhdmitx_data_s {
 #define VIC_MAX_VALID_MODE	256 /* consider 4k2k */
 /* half for valid vic, half for vic with y420*/
 #define VIC_MAX_NUM 512
+#define SVD_VIC_MAX_NUM 128
 #define AUD_MAX_NUM 60
 struct rx_audiocap {
 	u8 audio_format_code;
@@ -105,8 +106,10 @@ struct rx_cap {
 	u32 native_Mode;
 	/*video*/
 	u32 VIC[VIC_MAX_NUM];
+	u32 SVD_VIC[SVD_VIC_MAX_NUM]; /* used to store SVD in VDB */
 	u32 y420_vic[Y420_VIC_MAX_NUM];
 	u32 VIC_count;
+	u32 SVD_VIC_count;
 	u32 native_vic;
 	u32 native_vic2; /* some Rx has two native mode, normally only one */
 	enum hdmi_vic vesa_timing[VESA_MAX_TIMING]; /* Max 64 */
