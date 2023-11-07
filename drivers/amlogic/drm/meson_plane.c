@@ -1810,7 +1810,7 @@ int am_meson_plane_create(struct meson_drm *priv)
 		priv->osd_planes[i] = plane;
 		priv->num_planes++;
 	}
-	DRM_INFO("create %d osd plane done\n", pipeline->num_osds);
+	DRM_DEBUG("create %d osd plane done\n", pipeline->num_osds);
 	vfm_mode = meson_video_parse_config(priv->drm);
 
 	/*video plane: init after osd to provide osd id at first.*/
@@ -1824,7 +1824,7 @@ int am_meson_plane_create(struct meson_drm *priv)
 		priv->video_planes[i] = video_plane;
 		priv->num_planes++;
 	}
-	DRM_INFO("create %d video plane done\n", pipeline->num_video);
+	DRM_DEBUG("create %d video plane done\n", pipeline->num_video);
 
 	return 0;
 }

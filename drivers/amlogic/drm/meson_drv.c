@@ -343,7 +343,7 @@ static int am_meson_drm_bind(struct device *dev)
 	ret = am_meson_writeback_create(drm);
 	if (ret)
 		goto err_gem;
-	DRM_INFO("mode_config crtc number:%d\n", drm->mode_config.num_crtc);
+	DRM_DEBUG("mode_config crtc number:%d\n", drm->mode_config.num_crtc);
 
 	ret = meson_worker_thread_init(priv, drm->mode_config.num_crtc);
 	if (ret)
@@ -561,7 +561,7 @@ static int am_meson_drv_probe(struct platform_device *pdev)
 	struct component_match *match = NULL;
 	int i;
 
-	DRM_INFO("[%s] in\n", __func__);
+	DRM_DEBUG("[%s] in\n", __func__);
 	if (am_meson_drv_use_osd())
 		return am_meson_drv_probe_prune(pdev);
 
@@ -614,7 +614,7 @@ static int am_meson_drv_probe(struct platform_device *pdev)
 		am_meson_add_endpoints(dev, &match, port);
 		of_node_put(port);
 	}
-	DRM_INFO("[%s] out\n", __func__);
+	DRM_DEBUG("[%s] out\n", __func__);
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	disable_vout_mode_set_sysfs();
 #endif

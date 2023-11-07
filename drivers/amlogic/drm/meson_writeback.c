@@ -439,6 +439,6 @@ int am_meson_writeback_create(struct drm_device *drm)
 
 	INIT_WORK(&drm_writeback->writeback_work, meson_writeback_capture_work);
 
-	DRM_INFO("am_drm_writeback creat ok\n");
+	DRM_DEBUG("am_drm_writeback creat ok\n");
 	return ret;
 }

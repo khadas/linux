@@ -181,7 +181,7 @@ static void am_meson_vpu_get_plane_crtc_mask(struct meson_drm *priv,
 	ret = of_property_read_u32_array(np, name,
 		crtc_mask, num);
 	if (ret) {
-		DRM_INFO("undefined %s!\n", name);
+		DRM_DEBUG("undefined %s!\n", name);
 		return;
 	}
 }
@@ -199,7 +199,7 @@ static int am_meson_vpu_bind(struct device *dev,
 	u32 osd_occupied_index;
 	int i, ret, irq;
 
-	DRM_INFO("[%s] in\n", __func__);
+	DRM_DEBUG("[%s] in\n", __func__);
 
 	vpu_data = (struct meson_vpu_data *)of_device_get_match_data(dev);
 	if (!vpu_data)
@@ -279,7 +279,7 @@ static int am_meson_vpu_bind(struct device *dev,
 			private->video_planes[i]->vfm_mode;
 
 	irq_init_done = 1;
-	DRM_INFO("[%s] out\n", __func__);
+	DRM_DEBUG("[%s] out\n", __func__);
 	return 0;
 
 }
@@ -410,12 +410,12 @@ static int am_meson_vpu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	DRM_INFO("[%s] in\n", __func__);
+	DRM_DEBUG("[%s] in\n", __func__);
 	if (!dev->of_node) {
 		dev_err(dev, "can't find vpu devices\n");
 		return -ENODEV;
 	}
-	DRM_INFO("[%s] out\n", __func__);
+	DRM_DEBUG("[%s] out\n", __func__);
 	return component_add(dev, &am_meson_vpu_component_ops);
 }
 

@@ -1524,7 +1524,7 @@ void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	bool update_attr = false;
 	char *modename = adj_mode->name;
 
-	DRM_INFO("%s: enter\n", __func__);
+	DRM_DEBUG("%s: enter\n", __func__);
 
 	if (meson_hdmitx_choose_preset_mode(hdmitx, amcrtc,
 		meson_crtc_state, modename) < 0)
@@ -2020,11 +2020,11 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	struct connector_hdcp_cb hdcp_cb;
 	int hdcp_ctl_lvl;
 
-	DRM_INFO("[%s] in\n", __func__);
+	DRM_DEBUG("[%s] in\n", __func__);
 	memset(&am_hdmi_info, 0, sizeof(am_hdmi_info));
 	am_hdmi_info.hdmitx_dev = to_meson_hdmitx_dev(intf);
 	hdcp_ctl_lvl = am_hdmi_info.hdmitx_dev->get_hdcp_ctl_lvl();
-	DRM_INFO("hdcp_ctl_lvl=%d\n", hdcp_ctl_lvl);
+	DRM_DEBUG("hdcp_ctl_lvl=%d\n", hdcp_ctl_lvl);
 	if (hdcp_ctl_lvl == 0) {
 		am_hdmi_info.android_path = true;
 	} else if (am_hdmi_info.hdmitx_dev->hdcp_init) {
@@ -2130,7 +2130,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	 */
 #ifdef CONFIG_CEC_NOTIFIER
 	if (am_hdmi->hdmitx_dev->detect()) {
-		DRM_INFO("%s[%d]\n", __func__, __LINE__);
+		DRM_DEBUG("%s[%d]\n", __func__, __LINE__);
 		pedid = (struct edid *)am_hdmi->hdmitx_dev->get_raw_edid();
 		cec_notifier_set_phys_addr_from_edid(am_hdmi->cec_notifier,
 						     pedid);
@@ -2139,7 +2139,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 					   CEC_PHYS_ADDR_INVALID);
 	}
 #endif
-	DRM_INFO("[%s] out\n", __func__);
+	DRM_DEBUG("[%s] out\n", __func__);
 	return 0;
 }
 

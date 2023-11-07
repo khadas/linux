@@ -252,7 +252,7 @@ int meson_cvbs_dev_bind(struct drm_device *drm,
 	struct drm_connector *connector;
 	int ret = 0;
 
-	DRM_INFO("[%s] in\n", __func__);
+	DRM_DEBUG("[%s] in\n", __func__);
 
 	am_drm_cvbs = kzalloc(sizeof(*am_drm_cvbs), GFP_KERNEL);
 	if (!am_drm_cvbs) {
@@ -293,7 +293,7 @@ int meson_cvbs_dev_bind(struct drm_device *drm,
 		goto cvbs_err;
 	}
 
-	DRM_INFO("[%s] out\n", __func__);
+	DRM_DEBUG("[%s] out\n", __func__);
 	return ret;
 
 cvbs_err:

@@ -885,7 +885,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	int ret, plane_index;
 	char crtc_name[64];
 
-	DRM_INFO("%s\n", __func__);
+	DRM_DEBUG("%s\n", __func__);
 
 	amcrtc = devm_kzalloc(priv->dev, sizeof(*amcrtc), GFP_KERNEL);
 	if (!amcrtc)
