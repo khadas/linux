@@ -15,6 +15,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/compat.h>
+#include <linux/random.h>
 #include "aml_dsm.h"
 
 #define DEVICE_NAME "aml_dsm"
@@ -118,7 +119,7 @@ static long dsm_open_session(struct dev_session *dev,
 	if (dev->dsm)
 		return -EADDRINUSE;
 	/**
-	 * Do not allow prefix or mask in low 16 bits
+	 * Do not allow prefix in low 16 bits
 	 */
 	if (para->session.prefix & 0xFFFF)
 		return -EINVAL;
