@@ -137,6 +137,9 @@ static void rk628_gvi_pre_enable(struct rk628 *rk628, struct rk628_gvi *gvi)
 	rk628_i2c_update_bits(rk628, GVI_SYS_CTRL0, SYS_CTRL0_FRM_RST_EN,
 			      gvi->frm_rst ? SYS_CTRL0_FRM_RST_EN : 0);
 	rk628_i2c_update_bits(rk628, GVI_SYS_CTRL1, SYS_CTRL1_LANE_ALIGN_EN, 0);
+
+	rk628_i2c_update_bits(rk628, GVI_SYS_CTRL1, SYS_CTRL1_COLOR_DEPTH_MASK,
+			      SYS_CTRL1_COLOR_DEPTH(gvi->color_depth));
 }
 
 static void rk628_gvi_enable_color_bar(struct rk628 *rk628,
