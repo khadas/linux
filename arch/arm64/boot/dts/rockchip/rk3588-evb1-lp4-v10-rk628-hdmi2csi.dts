@@ -97,6 +97,7 @@
 };
 
 &i2c3 {
+	clock-frequency = <400000>;
 	status = "okay";
 
 	rk628_csi_1: rk628_csi_1@50 {
@@ -136,6 +137,7 @@
 };
 
 &i2c5 {
+	clock-frequency = <400000>;
 	status = "okay";
 
 	rk628_csi: rk628_csi@50 {
