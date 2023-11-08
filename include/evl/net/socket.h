@@ -71,12 +71,14 @@ struct evl_socket {
 	struct evl_wait_queue wmem_wait;
 	struct evl_crossing wmem_drain;
 	int protocol;
-	struct {
-		int real_ifindex;
-		int vlan_ifindex;
-		u16 vlan_id;
-		u32 proto_hash;
-	} binding;
+	union {
+		struct {
+			int real_ifindex;
+			int vlan_ifindex;
+			u16 vlan_id;
+			u32 proto_hash;
+		} packet;
+	} u;
 	hard_spinlock_t oob_lock;
 };
 
