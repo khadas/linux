@@ -314,6 +314,85 @@ static void rk628_hdmirx_audio_enable(struct rk628_audioinfo *aif)
 			AFIF_OVERFL_ISTS | AFIF_UNDERFL_ISTS);
 }
 
+static const char *audio_fifo_err(u32 fifo_status)
+{
+	switch (fifo_status & (AFIF_UNDERFL_ISTS | AFIF_OVERFL_ISTS)) {
+	case AFIF_UNDERFL_ISTS:
+		return "underflow";
+	case AFIF_OVERFL_ISTS:
+		return "overflow";
+	case AFIF_UNDERFL_ISTS | AFIF_OVERFL_ISTS:
+		return "underflow and overflow";
+	}
+	return "underflow or overflow";
+}
+
+static void rk628_csi_delayed_work_audio_v2(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct rk628_audioinfo *aif = container_of(dwork, struct rk628_audioinfo,
+						   delayed_work_audio);
+	struct rk628_audiostate *audio_state = &aif->audio_state;
+	struct rk628 *rk628 = aif->rk628;
+	u32 fs_audio;
+	int init_state, pre_state, fifo_status, fifo_ints;
+	unsigned long delay = 500;
+
+	fs_audio = _rk628_hdmirx_audio_fs(aif);
+	/* read fifo init status */
+	rk628_i2c_read(rk628, HDMI_RX_AUD_FIFO_ISTS, &fifo_ints);
+	dev_dbg(rk628->dev, "%s: HDMI_RX_AUD_FIFO_ISTS:%#x\r\n", __func__, fifo_ints);
+
+	if (fifo_ints & (AFIF_UNDERFL_ISTS | AFIF_OVERFL_ISTS)) {
+		dev_warn(rk628->dev, "%s: audio %s %#x, with fs %svalid %d\n",
+			 __func__, audio_fifo_err(fifo_ints), fifo_ints,
+			 is_validfs(fs_audio) ? "" : "in", fs_audio);
+		if (is_validfs(fs_audio))
+			rk628_hdmirx_audio_set_fs(aif, fs_audio);
+		rk628_hdmirx_audio_fifo_init(aif);
+		audio_state->pre_state = 0;
+		goto exit;
+	}
+
+	/* read fifo fill status */
+	init_state = audio_state->init_state;
+	pre_state = audio_state->pre_state;
+	rk628_i2c_read(rk628, HDMI_RX_AUD_FIFO_FILLSTS1, &fifo_status);
+	dev_dbg(rk628->dev,
+		"%s: HDMI_RX_AUD_FIFO_FILLSTS1:%#x, single offset:%d, total offset:%d\n",
+		__func__, fifo_status, fifo_status - pre_state, fifo_status - init_state);
+	if (!is_validfs(fs_audio)) {
+		dev_dbg(rk628->dev, "%s: no supported fs(%u), fifo_status %d\n",
+			__func__, fs_audio, fifo_status);
+		delay = 1000;
+	} else if (abs(fs_audio - audio_state->fs_audio) > 1000) {
+		dev_info(rk628->dev, "%s: restart audio fs(%d -> %d)\n",
+			 __func__, audio_state->fs_audio, fs_audio);
+		rk628_hdmirx_audio_set_fs(aif, fs_audio);
+		rk628_hdmirx_audio_fifo_init(aif);
+		audio_state->pre_state = 0;
+		goto exit;
+	}
+	if (fifo_status != 0) {
+		if (!aif->audio_present) {
+			dev_info(rk628->dev, "audio on");
+			aif->audio_present = true;
+		}
+		if (fifo_status - init_state > 16 && fifo_status - pre_state > 0)
+			rk628_hdmirx_audio_clk_inc_rate(aif, 10);
+		else if (fifo_status - init_state < -16 && fifo_status - pre_state < 0)
+			rk628_hdmirx_audio_clk_inc_rate(aif, -10);
+	} else {
+		if (aif->audio_present) {
+			dev_info(rk628->dev, "audio off");
+			aif->audio_present = false;
+		}
+	}
+	audio_state->pre_state = fifo_status;
+exit:
+	schedule_delayed_work(&aif->delayed_work_audio, msecs_to_jiffies(delay));
+}
+
 static void rk628_csi_delayed_work_audio(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
@@ -403,10 +482,13 @@ HAUDINFO rk628_hdmirx_audioinfo_alloc(struct device *dev,
 	aif = devm_kzalloc(dev, sizeof(*aif), GFP_KERNEL);
 	if (!aif)
 		return NULL;
-	INIT_DELAYED_WORK(&aif->delayed_work_audio_rate_change,
-			  rk628_csi_delayed_work_audio_rate_change);
-	INIT_DELAYED_WORK(&aif->delayed_work_audio,
-			  rk628_csi_delayed_work_audio);
+	if (rk628->version >= RK628F_VERSION) {
+		INIT_DELAYED_WORK(&aif->delayed_work_audio, rk628_csi_delayed_work_audio_v2);
+	} else {
+		INIT_DELAYED_WORK(&aif->delayed_work_audio, rk628_csi_delayed_work_audio);
+		INIT_DELAYED_WORK(&aif->delayed_work_audio_rate_change,
+				   rk628_csi_delayed_work_audio_rate_change);
+	}
 	aif->confctl_mutex = confctl_mutex;
 	aif->rk628 = rk628;
 	aif->i2s_enabled_default = en;
@@ -440,11 +522,14 @@ EXPORT_SYMBOL(rk628_hdmirx_audio_cancel_work_rate_change);
 void rk628_hdmirx_audio_destroy(HAUDINFO info)
 {
 	struct rk628_audioinfo *aif = (struct rk628_audioinfo *)info;
+	struct rk628 *rk628;
 
 	if (!aif)
 		return;
+	rk628 = aif->rk628;
 	rk628_hdmirx_audio_cancel_work_audio(aif, true);
-	rk628_hdmirx_audio_cancel_work_rate_change(aif, true);
+	if (rk628->version < RK628F_VERSION)
+		rk628_hdmirx_audio_cancel_work_rate_change(aif, true);
 	aif->confctl_mutex = NULL;
 	aif->rk628 = NULL;
 }
@@ -493,6 +578,7 @@ EXPORT_SYMBOL(rk628_hdmirx_audio_i2s_ctrl);
 void rk628_hdmirx_audio_setup(HAUDINFO info)
 {
 	struct rk628_audioinfo *aif = (struct rk628_audioinfo *)info;
+	struct rk628 *rk628 = aif->rk628;
 	u32 audio_pll_n, audio_pll_cts;
 
 	dev_dbg(aif->dev, "%s: setup audio\n", __func__);
@@ -507,6 +593,9 @@ void rk628_hdmirx_audio_setup(HAUDINFO info)
 	aif->fifo_ints_en = false;
 	aif->ctsn_ints_en = false;
 	aif->i2s_enabled = false;
+
+	if (rk628->version >= RK628F_VERSION)
+		rk628_i2c_write(rk628, CRU_MODE_CON00, HIWORD_UPDATE(1, 4, 4));
 
 	rk628_hdmirx_audio_clk_set_rate(aif, 5644800);
 	/* manual aud CTS */
@@ -552,11 +641,17 @@ void rk628_hdmirx_audio_setup(HAUDINFO info)
 			PAO_RATE(0));
 	rk628_i2c_write(aif->rk628, HDMI_RX_AUD_CHEXTR_CTRL,
 			AUD_LAYOUT_CTRL(1));
-	aif->ctsn_ints_en = true;
-	rk628_i2c_write(aif->rk628, HDMI_RX_PDEC_IEN_SET, ACR_N_CHG_ICLR | ACR_CTS_CHG_ICLR);
-	/* audio detect */
-	rk628_i2c_write(aif->rk628, HDMI_RX_PDEC_AUDIODET_CTRL,
-			AUDIODET_THRESHOLD(0));
+	if (rk628->version >= RK628F_VERSION) {
+		rk628_i2c_update_bits(aif->rk628, HDMI_RX_DMI_DISABLE_IF,
+				AUD_ENABLE_MASK, AUD_ENABLE(1));
+		schedule_delayed_work(&aif->delayed_work_audio, msecs_to_jiffies(1000));
+	} else {
+		aif->ctsn_ints_en = true;
+		rk628_i2c_write(aif->rk628, HDMI_RX_PDEC_IEN_SET,
+				ACR_N_CHG_ICLR | ACR_CTS_CHG_ICLR);
+		/* audio detect */
+		rk628_i2c_write(aif->rk628, HDMI_RX_PDEC_AUDIODET_CTRL, AUDIODET_THRESHOLD(0));
+	}
 }
 EXPORT_SYMBOL(rk628_hdmirx_audio_setup);
 
@@ -624,7 +719,7 @@ int rk628_is_avi_ready(struct rk628 *rk628, bool avi_rcv_rdy)
 	u8 cnt = 0, max_cnt = 2;
 	u32 hdcp_ctrl_val = 0;
 
-	if (rk628->version == RK628F_VERSION)
+	if (rk628->version >= RK628F_VERSION)
 		return 1;
 
 	rk628_i2c_read(rk628, HDMI_RX_HDCP_CTRL, &val);
