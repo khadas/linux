@@ -26,8 +26,10 @@
 #include <linux/dma-heap.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
+
 #include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/media/codec_mm/dmabuf_manage.h>
+#include <linux/amlogic/media/codec_mm/codec_mm_state.h>
 
 #include "codec_mm_track_priv.h"
 #include "codec_mm_track_kps.h"
@@ -68,6 +70,8 @@ struct codec_mm_track_s {
 	u32			sample_cnt;
 	DECLARE_HASHTABLE(sample_table, DBUF_TRACE_HASH_BITS);
 	spinlock_t trk_slock; /* Used for trk context locked. */
+
+	struct codec_state_node cs;
 };
 
 static bool is_need_track(const struct dma_buf *d);
@@ -327,7 +331,9 @@ struct file *find_next_fd_rcu(struct task_struct *task, u32 *ret_fd)
 	return file;
 }
 
-static bool find_match_file(struct task_struct *tsk, struct file *file)
+static bool find_match_file(struct task_struct *tsk,
+			   struct file *file,
+			   struct seq_file *m)
 {
 	struct codec_mm_track_s *trk = get_track_ctx();
 	struct trace_elem elem;
@@ -347,7 +353,7 @@ static bool find_match_file(struct task_struct *tsk, struct file *file)
 			break;
 
 		if (f == file) {
-			pr_info("|   |-- FD:%4u, PID:%4d, comm: %s, leader: %s\n",
+			cs_printf(m, "|   |-- FD:%4u, PID:%4d, comm: %s, leader: %s\n",
 				fd, tsk->pid, tsk->comm,
 				tsk->group_leader->comm);
 			found = true;
@@ -356,7 +362,8 @@ static bool find_match_file(struct task_struct *tsk, struct file *file)
 				continue;
 
 			if (trace_elem_lookup(trk, tsk, file, fd, &elem)) {
-				pr_info("|   |      |____ TID:%4d, comm: %s, ts: %s, elapse: %lld ms\n",
+				cs_printf(m, "%s TID:%4d, comm: %s, ts: %s, elapse: %lld ms\n",
+					"|   |      |____",
 					elem.pid, elem.comm,
 					ts_to_string(elem.ts, sbuf),
 					div64_u64(local_clock() - elem.ts, 1000000));
@@ -371,7 +378,7 @@ static bool find_match_file(struct task_struct *tsk, struct file *file)
 	return found;
 }
 
-static void find_ref_process(const struct dma_buf *dbuf)
+static void find_ref_process(const struct dma_buf *dbuf, struct seq_file *m)
 {
 	struct task_struct *tsk = NULL;
 	bool have_leaf = false;
@@ -382,12 +389,12 @@ static void find_ref_process(const struct dma_buf *dbuf)
 		if (tsk->flags & PF_KTHREAD)
 			continue;
 
-		if (find_match_file(tsk, dbuf->file))
+		if (find_match_file(tsk, dbuf->file, m))
 			have_leaf = true;
 	}
 
 	if (have_leaf)
-		pr_info("|   |__ leaf end\n");
+		cs_printf(m, "|   |__ leaf end\n");
 
 	read_unlock(&tasklist_lock);
 }
@@ -420,18 +427,19 @@ static bool is_need_track(const struct dma_buf *d)
 static int walk_dbuf_callback(const struct dma_buf *dbuf, void *private)
 {
 	struct file *f = dbuf->file;
+	struct seq_file *m = private;
 
 	if (!is_need_track(dbuf))
 		return 0;
 
-	pr_info("|-- exp-name:%s, addr:0x%lx, size:%zu, ino:%lu, Ref:%lu\n",
+	cs_printf(m, "|-- exp-name:%s, addr:0x%lx, size:%zu, ino:%lu, Ref:%lu\n",
 		dbuf->exp_name,
 		get_dbuf_addr((struct dma_buf *)((ulong)dbuf)),
 		dbuf->size,
 		file_inode(f)->i_ino,
 		file_count(f));
 
-	find_ref_process(dbuf);
+	find_ref_process(dbuf, m);
 
 	return 0;
 }
@@ -453,15 +461,15 @@ void codec_mm_dbuf_dump_config(u32 type)
 		pr_info("Disable dmabuf tracking.\n");
 }
 
-int codec_mm_walk_dbuf(void)
+int codec_mm_dbuf_walk(struct seq_file *m)
 {
 	int ret;
 
-	pr_info("Dbuf walk type:%x.\n", dbuf_track_type_flag);
+	cs_printf(m, "Dbuf walk type:%x.\n", dbuf_track_type_flag);
 
-	ret = get_each_dmabuf(walk_dbuf_callback, NULL);
+	ret = get_each_dmabuf(walk_dbuf_callback, m);
 
-	pr_info("|__ walk end\n");
+	cs_printf(m, "|__ walk end\n");
 
 	return ret;
 }
@@ -797,6 +805,7 @@ void codec_mm_dbuf_dump_help(void)
 {
 	pr_info("Parameter Setting:\n"
 		"  echo [h|a|d|0x1 ...] > /sys/class/codec_mm/dbuf_dump\n"
+		"  echo dmabuf_track [h|a|d|0x1 ...] > /sys/kernel/debug/codec_state/config\n"
 		"  h  help: Dmabuf dump usage help information.\n"
 		"  a  all : All supported dmabuf types were enabled.\n"
 		"  0x1 ...: Set the dmabuf to be filtered by bit mask.\n"
@@ -855,6 +864,79 @@ void codec_mm_sampling_close(void)
 	trace_pool_release(&trk->pool);
 
 	trk->kps_h = NULL;
+}
+
+int dmabuf_track_cs_show(struct seq_file *m, struct codec_state_node *cs)
+{
+	/*
+	 * struct codec_mm_track_s *trk =
+	 *	container_of(cs, struct codec_mm_track_s, cs);
+	 */
+	seq_printf(m, "\n #### Show %s status ####\n", cs->ops->name);
+
+	codec_mm_dbuf_walk(m);
+
+	return 0;
+}
+
+int dmabuf_track_cs_store(int argc, const char *argv[])
+{
+	u32 val = UINT_MAX;
+	char *pval = NULL;
+	ssize_t ret;
+
+	if (argc < 1)
+		return -EINVAL;
+
+	if (argc > 1) {
+		ret = kstrtouint(argv[1], 0, &val);
+		if (ret) {
+			pval = strchr(argv[1], ' ');
+			if (pval)
+				ret = kstrtouint(strim(pval), 0, &val);
+		}
+	}
+
+	switch (argv[0][0]) {
+	case 'a':
+	{
+		codec_mm_dbuf_dump_config(val);
+		break;
+	}
+	case 'd':
+	{
+		if (val)
+			codec_mm_sampling_open();
+		else
+			codec_mm_sampling_close();
+		break;
+	}
+	case 'h':
+		codec_mm_dbuf_dump_help();
+		break;
+	default:
+		codec_mm_dbuf_dump_config(val);
+	}
+
+	return 0;
+}
+
+CODEC_STATE_RW(dmabuf_track);
+
+int codec_mm_track_init(void)
+{
+	struct codec_mm_track_s *trk = get_track_ctx();
+
+	codec_state_register(&trk->cs, &dmabuf_track_cs_ops);
+
+	return 0;
+}
+
+void codec_mm_track_exit(void)
+{
+	struct codec_mm_track_s *trk = get_track_ctx();
+
+	codec_state_unregister(&trk->cs);
 }
 
 MODULE_IMPORT_NS(MINIDUMP);
