@@ -22,6 +22,7 @@
 static const struct regmap_range rk628_cru_readable_ranges[] = {
 	regmap_reg_range(CRU_CPLL_CON0, CRU_CPLL_CON4),
 	regmap_reg_range(CRU_GPLL_CON0, CRU_GPLL_CON4),
+	regmap_reg_range(CRU_APLL_CON0, CRU_APLL_CON4),
 	regmap_reg_range(CRU_MODE_CON00, CRU_MODE_CON00),
 	regmap_reg_range(CRU_CLKSEL_CON00, CRU_CLKSEL_CON21),
 	regmap_reg_range(CRU_GATE_CON00, CRU_GATE_CON05),
