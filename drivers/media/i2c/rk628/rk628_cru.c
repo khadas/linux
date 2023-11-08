@@ -66,6 +66,9 @@ static unsigned long rk628_cru_clk_get_rate_pll(struct rk628 *rk628,
 	u64 foutvco, foutpostdiv;
 	u32 offset, val;
 
+	if (id == CGU_CLK_APLL && rk628->version == RK628D_VERSION)
+		return 0;
+
 	rk628_i2c_read(rk628, CRU_MODE_CON00, &val);
 	if (id == CGU_CLK_CPLL) {
 		val &= CLK_CPLL_MODE_MASK;
@@ -74,14 +77,21 @@ static unsigned long rk628_cru_clk_get_rate_pll(struct rk628 *rk628,
 			return parent_rate;
 
 		offset = 0x00;
-	} else {
+	} else if (id == CGU_CLK_GPLL) {
 		val &= CLK_GPLL_MODE_MASK;
 		val >>= CLK_GPLL_MODE_SHIFT;
 		if (val == CLK_GPLL_MODE_OSC)
 			return parent_rate;
 
 		offset = 0x20;
+	} else {
+		val &= CLK_APLL_MODE_MASK;
+		val >>= CLK_APLL_MODE_SHIFT;
+		if (val == CLK_APLL_MODE_OSC)
+			return parent_rate;
+		offset = 0x40;
 	}
+
 
 	rk628_i2c_read(rk628, offset + CRU_CPLL_CON0, &con0);
 	rk628_i2c_read(rk628, offset + CRU_CPLL_CON1, &con1);
@@ -127,6 +137,9 @@ static unsigned long rk628_cru_clk_set_rate_pll(struct rk628 *rk628,
 	u64 foutvco, foutpostdiv;
 	u32 offset, val;
 
+	if (id == CGU_CLK_APLL && rk628->version == RK628D_VERSION)
+		return 0;
+
 	/*
 	 * FREF : 10MHz ~ 800MHz
 	 * FREFDIV : 1MHz ~ 40MHz
@@ -141,8 +154,10 @@ static unsigned long rk628_cru_clk_set_rate_pll(struct rk628 *rk628,
 
 	if (id == CGU_CLK_CPLL)
 		offset = 0x00;
-	else
+	else if (id == CGU_CLK_GPLL)
 		offset = 0x20;
+	else
+		offset = 0x40;
 
 	if (fin == fout) {
 		rk628_i2c_write(rk628, offset + CRU_CPLL_CON0, PLL_BYPASS(1));
@@ -424,7 +439,11 @@ EXPORT_SYMBOL(rk628_clk_mux_testout);
 int rk628_clk_set_rate(struct rk628 *rk628, unsigned int id,
 		       unsigned long rate)
 {
+	if (id == CGU_CLK_APLL && rk628->version == RK628D_VERSION)
+		return -EINVAL;
+
 	switch (id) {
+	case CGU_CLK_APLL:
 	case CGU_CLK_CPLL:
 	case CGU_CLK_GPLL:
 		rk628_cru_clk_set_rate_pll(rk628, id, rate);
@@ -442,7 +461,7 @@ int rk628_clk_set_rate(struct rk628 *rk628, unsigned int id,
 		rk628_cru_clk_set_rate_sclk_hdmirx_aud(rk628, rate);
 		break;
 	default:
-		return -1;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -453,7 +472,11 @@ unsigned long rk628_clk_get_rate(struct rk628 *rk628, unsigned int id)
 {
 	unsigned long rate;
 
+	if (id == CGU_CLK_APLL && rk628->version == RK628D_VERSION)
+		return 0;
+
 	switch (id) {
+	case CGU_CLK_APLL:
 	case CGU_CLK_CPLL:
 	case CGU_CLK_GPLL:
 		rate = rk628_cru_clk_get_rate_pll(rk628, id);
