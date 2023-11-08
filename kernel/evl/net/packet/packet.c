@@ -74,11 +74,11 @@ static bool __packet_deliver(struct evl_net_rxqueue *rxq,
 		 * a newly registered device reusing an old ifindex we
 		 * initially captured at binding time.
 		 */
-		ifindex = READ_ONCE(esk->binding.real_ifindex);
+		ifindex = READ_ONCE(esk->u.packet.real_ifindex);
 		if (ifindex) {
 			if (ifindex != dev->ifindex)
 				continue;
-			vlan_id = READ_ONCE(esk->binding.vlan_id);
+			vlan_id = READ_ONCE(esk->u.packet.vlan_id);
 			if (skb_vlan_tag_get_id(skb) != vlan_id)
 				continue;
 		}
@@ -218,7 +218,7 @@ static int attach_packet_socket(struct evl_socket *esk,
 	evl_spin_lock_irqsave(&protocol_lock, flags);
 
 	esk->proto = proto;
-	esk->binding.proto_hash = hkey;
+	esk->u.packet.proto_hash = hkey;
 	esk->protocol = protocol;
 
 	_rxq = find_rxqueue(hkey);
@@ -251,7 +251,7 @@ static void detach_packet_socket(struct evl_socket *esk)
 
 	evl_spin_lock_irqsave(&protocol_lock, flags);
 
-	rxq = find_rxqueue(esk->binding.proto_hash);
+	rxq = find_rxqueue(esk->u.packet.proto_hash);
 
 	list_del_init(&esk->next_sub); /* Remove from rxq->subscribers */
 	if (list_empty(&rxq->subscribers)) {
@@ -292,7 +292,7 @@ static int bind_packet_socket(struct evl_socket *esk,
 
 	mutex_lock(&esk->lock);
 
-	old_ifindex = esk->binding.vlan_ifindex;
+	old_ifindex = esk->u.packet.vlan_ifindex;
 	if (new_ifindex != old_ifindex) {
 		if (new_ifindex) {
 			/* @dev has to be a VLAN device. */
@@ -339,9 +339,9 @@ static int bind_packet_socket(struct evl_socket *esk,
 	raw_spin_lock_irqsave(&esk->oob_lock, flags);
 	if (new_ifindex != old_ifindex) {
 		/* First change the real interface, next the vid. */
-		WRITE_ONCE(esk->binding.real_ifindex, real_ifindex);
-		esk->binding.vlan_id = vlan_id;
-		WRITE_ONCE(esk->binding.vlan_ifindex, new_ifindex);
+		WRITE_ONCE(esk->u.packet.real_ifindex, real_ifindex);
+		esk->u.packet.vlan_id = vlan_id;
+		WRITE_ONCE(esk->u.packet.vlan_ifindex, new_ifindex);
 	}
 	raw_spin_unlock_irqrestore(&esk->oob_lock, flags);
 
@@ -357,7 +357,7 @@ static int bind_packet_socket(struct evl_socket *esk,
 static struct net_device *get_netif_packet(struct evl_socket *esk)
 {
 	return  evl_net_get_dev_by_index(esk->net,
-					esk->binding.vlan_ifindex);
+					esk->u.packet.vlan_ifindex);
 }
 
 static struct net_device *find_xmit_device(struct evl_socket *esk,
