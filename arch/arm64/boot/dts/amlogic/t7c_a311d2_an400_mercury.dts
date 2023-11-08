@@ -86,12 +86,12 @@
 			alloc-ranges = <0x0 0x05000000 0x0 0x3400000>;
 			clear-map;
 		};
-
+/*
 		rtos_reserved:linux,rtos_reserved {
 			compatible = "amlogic, aml_rtos_memory";
 			reg = <0x0 0x80000000 0x0 0x20000000>;
 		};
-
+*/
 		dsp_fw_reserved:linux,dsp_fw {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -248,7 +248,7 @@
 
 	freertos {
 		compatible = "amlogic,freertos";
-		status = "okay";
+		status = "disable";
 		irqs_rsv = <32 227 249 91 321 343>;
 		info_offset = <0x1000>;
 	};
