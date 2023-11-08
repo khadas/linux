@@ -98,7 +98,7 @@ struct aml_mkl_dev {
 			u32 cmd_offset;
 			u32 ek_offset;
 		} reg;
-		struct t5w_reg {
+		struct old_reg {
 			u32 start0_offset;
 			u32 key1_offset;
 			u32 nonce_offset;
@@ -108,7 +108,7 @@ struct aml_mkl_dev {
 			u32 key5_offset;
 			u32 key6_offset;
 			u32 key7_offset;
-		} t5w_reg;
+		} old_reg;
 	};
 	u32 kl_type;
 	u32 kl_vid_type;
@@ -173,7 +173,7 @@ static int aml_mkl_lock(struct aml_mkl_dev *dev)
 	int ret = KL_STATUS_OK;
 
 	if (dev->kl_type == KL_TYPE_OLD) {
-		while ((ioread32((char *)dev->base_addr + dev->t5w_reg.start0_offset) >> 31) & 1) {
+		while ((ioread32((char *)dev->base_addr + dev->old_reg.start0_offset) >> 31) & 1) {
 			if (cnt++ > KL_PENDING_WAIT_TIMEOUT) {
 				LOGE("Error: wait KL ready timeout\n");
 				ret = KL_STATUS_ERROR_TIMEOUT;
@@ -329,7 +329,7 @@ unlock_mutex:
 	return ret;
 }
 
-static int aml_mkl_etsi_t5w_run(struct file *filp, struct amlkl_params *param)
+static int aml_mkl_etsi_old_run(struct file *filp, struct amlkl_params *param)
 {
 	int ret = KL_STATUS_OK;
 	int i;
@@ -353,16 +353,16 @@ static int aml_mkl_etsi_t5w_run(struct file *filp, struct amlkl_params *param)
 		return KL_STATUS_ERROR_BAD_PARAM;
 	}
 
-	key_addrs[0] = dev->t5w_reg.key1_offset;
-	key_addrs[1] = dev->t5w_reg.key2_offset;
-	key_addrs[2] = dev->t5w_reg.key3_offset;
-	key_addrs[3] = dev->t5w_reg.key4_offset;
-	key_addrs[4] = dev->t5w_reg.key5_offset;
-	key_addrs[5] = dev->t5w_reg.key6_offset;
-	key_addrs[6] = dev->t5w_reg.key7_offset;
+	key_addrs[0] = dev->old_reg.key1_offset;
+	key_addrs[1] = dev->old_reg.key2_offset;
+	key_addrs[2] = dev->old_reg.key3_offset;
+	key_addrs[3] = dev->old_reg.key4_offset;
+	key_addrs[4] = dev->old_reg.key5_offset;
+	key_addrs[5] = dev->old_reg.key6_offset;
+	key_addrs[6] = dev->old_reg.key7_offset;
 
 	/* 1. Program Eks */
-	ret = aml_mkl_program_key(dev->base_addr, dev->t5w_reg.nonce_offset, zero);
+	ret = aml_mkl_program_key(dev->base_addr, dev->old_reg.nonce_offset, zero);
 	for (i = 0; i < param->levels; i++) {
 		ret = aml_mkl_program_key(dev->base_addr, key_addrs[i],
 					param->eks[param->levels - 1 - i]);
@@ -376,7 +376,7 @@ static int aml_mkl_etsi_t5w_run(struct file *filp, struct amlkl_params *param)
 
 	/* 2. Program KL_REE_CFG */
 	reg_val = 0;
-	reg_offset = dev->t5w_reg.start0_offset;
+	reg_offset = dev->old_reg.start0_offset;
 	reg_val = (param->kl_num << 24 | 0 << 22 |
 		   param->kt_handle << 16 | param->vid);
 	iowrite32(reg_val, (char *)dev->base_addr + reg_offset);
@@ -390,7 +390,7 @@ static int aml_mkl_etsi_t5w_run(struct file *filp, struct amlkl_params *param)
 	}
 
 	aml_mkl_unlock(dev);
-	LOGI("ETSI T5W Key Ladder run success\n");
+	LOGI("ETSI Key Ladder run success\n");
 
 unlock_mutex:
 	mutex_unlock(&dev->lock);
@@ -608,7 +608,7 @@ static long aml_mkl_ioctl(struct file *filp, unsigned int cmd,
 
 		if (kl_param.kl_mode == AML_KL_MODE_ETSI) {
 			if (dev->kl_type == KL_TYPE_OLD)
-				ret = aml_mkl_etsi_t5w_run(filp, &kl_param);
+				ret = aml_mkl_etsi_old_run(filp, &kl_param);
 			else
 				ret = aml_mkl_etsi_run(filp, &kl_param);
 			if (ret != 0) {
@@ -618,7 +618,7 @@ static long aml_mkl_ioctl(struct file *filp, unsigned int cmd,
 			}
 		} else if (kl_param.kl_mode == AML_KL_MODE_AML) {
 			if (dev->kl_type == KL_TYPE_OLD) {
-				LOGE("MKL: t5w aml_mkl_run failed. not support.\n");
+				LOGE("MKL: aml_mkl_run failed. not support.\n");
 				return -EFAULT;
 			}
 
@@ -630,7 +630,7 @@ static long aml_mkl_ioctl(struct file *filp, unsigned int cmd,
 			}
 		} else if (kl_param.kl_mode == AML_KL_MODE_MSR) {
 			if (dev->kl_type == KL_TYPE_OLD) {
-				LOGE("MKL: t5w aml_mkl_msr_run failed. not support.\n");
+				LOGE("MKL: aml_mkl_msr_run failed. not support.\n");
 				return -EFAULT;
 			}
 
@@ -660,7 +660,7 @@ static const struct file_operations aml_mkl_fops = {
 static int aml_mkl_get_dts_info(struct aml_mkl_dev *dev, struct platform_device *pdev)
 {
 	int ret = 0;
-	u32 t5w_offset[2];
+	u32 old_offset[2];
 	u32 offset[4];
 
 	if (unlikely(!dev)) {
@@ -682,19 +682,19 @@ static int aml_mkl_get_dts_info(struct aml_mkl_dev *dev, struct platform_device 
 
 	/* kl register offset */
 	if (dev->kl_type == KL_TYPE_OLD) {
-		if (of_property_read_u32_array(pdev->dev.of_node, "kl_offset", t5w_offset,
-			ARRAY_SIZE(t5w_offset)) == 0) {
-			dev->t5w_reg.start0_offset = t5w_offset[0];
-			dev->t5w_reg.key1_offset = t5w_offset[1];
-			dev->t5w_reg.nonce_offset = dev->t5w_reg.key1_offset + 16;
-			dev->t5w_reg.key2_offset = dev->t5w_reg.nonce_offset + 16;
-			dev->t5w_reg.key3_offset = dev->t5w_reg.key2_offset + 16;
-			dev->t5w_reg.key4_offset = dev->t5w_reg.key3_offset + 16;
-			dev->t5w_reg.key5_offset = dev->t5w_reg.key4_offset + 16;
-			dev->t5w_reg.key6_offset = dev->t5w_reg.key5_offset + 16;
-			dev->t5w_reg.key7_offset = dev->t5w_reg.key6_offset + 16;
+		if (of_property_read_u32_array(pdev->dev.of_node, "kl_offset", old_offset,
+			ARRAY_SIZE(old_offset)) == 0) {
+			dev->old_reg.start0_offset = old_offset[0];
+			dev->old_reg.key1_offset = old_offset[1];
+			dev->old_reg.nonce_offset = dev->old_reg.key1_offset + 16;
+			dev->old_reg.key2_offset = dev->old_reg.nonce_offset + 16;
+			dev->old_reg.key3_offset = dev->old_reg.key2_offset + 16;
+			dev->old_reg.key4_offset = dev->old_reg.key3_offset + 16;
+			dev->old_reg.key5_offset = dev->old_reg.key4_offset + 16;
+			dev->old_reg.key6_offset = dev->old_reg.key5_offset + 16;
+			dev->old_reg.key7_offset = dev->old_reg.key6_offset + 16;
 		} else {
-			LOGE("%s: T5W not found\n", "kl_offset");
+			LOGE("%s: not found\n", "kl_offset");
 			return -1;
 		}
 	} else {
