@@ -830,6 +830,24 @@ u32 rx_pkt_type_mapping(enum pkt_type_e pkt_type)
 
 void rx_pkt_initial(void)
 {
+	rx.vs_info_details.vsi_state = E_VSI_NULL;
+	//vsi info
+	rx.vs_info_details._3d_structure = 0;
+	rx.vs_info_details._3d_ext_data = 0;
+	rx.threed_info.meta_data_flag = false;
+	rx.vs_info_details.low_latency = false;
+	rx.vs_info_details.backlt_md_bit = false;
+	rx.vs_info_details.dv_allm = false;
+	rx.vs_info_details.hdmi_allm = false;
+	rx.vs_info_details.dolby_vision_flag = DV_NULL;
+	rx.vs_info_details.hdr10plus = false;
+	rx.vs_info_details.cuva_hdr = false;
+	rx.vs_info_details.filmmaker = false;
+	//emp info
+	rx.sbtm_info.flag = false;
+	rx.vtem_info.vrr_en = false;
+	rx.emp_dv_info.flag = false;
+	rx.emp_cuva_info.flag = false;
 #ifdef MULTI_VSIF_EXPORT_TO_EMP
 	int i = 0;
 
@@ -842,7 +860,6 @@ void rx_pkt_initial(void)
 
 	memset(&rx_pkt.avi_info, 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt.spd_info, 0, sizeof(struct pd_infoframe_s));
-	memset(&rx_pkt.aud_pktinfo, 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt.mpegs_info, 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt.ntscvbi_info, 0, sizeof(struct pd_infoframe_s));
 	memset(&rx_pkt.drm_info, 0, sizeof(struct pd_infoframe_s));
@@ -1375,19 +1392,7 @@ void rx_get_vsi_info(void)
 	static u32 num;
 	u8 i = 0;
 
-	rx.vs_info_details.vsi_state = E_VSI_NULL;
-	rx.vs_info_details._3d_structure = 0;
-	rx.vs_info_details._3d_ext_data = 0;
-	rx.threed_info.meta_data_flag = false;
-	rx.vs_info_details.low_latency = false;
-	rx.vs_info_details.backlt_md_bit = false;
-	rx.vs_info_details.dv_allm = false;
-	rx.vs_info_details.hdmi_allm = false;
-	rx.vs_info_details.dolby_vision_flag = DV_NULL;
-	rx.vs_info_details.hdr10plus = false;
-	rx.vs_info_details.cuva_hdr = false;
 	rx.vs_info_details.emp_pkt_cnt = rx.emp_buff.emp_pkt_cnt;
-	rx.vs_info_details.filmmaker = false;
 	rx.emp_buff.emp_pkt_cnt = 0;
 
 	if (rx.chip_id < CHIP_ID_T7) {
@@ -1408,6 +1413,7 @@ void rx_get_vsi_info(void)
 			}
 			tmp = pkt->sbpkt.payload.data[0] & _BIT(1);
 			if (tmp) {
+				rx.vs_info_details.vsi_state = E_VSI_DV15;
 				rx.vs_info_details.dolby_vision_flag = DV_VSIF;
 				tmp = pkt->sbpkt.payload.data[0] & _BIT(0);
 				rx.vs_info_details.low_latency = tmp ? true : false;
@@ -1473,6 +1479,7 @@ void rx_get_vsi_info(void)
 				if (log_level & PACKET_LOG)
 					rx_pr("vsi hdr10+ length err\n");
 			/* consider hdr10+ is true when IEEE matched */
+			rx.vs_info_details.vsi_state = E_VSI_HDR10PLUS;
 			rx.vs_info_details.hdr10plus = true;
 			break;
 		case IEEE_HDR10P_PLUS_ALLM:
@@ -1539,6 +1546,7 @@ void rx_get_vsi_info(void)
 							pkt->sbpkt.vsi_3dext.threed_ex,
 							pkt->sbpkt.vsi_3dext.threed_meta_pre);
 				}
+				rx.vs_info_details.vsi_state = E_VSI_4K3D;
 				rx.vs_info_details.dolby_vision_flag = DV_NULL;
 			}
 			break;
@@ -1562,6 +1570,7 @@ void rx_get_vsi_info(void)
 				}
 				tmp = pkt->sbpkt.payload.data[0] & _BIT(1);
 				if (tmp) {
+					rx.vs_info_details.vsi_state |= E_VSI_DV15;
 					rx.vs_info_details.dolby_vision_flag = DV_VSIF;
 					tmp = pkt->sbpkt.payload.data[0] & _BIT(0);
 					rx.vs_info_details.low_latency = tmp ? true : false;
@@ -1585,6 +1594,7 @@ void rx_get_vsi_info(void)
 					if (log_level & PACKET_LOG)
 						rx_pr("vsi hdr10+ length err\n");
 				/* consider hdr10+ is true when IEEE matched */
+				rx.vs_info_details.vsi_state |= E_VSI_HDR10PLUS;
 				rx.vs_info_details.hdr10plus = true;
 			} else if (pkt->ieee == IEEE_CUVAHDR) {
 				if (pkt->length != E_PKT_LENGTH_27) {
@@ -1597,6 +1607,7 @@ void rx_get_vsi_info(void)
 				rx.vs_info_details.cuva_version_code = tmp;
 				pkt->sbpkt.vsi_cuva_hdr.transfer_char = 0;
 				pkt->sbpkt.vsi_cuva_hdr.monitor_mode_enable = 1;
+				rx.vs_info_details.vsi_state |= E_VSI_CUVAHDR;
 				rx.vs_info_details.cuva_hdr = true;
 			} else if (pkt->ieee == IEEE_FILMMAKER) {
 				if (pkt->length != E_PKT_LENGTH_5 ||
@@ -1606,6 +1617,7 @@ void rx_get_vsi_info(void)
 					pkt->sbpkt.payload.data[1] != 0x00)
 					if (log_level & PACKET_LOG)
 						rx_pr("vsi filmmaker pkt err\n");
+				rx.vs_info_details.vsi_state |= E_VSI_FILMMAKER;
 				rx.vs_info_details.filmmaker = true;
 			}
 
@@ -1619,7 +1631,7 @@ void rx_get_vsi_info(void)
 						//if ((pkt->sbpkt.payload.data[0] & 0xffff) == 0)
 						//pkt->sbpkt.payload.data[0] = 0xffff;
 						rx.vs_info_details.dolby_vision_flag = DV_VSIF;
-						rx.vs_info_details.vsi_state = E_VSI_DV10;
+						rx.vs_info_details.vsi_state |= E_VSI_DV10;
 						//if (log_level & PACKET_LOG)
 						//rx_pr("IEEE_VSI14 DV10\n");
 					}
@@ -1631,20 +1643,28 @@ void rx_get_vsi_info(void)
 					rx.vs_info_details.dolby_vision_flag = DV_NULL;
 				} else {
 					if (pkt->sbpkt.vsi_3dext.vdfmt == VSI_FORMAT_3D_FORMAT) {
+						rx.vs_info_details.vd_fmt = VSI_FORMAT_3D_FORMAT;
 						rx.vs_info_details._3d_structure =
 							pkt->sbpkt.vsi_3dext.threed_st;
 						rx.vs_info_details._3d_ext_data =
 							pkt->sbpkt.vsi_3dext.threed_ex;
-					if (log_level & VSI_LOG)
-						rx_pr("struct_3d:%d, struct_3d_ext:%d\n",
-						      pkt->sbpkt.vsi_3dext.threed_st,
-						      pkt->sbpkt.vsi_3dext.threed_ex);
+						rx.threed_info.meta_data_flag =
+							pkt->sbpkt.vsi_3dext.threed_meta_pre;
+						rx.threed_info.meta_data_type =
+							pkt->sbpkt.vsi_3dext.threed_meta_type;
+						rx.threed_info.meta_data_length =
+							pkt->sbpkt.vsi_3dext.threed_meta_length;
+						memcpy(rx.threed_info.meta_data,
+							pkt->sbpkt.vsi_3dext.threed_meta_data,
+							sizeof(rx.threed_info.meta_data));
 					}
+					rx.vs_info_details.vsi_state |= E_VSI_4K3D;
 					rx.vs_info_details.dolby_vision_flag = DV_NULL;
 				}
 			} else if (pkt->ieee == IEEE_VSI21) {
 				/* hdmi2.1 */
 				tmp = pkt->sbpkt.payload.data[0] & _BIT(9);
+				rx.vs_info_details.vsi_state |= E_VSI_VSI21;
 				rx.vs_info_details.hdmi_allm = tmp ? true : false;
 			}
 			i++;

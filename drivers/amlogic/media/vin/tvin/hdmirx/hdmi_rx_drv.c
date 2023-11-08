@@ -475,11 +475,13 @@ void hdmirx_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
 
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	parm = &devp->param;
+#ifdef CONFIG_AMLOGIC_HDMITX
 	if (vpp_mute_enable) {
 		if (get_video_mute_val(HDMI_RX_MUTE_SET) && rx.vpp_mute)
 			set_video_mute(HDMI_RX_MUTE_SET, false);
 		rx.vpp_mute = false;
 	}
+#endif
 	/* parm->info.fmt = TVIN_SIG_FMT_NULL; */
 	/* parm->info.status = TVIN_SIG_STATUS_NULL; */
 	rx_pr("%s ok\n", __func__);
@@ -1068,7 +1070,6 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 		if (log_level & PACKET_LOG) {
 			rx_pr("!!!vsi state = %d\n",
 			      rx.vs_info_details.vsi_state);
-			rx_pr("1:4K3D;2:vsi21;3:HDR10+;4:DV10;5:DV15\n");
 		}
 		prop->trans_fmt = TVIN_TFMT_2D;
 		prop->dolby_vision = DV_NULL;
@@ -1498,7 +1499,7 @@ void rx_set_sig_info(void)
 
 void rx_update_sig_info(void)
 {
-	rx_check_pkt_flag();
+	//rx_check_pkt_flag();
 	rx_get_vsi_info();
 	rx_get_em_info();
 	//rx_get_aif_info();
@@ -1656,6 +1657,12 @@ bool hdmirx_clr_vsync(struct tvin_frontend_s *fe)
 	return rx_clr_tmds_valid();
 }
 
+bool hdmirx_clr_pkts(struct tvin_frontend_s *fe)
+{
+	rx_pkt_initial();
+	return 0;
+}
+
 static struct tvin_state_machine_ops_s hdmirx_sm_ops = {
 	.nosig            = hdmirx_is_nosig,
 	.fmt_changed      = hdmirx_fmt_chg,
@@ -1669,6 +1676,7 @@ static struct tvin_state_machine_ops_s hdmirx_sm_ops = {
 	.check_frame_skip = hdmirx_check_frame_skip,
 	.hdmi_dv_config   = hdmirx_dv_config,
 	.hdmi_clr_vsync	= hdmirx_clr_vsync,
+	.hdmi_clr_pkts	= hdmirx_clr_pkts,
 };
 
 /*

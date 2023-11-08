@@ -5769,7 +5769,7 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 		if (req->req_mode == 1 && p->skip_vf_num)
 			p->disp_mode[index_disp] = VFRAME_DISP_MODE_UNKNOWN;
 		if (vdin_ctl_dbg & CTL_DEBUG_EVENT_DISP_MODE)
-			pr_info("%s(type 0x%x vf index 0x%x)=>disp_mode %d,req_mode:%d;[%d]=%d,[%d]=%d\n",
+			pr_info("%s(type 0x%x vf index %d)=>disp_mode %d,req_mode:%d;[%d]=%d,[%d]=%d\n",
 				__func__, type, index_disp, req->disp_mode, req->req_mode,
 				p->disp_index[0], p->disp_mode[p->disp_index[0]],
 				p->disp_index[1], p->disp_mode[p->disp_index[1]]);
@@ -6012,26 +6012,30 @@ void vdin_set_drm_data(struct vdin_dev_s *devp,
 	/* filmmaker check */
 	vdin_fmm_check(devp, vf);
 
+	/* dv visf raw data */
 	memcpy(&devp->dv.dv_vsif_raw, &devp->prop.dv_vsif_raw,
 		sizeof(struct tvin_dv_vsif_raw_s));
 	vf->vsif.addr = &devp->dv.dv_vsif_raw;
-	if (devp->dv.dv_flag) {
+	if (devp->dv.dv_flag)
 		vf->vsif.size = sizeof(struct tvin_dv_vsif_raw_s);
-		vdin_pr_vsif_data(devp, vf);
-	} else {
+	else
 		vf->vsif.size = 0;
-	}
+	vdin_pr_vsif_data(devp, vf);
 
-	vf->drm_if.addr = &devp->prop.hdr_info.hdr_data.rawdata;
-	if (devp->prop.vdin_hdr_flag) {
-		vf->drm_if.size = sizeof(devp->prop.hdr_info.hdr_data.rawdata);
-		vdin_pr_hdr_rawdata(devp, vf);
-	} else {
+	/* hdr drm data */
+	memcpy(devp->hdr.rawdata, devp->prop.hdr_info.hdr_data.rawdata, sizeof(devp->hdr.rawdata));
+	vf->drm_if.addr = &devp->hdr.rawdata;
+	if (devp->prop.vdin_hdr_flag)
+		vf->drm_if.size = sizeof(devp->hdr.rawdata);
+	else
 		vf->drm_if.size = 0;
-	}
+	vdin_pr_hdr_rawdata(devp, vf);
 
-	vf->emp.addr = &devp->prop.emp_data.empbuf;
-	vf->emp.size = devp->prop.emp_data.size;
+	/* hdr emp data */
+	memcpy(devp->hdr.empbuf, devp->prop.emp_data.empbuf, sizeof(devp->hdr.empbuf));
+	devp->hdr.emp_size = devp->prop.emp_data.size;
+	vf->emp.addr = &devp->hdr.empbuf;
+	vf->emp.size = devp->hdr.emp_size;
 	vdin_pr_emp_data(devp, vf);
 }
 
@@ -6095,6 +6099,36 @@ void vdin_set_freesync_data(struct vdin_dev_s *devp, struct vframe_s *vf)
 	vdin_pr_vrr_data(devp, vf);
 }
 
+static inline bool vdin_is_vrr_state_chg(struct vdin_dev_s *devp)
+{
+	if (devp->vrr_data.vdin_vrr_en_flag != devp->prop.vtem_data.vrr_en ||
+	    vdin_check_spd_data_chg(devp))
+		return true;
+	else
+		return false;
+}
+
+/* describe:
+ *	vdin isr is Vsync run,
+ *	but HDMI is DE start complete packet reception
+ *	So need check immediately status whether change prevent abnormal frame
+ * return value:
+ *	true: state change
+ *	false: state not change
+ */
+bool vdin_package_done_check_state(struct vdin_dev_s *devp)
+{
+	if (devp->dv.dv_flag != devp->prop.dolby_vision ||
+	    devp->prop.vdin_hdr_flag != devp->pre_prop.vdin_hdr_flag ||
+	    devp->prop.latency.allm_mode != devp->pre_prop.latency.allm_mode ||
+	    vdin_is_vrr_state_chg(devp) ||
+	    devp->prop.color_format != devp->pre_prop.color_format ||
+	    devp->parm.info.status != TVIN_SIG_STATUS_STABLE)
+		return true;
+	else
+		return false;
+}
+
 void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 {
 	if (IS_HDMI_SRC(devp->parm.port)) {
@@ -6106,9 +6140,9 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 			devp->dv.chg_cnt = 0;
 
 		if (devp->prop.vdin_hdr_flag != devp->pre_prop.vdin_hdr_flag)
-			devp->prop.hdr_info.hdr_check_cnt++;
+			devp->hdr.hdr_chg_cnt++;
 		else
-			devp->prop.hdr_info.hdr_check_cnt = 0;
+			devp->hdr.hdr_chg_cnt = 0;
 
 		if (devp->prop.latency.allm_mode != devp->pre_prop.latency.allm_mode ||
 		    devp->prop.latency.it_content != devp->pre_prop.latency.it_content ||
@@ -6131,14 +6165,13 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 		else
 			devp->sg_chg_fps_cnt = 0;
 
-		if (devp->vrr_data.vdin_vrr_en_flag != devp->prop.vtem_data.vrr_en ||
-			vdin_check_spd_data_chg(devp))
+		if (vdin_is_vrr_state_chg(devp))
 			devp->vrr_data.vrr_chg_cnt++;
 		else
 			devp->vrr_data.vrr_chg_cnt = 0;
 
 		if (vdin_isr_monitor & VDIN_ISR_MONITOR_FLAG)
-			pr_info("dv:%d, LL:%d hdr st:%d eotf:%d fg:%d allm:%d sty:0x%x spd:0x%x 0x%x\n",
+			pr_info("dv:%d LL:%d hdr:%d eotf:%d fg:%d allm:%d sty:%#x vrr:%d spd:%#x %#x rate:%d\n",
 				devp->prop.dolby_vision,
 				devp->prop.low_latency,
 				devp->prop.hdr_info.hdr_state,
@@ -6146,8 +6179,10 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 				devp->prop.vdin_hdr_flag,
 				devp->prop.latency.allm_mode,
 				devp->parm.info.signal_type,
+				devp->prop.vtem_data.vrr_en,
 				devp->prop.spd_data.data[0],
-				devp->prop.spd_data.data[5]);
+				devp->prop.spd_data.data[5],
+				devp->prop.vtem_data.base_framerate);
 		if (vdin_isr_monitor & VDIN_ISR_MONITOR_EMP)
 			pr_info("emp size:%d, data:0x%02x 0x%02x 0x%02x 0x%02x\n",
 				devp->prop.emp_data.size,
@@ -6156,9 +6191,7 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 				devp->prop.emp_data.empbuf[2],
 				devp->prop.emp_data.empbuf[3]);
 		if (vdin_isr_monitor & VDIN_ISR_MONITOR_RATIO)
-			pr_info("aspect_ratio=0x%x,vrr_en:%d,fr:%d\n",
-				devp->prop.aspect_ratio, devp->prop.vtem_data.vrr_en,
-				devp->prop.vtem_data.base_framerate);
+			pr_info("aspect_ratio=0x%x\n", devp->prop.aspect_ratio);
 	}
 
 	if (color_range_force)

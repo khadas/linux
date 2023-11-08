@@ -280,41 +280,52 @@ EXPORT_SYMBOL(get_vdin_buffer_num);
 /* describe:
  *	hdmirx call this function update prop when package reception done
  *	this call after vdin_isr
+ * return value:
+ *	true: state change
+ *	false: state not change
  */
 void tvin_update_vdin_prop(void)
 {
 	struct tvin_state_machine_ops_s *sm_ops;
 	struct vframe_s *update_wr_vf = NULL;
 	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
+	ulong flags;
 
 	if (!vdin0_devp || !vdin0_devp->frontend ||
+	    !vdin0_devp->frontend->sm_ops ||
 	    !(vdin0_devp->flags & VDIN_FLAG_ISR_EN))
 		return;
 
-	sm_ops = vdin0_devp->frontend->sm_ops;
-	if (!vdin0_devp->last_wr_vfe &&
-	    vdin0_devp->game_mode & VDIN_GAME_MODE_1 &&
-	    vdin0_devp->vdin_function_sel & VDIN_PROP_RX_UPDATE)
-		update_wr_vf = &vdin0_devp->last_wr_vfe->vf;
-	else if (!vdin0_devp->curr_wr_vfe &&
-		   vdin0_devp->game_mode & VDIN_GAME_MODE_2 &&
-		   vdin0_devp->vdin_function_sel & VDIN_PROP_RX_UPDATE)
-		update_wr_vf = &vdin0_devp->curr_wr_vfe->vf;
-	else
-		update_wr_vf = NULL;
+	if (vdin0_devp->debug.bypass_update_prop)
+		return;
 
-	if (update_wr_vf) {
-		sm_ops->get_sig_property(vdin0_devp->frontend, &vdin0_devp->prop);
+	sm_ops = vdin0_devp->frontend->sm_ops;
+
+	spin_lock_irqsave(&vdin0_devp->isr_lock, flags);
+	sm_ops->get_sig_property(vdin0_devp->frontend, &vdin0_devp->prop);
+	if (vdin_package_done_check_state(vdin0_devp)) {
+		if (vdin0_devp->game_mode)
+			vdin_pause_hw_write(vdin0_devp, 0);
+		vdin_vf_skip_all_disp(vdin0_devp->vfp);
+		vdin_drop_frame_info(vdin0_devp, "de start state chg");
+	}
+
+	if ((vdin0_devp->debug.change_get_drm & CURRENT_FRAME_GET_PROP) &&
+	    vdin0_devp->last_wr_vfe && (vdin0_devp->game_mode & VDIN_GAME_MODE_1 ||
+	    vdin0_devp->game_mode & VDIN_GAME_MODE_2)) {
+		update_wr_vf = &vdin0_devp->last_wr_vfe->vf;
 		vdin_set_drm_data(vdin0_devp, update_wr_vf);
 		vdin_set_vframe_prop_info(update_wr_vf, vdin0_devp);
 		vdin_set_freesync_data(vdin0_devp, update_wr_vf);
 	}
+	spin_unlock_irqrestore(&vdin0_devp->isr_lock, flags);
 
 	if (vdin_isr_monitor & DBG_RX_UPDATE_VDIN_PROP && update_wr_vf)
-		pr_info("tvin update prop index:%d game(%d)\n",
-			update_wr_vf->index, vdin0_devp->game_mode);
+		pr_info("%s: index:%d disp:%d game:%d\n",
+			__func__, update_wr_vf->index,
+			update_wr_vf->index_disp, vdin0_devp->game_mode);
 	else if (vdin_isr_monitor & DBG_RX_UPDATE_VDIN_PROP)
-		pr_info("tvin update prop game(%d)\n", vdin0_devp->game_mode);
+		pr_info("%s: game:%d\n", __func__, vdin0_devp->game_mode);
 }
 EXPORT_SYMBOL(tvin_update_vdin_prop);
 
@@ -1324,7 +1335,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	sts = vdin_write_done_check(devp->addr_offset, devp);
 
 	devp->dv.chg_cnt = 0;
-	devp->prop.hdr_info.hdr_check_cnt = 0;
+	devp->hdr.hdr_chg_cnt = 0;
 	devp->vrr_data.vrr_chg_cnt = 0;
 	devp->vrr_data.cur_spd_data5 = devp->prop.spd_data.data[5];
 	devp->last_wr_vfe = NULL;
@@ -2951,7 +2962,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		vdin_pause_hw_write(devp, 0);
 		return IRQ_HANDLED;
 	}
-
+	if (sm_ops && sm_ops->hdmi_clr_pkts)
+		sm_ops->hdmi_clr_pkts(devp->frontend);
 	vdin_dynamic_switch_vrr(devp);
 
 	/* ignore fake irq caused by sw reset*/
@@ -2976,10 +2988,10 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	spin_lock_irqsave(&devp->isr_lock, flags);
 
 	if (devp->dv.chg_cnt || devp->dv.allm_chg_cnt ||
-	    devp->vrr_data.vrr_chg_cnt) {
+	    devp->vrr_data.vrr_chg_cnt || devp->hdr.hdr_chg_cnt) {
 		if (devp->game_mode)
 			vdin_pause_hw_write(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE);
-		vdin_drop_frame_info(devp, "dv or vrr allm chg");
+		vdin_drop_frame_info(devp, "dv hdr or vrr allm chg");
 		vdin_vf_skip_all_disp(devp->vfp);
 		vdin_drop_cnt++;
 		goto irq_handled;
@@ -3039,12 +3051,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	if (devp->last_wr_vfe && (devp->flags & VDIN_FLAG_RDMA_ENABLE) &&
 	    !(devp->game_mode & VDIN_GAME_MODE_1) &&
 	    !(devp->game_mode & VDIN_GAME_MODE_2)) {
-		/* get drm and update prop info */
-		if (devp->debug.change_get_drm == SEND_LAST_FRAME_GET_PROP) {
-			vdin_set_drm_data(devp, &devp->last_wr_vfe->vf);
-			vdin_set_vframe_prop_info(&devp->last_wr_vfe->vf, devp);
-			vdin_set_freesync_data(devp, &devp->last_wr_vfe->vf);
-		}
 		/*dolby vision metadata process*/
 		if (dv_dbg_mask & DV_UPDATE_DATA_MODE_DOLBY_WORK &&
 		    devp->dv.dv_config) {
@@ -3335,14 +3341,10 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	}
 	curr_wr_vf->type_original = curr_wr_vf->type;
 
-	//2 is get prop when send frame
-	if (devp->debug.change_get_drm != SEND_LAST_FRAME_GET_PROP ||
-	    devp->game_mode & VDIN_GAME_MODE_1 ||
-	    devp->game_mode & VDIN_GAME_MODE_2) {
-		vdin_set_drm_data(devp, curr_wr_vf);
-		vdin_set_vframe_prop_info(curr_wr_vf, devp);
-		vdin_set_freesync_data(devp, curr_wr_vf);
-	}
+	/* update prop value to vf; update prop is tvin_update_vdin_prop */
+	vdin_set_drm_data(devp, curr_wr_vf);
+	vdin_set_vframe_prop_info(curr_wr_vf, devp);
+	vdin_set_freesync_data(devp, curr_wr_vf);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (for_amdv_certification()) {
 		vdin_get_crc_val(curr_wr_vf, devp);
@@ -3392,7 +3394,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	    !(devp->game_mode & VDIN_GAME_MODE_1)) {
 		devp->last_wr_vfe = curr_wr_vfe;
 	} else if (!(devp->game_mode & VDIN_GAME_MODE_2)) {
-		if (devp->vdin_function_sel & VDIN_PROP_RX_UPDATE)
+		if (devp->debug.change_get_drm & CURRENT_FRAME_GET_PROP)
 			devp->last_wr_vfe = curr_wr_vfe;
 		/*dolby vision metadata process*/
 		if ((dv_dbg_mask & DV_UPDATE_DATA_MODE_DOLBY_WORK) &&

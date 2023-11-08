@@ -152,6 +152,7 @@ void dump_state(int enable);
 void hdmirx_init_params(void);
 void edid_auto_mode_init(void);
 void set_video_mute(u32 owner, bool on);
+u8 get_frame_interval_cnt(u8 cnt);
 void __attribute__((weak))set_video_mute(u32 owner, bool on)
 {
 }

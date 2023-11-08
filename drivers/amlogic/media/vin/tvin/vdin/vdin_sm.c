@@ -259,10 +259,9 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 		pre_vdin_hdr_flag = pre_prop->vdin_hdr_flag;
 		if (vdin_hdr_flag != pre_vdin_hdr_flag) {
 			if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
-				prop->hdr_info.hdr_check_cnt++;
-			if (prop->hdr_info.hdr_check_cnt >=
-			    vdin_hdr_chg_cnt) {
-				prop->hdr_info.hdr_check_cnt = 0;
+				devp->hdr.hdr_chg_cnt++;
+			if (devp->hdr.hdr_chg_cnt >= vdin_hdr_chg_cnt) {
+				devp->hdr.hdr_chg_cnt = 0;
 				signal_chg |= vdin_hdr_flag ?
 					TVIN_SIG_CHG_SDR2HDR :
 					TVIN_SIG_CHG_HDR2SDR;
@@ -275,7 +274,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 				pre_prop->vdin_hdr_flag = prop->vdin_hdr_flag;
 			}
 		} else {
-			prop->hdr_info.hdr_check_cnt = 0;
+			devp->hdr.hdr_chg_cnt = 0;
 		}
 
 		cur_dv_flag = prop->dolby_vision;
@@ -446,7 +445,14 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 					pre_color_fmt, cur_color_fmt,
 					pre_vdin_fmt_range, vdin_fmt_range,
 					devp->csc_cfg);
-			vdin_get_format_convert(devp);
+
+			if (cur_color_fmt != pre_color_fmt) {
+				if (!devp->game_mode) {
+					vdin_vf_skip_all_disp(devp->vfp);
+					devp->chg_drop_frame_cnt = vdin_re_cfg_drop_cnt;
+				}
+				vdin_get_format_convert(devp);
+			}
 			devp->csc_cfg = 1;
 		}
 	}
@@ -654,11 +660,6 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 			devp->prop.dolby_vision, devp->prop.hdr_info.hdr_state,
 			devp->prop.hdr_info.hdr_data.eotf, devp->prop.vdin_hdr_flag,
 			devp->prop.vdin_vrr_flag, signal_type);
-
-	if (devp->prop.vdin_hdr_flag &&
-	    devp->parm.info.signal_type != signal_type) {
-		signal_chg |= TVIN_SIG_CHG_SDR2HDR;
-	}
 	/* check HDR 10+ end */
 
 	/* check vrr begin */

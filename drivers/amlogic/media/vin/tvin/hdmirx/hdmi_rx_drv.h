@@ -77,7 +77,8 @@
 /* 2023.05.24 fix 1366*768 identify to 1360*768 */
 /* 2023.07.05 clear dv packet when no emp */
 /* optimize i2c monitor logic */
-#define RX_VER1 "ver.2023/9/20"
+/* 2023.11.08 dv cts 63 */
+#define RX_VER1 "ver.2023/11/08"
 
 
 /*
@@ -117,6 +118,9 @@
 #else
 #define EDID_DETECT_PORT  7
 #endif
+
+#define FRAME_RATE_MIN 20
+#define FRAME_RATE_MAX 300
 
 /* If HDCP_VERSION is 2.x, edid switch to 2.0 automatically */
 #define CONFIG_AMLOGIC_HDMIRX_EDID_AUTO

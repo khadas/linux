@@ -1989,6 +1989,7 @@ void rx_set_irq_t7(bool en)
 		data8 |= 1 << 2; /* intr_new_aud */
 #endif
 		data8 |= 1 << 1; /* intr_spd */
+		data8 |= 1 << 0; /* intr_spd */
 		hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, data8);
 
 #ifndef MULTI_VSIF_EXPORT_TO_EMP

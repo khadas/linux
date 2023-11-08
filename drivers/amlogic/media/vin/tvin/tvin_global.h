@@ -310,6 +310,9 @@ static inline u32 rd_bits(u32 offset, u32 reg, const u32 start, const u32 len)
 #define CDTO_FILTER_FACTOR			1
 #endif
 
+#define HDR_RAW_DATA_SIZE	32
+#define HDR_EMP_DATA_SIZE	1024
+
 enum tvin_color_space_e {
 	TVIN_CS_RGB444 = 0,
 	TVIN_CS_YUV444,
@@ -373,7 +376,7 @@ struct tvin_hdr_data_s {
 	struct tvin_hdr_property_s master_lum;/* max min lum */
 	unsigned int mcll;
 	unsigned int mfall;
-	u8 rawdata[32];
+	u8 rawdata[HDR_RAW_DATA_SIZE];
 };
 
 struct tvin_hdr_info_s {
@@ -391,7 +394,7 @@ struct tvin_dv_vsif_raw_s {
 
 struct tvin_emp_data_s {
 	u8 size; //dv is pkt_cnt
-	u8 empbuf[1024];
+	u8 empbuf[HDR_EMP_DATA_SIZE];
 	u8 tag_id;
 };
 

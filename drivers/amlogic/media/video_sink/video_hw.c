@@ -6221,6 +6221,8 @@ void proc_vd_vsc_phase_per_vsync(struct video_layer_s *layer,
  *********************************************************/
 void set_video_mute(u32 owner, bool on)
 {
+	if (on && (get_video_debug_flags() & DEBUG_FLAG_HDMI_DV_CRC))
+		dump_stack();
 	set_video_mute_info(owner, on);
 }
 EXPORT_SYMBOL(set_video_mute);

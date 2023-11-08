@@ -276,9 +276,9 @@ void hdmirx_fsm_var_init(void)
 		err_cnt_sum_max = 10;
 		/* increase time of hpd low, to avoid some source like */
 		/* MTK box/KaiboerH9 i2c communicate error */
-		hpd_wait_max = 40;
+		hpd_wait_max = 80;
 		sig_unstable_max = 20;
-		sig_unready_max = 5;
+		sig_unready_max = 0;
 		pow5v_max_cnt = 3;
 		diff_pixel_th = 2;
 		diff_line_th = 2;
@@ -299,9 +299,9 @@ void hdmirx_fsm_var_init(void)
 		stable_check_lvl = 0x7cf;
 		pll_lock_max = 5;
 		err_cnt_sum_max = 10;
-		hpd_wait_max = 40;
+		hpd_wait_max = 80;
 		sig_unstable_max = 20;
-		sig_unready_max = 5;
+		sig_unready_max = 0;
 		pow5v_max_cnt = 3;
 		diff_pixel_th = 2;
 		diff_line_th = 2;
@@ -323,9 +323,9 @@ void hdmirx_fsm_var_init(void)
 		stable_check_lvl = 0x17cf;
 		pll_lock_max = 2;
 		err_cnt_sum_max = 10;
-		hpd_wait_max = 40;
+		hpd_wait_max = 80;
 		sig_unstable_max = 20;
-		sig_unready_max = 5;
+		sig_unready_max = 0;
 		pow5v_max_cnt = 3;
 		diff_pixel_th = 2;
 		diff_line_th = 2;
@@ -350,9 +350,9 @@ void hdmirx_fsm_var_init(void)
 		stable_check_lvl = 0x7c3;
 		pll_lock_max = 2;
 		err_cnt_sum_max = 10;
-		hpd_wait_max = 40;
+		hpd_wait_max = 80;
 		sig_unstable_max = 20;
-		sig_unready_max = 5;
+		sig_unready_max = 0;
 		/* decreased to 2 */
 		pow5v_max_cnt = 2;
 		/* decreased to 2 */
@@ -783,12 +783,11 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 			rx_pr("4-%x\n", intr_1);
 		hdmirx_wr_cor(RX_DEPACK_INTR1_DP2_IVCRX, intr_1);
 	}
+
 	intr_2 = hdmirx_rd_cor(RX_DEPACK_INTR2_DP2_IVCRX);
-	if (intr_2 != 0) {
-		if (log_level & DBG1_LOG)
-			rx_pr("5-%x\n", intr_2);
+	if (intr_2 != 0)
 		hdmirx_wr_cor(RX_DEPACK_INTR2_DP2_IVCRX, intr_2);
-	}
+
 	intr_3 = hdmirx_rd_cor(RX_DEPACK_INTR3_DP2_IVCRX);
 	if (intr_3 != 0) {
 		if (log_level & DBG1_LOG)
@@ -938,18 +937,12 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 			rx_pr("irq2-%x\n", intr_2);
 		if (rx_get_bits(intr_2, INTR2_BIT1_SPD))
 			rx_spd_type = 1;
-		if (rx_get_bits(intr_2, INTR2_BIT2_AUD))
-			rx_vsif_type |= VSIF_TYPE_HDR10P;
-		if (rx_get_bits(intr_2, INTR2_BIT4_UNREC))
-			rx_vsif_type |= VSIF_TYPE_HDMI14;
+		if (rx_get_bits(intr_2, INTR2_BIT0_AVI))
+			skip_frame(skip_frame_cnt);
 	}
 	if (intr_3) {
 		if (log_level & IRQ_LOG)
 			rx_pr("irq3-%x\n", intr_3);
-		if (rx_get_bits(intr_3, INTR3_BIT34_HF_VSI))
-			rx_vsif_type |= VSIF_TYPE_DV15;
-		if (rx_get_bits(intr_3, INTR3_BIT2_VSI))
-			rx_vsif_type |= VSIF_TYPE_HDMI21;
 	}
 
 	if (rx_depack2_intr0) {
@@ -1011,6 +1004,7 @@ irqreturn_t irq_handler(int irq, void *params)
 	static unsigned long long last_clks;
 	static u32 irq_err_cnt;
 	int error = 0;
+	u8 emp_rcvd;
 	u8 tmp = 0;
 
 	cur_clks = sched_clock();
@@ -1091,6 +1085,15 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 			if (log_level & 0x100)
 				rx_pr("[isr] sqofclk_rise\n");
 		}
+		if (hdmirx_top_intr_stat & (1 << 25)) {
+			if (rx.state >= FSM_SIG_STABLE) {
+				emp_rcvd = true;
+				//rx_emp_field_done_irq();
+				//rx_pkt_handler(PKT_BUFF_SET_EMP);
+			}
+			if (log_level & 0x400)
+				rx_pr("[isr] emp_field_done\n");
+		}
 		if (hdmirx_top_intr_stat & (1 << 27)) {
 			if (rx.var.de_stable)
 				rx.var.de_cnt++;
@@ -1116,9 +1119,13 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 				} else {
 					rx.vrr_en = false;
 				}
-				//if (rx.chip_id >= CHIP_ID_T7)
-					//rx_check_ecc_error();
-				rx_update_sig_info();
+				if (emp_rcvd) {
+					rx_emp_field_done_irq();
+					rx_pkt_handler(PKT_BUFF_SET_EMP);
+					rx_update_sig_info();
+					emp_rcvd = false;
+				}
+				tvin_update_vdin_prop();
 			}
 			if (log_level & 0x400)
 				rx_pr("[isr] DE rise.\n");
@@ -1127,14 +1134,6 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 			rx_emp_lastpkt_done_irq();
 			if (log_level & 0x400)
 				rx_pr("[isr] last_emp_done\n");
-		}
-		if (hdmirx_top_intr_stat & (1 << 25)) {
-			if (rx.state >= FSM_SIG_STABLE) {
-				rx_emp_field_done_irq();
-				rx_pkt_handler(PKT_BUFF_SET_EMP);
-			}
-			if (log_level & 0x400)
-				rx_pr("[isr] emp_field_done\n");
 		}
 		if (hdmirx_top_intr_stat & (1 << 24))
 			if (log_level & 0x100)
@@ -2729,13 +2728,23 @@ int rx_set_global_variable(const char *buf, int size)
 
 void skip_frame(unsigned int cnt)
 {
-	if (rx.state == FSM_SIG_READY) {
-		rx.skip = (1000 * 100 / rx.pre.frame_rate / 12) + 1;
-		rx.skip = cnt * rx.skip;
-		rx_pr("rx.skip = %d\n", rx.skip);
-	}
+	if (rx.state != FSM_SIG_READY)
+		return;
+	rx.skip = get_frame_interval_cnt(cnt);
+	rx_pr("rx.skip = %d\n", rx.skip);
 	//do not depent on state mechine condition
 	tvin_notify_vdin_skip_frame(skip_frame_cnt);
+}
+
+u8 get_frame_interval_cnt(u8 cnt)
+{
+	u8 ret = 2;
+
+	if (rx.cur.frame_rate < FRAME_RATE_MAX * 1000 &&
+		rx.cur.frame_rate > FRAME_RATE_MIN * 1000)
+		ret = (1000 * 100 / rx.cur.frame_rate / 10) * cnt + 1;
+
+	return ret;
 }
 
 void wait_ddc_idle(void)
@@ -3101,7 +3110,7 @@ static bool sepcail_dev_need_extra_wait(int wait_cnt)
  */
 void rx_main_state_machine(void)
 {
-	int one_frame_cnt;
+	u8 chk_cnt;
 
 	switch (rx.state) {
 	case FSM_5V_LOST:
@@ -3429,7 +3438,11 @@ void rx_main_state_machine(void)
 			break;
 		} else if (!rx_is_timing_stable()) {
 			skip_frame(skip_frame_cnt);
-			if (++sig_unready_cnt >= sig_unready_max) {
+			if (sig_unready_max)
+				chk_cnt = sig_unready_max;
+			else
+				chk_cnt = get_frame_interval_cnt(1);
+			if (++sig_unready_cnt >= chk_cnt) {
 				/*sig_lost_lock_cnt = 0;*/
 				rx.unready_timestamp = rx.timestamp;
 				rx.err_code = ERR_TIMECHANGE;
@@ -3462,7 +3475,11 @@ void rx_main_state_machine(void)
 		} else if (!rx_is_color_space_stable()) {
 			//Color space changes, no need to do EQ training
 			skip_frame(skip_frame_cnt);
-			if (++sig_unready_cnt >= sig_unready_max) {
+			if (sig_unready_max)
+				chk_cnt = sig_unready_max;
+			else
+				chk_cnt = get_frame_interval_cnt(1);
+			if (++sig_unready_cnt >= chk_cnt) {
 				/*sig_lost_lock_cnt = 0;*/
 				rx.unready_timestamp = rx.timestamp;
 				rx.err_code = ERR_TIMECHANGE;
@@ -3478,13 +3495,12 @@ void rx_main_state_machine(void)
 			}
 		} else {
 			sig_unready_cnt = 0;
-			one_frame_cnt = (1000 * 100 / rx.pre.frame_rate / 12) + 1;
 			if (rx.skip > 0) {
 				rx.skip--;
 			} else if (vpp_mute_enable) {
 				/* clear vpp mute after signal stable */
 				if (get_video_mute_val(HDMI_RX_MUTE_SET)) {
-					if (rx.var.mute_cnt++ < one_frame_cnt + 1)
+					if (rx.var.mute_cnt++ < get_frame_interval_cnt(1))
 						break;
 					rx.var.mute_cnt = 0;
 					rx.vpp_mute = false;
