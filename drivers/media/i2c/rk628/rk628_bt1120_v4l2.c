@@ -1171,10 +1171,14 @@ static int rk628_bt1120_g_mbus_config(struct v4l2_subdev *sd,
 				      unsigned int pad,
 				      struct v4l2_mbus_config *cfg)
 {
+	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
+
 	cfg->type = V4L2_MBUS_BT656;
 	cfg->flags = V4L2_MBUS_HSYNC_ACTIVE_HIGH |
 				V4L2_MBUS_VSYNC_ACTIVE_HIGH |
 				V4L2_MBUS_PCLK_SAMPLE_RISING;
+	if (bt1120->dual_edge)
+		cfg->flags |= V4L2_MBUS_PCLK_SAMPLE_FALLING;
 
 	return 0;
 }
