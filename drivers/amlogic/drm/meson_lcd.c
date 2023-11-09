@@ -30,6 +30,11 @@ int meson_panel_get_modes(struct drm_connector *connector)
 	ret = panel_dev->get_modes(panel_dev, &modes, &modes_cnt);
 	DRM_DEBUG("%s: get modes %d, ret %d\n", __func__, modes_cnt, ret);
 	if (ret == 0 && modes_cnt > 0) {
+		if (!connector->display_info.width_mm || !connector->display_info.height_mm) {
+			connector->display_info.width_mm = modes[i].width_mm;
+			connector->display_info.height_mm = modes[i].height_mm;
+		}
+
 		for (i = 0; i < modes_cnt; i++) {
 			DRM_DEBUG("[%s]-[%d] mode_name-%s\n", __func__, __LINE__, modes[i].name);
 			mode = drm_mode_duplicate(connector->dev, &modes[i]);
@@ -147,7 +152,7 @@ static void meson_panel_encoder_atomic_enable(struct drm_encoder *encoder,
 	struct drm_display_mode *mode = &encoder->crtc->mode;
 	enum vmode_e vmode = meson_crtc_state->vmode;
 
-	if (vmode != VMODE_LCD) {
+	if ((vmode & VMODE_MODE_BIT_MASK) != VMODE_LCD) {
 		DRM_DEBUG("%s:enable fail! vmode:%d\n", __func__, vmode);
 		return;
 	}
