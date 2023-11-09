@@ -7607,20 +7607,21 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	}
 	/* Trigger HDMITX IRQ*/
 	if (hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0)) {
-		/* When bootup mbox and TV simultaneously,
-		 * TV may not handle SCDC/DIV40
-		 */
-		if (is_cur_tmds_div40(hdev))
-			hdmitx_resend_div40(hdev);
-		hdev->hwop.cntlmisc(hdev,
-			MISC_TRIGGER_HPD, 1);
+		/* if current mode is TMDS/nonFRL, then resend_div40 */
+		if (hdev->hwop.cntlmisc(hdev, MISC_GET_FRL_MODE, 0) == FRL_NONE) {
+			/* When bootup mbox and TV simultaneously,
+			 * TV may not handle SCDC/DIV40 under TMDS mode
+			 */
+			if (is_cur_tmds_div40(hdev))
+				hdmitx_resend_div40(hdev);
+		}
+		hdev->hwop.cntlmisc(hdev, MISC_TRIGGER_HPD, 1);
 		hdev->already_used = 1;
 	} else {
 		/* may plugout during uboot finish--kernel start,
 		 * treat it as normal hotplug out, for > 3.4G case
 		 */
-		hdev->hwop.cntlmisc(hdev,
-			MISC_TRIGGER_HPD, 0);
+		hdev->hwop.cntlmisc(hdev, MISC_TRIGGER_HPD, 0);
 	}
 	hdev->hdmi_init = 1;
     /* ll mode init values */
