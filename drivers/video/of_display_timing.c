@@ -207,7 +207,12 @@ struct display_timings *of_get_display_timings(struct device_node *np)
 	if (!np)
 		return NULL;
 
-	timings_np = of_get_child_by_name(np, "display-timings");
+	if(strstr(saved_command_line, "lcd_panel=ts101")) {
+		timings_np = of_get_child_by_name(np, "display-timings1");
+	} else {
+		timings_np = of_get_child_by_name(np, "display-timings");
+	}
+
 	if (!timings_np) {
 		pr_err("%s: could not find display-timings node\n",
 			of_node_full_name(np));
@@ -320,7 +325,12 @@ int of_display_timings_exist(struct device_node *np)
 	if (!np)
 		return -EINVAL;
 
-	timings_np = of_parse_phandle(np, "display-timings", 0);
+	if(strstr(saved_command_line, "lcd_panel=ts101")){
+		timings_np = of_parse_phandle(np, "display-timings1", 0);
+	} else {
+		timings_np = of_parse_phandle(np, "display-timings", 0);
+	}
+
 	if (!timings_np)
 		return -EINVAL;
 
