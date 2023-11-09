@@ -36,6 +36,7 @@
 
 #include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#include <linux/amlogic/media/vout/vout_notify.h>
 #include "../tvin_global.h"
 #include "../tvin_format_table.h"
 #include "vdin_ctl.h"
@@ -44,7 +45,7 @@
 #include "vdin_vf.h"
 #include "vdin_canvas.h"
 #include "vdin_afbce.h"
-#include "vdin_dv.h"
+#include "vdin_hdr.h"
 #include "vdin_hw.h"
 #include "../hdmirx/hdmi_rx_drv_ext.h"
 
@@ -6262,6 +6263,12 @@ u32 vdin_get_curr_field_type(struct vdin_dev_s *devp)
 	else
 		type &= ~VIDTYPE_SEC_MD;
 #endif
+	//frame packing need set mvc
+	if (devp->parm.info.fmt >= TVIN_SIG_FMT_HDMI_1280X720P_60HZ_FRAME_PACKING &&
+	    devp->parm.info.fmt <= TVIN_SIG_FMT_HDMI_1920X1080P_30HZ_FRAME_PACKING)
+		type |= VIDTYPE_MVC;
+	else
+		type &= ~VIDTYPE_MVC;
 
 	return type;
 }
@@ -6873,8 +6880,7 @@ bool vdin_is_auto_game_mode(struct vdin_dev_s *devp)
 	if (devp->parm.info.status != TVIN_SIG_STATUS_STABLE)
 		return false;
 
-	if (devp->prop.latency.allm_mode || devp->prop.vtem_data.vrr_en ||
-	    (vdin_check_is_spd_data(devp) && (devp->prop.spd_data.data[5] >> 2 & 0x3)) ||
+	if (devp->prop.latency.allm_mode || vdin_is_vrr_state(devp) ||
 	    (devp->prop.latency.it_content && devp->prop.latency.cn_type == GAME))
 		return true;
 	else
@@ -6899,4 +6905,59 @@ bool vdin_is_auto_pc_mode(struct vdin_dev_s *devp)
 		return true;
 	else
 		return false;
+}
+
+/*
+ * return value:
+ *	true: is vrr state
+ *	false: not vrr state
+ */
+bool vdin_is_vrr_state(struct vdin_dev_s *devp)
+{
+	if (devp->prop.vtem_data.vrr_en ||
+	    (vdin_check_is_spd_data(devp) &&
+	     (devp->prop.spd_data.data[5] >> 2 & 0x3)))
+		return true;
+	else
+		return false;
+}
+
+/* get current vrr status:
+ * data[5]:bit2 bit3 is freesync_type:
+ *	1:VDIN_VRR_FREESYNC
+ *	2:VDIN_VRR_FREESYNC_PREMIUM
+ *	3:VDIN_VRR_FREESYNC_PREMIUM_PRO
+ */
+enum vdin_vrr_mode_e get_cur_vrr_status(struct vdin_dev_s *devp)
+{
+	enum vdin_vrr_mode_e ret = VDIN_VRR_OFF;
+	const struct vinfo_s *vinfo = get_current_vinfo();
+	u8 freesync_type;
+	u32 sync_duration_val;
+
+	if (!vinfo) {
+		pr_err("%s:vinfo is null\n", __func__);
+		sync_duration_val = 60;
+	} else {
+		sync_duration_val = vinfo->sync_duration_num / vinfo->sync_duration_den;
+	}
+
+	freesync_type = devp->vrr_data.cur_spd_data5 >> 2 & 0x3;
+	if (devp->prop.vtem_data.vrr_en) {
+		devp->vrr_data.cur_spd_data5 = 0;
+		ret = VDIN_VRR_BASIC;
+	} else if (vdin_check_is_spd_data(devp) && freesync_type) {
+		if ((freesync_type == 1 || freesync_type == 2) &&
+		    sync_duration_val < 120)
+			ret = VDIN_VRR_FREESYNC;
+		else if ((freesync_type == 1 || freesync_type == 2) &&
+			 sync_duration_val >= 120)
+			ret = VDIN_VRR_FREESYNC_PREMIUM;
+		else if (freesync_type == 3)
+			ret = VDIN_VRR_FREESYNC_PREMIUM_PRO;
+	} else {
+		ret = VDIN_VRR_OFF;
+	}
+
+	return ret;
 }

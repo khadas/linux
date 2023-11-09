@@ -51,7 +51,7 @@
 /*2018-07-18 add debugfs*/
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
-#include "vdin_dv.h"
+#include "vdin_hdr.h"
 #include "vdin_mem_scatter.h"
 #include "vdin_hw.h"
 
@@ -1231,7 +1231,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("game_mode cfg :  0x%x\n", game_mode);
 	pr_info("game_mode cur:  0x%x bypass_game_mode:%#x\n",
 		devp->game_mode, devp->debug.bypass_game_mode);
-	pr_info("vrr_mode:  0x%x,vdin_vrr_en_flag=%d\n", devp->vrr_mode,
+	pr_info("vrr_mode:  0x%x,vdin_vrr_en_flag=%d\n", devp->vrr_data.vrr_mode,
 		devp->vrr_data.vdin_vrr_en_flag);
 	pr_info("vrr_en:  pre=%d,cur:%d,base_fr:%d\n",
 		devp->pre_prop.vtem_data.vrr_en, devp->prop.vtem_data.vrr_en,

@@ -372,7 +372,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			if (devp->sg_chg_fps_cnt > 3) {
 				devp->sg_chg_fps_cnt = 0;
 				signal_chg |= TVIN_SIG_CHG_VS_FRQ;
-				pr_info("%s fps chg:(0x%x->0x%x)\n", __func__,
+				pr_info("%s fps chg:(%d->%d)\n", __func__,
 					devp->pre_prop.fps, devp->prop.fps);
 				devp->pre_prop.fps = devp->prop.fps;
 				devp->parm.info.fps = devp->prop.fps;

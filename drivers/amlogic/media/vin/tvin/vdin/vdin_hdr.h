@@ -3,8 +3,8 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#ifndef __TVIN_VDIN_DV_H
-#define __TVIN_VDIN_DV_H
+#ifndef __TVIN_VDIN_HDR_H
+#define __TVIN_VDIN_HDR_H
 #include <linux/highmem.h>
 #include <linux/page-flags.h>
 #include <linux/vmalloc.h>

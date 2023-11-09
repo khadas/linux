@@ -81,7 +81,7 @@
 #include "vdin_canvas.h"
 #include "vdin_afbce.h"
 #include "vdin_v4l2_dbg.h"
-#include "vdin_dv.h"
+#include "vdin_hdr.h"
 #include "vdin_v4l2_if.h"
 #include "vdin_mem_scatter.h"
 
@@ -450,22 +450,25 @@ void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
 
 	if (state) {
 		if (devp->game_mode) {
-			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_ON,
-						   &vrr_data);
+			if (devp->vrr_data.frame_lock_vrr_en != vrr_data.vrr_mode) {
+				aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_ON, &vrr_data);
+				pr_debug("%s: state =1 and Game, enable frame lock mode:%x\n",
+					__func__, vrr_data.vrr_mode);
+			}
 			devp->vrr_data.frame_lock_vrr_en = vrr_data.vrr_mode;
-			pr_info("%s: state =1 and Game, enable frame lock mode:%x\n", __func__,
-				vrr_data.vrr_mode);
 		} else {
-			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_OFF,
-							   &vrr_data);
-			devp->vrr_data.frame_lock_vrr_en = FALSE;
-			pr_info("%s: state =1 and no Game, disable v\n", __func__);
+			if (devp->vrr_data.frame_lock_vrr_en) {
+				aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_OFF, &vrr_data);
+				pr_debug("%s: state =1 and no Game, disable v\n", __func__);
+			}
+			devp->vrr_data.frame_lock_vrr_en = false;
 		}
 	} else {
-		aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_OFF,
-						   &vrr_data);
-		devp->vrr_data.frame_lock_vrr_en = FALSE;
-		pr_info("%s: state=0 ,disable frame lock\n", __func__);
+		if (devp->vrr_data.frame_lock_vrr_en) {
+			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_OFF, &vrr_data);
+			pr_debug("%s: state=0 ,disable frame lock\n", __func__);
+		}
+		devp->vrr_data.frame_lock_vrr_en = false;
 	}
 }
 
@@ -625,8 +628,6 @@ static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
 	if (!vdin_need_game_mode(devp))
 		return;
 
-	vdin_get_in_out_fps(devp);
-	devp->vrr_frame_rate_min = vrr_check_frame_rate_min_hz();
 	if (devp->vrr_data.vrr_mode &&
 	    devp->vdin_std_duration >= 25 &&
 	    devp->vdin_std_duration < devp->vrr_frame_rate_min) {
@@ -696,6 +697,7 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 
 	game_mode_backup = devp->game_mode;
 	devp->vrr_frame_rate_min = vrr_check_frame_rate_min_hz();
+	vdin_get_in_out_fps(devp);
 	/*switch to game mode 2 from game mode 1,otherwise may appear blink*/
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		if (devp->game_mode & VDIN_GAME_MODE_SWITCH_EN) {
@@ -744,7 +746,12 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 			/* if phase lock fail, exit game mode and re-entry
 			 * after phase lock
 			 */
-			if (!vlock_get_phlock_flag() && !frame_lock_vrr_lock_status()) {
+			if ((devp->game_mode & VDIN_GAME_MODE_2) &&
+			    devp->vdin_std_duration + 2 < devp->vinfo_std_duration) {
+				phase_lock_flag = 0;
+				vdin_game_mode_dynamic_check(devp);
+				vdin_pause_hw_write(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE);
+			} else if (!vlock_get_phlock_flag() && !frame_lock_vrr_lock_status()) {
 				if (phase_lock_flag++ > 1) {
 					vdin_game_mode_dynamic_check(devp);
 					phase_lock_flag = 0;
@@ -752,10 +759,10 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 					 * vlock will re-lock
 					 */
 				}
-			}
-			/* fps 60 in and 120 out switch to vrr need switch again */
-			if (devp->vrr_data.vrr_mode && !(devp->game_mode & VDIN_GAME_MODE_2))
+			} else if (vdin_is_vrr_state(devp) &&
+				   !(devp->game_mode & VDIN_GAME_MODE_2)) {
 				vdin_game_mode_dynamic_check(devp);
+			}
 		}
 		if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
 			pr_info("lock_cnt:%d, mode:%x in fps:%d out fps:%d\n",
@@ -2751,11 +2758,6 @@ static inline void vdin_dynamic_switch_vrr(struct vdin_dev_s *devp)
 	is_freesync = (vdin_check_is_spd_data(devp) &&
 			(devp->prop.spd_data.data[5] >> 1 & 0x7));
 
-	if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
-		pr_info("%s %d,frame_lock_on:%d,vrr:%d,freesync:%d,game:%d\n",
-			__func__, __LINE__, devp->vrr_data.frame_lock_vrr_en,
-			is_vrr, is_freesync, devp->game_mode);
-
 	/* FRAME_LOCK_EVENT_OFF */
 	if (!devp->vrr_data.frame_lock_vrr_en) {
 		if ((is_vrr || is_freesync) && devp->game_mode) {
@@ -4553,19 +4555,10 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (vdin_dbg_en)
 			pr_info("TVIN_IOC_VRR_MODE(%d) done\n\n", devp->vrr_mode);
 		/* if (devp->vrr_mode) */
-			vdin_frame_lock_check(devp, 1);
+		//vdin_frame_lock_check(devp, 1);
 		break;
 	case TVIN_IOC_G_VRR_STATUS:
-		if (vdin_check_is_spd_data(devp) &&
-		   (devp->vrr_data.cur_spd_data5 >> 2 & 0x3)) {
-			vdin_vrr_status.cur_vrr_status =
-				((devp->vrr_data.cur_spd_data5 >> 2 & 0x3) + 1);
-		} else {
-			vdin_vrr_status.cur_vrr_status =
-				devp->prop.vtem_data.vrr_en;
-			devp->vrr_data.cur_spd_data5 = 0;
-		}
-
+		vdin_vrr_status.cur_vrr_status = get_cur_vrr_status(devp);
 		vdin_vrr_status.local_dimming_disable = 1;
 		vdin_vrr_status.native_color_en = 0;
 		vdin_vrr_status.tone_mapping_en = 0;

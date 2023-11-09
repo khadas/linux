@@ -30,7 +30,7 @@
 #include "vdin_vf.h"
 #include "vdin_canvas.h"
 #include "vdin_afbce.h"
-#include "vdin_dv.h"
+#include "vdin_hdr.h"
 
 #define VDIN_V_SHRINK_H_LIMIT 1280
 #define TVIN_MAX_PIX_CLK 20000

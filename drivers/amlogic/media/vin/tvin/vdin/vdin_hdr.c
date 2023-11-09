@@ -28,7 +28,7 @@
 #include "vdin_vf.h"
 #include "vdin_canvas.h"
 #include "vdin_afbce.h"
-#include "vdin_dv.h"
+#include "vdin_hdr.h"
 
 #define VDIN2_DV_HSIZE	2048
 #define VDIN2_DV_VSIZE	10
@@ -295,11 +295,14 @@ bool vdin_dv_is_not_std_source_led(struct vdin_dev_s *devp)
 {
 	if (devp->dv.dv_flag &&
 	    (devp->dv.low_latency || devp->prop.latency.allm_mode ||
-	     devp->vrr_data.vrr_mode) &&
-	    ((devp->prop.color_format == TVIN_RGB444 ||
-	      devp->prop.color_format == TVIN_YUV444) ||
-	     devp->prop.colordepth == 8))
-		return true;
-	else
+	     devp->prop.vtem_data.vrr_en)) {
+		if (devp->prop.color_format == TVIN_YUV422 &&
+		    devp->fmt_info_p->h_active >= 1280 &&
+		    devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_PROGRESSIVE)
+			return false;
+		else
+			return true;
+	} else {
 		return false;
+	}
 }

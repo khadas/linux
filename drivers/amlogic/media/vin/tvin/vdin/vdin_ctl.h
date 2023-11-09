@@ -363,5 +363,7 @@ bool vdin_is_3d_interlace_signal(struct vdin_dev_s *devp);
 u64 vdin_calculate_isr_interval_value(struct vdin_dev_s *devp);
 bool vdin_is_auto_game_mode(struct vdin_dev_s *devp);
 bool vdin_is_auto_pc_mode(struct vdin_dev_s *devp);
+bool vdin_is_vrr_state(struct vdin_dev_s *devp);
+enum vdin_vrr_mode_e get_cur_vrr_status(struct vdin_dev_s *devp);
 #endif
 

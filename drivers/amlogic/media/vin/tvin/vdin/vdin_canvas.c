@@ -36,7 +36,7 @@
 #include "vdin_drv.h"
 #include "vdin_canvas.h"
 #include "vdin_ctl.h"
-#include "vdin_dv.h"
+#include "vdin_hdr.h"
 #include "vdin_mem_scatter.h"
 
 /*the value depending on dts config mem limit
