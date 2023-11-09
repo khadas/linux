@@ -39,6 +39,7 @@
 #define MAX_SESSION_NUM 4
 #define CHECK_INTERVAL ((HZ / 10) * 3) //300ms
 #define WAIT_INTERVAL (2000) //2s
+#define VIDEO_START_TO (2 * (HZ)) //2s
 #define TRANSIT_INTERVAL (HZ) //1s
 #define DISC_THRE_MIN (UNIT90K / 3)
 #define DISC_THRE_MAX (UNIT90K * 20)
@@ -157,6 +158,8 @@ struct sync_session {
 	/* timers */
 	bool wait_work_on;
 	struct delayed_work wait_work;
+	bool video_start_work_on;
+	struct delayed_work video_start_work;
 	bool pcr_work_on;
 	struct delayed_work pcr_start_work;
 	bool transit_work_on;
@@ -166,6 +169,7 @@ struct sync_session {
 	/* async audio start */
 	bool start_posted;
 	bool v_timeout;
+	bool a_timeout;
 
 	/* debug */
 	bool debug_freerun;
@@ -471,6 +475,30 @@ exit:
 		wakeup_poll(session, WAKE_A);
 }
 
+static void video_start_work_func(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct sync_session *session =
+		container_of(dwork, struct sync_session, video_start_work);
+
+	mutex_lock(&session->session_mutex);
+	if (!session->video_start_work_on) {
+		mutex_unlock(&session->session_mutex);
+		return;
+	}
+
+	if (session->mode == AVS_MODE_A_MASTER &&
+			!VALID_PTS(session->first_apts.pts)) {
+		msync_dbg(LOG_WARN, "[%d]wait audio timeout\n",
+			session->id);
+		session->clock_start = true;
+		session->stat = AVS_STAT_STARTED;
+		session->a_timeout = true;
+	}
+	session->video_start_work_on = false;
+	mutex_unlock(&session->session_mutex);
+}
+
 static void audio_change_work_func(struct work_struct *work)
 {
 	bool wake = false;
@@ -761,6 +789,13 @@ static void session_video_start(struct sync_session *session, u32 pts)
 					session->id, __LINE__, pts);
 			}
 		}
+		if (!VALID_PTS(session->first_apts.pts) &&
+				!session->video_start_work_on) {
+			queue_delayed_work(session->wq,
+					&session->video_start_work,
+					VIDEO_START_TO);
+				session->video_start_work_on = true;
+		}
 	} else if (session->mode == AVS_MODE_IPTV) {
 		update_f_vpts(session, pts);
 
@@ -832,6 +867,7 @@ static u32 session_audio_start(struct sync_session *session,
 	u32 start_pts = start->pts - start->delay;
 
 	session->a_active = true;
+	session->a_timeout = false;
 	mutex_lock(&session->session_mutex);
 	if (session->audio_switching) {
 		update_f_apts(session, pts);
@@ -923,6 +959,10 @@ static u32 session_audio_start(struct sync_session *session,
 			} else {
 				session->clock_start = true;
 				session->stat = AVS_STAT_STARTED;
+				cancel_delayed_work_sync(&session->video_start_work);
+				session->video_start_work_on = false;
+				msync_dbg(LOG_INFO, "[%d]%d clock start %u\n",
+					session->id, __LINE__, pts);
 			}
 		}
 	} else if (session->mode == AVS_MODE_IPTV) {
@@ -2035,6 +2075,10 @@ static void free_session(struct sync_session *session)
 		cancel_delayed_work_sync(&session->wait_work);
 		session->wait_work_on = false;
 	}
+	if (session->video_start_work_on) {
+		cancel_delayed_work_sync(&session->video_start_work);
+		session->video_start_work_on = false;
+	}
 	if (session->transit_work_on) {
 		cancel_delayed_work_sync(&session->transit_work);
 		session->transit_work_on = false;
@@ -2329,6 +2373,7 @@ static int create_session(u32 id)
 	session->start_policy.timeout = WAIT_INTERVAL;
 	session->sync_status_cnt = 0;
 	INIT_DELAYED_WORK(&session->wait_work, wait_work_func);
+	INIT_DELAYED_WORK(&session->video_start_work, video_start_work_func);
 	INIT_DELAYED_WORK(&session->transit_work, transit_work_func);
 	INIT_DELAYED_WORK(&session->pcr_start_work, pcr_start_work_func);
 	INIT_DELAYED_WORK(&session->audio_change_work, audio_change_work_func);
