@@ -221,6 +221,8 @@ struct c_fifo_s {
 	bool		flg_alloc;
 	unsigned char	id;
 	unsigned char	size; //dbg only
+	spinlock_t lock_w; //protect blk_o_put
+	spinlock_t lock_r; //protect blk_o_get
 	const char *name;
 };
 
@@ -364,7 +366,7 @@ __return_bool(					\
 	typeof((mfifo) + 1) __tmp2 = (mfifo);	\
 	unsigned char __idx;			\
 	bool __ret = false;			\
-	unsigned int __ret_kput;		\
+	int __ret_kput = -10;		\
 	__idx = (unsigned char)(hd_st)->hd->idx;	\
 	if (__tmp2->flg_alloc) {		\
 		__ret_kput = kfifo_put(&__tmp2->f, __idx);	\
@@ -372,7 +374,7 @@ __return_bool(					\
 			__ret	= true;		\
 	}					\
 	if (!__ret)				\
-		PR_ERR("hd:%s:\n", __tmp2->name);	\
+		PR_ERR("hd:%s:%d st:%px\n", __tmp2->name, __ret_kput, hd_st);	\
 	__ret;					\
 }) \
 )
@@ -399,6 +401,35 @@ __return_blk(				\
 	hd_blk_get(&(dd)->f_blk_t[id], &(dd)->hd_blk[0])
 #define blk_o_put(dd, id, hd_st)	\
 	hd_put(&(dd)->f_blk_t[id], hd_st)
+
+#define blk_o_get_locked(dd, id) \
+__return_blk( \
+({ \
+	typeof((dd) + 1) __new_f_hd = (dd);	\
+	struct c_hd_s *__hd = NULL;	\
+	struct blk_s *__blk	= NULL;	\
+	int __next_idx = (id); \
+	spin_lock(&__new_f_hd->f_blk_t[__next_idx].lock_r); \
+	__hd = hd_get(&__new_f_hd->f_blk_t[__next_idx], &__new_f_hd->hd_blk[0]); \
+	spin_unlock(&__new_f_hd->f_blk_t[__next_idx].lock_r); \
+	if (__hd) \
+		__blk = __hd->p; \
+	__blk; \
+}) \
+)
+
+#define blk_o_put_locked(dd, id, hd_st)	\
+__return_bool( \
+({ \
+	typeof((dd) + 1) __new_tmp2 = (dd);	\
+	bool __iret = false; \
+	int __tmp_idx = (id); \
+	spin_lock(&__new_tmp2->f_blk_t[__tmp_idx].lock_w); \
+	__iret = hd_put(&__new_tmp2->f_blk_t[__tmp_idx], hd_st); \
+	spin_unlock(&__new_tmp2->f_blk_t[__tmp_idx].lock_w); \
+	__iret; \
+}) \
+)
 
 //----------------------------------------------------------
 #define qdis_put_buf(mfifo, buf)		\
@@ -437,6 +468,8 @@ __return_uint(					\
 						\
 	size_l = (sizeb);			\
 	typeof((mfifo) + 1) __tmpc = (mfifo);	\
+	spin_lock_init(&__tmpc->lock_w); \
+	spin_lock_init(&__tmpc->lock_r); \
 	__ret_alloc = kfifo_alloc(&__tmpc->f,	\
 	    size_l,				\
 	    GFP_KERNEL);			\

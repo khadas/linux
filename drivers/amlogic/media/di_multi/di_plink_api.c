@@ -4031,7 +4031,7 @@ static void dpvpp_mem_dct(void)
 			dct_idx = EBLK_T_LINK_DCT_TVP;
 		else
 			dct_idx = EBLK_T_LINK_DCT;
-		blk = blk_o_get(d_dd, dct_idx);
+		blk = blk_o_get_locked(d_dd, dct_idx);
 		if (blk) {
 			hw->src_blk_dct = blk;
 			dbg_plink1("dct mem get\n");
@@ -4080,7 +4080,7 @@ void dpvpp_secure_pre_en(bool is_tvp)
 void dpvpp_mng_set(void)
 {
 	struct dim_pvpp_hw_s *hw;
-	int i, cnt;
+	int i, cnt = 0;
 	struct dd_s *d_dd;
 	struct blk_s *blk;
 	bool ret = false;
@@ -4120,7 +4120,7 @@ void dpvpp_mng_set(void)
 				cnt++;
 				continue;
 			}
-			blk = blk_o_get(d_dd, index);
+			blk = blk_o_get_locked(d_dd, index);
 			if (blk) {
 				hw->src_blk[i] = blk;
 				cnt++;
@@ -4154,7 +4154,7 @@ void dpvpp_mng_set(void)
 				cnt++;
 				continue;
 			}
-			blk = blk_o_get(d_dd, index);
+			blk = blk_o_get_locked(d_dd, index);
 			if (blk) {
 				hw->src_blk_uhd_afbce[i] = blk;
 				cnt++;
@@ -4162,7 +4162,7 @@ void dpvpp_mng_set(void)
 			}
 		}
 		if (!hw->src_blk_e) {
-			blk = blk_o_get(d_dd, EBLK_T_S_LINK_AFBC_T_FULL);
+			blk = blk_o_get_locked(d_dd, EBLK_T_S_LINK_AFBC_T_FULL);
 			if (blk) {
 				cnt++;
 				hw->src_blk_e = blk;
@@ -4202,14 +4202,14 @@ void dpvpp_mng_set(void)
 				cnt++;
 				continue;
 			}
-			blk = blk_o_get(d_dd, index);
+			blk = blk_o_get_locked(d_dd, index);
 			if (blk) {
 				hw->src_blk[i] = blk;
 				cnt++;
 			}
 		}
 		if (!hw->src_blk_e) {
-			blk = blk_o_get(d_dd, EBLK_T_S_LINK_AFBC_T_FULL);
+			blk = blk_o_get_locked(d_dd, EBLK_T_S_LINK_AFBC_T_FULL);
 			if (blk) {
 				cnt++;
 				hw->src_blk_e = blk;
@@ -4231,7 +4231,7 @@ void dpvpp_mng_set(void)
 		break;
 	}
 	if (ret) {
-		dbg_plink1("%s:set:%d\n", __func__, hw->m_mode_tgt);
+		dbg_plink1("%s:set:%d cnt:%d\n", __func__, hw->m_mode_tgt, cnt);
 		hw->m_mode = hw->m_mode_tgt;
 		hw->flg_tvp	= hw->flg_tvp_tgt;
 	}
@@ -4333,7 +4333,7 @@ void dpvpp_mem_mng_get(unsigned int id)
 				dct_idx = EBLK_T_LINK_DCT_TVP;
 			else
 				dct_idx = EBLK_T_LINK_DCT;
-			blk_o_put(d_dd, dct_idx, hw->src_blk_dct);
+			blk_o_put_locked(d_dd, dct_idx, hw->src_blk_dct);
 			hw->src_blk_dct = NULL;
 		}
 		/* src_blk_uhd_afbce */
@@ -4343,7 +4343,7 @@ void dpvpp_mem_mng_get(unsigned int id)
 			blk_idx = EBLK_T_UHD_FULL_AFBCE;
 		for (i = 0; i < DPVPP_BLK_NUB_MAX; i++) {
 			if (hw->src_blk_uhd_afbce[i]) {
-				blk_o_put(d_dd, blk_idx, hw->src_blk_uhd_afbce[i]);
+				blk_o_put_locked(d_dd, blk_idx, hw->src_blk_uhd_afbce[i]);
 				hw->src_blk_uhd_afbce[i] = NULL;
 			}
 		}
@@ -4354,7 +4354,7 @@ void dpvpp_mem_mng_get(unsigned int id)
 			blk_idx = EBLK_T_HD_FULL;
 		for (i = 0; i < DPVPP_BLK_NUB_MAX; i++) {
 			if (hw->src_blk[i]) {
-				blk_o_put(d_dd, blk_idx, hw->src_blk[i]);
+				blk_o_put_locked(d_dd, blk_idx, hw->src_blk[i]);
 				hw->src_blk[i] = NULL;
 			}
 		}
@@ -4403,7 +4403,7 @@ void dpvpp_mem_mng_get(unsigned int id)
 
 		/* check afbce table */
 		if (hw->src_blk_e) {
-			blk_o_put(d_dd, EBLK_T_S_LINK_AFBC_T_FULL, hw->src_blk_e);
+			blk_o_put_locked(d_dd, EBLK_T_S_LINK_AFBC_T_FULL, hw->src_blk_e);
 			hw->src_blk_e = NULL;
 		}
 		memset(&hw->blkt_n[0], 0, sizeof(hw->blkt_n));
@@ -4422,7 +4422,7 @@ void dpvpp_mem_mng_get(unsigned int id)
 
 		/* check afbce table */
 		if (hw->src_blk_e) {
-			blk_o_put(d_dd, EBLK_T_S_LINK_AFBC_T_FULL, hw->src_blk_e);
+			blk_o_put_locked(d_dd, EBLK_T_S_LINK_AFBC_T_FULL, hw->src_blk_e);
 			hw->src_blk_e = NULL;
 		}
 		memset(&hw->blkt_n[0], 0, sizeof(hw->blkt_n));
@@ -4435,7 +4435,7 @@ void dpvpp_mem_mng_get(unsigned int id)
 	} else if (tgt_mode == EPVPP_MEM_T_NONE) {
 		/* check afbce table */
 		if (hw->src_blk_e) {
-			blk_o_put(d_dd, EBLK_T_S_LINK_AFBC_T_FULL, hw->src_blk_e);
+			blk_o_put_locked(d_dd, EBLK_T_S_LINK_AFBC_T_FULL, hw->src_blk_e);
 			hw->src_blk_e = NULL;
 		}
 		/**/
@@ -4444,7 +4444,7 @@ void dpvpp_mem_mng_get(unsigned int id)
 				dct_idx = EBLK_T_LINK_DCT_TVP;
 			else
 				dct_idx = EBLK_T_LINK_DCT;
-			blk_o_put(d_dd, dct_idx, hw->src_blk_dct);
+			blk_o_put_locked(d_dd, dct_idx, hw->src_blk_dct);
 			hw->src_blk_dct = NULL;
 		}
 		mem_count_buf_cfg(0xff, 0);
@@ -9283,11 +9283,11 @@ bool dim_mm_alloc_api2(struct mem_a_s *in_para, struct dim_mm_s *o)
 			blk_i->mem_from, blk_i->tvp, blk_i->page_size,
 			in_para->owner, in_para->note);
 	}
-	dbg_plink1("a:%ums:<%d,%d>:<0x%lx,0x%x>:%s,%s\n", (unsigned int)diff,
-		 blk_i->mem_from, blk_i->tvp,
-		 o->addr, blk_i->mem_size,
+	dbg_plink1("%s:a:%ums:<%d,%d>:<0x%lx,0x%x>:%s,%s\n",
+		__func__, (unsigned int)diff,
+		blk_i->mem_from, blk_i->tvp,
+		o->addr, blk_i->mem_size,
 		in_para->owner, in_para->note);
-
 #endif
 	return ret;
 }
@@ -9320,8 +9320,12 @@ bool dim_mm_release_api2(struct mem_r_s *in_para)
 						  blk->pages,
 						  blk->inf->page_size);
 	}
-	dbg_plink1("r:<%d,%d,0x%x>:%s\n",
-		 blk->inf->mem_from, blk->inf->tvp, blk->inf->page_size,
+	dbg_plink1("%s:r:<%d,%d>,<0x%lx 0x%x>:%s\n",
+		__func__,
+		blk->inf->mem_from,
+		blk->inf->tvp,
+		blk->mem_start,
+		blk->inf->mem_size,
 		in_para->note);
 #endif
 	return ret;
@@ -9512,9 +9516,9 @@ void m_polling(void)
 			buf_cnt = d_dd->blkt_crr[j] - d_dd->blkt_tgt[j];
 			for (i = 0; i < buf_cnt; i++) {
 				//blk = qblk_get(&d_dd->f_blk_t[j]);
-				blk = blk_o_get(d_dd, j);
+				blk = blk_o_get_locked(d_dd, j);
 				if (!blk) {
-					PR_WARN("%s:release:[%d]:%d:%d:break\n",
+					PR_WARN("%s:release:[%d]:<crr:%d tgt:%d>:break\n",
 						__func__, j, i, buf_cnt);
 					break;
 				}
@@ -9559,7 +9563,7 @@ void m_polling(void)
 				alloc_cnt--;
 				//PR_INF("alloc:%s:\n", a_para.owner);
 
-				blk_o_put(d_dd, j, blk);
+				blk_o_put_locked(d_dd, j, blk);
 				flg_a = true;
 			} else {
 				PR_WARN("alloc failed\n");
