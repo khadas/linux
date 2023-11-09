@@ -27,6 +27,8 @@
 
 #define JPGDEC_DRIVER_NAME		"mpp_jpgdec"
 
+#define JPGDEC_HWID_VPU720		0xdb1f0006
+
 #define	JPGDEC_SESSION_MAX_BUFFERS	40
 /* The maximum registers number of all the version */
 #define JPGDEC_REG_NUM			42
@@ -68,6 +70,8 @@
 
 #define JPGDEC_REG_STREAM_RLC_BASE		0x030
 #define JPGDEC_REG_STREAM_RLC_BASE_INDEX	(12)
+
+#define JPGDEC_REG_PERF_WORKING_CNT	0x9c
 
 #define to_jpgdec_task(task)	\
 		container_of(task, struct jpgdec_task, mpp_task)
@@ -315,6 +319,7 @@ static int jpgdec_finish(struct mpp_dev *mpp,
 	 * has not been completed.We have to manually trigger to do soft-reset.
 	 */
 	if (!(task->irq_status & JPGDEC_SOFT_RSET_READY) &&
+	    (mpp->var->hw_info->hw_id < JPGDEC_HWID_VPU720) &&
 	    !atomic_read(&mpp->reset_request))
 		jpgdec_soft_reset(mpp);
 
@@ -411,8 +416,6 @@ static int jpgdec_init(struct mpp_dev *mpp)
 	int ret;
 	struct jpgdec_dev *dec = to_jpgdec_dev(mpp);
 
-	mpp->grf_info = &mpp->srv->grf_infos[MPP_DRIVER_VDPU1];
-
 	/* Get clock info from dtsi */
 	ret = mpp_get_clk_info(mpp, &dec->aclk_info, "aclk_vcodec");
 	if (ret)
@@ -476,7 +479,17 @@ static int jpgdec_reduce_freq(struct mpp_dev *mpp)
 
 static int jpgdec_irq(struct mpp_dev *mpp)
 {
+	u32 clr_mask = 0;
+
 	mpp->irq_status = mpp_read(mpp, JPGDEC_REG_INT_EN_BASE);
+
+	if (mpp->var->hw_info->hw_id == JPGDEC_HWID_VPU720) {
+		clr_mask = (~(0x00fe7f40 & mpp->irq_status)) & (0xff0180bf & mpp->irq_status);
+		mpp_debug(DEBUG_IRQ_STATUS, "irq status 0x%08x, mask 0x%08x\n",
+			  mpp->irq_status, clr_mask);
+		mpp_write(mpp, JPGDEC_REG_INT_EN_BASE, clr_mask);
+	}
+
 	if (!(mpp->irq_status & JPGDEC_IRQ_RAW))
 		return IRQ_NONE;
 	mpp_write(mpp, JPGDEC_REG_INT_EN_BASE, 0);
@@ -489,13 +502,15 @@ static int jpgdec_isr(struct mpp_dev *mpp)
 	int error_mask;
 	struct jpgdec_task *task = NULL;
 	struct mpp_task *mpp_task = mpp->cur_task;
+	struct jpgdec_dev *dec = to_jpgdec_dev(mpp);
 
 	/* FIXME use a spin lock here */
 	if (!mpp_task) {
 		dev_err(mpp->dev, "no current task\n");
 		return IRQ_HANDLED;
 	}
-	mpp_time_diff(mpp_task);
+	mpp_task->hw_cycles = mpp_read(mpp, JPGDEC_REG_PERF_WORKING_CNT);
+	mpp_time_diff_with_hw_time(mpp_task, dec->aclk_info.real_rate_hz);
 	mpp->cur_task = NULL;
 	task = to_jpgdec_task(mpp_task);
 	task->irq_status = mpp->irq_status;
@@ -611,6 +626,7 @@ static int jpgdec_probe(struct platform_device *pdev)
 	}
 
 	mpp->session_max_buffers = JPGDEC_SESSION_MAX_BUFFERS;
+
 	jpgdec_procfs_init(mpp);
 	/* register current device to mpp service */
 	mpp_dev_register_srv(mpp, mpp->srv);

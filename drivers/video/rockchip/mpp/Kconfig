@@ -65,6 +65,11 @@ config ROCKCHIP_MPP_JPGDEC
 	help
 	  rockchip mpp rkv jpeg decoder.
 
+config ROCKCHIP_MPP_JPGENC
+	bool "RKV jpeg encoder v1 device driver"
+	help
+	  rockchip mpp rkv jpeg encoder.
+
 config ROCKCHIP_MPP_AV1DEC
 	bool "AV1 decoder device driver"
 	help

@@ -58,6 +58,7 @@ enum MPP_DEVICE_TYPE {
 	MPP_DEVICE_VEPU1	= 17, /* 0x00020000 */
 	MPP_DEVICE_VEPU2	= 18, /* 0x00040000 */
 	MPP_DEVICE_VEPU2_JPEG	= 19, /* 0x00080000 */
+	MPP_DEVICE_RKJPEGE	= 20, /* 0x00100000 */
 	MPP_DEVICE_VEPU22	= 24, /* 0x01000000 */
 
 	MPP_DEVICE_IEP2		= 28, /* 0x10000000 */
@@ -84,6 +85,7 @@ enum MPP_DRIVER_TYPE {
 	MPP_DRIVER_RKVENC2,
 	MPP_DRIVER_AV1DEC,
 	MPP_DRIVER_VDPP,
+	MPP_DRIVER_JPGENC,
 	MPP_DRIVER_BUTT,
 };
 
@@ -847,6 +849,7 @@ extern struct platform_driver rockchip_jpgdec_driver;
 extern struct platform_driver rockchip_rkvdec2_driver;
 extern struct platform_driver rockchip_rkvenc2_driver;
 extern struct platform_driver rockchip_av1dec_driver;
+extern struct platform_driver rockchip_jpgenc_driver;
 extern struct platform_driver rockchip_vdpp_driver;
 
 #endif
