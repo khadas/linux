@@ -306,6 +306,10 @@ void __init fdt_init_reserved_mem(void)
 					nomap ? "nomap" : "map",
 					reusable ? "reusable" : "non-reusable",
 					rmem->name ? rmem->name : "unknown");
+			#if defined(CONFIG_ARM) && defined(CONFIG_AMLOGIC_MEMORY_EXTEND)
+				if (rmem->size / SZ_1M > 100 && end < 0x30000000)
+					WARN(1, "This cma pool in low memory.\n");
+			#endif
 			}
 		}
 	}
