@@ -789,6 +789,17 @@ u8 rk628_hdmirx_get_format(struct rk628 *rk628)
 }
 EXPORT_SYMBOL(rk628_hdmirx_get_format);
 
+void rk628_set_bg_enable(struct rk628 *rk628, bool en)
+{
+	if (en) {
+		rk628_i2c_write(rk628, GRF_BG_CTRL,
+			BG_R_OR_V(512) | BG_B_OR_U(512) | BG_G_OR_Y(64) | BG_ENABLE(1));
+		return;
+	}
+	rk628_i2c_write(rk628, GRF_BG_CTRL, BG_ENABLE(0));
+}
+EXPORT_SYMBOL(rk628_set_bg_enable);
+
 u32 rk628_hdmirx_get_tmdsclk_cnt(struct rk628 *rk628)
 {
 	int i, j;

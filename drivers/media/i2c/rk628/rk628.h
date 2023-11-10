@@ -175,6 +175,16 @@
 #define GRF_GPIO3A_D1_CON		0x00e4
 #define GRF_GPIO3B_D_CON		0x00e8
 #define GRF_GPIO_SR_CON			0x00ec
+#define GRF_BG_CTRL			0x00f0
+#define BG_ENABLE_MASK			GENMASK(31, 31)
+#define BG_ENABLE(x)			UPDATE(x, 31, 31)
+#define BG_R_OR_V_MASK			GENMASK(29, 20)
+#define BG_R_OR_V(x)			UPDATE(x, 29, 20)
+#define BG_G_OR_Y_MASK			GENMASK(19, 10)
+#define BG_G_OR_Y(x)			UPDATE(x, 19, 10)
+#define BG_B_OR_U_MASK			GENMASK(9, 0)
+#define BG_B_OR_U(x)			UPDATE(x, 9, 0)
+
 #define GRF_SW_HDMIRXPHY_CRTL		0x00f4
 #define GRF_INTR0_EN			0x0100
 #define GRF_INTR0_CLR_EN		0x0104

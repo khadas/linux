@@ -418,6 +418,7 @@ void rk628_hdmirx_verisyno_phy_power_on(struct rk628 *rk628);
 void rk628_hdmirx_phy_prepclk_cfg(struct rk628 *rk628);
 int rk628_hdmirx_verisyno_phy_init(struct rk628 *rk628);
 u8 rk628_hdmirx_get_format(struct rk628 *rk628);
+void rk628_set_bg_enable(struct rk628 *rk628, bool en);
 u32 rk628_hdmirx_get_tmdsclk_cnt(struct rk628 *rk628);
 
 #endif

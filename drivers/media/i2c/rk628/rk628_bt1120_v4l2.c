@@ -512,6 +512,7 @@ static void rk628_bt1120_delayed_work_enable_hotplug(struct work_struct *work)
 	bool plugin;
 
 	mutex_lock(&bt1120->confctl_mutex);
+	rk628_set_bg_enable(bt1120->rk628, false);
 	bt1120->avi_rcv_rdy = false;
 	plugin = tx_5v_power_present(sd);
 	v4l2_ctrl_s_ctrl(bt1120->detect_tx_5v_ctrl, plugin);
@@ -578,6 +579,7 @@ static void rk628_delayed_work_res_change(struct work_struct *work)
 	bool plugin;
 
 	mutex_lock(&bt1120->confctl_mutex);
+	rk628_set_bg_enable(bt1120->rk628, false);
 	bt1120->avi_rcv_rdy = false;
 	plugin = tx_5v_power_present(sd);
 	v4l2_dbg(1, debug, sd, "%s: 5v_det:%d\n", __func__, plugin);
@@ -1049,6 +1051,14 @@ static int rk628_bt1120_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 		v4l2_err(sd, "handled NULL, err return!\n");
 		return -EINVAL;
 	}
+
+	rk628_i2c_read(bt1120->rk628, HDMI_RX_MD_ISTS, &md_ints);
+	if (bt1120->rk628->version >= RK628F_VERSION &&
+	    (md_ints & (VACT_LIN_ISTS | HACT_PIX_ISTS |
+			HS_CLK_ISTS | DE_ACTIVITY_ISTS |
+			VS_ACT_ISTS | HS_ACT_ISTS)))
+		rk628_set_bg_enable(bt1120->rk628, true);
+
 	plugin = tx_5v_power_present(sd);
 	if (!plugin) {
 		rk628_bt1120_enable_interrupts(sd, false);
@@ -1087,8 +1097,10 @@ static int rk628_bt1120_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 				 __func__, hact, vact);
 
 			rk628_bt1120_enable_interrupts(sd, false);
-			enable_stream(sd, false);
-			bt1120->nosignal = true;
+			if (bt1120->rk628->version < RK628F_VERSION) {
+				enable_stream(sd, false);
+				bt1120->nosignal = true;
+			}
 			schedule_delayed_work(&bt1120->delayed_work_res_change, HZ / 2);
 
 			v4l2_dbg(1, debug, sd, "%s: hact/vact change, md_ints: %#x\n",
