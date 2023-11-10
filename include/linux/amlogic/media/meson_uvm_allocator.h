@@ -138,7 +138,7 @@ union uvm_ioctl_arg {
 				struct uvm_fd_data)
 #define UVM_IOC_GET_METADATA _IOWR(UVM_IOC_MAGIC, 4, \
 				struct uvm_meta_data)
-#define UVM_IOC_ATTATCH _IOWR(UVM_IOC_MAGIC, 5, \
+#define UVM_IOC_ATTACH _IOWR(UVM_IOC_MAGIC, 5, \
 				struct uvm_hook_data)
 #define UVM_IOC_GET_INFO _IOWR(UVM_IOC_MAGIC, 6, \
 				struct uvm_hook_data)

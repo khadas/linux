@@ -26,6 +26,12 @@ struct uvm_aipq_info {
 	s32 dw_height;
 	s32 nn_input_frame_width;
 	s32 nn_input_frame_height;
+	s32 is_nn_doing;
+	s32 omx_index;
+	s32 is_start_first_vf;
+	s32 is_open_first_vf;
+	s32 nn_do_aipq_type;
+	s32 reserved[5];
 };
 
 struct ge2d_output_t {

@@ -34,9 +34,14 @@ module_param(uvm_aipq_dump, int, 0644);
 static int uvm_aipq_skip_height = 1088;
 module_param(uvm_aipq_skip_height, int, 0644);
 
+static int last_open_value;
+
 #define PRINT_ERROR		0X0
 #define PRINT_OTHER		0X0001
 #define PRINT_NN_DUMP		0X0002
+
+#define NN_USE_HARDWARE 0
+#define NN_USE_GPU 1
 
 int aipq_print(int debug_flag, const char *fmt, ...)
 {
@@ -61,6 +66,7 @@ int aipq_vf_set_value(struct uvm_aipq_info *aipq_info, bool enable_aipq)
 	struct dma_buf *dmabuf = NULL;
 	bool is_dec_vf = false, is_v4l_vf = false;
 	struct vframe_s *vf = NULL;
+	struct vframe_s *tmp_vf = NULL;
 	struct file_private_data *file_private_data = NULL;
 	int shared_fd = aipq_info->shared_fd;
 	int i = 0, di_flag = 0;
@@ -102,23 +108,32 @@ int aipq_vf_set_value(struct uvm_aipq_info *aipq_info, bool enable_aipq)
 			vf = &file_private_data->vf;
 	}
 	if (vf) {
-		for (i = 0; i < AI_PQ_TOP; i++)
-			vf->nn_value[i] = aipq_info->nn_value[i];
+		if (aipq_info->nn_do_aipq_type == NN_USE_HARDWARE) {
+			vf->aipq_flag = 0;
+			vf->aipq_flag |= AIPQ_FLAG_VERSION_1;
+			for (i = 0; i < AI_PQ_TOP; i++)
+				vf->nn_value[i] = aipq_info->nn_value[i];
+		} else if (aipq_info->nn_do_aipq_type == NN_USE_GPU) {
+			vf->aipq_flag |= AIPQ_FLAG_VERSION_2;
+			if (aipq_info->is_nn_doing)
+				vf->aipq_flag |=
+					AIPQ_FLAG_SCENE_CHANGE | AIPQ_FLAG_NN_NOT_DONE;
+		}
 		vf->ai_pq_enable = enable_aipq;
 		di_flag = vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME;
 
 		if (vf->vf_ext) {
 			if (!is_dec_vf || (is_dec_vf && di_flag)) {
 				aipq_print(PRINT_OTHER, "set di vf\n");
+				tmp_vf = vf;
 				vf = vf->vf_ext;
+				vf->aipq_flag = tmp_vf->aipq_flag;
+				vf->ai_pq_enable = tmp_vf->ai_pq_enable;
+				if (aipq_info->nn_do_aipq_type == NN_USE_HARDWARE)
+					for (i = 0; i < AI_PQ_TOP; i++)
+						vf->nn_value[i] = aipq_info->nn_value[i];
 			} else {
 				vf = NULL;
-			}
-
-			if (vf) {
-				for (i = 0; i < AI_PQ_TOP; i++)
-					vf->nn_value[i] = aipq_info->nn_value[i];
-				vf->ai_pq_enable = enable_aipq;
 			}
 		} else {
 			aipq_print(PRINT_OTHER, "not find di vf\n");
@@ -128,6 +143,103 @@ int aipq_vf_set_value(struct uvm_aipq_info *aipq_info, bool enable_aipq)
 		dma_buf_put(dmabuf);
 		return -EINVAL;
 	}
+	dma_buf_put(dmabuf);
+	return 0;
+}
+
+int attach_aipq_vf_set_value(struct uvm_aipq_info *aipq_info, bool enable_aipq)
+{
+	struct uvm_hook_mod *uhmod = NULL;
+	struct dma_buf *dmabuf = NULL;
+	bool is_dec_vf = false, is_v4l_vf = false;
+	struct vframe_s *vf = NULL;
+	struct vframe_s *tmp_vf = NULL;
+	struct file_private_data *file_private_data = NULL;
+	int shared_fd = aipq_info->shared_fd;
+	int i = 0, di_flag = 0;
+
+	dmabuf = dma_buf_get(shared_fd);
+
+	if (IS_ERR_OR_NULL(dmabuf)) {
+		aipq_print(PRINT_ERROR,
+			"Invalid dmabuf %s %d\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	if (!dmabuf_is_uvm(dmabuf)) {
+		aipq_print(PRINT_ERROR,
+			"%s: dmabuf is not uvm.dmabuf=%px, shared_fd=%d\n",
+			__func__, dmabuf, shared_fd);
+		dma_buf_put(dmabuf);
+		return -EINVAL;
+	}
+
+	is_dec_vf = is_valid_mod_type(dmabuf, VF_SRC_DECODER);
+	is_v4l_vf = is_valid_mod_type(dmabuf, VF_PROCESS_V4LVIDEO);
+
+	if (is_dec_vf) {
+		vf = dmabuf_get_vframe(dmabuf);
+		dmabuf_put_vframe(dmabuf);
+	} else {
+		uhmod = uvm_get_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
+		if (IS_ERR_OR_NULL(uhmod) || !uhmod->arg) {
+			aipq_print(PRINT_OTHER, "%s: get vf err: no v4lvideo\n", __func__);
+			dma_buf_put(dmabuf);
+			return -EINVAL;
+		}
+		file_private_data = uhmod->arg;
+		uvm_put_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
+		if (!file_private_data)
+			aipq_print(PRINT_ERROR, "%s: invalid fd no uvm/v4lvideo\n", __func__);
+		else
+			vf = &file_private_data->vf;
+	}
+	if (vf) {
+		vf->aipq_flag = 0;
+		if (!last_open_value && uvm_open_aipq)
+			aipq_info->is_open_first_vf = true;
+
+		if (!enable_aipq)
+			memset(vf->nn_value, 0, sizeof(struct nn_value_t) * AI_PQ_TOP);
+
+		vf->aipq_flag |= AIPQ_FLAG_VERSION_2;
+		if (aipq_info->is_nn_doing) {
+			vf->aipq_flag |= AIPQ_FLAG_NN_NOT_DONE;
+		} else if (!aipq_info->is_nn_doing && enable_aipq) {
+			vf->aipq_flag |= AIPQ_FLAG_NN_DONE;
+			for (i = 0; i < AI_PQ_TOP; i++)
+				vf->nn_value[i] = aipq_info->nn_value[i];
+		}
+		vf->ai_pq_enable = enable_aipq;
+		if (!last_open_value && uvm_open_aipq && !aipq_info->is_start_first_vf)
+			vf->aipq_flag |= AIPQ_FLAG_FIRST_VFRAME;
+
+		di_flag = vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME;
+
+		if (vf->vf_ext) {
+			if (!is_dec_vf || (is_dec_vf && di_flag)) {
+				aipq_print(PRINT_OTHER, "%s: set di vf\n", __func__);
+				tmp_vf = vf;
+				vf = vf->vf_ext;
+				vf->omx_index = tmp_vf->omx_index;
+				vf->aipq_flag = tmp_vf->aipq_flag;
+				vf->ai_pq_enable = tmp_vf->ai_pq_enable;
+				for (i = 0; i < AI_PQ_TOP; i++)
+					vf->nn_value[i] = tmp_vf->nn_value[i];
+			} else {
+				vf = NULL;
+			}
+		} else {
+			aipq_print(PRINT_OTHER, "%s: not find di vf\n", __func__);
+		}
+	} else {
+		aipq_print(PRINT_ERROR, "%s: not find vf\n", __func__);
+		dma_buf_put(dmabuf);
+		return -EINVAL;
+	}
+
+	if ((!last_open_value && uvm_open_aipq) || !uvm_open_aipq)
+		last_open_value = uvm_open_aipq;
 	dma_buf_put(dmabuf);
 	return 0;
 }
@@ -475,7 +587,10 @@ int attach_aipq_hook_mod_info(int shared_fd,
 	} else {
 		aipq_info->repeat_frame = 0;
 		dmabuf_last = dmabuf;
-		ret = aipq_vf_set_value(aipq_info, enable_aipq);
+		if (aipq_info->nn_do_aipq_type == NN_USE_GPU)
+			ret = attach_aipq_vf_set_value(aipq_info, enable_aipq);
+		else if (aipq_info->nn_do_aipq_type == NN_USE_HARDWARE)
+			ret = aipq_vf_set_value(aipq_info, enable_aipq);
 		if (ret != 0)
 			aipq_print(PRINT_OTHER, "set aipq value err\n");
 	}
@@ -613,6 +728,7 @@ int aipq_getinfo(void *arg, char *buf)
 			aipq_print(PRINT_ERROR, "ge2d err\n");
 			return -EINVAL;
 		}
+		aipq_info->omx_index = vf->omx_index;
 		do_gettimeofday(&end_time);
 		cost_time = (1000000 * (end_time.tv_sec - begin_time.tv_sec)
 			+ (end_time.tv_usec - begin_time.tv_usec)) / 1000;

@@ -796,6 +796,9 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 	struct composer_dev *dev = (struct composer_dev *)op_arg;
 	struct vframe_s *vf = NULL;
 	u32 vsync_index_diff = 0;
+	struct vframe_s *src_vf = NULL;
+	struct vd_prepare_s *vd_prepare;
+	bool is_composer;
 
 	if (kfifo_get(&dev->ready_q, &vf)) {
 		if (!vf)
@@ -854,6 +857,25 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 				continue_vsync_count[dev->index];
 			actual_delay_count[dev->index] = vsync_count[dev->index]
 				- vf->vc_private->vsync_index + 1;
+		}
+
+		if (vf->ai_pq_enable) {
+			is_composer = vf->flag & VFRAME_FLAG_COMPOSER_DONE;
+			if (!is_composer) {
+				vd_prepare = container_of(vf, struct vd_prepare_s, dst_frame);
+				src_vf = vd_prepare->src_frame;
+				vf->aipq_flag = src_vf->aipq_flag;
+				if (vf->aipq_flag & AIPQ_FLAG_SCENE_CHANGE)
+					vf->aipq_flag &= ~(AIPQ_FLAG_NN_DONE);
+			}
+			if (vf->aipq_flag & AIPQ_FLAG_SCENE_CHANGE)
+				vc_print(dev->index, PRINT_OTHER, "AIPQ_FLAG_SCENE_CHANGE\n");
+			if (vf->aipq_flag & AIPQ_FLAG_NN_NOT_DONE)
+				vc_print(dev->index, PRINT_OTHER, "AIPQ_FLAG_NOT_DONE\n");
+			if (vf->aipq_flag & AIPQ_FLAG_NN_DONE)
+				vc_print(dev->index, PRINT_OTHER, "AIPQ_FLAG_DONE\n");
+			if (vf->aipq_flag & AIPQ_FLAG_FIRST_VFRAME)
+				vc_print(dev->index, PRINT_OTHER, "AIPQ_FLAG_FIRST_VFRAME\n");
 		}
 
 		if (dev->enable_pulldown) {

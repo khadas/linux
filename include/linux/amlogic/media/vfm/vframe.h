@@ -130,6 +130,13 @@
 #define DI_FLAG_DCT_DS_RATIO_BIT     0
 #define DI_FLAG_DCT_DS_RATIO_MAX     0xff
 
+#define AIPQ_FLAG_VERSION_1	      0x1   /*1 or 0, is old mode, t3/t3x/s5 HARDWARE do AIPQ*/
+#define AIPQ_FLAG_VERSION_2	      0x2   /*new mode, GPU do AIPQ*/
+#define AIPQ_FLAG_SCENE_CHANGE	      0x10
+#define AIPQ_FLAG_NN_NOT_DONE	      0x20
+#define AIPQ_FLAG_NN_DONE	      0x40
+#define AIPQ_FLAG_FIRST_VFRAME    0x80
+
 /* need check folllowing bits when toggle frame, to trigger property change */
 /* add more bits which indicates display attr change in vf->flag */
 #define VFRAME_FLAG_DISP_ATTR_MASK VFRAME_FLAG_VIDEO_LINEAR
@@ -794,6 +801,7 @@ struct vframe_s {
 	/*for double write VP9/AV1 vf*/
 	void *mem_dw_handle;
 	struct nn_value_t nn_value[AI_PQ_TOP];
+	u32 aipq_flag;
 	struct dma_fence *fence;
 		/*current is dv input*/
 	bool dv_input;

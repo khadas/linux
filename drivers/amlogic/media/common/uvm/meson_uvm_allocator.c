@@ -588,7 +588,7 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return -EFAULT;
 
 	switch (cmd) {
-	case UVM_IOC_ATTATCH:
+	case UVM_IOC_ATTACH:
 		MUA_PRINTK(MUA_INFO, "mua_ioctl_attach: shared_fd=%d, mode_type=%d\n",
 			data.hook_data.shared_fd,
 			data.hook_data.mode_type);
