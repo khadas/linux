@@ -304,17 +304,13 @@ static int ldim_spi_dev_probe(struct spi_device *spi)
 	dev_drv = ldim_drv->dev_drv;
 	dev_drv->spi_dev = spi;
 
-	if (dev_drv->spi_sync) {
-		dev_set_drvdata(&spi->dev, dev_drv);
-		spi->bits_per_word = 8;
+	dev_set_drvdata(&spi->dev, dev_drv);
+	spi->bits_per_word = 8;
 
-		ret = spi_setup(spi);
-		if (ret)
-			LDIMERR("spi setup failed\n");
+	ret = spi_setup(spi);
+	if (ret)
+		LDIMERR("spi setup failed\n");
 
-		/* dummy for spi clktree init */
-		ldim_spi_write(spi, NULL, 0);
-	}
 	return ret;
 }
 

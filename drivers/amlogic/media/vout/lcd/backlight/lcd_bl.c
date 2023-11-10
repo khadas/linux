@@ -924,6 +924,7 @@ static void bl_config_print(struct aml_bl_drv_s *bdrv)
 				BLPR("pwm_freq      = %uHz\n",
 				     bl_pwm->pwm_freq);
 			}
+			BLPR("pwm_phase = %u\n", bl_pwm->pwm_phase);
 			BLPR("pwm_level_max = %u\n", bl_pwm->level_max);
 			BLPR("pwm_level_min = %u\n", bl_pwm->level_min);
 			BLPR("pwm_duty_max  = %d\n", bl_pwm->pwm_duty_max);
@@ -952,6 +953,7 @@ static void bl_config_print(struct aml_bl_drv_s *bdrv)
 				BLPR("pwm_combo0_freq      = %uHz\n",
 				     bl_pwm->pwm_freq);
 			}
+			BLPR("pwm_combo0_phase = %u\n", bl_pwm->pwm_phase);
 			BLPR("pwm_combo0_level_max = %u\n", bl_pwm->level_max);
 			BLPR("pwm_combo0_level_min = %u\n", bl_pwm->level_min);
 			BLPR("pwm_combo0_duty_max  = %d\n",
@@ -977,6 +979,7 @@ static void bl_config_print(struct aml_bl_drv_s *bdrv)
 				BLPR("pwm_combo1_freq      = %uHz\n",
 				     bl_pwm->pwm_freq);
 			}
+			BLPR("pwm_combo1_phase = %u\n", bl_pwm->pwm_phase);
 			BLPR("pwm_combo1_level_max = %u\n", bl_pwm->level_max);
 			BLPR("pwm_combo1_level_min = %u\n", bl_pwm->level_min);
 			BLPR("pwm_combo1_duty_max  = %d\n",
@@ -1143,14 +1146,21 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 				bl_pwm->pwm_freq = BL_FREQ_DEFAULT;
 			bl_pwm->pwm_duty_max = 80;
 			bl_pwm->pwm_duty_min = 20;
+			bl_pwm->pwm_phase = 0;
 		} else {
 			bl_pwm->pwm_method = para[0];
-			bl_pwm->pwm_freq = para[1];
+			if (bl_pwm->pwm_port == BL_PWM_VS) {
+				bl_pwm->pwm_freq = para[1] & 0xff;
+				bl_pwm->pwm_phase = (para[1] >> 8) & 0xffffff;
+			} else {
+				bl_pwm->pwm_freq = para[1];
+				bl_pwm->pwm_phase = 0;
+			}
 			bl_pwm->pwm_duty_max = para[2];
 			bl_pwm->pwm_duty_min = para[3];
 		}
 		if (bl_pwm->pwm_port == BL_PWM_VS) {
-			if (bl_pwm->pwm_freq > 4) {
+			if (bl_pwm->pwm_freq > 8) {
 				BLERR("[%d]: bl_pwm_vs wrong freq %d\n",
 				      bdrv->index, bl_pwm->pwm_freq);
 				bl_pwm->pwm_freq = BL_FREQ_VS_DEFAULT;
@@ -1222,10 +1232,18 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 			pwm_combo1->level_max = BL_LEVEL_MID;
 			pwm_combo1->level_min = BL_LEVEL_MIN;
 		} else {
-			pwm_combo0->level_max = para[0];
-			pwm_combo0->level_min = para[1];
-			pwm_combo1->level_max = para[2];
-			pwm_combo1->level_min = para[3];
+			if (bdrv->brightness_bypass) {
+				pwm_combo0->level_max = bconf->level_max;
+				pwm_combo0->level_min = bconf->level_min;
+				pwm_combo1->level_max = bconf->level_max;
+				pwm_combo1->level_min = bconf->level_min;
+
+			} else {
+				pwm_combo0->level_max = para[0];
+				pwm_combo0->level_min = para[1];
+				pwm_combo1->level_max = para[2];
+				pwm_combo1->level_min = para[3];
+			}
 		}
 		ret = of_property_read_u32_array(child, "bl_pwm_combo_attr", &para[0], 8);
 		if (ret) {
@@ -1244,13 +1262,27 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 				pwm_combo1->pwm_freq = BL_FREQ_DEFAULT;
 			pwm_combo1->pwm_duty_max = 80;
 			pwm_combo1->pwm_duty_min = 20;
+			pwm_combo0->pwm_phase = 0;
+			pwm_combo1->pwm_phase = 0;
 		} else {
 			pwm_combo0->pwm_method = para[0];
-			pwm_combo0->pwm_freq = para[1];
+			if (pwm_combo0->pwm_port == BL_PWM_VS) {
+				pwm_combo0->pwm_freq = para[1] & 0xff;
+				pwm_combo0->pwm_phase = (para[1] >> 8) & 0xffffff;
+			} else {
+				pwm_combo0->pwm_freq = para[1];
+				pwm_combo0->pwm_phase = 0;
+			}
 			pwm_combo0->pwm_duty_max = para[2];
 			pwm_combo0->pwm_duty_min = para[3];
 			pwm_combo1->pwm_method = para[4];
-			pwm_combo1->pwm_freq = para[5];
+			if (pwm_combo1->pwm_port == BL_PWM_VS) {
+				pwm_combo1->pwm_freq = para[5] & 0xff;
+				pwm_combo1->pwm_phase = (para[5] >> 8) & 0xffffff;
+			} else {
+				pwm_combo1->pwm_freq = para[5];
+				pwm_combo1->pwm_phase = 0;
+			}
 			pwm_combo1->pwm_duty_max = para[6];
 			pwm_combo1->pwm_duty_min = para[7];
 		}
@@ -1340,7 +1372,7 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 	struct aml_lcd_unifykey_header_s bl_header;
 	struct bl_pwm_config_s *bl_pwm;
 	struct bl_pwm_config_s *pwm_combo0, *pwm_combo1;
-	unsigned int level;
+	unsigned int level, tempfreq;
 	int ret;
 
 	if (!key_name)
@@ -1477,16 +1509,20 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 			((*(p + LCD_UKEY_BL_PWM_OFF_DELAY + 1)) << 8));
 		bl_pwm->pwm_method =  *(p + LCD_UKEY_BL_PWM_METHOD);
 		bl_pwm->pwm_port = *(p + LCD_UKEY_BL_PWM_PORT);
-		bl_pwm->pwm_freq = (*(p + LCD_UKEY_BL_PWM_FREQ) |
+		tempfreq = (*(p + LCD_UKEY_BL_PWM_FREQ) |
 			((*(p + LCD_UKEY_BL_PWM_FREQ + 1)) << 8) |
 			((*(p + LCD_UKEY_BL_PWM_FREQ + 2)) << 8) |
 			((*(p + LCD_UKEY_BL_PWM_FREQ + 3)) << 8));
 		if (bl_pwm->pwm_port == BL_PWM_VS) {
-			if (bl_pwm->pwm_freq > 4) {
+			bl_pwm->pwm_freq = tempfreq & 0xff;
+			bl_pwm->pwm_phase = (tempfreq >> 8) & 0xffffff;
+			if (bl_pwm->pwm_freq > 8) {
 				BLERR("bl_pwm_vs wrong freq %d\n", bl_pwm->pwm_freq);
 				bl_pwm->pwm_freq = BL_FREQ_VS_DEFAULT;
 			}
 		} else {
+			bl_pwm->pwm_freq = tempfreq;
+			bl_pwm->pwm_phase = 0;
 			if (bl_pwm->pwm_freq > XTAL_HALF_FREQ_HZ)
 				bl_pwm->pwm_freq = XTAL_HALF_FREQ_HZ;
 		}
@@ -1521,16 +1557,20 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 
 		pwm_combo0->pwm_method = *(p + LCD_UKEY_BL_PWM_METHOD);
 		pwm_combo0->pwm_port = *(p + LCD_UKEY_BL_PWM_PORT);
-		pwm_combo0->pwm_freq = (*(p + LCD_UKEY_BL_PWM_FREQ) |
+		tempfreq = (*(p + LCD_UKEY_BL_PWM_FREQ) |
 			((*(p + LCD_UKEY_BL_PWM_FREQ + 1)) << 8) |
 			((*(p + LCD_UKEY_BL_PWM_FREQ + 2)) << 8) |
 			((*(p + LCD_UKEY_BL_PWM_FREQ + 3)) << 8));
 		if (pwm_combo0->pwm_port == BL_PWM_VS) {
-			if (pwm_combo0->pwm_freq > 4) {
+			pwm_combo0->pwm_freq = tempfreq & 0xff;
+			pwm_combo0->pwm_phase = (tempfreq >> 8) & 0xffffff;
+			if (pwm_combo0->pwm_freq > 8) {
 				BLERR("bl_pwm_0_vs wrong freq %d\n", pwm_combo0->pwm_freq);
 				pwm_combo0->pwm_freq = BL_FREQ_VS_DEFAULT;
 			}
 		} else {
+			pwm_combo0->pwm_freq = tempfreq;
+			pwm_combo0->pwm_phase = 0;
 			if (pwm_combo0->pwm_freq > XTAL_HALF_FREQ_HZ)
 				pwm_combo0->pwm_freq = XTAL_HALF_FREQ_HZ;
 		}
@@ -1539,31 +1579,41 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 
 		pwm_combo1->pwm_method = *(p + LCD_UKEY_BL_PWM2_METHOD);
 		pwm_combo1->pwm_port = *(p + LCD_UKEY_BL_PWM2_PORT);
-		pwm_combo1->pwm_freq = (*(p + LCD_UKEY_BL_PWM2_FREQ) |
+		tempfreq = (*(p + LCD_UKEY_BL_PWM2_FREQ) |
 			((*(p + LCD_UKEY_BL_PWM2_FREQ + 1)) << 8) |
 			((*(p + LCD_UKEY_BL_PWM2_FREQ + 2)) << 8) |
 			((*(p + LCD_UKEY_BL_PWM2_FREQ + 3)) << 8));
 		if (pwm_combo1->pwm_port == BL_PWM_VS) {
-			if (pwm_combo1->pwm_freq > 4) {
+			pwm_combo1->pwm_freq = tempfreq & 0xff;
+			pwm_combo1->pwm_phase = (tempfreq >> 8) & 0xffffff;
+			if (pwm_combo1->pwm_freq > 8) {
 				BLERR("bl_pwm_1_vs wrong freq %d\n", pwm_combo1->pwm_freq);
 				pwm_combo1->pwm_freq = BL_FREQ_VS_DEFAULT;
 			}
 		} else {
+			pwm_combo1->pwm_freq = tempfreq;
+			pwm_combo1->pwm_phase = 0;
 			if (pwm_combo1->pwm_freq > XTAL_HALF_FREQ_HZ)
 				pwm_combo1->pwm_freq = XTAL_HALF_FREQ_HZ;
 		}
 		pwm_combo1->pwm_duty_max = *(p + LCD_UKEY_BL_PWM2_DUTY_MAX);
 		pwm_combo1->pwm_duty_min = *(p + LCD_UKEY_BL_PWM2_DUTY_MIN);
 
-		pwm_combo0->level_max = (*(p + LCD_UKEY_BL_PWM_LEVEL_MAX) |
-			((*(p + LCD_UKEY_BL_PWM_LEVEL_MAX + 1)) << 8));
-		pwm_combo0->level_min = (*(p + LCD_UKEY_BL_PWM_LEVEL_MIN) |
-			((*(p + LCD_UKEY_BL_PWM_LEVEL_MIN + 1)) << 8));
-		pwm_combo1->level_max = (*(p + LCD_UKEY_BL_PWM2_LEVEL_MAX) |
-			((*(p + LCD_UKEY_BL_PWM2_LEVEL_MAX + 1)) << 8));
-		pwm_combo1->level_min = (*(p + LCD_UKEY_BL_PWM2_LEVEL_MIN) |
-			((*(p + LCD_UKEY_BL_PWM2_LEVEL_MIN + 1)) << 8));
-
+		if (bdrv->brightness_bypass) {
+			pwm_combo0->level_max = bconf->level_max;
+			pwm_combo0->level_min = bconf->level_min;
+			pwm_combo1->level_max = bconf->level_max;
+			pwm_combo1->level_min = bconf->level_min;
+		} else {
+			pwm_combo0->level_max = (*(p + LCD_UKEY_BL_PWM_LEVEL_MAX) |
+				((*(p + LCD_UKEY_BL_PWM_LEVEL_MAX + 1)) << 8));
+			pwm_combo0->level_min = (*(p + LCD_UKEY_BL_PWM_LEVEL_MIN) |
+				((*(p + LCD_UKEY_BL_PWM_LEVEL_MIN + 1)) << 8));
+			pwm_combo1->level_max = (*(p + LCD_UKEY_BL_PWM2_LEVEL_MAX) |
+				((*(p + LCD_UKEY_BL_PWM2_LEVEL_MAX + 1)) << 8));
+			pwm_combo1->level_min = (*(p + LCD_UKEY_BL_PWM2_LEVEL_MIN) |
+				((*(p + LCD_UKEY_BL_PWM2_LEVEL_MIN + 1)) << 8));
+		}
 		pwm_combo0->pwm_duty = pwm_combo0->pwm_duty_min;
 		pwm_combo1->pwm_duty = pwm_combo1->pwm_duty_min;
 		bl_pwm_config_init(pwm_combo0);
@@ -2456,6 +2506,7 @@ static ssize_t bl_status_show(struct device *dev,
 			       "pwm_method:         %d\n"
 			       "pwm_port:           %s(0x%x)\n"
 			       "pwm_freq:           %d\n"
+			       "pwm_phase:           %d\n"
 			       "pwm_duty_max:       %d\n"
 			       "pwm_duty_min:       %d\n"
 			       "pwm_on_delay:       %d\n"
@@ -2465,6 +2516,7 @@ static ssize_t bl_status_show(struct device *dev,
 			       bl_pwm_num_to_str(bl_pwm->pwm_port),
 			       bl_pwm->pwm_port,
 			       bl_pwm->pwm_freq,
+			       bl_pwm->pwm_phase,
 			       bl_pwm->pwm_duty_max, bl_pwm->pwm_duty_min,
 			       bconf->pwm_on_delay, bconf->pwm_off_delay,
 			       bconf->en_sequence_reverse);
@@ -2478,6 +2530,7 @@ static ssize_t bl_status_show(struct device *dev,
 			       "pwm_0_method:       %d\n"
 			       "pwm_0_port:         %s(0x%x)\n"
 			       "pwm_0_freq:         %d\n"
+			       "pwm_0_phase:         %d\n"
 			       "pwm_0_duty_max:     %d\n"
 			       "pwm_0_duty_min:     %d\n"
 			       "pwm_1_level_max:    %d\n"
@@ -2485,6 +2538,7 @@ static ssize_t bl_status_show(struct device *dev,
 			       "pwm_1_method:       %d\n"
 			       "pwm_1_port:         %s(0x%x)\n"
 			       "pwm_1_freq:         %d\n"
+			       "pwm_1_phase:         %d\n"
 			       "pwm_1_duty_max:     %d\n"
 			       "pwm_1_duty_min:     %d\n"
 			       "pwm_on_delay:       %d\n"
@@ -2495,6 +2549,7 @@ static ssize_t bl_status_show(struct device *dev,
 			       bl_pwm_num_to_str(pwm_combo0->pwm_port),
 			       pwm_combo0->pwm_port,
 			       pwm_combo0->pwm_freq,
+			       pwm_combo0->pwm_phase,
 			       pwm_combo0->pwm_duty_max,
 			       pwm_combo0->pwm_duty_min,
 			       pwm_combo1->level_max, pwm_combo1->level_min,
@@ -2502,6 +2557,7 @@ static ssize_t bl_status_show(struct device *dev,
 			       bl_pwm_num_to_str(pwm_combo1->pwm_port),
 			       pwm_combo1->pwm_port,
 			       pwm_combo1->pwm_freq,
+			       pwm_combo1->pwm_phase,
 			       pwm_combo1->pwm_duty_max,
 			       pwm_combo1->pwm_duty_min,
 			       bconf->pwm_on_delay, bconf->pwm_off_delay,
@@ -2564,6 +2620,7 @@ static ssize_t bl_debug_pwm_info_show(struct device *dev,
 				       "pwm_port:           %s(0x%x)\n"
 				       "pwm_method:         %d\n"
 				       "pwm_freq:           %d\n"
+				       "pwm_phase:           %d\n"
 				       "pwm_duty_max:       %d\n"
 				       "pwm_duty_min:       %d\n"
 				       "pwm_level_max:		%d\n"
@@ -2576,7 +2633,7 @@ static ssize_t bl_debug_pwm_info_show(struct device *dev,
 				       bl_pwm->index,
 				       bl_pwm_num_to_str(bl_pwm->pwm_port),
 				       bl_pwm->pwm_port,
-				       bl_pwm->pwm_method, bl_pwm->pwm_freq,
+				       bl_pwm->pwm_method, bl_pwm->pwm_freq, bl_pwm->pwm_phase,
 				       bl_pwm->pwm_duty_max,
 				       bl_pwm->pwm_duty_min,
 				       bl_pwm->level_max,
@@ -2670,6 +2727,7 @@ static ssize_t bl_debug_pwm_info_show(struct device *dev,
 				       "pwm_0_port:         %s(0x%x)\n"
 				       "pwm_0_method:       %d\n"
 				       "pwm_0_freq:         %d\n"
+				       "pwm_0_phase:         %d\n"
 				       "pwm_0_duty_max:     %d\n"
 				       "pwm_0_duty_min:     %d\n"
 				       "pwm_0_level_max:	%d\n"
@@ -2682,7 +2740,7 @@ static ssize_t bl_debug_pwm_info_show(struct device *dev,
 				       bl_pwm->index,
 				       bl_pwm_num_to_str(bl_pwm->pwm_port),
 				       bl_pwm->pwm_port,
-				       bl_pwm->pwm_method, bl_pwm->pwm_freq,
+				       bl_pwm->pwm_method, bl_pwm->pwm_freq, bl_pwm->pwm_phase,
 				       bl_pwm->pwm_duty_max,
 				       bl_pwm->pwm_duty_min,
 				       bl_pwm->level_max,
@@ -2771,6 +2829,7 @@ static ssize_t bl_debug_pwm_info_show(struct device *dev,
 				       "pwm_1_port:         %s(0x%x)\n"
 				       "pwm_1_method:       %d\n"
 				       "pwm_1_freq:         %d\n"
+				       "pwm_1_phase:         %d\n"
 				       "pwm_1_duty_max:     %d\n"
 				       "pwm_1_duty_min:     %d\n"
 				       "pwm_1_level_max:	%d\n"
@@ -2783,7 +2842,7 @@ static ssize_t bl_debug_pwm_info_show(struct device *dev,
 				       bl_pwm->index,
 				       bl_pwm_num_to_str(bl_pwm->pwm_port),
 				       bl_pwm->pwm_port,
-				       bl_pwm->pwm_method, bl_pwm->pwm_freq,
+				       bl_pwm->pwm_method, bl_pwm->pwm_freq, bl_pwm->pwm_phase,
 				       bl_pwm->pwm_duty_max,
 				       bl_pwm->pwm_duty_min,
 				       bl_pwm->level_max,
@@ -2884,8 +2943,8 @@ static ssize_t bl_debug_pwm_show(struct device *dev,
 		if (bdrv->bconf.bl_pwm) {
 			bl_pwm = bdrv->bconf.bl_pwm;
 			len += sprintf(buf + len,
-				       "pwm: freq=%d, pol=%d, duty_max=%d, duty_min=%d, ",
-				       bl_pwm->pwm_freq, bl_pwm->pwm_method,
+				       "pwm: freq=%d, phase=%d, pol=%d, duty_max=%d, duty_min=%d, ",
+				       bl_pwm->pwm_freq, bl_pwm->pwm_phase, bl_pwm->pwm_method,
 				       bl_pwm->pwm_duty_max,
 				       bl_pwm->pwm_duty_min);
 			if (bl_pwm->pwm_duty_max > 100) {
@@ -2904,8 +2963,8 @@ static ssize_t bl_debug_pwm_show(struct device *dev,
 		if (bdrv->bconf.bl_pwm_combo0) {
 			bl_pwm = bdrv->bconf.bl_pwm_combo0;
 			len += sprintf(buf + len,
-				       "pwm_0: freq=%d, pol=%d, duty_max=%d, duty_min=%d, ",
-				       bl_pwm->pwm_freq, bl_pwm->pwm_method,
+				       "pwm_0: freq=%d, phase=%d, pol=%d, duty_max=%d, duty_min=%d, ",
+				       bl_pwm->pwm_freq, bl_pwm->pwm_phase, bl_pwm->pwm_method,
 				       bl_pwm->pwm_duty_max,
 				       bl_pwm->pwm_duty_min);
 			if (bl_pwm->pwm_duty_max > 100) {
@@ -2923,8 +2982,8 @@ static ssize_t bl_debug_pwm_show(struct device *dev,
 		if (bdrv->bconf.bl_pwm_combo1) {
 			bl_pwm = bdrv->bconf.bl_pwm_combo1;
 			len += sprintf(buf + len,
-				       "pwm_1: freq=%d, pol=%d, duty_max=%d, duty_min=%d, ",
-				       bl_pwm->pwm_freq, bl_pwm->pwm_method,
+				       "pwm_1: freq=%d, phase=%d, pol=%d, duty_max=%d, duty_min=%d, ",
+				       bl_pwm->pwm_freq, bl_pwm->pwm_phase, bl_pwm->pwm_method,
 				       bl_pwm->pwm_duty_max,
 				       bl_pwm->pwm_duty_min);
 			if (bl_pwm->pwm_duty_max > 100) {
@@ -2950,6 +3009,7 @@ static ssize_t bl_debug_pwm_show(struct device *dev,
 #define BL_DEBUG_PWM_POL        2
 #define BL_DEBUG_PWM_DUTY_MAX   3
 #define BL_DEBUG_PWM_DUTY_MIN   4
+#define BL_DEBUG_PWM_PHASE        5
 static void bl_debug_pwm_set(struct aml_bl_drv_s *bdrv, unsigned int index,
 			     unsigned int value, int state)
 {
@@ -3068,6 +3128,15 @@ static void bl_debug_pwm_set(struct aml_bl_drv_s *bdrv, unsigned int index,
 				}
 			}
 			break;
+		case BL_DEBUG_PWM_PHASE:
+			bl_pwm->pwm_phase = value;
+			bl_pwm_set_duty(bdrv, bl_pwm);
+			if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
+				BLPR("[%d]: set index(%d) pwm_port(0x%x) phase: %d\n",
+				     bdrv->index, index, bl_pwm->pwm_port,
+				     bl_pwm->pwm_phase);
+			}
+			break;
 		default:
 			break;
 		}
@@ -3115,12 +3184,20 @@ static ssize_t bl_debug_pwm_store(struct device *dev,
 		else
 			BLERR("invalid parameters\n");
 		break;
-	case 'p': /* polarity */
-		ret = sscanf(buf, "pol %d %d", &index, &val);
-		if (ret == 2)
-			bl_debug_pwm_set(bdrv, index, val, BL_DEBUG_PWM_POL);
-		else
-			BLERR("invalid parameters\n");
+	case 'p':
+		if (buf[1] == 'o') {/* polarity */
+			ret = sscanf(buf, "pol %d %d", &index, &val);
+			if (ret == 2)
+				bl_debug_pwm_set(bdrv, index, val, BL_DEBUG_PWM_POL);
+			else
+				BLERR("invalid parameters\n");
+		} else if (buf[1] == 'h') {/* phase */
+			ret = sscanf(buf, "pol %d %d", &index, &val);
+			if (ret == 2)
+				bl_debug_pwm_set(bdrv, index, val, BL_DEBUG_PWM_PHASE);
+			else
+				BLERR("invalid parameters\n");
+		}
 		break;
 	case 'b': /* bypass */
 		ret = sscanf(buf, "bypass %d", &val);

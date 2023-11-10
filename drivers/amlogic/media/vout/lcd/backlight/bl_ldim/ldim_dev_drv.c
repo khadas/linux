@@ -561,11 +561,12 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 		pr_info("ldim_pwm_port:       %d\n"
 			"ldim_pwm_pol:        %d\n"
 			"ldim_pwm_freq:       %d\n"
+			"ldim_pwm_phase:       %d\n"
 			"ldim_pwm_cnt:        %d\n"
 			"ldim_pwm_level:      %d\n"
 			"ldim_pwm_duty:       %d / %d\n",
 			bl_pwm->pwm_port, bl_pwm->pwm_method,
-			bl_pwm->pwm_freq, bl_pwm->pwm_cnt,
+			bl_pwm->pwm_freq, bl_pwm->pwm_phase, bl_pwm->pwm_cnt,
 			bl_pwm->pwm_level,
 			bl_pwm->pwm_duty, bl_pwm->pwm_duty_max);
 		switch (bl_pwm->pwm_port) {
@@ -609,13 +610,14 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 		pr_info("\nanalog_pwm_port:     %d\n"
 			"analog_pwm_pol:      %d\n"
 			"analog_pwm_freq:     %d\n"
+			"analog_pwm_phase:     %d\n"
 			"analog_pwm_cnt:      %d\n"
 			"analog_pwm_level:    %d\n"
 			"analog_pwm_duty:     %d\n"
 			"analog_pwm_duty_max: %d\n"
 			"analog_pwm_duty_min: %d\n",
 			bl_pwm->pwm_port, bl_pwm->pwm_method,
-			bl_pwm->pwm_freq, bl_pwm->pwm_cnt,
+			bl_pwm->pwm_freq, bl_pwm->pwm_phase, bl_pwm->pwm_cnt,
 			bl_pwm->pwm_level, bl_pwm->pwm_duty,
 			bl_pwm->pwm_duty_max, bl_pwm->pwm_duty_min);
 		switch (bl_pwm->pwm_port) {
@@ -668,10 +670,10 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 static int ldim_dev_zone_mapping_load(struct ldim_dev_driver_s *dev_drv,
 				      const char *path)
 {
+#ifdef CONFIG_AMLOGIC_ENABLE_MEDIA_FILE
 	unsigned int size = 0, mem_size;
 	struct file *filp = NULL;
 	loff_t pos = 0;
-	mm_segment_t old_fs = get_fs();
 	unsigned char *buf;
 	int i, j;
 
@@ -681,11 +683,9 @@ static int ldim_dev_zone_mapping_load(struct ldim_dev_driver_s *dev_drv,
 	if (!buf)
 		return -1;
 
-	set_fs(KERNEL_DS);
 	filp = filp_open(path, O_RDONLY, 0);
 	if (IS_ERR_OR_NULL(filp)) {
 		LDIMERR("%s: read %s error or filp is NULL.\n", __func__, path);
-		set_fs(old_fs);
 		goto ldim_dev_zone_mapping_load_err;
 	}
 
@@ -693,7 +693,6 @@ static int ldim_dev_zone_mapping_load(struct ldim_dev_driver_s *dev_drv,
 	vfs_fsync(filp, 0);
 
 	filp_close(filp, NULL);
-	set_fs(old_fs);
 
 	if (size == mem_size) {
 		LDIMPR("%s: load size %u\n", __func__, size);
@@ -714,6 +713,7 @@ static int ldim_dev_zone_mapping_load(struct ldim_dev_driver_s *dev_drv,
 ldim_dev_zone_mapping_load_err:
 	kfree(buf);
 	LDIMERR("%s: error\n", __func__);
+#endif
 	return -1;
 }
 
@@ -1075,13 +1075,20 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 			else
 				bl_pwm->pwm_freq = 60;
 			bl_pwm->pwm_duty = 50;
+			bl_pwm->pwm_phase = 0;
 		} else {
 			bl_pwm->pwm_method = temp[0];
-			bl_pwm->pwm_freq = temp[1];
+			if (bl_pwm->pwm_port == BL_PWM_VS) {
+				bl_pwm->pwm_freq = temp[1] & 0xff;
+				bl_pwm->pwm_phase = (temp[1] >> 8) & 0xffffff;
+			} else {
+				bl_pwm->pwm_freq = temp[1];
+				bl_pwm->pwm_phase = 0;
+			}
 			bl_pwm->pwm_duty = temp[2];
 		}
-		LDIMPR("get ldim_pwm pol = %d, freq = %d, dft duty = %d%%\n",
-		       bl_pwm->pwm_method, bl_pwm->pwm_freq, bl_pwm->pwm_duty);
+		LDIMPR("get ldim_pwm pol = %d, freq = %d, phase = %d, dft duty = %d%%\n",
+		       bl_pwm->pwm_method, bl_pwm->pwm_freq, bl_pwm->pwm_phase, bl_pwm->pwm_duty);
 
 		bl_pwm_config_init(bl_pwm);
 
@@ -1107,13 +1114,19 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 			LDIMERR("failed to get analog_pwm_attr\n");
 		} else {
 			bl_pwm->pwm_method = temp[0];
-			bl_pwm->pwm_freq = temp[1];
+			if (bl_pwm->pwm_port == BL_PWM_VS) {
+				bl_pwm->pwm_freq = temp[1] & 0xff;
+				bl_pwm->pwm_phase = (temp[1] >> 8) & 0xffffff;
+			} else {
+				bl_pwm->pwm_freq = temp[1];
+				bl_pwm->pwm_phase = 0;
+			}
 			bl_pwm->pwm_duty_max = temp[2];
 			bl_pwm->pwm_duty_min = temp[3];
 			bl_pwm->pwm_duty = temp[4];
 		}
-		LDIMPR("get analog_pwm pol = %d, freq = %d\n",
-			bl_pwm->pwm_method, bl_pwm->pwm_freq);
+		LDIMPR("get analog_pwm pol = %d, freq = %d, phase = %d\n",
+			bl_pwm->pwm_method, bl_pwm->pwm_freq, bl_pwm->pwm_phase);
 		LDIMPR("duty max = %d, min = %d, default = %d\n",
 			bl_pwm->pwm_duty_max,
 			bl_pwm->pwm_duty_min, bl_pwm->pwm_duty);
@@ -1274,7 +1287,7 @@ ldim_dev_get_config_from_dts_next:
 				i, i);
 			i = 32;
 		} else {
-			if (fw_cus->fw_alg_frm) {
+			if (fw_cus) {
 				fw_cus->param[i] = val;
 				LDIMPR("param[%d] = %d\n",
 					i, fw_cus->param[i]);
@@ -1421,16 +1434,28 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 	bl_pwm->pwm_port = *(p + LCD_UKEY_LDIM_DEV_PWM_VS_PORT);
 	if (bl_pwm->pwm_port < BL_PWM_MAX) {
 		bl_pwm->pwm_method = *(p + LCD_UKEY_LDIM_DEV_PWM_VS_POL);
-		bl_pwm->pwm_freq =
-			(*(p + LCD_UKEY_LDIM_DEV_PWM_VS_FREQ) |
-			((*(p + LCD_UKEY_LDIM_DEV_PWM_VS_FREQ + 1)) << 8) |
-			((*(p + LCD_UKEY_LDIM_DEV_PWM_VS_FREQ + 2)) << 16) |
-			((*(p + LCD_UKEY_LDIM_DEV_PWM_VS_FREQ + 3)) << 24));
+		if (bl_pwm->pwm_port == BL_PWM_VS) {
+			temp = (*(p + LCD_UKEY_LDIM_DEV_PWM_VS_FREQ) |
+				((*(p + LCD_UKEY_LDIM_DEV_PWM_VS_FREQ + 1)) << 8) |
+				((*(p + LCD_UKEY_LDIM_DEV_PWM_VS_FREQ + 2)) << 16) |
+				((*(p + LCD_UKEY_LDIM_DEV_PWM_VS_FREQ + 3)) << 24));
+
+			bl_pwm->pwm_freq = (temp & 0xff);
+			bl_pwm->pwm_phase = (temp >> 8) & 0xffffff;
+
+		} else {
+			bl_pwm->pwm_freq =
+				(*(p + LCD_UKEY_LDIM_DEV_PWM_VS_FREQ) |
+				((*(p + LCD_UKEY_LDIM_DEV_PWM_VS_FREQ + 1)) << 8) |
+				((*(p + LCD_UKEY_LDIM_DEV_PWM_VS_FREQ + 2)) << 16) |
+				((*(p + LCD_UKEY_LDIM_DEV_PWM_VS_FREQ + 3)) << 24));
+			bl_pwm->pwm_phase = 0;
+		}
 		bl_pwm->pwm_duty =
 			(*(p + LCD_UKEY_LDIM_DEV_PWM_VS_DUTY) |
 			((*(p + LCD_UKEY_LDIM_DEV_PWM_VS_DUTY + 1)) << 8));
-		LDIMPR("get ldim_pwm pol = %d, freq = %d, dft duty = %d%%\n",
-		       bl_pwm->pwm_method, bl_pwm->pwm_freq, bl_pwm->pwm_duty);
+		LDIMPR("get ldim_pwm pol = %d, freq = %d, phase = %d, dft duty = %d%%\n",
+		       bl_pwm->pwm_method, bl_pwm->pwm_freq, bl_pwm->pwm_phase, bl_pwm->pwm_duty);
 		bl_pwm_config_init(bl_pwm);
 		if (bl_pwm->pwm_port < BL_PWM_VS) {
 			bl_pwm_channel_register(dev_drv->dev,
@@ -1443,11 +1468,22 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 	bl_pwm->pwm_port = *(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_PORT);
 	if (bl_pwm->pwm_port < BL_PWM_VS) {
 		bl_pwm->pwm_method = *(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_POL);
-		bl_pwm->pwm_freq =
-			(*(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_FREQ) |
-			((*(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_FREQ + 1)) << 8) |
-			((*(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_FREQ + 2)) << 16) |
-			((*(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_FREQ + 3)) << 24));
+		if (bl_pwm->pwm_port == BL_PWM_VS) {
+			temp = (*(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_FREQ) |
+				((*(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_FREQ + 1)) << 8) |
+				((*(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_FREQ + 2)) << 16) |
+				((*(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_FREQ + 3)) << 24));
+			bl_pwm->pwm_freq = (temp & 0xff);
+			bl_pwm->pwm_phase = (temp >> 8) & 0xffffff;
+		} else {
+			bl_pwm->pwm_freq =
+				(*(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_FREQ) |
+				((*(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_FREQ + 1)) << 8) |
+				((*(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_FREQ + 2)) << 16) |
+				((*(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_FREQ + 3)) << 24));
+			bl_pwm->pwm_phase = 0;
+		}
+
 		bl_pwm->pwm_duty =
 			(*(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_DUTY) |
 			((*(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_DUTY + 1)) << 8));
@@ -1457,8 +1493,8 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 		bl_pwm->pwm_duty_min =
 			(*(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_ATTR_1) |
 			((*(p + LCD_UKEY_LDIM_DEV_PWM_ADJ_ATTR_1 + 1)) << 8));
-		LDIMPR("get analog_pwm pol = %d, freq = %d\n",
-			bl_pwm->pwm_method, bl_pwm->pwm_freq);
+		LDIMPR("get analog_pwm pol = %d, freq = %d, phase = %d\n",
+			bl_pwm->pwm_method, bl_pwm->pwm_freq, bl_pwm->pwm_phase);
 		LDIMPR("duty max = %d, min = %d, default = %d\n",
 			bl_pwm->pwm_duty_max,
 			bl_pwm->pwm_duty_min, bl_pwm->pwm_duty);
@@ -1589,7 +1625,7 @@ ldim_dev_get_config_from_ukey_next:
 			+ 4 * i + 2)) << 16) |
 			((*(p + LCD_UKEY_LDIM_DEV_CUST_PARAM
 			+ 4 * i + 3)) << 24));
-		if (fw_cus->fw_alg_frm)	{
+		if (fw_cus) {
 			fw_cus->param[i] = temp_val;
 			LDIMPR("fw_cus->param[%d] = %d =  0x%x\n",
 			i, fw_cus->param[i],
@@ -1669,8 +1705,8 @@ static ssize_t ldim_dev_pwm_ldim_show(struct class *class, struct class_attribut
 	bl_pwm = &ldim_dev_drv.ldim_pwm_config;
 	if (bl_pwm->pwm_port < BL_PWM_MAX) {
 		len += sprintf(buf + len,
-			"ldim_pwm: freq=%d, pol=%d, duty_max=%d, duty_min=%d,",
-			bl_pwm->pwm_freq, bl_pwm->pwm_method,
+			"ldim_pwm: freq=%d, phase=%d, pol=%d, duty_max=%d, duty_min=%d,",
+			bl_pwm->pwm_freq, bl_pwm->pwm_phase, bl_pwm->pwm_method,
 			bl_pwm->pwm_duty_max, bl_pwm->pwm_duty_min);
 		len += sprintf(buf + len, " duty_value=%d\n",
 			       bl_pwm->pwm_duty);
@@ -1712,18 +1748,32 @@ static void ldim_dev_pwm_debug(struct bl_pwm_config_s *bl_pwm, const char *buf, 
 			LDIMERR("invalid parameters\n");
 		}
 		break;
-	case 'p': /* polarity */
-		ret = sscanf(buf, "pol %d", &val);
-		if (ret == 1) {
-			bl_pwm->pwm_method = val;
-			bl_pwm_config_init(bl_pwm);
-			ldim_set_duty_pwm(bl_pwm);
-			if (ldim_debug_print) {
-				LDIMPR("set ldim_pwm (port 0x%x): method = %d\n",
-				       bl_pwm->pwm_port, bl_pwm->pwm_method);
+	case 'p':
+		if (buf[1] == 'o') { /* polarity */
+			ret = sscanf(buf, "pol %d", &val);
+			if (ret == 1) {
+				bl_pwm->pwm_method = val;
+				bl_pwm_config_init(bl_pwm);
+				ldim_set_duty_pwm(bl_pwm);
+				if (ldim_debug_print) {
+					LDIMPR("set ldim_pwm (port 0x%x): method = %d\n",
+					       bl_pwm->pwm_port, bl_pwm->pwm_method);
+				}
+			} else {
+				LDIMERR("invalid parameters\n");
 			}
-		} else {
-			LDIMERR("invalid parameters\n");
+		} else if (buf[1] == 'h') { /* phase */
+			ret = sscanf(buf, "phase %d", &val);
+			if (ret == 1) {
+				bl_pwm->pwm_phase = val;
+				ldim_set_duty_pwm(bl_pwm);
+				if (ldim_debug_print) {
+					LDIMPR("set ldim_pwm (port 0x%x): phase = %d\n",
+					       bl_pwm->pwm_port, bl_pwm->pwm_phase);
+				}
+			} else {
+				LDIMERR("invalid parameters\n");
+			}
 		}
 		break;
 	case 'm':

@@ -131,6 +131,7 @@ struct bl_pwm_config_s {
 	unsigned int pwm_min; /* internal used for pwm control */
 	unsigned int pwm_level; /* internal used for pwm control */
 	unsigned int pwm_mapping[7]; /* mapping curve for pwm control */
+	unsigned int pwm_phase;	/*pwm_vs phase base on vsync*/
 };
 
 #define BL_NAME_MAX    30

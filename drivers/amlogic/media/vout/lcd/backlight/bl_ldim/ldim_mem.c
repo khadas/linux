@@ -52,9 +52,9 @@ void ldc_mem_dump(unsigned char *vaddr, unsigned int size)
 
 void ldc_mem_save(char *path, unsigned long mem_paddr, unsigned int mem_size)
 {
+#ifdef CONFIG_AMLOGIC_ENABLE_MEDIA_FILE
 	struct file *filp = NULL;
 	loff_t pos = 0;
-	mm_segment_t old_fs = get_fs();
 	unsigned int span = 0, remain = 0, count = 0;
 	unsigned long phys;
 	void *vaddr = NULL;
@@ -63,11 +63,9 @@ void ldc_mem_save(char *path, unsigned long mem_paddr, unsigned int mem_size)
 
 	pos = 0;
 
-	set_fs(KERNEL_DS);
 	filp = filp_open(path, O_RDWR | O_CREAT, 0666);
 	if (IS_ERR(filp)) {
 		pr_info("%s: create %s error\n", __func__, path);
-		set_fs(old_fs);
 		return;
 	}
 
@@ -109,23 +107,22 @@ void ldc_mem_save(char *path, unsigned long mem_paddr, unsigned int mem_size)
 
 	vfs_fsync(filp, 0);
 	filp_close(filp, NULL);
-	set_fs(old_fs);
 	LDIMPR("save buf to %s finished\n", path);
 	return;
 
 lcd_ldc_axi_rmem_save_end:
 	vfs_fsync(filp, 0);
 	filp_close(filp, NULL);
-	set_fs(old_fs);
 	LDIMERR("buf mapping failed: 0x%lx\n", mem_paddr);
+#endif
 }
 
 void ldc_mem_write(char *path, unsigned long mem_paddr, unsigned int mem_size)
 {
+#ifdef CONFIG_AMLOGIC_ENABLE_MEDIA_FILE
 	unsigned int size;
 	struct file *filp = NULL;
 	loff_t pos = 0;
-	mm_segment_t old_fs = get_fs();
 	unsigned int span = 0, remain = 0, count = 0;
 	unsigned long phys;
 	void *vaddr = NULL;
@@ -139,11 +136,9 @@ void ldc_mem_write(char *path, unsigned long mem_paddr, unsigned int mem_size)
 	if (!buf)
 		return;
 
-	set_fs(KERNEL_DS);
 	filp = filp_open(path, O_RDONLY, 0);
 	if (IS_ERR_OR_NULL(filp)) {
 		pr_info("read %s error or filp is NULL.\n", path);
-		set_fs(old_fs);
 		vfree(buf);
 		return;
 	}
@@ -152,7 +147,6 @@ void ldc_mem_write(char *path, unsigned long mem_paddr, unsigned int mem_size)
 	if (ret < 0) {
 		pr_info("read %s error\n", path);
 		filp_close(filp, NULL);
-		set_fs(old_fs);
 		vfree(buf);
 		return;
 	}
@@ -161,7 +155,6 @@ void ldc_mem_write(char *path, unsigned long mem_paddr, unsigned int mem_size)
 	vfs_fsync(filp, 0);
 
 	filp_close(filp, NULL);
-	set_fs(old_fs);
 
 	highmem_flag = PageHighMem(phys_to_page(mem_paddr));
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
@@ -212,6 +205,7 @@ void ldc_mem_write(char *path, unsigned long mem_paddr, unsigned int mem_size)
 lcd_ldc_axi_rmem_write_end:
 	vfree(buf);
 	LDIMERR("buf mapping failed: 0x%lx\n", mem_paddr);
+#endif
 }
 
 void ldc_mem_clear(unsigned long mem_paddr, unsigned int mem_size)
