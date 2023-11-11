@@ -1008,3 +1008,19 @@ int rk628_hdmirx_get_timings(struct rk628 *rk628,
 	return ret;
 }
 EXPORT_SYMBOL(rk628_hdmirx_get_timings);
+
+u8 rk628_hdmirx_get_range(struct rk628 *rk628)
+{
+	u32 val;
+	u8 color_range;
+
+	rk628_i2c_read(rk628, HDMI_RX_PDEC_AVI_PB, &val);
+	color_range = (val & RGB_COLORRANGE_MASK) >> 18;
+	if (color_range == 0x1)
+		color_range = CSC_LIMIT_RANGE;
+	else
+		color_range = CSC_FULL_RANGE;
+
+	return color_range;
+}
+EXPORT_SYMBOL(rk628_hdmirx_get_range);

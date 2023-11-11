@@ -43,6 +43,7 @@
 #include "rk628_dsi.h"
 #include "rk628_hdmirx.h"
 #include "rk628_mipi_dphy.h"
+#include "rk628_post_process.h"
 
 static int debug;
 module_param(debug, int, 0644);
@@ -1070,18 +1071,22 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 	video_fmt = (val & VIDEO_FORMAT_MASK) >> 5;
 	v4l2_dbg(1, debug, &csi->sd, "%s PDEC_AVI_PB:%#x, video format:%d\n",
 			__func__, val, video_fmt);
-	if (video_fmt) {
-		/* yuv data: cfg SW_YUV2VYU_SWP */
-		rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON,
+	if (csi->rk628->version == RK628D_VERSION) {
+		if (video_fmt) {
+			/* yuv data: cfg SW_YUV2VYU_SWP */
+			rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON,
 				SW_YUV2VYU_SWP(1) |
 				SW_R2Y_EN(0));
-	} else {
-		/* rgb data: cfg SW_R2Y_EN */
-		rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON,
+		} else {
+			/* rgb data: cfg SW_R2Y_EN */
+			rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON,
 				SW_YUV2VYU_SWP(0) |
 				SW_R2Y_EN(1) | SW_R2Y_CSC_MODE(2));
+		}
+	} else {
+		rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON, SW_YUV2VYU_SWP(1));
+		rk628_post_process_csc_en(csi->rk628);
 	}
-
 	/* if avi packet is not stable, reset ctrl*/
 	if (!avi_rdy) {
 		csi->nosignal = true;

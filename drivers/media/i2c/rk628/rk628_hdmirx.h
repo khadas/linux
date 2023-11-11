@@ -250,6 +250,8 @@
 #define HDMI_RX_PDEC_AVI_PB		(HDMI_RX_BASE + 0x03a4)
 #define VIDEO_FORMAT_MASK		GENMASK(6, 5)
 #define VIDEO_FORMAT(x)			UPDATE(x, 6, 5)
+#define RGB_COLORRANGE_MASK		GENMASK(19, 18)
+#define RGB_COLORRANGE(x)		UPDATE(x, 19, 18)
 #define ACT_INFO_PRESENT_MASK		BIT(4)
 #define HDMI_RX_PDEC_ACR_CTS		(HDMI_RX_BASE + 0x0390)
 #define HDMI_RX_PDEC_ACR_N		(HDMI_RX_BASE + 0x0394)
@@ -378,6 +380,11 @@
 #define HDMIRX_MODETCLK_CNT_NUM		1000
 #define HDMIRX_MODETCLK_HZ		49500000
 
+enum color_range {
+	CSC_LIMIT_RANGE,
+	CSC_FULL_RANGE,
+};
+
 enum bus_format {
 	BUS_FMT_RGB = 0,
 	BUS_FMT_YUV422 = 1,
@@ -427,5 +434,6 @@ void rk628_set_bg_enable(struct rk628 *rk628, bool en);
 u32 rk628_hdmirx_get_tmdsclk_cnt(struct rk628 *rk628);
 int rk628_hdmirx_get_timings(struct rk628 *rk628,
 			     struct v4l2_dv_timings *timings);
+u8 rk628_hdmirx_get_range(struct rk628 *rk628);
 
 #endif
