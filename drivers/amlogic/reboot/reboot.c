@@ -30,6 +30,7 @@ static void __iomem *reboot_reason_vaddr;
 static u32 psci_function_id_restart;
 static u32 psci_function_id_poweroff;
 static char *kernel_panic;
+static u32 enable_cb; /*Enable cold boot*/
 /* Represents if it can support reboot reason extension - */
 /* which can support up to 128 kind of reboot reasons */
 static bool support_reboot_reason_ext;
@@ -163,6 +164,14 @@ void meson_common_restart(char mode, const char *cmd)
 				  (u64)reboot_reason);
 }
 
+int __init need_ddr_window_test(char *__str)
+{
+	get_option(&__str, &enable_cb);
+
+	return 1;
+}
+__setup("need_ddr_window_test=", need_ddr_window_test);
+
 static int do_aml_restart(struct notifier_block *nb, unsigned long reboot_mode,
 			  void *cmd)
 {
@@ -173,10 +182,14 @@ static int do_aml_restart(struct notifier_block *nb, unsigned long reboot_mode,
 
 static void do_aml_poweroff(void)
 {
-	/* TODO: Add poweroff capability */
-	__invoke_psci_fn_smc(0x82000042, 1, 0, 0);
-	__invoke_psci_fn_smc(psci_function_id_poweroff,
+	if (enable_cb)
+		meson_common_restart(reboot_mode, "cold_boot");
+	else {
+		/* TODO: Add poweroff capability */
+		__invoke_psci_fn_smc(0x82000042, 1, 0, 0);
+		__invoke_psci_fn_smc(psci_function_id_poweroff,
 			     0, 0, 0);
+	}
 }
 
 static int panic_notify(struct notifier_block *self,
