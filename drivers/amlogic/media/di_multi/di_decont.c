@@ -53,6 +53,7 @@
  *	bit 14: border detect simulation only use when
  *		DIM_DCT_BORDER_SIMULATION enable
  *	bit 15: border detect disable
+ *	bit 31: all gate clk
  ************************************************/
 /*bit 4: grid use fix */
 /*bit 9:8: demo left /right */
@@ -114,6 +115,13 @@ bool dcntr_border_simulation_have(void)
 bool dcntr_border_detect_disable(void)
 {
 	if (dbg_dct & DI_BIT15)
+		return true;
+	return false;
+}
+
+bool dcntr_force_gate_clk(void)
+{
+	if (dbg_dct & DI_BIT31)
 		return true;
 	return false;
 }
@@ -877,7 +885,10 @@ static bool dcntr_post(const struct reg_acc *op)
 	if (DIM_IS_IC_EF(T3))
 		off = 0x200;
 	op_org = &di_pre_regset;
-	op_org->wr(REG_DCTR_GCLK_CTRL0 + off, 0x3c0000); //avg_flt_y/uv
+	if (!dcntr_force_gate_clk()) {
+		op_org->wr(REG_DCTR_GCLK_CTRL0 + off, 0xffffffff); //all
+		op_org->wr(REG_DCTR_GCLK_CTRL1 + off, 0xc0); //all
+	}
 	op->bwr(VIUB_GCLK_CTRL3, 0x3f, 16, 6);
 	op->bwr(DI_PRE_CTRL, 1, 15, 1);// decontour enable
 

@@ -5788,19 +5788,22 @@ void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg, const struct reg_acc *op_in)
 void dim_sc2_4k_set(unsigned int mode_4k, const struct reg_acc *op_in)
 {
 	const struct reg_acc *op = &di_pre_regset;
+	u32 val;
 
 	if (op_in)
 		op = op_in;
 	//dim_print("%s:mode[%d]\n", __func__);
+	val = op->rd(DI_TOP_CTRL1);
 	if (!mode_4k)
-		op->wr(DI_TOP_CTRL1, 0x00000008); /*default*/
+		val = 0x00000008;
 	else if (mode_4k == 1)
-		op->wr(DI_TOP_CTRL1, 0x00000004); /*default*/
+		val = 0x00000004;
 	else if (mode_4k == 2)
-		op->wr(DI_TOP_CTRL1, 0x0000000c); /*default*/
+		val = 0x0000000c;
 
-	if (DIM_IS_ICS(T5W))//from vlsi feijun for t5w
-		op->bwr(DI_TOP_CTRL1, 0, 3, 1);
+	if (DIM_IS_ICS(T5W) || DIM_IS_ICS_T5M) //from vlsi feijun for t5w
+		val &= ~(1 << 3);
+	op->wr(DI_TOP_CTRL1, val);
 }
 
 void dim_sc2_afbce_rst(unsigned int ec_nub, const struct reg_acc *op)

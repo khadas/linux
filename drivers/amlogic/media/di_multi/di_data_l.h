@@ -3570,4 +3570,8 @@ static inline void p_ref_set_buf(struct di_buf_s *buf,
 #define DIM_IS_ICS(T5W)		(DIM_IS_IC(T3) && \
 				cfgg(SUB_V) == 1)
 
+#define DIM_IS_ICS_T5M		(DIM_IS_IC(T3) && \
+				cfgg(SUB_V) == 2)
+#define DIM_IS_IC_TXHD2		(DIM_IS_IC(T5DB) && \
+				cfgg(SUB_V) == 1)
 #endif	/*__DI_DATA_L_H__*/

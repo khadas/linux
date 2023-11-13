@@ -5887,7 +5887,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 					0;
 				ppre->di_chan2_buf_dup_p = NULL;
 			}
-
+			dim_arb_sw(true);
 			PR_INF("%s:ch[%d]:%ums %dth source change:%d:%d\n",
 			       "pre cfg",
 			       channel,
@@ -5895,7 +5895,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			       ppre->in_seq,
 			       ppre->width_bk,
 			       di_buf->vframe->index_disp);
-			PR_INF("source change:0x%x/%d/%d/%d=>0x%x/%d/%d/%d\n",
+			PR_INF("source change:0x%x/%d/%d/%d=>0x%x/%d/%d/%d arb:%x\n",
 			       ppre->cur_inp_type,
 			       ppre->cur_width,
 			       ppre->cur_height,
@@ -5903,7 +5903,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			       di_buf->vframe->type,
 			       di_buf->vframe->width,
 			       di_buf->vframe->height,
-			       di_buf->vframe->source_type);
+			       di_buf->vframe->source_type, RD(DI_ARB_DBG_STAT_L1C1));
 			if (di_buf->vframe->type & VIDTYPE_COMPRESS) {
 				ppre->cur_width =
 					di_buf->vframe->compWidth;

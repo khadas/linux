@@ -165,7 +165,7 @@ bool timer_cnt(unsigned long *ptimer, unsigned int hs_nub)
  * bit [24]: dbg irq en
  * bit [25]: force not bypass mem
  * bit [28]: bypass in display
- * bit [29]: force pre-vpp link on;
+ * bit [30]: force disable pre_hold;
  **********************************************/
 static unsigned int tst_pre_vpp;
 module_param_named(tst_pre_vpp, tst_pre_vpp, uint, 0664);
@@ -4742,7 +4742,8 @@ static int dpvpp_reg_link_sw(bool vpp_disable_async)
 		get_datal()->pre_vpp_active = false;/* interface */
 		atomic_set(&hw->link_in_busy, 0);
 		ext_vpp_prelink_state_changed_notify();
-		PR_INF("%s:set inactive<%d, %d>\n", __func__, ton_vpp, ton_di);
+		PR_INF("%s:set inactive<%d, %d> arb:%x\n", __func__,
+				ton_vpp, ton_di, RD(DI_ARB_DBG_STAT_L1C1));
 	}
 	return 0;
 }
@@ -6477,7 +6478,8 @@ static void dpvpph_size_change(struct dim_prevpp_ds_s *ds,
 	}
 #endif /* pulldown_en */
 	op->wr(DI_PRE_SIZE, (width - 1) | ((height - 1) << 16));
-	dim_print("%s:DI_PRE_SIZE:%d,%d:\n", __func__, width, height);
+	dim_print("%s:DI_PRE_SIZE:%d,%d: arb:%x\n",
+		__func__, width, height, RD(DI_ARB_DBG_STAT_L1C1));
 #ifdef HIS_CODE
 	if (mc_en) { //dimp_get(edi_mp_mcpre_en)
 		blkhsize = (width + 4) / 5;
@@ -7568,11 +7570,24 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 static void dpvpph_prelink_sw(const struct reg_acc *op, bool p_link)
 {
 	unsigned int val;
+	u32 REG_VPU_WRARB_REQEN_SLV_L1C1;
+	u32 REG_VPU_RDARB_REQEN_SLV_L1C1;
+	u32 REG_VPU_ARB_DBG_STAT_L1C1;
+	u32 WRARB_onval;
+	u32 WRARB_offval;
 
 	if (DIM_IS_IC_BF(TM2B)) {
 		dim_print("%s:check return;\n", __func__);
 		return;
 	}
+
+	REG_VPU_WRARB_REQEN_SLV_L1C1 = DI_WRARB_REQEN_SLV_L1C1;
+	REG_VPU_RDARB_REQEN_SLV_L1C1 = DI_RDARB_REQEN_SLV_L1C1;
+	REG_VPU_ARB_DBG_STAT_L1C1 = DI_ARB_DBG_STAT_L1C1;
+	if (p_link)
+		WRARB_onval = 0x3f;
+	else
+		WRARB_offval = 0x3e;
 
 	if (p_link) {
 		/* set on*/
@@ -7589,8 +7604,9 @@ static void dpvpph_prelink_sw(const struct reg_acc *op, bool p_link)
 			op->bwr(VD1_AFBCD0_MISC_CTRL, 1, 8, 1);
 			op->bwr(VD1_AFBCD0_MISC_CTRL, 1, 20, 1);
 		}
-		dbg_plink1("c_sw:ak:from[0x%x]\n",
-			val);
+		WR(REG_VPU_WRARB_REQEN_SLV_L1C1, WRARB_onval);
+		WR(REG_VPU_RDARB_REQEN_SLV_L1C1, 0xffff);
+		dbg_plink1("c_sw:ak:from[0x%x] %px\n", val, op);
 	} else {
 		/* set off */
 		dpvpph_gl_disable(op);	//test-05
@@ -7603,7 +7619,9 @@ static void dpvpph_prelink_sw(const struct reg_acc *op, bool p_link)
 			op->bwr(VD1_AFBCD0_MISC_CTRL, 0, 20, 1);
 		}
 		//prelink_status = false;
-		dbg_plink1("c_sw:bk\n");
+		op->wr(REG_VPU_WRARB_REQEN_SLV_L1C1, WRARB_offval);
+		op->wr(REG_VPU_RDARB_REQEN_SLV_L1C1, 0xf079);
+		dbg_plink1("c_sw:bk %px arb:%x\n", op, RD(DI_ARB_DBG_STAT_L1C1));
 	}
 }
 
