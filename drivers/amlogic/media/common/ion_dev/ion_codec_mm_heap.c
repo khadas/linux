@@ -63,10 +63,12 @@ static void ion_codec_mm_free(struct ion_heap *heap,
 
 	if (addr == ION_CODEC_MM_ALLOCATE_FAIL)
 		return;
-	mutex_lock(&codec_heap->mutex);
-	if (!codec_mm_free_for_dma(CODEC_MM_ION, addr))
+
+	if (!codec_mm_free_for_dma(CODEC_MM_ION, addr)) {
+		mutex_lock(&codec_heap->mutex);
 		codec_heap->alloced_size -= size;
-	mutex_unlock(&codec_heap->mutex);
+		mutex_unlock(&codec_heap->mutex);
+	}
 }
 
 static phys_addr_t ion_secure_allocate(struct ion_heap *heap,
