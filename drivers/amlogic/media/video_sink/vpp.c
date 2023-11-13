@@ -4445,9 +4445,15 @@ static void vpp_get_video_source_size
 		next_frame_par->vpp_3d_mode = VPP_3D_MODE_FA;
 		if (process_3d_type & MODE_3D_TO_2D_MASK) {
 			if (process_3d_type & MODE_FORCE_3D_FA_TB) {
+				u32 blank;
+
+				if (framepacking_support)
+					blank = framepacking_blank;
+				else
+					blank = 0;
 				next_frame_par->vpp_3d_mode = VPP_3D_MODE_TB;
 				*src_width = frame_width;
-				*src_height = frame_height >> 1;
+				*src_height = (frame_height - blank) >> 1;
 			}
 			if (process_3d_type & MODE_FORCE_3D_FA_LR) {
 				next_frame_par->vpp_3d_mode = VPP_3D_MODE_LR;

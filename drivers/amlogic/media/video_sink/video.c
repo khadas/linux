@@ -527,6 +527,7 @@ static u32 over_field_case2_cnt;
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 static int vsync_rdma_line_max;
 #endif
+u32 g_framepacking_support;
 u32 framepacking_support;
 static unsigned int framepacking_width = 1920;
 static unsigned int framepacking_height = 2205;
@@ -21977,8 +21978,8 @@ module_param(bypass_pps, bool, 0664);
 MODULE_PARM_DESC(process_3d_type, "\n process_3d_type\n");
 module_param(process_3d_type, uint, 0664);
 
-MODULE_PARM_DESC(framepacking_support, "\n framepacking_support\n");
-module_param(framepacking_support, uint, 0664);
+MODULE_PARM_DESC(g_framepacking_support, "\n g_framepacking_support\n");
+module_param(g_framepacking_support, uint, 0664);
 
 MODULE_PARM_DESC(framepacking_width, "\n framepacking_width\n");
 module_param(framepacking_width, uint, 0664);

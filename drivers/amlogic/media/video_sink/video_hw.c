@@ -5113,11 +5113,17 @@ static void get_3d_vert_pos(struct video_layer_s *layer,
 			     & MODE_3D_TO_2D_MASK) ||
 			    (process_3d_type
 			     & MODE_3D_OUT_LR)) {
+				u32 blank;
+
+				if (framepacking_support)
+					blank = framepacking_blank;
+				else
+					blank = 0;
 				/* same width, half height */
 				*ls = layer->start_y_lines;
 				*le = layer->end_y_lines;
-				*rs = *ls + (height >> 1);
-				*re = *le + (height >> 1);
+				*rs = *ls + ((height - blank) >> 1) + blank;
+				*re = *le + ((height - blank) >> 1) + blank;
 			}
 		}
 #endif
@@ -5303,6 +5309,7 @@ void switch_3d_view_per_vsync(struct video_layer_s *layer)
 	struct hw_vd_reg_s *vd2_mif_reg;
 	struct hw_afbc_reg_s *vd_afbc_reg;
 	u8 vpp_index = VPP0;
+	u32 blank;
 
 	if (!layer || !layer->cur_frame_par || !layer->dispbuf)
 		return;
@@ -5328,6 +5335,11 @@ void switch_3d_view_per_vsync(struct video_layer_s *layer)
 	src_end_y_lines =
 		(dispbuf->type & VIDTYPE_COMPRESS) ?
 		dispbuf->compHeight : dispbuf->height;
+	if (framepacking_support)
+		blank = framepacking_blank;
+	else
+		blank = 0;
+	src_end_y_lines -= blank;
 	src_end_y_lines -= 1;
 
 	misc_off = layer->misc_reg_offt;
@@ -5533,6 +5545,7 @@ s32 config_vd_position_internal(struct video_layer_s *layer,
 		       struct mif_pos_s *setting)
 {
 	struct vframe_s *dispbuf = NULL;
+	u32 blank;
 
 	if (!layer || !layer->cur_frame_par || !layer->dispbuf || !setting)
 		return -1;
@@ -5552,6 +5565,11 @@ s32 config_vd_position_internal(struct video_layer_s *layer,
 	setting->src_h =
 		(dispbuf->type & VIDTYPE_COMPRESS) ?
 		dispbuf->compHeight : dispbuf->height;
+	if (framepacking_support)
+		blank = framepacking_blank;
+	else
+		blank = 0;
+	setting->src_h -= blank;
 
 	setting->start_x_lines = layer->start_x_lines;
 	setting->end_x_lines = layer->end_x_lines;
@@ -9854,6 +9872,29 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 }
 #endif
 
+static void is_framepacking_support(struct vframe_s *vf)
+{
+	if (!vf)
+		return;
+
+	if (vf->type & VIDTYPE_MVC) {
+		framepacking_support = g_framepacking_support;
+	} else {
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
+		u32 sig_fmt = 0;
+
+		sig_fmt = vf->sig_fmt;
+		if (sig_fmt >= TVIN_SIG_FMT_HDMI_1280X720P_60HZ_FRAME_PACKING &&
+			sig_fmt <= TVIN_SIG_FMT_HDMI_1920X1080P_30HZ_FRAME_PACKING)
+			framepacking_support = 1;
+		else
+			framepacking_support = 0;
+#else
+		framepacking_support = g_framepacking_support;
+#endif
+	}
+}
+
 s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		     bool force_toggle,
 		     const struct vinfo_s *vinfo, u32 swap_op_flag)
@@ -9934,6 +9975,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 			vf->width, vf->height, vf->pts,
 			layer->switch_vf ? 1 : 0);
 
+	is_framepacking_support(vf);
 	aisr_update = aisr_update_frame_info(layer, vf);
 	aisr_reshape_addr_set(layer, &layer->aisr_mif_setting);
 	set_layer_display_canvas

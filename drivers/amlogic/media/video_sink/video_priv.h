@@ -832,6 +832,7 @@ extern u32 osd_vpp_misc;
 extern u32 osd_vpp_misc_mask;
 extern bool update_osd_vpp_misc;
 extern u32 osd_preblend_en;
+extern u32 g_framepacking_support;
 extern u32 framepacking_support;
 extern unsigned int framepacking_blank;
 extern unsigned int process_3d_type;
