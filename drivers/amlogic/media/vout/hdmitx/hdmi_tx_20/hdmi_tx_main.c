@@ -3975,6 +3975,12 @@ static ssize_t dc_cap_show(struct device *dev,
 	const struct dv_info *dv2 = &hdmitx_device.rxcap.dv_info2;
 	struct hdmitx_dev *hdev = &hdmitx_device;
 
+	/* DVI case, only rgb,8bit */
+	if (prxcap->ieeeoui != HDMI_IEEEOUI) {
+		pos += snprintf(buf + pos, PAGE_SIZE, "rgb,8bit\n");
+		return pos;
+	}
+
 	if (prxcap->dc_36bit_420)
 		pos += snprintf(buf + pos, PAGE_SIZE, "420,12bit\n");
 	if (prxcap->dc_30bit_420)
