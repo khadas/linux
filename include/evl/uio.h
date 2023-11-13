@@ -10,6 +10,7 @@
 #include <linux/types.h>
 
 struct iovec;
+struct kvec;
 
 ssize_t evl_copy_to_user_iov(const struct iovec *iov, size_t iovlen,
 			const void *data, size_t len);
@@ -19,5 +20,21 @@ ssize_t evl_copy_from_user_iov(const struct iovec *iov, size_t iovlen,
 
 struct iovec *evl_load_user_iov(const struct iovec __user *u_iov,
 				size_t iovlen, struct iovec *fast_iov);
+
+ssize_t evl_copy_from_uio_to_kvec(const struct iovec *iov,
+				size_t iovlen, size_t count,
+				struct kvec *kvec);
+
+static inline
+size_t evl_iov_flat_length(const struct iovec *iov, int iovlen)
+{
+	size_t count;
+	int n;
+
+	for (n = 0, count = 0; n < iovlen; n++)
+		count += iov[n].iov_len;
+
+	return count;
+}
 
 #endif /* !_EVL_UIO_H */
