@@ -123,6 +123,10 @@ const struct match_data_s vpp_t3_match = {
 	.chip_id = CHIP_T3,
 };
 
+const struct match_data_s vpp_t5w_match = {
+	.chip_id = CHIP_T5W,
+};
+
 const struct match_data_s vpp_match = {
 	.chip_id = CHIP_MAX,
 };
@@ -131,6 +135,10 @@ const struct of_device_id vpp_dts_match[] = {
 	{
 		.compatible = "amlogic, vpp-t3",
 		.data = &vpp_t3_match,
+	},
+	{
+		.compatible = "amlogic, vpp-t5w",
+		.data = &vpp_t5w_match,
 	},
 	{
 		.compatible = "amlogic, vpp",
