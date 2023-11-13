@@ -162,3 +162,30 @@ ssize_t evl_copy_from_user_iov(const struct iovec *iov, size_t iovlen,
 	return read;
 }
 EXPORT_SYMBOL_GPL(evl_copy_from_user_iov);
+
+/*
+ * Copy the content referred to by a user I/O vector to a linear area,
+ * returning a kernel I/O vector composed of a single cell covering
+ * the loaded data.
+ */
+ssize_t evl_copy_from_uio_to_kvec(const struct iovec *iov, size_t iovlen,
+				size_t count, struct kvec *kvec)
+{
+	ssize_t ret;
+	void *data;
+
+	data = evl_alloc(count);
+	if (!data)
+		return -ENOMEM;
+
+	ret = evl_copy_from_user_iov(iov, iovlen, data, count, NULL);
+	if (ret <= 0) {
+		evl_free(data);
+	} else {
+		kvec->iov_base = data;
+		kvec->iov_len = ret;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(evl_copy_from_uio_to_kvec);
