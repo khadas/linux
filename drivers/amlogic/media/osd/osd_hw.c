@@ -13288,6 +13288,12 @@ static void osd_setting_viux(u32 output_index)
 				osd_hw.reg[OSD_ENABLE]
 				.update_func(index);
 		}
+		/* if osd is disabled, use black dim color */
+		if (osd_hw.enable[index] == DISABLE) {
+			osd_hw.dim_layer[index] = 1;
+			osd_hw.dim_color[index] = 0;
+		}
+
 		if (!osd_hw.dim_layer[index]) {
 			VSYNCOSD_WR_MPEG_REG(osd_reg->osd_dimm_ctrl,
 					     0x00000000);
