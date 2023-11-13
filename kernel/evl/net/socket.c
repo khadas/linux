@@ -7,13 +7,12 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/file.h>
 #include <linux/net.h>
 #include <linux/socket.h>
 #include <linux/mutex.h>
 #include <linux/if_ether.h>
-#include <linux/uio.h>
 #include <linux/err.h>
 #include <linux/hashtable.h>
 #include <linux/jhash.h>
@@ -28,6 +27,7 @@
 #include <evl/net.h>
 #include <evl/poll.h>
 #include <evl/memory.h>
+#include <evl/uio.h>
 #include <evl/net/skb.h>
 #include <evl/net/socket.h>
 #include <evl/net/device.h>
@@ -70,159 +70,6 @@ static inline struct evl_socket *evl_sk(struct sock *sk)
 {
 	return sk->oob_data;
 }
-
-static int load_iov_native(struct iovec *iov,
-			const struct iovec __user *u_iov,
-			size_t iovlen)
-{
-	return raw_copy_from_user(iov, u_iov, iovlen * sizeof(*u_iov)) ?
-		-EFAULT : 0;
-}
-
-#ifdef CONFIG_COMPAT
-
-int do_load_iov(struct iovec *iov,
-		const struct iovec __user *u_iov,
-		size_t iovlen)
-{
-	struct compat_iovec c_iov[UIO_FASTIOV], __user *uc_iov;
-	size_t nvec = 0;
-	int ret, n, i;
-
-	if (likely(!is_compat_oob_call()))
-		return load_iov_native(iov, u_iov, iovlen);
-
-	uc_iov = (struct compat_iovec *)u_iov;
-
-	/*
-	 * Slurp compat_iovector in by chunks of UIO_FASTIOV
-	 * cells. This is faster in the most likely case compared to
-	 * allocating yet another in-kernel vector dynamically for
-	 * such purpose.
-	 */
-	while (nvec < iovlen) {
-		n = iovlen - nvec;
-		if (n > UIO_FASTIOV)
-			n = UIO_FASTIOV;
-		ret = raw_copy_from_user(c_iov, uc_iov, sizeof(*uc_iov) * n);
-		if (ret)
-			return -EFAULT;
-		for (i = 0; i < n; i++, iov++) {
-			iov->iov_base = compat_ptr(c_iov[i].iov_base);
-			iov->iov_len = c_iov[i].iov_len;
-		}
-		uc_iov += n;
-		nvec += n;
-	}
-
-	return 0;
-}
-
-#else
-
-static inline int do_load_iov(struct iovec *iov,
-			const struct iovec __user *u_iov,
-			size_t iovlen)
-{
-	return load_iov_native(iov, u_iov, iovlen);
-}
-
-#endif
-
-static struct iovec *
-load_iov(const struct iovec __user *u_iov, size_t iovlen,
-	struct iovec *fast_iov)
-{
-	struct iovec *slow_iov;
-	int ret;
-
-	if (iovlen > UIO_MAXIOV)
-		return ERR_PTR(-EINVAL);
-
-	if (likely(iovlen <= UIO_FASTIOV)) {
-		ret = do_load_iov(fast_iov, u_iov, iovlen);
-		return ret ? ERR_PTR(ret) : fast_iov;
-	}
-
-	slow_iov = evl_alloc(iovlen * sizeof(*u_iov));
-	if (slow_iov == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	ret = do_load_iov(slow_iov, u_iov, iovlen);
-	if (ret) {
-		evl_free(slow_iov);
-		return ERR_PTR(ret);
-	}
-
-	return slow_iov;
-}
-
-ssize_t evl_export_iov(const struct iovec *iov, size_t iovlen,
-		const void *data, size_t len)
-{
-	ssize_t written = 0;
-	size_t nbytes;
-	int n, ret;
-
-	for (n = 0; len > 0 && n < iovlen; n++, iov++) {
-		if (iov->iov_len == 0)
-			continue;
-
-		nbytes = iov->iov_len;
-		if (nbytes > len)
-			nbytes = len;
-
-		ret = raw_copy_to_user(iov->iov_base, data, nbytes);
-		if (ret)
-			return -EFAULT;
-
-		len -= nbytes;
-		data += nbytes;
-		written += nbytes;
-		if (written < 0)
-			return -EINVAL;
-	}
-
-	return written;
-}
-EXPORT_SYMBOL_GPL(evl_export_iov);
-
-ssize_t evl_import_iov(const struct iovec *iov, size_t iovlen,
-		       void *data, size_t len, size_t *remainder)
-{
-	size_t nbytes, avail = 0;
-	ssize_t read = 0;
-	int n, ret;
-
-	for (n = 0; len > 0 && n < iovlen; n++, iov++) {
-		if (iov->iov_len == 0)
-			continue;
-
-		nbytes = iov->iov_len;
-		avail += nbytes;
-		if (nbytes > len)
-			nbytes = len;
-
-		ret = raw_copy_from_user(data, iov->iov_base, nbytes);
-		if (ret)
-			return -EFAULT;
-
-		len -= nbytes;
-		data += nbytes;
-		read += nbytes;
-		if (read < 0)
-			return -EINVAL;
-	}
-
-	if (remainder) {
-		for (; n < iovlen; n++, iov++)
-			avail += iov->iov_len;
-		*remainder = avail - read;
-	}
-
-	return read;
-}
-EXPORT_SYMBOL_GPL(evl_import_iov);
 
 static inline u32 get_domain_hash(int af_domain)
 {
@@ -560,7 +407,7 @@ static int socket_send_recv(struct evl_socket *esk,
 		return -EFAULT;
 
 	u_iov = evl_valptr64(iov_ptr, struct iovec);
-	iov = load_iov(u_iov, iovlen, fast_iov);
+	iov = evl_load_user_iov(u_iov, iovlen, fast_iov);
 	if (IS_ERR(iov))
 		return PTR_ERR(iov);
 

@@ -116,12 +116,6 @@ int evl_register_socket_domain(struct evl_socket_domain *domain);
 
 void evl_unregister_socket_domain(struct evl_socket_domain *domain);
 
-ssize_t evl_export_iov(const struct iovec *iov, size_t iovlen,
-		const void *data, size_t len);
-
-ssize_t evl_import_iov(const struct iovec *iov, size_t iovlen,
-		void *data, size_t len, size_t *remainder);
-
 int evl_charge_socket_wmem(struct evl_socket *esk,
 			struct sk_buff *skb,
 			ktime_t timeout, enum evl_tmode tmode);

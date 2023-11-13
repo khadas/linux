@@ -19,6 +19,7 @@
 #include <evl/wait.h>
 #include <evl/poll.h>
 #include <evl/sched.h>
+#include <evl/uio.h>
 #include <evl/net/socket.h>
 #include <evl/net/packet.h>
 #include <evl/net/input.h>
@@ -465,7 +466,7 @@ static ssize_t send_packet(struct evl_socket *esk,
 	skb->dev = real_dev;
 	skb->priority = esk->sk->sk_priority;
 
-	count = evl_import_iov(iov, iovlen, skb->data, skb_tailroom(skb), &rem);
+	count = evl_copy_from_user_iov(iov, iovlen, skb->data, skb_tailroom(skb), &rem);
 	if (rem || count > dev->mtu + dev->hard_header_len + VLAN_HLEN)
 		ret = -EMSGSIZE;
 	else if (!dev_validate_header(dev, skb->data, count))
@@ -548,7 +549,7 @@ static ssize_t copy_packet_to_user(struct user_oob_msghdr __user *u_msghdr,
 		return -EFAULT;
 
 copy_data:
-	count = evl_export_iov(iov, iovlen, skb->data, skb->len);
+	count = evl_copy_to_user_iov(iov, iovlen, skb->data, skb->len);
 	if (count < skb->len)
 		msg_flags |= MSG_TRUNC;
 
