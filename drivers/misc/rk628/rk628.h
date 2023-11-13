@@ -424,6 +424,7 @@ struct rk628_dsi {
 	uint8_t  lanes;
 	uint8_t  id; /* 0:dsi0 1:dsi1 */
 	struct rk628 *rk628;
+	unsigned int lane_mbps; /* per lane */
 };
 
 struct rk628_lvds {

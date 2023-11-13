@@ -21,8 +21,6 @@
 /* use Low Power Mode to transmit message */
 #define MIPI_DSI_MSG_USE_LPM	BIT(1)
 
-static u32 lane_mbps;
-
 enum vid_mode_type {
 	VIDEO_MODE,
 	COMMAND_MODE,
@@ -822,14 +820,20 @@ panel_simple_xfer_dsi_cmd_seq(struct rk628 *rk628, struct panel_cmds *cmds)
 static u32 rk628_dsi_get_lane_rate(const struct rk628_dsi *dsi)
 {
 	const struct rk628_display_mode *mode = &dsi->rk628->dst_mode;
-	u32 lane_rate;
+	struct device_node *dsi_np;
+	u32 lane_rate, value;
 	u32 max_lane_rate = 1500;
 	u8 bpp, lanes;
 
-	bpp = dsi->bpp;
-	lanes = dsi->slave ? dsi->lanes * 2 : dsi->lanes;
-	lane_rate = mode->clock / 1000 * bpp / lanes;
-	lane_rate = DIV_ROUND_UP(lane_rate * 5, 4);
+	dsi_np = of_find_node_by_name(dsi->rk628->dev->of_node, "rk628-dsi");
+	if (dsi_np && !of_property_read_u32(dsi_np, "rockchip,lane-mbps", &value)) {
+		lane_rate = value;
+	} else {
+		bpp = dsi->bpp;
+		lanes = dsi->slave ? dsi->lanes * 2 : dsi->lanes;
+		lane_rate = mode->clock / 1000 * bpp / lanes;
+		lane_rate = DIV_ROUND_UP(lane_rate * 5, 4);
+	}
 
 	if (lane_rate > max_lane_rate)
 		lane_rate = max_lane_rate;
@@ -959,7 +963,7 @@ static void mipi_dphy_init(struct rk628 *rk628, const struct rk628_dsi *dsi)
 	unsigned int index;
 
 	for (index = 0; index < ARRAY_SIZE(hsfreqrange_table); index++)
-		if (lane_mbps <= hsfreqrange_table[index].max_lane_mbps)
+		if (dsi->lane_mbps <= hsfreqrange_table[index].max_lane_mbps)
 			break;
 
 	if (index == ARRAY_SIZE(hsfreqrange_table))
@@ -1051,7 +1055,7 @@ void rk628_dsi_bridge_pre_enable(struct rk628 *rk628,
 	dsi_write(rk628, dsi, DSI_PWR_UP, RESET);
 	dsi_write(rk628, dsi, DSI_MODE_CFG, CMD_VIDEO_MODE(COMMAND_MODE));
 
-	val = DIV_ROUND_UP(lane_mbps >> 3, 20);
+	val = DIV_ROUND_UP(dsi->lane_mbps >> 3, 20);
 	dsi_write(rk628, dsi, DSI_CLKMGR_CFG,
 		  TO_CLK_DIVISION(10) | TX_ESC_CLK_DIVISION(val));
 
@@ -1081,7 +1085,7 @@ static void rk628_dsi_set_vid_mode(struct rk628 *rk628,
 				   const struct rk628_dsi *dsi,
 				   const struct rk628_display_mode *mode)
 {
-	unsigned int lanebyteclk = (lane_mbps * 1000L) >> 3;
+	unsigned int lanebyteclk = (dsi->lane_mbps * 1000L) >> 3;
 	unsigned int dpipclk = mode->clock;
 	u32 hline, hsa, hbp, hline_time, hsa_time, hbp_time;
 	u32 vactive, vsa, vfp, vbp;
@@ -1205,8 +1209,8 @@ static void rk628_dsi_bridge_enable(struct rk628 *rk628,
 
 void rk628_mipi_dsi_pre_enable(struct rk628 *rk628)
 {
-	const struct rk628_dsi *dsi = &rk628->dsi0;
-	const struct rk628_dsi *dsi1 = &rk628->dsi1;
+	struct rk628_dsi *dsi = &rk628->dsi0;
+	struct rk628_dsi *dsi1 = &rk628->dsi1;
 	u32 rate = rk628_dsi_get_lane_rate(dsi);
 	int bus_width;
 	u32 mask = SW_OUTPUT_MODE_MASK;
@@ -1237,10 +1241,10 @@ void rk628_mipi_dsi_pre_enable(struct rk628 *rk628)
 
 	rk628_combtxphy_set_bus_width(rk628, bus_width);
 	rk628_combtxphy_set_mode(rk628, PHY_MODE_VIDEO_MIPI);
-	lane_mbps = rk628_combtxphy_get_bus_width(rk628);
+	dsi->lane_mbps = rk628_combtxphy_get_bus_width(rk628);
 
-	if (dsi->slave)
-		lane_mbps = rk628_combtxphy_get_bus_width(rk628);
+	if (dsi->slave && dsi1)
+		dsi1->lane_mbps = rk628_combtxphy_get_bus_width(rk628);
 
 	/* rst for dsi0 */
 	rk628_dsi0_reset_control_assert(rk628);
@@ -1273,7 +1277,7 @@ void rk628_mipi_dsi_pre_enable(struct rk628 *rk628)
 #endif
 
 	dev_info(rk628->dev, "rk628_dsi final DSI-Link bandwidth: %d x %d\n",
-		 lane_mbps, dsi->slave ? dsi->lanes * 2 : dsi->lanes);
+		 dsi->lane_mbps, dsi->slave ? dsi->lanes * 2 : dsi->lanes);
 }
 
 void rk628_mipi_dsi_enable(struct rk628 *rk628)
