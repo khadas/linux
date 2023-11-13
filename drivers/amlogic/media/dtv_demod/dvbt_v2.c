@@ -1450,6 +1450,28 @@ void dvbt_reg_initial(unsigned int bw, struct dvb_frontend *fe)
 	PR_DVBT("DVB-T init ok.\n");
 }
 
+void dvbt_rst_demod(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
+{
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+
+	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+		demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
+		demod_top_write_reg(DEMOD_TOP_REGC, 0x110011);
+		demod_top_write_reg(DEMOD_TOP_REGC, 0x110010);
+		usleep_range(1000, 1001);
+		demod_top_write_reg(DEMOD_TOP_REGC, 0x110011);
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+		front_write_bits(AFIFO_ADC, 0x80, AFIFO_NCO_RATE_BIT,
+				 AFIFO_NCO_RATE_WID);
+		front_write_reg(0x22, 0x7200a06);
+		front_write_reg(0x2f, 0x0);
+		front_write_reg(0x39, 0x40001000);
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+	}
+
+	dvbt_reg_initial(demod->bw, fe);
+}
+
 unsigned int dvbt_set_ch(struct aml_dtvdemod *demod,
 		struct aml_demod_dvbt *demod_dvbt, struct dvb_frontend *fe)
 {

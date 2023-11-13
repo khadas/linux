@@ -1467,6 +1467,9 @@ static ssize_t attr_store(struct class *cls, struct class_attribute *attr,
 		demod_dmc_notifier();
 	} else if (!strcmp(parm[0], "tmcc")) {
 		isdbt_get_tmcc_info(&tmcc_info);
+	} else if (!strcmp(parm[0], "reload_fw")) {
+		val = write_riscv_ram();
+		PR_INFO("download t2 fw:%d\n", val);
 	} else {
 		PR_INFO("invalid command: %s.\n", parm[0]);
 	}
