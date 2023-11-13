@@ -15,7 +15,8 @@
 /* 20230315: add get adc status interface */
 /* 20230331: change atv_demod_afc_do_work status judge */
 /* 20230615: solved demod not adc clock will crash */
-#define ADC_VER "20230615:solved demod not adc clock will crash"
+/* 20231114: S4D adjust adc clk config */
+#define ADC_VER "20231114: S4D adjust adc clk config"
 
 #define ADC_CLK_24M       24000
 #define ADC_CLK_25M       25000
@@ -170,6 +171,7 @@ struct tvin_adc_dev {
 	unsigned int pll_flg;
 	unsigned int filter_flg;
 	unsigned int print_en;
+	enum fe_delivery_system delsys;
 	struct adc_reg_phy phy_addr[MAP_ADDR_NUM];
 	void __iomem *vir_addr[MAP_ADDR_NUM];
 };

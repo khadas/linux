@@ -120,15 +120,15 @@ void adc_set_ddemod_default(struct dfe_adcpll_para *adcpll_para)
 	if (!probe_finish)
 		return;
 
-	if (devp->print_en & ADC_DBG_EN)
-		pr_info("%s: delsys:%#x id:%#x\n", __func__, delsys, devp->plat_data->chip_id);
-
 	if (!adcpll_para) {
 		pr_err("%s: adcpll_para is null!\n", __func__);
 		return;
 	}
 	delsys = adcpll_para->delsys;
 	mode = adcpll_para->mode;
+
+	if (devp->print_en & ADC_DBG_EN)
+		pr_info("%s: delsys:%#x id:%#x\n", __func__, delsys, devp->plat_data->chip_id);
 
 	if (is_meson_txl_cpu() || is_meson_txlx_cpu() ||
 	    is_meson_gxlx_cpu()) {
@@ -356,16 +356,17 @@ static void adc_set_dtvdemod_pll_by_clk(struct tvin_adc_dev *devp,
 			if (p_dtv_para->delsys == SYS_DVBC_ANNEX_A &&
 					(p_dtv_para->mode & 0xff) == 2) {
 				adc_wr_hiu(pll_addr->adc_pll_cntl_0 + reg_offset, 0x01050480);
+				adc_wr_hiu(pll_addr->adc_pll_cntl_0 + reg_offset, 0x31050480);
 				adc_wr_hiu(pll_addr->adc_pll_cntl_1 + reg_offset, 0x04000000);
 				adc_wr_hiu(pll_addr->adc_pll_cntl_2 + reg_offset, 0x0);
 				adc_wr_hiu(pll_addr->adc_pll_cntl_3 + reg_offset, 0x48681f00);
 				adc_wr_hiu(pll_addr->adc_pll_cntl_4 + reg_offset, 0x33771291);
 				adc_wr_hiu(pll_addr->adc_pll_cntl_5 + reg_offset, 0x3927a000);
 				adc_wr_hiu(pll_addr->adc_pll_cntl_6 + reg_offset, 0x56540000);
-				adc_wr_hiu(pll_addr->adc_pll_cntl_0 + reg_offset, 0x31050480);
 				adc_wr_hiu(pll_addr->adc_pll_cntl_0 + reg_offset, 0x11050480);
 			} else {
 				adc_wr_hiu(pll_addr->adc_pll_cntl_0 + reg_offset, 0x0105047d);
+				adc_wr_hiu(pll_addr->adc_pll_cntl_0 + reg_offset, 0x3105047d);
 
 				//adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1 + reg_offset, 0x312004e0);
 				adc_wr_hiu(pll_addr->adc_pll_cntl_1 + reg_offset, 0x03c00000);
@@ -924,27 +925,39 @@ EXPORT_SYMBOL(adc_get_status);
 
 static void adc_pll_down(void)
 {
+	int chip_id;
+	unsigned int reg_offset;
+	struct adc_reg_addr *adc_addr;
+	struct adc_pll_reg_addr *pll_addr;
+
 	if (!probe_finish || !adc_devp)
 		return;
-	struct adc_pll_reg_addr *pll_addr = &adc_devp->plat_data->pll_addr;
-	struct adc_reg_addr *adc_addr = &adc_devp->plat_data->adc_addr;
 
-	pr_info("adc: %s\n", __func__);
+	pll_addr = &adc_devp->plat_data->pll_addr;
+	adc_addr = &adc_devp->plat_data->adc_addr;
+	chip_id = adc_devp->plat_data->chip_id;
+
+	pr_info("adc: %s chid:%d\n", __func__, chip_id);
+
+	if (chip_id == ADC_CHIP_S4 || chip_id == ADC_CHIP_S4D)
+		reg_offset = 0x10;
+	else
+		reg_offset = 0;
 
 	mutex_lock(&adc_devp->pll_mutex);
 	if (!adc_devp->pll_flg && is_meson_tl1_cpu() &&
-	    adc_rd_hiu_bits(pll_addr->adc_pll_cntl_0, 28, 1)) {
-		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0, 0, 28, 1);
+	    adc_rd_hiu_bits(pll_addr->adc_pll_cntl_0 + reg_offset, 28, 1)) {
+		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0 + reg_offset, 0, 28, 1);
 	}
 
 	if (!adc_devp->pll_flg && get_cpu_type() >= MESON_CPU_MAJOR_ID_T5) {
 		adc_wr_hiu_bits(adc_addr->vdac_cntl_1, 0, 7, 1);
 		adc_wr_hiu_bits(adc_addr->dadc_cntl_3, 0, 0, 2);
-		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0, 0, 28, 1);
+		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0 + reg_offset, 0, 28, 1);
 		if (adc_devp->plat_data->is_tv_chip)
 			adc_wr_hiu_bits(adc_addr->s2_dadc_cntl_2, 0, 8, 1);
-		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0, 1, 29, 1);
-		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0, 0, 29, 1);
+		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0 + reg_offset, 1, 29, 1);
+		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0 + reg_offset, 0, 29, 1);
 	}
 
 	if (adc_devp->plat_data->is_tv_chip) {
@@ -1021,9 +1034,9 @@ static void adc_dump_regs(void)
 	pr_info("chip_id=0x%x is_tv=0x%x\n",
 		chip_id, adc_devp->plat_data->is_tv_chip);
 
-	pr_info("pll_flag=0x%x filter_flg=0x%x print_en=0x%x\n",
+	pr_info("pll_flag=0x%x filter_flg=0x%x delsys:%d print_en=0x%x\n",
 		adc_devp->pll_flg, adc_devp->filter_flg,
-		adc_devp->print_en);
+		adc_devp->delsys, adc_devp->print_en);
 
 	if (chip_id == ADC_CHIP_S4 || chip_id == ADC_CHIP_S4D) {
 		reg_offset = 0x10;
@@ -1047,10 +1060,15 @@ static void adc_dump_regs(void)
 		adc_rd_hiu(adc_addr->dadc_cntl_3));
 	pr_info("HHI_DADC_CNTL4(0x%x):0x%x\n", adc_addr->dadc_cntl_4,
 		adc_rd_hiu(adc_addr->dadc_cntl_4));
-	pr_info("HHI_S2_DADC_CNTL(0x%x):0x%x\n", adc_addr->s2_dadc_cntl,
-		adc_rd_hiu(adc_addr->s2_dadc_cntl));
-	pr_info("HHI_S2_DADC_CNTL2(0x%x):0x%x\n", adc_addr->s2_dadc_cntl_2,
-		adc_rd_hiu(adc_addr->s2_dadc_cntl_2));
+	if (chip_id == ADC_CHIP_S4 || chip_id == ADC_CHIP_S4D) {
+		pr_info("HHI_S2_DADC_CNTL(0xd0):0x%x\n", adc_rd_hiu(0xd0));
+		pr_info("HHI_S2_DADC_CNTL2(0xd1):0x%x\n", adc_rd_hiu(0xd1));
+	} else {
+		pr_info("HHI_S2_DADC_CNTL(0x%x):0x%x\n", adc_addr->s2_dadc_cntl,
+			adc_rd_hiu(adc_addr->s2_dadc_cntl));
+		pr_info("HHI_S2_DADC_CNTL2(0x%x):0x%x\n", adc_addr->s2_dadc_cntl_2,
+			adc_rd_hiu(adc_addr->s2_dadc_cntl_2));
+	}
 	pr_info("HHI_ADC_PLL_CNTL0(0x%x):0x%x\n",
 		pll_addr->adc_pll_cntl_0 + reg_offset,
 		adc_rd_hiu(pll_addr->adc_pll_cntl_0 + reg_offset));
@@ -1075,10 +1093,15 @@ static void adc_dump_regs(void)
 	pr_info("HHI_ADC_PLL_CNTL7(0x%x):0x%x\n",
 		pll_addr->adc_pll_cntl_7 + reg_offset,
 		adc_rd_hiu(pll_addr->adc_pll_cntl_7 + reg_offset));
-	pr_info("HHI_VDAC_CNTL0(0x%x):0x%x\n", adc_addr->vdac_cntl_0,
-		adc_rd_hiu(adc_addr->vdac_cntl_0));
-	pr_info("HHI_VDAC_CNTL1(0x%x):0x%x\n", adc_addr->vdac_cntl_1,
-		adc_rd_hiu(adc_addr->vdac_cntl_1));
+	if (chip_id == ADC_CHIP_S4 || chip_id == ADC_CHIP_S4D) {
+		pr_info("HHI_VDAC_CNTL0(0xb0):0x%x\n", adc_rd_hiu(0xb0));
+		pr_info("HHI_VDAC_CNTL1(0xb1):0x%x\n", adc_rd_hiu(0xb1));
+	} else {
+		pr_info("HHI_VDAC_CNTL0(0x%x):0x%x\n", adc_addr->vdac_cntl_0,
+			adc_rd_hiu(adc_addr->vdac_cntl_0));
+		pr_info("HHI_VDAC_CNTL1(0x%x):0x%x\n", adc_addr->vdac_cntl_1,
+			adc_rd_hiu(adc_addr->vdac_cntl_1));
+	}
 	pr_info("version : %s\n", ADC_VER);
 }
 
@@ -1087,6 +1110,7 @@ static ssize_t adc_store(struct device *dev, struct device_attribute *attr,
 {
 	char *buf_orig, *parm[47] = {NULL};
 	unsigned int val;
+	unsigned int tmp_val;
 	struct tvin_adc_dev *devp = adc_devp;
 	unsigned int reg_addr;
 	unsigned int reg_val;
@@ -1109,6 +1133,80 @@ static ssize_t adc_store(struct device *dev, struct device_attribute *attr,
 
 		if (kstrtouint(parm[1], 10, &val) >= 0)
 			devp->print_en = val;
+	} else if (parm[0] && !strcmp(parm[0], "atv_demod")) {
+		if (kstrtouint(parm[1], 10, &val) < 0) {
+			pr_err("val error\n");
+			goto tvin_adc_store_err;
+		}
+
+		if (val) {
+			adc_set_filter_ctrl(true, FILTER_ATV_DEMOD, NULL);
+			adc_set_pll_cntl(true, ADC_ATV_DEMOD, NULL);
+		} else {
+			adc_set_filter_ctrl(false, FILTER_ATV_DEMOD, NULL);
+			adc_set_pll_cntl(false, ADC_ATV_DEMOD, NULL);
+		}
+	} else if (parm[0] && !strcmp(parm[0], "tvafe")) {
+		if (kstrtouint(parm[1], 10, &val) < 0) {
+			pr_err("val error\n");
+			goto tvin_adc_store_err;
+		}
+
+		if (val) {
+			adc_set_filter_ctrl(true, FILTER_TVAFE, NULL);
+			adc_set_pll_cntl(true, ADC_TVAFE, NULL);
+		} else {
+			adc_set_filter_ctrl(false, FILTER_TVAFE, NULL);
+			adc_set_pll_cntl(false, ADC_TVAFE, NULL);
+		}
+	} else if (parm[0] && !strcmp(parm[0], "dtv_demod")) {
+		struct dfe_adcpll_para p_dtv_para;
+
+		if (kstrtouint(parm[1], 10, &val) < 0) {
+			pr_err("val error\n");
+			goto tvin_adc_store_err;
+		}
+
+		if (kstrtouint(parm[2], 10, &tmp_val) < 0) {
+			pr_err("val error\n");
+			goto tvin_adc_store_err;
+		}
+
+		if (val) {
+			if (tmp_val) {
+				p_dtv_para.delsys = SYS_DVBT;
+				adc_set_filter_ctrl(true, FILTER_DTV_DEMOD, NULL);
+				adc_set_ddemod_default(&p_dtv_para);
+				adc_set_pll_cntl(true, ADC_DTV_DEMOD, &p_dtv_para);
+			} else {
+				p_dtv_para.delsys = SYS_DVBS;
+				adc_set_filter_ctrl(true, FILTER_DTV_DEMOD, NULL);
+				adc_set_ddemod_default(&p_dtv_para);
+				adc_set_pll_cntl(true, ADC_DTV_DEMOD, &p_dtv_para);
+			}
+		} else {
+			p_dtv_para.delsys = SYS_DVBT;
+			adc_set_filter_ctrl(false, FILTER_DTV_DEMOD, NULL);
+			adc_set_pll_cntl(false, ADC_DTV_DEMOD, &p_dtv_para);
+		}
+	} else if (parm[0] && !strcmp(parm[0], "other_dtv")) {
+		struct dfe_adcpll_para p_dtv_para;
+
+		if (kstrtouint(parm[1], 10, &val) < 0) {
+			pr_err("val error\n");
+			goto tvin_adc_store_err;
+		}
+		if (val) {
+			p_dtv_para.delsys = SYS_DVBC_ANNEX_A;
+			p_dtv_para.adc_clk = ADC_CLK_24M;
+			adc_set_filter_ctrl(true, FILTER_DTV_DEMOD, NULL);
+			adc_set_ddemod_default(&p_dtv_para);
+			adc_set_pll_cntl(true, ADC_DTV_DEMOD, &p_dtv_para);
+		} else {
+			p_dtv_para.delsys = SYS_DVBC_ANNEX_A;
+			adc_set_filter_ctrl(false, FILTER_DTV_DEMOD, NULL);
+			adc_set_pll_cntl(false, ADC_DTV_DEMOD, &p_dtv_para);
+		}
 	} else if (parm[0] && parm[1] && parm[2]) {
 		if (kstrtouint(parm[1], 16, &reg_addr) < 0) {
 			pr_err("reg addr error\n");
