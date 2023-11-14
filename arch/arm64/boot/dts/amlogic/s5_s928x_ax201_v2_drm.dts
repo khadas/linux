@@ -748,7 +748,7 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
-
+/*
 		aml-audio-card,dai-link@8 {
 			mclk-fs = <256>;
 			suffix-name = "alsaPORT-earc";
@@ -760,6 +760,7 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
+*/
 	};
 	/* Audio Related end */
 
@@ -1542,7 +1543,7 @@
 }; /* end of audiobus */
 
 &earc {
-	status = "okay";
+	status = "disabled";
 };
 
 &crg21_otg {

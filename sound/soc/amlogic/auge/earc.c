@@ -2989,6 +2989,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 	}
 	p_earc->tx_earc_mode = true;
 	p_earc->tx_ui_flag = 1;
+	p_earc->rx_ui_flag = 1;
 	s_earc = p_earc;
 
 	/* RX */

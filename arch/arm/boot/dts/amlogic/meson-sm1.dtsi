@@ -969,7 +969,7 @@
 			>;
 			interrupt-names = "earc_rx";
 
-			status = "okay";
+			status = "disabled";
 		};
 
 		asrca: resample@0 {
