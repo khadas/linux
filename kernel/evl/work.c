@@ -71,7 +71,7 @@ void evl_init_sync_work(struct evl_sync_work *sync_work,
 }
 EXPORT_SYMBOL_GPL(evl_init_sync_work);
 
-void evl_call_inband_from(struct evl_work *work,
+bool evl_call_inband_from(struct evl_work *work,
 			struct workqueue_struct *wq)
 {
 	work->wq = wq;
@@ -84,8 +84,13 @@ void evl_call_inband_from(struct evl_work *work,
 	if (work->element)
 		evl_get_element(work->element);
 
-	if (!irq_work_queue(&work->irq_work) && work->element)
-		evl_put_element(work->element);
+	if (!irq_work_queue(&work->irq_work)) {
+		if (work->element)
+			evl_put_element(work->element);
+		return false;
+	}
+
+	return true;
 }
 EXPORT_SYMBOL_GPL(evl_call_inband_from);
 

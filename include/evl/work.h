@@ -40,12 +40,12 @@ void evl_init_work_safe(struct evl_work *work,
 void evl_init_sync_work(struct evl_sync_work *sync_work,
 			int (*handler)(struct evl_sync_work *sync_work));
 
-void evl_call_inband_from(struct evl_work *work,
+bool evl_call_inband_from(struct evl_work *work,
 			struct workqueue_struct *wq);
 
-static inline void evl_call_inband(struct evl_work *work)
+static inline bool evl_call_inband(struct evl_work *work)
 {
-	evl_call_inband_from(work, system_wq);
+	return evl_call_inband_from(work, system_wq);
 }
 
 static inline
