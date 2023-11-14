@@ -131,8 +131,8 @@
 			/* ion_codec_mm max can alloc size 80M*/
 			size = <0x1BC00000>;
 			alignment = <0x400000>;
+			alloc-ranges = <0x30000000 0xb0000000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x0 0xe0000000>;
 		};
 
 		/*di CMA pool */
