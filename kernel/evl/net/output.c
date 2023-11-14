@@ -40,7 +40,7 @@ oob_start_xmit(struct net_device *dev, struct sk_buff *skb)
 static inline void do_tx(struct evl_net_qdisc *qdisc,
 			struct net_device *dev, struct sk_buff *skb)
 {
-	evl_uncharge_socket_wmem(skb);
+	evl_net_uncharge_skb_wmem(skb);
 
 	switch (oob_start_xmit(dev, skb)) {
 	case NETDEV_TX_OK:
@@ -103,7 +103,7 @@ void evl_net_do_tx(void *arg)
 
 static void skb_xmit_inband(struct sk_buff *skb)
 {
-	evl_uncharge_socket_wmem(skb);
+	evl_net_uncharge_skb_wmem(skb);
 	skb->prev = NULL;
 	skb->next = NULL;
 	dev_queue_xmit(skb);

@@ -90,7 +90,7 @@ static bool __packet_deliver(struct evl_net_rxqueue *rxq,
 		 * not consume more memory, skip delivery and try with
 		 * the next subscriber.
 		 */
-		if (!evl_charge_socket_rmem(esk, skb))
+		if (!evl_net_charge_skb_rmem(esk, skb))
 			continue;
 
 		/*
@@ -104,7 +104,7 @@ static bool __packet_deliver(struct evl_net_rxqueue *rxq,
 			qskb = evl_net_clone_skb(skb);
 			if (qskb == NULL) {
 				evl_flush_wait(&esk->input_wait, EVL_T_NOMEM);
-				evl_uncharge_socket_rmem(esk, skb);
+				evl_net_uncharge_skb_rmem(esk, skb);
 				break;
 			}
 		}
@@ -489,13 +489,13 @@ static ssize_t send_packet(struct evl_socket *esk,
 	 * output contention to end, or the caller asked for a
 	 * non-blocking operation while such contention was ongoing.
 	 */
-	ret = evl_charge_socket_wmem(esk, skb, timeout, tmode);
+	ret = evl_net_charge_skb_wmem(esk, skb, timeout, tmode);
 	if (ret)
 		goto cleanup;
 
 	ret = evl_net_ether_transmit(dev, skb);
 	if (ret) {
-		evl_uncharge_socket_wmem(skb);
+		evl_net_uncharge_skb_wmem(skb);
 		goto cleanup;
 	}
 
@@ -611,7 +611,7 @@ static ssize_t receive_packet(struct evl_socket *esk,
 			/* Restore the MAC header. */
 			skb_push(skb, skb->data - skb_mac_header(skb));
 			ret = copy_packet_to_user(u_msghdr, iov, iovlen, skb);
-			evl_uncharge_socket_rmem(esk, skb);
+			evl_net_uncharge_skb_rmem(esk, skb);
 			evl_net_free_skb(skb);
 			return ret;
 		}

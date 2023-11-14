@@ -88,29 +88,29 @@ static inline unsigned int evl_socket_f_flags(struct evl_socket *esk)
 }
 
 static inline bool evl_charge_socket_rmem(struct evl_socket *esk,
-					  struct sk_buff *skb)
+					  size_t size)
 {
 	/* An overflow of skb->truesize - 1 is allowed, not more. */
 	if (atomic_read(&esk->rmem_count) >= esk->rmem_max)
 		return false;
 
 	/* We don't have to saturate, atomic_t is fine. */
-	atomic_add(skb->truesize, &esk->rmem_count);
+	atomic_add(size, &esk->rmem_count);
 
 	return true;
 }
 
 static inline void evl_uncharge_socket_rmem(struct evl_socket *esk,
-					    struct sk_buff *skb)
+					    size_t size)
 {
-	atomic_sub(skb->truesize, &esk->rmem_count);
+	int count = atomic_sub_return(size, &esk->rmem_count);
+	EVL_WARN_ON(NET, count < 0);
 }
 
-int evl_charge_socket_wmem(struct evl_socket *esk,
-			struct sk_buff *skb,
+int evl_charge_socket_wmem(struct evl_socket *esk, size_t size,
 			ktime_t timeout, enum evl_tmode tmode);
 
-void evl_uncharge_socket_wmem(struct sk_buff *skb);
+void evl_uncharge_socket_wmem(struct evl_socket *esk, size_t size);
 
 int evl_register_socket_domain(struct evl_socket_domain *domain);
 

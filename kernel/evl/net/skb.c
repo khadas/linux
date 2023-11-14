@@ -16,6 +16,7 @@
 #include <evl/list.h>
 #include <evl/work.h>
 #include <evl/wait.h>
+#include <evl/net/socket.h>
 
 static unsigned int net_clones = 1024; /* FIXME: Kconfig? */
 
@@ -404,6 +405,45 @@ static struct sk_buff *alloc_one_skb(struct net_device *dev)
 		EVL_NET_CB(skb)->dma_addr = dma_addr;
 
 	return skb;
+}
+
+bool evl_net_charge_skb_rmem(struct evl_socket *esk, struct sk_buff *skb)
+{
+	return evl_charge_socket_rmem(esk, skb->truesize);
+}
+
+void evl_net_uncharge_skb_rmem(struct evl_socket *esk, struct sk_buff *skb)
+{
+	evl_uncharge_socket_rmem(esk, skb->truesize);
+}
+
+int evl_net_charge_skb_wmem(struct evl_socket *esk,
+			struct sk_buff *skb,
+			ktime_t timeout, enum evl_tmode tmode)
+{
+	int ret;
+
+	EVL_NET_CB(skb)->tracker = NULL;
+	ret = evl_charge_socket_wmem(esk, skb->truesize, timeout, tmode);
+	if (!ret)
+		EVL_NET_CB(skb)->tracker = esk;
+
+	return ret;
+}
+
+void evl_net_uncharge_skb_wmem(struct sk_buff *skb)
+{
+	struct evl_socket *esk = EVL_NET_CB(skb)->tracker;
+
+	/*
+	 * If set, the tracking socket cannot be stale as it has to
+	 * pass the wmem_crossing first before unwinding in
+	 * sock_oob_detach().
+	 */
+	if (esk) {
+		EVL_NET_CB(skb)->tracker = NULL;
+		evl_uncharge_socket_wmem(esk, skb->truesize);
+	}
 }
 
 /* in-band */

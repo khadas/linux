@@ -145,41 +145,31 @@ void evl_unregister_socket_domain(struct evl_socket_domain *domain)
 	mutex_unlock(&domain_lock);
 }
 
-static inline bool charge_socket_wmem(struct evl_socket *esk,
-				struct sk_buff *skb)
+static inline bool charge_socket_wmem(struct evl_socket *esk, size_t size)
 {				/* esk->wmem_wait.wchan.lock held */
 	if (atomic_read(&esk->wmem_count) >= esk->wmem_max)
 		return false;
 
-	atomic_add(skb->truesize, &esk->wmem_count);
-	EVL_NET_CB(skb)->tracker = esk;
+	atomic_add(size, &esk->wmem_count);
 	evl_down_crossing(&esk->wmem_drain);
 
 	return true;
 }
 
-int evl_charge_socket_wmem(struct evl_socket *esk,
-			struct sk_buff *skb,
-			ktime_t timeout, enum evl_tmode tmode)
+int evl_charge_socket_wmem(struct evl_socket *esk, size_t size,
+		ktime_t timeout, enum evl_tmode tmode)
 {
-	EVL_NET_CB(skb)->tracker = NULL;
-
 	if (!esk->wmem_max)	/* Unlimited. */
 		return 0;
 
-	return evl_wait_event_timeout(&esk->wmem_wait,
-				timeout, tmode,
-				charge_socket_wmem(esk, skb));
+	return evl_wait_event_timeout(&esk->wmem_wait, timeout, tmode,
+				charge_socket_wmem(esk, size));
 }
 
-void evl_uncharge_socket_wmem(struct sk_buff *skb)
+void evl_uncharge_socket_wmem(struct evl_socket *esk, size_t size)
 {
-	struct evl_socket *esk = EVL_NET_CB(skb)->tracker;
 	unsigned long flags;
 	int count;
-
-	if (!esk)
-		return;
 
 	/*
 	 * The tracking socket cannot be stale as it has to pass the
@@ -187,9 +177,7 @@ void evl_uncharge_socket_wmem(struct sk_buff *skb)
 	 */
 	raw_spin_lock_irqsave(&esk->wmem_wait.wchan.lock, flags);
 
-	EVL_NET_CB(skb)->tracker = NULL;
-
-	count = atomic_sub_return(skb->truesize, &esk->wmem_count);
+	count = atomic_sub_return(size, &esk->wmem_count);
 	if (count < esk->wmem_max && evl_wait_active(&esk->wmem_wait))
 		evl_flush_wait_locked(&esk->wmem_wait, 0);
 
