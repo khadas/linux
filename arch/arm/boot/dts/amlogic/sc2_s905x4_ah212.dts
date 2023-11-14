@@ -1030,11 +1030,12 @@
 		 * 4: pdmin;
 		 */
 		datain_src = <4>;
-		datain_chnum = <0>;
-		datain_chmask = <0x0>;
+		datain_chnum = <2>;
+		datain_chmask = <0x3>;
 		/* config which data pin for loopback */
-		datain-lane-mask-in = <0 0 0 0>;
+		datain-lane-mask-in = <1 0 0 0>;
 
+		src-clk-freq = <491520000>;
 		/* calc mclk for datalb */
 		mclk-fs = <256>;
 
