@@ -1485,6 +1485,8 @@ static unsigned long get_dma_phy_addr(int fd, int index)
 	struct dma_buf_attachment *attach = NULL;
 
 	dbuf = dma_buf_get(fd);
+	if (IS_ERR(dbuf))
+		vc_print(index, PRINT_ERROR, "dbuf got from fd error!!!\n");
 	attach = dma_buf_attach(dbuf, ports[index].pdev);
 	if (IS_ERR(attach))
 		return 0;
