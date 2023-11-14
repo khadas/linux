@@ -56,6 +56,18 @@ void evl_net_free_skb_list(struct list_head *list);
 
 struct sk_buff *evl_net_clone_skb(struct sk_buff *skb);
 
+bool evl_net_charge_skb_rmem(struct evl_socket *esk,
+			struct sk_buff *skb);
+
+void evl_net_uncharge_skb_rmem(struct evl_socket *esk,
+			struct sk_buff *skb);
+
+int evl_net_charge_skb_wmem(struct evl_socket *esk,
+			struct sk_buff *skb,
+			ktime_t timeout, enum evl_tmode tmode);
+
+void evl_net_uncharge_skb_wmem(struct sk_buff *skb);
+
 int evl_net_init_pools(void);
 
 ssize_t evl_net_show_clones(char *buf, size_t len);
