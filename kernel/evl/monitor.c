@@ -1018,6 +1018,7 @@ static ssize_t monitor_read(struct file *filp, char __user *u_buf,
 		if (list_empty(&wq_entry.entry))
 			__add_wait_queue(&event->inband_wait, &wq_entry);
 
+		/* Disjunctive operation. */
 		if (__trywait_mask(event, -1, false, &val, flags)) {
 			list_del(&wq_entry.entry);
 			 /* We have collected all the bits, send POLLOUT wakeup. */
@@ -1062,6 +1063,49 @@ static ssize_t monitor_write(struct file *filp, const char __user *u_buf,
 	if (ret)
 		return -EFAULT;
 
+	/* Unicast operation. */
+	return post_mask(event, val, false);
+}
+
+static ssize_t monitor_oob_read(struct file *filp,
+				char __user *u_buf, size_t count)
+{
+	struct evl_monitor *event = element_of(filp, struct evl_monitor);
+	s32 value;
+	int ret;
+
+	if (event->type != EVL_MONITOR_EVENT || event->protocol != EVL_EVENT_MASK)
+		return -EINVAL;
+
+	if (count != sizeof(s32))
+		return -EINVAL;
+
+	/* Disjunctive operation. */
+	ret = wait_mask_oob(filp, EVL_INFINITE, EVL_REL, -1, false, &value);
+	if (ret)
+		return ret;
+
+	return copy_to_user(u_buf, &value, sizeof(value)) ? -EFAULT : 0;
+}
+
+static ssize_t monitor_oob_write(struct file *filp,
+				const char __user *u_buf, size_t count)
+{
+	struct evl_monitor *event = element_of(filp, struct evl_monitor);
+	s32 val;
+	int ret;
+
+	if (event->type != EVL_MONITOR_EVENT || event->protocol != EVL_EVENT_MASK)
+		return -EINVAL;
+
+	if (count != sizeof(s32))
+		return -EINVAL;
+
+	ret = copy_from_user(&val, u_buf, sizeof(val));
+	if (ret)
+		return -EFAULT;
+
+	/* Unicast operation. */
 	return post_mask(event, val, false);
 }
 
@@ -1092,6 +1136,8 @@ static const struct file_operations monitor_fops = {
 	.write		= monitor_write,
 	.poll		= monitor_poll,
 	.unlocked_ioctl	= monitor_ioctl,
+	.oob_read	= monitor_oob_read,
+	.oob_write	= monitor_oob_write,
 	.oob_ioctl	= monitor_oob_ioctl,
 	.oob_poll	= monitor_oob_poll,
 #ifdef CONFIG_COMPAT
