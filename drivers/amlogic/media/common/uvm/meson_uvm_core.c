@@ -24,6 +24,10 @@
 
 static int uvm_debug_level = UVM_ERROR;
 module_param(uvm_debug_level, int, 0644);
+/* bit1: for skip realloc interface;bit0: for skip map */
+static int force_skip_realloc;
+module_param(force_skip_realloc, int, 0644);
+
 
 #define UVM_PRINTK(level, fmt, arg...) \
 	do {	\
@@ -40,9 +44,15 @@ static void uvm_handle_destroy(struct kref *kref)
 	struct uvm_handle *handle;
 
 	handle = container_of(kref, struct uvm_handle, ref);
-	if (handle->ua && handle->ua->sgt) {
-		sg_free_table(handle->ua->sgt);
-		kfree(handle->ua->sgt);
+	if (handle->ua) {
+		if (handle->ua->sgt[0]) {
+			sg_free_table(handle->ua->sgt[0]);
+			kfree(handle->ua->sgt[0]);
+		}
+		if (handle->ua->sgt[1]) {
+			sg_free_table(handle->ua->sgt[1]);
+			kfree(handle->ua->sgt[1]);
+		}
 	}
 
 	kfree(handle->ua);
@@ -74,23 +84,28 @@ static struct sg_table
 
 	UVM_PRINTK(UVM_INFO, "%s called, %s. name=%s gpu_access:%d\n",
 		__func__, current->comm, dev_name(attachment->dev), gpu_access);
+	sgt = ua->sgt[0];
 	if ((ua->flags & BIT(UVM_SKIP_REALLOC)) ||
-		(ua->flags & BIT(UVM_SECURE_ALLOC)))
+		(ua->flags & BIT(UVM_SECURE_ALLOC)) ||
+		(force_skip_realloc & BIT(UVM_DEBUG_SKIP_REALLOC_IN_MAP)))
 		skip_realloc = true;
 
-	if (ua->flags & BIT(UVM_DELAY_ALLOC) && gpu_access)
-		ua->delay_alloc(dmabuf, ua->obj);
+	if (ua->flags & BIT(UVM_DELAY_ALLOC) && gpu_access) {
+		if (ua->delay_alloc(dmabuf, ua->obj))
+			UVM_PRINTK(UVM_INFO, "gpu delay alloc fail\n");
+		else
+			sgt = ua->sgt[1];
+	}
 
 	if (ua->flags & BIT(UVM_IMM_ALLOC) && gpu_access && !skip_realloc) {
 		UVM_PRINTK(UVM_INFO, "begin ua->gpu_realloc. size: %zu scalar: %d\n",
 					ua->size, ua->scalar);
-		if (ua->gpu_realloc(dmabuf, ua->obj, ua->scalar)) {
+		if (ua->gpu_realloc(dmabuf, ua->obj, ua->scalar))
 			UVM_PRINTK(UVM_INFO, "gpu_realloc fail\n");
-			//return ERR_PTR(-ENOMEM);
-		}
+		else
+			sgt = ua->sgt[1];
 	}
 
-	sgt = ua->sgt;
 	if (!sgt) {
 		UVM_PRINTK(UVM_ERROR, "meson_uvm: null sgt.\n");
 		return ERR_PTR(-ENOMEM);
@@ -124,10 +139,30 @@ static void meson_uvm_unmap_dma_buf(struct dma_buf_attachment *attachment,
 	struct uvm_alloc *ua;
 
 	dmabuf = attachment->dmabuf;
+	if (!dmabuf) {
+		UVM_PRINTK(UVM_ERROR, "%s called skip,dmabuf is null .\n", __func__);
+		return;
+	}
 	handle = dmabuf->priv;
+	if (!handle) {
+		UVM_PRINTK(UVM_ERROR, "%s called skip,handle is null .\n", __func__);
+		return;
+	}
 	ua = handle->ua;
+	if (!ua) {
+		UVM_PRINTK(UVM_ERROR, "%s called skip,ua is null .\n", __func__);
+		return;
+	}
 
 	UVM_PRINTK(UVM_INFO, "%s called, %s.\n", __func__, current->comm);
+	if (!dmabuf || !handle || !ua) {
+		UVM_PRINTK(UVM_ERROR, "%s called skip,dmabuf,handle,ua is null .\n", __func__);
+		return;
+	}
+	if (sgt != ua->sgt[0] && sgt != ua->sgt[1]) {
+		UVM_PRINTK(UVM_ERROR, "%s called skip,sgt have free.\n", __func__);
+		return;
+	}
 	if (ua->flags & BIT(UVM_SECURE_ALLOC)) {
 		dma_unmap_sgtable(attachment->dev, sgt, direction, DMA_ATTR_SKIP_CPU_SYNC);
 	} else {
@@ -202,7 +237,10 @@ static void *meson_uvm_vmap(struct dma_buf *dmabuf)
 	void *vaddr;
 
 	handle = dmabuf->priv;
-	sgt = handle->ua->sgt;
+	if (handle->ua && (handle->ua->flags & BIT(UVM_IMM_ALLOC)))
+		sgt = handle->ua->sgt[0];
+	else
+		sgt = handle->ua->sgt[1];
 	npages = PAGE_ALIGN(handle->size) / PAGE_SIZE;
 	pgprot = pgprot_writecombine(PAGE_KERNEL);
 
@@ -244,11 +282,16 @@ static int meson_uvm_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
 	int ret;
 	struct scatterlist *sg;
 	struct uvm_handle *handle = dmabuf->priv;
-	struct sg_table *table = handle->ua->sgt;
+	struct sg_table *table;
 	unsigned long addr = vma->vm_start;
 	unsigned long offset = vma->vm_pgoff * PAGE_SIZE;
 
 	UVM_PRINTK(UVM_INFO, "%s called.\n", __func__);
+
+	if (handle->ua && (handle->ua->flags & BIT(UVM_IMM_ALLOC)))
+		table = handle->ua->sgt[0];
+	else
+		table = handle->ua->sgt[1];
 
 	if (!table) {
 		UVM_PRINTK(UVM_ERROR, "buffer was not allocated.\n");
@@ -381,7 +424,8 @@ bool dmabuf_uvm_realloc(struct dma_buf *dmabuf)
 		return false;
 
 	if ((handle->ua->flags & BIT(UVM_SKIP_REALLOC)) ||
-		(handle->ua->flags & BIT(UVM_SECURE_ALLOC)))
+		(handle->ua->flags & BIT(UVM_SECURE_ALLOC)) ||
+		(force_skip_realloc & BIT(UVM_DEBUG_SKIP_REALLOC_API)))
 		return false;
 	else
 		return true;
@@ -454,7 +498,7 @@ int dmabuf_bind_uvm_alloc(struct dma_buf *dmabuf, struct uvm_alloc_info *info)
 	}
 
 	if (info->sgt)
-		ua->sgt = uvm_copy_sgt(info->sgt);
+		ua->sgt[0] = uvm_copy_sgt(info->sgt);
 
 	return 0;
 }
@@ -474,8 +518,13 @@ int dmabuf_bind_uvm_delay_alloc(struct dma_buf *dmabuf,
 	handle = dmabuf->priv;
 	ua = handle->ua;
 
-	if (info->sgt)
-		ua->sgt = uvm_copy_sgt(info->sgt);
+	if (info->sgt) {
+		if (ua->sgt[1]) {
+			sg_free_table(ua->sgt[1]);
+			kfree(ua->sgt[1]);
+		}
+		ua->sgt[1] = uvm_copy_sgt(info->sgt);
+	}
 
 	return 0;
 }

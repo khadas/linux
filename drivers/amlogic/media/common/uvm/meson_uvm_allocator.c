@@ -36,6 +36,9 @@ static int enable_screencap;
 module_param_named(enable_screencap, enable_screencap, int, 0664);
 static int mua_debug_level = MUA_ERROR;
 module_param(mua_debug_level, int, 0644);
+static int force_skip_fill;
+module_param_named(force_skip_fill, force_skip_fill, int, 0664);
+
 
 #define MUA_PRINTK(level, fmt, arg...) \
 	do {	\
@@ -148,6 +151,11 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 		//return -ENODEV;
 	}
 
+	if (force_skip_fill) {
+		MUA_PRINTK(MUA_DBG, "gpu_realloc: force skip fill buffer.\n");
+		skip_fill_buf = true;
+	}
+
 	if (buffer->idmabuf[1])
 		pre_size = buffer->idmabuf[1]->size;
 	else
@@ -157,6 +165,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 		new_size = buffer->size * scalar * scalar;
 	else
 		new_size = buffer->byte_stride * ALIGN(buffer->height, buffer->align) * 3 / 2;
+	new_size = PAGE_ALIGN(new_size);
 
 	MUA_PRINTK(1, "buffer->size:%zu realloc new_size=%zu, pre_size = %zu\n",
 			buffer->size, new_size, pre_size);

@@ -35,7 +35,9 @@ enum uvm_alloc_flag {
 enum uvm_debug_mask {
 	UVM_DEBUG_LEVEL_ERROR,
 	UVM_DEBUG_LEVEL_INFO,
-	UVM_DEBUG_LEVEL_DBG
+	UVM_DEBUG_LEVEL_DBG,
+	UVM_DEBUG_SKIP_REALLOC_IN_MAP = 0,
+	UVM_DEBUG_SKIP_REALLOC_API
 };
 
 #define UVM_ERROR       BIT(UVM_DEBUG_LEVEL_ERROR)
@@ -108,7 +110,7 @@ struct uvm_buf_obj {
  * @free:	free uvm_buf_obj related
  */
 struct uvm_alloc {
-	struct sg_table *sgt;
+	struct sg_table *sgt[2];
 	struct page **pages;
 	void *vaddr;
 	size_t size;
