@@ -6,8 +6,25 @@
 #ifndef __VPQ_COMMON_H__
 #define __VPQ_COMMON_H__
 
-#include <linux/amlogic/media/vpq/vpq_cmd.h>
+//#include <linux/amlogic/media/vpq/vpq_cmd.h>
+#include <linux/amlogic/vpq_cmd.h>
 #include "vpq_table_type.h"
+
+#define SATBYY_CURVE_LENGTH          (9)
+#define SATBYY_CURVE_NUM             (1)
+#define LUMABYHUE_CURVE_LENGTH       (32)
+#define LUMABYHUE_CURVE_NUM          (1)
+#define SATBYHS_CURVE_LENGTH         (32)
+#define SATBYHS_CURVE_NUM            (3)
+#define HUEBYHUE_CURVE_LENGTH        (32)
+#define HUEBYHUE_CURVE_NUM           (1)
+#define HUEBYHY_CURVE_LENGTH         (32)
+#define HUEBYHY_CURVE_NUM            (5)
+#define HUEBYHS_CURVE_LENGTH         (32)
+#define HUEBYHS_CURVE_NUM            (5)
+#define SATBYHY_CURVE_LENGTH         (32)
+#define SATBYHY_CURVE_NUM            (5)
+#define CM_CUSTOM_CURVE_LENGTH       (32)
 
 enum vpq_pict_mode_item_e {
 	VPQ_ITEM_BRIGHTNESS = 0,
@@ -20,8 +37,6 @@ enum vpq_pict_mode_item_e {
 	VPQ_ITEM_BLACK_STRETCH,
 	VPQ_ITEM_BLUE_STRETCH,
 	VPQ_ITEM_CHROMA_CORING,
-	VPQ_ITEM_GAMMA_INDEX,
-	VPQ_ITEM_CTEMP_INDEX,
 	VPQ_ITEM_NR,
 	VPQ_ITEM_DEBLOCK,
 	VPQ_ITEM_DEMOSQUITO,
@@ -36,7 +51,6 @@ enum vpq_pict_mode_item_e {
 
 struct vpq_pict_mode_item_data_s {
 	int data[VPQ_ITEM_MAX];
-	int save[VPQ_ITEM_MAX];
 };
 
 struct vpq_gamma_tabel_s {
@@ -56,8 +70,10 @@ enum vpq_dump_type_e {
 	VPQ_DUMP_CM,
 	VPQ_DUMP_BLE,
 	VPQ_DUMP_BLS,
+	VPQ_DUMP_TMO,
 	VPQ_DUMP_AIPQ,
 	VPQ_DUMP_AISR,
+	VPQ_DUMP_CCORING,
 };
 
 #endif //__VPQ_COMMON_H__

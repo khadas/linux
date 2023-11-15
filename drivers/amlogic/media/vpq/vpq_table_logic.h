@@ -11,8 +11,6 @@
 
 extern struct TABLE_PQ_MODULE_CFG pq_module_cfg;
 extern struct PQ_TABLE_PARAM pq_table_param;
-extern struct pq_tcon_gamma_table_s gamma_table;
-extern struct pq_ctemp_gamma_table_s ctemp_table;
 
 enum vpq_resolution_e {
 	VPQ_SD_576_480 = 0,
@@ -74,7 +72,7 @@ enum vpq_module_e {
 void vpq_table_init(void);
 void vpq_table_deinit(void);
 int vpq_init_default_pqtable(struct vpq_pqtable_bin_param_s *pdata);
-int vpq_set_pq_module_cfg(void);
+int vpq_set_pq_module_cfg(struct vpq_pqmodule_cfg_s *pdata);
 void vpq_get_pq_module_status(struct vpq_pq_state_s *pdata);
 int vpq_set_brightness(int value);
 int vpq_set_contrast(int value);
@@ -85,12 +83,11 @@ int vpq_set_brightness_post(int value);
 int vpq_set_contrast_post(int value);
 int vpq_set_saturation_post(int value);
 int vpq_set_hue_post(int value);
-int vpq_set_pq_module_status(enum vpq_module_e module, bool status);
-int vpq_set_gamma_index(int value);
+int vpq_set_pq_module_status(enum vpq_module_e module, int status);
 int vpq_set_gamma_table(struct vpq_gamma_table_s *pdata);
-int vpq_set_blend_gamma(struct vpq_blend_gamma_s *pdata);
 int vpq_set_pre_gamma_table(struct vpq_pre_gamma_table_s *pdata);
 int vpq_set_rgb_ogo(struct vpq_rgb_ogo_s *pdata);
+int vpq_set_color_base(int value);
 int vpq_set_color_customize(struct vpq_cms_s *pdata);
 int vpq_set_dnlp_mode(int value);
 int vpq_set_csc_type(int value);
@@ -113,13 +110,12 @@ int vpq_set_deblock(int value);
 int vpq_set_demosquito(int value);
 int vpq_set_mcdi_mode(int value);
 int vpq_set_smoothplus_mode(int value);
-int vpq_set_color_base(int value);
 int vpq_set_cabc(void);
 int vpq_set_add(void);
 int vpq_set_overscan_data(unsigned int length, struct vpq_overscan_data_s *pdata);
 int vpq_set_pll_value(void);
 int vpq_set_pc_mode(int value);
-void vpq_set_pq_effect_all(void);
+void vpq_set_pq_effect(void);
 int vpq_set_frame_status(enum vpq_frame_status_e status);
 int vpq_get_event_info(void);
 void vpq_get_signal_info(struct vpq_signal_info_s *pdata);

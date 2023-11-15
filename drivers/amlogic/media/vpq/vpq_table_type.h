@@ -7,8 +7,6 @@
 #define _VPQ_PQTABLE_TYPE_H_
 
 #define PQ_INDEX_TABLE_SIZE                 (25)
-#define GAMMA_TABLE_NUM_MAX                 (20)
-#define CTEMP_TABLE_NUM_MAX                 (4)
 #define DNLP_TABLE_NUM_MAX                  (2)
 #define HDR_TMO_TABLE_NUM_MAX               (3)
 #define AI_PQ_TABLE_NUM_MAX                 (6)
@@ -62,27 +60,18 @@ struct TABLE_PQ_MODULE_CFG {
 	unsigned char dejaggy_sr1_en;
 	unsigned char dering_sr0_en;
 	unsigned char dering_sr1_en;
+
+	unsigned char di_en;          //pq.di.en
+	unsigned char mcdi_en;        //pq.mcdi.en
+	unsigned char deblock_en;     //pq.deblock.en
+	unsigned char demosquito_en;  //pq.DemoSquito.en
+	unsigned char smoothplus_en;  //pq.SmoothPlus.en
+	unsigned char nr_en;          //pq.NoiseReduction.en
+	unsigned char hdrtmo_en;      //pq.hdrtmo.en
+	unsigned char ai_en;          //pq.ai.en
+	unsigned char aisr_en;        //pq.aisr.en
+
 	unsigned char reserved;
-};
-
-struct gamma_table_s {
-	unsigned int R[VPQ_GAMMA_TABLE_LEN];
-	unsigned int G[VPQ_GAMMA_TABLE_LEN];
-	unsigned int B[VPQ_GAMMA_TABLE_LEN];
-};
-
-struct pq_tcon_gamma_table_s {
-	struct gamma_table_s gamma_data[GAMMA_TABLE_NUM_MAX];
-};
-
-struct ctemp_table_s {
-	unsigned short R[VPQ_GAMMA_TABLE_LEN];
-	unsigned short G[VPQ_GAMMA_TABLE_LEN];
-	unsigned short B[VPQ_GAMMA_TABLE_LEN];
-};
-
-struct pq_ctemp_gamma_table_s {
-	struct ctemp_table_s ctemp_data[CTEMP_TABLE_NUM_MAX];
 };
 
 enum pq_index_table_index_e {
@@ -175,15 +164,15 @@ enum pq_source_timing_e {
 	PQ_SRC_INDEX_HLG_HDMI_1080P,
 	PQ_SRC_INDEX_HLG_HDMI_4K2KI,
 	PQ_SRC_INDEX_HLG_HDMI_4K2KP,
-	PQ_SRC_INDEX_DV_HDMI_480I,
-	PQ_SRC_INDEX_DV_HDMI_576I,
-	PQ_SRC_INDEX_DV_HDMI_480P,
-	PQ_SRC_INDEX_DV_HDMI_576P,
-	PQ_SRC_INDEX_DV_HDMI_720P,
-	PQ_SRC_INDEX_DV_HDMI_1080I,
-	PQ_SRC_INDEX_DV_HDMI_1080P,
-	PQ_SRC_INDEX_DV_HDMI_4K2KI,
-	PQ_SRC_INDEX_DV_HDMI_4K2KP,
+	PQ_SRC_INDEX_DLBY_HDMI_480I,
+	PQ_SRC_INDEX_DLBY_HDMI_576I,
+	PQ_SRC_INDEX_DLBY_HDMI_480P,
+	PQ_SRC_INDEX_DLBY_HDMI_576P,
+	PQ_SRC_INDEX_DLBY_HDMI_720P,
+	PQ_SRC_INDEX_DLBY_HDMI_1080I,
+	PQ_SRC_INDEX_DLBY_HDMI_1080P,
+	PQ_SRC_INDEX_DLBY_HDMI_4K2KI,
+	PQ_SRC_INDEX_DLBY_HDMI_4K2KP,
 	PQ_SRC_INDEX_HDR10p_HDMI_480I,
 	PQ_SRC_INDEX_HDR10p_HDMI_576I,
 	PQ_SRC_INDEX_HDR10p_HDMI_480P,
@@ -221,15 +210,15 @@ enum pq_source_timing_e {
 	PQ_SRC_INDEX_HLG_DTV_1080P,
 	PQ_SRC_INDEX_HLG_DTV_4K2KI,
 	PQ_SRC_INDEX_HLG_DTV_4K2KP,
-	PQ_SRC_INDEX_DV_DTV_480I,
-	PQ_SRC_INDEX_DV_DTV_576I,
-	PQ_SRC_INDEX_DV_DTV_480P,
-	PQ_SRC_INDEX_DV_DTV_576P,
-	PQ_SRC_INDEX_DV_DTV_720P,
-	PQ_SRC_INDEX_DV_DTV_1080I,
-	PQ_SRC_INDEX_DV_DTV_1080P,
-	PQ_SRC_INDEX_DV_DTV_4K2KI,
-	PQ_SRC_INDEX_DV_DTV_4K2KP,
+	PQ_SRC_INDEX_DLBY_DTV_480I,
+	PQ_SRC_INDEX_DLBY_DTV_576I,
+	PQ_SRC_INDEX_DLBY_DTV_480P,
+	PQ_SRC_INDEX_DLBY_DTV_576P,
+	PQ_SRC_INDEX_DLBY_DTV_720P,
+	PQ_SRC_INDEX_DLBY_DTV_1080I,
+	PQ_SRC_INDEX_DLBY_DTV_1080P,
+	PQ_SRC_INDEX_DLBY_DTV_4K2KI,
+	PQ_SRC_INDEX_DLBY_DTV_4K2KP,
 	PQ_SRC_INDEX_HDR10p_DTV_480I,
 	PQ_SRC_INDEX_HDR10p_DTV_576I,
 	PQ_SRC_INDEX_HDR10p_DTV_480P,
@@ -267,15 +256,15 @@ enum pq_source_timing_e {
 	PQ_SRC_INDEX_HLG_MPEG_1080P,
 	PQ_SRC_INDEX_HLG_MPEG_4K2KI,
 	PQ_SRC_INDEX_HLG_MPEG_4K2KP,
-	PQ_SRC_INDEX_DV_MPEG_480I,
-	PQ_SRC_INDEX_DV_MPEG_576I,
-	PQ_SRC_INDEX_DV_MPEG_480P,
-	PQ_SRC_INDEX_DV_MPEG_576P,
-	PQ_SRC_INDEX_DV_MPEG_720P,
-	PQ_SRC_INDEX_DV_MPEG_1080I,
-	PQ_SRC_INDEX_DV_MPEG_1080P,
-	PQ_SRC_INDEX_DV_MPEG_4K2KI,
-	PQ_SRC_INDEX_DV_MPEG_4K2KP,
+	PQ_SRC_INDEX_DLBY_MPEG_480I,
+	PQ_SRC_INDEX_DLBY_MPEG_576I,
+	PQ_SRC_INDEX_DLBY_MPEG_480P,
+	PQ_SRC_INDEX_DLBY_MPEG_576P,
+	PQ_SRC_INDEX_DLBY_MPEG_720P,
+	PQ_SRC_INDEX_DLBY_MPEG_1080I,
+	PQ_SRC_INDEX_DLBY_MPEG_1080P,
+	PQ_SRC_INDEX_DLBY_MPEG_4K2KI,
+	PQ_SRC_INDEX_DLBY_MPEG_4K2KP,
 	PQ_SRC_INDEX_HDR10p_MPEG_480I,
 	PQ_SRC_INDEX_HDR10p_MPEG_576I,
 	PQ_SRC_INDEX_HDR10p_MPEG_480P,
@@ -356,8 +345,6 @@ enum pq_dnlp_param_e {
 	PQ_DNLP_S_HIST_GAIN_BASE,
 	PQ_DNLP_MVREFLSH_OFFSET,
 	PQ_DNLP_LUMA_AVG_TH,
-
-	PQ_DNLP_ENABLE, //moren than "vpp_dnlp_param_e"
 	PQ_DNLP_PARAM_MAX,
 };
 
@@ -377,6 +364,7 @@ struct pq_dnlp_curve_param_s {
 	unsigned int c_hist_gain[VPQ_DNLP_HIST_GAIN_LEN];
 	unsigned int s_hist_gain[VPQ_DNLP_HIST_GAIN_LEN];
 	unsigned int param[PQ_DNLP_PARAM_MAX];
+	unsigned int dnlp_enable[1];
 };
 
 enum pq_dnlp_level_e {
@@ -565,21 +553,27 @@ enum pq_blue_stretch_level_e {
 
 struct pq_cm_base_parm_s {
 	int satbyy_0[9];
+
 	int lumabyhue_0[32];
+
 	int satbyhs_0[32];
 	int satbyhs_1[32];
 	int satbyhs_2[32];
+
 	int huebyhue_0[32];
+
 	int huebyhy_0[32];
 	int huebyhy_1[32];
 	int huebyhy_2[32];
 	int huebyhy_3[32];
 	int huebyhy_4[32];
+
 	int huebyhs_0[32];
 	int huebyhs_1[32];
 	int huebyhs_2[32];
 	int huebyhs_3[32];
 	int huebyhs_4[32];
+
 	int satbyhy_0[32];
 	int satbyhy_1[32];
 	int satbyhy_2[32];
@@ -662,12 +656,11 @@ enum pq_ai_sr_level_e {
 	AISR_LV_MAX,
 };
 
-enum pq_ai_sr_type_e {
-	AISR_TYPE_X2,
-	AISR_TYPE_X3_576,
-	AISR_TYPE_X3_720,
-	AISR_TYPE_X4,
-	AISR_TYPE_MAX,
+enum pq_aisr_type_e {
+	AISR_SD_T_4K,
+	AISR_HD_T_4K,
+	AISR_FHD_T_4K,
+	AISR_MAX,
 };
 
 struct pq_cabc_aad_param_s {
@@ -720,7 +713,6 @@ struct pq_aad_param_s {
 
 struct PQ_TABLE_PARAM {
 	unsigned char pq_index_table0[PQ_SRC_INDEX_MAX][PQ_INDEX_MAX];
-	unsigned char pq_index_table1[PQ_SRC_INDEX_MAX][PQ_INDEX_MAX];
 	struct pq_dnlp_curve_param_s dnlp_table[DNLP_TABLE_NUM_MAX][DNLP_LV_MAX];
 	struct pq_hdr_tmo_sw_s hdr_tmo_table[HDR_TMO_TABLE_NUM_MAX][HDR_TMO_LV_MAX];
 	struct pq_ai_pq_para_s aipq_table[AI_PQ_TABLE_NUM_MAX];
@@ -730,7 +722,7 @@ struct PQ_TABLE_PARAM {
 	struct pq_blkext_parm_s blkext_table[BLKEXT_TABLE_NUM_MAX][BLKEXT_LV_MAX];
 	struct pq_blue_stretch_parm_s blue_str_table[BLUE_STR_TABLE_NUM_MAX][BLUESTR_LV_MAX];
 	struct pq_cm_base_parm_s cm_base_table[COLOR_BASE_TABLE_NUM_MAX][CM_LV_MAX];
-	struct pq_ai_sr_parm_s ai_sr_table[AI_SR_TABLE_NUM_MAX][AISR_TYPE_MAX][AISR_LV_MAX];
+	struct pq_ai_sr_parm_s ai_sr_table[AI_SR_TABLE_NUM_MAX][AISR_MAX][AISR_LV_MAX];
 };
 
 #endif //_VPQ_PQTABLE_TYPE_H_

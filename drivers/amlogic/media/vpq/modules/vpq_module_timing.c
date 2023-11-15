@@ -9,7 +9,7 @@
 
 static char src_info_str[VPQ_MODULE_SIG_INFO_MAX][10];
 
-//sequence must be case as "enum pq_source_timing_e"
+//sequence must be same as "enum pq_source_timing_e"
 char *sig_info_string[PQ_SRC_INDEX_MAX][VPQ_MODULE_SIG_INFO_MAX] = {
 	{"VGA",      "--",       "--",    "--",}, //PQ_SRC_INDEX_VGA
 
@@ -71,7 +71,7 @@ char *sig_info_string[PQ_SRC_INDEX_MAX][VPQ_MODULE_SIG_INFO_MAX] = {
 	{"HDMI",     "1080",     "P",     "HLG",},
 	{"HDMI",     "4K2K",     "I",     "HLG",},
 	{"HDMI",     "4K2K",     "P",     "HLG",},
-	{"HDMI",     "480",      "I",     "DV",}, //PQ_SRC_INDEX_DV_HDMI_480I
+	{"HDMI",     "480",      "I",     "DV",}, //PQ_SRC_INDEX_DLBY_HDMI_480I
 	{"HDMI",     "576",      "I",     "DV",},
 	{"HDMI",     "480",      "P",     "DV",},
 	{"HDMI",     "576",      "P",     "DV",},
@@ -117,7 +117,7 @@ char *sig_info_string[PQ_SRC_INDEX_MAX][VPQ_MODULE_SIG_INFO_MAX] = {
 	{"DTV",      "1080",     "P",     "HLG",},
 	{"DTV",      "4K2K",     "I",     "HLG",},
 	{"DTV",      "4K2K",     "P",     "HLG",},
-	{"DTV",      "480",      "I",     "DV",}, //PQ_SRC_INDEX_DV_DTV_480I
+	{"DTV",      "480",      "I",     "DV",}, //PQ_SRC_INDEX_DLBY_DTV_480I
 	{"DTV",      "576",      "I",     "DV",},
 	{"DTV",      "480",      "P",     "DV",},
 	{"DTV",      "576",      "P",     "DV",},
@@ -163,7 +163,7 @@ char *sig_info_string[PQ_SRC_INDEX_MAX][VPQ_MODULE_SIG_INFO_MAX] = {
 	{"MPEG",     "1080",     "P",     "HLG",},
 	{"MPEG",     "4K2K",     "I",     "HLG",},
 	{"MPEG",     "4K2K",     "P",     "HLG",},
-	{"MPEG",     "480",      "I",     "DV",}, //PQ_SRC_INDEX_DV_MPEG_480I
+	{"MPEG",     "480",      "I",     "DV",}, //PQ_SRC_INDEX_DLBY_MPEG_480I
 	{"MPEG",     "576",      "I",     "DV",},
 	{"MPEG",     "480",      "P",     "DV",},
 	{"MPEG",     "576",      "P",     "DV",},
@@ -186,21 +186,21 @@ char *sig_info_string[PQ_SRC_INDEX_MAX][VPQ_MODULE_SIG_INFO_MAX] = {
 static void vpq_module_map_sig_info_string(void)
 {
 	unsigned int height = 0, width = 0;
-	enum vpq_vfm_source_type_e src_type = VPQ_SOURCE_TYPE_OTHERS;
-	enum vpq_vfm_hdr_type_e hdr_type = VPQ_HDR_TYPE_SDR;
-	enum vpq_vfm_scan_mode_e scan_mode = VPQ_SCAN_MODE_NULL;
+	vpq_vfm_source_type_e src_type = VFRAME_SOURCE_TYPE_OTHERS;
+	enum vpq_vfm_hdr_type_e hdr_type = VPQ_VFM_HDR_TYPE_SDR;
+	enum vpq_vfm_scan_mode_e scan_mode = VPQ_VFM_SCAN_MODE_NULL;
 
 	src_type = vpq_vfm_get_source_type();
 	vpq_frm_get_height_width(&height, &width);
 	hdr_type = vpq_vfm_get_hdr_type();
 	scan_mode = vpq_vfm_get_signal_scan_mode();
 
-	VPQ_PR_INFO(PR_MODULE, "%s src_type:%d height:%d hdr_type:%d scan_mode:%d",
+	VPQ_PR_INFO(PR_MODULE, "%s src_type:%d height:%d hdr_type:%d scan_mode:%d\n",
 		__func__, src_type, height, hdr_type, scan_mode);
 
-	if (src_type == VPQ_SOURCE_TYPE_OTHERS)
+	if (src_type == VFRAME_SOURCE_TYPE_OTHERS)
 		strcpy(src_info_str[VPQ_MODULE_SIG_INFO_SOURCE], "MPEG");
-	else if (src_type == VPQ_SOURCE_TYPE_HDMI)
+	else if (src_type == VFRAME_SOURCE_TYPE_HDMI)
 		strcpy(src_info_str[VPQ_MODULE_SIG_INFO_SOURCE], "HDMI");
 
 	if (height <= 480)
@@ -214,25 +214,25 @@ static void vpq_module_map_sig_info_string(void)
 	else if (height > 1080)
 		strcpy(src_info_str[VPQ_MODULE_SIG_INFO_HEIGHT], "4K2K");
 
-	if (scan_mode == VPQ_SCAN_MODE_PROGRESSIVE)
+	if (scan_mode == VPQ_VFM_SCAN_MODE_PROGRESSIVE)
 		strcpy(src_info_str[VPQ_MODULE_SIG_INFO_SCAN_MODE], "P");
-	else if (scan_mode == VPQ_SCAN_MODE_INTERLACED)
+	else if (scan_mode == VPQ_VFM_SCAN_MODE_INTERLACED)
 		strcpy(src_info_str[VPQ_MODULE_SIG_INFO_SCAN_MODE], "I");
 
-	if (hdr_type == VPQ_HDR_TYPE_SDR)
+	if (hdr_type == VPQ_VFM_HDR_TYPE_SDR)
 		strcpy(src_info_str[VPQ_MODULE_SIG_INFO_HDR_TYPE], "SDR");
-	else if (hdr_type == VPQ_HDR_TYPE_HDR10)
+	else if (hdr_type == VPQ_VFM_HDR_TYPE_HDR10)
 		strcpy(src_info_str[VPQ_MODULE_SIG_INFO_HDR_TYPE], "HDR10");
-	else if (hdr_type == VPQ_HDR_TYPE_HLG)
+	else if (hdr_type == VPQ_VFM_HDR_TYPE_HLG)
 		strcpy(src_info_str[VPQ_MODULE_SIG_INFO_HDR_TYPE], "HLG");
-	else if (hdr_type == VPQ_HDR_TYPE_DOBVI)
+	else if (hdr_type == VPQ_VFM_HDR_TYPE_DOBVI)
 		strcpy(src_info_str[VPQ_MODULE_SIG_INFO_HDR_TYPE], "DV");
-	else if (hdr_type == VPQ_HDR_TYPE_HDR10PLUS)
+	else if (hdr_type == VPQ_VFM_HDR_TYPE_HDR10PLUS)
 		strcpy(src_info_str[VPQ_MODULE_SIG_INFO_HDR_TYPE], "HDR10P");
 	else
 		strcpy(src_info_str[VPQ_MODULE_SIG_INFO_HDR_TYPE], "SDR");
 
-	VPQ_PR_INFO(PR_MODULE, "%s src_info_str:%s %s %s %s",
+	VPQ_PR_INFO(PR_MODULE, "%s src_info_str:%s %s %s %s\n",
 		__func__,
 		src_info_str[VPQ_MODULE_SIG_INFO_SOURCE],
 		src_info_str[VPQ_MODULE_SIG_INFO_HEIGHT],
@@ -242,7 +242,7 @@ static void vpq_module_map_sig_info_string(void)
 
 static int vpq_module_compare_sig_info_string(int value)
 {
-	VPQ_PR_INFO(PR_MODULE, "%s value %d", __func__, value);
+	VPQ_PR_INFO(PR_MODULE, "%s value %d\n", __func__, value);
 
 	if (strcmp(src_info_str[VPQ_MODULE_SIG_INFO_SOURCE],
 			sig_info_string[value][VPQ_MODULE_SIG_INFO_SOURCE]) == 0 &&
@@ -261,65 +261,65 @@ int vpq_module_timing_table_index(enum pq_index_table_index_e module_index)
 {
 	int i = 0;
 	int timing_index = 0;
-	enum vpq_vfm_source_type_e src_type = VPQ_SOURCE_TYPE_OTHERS;
-	enum vpq_vfm_source_mode_e src_mode = VPQ_SOURCE_MODE_OTHERS;
+	vpq_vfm_source_type_e src_type = VFRAME_SOURCE_TYPE_OTHERS;
+	vpq_vfm_source_mode_e src_mode = VFRAME_SOURCE_MODE_OTHERS;
 
 	src_type = vpq_vfm_get_source_type();
 
-	VPQ_PR_INFO(PR_MODULE, "%s module_index:%d", __func__, module_index);
+	VPQ_PR_INFO(PR_MODULE, "%s module_index:%d\n", __func__, module_index);
 
 	//by src_timing index to pick up table number
-	if (src_type == VPQ_SOURCE_TYPE_TUNER) {
+	if (src_type == VFRAME_SOURCE_TYPE_TUNER) {
 		src_mode = vpq_vfm_get_source_mode();
 
-		if (src_mode == VPQ_SOURCE_MODE_NTSC)
+		if (src_mode == VFRAME_SOURCE_MODE_NTSC)
 			timing_index = PQ_SRC_INDEX_ATV_NTSC;
-		else if (src_mode == VPQ_SOURCE_MODE_PAL)
+		else if (src_mode == VFRAME_SOURCE_MODE_PAL)
 			timing_index = PQ_SRC_INDEX_ATV_PAL;
 		else
 			timing_index = PQ_SRC_INDEX_ATV_NTSC;
 
 		/*todo: how about PAL_xx and NTSC_yy format*/
-	} else if (src_type == VPQ_SOURCE_TYPE_CVBS) {
+	} else if (src_type == VFRAME_SOURCE_TYPE_CVBS) {
 		src_mode = vpq_vfm_get_source_mode();
 
-		if (src_mode == VPQ_SOURCE_MODE_NTSC)
+		if (src_mode == VFRAME_SOURCE_MODE_NTSC)
 			timing_index = PQ_SRC_INDEX_AV_NTSC;
-		else if (src_mode == VPQ_SOURCE_MODE_PAL)
+		else if (src_mode == VFRAME_SOURCE_MODE_PAL)
 			timing_index = PQ_SRC_INDEX_AV_PAL;
-		else if (src_mode == VPQ_SOURCE_MODE_SECAM)
+		else if (src_mode == VFRAME_SOURCE_MODE_NTSC)
 			timing_index = PQ_SRC_INDEX_AV_SECAN;
 		else
 			timing_index = PQ_SRC_INDEX_AV_NTSC;
 
 		/*todo: how about PAL_xx and NTSC_yy format*/
-	} else if (src_type == VPQ_SOURCE_TYPE_OTHERS) {
+	} else if (src_type == VFRAME_SOURCE_TYPE_OTHERS) {
 		vpq_module_map_sig_info_string();
 
 		for (i = PQ_SRC_INDEX_MPEG_480I; i < PQ_SRC_INDEX_HDR10p_MPEG_4K2KP + 1; i++) {
 			if (vpq_module_compare_sig_info_string(i)) {
-				VPQ_PR_INFO(PR_MODULE, "%s pq_source_timing_e:%d", __func__, i);
+				VPQ_PR_INFO(PR_MODULE, "%s pq_source_timing_e:%d\n", __func__, i);
 				timing_index = i;
 				break;
 			}
 
 			if (i == PQ_SRC_INDEX_HDR10p_MPEG_4K2KP) {
-				VPQ_PR_INFO(PR_MODULE, "%s sig info not match", __func__);
+				VPQ_PR_INFO(PR_MODULE, "%s sig info not match\n", __func__);
 				timing_index = PQ_SRC_INDEX_MPEG_480I;
 			}
 		}
-	} else if (src_type == VPQ_SOURCE_TYPE_HDMI) {
+	} else if (src_type == VFRAME_SOURCE_TYPE_HDMI) {
 		vpq_module_map_sig_info_string();
 
 		for (i = PQ_SRC_INDEX_HDMI_480I; i < PQ_SRC_INDEX_HDR10p_HDMI_4K2KP + 1; i++) {
 			if (vpq_module_compare_sig_info_string(i)) {
-				VPQ_PR_INFO(PR_MODULE, "%s pq_source_timing_e:%d", __func__, i);
+				VPQ_PR_INFO(PR_MODULE, "%s pq_source_timing_e:%d\n", __func__, i);
 				timing_index = i;
 				break;
 			}
 
 			if (i == PQ_SRC_INDEX_HDR10p_HDMI_4K2KP) {
-				VPQ_PR_INFO(PR_MODULE, "%s sig info not match", __func__);
+				VPQ_PR_INFO(PR_MODULE, "%s sig info not match\n", __func__);
 				timing_index = PQ_SRC_INDEX_HDMI_480I;
 			}
 		}

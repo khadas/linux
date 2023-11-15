@@ -24,10 +24,10 @@ const struct class_attribute vpq_class_attr[] = {
 	__ATTR(log_lev, 0644,
 		vpq_log_lev_show, vpq_log_lev_store),
 
-	__ATTR(picture_mode, 0644,
-		vpq_picture_mode_item_show, vpq_picture_mode_item_store),
+	__ATTR(module_cfg, 0644,
+		vpq_pq_module_cfg_show, vpq_pq_module_cfg_store),
 
-	__ATTR(pq_module, 0644,
+	__ATTR(module_status, 0644,
 		vpq_pq_module_status_show, vpq_pq_module_status_store),
 
 	__ATTR(src_infor, 0644,
@@ -36,7 +36,10 @@ const struct class_attribute vpq_class_attr[] = {
 	__ATTR(his_avg, 0644,
 		vpq_src_hist_avg_show, vpq_src_hist_avg_store),
 
-	__ATTR(debug_other, 0644,
+	__ATTR(picture_mode, 0644,
+		vpq_picture_mode_item_show, vpq_picture_mode_item_store),
+
+	__ATTR(others, 0644,
 		vpq_debug_other_show, vpq_debug_other_store),
 
 	__ATTR(dump_table, 0644,

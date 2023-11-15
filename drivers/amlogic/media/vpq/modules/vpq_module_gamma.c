@@ -17,9 +17,9 @@ int vpq_module_gamma_blend(struct vpq_tcon_gamma_table_s *wb_gamma,
 		blend_alp = index_gamma->data[i] / 1000;
 		blend_bet = index_gamma->data[i] % 1000;
 		if (blend_alp > 255) {
-			VPQ_PR_INFO(PR_MODULE, "%s index_gamma->data[%d]:%d",
+			VPQ_PR_INFO(PR_MODULE, "%s index_gamma->data[%d]:%d\n",
 				__func__, i, index_gamma->data[i]);
-			VPQ_PR_INFO(PR_MODULE, "%s blend_alp:%d blend_bet:%d",
+			VPQ_PR_INFO(PR_MODULE, "%s blend_alp:%d blend_bet:%d\n",
 				__func__, blend_alp, blend_bet);
 			continue;
 		}

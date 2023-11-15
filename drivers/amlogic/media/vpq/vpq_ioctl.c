@@ -4,7 +4,8 @@
  */
 
 #include <linux/io.h>
-#include <linux/amlogic/media/vpq/vpq_cmd.h>
+//#include <linux/amlogic/media/vpq/vpq_cmd.h>
+#include <linux/amlogic/vpq_cmd.h>
 #include "vpq_ioctl.h"
 #include "vpq_printk.h"
 #include "vpq_table_type.h"
@@ -55,7 +56,7 @@ int vpq_ioctl_set_pqtable_param(struct file *file, unsigned long arg)
 	}
 
 	pq_table_param.ptr = buf;
-	//ret = vpq_init_default_pqtable(&pq_table_param);
+	ret = vpq_init_default_pqtable(&pq_table_param);
 	VPQ_PR_DRV("%s ret:%d\n", __func__, ret);
 
 	vfree(buf);
@@ -67,8 +68,30 @@ int vpq_ioctl_set_pqtable_param(struct file *file, unsigned long arg)
 int vpq_ioctl_set_pq_module_cfg(struct file *file, unsigned long arg)
 {
 	int ret = -1;
+	struct vpq_pqmodule_cfg_s pq_module_cfg;
 
-	ret = vpq_set_pq_module_cfg();
+	memset(&pq_module_cfg, 0, sizeof(struct vpq_pqmodule_cfg_s));
+
+	if (copy_from_user(&pq_module_cfg, (void __user *)arg, sizeof(struct vpq_pqmodule_cfg_s))) {
+		VPQ_PR_ERR("%s copy_from_user fail\n", __func__);
+		ret = -EFAULT;
+	} else {
+		VPQ_PR_INFO(PR_IOCTL, "%s pq_module_cfg:%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,\n"
+			"%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+			__func__,
+			pq_module_cfg.vadj1_en, pq_module_cfg.vd1_ctrst_en,
+			pq_module_cfg.vadj2_en, pq_module_cfg.post_ctrst_en,
+			pq_module_cfg.pregamma_en, pq_module_cfg.gamma_en,
+			pq_module_cfg.wb_en, pq_module_cfg.dnlp_en,
+			pq_module_cfg.lc_en, pq_module_cfg.blue_stretch_en,
+			pq_module_cfg.black_ext_en, pq_module_cfg.chroma_cor_en,
+			pq_module_cfg.sharpness0_en, pq_module_cfg.sharpness1_en,
+			pq_module_cfg.cm_en, pq_module_cfg.lut3d_en,
+			pq_module_cfg.dejaggy_sr0_en, pq_module_cfg.dejaggy_sr1_en,
+			pq_module_cfg.dering_sr0_en, pq_module_cfg.dering_sr1_en);
+
+		ret = vpq_set_pq_module_cfg(&pq_module_cfg);
+	}
 
 	VPQ_PR_DRV("%s ret:%d\n", __func__, ret);
 	return ret;
@@ -306,7 +329,7 @@ int vpq_ioctl_set_gamma_on_off(struct file *file, unsigned long arg)
 		ret = -EFAULT;
 	} else {
 		VPQ_PR_INFO(PR_IOCTL, "%s value:%d\n", __func__, value);
-		ret = vpq_set_pq_module_status(VPQ_MODULE_GAMMA, (value == 1) ? true : false);
+		ret = vpq_set_pq_module_status(VPQ_MODULE_GAMMA, value);
 	}
 
 	VPQ_PR_INFO(PR_IOCTL, "%s ret:%d\n", __func__, ret);
@@ -326,7 +349,7 @@ int vpq_ioctl_set_gamma_index(struct file *file, unsigned long arg)
 		ret = -EFAULT;
 	} else {
 		VPQ_PR_INFO(PR_IOCTL, "%s value:%d\n", __func__, value);
-		ret = vpq_set_gamma_index(value);
+		//ret = vpq_set_gamma_index(value);
 	}
 
 	VPQ_PR_INFO(PR_IOCTL, "%s ret:%d\n", __func__, ret);
@@ -383,7 +406,7 @@ int vpq_ioctl_set_blend_gamma(struct file *file, unsigned long arg)
 			__func__,
 			blend_gamma.gamma_curve, blend_gamma.ctemp_mode);
 
-		ret = vpq_set_blend_gamma(&blend_gamma);
+		//ret = vpq_set_blend_gamma(&blend_gamma);
 	}
 
 	VPQ_PR_INFO(PR_IOCTL, "%s ret:%d\n", __func__, ret);
@@ -443,9 +466,8 @@ int vpq_ioctl_set_rgb_ogo(struct file *file, unsigned long arg)
 		VPQ_PR_ERR("%s copy_from_user fail\n", __func__);
 		ret = -EFAULT;
 	} else {
-		VPQ_PR_INFO(PR_IOCTL, "%s rgbogo:%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+		VPQ_PR_INFO(PR_IOCTL, "%s rgbogo:%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
 			__func__,
-			rgb_ogo.en,
 			rgb_ogo.r_pre_offset, rgb_ogo.g_pre_offset, rgb_ogo.b_pre_offset,
 			rgb_ogo.r_gain, rgb_ogo.g_gain, rgb_ogo.b_gain,
 			rgb_ogo.r_post_offset, rgb_ogo.g_post_offset, rgb_ogo.b_post_offset);
@@ -616,9 +638,9 @@ int vpq_ioctl_get_hist_avg(struct file *file, unsigned long arg)
 	memset(&hist_ave, 0, sizeof(struct vpq_histgm_ave_s));
 
 	ret = vpq_get_hist_avg(&hist_ave);
-	VPQ_PR_INFO(PR_IOCTL, "%s hist_ave:%d,%d,%d,%d\n",
-		__func__,
-		hist_ave.sum, hist_ave.width, hist_ave.height, hist_ave.ave);
+	//VPQ_PR_INFO(PR_IOCTL, "%s hist_ave:%d,%d,%d,%d\n",
+	//	__func__,
+	//	hist_ave.sum, hist_ave.width, hist_ave.height, hist_ave.ave);
 
 	if (copy_to_user((void __user *)arg, &hist_ave, sizeof(struct vpq_histgm_ave_s))) {
 		VPQ_PR_INFO(PR_IOCTL, "%s copy_from_user fail\n", __func__);
@@ -627,7 +649,7 @@ int vpq_ioctl_get_hist_avg(struct file *file, unsigned long arg)
 		;
 	}
 
-	VPQ_PR_INFO(PR_IOCTL, "%s ret:%d\n", __func__, ret);
+	//VPQ_PR_INFO(PR_IOCTL, "%s ret:%d\n", __func__, ret);
 	return ret;
 }
 
@@ -1017,10 +1039,12 @@ int vpq_ioctl_get_signal_info(struct file *file, unsigned long arg)
 
 	vpq_get_signal_info(&sig_info);
 
-	VPQ_PR_INFO(PR_IOCTL, "%s sig_info:%d %d %d %d %d %d\n",
+	VPQ_PR_INFO(PR_IOCTL, "%s sig_info:%d %d %d %d %d %d %d %d %d %d\n",
 		__func__,
-		sig_info.src_type, sig_info.hdmi_port, sig_info.sig_mode,
-		sig_info.hdr_type, sig_info.height, sig_info.width);
+		sig_info.src_type, sig_info.hdmi_port, sig_info.sig_fmt,
+		sig_info.trans_fmt, sig_info.sig_mode, sig_info.hdr_type,
+		sig_info.height, sig_info.width, sig_info.scan_mode,
+		sig_info.fps);
 
 	if (copy_to_user((void __user *)arg, &sig_info, sizeof(struct vpq_signal_info_s))) {
 		VPQ_PR_ERR("%s copy_from_user fail\n", __func__);
@@ -1128,7 +1152,9 @@ int vpq_ioctl_process(struct file *file, unsigned int cmd, unsigned long arg)
 	maxindex = sizeof(st_ioctlinfo) / sizeof(struct vpq_ioctl_func_s);
 	for (index = 0; index < maxindex; index++) {
 		if (cmd == st_ioctlinfo[index].cmd) {
-			VPQ_PR_INFO(PR_IOCTL, "%s cmd:0x%x\n", __func__, _IOC_NR(cmd));
+			if (cmd != VPQ_IOC_GET_HIST_AVG)
+				VPQ_PR_INFO(PR_IOCTL, "%s cmd:0x%x\n", __func__, _IOC_NR(cmd));
+
 			ret = st_ioctlinfo[index].pioctlfunc(file, arg);
 			break;
 		}

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
@@ -20,10 +20,46 @@ struct vpq_pqtable_bin_param_s {
 	};
 };
 
+struct vpq_pqmodule_cfg_s {
+	unsigned char pq_en;
+	unsigned char vadj1_en;
+	unsigned char vd1_ctrst_en;
+	unsigned char vadj2_en;
+	unsigned char post_ctrst_en;
+	unsigned char pregamma_en;
+	unsigned char gamma_en;
+	unsigned char wb_en;
+	unsigned char dnlp_en;
+	unsigned char lc_en;
+	unsigned char black_ext_en;
+	unsigned char blue_stretch_en;
+	unsigned char chroma_cor_en;
+	unsigned char sharpness0_en;
+	unsigned char sharpness1_en;
+	unsigned char cm_en;
+	unsigned char lut3d_en;
+	unsigned char dejaggy_sr0_en;
+	unsigned char dejaggy_sr1_en;
+	unsigned char dering_sr0_en;
+	unsigned char dering_sr1_en;
+
+	unsigned char di_en;
+	unsigned char mcdi_en;
+	unsigned char deblock_en;
+	unsigned char demosquito_en;
+	unsigned char smoothplus_en;
+	unsigned char nr_en;
+	unsigned char hdrtmo_en;
+	unsigned char ai_en;
+	unsigned char aisr_en;
+
+	unsigned char reserved;
+};
+
 struct vpq_gamma_table_s {
-	unsigned short r_data[VPQ_GAMMA_TABLE_LEN];
-	unsigned short g_data[VPQ_GAMMA_TABLE_LEN];
-	unsigned short b_data[VPQ_GAMMA_TABLE_LEN];
+	unsigned int r_data[VPQ_GAMMA_TABLE_LEN];
+	unsigned int g_data[VPQ_GAMMA_TABLE_LEN];
+	unsigned int b_data[VPQ_GAMMA_TABLE_LEN];
 };
 
 struct vpq_blend_gamma_s {
@@ -38,7 +74,6 @@ struct vpq_pre_gamma_table_s {
 };
 
 struct vpq_rgb_ogo_s {
-	unsigned int en;
 	int r_pre_offset;  //range -1024~+1023, default is 0
 	int g_pre_offset;  //range -1024~+1023, default is 0
 	int b_pre_offset;  //range -1024~+1023, default is 0
@@ -103,30 +138,30 @@ struct vpq_cms_s {
 };
 
 enum vpq_csc_type_e {
-	VPQ_CSC_MATRIX_NULL                = 0,
-	VPQ_CSC_MATRIX_RGB_YUV601          = 0x1,
-	VPQ_CSC_MATRIX_RGB_YUV601F         = 0x2,
-	VPQ_CSC_MATRIX_RGB_YUV709          = 0x3,
-	VPQ_CSC_MATRIX_RGB_YUV709F         = 0x4,
-	VPQ_CSC_MATRIX_YUV601_RGB          = 0x10,
-	VPQ_CSC_MATRIX_YUV601_YUV601F      = 0x11,
-	VPQ_CSC_MATRIX_YUV601_YUV709       = 0x12,
-	VPQ_CSC_MATRIX_YUV601_YUV709F      = 0x13,
-	VPQ_CSC_MATRIX_YUV601F_RGB         = 0x14,
-	VPQ_CSC_MATRIX_YUV601F_YUV601      = 0x15,
-	VPQ_CSC_MATRIX_YUV601F_YUV709      = 0x16,
-	VPQ_CSC_MATRIX_YUV601F_YUV709F     = 0x17,
-	VPQ_CSC_MATRIX_YUV709_RGB          = 0x20,
-	VPQ_CSC_MATRIX_YUV709_YUV601       = 0x21,
-	VPQ_CSC_MATRIX_YUV709_YUV601F      = 0x22,
-	VPQ_CSC_MATRIX_YUV709_YUV709F      = 0x23,
-	VPQ_CSC_MATRIX_YUV709F_RGB         = 0x24,
-	VPQ_CSC_MATRIX_YUV709F_YUV601      = 0x25,
-	VPQ_CSC_MATRIX_YUV709F_YUV709      = 0x26,
-	VPQ_CSC_MATRIX_YUV601L_YUV709L     = 0x27,
-	VPQ_CSC_MATRIX_YUV709L_YUV601L     = 0x28,
-	VPQ_CSC_MATRIX_YUV709F_YUV601F     = 0x29,
-	VPQ_CSC_MATRIX_BT2020YUV_BT2020RGB = 0x40,
+	VPQ_CSC_MATRIX_NULL                        = 0,
+	VPQ_CSC_MATRIX_RGB_YUV601                  = 0x1,
+	VPQ_CSC_MATRIX_RGB_YUV601F                 = 0x2,
+	VPQ_CSC_MATRIX_RGB_YUV709                  = 0x3,
+	VPQ_CSC_MATRIX_RGB_YUV709F                 = 0x4,
+	VPQ_CSC_MATRIX_YUV601_RGB                  = 0x10,
+	VPQ_CSC_MATRIX_YUV601_YUV601F              = 0x11,
+	VPQ_CSC_MATRIX_YUV601_YUV709               = 0x12,
+	VPQ_CSC_MATRIX_YUV601_YUV709F              = 0x13,
+	VPQ_CSC_MATRIX_YUV601F_RGB                 = 0x14,
+	VPQ_CSC_MATRIX_YUV601F_YUV601              = 0x15,
+	VPQ_CSC_MATRIX_YUV601F_YUV709              = 0x16,
+	VPQ_CSC_MATRIX_YUV601F_YUV709F             = 0x17,
+	VPQ_CSC_MATRIX_YUV709_RGB                  = 0x20,
+	VPQ_CSC_MATRIX_YUV709_YUV601               = 0x21,
+	VPQ_CSC_MATRIX_YUV709_YUV601F              = 0x22,
+	VPQ_CSC_MATRIX_YUV709_YUV709F              = 0x23,
+	VPQ_CSC_MATRIX_YUV709F_RGB                 = 0x24,
+	VPQ_CSC_MATRIX_YUV709F_YUV601              = 0x25,
+	VPQ_CSC_MATRIX_YUV709F_YUV709              = 0x26,
+	VPQ_CSC_MATRIX_YUV601L_YUV709L             = 0x27,
+	VPQ_CSC_MATRIX_YUV709L_YUV601L             = 0x28,
+	VPQ_CSC_MATRIX_YUV709F_YUV601F             = 0x29,
+	VPQ_CSC_MATRIX_BT2020YUV_BT2020RGB         = 0x40,
 	VPQ_CSC_MATRIX_BT2020RGB_709RGB,
 	VPQ_CSC_MATRIX_BT2020RGB_CUSRGB,
 	VPQ_CSC_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC = 0x50,
@@ -254,15 +289,20 @@ enum vpq_sig_mode_e {
 };
 
 enum vpq_hdr_type_e {
-	VPQ_HDRTYPE_NONE = 0,
-	VPQ_HDRTYPE_SDR,
-	VPQ_HDRTYPE_HDR10,
-	VPQ_HDRTYPE_HLG,
-	VPQ_HDRTYPE_HDR10PLUS,
-	VPQ_HDRTYPE_DOBVI,
-	VPQ_HDRTYPE_MVC,
-	VPQ_HDRTYPE_CUVA_HDR,
-	VPQ_HDRTYPE_CUVA_HLG,
+	VPQ_HDR_TYPE_NONE = 0,
+	VPQ_HDR_TYPE_HDR10,
+	VPQ_HDR_TYPE_HDR10PLUS,
+	VPQ_HDR_TYPE_DOBVI,
+	VPQ_HDR_TYPE_PRIMESL,
+	VPQ_HDR_TYPE_HLG,
+	VPQ_HDR_TYPE_SDR,
+	VPQ_HDR_TYPE_MVC,
+};
+
+enum vpq_scan_mode_e {
+	VPQ_SCAN_MODE_NULL = 0,
+	VPQ_SCAN_MODE_PROGRESSIVE,
+	VPQ_SCAN_MODE_INTERLACED,
 };
 
 struct vpq_signal_info_s {
@@ -270,8 +310,12 @@ struct vpq_signal_info_s {
 	enum vpq_hdmi_port_e hdmi_port;
 	enum vpq_sig_mode_e sig_mode;
 	enum vpq_hdr_type_e hdr_type;
+	enum vpq_scan_mode_e scan_mode;
+	unsigned int sig_fmt; //tvin_sig_fmt_e
+	unsigned int trans_fmt; //tvin_trans_fmt
 	unsigned int height;
 	unsigned int width;
+	unsigned int fps;
 };
 
 enum vpq_frame_status_e {
@@ -290,7 +334,7 @@ struct vpq_frame_info_s {
 
 //VPP
 #define VPQ_IOC_SET_PQTABLE_PARAM        _IOW(VPQ_IOC_MAGIC, 0x00, struct vpq_pqtable_bin_param_s)
-#define VPQ_IOC_SET_PQ_MODULE_CFG        _IO(VPQ_IOC_MAGIC, 0x01)
+#define VPQ_IOC_SET_PQ_MODULE_CFG        _IOW(VPQ_IOC_MAGIC, 0x01, struct vpq_pqmodule_cfg_s)
 #define VPQ_IOC_SET_BRIGHTNESS           _IOW(VPQ_IOC_MAGIC, 0x02, int)
 #define VPQ_IOC_SET_CONTRAST             _IOW(VPQ_IOC_MAGIC, 0x03, int)
 #define VPQ_IOC_SET_SATURATION           _IOW(VPQ_IOC_MAGIC, 0x04, int)
