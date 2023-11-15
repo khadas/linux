@@ -3301,6 +3301,10 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 		    !link->vsc_sdp_extension_for_colorimetry_supported)
 			continue;
 
+		if (!drm_mode_is_420(di, &mode) &&
+		    fmt->color_format == DRM_COLOR_FORMAT_YCRCB420)
+			continue;
+
 		if (drm_mode_is_420_only(di, &mode) &&
 		    fmt->color_format != DRM_COLOR_FORMAT_YCRCB420)
 			continue;
