@@ -215,6 +215,9 @@ enum rga_surf_format {
 	RGA_FORMAT_RGBA_2BPP		= 0x30,
 	RGA_FORMAT_A8			= 0x31,
 
+	RGA_FORMAT_YCbCr_444_SP		= 0x32,
+	RGA_FORMAT_YCrCb_444_SP		= 0x33,
+
 	RGA_FORMAT_UNKNOWN		= 0x100,
 };
 
