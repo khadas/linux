@@ -554,6 +554,7 @@ u8 scdc_tx_flt_ready_status_get(void);
 u8 scdc_tx_sink_version_get(void);
 void scdc_tx_source_version_set(u8 src_ver);
 u8 scdc_tx_source_test_cfg_get(void);
+void scdc_tx_frl_get_rx_rate(u8 *data);
 bool flt_tx_cmd_execute(u8 lt_cmd);
 void flt_tx_ltp_req_write(u8 ltp01, u8 ltp23);
 void flt_tx_update_set(void);

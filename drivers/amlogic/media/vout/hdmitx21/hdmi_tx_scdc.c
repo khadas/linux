@@ -141,6 +141,14 @@ bool scdc_tx_frl_cfg1_set(u8 cfg1)
 	return true;
 }
 
+void scdc_tx_frl_get_rx_rate(u8 *data)
+{
+	if (!data)
+		return;
+	scdc21_rd_sink(SCDC_CONFIG_1, data);
+	*data = *data & 0xf;
+}
+
 u8 scdc_tx_update_flags_get(void)
 {
 	u8 data;

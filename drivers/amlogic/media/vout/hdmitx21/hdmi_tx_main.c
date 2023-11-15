@@ -5885,6 +5885,25 @@ static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
 	return &hdev->para->hdmitx_vinfo;
 }
 
+static bool is_frl_ready(struct hdmitx_dev *hdev)
+{
+	enum frl_rate_enum tx_frl_rate = hdev->hwop.cntlmisc(hdev, MISC_GET_FRL_MODE, 0);
+	enum frl_rate_enum rx_frl_rate;
+
+	/* not check frl rate under TMDS output */
+	if (tx_frl_rate == FRL_NONE)
+		return true;
+	scdc_tx_frl_get_rx_rate((u8 *)&rx_frl_rate);
+	/* check frl_rate between TX and RX */
+	if (tx_frl_rate != rx_frl_rate) {
+		pr_warn("tx_frl_rate: %d, rx_frl_rate: %d\n",
+			tx_frl_rate, rx_frl_rate);
+		return false;
+	} else {
+		return true;
+	}
+}
+
 static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 {
 	struct vinfo_s *vinfo = NULL;
@@ -5895,7 +5914,8 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 		set_disp_mode_auto();
 	} else {
 		pr_info("already display in uboot\n");
-		hdev->ready = 1;
+		if (is_frl_ready(hdev))
+			hdev->ready = 1;
 		update_current_para(hdev);
 		if (hdev->rxcap.max_frl_rate) {
 			hdev->frl_rate = hdev->hwop.cntlmisc(hdev, MISC_GET_FRL_MODE, 0);
@@ -6603,6 +6623,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
 		struct hdmitx_dev, work_hpd_plugout);
 	struct hdcp_t *p_hdcp = (struct hdcp_t *)hdev->am_hdcp;
+	enum frl_rate_enum frl_rate;
 
 	mutex_lock(&setclk_mutex);
 	mutex_lock(&hdev->hdmimode_mutex);
@@ -6627,28 +6648,38 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	 */
 	if (!hdev->systemcontrol_on &&
 		hdmitx21_uboot_already_display(hdev)) {
-		plugout_mute_flg = true;
-		/* edidinfo_detach_to_vinfo(hdev); */
-		clear_rx_vinfo(hdev);
-		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
-		hdmitx21_edid_clear(hdev);
-		hdmi_physical_size_update(hdev);
-		hdmitx21_edid_ram_buffer_clear(hdev);
-		hdmitx_edid_done = false;
-		hdev->hpd_state = 0;
-		if (hdev->tv_usage == 0) {
-			rx_edid_physical_addr(0, 0, 0, 0);
-			hdmitx_notify_hpd(hdev->hpd_state, NULL);
+		frl_rate = hdev->hwop.cntlmisc(hdev, MISC_GET_FRL_MODE, 0);
+		/* Only keep output for tmds mode.
+		 * for frl mode,  disable output, and let
+		 * system to do full mode setting flow,
+		 * including FRL training and hdcp auth
+		 */
+		if (frl_rate == FRL_NONE) {
+			plugout_mute_flg = true;
+			/* edidinfo_detach_to_vinfo(hdev); */
+			clear_rx_vinfo(hdev);
+			hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
+			hdmitx21_edid_clear(hdev);
+			hdmi_physical_size_update(hdev);
+			hdmitx21_edid_ram_buffer_clear(hdev);
+			hdmitx_edid_done = false;
+			hdev->hpd_state = 0;
+			if (hdev->tv_usage == 0) {
+				rx_edid_physical_addr(0, 0, 0, 0);
+				hdmitx_notify_hpd(hdev->hpd_state, NULL);
+			}
+			hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
+			hdmitx21_set_uevent(HDMITX_HPD_EVENT, 0);
+			hdmitx21_set_uevent(HDMITX_AUDIO_EVENT, 0);
+			pr_info("keep signal: tmds mode\n");
+			mutex_unlock(&hdev->hdmimode_mutex);
+			mutex_unlock(&setclk_mutex);
+			/*notify to drm hdmi*/
+			if (hdev->drm_hpd_cb.callback)
+				hdev->drm_hpd_cb.callback(hdev->drm_hpd_cb.data);
+			return;
 		}
-		hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
-		hdmitx21_set_uevent(HDMITX_HPD_EVENT, 0);
-		hdmitx21_set_uevent(HDMITX_AUDIO_EVENT, 0);
-		mutex_unlock(&hdev->hdmimode_mutex);
-		mutex_unlock(&setclk_mutex);
-		/*notify to drm hdmi*/
-		if (hdmitx21_device.drm_hpd_cb.callback)
-			hdmitx21_device.drm_hpd_cb.callback(hdmitx21_device.drm_hpd_cb.data);
-		return;
+		pr_info("disale signal: FRL mode\n");
 	}
 	/*after plugout, DV mode can't be supported*/
 	hdmitx_set_vsif_pkt(0, 0, NULL, true);
@@ -7602,6 +7633,9 @@ static int amhdmitx_probe(struct platform_device *pdev)
 			 */
 			if (is_cur_tmds_div40(hdev))
 				hdmitx_resend_div40(hdev);
+		} else {
+			if (!is_frl_ready(hdev))
+				hdev->ready = 0;
 		}
 		hdev->hwop.cntlmisc(hdev, MISC_TRIGGER_HPD, 1);
 		hdev->already_used = 1;

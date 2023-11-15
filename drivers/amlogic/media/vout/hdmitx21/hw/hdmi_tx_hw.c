@@ -381,7 +381,6 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 		const char *name;
 		enum hdmi_vic vic = HDMI_0_UNKNOWN;
 
-		hdev->ready = 1;
 		ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_AVI, body);
 		if (ret == -1 || ret == 0) {
 			pr_info("hdmitx21: AVI not enabled %d\n", ret);
@@ -393,6 +392,8 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 		} else {
 			if (!hdev->para)
 				return;
+			/* enable fifo intr if uboot hdmitx output ready */
+			fifo_flow_enable_intrs(1);
 			hdev->frl_rate = get_current_frl_rate();
 			if (hdev->para) {
 				hdev->para->cs = avi->colorspace;
