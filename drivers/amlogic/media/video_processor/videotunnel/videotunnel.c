@@ -2103,6 +2103,182 @@ int vt_send_cmd(struct vt_session *session, int tunnel_id,
 }
 EXPORT_SYMBOL(vt_send_cmd);
 
+/* add class sysfs debug node */
+static ssize_t instance_show_locked(struct vt_instance *instance, char *buf)
+{
+	int i = 0;
+	int pos = 0;
+	int size_to_con = kfifo_len(&instance->fifo_to_consumer);
+	int size_to_pro = kfifo_len(&instance->fifo_to_producer);
+	int size_cmd = kfifo_len(&instance->fifo_cmd);
+	int ref_count = atomic_read(&instance->ref.refcount.refs);
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"tunnel (%p) id=%d, ref=%d, fcount=%d, mode=%s\n",
+			instance, instance->id,
+			ref_count, instance->fcount,
+			vt_debug_mode_status_to_string(instance->mode));
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"backup_sourcecrop (%d %d %d %d)\n",
+			instance->backup_sourcecrop.left,
+			instance->backup_sourcecrop.top,
+			instance->backup_sourcecrop.right,
+			instance->backup_sourcecrop.bottom);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"backup_displayframe(%d %d %d %d)\n",
+			instance->backup_displayframe.left,
+			instance->backup_displayframe.top,
+			instance->backup_displayframe.right,
+			instance->backup_displayframe.bottom);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"-----------------------------------------------\n");
+	if (instance->consumer)
+		pos += snprintf(buf + pos, PAGE_SIZE - pos,
+				"consumer session (%s) %p\n",
+				instance->consumer->display_name,
+				instance->consumer);
+	if (instance->producer)
+		pos += snprintf(buf + pos, PAGE_SIZE - pos,
+				"producer session (%s) %p\n",
+				instance->producer->display_name,
+				instance->producer);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"-----------------------------------------------\n");
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"to consumer fifo size:%d\n", size_to_con);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"to producer fifo size:%d\n", size_to_pro);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"cmd fifo size:%d\n", size_cmd);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"-----------------------------------------------\n");
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "buffers:\n");
+
+	for (i = 0; i < VT_POOL_SIZE; i++) {
+		struct vt_buffer *buffer = &instance->vt_buffers[i];
+		int status = buffer->item.buffer_status;
+
+		if (status == VT_BUFFER_QUEUE || status == VT_BUFFER_ACQUIRE ||
+				status == VT_BUFFER_RELEASE)
+			pos += snprintf(buf + pos, PAGE_SIZE - pos,
+					"    buffer produce_fd(%d) status(%s) timestamp(%lld)\n",
+					buffer->buffer_fd_pro,
+					vt_debug_buffer_status_to_string(status),
+					buffer->item.time_stamp);
+	}
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"-----------------------------------------------\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"total acquire: %ld\n", instance->state.acquire_count);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"total release: %ld (%ld+%ld(prev))\n",
+			instance->state.release_count + instance->state.release_invalid,
+			instance->state.release_count,
+			instance->state.release_invalid);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"total queue: %ld\n", instance->state.queue_count);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"total dequeue: %ld (%ld+%ld(prev))\n",
+			instance->state.dequeue_count + instance->state.dequeue_invalid,
+			instance->state.dequeue_count,
+			instance->state.dequeue_invalid);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"-----------------------------------------------\n");
+
+	return pos;
+}
+
+static ssize_t instance_show(struct class *class,
+			     struct class_attribute *attr, char *buf)
+{
+	struct vt_dev *dev = vdev;
+	struct vt_instance *instance = NULL;
+	struct rb_node *n = NULL;
+	ssize_t count = 0;
+
+	mutex_lock(&debugfs_mutex);
+	mutex_lock(&dev->instance_lock);
+	for (n = rb_first(&dev->instances); n; n = rb_next(n)) {
+		instance = rb_entry(n, struct vt_instance, node);
+		mutex_lock(&instance->lock);
+		if (instance->producer || instance->consumer)
+			count += instance_show_locked(instance, buf + count);
+		mutex_unlock(&instance->lock);
+	}
+	mutex_unlock(&dev->instance_lock);
+	mutex_unlock(&debugfs_mutex);
+
+	if (count == 0)
+		sprintf(buf, "no videotunnel instances\n");
+
+	return count;
+}
+
+static ssize_t state_show(struct class *class,
+			  struct class_attribute *attr, char *buf)
+{
+	ssize_t pos = 0;
+	struct vt_state *state = &vdev->state;
+
+	mutex_lock(&debugfs_mutex);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"---------------------------------------------\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "fence status:\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"total fence fget: %ld\n", state->fence_get);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"total fence fput: %ld (%ld(dequeue)-%ld(null)+%ld(fput))\n",
+			state->dequeue_count - state->null_fence + state->fence_put,
+			state->dequeue_count, state->null_fence, state->fence_put);
+
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"---------------------------------------------\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos, "buffer status:\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"total acquire: %ld\n", state->acquire_count);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"total release: %ld (%ld+%ld(prev))\n",
+			state->release_count + state->release_invalid,
+			state->release_count, state->release_invalid);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"total queue: %ld\n", state->queue_count);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"total dequeue: %ld (%ld+%ld(prev))\n",
+			state->dequeue_count + state->dequeue_invalid,
+			state->dequeue_count, state->dequeue_invalid);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"-----------------------------------------------\n");
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"total buffer fget: %ld\n", state->buffer_get);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"total buffer fput: %ld (%ld(fput)+%ld(close))\n",
+			state->buffer_put + state->buffer_close,
+			state->buffer_put, state->buffer_close);
+	pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"---------------------------------------------\n");
+	mutex_unlock(&debugfs_mutex);
+
+	return pos;
+}
+
+static CLASS_ATTR_RO(instance);
+static CLASS_ATTR_RO(state);
+
+static struct attribute *video_tunnel_class_attrs[] = {
+	&class_attr_instance.attr,
+	&class_attr_state.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(video_tunnel_class);
+
+static struct class video_tunnel_class = {
+	.name = "videotunnel",
+	.class_groups = video_tunnel_class_groups,
+};
+
 static const struct file_operations vt_fops = {
 	.owner = THIS_MODULE,
 	.open = vt_open,
@@ -2133,6 +2309,13 @@ static int vt_probe(struct platform_device *pdev)
 		goto failed_alloc_dev;
 	}
 
+	/* regist class sysfs */
+	ret = class_register(&video_tunnel_class);
+	if (ret) {
+		pr_err("videotunnel: failed to register class sysfs.\n");
+		goto unregister_misc;
+	}
+
 	mutex_init(&vdev->instance_lock);
 	mutex_init(&vdev->vsync_lock);
 	idr_init(&vdev->instance_idr);
@@ -2158,6 +2341,9 @@ static int vt_probe(struct platform_device *pdev)
 
 	return 0;
 
+unregister_misc:
+	misc_deregister(&vdev->mdev);
+
 failed_alloc_dev:
 	kfree(vdev);
 
@@ -2166,6 +2352,7 @@ failed_alloc_dev:
 
 static int vt_remove(struct platform_device *pdev)
 {
+	class_unregister(&video_tunnel_class);
 	idr_destroy(&vdev->instance_idr);
 	debugfs_remove_recursive(vdev->debug_root);
 	misc_deregister(&vdev->mdev);
