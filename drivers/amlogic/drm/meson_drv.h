@@ -104,6 +104,8 @@ struct meson_drm {
 	bool compat_mode;
 	bool logo_show_done;
 	u32 osd_occupied_index;
+
+	struct drm_framebuffer *logo_fb;
 };
 
 /*component bind functions*/

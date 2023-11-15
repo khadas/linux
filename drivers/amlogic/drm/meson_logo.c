@@ -465,6 +465,7 @@ static void am_meson_load_logo(struct drm_device *dev,
 	}
 
 	meson_fb = to_am_meson_fb(fb);
+	private->logo_fb = NULL;
 	/*init all connector and found matched uboot mode.*/
 	found = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -501,6 +502,7 @@ static void am_meson_load_logo(struct drm_device *dev,
 	} else {
 		connector = NULL;
 		mode = NULL;
+		private->logo_fb = fb;
 		return;
 	}
 
@@ -630,6 +632,12 @@ void am_meson_logo_init(struct drm_device *dev)
 	else
 		for (i = 0; i < MESON_MAX_CRTC; i++)
 			am_meson_load_logo(dev, fb, i);
+
+	if (private->logo_fb) {
+		drm_framebuffer_get(fb);
+		DRM_INFO("private->logo_fb[id:%d,ref:%d]\n", fb->base.id,
+			kref_read(&fb->base.refcount));
+	}
 
 	DRM_DEBUG("logo_drm_fb[id:%d,ref:%d]\n", fb->base.id,
 		kref_read(&fb->base.refcount));

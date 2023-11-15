@@ -76,8 +76,18 @@ static void meson_crtc_destroy_state(struct drm_crtc *crtc,
 	struct drm_crtc_state *state)
 {
 	struct am_meson_crtc_state *meson_crtc_state;
+	struct meson_drm *private;
 
 	meson_crtc_state = to_am_meson_crtc_state(state);
+	private = crtc->dev->dev_private;
+
+	if (private->logo_fb && !meson_crtc_state->uboot_mode_init) {
+		DRM_INFO("%s, private->logo_fb[id:%d,ref:%d]\n", __func__,
+			private->logo_fb->base.id, kref_read(&private->logo_fb->base.refcount));
+		drm_framebuffer_put(private->logo_fb);
+		private->logo_fb = NULL;
+	}
+
 	__drm_atomic_helper_crtc_destroy_state(&meson_crtc_state->base);
 	kfree(meson_crtc_state);
 }
