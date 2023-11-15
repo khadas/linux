@@ -7898,8 +7898,10 @@ static struct dentry *tracing_dentry_percpu(struct trace_array *tr, int cpu)
 
 	tr->percpu_dir = tracefs_create_dir("per_cpu", d_tracer);
 
+#ifndef CONFIG_AMLOGIC_MEMORY_EXTEND
 	WARN_ONCE(!tr->percpu_dir,
 		  "Could not create tracefs directory 'per_cpu/%d'\n", cpu);
+#endif
 
 	return tr->percpu_dir;
 }

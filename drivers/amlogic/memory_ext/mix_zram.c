@@ -204,7 +204,7 @@ static int mix_comp_init(struct crypto_tfm *tfm)
 			goto nomem;
 	}
 	if (!kswap_zstd.cctx) {
-		__zstd_init(&kswap_zstd);
+		ret = __zstd_init(&kswap_zstd);
 		if (ret)
 			goto nomem1;
 	}
