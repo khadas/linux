@@ -253,14 +253,6 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	bRGA_SRC_TR_COLOR0 = (u32 *) (base + RGA2_SRC_TR_COLOR0_OFFSET);
 	bRGA_SRC_TR_COLOR1 = (u32 *) (base + RGA2_SRC_TR_COLOR1_OFFSET);
 
-	if (msg->src.format == RGA_FORMAT_YCbCr_420_SP_10B ||
-		msg->src.format == RGA_FORMAT_YCrCb_420_SP_10B) {
-		if ((msg->src.act_w == msg->dst.act_w) &&
-			(msg->src.act_h == msg->dst.act_h) &&
-			(msg->rotate_mode == 0))
-			msg->rotate_mode = 1 << 6;
-	}
-
 	{
 		rotate_mode = msg->rotate_mode & 0x3;
 
@@ -569,6 +561,18 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 		disable_uv_channel_en = msg->yin_yout_en ? false : true;
 		xdiv = 1;
 		ydiv = 1;
+		break;
+
+	case RGA_FORMAT_YCbCr_444_SP:
+		src0_format = 0x3;
+		xdiv = 1;
+		ydiv = 1;
+		break;
+	case RGA_FORMAT_YCrCb_444_SP:
+		src0_format = 0x3;
+		xdiv = 1;
+		ydiv = 1;
+		src0_cbcr_swp = 1;
 		break;
 	};
 
@@ -1075,6 +1079,18 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	case RGA_FORMAT_VYUY_420:
 		dst_format = 0xd;
 		dpw = 2;
+		break;
+
+	case RGA_FORMAT_YCbCr_444_SP:
+		dst_format = 0x3;
+		x_div = 1;
+		y_div = 1;
+		break;
+	case RGA_FORMAT_YCrCb_444_SP:
+		dst_format = 0x3;
+		x_div = 1;
+		y_div = 1;
+		dst_cbcr_swp = 1;
 		break;
 	};
 
@@ -2060,6 +2076,19 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 		//x_mirror+y_mirror
 		req->rotate_mode |= (3 << 4);
 		break;
+	}
+
+	if ((req->src.act_w == req->dst.act_w) &&
+	    (req->src.act_h == req->dst.act_h) &&
+	    (req->rotate_mode == 0)) {
+		if (req->src.format == RGA_FORMAT_YCbCr_420_SP_10B ||
+		    req->src.format == RGA_FORMAT_YCrCb_420_SP_10B ||
+		    req->src.format == RGA_FORMAT_YCbCr_444_SP ||
+		    req->src.format == RGA_FORMAT_YCrCb_444_SP ||
+		    req->dst.format == RGA_FORMAT_YCbCr_444_SP ||
+		    req->dst.format == RGA_FORMAT_YCrCb_444_SP)
+			/* force select to tile mode */
+			req->rotate_mode = 1 << 6;
 	}
 
 	req->interp = req_rga->interp;

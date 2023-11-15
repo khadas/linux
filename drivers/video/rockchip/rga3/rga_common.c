@@ -67,6 +67,9 @@ bool rga_is_yuv_format(uint32_t format)
 	case RGA_FORMAT_YCrCb_420_SP_10B:
 	case RGA_FORMAT_YCbCr_422_SP_10B:
 	case RGA_FORMAT_YCrCb_422_SP_10B:
+
+	case RGA_FORMAT_YCbCr_444_SP:
+	case RGA_FORMAT_YCrCb_444_SP:
 		return true;
 	default:
 		return false;
@@ -193,6 +196,9 @@ bool rga_is_yuv8bit_format(uint32_t format)
 	case RGA_FORMAT_YUYV_420:
 	case RGA_FORMAT_UYVY_422:
 	case RGA_FORMAT_UYVY_420:
+
+	case RGA_FORMAT_YCbCr_444_SP:
+	case RGA_FORMAT_YCrCb_444_SP:
 		return true;
 	default:
 		return false;
@@ -339,6 +345,11 @@ const char *rga_get_format_name(uint32_t format)
 
 	case RGA_FORMAT_A8:
 		return "alpha-8";
+	case RGA_FORMAT_YCbCr_444_SP:
+		return "YCbCr444SP";
+	case RGA_FORMAT_YCrCb_444_SP:
+		return "YCrCb444SP";
+
 	default:
 		return "UNF";
 	}
@@ -361,6 +372,8 @@ int rga_get_format_bits(uint32_t format)
 		break;
 	case RGA_FORMAT_RGB_888:
 	case RGA_FORMAT_BGR_888:
+	case RGA_FORMAT_YCbCr_444_SP:
+	case RGA_FORMAT_YCrCb_444_SP:
 		bits = 24;
 		break;
 	case RGA_FORMAT_RGB_565:
@@ -440,6 +453,8 @@ int rga_get_pixel_stride_from_format(uint32_t format)
 		break;
 	case RGA_FORMAT_RGB_888:
 	case RGA_FORMAT_BGR_888:
+	case RGA_FORMAT_YCbCr_444_SP:
+	case RGA_FORMAT_YCrCb_444_SP:
 		pixel_stride = 24;
 		break;
 	case RGA_FORMAT_RGB_565:
@@ -714,6 +729,12 @@ int rga_image_size_cal(int w, int h, int format,
 		yrgb = w * h * 2;
 		break;
 	/* YUV FORMAT */
+	case RGA_FORMAT_YCbCr_444_SP:
+	case RGA_FORMAT_YCrCb_444_SP:
+		yrgb = w * h;
+		uv = w * h;
+		v = w * h;
+		break;
 	case RGA_FORMAT_YCbCr_422_SP:
 	case RGA_FORMAT_YCrCb_422_SP:
 	/* 10bit format stride is externally configured. */
