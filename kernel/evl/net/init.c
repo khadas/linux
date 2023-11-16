@@ -15,6 +15,7 @@
 #include <evl/net/device.h>
 #include <evl/net/input.h>
 #include <evl/net/output.h>
+#include <evl/net/skb.h>
 #include <evl/net.h>
 
 static struct notifier_block netdev_notifier = {
@@ -75,3 +76,42 @@ void __init evl_net_cleanup(void)
 	evl_net_cleanup_neighbour();
 	evl_net_cleanup_qdisc();
 }
+
+static const struct file_operations net_fops;
+
+static ssize_t vlans_show(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	return evl_net_show_vlans(buf, PAGE_SIZE);
+}
+
+static ssize_t vlans_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	return evl_net_store_vlans(buf, count);
+}
+static DEVICE_ATTR_RW(vlans);
+
+static ssize_t clones_show(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	return evl_net_show_clones(buf, PAGE_SIZE);
+}
+static DEVICE_ATTR_RO(clones);
+
+static struct attribute *net_attrs[] = {
+	&dev_attr_vlans.attr,
+	&dev_attr_clones.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(net);
+
+struct evl_factory evl_net_factory = {
+	.name	=	"net",
+	.fops	=	&net_fops,
+	.attrs	=	net_groups,
+	.flags	=	EVL_FACTORY_SINGLE,
+};

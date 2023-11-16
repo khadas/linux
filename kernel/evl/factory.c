@@ -48,6 +48,9 @@ static struct evl_factory *factories[] = {
 	&evl_proxy_factory,
 	&evl_observable_factory,
 	&evl_rng_factory,
+#ifdef CONFIG_EVL_NET
+	&evl_net_factory,
+#endif
 #ifdef CONFIG_FTRACE
 	&evl_trace_factory,
 #endif

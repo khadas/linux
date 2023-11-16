@@ -234,5 +234,6 @@ extern struct evl_factory evl_xbuf_factory;
 extern struct evl_factory evl_proxy_factory;
 extern struct evl_factory evl_observable_factory;
 extern struct evl_factory evl_rng_factory;
+extern struct evl_factory evl_net_factory;
 
 #endif /* !_EVL_FACTORY_H */
