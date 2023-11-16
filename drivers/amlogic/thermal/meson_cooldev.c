@@ -17,6 +17,7 @@
 #include <linux/amlogic/ddr_cooling.h>
 #include <linux/amlogic/meson_cooldev.h>
 #include <linux/cpu.h>
+#include <linux/io.h>
 
 enum cluster_type {
 	CLUSTER_BIG = 0,
@@ -60,6 +61,41 @@ int meson_gcooldev_min_update(struct thermal_cooling_device *cdev)
 }
 EXPORT_SYMBOL(meson_gcooldev_min_update);
 
+static int get_ddr_type(u32 reg)
+{
+	int index = DDR_TYPE1, data;
+	void __iomem *ddrtype_reg;
+
+	ddrtype_reg = ioremap(reg, 4);
+	if (!ddrtype_reg)
+		goto out;
+	data = readl(ddrtype_reg);
+	if (((data >> 8) & 0xff) == 0x11)
+		index = DDR_TYPE2;
+	iounmap(ddrtype_reg);
+out:
+	return index;
+}
+
+/*1)if configured ddrtype_reg, then idx is mapped from ddrtype_reg val.
+ *2)if no ddrtype_reg but use ddr_cool_v2 node, then idx is DDR_TYPE2.
+ *3)if no ddrtype_reg no ddr_cool_v2 node, them idx is DDR_TYPE1.
+ */
+static int get_ddr_type_from_reg(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node, *cooling_devices;
+	u32 ddrtype_reg;
+	int idx = DDR_TYPE1;
+
+	cooling_devices = of_get_child_by_name(np, "cooling_devices");
+	if (!of_property_read_u32(cooling_devices, "ddrtype_reg", &ddrtype_reg))
+		idx = get_ddr_type(ddrtype_reg);
+	else if (of_get_child_by_name(cooling_devices, "ddr_cool_v2"))
+		idx = DDR_TYPE2;
+
+	return idx;
+}
+
 static int register_cool_dev(struct platform_device *pdev,
 			     int index, struct device_node *child)
 {
@@ -93,6 +129,14 @@ static int register_cool_dev(struct platform_device *pdev,
 		break;
 
 	case COOL_DEV_TYPE_DDR:
+		if (get_ddr_type_from_reg(pdev) == DDR_TYPE2) {
+			if (!strcmp(child->name, "ddr_cool_v2"))
+				cool->cooling_dev = ddr_cooling_register_v2(child);
+			break;
+		}
+		if (!strcmp(child->name, "ddr_cool_v2"))
+			break;
+
 		node = of_find_node_by_name(NULL, node_name);
 		if (!node) {
 			pr_err("thermal: can't find node\n");

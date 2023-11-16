@@ -1987,12 +1987,25 @@
 			status = "okay";
 			compatible = "amlogic, meson-cooldev";
 			cooling_devices {
+				ddrtype_reg = <0xff6388b0>;
 				ddr_cool {
 					ddr_reg = <0xff6384b4>;
 					ddr_status = <3>;
 					ddr_bits = <8 15>;
 					ddr_data = <0x4c 0x26 0x13>;
 					node_name = "ddr_cool0";
+					device_type = "ddr";
+				};
+				ddr_cool_v2 {
+					ddr_reg = <0xff6384b4 0xff638648>;
+					ddr_status = <13>;
+					ddr_bits = <8 15>,
+							<0 8>;
+					ddr_data = <152 152 152 120 94 76 76 60 60 46 46 38 18>;
+					gpu_data = <0x33 0x33 0x33 0x33
+						0x33 0x33 0x33 0x33 0x33
+						0x33 0x33 0x33 0x33>;
+					node_name = "ddr_cool2";
 					device_type = "ddr";
 				};
 				cpucore_cool_cluster0 {
@@ -2007,6 +2020,9 @@
 				};
 			};
 			ddr_cool0:ddr_cool0 {
+				#cooling-cells = <2>; /* min followed by max */
+			};
+			ddr_cool2:ddr_cool2 {
 				#cooling-cells = <2>; /* min followed by max */
 			};
 			cpucore0:cpucore0 {
@@ -2041,6 +2057,11 @@
 						hysteresis = <1000>;
 						type = "critical";
 					};
+					pddr_change_v2: trip-point@4 {
+						temperature = <55000>;
+						hysteresis = <5000>;
+						type = "hot";
+					};
 				};
 				cooling-maps {
 					cpufreq_cooling_map {
@@ -2051,6 +2072,11 @@
 					ddr_cooling_map {
 						trip = <&pddr_change>;
 						cooling-device = <&ddr_cool0 0 2>;
+						contribution = <1024>;
+					};
+					ddr_cooling_map_v2 {
+						trip = <&pddr_change_v2>;
+						cooling-device = <&ddr_cool2 0 2>;
 						contribution = <1024>;
 					};
 					gpufreq_cooling_map {
