@@ -9,6 +9,12 @@
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
 
+unsigned int vpp_pq_dbg;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+module_param(vpp_pq_dbg, uint, 0664);
+MODULE_PARM_DESC(vpp_pq_dbg, "vpp_pq_dbg\n");
+#endif
+
 /*BLUE_SCENE             default 0*/
 /*GREEN_SCENE            default 0*/
 /*SKIN_TONE_SCENE        default 0*/
@@ -46,13 +52,13 @@
  * 24 default setting
  */
 int vpp_pq_data[AI_SCENES_MAX][SCENES_VALUE] = {
-	{0, 0, 25, 15, 15, 0, 0, 0, 0, 0},/*faceskin*/
-	{30, 0, 0, 0, 10, 0, 0, 0, 0, 0},/*bluesky*/
-	{0, 0, 0, 15, 20, 0, 0, 0, 0, 0},/*foods*/
-	{0, 0, 0, 25, 0, 2, 0, 0, 0, 0},/*architecture*/
-	{0, 30, 0, 15, 10, 0, 0, 0, 0, 0},/*grass*/
-	{0, 0, 0, 0, 0, 3, 0, 0, 0, 0},/*nightscop*/
-	{0, 0, 0, 20, 0, 2, 0, 0, 0, 0},/*document*/
+	{0, 0, 38, 24, 24, 0, 0, 0, 0, 0},/*faceskin*/
+	{45, 0, 0, 0, 15, 0, 0, 0, 0, 0},/*bluesky*/
+	{0, 0, 0, 24, 30, 0, 0, 0, 0, 0},/*foods*/
+	{0, 0, 0, 38, 0, 4, 0, 0, 0, 0},/*architecture*/
+	{0, 45, 0, 24, 15, 0, 0, 0, 0, 0},/*grass*/
+	{0, 0, 0, 0, 0, 6, 0, 0, 0, 0},/*nightscop*/
+	{0, 0, 0, 30, 0, 4, 0, 0, 0, 0},/*document*/
 	{0, 0, 0, 100, 30, 0, 0, 0, 0, 0},
 	{0, 0, 0, 100, 70, 0, 0, 0, 0, 0},
 	{0, 0, 0, 100, 70, 0, 0, 0, 0, 0},
@@ -99,6 +105,13 @@ static unsigned int color_th = 100;
 
 /*scene change th: 1/2 scene diff*/
 static u32 sc_th = 512;
+
+static u32 hwc_sc_flg;
+static u32 sc_mode;
+static u32 pre_sc_mode;
+static int sc_delay_cnt;
+static u32 use_aipq;
+struct nn_value_t aipq_nn_value[AI_PQ_TOP] = {0};
 
 enum iir_policy_e aipq_tiir_policy_proc(int (*prob)[2], int sc_chg,
 					int *pq_debug, int *kp_flag)
@@ -483,6 +496,47 @@ int sc_det(struct vframe_s *vf, int *pq_debug)
 	return ret;
 }
 
+void set_aipq_sc_mode(u32 sc_flag)
+{
+	if (!sc_flag) {
+		if (hwc_sc_flg) {
+			sc_delay_cnt++;
+			sc_mode = SC_MODE_HWC_CHANGE;
+			if (vpp_pq_dbg & 0x1 && sc_delay_cnt < 4)
+				pr_info("%s: case 1:hwc sc vpp no_sc. sc_delay_cnt = %d",
+				__func__, sc_delay_cnt);
+		} else {
+			sc_mode = SC_MODE_NO_CHANGE;
+		}
+	} else {
+		if (hwc_sc_flg) {
+			sc_delay_cnt++;
+			if (sc_delay_cnt < SC_DELAY_TH) {
+				sc_mode = SC_MODE_BOTH_CHANGE;
+				hwc_sc_flg = 0;
+				use_aipq = 1;
+				if (vpp_pq_dbg & 0x1)
+					pr_info("%s:case 3:hwc sc vpp sc. sc_delay_cnt = %d\n",
+					__func__, sc_delay_cnt);
+				sc_delay_cnt = -1;
+			} else {
+				sc_mode = SC_MODE_VPP_CHANGE;
+				hwc_sc_flg = 0;
+				use_aipq = 0;
+				if (vpp_pq_dbg & 0x1)
+					pr_info("%s:case 2: 1 to 2.vpp sc after. sc_delay_cnt = %d\n",
+					__func__, sc_delay_cnt);
+			}
+		} else {
+			sc_mode = SC_MODE_VPP_CHANGE;
+			use_aipq = 0;
+			if (vpp_pq_dbg & 0x1)
+				pr_info("%s:case 2: 0 to 2.hwc no_sc vpp sc. sc_delay_cnt = %d\n",
+				__func__, sc_delay_cnt);
+		}
+	}
+}
+
 void aipq_scs_proc_s5(struct vframe_s *vf,
 		   int (*cfg)[SCENES_VALUE],
 		   int (*prob)[2],
@@ -540,9 +594,33 @@ void aipq_scs_proc_s5(struct vframe_s *vf,
 			pre_top_one, top_one, sc_flag);
 }
 
-void vf_pq_process(struct vframe_s *vf,
-		   struct ai_scenes_pq *vpp_scenes,
+void aipq_scs_proc_t5m(struct vframe_s *vf,
+		   int (*cfg)[SCENES_VALUE],
+		   int (*prob)[2],
+		   int *out,
 		   int *pq_debug)
+{
+	int top_one, top_one_prob;
+
+	memset(out, 0, sizeof(int) * SCENES_VALUE);
+
+	top_one = prob[0][0];
+	top_one_prob = prob[0][1];
+
+	if (pq_debug[2] == 0x8) {
+		pr_info("top_one = %d, top_one_prob = %d\n",
+			top_one, top_one_prob);
+	}
+	memcpy(out, cfg[top_one], sizeof(int) * SCENES_VALUE);
+
+	scene_prob[0] = top_one;
+	scene_prob[1] = top_one_prob;
+}
+
+void vf_pq_process_t5m(struct vframe_s *vf,
+		   struct ai_scenes_pq *vpp_scenes,
+		   int *pq_debug,
+		   int new_vf_flag)
 {
 	int pq_value;
 	int value;
@@ -551,6 +629,243 @@ void vf_pq_process(struct vframe_s *vf,
 	int bld_ofst[SCENES_VALUE];
 	static int en_flag;
 	int src_w, src_h;
+	u32 sc_flag = 0;
+	static int first_nn_val;
+	static int start_flg;
+	static int sc_mode_dbg[4];
+
+	src_w = (vf->type & VIDTYPE_COMPRESS) ? vf->compWidth : vf->width;
+	src_h = (vf->type & VIDTYPE_COMPRESS) ? vf->compHeight : vf->height;
+
+	/*because s5 sr not support 4 slices, aipq only support 4k*/
+	if (src_h > 2160 || src_w > 3840) {
+		en_flag = 0;
+		if (pq_debug[2] == 0x1)
+			pr_info("over 4k not support\n");
+	} else if (vf->ai_pq_enable && !en_flag) {
+		en_flag = 1;
+	}
+
+	if (!en_flag) {
+		if (pq_debug[2] == 0x1)
+			pr_info("vf->ai_pq_enable = %d\n", vf->ai_pq_enable);
+		return;
+	}
+
+	if (en_flag) {
+		if (!vf->ai_pq_enable) {
+			i = 0;
+			while (i < SCENE_MAX) {
+				detected_scenes[i].func(0, 0);
+				i++;
+			}
+			en_flag = 0;
+
+			scene_prob[0] = 0;
+			scene_prob[1] = 0;
+			if (pq_debug[2] == 0x1)
+				pr_info("disable nn detect\n");
+			return;
+		}
+	}
+
+	if (new_vf_flag) {
+		if (vf->aipq_flag & AIPQ_FLAG_SCENE_CHANGE) {
+			hwc_sc_flg = 1;
+			sc_delay_cnt = 0;
+			if (!start_flg)
+				start_flg = 1;
+			if (vpp_pq_dbg & 0x1)
+				pr_info("%s:AIPQ_FLAG hwc sc. sc_delay_cnt = %d, vf_omx_idx = %d\n",
+					__func__, sc_delay_cnt, vf->omx_index);
+		}
+		sc_flag = sc_det(vf, pq_debug);
+		set_aipq_sc_mode(sc_flag);
+
+		if (vf->aipq_flag & AIPQ_FLAG_FIRST_VFRAME) {
+			hwc_sc_flg = 0;
+			use_aipq = 1;
+			sc_delay_cnt = -1;
+			sc_mode = SC_MODE_BOTH_CHANGE;
+			if (vpp_pq_dbg & 0x1)
+				pr_info("%s:FLAG_FIRST. force update sc mode to 3.\n",
+					__func__);
+		}
+	}
+
+	if (pre_sc_mode != sc_mode) {
+		pre_sc_mode = sc_mode;
+		for (i = 0; i < 4; i++)
+			sc_mode_dbg[i] = 3;
+	}
+
+	if (sc_mode == SC_MODE_VPP_CHANGE || sc_mode == SC_MODE_BOTH_CHANGE) {
+		i = 0;
+		while (i < SCENE_MAX) {
+			detected_scenes[i].func(0, 0);
+			i++;
+		}
+
+		scene_prob[0] = 0;
+		scene_prob[1] = 0;
+		if (vpp_pq_dbg & 0x1)
+			pr_info("%s:case 2 or 3.scene change reset pq. sc_mode = %d, vf_omx_idx = %d\n",
+				__func__, sc_mode, vf->omx_index);
+		if (sc_mode == SC_MODE_VPP_CHANGE && start_flg == 0) {
+			use_aipq = 1;
+			if (vpp_pq_dbg & 0x1)
+				pr_info("%s:lost first hwc sc, modify use aipq table. sc_mode = %d, vf_omx_idx = %d\n",
+					__func__, sc_mode, vf->omx_index);
+		}
+		return;
+	} else if (sc_mode == SC_MODE_HWC_CHANGE) {
+		if (use_aipq) {
+			if (vf->aipq_flag & AIPQ_FLAG_NN_NOT_DONE) {
+				if (vpp_pq_dbg & 0x1 && sc_mode_dbg[3]) {
+					pr_info("%s:case 1: 3 to 0 to 1.regardless hwc sc wait nn use old nn value. sc_delay_cnt = %d, vf_omx_idx = %d\n",
+						__func__, sc_delay_cnt, vf->omx_index);
+					sc_mode_dbg[3]--;
+				}
+			} else if (vf->aipq_flag & AIPQ_FLAG_NN_DONE) {
+				if (!first_nn_val && sc_delay_cnt > SC_DELAY_TH) {
+					for (i = 0; i < 5; i++) {
+						aipq_nn_value[i].maxclass =
+							vf->nn_value[i].maxclass;
+						aipq_nn_value[i].maxprob =
+							vf->nn_value[i].maxprob;
+					}
+					first_nn_val = 1;
+					if (vpp_pq_dbg & 0x1)
+						pr_info("%s:case 1:first refresh nn value. sc_delay_cnt = %d, vf_omx_idx = %d\n",
+						__func__, sc_delay_cnt, vf->omx_index);
+				}
+				if (vpp_pq_dbg & 0x1 && sc_mode_dbg[2]) {
+					pr_info("%s:case 1:3 to 0 to 1.regardless hwc sc nn done use old nn value. sc_delay_cnt = %d, vf_omx_idx = %d\n",
+						__func__, sc_delay_cnt, vf->omx_index);
+					sc_mode_dbg[2]--;
+				}
+			} else {
+				if (vpp_pq_dbg & 0x8)
+					pr_info("%s:case 1. no aipq flag.\n", __func__);
+				return;
+			}
+		} else {
+			if (vpp_pq_dbg & 0x1 && sc_mode_dbg[2]) {
+				pr_info("%s:case 1: 2 to 0 to 1,vpp sc,then hwc sc, not use aipq table. sc_delay_cnt = %d, vf_omx_idx = %d\n",
+					__func__, sc_delay_cnt, vf->omx_index);
+				sc_mode_dbg[2]--;
+			}
+			return;
+		}
+	} else if (sc_mode == SC_MODE_NO_CHANGE) {
+		if (use_aipq) {
+			if (vf->aipq_flag & AIPQ_FLAG_NN_NOT_DONE) {
+				if (vpp_pq_dbg & 0x1 && sc_mode_dbg[1]) {
+					pr_info("%s:case 0: 3 to 0.wait nn. sc_delay_cnt = %d, vf_omx_idx = %d\n",
+						__func__, sc_delay_cnt, vf->omx_index);
+					sc_mode_dbg[1]--;
+				}
+				return;
+			} else if (vf->aipq_flag & AIPQ_FLAG_NN_DONE) {
+				for (i = 0; i < 5; i++) {
+					aipq_nn_value[i].maxclass = vf->nn_value[i].maxclass;
+					aipq_nn_value[i].maxprob = vf->nn_value[i].maxprob;
+					if (vpp_pq_dbg > 0x10)
+						pr_info("class top%d= %d: prob = %d\n",
+							i + 1, prob[i][0], prob[i][1]);
+				}
+				if (!first_nn_val)
+					first_nn_val = 1;
+				if (vpp_pq_dbg & 0x1 && sc_mode_dbg[0]) {
+					pr_info("%s:case 0: 3 to 0.nn done. sc_delay_cnt = %d, vf_omx_idx = %d\n",
+						__func__, sc_delay_cnt, vf->omx_index);
+					sc_mode_dbg[0]--;
+				}
+			} else {
+				if (vpp_pq_dbg & 0x8)
+					pr_info("%s:case 0. no aipq flag.\n", __func__);
+				return;
+			}
+		} else {
+			if (vpp_pq_dbg & 0x1 && sc_mode_dbg[0]) {
+				pr_info("%s:case 0: 2 to 0.only vpp sc, not use aipq table. sc_delay_cnt = %d, vf_omx_idx = %d\n",
+					__func__, sc_delay_cnt, vf->omx_index);
+				sc_mode_dbg[0]--;
+			}
+			return;
+		}
+	}
+
+	for (i = 0; i < 3; i++) {
+		prob[i][0] = aipq_nn_value[i].maxclass;
+		prob[i][1] = aipq_nn_value[i].maxprob;
+		if (vpp_pq_dbg > 0x10)
+			pr_info("class top%d= %d: prob = %d\n",
+				i + 1, prob[i][0], prob[i][1]);
+	}
+
+	if (pq_debug[0] != -1)
+		pq_value = pq_debug[0];
+
+	if (aipq_nn_value[0].maxprob == 0 && pq_debug[0] == -1) {
+		if (vpp_pq_dbg & 0x2)
+			pr_info("%s: top1prob= %d,pq_debug[0]= %d\n",
+			 __func__, aipq_nn_value[0].maxprob, pq_debug[0]);
+		return;
+	}
+	if (pq_debug[1])
+		pq_value = 23;
+
+	aipq_scs_proc_t5m(vf, vpp_pq_data, prob, bld_ofst, pq_debug);
+
+	if (vpp_pq_dbg > 0x10) {
+		pr_info("top5:%d,%d; %d,%d; %d,%d; %d,%d; %d,%d;\n",
+			aipq_nn_value[0].maxclass, aipq_nn_value[0].maxprob,
+			aipq_nn_value[1].maxclass, aipq_nn_value[1].maxprob,
+			aipq_nn_value[2].maxclass, aipq_nn_value[2].maxprob,
+			aipq_nn_value[3].maxclass, aipq_nn_value[3].maxprob,
+			aipq_nn_value[4].maxclass, aipq_nn_value[4].maxprob);
+		pr_info("%s: vf_omx_idx = %d\n",
+			__func__, vf->omx_index);
+		pr_info("bld_ofst: %d, %d, %d, %d, %d, %d, %d\n",
+				bld_ofst[0], bld_ofst[1], bld_ofst[2],
+				bld_ofst[3], bld_ofst[4], bld_ofst[5], bld_ofst[6]);
+		vpp_pq_dbg--;
+	}
+
+	i = 0;
+	while (i < SCENE_MAX) {
+		vpp_scenes[pq_value].pq_scenes = pq_value;
+		if (pq_debug[3]) {
+			detected_scenes[i].func(bld_ofst[i], 1);
+		} else {
+			value = vpp_scenes[pq_value].pq_values[i];
+			detected_scenes[i].func(value, 1);
+		}
+		i++;
+	}
+}
+
+void vf_pq_process(struct vframe_s *vf,
+		   struct ai_scenes_pq *vpp_scenes,
+		   int *pq_debug,
+		   int new_vf_flag)
+{
+	int pq_value;
+	int value;
+	int i = 0;
+	int prob[3][2];
+	int bld_ofst[SCENES_VALUE];
+	static int en_flag;
+	int src_w, src_h;
+
+	aipq_set_policy = get_aipq_set_policy();
+	if (vf->aipq_flag & AIPQ_FLAG_VERSION_2)
+		aipq_set_policy = 3;
+	if (aipq_set_policy == 3) {
+		vf_pq_process_t5m(vf, vpp_scenes, pq_debug, new_vf_flag);
+		return;
+	}
 
 	src_w = (vf->type & VIDTYPE_COMPRESS) ? vf->compWidth : vf->width;
 	src_h = (vf->type & VIDTYPE_COMPRESS) ? vf->compHeight : vf->height;
@@ -606,7 +921,6 @@ void vf_pq_process(struct vframe_s *vf,
 	if (pq_debug[1])
 		pq_value = 23;
 
-	aipq_set_policy = get_aipq_set_policy();
 	if (aipq_set_policy == 1)
 		aipq_scs_bld_proc(vpp_pq_data, prob, bld_ofst, pq_debug);
 	else if (aipq_set_policy == 2)
@@ -637,7 +951,8 @@ void vf_pq_process(struct vframe_s *vf,
 #else
 void vf_pq_process(struct vframe_s *vf,
 		   struct ai_scenes_pq *vpp_scenes,
-		   int *pq_debug)
+		   int *pq_debug,
+		   int new_vf_flag)
 {
 }
 #endif

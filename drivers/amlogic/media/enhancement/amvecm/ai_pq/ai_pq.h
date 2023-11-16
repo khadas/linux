@@ -18,6 +18,9 @@
 
 #ifndef AI_PQ_H
 #define AI_PQ_H
+
+#define SLOWER_BIT 10
+
 /*adaptive dnlp parameters for ai pq*/
 struct adap_dnlp_param_s {
 	/*base value, from db*/

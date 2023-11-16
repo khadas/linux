@@ -1654,7 +1654,8 @@ static int lowlatency_vsync(u8 instance_id)
 #ifdef CONFIG_AMLOGIC_VDETECT
 		vdetect_get_frame_nn_info(vd_layer[0].dispbuf);
 #endif
-		vf_pq_process(vd_layer[0].dispbuf, vpp_scenes, pq_process_debug);
+		vf_pq_process(vd_layer[0].dispbuf, vpp_scenes, pq_process_debug,
+					new_frame ? 1 : 0);
 		if (ai_pq_debug > 0x10) {
 			ai_pq_debug--;
 			if (ai_pq_debug == 0x10)

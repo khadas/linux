@@ -42,6 +42,15 @@ enum ai_scenes {
 	DEFAUT_SETTING,
 };
 
+#define SC_DELAY_TH 4
+enum sc_mode {
+	SC_MODE_NO_CHANGE = 0,
+	SC_MODE_HWC_CHANGE,
+	SC_MODE_VPP_CHANGE,
+	SC_MODE_BOTH_CHANGE,
+	SC_MODE_MAX,
+};
+
 struct ai_scenes_pq {
 	enum ai_scenes pq_scenes;
 	int pq_values[SCENES_VALUE];
@@ -72,7 +81,9 @@ enum aipq_state_mach {
 #define ACCEPT_CNT 6
 
 void vf_pq_process(struct vframe_s *vf,
-		   struct ai_scenes_pq *vpp_scenes, int *pq_debug);
+		   struct ai_scenes_pq *vpp_scenes,
+		   int *pq_debug,
+		   int new_vf_flag);
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 u32 get_stb_cnt(void);

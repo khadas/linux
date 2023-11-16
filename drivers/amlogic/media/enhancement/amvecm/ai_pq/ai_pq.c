@@ -33,6 +33,10 @@ unsigned int aipq_debug;
 module_param(aipq_debug, uint, 0664);
 MODULE_PARM_DESC(aipq_debug, "\n aipq_debug\n");
 
+unsigned int aipq_smooth_dbg;
+module_param(aipq_smooth_dbg, uint, 0664);
+MODULE_PARM_DESC(aipq_smooth_dbg, "\n aipq_smooth_dbg\n");
+
 unsigned int aipq_en =
 	(1 << BLUE_SCENE) |
 	(1 << GREEN_SCENE) |
@@ -43,6 +47,14 @@ unsigned int aipq_en =
 	(1 << NOISE_SCENE);
 module_param(aipq_en, uint, 0664);
 MODULE_PARM_DESC(aipq_en, "\n aipq_en\n");
+
+int aipq_bld_rs = 1;
+module_param(aipq_bld_rs, uint, 0664);
+MODULE_PARM_DESC(aipq_bld_rs, "\n aipq_bld_rs\n");
+
+int slower_coef = 1024;
+module_param(slower_coef, uint, 0664);
+MODULE_PARM_DESC(slower_coef, "\n slower_coef\n");
 
 #define pr_aipq_dbg(fmt, args...)\
 	do {\
@@ -98,16 +110,41 @@ int smooth_process(int base_val, int reg_val, int offset, int bld_rs)
 		else
 			bld_offset =
 			(temp_offset + ((1 << bld_rs) - 1)) >> bld_rs;
-	} else {
-		if (bld_rs == 0)
+	} else if (offset > 0) {
+		if (bld_rs == 0 || bld_rs > offset)
 			bld_offset = 1;
 		else
-			bld_offset = (offset > 0)  ?
-				((offset + ((1 << bld_rs) - 1)) >> bld_rs) :
-				(((-offset) + ((1 << bld_rs) - 1)) >> bld_rs);
+			bld_offset = (offset + ((1 << bld_rs) - 1)) >> bld_rs;
+	} else {
+		if (bld_rs == 0 || bld_rs > (-offset))
+			bld_offset = 1;
+		else
+			bld_offset = ((-offset) + ((1 << bld_rs) - 1)) >> bld_rs;
 	}
 
 	return bld_offset;
+}
+
+int aipq_get_bld_rs(void)
+{
+	if (chip_type_id != chip_t5m)
+		aipq_bld_rs = 1;
+	return aipq_bld_rs;
+}
+
+int aipq_get_smooth_slower_coef(void)
+{
+	if (chip_type_id != chip_t5m)
+		slower_coef = 1 << SLOWER_BIT;
+	return slower_coef;
+}
+
+int aipq_is_smooth_slower(int slower_val)
+{
+	if (slower_val >> SLOWER_BIT)
+		return 0;
+	else
+		return 1;
 }
 
 int blue_scene_process(int offset, int enable)
@@ -119,6 +156,7 @@ int blue_scene_process(int offset, int enable)
 	static int first_frame = 1;
 	struct cm_color_md aipq_color_md;
 	int force_flag;
+	static int slower_num;
 
 	if (!enable || !(aipq_en & (1 << BLUE_SCENE))) {
 		aipq_color_md.color_type	 = cm_9_color;
@@ -138,10 +176,27 @@ int blue_scene_process(int offset, int enable)
 
 	if (first_frame == 1) {
 		reg_val = base_val;
+		slower_num = base_val;
 		first_frame = 0;
 	}
 
+	bld_rs = aipq_get_bld_rs();
 	bld_offset = smooth_process(base_val, reg_val, offset, bld_rs);
+	if (bld_offset) {
+		slower_num += aipq_get_smooth_slower_coef();
+		if (aipq_is_smooth_slower(slower_num))
+			bld_offset = 0;
+	}
+
+	if (reg_val != base_val + offset) {
+		if (aipq_smooth_dbg)
+			pr_info("%s, smooth, bld_ofst: %d, baseval: %d, regval: %d, offset: %d, bld_rs: %d, slower_num: %d\n",
+						__func__, bld_offset, base_val, reg_val,
+						offset, bld_rs, slower_num);
+	}
+
+	if (slower_num >= 1024)
+		slower_num = 0;
 
 	/*for s5, because size delay*/
 	force_flag = cm_force_update_flag();
@@ -198,6 +253,7 @@ int green_scene_process(int offset, int enable)
 	static int first_frame = 1;
 	struct cm_color_md aipq_color_md;
 	int force_flag;
+	static int slower_num;
 
 	if (!enable || !(aipq_en & (1 << GREEN_SCENE))) {
 		aipq_color_md.color_type	 = cm_9_color;
@@ -212,10 +268,28 @@ int green_scene_process(int offset, int enable)
 
 	if (first_frame == 1) {
 		reg_val = base_val;
+		slower_num = base_val;
 		first_frame = 0;
 	}
 
+	bld_rs = aipq_get_bld_rs();
 	bld_offset = smooth_process(base_val, reg_val, offset, bld_rs);
+
+	if (bld_offset) {
+		slower_num += aipq_get_smooth_slower_coef();
+		if (aipq_is_smooth_slower(slower_num))
+			bld_offset = 0;
+	}
+
+	if (reg_val != base_val + offset) {
+		if (aipq_smooth_dbg)
+			pr_info("%s, smooth, bld_ofst: %d, baseval: %d, regval: %d, offset: %d, bld_rs: %d, slower_num: %d\n",
+						__func__, bld_offset, base_val, reg_val,
+						offset, bld_rs, slower_num);
+	}
+
+	if (slower_num >= 1024)
+		slower_num = 0;
 
 	/*for s5, because size delay*/
 	force_flag = cm_force_update_flag();
@@ -268,6 +342,8 @@ int peaking_scene_process(int offset, int enable)
 	int bld_offset[4];
 	static int first_frame = 1;
 	int i;
+	static int slower_num[4];
+
 	/*sr0 hp,bp gain*/
 	base_val[0] = adap_param->peaking_param.sr0_hp_final_gain;
 	base_val[1] = adap_param->peaking_param.sr0_bp_final_gain;
@@ -288,12 +364,15 @@ int peaking_scene_process(int offset, int enable)
 	}
 
 	if (first_frame == 1) {
-		for (i = 0; i < 4; i++)
+		for (i = 0; i < 4; i++) {
 			reg_val[i] = base_val[i];
+			slower_num[i] = base_val[i];
+		}
 		first_frame = 0;
 	}
 
 	for (i = 0; i < 4; i++) {
+		bld_rs = aipq_get_bld_rs();
 		bld_offset[i] =
 			smooth_process(base_val[i], reg_val[i], offset, bld_rs);
 		if (bld_offset[i] == 0) {
@@ -302,6 +381,22 @@ int peaking_scene_process(int offset, int enable)
 				    offset, bld_rs);
 			continue;
 		}
+
+		if (bld_offset[i]) {
+			slower_num[i] += aipq_get_smooth_slower_coef();
+			if (aipq_is_smooth_slower(slower_num[i]))
+				bld_offset[i] = 0;
+		}
+
+		if (reg_val[i] != base_val[i] + offset) {
+			if (aipq_smooth_dbg)
+				pr_info("%s, smooth, i = %d, bld_ofst: %d, baseval: %d, regval: %d, offset: %d, bld_rs: %d, slower_num: %d\n",
+					__func__, i, bld_offset[i], base_val[i],
+					reg_val[i], offset, bld_rs, slower_num[i]);
+		}
+
+		if (slower_num[i] >= 1024)
+			slower_num[i] = 0;
 
 		if (offset == 0)
 			reg_val[i] = (reg_val[i] < base_val[i]) ?
@@ -404,6 +499,7 @@ int skintone_scene_process(int offset, int enable)
 	static int first_frame = 1;
 	struct cm_color_md aipq_color_md;
 	int force_flag;
+	static int slower_num;
 
 	if (!enable || !(aipq_en & (1 << SKIN_TONE_SCENE))) {
 		aipq_color_md.color_type	 = cm_9_color;
@@ -418,10 +514,27 @@ int skintone_scene_process(int offset, int enable)
 
 	if (first_frame == 1) {
 		reg_val = base_val;
+		slower_num = base_val;
 		first_frame = 0;
 	}
 
+	bld_rs = aipq_get_bld_rs();
 	bld_offset = smooth_process(base_val, reg_val, offset, bld_rs);
+	if (bld_offset) {
+		slower_num += aipq_get_smooth_slower_coef();
+		if (aipq_is_smooth_slower(slower_num))
+			bld_offset = 0;
+	}
+
+	if (reg_val != base_val + offset) {
+		if (aipq_smooth_dbg)
+			pr_info("%s, smooth, bld_ofst: %d, baseval: %d, regval: %d, offset: %d, bld_rs: %d, slower_num: %d\n",
+						__func__, bld_offset, base_val, reg_val,
+						offset, bld_rs, slower_num);
+	}
+
+	if (slower_num >= 1024)
+		slower_num = 0;
 
 	/*for s5, because size delay*/
 	force_flag = cm_force_update_flag();
@@ -474,6 +587,7 @@ int saturation_scene_process(int offset, int enable)
 	int bld_offset;
 	static int first_frame = 1;
 	static int base_val_pre;
+	static int slower_num;
 
 	base_val = adap_param->satur_param.satur_hue_mab >> 16;
 	adap_param->satur_param.offset = offset;
@@ -486,11 +600,28 @@ int saturation_scene_process(int offset, int enable)
 
 	if (first_frame == 1 || base_val_pre != base_val) {
 		reg_val = base_val;
+		slower_num = base_val;
 		first_frame = 0;
 	}
 
 	base_val_pre = base_val;
+	bld_rs = aipq_get_bld_rs();
 	bld_offset = smooth_process(base_val, reg_val, offset, bld_rs);
+	if (bld_offset) {
+		slower_num += aipq_get_smooth_slower_coef();
+		if (aipq_is_smooth_slower(slower_num))
+			bld_offset = 0;
+	}
+
+	if (reg_val != base_val + offset) {
+		if (aipq_smooth_dbg)
+			pr_info("%s, smooth, bld_ofst: %d, baseval: %d, regval: %d, offset: %d, bld_rs: %d, slower_num: %d\n",
+						__func__, bld_offset, base_val, reg_val,
+						offset, bld_rs, slower_num);
+	}
+
+	if (slower_num >= 1024)
+		slower_num = 0;
 
 	if (bld_offset == 0) {
 		if (aipq_debug) {

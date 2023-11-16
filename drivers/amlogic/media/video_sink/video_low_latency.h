@@ -56,6 +56,7 @@ int dvel_swap_frame(struct vframe_s *vf);
 s32 primary_render_frame(struct video_layer_s *layer);
 void vf_pq_process(struct vframe_s *vf,
 		   struct ai_scenes_pq *vpp_scenes,
-		   int *pq_debug);
+		   int *pq_debug,
+		   int new_vf_flag);
 #endif
 /*VIDEO_LOW_LATENCTY_HH*/
