@@ -273,6 +273,7 @@ int earcrx_dmac_get_irqs(struct regmap *top_map);
 int earcrx_dmac_get_mask(struct regmap *top_map);
 bool earcrx_pll_dmac_valid(struct regmap *top_map);
 void earcrx_reset(struct regmap *dmac_map);
+void earcrx_set_dmac_sync_ctrl(struct regmap *dmac_map, bool is_earc, bool enable);
 void earcrx_enable(struct regmap *cmdc_map,
 		   struct regmap *dmac_map, bool enable);
 void earctx_cmdc_int_mask(struct regmap *top_map);

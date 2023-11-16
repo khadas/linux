@@ -355,12 +355,22 @@ static void earcrx_update_attend_event(struct earc *p_earc,
 				       bool is_earc, bool state)
 {
 	if (state) {
+		unsigned long flags;
+
 		if (is_earc) {
+			spin_lock_irqsave(&p_earc->rx_lock, flags);
+			if (p_earc->rx_dmac_clk_on)
+				earcrx_set_dmac_sync_ctrl(p_earc->rx_dmac_map, true, true);
+			spin_unlock_irqrestore(&p_earc->rx_lock, flags);
 			extcon_set_state_sync(p_earc->rx_edev,
 				EXTCON_EARCRX_ATNDTYP_ARC, false);
 			extcon_set_state_sync(p_earc->rx_edev,
 				EXTCON_EARCRX_ATNDTYP_EARC, state);
 		} else {
+			spin_lock_irqsave(&p_earc->rx_lock, flags);
+			if (p_earc->rx_dmac_clk_on)
+				earcrx_set_dmac_sync_ctrl(p_earc->rx_dmac_map, false, true);
+			spin_unlock_irqrestore(&p_earc->rx_lock, flags);
 			extcon_set_state_sync(p_earc->rx_edev,
 				EXTCON_EARCRX_ATNDTYP_ARC, state);
 			extcon_set_state_sync(p_earc->rx_edev,
