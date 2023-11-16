@@ -115,11 +115,11 @@ void nins_used2idle_one(struct di_ch_s *pch, struct dim_nins_s *ins)
  *	*pvf
  *	vf_copy
  **************************************/
-
+#define DIM_K_VFM_IN_DCT_LIMIT	3
 static bool nins_m_in_vf(struct di_ch_s *pch)
 {
 	struct buf_que_s *pbufq;
-	unsigned int in_nub, free_nub;
+	unsigned int in_nub, free_nub, dct_nub, dct_nub_tmp;
 	int i;
 	unsigned int ch;
 	struct vframe_s *vf;
@@ -137,13 +137,24 @@ static bool nins_m_in_vf(struct di_ch_s *pch)
 
 	in_nub		= qbufp_count(pbufq, QBF_NINS_Q_CHECK);
 	free_nub	= qbufp_count(pbufq, QBF_NINS_Q_IDLE);
+	dct_nub		= qbufp_count(pbufq, QBF_NINS_Q_DCT);
+	dct_nub_tmp = dct_nub;
 
-	if (in_nub >= DIM_K_VFM_IN_LIMIT	||
-	    (free_nub < (DIM_K_VFM_IN_LIMIT - in_nub))) {
+	if ((in_nub + dct_nub) >= DIM_K_VFM_IN_DCT_LIMIT	||
+	    (free_nub < (DIM_K_VFM_IN_DCT_LIMIT - in_nub - dct_nub))) {
 		return false;
 	}
 
-	for (i = 0; i < (DIM_K_VFM_IN_LIMIT - in_nub); i++) {
+	for (i = 0; i < (DIM_K_VFM_IN_DCT_LIMIT - in_nub - dct_nub); i++) {
+		if (dct_nub_tmp > 0) {
+			pins = nins_move(pch, QBF_NINS_Q_DCT, QBF_NINS_Q_CHECK);
+			if (pins) {
+				dct_nub_tmp--;
+				continue;
+			} else {
+				dct_nub_tmp = 0;
+			}
+		}
 		vf = pw_vf_peek(ch);
 		if (!vf)
 			break;
@@ -195,7 +206,6 @@ static bool nins_m_in_vf(struct di_ch_s *pch)
 	return true;
 }
 
-#define DIM_K_VFM_IN_DCT_LIMIT	3
 static bool nins_m_in_vf_dct(struct di_ch_s *pch)
 {
 	struct buf_que_s *pbufq;
