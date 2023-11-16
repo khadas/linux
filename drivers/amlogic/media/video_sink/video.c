@@ -6608,9 +6608,11 @@ s32 primary_render_frame(struct video_layer_s *layer)
 			if (iret <= 0) {
 				vd_layer[0].property_changed = true;
 				vd_layer[0].prelink_bypass_check = true;
-			}
-			if (layer->global_debug & DEBUG_FLAG_PRELINK_MORE)
+				if (layer->global_debug & DEBUG_FLAG_PRELINK)
+					pr_info("VIDEO: pvpp_display fail: %d\n", iret);
+			} else if (layer->global_debug & DEBUG_FLAG_PRELINK_MORE) {
 				pr_info("do di callback iret:%d\n", iret);
+			}
 		} else {
 			layer->prelink_skip_cnt--;
 		}

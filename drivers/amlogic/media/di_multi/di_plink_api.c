@@ -479,6 +479,8 @@ static bool instance_id_check(unsigned int instance_id)
 	for (i = 0; i < DI_PLINK_CN_NUB; i++) {
 		itf = &dv_prevpp->itf[i];
 		if (atomic_read(&itf->reg) &&
+			/* check if in unreg bottom half */
+		!atomic_read(&itf->in_unreg_step2) &&
 		    itf->sum_reg_cnt == instance_id) {
 			ret = true;
 			break;
@@ -701,6 +703,8 @@ int dpvpp_show_itf(struct seq_file *s, struct dimn_itf_s *itf)
 	seq_printf(s, "%s\n", "itf");
 	seq_printf(s, "0x%x:id[%d]:ch[%d]\n", itf->ch, itf->id, itf->bind_ch);
 	seq_printf(s, "%s:%d:%d\n", "reg", atomic_read(&itf->reg), itf->c.reg_di);
+	seq_printf(s, "%s:%d:%d\n", "in_unreg", atomic_read(&itf->in_unreg),
+		atomic_read(&itf->in_unreg_step2));
 #ifdef DIM_PLINK_ENABLE_CREATE
 	seq_printf(s, "%s:%d\n", "regging_api", atomic_read(&itf->regging_api));
 	seq_printf(s, "%s:%d\n", "unregging_api", atomic_read(&itf->unregging_api));
@@ -985,7 +989,7 @@ static int event_qurey_state(struct dimn_itf_s *itf)
 	struct vframe_states states;
 
 	/*fix for ucode reset method be break by di.20151230*/
-	if (!atomic_read(&itf->reg))
+	if (!atomic_read(&itf->reg) || atomic_read(&itf->in_unreg))
 		return RECEIVER_INACTIVE;
 	if (itf->ops_vfm && itf->ops_vfm->et_states) {
 		itf->ops_vfm->et_states(itf, &states);
@@ -1177,9 +1181,12 @@ static int dimn_receiver_event_fun(int type, void *data, void *arg)
 	switch (type) {
 	case VFRAME_EVENT_PROVIDER_UNREG: /* from back to front */
 		mutex_lock(&itf->lock_reg);
-		if (!atomic_read(&itf->reg)) {
+		if (!atomic_read(&itf->reg) || || atomic_read(&itf->in_unreg)) {
 			mutex_unlock(&itf->lock_reg);
-			PR_WARN("%s:duplicate ureg\n", __func__);
+			PR_WARN("%s:duplicate unreg(%d:%d)\n",
+				__func__,
+				atomic_read(&itf->reg),
+				atomic_read(&itf->in_unreg));
 			break;
 		}
 		atomic_set(&itf->unregging_back, 1);
@@ -1285,8 +1292,11 @@ static struct vframe_s *dimn_vf_peek(void *arg)
 	} else {
 		itf = (struct dimn_itf_s *)arg;
 	}
-	if (!atomic_read(&itf->reg)) {
-		PR_ERR("%s:unreg?\n", __func__);
+	if (!atomic_read(&itf->reg) || atomic_read(&itf->in_unreg)) {
+		PR_ERR("%s:unreg?(%d:%d)\n",
+			__func__,
+			atomic_read(&itf->reg),
+			atomic_read(&itf->in_unreg));
 		return NULL;
 	}
 
@@ -1318,8 +1328,11 @@ static struct vframe_s *dimn_vf_get(void *arg)
 	} else {
 		itf = (struct dimn_itf_s *)arg;
 	}
-	if (!atomic_read(&itf->reg)) {
-		PR_ERR("%s:unreg?\n", __func__);
+	if (!atomic_read(&itf->reg) || atomic_read(&itf->in_unreg)) {
+		PR_ERR("%s:unreg?(%d:%d)\n",
+			__func__,
+			atomic_read(&itf->reg),
+			atomic_read(&itf->in_unreg));
 		return NULL;
 	}
 	if (itf->c.flg_block || itf->c.pause_pst_get)
@@ -1352,8 +1365,11 @@ static void dimn_vf_put(struct vframe_s *vf, void *arg)
 	} else {
 		itf = (struct dimn_itf_s *)arg;
 	}
-	if (!atomic_read(&itf->reg)) {
-		PR_ERR("%s:unreg?\n", __func__);
+	if (!atomic_read(&itf->reg) || atomic_read(&itf->in_unreg)) {
+		PR_ERR("%s:unreg?(%d:%d)\n",
+			__func__,
+			atomic_read(&itf->reg),
+			atomic_read(&itf->in_unreg));
 		return;
 	}
 
@@ -1997,6 +2013,7 @@ static bool dpvpp_unreg_val(struct dimn_itf_s *itf)
 	int i;
 	struct di_ch_s *pch;
 
+	dbg_plink2("%s:enter\n", __func__);
 	if (!itf) {
 		PR_ERR("%s:no itf\n", __func__);
 		return false;
@@ -2021,6 +2038,11 @@ static bool dpvpp_unreg_val(struct dimn_itf_s *itf)
 		dpvpp_link_sw_by_di(false);
 		dpvpp_reg_link_sw(false); //block;
 	}
+	dbg_plink2("%s:step 1\n", __func__);
+	/* TODO: check if dpvpp_unreg_val and dpvpp_destroy_internal function racing */
+	spin_lock_irqsave(&lock_pvpp, irq_flag);
+	atomic_set(&itf->in_unreg_step2, atomic_read(&itf->in_unreg));
+	spin_unlock_irqrestore(&lock_pvpp, irq_flag);
 	dpvpp_dbg_unreg_log_print();
 
 	pch = get_chdata(itf->bind_ch);
@@ -2077,10 +2099,12 @@ static bool dpvpp_unreg_val(struct dimn_itf_s *itf)
 
 	get_datal()->dvs_prevpp.en_polling = false;
 	get_datal()->pre_vpp_exist = false;
+	dbg_plink2("%s:step 2\n", __func__);
 #ifdef DIM_PLINK_ENABLE_CREATE
 	complete(&itf->reg_done);
 #endif
 	dpvpp_mem_mng_get(2);
+	atomic_set(&itf->in_unreg_step2, 0);
 	dbg_plink2("%s:check:end\n", __func__);
 	return true;
 }
@@ -4279,7 +4303,7 @@ void dpvpp_mem_mng_get(unsigned int id)
 			PR_ERR("%s:%d:overflow\n", __func__, ch);
 			break;
 		}
-		if (!atomic_read(&itf->reg))
+		if (!atomic_read(&itf->reg) || atomic_read(&itf->in_unreg))
 			continue;
 		if (itf->c.m_mode_n >= K_MEM_T_NUB) {
 			PR_ERR("%s:%d:overflow:%d\n", __func__,
@@ -5135,7 +5159,9 @@ static bool dpvpp_process(void *para)
 
 		dpvpp_parser(itf);
 
-		if (!itf->ds || !atomic_read(&itf->reg))
+		if (!itf->ds ||
+			!atomic_read(&itf->reg) ||
+			atomic_read(&itf->in_unreg))
 			continue;
 		cnt_active++;
 		if (itf->flg_freeze)
@@ -5531,7 +5557,7 @@ static int dpvpp_display(struct vframe_s *vfm,
 {
 	struct dim_prevpp_ds_s *ds;
 	struct dimn_itf_s *itf;
-	struct dimn_dvfm_s *ndvfm;
+	struct dimn_dvfm_s *ndvfm = NULL;
 	unsigned int	diff;/*enum EDIM_DVPP_DIFF*/
 	struct vframe_s *vf_in/*, *vf_out*/;
 	const struct reg_acc *op;
@@ -5540,13 +5566,14 @@ static int dpvpp_display(struct vframe_s *vfm,
 	unsigned long delay;
 	struct dim_pvpp_hw_s *hw;
 	struct pvpp_buf_cfg_s *buf_cfg;
+	u32 bypass_reason = 0;
 
 	hw = &get_datal()->dvs_prevpp.hw;
 
 	itf = get_itf_vfm(vfm);
 	if (!itf || !itf->ds) {
-		PR_ERR("%s:no data:0x%px:%d\n",
-			__func__, vfm, vfm->di_instance_id);
+		PR_ERR("%s:no data:0x%px:%d itf:%px\n",
+			__func__, vfm, vfm->di_instance_id, itf);
 		return EPVPP_ERROR_DI_NOT_REG;
 	}
 	ds = itf->ds;
@@ -5569,19 +5596,31 @@ static int dpvpp_display(struct vframe_s *vfm,
 		//goto DISPLAY_BYPASS;
 	}
 	atomic_add(DI_BIT0, &itf->c.dbg_display_sts);	/* dbg only */
-	if (!atomic_read(&hw->link_sts))
+	if (!atomic_read(&hw->link_sts)) {
+		bypass_reason = 1;
 		goto DISPLAY_BYPASS;
-	if (itf->flg_freeze)	/* @ary 11-08 add */
+	}
+	/*remove by Brian 11-13*/
+#ifdef HiS_CODE
+	if (itf->flg_freeze) {	/* @ary 11-08 add */
+		bypass_reason = 2;
 		goto DISPLAY_BYPASS;
+	}
+#endif
 	op = hw->op;
 	if (itf->c.src_state &
-	    (EDVPP_SRC_NEED_MSK_CRT | EDVPP_SRC_NEED_MSK_BYPASS))
+	    (EDVPP_SRC_NEED_MSK_CRT | EDVPP_SRC_NEED_MSK_BYPASS)) {
+		bypass_reason = 3;
+		bypass_reason |= (itf->c.src_state << 16);
 		goto DISPLAY_BYPASS;
+	}
 	atomic_add(DI_BIT1, &itf->c.dbg_display_sts);	/* dbg only */
 	/* check if bypass */
 	ndvfm = dpvpp_check_dvfm_act(itf, vfm);
-	if (!ndvfm)
+	if (!ndvfm) {
+		bypass_reason = 4;
 		goto DISPLAY_BYPASS;
+	}
 	atomic_add(DI_BIT2, &itf->c.dbg_display_sts);	/* dbg only */
 	dbg_check_ud(ds, 2); /* dbg */
 
@@ -5590,14 +5629,20 @@ static int dpvpp_display(struct vframe_s *vfm,
 		dpvpp_set_default_para(ds, ndvfm);
 		para = &ds->dis_para_demo;
 	}
-	if (para->dmode == EPVPP_DISPLAY_MODE_BYPASS)
+	if (para->dmode == EPVPP_DISPLAY_MODE_BYPASS) {
+		bypass_reason = 5;
 		goto DISPLAY_BYPASS;
-	if (dpvpp_bypass_display()) //dbg only
+	}
+	if (dpvpp_bypass_display()) { //dbg only
+		bypass_reason = 6;
 		goto DISPLAY_BYPASS;
+	}
 	/*check buffer config */
 	buf_cfg = get_buf_cfg(ndvfm->c.out_fmt, 1);
-	if (!buf_cfg)
+	if (!buf_cfg) {
+		bypass_reason = 7;
 		goto DISPLAY_BYPASS;
+	}
 
 	if (ndvfm->c.is_out_4k)
 		hw->blk_used_uhd = true;
@@ -5775,7 +5820,9 @@ DISPLAY_BYPASS:
 	atomic_set(&hw->link_instance_id, DIM_PLINK_INSTANCE_ID_INVALID);
 	atomic_add(DI_BIT9, &itf->c.dbg_display_sts);	/* dbg only */
 	if (dbg_tm)
-		PR_INF("%s:bypass\n", __func__);
+		dbg_dbg("%s:bypass\n", __func__);
+	dbg_plink1("%s:to bypass:vfm:%px ndvfm:%px itf:%px reason:%x\n",
+		__func__, vfm, ndvfm, itf, bypass_reason);
 	return EPVPP_DISPLAY_MODE_BYPASS;
 }
 
@@ -8457,9 +8504,12 @@ int dpvpp_destroy_instance(int index)
 	PR_INF("%s:\n", __func__);
 
 	mutex_lock(&itf->lock_reg);
-	if (!atomic_read(&itf->reg)) {
+	if (!atomic_read(&itf->reg) || atomic_read(&itf->in_unreg)) {
 		mutex_unlock(&itf->lock_reg);
-		PR_WARN("%s:duplicate ureg\n", __func__);
+		PR_WARN("%s:duplicate unreg(%d:%d)\n",
+			__func__,
+			atomic_read(&itf->reg),
+			atomic_read(&itf->in_unreg));
 		return DI_ERR_INDEX_NOT_ACTIVE;
 	}
 	atomic_set(&itf->unregging_back, 1);
@@ -8497,8 +8547,13 @@ enum DI_ERRORTYPE dpvpp_empty_input_buffer(struct dimn_itf_s *itf,
 
 	ds	= itf->ds;
 
-	if (!atomic_read(&itf->reg) || !ds) {
-		PR_WARN("%s:not reg\n", __func__);
+	if (!atomic_read(&itf->reg) ||
+		atomic_read(&itf->in_unreg) || !ds) {
+		PR_WARN("%s:not reg(%d:%d); ds:%px\n",
+			__func__,
+			atomic_read(&itf->reg),
+			atomic_read(&itf->in_unreg),
+			ds);
 		return DI_ERR_INDEX_NOT_ACTIVE;
 	}
 
@@ -8614,8 +8669,13 @@ static void dpvpp_patch_first_buffer(struct dimn_itf_s *itf)
 	}
 
 	ds	= itf->ds;
-	if (!atomic_read(&itf->reg) || !ds) {
-		PR_WARN("%s:not reg\n", __func__);
+	if (!atomic_read(&itf->reg) ||
+		atomic_read(&itf->in_unreg) || !ds) {
+		PR_WARN("%s:not reg(%d:%d); ds:%px\n",
+			__func__,
+			atomic_read(&itf->reg),
+			atomic_read(&itf->in_unreg),
+			ds);
 		return;
 	}
 
@@ -8937,16 +8997,21 @@ int dpvpp_destroy_internal(struct dimn_itf_s *itf)
 
 	dbg_plink1("%s:\n", "dpvpp:ins:des");
 
-	if (!atomic_read(&itf->reg)) {
-		PR_WARN("%s:duplicate ureg\n", __func__);
+	if (!atomic_read(&itf->reg) || atomic_read(&itf->in_unreg)) {
+		PR_WARN("%s:duplicate unreg(%d:%d)\n",
+			__func__,
+			atomic_read(&itf->reg),
+			atomic_read(&itf->in_unreg));
 		return DI_ERR_INDEX_NOT_ACTIVE;
 	}
 	dpvpp_dct_unreg(itf->bind_ch);
 	if (itf->ops_vfm && itf->ops_vfm->unreg_trig)
 		itf->ops_vfm->unreg_trig(itf);
 
-	atomic_set(&itf->reg, 0);
+	atomic_set(&itf->in_unreg, 1);
 	dpvpp_unreg_val(itf);
+	atomic_set(&itf->in_unreg, 0);
+	atomic_set(&itf->reg, 0);
 
 	dbg_plink2("%s:id[%d]\n", __func__, itf->id);
 	return 0;

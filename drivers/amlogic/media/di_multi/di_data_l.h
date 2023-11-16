@@ -2708,6 +2708,8 @@ struct dimn_itf_s {
 	unsigned int ch;
 	unsigned int id; /* @ary 11-08 ref to DI_PLINK_CN_NUB */
 	atomic_t reg;
+	atomic_t in_unreg; /* only set before dpvpp_destroy_internal */
+	atomic_t in_unreg_step2; /* copy in_unreg status in dpvpp_unreg_val */
 #ifdef DIM_PLINK_ENABLE_CREATE
 	struct mutex lock_reg; /* for reg */ /*for internal reg no need */
 //	struct mutex lock_dbg;
