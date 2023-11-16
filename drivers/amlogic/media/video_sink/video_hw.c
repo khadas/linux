@@ -9607,16 +9607,22 @@ static int update_afd_param(u8 id,
 #ifdef ENABLE_PRE_LINK
 /* return true to switch vf ext */
 static bool update_pre_link_state(struct video_layer_s *layer,
-		struct vframe_s *vf)
+		struct vframe_s *vf, const struct vinfo_s *vinfo)
 {
 	bool ret = false;
 	int iret = 0xff;
 	struct pvpp_dis_para_in_s di_in_p;
 	u8 vpp_index = 0;
+	bool is_high_freq = false;
 
 	if (!layer || !vf || layer->layer_id != 0)
 		return ret;
 
+	if (!IS_ERR_OR_NULL(vinfo) && vinfo->sync_duration_den > 0 &&
+		vinfo->sync_duration_num > 0) {
+		if ((vinfo->sync_duration_num / vinfo->sync_duration_den) > 60)
+			is_high_freq = true;
+	}
 	vpp_index = layer->vpp_index;
 
 	if (!layer->need_disable_prelink &&
@@ -9735,7 +9741,7 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 
 		/* dynamic switch when di is in active */
 		if ((layer->next_frame_par->vscale_skip_count > 0 ||
-		     layer->prelink_bypass_check) &&
+		     layer->prelink_bypass_check || is_high_freq) &&
 		    is_pre_link_on(layer) && vf->vf_ext) {
 			memset(&di_in_p, 0, sizeof(struct pvpp_dis_para_in_s));
 			di_in_p.dmode = EPVPP_DISPLAY_MODE_BYPASS;
@@ -9757,7 +9763,9 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 		} else if (!is_pre_link_on(layer) &&
 				!is_local_vf(vf) &&
 				is_pre_link_available(vf) &&
-				!layer->next_frame_par->vscale_skip_count) {
+				!layer->next_frame_par->vscale_skip_count &&
+				!layer->prelink_bypass_check &&
+				!is_high_freq) {
 			/* enable pre-link when it is available and di is in active */
 			/* TODO: need update vf->type to check pre-link again */
 			/* if only check the dec vf at first time */
@@ -9804,6 +9812,7 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 				!layer->next_frame_par->vscale_skip_count &&
 				is_pre_link_source(vf)) {
 			ret = true;
+			layer->prelink_bypass_check = false;
 			if (layer->global_debug & DEBUG_FLAG_PRELINK_MORE)
 				pr_info("Do not enable pre-link yet\n");
 		} else if (is_pre_link_on(layer) &&
@@ -9824,6 +9833,7 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 				vf->vf_ext &&
 				!IS_DI_POSTWRTIE(vf->type)) {
 			/* Just test the exception case */
+			layer->prelink_bypass_check = false;
 			if (IS_DI_POST(vf->type) &&
 			    layer->next_frame_par->vscale_skip_count > 0) {
 				ret = true;
@@ -10035,13 +10045,8 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 			for_amdv_certification()),
 			op_flag);
 #ifdef ENABLE_PRE_LINK
-		if (!IS_ERR_OR_NULL(vinfo) && vinfo->sync_duration_den > 0 &&
-			vinfo->sync_duration_num > 0) {
-			if ((vinfo->sync_duration_num / vinfo->sync_duration_den) > 60)
-				layer->prelink_bypass_check = true;
-		}
 		if (layer->layer_id == 0 &&
-		    update_pre_link_state(layer, vf))
+		    update_pre_link_state(layer, vf, vinfo))
 			ret = vppfilter_success_and_switched;
 #endif
 		if (layer->layer_id != 0 &&
