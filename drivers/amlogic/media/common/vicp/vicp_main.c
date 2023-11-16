@@ -70,6 +70,7 @@ u32 debug_axis_en;
 struct output_axis_s axis;
 u32 rdma_en;
 u32 debug_rdma_en;
+
 struct mutex vicp_mutex; /*used to avoid user space call at the same time*/
 struct vicp_hdr_data_s *vicp_hdr;
 
@@ -145,7 +146,7 @@ static ssize_t reg_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
 	char *buf_orig, *parm[8] = {NULL};
-	u32 val = 0, param_count, offset;
+	u32 val = 0, param_count;
 	u32 reg_addr, reg_val, reg_count;
 
 	if (!buf)
@@ -173,13 +174,9 @@ static ssize_t reg_store(struct class *class,
 				return -EINVAL;
 			}
 			reg_count = val;
-			for (offset = 0; offset < reg_count; reg_addr++, offset++) {
-				reg_val = read_vicp_reg(reg_addr);
-				pr_info("[0x%04x] = 0x%08x\n", reg_addr, reg_val);
-			}
+			vicp_dump_reg(reg_addr, reg_count);
 		} else {
-			reg_val = read_vicp_reg(reg_addr);
-			pr_info("[0x%04x] = 0x%08x\n", reg_addr, reg_val);
+			vicp_dump_reg(reg_addr, 1);
 		}
 	} else if (!strcmp(parm[0], "wv")) {
 		if (param_count < 2) {

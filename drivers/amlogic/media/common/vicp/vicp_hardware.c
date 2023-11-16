@@ -1013,8 +1013,8 @@ void set_pre_scaler_control(struct vicp_pre_scaler_ctrl_reg_s pre_scaler_ctrl_re
 		((pre_scaler_ctrl_reg.sc_coef_s11_mode & 0x1) << 20) |
 		((pre_scaler_ctrl_reg.vsc_nor_rs_bits & 0xf) << 16) |
 		((pre_scaler_ctrl_reg.hsc_nor_rs_bits & 0xf) << 12) |
-		((pre_scaler_ctrl_reg.prehsc_flt_num & 0xf) << 7) |
-		((pre_scaler_ctrl_reg.prevsc_flt_num & 0x7) << 4) |
+		((pre_scaler_ctrl_reg.prehsc_flt_num & 0xf) << 8) |
+		((pre_scaler_ctrl_reg.prevsc_flt_num & 0xf) << 4) |
 		((pre_scaler_ctrl_reg.prehsc_rate & 0x3) << 2) |
 		((pre_scaler_ctrl_reg.prevsc_rate & 0x3) << 0);
 

@@ -48,6 +48,7 @@ static u32 last_fbcoutput_en, last_mifoutput_en;
 static u32 last_output_begin_v, last_output_begin_h, last_output_end_v, last_output_end_h;
 static u32 rdma_buf_init_flag;
 static struct vicp_device_data_s vicp_dev;
+static u32 dump_reg_start, dump_reg_end;
 
 irqreturn_t vicp_isr_handle(int irq, void *dev_id)
 {
@@ -479,6 +480,78 @@ static int get_phase_step(int presc_size, int dst_size)
 	return step;
 }
 
+static int config_scaler_param(bool is_interlace, struct vid_cmpr_top_s *vid_cmpr_top,
+	struct vid_cmpr_scaler_s *scaler_param)
+{
+	if (IS_ERR_OR_NULL(vid_cmpr_top) || IS_ERR_OR_NULL(scaler_param)) {
+		vicp_print(VICP_ERROR, "%s: invalid param,return.\n", __func__);
+		return -1;
+	}
+	scaler_param->din_hsize = vid_cmpr_top->src_hsize;
+	if (is_interlace)
+		scaler_param->din_vsize = vid_cmpr_top->src_vsize >> 1;
+	else
+		scaler_param->din_vsize = vid_cmpr_top->src_vsize;
+
+	if (vid_cmpr_top->out_rot_en == 1) {
+		scaler_param->dout_hsize = vid_cmpr_top->src_hsize;
+		if (is_interlace)
+			scaler_param->dout_vsize = vid_cmpr_top->src_vsize >> 1;
+		else
+			scaler_param->dout_vsize = vid_cmpr_top->src_vsize;
+	} else {
+		scaler_param->dout_hsize = vid_cmpr_top->out_hsize_in;
+		scaler_param->dout_vsize = vid_cmpr_top->out_vsize_in;
+	}
+
+	if (vid_cmpr_top->skip_mode == VICP_SKIP_MODE_HORZ) {
+		scaler_param->din_hsize = scaler_param->din_hsize >> 1;
+	} else if (vid_cmpr_top->skip_mode == VICP_SKIP_MODE_VERT) {
+		scaler_param->din_vsize = scaler_param->din_vsize >> 1;
+	} else if (vid_cmpr_top->skip_mode == VICP_SKIP_MODE_ALL) {
+		scaler_param->din_hsize = scaler_param->din_hsize >> 1;
+		scaler_param->din_vsize = scaler_param->din_vsize >> 1;
+	}
+
+	scaler_param->vert_bank_length = 4;
+	if (scaler_param->dout_hsize <= ((scaler_param->din_hsize + 1) >> 1))
+		scaler_param->prehsc_en = 1;
+	else
+		scaler_param->prehsc_en = 0;
+
+	if (scaler_param->dout_vsize <= ((scaler_param->din_vsize + 1) >> 1))
+		scaler_param->prevsc_en = 1;
+	else
+		scaler_param->prevsc_en = 0;
+
+	if (((scaler_param->din_hsize + 7) / scaler_param->dout_hsize) >> 3)
+		scaler_param->prehsc_rate = 3;
+	else if (((scaler_param->din_hsize + 3) / scaler_param->dout_hsize) >> 2)
+		scaler_param->prehsc_rate = 2;
+	else if (((scaler_param->din_hsize + 1) / scaler_param->dout_hsize) >> 1)
+		scaler_param->prehsc_rate = 1;
+	else
+		scaler_param->prehsc_rate = 0;
+
+	if (((scaler_param->din_vsize + 7) / scaler_param->dout_vsize) >> 3)
+		scaler_param->prevsc_rate = 3;
+	else if (((scaler_param->din_vsize + 3) / scaler_param->dout_vsize) >> 2)
+		scaler_param->prevsc_rate = 2;
+	else if (((scaler_param->din_vsize + 1) / scaler_param->dout_vsize) >> 1)
+		scaler_param->prevsc_rate = 1;
+	else
+		scaler_param->prevsc_rate = 0;
+
+	scaler_param->high_res_coef_en = 1;
+	scaler_param->phase_step_en = 0;
+	scaler_param->phase_step = 0;
+	scaler_param->device_index = 5;
+	scaler_param->vphase_type_top = F2V_P2P;
+	scaler_param->vphase_type_bot = F2V_P2P;
+
+	return 0;
+}
+
 void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_s *scaler)
 {
 	enum f2v_vphase_type_e top_conv_type;
@@ -509,29 +582,6 @@ void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_s *scaler)
 		return;
 	}
 
-	if (print_flag & VICP_SCALER) {
-		pr_info("vicp: ##########scaler config##########\n");
-		pr_info("vicp: input size: h %d, v %d.\n", scaler->din_hsize, scaler->din_vsize);
-		pr_info("vicp: output size: h %d, v %d.\n", scaler->dout_hsize, scaler->dout_vsize);
-		pr_info("vicp: vert_bank_length = %d.\n", scaler->vert_bank_length);
-		pr_info("vicp: pre_scaler_en: h %d, v %d.\n", scaler->prehsc_en, scaler->prevsc_en);
-		pr_info("vicp: pre_scaler_rate: h %d, v %d.\n", scaler->prehsc_rate,
-			scaler->prevsc_rate);
-		pr_info("vicp: high_res_coef_en = %d.\n", scaler->high_res_coef_en);
-		pr_info("vicp: phase_step: h %d, v %d.\n", scaler->horz_phase_step,
-			scaler->vert_phase_step);
-		pr_info("vicp: slice_start = %d\n", scaler->slice_x_st);
-		pr_info("vicp: slice_end: %d %d %d %d.\n",
-			scaler->slice_x_end[0],
-			scaler->slice_x_end[1],
-			scaler->slice_x_end[2],
-			scaler->slice_x_end[3]);
-		pr_info("vicp: pps_slice = %d..\n", scaler->pps_slice);
-		pr_info("vicp: phase_step_en %d, step %d.\n", scaler->phase_step_en,
-			scaler->phase_step);
-		pr_info("vicp: #################################.\n");
-	};
-
 	index = scaler->device_index;
 	topbot_conv = index >> 16;
 	top_conv = (topbot_conv >> 4) & 0xf;
@@ -560,9 +610,9 @@ void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_s *scaler)
 			__func__);
 
 	if (p_src_w != scaler->dout_hsize)
-		vsc_en = 1;
-	if (p_src_h != scaler->dout_vsize)
 		hsc_en = 1;
+	if (p_src_h != scaler->dout_vsize)
+		vsc_en = 1;
 
 	if (scaler->high_res_coef_en)
 		coef_s_bits = 9;
@@ -608,6 +658,30 @@ void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_s *scaler)
 		bot_rpt_num = vphase.rpt_num;
 		bot_vphase = vphase.phase;
 	}
+
+	if (print_flag & VICP_SCALER) {
+		pr_info("vicp: ##########scaler config##########\n");
+		pr_info("vicp: input size: h %d, v %d.\n", scaler->din_hsize, scaler->din_vsize);
+		pr_info("vicp: output size: h %d, v %d.\n", scaler->dout_hsize, scaler->dout_vsize);
+		pr_info("vicp: vert_bank_length = %d.\n", scaler->vert_bank_length);
+		pr_info("vicp: pre_scaler_en: h %d, v %d.\n", scaler->prehsc_en, scaler->prevsc_en);
+		pr_info("vicp: pre_scaler_rate: h %d, v %d.\n", scaler->prehsc_rate,
+			scaler->prevsc_rate);
+		pr_info("vicp: high_res_coef_en = %d.\n", scaler->high_res_coef_en);
+		pr_info("vicp: phase_step: h %d, v %d.\n", scaler->horz_phase_step,
+			scaler->vert_phase_step);
+		pr_info("vicp: phase_step_en %d, step %d.\n", scaler->phase_step_en,
+			scaler->phase_step);
+		pr_info("vicp: presc_out_size: h %d, v %d.\n", p_src_w, p_src_h);
+		pr_info("vicp: presc_phase_step: h 0x%x, v 0x%x.\n", horz_phase_step,
+			vert_phase_step);
+		pr_info("vicp: post_scaler_en: h %d, v %d.\n", hsc_en, vsc_en);
+		pr_info("vicp: post_scaler_top: rcv %d, rpt %d, vphase %d.\n", top_rcv_num,
+			top_rpt_num, top_vphase);
+		pr_info("vicp: post_scaler_bot: rcv %d, rpt %d, vphase %d.\n", bot_rcv_num,
+			bot_rpt_num, bot_vphase);
+		pr_info("vicp: #################################.\n");
+	};
 
 	set_vsc_region12_start(0, 0);
 	set_vsc_region34_start(scaler->dout_vsize, scaler->dout_vsize);
@@ -1976,74 +2050,14 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 	}
 	set_vid_cmpr_fgrain(fgrain);
 
-	memset(&vid_cmpr_scaler, 0, sizeof(struct vid_cmpr_scaler_s));
-	vid_cmpr_scaler.din_hsize = vid_cmpr_top->src_hsize;
-	if (is_interlace)
-		vid_cmpr_scaler.din_vsize = vid_cmpr_top->src_vsize >> 1;
-	else
-		vid_cmpr_scaler.din_vsize = vid_cmpr_top->src_vsize;
-
-	if (vid_cmpr_top->out_rot_en == 1) {
-		vid_cmpr_scaler.dout_hsize = vid_cmpr_top->src_hsize;
-		if (is_interlace)
-			vid_cmpr_scaler.dout_vsize = vid_cmpr_top->src_vsize >> 1;
-		else
-			vid_cmpr_scaler.dout_vsize = vid_cmpr_top->src_vsize;
-	} else {
-		vid_cmpr_scaler.dout_hsize = vid_cmpr_top->out_hsize_in;
-		vid_cmpr_scaler.dout_vsize = vid_cmpr_top->out_vsize_in;
-	}
-
 	if (!scaler_en)
 		scaler_enable = 0;
 	else
 		scaler_enable = 1;
 
-	if (vid_cmpr_top->skip_mode == VICP_SKIP_MODE_HORZ) {
-		vid_cmpr_scaler.din_hsize = vid_cmpr_scaler.din_hsize >> 1;
-	} else if (vid_cmpr_top->skip_mode == VICP_SKIP_MODE_VERT) {
-		vid_cmpr_scaler.din_vsize = vid_cmpr_scaler.din_vsize >> 1;
-	} else if (vid_cmpr_top->skip_mode == VICP_SKIP_MODE_ALL) {
-		vid_cmpr_scaler.din_hsize = vid_cmpr_scaler.din_hsize >> 1;
-		vid_cmpr_scaler.din_vsize = vid_cmpr_scaler.din_vsize >> 1;
-	}
+	memset(&vid_cmpr_scaler, 0, sizeof(struct vid_cmpr_scaler_s));
+	config_scaler_param(is_interlace, vid_cmpr_top, &vid_cmpr_scaler);
 	set_input_size(vid_cmpr_scaler.din_vsize, vid_cmpr_scaler.din_hsize);
-
-	vid_cmpr_scaler.vert_bank_length = 4;
-	if (vid_cmpr_scaler.dout_hsize <= ((vid_cmpr_scaler.din_hsize + 1) >> 1))
-		vid_cmpr_scaler.prehsc_en = 1;
-	else
-		vid_cmpr_scaler.prehsc_en = 0;
-
-	if (vid_cmpr_scaler.dout_vsize <= ((vid_cmpr_scaler.din_vsize + 1) >> 1))
-		vid_cmpr_scaler.prevsc_en = 1;
-	else
-		vid_cmpr_scaler.prevsc_en = 0;
-
-	if (((vid_cmpr_scaler.din_hsize + 7) / vid_cmpr_scaler.dout_hsize) >> 3)
-		vid_cmpr_scaler.prehsc_rate = 3;
-	else if (((vid_cmpr_scaler.din_hsize + 3) / vid_cmpr_scaler.dout_hsize) >> 2)
-		vid_cmpr_scaler.prehsc_rate = 2;
-	else if (((vid_cmpr_scaler.din_hsize + 1) / vid_cmpr_scaler.dout_hsize) >> 1)
-		vid_cmpr_scaler.prehsc_rate = 1;
-	else
-		vid_cmpr_scaler.prehsc_rate = 0;
-
-	if (((vid_cmpr_scaler.din_vsize + 7) / vid_cmpr_scaler.dout_vsize) >> 3)
-		vid_cmpr_scaler.prevsc_rate = 3;
-	else if (((vid_cmpr_scaler.din_vsize + 3) / vid_cmpr_scaler.dout_vsize) >> 2)
-		vid_cmpr_scaler.prevsc_rate = 2;
-	else if (((vid_cmpr_scaler.din_vsize + 1) / vid_cmpr_scaler.dout_vsize) >> 1)
-		vid_cmpr_scaler.prevsc_rate = 1;
-	else
-		vid_cmpr_scaler.prevsc_rate = 0;
-
-	vid_cmpr_scaler.high_res_coef_en = 1;
-	vid_cmpr_scaler.phase_step_en = 0;
-	vid_cmpr_scaler.phase_step = 0;
-	vid_cmpr_scaler.device_index = 5;
-	vid_cmpr_scaler.vphase_type_top = F2V_P2P;
-	vid_cmpr_scaler.vphase_type_bot = F2V_P2P;
 	set_vid_cmpr_scale(scaler_enable, &vid_cmpr_scaler);
 	set_output_size(vid_cmpr_top->out_vsize_in, vid_cmpr_top->out_hsize_in);
 
@@ -2214,6 +2228,8 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 	enum vframe_signal_fmt_e sig_fmt;
 	struct vid_cmpr_lossy_compress_s temp_compress_param;
 	u32 canvas_width = 0;
+	int input_area = 0, output_area = 0;
+	bool need_use_dw = false;
 
 	if (IS_ERR_OR_NULL(data_config) || IS_ERR_OR_NULL(vid_cmpr_top)) {
 		vicp_print(VICP_ERROR, "%s: NULL param.\n", __func__);
@@ -2223,18 +2239,21 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 	memset(&temp_compress_param, 0, sizeof(temp_compress_param));
 
 	if (data_config->input_data.is_vframe) {
-		input_vframe = data_config->input_data.data_vf;
-		if (IS_ERR_OR_NULL(input_vframe)) {
+		if (IS_ERR_OR_NULL(data_config->input_data.data_vf)) {
 			vicp_print(VICP_ERROR, "%s: NULL vframe.\n", __func__);
 			return -1;
 		}
 
-		if (current_dump_flag != dump_yuv_flag) {
-			dump_yuv(0, input_vframe);
-			current_dump_flag = dump_yuv_flag;
-		}
+		input_area = data_config->input_data.data_vf->compWidth *
+			data_config->input_data.data_vf->compHeight;
+		output_area = data_config->data_option.output_axis.width *
+			data_config->data_option.output_axis.height;
+		if ((input_area + 15) / output_area >> 4)
+			need_use_dw = true;
 
-		if (input_vframe->type & VIDTYPE_COMPRESS) {
+		if (data_config->input_data.data_vf->type & VIDTYPE_COMPRESS && !need_use_dw) {
+			vicp_print(VICP_INFO, "%s: use fbc vframe.\n", __func__);
+			input_vframe = data_config->input_data.data_vf;
 			vid_cmpr_top->src_compress = 1;
 			vid_cmpr_top->src_hsize = input_vframe->compWidth;
 			vid_cmpr_top->src_vsize = input_vframe->compHeight;
@@ -2256,6 +2275,16 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 				temp_compress_param.compress_mode = LOSSY_COMPRESS_MODE_OFF;
 			}
 		} else {
+			vicp_print(VICP_INFO, "%s: use dw vframe.\n", __func__);
+			if (data_config->input_data.data_vf->width != 0 &&
+				data_config->input_data.data_vf->height != 0) {
+				vicp_print(VICP_INFO, "%s: use src_vf.\n", __func__);
+				input_vframe = data_config->input_data.data_vf;
+			} else {
+				vicp_print(VICP_INFO, "%s: use vf_ext.\n", __func__);
+				input_vframe = data_config->input_data.data_vf->vf_ext;
+			}
+
 			vid_cmpr_top->src_compress = 0;
 			temp_compress_param.compress_mode = LOSSY_COMPRESS_MODE_OFF;
 			vid_cmpr_top->src_hsize = input_vframe->width;
@@ -2315,6 +2344,11 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 		} else {
 			vid_cmpr_top->film_grain_en = 0;
 			vid_cmpr_top->film_lut_addr = 0;
+		}
+
+		if (current_dump_flag != dump_yuv_flag) {
+			dump_yuv(0, input_vframe);
+			current_dump_flag = dump_yuv_flag;
 		}
 	} else {
 		input_dma = data_config->input_data.data_dma;
@@ -2617,8 +2651,21 @@ int vicp_process_task(struct vid_cmpr_top_s *vid_cmpr_top)
 	return ret;
 }
 
+void vicp_dump_reg(u32 start_addr, u32 reg_len)
+{
+	dump_reg_start = start_addr;
+	dump_reg_end = start_addr + reg_len;
+}
+
 int vicp_process_reset(void)
 {
+	u32 i = 0;
+
+	for (i = dump_reg_start; i < dump_reg_end; i++)
+		pr_info("%s: [0x%04x] = 0x%08x\n", __func__, i, read_vicp_reg(i));
+
+	dump_reg_start = 0;
+	dump_reg_end = 0;
 	return 0;
 }
 

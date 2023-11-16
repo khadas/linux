@@ -39,6 +39,7 @@ extern struct vicp_hdr_data_s *vicp_hdr;
 extern u32 rdma_en;
 extern u32 debug_rdma_en;
 extern u32 fgrain_en;
+
 /* *********************************************************************** */
 /* ************************* enum definitions **************************.*/
 /* *********************************************************************** */
@@ -326,4 +327,6 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_s *rd_mif, int urgent, int hold_line)
 void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_s *scaler);
 void set_vid_cmpr_afbcd(int hold_line_num, bool rdma_en, struct vid_cmpr_afbcd_s *afbcd);
 void set_vid_cmpr_hdr(struct vid_cmpr_hdr_s config);
+void vicp_dump_reg(u32 start_addr, u32 reg_len);
+
 #endif //_VICP_PROCESS_H_
