@@ -4080,7 +4080,7 @@ void dpvpp_secure_pre_en(bool is_tvp)
 				 1, 8, 1);// HF secure Polarity
 		#endif
 		}
-		//dbg_mem2("%s:tvp3 pre SECURE\n", __func__);
+		dbg_plink1("%s:tvp pre SECURE\n", __func__);
 	} else {
 		if (DIM_IS_IC_EF(SC2)) {
 			DIM_DI_WR(DI_PRE_SEC_IN, 0x0);
@@ -4096,7 +4096,7 @@ void dpvpp_secure_pre_en(bool is_tvp)
 				 0, 8, 1);// HF secure Polarity
 		#endif
 		}
-		//dbg_mem2("%s:tvp3 pre NOSECURE:\n", __func__);
+		dbg_plink1("%s:tvp pre NOSECURE:\n", __func__);
 	}
 }
 
@@ -7353,6 +7353,12 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 	//out_dvfm	= &ndvfm->c.out_dvfm;
 
 	bypass = dpvpp_is_bypass_dvfm(in_dvfm, ds->en_4k);
+	if (hw->flg_tvp != itf->c.is_tvp) {
+		dbg_plink2("bypass reason :%d to %d (tvp:c:%d t:%d), cnt:%d\n",
+			bypass, EPVPP_BYPASS_REASON_TVP,
+			hw->flg_tvp, itf->c.is_tvp, ndvfm->c.cnt_in);
+		bypass = EPVPP_BYPASS_REASON_TVP;
+	}
 	ndvfm->c.bypass_reason = bypass;
 	if (bypass) {
 		if (!itf->c.bypass_reason)
