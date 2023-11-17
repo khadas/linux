@@ -129,6 +129,7 @@ struct rockchip_mcu_panel {
 
 	struct gpio_desc *enable_gpio;
 	struct gpio_desc *reset_gpio;
+	struct gpio_desc *te_gpio;
 
 	struct device_node *np_crtc;
 
@@ -277,6 +278,8 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 				   struct drm_connector_state *conn_state)
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
+	struct rockchip_mcu_panel *mcu_panel = to_rockchip_mcu_panel(rgb->panel);
 	struct drm_connector *connector = conn_state->connector;
 	struct drm_display_info *info = &connector->display_info;
 
@@ -344,6 +347,8 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 	s->bus_flags = info->bus_flags;
 	s->tv_state = &conn_state->tv;
 	s->eotf = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
+	if (rgb->np_mcu_panel)
+		s->soft_te = mcu_panel->te_gpio ? true : false;
 
 	return 0;
 }
@@ -484,6 +489,17 @@ static int rockchip_mcu_panel_parse_cmd_seq(struct device *dev,
 	return 0;
 }
 
+static irqreturn_t rockchip_mcu_te_irq_handler(int irq, void *dev_id)
+{
+	struct rockchip_rgb *rgb = (struct rockchip_rgb *)dev_id;
+	struct drm_encoder *encoder = &rgb->encoder;
+
+	if (encoder->crtc)
+		rockchip_drm_te_handle(encoder->crtc);
+
+	return IRQ_HANDLED;
+}
+
 static int rockchip_mcu_panel_init(struct rockchip_rgb *rgb)
 {
 	struct device *dev = rgb->dev;
@@ -511,6 +527,22 @@ static int rockchip_mcu_panel_init(struct rockchip_rgb *rgb)
 	if (IS_ERR(mcu_panel->reset_gpio)) {
 		DRM_DEV_ERROR(dev, "failed to find mcu panel reset GPIO\n");
 		return PTR_ERR(mcu_panel->reset_gpio);
+	}
+
+	mcu_panel->te_gpio = devm_fwnode_gpiod_get_index(dev, &np_mcu_panel->fwnode,
+							 "te", 0, GPIOD_IN,
+							 fwnode_get_name(&np_mcu_panel->fwnode));
+	if (IS_ERR(mcu_panel->te_gpio)) {
+		mcu_panel->te_gpio = NULL;
+	} else {
+		ret = devm_request_threaded_irq(dev, gpiod_to_irq(mcu_panel->te_gpio),
+						rockchip_mcu_te_irq_handler, NULL,
+						IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+						"MCU-PANEL-TE", rgb);
+		if (ret) {
+			DRM_DEV_ERROR(dev, "failed to request TE IRQ: %d\n", ret);
+			return ret;
+		}
 	}
 
 	mcu_panel->desc = devm_kzalloc(dev, sizeof(*mcu_panel->desc), GFP_KERNEL);
