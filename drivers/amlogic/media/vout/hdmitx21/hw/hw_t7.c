@@ -208,9 +208,9 @@ void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk)
 		WAIT_FOR_PLL_LOCKED(ANACTRL_HDMIPLL_CTRL0);
 		pr_info("HPLL: 0x%x\n", hd21_read_reg(ANACTRL_HDMIPLL_CTRL0));
 		break;
-	case 4032000:
-		hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0x3b0004a8);
-		hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0x00000000);
+	case 4115866:
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0x3b0004ab);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0x0000fd22);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x00000000);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x4a691c00);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x33771290);
