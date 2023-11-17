@@ -746,13 +746,8 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 			/* if phase lock fail, exit game mode and re-entry
 			 * after phase lock
 			 */
-			if ((devp->game_mode & VDIN_GAME_MODE_2) &&
-			    devp->vdin_std_duration + 2 < devp->vinfo_std_duration) {
-				phase_lock_flag = 0;
-				vdin_game_mode_dynamic_check(devp);
-				vdin_pause_hw_write(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE);
-			} else if (!vlock_get_phlock_flag() && !frame_lock_vrr_lock_status()) {
-				if (phase_lock_flag++ > 1) {
+			if (!vlock_get_phlock_flag() && !frame_lock_vrr_lock_status()) {
+				if (phase_lock_flag++ >= 1) {
 					vdin_game_mode_dynamic_check(devp);
 					phase_lock_flag = 0;
 					/* vlock need reset automatic,
