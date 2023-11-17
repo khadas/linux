@@ -69,6 +69,7 @@
 #define RGA2_DST_BASE0_OFFSET			0x03c
 #define RGA2_DST_BASE1_OFFSET			0x040
 #define RGA2_DST_BASE2_OFFSET			0x044
+#define RGA2_TILE4x4_OUT_BASE_OFFSET		0x044 //repeat
 #define RGA2_DST_VIR_INFO_OFFSET		0x048
 #define RGA2_DST_ACT_INFO_OFFSET		0x04c
 #define RGA2_ALPHA_CTRL0_OFFSET			0x050
@@ -197,6 +198,8 @@
 #define m_RGA2_MODE_CTRL_SW_OSD_E			(0x1<<8)
 #define m_RGA2_MODE_CTRL_SW_MOSAIC_EN			(0x1<<9)
 #define m_RGA2_MODE_CTRL_SW_YIN_YOUT_EN			(0x1<<10)
+#define m_RGA2_MODE_CTRL_SW_TILE4x4_IN_EN		(0x1 << 12)
+#define m_RGA2_MODE_CTRL_SW_TILE4x4_OUT_EN		(0x1 << 13)
 
 #define s_RGA2_MODE_CTRL_SW_RENDER_MODE(x)		((x & 0x7) << 0)
 #define s_RGA2_MODE_CTRL_SW_BITBLT_MODE(x)		((x & 0x1) << 3)
@@ -207,6 +210,8 @@
 #define s_RGA2_MODE_CTRL_SW_OSD_E(x)			((x & 0x1) << 8)
 #define s_RGA2_MODE_CTRL_SW_MOSAIC_EN(x)		((x & 0x1) << 9)
 #define s_RGA2_MODE_CTRL_SW_YIN_YOUT_EN(x)		((x & 0x1) << 10)
+#define s_RGA2_MODE_CTRL_SW_TILE4x4_IN_EN(x)		((x & 0x1) << 12)
+#define s_RGA2_MODE_CTRL_SW_TILE4x4_OUT_EN(x)		((x & 0x1) << 13)
 /* RGA_SRC_INFO */
 #define m_RGA2_SRC_INFO_SW_SRC_FMT			(0xf << 0)
 #define m_RGA2_SRC_INFO_SW_SW_SRC_RB_SWAP		(0x1 << 4)
