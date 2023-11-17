@@ -578,7 +578,23 @@ static int is_allowed_trace(const char *name)
 }
 
 static int allow_trace_enable = 1;
-core_param(allow_trace_enable, allow_trace_enable, int, 0644);
+
+static int __init early_allow_trace_enable_param(char *buf)
+{
+	if (!buf)
+		return -EINVAL;
+
+	if (strcmp(buf, "off") == 0)
+		allow_trace_enable = 0;
+	else if (strcmp(buf, "on") == 0)
+		allow_trace_enable = 1;
+
+	pr_debug("allow_trace_enable %sabled\n", allow_trace_enable ? "en" : "dis");
+
+	return 0;
+}
+
+early_param("allow_trace_enable", early_allow_trace_enable_param);
 #endif
 
 /**
