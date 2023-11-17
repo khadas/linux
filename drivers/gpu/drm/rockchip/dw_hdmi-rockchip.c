@@ -24,6 +24,10 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
+#include <video/display_timing.h>
+#include <video/videomode.h>
+#include <video/of_display_timing.h>
+
 #include <uapi/linux/videodev2.h>
 
 #include "rockchip_drm_drv.h"
@@ -250,6 +254,9 @@ struct rockchip_hdmi {
 	struct pinctrl *p;
 	struct pinctrl_state *idle_state;
 	struct pinctrl_state *default_state;
+	bool timing_force_output;
+	struct drm_display_mode force_mode;
+	u32 force_bus_format;
 };
 
 #define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
@@ -803,6 +810,45 @@ static int hdmi_bus_fmt_to_color_format(unsigned int bus_format)
 	case MEDIA_BUS_FMT_RGB161616_1X48:
 	default:
 		return RK_IF_FORMAT_RGB;
+	}
+}
+
+static void parse_bus_format(u32 bus_format, u32 *format, u32 *colordepth)
+{
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_RGB101010_1X30:
+		*format = RK_IF_FORMAT_RGB;
+		*colordepth = 10;
+		break;
+	case MEDIA_BUS_FMT_YUV8_1X24:
+		*format = RK_IF_FORMAT_YCBCR444;
+		*colordepth = 8;
+		break;
+	case MEDIA_BUS_FMT_YUV10_1X30:
+		*format = RK_IF_FORMAT_YCBCR444;
+		*colordepth = 10;
+		break;
+	case MEDIA_BUS_FMT_UYVY10_1X20:
+	case MEDIA_BUS_FMT_YUYV10_1X20:
+		*format = RK_IF_FORMAT_YCBCR422;
+		*colordepth = 10;
+		break;
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+		*format = RK_IF_FORMAT_YCBCR422;
+		*colordepth = 8;
+		break;
+	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
+		*format = RK_IF_FORMAT_YCBCR420;
+		*colordepth = 8;
+		break;
+	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
+		*format = RK_IF_FORMAT_YCBCR420;
+		*colordepth = 10;
+		break;
+	default:
+		*format = RK_IF_FORMAT_RGB;
+		*colordepth = 8;
 	}
 }
 
@@ -1377,6 +1423,8 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 	int ret, val, phy_table_size;
 	u32 *phy_config;
 	struct device_node *np = hdmi->dev->of_node;
+	struct display_timing timing;
+	struct videomode vm;
 
 	hdmi->regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(hdmi->regmap)) {
@@ -1515,6 +1563,24 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 		kfree(phy_config);
 	} else {
 		dev_dbg(hdmi->dev, "use default hdmi phy table\n");
+	}
+
+	if (of_property_read_bool(np, "force-output")) {
+		hdmi->timing_force_output = true;
+
+		ret = of_get_display_timing(np, "force_timing", &timing);
+		if (ret < 0) {
+			dev_err(hdmi->dev, "can't get force timing\n");
+			hdmi->timing_force_output = false;
+			return ret;
+		}
+
+		videomode_from_timing(&timing, &vm);
+		drm_display_mode_from_videomode(&vm, &hdmi->force_mode);
+		hdmi->force_mode.type |= DRM_MODE_TYPE_PREFERRED;
+
+		if (of_property_read_u32(np, "force-bus-format", &hdmi->force_bus_format))
+			hdmi->force_bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 	}
 
 	hdmi->hpd_gpiod = devm_gpiod_get_optional(hdmi->dev, "hpd", GPIOD_IN);
@@ -2150,6 +2216,9 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		}
 	}
 
+	if (hdmi->timing_force_output)
+		parse_bus_format(hdmi->force_bus_format, color_format, &color_depth);
+
 	if (*color_format == RK_IF_FORMAT_YCBCR420) {
 		*output_mode = ROCKCHIP_OUT_MODE_YUV420;
 		if (color_depth > 8)
@@ -2601,6 +2670,16 @@ static void dw_hdmi_rockchip_set_hdcp14_mem(void *data, bool enable)
 		regmap_write(hdmi->vo1_regmap, RK3588_GRF_VO1_CON7, val);
 }
 
+static struct drm_display_mode *dw_hdmi_rockchip_get_force_timing(void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	if (!hdmi->timing_force_output)
+		return NULL;
+
+	return &hdmi->force_mode;
+}
+
 static const struct drm_prop_enum_list color_depth_enum_list[] = {
 	{ 0, "Automatic" }, /* Prefer highest color depth */
 	{ 8, "24bit" },
@@ -2649,41 +2728,7 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 	struct rockchip_drm_private *private = connector->dev->dev_private;
 	int ret;
 
-	switch (color) {
-	case MEDIA_BUS_FMT_RGB101010_1X30:
-		hdmi->hdmi_output = RK_IF_FORMAT_RGB;
-		hdmi->colordepth = 10;
-		break;
-	case MEDIA_BUS_FMT_YUV8_1X24:
-		hdmi->hdmi_output = RK_IF_FORMAT_YCBCR444;
-		hdmi->colordepth = 8;
-		break;
-	case MEDIA_BUS_FMT_YUV10_1X30:
-		hdmi->hdmi_output = RK_IF_FORMAT_YCBCR444;
-		hdmi->colordepth = 10;
-		break;
-	case MEDIA_BUS_FMT_UYVY10_1X20:
-	case MEDIA_BUS_FMT_YUYV10_1X20:
-		hdmi->hdmi_output = RK_IF_FORMAT_YCBCR422;
-		hdmi->colordepth = 10;
-		break;
-	case MEDIA_BUS_FMT_UYVY8_1X16:
-	case MEDIA_BUS_FMT_YUYV8_1X16:
-		hdmi->hdmi_output = RK_IF_FORMAT_YCBCR422;
-		hdmi->colordepth = 8;
-		break;
-	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
-		hdmi->hdmi_output = RK_IF_FORMAT_YCBCR420;
-		hdmi->colordepth = 8;
-		break;
-	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
-		hdmi->hdmi_output = RK_IF_FORMAT_YCBCR420;
-		hdmi->colordepth = 10;
-		break;
-	default:
-		hdmi->hdmi_output = RK_IF_FORMAT_RGB;
-		hdmi->colordepth = 8;
-	}
+	parse_bus_format(color, &hdmi->hdmi_output, &hdmi->colordepth);
 
 	hdmi->bus_format = color;
 	hdmi->prev_bus_format = color;
@@ -3544,6 +3589,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_set_ddc_io;
 	plat_data->set_hdcp14_mem =
 		dw_hdmi_rockchip_set_hdcp14_mem;
+	plat_data->get_force_timing =
+		dw_hdmi_rockchip_get_force_timing;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 
 	secondary = rockchip_hdmi_find_by_id(dev->driver, !hdmi->id);
