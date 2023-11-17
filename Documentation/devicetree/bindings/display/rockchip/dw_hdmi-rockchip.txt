@@ -38,6 +38,10 @@ Optional properties
 - clock-names: May contain "cec" as defined in dw_hdmi.txt.
 - clock-names: May contain "grf", power for grf io.
 - clock-names: May contain "vpll", external clock for some hdmi phy.
+- force-bus-format: force hdmi output a specific color format.
+- force-output: If need hdmi to force output a specific resolution,
+  set this property.
+- force_timing: Detailed timing of hdmi forced output.
 - phys: from general PHY binding: the phandle for the PHY device.
 - phy-names: Should be "hdmi" if phys references an external phy.
 - skip-check-420-mode: If need skip check yuv420 mode valid, set this property.
@@ -62,6 +66,23 @@ hdmi: hdmi@ff980000 {
 	interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
 	clocks = <&cru  PCLK_HDMI_CTRL>, <&cru SCLK_HDMI_HDCP>;
 	clock-names = "iahb", "isfr";
+	force-bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
+	force-output;
+	force_timing {
+		clock-frequency = <594000000>;
+		hactive = <3840>;
+		vactive = <2160>;
+		hback-porch = <296>;
+		hfront-porch = <176>;
+		vback-porch = <72>;
+		vfront-porch = <8>;
+		hsync-len = <88>;
+		vsync-len = <10>;
+		hsync-active = <1>;
+		vsync-active = <1>;
+		de-active = <0>;
+		pixelclk-active = <0>;
+	};
 	ports {
 		hdmi_in: port {
 			#address-cells = <1>;
