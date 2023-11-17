@@ -1043,7 +1043,7 @@ static ssize_t monitor_read(struct file *filp, char __user *u_buf,
 			return -ERESTARTSYS;
 	}
 
-	return copy_to_user(u_buf, &val, sizeof(val)) ? -EFAULT : 0;
+	return copy_to_user(u_buf, &val, sizeof(val)) ? -EFAULT : sizeof(val);
 }
 
 static ssize_t monitor_write(struct file *filp, const char __user *u_buf,
@@ -1064,14 +1064,14 @@ static ssize_t monitor_write(struct file *filp, const char __user *u_buf,
 		return -EFAULT;
 
 	/* Unicast operation. */
-	return post_mask(event, val, false);
+	return post_mask(event, val, false) ?: sizeof(val);
 }
 
 static ssize_t monitor_oob_read(struct file *filp,
 				char __user *u_buf, size_t count)
 {
 	struct evl_monitor *event = element_of(filp, struct evl_monitor);
-	s32 value;
+	s32 val;
 	int ret;
 
 	if (event->type != EVL_MONITOR_EVENT || event->protocol != EVL_EVENT_MASK)
@@ -1081,11 +1081,11 @@ static ssize_t monitor_oob_read(struct file *filp,
 		return -EINVAL;
 
 	/* Disjunctive operation. */
-	ret = wait_mask_oob(filp, EVL_INFINITE, EVL_REL, -1, false, &value);
+	ret = wait_mask_oob(filp, EVL_INFINITE, EVL_REL, -1, false, &val);
 	if (ret)
 		return ret;
 
-	return copy_to_user(u_buf, &value, sizeof(value)) ? -EFAULT : 0;
+	return copy_to_user(u_buf, &val, sizeof(val)) ? -EFAULT : sizeof(val);
 }
 
 static ssize_t monitor_oob_write(struct file *filp,
@@ -1106,7 +1106,7 @@ static ssize_t monitor_oob_write(struct file *filp,
 		return -EFAULT;
 
 	/* Unicast operation. */
-	return post_mask(event, val, false);
+	return post_mask(event, val, false) ?: sizeof(val);
 }
 
 static __poll_t monitor_poll(struct file *filp, poll_table *wait)
