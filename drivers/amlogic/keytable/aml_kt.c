@@ -239,9 +239,20 @@ int aml_kt_get_status(struct aml_kt_dev *dev, u32 handle, u32 *key_sts)
 	u32 reg_val = 0;
 	u32 reg_offset = 0;
 	u32 reg_ret = 0;
+	u8 is_iv = 0;
 
 	if (unlikely(!dev)) {
 		LOGE("Empty aml_kt_dev\n");
+		return KT_ERROR;
+	}
+
+	is_iv = handle >> KT_IV_FLAG_OFFSET;
+	if (is_iv) {
+		/* KT functions deal with both the KT and IV table.
+		 * However, there is no function such as get_status IV entry.
+		 * Therefore, we return when the handle is an IV.
+		 */
+		LOGE("No get status function for IV entry\n");
 		return KT_ERROR;
 	}
 
@@ -841,10 +852,20 @@ static int aml_kt_invalidate(struct aml_kt_dev *dev, u32 handle)
 	u32 kte = 0;
 	u32 reg_val = 0;
 	u32 reg_offset = 0;
+	u8 is_iv = 0;
 
 	if (unlikely(!dev)) {
 		LOGE("Empty aml_kt_dev\n");
 		return KT_ERROR;
+	}
+
+	is_iv = handle >> KT_IV_FLAG_OFFSET;
+	if (is_iv) {
+		/* KT functions deal with both the KT and IV table.
+		 * However, there is no function such as invalidating IV entry.
+		 * Therefore, we just return SUCCESS when the handle is an IV.
+		 */
+		return KT_SUCCESS;
 	}
 
 	ret = aml_kt_handle_to_kte(dev, handle, &kte);
@@ -900,7 +921,8 @@ int aml_kt_free(struct aml_kt_dev *dev, u32 handle)
 	}
 
 	is_iv = handle >> KT_IV_FLAG_OFFSET;
-	ret = aml_kt_invalidate(dev, handle);
+	if (is_iv == 0)
+		ret = aml_kt_invalidate(dev, handle);
 
 	mutex_lock(&dev->lock);
 	if (is_iv) {

@@ -69,9 +69,4 @@ struct key_alloc {
 #define KEY_SET           _IOR('o', 66, struct key_descr)
 #define KEY_CONFIG        _IOR('o', 67, struct key_config)
 #define KEY_GET_FLAG      _IOWR('o', 68, struct key_descr)
-
-//int dmx_key_init(void);
-//void dmx_key_exit(void);
-
 #endif
-
