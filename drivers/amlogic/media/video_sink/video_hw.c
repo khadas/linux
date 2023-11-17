@@ -6199,9 +6199,11 @@ void set_video_mute(u32 owner, bool on)
 }
 EXPORT_SYMBOL(set_video_mute);
 
-int get_video_mute_val(void)
+bool get_video_mute_val(u32 owner)
 {
-	return video_mute_on;
+	if (owner == VIDEOQUEUE)
+		return video_mute_on;
+	return video_mute_array[owner];
 }
 EXPORT_SYMBOL(get_video_mute_val);
 
@@ -6285,15 +6287,26 @@ void rx_mute_vpp(void)
 	u32 black_val;
 
 	black_val = (0x0 << 20) | (0x200 << 10) | 0x200; /* YUV */
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_T7) ||
-		cur_dev->display_module == OLD_DISPLAY_MODULE) {
-		/* vd1 hdr core after vd1 clip */
-		if (vd_layer[0].dispbuf)
-			if (vd_layer[0].dispbuf->type & VIDTYPE_RGB_444)
-				black_val = (0x0 << 20) | (0x0 << 10) | 0x0; /* RGB */
+	if (is_tv_panel()) {
+		if (!cpu_after_eq(MESON_CPU_MAJOR_ID_T7) ||
+			cur_dev->display_module == OLD_DISPLAY_MODULE) {
+			/* vd1 hdr core after vd1 clip */
+			if (vd_layer[0].dispbuf)
+				if (vd_layer[0].dispbuf->type & VIDTYPE_RGB_444)
+					black_val = (0x0 << 20) | (0x0 << 10) | 0x0; /* RGB */
+		}
+		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC0, black_val);
+		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC1, black_val);
+	} else {
+		if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+			rx_mute_vpp_s5(black_val);
+		} else {
+			WRITE_VCBUS_REG(VPP_CLIP_MISC0, black_val);
+			WRITE_VCBUS_REG(VPP_CLIP_MISC1, black_val);
+		}
 	}
-	WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC0, black_val);
-	WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC1, black_val);
+	pr_info("call %s to mute video\n", __func__);
+	video_mute_array[HDMI_RX_MUTE_SET] = true;
 }
 EXPORT_SYMBOL(rx_mute_vpp);
 
@@ -6319,8 +6332,6 @@ static inline void mute_vpp(void)
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(VPP_VD1_CLIP_MISC1,
 			black_val);
-		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC0, black_val);
-		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC1, black_val);
 	} else {
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(VPP_CLIP_MISC0,
@@ -6328,8 +6339,6 @@ static inline void mute_vpp(void)
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(VPP_CLIP_MISC1,
 			black_val);
-		WRITE_VCBUS_REG(VPP_CLIP_MISC0, black_val);
-		WRITE_VCBUS_REG(VPP_CLIP_MISC1, black_val);
 	}
 }
 

@@ -11059,6 +11059,23 @@ static void vd2_clip_setting_s5(struct vd_proc_s *vd_proc,
 		return;
 }
 
+void rx_mute_vpp_s5(u32 black_val)
+{
+	int slice = 0;
+	struct vd_proc_s *vd_proc = &g_vd_proc;
+	struct vd_proc_slice_reg_s *vd_proc_slice_reg = NULL;
+	struct vd_proc_vd1_info_s *vd_proc_vd1_info = NULL;
+
+	vd_proc_vd1_info = &vd_proc->vd_proc_vd1_info;
+	for (slice = 0; slice < vd_proc_vd1_info->slice_num; slice++) {
+		vd_proc_slice_reg = &vd_proc_reg.vd_proc_slice_reg[slice];
+		WRITE_VCBUS_REG(vd_proc_slice_reg->vd1_s0_clip_misc0,
+			black_val);
+		WRITE_VCBUS_REG(vd_proc_slice_reg->vd1_s0_clip_misc1,
+			black_val);
+	}
+}
+
 void vd_clip_setting_s5(u8 layer_id,
 	struct clip_setting_s *setting)
 {

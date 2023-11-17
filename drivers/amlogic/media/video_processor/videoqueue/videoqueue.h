@@ -84,7 +84,7 @@ int get_vdin_add_delay_num(void);
 
 bool vlock_get_phlock_flag(void);
 bool vlock_get_vlock_flag(void);
-int get_video_mute_val(void);
+bool get_video_mute_val(u32 owner);
 
 #define videoqueue_IOC_MAGIC  'I'
 #define videoqueue_IOCTL_ALLOC_ID   _IOW(videoqueue_IOC_MAGIC, 0x00, int)

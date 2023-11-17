@@ -432,7 +432,7 @@ static int do_file_thread(struct video_queue_dev *dev)
 			return -1;
 	}
 
-	if (get_video_mute_val()) {
+	if (get_video_mute_val(VIDEOQUEUE)) {
 		vq_print(P_ERROR, "video_mute_on need drop.\n");
 		while (1) {
 			vf = vf_get(dev->vf_receiver_name);
