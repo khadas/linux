@@ -199,6 +199,14 @@ static void RGA2_set_mode_ctrl(u8 *base, struct rga2_req *msg)
 	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_YIN_YOUT_EN)) |
 	       (s_RGA2_MODE_CTRL_SW_YIN_YOUT_EN(msg->yin_yout_en)));
 
+	if (msg->src.rd_mode == RGA_TILE4x4_MODE)
+		reg = ((reg & (~m_RGA2_MODE_CTRL_SW_TILE4x4_IN_EN)) |
+		       (s_RGA2_MODE_CTRL_SW_TILE4x4_IN_EN(1)));
+
+	if (msg->dst.rd_mode == RGA_TILE4x4_MODE)
+		reg = ((reg & (~m_RGA2_MODE_CTRL_SW_TILE4x4_OUT_EN)) |
+		       (s_RGA2_MODE_CTRL_SW_TILE4x4_OUT_EN(1)));
+
 	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_OSD_E)) |
 	       (s_RGA2_MODE_CTRL_SW_OSD_E(msg->osd_info.enable)));
 
@@ -238,6 +246,10 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	u8 hsp_scale_mode = 0;
 	u8 hsd_scale_mode = 0;
 	u8 scale_w_flag, scale_h_flag;
+	u32 yrgb_offset = 0, uv_offset = 0, v_offset = 0;
+	u32 tile_x_offset = 0;
+	u32 tile_y_offset = 0;
+	u32 tile_block_size;
 
 	bRGA_SRC_INFO = (u32 *) (base + RGA2_SRC_INFO_OFFSET);
 
@@ -643,47 +655,83 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 
 	RGA2_reg_get_param(base, msg);
 
-	stride = (((msg->src.vir_w * pixel_width) + 3) & ~3) >> 2;
-	uv_stride = ((msg->src.vir_w / xdiv + 3) & ~3);
+	switch (msg->src.rd_mode) {
+	case RGA_RASTER_MODE:
+		stride = ALIGN(msg->src.vir_w * pixel_width, 4);
+		uv_stride = ALIGN(msg->src.vir_w / xdiv, 4);
 
+		yrgb_offset = msg->src.y_offset * stride + msg->src.x_offset * pixel_width;
+		uv_offset = (msg->src.y_offset / ydiv) * uv_stride + (msg->src.x_offset / xdiv);
+		v_offset = uv_offset;
+
+		break;
+
+	case RGA_TILE4x4_MODE:
+		switch (msg->src.format) {
+		case RGA_FORMAT_YCbCr_400:
+			tile_block_size = 16;
+			break;
+		case RGA_FORMAT_YCbCr_420_SP:
+		case RGA_FORMAT_YCrCb_420_SP:
+			tile_block_size = 24;
+			break;
+		case RGA_FORMAT_YCbCr_422_SP:
+		case RGA_FORMAT_YCrCb_422_SP:
+			tile_block_size = 32;
+			break;
+		case RGA_FORMAT_YCbCr_444_SP:
+		case RGA_FORMAT_YCrCb_444_SP:
+			tile_block_size = 48;
+			break;
+		case RGA_FORMAT_YCbCr_420_SP_10B:
+		case RGA_FORMAT_YCrCb_420_SP_10B:
+			tile_block_size = 30;
+			break;
+		case RGA_FORMAT_YCbCr_422_SP_10B:
+		case RGA_FORMAT_YCrCb_422_SP_10B:
+			tile_block_size = 40;
+			break;
+		default:
+			tile_block_size = 16;
+			break;
+		}
+
+		stride = ALIGN((u32)((msg->src.vir_w * pixel_width) * (tile_block_size / 4)), 4);
+
+		yrgb_offset = (u32)((msg->src.y_offset / 4) * stride +
+			      (msg->src.x_offset / 4) * pixel_width * tile_block_size);
+		uv_offset = 0;
+		v_offset = 0;
+
+		tile_x_offset = (msg->src.x_offset % 4) & 0x3;
+		tile_y_offset = (msg->src.y_offset % 4) & 0x3;
+
+		break;
+	}
+
+	*bRGA_SRC_BASE0 = (u32)(msg->src.yrgb_addr + yrgb_offset);
 	if (disable_uv_channel_en == 1) {
 		/*
-		 * When Y400 as the input format, because the current
-		 * RGA does not support closing
-		 * the access of the UV channel, the address of the UV
-		 * channel access is equal to
-		 * the address of the Y channel access to ensure that
-		 * the UV channel can access,
+		 * When Y400 as the input format, because the current RGA does
+		 * not support closing the access of the UV channel, the address
+		 * of the UV channel access is equal to the address of
+		 * the Y channel access to ensure that the UV channel can access,
 		 * preventing the RGA hardware from reporting errors.
 		 */
-		*bRGA_SRC_BASE0 =
-			(u32) (msg->src.yrgb_addr +
-				 msg->src.y_offset * (stride << 2) +
-				 msg->src.x_offset * pixel_width);
 		*bRGA_SRC_BASE1 = *bRGA_SRC_BASE0;
 		*bRGA_SRC_BASE2 = *bRGA_SRC_BASE0;
 	} else {
-		*bRGA_SRC_BASE0 =
-			(u32) (msg->src.yrgb_addr +
-				 msg->src.y_offset * (stride << 2) +
-				 msg->src.x_offset * pixel_width);
-		*bRGA_SRC_BASE1 =
-			(u32) (msg->src.uv_addr +
-				 (msg->src.y_offset / ydiv) * uv_stride +
-				 (msg->src.x_offset / xdiv));
-		*bRGA_SRC_BASE2 =
-			(u32) (msg->src.v_addr +
-				 (msg->src.y_offset / ydiv) * uv_stride +
-				 (msg->src.x_offset / xdiv));
+		*bRGA_SRC_BASE1 = (u32)(msg->src.uv_addr + uv_offset);
+		*bRGA_SRC_BASE2 = (u32)(msg->src.v_addr + v_offset);
 	}
 
 	//mask_stride = ((msg->src0_act.width + 31) & ~31) >> 5;
 	mask_stride = msg->rop_mask_stride;
-
-	*bRGA_SRC_VIR_INFO = stride | (mask_stride << 16);
+	*bRGA_SRC_VIR_INFO = (stride >> 2) | (mask_stride << 16);
 
 	*bRGA_SRC_ACT_INFO =
-		(msg->src.act_w - 1) | ((msg->src.act_h - 1) << 16);
+		(msg->src.act_w - 1) | ((msg->src.act_h - 1) << 16) |
+		tile_x_offset << 14 | tile_y_offset << 30;
 
 	*bRGA_MASK_ADDR = (u32) msg->rop_mask_addr;
 
@@ -698,6 +746,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	u32 *bRGA_DST_INFO;
 	u32 *bRGA_DST_BASE0, *bRGA_DST_BASE1, *bRGA_DST_BASE2,
 		*bRGA_SRC_BASE3;
+	u32 *bRGA_TILE4x4_OUT_BASE;
 	u32 *bRGA_DST_VIR_INFO;
 	u32 *bRGA_DST_ACT_INFO;
 
@@ -726,13 +775,17 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	u32 reg = 0;
 	u8 spw, dpw;
 	u8 bbp_shift = 0;
-	u32 s_stride, d_stride;
+	u32 s_stride = 0, d_stride = 0;
 	u32 x_mirr, y_mirr, rot_90_flag;
 	u32 yrgb_addr, u_addr, v_addr, s_yrgb_addr;
 	u32 d_uv_stride, x_div, y_div;
-	u32 y_lt_addr, y_ld_addr, y_rt_addr, y_rd_addr;
-	u32 u_lt_addr, u_ld_addr, u_rt_addr, u_rd_addr;
-	u32 v_lt_addr, v_ld_addr, v_rt_addr, v_rd_addr;
+	u32 y_lt_addr = 0, y_ld_addr = 0, y_rt_addr = 0, y_rd_addr = 0;
+	u32 u_lt_addr = 0, u_ld_addr = 0, u_rt_addr = 0, u_rd_addr = 0;
+	u32 v_lt_addr = 0, v_ld_addr = 0, v_rt_addr = 0, v_rd_addr = 0;
+	u32 yrgb_offset = 0, uv_offset = 0, v_offset = 0;
+	u32 tile_x_offset = 0;
+	u32 tile_y_offset = 0;
+	u32 tile_block_size;
 
 	dpw = 1;
 	x_div = y_div = 1;
@@ -743,6 +796,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	bRGA_DST_BASE0 = (u32 *) (base + RGA2_DST_BASE0_OFFSET);
 	bRGA_DST_BASE1 = (u32 *) (base + RGA2_DST_BASE1_OFFSET);
 	bRGA_DST_BASE2 = (u32 *) (base + RGA2_DST_BASE2_OFFSET);
+	bRGA_TILE4x4_OUT_BASE = (u32 *) (base + RGA2_TILE4x4_OUT_BASE_OFFSET);
 
 	bRGA_SRC_BASE3 = (u32 *) (base + RGA2_SRC_BASE3_OFFSET);
 
@@ -1157,32 +1211,8 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 
 	*bRGA_DST_INFO = reg;
 
-	s_stride = (((msg->src1.vir_w * spw >> bbp_shift) + 3) & ~3) >> 2;
-	d_stride = ((msg->dst.vir_w * dpw + 3) & ~3) >> 2;
-
-	if (dst_fmt_y4_en) {
-		/* Y4 output will HALF */
-		d_stride = ((d_stride + 1) & ~1) >> 1;
-	}
-
-	d_uv_stride = (d_stride << 2) / x_div;
-
-	*bRGA_DST_VIR_INFO = d_stride | (s_stride << 16);
-	if ((msg->dst.vir_w % 2 != 0) &&
-		(msg->dst.act_w == msg->src.act_w)
-		&& (msg->dst.act_h == msg->src.act_h)
-		&& (msg->dst.format == RGA_FORMAT_BGR_888
-		|| msg->dst.format == RGA_FORMAT_RGB_888))
-		*bRGA_DST_ACT_INFO =
-			(msg->dst.act_w) | ((msg->dst.act_h - 1) << 16);
-	else
-		*bRGA_DST_ACT_INFO =
-			(msg->dst.act_w - 1) | ((msg->dst.act_h - 1) << 16);
-	s_stride <<= 2;
-	d_stride <<= 2;
-
 	if (((msg->rotate_mode & 0xf) == 0) ||
-		((msg->rotate_mode & 0xf) == 1)) {
+	    ((msg->rotate_mode & 0xf) == 1)) {
 		x_mirr = 0;
 		y_mirr = 0;
 	} else {
@@ -1223,67 +1253,142 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 			(msg->gr_color.gr_y_b << 20);
 	}
 
+	s_stride = (((msg->src1.vir_w * spw >> bbp_shift) + 3) & ~3);
+
 	s_yrgb_addr =
 		(u32) msg->src1.yrgb_addr + (msg->src1.y_offset * s_stride) +
 		(msg->src1.x_offset * spw >> bbp_shift);
-
 	*bRGA_SRC_BASE3 = s_yrgb_addr;
 
-	if (dst_fmt_y4_en) {
-		yrgb_addr = (u32) msg->dst.yrgb_addr +
-			(msg->dst.y_offset * d_stride) +
-			((msg->dst.x_offset * dpw) >> 1);
-	} else {
-		yrgb_addr = (u32) msg->dst.yrgb_addr +
-			(msg->dst.y_offset * d_stride) +
-			(msg->dst.x_offset * dpw);
-	}
-	u_addr = (u32) msg->dst.uv_addr +
-		(msg->dst.y_offset / y_div) * d_uv_stride +
-		msg->dst.x_offset / x_div;
-	v_addr = (u32) msg->dst.v_addr +
-		(msg->dst.y_offset / y_div) * d_uv_stride +
-		msg->dst.x_offset / x_div;
-
-	y_lt_addr = yrgb_addr;
-	u_lt_addr = u_addr;
-	v_lt_addr = v_addr;
-
 	/* Warning */
-	line_width_real =
-		dst_fmt_y4_en ? ((msg->dst.act_w) >> 1) : msg->dst.act_w;
+	line_width_real = dst_fmt_y4_en ? ((msg->dst.act_w) >> 1) : msg->dst.act_w;
 
-	/*
-	 * YUV packet mode is a new format, and the write behavior during
-	 * rotation is different from the old format.
-	 */
-	if (rga_is_yuv422_packed_format(msg->dst.format)) {
-		y_ld_addr = yrgb_addr + (msg->dst.act_h - 1) * (d_stride);
-		y_rt_addr = yrgb_addr + (msg->dst.act_w * 2 - 1);
-		y_rd_addr = y_ld_addr + (msg->dst.act_w * 2 - 1);
-	} else if (rga_is_yuv420_packed_format(msg->dst.format)) {
-		y_ld_addr = (u32)msg->dst.yrgb_addr +
-			    ((msg->dst.y_offset + (msg->dst.act_h - 1)) * d_stride) +
-			    msg->dst.x_offset;
-		y_rt_addr = yrgb_addr + (msg->dst.act_w * 2 - 1);
-		y_rd_addr = y_ld_addr + (msg->dst.act_w - 1);
-	} else {
-		/* 270 degree & Mirror V */
-		y_ld_addr = yrgb_addr + (msg->dst.act_h - 1) * (d_stride);
-		/* 90 degree & Mirror H */
-		y_rt_addr = yrgb_addr + (line_width_real - 1) * dpw;
-		/* 180 degree */
-		y_rd_addr = y_ld_addr + (line_width_real - 1) * dpw;
+	switch (msg->dst.rd_mode) {
+	case RGA_RASTER_MODE:
+		d_stride = ALIGN(msg->dst.vir_w * dpw, 4);
+		/* Y4 output will HALF */
+		if (dst_fmt_y4_en)
+			d_stride = ALIGN(d_stride, 2) >> 1;
+		d_uv_stride = ALIGN(d_stride / x_div, 4);
+
+		yrgb_offset = msg->dst.y_offset * d_stride + msg->dst.x_offset * dpw;
+		uv_offset = (msg->dst.y_offset / y_div) * d_uv_stride + (msg->dst.x_offset / x_div);
+		v_offset = uv_offset;
+
+		yrgb_addr = (u32)msg->dst.yrgb_addr + yrgb_offset;
+		u_addr = (u32)msg->dst.uv_addr + uv_offset;
+		v_addr = (u32)msg->dst.v_addr + v_offset;
+
+		y_lt_addr = yrgb_addr;
+		u_lt_addr = u_addr;
+		v_lt_addr = v_addr;
+
+		/*
+		 * YUV packet mode is a new format, and the write behavior during
+		 * rotation is different from the old format.
+		 */
+		if (rga_is_yuv422_packed_format(msg->dst.format)) {
+			y_ld_addr = yrgb_addr + (msg->dst.act_h - 1) * (d_stride);
+			y_rt_addr = yrgb_addr + (msg->dst.act_w * 2 - 1);
+			y_rd_addr = y_ld_addr + (msg->dst.act_w * 2 - 1);
+		} else if (rga_is_yuv420_packed_format(msg->dst.format)) {
+			y_ld_addr = (u32)msg->dst.yrgb_addr +
+				((msg->dst.y_offset + (msg->dst.act_h - 1)) * d_stride) +
+				msg->dst.x_offset;
+			y_rt_addr = yrgb_addr + (msg->dst.act_w * 2 - 1);
+			y_rd_addr = y_ld_addr + (msg->dst.act_w - 1);
+		} else {
+			/* 270 degree & Mirror V */
+			y_ld_addr = yrgb_addr + (msg->dst.act_h - 1) * (d_stride);
+			/* 90 degree & Mirror H */
+			y_rt_addr = yrgb_addr + (line_width_real - 1) * dpw;
+			/* 180 degree */
+			y_rd_addr = y_ld_addr + (line_width_real - 1) * dpw;
+		}
+
+		u_ld_addr = u_addr + ((msg->dst.act_h / y_div) - 1) * (d_uv_stride);
+		v_ld_addr = v_addr + ((msg->dst.act_h / y_div) - 1) * (d_uv_stride);
+
+		u_rt_addr = u_addr + (msg->dst.act_w / x_div) - 1;
+		v_rt_addr = v_addr + (msg->dst.act_w / x_div) - 1;
+
+		u_rd_addr = u_ld_addr + (msg->dst.act_w / x_div) - 1;
+		v_rd_addr = v_ld_addr + (msg->dst.act_w / x_div) - 1;
+
+		break;
+
+	case RGA_TILE4x4_MODE:
+		switch (msg->dst.format) {
+		case RGA_FORMAT_YCbCr_400:
+			tile_block_size = 16;
+			break;
+		case RGA_FORMAT_YCbCr_420_SP:
+		case RGA_FORMAT_YCrCb_420_SP:
+			tile_block_size = 24;
+			break;
+		case RGA_FORMAT_YCbCr_422_SP:
+		case RGA_FORMAT_YCrCb_422_SP:
+			tile_block_size = 32;
+			break;
+		case RGA_FORMAT_YCbCr_444_SP:
+		case RGA_FORMAT_YCrCb_444_SP:
+			tile_block_size = 48;
+			break;
+		case RGA_FORMAT_YCbCr_420_SP_10B:
+		case RGA_FORMAT_YCrCb_420_SP_10B:
+			tile_block_size = 30;
+			break;
+		case RGA_FORMAT_YCbCr_422_SP_10B:
+		case RGA_FORMAT_YCrCb_422_SP_10B:
+			tile_block_size = 40;
+			break;
+		default:
+			tile_block_size = 16;
+			break;
+		}
+
+		d_stride = ALIGN((u32)((msg->dst.vir_w * dpw) * (tile_block_size / 4)), 4);
+
+		yrgb_offset = (u32)((msg->dst.y_offset / 4) * d_stride +
+			      (msg->dst.x_offset / 4) * dpw * tile_block_size);
+
+		tile_x_offset = (msg->dst.x_offset % 4) & 0x3;
+		tile_y_offset = (msg->dst.y_offset % 4) & 0x3;
+
+		y_lt_addr = (u32)msg->dst.yrgb_addr + yrgb_offset;
+		y_ld_addr = y_lt_addr +
+			    (msg->dst.act_h / 4 - ((msg->dst.act_h % 4 == 0) ? 1 : 0)) * d_stride;
+		y_rt_addr = y_lt_addr +
+			    (line_width_real / 4 - ((msg->dst.act_w % 4 == 0) ? 0 : 1)) * dpw *
+			    tile_block_size;
+		y_rd_addr = y_rt_addr +
+			    (msg->dst.act_h / 4 - ((msg->dst.act_h % 4 == 0) ? 1 : 0)) * d_stride;
+
+		u_lt_addr = 0;
+		u_ld_addr = 0;
+		u_rt_addr = 0;
+		u_rd_addr = 0;
+
+		v_lt_addr = 0;
+		v_ld_addr = 0;
+		v_rt_addr = 0;
+		v_rd_addr = 0;
+
+		break;
 	}
 
-	u_ld_addr = u_addr + ((msg->dst.act_h / y_div) - 1) * (d_uv_stride);
-	v_ld_addr = v_addr + ((msg->dst.act_h / y_div) - 1) * (d_uv_stride);
+	*bRGA_DST_VIR_INFO = (d_stride >> 2) | ((s_stride >> 2) << 16);
 
-	u_rt_addr = u_addr + (msg->dst.act_w / x_div) - 1;
-	v_rt_addr = v_addr + (msg->dst.act_w / x_div) - 1;
-
-	u_rd_addr = u_ld_addr + (msg->dst.act_w / x_div) - 1;
-	v_rd_addr = v_ld_addr + (msg->dst.act_w / x_div) - 1;
+	if ((msg->dst.vir_w % 2 != 0) &&
+	    (msg->dst.act_w == msg->src.act_w) && (msg->dst.act_h == msg->src.act_h) &&
+	    (msg->dst.format == RGA_FORMAT_BGR_888 || msg->dst.format == RGA_FORMAT_RGB_888))
+		*bRGA_DST_ACT_INFO =
+			(msg->dst.act_w) | ((msg->dst.act_h - 1) << 16) |
+			tile_x_offset << 14 | tile_y_offset << 30;
+	else
+		*bRGA_DST_ACT_INFO =
+			(msg->dst.act_w - 1) | ((msg->dst.act_h - 1) << 16) |
+			tile_x_offset << 14 | tile_y_offset << 30;
 
 	if (rot_90_flag == 0) {
 		if (y_mirr == 1) {
@@ -1333,18 +1438,27 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 
 	*bRGA_DST_BASE0 = (u32) yrgb_addr;
 
-	if ((msg->dst.format == RGA_FORMAT_YCbCr_420_P)
-		|| (msg->dst.format == RGA_FORMAT_YCrCb_420_P)) {
-		if (dst_cbcr_swp == 0) {
-			*bRGA_DST_BASE1 = (u32) v_addr;
-			*bRGA_DST_BASE2 = (u32) u_addr;
+	switch (msg->dst.rd_mode) {
+	case RGA_RASTER_MODE:
+		if ((msg->dst.format == RGA_FORMAT_YCbCr_420_P) ||
+		    (msg->dst.format == RGA_FORMAT_YCrCb_420_P)) {
+			if (dst_cbcr_swp == 0) {
+				*bRGA_DST_BASE1 = (u32) v_addr;
+				*bRGA_DST_BASE2 = (u32) u_addr;
+			} else {
+				*bRGA_DST_BASE1 = (u32) u_addr;
+				*bRGA_DST_BASE2 = (u32) v_addr;
+			}
 		} else {
 			*bRGA_DST_BASE1 = (u32) u_addr;
 			*bRGA_DST_BASE2 = (u32) v_addr;
 		}
-	} else {
-		*bRGA_DST_BASE1 = (u32) u_addr;
-		*bRGA_DST_BASE2 = (u32) v_addr;
+
+		break;
+	case RGA_TILE4x4_MODE:
+		*bRGA_TILE4x4_OUT_BASE = yrgb_addr;
+
+		break;
 	}
 }
 
@@ -2090,6 +2204,11 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 			/* force select to tile mode */
 			req->rotate_mode = 1 << 6;
 	}
+
+	if (req->src.rd_mode == RGA_TILE4x4_MODE ||
+	    req->dst.rd_mode == RGA_TILE4x4_MODE)
+		/* force select to tile mode */
+		req->rotate_mode |= 1 << 6;
 
 	req->interp = req_rga->interp;
 	req->LUT_addr = req_rga->LUT_addr;
