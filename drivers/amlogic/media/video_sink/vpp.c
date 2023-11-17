@@ -1388,7 +1388,7 @@ static void vert_coef_print(u32 layer_id, struct vppfilter_mode_s *filter)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 static void align_vd1_mif_size_for_DV(struct vpp_frame_par_s *par,
-	bool has_el, bool reverse)
+	bool has_el, bool reverse, struct vframe_s *vf)
 {
 	u32 aligned_mask = 0xfffffffe;
 	u32 temp;
@@ -1402,7 +1402,7 @@ static void align_vd1_mif_size_for_DV(struct vpp_frame_par_s *par,
 	if (is_amdv_enable() && is_aml_tvmode() &&
 	    !is_amdv_on() && dv_support == 7) {
 		int ret_src = get_amdv_src_format(VD1_PATH);
-		int dv_hdr_policy = get_amdv_hdr_policy();
+		int dv_hdr_policy = get_amdv_hdr_policy(vf);
 
 		/* HDR = 1/DV = 3/HLG= 5/SDR=6 */
 		if ((ret_src == 1 && (dv_hdr_policy & 1)) ||
@@ -2556,7 +2556,8 @@ RESTART:
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (!input->layer_id)
 		align_vd1_mif_size_for_DV(next_frame_par,
-			(vpp_flags & VPP_FLAG_HAS_DV_EL) ? true : false, reverse);
+			(vpp_flags & VPP_FLAG_HAS_DV_EL) ? true : false,
+			reverse, vf);
 #endif
 	next_frame_par->video_input_h = next_frame_par->VPP_vd_end_lines_ -
 		next_frame_par->VPP_vd_start_lines_ + 1;

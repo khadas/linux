@@ -198,7 +198,7 @@ bool is_dovi_dual_layer_frame(struct vframe_s *vf);
 void amdv_set_provider(char *prov_name, enum vd_path_e vd_layer);
 int amdv_check_mvc(struct vframe_s *vf);
 bool for_amdv_video_effect(void);
-int get_amdv_hdr_policy(void);
+int get_amdv_hdr_policy(struct vframe_s *vf);
 int get_dv_support_info(void);
 void dv_vf_light_reg_provider(void);
 void dv_vf_light_unreg_provider(void);
@@ -223,6 +223,7 @@ void dv_inst_unmap(int inst);
 bool is_hdmi_ll_as_hdr10(void);
 bool is_multi_dv_mode(void);
 bool support_multi_core1(void);
+bool support_8k_amdv(void);
 int get_amdv_apo_enable(void);
 void set_amdv_apo_enable(bool enable);
 

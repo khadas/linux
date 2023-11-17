@@ -2676,7 +2676,7 @@ static bool is_hlg_frame(struct vframe_s *vf)
 	/* 2. stb v2.6*/
 	/* 3. stb v2.4 when hlg not processed by dv, why?*/
 	if ((is_aml_tvmode() || multi_dv_mode ||
-		(get_amdv_hdr_policy() & 2) == 0) &&
+		(get_amdv_hdr_policy(vf) & 2) == 0) &&
 		(signal_transfer_characteristic == 18) &&
 		signal_color_primaries == 9 && !signal_cuva)
 		return true;
@@ -3167,7 +3167,8 @@ static int amdv_policy_process_v1(struct vframe_s *vf,
 			vf->compHeight : vf->height;
 		w = (vf->type & VIDTYPE_COMPRESS) ?
 			vf->compWidth : vf->width;
-		if ((w > 3840 && h > 2160))  {
+		if ((w > 4096 || h > 2160) &&
+			!support_8k_amdv())  {
 			if (dolby_vision_mode !=
 				AMDV_OUTPUT_MODE_BYPASS) {
 				if (debug_dolby & 2)
@@ -3478,7 +3479,8 @@ static int amdv_policy_process_v2_stb(struct vframe_s *vf,
 			vf->compHeight : vf->height;
 		w = (vf->type & VIDTYPE_COMPRESS) ?
 			vf->compWidth : vf->width;
-		if ((w > 3840 && h > 2160))  {
+		if ((w > 4096 || h > 2160) &&
+			!support_8k_amdv())  {
 			if (dolby_vision_mode !=
 				AMDV_OUTPUT_MODE_BYPASS) {
 				if (debug_dolby & 2)
@@ -7091,8 +7093,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 				src_bdp = 10;
 				bypass_release = true;
 			}
-			if ((is_aml_tm2_stbmode()  || is_aml_sc2() ||
-			    is_aml_t7_stbmode() || is_aml_s4d()) &&
+			if (is_amdv_stb_mode()  &&
 			    (req.dv_enhance_exist && !mel_flag &&
 			    ((dolby_vision_flags & FLAG_CERTIFICATION) == 0)) &&
 			    !enable_fel) {
@@ -12685,6 +12686,12 @@ bool is_multi_dv_mode(void)
 }
 EXPORT_SYMBOL(is_multi_dv_mode);
 
+bool support_8k_amdv(void)
+{
+	return false;
+}
+EXPORT_SYMBOL(support_8k_amdv);
+
 bool support_multi_core1(void)
 {
 	if (multi_dv_mode && enable_multi_core1 &&
@@ -12746,9 +12753,11 @@ EXPORT_SYMBOL(set_amdv_apo_enable);
 /* bit 0 for HDR10: 1=by dv, 0-by vpp */
 /* bit 1 for HLG: 1=by dv, 0-by vpp */
 /* bit 5 for SDR: 1=by dv, 0-by vpp */
-int get_amdv_hdr_policy(void)
+int get_amdv_hdr_policy(struct vframe_s *vf)
 {
 	int ret = 0;
+	int h = 0;
+	int w = 0;
 
 	if (!is_amdv_enable())
 		return 0;
@@ -12771,6 +12780,16 @@ int get_amdv_hdr_policy(void)
 		ret |= (dolby_vision_hdr10_policy & SDR_BY_DV_F_SINK) ? 0x20 : 0;
 		ret |= (dolby_vision_hdr10_policy & SDR_BY_DV_F_SRC) ? 0x40 : 0;
 	}
+
+	if (vf) {
+		h = (vf->type & VIDTYPE_COMPRESS) ?
+			vf->compHeight : vf->height;
+		w = (vf->type & VIDTYPE_COMPRESS) ?
+			vf->compWidth : vf->width;
+		if ((w > 4096 || h > 2160) && !support_8k_amdv())
+			ret = 0;
+	};
+
 	return ret;
 }
 EXPORT_SYMBOL(get_amdv_hdr_policy);
