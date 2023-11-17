@@ -164,7 +164,7 @@ unsigned char dptx_check_timing(struct aml_lcd_drv_s *pdrv, struct dptx_detail_t
 void dptx_timing_update(struct aml_lcd_drv_s *pdrv, struct dptx_detail_timing_s *timing)
 {
 	struct lcd_config_s *pconf = &pdrv->config;
-	unsigned int sync_duration;
+	unsigned long long sync_duration;
 
 	pconf->basic.h_active = timing->h_a;
 	pconf->basic.v_active = timing->v_a;
@@ -172,11 +172,12 @@ void dptx_timing_update(struct aml_lcd_drv_s *pdrv, struct dptx_detail_timing_s 
 	pconf->basic.v_period = timing->v_a + timing->v_b;
 
 	pconf->timing.lcd_clk = timing->pclk;
-	sync_duration = timing->pclk / pconf->basic.h_period;
-	sync_duration = (sync_duration * 100) / pconf->basic.v_period;
-	pconf->timing.frame_rate = sync_duration / 100;
+	sync_duration = timing->pclk;
+	sync_duration = lcd_do_div((sync_duration * 1000), pconf->basic.h_period);
+	sync_duration = lcd_do_div(sync_duration, pconf->basic.v_period);
+	pconf->timing.frame_rate = lcd_do_div(sync_duration, 1000);
 	pconf->timing.sync_duration_num = sync_duration;
-	pconf->timing.sync_duration_den = 100;
+	pconf->timing.sync_duration_den = 1000;
 
 	pconf->timing.hsync_width = timing->h_pw;
 	pconf->timing.hsync_bp = timing->h_b - timing->h_fp - timing->h_pw;
@@ -304,8 +305,23 @@ void dptx_manage_timing(struct aml_lcd_drv_s *pdrv, struct dptx_EDID_s *EDID_p)
 	LCDPR("[%d]: Collect %d form preset timing\n", pdrv->index, timing_cnt);
 
 	timing_cnt = 0;
-	if (!range_limit_valid)
+	if (!range_limit_valid) {
+		pdrv->config.timing.fr_adjust_type = VOUT_FR_ADJ_NONE;
+		pdrv->config.fr_auto_flag = 0xff;
 		goto collect_timing_done;
+	}
+	if (EDID_p->range_limit.min_vfreq < EDID_p->range_limit.max_vfreq) {
+		pdrv->config.timing.fr_adjust_type = VOUT_FR_ADJ_VTOTAL;
+		pdrv->config.basic.frame_rate_max = EDID_p->range_limit.max_vfreq;
+		pdrv->config.basic.frame_rate_min = EDID_p->range_limit.min_vfreq;
+	//} else if (EDID_p->range_limit.min_hfreq < EDID_p->range_limit.max_hfreq) {
+	//} else if (EDID_p->range_limit.max_pclk) {
+	} else {
+		pdrv->config.timing.fr_adjust_type = VOUT_FR_ADJ_NONE;
+		pdrv->config.fr_auto_flag = 0xff;
+		goto collect_timing_done;
+	}
+
 	for (dt_idx = 0; dt_idx < DP_MAX_TIMING; dt_idx++) {
 		if (!(timing_list[pidx][dt_idx]->flag & TIMING_FLAG_VALID))
 			continue;
@@ -317,7 +333,7 @@ void dptx_manage_timing(struct aml_lcd_drv_s *pdrv, struct dptx_EDID_s *EDID_p)
 
 		for (fr_idx = 0; fr_idx < DP_FR_STEP_NUM; fr_idx++) {
 			if (DP_fr_step[fr_idx] < EDID_p->range_limit.min_vfreq ||
-				DP_fr_step[fr_idx] > EDID_p->range_limit.max_v_freq)
+				DP_fr_step[fr_idx] > EDID_p->range_limit.max_vfreq)
 				continue;
 
 			tmp_dt.pclk = DP_fr_step[fr_idx] * (tmp_dt.h_a + tmp_dt.h_b) *

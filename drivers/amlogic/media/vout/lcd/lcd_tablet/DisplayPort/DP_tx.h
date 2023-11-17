@@ -145,7 +145,7 @@ struct dptx_detail_timing_s {
 
 struct dptx_range_limit_s {
 	unsigned int min_vfreq;
-	unsigned int max_v_freq;
+	unsigned int max_vfreq;
 	unsigned int min_hfreq;
 	unsigned int max_hfreq;
 	unsigned int max_pclk;

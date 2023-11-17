@@ -51,7 +51,7 @@ static void dptx_edid_print(struct dptx_EDID_s *edp_edid)
 				"  V freq: %d - %d Hz\n"
 				"  H freq: %d - %d kHz\n"
 				"  Max Pixel Clk: %d MHz\n", i,
-				edp_edid->range_limit.min_vfreq, edp_edid->range_limit.max_v_freq,
+				edp_edid->range_limit.min_vfreq, edp_edid->range_limit.max_vfreq,
 				edp_edid->range_limit.min_hfreq, edp_edid->range_limit.max_hfreq,
 				edp_edid->range_limit.max_pclk / 1000000);
 			break;
@@ -177,7 +177,7 @@ static void dptx_edid_parse(unsigned char *edid_buf, struct dptx_EDID_s *edp_edi
 			case BLOCK_ID_RANGE_TIMING: //monitor range limits
 				edp_edid->block_identity[i] = BLOCK_ID_RANGE_TIMING;
 				range->min_vfreq = edid_buf[j + 5];
-				range->max_v_freq = edid_buf[j + 6];
+				range->max_vfreq = edid_buf[j + 6];
 				range->min_hfreq = edid_buf[j + 7];
 				range->max_hfreq = edid_buf[j + 8];
 				range->max_pclk = edid_buf[j + 9] * 10 * 1000000; // Hz
