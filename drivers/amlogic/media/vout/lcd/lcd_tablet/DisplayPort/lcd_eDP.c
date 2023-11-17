@@ -131,25 +131,33 @@ static void edp_tx_disable(struct aml_lcd_drv_s *pdrv)
 	dptx_reg_write(pdrv, EDP_TX_TRANSMITTER_OUTPUT_ENABLE, 0x0);
 }
 
-static void edp_power_init(int index)
+static void edp_power_init(struct aml_lcd_drv_s *pdrv, int flag)
 {
 #ifdef CONFIG_SECURE_POWER_CONTROL
-//#define PM_EDP0          48
-//#define PM_EDP1          49
-	if (index)
-		pwr_ctrl_psci_smc(PM_EDP1, 1);
-	else
-		pwr_ctrl_psci_smc(PM_EDP0, 1);
-	LCDPR("[%d]: edp power domain on\n", index);
+	unsigned char pd_id;
+
+	switch (pdrv->data->chip_type) {
+	case LCD_CHIP_T7:
+		//#define PM_EDP0 48
+		//#define PM_EDP1 49
+		pd_id = pdrv->index ? PM_EDP1 : PM_EDP0;
+		pwr_ctrl_psci_smc(pd_id, flag);
+		break;
+	default:
+		return;
+	}
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("eDP[%d] power domain[%u] %s\n", pdrv->index, pd_id, flag ? "on" : "off");
 #endif
 }
 
 void edp_tx_ctrl(struct aml_lcd_drv_s *pdrv, int flag)
 {
 	if (flag) {
-		edp_power_init(pdrv->index);
+		edp_power_init(pdrv, 1);
 		edp_tx_init(pdrv);
 	} else {
 		edp_tx_disable(pdrv);
+		edp_power_init(pdrv, 0);
 	}
 }
