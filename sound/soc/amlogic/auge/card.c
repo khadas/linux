@@ -1557,6 +1557,9 @@ static struct platform_driver aml_card = {
 		.name = "asoc-aml-card",
 		.pm = &snd_soc_pm_ops,
 		.of_match_table = auge_of_match,
+#if IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+#endif
 	},
 	.probe = aml_card_probe,
 	.remove = aml_card_remove,
