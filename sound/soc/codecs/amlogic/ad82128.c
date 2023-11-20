@@ -805,7 +805,6 @@ static int ad82128_probe(struct i2c_client *client,
 	data->ad82128_client = client;
 	data->devtype = id->driver_data;
 	ret = ad82128_parse_dt(data, client->dev.of_node);
-	reset_pin_setting = 0;
 	if (gpio_is_valid(data->reset_pin) && !reset_pin_setting) {
 		// request amp PD pin control GPIO
 		ret = gpio_request(data->reset_pin, NULL);
