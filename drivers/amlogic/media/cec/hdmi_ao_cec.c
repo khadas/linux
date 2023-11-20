@@ -2357,6 +2357,17 @@ static void cec_rx_uevent_handler(struct work_struct *work)
 	cec_set_uevent(CEC_RX_MSG, 0);
 }
 
+static void cec_func_init(unsigned int cec_func_config)
+{
+	unsigned int cec_func = CEC_FUNC_CFG_ALL;
+
+	if (!(cec_func_config & CEC_FUNC_CFG_CEC_ON))
+		cec_func &= ~(CEC_FUNC_CFG_CEC_ON);
+	if (!(cec_func_config & CEC_FUNC_CFG_AUTO_POWER_ON))
+		cec_func &= ~(CEC_FUNC_CFG_AUTO_POWER_ON);
+	cec_config(cec_func, 1);
+}
+
 static int aml_cec_probe(struct platform_device *pdev)
 {
 	struct device *cdev;
@@ -2681,8 +2692,8 @@ static int aml_cec_probe(struct platform_device *pdev)
 	cec_set_clk(&pdev->dev);
 	/* irq set */
 	cec_irq_enable(false);
-	/* default enable all function*/
-	cec_config(CEC_FUNC_CFG_ALL, 1);
+	/* Init cec function from register*/
+	cec_func_init(cec_config(0, 0));
 	/* for init */
 	cec_pre_init();
 
