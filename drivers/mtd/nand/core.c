@@ -12,6 +12,27 @@
 #include <linux/module.h>
 #include <linux/mtd/nand.h>
 
+#if (IS_ENABLED(CONFIG_AMLOGIC_MODIFY) && IS_ENABLED(CONFIG_MTD_SPI_NAND_MESON) && \
+	IS_ENABLED(CONFIG_MTD_RESV_MESON))
+int nanddev_mtd_read(struct mtd_info *mtd, loff_t from,
+				struct mtd_oob_ops *ops)
+{
+	struct nand_device *nand = mtd_to_nanddev(mtd);
+
+	return nand->ops->read(nand, from, ops);
+}
+EXPORT_SYMBOL_GPL(nanddev_mtd_read);
+
+int nanddev_mtd_write(struct mtd_info *mtd, loff_t to,
+				struct mtd_oob_ops *ops)
+{
+	struct nand_device *nand = mtd_to_nanddev(mtd);
+
+	return nand->ops->write(nand, to, ops);
+}
+EXPORT_SYMBOL_GPL(nanddev_mtd_write);
+#endif
+
 /**
  * nanddev_isbad() - Check if a block is bad
  * @nand: NAND device

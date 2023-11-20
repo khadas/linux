@@ -529,6 +529,12 @@ int meson_rsv_read(struct meson_rsv_info_t *rsv_info, u_char *buf)
 	loff_t offset;
 	int ret = 0;
 
+	if (!rsv_info->valid) {
+		pr_info("%s %d no %s info exist\n",
+			__func__, __LINE__, rsv_info->name);
+		return 1;
+	}
+
 READ_RSV_AGAIN:
 	offset = rsv_info->valid_node->phy_blk_addr;
 	offset *= mtd->erasesize;

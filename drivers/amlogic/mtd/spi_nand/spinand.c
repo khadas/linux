@@ -45,21 +45,17 @@ struct meson_spinand *meson_spinand_global;
 
 int meson_spinand_rsv_erase(struct mtd_info *mtd, struct erase_info *einfo)
 {
-	int ret;
-
-	ret = nanddev_mtd_erase(mtd, einfo);
-
-	return ret;
+	return nanddev_mtd_erase(mtd, einfo);
 }
 
 int meson_spinand_rsv_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops)
 {
-	return spinand_mtd_write_unlock(mtd, to, ops);
+	return nanddev_mtd_write(mtd, to, ops);
 }
 
 int meson_spinand_rsv_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 {
-	return spinand_mtd_read_unlock(mtd, from, ops);
+	return nanddev_mtd_read(mtd, from, ops);
 }
 
 int meson_spinand_rsv_isbad(struct mtd_info *mtd, loff_t offs)

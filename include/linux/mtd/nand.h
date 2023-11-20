@@ -155,6 +155,11 @@ struct nand_ops {
 	int (*erase)(struct nand_device *nand, const struct nand_pos *pos);
 	int (*markbad)(struct nand_device *nand, const struct nand_pos *pos);
 	bool (*isbad)(struct nand_device *nand, const struct nand_pos *pos);
+#if (IS_ENABLED(CONFIG_AMLOGIC_MODIFY) && IS_ENABLED(CONFIG_MTD_SPI_NAND_MESON) && \
+	IS_ENABLED(CONFIG_MTD_RESV_MESON))
+	int (*read)(struct nand_device *nand, loff_t from, struct mtd_oob_ops *ops);
+	int (*write)(struct nand_device *nand, loff_t to, struct mtd_oob_ops *ops);
+#endif
 };
 
 /**
@@ -756,6 +761,13 @@ static inline bool nanddev_bbt_is_initialized(struct nand_device *nand)
 	return !!nand->bbt.cache;
 }
 
+#if (IS_ENABLED(CONFIG_AMLOGIC_MODIFY) && IS_ENABLED(CONFIG_MTD_SPI_NAND_MESON) && \
+	IS_ENABLED(CONFIG_MTD_RESV_MESON))
+int nanddev_mtd_read(struct mtd_info *mtd, loff_t from,
+				struct mtd_oob_ops *ops);
+int nanddev_mtd_write(struct mtd_info *mtd, loff_t from,
+				struct mtd_oob_ops *ops);
+#endif
 /* MTD -> NAND helper functions. */
 int nanddev_mtd_erase(struct mtd_info *mtd, struct erase_info *einfo);
 int nanddev_mtd_max_bad_blocks(struct mtd_info *mtd, loff_t offs, size_t len);

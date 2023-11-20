@@ -555,11 +555,11 @@ static int spinand_mtd_read(struct mtd_info *mtd, loff_t from,
 	return ret ? ret : max_bitflips;
 }
 #else
-int spinand_mtd_read_unlock(struct mtd_info *mtd, loff_t from,
+int spinand_read_unlock(struct nand_device *nand, loff_t from,
 			    struct mtd_oob_ops *ops)
 {
+	struct mtd_info *mtd = nanddev_to_mtd(nand);
 	struct spinand_device *spinand = mtd_to_spinand(mtd);
-	struct nand_device *nand = mtd_to_nanddev(mtd);
 	unsigned int max_bitflips = 0;
 	struct nand_io_iter iter;
 	bool enable_ecc = false;
@@ -600,15 +600,17 @@ int spinand_mtd_read_unlock(struct mtd_info *mtd, loff_t from,
 
 	return ret ? ret : max_bitflips;
 }
+EXPORT_SYMBOL_GPL(spinand_read_unlock);
 
 static int spinand_mtd_read(struct mtd_info *mtd, loff_t from,
 			    struct mtd_oob_ops *ops)
 {
 	struct spinand_device *spinand = mtd_to_spinand(mtd);
+	struct nand_device *nand = mtd_to_nanddev(mtd);
 	int ret;
 
 	mutex_lock(&spinand->lock);
-	ret = spinand_mtd_read_unlock(mtd, from, ops);
+	ret = spinand_read_unlock(nand, from, ops);
 	mutex_unlock(&spinand->lock);
 
 	return ret;
@@ -688,11 +690,11 @@ static int spinand_mtd_write(struct mtd_info *mtd, loff_t to,
 	return ret;
 }
 #else
-int spinand_mtd_write_unlock(struct mtd_info *mtd, loff_t to,
+int spinand_write_unlock(struct nand_device *nand, loff_t to,
 			    struct mtd_oob_ops *ops)
 {
+	struct mtd_info *mtd = nanddev_to_mtd(nand);
 	struct spinand_device *spinand = mtd_to_spinand(mtd);
-	struct nand_device *nand = mtd_to_nanddev(mtd);
 	struct nand_io_iter iter;
 	bool enable_ecc = false;
 	int ret = 0;
@@ -726,15 +728,17 @@ int spinand_mtd_write_unlock(struct mtd_info *mtd, loff_t to,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(spinand_write_unlock);
 
 static int spinand_mtd_write(struct mtd_info *mtd, loff_t to,
 			    struct mtd_oob_ops *ops)
 {
 	struct spinand_device *spinand = mtd_to_spinand(mtd);
+	struct nand_device *nand = mtd_to_nanddev(mtd);
 	int ret;
 
 	mutex_lock(&spinand->lock);
-	ret = spinand_mtd_write_unlock(mtd, to, ops);
+	ret = spinand_write_unlock(nand, to, ops);
 	mutex_unlock(&spinand->lock);
 
 	return ret;
@@ -928,6 +932,8 @@ static const struct nand_ops spinand_ops = {
 	.markbad = spinand_markbad,
 #if IS_ENABLED(CONFIG_MTD_SPI_NAND_MESON)
 	.isbad = meson_spinand_isbad,
+	.read = spinand_read_unlock,
+	.write = spinand_write_unlock,
 #else
 	.isbad = spinand_isbad,
 #endif
