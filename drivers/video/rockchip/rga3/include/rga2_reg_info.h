@@ -45,10 +45,14 @@
 #define RGA2_MODE_CTRL_OFFSET			0x000
 #define RGA2_SRC_INFO_OFFSET			0x004
 #define RGA2_SRC_BASE0_OFFSET			0x008
+#define RGA2_FBCIN_HEAD_BASE_OFFSET		0x008 // repeat
 #define RGA2_SRC_BASE1_OFFSET			0x00c
+#define RGA2_FBCIN_PAYL_BASE_OFFSET		0x00c // repeat
 #define RGA2_SRC_BASE2_OFFSET			0x010
+#define RGA2_FBCIN_OFF_OFFSET			0x010 // repeat
 #define RGA2_SRC_BASE3_OFFSET			0x014
 #define RGA2_SRC_VIR_INFO_OFFSET		0x018
+#define RGA2_FBCIN_HEAD_VIR_INFO_OFFSET		0x018 // repeat
 #define RGA2_SRC_ACT_INFO_OFFSET		0x01c
 #define RGA2_SRC_X_FACTOR_OFFSET		0x020
 #define RGA2_OSD_CTRL0_OFFSET			0x020 // repeat
@@ -200,6 +204,7 @@
 #define m_RGA2_MODE_CTRL_SW_YIN_YOUT_EN			(0x1<<10)
 #define m_RGA2_MODE_CTRL_SW_TILE4x4_IN_EN		(0x1 << 12)
 #define m_RGA2_MODE_CTRL_SW_TILE4x4_OUT_EN		(0x1 << 13)
+#define m_RGA2_MODE_CTRL_SW_FBC_IN_EN			(0x1 << 16)
 
 #define s_RGA2_MODE_CTRL_SW_RENDER_MODE(x)		((x & 0x7) << 0)
 #define s_RGA2_MODE_CTRL_SW_BITBLT_MODE(x)		((x & 0x1) << 3)
@@ -212,8 +217,11 @@
 #define s_RGA2_MODE_CTRL_SW_YIN_YOUT_EN(x)		((x & 0x1) << 10)
 #define s_RGA2_MODE_CTRL_SW_TILE4x4_IN_EN(x)		((x & 0x1) << 12)
 #define s_RGA2_MODE_CTRL_SW_TILE4x4_OUT_EN(x)		((x & 0x1) << 13)
+#define s_RGA2_MODE_CTRL_SW_FBC_IN_EN(x)		((x & 0x1) << 16)
 /* RGA_SRC_INFO */
 #define m_RGA2_SRC_INFO_SW_SRC_FMT			(0xf << 0)
+#define m_RGA2_SRC_INFO_SW_FBCIN_MODE			(0x3 << 0) // repeat
+#define m_RGA2_SRC_INFO_SW_FBCIN_FMT			(0x3 << 2) // repeat
 #define m_RGA2_SRC_INFO_SW_SW_SRC_RB_SWAP		(0x1 << 4)
 #define m_RGA2_SRC_INFO_SW_SW_SRC_ALPHA_SWAP		(0x1 << 5)
 #define m_RGA2_SRC_INFO_SW_SW_SRC_UV_SWAP		(0x1 << 6)
@@ -236,6 +244,8 @@
 
 
 #define s_RGA2_SRC_INFO_SW_SRC_FMT(x)			((x & 0xf) << 0)
+#define s_RGA2_SRC_INFO_SW_FBCIN_MODE(x)		((x & 0x3) << 0) // repeat
+#define s_RGA2_SRC_INFO_SW_FBCIN_FMT(x)			((x & 0x3) << 2) // repeat
 #define s_RGA2_SRC_INFO_SW_SW_SRC_RB_SWAP(x)		((x & 0x1) << 4)
 #define s_RGA2_SRC_INFO_SW_SW_SRC_ALPHA_SWAP(x)		((x & 0x1) << 5)
 #define s_RGA2_SRC_INFO_SW_SW_SRC_UV_SWAP(x)		((x & 0x1) << 6)

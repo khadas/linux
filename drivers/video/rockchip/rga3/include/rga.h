@@ -115,6 +115,8 @@ enum {
 	RGA_FBC_MODE			 = 0x1 << 1,
 	RGA_TILE_MODE			 = 0x1 << 2,
 	RGA_TILE4x4_MODE		 = 0x1 << 3,
+	RGA_RKFBC_MODE			 = 0x1 << 4,
+	RGA_AFBC32x8_MODE		 = 0x1 << 5,
 };
 
 enum {
