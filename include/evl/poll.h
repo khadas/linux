@@ -12,6 +12,7 @@
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
 #include <linux/poll.h>
+#include <evl/poll_head.h>
 #include <evl/wait.h>
 #include <evl/factory.h>
 #include <uapi/evl/types.h>
@@ -19,18 +20,8 @@
 
 struct file;
 
-#define EVL_POLLHEAD_INITIALIZER(__name) {				\
-		.watchpoints = LIST_HEAD_INIT((__name).watchpoints),	\
-		.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).lock),	\
-	}
-
-struct evl_poll_head {
-	struct list_head watchpoints; /* struct poll_watchpoint */
-	hard_spinlock_t lock;
-};
-
 struct evl_poll_node {
-	struct list_head next;	/* in evl_fd->poll_nodes */
+	struct list_head next;	/* in watchpoint->poll_nodes */
 };
 
 /*
@@ -46,30 +37,6 @@ struct evl_poll_watchpoint {
 	struct file *filp;
 	struct evl_poll_node node;
 };
-
-static inline
-void evl_init_poll_head(struct evl_poll_head *head)
-{
-	INIT_LIST_HEAD(&head->watchpoints);
-	raw_spin_lock_init(&head->lock);
-}
-
-void evl_poll_watch(struct evl_poll_head *head,
-		struct oob_poll_wait *wait,
-		void (*unwatch)(struct evl_poll_head *head));
-
-void __evl_signal_poll_events(struct evl_poll_head *head,
-			      int events);
-
-static inline void
-evl_signal_poll_events(struct evl_poll_head *head,
-		       int events)
-{
-	/* Quick check. We'll redo under lock */
-	if (!list_empty(&head->watchpoints))
-		__evl_signal_poll_events(head, events);
-
-}
 
 void evl_drop_poll_table(struct evl_thread *thread);
 
