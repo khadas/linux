@@ -207,6 +207,10 @@ static void RGA2_set_mode_ctrl(u8 *base, struct rga2_req *msg)
 		reg = ((reg & (~m_RGA2_MODE_CTRL_SW_TILE4x4_OUT_EN)) |
 		       (s_RGA2_MODE_CTRL_SW_TILE4x4_OUT_EN(1)));
 
+	if (msg->src.rd_mode == RGA_RKFBC_MODE || msg->src.rd_mode == RGA_AFBC32x8_MODE)
+		reg = ((reg & (~m_RGA2_MODE_CTRL_SW_FBC_IN_EN)) |
+		       (s_RGA2_MODE_CTRL_SW_FBC_IN_EN(1)));
+
 	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_OSD_E)) |
 	       (s_RGA2_MODE_CTRL_SW_OSD_E(msg->osd_info.enable)));
 
@@ -221,6 +225,10 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	u32 *bRGA_SRC_ACT_INFO;
 	u32 *bRGA_MASK_ADDR;
 	u32 *bRGA_SRC_TR_COLOR0, *bRGA_SRC_TR_COLOR1;
+	u32 *bRGA_FBCIN_HEAD_BASE;
+	u32 *bRGA_FBCIN_PAYL_BASE;
+	u32 *bRGA_FBCIN_OFF;
+	u32 *bRGA_FBCIN_HEAD_VIR_INFO;
 
 	u8 disable_uv_channel_en = 0;
 
@@ -251,6 +259,9 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	u32 tile_y_offset = 0;
 	u32 tile_block_size;
 
+	u32 fbc_fmt = 0, fbc_mode = 0;
+	u32 head_base_addr, payload_base_addr;
+
 	bRGA_SRC_INFO = (u32 *) (base + RGA2_SRC_INFO_OFFSET);
 
 	bRGA_SRC_BASE0 = (u32 *) (base + RGA2_SRC_BASE0_OFFSET);
@@ -264,6 +275,11 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 
 	bRGA_SRC_TR_COLOR0 = (u32 *) (base + RGA2_SRC_TR_COLOR0_OFFSET);
 	bRGA_SRC_TR_COLOR1 = (u32 *) (base + RGA2_SRC_TR_COLOR1_OFFSET);
+
+	bRGA_FBCIN_HEAD_BASE = (u32 *) (base + RGA2_FBCIN_HEAD_BASE_OFFSET);
+	bRGA_FBCIN_PAYL_BASE = (u32 *) (base + RGA2_FBCIN_PAYL_BASE_OFFSET);
+	bRGA_FBCIN_OFF = (u32 *) (base + RGA2_FBCIN_OFF_OFFSET);
+	bRGA_FBCIN_HEAD_VIR_INFO = (u32 *) (base + RGA2_FBCIN_HEAD_VIR_INFO_OFFSET);
 
 	{
 		rotate_mode = msg->rotate_mode & 0x3;
@@ -588,9 +604,123 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 		break;
 	};
 
-	reg =
-		((reg & (~m_RGA2_SRC_INFO_SW_SRC_FMT)) |
-		 (s_RGA2_SRC_INFO_SW_SRC_FMT(src0_format)));
+	switch (msg->src.rd_mode) {
+	case RGA_RASTER_MODE:
+		stride = ALIGN(msg->src.vir_w * pixel_width, 4);
+		uv_stride = ALIGN(msg->src.vir_w / xdiv, 4);
+
+		yrgb_offset = msg->src.y_offset * stride + msg->src.x_offset * pixel_width;
+		uv_offset = (msg->src.y_offset / ydiv) * uv_stride + (msg->src.x_offset / xdiv);
+		v_offset = uv_offset;
+
+		break;
+
+	case RGA_TILE4x4_MODE:
+		switch (msg->src.format) {
+		case RGA_FORMAT_YCbCr_400:
+			tile_block_size = 16;
+			break;
+		case RGA_FORMAT_YCbCr_420_SP:
+		case RGA_FORMAT_YCrCb_420_SP:
+			tile_block_size = 24;
+			break;
+		case RGA_FORMAT_YCbCr_422_SP:
+		case RGA_FORMAT_YCrCb_422_SP:
+			tile_block_size = 32;
+			break;
+		case RGA_FORMAT_YCbCr_444_SP:
+		case RGA_FORMAT_YCrCb_444_SP:
+			tile_block_size = 48;
+			break;
+		case RGA_FORMAT_YCbCr_420_SP_10B:
+		case RGA_FORMAT_YCrCb_420_SP_10B:
+			tile_block_size = 30;
+			break;
+		case RGA_FORMAT_YCbCr_422_SP_10B:
+		case RGA_FORMAT_YCrCb_422_SP_10B:
+			tile_block_size = 40;
+			break;
+		default:
+			tile_block_size = 16;
+			break;
+		}
+
+		stride = ALIGN((u32)((msg->src.vir_w * pixel_width) * (tile_block_size / 4)), 4);
+
+		yrgb_offset = (u32)((msg->src.y_offset / 4) * stride +
+			      (msg->src.x_offset / 4) * pixel_width * tile_block_size);
+		uv_offset = 0;
+		v_offset = 0;
+
+		tile_x_offset = (msg->src.x_offset % 4) & 0x3;
+		tile_y_offset = (msg->src.y_offset % 4) & 0x3;
+
+		break;
+
+	case RGA_RKFBC_MODE:
+		switch (msg->src.format) {
+		case RGA_FORMAT_YCbCr_420_SP:
+		case RGA_FORMAT_YCrCb_420_SP:
+		case RGA_FORMAT_YCbCr_420_SP_10B:
+		case RGA_FORMAT_YCrCb_420_SP_10B:
+			fbc_fmt = 0x0;
+			break;
+		case RGA_FORMAT_YCbCr_422_SP:
+		case RGA_FORMAT_YCrCb_422_SP:
+		case RGA_FORMAT_YCbCr_422_SP_10B:
+		case RGA_FORMAT_YCrCb_422_SP_10B:
+			fbc_fmt = 0x1;
+			break;
+		case RGA_FORMAT_YCbCr_444_SP:
+		case RGA_FORMAT_YCrCb_444_SP:
+			fbc_fmt = 0x2;
+			break;
+		}
+
+		fbc_mode = 0x0;
+		head_base_addr = msg->src.yrgb_addr;
+		payload_base_addr = head_base_addr;
+		stride = ALIGN(msg->src.vir_w, 64) / 64 * 4;
+
+		break;
+
+	case RGA_AFBC32x8_MODE:
+		switch (msg->src.format) {
+		case RGA_FORMAT_RGBA_8888:
+		case RGA_FORMAT_BGRA_8888:
+		case RGA_FORMAT_ARGB_8888:
+		case RGA_FORMAT_ABGR_8888:
+		case RGA_FORMAT_RGBX_8888:
+		case RGA_FORMAT_BGRX_8888:
+		case RGA_FORMAT_XRGB_8888:
+		case RGA_FORMAT_XBGR_8888:
+			fbc_fmt = 0x0;
+			break;
+		case RGA_FORMAT_RGB_888:
+		case RGA_FORMAT_BGR_888:
+			fbc_fmt = 0x1;
+			break;
+		}
+
+		fbc_mode = 0x1;
+		head_base_addr = msg->src.yrgb_addr;
+		payload_base_addr = head_base_addr;
+		stride = ALIGN(msg->src.vir_w, 32) / 32 * 4;
+
+		break;
+	}
+
+	if (msg->src.rd_mode == RGA_RKFBC_MODE || msg->src.rd_mode == RGA_AFBC32x8_MODE) {
+		reg = ((reg & (~m_RGA2_SRC_INFO_SW_FBCIN_MODE)) |
+		       (s_RGA2_SRC_INFO_SW_FBCIN_MODE(fbc_mode)));
+
+		reg = ((reg & (~m_RGA2_SRC_INFO_SW_FBCIN_FMT)) |
+		       (s_RGA2_SRC_INFO_SW_FBCIN_FMT(fbc_fmt)));
+	} else {
+		reg = ((reg & (~m_RGA2_SRC_INFO_SW_SRC_FMT)) |
+		       (s_RGA2_SRC_INFO_SW_SRC_FMT(src0_format)));
+	}
+
 	reg =
 		((reg & (~m_RGA2_SRC_INFO_SW_SW_SRC_RB_SWAP)) |
 		 (s_RGA2_SRC_INFO_SW_SW_SRC_RB_SWAP(src0_rb_swp)));
@@ -653,89 +783,42 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 	reg = ((reg & (~m_RGA2_SRC_INFO_SW_SW_HSD_MODE_SEL)) |
 	       (s_RGA2_SRC_INFO_SW_SW_HSD_MODE_SEL((hsd_scale_mode))));
 
-	RGA2_reg_get_param(base, msg);
-
-	switch (msg->src.rd_mode) {
-	case RGA_RASTER_MODE:
-		stride = ALIGN(msg->src.vir_w * pixel_width, 4);
-		uv_stride = ALIGN(msg->src.vir_w / xdiv, 4);
-
-		yrgb_offset = msg->src.y_offset * stride + msg->src.x_offset * pixel_width;
-		uv_offset = (msg->src.y_offset / ydiv) * uv_stride + (msg->src.x_offset / xdiv);
-		v_offset = uv_offset;
-
-		break;
-
-	case RGA_TILE4x4_MODE:
-		switch (msg->src.format) {
-		case RGA_FORMAT_YCbCr_400:
-			tile_block_size = 16;
-			break;
-		case RGA_FORMAT_YCbCr_420_SP:
-		case RGA_FORMAT_YCrCb_420_SP:
-			tile_block_size = 24;
-			break;
-		case RGA_FORMAT_YCbCr_422_SP:
-		case RGA_FORMAT_YCrCb_422_SP:
-			tile_block_size = 32;
-			break;
-		case RGA_FORMAT_YCbCr_444_SP:
-		case RGA_FORMAT_YCrCb_444_SP:
-			tile_block_size = 48;
-			break;
-		case RGA_FORMAT_YCbCr_420_SP_10B:
-		case RGA_FORMAT_YCrCb_420_SP_10B:
-			tile_block_size = 30;
-			break;
-		case RGA_FORMAT_YCbCr_422_SP_10B:
-		case RGA_FORMAT_YCrCb_422_SP_10B:
-			tile_block_size = 40;
-			break;
-		default:
-			tile_block_size = 16;
-			break;
+	*bRGA_SRC_INFO = reg;
+	if (msg->src.rd_mode == RGA_RKFBC_MODE || msg->src.rd_mode == RGA_AFBC32x8_MODE) {
+		*bRGA_FBCIN_HEAD_BASE = head_base_addr;
+		*bRGA_FBCIN_PAYL_BASE = payload_base_addr;
+		*bRGA_FBCIN_HEAD_VIR_INFO = stride;
+		*bRGA_FBCIN_OFF = msg->src.x_offset | (msg->src.y_offset << 16);
+		*bRGA_SRC_ACT_INFO = (msg->src.act_w - 1) | ((msg->src.act_h - 1) << 16);
+	} else {
+		*bRGA_SRC_BASE0 = (u32)(msg->src.yrgb_addr + yrgb_offset);
+		if (disable_uv_channel_en == 1) {
+			/*
+			 * When Y400 as the input format, because the current RGA does
+			 * not support closing the access of the UV channel, the address
+			 * of the UV channel access is equal to the address of
+			 * the Y channel access to ensure that the UV channel can access,
+			 * preventing the RGA hardware from reporting errors.
+			 */
+			*bRGA_SRC_BASE1 = *bRGA_SRC_BASE0;
+			*bRGA_SRC_BASE2 = *bRGA_SRC_BASE0;
+		} else {
+			*bRGA_SRC_BASE1 = (u32)(msg->src.uv_addr + uv_offset);
+			*bRGA_SRC_BASE2 = (u32)(msg->src.v_addr + v_offset);
 		}
 
-		stride = ALIGN((u32)((msg->src.vir_w * pixel_width) * (tile_block_size / 4)), 4);
+		//mask_stride = ((msg->src0_act.width + 31) & ~31) >> 5;
+		mask_stride = msg->rop_mask_stride;
+		*bRGA_SRC_VIR_INFO = (stride >> 2) | (mask_stride << 16);
 
-		yrgb_offset = (u32)((msg->src.y_offset / 4) * stride +
-			      (msg->src.x_offset / 4) * pixel_width * tile_block_size);
-		uv_offset = 0;
-		v_offset = 0;
+		*bRGA_SRC_ACT_INFO =
+			(msg->src.act_w - 1) | ((msg->src.act_h - 1) << 16) |
+			tile_x_offset << 14 | tile_y_offset << 30;
 
-		tile_x_offset = (msg->src.x_offset % 4) & 0x3;
-		tile_y_offset = (msg->src.y_offset % 4) & 0x3;
-
-		break;
+		*bRGA_MASK_ADDR = (u32) msg->rop_mask_addr;
 	}
 
-	*bRGA_SRC_BASE0 = (u32)(msg->src.yrgb_addr + yrgb_offset);
-	if (disable_uv_channel_en == 1) {
-		/*
-		 * When Y400 as the input format, because the current RGA does
-		 * not support closing the access of the UV channel, the address
-		 * of the UV channel access is equal to the address of
-		 * the Y channel access to ensure that the UV channel can access,
-		 * preventing the RGA hardware from reporting errors.
-		 */
-		*bRGA_SRC_BASE1 = *bRGA_SRC_BASE0;
-		*bRGA_SRC_BASE2 = *bRGA_SRC_BASE0;
-	} else {
-		*bRGA_SRC_BASE1 = (u32)(msg->src.uv_addr + uv_offset);
-		*bRGA_SRC_BASE2 = (u32)(msg->src.v_addr + v_offset);
-	}
-
-	//mask_stride = ((msg->src0_act.width + 31) & ~31) >> 5;
-	mask_stride = msg->rop_mask_stride;
-	*bRGA_SRC_VIR_INFO = (stride >> 2) | (mask_stride << 16);
-
-	*bRGA_SRC_ACT_INFO =
-		(msg->src.act_w - 1) | ((msg->src.act_h - 1) << 16) |
-		tile_x_offset << 14 | tile_y_offset << 30;
-
-	*bRGA_MASK_ADDR = (u32) msg->rop_mask_addr;
-
-	*bRGA_SRC_INFO = reg;
+	RGA2_reg_get_param(base, msg);
 
 	*bRGA_SRC_TR_COLOR0 = msg->color_key_min;
 	*bRGA_SRC_TR_COLOR1 = msg->color_key_max;
@@ -2206,7 +2289,9 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 	}
 
 	if (req->src.rd_mode == RGA_TILE4x4_MODE ||
-	    req->dst.rd_mode == RGA_TILE4x4_MODE)
+	    req->dst.rd_mode == RGA_TILE4x4_MODE ||
+	    req->src.rd_mode == RGA_RKFBC_MODE ||
+	    req->src.rd_mode == RGA_AFBC32x8_MODE)
 		/* force select to tile mode */
 		req->rotate_mode |= 1 << 6;
 
