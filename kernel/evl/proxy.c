@@ -11,6 +11,7 @@
 #include <linux/file.h>
 #include <linux/wait.h>
 #include <linux/fs.h>
+#include <linux/poll.h>
 #include <linux/log2.h>
 #include <linux/irq_work.h>
 #include <linux/workqueue.h>
@@ -60,12 +61,12 @@ struct evl_proxy {
 	struct evl_poll_head poll_head;
 };
 
-static inline bool proxy_is_readable(struct evl_proxy *proxy)
+static inline bool proxy_may_read(struct evl_proxy *proxy)
 {
 	return !!(proxy->element.clone_flags & EVL_CLONE_INPUT);
 }
 
-static inline bool proxy_is_writable(struct evl_proxy *proxy)
+static inline bool proxy_may_write(struct evl_proxy *proxy)
 {
 	return !!(proxy->element.clone_flags & EVL_CLONE_OUTPUT);
 }
@@ -399,7 +400,7 @@ static ssize_t proxy_oob_write(struct file *filp,
 	struct proxy_ring *ring = &proxy->output.ring;
 	ssize_t ret;
 
-	if (!proxy_is_writable(proxy))
+	if (!proxy_may_write(proxy))
 		return -ENXIO;
 
 	do {
@@ -421,7 +422,7 @@ static ssize_t proxy_oob_read(struct file *filp,
 	bool request_done = false;
 	ssize_t ret;
 
-	if (!proxy_is_readable(proxy))
+	if (!proxy_may_read(proxy))
 		return -ENXIO;
 
 	if (count == 0)
@@ -439,7 +440,7 @@ static ssize_t proxy_oob_read(struct file *filp,
 		ret = evl_wait_flag(&ring->oob_wait);
 		if (ret)
 			break;
-		if (atomic_cmpxchg(&in->on_eof, true, false) == true) {
+		if (atomic_cmpxchg(&in->on_eof, true, false)) {
 			ret = 0;
 			break;
 		}
@@ -457,20 +458,17 @@ static __poll_t proxy_oob_poll(struct file *filp,
 	__poll_t ret = 0;
 	int peek;
 
-	if (!(proxy_is_readable(proxy) || proxy_is_writable(proxy)))
-		return POLLERR;
-
 	evl_poll_watch(&proxy->poll_head, wait, NULL);
 
-	if (proxy_is_writable(proxy) &&
+	if (proxy_may_write(proxy) &&
 		atomic_read(&oring->fillsz) < oring->bufsz)
-		ret = POLLOUT|POLLWRNORM;
+		ret |= POLLOUT|POLLWRNORM;
 
 	/*
 	 * If the input ring is empty, kick the worker to perform a
-	 * readahead as a last resort.
+	 * readahead.
 	 */
-	if (proxy_is_readable(proxy)) {
+	if (proxy_may_read(proxy)) {
 		if (atomic_read(&iring->fillsz) > 0)
 			ret |= POLLIN|POLLRDNORM;
 		else if (atomic_read(&proxy->input.reqsz) == 0) {
@@ -479,6 +477,13 @@ static __poll_t proxy_oob_poll(struct file *filp,
 			evl_call_inband_from(&iring->relay_work, iring->wq);
 		}
 	}
+
+	/*
+	 * If the proxied file implements an oob poll handler, collect
+	 * the events pending there as well.
+	 */
+	if (proxy->filp->f_op->oob_poll)
+		ret |= proxy->filp->f_op->oob_poll(filp, wait);
 
 	return ret;
 }
@@ -490,7 +495,7 @@ static ssize_t proxy_write(struct file *filp, const char __user *u_buf,
 	struct proxy_ring *ring = &proxy->output.ring;
 	ssize_t ret;
 
-	if (!proxy_is_writable(proxy))
+	if (!proxy_may_write(proxy))
 		return -ENXIO;
 
 	do {
@@ -512,7 +517,7 @@ static ssize_t proxy_read(struct file *filp,
 	bool request_done = false;
 	ssize_t ret;
 
-	if (!proxy_is_readable(proxy))
+	if (!proxy_may_read(proxy))
 		return -ENXIO;
 
 	if (count == 0)
@@ -527,7 +532,7 @@ static ssize_t proxy_read(struct file *filp,
 			request_done = true;
 		}
 		relay_input(proxy);
-		if (atomic_cmpxchg(&in->on_eof, true, false) == true) {
+		if (atomic_cmpxchg(&in->on_eof, true, false)) {
 			ret = 0;
 			break;
 		}
@@ -543,24 +548,20 @@ static __poll_t proxy_poll(struct file *filp, poll_table *wait)
 	struct proxy_ring *iring = &proxy->input.ring;
 	__poll_t ret = 0;
 
-	if (!(proxy_is_readable(proxy) || proxy_is_writable(proxy)))
-		return POLLERR;
-
-	if (proxy_is_writable(proxy)) {
+	if (proxy_may_write(proxy)) {
 		poll_wait(filp, &oring->inband_wait, wait);
 		if (atomic_read(&oring->fillsz) < oring->bufsz)
 			ret = POLLOUT|POLLWRNORM;
 	}
 
-	if (proxy_is_readable(proxy)) {
+	if (proxy_may_read(proxy)) {
 		poll_wait(filp, &iring->inband_wait, wait);
 		if (atomic_read(&iring->fillsz) > 0)
 			ret |= POLLIN|POLLRDNORM;
-		else if (proxy->filp->f_op->poll) {
-			ret = proxy->filp->f_op->poll(proxy->filp, wait);
-			ret &= POLLIN|POLLRDNORM;
-		}
 	}
+
+	if (proxy->filp->f_op->poll)
+		ret |= proxy->filp->f_op->poll(proxy->filp, wait);
 
 	return ret;
 }
@@ -597,10 +598,10 @@ static int proxy_release(struct inode *inode, struct file *filp)
 {
 	struct evl_proxy *proxy = element_of(filp, struct evl_proxy);
 
-	if (proxy_is_writable(proxy))
+	if (proxy_may_write(proxy))
 		evl_flush_flag(&proxy->output.ring.oob_wait, EVL_T_RMID);
 
-	if (proxy_is_readable(proxy))
+	if (proxy_may_read(proxy))
 		evl_flush_flag(&proxy->input.ring.oob_wait, EVL_T_RMID);
 
 	return evl_release_element(inode, filp);
@@ -761,10 +762,10 @@ static void proxy_factory_dispose(struct evl_element *e)
 
 	proxy = container_of(e, struct evl_proxy, element);
 
-	if (proxy_is_writable(proxy))
+	if (proxy_may_write(proxy))
 		destroy_ring(&proxy->output.ring);
 
-	if (proxy_is_readable(proxy))
+	if (proxy_may_read(proxy))
 		destroy_ring(&proxy->input.ring);
 
 	fput(proxy->filp);
