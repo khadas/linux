@@ -1155,9 +1155,17 @@ static void rk628_dsi_set_cmd_mode(struct rk628 *rk628,
 				   const struct rk628_dsi *dsi,
 				   const struct rk628_display_mode *mode)
 {
+	int cmd_size;
+
 	dsi_update_bits(rk628, dsi, DSI_CMD_MODE_CFG, DCS_LW_TX, 0);
-	dsi_write(rk628, dsi, DSI_EDPI_CMD_SIZE,
-		  EDPI_ALLOWED_CMD_SIZE(mode->hdisplay));
+
+	/* rk628: The maximum capacity of dsi memory is 2048*32 bits */
+	if (mode->hdisplay > 2048)
+		cmd_size = EDPI_ALLOWED_CMD_SIZE(mode->hdisplay / 2);
+	else
+		cmd_size = EDPI_ALLOWED_CMD_SIZE(mode->hdisplay);
+
+	dsi_write(rk628, dsi, DSI_EDPI_CMD_SIZE, cmd_size);
 
 	if (dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)
 		dsi_update_bits(rk628, dsi, DSI_LPCLK_CTRL,
