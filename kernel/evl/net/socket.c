@@ -396,7 +396,7 @@ static int socket_send_recv(struct evl_socket *esk,
 		return -EFAULT;
 
 	u_iov = evl_valptr64(iov_ptr, struct iovec);
-	iov = evl_load_user_iov(u_iov, iovlen, fast_iov);
+	iov = evl_load_uio(u_iov, iovlen, fast_iov);
 	if (IS_ERR(iov))
 		return PTR_ERR(iov);
 

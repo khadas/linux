@@ -68,8 +68,8 @@ static inline int do_load_iov(struct iovec *iov,
 
 #endif
 
-struct iovec *evl_load_user_iov(const struct iovec __user *u_iov,
-				size_t iovlen, struct iovec *fast_iov)
+struct iovec *evl_load_uio(const struct iovec __user *u_iov,
+			size_t iovlen, struct iovec *fast_iov)
 {
 	struct iovec *slow_iov;
 	int ret;
@@ -94,9 +94,9 @@ struct iovec *evl_load_user_iov(const struct iovec __user *u_iov,
 
 	return slow_iov;
 }
-EXPORT_SYMBOL_GPL(evl_load_user_iov);
+EXPORT_SYMBOL_GPL(evl_load_uio);
 
-ssize_t evl_copy_to_user_iov(const struct iovec *iov, size_t iovlen,
+ssize_t evl_copy_to_uio(const struct iovec *iov, size_t iovlen,
 			const void *data, size_t len)
 {
 	ssize_t written = 0;
@@ -124,9 +124,9 @@ ssize_t evl_copy_to_user_iov(const struct iovec *iov, size_t iovlen,
 
 	return written;
 }
-EXPORT_SYMBOL_GPL(evl_copy_to_user_iov);
+EXPORT_SYMBOL_GPL(evl_copy_to_uio);
 
-ssize_t evl_copy_from_user_iov(const struct iovec *iov, size_t iovlen,
+ssize_t evl_copy_from_uio(const struct iovec *iov, size_t iovlen,
 			void *data, size_t len, size_t *remainder)
 {
 	size_t nbytes, avail = 0;
@@ -161,7 +161,7 @@ ssize_t evl_copy_from_user_iov(const struct iovec *iov, size_t iovlen,
 
 	return read;
 }
-EXPORT_SYMBOL_GPL(evl_copy_from_user_iov);
+EXPORT_SYMBOL_GPL(evl_copy_from_uio);
 
 /*
  * Copy the content referred to by a user I/O vector to a linear area,
@@ -178,7 +178,7 @@ ssize_t evl_copy_from_uio_to_kvec(const struct iovec *iov, size_t iovlen,
 	if (!data)
 		return -ENOMEM;
 
-	ret = evl_copy_from_user_iov(iov, iovlen, data, count, NULL);
+	ret = evl_copy_from_uio(iov, iovlen, data, count, NULL);
 	if (ret <= 0) {
 		evl_free(data);
 	} else {

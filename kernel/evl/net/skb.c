@@ -11,6 +11,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/if_vlan.h>
 #include <linux/err.h>
+#include <evl/uio.h>
 #include <evl/net.h>
 #include <evl/lock.h>
 #include <evl/list.h>
