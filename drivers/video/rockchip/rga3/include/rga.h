@@ -598,6 +598,11 @@ struct rga_interp {
 	uint8_t verti:4;
 };
 
+struct rga_iommu_prefetch {
+	uint32_t y_threshold;
+	uint32_t uv_threshold;
+};
+
 struct rga_req {
 	/* (enum) process mode sel */
 	uint8_t render_mode;
@@ -856,6 +861,8 @@ struct rga2_req {
 	struct rga_osd_info osd_info;
 
 	struct rga_interp interp;
+
+	struct rga_iommu_prefetch iommu_prefetch;
 };
 
 struct rga3_req {
