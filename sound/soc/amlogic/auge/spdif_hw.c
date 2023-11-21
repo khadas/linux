@@ -349,6 +349,23 @@ void aml_spdifout_get_aed_info(int spdifout_id,	int *bitwidth, int *frddrtype)
 		*frddrtype = (val >> 4) & 0x7;
 }
 
+void enable_spdif_to_hdmitx_dat(bool enable)
+{
+	int val = !!enable;
+
+	audiobus_update_bits(EE_AUDIO_TOHDMITX_CTRL0,
+			     1 << 31 | 1 << 3 | 1 << 2,
+			     val << 31 | 1 << 3);
+}
+
+void enable_spdif_to_hdmitx_clk(bool enable)
+{
+	int val = !!enable;
+
+	audiobus_update_bits(EE_AUDIO_TOHDMITX_CTRL0,
+			0x1 << 30, val << 30);
+}
+
 void enable_spdifout_to_hdmitx(int separated)
 {
 	/* if tohdmitx_en is separated, need do:

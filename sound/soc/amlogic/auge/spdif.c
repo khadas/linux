@@ -1396,7 +1396,9 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 		 */
 		if (get_hdmitx_audio_src(rtd->card) == p_spdif->id) {
 			separated = p_spdif->chipinfo->separate_tohdmitx_en;
-			enable_spdifout_to_hdmitx(separated);
+			if (separated)
+				enable_spdif_to_hdmitx_clk(true);
+			enable_spdif_to_hdmitx_dat(false);
 		}
 
 		if (p_spdif->codec_type == AUD_CODEC_TYPE_TRUEHD ||
@@ -1413,6 +1415,7 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 		if (get_hdmitx_audio_src(rtd->card) == p_spdif->id) {
 			/* notify to hdmitx */
 			spdif_notify_to_hdmitx(substream, p_spdif->codec_type);
+			enable_spdif_to_hdmitx_dat(true);
 		}
 		if (p_spdif->samesource_sel != SHAREBUFFER_NONE)
 			spdif_sharebuffer_prepare(substream, p_spdif);

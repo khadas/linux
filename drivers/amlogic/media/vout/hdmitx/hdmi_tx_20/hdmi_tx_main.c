@@ -6978,15 +6978,12 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 		/* plug-in & update audio param */
 		if (hdev->hpd_state == 1) {
 			hdev->aud_notify_update = 1;
+			audio_param->fifo_rst = aud_param->fifo_rst;
 			hdmitx_set_audio(hdev, &hdev->cur_audio_param);
 			hdev->aud_notify_update = 0;
 			hdev->audio_param_update_flag = 0;
 			pr_info(AUD "set audio param\n");
 		}
-	}
-	if (aud_param->fifo_rst) {
-		hdev->hwop.cntlmisc(hdev, MISC_AUDIO_RESET, 1);
-		pr_info("reset audio fifo_rst\n");
 	}
 
 	return 0;

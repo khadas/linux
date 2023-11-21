@@ -74,8 +74,11 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 
 	/* notify hdmitx audio */
 	if (get_hdmitx_audio_src(rtd->card) == spdif_id) {
-		enable_spdifout_to_hdmitx(separated);
+		if (separated)
+			enable_spdif_to_hdmitx_clk(true);
+		enable_spdif_to_hdmitx_dat(false);
 		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &aud_param);
+		enable_spdif_to_hdmitx_dat(true);
 	}
 	return 0;
 }

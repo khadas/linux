@@ -549,7 +549,10 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 		hdmitx_wr_reg(HDMITX_DWC_MC_LOCKONCLOCK, 0xff);
 		hdmitx_wr_reg(HDMITX_TOP_INTR_MASKN, 0x1f);
 	}
-	audio_mute_op(1); /* enable audio default */
+	/* enable audio default */
+	hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 3, 2, 2);
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
+	hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 3, 1);
 }
 
 static void hdmi_hwi_init(struct hdmitx_dev *hdev)
@@ -2826,6 +2829,9 @@ static void set_aud_samp_pkt(struct hdmitx_dev *hdev,
 static int amute_flag = -1;
 static void audio_mute_op(bool flag)
 {
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+	struct hdmitx_audpara *audio_param = &hdev->cur_audio_param;
+
 	if (amute_flag != flag)
 		amute_flag = flag;
 	else
@@ -2833,11 +2839,19 @@ static void audio_mute_op(bool flag)
 
 	mutex_lock(&aud_mutex);
 	if (flag == 0) {
-		hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 0, 2, 2);
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0x20, 0, 6);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 0, 0, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 0, 3, 1);
 	} else {
-		hdmitx_set_reg_bits(HDMITX_TOP_CLK_CNTL, 3, 2, 2);
+		if (GET_OUTCHN_MSK(hdev->aud_output_ch))
+			hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0,
+				GET_OUTCHN_MSK(hdev->aud_output_ch), 0, 4);
+		else
+			hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0xf, 0, 4);
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, !!audio_param->aud_src_if, 5, 1);
+		usleep_range(2000, 3000);
+		hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, 0xe7);
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF0, 1, 7, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 3, 1);
 	}
@@ -2952,6 +2966,10 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	else
 		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0xf, 0, 4);
 	hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, !!audio_param->aud_src_if, 5, 1);
+	if (audio_param->fifo_rst) {
+		hdev->hwop.cntlmisc(hdev, MISC_AUDIO_RESET, 1);
+		pr_info("reset audio fifo_rst\n");
+	}
 	usleep_range(2000, 3000);
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
 	mutex_unlock(&aud_mutex);
