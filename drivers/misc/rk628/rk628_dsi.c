@@ -251,6 +251,9 @@ int rk628_dsi_parse(struct rk628 *rk628, struct device_node *dsi_np)
 	if (of_property_read_bool(dsi_np, "dsi,eotp"))
 		rk628->dsi0.mode_flags |= MIPI_DSI_MODE_EOT_PACKET;
 
+	if (of_property_read_bool(dsi_np, "dsi,clk-non-continuous"))
+		rk628->dsi0.mode_flags |= MIPI_DSI_CLOCK_NON_CONTINUOUS;
+
 	if (!of_property_read_string(dsi_np, "dsi,format", &string)) {
 		if (!strcmp(string, "rgb666")) {
 			rk628->dsi0.bus_format = MIPI_DSI_FMT_RGB666;
@@ -1155,6 +1158,11 @@ static void rk628_dsi_set_cmd_mode(struct rk628 *rk628,
 	dsi_update_bits(rk628, dsi, DSI_CMD_MODE_CFG, DCS_LW_TX, 0);
 	dsi_write(rk628, dsi, DSI_EDPI_CMD_SIZE,
 		  EDPI_ALLOWED_CMD_SIZE(mode->hdisplay));
+
+	if (dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)
+		dsi_update_bits(rk628, dsi, DSI_LPCLK_CTRL,
+				AUTO_CLKLANE_CTRL, AUTO_CLKLANE_CTRL);
+
 	dsi_write(rk628, dsi, DSI_MODE_CFG, CMD_VIDEO_MODE(COMMAND_MODE));
 }
 
