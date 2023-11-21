@@ -36,11 +36,11 @@ struct evl_net_proto {
 		unsigned long arg);
 	ssize_t (*oob_send)(struct evl_socket *esk,
 			const struct user_oob_msghdr __user *u_msghdr,
-			const struct iovec *iov,
+			struct iovec *iov,
 			size_t iovlen);
 	ssize_t (*oob_receive)(struct evl_socket *esk,
 			struct user_oob_msghdr __user *u_msghdr,
-			const struct iovec *iov,
+			struct iovec *iov,
 			size_t iovlen);
 	__poll_t (*oob_poll)(struct evl_socket *esk,
 			struct oob_poll_wait *wait);

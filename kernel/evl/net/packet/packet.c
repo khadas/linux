@@ -408,7 +408,7 @@ static struct net_device *find_xmit_device(struct evl_socket *esk,
 /* oob */
 static ssize_t send_packet(struct evl_socket *esk,
 			const struct user_oob_msghdr __user *u_msghdr,
-			const struct iovec *iov,
+			struct iovec *iov,
 			size_t iovlen)
 {
 	struct net_device *dev, *real_dev;
@@ -563,7 +563,7 @@ copy_data:
 /* oob */
 static ssize_t receive_packet(struct evl_socket *esk,
 			struct user_oob_msghdr __user *u_msghdr,
-			const struct iovec *iov,
+			struct iovec *iov,
 			size_t iovlen)
 {
 	struct __evl_timespec uts;
