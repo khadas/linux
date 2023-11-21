@@ -1543,6 +1543,16 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 
 		break;
 	}
+
+	if (rot_90_flag == 1) {
+		if (y_mirr == 1) {
+			msg->iommu_prefetch.y_threshold = y_lt_addr;
+			msg->iommu_prefetch.uv_threshold = u_lt_addr;
+		} else {
+			msg->iommu_prefetch.y_threshold = y_rd_addr;
+			msg->iommu_prefetch.uv_threshold = u_rd_addr;
+		}
+	}
 }
 
 static void RGA2_set_reg_alpha_info(u8 *base, struct rga2_req *msg)
@@ -2116,35 +2126,49 @@ static void RGA2_set_pat_info(u8 *base, struct rga2_req *msg)
 	*bRGA_FADING_CTRL = (num << 8) | offset;
 }
 
-static void RGA2_set_mmu_reg_info(u8 *base, struct rga2_req *msg)
+static void RGA2_set_mmu_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct rga2_req *msg)
 {
 	u32 *bRGA_MMU_CTRL1;
 	u32 *bRGA_MMU_SRC_BASE;
 	u32 *bRGA_MMU_SRC1_BASE;
 	u32 *bRGA_MMU_DST_BASE;
 	u32 *bRGA_MMU_ELS_BASE;
+	u32 *RGA_PREFETCH_ADDR_TH;
 
 	u32 reg;
 
-	bRGA_MMU_CTRL1 = (u32 *) (base + RGA2_MMU_CTRL1_OFFSET);
-	bRGA_MMU_SRC_BASE = (u32 *) (base + RGA2_MMU_SRC_BASE_OFFSET);
-	bRGA_MMU_SRC1_BASE = (u32 *) (base + RGA2_MMU_SRC1_BASE_OFFSET);
-	bRGA_MMU_DST_BASE = (u32 *) (base + RGA2_MMU_DST_BASE_OFFSET);
-	bRGA_MMU_ELS_BASE = (u32 *) (base + RGA2_MMU_ELS_BASE_OFFSET);
+	switch (scheduler->data->mmu) {
+	case RGA_MMU:
+		bRGA_MMU_CTRL1 = (u32 *) (base + RGA2_MMU_CTRL1_OFFSET);
+		bRGA_MMU_SRC_BASE = (u32 *) (base + RGA2_MMU_SRC_BASE_OFFSET);
+		bRGA_MMU_SRC1_BASE = (u32 *) (base + RGA2_MMU_SRC1_BASE_OFFSET);
+		bRGA_MMU_DST_BASE = (u32 *) (base + RGA2_MMU_DST_BASE_OFFSET);
+		bRGA_MMU_ELS_BASE = (u32 *) (base + RGA2_MMU_ELS_BASE_OFFSET);
 
-	reg = (msg->mmu_info.src0_mmu_flag & 0xf) |
-		((msg->mmu_info.src1_mmu_flag & 0xf) << 4) |
-		((msg->mmu_info.dst_mmu_flag & 0xf) << 8) |
-		((msg->mmu_info.els_mmu_flag & 0x3) << 12);
+		reg = (msg->mmu_info.src0_mmu_flag & 0xf) |
+			((msg->mmu_info.src1_mmu_flag & 0xf) << 4) |
+			((msg->mmu_info.dst_mmu_flag & 0xf) << 8) |
+			((msg->mmu_info.els_mmu_flag & 0x3) << 12);
 
-	*bRGA_MMU_CTRL1 = reg;
-	*bRGA_MMU_SRC_BASE = (u32) (msg->mmu_info.src0_base_addr) >> 4;
-	*bRGA_MMU_SRC1_BASE = (u32) (msg->mmu_info.src1_base_addr) >> 4;
-	*bRGA_MMU_DST_BASE = (u32) (msg->mmu_info.dst_base_addr) >> 4;
-	*bRGA_MMU_ELS_BASE = (u32) (msg->mmu_info.els_base_addr) >> 4;
+		*bRGA_MMU_CTRL1 = reg;
+		*bRGA_MMU_SRC_BASE = (u32) (msg->mmu_info.src0_base_addr) >> 4;
+		*bRGA_MMU_SRC1_BASE = (u32) (msg->mmu_info.src1_base_addr) >> 4;
+		*bRGA_MMU_DST_BASE = (u32) (msg->mmu_info.dst_base_addr) >> 4;
+		*bRGA_MMU_ELS_BASE = (u32) (msg->mmu_info.els_base_addr) >> 4;
+
+		break;
+	case RGA_IOMMU:
+		RGA_PREFETCH_ADDR_TH = (u32 *)(base + RGA2_PREFETCH_ADDR_TH_OFFSET);
+
+		*RGA_PREFETCH_ADDR_TH = (msg->iommu_prefetch.y_threshold >> 16) |
+					((msg->iommu_prefetch.uv_threshold >> 16) << 16);
+		break;
+	default:
+		break;
+	}
 }
 
-static int rga2_gen_reg_info(u8 *base, struct rga2_req *msg)
+static int rga2_gen_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct rga2_req *msg)
 {
 	u8 dst_nn_quantize_en = 0;
 
@@ -2190,7 +2214,7 @@ static int rga2_gen_reg_info(u8 *base, struct rga2_req *msg)
 		break;
 	}
 
-	RGA2_set_mmu_reg_info(base, msg);
+	RGA2_set_mmu_reg_info(scheduler, base, msg);
 
 	return 0;
 }
@@ -2686,7 +2710,7 @@ static int rga2_init_reg(struct rga_job *job)
 	if (scheduler->data->mmu == RGA_IOMMU)
 		req.CMD_fin_int_enable = 1;
 
-	if (rga2_gen_reg_info((uint8_t *)job->cmd_reg, &req) == -1) {
+	if (rga2_gen_reg_info(scheduler, (uint8_t *)job->cmd_reg, &req) == -1) {
 		pr_err("gen reg info error\n");
 		return -EINVAL;
 	}
