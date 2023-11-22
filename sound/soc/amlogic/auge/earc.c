@@ -48,6 +48,19 @@
 
 #define EARCRX_DEFAULT_LATENCY 100
 
+u8 default_rx_cds[] = {
+	0x01, 0x01, 0x24, 0x38,/* Version, BLOCK_ID, PAYLOAD_LENGTH, Data Block Header Byte */
+	0x09, 0x7f, 0x05, 0x0f, 0x04, 0x05,/* L-PCM */
+	0x67, 0x7e, 0x03,/* MAT */
+	0x57, 0x06, 0x03,/* EAC3 */
+	0x15, 0x07, 0x50,/* AC3 */
+	0x3f, 0x06, 0xc0,/* DTS */
+	0x5f, 0x7e, 0x03,/* DTSHD */
+	0x5f, 0x7e, 0x01,/* DTSHD */
+	0x83, 0x4f, 0x00, 0x00,/* Speaker Allocation Data Block */
+	0xe6, 0x11, 0x46, 0xd0, 0x00, 0x70, 0x00/* Vendor-Specific Data Block */
+};
+
 /*
  * IEC958 controller(mixer) functions
  *
@@ -2831,7 +2844,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct aml_audio_controller *actrl = NULL;
 	struct earc *p_earc = NULL;
-	int ret = 0;
+	int ret = 0, i;
 	int ss = 0;
 
 	p_earc = devm_kzalloc(dev, sizeof(struct earc), GFP_KERNEL);
@@ -3026,9 +3039,13 @@ static int earc_platform_probe(struct platform_device *pdev)
 		INIT_WORK(&p_earc->rx_dmac_int_work, valid_auto_work_func);
 	}
 
-	if (!IS_ERR(p_earc->rx_top_map))
+	if (!IS_ERR(p_earc->rx_top_map)) {
 		register_earcrx_callback(earc_hdmitx_hpdst);
-
+		for (i = 0; i < sizeof(default_rx_cds) / sizeof(u8); i++)
+			p_earc->rx_cds_data[i] = default_rx_cds[i];
+		if (earcrx_cmdc_get_attended_type(p_earc->rx_cmdc_map) == ATNDTYP_EARC)
+			earcrx_cmdc_set_cds(p_earc->rx_cmdc_map, p_earc->rx_cds_data);
+	}
 	dev_err(dev, "registered eARC platform\n");
 
 	return 0;
