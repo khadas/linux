@@ -7713,13 +7713,13 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		vd1_path_id == VFM_PATH_DEF)) {
 		/*need call every vsync*/
 		#ifdef CONFIG_AMLOGIC_MEDIA_VLOCK
-		if (vf)
-			framelock_proc(vf, cur_frame_par);
+		if (vf_tmp)
+			framelock_proc(vf_tmp, cur_frame_par);
 		else
 			framelock_proc(NULL, cur_frame_par);
 		#else
-			if (vf)
-				frame_lock_process(vf, cur_frame_par);
+			if (vf_tmp)
+				frame_lock_process(vf_tmp, cur_frame_par);
 			else
 				frame_lock_process(NULL, cur_frame_par);
 		#endif
