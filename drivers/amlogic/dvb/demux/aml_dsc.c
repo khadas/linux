@@ -799,6 +799,8 @@ int dsc_set_sid(int id, int sid)
 	struct aml_dsc *dsc;
 	struct dsc_channel *chans;
 
+	if (advb->dsc[id].sid == sid)
+		return 0;
 	advb->dsc[id].sid = sid;
 
 	dsc = &advb->dsc[id];

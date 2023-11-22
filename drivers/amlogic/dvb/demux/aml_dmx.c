@@ -2151,7 +2151,11 @@ static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 
 	if (advb->ts_clone) {
 		_dmx_set_hw_source_ts_clone(dmx, hw_source);
-		dsc_set_sid(demux->id, demux->sc2_input->id);
+		if (demux->sid != demux->sc2_input->id) {
+			demux->sid = demux->sc2_input->id;
+			ts_output_update_filter(demux->id, demux->sid);
+		}
+		dsc_set_sid(demux->id, demux->sid);
 		mutex_unlock(demux->pmutex);
 		return 0;
 	}
