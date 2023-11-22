@@ -124,6 +124,18 @@ static bool rga_check_format(const struct rga_hw_data *data,
 		formats = data->win[win_num].formats[RGA_TILE8x8_INDEX];
 		format_count = data->win[win_num].formats_count[RGA_TILE8x8_INDEX];
 		break;
+	case RGA_TILE4x4_MODE:
+		formats = data->win[win_num].formats[RGA_TILE4x4_INDEX];
+		format_count = data->win[win_num].formats_count[RGA_TILE4x4_INDEX];
+		break;
+	case RGA_RKFBC_MODE:
+		formats = data->win[win_num].formats[RGA_RKFBC64x4_INDEX];
+		format_count = data->win[win_num].formats_count[RGA_RKFBC64x4_INDEX];
+		break;
+	case RGA_AFBC32x8_MODE:
+		formats = data->win[win_num].formats[RGA_AFBC32x8_INDEX];
+		format_count = data->win[win_num].formats_count[RGA_AFBC32x8_INDEX];
+		break;
 	default:
 		return false;
 	}
