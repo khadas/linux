@@ -506,6 +506,8 @@ static void papyrus_pm_resume(struct ebc_pmic *pmic)
 	usleep_range(2 * 1000, 3 * 1000);
 	mutex_unlock(&s->power_lock);
 
+	s->enable_reg_shadow = 0;
+
 	//trigger temperature measurement
 	papyrus_hw_setreg(s, PAPYRUS_ADDR_TMST1, 0x80);
 	queue_delayed_work(s->tmp_monitor_wq, &s->tmp_delay_work,
@@ -580,12 +582,6 @@ static int papyrus_probe(struct ebc_pmic *pmic, struct i2c_client *client)
 		return stat;
 	}
 
-	sess->tmp_monitor_wq = alloc_ordered_workqueue("%s",
-			WQ_MEM_RECLAIM | WQ_FREEZABLE, "tps-tmp-monitor-wq");
-	INIT_DELAYED_WORK(&sess->tmp_delay_work, papyrus_tmp_work);
-	queue_delayed_work(sess->tmp_monitor_wq, &sess->tmp_delay_work,
-			   msecs_to_jiffies(10000));
-
 	stat = papyrus_hw_init(sess);
 	if (stat)
 		return stat;
@@ -607,6 +603,12 @@ static int papyrus_probe(struct ebc_pmic *pmic, struct i2c_client *client)
 	pmic->pmic_power_req = papyrus_hw_power_req;
 	pmic->pmic_read_temperature = papyrus_hw_read_temperature;
 
+	sess->tmp_monitor_wq = alloc_ordered_workqueue("%s",
+			WQ_MEM_RECLAIM | WQ_FREEZABLE, "tps-tmp-monitor-wq");
+	INIT_DELAYED_WORK(&sess->tmp_delay_work, papyrus_tmp_work);
+
+	queue_delayed_work(sess->tmp_monitor_wq, &sess->tmp_delay_work,
+			   msecs_to_jiffies(10000));
 	return 0;
 }
 
@@ -639,8 +641,21 @@ static int tps65185_probe(struct i2c_client *client, const struct i2c_device_id 
 	return 0;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 0, 0)
+static int tps65185_remove(struct i2c_client *client)
+#else
 static void tps65185_remove(struct i2c_client *client)
+#endif
 {
+	struct ebc_pmic *pmic = i2c_get_clientdata(client);
+	struct papyrus_sess *sess = pmic->drvpar;
+
+	if (sess->tmp_monitor_wq)
+		destroy_workqueue(sess->tmp_monitor_wq);
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 0, 0)
+	return 0;
+#endif
 }
 
 static const struct i2c_device_id tps65185_id[] = {

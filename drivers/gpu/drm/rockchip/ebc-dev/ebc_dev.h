@@ -11,19 +11,30 @@
 #include <linux/notifier.h>
 
 /*
-* max support panel size 2232x1680
+* max support panel size 2560x1920
 * ebc module display buf use 4bit per pixel
 * eink module display buf use 8bit per pixel
 * ebc module direct mode display buf use 2bit per pixel
 */
 #define EBC_FB_SIZE		0x200000 /* 2M */
-#define EINK_FB_SIZE		0x400000 /* 4M */
-#define DIRECT_FB_SIZE		0x100000 /* 1M */
+#define EINK_FB_SIZE		0x500000 /* 5M */
+#define DIRECT_FB_SIZE		0x200000 /* 2M */
+#define LUT_TABLE_SIZE		0x100000 /* 1M */
+#define FRAME_COUNT_SIZE 0x500000 /* 5M */
 
 #define MAX_FB_NUM		4
 
 #define EBC_SUCCESS		(0)
 #define EBC_ERROR		(-1)
+
+#define WF_4BIT		16
+#define WF_5BIT		32
+
+/*
+* ebc buf format
+*/
+#define EBC_Y4 (0)
+#define EBC_Y8 (1)
 
 /*
  * ebc status notify
@@ -36,14 +47,25 @@
 /*
  * ebc system ioctl command
  */
-#define EBC_GET_BUFFER		(0x7000)
-#define EBC_SEND_BUFFER		(0x7001)
-#define EBC_GET_BUFFER_INFO	(0x7002)
+#define EBC_GET_BUFFER				(0x7000)
+#define EBC_SEND_BUFFER			(0x7001)
+#define EBC_GET_BUFFER_INFO		(0x7002)
 #define EBC_SET_FULL_MODE_NUM	(0x7003)
-#define EBC_ENABLE_OVERLAY	(0x7004)
-#define EBC_DISABLE_OVERLAY	(0x7005)
-#define EBC_GET_OSD_BUFFER	(0x7006)
-#define EBC_SEND_OSD_BUFFER	(0x7007)
+#define EBC_ENABLE_OVERLAY		(0x7004)
+#define EBC_DISABLE_OVERLAY		(0x7005)
+#define EBC_GET_OSD_BUFFER		(0x7006)
+#define EBC_SEND_OSD_BUFFER		(0x7007)
+#define EBC_NEW_BUF_PREPARE		(0x7008)
+#define EBC_SET_DIFF_PERCENT		(0x7009)
+#define EBC_WAIT_NEW_BUF_TIME	(0x700a)
+#define EBC_GET_OVERLAY_STATUS	(0x700b)
+#define EBC_ENABLE_BG_CONTROL	(0x700c)
+#define EBC_DISABLE_BG_CONTROL	(0x700d)
+#define EBC_ENABLE_RESUME_COUNT	(0x700e)
+#define EBC_DISABLE_RESUME_COUNT	(0x700f)
+#define EBC_GET_BUF_FORMAT		(0x7010)
+#define EBC_DROP_PREV_BUFFER		(0x7011)
+#define EBC_GET_STATUS				(0x7012)
 
 /*
  * IMPORTANT: Those values is corresponding to android hardware program,
@@ -64,13 +86,17 @@ enum panel_refresh_mode {
 	EPD_PART_GLD16		= 10,
 	EPD_PART_GCC16		= 11,
 	EPD_A2			= 12,
-	EPD_DU			= 13,
-	EPD_RESET		= 14,
-	EPD_SUSPEND		= 15,
-	EPD_RESUME		= 16,
-	EPD_POWER_OFF		= 17,
-	EPD_PART_EINK		= 18,
-	EPD_FULL_EINK		= 19,
+	EPD_A2_DITHER	        = 13,
+	EPD_DU			= 14,
+	EPD_DU4			= 15,
+	EPD_A2_ENTER		= 16,
+	EPD_RESET		= 17,
+	EPD_SUSPEND		= 18,
+	EPD_RESUME		= 19,
+	EPD_POWER_OFF		= 20,
+	EPD_FORCE_FULL		= 21,
+	EPD_AUTO_DU		= 22,
+	EPD_AUTO_DU4		= 23,
 };
 
 /*
@@ -88,6 +114,8 @@ struct ebc_buf_info {
 	int win_y2;
 	int width_mm;
 	int height_mm;
+	int needpic;	// 1: buf can not be drop by ebc, 0: buf can drop by ebc 2: regal buf, can not be drop by ebc
+	char tid_name[16];
 };
 
 #if IS_ENABLED(CONFIG_ROCKCHIP_EBC_DEV)
