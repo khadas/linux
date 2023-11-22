@@ -406,7 +406,7 @@ static void nr4_config_op(struct NR4_PARM_s *nr4_parm_p,
 		const struct reg_acc *op)
 {
 	unsigned short val = 0;
-
+	int pq_temp = Rd(NR4_TOP_CTRL);
 	if (!op) {
 		pr_error("%s:no op\n", __func__);
 		return;
@@ -429,13 +429,17 @@ static void nr4_config_op(struct NR4_PARM_s *nr4_parm_p,
 		op->wr(NR4_NE_Y, height - 1);
 	}
 	/* enable nr4 */
-	Wr_reg_bits(NR4_TOP_CTRL, 1, 16, 1);
-	Wr_reg_bits(NR4_TOP_CTRL, 1, 18, 1);
-	Wr_reg_bits(NR4_TOP_CTRL, 1, 3, 1);
-	Wr_reg_bits(NR4_TOP_CTRL, 1, 5, 1);
+	pq_temp |= (1 << 16);
+	pq_temp |= (1 << 18);
+	pq_temp |= (1 << 3);
+	pq_temp |= (1 << 5);
+	Wr(NR4_TOP_CTRL, pq_temp);
 	//add for crc @2k22-0102
-	if (dim_config_crc_ic())
-		Wr_reg_bits(NR4_TOP_CTRL, 0, 0, 1);
+	if (dim_config_crc_ic()) {
+		pq_temp = Rd(NR4_TOP_CTRL);
+		pq_temp &= ~(1 << 0);
+		Wr(NR4_TOP_CTRL, pq_temp);
+	}
 	nr4_parm_p->width = width - val - val - 1;
 	nr4_parm_p->height = height - val - val - 1;
 }
@@ -477,6 +481,7 @@ static void linebuffer_config_op(unsigned short width,
 static void nr2_config_op(unsigned short width, unsigned short height,
 		const struct reg_acc *op)
 {
+	int pq_temp = Rd(NR4_TOP_CTRL);
 	if (!op) {
 		pr_error("%s:no op\n", __func__);
 		return;
@@ -489,9 +494,16 @@ static void nr2_config_op(unsigned short width, unsigned short height,
 		IS_IC(dil_get_cpuver_flag(), T5D)	||
 		IS_IC(dil_get_cpuver_flag(), T5DB)	||
 		cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
-		Wr_reg_bits(NR4_TOP_CTRL, nr2_en, 2, 1);
-		Wr_reg_bits(NR4_TOP_CTRL, nr2_en, 15, 1);
-		Wr_reg_bits(NR4_TOP_CTRL, nr2_en, 17, 1);
+		if (nr2_en) {
+			pq_temp |= (1 << 2);
+			pq_temp |= (1 << 15);
+			pq_temp |= (1 << 17);
+		} else {
+			pq_temp &= ~(1 << 2);
+			pq_temp &= ~(1 << 15);
+			pq_temp &= ~(1 << 17);
+		}
+		Wr(NR4_TOP_CTRL, pq_temp);
 	} else {
 		/*set max height to disable nfram cnt in cue*/
 		if (is_meson_gxlx_cpu())
@@ -519,6 +531,7 @@ module_param_named(cue_en_force_disable, cue_en_force_disable, bool, 0664);
 static void cue_config_op(struct CUE_PARM_s *pcue_parm, unsigned short field_type,
 		const struct reg_acc *op)
 {
+	int pq_temp = Rd(NR4_TOP_CTRL);
 	pcue_parm->field_count = 8;
 	pcue_parm->frame_count = 8;
 	pcue_parm->field_count1 = 8;
@@ -530,15 +543,16 @@ static void cue_config_op(struct CUE_PARM_s *pcue_parm, unsigned short field_typ
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2) && (!IS_IC(dil_get_cpuver_flag(), T5D)) &&
 	    (!IS_IC(dil_get_cpuver_flag(), T5)) && (!IS_IC(dil_get_cpuver_flag(), T5DB))) {
+		pq_temp &= ~(1 << 1);
 		if (field_type != VIDTYPE_PROGRESSIVE) {
 			op->bwr(NR2_CUE_PRG_DIF, 0, 20, 1);
-			Wr_reg_bits(NR4_TOP_CTRL, 0, 1, 1);
+			Wr(NR4_TOP_CTRL, pq_temp);
 			/* cur row mode avoid seek error */
 			op->bwr(NR2_CUE_MODE, 5, 0, 4);
 		} else {
 			op->bwr(NR2_CUE_PRG_DIF, 1, 20, 1);
 			/* disable cue for progressive issue */
-			Wr_reg_bits(NR4_TOP_CTRL, 0, 1, 1);
+			Wr(NR4_TOP_CTRL, pq_temp);
 		}
 	} else {
 		if (field_type != VIDTYPE_PROGRESSIVE) {
@@ -631,14 +645,17 @@ static DEVICE_ATTR(secam, 0664, secam_show, secam_store);
 static void secam_cfr_fun_op(int top,
 		const struct reg_acc *op)
 {
+	int pq_temp = Rd(NR4_TOP_CTRL);
 	if (!op) {
 		pr_error("%s:no op\n", __func__);
 		return;
 	}
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
-		Wr_reg_bits(NR4_TOP_CTRL, 1, 12, 1);/*set cfr_en:1*/
-	else
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+		pq_temp |= (1 << 12);
+		Wr(NR4_TOP_CTRL, pq_temp);/*set cfr_en:1*/
+	} else {
 		op->bwr(NR2_SW_EN, 1, 7, 1);/*set cfr_en:1*/
+	}
 	op->bwr(NR2_CFR_PARA_CFG0, 1, 2, 2);
 	op->bwr(NR2_CFR_PARA_CFG1, 0x208020, 0, 24);
 	if ((gb_flg == 0 && top) || (gb_flg == 1 && !top)) {
@@ -651,6 +668,7 @@ static void secam_cfr_fun_op(int top,
 void secam_cfr_adjust_op(unsigned int sig_fmt, unsigned int frame_type,
 		const struct reg_acc *op)
 {
+	int pq_temp = Rd(NR4_TOP_CTRL);
 	if (!op) {
 		pr_error("%s:no op\n", __func__);
 		return;
@@ -659,10 +677,12 @@ void secam_cfr_adjust_op(unsigned int sig_fmt, unsigned int frame_type,
 		secam_cfr_fun_op((frame_type & VIDTYPE_TYPEMASK) ==
 			      VIDTYPE_INTERLACE_TOP, op);
 	} else {
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
-			Wr_reg_bits(NR4_TOP_CTRL, 0, 12, 1);/*set cfr_en:0*/
-		else
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
+			pq_temp &= ~(1 << 12);
+			Wr(NR4_TOP_CTRL, pq_temp);/*set cfr_en:0*/
+		} else {
 			op->bwr(NR2_SW_EN, 0, 7, 1);/*set cfr_en:0*/
+		}
 		op->bwr(NR2_CFR_PARA_CFG0, 2, 2, 2);
 	}
 }
@@ -747,6 +767,8 @@ static void noise_meter_process_op(struct NR4_PARM_s *nr4_param_p,
 {
 	unsigned int val1 = 0, val2 = 0, field_sad = 0, field_var = 0;
 	int val = 0;
+	int nr4_temp = Rd(NR4_MCNR_MV_CTRL_REG);
+	int pq_temp = Rd(NR4_TOP_CTRL);
 
 	if (!op) {
 		pr_error("%s:no op\n", __func__);
@@ -770,7 +792,9 @@ static void noise_meter_process_op(struct NR4_PARM_s *nr4_param_p,
 		val1 = find_lut16(val2, &nr4_param_p->sw_nr4_sad2gain_lut[0]);
 	} else
 		val1 = 64;
-	Wr_reg_bits(NR4_MCNR_MV_CTRL_REG, val1, 4, 8);
+	nr4_temp &= ~(0xff0);
+	nr4_temp |= (val1 << 4);
+	Wr(NR4_MCNR_MV_CTRL_REG, nr4_temp);
 	/*add for TL1------*/
 	if (nr4_param_p->sw_nr4_noise_ctrl_dm_en == 1) {
 		if (nr4_param_p->sw_nr4_noise_sel == 0) {
@@ -799,10 +823,13 @@ static void noise_meter_process_op(struct NR4_PARM_s *nr4_param_p,
 	} else
 		nr4_param_p->sw_nr4_scene_change_flg[2] = 0;
 	if (nr4_param_p->sw_nr4_scene_change_flg[1] ||
-		nr4_param_p->sw_nr4_scene_change_flg[2])
-		Wr_reg_bits(NR4_TOP_CTRL, 1, 0, 1);
-	else
-		Wr_reg_bits(NR4_TOP_CTRL, 0, 0, 1);
+		nr4_param_p->sw_nr4_scene_change_flg[2]){
+		pq_temp |= (1 << 0);
+		Wr(NR4_TOP_CTRL, pq_temp);
+	} else {
+		pq_temp &= ~(1 << 0);
+		Wr(NR4_TOP_CTRL, pq_temp);
+	}
 
 	/*fot TL1 **************/
 	if (nr4_param_p->sw_dm_scene_change_en == 1) {
@@ -1333,6 +1360,8 @@ module_param_named(cue_glb_mot_check_en, cue_glb_mot_check_en, bool, 0644);
 static void cue_process_irq_op(const struct reg_acc *op)
 {
 	int pre_field_num = 0, cue_invert = 0;
+	int pq_temp = Rd(NR4_TOP_CTRL);
+	int pq1_temp = Rd(DI_NR_CTRL0);
 
 	if (!op) {
 		pr_error("%s:no op\n", __func__);
@@ -1357,11 +1386,10 @@ static void cue_process_irq_op(const struct reg_acc *op)
 			    (!IS_IC(dil_get_cpuver_flag(), T5D)) &&
 			    (!IS_IC(dil_get_cpuver_flag(), T5)) &&
 			    (!IS_IC(dil_get_cpuver_flag(), T5DB)))
-				Wr_reg_bits(NR4_TOP_CTRL,
-					       cue_en ? 1 : 0, 1, 1);
+				Wr(NR4_TOP_CTRL, cue_en ? (pq_temp | 0x2) : (pq_temp & 0xfffffffd));
 			else
-				Wr_reg_bits(DI_NR_CTRL0,
-					       cue_en ? 1 : 0, 26, 1);
+				Wr(DI_NR_CTRL0, cue_en ?
+				(pq1_temp | 0x4000000) : (pq1_temp & 0xfbffffff));
 			/*confirm with vlsi,fix jira SWPL-31571*/
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2) &&
 			    (!IS_IC(dil_get_cpuver_flag(), T5D)) &&
@@ -1377,6 +1405,7 @@ static void cue_process_irq_op(const struct reg_acc *op)
 
 void cue_int_op(struct vframe_s *vf, const struct reg_acc *op)
 {
+	int pq_temp = Rd(NR4_TOP_CTRL);
 	if (!op) {
 		pr_error("%s:no op\n", __func__);
 		return;
@@ -1408,8 +1437,10 @@ void cue_int_op(struct vframe_s *vf, const struct reg_acc *op)
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2) &&
 		    (!IS_IC(dil_get_cpuver_flag(), T5D)) &&
 		    (!IS_IC(dil_get_cpuver_flag(), T5)) &&
-		    (!IS_IC(dil_get_cpuver_flag(), T5DB)))
-			Wr_reg_bits(NR4_TOP_CTRL, 0, 1, 1);
+		    (!IS_IC(dil_get_cpuver_flag(), T5DB))) {
+			pq_temp &= ~(1 << 0);
+			Wr(NR4_TOP_CTRL, pq_temp);
+		}
 		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX))
 			op->bwr(DI_NR_CTRL0, 0, 26, 1);
 	}
@@ -2321,16 +2352,20 @@ static void nr_all_ctrl(bool enable, const struct reg_acc *op)
 
 static void nr_demo_mode(bool enable, const struct reg_acc *op)
 {
+	int pq_temp = Rd(NR4_TOP_CTRL);
 	if (!op) {
 		pr_error("%s:no op\n", __func__);
 		return;
 	}
 
 	if (enable) {
-		Wr_reg_bits(NR4_TOP_CTRL, 0, 6, 3);
+		pq_temp &= ~(0x1c0);
+		Wr(NR4_TOP_CTRL, pq_temp);
 		nr_demo_flag = 1;
 	} else {
-		Wr_reg_bits(NR4_TOP_CTRL, 7, 6, 3);
+		pq_temp &= ~(0x1c0);
+		pq_temp |= (0x7 << 6);
+		Wr(NR4_TOP_CTRL, pq_temp);
 		nr_demo_flag = 0;
 	}
 }
