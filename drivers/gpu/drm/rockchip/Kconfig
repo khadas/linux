@@ -166,5 +166,6 @@ config ROCKCHIP_DW_HDCP2
 
 source "drivers/gpu/drm/rockchip/rk618/Kconfig"
 source "drivers/gpu/drm/rockchip/rk628/Kconfig"
+source "drivers/gpu/drm/rockchip/ebc-dev/Kconfig"
 
 endif
