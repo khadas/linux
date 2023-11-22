@@ -1138,10 +1138,6 @@ out:
 		else
 			putback_lru_page(newpage);
 	}
-#ifdef CONFIG_AMLOGIC_CMA
-	if (rc != MIGRATEPAGE_SUCCESS)
-		cma_debug(2, page, " unmap and move failed\n");
-#endif
 
 	return rc;
 }
