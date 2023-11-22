@@ -649,7 +649,7 @@ static int create_evl_socket(struct net *net, struct socket *sock,
 	 * Protocol is checked for validity when the socket is
 	 * attached to the out-of-band core in sock_oob_attach().
 	 */
-	sk->sk_protocol = protocol;
+	sk->sk_protocol = htons(protocol);
 	sk->sk_destruct	= destroy_evl_socket;
 
 	local_bh_disable();
