@@ -146,7 +146,7 @@ static const unsigned int tdm_d1_pins[]			= { GPIOD_6 };
 static const unsigned int tdm_fs1_pins[]		= { GPIOD_7 };
 static const unsigned int tdm_sclk1_pins[]		= { GPIOD_8 };
 static const unsigned int mclk1_pins[]			= { GPIOD_9 };
-static const unsigned int tdm_d2_d_pins[]		= { GPIOD_10 };
+static const unsigned int tdm_d2_pins[]			= { GPIOD_10 };
 
 /*bank D func6 */
 static const unsigned int clk12_24_d_pins[]		= { GPIOD_10 };
@@ -604,7 +604,7 @@ static struct meson_pmx_group meson_sc2_periphs_groups[] __initdata = {
 	GROUP(tdm_fs1,			5),
 	GROUP(tdm_sclk1,		5),
 	GROUP(mclk1,			5),
-	GROUP(tdm_d2_d,			5),
+	GROUP(tdm_d2,			5),
 
 	/* bank D func6 */
 	GROUP(clk12_24_d,		6),
