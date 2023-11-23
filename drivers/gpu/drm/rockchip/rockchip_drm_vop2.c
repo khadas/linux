@@ -7690,6 +7690,7 @@ static void vop3_setup_pipe_dly(struct vop2_video_port *vp, const struct vop2_zp
 	}
 }
 
+char dp_out_mode[32];
 static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state *old_state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -7738,6 +7739,8 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		     drm_mode_vrefresh(adjusted_mode),
 		     vcstate->output_type, vcstate->output_if, vcstate->output_flags,
 		     vp->id, adjusted_mode->crtc_clock * 1000);
+
+	snprintf(dp_out_mode, 32, "dpmode=%dx%d", hdisplay, adjusted_mode->vdisplay);
 
 	if (adjusted_mode->hdisplay > VOP2_MAX_VP_OUTPUT_WIDTH) {
 		vcstate->splice_mode = true;

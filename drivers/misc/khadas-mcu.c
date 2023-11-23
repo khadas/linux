@@ -388,6 +388,13 @@ static ssize_t show_fan_temp(struct class *cls,
             g_mcu_data->fan_data.trig_temp_level2);
 }
 
+extern char dp_out_mode[32];
+static ssize_t show_dpmode_temp(struct class *cls,
+             struct class_attribute *attr, char *buf)
+{
+    return sprintf(buf, "%s\n", dp_out_mode);
+}
+
 void fan_level_set(struct mcu_data *ug_mcu_data)
 {
     struct mcu_fan_data *fan_data = &g_mcu_data->fan_data;
@@ -611,6 +618,7 @@ static struct class_attribute mcu_class_attrs[] = {
 	__ATTR(poweroff, 0644, NULL, store_mcu_poweroff),
 	__ATTR(rst, 0644, NULL, store_mcu_rst),
 	__ATTR(mculed, 0644, NULL, store_mculed_mode),
+	__ATTR(dpmode, 0644, show_dpmode_temp, NULL),
 };
 
 static void create_mcu_attrs(void) {
