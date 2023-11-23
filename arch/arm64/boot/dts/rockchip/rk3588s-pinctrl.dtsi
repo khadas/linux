@@ -1373,33 +1373,24 @@
 
 	i2s2 {
 		/omit-if-no-ref/
-		i2s2m1_idle: i2s2m1-idle {
-			rockchip,pins =
-				/* i2s2m1_lrck_gpio */
-				<3 RK_PB6 0 &pcfg_pull_none>,
-				/* i2s2m1_sclk_gpio */
-				<3 RK_PB5 0 &pcfg_pull_none>;
-		};
-
-		/omit-if-no-ref/
 		i2s2m1_lrck: i2s2m1-lrck {
 			rockchip,pins =
 				/* i2s2m1_lrck */
-				<3 RK_PB6 3 &pcfg_pull_none_smt>;
+				<3 RK_PB6 3 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
 		i2s2m1_mclk: i2s2m1-mclk {
 			rockchip,pins =
 				/* i2s2m1_mclk */
-				<3 RK_PB4 3 &pcfg_pull_none_smt>;
+				<3 RK_PB4 3 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/
 		i2s2m1_sclk: i2s2m1-sclk {
 			rockchip,pins =
 				/* i2s2m1_sclk */
-				<3 RK_PB5 3 &pcfg_pull_none_smt>;
+				<3 RK_PB5 3 &pcfg_pull_none>;
 		};
 
 		/omit-if-no-ref/

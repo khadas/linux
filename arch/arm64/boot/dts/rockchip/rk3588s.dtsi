@@ -5697,12 +5697,11 @@
 		dma-names = "tx", "rx";
 		power-domains = <&power RK3588_PD_AUDIO>;
 		rockchip,clk-trcm = <1>;
-		pinctrl-names = "default", "idle", "clk";
-		pinctrl-0 = <&i2s2m1_sdi
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s2m1_lrck
+			     &i2s2m1_sclk
+			     &i2s2m1_sdi
 			     &i2s2m1_sdo>;
-		pinctrl-1 = <&i2s2m1_idle>;
-		pinctrl-2 = <&i2s2m1_lrck
-			     &i2s2m1_sclk>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
