@@ -123,17 +123,25 @@ unsigned long read_violation_mem(unsigned long addr, char rw)
 	return val;
 }
 
+static void get_page_flags(struct page *page, char *buf)
+{
+	sprintf(buf, "bd:%d sb:%d lru:%d", PageBuddy(page), PageSlab(page), PageLRU(page));
+}
+
 void show_violation_mem_printk(char *title, unsigned long addr, unsigned long status,
 				int port, int sub_port, char rw)
 {
 	struct page *page;
+	char buffer[32] = {0};
 
 	page = phys_to_page(addr);
-	pr_crit(DMC_TAG "%s addr=%09lx val=%016lx s=%08lx port=%s sub=%s rw:%c a:%ps\n",
+	get_page_flags(page, buffer);
+
+	pr_crit(DMC_TAG "%s addr=%09lx val=%016lx s=%08lx port=%s sub=%s rw:%c %s a:%ps\n",
 		title, addr, read_violation_mem(addr, rw),
 		status, to_ports(port),
 		to_sub_ports_name(port, sub_port, rw),
-		rw, (void *)get_page_trace(page));
+		rw, buffer, (void *)get_page_trace(page));
 }
 
 void show_violation_mem_trace_event(unsigned long addr, unsigned long status,
