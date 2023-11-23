@@ -338,7 +338,7 @@ int attach_nn_hook_mod_info(int shared_fd,
 	return 0;
 }
 
-static void dump_vf(struct vframe_s *vf)
+static void dump_vf(struct vframe_s *vf, int num)
 {
 	struct file *fp;
 	char name_buf[32];
@@ -355,10 +355,12 @@ static void dump_vf(struct vframe_s *vf)
 		return;
 	}
 
-	snprintf(name_buf, sizeof(name_buf), "/data/aisr_DI.bin");
+	snprintf(name_buf, sizeof(name_buf), "/data/aisr_DI_%d.bin", num);
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
-	if (IS_ERR(fp))
+	if (IS_ERR(fp)) {
+		nn_print(PRINT_ERROR, "open file path %s failed.\n", name_buf);
 		return;
+	}
 
 	write_size = vf->canvas0_config[0].width * vf->canvas0_config[0].height
 		* 2 * 10 / 8;
@@ -378,7 +380,7 @@ static void dump_vf(struct vframe_s *vf)
 	set_fs(fs);
 }
 
-int dump_hf(struct vf_nn_sr_t *nn_sr_dst)
+int dump_hf(struct vf_nn_sr_t *nn_sr_dst, int num)
 {
 	struct file *fp;
 	char name_buf[32];
@@ -387,7 +389,7 @@ int dump_hf(struct vf_nn_sr_t *nn_sr_dst)
 	mm_segment_t fs;
 	loff_t pos;
 
-	snprintf(name_buf, sizeof(name_buf), "/data/aisr_hf.yuv");
+	snprintf(name_buf, sizeof(name_buf), "/data/aisr_hf_%d.yuv", num);
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 	if (IS_ERR(fp))
 		return -1;
@@ -416,6 +418,7 @@ int nn_mod_setinfo(void *arg, char *buf)
 	size_t len;
 	phys_addr_t addr = 0;
 	struct vframe_s *vf = NULL;
+	static int dump_count;
 
 	nn_sr_src = (struct uvm_ai_sr_info *)buf;
 	nn_sr_dst = (struct vf_nn_sr_t *)arg;
@@ -450,10 +453,17 @@ int nn_mod_setinfo(void *arg, char *buf)
 		nn_sr_dst->buf_align_h = nn_sr_src->buf_align_h;
 
 		if (uvm_aisr_dump != 0) {
-			uvm_aisr_dump = 0;
-			vf = nn_get_vframe(nn_sr_src->shared_fd);
-			dump_vf(vf);
-			dump_hf(nn_sr_dst);
+			if (dump_count < uvm_aisr_dump) {
+				vf = nn_get_vframe(nn_sr_src->shared_fd);
+				dump_vf(vf, dump_count + 1);
+				dump_hf(nn_sr_dst, dump_count + 1);
+				dump_count++;
+			} else {
+				nn_print(PRINT_ERROR, "finish dump %d vframe.\n",
+					uvm_aisr_dump);
+				dump_count = 0;
+				uvm_aisr_dump = 0;
+			}
 		}
 
 		do_gettimeofday(&nn_sr_dst->start_time);
