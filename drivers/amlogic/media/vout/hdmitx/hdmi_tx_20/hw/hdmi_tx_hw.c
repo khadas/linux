@@ -1457,17 +1457,6 @@ static void hdmi_tvenc_vesa_set(struct hdmitx_vidpara *param)
 	hd_write_reg(P_ENCP_DVI_VSO_END_EVN, vso_begin_evn);  /* 1692 */
 
 	switch (param->VIC) {
-	case HDMIV_640x480p60hz:
-		hd_write_reg(P_VPU_HDMI_SETTING, (0 << 0) |
-				(0 << 1) |
-				(0 << 2) |
-				(0 << 3) |
-				(0 << 4) |
-				(4 << 5) |
-				(0 << 8) |
-				(0 << 12)
-		);
-		break;
 	default:
 		hd_write_reg(P_VPU_HDMI_SETTING, (0 << 0) |
 				(0 << 1) | /* [	1] src_sel_encp */
@@ -6101,7 +6090,6 @@ void hdmitx_set_avi_colorimetry(struct hdmi_format_para *para)
 
 	/* set Colorimetry in AVIInfo */
 	switch (para->vic) {
-	case HDMI_640x480p60_4x3:
 	case HDMI_720x480p60_4x3:
 	case HDMI_720x480p60_16x9:
 	case HDMI_720x480i60_4x3:
@@ -6529,7 +6517,6 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 
 	/* set Aspect Ratio in AVIInfo */
 	switch (para->vic) {
-	case HDMI_640x480p60_4x3:
 	case HDMI_720x480p60_4x3:
 	case HDMI_720x480i60_4x3:
 	case HDMI_720x240p60_4x3:

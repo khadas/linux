@@ -6,8 +6,6 @@
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_common.h>
 
 const static struct hdmi_timing hdmi_timing_all[] = {
-	{HDMI_1_640x480p60_4x3, "640x480p60hz", NULL, 1, 31469, 59940, 25175,
-		800, 160, 16, 96, 48, 640, 525, 45, 10, 2, 33, 480, 1, 0, 0, 4, 3, 1, 1},
 	{HDMI_2_720x480p60_4x3, "720x480p60hz", NULL, 1, 31469, 59940, 27000,
 		858, 138, 16, 62, 60, 720, 525, 45, 9, 6, 30, 480, 7, 0, 0, 4, 3, 8, 9},
 	{HDMI_3_720x480p60_16x9, "720x480p60hz", "480p60hz", 1, 31469, 59940, 27000,

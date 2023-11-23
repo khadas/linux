@@ -677,9 +677,6 @@ static struct hw_enc_clk_val_group setting_enc_clk_val_24[] = {
 	  HDMI_VIC_END},
 		3450000, 1, 2, 2, VID_PLL_DIV_5, 1, 1, 1, -1},
 	/* pll setting for VESA modes */
-	{{HDMIV_640x480p60hz, /* 4.028G / 16 = 251.75M */
-	  HDMI_VIC_END},
-		4028000, 4, 4, 1, VID_PLL_DIV_5, 2, 1, 1, -1},
 	{{HDMIV_800x480p60hz,
 	  HDMI_VIC_END},
 		4761600, 4, 4, 1, VID_PLL_DIV_5, 2, 1, 1, -1},

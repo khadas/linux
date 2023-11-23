@@ -227,8 +227,6 @@ static void store_cea_idx(struct rx_cap *prxcap, enum hdmi_vic vic)
 
 static void edid_establishedtimings(struct rx_cap *prxcap, unsigned char *data)
 {
-	if (data[0] & (1 << 5))
-		store_vesa_idx(prxcap, HDMIV_640x480p60hz);
 	if (data[0] & (1 << 0))
 		store_vesa_idx(prxcap, HDMIV_800x600p60hz);
 	if (data[1] & (1 << 3))
@@ -1420,7 +1418,9 @@ static int hdmitx_edid_cta_block_parse(struct hdmitx_dev *hdev,
 				 */
 				prxcap->SVD_VIC[prxcap->SVD_VIC_count] = VIC;
 				prxcap->SVD_VIC_count++;
-				store_cea_idx(prxcap, VIC);
+				/* don't support 640x480p60 */
+				if (VIC > 1)
+					store_cea_idx(prxcap, VIC);
 			}
 			offset += count;
 			break;
@@ -2406,7 +2406,6 @@ static struct dispmode_vic dispmode_vic_tab[] = {
 	{"smpte60hz", HDMI_4096x2160p60_256x135},
 	{"2160p60hz", HDMI_4k2k_60},
 	{"2160p50hz", HDMI_4k2k_50},
-	{"640x480p60hz", HDMIV_640x480p60hz},
 	{"800x480p60hz", HDMIV_800x480p60hz},
 	{"800x600p60hz", HDMIV_800x600p60hz},
 	{"852x480p60hz", HDMIV_852x480p60hz},
@@ -2604,6 +2603,10 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	case HDMI_720x576i50_16x9:
 		if (para->cs == COLORSPACE_YUV422)
 			return 0;
+		break;
+	/* don't support 640x480p60 */
+	case HDMI_640x480p60_4x3:
+		return 0;
 	default:
 		break;
 	}
