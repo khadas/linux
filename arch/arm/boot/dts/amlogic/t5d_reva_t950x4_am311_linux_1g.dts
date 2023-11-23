@@ -22,6 +22,7 @@
 #include "partition_normal_linux.dtsi"
 #include "mesont5d_reva_am301_linux-panel.dtsi"
 #include "mesont5_drm.dtsi"
+#include "meson-ir-map-linux.dtsi"
 
 / {
 	amlogic-dt-id = "t5d-reva_t950x4_am311-1g";
@@ -1820,4 +1821,9 @@
 
 &cma_shrinker {
 	free = <7680 24288 28528 32600 32768 36624>;
+};
+
+/*For linux platforms, use custom_maps_linux to override the default custom_maps in the IR*/
+&remote {
+	map = <&custom_maps_linux>;
 };

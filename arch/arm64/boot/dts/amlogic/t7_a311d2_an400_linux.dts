@@ -10,6 +10,7 @@
 #include "partition_normal_linux.dtsi"
 #include <dt-bindings/input/input.h>
 #include "mesont7_an400-panel.dtsi"
+#include "meson-ir-map-linux.dtsi"
 
 / {
 	amlogic-dt-id = "t7_a311d2_an400";
@@ -1773,6 +1774,8 @@
 	status = "okay";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
+	/*For linux platforms, use custom_maps_linux to override the default custom_maps in the IR*/
+	map = <&custom_maps_linux>;
 };
 
 &amlvecm {

@@ -9,6 +9,7 @@
 #include "partition_normal_linux.dtsi"
 #include "mesont5d_am301_linux-panel.dtsi"
 #include "mesont5_drm.dtsi"
+#include "meson-ir-map-linux.dtsi"
 
 / {
 	amlogic-dt-id = "t5d_t950d4_am301-512m";
@@ -1867,4 +1868,9 @@
 &drm_subsystem {
 	fbdev_sizes = <1280 720 1280 1440 32>;
 	fbdev_size_roundup_flag = <1>;
+};
+
+/*For linux platforms, use custom_maps_linux to override the default custom_maps in the IR*/
+&remote {
+	map = <&custom_maps_linux>;
 };

@@ -9,6 +9,7 @@
 #include "mesont5w_drm.dtsi"
 #include "partition_normal_linux.dtsi"
 #include "mesont5w_at301-panel.dtsi"
+#include "meson-ir-map-linux.dtsi"
 
 / {
 	amlogic-dt-id = "t5w_at301_2g";
@@ -1742,4 +1743,9 @@
 
 &earc {
 	status = "okay";
+};
+
+/*For linux platforms, use custom_maps_linux to override the default custom_maps in the IR*/
+&remote {
+	map = <&custom_maps_linux>;
 };

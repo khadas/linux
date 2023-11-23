@@ -8,6 +8,7 @@
 #include "meson-tm2.dtsi"
 #include "mesontm2_drm.dtsi"
 #include "partition_normal_linux.dtsi"
+#include "meson-ir-map-linux.dtsi"
 
 / {
 	amlogic-dt-id = "tm2_t962e2_ab311_linux";
@@ -1088,6 +1089,8 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&remote_input_ao_pins>;
+	/*For linux platforms, use custom_maps_linux to override the default custom_maps in the IR*/
+	map = <&custom_maps_linux>;
 };
 
 &audiobus {
