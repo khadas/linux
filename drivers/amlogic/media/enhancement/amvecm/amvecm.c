@@ -2262,8 +2262,10 @@ int amvecm_on_vs(struct vframe_s *vf,
 			amvecm_size_patch(toggle_vf ? toggle_vf : vf, cm_in_w, cm_in_h);
 
 		if (toggle_vf && vd_path == VD1_PATH) {
+#ifndef CONFIG_AMLOGIC_MEDIA_VPP
 			lc_process(toggle_vf, sps_h_en, sps_v_en,
 				   sps_w_in, sps_h_in);
+#endif
 			/*1080i pulldown combing workaround*/
 			amvecm_dejaggy_patch(toggle_vf);
 			if ((get_cpu_type() == MESON_CPU_MAJOR_ID_T3) ||
@@ -2277,8 +2279,10 @@ int amvecm_on_vs(struct vframe_s *vf,
 		/*refresh vframe*/
 		if (!toggle_vf && vf) {
 			if (vd_path == VD1_PATH) {
+#ifndef CONFIG_AMLOGIC_MEDIA_VPP
 				lc_process(vf, sps_h_en, sps_v_en,
 				   sps_w_in, sps_h_in);
+#endif
 				vf_state = cabc_add_hist_proc(vf);
 			}
 		}
@@ -2288,8 +2292,10 @@ int amvecm_on_vs(struct vframe_s *vf,
 	} else {
 		result = amvecm_matrix_process(NULL, NULL, flags, vd_path, vpp_index);
 		if (vd_path == VD1_PATH) {
+#ifndef CONFIG_AMLOGIC_MEDIA_VPP
 			lc_process(NULL, sps_h_en, sps_v_en,
 				   sps_w_in, sps_h_in);
+#endif
 			/*1080i pulldown combing workaround*/
 			amvecm_dejaggy_patch(NULL);
 			amvecm_size_patch(NULL, 0, 0);

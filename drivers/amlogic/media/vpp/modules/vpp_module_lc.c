@@ -2099,7 +2099,8 @@ static void _lc_mtrx_idx_init(enum vpp_chip_type_e chip_id)
 	if (lc_alg_cfg[EN_LC_BITDEPTH] == 10) {
 		if (chip_id == CHIP_T5 ||
 			chip_id == CHIP_T5D ||
-			chip_id == CHIP_T3) {
+			chip_id == CHIP_T3 ||
+			chip_id == CHIP_T5W) {
 			mtrx_idx_tbl[EN_LC_CSC_YUV601L_RGB].csc_coef_idx = 2;
 			mtrx_idx_tbl[EN_LC_CSC_YUV709L_RGB].csc_coef_idx = 5;
 			mtrx_idx_tbl[EN_LC_CSC_YUV709_RGB].csc_coef_idx = 8;
