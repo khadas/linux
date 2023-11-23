@@ -121,6 +121,34 @@ const struct video_info_t cts_vp9_videos[] = {
 	},
 };
 
+const struct video_info_t cts_videos[] = {
+	{
+		.width = 256,
+		.height = 108,
+	},
+	{
+		.width = 192,
+		.height = 144,
+	},
+	{
+		.width = 426,
+		.height = 182,
+	},
+	{
+		.width = 426,
+		.height = 240,
+	},
+	{
+		.width = 136,
+		.height = 240,
+	},
+	{
+		.width = 202,
+		.height = 360,
+	},
+};
+
+const s32 num_videos = ARRAY_SIZE(cts_videos);
 const s32 num_vp9_videos = ARRAY_SIZE(cts_vp9_videos);
 
 #define PRINT_ERROR		0X0
@@ -1045,7 +1073,6 @@ static bool need_do_extend_one_column_fbc(struct vframe_s *vf,
 					  struct v4l_data_t *v4l_data)
 {
 	u32 video_idx;
-
 	pr_info("vf->compwidth:%d v4l_data->byte_stride:%d num_vp9_videos:%d\n",
 		 vf->compWidth, v4l_data->byte_stride, num_vp9_videos);
 
@@ -1066,7 +1093,6 @@ static bool need_do_extend_one_row_fbc(struct vframe_s *vf,
 				       struct v4l_data_t *v4l_data)
 {
 	u32 video_idx;
-
 	pr_info("vf->compHeight:%d v4l_data->height:%d num_vp9_videos:%d\n",
 		 vf->compHeight, v4l_data->height, num_vp9_videos);
 
@@ -1083,6 +1109,47 @@ static bool need_do_extend_one_row_fbc(struct vframe_s *vf,
 	return true;
 }
 
+static bool need_do_extend_one_column(struct vframe_s *vf,
+				      struct v4l_data_t *v4l_data)
+{
+	u32 video_idx;
+
+	if (cts_video_flag || vf->width >= v4l_data->byte_stride)
+		return false;
+	pr_debug("width:%d height:%d num_videos:%d\n",
+		    v4l_data->width,
+		    v4l_data->height,
+		    num_videos);
+	for (video_idx = 0; video_idx < num_videos; video_idx++) {
+		if (vf->width == cts_videos[video_idx].width &&
+		   vf->height == cts_videos[video_idx].height) {
+			pr_info("%s...\n", __func__);
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool need_do_extend_one_row(struct vframe_s *vf,
+				      struct v4l_data_t *v4l_data)
+{
+	u32 video_idx;
+
+	if (cts_video_flag || vf->height >= v4l_data->height)
+		return false;
+	pr_debug("width:%d height:%d num_videos:%d\n",
+		    v4l_data->width,
+		    v4l_data->height,
+		    num_videos);
+	for (video_idx = 0; video_idx < num_videos; video_idx++) {
+		if (vf->width == cts_videos[video_idx].width &&
+		   vf->height == cts_videos[video_idx].height) {
+			pr_info("%s...\n", __func__);
+			return true;
+		}
+	}
+	return false;
+}
 void v4lvideo_data_copy(struct v4l_data_t *v4l_data,
 				struct dma_buf *dmabuf,
 				u32 align)
@@ -1101,6 +1168,8 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data,
 	char *y_src = NULL;
 	char *uv_src = NULL;
 	u32 row;
+	u32 extend_width;
+	u32 extend_height;
 	struct file_private_data *file_private_data = NULL;
 
 	is_dec_vf = is_valid_mod_type(dmabuf, VF_SRC_DECODER);
@@ -1346,8 +1415,24 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data,
 	ge2d_config.dst_para.left = 0;
 	ge2d_config.dst_para.format = GE2D_FORMAT_M24_NV21
 					| GE2D_LITTLE_ENDIAN;
-	ge2d_config.dst_para.width = vf->width;
-	ge2d_config.dst_para.height = vf->height;
+	extend_width = vf->width;
+	if (need_do_extend_one_column(vf, v4l_data))
+		extend_width = vf->width + 1;
+	pr_info("extend_width:%d vf->width:%d vf->height:%d\n",
+		extend_width, vf->width, vf->height);
+	ge2d_config.dst_para.width = extend_width;
+	pr_info("ge2d_config.dst_para.width:%d\n",
+		ge2d_config.dst_para.width);
+
+	extend_height = vf->height;
+	if (need_do_extend_one_row(vf, v4l_data))
+		extend_height = vf->height + 1;
+	pr_info("extend_height:%d vf->width:%d vf->height:%d\n",
+		extend_height, vf->width, vf->height);
+	ge2d_config.dst_para.height = extend_height;
+	pr_info("ge2d_config.dst_para.height:%d\n",
+		ge2d_config.dst_para.height);
+
 
 	if (ge2d_context_config_ex(context, &ge2d_config) < 0) {
 		pr_err("ge2d_context_config_ex error.\n");
@@ -1356,10 +1441,10 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data,
 
 	if (vf->type & VIDTYPE_INTERLACE)
 		stretchblt_noalpha(context, 0, 0, vf->width, vf->height / 2,
-				   0, 0, vf->width, vf->height);
+				   0, 0, extend_width, extend_height);
 	else
 		stretchblt_noalpha(context, 0, 0, vf->width, vf->height,
-				   0, 0, vf->width, vf->height);
+				   0, 0, extend_width, extend_height);
 	if (vf_dump)
 		dump_yuv_data(vf, v4l_data);
 }
