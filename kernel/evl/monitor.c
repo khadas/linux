@@ -1001,6 +1001,7 @@ static ssize_t monitor_read(struct file *filp, char __user *u_buf,
 	struct evl_monitor *event = element_of(filp, struct evl_monitor);
 	struct wait_queue_entry wq_entry;
 	unsigned long flags, ib_flags;
+	int ret = 0;
 	s32 val;
 
 	if (event->type != EVL_MONITOR_EVENT || event->protocol != EVL_EVENT_MASK)
@@ -1015,33 +1016,38 @@ static ssize_t monitor_read(struct file *filp, char __user *u_buf,
 		spin_lock_irqsave(&event->inband_wait.lock, ib_flags);
 		raw_spin_lock_irqsave(&event->wait_queue.wchan.lock, flags);
 
+		if (signal_pending(current)) {
+			ret = -ERESTARTSYS;
+			break;
+		}
+
 		if (list_empty(&wq_entry.entry))
 			__add_wait_queue(&event->inband_wait, &wq_entry);
 
 		/* Disjunctive operation. */
-		if (__trywait_mask(event, -1, false, &val, flags)) {
-			list_del(&wq_entry.entry);
-			 /* We have collected all the bits, send POLLOUT wakeup. */
-			if (waitqueue_active(&event->inband_wait))
-				wake_up_all_locked(&event->inband_wait);
-			spin_unlock_irqrestore(&event->inband_wait.lock, ib_flags);
+		if (__trywait_mask(event, -1, false, &val, flags))
+			goto unlocked;
+
+		if (filp->f_flags & O_NONBLOCK) {
+			ret = -EAGAIN;
 			break;
 		}
 
-		raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock, flags);
-
-		if (filp->f_flags & O_NONBLOCK) {
-			spin_unlock_irqrestore(&event->inband_wait.lock, ib_flags);
-			return -EAGAIN;
-		}
-
 		set_current_state(TASK_INTERRUPTIBLE);
+		raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock, flags);
 		spin_unlock_irqrestore(&event->inband_wait.lock, ib_flags);
-
 		schedule();
-		if (signal_pending(current))
-			return -ERESTARTSYS;
 	}
+
+	raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock, flags);
+unlocked:
+	list_del(&wq_entry.entry);
+
+	/* We have collected all the bits, send POLLOUT wakeup. */
+	if (!ret && waitqueue_active(&event->inband_wait))
+		wake_up_all_locked(&event->inband_wait);
+
+	spin_unlock_irqrestore(&event->inband_wait.lock, ib_flags);
 
 	return copy_to_user(u_buf, &val, sizeof(val)) ? -EFAULT : sizeof(val);
 }
