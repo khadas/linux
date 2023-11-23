@@ -344,7 +344,8 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 	unsigned int capture_active,
 	unsigned int playback_active,
 	bool tdmin_src_hdmirx,
-	bool use_vadtop)
+	bool use_vadtop,
+	int ext_amp_ws_inv)
 {
 	unsigned int binv, finv, id;
 	unsigned int valb, valf;
@@ -400,10 +401,15 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 			bclkout_skew = 1;
 		}
 		bclkin_skew = 3;
-		is_i2s = true;
-		clkctl |= MST_CLK_INVERT_PH0_PAD_FCLK |
-			MST_CLK_INVERT_PH1_TDMIN_FCLK |
-			MST_CLK_INVERT_PH2_TDMOUT_FCLK;
+		if (ext_amp_ws_inv) {
+			is_i2s = true;
+			clkctl |= MST_CLK_INVERT_PH0_PAD_FCLK |
+				MST_CLK_INVERT_PH1_TDMIN_FCLK |
+				MST_CLK_INVERT_PH2_TDMOUT_FCLK;
+		} else {
+			clkctl |= MST_CLK_INVERT_PH0_PAD_FCLK |
+				MST_CLK_INVERT_PH2_TDMOUT_FCLK;
+		}
 		finv = 1;
 
 		if (master_mode) {
@@ -470,10 +476,12 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 			binv ^= 1;
 
 		finv |= 1;
-		if (is_i2s)
-			tdmin_ws_inv = 0;
-		else
-			tdmin_ws_inv = 1;
+		if (ext_amp_ws_inv) {
+			if (is_i2s)
+				tdmin_ws_inv = 0;
+			else
+				tdmin_ws_inv = 1;
+		}
 		clkctl ^= MST_CLK_INVERT_PH0_PAD_BCLK;
 		clkctl ^= MST_CLK_INVERT_PH0_PAD_FCLK;
 		break;
@@ -481,27 +489,33 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 		/* Invert bit clock */
 		if (!master_mode)
 			binv ^= 1;
-		if (is_i2s)
-			tdmin_ws_inv = 1;
-		else
-			tdmin_ws_inv = 0;
+		if (ext_amp_ws_inv) {
+			if (is_i2s)
+				tdmin_ws_inv = 1;
+			else
+				tdmin_ws_inv = 0;
+		}
 		clkctl ^= MST_CLK_INVERT_PH0_PAD_BCLK;
 		break;
 	case SND_SOC_DAIFMT_NB_IF:
 		/* Invert frame clock */
 		finv ^= 1;
-		if (is_i2s)
-			tdmin_ws_inv = 0;
-		else
-			tdmin_ws_inv = 1;
+		if (ext_amp_ws_inv) {
+			if (is_i2s)
+				tdmin_ws_inv = 0;
+			else
+				tdmin_ws_inv = 1;
+		}
 		clkctl ^= MST_CLK_INVERT_PH0_PAD_FCLK;
 		break;
 	case SND_SOC_DAIFMT_NB_NF:
 		/* normal cases */
-		if (is_i2s)
-			tdmin_ws_inv = 1;
-		else
-			tdmin_ws_inv = 0;
+		if (ext_amp_ws_inv) {
+			if (is_i2s)
+				tdmin_ws_inv = 1;
+			else
+				tdmin_ws_inv = 0;
+		}
 		break;
 	default:
 		return;
@@ -584,10 +598,12 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 			}
 			aml_audiobus_update_bits(actrl, reg_in,
 				3 << 26 | 0x7 << 16, 3 << 26 | bclkin_skew << 16);
-
-			aml_audiobus_update_bits(actrl, reg_in,
-				0x1 << 25, tdmin_ws_inv << 25);
-
+			if (ext_amp_ws_inv)
+				aml_audiobus_update_bits(actrl, reg_in,
+					0x1 << 25, tdmin_ws_inv << 25);
+			else
+				aml_audiobus_update_bits(actrl, reg_in,
+					0x1 << 25, finv << 25);
 			mode = (p_config->pcm_mode == SND_SOC_DAIFMT_I2S) ? 0x1 : 0x0;
 			aml_audiobus_update_bits(actrl, reg_in, 0x1 << 30, mode << 30);
 		}

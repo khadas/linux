@@ -87,7 +87,8 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 	unsigned int capture_active,
 	unsigned int playback_active,
 	bool tdmin_src_hdmirx,
-	bool use_vadtop);
+	bool use_vadtop,
+	int ext_amp_ws_inv);
 
 void aml_update_tdmin_skew(struct aml_audio_controller *actrl,
 			   int idx, int skew, bool use_vadtop);

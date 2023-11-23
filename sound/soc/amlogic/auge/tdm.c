@@ -138,6 +138,7 @@ struct aml_tdm {
 	struct regulator *regulator_vcc3v3;
 	struct regulator *regulator_vcc5v;
 	int suspend_clk_off;
+	int ext_amp_ws_inv;
 };
 
 #define TDM_BUFFER_BYTES (512 * 1024)
@@ -570,7 +571,8 @@ static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture
 	aml_tdm_set_format(p_tdm->actrl, &p_tdm->setting,
 			   p_tdm->clk_sel, p_tdm->id, fmt, 1, 1,
 			   tdmin_src_hdmirx,
-			   p_tdm->chipinfo->use_vadtop);
+			   p_tdm->chipinfo->use_vadtop,
+			   p_tdm->ext_amp_ws_inv);
 	if (p_tdm->contns_clk && !IS_ERR(p_tdm->mclk)) {
 		int ret = clk_prepare_enable(p_tdm->mclk);
 
@@ -2379,6 +2381,13 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	else
 		pr_info("TDM id %d output clk enable:%d\n",
 			p_tdm->id, p_tdm->start_clk_enable);
+
+	ret = of_property_read_u32(node, "ext_amp_ws_inv", &p_tdm->ext_amp_ws_inv);
+	if (ret < 0)
+		p_tdm->ext_amp_ws_inv = 0;
+	else
+		pr_info("TDM id %d ext_amp_ws_inv:%d\n",
+			p_tdm->id, p_tdm->ext_amp_ws_inv);
 
 	ret = of_property_read_u32(node, "ctrl_gain", &p_tdm->ctrl_gain_enable);
 	if (ret < 0)
