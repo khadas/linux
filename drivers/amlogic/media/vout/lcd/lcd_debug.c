@@ -3844,44 +3844,48 @@ static ssize_t lcd_debug_vinfo_show(struct device *dev,
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	ssize_t len = 0;
-
+	/* DO NOT MODIFY, hwc parse this node to get vinfo */
 	len = sprintf(buf, "lcd vinfo:\n"
-		"  lcd_mode:         %s\n"
-		"  name:             %s\n"
-		"  mode:             %d\n"
-		"  frac:             %d\n"
-		"  field_height:     %d\n"
-		"  resolution:       %d * %d\n"
-		"  aspect_ratio_num: %d : %d\n"
-		"  screen_size:      W:%dmm H:%dmm\n"
-		"  H  total:%4d sync:%3d bp:%3d fp:%3d\n"
-		"  V  total:%4d sync:%3d bp:%3d fp:%3d\n"
-		"  std_duration:  %d\n"
-		"  sync_duration: %d / %d\n"
-		"  fr_adj_type:   %d\n"
-		"  fr_freq_range: %d ~ %d\n"
-		"  video_clk:     %d\n"
-		"  viu_color_fmt: %d\n"
-		"  viu_mux:       0x%x\n"
-		"  cur_enc_ppc:   %d\n\n",
-		lcd_mode_mode_to_str(pdrv->mode),
-		pdrv->vinfo.name,
-		pdrv->vinfo.mode,
-		pdrv->vinfo.frac,
-		pdrv->vinfo.field_height,
-		pdrv->vinfo.width, pdrv->vinfo.height,
-		pdrv->vinfo.aspect_ratio_num, pdrv->vinfo.aspect_ratio_den,
-		pdrv->vinfo.screen_real_width, pdrv->vinfo.screen_real_height,
-		pdrv->vinfo.htotal, pdrv->vinfo.hsw, pdrv->vinfo.hbp, pdrv->vinfo.hfp,
-		pdrv->vinfo.vtotal, pdrv->vinfo.vsw, pdrv->vinfo.vbp, pdrv->vinfo.vfp,
-		pdrv->vinfo.std_duration,
-		pdrv->vinfo.sync_duration_num, pdrv->vinfo.sync_duration_den,
-		pdrv->vinfo.fr_adj_type,
-		pdrv->vinfo.vfreq_min, pdrv->vinfo.vfreq_max,
-		pdrv->vinfo.video_clk,
-		pdrv->vinfo.viu_color_fmt,
-		pdrv->vinfo.viu_mux,
-		pdrv->vinfo.cur_enc_ppc);
+		      "    lcd_mode:              %s\n"
+		      "    name:                  %s\n"
+		      "    mode:                  %d\n"
+		      "    frac:                  %d\n"
+		      "    width:                 %d\n"
+		      "    height:                %d\n"
+		      "    field_height:          %d\n"
+		      "    aspect_ratio_num:      %d\n"
+		      "    aspect_ratio_den:      %d\n"
+		      "    sync_duration_num:     %d\n"
+		      "    sync_duration_den:     %d\n"
+		      "    std_duration:          %d\n"
+		      "    screen_real_width:     %d\n"
+		      "    screen_real_height:    %d\n"
+		      "    htotal:                %d\n"
+		      "    vtotal:                %d\n"
+		      "    fr_adj_type:           %d\n"
+		      "    video_clk:             %d\n"
+		      "    viu_color_fmt:         %d\n"
+		      "    viu_mux:               0x%x\n\n",
+		      lcd_mode_mode_to_str(pdrv->mode),
+		      pdrv->vinfo.name,
+		      pdrv->vinfo.mode,
+		      pdrv->vinfo.frac,
+		      pdrv->vinfo.width,
+		      pdrv->vinfo.height,
+		      pdrv->vinfo.field_height,
+		      pdrv->vinfo.aspect_ratio_num,
+		      pdrv->vinfo.aspect_ratio_den,
+		      pdrv->vinfo.sync_duration_num,
+		      pdrv->vinfo.sync_duration_den,
+		      pdrv->vinfo.std_duration,
+		      pdrv->vinfo.screen_real_width,
+		      pdrv->vinfo.screen_real_height,
+		      pdrv->vinfo.htotal,
+		      pdrv->vinfo.vtotal,
+		      pdrv->vinfo.fr_adj_type,
+		      pdrv->vinfo.video_clk,
+		      pdrv->vinfo.viu_color_fmt,
+		      pdrv->vinfo.viu_mux);
 
 	return len;
 }
