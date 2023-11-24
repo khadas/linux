@@ -21,7 +21,6 @@
 #ifdef CONFIG_DRM_ANALOGIX_DP
 #include <drm/bridge/analogix_dp.h>
 #endif
-#include <dt-bindings/soc/rockchip-system-status.h>
 
 #include <linux/debugfs.h>
 #include <linux/fixp-arith.h>
@@ -10968,25 +10967,14 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	return 0;
 }
 
-static struct drm_plane *vop2_cursor_plane_init(struct vop2_video_port *vp)
+static struct drm_plane *vop2_cursor_plane_init(struct vop2_video_port *vp, u32 possible_crtcs)
 {
 	struct vop2 *vop2 = vp->vop2;
 	struct drm_plane *cursor = NULL;
 	struct vop2_win *win;
-	unsigned long possible_crtcs = 0;
 
 	win = vop2_find_win_by_phys_id(vop2, vp->cursor_win_id);
 	if (win) {
-		if (vop2->disable_win_move) {
-			const struct vop2_data *vop2_data = vop2->data;
-			struct drm_crtc *crtc = vop2_find_crtc_by_plane_mask(vop2, win->phys_id);
-
-			if (crtc)
-				possible_crtcs = drm_crtc_mask(crtc);
-			else
-				possible_crtcs = (1 << vop2_data->nr_vps) - 1;
-		}
-
 		if (win->possible_crtcs)
 			possible_crtcs = win->possible_crtcs;
 		win->type = DRM_PLANE_TYPE_CURSOR;
@@ -11416,7 +11404,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		}
 
 		if (vp->cursor_win_id >= 0) {
-			cursor = vop2_cursor_plane_init(vp);
+			cursor = vop2_cursor_plane_init(vp, possible_crtcs);
 			if (!cursor)
 				DRM_WARN("failed to init cursor plane for vp%d\n", vp->id);
 			else
@@ -11614,6 +11602,7 @@ static int vop2_win_init(struct vop2 *vop2)
 	struct vop2_win *win;
 	struct vop2_layer *layer;
 	char name[DRM_PROP_NAME_LEN];
+	char area_name[DRM_PROP_NAME_LEN];
 	unsigned int num_wins = 0;
 	uint8_t plane_id = 0;
 	unsigned int i, j;
@@ -11689,8 +11678,8 @@ static int vop2_win_init(struct vop2 *vop2)
 			area->phys_id = win->phys_id;
 			area->area_id = j + 1;
 			area->plane_id = plane_id++;
-			snprintf(name, min(sizeof(name), strlen(win->name)), "%s", win->name);
-			snprintf(name, sizeof(name), "%s%d", name, area->area_id);
+			snprintf(area_name, min(sizeof(area_name), strlen(win->name)), "%s", win->name);
+			snprintf(name, sizeof(name), "%s%d", area_name, area->area_id);
 			area->name = devm_kstrdup(vop2->dev, name, GFP_KERNEL);
 			num_wins++;
 		}
