@@ -1852,7 +1852,7 @@ void demod_enable_frontend_agc(struct aml_dtvdemod *demod,
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 	}
 
-	PR_DBG("frontagc 0x20 %#x 0x21 %#x 0x22 %#x 0x23 %#x 0x26 %#x 0x28 %#x top_saved %#x\n",
+	PR_DBGL("frontagc 0x20 %#x 0x21 %#x 0x22 %#x 0x23 %#x 0x26 %#x 0x28 %#x top_saved %#x\n",
 				front_read_reg(0x20), front_read_reg(0x21), front_read_reg(0x22),
 				front_read_reg(0x23), front_read_reg(0x26), front_read_reg(0x28),
 				top_saved);
@@ -1881,7 +1881,7 @@ void demod_enable_frontend_agc(struct aml_dtvdemod *demod,
 	else
 		front_write_bits(DEMOD_FRONT_AFIFO_ADC, 0x3, 17, 2);
 
-	PR_DBG("frontagc 0x20 %#x 0x21 %#x 0x22 %#x 0x23 %#x 0x26 %#x 0x28 %#x\n",
+	PR_DBGL("frontagc 0x20 %#x 0x21 %#x 0x22 %#x 0x23 %#x 0x26 %#x 0x28 %#x\n",
 			front_read_reg(0x20), front_read_reg(0x21), front_read_reg(0x22),
 			front_read_reg(0x23), front_read_reg(0x26), front_read_reg(0x28));
 

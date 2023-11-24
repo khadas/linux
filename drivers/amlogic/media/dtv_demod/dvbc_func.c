@@ -19,6 +19,10 @@
 #define BLIND_SEARCH_BW_MIN_DVBC			6
 #define BLIND_SEARCH_OFT_BW_DVBC			1
 
+MODULE_PARM_DESC(blind_spectrum_invert, "\n\t\t blind_spectrum_invert");
+static unsigned char blind_spectrum_invert = 1;
+module_param(blind_spectrum_invert, byte, 0644);
+
 /*move to dvbc_old.c*/
 /* static struct task_struct *cci_task; */
 /*int cciflag = 0;*/
@@ -526,7 +530,7 @@ static unsigned int fe_l2a_blind_check_agc2_bandwidth(struct aml_dtvdemod *demod
 				for (l = 0; l < 20; l++)
 					agc2leveltab[l] = agc2level;
 			}
-			/*else if(agc2level > (BLIND_SEARCH_POW_TH_DVBC) && (1 == waitforfall))
+			/*else if (agc2level > BLIND_SEARCH_POW_TH_DVBC && waitforfall == 1)
 			 *{
 			 *	waitforfall = 0;
 			 *	m = 0;
@@ -709,8 +713,6 @@ int dvbc_blind_scan_process(struct aml_dtvdemod *demod)
 	const unsigned int MIN_FREQ_KHZ = devp->blind_min_fre / 1000 - 4000;
 	const unsigned int MAX_FREQ_KHZ = devp->blind_max_fre / 1000 + 4000; //44-863M
 	unsigned int found_tp_num = 0;
-	//[0]: normal(0), spectrum inverse(1); [1]: if_frequency;
-	unsigned int tuner_freq[2] = {0};
 
 	unsigned int f_min, f_max, sr_est;
 	int freq_add, freq_add1, freq_add_next, freq_add_dly;
@@ -736,10 +738,8 @@ int dvbc_blind_scan_process(struct aml_dtvdemod *demod)
 
 	c = &fe->dtv_property_cache;
 	c->bandwidth_hz = 8000000;
-	if (fe->ops.tuner_ops.get_if_frequency)
-		fe->ops.tuner_ops.get_if_frequency(fe, tuner_freq);
 
-	PR_INFO("%s start %d ...\n", __func__, tuner_freq[0]);
+	PR_INFO("%s start %d ...\n", __func__, blind_spectrum_invert);
 	PR_DVBC("start launch_spectrum\n");
 
 	f_min = MIN_FREQ_KHZ - 3600;
@@ -791,13 +791,13 @@ int dvbc_blind_scan_process(struct aml_dtvdemod *demod)
 		dvbs2_reg_initial(20000, 0);
 
 		dvbc_blind_check_signal(demod, f_max, &freq_add, &freq_add1, &state, &asperity,
-				&sr_est, tuner_freq[0]);
+				&sr_est, blind_spectrum_invert);
 		PR_DVBC("=====end launch_BlindCheckAGC2BandWidth2---f_max %d,freq_add %d\n",
 				f_max, freq_add);
 		PR_DVBC("state %d, asperity=%d\n", state, asperity);
 
 		//when a signal is detected, report blind scan result
-		if (asperity == 2) {
+		if (asperity == 2 && f_max >= devp->blind_min_fre / 1000) {
 			if (devp->blind_scan_stop)
 				return -1;
 
@@ -821,13 +821,13 @@ int dvbc_blind_scan_process(struct aml_dtvdemod *demod)
 		//report blind scan progress
 		cur_step_num = (f_max - MIN_FREQ_KHZ) / FREQ_STEP_KHZ;
 		if (f_max >= MIN_FREQ_KHZ && cur_step_num > last_step_num) {
-			PR_DBG("last %d cur %d %d\n", last_step_num, cur_step_num, FREQ_STEP_KHZ);
+			PR_DVBC("last %d cur %d %d\n", last_step_num, cur_step_num, FREQ_STEP_KHZ);
 			last_step_num = cur_step_num;
 			demod->blind_result_frequency = cur_step_num;
 			demod->blind_result_symbol_rate = 0;
 
 			status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
-			PR_INFO("blind scan process: [%d%%].\n", demod->blind_result_frequency);
+			PR_DBGL("blind scan process: [%d%%].\n", demod->blind_result_frequency);
 			if (demod->blind_result_frequency < 100)
 				dvb_frontend_add_event(fe, status);
 		}

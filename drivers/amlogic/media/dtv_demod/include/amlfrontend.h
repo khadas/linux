@@ -125,6 +125,7 @@
  /* V2.2.015 fix no timeout when dvbc signal is abnormal */
  /* V2.2.016 fix dvbs diseqc timing */
  /* V2.2.017 Support switching auto between dvb-t and t2 */
+ /* V2.2.018 fix dvbc blind scan init issue */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -141,8 +142,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.2.17"
-#define DTVDEMOD_VER	"2023/11/28: Support switching auto between dvb-t and t2"
+#define AMLDTVDEMOD_VER "V2.2.018"
+#define DTVDEMOD_VER	"2023/11/27: fix dvbc blind scan init issue"
 #define AMLDTVDEMOD_T2_FW_VER "20231019_141000"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
