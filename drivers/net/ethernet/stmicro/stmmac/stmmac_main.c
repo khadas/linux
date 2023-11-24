@@ -284,6 +284,32 @@ void stmmac_global_err(struct stmmac_priv *priv)
 	stmmac_service_event_schedule(priv);
 }
 EXPORT_SYMBOL_GPL(stmmac_global_err);
+
+static void stmmac_amlogic_task(struct work_struct *work)
+{
+	struct stmmac_priv *priv = container_of(work, struct stmmac_priv,
+			amlogic_task);
+	u32 regval;
+
+	if (priv->amlogic_task_action == 100) {
+		msleep(3000);
+		// re-enable MAC Rx/Tx to resolve network broken issue
+		regval = readl(priv->ioaddr + MAC_CTRL_REG);
+		regval |= MAC_ENABLE_RX | MAC_ENABLE_TX;
+		writel(regval, priv->ioaddr + MAC_CTRL_REG);
+		if (priv->linkup_after_resume < 2) {
+			// revert the effect of phy_speed_down() again
+			phylink_speed_up(priv->phylink);
+		}
+	}
+	priv->amlogic_task_action = 0;
+}
+
+void stmmac_trigger_amlogic_task(struct stmmac_priv *priv)
+{
+	queue_work(priv->amlogic_wq, &priv->amlogic_task);
+}
+EXPORT_SYMBOL_GPL(stmmac_trigger_amlogic_task);
 #else
 static void stmmac_global_err(struct stmmac_priv *priv)
 {
@@ -1186,13 +1212,16 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 		writel(ctrl, priv->ioaddr + MAC_CTRL_REG);
 
 	stmmac_mac_set(priv, priv->ioaddr, true);
+
 #if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 #ifdef CONFIG_PM_SLEEP
 	if (device_may_wakeup(priv->device)) {
 		pm_relax(priv->device);
 	}
 #endif
+	priv->linkup_after_resume++;
 #endif
+
 	if (phy && priv->dma_cap.eee) {
 		priv->eee_active =
 			phy_init_eee(phy, !priv->plat->rx_clk_runs_in_lpi) >= 0;
@@ -7095,6 +7124,17 @@ int stmmac_dvr_probe(struct device *device,
 
 	INIT_WORK(&priv->service_task, stmmac_service_task);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	/* Allocate workqueue for Amlogic task */
+	priv->amlogic_wq = create_singlethread_workqueue("amlogic_wq");
+	if (!priv->amlogic_wq) {
+		dev_err(priv->device, "failed to create workqueue\n");
+		ret = -ENOMEM;
+		goto error_wq_init;
+	}
+	INIT_WORK(&priv->amlogic_task, stmmac_amlogic_task);
+#endif
+
 	/* Initialize Link Partner FPE workqueue */
 	INIT_WORK(&priv->fpe_task, stmmac_fpe_lp_task);
 
@@ -7404,7 +7444,11 @@ int stmmac_suspend(struct device *dev)
 	/* Enable Power down mode by programming the PMT regs */
 	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
 		stmmac_pmt(priv, priv->hw, priv->wolopts);
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+		priv->irq_wake = 0;
+#else
 		priv->irq_wake = 1;
+#endif
 	} else {
 		stmmac_mac_set(priv, priv->ioaddr, false);
 		pinctrl_pm_select_sleep_state(priv->device);
@@ -7414,6 +7458,17 @@ int stmmac_suspend(struct device *dev)
 
 	rtnl_lock();
 	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+#ifdef CONFIG_PM_SLEEP
+		int ret;
+
+		if (wol_switch_from_user && priv->phylink->phydev->link) {
+			ret = phylink_speed_down(priv->phylink, true);
+			if (ret)
+				dev_err(priv->device, "phylink_speed_down(): auto-negotiation is incomplete\n");
+		}
+#endif
+#endif
 		phylink_suspend(priv->phylink, true);
 	} else {
 		if (device_may_wakeup(priv->device))
@@ -7480,6 +7535,10 @@ int stmmac_resume(struct device *dev)
 	if (!netif_running(ndev))
 		return 0;
 
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	priv->linkup_after_resume = 0;
+#endif
+
 	/* Power Down bit, into the PM register, is cleared
 	 * automatically as soon as a magic packet or a Wake-up frame
 	 * is received. Anyway, it's better to manually clear
@@ -7506,6 +7565,7 @@ int stmmac_resume(struct device *dev)
 			return ret;
 	}
 
+#if !IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
 	rtnl_lock();
 	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
 		phylink_resume(priv->phylink);
@@ -7515,6 +7575,7 @@ int stmmac_resume(struct device *dev)
 			phylink_speed_up(priv->phylink);
 	}
 	rtnl_unlock();
+#endif
 
 	rtnl_lock();
 	mutex_lock(&priv->lock);
@@ -7535,6 +7596,19 @@ int stmmac_resume(struct device *dev)
 
 	mutex_unlock(&priv->lock);
 	rtnl_unlock();
+
+#if IS_ENABLED(CONFIG_AMLOGIC_ETH_PRIVE)
+	rtnl_lock();
+	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
+		phylink_resume(priv->phylink);
+		phylink_speed_up(priv->phylink);
+	} else {
+		phylink_resume(priv->phylink);
+		if (device_may_wakeup(priv->device))
+			phylink_speed_up(priv->phylink);
+	}
+	rtnl_unlock();
+#endif
 
 	netif_device_attach(ndev);
 
