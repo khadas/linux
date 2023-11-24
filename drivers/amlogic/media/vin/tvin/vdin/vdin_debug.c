@@ -399,7 +399,7 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 	struct file *filp = NULL;
 	loff_t pos = 0;
 	void *buf = NULL;
-	unsigned int i, j;
+	unsigned int i, j, offset = 0;
 	unsigned int span = 0, count = 0;
 	int highmem_flag;
 	unsigned long high_addr;
@@ -457,6 +457,12 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 			vdin_dma_flush(devp, buf, devp->canvas_w,
 				       DMA_FROM_DEVICE);
 			vfs_write(filp, buf, devp->canvas_active_w, &pos);
+			offset = devp->canvas_active_w % 8;
+			if (offset && pos) {
+				pos = pos - offset;
+				vfs_write(filp, buf + devp->canvas_active_w + 8 - 2 * offset,
+					offset, &pos);
+			}
 			buf += devp->canvas_w;
 		}
 		/*vfs_write(filp, buf, devp->canvas_max_size, &pos);*/
