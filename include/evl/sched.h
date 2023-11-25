@@ -322,6 +322,8 @@ int evl_switch_oob(void);
 
 void evl_switch_inband(int cause);
 
+void evl_switch_inband_details(int cause, union evl_value details);
+
 static inline int evl_preempt_count(void)
 {
 	return dovetail_current_state()->preempt_count;

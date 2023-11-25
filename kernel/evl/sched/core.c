@@ -1158,7 +1158,7 @@ int evl_switch_oob(void)
 }
 EXPORT_SYMBOL_GPL(evl_switch_oob);
 
-void evl_switch_inband(int cause)
+void evl_switch_inband_details(int cause, union evl_value details)
 {
 	struct evl_thread *curr = evl_current();
 	struct evl_rq *this_rq;
@@ -1261,7 +1261,7 @@ void evl_switch_inband(int cause)
 		 * an HM event.
 		 */
 		if (curr->state & EVL_T_WOSS)
-			evl_notify_thread(curr, cause, evl_nil);
+			evl_notify_thread(curr, cause, details);
 
 		/* May check for locking inconsistency too. */
 		if (curr->state & EVL_T_WOLI)
@@ -1270,6 +1270,12 @@ void evl_switch_inband(int cause)
 
 	/* @curr is now running inband. */
 	evl_sync_uwindow(curr);
+}
+EXPORT_SYMBOL_GPL(evl_switch_inband_details);
+
+void evl_switch_inband(int cause)
+{
+	evl_switch_inband_details(cause, evl_nil);
 }
 EXPORT_SYMBOL_GPL(evl_switch_inband);
 
