@@ -1556,6 +1556,7 @@ void handle_oob_trap_entry(unsigned int trapnr, struct pt_regs *regs)
 {
 	struct evl_thread *curr;
 	bool is_bp = false;
+	int diag;
 
 	trace_evl_thread_fault(trapnr, regs);
 
@@ -1595,7 +1596,11 @@ void handle_oob_trap_entry(unsigned int trapnr, struct pt_regs *regs)
 	 * We received a trap on the oob stage, switch to in-band
 	 * before handling the exception.
 	 */
-	evl_switch_inband(is_bp ? EVL_HMDIAG_TRAP : EVL_HMDIAG_EXDEMOTE);
+	diag = is_bp ? EVL_HMDIAG_TRAP : EVL_HMDIAG_EXDEMOTE;
+	if (user_mode(regs))
+		evl_switch_inband_details(diag, evl_intval(instruction_pointer(regs)));
+	else
+		evl_switch_inband(diag);
 }
 
 /* hard irqs off */
