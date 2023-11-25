@@ -98,6 +98,15 @@ void evl_poll_watch(struct evl_poll_head *head,
 }
 EXPORT_SYMBOL_GPL(evl_poll_watch);
 
+/*
+ * __evl_signal_poll_events - wake up threads polling for events.
+ *
+ * @head	poll head waiters sleep on
+ * @events	incoming events to signal
+ *
+ * A single waiter is unblocked for any distinct event signaled on
+ * entry.
+ */
 void __evl_signal_poll_events(struct evl_poll_head *head,
 			int events)
 {
@@ -115,6 +124,9 @@ void __evl_signal_poll_events(struct evl_poll_head *head,
 		if (ready) {
 			poco->events_received |= ready;
 			evl_raise_flag_nosched(wpt->flag);
+			events &= ~ready;
+			if (!events)
+				break;
 		}
 	}
 
