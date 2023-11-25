@@ -35,7 +35,8 @@ struct proxy_ring {
 	unsigned int reserved;
 	unsigned int granularity;
 	struct evl_flag oob_wait;
-	wait_queue_head_t inband_wait;
+	wait_queue_head_t inband_wait_r;
+	wait_queue_head_t inband_wait_w;
 	struct evl_work relay_work;
 	hard_spinlock_t lock;
 	struct workqueue_struct *wq;
@@ -135,9 +136,10 @@ static void relay_output(struct evl_proxy *proxy)
 	 */
 	if (count < ring->bufsz) {
 		evl_raise_flag(&ring->oob_wait); /* Reschedules. */
-		wake_up(&ring->inband_wait);
-	} else
+		wake_up(&ring->inband_wait_w);
+	} else {
 		evl_schedule();	/* Covers evl_signal_poll_events() */
+	}
 }
 
 static void relay_output_work(struct evl_work *work)
@@ -291,7 +293,7 @@ done:
 	if (atomic_read(&ring->fillsz) > 0 || exception) {
 		evl_signal_poll_events(&proxy->poll_head, POLLIN|POLLRDNORM);
 		evl_raise_flag(&ring->oob_wait); /* Reschedules. */
-		wake_up(&ring->inband_wait);
+		wake_up(&ring->inband_wait_r);
 	}
 }
 
@@ -502,7 +504,7 @@ static ssize_t proxy_write(struct file *filp, const char __user *u_buf,
 		ret = do_proxy_write(filp, u_buf, count);
 		if (ret != -EAGAIN || filp->f_flags & O_NONBLOCK)
 			break;
-		ret = wait_event_interruptible(ring->inband_wait,
+		ret = wait_event_interruptible(ring->inband_wait_w,
 					can_write_buffer(ring, count));
 	} while (!ret);
 
@@ -549,13 +551,13 @@ static __poll_t proxy_poll(struct file *filp, poll_table *wait)
 	__poll_t ret = 0;
 
 	if (proxy_may_write(proxy)) {
-		poll_wait(filp, &oring->inband_wait, wait);
+		poll_wait(filp, &oring->inband_wait_w, wait);
 		if (atomic_read(&oring->fillsz) < oring->bufsz)
 			ret = POLLOUT|POLLWRNORM;
 	}
 
 	if (proxy_may_read(proxy)) {
-		poll_wait(filp, &iring->inband_wait, wait);
+		poll_wait(filp, &iring->inband_wait_r, wait);
 		if (atomic_read(&iring->fillsz) > 0)
 			ret |= POLLIN|POLLRDNORM;
 	}
@@ -649,7 +651,8 @@ static int init_ring(struct proxy_ring *ring,
 			is_output ? relay_output_work : relay_input_work,
 			&proxy->element);
 	evl_init_flag(&ring->oob_wait);
-	init_waitqueue_head(&ring->inband_wait);
+	init_waitqueue_head(&ring->inband_wait_r);
+	init_waitqueue_head(&ring->inband_wait_w);
 	mutex_init(&ring->worker_lock);
 
 	return 0;
