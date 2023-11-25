@@ -24,9 +24,11 @@ struct evl_observable {
 	struct list_head observers; 	/* struct evl_observer */
 	struct list_head flush_list; 	/* struct evl_observer */
 	struct evl_wait_queue oob_wait;
-	wait_queue_head_t inband_wait;
+	wait_queue_head_t inband_wait_r;
+	wait_queue_head_t inband_wait_w;
 	struct evl_poll_head poll_head;
-	struct irq_work wake_irqwork;
+	struct irq_work wake_r_irqwork;
+	struct irq_work wake_w_irqwork;
 	struct irq_work flush_irqwork;
 	hard_spinlock_t lock;		/* guards observers and flush_list */
 	u32 serial_counter;

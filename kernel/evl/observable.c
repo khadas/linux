@@ -193,6 +193,10 @@ static int add_subscription(struct evl_observable *observable,
 	raw_spin_unlock(&observable->oob_wait.wchan.lock);
 	raw_spin_unlock_irqrestore(&observable->lock, flags);
 	evl_signal_poll_events(&observable->poll_head, POLLOUT|POLLWRNORM);
+	evl_schedule();
+	smp_mb();
+	if (waitqueue_active(&observable->inband_wait_w))
+		wake_up(&observable->inband_wait_w);
 
 	evl_put_element(&observable->element);
 
@@ -346,31 +350,21 @@ void evl_drop_subscriptions(struct evl_subscriber *sbr)
 	kfree(sbr);
 }
 
-static void wake_oob_threads(struct evl_observable *observable)
-{
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&observable->oob_wait.wchan.lock, flags);
-
-	if (evl_wait_active(&observable->oob_wait))
-		evl_flush_wait_locked(&observable->oob_wait, 0);
-
-	raw_spin_unlock_irqrestore(&observable->oob_wait.wchan.lock, flags);
-
-	evl_schedule();
-}
-
-static void wake_inband_threads(struct evl_observable *observable) /* in-band */
-{
-	wake_up_all(&observable->inband_wait);
-}
-
-static void inband_wake_irqwork(struct irq_work *work)
+static void inband_wake_r_irqwork(struct irq_work *work)
 {
 	struct evl_observable *observable;
 
-	observable = container_of(work, struct evl_observable, wake_irqwork);
-	wake_inband_threads(observable);
+	observable = container_of(work, struct evl_observable, wake_r_irqwork);
+	wake_up(&observable->inband_wait_r);
+	evl_put_element(&observable->element);
+}
+
+static void inband_wake_w_irqwork(struct irq_work *work)
+{
+	struct evl_observable *observable;
+
+	observable = container_of(work, struct evl_observable, wake_w_irqwork);
+	wake_up(&observable->inband_wait_w);
 	evl_put_element(&observable->element);
 }
 
@@ -392,9 +386,12 @@ void evl_flush_observable(struct evl_observable *observable)
 			decrease_writability(observable);
 	}
 
+	if (evl_wait_active(&observable->oob_wait))
+		evl_flush_wait_locked(&observable->oob_wait, 0);
+
 	raw_spin_unlock_irqrestore(&observable->oob_wait.wchan.lock, flags);
 
-	wake_oob_threads(observable);
+	evl_schedule();
 }
 
 static int observable_release(struct inode *inode, struct file *filp)
@@ -644,19 +641,32 @@ static bool push_notification(struct evl_observable *observable,
 
 static void wake_up_observers(struct evl_observable *observable)
 {
-	wake_oob_threads(observable);
-	evl_signal_poll_events(&observable->poll_head, POLLIN|POLLRDNORM);
+	unsigned long flags;
 
-	/*
-	 * If running oob, we need to go through the wake_irqwork
-	 * trampoline for waking up in-band waiters.
-	 */
-	if (running_inband()) {
-		wake_inband_threads(observable);
-	} else {
-		evl_get_element(&observable->element);
-		if (!irq_work_queue(&observable->wake_irqwork))
-			evl_put_element(&observable->element);
+	raw_spin_lock_irqsave(&observable->oob_wait.wchan.lock, flags);
+
+	if (evl_wait_active(&observable->oob_wait))
+		evl_flush_wait_locked(&observable->oob_wait, 0);
+
+	raw_spin_unlock_irqrestore(&observable->oob_wait.wchan.lock, flags);
+
+	evl_signal_poll_events(&observable->poll_head, POLLIN|POLLRDNORM);
+	evl_schedule();
+
+	smp_mb();
+	if (waitqueue_active(&observable->inband_wait_r)) {
+		/*
+		 * If running oob, we need to go through the
+		 * wake_irqwork trampoline for waking up in-band
+		 * waiters.
+		 */
+		if (running_inband()) {
+			wake_up(&observable->inband_wait_r);
+		} else {
+			evl_get_element(&observable->element);
+			if (!irq_work_queue(&observable->wake_r_irqwork))
+				evl_put_element(&observable->element);
+		}
 	}
 }
 
@@ -782,7 +792,7 @@ pull_from_inband(struct evl_observable *observable,
 	 * In-band lock first, oob next. See stax implementation for
 	 * an explanation.
 	 */
-	spin_lock_irqsave(&observable->inband_wait.lock, ib_flags);
+	spin_lock_irqsave(&observable->inband_wait_r.lock, ib_flags);
 	raw_spin_lock_irqsave(&observable->oob_wait.wchan.lock, oob_flags);
 
 	for (;;) {
@@ -792,7 +802,7 @@ pull_from_inband(struct evl_observable *observable,
 		 * for the underlying file, obviously.
 		 */
 		if (list_empty(&wq_entry.entry))
-			__add_wait_queue(&observable->inband_wait, &wq_entry);
+			__add_wait_queue(&observable->inband_wait_r, &wq_entry);
 
 		if (!list_empty(&observer->pending_list)) {
 			nfr = list_get_entry(&observer->pending_list,
@@ -805,9 +815,9 @@ pull_from_inband(struct evl_observable *observable,
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
 		raw_spin_unlock_irqrestore(&observable->oob_wait.wchan.lock, oob_flags);
-		spin_unlock_irqrestore(&observable->inband_wait.lock, ib_flags);
+		spin_unlock_irqrestore(&observable->inband_wait_r.lock, ib_flags);
 		schedule();
-		spin_lock_irqsave(&observable->inband_wait.lock, ib_flags);
+		spin_lock_irqsave(&observable->inband_wait_r.lock, ib_flags);
 		raw_spin_lock_irqsave(&observable->oob_wait.wchan.lock, oob_flags);
 
 		if (signal_pending(current)) {
@@ -819,7 +829,7 @@ pull_from_inband(struct evl_observable *observable,
 	list_del(&wq_entry.entry);
 
 	raw_spin_unlock_irqrestore(&observable->oob_wait.wchan.lock, oob_flags);
-	spin_unlock_irqrestore(&observable->inband_wait.lock, ib_flags);
+	spin_unlock_irqrestore(&observable->inband_wait_r.lock, ib_flags);
 
 	return ret ? ERR_PTR(ret) : nfr;
 }
@@ -873,9 +883,21 @@ static int pull_notification(struct evl_observable *observable,
 
 	raw_spin_unlock_irqrestore(&observable->oob_wait.wchan.lock, flags);
 
-	if (unlikely(sigpoll))
+	if (unlikely(sigpoll)) {
 		evl_signal_poll_events(&observable->poll_head,
 				POLLOUT|POLLWRNORM);
+		evl_schedule();
+		smp_mb();
+		if (waitqueue_active(&observable->inband_wait_w)) {
+			if (running_inband()) {
+				wake_up(&observable->inband_wait_w);
+			} else {
+				evl_get_element(&observable->element);
+				if (!irq_work_queue(&observable->wake_w_irqwork))
+					evl_put_element(&observable->element);
+			}
+		}
+	}
 
 	return ret;
 }
@@ -968,7 +990,8 @@ __poll_t evl_oob_poll_observable(struct evl_observable *observable,
 __poll_t evl_poll_observable(struct evl_observable *observable,
 			struct file *filp, poll_table *pt)
 {
-	poll_wait(filp, &observable->inband_wait, pt);
+	poll_wait(filp, &observable->inband_wait_r, pt);
+	poll_wait(filp, &observable->inband_wait_w, pt);
 
 	return poll_observable(observable);
 }
@@ -1098,8 +1121,10 @@ struct evl_observable *evl_alloc_observable(const char __user *u_name,
 	INIT_LIST_HEAD(&observable->observers);
 	INIT_LIST_HEAD(&observable->flush_list);
 	evl_init_wait(&observable->oob_wait, &evl_mono_clock, EVL_WAIT_PRIO);
-	init_waitqueue_head(&observable->inband_wait);
-	init_irq_work(&observable->wake_irqwork, inband_wake_irqwork);
+	init_waitqueue_head(&observable->inband_wait_r);
+	init_waitqueue_head(&observable->inband_wait_w);
+	init_irq_work(&observable->wake_r_irqwork, inband_wake_r_irqwork);
+	init_irq_work(&observable->wake_w_irqwork, inband_wake_w_irqwork);
 	init_irq_work(&observable->flush_irqwork, inband_flush_irqwork);
 	evl_init_poll_head(&observable->poll_head);
 	raw_spin_lock_init(&observable->lock);
