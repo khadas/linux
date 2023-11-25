@@ -38,10 +38,14 @@ struct evl_monitor {
 		struct {
 			/* Out-of-band wait queue. */
 			struct evl_wait_queue wait_queue;
-			/* In-band wait queue for event mask. */
-			wait_queue_head_t inband_wait;
-			/* In-band wake up work. */
-			struct irq_work inband_wake;
+			/* In-band wait queue (read side). */
+			wait_queue_head_t inband_wait_r;
+			/* In-band wait queue (write side). */
+			wait_queue_head_t inband_wait_w;
+			/* In-band wake up work (read side). */
+			struct irq_work inband_wake_r;
+			/* In-band wake up work (write side). */
+			struct irq_work inband_wake_w;
 			/* Gate (valid during active wait only). */
 			struct evl_monitor *gate;
 			/* Out-of-band poll head. */
@@ -407,12 +411,21 @@ static int post_count(struct evl_monitor *event, s32 sigval,
 	return ret;
 }
 
-static void inband_wake_irqwork(struct irq_work *work) /* in-band */
+static void inband_wake_r_irqwork(struct irq_work *work) /* in-band */
 {
 	struct evl_monitor *event;
 
-	event = container_of(work, struct evl_monitor, inband_wake);
-	wake_up_all(&event->inband_wait);
+	event = container_of(work, struct evl_monitor, inband_wake_r);
+	wake_up(&event->inband_wait_r);
+	evl_put_element(&event->element);
+}
+
+static void inband_wake_w_irqwork(struct irq_work *work) /* in-band */
+{
+	struct evl_monitor *event;
+
+	event = container_of(work, struct evl_monitor, inband_wake_w);
+	wake_up(&event->inband_wait_w);
 	evl_put_element(&event->element);
 }
 
@@ -560,16 +573,15 @@ static int post_mask(struct evl_monitor *event, int bits, bool bcast)
 
 	/*
 	 * Now wake up any in-band waiter if we still have events to
-	 * consume. raw_spin_unlock_irqrestore() above provides the
-	 * required membar between the mask update and waking up
-	 * waiters.
+	 * consume.
 	 */
-	if (val && waitqueue_active(&event->inband_wait)) {
+	smp_mb();
+	if (val && waitqueue_active(&event->inband_wait_r)) {
 		if (running_inband()) {
-			wake_up_all(&event->inband_wait);
+			wake_up(&event->inband_wait_r);
 		} else {
 			evl_get_element(&event->element);
-			if (!irq_work_queue(&event->inband_wake))
+			if (!irq_work_queue(&event->inband_wake_r))
 				evl_put_element(&event->element);
 		}
 	}
@@ -1013,7 +1025,7 @@ static ssize_t monitor_read(struct file *filp, char __user *u_buf,
 	init_wait_entry(&wq_entry, 0);
 
 	for (;;) {
-		spin_lock_irqsave(&event->inband_wait.lock, ib_flags);
+		spin_lock_irqsave(&event->inband_wait_r.lock, ib_flags);
 		raw_spin_lock_irqsave(&event->wait_queue.wchan.lock, flags);
 
 		if (signal_pending(current)) {
@@ -1022,7 +1034,7 @@ static ssize_t monitor_read(struct file *filp, char __user *u_buf,
 		}
 
 		if (list_empty(&wq_entry.entry))
-			__add_wait_queue(&event->inband_wait, &wq_entry);
+			__add_wait_queue(&event->inband_wait_r, &wq_entry);
 
 		/* Disjunctive operation. */
 		if (__trywait_mask(event, -1, false, &val, flags))
@@ -1035,7 +1047,7 @@ static ssize_t monitor_read(struct file *filp, char __user *u_buf,
 
 		set_current_state(TASK_INTERRUPTIBLE);
 		raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock, flags);
-		spin_unlock_irqrestore(&event->inband_wait.lock, ib_flags);
+		spin_unlock_irqrestore(&event->inband_wait_r.lock, ib_flags);
 		schedule();
 	}
 
@@ -1043,11 +1055,15 @@ static ssize_t monitor_read(struct file *filp, char __user *u_buf,
 unlocked:
 	list_del(&wq_entry.entry);
 
-	/* We have collected all the bits, send POLLOUT wakeup. */
-	if (!ret && waitqueue_active(&event->inband_wait))
-		wake_up_all_locked(&event->inband_wait);
+	spin_unlock_irqrestore(&event->inband_wait_r.lock, ib_flags);
 
-	spin_unlock_irqrestore(&event->inband_wait.lock, ib_flags);
+	/*
+	 * If we have successfully collected all the bits, send a
+	 * POLLOUT wakeup.
+	 */
+	smp_mb();	/* Matches mb in set_current_state() */
+	if (!ret && waitqueue_active(&event->inband_wait_w))
+		wake_up(&event->inband_wait_w);
 
 	return copy_to_user(u_buf, &val, sizeof(val)) ? -EFAULT : sizeof(val);
 }
@@ -1124,7 +1140,8 @@ static __poll_t monitor_poll(struct file *filp, poll_table *wait)
 	if (event->type != EVL_MONITOR_EVENT || event->protocol != EVL_EVENT_MASK)
 		return -EINVAL;
 
-	poll_wait(filp, &event->inband_wait, wait);
+	poll_wait(filp, &event->inband_wait_r, wait);
+	poll_wait(filp, &event->inband_wait_w, wait);
 
 	val = atomic_read(__ATOMIC32(&event->state->u.event.value));
 	if (val)
@@ -1242,8 +1259,10 @@ monitor_factory_build(struct evl_factory *fac, const char __user *u_name,
 		state->u.event.gate_offset = EVL_MONITOR_NOGATE;
 		atomic_set(__ATOMIC32(&state->u.event.value), attrs.initval);
 		evl_init_poll_head(&mon->poll_head);
-		init_waitqueue_head(&mon->inband_wait);
-		init_irq_work(&mon->inband_wake, inband_wake_irqwork);
+		init_waitqueue_head(&mon->inband_wait_r);
+		init_waitqueue_head(&mon->inband_wait_w);
+		init_irq_work(&mon->inband_wake_r, inband_wake_r_irqwork);
+		init_irq_work(&mon->inband_wake_w, inband_wake_w_irqwork);
 	}
 
 	/*
