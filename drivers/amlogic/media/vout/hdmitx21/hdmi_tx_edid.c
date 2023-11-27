@@ -1451,6 +1451,12 @@ static int hdmitx_edid_cta_block_parse(struct hdmitx_dev *hdev,
 	edid_y420cmdb_reset(&hdev->hdmi_info);
 	if (end > 127)
 		return 0;
+
+	if (blockbuf[1] <= 2) {
+		/* skip below for loop */
+		goto next;
+	}
+	/* this loop should be parsing when revision number is larger than 2 */
 	for (offset = 4 ; offset < end ; ) {
 		tag = blockbuf[offset] >> 5;
 		count = blockbuf[offset] & 0x1f;
@@ -1593,7 +1599,7 @@ static int hdmitx_edid_cta_block_parse(struct hdmitx_dev *hdev,
 			break;
 		}
 	}
-
+next:
 	if (aud_flag == 0)
 		hdmitx_edid_set_default_aud(hdev);
 
@@ -2726,6 +2732,15 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	if (!hdev || !para)
 		return 0;
 
+	/* if current limits to 1080p, here will check the freshrate and
+	 * 4k resolution
+	 */
+	if (hdmitx21_limited_1080p()) {
+		if (_is_vic_over_limited_1080p(para->timing.vic)) {
+			pr_err("over limited vic%d in %s\n", para->timing.vic, __func__);
+			return 0;
+		}
+	}
 	prxcap = &hdev->rxcap;
 
 	/* add efuse ctrl */
@@ -2790,7 +2805,14 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 			prxcap->Max_TMDS_Clock1 = DEFAULT_MAX_TMDS_CLK;
 		rx_max_tmds_clk = prxcap->Max_TMDS_Clock1 * 5;
 	}
-
+	/* if current status already limited to 1080p, so here also needs to
+	 * limit the rx_max_tmds_clk as 150 * 1.5 = 225 to make the valid mode
+	 * checking works
+	 */
+	if (hdmitx21_limited_1080p()) {
+		if (rx_max_tmds_clk > 225)
+			rx_max_tmds_clk = 225;
+	}
 	calc_tmds_clk = para->tmds_clk / 1000;
 	rx_frl_bandwidth = get_frl_bandwidth(prxcap->max_frl_rate);
 	timing = hdmitx21_gettiming_from_vic(para->timing.vic);

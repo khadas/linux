@@ -515,6 +515,7 @@ struct hdmitx_dev {
 	u32 hdr10plus_feature;
 	enum eotf_type hdmi_current_eotf_type;
 	enum mode_type hdmi_current_tunnel_mode;
+	bool hdmi_current_signal_sdr;
 	u32 flag_3dfp:1;
 	u32 flag_3dtb:1;
 	u32 flag_3dss:1;
@@ -731,6 +732,11 @@ bool _is_y420_vic(enum hdmi_vic vic);
 /* set vic to AVI.VIC */
 void hdmitx21_set_avi_vic(enum hdmi_vic vic);
 
+/* the hdmitx output limits to 1080p */
+bool hdmitx21_limited_1080p(void);
+/* test current vic is over limited or not */
+bool _is_vic_over_limited_1080p(enum hdmi_vic vic);
+
 /*
  * HDMI Repeater TX I/F
  * RX downstream Information from rptx to rprx
@@ -899,4 +905,6 @@ int get_extended_colorimetry_from_avi(struct hdmitx_dev *hdev);
 int get_hdmitx21_hdr_status(struct hdmitx_dev *hdev);
 
 void hdmitx21_dbg(const char *format, ...);
+bool hdmitx21_find_vendor_ratio(struct hdmitx_dev *hdev);
+
 #endif

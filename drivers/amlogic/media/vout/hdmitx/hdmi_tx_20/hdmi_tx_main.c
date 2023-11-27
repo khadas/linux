@@ -369,11 +369,11 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	hdmitx_set_drm_pkt(NULL);
 	hdmitx_set_vsif_pkt(0, 0, NULL, true);
 	hdmitx_set_hdr10plus_pkt(0, NULL);
-	clear_rx_vinfo(hdev);
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
 	hdmitx_edid_done = false;
 	edidinfo_detach_to_vinfo(hdev);
+	clear_rx_vinfo(hdev);
 	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_SUSPEND);
 	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 0);
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_AVI_PACKET, 0);
@@ -3743,8 +3743,8 @@ static ssize_t disp_cap_show(struct device *dev,
 				/* filter resolution list by sysctl by default,
 				 * if need to filter by driver, enable below filter
 				 */
-				/* if (!hdmi_sink_disp_mode_sup(mode_tmp)) */
-					/* continue; */
+				if (!hdmi_sink_disp_mode_sup(mode_tmp))
+					continue;
 				pos += snprintf(buf + pos, PAGE_SIZE, "%s",
 					disp_mode_t[i]);
 				if (native_disp_mode &&
@@ -4152,12 +4152,9 @@ next444:
 		}
 		pos += snprintf(buf + pos, PAGE_SIZE, "444,8bit\n");
 	}
-	/* y422, not check dc */
-	if (prxcap->native_Mode & (1 << 4)) {
+	/* y422, force 12bit for other module */
+	if (prxcap->native_Mode & (1 << 4))
 		pos += snprintf(buf + pos, PAGE_SIZE, "422,12bit\n");
-		pos += snprintf(buf + pos, PAGE_SIZE, "422,10bit\n");
-		pos += snprintf(buf + pos, PAGE_SIZE, "422,8bit\n");
-	}
 
 	if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2 ||
 	    dv2->sup_10b_12b_444 == 0x2)
