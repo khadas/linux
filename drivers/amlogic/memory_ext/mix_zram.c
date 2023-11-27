@@ -225,14 +225,6 @@ static void mix_comp_exit(struct crypto_tfm *tfm)
 		return;
 	if (ctx->lz4)
 		crypto_free_comp(ctx->lz4);
-	if (direct_zstd.cctx) {
-		__zstd_exit(&direct_zstd);
-		direct_zstd.cctx = NULL;
-	}
-	if (kswap_zstd.cctx) {
-		__zstd_exit(&kswap_zstd);
-		kswap_zstd.cctx = NULL;
-	}
 }
 
 static int mix_compress(struct crypto_tfm *t, const u8 *src, unsigned int slen,
@@ -342,6 +334,14 @@ static int __init mix_mod_init(void)
 static void __exit mix_mod_exit(void)
 {
 	crypto_unregister_alg(&mix_alg);
+	if (direct_zstd.cctx) {
+		__zstd_exit(&direct_zstd);
+		direct_zstd.cctx = NULL;
+	}
+	if (kswap_zstd.cctx) {
+		__zstd_exit(&kswap_zstd);
+		kswap_zstd.cctx = NULL;
+	}
 }
 
 module_init(mix_mod_init);
