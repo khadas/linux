@@ -266,6 +266,7 @@ u32 efuse_obj_read(u32 obj_id, char *name, u8 *buff, u32 *size)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(efuse_obj_read);
 
 static ssize_t meson_trustzone_efuse_get_max(struct efuse_hal_api_arg *arg)
 {

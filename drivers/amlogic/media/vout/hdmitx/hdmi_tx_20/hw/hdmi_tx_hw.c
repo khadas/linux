@@ -212,6 +212,7 @@ static int hdcp22_susflag;
 int hdmitx_hdcp_opr(unsigned int val)
 {
 	struct arm_smccc_res res;
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	if (val == 1) { /* HDCP14_ENABLE */
 		arm_smccc_smc(0x82000010, 0, 0, 0, 0, 0, 0, 0, &res);
@@ -244,6 +245,9 @@ int hdmitx_hdcp_opr(unsigned int val)
 		return (unsigned int)((res.a0) & 0xffffffff);
 	}
 	if (val == 0xb) { /* HDCP22_KEY_LSTORE */
+		/* efuse ctrl hdcptx22*/
+		if (hdev->data->efuse_dis_hdcp_tx22)
+			return 0;
 		arm_smccc_smc(0x8200001b, 0, 0, 0, 0, 0, 0, 0, &res);
 		return (unsigned int)((res.a0) & 0xffffffff);
 	}

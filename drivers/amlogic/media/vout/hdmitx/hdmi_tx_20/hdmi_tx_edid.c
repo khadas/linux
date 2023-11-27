@@ -2586,6 +2586,14 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	if (para->sname)
 		if (strcmp(para->sname, "invalid") == 0)
 			return 0;
+	/* add efuse ctrl */
+	if (hdev->data->efuse_dis_output_4k)
+		if (para->timing.v_active >= 2160)
+			return 0;
+	if (hdev->data->efuse_dis_hdmi_4k60)
+		if (para->timing.v_active >= 2160 &&
+			para->timing.v_freq >= 5000)
+			return 0;
 	/* exclude such as: 2160p60hz YCbCr444 10bit */
 	switch (para->vic) {
 	case HDMI_3840x2160p50_16x9:

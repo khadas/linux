@@ -49,7 +49,11 @@ bool get_hdcp1_lstore(void)
 bool get_hdcp2_lstore(void)
 {
 	struct arm_smccc_res res;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
+	/* add efuse ctrl hdcptx2 */
+	if (hdev->data->efuse_dis_hdcp_tx22)
+		return 0;
 	arm_smccc_smc(HDCPTX_IOOPR, HDCP22_KEY_READY, 0, 0, 0, 0, 0, 0, &res);
 
 	return (unsigned int)((res.a0) & 0xffffffff);

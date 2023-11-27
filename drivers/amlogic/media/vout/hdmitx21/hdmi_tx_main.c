@@ -50,6 +50,7 @@
 #include <linux/amlogic/media/vrr/vrr.h>
 #include "hdmi_tx_ext.h"
 #include "hdmi_tx.h"
+#include "../../../efuse_unifykey/efuse.h"
 
 #include <linux/amlogic/gki_module.h>
 #include <linux/component.h>
@@ -1212,6 +1213,77 @@ static int set_disp_mode_auto(void)
 	}
 	mutex_unlock(&hdev->hdmimode_mutex);
 	return ret;
+}
+
+static char *efuse_name_table[] = {"FEAT_DISABLE_HDMI_60HZ",
+				   "FEAT_DISABLE_OUTPUT_4K",
+				   "FEAT_DISABLE_HDCP_TX_22",
+				   "FEAT_DISABLE_HDMI_TX_3D",
+				    NULL};
+static void get_hdmi_efuse(struct hdmitx_dev *hdev)
+{
+	struct efuse_obj_field_t efuse_field;
+	u8 buff[32];
+	u32 bufflen = sizeof(buff);
+	char *efuse_field_name;
+	u32 rc = 0;
+	int i = 0;
+
+	memset(&buff[0], 0, sizeof(buff));
+	memset(&efuse_field, 0, sizeof(efuse_field));
+
+	for (; efuse_name_table[i]; i++) {
+		efuse_field_name = efuse_name_table[i];
+		rc = efuse_obj_read(EFUSE_OBJ_EFUSE_DATA, efuse_field_name, buff, &bufflen);
+		if (rc == EFUSE_OBJ_SUCCESS) {
+			strncpy(efuse_field.name, efuse_field_name, sizeof(efuse_field.name) - 1);
+			memcpy(efuse_field.data, buff, bufflen);
+			efuse_field.size = bufflen;
+
+			if (*efuse_field.data == 1) {
+				switch (i) {
+				case 0:
+					hdev->data->efuse_dis_hdmi_4k60 = 1;
+					pr_info("get efuse FEAT_DISABLE_HDMI_60HZ = 1\n");
+					break;
+				case 1:
+					hdev->data->efuse_dis_output_4k = 1;
+					pr_info("get efuse FEAT_DISABLE_OUTPUT_4K = 1\n");
+					break;
+				case 2:
+					hdev->data->efuse_dis_hdcp_tx22 = 1;
+					pr_info("get efuse FEAT_DISABLE_HDCP_TX_22 = 1\n");
+					break;
+				case 3:
+					hdev->data->efuse_dis_hdmi_tx3d = 1;
+					pr_info("get efuse FEAT_DISABLE_HDMI_TX_3D = 1\n");
+					break;
+				default:
+					break;
+				}
+			}
+		} else {
+			pr_err("Error getting %s: %d\n", efuse_field_name, rc);
+		}
+	}
+}
+
+static ssize_t hdmi_efuse_state_show(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_HDMI_60HZ = %d\n\r",
+		hdev->data->efuse_dis_hdmi_4k60);
+	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_OUTPUT_4K = %d\n\r",
+		hdev->data->efuse_dis_output_4k);
+	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_HDCP_TX_22 = %d\n\r",
+		hdev->data->efuse_dis_hdcp_tx22);
+	pos += snprintf(buf + pos, PAGE_SIZE, "FEAT_DISABLE_HDMI_TX_3D = %d\n\r",
+		hdev->data->efuse_dis_hdmi_tx3d);
+
+	return pos;
 }
 
 /*disp_mode attr*/
@@ -3396,6 +3468,16 @@ static ssize_t disp_cap_show(struct device *dev,
 		} else {
 			timing = hdmitx21_gettiming_from_vic(vic);
 		}
+
+		/* add efuse ctrl */
+		if (hdev->data->efuse_dis_output_4k) {
+			if (timing->v_active >= 2160)
+				continue;
+		} else if (hdev->data->efuse_dis_hdmi_4k60) {
+			if (timing->v_active >= 2160 && timing->v_freq >= 50000)
+				continue;
+		}
+
 		if (timing) {
 			pos += snprintf(buf + pos, PAGE_SIZE, "%s",
 				timing->sname ? timing->sname : timing->name);
@@ -5097,8 +5179,12 @@ static ssize_t hdcp_mode_store(struct device *dev,
 		hdcp_mode_set(1);
 	}
 	if (strncmp(buf, "f2", 2) == 0) {
-		hdev->hdcp_mode = 0x2;
-		hdcp_mode_set(2);
+		if (!hdev->data->efuse_dis_hdcp_tx22) {
+			hdev->hdcp_mode = 0x2;
+			hdcp_mode_set(2);
+		} else {
+			pr_err("efuse disable hdcptx22\n");
+		}
 	}
 	if (buf[0] == '0') {
 		hdev->hdcp_mode = 0x00;
@@ -5836,6 +5922,7 @@ static ssize_t hdmitx21_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "1\n");
 }
 
+static DEVICE_ATTR_RO(hdmi_efuse_state);
 static DEVICE_ATTR_RW(disp_mode);
 static DEVICE_ATTR_RW(attr);
 static DEVICE_ATTR_RW(vid_mute);
@@ -7513,6 +7600,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		return r;
 	}
 	hdev->hdtx_dev = dev;
+	ret = device_create_file(dev, &dev_attr_hdmi_efuse_state);
 	ret = device_create_file(dev, &dev_attr_disp_mode);
 	ret = device_create_file(dev, &dev_attr_attr);
 	ret = device_create_file(dev, &dev_attr_vid_mute);
@@ -7615,6 +7703,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	/* update fmt_attr */
 	hdmitx_init_fmt_attr(hdev);
 
+	/* get efuse ctrl state */
+	get_hdmi_efuse(hdev);
 	hdev->hpd_state = !!hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0);
 	hdmitx21_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
 	INIT_WORK(&hdev->work_hdr, hdr_work_func);
@@ -7717,6 +7807,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 #endif
 
 	/* Remove the cdev */
+	device_remove_file(dev, &dev_attr_hdmi_efuse_state);
 	device_remove_file(dev, &dev_attr_disp_mode);
 	device_remove_file(dev, &dev_attr_attr);
 	device_remove_file(dev, &dev_attr_vid_mute);
