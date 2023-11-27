@@ -1804,38 +1804,42 @@ void vpp_vf_proc(struct vframe_s *pvf,
 	struct data_vs_param_s data_vs_param;
 	struct vinfo_s *pvinfo = NULL;
 	int tmp = 0;
-
-	if (!pvf || !ptoggle_vf || !pvf_param)
-		return;
-
-	signal_type = _update_signal_type(pvf);
-	_update_hdr_type(signal_type);
-	_update_hdr_metadata(pvf);
-
-	_detect_signal_type(pvf, NULL, vd_path, vpp_top);
+	struct vframe_s *vf_using = NULL;
 
 	vpp_module_pre_gamma_on_vs();
 	vpp_module_lcd_gamma_on_vs();
 
 	vpp_module_matrix_on_vs();
 
-	phist_report = vpp_module_meter_get_hist_report();
+	if (!pvf && !ptoggle_vf)
+		return;
 
-	lc_vs_param.vf_type = pvf->type;
-	lc_vs_param.vf_signal_type = signal_type;
-	lc_vs_param.vf_height = pvf->height;
-	lc_vs_param.vf_width = pvf->width;
-	lc_vs_param.sps_h_en = pvf_param->sps_h_en;
-	lc_vs_param.sps_v_en = pvf_param->sps_v_en;
-	lc_vs_param.sps_w_in = pvf_param->sps_w_in;
-	lc_vs_param.sps_h_in = pvf_param->sps_h_in;
+	vf_using = ptoggle_vf ? ptoggle_vf : pvf;
 
-	vpp_module_lc_on_vs(&phist_report->gamma[0], &lc_vs_param);
+	signal_type = _update_signal_type(vf_using);
+	_update_hdr_type(signal_type);
+	_update_hdr_metadata(vf_using);
+
+	_detect_signal_type(vf_using, NULL, vd_path, vpp_top);
+
+	if (pvf_param) {
+		lc_vs_param.vf_type = vf_using->type;
+		lc_vs_param.vf_signal_type = signal_type;
+		lc_vs_param.vf_height = vf_using->height;
+		lc_vs_param.vf_width = vf_using->width;
+		lc_vs_param.sps_h_en = pvf_param->sps_h_en;
+		lc_vs_param.sps_v_en = pvf_param->sps_v_en;
+		lc_vs_param.sps_w_in = pvf_param->sps_w_in;
+		lc_vs_param.sps_h_in = pvf_param->sps_h_in;
+
+		phist_report = vpp_module_meter_get_hist_report();
+		vpp_module_lc_on_vs(&phist_report->gamma[0], &lc_vs_param);
+	}
 
 	data_vs_param.src_type = EN_SRC_VGA;
 	data_vs_param.vf_signal_change = signal_type;
-	data_vs_param.vf_width = pvf->width;
-	data_vs_param.vf_height = pvf->height;
+	data_vs_param.vf_width = vf_using->width;
+	data_vs_param.vf_height = vf_using->height;
 
 	vpp_data_on_vs(&data_vs_param);
 
