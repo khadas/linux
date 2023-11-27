@@ -250,4 +250,5 @@ u_char rx_edid_get_aud_sad(u_char *sad_data);
 bool rx_edid_set_aud_sad(u_char *sad, u_char len);
 int rx_set_audio_param(uint32_t param);
 void rx_earc_hpd_cntl(void);
+unsigned int rx_get_hdmi5v_sts(void);
 #endif
