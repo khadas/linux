@@ -47,7 +47,8 @@
 //CTS 2-79
 //emp dbg
 //optimize afifo configuration
-#define RX_VER0 "ver.2023/10/21"
+//turn off 2m and 5m clks when shut down
+#define RX_VER0 "ver.2023/11/28"
 
 /*print type*/
 #define	LOG_EN		0x01

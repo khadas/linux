@@ -1171,7 +1171,10 @@
 
 /*t7/t3*/
 #define RX_CLK_CTRL			(0x4A << 2)
+#define CLK_2M_EN			_BIT(24)
+#define CLK_5M_EN			_BIT(8)
 #define RX_CLK_CTRL1		(0x4B << 2)
+#define HDCP2X_ECLK_EN		_BIT(24)
 #define RX_CLK_CTRL2		(0x4C << 2)
 #define RX_CLK_CTRL3		(0x4D << 2)
 	#define METER_CLK_EN				_BIT(8)
