@@ -166,6 +166,7 @@ int meson_nand_rsv_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops
 int meson_nand_rsv_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
+	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(chip);
 	struct mtd_ecc_stats stats;
 	int page, realpage, chipnr, oob_required, ret = 0;
 
@@ -180,9 +181,9 @@ int meson_nand_rsv_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_op
 	if (!ops->datbuf) {
 		ret = chip->ecc.read_oob(chip, page);
 	} else {
-		ret = chip->ecc.read_page(chip, chip->data_buf,
+		ret = chip->ecc.read_page(chip, meson_chip->data_buf,
 				oob_required, page);
-		memcpy(ops->datbuf, chip->data_buf, ops->len);
+		memcpy(ops->datbuf, meson_chip->data_buf, ops->len);
 	}
 	meson_nfc_select_chip(chip, -1);
 
