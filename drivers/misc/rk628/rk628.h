@@ -195,6 +195,8 @@
 #define GRF_GPIO_SR_CON			0x00ec
 #define GRF_SW_HDMIRXPHY_CRTL		0x00f4
 #define GRF_INTR0_EN			0x0100
+#define RK628F_HDMIRX_IRQ_EN(x)		HIWORD_UPDATE(x, 9, 9)
+#define RK628D_HDMIRX_IRQ_EN(x)		HIWORD_UPDATE(x, 8, 8)
 #define GRF_INTR0_CLR_EN		0x0104
 #define GRF_INTR0_STATUS		0x0108
 #define GRF_INTR0_RAW_STATUS		0x010c
@@ -229,6 +231,7 @@
 #define DRM_MODE_FLAG_NHSYNC                    (1<<1)
 #define DRM_MODE_FLAG_PVSYNC                    (1<<2)
 #define DRM_MODE_FLAG_NVSYNC                    (1<<3)
+#define DRM_MODE_FLAG_INTERLACE                 (1<<4)
 
 #define RK628D_VERSION 0x20200326
 #define RK628F_VERSION 0x20230321
@@ -464,6 +467,7 @@ struct rk628 {
 	struct clk *soc_24M;
 	struct workqueue_struct *monitor_wq;
 	struct delayed_work delay_work;
+	struct dentry *debug_dir;
 	struct workqueue_struct *dsi_wq;
 	struct delayed_work dsi_delay_work;
 	struct rk628_panel_simple *panel;
