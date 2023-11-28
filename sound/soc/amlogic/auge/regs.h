@@ -1396,6 +1396,10 @@ struct register_table {
 #define EARCTX_FE_STAT0                    0x01b
 #define EARCTX_SPDIFOUT_STAT               0x01c
 #define EARCTX_SPDIFOUT_CTRL2              0x01d
+#define EARCTX_SPDIFOUT_GAIN2              0x01e
+#define EARCTX_SPDIFOUT_GAIN3              0x01f
+#define EARCTX_SPDIFOUT_GAIN4              0x020
+#define EARCTX_SPDIFOUT_GAIN5              0x021
 /* eARC RX */
 #define EARCRX_TOP_CTRL0                   0x000
 #define EARCRX_DMAC_INT_MASK               0x001

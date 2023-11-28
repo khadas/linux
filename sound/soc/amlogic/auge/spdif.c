@@ -1525,6 +1525,9 @@ static int aml_dai_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 			dev_info(substream->pcm->card->dev,
 				 "S/PDIF[%d] Playback disable\n",
 				 p_spdif->id);
+			/* first send trigger msg to samesource module */
+			if (p_spdif->samesource_sel != SHAREBUFFER_NONE)
+				spdif_sharebuffer_trigger(p_spdif, runtime->channels, cmd);
 			/* continuous-clock, spdif out is not disable,
 			 * only mute, ensure spdif outputs zero data.
 			 */

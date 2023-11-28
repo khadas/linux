@@ -12,13 +12,42 @@
 
 #include "earc_hw.h"
 
+void aml_earc_auto_gain_enable(struct regmap *dmac_map, int value)
+{
+	mmio_write(dmac_map, EARCTX_SPDIFOUT_GAIN0, 0);
+	/*
+	 * bit 31: step by step change gain
+	 * bit 16 - 23: gain_step
+	 * bit 0 - 15: the period of each change, unit is FS
+	 */
+	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_GAIN5,
+			0x1 << 31 | 0xFF << 16 | 0xFFFF << 0,
+			0x1 << 31 | 0x01 << 16 | 0x0002 << 0);
+
+	/* 0 - 8 channel */
+	if (value == 0)
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_GAIN4, 0xFF << 0, 0xFF << 0);
+	else
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_GAIN4, 0xFF << 0, 0);
+}
+
 void earctx_dmac_mute(struct regmap *dmac_map, bool enable)
 {
 	int val = 0;
 
 	if (enable)
 		val = 3;
+	aml_earc_auto_gain_enable(dmac_map, !enable);
 	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x3 << 21, val << 21);
+}
+
+int earctx_get_dmac_mute(struct regmap *dmac_map)
+{
+	int mute, gain_enable;
+
+	mute = mmio_read(dmac_map, EARCTX_SPDIFOUT_CTRL0) & (0x3 << 21);
+	gain_enable = mmio_read(dmac_map, 0x20) & 0xFF;
+	return mute | gain_enable;
 }
 
 void earcrx_pll_refresh(struct regmap *top_map,
@@ -785,6 +814,11 @@ void earctx_enable_d2a(struct regmap *top_map, int enable)
 
 void earctx_cmdc_init(struct regmap *top_map, bool en, bool rterm_on)
 {
+	/* always set bit[16] = 0 from T5M for Txs */
+	mmio_update_bits(top_map,
+			 EARCTX_ANA_CTRL1,
+			 0x1 << 16,
+			 0 << 16);
 	/* ana */
 	if (rterm_on)
 		mmio_write(top_map, EARCTX_ANA_CTRL0,
@@ -997,8 +1031,6 @@ void earctx_dmac_init(struct regmap *top_map,
 			 0x1 << 18 |  /* validBit sel, 1: reg_value */
 			 0x1 << 17    /* reg_chst_sel, 1: reg_value */
 			);
-
-	earctx_dmac_mute(dmac_map, mute);
 }
 
 void earctx_dmac_set_format(struct regmap *dmac_map,
@@ -1433,9 +1465,7 @@ void earctx_enable(struct regmap *top_map,
 				 0x1 << 31);
 	} else {
 		/* earc tx is not disable, only mute, ensure earc outputs zero data */
-		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
-				 0x3 << 21,
-				 0x3 << 21);
+		earctx_dmac_mute(dmac_map, true);
 		return;
 	}
 
@@ -1880,6 +1910,23 @@ void earctx_cmdc_earc_mode(struct regmap *cmdc_map, bool enable)
 				 0xf << 28 | 0x3 << 8,
 				 0xe << 28 | 0x3 << 8);
 	}
+}
+
+void earctx_dmac_hold_bus_and_mute(struct regmap *dmac_map, bool enable)
+{
+	if (enable)
+		mmio_write(dmac_map, EARCTX_ERR_CORRT_CTRL2, 0x40089202);
+	else
+		mmio_write(dmac_map, EARCTX_FE_CTRL0, 0xc8000000);
+}
+
+void earctx_dmac_force_mode(struct regmap *dmac_map, bool enable)
+{
+	/* force arc mode as earc mode will consume data faster */
+	if (enable)
+		mmio_write(dmac_map, EARCTX_DMAC_TOP_CTRL0, 0xe);
+	else
+		mmio_write(dmac_map, EARCTX_DMAC_TOP_CTRL0, 0);
 }
 
 int earcrx_get_sample_rate(struct regmap *dmac_map)
