@@ -6754,6 +6754,9 @@ void vdin_sw_reset(struct vdin_dev_s *devp)
 		return;
 	}
 
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_T5))
+		return;
+
 	if (devp->index) {
 		wr_bits(0, VDIN_TOP_MISC, 1, 27, 1); //vdin1
 		wr_bits(0, VDIN_TOP_MISC, 0, 27, 1); //vdin1
