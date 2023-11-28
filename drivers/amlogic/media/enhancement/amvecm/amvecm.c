@@ -154,6 +154,7 @@ spinlock_t vpp_3dlut_lock;
 struct mutex vpp_lut3d_lock;
 
 signed int vd1_brightness = 0, vd1_contrast;
+signed int vd1_brightness2 = 0, vd1_contrast2;
 
 static int hue_pre;  /*-25~25*/
 static int saturation_pre;  /*-128~127*/
@@ -194,6 +195,20 @@ static int vdj_mode_flg;
 struct am_vdj_mode_s vdj_mode_s;
 struct pq_ctrl_s pq_cfg;
 struct pq_ctrl_s dv_cfg_bypass;
+
+#define RECOVERY_REG_CM_MAX 183
+#define RECOVERY_REG_SR_MAX 234
+#define RECOVERY_REG_LC_MAX 13
+#define RECOVERY_REG_VE_MAX 8
+
+bool resume_mtx_flag;
+bool suspend_drv_flag;
+struct am_regs_s amregs_store;
+struct am_reg_s *reg_sr0_list;
+struct am_reg_s *reg_sr1_list;
+struct am_reg_s *reg_lc_list;
+struct am_reg_s *reg_cm_list;
+struct am_reg_s *reg_ve_list;
 
 struct pq_ctrl_s pq_cfg_init[PQ_CFG_MAX] = {
 	/*for tv enable pq module*/
@@ -2057,6 +2072,8 @@ void ct_latch(void)
 void amvecm_video_latch(void)
 {
 	unsigned int temp;
+
+	resume_recovery_process();
 	pc_mode_process();
 	cm_latch_process();
 	/*amvecm_size_patch();*/
@@ -2169,6 +2186,16 @@ int min_vpp_process(int vpp_top_index, enum vpp_index_e vpp_index)
 }
 #endif
 
+void resume_mtx_flag_set(bool flag)
+{
+	resume_mtx_flag = flag;
+}
+
+bool resume_mtx_flag_get(void)
+{
+	return resume_mtx_flag;
+}
+
 int amvecm_on_vs(struct vframe_s *vf,
 		 struct vframe_s *toggle_vf,
 		 int flags,
@@ -2252,6 +2279,10 @@ int amvecm_on_vs(struct vframe_s *vf,
 	}
 	if ((toggle_vf) || (vf)) {
 		/* matrix adjust */
+		if (resume_mtx_flag_get()) {
+			flags |= CSC_FLAG_FORCE_SIGNAL;
+			resume_mtx_flag_set(false);
+		}
 		result = amvecm_matrix_process(toggle_vf, vf, flags, vd_path, vpp_index);
 		if (toggle_vf) {
 			ioctrl_get_hdr_metadata(toggle_vf);
@@ -3001,6 +3032,7 @@ static long amvecm_ioctl(struct file *file,
 			vpp_lut3d_table_init(0, 0, 0);
 			vpp_set_lut3d(0, 0, p3dlut->data, 0);
 			vpp_lut3d_table_release();
+			pr_amvecm_dbg("AMVECM_IOC_SET_3D_LUT\n");
 		}
 
 		kfree(p3dlut);
@@ -3217,6 +3249,8 @@ static long amvecm_ioctl(struct file *file,
 		if (vdj_mode_flg & VDJ_FLAG_BRIGHTNESS) { /*brightness*/
 			vd1_brightness = vdj_mode_s.brightness;
 			vecm_latch_flag |= FLAG_VADJ1_BRI;
+			pr_amvecm_dbg("vdj_mode_s.brightness:%d\n",
+				vdj_mode_s.brightness);
 		}
 		if (vdj_mode_flg & VDJ_FLAG_BRIGHTNESS2) { /*brightness2*/
 			if (vdj_mode_s.brightness2 < -1024 ||
@@ -3224,7 +3258,10 @@ static long amvecm_ioctl(struct file *file,
 				pr_amvecm_dbg("load brightness2 value invalid!!!\n");
 				return -EINVAL;
 			}
+			vd1_brightness2 = vdj_mode_s.brightness2;
 			ret = amvecm_set_brightness2(vdj_mode_s.brightness2);
+			pr_amvecm_dbg("vdj_mode_s.brightness:%d2\n",
+				vdj_mode_s.brightness2);
 		}
 		if (vdj_mode_flg & VDJ_FLAG_SAT_HUE)	{ /*saturation_hue*/
 			/*ai pq get saturation*/
@@ -3248,6 +3285,8 @@ static long amvecm_ioctl(struct file *file,
 				hue_post = (hue_post - 1024) / 6;
 			ret =
 			amvecm_set_saturation_hue_post(sat_post, hue_post);
+			pr_amvecm_dbg("sat_post:%d, hue_post:%d\n",
+				sat_post, hue_post);
 			if (ret < 0)
 				break;
 		}
@@ -3260,6 +3299,8 @@ static long amvecm_ioctl(struct file *file,
 			}
 			vd1_contrast = vdj_mode_s.contrast;
 			vecm_latch_flag |= FLAG_VADJ1_CON;
+			pr_amvecm_dbg("vdj_mode_s.contrast:%d\n",
+				vdj_mode_s.contrast);
 		}
 		if (vdj_mode_flg & 0x20) { /*constract2*/
 			if (vdj_mode_s.contrast2 < -127 ||
@@ -3268,7 +3309,10 @@ static long amvecm_ioctl(struct file *file,
 				pr_amvecm_dbg("[amvecm..] ioctrl contrast2 value invalid!!\n");
 				break;
 			}
+			vd1_contrast2 = vdj_mode_s.contrast2;
 			ret = amvecm_set_contrast2(vdj_mode_s.contrast2);
+			pr_amvecm_dbg("vdj_mode_s.contrast2:%d\n",
+				vdj_mode_s.contrast2);
 		}
 		break;
 	case AMVECM_IOC_S_LC_CURVE:
@@ -8960,6 +9004,472 @@ void vlock_clk_resume(void)
 	clk_prepare_enable(amvecm_dev.vlock_clk);
 }
 
+void suspend_drv_status_set(bool status)
+{
+	suspend_drv_flag = status;
+}
+
+bool suspend_drv_status_get(void)
+{
+	return suspend_drv_flag;
+}
+
+void suspend_ve(void)
+{
+	int i;
+	unsigned int reg;
+
+	if (!pq_cfg.black_ext_en &&
+		!pq_cfg.chroma_cor_en)
+		return;
+
+	reg_ve_list =
+		kcalloc(RECOVERY_REG_VE_MAX, sizeof(struct am_reg_s), GFP_KERNEL);
+	if (!reg_ve_list)
+		return;
+
+	reg = VPP_BLACKEXT_CTRL;
+	reg_ve_list[0].addr = reg;
+	reg = VPP_BLUE_STRETCH_1;
+	for (i = 1; i < 4; i++)
+		reg_ve_list[i].addr = reg + i - 1;
+
+	reg = VPP_CCORING_CTRL;
+	for (i = 4; i < RECOVERY_REG_VE_MAX; i++)
+		reg_ve_list[i].addr = reg + i - 4;
+
+	for (i = 0; i < RECOVERY_REG_VE_MAX; i++) {
+		reg_ve_list[i].type = REG_TYPE_VCBUS;
+		reg_ve_list[i].mask = 0xffffffff;
+		reg = reg_ve_list[i].addr;
+		if (pq_reg_wr_rdma)
+			reg_ve_list[i].val = VSYNC_RD_MPEG_REG(reg);
+		else
+			reg_ve_list[i].val = READ_VPP_REG(reg);
+	}
+
+	pr_amvecm_dbg("amvecm: suspend ve\n");
+}
+
+void suspend_cm(void)
+{
+	int i, j, k;
+	unsigned int reg;
+	unsigned int addr_port = VPP_CHROMA_ADDR_PORT;/* 0x1d70; */
+	unsigned int data_port = VPP_CHROMA_DATA_PORT;/* 0x1d71; */
+	struct cm_port_s cm_port;
+
+	if (!pq_cfg.cm_en)
+		return;
+
+	if (chip_type_id == chip_s5) {
+		cm_port = get_cm_port();
+		switch (cm_slice_idx) {
+		case SLICE0:
+			addr_port = cm_port.cm_addr_port[0];
+			data_port = cm_port.cm_data_port[0];
+			break;
+		case SLICE1:
+			addr_port = cm_port.cm_addr_port[1];
+			data_port = cm_port.cm_data_port[1];
+			break;
+		case SLICE2:
+			addr_port = cm_port.cm_addr_port[2];
+			data_port = cm_port.cm_data_port[2];
+			break;
+		case SLICE3:
+			addr_port = cm_port.cm_addr_port[3];
+			data_port = cm_port.cm_data_port[3];
+			break;
+		default:
+			break;
+		}
+	}
+
+	reg_cm_list =
+		kcalloc(RECOVERY_REG_CM_MAX, sizeof(struct am_reg_s), GFP_KERNEL);
+	if (!reg_cm_list)
+		return;
+
+	k = 0;
+	for (i = 0; i < 32; i++) {
+		for (j = 0; j < 5; j++) {
+			reg_cm_list[k].addr = CM2_ENH_COEF0_H00 + i * 8 + j;
+			k++;
+		}
+	}
+
+	for (i = 0; i < 160; i++) {
+		reg_cm_list[i].type = REG_TYPE_INDEX_VPP_COEF;
+		reg_cm_list[i].mask = 0xffffffff;
+		reg = reg_cm_list[i].addr;
+		WRITE_VPP_REG(addr_port, reg);
+		reg_cm_list[i].val = READ_VPP_REG(data_port);
+	}
+
+	for (i = 160; i < 171; i++)
+		reg_cm_list[i].addr = 0x200 + i - 160;
+	reg_cm_list[171].addr = 0x20f;
+	for (i = 172; i < RECOVERY_REG_CM_MAX; i++)
+		reg_cm_list[i].addr = 0x215 + i - 172;
+
+	for (i = 160; i < RECOVERY_REG_CM_MAX; i++) {
+		reg_cm_list[i].type = REG_TYPE_INDEX_VPPCHROMA;
+		reg_cm_list[i].mask = 0xffffffff;
+		reg = reg_cm_list[i].addr;
+		WRITE_VPP_REG(addr_port, reg);
+		reg_cm_list[i].val = READ_VPP_REG(data_port);
+	}
+
+	pr_amvecm_dbg("amvecm: suspend cm\n");
+}
+
+void suspend_sr(void)
+{
+	int i;
+	unsigned int reg;
+
+	reg_sr0_list =
+		kcalloc(RECOVERY_REG_SR_MAX, sizeof(struct am_reg_s), GFP_KERNEL);
+	if (!reg_sr0_list)
+		return;
+
+	reg = offset_addr(SRSHARP0_SHARP_HVSIZE);
+	reg_sr0_list[0].addr = reg;
+	reg = offset_addr(SRSHARP0_SHARP_HVBLANK_NUM);
+	reg_sr0_list[1].addr = reg;
+	reg = offset_addr(SRSHARP0_NR_GAUSSIAN_MODE);
+	reg_sr0_list[2].addr = reg;
+	reg = offset_addr(SRSHARP0_PK_CON_2CIRHPGAIN_TH_RATE);
+	for (i = 3; i < 68; i++)
+		reg_sr0_list[i].addr = reg + i - 3;
+	reg = offset_addr(SRSHARP0_DEMO_CRTL);
+	for (i = 68; i < 100; i++)
+		reg_sr0_list[i].addr = reg + i - 68;
+	reg = offset_addr(SRSHARP0_DB_FLT_CTRL);
+	for (i = 100; i < 118; i++)
+		reg_sr0_list[i].addr = reg + i - 100;
+	reg = SRSHARP0_SHARP_SYNC_CTRL + get_sr0_offset();
+	reg_sr0_list[118].addr = reg;
+	reg = 0x50b2;
+	for (i = 119; i < 128; i++)
+		reg_sr0_list[i].addr = reg + i - 119;
+	reg = SRSHARP0_FMETER_CTRL;
+	for (i = 128; i < 135; i++)
+		reg_sr0_list[i].addr = reg + i - 128;
+	reg = SRSHARP0_SR7_DRTLPF_EN;
+	for (i = 135; i < 199; i++)
+		reg_sr0_list[i].addr = reg + i - 135;
+	reg = SRSHARP0_SR7_CLR_PRT_PARAM;
+	for (i = 199; i < RECOVERY_REG_SR_MAX - 1; i++)
+		reg_sr0_list[i].addr = reg + i - 199;
+	reg_sr0_list[RECOVERY_REG_SR_MAX - 1].addr = VPP_SRSHARP0_CTRL;
+
+	for (i = 0; i < RECOVERY_REG_SR_MAX; i++) {
+		reg_sr0_list[i].type = REG_TYPE_VCBUS;
+		reg_sr0_list[i].mask = 0xffffffff;
+		reg = reg_sr0_list[i].addr;
+		if (pq_reg_wr_rdma)
+			reg_sr0_list[i].val = VSYNC_RD_MPEG_REG(reg);
+		else
+			reg_sr0_list[i].val = READ_VPP_REG(reg);
+	}
+
+	reg_sr1_list =
+		kcalloc(RECOVERY_REG_SR_MAX, sizeof(struct am_reg_s), GFP_KERNEL);
+	if (!reg_sr1_list)
+		return;
+
+	reg = offset_addr(SRSHARP1_SHARP_HVSIZE);
+	reg_sr1_list[0].addr = reg;
+	reg = offset_addr(SRSHARP1_SHARP_HVBLANK_NUM);
+	reg_sr1_list[1].addr = reg;
+	reg = offset_addr(SRSHARP1_NR_GAUSSIAN_MODE);
+	reg_sr1_list[2].addr = reg;
+	reg = offset_addr(SRSHARP1_PK_CON_2CIRHPGAIN_TH_RATE);
+	for (i = 3; i < 68; i++)
+		reg_sr1_list[i].addr = reg + i - 3;
+	reg = offset_addr(SRSHARP1_DEMO_CRTL);
+	for (i = 68; i < 100; i++)
+		reg_sr1_list[i].addr = reg + i - 68;
+	reg = offset_addr(SRSHARP1_DB_FLT_CTRL);
+	for (i = 100; i < 118; i++)
+		reg_sr1_list[i].addr = reg + i - 100;
+	reg = SRSHARP1_SHARP_SYNC_CTRL + get_sr0_offset();
+	reg_sr1_list[118].addr = reg;
+	reg = 0x52b2;
+	for (i = 119; i < 128; i++)
+		reg_sr1_list[i].addr = reg + i - 119;
+	reg = SRSHARP1_FMETER_CTRL;
+	for (i = 128; i < 135; i++)
+		reg_sr1_list[i].addr = reg + i - 128;
+	reg = SRSHARP1_SR7_DRTLPF_EN;
+	for (i = 135; i < 199; i++)
+		reg_sr1_list[i].addr = reg + i - 135;
+	reg = SRSHARP1_SR7_CLR_PRT_PARAM;
+	for (i = 199; i < RECOVERY_REG_SR_MAX - 1; i++)
+		reg_sr1_list[i].addr = reg + i - 199;
+	reg_sr1_list[RECOVERY_REG_SR_MAX - 1].addr = VPP_SRSHARP1_CTRL;
+
+	for (i = 0; i < RECOVERY_REG_SR_MAX; i++) {
+		reg_sr1_list[i].type = REG_TYPE_VCBUS;
+		reg_sr1_list[i].mask = 0xffffffff;
+		reg = reg_sr1_list[i].addr;
+		if (pq_reg_wr_rdma)
+			reg_sr1_list[i].val = VSYNC_RD_MPEG_REG(reg);
+		else
+			reg_sr1_list[i].val = READ_VPP_REG(reg);
+	}
+
+	pr_amvecm_dbg("amvecm: suspend sr\n");
+}
+
+void suspend_lc(void)
+{
+	int i;
+	unsigned int reg;
+
+	if (!pq_cfg.lc_en)
+		return;
+
+	reg_lc_list =
+		kcalloc(RECOVERY_REG_LC_MAX, sizeof(struct am_reg_s), GFP_KERNEL);
+	if (!reg_lc_list)
+		return;
+
+	reg = offset_addr(SRSHARP1_LC_TOP_CTRL);
+	reg_lc_list[0].addr = reg;
+	reg = offset_addr(SRSHARP1_LC_HV_NUM);
+	reg_lc_list[1].addr = reg;
+	reg = offset_addr(SRSHARP1_LC_INPUT_MUX);
+	reg_lc_list[2].addr = reg;
+	reg = LC_CURVE_CTRL;
+	for (i = 3; i < 13; i++)
+		reg_lc_list[i].addr = reg + i - 3;
+
+	for (i = 0; i < RECOVERY_REG_LC_MAX; i++) {
+		reg_lc_list[i].type = REG_TYPE_VCBUS;
+		reg_lc_list[i].mask = 0xffffffff;
+		reg = reg_lc_list[i].addr;
+		if (pq_reg_wr_rdma)
+			reg_lc_list[i].val = VSYNC_RD_MPEG_REG(reg);
+		else
+			reg_lc_list[i].val = READ_VPP_REG(reg);
+	}
+
+	pr_amvecm_dbg("amvecm: suspend lc\n");
+}
+
+void resume_ve(void)
+{
+	if (!pq_cfg.black_ext_en &&
+		!pq_cfg.chroma_cor_en)
+		return;
+
+	amregs_store.length = RECOVERY_REG_VE_MAX;
+	if (!(memcpy(amregs_store.am_reg, reg_ve_list,
+		RECOVERY_REG_VE_MAX * sizeof(struct am_reg_s))))
+		return;
+
+	cm_load_reg(&amregs_store);
+
+	kfree(reg_ve_list);
+	reg_ve_list = NULL;
+	pr_amvecm_dbg("amvecm: resume ve\n");
+}
+
+void resume_cm(void)
+{
+	if (!pq_cfg.cm_en)
+		return;
+
+	if (cm_en)
+		amcm_enable(WR_DMA);
+	else
+		amcm_disable(WR_DMA);
+
+	amregs_store.length = RECOVERY_REG_CM_MAX;
+	if (!(memcpy(amregs_store.am_reg, reg_cm_list,
+		RECOVERY_REG_CM_MAX * sizeof(struct am_reg_s))))
+		return;
+
+	cm_load_reg(&amregs_store);
+
+	kfree(reg_cm_list);
+	reg_cm_list = NULL;
+	pr_amvecm_dbg("amvecm: resume cm\n");
+}
+
+void resume_sr(void)
+{
+	amregs_store.length = RECOVERY_REG_SR_MAX;
+	if (!(memcpy(amregs_store.am_reg, reg_sr0_list,
+		RECOVERY_REG_SR_MAX * sizeof(struct am_reg_s))))
+		return;
+	cm_load_reg(&amregs_store);
+
+	amregs_store.length = RECOVERY_REG_SR_MAX;
+	if (!(memcpy(amregs_store.am_reg, reg_sr1_list,
+		RECOVERY_REG_SR_MAX * sizeof(struct am_reg_s))))
+		return;
+	cm_load_reg(&amregs_store);
+
+	kfree(reg_sr0_list);
+	kfree(reg_sr1_list);
+	reg_sr0_list = NULL;
+	reg_sr1_list = NULL;
+	pr_amvecm_dbg("amvecm: resume sr\n");
+}
+
+void resume_lc(void)
+{
+	if (!pq_cfg.lc_en)
+		return;
+
+	amregs_store.length = RECOVERY_REG_LC_MAX;
+	if (!(memcpy(amregs_store.am_reg, reg_lc_list,
+		RECOVERY_REG_LC_MAX * sizeof(struct am_reg_s))))
+		return;
+
+	cm_load_reg(&amregs_store);
+	ve_lc_curve_update();
+
+	kfree(reg_lc_list);
+	reg_lc_list = NULL;
+	pr_amvecm_dbg("amvecm: resume lc\n");
+}
+
+void resume_dnlp(void)
+{
+	if (!pq_cfg.dnlp_en)
+		return;
+
+	ve_new_dnlp_param_update();
+	pr_amvecm_dbg("amvecm: resume dnlp\n");
+}
+
+void resume_vadj1(void)
+{
+	if (!pq_cfg.vadj1_en)
+		return;
+
+	if (chip_type_id == chip_s5) {
+		ve_vadj_ctl(WR_DMA, VE_VADJ1, pq_cfg.vadj1_en);
+	} else {
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+			VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_MISC,
+				pq_cfg.vadj1_en, 0, 1);
+		else
+			VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ_CTRL,
+				pq_cfg.vadj1_en, 0, 1);
+	}
+
+	vecm_latch_flag |= FLAG_VADJ1_BRI;
+	vecm_latch_flag |= FLAG_VADJ1_CON;
+	pq_user_latch_flag |= PQ_USER_CMS_SAT_HUE;
+
+	pr_amvecm_dbg("amvecm: resume vadj1\n");
+}
+
+void resume_vadj2(void)
+{
+	if (!pq_cfg.vadj2_en)
+		return;
+
+	if (chip_type_id == chip_a4) {
+		WRITE_VPP_REG_BITS(VOUT_VADJ_Y,
+				pq_cfg.vadj2_en, 0, 1);
+	} else if (chip_type_id == chip_s5) {
+		ve_vadj_ctl(WR_DMA, VE_VADJ2, pq_cfg.vadj2_en);
+	} else {
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+			VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ2_MISC,
+				pq_cfg.vadj2_en, 0, 1);
+		else
+			VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ_CTRL,
+				pq_cfg.vadj2_en, 2, 1);
+	}
+
+	amvecm_set_brightness2(vd1_brightness2);
+	amvecm_set_contrast2(vd1_contrast2);
+	amvecm_set_saturation_hue_post(saturation_post, hue_post);
+	pr_amvecm_dbg("amvecm: resume vadj2\n");
+}
+
+void resume_wb(void)
+{
+	if (!pq_cfg.wb_en)
+		return;
+
+	if (chip_type_id == chip_s5)
+		post_wb_ctl(WR_DMA, wb_en);
+	else
+		amvecm_wb_enable(wb_en);
+
+	ve_ogo_param_update();
+	pr_amvecm_dbg("amvecm: resume wb\n");
+}
+
+void resume_lut3d(void)
+{
+	if (lut3d_en || ct_en) {
+		vpp_enable_lut3d(1);
+		lut3d_update(0);
+		pr_amvecm_dbg("amvecm: resume lut3d\n");
+	}
+}
+
+void resume_recovery_process(void)
+{
+	struct vinfo_s *vinfo = get_current_vinfo();
+
+	if (vecm_latch_flag2 & FLAG_RESUME_RECOVERY) {
+		vecm_latch_flag2 &= ~FLAG_RESUME_RECOVERY;
+
+		if (chip_type_id == chip_a4)
+			return;
+
+		if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
+			is_meson_txlx_cpu() || is_meson_txhd_cpu() ||
+			is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
+			get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
+			get_cpu_type() == MESON_CPU_MAJOR_ID_T5D ||
+			get_cpu_type() == MESON_CPU_MAJOR_ID_T7 ||
+			get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
+			get_cpu_type() == MESON_CPU_MAJOR_ID_T5W) {
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+				/*frequence meter init*/
+				if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
+					get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
+					amve_fmeter_init(fmeter_en);
+
+				if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
+					vpp_pst_hist_sta_config(1, HIST_MAXRGB,
+						AFTER_POST2_MTX, vinfo);
+
+				resume_sr();
+				resume_lc();
+			}
+		} else if (is_meson_g12a_cpu() ||
+			 is_meson_g12b_cpu() ||
+			 is_meson_sm1_cpu() ||
+			 get_cpu_type() == MESON_CPU_MAJOR_ID_SC2 ||
+			 is_meson_s4_cpu() ||
+			 is_meson_s4d_cpu()) {
+			resume_sr();
+		} else if (chip_type_id == chip_s5) {
+			cm_top_ctl(WR_DMA, 1);
+		}
+
+		resume_cm();
+		resume_ve();
+		resume_vadj2();
+		resume_lut3d();
+		suspend_drv_status_set(false);
+		pr_info("amvecm: resume recovery\n");
+	}
+}
+
 static const char *amvecm_debug_usage_str = {
 	"Usage:\n"
 	"echo vpp_size > /sys/class/amvecm/debug; get vpp size config\n"
@@ -11876,10 +12386,12 @@ static int aml_lcd_gamma_notifier(struct notifier_block *nb,
 			sizeof(struct tcon_gamma_table_s));
 	}
 
-	vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
-	vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
-	vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
-
+	if (gamma_en) {
+		vecm_latch_flag |= FLAG_GAMMA_TABLE_EN;
+		vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
+		vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
+		vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
+	}
 	pr_amvecm_dbg("%s: gamma_index = %d, gm_par_idx = %d\n",
 		__func__, gamma_index, gm_par_idx);
 	return NOTIFY_OK;
@@ -12094,6 +12606,14 @@ static int amvecm_drv_suspend(struct platform_device *pdev,
 	if (probe_ok == 1)
 		probe_ok = 0;
 
+	if (!suspend_drv_status_get()) {
+		suspend_drv_status_set(true);
+		suspend_cm();
+		suspend_sr();
+		suspend_lc();
+		suspend_ve();
+	}
+
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
 		vlock_clk_suspend();
 
@@ -12109,6 +12629,13 @@ static int amvecm_drv_resume(struct platform_device *pdev)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T5D))
 		vlock_clk_resume();
 
+	if (suspend_drv_status_get()) {
+		resume_dnlp();
+		resume_vadj1();
+		vecm_latch_flag2 |= FLAG_RESUME_RECOVERY;
+		resume_wb();
+		resume_mtx_flag_set(true);
+	}
 	pr_info("amvecm: resume module\n");
 	return 0;
 }

@@ -110,6 +110,8 @@ void amdv_set_toggle_flag(int flag);
  *#define VPP_VADJ1_BLMINUS_EN        (1 << 1)
  *#define VPP_VADJ1_EN                (1 << 0)
  */
+#define FLAG_RESUME_RECOVERY     BIT(20)
+
 #define FLAG_GAMMA_TABLE_EN_SUB     BIT(19)
 #define FLAG_GAMMA_TABLE_DIS_SUB    BIT(18)
 #define FLAG_GAMMA_TABLE_R_SUB      BIT(17)
@@ -585,5 +587,6 @@ extern u32 _get_cur_enc_line(void);
 extern int rd_vencl;
 
 int register_osd_status_cb(int (*get_osd_enable_status)(u32 index));
+void resume_recovery_process(void);
 #endif /* AMVECM_H */
 
