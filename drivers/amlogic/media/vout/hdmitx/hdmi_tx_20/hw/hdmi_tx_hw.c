@@ -779,6 +779,11 @@ static irqreturn_t vsync_intr_handler(int irq, void *dev)
 		hdev->vid_mute_op = VIDEO_NONE_OP;
 	}
 
+	if (hdev->tmds_phy_op == TMDS_PHY_DISABLE) {
+		hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, hdev->tmds_phy_op);
+		hdev->tmds_phy_op = TMDS_PHY_NONE;
+	}
+
 	return IRQ_HANDLED;
 }
 

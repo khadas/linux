@@ -519,6 +519,8 @@ struct hdmitx_dev {
 
 	unsigned int hdcp_ctl_lvl;
 
+	u8 tmds_phy_op;
+
 	/*DRM related*/
 	int drm_hdmitx_id;
 	struct connector_hpd_cb drm_hpd_cb;
@@ -609,6 +611,7 @@ struct hdmitx_dev {
 #define		HPLL_DISABLE        0x2
 #define		HPLL_SET	    0x3
 #define MISC_TMDS_PHY_OP        (CMD_MISC_OFFSET + 0x04)
+#define TMDS_PHY_NONE       0x0
 #define TMDS_PHY_ENABLE     0x1
 #define TMDS_PHY_DISABLE    0x2
 #define MISC_VIID_IS_USING      (CMD_MISC_OFFSET + 0x05)

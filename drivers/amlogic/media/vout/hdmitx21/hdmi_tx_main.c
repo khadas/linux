@@ -4703,23 +4703,33 @@ static ssize_t phy_store(struct device *dev,
 			 struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
-	int cmd = TMDS_PHY_ENABLE;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	hdev->tmds_phy_op = TMDS_PHY_NONE;
+	unsigned int mute_us;
+	int cnt = 0;
 
 	pr_info("%s %s\n", __func__, buf);
-
+	mute_us = hdmitx_get_frame_duration();
 	if (strncmp(buf, "0", 1) == 0) {
 		/* used before switch mode */
-		cmd = TMDS_PHY_DISABLE;
+		hdev->tmds_phy_op = TMDS_PHY_DISABLE;
+		/* It is necessary to finish disable phy during the vsync interrupt
+		 * before performing other actions. If the vsync interrupt does not come,
+		 * there is a 3-frame timeout mechanism.
+		 */
+		while (hdev->tmds_phy_op) {
+			usleep_range(mute_us, mute_us + 10);
+			cnt++;
+			if (cnt > 3)
+				break;
+		}
 	} else if (strncmp(buf, "1", 1) == 0) {
-		cmd = TMDS_PHY_ENABLE;
-	} else if (strncmp(buf, "-1", 2) == 0) {
-		/* used for debug disable phy */
-		cmd = TMDS_PHY_DISABLE;
+		hdev->tmds_phy_op = TMDS_PHY_ENABLE;
+		hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, hdev->tmds_phy_op);
 	} else {
 		pr_info("set phy wrong: %s\n", buf);
 	}
-	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, cmd);
+
 	return count;
 }
 
@@ -6015,7 +6025,7 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data)
 	frl_tx_stop(hdev);
 	hdmitx_set_frlrate_none(hdev);
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
-
+	hdmitx21_disable_hdcp(hdev);
 	/* turn off encp timing gen->disable dsc encoder */
 #ifdef CONFIG_AMLOGIC_DSC
 	if (hdev->data->chip_type == MESON_CPU_ID_S5) {

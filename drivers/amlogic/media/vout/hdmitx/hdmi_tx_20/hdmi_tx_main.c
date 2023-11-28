@@ -4680,18 +4680,33 @@ static ssize_t phy_store(struct device *dev,
 			 struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
-	int cmd = TMDS_PHY_ENABLE;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	hdev->tmds_phy_op = TMDS_PHY_NONE;
+	unsigned int mute_us;
+	int cnt = 0;
 
 	pr_info(SYS "%s %s\n", __func__, buf);
-
-	if (strncmp(buf, "0", 1) == 0)
-		cmd = TMDS_PHY_DISABLE;
-	else if (strncmp(buf, "1", 1) == 0)
-		cmd = TMDS_PHY_ENABLE;
-	else
+	mute_us = hdmitx_get_frame_duration();
+	if (strncmp(buf, "0", 1) == 0) {
+		hdev->tmds_phy_op = TMDS_PHY_DISABLE;
+		/* It is necessary to finish disable phy during the vsync interrupt
+		 * before performing other actions. If the vsync interrupt does not come,
+		 * there is a 3-frame timeout mechanism.
+		 */
+		while (hdev->tmds_phy_op) {
+			usleep_range(mute_us, mute_us + 10);
+			cnt++;
+			if (cnt > 3)
+				break;
+		}
+	} else if (strncmp(buf, "1", 1) == 0) {
+		hdev->tmds_phy_op = TMDS_PHY_ENABLE;
+		hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, hdev->tmds_phy_op);
+	} else {
 		pr_info(SYS "set phy wrong: %s\n", buf);
+	}
 
-	hdmitx_device.hwop.cntlmisc(&hdmitx_device, MISC_TMDS_PHY_OP, cmd);
 	return count;
 }
 
