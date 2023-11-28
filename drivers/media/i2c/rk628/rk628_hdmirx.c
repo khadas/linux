@@ -833,3 +833,178 @@ u32 rk628_hdmirx_get_tmdsclk_cnt(struct rk628 *rk628)
 	return tmdsclk_cnt;
 }
 EXPORT_SYMBOL(rk628_hdmirx_get_tmdsclk_cnt);
+
+static int rk628_hdmirx_read_timing(struct rk628 *rk628,
+				    struct v4l2_dv_timings *timings)
+{
+	struct v4l2_bt_timings *bt = &timings->bt;
+	u32 hact, vact, htotal, vtotal, fps, status;
+	u32 val;
+	u32 modetclk_cnt_hs, modetclk_cnt_vs, hs, vs;
+	u32 hofs_pix, hbp, hfp, vbp, vfp;
+	u32 tmds_clk, tmdsclk_cnt;
+	u64 tmp_data;
+	u8 video_fmt;
+
+	memset(timings, 0, sizeof(struct v4l2_dv_timings));
+	timings->type = V4L2_DV_BT_656_1120;
+	rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS1, &val);
+	status = val;
+
+	rk628_i2c_read(rk628, HDMI_RX_MD_STS, &val);
+	bt->interlaced = val & ILACE_STS ?
+		V4L2_DV_INTERLACED : V4L2_DV_PROGRESSIVE;
+
+	rk628_i2c_read(rk628, HDMI_RX_MD_HACT_PX, &val);
+	hact = val & 0xffff;
+	rk628_i2c_read(rk628, HDMI_RX_MD_VAL, &val);
+	vact = val & 0xffff;
+	rk628_i2c_read(rk628, HDMI_RX_MD_HT1, &val);
+	htotal = (val >> 16) & 0xffff;
+	rk628_i2c_read(rk628, HDMI_RX_MD_VTL, &val);
+	vtotal = val & 0xffff;
+	rk628_i2c_read(rk628, HDMI_RX_MD_HT1, &val);
+	hofs_pix = val & 0xffff;
+	rk628_i2c_read(rk628, HDMI_RX_MD_VOL, &val);
+	vbp = (val & 0xffff) + 1;
+
+	tmdsclk_cnt = rk628_hdmirx_get_tmdsclk_cnt(rk628);
+	tmp_data = tmdsclk_cnt;
+	tmp_data = ((tmp_data * HDMIRX_MODETCLK_HZ) + HDMIRX_MODETCLK_CNT_NUM / 2);
+	do_div(tmp_data, HDMIRX_MODETCLK_CNT_NUM);
+	tmds_clk = tmp_data;
+	if (!htotal || !vtotal || bt->interlaced || vtotal > 3000) {
+		dev_err(rk628->dev, "timing err, %s htotal:%d, vtotal:%d\n",
+			bt->interlaced ? "interlaced is not supported," : "",
+			htotal, vtotal);
+		goto TIMING_ERR;
+	}
+	if (rk628->version >= RK628F_VERSION)
+		fps = tmds_clk  / (htotal * vtotal);
+	else
+		fps = (tmds_clk + (htotal * vtotal) / 2) / (htotal * vtotal);
+
+	rk628_i2c_read(rk628, HDMI_RX_MD_HT0, &val);
+	modetclk_cnt_hs = val & 0xffff;
+	hs = (tmdsclk_cnt * modetclk_cnt_hs + HDMIRX_MODETCLK_CNT_NUM / 2) /
+		HDMIRX_MODETCLK_CNT_NUM;
+
+	rk628_i2c_read(rk628, HDMI_RX_MD_VSC, &val);
+	modetclk_cnt_vs = val & 0xffff;
+	vs = (tmdsclk_cnt * modetclk_cnt_vs + HDMIRX_MODETCLK_CNT_NUM / 2) /
+		HDMIRX_MODETCLK_CNT_NUM;
+	vs = (vs + htotal / 2) / htotal;
+
+	if ((hofs_pix < hs) || (htotal < (hact + hofs_pix)) ||
+			(vtotal < (vact + vs + vbp)) || !vs) {
+		dev_err(rk628->dev, "timing err, total:%dx%d, act:%dx%d, hofs:%d, hs:%d, vs:%d, vbp:%d\n",
+			htotal, vtotal, hact, vact, hofs_pix, hs, vs, vbp);
+		goto TIMING_ERR;
+	}
+	hbp = hofs_pix - hs;
+	hfp = htotal - hact - hofs_pix;
+	vfp = vtotal - vact - vs - vbp;
+
+	video_fmt = rk628_hdmirx_get_format(rk628);
+	if (video_fmt == BUS_FMT_YUV420) {
+		htotal *= 2;
+		hact *= 2;
+		hfp *= 2;
+		hbp *= 2;
+		hs *= 2;
+	}
+
+	dev_info(rk628->dev, "cnt_num:%d, tmds_cnt:%d, hs_cnt:%d, vs_cnt:%d, hofs:%d\n",
+		 HDMIRX_MODETCLK_CNT_NUM, tmdsclk_cnt, modetclk_cnt_hs, modetclk_cnt_vs, hofs_pix);
+
+	bt->width = hact;
+	bt->height = vact;
+	bt->hfrontporch = hfp;
+	bt->hsync = hs;
+	bt->hbackporch = hbp;
+	bt->vfrontporch = vfp;
+	bt->vsync = vs;
+	bt->vbackporch = vbp;
+	if (rk628->version >= RK628F_VERSION)
+		bt->pixelclock = tmds_clk;
+	else
+		bt->pixelclock = htotal * vtotal * fps;
+
+	if (bt->interlaced == V4L2_DV_INTERLACED) {
+		bt->height *= 2;
+		bt->il_vsync = bt->vsync + 1;
+		bt->pixelclock /= 2;
+	}
+	if (video_fmt == BUS_FMT_YUV420)
+		bt->pixelclock *= 2;
+
+	if (vact == 1080 && vtotal > 1500)
+		goto TIMING_ERR;
+
+	dev_info(rk628->dev, "SCDC_REGS1:%#x, act:%dx%d, total:%dx%d, fps:%d, pixclk:%llu\n",
+		 status, hact, vact, htotal, vtotal, fps, bt->pixelclock);
+
+	return 0;
+
+TIMING_ERR:
+	return -ENOLCK;
+}
+
+static int rk628_hdmirx_try_to_get_timing(struct rk628 *rk628,
+					  struct v4l2_dv_timings *timings)
+{
+	int ret, i;
+
+	for (i = 0; i < 5; i++) {
+		ret = rk628_hdmirx_read_timing(rk628, timings);
+		if (!ret)
+			return ret;
+		msleep(20);
+	}
+
+	return ret;
+}
+
+int rk628_hdmirx_get_timings(struct rk628 *rk628,
+			     struct v4l2_dv_timings *timings)
+{
+	int i, cnt = 0, ret = 0;
+	u32 last_w, last_h;
+	u8 last_fmt;
+	struct v4l2_bt_timings *bt = &timings->bt;
+
+	last_w = 0;
+	last_h = 0;
+	last_fmt = BUS_FMT_RGB;
+
+	for (i = 0; i < HDMIRX_GET_TIMING_CNT; i++) {
+		ret = rk628_hdmirx_try_to_get_timing(rk628, timings);
+		if ((last_w == 0) && (last_h == 0)) {
+			last_w = bt->width;
+			last_h = bt->height;
+			last_fmt = rk628_hdmirx_get_format(rk628);
+		}
+
+		if (ret || (last_w != bt->width) || (last_h != bt->height)
+		    || (last_fmt != rk628_hdmirx_get_format(rk628)))
+			cnt = 0;
+		else
+			cnt++;
+
+		if (cnt >= 8)
+			break;
+
+		last_w = bt->width;
+		last_h = bt->height;
+		last_fmt = rk628_hdmirx_get_format(rk628);
+		usleep_range(10*1000, 10*1100);
+	}
+
+	if (cnt < 8) {
+		dev_info(rk628->dev, "%s: res not stable!\n", __func__);
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(rk628_hdmirx_get_timings);

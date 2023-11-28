@@ -62,8 +62,6 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 #define MIPI_DATARATE_MBPS_HIGH		1250
 
 #define POLL_INTERVAL_MS		1000
-#define MODETCLK_CNT_NUM		1000
-#define MODETCLK_HZ			49500000
 #define RXPHY_CFG_MAX_TIMES		15
 #define CSITX_ERR_RETRY_TIMES		3
 
@@ -412,121 +410,12 @@ static int rk628_csi_get_detected_timings(struct v4l2_subdev *sd,
 {
 	struct rk628_csi *csi = to_csi(sd);
 	struct v4l2_bt_timings *bt = &timings->bt;
-	u32 hact, vact, htotal, vtotal, fps, status;
-	u32 val;
-	u32 modetclk_cnt_hs, modetclk_cnt_vs, hs, vs;
-	u32 hofs_pix, hbp, hfp, vbp, vfp;
-	u32 tmds_clk, tmdsclk_cnt;
-	u64 tmp_data;
-	u8 video_fmt;
-	int retry = 0;
+	int ret;
 
-__retry:
-	memset(timings, 0, sizeof(struct v4l2_dv_timings));
-	timings->type = V4L2_DV_BT_656_1120;
-	rk628_i2c_read(csi->rk628, HDMI_RX_SCDC_REGS1, &val);
-	status = val;
+	ret = rk628_hdmirx_get_timings(csi->rk628, timings);
+	if (ret)
+		return ret;
 
-	rk628_i2c_read(csi->rk628, HDMI_RX_MD_STS, &val);
-	bt->interlaced = val & ILACE_STS ?
-		V4L2_DV_INTERLACED : V4L2_DV_PROGRESSIVE;
-
-	rk628_i2c_read(csi->rk628, HDMI_RX_MD_HACT_PX, &val);
-	hact = val & 0xffff;
-	rk628_i2c_read(csi->rk628, HDMI_RX_MD_VAL, &val);
-	vact = val & 0xffff;
-	rk628_i2c_read(csi->rk628, HDMI_RX_MD_HT1, &val);
-	htotal = (val >> 16) & 0xffff;
-	rk628_i2c_read(csi->rk628, HDMI_RX_MD_VTL, &val);
-	vtotal = val & 0xffff;
-	rk628_i2c_read(csi->rk628, HDMI_RX_MD_HT1, &val);
-	hofs_pix = val & 0xffff;
-	rk628_i2c_read(csi->rk628, HDMI_RX_MD_VOL, &val);
-	vbp = (val & 0xffff) + 1;
-
-	tmdsclk_cnt = rk628_hdmirx_get_tmdsclk_cnt(csi->rk628);
-	tmp_data = tmdsclk_cnt;
-	tmp_data = ((tmp_data * MODETCLK_HZ) + MODETCLK_CNT_NUM / 2);
-	do_div(tmp_data, MODETCLK_CNT_NUM);
-	tmds_clk = tmp_data;
-	if (!htotal || !vtotal || bt->interlaced || vtotal > 3000) {
-		v4l2_err(&csi->sd, "timing err, htotal:%d, vtotal:%d\n",
-				htotal, vtotal);
-		if (retry++ < 5) {
-			msleep(20);
-			goto __retry;
-		}
-
-		goto TIMING_ERR;
-	}
-	if (csi->rk628->version >= RK628F_VERSION)
-		fps = tmds_clk  / (htotal * vtotal);
-	else
-		fps = (tmds_clk + (htotal * vtotal) / 2) / (htotal * vtotal);
-
-	rk628_i2c_read(csi->rk628, HDMI_RX_MD_HT0, &val);
-	modetclk_cnt_hs = val & 0xffff;
-	hs = (tmdsclk_cnt * modetclk_cnt_hs + MODETCLK_CNT_NUM / 2) /
-		MODETCLK_CNT_NUM;
-
-	rk628_i2c_read(csi->rk628, HDMI_RX_MD_VSC, &val);
-	modetclk_cnt_vs = val & 0xffff;
-	vs = (tmdsclk_cnt * modetclk_cnt_vs + MODETCLK_CNT_NUM / 2) /
-		MODETCLK_CNT_NUM;
-	vs = (vs + htotal / 2) / htotal;
-
-	if ((hofs_pix < hs) || (htotal < (hact + hofs_pix)) ||
-			(vtotal < (vact + vs + vbp)) || !vs) {
-		v4l2_err(sd, "timing err, total:%dx%d, act:%dx%d, hofs:%d, hs:%d, vs:%d, vbp:%d\n",
-			 htotal, vtotal, hact, vact, hofs_pix, hs, vs, vbp);
-		if (retry++ < 5) {
-			msleep(20);
-			goto __retry;
-		}
-		goto TIMING_ERR;
-	}
-	hbp = hofs_pix - hs;
-	hfp = htotal - hact - hofs_pix;
-	vfp = vtotal - vact - vs - vbp;
-
-	video_fmt = rk628_hdmirx_get_format(csi->rk628);
-	if (video_fmt == BUS_FMT_YUV420) {
-		htotal *= 2;
-		hact *= 2;
-		hfp *= 2;
-		hbp *= 2;
-		hs *= 2;
-	}
-
-	v4l2_dbg(2, debug, sd, "cnt_num:%d, tmds_cnt:%d, hs_cnt:%d, vs_cnt:%d, hofs:%d\n",
-		 MODETCLK_CNT_NUM, tmdsclk_cnt, modetclk_cnt_hs, modetclk_cnt_vs, hofs_pix);
-
-	bt->width = hact;
-	bt->height = vact;
-	bt->hfrontporch = hfp;
-	bt->hsync = hs;
-	bt->hbackporch = hbp;
-	bt->vfrontporch = vfp;
-	bt->vsync = vs;
-	bt->vbackporch = vbp;
-	if (csi->rk628->version >= RK628F_VERSION)
-		bt->pixelclock = tmds_clk;
-	else
-		bt->pixelclock = htotal * vtotal * fps;
-
-	if (bt->interlaced == V4L2_DV_INTERLACED) {
-		bt->height *= 2;
-		bt->il_vsync = bt->vsync + 1;
-		bt->pixelclock /= 2;
-	}
-	if (video_fmt == BUS_FMT_YUV420)
-		bt->pixelclock *= 2;
-
-	if (vact == 1080 && vtotal > 1500)
-		goto __retry;
-
-	v4l2_dbg(1, debug, sd, "SCDC_REGS1:%#x, act:%dx%d, total:%dx%d, fps:%d, pixclk:%llu\n",
-		 status, hact, vact, htotal, vtotal, fps, bt->pixelclock);
 	v4l2_dbg(1, debug, sd, "hfp:%d, hs:%d, hbp:%d, vfp:%d, vs:%d, vbp:%d, interlace:%d\n",
 		 bt->hfrontporch, bt->hsync, bt->hbackporch, bt->vfrontporch, bt->vsync,
 		 bt->vbackporch, bt->interlaced);
@@ -535,10 +424,8 @@ __retry:
 	if (csi->scaler_en)
 		*timings = csi->timings;
 
-	return 0;
+	return ret;
 
-TIMING_ERR:
-	return -ENOLCK;
 }
 
 static void rk628_hdmirx_config_all(struct v4l2_subdev *sd)

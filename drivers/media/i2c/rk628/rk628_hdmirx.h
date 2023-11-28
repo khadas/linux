@@ -8,6 +8,7 @@
 #ifndef __RK628_HDMIRX_H
 #define __RK628_HDMIRX_H
 
+#include <media/v4l2-dv-timings.h>
 #include "rk628.h"
 
 /* --------- EDID and HDCP KEY ------- */
@@ -373,6 +374,10 @@
 
 #define HDMIRX_HDCP1X_ID		13
 
+#define HDMIRX_GET_TIMING_CNT		20
+#define HDMIRX_MODETCLK_CNT_NUM		1000
+#define HDMIRX_MODETCLK_HZ		49500000
+
 enum bus_format {
 	BUS_FMT_RGB = 0,
 	BUS_FMT_YUV422 = 1,
@@ -420,5 +425,7 @@ int rk628_hdmirx_verisyno_phy_init(struct rk628 *rk628);
 u8 rk628_hdmirx_get_format(struct rk628 *rk628);
 void rk628_set_bg_enable(struct rk628 *rk628, bool en);
 u32 rk628_hdmirx_get_tmdsclk_cnt(struct rk628 *rk628);
+int rk628_hdmirx_get_timings(struct rk628 *rk628,
+			     struct v4l2_dv_timings *timings);
 
 #endif
