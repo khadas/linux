@@ -150,7 +150,8 @@
 /* 20231022: add auto pc game and optimize tvin_update_vdin_prop */
 /* 20231109: add freesync type rate low and source-led */
 /* 20231117: compare in and out frame rate has problem */
-#define VDIN_VER "20231117: compare in and out frame rate has problem"
+/* 20231129: remove cdev_del and optimize game debug */
+#define VDIN_VER "20231129: remove cdev_del and optimize game debug"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK

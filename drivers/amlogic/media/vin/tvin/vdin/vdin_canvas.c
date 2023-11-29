@@ -646,7 +646,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	mem_size = roundup(mem_size, 64 * 1024);
 #endif
 
-	if (mem_size > devp->cma_mem_size) {
+	if (mem_size > devp->cma_mem_size &&
+	    !(devp->cma_config_flag & MEM_ALLOC_FROM_CODEC)) {
 		pr_err("vdin[%d] warning: cma_mem_size (need %d, cur %d) is not enough!!!\n",
 		       devp->index, mem_size, devp->cma_mem_size);
 		/*mem_size = devp->cma_mem_size;*/

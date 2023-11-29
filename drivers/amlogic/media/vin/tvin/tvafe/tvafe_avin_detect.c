@@ -1333,12 +1333,9 @@ static void tvafe_avin_detect_shutdown(struct platform_device *pdev)
 	struct tvafe_avin_det_s *av_dev = platform_get_drvdata(pdev);
 
 	avin_detect_flag = 0;
-	cdev_del(&av_dev->avin_cdev);
 	del_timer_sync(&avin_detect_timer);
 	tvafe_avin_detect_disable(av_dev);
-	device_remove_file(av_dev->config_dev, &dev_attr_debug);
 	tvafe_pr_info("%s: avin shutdown.\n", __func__);
-	kfree(av_dev);
 }
 
 int tvafe_avin_detect_remove(struct platform_device *pdev)

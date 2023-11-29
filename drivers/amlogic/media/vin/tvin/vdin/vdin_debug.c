@@ -3371,19 +3371,17 @@ start_chk:
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			if (temp) {
 				devp->debug.bypass_game_mode = true;
-				if (temp == 1) {
-					//upper not control and open game
-					game_mode = 1;
-				} else if (temp <= 0xb) {
-					//upper not control and force game mode
-					game_mode = 1;
+				if (temp <= 0xb) {
 					vdin_force_game_mode = temp;
+					vdin_game_mode_chg(devp, game_mode, 1);
+					game_mode = 1;
 				} else {
-					//upper not control and close game mode
+					vdin_force_game_mode = 0;
+					vdin_game_mode_chg(devp, game_mode, 0);
 					game_mode = 0;
 				}
 			} else {
-				//open upper control and close force game mode
+				vdin_game_mode_chg(devp, game_mode, 0);
 				devp->debug.bypass_game_mode = false;
 				vdin_force_game_mode = 0;
 				game_mode = 0;
