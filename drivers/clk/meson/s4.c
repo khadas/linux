@@ -994,7 +994,7 @@ static int meson_s4_clk_hifi_pll_enable(struct clk_hw *hw)
 	 * Make the PLL more stable, if not,
 	 * It will probably lock failed (GP0 PLL)
 	 */
-	usleep_range(50, 60);
+	udelay(50);
 
 	/* Take the pll out reset */
 	meson_parm_write(clk->map, &pll->rst, 0);
