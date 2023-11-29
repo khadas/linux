@@ -780,7 +780,7 @@ set_rst_reg:
 	val |= (amlogic->pcie_rst_mask << amlogic->pcie_rst_bit);
 	writel(val, amlogic->rst_base + RESETCTRL3_OFFSET);
 
-	usleep_range(10, 20);
+	usleep_range(1000, 3000);
 
 	return 0;
 }
@@ -1174,6 +1174,8 @@ static int amlogic_pcie_init_port_for_m31_combphy(struct amlogic_pcie *amlogic)
 		val = 0xe0000;
 		amlogic_pciectrl_write(amlogic, val, 0xbc);
 	}
+
+	usleep_range(100, 500);
 
 	return 0;
 }
