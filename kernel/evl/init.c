@@ -15,6 +15,7 @@
 #include <evl/file.h>
 #include <evl/factory.h>
 #include <evl/control.h>
+#include <evl/random.h>
 #include <evl/net.h>
 #define CREATE_TRACE_POINTS
 #include <trace/events/evl.h>
@@ -189,6 +190,9 @@ static int __init evl_init(void)
 	ret = EVL_INIT_CALL(0, init_core());
 	if (ret)
 		goto fail;
+
+	/* Set up the random generators. */
+	evl_init_rng();
 
 	printk(EVL_INFO "core started %s%s%s\n",
 		boot_debug_notice,
