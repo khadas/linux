@@ -2230,6 +2230,7 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 	u32 canvas_width = 0;
 	int input_area = 0, output_area = 0;
 	bool need_use_dw = false;
+	bool is_fbc_exist = false;
 
 	if (IS_ERR_OR_NULL(data_config) || IS_ERR_OR_NULL(vid_cmpr_top)) {
 		vicp_print(VICP_ERROR, "%s: NULL param.\n", __func__);
@@ -2251,7 +2252,10 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 		if ((input_area + 15) / output_area >> 4)
 			need_use_dw = true;
 
-		if (data_config->input_data.data_vf->type & VIDTYPE_COMPRESS && !need_use_dw) {
+		if (data_config->input_data.data_vf->type & VIDTYPE_COMPRESS)
+			is_fbc_exist = true;
+
+		if (is_fbc_exist && !need_use_dw) {
 			vicp_print(VICP_INFO, "%s: use fbc vframe.\n", __func__);
 			input_vframe = data_config->input_data.data_vf;
 			vid_cmpr_top->src_compress = 1;
@@ -2259,6 +2263,7 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 			vid_cmpr_top->src_vsize = input_vframe->compHeight;
 			vid_cmpr_top->src_head_baddr = input_vframe->compHeadAddr;
 			vid_cmpr_top->src_body_baddr = input_vframe->compBodyAddr;
+			vid_cmpr_top->src_compbits = get_input_color_bitdepth(input_vframe);
 
 			if (input_vframe->type & VIDTYPE_COMPRESS_LOSS &&
 			    input_vframe->vf_lossycomp_param.lossy_mode == 1) {
@@ -2313,10 +2318,14 @@ int vicp_process_config(struct vicp_data_config_s *data_config,
 				vid_cmpr_top->canvas_width[2] =
 					canvas_get_width(input_vframe->canvas0Addr >> 16 & 0xff);
 			}
+
+			if (is_fbc_exist)
+				vid_cmpr_top->src_compbits = 8;
+			else
+				vid_cmpr_top->src_compbits = get_input_color_bitdepth(input_vframe);
 		}
 		vid_cmpr_top->src_vf = input_vframe;
 		vid_cmpr_top->src_fmt_mode = get_input_color_format(input_vframe);
-		vid_cmpr_top->src_compbits = get_input_color_bitdepth(input_vframe);
 		vid_cmpr_top->src_win_bgn_h = 0;
 		vid_cmpr_top->src_win_end_h = vid_cmpr_top->src_hsize - 1;
 		vid_cmpr_top->src_win_bgn_v = 0;
