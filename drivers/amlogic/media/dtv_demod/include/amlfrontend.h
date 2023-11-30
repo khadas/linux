@@ -121,11 +121,12 @@
 /*  V2.2.011 optimize dvbs blind scan progress */
 /*  V2.2.012 fix dvbt lock failed in weak signal */
 /*  V2.2.013 fix pm runtime error */
- /* V2.2.014 optimize the ddr size of cma(max 40M reduced to 16M) */
- /* V2.2.015 fix no timeout when dvbc signal is abnormal */
- /* V2.2.016 fix dvbs diseqc timing */
- /* V2.2.017 Support switching auto between dvb-t and t2 */
- /* V2.2.018 fix dvbc blind scan init issue */
+/*  V2.2.014 optimize the ddr size of cma(max 40M reduced to 16M) */
+/*  V2.2.015 fix no timeout when dvbc signal is abnormal */
+/*  V2.2.016 fix dvbs diseqc timing */
+/*  V2.2.017 Support switching auto between dvb-t and t2 */
+/*  V2.2.018 fix dvbc blind scan init issue */
+/*  V2.2.019 support dtmb 6M BW */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -142,8 +143,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.2.018"
-#define DTVDEMOD_VER	"2023/11/27: fix dvbc blind scan init issue"
+#define AMLDTVDEMOD_VER "V2.2.019"
+#define DTVDEMOD_VER	"2023/11/30: support dtmb 6M BW"
 #define AMLDTVDEMOD_T2_FW_VER "20231019_141000"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

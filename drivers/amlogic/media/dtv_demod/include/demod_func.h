@@ -713,12 +713,9 @@ int dvbc_auto_qam_process(struct aml_dtvdemod *demod, unsigned int *qam_mode);
 int dvbc_blind_scan_process(struct aml_dtvdemod *demod);
 
 /* dtmb */
-
 int dtmb_set_ch(struct aml_dtvdemod *demod,
-		struct aml_demod_dtmb *demod_atsc);
-
+		struct aml_demod_dtmb *demod_dtmb);
 void dtmb_reset(void);
-
 int dtmb_check_status_gxtv(struct dvb_frontend *fe);
 int dtmb_check_status_txl(struct dvb_frontend *fe);
 int dtmb_bch_check(struct dvb_frontend *fe);

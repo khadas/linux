@@ -3295,6 +3295,8 @@ static int gxtv_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 			pr_err("wrong spectrum val get from tuner\n");
 	}
 
+	demod->demod_status.ch_bw = c->bandwidth_hz / 1000;
+
 	dtmb_set_ch(demod, &param);
 
 	return 0;
