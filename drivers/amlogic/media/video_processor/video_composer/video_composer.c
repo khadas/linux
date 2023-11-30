@@ -3159,6 +3159,7 @@ static void video_composer_task(struct composer_dev *dev)
 		vf->axis[1] = frame_info->dst_y;
 		vf->axis[2] = frame_info->dst_w + frame_info->dst_x - 1;
 		vf->axis[3] = frame_info->dst_h + frame_info->dst_y - 1;
+		vf->composer_info = NULL;
 
 		vc_print(dev->index, PRINT_AXIS,
 			"frame_info crop: x y w h %d %d %d %d\n",
