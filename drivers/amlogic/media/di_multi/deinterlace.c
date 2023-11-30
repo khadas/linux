@@ -3057,15 +3057,6 @@ void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index)
 		mm->sts.flg_release++;
 		break;
 	case EDI_TOP_STATE_REG_STEP1:
-		/*unreg->reg->release buf to di: the buf will not free until get new vf.
-		 *so FCC switch channel, the other two channel not work but also has di buffer.
-		 *We need free the buffer when EDI_TOP_STATE_REG_STEP1 (reg but no vf)
-		 */
-		if (mm->fcc_value)
-			dim_post_keep_release_one_check(ch, index);
-		else
-			ndkb_qin_byidx(pch, index);
-		break;
 	case EDI_TOP_STATE_REG_STEP1_P1:
 	case EDI_TOP_STATE_REG_STEP2:
 		ndkb_qin_byidx(pch, index);
@@ -5303,6 +5294,16 @@ unsigned char dim_pre_bypass(struct di_ch_s *pch)
 		return 74;
 	}
 	//pch->sumx.vfm_bypass = true;
+
+	ppre = get_pre_stru(ch);
+	if (dip_itf_is_ins(pch) &&
+		VFMT_IS_I(vframe->type) &&
+		get_datal()->pre_vpp_active) {
+		dim_print("%s: waiting for pre-link stop vf:%px idx:%d\n",
+			__func__, vframe, ppre->in_seq);
+		return 76;
+	}
+
 	nins = nins_get(pch);
 	if (!nins)
 		return 75;
@@ -5311,7 +5312,6 @@ unsigned char dim_pre_bypass(struct di_ch_s *pch)
 		dbg_timer(ch, EDBG_TIMER_PRE_BYPASS_0 + nins->c.cnt);
 
 	dim_bypass_set(pch, 1, bypassr);
-	ppre = get_pre_stru(ch);
 
 	/*mem check*/
 	memcpy(&ppre->vfm_cpy, vframe, sizeof(ppre->vfm_cpy));
@@ -5542,6 +5542,14 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			return 12;
 		}
 		/**************************************************/
+		bypassr = is_bypass2(vframe, channel);//dim_is_bypass(vframe, channel);
+		if (dip_itf_is_ins(pch) &&
+		    VFMT_IS_I(vframe->type) &&
+		    get_datal()->pre_vpp_active) {
+			PR_INF("%s: waiting for pre-link stop vf:%px idx:%d\n",
+				__func__, vframe, ppre->in_seq);
+			return 26;
+		}
 		/*mem check*/
 		memcpy(&ppre->vfm_cpy, vframe, sizeof(ppre->vfm_cpy));
 #ifdef DIM_TB_DETECT
@@ -5554,7 +5562,6 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 				channel, ECMD_TB_PROC);
 		}
 #endif
-		bypassr = is_bypass2(vframe, channel);//dim_is_bypass(vframe, channel);
 		/*2020-12-02: here use di_buf->vframe is err*/
 		change_type = is_source_change(vframe, channel);
 		if (change_type)

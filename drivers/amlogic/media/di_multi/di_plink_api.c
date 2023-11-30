@@ -479,8 +479,8 @@ static bool instance_id_check(unsigned int instance_id)
 	for (i = 0; i < DI_PLINK_CN_NUB; i++) {
 		itf = &dv_prevpp->itf[i];
 		if (atomic_read(&itf->reg) &&
-			/* check if in unreg bottom half */
-		!atomic_read(&itf->in_unreg_step2) &&
+		    /* check if in unreg bottom half */
+		    !atomic_read(&itf->in_unreg_step2) &&
 		    itf->sum_reg_cnt == instance_id) {
 			ret = true;
 			break;
@@ -1181,7 +1181,7 @@ static int dimn_receiver_event_fun(int type, void *data, void *arg)
 	switch (type) {
 	case VFRAME_EVENT_PROVIDER_UNREG: /* from back to front */
 		mutex_lock(&itf->lock_reg);
-		if (!atomic_read(&itf->reg) || || atomic_read(&itf->in_unreg)) {
+		if (!atomic_read(&itf->reg) || atomic_read(&itf->in_unreg)) {
 			mutex_unlock(&itf->lock_reg);
 			PR_WARN("%s:duplicate unreg(%d:%d)\n",
 				__func__,
@@ -5160,8 +5160,8 @@ static bool dpvpp_process(void *para)
 		dpvpp_parser(itf);
 
 		if (!itf->ds ||
-			!atomic_read(&itf->reg) ||
-			atomic_read(&itf->in_unreg))
+		    !atomic_read(&itf->reg) ||
+		    atomic_read(&itf->in_unreg))
 			continue;
 		cnt_active++;
 		if (itf->flg_freeze)
@@ -5600,8 +5600,8 @@ static int dpvpp_display(struct vframe_s *vfm,
 		bypass_reason = 1;
 		goto DISPLAY_BYPASS;
 	}
-	/*remove by Brian 11-13*/
-#ifdef HiS_CODE
+	/* remove by Brian 11-13*/
+#ifdef HIS_CODE
 	if (itf->flg_freeze) {	/* @ary 11-08 add */
 		bypass_reason = 2;
 		goto DISPLAY_BYPASS;
@@ -7354,7 +7354,7 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf)
 
 	bypass = dpvpp_is_bypass_dvfm(in_dvfm, ds->en_4k);
 	if (hw->flg_tvp != itf->c.is_tvp) {
-		dbg_plink2("bypass reason :%d to %d (tvp:c:%d t:%d), cnt:%d\n",
+		dbg_plink2("bypass reason:%d to %d (tvp:c:%d t:%d), cnt:%d\n",
 			bypass, EPVPP_BYPASS_REASON_TVP,
 			hw->flg_tvp, itf->c.is_tvp, ndvfm->c.cnt_in);
 		bypass = EPVPP_BYPASS_REASON_TVP;
@@ -8552,9 +8552,8 @@ enum DI_ERRORTYPE dpvpp_empty_input_buffer(struct dimn_itf_s *itf,
 	}
 
 	ds	= itf->ds;
-
 	if (!atomic_read(&itf->reg) ||
-		atomic_read(&itf->in_unreg) || !ds) {
+	    atomic_read(&itf->in_unreg) || !ds) {
 		PR_WARN("%s:not reg(%d:%d); ds:%px\n",
 			__func__,
 			atomic_read(&itf->reg),
@@ -8676,7 +8675,7 @@ static void dpvpp_patch_first_buffer(struct dimn_itf_s *itf)
 
 	ds	= itf->ds;
 	if (!atomic_read(&itf->reg) ||
-		atomic_read(&itf->in_unreg) || !ds) {
+	    atomic_read(&itf->in_unreg) || !ds) {
 		PR_WARN("%s:not reg(%d:%d); ds:%px\n",
 			__func__,
 			atomic_read(&itf->reg),
@@ -8743,7 +8742,7 @@ static void dpvpp_patch_first_buffer(struct dimn_itf_s *itf)
 
 		dpvpp_empty_input_buffer(itf, buffer);
 	}
-	//PR_INF("%s:%d\n", __func__, cnt);
+	//PR_INF("%s:%d\n", __func__, cnt1);
 }
 
 /* @ary_note: buffer alloc by di			*/
