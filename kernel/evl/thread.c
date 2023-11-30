@@ -1615,6 +1615,9 @@ void handle_oob_trap_exit(unsigned int trapnr, struct pt_regs *regs)
 
 	hard_local_irq_enable();
 
+	if (curr == NULL)
+		return;
+
 	curr->local_info &= ~EVL_T_INFAULT;
 
 	if (current->ptrace & PT_PTRACED)
