@@ -1196,8 +1196,8 @@
 		status = "okay";
 		compatible = "amlogic,meson-axg-mmc";
 		reg = <0xffe07000 0x800>,
-			<0xffe07000 0x4>,//<0xFF63C25C 0x4>,
-			<0xffe07000 0x4>;
+			<0xff63c25c 0x4>,
+			<0xff634400 0x4>;
 		interrupts = <GIC_SPI 191 IRQ_TYPE_EDGE_RISING>;
 		clocks = <&clkc CLKID_CLK81_SD_EMMC_C>,
 			<&clkc CLKID_SD_EMMC_C_SEL>,

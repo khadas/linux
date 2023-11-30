@@ -1151,8 +1151,8 @@
 				status = "okay";
 				compatible = "amlogic,meson-axg-mmc";
 				reg = <0xffe05000 0x800>,
-				<0xffe05000 0x4>,
-				<0xffe05000 0x4>;
+				<0xff63c264 0x4>,
+				<0xff634400 0x4>;
 				clocks = <&clkc CLKID_CLK81_SD_EMMC_B>,
 							<&clkc CLKID_SD_EMMC_B_SEL>,
 							<&clkc CLKID_SD_EMMC_B>,
