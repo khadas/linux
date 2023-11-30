@@ -18,7 +18,11 @@
 #include <linux/pwm.h>
 #include <linux/gpio/consumer.h>
 
-#define CONFIG_AMLOGIC_PWM_REGULATOR
+#ifdef CONFIG_AMLOGIC_PWM_REGULATOR
+#include <linux/delay.h>
+#define USLEEP_TIME 200
+int usleep_time;
+#endif
 
 struct pwm_continuous_reg_data {
 	unsigned int min_uV_dutycycle;
@@ -129,6 +133,11 @@ static int pwm_regulator_set_voltage_sel(struct regulator_dev *rdev,
 	}
 
 	drvdata->state = selector;
+
+#ifdef CONFIG_AMLOGIC_PWM_REGULATOR
+	if (drvdata->desc.vsel_step)
+		usleep_range(usleep_time - 10, usleep_time);
+#endif
 
 	return 0;
 }
@@ -315,6 +324,13 @@ static int pwm_regulator_init_table(struct platform_device *pdev,
 	drvdata->duty_cycle_table	= duty_cycle_table;
 	drvdata->desc.ops = &pwm_regulator_voltage_table_ops;
 	drvdata->desc.n_voltages	= length / sizeof(*duty_cycle_table);
+
+#ifdef CONFIG_AMLOGIC_PWM_REGULATOR
+	of_property_read_u32(np, "amlogic,vsel-step", &drvdata->desc.vsel_step);
+	ret = of_property_read_u32(np, "amlogic,usleep-time", &usleep_time);
+	if (ret || usleep_time < 10)
+		usleep_time = USLEEP_TIME;
+#endif
 
 	return 0;
 }
