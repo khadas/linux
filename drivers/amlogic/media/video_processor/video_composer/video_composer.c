@@ -1032,6 +1032,7 @@ void vc_private_q_init(struct composer_dev *dev)
 		dev->vc_private[i].srout_data = NULL;
 		dev->vc_private[i].src_vf = NULL;
 		dev->vc_private[i].vsync_index = 0;
+		dev->vc_private[i].aicolor_info = NULL;
 		if (!kfifo_put(&dev->vc_private_q, &dev->vc_private[i]))
 			vc_print(dev->index, PRINT_ERROR,
 				"q_init: vc_private_q is full!\n");
@@ -1063,6 +1064,7 @@ struct video_composer_private *vc_private_q_pop(struct composer_dev *dev)
 		vc_private->flag = 0;
 		vc_private->srout_data = NULL;
 		vc_private->src_vf = NULL;
+		vc_private->aicolor_info = NULL;
 	}
 
 	return vc_private;

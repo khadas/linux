@@ -298,7 +298,8 @@ void ai_color_proc(struct vframe_s *vf)
 		sa_adj_parm.reg_sat_l_gain_en == 0)
 		return;
 
-	if (!vf->vc_private->aicolor_info) {
+	if (!vf->vc_private->aicolor_info ||
+		(vf->vc_private->flag & VC_FLAG_AI_COLOR) == 0) {
 		if (ai_clr_dbg) {
 			pr_info("no aicolor_info\n");
 			ai_clr_dbg--;
