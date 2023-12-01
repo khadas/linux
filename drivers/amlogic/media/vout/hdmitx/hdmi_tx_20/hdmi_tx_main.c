@@ -3351,6 +3351,22 @@ static ssize_t config_store(struct device *dev,
 			hdmitx_device.flag_3dss = 0;
 			hdmi_set_3d(&hdmitx_device, T3D_DISABLE, 0);
 		}
+	} else if (strncmp(buf, "sdr_hdr_dov", 11) == 0) {
+		/* firstly stay at SDR state, then send hdr->dv packet to
+		 * emulate SDR->HDR->DV switch, DRM-TX-47
+		 */
+		/* step1: SDR-->HDR */
+		data.features = 0x00091000;
+		hdmitx_set_drm_pkt(&data);
+		/* mute_us = mute_frames * hdmitx_get_frame_duration(); */
+		/* usleep_range(mute_us, mute_us + 10); */
+		/* step2: HDR->DV_LL */
+		vsif_para.ver = 0x1;
+		vsif_para.length = 0x1b;
+		vsif_para.ver2_l11_flag = 0;
+		vsif_para.vers.ver2.low_latency = 1;
+		vsif_para.vers.ver2.dobly_vision_signal = 1;
+		hdmitx_set_vsif_pkt(4, 0, &vsif_para, false);
 	} else if (strncmp(buf, "sdr", 3) == 0) {
 		data.features = 0x00010100;
 		hdmitx_set_drm_pkt(&data);
@@ -3369,13 +3385,29 @@ static ssize_t config_store(struct device *dev,
 			vsif_para.vers.ver2.low_latency = 0;
 			vsif_para.vers.ver2.dobly_vision_signal = 1;
 			hdmitx_set_vsif_pkt(1, 1, &vsif_para, false);
-		} else if (buf[4] == '4') {
+		} else if (buf[4] == '1' && buf[5] == '0') {
+			/* DV STD packet, but dolby_vision_signal bit cleared */
+			vsif_para.ver = 0x1;
+			vsif_para.length = 0x1b;
+			vsif_para.ver2_l11_flag = 0;
+			vsif_para.vers.ver2.low_latency = 0;
+			vsif_para.vers.ver2.dobly_vision_signal = 0;
+			hdmitx_set_vsif_pkt(1, 1, &vsif_para, false);
+		} else if (buf[4] == '4' && buf[5] == '1') {
 			/* DV LL */
 			vsif_para.ver = 0x1;
 			vsif_para.length = 0x1b;
 			vsif_para.ver2_l11_flag = 0;
 			vsif_para.vers.ver2.low_latency = 1;
 			vsif_para.vers.ver2.dobly_vision_signal = 1;
+			hdmitx_set_vsif_pkt(4, 0, &vsif_para, false);
+		}  else if (buf[4] == '4' && buf[5] == '0') {
+			/* DV LL packet, but dolby_vision_signal bit cleared */
+			vsif_para.ver = 0x1;
+			vsif_para.length = 0x1b;
+			vsif_para.ver2_l11_flag = 0;
+			vsif_para.vers.ver2.low_latency = 1;
+			vsif_para.vers.ver2.dobly_vision_signal = 0;
 			hdmitx_set_vsif_pkt(4, 0, &vsif_para, false);
 		} else if (buf[4] == '0') {
 			/* exit DV to SDR */
