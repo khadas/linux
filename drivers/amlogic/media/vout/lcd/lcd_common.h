@@ -150,11 +150,21 @@ int lcd_phy_config_init(struct aml_lcd_drv_s *pdrv);
 unsigned int lcd_phy_vswing_level_to_value(struct aml_lcd_drv_s *pdrv, unsigned int level);
 unsigned int lcd_phy_preem_level_to_value(struct aml_lcd_drv_s *pdrv, unsigned int level);
 
-/*lcd vbyone*/
-void lcd_vbyone_enable_dft(struct aml_lcd_drv_s *pdrv);
-void lcd_vbyone_disable_dft(struct aml_lcd_drv_s *pdrv);
-void lcd_vbyone_enable_t7(struct aml_lcd_drv_s *pdrv);
-void lcd_vbyone_disable_t7(struct aml_lcd_drv_s *pdrv);
+/* lcd dphy */
+void lcd_mipi_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off);
+void lcd_edp_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off);
+void lcd_lvds_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off);
+void lcd_vbyone_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off);
+void lcd_mlvds_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off);
+void lcd_p2p_dphy_set(struct aml_lcd_drv_s *pdrv, unsigned char on_off);
+
+/* lcd lvds*/
+void lcd_lvds_enable(struct aml_lcd_drv_s *pdrv);
+void lcd_lvds_disable(struct aml_lcd_drv_s *pdrv);
+
+/* lcd vbyone*/
+void lcd_vbyone_enable(struct aml_lcd_drv_s *pdrv);
+void lcd_vbyone_disable(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_link_maintain_clear(void);
 void lcd_vbyone_wait_timing_stable(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_cdr_training_hold(struct aml_lcd_drv_s *pdrv, int flag);
