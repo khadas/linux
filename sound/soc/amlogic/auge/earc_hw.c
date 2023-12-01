@@ -35,10 +35,31 @@ void earctx_dmac_mute(struct regmap *dmac_map, bool enable)
 {
 	int val = 0;
 
-	if (enable)
+	if (enable) {
 		val = 3;
+	} else {
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x1 << 15, 0);
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL1, 0x1 << 30, 0);
+	}
 	aml_earc_auto_gain_enable(dmac_map, !enable);
 	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x3 << 21, val << 21);
+}
+
+void earctx_dmac_trigger_mute(struct regmap *dmac_map, bool enable)
+{
+	int val = 0;
+
+	if (enable) {
+		val = 3;
+	} else {
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL1, 0x1 << 30, 0);
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x1 << 15, 0);
+	}
+	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x3 << 21, val << 21);
+	if (enable) {
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x1 << 15, 0x1 << 15);
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL1, 0x1 << 30, 0x1 << 30);
+	}
 }
 
 int earctx_get_dmac_mute(struct regmap *dmac_map)
@@ -1446,10 +1467,14 @@ void earctx_enable(struct regmap *top_map,
 					 val << offset);
 		}
 
-		/* first biphase work clear, and then start */
-		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
-				 0x1 << 30,
-				 0x1 << 30);
+		/* first biphase work clear, and then start
+		 * only for earc
+		 */
+		if (type == ATNDTYP_EARC) {
+			mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+					 0x1 << 30,
+					 0x1 << 30);
+		}
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
 				 0x3 << 28,
 				 0x0);
@@ -1465,7 +1490,7 @@ void earctx_enable(struct regmap *top_map,
 				 0x1 << 31);
 	} else {
 		/* earc tx is not disable, only mute, ensure earc outputs zero data */
-		earctx_dmac_mute(dmac_map, true);
+		earctx_dmac_trigger_mute(dmac_map, true);
 		return;
 	}
 
