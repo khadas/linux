@@ -105,43 +105,6 @@
 	};
 };
 
-&csi2_dphy1 {
-	status = "disabled";
-
-	/*
-	 * dphy1 only used for split mode,
-	 * can be used  concurrently  with dphy2
-	 * full mode and split mode are mutually exclusive
-	 */
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@0 {
-			reg = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			dphy1_in: endpoint@1 {
-				reg = <1>;
-				//remote-endpoint = <&ov5695_out>;
-				data-lanes = <1 2>;
-			};
-		};
-
-		port@1 {
-			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			dphy1_out: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&isp0_in>;
-			};
-		};
-	};
-};
-
 &csi2_dphy2 {
 	status = "disabled";
 
@@ -264,8 +227,6 @@
 		clocks = <&cru CLK_CIF_OUT>;
 		clock-names = "xvclk";
 		power-domains = <&power RK3568_PD_VI>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&cif_clk>;
 		reset-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
 		pwdn-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
 		/*power-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;*/
@@ -283,7 +244,7 @@
 
 	/* split mode: lane:2/3 */
 	gc5025: gc5025@37 {
-		status = "okay";
+		status = "disabled";
 		compatible = "galaxycore,gc5025";
 		reg = <0x37>;
 		clocks = <&pmucru CLK_WIFI>;
@@ -314,8 +275,6 @@
 		clocks = <&cru CLK_CIF_OUT>;
 		clock-names = "xvclk";
 		power-domains = <&power RK3568_PD_VI>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&cif_clk>;
 		reset-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_LOW>;
 		pwdn-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_LOW>;
 		rockchip,camera-module-index = <0>;
@@ -514,6 +473,8 @@
 
 &rkisp {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&cif_clk>;
 };
 
 &rkisp_mmu {
@@ -527,10 +488,6 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		isp0_in: endpoint@0 {
-			reg = <0>;
-			remote-endpoint = <&dphy1_out>;
-		};
 		isp0_in_dphy0: endpoint@1 {
 			reg = <1>;
 			remote-endpoint = <&dphy0_out>;
