@@ -907,7 +907,7 @@ int aml_kt_free(struct aml_kt_dev *dev, u32 handle)
 {
 	int ret = KT_SUCCESS;
 	u32 kte = 0;
-	u8 is_iv = 0;
+	u8 is_iv = handle >> KT_IV_FLAG_OFFSET;
 
 	if (unlikely(!dev)) {
 		LOGE("Empty aml_kt_dev\n");
@@ -920,9 +920,7 @@ int aml_kt_free(struct aml_kt_dev *dev, u32 handle)
 		return ret;
 	}
 
-	is_iv = handle >> KT_IV_FLAG_OFFSET;
-	if (is_iv == 0)
-		ret = aml_kt_invalidate(dev, handle);
+	ret = aml_kt_invalidate(dev, handle);
 
 	mutex_lock(&dev->lock);
 	if (is_iv) {
