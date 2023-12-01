@@ -1080,9 +1080,7 @@ static int atvdemod_fe_set_property(struct v4l2_frontend *v4l2_fe,
 		break;
 
 	default:
-		pr_dbg("%s: property %d doesn't exist\n",
-				__func__, tvp->cmd);
-		return -EINVAL;
+		break;
 	}
 
 	return 0;
@@ -1109,9 +1107,7 @@ static int atvdemod_fe_get_property(struct v4l2_frontend *v4l2_fe,
 		break;
 
 	default:
-		pr_dbg("%s: property %d doesn't exist\n",
-				__func__, tvp->cmd);
-		return -EINVAL;
+		break;
 	}
 
 	return 0;
