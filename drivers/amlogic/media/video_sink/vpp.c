@@ -959,7 +959,7 @@ static int vpp_process_speed_check
 	u32 vtotal, htotal = 0, clk_in_pps = 0, clk_vpu = 0, clk_temp;
 	u32 input_time_us = 0, display_time_us = 0, dummy_time_us = 0;
 	u32 width_out = 0;
-	u32 vpu_clk = 0, max_height = 4320; /* 8k mode */
+	u32 vpu_clk = 0, max_height = 2160;
 	u32 slice_num, max_proc_height_temp = 0;
 	u32 pi_enable, clk_calc = 0, overlap_size = 0;
 
@@ -998,6 +998,9 @@ static int vpp_process_speed_check
 #ifdef CONFIG_AMLOGIC_VPU
 	vpu_clk = vpu_clk_get();
 #endif
+	/* 8k mode */
+	if (video_is_meson_s5_cpu())
+		max_height = 4320;
 	/* the output is only up to 1080p */
 	if (vpu_clk <= 400000000) {
 		/* ((3840 * 2160) / 1920) *  (vpu_clk / 1000000) / 666 */

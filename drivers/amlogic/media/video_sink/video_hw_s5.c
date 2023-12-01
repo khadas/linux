@@ -1575,10 +1575,14 @@ int get_module_bypass_s5(void)
 u32 get_slice_num(u32 layer_id)
 {
 	if (layer_id >= MAX_VD_CHAN_S5 ||
-		cur_dev->display_module != S5_DISPLAY_MODULE)
+		cur_dev->display_module != S5_DISPLAY_MODULE) {
 		return 1;
-	else
-		return vd_layer[layer_id].slice_num;
+	} else {
+		if (layer_id == 0)
+			return vd_layer[layer_id].slice_num;
+		else
+			return 1;
+	}
 }
 
 u32 get_pi_enabled(u32 layer_id)
