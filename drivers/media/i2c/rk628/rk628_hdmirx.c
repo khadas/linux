@@ -175,7 +175,7 @@ EXPORT_SYMBOL(rk628_hdmirx_set_hdcp);
 
 void rk628_hdmirx_controller_setup(struct rk628 *rk628)
 {
-	rk628_i2c_write(rk628, HDMI_RX_HDMI20_CONTROL, 0x10000f10);
+	rk628_i2c_write(rk628, HDMI_RX_HDMI20_CONTROL, 0x10000f11);
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_MODE_RECOVER, 0x00000021);
 	rk628_i2c_write(rk628, HDMI_RX_PDEC_CTRL, 0xbfff8011);
 	rk628_i2c_write(rk628, HDMI_RX_PDEC_ASP_CTRL, 0x00000040);
@@ -188,7 +188,7 @@ void rk628_hdmirx_controller_setup(struct rk628 *rk628)
 	rk628_i2c_write(rk628, HDMI_RX_CHLOCK_CONFIG, 0x0030c15c);
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_ERROR_PROTECT, 0x000d0c98);
 	rk628_i2c_write(rk628, HDMI_RX_MD_HCTRL1, 0x00000010);
-	rk628_i2c_write(rk628, HDMI_RX_MD_HCTRL2, 0x00001738);
+	rk628_i2c_write(rk628, HDMI_RX_MD_HCTRL2, 0x0000173a);
 	rk628_i2c_write(rk628, HDMI_RX_MD_VCTRL, 0x00000002);
 	rk628_i2c_write(rk628, HDMI_RX_MD_VTH, 0x0000073a);
 	rk628_i2c_write(rk628, HDMI_RX_MD_IL_POL, 0x00000004);
@@ -880,6 +880,19 @@ u8 rk628_hdmirx_get_format(struct rk628 *rk628)
 		video_fmt = BUS_FMT_UNKNOWN;
 	dev_info(rk628->dev, "%s: format = %s\n", __func__, bus_format_str[video_fmt]);
 
+	/*
+	 * set avmute value to black
+	 * RGB:    R: CH2[15:0], G:CH0_1[31:16], B: CH0_1[15:0]
+	 * YUV:    Cr:CH2[15:0], Y:CH0_1[31:16], Cb:CH0_1[15:0]
+	 */
+	if (video_fmt == BUS_FMT_RGB) {
+		rk628_i2c_write(rk628, HDMI_VM_CFG_CH0_1, 0x0);
+		rk628_i2c_write(rk628, HDMI_VM_CFG_CH2, 0x0);
+	} else {
+		rk628_i2c_write(rk628, HDMI_VM_CFG_CH0_1, 0x00008000);
+		rk628_i2c_write(rk628, HDMI_VM_CFG_CH2, 0x8000);
+	}
+
 	return video_fmt;
 }
 EXPORT_SYMBOL(rk628_hdmirx_get_format);
@@ -1119,3 +1132,37 @@ u8 rk628_hdmirx_get_range(struct rk628 *rk628)
 	return color_range;
 }
 EXPORT_SYMBOL(rk628_hdmirx_get_range);
+
+void rk628_hdmirx_controller_reset(struct rk628 *rk628)
+{
+	rk628_control_assert(rk628, RGU_HDMIRX);
+	rk628_control_assert(rk628, RGU_HDMIRX_PON);
+	udelay(10);
+	rk628_control_deassert(rk628, RGU_HDMIRX);
+	rk628_control_deassert(rk628, RGU_HDMIRX_PON);
+	udelay(10);
+	rk628_i2c_write(rk628, HDMI_RX_DMI_SW_RST, 0x000101ff);
+	rk628_i2c_write(rk628, HDMI_RX_DMI_DISABLE_IF, 0x00000000);
+	rk628_i2c_write(rk628, HDMI_RX_DMI_DISABLE_IF, 0x0000017f);
+	rk628_i2c_write(rk628, HDMI_RX_DMI_DISABLE_IF, 0x0001017f);
+}
+EXPORT_SYMBOL(rk628_hdmirx_controller_reset);
+
+bool rk628_hdmirx_scdc_ced_err(struct rk628 *rk628)
+{
+	u32 val, val1;
+
+	if (rk628->version < RK628F_VERSION)
+		return false;
+
+	rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS1, &val);
+	rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS2, &val1);
+	if (((val >> 15) & SCDC_ERRDET_MASK) < SCDC_CED_ERR_CNT &&
+	    ((val1 >> 15) & SCDC_ERRDET_MASK) < SCDC_CED_ERR_CNT &&
+	    (val1 & SCDC_ERRDET_MASK) < SCDC_CED_ERR_CNT)
+		return false;
+
+	dev_info(rk628->dev, "%s: Character Error(0x%x  0x%x)!\n", __func__, val, val1);
+	return true;
+}
+EXPORT_SYMBOL(rk628_hdmirx_scdc_ced_err);

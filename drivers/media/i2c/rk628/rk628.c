@@ -52,7 +52,7 @@ static const struct regmap_range rk628_hdmirx_readable_ranges[] = {
 	regmap_reg_range(HDMI_RX_HDMI_MODE_RECOVER, HDMI_RX_HDMI_ERROR_PROTECT),
 	regmap_reg_range(HDMI_RX_HDMI_SYNC_CTRL, HDMI_RX_HDMI_CKM_RESULT),
 	regmap_reg_range(HDMI_RX_HDMI_RESMPL_CTRL, HDMI_RX_HDMI_RESMPL_CTRL),
-	regmap_reg_range(HDMI_VM_CFG_CH2, HDMI_VM_CFG_CH2),
+	regmap_reg_range(HDMI_VM_CFG_CH0_1, HDMI_VM_CFG_CH2),
 	regmap_reg_range(HDMI_RX_HDCP_CTRL, HDMI_RX_HDCP_SETTINGS),
 	regmap_reg_range(HDMI_RX_HDCP_KIDX, HDMI_RX_HDCP_KIDX),
 	regmap_reg_range(HDMI_RX_HDCP_DBG, HDMI_RX_HDCP_AN0),

@@ -47,22 +47,6 @@ MODULE_PARM_DESC(debug, "debug level (0-3)");
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x1, 0x0)
 #define RK628_BT1120_NAME		"rk628-bt1120"
 
-#define EDID_NUM_BLOCKS_MAX		2
-#define EDID_BLOCK_SIZE			128
-
-#define RK628_CSI_LINK_FREQ_LOW		350000000
-#define RK628_CSI_LINK_FREQ_HIGH	400000000
-#define RK628_CSI_PIXEL_RATE_LOW	400000000
-#define RK628_CSI_PIXEL_RATE_HIGH	600000000
-#define MIPI_DATARATE_MBPS_LOW		750
-#define MIPI_DATARATE_MBPS_HIGH		1250
-
-#define POLL_INTERVAL_MS		1000
-#define RXPHY_CFG_MAX_TIMES		15
-#define CSITX_ERR_RETRY_TIMES		3
-
-#define USE_4_LANES			4
-#define YUV422_8BIT			0x1e
 /* Test Code: 0x44 (HS RX Control of Lane 0) */
 #define HSFREQRANGE(x)			UPDATE(x, 6, 1)
 
@@ -251,7 +235,6 @@ static void rk628_bt1120_format_change(struct v4l2_subdev *sd);
 static void enable_stream(struct v4l2_subdev *sd, bool enable);
 static void rk628_hdmirx_vid_enable(struct v4l2_subdev *sd, bool en);
 static void rk628_hdmirx_hpd_ctrl(struct v4l2_subdev *sd, bool en);
-static void rk628_hdmirx_controller_reset(struct v4l2_subdev *sd);
 static void rk628_bt1120_initial_setup(struct v4l2_subdev *sd);
 
 static inline struct rk628_bt1120 *to_bt1120(struct v4l2_subdev *sd)
@@ -348,17 +331,37 @@ static int rk628_bt1120_get_detected_timings(struct v4l2_subdev *sd,
 	return ret;
 }
 
+static void rk628_hdmirx_plugout(struct v4l2_subdev *sd)
+{
+	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
+
+	enable_stream(sd, false);
+	bt1120->nosignal = true;
+	rk628_bt1120_enable_interrupts(sd, false);
+	cancel_delayed_work(&bt1120->delayed_work_res_change);
+	rk628_hdmirx_audio_cancel_work_audio(bt1120->audio_info, true);
+	rk628_hdmirx_hpd_ctrl(sd, false);
+	rk628_hdmirx_inno_phy_power_off(sd);
+	rk628_hdmirx_controller_reset(bt1120->rk628);
+}
+
 static void rk628_hdmirx_config_all(struct v4l2_subdev *sd)
 {
 	int ret;
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
 
-	rk628_hdmirx_controller_setup(bt1120->rk628);
 	ret = rk628_hdmirx_phy_setup(sd);
-	if (ret >= 0) {
+	if (ret >= 0 && !rk628_hdmirx_scdc_ced_err(bt1120->rk628)) {
 		rk628_bt1120_format_change(sd);
 		bt1120->nosignal = false;
+		return;
 	}
+
+	if (ret < 0 || rk628_hdmirx_scdc_ced_err(bt1120->rk628)) {
+		rk628_hdmirx_plugout(sd);
+		schedule_delayed_work(&bt1120->delayed_work_enable_hotplug,
+				      msecs_to_jiffies(800));
+		}
 }
 
 static void rk628_hdmirx_reset_regfile(struct v4l2_subdev *sd)
@@ -411,21 +414,15 @@ static void rk628_bt1120_delayed_work_enable_hotplug(struct work_struct *work)
 		rk628_bt1120_enable_interrupts(sd, false);
 		rk628_hdmirx_audio_setup(bt1120->audio_info);
 		rk628_hdmirx_set_hdcp(bt1120->rk628, &bt1120->hdcp, bt1120->enable_hdcp);
+		rk628_hdmirx_controller_setup(bt1120->rk628);
 		rk628_hdmirx_hpd_ctrl(sd, true);
 		rk628_hdmirx_config_all(sd);
 		rk628_bt1120_enable_interrupts(sd, true);
 		rk628_i2c_update_bits(bt1120->rk628, GRF_SYSTEM_CON0,
 				SW_I2S_DATA_OEN_MASK, SW_I2S_DATA_OEN(0));
 	} else {
-		rk628_bt1120_enable_interrupts(sd, false);
-		enable_stream(sd, false);
-		cancel_delayed_work(&bt1120->delayed_work_res_change);
-		rk628_hdmirx_audio_cancel_work_audio(bt1120->audio_info, true);
-		rk628_hdmirx_hpd_ctrl(sd, false);
-		rk628_hdmirx_inno_phy_power_off(sd);
-		if (bt1120->rk628->version < RK628F_VERSION)
-			rk628_hdmirx_controller_reset(sd);
 		bt1120->nosignal = true;
+		rk628_hdmirx_plugout(sd);
 		rk628_set_io_func_to_gpio(bt1120->rk628);
 	}
 	mutex_unlock(&bt1120->confctl_mutex);
@@ -468,7 +465,8 @@ static void rk628_delayed_work_res_change(struct work_struct *work)
 	bool plugin;
 
 	mutex_lock(&bt1120->confctl_mutex);
-	rk628_set_bg_enable(bt1120->rk628, false);
+	enable_stream(sd, false);
+	bt1120->nosignal = true;
 	bt1120->avi_rcv_rdy = false;
 	plugin = tx_5v_power_present(sd);
 	v4l2_dbg(1, debug, sd, "%s: 5v_det:%d\n", __func__, plugin);
@@ -476,19 +474,28 @@ static void rk628_delayed_work_res_change(struct work_struct *work)
 		if (rk628_check_resulotion_change(sd)) {
 			v4l2_dbg(1, debug, sd, "res change, recfg ctrler and phy!\n");
 
-			rk628_bt1120_enable_interrupts(sd, false);
-			enable_stream(sd, false);
-			cancel_delayed_work(&bt1120->delayed_work_res_change);
-			rk628_hdmirx_audio_cancel_work_audio(bt1120->audio_info, true);
-			rk628_hdmirx_hpd_ctrl(sd, false);
-			rk628_hdmirx_inno_phy_power_off(sd);
-			if (bt1120->rk628->version < RK628F_VERSION)
-				rk628_hdmirx_controller_reset(sd);
-			bt1120->nosignal = true;
-			rk628_hdmirx_reset_regfile(sd);
+			if (bt1120->rk628->version >= RK628F_VERSION) {
+				rk628_bt1120_enable_interrupts(sd, false);
+				rk628_hdmirx_audio_cancel_work_audio(bt1120->audio_info, true);
+				rk628_hdmirx_hpd_ctrl(sd, false);
+				rk628_hdmirx_inno_phy_power_off(sd);
+				rk628_hdmirx_controller_reset(bt1120->rk628);
+				schedule_delayed_work(&bt1120->delayed_work_enable_hotplug,
+						      msecs_to_jiffies(800));
+			} else {
+				rk628_bt1120_enable_interrupts(sd, false);
+				enable_stream(sd, false);
+				cancel_delayed_work(&bt1120->delayed_work_res_change);
+				rk628_hdmirx_audio_cancel_work_audio(bt1120->audio_info, true);
+				rk628_hdmirx_controller_setup(bt1120->rk628);
+				rk628_hdmirx_hpd_ctrl(sd, false);
+				rk628_hdmirx_inno_phy_power_off(sd);
+				rk628_hdmirx_controller_reset(bt1120->rk628);
+				bt1120->nosignal = true;
+				rk628_hdmirx_reset_regfile(sd);
+			}
 		} else {
 			rk628_bt1120_format_change(sd);
-			bt1120->nosignal = false;
 			rk628_bt1120_enable_interrupts(sd, true);
 		}
 	}
@@ -591,9 +598,19 @@ static void enable_bt1120tx(struct v4l2_subdev *sd)
 static void enable_stream(struct v4l2_subdev *sd, bool en)
 {
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
+	u32 val;
 
 	v4l2_dbg(1, debug, sd, "%s: %sable\n", __func__, en ? "en" : "dis");
 	if (en) {
+		if (bt1120->rk628->version >= RK628F_VERSION) {
+			rk628_i2c_read(bt1120->rk628, HDMI_RX_SCDC_REGS2, &val);
+			if (rk628_hdmirx_scdc_ced_err(bt1120->rk628)) {
+				rk628_hdmirx_plugout(sd);
+				schedule_delayed_work(&bt1120->delayed_work_enable_hotplug,
+						      msecs_to_jiffies(800));
+				return;
+			}
+		}
 		rk628_hdmirx_vid_enable(sd, true);
 		enable_bt1120tx(sd);
 	} else {
@@ -719,20 +736,6 @@ static void rk628_hdmirx_vid_enable(struct v4l2_subdev *sd, bool en)
 	}
 }
 
-static void rk628_hdmirx_controller_reset(struct v4l2_subdev *sd)
-{
-	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
-
-	rk628_control_assert(bt1120->rk628, RGU_HDMIRX_PON);
-	udelay(10);
-	rk628_control_deassert(bt1120->rk628, RGU_HDMIRX_PON);
-	udelay(10);
-	rk628_i2c_write(bt1120->rk628, HDMI_RX_DMI_SW_RST, 0x000101ff);
-	rk628_i2c_write(bt1120->rk628, HDMI_RX_DMI_DISABLE_IF, 0x00000000);
-	rk628_i2c_write(bt1120->rk628, HDMI_RX_DMI_DISABLE_IF, 0x0000017f);
-	rk628_i2c_write(bt1120->rk628, HDMI_RX_DMI_DISABLE_IF, 0x0001017f);
-}
-
 static bool rk628_rcv_supported_res(struct v4l2_subdev *sd, u32 width,
 		u32 height)
 {
@@ -802,10 +805,10 @@ static int rk628_hdmirx_phy_setup(struct v4l2_subdev *sd)
 
 			if (cnt >= 15)
 				break;
-		} while (((status & 0xfff) != 0xf00) ||
+		} while (((status & 0xfff) < 0xf00) ||
 				(!rk628_rcv_supported_res(sd, width, height)));
 
-		if (((status & 0xfff) != 0xf00) ||
+		if (((status & 0xfff) < 0xf00) ||
 				(!rk628_rcv_supported_res(sd, width, height))) {
 			v4l2_err(sd, "%s hdmi rxphy lock failed, retry:%d\n",
 					__func__, i);
@@ -865,7 +868,7 @@ static void rk628_bt1120_initial_setup(struct v4l2_subdev *sd)
 			SW_EFUSE_HDCP_EN(0) |
 			SW_HSYNC_POL(1) |
 			SW_VSYNC_POL(1));
-	rk628_hdmirx_controller_reset(sd);
+	rk628_hdmirx_controller_reset(bt1120->rk628);
 
 	def_edid.pad = 0;
 	def_edid.start_block = 0;

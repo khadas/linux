@@ -84,6 +84,7 @@
 #define DCM_COLOUR_DEPTH_SEL(x)		UPDATE(x, 12, 12)
 #define DCM_COLOUR_DEPTH(x)		UPDATE(x, 11, 8)
 #define DCM_GCP_ZERO_FIELDS(x)		UPDATE(x, 5, 2)
+#define HDMI_VM_CFG_CH0_1		(HDMI_RX_BASE + 0x00b0)
 #define HDMI_VM_CFG_CH2			(HDMI_RX_BASE + 0x00b4)
 #define HDMI_RX_HDCP_CTRL		(HDMI_RX_BASE + 0x00c0)
 #define HDCP_ENABLE_MASK		BIT(24)
@@ -278,6 +279,7 @@
 #define SCDC_TMDSBITCLKRATIO		BIT(17)
 #define HDMI_RX_SCDC_REGS1		(HDMI_RX_BASE + 0x0824)
 #define HDMI_RX_SCDC_REGS2		(HDMI_RX_BASE + 0x0828)
+#define SCDC_ERRDET_MASK		GENMASK(14, 0)
 #define HDMI_RX_SCDC_REGS3		(HDMI_RX_BASE + 0x082c)
 #define HDMI_RX_SCDC_WRDATA0		(HDMI_RX_BASE + 0x0860)
 #define MANUFACTUREROUI(x)		UPDATE(x, 31, 8)
@@ -380,6 +382,25 @@
 #define HDMIRX_MODETCLK_CNT_NUM		1000
 #define HDMIRX_MODETCLK_HZ		49500000
 
+#define EDID_NUM_BLOCKS_MAX		2
+#define EDID_BLOCK_SIZE			128
+
+#define RK628_CSI_LINK_FREQ_LOW		350000000
+#define RK628_CSI_LINK_FREQ_HIGH	650000000
+#define RK628_CSI_PIXEL_RATE_LOW	400000000
+#define RK628_CSI_PIXEL_RATE_HIGH	600000000
+#define MIPI_DATARATE_MBPS_LOW		700
+#define MIPI_DATARATE_MBPS_HIGH		1300
+
+#define POLL_INTERVAL_MS		1000
+#define RXPHY_CFG_MAX_TIMES		10
+#define CSITX_ERR_RETRY_TIMES		3
+
+#define USE_4_LANES			4
+#define YUV422_8BIT			0x1e
+
+#define SCDC_CED_ERR_CNT		0xfff
+
 enum color_range {
 	CSC_LIMIT_RANGE,
 	CSC_FULL_RANGE,
@@ -435,5 +456,7 @@ u32 rk628_hdmirx_get_tmdsclk_cnt(struct rk628 *rk628);
 int rk628_hdmirx_get_timings(struct rk628 *rk628,
 			     struct v4l2_dv_timings *timings);
 u8 rk628_hdmirx_get_range(struct rk628 *rk628);
+void rk628_hdmirx_controller_reset(struct rk628 *rk628);
+bool rk628_hdmirx_scdc_ced_err(struct rk628 *rk628);
 
 #endif
