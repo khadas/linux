@@ -13,6 +13,8 @@
 #include "rk628_gvi.h"
 #include "panel.h"
 
+#define GVI_RETRY_TIMEOUT	10
+
 int rk628_gvi_parse(struct rk628 *rk628, struct device_node *gvi_np)
 {
 	const char *string;
@@ -253,6 +255,7 @@ void rk628_gvi_enable(struct rk628 *rk628)
 	unsigned int rate;
 	u32 mask = SW_OUTPUT_MODE_MASK;
 	u32 val = SW_OUTPUT_MODE(OUTPUT_MODE_GVI);
+	int i = 0;
 
 	rk628_gvi_get_info(gvi);
 	rate = rk628_gvi_get_lane_rate(rk628);
@@ -276,6 +279,29 @@ void rk628_gvi_enable(struct rk628 *rk628)
 	rk628_gvi_enable_color_bar(rk628, gvi);
 	rk628_gvi_post_enable(rk628, gvi);
 	rk628_panel_enable(rk628);
+
+	for (i = 0; i < 100; i++) {
+		rk628_i2c_read(rk628, GVI_STATUS, &val);
+		if ((val & GVI_LOCKED_MASK) == GVI_LOCKED_STATUS)
+			break;
+		usleep_range(1000, 1100);
+	}
+
+	if (i == 100 && gvi->retry_times < GVI_RETRY_TIMEOUT) {
+		dev_info(rk628->dev, "GVI Lock failed: 0x%x, try again: %d\n", val, gvi->retry_times);
+		gvi->retry_times++;
+		rk628_gvi_disable(rk628);
+		usleep_range(50000, 51000);
+		rk628_gvi_enable(rk628);
+	}
+
+	if (gvi->retry_times >= GVI_RETRY_TIMEOUT && i == 100) {
+		dev_info(rk628->dev, "GVI Lock failed, please check hardware!\n");
+		return;
+	}
+
+	if (i != 100)
+		gvi->retry_times = 0;
 	dev_info(rk628->dev,
 		 "GVI-Link bandwidth: %d x %d Mbps, Byte mode: %d, Color Depty: %d, %s division mode\n",
 		 rate, gvi->lanes, gvi->byte_mode, gvi->color_depth,

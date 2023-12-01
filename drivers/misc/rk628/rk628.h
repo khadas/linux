@@ -520,6 +520,7 @@ struct rk628_lvds {
 struct rk628_gvi {
 	enum gvi_bus_format bus_format;
 	enum gvi_color_depth color_depth;
+	int retry_times;
 	uint8_t lanes;
 	bool division_mode;
 	bool frm_rst;
