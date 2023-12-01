@@ -310,8 +310,9 @@ int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
 				int width, int height, int wrap_line)
 {
 	struct rkisp_stream *stream = NULL;
-	struct rkisp_buffer *isp_buf;
+	struct rkisp_buffer *isp_buf, *buf_temp;
 	int offset, i, ret;
+	unsigned long lock_flags = 0;
 
 	stream = rkisp_rockit_get_stream(input_rockit_cfg);
 
@@ -331,16 +332,18 @@ int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
 	if (stream->ispdev->cap_dev.wrap_line && stream->id == RKISP_STREAM_MP)
 		rkisp_dvbm_init(stream);
 
+	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	if (stream->curr_buf) {
 		list_add_tail(&stream->curr_buf->queue, &stream->buf_queue);
+		if (stream->curr_buf == stream->next_buf)
+			stream->next_buf = NULL;
 		stream->curr_buf = NULL;
 	}
 	if (stream->next_buf) {
 		list_add_tail(&stream->next_buf->queue, &stream->buf_queue);
 		stream->next_buf = NULL;
 	}
-
-	list_for_each_entry(isp_buf, &stream->buf_queue, queue) {
+	list_for_each_entry_safe(isp_buf, buf_temp, &stream->buf_queue, queue) {
 		if (stream->out_isp_fmt.mplanes == 1) {
 			for (i = 0; i < stream->out_isp_fmt.cplanes - 1; i++) {
 				height = stream->out_fmt.height;
@@ -352,6 +355,7 @@ int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
 			}
 		}
 	}
+	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 
 	return 0;
 }
@@ -415,6 +419,46 @@ int rkisp_rockit_free_tb_stream_buf(struct rockit_cfg *input_rockit_cfg)
 }
 EXPORT_SYMBOL(rkisp_rockit_free_tb_stream_buf);
 
+int rkisp_rockit_free_stream_buf(struct rockit_cfg *input_rockit_cfg)
+{
+	struct rkisp_stream *stream;
+	struct rkisp_buffer *buf;
+	unsigned long lock_flags = 0;
+
+	if (!input_rockit_cfg)
+		return -EINVAL;
+	stream = rkisp_rockit_get_stream(input_rockit_cfg);
+	if (!stream)
+		return -EINVAL;
+
+	if (stream->streaming)
+		return 0;
+
+	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+	if (stream->curr_buf) {
+		list_add_tail(&stream->curr_buf->queue, &stream->buf_queue);
+		if (stream->curr_buf == stream->next_buf)
+			stream->next_buf = NULL;
+		stream->curr_buf = NULL;
+	}
+	if (stream->next_buf) {
+		list_add_tail(&stream->next_buf->queue, &stream->buf_queue);
+		stream->next_buf = NULL;
+	}
+
+	while (!list_empty(&stream->buf_queue)) {
+		buf = list_first_entry(&stream->buf_queue,
+			struct rkisp_buffer, queue);
+		list_del(&buf->queue);
+	}
+	rkisp_rockit_buf_state_clear(stream);
+	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+	rkisp_rockit_buf_free(stream);
+
+	return 0;
+}
+EXPORT_SYMBOL(rkisp_rockit_free_stream_buf);
+
 void rkisp_rockit_buf_state_clear(struct rkisp_stream *stream)
 {
 	struct rkisp_stream_cfg *stream_cfg;
@@ -439,6 +483,7 @@ int rkisp_rockit_buf_free(struct rkisp_stream *stream)
 		return -EINVAL;
 
 	stream_cfg = &rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[stream->id];
+	mutex_lock(&stream_cfg->freebuf_lock);
 	for (i = 0; i < ROCKIT_BUF_NUM_MAX; i++) {
 		if (stream_cfg->rkisp_buff[i]) {
 			isprk_buf = (struct rkisp_rockit_buffer *)stream_cfg->rkisp_buff[i];
@@ -457,12 +502,14 @@ int rkisp_rockit_buf_free(struct rkisp_stream *stream)
 			stream_cfg->rkisp_buff[i] = NULL;
 		}
 	}
+	mutex_unlock(&stream_cfg->freebuf_lock);
 	return 0;
 }
 
 void rkisp_rockit_dev_init(struct rkisp_device *dev)
 {
-	int i;
+	struct rkisp_stream_cfg *stream_cfg;
+	int i, j;
 
 	if (rockit_cfg == NULL) {
 		rockit_cfg = kzalloc(sizeof(struct rockit_cfg), GFP_KERNEL);
@@ -476,6 +523,10 @@ void rkisp_rockit_dev_init(struct rkisp_device *dev)
 				dev->hw_dev->isp[i]->name;
 			rockit_cfg->rkisp_dev_cfg[i].isp_dev =
 				dev->hw_dev->isp[i];
+			for (j = 0; j < RKISP_MAX_STREAM; j++) {
+				stream_cfg = &rockit_cfg->rkisp_dev_cfg[i].rkisp_stream_cfg[j];
+				mutex_init(&stream_cfg->freebuf_lock);
+			}
 		}
 	}
 }

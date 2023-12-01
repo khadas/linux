@@ -70,68 +70,14 @@
 	};
 };
 
-&backlight1 {
-	status = "okay";
-};
-
 &backlight {
 	status = "okay";
 };
 
-&lvds {
-	status = "okay";
-	dual-channel;
-
-	ports {
-		port@1 {
-			reg = <1>;
-			lvds0_out_panel: endpoint {
-				remote-endpoint = <&panel_in_lvds0>;
-			};
-		};
-	};
-};
-
-&lvds1 {
-	status = "okay";
-
-	ports {
-		port@1 {
-			reg = <1>;
-			lvds1_out_panel: endpoint {
-				remote-endpoint = <&panel_in_lvds1>;
-			};
-		};
-	};
-};
-
-&lvds_in_vp1 {
+&backlight1 {
 	status = "okay";
 };
 
-&lvds1_in_vp1 {
-	status = "disabled";
-};
-
-&lvds1_in_vp2 {
-	status = "okay";
-};
-
-/* enable hdmi */
-&hdmi_in_vp1 {
-	status = "okay";
-};
-
-/* enable video phy */
-&video_phy0 {
-	status = "okay";
-};
-
-&video_phy1 {
-	status = "okay";
-};
-
-/* disable other encoder output */
 &dsi0 {
 	status = "disabled";
 };
@@ -152,10 +98,52 @@
 	status = "disabled";
 };
 
-&rgb_in_vp2 {
+&hdmi_in_vp1 {
+	status = "okay";
+};
+
+&lvds0 {
+	status = "okay";
+	dual-channel;
+
+	ports {
+		port@1 {
+			reg = <1>;
+			lvds0_out_panel: endpoint {
+				remote-endpoint = <&panel_in_lvds0>;
+			};
+		};
+	};
+};
+
+&lvds0_in_vp1 {
+	status = "okay";
+};
+
+&lvds1 {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+			lvds1_out_panel: endpoint {
+				remote-endpoint = <&panel_in_lvds1>;
+			};
+		};
+	};
+};
+
+&lvds1_in_vp1 {
+	status = "okay";
+};
+
+&lvds1_in_vp2 {
 	status = "disabled";
 };
 
+&rgb_in_vp2 {
+	status = "disabled";
+};
 
 &vcc3v3_lcd0_n {
 	gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
@@ -165,4 +153,12 @@
 &vcc3v3_lcd1_n {
 	gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
 	enable-active-high;
+};
+
+&video_phy0 {
+	status = "okay";
+};
+
+&video_phy1 {
+	status = "okay";
 };
