@@ -348,20 +348,21 @@ static void set_bilinear_scale(struct rkisp_stream *stream, struct v4l2_rect *in
 				struct v4l2_rect *out_c, bool async)
 {
 	struct rkisp_device *dev = stream->ispdev;
-	u32 rsz_ctrl = 0, val, hy, hc;
+	u32 rsz_ctrl = 0, hy = 1, hc = 1, reg, val, in_w, out_w;
 	bool is_avg = false;
 
-	rkisp_unite_write(dev, ISP32_SELF_SCALE_HY_OFFS, 0, true);
-	rkisp_unite_write(dev, ISP32_SELF_SCALE_HC_OFFS, 0, true);
-	rkisp_unite_write(dev, ISP32_SELF_SCALE_PHASE_HY, 0, true);
-	rkisp_unite_write(dev, ISP32_SELF_SCALE_PHASE_HC, 0, true);
-	rkisp_unite_write(dev, ISP32_SELF_SCALE_PHASE_VY, 0, true);
-	rkisp_unite_write(dev, ISP32_SELF_SCALE_PHASE_VC, 0, true);
-
-	val = in_y->width | in_y->height << 16;
-	rkisp_write(dev, ISP32_SELF_SCALE_SRC_SIZE, val, false);
-	val = out_y->width | out_y->height << 16;
-	rkisp_write(dev, ISP32_SELF_SCALE_DST_SIZE, val, false);
+	in_w = in_y->width;
+	out_w = out_y->width;
+	if (dev->unite_div > ISP_UNITE_DIV1) {
+		in_w = in_y->width / 2 + RKMOUDLE_UNITE_EXTEND_PIXEL;
+		out_w /= 2;
+	}
+	val = in_w | in_y->height << 16;
+	reg = stream->config->rsz.src_size;
+	rkisp_unite_write(dev, reg, val, false);
+	val = out_w | out_y->height << 16;
+	reg = stream->config->rsz.dst_size;
+	rkisp_unite_write(dev, reg, val, false);
 
 	if (in_y->width != out_y->width) {
 		rsz_ctrl |= CIF_RSZ_CTRL_SCALE_HY_ENABLE | CIF_RSZ_CTRL_SCALE_HC_ENABLE;
@@ -373,8 +374,10 @@ static void set_bilinear_scale(struct rkisp_stream *stream, struct v4l2_rect *in
 			hy = ((in_y->width - 1) * ISP32_SCALE_BIL_FACTOR) / (out_y->width - 1);
 			hc = ((in_c->width - 1) * ISP32_SCALE_BIL_FACTOR) / (out_c->width - 1);
 		}
-		rkisp_write(dev, ISP32_SELF_SCALE_HY_FAC, hy, false);
-		rkisp_write(dev, ISP32_SELF_SCALE_HC_FAC, hc, false);
+		reg = stream->config->rsz.scale_hy;
+		rkisp_unite_write(dev, reg, hy, false);
+		reg = stream->config->rsz.scale_hcr;
+		rkisp_unite_write(dev, reg, hc, false);
 	}
 
 	if (in_y->height != out_y->height) {
@@ -385,15 +388,71 @@ static void set_bilinear_scale(struct rkisp_stream *stream, struct v4l2_rect *in
 		} else {
 			val = ((in_y->height - 1) * ISP32_SCALE_BIL_FACTOR) / (out_y->height - 1);
 		}
-		rkisp_write(dev, ISP32_SELF_SCALE_VY_FAC, val, false);
-		rkisp_write(dev, ISP32_SELF_SCALE_VC_FAC, val, false);
+		reg = stream->config->rsz.scale_vy;
+		rkisp_unite_write(dev, reg, val, false);
+		reg = stream->config->rsz.scale_vc;
+		rkisp_unite_write(dev, reg, val, false);
 	}
 
-	rkisp_write(dev, ISP32_SELF_SCALE_CTRL, rsz_ctrl, false);
+	if (dev->unite_div > ISP_UNITE_DIV1) {
+		u32 right_fst_point_y = out_w * hy;
+		u32 right_fst_point_c = out_w / 2 * hc;
+		u32 left_in_used_size_y = right_fst_point_y / ISP32_SCALE_BIL_FACTOR;
+		u32 left_in_used_size_c = right_fst_point_c / ISP32_SCALE_BIL_FACTOR * 2;
+		u32 phase_left_y = right_fst_point_y & 0xfff;
+		u32 phase_left_c = right_fst_point_c & 0xfff;
+		u32 right_scl_need_size_y = in_y->width - left_in_used_size_y;
+		u32 right_scl_need_size_c = in_y->width - left_in_used_size_c;
+		u32 right_scl_in_size_y = in_w - right_scl_need_size_y;
+		u32 right_scl_in_size_c = in_w - right_scl_need_size_c;
+		u32 scl_in_hy_offs = right_scl_in_size_y - RKMOUDLE_UNITE_EXTEND_PIXEL;
+		u32 scl_in_hc_offs = right_scl_in_size_c - RKMOUDLE_UNITE_EXTEND_PIXEL;
+
+		/* left isp */
+		reg = stream->config->rsz.scale_hy_offs;
+		rkisp_idx_write(dev, reg, 0, ISP_UNITE_LEFT, false);
+		reg = stream->config->rsz.scale_hc_offs;
+		rkisp_idx_write(dev, reg, 0, ISP_UNITE_LEFT, false);
+		reg = stream->config->rsz.scale_hy_offs_mi;
+		rkisp_idx_write(dev, reg, 0, ISP_UNITE_LEFT, false);
+		reg = stream->config->rsz.scale_hc_offs_mi;
+		rkisp_idx_write(dev, reg, 0, ISP_UNITE_LEFT, false);
+		reg = stream->config->rsz.scale_in_crop_offs;
+		rkisp_idx_write(dev, reg, 0, ISP_UNITE_LEFT, false);
+		reg = stream->config->rsz.scale_hy_size;
+		rkisp_idx_write(dev, reg, out_w, ISP_UNITE_LEFT, false);
+		reg = stream->config->rsz.scale_hc_size;
+		rkisp_idx_write(dev, reg, out_w, ISP_UNITE_LEFT, false);
+		/* right isp */
+		reg = stream->config->rsz.scale_hy_size;
+		rkisp_idx_write(dev, reg, out_w, ISP_UNITE_RIGHT, false);
+		reg = stream->config->rsz.scale_hc_size;
+		rkisp_idx_write(dev, reg, out_w, ISP_UNITE_RIGHT, false);
+		reg = stream->config->rsz.scale_hy_offs;
+		rkisp_idx_write(dev, reg, phase_left_y, ISP_UNITE_RIGHT, false);
+		reg = stream->config->rsz.scale_hc_offs;
+		rkisp_idx_write(dev, reg, phase_left_c, ISP_UNITE_RIGHT, false);
+		reg = stream->config->rsz.scale_hy_offs_mi;
+		rkisp_idx_write(dev, reg, out_w & 15, ISP_UNITE_RIGHT, false);
+		reg = stream->config->rsz.scale_hc_offs_mi;
+		rkisp_idx_write(dev, reg, out_w & 15, ISP_UNITE_RIGHT, false);
+		reg = stream->config->rsz.scale_in_crop_offs;
+		val = scl_in_hc_offs << 4 | scl_in_hy_offs;
+		rkisp_idx_write(dev, reg, val, ISP_UNITE_RIGHT, false);
+
+		rsz_ctrl |= ISP32_SCL_CLIP_EN;
+		reg = stream->config->rsz.ctrl;
+		rkisp_idx_write(dev, reg, rsz_ctrl | ISP32_SCL_IN_CLIP_EN,
+				ISP_UNITE_RIGHT, false);
+	}
+
+	reg = stream->config->rsz.ctrl;
+	rkisp_write(dev, reg, rsz_ctrl, false);
 	val = ISP32_SCALE_FORCE_UPD;
 	if (async && dev->hw_dev->is_single)
 		val = ISP32_SCALE_GEN_UPD;
-	rkisp_write(dev, ISP32_SELF_SCALE_UPDATE, val, true);
+	reg = stream->config->rsz.update;
+	rkisp_write(dev, reg, val, false);
 }
 
 void rkisp_config_rsz(struct rkisp_stream *stream, struct v4l2_rect *in_y,
@@ -403,7 +462,8 @@ void rkisp_config_rsz(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 	struct rkisp_device *dev = stream->ispdev;
 	int i = 0;
 
-	if (dev->isp_ver == ISP_V32_L && stream->id == RKISP_STREAM_SP) {
+	if (dev->isp_ver == ISP_V39 ||
+	    (dev->isp_ver == ISP_V32_L && stream->id == RKISP_STREAM_SP)) {
 		set_bilinear_scale(stream, in_y, in_c, out_y, out_c, async);
 		return;
 	}
@@ -428,7 +488,8 @@ void rkisp_config_rsz(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 void rkisp_disable_rsz(struct rkisp_stream *stream, bool async)
 {
 	rkisp_unite_write(stream->ispdev, stream->config->rsz.ctrl, 0, false);
-	if (stream->ispdev->isp_ver == ISP_V32_L && stream->id == RKISP_STREAM_SP)
+	if (stream->ispdev->isp_ver == ISP_V39 ||
+	    (stream->ispdev->isp_ver == ISP_V32_L && stream->id == RKISP_STREAM_SP))
 		return;
 	update_rsz_shadow(stream, async);
 }

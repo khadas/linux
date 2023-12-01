@@ -51,6 +51,7 @@
 #define BPDS_VDEV_NAME DRIVER_NAME	"_bypasspath_4x4sampling"
 #define LUMA_VDEV_NAME DRIVER_NAME	"_lumapath"
 #define VIR_VDEV_NAME DRIVER_NAME	"_iqtool"
+#define LDC_VDEV_NAME DRIVER_NAME	"_ldcpath"
 
 #define DMATX0_VDEV_NAME DRIVER_NAME	"_rawwr0"
 #define DMATX1_VDEV_NAME DRIVER_NAME	"_rawwr1"
@@ -91,6 +92,7 @@ enum {
 	RKISP_STREAM_MPDS,
 	RKISP_STREAM_BPDS,
 	RKISP_STREAM_LUMA,
+	RKISP_STREAM_LDC,
 	RKISP_STREAM_VIR,
 	RKISP_MAX_STREAM,
 };
@@ -166,6 +168,16 @@ struct stream_config {
 	struct {
 		u32 ctrl;
 		u32 ctrl_shd;
+		u32 update;
+		u32 src_size;
+		u32 dst_size;
+		u32 scale_hy_offs_mi;
+		u32 scale_hc_offs_mi;
+		u32 scale_in_crop_offs;
+		u32 scale_hy_offs;
+		u32 scale_hc_offs;
+		u32 scale_hy_size;
+		u32 scale_hc_size;
 		u32 scale_hy;
 		u32 scale_hcr;
 		u32 scale_hcb;

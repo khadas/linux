@@ -416,12 +416,13 @@ int rkisp_expander_config(struct rkisp_device *dev,
 {
 	struct rkmodule_hdr_cfg hdr_cfg;
 	u32 i, val, num, d0, d1, drop_bit = 0;
+	u32 output_bit, input_bit, max;
 
-	if (dev->isp_ver != ISP_V32)
+	if (dev->isp_ver != ISP_V39)
 		return 0;
 
 	if (!on) {
-		rkisp_write(dev, ISP32_EXPD_CTRL, 0, false);
+		rkisp_write(dev, ISP39_EXPD_CTRL, 0, false);
 		return 0;
 	}
 
@@ -434,72 +435,57 @@ int rkisp_expander_config(struct rkisp_device *dev,
 	if (cfg->hdr_mode != HDR_COMPR)
 		return 0;
 
-	/* compressed data max 12bit and src data max 20bit */
-	if (cfg->compr.bit > 20)
-		drop_bit = cfg->compr.bit - 20;
-	dev->hdr.compr_bit = cfg->compr.bit - drop_bit;
+	/* input data (12bit or 16bit) and output data max 20bit */
+	if (cfg->compr.src_bit > 20)
+		drop_bit = cfg->compr.src_bit - 20;
+	output_bit = cfg->compr.src_bit - drop_bit;
+	dev->hdr.src_bit = output_bit;
+	input_bit = dev->isp_sdev.in_fmt.bus_width;
 
-	num = cfg->compr.segment;
-	for (i = 0; i < num; i++) {
-		val = cfg->compr.slope_k[i];
-		rkisp_write(dev, ISP32_EXPD_K0 + i * 4, val, false);
-	}
+	num = cfg->compr.point;
+	if (num > HDR_COMPR_POINT_MAX)
+		num = HDR_COMPR_POINT_MAX;
+	max = (1 << output_bit) - 1;
+	for (i = 0; i < HDR_COMPR_POINT_MAX; i++) {
+		if (i < num)
+			val = cfg->compr.slope_k[i];
+		else
+			val = 0;
 
-	d0 = 0;
-	d1 = cfg->compr.data_compr[0];
-	val = ISP32_EXPD_DATA(d0, d1 > 0xfff ? 0xfff : d1);
-	rkisp_write(dev, ISP32_EXPD_X00_01, val, false);
+		if (i < 15)
+			rkisp_write(dev, ISP39_EXPD_K0 + i * 4, val, false);
+		else
+			rkisp_write(dev, ISP39_EXPD_K15 + (i - 15) * 4, val, false);
 
-	d1 = cfg->compr.data_src_shitf[0];
-	val = ISP32_EXPD_DATA(d0, drop_bit ? d1 >> drop_bit : d1);
-	rkisp_write(dev, ISP32_EXPD_Y00_01, val, false);
-
-	for (i = 1; i < num - 1; i += 2) {
-		d0 = cfg->compr.data_compr[i];
-		d1 = cfg->compr.data_compr[i + 1];
-		val = ISP32_EXPD_DATA(d0 > 0xfff ? 0xfff : d0,
-				      d1 > 0xfff ? 0xfff : d1);
-		rkisp_write(dev, ISP32_EXPD_X00_01 + (i + 1) * 2, val, false);
-
-		d0 = cfg->compr.data_src_shitf[i];
-		d1 = cfg->compr.data_src_shitf[i + 1];
-		if (drop_bit) {
-			d0 = d0 >> drop_bit;
-			d1 = d1 >> drop_bit;
+		if (i < num) {
+			d0 = cfg->compr.data_src[i];
+			val = d0 > max ? max : d0;
+		} else {
+			val = max;
 		}
+		rkisp_write(dev, ISP39_EXPD_Y0 + i * 4, val, false);
+	}
+
+	max = input_bit > 12 ? 0xffff : 0xfff;
+	for (i = 0; i < HDR_COMPR_POINT_MAX / 2; i++) {
+		d0 = cfg->compr.data_compr[i * 2];
+		d1 = cfg->compr.data_compr[i * 2 + 1];
+		if (d0 > max || i * 2 >= num)
+			d0 = max;
+		if (d1 > max || i * 2 + 1 >= num)
+			d1 = max;
 		val = ISP32_EXPD_DATA(d0, d1);
-		rkisp_write(dev, ISP32_EXPD_Y00_01 + (i + 1) * 2, val, false);
+		rkisp_write(dev, ISP39_EXPD_X00_01 + i * 4, val, false);
 	}
 
-	/* the last valid point */
-	val = cfg->compr.data_compr[i];
-	val = val > 0xfff ? 0xfff : val;
-	d0 = ISP32_EXPD_DATA(val, val);
+	val = input_bit > 12 ? 0xffff : 0xfff;
+	rkisp_write(dev, ISP39_EXPD_IMAX, val, false);
+	val = (1 << output_bit) - 1;
+	rkisp_write(dev, ISP39_EXPD_OMAX, val, false);
 
-	val = cfg->compr.data_src_shitf[i];
-	val = drop_bit ? val >> drop_bit : val;
-	d1 = ISP32_EXPD_DATA(val, val);
-
-	num = HDR_COMPR_SEGMENT_16;
-	for (; i < num - 1; i += 2) {
-		rkisp_write(dev, ISP32_EXPD_X00_01 + (i + 1) * 2, d0, false);
-		rkisp_write(dev, ISP32_EXPD_Y00_01 + (i + 1) * 2, d1, false);
-	}
-	rkisp_write(dev, ISP32_EXPD_Y16, val, false);
-
-	switch (cfg->compr.segment) {
-	case HDR_COMPR_SEGMENT_12:
-		num = 1;
-		break;
-	case HDR_COMPR_SEGMENT_16:
-		num = 2;
-		break;
-	default:
-		num = 0;
-	}
-	val = ISP32_EXPD_EN |
-	      ISP32_EXPD_MODE(num) |
-	      ISP32_EXPD_K_SHIFT(cfg->compr.k_shift);
+	val = ISP32_EXPD_EN | ISP32_EXPD_K_SHIFT(cfg->compr.k_shift);
+	if (input_bit == 16)
+		val |= ISP39_EXPD_INPUT_16;
 	rkisp_write(dev, ISP32_EXPD_CTRL, val, false);
 	return 0;
 err:
@@ -647,7 +633,7 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 	if (dev->isp_ver >= ISP_V30)
 		rkisp_unite_set_bits(dev, CTRL_SWS_CFG, 0, ISP3X_SW_ACK_FRM_PRO_DIS, true);
 	/* line counter from isp out, default from mp out */
-	if (dev->isp_ver == ISP_V32_L)
+	if (dev->isp_ver == ISP_V32_L || dev->isp_ver == ISP_V39)
 		rkisp_unite_set_bits(dev, CTRL_SWS_CFG, 0, ISP32L_ISP2ENC_CNT_MUX, true);
 	dev->rdbk_cnt = -1;
 	dev->rdbk_cnt_x1 = -1;

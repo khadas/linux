@@ -414,29 +414,25 @@ enum rkmodule_hdr_mode {
 	HDR_COMPR,
 };
 
-enum rkmodule_hdr_compr_segment {
-	HDR_COMPR_SEGMENT_4 = 4,
-	HDR_COMPR_SEGMENT_12 = 12,
-	HDR_COMPR_SEGMENT_16 = 16,
-};
+#define HDR_COMPR_POINT_MAX 32
 
 /* rkmodule_hdr_compr
  * linearised and compressed data for hdr: data_src = K * data_compr + XX
  *
- * bit: bit of src data, max 20 bit.
- * segment: linear segment, support 4, 6 or 16.
+ * src_bit: bit of src data, max 20 bit.
+ * point: linear point number, max 32 for rk3576.
  * k_shift: left shift bit of slop amplification factor, 2^k_shift, [0 15].
  * slope_k: K * 2^k_shift.
- * data_src_shitf: left shift bit of source data, data_src = 2^data_src_shitf
+ * data_src: source data.
  * data_compr: compressed data.
  */
 struct rkmodule_hdr_compr {
-	enum rkmodule_hdr_compr_segment segment;
-	__u8 bit;
+	__u8 point;
+	__u8 src_bit;
 	__u8 k_shift;
-	__u8 data_src_shitf[HDR_COMPR_SEGMENT_16];
-	__u16 data_compr[HDR_COMPR_SEGMENT_16];
-	__u32 slope_k[HDR_COMPR_SEGMENT_16];
+	__u16 data_compr[HDR_COMPR_POINT_MAX];
+	__u32 data_src[HDR_COMPR_POINT_MAX];
+	__u32 slope_k[HDR_COMPR_POINT_MAX];
 };
 
 /**

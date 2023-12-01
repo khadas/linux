@@ -10,6 +10,7 @@
 #include <linux/const.h>
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
+#include <linux/rk-camera-module.h>
 
 #define RKISP_API_VERSION		KERNEL_VERSION(2, 5, 0)
 
@@ -104,6 +105,9 @@
 
 #define RKISP_CMD_SET_IQTOOL_CONN_ID \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 113, int)
+
+#define RKISP_CMD_SET_EXPANDER \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 114, struct rkmodule_hdr_cfg)
 /*************************************************************/
 
 #define ISP2X_ID_DPCC			(0)
