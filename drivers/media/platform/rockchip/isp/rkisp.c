@@ -2827,6 +2827,7 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
 	struct rkisp_hw_dev *hw_dev = isp_dev->hw_dev;
+	int ret;
 
 	if (!on) {
 		if (IS_HDR_RDBK(isp_dev->rd_mode)) {
@@ -2839,10 +2840,13 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 					wake_up(&s->done);
 			}
 		}
-		wait_event_timeout(isp_dev->sync_onoff,
-				   isp_dev->isp_state & ISP_STOP ||
-				   !IS_HDR_RDBK(isp_dev->rd_mode),
-				   msecs_to_jiffies(50));
+		ret = wait_event_timeout(isp_dev->sync_onoff,
+					 isp_dev->isp_state & ISP_STOP ||
+					 !IS_HDR_RDBK(isp_dev->rd_mode),
+					 msecs_to_jiffies(500));
+		if (!ret)
+			v4l2_warn(&isp_dev->v4l2_dev, "%s wait timeout, mode:%d state:0x%x\n",
+				  __func__, isp_dev->rd_mode, isp_dev->isp_state);
 		rkisp_isp_stop(isp_dev);
 		atomic_dec(&hw_dev->refcnt);
 		rkisp_params_stream_stop(&isp_dev->params_vdev);
@@ -3390,6 +3394,7 @@ static int rkisp_set_work_mode_by_vicap(struct rkisp_device *isp_dev,
 	struct rkisp_hw_dev *hw = isp_dev->hw_dev;
 	int rd_mode = isp_dev->rd_mode;
 
+	isp_dev->is_suspend_one_frame = false;
 	if (vicap_mode->rdbk_mode == RKISP_VICAP_ONLINE) {
 		if (!hw->is_single)
 			return -EINVAL;
@@ -3404,7 +3409,8 @@ static int rkisp_set_work_mode_by_vicap(struct rkisp_device *isp_dev,
 		default:
 			isp_dev->rd_mode = HDR_NORMAL;
 		}
-	} else if (vicap_mode->rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
+	} else if (vicap_mode->rdbk_mode == RKISP_VICAP_RDBK_AUTO ||
+		   vicap_mode->rdbk_mode == RKISP_VICAP_RDBK_AUTO_ONE_FRAME) {
 		/* switch to readback mode */
 		switch (rd_mode) {
 		case HDR_LINEX3_DDR:
@@ -3416,6 +3422,8 @@ static int rkisp_set_work_mode_by_vicap(struct rkisp_device *isp_dev,
 		default:
 			isp_dev->rd_mode = HDR_RDBK_FRAME1;
 		}
+		if (vicap_mode->rdbk_mode == RKISP_VICAP_RDBK_AUTO_ONE_FRAME)
+			isp_dev->is_suspend_one_frame = true;
 	} else {
 		return -EINVAL;
 	}
