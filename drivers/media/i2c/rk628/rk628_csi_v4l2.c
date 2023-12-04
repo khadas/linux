@@ -920,7 +920,7 @@ static void rk628_csi_set_csi(struct v4l2_subdev *sd)
 	rk628_csi0_cru_reset(sd);
 	if (csi->rk628->version >= RK628F_VERSION)
 		rk628_csi1_cru_reset(sd);
-	mipi_dphy_reset(csi->rk628);
+	rk628_mipi_dphy_reset(csi->rk628);
 	rk628_post_process_setup(sd);
 
 	if (csi->txphy_pwron) {
@@ -1347,7 +1347,7 @@ static void rk628_csi_initial_setup(struct v4l2_subdev *sd)
 
 	csi->rk628->dphy_lane_en = 0x1f;
 	if (csi->plat_data->tx_mode == CSI_MODE) {
-		mipi_dphy_reset(csi->rk628);
+		rk628_mipi_dphy_reset(csi->rk628);
 		mipi_dphy_power_on(csi);
 	}
 	csi->txphy_pwron = true;
@@ -2058,19 +2058,19 @@ static int mipi_dphy_power_on(struct rk628_csi *csi)
 	rk628_txphy_set_bus_width(csi->rk628, bus_width);
 	rk628_txphy_set_mode(csi->rk628, PHY_MODE_VIDEO_MIPI);
 
-	mipi_dphy_init_hsfreqrange(csi->rk628, csi->lane_mbps, 0);
+	rk628_mipi_dphy_init_hsfreqrange(csi->rk628, csi->lane_mbps, 0);
 	if (csi->rk628->version >= RK628F_VERSION)
-		mipi_dphy_init_hsfreqrange(csi->rk628, csi->lane_mbps, 1);
+		rk628_mipi_dphy_init_hsfreqrange(csi->rk628, csi->lane_mbps, 1);
 
 	if (csi->rk628->dual_mipi) {
-		mipi_dphy_init_hsmanual(csi->rk628, true, 0);
-		mipi_dphy_init_hsmanual(csi->rk628, true, 1);
+		rk628_mipi_dphy_init_hsmanual(csi->rk628, true, 0);
+		rk628_mipi_dphy_init_hsmanual(csi->rk628, true, 1);
 	} else if (csi->lane_mbps == MIPI_DATARATE_MBPS_HIGH && !csi->rk628->dual_mipi) {
-		mipi_dphy_init_hsmanual(csi->rk628, true, 0);
-		mipi_dphy_init_hsmanual(csi->rk628, false, 1);
+		rk628_mipi_dphy_init_hsmanual(csi->rk628, true, 0);
+		rk628_mipi_dphy_init_hsmanual(csi->rk628, false, 1);
 	} else {
-		mipi_dphy_init_hsmanual(csi->rk628, false, 0);
-		mipi_dphy_init_hsmanual(csi->rk628, false, 1);
+		rk628_mipi_dphy_init_hsmanual(csi->rk628, false, 0);
+		rk628_mipi_dphy_init_hsmanual(csi->rk628, false, 1);
 	}
 
 	usleep_range(1500, 2000);
