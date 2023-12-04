@@ -28,6 +28,7 @@
 #include "di_reg_v3.h"
 #include "di_hw_v3.h"
 #include "di_reg_v2.h"
+#include "reg_decontour_t3.h"
 
 #include "register.h"
 #include "register_nr4.h"
@@ -4952,7 +4953,11 @@ static void hw_init_v3(void)
 		fifo_size_vpp = 0x180;
 		fifo_size_di = 0x120;
 	}
-
+	if (DIM_IS_ICS_T5M) {
+		op->bwr(VIUB_GCLK_CTRL3, 0x3f, 16, 6);
+		op->wr(REG_DCTR_T3_GCLK_CTRL0, 0xc0);
+		op->wr(REG_DCTR_T3_GCLK_CTRL1, 0x3c0000);
+	}
 	if (DIM_IS_IC_EF(SC2)) {
 		/*pre*/
 		op->wr(DI_SC2_INP_LUMA_FIFO_SIZE, fifo_size_di);
