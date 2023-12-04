@@ -468,6 +468,7 @@ struct di_dev_s {
 
 	struct task_struct *task;
 	struct clk	*vpu_clkb;
+	struct clk	*vpu_clk_mux;
 	unsigned long clkb_max_rate;
 	unsigned long clkb_min_rate;
 	struct list_head   pq_table_list;

@@ -4221,6 +4221,9 @@ static void dim_shutdown(struct platform_device *pdev)
 	if (!is_meson_txlx_cpu())
 		diext_clk_b_sw(false);
 
+	if (!DIM_IS_IC(T5) && !DIM_IS_IC(T5DB) && !DIM_IS_IC(T5D))
+		clk_disable_unprepare(di_devp->vpu_clk_mux);
+
 	PR_INF("%s.\n", __func__);
 }
 

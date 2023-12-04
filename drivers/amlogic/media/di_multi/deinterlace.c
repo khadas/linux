@@ -11829,20 +11829,19 @@ void dim_get_vpu_clkb(struct device *dev, struct di_dev_s *pdev)
 {
 	int ret = 0;
 	unsigned int tmp_clk[2] = {0, 0};
-	struct clk *vpu_clk = NULL;
 
 	if (DIM_IS_IC_EF(SC2))
-		vpu_clk = clk_get(dev, "vpu_mux");
+		pdev->vpu_clk_mux = clk_get(dev, "vpu_mux");
 	else if (DIM_IS_IC(T5)		||
 		 DIM_IS_IC(T5DB)	||
 		 DIM_IS_IC(T5D))
-		vpu_clk = clk_get(dev, "t5_vpu_clkb_tmp_gate");
+		pdev->vpu_clk_mux = clk_get(dev, "t5_vpu_clkb_tmp_gate");
 	else
-		vpu_clk = clk_get(dev, "vpu_mux");
-	if (IS_ERR(vpu_clk))
+		pdev->vpu_clk_mux = clk_get(dev, "vpu_mux");
+	if (IS_ERR(pdev->vpu_clk_mux))
 		PR_ERR("%s: get clk vpu error.\n", __func__);
 	else
-		clk_prepare_enable(vpu_clk);
+		clk_prepare_enable(pdev->vpu_clk_mux);
 
 	ret = of_property_read_u32_array(dev->of_node, "clock-range",
 					 tmp_clk, 2);
