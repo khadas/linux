@@ -2568,66 +2568,31 @@ static int arc_spdifout_reg_mute_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static const struct snd_kcontrol_new earc_controls[] = {
-	SOC_SINGLE_BOOL_EXT("eARC RX ARC Switch",
-			    0,
-			    earcrx_arc_get_enable,
-			    earcrx_arc_set_enable),
-
-	SOC_ENUM_EXT("eARC_RX attended type",
-		     attended_type_enum,
-		     earcrx_get_attend_type,
-		     earcrx_set_attend_type),
-
+static const struct snd_kcontrol_new earc_tx_controls[] = {
 	SOC_ENUM_EXT("eARC_TX attended type",
 		     attended_type_enum,
 		     earctx_get_attend_type,
 		     earctx_set_attend_type),
-
-	SND_SOC_BYTES_EXT("eARC_RX Latency",
-			  1,
-			  earcrx_get_latency,
-			  earcrx_set_latency),
 
 	SND_SOC_BYTES_EXT("eARC_TX Latency",
 			  1,
 			  earctx_get_latency,
 			  earctx_set_latency),
 
-	SND_SOC_BYTES_EXT("eARC_RX CDS",
-			  CDS_MAX_BYTES,
-			  earcrx_get_cds,
-			  earcrx_set_cds),
-
 	SND_SOC_BYTES_EXT("eARC_TX CDS",
 			  CDS_MAX_BYTES,
 			  earctx_get_cds,
 			  NULL),
-
-	SOC_ENUM_EXT("eARC_RX Audio Coding Type",
-		     audio_coding_type_enum,
-		     earcrx_get_audio_coding_type,
-		     NULL),
 
 	SOC_ENUM_EXT("eARC_TX Audio Coding Type",
 		     audio_coding_type_enum,
 		     earctx_get_audio_coding_type,
 		     earctx_set_audio_coding_type),
 
-	SND_SOC_BYTES_EXT("eARC_RX Channel Allocation",
-			  1,
-			  earcrx_get_ca,
-			  NULL),
-
 	SND_SOC_BYTES_EXT("eARC_TX Channel Allocation",
 			  1,
 			  earctx_get_ca,
 			  earctx_set_ca),
-
-	SOC_SINGLE_BOOL_EXT("eARC_RX CS Mute",
-			    0,
-			    earcrx_get_mute,
-			    NULL),
 
 	SOC_SINGLE_BOOL_EXT("eARC_TX CS Mute",
 			    0,
@@ -2638,6 +2603,70 @@ static const struct snd_kcontrol_new earc_controls[] = {
 			    0,
 			    earctx_earc_mode_get,
 			    earctx_earc_mode_put),
+
+	SOC_SINGLE_EXT("eARC_TX CLK Fine Setting",
+		       0, 0, 2000000, 0,
+		       earctx_clk_get, earctx_clk_put),
+
+	SOC_SINGLE_EXT("eARC_TX CLK Fine PPM Tuning",
+		       0, 0, 2000, 0,
+		       earctx_clk_get, earctx_clk_ppm_put),
+
+	SOC_SINGLE_BOOL_EXT("ARC eARC TX enable",
+			    0,
+			    arc_get_ui_flag,
+			    arc_set_ui_flag),
+
+	SOC_SINGLE_BOOL_EXT("ARC eARC Spdifout Mute",
+			    0,
+			    arc_spdifout_mute_get,
+			    arc_spdifout_mute_put),
+
+	SOC_SINGLE_BOOL_EXT("ARC eARC Spdifout Reg Mute",
+			    0,
+			    arc_spdifout_reg_mute_get,
+			    arc_spdifout_reg_mute_put),
+
+	SND_IEC958(SNDRV_CTL_NAME_IEC958("", PLAYBACK, DEFAULT),
+		   earctx_get_iec958,
+		   earctx_set_iec958)
+};
+
+static const struct snd_kcontrol_new earc_rx_controls[] = {
+	SOC_SINGLE_BOOL_EXT("eARC RX ARC Switch",
+			    0,
+			    earcrx_arc_get_enable,
+			    earcrx_arc_set_enable),
+
+	SOC_ENUM_EXT("eARC_RX attended type",
+		     attended_type_enum,
+		     earcrx_get_attend_type,
+		     earcrx_set_attend_type),
+
+	SND_SOC_BYTES_EXT("eARC_RX Latency",
+			  1,
+			  earcrx_get_latency,
+			  earcrx_set_latency),
+
+	SND_SOC_BYTES_EXT("eARC_RX CDS",
+			  CDS_MAX_BYTES,
+			  earcrx_get_cds,
+			  earcrx_set_cds),
+
+	SOC_ENUM_EXT("eARC_RX Audio Coding Type",
+		     audio_coding_type_enum,
+		     earcrx_get_audio_coding_type,
+		     NULL),
+
+	SND_SOC_BYTES_EXT("eARC_RX Channel Allocation",
+			  1,
+			  earcrx_get_ca,
+			  NULL),
+
+	SOC_SINGLE_BOOL_EXT("eARC_RX CS Mute",
+			    0,
+			    earcrx_get_mute,
+			    NULL),
 
 	SOC_SINGLE_EXT("eARC_RX Audio Sample Frequency",
 		       0, 0, 384000, 0,
@@ -2653,49 +2682,48 @@ static const struct snd_kcontrol_new earc_controls[] = {
 		       0, 0, 32, 0,
 		       earcrx_get_word_length,
 		       NULL),
-	SOC_SINGLE_EXT("eARC_TX CLK Fine Setting",
-		       0, 0, 2000000, 0,
-		       earctx_clk_get, earctx_clk_put),
-
-	SOC_SINGLE_EXT("eARC_TX CLK Fine PPM Tuning",
-		       0, 0, 2000, 0,
-		       earctx_clk_get, earctx_clk_ppm_put),
-
-	SOC_SINGLE_BOOL_EXT("ARC eARC TX enable",
-			    0,
-			    arc_get_ui_flag,
-			    arc_set_ui_flag),
 
 	SOC_SINGLE_BOOL_EXT("ARC eARC RX enable",
 			    0,
 			    arcrx_get_ui_flag,
 			    arcrx_set_ui_flag),
 
-	SOC_SINGLE_BOOL_EXT("ARC eARC Spdifout Mute",
-			    0,
-			    arc_spdifout_mute_get,
-			    arc_spdifout_mute_put),
-
-	SOC_SINGLE_BOOL_EXT("ARC eARC Spdifout Reg Mute",
-			    0,
-			    arc_spdifout_reg_mute_get,
-			    arc_spdifout_reg_mute_put),
-
 	/* Status channel controller */
 	SND_IEC958(SNDRV_CTL_NAME_IEC958("", CAPTURE, DEFAULT),
 		   earcrx_get_iec958,
-		   NULL),
-
-	SND_IEC958(SNDRV_CTL_NAME_IEC958("", PLAYBACK, DEFAULT),
-		   earctx_get_iec958,
-		   earctx_set_iec958),
+		   NULL)
 };
 
+static int aml_component_earc_probe(struct snd_soc_component *component)
+{
+	int ret = 0;
+	struct earc *p_earc = snd_soc_component_get_drvdata(component);
+
+	if (p_earc->chipinfo->tx_enable) {
+		ret = snd_soc_add_component_controls(component,
+				earc_tx_controls,
+				ARRAY_SIZE(earc_tx_controls));
+		if (ret < 0)
+			pr_err("%s, failed add snd earc tx controls\n",
+				__func__);
+	}
+
+	if (p_earc->chipinfo->rx_enable) {
+		ret = snd_soc_add_component_controls(component,
+				earc_rx_controls,
+				ARRAY_SIZE(earc_rx_controls));
+		if (ret < 0)
+			pr_err("%s, failed add snd earc rx controls\n",
+				__func__);
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_component_driver earc_component = {
-	.controls       = earc_controls,
-	.ops = &earc_ops,
-	.num_controls   = ARRAY_SIZE(earc_controls),
-	.name		= DRV_NAME,
+	.ops   = &earc_ops,
+	.name  = DRV_NAME,
+	.probe = aml_component_earc_probe,
 };
 
 struct earc_chipinfo sm1_earc_chipinfo = {
