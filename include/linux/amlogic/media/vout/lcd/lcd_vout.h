@@ -47,6 +47,9 @@ extern unsigned int lcd_debug_print_flag;
 #define LCDPR(fmt, args...)     pr_info("lcd: " fmt "", ## args)
 #define LCDERR(fmt, args...)    pr_err("lcd: error: " fmt "", ## args)
 
+/*device attribute buf max size 4k*/
+#define PR_BUF_MAX              (4 * 1024)
+
 #define LCD_MAX_DRV             3
 
 /* **********************************
@@ -124,6 +127,7 @@ struct lcd_basic_s {
 	char model_name[MOD_LEN_MAX];
 	enum lcd_type_e lcd_type;
 	unsigned char lcd_bits;
+	unsigned char config_check; /*bit[1]:force, bit[0]:en*/
 
 	unsigned short h_active;    /* Horizontal display area */
 	unsigned short v_active;    /* Vertical display area */
@@ -174,9 +178,11 @@ struct lcd_timing_s {
 
 	unsigned short hsync_width;
 	unsigned short hsync_bp;
+	unsigned short hsync_fp;
 	unsigned short hsync_pol;
 	unsigned short vsync_width;
 	unsigned short vsync_bp;
+	unsigned short vsync_fp;
 	unsigned short vsync_pol;
 	/* unsigned int vsync_h_phase; // [31]sign, [15:0]value */
 	unsigned int h_offset;
@@ -196,6 +202,14 @@ struct lcd_timing_s {
 	unsigned short vs_he_addr;
 	unsigned short vs_vs_addr;
 	unsigned short vs_ve_addr;
+};
+
+struct lcd_disp_tmg_req_s {
+	unsigned int alert_level;//0:disable, 1:warning, 2:fatal err
+	unsigned int hswbp_vid;
+	unsigned int hfp_vid;
+	unsigned int vswbp_vid;
+	unsigned int vfp_vid;
 };
 
 struct rgb_config_s {
@@ -664,6 +678,8 @@ struct aml_lcd_drv_s {
 	char vbyone_isr_name[10];
 	char output_name[30];
 	unsigned int vmode_update;
+	unsigned char config_check_glb;
+	unsigned char config_check_en;
 
 	struct lcd_data_s *data;
 	struct cdev cdev;
@@ -682,6 +698,7 @@ struct aml_lcd_drv_s {
 	struct device_node *of_node;
 #endif
 	void *debug_info;
+	struct lcd_disp_tmg_req_s disp_req;
 
 	unsigned int *vs_msr_rt;
 	unsigned int *vs_msr;

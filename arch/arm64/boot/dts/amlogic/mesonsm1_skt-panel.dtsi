@@ -49,6 +49,13 @@
 				&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
 		lcd_cpu_gpio_names = "GPIOH_4","GPIOH_7";
 
+		config_check_glb = <1>;
+		display_timing_req_min = <1  /*alert_level: 0:disable, 1:warning, 2:fatal error*/
+			45   /*hsw+hbp*/
+			0    /*hfp, 0 for no need*/
+			20   /*vsw+vbp*/
+			15>; /*vfp*/
+
 		lcd_0{
 			model_name = "B080XAN01";
 			interface = "mipi";

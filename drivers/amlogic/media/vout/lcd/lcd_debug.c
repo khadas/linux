@@ -33,9 +33,6 @@
 #include "lcd_common.h"
 #include "lcd_debug.h"
 
-/*device attribute buf max size 4k*/
-#define PR_BUF_MAX          (4 * 1024)
-
 void lcd_debug_parse_param(char *buf_orig, char **parm)
 {
 	char *ps, *token;
@@ -536,7 +533,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 {
 	struct lcd_config_s *pconf;
 	unsigned int sync_duration, mute_state = 0;
-	int n, len = 0;
+	int n, len = 0, ret, herr, verr;
 
 	pconf = &pdrv->config;
 	sync_duration = pconf->timing.sync_duration_num * 100;
@@ -548,6 +545,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
 		"[%d]: driver version: %s\n"
+		"config_check_glb: %d, config_check_para: 0x%x, config_check_en: %d\n"
 		"panel_type: %s, chip: %d, mode: %s, status: %d\n"
 		"viu_sel: %d, isr_cnt: %d, resume_type: %d, resume_flag: 0x%x\n"
 		"fr_auto_flag: 0x%x, fr_mode: %d, fr_duration: %d, frame_rate: %d\n"
@@ -555,6 +553,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		"mute_state: %d, test_flag: 0x%x\n"
 		"key_valid: %d, config_load: %d\n",
 		pdrv->index, LCD_DRV_VERSION,
+		pdrv->config_check_glb, pconf->basic.config_check, pdrv->config_check_en,
 		pconf->propname, pdrv->data->chip_type,
 		lcd_mode_mode_to_str(pdrv->mode), pdrv->status,
 		pdrv->viu_sel, pdrv->vsync_cnt,
@@ -586,20 +585,33 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		pconf->timing.ss_freq, pconf->timing.ss_mode,
 		pconf->timing.clk_auto, pconf->timing.fr_adjust_type);
 
+	ret = lcd_config_check(pdrv);
+	herr = ret & 0xf;
+	verr = (ret >> 4) & 0xf;
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
 		"h_period       %d\n"
 		"v_period       %d\n"
 		"hs_width       %d\n"
-		"hs_backporch   %d\n"
+		"hs_backporch   %d%s\n"
+		"hs_frontporch  %d%s\n"
 		"hs_pol         %d\n"
 		"vs_width       %d\n"
-		"vs_backporch   %d\n"
+		"vs_backporch   %d%s\n"
+		"vs_frontporch  %d%s\n"
 		"vs_pol         %d\n\n",
 		pconf->basic.h_period, pconf->basic.v_period,
-		pconf->timing.hsync_width, pconf->timing.hsync_bp,
+		pconf->timing.hsync_width,
+		pconf->timing.hsync_bp,
+		((herr & 0x4) ? "(X)" : ((herr & 0x8) ? "(!)" : "")),
+		pconf->timing.hsync_fp,
+		((herr & 0x1) ? "(X)" : ((herr & 0x2) ? "(!)" : "")),
 		pconf->timing.hsync_pol,
-		pconf->timing.vsync_width, pconf->timing.vsync_bp,
+		pconf->timing.vsync_width,
+		pconf->timing.vsync_bp,
+		((verr & 0x4) ? "(X)" : ((verr & 0x8) ? "(!)" : "")),
+		pconf->timing.vsync_fp,
+		((verr & 0x1) ? "(X)" : ((verr & 0x2) ? "(!)" : "")),
 		pconf->timing.vsync_pol);
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
@@ -2153,22 +2165,40 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 
 	pconf = &pdrv->config;
 	switch (buf[0]) {
-	case 'c': /* clk */
-		ret = sscanf(buf, "clk %d", &temp);
-		if (ret == 1) {
-			if (temp > 200) {
-				pr_info("set clk: %dHz\n", temp);
+	case 'c':
+		if (buf[1] == 'l') { /* clk */
+			ret = sscanf(buf, "clk %d", &temp);
+			if (ret == 1) {
+				if (temp > 200) {
+					pr_info("set clk: %dHz\n", temp);
+				} else {
+					pr_info("set frame_rate: %dHz\n", temp);
+					temp = pconf->basic.h_period * pconf->basic.v_period * temp;
+					pr_info("set clk: %dHz\n", temp);
+				}
+				pconf->timing.lcd_clk = temp;
+				pconf->timing.lcd_clk_dft = pconf->timing.lcd_clk;
+				lcd_debug_clk_change(pdrv);
 			} else {
-				pr_info("set frame_rate: %dHz\n", temp);
-				temp = pconf->basic.h_period * pconf->basic.v_period * temp;
-				pr_info("set clk: %dHz\n", temp);
+				LCDERR("invalid data\n");
+				return -EINVAL;
 			}
-			pconf->timing.lcd_clk = temp;
-			pconf->timing.lcd_clk_dft = pconf->timing.lcd_clk;
-			lcd_debug_clk_change(pdrv);
-		} else {
-			LCDERR("invalid data\n");
-			return -EINVAL;
+		} else if (buf[1] == 'h') { /* check */
+			ret = lcd_config_check(pdrv);
+			if (ret == 0)
+				pr_info("lcd_config_check: PASS\n");
+			pr_info("disp_tmg_min_req:\n"
+				"  alert_lvl  %d\n"
+				"  hswbp  %d\n"
+				"  hfp    %d\n"
+				"  vswbp  %d\n"
+				"  vfp    %d\n\n",
+				pdrv->disp_req.alert_level,
+				pdrv->disp_req.hswbp_vid, pdrv->disp_req.hfp_vid,
+				pdrv->disp_req.vswbp_vid, pdrv->disp_req.vfp_vid);
+			pr_info("config_check_glb: %d, config_check: 0x%x, config_check_en: %d\n\n",
+				pdrv->config_check_glb, pconf->basic.config_check,
+				pdrv->config_check_en);
 		}
 		break;
 	case 'b':

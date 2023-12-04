@@ -55,6 +55,13 @@
 		lcd_cpu_gpio_names = "GPIOAO_4","GPIOH_2","GPIOH_3","GPIOH_12",
 			"GPIOH_8","GPIOH_14";
 
+		config_check_glb = <1>;
+		display_timing_req_min = <1  /*alert_level: 0:disable, 1:warning, 2:fatal error*/
+			45   /*hsw+hbp*/
+			0    /*hfp, 0 for no need*/
+			20   /*vsw+vbp*/
+			15>; /*vfp*/
+
 		lvds_0{
 			model_name = "1080p-vfreq";
 			interface = "lvds"; /*lcd_interface(lvds, vbyone)*/

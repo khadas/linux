@@ -1382,3 +1382,149 @@ int lcd_tcon_disable_t3(struct aml_lcd_drv_s *pdrv)
 
 	return 0;
 }
+
+//ret: bit[0]: fatal error, block driver
+//     bit[1]: warning, only print warning message
+int lcd_tcon_setting_check_t5(struct aml_lcd_drv_s *pdrv, char *ferr_str, char *warn_str)
+{
+	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
+	unsigned int *table32;
+	unsigned int val, tri_gate;
+	int ferr_len = 0, warn_len = 0, ferr_left, warn_left, ret = 0;
+
+	if (!ferr_str || !warn_str)
+		return 0;
+	if (!mm_table || !mm_table->core_reg_table)
+		return 0;
+	table32 = (unsigned int *)mm_table->core_reg_table;
+
+	if (pdrv->status & LCD_STATUS_IF_ON)
+		val = lcd_tcon_getb(pdrv, 0x26e, 21, 3);
+	else
+		val = (table32[0x26e] >> 21) & 0x7;
+	if (pdrv->config.basic.h_active == 1366) {
+		if (val != 3) {
+			ferr_left = lcd_debug_info_len(ferr_len);
+			ferr_len += snprintf(ferr_str + ferr_len, ferr_left,
+				"  cmpr_lbuf_tail: %d, req: 3!!!\n", val);
+			ret |= (1 << 0);
+		}
+	} else {
+		if (val) {
+			ferr_left = lcd_debug_info_len(ferr_len);
+			ferr_len += snprintf(ferr_str + ferr_len, ferr_left,
+				"  cmpr_lbuf_tail: %d, req: 0!!!\n", val);
+			ret |= (1 << 0);
+		}
+	}
+
+	if (pdrv->status & LCD_STATUS_IF_ON)
+		val = lcd_tcon_getb(pdrv, 0x240, 2, 1);
+	else
+		val = (table32[0x240] >> 2) & 0x1;
+	if (val) {
+		ferr_left = lcd_debug_info_len(ferr_len);
+		ferr_len += snprintf(ferr_str + ferr_len, ferr_left,
+			"  od_cur_ref_sel_chk: %d, req: 0!!!\n", val);
+		ret |= (1 << 0);
+	}
+
+	if (pdrv->status & LCD_STATUS_IF_ON)
+		val = lcd_tcon_getb(pdrv, 0x45a, 28, 1);
+	else
+		val = (table32[0x45a] >> 28) & 0x1;
+	if (val) {
+		ferr_left = lcd_debug_info_len(ferr_len);
+		ferr_len += snprintf(ferr_str + ferr_len, ferr_left,
+			"  predmy_dt_en: %d, req: 0!!!\n", val);
+		ret |= (1 << 0);
+	}
+
+	if (pdrv->status & LCD_STATUS_IF_ON)
+		val = lcd_tcon_getb(pdrv, 0x45a, 5, 5);
+	else
+		val = (table32[0x45a] >> 5) & 0x1f;
+	if (val) {
+		ferr_left = lcd_debug_info_len(ferr_len);
+		ferr_len += snprintf(ferr_str + ferr_len, ferr_left,
+			"  predmy_num: %d, req: 0!!!\n", val);
+		ret |= (1 << 0);
+	}
+
+	if (pdrv->status & LCD_STATUS_IF_ON) {
+		val = lcd_tcon_getb(pdrv, 0x30d, 13, 1);
+		tri_gate = lcd_tcon_getb(pdrv, 0x118, 29, 1);
+	} else {
+		val = (table32[0x30d] >> 13) & 0x1;
+		tri_gate = (table32[0x118] >> 29) & 0x1;
+	}
+	if (tri_gate == 0 && val) {
+		warn_left = lcd_debug_info_len(warn_len);
+		warn_len += snprintf(warn_str + warn_len, warn_left,
+			"  reg_rgd_en: %d, only for tri-gate, please confirm!\n", val);
+		ret |= (1 << 1);
+	}
+
+	return ret;
+}
+
+int lcd_tcon_setting_check_t5d(struct aml_lcd_drv_s *pdrv, char *ferr_str, char *warn_str)
+{
+	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
+	unsigned int *table32;
+	unsigned int val, tri_gate;
+	int ferr_len = 0, warn_len = 0, ferr_left, warn_left, ret = 0;
+
+	if (!ferr_str || !warn_str)
+		return 0;
+	if (!mm_table || !mm_table->core_reg_table)
+		return 0;
+	table32 = (unsigned int *)mm_table->core_reg_table;
+
+	if (pdrv->status & LCD_STATUS_IF_ON)
+		val = lcd_tcon_getb(pdrv, 0x26e, 21, 3);
+	else
+		val = (table32[0x26e] >> 21) & 0x7;
+	if (pdrv->config.basic.h_active == 1366) {
+		if (val != 3) {
+			ferr_left = lcd_debug_info_len(ferr_len);
+			ferr_len += snprintf(ferr_str + ferr_len, ferr_left,
+				"  cmpr_lbuf_tail: %d, req: 3!!!\n", val);
+			ret |= (1 << 0);
+		}
+	} else {
+		if (val) {
+			ferr_left = lcd_debug_info_len(ferr_len);
+			ferr_len += snprintf(ferr_str + ferr_len, ferr_left,
+				"  cmpr_lbuf_tail: %d, req: 0!!!\n", val);
+			ret |= (1 << 0);
+		}
+	}
+
+	if (pdrv->status & LCD_STATUS_IF_ON)
+		val = lcd_tcon_getb(pdrv, 0x240, 2, 1);
+	else
+		val = (table32[0x240] >> 2) & 0x1;
+	if (val) {
+		ferr_left = lcd_debug_info_len(ferr_len);
+		ferr_len += snprintf(ferr_str + ferr_len, ferr_left,
+			"  od_cur_ref_sel_chk: %d, req: 0!!!\n", val);
+		ret |= (1 << 0);
+	}
+
+	if (pdrv->status & LCD_STATUS_IF_ON) {
+		val = lcd_tcon_getb(pdrv, 0x30d, 13, 1);
+		tri_gate = lcd_tcon_getb(pdrv, 0x118, 29, 1);
+	} else {
+		val = (table32[0x30d] >> 13) & 0x1;
+		tri_gate = (table32[0x118] >> 29) & 0x1;
+	}
+	if (tri_gate == 0 && val) {
+		warn_left = lcd_debug_info_len(warn_len);
+		warn_len += snprintf(warn_str + warn_len, warn_left,
+			"  reg_rgd_en: %d, only for tri-gate, please confirm!\n", val);
+		ret |= (1 << 1);
+	}
+
+	return ret;
+}

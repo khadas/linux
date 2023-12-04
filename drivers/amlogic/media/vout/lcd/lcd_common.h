@@ -71,7 +71,8 @@
 /* 20230912: bypass phy data buffer */
 /* 20231012: optimize clk management*/
 /* 20231113: update vrr_dev register flow for tablet mode*/
-#define LCD_DRV_VERSION    "20231113"
+/* 20231205: add lcd config check*/
+#define LCD_DRV_VERSION    "20231205"
 
 extern struct mutex lcd_vout_mutex;
 
@@ -110,6 +111,7 @@ void lcd_mlvds_pinmux_set(struct aml_lcd_drv_s *pdrv, int status);
 void lcd_p2p_pinmux_set(struct aml_lcd_drv_s *pdrv, int status);
 void lcd_edp_pinmux_set(struct aml_lcd_drv_s *pdrv, int status);
 
+int lcd_config_check(struct aml_lcd_drv_s *pdrv);
 int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv);
 void lcd_mlvds_phy_ckdi_config(struct aml_lcd_drv_s *pdrv);
 int lcd_get_config(struct aml_lcd_drv_s *pdrv);
@@ -179,6 +181,7 @@ int lcd_tcon_od_set(struct aml_lcd_drv_s *pdrv, int flag);
 int lcd_tcon_od_get(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_core_reg_get(struct aml_lcd_drv_s *pdrv,
 			  unsigned char *buf, unsigned int size);
+int lcd_tcon_check(struct aml_lcd_drv_s *pdrv, char *ferr_str, char *warn_str);
 int lcd_tcon_enable(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_reload(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_reload_pre(struct aml_lcd_drv_s *pdrv);
