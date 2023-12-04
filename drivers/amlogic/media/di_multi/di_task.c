@@ -30,6 +30,10 @@
 #include "di_task.h"
 #include "di_vframe.h"
 #include "di_dbg.h"
+#include "di_que.h"
+
+static int self_trig_continue_count;
+
 
 static void task_wakeup(struct di_task *tsk);
 
@@ -74,6 +78,13 @@ static void task_self_trig(void)
 	struct di_ch_s *pch;
 	bool ret = false;
 	struct di_hpre_s  *pre = get_hw_pre();
+	struct di_hpst_s  *pst = get_hw_pst();
+	struct di_post_stru_s *ppost;
+	struct di_pre_stru_s *ppre;
+
+	ch = pst->curr_ch;
+	ppre = get_pre_stru(ch);
+	ppost = get_post_stru(ch);
 
 	if (pre->self_trig_mask) {
 		//dim_tr_ops.self_trig(DI_BIT28 | pre->self_trig_mask);
@@ -81,6 +92,25 @@ static void task_self_trig(void)
 	}
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
 		pch = get_chdata(ch);
+		if (!ppre->pre_de_busy &&
+			nins_peek_pre(pch) &&
+			!queue_empty(ch, QUEUE_LOCAL_FREE) &&
+			di_que_list_count(ch, QUE_IN_FREE) >= 1 &&
+			self_trig_continue_count < 2) {
+			dbg_tsk("%s: need trig for pre\n", __func__);
+			ret = true;
+			self_trig_continue_count++;
+			break;
+		}
+
+		if (!ppost->process_doing && !di_que_is_empty(ch, QUE_POST_DOING) &&
+			self_trig_continue_count < 2) {
+			dbg_tsk("%s: need trig for post\n", __func__);
+			ret = true;
+			self_trig_continue_count++;
+			break;
+		}
+
 		if (pch->self_trig_mask) {
 			//dim_tr_ops.self_trig(DI_BIT30 | pch->self_trig_mask);
 			continue;
@@ -94,6 +124,8 @@ static void task_self_trig(void)
 	if (ret) {
 		dbg_tsk("trig:s[0x%x]\n", pch->self_trig_need);
 		task_send_ready(8);
+	} else {
+		self_trig_continue_count = 0;
 	}
 }
 
@@ -647,20 +679,8 @@ bool mtsk_alloc_block(unsigned int ch, struct mtsk_cmd_s *cmd)
 
 bool mtsk_alloc_block2(unsigned int ch, struct mtsk_cmd_s *cmd)
 {
-	struct dim_fcmd_s *fcmd;
-	struct di_mtask *tsk = get_mtask();
 //	unsigned int cnt;
-	int timeout = 0;
-
 	mtask_send_cmd_block(ch, cmd);
-	fcmd = &tsk->fcmd[ch];
-
-	timeout = wait_for_completion_timeout(&fcmd->alloc_done,
-		msecs_to_jiffies(30));
-	if (!timeout) {
-		PR_WARN("%s:ch[%d]timeout\n", __func__, ch);
-		return false;
-	}
 	return true;
 }
 
