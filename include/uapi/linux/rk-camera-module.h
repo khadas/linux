@@ -186,6 +186,9 @@
 #define RKMODULE_GET_SKIP_FRAME  \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 41, __u32)
 
+#define RKMODULE_GET_DSI_MODE       \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 42, __u32)
+
 struct rkmodule_i2cdev_info {
 	__u8 slave_addr;
 } __attribute__ ((packed));
@@ -452,6 +455,14 @@ enum hdr_esp_mode {
 enum rkmodule_csi_dsi_seq {
 	RKMODULE_CSI_INPUT = 0,
 	RKMODULE_DSI_INPUT,
+};
+
+/*
+ * DSI input mode
+ */
+enum rkmodule_dsi_mode {
+	RKMODULE_DSI_VIDEO = 0,
+	RKMODULE_DSI_COMMAND,
 };
 
 /**

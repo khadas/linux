@@ -3526,7 +3526,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 
 	channel->fmt_val = stream->cif_fmt_out->csi_fmt_val;
 
-	channel->cmd_mode_en = 0; /* default use DSI Video Mode */
+	channel->cmd_mode_en = dev->terminal_sensor.dsi_mode;; /* default use DSI Video Mode */
 	channel->dsi_input = dev->terminal_sensor.dsi_input_en;
 
 	if (stream->crop_enable) {
@@ -6099,6 +6099,17 @@ int rkcif_update_sensor_info(struct rkcif_stream *stream)
 				"%s: get terminal %s CSI/DSI sel failed, default csi input!\n",
 				__func__, terminal_sensor->sd->name);
 			terminal_sensor->dsi_input_en = 0;
+		}
+		if (terminal_sensor->dsi_input_en) {
+			if (v4l2_subdev_call(terminal_sensor->sd, core, ioctl,
+					RKMODULE_GET_DSI_MODE, &terminal_sensor->dsi_mode)) {
+				v4l2_dbg(1, rkcif_debug, &stream->cifdev->v4l2_dev,
+					"%s: get terminal %s DSI mode failed, set video mode!\n",
+					__func__, terminal_sensor->sd->name);
+				terminal_sensor->dsi_mode = 0;
+			}
+		} else {
+			terminal_sensor->dsi_mode = 0;
 		}
 	} else {
 		v4l2_err(&stream->cifdev->v4l2_dev,

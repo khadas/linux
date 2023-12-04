@@ -226,6 +226,7 @@ struct rkcif_sensor_info {
 	struct v4l2_rect raw_rect;
 	struct v4l2_subdev_selection selection;
 	int dsi_input_en;
+	int dsi_mode;
 };
 
 enum cif_fmt_type {
@@ -291,6 +292,7 @@ struct csi_channel_info {
 	unsigned int crop_st_x;
 	unsigned int crop_st_y;
 	unsigned int dsi_input;
+	unsigned int dsi_mode;
 	struct rkmodule_lvds_cfg lvds_cfg;
 	struct rkmodule_capture_info capture_info;
 };
