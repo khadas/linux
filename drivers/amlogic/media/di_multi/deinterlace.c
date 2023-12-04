@@ -105,6 +105,9 @@
 /* debug only for fg */
 static bool dim_trig_fg;
 module_param_named(dim_trig_fg, dim_trig_fg, bool, 0664);
+static int dim_trig_delay = 1;
+module_param_named(dim_trig_delay, dim_trig_delay, int, 0664);
+
 
 static bool fg_bypass;
 
@@ -3963,7 +3966,13 @@ void dim_pre_de_process(unsigned int channel)
 	}
 	if (dim_config_crc_icl()) //add for crc @2k22-0102
 		dimh_set_crc_init(ppre->field_count_for_cont);
-
+	if (IS_I_SRC(ppre->di_inp_buf->vframe->type) &&
+		(ppre->di_inp_buf->vframe->width == 1440 ||
+		 (IS_COMP_MODE(ppre->di_inp_buf->vframe->type) &&
+		  ppre->di_inp_buf->vframe->compWidth == 1440)))
+		dim_hw_hold_en(dim_trig_delay);
+	else
+		dim_hw_hold_en(0);
 	if (IS_ERR_OR_NULL(ppre->di_wr_buf))
 		return;
 	if (dim_hdr_ops() && ppre->di_wr_buf->c.en_hdr)

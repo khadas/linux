@@ -552,6 +552,7 @@ void read_new_pulldown_info(struct FlmModReg_t *pFMRegp);
 #endif
 void dim_pulldown_info_clear_g12a(const struct reg_acc *op);
 void dimh_combing_pd22_window_config(unsigned int width, unsigned int height);
+void dim_hw_hold_en(int hold_enable);
 void dimh_hw_init(bool pulldown_en, bool mc_enable);
 void dimh_hw_uninit(void);
 void dimh_set_slv_mcvec(unsigned int en);

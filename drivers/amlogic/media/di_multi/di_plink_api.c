@@ -7655,6 +7655,11 @@ static void dpvpph_prelink_sw(const struct reg_acc *op, bool p_link)
 			op->bwr(DI_TOP_CTRL, 1, 0, 1);// 1:pre link vpp  0:post link vpp
 			op->bwr(VD1_AFBCD0_MISC_CTRL, 1, 8, 6);            // data path
 			op->bwr(VD1_AFBCD0_MISC_CTRL, 0, 16, 1);    // line buffer
+			if (DIM_IS_ICS_T5M) {
+				op->wr(DI_PRE_HOLD, 0x0);
+				op->wr(DI_AFBCE0_HOLD_CTRL, 0x0);
+				op->wr(DI_AFBCE1_HOLD_CTRL, 0x0);
+			}
 		} else {
 			op->bwr(DI_AFBCE_CTRL, 1, 3, 1);
 			//op->wr(VD1_AFBCD0_MISC_CTRL, 0x100100);
@@ -7667,6 +7672,12 @@ static void dpvpph_prelink_sw(const struct reg_acc *op, bool p_link)
 	} else {
 		/* set off */
 		dpvpph_gl_disable(op);	//test-05
+		/* reset prehold reg*/
+		if (DIM_IS_ICS_T5M) {
+			op->wr(DI_PRE_HOLD, 0x0);
+			op->wr(DI_AFBCE0_HOLD_CTRL, 0x0);
+			op->wr(DI_AFBCE1_HOLD_CTRL, 0x0);
+		}
 		if (DIM_IS_IC_EF(SC2)) {
 			dbg_plink1("c_sw:sc2\n");
 			op->bwr(VD1_AFBCD0_MISC_CTRL, 0, 8, 6);

@@ -593,6 +593,31 @@ void dim_hw_init_reg(void)
 	PR_INF("%s, 0x%x\n", __func__, DIM_RDMA_RD(DI_IF0_LUMA_FIFO_SIZE));
 }
 
+/*
+ * 1733:pre_hold hold_en=bit31 pass/hold=bit[11:0]/bit[27:16]
+ * 17d4:nrwr_hold hold_en=bit31 pass/hold=bit[11:0]/bit[23:12]
+ * 17d5:diwr_hold hold_en=bit31 pass/hold=bit[11:0]/bit[23:12]
+ */
+void dim_hw_hold_en(int hold_enable)
+{
+	if (!DIM_IS_ICS_T5M)
+		return;
+	if (hold_enable == 1) {
+		DIM_RDMA_WR(DI_PRE_HOLD, 0x80010009);
+		DIM_RDMA_WR(DI_AFBCE0_HOLD_CTRL, 0x80007003);
+		DIM_RDMA_WR(DI_AFBCE1_HOLD_CTRL, 0x80007003);
+	} else if (hold_enable == 2) {
+		DIM_RDMA_WR(DI_PRE_HOLD, 0);
+		DIM_RDMA_WR(DI_AFBCE0_HOLD_CTRL, 0x80007003);
+		DIM_RDMA_WR(DI_AFBCE1_HOLD_CTRL, 0x80007003);
+	} else if (hold_enable == 0) {
+		DIM_RDMA_WR(DI_PRE_HOLD, 0x0);
+		DIM_RDMA_WR(DI_AFBCE0_HOLD_CTRL, 0x0);
+		DIM_RDMA_WR(DI_AFBCE1_HOLD_CTRL, 0x0);
+	} else {
+	}
+}
+
 void dimh_hw_init(bool pd_enable, bool mc_enable)
 {
 	unsigned short fifo_size_vpp = 0xc0;
