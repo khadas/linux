@@ -6540,7 +6540,8 @@ void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1, int l
 	ATRACE_COUNTER(__func__,  0);
 }
 
-s32 primary_render_frame(struct video_layer_s *layer)
+s32 primary_render_frame(struct video_layer_s *layer,
+					const struct vinfo_s *vinfo)
 {
 	struct vpp_frame_par_s *frame_par;
 	bool force_setting = false;
@@ -6598,8 +6599,17 @@ s32 primary_render_frame(struct video_layer_s *layer)
 			di_in_p.win.x_end = layer->cur_frame_par->VPP_hd_end_lines_;
 			di_in_p.win.y_st = layer->cur_frame_par->VPP_vd_start_lines_;
 			di_in_p.win.y_end = layer->cur_frame_par->VPP_vd_end_lines_;
+			di_in_p.vinfo.x_d_st = layer->cur_frame_par->VPP_hsc_startp;
+			di_in_p.vinfo.x_d_end = layer->cur_frame_par->VPP_hsc_endp;
+			di_in_p.vinfo.y_d_st = layer->cur_frame_par->VPP_vsc_startp;
+			di_in_p.vinfo.y_d_end = layer->cur_frame_par->VPP_vsc_endp;
+			di_in_p.vinfo.x_d_size = di_in_p.vinfo.x_d_end - di_in_p.vinfo.x_d_st + 1;
+			di_in_p.vinfo.y_d_size = di_in_p.vinfo.y_d_end - di_in_p.vinfo.y_d_st + 1;
 			di_in_p.win.x_size = di_in_p.win.x_end - di_in_p.win.x_st + 1;
 			di_in_p.win.y_size = di_in_p.win.y_end - di_in_p.win.y_st + 1;
+			di_in_p.vinfo.htotal = vinfo->htotal;
+			di_in_p.vinfo.vtotal = vinfo->vtotal;
+			di_in_p.vinfo.frequency = vinfo->std_duration;
 			di_in_p.plink_reverse = glayer_info[0].reverse;
 			di_in_p.plink_hv_mirror = glayer_info[0].mirror;
 			di_in_p.dmode = EPVPP_DISPLAY_MODE_NR;
@@ -10006,7 +10016,7 @@ SET_FILTER:
 	}
 
 	/* filter setting management */
-	frame_par_di_set = primary_render_frame(&vd_layer[0]);
+	frame_par_di_set = primary_render_frame(&vd_layer[0], vinfo);
 	pip_render_frame(&vd_layer[1], vinfo);
 	pip2_render_frame(&vd_layer[2], vinfo);
 	video_secure_set(VPP0);

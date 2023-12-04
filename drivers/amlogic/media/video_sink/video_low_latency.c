@@ -1562,7 +1562,7 @@ static int lowlatency_vsync(u8 instance_id)
 	}
 
 	/* filter setting management */
-	primary_render_frame(&vd_layer[0]);
+	primary_render_frame(&vd_layer[0], vinfo);
 	pip_render_frame(&vd_layer[1], vinfo);
 	pip2_render_frame(&vd_layer[2], vinfo);
 	video_secure_set(VPP0);

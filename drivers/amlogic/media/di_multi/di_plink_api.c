@@ -37,6 +37,8 @@
 #define DIM_PRE_VPP_NAME	"di_pre_vpp" //"di_pre_vpp"
 //#endif
 
+#define MAX_DI_HOLD_CTRL_CNT 20
+
 /* MAX_FIFO_SIZE */
 #define MAX_FIFO_SIZE_PVPP		(32)
 //#define AUTO_NR_DISABLE		(1)
@@ -116,6 +118,104 @@ const char *const name_buf_cfg[] = {
 	"uhd_nv21_tvp",
 	"uhd_f",
 	"uhd_f_tvp",
+};
+
+struct di_hold_setting {
+	u8 level_id;
+	u32 clk_val;
+	u32 reg_val;
+};
+
+struct di_hold_ctrl {
+	u32 max_clk;
+	u32 last_clk_level;
+	u32 available_level_cnt;
+	struct di_hold_setting setting[MAX_DI_HOLD_CTRL_CNT];
+};
+
+struct di_hold_ctrl reg_set;
+
+static struct di_hold_setting setting[MAX_DI_HOLD_CTRL_CNT] = {
+	{.level_id = 0,
+	.clk_val = 33,
+	.reg_val = 0x80130001,
+	},
+	{.level_id = 1,
+	.clk_val = 55,
+	.reg_val = 0x800b0001,
+	},
+	{.level_id = 2,
+	.clk_val = 66,
+	.reg_val = 0x80090001,
+	},
+	{.level_id = 3,
+	.clk_val = 111,
+	.reg_val = 0x80050001,
+	},
+	{.level_id = 4,
+	.clk_val = 148,
+	.reg_val = 0x80070002,
+	},
+	{.level_id = 5,
+	.clk_val = 180,
+	.reg_val = 0x80080003,
+	},
+	{.level_id = 6,
+	.clk_val = 200,
+	.reg_val = 0x80070003,
+	},
+	{.level_id = 7,
+	.clk_val = 240,
+	.reg_val = 0x80070004,
+	},
+	{.level_id = 8,
+	.clk_val = 277,
+	.reg_val = 0x80070005,
+	},
+	{.level_id = 9,
+	.clk_val = 302,
+	.reg_val = 0x80060005,
+	},
+	{.level_id = 10,
+	.clk_val = 333,
+	.reg_val = 0x80050005,
+	},
+	{.level_id = 11,
+	.clk_val = 363,
+	.reg_val = 0x80050006,
+	},
+	{.level_id = 12,
+	.clk_val = 388,
+	.reg_val = 0x80050007,
+	},
+	{.level_id = 13,
+	.clk_val = 423,
+	.reg_val = 0x80040007,
+	},
+	{.level_id = 14,
+	.clk_val = 466,
+	.reg_val = 0x80030007,
+	},
+	{.level_id = 15,
+	.clk_val = 518,
+	.reg_val = 0x80020007,
+	},
+	{.level_id = 16,
+	.clk_val = 544,
+	.reg_val = 0x80020009,
+	},
+	{.level_id = 17,
+	.clk_val = 599,
+	.reg_val = 0x80010009,
+	},
+	{.level_id = 18,
+	.clk_val = 610,
+	.reg_val = 0x8001000b
+	},
+	{.level_id = 19,
+	.clk_val = 624,
+	.reg_val = 0x8001000f
+	},
 };
 
 //static
@@ -353,6 +453,13 @@ static bool dpvpp_dbg_force_mem_en(void)
 static bool dpvpp_bypass_display(void)
 {
 	if (tst_pre_vpp & DI_BIT28)
+		return true;
+	return false;
+}
+
+static bool dpvpp_dbg_force_frc(void)
+{
+	if (tst_pre_vpp & DI_BIT30)
 		return true;
 	return false;
 }
@@ -5669,6 +5776,7 @@ static int dpvpp_display(struct vframe_s *vfm,
 	}
 	dbg_plink3("diff:0x%x\n", diff);
 	ndvfm->c.sts_diff = diff;//dbg only;
+	set_holdreg_by_in_out(vfm, para, op);
 	if (diff & EDIM_DVPP_DIFF_ALL) {
 		dim_print("%s:vfm:0x%px, in_para:0x%px, o:0x%px\n",
 		__func__, vfm, in_para, out_para);
@@ -9145,6 +9253,95 @@ bool dpvpp_try_reg(struct di_ch_s *pch, struct vframe_s *vfm)
 		return false;
 	}
 	return true;
+}
+
+int set_holdreg_by_in_out(struct vframe_s *vfm, struct pvpp_dis_para_in_s *in_para,
+			const struct reg_acc *op_in)
+{
+	const struct reg_acc *op;
+	long display_time_us_per_frame;
+	long v_percentage;
+	long vfm_in_pixels;
+	int out_frequency;
+	int ret = 0;
+	int ratio = 10;
+
+	static int cur_level;
+	int clk_need;
+	int i;
+	struct di_hold_ctrl *ctrl = &reg_set;
+
+	op = op_in;
+
+	if (!DIM_IS_ICS_T5M)
+		return ret;
+
+	if (in_para->win.y_size > 1088 || in_para->win.x_size > 1920 ||
+		vfm->width > 1920 || vfm->height > 1088 || vfm->compWidth > 1920 ||
+		vfm->compHeight > 1088) {
+		if (ctrl->last_clk_level != -1) {
+			op->wr(DI_PRE_HOLD, 0x0);
+			ctrl->last_clk_level = -1;
+			dbg_plink1("4k no need set hold reg\n");
+		}
+		return ret;
+	}
+
+	if (dpvpp_dbg_force_frc())
+		return ret;
+
+	memcpy(ctrl->setting, setting, sizeof(setting));
+	/*calculate current display need clk*/
+	out_frequency = in_para->vinfo.frequency;
+	v_percentage = in_para->vinfo.y_d_size * 100 / in_para->vinfo.vtotal;
+	display_time_us_per_frame  = (1 * 1000000 / out_frequency) * v_percentage / 100;
+	vfm_in_pixels = in_para->win.y_size * in_para->win.x_size;
+	clk_need = vfm_in_pixels / display_time_us_per_frame;
+
+	if (in_para->win.x_size > 1280 && in_para->win.y_size > 720)
+		ratio = 10;
+	if (in_para->win.x_size == 1280 && in_para->win.y_size == 720)
+		ratio = 32;
+	if (in_para->win.x_size == 640 && in_para->win.y_size == 480)
+		ratio = 10;
+	if (in_para->win.x_size > 640 && in_para->win.x_size < 1280)
+		ratio = 10;
+	clk_need = clk_need * ratio / 10;
+	for (i = 0 ; i < MAX_DI_HOLD_CTRL_CNT; i++) {
+		if (ctrl->setting[i].clk_val > clk_need) {
+			cur_level = ctrl->setting[i].level_id;
+			if (cur_level != ctrl->last_clk_level || cur_level == 0 ||
+				ctrl->last_clk_level == 0) {
+				dbg_plink1("<cur-%d switch last-%d>\n",
+					cur_level, ctrl->last_clk_level);
+				ctrl->last_clk_level = cur_level;
+					op->wr(DI_PRE_HOLD, ctrl->setting[i].reg_val);
+			}
+			dbg_plink1("clk <need:%d set:%d > level :%d\n",
+			clk_need, ctrl->setting[i].clk_val, ctrl->setting[i].level_id);
+			break;
+		}
+	}
+
+	dbg_plink1("%s h-v <%d,%d> frequency:%d\n vfm_in h-w <%d,%d> x_d/y_d<%d %d> %ld\n"
+		"vfm_pixels %ld v_percentage*100 %ld clk_val:reg_val <%d %x> ratio:%d\n",
+		__func__,
+		in_para->vinfo.htotal,
+		in_para->vinfo.vtotal,
+		in_para->vinfo.frequency,
+		in_para->win.y_size,
+		in_para->win.x_size,
+		in_para->vinfo.x_d_size,
+		in_para->vinfo.y_d_size,
+		display_time_us_per_frame,
+		vfm_in_pixels,
+		v_percentage,
+		ctrl->setting[cur_level].clk_val,
+		ctrl->setting[cur_level].reg_val,
+		ratio
+		);
+
+	return ret;
 }
 
 /*di_display_pre_vpp_link*/
