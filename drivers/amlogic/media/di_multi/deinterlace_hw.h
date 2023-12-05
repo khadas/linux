@@ -316,6 +316,9 @@ struct DI_MIF_S {
 	/**/
 	enum DI_MIF0_ID	mif_index; /* */
 	char *name;
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	unsigned int bit8_flag;
+#endif
 };
 
 struct DI_SIM_MIF_S {
@@ -369,6 +372,10 @@ struct DI_SIM_MIF_S {
 	unsigned short blend_en;		//20220126
 	unsigned short vecrd_offset;	//20220126
 	enum DI_MIFS_ID	mif_index; /* */
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	unsigned int nr_wr_mif_8bit	:3;
+	bool di_wr_bit8_flag;
+#endif
 };
 
 struct DI_MC_MIF_s {

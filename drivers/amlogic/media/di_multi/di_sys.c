@@ -53,6 +53,10 @@
 /*dma_get_cma_size_int_byte*/
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+#include <linux/amlogic/media_cooling.h>
+#endif
+
 #include "deinterlace_dbg.h"
 #include "deinterlace.h"
 #include "di_data_l.h"
@@ -2636,6 +2640,56 @@ unsigned int mem_release_free(struct di_ch_s *pch)
 	return rls_pst;
 }
 
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+
+struct media_cooling_device *cool_device;
+
+void register_media_cooling(void)
+{
+	struct thermal_cooling_device *ret = 0;
+
+	if (!cfgg(TEMP_CONTROL))
+		return;
+	cool_device = kzalloc(sizeof(*cool_device), GFP_KERNEL);
+		if  (!cool_device) {
+			PR_ERR("%s fail to register cool_device memory.\n", __func__);
+			return;
+		}
+	ret = media_cooling_register(cool_device);
+	if (!ret) {
+		PR_ERR("%s: failed to allocate major number\n", __func__);
+		goto fail_media_cooling_register;
+	}
+	cool_device->maxstep =	2;
+	cool_device->set_media_cooling_state = set_bitmode_from_state;
+fail_media_cooling_register:
+	kfree(cool_device);
+	cool_device = NULL;
+}
+
+void unregister_media_cooling(void)
+{
+	if (!cfgg(TEMP_CONTROL))
+		return;
+	kfree(cool_device);
+	cool_device = NULL;
+}
+
+int set_bitmode_from_state(int state)
+{
+	if (!cfgg(TEMP_CONTROL))
+		return 0;
+	if (state == 0) {
+		dimp_set(edi_mp_force_422_8bit, 0);
+		dim_print("bit_mode :10");
+	}
+	if (state == 1 || state == 2) {
+		dimp_set(edi_mp_force_422_8bit, 1);
+		dim_print("bit_mode :8");
+	}
+	return 1;
+}
+#endif
 /********************************************/
 /* post afbc table */
 
@@ -4040,7 +4094,9 @@ static int dim_probe(struct platform_device *pdev)
 	dim_debugfs_init();	/*2018-07-18 add debugfs*/
 
 	dimh_patch_post_update_mc_sw(DI_MC_SW_IC, true);
-
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	register_media_cooling();
+#endif
 	PR_INF("%s:ok\n", __func__);
 	return ret;
 
@@ -4138,6 +4194,10 @@ static int dim_remove(struct platform_device *pdev)
 	di_pdev->local_ud_addr = NULL;
 	kfree(di_pdev);
 	di_pdev = NULL;
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+
+	unregister_media_cooling();
+#endif
 	PR_INF("%s:finish\n", __func__);
 	return 0;
 }

@@ -152,5 +152,10 @@ bool mm_codec_alloc(const char *owner, size_t count,
 			   struct dim_mm_s *o,
 			   bool tvp_flg);
 
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+void unregister_media_cooling(void);
+int set_bitmode_from_state(int state);
+void register_media_cooling(void);
+#endif
 /*-------------------------*/
 #endif	/*__DI_SYS_H__*/

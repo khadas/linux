@@ -382,6 +382,9 @@ struct di_buf_s {
 	bool hf_irq;
 	bool dw_have;
 	bool flg_dummy;
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	bool bit_8_flag;
+#endif
 };
 
 #define RDMA_DET3D_IRQ			0x20

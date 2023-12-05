@@ -291,6 +291,12 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			EDI_CFG_TB,
 			0,
 			K_DI_CFG_T_FLG_DTS},
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	[EDI_CFG_TEMP_CONTROL]  = {"temp_control",
+			EDI_CFG_TEMP_CONTROL,
+			0,
+			K_DI_CFG_T_FLG_DTS},
+#endif
 	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
 			K_DI_CFG_T_FLG_NONE},
 
@@ -916,6 +922,10 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
 				edi_mp_tb_dump, 0},//1400
 	[edi_mp_prelink_hold_line]	= {"pre_hold_line:ushort:8",
 				edi_mp_prelink_hold_line, 8},
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	[edi_mp_force_422_8bit]	= {"force_422_8bit:8",
+				edi_mp_force_422_8bit, -1},
+#endif
 	[EDI_MP_SUB_DI_E]  = {"di end-------",
 				EDI_MP_SUB_DI_E, 0},
 	/**************************************/
@@ -3188,6 +3198,10 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		dimp_set(edi_mp_prog_proc_config, 0x23);
 		dimp_set(edi_mp_use_2_interlace_buff, 1);
 	}
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	pch->record_10bit_flag = 1;
+	pch->record_8bit_flag = 1;
+#endif
 	pch->src_type = vframe->source_type;
 	if ((vframe->flag & VFRAME_FLAG_DI_P_ONLY) || bget(&dim_cfg, 1))
 		ponly_enable = true;

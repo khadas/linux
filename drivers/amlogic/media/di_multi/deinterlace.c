@@ -5662,6 +5662,62 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			  vframe->index_disp,
 			  jiffies_to_msecs(jiffies_64 -
 			  vframe->ready_jiffies64));
+
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+		if (DIM_IS_IC_TXHD2) {
+			ppre->di_nrwr_mif.nr_wr_mif_8bit = -1;
+			if (!dimp_get(edi_mp_force_422_8bit)) {
+				if (pch->record_10bit_flag) {
+					pch->switch_index = pch->cur_index;
+					dim_print("set 10 bit\n");
+					pch->record_10bit_flag = 0;
+					pch->record_8bit_flag = 1;
+					ppre->di_nrwr_mif.nr_wr_mif_8bit = 0;
+				}
+			}
+			if (dimp_get(edi_mp_force_422_8bit) == 1) {
+				if (pch->record_8bit_flag) {
+					dim_print("set 8 bit\n");
+					pch->switch_index = pch->cur_index;
+					pch->record_10bit_flag = 1;
+					pch->record_8bit_flag = 0;
+					ppre->di_nrwr_mif.nr_wr_mif_8bit = 1;
+				}
+			}
+		}
+		dim_print("flag 10-8:<%d %d> index cur-switch:<%d %d> %d\n",
+			pch->record_10bit_flag, pch->record_8bit_flag,
+			pch->cur_index, pch->switch_index, ppre->di_nrwr_mif.nr_wr_mif_8bit);
+		if (ppre->di_nrwr_mif.nr_wr_mif_8bit == 1) {
+			if (pch->cur_index == (pch->switch_index + 1)) {
+				ppre->di_chan2_mif.bit8_flag = 1;
+				dim_print("di_chan2_mif->bit8_flag\n");
+			}
+
+			if (pch->cur_index == (pch->switch_index + 2)) {
+				ppre->di_mem_mif.bit8_flag = 1;
+				dim_print("di_mem_mif->bit8_flag\n");
+			}
+
+			if (pch->cur_index == (pch->switch_index + 4))
+				ppre->di_nrwr_mif.nr_wr_mif_8bit = 2;
+
+		} else if (!ppre->di_nrwr_mif.nr_wr_mif_8bit) {
+			if (pch->cur_index == (pch->switch_index + 1)) {
+				ppre->di_chan2_mif.bit8_flag = 0;
+				dim_print("di_chan2_mif->bit8_flag\n");
+			}
+
+			if (pch->cur_index == (pch->switch_index + 2)) {
+				ppre->di_mem_mif.bit8_flag = 0;
+				dim_print("di_mem_mif->bit8_flag\n");
+			}
+
+			if (pch->cur_index == (pch->switch_index + 4))
+				ppre->di_nrwr_mif.nr_wr_mif_8bit = 3;
+		}
+		dim_print("pch->cut_index:%d\n", pch->cur_index++);
+#endif
 		vframe->prog_proc_config = (cfg_prog_proc & 0x20) >> 5;
 
 		bit10_pack_patch =  (is_meson_gxtvbb_cpu() ||
@@ -7570,6 +7626,9 @@ static void dimpst_fill_outvf(struct vframe_s *vfm,
 	unsigned int ch;
 	struct di_ch_s *pch;
 	bool ext_buf = false;
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	unsigned int ori_vfm_bitdepth;
+#endif
 
 	//check ext buffer:
 	ch = di_buf->channel;
@@ -7673,7 +7732,18 @@ static void dimpst_fill_outvf(struct vframe_s *vfm,
 				  BITDEPTH_U8	|
 				  BITDEPTH_V8);
 	}
-
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	ori_vfm_bitdepth = vfm->bitdepth;
+	if (di_buf->bit_8_flag == 1) {
+		dim_print("bitdepth: 0x%x\n", vfm->bitdepth);
+		vfm->bitdepth &= ~(BITDEPTH_MASK);
+		vfm->bitdepth |= (FULL_PACK_422_MODE);
+		vfm->bitdepth |= (BITDEPTH_Y8	| BITDEPTH_U8 | BITDEPTH_V8);
+	} else if (!di_buf->bit_8_flag) {
+		vfm->bitdepth = ori_vfm_bitdepth;
+	}
+	dim_print("%s bitdepth: 0x%x\n", __func__, vfm->bitdepth);
+#endif
 	if (de_devp->pps_enable &&
 	    dimp_get(edi_mp_pps_position) == 0) {
 		if (dimp_get(edi_mp_pps_dstw))
@@ -8019,7 +8089,16 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 	}
 	if (dip_itf_is_ins(pch) && dim_dbg_new_int(2))
 		dim_dbg_buffer2(di_buf->c.buffer, 7);
-
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	if (DIM_IS_IC_TXHD2) {
+		ppost->di_buf2_mif.bit8_flag = ppre->di_nrwr_mif.nr_wr_mif_8bit;
+		dim_print("di_nrwr_mif.nr_wr_mif_8bit:%d\n", ppre->di_nrwr_mif.nr_wr_mif_8bit);
+		if (ppost->di_buf2_mif.bit8_flag == 1 || ppost->di_buf2_mif.bit8_flag == 2)
+			di_buf->bit_8_flag = 1;
+		else if (ppost->di_buf2_mif.bit8_flag == 0 || ppost->di_buf2_mif.bit8_flag == 3)
+			di_buf->bit_8_flag = 0;
+	}
+#endif
 #ifdef DIM_OUT_NV21
 	/* nv 21*/
 	if (is_mask(SC2_DW_EN))
@@ -8752,6 +8831,13 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 			}
 			/* */
 		} else {
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+			if (DIM_IS_IC_TXHD2) {
+				ppost->di_buf0_mif.bit8_flag = ppre->di_chan2_mif.bit8_flag;
+				ppost->di_buf1_mif.bit8_flag = ppre->di_mem_mif.bit8_flag;
+				ppost->di_buf2_mif.bit8_flag = ppre->di_nrwr_mif.nr_wr_mif_8bit;
+			}
+#endif
 			dimh_enable_di_post_2
 				(&ppost->di_buf0_mif,
 				 &ppost->di_buf1_mif,
@@ -8816,6 +8902,13 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 				dim_print("0x%px:\n", acfg->buf_o->vframe);
 			}
 		} else {
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+			if (DIM_IS_IC_TXHD2) {
+				ppost->di_buf0_mif.bit8_flag = ppre->di_chan2_mif.bit8_flag;
+				ppost->di_buf1_mif.bit8_flag = ppre->di_mem_mif.bit8_flag;
+				ppost->di_buf2_mif.bit8_flag = ppre->di_nrwr_mif.nr_wr_mif_8bit;
+			}
+#endif
 			dimh_post_switch_buffer
 				(&ppost->di_buf0_mif,
 				 &ppost->di_buf1_mif,
@@ -9511,6 +9604,14 @@ static void set_pulldown_mode(struct di_buf_s *di_buf, unsigned int channel)
 			if (pre_buf_p) {
 				di_buf->pd_config.global_mode =
 					pre_buf_p->pd_config.global_mode;
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+				if (DIM_IS_IC_TXHD2) {
+					if (ppre->di_nrwr_mif.nr_wr_mif_8bit == 1 ||
+						ppre->di_nrwr_mif.nr_wr_mif_8bit == 0) {
+						di_buf->pd_config.global_mode = PULL_DOWN_EI;
+					}
+				}
+#endif
 			} else {
 				/* ary add 2019-06-19*/
 				di_buf->pd_config.global_mode =
@@ -10706,6 +10807,10 @@ void di_unreg_variable(unsigned int channel)
 	pch->sumx.need_local = 0;
 	pch->self_trig_need = 0;
 	pch->rsc_bypass.d32 = 0;
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	pch->record_10bit_flag = 0;
+	pch->record_8bit_flag = 0;
+#endif
 	set_bypass2_complete(channel, false);
 	init_completion(&tsk->fcmd[channel].alloc_done);
 	dbg_timer_clear(channel);

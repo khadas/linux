@@ -1710,6 +1710,9 @@ static void set_di_mem_mif(struct DI_MIF_S *mif, int urgent, int hold_line)
 	unsigned int chroma0_rpt_loop_end;
 	unsigned int chroma0_rpt_loop_pat;
 	unsigned int reset_on_gofield;
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	unsigned int bit_mode_val;
+#endif
 
 	if (mif->set_separate_en != 0 && mif->src_field_mode == 1) {
 		chro_rpt_lastl_ctrl = 1;
@@ -1745,6 +1748,14 @@ static void set_di_mem_mif(struct DI_MIF_S *mif, int urgent, int hold_line)
 		chroma0_rpt_loop_pat = 0x00;
 	}
 
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	bit_mode_val = mif->bit_mode;
+	if (mif->bit8_flag == 1)
+		mif->bit_mode = 0;
+	else if (!mif->bit8_flag)
+		mif->bit_mode = 0x3;
+	dim_print("mif->bit_mode:%d\n", mif->bit_mode);
+#endif
 	bytes_per_pixel = mif->set_separate_en ? 0 : (mif->video_mode ? 2 : 1);
 	demux_mode = mif->video_mode;
 
@@ -2195,6 +2206,9 @@ static void set_di_chan2_mif(struct DI_MIF_S *mif, int urgent, int hold_line)
 	unsigned int chroma0_rpt_loop_end;
 	unsigned int chroma0_rpt_loop_pat;
 	unsigned int reset_on_gofield;
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	unsigned int bit_mode_val;
+#endif
 
 	if (mif->set_separate_en != 0 && mif->src_field_mode == 1) {
 		chro_rpt_lastl_ctrl = 1;
@@ -2242,7 +2256,15 @@ static void set_di_chan2_mif(struct DI_MIF_S *mif, int urgent, int hold_line)
 	}
 	#endif
 	demux_mode = mif->video_mode;
-
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	bit_mode_val = mif->video_mode;
+	dim_print("mif->bit8_flag:%d %d\n", mif->bit8_flag, mif->video_mode);
+	if (mif->bit8_flag == 1)
+		mif->bit_mode = 0;
+	else if (!mif->bit8_flag)
+		mif->bit_mode = 0x3;
+	dim_print("mif->bit_mode:%d\n", mif->bit_mode);
+#endif
 	/* ---------------------- */
 	/* General register */
 	/* ---------------------- */
@@ -2820,6 +2842,9 @@ void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 			     bool mc_enable, int vskip_cnt)
 {
 	int ei_only, buf1_en;
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	unsigned int bit_val[3] = {3, 3, 3};
+#endif
 
 	ei_only = ei_en && !blend_en && (di_vpp_en || di_ddr_en);
 	buf1_en =  (!ei_only && (di_ddr_en || di_vpp_en));
@@ -2862,6 +2887,32 @@ void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 						  di_mtnprd_mif->canvas_num, 16, 8);
 			/* current field mtn canvas index.*/
 		}
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+		if (DIM_IS_IC_TXHD2) {
+			/**
+			 ** post mif bitdepth follow nr mif change frame by frame
+			 ** 422 10bit: bit_val[*] = 0x3  422 8bit: bit_val[*] = 0x0
+			 ** post mif regs changed frame by frame due to the reference frame
+			 **/
+			if (di_buf2_mif->bit8_flag == 1 || di_buf2_mif->bit8_flag == 2)
+				bit_val[2] = 0;
+			if (di_buf0_mif->bit8_flag == 1)
+				bit_val[0] = 0;
+			if (di_buf1_mif->bit8_flag == 1)
+				bit_val[1] = 0;
+			if (!di_buf2_mif->bit8_flag)
+				bit_val[2] = 0x3;
+			if (!di_buf0_mif->bit8_flag)
+				bit_val[0] = 0x3;
+			if (!di_buf1_mif->bit8_flag)
+				bit_val[1] = 0x3;
+			DIM_DI_WR_REG_BITS(DI_IF0_GEN_REG3, bit_val[0] & 0x3, 8, 2);
+			DIM_DI_WR_REG_BITS(DI_IF1_GEN_REG3, bit_val[1] & 0x3, 8, 2);
+			DIM_DI_WR_REG_BITS(DI_IF2_GEN_REG3, bit_val[2] & 0x3, 8, 2);
+			DIM_DI_WR_REG_BITS(DI_DIWR_Y, bit_val[2] & 0x1, 14, 1);
+			DIM_DI_WR_REG_BITS(DI_DIWR_CTRL, bit_val[2] & 0x3, 22, 2);
+		}
+#endif
 	} else {
 		if ((VSYNC_RD_MPEG_REG(VIU_MISC_CTRL0) & 0x50000) != 0x50000)
 			DIM_VSC_WR_MPG_BT(VIU_MISC_CTRL0, 5, 16, 3);
@@ -3158,6 +3209,16 @@ void dimh_enable_di_post_2(struct DI_MIF_S		   *di_buf0_mif,
 						 di_diwr_mif->bit_mode);
 		} else {
 			dimh_pst_mif_set(di_diwr_mif, urgent, di_ddr_en);
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+			if (di_buf2_mif->bit8_flag == 1 || di_buf2_mif->bit8_flag == 2) {
+				di_buf2_mif->bit_mode = 0;
+				di_diwr_mif->bit_mode = 0;
+			}
+			if (di_buf0_mif->bit8_flag == 1)
+				di_buf0_mif->bit_mode = 0;
+			if (di_buf1_mif->bit8_flag == 1)
+				di_buf1_mif->bit_mode = 0;
+#endif
 			post_bit_mode_config(di_buf0_mif->bit_mode,
 					     di_buf1_mif->bit_mode,
 					     di_buf2_mif->bit_mode,
@@ -3178,6 +3239,16 @@ void dimh_enable_di_post_2(struct DI_MIF_S		   *di_buf0_mif,
 				      (urgent << 16)		|
 				      (2 << 26)			|
 				      (di_ddr_en << 30));
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+		if (di_buf2_mif->bit8_flag == 1 || di_buf2_mif->bit8_flag == 2) {
+			di_buf2_mif->bit_mode = 0;
+			di_diwr_mif->bit_mode = 0;
+		}
+		if (di_buf0_mif->bit8_flag == 1)
+			di_buf0_mif->bit_mode = 0;
+		if (di_buf1_mif->bit8_flag == 1)
+			di_buf1_mif->bit_mode = 0;
+#endif
 		post_bit_mode_config(di_buf0_mif->bit_mode,
 				     di_buf1_mif->bit_mode,
 				     di_buf2_mif->bit_mode,
@@ -5087,6 +5158,9 @@ static void dimh_wrmif_set(struct DI_SIM_MIF_S *cfg_mif,
 {
 	const unsigned int *reg;
 	unsigned int ctr;
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	unsigned int bit_mode_val;
+#endif
 
 	reg = &reg_mifs[mifsel][0];
 
@@ -5095,6 +5169,17 @@ static void dimh_wrmif_set(struct DI_SIM_MIF_S *cfg_mif,
 
 	if (!cfg_mif->ddr_en)
 		return;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	if (DIM_IS_IC_TXHD2) {
+		bit_mode_val = cfg_mif->bit_mode;
+		if (cfg_mif->nr_wr_mif_8bit == 1 ||
+			cfg_mif->nr_wr_mif_8bit == 2) {
+			cfg_mif->bit_mode = 0;
+		} else if (cfg_mif->nr_wr_mif_8bit == 0)
+			cfg_mif->bit_mode = bit_mode_val;
+	}
+#endif
 
 	ops->wr(reg[EDI_MIFS_X],
 		(cfg_mif->l_endian		<< 31)	|

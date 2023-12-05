@@ -173,6 +173,9 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_EN_PRE_LINK,
 	EDI_CFG_AFBCE_LOSS_EN,
 	EDI_CFG_TB,
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	EDI_CFG_TEMP_CONTROL,
+#endif
 	EDI_CFG_END,
 };
 
@@ -1079,6 +1082,9 @@ enum EDI_MP_UI_T {
 	edi_mp_blend_mode,
 	edi_mp_tb_dump,
 	edi_mp_prelink_hold_line,
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	edi_mp_force_422_8bit,
+#endif
 	EDI_MP_SUB_DI_E,
 	/**************************************/
 	EDI_MP_SUB_NR_B,
@@ -2080,6 +2086,12 @@ struct di_ch_s {
 	bool en_tb; //
 	unsigned char tb_owner;	//
 	bool	tb_busy;//
+#ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
+	bool record_8bit_flag;
+	bool record_10bit_flag;
+	unsigned int cur_index;
+	unsigned int switch_index;
+#endif
 };
 
 struct dim_policy_s {
