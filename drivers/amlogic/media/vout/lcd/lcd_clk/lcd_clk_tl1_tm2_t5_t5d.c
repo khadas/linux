@@ -84,7 +84,7 @@ static void lcd_pll_ss_enable(struct aml_lcd_drv_s *pdrv, int status)
 		return;
 
 	pll_ctrl2 = lcd_ana_read(HHI_TCON_PLL_CNTL2);
-	pll_ctrl2 &= ~((0xf << 16) | (0xf << 28));
+	pll_ctrl2 &= ~((1 << 15) | (0xf << 16) | (0xf << 28));
 
 	if (status) {
 		if (cconf->ss_level > 0)
@@ -97,7 +97,7 @@ static void lcd_pll_ss_enable(struct aml_lcd_drv_s *pdrv, int status)
 
 	if (flag) {
 		cconf->ss_en = 1;
-		pll_ctrl2 |= ((cconf->ss_dep_sel << 28) | (cconf->ss_str_m << 16));
+		pll_ctrl2 |= ((1 << 15) | (cconf->ss_dep_sel << 28) | (cconf->ss_str_m << 16));
 		LCDPR("pll ss enable: level %d, %dppm\n", cconf->ss_level, cconf->ss_ppm);
 	} else {
 		cconf->ss_en = 0;
@@ -117,14 +117,14 @@ static void lcd_set_pll_ss_level(struct aml_lcd_drv_s *pdrv)
 
 	level = cconf->ss_level;
 	pll_ctrl2 = lcd_ana_read(HHI_TCON_PLL_CNTL2);
-	pll_ctrl2 &= ~((0xf << 16) | (0xf << 28));
+	pll_ctrl2 &= ~((1 << 15) | (0xf << 16) | (0xf << 28));
 
 	if (level > 0) {
 		cconf->ss_en = 1;
 		cconf->ss_dep_sel = pll_ss_reg_tl1[level][0];
 		cconf->ss_str_m = pll_ss_reg_tl1[level][1];
 		cconf->ss_ppm = cconf->ss_dep_sel * cconf->ss_str_m * cconf->data->ss_dep_base;
-		pll_ctrl2 |= ((cconf->ss_dep_sel << 28) | (cconf->ss_str_m << 16));
+		pll_ctrl2 |= ((1 << 15) | (cconf->ss_dep_sel << 28) | (cconf->ss_str_m << 16));
 		LCDPR("set pll spread spectrum: level %d, %dppm\n", level, cconf->ss_ppm);
 	} else {
 		cconf->ss_en = 0;
