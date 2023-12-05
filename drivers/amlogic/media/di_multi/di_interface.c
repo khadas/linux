@@ -674,6 +674,14 @@ enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer)
 	} else {
 		memcpy(&pins->c.vfm_cp, buffer->vf, sizeof(pins->c.vfm_cp));
 	}
+	if (pins->c.vfm_cp.type & VIDTYPE_COMPRESS) {
+		if (buffer->vf && is_src_crop_valid(buffer->vf->src_crop)) {
+			buffer->vf->compHeight =
+				buffer->vf->compHeight - buffer->vf->src_crop.bottom;
+			pins->c.vfm_cp.compHeight =
+				pins->c.vfm_cp.compHeight - pins->c.vfm_cp.src_crop.bottom;
+		}
+	}
 	plink_dct = dip_plink_check_ponly_dct(pch, &pins->c.vfm_cp);
 	dbg_poll("ins:plink_dct=%d,flg_q=%d\n", plink_dct, flg_q);
 
