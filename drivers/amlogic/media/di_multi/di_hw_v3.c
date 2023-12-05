@@ -367,11 +367,21 @@ static void di_mif0_linear_wr_cfg_addr_only(struct DI_MIF_S *mif,
 			mif->addr2);
 
 	if (mif_index == 0) {
-		WRMIF_BADDR0          = DI_NRWR_BADDR0;
-		WRMIF_BADDR1          = DI_NRWR_BADDR1;
+		if (DIM_IS_IC(T3X)) {
+			WRMIF_BADDR0          = DI_T3X_NRWR_BADDR0;
+			WRMIF_BADDR1          = DI_T3X_NRWR_BADDR1;
+		} else {
+			WRMIF_BADDR0          = DI_NRWR_BADDR0;
+			WRMIF_BADDR1          = DI_NRWR_BADDR1;
+		}
 	} else if (mif_index == 1) {
-		WRMIF_BADDR0          = DI_DIWR_BADDR0;
-		WRMIF_BADDR1          = DI_DIWR_BADDR1;
+		if (DIM_IS_IC(T3X)) {
+			WRMIF_BADDR0	      = DI_T3X_DIWR_BADDR0;
+			WRMIF_BADDR1	      = DI_T3X_DIWR_BADDR1;
+		} else {
+			WRMIF_BADDR0	      = DI_DIWR_BADDR0;
+			WRMIF_BADDR1	      = DI_DIWR_BADDR1;
+		}
 	} else {
 		PR_ERR("ERROR:WR_MIF WRONG!!!\n");
 		return;
@@ -398,11 +408,21 @@ static void di_mif0_linear_wr_cfg(struct DI_MIF_S *mif,
 		op = ops;
 
 	if (mif_index == 0) {
-		WRMIF_STRIDE0         = DI_NRWR_STRIDE0;
-		WRMIF_STRIDE1         = DI_NRWR_STRIDE1;
+		if (DIM_IS_IC(T3X)) {
+			WRMIF_STRIDE0         = DI_T3X_NRWR_STRIDE0;
+			WRMIF_STRIDE1         = DI_T3X_NRWR_STRIDE1;
+		} else {
+			WRMIF_STRIDE0	      = DI_NRWR_STRIDE0;
+			WRMIF_STRIDE1	      = DI_NRWR_STRIDE1;
+		}
 	} else if (mif_index == 1) {
-		WRMIF_STRIDE0         = DI_DIWR_STRIDE0;
-		WRMIF_STRIDE1         = DI_DIWR_STRIDE1;
+		if (DIM_IS_IC(T3X)) {
+			WRMIF_STRIDE0	      = DI_T3X_DIWR_STRIDE0;
+			WRMIF_STRIDE1	      = DI_T3X_DIWR_STRIDE1;
+		} else {
+			WRMIF_STRIDE0         = DI_DIWR_STRIDE0;
+			WRMIF_STRIDE1         = DI_DIWR_STRIDE1;
+		}
 	} else {
 		PR_ERR("ERROR:WR_MIF WRONG!!!\n");
 		return;
@@ -485,15 +505,29 @@ void di_mif0_linear_wr_cfg2(struct DI_SIM_MIF_S *mif, int mif_index)
 			mif->addr2);
 
 	if (mif_index == 0) {
-		WRMIF_BADDR0          = DI_NRWR_BADDR0;
-		WRMIF_BADDR1          = DI_NRWR_BADDR1;
-		WRMIF_STRIDE0         = DI_NRWR_STRIDE0;
-		WRMIF_STRIDE1         = DI_NRWR_STRIDE1;
+		if (DIM_IS_IC(T3X)) {
+			WRMIF_BADDR0          = DI_T3X_NRWR_BADDR0;
+			WRMIF_BADDR1          = DI_T3X_NRWR_BADDR1;
+			WRMIF_STRIDE0         = DI_T3X_NRWR_STRIDE0;
+			WRMIF_STRIDE1         = DI_T3X_NRWR_STRIDE1;
+		} else {
+			WRMIF_BADDR0          = DI_NRWR_BADDR0;
+			WRMIF_BADDR1          = DI_NRWR_BADDR1;
+			WRMIF_STRIDE0         = DI_NRWR_STRIDE0;
+			WRMIF_STRIDE1         = DI_NRWR_STRIDE1;
+		}
 	} else if (mif_index == 1) {
-		WRMIF_BADDR0          = DI_DIWR_BADDR0;
-		WRMIF_BADDR1          = DI_DIWR_BADDR1;
-		WRMIF_STRIDE0         = DI_DIWR_STRIDE0;
-		WRMIF_STRIDE1         = DI_DIWR_STRIDE1;
+		if (DIM_IS_IC(T3X)) {
+			WRMIF_BADDR0          = DI_T3X_DIWR_BADDR0;
+			WRMIF_BADDR1          = DI_T3X_DIWR_BADDR1;
+			WRMIF_STRIDE0         = DI_T3X_DIWR_STRIDE0;
+			WRMIF_STRIDE1         = DI_T3X_DIWR_STRIDE1;
+		} else {
+			WRMIF_BADDR0	      = DI_DIWR_BADDR0;
+			WRMIF_BADDR1	      = DI_DIWR_BADDR1;
+			WRMIF_STRIDE0	      = DI_DIWR_STRIDE0;
+			WRMIF_STRIDE1	      = DI_DIWR_STRIDE1;
+		}
 	} else {
 		PR_ERR("ERROR:WR_MIF WRONG!!!\n");
 		return;
@@ -877,7 +911,12 @@ static unsigned int set_afbcd_mult_simple(int index,
 	u32 rot_hshrk	= inp_afbcd->rot_hshrk; //rot_hshrk
 	u32 rot_hbgn	= inp_afbcd->rot_hbgn; //5 bits
 	u32 rot_vbgn	= inp_afbcd->rot_vbgn; //2 bits
-	u32 rot_en		= inp_afbcd->rot_en;	       //1 bits
+	u32 rot_en		= inp_afbcd->rot_en;//1 bits
+	//add from t3x
+	u32 fix_cr_en	= inp_afbcd->fix_cr_en         ;// 1 bits
+	u32 brst_len_add_en	= inp_afbcd->brst_len_add_en;// 1 bits
+	u32 brst_len_add_value	= inp_afbcd->brst_len_add_value;// 3 bits
+	u32 ofset_brst4_en	= inp_afbcd->ofset_brst4_en;// 1 bits
 
 /*input end *****************************************************/
 	u32 compbits_yuv;
@@ -1194,7 +1233,17 @@ static unsigned int set_afbcd_mult_simple(int index,
 		((rot_vbgn     & 0x3) << 8) | //rot_wrbgn_v
 		((rot_hbgn     & 0x1f) << 0)  //rot_wrbgn_h
 		);
-
+	if (DIM_IS_IC(T3X)) {
+		// set new feature
+		op->bwr((regs_ofst + AFBCDM_LOSS_CTRL), fix_cr_en, 4, 1);
+		//fix_cr_en
+		op->wr((regs_ofst + AFBCDM_BURST_CTRL),
+			(ofset_brst4_en	<< 4) | //reg_ofset_burst4_en
+			(brst_len_add_en	<< 3) |
+			//reg_burst_length_add_en
+			(brst_len_add_value << 0));
+			//reg_burst_length_add_value
+	}
 	//todo
 	//Wr_reg_bits(VD1_AFBCD0_MISC_CTRL, 1, 22, 1);  // select afbc mem
 	//Wr_reg_bits(VD1_AFBCD0_MISC_CTRL, 1, 10, 1);  //
@@ -1204,6 +1253,144 @@ static unsigned int set_afbcd_mult_simple(int index,
 	//Wr_reg_bits(VD2_AFBCD1_MISC_CTRL, 1, 12, 1);  // select afbc_dec0
 	return 0;
 } /* set_afbcd_mult*/
+
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+static const unsigned int reg_afbc_t3x[AFBC_ENC_V3_NUB][DIM_AFBCE_V3_T3X_NUB] = {
+	{
+		DI_AFBCE_ENABLE,
+		DI_AFBCE_MODE,
+		DI_AFBCE_SIZE_IN,
+		DI_AFBCE_BLK_SIZE_IN,
+		DI_AFBCE_HEAD_BADDR,
+		DI_AFBCE_MIF_SIZE,
+		DI_AFBCE_PIXEL_IN_HOR_SCOPE,
+		DI_AFBCE_PIXEL_IN_VER_SCOPE,
+		DI_AFBCE_CONV_CTRL,
+		DI_AFBCE_MIF_HOR_SCOPE,
+		DI_AFBCE_MIF_VER_SCOPE,
+		DI_AFBCE_STAT1,
+		DI_AFBCE_STAT2,
+		DI_AFBCE_FORMAT,
+		DI_AFBCE_MODE_EN,
+		DI_AFBCE_DWSCALAR,
+		DI_AFBCE_DEFCOLOR_1,
+		DI_AFBCE_DEFCOLOR_2,
+		DI_AFBCE_QUANT_ENABLE,
+		DI_AFBCE_IQUANT_LUT_1,
+		DI_AFBCE_IQUANT_LUT_2,
+		DI_AFBCE_IQUANT_LUT_3,
+		DI_AFBCE_IQUANT_LUT_4,
+		DI_AFBCE_RQUANT_LUT_1,
+		DI_AFBCE_RQUANT_LUT_2,
+		DI_AFBCE_RQUANT_LUT_3,
+		DI_AFBCE_RQUANT_LUT_4,
+		DI_AFBCE_YUV_FORMAT_CONV_MODE,
+		DI_AFBCE_DUMMY_DATA,
+		DI_AFBCE_CLR_FLAG,
+		DI_AFBCE_STA_FLAGT,
+		DI_AFBCE_MMU_NUM,
+		DI_AFBCE_MMU_RMIF_CTRL1,
+		DI_AFBCE_MMU_RMIF_CTRL2,
+		DI_AFBCE_MMU_RMIF_CTRL3,
+		DI_AFBCE_MMU_RMIF_CTRL4,
+		DI_AFBCE_MMU_RMIF_SCOPE_X,
+		DI_AFBCE_MMU_RMIF_SCOPE_Y,
+		DI_AFBCE_MMU_RMIF_RO_STAT,
+		DI_AFBCE_PIP_CTRL,
+		DI_AFBCE_ROT_CTRL,
+	},
+	{
+		DI_T3X_AFBCE_ENABLE,
+		DI_T3X_AFBCE_MODE,
+		DI_T3X_AFBCE_SIZE_IN,
+		DI_T3X_AFBCE_BLK_SIZE_IN,
+		DI_T3X_AFBCE_HEAD_BADDR,
+		DI_T3X_AFBCE_MIF_SIZE,
+		DI_T3X_AFBCE_PIXEL_IN_HOR_SCOPE,
+		DI_T3X_AFBCE_PIXEL_IN_VER_SCOPE,
+		DI_T3X_AFBCE_CONV_CTRL,
+		DI_T3X_AFBCE_MIF_HOR_SCOPE,
+		DI_T3X_AFBCE_MIF_VER_SCOPE,
+		DI_T3X_AFBCE_STAT1,
+		DI_T3X_AFBCE_STAT2,
+		DI_T3X_AFBCE_FORMAT,
+		DI_T3X_AFBCE_MODE_EN,
+		DI_T3X_AFBCE_DWSCALAR,
+		DI_T3X_AFBCE_DEFCOLOR_1,
+		DI_T3X_AFBCE_DEFCOLOR_2,
+		DI_T3X_AFBCE_QUANT_ENABLE,
+		DI_T3X_AFBCE_IQUANT_LUT_1,
+		DI_T3X_AFBCE_IQUANT_LUT_2,
+		DI_T3X_AFBCE_IQUANT_LUT_3,
+		DI_T3X_AFBCE_IQUANT_LUT_4,
+		DI_T3X_AFBCE_RQUANT_LUT_1,
+		DI_T3X_AFBCE_RQUANT_LUT_2,
+		DI_T3X_AFBCE_RQUANT_LUT_3,
+		DI_T3X_AFBCE_RQUANT_LUT_4,
+		DI_T3X_AFBCE_YUV_FORMAT_CONV_MODE,
+		DI_T3X_AFBCE_DUMMY_DATA,
+		DI_T3X_AFBCE_CLR_FLAG,
+		DI_T3X_AFBCE_STA_FLAGT,
+		DI_T3X_AFBCE_MMU_NUM,
+		DI_T3X_AFBCE_MMU_RMIF_CTRL1,
+		DI_T3X_AFBCE_MMU_RMIF_CTRL2,
+		DI_T3X_AFBCE_MMU_RMIF_CTRL3,
+		DI_T3X_AFBCE_MMU_RMIF_CTRL4,
+		DI_T3X_AFBCE_MMU_RMIF_SCOPE_X,
+		DI_T3X_AFBCE_MMU_RMIF_SCOPE_Y,
+		DI_T3X_AFBCE_MMU_RMIF_RO_STAT,
+		DI_T3X_AFBCE_PIP_CTRL,
+		DI_T3X_AFBCE_ROT_CTRL,
+		DI_T3X_AFBCE_LOSS_CTRL,
+		DI_T3X_AFBCE_LOSS_BURST_NUM,
+	},
+	{
+		DI_T3X_AFBCE1_ENABLE,
+		DI_T3X_AFBCE1_MODE,
+		DI_T3X_AFBCE1_SIZE_IN,
+		DI_T3X_AFBCE1_BLK_SIZE_IN,
+		DI_T3X_AFBCE1_HEAD_BADDR,
+		DI_T3X_AFBCE1_MIF_SIZE,
+		DI_T3X_AFBCE1_PIXEL_IN_HOR_SCOPE,
+		DI_T3X_AFBCE1_PIXEL_IN_VER_SCOPE,
+		DI_T3X_AFBCE1_CONV_CTRL,
+		DI_T3X_AFBCE1_MIF_HOR_SCOPE,
+		DI_T3X_AFBCE1_MIF_VER_SCOPE,
+		DI_T3X_AFBCE1_STAT1,
+		DI_T3X_AFBCE1_STAT2,
+		DI_T3X_AFBCE1_FORMAT,
+		DI_T3X_AFBCE1_MODE_EN,
+		DI_T3X_AFBCE1_DWSCALAR,
+		DI_T3X_AFBCE1_DEFCOLOR_1,
+		DI_T3X_AFBCE1_DEFCOLOR_2,
+		DI_T3X_AFBCE1_QUANT_ENABLE,
+		DI_T3X_AFBCE1_IQUANT_LUT_1,
+		DI_T3X_AFBCE1_IQUANT_LUT_2,
+		DI_T3X_AFBCE1_IQUANT_LUT_3,
+		DI_T3X_AFBCE1_IQUANT_LUT_4,
+		DI_T3X_AFBCE1_RQUANT_LUT_1,
+		DI_T3X_AFBCE1_RQUANT_LUT_2,
+		DI_T3X_AFBCE1_RQUANT_LUT_3,
+		DI_T3X_AFBCE1_RQUANT_LUT_4,
+		DI_T3X_AFBCE1_YUV_FORMAT_CONV_MODE,
+		DI_T3X_AFBCE1_DUMMY_DATA,
+		DI_T3X_AFBCE1_CLR_FLAG,
+		DI_T3X_AFBCE1_STA_FLAGT,
+		DI_T3X_AFBCE1_MMU_NUM,
+		DI_T3X_AFBCE1_MMU_RMIF_CTRL1,
+		DI_T3X_AFBCE1_MMU_RMIF_CTRL2,
+		DI_T3X_AFBCE1_MMU_RMIF_CTRL3,
+		DI_T3X_AFBCE1_MMU_RMIF_CTRL4,
+		DI_T3X_AFBCE1_MMU_RMIF_SCOPE_X,
+		DI_T3X_AFBCE1_MMU_RMIF_SCOPE_Y,
+		DI_T3X_AFBCE1_MMU_RMIF_RO_STAT,
+		DI_T3X_AFBCE1_PIP_CTRL,
+		DI_T3X_AFBCE1_ROT_CTRL,
+		DI_T3X_AFBCE1_LOSS_CTRL,
+		DI_T3X_AFBCE1_LOSS_BURST_NUM,
+	},
+};
+#endif
 
 static const unsigned int reg_afbc_e_v3[AFBC_ENC_V3_NUB][DIM_AFBCE_V3_NUB] = {
 	{
@@ -1365,7 +1552,7 @@ static unsigned int set_afbce_cfg_v1(int index,
 	//output blk scope
 	int blk_out_bgn_v = afbce->enc_win_bgn_v      >> 2;
 	//output blk scope
-
+	int mmu_page_size = afbce->mmu_page_size == 0 ? 4096 : 8192;
 	int        lossy_luma_en;
 	int        lossy_chrm_en;
 	int        reg_fmt444_comb;//calculate
@@ -1379,8 +1566,12 @@ static unsigned int set_afbce_cfg_v1(int index,
 		op = &di_pre_regset;
 	else
 		op = opin;
-
-	reg = &reg_afbc_e_v3[index][0];
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (DIM_IS_IC(T3X))
+		reg = &reg_afbc_t3x[index][0];
+	else
+#endif
+		reg = &reg_afbc_e_v3[index][0];
 
 	if (afbce->din_swt) {
 		index = (index == 1) ? 2 :
@@ -1525,7 +1716,33 @@ static unsigned int set_afbce_cfg_v1(int index,
 	op->bwr(reg[AFBCEX_PIP_CTRL], afbce->reg_pip_mode, 0, 1);
 
 	op->bwr(reg[AFBCEX_ROT_CTRL], afbce->rot_en, 4, 1);
+	if (DIM_IS_IC(T3X)) {
+		//set fix_cr_en
+		op->bwr(reg[AFBCEX_LOSS_CTRL], afbce->fix_cr_en, 31, 1);
+		//reg_fix_cr_en
+		op->bwr(reg[AFBCEX_LOSS_CTRL], afbce->rc_en, 30, 1);
+		//reg_rc_en
 
+		//set brst_len
+		op->bwr(reg[AFBCEX_FORMAT], afbce->brst_len_add_en, 10, 1);
+		//reg_fix_cr_en
+		op->bwr(reg[AFBCEX_FORMAT], afbce->ofset_brst4_en, 11, 1);
+		//reg_fix_cr_en
+		op->bwr(reg[AFBCEX_FORMAT], afbce->brst_len_add_value, 12, 3);
+		//reg_fix_cr_en
+		if (afbce->fix_cr_en == 1) {
+			op->bwr(reg[AFBCEX_LOSS_BURST_NUM], 7, 0, 5);
+			//reg_block_burst_num_3
+			op->bwr(reg[AFBCEX_LOSS_BURST_NUM], 8, 8, 5);
+			//reg_block_burst_num_2
+			op->bwr(reg[AFBCEX_LOSS_BURST_NUM], 7, 16, 5);
+			//reg_block_burst_num_1
+			op->bwr(reg[AFBCEX_LOSS_BURST_NUM], 8, 24, 5);
+			//reg_block_burst_num_0
+		}
+		//set mmu_page_size
+		op->bwr(reg[AFBCEX_MIF_SIZE], mmu_page_size, 0, 16);
+	}
 	op->bwr(reg[AFBCEX_ENABLE], 0, 12, 1);//go_line_cnt start
 	op->bwr(reg[AFBCEX_ENABLE], enable, 8, 1);//enable afbce
 	op->bwr(reg[AFBCEX_ENABLE], enable, 0, 1);//enable afbce
@@ -1534,6 +1751,7 @@ static unsigned int set_afbce_cfg_v1(int index,
 } /* set_afbce_cfg_v1 */
 
 /* for double write function */
+/* for t3x comb mode shrk0/ram1 from VLSI weipeng.xia*/
 static void set_shrk_ch(struct SHRK_S *srkcfg, const struct reg_acc *opin)
 {
 	const struct reg_acc *op;
@@ -1542,24 +1760,46 @@ static void set_shrk_ch(struct SHRK_S *srkcfg, const struct reg_acc *opin)
 		op = &di_pre_regset;
 	else
 		op = opin;
+	if (DIM_IS_IC(T3X)) {
+		if (!srkcfg->shrk_en) {
+			op->bwr(DI_T3X_DIWR_SHRK_CTRL, 0, 0, 1);
+			return;
+		}
+		/* pre / post select: 1: pre; 0; post */
+		op->bwr(DI_TOP_CTRL1, srkcfg->pre_post, 27, 1);
+		op->wr(DI_T3X_NRWR_SHRK_CTRL,
+		       ((srkcfg->h_shrk_mode & 0x3) << 8)  |
+		       ((srkcfg->v_shrk_mode & 0x3) << 6)  |
+		       ((srkcfg->shrk_en & 0x1)     << 0));
 
-	if (!srkcfg->shrk_en) {
-		op->bwr(DI_DIWR_SHRK_CTRL, 0, 0, 1);
-		return;
+		op->wr(DI_T3X_NRWR_SHRK_SIZE,
+		       ((srkcfg->hsize_in & 0x1fff) << 13) |	// reg_frm_hsize
+		       ((srkcfg->vsize_in & 0x1fff) << 0));	// reg_frm_vsize
+
+		op->bwr(DI_T3X_NRWR_SHRK_CTRL, srkcfg->frm_rst, 1, 1);
+
+	} else {
+		if (!srkcfg->shrk_en) {
+			op->bwr(DI_DIWR_SHRK_CTRL, 0, 0, 1);
+			return;
+		}
+		/* pre / post select: 1: pre; 0; post */
+		op->bwr(DI_TOP_CTRL1, srkcfg->pre_post, 27, 1);
+
+		op->wr(DI_DIWR_SHRK_CTRL,
+		       ((srkcfg->h_shrk_mode & 0x3) << 8)  |
+		       ((srkcfg->v_shrk_mode & 0x3) << 6)  |
+		       ((srkcfg->shrk_en & 0x1)     << 0));
+
+		op->wr(DI_DIWR_SHRK_SIZE,
+		       ((srkcfg->hsize_in & 0x1fff) << 13) |	// reg_frm_hsize
+		       ((srkcfg->vsize_in & 0x1fff) << 0));	// reg_frm_vsize
+
+		op->bwr(DI_DIWR_SHRK_CTRL, srkcfg->frm_rst, 1, 1);
 	}
-	/* pre / post select: 1: pre; 0; post */
-	op->bwr(DI_TOP_CTRL1, srkcfg->pre_post, 27, 1);
-
-	op->wr(DI_DIWR_SHRK_CTRL,
-	       ((srkcfg->h_shrk_mode & 0x3) << 8)  |
-	       ((srkcfg->v_shrk_mode & 0x3) << 6)  |
-	       ((srkcfg->shrk_en & 0x1)     << 0));
-
-	op->wr(DI_DIWR_SHRK_SIZE,
-	       ((srkcfg->hsize_in & 0x1fff) << 13) |	// reg_frm_hsize
-	       ((srkcfg->vsize_in & 0x1fff) << 0));	// reg_frm_vsize
-
-	op->bwr(DI_DIWR_SHRK_CTRL, srkcfg->frm_rst, 1, 1);
+	//default: In comb_mode, use shrink0 addr,
+	//shrink0 ram store addr 0-511, shrink1 ram store addr 511-1023
+	//exchange the shrink position, use shrink1 addr.
 }
 
 static void set_shrk_disable(const struct reg_acc *opin)
@@ -1570,7 +1810,10 @@ static void set_shrk_disable(const struct reg_acc *opin)
 		op = &di_pre_regset;
 	else
 		op = opin;
-	op->bwr(DI_DIWR_SHRK_CTRL, 0, 0, 1);
+	if (DIM_IS_IC(T3X))
+		op->bwr(DI_T3X_NRWR_SHRK_CTRL, 0, 0, 1);
+	else
+		op->bwr(DI_DIWR_SHRK_CTRL, 0, 0, 1);
 }
 
 static void set_mcdi_mif(struct DI_SIM_MIF_S *di_inf_default,
@@ -1986,7 +2229,7 @@ static void set_di_mif_v1(struct DI_MIF_S *mif,
 		op->wr(off + RDMIFXN_LUMA_FIFO_SIZE, 0xc0);
 	}
 
-	if (DIM_IS_ICS(T5W)) {
+	if (DIM_IS_ICS(T5W) || DIM_IS_ICS_T5M) {
 		//axi bus fifo from feijun.fan for t5w
 		op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, 0x80);
 		op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, 0x80);
@@ -2154,6 +2397,28 @@ static const unsigned int reg_wrmif_v3
 		DI_DIWR_CANVAS,
 		DIWR_DBG_AXI_CMD_CNT,
 		DIWR_DBG_AXI_DAT_CNT,
+	},
+};
+
+static const unsigned int reg_wrmif_v4
+	[DIM_WRMIF_MIF_V3_NUB][DIM_WRMIF_SET_V3_NUB] = {
+	[EDI_MIFSM_NR] = {
+		DI_T3X_NRWR_X,
+		DI_T3X_NRWR_Y,
+		DI_T3X_NRWR_CTRL,
+		DI_T3X_NRWR_URGENT,
+		DI_T3X_NRWR_CANVAS,
+		T3X_NRWR_DBG_AXI_CMD_CNT,
+		T3X_NRWR_DBG_AXI_DAT_CNT,
+	},
+	[EDI_MIFSM_WR] = {
+		DI_T3X_DIWR_X,
+		DI_T3X_DIWR_Y,
+		DI_T3X_DIWR_CTRL,
+		DI_T3X_DIWR_URGENT,
+		DI_T3X_DIWR_CANVAS,
+		T3X_DIWR_DBG_AXI_CMD_CNT,
+		T3X_DIWR_DBG_AXI_DAT_CNT,
 	},
 };
 
@@ -2389,8 +2654,10 @@ static void set_wrmif_simple
 		stimulus_print("ERROR:WR_MIF WRONG!!!\n");
 		return;
 	}
-
-	reg = &reg_wrmif_v3[index][0];
+	if (DIM_IS_IC(T3X))
+		reg = &reg_wrmif_v4[index][0];
+	else
+		reg = &reg_wrmif_v3[index][0];
 
 	//////////////////////////////
 	//////Afbce Write registers
@@ -2480,7 +2747,10 @@ static void set_wrmif_simple_v3(struct DI_SIM_MIF_S *mif,
 				rgb_mode = 2;
 		}
 	}
-	reg = &reg_wrmif_v3[mifsel][0];
+	if (DIM_IS_IC(T3X))
+		reg = &reg_wrmif_v4[mifsel][0];
+	else
+		reg = &reg_wrmif_v3[mifsel][0];
 
 	//////////////////////////////
 	//////Afbce Write registers
@@ -2597,7 +2867,10 @@ static void set_wrmif_simple_pp(struct DI_MIF_S *mif,
 				rgb_mode = 2;
 		}
 	}
-	reg = &reg_wrmif_v3[mifsel][0];
+	if (DIM_IS_IC(T3X))
+		reg = &reg_wrmif_v4[mifsel][0];
+	else
+		reg = &reg_wrmif_v3[mifsel][0];
 
 	//////////////////////////////
 	//////Afbce Write registers
@@ -2691,7 +2964,10 @@ static void set_wrmif_simple_pp_addr_only(struct DI_MIF_S *mif,
 	if (is_mask(SC2_REG_MSK_nr))
 		op = &sc2reg;
 
-	reg = &reg_wrmif_v3[mifsel][0];
+	if (DIM_IS_IC(T3X))
+		reg = &reg_wrmif_v4[mifsel][0];
+	else
+		reg = &reg_wrmif_v3[mifsel][0];
 
 	if (mif->linear)
 		di_mif0_linear_wr_cfg_addr_only(mif, mifsel, op);
@@ -3210,20 +3486,36 @@ static void set_di_pre(struct DI_PRE_S *pcfg, const struct reg_acc *opin)
 		}
 		// set nr wr mif interface.
 		if (pcfg->nr_en) {
-			op->wr(DI_SC2_NRWR_X,  op->rd(DI_SC2_NRWR_X) |
-			       (pcfg->nrwr_mif->luma_x_start0 << 16) |
-			       (pcfg->nrwr_mif->luma_x_end0));
-			       // start_x 0 end_x 719.
-			op->wr(DI_SC2_NRWR_Y,  op->rd(DI_SC2_NRWR_Y) |
-			       (pcfg->nrwr_mif->luma_y_start0 << 16) |
-			       (pcfg->nrwr_mif->luma_y_end0));
-			       // start_y 0 end_y 239.
+			if (DIM_IS_IC(T3X)) {
+				op->wr(DI_T3X_NRWR_X, op->rd(DI_T3X_NRWR_X) |
+				       (pcfg->nrwr_mif->luma_x_start0 << 16) |
+				       (pcfg->nrwr_mif->luma_x_end0));
+				       // start_x 0 end_x 719
+				op->wr(DI_T3X_NRWR_Y, op->rd(DI_T3X_NRWR_Y) |
+				       (pcfg->nrwr_mif->luma_y_start0 << 16) |
+				       (pcfg->nrwr_mif->luma_y_end0));
+			} else {
+				op->wr(DI_SC2_NRWR_X, op->rd(DI_SC2_NRWR_X) |
+				       (pcfg->nrwr_mif->luma_x_start0 << 16) |
+				       (pcfg->nrwr_mif->luma_x_end0));
+				      // start_x 0 end_x 719
+				op->wr(DI_SC2_NRWR_Y, op->rd(DI_SC2_NRWR_Y) |
+				       (pcfg->nrwr_mif->luma_y_start0 << 16) |
+				       (pcfg->nrwr_mif->luma_y_end0));
+			}
+			// start_y 0 end_y 239.
+			// start_y 0 end_y 239.
 			if (pcfg->nrwr_mif->linear)
 				di_mif0_linear_wr_cfg(pcfg->nrwr_mif, 0, op);
+			else if (DIM_IS_IC(T3X))
+				op->wr(DI_T3X_NRWR_CANVAS,
+				       pcfg->nrwr_mif->canvas0_addr0 |
+				       (pcfg->nrwr_mif->canvas0_addr1 << 8));
 			else
 				op->wr(DI_NRWR_CANVAS,
 				       pcfg->nrwr_mif->canvas0_addr0 |
 				       (pcfg->nrwr_mif->canvas0_addr1 << 8));
+
 			bits_mode = pcfg->nrwr_mif->bit_mode != 0;
 			//1: 10bits 422(old mode)
 			//   0:8bits   2:10bit 444  3:10bit full-pack
@@ -3237,23 +3529,42 @@ static void set_di_pre(struct DI_PRE_S *pcfg, const struct reg_acc *opin)
 				(pcfg->nrwr_mif->video_mode == 1 ? 0 : 1) :
 				((pcfg->nrwr_mif->video_mode == 1) ? 2 : 3));
 				//two canvas
-			op->wr(DI_SC2_NRWR_CTRL, (pcfg->nr_en << 0)   |
-			       // write mif en.
-			       (bits_mode << 1) |   // bit10 mode
-			       (0 << 2) |   // little endian
-			       (0 << 3) |   // data ext enable
-			       (5 << 4) |   // word limit
-			       (0 << 16) |   // urgent
-			       (0 << 17) |
-			       // swap cbcrworking in rgb mode =2: swap cbcr
-			       (0 << 18) |   // vconv working in rgb mode =2:
-			       (0 << 20) |   // hconv. output even pixel
-			       (rgb_mode << 22) |
-			       // rgb mode =0, 422 YCBCR to one canvas.
-			       (0 << 24) |   // no gate clock
-			       (0 << 25) |   // canvas_sync enable
-			       (2 << 26) |   // burst lim
-			       (1 << 30));   // 64-bits swap enable
+			if (DIM_IS_IC(T3X))
+				op->wr(DI_T3X_NRWR_CTRL, (pcfg->nr_en << 0)   |
+				       // write mif en.
+				       (bits_mode << 1) |   // bit10 mode
+				       (0 << 2) |   // little endian
+				       (0 << 3) |   // data ext enable
+				       (5 << 4) |   // word limit
+				       (0 << 16) |   // urgent
+				       (0 << 17) |
+				       // swap cbcrworking in rgb mode =2: swap cbcr
+				       (0 << 18) |   // vconv working in rgb mode =2:
+				       (0 << 20) |   // hconv. output even pixel
+				       (rgb_mode << 22) |
+				       // rgb mode =0, 422 YCBCR to one canvas.
+				       (0 << 24) |   // no gate clock
+				       (0 << 25) |   // canvas_sync enable
+				       (2 << 26) |   // burst lim
+				       (1 << 30));   // 64-bits swap enable
+			else
+				op->wr(DI_SC2_NRWR_CTRL, (pcfg->nr_en << 0)   |
+				       // write mif en.
+				       (bits_mode << 1) |   // bit10 mode
+				       (0 << 2) |   // little endian
+				       (0 << 3) |   // data ext enable
+				       (5 << 4) |   // word limit
+				       (0 << 16) |   // urgent
+				       (0 << 17) |
+				       // swap cbcrworking in rgb mode =2: swap cbcr
+				       (0 << 18) |   // vconv working in rgb mode =2:
+				       (0 << 20) |   // hconv. output even pixel
+				       (rgb_mode << 22) |
+				       // rgb mode =0, 422 YCBCR to one canvas.
+				       (0 << 24) |   // no gate clock
+				       (0 << 25) |   // canvas_sync enable
+				       (2 << 26) |   // burst lim
+				       (1 << 30));   // 64-bits swap enable
 		}
 	}
 	if (pcfg->nr_en) {
@@ -3543,53 +3854,103 @@ static void set_di_post(struct DI_PST_S *ptcfg, const struct reg_acc *opin)
 			post_hsize2 = ptcfg->wr_afbc->hsize_in;
 			post_vsize2 = ptcfg->wr_afbc->vsize_in;
 		} else {
-			op->wr(DI_SC2_DIWR_X,
-			       (ptcfg->wr_mif->luma_x_start0 << 16) |
-			       (ptcfg->wr_mif->luma_x_end0));
-			       // start_x 0 end_x 719.
-			op->wr(DI_SC2_DIWR_Y,
-			       (ptcfg->wr_mif->luma_y_start0 << 16) |
-			       (ptcfg->wr_mif->luma_y_end0));
-			       // start_y 0 end_y 239.
-			if (ptcfg->wr_mif->linear)
-				di_mif0_linear_wr_cfg(ptcfg->wr_mif, 1, op);
-			else
-				op->wr(DI_DIWR_CANVAS, ptcfg->wr_mif->canvas0_addr0 |
-				       (ptcfg->wr_mif->canvas0_addr1 << 8));
-			bits_mode = ptcfg->wr_mif->bit_mode != 0;
-			//1: 10bits   0:8bits
-			// rgb_mode 0: 422 to one canvas
-			//1: 444 to one canvas
-			//2: 8bit Y to one canvas, 16bit UV to another canvas
-			//3: 422 full pack mode (10bit)
-			rgb_mode = ptcfg->wr_mif->bit_mode == 3 ? 3 ://422 10bit
-					(ptcfg->wr_mif->set_separate_en == 0 ?
-					(ptcfg->wr_mif->video_mode == 1 ?
-					 0 : 1) :
-					((ptcfg->wr_mif->video_mode == 1)
-					? 2 : 3)); //two canvas
-			op->wr(DI_SC2_DIWR_CTRL,  (1 << 0) |   // write mif en.
-			       (bits_mode << 1) |   // bit10 mode
-			       (0 << 2) |   // little endian
-			       (0 << 3) |   // data ext enable
-			       (5 << 4) |   // word limit
-			       (0 << 16) |   // urgent
-			       (0 << 17) |
-			       // swap cbcrworking in rgb mode =2: swap cbcr
-			       (0 << 18) |   // vconv working in rgb mode =2:
-			       (0 << 20) |   // hconv. output even pixel
-			       (rgb_mode << 22) |
-			       // rgb mode =0, 422 YCBCR to one canvas.
-			       (0 << 24) |   // no gate clock
-			       (0 << 25) |   // canvas_sync enable
-			       (2 << 26) |   // burst lim
-			       (0 << 30));   // 64-bits swap enable
-			post_hsize2 =
-				ptcfg->wr_mif->luma_x_end0 -
-				ptcfg->wr_mif->luma_x_start0 + 1;
-			post_vsize2 =
-				ptcfg->wr_mif->luma_y_end0 -
-				ptcfg->wr_mif->luma_y_start0 + 1;
+			if (DIM_IS_IC(T3X)) {
+				op->wr(DI_T3X_DIWR_X,
+				       (ptcfg->wr_mif->luma_x_start0 << 16) |
+				       (ptcfg->wr_mif->luma_x_end0));
+				       // start_x 0 end_x 719.
+				op->wr(DI_T3X_DIWR_Y,
+				       (ptcfg->wr_mif->luma_y_start0 << 16) |
+				       (ptcfg->wr_mif->luma_y_end0));
+				       // start_y 0 end_y 239.
+				if (ptcfg->wr_mif->linear)
+					di_mif0_linear_wr_cfg(ptcfg->wr_mif, 1, op);
+				else
+					op->wr(DI_T3X_DIWR_CANVAS, ptcfg->wr_mif->canvas0_addr0 |
+					       (ptcfg->wr_mif->canvas0_addr1 << 8));
+				bits_mode = ptcfg->wr_mif->bit_mode != 0;
+				//1: 10bits   0:8bits
+				// rgb_mode 0: 422 to one canvas
+				//1: 444 to one canvas
+				//2: 8bit Y to one canvas, 16bit UV to another canvas
+				//3: 422 full pack mode (10bit)
+				rgb_mode = ptcfg->wr_mif->bit_mode == 3 ? 3 ://422 10bit
+						(ptcfg->wr_mif->set_separate_en == 0 ?
+						(ptcfg->wr_mif->video_mode == 1 ?
+						 0 : 1) :
+						((ptcfg->wr_mif->video_mode == 1)
+						? 2 : 3)); //two canvas
+				op->wr(DI_T3X_DIWR_CTRL,  (1 << 0) |   // write mif en.
+				       (bits_mode << 1) |   // bit10 mode
+				       (0 << 2) |   // little endian
+				       (0 << 3) |   // data ext enable
+				       (5 << 4) |   // word limit
+				       (0 << 16) |   // urgent
+				       (0 << 17) |
+				       // swap cbcrworking in rgb mode =2: swap cbcr
+				       (0 << 18) |   // vconv working in rgb mode =2:
+				       (0 << 20) |   // hconv. output even pixel
+				       (rgb_mode << 22) |
+				       // rgb mode =0, 422 YCBCR to one canvas.
+				       (0 << 24) |   // no gate clock
+				       (0 << 25) |   // canvas_sync enable
+				       (2 << 26) |   // burst lim
+				       (0 << 30));   // 64-bits swap enable
+				post_hsize2 =
+					ptcfg->wr_mif->luma_x_end0 -
+					ptcfg->wr_mif->luma_x_start0 + 1;
+				post_vsize2 =
+					ptcfg->wr_mif->luma_y_end0 -
+					ptcfg->wr_mif->luma_y_start0 + 1;
+			} else {
+				op->wr(DI_SC2_DIWR_X,
+				       (ptcfg->wr_mif->luma_x_start0 << 16) |
+				       (ptcfg->wr_mif->luma_x_end0));
+				       // start_x 0 end_x 719.
+				op->wr(DI_SC2_DIWR_Y,
+				       (ptcfg->wr_mif->luma_y_start0 << 16) |
+				       (ptcfg->wr_mif->luma_y_end0));
+				       // start_y 0 end_y 239.
+				if (ptcfg->wr_mif->linear)
+					di_mif0_linear_wr_cfg(ptcfg->wr_mif, 1, op);
+				else
+					op->wr(DI_DIWR_CANVAS, ptcfg->wr_mif->canvas0_addr0 |
+					       (ptcfg->wr_mif->canvas0_addr1 << 8));
+				bits_mode = ptcfg->wr_mif->bit_mode != 0;
+				//1: 10bits   0:8bits
+				// rgb_mode 0: 422 to one canvas
+				//1: 444 to one canvas
+				//2: 8bit Y to one canvas, 16bit UV to another canvas
+				//3: 422 full pack mode (10bit)
+				rgb_mode = ptcfg->wr_mif->bit_mode == 3 ? 3 ://422 10bit
+						(ptcfg->wr_mif->set_separate_en == 0 ?
+						(ptcfg->wr_mif->video_mode == 1 ?
+						 0 : 1) :
+						((ptcfg->wr_mif->video_mode == 1)
+						? 2 : 3)); //two canvas
+				op->wr(DI_SC2_DIWR_CTRL,  (1 << 0) |   // write mif en.
+				       (bits_mode << 1) |   // bit10 mode
+				       (0 << 2) |   // little endian
+				       (0 << 3) |   // data ext enable
+				       (5 << 4) |   // word limit
+				       (0 << 16) |   // urgent
+				       (0 << 17) |
+				       // swap cbcrworking in rgb mode =2: swap cbcr
+				       (0 << 18) |   // vconv working in rgb mode =2:
+				       (0 << 20) |   // hconv. output even pixel
+				       (rgb_mode << 22) |
+				       // rgb mode =0, 422 YCBCR to one canvas.
+				       (0 << 24) |   // no gate clock
+				       (0 << 25) |   // canvas_sync enable
+				       (2 << 26) |   // burst lim
+				       (0 << 30));   // 64-bits swap enable
+				post_hsize2 =
+					ptcfg->wr_mif->luma_x_end0 -
+					ptcfg->wr_mif->luma_x_start0 + 1;
+				post_vsize2 =
+					ptcfg->wr_mif->luma_y_end0 -
+					ptcfg->wr_mif->luma_y_start0 + 1;
+			}
 		}
 
 #ifndef DI_SCALAR_DISABLE	//ary add
@@ -3688,14 +4049,25 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 	#ifdef HIS_CODE // pp
 
 	// set nr wr mif interface.
-	op->wr(DI_SC2_NRWR_X, op->rd(DI_SC2_NRWR_X) |
-	       (ppcfg->nrwr_mif->luma_x_start0 << 16) |
-	       (ppcfg->nrwr_mif->luma_x_end0));   // start_x 0 end_x 719.
-	op->wr(DI_SC2_NRWR_Y,  op->rd(DI_SC2_NRWR_Y) |
-	       (ppcfg->nrwr_mif->luma_y_start0 << 16) |
-	       (ppcfg->nrwr_mif->luma_y_end0));   // start_y 0 end_y 239.
+	if (DIM_IS_IC(T3X)) {
+		op->wr(DI_T3X_NRWR_X, op->rd(DI_T3X_NRWR_X) |
+		       (ppcfg->nrwr_mif->luma_x_start0 << 16) |
+		       (ppcfg->nrwr_mif->luma_x_end0));   // start_x 0 end_x 719.
+		op->wr(DI_T3X_NRWR_Y,  op->rd(DI_T3X_NRWR_Y) |
+		       (ppcfg->nrwr_mif->luma_y_start0 << 16) |
+		       (ppcfg->nrwr_mif->luma_y_end0));   // start_y 0 end_y 239.
+	} else {
+		op->wr(DI_SC2_NRWR_X, op->rd(DI_SC2_NRWR_X) |
+		       (ppcfg->nrwr_mif->luma_x_start0 << 16) |
+		       (ppcfg->nrwr_mif->luma_x_end0));   // start_x 0 end_x 719.
+		op->wr(DI_SC2_NRWR_Y,  op->rd(DI_SC2_NRWR_Y) |
+		       (ppcfg->nrwr_mif->luma_y_start0 << 16) |
+		       (ppcfg->nrwr_mif->luma_y_end0));   // start_y 0 end_y 239.
+	}
 	if (ppcfg->nrwr_mif->linear)
 		di_mif0_linear_wr_cfg(ppcfg->nrwr_mif, 0, op);
+	else if (DIM_IS_IC(T3X))
+		op->wr(DI_T3X_NRWR_CANVAS, ppcfg->nrwr_mif->canvas0_addr0);
 	else
 		op->wr(DI_NRWR_CANVAS, ppcfg->nrwr_mif->canvas0_addr0);
 	op->wr(DI_SC2_NRWR_CTRL, (1 << 0) |   // write mif en.
@@ -3834,24 +4206,45 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 	       (ppcfg->diwr_mif->luma_y_end0));   // start_y 0 end_y 239.
 	if (ppcfg->diwr_mif->linear)
 		di_mif0_linear_wr_cfg(ppcfg->diwr_mif, 1, op);
+	else if (DIM_IS_IC(T3X))
+		op->wr(DI_T3X_DIWR_CANVAS,
+		       ppcfg->diwr_mif->canvas0_addr0 |
+		       (ppcfg->diwr_mif->canvas0_addr1 << 8));
 	else
 		op->wr(DI_DIWR_CANVAS,
 		       ppcfg->diwr_mif->canvas0_addr0 |
 		       (ppcfg->diwr_mif->canvas0_addr1 << 8));
-	op->wr(DI_SC2_DIWR_CTRL,     (1 << 0) |   // write mif en.
-	       (0 << 1) |   // bit10 mode
-	       (0 << 2) |   // little endian
-	       (0 << 3) |   // data ext enable
-	       (5 << 4) |   // word limit
-	       (0 << 16) |   // urgent
-	       (0 << 17) |   // swap cbcrworking in rgb mode =2: swap cbcr
-	       (0 << 18) |   // vconv working in rgb mode =2:
-	       (0 << 20) |   // hconv. output even pixel
-	       (0 << 22) |   // rgb mode =0, 422 YCBCR to one canvas.
-	       (0 << 24) |   // no gate clock
-	       (0 << 25) |   // canvas_sync enable
-	       (2 << 26) |   // burst lim
-	       (0 << 30));   // 64-bits swap enable
+
+	if (DIM_IS_IC(T3X))
+		op->wr(DI_T3X_DIWR_CTRL,     (1 << 0) |   // write mif en.
+		       (0 << 1) |   // bit10 mode
+		       (0 << 2) |   // little endian
+		       (0 << 3) |   // data ext enable
+		       (5 << 4) |   // word limit
+		       (0 << 16) |   // urgent
+		       (0 << 17) |   // swap cbcrworking in rgb mode =2: swap cbcr
+		       (0 << 18) |   // vconv working in rgb mode =2:
+		       (0 << 20) |   // hconv. output even pixel
+		       (0 << 22) |   // rgb mode =0, 422 YCBCR to one canvas.
+		       (0 << 24) |   // no gate clock
+		       (0 << 25) |   // canvas_sync enable
+		       (2 << 26) |   // burst lim
+		       (0 << 30));   // 64-bits swap enable
+	else
+		op->wr(DI_SC2_DIWR_CTRL,     (1 << 0) |   // write mif en.
+		       (0 << 1) |   // bit10 mode
+		       (0 << 2) |   // little endian
+		       (0 << 3) |   // data ext enable
+		       (5 << 4) |   // word limit
+		       (0 << 16) |   // urgent
+		       (0 << 17) |   // swap cbcrworking in rgb mode =2: swap cbcr
+		       (0 << 18) |   // vconv working in rgb mode =2:
+		       (0 << 20) |   // hconv. output even pixel
+		       (0 << 22) |   // rgb mode =0, 422 YCBCR to one canvas.
+		       (0 << 24) |   // no gate clock
+		       (0 << 25) |   // canvas_sync enable
+		       (2 << 26) |   // burst lim
+		       (0 << 30));   // 64-bits swap enable
 
 	#else
 	set_wrmif_simple_pp(ppcfg->diwr_mif, op, 1);
@@ -4105,21 +4498,36 @@ static void enable_prepost_link_afbce(struct DI_PREPST_AFBC_S *pafcfg,
 		//int       enable      ,
 		//open  afbce
 		//AFBCE_t  *afbce
-
-	op->wr(DI_SC2_DIWR_CTRL, (1 << 0) |   // write mif en.
-	       (0 << 1) |   // bit10 mode
-	       (0 << 2) |   // little endian
-	       (0 << 3) |   // data ext enable
-	       (5 << 4) |   // word limit
-	       (0 << 16) |   // urgent
-	       (0 << 17) |   // swap cbcrworking in rgb mode =2: swap cbcr
-	       (0 << 18) |   // vconv working in rgb mode =2:
-	       (0 << 20) |   // hconv. output even pixel
-	       (0 << 22) |   // rgb mode =0, 422 YCBCR to one canvas.
-	       (0 << 24) |   // no gate clock
-	       (0 << 25) |   // canvas_sync enable
-	       (2 << 26) |   // burst lim
-	       (0 << 30));   // 64-bits swap enable
+	if (DIM_IS_IC(T3X))
+		op->wr(DI_T3X_DIWR_CTRL, (1 << 0) |   // write mif en.
+		       (0 << 1) |   // bit10 mode
+		       (0 << 2) |   // little endian
+		       (0 << 3) |   // data ext enable
+		       (5 << 4) |   // word limit
+		       (0 << 16) |   // urgent
+		       (0 << 17) |   // swap cbcrworking in rgb mode =2: swap cbcr
+		       (0 << 18) |   // vconv working in rgb mode =2:
+		       (0 << 20) |   // hconv. output even pixel
+		       (0 << 22) |   // rgb mode =0, 422 YCBCR to one canvas.
+		       (0 << 24) |   // no gate clock
+		       (0 << 25) |   // canvas_sync enable
+		       (2 << 26) |   // burst lim
+		       (0 << 30));   // 64-bits swap enable
+	else
+		op->wr(DI_SC2_DIWR_CTRL, (1 << 0) |   // write mif en.
+		       (0 << 1) |   // bit10 mode
+		       (0 << 2) |   // little endian
+		       (0 << 3) |   // data ext enable
+		       (5 << 4) |   // word limit
+		       (0 << 16) |   // urgent
+		       (0 << 17) |   // swap cbcrworking in rgb mode =2: swap cbcr
+		       (0 << 18) |   // vconv working in rgb mode =2:
+		       (0 << 20) |   // hconv. output even pixel
+		       (0 << 22) |   // rgb mode =0, 422 YCBCR to one canvas.
+		       (0 << 24) |   // no gate clock
+		       (0 << 25) |   // canvas_sync enable
+		       (2 << 26) |   // burst lim
+		       (0 << 30));   // 64-bits swap enable
 
 	/**********************************/
 	/****** control REG config  *******/
@@ -4676,7 +5084,7 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 		op->wr(off + reg[MIF_LUMA_FIFO_SIZE], 0xC0);
 	}
 
-	if (DIM_IS_ICS(T5W)) {
+	if (DIM_IS_ICS(T5W) || DIM_IS_ICS_T5M) {
 		//axi bus fifo from feijun.fan for t5w
 		op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, 0x80);
 		op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, 0x80);
@@ -4969,7 +5377,7 @@ static void hw_init_v3(void)
 		op->wr(DI_SC2_IF1_LUMA_FIFO_SIZE, fifo_size_di);
 		//op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, fifo_size_di);
 
-		if (DIM_IS_ICS(T5W)) {
+		if (DIM_IS_ICS(T5W) || DIM_IS_ICS_T5M) {
 			//axi bus fifo from feijun.fan for t5w
 			op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, 0x80);
 			op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, 0x80);
@@ -5398,10 +5806,15 @@ static void dbg_reg_pst_mif_print2_v3(void)
 	pr_info("DI_IF2_CHM0_RPT_PAT=0x%x\n", op->rd(DI_SC2_IF2_LUMA0_RPT_PAT));
 	pr_info("DI_IF2_FMT_CTRL=0x%x\n", op->rd(DI_SC2_IF2_CFMT_CTRL));
 	pr_info("DI_IF2_FMT_W=0x%x\n", op->rd(DI_SC2_IF2_CFMT_W));
-
-	pr_info("DI_DIWR_Y=0x%x\n", op->rd(DI_SC2_DIWR_Y));
-	pr_info("DI_DIWR_CTRL=0x%x", op->rd(DI_SC2_DIWR_CTRL));
-	pr_info("DI_DIWR_X=0x%x.\n", op->rd(DI_SC2_DIWR_X));
+	if (DIM_IS_IC(T3X)) {
+		pr_info("DI_DIWR_Y=0x%x\n", op->rd(DI_T3X_DIWR_Y));
+		pr_info("DI_DIWR_CTRL=0x%x", op->rd(DI_T3X_DIWR_CTRL));
+		pr_info("DI_DIWR_X=0x%x.\n", op->rd(DI_T3X_DIWR_X));
+	} else {
+		pr_info("DI_DIWR_Y=0x%x\n", op->rd(DI_SC2_DIWR_Y));
+		pr_info("DI_DIWR_CTRL=0x%x", op->rd(DI_SC2_DIWR_CTRL));
+		pr_info("DI_DIWR_X=0x%x.\n", op->rd(DI_SC2_DIWR_X));
+	}
 }
 
 /* this is for pre mif */
@@ -5835,12 +6248,12 @@ void dim_secure_pre_en(unsigned char ch)
 		if (DIM_IS_IC_EF(SC2)) {
 			DIM_DI_WR(DI_PRE_SEC_IN, 0x3F);//secure
 		} else {
-		#ifdef CONFIG_AMLOGIC_TEE
+		#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 			tee_config_device_state(16, 1);
 		#endif
 		}
-		if (DIM_IS_IC(S5)) {
-		#ifdef CONFIG_AMLOGIC_TEE
+		if (DIM_IS_IC(S5) || DIM_IS_IC(T3X)) {
+		#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 			tee_write_reg_bits
 				(((DI_VIUB_SECURE_REG << 2) + 0xff800000),
 				 1, 8, 1);// HF secure Polarity
@@ -5854,12 +6267,12 @@ void dim_secure_pre_en(unsigned char ch)
 		if (DIM_IS_IC_EF(SC2)) {
 			DIM_DI_WR(DI_PRE_SEC_IN, 0x0);
 		} else {
-		#ifdef CONFIG_AMLOGIC_TEE
+		#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 			tee_config_device_state(16, 0);
 		#endif
 		}
-		if (DIM_IS_IC(S5)) {
-		#ifdef CONFIG_AMLOGIC_TEE
+		if (DIM_IS_IC(S5) || DIM_IS_IC(T3X)) {
+		#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 			tee_write_reg_bits
 				(((DI_VIUB_SECURE_REG << 2) + 0xff800000),
 				 0, 8, 1);// HF secure Polarity
@@ -5891,7 +6304,7 @@ void dim_secure_pst_en(unsigned char ch)
 		if (DIM_IS_IC_EF(SC2)) {
 			DIM_DI_WR(DI_POST_SEC_IN, 0x1F);//secure
 		} else {
-		#ifdef CONFIG_AMLOGIC_TEE
+		#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 			tee_config_device_state(17, 1);
 		#endif
 		}
@@ -5901,7 +6314,7 @@ void dim_secure_pst_en(unsigned char ch)
 		if (DIM_IS_IC_EF(SC2)) {
 			DIM_DI_WR(DI_POST_SEC_IN, 0x0);
 		} else {
-		#ifdef CONFIG_AMLOGIC_TEE
+		#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 			tee_config_device_state(17, 0);
 		#endif
 		}
@@ -6086,6 +6499,68 @@ const struct dim_hw_opsv_s dim_ops_l1_v4 = { //for t7
 	.reg_mif_wr_tab	= {
 		[EDI_MIFSM_NR] = &reg_wrmif_v3[EDI_MIFSM_NR][0],
 		[EDI_MIFSM_WR] = &reg_wrmif_v3[EDI_MIFSM_WR][0],
+	},
+	.reg_mif_wr_bits_tab = &reg_bits_wr[0],
+	.rtab_contr_bits_tab = &rtab_sc2_contr_bits_tab[0],
+};
+
+const struct dim_hw_opsv_s dim_ops_l1_v5 = { //for t3x
+	.info = {
+		.name = "l1_t3x",
+		.update = "2023-03-31",
+		.main_version	= 5,
+		.sub_version	= 1,
+	},
+	.pre_mif_set = set_di_mif_v3,
+	.mif_rd_update_addr = set_di_mif_v3_addr_only,
+	.set_wrmif_pp = set_wrmif_simple_pp,
+	.wrmif_update_addr = set_wrmif_simple_pp_addr_only,
+	.pst_mif_set = set_di_mif_v3,
+	.pst_mif_update_csv	= pst_mif_update_canvasid_v3,
+	.pre_mif_sw	= di_pre_data_mif_ctrl_v3,
+	.pst_mif_sw	= post_mif_sw_v3,
+	.pst_mif_rst	= post_mif_rst_v3,
+	.pst_mif_rev	= post_mif_rev_v3,
+	.pst_dbg_contr	= post_dbg_contr_v3,
+	.pst_set_flow	= di_post_set_flow_v3,
+	.pst_bit_mode_cfg	= post_bit_mode_cfg_v3,
+	.wr_cfg_mif	= wr_mif_cfg_v3,
+	.wr_cfg_mif_dvfm = wr_mif_cfg_by_dvfm, /* new from dw*/
+	.wrmif_set	= set_wrmif_simple_v3,
+	.wrmif_sw_buf	= NULL,
+	.shrk_set	= set_shrk_ch,
+	.shrk_disable	= set_shrk_disable,
+	.pre_ma_mif_set	= set_ma_pre_mif_t7,
+	.post_mtnrd_mif_set = set_post_mtnrd_mif_t7,
+	.pre_enable_mc	= pre_enable_mc_t7,
+	.aisr_pre	= dim_aisr_pre_cfg,
+	.aisr_disable	= dim_aisr_disable,
+	.wrmif_trig	= NULL,
+	.wr_rst_protect	= NULL,
+	.hw_init	= hw_init_v3,
+	.pre_hold_block_txlx = NULL,
+	.pre_cfg_mif	= config_di_mif_v3,
+	.dbg_reg_pre_mif_print	= dbg_reg_pre_mif_print_v3,
+	.dbg_reg_pst_mif_print	= dbg_reg_pst_mif_print_v3,
+	.dbg_reg_pre_mif_print2	= dbg_reg_pre_mif_print2_v3,
+	.dbg_reg_pst_mif_print2	= dbg_reg_pst_mif_print2_v3,
+	.dbg_reg_pre_mif_show	= dbg_reg_pre_mif_v3_show,
+	.dbg_reg_pst_mif_show	= dbg_reg_pst_mif_v3_show,
+	/*contrl*/
+	.pre_gl_sw		= hpre_gl_sw_v3,
+	.pre_gl_thd		= hpre_gl_thd_v3,
+	.pst_gl_thd	= hpost_gl_thd_v3,
+	.reg_mif_tab	= {
+		[DI_MIF0_ID_INP] = &mif_contr_reg[DI_MIF0_ID_INP][0],
+		[DI_MIF0_ID_CHAN2] = &mif_contr_reg[DI_MIF0_ID_CHAN2][0],
+		[DI_MIF0_ID_MEM] = &mif_contr_reg[DI_MIF0_ID_MEM][0],
+		[DI_MIF0_ID_IF1] = &mif_contr_reg[DI_MIF0_ID_IF1][0],
+		[DI_MIF0_ID_IF0] = &mif_contr_reg[DI_MIF0_ID_IF0][0],
+		[DI_MIF0_ID_IF2] = &mif_contr_reg[DI_MIF0_ID_IF2][0],
+	},
+	.reg_mif_wr_tab	= {
+		[EDI_MIFSM_NR] = &reg_wrmif_v4[EDI_MIFSM_NR][0],
+		[EDI_MIFSM_WR] = &reg_wrmif_v4[EDI_MIFSM_WR][0],
 	},
 	.reg_mif_wr_bits_tab = &reg_bits_wr[0],
 	.rtab_contr_bits_tab = &rtab_sc2_contr_bits_tab[0],

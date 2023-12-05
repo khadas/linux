@@ -63,11 +63,13 @@ enum EAFBCE_INDEX_V3 {
 	AFBCEX_MMU_RMIF_RO_STAT,
 	AFBCEX_PIP_CTRL,
 	AFBCEX_ROT_CTRL,
-
+	AFBCEX_LOSS_CTRL,
+	AFBCEX_LOSS_BURST_NUM,
 };
 
 #define AFBC_ENC_V3_NUB		(3)
 #define DIM_AFBCE_V3_NUB	(41)
+#define DIM_AFBCE_V3_T3X_NUB	(43)
 
 #define DIM_ERR		(0xffffffff)
 
@@ -205,6 +207,7 @@ struct di_hw_ops_info_s {
 
 extern const struct dim_hw_opsv_s dim_ops_l1_v3;
 extern const struct dim_hw_opsv_s dim_ops_l1_v4;
+extern const struct dim_hw_opsv_s dim_ops_l1_v5;
 const struct dim_hw_opsv_s  *opl1_v2(void);
 
 struct hw_ops_s {

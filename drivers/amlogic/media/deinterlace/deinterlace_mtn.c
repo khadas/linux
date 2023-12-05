@@ -873,6 +873,21 @@ static void fix_tl1_1080i_patch2(void)
 	DI_Wr(0x17af, 0xff00031f);
 }
 
+static void fix_s1a_576i_patch(void)
+{
+	DI_Wr(0x1741, 0x1a1a2a62);
+	DI_Wr(0x1742, 0x10200909);
+	DI_Wr(0x1743, 0x01200440);
+	DI_Wr(0x1744, 0x74200d0d);
+	DI_Wr(0x17a9, 0x0d5a1520);
+	DI_Wr(0x17aa, 0x0a7a037a);
+	DI_Wr(0x17ab, 0x1a1a2662);
+	DI_Wr(0x17ac, 0x0d200302);
+	DI_Wr(0x17ad, 0x04040606);
+	DI_Wr(0x17ae, 0x05080647);
+	DI_Wr(0x17af, 0x40020a04);
+}
+
 void fix_tl1_1080i_patch_sel(unsigned int mode)
 {
 	switch (mode) {
@@ -885,6 +900,11 @@ void fix_tl1_1080i_patch_sel(unsigned int mode)
 		fix_tl1_1080i_patch2();
 		break;
 	}
+}
+
+void fix_s1a_576i_patch_sel(void)
+{
+	fix_s1a_576i_patch();
 }
 
 static int combing_cnt;
@@ -1145,6 +1165,7 @@ static const struct mtn_op_s di_ops_mtn = {
 	.mtn_int_combing_glbmot		= mtn_int_combing_glbmot,
 	.adpative_combing_exit		= adpative_combing_exit,
 	.fix_tl1_1080i_patch_sel	= fix_tl1_1080i_patch_sel,
+	.fix_s1a_576i_patch_sel		= fix_s1a_576i_patch_sel,
 	.adaptive_combing_fixing	= adaptive_combing_fixing,
 #ifdef DI_NEW_PQ_V1
 	.adaptive_combing_new		= adaptive_combing_new,

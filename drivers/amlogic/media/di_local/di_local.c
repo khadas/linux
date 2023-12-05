@@ -328,6 +328,14 @@ bool dim_config_crc_ic(void)
 }
 EXPORT_SYMBOL(dim_config_crc_ic);
 
+unsigned int dim_ic_sub(void)
+{
+	if (dil_api && dil_api->dim_ic_sub)
+		return dil_api->dim_ic_sub();
+	return 0;
+}
+EXPORT_SYMBOL(dim_ic_sub);
+
 unsigned int dim_get_vpuclkb_ext(void)
 {
 	if (dil_api && dil_api->get_vpu_clkb_ext)
@@ -543,14 +551,14 @@ int __init dil_init(void)
 		PR_ERR("%s: can't register\n", __func__);
 		return -ENODEV;
 	}
-	PR_INF("%s ok.\n", __func__);
+	pr_debug("%s ok.\n", __func__);
 	return 0;
 }
 
 void __exit dil_exit(void)
 {
 	platform_driver_unregister(&dev_driver_tab);
-	PR_INF("%s: ok.\n", __func__);
+	pr_debug("%s: ok.\n", __func__);
 }
 
 //MODULE_DESCRIPTION("AMLOGIC DI_LOCAL driver");

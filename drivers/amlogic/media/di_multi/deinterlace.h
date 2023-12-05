@@ -68,7 +68,7 @@
  ************************************************/
 //#define DIM_EXT_NO_HF	(1)
 
-#define DIM_TB_DETECT
+//#define DIM_TB_DETECT
 /*trigger_pre_di_process param*/
 #define TRIGGER_PRE_BY_PUT			'p'
 #define TRIGGER_PRE_BY_DE_IRQ			'i'

@@ -2125,6 +2125,9 @@ static void s4dw_pre_set(unsigned int channel)
 					      ppre->mcdi_enable);
 	}
 #endif
+
+	if (dim_config_crc_icl() && VFMT_IS_I(vf_i->type)) //add for crc @2k23-0403
+		dimh_set_crc_init_update(ppre->field_count_for_cont);
 	dimh_nr_disable_set(true);
 	ppre->field_count_for_cont++;
 

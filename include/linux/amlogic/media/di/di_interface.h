@@ -263,6 +263,8 @@ struct di_win_s {
 struct screen_vinfo {
 	unsigned int vtotal;
 	unsigned int htotal;
+	unsigned int width;
+	unsigned int height;
 	unsigned int frequency;
 	unsigned int x_d_st;
 	unsigned int y_d_st;

@@ -673,7 +673,7 @@ static bool mem_check(struct di_ch_s *pch, struct dcntr_mem_s *dmem)
 	}
 
 	if (!valid) {
-		PR_WARN("ch[%d] dct_pr:%px dmem:%px not match\n", pch->ch_id, chdct, dmem);
+		dbg_dbg("ch[%d] dct_pr:%px dmem:%px not match\n", pch->ch_id, chdct, dmem);
 		return false;
 	}
 

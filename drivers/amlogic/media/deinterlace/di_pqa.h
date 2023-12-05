@@ -152,6 +152,7 @@ struct mtn_op_s {
 	void (*mtn_int_combing_glbmot)(void);
 	void (*adpative_combing_exit)(void);
 	void (*fix_tl1_1080i_patch_sel)(unsigned int mode);
+	void (*fix_s1a_576i_patch_sel)(void);
 	int (*adaptive_combing_fixing)(
 		struct combing_status_s *cmb_status,
 		unsigned int field_diff, unsigned int frame_diff,
@@ -204,6 +205,7 @@ bool di_attach_ops_mtn(const struct mtn_op_s **ops);
 #define DI_IC_ID_T3		(0x35)
 #define DI_IC_ID_T5W		(0x38)// same with t3 linear
 #define DI_IC_ID_S5		(0x3a)// same with t3 linear
+#define DI_IC_ID_T3X		(0x3f)
 #define DI_IC_ID_DEINTERLACE		(0xFF)
 
 #define DI_IC_REV_MAJOR		(0x0)

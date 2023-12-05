@@ -399,6 +399,7 @@ static void cfg_ch_set(struct di_ch_s *pch)
 		cfggch(pch, DW_EN));
 	PR_INF("\ttvp:%d\n",
 	       parm->output_format & DI_OUTPUT_TVP ? 1 : 0);
+	PR_INF("\tPOST_NUB[%d]\n", cfggch(pch, POST_NUB));
 }
 
 /**********************************************************

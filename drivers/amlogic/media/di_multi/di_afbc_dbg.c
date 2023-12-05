@@ -110,7 +110,7 @@ static const struct regs_t reg_bits_tab_afbc[] = {
 	{EAFBC_LBUF_DEPTH, 16, 12, AFBC_B_DEC_LBUF_DEPTH, "dec_lbuf_depth"},
 	{EAFBC_HEAD_BADDR,  0, 32, AFBC_B_MIF_INFO_BADDR, "mif_info_baddr"},
 	{EAFBC_SIZE_OUT,  0, 13, AFBC_B_VSIZE_OUT, "vsize_out"},
-	{EAFBC_SIZE_OUT, 16, 13, AFBC_B_HSIZE_OUT, "hsize_out"},
+	{EAFBC_SIZE_OUT, 16, 13, AFBC_B_H_SIZE_OUT, "h_size_out"},
 	{EAFBC_OUT_YSCOPE,  0, 13, AFBC_B_OUT_VERT_END, "out_vert_end"},
 	{EAFBC_OUT_YSCOPE, 16, 13, AFBC_B_OUT_VERT_BGN, "out_vert_bgn"},
 	{EAFBC_STAT,  0,  1, AFBC_B_FRM_END_STAT, "frm_end_stat"},

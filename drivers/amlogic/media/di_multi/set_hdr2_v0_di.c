@@ -13,6 +13,7 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #endif
+
 #include "deinterlace.h"
 #ifdef DIM_HAVE_HDR
 #include <linux/amlogic/media/amvecm/hdr2_ext.h>

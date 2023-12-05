@@ -785,6 +785,16 @@
 //Bit  2: 0        reg_iquant_yclut_1_0
 // unsigned ,    RW, default = 0
 //quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
+//add for t3x
+#define AFBCDM_BURST_CTRL                       0x5457//32'hff81515c
+//Bit 31:5     reserved
+//Bit 4        reg_ofset_burst4_en              //unsigned RW  default = 0
+//Bit 3        reg_burst_length_add_en          //unsigned RW  default = 0
+//Bit 2:0      reg_burst_length_add_value       //unsigned RW  default = 2
+#define AFBCDM_LOSS_CTRL                        0x5458//32'hff815160
+//Bit 31:5     reserved
+//Bit 4        reg_fix_cr_en                    //unsigned ,RW  default = 0
+//Bit 3:0      reg_quant_diff_root_leave        //unsigned ,RW  default = 2
 #define AFBCDM_ROT_CTRL                            0x5460
 //Bit   31:30   reg_rot_ohds2_mode
 //unsigned, RW, default = 0 ,
@@ -2476,6 +2486,516 @@
 #define AISR_PRE_WMIF_SCOPE_Y                      0x2025
 #define AISR_PRE_WMIF_RO_STAT                      0x2026
 /********************************************************/
+
+/********************************************************/
+/*from T3X*/
+#define DI_T3X_AFBCE_ENABLE                            0x7f24
+#define DI_T3X_AFBCE_MODE                              0x7f25
+#define DI_T3X_AFBCE_SIZE_IN                           0x7f26
+#define DI_T3X_AFBCE_BLK_SIZE_IN                       0x7f27
+#define DI_T3X_AFBCE_HEAD_BADDR                        0x7f28
+#define DI_T3X_AFBCE_MIF_SIZE                          0x7f29
+#define DI_T3X_AFBCE_PIXEL_IN_HOR_SCOPE                0x7f2a
+#define DI_T3X_AFBCE_PIXEL_IN_VER_SCOPE                0x7f2b
+#define DI_T3X_AFBCE_CONV_CTRL                         0x7f2c
+#define DI_T3X_AFBCE_MIF_HOR_SCOPE                     0x7f2d
+#define DI_T3X_AFBCE_MIF_VER_SCOPE                     0x7f2e
+#define DI_T3X_AFBCE_STAT1                             0x7f2f
+#define DI_T3X_AFBCE_STAT2                             0x7f30
+#define DI_T3X_AFBCE_FORMAT                            0x7f00
+#define DI_T3X_AFBCE_MODE_EN                           0x7f01
+#define DI_T3X_AFBCE_DWSCALAR                          0x7f02
+#define DI_T3X_AFBCE_DEFCOLOR_1                        0x7f03
+#define DI_T3X_AFBCE_DEFCOLOR_2                        0x7f04
+#define DI_T3X_AFBCE_QUANT_ENABLE                      0x7f05
+#define DI_T3X_AFBCE_IQUANT_LUT_1                      0x7f06
+#define DI_T3X_AFBCE_IQUANT_LUT_2                      0x7f07
+#define DI_T3X_AFBCE_IQUANT_LUT_3                      0x7f08
+#define DI_T3X_AFBCE_IQUANT_LUT_4                      0x7f09
+#define DI_T3X_AFBCE_RQUANT_LUT_1                      0x7f0a
+#define DI_T3X_AFBCE_RQUANT_LUT_2                      0x7f0b
+#define DI_T3X_AFBCE_RQUANT_LUT_3                      0x7f0c
+#define DI_T3X_AFBCE_RQUANT_LUT_4                      0x7f0d
+#define DI_T3X_AFBCE_YUV_FORMAT_CONV_MODE              0x7f0e
+#define DI_T3X_AFBCE_DUMMY_DATA                        0x7f31
+#define DI_T3X_AFBCE_CLR_FLAG                          0x7f32
+#define DI_T3X_AFBCE_STA_FLAGT                         0x7f33
+#define DI_T3X_AFBCE_MMU_NUM                           0x7f34
+#define DI_T3X_AFBCE_MMU_RMIF_CTRL1                    0x7f3a
+#define DI_T3X_AFBCE_MMU_RMIF_CTRL2                    0x7f3b
+#define DI_T3X_AFBCE_MMU_RMIF_CTRL3                    0x7f3c
+#define DI_T3X_AFBCE_MMU_RMIF_CTRL4                    0x7f3d
+#define DI_T3X_AFBCE_MMU_RMIF_SCOPE_X                  0x7f3e
+#define DI_T3X_AFBCE_MMU_RMIF_SCOPE_Y                  0x7f3f
+#define DI_T3X_AFBCE_MMU_RMIF_RO_STAT                  0x7f40
+#define DI_T3X_AFBCE_PIP_CTRL                          0x7f35
+#define DI_T3X_AFBCE_ROT_CTRL                          0x7f36
+#define DI_T3X_AFBCE_DIMM_CTRL                         0x7f37
+#define DI_T3X_AFBCE_BND_DEC_MISC                      0x7f38
+#define DI_T3X_AFBCE_RD_ARB_MISC                       0x7f39
+/*from T3X,add new loss */
+#define DI_T3X_AFBCE_LOSS_CTRL                         0x7f0f
+//Bit 31         reg_fix_cr_en
+// unsigned ,    RW, default = 1  enable of fix CR
+//Bit 30         reg_rc_en
+// unsigned ,    RW, default = 0  enable of rc
+//Bit 29         reg_write_qlevel_mode
+// unsigned ,    RW, default = 1  qlevel write mode
+//Bit 28         reg_debug_qlevel_en
+// unsigned ,    RW, default = 0  debug en
+//Bit 27:20      reserved
+//Bit 19:18      reserved
+//Bit 17:16      reg_cal_bit_early_mode
+// unsigned ,    RW, default = 2  early mode, RTL fix 2
+//Bit 15:12      reg_quant_diff_root_leave
+// unsigned ,    RW, default = 2  diff value of bctroot and bcleave
+//Bit 11: 8      reg_debug_qlevel_value
+// unsigned ,    RW, default = 0  debug qlevel value
+//Bit  7: 4      reg_debug_qlevel_max_0
+// unsigned ,    RW, default = 10  debug qlevel value
+//Bit  3: 0      reg_debug_qlevel_max_1
+// unsigned ,    RW, default = 10  debug qlevel value
+#define DI_T3X_AFBCE_LOSS_BURST_NUM                    0x7f10
+//Bit 31:29      reserved
+//Bit 28:24      reg_block_burst_num_0
+// unsigned ,    RW, default = 5  the num of burst of block
+//Bit 23:21      reserved
+//Bit 20:16      reg_block_burst_num_1
+// unsigned ,    RW, default = 5  the num of burst of block
+//Bit 15:13      reserved
+//Bit 12: 8      reg_block_burst_num_2
+// unsigned ,    RW, default = 5  the num of burst of block
+//Bit  7: 5      reserved
+//Bit  4: 0      reg_block_burst_num_3
+// unsigned ,    RW, default = 5  the num of burst of block
+#define DI_T3X_AFBCE_LOSS_RC                           0x7f11
+//Bit 31:29      reserved
+//Bit 28         reg_rc_fifo_margin_mode
+// unsigned ,    RW, default = 1  enable of fifo margin mode
+//Bit 27:24      reg_rc_1stbl_xbdgt
+// unsigned ,    RW,default = 0extra bit budget for the first block in each line
+//Bit 23:20      reg_rc_1stln_xbdgt
+// unsigned ,    RW, default = 0  extra bit budget for the first line
+//Bit 19:18      reserved
+//Bit 17:16      reg_rc_qlevel_chk_mode
+// unsigned ,    RW, default = 0
+//0: max qlevel 1: avg qleve 2:max luma qlevel 3 : avg luma qlevel
+//Bit 15: 8      reg_fix_cr_subb_bit_adj_0
+// signed ,    RW, default = 0  luma each sub block add bits normal >=0
+//Bit  7: 0      reg_fix_cr_subb_bit_adj_1
+// signed ,    RW, default = 0  chroma each sub block minus bits normal <= 0
+#define DI_T3X_AFBCE_LOSS_RC_FIFO_THD                  0x7f12
+//Bit 31:28      reserved
+//Bit 27:16      reg_rc_fifo_margin_thd_0
+// unsigned ,    RW, default = 8
+//threshold of fifo level to guard the rc loop by adding delta to burst
+//Bit 15:12      reserved
+//Bit 11: 0      reg_rc_fifo_margin_thd_1
+// unsigned ,    RW, default = 16
+#define DI_T3X_AFBCE_LOSS_RC_FIFO_BUGET                0x7f13
+//Bit 31:28      reserved
+//Bit 27:16      reg_rc_fifo_margin_thd_2
+// unsigned ,    RW, default = 32
+//Bit 15:12      reg_rc_fifo_margin_buget_0
+// unsigned ,    RW, default = 2  delta of fifo level to guard the rc loop
+//Bit 11: 8      reg_rc_fifo_margin_buget_1
+// unsigned ,    RW, default = 1
+//Bit  7: 4      reg_rc_fifo_margin_buget_2
+// unsigned ,    RW, default = 0
+//Bit  3: 0      reg_rc_max_add_buget
+// unsigned ,    RW, default = 2  the max add burst num
+#define DI_T3X_AFBCE_LOSS_RC_ACCUM_THD_0               0x7f14
+//Bit 31:28      reserved
+//Bit 27:16      reg_rc_accum_margin_thd_2_2
+// unsigned ,    RW, default = 8
+//threshold of accum to guard the rc loop by adding delta to burst,
+//Bit 15:12      reserved
+//Bit 11: 0      reg_rc_accum_margin_thd_2_1
+// unsigned ,    RW, default = 8
+//threshold of accum to guard the rc loop by adding delta to burst,
+#define DI_T3X_AFBCE_LOSS_RC_ACCUM_THD_1               0x7f15
+//Bit 31:28      reserved
+//Bit 27:16      reg_rc_accum_margin_thd_2_0
+// unsigned ,    RW, default = 8
+//threshold of accum to guard the rc loop by adding delta to burst,
+//Bit 15:12      reserved
+//Bit 11: 0      reg_rc_accum_margin_thd_1_2
+// unsigned ,    RW, default = 128
+//threshold of accum to guard the rc loop by adding delta to burst,
+#define DI_T3X_AFBCE_LOSS_RC_ACCUM_THD_2               0x7f16
+//Bit 31:28      reserved
+//Bit 27:16      reg_rc_accum_margin_thd_1_1
+// unsigned ,    RW, default = 64
+//threshold of accum to guard the rc loop by adding delta to burst,
+//Bit 15:12      reserved
+//Bit 11: 0      reg_rc_accum_margin_thd_1_0
+// unsigned ,    RW, default = 4
+//threshold of accum to guard the rc loop by adding delta to burst,
+#define DI_T3X_AFBCE_LOSS_RC_ACCUM_THD_3               0x7f17
+//Bit 31:28      reserved
+//Bit 27:16      reg_rc_accum_margin_thd_0_2
+// unsigned ,    RW, default = 256
+//threshold of accum to guard the rc loop by adding delta to burst,
+//Bit 15:12      reserved
+//Bit 11: 0      reg_rc_accum_margin_thd_0_1
+// unsigned ,    RW, default = 128
+//threshold of accum to guard the rc loop by adding delta to burst,
+#define DI_T3X_AFBCE_LOSS_RC_ACCUM_BUGET_0             0x7f18
+//Bit 31:20      reg_rc_accum_margin_thd_0_0
+// unsigned ,    RW, default = 0
+//threshold of accum to guard the rc loop by adding delta to burst,
+//Bit 19:16      reserved
+//Bit 15:12      reg_rc_accum_margin_buget_2_2
+// unsigned ,    RW, default = 1
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+//Bit 11: 8      reg_rc_accum_margin_buget_2_1
+// unsigned ,    RW, default = 0
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+//Bit  7: 4      reg_rc_accum_margin_buget_2_0
+// unsigned ,    RW, default = 0
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+//Bit  3: 0      reg_rc_accum_margin_buget_1_2
+// unsigned ,    RW, default = 2
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+#define DI_T3X_AFBCE_LOSS_RC_ACCUM_BUGET_1             0x7f19
+//Bit 31:28      reg_rc_accum_margin_buget_1_1
+// unsigned ,    RW, default = 1
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+//Bit 27:24      reg_rc_accum_margin_buget_1_0
+// unsigned ,    RW, default = 1
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+//Bit 23:20      reg_rc_accum_margin_buget_0_2
+// unsigned ,    RW, default = 2
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+//Bit 19:16      reg_rc_accum_margin_buget_0_1
+// unsigned ,    RW, default = 1
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+//Bit 15:12      reg_rc_accum_margin_buget_0_0
+// unsigned ,    RW, default = 1
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+//Bit 11: 8      reserved
+//Bit  7: 4      reg_rc_qlevel_chk_th_0
+// unsigned ,    RW, default = 5
+//threshold of qlevel for adjust burst based on accum
+//Bit  3: 0      reg_rc_qlevel_chk_th_1
+// unsigned ,    RW, default = 4
+//threshold of qlevel for adjust burst based on accum
+#define DI_T3X_AFBCE_LOSS_RO_ERROR_L_0                 0x7f1a
+//Bit 31: 0      ro_error_acc_mode0_l_0
+// unsigned ,    RO, default = 0  square
+#define DI_T3X_AFBCE_LOSS_RO_COUNT_0                   0x7f1b
+//Bit 31:24      reserved
+//Bit 23: 0      ro_enter_mode0_num_0
+// unsigned ,    RO, default = 0  mode num contour
+#define DI_T3X_AFBCE_LOSS_RO_ERROR_L_1                 0x7f1c
+//Bit 31: 0      ro_error_acc_mode0_l_1
+// unsigned ,    RO, default = 0  square
+#define DI_T3X_AFBCE_LOSS_RO_COUNT_1                   0x7f1
+//Bit 31:24      reserved
+//Bit 23: 0      ro_enter_mode0_num_1
+// unsigned ,    RO, default = 0  mode num contour
+#define DI_T3X_AFBCE_LOSS_RO_ERROR_L_2                 0x7f1
+//Bit 31: 0      ro_error_acc_mode0_l_2
+// unsigned ,    RO, default = 0  square
+#define DI_T3X_AFBCE_LOSS_RO_COUNT_2                   0x7f1f
+//Bit 31:24      reserved
+//Bit 23: 0      ro_enter_mode0_num_2
+// unsigned ,    RO, default = 0  mode num contour
+#define DI_T3X_AFBCE_LOSS_RO_ERROR_H_0                 0x7f20
+//Bit 31:16      ro_error_acc_mode0_h_2
+// unsigned ,    RO, default = 0  square
+//Bit 15: 0      ro_error_acc_mode0_h_1
+// unsigned ,    RO, default = 0  square
+#define DI_T3X_AFBCE_LOSS_RO_ERROR_H_1                 0x7f21
+//Bit 31:16      reserved
+//Bit 15: 0      ro_error_acc_mode0_h_0
+// unsigned ,    RO, default = 0  square
+#define DI_T3X_AFBCE_LOSS_RO_MAX_ERROR_0               0x7f22
+//Bit 31:28      reserved
+//Bit 27:16      ro_max_error_mode0_2
+// unsigned ,    RO, default = 0  error
+//Bit 15:12      reserved
+//Bit 11: 0      ro_max_error_mode0_1
+// unsigned ,    RO, default = 0  error
+#define DI_T3X_AFBCE_LOSS_RO_MAX_ERROR_1               0x7f23
+//Bit 31:12      reserved
+//Bit 11: 0      ro_max_error_mode0_0
+// unsigned ,    RO, default = 0  error
+
+#define DI_T3X_AFBCE1_ENABLE                           0x7fa4
+#define DI_T3X_AFBCE1_MODE                             0x7fa5
+#define DI_T3X_AFBCE1_SIZE_IN                          0x7fa6
+#define DI_T3X_AFBCE1_BLK_SIZE_IN                      0x7fa7
+#define DI_T3X_AFBCE1_HEAD_BADDR                       0x7fa8
+#define DI_T3X_AFBCE1_MIF_SIZE                         0x7fa9
+#define DI_T3X_AFBCE1_PIXEL_IN_HOR_SCOPE               0x7faa
+#define DI_T3X_AFBCE1_PIXEL_IN_VER_SCOPE               0x7fab
+#define DI_T3X_AFBCE1_CONV_CTRL                        0x7fac
+#define DI_T3X_AFBCE1_MIF_HOR_SCOPE                    0x7fad
+#define DI_T3X_AFBCE1_MIF_VER_SCOPE                    0x7fae
+#define DI_T3X_AFBCE1_STAT1                            0x7faf
+#define DI_T3X_AFBCE1_STAT2                            0x7fb0
+#define DI_T3X_AFBCE1_FORMAT                           0x7f80
+#define DI_T3X_AFBCE1_MODE_EN                          0x7f81
+#define DI_T3X_AFBCE1_DWSCALAR                         0x7f82
+#define DI_T3X_AFBCE1_DEFCOLOR_1                       0x7f83
+#define DI_T3X_AFBCE1_DEFCOLOR_2                       0x7f84
+#define DI_T3X_AFBCE1_QUANT_ENABLE                     0x7f85
+#define DI_T3X_AFBCE1_IQUANT_LUT_1                     0x7f86
+#define DI_T3X_AFBCE1_IQUANT_LUT_2                     0x7f87
+#define DI_T3X_AFBCE1_IQUANT_LUT_3                     0x7f88
+#define DI_T3X_AFBCE1_IQUANT_LUT_4                     0x7f89
+#define DI_T3X_AFBCE1_RQUANT_LUT_1                     0x7f8a
+#define DI_T3X_AFBCE1_RQUANT_LUT_2                     0x7f8b
+#define DI_T3X_AFBCE1_RQUANT_LUT_3                     0x7f8c
+#define DI_T3X_AFBCE1_RQUANT_LUT_4                     0x7f8d
+#define DI_T3X_AFBCE1_YUV_FORMAT_CONV_MODE             0x7f8e
+#define DI_T3X_AFBCE1_DUMMY_DATA                       0x7fb1
+#define DI_T3X_AFBCE1_CLR_FLAG                         0x7fb2
+#define DI_T3X_AFBCE1_STA_FLAGT                        0x7fb3
+#define DI_T3X_AFBCE1_MMU_NUM                          0x7fb4
+#define DI_T3X_AFBCE1_MMU_RMIF_CTRL1                   0x7fba
+#define DI_T3X_AFBCE1_MMU_RMIF_CTRL2                   0x7fbb
+#define DI_T3X_AFBCE1_MMU_RMIF_CTRL3                   0x7fbc
+#define DI_T3X_AFBCE1_MMU_RMIF_CTRL4                   0x7fbd
+#define DI_T3X_AFBCE1_MMU_RMIF_SCOPE_X                 0x7fbe
+#define DI_T3X_AFBCE1_MMU_RMIF_SCOPE_Y                 0x7fbf
+#define DI_T3X_AFBCE1_MMU_RMIF_RO_STAT                 0x7fc0
+#define DI_T3X_AFBCE1_PIP_CTRL                         0x7fb5
+#define DI_T3X_AFBCE1_ROT_CTRL                         0x7fb6
+#define DI_T3X_AFBCE1_DIMM_CTRL                        0x7fb7
+#define DI_T3X_AFBCE1_BND_DEC_MISC                     0x7fb8
+#define DI_T3X_AFBCE1_RD_ARB_MISC                      0x7fb9
+#define DI_T3X_AFBCE1_LOSS_CTRL                        0x7f8f
+//Bit 31         reg_fix_cr_en
+// unsigned ,    RW, default = 1  enable of fix CR
+//Bit 30         reg_rc_en
+// unsigned ,    RW, default = 0  enable of rc
+//Bit 29         reg_write_qlevel_mode
+// unsigned ,    RW, default = 1  qlevel write mode
+//Bit 28         reg_debug_qlevel_en
+// unsigned ,    RW, default = 0  debug en
+//Bit 27:20      reserved
+//Bit 19:18      reserved
+//Bit 17:16      reg_cal_bit_early_mode
+// unsigned ,    RW, default = 2  early mode, RTL fix 2
+//Bit 15:12      reg_quant_diff_root_leave
+// unsigned ,    RW, default = 2  diff value of bctroot and bcleave
+//Bit 11: 8      reg_debug_qlevel_value
+// unsigned ,    RW, default = 0  debug qlevel value
+//Bit  7: 4      reg_debug_qlevel_max_0
+// unsigned ,    RW, default = 10  debug qlevel value
+//Bit  3: 0      reg_debug_qlevel_max_1
+// unsigned ,    RW, default = 10  debug qlevel value
+#define DI_T3X_AFBCE1_LOSS_BURST_NUM                   0x7f90
+//Bit 31:29      reserved
+//Bit 28:24      reg_block_burst_num_0
+// unsigned ,    RW, default = 5  the num of burst of block
+//Bit 23:21      reserved
+//Bit 20:16      reg_block_burst_num_1
+// unsigned ,    RW, default = 5  the num of burst of block
+//Bit 15:13      reserved
+//Bit 12: 8      reg_block_burst_num_2
+// unsigned ,    RW, default = 5  the num of burst of block
+//Bit  7: 5      reserved
+//Bit  4: 0      reg_block_burst_num_3
+// unsigned ,    RW, default = 5  the num of burst of block
+#define DI_T3X_AFBCE1_LOSS_RC                          0x7f91
+//Bit 31:29      reserved
+//Bit 28         reg_rc_fifo_margin_mode
+// unsigned ,    RW, default = 1  enable of fifo margin mode
+//Bit 27:24      reg_rc_1stbl_xbdgt
+// unsigned ,    RW, default = 0
+//extra bit budget for the first block in each line
+//Bit 23:20      reg_rc_1stln_xbdgt
+// unsigned ,    RW, default = 0  extra bit budget for the first line
+//Bit 19:18      reserved
+//Bit 17:16      reg_rc_qlevel_chk_mode
+// unsigned ,    RW,
+//default = 0  0: max qlevel 1: avg qleve 2:max luma qlevel 3 : avg luma qlevel
+//Bit 15: 8      reg_fix_cr_subb_bit_adj_0
+// signed ,    RW, default = 0  luma each sub block add bits normal >=0
+//Bit  7: 0      reg_fix_cr_subb_bit_adj_1
+// signed ,    RW, default = 0  chroma each sub block minus bits normal <= 0
+#define DI_T3X_AFBCE1_LOSS_RC_FIFO_THD                 0x7f92
+//Bit 31:28      reserved
+//Bit 27:16      reg_rc_fifo_margin_thd_0
+// unsigned ,    RW,
+//default=8threshold of fifo level to guard the rc loop by adding delta to burst
+//Bit 15:12      reserved
+//Bit 11: 0      reg_rc_fifo_margin_thd_1
+// unsigned ,    RW, default = 16
+#define DI_T3X_AFBCE1_LOSS_RC_FIFO_BUGET               0x7f93
+//Bit 31:28      reserved
+//Bit 27:16      reg_rc_fifo_margin_thd_2
+// unsigned ,    RW, default = 32
+//Bit 15:12      reg_rc_fifo_margin_buget_0
+// unsigned ,    RW, default = 2  delta of fifo level to guard the rc loop
+//Bit 11: 8      reg_rc_fifo_margin_buget_1
+// unsigned ,    RW, default = 1
+//Bit  7: 4      reg_rc_fifo_margin_buget_2
+// unsigned ,    RW, default = 0
+//Bit  3: 0      reg_rc_max_add_buget
+// unsigned ,    RW, default = 2  the max add burst num
+#define DI_T3X_AFBCE1_LOSS_RC_ACCUM_THD_0              0x7f94
+//Bit 31:28      reserved
+//Bit 27:16      reg_rc_accum_margin_thd_2_2
+// unsigned ,    RW, default = 8
+//threshold of accum to guard the rc loop by adding delta to burst,
+//Bit 15:12      reserved
+//Bit 11: 0      reg_rc_accum_margin_thd_2_1
+// unsigned ,    RW, default = 8
+//threshold of accum to guard the rc loop by adding delta to burst,
+#define DI_T3X_AFBCE1_LOSS_RC_ACCUM_THD_1              0x7f95
+//Bit 31:28      reserved
+//Bit 27:16      reg_rc_accum_margin_thd_2_0
+// unsigned ,    RW, default = 8
+//threshold of accum to guard the rc loop by adding delta to burst,
+//Bit 15:12      reserved
+//Bit 11: 0      reg_rc_accum_margin_thd_1_2
+// unsigned ,    RW, default = 128
+//threshold of accum to guard the rc loop by adding delta to burst,
+#define DI_T3X_AFBCE1_LOSS_RC_ACCUM_THD_2              0x7f96
+//Bit 31:28      reserved
+//Bit 27:16      reg_rc_accum_margin_thd_1_1
+// unsigned ,    RW, default = 64
+//threshold of accum to guard the rc loop by adding delta to burst,
+//Bit 15:12      reserved
+//Bit 11: 0      reg_rc_accum_margin_thd_1_0
+// unsigned ,    RW, default = 4
+//threshold of accum to guard the rc loop by adding delta to burst,
+#define DI_T3X_AFBCE1_LOSS_RC_ACCUM_THD_3              0x7f97
+//Bit 31:28      reserved
+//Bit 27:16      reg_rc_accum_margin_thd_0_2
+// unsigned ,    RW, default = 256
+//threshold of accum to guard the rc loop by adding delta to burst,
+//Bit 15:12      reserved
+//Bit 11: 0      reg_rc_accum_margin_thd_0_1
+// unsigned ,    RW, default = 128
+//threshold of accum to guard the rc loop by adding delta to burst,
+#define DI_T3X_AFBCE1_LOSS_RC_ACCUM_BUGET_0            0x7f98
+//Bit 31:20      reg_rc_accum_margin_thd_0_0
+// unsigned ,    RW, default = 0
+//threshold of accum to guard the rc loop by adding delta to burst,
+//Bit 19:16      reserved
+//Bit 15:12      reg_rc_accum_margin_buget_2_2
+// unsigned ,    RW, default = 1
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+//Bit 11: 8      reg_rc_accum_margin_buget_2_1
+// unsigned ,    RW, default = 0
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+//Bit  7: 4      reg_rc_accum_margin_buget_2_0
+// unsigned ,    RW, default = 0
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+//Bit  3: 0      reg_rc_accum_margin_buget_1_2
+// unsigned ,    RW, default = 2
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+#define DI_T3X_AFBCE1_LOSS_RC_ACCUM_BUGET_1            0x7f99
+//Bit 31:28      reg_rc_accum_margin_buget_1_1
+// unsigned ,    RW, default = 1
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+//Bit 27:24      reg_rc_accum_margin_buget_1_0
+// unsigned ,    RW, default = 1
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+//Bit 23:20      reg_rc_accum_margin_buget_0_2
+// unsigned ,    RW, default = 2
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+//Bit 19:16      reg_rc_accum_margin_buget_0_1
+// unsigned ,    RW, default = 1
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+//Bit 15:12      reg_rc_accum_margin_buget_0_0
+//unsigned,RW, default = 1
+//delta of accum to guard the rc loop by adding delta to burst, default=[]
+//Bit 11: 8      reserved
+//Bit  7: 4      reg_rc_qlevel_chk_th_0
+// nsigned,RW, default = 5  threshold of qlevel for adjust burst based on accum
+//Bit  3: 0      reg_rc_qlevel_chk_th_1
+// unsigned,RW, default = 4  threshold of qlevel for adjust burst based on accum
+#define DI_T3X_AFBCE1_LOSS_RO_ERROR_L_0                0x7f9a
+//Bit 31: 0      ro_error_acc_mode0_l_0
+//unsigned ,    RO, default = 0  square
+#define DI_T3X_AFBCE1_LOSS_RO_COUNT_0                  0x7f9b
+//Bit 31:24      reserved
+//Bit 23: 0      ro_enter_mode0_num_0
+//unsigned ,    RO, default = 0  mode num contour
+#define DI_T3X_AFBCE1_LOSS_RO_ERROR_L_1                0x7f9c
+//Bit 31: 0      ro_error_acc_mode0_l_1
+//unsigned ,    RO, default = 0  square
+#define DI_T3X_AFBCE1_LOSS_RO_COUNT_1                  0x7f9d
+//Bit 31:24      reserved
+//Bit 23: 0      ro_enter_mode0_num_1
+//unsigned ,    RO, default = 0  mode num contour
+#define DI_T3X_AFBCE1_LOSS_RO_ERROR_L_2                0x7f9e
+//Bit 31: 0      ro_error_acc_mode0_l_2
+//unsigned ,    RO, default = 0  square
+#define DI_T3X_AFBCE1_LOSS_RO_COUNT_2                  0x7f9f
+//Bit 31:24      reserved
+//Bit 23: 0      ro_enter_mode0_num_2
+//unsigned ,    RO, default = 0  mode num contour
+#define DI_T3X_AFBCE1_LOSS_RO_ERROR_H_0                0x7fa0
+//Bit 31:16      ro_error_acc_mode0_h_2
+//unsigned ,    RO, default = 0  square
+//Bit 15: 0      ro_error_acc_mode0_h_1
+//unsigned ,    RO, default = 0  square
+#define DI_T3X_AFBCE1_LOSS_RO_ERROR_H_1                0x7fa1
+//Bit 31:16      reserved
+//Bit 15: 0      ro_error_acc_mode0_h_0
+//unsigned ,    RO, default = 0  square
+#define DI_T3X_AFBCE1_LOSS_RO_MAX_ERROR_0              0x7fa2
+//Bit 31:28      reserved
+//Bit 27:16      ro_max_error_mode0_2
+//unsigned ,    RO, default = 0  error
+//Bit 15:12      reserved
+//Bit 11: 0      ro_max_error_mode0_1
+//unsigned ,    RO, default = 0  error
+#define DI_T3X_AFBCE1_LOSS_RO_MAX_ERROR_1              0x7fa3
+//Bit 31:12      reserved
+//Bit 11: 0      ro_max_error_mode0_0
+//unsigned ,    RO, default = 0  error
+
+//pre
+#define T3X_NRWR_DBG_AXI_CMD_CNT                       0x7f60
+#define T3X_NRWR_DBG_AXI_DAT_CNT                       0x7f61
+#define DI_T3X_NRWR_CANVAS                             0x7f62
+#define DI_T3X_NRWR_URGENT                             0x7f63
+#define DI_T3X_NRWR_X                                  0x7f64
+#define DI_T3X_NRWR_Y                                  0x7f65
+#define DI_T3X_NRWR_CTRL                               0x7f66
+#define DI_T3X_NRWR_SHRK_CTRL                          0x7f67
+#define DI_T3X_NRWR_SHRK_SIZE                          0x7f68
+#define DI_T3X_NRWR_CROP_CTRL                          0x7f6a
+#define DI_T3X_NRWR_CROP_DIMM_CTRL                     0x7f6b
+#define DI_T3X_NRWR_CROP_SIZE_IN                       0x7f6c
+#define DI_T3X_NRWR_CROP_HSCOPE                        0x7f6d
+#define DI_T3X_NRWR_CROP_VSCOPE                        0x7f6e
+#define DI_T3X_NRWR_BADDR0                             0x7f70
+#define DI_T3X_NRWR_STRIDE0                            0x7f71
+#define DI_T3X_NRWR_BADDR1                             0x7f72
+#define DI_T3X_NRWR_STRIDE1                            0x7f73
+#define DI_T3X_NRWR_CTRL3                              0x7f74
+//Bit 31:0        wmif_ctrl3            unsigned, default=0;
+
+//post
+#define T3X_DIWR_DBG_AXI_CMD_CNT                       0x7fe0
+#define T3X_DIWR_DBG_AXI_DAT_CNT                       0x7fe1
+#define DI_T3X_DIWR_CANVAS                             0x7fe2
+#define DI_T3X_DIWR_URGENT                             0x7fe3
+#define DI_T3X_DIWR_X                                  0x7fe4
+#define DI_T3X_DIWR_Y                                  0x7fe5
+#define DI_T3X_DIWR_CTRL                               0x7fe6
+#define DI_T3X_DIWR_SHRK_CTRL                          0x7fe7
+#define DI_T3X_DIWR_SHRK_SIZE                          0x7fe8
+#define DI_T3X_DIWR_CROP_CTRL                          0x7fea
+#define DI_T3X_DIWR_CROP_DIMM_CTRL                     0x7feb
+#define DI_T3X_DIWR_CROP_SIZE_IN                       0x7fec
+#define DI_T3X_DIWR_CROP_HSCOPE                        0x7fed
+#define DI_T3X_DIWR_CROP_VSCOPE                        0x7fee
+#define DI_T3X_DIWR_BADDR0                             0x7ff8
+#define DI_T3X_DIWR_STRIDE0                            0x7ff9
+#define DI_T3X_DIWR_BADDR1                             0x7ffa
+#define DI_T3X_DIWR_STRIDE1                            0x7ffb
+#define DI_T3X_DIWR_CTRL3                              0x7ffc
+//Bit 31:0        wmif_ctrl3            unsigned, default=0;
 
 #endif	/*__DI_REG_V3_H__*/
 

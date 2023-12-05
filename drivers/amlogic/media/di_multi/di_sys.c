@@ -1109,7 +1109,7 @@ void pre_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 	unsigned int idat_size;
 	//for cma:
 	struct dim_mm_s omm;
-	bool ret;
+	bool ret = 0;
 	struct di_dev_s *de_devp = get_dim_de_devp();
 
 	idat = get_idat(pch);
@@ -1175,7 +1175,7 @@ void pst_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 	unsigned int dat_size;
 	//for cma:
 	struct dim_mm_s omm;
-	bool ret;
+	bool ret = 0;
 	struct di_dev_s *de_devp = get_dim_de_devp();
 
 	pdat = get_pst_afbct(pch);
@@ -3722,6 +3722,7 @@ static const struct file_operations di_fops = {
 
 //#define ARY_MATCH (1)
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static const struct di_meson_data  data_g12a = {
 	.name = "dim_g12a",
 	.ic_id	= DI_IC_ID_G12A,
@@ -3776,12 +3777,14 @@ static const struct di_meson_data  data_t5d_vb = {
 	.ic_id	= DI_IC_ID_T5DB,
 	.support = IC_SUPPORT_PRE_VPP_LINK
 };
+#endif
 
 static const struct di_meson_data  data_s4 = {
 	.name = "dim_s4",
 	.ic_id	= DI_IC_ID_S4,
 };
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static const struct di_meson_data  data_t3 = {
 	.name = "dim_t3",//t5w sub_v=1,t3 costdown
 	.ic_id	= DI_IC_ID_T3,
@@ -3799,9 +3802,19 @@ static const struct di_meson_data  data_s5 = {
 		   IC_SUPPORT_TB
 };
 
+static const struct di_meson_data  data_t3x = {
+	.name = "dim_t3x",
+	.ic_id	= DI_IC_ID_T3X,
+	.support = IC_SUPPORT_DECONTOUR	|
+		   IC_SUPPORT_HDR	|
+		   IC_SUPPORT_DW
+};
+#endif
+
 /* #ifdef CONFIG_USE_OF */
 static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 	/*{ .compatible = "amlogic, deinterlace", },*/
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	{	.compatible = "amlogic, dim-g12a",
 		.data = &data_g12a,
 	}, {	.compatible = "amlogic, dim-g12b",
@@ -3822,12 +3835,18 @@ static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 		.data = &data_t5d_va,
 	}, {	.compatible = "amlogic, dim-t5dvb",
 		.data = &data_t5d_vb,
-	}, {	.compatible = "amlogic, dim-s4",
+	},
+#endif
+	{	.compatible = "amlogic, dim-s4",
 		.data = &data_s4,
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	}, {	.compatible = "amlogic, dim-t3",
 		.data = &data_t3,
 	}, {	.compatible = "amlogic, dim-s5",
 		.data = &data_s5,
+	}, {	.compatible = "amlogic, dim-t3x",
+		.data = &data_t3x,
+#endif
 	}, {}
 };
 
@@ -3924,7 +3943,7 @@ static int dim_probe(struct platform_device *pdev)
 	else
 		pdata->ic_sub_ver = DI_IC_REV_MAJOR;
 
-	PR_INF("name: %s:id[%d]:ver[%d]\n", pdata->mdata->name,
+	pr_debug("name: %s:id[%d]:ver[%d]\n", pdata->mdata->name,
 	       pdata->mdata->ic_id, pdata->ic_sub_ver);
 
 	ret = of_reserved_mem_device_init(&pdev->dev);
@@ -4034,7 +4053,7 @@ static int dim_probe(struct platform_device *pdev)
 	//set ic version need before PQ init
 	dil_set_diff_ver_flag(1);
 	dil_set_cpuver_flag(get_datal()->mdata->ic_id);
-	if (DIM_IS_IC(SC2) || DIM_IS_IC(S4))
+	if (DIM_IS_IC(SC2) || DIM_IS_IC(S4) || DIM_IS_IC_EF(T7))
 		di_devp->is_crc_ic = true;
 	dip_init_pq_ops();
 
@@ -4220,10 +4239,8 @@ static void dim_shutdown(struct platform_device *pdev)
 
 	if (!is_meson_txlx_cpu())
 		diext_clk_b_sw(false);
-
 	if (!DIM_IS_IC(T5) && !DIM_IS_IC(T5DB) && !DIM_IS_IC(T5D))
 		clk_disable_unprepare(di_devp->vpu_clk_mux);
-
 	PR_INF("%s.\n", __func__);
 }
 
@@ -4248,7 +4265,9 @@ static int di_suspend(struct device *dev)
 	/*set clkb to low ratio*/
 		if (DIM_IS_IC(T5)	||
 		   DIM_IS_IC(T5DB)	||
-		   DIM_IS_IC(T5D)) {
+		   DIM_IS_IC(T5D)	||
+		   DIM_IS_IC(T3)	||
+		   DIM_IS_IC(T3X)) {
 	#ifdef CLK_TREE_SUPPORT
 			if (dimp_get(edi_mp_clock_low_ratio)) {
 				clk_set_rate(di_devp->vpu_clkb,
@@ -4309,7 +4328,7 @@ int __init dim_module_init(void)
 {
 	int ret = 0;
 
-	dbg_tst("%s\n", __func__);
+	pr_debug("dim:%s\n", __func__);
 
 	ret = platform_driver_register(&di_driver);
 	if (ret != 0) {
@@ -4317,14 +4336,14 @@ int __init dim_module_init(void)
 		/*goto fail_pdrv_register;*/
 		return -ENODEV;
 	}
-	PR_INF("%s finish\n", "init");
+	pr_debug("%s finish\n", "init");
 	return 0;
 }
 
 void __exit dim_module_exit(void)
 {
 	platform_driver_unregister(&di_driver);
-	PR_INF("%s: ok.\n", __func__);
+	pr_debug("%s: ok.\n", __func__);
 }
 
 //MODULE_DESCRIPTION("AMLOGIC MULTI-DI driver");

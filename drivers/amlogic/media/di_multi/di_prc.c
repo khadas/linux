@@ -431,7 +431,7 @@ void di_cfg_top_dts(void)
 	pt = &di_cfg_top_ctr[EDI_CFG_DAT];
 	if (DIM_IS_IC(TM2B)	||
 	    DIM_IS_IC(SC2) || DIM_IS_IC(T5) ||
-	    DIM_IS_IC(T7) || DIM_IS_IC(S5) ||
+	    DIM_IS_IC(T7) || DIM_IS_IC(S5) || DIM_IS_IC(T3X) ||
 	    DIM_IS_IC(T3)) {
 		if (!pd->b.dts_have) {
 			pd->b.val_c = 0x3;
@@ -3277,11 +3277,11 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 	if ((post_nub) && post_nub <= POST_BUF_NUM)
 		mm->cfg.num_post = post_nub;
 
-	PR_INF("%s:ch[%d]:fix_buf:%d;ponly <%d,%d>\n",
+	PR_INF("%s:ch[%d]:fix_buf:%d;ponly <%d,%d> post_nub=%d\n",
 	       "value reg",
 	       ch,
 	       mm->cfg.fix_buf,
-	       pch->ponly, ponly_by_firstp);
+	       pch->ponly, ponly_by_firstp, post_nub);
 
 	pch->mode = dim_cnt_mode(pch);
 }
@@ -4456,7 +4456,7 @@ void bufq_ndis_unreg(struct di_ch_s *pch)
 			memset(&ndis->c, 0, sizeof(ndis->c));
 			ndis->etype = EDIM_NIN_TYPE_NONE;
 			qbuf_in(pbufq, QBF_NDIS_Q_IDLE, ndis->header.index);
-			dbg_reg("%s:used 2 idle %d\n", __func__, ndis->header.index);
+			PR_INF("%s:used 2 idle %d\n", __func__, ndis->header.index);
 		}
 	}
 	//dbg_unreg_flg = 1;
@@ -5492,7 +5492,9 @@ void dip_init_pq_ops(void)
 
 	/* hw l1 ops*/
 	if (IS_IC_EF(ic_id, SC2)) {
-		if (IS_IC_EF(ic_id, T7))
+		if (DIM_IS_IC(T3X))
+			get_datal()->hop_l1 = &dim_ops_l1_v5;
+		else if (IS_IC_EF(ic_id, T7))
 			get_datal()->hop_l1 = &dim_ops_l1_v4;
 		else
 			get_datal()->hop_l1 = &dim_ops_l1_v3;
@@ -5562,6 +5564,20 @@ module_param_named(dim_slt_mode, dim_slt_mode, bool, 0664);
 bool dim_is_slt_mode(void)
 {
 	return dim_slt_mode;
+}
+
+static int dim_post_num;
+module_param_named(dim_post_num, dim_post_num, int, 0664);
+
+unsigned int dim_get_post_num(void)
+{
+	return dim_post_num;
+}
+
+void dim_set_post_num(struct di_ch_s *pch, unsigned int data)
+{
+	if (data)
+		cfgsch(pch, POST_NUB, data);
 }
 
 void dim_slt_init(void)
@@ -7248,7 +7264,7 @@ static noinline int __invoke_psci_fn_vpub_smc(u64 function_id, u64 arg0,
 
 void di_probe_vpub_en_set(u32 enable)
 {
-	if (DIM_IS_IC(S5) && cfgg(HF)) {
+	if ((DIM_IS_IC(S5) || DIM_IS_IC(T3X)) && cfgg(HF)) {
 		if (enable)
 			__invoke_psci_fn_vpub_smc(0x82000080, 1, 0, 0);
 		else

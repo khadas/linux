@@ -38,7 +38,7 @@
 //#endif
 
 #define MAX_DI_HOLD_CTRL_CNT 20
-
+#define MAX_SCREEN_RATIO 400
 /* MAX_FIFO_SIZE */
 #define MAX_FIFO_SIZE_PVPP		(32)
 //#define AUTO_NR_DISABLE		(1)
@@ -457,7 +457,7 @@ static bool dpvpp_bypass_display(void)
 	return false;
 }
 
-static bool dpvpp_dbg_force_frc(void)
+static bool dpvpp_dbg_force_disable_pre_hold(void)
 {
 	if (tst_pre_vpp & DI_BIT30)
 		return true;
@@ -3418,6 +3418,8 @@ void mem_count_buf_cfg(unsigned char mode, unsigned char idx)
 	unsigned long buf_start;
 
 	hw = &get_datal()->dvs_prevpp.hw;
+	dim_print("%s:%d:%d\n", __func__, mode, idx);
+
 	if (mode == 0xff) {
 		for (i = 0; i < K_BUF_CFG_T_NUB; i++)
 			hw->buf_cfg[i].support = false;
@@ -3648,6 +3650,9 @@ static void mem_count_buf_cfg2(unsigned char mode, unsigned char idx, unsigned c
 	unsigned long buf_start;
 
 	hw = &get_datal()->dvs_prevpp.hw;
+
+	dim_print("%s:overflow:%d:%d,:%d\n", __func__, mode, idx, by);
+
 	if (mode == 0xff) {
 		for (i = 0; i < K_BUF_CFG_T_NUB; i++)
 			hw->buf_cfg[i].support = false;
@@ -4176,12 +4181,12 @@ void dpvpp_secure_pre_en(bool is_tvp)
 		if (DIM_IS_IC_EF(SC2)) {
 			DIM_DI_WR(DI_PRE_SEC_IN, 0x3F);//secure
 		} else {
-		#ifdef CONFIG_AMLOGIC_TEE
+		#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 			tee_config_device_state(16, 1);
 		#endif
 		}
-		if (DIM_IS_IC(S5)) {
-		#ifdef CONFIG_AMLOGIC_TEE
+		if (DIM_IS_IC(S5) || DIM_IS_IC(T3X)) {
+		#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 			tee_write_reg_bits
 				(((DI_VIUB_SECURE_REG << 2) + 0xff800000),
 				 1, 8, 1);// HF secure Polarity
@@ -4194,12 +4199,12 @@ void dpvpp_secure_pre_en(bool is_tvp)
 		if (DIM_IS_IC_EF(SC2)) {
 			DIM_DI_WR(DI_PRE_SEC_IN, 0x0);
 		} else {
-		#ifdef CONFIG_AMLOGIC_TEE
+		#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 			tee_config_device_state(16, 0);
 		#endif
 		}
-		if (DIM_IS_IC(S5)) {
-		#ifdef CONFIG_AMLOGIC_TEE
+		if (DIM_IS_IC(S5) || DIM_IS_IC(T3X)) {
+		#if IS_ENABLED(CONFIG_AMLOGIC_TEE)
 			tee_write_reg_bits
 				(((DI_VIUB_SECURE_REG << 2) + 0xff800000),
 				 0, 8, 1);// HF secure Polarity
@@ -4899,10 +4904,7 @@ static int dpvpp_link_sw_api(bool sw)
 	if (!sw && cur_sts && atomic_read(&hw->link_sts))
 		atomic_set(&hw->link_in_busy, 1);
 
-	dim_print("%s: link_on_byvpp:%d link_on_bydi:%d link_in_busy:%d\n",
-		__func__, sw,
-		atomic_read(&hw->link_on_bydi),
-		atomic_read(&hw->link_in_busy));
+	dim_print("%s:%d\n", __func__, sw);
 	return true;
 }
 
@@ -5113,7 +5115,6 @@ static bool dpvpp_parser_bypass(struct dimn_itf_s *itf,
 				buffer_ori->vf->di_flag &= ~DI_FLAG_DCT_DS_RATIO_MASK;
 				buffer_ori->vf->di_flag |= ds_ratio;
 			}
-
 			qidle->ops.put(qidle, vf);
 			qready->ops.put(qready, buffer_ori);
 			if (qready->ops.is_full(qready))
@@ -5225,7 +5226,6 @@ static bool dpvpp_parser(struct dimn_itf_s *itf)
 	if (!itf ||
 	    !itf->c.reg_di || !itf->ds || itf->c.pause_parser)
 		return false;
-
 	if (itf->c.src_state & EDVPP_SRC_NEED_MSK_CRT)
 		return false;
 
@@ -5508,7 +5508,6 @@ static int dpvpp_get_plink_input_win(struct di_ch_s *pch,
 			__func__, src_w, src_h, tmp.orig_w, tmp.orig_h,
 			tmp.x_st, tmp.x_end, tmp.x_size, tmp.x_check_sum,
 			tmp.y_st, tmp.y_end, tmp.y_size, tmp.y_check_sum);
-
 	/* just skip warning if only source size change */
 	if (src_w != tmp.orig_w)
 		ret++;
@@ -5754,7 +5753,6 @@ static int dpvpp_display(struct vframe_s *vfm,
 		bypass_reason = 7;
 		goto DISPLAY_BYPASS;
 	}
-
 	if (ndvfm->c.is_out_4k)
 		hw->blk_used_uhd = true;
 	else
@@ -6405,8 +6403,10 @@ void dpvpph_unreg_setting(void)
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB)) {
 		DIM_DI_WR(DI_CLKG_CTRL, 0x80f60000);
 		DIM_DI_WR(DI_PRE_CTRL, 0);
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	} else {
 		DIM_DI_WR(DI_CLKG_CTRL, 0xf60000);
+#endif
 	}
 	/*ary add for switch to post wr, can't display*/
 	dbg_pl("dimh_disable_post_deinterlace_2\n");
@@ -6462,7 +6462,8 @@ void dpvpph_unreg_setting(void)
 	if (DIM_IS_IC(T5)	||
 	    DIM_IS_IC(T5DB)	||
 	    DIM_IS_IC(T5D)	||
-	    DIM_IS_IC(T3)) {
+	    DIM_IS_IC(T3)	||
+	    DIM_IS_IC(T3X)) {
 		#ifdef CLK_TREE_SUPPORT
 		if (dimp_get(edi_mp_clock_low_ratio))
 			clk_set_rate(de_devp->vpu_clkb,
@@ -6637,8 +6638,7 @@ static void dpvpph_size_change(struct dim_prevpp_ds_s *ds,
 	}
 #endif /* pulldown_en */
 	op->wr(DI_PRE_SIZE, (width - 1) | ((height - 1) << 16));
-	dim_print("%s:DI_PRE_SIZE:%d,%d: arb:%x\n",
-		__func__, width, height, RD(DI_ARB_DBG_STAT_L1C1));
+	PR_INF("%s:DI_PRE_SIZE:%d,%d: arb:%x\n", __func__, width, height, RD(DI_ARB_DBG_STAT_L1C1));
 #ifdef HIS_CODE
 	if (mc_en) { //dimp_get(edi_mp_mcpre_en)
 		blkhsize = (width + 4) / 5;
@@ -6832,9 +6832,9 @@ static void dpvpph_enable_di_pre_aml(const struct reg_acc *op_in,
 					    (pre_vdin_link << 14)	   |
 					    (1 << 21)	| /*chan2 t/b reverse*/
 					    /* under prelink mode, need enable upsample filter */
-					    (2 << 23)	|
+					    (2 << 23)  |
 					    /* mode_422c444 [24:23] */
-					    (0 << 25)	|
+					    (0 << 25)  |
 					    /* contrd en */
 					    /* under prelink mode, need enable upsample filter */
 					    (2 << 26)  |
@@ -7771,12 +7771,16 @@ static void dpvpph_prelink_sw(const struct reg_acc *op, bool p_link)
 		} else {
 			op->bwr(DI_AFBCE_CTRL, 1, 3, 1);
 			//op->wr(VD1_AFBCD0_MISC_CTRL, 0x100100);
-			op->bwr(VD1_AFBCD0_MISC_CTRL, 1, 8, 1);
-			op->bwr(VD1_AFBCD0_MISC_CTRL, 1, 20, 1);
+			if (DIM_IS_IC_TXHD2) {
+				op->bwr(VD1_AFBCD0_MISC_CTRL, 3, 8, 2);
+			} else {
+				op->bwr(VD1_AFBCD0_MISC_CTRL, 1, 8, 1);
+				op->bwr(VD1_AFBCD0_MISC_CTRL, 1, 20, 1);
+			}
 		}
 		WR(REG_VPU_WRARB_REQEN_SLV_L1C1, WRARB_onval);
 		WR(REG_VPU_RDARB_REQEN_SLV_L1C1, 0xffff);
-		dbg_plink1("c_sw:ak:from[0x%x] %px\n", val, op);
+		PR_INF("c_sw:ak:from[0x%x] %px\n", val, op);
 	} else {
 		/* set off */
 		dpvpph_gl_disable(op);	//test-05
@@ -7797,7 +7801,7 @@ static void dpvpph_prelink_sw(const struct reg_acc *op, bool p_link)
 		//prelink_status = false;
 		op->wr(REG_VPU_WRARB_REQEN_SLV_L1C1, WRARB_offval);
 		op->wr(REG_VPU_RDARB_REQEN_SLV_L1C1, 0xf079);
-		dbg_plink1("c_sw:bk %px arb:%x\n", op, RD(DI_ARB_DBG_STAT_L1C1));
+		PR_INF("c_sw:bk %px arb:%x\n", op, RD(DI_ARB_DBG_STAT_L1C1));
 	}
 }
 
@@ -7819,7 +7823,10 @@ static void dpvpph_prelink_polling_check(const struct reg_acc *op, bool p_link)
 		/* check bit 8 / 16*/
 		if ((val & 0x10100) != 0x00100)
 			flg_set = true;
-
+	} else if (DIM_IS_IC_TXHD2) {
+		/* check bit 8 / 20 */
+		if ((val & 0x100100) != 0x000100)
+			flg_set = true;
 	} else {
 		/* check bit 8 / 20 */
 		if ((val & 0x100100) != 0x100100)
@@ -9265,6 +9272,7 @@ int set_holdreg_by_in_out(struct vframe_s *vfm, struct pvpp_dis_para_in_s *in_pa
 	int out_frequency;
 	int ret = 0;
 	int ratio = 10;
+	int screen_ratio = 100;
 
 	static int cur_level;
 	int clk_need;
@@ -9287,7 +9295,20 @@ int set_holdreg_by_in_out(struct vframe_s *vfm, struct pvpp_dis_para_in_s *in_pa
 		return ret;
 	}
 
-	if (dpvpp_dbg_force_frc())
+	if (in_para->vinfo.y_d_size == 0 || in_para->vinfo.x_d_size == 0 ||
+		in_para->vinfo.vtotal == 0 || in_para->vinfo.htotal == 0) {
+		return ret;
+	}
+
+	screen_ratio = in_para->vinfo.height * in_para->vinfo.width * 100 /
+			in_para->vinfo.y_d_size / in_para->vinfo.x_d_size;
+	if (screen_ratio < MAX_SCREEN_RATIO) {
+		op->wr(DI_PRE_HOLD, 0x0);
+		dbg_plink1("screen_ratio oversize no need set hold reg\n");
+		return ret;
+	}
+
+	if (dpvpp_dbg_force_disable_pre_hold())
 		return ret;
 
 	memcpy(ctrl->setting, setting, sizeof(setting));
@@ -9323,14 +9344,16 @@ int set_holdreg_by_in_out(struct vframe_s *vfm, struct pvpp_dis_para_in_s *in_pa
 		}
 	}
 
-	dbg_plink1("%s h-v <%d,%d> frequency:%d\n vfm_in h-w <%d,%d> x_d/y_d<%d %d> %ld\n"
+	dbg_plink1("%s total<%d,%d> vinfo <%d %d> %d\n vfm <%d,%d> x_d/y_d<%d %d> %ld\n"
 		"vfm_pixels %ld v_percentage*100 %ld clk_val:reg_val <%d %x> ratio:%d\n",
 		__func__,
 		in_para->vinfo.htotal,
 		in_para->vinfo.vtotal,
+		in_para->vinfo.height,
+		in_para->vinfo.width,
 		in_para->vinfo.frequency,
-		in_para->win.y_size,
 		in_para->win.x_size,
+		in_para->win.y_size,
 		in_para->vinfo.x_d_size,
 		in_para->vinfo.y_d_size,
 		display_time_us_per_frame,

@@ -138,7 +138,7 @@ union AFBC_SIZE_OUT_BITS {
 	struct {
 		unsigned int vsize_out:13,
 		reserved2:3,
-		hsize_out:13,
+		h_size_out:13,
 		reserved1:3;
 	} b;
 };
@@ -334,7 +334,7 @@ struct reg_afbs_s {
 #define AFBC_B_DEC_LBUF_DEPTH	(31)
 #define AFBC_B_MIF_INFO_BADDR	(32)
 #define AFBC_B_VSIZE_OUT	(33)
-#define AFBC_B_HSIZE_OUT	(34)
+#define AFBC_B_H_SIZE_OUT	(34)
 #define AFBC_B_OUT_VERT_END	(35)
 #define AFBC_B_OUT_VERT_BGN	(36)
 #define AFBC_B_FRM_END_STAT	(37)

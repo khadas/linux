@@ -3060,6 +3060,15 @@ void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index)
 		mm->sts.flg_release++;
 		break;
 	case EDI_TOP_STATE_REG_STEP1:
+		 /*unreg->reg->release buf to di: the buf will not free until get new vf.
+		  *so FCC switch channel, the other two channel not work but also has di buffer.
+		  *We need free the buffer when EDI_TOP_STATE_REG_STEP1 (reg but no vf)
+		  */
+		if (mm->fcc_value)
+			dim_post_keep_release_one_check(ch, index);
+		else
+			ndkb_qin_byidx(pch, index);
+		break;
 	case EDI_TOP_STATE_REG_STEP1_P1:
 	case EDI_TOP_STATE_REG_STEP2:
 		ndkb_qin_byidx(pch, index);
@@ -4037,12 +4046,15 @@ void dim_pre_de_process(unsigned int channel)
 					      &ppre->di_mcvecwr_mif,
 					      ppre->mcdi_enable);
 	}
+	if (dim_config_crc_icl() && VFMT_IS_I(vf_i->type)) //add for crc @2k23-0403
+		dimh_set_crc_init_update(ppre->field_count_for_cont);
+
 	if (dim_is_slt_mode()) {
 		if (DIM_IS_IC(T5) || DIM_IS_IC(T5DB) ||
 		    DIM_IS_IC(T5D)) {
 			DIM_DI_WR(0x2dff, 0x3e03c); //crc test for nr//0xbeffc
 		} else if (DIM_IS_IC_EF(SC2)) {
-			if (DIM_IS_ICS(T5W))
+			if (DIM_IS_ICS(T5W) || DIM_IS_ICS_T5M)
 				DIM_DI_WR(0x2dff, 0xbe03c); //disable the 3dnr
 			else
 				DIM_DI_WR(0x2dff, 0xbeffc);
@@ -10649,8 +10661,10 @@ void di_unreg_setting(bool plink)
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB)) {
 		DIM_DI_WR(DI_CLKG_CTRL, 0x80f60000);
 		DIM_DI_WR(DI_PRE_CTRL, 0);
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	} else {
 		DIM_DI_WR(DI_CLKG_CTRL, 0xf60000);
+#endif
 	}
 	/*ary add for switch to post wr, can't display*/
 	dbg_pl("dimh_disable_post_deinterlace_2\n");
@@ -10715,7 +10729,8 @@ void di_unreg_setting(bool plink)
 	if (DIM_IS_IC(T5)	||
 	    DIM_IS_IC(T5DB)	||
 	    DIM_IS_IC(T5D)	||
-	    DIM_IS_IC(T3)) {
+	    DIM_IS_IC(T3)	||
+	    DIM_IS_IC(T3X)) {
 		#ifdef CLK_TREE_SUPPORT
 		if (dimp_get(edi_mp_clock_low_ratio))
 			clk_set_rate(de_devp->vpu_clkb,
@@ -10964,7 +10979,6 @@ void di_pre_size_change(unsigned short width,
 
 	if (DIM_IS_ICS_T5M)
 		DIM_RDMA_WR(DI_PRE_HOLD, 0x0);
-
 	if (dimp_get(edi_mp_mcpre_en)) {
 		blkhsize = (width + 4) / 5;
 		DIM_RDMA_WR(MCDI_HV_SIZEIN, height
@@ -11122,7 +11136,7 @@ static unsigned int dim_bypass_check(struct vframe_s *vf)
 	} else if (vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH) {
 		reason = 0xa;
 	} else if (VFMT_IS_P(vf->type) && vf->duration < 1600 && vf->duration != 0) {
-		reason = 120;
+		reason = 0x78;
 	} else if (vf->type & VIDTYPE_COMPRESS) {
 		if (dim_afds() && !dim_afds()->is_supported()) {
 			reason = 3;
@@ -11188,7 +11202,7 @@ void di_reg_setting(unsigned int channel, struct vframe_s *vframe)
 	    dimp_get(edi_mp_post_wr_support))
 		dim_set_power_control(1);
 
-	if (DIM_IS_IC(T5DB))
+	if (DIM_IS_IC_TXHD2 || DIM_IS_IC(T5DB))
 		di_async_txhd2();
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
@@ -11328,6 +11342,7 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 
 	dim_print("%s:0x%p\n", __func__, vframe);
 	pch = get_chdata(channel);
+	dim_set_post_num(pch, dim_get_post_num());
 	mm = dim_mm_get(channel);
 	if (vframe) {
 //		if (DIM_IS_IC_EF(SC2) && dim_afds())
@@ -11594,7 +11609,7 @@ static long dim_pq_load_io_l(struct di_dev_s *de_devp, unsigned long arg)
 
 	tab_flag |= TABLE_NAME_SMOOTHPLUS;
 	if (tmp_pq_s.table_name & tab_flag) {
-		PR_INF("pq i:0x%x:%u:%s.\n",
+		dbg_dbg("pq i:0x%x:%u:%s.\n",
 		       tmp_pq_s.table_name, tmp_pq_s.table_len,
 		       (!dim_dbg_is_force_later() && get_reg_flag_all()) ? "directly" : "later");
 	} else {
@@ -11789,14 +11804,14 @@ void dim_set_di_flag(void)
 		pldn_dly1 = 2;
 	}
 
-	if (DIM_IS_IC(TL1)	||
-	    DIM_IS_IC(T5)	||
+	if (DIM_IS_IC(T5)	||
 	    DIM_IS_IC(TM2B)	||
 	    DIM_IS_IC(T5DB)	||
 	    DIM_IS_IC(T5D)	||
 	    DIM_IS_IC(T7) ||
 	    DIM_IS_IC(S5) ||
-	    DIM_IS_IC(T3))//s4/sc2 box bypass nr from brian
+	    DIM_IS_IC(T3) ||
+	    DIM_IS_IC(T3X))//s4/sc2 box bypass nr from brian
 		di_cfg_set(ECFG_DIM_BYPASS_P, 0);//for t5 enable p
 
 	get_ops_mtn()->mtn_int_combing_glbmot();

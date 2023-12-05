@@ -48,7 +48,7 @@ enum EAFBC_REG {
 	EAFBC_VD_CFMT_H,
 };
 
-#define DIM_AFBCE_NUB	(44)//for sc2 add 5 register (39)
+#define DIM_AFBCE_NUB	(46)//for sc2 add 5 register (39),T3X add 2(44)
 #define DIM_AFBCE_UP_NUB	(21)
 
 /* afbce bytes index */
@@ -102,6 +102,9 @@ enum EAFBCE_INDEX {
 	EAFBCE_DIMM_CTRL,
 	EAFBCE_BND_DEC_MISC,
 	EAFBCE_RD_ARB_MISC,
+	/* from t3x */
+	EAFBCE_LOSS_CTRL,
+	EAFBCE_LOSS_BURST_NUM,
 };
 
 enum AFBC_WK_MODE {
@@ -159,7 +162,6 @@ unsigned int afbce_read_used(enum EAFBC_ENC enc);
 void afbcd_enable_only_t5dvb(const struct reg_acc *op, bool vpp_link);
 void disable_afbcd_t5dvb(void);
 const unsigned int *afbc_get_inp_base(void);
-
 //bool cfg_pmode(void);
 //bool cfg_test4k(void);
 //bool dbg_di_prelink(void);

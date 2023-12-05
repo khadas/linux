@@ -490,7 +490,7 @@ int	FlmModsDet(struct sFlmDatSt *pRDat, int nDif01, int nDif02, int flm2224_cen)
 			/*suggest from vlsi yanling*/
 			if (nMax02 < (1 << 11))
 				nModLvl[tT0] = 0;
-		    if (tT0 == 4) {
+			if (tT0 == 4) {
 				if (nT4 == 9) {
 					ndif021 = pDif02[29 - 1];
 					ndif022 = pDif02[29 - 8];

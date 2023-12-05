@@ -6609,6 +6609,8 @@ s32 primary_render_frame(struct video_layer_s *layer,
 			di_in_p.win.y_size = di_in_p.win.y_end - di_in_p.win.y_st + 1;
 			di_in_p.vinfo.htotal = vinfo->htotal;
 			di_in_p.vinfo.vtotal = vinfo->vtotal;
+			di_in_p.vinfo.height = vinfo->height;
+			di_in_p.vinfo.width = vinfo->width;
 			di_in_p.vinfo.frequency = vinfo->std_duration;
 			di_in_p.plink_reverse = glayer_info[0].reverse;
 			di_in_p.plink_hv_mirror = glayer_info[0].mirror;

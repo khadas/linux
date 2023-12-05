@@ -886,6 +886,8 @@ int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 		/* used for indicate current video is motion or static */
 	seq_printf(seq, "%-15s:%d\n", "combing_cur_lev",
 		   pvfm->combing_cur_lev);
+	seq_printf(seq, "%-15s:%d\n", "vf_lossycomp_param.lossy_mode",
+		   pvfm->vf_lossycomp_param.lossy_mode);
 	for (i = 0; i < pvfm->plane_num; i++) {
 		pcvs = &pvfm->canvas0_config[i];
 		seq_printf(seq, "%-15s:%d\n", "canvas0_cfg", i);

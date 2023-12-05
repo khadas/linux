@@ -121,6 +121,8 @@ struct enc_cfg_s {
 	u32 force_444_comb;
 	u32 rot_en;
 	u32 din_swt;
+	int mmu_page_size;
+	u32 ofset_brst4_en;
 };
 
 static void afbce_sw(enum EAFBC_ENC enc, bool on, const struct reg_acc *op);//tmp
@@ -223,9 +225,11 @@ static bool is_cfg(enum EAFBC_CFG cfg_cmd)
 		if (cfg_cmd > EAFBC_CFG_INP_AFBC)
 			return false;
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	} else if (pafd_ctr->fb.ver == AFBCD_V4) {
 		if (cfg_cmd > EAFBC_CFG_MEM)
 			return false;
+#endif
 	}
 
 	ret = false;
@@ -527,6 +531,7 @@ static const unsigned int reg_afbc[AFBC_DEC_NUB][AFBC_REG_INDEX_NUB] = {
 
 };
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static const unsigned int reg_afbc_v5[AFBC_DEC_NUB_V5][AFBC_REG_INDEX_NUB] = {
 	[EAFBC_DEC0] = {
 		AFBCDM_VD1_ENABLE,
@@ -692,6 +697,7 @@ static const unsigned int reg_afbc_v5[AFBC_DEC_NUB_V5][AFBC_REG_INDEX_NUB] = {
 	},
 
 };
+#endif
 
 /*keep order with struct afbce_bits_s*/
 static const unsigned int reg_afbc_e[AFBC_ENC_NUB_V5][DIM_AFBCE_NUB] = {
@@ -803,14 +809,135 @@ static const unsigned int reg_afbc_e[AFBC_ENC_NUB_V5][DIM_AFBCE_NUB] = {
 	},
 };
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+static const unsigned int reg_afbc_t3x_e[AFBC_ENC_NUB_V5][DIM_AFBCE_NUB] = {
+	{
+		DI_T3X_AFBCE_ENABLE,		/*  0 */
+		DI_T3X_AFBCE_MODE,			/*  1 */
+		DI_T3X_AFBCE_SIZE_IN,		/*  2 */
+		DI_T3X_AFBCE_BLK_SIZE_IN,		/*  3 */
+		DI_T3X_AFBCE_HEAD_BADDR,		/*  4 */
+
+		DI_T3X_AFBCE_MIF_SIZE,		/*  5 */
+		DI_T3X_AFBCE_PIXEL_IN_HOR_SCOPE,	/*  6 */
+		DI_T3X_AFBCE_PIXEL_IN_VER_SCOPE,	/*  7 */
+		DI_T3X_AFBCE_CONV_CTRL,		/*  8 */
+		DI_T3X_AFBCE_MIF_HOR_SCOPE,		/*  9 */
+		DI_T3X_AFBCE_MIF_VER_SCOPE,		/* 10 */
+		/**/
+		DI_T3X_AFBCE_FORMAT,		/* 11 */
+		/**/
+		DI_T3X_AFBCE_DEFCOLOR_1,		/* 12 */
+		DI_T3X_AFBCE_DEFCOLOR_2,		/* 13 */
+		DI_T3X_AFBCE_QUANT_ENABLE,		/* 14 */
+		//unsigned int mmu_num,
+		DI_T3X_AFBCE_MMU_RMIF_CTRL1,	/* 15 */
+		DI_T3X_AFBCE_MMU_RMIF_CTRL2,	/* 16 */
+		DI_T3X_AFBCE_MMU_RMIF_CTRL3,	/* 17 */
+		DI_T3X_AFBCE_MMU_RMIF_CTRL4,	/* 18 */
+		DI_T3X_AFBCE_MMU_RMIF_SCOPE_X,	/* 19 */
+		DI_T3X_AFBCE_MMU_RMIF_SCOPE_Y,	/* 20 */
+
+		/**********************/
+		DI_T3X_AFBCE_MODE_EN,
+		DI_T3X_AFBCE_DWSCALAR,
+		DI_T3X_AFBCE_IQUANT_LUT_1,
+		DI_T3X_AFBCE_IQUANT_LUT_2,
+		DI_T3X_AFBCE_IQUANT_LUT_3,
+		DI_T3X_AFBCE_IQUANT_LUT_4,
+		DI_T3X_AFBCE_RQUANT_LUT_1,
+		DI_T3X_AFBCE_RQUANT_LUT_2,
+		DI_T3X_AFBCE_RQUANT_LUT_3,
+		DI_T3X_AFBCE_RQUANT_LUT_4,
+		DI_T3X_AFBCE_YUV_FORMAT_CONV_MODE,
+		DI_T3X_AFBCE_DUMMY_DATA,
+		DI_T3X_AFBCE_CLR_FLAG,
+		DI_T3X_AFBCE_STA_FLAGT,
+		DI_T3X_AFBCE_MMU_NUM,
+		DI_T3X_AFBCE_STAT1,		/*read only*/
+		DI_T3X_AFBCE_STAT2,
+		DI_T3X_AFBCE_MMU_RMIF_RO_STAT,
+		/*add for sc2*/
+		DI_T3X_AFBCE_PIP_CTRL,
+		DI_T3X_AFBCE_ROT_CTRL,
+		DI_T3X_AFBCE_DIMM_CTRL,
+		DI_T3X_AFBCE_BND_DEC_MISC,
+		DI_T3X_AFBCE_RD_ARB_MISC,
+		/*from t3x*/
+		DI_T3X_AFBCE_LOSS_CTRL,
+		DI_T3X_AFBCE_LOSS_BURST_NUM,
+	},
+	{
+		DI_T3X_AFBCE1_ENABLE,		/*  0 */
+		DI_T3X_AFBCE1_MODE,			/*  1 */
+		DI_T3X_AFBCE1_SIZE_IN,		/*  2 */
+		DI_T3X_AFBCE1_BLK_SIZE_IN,		/*  3 */
+		DI_T3X_AFBCE1_HEAD_BADDR,		/*  4 */
+
+		DI_T3X_AFBCE1_MIF_SIZE,		/*  5 */
+		DI_T3X_AFBCE1_PIXEL_IN_HOR_SCOPE,	/*  6 */
+		DI_T3X_AFBCE1_PIXEL_IN_VER_SCOPE,	/*  7 */
+		DI_T3X_AFBCE1_CONV_CTRL,		/*  8 */
+		DI_T3X_AFBCE1_MIF_HOR_SCOPE,		/*  9 */
+		DI_T3X_AFBCE1_MIF_VER_SCOPE,		/* 10 */
+		/**/
+		DI_T3X_AFBCE1_FORMAT,		/* 11 */
+		/**/
+		DI_T3X_AFBCE1_DEFCOLOR_1,		/* 12 */
+		DI_T3X_AFBCE1_DEFCOLOR_2,		/* 13 */
+		DI_T3X_AFBCE1_QUANT_ENABLE,		/* 14 */
+		//unsigned int mmu_num,
+		DI_T3X_AFBCE1_MMU_RMIF_CTRL1,	/* 15 */
+		DI_T3X_AFBCE1_MMU_RMIF_CTRL2,	/* 16 */
+		DI_T3X_AFBCE1_MMU_RMIF_CTRL3,	/* 17 */
+		DI_T3X_AFBCE1_MMU_RMIF_CTRL4,	/* 18 */
+		DI_T3X_AFBCE1_MMU_RMIF_SCOPE_X,	/* 19 */
+		DI_T3X_AFBCE1_MMU_RMIF_SCOPE_Y,	/* 20 */
+
+		/**********************/
+		DI_T3X_AFBCE1_MODE_EN,
+		DI_T3X_AFBCE1_DWSCALAR,
+		DI_T3X_AFBCE1_IQUANT_LUT_1,
+		DI_T3X_AFBCE1_IQUANT_LUT_2,
+		DI_T3X_AFBCE1_IQUANT_LUT_3,
+		DI_T3X_AFBCE1_IQUANT_LUT_4,
+		DI_T3X_AFBCE1_RQUANT_LUT_1,
+		DI_T3X_AFBCE1_RQUANT_LUT_2,
+		DI_T3X_AFBCE1_RQUANT_LUT_3,
+		DI_T3X_AFBCE1_RQUANT_LUT_4,
+		DI_T3X_AFBCE1_YUV_FORMAT_CONV_MODE,
+		DI_T3X_AFBCE1_DUMMY_DATA,
+		DI_T3X_AFBCE1_CLR_FLAG,
+		DI_T3X_AFBCE1_STA_FLAGT,
+		DI_T3X_AFBCE1_MMU_NUM,
+		DI_T3X_AFBCE1_STAT1,		/*read only*/
+		DI_T3X_AFBCE1_STAT2,
+		DI_T3X_AFBCE1_MMU_RMIF_RO_STAT,
+		/*from sc2*/
+		DI_T3X_AFBCE1_PIP_CTRL,
+		DI_T3X_AFBCE1_ROT_CTRL,
+		DI_T3X_AFBCE1_DIMM_CTRL,
+		DI_T3X_AFBCE1_BND_DEC_MISC,
+		DI_T3X_AFBCE1_RD_ARB_MISC,
+		/*from t3x*/
+		DI_T3X_AFBCE1_LOSS_CTRL,
+		DI_T3X_AFBCE1_LOSS_BURST_NUM,
+	},
+};
+#endif
+
 static const unsigned int *afbc_get_addrp(enum EAFBC_DEC eidx)
 {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
 
 	if (pafd_ctr->fb.ver < AFBCD_V5)
 		return &reg_afbc[eidx][0];
 
 	return &reg_afbc_v5[eidx][0];
+#else
+	return &reg_afbc[eidx][0];
+#endif
 }
 
 static void afbcd_reg_bwr(enum EAFBC_DEC eidx, enum EAFBC_REG adr_idx,
@@ -831,7 +958,11 @@ static void afbcd_reg_bwr(enum EAFBC_DEC eidx, enum EAFBC_REG adr_idx,
 
 static const unsigned int *afbce_get_addrp(enum EAFBC_ENC eidx)
 {
-	return &reg_afbc_e[eidx][0];
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (DIM_IS_IC(T3X))
+		return &reg_afbc_t3x_e[eidx][0];
+#endif
+		return &reg_afbc_e[eidx][0];
 }
 
 static void dump_afbcd_reg(void)
@@ -844,16 +975,20 @@ static void dump_afbcd_reg(void)
 	for (i = 0; i < AFBC_REG_INDEX_NUB; i++) {
 		if (pafd_ctr->fb.ver < AFBCD_V5)
 			afbc_reg = reg_afbc[EAFBC_DEC0][i];
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		else
 			afbc_reg = reg_afbc_v5[EAFBC_DEC0][i];
+#endif
 		pr_info("reg 0x%x val:0x%x\n", afbc_reg, reg_rd(afbc_reg));
 	}
 	pr_info("---- dump afbc EAFBC_DEC1 reg -----\n");
 	for (i = 0; i < AFBC_REG_INDEX_NUB; i++) {
 		if (pafd_ctr->fb.ver < AFBCD_V5)
 			afbc_reg = reg_afbc[EAFBC_DEC1][i];
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		else
 			afbc_reg = reg_afbc_v5[EAFBC_DEC1][i];
+#endif
 		pr_info("reg 0x%x val:0x%x\n", afbc_reg, reg_rd(afbc_reg));
 	}
 	pr_info("reg 0x%x val:0x%x\n",
@@ -946,10 +1081,14 @@ const unsigned int *afbc_get_inp_base(void)
 
 	if (!pafd_ctr)
 		return NULL;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	if (pafd_ctr->fb.ver < AFBCD_V5)
 		return &reg_afbc[pafd_ctr->fb.pre_dec][0];
 
 	return &reg_afbc_v5[pafd_ctr->fb.pre_dec][0];
+#else
+	return &reg_afbc[pafd_ctr->fb.pre_dec][0];
+#endif
 }
 
 static bool afbc_is_supported(void)
@@ -957,7 +1096,8 @@ static bool afbc_is_supported(void)
 	bool ret = false;
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
 
-	if (!pafd_ctr || is_cfg(EAFBC_CFG_DISABLE)) {
+	/* TXHD2 not support afbc input with post write mode */
+	if (!pafd_ctr || is_cfg(EAFBC_CFG_DISABLE) || DIM_IS_IC_TXHD2) {
 #ifdef PRINT_BASIC
 		dim_print("%s:false\n", __func__);
 #endif
@@ -1024,6 +1164,7 @@ static const struct afbc_fb_s cafbc_v5_sc2 = {
 	.if2_dec = EAFBC_DEC_IF2,
 };
 
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 static const struct afbc_fb_s cafbc_v4_tm2 = {
 	.ver = AFBCD_V4,
 	.sp.b.inp		= 1,
@@ -1078,8 +1219,10 @@ static const struct afbc_fb_s cafbc_v3_tl1 = {
 	.if1_dec = 0,
 	.if2_dec = 0
 };
+#endif
 
 static const union afbc_blk_s cafbc_cfg_mode[] = {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	[AFBC_WK_NONE] = {
 		.b.inp		= 0,
 		.b.mem		= 0,
@@ -1090,6 +1233,7 @@ static const union afbc_blk_s cafbc_cfg_mode[] = {
 		.b.enc_nr		= 0,
 		.b.enc_wr		= 0,
 	},
+#endif
 	[AFBC_WK_IN] = {
 		.b.inp		= 1,
 		.b.mem		= 0,
@@ -1099,6 +1243,7 @@ static const union afbc_blk_s cafbc_cfg_mode[] = {
 		.b.if2		= 0,
 		.b.enc_nr		= 0,
 		.b.enc_wr		= 0,
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	},
 	[AFBC_WK_P] = {
 		.b.inp		= 1,
@@ -1139,6 +1284,7 @@ static const union afbc_blk_s cafbc_cfg_mode[] = {
 		.b.if2		= 1,
 		.b.enc_nr		= 1,
 		.b.enc_wr		= 0,
+#endif
 	}
 };
 
@@ -1333,6 +1479,7 @@ static void afbc_get_mode_from_cfg(void)
 		else if (is_cfg(EAFBC_CFG_6DEC_1ENC3))
 			pafd_ctr->fb.mode = AFBC_WK_6D_NV21;
 	} else {
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 		if (pafd_ctr->fb.ver >= AFBCD_V5)
 			pafd_ctr->fb.mode = AFBC_WK_6D_NV21;
 		else if (pafd_ctr->fb.ver >= AFBCD_V4)
@@ -1340,6 +1487,7 @@ static void afbc_get_mode_from_cfg(void)
 		else if (pafd_ctr->fb.ver >= AFBCD_V1)
 			pafd_ctr->fb.mode = AFBC_WK_IN;
 		else
+#endif
 			pafd_ctr->fb.mode = AFBC_WK_NONE;
 	}
 	dim_print("%s:mode[%d]:cfg[0x%x]:\n",
@@ -1370,6 +1518,7 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 		else
 			pafd_ctr->fb.mode = AFBC_WK_P;
 		//AFBC_WK_6D_ALL;//AFBC_WK_IN;
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	} else if (IS_IC(cid, T5DB)) {
 		if (cfgg(T5DB_AFBCD_EN))
 			afbc_cfg = 0;
@@ -1416,6 +1565,7 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 		pafd_ctr->fb.sp.b.mem = 0;
 		pafd_ctr->fb.pre_dec = EAFBC_DEC0;
 		pafd_ctr->fb.mode = AFBC_WK_NONE;
+#endif
 	}
 	/*******************************
 	 * cfg for debug:
@@ -1441,7 +1591,7 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 	//afbc_cfg = BITS_EAFBC_CFG_DISABLE;
 	dbg_mem("%s:ver[%d],%s,mode[%d]\n", __func__, pafd_ctr->fb.ver,
 	       afbc_get_version(), pafd_ctr->fb.mode);
-	PR_INF("%s:ok:en_ponly_afbcd[%d]\n", __func__,
+	pr_debug("%s:ok:en_ponly_afbcd[%d]\n", __func__,
 		pafd_ctr->en_ponly_afbcd);
 }
 
@@ -1757,6 +1907,10 @@ struct AFBCD_CFG_S {
 	unsigned int rot_en; //1 bits
 
 	unsigned int reg_lossy_en;	/* def 0*/
+	unsigned int ofset_brst4_en;
+	unsigned int brst_len_add_en;
+	unsigned int brst_len_add_value;
+	unsigned int quant_diff_root_leave;
 };
 
 static unsigned int afbcd_v5_get_offset(enum EAFBC_DEC dec)
@@ -2220,15 +2374,27 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 		//pafd_ctr->fb.ver,reg_rd(0X1812));
 	if (pafd_ctr->fb.ver >= AFBCD_V5 && cfg) {
 		regs_ofst = afbcd_v5_get_offset(dec);
-		reg_wrb((regs_ofst + AFBCDM_IQUANT_ENABLE),
-			cfg->reg_lossy_en, 0, 1);//lossy_luma_en
-		reg_wrb((regs_ofst + AFBCDM_IQUANT_ENABLE),
-			cfg->reg_lossy_en, 4, 1);//lossy_chrm_en
-		reg_wrb((regs_ofst + AFBCDM_IQUANT_ENABLE),
-			cfg->reg_lossy_en, 10, 1);//lossy_luma_en extern
-		reg_wrb((regs_ofst + AFBCDM_IQUANT_ENABLE),
-			cfg->reg_lossy_en, 11, 1);//lossy_chrm_en extern
-
+		if (DIM_IS_IC(T3X) && vf->vf_lossycomp_param.lossy_mode) {
+			// set new feature
+			reg_wrb((regs_ofst + AFBCDM_LOSS_CTRL), cfg->reg_lossy_en, 4, 1);
+			reg_wrb((regs_ofst + AFBCDM_LOSS_CTRL), cfg->quant_diff_root_leave, 0, 4);
+			//fix_cr_en
+			reg_wr((regs_ofst + AFBCDM_BURST_CTRL),
+				(cfg->ofset_brst4_en	<< 4) | //reg_ofset_burst4_en
+				(cfg->brst_len_add_en	<< 3) |
+				//reg_burst_length_add_en
+				(cfg->brst_len_add_value << 0));
+				//reg_burst_length_add_value
+		} else {
+			reg_wrb((regs_ofst + AFBCDM_IQUANT_ENABLE),
+				cfg->reg_lossy_en, 0, 1);//lossy_luma_en
+			reg_wrb((regs_ofst + AFBCDM_IQUANT_ENABLE),
+				cfg->reg_lossy_en, 4, 1);//lossy_chrm_en
+			reg_wrb((regs_ofst + AFBCDM_IQUANT_ENABLE),
+				cfg->reg_lossy_en, 10, 1);//lossy_luma_en extern
+			reg_wrb((regs_ofst + AFBCDM_IQUANT_ENABLE),
+				cfg->reg_lossy_en, 11, 1);//lossy_chrm_en extern
+		}
 		reg_wr((regs_ofst + AFBCDM_ROT_CTRL),
 		       ((cfg->pip_src_mode  & 0x1) << 27) |
 		       //pip_src_mode
@@ -2402,8 +2568,20 @@ static u32 enable_afbc_input(struct vframe_s *inp_vf,
 		}
 		/*inp*/
 		if (pafd_ctr->en_set.b.inp) {
-			if (inp_vf2->type & VIDTYPE_COMPRESS_LOSS)
+			if (inp_vf2->type & VIDTYPE_COMPRESS_LOSS) {
 				cfg.reg_lossy_en = 1;
+				if (inp_vf2->vf_lossycomp_param.lossy_mode &&
+					cfgg(AFBCE_LOSS_EN) == 2) {
+					cfg.ofset_brst4_en =
+						inp_vf2->vf_lossycomp_param.ofset_burst4_en;
+					cfg.brst_len_add_en =
+						inp_vf2->vf_lossycomp_param.burst_length_add_en;
+					cfg.brst_len_add_value =
+						inp_vf2->vf_lossycomp_param.burst_length_add_value;
+					cfg.quant_diff_root_leave =
+						inp_vf2->vf_lossycomp_param.quant_diff_root_leave;
+				}
+			}
 			enable_afbc_input_local(inp_vf2,
 						pafd_ctr->fb.pre_dec, pcfg);
 		}
@@ -2418,6 +2596,17 @@ static u32 enable_afbc_input(struct vframe_s *inp_vf,
 			     cfgg(AFBCE_LOSS_EN) == 2)) {//di loss
 				cfg.reg_lossy_en = 1;
 				nr_vf->type |= VIDTYPE_COMPRESS_LOSS;
+				if (mem_vf2->vf_lossycomp_param.lossy_mode &&
+					cfgg(AFBCE_LOSS_EN) == 2) {
+					cfg.ofset_brst4_en =
+						mem_vf2->vf_lossycomp_param.ofset_burst4_en;
+					cfg.brst_len_add_en =
+						mem_vf2->vf_lossycomp_param.burst_length_add_en;
+					cfg.brst_len_add_value =
+						mem_vf2->vf_lossycomp_param.burst_length_add_value;
+					cfg.quant_diff_root_leave =
+						mem_vf2->vf_lossycomp_param.quant_diff_root_leave;
+				}
 			} else {
 				cfg.reg_lossy_en = 0;
 				nr_vf->type &= ~VIDTYPE_COMPRESS_LOSS;
@@ -2500,8 +2689,11 @@ static u32 enable_afbc_input(struct vframe_s *inp_vf,
 		/*nr*/
 		if (cfgg(AFBCE_LOSS_EN) == 1 ||
 		    ((mem_vf2->type & VIDTYPE_COMPRESS_LOSS) &&
-		     cfgg(AFBCE_LOSS_EN) == 2))
+		     cfgg(AFBCE_LOSS_EN) == 2)) {
 			nr_vf->type |= VIDTYPE_COMPRESS_LOSS;
+			if (cfgg(AFBCE_LOSS_EN) == 1 && DIM_IS_IC(T3X))
+				nr_vf->vf_lossycomp_param.lossy_mode = 1;
+		}
 		else
 			nr_vf->type &= ~VIDTYPE_COMPRESS_LOSS;
 
@@ -2701,7 +2893,6 @@ static u32 afbc_pst_set(struct vframe_s *if0_vf,
 		dim_print("%s:if1:chg 2\n", __func__);
 		afbc_update_level1(if1_vf2, pafd_ctr->fb.if1_dec);
 	} else if (!if1_vf2 || !pafd_ctr->en_set_pst.b.if1) {
-		/* coverity[overrun-call] */
 		afbcd_reg_bwr(EAFBC_DEC_IF1, EAFBC_ENABLE, 0, 8, 1);
 		pafd_ctr->b.en_pst_if1 = 0;
 	//	cfg->b.afbc_if1 = 0;
@@ -2737,6 +2928,7 @@ static u32 afbc_pst_set(struct vframe_s *if0_vf,
 
 	//	reg_wrb(DI_TOP_POST_CTRL, 1, 5, 1);
 		enable_afbc_input_local(if0_vf, pafd_ctr->fb.if0_dec, pcfg);
+		/* coverity[overrun-call] */
 		afbcd_reg_bwr(EAFBC_DEC_IF0, EAFBC_ENABLE, 1, 8, 1);
 
 		if (pafd_ctr->en_set_pst.b.enc_wr) {
@@ -3037,6 +3229,7 @@ static void afbc_sw_tl2(bool en, const struct reg_acc *op_in)
 	}
 	if (pafd_ctr->fb.mode == AFBC_WK_IN) {
 		afbc_tm2_sw_inp(en, op_in);
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	} else if (pafd_ctr->fb.mode == AFBC_WK_P) {
 	#ifdef MARK_SC2
 		afbc_tm2_sw_inp(en);
@@ -3049,6 +3242,7 @@ static void afbc_sw_tl2(bool en, const struct reg_acc *op_in)
 			afbce_tm2_sw(en, op_in);
 		}
 	#endif
+#endif
 	}
 }
 
@@ -3211,7 +3405,7 @@ void disable_afbcd_t5dvb(void)
 void afbcd_enable_only_t5dvb(const struct reg_acc *op, bool vpp_link)
 {
 	unsigned int val;
-	bool en = false;
+	unsigned int en = 0;
 
 	if (!DIM_IS_IC(T5DB))
 		return;
@@ -3220,26 +3414,30 @@ void afbcd_enable_only_t5dvb(const struct reg_acc *op, bool vpp_link)
 			PR_WARN("%s: vd1_vd2_mux 1\n", __func__);
 			set_vd1_vd2_mux(0);
 		}
-		en = true;
+		en = 1;
 	} else if (!vpp_link && afbc_is_supported()) {
 		if (!get_vd1_vd2_mux()) {
 			PR_WARN("%s: vd1_vd2_mux 0\n", __func__);
 			set_vd1_vd2_mux(1);
 		}
-		en = true;
+		en = 2;
 	}
 	if (en) {
 		PR_INF("t5dvb afbcd on\n");
 		/* afbcd is shared */
-		val = op->rd(VD1_AFBCD0_MISC_CTRL);
-		val |= (DI_BIT1 | DI_BIT10 | DI_BIT12 | DI_BIT22);
-		op->wr(VD1_AFBCD0_MISC_CTRL, val);
-#ifdef HIS_CODE
-		op->bwr(VD1_AFBCD0_MISC_CTRL, 0x01, 22, 1);
-		op->bwr(VD1_AFBCD0_MISC_CTRL, 0x01, 10, 1);
-		op->bwr(VD1_AFBCD0_MISC_CTRL, 0x01, 12, 1);
-		op->bwr(VD1_AFBCD0_MISC_CTRL, 0x01, 1, 1);
-#endif
+		if (DIM_IS_IC_TXHD2) {
+			if (en == 1) {
+			/* afbcd is shared */
+				op->wr(VD1_AFBCD0_MISC_CTRL, 0x401300);
+			} else if (en == 2) {
+				/* afbcd is shared */
+				op->wr(VD1_AFBCD0_MISC_CTRL, 0x401200);
+			}
+		} else {
+			val = op->rd(VD1_AFBCD0_MISC_CTRL);
+			val |= (DI_BIT1 | DI_BIT10 | DI_BIT12 | DI_BIT22);
+			op->wr(VD1_AFBCD0_MISC_CTRL, val);
+		}
 		dbg_reg("%s:t5d vb on\n 0x%x,0x%x\n",
 			__func__,
 			VD1_AFBCD0_MISC_CTRL,
@@ -3626,7 +3824,9 @@ void dbg_afd_reg_v3(struct seq_file *s, enum EAFBC_DEC eidx)
 	int i;
 	unsigned int addr;
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	unsigned int regs_ofst;
+#endif
 
 	seq_printf(s, "dump reg:afd[%d]\n", eidx);
 
@@ -3640,6 +3840,7 @@ void dbg_afd_reg_v3(struct seq_file *s, enum EAFBC_DEC eidx)
 			addr = reg_afbc[eidx][i];
 			seq_printf(s, "reg[0x%x]=0x%x.\n", addr, reg_rd(addr));
 		}
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
 	} else {
 		for (i = 0; i < AFBC_REG_INDEX_NUB; i++) {
 			addr = reg_afbc_v5[eidx][i];
@@ -3655,6 +3856,7 @@ void dbg_afd_reg_v3(struct seq_file *s, enum EAFBC_DEC eidx)
 			addr = regs_ofst + AFBCDM_ROT_SCOPE;
 			seq_printf(s, "reg[0x%x]=0x%x.\n", addr, reg_rd(addr));
 		}
+#endif
 	}
 }
 EXPORT_SYMBOL(dbg_afd_reg_v3);
@@ -3673,7 +3875,12 @@ void dbg_afe_reg_v3(struct seq_file *s, enum EAFBC_ENC eidx)
 	}
 
 	for (i = 0; i < DIM_AFBCE_NUB; i++) {
-		addr = reg_afbc_e[eidx][i];
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+		if (DIM_IS_IC(T3X))
+			addr = reg_afbc_t3x_e[eidx][i];
+		else
+#endif
+			addr = reg_afbc_e[eidx][i];
 		seq_printf(s, "reg[0x%x]=0x%x.\n", addr, reg_rd(addr));
 	}
 }
@@ -4327,7 +4534,7 @@ static u32 enable_afbc_input_local_dvfm(struct dim_prevpp_ds_s *ds,
 		//	cfg->reg_lossy_en, 4, 1);//lossy_chrm_en
 		//op->bwr((regs_ofst + AFBCDM_IQUANT_ENABLE),
 		//	cfg->reg_lossy_en, 10, 1);
-		//op->bwr((regs_ofst + AFBCDM_IQUANT_ENABLE),
+		//	op->bwr((regs_ofst + AFBCDM_IQUANT_ENABLE),
 		//	cfg->reg_lossy_en, 11, 1);
 		reg_val = op->rd(regs_ofst + AFBCDM_IQUANT_ENABLE);
 		if (cfg->reg_lossy_en)
@@ -4638,7 +4845,12 @@ static void afbce_update_level1_dvfm(struct dvfm_s *vf,
 	}
 	#endif
 #endif /* HIS_CODE */
-	reg = &reg_afbc_e[enc][0];
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (DIM_IS_IC(T3X))
+		reg = &reg_afbc_t3x_e[enc][0];
+	else
+#endif
+		reg = &reg_afbc_e[enc][0];
 	dim_print("afbce:up:%d\n", enc);
 
 	#ifdef MARK_SC2
@@ -5078,7 +5290,11 @@ static void vf_set_for_com(struct di_buf_s *di_buf)
 	vf->compHeight = vf->height;
 	vf->compWidth  = vf->width;
 	vf->bitdepth |= (BITDEPTH_U10 | BITDEPTH_V10);
-
+	if (cfgg(AFBCE_LOSS_EN) == 1 && DIM_IS_IC(T3X)) {
+		vf->vf_lossycomp_param.quant_diff_root_leave = 2;
+		vf->vf_lossycomp_param.lossy_mode = 1;
+		vf->vf_lossycomp_param.ofset_burst4_en = 0;
+	}
 	if (di_buf->afbce_out_yuv420_10) {
 		vf->type &= ~VFMT_COLOR_MSK;
 		vf->type |= VIDTYPE_VIU_FIELD;
@@ -5130,6 +5346,9 @@ static void ori_afbce_cfg(struct enc_cfg_s *cfg,
 	bool flg_v5 = false;
 	unsigned int	   hsize_buf;
 	unsigned int	   vsize_buf;
+	unsigned int	   fix_cr_en = 0;
+	unsigned int	   rc_en = 0;
+	int mmu_page_size = cfg->mmu_page_size == 0 ? 4096 : 8192;
 
 	/* sc2 */
 	if (pafd_ctr->fb.ver >= AFBCD_V5)
@@ -5161,8 +5380,12 @@ static void ori_afbce_cfg(struct enc_cfg_s *cfg,
 	vblksize_out	= (vsize_buf + 3) >> 2;
 
 	/***********************/
-
-	reg = &reg_afbc_e[enc][0];
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (DIM_IS_IC(T3X))
+		reg = &reg_afbc_t3x_e[enc][0];
+	else
+#endif
+		reg = &reg_afbc_e[enc][0];
 
 #ifdef MARK_SC2
 	/*yuv444 can only support 8bit,and must use comb_mode*/
@@ -5201,6 +5424,11 @@ static void ori_afbce_cfg(struct enc_cfg_s *cfg,
 	} else if (cfg->loosy_mode == 3) {
 		lossy_luma_en = 1;
 		lossy_chrm_en = 1;
+	} else if (cfg->loosy_mode == 4) {
+		lossy_luma_en = 0;
+		lossy_chrm_en = 0;
+		fix_cr_en = 1;
+		rc_en = 1;
 	} else {
 		lossy_luma_en = 0;
 		lossy_chrm_en = 0;
@@ -5218,6 +5446,32 @@ static void ori_afbce_cfg(struct enc_cfg_s *cfg,
 	op->bwr(reg[EAFBCE_QUANT_ENABLE], lossy_chrm_en, 4, 1);
 	op->bwr(reg[EAFBCE_QUANT_ENABLE], lossy_luma_en, 10, 1);
 	op->bwr(reg[EAFBCE_QUANT_ENABLE], lossy_chrm_en, 11, 1);
+
+	if (DIM_IS_IC(T3X)) {
+		op->bwr(reg[EAFBCE_LOSS_CTRL], fix_cr_en, 31, 1);
+		//reg_fix_cr_en
+		op->bwr(reg[EAFBCE_LOSS_CTRL], rc_en, 30, 1);
+		//reg_rc_en
+		//set brst_len
+		//op->bwr(reg[EAFBCE_FORMAT], cfg->brst_len_add_en, 10, 1);
+		//reg_fix_cr_en
+		op->bwr(reg[EAFBCE_FORMAT], cfg->ofset_brst4_en, 11, 1);
+		//reg_fix_cr_en
+		//op->bwr(reg[EAFBCE_FORMAT], cfg->brst_len_add_value, 12, 3);
+		//reg_fix_cr_en
+		if (fix_cr_en == 1) {
+			op->bwr(reg[EAFBCE_LOSS_BURST_NUM], 7, 0, 5);
+			//reg_block_burst_num_3
+			op->bwr(reg[EAFBCE_LOSS_BURST_NUM], 8, 8, 5);
+			//reg_block_burst_num_2
+			op->bwr(reg[EAFBCE_LOSS_BURST_NUM], 7, 16, 5);
+			//reg_block_burst_num_1
+			op->bwr(reg[EAFBCE_LOSS_BURST_NUM], 8, 24, 5);
+			//reg_block_burst_num_0
+		}
+		//set mmu_page_size
+		op->bwr(reg[AFBCEX_MIF_SIZE], mmu_page_size, 0, 16);
+	}
 
 	/* hsize_in of afbc input*/
 	/* vsize_in of afbc input*/
@@ -5355,8 +5609,12 @@ static void afbce_sw(enum EAFBC_ENC enc, bool on, const struct reg_acc *op)
 		PR_ERR("%s:no op\n", __func__);
 		return;
 	}
-
-	reg = &reg_afbc_e[enc][0];
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (DIM_IS_IC(T3X))
+		reg = &reg_afbc_t3x_e[enc][0];
+	else
+#endif
+		reg = &reg_afbc_e[enc][0];
 
 	if (on) {
 		op->bwr(reg[EAFBCE_ENABLE], 1, 8, 1);//enable afbce
@@ -5373,7 +5631,12 @@ unsigned int afbce_read_used(enum EAFBC_ENC enc)
 	const struct reg_acc *op = &di_normal_regset;
 	unsigned int nub;
 
-	reg = &reg_afbc_e[enc][0];
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (DIM_IS_IC(T3X))
+		reg = &reg_afbc_t3x_e[enc][0];
+	else
+#endif
+		reg = &reg_afbc_e[enc][0];
 
 	nub = op->rd(reg[EAFBCE_MMU_NUM]);
 	return nub;
@@ -5426,8 +5689,22 @@ static void afbce_set(struct vframe_s *vf, enum EAFBC_ENC enc)
 	vf_set_for_com(di_buf);
 	if (cfgg(AFBCE_LOSS_EN) == 1 ||
 	    ((di_buf->vframe->type & VIDTYPE_COMPRESS_LOSS) &&
-	     cfgg(AFBCE_LOSS_EN) == 2))
-		cfg->loosy_mode = 0x3;
+	     cfgg(AFBCE_LOSS_EN) == 2)) {
+		if (cfgg(AFBCE_LOSS_EN) == 1) {
+			if (DIM_IS_IC(T3X))
+				cfg->loosy_mode = 0x4;
+			else
+				cfg->loosy_mode = 0x3;
+		} else if (cfgg(AFBCE_LOSS_EN) == 2) {
+			if (di_buf->vframe->vf_lossycomp_param.lossy_mode == 1) {
+				cfg->loosy_mode = 0x4;
+				cfg->ofset_brst4_en =
+				di_buf->vframe->vf_lossycomp_param.ofset_burst4_en;
+				}
+			else
+				cfg->loosy_mode = 0x3;
+		}
+	}
 #ifdef AFBCP
 	di_print("%s:buf[%d],head[0x%lx],info[0x%lx]\n",
 		 __func__,
@@ -5522,7 +5799,7 @@ static void afbce_set(struct vframe_s *vf, enum EAFBC_ENC enc)
 	cfg->force_444_comb = 0;
 	//cfg->rot_en	    = 0;
 	cfg->din_swt	    = 0;
-
+	cfg->mmu_page_size  = 0;
 	ori_afbce_cfg(cfg, &di_normal_regset, enc);
 }
 
@@ -5551,7 +5828,12 @@ static void afbce_update_level1(struct vframe_s *vf,
 		       di_buf->afbc_adr, di_buf->afbct_adr, vf->type);
 	}
 	#endif
-	reg = &reg_afbc_e[enc][0];
+#ifndef CONFIG_AMLOGIC_ZAPPER_CUT
+	if (DIM_IS_IC(T3X))
+		reg = &reg_afbc_t3x_e[enc][0];
+	else
+#endif
+		reg = &reg_afbc_e[enc][0];
 	dim_print("afbce:up:%d\n", enc);
 
 	#ifdef MARK_SC2

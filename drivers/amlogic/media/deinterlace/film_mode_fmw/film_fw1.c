@@ -548,19 +548,18 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	/* pFMReg->rCmb32Spcl =0; */
 	*rCmb32Spcl = 0;
 	if (pRDat.pMod32[HISDETNUM - 1] == 3) {
-
 		nMod = pRDat.pMod32[HISDETNUM - 1];
 		if (pRDat.enter_cnt[2] < pPar->enter_th)
 			pRDat.enter_cnt[2] = pRDat.enter_cnt[2] < 255 ? pRDat.enter_cnt[2] + 1 : 255;
 		else
-		    pRDat.quit_cnt[2] = 0;
+			pRDat.quit_cnt[2] = 0;
 
 		/* nT0 = pRDat.pFlg32[HISDETNUM - 1] % 2; */
 
 		if (pRDat.mNum32[HISDETNUM - 1] < 255)	/* maximum */
 			pRDat.mNum32[HISDETNUM - 1] += 1;
 
-		/* 3-2 film combing special precessing (A-A-A) */
+		/* 3-2 film combing special processing (A-A-A) */
 		if (pRDat.pFlg32[HISDETNUM - 1] == (mNDly % 5))
 			*rCmb32Spcl = 1;
 		pRDat.enter_cnt[1] = 0;
@@ -571,16 +570,13 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 			pRDat.quit_cnt[1] = pRDat.quit_cnt[2] < 255 ? pRDat.quit_cnt[2] + 1 : 255;
 		}
 	} else if (pRDat.pMod22[HISDETNUM - 1] == 2) {
-
 		nMod = pRDat.pMod22[HISDETNUM - 1];
 		if (pRDat.enter_cnt[1] < pPar->enter_th)
 			pRDat.enter_cnt[1] = pRDat.enter_cnt[1] < 255 ? pRDat.enter_cnt[1] + 1 : 255;
 		else
-		    pRDat.quit_cnt[1] = 0;
-
+			pRDat.quit_cnt[1] = 0;
 		pRDat.mNum32[HISDETNUM - 1] = 0;
 		/* nT0 = pRDat.pFlg22[HISDETNUM - 1] % 2; */
-
 		if (pRDat.mNum22[HISDETNUM - 1] < 255)	/* maximum */
 			pRDat.mNum22[HISDETNUM - 1] += 1;
 		pRDat.enter_cnt[2] = 0;
@@ -651,7 +647,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		 * 00: global combing, 01: 2-2 film, 10: 2-3 film, 11:-others
 		 */
 		if (pRDat.quit_cnt[1] == 0 || (pPar->quit_th_en & 0x1) == 0)
-		    *rFlmPstMod = 1;
+			*rFlmPstMod = 1;
 		else
 			*rFlmPstMod = 0;
 
@@ -773,13 +769,13 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		pd22_cur_flag = (pd22_cnt_pre - pd22_cnt_cur)
 			> pd22_cnt_th;
 
-	if (((pPar->quit_th_en >> 3)&0x1) == 0 || (max_dif02/(max(1, nDIF02[HISDIFNUM - 1])) > 50 &&
+	if (((pPar->quit_th_en >> 3) & 0x1) == 0 || (max_dif02 / (max(1, nDIF02[HISDIFNUM - 1])) > 50 &&
 			nDIF02[HISDIFNUM - 1] < (1 << (pd_dif02_sel - 1))) || pd22_diff12_chk == 0) {
 		pd22_mcdi_flag = 1;
 	} else {
-		if (min(pd22_cnt_pre, pd22_cnt_cur) > pPar->flm22_mcdi_min_th && abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM-2]) < pPar->flm22_diff01_th)
+		if (min(pd22_cnt_pre, pd22_cnt_cur) > pPar->flm22_mcdi_min_th && abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < pPar->flm22_diff01_th)
 			pd22_mcdi_flag = 0;
-		else if ((abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM-2]) < pPar->flm22_diff01_th / 6 && nDIF02[HISDIFNUM - 2] > (1 << 10)) || max(pd22_cnt_pre, pd22_cnt_cur) > 1000)
+		else if ((abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < pPar->flm22_diff01_th / 6 && nDIF02[HISDIFNUM - 2] > (1 << 10)) || max(pd22_cnt_pre, pd22_cnt_cur) > 1000)
 			pd22_mcdi_flag = 0;
 		else
 			pd22_mcdi_flag = 1;
@@ -856,7 +852,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 
 	if ((pd22224_mcdi_flag && pd22_dif02_out_cnt < 3) || pd22_diff02_chk == 1) {
 		if (pd22224_mcdi_flag && pd22_dif02_out_cnt < 3)
-		    pd22_cnt = pd22_cnt < 255 ? pd22_cnt + 1 : pd22_cnt;
+			pd22_cnt = pd22_cnt < 255 ? pd22_cnt + 1 : pd22_cnt;
 		else if (((pPar->quit_th_en >> 4) & 0x1) == 1)
 			pd22_cnt = pd22_cnt < pd22_th ? 0 : pd22_cnt;
 
@@ -870,7 +866,6 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 			pd22_cnt = 0;
 		else
 			pRDat.quit_cnt[3] = pRDat.quit_cnt[3] < 255 ? pRDat.quit_cnt[3] + 1 : 255;
-
 	}
 
 	if (pd22_cnt_min > pd22_cnt_min_th) {
@@ -894,26 +889,27 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		nS1 = pRDat.pLvlXx[HISDETNUM - 1 - mDly];
 	}
 
-	if ((*rFlmPstMod == 0 || (*rFlmPstMod == 1 && nS1 < (pPar->height*2*100/480 + 2)))/* &&
+	if ((*rFlmPstMod == 0 || (*rFlmPstMod == 1 && nS1 < (pPar->height * 2 * 100 / 480 + 2)))/* &&
 		(vf->source_type == VFRAME_SOURCE_TYPE_CVBS)*/) {
 		/*22224*/
 		if (pd22224_cnt > pd22224_th && pd22224_en && (max_dif02 > (pPar->height * pPar->width >> 2))) {
 			if (pRDat.quit_cnt[0] == 0 || ((pPar->quit_th_en >> 1) & 0x1) == 0) {
-			*rFlmPstMod = 11;         /*add 22224*/
-			nS1 = 50;
-			pd_dif01 = old_dif01_flag
-				? old_dif01 : nDIF01[HISDIFNUM - 1];
-			pd_dif01_pre = old_dif01_flag
-				? pre_old_dif01 : nDIF01[HISDIFNUM - 2];
-			*rFlmSltPre = nDIF01[HISDIFNUM - 1] > nDIF01[HISDIFNUM - 2]  ? 1 : 0;/*(pd22_cnt_pre - pd22_cnt_cur)
-				> pd22_cnt_th1
-				? 1 : (pd22_cnt_cur - pd22_cnt_pre)
-				> pd22_cnt_th1
-				? 0 : static_Pre_flag && pre_flag
-				? Pre_flag_pre ^ 1 :  pd_dif01 > pd_dif01_pre
-				? 1 : 0;*/
-		} else {
-			*rFlmPstMod = 0;
+				*rFlmPstMod = 11;         /*add 22224*/
+				nS1 = 50;
+				pd_dif01 = old_dif01_flag
+					? old_dif01 : nDIF01[HISDIFNUM - 1];
+				pd_dif01_pre = old_dif01_flag
+					? pre_old_dif01 : nDIF01[HISDIFNUM - 2];
+				*rFlmSltPre = nDIF01[HISDIFNUM - 1] > nDIF01[HISDIFNUM - 2]  ? 1 : 0;
+				/* (pd22_cnt_pre - pd22_cnt_cur)*/
+				/*> pd22_cnt_th1*/
+				/*? 1 : (pd22_cnt_cur - pd22_cnt_pre)*/
+				/*> pd22_cnt_th1*/
+				/*? 0 : static_Pre_flag && pre_flag*/
+				/*? Pre_flag_pre ^ 1 :  pd_dif01 > pd_dif01_pre*/
+				/*? 1 : 0;*/
+			} else {
+				*rFlmPstMod = 0;
 		}
 	}
 	/*add 22224 replace 22 for pulldown_drv mot_row patch */
@@ -1153,7 +1149,7 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 
 	/* if (pFlg32[HISDETNUM-1] == 4) { */
 	/* B-B A-A-A X-Y-Z */
-	/* ---------=>Sceen changed */
+	/* ---------=>Screen changed */
 	if (pFlg32[HISDETNUM-1] == 4 || pFlg32[HISDETNUM-1] == 5) {
 		nFlgChk3 = nFlgChk1;
 		for (nT0 = 2; nT0 <= 5; nT0++) {
@@ -1218,7 +1214,6 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 		if (nFlgChk4 < 0)
 			nFlgChk4 = -nFlgChk4;
 		//nFlgChk4 = nFlgChk4;
-		/*coverity[copy_paste_error] not a copy_paste_error*/
 		nMean = (nDif02[HISDIFNUM - 1] + nDif01[HISDIFNUM - 6]) / 2;
 		nFlgChk4 = nflagch4_ratio * nFlgChk4 / nMean;
 	} else {
@@ -1390,7 +1385,7 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 	/* dif02(flg=2 vs 1) almost same */
 	/* dif02(flg=4 vs 3) almost same */
 	/* nFlgChk3: for Mit32VHLine */
-	/* last: for sceen change */
+	/* last: for screen change */
 	if (((nFlgChk1 > flm32_chk1_rtn) &&
 		(nFlgChk3 > flm32_ck13_rtn))
 		|| (nFlgChk2 > flm32_chk2_rtn)
@@ -1955,7 +1950,7 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 
 		/* --------------------------------------- */
 		/* patch for toilet paper */
-		/* Low average avg>(totoal*x) x>1 */
+		/* Low average avg>(total*x) x>1 */
 		/* tMgn = (nAV22 * 64) >> 8; */
 		/* if(tMgn > 720*240) */
 		/* if(tMgn > iWidth*iHeight*32) */ /*toilet paper*/

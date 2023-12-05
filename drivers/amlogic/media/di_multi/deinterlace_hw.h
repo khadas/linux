@@ -171,7 +171,11 @@ struct AFBCD_S {
 	//unsigned int rot_drop_mode;	/* def 0*/
 	//unsigned int rot_vshrk;		/* def 0*/
 	//unsigned int rot_hshrk;		/* def 0*/
-
+	//for t3x
+	unsigned int fix_cr_en;
+	unsigned int brst_len_add_en;
+	unsigned int brst_len_add_value;
+	unsigned int ofset_brst4_en;
 };
 
 struct AFBCE_S {
@@ -201,6 +205,13 @@ struct AFBCE_S {
 	u32 force_444_comb ;//def_color
 	u32 rot_en;
 	u32 din_swt;
+	//for t3x
+	u32 rc_en;
+	u32 brst_len_add_en;
+	u32 brst_len_add_value;
+	u32 fix_cr_en;
+	u32 ofset_brst4_en;
+	u32 mmu_page_size;
 };
 
 struct dim_fmt_s {
@@ -967,7 +978,7 @@ struct mm_size_out_s {
 void ma_di_init(void);
 void mc_blend_sc2_init(void);
 void dimh_set_crc_init(int count);
-
+void dimh_set_crc_init_update(int count);//from T7
 void dw_fill_outvf(struct vframe_s *vfm,
 		   struct di_buf_s *di_buf);
 /* hw_v3:*/

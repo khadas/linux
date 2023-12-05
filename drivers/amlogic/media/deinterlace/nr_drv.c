@@ -432,6 +432,13 @@ static void nr4_config_op(struct NR4_PARM_s *nr4_parm_p,
 	pq_temp |= (1 << 16);
 	pq_temp |= (1 << 18);
 	pq_temp |= (1 << 3);
+	Wr(NR4_TOP_CTRL, pq_temp);
+	if (IS_IC(dil_get_cpuver_flag(), S4) && dim_ic_sub() == 1) {
+		pq_temp = Rd(NR4_TOP_CTRL);
+		pq_temp &= ~(1 << 3);
+		Wr(NR4_TOP_CTRL, pq_temp);
+	}
+	pq_temp = Rd(NR4_TOP_CTRL);
 	pq_temp |= (1 << 5);
 	Wr(NR4_TOP_CTRL, pq_temp);
 	//add for crc @2k22-0102
@@ -460,7 +467,7 @@ static void linebuffer_config_op(unsigned short width,
 		return;
 	}
 
-	if (is_meson_txhd_cpu()) {
+	if (is_meson_txhd_cpu() || IS_IC(dil_get_cpuver_flag(), S4)) {
 		line5_444 = 640;
 		line5_422 = 960;
 		line3_444 = 1280;
@@ -481,7 +488,7 @@ static void linebuffer_config_op(unsigned short width,
 static void nr2_config_op(unsigned short width, unsigned short height,
 		const struct reg_acc *op)
 {
-	int pq_temp = Rd(NR4_TOP_CTRL);
+	int pq_temp = 0;
 	if (!op) {
 		pr_error("%s:no op\n", __func__);
 		return;
@@ -494,6 +501,12 @@ static void nr2_config_op(unsigned short width, unsigned short height,
 		IS_IC(dil_get_cpuver_flag(), T5D)	||
 		IS_IC(dil_get_cpuver_flag(), T5DB)	||
 		cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
+		if (IS_IC(dil_get_cpuver_flag(), S4) && dim_ic_sub() == 1) {
+			op->wr(NR2_FRM_SIZE, (height << 16) |  width);
+			op->wr(NR2_SW_EN, 0x70);
+			Wr(NR4_TOP_CTRL, 0xf8ff4);
+			}
+		pq_temp = Rd(NR4_TOP_CTRL);
 		if (nr2_en) {
 			pq_temp |= (1 << 2);
 			pq_temp |= (1 << 15);
@@ -769,7 +782,6 @@ static void noise_meter_process_op(struct NR4_PARM_s *nr4_param_p,
 	int val = 0;
 	int nr4_temp = Rd(NR4_MCNR_MV_CTRL_REG);
 	int pq_temp = Rd(NR4_TOP_CTRL);
-
 	if (!op) {
 		pr_error("%s:no op\n", __func__);
 		return;
@@ -1362,7 +1374,6 @@ static void cue_process_irq_op(const struct reg_acc *op)
 	int pre_field_num = 0, cue_invert = 0;
 	int pq_temp = Rd(NR4_TOP_CTRL);
 	int pq1_temp = Rd(DI_NR_CTRL0);
-
 	if (!op) {
 		pr_error("%s:no op\n", __func__);
 		return;
@@ -2236,7 +2247,6 @@ static void autonr_param_init(struct AUTONR_PARM_S *autonr_parm_p)
 	autonr_parm_p->motion_th[12] = 20;
 	autonr_parm_p->motion_th[13] = 34;
 	autonr_parm_p->motion_th[14] = 30;
-	pr_info("%s\n", __func__);
 }
 
 static void nr4_neparam_init(struct NR4_NEPARM_S *nr4_neparm_p)
@@ -2324,6 +2334,7 @@ static void nr_all_ctrl(bool enable, const struct reg_acc *op)
 {
 	unsigned char value = 0;
 	unsigned int data;
+
 	if (!op) {
 		pr_error("%s:no op\n", __func__);
 		return;
@@ -2347,6 +2358,13 @@ static void nr_all_ctrl(bool enable, const struct reg_acc *op)
 	} else {
 		op->bwr(NR2_SW_EN, value, 4, 1);
 		op->bwr(DNR_CTRL, value, 16, 1);
+	}
+
+	if (IS_IC(dil_get_cpuver_flag(), S4) && dim_ic_sub() == 1) {
+		Wr_reg_bits(NR4_TOP_CTRL, value, 1, 1);
+		Wr_reg_bits(NR2_SW_EN, value, 4, 2);
+		Wr_reg_bits(NR2_SW_EN, value, 3, 1);
+		Wr_reg_bits(NR2_SW_EN, value, 7, 1);
 	}
 }
 
@@ -2575,7 +2593,7 @@ void nr_drv_init(struct device *dev)
 	}
 	if (((IS_IC_EF(dil_get_cpuver_flag(), T3)) ||
 	     IS_IC(dil_get_cpuver_flag(), T5DB)) && autonr_en) {
-		nr_param.pautonr_parm = vmalloc(sizeof(struct AUTONR_PARM_S));
+		nr_param.pautonr_parm = vmalloc(sizeof(*nr_param.pautonr_parm));
 		if (IS_ERR(nr_param.pautonr_parm)) {
 			pr_err("%s allocate autonr parm error.\n", __func__);
 		} else {
@@ -2598,6 +2616,11 @@ void nr_drv_init(struct device *dev)
 		dnr_dm_en = true;
 	else
 		dnr_dm_en = false;
+	if (IS_IC(dil_get_cpuver_flag(), S4) && dim_ic_sub() == 1) {
+		dnr_en = false;
+		dynamic_dm_chk = false;
+		autonr_en = 0x0;
+	}
 }
 
 static void nr_hw_init(void)

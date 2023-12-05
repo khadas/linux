@@ -1162,11 +1162,11 @@ u32 enable_afbc_input(struct vframe_s *vf)
 	return true;
 }
 #if 0
-static void afbcx_power_sw(enum eAFBC_DEC diesel, bool on)	/*g12a*/
+static void afbcx_power_sw(enum eAFBC_DEC dec_sel, bool on)	/*g12a*/
 {
 	unsigned int reg_ctrl;
 
-	if (diesel == eAFBC_DEC0)
+	if (dec_sel == eAFBC_DEC0)
 		reg_ctrl = VD1_AFBCD0_MISC_CTRL;
 	else
 		reg_ctrl = VD2_AFBCD1_MISC_CTRL;
@@ -2743,12 +2743,16 @@ void initial_di_post_2(int hsize_post, int vsize_post,
 static void post_bit_mode_config(unsigned char if0,
 	unsigned char if1, unsigned char if2, unsigned char post_wr)
 {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
 		return;
+#endif
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 		DI_Wr_reg_bits(DI_IF0_GEN_REG3, if0&0x3, 8, 2);
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	else
 		DI_Wr_reg_bits(VD1_IF0_GEN_REG3, if0&0x3, 8, 2);
+#endif
 	DI_Wr_reg_bits(DI_IF1_GEN_REG3, if1&0x3, 8, 2);
 	DI_Wr_reg_bits(DI_IF2_GEN_REG3, if2&0x3, 8, 2);
 	DI_Wr_reg_bits(DI_DIWR_Y, post_wr&0x1, 14, 1);

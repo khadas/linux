@@ -778,7 +778,7 @@ static int di_read_canvas_reverse(char *str)
 {
 	unsigned char *ptr = str;
 
-	di_pr_info("%s: bootargs is %s.\n", __func__, str);
+	pr_dbg("%s: bootargs is %s.\n", __func__, str);
 	if (strstr(ptr, "1")) {
 		invert_top_bot |= 0x1;
 		overturn = true;
@@ -1479,6 +1479,7 @@ static ssize_t
 store_dump_mem(struct device *dev, struct device_attribute *attr,
 	       const char *buf, size_t len)
 {
+#ifdef CONFIG_AMLOGIC_ENABLE_MEDIA_FILE
 	unsigned int n = 0, canvas_w = 0, canvas_h = 0;
 	unsigned long nr_size = 0, dump_adr = 0;
 	struct di_buf_s *di_buf = NULL;
@@ -1581,6 +1582,7 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 		dump_state_flag = 0;
 		filp_close(filp, NULL);
 		set_fs(old_fs);
+#endif
 	return len;
 }
 
@@ -3533,9 +3535,11 @@ static void pre_de_process(void)
 		}
 	}
 
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 	/*patch for SECAM signal format from vlsi-feijun for all IC*/
 	di_nr_opl()->secam_cfr_adjust(di_pre_stru.di_inp_buf->vframe->sig_fmt,
 			 di_pre_stru.di_inp_buf->vframe->type);
+#endif
 
 	/* set interrupt mask for pre module.
 	 * we need to only leave one mask open
@@ -4349,7 +4353,9 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 			di_pre_stru.cur_inp_type = di_buf->vframe->type;
 			di_pre_stru.cur_source_type =
 				di_buf->vframe->source_type;
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 			di_pre_stru.cur_sig_fmt = di_buf->vframe->sig_fmt;
+#endif
 			di_pre_stru.orientation = di_buf->vframe->video_angle;
 			di_pre_stru.source_change_flag = 1;
 			di_pre_stru.input_size_change_flag = true;
@@ -6822,8 +6828,11 @@ static void di_unreg_process_irq(void)
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB)) {
 		DI_Wr(DI_CLKG_CTRL, 0x80f60000);
 		DI_Wr(DI_PRE_CTRL, 0);
-	} else
+	}
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+	else
 		DI_Wr(DI_CLKG_CTRL, 0xf60000);
+#endif
 /* nr/blend0/ei0/mtn0 clock gate */
 	if (mirror_disable) {
 		di_hw_disable(mcpre_en);
@@ -7197,12 +7206,14 @@ static void di_reg_process_irq(void)
 		di_pre_size_change(vframe->width, nr_height,
 				first_field_type);
 
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 		di_pre_stru.mtn_status =
 			adpative_combing_config(vframe->width,
 					(vframe->height>>1),
 					(vframe->source_type),
 					is_progressive(vframe),
 					vframe->sig_fmt);
+#endif
 
 		di_patch_post_update_mc_sw(DI_MC_SW_REG, true);
 		di_nr_opl()->cue_int(vframe);
@@ -8640,6 +8651,7 @@ static void di_get_vpu_clkb(struct device *dev, struct di_dev_s *pdev)
 			pr_err("clkb_tmp_comp error\n");
 		else {
 			if (!IS_ERR(vpu_clk))
+				/*coverity[var_deref_mode]*/
 				clk_set_parent(clkb_tmp_comp, vpu_clk);
 		}
 	}
@@ -9105,7 +9117,7 @@ int __init di_module_init(void)
 {
 	int ret = 0;
 
-	di_pr_info("%s ok.\n", __func__);
+	pr_dbg("%s ok.\n", __func__);
 #if 0	/*move to prob*/
 	ret = alloc_chrdev_region(&di_devno, 0, DI_COUNT, DEVICE_NAME);
 	if (ret < 0) {

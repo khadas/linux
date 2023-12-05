@@ -132,10 +132,11 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
 #define DI_RDWR_ARB_STATUS_L1C1			0x2058
 #define DI_ARB_DBG_CTRL_L1C1			0x2059
 #define DI_ARB_DBG_STAT_L1C1			0x205a
-#define DI_WRARB_AXIWR_PROT				0x205e
 #define DI_RDARB_UGT_L1C1				0x205b
 #define DI_RDARB_LIMT0_L1C1				0x205c
 #define DI_WRARB_UGT_L1C1				0x205d
+#define DI_WRARB_AXIWR_PROT				0x205e
+
 #ifdef MARK_SC2 /* ary move to di_reg_v2.h */
 #define DI_PRE_GL_CTRL					0x20ab
 #define DI_PRE_GL_THD					0x20ac
@@ -246,12 +247,12 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
 #define DI_VIU_HSC_COEF_IDX				0x37b5
 
 /* NR DOWNSAMPLE */
-#define NRDSWR_X					0x37f9
-#define NRDSWR_Y					0x37fa
-#define NRDSWR_CTRL					0x37fb
+#define NRDSWR_X						0x37f9
+#define NRDSWR_Y						0x37fa
+#define NRDSWR_CTRL						0x37fb
 #define NRDSWR_CAN_SIZE					0x37fc
 #define NR_DS_BUF_SIZE_REG				0x3740
-#define NR_DS_CTRL					0x3741
+#define NR_DS_CTRL						0x3741
 #define NR_DS_OFFSET					0x3742
 #define NR_DS_BLD_COEF					0x3743
 /* di */
