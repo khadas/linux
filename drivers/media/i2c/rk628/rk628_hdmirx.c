@@ -760,7 +760,7 @@ static void hdmirxphy_write(struct rk628 *rk628,  u32 offset, u32 val)
 	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_OPERATION, 1);
 }
 
-u32 hdmirxphy_read(struct rk628 *rk628,  u32 offset)
+static __maybe_unused u32 hdmirxphy_read(struct rk628 *rk628, u32 offset)
 {
 	u32 val;
 
@@ -900,8 +900,12 @@ EXPORT_SYMBOL(rk628_hdmirx_get_format);
 void rk628_set_bg_enable(struct rk628 *rk628, bool en)
 {
 	if (en) {
-		rk628_i2c_write(rk628, GRF_BG_CTRL,
-			BG_R_OR_V(512) | BG_B_OR_U(512) | BG_G_OR_Y(64) | BG_ENABLE(1));
+		if (rk628->tx_mode)
+			rk628_i2c_write(rk628, GRF_BG_CTRL,
+				BG_R_OR_V(0) | BG_B_OR_U(0) | BG_G_OR_Y(0) | BG_ENABLE(1));
+		else
+			rk628_i2c_write(rk628, GRF_BG_CTRL,
+				BG_R_OR_V(512) | BG_B_OR_U(512) | BG_G_OR_Y(64) | BG_ENABLE(1));
 		return;
 	}
 	rk628_i2c_write(rk628, GRF_BG_CTRL, BG_ENABLE(0));

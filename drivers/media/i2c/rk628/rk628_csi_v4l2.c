@@ -134,6 +134,7 @@ struct rk628_csi_mode {
 static const s64 link_freq_menu_items[] = {
 	RK628_CSI_LINK_FREQ_LOW,
 	RK628_CSI_LINK_FREQ_HIGH,
+	RK628_CSI_LINK_FREQ_925M,
 };
 
 static const struct v4l2_dv_timings_cap rk628_csi_timings_cap = {
@@ -231,6 +232,10 @@ static const struct mipi_timing rk628f_csi0_mipi = {
 static const struct mipi_timing rk628f_csi1_mipi = {
 //data-pre, data-zero, data-trail, clk-pre, clk-zero, clk-trail, clk-post
 	0x4a, 0xf, 0x66, 0x3a, 0x3a, 0x5a, 0x1f
+};
+
+static const struct mipi_timing rk628f_dsi0_mipi = {
+	0x70, 0x1c, 0x7f, 0x70, 0x3f, 0x7f, 0x1f
 };
 
 static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
@@ -425,7 +430,8 @@ static int rk628_csi_get_detected_timings(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	if (bt->pixelclock > 300000000 && csi->rk628->version >= RK628F_VERSION) {
+	if ((bt->pixelclock > 300000000 && csi->rk628->version >= RK628F_VERSION) ||
+		(bt->width > 2048 && csi->plat_data->tx_mode == DSI_MODE)) {
 		v4l2_info(sd, "rk628f detect pixclk more than 300M, use dual mipi mode\n");
 		csi->rk628->dual_mipi = true;
 	} else {
@@ -506,8 +512,6 @@ static void rk628_csi_delayed_work_enable_hotplug(struct work_struct *work)
 		rk628_hdmirx_plugout(sd);
 	}
 	mutex_unlock(&csi->confctl_mutex);
-	if (csi->plat_data->tx_mode == DSI_MODE && plugin)
-		enable_stream(sd, true);
 }
 
 static int rk628_check_resulotion_change(struct v4l2_subdev *sd)
@@ -583,8 +587,6 @@ static void rk628_delayed_work_res_change(struct work_struct *work)
 		}
 	}
 	mutex_unlock(&csi->confctl_mutex);
-	if (csi->plat_data->tx_mode == DSI_MODE && plugin)
-		rk628_dsi_enable(sd);
 }
 
 static void rk628_hdmirx_hpd_ctrl(struct v4l2_subdev *sd, bool en)
@@ -749,20 +751,25 @@ static void rk628_dsi_set_scs(struct rk628_csi *csi)
 	video_fmt = (val & VIDEO_FORMAT_MASK) >> 5;
 	v4l2_info(&csi->sd, "%s PDEC_AVI_PB:%#x, video format:%d\n",
 			__func__, val, video_fmt);
-	if (video_fmt) {
-		if (csi->dsi.vid_mode == VIDEO_MODE)
-			rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON,
-					SW_Y2R_EN(1) | SW_YUV2VYU_SWP(1));
-		else
-			rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON,
-					SW_Y2R_EN(1) | SW_YUV2VYU_SWP(0));
+	if (csi->rk628->version == RK628D_VERSION) {
+		if (video_fmt) {
+			if (csi->dsi.vid_mode == VIDEO_MODE)
+				rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON,
+						SW_Y2R_EN(1) | SW_YUV2VYU_SWP(1));
+			else
+				rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON,
+						SW_Y2R_EN(1) | SW_YUV2VYU_SWP(0));
+		} else {
+			if (csi->dsi.vid_mode == VIDEO_MODE)
+				rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON,
+						SW_Y2R_EN(0) | SW_YUV2VYU_SWP(1));
+			else
+				rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON,
+						SW_Y2R_EN(0) | SW_YUV2VYU_SWP(0));
+		}
 	} else {
-		if (csi->dsi.vid_mode == VIDEO_MODE)
-			rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON,
-					SW_Y2R_EN(0) | SW_YUV2VYU_SWP(1));
-		else
-			rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON,
-					SW_Y2R_EN(0) | SW_YUV2VYU_SWP(0));
+		rk628_i2c_write(csi->rk628, GRF_CSC_CTRL_CON, SW_YUV2VYU_SWP(0));
+		rk628_post_process_csc_en(csi->rk628);
 	}
 
 	/* if avi packet is not stable, reset ctrl*/
@@ -801,9 +808,15 @@ static void enable_dsitx(struct v4l2_subdev *sd)
 
 	/* rst for dsi0 */
 	rk628_control_assert(csi->rk628, RGU_DSI0);
-	usleep_range(20, 40);
+	udelay(20);
 	rk628_control_deassert(csi->rk628, RGU_DSI0);
-	usleep_range(20, 40);
+	udelay(20);
+
+	/* rst for dsi1 */
+	rk628_control_assert(csi->rk628, RGU_DSI1);
+	udelay(20);
+	rk628_control_deassert(csi->rk628, RGU_DSI1);
+	udelay(20);
 
 	rk628_dsi_enable(sd);
 }
@@ -821,6 +834,7 @@ static void rk628_dsi_enable_stream(struct v4l2_subdev *sd, bool en)
 
 	rk628_hdmirx_vid_enable(sd, false);
 	rk628_i2c_write(csi->rk628, GRF_SCALER_CON0, SCL_EN(0));
+	rk628_dsi_disable_stream(&csi->dsi);
 }
 
 static void rk628_csi_disable_stream(struct v4l2_subdev *sd)
@@ -1344,6 +1358,11 @@ static void rk628_csi_initial_setup(struct v4l2_subdev *sd)
 		csi->rk628->mipi_timing[0] = rk628d_csi_mipi;
 	}
 
+	if (csi->plat_data->tx_mode == DSI_MODE) {
+		csi->rk628->mipi_timing[0] = rk628f_dsi0_mipi;
+		csi->rk628->mipi_timing[1] = rk628f_dsi0_mipi;
+	}
+
 	csi->rk628->dphy_lane_en = 0x1f;
 	if (csi->plat_data->tx_mode == CSI_MODE) {
 		rk628_mipi_dphy_reset(csi->rk628);
@@ -1691,14 +1710,25 @@ static int rk628_csi_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 	return 0;
 }
 
+static inline unsigned int fps_calc(const struct v4l2_bt_timings *t)
+{
+	if (!V4L2_DV_BT_FRAME_HEIGHT(t) || !V4L2_DV_BT_FRAME_WIDTH(t))
+		return 0;
+
+	return DIV_ROUND_CLOSEST((unsigned int)t->pixelclock,
+			V4L2_DV_BT_FRAME_HEIGHT(t) * V4L2_DV_BT_FRAME_WIDTH(t));
+}
+
 static int rk628_csi_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct rk628_csi *csi = to_csi(sd);
 
-	if (csi->plat_data->tx_mode == CSI_MODE)
-		enable_stream(sd, enable);
-	else
-		rk628_dsi_enable_stream(sd, enable);
+	enable_stream(sd, enable);
+
+	v4l2_info(sd, "%s: on: %d, %dx%d@%d\n", __func__, enable,
+				csi->timings.bt.width,
+				csi->timings.bt.height,
+				fps_calc(&csi->timings.bt));
 
 	return 0;
 }
@@ -1772,22 +1802,46 @@ static int rk628_csi_get_fmt(struct v4l2_subdev *sd,
 		V4L2_FIELD_INTERLACED : V4L2_FIELD_NONE;
 	mutex_unlock(&csi->confctl_mutex);
 
-	if (csi->timings.bt.pixelclock > 150000000 || csi->csi_lanes_in_use <= 2) {
-		v4l2_dbg(1, debug, sd,
-			"%s res wxh:%dx%d, link freq:%llu, pixrate:%u\n",
-			__func__, csi->timings.bt.width, csi->timings.bt.height,
-			link_freq_menu_items[1], RK628_CSI_PIXEL_RATE_HIGH);
-		__v4l2_ctrl_s_ctrl(csi->link_freq, 1);
-		__v4l2_ctrl_s_ctrl_int64(csi->pixel_rate,
-			RK628_CSI_PIXEL_RATE_HIGH);
+	if (csi->plat_data->tx_mode == CSI_MODE) {
+		if (csi->timings.bt.pixelclock > 150000000 || csi->csi_lanes_in_use <= 2) {
+			v4l2_dbg(1, debug, sd,
+				"%s res wxh:%dx%d, link freq:%llu, pixrate:%u\n",
+				__func__, csi->timings.bt.width, csi->timings.bt.height,
+				link_freq_menu_items[1], RK628_CSI_PIXEL_RATE_HIGH);
+			__v4l2_ctrl_s_ctrl(csi->link_freq, 1);
+			__v4l2_ctrl_s_ctrl_int64(csi->pixel_rate,
+				RK628_CSI_PIXEL_RATE_HIGH);
+		} else {
+			v4l2_dbg(1, debug, sd,
+				"%s res wxh:%dx%d, link freq:%llu, pixrate:%u\n",
+				__func__, csi->timings.bt.width, csi->timings.bt.height,
+				link_freq_menu_items[0], RK628_CSI_PIXEL_RATE_LOW);
+			__v4l2_ctrl_s_ctrl(csi->link_freq, 0);
+			__v4l2_ctrl_s_ctrl_int64(csi->pixel_rate,
+				RK628_CSI_PIXEL_RATE_LOW);
+		}
 	} else {
-		v4l2_dbg(1, debug, sd,
-			"%s res wxh:%dx%d, link freq:%llu, pixrate:%u\n",
-			__func__, csi->timings.bt.width, csi->timings.bt.height,
-			link_freq_menu_items[0], RK628_CSI_PIXEL_RATE_LOW);
-		__v4l2_ctrl_s_ctrl(csi->link_freq, 0);
-		__v4l2_ctrl_s_ctrl_int64(csi->pixel_rate,
-			RK628_CSI_PIXEL_RATE_LOW);
+		u32 rate;
+
+		csi->dsi.rk628 = csi->rk628;
+		csi->dsi.timings = csi->timings;
+		rate = rk628_dsi_get_lane_rate_mbps(&csi->dsi);
+		v4l2_dbg(1, debug, sd, "%s mipi bitrate:%u mbps\n", __func__, rate);
+
+		if (rate > 1300) {
+			csi->rk628->mipi_timing[0] = rk628f_dsi0_mipi;
+			csi->rk628->mipi_timing[1] = rk628f_dsi0_mipi;
+			__v4l2_ctrl_s_ctrl(csi->link_freq, 2);
+		} else if (rate <= 1300 && rate > 700) {
+			csi->rk628->mipi_timing[0] = rk628f_csi0_mipi;
+			csi->rk628->mipi_timing[1] = rk628f_csi0_mipi;
+			__v4l2_ctrl_s_ctrl(csi->link_freq, 1);
+		} else {
+			csi->rk628->mipi_timing[0] = rk628f_csi0_mipi;
+			csi->rk628->mipi_timing[1] = rk628f_csi0_mipi;
+			__v4l2_ctrl_s_ctrl(csi->link_freq, 0);
+		}
+		__v4l2_ctrl_s_ctrl_int64(csi->pixel_rate, RK628_CSI_PIXEL_RATE_HIGH);
 	}
 
 	v4l2_dbg(1, debug, sd, "%s: fmt code:%d, w:%d, h:%d, field code:%d\n",
@@ -2042,6 +2096,12 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			capture_info->mode = 0;
 		}
 		break;
+	case RKMODULE_GET_CSI_DSI_INFO:
+		if (csi->plat_data->tx_mode == DSI_MODE)
+			*(int *)arg = RKMODULE_DSI_INPUT;
+		else
+			*(int *)arg = RKMODULE_CSI_INPUT;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -2199,6 +2259,20 @@ static long rk628_csi_compat_ioctl32(struct v4l2_subdev *sd,
 				ret = -EFAULT;
 		}
 		kfree(capture_info);
+		break;
+	case RKMODULE_GET_CSI_DSI_INFO:
+		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
+		if (!seq) {
+			ret = -ENOMEM;
+			return ret;
+		}
+		ret = rk628_csi_ioctl(sd, cmd, seq);
+		if (!ret) {
+			ret = copy_to_user(up, seq, sizeof(*seq));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(seq);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -2552,6 +2626,7 @@ static int rk628_csi_probe(struct i2c_client *client,
 	match = of_match_node(rk628_csi_of_match, dev->of_node);
 	csi->plat_data = match->data;
 
+	rk628->tx_mode = csi->plat_data->tx_mode;
 	csi->rk628 = rk628;
 	csi->dsi.rk628 = rk628;
 	csi->cur_mode = &supported_modes[0];

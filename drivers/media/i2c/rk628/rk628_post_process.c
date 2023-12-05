@@ -6,6 +6,7 @@
 #include "rk628.h"
 #include "rk628_cru.h"
 #include "rk628_hdmirx.h"
+#include "rk628_post_process.h"
 #include <linux/videodev2.h>
 
 #define PQ_CSC_HUE_TABLE_NUM			256
@@ -1023,30 +1024,6 @@ static const struct csc_mapping csc_mapping_table[] = {
 	},
 };
 
-static const struct rk_pq_csc_coef r2y_for_y2y = {
-	306, 601, 117,
-	-151, -296, 446,
-	630, -527, -102,
-};
-
-static const struct rk_pq_csc_coef y2r_for_y2y = {
-	1024, -0, 1167,
-	1024, -404, -594,
-	1024, 2081, -1,
-};
-
-static const struct rk_pq_csc_coef rgb_input_swap_matrix = {
-	0, 0, 1,
-	1, 0, 0,
-	0, 1, 0,
-};
-
-static const struct rk_pq_csc_coef yuv_output_swap_matrix = {
-	0, 0, 1,
-	1, 0, 0,
-	0, 1, 0,
-};
-
 static bool is_rgb_format(u64 format)
 {
 	switch (format) {
@@ -1108,10 +1085,8 @@ static int csc_get_mode_index(int post_csc_mode, bool is_input_yuv, bool is_outp
 		if (colorspace_info->input_color_space == input_color_space &&
 		    colorspace_info->output_color_space == output_color_space &&
 		    colorspace_info->in_full_range == is_input_full_range &&
-		    colorspace_info->out_full_range == is_output_full_range) {
-			pr_info("RK628 find CSC mode: %s\n", g_mode_csc_coef[i].c_csc_comment);
+		    colorspace_info->out_full_range == is_output_full_range)
 			return i;
-		}
 	}
 
 	return -EINVAL;
@@ -1327,7 +1302,7 @@ static void rk628_post_process_csc(struct rk628 *rk628)
 	int color_range;
 
 	in_fmt = rk628_hdmirx_get_format(rk628);
-	out_fmt = BUS_FMT_YUV422;
+	out_fmt = rk628->tx_mode ? BUS_FMT_RGB : BUS_FMT_YUV422;
 
 	if (rk628->version == RK628D_VERSION) {
 		if (in_fmt == BUS_FMT_RGB)
