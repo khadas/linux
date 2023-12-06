@@ -4,6 +4,8 @@
  *
  * Author: Wyon Bi <bivvy.bi@rock-chips.com>
  */
+
+#include <linux/debugfs.h>
 #include "rk628.h"
 #include "rk628_config.h"
 #include "rk628_cru.h"
@@ -196,6 +198,64 @@ static void rk628_post_process_scaler_init(struct rk628 *rk628,
 			DSP_HBOR_ST(dsp_hbor_st));
 	rk628_i2c_write(rk628, GRF_SCALER_CON8, DSP_VBOR_END(dsp_vbor_end) |
 			DSP_VBOR_ST(dsp_vbor_st));
+}
+
+static int rk628_scaler_color_bar_show(struct seq_file *s, void *data)
+{
+	seq_puts(s, "  Enable horizontal color bar:\n");
+	seq_puts(s, "      example: echo 1 > /sys/kernel/debug/rk628/2-0050/scaler_color_bar\n");
+	seq_puts(s, "  Enable vertical color bar:\n");
+	seq_puts(s, "      example: echo 2 > /sys/kernel/debug/rk628/2-0050/scaler_color_bar\n");
+	seq_puts(s, "  Disable color bar:\n");
+	seq_puts(s, "      example: echo 0 > /sys/kernel/debug/rk628/2-0050/scaler_color_bar\n");
+
+	return 0;
+}
+
+static int rk628_scaler_color_bar_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rk628_scaler_color_bar_show, inode->i_private);
+}
+
+static ssize_t rk628_scaler_color_bar_write(struct file *file, const char __user *ubuf,
+					    size_t len, loff_t *offp)
+{
+	struct rk628 *rk628 = ((struct seq_file *)file->private_data)->private;
+	u8 mode;
+
+	if (kstrtou8_from_user(ubuf, len, 0, &mode))
+		return -EFAULT;
+
+	switch (mode) {
+	case 0:
+		rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_COLOR_BAR_EN(0));
+		break;
+	case 1:
+		rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_COLOR_BAR_EN(1));
+		rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_COLOR_VER_EN(0));
+		break;
+	case 2:
+	default:
+		rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_COLOR_BAR_EN(1));
+		rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_COLOR_VER_EN(1));
+	}
+
+	return len;
+}
+
+static const struct file_operations rk628_scaler_color_bar_fops = {
+	.owner = THIS_MODULE,
+	.open = rk628_scaler_color_bar_open,
+	.read = seq_read,
+	.write = rk628_scaler_color_bar_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+void rk628_post_process_create_debugfs_file(struct rk628 *rk628)
+{
+	debugfs_create_file("scaler_color_bar", 0600, rk628->debug_dir,
+			    rk628, &rk628_scaler_color_bar_fops);
 }
 
 void rk628_post_process_init(struct rk628 *rk628)

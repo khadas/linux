@@ -1224,6 +1224,8 @@ static void rk628_debugfs_create(struct rk628 *rk628)
 	/* path example: /sys/kernel/debug/rk628/2-0050/summary */
 	debugfs_create_file("summary", 0400, rk628->debug_dir, rk628,
 			    &rk628_debugfs_summary_fops);
+
+	rk628_post_process_create_debugfs_file(rk628);
 	rk628_mipi_dsi_create_debugfs_file(rk628);
 }
 
