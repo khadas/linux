@@ -3856,6 +3856,38 @@ static struct t5w_dsu_clk_postmux_nb_data t5w_dsu_clk_postmux1_nb_data = {
 	.nb.notifier_call = t5w_dsu_clk_postmux_notifier_cb,
 };
 
+static int t5w_dsu_clk_postmux0_notifier_cb(struct notifier_block *nb,
+					   unsigned long event, void *data)
+{
+	struct t5w_dsu_clk_postmux_nb_data *nb_data =
+		container_of(nb, struct t5w_dsu_clk_postmux_nb_data, nb);
+	int ret = 0;
+
+	switch (event) {
+	case PRE_RATE_CHANGE:
+		ret = clk_hw_set_parent(nb_data->dsu_clk_dyn,
+					nb_data->dsu_clk_postmux1);
+		if (ret)
+			return notifier_from_errno(ret);
+		return NOTIFY_OK;
+	case POST_RATE_CHANGE:
+		ret = clk_hw_set_parent(nb_data->dsu_clk_dyn,
+					nb_data->dsu_clk_postmux0);
+		if (ret)
+			return notifier_from_errno(ret);
+		return NOTIFY_OK;
+	default:
+		return NOTIFY_DONE;
+	}
+}
+
+static struct t5w_dsu_clk_postmux_nb_data t5w_dsu_clk_postmux0_nb_data = {
+	.dsu_clk_dyn = &t5w_dsu_clk_dyn.hw,
+	.dsu_clk_postmux0 = &t5w_dsu_clk_postmux0.hw,
+	.dsu_clk_postmux1 = &t5w_dsu_clk_postmux1.hw,
+	.nb.notifier_call = t5w_dsu_clk_postmux0_notifier_cb,
+};
+
 #define MESON_T5W_SYS_GATE(_name, _reg, _bit)				\
 struct clk_regmap _name = {						\
 	.data = &(struct clk_regmap_gate_data) {			\
@@ -4476,19 +4508,35 @@ static int meson_t5w_dvfs_setup(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register sys_pll notifier\n");
 		return ret;
 	}
-	/* dsu is at premux1 now */
-	ret = clk_set_parent(t5w_dsu_clk_premux0.hw.clk,
-			     t5w_fclk_div2.hw.clk);
-	if (ret < 0) {
-		pr_err("%s: failed to set dsu premux0 parent\n", __func__);
-		return ret;
-	}
-	/* remove dsu initialization, Do it in U-boot */
-	ret = clk_notifier_register(t5w_dsu_clk_postmux1.hw.clk,
-				    &t5w_dsu_clk_postmux1_nb_data.nb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register dsu notifier\n");
-		return ret;
+	if (clk_get_parent(t5w_dsu_clk_dyn.hw.clk) == t5w_dsu_clk_postmux1.hw.clk) {
+		/* dsu is at premux1 now */
+		ret = clk_set_parent(t5w_dsu_clk_premux0.hw.clk,
+				     t5w_fclk_div2.hw.clk);
+		if (ret < 0) {
+			pr_err("%s: failed to set dsu premux0 parent\n", __func__);
+			return ret;
+		}
+		/* remove dsu initialization, Do it in U-boot */
+		ret = clk_notifier_register(t5w_dsu_clk_postmux1.hw.clk,
+					    &t5w_dsu_clk_postmux1_nb_data.nb);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to register dsu notifier\n");
+			return ret;
+		}
+	} else {
+		ret = clk_set_parent(t5w_dsu_clk_premux1.hw.clk,
+				     t5w_fclk_div2.hw.clk);
+		if (ret < 0) {
+			pr_err("%s: failed to set dsu premux0 parent\n", __func__);
+			return ret;
+		}
+		/* remove dsu initialization, Do it in U-boot */
+		ret = clk_notifier_register(t5w_dsu_clk_postmux0.hw.clk,
+					    &t5w_dsu_clk_postmux0_nb_data.nb);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to register dsu notifier\n");
+			return ret;
+		}
 	}
 
 	return 0;
