@@ -354,15 +354,14 @@ void pa1_aed_eq_taps(struct snd_soc_component *component, unsigned int eq_taps)
 void pa1_aed_get_ram_coeff(struct snd_soc_component *component, int add,
 				int len, unsigned int *params)
 {
-	int i, ctrl_v;
+	int i;
 	unsigned int *p = params;
 
 	top_conversion_to_dsp(component);
-	for (i = 0; i < len; i++, p++) {
-		ctrl_v = add + i;
-		snd_soc_component_write(component, PA1_AEQ_COEF_ADDR, ctrl_v);
+	snd_soc_component_write(component, PA1_AEQ_COEF_ADDR, add);
+	for (i = 0; i < len; i++, p++)
 		snd_soc_component_read(component, PA1_AEQ_COEF_DATA, p);
-	}
+
 }
 
 void pa1_aed_set_ram_coeff(struct snd_soc_component *component, int add,
@@ -448,13 +447,13 @@ void pa1_aed_set_multiband_drc_coeff(struct snd_soc_component *component, int ba
 	for (i = 0; i < 2; i++, p++)
 		snd_soc_component_write(component, PA1_AEQ_COEF_DATA, *p);
 
-	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 10 + 6;
+	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 10 + PA1_MULTIBAND_ADDRESS_OFFSET1;
 	p = &PA1_MULTIBAND_DRC_COEFF[band * PA1_AED_SINGLE_BAND_DRC_SIZE + 2];
 	snd_soc_component_write(component, PA1_AEQ_COEF_ADDR, ctrl_v);
 	for (i = 0; i < 10; i++, p++)
 		snd_soc_component_write(component, PA1_AEQ_COEF_DATA, *p);
 
-	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 2 + 36;
+	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 2 + PA1_MULTIBAND_ADDRESS_OFFSET2;
 	p = &PA1_MULTIBAND_DRC_COEFF[band * PA1_AED_SINGLE_BAND_DRC_SIZE + 12];
 	snd_soc_component_write(component, PA1_AEQ_COEF_ADDR, ctrl_v);
 	for (i = 0; i < 2; i++, p++)
@@ -464,35 +463,24 @@ void pa1_aed_set_multiband_drc_coeff(struct snd_soc_component *component, int ba
 void pa1_aed_get_multiband_drc_coeff(struct snd_soc_component *component,
 				int band, unsigned int *params)
 {
-	int i, ctrl_v, add;
-	unsigned int value = 0;
+	int i, ctrl_v;
 	unsigned int *p = params;
 
 	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 2;
 	top_conversion_to_dsp(component);
 	snd_soc_component_write(component, PA1_AEQ_COEF_ADDR, ctrl_v);
-	snd_soc_component_read(component, PA1_AEQ_COEF_DATA, &value);
+	for (i = 0; i < 2; i++, p++)
+		snd_soc_component_read(component, PA1_AEQ_COEF_DATA, p);
 
-	*p++ = cpu_to_be32(value);
-
-	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 10 + 6;
+	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 10 + PA1_MULTIBAND_ADDRESS_OFFSET1;
 	snd_soc_component_write(component, PA1_AEQ_COEF_ADDR, ctrl_v);
-	snd_soc_component_read(component, PA1_AEQ_COEF_DATA, &value);
+	for (i = 0; i < 10; i++, p++)
+		snd_soc_component_read(component, PA1_AEQ_COEF_DATA, p);
 
-	*p++ = cpu_to_be32(value);
-
-	add = PA1_MULTIBAND_FILTER_RAM_ADD + band * 10 + 8;
-	for (i = 0; i < 8; i++, p++) {
-		ctrl_v = add + i;
-		snd_soc_component_write(component, PA1_AEQ_COEF_ADDR, ctrl_v);
-		snd_soc_component_read(component, PA1_AEQ_COEF_DATA, &value);
-		*p++ = cpu_to_be32(value);
-	}
-
-	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 2 + 36;
+	ctrl_v = PA1_MULTIBAND_FILTER_RAM_ADD + band * 2 + PA1_MULTIBAND_ADDRESS_OFFSET2;
 	snd_soc_component_write(component, PA1_AEQ_COEF_ADDR, ctrl_v);
-	snd_soc_component_read(component, PA1_AEQ_COEF_DATA, &value);
-	*p++ = cpu_to_be32(value);
+	for (i = 0; i < 2; i++, p++)
+		snd_soc_component_read(component, PA1_AEQ_COEF_DATA, p);
 }
 
 void pa1_aed_set_multiband_drc_param(struct snd_soc_component *component)
@@ -538,12 +526,8 @@ static int pa1_mixer_get_3D_Surround_params(struct snd_kcontrol *kcontrol,
 
 	pa1_aed_get_ram_coeff(component, PA1_3D_SURROUND_RAM_ADD, PA1_AED_FULLBAND_DRC_SIZE, p);
 
-	for (i = 0; i < PA1_AED_FULLBAND_DRC_SIZE; i++) {
-		if (i == 5)
-			p++;
-		else
-			*value++ = cpu_to_be32(*p++);
-	}
+	for (i = 0; i < PA1_AED_FULLBAND_DRC_SIZE; i++)
+		*value++ = cpu_to_be32(*p++);
 
 	snd_soc_component_write(component, PA1_AEQ_SOFT_REST, 0x0);
 	dsp_conversion_to_top(component);
@@ -706,10 +690,7 @@ static int pa1_mixer_get_fullband_DRC_params(struct snd_kcontrol *kcontrol,
 	pa1_aed_get_ram_coeff(component, PA1_FULLBAND_FILTER_RAM_ADD, len, p);
 
 	for (i = 0; i < len; i++)
-		if (i == 1 || i == 3)
-			p++;
-		else
-			*value++ = cpu_to_be32(*p++);
+		*value++ = cpu_to_be32(*p++);
 
 	snd_soc_component_write(component, PA1_AEQ_SOFT_REST, 0x0);
 	dsp_conversion_to_top(component);
@@ -769,7 +750,9 @@ static int pa1_mixer_get_multiband_DRC_params(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	unsigned int *value = (unsigned int *)ucontrol->value.bytes.data;
+	unsigned int *p = &PA1_MULTIBAND_DRC_COEFF[0];
 	int i;
+	int len = PA1_AED_MULTIBAND_DRC_SIZE;
 
 	dsp_conversion_to_top(component);
 	snd_soc_component_update_bits(component, PA1_DSP_MISC0, (0x1 << 6) | (0x1 << 0),
@@ -777,8 +760,13 @@ static int pa1_mixer_get_multiband_DRC_params(struct snd_kcontrol *kcontrol,
 	top_conversion_to_dsp(component);
 	snd_soc_component_write(component, PA1_AEQ_SOFT_REST, 0xf);
 
-	for (i = 0; i < 3; i++)
-		pa1_aed_get_multiband_drc_coeff(component, i, value);
+	for (i = 0; i < 3; i++) {
+		p = &PA1_MULTIBAND_DRC_COEFF[i * PA1_AED_SINGLE_BAND_DRC_SIZE];
+		pa1_aed_get_multiband_drc_coeff(component, i, p);
+	}
+
+	for (i = 0; i < len; i++)
+		*value++ = cpu_to_be32(*p++);
 
 	snd_soc_component_write(component, PA1_AEQ_SOFT_REST, 0x0);
 	dsp_conversion_to_top(component);
