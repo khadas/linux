@@ -252,7 +252,7 @@ static void set_hpll_clk_out(unsigned int clk)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
-	pr_debug("config HPLL = %d frac_rate = %d\n", clk, frac_rate);
+	hdmitx_dbg("config HPLL = %d frac_rate = %d\n", clk, frac_rate);
 
 	switch (hdev->data->chip_type) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -1002,7 +1002,7 @@ next:
 	set_hpll_od2(p_enc[j].od2);
 	set_hpll_od3(p_enc[j].od3);
 	set_hpll_od3_clk_div(p_enc[j].vid_pll_div);
-	pr_debug("j = %d  vid_clk_div = %d\n", j, p_enc[j].vid_clk_div);
+	hdmitx_dbg("j = %d  vid_clk_div = %d\n", j, p_enc[j].vid_clk_div);
 	set_vid_clk_div(hdev, p_enc[j].vid_clk_div);
 	set_hdmi_tx_pixel_div(hdev, p_enc[j].hdmi_tx_pixel_div);
 
@@ -1039,7 +1039,7 @@ static void hdmitx_check_frac_rate(struct hdmitx_dev *hdev)
 		frac_rate = 0;
 	}
 
-	pr_debug("frac_rate = %d\n", hdev->frac_rate_policy);
+	hdmitx_dbg("frac_rate = %d\n", hdev->frac_rate_policy);
 }
 
 /*

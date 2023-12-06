@@ -884,7 +884,7 @@ static void set_hdmitx_s5_htx_pll(struct hdmitx_dev *hdev)
 	base_pixel_clk = base_pixel_clk * 10; /* for tmds modes, here should multi 10 */
 	if (cs == HDMI_COLORSPACE_YUV420)
 		base_pixel_clk /= 2;
-	pr_info("%s[%d] calculate pixel_clk to %d\n", __func__, __LINE__, base_pixel_clk);
+	hdmitx21_dbg("%s[%d] calculate pixel_clk to %d\n", __func__, __LINE__, base_pixel_clk);
 	if (base_pixel_clk > MAX_HTXPLL_VCO) {
 		pr_err("%s[%d] base_pixel_clk %d over MAX_HTXPLL_VCO %d\n",
 			__func__, __LINE__, base_pixel_clk, MAX_HTXPLL_VCO);
@@ -1058,7 +1058,7 @@ next:
 	set_hpll_od2(tmp_clk.od2);
 	set_hpll_od3(tmp_clk.od3);
 	clocks_set_vid_clk_div_for_hdmi(tmp_clk.vid_pll_div);
-	pr_info("j = %d  vid_clk_div = %d\n", j, tmp_clk.vid_clk_div);
+	hdmitx21_dbg("j = %d  vid_clk_div = %d\n", j, tmp_clk.vid_clk_div);
 	set_vid_clk_div(hdev, tmp_clk.vid_clk_div);
 	set_hdmitx_enc_div(hdev, tmp_clk.enc_div);
 	set_hdmitx_fe_div(hdev, tmp_clk.fe_div);
@@ -1289,7 +1289,7 @@ static void hdmitx_check_frac_rate(struct hdmitx_dev *hdev)
 		frac_rate = 0;
 	}
 
-	pr_info("frac_rate = %d\n", hdev->frac_rate_policy);
+	hdmitx21_dbg("frac_rate = %d\n", hdev->frac_rate_policy);
 }
 
 /*

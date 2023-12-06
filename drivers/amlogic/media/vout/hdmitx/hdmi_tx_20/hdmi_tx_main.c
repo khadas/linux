@@ -444,7 +444,7 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, hdev->hpd_state);
 	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
 	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, hdev->hpd_state);
-	pr_info("amhdmitx: late resume module %d\n", __LINE__);
+	hdmitx_dbg("amhdmitx: late resume module %d\n", __LINE__);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
 		HDMITX_LATE_RESUME);
 	hdev->hwop.cntlmisc(hdev, MISC_SUSFLAG, 0);
@@ -605,7 +605,7 @@ static void hdmi_physical_size_update(struct hdmitx_dev *hdev)
 			info->screen_real_width = width;
 			info->screen_real_height = height;
 		}
-		pr_info(SYS "update physical size: %d %d\n",
+		hdmitx_dbg(SYS "update physical size: %d %d\n",
 			info->screen_real_width, info->screen_real_height);
 	}
 }
@@ -699,7 +699,7 @@ static int set_disp_mode_auto(void)
 		return -1;
 	}
 
-	pr_info(SYS "get current mode: %s\n", info->name);
+	hdmitx_dbg(SYS "get current mode: %s\n", info->name);
 
 	/*update hdmi checksum to vout*/
 	memcpy(info->hdmichecksum, hdev->rxcap.chksum, 10);
@@ -1852,6 +1852,23 @@ static void hdr_work_func(struct work_struct *work)
 		if (log_level == 0xff) \
 			pr_info("%s[%d]\n", __func__, __LINE__); \
 	} while (0)
+
+void hdmitx_dbg(const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (log_level != 0xff)
+		return;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	pr_info("%pV", &vaf);
+
+	va_end(args);
+}
 
 /* Init DRM_DB[0] from Uboot status */
 static void init_drm_db0(struct hdmitx_dev *hdev, unsigned char *dat)
@@ -4080,7 +4097,7 @@ static ssize_t valid_mode_store(struct device *dev,
 	valid_mode = hdmitx_edid_check_valid_mode(&hdmitx_device, para);
 	ret = valid_mode ? count : -1;
 	mutex_unlock(&valid_mode_mutex);
-	if (log_level)
+	if (log_level == 0x1)
 		pr_info("hdmitx: valid_mode_show %s valid: %d\n", cvalid_mode, ret);
 	return ret;
 }
@@ -6613,7 +6630,7 @@ static void recalc_vinfo_sync_duration(struct vinfo_s *info, unsigned int frac)
 {
 	struct frac_rate_table *fr = &fr_tab[0];
 
-	pr_info(SYS "recalc before %s %d %d, frac %d\n", info->name,
+	hdmitx_dbg(SYS "recalc before %s %d %d, frac %d\n", info->name,
 		info->sync_duration_num, info->sync_duration_den, info->frac);
 
 	while (fr->hz) {
@@ -6632,7 +6649,7 @@ static void recalc_vinfo_sync_duration(struct vinfo_s *info, unsigned int frac)
 		fr++;
 	}
 
-	pr_info(SYS "recalc after %s %d %d, frac %d\n", info->name,
+	hdmitx_dbg(SYS "recalc after %s %d %d, frac %d\n", info->name,
 		info->sync_duration_num, info->sync_duration_den, info->frac);
 }
 
@@ -6641,7 +6658,7 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 	struct vinfo_s *vinfo;
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
-	pr_info("%s[%d]\n", __func__, __LINE__);
+	hdmitx_dbg("%s[%d]\n", __func__, __LINE__);
 	/* get current vinfo and refresh */
 	vinfo = hdmitx_get_current_vinfo(NULL);
 	if (vinfo && vinfo->name)
@@ -7400,20 +7417,20 @@ static bool is_cur_tmds_div40(struct hdmitx_dev *hdev)
 	if (!hdev)
 		return 0;
 
-	pr_info("hdmitx: get vic %d cscd %s\n", hdev->cur_VIC, hdev->fmt_attr);
+	hdmitx_dbg("hdmitx: get vic %d cscd %s\n", hdev->cur_VIC, hdev->fmt_attr);
 
 	para1 = hdmi_get_fmt_paras(hdev->cur_VIC);
 	if (!para1) {
 		pr_info("%s[%d]\n", __func__, __LINE__);
 		return 0;
 	}
-	pr_info("hdmitx: mode name %s\n", para1->name);
+	hdmitx_dbg("hdmitx: mode name %s\n", para1->name);
 	para2 = hdmi_tst_fmt_name(para1->name, hdev->fmt_attr);
 	if (!para2) {
 		pr_info("%s[%d]\n", __func__, __LINE__);
 		return 0;
 	}
-	pr_info("hdmitx: tmds clock %d\n", para2->tmds_clk / 1000);
+	hdmitx_dbg("hdmitx: tmds clock %d\n", para2->tmds_clk / 1000);
 	act_clk = para2->tmds_clk / 1000;
 	if (para2->cs == COLORSPACE_YUV420)
 		act_clk = act_clk / 2;
@@ -7434,7 +7451,7 @@ static bool is_cur_tmds_div40(struct hdmitx_dev *hdev)
 			break;
 		}
 	}
-	pr_info("hdmitx: act clock: %d\n", act_clk);
+	hdmitx_dbg("hdmitx: act clock: %d\n", act_clk);
 
 	if (act_clk > 340)
 		return 1;
@@ -8121,7 +8138,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	static struct kfifo kfifo_log;
 	struct hdmitx_dev *hdev = &hdmitx_device;
 
-	pr_debug(SYS "%s start\n", __func__);
+	hdmitx_dbg(SYS "%s start\n", __func__);
 
 	amhdmitx_device_init(hdev);
 
@@ -8335,7 +8352,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	hdmitx_hdcp_init();
 
-	pr_info(SYS "%s end\n", __func__);
+	hdmitx_dbg(SYS "%s end\n", __func__);
 
 	component_add(&pdev->dev, &meson_hdmitx_bind_ops);
 

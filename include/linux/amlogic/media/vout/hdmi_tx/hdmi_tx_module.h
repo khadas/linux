@@ -1027,4 +1027,7 @@ int read_phy_status(void);
 int hdmitx_set_uevent_state(enum hdmitx_event type, int state);
 int hdmitx_set_uevent(enum hdmitx_event type, int val);
 int get_hdmi_hdr_status(struct hdmitx_dev *hdev);
+
+void hdmitx_dbg(const char *format, ...);
+
 #endif

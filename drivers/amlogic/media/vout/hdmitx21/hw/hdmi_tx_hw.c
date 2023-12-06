@@ -371,7 +371,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 1, 24, 1);
 	}
 
-	pr_info("%s%d\n", __func__, __LINE__);
+	hdmitx21_dbg("%s%d\n", __func__, __LINE__);
 	if (!reset && hdmitx21_uboot_already_display(hdev)) {
 		int ret;
 		u8 body[32] = {0};
@@ -779,7 +779,7 @@ static bool is_deep_phase_unstable(enum hdmi_colorspace cs, enum hdmi_color_dept
 {
 	u8 gcp_cur_st = (hdmitx21_rd_reg(GCP_CUR_STAT_IVCTX) >> 5) & 0x3;
 
-	pr_info("%s[%d] gcp_cur_st %d\n", __func__, __LINE__, gcp_cur_st);
+	hdmitx21_dbg("%s[%d] gcp_cur_st %d\n", __func__, __LINE__, gcp_cur_st);
 	if (cs == HDMI_COLORSPACE_YUV422) {
 		if (gcp_cur_st != 0)
 			return 1;
@@ -932,7 +932,7 @@ static int emp_dbg_en;
 
 void hdmitx_soft_reset(u32 bits_nr)
 {
-	pr_info("%s[%d]\n", __func__, __LINE__);
+	hdmitx21_dbg("%s[%d]\n", __func__, __LINE__);
 	if (bits_nr & BIT(0)) {
 		/* 18or10to20 fifos Software reset */
 		hdmitx21_reset_reg_bit(PWD_SRST_IVCTX, 2);
@@ -1044,7 +1044,7 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	// Based on the corresponding settings in set_tv_enc.c, calculate
 	// the register values to meet the timing requirements defined in CEA-861-D
 	// --------------------------------------------------------
-	pr_info("configure hdmitx video format timing\n");
+	hdmitx21_dbg("configure hdmitx video format timing\n");
 
 	// [ 1: 0] hdmi_vid_fmt. 0=444; 1=convert to 422; 2=convert to 420.
 	// [ 3: 2] chroma_dnsmp_h. 0=use pixel 0; 1=use pixel 1; 2=use average.
@@ -1737,7 +1737,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	//pr_info("div_n = %d\n", div_n);
 	/* audio asynchronous sample clock, for spdif */
 	hdmitx_aud_clk_div = 2000000 / 3 / 6  / 128 / sample_rate_k / div_n;
-	pr_info("clk_div = %d\n", hdmitx_aud_clk_div);
+	hdmitx21_dbg("clk_div = %d\n", hdmitx_aud_clk_div);
 	//if (audio_param->sample_rate == FS_32K)
 		//hdmitx_aud_clk_div = 26;
 	//else if (audio_param->sample_rate == FS_48K)
@@ -1750,7 +1750,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	hdmitx21_set_audioclk(hdmitx_aud_clk_div);
 	//audio_mute_op(hdev->tx_aud_cfg);
 	//pr_info("audio_param->type = %d\n", audio_param->type);
-	pr_info("audio_param->channel_num = %d\n", audio_param->channel_num);
+	hdmitx21_dbg("audio_param->channel_num = %d\n", audio_param->channel_num);
 	/* I2S: hbr and lpcm 2~8ch
 	 * spdif: lpcm 2ch, aml_ac3/aml_eac3/aml_dts
 	 */
@@ -1769,7 +1769,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	 */
 	hdmitx21_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1 - hdev->tx_aud_src, 13, 1);
 
-	pr_info(HW "hdmitx tx_aud_src = %d\n", hdev->tx_aud_src);
+	hdmitx21_dbg(HW "hdmitx tx_aud_src = %d\n", hdev->tx_aud_src);
 
 	// config I2S
 	//---------------
@@ -1933,7 +1933,7 @@ static int hdmitx_cntl(struct hdmitx_dev *hdev, u32 cmd,
 			/* No need below, will be set at set_disp_mode_auto() */
 			/* hd21_set_reg_bits(HHI_HDMI_PLL_CNTL, 1, 30, 1); */
 			hw_reset_dbg();
-			pr_info(HW "swrstzreq\n");
+			hdmitx21_dbg(HW "swrstzreq\n");
 		}
 		return 0;
 	} else if (cmd == HDMITX_HWCMD_MUX_HPD_IF_PIN_HIGH) {
@@ -3095,7 +3095,7 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 
 	if (hdev->dsc_en)
 		dp_color_depth = COLORDEPTH_24B;
-	pr_info("configure hdmitx21\n");
+	hdmitx21_dbg("configure hdmitx21\n");
 	hdmitx21_wr_reg(HDMITX_TOP_SW_RESET, 0);
 	hdmitx_set_div40(para->tmds_clk_div40);
 	hdev->div40 = para->tmds_clk_div40;

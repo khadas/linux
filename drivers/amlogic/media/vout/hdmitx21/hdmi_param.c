@@ -287,7 +287,7 @@ static void recalc_vinfo_sync_duration(struct vinfo_s *info, u32 frac)
 
 	if (!info)
 		return;
-	pr_info("hdmitx: recalc before %s %d %d, frac %d\n", info->name,
+	hdmitx21_dbg("hdmitx: recalc before %s %d %d, frac %d\n", info->name,
 		info->sync_duration_num, info->sync_duration_den, info->frac);
 
 	while (fr->hz) {
@@ -306,7 +306,7 @@ static void recalc_vinfo_sync_duration(struct vinfo_s *info, u32 frac)
 		fr++;
 	}
 
-	pr_info("recalc after %s %d %d, frac %d\n", info->name,
+	hdmitx21_dbg("recalc after %s %d %d, frac %d\n", info->name,
 		info->sync_duration_num, info->sync_duration_den, info->frac);
 }
 
@@ -835,7 +835,7 @@ u32 hdmi21_get_aud_n_paras(enum hdmi_audio_fs fs,
 	u32 i, n;
 	u32 N_multiples = 1;
 
-	pr_info("hdmitx: fs = %d, cd = %d, pixel_clk = %d\n", fs, cd, tmds_clk);
+	hdmitx21_dbg("hdmitx: fs = %d, cd = %d, pixel_clk = %d\n", fs, cd, tmds_clk);
 	switch (fs) {
 	case FS_32K:
 		p = all_aud_paras[0];

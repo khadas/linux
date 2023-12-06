@@ -3017,7 +3017,7 @@ static int hdmitx_cntl(struct hdmitx_dev *hdev, unsigned int cmd,
 			/* No need below, will be set at set_disp_mode_auto() */
 			/* hd_set_reg_bits(P_HHI_HDMI_PLL_CNTL, 1, 30, 1); */
 			hw_reset_dbg();
-			pr_info(HW "swrstzreq\n");
+			hdmitx_dbg(HW "swrstzreq\n");
 		}
 		return 0;
 	} else if (cmd == HDMITX_HWCMD_MUX_HPD_IF_PIN_HIGH) {

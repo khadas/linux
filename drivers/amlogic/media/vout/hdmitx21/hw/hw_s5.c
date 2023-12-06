@@ -213,7 +213,7 @@ void set21_s5_htxpll_clk_out(const u32 clk, const u32 div)
 	cs = hdev->para->cs;
 	cd = hdev->para->cd;
 
-	pr_info("%s[%d] htxpll vco %d div %d\n", __func__, __LINE__, clk, div);
+	hdmitx21_dbg("%s[%d] htxpll vco %d div %d\n", __func__, __LINE__, clk, div);
 
 	if (clk <= 3000000 || clk > 6000000) {
 		pr_info("%s[%d] %d out of htxpll range(3~6G]\n", __func__, __LINE__, clk);

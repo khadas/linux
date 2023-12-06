@@ -417,7 +417,7 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 	ieeeoui = dat[pos++];
 	ieeeoui += dat[pos++] << 8;
 	ieeeoui += dat[pos++] << 16;
-	pr_info("Edid_ParsingVendSpec:ieeeoui=0x%x,len=%u\n", ieeeoui, length);
+	hdmitx_dbg("Edid_ParsingVendSpec:ieeeoui=0x%x,len=%u\n", ieeeoui, length);
 
 /*HDR10+ use vsvdb*/
 	if (ieeeoui == HDR10_PLUS_IEEE_OUI) {
@@ -493,7 +493,7 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 				dv->dm_major_ver = dat[pos] >> 4;
 				dv->dm_minor_ver = dat[pos] & 0xf;
 				pos++;
-				pr_info("v0 VSVDB: len=%d, sup_2160p60hz=%d\n",
+				hdmitx_dbg("v0 VSVDB: len=%d, sup_2160p60hz=%d\n",
 					dv->length, dv->sup_2160p60hz);
 			} else {
 				dv->block_flag = ERROR_LENGTH;
@@ -525,7 +525,7 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 				pos++;
 				dv->Rx = 0xA0 | (dat[pos] >> 3);
 				pos++;
-				pr_info("v1 VSVDB: len=%d, sup_2160p60hz=%d, low_latency=%d\n",
+				hdmitx_dbg("v1 VSVDB: len=%d, sup_2160p60hz=%d, low_latency=%d\n",
 					dv->length, dv->sup_2160p60hz, dv->low_latency);
 			} else if (dv->length == 0x0E) {
 				dv->dm_version = (dat[pos] >> 2) & 0x7;
@@ -544,7 +544,7 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 				dv->Gy = dat[pos++];
 				dv->Bx = dat[pos++];
 				dv->By = dat[pos++];
-				pr_info("v1 VSVDB: len=%d, sup_2160p60hz=%d\n",
+				hdmitx_dbg("v1 VSVDB: len=%d, sup_2160p60hz=%d\n",
 					dv->length, dv->sup_2160p60hz);
 			} else {
 				dv->block_flag = ERROR_LENGTH;
@@ -581,7 +581,7 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 				dv->Ry = 0x40  | (dat[pos] >> 3);
 				dv->By = 0x08  | (dat[pos] & 0x7);
 				pos++;
-				pr_info("v2 VSVDB: len=%d, sup_2160p60hz=%d, Interface=%d\n",
+				hdmitx_dbg("v2 VSVDB: len=%d, sup_2160p60hz=%d, Interface=%d\n",
 					dv->length, dv->sup_2160p60hz, dv->Interface);
 			} else {
 				dv->block_flag = ERROR_LENGTH;
@@ -2222,7 +2222,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		hdmitx_current_status(HDMITX_EDID_CHECKSUM_ERROR);
 
 	hdmitx_device->edid_ptr = EDID_buf;
-	pr_debug(EDID "EDID Parser:\n");
+	hdmitx_dbg(EDID "EDID Parser:\n");
 	/* Calculate the EDID hash for special use */
 	memset(hdmitx_device->EDID_hash, 0,
 	       ARRAY_SIZE(hdmitx_device->EDID_hash));
@@ -2312,7 +2312,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 
 	if (hdmitx_edid_search_IEEEOUI(&EDID_buf[128])) {
 		prxcap->ieeeoui = HDMI_IEEEOUI;
-		pr_debug(EDID "find IEEEOUT\n");
+		hdmitx_dbg(EDID "find IEEEOUT\n");
 	} else {
 		prxcap->ieeeoui = 0x0;
 		pr_info(EDID "not find IEEEOUT\n");
@@ -2912,14 +2912,13 @@ static void hdmitx_edid_blk_print(unsigned char *blk, unsigned int blk_idx)
 		return;
 
 	memset(tmp_buf, 0, TMP_EDID_BUF_SIZE);
-	pr_debug(EDID "blk%d raw data\n", blk_idx);
+	hdmitx_dbg(EDID "blk%d raw data\n", blk_idx);
 	for (i = 0, pos = 0; i < 128; i++) {
 		pos += sprintf(tmp_buf + pos, "%02x", blk[i]);
-		if (((i + 1) & 0x1f) == 0)    /* print 32bytes a line */
+		if (((i + 1) & 0x3f) == 0)    /* print 64 bytes a line */
 			pos += sprintf(tmp_buf + pos, "\n");
 	}
-	pos += sprintf(tmp_buf + pos, "\n");
-	pr_info(EDID "\n%s\n", tmp_buf);
+	pr_info(EDID "%s", tmp_buf);
 	kfree(tmp_buf);
 }
 
@@ -2938,7 +2937,7 @@ static unsigned int hdmitx_edid_check_valid_blocks(unsigned char *buf)
 		if (tmp_chksum != 0) {
 			valid_blk_no++;
 			if ((tmp_chksum & 0xff) == 0)
-				pr_debug(EDID "check sum valid\n");
+				hdmitx_dbg(EDID "check sum valid\n");
 			else
 				pr_info(EDID "check sum invalid\n");
 		}

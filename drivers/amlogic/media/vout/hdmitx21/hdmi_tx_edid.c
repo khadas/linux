@@ -415,7 +415,7 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 	ieeeoui = dat[pos++];
 	ieeeoui += dat[pos++] << 8;
 	ieeeoui += dat[pos++] << 16;
-	pr_info("Edid_ParsingVendSpec:ieeeoui=0x%x,len=%u\n", ieeeoui, length);
+	hdmitx21_dbg("Edid_ParsingVendSpec:ieeeoui=0x%x,len=%u\n", ieeeoui, length);
 
 /*HDR10+ use vsvdb*/
 	if (ieeeoui == HDR10_PLUS_IEEE_OUI) {
@@ -491,7 +491,7 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 				dv->dm_major_ver = dat[pos] >> 4;
 				dv->dm_minor_ver = dat[pos] & 0xf;
 				pos++;
-				pr_info("v0 VSVDB: len=%d, sup_2160p60hz=%d\n",
+				hdmitx21_dbg("v0 VSVDB: len=%d, sup_2160p60hz=%d\n",
 					dv->length, dv->sup_2160p60hz);
 			} else {
 				dv->block_flag = ERROR_LENGTH;
@@ -523,7 +523,7 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 				pos++;
 				dv->Rx = 0xA0 | (dat[pos] >> 3);
 				pos++;
-				pr_info("v1 VSVDB: len=%d, sup_2160p60hz=%d, low_latency=%d\n",
+				hdmitx21_dbg("v1 VSVDB: len=%d, sup_2160p60hz=%d, low_latency=%d\n",
 					dv->length, dv->sup_2160p60hz, dv->low_latency);
 			} else if (dv->length == 0x0E) {
 				dv->dm_version = (dat[pos] >> 2) & 0x7;
@@ -542,7 +542,7 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 				dv->Gy = dat[pos++];
 				dv->Bx = dat[pos++];
 				dv->By = dat[pos++];
-				pr_info("v1 VSVDB: len=%d, sup_2160p60hz=%d\n",
+				hdmitx21_dbg("v1 VSVDB: len=%d, sup_2160p60hz=%d\n",
 					dv->length, dv->sup_2160p60hz);
 			} else {
 				dv->block_flag = ERROR_LENGTH;
@@ -582,7 +582,7 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 				dv->Ry = 0x40  | (dat[pos] >> 3);
 				dv->By = 0x08  | (dat[pos] & 0x7);
 				pos++;
-				pr_info("v2 VSVDB: len=%d, sup_2160p60hz=%d, Interface=%d\n",
+				hdmitx21_dbg("v2 VSVDB: len=%d, sup_2160p60hz=%d, Interface=%d\n",
 					dv->length, dv->sup_2160p60hz, dv->Interface);
 			} else {
 				dv->block_flag = ERROR_LENGTH;
@@ -1490,7 +1490,7 @@ static int hdmitx_edid_cta_block_parse(struct hdmitx_dev *hdev,
 		case HDMI_EDID_BLOCK_TYPE_VIDEO:
 			offset++;
 			for (i = 0; i < count ; i++) {
-				pr_info("i=%d VIC=%d\n", i, blockbuf[offset + i]);
+				hdmitx21_dbg("i=%d VIC=%d\n", i, blockbuf[offset + i]);
 				/* The SVD in the video data block is stored in SVD_VIC
 				 * and mapped with 420 CMDB
 				 */
@@ -2268,7 +2268,7 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 		hdmitx_device->edid_parsing = 1;
 
 	hdmitx_device->edid_ptr = EDID_buf;
-	pr_debug(EDID "EDID Parser:\n");
+	hdmitx21_dbg(EDID "EDID Parser:\n");
 	/* Calculate the EDID hash for special use */
 	memset(hdmitx_device->EDID_hash, 0,
 	       ARRAY_SIZE(hdmitx_device->EDID_hash));
@@ -2358,7 +2358,7 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 
 	if (hdmitx_edid_search_IEEEOUI(&EDID_buf[128])) {
 		prxcap->ieeeoui = HDMI_IEEE_OUI;
-		pr_debug(EDID "find IEEEOUT\n");
+		hdmitx21_dbg(EDID "find IEEEOUT\n");
 	} else {
 		prxcap->ieeeoui = 0x0;
 		pr_info(EDID "not find IEEEOUT\n");
@@ -2981,7 +2981,7 @@ enum hdmi_vic hdmitx21_edid_get_VIC(struct hdmitx_dev *hdev,
 		}
 		/* if TV only supports 480p/2, add 480p60hz as well */
 		if (is_sink_only_sd_4x3(hdev, disp_mode, &vic))
-			pr_info("hdmitx: find SD only 4x3\n");
+			hdmitx21_dbg("hdmitx: find SD only 4x3\n");
 	}
 	return vic;
 }
@@ -3061,11 +3061,10 @@ static void hdmitx_edid_blk_print(u8 *blk, u32 blk_idx)
 	pr_info(EDID "blk%d raw data\n", blk_idx);
 	for (i = 0, pos = 0; i < 128; i++) {
 		pos += sprintf(tmp_buf + pos, "%02x", blk[i]);
-		if (((i + 1) & 0x1f) == 0)    /* print 32bytes a line */
+		if (((i + 1) & 0x3f) == 0)    /* print 64 bytes a line */
 			pos += sprintf(tmp_buf + pos, "\n");
 	}
-	pos += sprintf(tmp_buf + pos, "\n");
-	pr_info(EDID "\n%s\n", tmp_buf);
+	pr_info(EDID "%s", tmp_buf);
 	kfree(tmp_buf);
 }
 
