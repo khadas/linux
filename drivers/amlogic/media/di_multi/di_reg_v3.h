@@ -2416,6 +2416,7 @@
 #define DI_POST_SEC_IN				0x2011
 #define DI_VIU_DATA_SEC				0x1A50
 #define DI_VIUB_SECURE_REG			0x200F
+#define DI_VPU_SECURE_REG			0x270F
 //for s5 from vlsi feijun HF secure Polarity
 
 //t7

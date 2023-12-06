@@ -4080,6 +4080,8 @@ void dpvpp_secure_pre_en(bool is_tvp)
 				 1, 8, 1);// HF secure Polarity
 		#endif
 		}
+		if (IS_IC_SUPPORT(DECONTOUR))
+			DIM_DI_WR_REG_BITS(DI_VPU_SECURE_REG, 0x1, 8, 1);
 		dbg_plink1("%s:tvp pre SECURE\n", __func__);
 	} else {
 		if (DIM_IS_IC_EF(SC2)) {
@@ -4096,6 +4098,8 @@ void dpvpp_secure_pre_en(bool is_tvp)
 				 0, 8, 1);// HF secure Polarity
 		#endif
 		}
+		if (IS_IC_SUPPORT(DECONTOUR))
+			DIM_DI_WR_REG_BITS(DI_VPU_SECURE_REG, 0x0, 8, 1);
 		dbg_plink1("%s:tvp pre NOSECURE:\n", __func__);
 	}
 }

@@ -3756,7 +3756,8 @@ static const struct di_meson_data  data_sc2 = {
 static const struct di_meson_data  data_t5 = {
 	.name = "dim_t5",
 	.ic_id	= DI_IC_ID_T5,
-	.support = IC_SUPPORT_PRE_VPP_LINK
+	.support = IC_SUPPORT_PRE_VPP_LINK |
+		   IC_SUPPORT_DECONTOUR
 };
 
 static const struct di_meson_data  data_t7 = {

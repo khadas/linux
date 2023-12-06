@@ -5846,6 +5846,8 @@ void dim_secure_pre_en(unsigned char ch)
 				 1, 8, 1);// HF secure Polarity
 		#endif
 		}
+		if (IS_IC_SUPPORT(DECONTOUR))
+			DIM_DI_WR_REG_BITS(DI_VPU_SECURE_REG, 0x1, 8, 1);
 		get_datal()->is_secure_pre = 2;
 		//dbg_mem2("%s:tvp3 pre SECURE:%d\n", __func__, ch);
 	} else {
@@ -5863,6 +5865,8 @@ void dim_secure_pre_en(unsigned char ch)
 				 0, 8, 1);// HF secure Polarity
 		#endif
 		}
+		if (IS_IC_SUPPORT(DECONTOUR))
+			DIM_DI_WR_REG_BITS(DI_VPU_SECURE_REG, 0x0, 8, 1);
 		get_datal()->is_secure_pre = 1;
 		//dbg_mem2("%s:tvp3 pre NOSECURE:%d\n", __func__, ch);
 	}
