@@ -1688,6 +1688,14 @@ RESTART_ALL:
 		crop_left = (crop_left + 3) & ~0x03;
 		crop_right = (crop_right + 3) & ~0x03;
 	}
+	if (is_amdv_enable()) {
+		/* crop left right must 2 aligned */
+		crop_left = (crop_left + 1) & ~0x01;
+		crop_right = (crop_right + 1) & ~0x01;
+	}
+
+	if (super_debug)
+		pr_info("crop=%d,%d,%d,%d\n", crop_top, crop_left, crop_bottom, crop_right);
 
 	if (src_crop_adjust) {
 		w_in = width_in - src_crop_right;
