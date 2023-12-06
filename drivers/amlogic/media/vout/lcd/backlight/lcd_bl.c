@@ -1674,6 +1674,8 @@ static int bl_config_load(struct aml_bl_drv_s *bdrv, struct platform_device *pde
 		bdrv->bconf.level_uboot = bl_level[bdrv->index];
 	bdrv->level_init_on = (bdrv->bconf.level_uboot > 0) ?
 				bdrv->bconf.level_uboot : BL_LEVEL_DEFAULT;
+	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+		BLPR("[%d]: level_init_on: %d\n", bdrv->index, bdrv->level_init_on);
 
 	bl_config_print(bdrv);
 
@@ -4332,12 +4334,39 @@ static int aml_bl_level_setup(char *str)
 
 	if (str) {
 		ret = kstrtouint(str, 10, &bl_level[0]);
-		BLPR("bl_level: %d\n", bl_level[0]);
+		BLPR("%s bl_level: %d\n", __func__, bl_level[0]);
 	}
 
 	return ret;
 }
+
+static int aml_bl1_level_setup(char *str)
+{
+	int ret = 0;
+
+	if (str) {
+		ret = kstrtouint(str, 10, &bl_level[1]);
+		BLPR("%s bl1_level: %d\n", __func__,  bl_level[1]);
+	}
+
+	return ret;
+}
+
+static int aml_bl2_level_setup(char *str)
+{
+	int ret = 0;
+
+	if (str) {
+		ret = kstrtouint(str, 10, &bl_level[2]);
+		BLPR("%s bl2_level: %d\n", __func__, bl_level[2]);
+	}
+
+	return ret;
+}
+
 __setup("bl_level=", aml_bl_level_setup);
+__setup("bl1_level=", aml_bl1_level_setup);
+__setup("bl2_level=", aml_bl2_level_setup);
 
 //MODULE_DESCRIPTION("AML Backlight Driver");
 //MODULE_LICENSE("GPL");
