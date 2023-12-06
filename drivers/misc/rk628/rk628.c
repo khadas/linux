@@ -1215,6 +1215,18 @@ static int rk628_version_info(struct rk628 *rk628)
 	return ret;
 }
 
+static void rk628_debugfs_create(struct rk628 *rk628)
+{
+	rk628->debug_dir = debugfs_create_dir(dev_name(rk628->dev), debugfs_lookup("rk628", NULL));
+	if (IS_ERR(rk628->debug_dir))
+		return;
+
+	/* path example: /sys/kernel/debug/rk628/2-0050/summary */
+	debugfs_create_file("summary", 0400, rk628->debug_dir, rk628,
+			    &rk628_debugfs_summary_fops);
+	rk628_mipi_dsi_create_debugfs_file(rk628);
+}
+
 static int
 rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
@@ -1380,12 +1392,7 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	pm_runtime_enable(dev);
-	rk628->debug_dir = debugfs_create_dir(dev_name(dev), debugfs_lookup("rk628", NULL));
-	if (IS_ERR(rk628->debug_dir))
-		return 0;
-
-	/* path example: /sys/kernel/debug/rk628/2-0050/summary */
-	debugfs_create_file("summary", 0400, rk628->debug_dir, rk628, &rk628_debugfs_summary_fops);
+	rk628_debugfs_create(rk628);
 
 	return 0;
 
@@ -1400,6 +1407,7 @@ static int rk628_i2c_remove(struct i2c_client *client)
 	struct device *dev = &client->dev;
 
 	debugfs_remove_recursive(rk628->debug_dir);
+
 	if (rk628_output_is_dsi(rk628)) {
 		cancel_delayed_work_sync(&rk628->dsi_delay_work);
 		destroy_workqueue(rk628->dsi_wq);

@@ -6,6 +6,7 @@
  */
 
 #include <asm/unaligned.h>
+#include <linux/debugfs.h>
 #include "rk628.h"
 #include "rk628_cru.h"
 #include "rk628_dsi.h"
@@ -1221,6 +1222,65 @@ static void rk628_dsi_bridge_enable(struct rk628 *rk628,
 		rk628_dsi_set_cmd_mode(rk628, dsi, mode);
 
 	dsi_write(rk628, dsi, DSI_PWR_UP, POWER_UP);
+}
+
+static int rk628_dsi_color_bar_show(struct seq_file *s, void *data)
+{
+	seq_puts(s, "  Enable color bar:\n");
+	seq_puts(s, "      example: echo 1 > /sys/kernel/debug/rk628/2-0050/dsi_color_bar\n");
+	seq_puts(s, "  Disable color bar:\n");
+	seq_puts(s, "      example: echo 0 > /sys/kernel/debug/rk628/2-0050/dsi_color_bar\n");
+
+	return 0;
+}
+
+static int rk628_dsi_color_bar_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rk628_dsi_color_bar_show, inode->i_private);
+}
+
+static ssize_t rk628_dsi_color_bar_write(struct file *file, const char __user *ubuf,
+					 size_t len, loff_t *offp)
+{
+	struct rk628 *rk628 = ((struct seq_file *)file->private_data)->private;
+	struct rk628_dsi *dsi = &rk628->dsi0;
+	struct rk628_dsi *dsi1 = &rk628->dsi1;
+	u8 mode;
+
+	if (kstrtou8_from_user(ubuf, len, 0, &mode))
+		return -EFAULT;
+
+	dsi_update_bits(rk628, dsi, DSI_VID_MODE_CFG, VPG_EN, mode ? VPG_EN : 0);
+	if (!mode) {
+		dsi_write(rk628, dsi, DSI_PWR_UP, RESET);
+		dsi_write(rk628, dsi, DSI_PWR_UP, POWER_UP);
+	}
+
+	if (dsi->slave) {
+		dsi_update_bits(rk628, dsi1, DSI_VID_MODE_CFG, VPG_EN, mode ? VPG_EN : 0);
+		if (!mode) {
+			dsi_write(rk628, dsi1, DSI_PWR_UP, RESET);
+			dsi_write(rk628, dsi1, DSI_PWR_UP, POWER_UP);
+		}
+	}
+
+	return len;
+}
+
+static const struct file_operations rk628_dsi_color_bar_fops = {
+	.owner = THIS_MODULE,
+	.open = rk628_dsi_color_bar_open,
+	.read = seq_read,
+	.write = rk628_dsi_color_bar_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+void rk628_mipi_dsi_create_debugfs_file(struct rk628 *rk628)
+{
+	if (rk628_output_is_dsi(rk628))
+		debugfs_create_file("dsi_color_bar", 0600, rk628->debug_dir,
+				    rk628, &rk628_dsi_color_bar_fops);
 }
 
 void rk628_mipi_dsi_pre_enable(struct rk628 *rk628)
