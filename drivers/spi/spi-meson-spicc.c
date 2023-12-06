@@ -340,9 +340,7 @@ struct meson_spicc_device {
 	unsigned int			bytes_per_word;
 	unsigned long			tx_remain;
 	unsigned long			rx_remain;
-	unsigned int			backup_con;
-	unsigned int			backup_enh0;
-	unsigned int			backup_test;
+	unsigned int			*store_buf;
 };
 
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -381,6 +379,14 @@ static int xLimitRange(int val, int min, int max)
 		ret = val;
 
 	return ret;
+}
+
+static void meson_spicc_main_clk_ao(struct meson_spicc_device *spicc, bool en)
+{
+	if (spicc->data->has_oen)
+		writel_bits_relaxed(SPICC_ENH_MAIN_CLK_AO,
+				    en ? SPICC_ENH_MAIN_CLK_AO : 0,
+				    spicc->base + SPICC_ENH_CTL0);
 }
 
 static void meson_spicc_auto_io_delay(struct meson_spicc_device *spicc)
@@ -854,15 +860,9 @@ static void meson_spicc_hw_prepare(struct meson_spicc_device *spicc,
 
 	writel_relaxed(conf, spicc->base + SPICC_CONREG);
 
-	if (spicc->data->has_oen)
-		writel_bits_relaxed(SPICC_ENH_MAIN_CLK_AO,
-					SPICC_ENH_MAIN_CLK_AO,
-					spicc->base + SPICC_ENH_CTL0);
-
-	if (spicc->data->has_oen)
-		writel_bits_relaxed(SPICC_ENH_MAIN_CLK_AO,
-					0,
-					spicc->base + SPICC_ENH_CTL0);
+	/* take effect such as sclk polarity */
+	meson_spicc_main_clk_ao(spicc, true);
+	meson_spicc_main_clk_ao(spicc, false);
 }
 
 static irqreturn_t meson_spicc_irq(int irq, void *data)
@@ -1045,21 +1045,19 @@ static int meson_spicc_clk_enable(struct meson_spicc_device *spicc)
 {
 	int ret;
 
+	/* take effect such as sclk polarity */
+	meson_spicc_main_clk_ao(spicc, true);
+
 	ret = clk_prepare_enable(spicc->core);
-	if (ret)
-		return ret;
-
-	ret = clk_prepare_enable(spicc->clk);
-	if (ret)
-		return ret;
-
-	if (spicc->data->has_async_clk) {
-		ret = clk_prepare_enable(spicc->async_clk);
-		if (ret)
-			return ret;
+	if (!ret) {
+		ret = clk_prepare_enable(spicc->clk);
+		if (!ret && spicc->data->has_async_clk)
+			ret = clk_prepare_enable(spicc->async_clk);
 	}
 
-	return 0;
+	meson_spicc_main_clk_ao(spicc, false);
+
+	return ret;
 }
 
 static void meson_spicc_clk_disable(struct meson_spicc_device *spicc)
@@ -1394,30 +1392,40 @@ static struct clk *meson_spicc_clk_get(struct meson_spicc_device *spicc)
 	return clk;
 }
 
-#ifdef CONFIG_PM_SLEEP
 /* The clk data rate setting is handled by clk core. We have to save/restore
  * it when system suspend/resume.
  */
-static void meson_spicc_hw_clk_save(struct meson_spicc_device *spicc)
+static void meson_spicc_store(struct meson_spicc_device *spicc)
 {
-	spicc->backup_con = readl_relaxed(spicc->base + SPICC_CONREG) &
-			    SPICC_DATARATE_MASK;
-	spicc->backup_enh0 = readl_relaxed(spicc->base + SPICC_ENH_CTL0) &
-			     (SPICC_ENH_DATARATE_MASK | SPICC_ENH_DATARATE_EN);
-	spicc->backup_test = readl_relaxed(spicc->base + SPICC_TESTREG) &
-			     SPICC_DELAY_MASK;
+	struct resource *res;
+	int store_sz, i;
+
+	res = platform_get_resource(spicc->pdev, IORESOURCE_MEM, 0);
+	store_sz = ALIGN(resource_size(res) - SPICC_CONREG, 4);
+	spicc->store_buf = kzalloc(store_sz, GFP_KERNEL);
+	if (IS_ERR_OR_NULL(spicc->store_buf))
+		return;
+
+	for (i = 0; i < store_sz / 4; i++)
+		spicc->store_buf[i] = readl_relaxed(spicc->base + (i + 2) * 4);
 }
 
-static void meson_spicc_hw_clk_restore(struct meson_spicc_device *spicc)
+static void meson_spicc_restore(struct meson_spicc_device *spicc)
 {
-	writel_bits_relaxed(SPICC_DATARATE_MASK, spicc->backup_con,
-			    spicc->base + SPICC_CONREG);
-	writel_bits_relaxed(SPICC_ENH_DATARATE_MASK | SPICC_ENH_DATARATE_EN,
-			    spicc->backup_enh0, spicc->base + SPICC_ENH_CTL0);
-	writel_bits_relaxed(SPICC_DELAY_MASK, spicc->backup_test,
-			    spicc->base + SPICC_TESTREG);
+	struct resource *res;
+	int store_sz, i;
+
+	res = platform_get_resource(spicc->pdev, IORESOURCE_MEM, 0);
+	store_sz = ALIGN(resource_size(res) - SPICC_CONREG, 4);
+	if (IS_ERR_OR_NULL(spicc->store_buf))
+		return;
+
+	for (i = 0; i < store_sz / 4; i++)
+		writel_relaxed(spicc->store_buf[i], spicc->base + (i + 2) * 4);
+
+	kfree(spicc->store_buf);
+	spicc->store_buf = NULL;
 }
-#endif
 #endif
 
 static int meson_spicc_probe(struct platform_device *pdev)
@@ -1598,7 +1606,6 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	//pm_runtime_use_autosuspend(&pdev->dev);
 	ctlr->auto_runtime_pm = false;
 	//pm_runtime_enable(&pdev->dev);
-	//meson_spicc_hw_clk_save(spicc);
 #endif
 #endif
 
@@ -1646,7 +1653,8 @@ static int meson_spicc_remove(struct platform_device *pdev)
 static int meson_spicc_suspend(struct device *dev)
 {
 	struct meson_spicc_device *spicc = dev_get_drvdata(dev);
-	meson_spicc_hw_clk_save(spicc);
+
+	meson_spicc_store(spicc);
 	meson_spicc_clk_disable(spicc);
 
 	return spi_controller_suspend(spicc->controller);
@@ -1655,8 +1663,8 @@ static int meson_spicc_suspend(struct device *dev)
 static int meson_spicc_resume(struct device *dev)
 {
 	struct meson_spicc_device *spicc = dev_get_drvdata(dev);
-	meson_spicc_hw_init(spicc);
-	meson_spicc_hw_clk_restore(spicc);
+
+	meson_spicc_restore(spicc);
 	meson_spicc_clk_enable(spicc);
 
 	return spi_controller_resume(spicc->controller);
@@ -1667,10 +1675,8 @@ static int meson_spicc_runtime_suspend(struct device *dev)
 {
 	struct meson_spicc_device *spicc = dev_get_drvdata(dev);
 
-	meson_spicc_hw_clk_save(spicc);
+	meson_spicc_store(spicc);
 	meson_spicc_clk_disable(spicc);
-
-	spi_controller_put(spicc->controller);
 
 	return 0;
 }
@@ -1679,8 +1685,7 @@ static int meson_spicc_runtime_resume(struct device *dev)
 {
 	struct meson_spicc_device *spicc = dev_get_drvdata(dev);
 
-	meson_spicc_hw_init(spicc);
-	meson_spicc_hw_clk_restore(spicc);
+	meson_spicc_restore(spicc);
 
 	return meson_spicc_clk_enable(spicc);
 }
