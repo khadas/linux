@@ -5,6 +5,7 @@
  * Author: Guochun Huang <hero.huang@rock-chips.com>
  */
 
+#include <linux/debugfs.h>
 #include "rk628.h"
 #include "rk628_cru.h"
 #include "rk628_config.h"
@@ -15,11 +16,76 @@ int rk628_rgb_parse(struct rk628 *rk628, struct device_node *rgb_np)
 	return rk628_panel_info_get(rk628, rgb_np);
 }
 
+static int rk628_rgb_resolution_show(struct seq_file *s, void *data)
+{
+	struct rk628 *rk628 = s->private;
+	u16 width = 0, height = 0;
+	u32 rgb_rx_eval_time, rgb_rx_clkrate;
+	u64 ref_clk, pixel_clk;
+	u32 val;
+
+	rk628_i2c_read(rk628, GRF_RGB_RX_DBG_MEAS0, &val);
+	rgb_rx_eval_time = (val & RGB_RX_EVAL_TIME_MASK) >> 16;
+
+	rk628_i2c_read(rk628, GRF_RGB_RX_DBG_MEAS2, &val);
+	rgb_rx_clkrate = val & RGB_RX_CLKRATE_MASK;
+
+	ref_clk = rk628_cru_clk_get_rate(rk628, CGU_CLK_IMODET);
+	pixel_clk = ref_clk * rgb_rx_clkrate / (rgb_rx_eval_time + 1);
+
+	if (rk628_input_is_rgb(rk628)) {
+		rk628_i2c_read(rk628, GRF_RGB_RX_DBG_MEAS4, &val);
+		height = (val >> 16) & 0xffff;
+		width = val & 0xffff;
+	} else if (rk628_input_is_bt1120(rk628)) {
+		rk628_i2c_read(rk628, GRF_SYSTEM_STATUS3, &val);
+		height = val & DECODER_1120_LAST_LINE_NUM_MASK;
+
+		rk628_i2c_read(rk628, GRF_SYSTEM_STATUS4, &val);
+		width = val & DECODER_1120_LAST_PIX_NUM_MASK;
+	}
+
+	seq_printf(s, "%dx%d pclk:%llu\n", width, height, pixel_clk);
+
+	return 0;
+}
+
+static int rk628_rgb_resolution_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rk628_rgb_resolution_show, inode->i_private);
+}
+
+static const struct file_operations rk628_rgb_resolution_fops = {
+	.owner = THIS_MODULE,
+	.open = rk628_rgb_resolution_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+void rk628_rgb_decoder_create_debugfs_file(struct rk628 *rk628)
+{
+	if (rk628->version == RK628D_VERSION)
+		return;
+
+	if (rk628_input_is_rgb(rk628) || rk628_input_is_bt1120(rk628))
+		debugfs_create_file("rgb_resolution", 0400, rk628->debug_dir,
+				    rk628, &rk628_rgb_resolution_fops);
+}
+
 void rk628_rgb_decoder_enable(struct rk628 *rk628)
 {
-		/* config sw_input_mode RGB */
+	/* config sw_input_mode RGB */
 	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_INPUT_MODE_MASK,
 			      SW_INPUT_MODE(INPUT_MODE_RGB));
+
+	if (rk628->version == RK628F_VERSION) {
+		rk628_i2c_update_bits(rk628, GRF_RGB_RX_DBG_MEAS0,
+				      RGB_RX_MODET_EN | RGB_RX_DCLK_EN,
+				      RGB_RX_MODET_EN | RGB_RX_DCLK_EN);
+		rk628_i2c_update_bits(rk628, GRF_RGB_RX_DBG_MEAS3,
+				      RGB_RX_CNT_EN_MASK, RGB_RX_CNT_EN(1));
+	}
 
 	/* pinctrl for vop pin */
 	rk628_i2c_write(rk628, GRF_GPIO2AB_SEL_CON, 0xffffffff);
@@ -118,6 +184,11 @@ static void rk628_bt1120_decoder_timing_cfg(struct rk628 *rk628)
 	dsp_vbor_st = src_vsync_len + src_vback_porch;
 	dsp_hact_st = dsp_hbor_st + bor_left;
 	dsp_vact_st = dsp_vbor_st + bor_up;
+
+	if (rk628->version == RK628F_VERSION)
+		rk628_i2c_update_bits(rk628, GRF_RGB_RX_DBG_MEAS0,
+				      RGB_RX_MODET_EN | RGB_RX_DCLK_EN,
+				      RGB_RX_MODET_EN | RGB_RX_DCLK_EN);
 
 	rk628_i2c_write(rk628, GRF_BT1120_TIMING_CTRL0, BT1120_DSP_HS_END(dsp_hs_end) |
 			BT1120_DSP_HTOTAL(dsp_htotal));

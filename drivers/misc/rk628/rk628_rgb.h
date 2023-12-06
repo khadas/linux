@@ -15,4 +15,5 @@ void rk628_rgb_tx_enable(struct rk628 *rk628);
 void rk628_rgb_tx_disable(struct rk628 *rk628);
 void rk628_bt1120_rx_enable(struct rk628 *rk628);
 void rk628_bt1120_tx_enable(struct rk628 *rk628);
+void rk628_rgb_decoder_create_debugfs_file(struct rk628 *rk628);
 #endif

@@ -1225,6 +1225,7 @@ static void rk628_debugfs_create(struct rk628 *rk628)
 	debugfs_create_file("summary", 0400, rk628->debug_dir, rk628,
 			    &rk628_debugfs_summary_fops);
 
+	rk628_rgb_decoder_create_debugfs_file(rk628);
 	rk628_post_process_create_debugfs_file(rk628);
 	rk628_mipi_dsi_create_debugfs_file(rk628);
 	rk628_gvi_create_debugfs_file(rk628);

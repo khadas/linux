@@ -297,6 +297,26 @@ static unsigned long rk628_cru_clk_get_rate_sclk_vop(struct rk628 *rk628)
 	return rate;
 }
 
+static unsigned long rk628_cru_clk_get_rate_clk_imodet(struct rk628 *rk628)
+{
+	unsigned long rate, parent_rate, n;
+	u32 mux, div;
+
+	rk628_i2c_read(rk628, CRU_CLKSEL_CON05, &mux);
+	mux &= CLK_IMODET_SEL_MASK;
+	mux >>= CLK_IMODET_SEL_SHIFT;
+	if (mux == SCLK_VOP_SEL_GPLL)
+		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_GPLL);
+	else
+		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_CPLL);
+
+	rk628_i2c_read(rk628, CRU_CLKSEL_CON05, &div);
+	n = div & 0x1f;
+	rate = parent_rate / (n + 1);
+
+	return rate;
+}
+
 static unsigned long rk628_cru_clk_set_rate_rx_read(struct rk628 *rk628,
 						    unsigned long rate)
 {
@@ -434,6 +454,9 @@ unsigned long rk628_cru_clk_get_rate(struct rk628 *rk628, unsigned int id)
 		break;
 	case CGU_SCLK_VOP:
 		rate = rk628_cru_clk_get_rate_sclk_vop(rk628);
+		break;
+	case CGU_CLK_IMODET:
+		rate = rk628_cru_clk_get_rate_clk_imodet(rk628);
 		break;
 	default:
 		return 0;
