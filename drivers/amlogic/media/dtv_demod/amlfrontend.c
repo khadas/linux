@@ -2411,7 +2411,7 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 		return 0;
 	}
 
-	gxtv_demod_atsc_read_signal_strength(fe, &strength);
+	gxtv_demod_dvbc_read_signal_strength(fe, &strength);
 	if (strength < THRD_TUNER_STRENGTH_J83) {
 		PR_ATSC("%s: tuner strength [%d] no signal(%d).\n",
 				__func__, strength, THRD_TUNER_STRENGTH_J83);
@@ -2748,7 +2748,7 @@ static int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		if (c->modulation > QAM_AUTO) {
 			atsc_read_status(fe, status, re_tune);
-		} else if (c->modulation <= QAM_AUTO &&	(c->modulation !=  QPSK)) {
+		} else if (c->modulation <= QAM_AUTO && (c->modulation != QPSK)) {
 			lastlock = demod->last_lock;
 			atsc_j83b_read_status(fe, status, re_tune);
 			if (s_j83b_mode > 0 && *status == FE_TIMEDOUT && lastlock == 0) {
@@ -7581,6 +7581,7 @@ static int aml_dtvdm_read_signal_strength(struct dvb_frontend *fe,
 		break;
 
 	case SYS_DVBC_ANNEX_A:
+	case SYS_DVBC_ANNEX_B:
 	case SYS_DVBC_ANNEX_C:
 		ret = gxtv_demod_dvbc_read_signal_strength(fe, (s16 *)strength);
 		break;
@@ -7596,7 +7597,6 @@ static int aml_dtvdm_read_signal_strength(struct dvb_frontend *fe,
 
 	case SYS_ATSC:
 	case SYS_ATSCMH:
-	case SYS_DVBC_ANNEX_B:
 		ret = gxtv_demod_atsc_read_signal_strength(fe, (s16 *)strength);
 		break;
 
@@ -8172,6 +8172,7 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 			break;
 
 		case SYS_DVBC_ANNEX_A:
+		case SYS_DVBC_ANNEX_B:
 		case SYS_DVBC_ANNEX_C:
 			ret = gxtv_demod_dvbc_read_signal_strength(fe, &strength);
 			break;
@@ -8187,7 +8188,6 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 
 		case SYS_ATSC:
 		case SYS_ATSCMH:
-		case SYS_DVBC_ANNEX_B:
 			ret = gxtv_demod_atsc_read_signal_strength(fe, &strength);
 			break;
 
