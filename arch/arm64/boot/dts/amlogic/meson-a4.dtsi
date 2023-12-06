@@ -20,6 +20,7 @@
 #include <dt-bindings/input/meson_ir.h>
 #include <dt-bindings/mailbox/amlogic,mbox.h>
 #include <dt-bindings/rtc/amlogic,rtc.h>
+#include <dt-bindings/hwspinlock/amlogic,hwspinlock.h>
 #include "meson-ir-map.dtsi"
 / {
 	cpus:cpus {
@@ -464,6 +465,14 @@
 		mbox-names = "ree2aocpu";
 		mboxes = <&mhu_fifo A4_REE2AO>;
 		mbox-dests = <MAILBOX_AOCPU>;
+	};
+
+	aml_hwlock: aml_hwlock@0 {
+		status = "okay";
+		compatible = "amlogic, meson-hwspinlock";
+		mboxes = <&mhu_fifo A4_REE2AO>;
+		bakery-cpus = <6>;
+		#hwlock-cells = <1>;
 	};
 
 	hifi4dsp: hifi4dsp {

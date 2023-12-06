@@ -31,4 +31,18 @@
 #define HWSPINLOCK_S5_ID14		14
 #define HWSPINLOCK_S5_ID15		15
 
+/* A4 ID */
+#define HWSPINLOCK_A4_ID0			0
+#define HWSPINLOCK_A4_ID1			1
+#define HWSPINLOCK_A4_ID2			2
+#define HWSPINLOCK_A4_ID3			3
+#define HWSPINLOCK_A4_ID4			4
+
+/* A5 ID */
+#define HWSPINLOCK_A5_ID0			0
+#define HWSPINLOCK_A5_ID1			1
+#define HWSPINLOCK_A5_ID2			2
+#define HWSPINLOCK_A5_ID3			3
+#define HWSPINLOCK_A5_ID4			4
+
 #endif /* __AMLOGIC_HWSPINLOCK_H__ */

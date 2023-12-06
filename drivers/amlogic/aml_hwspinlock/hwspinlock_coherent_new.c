@@ -38,10 +38,11 @@
 #include <linux/pm_runtime.h>
 #include "hwspinlock_internal.h"
 #include "hwspinlock_coherent_new.h"
+#include <linux/amlogic/scpi_protocol.h>
 
 #define DRIVER_NAME		"aml_bak_hwspinlock"
 #define HWSPINLOCK_DEFAULT_VALUE	0xa5a5a5a5
-#define HWSPINLOCK_MAX_CPUS	5
+#define HWSPINLOCK_MAX_CPUS	6
 #define HWSPINLOCK_NUMS		5
 /*****************************************************************************
  * Internal helper macros used by the amlspinlock implementation.
@@ -246,38 +247,6 @@ static void aml_hwspinlock_unlock(struct hwspinlock *hwlock)
 	mb();
 }
 
-#ifdef CONFIG_AML_HWSPINLOCK_TEST
-void test_hwspin_lock(struct hwspinlock *hwlock)
-{
-	u32 i = 200;
-	void *hwlock_addr = hwlock->priv;
-	int hwlock_id = hwlock_to_id(hwlock);
-	u32 addr_off = sizeof(struct bakery_lock) * (HWSPINLOCK_NUMS - hwlock_id);
-	int val = 0x1234 + hwlock_id;
-
-	addr_off += sizeof(u32) * hwlock_id;
-	pr_debug("armv8 bakery test get %px %px %x\n",
-		hwlock_addr, ((char *)hwlock_addr + addr_off),
-		readl((char *)hwlock_addr + addr_off));
-	/*Enter critical section*/
-	do {
-		writel(val, (char *)hwlock_addr + addr_off);
-		if (readl((char *)hwlock_addr + addr_off) != val) {
-			pr_err("armv8 Error: bakery_lock test fail idx %d. %x\n",
-				hwlock_id, readl((char *)hwlock_addr + addr_off));
-			return;
-		}
-		if (readl((char *)hwlock_addr + addr_off) != val) {
-			pr_err("armv8 Error: bakery_lock test fail idx %d. %x\n",
-				hwlock_id, readl((char *)hwlock_addr + addr_off));
-			return;
-		}
-	} while (i--);
-
-	pr_debug("armv8 bakery_lock_release done.\n");
-}
-#endif
-
 static const struct hwspinlock_ops aml_hwspinlock_ops = {
 	.trylock = aml_hwspinlock_trylock,
 	.unlock = aml_hwspinlock_unlock,
@@ -292,16 +261,32 @@ static int aml_hwspinlock_probe(struct platform_device *pdev)
 	struct bakery_lock *bakery_lock;
 	void __iomem *addr;
 	u32 bakery_cpus;
+	u32 spinlock_init_date;
+	u32 recv_size;
+	u32 p_recv;
 	int err, i;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "failed to get bakery memory resource\n");
-		return -ENXIO;
+	if (of_find_property(pdev->dev.of_node, "mboxes", NULL)) {
+		recv_size = sizeof(recv_size);
+		if (mbox_message_send_ao_sync(&pdev->dev, SCPI_CMD_GET_SPINLOCK,
+				NULL, 0, &p_recv, recv_size, 0) < 0) {
+			spinlock_init_date = 0;
+		} else {
+			spinlock_init_date = p_recv;
+		}
+		addr = ioremap(spinlock_init_date, 0x80);
+		if (IS_ERR_OR_NULL(addr))
+			return PTR_ERR(addr);
+	} else {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+		if (!res) {
+			dev_err(dev, "failed to get bakery memory resource\n");
+			return -ENXIO;
+		}
+		addr = devm_ioremap_nocache(dev, res->start, res->end - res->start);
+		if (IS_ERR_OR_NULL(addr))
+			return PTR_ERR(addr);
 	}
-	addr = devm_ioremap_nocache(dev, res->start, res->end - res->start);
-	if (IS_ERR_OR_NULL(addr))
-		return PTR_ERR(addr);
 
 	err = of_property_read_u32(dev->of_node,
 				   "bakery-cpus", &bakery_cpus);
