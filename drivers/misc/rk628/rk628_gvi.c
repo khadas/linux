@@ -5,6 +5,7 @@
  * Author: Guochun Huang <hero.huang@rock-chips.com>
  */
 
+#include <linux/debugfs.h>
 #include "linux/printk.h"
 #include "rk628.h"
 #include "rk628_config.h"
@@ -186,6 +187,50 @@ static void rk628_gvi_enable_color_bar(struct rk628 *rk628,
 	rk628_i2c_update_bits(rk628, GVI_COLOR_BAR_CTRL, COLOR_BAR_EN, 0);
 }
 
+static int rk628_gvi_color_bar_show(struct seq_file *s, void *data)
+{
+	seq_puts(s, "  Enable color bar:\n");
+	seq_puts(s, "      example: echo 1 > /sys/kernel/debug/rk628/2-0050/gvi_color_bar\n");
+	seq_puts(s, "  Disable color bar:\n");
+	seq_puts(s, "      example: echo 0 > /sys/kernel/debug/rk628/2-0050/gvi_color_bar\n");
+
+	return 0;
+}
+
+static int rk628_gvi_color_bar_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rk628_gvi_color_bar_show, inode->i_private);
+}
+
+static ssize_t rk628_gvi_color_bar_write(struct file *file, const char __user *ubuf,
+					 size_t len, loff_t *offp)
+{
+	struct rk628 *rk628 = ((struct seq_file *)file->private_data)->private;
+	u8 mode;
+
+	if (kstrtou8_from_user(ubuf, len, 0, &mode))
+		return -EFAULT;
+
+	rk628_i2c_update_bits(rk628, GVI_COLOR_BAR_CTRL, COLOR_BAR_EN, mode ? 1 : 0);
+
+	return len;
+}
+
+static const struct file_operations rk628_gvi_color_bar_fops = {
+	.owner = THIS_MODULE,
+	.open = rk628_gvi_color_bar_open,
+	.read = seq_read,
+	.write = rk628_gvi_color_bar_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+void rk628_gvi_create_debugfs_file(struct rk628 *rk628)
+{
+	if (rk628_output_is_gvi(rk628))
+		debugfs_create_file("gvi_color_bar", 0600, rk628->debug_dir,
+				    rk628, &rk628_gvi_color_bar_fops);
+}
 
 static void rk628_gvi_post_enable(struct rk628 *rk628, struct rk628_gvi *gvi)
 {

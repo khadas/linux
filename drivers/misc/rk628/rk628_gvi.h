@@ -214,5 +214,5 @@
 int rk628_gvi_parse(struct rk628 *rk628, struct device_node *gvi_np);
 void rk628_gvi_enable(struct rk628 *rk628);
 void rk628_gvi_disable(struct rk628 *rk628);
-
+void rk628_gvi_create_debugfs_file(struct rk628 *rk628);
 #endif

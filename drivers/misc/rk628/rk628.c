@@ -1227,6 +1227,7 @@ static void rk628_debugfs_create(struct rk628 *rk628)
 
 	rk628_post_process_create_debugfs_file(rk628);
 	rk628_mipi_dsi_create_debugfs_file(rk628);
+	rk628_gvi_create_debugfs_file(rk628);
 }
 
 static int
