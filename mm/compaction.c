@@ -1686,6 +1686,7 @@ static void isolate_freepages(struct compact_control *cc)
 #ifdef CONFIG_AMLOGIC_CMA
 	int migrate_type;
 #endif /* CONFIG_AMLOGIC_CMA */
+	bool bypass = false;
 
 	/* Try a small search of the free lists for a candidate */
 	isolate_start_pfn = fast_isolate_freepages(cc);
@@ -1739,6 +1740,10 @@ static void isolate_freepages(struct compact_control *cc)
 
 		/* If isolation recently failed, do not retry */
 		if (!isolation_suitable(cc, page))
+			continue;
+
+		trace_android_vh_isolate_freepages(cc, page, &bypass);
+		if (bypass)
 			continue;
 
 	#ifdef CONFIG_AMLOGIC_CMA

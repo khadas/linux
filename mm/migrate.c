@@ -63,6 +63,11 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/migrate.h>
 
+#undef CREATE_TRACE_POINTS
+#ifndef __GENKSYMS__
+#include <trace/hooks/mm.h>
+#endif
+
 #include "internal.h"
 
 int isolate_movable_page(struct page *page, isolate_mode_t mode)
@@ -283,10 +288,14 @@ void remove_migration_ptes(struct page *old, struct page *new, bool locked)
 		.arg = old,
 	};
 
+	trace_android_vh_set_page_migrating(new);
+
 	if (locked)
 		rmap_walk_locked(new, &rwc);
 	else
 		rmap_walk(new, &rwc);
+
+	trace_android_vh_clear_page_migrating(new);
 }
 
 /*
@@ -600,6 +609,7 @@ void migrate_page_states(struct page *newpage, struct page *page)
 		SetPageChecked(newpage);
 	if (PageMappedToDisk(page))
 		SetPageMappedToDisk(newpage);
+	trace_android_vh_look_around_migrate_page(page, newpage);
 
 	/* Move dirty on pages not done by migrate_page_move_mapping() */
 	if (PageDirty(page))
