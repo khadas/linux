@@ -91,6 +91,7 @@ struct hdmitx_color_attr color_8k_attr_list[] = {
 struct hdmitx_color_attr color_attr_list[] = {
 	{COLORSPACE_YUV420, 10}, //"420,10bit"
 	{COLORSPACE_YUV422, 12}, //"422,12bit"
+	{COLORSPACE_YUV420, 12}, //"420,12bit"
 	{COLORSPACE_YUV420, 8}, //"420,8bit"
 	{COLORSPACE_YUV444, 8}, //"444,8bit"
 	{COLORSPACE_RGB444, 8}, //"rgb,8bit"
@@ -102,6 +103,8 @@ struct hdmitx_color_attr other_color_attr_list[] = {
 	{COLORSPACE_YUV444, 10}, //"444,10bit"
 	{COLORSPACE_YUV422, 12}, //"422,12bit"
 	{COLORSPACE_RGB444, 10}, //"rgb,10bit"
+	{COLORSPACE_RGB444, 12}, //"rgb,12bit"
+	{COLORSPACE_YUV444, 12}, //"444,12bit"
 	{COLORSPACE_YUV444, 8}, //"444,8bit"
 	{COLORSPACE_RGB444, 8}, //"rgb,8bit"
 	{COLORSPACE_RESERVED, COLORDEPTH_RESERVED}
