@@ -816,6 +816,35 @@ void rx_edid_update_vrr_info(unsigned char *p_edid)
 	}
 }
 
+void rx_edid_update_allm_info(unsigned char *p_edid)
+{
+	u_int hf_vsdb_start = 0;
+	u8 tag_len;
+
+	if (!p_edid)
+		return;
+	hf_vsdb_start = rx_get_cea_tag_offset(p_edid, HF_VENDOR_DB_TAG);
+	if (!hf_vsdb_start)
+		return;
+	tag_len = p_edid[hf_vsdb_start] & 0xf;
+	if (tag_len < 8 || allm_func_en == 0xff)
+		return;
+	if (log_level & EDID_LOG)
+		rx_pr("tag_len = %d", tag_len);
+
+	if (allm_func_en == 1) {
+		p_edid[hf_vsdb_start + 8] |= 0x2;
+		if (log_level & EDID_LOG)
+			rx_pr("enable allm.\n");
+	} else if (allm_func_en == 0) {
+		p_edid[hf_vsdb_start + 8] &= ~0x2;
+		if (log_level & EDID_LOG)
+			rx_pr("disable allm.\n");
+	} else {
+		rx_pr("invalid allm_func_en: %d.\n", allm_func_en);
+	}
+}
+
 unsigned int rx_exchange_bits(unsigned int value)
 {
 	unsigned int temp;
@@ -2039,6 +2068,8 @@ bool hdmi_rx_top_edid_update(void)
 	} else if (size == 2 * PORT_NUM * EDID_SIZE) {
 		if (vrr_range_dynamic_update_en)
 			rx_edid_update_vrr_info(pedid_data2);
+		if (allm_update_en)
+			rx_edid_update_allm_info(pedid_data2);
 		rx_edid_update_hdr_dv_info(pedid_data2);
 		rx_edid_update_sad(pedid_data2);
 		rx_edid_update_vsvdb(pedid_data2,
@@ -2051,6 +2082,8 @@ bool hdmi_rx_top_edid_update(void)
 		rpt_edid_extraction(pedid_data3);
 		if (vrr_range_dynamic_update_en)
 			rx_edid_update_vrr_info(pedid_data4);
+		if (allm_update_en)
+			rx_edid_update_allm_info(pedid_data4);
 		rx_edid_update_hdr_dv_info(pedid_data4);
 		rx_edid_update_sad(pedid_data4);
 		rx_edid_update_vsvdb(pedid_data4,
@@ -2063,6 +2096,8 @@ bool hdmi_rx_top_edid_update(void)
 		rpt_edid_extraction(pedid_data5);
 		if (vrr_range_dynamic_update_en)
 			rx_edid_update_vrr_info(pedid_data6);
+		if (allm_update_en)
+			rx_edid_update_allm_info(pedid_data6);
 		rx_edid_update_hdr_dv_info(pedid_data6);
 		rx_edid_update_sad(pedid_data6);
 		rx_edid_update_vsvdb(pedid_data6,

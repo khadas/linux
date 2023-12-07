@@ -821,6 +821,7 @@ extern struct tvin_latency_s latency_info;
 extern struct reg_map rx_reg_maps[MAP_ADDR_MODULE_NUM];
 extern bool downstream_repeat_support;
 extern int vrr_range_dynamic_update_en;
+extern int allm_update_en;
 void rx_tasklet_handler(unsigned long arg);
 void skip_frame(unsigned int cnt);
 
@@ -858,6 +859,7 @@ extern int vdin_drop_frame_cnt;
 extern int aud_compose_type;
 extern int rpt_only_mode;
 extern u32 vrr_func_en;
+extern u32 allm_func_en;
 /* debug */
 extern bool hdcp_enable;
 extern int log_level;

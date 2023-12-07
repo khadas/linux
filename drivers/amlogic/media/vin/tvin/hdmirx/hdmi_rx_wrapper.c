@@ -79,6 +79,7 @@ static int special_wait_max;
 static int unnormal_wait_max = 200;
 static int wait_no_sig_max = 600;
 u32 vrr_func_en = 1;
+u32 allm_func_en = 0xff;
 
 typedef void (*pf_callback)(int earc_port, bool st);
 static pf_callback earc_hdmirx_hpdst;
@@ -2297,6 +2298,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(clk_stable_max, i++);
 	pr_var(wait_no_sig_max, i++);
 	pr_var(vrr_func_en, i++);
+	pr_var(allm_func_en, i++);
 	pr_var(receive_edid_len, i++);
 	//pr_var(hdcp_array_len, i++);
 	pr_var(hdcp_len, i++);
@@ -2367,6 +2369,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(dbg_pkt, i++);
 	pr_var(aud_compose_type, i++);
 	pr_var(vrr_range_dynamic_update_en, i++);
+	pr_var(allm_update_en, i++);
 	pr_var(phy_term_lel, i++);
 	pr_var(rx.var.force_pattern, i++);
 	/* phy var definition */
@@ -2498,6 +2501,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(wait_no_sig_max, index);
 	if (set_pr_var(tmpbuf, var_to_str(vrr_func_en), &vrr_func_en, value))
 		return pr_var(vrr_func_en, index);
+	if (set_pr_var(tmpbuf, var_to_str(allm_func_en), &allm_func_en, value))
+		return pr_var(allm_func_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(receive_edid_len), &receive_edid_len, value))
 		return pr_var(receive_edid_len, index);
 	if (set_pr_var(tmpbuf, var_to_str(hdcp_len), &hdcp_len, value))
@@ -2654,6 +2659,9 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(vrr_range_dynamic_update_en),
 	    &vrr_range_dynamic_update_en, value))
 		return pr_var(vrr_range_dynamic_update_en, index);
+	if (set_pr_var(tmpbuf, var_to_str(allm_update_en),
+	    &allm_update_en, value))
+		return pr_var(allm_update_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx.var.force_pattern), &rx.var.force_pattern, value))
 		return pr_var(rx.var.force_pattern, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.sqrst_en), &rx.aml_phy.sqrst_en, value))
