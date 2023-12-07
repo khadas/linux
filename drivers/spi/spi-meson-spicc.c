@@ -385,11 +385,15 @@ static int xLimitRange(int val, int min, int max)
 static void meson_spicc_auto_io_delay(struct meson_spicc_device *spicc)
 {
 	u32 div, latency;
-	int shift, mi_delay, cap_delay;
+	int shift;
+	int mi_delay = 0;
+	int cap_delay = 0;
 	u32 conf = 0;
 	struct clk *clk;
 	u32 period_ns;
+	struct platform_device *pdev;
 
+	pdev = spicc->pdev;
 	if (spicc->data->has_linear_div)
 		conf = readl_relaxed(spicc->base + SPICC_ENH_CTL0);
 	if (conf & SPICC_ENH_DATARATE_EN) {
@@ -405,16 +409,17 @@ static void meson_spicc_auto_io_delay(struct meson_spicc_device *spicc)
 		div = 1 << div;
 	}
 
-	if (readl_relaxed(spicc->base + SPICC_TESTREG) & SPICC_LBC)
-		latency = -2;
-	else
+	if (readl_relaxed(spicc->base + SPICC_TESTREG) & SPICC_LBC) {
+		of_property_read_s32(pdev->dev.of_node, "loopback_mi_delay", &mi_delay);
+		of_property_read_s32(pdev->dev.of_node, "loopback_cap_delay", &cap_delay);
+	} else {
 		latency = spicc->latency;
-
-	shift = (div >> 1) - latency;
-	mi_delay = xLimitRange(shift, SPICC_MI_DELAY_MIN, SPICC_MI_DELAY_MAX);
-	cap_delay = xLimitRange(mi_delay - shift, SPICC_CAP_DELAY_MIN,
-			SPICC_CAP_DELAY_MAX);
-	cap_delay += 2;
+		shift = (div >> 1) - latency;
+		mi_delay = xLimitRange(shift, SPICC_MI_DELAY_MIN, SPICC_MI_DELAY_MAX);
+		cap_delay = xLimitRange(mi_delay - shift, SPICC_CAP_DELAY_MIN,
+				SPICC_CAP_DELAY_MAX);
+		cap_delay += 2;
+	}
 
 	conf = readl_relaxed(spicc->base + SPICC_TESTREG);
 	conf &= ~(SPICC_MO_DELAY_MASK | SPICC_MI_DELAY_MASK

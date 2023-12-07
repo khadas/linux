@@ -2383,6 +2383,7 @@
 				 "spi1_clk_h";
 			function = "spi1";
 			drive-strength-microamp = <3000>;
+			bias-pull-up;
 		};
 	};
 
