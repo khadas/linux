@@ -243,7 +243,7 @@ static int extn_open(struct snd_pcm_substream *substream)
 	struct extn *p_extn;
 	int ret = 0;
 
-	pr_info("asoc debug: %s-%d\n", __func__, __LINE__);
+	pr_debug("asoc debug: %s-%d\n", __func__, __LINE__);
 
 	p_extn = (struct extn *)dev_get_drvdata(dev);
 

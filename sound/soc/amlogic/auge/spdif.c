@@ -1333,7 +1333,7 @@ static void aml_dai_spdif_shutdown(struct snd_pcm_substream *substream,
 			notify_hdmitx_to_prepare();
 
 		if (p_spdif->clk_cont) {
-			pr_info("spdif_%s keep clk continuous\n",
+			pr_debug("spdif_%s keep clk continuous\n",
 				(p_spdif->id == 0) ? "a" : "b");
 			return;
 		}
@@ -1886,7 +1886,7 @@ static int aml_spdif_parse_of(struct platform_device *pdev)
 	if (ret < 0)
 		p_spdif->syssrc_clk_rate = 0;
 	else
-		pr_info("%s sys-src clk rate from dts:%d\n",
+		pr_debug("%s sys-src clk rate from dts:%d\n",
 			__func__, p_spdif->syssrc_clk_rate);
 
 	ret = of_property_read_u32(dev->of_node, "samesource_sel",

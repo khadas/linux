@@ -685,7 +685,7 @@ static int tl1_acodec_reset(struct snd_soc_component *component)
 	struct tl1_acodec_priv *tl1_acodec = snd_soc_component_get_drvdata(component);
 
 	if (tl1_acodec && !IS_ERR(tl1_acodec->rst)) {
-		pr_info("call standard reset interface\n");
+		pr_debug("call standard reset interface\n");
 		reset_control_reset(tl1_acodec->rst);
 		usleep_range(950, 1000);
 	} else {
@@ -723,7 +723,7 @@ static void tl1_acodec_release_fast_mode_work_func(struct work_struct *p_work)
 		return;
 	}
 
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 	tl1_acodec_set_toacodec(aml_acodec);
 	/*
 	 * reset audio codec register
@@ -842,7 +842,7 @@ static int tl1_acodec_probe(struct snd_soc_component *component)
 		return ret;
 	}
 
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 	return 0;
 }
 
@@ -979,13 +979,13 @@ static int tl1_acodec_set_toacodec(struct tl1_acodec_priv *aml_acodec)
 	}
 	audiobus_update_bits(EE_AUDIO_TOACODEC_CTRL0, 0x80000000, 0x1 << 31);
 
-	pr_info("%s, is_bclk_cap_inv %s\n", __func__,
+	pr_debug("%s, is_bclk_cap_inv %s\n", __func__,
 		aml_acodec->chipinfo->is_bclk_cap_inv ? "true" : "false");
-	pr_info("%s, is_bclk_o_inv %s\n", __func__,
+	pr_debug("%s, is_bclk_o_inv %s\n", __func__,
 		aml_acodec->chipinfo->is_bclk_o_inv ? "true" : "false");
-	pr_info("%s, is_lrclk_inv %s\n", __func__,
+	pr_debug("%s, is_lrclk_inv %s\n", __func__,
 		aml_acodec->chipinfo->is_lrclk_inv ? "true" : "false");
-	pr_info("%s read EE_AUDIO_TOACODEC_CTRL0=0x%08x\n", __func__,
+	pr_debug("%s read EE_AUDIO_TOACODEC_CTRL0=0x%08x\n", __func__,
 		audiobus_read(EE_AUDIO_TOACODEC_CTRL0));
 
 	return 0;
@@ -1000,7 +1000,7 @@ static int aml_tl1_acodec_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret = 0;
 
-	dev_info(&pdev->dev, "%s\n", __func__);
+	dev_dbg(&pdev->dev, "%s\n", __func__);
 
 	np = pdev->dev.of_node;
 
@@ -1097,7 +1097,7 @@ static int aml_tl1_acodec_probe(struct platform_device *pdev)
 	if (ret)
 		pr_info("%s call snd_soc_register_codec error\n", __func__);
 	else
-		pr_info("%s over\n", __func__);
+		pr_debug("%s over\n", __func__);
 
 	return ret;
 }

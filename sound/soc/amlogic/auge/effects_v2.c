@@ -675,7 +675,7 @@ static int effect_platform_probe(struct platform_device *pdev)
 	if (ret < 0)
 		p_effect->syssrc_clk_rate = 0;
 	else
-		pr_info("%s sys-src clk rate from dts:%d\n",
+		pr_debug("%s sys-src clk rate from dts:%d\n",
 			__func__, p_effect->syssrc_clk_rate);
 
 	p_effect->gate = devm_clk_get(&pdev->dev, "gate");
@@ -739,7 +739,7 @@ static int effect_platform_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	pr_info("%s \t module:%d, lane_mask:%d, ch_mask:%d\n",
+	pr_debug("%s \t module:%d, lane_mask:%d, ch_mask:%d\n",
 		__func__,
 		eqdrc_module,
 		lane_mask,

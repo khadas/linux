@@ -795,7 +795,7 @@ static int resample_platform_probe(struct platform_device *pdev)
 	unsigned int resample_module;
 	int ret;
 
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	p_resample = devm_kzalloc(&pdev->dev,
 			sizeof(struct audioresample),

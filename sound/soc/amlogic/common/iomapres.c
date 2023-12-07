@@ -32,7 +32,7 @@ struct regmap *regmap_resource(struct device *dev, char *name)
 	if (IS_ERR(base))
 		return ERR_CAST(base);
 
-	pr_info("%s, %s, start:%#x, size:%#x\n",
+	pr_debug("%s, %s, start:%#x, size:%#x\n",
 		__func__, name, (u32)res.start, (u32)resource_size(&res));
 
 	aud_regmap_config.max_register = resource_size(&res) - 4;
