@@ -91,6 +91,10 @@
 	status = "okay";
 };
 
+&u2phy0_otg {
+	rockchip,dis-u2-susphy;
+};
+
 &vop {
 	support-multi-area;
 };
