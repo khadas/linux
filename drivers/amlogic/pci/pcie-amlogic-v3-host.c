@@ -511,12 +511,12 @@ static int __maybe_unused amlogic_pcie_suspend_noirq(struct device *dev)
 
 	err = readl_poll_timeout(amlogic->pcictrl_base + PCIE_A_CTRL5, value,
 				 PCIE_LINK_STATE_CHECK(value, LTSSM_L1_IDLE) |
-				 PCIE_LINK_STATE_CHECK(value, LTSSM_L2_IDLE) |
-				 PCIE_LINK_STATE_CHECK(value, LTSSM_L0),
-				 20, jiffies_to_msecs(5 * HZ));
+				 PCIE_LINK_STATE_CHECK(value, LTSSM_L2_IDLE),
+				 2, 50 * USEC_PER_MSEC);
 
 	if (err)
-		dev_dbg(amlogic->dev, "PCIe link enter LP timeout!,LTSSM=0x%lx\n",
+		dev_err(amlogic->dev,
+			"PCIe LP timeout!,LTSSM=0x%lx, PLS check pcie device suspend status\n",
 			((((value) >> 18)) & GENMASK(4, 0)));
 
 	amlogic_pcie_deinit_phys(amlogic);
