@@ -1044,12 +1044,10 @@ static int meson_spicc_setup(struct spi_device *spi)
 #ifdef CONFIG_AMLOGIC_MODIFY
 	struct meson_spicc_device *spicc = spi_controller_get_devdata(spi->controller);
 	struct  spicc_controller_data *cdata;
-	int ret;
 
-	if (gpio_is_valid(spi->cs_gpio)) {
-		ret = gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
-		if (ret)
-			return ret;
+	if (!spi->controller_state && gpio_is_valid(spi->cs_gpio)) {
+		gpio_request(spi->cs_gpio, dev_name(&spi->dev));
+		gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
 	}
 
 	cdata = (struct spicc_controller_data *)spi->controller_data;
@@ -1076,6 +1074,8 @@ static int meson_spicc_setup(struct spi_device *spi)
 
 static void meson_spicc_cleanup(struct spi_device *spi)
 {
+	if (gpio_is_valid(spi->cs_gpio))
+		gpio_free(spi->cs_gpio);
 	spi->controller_state = NULL;
 }
 
