@@ -727,7 +727,8 @@ codec_mm_slot_alloc(struct codec_mm_scatter_mgt *smgt, int size, int flags)
 		if (try_alloc_size <= 0 ||
 			/* not enough cma for scatter */
 			(!smgt->tvp_mode && !codec_mm_scatter_available_check(try_alloc_size))) {
-			INFO_LOG("No cma can be used for scatter");
+			if (codec_mm_get_sc_debug_mode() & 0x01)
+				INFO_LOG("No cma can be used for scatter");
 			break;
 		}
 		if (alloc_unit_pages) {
