@@ -5686,7 +5686,7 @@ static unsigned long capacity_spare_without(int cpu, struct task_struct *p)
 }
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-static unsigned long use_spare_thresh = 800;
+static unsigned long use_spare_thresh = 1024;
 core_param(use_spare_thresh, use_spare_thresh, ulong, 0644);
 #endif
 
