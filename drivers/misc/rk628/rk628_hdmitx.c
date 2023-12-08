@@ -1083,6 +1083,78 @@ static struct i2c_adapter *rk628_hdmi_i2c_adapter(struct rk628_hdmi *hdmi)
 	return adap;
 }
 
+static int rk628_hdmitx_color_bar_show(struct seq_file *s, void *data)
+{
+	seq_puts(s, "  Enable normal color bar:\n");
+	seq_puts(s, "      example: echo 1 > /sys/kernel/debug/rk628/2-0050/hdmitx_color_bar\n");
+	seq_puts(s, "  Enable special color bar:\n");
+	seq_puts(s, "      example: echo 2 > /sys/kernel/debug/rk628/2-0050/hdmitx_color_bar\n");
+	seq_puts(s, "  Enable black color bar:\n");
+	seq_puts(s, "      example: echo 3 > /sys/kernel/debug/rk628/2-0050/hdmitx_color_bar\n");
+	seq_puts(s, "  Disable color bar:\n");
+	seq_puts(s, "      example: echo 0 > /sys/kernel/debug/rk628/2-0050/hdmitx_color_bar\n");
+
+	return 0;
+}
+
+static int rk628_hdmitx_color_bar_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rk628_hdmitx_color_bar_show, inode->i_private);
+}
+
+static ssize_t rk628_hdmitx_color_bar_write(struct file *file, const char __user *ubuf,
+					    size_t len, loff_t *offp)
+{
+	struct rk628 *rk628 = ((struct seq_file *)file->private_data)->private;
+	u8 mode;
+
+	if (kstrtou8_from_user(ubuf, len, 0, &mode))
+		return -EFAULT;
+
+	switch (mode) {
+	case 0:
+		rk628_i2c_update_bits(rk628, HDMI_COLOR_BAR, DISABLE_COLORBAR_BIST_MASK,
+				      DISABLE_COLORBAR_BIST(1));
+		break;
+	case 1:
+		rk628_i2c_update_bits(rk628, HDMI_COLOR_BAR, DISABLE_COLORBAR_BIST_MASK,
+				      DISABLE_COLORBAR_BIST(0));
+		rk628_i2c_update_bits(rk628, HDMI_COLOR_BAR, VIDEO_BIST_MODE_MASK,
+				      VIDEO_BIST_MODE(0));
+		break;
+	case 2:
+		rk628_i2c_update_bits(rk628, HDMI_COLOR_BAR, DISABLE_COLORBAR_BIST_MASK,
+				      DISABLE_COLORBAR_BIST(0));
+		rk628_i2c_update_bits(rk628, HDMI_COLOR_BAR, VIDEO_BIST_MODE_MASK,
+				      VIDEO_BIST_MODE(1));
+		break;
+	case 3:
+	default:
+		rk628_i2c_update_bits(rk628, HDMI_COLOR_BAR, DISABLE_COLORBAR_BIST_MASK,
+				      DISABLE_COLORBAR_BIST(0));
+		rk628_i2c_update_bits(rk628, HDMI_COLOR_BAR, VIDEO_BIST_MODE_MASK,
+				      VIDEO_BIST_MODE(2));
+	}
+
+	return len;
+}
+
+static const struct file_operations rk628_hdmitx_color_bar_fops = {
+	.owner = THIS_MODULE,
+	.open = rk628_hdmitx_color_bar_open,
+	.read = seq_read,
+	.write = rk628_hdmitx_color_bar_write,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+void rk628_hdmitx_create_debugfs_file(struct rk628 *rk628)
+{
+	if (rk628_output_is_hdmi(rk628))
+		debugfs_create_file("hdmitx_color_bar", 0600, rk628->debug_dir,
+				    rk628, &rk628_hdmitx_color_bar_fops);
+}
+
 void rk628_hdmitx_disable(struct rk628 *rk628)
 {
 	rk628_i2c_update_bits(rk628, HDMI_SYS_CTRL, POWER_MASK, PWR_OFF(1));
