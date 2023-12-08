@@ -108,6 +108,15 @@ struct amlkl_params {
 	__u8 reserved[14];
 };
 
+struct amlcr_params {
+	__u32 kl_num;
+	__u8 ek[16];
+	__u8 nonce[16];
+	__u16 vid;
+	__u8 reserved[14];
+};
+
 #define AML_MKL_IOCTL_RUN _IOW('L', 1, struct amlkl_params)
+#define AML_MKL_IOCTL_RUN_CR _IOW('L', 2, struct amlcr_params)
 
 #endif

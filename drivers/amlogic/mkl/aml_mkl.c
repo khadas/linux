@@ -398,6 +398,70 @@ unlock_mutex:
 	return ret;
 }
 
+static int aml_mkl_old_etsi_run_cr(struct file *filp, struct amlcr_params *param)
+{
+	int ret = KL_STATUS_OK;
+	int i;
+	u32 reg_val = 0;
+	u32 reg_offset = 0;
+	u32 tmp_data[4] = {0};
+	u8 dnonce[16] = {0};
+	struct aml_mkl_dev *dev = filp->private_data;
+
+	if (!param) {
+		LOGE("Error: param data has Null\n");
+		return KL_STATUS_ERROR_BAD_PARAM;
+	}
+
+	LOGD("kl_num:%d, vid:0x%x\n", param->kl_num, param->vid);
+
+	for (i = 0; i < 16; i++)
+		LOGD("ETSI Key Ladder EK [0x%x]\n", param->ek[i]);
+
+	for (i = 0; i < 16; i++)
+		LOGD("ETSI Key Ladder Nonce [0x%x]\n", param->nonce[i]);
+
+	/* 1. Program Eks */
+	ret = aml_mkl_program_key(dev->base_addr, dev->old_reg.key1_offset, param->ek);
+	ret = aml_mkl_program_key(dev->base_addr, dev->old_reg.nonce_offset, param->nonce);
+	if (ret != 0) {
+		LOGE("Error: Ek data has bad parameter\n");
+		return KL_STATUS_ERROR_BAD_PARAM;
+	}
+
+	/* 2. Program KL_REE_CFG */
+	reg_val = 0;
+	reg_offset = dev->old_reg.start0_offset;
+	reg_val = (param->kl_num << 24 | 0 << 22 | param->vid);
+	iowrite32(reg_val, (char *)dev->base_addr + reg_offset);
+
+	/* 3. Wait Busy Done */
+	mutex_lock(&dev->lock);
+	if (aml_mkl_lock(dev) != KL_STATUS_OK) {
+		LOGE("key ladder is busy\n");
+		ret = KL_STATUS_ERROR_BAD_STATE;
+		goto unlock_mutex;
+	}
+
+	/* 4. Get dnonce value */
+	tmp_data[0] = ioread32((char *)dev->base_addr + (0x024 << 2));
+	tmp_data[1] = ioread32((char *)dev->base_addr + (0x025 << 2));
+	tmp_data[2] = ioread32((char *)dev->base_addr + (0x026 << 2));
+	tmp_data[3] = ioread32((char *)dev->base_addr + (0x027 << 2));
+
+	memcpy(dnonce, tmp_data, 16);
+	for (i = 0; i < 16; i++)
+		LOGD("ETSI Key Ladder CR [0x%x]\n", dnonce[i]);
+
+	aml_mkl_unlock(dev);
+	LOGI("ETSI Key Ladder CR run success\n");
+
+unlock_mutex:
+	mutex_unlock(&dev->lock);
+
+	return ret;
+}
+
 static int aml_mkl_run(struct file *filp, struct amlkl_params *param)
 {
 	int ret = KL_STATUS_OK;
@@ -591,6 +655,7 @@ static long aml_mkl_ioctl(struct file *filp, unsigned int cmd,
 {
 	int ret = -ENOTTY;
 	struct amlkl_params kl_param;
+	struct amlcr_params cr_param;
 	struct aml_mkl_dev *dev = filp->private_data;
 
 	if (!dev->base_addr) {
@@ -601,7 +666,7 @@ static long aml_mkl_ioctl(struct file *filp, unsigned int cmd,
 	switch (cmd) {
 	case AML_MKL_IOCTL_RUN:
 		memset(&kl_param, 0, sizeof(kl_param));
-		if (copy_from_user(&kl_param, (uint32_t *)arg,
+		if (copy_from_user(&kl_param, (void __user *)arg,
 				   sizeof(kl_param))) {
 			return -EFAULT;
 		}
@@ -640,6 +705,25 @@ static long aml_mkl_ioctl(struct file *filp, unsigned int cmd,
 				       ret);
 				return -EFAULT;
 			}
+		}
+		break;
+	case AML_MKL_IOCTL_RUN_CR:
+		memset(&cr_param, 0, sizeof(cr_param));
+		if (copy_from_user(&cr_param, (void __user *)arg,
+				   sizeof(cr_param))) {
+			return -EFAULT;
+		}
+
+		if (dev->kl_type == KL_TYPE_OLD) {
+			ret = aml_mkl_old_etsi_run_cr(filp, &cr_param);
+			if (ret != 0) {
+				LOGE("MKL: aml_mkl_old_etsi_run_cr failed retval=0x%08x\n",
+					ret);
+				return -EFAULT;
+			}
+		} else {
+			LOGE("MKL: aml_mkl_old_etsi_run_cr failed. not support.\n");
+			return -EFAULT;
 		}
 		break;
 	default:
