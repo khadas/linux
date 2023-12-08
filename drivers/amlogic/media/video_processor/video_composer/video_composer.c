@@ -2812,13 +2812,22 @@ static void empty_ready_queue(struct composer_dev *dev)
 static void video_wait_decode_fence(struct composer_dev *dev,
 				    struct vframe_s *vf)
 {
-	if (vf && vf->fence) {
+	struct dma_fence *fence_tmp;
+
+	if (!vf) {
+		vc_print(dev->index, PRINT_ERROR,
+			 "%s get vf is NULL\n", __func__);
+		return;
+	}
+
+	fence_tmp = vf->fence;
+	if (fence_tmp) {
 		u64 timestamp = local_clock();
-		s32 ret = dma_fence_wait_timeout(vf->fence, false, 2000);
+		s32 ret = dma_fence_wait_timeout(fence_tmp, false, 2000);
 
 		vc_print(dev->index, PRINT_FENCE,
 			 "%s, fence %lx, state: %d, wait cost time: %lld ns\n",
-			 __func__, (ulong)vf->fence, ret,
+			 __func__, (ulong)fence_tmp, ret,
 			 local_clock() - timestamp);
 		vf->fence = NULL;
 	} else {
