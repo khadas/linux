@@ -831,28 +831,8 @@ static int vt_alloc_id_process(struct vt_alloc_id_data *data,
 	struct rb_node *n = NULL;
 
 	mutex_lock(&dev->instance_lock);
-	/* find an unused vt instance */
-	for (n = rb_first(&dev->instances); n; n = rb_next(n)) {
-		instance = rb_entry(n, struct vt_instance, node);
-		mutex_lock(&instance->lock);
-		/* no consumer and producer, not new alloced */
-		if (!instance->consumer &&
-		    !instance->producer &&
-		    instance->used &&
-		    instance->id >= MIN_VIDEO_TUNNEL_ID) {
-			data->tunnel_id = instance->id;
-			instance->used = false;
-			vt_debug(VT_DEBUG_USER, "vt alloc find instance [%d], ref %d\n",
-				 instance->id,
-				 atomic_read(&instance->ref.refcount.refs));
-			mutex_unlock(&instance->lock);
-			mutex_unlock(&dev->instance_lock);
-			return 0;
-		}
-		mutex_unlock(&instance->lock);
-	}
 
-	/* not find, create one */
+	/* create new one */
 	instance = vt_instance_create_lock(session->dev);
 	if (IS_ERR(instance)) {
 		mutex_unlock(&dev->instance_lock);
@@ -874,6 +854,29 @@ static int vt_alloc_id_process(struct vt_alloc_id_data *data,
 		vt_debug(VT_DEBUG_USER, "vt alloc instance [%d] idr alloc failed ret %d\n",
 			instance->id, ret);
 		vt_instance_put(instance);
+
+		mutex_lock(&dev->instance_lock);
+		/* find an unused vt instance */
+		for (n = rb_first(&dev->instances); n; n = rb_next(n)) {
+			instance = rb_entry(n, struct vt_instance, node);
+			mutex_lock(&instance->lock);
+			/* no consumer and producer, not new alloced */
+			if (!instance->consumer &&
+			    !instance->producer &&
+			    instance->used &&
+			    instance->id >= MIN_VIDEO_TUNNEL_ID) {
+				data->tunnel_id = instance->id;
+				instance->used = false;
+				vt_debug(VT_DEBUG_USER, "vt alloc find instance [%d], ref %d\n",
+					instance->id,
+					atomic_read(&instance->ref.refcount.refs));
+				mutex_unlock(&instance->lock);
+				mutex_unlock(&dev->instance_lock);
+				return 0;
+			}
+			mutex_unlock(&instance->lock);
+		}
+		mutex_unlock(&dev->instance_lock);
 		return ret;
 	}
 
