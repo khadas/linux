@@ -52,7 +52,8 @@ struct pcie_wifi_chip {
 };
 
 static const struct pcie_wifi_chip pcie_wifi[] = {
-	{0x16c3, 0xabcd}
+	{0x16c3, 0xabcd},
+	{0x1556, 0x1111}
 };
 
 int wifi_power_gpio;
