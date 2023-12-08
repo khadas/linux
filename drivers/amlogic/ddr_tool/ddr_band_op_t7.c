@@ -211,24 +211,57 @@ static unsigned long t7_get_dmc_freq_quick(struct ddr_bandwidth *db)
 
 static void t7_dmc_bandwidth_enable(struct ddr_bandwidth *db)
 {
-	writel((0x01 << 31), db->ddr_reg2 + DMC_MON_CTRL0);
-	writel((0x01 << 31), db->ddr_reg1 + DMC_MON_CTRL0);
-	if (db->dmc_number == 4) {
-		writel((0x01 << 31), db->ddr_reg3 + DMC_MON_CTRL0);
-		writel((0x01 << 31), db->ddr_reg4 + DMC_MON_CTRL0);
+	unsigned int i, val;
+	void *io;
+
+	for (i = 0; i < db->dmc_number; i++) {
+		switch (i) {
+		case 0:
+			io = db->ddr_reg1;
+			break;
+		case 1:
+			io = db->ddr_reg2;
+			break;
+		case 2:
+			io = db->ddr_reg3;
+			break;
+		case 3:
+			io = db->ddr_reg4;
+			break;
+		default:
+			break;
+		}
+
+		val = db->mode << 31;
+		val |= (readl(io + DMC_MON_CTRL0) & ~BIT(31));
+		writel(val, io + DMC_MON_CTRL0);
 	}
 }
 
 static void t7_dmc_bandwidth_init(struct ddr_bandwidth *db)
 {
 	unsigned int i;
+	void *io;
 
 	/* set timer trigger clock_cnt */
-	writel(db->clock_count, db->ddr_reg1 + DMC_MON_TIMER);
-	writel(db->clock_count, db->ddr_reg2 + DMC_MON_TIMER);
-	if (db->dmc_number == 4) {
-		writel(db->clock_count, db->ddr_reg3 + DMC_MON_TIMER);
-		writel(db->clock_count, db->ddr_reg4 + DMC_MON_TIMER);
+	for (i = 0; i < db->dmc_number; i++) {
+		switch (i) {
+		case 0:
+			io = db->ddr_reg1;
+			break;
+		case 1:
+			io = db->ddr_reg2;
+			break;
+		case 2:
+			io = db->ddr_reg3;
+			break;
+		case 3:
+			io = db->ddr_reg4;
+			break;
+		default:
+			break;
+		}
+		writel(db->clock_count, io + DMC_MON_TIMER);
 	}
 	t7_dmc_bandwidth_enable(db);
 
@@ -275,12 +308,11 @@ static int t7_handle_irq(struct ddr_bandwidth *db, struct ddr_grant *dg)
 			off = i * 16 + DMC_MON0_BW;
 			dg->channel_grant[i] += readl(io + off);
 		}
-		/* clear irq flags */
-		writel(val, io + DMC_MON_CTRL0);
-		writel((0x01 << 31), io + DMC_MON_CTRL0);
 
 		ret = 0;
 	}
+	t7_dmc_bandwidth_enable(db);
+
 	/* each register */
 	dg->all_grant   *= 16;
 	dg->all_grant16 *= 16;

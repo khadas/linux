@@ -71,9 +71,11 @@ static void gxl_dmc_bandwidth_enable(struct ddr_bandwidth *db)
 	unsigned int val;
 
 	/* enable all channel */
-	val =  (0x01 << 31) |	/* enable bit */
+	val =  (db->mode << 31) |	/* enable bit */
 	       (0x01 << 20) |	/* use timer  */
 	       (0x0f <<  0);
+
+	val |= (readl(db->ddr_reg1 + DMC_MON_CTRL2) & ~BIT(31));
 	writel(val, db->ddr_reg1 + DMC_MON_CTRL2);
 }
 
@@ -108,7 +110,6 @@ static int gxl_handle_irq(struct ddr_bandwidth *db, struct ddr_grant *dg)
 			dg->channel_grant[i] = readl(db->ddr_reg1 + reg) * 16;
 		}
 		/* clear irq flags */
-		writel(val, db->ddr_reg1 + DMC_MON_CTRL2);
 		gxl_dmc_bandwidth_enable(db);
 		ret = 0;
 	}

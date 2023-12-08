@@ -216,7 +216,7 @@ static irqreturn_t dmc_irq_handler(int irq, void *dev_instance)
 	struct ddr_grant dg = {0};
 
 	db = (struct ddr_bandwidth *)dev_instance;
-	if (db->ops && db->ops->handle_irq) {
+	if (db->ops && db->ops->handle_irq && db->mode) {
 		if (!db->ops->handle_irq(db, &dg))
 			cal_ddr_usage(db, &dg);
 	}
@@ -455,10 +455,11 @@ static ssize_t mode_store(struct class *cla,
 			return count;
 		}
 
-		if (aml_db->ops->init)
+		if (aml_db->ops->init) {
+			aml_db->mode = val;
 			aml_db->ops->init(aml_db);
+		}
 	} else if ((aml_db->mode != MODE_DISABLE) && (val == MODE_DISABLE)) {
-		free_irq(aml_db->irq_num, (void *)aml_db);
 		aml_db->cur_sample.total_usage = 0;
 		aml_db->cur_sample.total_bandwidth = 0;
 		aml_db->busy = 0;

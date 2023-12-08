@@ -66,10 +66,16 @@ static unsigned long gx_get_dmc_freq_quick(struct ddr_bandwidth *db)
 
 static void gx_dmc_bandwidth_enable(struct ddr_bandwidth *db)
 {
+	unsigned int val;
 	/*
 	 * for old chips, only 1 port can be selected
 	 */
-	writel(0x8010ffff, db->ddr_reg1 + DMC_MON_CTRL2);
+	val =  (db->mode << 31) |	/* enable bit */
+	       (0x01 << 20) |	/* use timer  */
+	       (0x0ffff <<  0);
+
+	val |= (readl(db->ddr_reg1 + DMC_MON_CTRL2) & ~BIT(31));
+	writel(val, db->ddr_reg1 + DMC_MON_CTRL2);
 }
 
 static void gx_dmc_bandwidth_init(struct ddr_bandwidth *db)
@@ -97,7 +103,6 @@ static int gx_handle_irq(struct ddr_bandwidth *db, struct ddr_grant *dg)
 		reg = DMC_MON_ONE_GRANT_CNT;
 		dg->channel_grant[0] = readl(db->ddr_reg1 + reg) * 16;
 		/* clear irq flags */
-		writel(val, db->ddr_reg1 + DMC_MON_CTRL2);
 		gx_dmc_bandwidth_enable(db);
 		ret = 0;
 	}
