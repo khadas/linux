@@ -956,7 +956,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 
 	sec_level = (filter->params.pes.flags >> 10) & 0x7;
 
-	if (demux->source == INPUT_LOCAL_SEC)
+	if (demux->source == INPUT_LOCAL_SEC && format != DVR_FORMAT)
 		sec_level = local_sec_level;
 
 	feed->type = type;
@@ -978,7 +978,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	}
 
 	if (format == DVR_FORMAT) {
-		feed->ts_out_elem = ts_output_find_dvr(sid);
+		feed->ts_out_elem = ts_output_find_dvr(sid, demux->sec_dvr_size ? 1 : 0);
 		if (feed->ts_out_elem) {
 			pr_dbg("find same pid elem:0x%lx\n",
 			       (unsigned long)(feed->ts_out_elem));
@@ -1014,7 +1014,6 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		if (demux->sec_dvr_size != 0 && format == DVR_FORMAT) {
 			ts_output_set_sec_mem(feed->ts_out_elem,
 				demux->sec_dvr_buff, demux->sec_dvr_size);
-			demux->sec_dvr_size = 0;
 			sec_level = 1;
 		}
 		if (sec_level != 0)
@@ -1614,8 +1613,10 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 			if (feed->pid == 0x2000)
 				ts_output_remove_pid(feed->ts_out_elem, 0x1fff);
 			ret = ts_output_close(feed->ts_out_elem);
-			if (ret == 0)
+			if (ret == 0) {
 				demux->dvr_ts_output = NULL;
+				demux->sec_dvr_size = 0;
+			}
 		} else {
 			ts_output_close(feed->ts_out_elem);
 		}

@@ -186,7 +186,7 @@ int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 			u8 cb_id, bool is_sec);
 
-struct out_elem *ts_output_find_dvr(int sid);
+struct out_elem *ts_output_find_dvr(int sid, int sec_level);
 
 int ts_output_sid_debug(void);
 int ts_output_dump_info(char *buf);

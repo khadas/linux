@@ -2764,7 +2764,7 @@ struct out_elem *ts_output_find_same_section_pid(int sid, int pid)
 	return NULL;
 }
 
-struct out_elem *ts_output_find_dvr(int sid)
+struct out_elem *ts_output_find_dvr(int sid, int sec_level)
 {
 	int i = 0;
 
@@ -2772,9 +2772,9 @@ struct out_elem *ts_output_find_dvr(int sid)
 		struct out_elem *pout = &out_elem_table[i];
 
 		if (pout->used &&
-		    pout->sid == sid && pout->format == DVR_FORMAT) {
+		    pout->sid == sid && pout->format == DVR_FORMAT &&
+		    pout->pchan && pout->pchan->sec_level == sec_level)
 			return pout;
-		}
 	}
 	return NULL;
 }
