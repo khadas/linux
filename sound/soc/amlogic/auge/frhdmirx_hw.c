@@ -311,7 +311,7 @@ void arc_earc_source_select(int src)
 			aml_write_hiubus(HHI_HDMIRX_EARCTX_CNTL1, 0x40011508);
 		} else {
 			hdmirx_arc_write_reg(HDMIRX_ARC_CNTL, 0xfffffff8 | src);
-			hdmirx_arc_write_reg(HDMIRX_EARCTX_CNTL0, 0x94830490);
+			hdmirx_arc_write_reg(HDMIRX_EARCTX_CNTL0, 0x14830490);
 			hdmirx_arc_write_reg(HDMIRX_EARCTX_CNTL1, 0x40011508);
 		}
 	} else {
