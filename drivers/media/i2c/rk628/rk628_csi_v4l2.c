@@ -715,7 +715,7 @@ static void enable_csitx(struct v4l2_subdev *sd)
 			rk628_i2c_write(csi->rk628, CSITX1_ERR_INTR_CLR_IMD, 0xffffffff);
 			rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE_IMD);
 		}
-
+		msleep(50);
 		ret = rk628_i2c_read(csi->rk628, CSITX_ERR_INTR_RAW_STATUS_IMD, &val);
 		if (csi->rk628->version >= RK628F_VERSION)
 			ret |= rk628_i2c_read(csi->rk628,
