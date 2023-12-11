@@ -965,16 +965,6 @@ static const struct snd_kcontrol_new snd_tdm_b_controls[] = {
 				tdmin_source_enum,
 				tdmin_src_enum_get,
 				tdmin_src_enum_put),
-
-	SOC_ENUM_EXT("HDMI TDM Audio Type",
-				hdmi_audio_type_enum,
-				hdmiin_audio_type_get_enum,
-				NULL),
-	SOC_SINGLE_EXT("TDMB_Port PC_PD Detect enable",
-		       0, 0, 1, 0,
-		       tdm_port_pcpd_detect_get,
-		       tdm_port_pcpd_detect_set),
-
 };
 
 static const struct snd_kcontrol_new snd_tdm_c_controls[] = {
@@ -1000,6 +990,31 @@ static const struct snd_kcontrol_new snd_tdm_d_controls[] = {
 			    tdmout_get_mute_enum,
 			    tdmout_set_mute_enum),
 };
+
+static const struct snd_kcontrol_new snd_pcpd_controls[] = {
+	SOC_SINGLE_EXT("Pc_Pd_Monitor_A Detect enable",
+		       0, 0, 1, 0,
+		       tdm_port_pcpd_detect_get,
+		       tdm_port_pcpd_detect_set),
+
+	SOC_SINGLE_EXT("Pc_Pd_Monitor_B Detect enable",
+		       0, 0, 1, 0,
+		       tdm_port_pcpd_detect_get,
+		       tdm_port_pcpd_detect_set),
+
+};
+
+static const struct snd_kcontrol_new snd_hdmirx_type_controls[] = {
+	SOC_ENUM_EXT("Pc_Pd_Monitor_A Audio Type",
+				hdmi_audio_type_enum,
+				hdmiin_audio_type_get_enum,
+				NULL),
+	SOC_ENUM_EXT("Pc_Pd_Monitor_B Audio Type",
+				hdmi_audio_type_enum,
+				hdmiin_audio_type_get_enum,
+				NULL),
+};
+
 static irqreturn_t aml_tdm_ddr_isr(int irq, void *devid)
 {
 	struct snd_pcm_substream *substream = (struct snd_pcm_substream *)devid;
@@ -1928,6 +1943,23 @@ static int aml_dai_tdm_probe(struct snd_soc_dai *cpu_dai)
 		if (ret < 0)
 			pr_err("failed add snd tdmD controls\n");
 	}
+
+	if (p_tdm->pcpd_monitor_src) {
+		struct pcpd_monitor *pc_pd = (struct pcpd_monitor *)p_tdm->pcpd_monitor_src;
+
+		ret = snd_soc_add_dai_controls(cpu_dai,
+						&snd_pcpd_controls[pc_pd->pcpd_id],
+						1);
+		if (ret < 0)
+			pr_err("failed add snd pcpd monitor controls\n");
+
+		ret = snd_soc_add_dai_controls(cpu_dai,
+						&snd_hdmirx_type_controls[pc_pd->pcpd_id],
+						1);
+		if (ret < 0)
+			pr_err("failed add snd hdmirx_type controls\n");
+	}
+
 	return 0;
 }
 

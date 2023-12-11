@@ -29,6 +29,10 @@
 
 #include "ddr_mngr.h"
 #include "audio_io.h"
+#include "../common/iomapres.h"
+#include "regs.h"
+#include "iomap.h"
+#include "audio_bus_regmap.h"
 
 struct pcpd_monitor {
 	struct pcpd_monitor_chipinfo *chipinfo;
@@ -37,6 +41,7 @@ struct pcpd_monitor {
 	int pcpd_id;
 	struct toddr *tddr;
 	struct aml_audio_controller *actrl;
+	struct regmap *reg_map;
 };
 
 int pcpd_monitor_check_audio_type(struct pcpd_monitor *pc_pd);

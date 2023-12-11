@@ -18,18 +18,14 @@ defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 
 static int pcpd_monitor_get_audio_type(struct pcpd_monitor *pc_pd)
 {
-	struct aml_audio_controller *actrl;
 	unsigned int pc;
-	unsigned int offset, reg;
-	int id;
 
-	if (!pc_pd)
+	if (IS_ERR(pc_pd->reg_map)) {
+		dev_err(pc_pd->dev, "Can't pcpd_reg regmap!!\n");
 		return 0;
-	actrl = pc_pd->actrl;
-	id = pc_pd->pcpd_id;
-	offset = EE_AUDIO_PCPD_MON_B_STAT1 - EE_AUDIO_PCPD_MON_A_STAT1;
-	reg = EE_AUDIO_PCPD_MON_A_STAT1 + offset * id;
-	pc = (aml_audiobus_read(actrl, reg) >> 16) & 0xff;
+	}
+
+	pc = (mmio_read(pc_pd->reg_map, AUDIO_PCPD_MON_STAT1) >> 16) & 0xff;
 	return pc;
 }
 
@@ -39,17 +35,17 @@ int pcpd_monitor_check_audio_type(struct pcpd_monitor *pc_pd)
 	int pc = pcpd_monitor_get_audio_type(pc_pd);
 	int audio_type = 0;
 	int i;
-	bool is_raw = true;
 	/*need get hdmi pcm info*/
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
 defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
+	bool is_raw = true;
 	struct rx_audio_stat_s aud_sts;
 
 	rx_get_audio_status(&aud_sts);
 	is_raw = aud_sts.ch_sts[0] & IEC958_AES0_NONAUDIO;
-#endif
 	if (!is_raw)
 		return 0;
+#endif
 	for (i = 0; i < total_num; i++) {
 		if (pc == type_texts[i].pc) {
 			audio_type = type_texts[i].aud_type;
@@ -63,15 +59,11 @@ defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 static int aml_pcpd_format_set(struct pcpd_monitor *pc_pd)
 {
 	unsigned int mask, val;
-	struct aml_audio_controller *actrl = pc_pd->actrl;
-	int id = pc_pd->pcpd_id;
 	struct toddr_fmt *fmt = &pc_pd->tddr->fmt;
-	unsigned int offset = EE_AUDIO_PCPD_MON_B_CTRL0 - EE_AUDIO_PCPD_MON_A_CTRL0;
-	unsigned int reg = EE_AUDIO_PCPD_MON_A_CTRL0 + offset * id;
 
 	mask = 0x7 << 20 | 0x1f << 8 | 0x1f;
 	val = fmt->type << 20 | fmt->msb << 8 | fmt->lsb;
-	aml_audiobus_update_bits(actrl, reg, mask, val);
+	mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL0, mask, val);
 
 	return 0;
 }
@@ -79,54 +71,42 @@ static int aml_pcpd_format_set(struct pcpd_monitor *pc_pd)
 static int aml_pcpd_monitor_mask(struct pcpd_monitor *pc_pd)
 {
 	unsigned int mask, val;
-	unsigned int reg;
-	struct aml_audio_controller *actrl = pc_pd->actrl;
-	int id = pc_pd->pcpd_id;
-	unsigned int offset = EE_AUDIO_PCPD_MON_B_CTRL2 - EE_AUDIO_PCPD_MON_A_CTRL2;
 
-	reg = EE_AUDIO_PCPD_MON_A_CTRL2 + offset * id;
-	aml_audiobus_write(actrl, reg, 0xffffffff);
-	reg = EE_AUDIO_PCPD_MON_A_CTRL3 + offset * id;
+	mmio_write(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL2, 0xffffffff);
 	mask = 0x3ff << 20 | 1 << 16;
 	val = 0x1f << 20 | 1 << 16;
-	aml_audiobus_update_bits(actrl, reg, mask, val);
+	mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL3, mask, val);
+
 
 	return 0;
 }
 
 int aml_pcpd_monitor_enable(struct pcpd_monitor *pc_pd, int enable)
 {
-	struct aml_audio_controller *actrl = pc_pd->actrl;
-	int id = pc_pd->pcpd_id;
-	unsigned int reg;
-	unsigned int offset = EE_AUDIO_PCPD_MON_B_CTRL0 - EE_AUDIO_PCPD_MON_A_CTRL0;
-
-	reg = EE_AUDIO_PCPD_MON_A_CTRL0 + offset * id;
-	aml_audiobus_update_bits(actrl, reg, 1 << 31, enable << 31);
-	reg = EE_AUDIO_PCPD_MON_A_CTRL5 + offset * id;
-	aml_audiobus_update_bits(actrl, reg, 0x7 | 0x7 << 4, 0x7);
+	mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL0, 1 << 31, enable << 31);
+	mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL5, 0x7 | 0x7 << 4, 0x7);
 
 	return 0;
 }
 
 static int aml_pcpd_monitor_src(struct pcpd_monitor *pc_pd)
 {
-	unsigned int reg;
 	enum toddr_src src = pc_pd->tddr->src;
-	int id = pc_pd->pcpd_id;
-	struct toddr *to = pc_pd->tddr;
-	struct aml_audio_controller *actrl = pc_pd->actrl;
-	unsigned int offset = EE_AUDIO_PCPD_MON_B_CTRL0 - EE_AUDIO_PCPD_MON_A_CTRL0;
 
-	reg = EE_AUDIO_PCPD_MON_A_CTRL0 + offset * id;
+	struct toddr *to = pc_pd->tddr;
 	src = toddr_src_get_reg(to, src);
-	aml_audiobus_update_bits(actrl, reg, 0x1f << 24, src << 24);
+	mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL0, 0x1f << 24, src << 24);
 
 	return 0;
 }
 
 int aml_pcpd_monitor_init(struct pcpd_monitor *pc_pd)
 {
+	if (IS_ERR(pc_pd->reg_map)) {
+		dev_err(pc_pd->dev, "Can't pcpd_reg regmap!!\n");
+		return 0;
+	}
+
 	aml_pcpd_format_set(pc_pd);
 	aml_pcpd_monitor_mask(pc_pd);
 	aml_pcpd_monitor_src(pc_pd);
@@ -138,18 +118,12 @@ static int aml_pcpd_monitor_status(struct pcpd_monitor *pc_pd)
 {
 	int status;
 	int i;
-	unsigned int reg;
-	int id = pc_pd->pcpd_id;
-	struct aml_audio_controller *actrl = pc_pd->actrl;
-	unsigned int offset = EE_AUDIO_PCPD_MON_B_STAT0 - EE_AUDIO_PCPD_MON_A_STAT0;
 
-	reg = EE_AUDIO_PCPD_MON_A_STAT0 + offset * id;
-	status = aml_audiobus_read(actrl, reg);
-	offset = EE_AUDIO_PCPD_MON_B_CTRL5 - EE_AUDIO_PCPD_MON_A_CTRL5;
-	reg = EE_AUDIO_PCPD_MON_A_CTRL5 + offset * id;
+	status = mmio_read(pc_pd->reg_map, AUDIO_PCPD_MON_STAT1);
 	for (i = 0; i < 3; i++) {
 		if (status & (1 << i))
-			aml_audiobus_update_bits(actrl, reg, 0x1 << (8 + i), 1 << (8 + i));
+			mmio_update_bits(pc_pd->reg_map, AUDIO_PCPD_MON_CTRL5,
+					0x1 << (8 + i), 1 << (8 + i));
 	}
 
 	return 0;
@@ -202,6 +176,10 @@ static int aml_pcpd_monitor_platform_probe(struct platform_device *pdev)
 	ret = request_irq(pc_pd->pcpd_irq,
 				aml_pcpd_monitor_status_isr, 0, "irq_pcpd", pc_pd);
 	aml_audiobus_update_bits(actrl, EE_AUDIO_CLK_GATE_EN1, 3 << 9, 3 << 9);
+
+	pc_pd->reg_map = regmap_resource(&pdev->dev, "pcpd_reg");
+	if (IS_ERR(pc_pd->reg_map))
+		dev_err(dev, "Can't pcpd_reg regmap!!\n");
 
 	return ret;
 }
