@@ -103,11 +103,11 @@ void lcd_lvds_enable(struct aml_lcd_drv_s *pdrv)
 	fifo_mode = dual_port ? 0x3 : 0x1;
 
 	// H V:  L_POL_CNTL_ADDR LVDS_PACK_CNTL_ADDR
-	// 0 0:  h: 0  v: 0      0
-	// 0 1:  h: 0  v: 1      0
-	// 1 0:  h: 0  v: 1      1
-	// 1 1:  h: 0  v: 0      1
-	sync_pol_reverse = pdrv->config.timing.hsync_pol & 0x1; // reserve both h & v
+	// 0 0:  h: 1  v: 1      1
+	// 0 1:  h: 1  v: 0      1
+	// 1 0:  h: 1  v: 0      0
+	// 1 1:  h: 1  v: 1      0
+	sync_pol_reverse = !pdrv->config.timing.hsync_pol; // reserve both h & v
 
 	if (pdrv->config.basic.lcd_bits == 10) {
 		bit_num = 0;
