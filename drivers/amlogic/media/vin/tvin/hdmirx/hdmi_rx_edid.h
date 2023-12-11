@@ -864,5 +864,6 @@ void rpt_edid_colorimetry_db_extraction(unsigned char *p_edid);
 void rpt_edid_420_vdb_extraction(unsigned char *p_edid);
 void rpt_edid_hdr_static_db_extraction(unsigned char *p_edid);
 void rpt_edid_extraction(unsigned char *p_edid);
+bool is_valid_edid_data(unsigned char *p_edid);
 #endif
 #endif

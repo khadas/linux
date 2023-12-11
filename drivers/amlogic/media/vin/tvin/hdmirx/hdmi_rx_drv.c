@@ -846,7 +846,7 @@ int hdmirx_set_cec_cfg(u32 cfg)
 	case 2:
 		hdmi_cec_en = 1;
 		tv_auto_power_on = 1;
-		if (rx.boot_flag)
+		if (is_valid_edid_data(rx_get_cur_edid(rx.port)))
 			rx_force_hpd_rxsense_cfg(1);
 		break;
 	case 0:
@@ -2352,14 +2352,16 @@ static ssize_t cec_store(struct device *dev,
 		hdmi_cec_en = 0;
 		/* fix source can't get edid if cec off */
 		if (rx.boot_flag) {
-			if (hpd_low_cec_off == 0)
+			if (hpd_low_cec_off == 0 &&
+				is_valid_edid_data(rx_get_cur_edid(rx.port)))
 				rx_force_hpd_rxsense_cfg(1);
 		}
 	} else if ((val & 0xF) == 1) {
 		hdmi_cec_en = 1;
 	} else if ((val & 0xF) == 2) {
 		hdmi_cec_en = 1;
-		rx_force_hpd_rxsense_cfg(1);
+		if (is_valid_edid_data(rx_get_cur_edid(rx.port)))
+			rx_force_hpd_rxsense_cfg(1);
 	}
 	rx.boot_flag = false;
 	tv_auto_power_on = (val >> 4) & 0xF;
