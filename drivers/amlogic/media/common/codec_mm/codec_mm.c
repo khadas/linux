@@ -1183,16 +1183,8 @@ void *codec_mm_dma_alloc_coherent(ulong *handle,
 	spin_lock_irqsave(&mgt->lock, flags);
 
 	mem->mem_id = mgt->global_memid++;
-	if (s_cma) {
+	if (s_cma)
 		mgt->alloced_cma_size	+= buf_size;
-	} else if (s_res) {
-		if (mgt->cma_res_pool.total_size > 0)
-			mgt->cma_res_pool.total_size += buf_size;
-		else
-			mgt->alloced_res_size += buf_size;
-	} else {
-		mgt->alloced_sys_size	+= buf_size;
-	}
 	mgt->alloced_from_coherent	+= buf_size;
 	mgt->total_alloced_size		+= buf_size;
 	if (mgt->total_alloced_size > mgt->max_used_mem_size)
@@ -1233,13 +1225,6 @@ void codec_mm_dma_free_coherent(ulong handle)
 
 	if (mem->flags & 2)
 		mgt->alloced_cma_size	-= mem->buffer_size;
-	else if (mem->flags & 1)
-		if (mgt->cma_res_pool.total_size > 0)
-			mgt->cma_res_pool.total_size += mem->buffer_size;
-		else
-			mgt->alloced_res_size += mem->buffer_size;
-	else
-		mgt->alloced_sys_size	-= mem->buffer_size;
 	mgt->alloced_from_coherent	-= mem->buffer_size;
 	mgt->total_alloced_size		-= mem->buffer_size;
 	list_del(&mem->list);
