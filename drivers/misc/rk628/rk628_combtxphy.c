@@ -57,11 +57,15 @@ static void rk628_combtxphy_lvds_power_on(struct rk628 *rk628)
 	int ret;
 
 	/* Adjust terminal resistance 133 ohm, bypass 0.95v ldo for driver. */
+	if (rk628->version == RK628F_VERSION)
+		val = TX_COM_VOLT_ADJ(3);
+	else
+		val = TX_COM_VOLT_ADJ(0);
 	rk628_i2c_update_bits(rk628, COMBTXPHY_CON7,
 			      SW_TX_RTERM_MASK | SW_TX_MODE_MASK |
 			      BYPASS_095V_LDO_MASK | TX_COM_VOLT_ADJ_MASK,
 			      SW_TX_RTERM(6) | SW_TX_MODE(3) |
-			      BYPASS_095V_LDO(1) | TX_COM_VOLT_ADJ(0));
+			      BYPASS_095V_LDO(1) | val);
 
 	rk628_i2c_write(rk628, COMBTXPHY_CON10, TX7_CKDRV_EN | TX2_CKDRV_EN);
 	rk628_i2c_update_bits(rk628, COMBTXPHY_CON0,
