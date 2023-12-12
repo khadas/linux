@@ -2514,6 +2514,8 @@ static int rk628_csi_probe(struct i2c_client *client,
 	struct rk628 *rk628;
 	unsigned long irq_flags;
 	const struct of_device_id *match;
+	struct v4l2_dv_timings default_timing =
+				V4L2_DV_BT_CEA_640X480P59_94;
 
 	dev_info(dev, "RK628 I2C driver version: %02x.%02x.%02x",
 		DRIVER_VERSION >> 16,
@@ -2539,6 +2541,7 @@ static int rk628_csi_probe(struct i2c_client *client,
 	csi->rk628 = rk628;
 	csi->dsi.rk628 = rk628;
 	csi->cur_mode = &supported_modes[0];
+	csi->timings = default_timing;
 	csi->hdmirx_irq = client->irq;
 	sd = &csi->sd;
 	sd->dev = dev;
