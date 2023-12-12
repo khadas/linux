@@ -1135,6 +1135,7 @@ EXPORT_SYMBOL(rk628_hdmirx_get_range);
 
 void rk628_hdmirx_controller_reset(struct rk628 *rk628)
 {
+	mutex_lock(&rk628->rst_lock);
 	rk628_control_assert(rk628, RGU_HDMIRX);
 	rk628_control_assert(rk628, RGU_HDMIRX_PON);
 	udelay(10);
@@ -1145,6 +1146,7 @@ void rk628_hdmirx_controller_reset(struct rk628 *rk628)
 	rk628_i2c_write(rk628, HDMI_RX_DMI_DISABLE_IF, 0x00000000);
 	rk628_i2c_write(rk628, HDMI_RX_DMI_DISABLE_IF, 0x0000017f);
 	rk628_i2c_write(rk628, HDMI_RX_DMI_DISABLE_IF, 0x0001017f);
+	mutex_unlock(&rk628->rst_lock);
 }
 EXPORT_SYMBOL(rk628_hdmirx_controller_reset);
 

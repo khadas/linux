@@ -287,6 +287,7 @@ struct rk628 *rk628_i2c_register(struct i2c_client *client)
 			return NULL;
 		}
 	}
+	mutex_init(&rk628->rst_lock);
 
 	return rk628;
 }

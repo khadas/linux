@@ -74,6 +74,7 @@ struct rk628_bt1120 {
 	struct clk *clk_rx_read;
 	struct delayed_work delayed_work_enable_hotplug;
 	struct delayed_work delayed_work_res_change;
+	struct work_struct work_isr;
 	struct timer_list timer;
 	struct work_struct work_i2c_poll;
 	struct mutex confctl_mutex;
@@ -932,18 +933,16 @@ static void rk628_bt1120_enable_interrupts(struct v4l2_subdev *sd, bool en)
 	v4l2_dbg(1, debug, sd, "%s MD_IEN:%#x, PDEC_IEN:%#x\n", __func__, md_ien, pdec_ien);
 }
 
-static int rk628_bt1120_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
+static void rk628_work_isr(struct work_struct *work)
 {
+	struct rk628_bt1120 *bt1120 = container_of(work, struct rk628_bt1120, work_isr);
+	struct v4l2_subdev *sd = &bt1120->sd;
 	u32 md_ints, pdec_ints, fifo_ints, hact, vact;
 	bool plugin;
-	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
 	void *audio_info = bt1120->audio_info;
+	bool handled = false;
 
-	if (handled == NULL) {
-		v4l2_err(sd, "handled NULL, err return!\n");
-		return -EINVAL;
-	}
-
+	mutex_lock(&bt1120->rk628->rst_lock);
 	rk628_i2c_read(bt1120->rk628, HDMI_RX_MD_ISTS, &md_ints);
 	if (bt1120->rk628->version >= RK628F_VERSION &&
 	    (md_ints & (VACT_LIN_ISTS | HACT_PIX_ISTS |
@@ -963,14 +962,14 @@ static int rk628_bt1120_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 			if (pdec_ints & (ACR_N_CHG_ICLR | ACR_CTS_CHG_ICLR)) {
 				rk628_csi_isr_ctsn(audio_info, pdec_ints);
 				pdec_ints &= ~(ACR_CTS_CHG_ICLR | ACR_CTS_CHG_ICLR);
-				*handled = true;
+				handled = true;
 			}
 		}
 		if (rk628_audio_fifoints_enabled(audio_info)) {
 			rk628_i2c_read(bt1120->rk628, HDMI_RX_AUD_FIFO_ISTS, &fifo_ints);
 			if (fifo_ints & 0x18) {
 				rk628_csi_isr_fifoints(audio_info, fifo_ints);
-				*handled = true;
+				handled = true;
 			}
 		}
 	}
@@ -997,7 +996,7 @@ static int rk628_bt1120_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 
 			v4l2_dbg(1, debug, sd, "%s: hact/vact change, md_ints: %#x\n",
 				 __func__, (u32)(md_ints & (VACT_LIN_ISTS | HACT_PIX_ISTS)));
-			*handled = true;
+			handled = true;
 		}
 
 		if ((pdec_ints & AVI_RCV_ISTS) && plugin && !bt1120->avi_rcv_rdy) {
@@ -1006,10 +1005,10 @@ static int rk628_bt1120_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 			/* After get the AVI_RCV interrupt state, disable interrupt. */
 			rk628_i2c_write(bt1120->rk628, HDMI_RX_PDEC_IEN_CLR, AVI_RCV_ISTS);
 
-			*handled = true;
+			handled = true;
 		}
 	}
-	if (*handled != true)
+	if (!handled)
 		v4l2_dbg(1, debug, sd, "%s: unhandled interrupt!\n", __func__);
 
 __clear_int:
@@ -1021,13 +1020,27 @@ __clear_int:
 	else
 		rk628_i2c_write(bt1120->rk628, GRF_INTR0_CLR_EN, 0x01000100);
 
+	mutex_unlock(&bt1120->rk628->rst_lock);
+}
+
+static int rk628_bt1120_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
+{
+	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
+
+	if (handled == NULL) {
+		v4l2_err(sd, "handled NULL, err return!\n");
+		return -EINVAL;
+	}
+
+	schedule_work(&bt1120->work_isr);
+
 	return 0;
 }
 
 static irqreturn_t rk628_bt1120_irq_handler(int irq, void *dev_id)
 {
 	struct rk628_bt1120 *bt1120 = dev_id;
-	bool handled = false;
+	bool handled = true;
 
 	rk628_bt1120_isr(&bt1120->sd, 0, &handled);
 
@@ -1895,6 +1908,7 @@ static int rk628_bt1120_probe(struct i2c_client *client,
 			rk628_bt1120_delayed_work_enable_hotplug);
 	INIT_DELAYED_WORK(&bt1120->delayed_work_res_change,
 			rk628_delayed_work_res_change);
+	INIT_WORK(&bt1120->work_isr, rk628_work_isr);
 	bt1120->audio_info = rk628_hdmirx_audioinfo_alloc(dev,
 							  &bt1120->confctl_mutex,
 							  rk628,
@@ -1959,6 +1973,7 @@ err_work_queues:
 		flush_work(&bt1120->work_i2c_poll);
 	cancel_delayed_work(&bt1120->delayed_work_enable_hotplug);
 	cancel_delayed_work(&bt1120->delayed_work_res_change);
+	cancel_work_sync(&bt1120->work_isr);
 	rk628_hdmirx_audio_destroy(bt1120->audio_info);
 err_hdl:
 	mutex_destroy(&bt1120->confctl_mutex);
@@ -1977,6 +1992,7 @@ static int rk628_bt1120_remove(struct i2c_client *client)
 	}
 	cancel_delayed_work_sync(&bt1120->delayed_work_enable_hotplug);
 	cancel_delayed_work_sync(&bt1120->delayed_work_res_change);
+	cancel_work_sync(&bt1120->work_isr);
 	rk628_hdmirx_audio_cancel_work_audio(bt1120->audio_info, true);
 	rk628_hdmirx_audio_cancel_work_rate_change(bt1120->audio_info, true);
 

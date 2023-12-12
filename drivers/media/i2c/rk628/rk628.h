@@ -289,6 +289,7 @@ struct rk628 {
 	u8 dphy_lane_en;
 	bool dual_mipi;
 	struct mipi_timing mipi_timing[2];
+	struct mutex rst_lock;
 };
 
 static inline int rk628_i2c_write(struct rk628 *rk628, u32 reg, u32 val)
