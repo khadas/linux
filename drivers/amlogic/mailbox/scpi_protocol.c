@@ -370,11 +370,24 @@ int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 	mhu_pdev = container_of(cl.dev, struct platform_device, dev);
 	mhu_ctlr = platform_get_drvdata(mhu_pdev);
 	mutex_lock(&mhu_ctlr->mutex);
+	if ((mhu_f & (MASK_MHU_FIFO | MASK_MHU_PL)) &&
+		(c_chan != C_AOCPU_OLD && c_chan != C_SECPU_PL)) {
+		chan = mbox_get_channel(&cl, chan_idx);
+		if (IS_ERR_OR_NULL(chan)) {
+			pr_err("Not have this chan\n");
+			ret = PTR_ERR(chan);
+			goto free_buf;
+		}
+		mutex_lock(&chan->mutex);
+	}
 
 	chan = mbox_request_channel(&cl, chan_idx);
 	if (IS_ERR(chan)) {
 		status = -SCPI_ERR_NOMEM;
 		mutex_unlock(&mhu_ctlr->mutex);
+		if ((mhu_f & (MASK_MHU_FIFO | MASK_MHU_PL)) &&
+			(c_chan != C_AOCPU_OLD && c_chan != C_SECPU_PL))
+			mutex_unlock(&chan->mutex);
 		goto free_buf;
 	}
 
@@ -455,6 +468,9 @@ int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 
 free_channel:
 	mbox_free_channel(chan);
+	if ((mhu_f & (MASK_MHU_FIFO | MASK_MHU_PL)) &&
+		(c_chan != C_AOCPU_OLD && c_chan != C_SECPU_PL))
+		mutex_unlock(&chan->mutex);
 	mutex_unlock(&mhu_ctlr->mutex);
 free_buf:
 	kfree(rxbuf);
