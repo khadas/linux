@@ -169,7 +169,6 @@ struct vrr_conf_para {
 	u8 fapa_end_extended:1;
 	u8 qms_sup:1;
 	u8 mdelta_bit:1;
-	u8 cinemavrr_bit:1;
 	u8 neg_mvrr_bit:1;
 	u8 fva_sup:1;
 	u8 fapa_start_loc:1;

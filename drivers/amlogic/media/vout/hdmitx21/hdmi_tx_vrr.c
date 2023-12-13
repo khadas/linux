@@ -786,7 +786,6 @@ int hdmitx_dump_vrr_status(struct seq_file *s, void *p)
 	seq_printf(s, "fapa_end_extended %d\n", conf->fapa_end_extended);
 	seq_printf(s, "qms support %d\n", conf->qms_sup);
 	seq_printf(s, "mdelta %d\n", conf->mdelta_bit);
-	seq_printf(s, "cinemavrr %d\n", conf->cinemavrr_bit);
 	seq_printf(s, "neg_mvrr %d\n", conf->neg_mvrr_bit);
 	seq_printf(s, "fva support %d\n", conf->fva_sup);
 	seq_printf(s, "fapa_start_location %d\n", conf->fapa_start_loc);
@@ -1178,7 +1177,6 @@ int hdmitx_set_fr_hint(int rate, void *data)
 	para.fapa_end_extended = prxcap->fapa_end_extended;
 	para.qms_sup = prxcap->qms;
 	para.mdelta_bit = prxcap->mdelta;
-	para.cinemavrr_bit = prxcap->cinemavrr;
 	para.neg_mvrr_bit = prxcap->neg_mvrr;
 	para.fva_sup = prxcap->fva;
 	para.fva_factor = 1; /* todo */
