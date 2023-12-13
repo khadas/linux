@@ -457,9 +457,8 @@
 	};
 
 	aml_hwlock: aml_hwlock@0 {
-		status = "okay";
+		status = "disable";
 		compatible = "amlogic, meson-hwspinlock";
-		mboxes = <&mhu_fifo A5_REE2AO>;
 		bakery-cpus = <6>;
 		#hwlock-cells = <1>;
 	};
