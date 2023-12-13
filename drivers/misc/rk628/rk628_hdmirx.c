@@ -836,10 +836,8 @@ static int rk628_hdmirx_phy_setup(struct rk628 *rk628)
 	struct rk628_display_mode *src_mode;
 	struct rk628_hdmirx *hdmirx = rk628->hdmirx;
 	u32 f;
-	struct rk628_display_mode *dst_mode;
 	bool signal_input, timing_detected;
 
-	dst_mode = rk628_display_get_dst_mode(rk628);
 	src_mode = rk628_display_get_src_mode(rk628);
 	f = src_mode->clock;
 	/* Bit31 is used to distinguish HDMI cable mode and direct connection
@@ -856,8 +854,10 @@ static int rk628_hdmirx_phy_setup(struct rk628 *rk628)
 	 * force 594m mode to yuv420 format.
 	 * bit30 is used to indicate whether it is yuv420 format.
 	 */
-	if (hdmirx->src_mode_4K_yuv420)
+	if (hdmirx->src_mode_4K_yuv420) {
+		f /= 2;
 		f |= BIT(30);
+	}
 
 	if (!rk628->plugin_det_gpio) {
 		u32 tmds_rate = src_mode->clock;
@@ -887,7 +887,8 @@ static int rk628_hdmirx_phy_setup(struct rk628 *rk628)
 		cnt = 0;
 
 		do {
-			if (signal_input || rk628->plugin_det_gpio)
+			if (signal_input || rk628->plugin_det_gpio ||
+			    rk628->version == RK628D_VERSION)
 				cnt++;
 			msleep(100);
 			rk628_i2c_read(rk628, HDMI_RX_MD_HACT_PX, &val);
@@ -907,9 +908,13 @@ static int rk628_hdmirx_phy_setup(struct rk628 *rk628)
 			rk628_i2c_read(rk628, HDMI_RX_MD_VSC, &val);
 			modetclk_cnt_vs = val & 0xffff;
 
-			vs = (tmdsclk_cnt * modetclk_cnt_vs + MODETCLK_CNT_NUM / 2) /
-				MODETCLK_CNT_NUM;
-			vs = (vs + frame_width / 2) / frame_width;
+			if (frame_width) {
+				vs = (tmdsclk_cnt * modetclk_cnt_vs + MODETCLK_CNT_NUM / 2) /
+					MODETCLK_CNT_NUM;
+				vs = (vs + frame_width / 2) / frame_width;
+			} else {
+				vs = 0;
+			}
 
 			if (width && height && frame_width && frame_height && tmdsclk_cnt &&
 			    modetclk_cnt_hs && modetclk_cnt_vs && vs)
@@ -936,16 +941,14 @@ static int rk628_hdmirx_phy_setup(struct rk628 *rk628)
 				break;
 		} while (((status & 0xfff) != 0xf00) || !timing_detected);
 
-		if (((status & 0xfff) != 0xf00) || ((status >> 16) > 0xc000)) {
+		if (((status & 0xfff) != 0xf00) || (((status >> 16) > 0xc000) &&
+		    rk628->version != RK628D_VERSION)) {
 			dev_info(rk628->dev, "%s hdmi rxphy lock failed, retry:%d, status:0x%x\n",
 				 __func__, i, status);
 			if (((status >> 16) > 0xc000))
 				dev_info(rk628->dev, "((status >> 16) > 0xc000)\n");
 			continue;
 		} else {
-			if (rk628->version == RK628F_VERSION)
-				rk628_hdmirx_phy_prepclk_cfg(rk628);
-
 			rk628_hdmirx_get_timing(rk628);
 
 			if (hdmirx->mode.flags & DRM_MODE_FLAG_INTERLACE) {
@@ -967,10 +970,6 @@ static int rk628_hdmirx_phy_setup(struct rk628 *rk628)
 			src_mode->vsync_end = hdmirx->mode.vend;
 			src_mode->vtotal = hdmirx->mode.vtotal;
 			src_mode->flags = hdmirx->mode.flags;
-			if (hdmirx->src_mode_4K_yuv420 && dst_mode->clock == 594000) {
-				rk628_mode_copy(src_mode, dst_mode);
-				src_mode->flags = DRM_MODE_FLAG_PHSYNC|DRM_MODE_FLAG_PVSYNC;
-			}
 
 			break;
 		}
@@ -1152,6 +1151,7 @@ int rk628_hdmirx_enable(struct rk628 *rk628)
 	int ret;
 	u32 val;
 	struct rk628_hdmirx *hdmirx;
+	struct rk628_display_mode *src_mode;
 
 	if (!rk628->hdmirx) {
 		ret = rk628_hdmirx_init(rk628);
@@ -1167,13 +1167,15 @@ int rk628_hdmirx_enable(struct rk628 *rk628)
 		hdmirx->plugin = true;
 		hdmirx->is_hdmi2 = false;
 		rk628_hdmirx_enable_edid(rk628);
-		for (i = 0; i < 20; i++) {
-			msleep(50);
-			rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS0, &val);
-			dev_dbg(rk628->dev, "HDMI_RX_SCDC_REGS0:0x%x\n", val);
-			if (val & SCDC_TMDSBITCLKRATIO) {
-				hdmirx->is_hdmi2 = true;
-				break;
+		if (rk628->plugin_det_gpio) {
+			for (i = 0; i < 20; i++) {
+				msleep(50);
+				rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS0, &val);
+				dev_info(rk628->dev, "HDMI_RX_SCDC_REGS0:0x%x\n", val);
+				if (val & SCDC_TMDSBITCLKRATIO) {
+					hdmirx->is_hdmi2 = true;
+					break;
+				}
 			}
 		}
 
@@ -1190,6 +1192,27 @@ int rk628_hdmirx_enable(struct rk628 *rk628)
 		rk628_hdmirx_audio_setup(rk628);
 
 		rk628_hdmirx_get_input_format(rk628);
+
+		src_mode = rk628_display_get_src_mode(rk628);
+		if (hdmirx->input_format == BUS_FMT_YUV420) {
+			/* yuv420 horizontal timing is 1/2 */
+			if (hdmirx->src_depth_10bit) {
+				src_mode->clock = src_mode->clock * 8 * 2 / 10;
+				src_mode->hdisplay = src_mode->hdisplay * 8 * 2 / 10;
+				src_mode->hsync_start = src_mode->hsync_start * 8 * 2 / 10;
+				src_mode->hsync_end = src_mode->hsync_end * 8 * 2 / 10;
+				src_mode->htotal = src_mode->htotal * 8 * 2 / 10;
+			} else {
+				src_mode->clock *= 2;
+				src_mode->hdisplay *= 2;
+				src_mode->hsync_start *= 2;
+				src_mode->hsync_end *= 2;
+				src_mode->htotal *= 2;
+			}
+		}
+
+		if (rk628->version != RK628D_VERSION)
+			rk628_hdmirx_phy_prepclk_cfg(rk628);
 		rk628_set_input_bus_format(rk628, hdmirx->input_format);
 		dev_info(rk628->dev, "hdmirx plug in\n");
 		dev_info(rk628->dev, "input: %d, output: %d\n", hdmirx->input_format,
@@ -1198,6 +1221,14 @@ int rk628_hdmirx_enable(struct rk628 *rk628)
 			return HDMIRX_PLUGIN | HDMIRX_NOSIGNAL;
 
 		dev_info(rk628->dev, "hdmirx success\n");
+		if (rk628->version != RK628D_VERSION) {
+			/* Try to keep pll frequency close to 1188m */
+			val = DIV_ROUND_CLOSEST_ULL(1188000000, (src_mode->clock * 1000));
+			val *= src_mode->clock * 1000;
+			/* set pll rate according hdmirx tmds clk */
+			rk628_cru_clk_set_rate(rk628, CGU_CLK_CPLL, val);
+			msleep(50);
+		}
 		rk628_hdmirx_video_unmute(rk628, 1);
 
 		return HDMIRX_PLUGIN;
