@@ -267,7 +267,9 @@ void rk628_combtxphy_set_mode(struct rk628 *rk628, enum phy_mode mode)
 		else
 			combtxphy->rate_div = 1;
 		fvco = bus_width * combtxphy->rate_div;
-		ref_clk = rk628_cru_clk_get_rate(rk628, CGU_SCLK_VOP) / 1000; /* khz */
+		ref_clk = rk628_cru_clk_get_rate(rk628, CGU_SCLK_VOP);
+		ref_clk = DIV_ROUND_CLOSEST_ULL(ref_clk, 1000); /* khz */
+
 		if (combtxphy->division_mode)
 			ref_clk /= 2;
 		/*
@@ -288,7 +290,7 @@ void rk628_combtxphy_set_mode(struct rk628 *rk628, enum phy_mode mode)
 		/*
 		 * ref_clk / ref_div * 8 * fb_div = FVCO
 		 */
-		pre_clk = (unsigned long long)fvco / 8 * combtxphy->ref_div * 1024;
+		pre_clk = (unsigned long long)fvco * combtxphy->ref_div / 8 * 1024;
 		do_div(pre_clk, ref_clk);
 		fb_div = pre_clk / 1024;
 

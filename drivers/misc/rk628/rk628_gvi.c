@@ -88,10 +88,17 @@ static void rk628_gvi_get_info(struct rk628_gvi *gvi)
 
 static unsigned int rk628_gvi_get_lane_rate(struct rk628 *rk628)
 {
-	const struct rk628_display_mode *mode = &rk628->dst_mode;
 	struct rk628_gvi *gvi = &rk628->gvi;
 	u32 lane_bit_rate, min_lane_rate = 500000, max_lane_rate = 4000000;
 	u64 total_bw;
+	struct rk628_display_mode *src = &rk628->src_mode;
+	const struct rk628_display_mode *dst = &rk628->dst_mode;
+	u64 dst_rate, src_rate;
+
+	src_rate = src->clock * 1000;
+	dst_rate = src_rate * dst->vtotal * dst->htotal;
+	do_div(dst_rate, (src->vtotal * src->htotal));
+	do_div(dst_rate, 1000);
 
 	/**
 	 * [ENCODER TOTAL BIT-RATE](bps) = [byte mode](byte) x 10 / [pixel clock](HZ)
@@ -100,7 +107,7 @@ static unsigned int rk628_gvi_get_lane_rate(struct rk628 *rk628)
 	 *
 	 * 500Mbps <= lane_bit_rate <= 4Gbps
 	 */
-	total_bw = (u64)gvi->byte_mode * 10 * mode->clock;/* Kbps */
+	total_bw = (u64)gvi->byte_mode * 10 * dst_rate;/* Kbps */
 	do_div(total_bw, gvi->lanes);
 	lane_bit_rate = total_bw;
 
