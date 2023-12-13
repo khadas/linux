@@ -652,6 +652,8 @@ bool is_valid_edid_data(unsigned char *p_edid)
 {
 	bool ret = false;
 
+	if (!p_edid)
+		return ret;
 	if (p_edid[0] == 0 &&
 		p_edid[1] == 0xff &&
 		p_edid[2] == 0xff &&
