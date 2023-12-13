@@ -216,7 +216,7 @@ static irqreturn_t dmc_irq_handler(int irq, void *dev_instance)
 	struct ddr_grant dg = {0};
 
 	db = (struct ddr_bandwidth *)dev_instance;
-	if (db->ops && db->ops->handle_irq && db->mode) {
+	if (db->ops && db->ops->handle_irq) {
 		if (!db->ops->handle_irq(db, &dg))
 			cal_ddr_usage(db, &dg);
 	}
