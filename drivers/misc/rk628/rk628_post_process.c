@@ -265,8 +265,8 @@ void rk628_post_process_init(struct rk628 *rk628)
 	u64 dst_rate, src_rate;
 
 	src_rate = src->clock * 1000;
-	dst_rate = src_rate * dst->vdisplay * dst->htotal;
-	do_div(dst_rate, (src->vdisplay * src->htotal));
+	dst_rate = src_rate * dst->vtotal * dst->htotal;
+	do_div(dst_rate, (src->vtotal * src->htotal));
 	do_div(dst_rate, 1000);
 	dev_info(rk628->dev, "src %dx%d clock:%d\n",
 		 src->hdisplay, src->vdisplay, src->clock);
