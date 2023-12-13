@@ -910,7 +910,7 @@ static void rk628_bt1120_enable_interrupts(struct v4l2_subdev *sd, bool en)
 	u32 pdec_mask = 0, md_mask = 0;
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
 
-	pdec_mask |= AVI_RCV_ENSET;
+	pdec_mask = AVI_RCV_ENSET | AVI_CKS_CHG_ICLR;
 	md_mask = VACT_LIN_ENSET | HACT_PIX_ENSET | HS_CLK_ENSET |
 		  DE_ACTIVITY_ENSET | VS_ACT_ENSET | HS_ACT_ENSET;
 	v4l2_dbg(1, debug, sd, "%s: %sable\n", __func__, en ? "en" : "dis");
@@ -944,10 +944,12 @@ static void rk628_work_isr(struct work_struct *work)
 
 	mutex_lock(&bt1120->rk628->rst_lock);
 	rk628_i2c_read(bt1120->rk628, HDMI_RX_MD_ISTS, &md_ints);
+	rk628_i2c_read(bt1120->rk628, HDMI_RX_PDEC_ISTS, &pdec_ints);
 	if (bt1120->rk628->version >= RK628F_VERSION &&
 	    (md_ints & (VACT_LIN_ISTS | HACT_PIX_ISTS |
 			HS_CLK_ISTS | DE_ACTIVITY_ISTS |
-			VS_ACT_ISTS | HS_ACT_ISTS)))
+			VS_ACT_ISTS | HS_ACT_ISTS) ||
+	     pdec_ints & AVI_CKS_CHG_ISTS))
 		rk628_set_bg_enable(bt1120->rk628, true);
 
 	plugin = tx_5v_power_present(sd);
@@ -956,7 +958,6 @@ static void rk628_work_isr(struct work_struct *work)
 		goto __clear_int;
 	}
 
-	rk628_i2c_read(bt1120->rk628, HDMI_RX_PDEC_ISTS, &pdec_ints);
 	if (bt1120->rk628->version < RK628F_VERSION) {
 		if (rk628_audio_ctsnints_enabled(audio_info)) {
 			if (pdec_ints & (ACR_N_CHG_ICLR | ACR_CTS_CHG_ICLR)) {
@@ -980,7 +981,8 @@ static void rk628_work_isr(struct work_struct *work)
 
 		if ((md_ints & (VACT_LIN_ISTS | HACT_PIX_ISTS |
 				HS_CLK_ISTS | DE_ACTIVITY_ISTS |
-				VS_ACT_ISTS | HS_ACT_ISTS))) {
+				VS_ACT_ISTS | HS_ACT_ISTS) ||
+		     pdec_ints & AVI_CKS_CHG_ISTS)) {
 
 			rk628_i2c_read(bt1120->rk628, HDMI_RX_MD_HACT_PX, &hact);
 			rk628_i2c_read(bt1120->rk628, HDMI_RX_MD_VAL, &vact);
