@@ -46,9 +46,6 @@ void notrace __cpu_suspend_exit(void)
 {
 	unsigned int cpu = smp_processor_id();
 
-#ifdef CONFIG_AMLOGIC_VMAP
-	__setup_vmap_stack(my_cpu_offset);
-#endif
 	mte_suspend_exit();
 
 	/*
@@ -138,6 +135,9 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 		if (!ret)
 			ret = -EOPNOTSUPP;
 	} else {
+	#ifdef CONFIG_AMLOGIC_VMAP
+		__setup_vmap_stack(my_cpu_offset);
+	#endif
 		RCU_NONIDLE(__cpu_suspend_exit());
 	}
 
