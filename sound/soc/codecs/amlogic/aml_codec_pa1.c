@@ -764,7 +764,7 @@ static int pa1_mixer_get_multiband_DRC_params(struct snd_kcontrol *kcontrol,
 		p = &PA1_MULTIBAND_DRC_COEFF[i * PA1_AED_SINGLE_BAND_DRC_SIZE];
 		pa1_aed_get_multiband_drc_coeff(component, i, p);
 	}
-
+	p = &PA1_MULTIBAND_DRC_COEFF[0];
 	for (i = 0; i < len; i++)
 		*value++ = cpu_to_be32(*p++);
 
