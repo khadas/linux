@@ -771,12 +771,14 @@ static __maybe_unused u32 hdmirxphy_read(struct rk628 *rk628, u32 offset)
 	return val;
 }
 
-static void rk628_hdmirxphy_enable(struct rk628 *rk628, bool is_hdmi2)
+static void rk628_hdmirxphy_enable(struct rk628 *rk628, bool is_hdmi2, bool scramble_en)
 {
 	hdmirxphy_write(rk628, 0x02, 0x1860);
 	hdmirxphy_write(rk628, 0x03, 0x0060);
-	hdmirxphy_write(rk628, 0x0d, 0x00c0);
-	hdmirxphy_write(rk628, 0x0d, 0x00c0);
+	if (!is_hdmi2 && scramble_en)
+		hdmirxphy_write(rk628, 0x0d, 0x00c0);
+	else
+		hdmirxphy_write(rk628, 0x0d, 0x0);
 	hdmirxphy_write(rk628, 0x27, 0x1c94);
 	hdmirxphy_write(rk628, 0x28, 0x3713);
 	hdmirxphy_write(rk628, 0x29, 0x24da);
@@ -805,6 +807,7 @@ void rk628_hdmirx_verisyno_phy_power_on(struct rk628 *rk628)
 	bool is_hdmi2 = false;
 	u32 val;
 	int i;
+	bool scramble = false;
 
 	/* wait tx to write scdc tmds ratio */
 	for (i = 0; i < 50; i++) {
@@ -817,7 +820,11 @@ void rk628_hdmirx_verisyno_phy_power_on(struct rk628 *rk628)
 	if (val & SCDC_TMDSBITCLKRATIO)
 		is_hdmi2 = true;
 
-	dev_info(rk628->dev, "%s: %s\n", __func__, is_hdmi2 ? "hdmi2.0" : "hdmi1.4");
+	rk628_i2c_read(rk628, HDMI_RX_HDMI20_STATUS, &val);
+	scramble = (val & SCRAMBDET_MASK) ? true : false;
+
+	dev_info(rk628->dev, "%s: %s, %s\n", __func__, is_hdmi2 ? "hdmi2.0" : "hdmi1.4",
+		 scramble ? "Scramble" : "Descramble");
 	/* power down phy */
 	rk628_i2c_write(rk628, GRF_SW_HDMIRXPHY_CRTL, 0x17);
 	usleep_range(20, 30);
@@ -829,7 +836,7 @@ void rk628_hdmirx_verisyno_phy_power_on(struct rk628 *rk628)
 	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_MODE, 1);
 	rk628_i2c_write(rk628, GRF_SW_HDMIRXPHY_CRTL, 0x11);
 	/* enable rx phy */
-	rk628_hdmirxphy_enable(rk628, is_hdmi2);
+	rk628_hdmirxphy_enable(rk628, is_hdmi2, scramble);
 	rk628_i2c_write(rk628, GRF_SW_HDMIRXPHY_CRTL, 0x14);
 	msleep(20);
 }
