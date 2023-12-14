@@ -572,7 +572,7 @@ static int is_allowed_trace(const char *name)
 	return 0;
 }
 
-static int allow_trace_enable = 1;
+static int allow_trace_enable;
 
 static int __init early_allow_trace_enable_param(char *buf)
 {
