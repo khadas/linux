@@ -697,21 +697,20 @@ static int rk628_display_route_info_parse(struct rk628 *rk628)
 	else
 		rk628->input_mode = BIT(INPUT_MODE_RGB);
 
-	if (of_find_node_by_name(rk628->dev->of_node, "rk628-gvi")) {
-		np = of_find_node_by_name(rk628->dev->of_node, "rk628-gvi");
+	if ((np = of_get_child_by_name(rk628->dev->of_node, "rk628-gvi"))) {
 		rk628->output_mode |= BIT(OUTPUT_MODE_GVI);
 		ret = rk628_gvi_parse(rk628, np);
-	} else if (of_find_node_by_name(rk628->dev->of_node, "rk628-lvds")) {
-		np = of_find_node_by_name(rk628->dev->of_node, "rk628-lvds");
+	} else if ((np = of_get_child_by_name(rk628->dev->of_node, "rk628-lvds"))) {
 		rk628->output_mode |= BIT(OUTPUT_MODE_LVDS);
 		ret = rk628_lvds_parse(rk628, np);
-	} else if (of_find_node_by_name(rk628->dev->of_node, "rk628-dsi")) {
-		np = of_find_node_by_name(rk628->dev->of_node, "rk628-dsi");
+	} else if ((np = of_get_child_by_name(rk628->dev->of_node, "rk628-dsi"))) {
 		rk628->output_mode |= BIT(OUTPUT_MODE_DSI);
 		ret = rk628_dsi_parse(rk628, np);
 	} else if (of_property_read_bool(rk628->dev->of_node, "rk628,csi-out")) {
 		rk628->output_mode |= BIT(OUTPUT_MODE_CSI);
 	}
+	if (np)
+		of_node_put(np);
 
 	if (of_property_read_bool(rk628->dev->of_node, "rk628,hdmi-out"))
 		rk628->output_mode |= BIT(OUTPUT_MODE_HDMI);
