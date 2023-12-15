@@ -434,6 +434,7 @@ struct amlvideo2_output {
 	int angle;
 	struct screen_display_info_s info;
 	struct amlvideo2_frame_info *frame;
+	int bsize;
 };
 
 static struct v4l2_frmsize_discrete amlvideo2_prev_resolution[] = {
@@ -3890,6 +3891,7 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 	output.angle = node->qctl_regs[0];
 	output.frame = &buf->axis;
 	output.info.mode = node->mode;
+	output.bsize = buf->vb.bsize;
 	memcpy(&output.info.display_info, &node->display_info,
 	       sizeof(struct vdisplay_info_s));
 
@@ -3920,7 +3922,7 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 	}
 	src_canvas = vf->canvas0Addr;
 	dma_sync_single_for_device(&node->vid_dev->pdev->dev,
-		(dma_addr_t)output.vbuf, node->vid_dev->buffer_size, DMA_TO_DEVICE);
+		(dma_addr_t)output.vbuf, output.bsize, DMA_TO_DEVICE);
 	if (ge2d_proc) {
 #ifdef CONFIG_PM
 		node->could_suspend = false;
