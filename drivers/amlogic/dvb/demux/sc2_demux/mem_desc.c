@@ -573,11 +573,17 @@ static int dmc_mem_init(struct dmc_mem *mem, int sec_level)
 	memset(temp, 0, sizeof(*temp) * mem->range_num);
 
 	num = mem->total_size / DMC_MEM_DEFAULT_SIZE;
+
 	if (num >= mem->range_num || num >= 3) {
-		for (i = 0; i < mem->range_num; i++)
-			temp[i].size = mem->total_size / mem->range_num;
+		if (mem->total_size == 66 * 1024 * 1024) {
+			temp[0].size = 44 * 1024 * 1024;
+			temp[1].size = 22 * 1024 * 1024;
+		} else {
+			for (i = 0; i < mem->range_num; i++)
+				temp[i].size = mem->total_size / mem->range_num;
+		}
 	} else {
-		if (num == 1) {
+		if (num == 1 || num == 0) {
 			temp[0].size = mem->total_size;
 		} else {
 			temp[0].size = mem->total_size - DMC_MEM_DEFAULT_SIZE;
