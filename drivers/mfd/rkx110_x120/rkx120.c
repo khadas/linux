@@ -113,6 +113,11 @@ static const struct rk_serdes_reg rkx120_regs[] = {
 		.reg_len = 0x1c0,
 	},
 	{
+		.name = "pwm",
+		.reg_base = RKX120_PWM_BASE,
+		.reg_len = 0x100,
+	},
+	{
 		.name = "pma0",
 		.reg_base = RKX120_DES_PMA0_BASE,
 		.reg_len = 0x100,
@@ -289,6 +294,8 @@ int rkx120_lvds_tx_enable(struct rk_serdes *serdes, struct rk_serdes_route *rout
 			  u8 phy_id)
 {
 	struct i2c_client *client = serdes->chip[remote_id].client;
+	struct rk_serdes_panel *sd_panel = container_of(route, struct rk_serdes_panel, route);
+	struct rkx120_combtxphy *combtxphy = &sd_panel->combtxphy;
 
 	if (phy_id) {
 		serdes->i2c_write_reg(client, DES_GRF_SOC_CON7, 0xfff00630);
@@ -298,12 +305,12 @@ int rkx120_lvds_tx_enable(struct rk_serdes *serdes, struct rk_serdes_route *rout
 		serdes->i2c_write_reg(client, DES_GRF_SOC_CON2, 0x00040004);
 	}
 
-	rkx120_combtxphy_set_mode(serdes, COMBTX_PHY_MODE_VIDEO_LVDS);
+	rkx120_combtxphy_set_mode(combtxphy, COMBTX_PHY_MODE_VIDEO_LVDS);
 	if (route->remote0_port0 & RK_SERDES_DUAL_LVDS_TX)
-		rkx120_combtxphy_set_rate(serdes, route->vm.pixelclock * 7 / 2);
+		rkx120_combtxphy_set_rate(combtxphy, route->vm.pixelclock * 7 / 2);
 	else
-		rkx120_combtxphy_set_rate(serdes, route->vm.pixelclock * 7);
-	rkx120_combtxphy_power_on(serdes, remote_id, phy_id);
+		rkx120_combtxphy_set_rate(combtxphy, route->vm.pixelclock * 7);
+	rkx120_combtxphy_power_on(serdes, combtxphy, remote_id, phy_id);
 
 	return 0;
 }

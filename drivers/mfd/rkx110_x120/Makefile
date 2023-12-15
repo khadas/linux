@@ -12,12 +12,14 @@ rkx110_x120-objs := \
 	rkx110_combrxphy.o \
 	rkx110_dsi_rx.o \
 	rkx110_x120_core.o \
+	rkx110_x120_display.o\
 	rkx110_linktx.o \
 	rkx110.o \
 	rkx120.o \
 	rkx120_combtxphy.o \
 	rkx120_dsi_tx.o \
 	rkx120_linkrx.o \
-	serdes_combphy.o
+	serdes_combphy.o \
+	rkx120_pwm.o
 
 obj-$(CONFIG_ROCKCHIP_SERDES_DRM_PANEL) += rkx110_x120_panel.o
