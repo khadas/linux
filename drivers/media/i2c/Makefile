@@ -182,6 +182,7 @@ obj-$(CONFIG_VIDEO_IT6616)	+= it6616.o
 obj-$(CONFIG_VIDEO_LT7911D)	+= lt7911d.o
 obj-$(CONFIG_VIDEO_LT7911UXC)	+= lt7911uxc.o
 obj-$(CONFIG_VIDEO_LT8619C)	+= lt8619c.o
+obj-$(CONFIG_VIDEO_LT8668SX)	+= lt8668sx.o
 obj-$(CONFIG_VIDEO_SMIAPP_PLL)	+= smiapp-pll.o
 obj-$(CONFIG_VIDEO_AK881X)		+= ak881x.o
 obj-$(CONFIG_VIDEO_IR_I2C)  += ir-kbd-i2c.o
