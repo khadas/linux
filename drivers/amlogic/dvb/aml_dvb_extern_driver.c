@@ -27,7 +27,7 @@
 #define AML_DVB_EXTERN_MODULE_NAME    "aml_dvb_extern"
 #define AML_DVB_EXTERN_CLASS_NAME     "aml_dvb_extern"
 
-#define AML_DVB_EXTERN_VERSION    "V1.16"
+#define AML_DVB_EXTERN_VERSION    "V1.17"
 
 static struct dvb_extern_device *dvb_extern_dev;
 static struct mutex dvb_extern_mutex;
@@ -395,6 +395,9 @@ static ssize_t tuner_debug_store(struct class *class,
 						if_frequency[1],
 						if_frequency[0] ? "inverted" : "normal");
 			}
+
+			if (tuner->used->fe.ops.tuner_ops.calc_regs)
+				tuner->used->fe.ops.tuner_ops.calc_regs(NULL, NULL, 0);
 		}
 	} else if (!strncmp(parm[0], "uninit", 6)) {
 		if (!fe)
@@ -583,9 +586,6 @@ static ssize_t tuner_debug_show(struct class *class,
 					if_frequency[1],
 					if_frequency[0] ? "inverted" : "normal");
 		}
-
-		if (tuner->used->fe.ops.tuner_ops.calc_regs)
-			tuner->used->fe.ops.tuner_ops.calc_regs(NULL, NULL, 0);
 	}
 
 	n += sprintf(buff + n, "\n");
@@ -760,7 +760,12 @@ static ssize_t demod_debug_store(struct class *class,
 					name ? name : "",
 					demod->used->type,
 					demod->used->fe->dtv_property_cache.delivery_system);
+
+			if (demod->used->fe->ops.read_status &&
+				demod->used->cfg.id != AM_DTV_DEMOD_AMLDTV)
+				fe->ops.read_status(NULL, NULL);
 		}
+
 	} else if (!strncmp(parm[0], "uninit", 6)) {
 		memset(&tvp, 0, sizeof(tvp));
 		c->delivery_system = SYS_ANALOG;
