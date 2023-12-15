@@ -53,6 +53,8 @@
 #include <media/v4l2-fwnode.h>
 #include <linux/of_graph.h>
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
+#include "cam-tb-setup.h"
+#include "cam-sleep-wakeup.h"
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x08)
 
@@ -242,6 +244,7 @@ struct imx415 {
 	bool			has_init_exp;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
 	struct v4l2_fwnode_endpoint bus_cfg;
+	struct cam_sw_info *cam_sw_inf;
 };
 
 static struct rkmodule_csi_dphy_param dcphy_param = {
@@ -2435,11 +2438,6 @@ int __imx415_power_on(struct imx415 *imx415)
 	}
 
 	if (!imx415->is_thunderboot) {
-		ret = regulator_bulk_enable(IMX415_NUM_SUPPLIES, imx415->supplies);
-		if (ret < 0) {
-			dev_err(dev, "Failed to enable regulators\n");
-			goto err_pinctrl;
-		}
 		if (!IS_ERR(imx415->power_gpio))
 			gpiod_direction_output(imx415->power_gpio, 1);
 		/* At least 500ns between power raising and XCLR */
@@ -2463,18 +2461,28 @@ int __imx415_power_on(struct imx415 *imx415)
 		goto err_clk;
 	}
 
+	cam_sw_regulator_bulk_init(imx415->cam_sw_inf, IMX415_NUM_SUPPLIES, imx415->supplies);
+
+	if (imx415->is_thunderboot)
+		return 0;
+
 	/* At least 20us between XCLR and I2C communication */
-	if (!imx415->is_thunderboot)
-		usleep_range(20*1000, 30*1000);
+	usleep_range(20*1000, 30*1000);
+
+	ret = regulator_bulk_enable(IMX415_NUM_SUPPLIES, imx415->supplies);
+	if (ret < 0) {
+		dev_err(dev, "Failed to enable regulators\n");
+		goto err_pinctrl;
+	}
 
 	return 0;
+
+err_pinctrl:
+	clk_disable_unprepare(imx415->xvclk);
 
 err_clk:
 	if (!IS_ERR(imx415->reset_gpio))
 		gpiod_direction_output(imx415->reset_gpio, 1);
-	regulator_bulk_disable(IMX415_NUM_SUPPLIES, imx415->supplies);
-
-err_pinctrl:
 	if (!IS_ERR_OR_NULL(imx415->pins_sleep))
 		pinctrl_select_state(imx415->pinctrl, imx415->pins_sleep);
 
@@ -2508,6 +2516,51 @@ static void __imx415_power_off(struct imx415 *imx415)
 		gpiod_direction_output(imx415->power_gpio, 0);
 	regulator_bulk_disable(IMX415_NUM_SUPPLIES, imx415->supplies);
 }
+
+#if IS_REACHABLE(CONFIG_VIDEO_CAM_SLEEP_WAKEUP)
+static int __maybe_unused imx415_resume(struct device *dev)
+{
+	int ret;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct imx415 *imx415 = to_imx415(sd);
+
+	cam_sw_prepare_wakeup(imx415->cam_sw_inf, dev);
+
+	usleep_range(4000, 5000);
+	cam_sw_write_array(imx415->cam_sw_inf);
+
+	if (__v4l2_ctrl_handler_setup(&imx415->ctrl_handler))
+		dev_err(dev, "__v4l2_ctrl_handler_setup fail!");
+
+	if (imx415->has_init_exp && imx415->cur_mode != NO_HDR) {	// hdr mode
+		ret = imx415_ioctl(&imx415->subdev, PREISP_CMD_SET_HDRAE_EXP,
+				    &imx415->cam_sw_inf->hdr_ae);
+		if (ret) {
+			dev_err(&imx415->client->dev, "set exp fail in hdr mode\n");
+			return ret;
+		}
+	}
+	return 0;
+}
+
+static int __maybe_unused imx415_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct imx415 *imx415 = to_imx415(sd);
+
+	cam_sw_write_array_cb_init(imx415->cam_sw_inf, client,
+				   (void *)imx415->cur_mode->reg_list,
+				   (sensor_write_array)imx415_write_array);
+	cam_sw_prepare_sleep(imx415->cam_sw_inf);
+
+	return 0;
+}
+#else
+#define imx415_resume NULL
+#define imx415_suspend NULL
+#endif
 
 static int __maybe_unused imx415_runtime_resume(struct device *dev)
 {
@@ -2614,6 +2667,7 @@ static int imx415_get_selection(struct v4l2_subdev *sd,
 static const struct dev_pm_ops imx415_pm_ops = {
 	SET_RUNTIME_PM_OPS(imx415_runtime_suspend,
 			   imx415_runtime_resume, NULL)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(imx415_suspend, imx415_resume)
 };
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
@@ -3027,6 +3081,14 @@ static int imx415_probe(struct i2c_client *client,
 		goto err_power_off;
 #endif
 
+	if (!imx415->cam_sw_inf) {
+		imx415->cam_sw_inf = cam_sw_init();
+		cam_sw_clk_init(imx415->cam_sw_inf, imx415->xvclk, imx415->cur_mode->xvclk);
+		cam_sw_reset_pin_init(imx415->cam_sw_inf, imx415->reset_gpio, 1);
+		if (!IS_ERR(imx415->power_gpio))
+			cam_sw_pwdn_pin_init(imx415->cam_sw_inf, imx415->power_gpio, 0);
+	}
+
 	memset(facing, 0, sizeof(facing));
 	if (strcmp(imx415->module_facing, "back") == 0)
 		facing[0] = 'b';
@@ -3073,6 +3135,8 @@ static int imx415_remove(struct i2c_client *client)
 #endif
 	v4l2_ctrl_handler_free(&imx415->ctrl_handler);
 	mutex_destroy(&imx415->mutex);
+
+	cam_sw_deinit(imx415->cam_sw_inf);
 
 	pm_runtime_disable(&client->dev);
 	if (!pm_runtime_status_suspended(&client->dev))
