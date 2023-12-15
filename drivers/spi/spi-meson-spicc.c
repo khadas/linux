@@ -191,6 +191,7 @@
 #define DMA_WRITE_COUNTER_EN		BIT(5)
 #define DMA_RADDR_LOAD_BY_VSYNC		BIT(6)
 #define DMA_WADDR_LOAD_BY_VSYNC		BIT(7)
+#define DMA_ADDR_LOAD_FROM_LD_ADDR	BIT(8)
 
 #define SPICC_LD_CNTL1	0x2c
 #define DMA_READ_COUNTER		GENMASK(15, 0)
@@ -644,7 +645,8 @@ static void meson_spicc_setup_dma_burst(struct meson_spicc_device *spicc,
 	if (tx) {
 		count_en |= DMA_READ_COUNTER_EN;
 		if (trig_src == DMA_TRIG_VSYNC || trig_src == DMA_TRIG_LINE_N)
-			count_en |= DMA_RADDR_LOAD_BY_VSYNC;
+			count_en |= DMA_RADDR_LOAD_BY_VSYNC
+				    | DMA_ADDR_LOAD_FROM_LD_ADDR;
 		txfifo_thres = SPICC_FIFO_SIZE + 1 - req;
 		read_req = req - 1;
 		ld_ctr1 |= FIELD_PREP(DMA_READ_COUNTER, words);
@@ -653,7 +655,8 @@ static void meson_spicc_setup_dma_burst(struct meson_spicc_device *spicc,
 	if (rx) {
 		count_en |= DMA_WRITE_COUNTER_EN;
 		if (trig_src == DMA_TRIG_VSYNC || trig_src == DMA_TRIG_LINE_N)
-			count_en |= DMA_WADDR_LOAD_BY_VSYNC;
+			count_en |= DMA_WADDR_LOAD_BY_VSYNC
+				    | DMA_ADDR_LOAD_FROM_LD_ADDR;
 		rxfifo_thres = req - 1;
 		write_req = req - 1;
 		ld_ctr1 |= FIELD_PREP(DMA_WRITE_COUNTER, words);
@@ -664,7 +667,7 @@ static void meson_spicc_setup_dma_burst(struct meson_spicc_device *spicc,
 	/* Setup burst length */
 	writel_relaxed(ld_ctr1, spicc->base + SPICC_LD_CNTL1);
 
-	writel_relaxed(SPICC_DMA_ENABLE
+	writel_relaxed(((trig_src == DMA_TRIG_NORMAL) ? SPICC_DMA_ENABLE : 0)
 		    | SPICC_DMA_URGENT
 		    | FIELD_PREP(SPICC_TXFIFO_THRESHOLD_MASK, txfifo_thres)
 		    | FIELD_PREP(SPICC_READ_BURST_MASK, read_req)
@@ -1257,7 +1260,6 @@ static int dirspi_dma_trig(struct spi_device *spi,
 	writel_relaxed(spi->max_speed_hz >> 25, spicc->base + SPICC_PERIODREG);
 	writel_relaxed(tx_dma, spicc->base + SPICC_LD_RADDR);
 	writel_relaxed(rx_dma, spicc->base + SPICC_LD_WADDR);
-	writel_bits_relaxed(SPICC_SMC, SPICC_SMC, spicc->base + SPICC_CONREG);
 
 	return 0;
 }
@@ -1267,6 +1269,7 @@ static int dirspi_dma_trig_start(struct spi_device *spi)
 	struct meson_spicc_device *spicc;
 
 	spicc = spi_controller_get_devdata(spi->controller);
+	writel_bits_relaxed(SPICC_SMC, SPICC_SMC, spicc->base + SPICC_CONREG);
 	writel_bits_relaxed(DMA_EN_SET_BY_VSYNC, DMA_EN_SET_BY_VSYNC,
 			    spicc->base + SPICC_LD_CNTL0);
 
@@ -1280,6 +1283,7 @@ static int dirspi_dma_trig_stop(struct spi_device *spi)
 	spicc = spi_controller_get_devdata(spi->controller);
 	writel_bits_relaxed(DMA_EN_SET_BY_VSYNC, 0,
 			    spicc->base + SPICC_LD_CNTL0);
+	writel_bits_relaxed(SPICC_SMC, 0, spicc->base + SPICC_CONREG);
 
 	return 0;
 }
