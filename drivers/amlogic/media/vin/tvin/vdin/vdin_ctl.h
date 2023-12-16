@@ -217,7 +217,7 @@ void vdin_hw_close(struct vdin_dev_s *devp);
 int vdin_vsync_reset_mif(int index);
 bool vdin_check_vdi6_afifo_overflow(unsigned int offset);
 void vdin_clear_vdi6_afifo_overflow_flg(unsigned int offset);
-void vdin_set_cutwin(struct vdin_dev_s *devp);
+void vdin_set_cutwin(struct vdin_dev_s *devp, unsigned int rdma_enable);
 void vdin_set_decimation(struct vdin_dev_s *devp);
 void vdin_fix_nonstd_vsync(struct vdin_dev_s *devp);
 unsigned int vdin_get_meas_h_cnt64(unsigned int offset);

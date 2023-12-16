@@ -475,7 +475,7 @@ void vdin_auto_de_handler(struct vdin_dev_s *devp)
 	prop = &devp->prop;
 	sm_ops = devp->frontend->sm_ops;
 	if ((devp->flags & VDIN_FLAG_DEC_STARTED) &&
-	    sm_ops->get_sig_property) {
+	    sm_ops->get_sig_property && !devp->cut_window_cfg) {
 		sm_ops->get_sig_property(devp->frontend, prop);
 		cur_vs = prop->vs;
 		cur_ve = prop->ve;

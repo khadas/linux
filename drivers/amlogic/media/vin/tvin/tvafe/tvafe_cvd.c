@@ -868,8 +868,8 @@ static void tvafe_check_skip_frame(struct tvafe_cvd2_s *cvd2)
 	if (cvd2->info.state != TVAFE_CVD2_STATE_FIND)
 		return;
 
-	if (!cvd2->hw.acc4xx_cnt && !cvd2->hw.acc425_cnt &&
-	    !cvd2->hw.acc3xx_cnt && !cvd2->hw.acc358_cnt &&
+	if (!cvd2->hw.acc4xx_cnt && !cvd2->hw.acc3xx_cnt &&
+	    !R_APB_REG(CVD2_STATUS_REGISTER2) &&
 	    cvd2->info.h_unlock_cnt > user_param->unlock_cnt_max &&
 	    cvd2->info.v_unlock_cnt > user_param->unlock_cnt_max)
 		tvin_notify_vdin_skip_frame(1);

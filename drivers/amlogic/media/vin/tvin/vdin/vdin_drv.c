@@ -1250,7 +1250,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 		devp->prop.pre_he = 0;
 		pr_info("ioctl start dec,restore the cutwin param.\n");
 	}
-	vdin_set_cutwin(devp);
+	vdin_set_cutwin(devp, 0);
 	vdin_set_hv_scale(devp);
 	vdin_dv_tunnel_set(devp);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
@@ -3211,7 +3211,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			devp->v_active += (prop->pre_vs + prop->pre_ve);
 		if (prop->pre_hs || prop->pre_he)
 			devp->h_active += (prop->pre_hs + prop->pre_he);
-		vdin_set_cutwin(devp);
+		vdin_set_cutwin(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE);
 		prop->pre_vs = prop->vs;
 		prop->pre_ve = prop->ve;
 		prop->pre_hs = prop->hs;
