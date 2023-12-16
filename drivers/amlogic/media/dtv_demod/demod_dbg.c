@@ -919,10 +919,7 @@ static void info_show(void)
 	PR_INFO("demod_thread: %d.\n", devp->demod_thread);
 	get_chip_name(devp, chip_name);
 	PR_INFO("hw version chip: %d, %s.\n", devp->data->hw_ver, chip_name);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T3))
-		fw_ver = dvbt_t2_rdb(0x48);
-	PR_INFO("version: %s-%s, T2 FW ver: V%d.%s.\n", AMLDTVDEMOD_VER,
-		DTVDEMOD_VER, fw_ver, AMLDTVDEMOD_T2_FW_VER);
+	PR_INFO("version: %s-%s\n", AMLDTVDEMOD_VER, DTVDEMOD_VER);
 
 	dbg_ic_cfg_addr(devp);
 
@@ -939,6 +936,11 @@ static void info_show(void)
 
 		PR_INFO("demod [id %d]: 0x%p\n", demod->id, demod);
 		PR_INFO("current delsys: %s.\n", dtvdemod_get_cur_delsys(demod->last_delsys));
+		if (c->delivery_system == SYS_DVBT2) {
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_T3))
+				fw_ver = dvbt_t2_rdb(0x48);
+			PR_INFO("T2 FW ver: V%d.%s\n", fw_ver, AMLDTVDEMOD_T2_FW_VER);
+		}
 		PR_INFO("delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modulation:%d, invert:%d.\n",
 				c->delivery_system, c->frequency, c->symbol_rate,
 				c->bandwidth_hz, c->modulation, c->inversion);

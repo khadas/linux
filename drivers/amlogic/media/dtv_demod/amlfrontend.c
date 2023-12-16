@@ -1140,40 +1140,25 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status, int
 
 	/* porting from ST driver FE_368dvbt_LockFec() */
 	if (ilock) {
+		dvbt_t2_rdb(0x2913);
+		if ((dvbt_t2_rdb(0x3760) >> 5) & 1)
+			tps_coderate = (dvbt_t2_rdb(0x2913) >> 4) & 0x7;
+		else
+			tps_coderate = dvbt_t2_rdb(0x2913) & 0x7;
+
 		if (demod->bw == BANDWIDTH_6_MHZ && (dvbt_t2_rdb(0x2744) & 0xf) == 0x3 &&
-			dvbt_t2_rdb(0x5d0) != 0x80)
-			dvbt_t2_wrb(0x5d0, 0x80);
+			(dvbt_t2_rdb(0x2912) & 0x3) == 0x2 && tps_coderate != 0) {
+			if (tps_coderate == 1 && dvbt_t2_rdb(0x5d0) != 0x2)
+				dvbt_t2_wrb(0x5d0, 0x2);
+			else if (tps_coderate != 1 && dvbt_t2_rdb(0x5d0) != 0x80)
+				dvbt_t2_wrb(0x5d0, 0x80);
+		} else if (dvbt_t2_rdb(0x5d0) != 0) {
+			dvbt_t2_wrb(0x5d0, 0);
+		}
 
 		do {
 			dvbt_t2_wr_byte_bits(0x53d, 0, 6, 1);
 			dvbt_t2_wr_byte_bits(0x572, 0, 0, 1);
-			dvbt_t2_rdb(0x2913);
-
-			if ((dvbt_t2_rdb(0x3760) >> 5) & 1)
-				tps_coderate = (dvbt_t2_rdb(0x2913) >> 4) & 0x7;
-			else
-				tps_coderate = dvbt_t2_rdb(0x2913) & 0x7;
-
-			switch (tps_coderate) {
-			case 0: /*  CR=1/2*/
-				dvbt_t2_wrb(0x53c, 0x41);
-				break;
-			case 1: /*  CR=2/3*/
-				dvbt_t2_wrb(0x53c, 0x42);
-				break;
-			case 2: /*  CR=3/4*/
-				dvbt_t2_wrb(0x53c, 0x44);
-				break;
-			case 3: /*  CR=5/6*/
-				dvbt_t2_wrb(0x53c, 0x48);
-				break;
-			case 4: /*  CR=7/8*/
-				dvbt_t2_wrb(0x53c, 0x60);
-				break;
-			default:
-				dvbt_t2_wrb(0x53c, 0x6f);
-				break;
-			}
 
 			switch (tps_coderate) {
 			case 0: /*  CR=1/2*/
