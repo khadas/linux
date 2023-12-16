@@ -946,6 +946,59 @@ static void testif_write(struct rk628 *rk628, const struct rk628_dsi *dsi,
 	dev_info(rk628->dev, "monitor_data: 0x%x\n", monitor_data);
 }
 
+static void testif_set_timing(const struct rk628_dsi *dsi, u8 addr,
+			      u8 max, u8 val)
+{
+	struct rk628 *rk628 = dsi->rk628;
+
+	if (val > max)
+		return;
+
+	testif_write(rk628, dsi, addr, (max + 1) | val);
+}
+
+static void mipi_dphy_set_timing(const struct rk628_dsi *dsi)
+{
+	const struct {
+		unsigned int min_lane_mbps;
+		unsigned int max_lane_mbps;
+		u8 clk_lp;
+		u8 clk_hs_prepare;
+		u8 clk_hs_zero;
+		u8 clk_hs_trail;
+		u8 clk_post;
+		u8 data_lp;
+		u8 data_hs_prepare;
+		u8 data_hs_zero;
+		u8 data_hs_trail;
+	} timing_table[] = {
+		{800, 899, 0x07, 0x30, 0x25, 0x3c, 0x0f, 0x07, 0x40, 0x09, 0x40},
+		{1100, 1249, 0x0a, 0x43, 0x2c, 0x50, 0x0f, 0x0a, 0x43, 0x10, 0x55},
+		{1250, 1349, 0x0b, 0x43, 0x2c, 0x50, 0x0f, 0x0b, 0x53, 0x10, 0x5b},
+		{1350, 1449, 0x0c, 0x43, 0x36, 0x60, 0x0f, 0x0c, 0x53, 0x10, 0x65},
+		{1450, 1500, 0x0f, 0x60, 0x31, 0x60, 0x0f, 0x0e, 0x60, 0x11, 0x6a}
+	};
+	unsigned int index;
+
+	for (index = 0; index < ARRAY_SIZE(timing_table); index++)
+		if (dsi->lane_mbps >= timing_table[index].min_lane_mbps &&
+		    dsi->lane_mbps < timing_table[index].max_lane_mbps)
+			break;
+
+	if (index == ARRAY_SIZE(timing_table))
+		--index;
+
+	testif_set_timing(dsi, 0x60, 0x3f, timing_table[index].clk_lp);
+	testif_set_timing(dsi, 0x61, 0x7f, timing_table[index].clk_hs_prepare);
+	testif_set_timing(dsi, 0x62, 0x3f, timing_table[index].clk_hs_zero);
+	testif_set_timing(dsi, 0x63, 0x7f, timing_table[index].clk_hs_trail);
+	testif_set_timing(dsi, 0x65, 0x0f, timing_table[index].clk_post);
+	testif_set_timing(dsi, 0x70, 0x3f, timing_table[index].data_lp);
+	testif_set_timing(dsi, 0x71, 0x7f, timing_table[index].data_hs_prepare);
+	testif_set_timing(dsi, 0x72, 0x3f, timing_table[index].data_hs_zero);
+	testif_set_timing(dsi, 0x73, 0x7f, timing_table[index].data_hs_trail);
+}
+
 static void mipi_dphy_init(struct rk628 *rk628, const struct rk628_dsi *dsi)
 {
 	const struct {
@@ -975,6 +1028,9 @@ static void mipi_dphy_init(struct rk628 *rk628, const struct rk628_dsi *dsi)
 
 	hsfreqrange = hsfreqrange_table[index].hsfreqrange;
 	testif_write(rk628, dsi, 0x44, HSFREQRANGE(hsfreqrange));
+
+	if (rk628->version == RK628F_VERSION)
+		mipi_dphy_set_timing(dsi);
 }
 
 static void mipi_dphy_power_on(struct rk628 *rk628, const struct rk628_dsi *dsi)
