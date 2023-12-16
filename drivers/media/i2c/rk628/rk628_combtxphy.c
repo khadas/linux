@@ -49,8 +49,8 @@ static void rk628_combtxphy_dsi_power_on(struct rk628 *rk628)
 	rk628_i2c_update_bits(rk628,  COMBTXPHY_CON0, SW_PD_PLL, 0);
 	usleep_range(100, 200);
 	rk628_i2c_update_bits(rk628,  COMBTXPHY_CON9, SW_DSI_FSET_EN_MASK |
-			      SW_DSI_RCAL_EN_MASK, SW_DSI_FSET_EN |
-			      SW_DSI_RCAL_EN);
+			      SW_DSI_RCAL_EN_MASK | SW_LPTX_SR_TRIM_MASK, SW_DSI_FSET_EN |
+			      SW_DSI_RCAL_EN | SW_LPTX_SR_TRIM(7));
 	usleep_range(100, 200);
 }
 
