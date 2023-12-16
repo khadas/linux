@@ -1551,6 +1551,10 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 		disable_irq(devp->vdin2_meta_wr_done_irq);
 
 	devp->flags &= (~VDIN_FLAG_ISR_EN);
+	/* for wss value not clear when snow */
+	if (IS_TVAFE_SRC(devp->parm.port) && devp->frontend &&
+	    devp->frontend->sm_ops->frontend_clr_value)
+		devp->frontend->sm_ops->frontend_clr_value(devp->frontend);
 
 	pr_info("%s vdin%d,delay %u us before stop\n",
 		__func__, devp->index, devp->dbg_stop_dec_delay);
@@ -4366,8 +4370,9 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 
 		if (vdin_dbg_en)
-			pr_info("%s signal_type: 0x%x,status:0x%x,fr:%d,fmt:%#x\n",
-				__func__, info.signal_type, info.status, info.fps, info.fmt);
+			pr_info("%s signal_type: 0x%x,status:0x%x,fr:%d ratio:%d\n",
+				__func__, info.signal_type, info.status, info.fps,
+				info.aspect_ratio);
 		mutex_unlock(&devp->fe_lock);
 		break;
 	}

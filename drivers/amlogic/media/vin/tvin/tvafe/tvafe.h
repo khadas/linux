@@ -76,6 +76,8 @@ struct tvafe_info_s {
 #define TVAFE_AUTO_HS_MODE BIT(6)
 #define TVAFE_AUTO_VS_MODE BIT(7)
 
+#define TVAFE_WSS_FUNCTION		BIT(0)
+
 struct tvafe_user_param_s {
 	unsigned int cutwindow_val_h[5];
 	unsigned int cutwindow_val_v[5];
@@ -149,6 +151,8 @@ struct tvafe_dev_s {
 	unsigned int frame_skip_enable;
 	unsigned int sizeof_tvafe_dev_s;
 	unsigned int tvafe_function_sel;
+	unsigned int tvafe_ratio_cnt;
+	unsigned int tvafe_ratio_effect_cnt;
 };
 
 bool tvafe_get_snow_cfg(void);

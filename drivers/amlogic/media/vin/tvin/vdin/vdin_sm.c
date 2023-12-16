@@ -391,9 +391,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			devp->sg_chg_fps_cnt = 0;
 		}
 
-		if (devp->pre_prop.aspect_ratio !=
-		     devp->prop.aspect_ratio &&
-		    IS_HDMI_SRC(devp->parm.port)) {
+		if (devp->pre_prop.aspect_ratio != devp->prop.aspect_ratio) {
 			if (devp->sg_chg_afd_cnt > 1) {
 				signal_chg |= TVIN_SIG_CHG_AFD;
 				if (signal_chg)

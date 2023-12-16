@@ -340,6 +340,7 @@ enum tvin_ar_b3_b0_val_e {
 	TVIN_AR_16x9_LB_CENTER_VAL = 0xb,
 	TVIN_AR_16x9_LB_CENTER1_VAL = 0xd,
 	TVIN_AR_14x9_FULL_VAL = 0xe,
+	TVIN_AR_NOT_VALUE = 0xf,
 };
 const char *tvin_aspect_ratio_str(enum tvin_aspect_ratio_e aspect_ratio);
 

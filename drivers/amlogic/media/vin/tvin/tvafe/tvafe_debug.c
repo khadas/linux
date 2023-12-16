@@ -79,6 +79,7 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("tvafe_cvd2_s->cvd2_init_en:%d\n", cvd2->cvd2_init_en);
 	tvafe_pr_info("tvafe_cvd2_s->nonstd_detect_dis:%d\n",
 		cvd2->nonstd_detect_dis);
+	tvafe_pr_info("\n tvafe_cvd2_s->smr_cnt:%d\n", cvd2->smr_cnt);
 	/* tvin_parm_s->tvin_info_s struct info */
 	tvafe_pr_info("\n!!tvin_parm_s->tvin_info_s struct info:\n");
 	tvafe_pr_info("tvin_info_s->trans_fmt:0x%x\n", tvin_info->trans_fmt);
@@ -180,8 +181,6 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 		hw->noise_level);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->low_amp:%d\n", hw->low_amp);
 
-	tvafe_pr_info("\n tvafe_cvd2_info_s->smr_cnt:%d\n",
-		cvd2_info->smr_cnt);
 	tvafe_pr_info("tvafe_cvd2_info_s->isr_cnt:%d\n",
 		cvd2_info->isr_cnt);
 	tvafe_pr_info("tvafe_cvd2_info_s->unlock_cnt:%d\n\n",

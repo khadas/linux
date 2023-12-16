@@ -66,6 +66,7 @@ struct tvin_state_machine_ops_s {
 	bool (*hdmi_dv_config)(bool en, struct tvin_frontend_s *fe);
 	bool (*hdmi_clr_vsync)(struct tvin_frontend_s *fe);
 	bool (*vdin_set_property)(struct tvin_frontend_s *fe);
+	void (*frontend_clr_value)(struct tvin_frontend_s *fe);
 };
 
 struct tvin_frontend_s {

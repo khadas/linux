@@ -4132,6 +4132,14 @@
 #define WSSJ_DELTA_AMPL_WID             8
 
 #define CVD2_VBI_DATA_STATUS             ((CVD_BASE_ADD + 0x65) << 2)
+#define CC_RDY				0
+#define CC_RDY_WID			1
+#define WSS_RDY				1
+#define WSS_RDY_WID			1
+#define CC_RD_DONE			4
+#define CC_RD_DONE_WID			1
+#define WSS_RD_DONE			5
+#define WSS_RD_DONE_WID			1
 
 #define CVD2_VBI_CC_LPF                 ((CVD_BASE_ADD + 0x66) << 2)
 #define CC_LPFIL_TRACK_GAIN_BIT         4

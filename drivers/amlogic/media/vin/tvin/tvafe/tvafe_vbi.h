@@ -63,6 +63,7 @@
 #define VBI_DATA_TYPE_TT_525C      0xaa
 #define VBI_DATA_TYPE_TT_525D      0xbb
 #define VBI_DATA_TYPE_WSS625       0xcc
+#define VBI_DATA_TYPE_WSS625_ODD   0x0c //only odd field 23 line value
 #define VBI_DATA_TYPE_WSSJ         0xdd
 
 /* vbi start code,TT start code is programmable by software,*/
@@ -117,8 +118,14 @@
 #define VBI_LINE_MIN               6
 #define VBI_LINE_MAX               25
 
-#define VBI_NO_DATA_CNT            15
-#define VBI_HAS_DATA_CNT           2
+#define VBI_NO_DATA_CNT            16
+#define VBI_HAS_DATA_CNT           9
+
+/* vbi_function_sel control bits start */
+#define VBI_BYPASS_WSS_SET		BIT(0)
+#define VBI_BYPASS_CHECK_DATA		BIT(1) //check whether has teletext data
+#define VBI_CONFIG_NOT_VBI_LINE		BIT(2)
+/* vbi_function_sel control bits end */
 
 enum vbi_package_type_e {
 	VBI_PACKAGE_CC1 = 1,
@@ -287,6 +294,7 @@ struct vbi_dev_s {
 	spinlock_t lock; /* slicer buffer lock */
 	struct timer_list timer;
 	bool slicer_enable;
+	unsigned int vbi_function_sel;
 
 	unsigned int isr_cnt;
 };
@@ -295,7 +303,7 @@ struct vbi_dev_s {
 /*0: tvafe clk disable*/
 /*read write cvd acd reg will crash when clk disabled*/
 extern bool tvafe_clk_status;
-extern unsigned int vbi_mem_start;
+extern unsigned long vbi_mem_start;
 void tvafe_vbi_set_wss(void);
 
 #endif /* TVIN_VBI_H_ */
