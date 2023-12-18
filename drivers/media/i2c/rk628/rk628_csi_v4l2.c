@@ -2249,6 +2249,9 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RK_HDMIRX_CMD_GET_COLOR_SPACE:
 		*(int *)arg = rk628_hdmirx_get_color_space(csi->rk628);
 		break;
+	case RKMODULE_GET_DSI_MODE:
+		*(int *)arg = csi->dsi.vid_mode;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -2533,7 +2536,22 @@ static long rk628_csi_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 		kfree(seq);
 		break;
+
 	case RK_HDMIRX_CMD_GET_COLOR_SPACE:
+		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
+		if (!seq) {
+			ret = -ENOMEM;
+			return ret;
+		}
+		ret = rk628_csi_ioctl(sd, cmd, seq);
+		if (!ret) {
+			ret = copy_to_user(up, seq, sizeof(*seq));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(seq);
+		break;
+	case RKMODULE_GET_DSI_MODE:
 		seq = kzalloc(sizeof(*seq), GFP_KERNEL);
 		if (!seq) {
 			ret = -ENOMEM;
