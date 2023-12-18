@@ -6091,8 +6091,7 @@ static bool drm_hdmitx_get_vrr_cap(void)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	if (hdev->rxcap.neg_mvrr || hdev->rxcap.fva || hdev->rxcap.vrr_max ||
-				hdev->rxcap.vrr_min) {
+	if (hdev->rxcap.qms) {
 		pr_info("%s support vrr\n", __func__);
 		return true;
 	}
