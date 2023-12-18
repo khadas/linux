@@ -486,7 +486,7 @@ static void lcd_venc_vrr_recovery_t7(struct aml_lcd_drv_s *pdrv)
 	offset = pdrv->data->offset_venc[pdrv->index];
 	vtotal = pdrv->config.basic.v_period;
 
-	lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT + offset, vtotal);
+	lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT + offset, vtotal - 1);
 }
 
 static void lcd_venc_enable_ctrl(struct aml_lcd_drv_s *pdrv, int flag)

@@ -403,7 +403,7 @@ static void lcd_venc_vrr_recovery_dft(struct aml_lcd_drv_s *pdrv)
 
 	vtotal = pdrv->config.basic.v_period;
 
-	lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT, vtotal);
+	lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT, vtotal - 1);
 }
 
 static void lcd_venc_enable_ctrl(struct aml_lcd_drv_s *pdrv, int flag)
