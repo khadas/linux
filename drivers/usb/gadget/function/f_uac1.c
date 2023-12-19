@@ -15,6 +15,11 @@
 
 #include <linux/usb/audio.h>
 #include <linux/module.h>
+#ifdef CONFIG_AMLOGIC_MODIFY
+#ifdef CONFIG_AMLOGIC_BRIDGE_UAC
+#include <linux/amlogic/bridge_uac_ext.h>
+#endif
+#endif
 
 #include "u_audio.h"
 #include "u_uac1.h"
@@ -563,7 +568,16 @@ static int f_audio_bind(struct usb_configuration *c, struct usb_function *f)
 		return status;
 
 	audio_opts = container_of(f->fi, struct f_uac1_opts, func_inst);
-
+#ifdef CONFIG_AMLOGIC_MODIFY
+#ifdef CONFIG_AMLOGIC_BRIDGE_UAC
+	if (uac_pcm_get_capture_status())
+		uac_pcm_get_capture_hw(&audio_opts->c_chmask,
+			&audio_opts->c_srate, &audio_opts->c_ssize);
+	if (uac_pcm_get_playback_status())
+		uac_pcm_get_playback_hw(&audio_opts->p_chmask,
+			&audio_opts->p_srate, &audio_opts->p_ssize);
+#endif
+#endif
 	us = usb_gstrings_attach(cdev, uac1_strings, ARRAY_SIZE(strings_uac1));
 	if (IS_ERR(us))
 		return PTR_ERR(us);

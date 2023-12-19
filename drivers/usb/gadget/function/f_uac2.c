@@ -13,6 +13,11 @@
 
 #include "u_audio.h"
 #include "u_uac2.h"
+#ifdef CONFIG_AMLOGIC_MODIFY
+#ifdef CONFIG_AMLOGIC_BRIDGE_UAC
+#include <linux/amlogic/bridge_uac_ext.h>
+#endif
+#endif
 
 /* UAC2 spec: 4.1 Audio Channel Cluster Descriptor */
 #define UAC2_CHANNEL_MASK 0x07FFFFFF
@@ -668,6 +673,17 @@ afunc_bind(struct usb_configuration *cfg, struct usb_function *fn)
 	ret = afunc_validate_opts(agdev, dev);
 	if (ret)
 		return ret;
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+#ifdef CONFIG_AMLOGIC_BRIDGE_UAC
+	if (uac_pcm_get_capture_status())
+		uac_pcm_get_capture_hw(&uac2_opts->c_chmask,
+			&uac2_opts->c_srate, &uac2_opts->c_ssize);
+	if (uac_pcm_get_playback_status())
+		uac_pcm_get_playback_hw(&uac2_opts->p_chmask,
+			&uac2_opts->p_srate, &uac2_opts->p_ssize);
+#endif
+#endif
 
 	us = usb_gstrings_attach(cdev, fn_strings, ARRAY_SIZE(strings_fn));
 	if (IS_ERR(us))
