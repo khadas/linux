@@ -1998,6 +1998,7 @@ struct di_ch_s {
 	unsigned int sum_ext_buf_in2;
 	unsigned int sum_pre;
 	unsigned int sum_pst;
+	unsigned int sum_in_get;
 	unsigned int in_cnt;
 	unsigned int crc_cnt;
 	/*@ary_note:*/
