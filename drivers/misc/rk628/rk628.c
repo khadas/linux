@@ -151,7 +151,7 @@ static const struct regmap_access_table rk628_dsi1_readable_table = {
 };
 
 static const struct regmap_range rk628_gvi_readable_ranges[] = {
-	regmap_reg_range(GVI_BASE, GVI_BASE + GVI_COLOR_BAR_VTIMING1),
+	regmap_reg_range(GVI_BASE, GVI_COLOR_BAR_VTIMING1),
 };
 
 static const struct regmap_access_table rk628_gvi_readable_table = {
@@ -1246,6 +1246,128 @@ static int rk628_version_info(struct rk628 *rk628)
 	return ret;
 }
 
+static int rk628_reg_show(struct seq_file *s, void *v)
+{
+	const struct regmap_config *reg;
+	struct rk628 *rk628 = s->private;
+	unsigned int i, j;
+	u32 val;
+
+	seq_printf(s, "rk628_%s:\n", file_dentry(s->file)->d_iname);
+
+	for (i = 0; i < ARRAY_SIZE(rk628_regmap_config); i++) {
+		reg = &rk628_regmap_config[i];
+		if (!reg->name)
+			continue;
+		if (!strcmp(reg->name, file_dentry(s->file)->d_iname))
+			break;
+	}
+
+	if (i == ARRAY_SIZE(rk628_regmap_config))
+		return -ENODEV;
+
+	/* grf */
+	if (!reg->rd_table) {
+		for (i = 0; i <= reg->max_register; i += 4) {
+			rk628_i2c_read(rk628, i, &val);
+			if (i % 16 == 0)
+				seq_printf(s, "\n0x%04x:", i);
+			seq_printf(s, " %08x", val);
+		}
+	} else {
+		const struct regmap_range *range_list = reg->rd_table->yes_ranges;
+		const struct regmap_range *range;
+		int range_list_len = reg->rd_table->n_yes_ranges;
+
+		for (i = 0; i < range_list_len; i++) {
+			range = &range_list[i];
+			for (j = range->range_min; j <= range->range_max; j += 4) {
+				rk628_i2c_read(rk628, j, &val);
+				if (j % 16 == 0 || j == range->range_min)
+					seq_printf(s, "\n0x%04x:", j);
+				seq_printf(s, " %08x", val);
+			}
+		}
+
+		seq_puts(s, "\n");
+	}
+
+	return 0;
+}
+
+static ssize_t rk628_reg_write(struct file *file, const char __user *buf,
+			       size_t count, loff_t *ppos)
+{
+	const struct regmap_config *reg;
+	struct rk628 *rk628 = file->f_path.dentry->d_inode->i_private;
+	int i;
+	u32 addr;
+	u32 val;
+	char kbuf[25];
+	int ret;
+
+	if (count >= sizeof(kbuf))
+		return -ENOSPC;
+
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+
+	kbuf[count] = '\0';
+
+	ret = sscanf(kbuf, "%x%x", &addr, &val);
+	if (ret != 2)
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(rk628_regmap_config); i++) {
+		reg = &rk628_regmap_config[i];
+		if (!reg->name)
+			continue;
+		if (!strcmp(reg->name, file_dentry(file)->d_iname))
+			break;
+	}
+
+	if (i == ARRAY_SIZE(rk628_regmap_config))
+		return -ENODEV;
+
+	rk628_i2c_write(rk628, addr, val);
+
+	return count;
+}
+
+static int rk628_reg_open(struct inode *inode, struct file *file)
+{
+	struct rk628 *rk628 = inode->i_private;
+
+	return single_open(file, rk628_reg_show, rk628);
+}
+
+static const struct file_operations rk628_reg_fops = {
+	.owner          = THIS_MODULE,
+	.open           = rk628_reg_open,
+	.read           = seq_read,
+	.write          = rk628_reg_write,
+	.llseek         = seq_lseek,
+	.release        = single_release,
+};
+
+static void rk628_debugfs_register_create(struct rk628 *rk628)
+{
+	const struct regmap_config *reg;
+	struct dentry *dir;
+	int i;
+
+	dir = debugfs_create_dir("registers", rk628->debug_dir);
+	if (IS_ERR(dir))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(rk628_regmap_config); i++) {
+		reg = &rk628_regmap_config[i];
+		if (!reg->name)
+			continue;
+		debugfs_create_file(reg->name, 0600, dir, rk628, &rk628_reg_fops);
+	}
+}
+
 static void rk628_debugfs_create(struct rk628 *rk628)
 {
 	rk628->debug_dir = debugfs_create_dir(dev_name(rk628->dev), debugfs_lookup("rk628", NULL));
@@ -1255,6 +1377,8 @@ static void rk628_debugfs_create(struct rk628 *rk628)
 	/* path example: /sys/kernel/debug/rk628/2-0050/summary */
 	debugfs_create_file("summary", 0400, rk628->debug_dir, rk628,
 			    &rk628_debugfs_summary_fops);
+
+	rk628_debugfs_register_create(rk628);
 
 	rk628_rgb_decoder_create_debugfs_file(rk628);
 	rk628_post_process_create_debugfs_file(rk628);
