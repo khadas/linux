@@ -179,7 +179,7 @@ void rk628_hdmirx_controller_setup(struct rk628 *rk628)
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_MODE_RECOVER, 0x00000021);
 	rk628_i2c_write(rk628, HDMI_RX_PDEC_CTRL, 0xbfff8011);
 	rk628_i2c_write(rk628, HDMI_RX_PDEC_ASP_CTRL, 0x00000040);
-	rk628_i2c_write(rk628, HDMI_RX_HDMI_RESMPL_CTRL, 0x00000001);
+	rk628_i2c_write(rk628, HDMI_RX_HDMI_RESMPL_CTRL, 0x00000000);
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_SYNC_CTRL, 0x00000014);
 	rk628_i2c_write(rk628, HDMI_RX_PDEC_ERR_FILTER, 0x00000008);
 	rk628_i2c_write(rk628, HDMI_RX_SCDC_I2CCONFIG, 0x01000000);
@@ -196,7 +196,6 @@ void rk628_hdmirx_controller_setup(struct rk628 *rk628)
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_DCM_CTRL, 0x00040414);
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_CKM_EVLTM, 0x00103e70);
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_CKM_F, 0x0c1c0b54);
-	rk628_i2c_write(rk628, HDMI_RX_HDMI_RESMPL_CTRL, 0x00000001);
 	rk628_i2c_update_bits(rk628, HDMI_RX_HDMI_TIMER_CTRL, VIDEO_PERIOD_MASK, VIDEO_PERIOD(1));
 
 	rk628_i2c_update_bits(rk628, HDMI_RX_HDCP_SETTINGS,
