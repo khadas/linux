@@ -2136,6 +2136,15 @@ static bool dpvpp_unreg_val(struct dimn_itf_s *itf)
 	    hw->reg_cnt == itf->sum_reg_cnt)
 		flg_disable = true;
 	spin_unlock_irqrestore(&lock_pvpp, irq_flag);
+
+	if (hw)
+		dbg_plink1("%s:<%d %d %d> <%d %d> <%px %px>\n",
+			__func__,
+			hw->reg_cnt, hw->reg_nub,
+			itf->sum_reg_cnt,
+			hw->id_c, itf->id,
+			hw->src_blk[0], hw->src_blk_uhd_afbce[0]);
+
 	if (hw && !flg_disable && hw->reg_nub <= 1 &&
 	    (hw->src_blk[0] || hw->src_blk_uhd_afbce[0])) {
 		flg_disable = true;
@@ -3261,8 +3270,8 @@ bool dpvpp_mem_reg_ch(struct dimn_itf_s *itf)
 	    ((itf->c.m_mode_n == EPVPP_MEM_T_UHD_AFBCE ||
 	      itf->c.m_mode_n == EPVPP_MEM_T_UHD_AFBCE_HD) &&
 	     hw->blk_rd_uhd)) {
-		PR_INF("%s:ch[%d]:%d:%d:%d\n", __func__, itf->bind_ch,
-			itf->c.m_mode_n, hw->blk_rd_hd, hw->blk_rd_uhd);
+		PR_INF("%s:ch[%d]:%d:%d:%d reg_nub:%d\n", __func__, itf->bind_ch,
+			itf->c.m_mode_n, hw->blk_rd_hd, hw->blk_rd_uhd, hw->reg_nub + 1);
 		ds = itf->ds;
 
 		if (!ds->en_out_afbce)
@@ -3483,7 +3492,8 @@ void mem_count_buf_cfg(unsigned char mode, unsigned char idx)
 			}
 			blk_m = &blk->c.b.blk_m;
 			cfg->dbuf_wr_cfg[i][0].phy_addr = blk_m->mem_start;
-
+			dbg_plink1("%s:HD addr:[%d]:0x%lx\n", __func__,
+				i, cfg->dbuf_wr_cfg[i][0].phy_addr);
 			offs = blk_m->mem_start + inf_nv21->off_uv;
 			cfg->dbuf_wr_cfg[i][1].phy_addr = offs;
 		}
@@ -3529,6 +3539,8 @@ void mem_count_buf_cfg(unsigned char mode, unsigned char idx)
 						    &afbce_map);
 			/* mif */
 			cfg->dbuf_wr_cfg[j][0].phy_addr = buf_start;
+			dbg_plink1("%s:UHD addr:[%d]:0x%lx\n", __func__,
+				j, cfg->dbuf_wr_cfg[j][0].phy_addr);
 		}
 		cfg->support = true;
 		//dbg_str_buf_cfg(&hw->buf_cfg[index], get_name_buf_cfg(index));
@@ -3546,8 +3558,8 @@ void mem_count_buf_cfg(unsigned char mode, unsigned char idx)
 		for (i = 0; i < DPVPP_BUF_NUB; i++) {
 			cfg->dbuf_wr_cfg[i][0].phy_addr = buf_start + offs;
 			offs = inf_nv21->size_total;
-			PR_INF("addr:[%d]:0x%lx:\n", i,
-				cfg->dbuf_wr_cfg[i][0].phy_addr);
+			dbg_plink1("%s:HD(UHD) addr:[%d]:0x%lx\n", __func__,
+				i, cfg->dbuf_wr_cfg[i][0].phy_addr);
 		}
 		cfg->support = true;
 		//dbg_str_buf_cfg(&hw->buf_cfg[index], get_name_buf_cfg(index));
@@ -3573,7 +3585,7 @@ void mem_count_buf_cfg(unsigned char mode, unsigned char idx)
 		/* afbce table */
 		cfg->addr_e[0] = hw->src_blk_e->c.b.blk_m.mem_start;
 		cfg->addr_e[1] = cfg->addr_e[0] + inf_a->size_table;
-		PR_INF("%s:afbc table:0x%lx, 0x%lx\n", __func__,
+		dbg_plink1("%s:afbc table:0x%lx, 0x%lx\n", __func__,
 			cfg->addr_e[0],
 			cfg->addr_e[1]);
 		/* afbce infor */
@@ -3582,7 +3594,7 @@ void mem_count_buf_cfg(unsigned char mode, unsigned char idx)
 			inf_nv21->size_total - inf_a->size_i;
 		cfg->addr_i[1] = hw->src_blk[9]->c.b.blk_m.mem_start +
 			inf_nv21->size_total - inf_a->size_i;
-		PR_INF("%s:afbc infor:0x%lx, 0x%lx\n", __func__,
+		dbg_plink1("%s:afbc infor:0x%lx, 0x%lx\n", __func__,
 			cfg->addr_i[0],
 			cfg->addr_i[1]);
 		//-----------------
@@ -3695,6 +3707,8 @@ static void mem_count_buf_cfg2(unsigned char mode, unsigned char idx, unsigned c
 			}
 			blk_m = &blk->c.b.blk_m;
 			cfg->dbuf_wr_cfg[i][0].phy_addr = blk_m->mem_start;
+			dbg_plink1("%s:HD1 addr:[%d]:0x%lx\n", __func__,
+				i, cfg->dbuf_wr_cfg[i][0].phy_addr);
 		}
 		cfg->support = true;
 	} else if ((idx == EPVPP_BUF_CFG_T_UHD_F ||
@@ -3721,6 +3735,8 @@ static void mem_count_buf_cfg2(unsigned char mode, unsigned char idx, unsigned c
 			}
 			blk_m = &blk->c.b.blk_m;
 			cfg->dbuf_wr_cfg[i][0].phy_addr = blk_m->mem_start;
+			dbg_plink1("%s:UHD1 addr:[%d]:0x%lx\n", __func__,
+				i, cfg->dbuf_wr_cfg[i][0].phy_addr);
 		}
 		cfg->support = true;
 	} else if ((idx == EPVPP_BUF_CFG_T_HD_F ||
@@ -3742,8 +3758,8 @@ static void mem_count_buf_cfg2(unsigned char mode, unsigned char idx, unsigned c
 		for (i = 0; i < DPVPP_BUF_NUB; i++) {
 			cfg->dbuf_wr_cfg[i][0].phy_addr = buf_start + offs;
 			offs = inf_buf->size_total;
-			PR_INF("addr:[%d]:0x%lx:\n", i,
-				cfg->dbuf_wr_cfg[i][0].phy_addr);
+			dbg_plink1("%s:HD(UHD) addr:[%d]:0x%lx\n", __func__,
+				i, cfg->dbuf_wr_cfg[i][0].phy_addr);
 		}
 		cfg->support = true;
 		//dbg_str_buf_cfg(&hw->buf_cfg[index], get_name_buf_cfg(index));
@@ -3772,6 +3788,8 @@ static void mem_count_buf_cfg2(unsigned char mode, unsigned char idx, unsigned c
 			}
 			blk_m = &blk->c.b.blk_m;
 			cfg->dbuf_wr_cfg[i][0].phy_addr = blk_m->mem_start;
+			dbg_plink1("%s:HD2 addr:[%d]:0x%lx\n", __func__,
+				i, cfg->dbuf_wr_cfg[i][0].phy_addr);
 
 			offs = blk_m->mem_start + inf_nv21->off_uv;
 			cfg->dbuf_wr_cfg[i][1].phy_addr = offs;
@@ -3815,6 +3833,8 @@ static void mem_count_buf_cfg2(unsigned char mode, unsigned char idx, unsigned c
 						    &afbce_map);
 			/* mif */
 			cfg->dbuf_wr_cfg[j][0].phy_addr = buf_start;
+			dbg_plink1("%s:UHD2 addr:[%d]:0x%lx\n", __func__,
+				j, cfg->dbuf_wr_cfg[j][0].phy_addr);
 		}
 		cfg->support = true;
 	} else if ((idx == EPVPP_BUF_CFG_T_UHD_F_AFBCE_HD ||
@@ -3837,7 +3857,7 @@ static void mem_count_buf_cfg2(unsigned char mode, unsigned char idx, unsigned c
 		/* afbce table */
 		cfg->addr_e[0] = hw->src_blk_e->c.b.blk_m.mem_start;
 		cfg->addr_e[1] = cfg->addr_e[0] + inf_a->size_table;
-		PR_INF("%s:afbc table:0x%lx, 0x%lx\n", __func__,
+		dbg_plink1("%s:afbc table:0x%lx, 0x%lx\n", __func__,
 			cfg->addr_e[0],
 			cfg->addr_e[1]);
 		/* afbce infor */
@@ -3846,7 +3866,7 @@ static void mem_count_buf_cfg2(unsigned char mode, unsigned char idx, unsigned c
 			inf_buf->size_total - inf_a->size_i;
 		cfg->addr_i[1] = hw->src_blk[9]->c.b.blk_m.mem_start +
 			inf_buf->size_total - inf_a->size_i;
-		PR_INF("%s:afbc infor:0x%lx, 0x%lx\n", __func__,
+		dbg_plink1("%s:afbc infor:0x%lx, 0x%lx\n", __func__,
 			cfg->addr_i[0],
 			cfg->addr_i[1]);
 		//-----------------
@@ -4232,10 +4252,6 @@ void dpvpp_mng_set(void)
 	hw = &get_datal()->dvs_prevpp.hw;
 	d_dd = get_dd();
 
-	dim_print("%s:<%d,%d>, <%d,%d>\n", __func__,
-		hw->m_mode_tgt, hw->flg_tvp_tgt,
-		hw->m_mode, hw->flg_tvp);
-
 	if (hw->m_mode_tgt == hw->m_mode &&
 	    hw->flg_tvp_tgt == hw->flg_tvp) {
 		dim_print("%s:<%d,%d>, <%d,%d>\n", __func__,
@@ -4243,6 +4259,11 @@ void dpvpp_mng_set(void)
 			hw->m_mode, hw->flg_tvp);
 		return;
 	}
+
+	dbg_plink1("%s:<%d,%d>, <%d,%d>\n", __func__,
+		hw->m_mode_tgt, hw->flg_tvp_tgt,
+		hw->m_mode, hw->flg_tvp);
+
 	dpvpp_secure_pre_en(hw->flg_tvp_tgt);
 	switch (hw->m_mode_tgt) {
 	case EPVPP_MEM_T_HD_FULL:
@@ -4398,8 +4419,10 @@ void dpvpp_mem_mng_get(unsigned int id)
 	hw = &get_datal()->dvs_prevpp.hw;
 	d_dd = get_dd();
 
-	if (hw->blk_used_hd	||
-	    hw->blk_used_uhd) { /*in using, don't change */
+	/* TODO: remove the spinlock for blk_used_hd */
+	spin_lock_irqsave(&lock_pvpp, irq_flag);
+	if (hw->blk_used_hd || hw->blk_used_uhd) { /*in using, don't change */
+		spin_unlock_irqrestore(&lock_pvpp, irq_flag);
 		dim_print("%s:used<%d,%d>\n", __func__,
 			hw->blk_used_hd, hw->blk_rd_uhd);
 		return;
@@ -4408,7 +4431,7 @@ void dpvpp_mem_mng_get(unsigned int id)
 	back_tvp = hw->flg_tvp_tgt;
 	memset(&cnt[0], 0, sizeof(cnt));
 	memset(&cnt_tvp[0], 0, sizeof(cnt_tvp));
-	dim_print("%s:<%d,%d>, <%d,%d>\n", __func__,
+	dbg_plink1("%s:s1:<%d,%d>, <%d,%d>\n", __func__,
 		hw->m_mode_tgt, hw->flg_tvp_tgt,
 		hw->m_mode, hw->flg_tvp);
 
@@ -4448,12 +4471,33 @@ void dpvpp_mem_mng_get(unsigned int id)
 	/* same */
 	if (hw->m_mode_tgt == tgt_mode &&
 	    hw->flg_tvp_tgt == tgt_tvp) {
+		spin_unlock_irqrestore(&lock_pvpp, irq_flag);
 		return;
 	}
 
+	if (get_datal()->pre_vpp_active) {
+		/* check if cur_m_mode is none */
+		if (hw->m_mode_tgt != EPVPP_MEM_T_NONE) {
+			PR_WARN("%s: trigger release when vpp_active: <%d %d>-><%d %d> <%d %d>\n",
+				__func__,
+				hw->m_mode_tgt, hw->flg_tvp_tgt,
+				tgt_mode, tgt_tvp,
+				hw->blk_rd_uhd, hw->blk_rd_hd);
+		} else {
+			dbg_plink1("%s: vpp_active:<%d %d>-><%d %d> <%d %d>\n",
+				__func__,
+				hw->m_mode_tgt, hw->flg_tvp_tgt,
+				tgt_mode, tgt_tvp,
+				hw->blk_rd_uhd, hw->blk_rd_hd);
+		}
+	}
+
+		dbg_plink1("%s:s2:<%d,%d>, <%d,%d>\n", __func__,
+			hw->m_mode_tgt, hw->flg_tvp_tgt,
+			hw->m_mode, hw->flg_tvp);
+
 	/* release first */
 	if (hw->m_mode_tgt) {
-		spin_lock_irqsave(&lock_pvpp, irq_flag);
 		if (hw->blk_used_hd || hw->blk_used_uhd) {
 			flg_release_err = true;
 		} else {
@@ -4463,7 +4507,7 @@ void dpvpp_mem_mng_get(unsigned int id)
 		}
 		spin_unlock_irqrestore(&lock_pvpp, irq_flag);
 		if (flg_release_err) {
-			PR_ERR("buffer used\n");
+			PR_ERR("release the buffer in used\n");
 			return;
 		}
 		/* check dct */
@@ -4498,6 +4542,8 @@ void dpvpp_mem_mng_get(unsigned int id)
 				hw->src_blk[i] = NULL;
 			}
 		}
+	} else {
+		spin_unlock_irqrestore(&lock_pvpp, irq_flag);
 	}
 	/* alloc */
 	if (tgt_tvp)
@@ -4742,7 +4788,7 @@ bool dpvpp_reg_2(struct dimn_itf_s *itf)
 			hw->dbuf_wr[i][0].height	= mm->cfg.pst_cvs_h;
 
 			offs += mm->cfg.size_post;
-			PR_INF("addr:[%d]:0x%lx:0x%lx:\n", i,
+			dbg_mem2("addr:[%d]:0x%lx:0x%lx:\n", i,
 				hw->addr_i[i],
 				hw->dbuf_wr[i][0].phy_addr);
 		}
@@ -4758,7 +4804,7 @@ bool dpvpp_reg_2(struct dimn_itf_s *itf)
 			hw->afbc_crc[i] =
 				dim_afds()->int_tab(&devp->pdev->dev,
 						    &afbce_map);
-			PR_INF("%d:addr:0x%lx,afbct:0x%lx\n", i,
+			dbg_mem2("%d:addr:0x%lx,afbct:0x%lx\n", i,
 				hw->dbuf_wr[i][0].phy_addr,
 				hw->addr_e[i]);
 		}
@@ -4816,6 +4862,7 @@ static int dpvpp_reg_link_sw(bool vpp_disable_async)
 	unsigned int ton, ton_vpp, ton_di;
 	struct platform_device *pdev;
 	struct dim_pvpp_hw_s *hw;
+	ulong irq_flag = 0;
 
 //	if (itf && itf->c.src_state & EDVPP_SRC_NEED_REG2)
 //		return 0;
@@ -4881,6 +4928,10 @@ static int dpvpp_reg_link_sw(bool vpp_disable_async)
 		atomic_set(&hw->link_sts, 0);//on
 		get_datal()->pre_vpp_active = false;/* interface */
 		atomic_set(&hw->link_in_busy, 0);
+		spin_lock_irqsave(&lock_pvpp, irq_flag);
+		hw->blk_used_hd = false;
+		hw->blk_used_uhd = false;
+		spin_unlock_irqrestore(&lock_pvpp, irq_flag);
 		ext_vpp_prelink_state_changed_notify();
 		PR_INF("%s:set inactive<%d, %d> arb:%x\n", __func__,
 				ton_vpp, ton_di, RD(DI_ARB_DBG_STAT_L1C1));
@@ -5645,8 +5696,9 @@ static int dpvpp_display_unreg_bypass(void)
 	}
 	hw->dis_last_para.dmode = EPVPP_DISPLAY_MODE_BYPASS;
 	hw->dis_last_dvf	= NULL;
-	hw->blk_used_hd = false;
-	hw->blk_used_uhd = false;
+	/* move to dpvpp_reg_link_sw */
+	//hw->blk_used_hd = false;
+	//hw->blk_used_uhd = false;
 	atomic_set(&hw->link_instance_id, DIM_PLINK_INSTANCE_ID_INVALID);
 	spin_unlock_irqrestore(&lock_pvpp, irq_flag);
 	dbg_plink1("%s:end\n", "unreg_bypass");
@@ -5720,10 +5772,17 @@ static int dpvpp_display(struct vframe_s *vfm,
 	op = hw->op;
 	if (itf->c.src_state &
 	    (EDVPP_SRC_NEED_MSK_CRT | EDVPP_SRC_NEED_MSK_BYPASS)) {
-		bypass_reason = 3;
+		bypass_reason = 2;
 		bypass_reason |= (itf->c.src_state << 16);
 		goto DISPLAY_BYPASS;
 	}
+
+	if (!hw->blk_rd_uhd && !hw->blk_rd_hd) {
+		bypass_reason = 3;
+		PR_WARN("%s:src_state ready but blk invalid\n", __func__);
+		goto DISPLAY_BYPASS;
+	}
+
 	atomic_add(DI_BIT1, &itf->c.dbg_display_sts);	/* dbg only */
 	/* check if bypass */
 	ndvfm = dpvpp_check_dvfm_act(itf, vfm);
@@ -5753,6 +5812,13 @@ static int dpvpp_display(struct vframe_s *vfm,
 		bypass_reason = 7;
 		goto DISPLAY_BYPASS;
 	}
+
+	if (ndvfm->c.is_out_4k && !hw->blk_rd_uhd) {
+		bypass_reason = 8;
+		PR_WARN("%s:output buffer is mismatch, too small.\n", __func__);
+		goto DISPLAY_BYPASS;
+	}
+
 	if (ndvfm->c.is_out_4k)
 		hw->blk_used_uhd = true;
 	else
@@ -5781,6 +5847,7 @@ static int dpvpp_display(struct vframe_s *vfm,
 		hw->reg_cnt = itf->sum_reg_cnt;
 		ds->pre_done_nub++;
 
+		dbg_plink1("%s:ch[%d] connected\n", __func__, itf->bind_ch);
 		dpvpph_size_change(ds, ndvfm, op);
 		if (nr_op() &&
 		    nr_op()->cue_int &&
@@ -5915,8 +5982,10 @@ DISPLAY_BYPASS:
 		dpvpph_reverse_mif_ctrl(0, 0, hw->op);
 		dpvpph_prelink_sw(hw->op, false);
 		atomic_add(DI_BIT8, &itf->c.dbg_display_sts);	/* dbg only */
-		hw->blk_used_hd = false;
-		hw->blk_used_uhd = false;
+		dbg_plink1("%s:dis:bypass:dct unreg:%d->%d\n", __func__, hw->dct_ch, hw->dis_ch);
+		/* move to dpvpp_reg_link_sw */
+		//hw->blk_used_hd = false;
+		//hw->blk_used_uhd = false;
 	}
 	if (hw->dis_ch != hw->dct_ch && !hw->dct_flg) {
 		hw->dct_flg = 2;
@@ -5931,8 +6000,8 @@ DISPLAY_BYPASS:
 	atomic_add(DI_BIT9, &itf->c.dbg_display_sts);	/* dbg only */
 	if (dbg_tm)
 		dbg_dbg("%s:bypass\n", __func__);
-	dbg_plink1("%s:to bypass:vfm:%px ndvfm:%px itf:%px reason:%x\n",
-		__func__, vfm, ndvfm, itf, bypass_reason);
+	dbg_plink1("%s:ch[%d] to bypass:vfm:%px ndvfm:%px itf:%px reason:%x\n",
+		__func__, itf->bind_ch, vfm, ndvfm, itf, bypass_reason);
 	return EPVPP_DISPLAY_MODE_BYPASS;
 }
 
@@ -9130,7 +9199,7 @@ int dpvpp_destroy_internal(struct dimn_itf_s *itf)
 		return DI_ERR_INDEX_OVERFLOW;
 	}
 
-	dbg_plink1("%s:\n", "dpvpp:ins:des");
+	dbg_plink1("%s:enter:itf:%px\n", __func__, itf);
 
 	if (!atomic_read(&itf->reg) || atomic_read(&itf->in_unreg)) {
 		PR_WARN("%s:duplicate unreg(%d:%d)\n",
@@ -9581,6 +9650,7 @@ bool dim_mm_alloc_api2(struct mem_a_s *in_para, struct dim_mm_s *o)
 		PR_ERR("%s:no input\n", __func__);
 		return false;
 	}
+	dbg_plink2("%s: enter\n", __func__);
 	blk_i = in_para->inf;
 	timer_st = cur_to_msecs();//dbg
 
@@ -9603,11 +9673,11 @@ bool dim_mm_alloc_api2(struct mem_a_s *in_para, struct dim_mm_s *o)
 
 	diff = timer_end - timer_st;
 	if (!ret) {
-		PR_ERR("a:<%d,%d,0x%x>:%s,%s\n",
-			blk_i->mem_from, blk_i->tvp, blk_i->page_size,
+		PR_ERR("%s:<%d,%d,0x%x>:%s,%s\n",
+			__func__, blk_i->mem_from, blk_i->tvp, blk_i->page_size,
 			in_para->owner, in_para->note);
 	}
-	dbg_plink1("%s:a:%ums:<%d,%d>:<0x%lx,0x%x>:%s,%s\n",
+	dbg_plink1("%s:%ums:<%d,%d>:<0x%lx,0x%x>:%s,%s\n",
 		__func__, (unsigned int)diff,
 		blk_i->mem_from, blk_i->tvp,
 		o->addr, blk_i->mem_size,
@@ -9627,6 +9697,7 @@ bool dim_mm_release_api2(struct mem_r_s *in_para)
 		PR_ERR("%s:no input\n", __func__);
 		return false;
 	}
+	dbg_plink2("%s: enter\n", __func__);
 	blk = in_para->blk;
 	if (!blk->inf) {
 		PR_ERR("%s: blk no inf\n", __func__);
@@ -9886,7 +9957,6 @@ void m_polling(void)
 				d_dd->blkt_crr[j]++;
 				alloc_cnt--;
 				//PR_INF("alloc:%s:\n", a_para.owner);
-
 				blk_o_put_locked(d_dd, j, blk);
 				flg_a = true;
 			} else {
