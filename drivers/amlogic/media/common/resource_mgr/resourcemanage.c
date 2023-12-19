@@ -26,8 +26,8 @@
 #include <linux/jiffies.h>
 #include <linux/compat.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
+#include <linux/amlogic/media/resource_mgr/resourcemanage.h>
 
-#include "resourcemanage.h"
 #define RESMAM_ENABLE_JSON  (1)
 
 #ifdef RESMAM_ENABLE_JSON
@@ -215,18 +215,27 @@ struct resman_resource {
 	} d;
 };
 
+struct module_debug_node {
+	struct list_head list;
+	char *module;
+	debug_callback callback;
+};
+
 static int resman_debug = 1;
 static int preempt_timeout_ms = 2500;
 static struct list_head sessions_head;
 static struct list_head resources_head;
+static struct list_head debug_head;
 static DEFINE_MUTEX(sessions_lock);
 static DEFINE_MUTEX(resource_lock);
+static DEFINE_MUTEX(debug_lock);
 static dev_t resman_devno;
 static int sess_id = 1;
 static struct cdev *resman_cdev;
 static struct class *resman_class;
 static char *resman_configs;
 static bool extloaded;
+static char *debug_info;
 
 module_param(resman_debug, int, 0644);
 module_param(preempt_timeout_ms, int, 0644);
@@ -1742,6 +1751,7 @@ static void all_resource_init(void)
 #endif
 	INIT_LIST_HEAD(&sessions_head);
 	INIT_LIST_HEAD(&resources_head);
+	INIT_LIST_HEAD(&debug_head);
 #ifdef RESMAM_ENABLE_JSON
 	resman_config_from_json(default_configs);
 	kfree(default_configs);
@@ -2198,6 +2208,67 @@ static ssize_t res_report_show(struct class *class,
 	return 0;
 }
 
+static ssize_t res_sys_debug_show(struct class *class,
+			   struct class_attribute *attr,
+			   char *buf)
+{
+	ssize_t size = 0;
+
+	if (debug_info)
+		size = strlen(debug_info);
+
+	APPEND_ATTR_BUF("%s\n", debug_info)
+
+	return size;
+}
+
+static ssize_t res_sys_debug_store(struct class *class,
+			    struct class_attribute *attr,
+			    const char *buf, size_t size)
+{
+	struct module_debug_node *node = NULL;
+	struct resman_session *sess = NULL;
+	struct list_head *pos = NULL;
+	struct list_head *tmp = NULL;
+	int debug_len = 0;
+
+	mutex_lock(&debug_lock);
+	if (buf && size > 0) {
+		if (!debug_info) {
+			debug_info = kzalloc(PAGE_SIZE, GFP_KERNEL);
+			if (!debug_info) {
+				dprintk(0, "failed allocate debug info\n");
+				mutex_unlock(&debug_lock);
+				return -ENOMEM;
+			}
+		}
+
+		memset(debug_info, 0, PAGE_SIZE);
+		debug_len = size > PAGE_SIZE ? PAGE_SIZE : size;
+		memcpy(debug_info, buf, debug_len);
+	}
+
+	list_for_each_safe(pos, tmp, &debug_head) {
+		node = list_entry(pos, struct module_debug_node, list);
+		if (node->callback)
+			node->callback(node->module, debug_info, debug_len);
+	}
+
+	mutex_unlock(&debug_lock);
+
+	mutex_lock(&sessions_lock);
+	list_for_each_safe(pos, tmp, &sessions_head) {
+		sess = list_entry(pos, struct resman_session, list);
+		if (sess) {
+			resman_send_event(sess, RESMAN_EVENT_DEBUGEVENT);
+			wake_up_interruptible(&sess->wq_event);
+		}
+	}
+	mutex_unlock(&sessions_lock);
+
+	return size;
+}
+
 #undef APPEND_ATTR_BUF
 
 /* ------------------------------------------------------------------
@@ -2254,6 +2325,26 @@ unsigned int resman_poll(struct file *filp, struct poll_table_struct *wait)
 	return mask;
 }
 
+static long resman_get_sys_debug_level(struct resman_session *sess, unsigned long para)
+{
+	int len = 0;
+
+	if (debug_info)
+		len = strlen(debug_info);
+
+	if (len > 0) {
+		if (len > PAGE_SIZE)
+			len = PAGE_SIZE;
+
+		if (copy_to_user((void __user *)para, debug_info, len)) {
+			len = 0;
+			dprintk(0, "error copy to use space");
+		}
+	}
+
+	return len;
+}
+
 long resman_ioctl(struct file *filp, unsigned int cmd, unsigned long para)
 {
 	long retval = 0;
@@ -2289,7 +2380,10 @@ long resman_ioctl(struct file *filp, unsigned int cmd, unsigned long para)
 	case RESMAN_IOC_LOAD_RES:
 		retval = resman_ioctl_load_res(sess, para);
 		break;
-	default:
+	case RESMAN_IOC_GET_SYS_DEBUG_LEVEL:
+		retval = resman_get_sys_debug_level(sess, para);
+		break;
+    default:
 		retval = -EINVAL;
 		break;
 	}
@@ -2346,6 +2440,7 @@ static struct class_attribute resman_class_attrs[] = {
 	__ATTR_RW(extconfig),
 	__ATTR_RO(res),
 	__ATTR_RO(res_report),
+	__ATTR_RW(res_sys_debug),
 	__ATTR_NULL
 };
 
@@ -2366,6 +2461,85 @@ static void create_resmansub_attrs(struct class *class)
 			break;
 	}
 }
+
+static struct module_debug_node *resman_get_debug_module(const char *module)
+{
+	struct module_debug_node *node = NULL;
+	struct list_head *pos = NULL, *tmp = NULL;
+
+	if (module) {
+		list_for_each_safe(pos, tmp, &debug_head) {
+			node = list_entry(pos, struct module_debug_node, list);
+			if (node && node->module && strlen(module) == strlen(node->module)) {
+				if (!memcmp(module, node->module, strlen(module)))
+					break;
+			}
+			node = NULL;
+		}
+	}
+
+	return node;
+}
+
+int resman_register_debug_callback(const char *module, debug_callback callback)
+{
+	int res = 0;
+	struct module_debug_node *node = NULL;
+
+	if (!module || !callback)
+		return -EINVAL;
+
+	mutex_lock(&debug_lock);
+	node = resman_get_debug_module(module);
+	if (!node) {
+		node = kzalloc(sizeof(*node), GFP_KERNEL);
+		if (!node) {
+			dprintk(0, "failed allocate debug node for %s\n", module);
+			res = -ENOMEM;
+			goto error1;
+		}
+
+		node->module = kzalloc(strlen(module) + 1, GFP_KERNEL);
+		if (!node) {
+			dprintk(0, "failed allocate module for %s\n", module);
+			res = -ENOMEM;
+			goto error;
+		}
+
+		memcpy(node->module, module, strlen(module));
+		node->callback = callback;
+		list_add_tail(&node->list, &debug_head);
+	}
+	mutex_unlock(&debug_lock);
+
+	return 0;
+error:
+	kfree(node);
+error1:
+	mutex_unlock(&debug_lock);
+	return res;
+}
+EXPORT_SYMBOL(resman_register_debug_callback);
+
+int resman_remove_debug_callback(const char *module)
+{
+	struct module_debug_node *node = NULL;
+
+	if (!module)
+		return -EINVAL;
+
+	mutex_lock(&debug_lock);
+	node = resman_get_debug_module(module);
+	if (node) {
+		list_del(&node->list);
+		kfree(node->module);
+		kfree(node);
+	}
+	mutex_unlock(&debug_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(resman_remove_debug_callback);
 
 int __init resman_init(void)
 {

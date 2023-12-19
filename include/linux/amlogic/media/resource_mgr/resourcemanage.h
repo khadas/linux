@@ -11,13 +11,14 @@
 
 #define RESMAN_IOC_MAGIC  'R'
 
-#define RESMAN_IOC_QUERY_RES		_IOR(RESMAN_IOC_MAGIC, 0x01, int)
-#define RESMAN_IOC_ACQUIRE_RES		_IOW(RESMAN_IOC_MAGIC, 0x02, int)
-#define RESMAN_IOC_RELEASE_RES		_IOR(RESMAN_IOC_MAGIC, 0x03, int)
-#define RESMAN_IOC_SETAPPINFO		_IOW(RESMAN_IOC_MAGIC, 0x04, int)
-#define RESMAN_IOC_SUPPORT_RES		_IOR(RESMAN_IOC_MAGIC, 0x05, int)
-#define RESMAN_IOC_RELEASE_ALL		_IOR(RESMAN_IOC_MAGIC, 0x06, int)
-#define RESMAN_IOC_LOAD_RES			_IOR(RESMAN_IOC_MAGIC, 0x07, int)
+#define RESMAN_IOC_QUERY_RES		                _IOR(RESMAN_IOC_MAGIC, 0x01, int)
+#define RESMAN_IOC_ACQUIRE_RES		                _IOW(RESMAN_IOC_MAGIC, 0x02, int)
+#define RESMAN_IOC_RELEASE_RES		                _IOR(RESMAN_IOC_MAGIC, 0x03, int)
+#define RESMAN_IOC_SETAPPINFO		                _IOW(RESMAN_IOC_MAGIC, 0x04, int)
+#define RESMAN_IOC_SUPPORT_RES		                _IOR(RESMAN_IOC_MAGIC, 0x05, int)
+#define RESMAN_IOC_RELEASE_ALL		                _IOR(RESMAN_IOC_MAGIC, 0x06, int)
+#define RESMAN_IOC_LOAD_RES			                _IOR(RESMAN_IOC_MAGIC, 0x07, int)
+#define RESMAN_IOC_GET_SYS_DEBUG_LEVEL				_IOR(RESMAN_IOC_MAGIC, 0x08, int)
 
 #define RESMAN_SUPPORT_PREEMPT		1
 
@@ -93,9 +94,13 @@ enum RESMAN_EVENT {
 	RESMAN_EVENT_UNREGISTER		= 0x1001,
 	RESMAN_EVENT_PREEMPT		= 0x1002,
 	RESMAN_EVENT_STOP			= 0x1003,
-	RESMAN_EVENT_RESREPORT		= 0x1004
+	RESMAN_EVENT_RESREPORT		= 0x1004,
+	RESMAN_EVENT_DEBUGEVENT		= 0x1005
 };
 
+typedef void (*debug_callback)(const char *module, const char *debug, int len);
 int resman_init(void);
+int resman_register_debug_callback(const char *module, debug_callback callback);
+int resman_remove_debug_callback(const char *module);
 
 #endif/*_RESOURCE_MANAGE_H_*/
