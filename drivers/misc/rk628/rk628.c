@@ -488,6 +488,38 @@ static void rk628_set_hdmirx_irq(struct rk628 *rk628, u32 reg, bool enable)
 		rk628_i2c_write(rk628, reg, RK628D_HDMIRX_IRQ_EN(enable));
 }
 
+static void rk628_pwr_consumption_init(struct rk628 *rk628)
+{
+	/* set pin as int function to allow output interrupt */
+	rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x30002000);
+
+	/*
+	 * set unuse pin as GPIO input and
+	 * pull down to reduce power consumption
+	 */
+	rk628_i2c_write(rk628, GRF_GPIO2AB_SEL_CON, 0xffff0000);
+	rk628_i2c_write(rk628, GRF_GPIO2C_SEL_CON, 0xffff0000);
+	rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x10b0000);
+	rk628_i2c_write(rk628, GRF_GPIO2C_P_CON, 0x3f0015);
+	rk628_i2c_write(rk628, GRF_GPIO3A_P_CON, 0xcc0044);
+
+	if (!rk628_output_is_hdmi(rk628)) {
+		u32 mask = SW_OUTPUT_MODE_MASK;
+		u32 val = SW_OUTPUT_MODE(OUTPUT_MODE_HDMI);
+
+		if (rk628->version == RK628F_VERSION) {
+			mask = SW_HDMITX_EN_MASK;
+			val = SW_HDMITX_EN(1);
+		}
+
+		/* disable clock/data channel and band gap when hdmitx not work */
+		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, mask, val);
+		rk628_i2c_write(rk628, HDMI_PHY_SYS_CTL, 0x17);
+		rk628_i2c_write(rk628, HDMI_PHY_CHG_PWR, 0x0);
+		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, mask, 0);
+	}
+}
+
 #ifdef CONFIG_FB
 static int rk628_fb_notifier_callback(struct notifier_block *nb,
 				      unsigned long event, void *data)
@@ -504,8 +536,7 @@ static int rk628_fb_notifier_callback(struct notifier_block *nb,
 	switch (*blank) {
 	case FB_BLANK_UNBLANK:
 		rk628_power_on(rk628, true);
-		/* select int io function */
-		rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x30002000);
+		rk628_pwr_consumption_init(rk628);
 		rk628_cru_init(rk628);
 
 		if (rk628_input_is_hdmi(rk628)) {
@@ -1326,9 +1357,7 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	rk628_final_display_route(rk628);
-
-	/* select int io function */
-	rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x30002000);
+	rk628_pwr_consumption_init(rk628);
 
 #ifdef CONFIG_FB
 	rk628->fb_nb.notifier_call = rk628_fb_notifier_callback;
@@ -1448,8 +1477,7 @@ static int rk628_resume(struct device *dev)
 	struct rk628 *rk628 = dev_get_drvdata(dev);
 
 	rk628_power_on(rk628, true);
-	/* select int io function */
-	rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x30002000);
+	rk628_pwr_consumption_init(rk628);
 	rk628_cru_init(rk628);
 
 	if (rk628_input_is_hdmi(rk628)) {
