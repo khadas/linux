@@ -1,0 +1,33 @@
+# audio bridge configuration
+#
+#menu "AMLOGIC AUDIO BRIDGE"
+
+config AMLOGIC_AUDIO_BRIDGE
+	tristate "audio bridge support"
+	default n
+	help
+		This is the Amlogic.
+		add audio bridge function.
+		kernel audio bridge driver.
+		support the amlogic audio bridge.
+
+config AMLOGIC_BRIDGE_UAC
+	bool "audio UAC bridge support"
+	depends on AMLOGIC_AUDIO_BRIDGE && (USB_CONFIGFS_F_UAC1 || USB_CONFIGFS_F_UAC2)
+	default n
+	help
+		This is the Amlogic.
+		add uac audio on bridge.
+		kernel bridge uac driver.
+		support the amlogic uac bridge.
+
+config AMLOGIC_BRIDGE_DSP
+	bool "audio DSP bridge support"
+	depends on AMLOGIC_AUDIO_BRIDGE && AMLOGIC_HIFI4DSP
+	default n
+	help
+		This is the Amlogic.
+		add dsp audio on bridge.
+		kernel bridge dsp driver.
+		support the amlogic dsp bridge.
+#endmenu

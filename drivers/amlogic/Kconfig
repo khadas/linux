@@ -189,6 +189,7 @@ source "drivers/amlogic/aes_hwkey_gcm/Kconfig"
 source "drivers/amlogic/gpio/Kconfig"
 source "drivers/amlogic/usbcam/Kconfig"
 source "drivers/amlogic/spi/Kconfig"
+source "drivers/amlogic/audiobridge/Kconfig"
 
 endmenu
 endif

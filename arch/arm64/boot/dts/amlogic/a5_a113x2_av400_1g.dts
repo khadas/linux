@@ -461,6 +461,55 @@
 			mask = <4>;
 		};
 	};
+	audiobridge {
+		compatible = "amlogic, audio-bridge";
+		status = "disabled";
+		mboxes = <&mhu_fifo A5_REE2DSP>;
+		#mbox-cells = <1>;
+		aml-audio-line,link@0 {
+			auto-running = <1>;
+			def-volume = <50>;
+			src {
+				/* 0-arm,1-dsp,2-uac */
+				core = <1>;
+				/* 0-none,1-tdma,2-tdmb,3-spdif,
+				 * 4-lopback,5-pdmin,6-process
+				 */
+				sound-card = <6>;
+				channels = <4>;
+				sample-rate = <48000>;
+				/* 0-s8,1-s16le,7-s32le */
+				format = <1>;
+				create-vir-card = <1>;
+			};
+			dst {
+				core = <2>;
+				sound-card = <0>;
+				channels = <2>;
+				sample-rate = <16000>;
+				format = <1>;
+			};
+		};
+		aml-audio-line,link@1 {
+			auto-running = <1>;
+			def-volume = <100>;
+			src {
+				core = <2>;
+				sound-card = <0>;
+				channels = <2>;
+				sample-rate = <48000>;
+				format = <1>;
+			};
+			dst {
+				core = <1>;
+				sound-card = <2>;
+				channels = <2>;
+				sample-rate = <48000>;
+				format = <1>;
+				create-vir-card = <1>;
+			};
+		};
+	};
 };
 
 &audiobus {
