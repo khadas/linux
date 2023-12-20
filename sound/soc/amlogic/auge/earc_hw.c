@@ -31,32 +31,27 @@ void aml_earc_auto_gain_enable(struct regmap *dmac_map, int value)
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_GAIN4, 0xFF << 0, 0);
 }
 
-void earctx_dmac_mute(struct regmap *dmac_map, bool enable)
+/*
+ * start: stream status, running is true, and stop is false.
+ * when stream is running, reset frddr bit is false,
+ * when stream is stop, reset frddr bit is false.
+ */
+void earctx_dmac_mute(struct regmap *dmac_map, bool start, bool is_mute)
 {
 	int val = 0;
 
-	if (enable) {
+	if (is_mute)
 		val = 3;
-	} else {
-		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x1 << 15, 0);
-		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL1, 0x1 << 30, 0);
-	}
-	aml_earc_auto_gain_enable(dmac_map, !enable);
-	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x3 << 21, val << 21);
-}
 
-void earctx_dmac_trigger_mute(struct regmap *dmac_map, bool enable)
-{
-	int val = 0;
-
-	if (enable) {
-		val = 3;
-	} else {
+	if (start) {
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL1, 0x1 << 30, 0);
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x1 << 15, 0);
 	}
+
+	aml_earc_auto_gain_enable(dmac_map, !is_mute);
 	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x3 << 21, val << 21);
-	if (enable) {
+
+	if (!start) {
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x1 << 15, 0x1 << 15);
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL1, 0x1 << 30, 0x1 << 30);
 	}
@@ -1490,7 +1485,7 @@ void earctx_enable(struct regmap *top_map,
 				 0x1 << 31);
 	} else {
 		/* earc tx is not disable, only mute, ensure earc outputs zero data */
-		earctx_dmac_trigger_mute(dmac_map, true);
+		earctx_dmac_mute(dmac_map, false, true);
 		return;
 	}
 

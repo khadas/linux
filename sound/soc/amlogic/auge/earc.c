@@ -1274,12 +1274,11 @@ void aml_earctx_enable(bool enable)
 			s_earc->tx_audio_coding_type,
 			enable,
 			s_earc->chipinfo->rterm_on);
-		if (enable) {
-			earctx_dmac_mute(s_earc->tx_dmac_map, s_earc->tx_mute);
+		earctx_dmac_mute(s_earc->tx_dmac_map, enable, s_earc->tx_mute);
+		if (enable)
 			s_earc->tx_stream_state = SNDRV_PCM_STATE_RUNNING;
-		} else {
+		else
 			s_earc->tx_stream_state = SNDRV_PCM_STATE_DISCONNECTED;
-		}
 	}
 	spin_unlock_irqrestore(&s_earc->tx_lock, flags);
 }
@@ -1303,7 +1302,7 @@ static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				      p_earc->tx_audio_coding_type,
 				      true,
 				      p_earc->chipinfo->rterm_on);
-			earctx_dmac_mute(p_earc->tx_dmac_map, p_earc->tx_mute);
+			earctx_dmac_mute(p_earc->tx_dmac_map, true, p_earc->tx_mute);
 			schedule_work(&s_earc->tx_hold_bus_work);
 			p_earc->tx_stream_state = SNDRV_PCM_STATE_RUNNING;
 		} else {
@@ -1540,7 +1539,7 @@ static int ss_free(struct snd_pcm_substream *substream,
 		/* first mute arc when release same source */
 		spin_lock_irqsave(&s_earc->tx_lock, flags);
 		if (s_earc->tx_dmac_clk_on)
-			earctx_dmac_mute(s_earc->tx_dmac_map, true);
+			earctx_dmac_mute(s_earc->tx_dmac_map, false, true);
 		spin_unlock_irqrestore(&s_earc->tx_lock, flags);
 		sharebuffer_free(substream, pfrddr, samesource_sel, share_lvl);
 	}
@@ -2562,7 +2561,7 @@ static int arc_spdifout_reg_mute_put(struct snd_kcontrol *kcontrol,
 	spin_lock_irqsave(&p_earc->tx_lock, flags);
 	/* set unmute when stream is running */
 	if (s_earc->tx_dmac_clk_on && s_earc->tx_stream_state == SNDRV_PCM_STATE_RUNNING)
-		earctx_dmac_mute(p_earc->tx_dmac_map, mute);
+		earctx_dmac_mute(p_earc->tx_dmac_map, true, mute);
 	spin_unlock_irqrestore(&p_earc->tx_lock, flags);
 
 	return 0;
