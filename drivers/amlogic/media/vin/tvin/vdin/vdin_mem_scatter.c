@@ -318,6 +318,7 @@ void vdin_sct_queue_work(struct vdin_dev_s *devp)
 void vdin_sct_free_idx_in_game(struct vdin_dev_s *devp)
 {
 	int i;
+	ulong wr_list_flags = 0;
 	struct vf_entry *vfe = NULL, *next_wr_vfe = NULL;
 
 	for (i = 0; i < devp->vfp->size; i++) {
@@ -337,10 +338,14 @@ void vdin_sct_free_idx_in_game(struct vdin_dev_s *devp)
 		/* donot free it, other vf still use it's memory in one buffer mode */
 		if (vfe->vf.index == devp->af_num)
 			continue;
+		spin_lock_irqsave(&devp->vfp->wr_lock, wr_list_flags);
 		if (vfe->status == VF_STATUS_WL &&
 		    vfe->sct_stat == VFRAME_SCT_STATE_FULL) {
-			vdin_sct_free(devp->vfp, vfe->vf.index);
 			vfe->sct_stat = VFRAME_SCT_STATE_INIT;
+			spin_unlock_irqrestore(&devp->vfp->wr_lock, wr_list_flags);
+			vdin_sct_free(devp->vfp, vfe->vf.index);
+		} else {
+			spin_unlock_irqrestore(&devp->vfp->wr_lock, wr_list_flags);
 		}
 	}
 }
