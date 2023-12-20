@@ -248,12 +248,12 @@
 			//bitclock-inversion;
 			//frame-inversion;
 			/* master mode */
-			// bitclock-master = <&tdma>;
-			// frame-master = <&tdma>;
+			bitclock-master = <&tdma>;
+			frame-master = <&tdma>;
 			/* slave mode */
 
-			bitclock-master = <&tdmacodec>;
-			frame-master = <&tdmacodec>;
+			//bitclock-master = <&tdmacodec>;
+			//frame-master = <&tdmacodec>;
 
 			suffix-name = "alsaPORT-i2sCapture";
 			tdmacpu: cpu {
@@ -519,7 +519,7 @@
 			&tdm_d9_pins
 			&tdm_d10_pins
 			&tdm_d11_pins
-			&tdmain_clk_pins
+			&tdmaout_clk_pins
 			>;
 		pinctrl-1 = <&tdmin_a_gpio>;
 		tdm5v-supply = <&vcc5v_reg>;
@@ -985,6 +985,13 @@
 		mux {
 			groups = "tdm_sclk2", "tdm_lrclk2";
 			function = "tdm_clk_in";
+		};
+	};
+
+	tdmaout_clk_pins: tdmaout_clk_pin {
+		mux {
+			groups = "tdm_sclk2", "tdm_lrclk2";
+			function = "tdm_clk_outa";
 		};
 	};
 
