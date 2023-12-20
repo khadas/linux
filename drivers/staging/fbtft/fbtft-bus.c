@@ -241,3 +241,31 @@ int fbtft_write_vmem16_bus16(struct fbtft_par *par, size_t offset, size_t len)
 	return fbtft_write_buf_dc(par, vmem16, len, 1);
 }
 EXPORT_SYMBOL(fbtft_write_vmem16_bus16);
+
+#ifdef CONFIG_FB_TFT_SPI_DMA
+/* 16 bit pixel over 64-bit databus */
+int fbtft_write_vmem16_bus64(struct fbtft_par *par, size_t offset, size_t len)
+{
+	u16 *vmem16;
+	u64 *vmem64;
+	int i = 0;
+
+	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s(offset=%zu, len=%zu)\n",
+		      __func__, offset, len);
+
+	par->spi->bits_per_word = 64;
+
+	/* Endianness Conversion */
+	vmem16 = (u16 *)(par->info->screen_buffer + offset);
+	for (i = 0; i < len / 2; i++)
+		vmem16[i] = cpu_to_be16(vmem16[i]);
+	vmem64 = (u64 *)(vmem16);
+	for (i = 0; i < len / 8; i++)
+		vmem64[i] = cpu_to_be64(vmem64[i]);
+
+	/* no need for buffered write with 64-bit bus */
+	return fbtft_write_buf_dc(par, vmem64, len, 1);
+}
+EXPORT_SYMBOL(fbtft_write_vmem16_bus64);
+#endif
+

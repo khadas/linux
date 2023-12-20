@@ -164,6 +164,12 @@ config FB_TFT_ST7789V
 
 	  Say Y if you have such a display that utilizes this controller.
 
+config FB_TFT_SPI_DMA
+	bool "Enable SPI DMA mode"
+	depends on FB_TFT && AMLOGIC_MODIFY
+	help
+	  This enables SPI DMA mode for spi panel
+
 config FB_TFT_TINYLCD
 	tristate "FB driver for tinylcd.com display"
 	depends on FB_TFT

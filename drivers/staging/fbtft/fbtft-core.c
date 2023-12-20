@@ -643,7 +643,11 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 	}
 
 	vmem_size = display->width * display->height * bpp / 8;
+#ifdef CONFIG_FB_TFT_SPI_DMA
+	vmem = alloc_pages_exact(vmem_size, GFP_DMA | __GFP_ZERO);
+#else
 	vmem = vzalloc(vmem_size);
+#endif
 	if (!vmem)
 		goto alloc_fail;
 
@@ -699,6 +703,9 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 	info->fix.line_length =    width * bpp / 8;
 	info->fix.accel =          FB_ACCEL_NONE;
 	info->fix.smem_len =       vmem_size;
+#ifdef CONFIG_FB_TFT_SPI_DMA
+	info->fix.smem_start =     virt_to_phys(info->screen_base);
+#endif
 
 	info->var.rotate =         pdata->rotate;
 	info->var.xres =           width;
@@ -781,7 +788,11 @@ release_framebuf:
 	framebuffer_release(info);
 
 alloc_fail:
+#ifdef CONFIG_FB_TFT_SPI_DMA
+	free_pages_exact(vmem, vmem_size);
+#else
 	vfree(vmem);
+#endif
 
 	return NULL;
 }
@@ -796,7 +807,11 @@ EXPORT_SYMBOL(fbtft_framebuffer_alloc);
 void fbtft_framebuffer_release(struct fb_info *info)
 {
 	fb_deferred_io_cleanup(info);
+#ifdef CONFIG_FB_TFT_SPI_DMA
+	free_pages_exact(info->screen_buffer, info->fix.smem_len);
+#else
 	vfree(info->screen_buffer);
+#endif
 	framebuffer_release(info);
 }
 EXPORT_SYMBOL(fbtft_framebuffer_release);
@@ -1279,6 +1294,10 @@ int fbtft_probe_common(struct fbtft_display *display,
 		par->fbtftops.write_register = fbtft_write_reg16_bus8;
 	else if (display->regwidth == 16 && display->buswidth == 16)
 		par->fbtftops.write_register = fbtft_write_reg16_bus16;
+#ifdef CONFIG_FB_TFT_SPI_DMA
+	else if (display->regwidth == 8 && display->buswidth == 64)
+		par->fbtftops.write_register = fbtft_write_reg8_bus8;
+#endif
 	else
 		dev_warn(dev,
 			 "no default functions for regwidth=%d and buswidth=%d\n",
@@ -1291,6 +1310,10 @@ int fbtft_probe_common(struct fbtft_display *display,
 		par->fbtftops.write_vmem = fbtft_write_vmem16_bus9;
 	else if (display->buswidth == 16)
 		par->fbtftops.write_vmem = fbtft_write_vmem16_bus16;
+#ifdef CONFIG_FB_TFT_SPI_DMA
+	else if (display->buswidth == 64)
+		par->fbtftops.write_vmem = fbtft_write_vmem16_bus64;
+#endif
 
 	/* GPIO write() functions */
 	if (par->pdev) {
@@ -1298,6 +1321,10 @@ int fbtft_probe_common(struct fbtft_display *display,
 			par->fbtftops.write = fbtft_write_gpio8_wr;
 		else if (display->buswidth == 16)
 			par->fbtftops.write = fbtft_write_gpio16_wr;
+#ifdef CONFIG_FB_TFT_SPI_DMA
+		else if (display->buswidth == 64)
+			par->fbtftops.write = fbtft_write_gpio8_wr;
+#endif
 	}
 
 	/* 9-bit SPI setup */
