@@ -1258,9 +1258,10 @@ void rk628_hdmirx_disable(struct rk628 *rk628)
 		rk628_hdmirx_disable_edid(rk628);
 		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_I2S_DATA_OEN_MASK,
 				      SW_I2S_DATA_OEN(1));
-		cancel_delayed_work_sync(&hdmirx->delayed_work_audio);
 		dev_info(rk628->dev, "hdmirx plug out\n");
 	}
+
+	cancel_delayed_work_sync(&hdmirx->delayed_work_audio);
 }
 
 int rk628_hdmirx_detect(struct rk628 *rk628)
