@@ -1566,12 +1566,6 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	    devp->frontend->sm_ops->frontend_clr_value)
 		devp->frontend->sm_ops->frontend_clr_value(devp->frontend);
 
-	pr_info("%s vdin%d,delay %u us before stop\n",
-		__func__, devp->index, devp->dbg_stop_dec_delay);
-	if (devp->dbg_stop_dec_delay) {
-		usleep_range(devp->dbg_stop_dec_delay, devp->dbg_stop_dec_delay + 1000);
-	}
-
 	if (devp->afbce_mode == 1 || devp->double_wr) {
 		while (i++ < afbc_write_down_timeout) {
 			if (vdin_afbce_read_write_down_flag())
@@ -1599,8 +1593,13 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 			devp->frontend->dec_ops->stop(devp->frontend,
 						devp->parm.port);
 	}
-	/* after T7 mif write vdin1 hw crash addr so vdin_hw_disable change to vdin_hw_close */
-	//vdin_hw_disable(devp);
+
+	vdin_pause_hw_write(devp, 0);
+	pr_info("%s vdin%d,delay %u us before stop\n",
+		__func__, devp->index, devp->dbg_stop_dec_delay);
+	if (devp->dbg_stop_dec_delay)
+		usleep_range(devp->dbg_stop_dec_delay, devp->dbg_stop_dec_delay + 1000);
+
 	vdin_hw_close(devp);
 
 	vdin_set_default_regmap(devp);
@@ -6137,14 +6136,12 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	devp->dv.dv_config = false;
 	/* Game mode 2 use one buffer by default */
 	devp->dbg_force_one_buffer = 1;
-	if (!devp->index) {
+	if (!devp->index)
 		devp->vdin_drop_num = VDIN_DROP_FRAME_NUM_DEF;
-		/* avoid abnormal image */
-		devp->dbg_stop_dec_delay = 50000;
-	} else {
-		/* vdin1 drop 1 frame */
+	else
 		devp->vdin_drop_num = 1;
-	}
+	/* Waitting for the last burst data written into ddr */
+	devp->dbg_stop_dec_delay = 10000;
 
 	INIT_DELAYED_WORK(&devp->dv.dv_dwork, vdin_dv_dwork);
 	INIT_DELAYED_WORK(&devp->vlock_dwork, vdin_vlock_dwork);
