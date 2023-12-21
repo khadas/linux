@@ -8077,7 +8077,8 @@ static void osd_update_color_mode(u32 index)
 	if (osd_hw.color_info[index]) {
 		enum color_index_e idx =
 			osd_hw.color_info[index]->color_index;
-
+		if (osd_hw.osd_meson_dev.osd_ver == OSD_SIMPLE)
+			osd_set_scan_mode(index);
 		data32 = (osd_hw.scan_mode[index] ==
 			SCAN_MODE_INTERLACE) ? 2 : 0;
 		data32 |= osd_hw.osd_rdma_func[output_index].osd_rdma_rd
