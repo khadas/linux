@@ -689,7 +689,9 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	if (IS_ERR(dp->adp))
 		return PTR_ERR(dp->adp);
 
-	if (dp->data->split_mode && device_property_read_bool(dev, "split-mode")) {
+	if (dp->data->split_mode &&
+	    (device_property_read_bool(dev, "split-mode") ||
+	     device_property_read_bool(dev, "dual-channel"))) {
 		struct rockchip_dp_device *secondary =
 				rockchip_dp_find_by_id(dev->driver, !dp->id);
 		if (!secondary) {
@@ -699,6 +701,7 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 
 		dp->plat_data.right = secondary->adp;
 		dp->plat_data.split_mode = true;
+		dp->plat_data.dual_channel_mode = device_property_read_bool(dev, "dual-channel");
 		secondary->plat_data.panel = dp->plat_data.panel;
 		secondary->plat_data.left = dp->adp;
 		secondary->plat_data.split_mode = true;
