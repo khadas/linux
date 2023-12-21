@@ -266,6 +266,8 @@ void meson_hdcp_enable(int hdcp_type)
 		msleep(50);
 		wake_up(&meson_hdcp.hdcp_comm_queue);
 	} else if (meson_hdcp.hdcp_execute_type == HDCP_MODE14) {
+		/* some tv hdcp1.4 auth has pass->fail->pass, need postpone auth time */
+		msleep(100);
 		drm_hdmitx_hdcp_enable(1);
 	}
 	DRM_INFO("[%s]: report=%d, use_type=%u, execute=%u\n",
