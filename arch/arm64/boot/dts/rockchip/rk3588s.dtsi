@@ -6731,11 +6731,6 @@
 		rockchip,grf = <&hdptxphy0_grf>;
 		#phy-cells = <0>;
 		status = "disabled";
-
-		hdptxphy_hdmi_clk0: clk-port {
-			#clock-cells = <0>;
-			status = "okay";
-		};
 	};
 
 	usbdp_phy0: phy@fed80000 {
