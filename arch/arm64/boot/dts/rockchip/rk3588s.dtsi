@@ -5102,7 +5102,7 @@
 			 <&cru DCLK_VOP2>,
 			 <&cru DCLK_VOP3>,
 			 <&hclk_vo1>,
-			 <&hdptxphy_hdmi_clk0>;
+			 <&hdptxphy_hdmi0>;
 		clock-names = "pclk",
 			      "hpd",
 			      "earc",
@@ -6720,6 +6720,8 @@
 		reg = <0x0 0xfed60000 0x0 0x2000>;
 		clocks = <&cru CLK_USB2PHY_HDPTXRXPHY_REF>, <&cru PCLK_HDPTX0>;
 		clock-names = "ref", "apb";
+		clock-output-names = "clk_hdmiphy_pixel0";
+		#clock-cells = <0>;
 		resets = <&cru SRST_HDPTX0>, <&cru SRST_P_HDPTX0>,
 			 <&cru SRST_HDPTX0_INIT>, <&cru SRST_HDPTX0_CMN>,
 			 <&cru SRST_HDPTX0_LANE>, <&cru SRST_HDPTX0_ROPLL>,
