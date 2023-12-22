@@ -136,6 +136,7 @@ struct vpu_conf_s {
 
 	/* clktree */
 	struct clk *gp_pll;
+	struct clk *vpu_intr;
 	struct clk *vpu_clk0;
 	struct clk *vpu_clk1;
 	struct clk *vpu_clk;
