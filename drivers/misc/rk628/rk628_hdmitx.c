@@ -462,6 +462,7 @@ static int rk628_hdmi_config_video_timing(struct rk628_hdmi *hdmi,
 					  struct drm_display_mode *mode)
 {
 	int value;
+	u32 hdmitx_sync_pol = 0;
 
 	/* Set detail external video timing polarity and interlace mode */
 	value = EXTERANL_VIDEO(1);
@@ -472,6 +473,12 @@ static int rk628_hdmi_config_video_timing(struct rk628_hdmi *hdmi,
 	value |= mode->flags & DRM_MODE_FLAG_INTERLACE ?
 		 INETLACE(1) : INETLACE(0);
 	hdmi_writeb(hdmi, HDMI_VIDEO_TIMING_CTL, value);
+	hdmitx_sync_pol |= mode->flags & DRM_MODE_FLAG_PVSYNC ?
+		SW_HDMITX_VSYNC_POL : 0;
+	hdmitx_sync_pol |= mode->flags & DRM_MODE_FLAG_PHSYNC ?
+		SW_HDMITX_HSYNC_POL : 0;
+	rk628_i2c_update_bits(hdmi->rk628, GRF_POST_PROC_CON,
+			      SW_HDMITX_VSYNC_POL | SW_HDMITX_HSYNC_POL, hdmitx_sync_pol);
 
 	/* Set detail external video timing */
 	value = mode->htotal;
