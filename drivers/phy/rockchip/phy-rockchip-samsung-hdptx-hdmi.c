@@ -2151,20 +2151,10 @@ static int rockchip_hdptx_phy_clk_register(struct rockchip_hdptx_phy *hdptx)
 {
 	struct device *dev = hdptx->dev;
 	struct device_node *np = dev->of_node;
-	struct device_node *clk_np;
-	struct platform_device *pdev;
 	struct clk_init_data init = {};
 	struct clk *refclk;
 	const char *parent_name;
 	int ret;
-
-	clk_np = of_get_child_by_name(np, "clk-port");
-	if (!clk_np)
-		return 0;
-
-	pdev = of_platform_device_create(clk_np, NULL, dev);
-	if (!pdev)
-		return 0;
 
 	refclk = devm_clk_get(dev, "ref");
 	if (IS_ERR(refclk)) {
@@ -2177,10 +2167,6 @@ static int rockchip_hdptx_phy_clk_register(struct rockchip_hdptx_phy *hdptx)
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 	init.flags = CLK_GET_RATE_NOCACHE;
-	if (!hdptx->id)
-		init.name = "clk_hdmiphy_pixel0";
-	else
-		init.name = "clk_hdmiphy_pixel1";
 	init.ops = &hdptx_phy_clk_ops;
 
 	/* optional override of the clock name */
@@ -2188,14 +2174,14 @@ static int rockchip_hdptx_phy_clk_register(struct rockchip_hdptx_phy *hdptx)
 
 	hdptx->hw.init = &init;
 
-	hdptx->dclk = devm_clk_register(&pdev->dev, &hdptx->hw);
+	hdptx->dclk = devm_clk_register(hdptx->dev, &hdptx->hw);
 	if (IS_ERR(hdptx->dclk)) {
 		ret = PTR_ERR(hdptx->dclk);
 		dev_err(dev, "failed to register clock: %d\n", ret);
 		return ret;
 	}
 
-	ret = of_clk_add_provider(clk_np, of_clk_src_simple_get, hdptx->dclk);
+	ret = of_clk_add_provider(np, of_clk_src_simple_get, hdptx->dclk);
 	if (ret) {
 		dev_err(dev, "failed to register OF clock provider: %d\n", ret);
 		return ret;
