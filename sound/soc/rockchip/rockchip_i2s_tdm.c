@@ -794,6 +794,64 @@ static int rockchip_i2s_tdm_multi_lanes_start(struct rk_i2s_tdm_dev *i2s_tdm, in
 
 	return 0;
 }
+
+static int rockchip_i2s_tdm_multi_lanes_parse(struct rk_i2s_tdm_dev *i2s_tdm)
+{
+	struct device_node *clk_src_node = NULL;
+	unsigned int val;
+	int ret;
+
+	i2s_tdm->is_tdm_multi_lanes =
+		device_property_read_bool(i2s_tdm->dev, "rockchip,tdm-multi-lanes");
+
+	if (!i2s_tdm->is_tdm_multi_lanes)
+		return 0;
+
+	i2s_tdm->tx_lanes = 1;
+	i2s_tdm->rx_lanes = 1;
+
+	if (!device_property_read_u32(i2s_tdm->dev, "rockchip,tdm-tx-lanes", &val)) {
+		if ((val >= 1) && (val <= 4))
+			i2s_tdm->tx_lanes = val;
+	}
+
+	if (!device_property_read_u32(i2s_tdm->dev, "rockchip,tdm-rx-lanes", &val)) {
+		if ((val >= 1) && (val <= 4))
+			i2s_tdm->rx_lanes = val;
+	}
+
+	i2s_tdm->i2s_lrck_gpio = devm_gpiod_get_optional(i2s_tdm->dev, "i2s-lrck", GPIOD_IN);
+	if (IS_ERR(i2s_tdm->i2s_lrck_gpio)) {
+		ret = PTR_ERR(i2s_tdm->i2s_lrck_gpio);
+		dev_err(i2s_tdm->dev, "Failed to get i2s_lrck_gpio %d\n", ret);
+		return ret;
+	}
+
+	i2s_tdm->tdm_fsync_gpio = devm_gpiod_get_optional(i2s_tdm->dev, "tdm-fsync", GPIOD_IN);
+	if (IS_ERR(i2s_tdm->tdm_fsync_gpio)) {
+		ret = PTR_ERR(i2s_tdm->tdm_fsync_gpio);
+		dev_err(i2s_tdm->dev, "Failed to get tdm_fsync_gpio %d\n", ret);
+		return ret;
+	}
+
+	/* It's optional, required when use soc clk src, such as: i2s2_2ch */
+	clk_src_node = of_parse_phandle(i2s_tdm->dev->of_node, "rockchip,clk-src", 0);
+	if (clk_src_node) {
+		i2s_tdm->clk_src_dai = rockchip_i2s_tdm_find_dai(clk_src_node);
+		if (!i2s_tdm->clk_src_dai)
+			return -EPROBE_DEFER;
+
+		i2s_tdm->clk_src_base = of_iomap(clk_src_node, 0);
+		if (!i2s_tdm->clk_src_base)
+			return -ENOENT;
+
+		pm_runtime_forbid(i2s_tdm->clk_src_dai->dev);
+	}
+
+	dev_info(i2s_tdm->dev, "Used as TDM_MULTI_LANES mode\n");
+
+	return 0;
+}
 #endif
 
 static void rockchip_i2s_tdm_xfer_start(struct rk_i2s_tdm_dev *i2s_tdm,
@@ -2741,6 +2799,19 @@ err_hclk:
 	return ret;
 }
 
+static void __maybe_unused rockchip_i2s_tdm_unmap(struct rk_i2s_tdm_dev *i2s_tdm)
+{
+#ifdef HAVE_SYNC_RESET
+	if (i2s_tdm->cru_base)
+		iounmap(i2s_tdm->cru_base);
+#endif
+
+#ifdef CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES
+	if (i2s_tdm->clk_src_base)
+		iounmap(i2s_tdm->clk_src_base);
+#endif
+}
+
 static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -2768,58 +2839,6 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 	of_id = of_match_device(rockchip_i2s_tdm_match, &pdev->dev);
 	if (!of_id)
 		return -EINVAL;
-
-#ifdef CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES
-	i2s_tdm->is_tdm_multi_lanes =
-		device_property_read_bool(i2s_tdm->dev, "rockchip,tdm-multi-lanes");
-
-	if (i2s_tdm->is_tdm_multi_lanes) {
-		struct device_node *clk_src_node = NULL;
-
-		i2s_tdm->tx_lanes = 1;
-		i2s_tdm->rx_lanes = 1;
-
-		if (!device_property_read_u32(i2s_tdm->dev, "rockchip,tdm-tx-lanes", &val)) {
-			if ((val >= 1) && (val <= 4))
-				i2s_tdm->tx_lanes = val;
-		}
-
-		if (!device_property_read_u32(i2s_tdm->dev, "rockchip,tdm-rx-lanes", &val)) {
-			if ((val >= 1) && (val <= 4))
-				i2s_tdm->rx_lanes = val;
-		}
-
-		i2s_tdm->i2s_lrck_gpio = devm_gpiod_get_optional(&pdev->dev, "i2s-lrck", GPIOD_IN);
-		if (IS_ERR(i2s_tdm->i2s_lrck_gpio)) {
-			ret = PTR_ERR(i2s_tdm->i2s_lrck_gpio);
-			dev_err(&pdev->dev, "Failed to get i2s_lrck_gpio %d\n", ret);
-			return ret;
-		}
-
-		i2s_tdm->tdm_fsync_gpio = devm_gpiod_get_optional(&pdev->dev, "tdm-fsync", GPIOD_IN);
-		if (IS_ERR(i2s_tdm->tdm_fsync_gpio)) {
-			ret = PTR_ERR(i2s_tdm->tdm_fsync_gpio);
-			dev_err(&pdev->dev, "Failed to get tdm_fsync_gpio %d\n", ret);
-			return ret;
-		}
-
-		/* It's optional, required when use soc clk src, such as: i2s2_2ch */
-		clk_src_node = of_parse_phandle(node, "rockchip,clk-src", 0);
-		if (clk_src_node) {
-			i2s_tdm->clk_src_base = of_iomap(clk_src_node, 0);
-			if (!i2s_tdm->clk_src_base)
-				return -ENOENT;
-
-			i2s_tdm->clk_src_dai = rockchip_i2s_tdm_find_dai(clk_src_node);
-			if (!i2s_tdm->clk_src_dai)
-				return -EPROBE_DEFER;
-
-			pm_runtime_forbid(i2s_tdm->clk_src_dai->dev);
-		}
-
-		dev_info(&pdev->dev, "Used as TDM_MULTI_LANES mode\n");
-	}
-#endif
 
 	spin_lock_init(&i2s_tdm->lock);
 	i2s_tdm->soc_data = (const struct rk_i2s_soc_data *)of_id->data;
@@ -2979,6 +2998,12 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 			return ret;
 	}
 
+#ifdef CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES
+	ret = rockchip_i2s_tdm_multi_lanes_parse(i2s_tdm);
+	if (ret)
+		goto err_unmap;
+#endif
+
 #ifdef HAVE_SYNC_RESET
 	sync = of_device_is_compatible(node, "rockchip,px30-i2s-tdm") ||
 	       of_device_is_compatible(node, "rockchip,rk1808-i2s-tdm") ||
@@ -2989,8 +3014,10 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 
 		cru_node = of_parse_phandle(node, "rockchip,cru", 0);
 		i2s_tdm->cru_base = of_iomap(cru_node, 0);
-		if (!i2s_tdm->cru_base)
-			return -ENOENT;
+		if (!i2s_tdm->cru_base) {
+			ret = -ENOENT;
+			goto err_unmap;
+		}
 
 		i2s_tdm->id = (res->start >> 16) & GENMASK(3, 0);
 	}
@@ -3033,6 +3060,11 @@ err_suspend:
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
 
+#if defined(HAVE_SYNC_RESET) || defined(CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES)
+err_unmap:
+	rockchip_i2s_tdm_unmap(i2s_tdm);
+#endif
+
 	return ret;
 }
 
@@ -3042,6 +3074,9 @@ static int rockchip_i2s_tdm_remove(struct platform_device *pdev)
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		i2s_tdm_runtime_suspend(&pdev->dev);
 
+#if defined(HAVE_SYNC_RESET) || defined(CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES)
+	rockchip_i2s_tdm_unmap(dev_get_drvdata(&pdev->dev));
+#endif
 	return 0;
 }
 
