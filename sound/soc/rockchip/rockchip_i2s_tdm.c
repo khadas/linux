@@ -2673,6 +2673,7 @@ static int i2s_tdm_runtime_suspend(struct device *dev)
 
 	clk_disable_unprepare(i2s_tdm->mclk_tx);
 	clk_disable_unprepare(i2s_tdm->mclk_rx);
+	clk_disable_unprepare(i2s_tdm->hclk);
 
 	pinctrl_pm_select_idle_state(dev);
 
@@ -2703,6 +2704,10 @@ static int i2s_tdm_runtime_resume(struct device *dev)
 	if (i2s_tdm->is_master_mode)
 		rockchip_i2s_tdm_pinctrl_select_clk_state(dev);
 
+	ret = clk_prepare_enable(i2s_tdm->hclk);
+	if (ret)
+		goto err_hclk;
+
 	ret = clk_prepare_enable(i2s_tdm->mclk_tx);
 	if (ret)
 		goto err_mclk_tx;
@@ -2731,6 +2736,8 @@ err_regmap:
 err_mclk_rx:
 	clk_disable_unprepare(i2s_tdm->mclk_tx);
 err_mclk_tx:
+	clk_disable_unprepare(i2s_tdm->hclk);
+err_hclk:
 	return ret;
 }
 
@@ -2872,10 +2879,6 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 	i2s_tdm->hclk = devm_clk_get(&pdev->dev, "hclk");
 	if (IS_ERR(i2s_tdm->hclk))
 		return PTR_ERR(i2s_tdm->hclk);
-
-	ret = clk_prepare_enable(i2s_tdm->hclk);
-	if (ret)
-		return ret;
 
 	i2s_tdm->mclk_tx = devm_clk_get(&pdev->dev, "mclk_tx");
 	if (IS_ERR(i2s_tdm->mclk_tx))
@@ -3035,15 +3038,9 @@ err_pm_disable:
 
 static int rockchip_i2s_tdm_remove(struct platform_device *pdev)
 {
-	struct rk_i2s_tdm_dev *i2s_tdm = dev_get_drvdata(&pdev->dev);
-
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		i2s_tdm_runtime_suspend(&pdev->dev);
-
-	clk_disable_unprepare(i2s_tdm->mclk_tx);
-	clk_disable_unprepare(i2s_tdm->mclk_rx);
-	clk_disable_unprepare(i2s_tdm->hclk);
 
 	return 0;
 }
