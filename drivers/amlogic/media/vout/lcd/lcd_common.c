@@ -1837,6 +1837,17 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 	pconf->timing.vsync_bp = (unsigned short)(para[4]);
 	pconf->timing.vsync_pol = (unsigned short)(para[5]);
 
+	ret = of_property_read_u32_array(child, "pre_de", &para[0], 2);
+	if (ret) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDERR("failed to get pre_de\n");
+		pconf->timing.pre_de_h = 0;
+		pconf->timing.pre_de_v = 0;
+	} else {
+		pconf->timing.pre_de_h = (unsigned short)(para[0]);
+		pconf->timing.pre_de_v = (unsigned short)(para[1]);
+	}
+
 	ret = of_property_read_u32_array(child, "clk_attr", &para[0], 4);
 	if (ret) {
 		LCDERR("[%d]: failed to get clk_attr\n", pdrv->index);
@@ -2397,7 +2408,8 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 	temp = *(p + LCD_UKEY_INTERFACE);
 	pconf->basic.lcd_type = temp & 0x3f;
 	pconf->basic.config_check = (temp >> 6) & 0x3;
-	pconf->basic.lcd_bits = *(p + LCD_UKEY_LCD_BITS);
+	temp = *(p + LCD_UKEY_LCD_BITS_CFMT);
+	pconf->basic.lcd_bits = temp & 0x3f;
 	pconf->basic.screen_width = (*(p + LCD_UKEY_SCREEN_WIDTH) |
 		((*(p + LCD_UKEY_SCREEN_WIDTH + 1)) << 8));
 	pconf->basic.screen_height = (*(p + LCD_UKEY_SCREEN_HEIGHT) |
@@ -2412,16 +2424,18 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 		((*(p + LCD_UKEY_H_PERIOD + 1)) << 8);
 	pconf->basic.v_period = (*(p + LCD_UKEY_V_PERIOD)) |
 		((*(p + LCD_UKEY_V_PERIOD + 1)) << 8);
-	pconf->timing.hsync_width = (*(p + LCD_UKEY_HS_WIDTH) |
-		((*(p + LCD_UKEY_HS_WIDTH + 1)) << 8));
+	temp = *(unsigned short *)(p + LCD_UKEY_HS_WIDTH_POL);
+	pconf->timing.hsync_width = temp & 0xfff;
+	pconf->timing.hsync_pol = (temp >> 12) & 0xf;
 	pconf->timing.hsync_bp = (*(p + LCD_UKEY_HS_BP) |
 		((*(p + LCD_UKEY_HS_BP + 1)) << 8));
-	pconf->timing.hsync_pol = *(p + LCD_UKEY_HS_POL);
-	pconf->timing.vsync_width = (*(p + LCD_UKEY_VS_WIDTH) |
-		((*(p + LCD_UKEY_VS_WIDTH + 1)) << 8));
+	temp = *(unsigned short *)(p + LCD_UKEY_VS_WIDTH_POL);
+	pconf->timing.vsync_width = temp & 0xfff;
+	pconf->timing.vsync_pol = (temp >> 12) & 0xf;
 	pconf->timing.vsync_bp = (*(p + LCD_UKEY_VS_BP) |
 		((*(p + LCD_UKEY_VS_BP + 1)) << 8));
-	pconf->timing.vsync_pol = *(p + LCD_UKEY_VS_POL);
+	pconf->timing.pre_de_h = *(p + LCD_UKEY_PRE_DE_H);
+	pconf->timing.pre_de_v = *(p + LCD_UKEY_PRE_DE_V);
 
 	/* customer: 31byte */
 	pconf->timing.fr_adjust_type = *(p + LCD_UKEY_FR_ADJ_TYPE);

@@ -175,6 +175,8 @@ struct lcd_timing_s {
 	unsigned int hend;
 	unsigned int vstart;
 	unsigned int vend;
+	unsigned char pre_de_h;
+	unsigned char pre_de_v;
 
 	unsigned short hsync_width;
 	unsigned short hsync_bp;

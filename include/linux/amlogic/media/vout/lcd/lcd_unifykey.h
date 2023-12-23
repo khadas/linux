@@ -60,7 +60,7 @@ struct aml_lcd_unifykey_header_s {
 /* basic (36Byte) */
 #define LCD_UKEY_MODEL_NAME      (LCD_UKEY_HEAD_SIZE + 0)
 #define LCD_UKEY_INTERFACE       (LCD_UKEY_MODEL_NAME + 30)
-#define LCD_UKEY_LCD_BITS        (LCD_UKEY_MODEL_NAME + 31)
+#define LCD_UKEY_LCD_BITS_CFMT   (LCD_UKEY_MODEL_NAME + 31)
 #define LCD_UKEY_SCREEN_WIDTH    (LCD_UKEY_MODEL_NAME + 32)
 #define LCD_UKEY_SCREEN_HEIGHT   (LCD_UKEY_MODEL_NAME + 34)
 /* timing (18Byte) */
@@ -68,12 +68,12 @@ struct aml_lcd_unifykey_header_s {
 #define LCD_UKEY_V_ACTIVE        (LCD_UKEY_MODEL_NAME + 38)
 #define LCD_UKEY_H_PERIOD        (LCD_UKEY_MODEL_NAME + 40)
 #define LCD_UKEY_V_PERIOD        (LCD_UKEY_MODEL_NAME + 42)
-#define LCD_UKEY_HS_WIDTH        (LCD_UKEY_MODEL_NAME + 44)
+#define LCD_UKEY_HS_WIDTH_POL    (LCD_UKEY_MODEL_NAME + 44)
 #define LCD_UKEY_HS_BP           (LCD_UKEY_MODEL_NAME + 46)
-#define LCD_UKEY_HS_POL          (LCD_UKEY_MODEL_NAME + 48)
-#define LCD_UKEY_VS_WIDTH        (LCD_UKEY_MODEL_NAME + 49)
+#define LCD_UKEY_PRE_DE_H        (LCD_UKEY_MODEL_NAME + 48)
+#define LCD_UKEY_VS_WIDTH_POL    (LCD_UKEY_MODEL_NAME + 49)
 #define LCD_UKEY_VS_BP           (LCD_UKEY_MODEL_NAME + 51)
-#define LCD_UKEY_VS_POL          (LCD_UKEY_MODEL_NAME + 53)
+#define LCD_UKEY_PRE_DE_V        (LCD_UKEY_MODEL_NAME + 53)
 /* customer (31Byte) */
 #define LCD_UKEY_FR_ADJ_TYPE     (LCD_UKEY_MODEL_NAME + 54)/* +36+18 byte */
 #define LCD_UKEY_SS_LEVEL        (LCD_UKEY_MODEL_NAME + 55)

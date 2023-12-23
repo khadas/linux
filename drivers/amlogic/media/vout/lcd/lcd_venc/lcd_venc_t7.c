@@ -235,7 +235,7 @@ static void lcd_venc_set_timing(struct aml_lcd_drv_s *pdrv)
 	struct lcd_config_s *pconf = &pdrv->config;
 	unsigned int hstart, hend, vstart, vend;
 	unsigned int offset;
-	unsigned int pre_de_vs, pre_de_ve, pre_de_hs, pre_de_he;
+	unsigned int pre_vde, pre_de_vs, pre_de_ve, pre_de_hs, pre_de_he;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
@@ -257,7 +257,8 @@ static void lcd_venc_set_timing(struct aml_lcd_drv_s *pdrv)
 	lcd_vcbus_write(VPP_INT_LINE_NUM, vend + 1);
 
 	if (pconf->basic.lcd_type == LCD_P2P || pconf->basic.lcd_type == LCD_MLVDS) {
-		pre_de_vs = vstart - 8;
+		pre_vde = pconf->timing.pre_de_v ? pconf->timing.pre_de_v : 8;
+		pre_de_vs = vstart - pre_vde;
 		pre_de_ve = pconf->basic.v_active + pre_de_vs;
 		pre_de_hs = hstart + PRE_DE_DELAY;
 		pre_de_he = pconf->basic.h_active - 1 + pre_de_hs;
@@ -397,7 +398,7 @@ static void lcd_venc_set(struct aml_lcd_drv_s *pdrv)
 	lcd_vcbus_write(ENCL_VIDEO_MODE_ADV + offset, 0x0418); /* Sampling rate: 1 */
 	lcd_vcbus_write(ENCL_VIDEO_FILT_CTRL + offset, 0x1000); /* bypass filter */
 
-	lcd_set_venc_timing(pdrv);
+	lcd_venc_set_timing(pdrv);
 
 	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, 3);
 	//restore test pattern
@@ -456,7 +457,7 @@ static void lcd_venc_change_timing(struct aml_lcd_drv_s *pdrv)
 
 	if (pdrv->vmode_update) {
 		lcd_timing_init_config(pdrv);
-		lcd_set_venc_timing(pdrv);
+		lcd_venc_set_timing(pdrv);
 	} else {
 		htotal = lcd_vcbus_read(ENCL_VIDEO_MAX_PXCNT + offset) + 1;
 		vtotal = lcd_vcbus_read(ENCL_VIDEO_MAX_LNCNT + offset) + 1;

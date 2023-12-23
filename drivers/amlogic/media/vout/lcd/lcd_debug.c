@@ -599,7 +599,11 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		"vs_width       %d\n"
 		"vs_backporch   %d%s\n"
 		"vs_frontporch  %d%s\n"
-		"vs_pol         %d\n\n",
+		"vs_pol         %d\n"
+		"pre_de_h       %d\n"
+		"pre_de_v       %d\n"
+		"video_hstart   %d\n"
+		"video_vstart   %d\n\n",
 		pconf->basic.h_period, pconf->basic.v_period,
 		pconf->timing.hsync_width,
 		pconf->timing.hsync_bp,
@@ -612,7 +616,9 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		((verr & 0x4) ? "(X)" : ((verr & 0x8) ? "(!)" : "")),
 		pconf->timing.vsync_fp,
 		((verr & 0x1) ? "(X)" : ((verr & 0x2) ? "(!)" : "")),
-		pconf->timing.vsync_pol);
+		pconf->timing.vsync_pol,
+		pconf->timing.pre_de_h, pconf->timing.pre_de_v,
+		pconf->timing.hstart, pconf->timing.vstart);
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
 		"h_period_min   %d\n"
@@ -632,13 +638,9 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 	len += snprintf((buf + len), n,
 		"pll_ctrl       0x%08x\n"
 		"div_ctrl       0x%08x\n"
-		"clk_ctrl       0x%08x\n"
-		"video_on_pixel %d\n"
-		"video_on_line  %d\n\n",
+		"clk_ctrl       0x%08x\n\n",
 		pconf->timing.pll_ctrl, pconf->timing.div_ctrl,
-		pconf->timing.clk_ctrl,
-		pconf->timing.hstart,
-		pconf->timing.vstart);
+		pconf->timing.clk_ctrl);
 
 	return len;
 }
