@@ -110,6 +110,7 @@ static void RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
 	u32 sw, sh;
 	u32 dw, dh;
 	u32 param_x, param_y;
+	u32 scale_x_offset, scale_y_offset;
 
 	bRGA_SRC_X_FACTOR = (u32 *) (base + RGA2_SRC_X_FACTOR_OFFSET);
 	bRGA_SRC_Y_FACTOR = (u32 *) (base + RGA2_SRC_Y_FACTOR_OFFSET);
@@ -127,12 +128,20 @@ static void RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
 	sh = msg->src.act_h;
 
 	if (sw > dw) {
+		if (msg->interp.horiz == RGA_INTERP_LINEAR) {
+			/* default to half_pixel mode. */
+			param_x = (sw << 12) / dw;
+			scale_x_offset = 0x1ff;
+
+			*bRGA_SRC_X_FACTOR = ((param_x & 0xffff) | ((scale_x_offset) << 16));
+		} else {
 #if SCALE_DOWN_LARGE
-		param_x = ((dw) << 16) / (sw) + 1;
+			param_x = ((dw) << 16) / (sw) + 1;
 #else
-		param_x = ((dw) << 16) / (sw);
+			param_x = ((dw) << 16) / (sw);
 #endif
-		*bRGA_SRC_X_FACTOR |= ((param_x & 0xffff) << 0);
+			*bRGA_SRC_X_FACTOR |= ((param_x & 0xffff) << 0);
+		}
 	} else if (sw < dw) {
 #if SCALE_UP_LARGE
 		param_x = ((sw - 1) << 16) / (dw - 1);
@@ -145,12 +154,20 @@ static void RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
 	}
 
 	if (sh > dh) {
+		if (msg->interp.verti == RGA_INTERP_LINEAR) {
+			/* default to half_pixel mode. */
+			param_y = (sh << 12) / dh;
+			scale_y_offset = 0x1ff;
+
+			*bRGA_SRC_Y_FACTOR = ((param_y & 0xffff) | ((scale_y_offset) << 16));
+		} else {
 #if SCALE_DOWN_LARGE
-		param_y = ((dh) << 16) / (sh) + 1;
+			param_y = ((dh) << 16) / (sh) + 1;
 #else
-		param_y = ((dh) << 16) / (sh);
+			param_y = ((dh) << 16) / (sh);
 #endif
-		*bRGA_SRC_Y_FACTOR |= ((param_y & 0xffff) << 0);
+			*bRGA_SRC_Y_FACTOR |= ((param_y & 0xffff) << 0);
+		}
 	} else if (sh < dh) {
 #if SCALE_UP_LARGE
 		param_y = ((sh - 1) << 16) / (dh - 1);
