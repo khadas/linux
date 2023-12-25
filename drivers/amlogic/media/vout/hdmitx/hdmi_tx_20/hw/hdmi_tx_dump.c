@@ -1455,7 +1455,7 @@ static inline unsigned int get_msr_cts(void)
 }
 
 #define AUD_CTS_LOG_NUM	1000
-unsigned int cts_buf[AUD_CTS_LOG_NUM];
+static unsigned int cts_buf[AUD_CTS_LOG_NUM];
 static int dump_audcts_show(struct seq_file *s, void *p)
 {
 	int i;

@@ -63,6 +63,7 @@
 #include <uapi/drm/drm_mode.h>
 #include <linux/amlogic/gki_module.h>
 #include <drm/amlogic/meson_drm_bind.h>
+#include <linux/amlogic/clk_measure.h>
 
 #define DEVICE_NAME "amhdmitx"
 #define HDMI_TX_COUNT 32
@@ -4661,6 +4662,168 @@ static ssize_t aud_ch_store(struct device *dev,
 	return count;
 }
 
+static inline unsigned int tx_get_msr_cts(void)
+{
+	unsigned int ret = 0;
+
+	ret = hdmitx_rd_reg(HDMITX_DWC_AUD_CTS1);
+	ret += (hdmitx_rd_reg(HDMITX_DWC_AUD_CTS2) << 8);
+	ret += ((hdmitx_rd_reg(HDMITX_DWC_AUD_CTS3) & 0xf) << 16);
+
+	return ret;
+}
+
+static ssize_t show_audio_clkmsr(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	int i = 0, pos = 0;
+	struct _hdmi_clkmsr {
+		int idx;
+		char *name;
+	};
+
+	const static struct _hdmi_clkmsr hdmiclkmsr[] = {
+		{76, "hdmitx_tmds_clk"},
+		{130, "audio_vad_clk"},
+		{132, "audio_locker_out_clk"},
+		{133, "audio_locker_in_clk"},
+		{134, "audio_tdmout_c_sclk"},
+		{135, "audio_tdmout_b_sclk"},
+		{136, "audio_tdmout_a_sclk"},
+		{137, "audio_tdmin_lb_sclk"},
+		{138, "audio_tdmin_c_sclk"},
+		{139, "audio_tdmin_b_sclk"},
+		{140, "audio_tdmin_a_sclk"},
+		{141, "audio_resamplea_clk"},
+		{142, "audio_pdm_sysclk"},
+		{143, "audio_spdifoutb_mst_clk"},
+		{144, "audio_spdifout_mst_clk"},
+		{145, "audio_spdifin_mst_clk"},
+		{146, "audio_pdm_dclk"},
+		{147, "audio_resampleb_clk"},
+	};
+
+	for (i = 0; i < ARRAY_SIZE(hdmiclkmsr); i++)
+		pos += snprintf(buf + pos, PAGE_SIZE - pos,
+			"[%d] %d %s\n", hdmiclkmsr[i].idx,
+			meson_clk_measure(hdmiclkmsr[i].idx),
+			hdmiclkmsr[i].name);
+	return pos;
+}
+
+static ssize_t DUMP_ACR(struct device *dev,
+			   struct device_attribute *attr, char *buf,
+			   unsigned int reg_start, unsigned int reg_end)
+{
+	unsigned int i;
+	int pos = 0;
+	u32 reg_val;
+
+	for (i = reg_start; i < reg_end + 1; i++) {
+		reg_val = hdmitx_rd_reg(i);
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"[0x%x]: 0x%x\n", i, reg_val);
+	}
+	return pos;
+}
+
+#define AUD_CTS_NUM	1000
+static unsigned int cts_buff[AUD_CTS_NUM];
+
+static ssize_t hdmi_audio_status_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	int i = 0, n = 0, ret = 0;
+	int pos = 0;
+	unsigned int min = 0, max = 0, total = 0;
+	unsigned char *conf;
+
+	pos += snprintf(buf + pos, PAGE_SIZE,
+				"\n--------HDMITX audio cts--------\n");
+	memset(cts_buff, 0, sizeof(cts_buff));
+	for (i = 0; i < AUD_CTS_NUM; i++) {
+		cts_buff[i] = tx_get_msr_cts();
+		mdelay(1);/*delay 1ms*/
+	}
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "cts change:\n");
+	for (i = 1; i < 10; i++) {
+		if (cts_buff[i] > cts_buff[i - 1])
+			pos += snprintf(buf + pos, PAGE_SIZE,
+			"dis: +%d  [%d] %d  [%d] %d\n",
+			cts_buff[i] - cts_buff[i - 1], i,
+			cts_buff[i], i - 1, cts_buff[i - 1]);
+		if (cts_buff[i] < cts_buff[i - 1])
+			pos += snprintf(buf + pos, PAGE_SIZE,
+			"dis: %d  [%d] %d  [%d] %d\n",
+			cts_buff[i] - cts_buff[i - 1], i,
+			cts_buff[i], i - 1, cts_buff[i - 1]);
+		}
+
+	for (i = 0, min = max = cts_buff[0]; i < AUD_CTS_NUM; i++) {
+		total += cts_buff[i];
+		if (min > cts_buff[i])
+			min = cts_buff[i];
+		if (max < cts_buff[i])
+			max = cts_buff[i];
+	}
+	pos += snprintf(buf + pos, PAGE_SIZE,
+	"\nCTS Min: %d   Max: %d   Avg: %d/1000\n", min, max, total);
+
+	pos += snprintf(buf + pos, PAGE_SIZE,
+				"\n--------HDMITX audio clk--------\n");
+	pos += show_audio_clkmsr(dev, attr, buf + pos);
+
+	pos += snprintf(buf + pos, PAGE_SIZE,
+					"\n--------HDMITX acr parse--------\n");
+	n = hdmitx_rd_reg(HDMITX_DWC_AUD_N1) +
+	    (hdmitx_rd_reg(HDMITX_DWC_AUD_N2) << 8) +
+	    ((hdmitx_rd_reg(HDMITX_DWC_AUD_N3) & 0xf) << 16);
+	pos += snprintf(buf + pos, PAGE_SIZE, "N: %d\n", n);
+
+	ret = tx_get_msr_cts();
+	pos += snprintf(buf + pos, PAGE_SIZE, "CTS: %d\n", ret);
+	switch (hdmitx_device.cur_audio_param.sample_rate) {
+	case FS_REFER_TO_STREAM:
+		conf = "refer to stream header";
+		break;
+	case FS_32K:
+		conf = "32kHz";
+		break;
+	case FS_44K1:
+		conf = "44.1kHz";
+		break;
+	case FS_48K:
+		conf = "48kHz";
+		break;
+	case FS_88K2:
+		conf = "88.2kHz";
+		break;
+	case FS_96K:
+		conf = "96kHz";
+		break;
+	case FS_176K4:
+		conf = "176.4kHz";
+		break;
+	case FS_192K:
+		conf = "192kHz";
+		break;
+	case FS_768K:
+		conf = "768kHz";
+		break;
+	default:
+		conf = "MAX";
+	}
+	pos += snprintf(buf + pos, PAGE_SIZE, "audio sample rate: %s\n", conf);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+		"\n--------Audio register dump--------\n");
+	pos += DUMP_ACR(dev, attr, buf + pos, HDMITX_DWC_AUD_CONF0, HDMITX_DWC_AUD_INT1);
+	pos += DUMP_ACR(dev, attr, buf + pos, HDMITX_DWC_AUD_N1, HDMITX_DWC_AUD_INPUTCLKFS);
+	pos += DUMP_ACR(dev, attr, buf + pos, HDMITX_DWC_AUD_SPDIF0, HDMITX_DWC_AUD_SPDIFINT1);
+
+	return pos;
+}
+
 /*
  *  1: set avmute
  * -1: clear avmute
@@ -6655,6 +6818,7 @@ static DEVICE_ATTR_RW(allm_mode);
 static DEVICE_ATTR_RO(contenttype_cap);
 static DEVICE_ATTR_RW(contenttype_mode);
 static DEVICE_ATTR_RW(aud_ch);
+static DEVICE_ATTR_RO(hdmi_audio_status);
 static DEVICE_ATTR_RW(avmute);
 static DEVICE_ATTR_RW(swap);
 static DEVICE_ATTR_RW(vic);
@@ -8294,6 +8458,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_dv_cap);
 	ret = device_create_file(dev, &dev_attr_dv_cap2);
 	ret = device_create_file(dev, &dev_attr_aud_ch);
+	ret = device_create_file(dev, &dev_attr_hdmi_audio_status);
 	ret = device_create_file(dev, &dev_attr_avmute);
 	ret = device_create_file(dev, &dev_attr_swap);
 	ret = device_create_file(dev, &dev_attr_vic);
@@ -8509,6 +8674,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_dv_cap);
 	device_remove_file(dev, &dev_attr_dv_cap2);
 	device_remove_file(dev, &dev_attr_dc_cap);
+	device_remove_file(dev, &dev_attr_hdmi_audio_status);
 	device_remove_file(dev, &dev_attr_valid_mode);
 	device_remove_file(dev, &dev_attr_allm_cap);
 	device_remove_file(dev, &dev_attr_allm_mode);
