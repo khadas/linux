@@ -109,77 +109,40 @@
 
 static int init_display(struct fbtft_par *par)
 {
-	u8 madctrl_data;
+	/* sleep out */
+	write_reg(par, 0x11);
+	usleep_range(100, 200);
 
-	pr_info("ST7796 driver: load");
-	pr_info("ST7796 Rotation: %d", par->pdata->rotate);
-
-	write_reg(par, ST7796S_SWRESET);
-	mdelay(100);
-
-	write_reg(par, ST7796S_SLPOUT);
-	mdelay(20);
-
-	write_reg(par, ST7796S_CSCON, 0x00C3);
-	write_reg(par, ST7796S_CSCON, 0x0096);
-
-	switch (par->pdata->rotate)	{
-	case 90:
-		pr_info("ST7796 Set rotation 90");
-		madctrl_data = TFT_ROTATE_90;
-		break;
-
-	case 180:
-		pr_info("ST7796 Set rotation 180");
-		madctrl_data = TFT_ROTATE_180;
-		break;
-
-	case 270:
-		pr_info("ST7796 Set rotation 270");
-		madctrl_data = TFT_ROTATE_270;
-		break;
-
-	default:
-		pr_info("ST7796 Set rotation 0");
-		madctrl_data = TFT_NO_ROTATION;
-		break;
-	}
-
-	madctrl_data |= ST7796S_COLOR;
-
-	pr_info("ST7796 MADCTRL: 0x%0X", madctrl_data);
-
-	write_reg(par, ST7796S_MADCTL, madctrl_data);
-	write_reg(par, ST7796S_COLMOD, 0x0055);
-
-	write_reg(par, ST7796S_DIC, 0x0001);
-	write_reg(par, ST7796S_EM, 0x00C6);
-
-	write_reg(par, ST7796S_PWR2, 0x0015);
-	write_reg(par, ST7796S_PWR3, 0x00AF);
-	write_reg(par, ST7796S_VCMPCTL, 0x0022);
-	write_reg(par, ST7796S_VCMOST, 0x0000);
-	write_reg(par, ST7796S_DOCA,
-			0x0040, 0x008A, 0x0000, 0x0000,
-			0x0029, 0x0019, 0x00A5, 0x0033);
-
-	write_reg(par, ST7796S_PGC,
-			0x00F0, 0x0004, 0x0008, 0x0009,
-			0x0008, 0x0015, 0x002F, 0x0042,
-			0x0046, 0x0028, 0x0015, 0x0016,
-			0x0029, 0x002D);
-	write_reg(par, ST7796S_NGC,
-			0x00F0, 0x0004, 0x0009, 0x0009,
-			0x0008, 0x0015, 0x002E, 0x0046,
-			0x0046, 0x0028, 0x0015, 0x0015,
-			0x0029, 0x002D);
-
-	write_reg(par, ST7796S_NORON);
-
-	write_reg(par, ST7796S_WRCTRLD, 0x0024);
-	write_reg(par, ST7796S_CSCON, 0x003C);
-	write_reg(par, ST7796S_CSCON, 0x0069);
-	write_reg(par, ST7796S_DISPON);
+	write_reg(par, 0xF0, 0xC3);
+	write_reg(par, 0xF0, 0x96);
+	write_reg(par, 0x36, 0x48);
+	write_reg(par, 0x3A, 0x55);
+	/* display inversion control */
+	write_reg(par, 0xB4, 0x01);
+	/* FRS[D7-D4], DIVA[D1-D0] 81 for 15Hz */
+	write_reg(par, 0xB1, 0x80, 0x10);
+	/* VFP FF for 15Hz, VBP FF for 15Hz */
+	write_reg(par, 0xB5, 0x1F, 0x39, 0x00, 0x20);
+	/* 320 Gates */
+	write_reg(par, 0xB6, 0x8A, 0x07, 0x27);
+	write_reg(par, 0xB7, 0xC6);
+	write_reg(par, 0xB9, 0x02, 0xE0);
+	write_reg(par, 0xC0, 0x80, 0x05);
+	write_reg(par, 0xC1, 0x15);
+	write_reg(par, 0xC2, 0xA7);
+	write_reg(par, 0xC5, 0x10);
+	write_reg(par, 0xE8, 0x40, 0x8A, 0x00, 0x00, 0x29, 0x19, 0xAA, 0x33);
+	write_reg(par, 0xE0, 0xF0, 0x03, 0x09, 0x02, 0x01, 0x01, 0x33, 0x44,
+					0x49, 0x3A, 0x16, 0x18, 0x2F, 0x34);
+	write_reg(par, 0xE1, 0xF0, 0x0F, 0x15, 0x0D, 0x0D, 0x28, 0x32, 0x33,
+					0x49, 0x03, 0x0D, 0x0E, 0x28, 0x2F);
+	write_reg(par, 0xF0, 0x3C);
+	write_reg(par, 0xF0, 0x69);
+	write_reg(par, 0x35, 0x00);
+	write_reg(par, 0x29);
+	write_reg(par, 0x21);
+	write_reg(par, 0x2A, 0x00, 0x00, 0x01, 0x3F);
+	write_reg(par, 0x2B, 0x00, 0x00, 0x01, 0x3F);
 
 	return 0;
 }
@@ -196,13 +159,47 @@ static int blank(struct fbtft_par *par, bool on)
 	return 0;
 }
 
+static void write_register(struct fbtft_par *par, int len, ...)
+{
+	va_list args;
+	int i;
+
+	va_start(args, len);
+	if (len == 1) {
+		/*only write command*/
+		for (i = 0; i < len; i++)
+			par->buf[i] = va_arg(args, unsigned int);
+
+		/* keep DC low for all command bytes to transfer */
+#ifdef CONFIG_FB_TFT_SPI_DMA
+		par->spi->bits_per_word = 8;
+#endif
+		fbtft_write_buf_dc(par, par->buf, len, 0);
+	} else if (len > 1) {
+		/*write command and data*/
+		for (i = 0; i < len; i++)
+			par->buf[i] = va_arg(args, unsigned int);
+
+		/* keep DC low for all command bytes to transfer */
+#ifdef CONFIG_FB_TFT_SPI_DMA
+		par->spi->bits_per_word = 8;
+#endif
+		fbtft_write_buf_dc(par, par->buf, 1, 0);
+
+		/* keep DC high for all data bytes to transfer */
+		fbtft_write_buf_dc(par, par->buf + 1, len - 1, 1);
+	}
+	va_end(args);
+}
+
 static struct fbtft_display display = {
 	.regwidth = 8,
-	.width = 480,
+	.width = 320,
 	.height = 320,
 	.fbtftops = {
 		.init_display = init_display,
 		.blank = blank,
+		.write_register = write_register,
 	},
 };
 
