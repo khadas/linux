@@ -164,6 +164,16 @@ config FB_TFT_ST7789V
 
 	  Say Y if you have such a display that utilizes this controller.
 
+config FB_TFT_ST7796S
+	tristate "FB driver for the ST7796S LCD Controller"
+	depends on FB_TFT
+	help
+	  This enables generic framebuffer support for the Sitronix ST7796S
+	  display controller. The controller is intended for small color
+	  displays with a resolution of up to 320x320 pixels.
+
+	  Say Y if you have such a display that utilizes this controller.
+
 config FB_TFT_SPI_DMA
 	bool "Enable SPI DMA mode"
 	depends on FB_TFT && AMLOGIC_MODIFY
