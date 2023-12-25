@@ -60,9 +60,8 @@ int maxim2c_pattern_enable(maxim2c_t *maxim2c, bool enable)
 		/* Generate gradient pattern. */
 		reg_val = enable ? BIT(5) : 0;
 	}
-	ret = maxim2c_i2c_update_byte(client,
-			0x0241, MAXIM2C_I2C_REG_ADDR_16BITS,
-			reg_mask, reg_val);
+	ret = maxim2c_i2c_update_reg(client,
+			0x0241, reg_mask, reg_val);
 
 	return ret;
 }
@@ -74,30 +73,22 @@ static int maxim2c_pattern_previnit(maxim2c_t *maxim2c)
 	int ret = 0;
 
 	// Disable data transmission through video pipe.
-	ret = maxim2c_i2c_update_byte(client,
-			0x0002, MAXIM2C_I2C_REG_ADDR_16BITS,
-			0xF0, 0x00);
+	ret = maxim2c_i2c_update_reg(client, 0x0002, 0xF0, 0x00);
 	if (ret)
 		return ret;
 
 	// video pipe disable.
-	ret = maxim2c_i2c_write_byte(client,
-			0x0160, MAXIM2C_I2C_REG_ADDR_16BITS,
-			0x00);
+	ret = maxim2c_i2c_write_reg(client, 0x0160, 0x00);
 	if (ret)
 		return ret;
 
 	// MIPI CSI output disable.
-	ret = maxim2c_i2c_write_byte(client,
-			0x0313, MAXIM2C_I2C_REG_ADDR_16BITS,
-			0x00);
+	ret = maxim2c_i2c_write_reg(client, 0x0313, 0x00);
 	if (ret)
 		return ret;
 
 	// MIPI TXPHY standby
-	ret = maxim2c_i2c_update_byte(client,
-			0x0332, MAXIM2C_I2C_REG_ADDR_16BITS,
-			0xF0, 0x00);
+	ret = maxim2c_i2c_update_reg(client, 0x0332, 0xF0, 0x00);
 	if (ret)
 		return ret;
 
@@ -131,9 +122,8 @@ static int maxim2c_pattern_config(maxim2c_t *maxim2c)
 
 	// PATGEN_MODE = 0, Pattern generator disabled
 	//	use video from the serializer input
-	ret |= maxim2c_i2c_update_byte(client,
-			0x0241, MAXIM2C_I2C_REG_ADDR_16BITS,
-			BIT(5) | BIT(4), 0x00);
+	ret |= maxim2c_i2c_update_reg(client,
+			0x0241, BIT(5) | BIT(4), 0x00);
 
 	/* Pattern PCLK:
 	 *	0b00 - 25MHz
@@ -141,9 +131,7 @@ static int maxim2c_pattern_config(maxim2c_t *maxim2c)
 	 *	0b1x - (PATGEN_CLK_SRC: 0 - 150MHz, 1 - 600MHz).
 	 */
 	pattern_pclk = (pattern_pclk & 0x03);
-	ret |= maxim2c_i2c_write_byte(client,
-			0x0038, MAXIM2C_I2C_REG_ADDR_16BITS,
-			pattern_pclk);
+	ret |= maxim2c_i2c_write_reg(client, 0x0038, pattern_pclk);
 	if (pattern_pclk >= PATTERN_PCLK_150M) {
 		reg_mask = BIT(7);
 		if (pattern_pclk == PATTERN_PCLK_600M)
@@ -153,82 +141,77 @@ static int maxim2c_pattern_config(maxim2c_t *maxim2c)
 
 		for (i = 0; i < 2; i++) {
 			reg_addr = 0x01FC + i * 0x20;
-			ret |= maxim2c_i2c_update_byte(client,
-					reg_addr, MAXIM2C_I2C_REG_ADDR_16BITS,
-					reg_mask, reg_val);
+			ret |= maxim2c_i2c_update_reg(client,
+					reg_addr, reg_mask, reg_val);
 		}
 	}
 
 	/* Configure Video Timing Generator for 1920x1080 @ 30 fps. */
 	// VS_DLY = 0
-	ret |= maxim2c_i2c_write_reg(client,
+	ret |= maxim2c_i2c_write(client,
 			0x0242, MAXIM2C_I2C_REG_ADDR_16BITS,
 			MAXIM2C_I2C_REG_VALUE_24BITS, 0x000000);
 	// VS_HIGH = Vsw * Htot
-	ret |= maxim2c_i2c_write_reg(client,
+	ret |= maxim2c_i2c_write(client,
 			0x0245, MAXIM2C_I2C_REG_ADDR_16BITS,
 			MAXIM2C_I2C_REG_VALUE_24BITS, v_sw * h_tot);
 	// VS_LOW = (Vactive + Vfp + Vbp) * Htot
-	ret |= maxim2c_i2c_write_reg(client,
+	ret |= maxim2c_i2c_write(client,
 			0x0248, MAXIM2C_I2C_REG_ADDR_16BITS,
 			MAXIM2C_I2C_REG_VALUE_24BITS, (v_active + v_fp + v_bp) * h_tot);
 	// V2H = VS_DLY
-	ret |= maxim2c_i2c_write_reg(client,
+	ret |= maxim2c_i2c_write(client,
 			0x024B, MAXIM2C_I2C_REG_ADDR_16BITS,
 			MAXIM2C_I2C_REG_VALUE_24BITS, 0x000000);
 	// HS_HIGH = Hsw
-	ret |= maxim2c_i2c_write_reg(client,
+	ret |= maxim2c_i2c_write(client,
 			0x024E, MAXIM2C_I2C_REG_ADDR_16BITS,
 			MAXIM2C_I2C_REG_VALUE_16BITS, h_sw);
 	// HS_LOW = Hactive + Hfp + Hbp
-	ret |= maxim2c_i2c_write_reg(client,
+	ret |= maxim2c_i2c_write(client,
 			0x0250, MAXIM2C_I2C_REG_ADDR_16BITS,
 			MAXIM2C_I2C_REG_VALUE_16BITS, h_active + h_fp + h_bp);
 	// HS_CNT = Vtot
-	ret |= maxim2c_i2c_write_reg(client,
+	ret |= maxim2c_i2c_write(client,
 			0x0252, MAXIM2C_I2C_REG_ADDR_16BITS,
 			MAXIM2C_I2C_REG_VALUE_16BITS, v_tot);
 	// V2D = VS_DLY + Htot * (Vsw + Vbp) + (Hsw + Hbp)
-	ret |= maxim2c_i2c_write_reg(client,
+	ret |= maxim2c_i2c_write(client,
 			0x0254, MAXIM2C_I2C_REG_ADDR_16BITS,
 			MAXIM2C_I2C_REG_VALUE_24BITS, h_tot * (v_sw + v_bp) + (h_sw + h_bp));
 	// DE_HIGH = Hactive
-	ret |= maxim2c_i2c_write_reg(client,
+	ret |= maxim2c_i2c_write(client,
 			0x0257, MAXIM2C_I2C_REG_ADDR_16BITS,
 			MAXIM2C_I2C_REG_VALUE_16BITS, h_active);
 	// DE_LOW = Hfp + Hsw + Hbp
-	ret |= maxim2c_i2c_write_reg(client,
+	ret |= maxim2c_i2c_write(client,
 			0x0259, MAXIM2C_I2C_REG_ADDR_16BITS,
 			MAXIM2C_I2C_REG_VALUE_16BITS, h_fp + h_sw + h_bp);
 	// DE_CNT = Vactive
-	ret |= maxim2c_i2c_write_reg(client,
+	ret |= maxim2c_i2c_write(client,
 			0x025B, MAXIM2C_I2C_REG_ADDR_16BITS,
 			MAXIM2C_I2C_REG_VALUE_16BITS, v_active);
 
 	/* Generate VS, HS and DE in free-running mode, Invert HS and VS. */
-	ret |= maxim2c_i2c_write_byte(client,
-			0x0240, MAXIM2C_I2C_REG_ADDR_16BITS,
-			0xfb);
+	ret |= maxim2c_i2c_write_reg(client, 0x0240, 0xfb);
 
 	/* Configure Video Pattern Generator. */
 	if (pattern_mode == PATTERN_CHECKERBOARD) {
 		/* Set checkerboard pattern size. */
-		ret |= maxim2c_i2c_write_reg(client,
+		ret |= maxim2c_i2c_write(client,
 			0x0264, MAXIM2C_I2C_REG_ADDR_16BITS,
 			MAXIM2C_I2C_REG_VALUE_24BITS, 0x3c3c3c);
 
 		/* Set checkerboard pattern colors. */
-		ret |= maxim2c_i2c_write_reg(client,
+		ret |= maxim2c_i2c_write(client,
 			0x025E, MAXIM2C_I2C_REG_ADDR_16BITS,
 			MAXIM2C_I2C_REG_VALUE_24BITS, 0xfecc00);
-		ret |= maxim2c_i2c_write_reg(client,
+		ret |= maxim2c_i2c_write(client,
 			0x0261, MAXIM2C_I2C_REG_ADDR_16BITS,
 			MAXIM2C_I2C_REG_VALUE_24BITS, 0x006aa7);
 	} else {
 		/* Set gradient increment. */
-		ret |= maxim2c_i2c_write_byte(client,
-				0x025D, MAXIM2C_I2C_REG_ADDR_16BITS,
-				0x10);
+		ret |= maxim2c_i2c_write_reg(client, 0x025D, 0x10);
 	}
 
 	return ret;

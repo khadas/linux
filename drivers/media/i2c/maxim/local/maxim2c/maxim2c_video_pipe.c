@@ -40,9 +40,8 @@ static int maxim2c_video_pipe_select(maxim2c_t *maxim2c)
 		reg_value |= ((pipe_idx + link_idx * MAXIM2C_PIPE_I_ID_MAX) << 3);
 	}
 
-	ret |= maxim2c_i2c_update_byte(client,
-			0x0161, MAXIM2C_I2C_REG_ADDR_16BITS,
-			reg_mask, reg_value);
+	ret |= maxim2c_i2c_update_reg(client,
+			0x0161, reg_mask, reg_value);
 
 	return ret;
 }
@@ -251,9 +250,8 @@ int maxim2c_video_pipe_mask_enable(maxim2c_t *maxim2c, u8 video_pipe_mask, bool 
 	}
 
 	if (reg_mask != 0) {
-		ret |= maxim2c_i2c_update_byte(client,
-				0x0160, MAXIM2C_I2C_REG_ADDR_16BITS,
-				reg_mask, reg_value);
+		ret |= maxim2c_i2c_update_reg(client,
+				0x0160, reg_mask, reg_value);
 	}
 
 	return ret;
@@ -287,9 +285,8 @@ int maxim2c_video_pipe_linkid_enable(maxim2c_t *maxim2c, u8 link_id, bool enable
 	}
 
 	if (reg_mask != 0) {
-		ret = maxim2c_i2c_update_byte(client,
-				0x0160, MAXIM2C_I2C_REG_ADDR_16BITS,
-				reg_mask, reg_value);
+		ret = maxim2c_i2c_update_reg(client,
+				0x0160, reg_mask, reg_value);
 	}
 
 	return ret;

@@ -19,6 +19,11 @@
  *     1. MIPI TXPHY add tunnel mode support
  *     2. MIPI TXPHY mode only support 2x4Lanes and 2x2Lanes
  *
+ * V3.00.00
+ *     1. deserializer and serializer are associated through i2c-mux
+ *     2. remote serializer is abstracted as v4l2 subdev
+ *     3. remote camera is bound to remote serializer
+ *
  */
 #include <linux/clk.h>
 #include <linux/i2c.h>
@@ -42,15 +47,18 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
-#include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
-#include <media/v4l2-subdev.h>
 
 #include "maxim2c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(2, 0x00, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x00, 0x00)
 
 #define MAXIM2C_XVCLK_FREQ		25000000
+
+static const char *const maxim2c_supply_names[MAXIM2C_NUM_SUPPLIES] = {
+	"vcc1v2",
+	"vcc1v8",
+};
 
 static int maxim2c_check_local_chipid(maxim2c_t *maxim2c)
 {
@@ -65,9 +73,7 @@ static int maxim2c_check_local_chipid(maxim2c_t *maxim2c)
 			msleep(10);
 		}
 
-		ret = maxim2c_i2c_read_byte(client,
-				MAXIM2C_REG_CHIP_ID, MAXIM2C_I2C_REG_ADDR_16BITS,
-				&chipid);
+		ret = maxim2c_i2c_read_reg(client, MAXIM2C_REG_CHIP_ID, &chipid);
 		if (ret == 0) {
 			if (chipid == maxim2c->chipid) {
 				if (chipid == MAX96716_CHIP_ID) {
@@ -93,7 +99,7 @@ static int maxim2c_check_local_chipid(maxim2c_t *maxim2c)
 
 static irqreturn_t maxim2c_hot_plug_detect_irq_handler(int irq, void *dev_id)
 {
-	struct maxim2c *maxim2c = dev_id;
+	maxim2c_t *maxim2c = dev_id;
 	struct device *dev = &maxim2c->client->dev;
 	int lock_gpio_level = 0;
 
@@ -150,7 +156,7 @@ static void maxim2c_hot_plug_state_check_work(struct work_struct *work)
 {
 	struct maxim2c_hot_plug_work *hot_plug_work =
 		container_of(work, struct maxim2c_hot_plug_work, state_d_work.work);
-	struct maxim2c *maxim2c =
+	maxim2c_t *maxim2c =
 		container_of(hot_plug_work, struct maxim2c, hot_plug_work);
 	struct device *dev = &maxim2c->client->dev;
 	u8 curr_lock_state = 0, last_lock_state = 0, link_lock_change = 0;
@@ -168,7 +174,8 @@ static void maxim2c_hot_plug_state_check_work(struct work_struct *work)
 	last_lock_state = maxim2c->link_lock_state;
 	if ((maxim2c->hot_plug_state == MAXIM2C_HOT_PLUG_OUT)
 			&& (last_lock_state == link_enable_mask)) {
-		maxim2c_link_select_remote_control(maxim2c, 0);
+		// i2c mux enable: disable all remote channel
+		maxim2c_i2c_mux_enable(maxim2c, 0x00);
 	}
 
 	curr_lock_state = maxim2c_link_get_lock_state(maxim2c, link_enable_mask);
@@ -189,7 +196,8 @@ static void maxim2c_hot_plug_state_check_work(struct work_struct *work)
 			if (maxim2c->hot_plug_irq > 0)
 				disable_irq(maxim2c->hot_plug_irq);
 
-			maxim2c_remote_devices_init(maxim2c, MAXIM2C_LINK_MASK_A);
+			// Link A remote device start stream
+			maxim2c_remote_devices_s_stream(maxim2c, MAXIM2C_LINK_MASK_A, 1);
 
 			if (maxim2c->hot_plug_irq > 0)
 				enable_irq(maxim2c->hot_plug_irq);
@@ -197,6 +205,9 @@ static void maxim2c_hot_plug_state_check_work(struct work_struct *work)
 			maxim2c_video_pipe_linkid_enable(maxim2c, link_id, true);
 		} else {
 			dev_info(dev, "Link A plug out\n");
+
+			// Link A remote device stop stream
+			maxim2c_remote_devices_s_stream(maxim2c, MAXIM2C_LINK_MASK_A, 0);
 
 			maxim2c_video_pipe_linkid_enable(maxim2c, link_id, false);
 		}
@@ -211,7 +222,8 @@ static void maxim2c_hot_plug_state_check_work(struct work_struct *work)
 			if (maxim2c->hot_plug_irq > 0)
 				disable_irq(maxim2c->hot_plug_irq);
 
-			maxim2c_remote_devices_init(maxim2c, MAXIM2C_LINK_MASK_B);
+			// Link B remote device start stream
+			maxim2c_remote_devices_s_stream(maxim2c, MAXIM2C_LINK_MASK_B, 1);
 
 			if (maxim2c->hot_plug_irq > 0)
 				enable_irq(maxim2c->hot_plug_irq);
@@ -220,13 +232,16 @@ static void maxim2c_hot_plug_state_check_work(struct work_struct *work)
 		} else {
 			dev_info(dev, "Link B plug out\n");
 
+			// Link B remote device stop stream
+			maxim2c_remote_devices_s_stream(maxim2c, MAXIM2C_LINK_MASK_B, 0);
+
 			maxim2c_video_pipe_linkid_enable(maxim2c, link_id, false);
 		}
 	}
 
 	if (curr_lock_state == link_enable_mask) {
-		// remote control mask enable
-		maxim2c_link_select_remote_control(maxim2c, link_enable_mask);
+		// i2c mux enable: enable all enabled link for remote control
+		maxim2c_i2c_mux_enable(maxim2c, link_enable_mask);
 	} else {
 		queue_delayed_work(maxim2c->hot_plug_work.state_check_wq,
 				&maxim2c->hot_plug_work.state_d_work,
@@ -291,91 +306,71 @@ static inline u32 maxim2c_cal_delay(u32 cycles)
 	return DIV_ROUND_UP(cycles, MAXIM2C_XVCLK_FREQ / 1000 / 1000);
 }
 
-static int maxim2c_local_device_power_on(maxim2c_t *maxim2c)
+static int maxim2c_device_power_on(maxim2c_t *maxim2c)
 {
 	struct device *dev = &maxim2c->client->dev;
+	int ret = 0;
 
-	if (!IS_ERR(maxim2c->pwdn_gpio)) {
-		dev_info(dev, "local device pwdn gpio on\n");
+	ret = regulator_bulk_enable(MAXIM2C_NUM_SUPPLIES, maxim2c->supplies);
+	if (ret < 0) {
+		dev_err(dev, "Failed to enable regulators\n");
+		return -EINVAL;
+	}
 
-		gpiod_set_value_cansleep(maxim2c->pwdn_gpio, 1);
-
-		usleep_range(20000, 20100);
+	ret = regulator_enable(maxim2c->pwdn_regulator);
+	if (ret < 0) {
+		dev_err(dev, "Unable to turn pwdn regulator on\n");
+		return ret;
 	}
 
 	return 0;
 }
 
-static void maxim2c_local_device_power_off(maxim2c_t *maxim2c)
+static void maxim2c_device_power_off(maxim2c_t *maxim2c)
 {
 	struct device *dev = &maxim2c->client->dev;
+	int ret = 0;
 
-	if (!IS_ERR(maxim2c->pwdn_gpio)) {
-		dev_info(dev, "local device pwdn gpio off\n");
+	ret = regulator_disable(maxim2c->pwdn_regulator);
+	if (ret < 0)
+		dev_warn(dev, "Unable to turn pwdn regulator off\n");
 
-		gpiod_set_value_cansleep(maxim2c->pwdn_gpio, 0);
+	ret = regulator_bulk_disable(MAXIM2C_NUM_SUPPLIES, maxim2c->supplies);
+	if (ret < 0) {
+		dev_warn(dev, "Failed to disable regulators\n");
 	}
-}
-
-static int maxim2c_remote_device_power_on(maxim2c_t *maxim2c)
-{
-	struct device *dev = &maxim2c->client->dev;
-
-	// remote PoC enable
-	if (!IS_ERR(maxim2c->pocen_gpio)) {
-		dev_info(dev, "remote device pocen gpio on\n");
-
-		gpiod_set_value_cansleep(maxim2c->pocen_gpio, 1);
-		usleep_range(5000, 10000);
-	}
-
-	return 0;
-}
-
-static int maxim2c_remote_device_power_off(maxim2c_t *maxim2c)
-{
-	struct device *dev = &maxim2c->client->dev;
-
-	// remote PoC enable
-	if (!IS_ERR(maxim2c->pocen_gpio)) {
-		dev_info(dev, "remote device pocen gpio off\n");
-
-		gpiod_set_value_cansleep(maxim2c->pocen_gpio, 0);
-	}
-
-	return 0;
 }
 
 static int maxim2c_runtime_resume(struct device *dev)
 {
+#if MAXIM2C_LOCAL_DES_ON_OFF_EN
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct maxim2c *maxim2c = v4l2_get_subdevdata(sd);
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-#if MAXIM2C_LOCAL_DES_ON_OFF_EN
-	ret |= maxim2c_local_device_power_on(maxim2c);
-#endif /* MAXIM2C_LOCAL_DES_ON_OFF_EN */
-
-	ret |= maxim2c_remote_device_power_on(maxim2c);
+	ret |= maxim2c_device_power_on(maxim2c);
 
 	return ret;
+#else
+	return 0;
+#endif /* MAXIM2C_LOCAL_DES_ON_OFF_EN */
 }
 
 static int maxim2c_runtime_suspend(struct device *dev)
 {
+#if MAXIM2C_LOCAL_DES_ON_OFF_EN
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct maxim2c *maxim2c = v4l2_get_subdevdata(sd);
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	ret |= maxim2c_remote_device_power_off(maxim2c);
-
-#if MAXIM2C_LOCAL_DES_ON_OFF_EN
-	maxim2c_local_device_power_off(maxim2c);
-#endif /* MAXIM2C_LOCAL_DES_ON_OFF_EN */
+	maxim2c_device_power_off(maxim2c);
 
 	return ret;
+#else
+	return 0;
+#endif /* MAXIM2C_LOCAL_DES_ON_OFF_EN */
 }
 
 static const struct dev_pm_ops maxim2c_pm_ops = {
@@ -386,7 +381,9 @@ static const struct dev_pm_ops maxim2c_pm_ops = {
 static void maxim2c_module_data_init(maxim2c_t *maxim2c)
 {
 	maxim2c_link_data_init(maxim2c);
+
 	maxim2c_video_pipe_data_init(maxim2c);
+
 	maxim2c_mipi_txphy_data_init(maxim2c);
 }
 
@@ -480,30 +477,22 @@ static int maxim2c_module_hw_previnit(maxim2c_t *maxim2c)
 	int ret = 0;
 
 	// Disable data transmission through video pipe.
-	ret = maxim2c_i2c_update_byte(client,
-			0x0002, MAXIM2C_I2C_REG_ADDR_16BITS,
-			0xF0, 0x00);
+	ret = maxim2c_i2c_update_reg(client, 0x0002, 0xF0, 0x00);
 	if (ret)
 		return ret;
 
 	// Video Pipe Y/Z Disable
-	ret = maxim2c_i2c_update_byte(client,
-			0x0160, MAXIM2C_I2C_REG_ADDR_16BITS,
-			BIT(1) | BIT(0), 0);
+	ret = maxim2c_i2c_update_reg(client, 0x0160, BIT(1) | BIT(0), 0);
 	if (ret)
 		return ret;
 
 	// MIPI CSI output disable.
-	ret = maxim2c_i2c_write_byte(client,
-			0x0313, MAXIM2C_I2C_REG_ADDR_16BITS,
-			0x00);
+	ret = maxim2c_i2c_write_reg(client, 0x0313, 0x00);
 	if (ret)
 		return ret;
 
 	// MIPI TXPHY standby
-	ret = maxim2c_i2c_update_byte(client,
-			0x0332, MAXIM2C_I2C_REG_ADDR_16BITS,
-			0xF0, 0x00);
+	ret = maxim2c_i2c_update_reg(client, 0x0332, 0xF0, 0x00);
 	if (ret)
 		return ret;
 
@@ -516,17 +505,13 @@ static int maxim2c_module_hw_postinit(maxim2c_t *maxim2c)
 	int ret = 0;
 
 	// video pipe disable all
-	ret |= maxim2c_i2c_write_byte(client,
-			0x0160, MAXIM2C_I2C_REG_ADDR_16BITS,
-			0);
+	ret |= maxim2c_i2c_write_reg(client, 0x0160, 0);
 
 	// remote control disable all
 	ret |= maxim2c_link_select_remote_control(maxim2c, 0);
 
 	// Enable data transmission through video pipe.
-	ret |= maxim2c_i2c_update_byte(client,
-			0x0002, MAXIM2C_I2C_REG_ADDR_16BITS,
-			0xF0, 0xF0);
+	ret |= maxim2c_i2c_update_reg(client, 0x0002, 0xF0, 0xF0);
 
 	return ret;
 }
@@ -577,6 +562,18 @@ int maxim2c_module_hw_init(maxim2c_t *maxim2c)
 }
 EXPORT_SYMBOL(maxim2c_module_hw_init);
 
+static int maxim2c_configure_regulators(maxim2c_t *maxim2c)
+{
+	unsigned int i;
+
+	for (i = 0; i < MAXIM2C_NUM_SUPPLIES; i++)
+		maxim2c->supplies[i].supply = maxim2c_supply_names[i];
+
+	return devm_regulator_bulk_get(&maxim2c->client->dev,
+				       MAXIM2C_NUM_SUPPLIES,
+				       maxim2c->supplies);
+}
+
 static int maxim2c_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -621,15 +618,24 @@ static int maxim2c_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	maxim2c->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
-	if (IS_ERR(maxim2c->pwdn_gpio))
-		dev_warn(dev, "Failed to get pwdn-gpios, maybe no use\n");
-	else
-		usleep_range(1000, 1100);
+	ret = maxim2c_configure_regulators(maxim2c);
+	if (ret) {
+		dev_err(dev, "Failed to get power regulators\n");
+		return ret;
+	}
 
-	maxim2c->pocen_gpio = devm_gpiod_get(dev, "pocen", GPIOD_OUT_LOW);
-	if (IS_ERR(maxim2c->pocen_gpio))
-		dev_warn(dev, "Failed to get pocen-gpios\n");
+	maxim2c->pwdn_regulator = devm_regulator_get(dev, "pwdn");
+	if (IS_ERR(maxim2c->pwdn_regulator)) {
+		if (PTR_ERR(maxim2c->pwdn_regulator) != -EPROBE_DEFER)
+			dev_err(dev, "Unable to get pwdn regulator (%ld)\n",
+				PTR_ERR(maxim2c->pwdn_regulator));
+		else
+			dev_err(dev, "Get pwdn regulator deferred\n");
+
+		ret = PTR_ERR(maxim2c->pwdn_regulator);
+
+		return ret;
+	}
 
 	maxim2c->lock_gpio = devm_gpiod_get(dev, "lock", GPIOD_IN);
 	if (IS_ERR(maxim2c->lock_gpio))
@@ -637,22 +643,29 @@ static int maxim2c_probe(struct i2c_client *client,
 
 	mutex_init(&maxim2c->mutex);
 
-	ret = maxim2c_local_device_power_on(maxim2c);
+	ret = maxim2c_device_power_on(maxim2c);
 	if (ret)
 		goto err_destroy_mutex;
+
+	pm_runtime_set_active(dev);
+	pm_runtime_get_noresume(dev);
+	pm_runtime_enable(dev);
 
 	ret = maxim2c_check_local_chipid(maxim2c);
 	if (ret)
 		goto err_power_off;
 
-	// client->dev->driver_data = subdev
-	// subdev->dev->driver_data = maxim2c
+	/*
+	 * client->dev->driver_data = subdev
+	 * subdev->dev->driver_data = maxim2c
+	 */
 	ret = maxim2c_v4l2_subdev_init(maxim2c);
 	if (ret) {
 		dev_err(dev, "maxim2c probe v4l2 subdev init error\n");
 		goto err_power_off;
 	}
 
+	/* maxim2c test pattern */
 #if MAXIM2C_TEST_PATTERN
 	ret = maxim2c_pattern_data_init(maxim2c);
 	if (ret)
@@ -664,9 +677,10 @@ static int maxim2c_probe(struct i2c_client *client,
 		goto err_power_off;
 #endif /* MAXIM2C_LOCAL_DES_ON_OFF_EN */
 
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-	pm_runtime_idle(dev);
+	pm_runtime_set_autosuspend_delay(dev, 1000);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 #endif /* MAXIM2C_TEST_PATTERN */
@@ -680,23 +694,31 @@ static int maxim2c_probe(struct i2c_client *client,
 		goto err_subdev_deinit;
 #endif /* MAXIM2C_LOCAL_DES_ON_OFF_EN */
 
-	ret = maxim2c_remote_mfd_add_devices(maxim2c);
+	ret = maxim2c_i2c_mux_init(maxim2c);
 	if (ret)
 		goto err_subdev_deinit;
+
+	// i2c mux enable: default disable all remote channel
+	maxim2c_i2c_mux_enable(maxim2c, 0x00);
 
 	maxim2c_lock_irq_init(maxim2c);
 	maxim2c_lock_state_work_init(maxim2c);
 
-	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-	pm_runtime_idle(dev);
+	pm_runtime_set_autosuspend_delay(dev, 1000);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_mark_last_busy(dev);
+	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 
 err_subdev_deinit:
 	maxim2c_v4l2_subdev_deinit(maxim2c);
+
 err_power_off:
-	maxim2c_local_device_power_off(maxim2c);
+	pm_runtime_disable(dev);
+	pm_runtime_put_noidle(dev);
+	maxim2c_device_power_off(maxim2c);
+
 err_destroy_mutex:
 	mutex_destroy(&maxim2c->mutex);
 
@@ -705,17 +727,20 @@ err_destroy_mutex:
 
 static int maxim2c_remove(struct i2c_client *client)
 {
-	maxim2c_t *maxim2c = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 
 	maxim2c_lock_state_work_deinit(maxim2c);
 
 	maxim2c_v4l2_subdev_deinit(maxim2c);
 
+	maxim2c_i2c_mux_deinit(maxim2c);
+
 	mutex_destroy(&maxim2c->mutex);
 
 	pm_runtime_disable(&client->dev);
 	if (!pm_runtime_status_suspended(&client->dev))
-		maxim2c_local_device_power_off(maxim2c);
+		maxim2c_device_power_off(maxim2c);
 	pm_runtime_set_suspended(&client->dev);
 
 	return 0;
