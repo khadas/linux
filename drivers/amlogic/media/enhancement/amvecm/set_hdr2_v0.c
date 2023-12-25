@@ -38,6 +38,7 @@
 #include "hdr/am_cuva_hdr_tm.h"
 #include <linux/amlogic/media/amvecm/cuva_alg.h>
 #include "hdr/am_hdr_sbtm.h"
+#include "amcsc.h"
 
 u32 disable_flush_flag;
 module_param(disable_flush_flag, uint, 0664);
@@ -2988,6 +2989,9 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	int *oft_post_out = bypass_pos;
 	bool always_full_func = false;
 	int vpp_sel;
+	int cur_source;
+	int cur_csc;
+
 	enum LUT_DMA_ID_e dma_id = HDR_DMA_ID;
 
 	if (disable_flush_flag)
@@ -3032,7 +3036,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		return hdr_process_select;
 	}
 
-	pr_csc(12, "%s: hdr module=%d, proc sel=0x%x vpp_index = %d\n",
+	pr_csc(128, "%s: hdr module=%d, proc sel=0x%x vpp_index = %d\n",
 		__func__,
 		module_sel,
 		hdr_process_select,
@@ -3576,12 +3580,26 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		    hdr_process_select & CUVAHLG_CUVA)) {
 		/* sdr process, always rgb osd here*/
 		if (hdr_process_select & RGB_OSD) {
+			pr_csc(128, "%s: RGB_OSD HDR_BYPASS, hdr_process_select = %x\n",
+				__func__, hdr_process_select);
+			pr_csc(128, "%s: RGB_OSD HDR_BYPASS, module_sel = %d\n",
+				__func__, module_sel);
 			if (hdr_process_select & RGB_VDIN) {
 				coeff_in = rgb2ycbcrf_709;
 				oft_pre_in = rgb2yuvfpre;
 				oft_post_in = rgb2yuvfpos;
 				oft_pre_out = bypass_pre;
 				oft_post_out = bypass_pos;
+
+				get_source_csc_info(vpp_index, &cur_source, &cur_csc);
+				pr_csc(128, "%s: RGB_OSD HDR_BYPASS, cur_source/csc = %d/%d\n",
+					__func__, cur_source, cur_csc);
+				if (cur_source != HDRTYPE_SDR &&
+					cur_csc != VPP_MATRIX_YUV709F_RGB) {
+					coeff_in = rgb2ycbcr_709;
+					oft_pre_in = rgb2yuvpre;
+					oft_post_in = rgb2yuvpos;
+				}
 			} else {
 				coeff_in = rgb2ycbcr_709;
 				oft_pre_in = rgb2yuvpre;
@@ -3590,6 +3608,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				oft_post_out = bypass_pos;
 			}
 		} else {
+			pr_csc(128, "%s: not RGB_OSD\n", __func__);
 			coeff_in = bypass_coeff;
 			oft_pre_in = bypass_pre;
 			oft_post_in = bypass_pos;
@@ -3604,6 +3623,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		    hdr_process_select & SDR_IPT ||
 		    hdr_process_select & CUVA_HDR ||
 		    hdr_process_select & SDR_CUVA)) {
+		    pr_csc(128, "%s: RGB_OSD, hdr_process_select = %x, module_sel = %d\n",
+				__func__, hdr_process_select, module_sel);
 		/* sdr process, always rgb osd here*/
 		if (hdr_process_select & RGB_OSD) {
 			coeff_in = bypass_coeff;
@@ -4962,6 +4983,8 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 		matrix_en_ctrl = VPP2_POST2_MATRIX_EN_CTRL;
 
 		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP2_POST2_MATRIX_EN_CTRL, mtx_on, 0, 1, vpp_sel);
+	} else {
+		return;
 	}
 
 	if (!mtx_on)

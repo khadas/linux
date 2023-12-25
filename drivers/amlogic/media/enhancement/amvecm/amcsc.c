@@ -9668,3 +9668,12 @@ dbg_end:
 
 	return 0;
 }
+
+void get_source_csc_info(int vpp_index, int *source_type, int *csc_type)
+{
+	if (!source_type || !csc_type)
+		return;
+
+	*source_type = get_source_type(VD1_PATH, vpp_index);
+	*csc_type = get_csc_type();
+}

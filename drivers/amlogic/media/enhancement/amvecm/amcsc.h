@@ -326,5 +326,8 @@ int get_s5_silce_mode(void);
 #define VD1_4SLICE							4
 
 void pkt_delay_flag_init(void);
+
+void get_source_csc_info(int vpp_index, int *source_type, int *csc_type);
+
 #endif /* AM_CSC_H */
 
