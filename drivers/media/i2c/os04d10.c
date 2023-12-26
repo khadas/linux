@@ -871,32 +871,30 @@ static int __os04d10_power_on(struct os04d10 *os04d10)
 			dev_err(dev, "could not set pins\n");
 	}
 
-	if (os04d10->is_thunderboot)
-		return 0;
+	if (!os04d10->is_thunderboot) {
+		if (!IS_ERR(os04d10->reset_gpio))
+			gpiod_set_value_cansleep(os04d10->reset_gpio, 0);
 
-	if (!IS_ERR(os04d10->reset_gpio))
-		gpiod_set_value_cansleep(os04d10->reset_gpio, 0);
+		usleep_range(5000, 6000);
 
-	usleep_range(5000, 6000);
+		ret = regulator_bulk_enable(OS04D10_NUM_SUPPLIES, os04d10->supplies);
+		if (ret < 0) {
+			dev_err(dev, "Failed to enable regulators\n");
+			goto disable_clk;
+		}
 
-	ret = regulator_bulk_enable(OS04D10_NUM_SUPPLIES, os04d10->supplies);
-	if (ret < 0) {
-		dev_err(dev, "Failed to enable regulators\n");
-		goto disable_clk;
-	}
+		if (!IS_ERR(os04d10->reset_gpio))
+			gpiod_set_value_cansleep(os04d10->reset_gpio, 1);
 
-	if (!IS_ERR(os04d10->reset_gpio))
-		gpiod_set_value_cansleep(os04d10->reset_gpio, 1);
+		usleep_range(500, 1000);
 
-	usleep_range(500, 1000);
+		if (!IS_ERR(os04d10->reset_gpio))
+			usleep_range(8000, 10000);
+		else
+			usleep_range(12000, 16000);
 
-	if (!IS_ERR(os04d10->reset_gpio))
-		usleep_range(8000, 10000);
-	else
 		usleep_range(12000, 16000);
-
-	usleep_range(12000, 16000);
-
+	}
 	ret = clk_set_rate(os04d10->xvclk, OS04D10_XVCLK_FREQ);
 	if (ret < 0)
 		dev_warn(dev, "Failed to set xvclk rate (24MHz)\n");
@@ -907,6 +905,9 @@ static int __os04d10_power_on(struct os04d10 *os04d10)
 		dev_err(dev, "Failed to enable xvclk\n");
 		return ret;
 	}
+
+	if (os04d10->is_thunderboot)
+		return 0;
 
 	/* 8192 cycles prior to first SCCB transaction */
 	delay_us = os04d10_cal_delay(8192);
@@ -1352,7 +1353,7 @@ static int os04d10_probe(struct i2c_client *client,
 	if (IS_ERR(os04d10->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
 
-	if (!IS_ERR(os04d10->reset_gpio))
+	if (!IS_ERR(os04d10->reset_gpio) && !os04d10->is_thunderboot)
 		gpiod_set_value_cansleep(os04d10->reset_gpio, 0);
 
 	os04d10->pinctrl = devm_pinctrl_get(dev);
