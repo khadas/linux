@@ -570,7 +570,8 @@ static int spi_nfc_prepare(struct spi_nfc *spi_nfc,
 	if (!boot_info)
 		return -ENOMEM;
 
-	page_info_pre_init(boot_info);
+	page_info_pre_init(boot_info, PAGE_INFO_V3);
+	page_info_initialize(DEFAULT_ECC_MODE, 0, 0);
 
 	nfc_set_clock_and_timing(&clk_rate);
 

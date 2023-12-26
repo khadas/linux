@@ -8,6 +8,7 @@
 
 #include <linux/mtd/spinand.h>
 #include <linux/mtd/mtd.h>
+#include <linux/amlogic/aml_pageinfo.h>
 #include "nfc.h"
 
 //#define __PXP_DEBUG__
@@ -33,25 +34,11 @@
 	}						\
 }
 #else
-#define NFC_PRINT(...)
+#define NFC_PRINT(fmt, ...)
 #define DUMP_BUFFER(buffer, size, loop, actual)
 #endif
 
 #define MAX_CLK_PROVIDER	13
-
-enum BL2_LAYOUT_VERS {
-	LAYOUT_VER0,
-	LAYOUT_VER1,
-	LAYOUT_VER2,
-	LAYOUT_VER3,
-	LAYOUT_VER_MAX,
-};
-
-enum PAGE_INFO_V {
-	PAGE_INFO_V1 = 1,
-	PAGE_INFO_V2,
-	PAGE_INFO_V3
-};
 
 #define PAGE_ERROR_MODE(mod, num)	((uint32_t)((((mod) << 16) | (num))))
 #define ERR_PAGE_INFO	PAGE_ERROR_MODE(1, 1)
@@ -135,12 +122,27 @@ struct boot_info {
 		unsigned int bbt_start_page;
 		/* from SPI NAND datasheet */
 		unsigned int block_size;
+
+#ifdef XOR_BBT_SCAN_SUPPORT_BOOTINFO
+#define	MAX_F_BAD_BLOCK_NUM	64
+#else
 #define	MAX_F_BAD_BLOCK_NUM	16
+#endif
 		unsigned short bbt[MAX_F_BAD_BLOCK_NUM];
 		/* when enable_bbt == 1, the bad block skipping mechanism is
 		 * enabled and bbt[] array is used.
 		 */
 		unsigned char enable_bbt;
+#ifdef XOR_BBT_SCAN_SUPPORT_BOOTINFO
+		/* decide usb update or gang programmer */
+		unsigned char is_gang_programer;
+		/*bit15-0 xor bbt start block */
+		/*bit23-16 xor bbt block number */
+		/*bit31-24 xor bbt pages */
+		unsigned int xor_bbt_start_block;
+		/* bit15-0  total blocks in chip */
+		unsigned int block_num_in_chip;
+#endif
 	} dev_cfg1;
 
 	struct {
@@ -281,6 +283,7 @@ unsigned int page_info_get_pages_in_block(void);
 unsigned char page_info_get_enable_bbt(void);
 unsigned short *page_info_get_bbt(void);
 unsigned int page_info_get_pages_in_boot(void);
-
-int page_info_pre_init(u8 *boot_info);
+void page_info_initialize(unsigned int default_n2m,
+	unsigned char bus_width, unsigned char ca);
+int page_info_pre_init(u8 *boot_info, int version);
 #endif

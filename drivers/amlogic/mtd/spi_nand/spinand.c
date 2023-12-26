@@ -33,12 +33,23 @@
 #define NAND_FIPMODE_DISCRETE   (1)
 //#define CONFIG_NOT_SKIP_BAD_BLOCK
 
+struct meson_partition_platform_data {
+	u32 reserved_part_blk_num;
+	u32 bl_mode;
+	u32 fip_copies;
+	u32 fip_size;
+	u32 part_num;
+	struct mtd_partition part[0];
+};
+
 struct meson_spinand {
 	struct mtd_info *mtd;
 	struct spinand_device *spinand;
 	struct meson_rsv_handler_t *rsv;
 	s8 *block_status;
 	unsigned int erasesize_shift;
+
+	struct meson_partition_platform_data *pdata;
 };
 
 struct meson_spinand *meson_spinand_global;
@@ -85,6 +96,15 @@ void meson_spinand_rsv_release_device(struct mtd_info *mtd)
 
 	mutex_unlock(&spinand->lock);
 }
+
+void spinand_get_tpl_info(u32 *fip_size, u32 *fip_copies)
+{
+	if (meson_spinand_global->pdata) {
+		*fip_size = meson_spinand_global->pdata->fip_size;
+		*fip_copies = meson_spinand_global->pdata->fip_copies;
+	}
+}
+EXPORT_SYMBOL_GPL(spinand_get_tpl_info);
 
 bool meson_spinand_isbad(struct nand_device *nand, const struct nand_pos *pos)
 {
@@ -282,15 +302,6 @@ int spinand_set_info_page(struct mtd_info *mtd, void *buf)
 }
 EXPORT_SYMBOL_GPL(spinand_set_info_page);
 
-struct meson_partition_platform_data {
-	u32 reserved_part_blk_num;
-	u32 bl_mode;
-	u32 fip_copies;
-	u32 fip_size;
-	u32 part_num;
-	struct mtd_partition part[0];
-};
-
 static struct meson_partition_platform_data *
 	meson_partition_parse_platform_data(struct device_node *np)
 {
@@ -325,6 +336,7 @@ static struct meson_partition_platform_data *
 	pdata = kzalloc(sizeof(*pdata) + sizeof(*part) * part_num,
 			GFP_KERNEL);
 	pdata->part_num = part_num;
+	meson_spinand_global->pdata = pdata;
 
 	ret = of_property_read_u32(np, "bl_mode", &pdata->bl_mode);
 	pr_info("bl_mode %s\n", pdata->bl_mode ? "discrete" : "compact");
