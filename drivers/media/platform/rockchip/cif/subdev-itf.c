@@ -894,6 +894,7 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 				stream->to_en_dma = RKCIF_DMAEN_BY_ISP;
 				rkcif_enable_dma_capture(stream, true);
 				cif_dev->sensor_work.on = 1;
+				rkcif_dphy_quick_stream(stream->cifdev, cif_dev->sensor_work.on);
 				schedule_work(&cif_dev->sensor_work.work);
 			}
 		}
