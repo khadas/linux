@@ -10962,6 +10962,9 @@ void di_pre_size_change(unsigned short width,
 	DIM_RDMA_WR(DI_PRE_SIZE, (width - 1) |
 		((height - 1) << 16));
 
+	if (DIM_IS_ICS_T5M)
+		DIM_RDMA_WR(DI_PRE_HOLD, 0x0);
+
 	if (dimp_get(edi_mp_mcpre_en)) {
 		blkhsize = (width + 4) / 5;
 		DIM_RDMA_WR(MCDI_HV_SIZEIN, height

@@ -53,7 +53,7 @@ bool tvin_vf_is_keeped(struct vframe_s *vf);
 void _set_video_mirror(struct disp_info_s *layer, int mirror);
 void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1, int line);
 int dvel_swap_frame(struct vframe_s *vf);
-s32 primary_render_frame(struct video_layer_s *layer);
+s32 primary_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo);
 void vf_pq_process(struct vframe_s *vf,
 		   struct ai_scenes_pq *vpp_scenes,
 		   int *pq_debug,

@@ -591,6 +591,8 @@ int new_release_keep_buf(struct di_buffer *buffer);
 int new_get_output_buffer_num(int index);
 int new_get_input_buffer_num(int index);
 bool dim_get_overturn(void);
+int set_holdreg_by_in_out(struct vframe_s *vfm, struct pvpp_dis_para_in_s *in_para,
+			const struct reg_acc *op_in);
 int dim_pre_vpp_link_display(struct vframe_s *vfm,
 			  struct pvpp_dis_para_in_s *in_para, void *out_para);
 enum DI_ERRORTYPE dpvpp_fill_output_buffer(struct dimn_itf_s *itf,
