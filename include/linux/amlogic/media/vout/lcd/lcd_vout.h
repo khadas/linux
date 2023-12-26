@@ -129,21 +129,6 @@ struct lcd_basic_s {
 	unsigned char lcd_bits;
 	unsigned char config_check; /*bit[1]:force, bit[0]:en*/
 
-	unsigned short h_active;    /* Horizontal display area */
-	unsigned short v_active;    /* Vertical display area */
-	unsigned short h_period;    /* Horizontal total period time */
-	unsigned short v_period;    /* Vertical total period time */
-	unsigned short h_period_min;
-	unsigned short h_period_max;
-	unsigned short v_period_min;
-	unsigned short v_period_max;
-	unsigned short v_period_min_dft; /* internal used */
-	unsigned short v_period_max_dft; /* internal used */
-	unsigned char frame_rate_min;
-	unsigned char frame_rate_max;
-	unsigned int lcd_clk_min;
-	unsigned int lcd_clk_max;
-
 	unsigned short screen_width;  /* screen physical width(unit: mm) */
 	unsigned short screen_height; /* screen physical height(unit: mm) */
 };
@@ -151,25 +136,22 @@ struct lcd_basic_s {
 #define LCD_CLK_FRAC_UPDATE     BIT(0)
 #define LCD_CLK_PLL_CHANGE      BIT(1)
 struct lcd_timing_s {
-	unsigned char clk_auto; /* clk parameters auto generation */
-	unsigned char fr_adjust_type; /* 0=clock, 1=htotal, 2=vtotal */
+	struct lcd_detail_timing_s dft_timing; //panel parameter probe stage
+	struct lcd_detail_timing_s base_timing; //panel parameter init stage
+	struct lcd_detail_timing_s act_timing; //panel parameter actual stage
+
+	unsigned char pll_flag;
 	unsigned char clk_change; /* internal used */
-	unsigned int lcd_clk;   /* pixel clock(unit: Hz) */
-	unsigned int lcd_clk_dft; /* internal used */
-	unsigned long long bit_rate; /* Hz */
-	unsigned int h_period_dft; /* internal used */
-	unsigned int v_period_dft; /* internal used */
-	unsigned int pll_ctrl;  /* pll settings */
-	unsigned int div_ctrl;  /* divider settings */
-	unsigned int clk_ctrl;  /* clock settings */
 	unsigned int ss_level;
 	unsigned int ss_freq;
 	unsigned int ss_mode;
 
-	unsigned int sync_duration_num;
-	unsigned int sync_duration_den;
-	unsigned int frac;
-	unsigned int frame_rate;
+	unsigned int enc_clk;
+	unsigned long long bit_rate; /* Hz */
+
+	unsigned int pll_ctrl;  /* pll settings */
+	unsigned int div_ctrl;  /* divider settings */
+	unsigned int clk_ctrl;  /* clock settings */
 
 	unsigned int hstart;
 	unsigned int hend;
@@ -177,18 +159,6 @@ struct lcd_timing_s {
 	unsigned int vend;
 	unsigned char pre_de_h;
 	unsigned char pre_de_v;
-
-	unsigned short hsync_width;
-	unsigned short hsync_bp;
-	unsigned short hsync_fp;
-	unsigned short hsync_pol;
-	unsigned short vsync_width;
-	unsigned short vsync_bp;
-	unsigned short vsync_fp;
-	unsigned short vsync_pol;
-	/* unsigned int vsync_h_phase; // [31]sign, [15:0]value */
-	unsigned int h_offset;
-	unsigned int v_offset;
 
 	unsigned short de_hs_addr;
 	unsigned short de_he_addr;
@@ -204,6 +174,17 @@ struct lcd_timing_s {
 	unsigned short vs_he_addr;
 	unsigned short vs_vs_addr;
 	unsigned short vs_ve_addr;
+
+	unsigned short pre_h_de_start;
+	unsigned short pre_h_de_end;
+	unsigned short pre_v_de_start;
+	unsigned short pre_v_de_end;
+	unsigned short pre_hso_start;
+	unsigned short pre_hso_end;
+	unsigned short pre_vso_hstart;
+	unsigned short pre_vso_hend;
+	unsigned short pre_vso_start;
+	unsigned short pre_vso_end;
 };
 
 struct lcd_disp_tmg_req_s {
@@ -584,7 +565,9 @@ struct lcd_config_s {
 #define LCD_INIT_LEVEL_KERNEL_OFF     3
 
 /*
- *bit[31:20]: reserved
+ *bit[31:24]: base frame rate
+ *bit[23:22]: clk mode
+ *bit[21:20]: ppc, invalid for kernel5.4
  *bit[19:18]: lcd_init_level
  *bit[17]: reserved
  *bit[16]: custom pinmux flag
@@ -598,6 +581,9 @@ struct lcd_boot_ctrl_s {
 	unsigned char advanced_flag;
 	unsigned char custom_pinmux;
 	unsigned char init_level;
+	unsigned char ppc;
+	unsigned char clk_mode;
+	unsigned char base_frame_rate;
 };
 
 /*

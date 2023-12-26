@@ -1454,7 +1454,7 @@ int lcd_tcon_data_multi_match_find(struct aml_lcd_drv_s *pdrv, unsigned char *da
 	p = data_buf + LCD_TCON_DATA_BLOCK_HEADER_SIZE;
 	ext_header = (struct lcd_tcon_data_block_ext_header_s *)p;
 	part_cnt = ext_header->part_cnt;
-	frame_rate = pdrv->config.timing.frame_rate;
+	frame_rate = pdrv->config.timing.act_timing.frame_rate;
 
 	data_offset = LCD_TCON_DATA_BLOCK_HEADER_SIZE + block_header->ext_header_size;
 	size = 0;
@@ -1676,7 +1676,7 @@ static int lcd_tcon_data_multi_set(struct aml_lcd_drv_s *pdrv,
 
 	temp = vout_frame_rate_measure(1); //1000 multi
 	if (temp == 0)
-		temp = pdrv->config.timing.frame_rate;
+		temp = pdrv->config.timing.act_timing.frame_rate;
 	else
 		temp /= 1000;
 	mm_table->frame_rate = temp;
@@ -2051,7 +2051,7 @@ static int lcd_tcon_data_multi_add(struct aml_lcd_drv_s *pdrv,
 	lcd_tcon_data_list_add(data_multi, data_list);
 	lcd_tcon_data_multi_list_init(pdrv, data_list);
 
-	frame_rate = pdrv->config.timing.frame_rate;
+	frame_rate = pdrv->config.timing.act_timing.frame_rate;
 	ret = lcd_tcon_data_multi_match_policy(pdrv, frame_rate, data_multi, data_list);
 	if (ret == 0) {
 		data_multi->list_cur = data_list;

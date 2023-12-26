@@ -111,16 +111,16 @@ void dptx_set_msa(struct aml_lcd_drv_s *pdrv)
 	unsigned int ppc = 1; /* 1 pix per clock pix0 only */
 	unsigned int cfmt = 0; /* RGB */
 
-	hactive = pconf->basic.h_active;
-	vactive = pconf->basic.v_active;
-	htotal = pconf->basic.h_period;
-	vtotal = pconf->basic.v_period;
-	hsw = pconf->timing.hsync_width;
-	hbp = pconf->timing.hsync_bp;
-	vsw = pconf->timing.vsync_width;
-	vbp = pconf->timing.vsync_bp;
+	hactive = pconf->timing.act_timing.h_active;
+	vactive = pconf->timing.act_timing.v_active;
+	htotal = pconf->timing.act_timing.h_period;
+	vtotal = pconf->timing.act_timing.v_period;
+	hsw = pconf->timing.act_timing.hsync_width;
+	hbp = pconf->timing.act_timing.hsync_bp;
+	vsw = pconf->timing.act_timing.vsync_width;
+	vbp = pconf->timing.act_timing.vsync_bp;
 
-	m_vid = pconf->timing.lcd_clk / 1000;
+	m_vid = pconf->timing.act_timing.pixel_clk / 1000;
 	if (pconf->control.edp_cfg.link_rate == DP_LINK_RATE_HBR)
 		n_vid = 270000;
 	else

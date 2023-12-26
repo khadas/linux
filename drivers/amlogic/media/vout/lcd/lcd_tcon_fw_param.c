@@ -212,17 +212,15 @@ int lcd_tcon_fw_buf_table_generate(struct lcd_tcon_fw_s *tcon_fw)
 
 void lcd_tcon_fw_base_timing_update(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned int temp;
-
 	if (!pdrv || !lcd_tcon_fw.base_timing)
 		return;
 
-	lcd_tcon_fw.base_timing->hsize = pdrv->config.basic.h_active;
-	lcd_tcon_fw.base_timing->vsize = pdrv->config.basic.v_active;
-	lcd_tcon_fw.base_timing->htotal = pdrv->config.basic.h_period;
-	lcd_tcon_fw.base_timing->vtotal = pdrv->config.basic.v_period;
-	lcd_tcon_fw.base_timing->frame_rate = pdrv->config.timing.frame_rate;
-	lcd_tcon_fw.base_timing->pclk = pdrv->config.timing.lcd_clk;
+	lcd_tcon_fw.base_timing->hsize = pdrv->config.timing.act_timing.h_active;
+	lcd_tcon_fw.base_timing->vsize = pdrv->config.timing.act_timing.v_active;
+	lcd_tcon_fw.base_timing->htotal = pdrv->config.timing.act_timing.h_period;
+	lcd_tcon_fw.base_timing->vtotal = pdrv->config.timing.act_timing.v_period;
+	lcd_tcon_fw.base_timing->frame_rate = pdrv->config.timing.act_timing.frame_rate;
+	lcd_tcon_fw.base_timing->pclk = pdrv->config.timing.act_timing.pixel_clk;
 	lcd_tcon_fw.base_timing->bit_rate = pdrv->config.timing.bit_rate;
 
 	lcd_tcon_fw.base_timing->de_hstart = pdrv->config.timing.hstart;
@@ -232,17 +230,13 @@ void lcd_tcon_fw_base_timing_update(struct aml_lcd_drv_s *pdrv)
 	lcd_tcon_fw.base_timing->pre_de_h = 8;
 	lcd_tcon_fw.base_timing->pre_de_v = 8;
 
-	temp = pdrv->config.basic.h_period - pdrv->config.basic.h_active -
-		pdrv->config.timing.hsync_width - pdrv->config.timing.hsync_bp;
-	lcd_tcon_fw.base_timing->hsw = pdrv->config.timing.hsync_width;
-	lcd_tcon_fw.base_timing->hbp = pdrv->config.timing.hsync_bp;
-	lcd_tcon_fw.base_timing->hfp = temp;
+	lcd_tcon_fw.base_timing->hsw = pdrv->config.timing.act_timing.hsync_width;
+	lcd_tcon_fw.base_timing->hbp = pdrv->config.timing.act_timing.hsync_bp;
+	lcd_tcon_fw.base_timing->hfp = pdrv->config.timing.act_timing.hsync_fp;
 
-	temp = pdrv->config.basic.v_period - pdrv->config.basic.v_active -
-		pdrv->config.timing.vsync_width - pdrv->config.timing.vsync_bp;
-	lcd_tcon_fw.base_timing->vsw = pdrv->config.timing.vsync_width;
-	lcd_tcon_fw.base_timing->vbp = pdrv->config.timing.vsync_bp;
-	lcd_tcon_fw.base_timing->vfp = temp;
+	lcd_tcon_fw.base_timing->vsw = pdrv->config.timing.act_timing.vsync_width;
+	lcd_tcon_fw.base_timing->vbp = pdrv->config.timing.act_timing.vsync_bp;
+	lcd_tcon_fw.base_timing->vfp = pdrv->config.timing.act_timing.vsync_fp;
 
 	lcd_tcon_fw.base_timing->update_flag = 1;
 }

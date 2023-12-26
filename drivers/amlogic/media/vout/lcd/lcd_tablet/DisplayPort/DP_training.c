@@ -66,7 +66,7 @@ static int dptx_link_rate_config_reduce(struct aml_lcd_drv_s *pdrv)
 	//eDP policy: fixed resolution, valid BW required
 	if (pdrv->config.basic.lcd_type == LCD_EDP) {
 		ret = dptx_band_width_check(link_rate, lane_cnt,
-			pdrv->config.timing.lcd_clk, pdrv->config.basic.lcd_bits * 3);
+			pdrv->config.timing.act_timing.pixel_clk, pdrv->config.basic.lcd_bits * 3);
 		if (ret) {
 			LCDERR("%s: band width check failed\n", __func__);
 			return 2;

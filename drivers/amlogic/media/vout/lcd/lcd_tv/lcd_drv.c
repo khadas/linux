@@ -62,7 +62,7 @@ void lcd_tv_driver_init_pre(struct aml_lcd_drv_s *pdrv)
 		return;
 
 #ifdef CONFIG_AMLOGIC_VPU
-	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.lcd_clk);
+	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.enc_clk);
 	vpu_dev_mem_power_on(pdrv->lcd_vpu_dev);
 #endif
 	lcd_clk_gate_switch(pdrv, 1);
@@ -209,9 +209,9 @@ int lcd_tv_driver_change(struct aml_lcd_drv_s *pdrv)
 	if (ret)
 		return -1;
 
-	lcd_timing_config_update(pdrv);
+	lcd_frame_rate_change(pdrv);
 #ifdef CONFIG_AMLOGIC_VPU
-	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.lcd_clk);
+	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.enc_clk);
 #endif
 
 	if (pdrv->status & LCD_STATUS_ENCL_ON) {

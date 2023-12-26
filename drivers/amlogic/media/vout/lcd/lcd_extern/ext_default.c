@@ -278,11 +278,8 @@ static int lcd_extern_cmd_multi_id(struct lcd_extern_driver_s *edrv,
 	pdrv = aml_lcd_get_driver(edrv->index);
 	if (!pdrv)
 		return -1;
-	if (pdrv->config.cus_ctrl.dlg_flag == 0)
-		return -1;
 
-	frame_rate = pdrv->config.timing.sync_duration_num /
-		pdrv->config.timing.sync_duration_den;
+	frame_rate = pdrv->config.timing.act_timing.frame_rate;
 
 	temp_list = edev->multi_list_header;
 	while (temp_list) {

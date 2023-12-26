@@ -72,7 +72,8 @@
 /* 20231012: optimize clk management*/
 /* 20231113: update vrr_dev register flow for tablet mode*/
 /* 20231205: add lcd config check*/
-#define LCD_DRV_VERSION    "20231205"
+/* 20231218: update timing management*/
+#define LCD_DRV_VERSION    "20231218"
 
 extern struct mutex lcd_vout_mutex;
 
@@ -122,13 +123,15 @@ void lcd_mlvds_bit_rate_config(struct aml_lcd_drv_s *pdrv);
 void lcd_p2p_bit_rate_config(struct aml_lcd_drv_s *pdrv);
 void lcd_mipi_dsi_bit_rate_config(struct aml_lcd_drv_s *pdrv);
 void lcd_edp_bit_rate_config(struct aml_lcd_drv_s *pdrv);
-void lcd_vrr_config_update(struct aml_lcd_drv_s *pdrv);
-void lcd_basic_timing_range_init(struct aml_lcd_drv_s *pdrv);
-void lcd_timing_init_config(struct aml_lcd_drv_s *pdrv);
+void lcd_fr_range_update(struct lcd_detail_timing_s *ptiming);
+void lcd_clk_frame_rate_init(struct lcd_detail_timing_s *ptiming);
+void lcd_default_to_basic_timing_init_config(struct aml_lcd_drv_s *pdrv);
+void lcd_enc_timing_init_config(struct aml_lcd_drv_s *pdrv);
 
 int lcd_fr_is_fixed(struct aml_lcd_drv_s *pdrv);
-int lcd_vmode_change(struct aml_lcd_drv_s *pdrv);
-void lcd_timing_config_update(struct aml_lcd_drv_s *pdrv);
+int lcd_fr_is_frac(struct aml_lcd_drv_s *pdrv, unsigned int frame_rate);
+int lcd_vmode_frac_is_support(struct aml_lcd_drv_s *pdrv, unsigned int frame_rate);
+void lcd_frame_rate_change(struct aml_lcd_drv_s *pdrv);
 void lcd_clk_change(struct aml_lcd_drv_s *pdrv);
 void lcd_if_enable_retry(struct aml_lcd_drv_s *pdrv);
 void lcd_vout_notify_mode_change_pre(struct aml_lcd_drv_s *pdrv);

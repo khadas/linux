@@ -283,11 +283,11 @@ static void lcd_clk_generate_axg(struct aml_lcd_drv_s *pdrv)
 	if (!cconf)
 		return;
 
-	cconf->fout = pconf->timing.lcd_clk;
+	cconf->fout = pconf->timing.enc_clk;
 	cconf->err_fmin = MAX_ERROR;
 
 	if (cconf->fout > cconf->data->xd_out_fmax) {
-		LCDERR("%s: wrong lcd_clk value %dHz\n", __func__, cconf->fout);
+		LCDERR("%s: wrong enc_clk value %dHz\n", __func__, cconf->fout);
 		goto generate_clk_done_axg;
 	}
 
@@ -359,7 +359,7 @@ static void lcd_pll_frac_generate_axg(struct aml_lcd_drv_s *pdrv)
 	if (!cconf)
 		return;
 
-	enc_clk = pconf->timing.lcd_clk;
+	enc_clk = pconf->timing.enc_clk;
 	od = od_table[cconf->pll_od1_sel];
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2) {
@@ -367,11 +367,11 @@ static void lcd_pll_frac_generate_axg(struct aml_lcd_drv_s *pdrv)
 			cconf->pll_m, cconf->pll_n, cconf->pll_od1_sel, cconf->xd);
 	}
 	if (enc_clk > cconf->data->xd_out_fmax) {
-		LCDERR("%s: wrong lcd_clk value %dHz\n", __func__, enc_clk);
+		LCDERR("%s: wrong enc_clk value %dHz\n", __func__, enc_clk);
 		return;
 	}
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
-		LCDPR("%s lcd_clk=%d\n", __func__, enc_clk);
+		LCDPR("%s enc_clk=%d\n", __func__, enc_clk);
 
 	pll_fout = enc_clk;
 	pll_fout *= cconf->xd;

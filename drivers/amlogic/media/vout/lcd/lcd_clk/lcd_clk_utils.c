@@ -627,7 +627,7 @@ static int lcd_clk_generate_DP_1PLL(struct aml_lcd_drv_s *pdrv)
 	cconf->edp_div1 = min_err_div1;
 
 	cconf->fout = lcd_do_div(cconf->pll_fout, min_err_div);
-	pdrv->config.timing.lcd_clk = cconf->fout;
+	pdrv->config.timing.enc_clk = cconf->fout;
 
 	LCDPR("[%d]: PLL_out=%llu div=%u [%u, %u] fout:%u enc_clk=%u error=%llu\n",
 		pdrv->index, cconf->pll_fout, min_err_div, edp_div0_table[min_err_div0],
@@ -648,7 +648,7 @@ void lcd_pll_frac_generate_dft(struct aml_lcd_drv_s *pdrv)
 	if (!cconf)
 		return;
 
-	enc_clk = pconf->timing.lcd_clk;
+	enc_clk = pconf->timing.enc_clk;
 	clk_div_sel = cconf->div_sel;
 	if (cconf->data->od_cnt == 3) {
 		od1 = od_table[cconf->pll_od1_sel];
@@ -671,11 +671,11 @@ void lcd_pll_frac_generate_dft(struct aml_lcd_drv_s *pdrv)
 		}
 	}
 	if (enc_clk > cconf->data->xd_out_fmax) {
-		LCDERR("%s: wrong lcd_clk value %uHz\n", __func__, enc_clk);
+		LCDERR("%s: wrong enc_clk value %uHz\n", __func__, enc_clk);
 		return;
 	}
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
-		LCDPR("%s lcd_clk=%u\n", __func__, enc_clk);
+		LCDPR("%s enc_clk=%u\n", __func__, enc_clk);
 
 	clk_div_out = enc_clk * cconf->xd;
 	if (clk_div_out > cconf->data->div_out_fmax) {
@@ -738,16 +738,16 @@ void lcd_clk_generate_dft(struct aml_lcd_drv_s *pdrv)
 		return;
 
 	done = 0;
-	cconf->fout = pconf->timing.lcd_clk;
+	cconf->fout = pconf->timing.enc_clk;
 	cconf->err_fmin = MAX_ERROR;
 
 	if (cconf->fout > cconf->data->xd_out_fmax) {
-		LCDERR("%s: wrong lcd_clk value %dHz\n", __func__, cconf->fout);
+		LCDERR("%s: wrong enc_clk value %dHz\n", __func__, cconf->fout);
 		goto generate_clk_dft_done;
 	}
 
 	bit_rate = pconf->timing.bit_rate;
-	cconf->pll_mode = pconf->timing.clk_auto;
+	cconf->pll_mode = pconf->timing.pll_flag;
 
 	switch (pconf->basic.lcd_type) {
 	case LCD_RGB:

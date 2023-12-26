@@ -337,7 +337,7 @@ static void lcd_set_tcon_clk_tl1(struct aml_lcd_drv_s *pdrv)
 		lcd_ana_setb(HHI_TCON_PLL_CNTL4, ((val >> 8) & 0xf), 24, 4);
 
 		/* tcon_clk */
-		if (pconf->timing.lcd_clk >= 100000000) /* 25M */
+		if (pconf->timing.enc_clk >= 100000000) /* 25M */
 			freq = 25000000;
 		else /* 12.5M */
 			freq = 12500000;

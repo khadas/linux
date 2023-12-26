@@ -2015,9 +2015,9 @@ static int bl_lcd_update_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	bl_metrics_conf = &bdrv->bl_metrics_conf;
-	frame_rate = pdrv->config.timing.frame_rate;
-	hactive = pdrv->config.basic.h_active;
-	vactive = pdrv->config.basic.v_active;
+	frame_rate = pdrv->config.timing.act_timing.frame_rate;
+	hactive = pdrv->config.timing.act_timing.h_active;
+	vactive = pdrv->config.timing.act_timing.v_active;
 
 	bl_metrics_conf->frame_rate = frame_rate;
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)

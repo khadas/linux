@@ -683,7 +683,7 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 			pdrv->vs_msr_max = temp;
 		if (temp < pdrv->vs_msr_min)
 			pdrv->vs_msr_min = temp;
-		if (pdrv->vs_msr_i >= pdrv->config.timing.frame_rate) {
+		if (pdrv->vs_msr_i >= pdrv->config.timing.act_timing.frame_rate) {
 			pdrv->vs_msr[pdrv->vs_msr_cnt++] =
 				lcd_do_div(pdrv->vs_msr_sum_temp, pdrv->vs_msr_i);
 			pdrv->vs_msr_sum_temp = 0;
@@ -1848,8 +1848,10 @@ static void lcd_config_default(struct aml_lcd_drv_s *pdrv)
 		pdrv->status = 0;
 		pdrv->resume_flag = 0;
 	}
-	LCDPR("[%d]: status: %d, init_flag: %d\n",
-	      pdrv->index, pdrv->status, pdrv->init_flag);
+	LCDPR("[%d]: base_fr: %d, status: 0x%x, init_flag: %d\n",
+		pdrv->index,
+		pdrv->config.timing.dft_timing.frame_rate,
+		pdrv->status, pdrv->init_flag);
 }
 
 static void lcd_bootup_config_init(struct aml_lcd_drv_s *pdrv)
@@ -1874,6 +1876,9 @@ static void lcd_bootup_config_init(struct aml_lcd_drv_s *pdrv)
 	pdrv->config.custom_pinmux = pdrv->boot_ctrl->custom_pinmux;
 
 	pdrv->config.basic.lcd_type = pdrv->boot_ctrl->lcd_type;
+	pdrv->config.timing.dft_timing.frame_rate = pdrv->boot_ctrl->base_frame_rate;
+	pdrv->config.timing.base_timing.frame_rate = pdrv->boot_ctrl->base_frame_rate;
+	pdrv->config.timing.act_timing.frame_rate = pdrv->boot_ctrl->base_frame_rate;
 
 	val = pdrv->boot_ctrl->advanced_flag;
 	switch (pdrv->config.basic.lcd_type) {
@@ -2421,6 +2426,7 @@ static int lcd_boot_ctrl_setup(char *str)
 	boot_ctrl->advanced_flag = (data32 >> 8) & 0xff;
 	boot_ctrl->custom_pinmux = (data32 >> 16) & 0x1;
 	boot_ctrl->init_level = (data32 >> 18) & 0x3;
+	boot_ctrl->base_frame_rate = (data32 >> 24) & 0xff;
 	return 0;
 }
 
@@ -2445,6 +2451,7 @@ static int lcd1_boot_ctrl_setup(char *str)
 	boot_ctrl->advanced_flag = (data32 >> 8) & 0xff;
 	boot_ctrl->custom_pinmux = (data32 >> 16) & 0x1;
 	boot_ctrl->init_level = (data32 >> 18) & 0x3;
+	boot_ctrl->base_frame_rate = (data32 >> 24) & 0xff;
 	return 0;
 }
 
@@ -2469,6 +2476,7 @@ static int lcd2_boot_ctrl_setup(char *str)
 	boot_ctrl->advanced_flag = (data32 >> 8) & 0xff;
 	boot_ctrl->custom_pinmux = (data32 >> 16) & 0x1;
 	boot_ctrl->init_level = (data32 >> 18) & 0x3;
+	boot_ctrl->base_frame_rate = (data32 >> 24) & 0xff;
 	return 0;
 }
 

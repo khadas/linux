@@ -72,8 +72,8 @@ static void lcd_venc_set(struct aml_lcd_drv_s *pdrv)
 
 	lcd_vcbus_setb(VPU_VOUT_CORE_CTRL, 0, 0, 1); //disable venc_en
 	lcd_vcbus_setb(VPU_VOUT_DETH_CTRL, dith_mode, 5, 1);
-	lcd_vcbus_setb(VPU_VOUT_DETH_CTRL, pconf->basic.h_active, 6, 13);
-	lcd_vcbus_setb(VPU_VOUT_DETH_CTRL, pconf->basic.v_active, 19, 13);
+	lcd_vcbus_setb(VPU_VOUT_DETH_CTRL, pconf->timing.act_timing.h_active, 6, 13);
+	lcd_vcbus_setb(VPU_VOUT_DETH_CTRL, pconf->timing.act_timing.v_active, 19, 13);
 	lcd_vcbus_setb(VPU_VOUT_INT_CTRL, 1, 14, 1); //dth_en
 
 	lcd_vcbus_setb(VPU_VOUT_CORE_CTRL, reoder, 4, 6);
@@ -85,8 +85,8 @@ static void lcd_venc_set(struct aml_lcd_drv_s *pdrv)
 		lcd_vcbus_write(VPU_VOUT_DTH_DATA, lcd_dth_lut_c3[i % 16]);
 
 	lcd_vcbus_setb(VPU_VOUT_CORE_CTRL,    field_mode,  1, 1);
-	lcd_vcbus_setb(VPU_VOUT_MAX_SIZE,     pconf->basic.h_period, 16, 13);
-	lcd_vcbus_setb(VPU_VOUT_MAX_SIZE,     pconf->basic.v_period,  0, 13);
+	lcd_vcbus_setb(VPU_VOUT_MAX_SIZE,     pconf->timing.act_timing.h_period, 16, 13);
+	lcd_vcbus_setb(VPU_VOUT_MAX_SIZE,     pconf->timing.act_timing.v_period,  0, 13);
 	lcd_vcbus_setb(VPU_VOUT_FLD_BGN_LINE, bot_bgn_lne, 16, 13);
 	lcd_vcbus_setb(VPU_VOUT_FLD_BGN_LINE, top_bgn_lne,  0, 13);
 
@@ -161,8 +161,8 @@ static int lcd_venc_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num)
 	unsigned int clb_width, ha, va;
 	unsigned int edge_rect_line_width, center_X_line_width, K_frac, K_int;
 
-	ha = pdrv->config.basic.h_active;
-	va = pdrv->config.basic.v_active;
+	ha = pdrv->config.timing.act_timing.h_active;
+	va = pdrv->config.timing.act_timing.v_active;
 
 	if (num > LCD_ENC_TST_NUM_MAX_A4) {
 		LCDERR("Test %d invalid\n", num);
@@ -221,13 +221,13 @@ static int lcd_venc_get_init_config(struct aml_lcd_drv_s *pdrv)
 	unsigned int init_state;
 
 	init_state = 0;
-	pconf->basic.h_active = lcd_vcbus_getb(VPU_VOUT_DE_PX_EN, 16, 13)
+	pconf->timing.act_timing.h_active = lcd_vcbus_getb(VPU_VOUT_DE_PX_EN, 16, 13)
 			- lcd_vcbus_getb(VPU_VOUT_DE_PX_EN, 0, 13) + 1;
-	pconf->basic.v_active = lcd_vcbus_getb(VPU_VOUT_DELN_E_POS, 16, 13)
+	pconf->timing.act_timing.v_active = lcd_vcbus_getb(VPU_VOUT_DELN_E_POS, 16, 13)
 			- lcd_vcbus_getb(VPU_VOUT_DELN_E_POS, 0, 13) + 1;
 
-	pconf->basic.h_period = lcd_vcbus_getb(VPU_VOUT_MAX_SIZE, 16, 13);
-	pconf->basic.v_period = lcd_vcbus_getb(VPU_VOUT_MAX_SIZE, 0, 13);
+	pconf->timing.act_timing.h_period = lcd_vcbus_getb(VPU_VOUT_MAX_SIZE, 16, 13);
+	pconf->timing.act_timing.v_period = lcd_vcbus_getb(VPU_VOUT_MAX_SIZE, 0, 13);
 
 	init_state = lcd_vcbus_read(VPU_VOUT_CORE_CTRL);
 	return init_state;

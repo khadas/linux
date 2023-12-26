@@ -47,7 +47,7 @@ static void lcd_set_fclk_div(struct aml_lcd_drv_s *pdrv)
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
-	f_target = pdrv->config.timing.lcd_clk;
+	f_target = pdrv->config.timing.enc_clk;
 	if (f_target >= cconf->data->xd_out_fmax) {
 		LCDERR("%s: freq(%dHz) out of limit(%dHz)\n", __func__,
 			f_target, cconf->data->xd_out_fmax);

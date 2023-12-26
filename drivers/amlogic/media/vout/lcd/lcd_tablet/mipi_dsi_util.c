@@ -1609,9 +1609,9 @@ static void mipi_dsi_video_config(struct lcd_config_s *pconf)
 	unsigned int den, num;
 	unsigned short v_period, v_active, vs_width, vs_bp;
 
-	h_period = pconf->basic.h_period;
-	hs_width = pconf->timing.hsync_width;
-	hs_bp = pconf->timing.hsync_bp;
+	h_period = pconf->timing.act_timing.h_period;
+	hs_width = pconf->timing.act_timing.hsync_width;
+	hs_bp = pconf->timing.act_timing.hsync_bp;
 	den = pconf->control.mipi_cfg.factor_denominator;
 	num = pconf->control.mipi_cfg.factor_numerator;
 
@@ -1619,10 +1619,10 @@ static void mipi_dsi_video_config(struct lcd_config_s *pconf)
 	dsi_vconf.hsa = (hs_width * den + num - 1) / num;
 	dsi_vconf.hbp = (hs_bp * den + num - 1) / num;
 
-	v_period = pconf->basic.v_period;
-	v_active = pconf->basic.v_active;
-	vs_width = pconf->timing.vsync_width;
-	vs_bp = pconf->timing.vsync_bp;
+	v_period = pconf->timing.act_timing.v_period;
+	v_active = pconf->timing.act_timing.v_active;
+	vs_width = pconf->timing.act_timing.vsync_width;
+	vs_bp = pconf->timing.act_timing.vsync_bp;
 	dsi_vconf.vsa = vs_width;
 	dsi_vconf.vbp = vs_bp;
 	dsi_vconf.vfp = v_period - v_active - vs_bp - vs_width;
@@ -1657,8 +1657,8 @@ static void mipi_dsi_non_burst_packet_config(struct lcd_config_s *pconf)
 
 	lane_num = (int)(dconf->lane_num);
 	clk_factor = dconf->clk_factor;
-	hactive = pconf->basic.h_active;
-	bit_rate_required = pconf->timing.lcd_clk;
+	hactive = pconf->timing.act_timing.h_active;
+	bit_rate_required = pconf->timing.act_timing.pixel_clk;
 	bit_rate_required = bit_rate_required * 3 * dsi_vconf.data_bits;
 	bit_rate_required = lcd_do_div(bit_rate_required, lane_num);
 	if (pconf->timing.bit_rate > bit_rate_required)
@@ -1749,7 +1749,7 @@ static void mipi_dsi_non_burst_packet_config(struct lcd_config_s *pconf)
 static void mipi_dsi_vid_mode_config(struct lcd_config_s *pconf)
 {
 	if (pconf->control.mipi_cfg.video_mode_type == BURST_MODE) {
-		dsi_vconf.pixel_per_chunk = pconf->basic.h_active;
+		dsi_vconf.pixel_per_chunk = pconf->timing.act_timing.h_active;
 		dsi_vconf.vid_num_chunks = 0;
 		dsi_vconf.vid_null_size = 0;
 	} else {
@@ -1896,10 +1896,10 @@ void mipi_dsi_config_init(struct aml_lcd_drv_s *pdrv)
 		break;
 	case 0: /* auto */
 	default:
-		if (pconf->basic.h_active != 240 &&
-		    pconf->basic.h_active != 768 &&
-		    pconf->basic.h_active != 1920 &&
-		    pconf->basic.h_active != 2560) {
+		if (pconf->timing.act_timing.h_active != 240 &&
+		    pconf->timing.act_timing.h_active != 768 &&
+		    pconf->timing.act_timing.h_active != 1920 &&
+		    pconf->timing.act_timing.h_active != 2560) {
 			dsi_phy_config.state_change = 2;
 		} else {
 			dsi_phy_config.state_change = 1;
@@ -1916,7 +1916,7 @@ void lcd_mipi_dsi_config_post(struct aml_lcd_drv_s *pdrv)
 	unsigned int pclk, lanebyteclk;
 	unsigned int den, num;
 
-	pclk = pconf->timing.lcd_clk;
+	pclk = pconf->timing.act_timing.pixel_clk;
 
 	/* pclk lanebyteclk factor */
 	if (dconf->factor_numerator == 0) {

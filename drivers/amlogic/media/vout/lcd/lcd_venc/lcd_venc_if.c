@@ -191,6 +191,15 @@ int lcd_get_venc_init_config(struct aml_lcd_drv_s *pdrv)
 	}
 
 	ret = lcd_venc_op.get_venc_init_config(pdrv);
+	pdrv->config.timing.base_timing.h_active = pdrv->config.timing.act_timing.h_active;
+	pdrv->config.timing.dft_timing.h_active = pdrv->config.timing.act_timing.h_active;
+	pdrv->config.timing.base_timing.v_active = pdrv->config.timing.act_timing.v_active;
+	pdrv->config.timing.dft_timing.v_active = pdrv->config.timing.act_timing.v_active;
+	pdrv->config.timing.base_timing.h_period = pdrv->config.timing.act_timing.h_period;
+	pdrv->config.timing.dft_timing.h_period = pdrv->config.timing.act_timing.h_period;
+	pdrv->config.timing.base_timing.v_period = pdrv->config.timing.act_timing.v_period;
+	pdrv->config.timing.dft_timing.v_period = pdrv->config.timing.act_timing.v_period;
+
 	return ret;
 }
 

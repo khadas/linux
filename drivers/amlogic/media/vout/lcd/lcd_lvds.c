@@ -107,7 +107,7 @@ void lcd_lvds_enable(struct aml_lcd_drv_s *pdrv)
 	// 0 1:  h: 1  v: 0      1
 	// 1 0:  h: 1  v: 0      0
 	// 1 1:  h: 1  v: 1      0
-	sync_pol_reverse = !pdrv->config.timing.hsync_pol; // reserve both h & v
+	sync_pol_reverse = !pdrv->config.timing.act_timing.hsync_pol; // reserve both h & v
 
 	if (pdrv->config.basic.lcd_bits == 10) {
 		bit_num = 0;
