@@ -299,8 +299,16 @@ static int mhu_send_data(struct mbox_chan *link, void *msg)
 	struct mhu_data_buf *data = (struct mhu_data_buf *)msg;
 	int mhu_id = chan->mhu_id;
 
-	chan->data = data;
+	if (!data)
+		return -EINVAL;
 
+	if (data->tx_size > MBOX_DATA_SIZE + MBOX_HEAD_SIZE) {
+		pr_err("data size overflow %d\n", data->cmd);
+		data->tx_size = MBOX_DATA_SIZE + MBOX_HEAD_SIZE;
+		return -ENOMEM;
+	}
+
+	chan->data = data;
 	if (data->tx_buf) {
 		mbox_fifo_write(mbox_wr_base + PAYLOAD_OFFSET(mhu_id),
 				data->tx_buf, data->tx_size);
@@ -349,11 +357,6 @@ static ssize_t mbox_message_send(struct device *dev,
 	unsigned long flags;
 	struct mhu_mbox *mbox_dev, *n;
 
-	list_for_each_entry_safe(mbox_dev, n, &mbox_devs, char_list) {
-		if (mbox_dev->channel_id == idx)
-			break;
-	}
-
 	mbox_data.task = 0;
 	mbox_data.status = 0;
 	mbox_data.ullclt = 0;
@@ -385,6 +388,11 @@ static ssize_t mbox_message_send(struct device *dev,
 	}
 	mhu_chan = (struct mhu_chan *)chan->con_priv;
 	mbox_msg->chan_idx = to_send_idx(mhu_chan->index, false);
+	list_for_each_entry_safe(mbox_dev, n, &mbox_devs, char_list) {
+		if (mbox_dev->channel_id == mbox_msg->chan_idx)
+			break;
+	}
+
 	spin_lock_irqsave(&mbox_dev->mhu_lock, flags);
 	list_add_tail(&mbox_msg->list, &mbox_list[mbox_msg->chan_idx]);
 	spin_unlock_irqrestore(&mbox_dev->mhu_lock, flags);
@@ -414,11 +422,6 @@ ssize_t mbox_message_send_fifo(struct device *dev, int cmd,
 	unsigned long flags;
 	struct mhu_mbox *mbox_dev, *n;
 
-	list_for_each_entry_safe(mbox_dev, n, &mbox_devs, char_list) {
-		if (mbox_dev->channel_id == idx)
-			break;
-	}
-
 	mbox_msg = kzalloc(sizeof(*mbox_msg), GFP_KERNEL);
 	if (!mbox_msg) {
 		ret = -ENOMEM;
@@ -439,6 +442,11 @@ ssize_t mbox_message_send_fifo(struct device *dev, int cmd,
 		ret = wait_for_completion_killable(&mbox_msg->complete);
 		if (!ret)
 			memcpy(data, mbox_msg->data, count);
+		list_for_each_entry_safe(mbox_dev, n, &mbox_devs, char_list) {
+			if (mbox_dev->channel_id == mbox_msg->chan_idx)
+				break;
+		}
+
 		spin_lock_irqsave(&mbox_dev->mhu_lock, flags);
 		list_del(&mbox_msg->list);
 		spin_unlock_irqrestore(&mbox_dev->mhu_lock, flags);
