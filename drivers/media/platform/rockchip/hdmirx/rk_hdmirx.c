@@ -81,6 +81,7 @@ MODULE_PARM_DESC(low_latency, "low_latency en(0-1)");
 #define NO_LOCK_CFG_RETRY_TIME		300
 #define WAIT_LOCK_STABLE_TIME		20
 #define WAIT_AVI_PKT_TIME		300
+#define BIG_CPU_PHY_ID			5
 
 #define is_validfs(x) (x == 32000 || \
 			x == 44100 || \
@@ -4589,9 +4590,9 @@ static int hdmirx_probe(struct platform_device *pdev)
 	struct v4l2_device *v4l2_dev;
 	struct v4l2_ctrl_handler *hdl;
 	struct resource *res;
-	int ret, irq, cpu_aff;
 	struct hdmirx_cec_data cec_data;
 	struct cpumask cpumask;
+	int ret, irq, cpu_aff, phy_cpuid, i;
 
 	hdmirx_dev = devm_kzalloc(dev, sizeof(*hdmirx_dev), GFP_KERNEL);
 	if (!hdmirx_dev)
@@ -4618,12 +4619,22 @@ static int hdmirx_probe(struct platform_device *pdev)
 	 * in order to quickly respond to FIQ and prevent them from affecting
 	 * each other.
 	 */
-	if (sip_cpu_logical_map_mpidr(0) == 0) {
-		cpu_aff = sip_cpu_logical_map_mpidr(5);
-		hdmirx_dev->bound_cpu = 5;
-	} else {
-		cpu_aff = sip_cpu_logical_map_mpidr(1);
-		hdmirx_dev->bound_cpu = 1;
+	for (i = 0; i < 8; i++) {
+		cpu_aff = sip_cpu_logical_map_mpidr(i);
+		phy_cpuid = (cpu_aff >> 8) & 0xf;
+		if (phy_cpuid == BIG_CPU_PHY_ID) {
+			hdmirx_dev->bound_cpu = i;
+			hdmirx_dev->phy_cpuid = phy_cpuid;
+			break;
+		}
+	}
+
+	if (!hdmirx_dev->phy_cpuid) {
+		dev_info(dev, "%s: Failed to get phy_cpuid, use default BIG_CPU_PHY_ID!\n",
+				__func__);
+		cpu_aff = BIG_CPU_PHY_ID << 8;
+		hdmirx_dev->bound_cpu = BIG_CPU_PHY_ID;
+		hdmirx_dev->phy_cpuid = BIG_CPU_PHY_ID;
 	}
 
 	sip_fiq_control(RK_SIP_FIQ_CTRL_SET_AFF, RK_IRQ_HDMIRX_HDMI, cpu_aff);
