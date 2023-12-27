@@ -73,12 +73,12 @@
 				8      /*lcd_bits */
 				16 9>; /*screen_widht, screen_height*/
 			range_setting = <
-				2060 2650  /*h_period_min,max*/
-				1100 1480  /*v_period_min,max*/
+				2132 2650  /*h_period_min,max*/
+				1120 1480  /*v_period_min,max*/
 				120000000 160000000>; /*pclk_min,max*/
 			lcd_timing = <
 				44 148 0  /*hs_width, hs_bp, hs_pol*/
-				5  30 0>; /*vs_width, vs_bp, vs_pol*/
+				5  20 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
 				2 /*fr_adj_type
 				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
@@ -116,12 +116,12 @@
 				8      /*lcd_bits*/
 				16 9>; /*screen_widht, screen_height*/
 			range_setting = <
-				2080 2720 /*h_period min, max*/
-				1100 1380 /*v_period min, max*/
+				2132 2720 /*h_period min, max*/
+				1120 1380 /*v_period min, max*/
 				133940000 156000000>; /*pclk_min, max*/
 			lcd_timing = <
 				44 148 0   /*hs_width, hs_bp, hs_pol*/
-				5  30  0>; /*vs_width, vs_bp, vs_pol*/
+				5  20  0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
 				4 /*fr_adj_type
 				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
@@ -158,12 +158,12 @@
 				8      /*lcd_bits*/
 				16 9>; /*screen_widht, screen_height*/
 			range_setting = <
-				1460 2000 /*h_period_min, max */
-				784 1015  /*v_period_min, max */
+				1506 2000 /*h_period_min, max */
+				805 1015  /*v_period_min, max */
 				50000000 85000000>; /*pclk_min, max*/
 			lcd_timing = <
 				56 64 0   /*hs_width, hs_bp, hs_pol*/
-				3  28 0>; /*vs_width, vs_bp, vs_pol*/
+				3  17 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
 				2 /*fr_adj_type
 				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
@@ -288,8 +288,8 @@
 				10     /*lcd_bits*/
 				16 9>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*v_period_min, max*/
 			lcd_timing = <
 				33 477 0 /*hs_width, hs_bp, hs_pol*/
@@ -333,8 +333,8 @@
 				10     /*lcd_bits*/
 				16 9>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 4800 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				560000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				33 477 1   /*hs_width, hs_bp, hs_pol*/
@@ -380,8 +380,8 @@
 				10     /*lcd_bits*/
 				16 9>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 4800 /*h_period_min,max*/
-				2200 2760 /*v_period_min,max*/
+				4370 4800 /*h_period_min,max*/
+				2246 2760 /*v_period_min,max*/
 				560000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				33 477 1 /*hs_width, hs_bp, hs_pol*/
@@ -429,8 +429,8 @@
 				8     /*lcd_bits */
 				16 9>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 5100 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 5100 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				16 29 0  /*hs_width, hs_bp, hs_pol*/
@@ -478,8 +478,8 @@
 				8     /*lcd_bits */
 				16 9>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 5100 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 5100 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				16 29 0  /*hs_width, hs_bp, hs_pol*/
@@ -526,8 +526,8 @@
 				8     /*lcd_bits */
 				16 9>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 5100 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 5100 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				16 29 0  /*hs_width, hs_bp, hs_pol*/
@@ -574,8 +574,8 @@
 				8     /*lcd_bits */
 				16 9>; /*screen_widht, screen_height*/
 			range_setting = <
-				4240 5100 /*h_period_min, max*/
-				2200 2760 /*v_period_min, max*/
+				4370 5100 /*h_period_min, max*/
+				2246 2760 /*v_period_min, max*/
 				480000000 624000000>; /*pclk_min, max*/
 			lcd_timing = <
 				16 29 0  /*hs_width, hs_bp, hs_pol*/
@@ -622,12 +622,12 @@
 				8     /*lcd_bits */
 				16 9>; /*screen_widht, screen_height*/
 			range_setting = <
-				2080 2720 /*h_period_min, max*/
-				2200 1125 /*v_period_min, max*/
+				2132 2720 /*h_period_min, max*/
+				1120 1380 /*v_period_min, max*/
 				133940000 156000000>; /*pclk_min, max*/
 			lcd_timing = <
 				44 148 0  /*hs_width, hs_bp, hs_pol*/
-				5 30 0>; /*vs_width, vs_bp, vs_pol*/
+				5 20 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
 				2 /*fr_adj_type
 				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
@@ -667,12 +667,12 @@
 				8     /*lcd_bits */
 				16 9>; /*screen_widht, screen_height*/
 			range_setting = <
-				1460 2000 /*h_period_min, max*/
-				784 1015 /*v_period_min, max*/
+				1506 2000 /*h_period_min, max*/
+				805 1015 /*v_period_min, max*/
 				50000000 85000000>; /*pclk_min, max*/
 			lcd_timing = <
 				56 64 0  /*hs_width, hs_bp, hs_pol*/
-				3 28 0>; /*vs_width, vs_bp, vs_pol*/
+				3 17 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
 				2 /*fr_adj_type
 				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
