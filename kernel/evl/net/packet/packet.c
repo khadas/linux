@@ -467,7 +467,7 @@ static ssize_t send_packet(struct evl_socket *esk,
 	skb->priority = esk->sk->sk_priority;
 
 	count = evl_copy_from_uio(iov, iovlen, skb->data, skb_tailroom(skb), &rem);
-	if (rem || count > READ_ONCE(dev->mtu) + dev->hard_header_len + VLAN_HLEN)
+	if (rem || count + dev->hard_header_len + VLAN_HLEN > READ_ONCE(dev->mtu))
 		ret = -EMSGSIZE;
 	else if (!dev_validate_header(dev, skb->data, count))
 		ret = -EINVAL;
