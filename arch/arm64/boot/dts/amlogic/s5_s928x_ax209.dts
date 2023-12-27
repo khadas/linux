@@ -907,13 +907,14 @@
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
 		status = "okay";
-		key_name = "key_a", "key_b", "key_c";
+		key_name = "vol-", "vol+", "power";
 		key_num = <3>;
-		io-channels = <&saradc 0>;
+		io-channels = <&saradc SARADC_CH0>;
 		io-channel-names = "key-chan-0";
-		key_chan = <0 0 0>;
-		key_code = <141 114 115>;
-		key_val = <900 511 0>; //val=voltage/1800mV*1023
+		key_chan = <SARADC_CH0 SARADC_CH0 SARADC_CH0>;
+		key_code = <KEY_VOLUMEDOWN KEY_VOLUMEUP KEY_POWER>;
+		/* val = voltage / 1800mV * 1023 */
+		key_val = <511 900 0>;
 		key_tolerance = <40 40 40>;
 	};
 
