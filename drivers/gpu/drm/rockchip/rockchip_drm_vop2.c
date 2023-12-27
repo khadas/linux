@@ -3254,8 +3254,21 @@ static int vop2_wb_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
+static void vop2_wb_encoder_atomic_disable(struct drm_encoder *encoder,
+					   struct drm_atomic_state *state)
+{
+	struct drm_crtc *crtc = encoder->crtc;
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+
+	if (!crtc->state->active_changed && !crtc->state->mode_changed) {
+		crtc->state->connectors_changed = false;
+		DRM_DEBUG("VP%d force change connectors_changed to false when disable wb\n", vp->id);
+	}
+}
+
 static const struct drm_encoder_helper_funcs vop2_wb_encoder_helper_funcs = {
 	.atomic_check = vop2_wb_encoder_atomic_check,
+	.atomic_disable = vop2_wb_encoder_atomic_disable,
 };
 
 static const struct drm_connector_helper_funcs vop2_wb_connector_helper_funcs = {
@@ -11938,7 +11951,10 @@ static int vop2_devfreq_set_aclk(struct drm_crtc *crtc, enum rockchip_drm_vop_ac
 		return 0;
 
 	vop2->aclk_target_freq = vop2->aclk_mode_rate[aclk_mode];
+
+	mutex_lock(&vop2->devfreq->lock);
 	ret = update_devfreq(vop2->devfreq);
+	mutex_unlock(&vop2->devfreq->lock);
 	if (ret)
 		dev_err(vop2->dev, "failed to set rate %lu\n", vop2->aclk_target_freq);
 
