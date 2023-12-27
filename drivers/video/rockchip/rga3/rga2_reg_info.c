@@ -2213,6 +2213,17 @@ static int rga2_gen_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct
 		break;
 	case COLOR_FILL_MODE:
 		RGA2_set_reg_color_fill(base, msg);
+		/* tile4x4 need a fake input */
+		if (msg->dst.rd_mode == RGA_TILE4x4_MODE) {
+			msg->src.act_w = msg->dst.act_w;
+			msg->src.act_h = msg->dst.act_h;
+			msg->src.vir_w = msg->dst.vir_w;
+			msg->src.vir_h = msg->dst.vir_h;
+			msg->src.format = RGA_FORMAT_RGBA_8888;
+			msg->src.rd_mode = RGA_RASTER_MODE;
+
+			RGA2_set_reg_src_info(base, msg);
+		}
 		RGA2_set_reg_dst_info(base, msg);
 		RGA2_set_reg_alpha_info(base, msg);
 		break;
