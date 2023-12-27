@@ -1730,10 +1730,15 @@ RESTART_ALL:
 	}
 	if (w_in > src_width_max)
 		next_frame_par->hscale_skip_count++;
-	if (h_in > src_height_max)
+	if (h_in > src_height_max &&
+		(w_in * h_in > src_width_max * src_height_max))
 		next_frame_par->vscale_skip_count++;
 
 RESTART:
+	if (cur_super_debug)
+		pr_info("%s(line:%d): vscale_skip_count=%d\n",
+			__func__, __LINE__, next_frame_par->vscale_skip_count);
+
 	if (next_frame_par->hscale_skip_count && !hskip_adjust) {
 		w_in  = DATA_ALIGNED_DOWN_4(w_in);
 		crop_left = DATA_ALIGNED_4(crop_left);
