@@ -408,8 +408,7 @@
 	no-sdio;
 	no-sd;
 	non-removable;
-	mmc-hs400-1_8v;
-	mmc-hs400-enhanced-strobe;
+	mmc-hs200-1_8v;
 	status = "okay";
 };
 
@@ -461,6 +460,10 @@
 		spi-rx-bus-width = <4>;
 		spi-tx-bus-width = <1>;
 	};
+};
+
+&tsadc {
+	status = "okay";
 };
 
 &uart6 {
