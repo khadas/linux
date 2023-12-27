@@ -185,6 +185,7 @@ void task_polling_cmd_keep(unsigned int ch, unsigned int top_sts)
 //ary 2020-12-09	ulong flags = 0;
 	struct di_ch_s *pch;
 	struct di_mng_s *pbm;// = get_bufmng();
+	struct div2_mm_s *mm;
 
 //	if (pbm->cma_flg_run)
 //		return;
@@ -202,10 +203,11 @@ void task_polling_cmd_keep(unsigned int ch, unsigned int top_sts)
 	 *so FCC switch channel, the other two channel not work but also has di buffer.
 	 *We need free the buffer when EDI_TOP_STATE_REG_STEP1 (reg but no vf)
 	 */
+	mm = dim_mm_get(ch);
 	if (top_sts != EDI_TOP_STATE_IDLE	&&
 	    top_sts != EDI_TOP_STATE_READY	&&
-	    top_sts != EDI_TOP_STATE_BYPASS &&
-	    top_sts != EDI_TOP_STATE_REG_STEP1)
+	    top_sts != EDI_TOP_STATE_BYPASS	&&
+	    (top_sts != EDI_TOP_STATE_REG_STEP1 || !mm->fcc_value))
 		return;
 
 //ary 2020-12-09	spin_lock_irqsave(&plist_lock, flags);
