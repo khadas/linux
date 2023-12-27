@@ -98,6 +98,8 @@ static void __iomem *firewall_syssram_base;
 static void __iomem *pmu_base;
 static void __iomem *nstimer_base;
 static void __iomem *stimer_base;
+static void __iomem *wdt_ns_base;
+static void __iomem *wdt_s_base;
 static void __iomem *mbox_base;
 static void __iomem *ddrc_base;
 static void __iomem *ioc_base[5];
@@ -177,6 +179,10 @@ static struct reg_region vd_log_reg_rgns[] = {
 	/* peri_cru */
 	{ REG_REGION(0x304, 0x32c, 4, &pericru_base, WMSK_VAL)},
 	{ REG_REGION(0x800, 0x81c, 4, &pericru_base, WMSK_VAL)},
+
+	/* peri_grf */
+	{ REG_REGION(0x000, 0x004, 4, &perigrf_base, WMSK_VAL)},
+	{ REG_REGION(0x090, 0x094, 4, &perigrf_base, WMSK_VAL)},
 
 	/* peri_sgrf */
 	{ REG_REGION(0x004, 0x014, 4, &perisgrf_base, 0)},
@@ -284,6 +290,14 @@ static struct reg_region vd_log_reg_rgns[] = {
 	{ REG_REGION(0x10, 0x10, 4, &stimer_base, 0)},
 	{ REG_REGION(0x20, 0x24, 4, &stimer_base, 0)},
 	{ REG_REGION(0x30, 0x30, 4, &stimer_base, 0)},
+
+	/* wdt_ns */
+	{ REG_REGION(0x04, 0x04, 4, &wdt_ns_base, 0)},
+	{ REG_REGION(0x00, 0x00, 4, &wdt_ns_base, 0)},
+
+	/* wdt_s */
+	{ REG_REGION(0x04, 0x04, 4, &wdt_s_base, 0)},
+	{ REG_REGION(0x00, 0x00, 4, &wdt_s_base, 0)},
 };
 
 static int is_rv1103, is_rv1106;
@@ -1040,6 +1054,15 @@ static void vd_log_regs_restore(void)
 	writel_relaxed(WITH_16BITS_WMSK(cru_mode), cru_base + 0x280);
 
 	gic400_restore();
+
+	writel_relaxed(0xffff0000, pmugrf_base + RV1106_PMUGRF_SOC_CON(4));
+	writel_relaxed(0xffff0000, pmugrf_base + RV1106_PMUGRF_SOC_CON(5));
+
+	if (readl_relaxed(wdt_ns_base + RV1106_WDT_CR) & 0x1)
+		writel_relaxed(0x76, wdt_ns_base + RV1106_WDT_CRR);
+
+	if (readl_relaxed(wdt_s_base + RV1106_WDT_CR) & 0x1)
+		writel_relaxed(0x76, wdt_s_base + RV1106_WDT_CRR);
 }
 
 static void rkpm_reg_rgns_init(void)
@@ -1181,6 +1204,9 @@ static int __init rv1106_suspend_init(struct device_node *np)
 
 	nstimer_base = dev_reg_base + RV1106_NSTIMER_OFFSET;
 	stimer_base = dev_reg_base + RV1106_STIMER_OFFSET;
+
+	wdt_ns_base = dev_reg_base + RV1106_WDTNS_OFFSET;
+	wdt_s_base = dev_reg_base + RV1106_WDTS_OFFSET;
 
 	pmu_base = dev_reg_base + RV1106_PMU_OFFSET;
 	uartdbg_base = dev_reg_base + RV1106_UART2_OFFSET;
