@@ -798,6 +798,7 @@ static int rockchip_i2s_tdm_multi_lanes_start(struct rk_i2s_tdm_dev *i2s_tdm, in
 static int rockchip_i2s_tdm_multi_lanes_parse(struct rk_i2s_tdm_dev *i2s_tdm)
 {
 	struct device_node *clk_src_node = NULL;
+	enum gpiod_flags gpiod_flags;
 	unsigned int val;
 	int ret;
 
@@ -820,22 +821,40 @@ static int rockchip_i2s_tdm_multi_lanes_parse(struct rk_i2s_tdm_dev *i2s_tdm)
 			i2s_tdm->rx_lanes = val;
 	}
 
-	i2s_tdm->i2s_lrck_gpio = devm_gpiod_get_optional(i2s_tdm->dev, "i2s-lrck", GPIOD_IN);
+	/*
+	 * Should use flag GPIOD_ASIS not to reclaim LRCK pin as GPIO function,
+	 * because we use the same PIN and just read EXT_PORT value which show
+	 * the pin status.
+	 */
+	i2s_tdm->i2s_lrck_gpio = devm_gpiod_get_optional(i2s_tdm->dev, "i2s-lrck",
+							 GPIOD_ASIS);
 	if (IS_ERR(i2s_tdm->i2s_lrck_gpio)) {
 		ret = PTR_ERR(i2s_tdm->i2s_lrck_gpio);
 		dev_err(i2s_tdm->dev, "Failed to get i2s_lrck_gpio %d\n", ret);
 		return ret;
 	}
 
-	i2s_tdm->tdm_fsync_gpio = devm_gpiod_get_optional(i2s_tdm->dev, "tdm-fsync", GPIOD_IN);
+	/* It's optional, required when use soc clk src, such as: i2s2_2ch */
+	clk_src_node = of_parse_phandle(i2s_tdm->dev->of_node, "rockchip,clk-src", 0);
+	gpiod_flags = clk_src_node ? GPIOD_ASIS : GPIOD_IN;
+	/*
+	 * Two situation for 'tdm-fsync':
+	 *
+	 * A. when the pin is a generic gpio as the ref signal pin which is drived from
+	 *    external. should use flag GPIOD_IN to reclaim as GPIO_IN function.
+	 *
+	 * B. when the pin is the same pin from the 'clk-src' on the same SoC, we can
+	 *    use the 'clk-src' fsync out signal as the 'tdm-fsync' to query status.
+	 *    in this case, should use flag GPIOD_ASIS not to reclaim it as GPIO.
+	 */
+	i2s_tdm->tdm_fsync_gpio = devm_gpiod_get_optional(i2s_tdm->dev, "tdm-fsync",
+							  gpiod_flags);
 	if (IS_ERR(i2s_tdm->tdm_fsync_gpio)) {
 		ret = PTR_ERR(i2s_tdm->tdm_fsync_gpio);
 		dev_err(i2s_tdm->dev, "Failed to get tdm_fsync_gpio %d\n", ret);
 		return ret;
 	}
 
-	/* It's optional, required when use soc clk src, such as: i2s2_2ch */
-	clk_src_node = of_parse_phandle(i2s_tdm->dev->of_node, "rockchip,clk-src", 0);
 	if (clk_src_node) {
 		i2s_tdm->clk_src_dai = rockchip_i2s_tdm_find_dai(clk_src_node);
 		if (!i2s_tdm->clk_src_dai)
