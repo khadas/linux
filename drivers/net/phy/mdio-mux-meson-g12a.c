@@ -54,6 +54,9 @@ EXPORT_SYMBOL_GPL(phy_analog_config_addr);
 #define  PHY_CNTL1_ST_MODE	GENMASK(2, 0)
 #define  PHY_CNTL1_ST_PHYADD	GENMASK(7, 3)
 #define   EPHY_DFLT_ADD		8
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+#define  PHY_CNTL1_AUTOMDIX_EN	BIT(8)
+#endif
 #define  PHY_CNTL1_MII_MODE	GENMASK(15, 14)
 #define   EPHY_MODE_RMII	0x1
 #define  PHY_CNTL1_CLK_EN	BIT(16)
@@ -153,7 +156,11 @@ static void g12a_ephy_pll_init(struct clk_hw *hw)
 	writel(0x00000000, pll->base + ETH_PLL_CTL3);
 	writel(0x00000000, pll->base + ETH_PLL_CTL4);
 	writel(0x20200000, pll->base + ETH_PLL_CTL5);
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	writel(0x0000cf02, pll->base + ETH_PLL_CTL6);
+#else
 	writel(0x0000c002, pll->base + ETH_PLL_CTL6);
+#endif
 	writel(0x00000023, pll->base + ETH_PLL_CTL7);
 }
 
@@ -190,35 +197,24 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 
 	/* Initialize ephy control */
 	writel(EPHY_G12A_ID, priv->regs + ETH_PHY_CNTL0);
-
-	writel(FIELD_PREP(PHY_CNTL1_ST_MODE, 3) |
-	       FIELD_PREP(PHY_CNTL1_ST_PHYADD, EPHY_DFLT_ADD) |
-	       FIELD_PREP(PHY_CNTL1_MII_MODE, EPHY_MODE_RMII) |
-	       PHY_CNTL1_CLK_EN |
-	       PHY_CNTL1_CLKFREQ |
-	       PHY_CNTL1_PHY_ENB,
-	       priv->regs + ETH_PHY_CNTL1);
-	/*need delay to wait reset*/
-
 	/* Make sure we get a 0 -> 1 transition on the enable bit */
 	value = FIELD_PREP(PHY_CNTL1_ST_MODE, 3) |
 		FIELD_PREP(PHY_CNTL1_ST_PHYADD, EPHY_DFLT_ADD) |
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+		PHY_CNTL1_AUTOMDIX_EN |
+#endif
 		FIELD_PREP(PHY_CNTL1_MII_MODE, EPHY_MODE_RMII) |
 		PHY_CNTL1_CLK_EN |
 		PHY_CNTL1_CLKFREQ;
 	writel(value, priv->regs + ETH_PHY_CNTL1);
-	
-	value |= PHY_CNTL1_PHY_ENB;
-	writel(value, priv->regs + ETH_PHY_CNTL1);
-
-	/* The phy needs a bit of time to power up */
-	mdelay(10);
-
 	writel(PHY_CNTL2_USE_INTERNAL |
 	       PHY_CNTL2_SMI_SRC_MAC |
 	       PHY_CNTL2_RX_CLK_EPHY,
 	       priv->regs + ETH_PHY_CNTL2);
-
+	value |= PHY_CNTL1_PHY_ENB;
+	writel(value, priv->regs + ETH_PHY_CNTL1);
+	/* The phy needs a bit of time to power up */
+	mdelay(10);
 
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 	/*enet_type*/
