@@ -11,12 +11,9 @@
 		mode = "tablet";
 		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
-		clocks = <&clkc CLKID_MIPI_DSI_A
-			&clkc CLKID_DSI0_PHY_GATE
-			&clkc CLKID_DSI_A_MEAS_GATE>;
-		clock-names = "dsi_host_gate",
-			"dsi_phy_gate",
-			"dsi_meas";
+		clocks = <&clkc CLKID_MIPI_DSI_A>, <&clkc CLKID_DSI0_PHY_GATE>,
+			<&clkc CLKID_DSI_A_MEAS_GATE>;
+		clock-names = "dsi_host_gate", "dsi_phy_gate", "dsi_meas";
 		reg = <0x0 0xfe018000 0x0 0x60     /* combo dphy */
 			0x0 0xfe0b0000 0x0 0x10b0  /* edp_a host */
 			0x0 0xfe074000 0x0 0x400   /* mipi_dsi_a host */
@@ -62,11 +59,8 @@
 				44 148 0   /*hs_width, hs_bp, hs_pol*/
 				5  20  0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				0 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level */
+				0 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode */
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			edp_attr = <

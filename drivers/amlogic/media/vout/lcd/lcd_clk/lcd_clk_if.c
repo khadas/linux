@@ -419,34 +419,6 @@ void lcd_disable_clk(struct aml_lcd_drv_s *pdrv)
 	LCDPR("[%d]: %s\n", pdrv->index, __func__);
 }
 
-static void lcd_clk_gate_optional_switch(struct aml_lcd_drv_s *pdrv, int status)
-{
-	struct lcd_clk_config_s *cconf;
-
-	cconf = get_lcd_clk_config(pdrv);
-	if (!cconf || !cconf->data)
-		return;
-
-	if (!cconf->data->clk_gate_optional_switch)
-		return;
-
-	if (status) {
-		if (cconf->clktree.clk_gate_optional_state) {
-			LCDPR("[%d]: clk_gate_optional is already on\n",
-			      pdrv->index);
-		} else {
-			cconf->data->clk_gate_optional_switch(pdrv, 1);
-		}
-	} else {
-		if (cconf->clktree.clk_gate_optional_state == 0) {
-			LCDPR("[%d]: clk_gate_optional is already off\n",
-			      pdrv->index);
-		} else {
-			cconf->data->clk_gate_optional_switch(pdrv, 0);
-		}
-	}
-}
-
 void lcd_clk_gate_switch(struct aml_lcd_drv_s *pdrv, int status)
 {
 	struct lcd_clk_config_s *cconf;
@@ -455,31 +427,23 @@ void lcd_clk_gate_switch(struct aml_lcd_drv_s *pdrv, int status)
 	if (!cconf || !cconf->data)
 		return;
 
-	if (status) {
-		if (cconf->clktree.clk_gate_state) {
-			LCDPR("[%d]: clk_gate is already on\n", pdrv->index);
-		} else {
-#ifdef CONFIG_AMLOGIC_VPU
-			vpu_dev_clk_gate_on(pdrv->lcd_vpu_dev);
-#endif
-			if (cconf->data->clk_gate_switch)
-				cconf->data->clk_gate_switch(pdrv, 1);
-			cconf->clktree.clk_gate_state = 1;
-		}
-		lcd_clk_gate_optional_switch(pdrv, 1);
-	} else {
-		lcd_clk_gate_optional_switch(pdrv, 0);
-		if (cconf->clktree.clk_gate_state == 0) {
-			LCDPR("[%d]: clk_gate is already off\n",  pdrv->index);
-		} else {
-			if (cconf->data->clk_gate_switch)
-				cconf->data->clk_gate_switch(pdrv, 0);
-#ifdef CONFIG_AMLOGIC_VPU
-			vpu_dev_clk_gate_off(pdrv->lcd_vpu_dev);
-#endif
-			cconf->clktree.clk_gate_state = 0;
-		}
+	if (cconf->clktree.clk_gate_state == status) {
+		LCDPR("[%d]: clk gate is already %s\n", pdrv->index, status ? "on" : "off");
+		return;
 	}
+
+	if (status) {
+#ifdef CONFIG_AMLOGIC_VPU
+		vpu_dev_clk_gate_on(pdrv->lcd_vpu_dev);
+#endif
+		lcd_clktree_gate_switch(pdrv, 1);
+	} else {
+		lcd_clktree_gate_switch(pdrv, 0);
+#ifdef CONFIG_AMLOGIC_VPU
+		vpu_dev_clk_gate_off(pdrv->lcd_vpu_dev);
+#endif
+	}
+	cconf->clktree.clk_gate_state = status;
 }
 
 int lcd_clk_clkmsr_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
@@ -679,8 +643,7 @@ void lcd_clk_config_probe(struct aml_lcd_drv_s *pdrv)
 	if (!cconf->data)
 		return;
 
-	if (cconf->data->clktree_probe)
-		cconf->data->clktree_probe(pdrv);
+	lcd_clktree_bind(pdrv, 1);
 }
 
 void lcd_clk_config_remove(struct aml_lcd_drv_s *pdrv)
@@ -691,8 +654,8 @@ void lcd_clk_config_remove(struct aml_lcd_drv_s *pdrv)
 		return;
 
 	cconf = (struct lcd_clk_config_s *)pdrv->clk_conf;
-	if (cconf->data && cconf->data->clktree_remove)
-		cconf->data->clktree_remove(pdrv);
+
+	lcd_clktree_bind(pdrv, 0);
 
 	kfree(cconf);
 	pdrv->clk_conf = NULL;

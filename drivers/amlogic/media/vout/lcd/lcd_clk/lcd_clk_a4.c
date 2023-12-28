@@ -158,6 +158,9 @@ static struct lcd_clk_data_s lcd_clk_data_a4 = {
 	.fifo_clk_msr_id = LCD_CLK_MSR_INVALID,
 	.tcon_clk_msr_id = LCD_CLK_MSR_INVALID,
 
+	.clktree_set = NULL,
+	.clktree_index = {0, 0, 0, 0, 0, 0},
+
 	.clk_parameter_init = NULL,
 	.clk_generate_parameter = NULL,
 	.pll_frac_generate = NULL,
@@ -171,11 +174,6 @@ static struct lcd_clk_data_s lcd_clk_data_a4 = {
 	.clk_set = lcd_clk_set_a4,
 	.vclk_crt_set = lcd_set_vclk_crt_a4,
 	.clk_disable = lcd_clk_disable_a4,
-	.clk_gate_switch = NULL,
-	.clk_gate_optional_switch = NULL,
-	.clktree_set = NULL,
-	.clktree_probe = NULL,
-	.clktree_remove = NULL,
 	.clk_config_init_print = NULL,
 	.clk_config_print = lcd_clk_config_print_a4,
 };

@@ -11,12 +11,9 @@
 		mode = "tablet";
 		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
-		clocks = <&clkc CLKID_MIPI_DSI_A
-			&clkc CLKID_DSI0_PHY_GATE
-			&clkc CLKID_DSI_A_MEAS_GATE>;
-		clock-names = "dsi_host_gate",
-			"dsi_phy_gate",
-			"dsi_meas";
+		clocks = <&clkc CLKID_MIPI_DSI_A>, <&clkc CLKID_DSI0_PHY_GATE>,
+			 <&clkc CLKID_DSI_A_MEAS_GATE>;
+		clock-names = "dsi_host_gate", "dsi_phy_gate", "dsi_meas";
 		reg = <0x0 0xfe018000 0x0 0x60	   /* combo dphy */
 			0x0 0xfe0b0000 0x0 0x10b0  /* edp_a host */
 			0x0 0xfe074000 0x0 0x400   /* mipi_dsi_a host */
@@ -60,11 +57,8 @@
 				2 14 0	 /*hs_width, hs_bp, hs_pol*/
 				1 6 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				0 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				15 /*clk_ss_level*/
+				0 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				15 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				60>; /*pixel_clk(unit in Hz)*/
 			lvds_attr = <
@@ -102,11 +96,8 @@
 				56 64 0   /*hs_width, hs_bp, hs_pol*/
 				3  17 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				15 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				15 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			lvds_attr = <
@@ -144,11 +135,8 @@
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
 				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -189,11 +177,8 @@
 				33 477 0   /*hs_width, hs_bp, hs_pol*/
 				6  65  0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -234,11 +219,8 @@
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
 				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				4 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				4 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -279,11 +261,8 @@
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
 				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				4 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				4 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -324,11 +303,8 @@
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
 				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -370,11 +346,8 @@
 				44 148 0   /*hs_width, hs_bp, hs_pol*/
 				5  30  0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				0 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level */
+				0 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode */
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			edp_attr = <
@@ -410,7 +383,7 @@
 			lcd_timing = <80 100 0 /*hs_width, hs_bp, hs_pol*/
 				5 20 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <0 /*fr_adj_type(0=clk, 1=htotal, 2=vtotal)*/
-				0 /*clk_ss_level */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode */
 				1 /*clk_auto_generate*/
 				47250000>; /*pixel_clk(unit in Hz)*/
 			mipi_attr = <4 /*lane_num*/
@@ -462,7 +435,7 @@
 			lcd_timing = <40 60 0 /*hs_width,hs_bp,hs_pol*/
 				5 20 0>; /*vs_width,vs_bp,vs_pol*/
 			clk_attr = <0 /*fr_adj_type(0=clock,1=htotal,2=vtotal)*/
-				0 /*clk_ss_level*/
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				74250000>; /*pixel_clk(unit in Hz)*/
 			mipi_attr = <4 /*lane_num*/
@@ -511,7 +484,7 @@
 			lcd_timing = <30 60 0 /*hs_width,hs_bp,hs_pol*/
 					8 16 0>; /*vs_width,vs_bp,vs_pol*/
 			clk_attr = <0 /*fr_adj_type(0=clock,1=htotal,2=vtotal)*/
-					0 /*clk_ss_level*/
+					0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 					1 /*clk_auto_generate*/
 					67800000>; /*pixel_clk(unit in Hz)*/
 			mipi_attr = <4 /*lane_num*/
@@ -549,7 +522,7 @@
 			lcd_timing = <1 60 0 /*hs_width,hs_bp,hs_pol*/
 				   1 25 0>; /*vs_width,vs_bp,vs_pol*/
 			clk_attr = <0 /*fr_adj_type(0=clock,1=htotal,2=vtotal)*/
-				   0 /*clk_ss_level*/
+				   0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				   1 /*clk_auto_generate*/
 				   161000460>; /*pixel_clk(unit in Hz)*/
 			mipi_attr = <4 /*lane_num*/
@@ -1177,12 +1150,9 @@
 		mode = "tablet";
 		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
-		clocks = <&clkc CLKID_MIPI_DSI_B
-			&clkc CLKID_DSI1_PHY_GATE
-			&clkc CLKID_DSI_B_MEAS_GATE>;
-		clock-names = "dsi_host_gate",
-			"dsi_phy_gate",
-			"dsi_meas";
+		clocks = <&clkc CLKID_MIPI_DSI_B>, <&clkc CLKID_DSI1_PHY_GATE>,
+			 <&clkc CLKID_DSI_B_MEAS_GATE>;
+		clock-names = "dsi_host_gate", "dsi_phy_gate", "dsi_meas";
 		reg = <0x0 0xfe018000 0x0 0x60	   /* combo dphy */
 			0x0 0xfe0b2000 0x0 0x10b0  /* edp_b host */
 			0x0 0xfe072000 0x0 0x400   /* mipi_dsi_b host */
@@ -1225,11 +1195,8 @@
 				56 64 0   /*hs_width, hs_bp, hs_pol*/
 				3  17 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				15 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				15 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			lvds_attr = <
@@ -1267,11 +1234,8 @@
 				2 14 0	 /*hs_width, hs_bp, hs_pol*/
 				1 6 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				0 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				15 /*clk_ss_level*/
+				0 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				15 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				60>; /*pixel_clk(unit in Hz)*/
 			lvds_attr = <
@@ -1309,11 +1273,8 @@
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
 				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -1354,11 +1315,8 @@
 				33 477 0   /*hs_width, hs_bp, hs_pol*/
 				6  65  0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -1399,11 +1357,8 @@
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
 				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				4 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				4 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -1444,11 +1399,8 @@
 				33 477 0  /*hs_width, hs_bp, hs_pol*/
 				6  65 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				4 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				4 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			vbyone_attr = <
@@ -1490,11 +1442,8 @@
 				44 148 0   /*hs_width, hs_bp, hs_pol*/
 				5  20  0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				0 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level */
+				0 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode */
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			edp_attr = <
@@ -1530,7 +1479,7 @@
 			lcd_timing = <80 100 0 /*hs_width, hs_bp, hs_pol*/
 				5 20 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <0 /*fr_adj_type(0=clk, 1=htotal, 2=vtotal)*/
-				0 /*clk_ss_level */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode */
 				1 /*clk_auto_generate*/
 				47250000>; /*pixel_clk(unit in Hz)*/
 			mipi_attr = <4 /*lane_num*/
@@ -1582,7 +1531,7 @@
 			lcd_timing = <40 60 0 /*hs_width,hs_bp,hs_pol*/
 				5 20 0>; /*vs_width,vs_bp,vs_pol*/
 			clk_attr = <0 /*fr_adj_type(0=clock,1=htotal,2=vtotal)*/
-				0 /*clk_ss_level*/
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				74250000>; /*pixel_clk(unit in Hz)*/
 			mipi_attr = <4 /*lane_num*/
@@ -1738,11 +1687,8 @@
 				44 148 0  /*hs_width, hs_bp, hs_pol*/
 				5  20 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				2 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level*/
+				2 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			lvds_attr = <
@@ -1780,11 +1726,8 @@
 				44 148 0   /*hs_width, hs_bp, hs_pol*/
 				5  20  0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				4 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				0 /*clk_ss_level */
+				4 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				0 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode */
 				1 /*clk_auto_generate*/
 				0>; /*pixel_clk(unit in Hz)*/
 			lvds_attr = <
@@ -1822,11 +1765,8 @@
 				2 14 0	 /*hs_width, hs_bp, hs_pol*/
 				1 6 0>; /*vs_width, vs_bp, vs_pol*/
 			clk_attr = <
-				0 /*fr_adj_type
-				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
-				   * 4=hdmi_mode)
-				   */
-				15 /*clk_ss_level*/
+				0 /*fr_adj_type: 0=clk, 1=htotal, 2=vtotal, 3=auto, 4=hdmi */
+				15 /*clk_ss: [0:7]:level, [8:11]:freq, [12:15]: mode*/
 				1 /*clk_auto_generate*/
 				60>; /*pixel_clk(unit in Hz)*/
 			lvds_attr = <

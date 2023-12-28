@@ -337,66 +337,6 @@ static void lcd_set_tcon_clk(struct aml_lcd_drv_s *pdrv)
 	lcd_tcon_global_reset(pdrv);
 }
 
-static void lcd_clktree_probe(struct aml_lcd_drv_s *pdrv)
-{
-	struct lcd_clk_config_s *cconf;
-	struct clk *temp_clk;
-	int ret;
-
-	cconf = get_lcd_clk_config(pdrv);
-	if (!cconf)
-		return;
-	cconf->clktree.clk_gate_state = 0;
-
-	cconf->clktree.encl_top_gate = devm_clk_get(pdrv->dev, "encl_top_gate");
-	if (IS_ERR_OR_NULL(cconf->clktree.encl_top_gate))
-		LCDERR("%s: get encl_top_gate error\n", __func__);
-
-	cconf->clktree.encl_int_gate = devm_clk_get(pdrv->dev, "encl_int_gate");
-	if (IS_ERR_OR_NULL(cconf->clktree.encl_int_gate))
-		LCDERR("%s: get encl_int_gate error\n", __func__);
-
-	cconf->clktree.tcon_gate = devm_clk_get(pdrv->dev, "tcon_gate");
-	if (IS_ERR_OR_NULL(cconf->clktree.tcon_gate))
-		LCDERR("%s: get tcon_gate error\n", __func__);
-
-	temp_clk = devm_clk_get(pdrv->dev, "fclk_div5");
-	if (IS_ERR_OR_NULL(temp_clk)) {
-		LCDERR("%s: clk fclk_div5\n", __func__);
-		return;
-	}
-	cconf->clktree.tcon_clk = devm_clk_get(pdrv->dev, "clk_tcon");
-	if (IS_ERR_OR_NULL(cconf->clktree.tcon_clk)) {
-		LCDERR("%s: clk clk_tcon\n", __func__);
-	} else {
-		ret = clk_set_parent(cconf->clktree.tcon_clk, temp_clk);
-		if (ret)
-			LCDERR("%s: clk clk_tcon set_parent error\n", __func__);
-	}
-
-	LCDPR("lcd_clktree_probe\n");
-}
-
-static void lcd_clktree_remove(struct aml_lcd_drv_s *pdrv)
-{
-	struct lcd_clk_config_s *cconf;
-
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("lcd_clktree_remove\n");
-	cconf = get_lcd_clk_config(pdrv);
-	if (!cconf)
-		return;
-
-	if (!IS_ERR_OR_NULL(cconf->clktree.encl_top_gate))
-		devm_clk_put(pdrv->dev, cconf->clktree.encl_top_gate);
-	if (!IS_ERR_OR_NULL(cconf->clktree.encl_int_gate))
-		devm_clk_put(pdrv->dev, cconf->clktree.encl_int_gate);
-	if (!IS_ERR_OR_NULL(cconf->clktree.tcon_clk))
-		devm_clk_put(pdrv->dev, cconf->clktree.tcon_clk);
-	if (IS_ERR_OR_NULL(cconf->clktree.tcon_gate))
-		devm_clk_put(pdrv->dev, cconf->clktree.tcon_gate);
-}
-
 static void lcd_prbs_set_pll_vx1(struct aml_lcd_drv_s *pdrv)
 {
 	int cnt = 0, ret;
@@ -567,6 +507,7 @@ static void lcd_clk_prbs_test(struct aml_lcd_drv_s *pdrv, unsigned int ms, unsig
 	unsigned int lcd_prbs_mode, lcd_prbs_cnt;
 	unsigned int val1, val2, timeout;
 	unsigned int clk_err_cnt = 0;
+	unsigned int lcd_encl_clk_check_std, lcd_fifo_clk_check_std;
 	int i, j, ret;
 
 	if (!cconf)
@@ -729,6 +670,13 @@ static struct lcd_clk_data_s lcd_clk_data_t5w = {
 	.ss_dep_sel_max = 12,
 	.ss_str_m_max = 10,
 
+	.clktree_index = {
+		CLKTREE_ENCL_TOP_GATE,
+		CLKTREE_ENCL_INT_GATE,
+		CLKTREE_TCON_GATE,
+		CLKTREE_TCON,
+		0, 0},
+
 	.clk_parameter_init = NULL,
 	.clk_generate_parameter = lcd_clk_generate_dft,
 	.pll_frac_generate = lcd_pll_frac_generate_dft,
@@ -742,11 +690,7 @@ static struct lcd_clk_data_s lcd_clk_data_t5w = {
 	.clk_set = lcd_clk_set,
 	.vclk_crt_set = lcd_set_vclk_crt,
 	.clk_disable = lcd_clk_disable,
-	.clk_gate_switch = lcd_clk_gate_switch_dft,
-	.clk_gate_optional_switch = lcd_clk_gate_optional_switch_fdt,
 	.clktree_set = lcd_set_tcon_clk,
-	.clktree_probe = lcd_clktree_probe,
-	.clktree_remove = lcd_clktree_remove,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = lcd_clk_config_print_dft,
 	.prbs_test = lcd_clk_prbs_test,

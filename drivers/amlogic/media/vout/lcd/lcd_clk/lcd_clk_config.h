@@ -42,7 +42,6 @@ struct lcd_clk_ctrl_s {
 
 struct lcd_clktree_s {
 	unsigned char clk_gate_state;
-	unsigned char clk_gate_optional_state;
 
 	struct clk *encl_top_gate;
 	struct clk *encl_int_gate;
@@ -97,6 +96,9 @@ struct lcd_clk_data_s {
 	int fifo_clk_msr_id;
 	int tcon_clk_msr_id;
 
+	void (*clktree_set)(struct aml_lcd_drv_s *pdrv);
+	unsigned char clktree_index[6];
+
 	//for some parameter changed to different lcd interface
 	void (*clk_parameter_init)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_generate_parameter)(struct aml_lcd_drv_s *pdrv);
@@ -111,11 +113,6 @@ struct lcd_clk_data_s {
 	void (*clk_set)(struct aml_lcd_drv_s *pdrv);
 	void (*vclk_crt_set)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_disable)(struct aml_lcd_drv_s *pdrv);
-	void (*clk_gate_switch)(struct aml_lcd_drv_s *pdrv, int status);
-	void (*clk_gate_optional_switch)(struct aml_lcd_drv_s *pdrv, int status);
-	void (*clktree_set)(struct aml_lcd_drv_s *pdrv);
-	void (*clktree_probe)(struct aml_lcd_drv_s *pdrv);
-	void (*clktree_remove)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_config_init_print)(struct aml_lcd_drv_s *pdrv);
 	void (*prbs_test)(struct aml_lcd_drv_s *pdrv, unsigned int ms, unsigned int mode_flag);
 	int (*clk_config_print)(struct aml_lcd_drv_s *pdrv, char *buf, int offset);

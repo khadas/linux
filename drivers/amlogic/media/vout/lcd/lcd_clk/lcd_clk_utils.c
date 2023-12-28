@@ -163,8 +163,27 @@ int lcd_pll_wait_lock(unsigned int reg, unsigned int lock_bit)
 	int ret = 0;
 
 	do {
-		udelay(50);
+		usleep_range(40, 60);
 		pll_lock = lcd_ana_getb(reg, lock_bit, 1);
+		wait_loop--;
+	} while ((pll_lock == 0) && (wait_loop > 0));
+	if (pll_lock == 0)
+		ret = -1;
+	LCDPR("%s: pll_lock=%d, wait_loop=%d\n",
+	      __func__, pll_lock, (PLL_WAIT_LOCK_CNT - wait_loop));
+
+	return ret;
+}
+
+int lcd_pll_wait_lock_hiu(unsigned int reg, unsigned int lock_bit)
+{
+	unsigned int pll_lock;
+	int wait_loop = PLL_WAIT_LOCK_CNT; /* 200 */
+	int ret = 0;
+
+	do {
+		usleep_range(100, 120);
+		pll_lock = lcd_hiu_getb(reg, lock_bit, 1);
 		wait_loop--;
 	} while ((pll_lock == 0) && (wait_loop > 0));
 	if (pll_lock == 0)
@@ -1023,80 +1042,6 @@ generate_clk_dft_done:
 	}
 }
 
-void lcd_clk_gate_switch_dft(struct aml_lcd_drv_s *pdrv, int status)
-{
-	struct lcd_clk_config_s *cconf;
-
-	cconf = get_lcd_clk_config(pdrv);
-	if (!cconf)
-		return;
-
-	if (status) {
-		if (IS_ERR_OR_NULL(cconf->clktree.encl_top_gate))
-			LCDERR("%s: encl_top_gate\n", __func__);
-		else
-			clk_prepare_enable(cconf->clktree.encl_top_gate);
-		if (IS_ERR_OR_NULL(cconf->clktree.encl_int_gate))
-			LCDERR("%s: encl_int_gata\n", __func__);
-		else
-			clk_prepare_enable(cconf->clktree.encl_int_gate);
-	} else {
-		if (IS_ERR_OR_NULL(cconf->clktree.encl_int_gate))
-			LCDERR("%s: encl_int_gata\n", __func__);
-		else
-			clk_disable_unprepare(cconf->clktree.encl_int_gate);
-		if (IS_ERR_OR_NULL(cconf->clktree.encl_top_gate))
-			LCDERR("%s: encl_top_gata\n", __func__);
-		else
-			clk_disable_unprepare(cconf->clktree.encl_top_gate);
-	}
-}
-
-void lcd_clk_gate_optional_switch_fdt(struct aml_lcd_drv_s *pdrv, int status)
-{
-	struct lcd_clk_config_s *cconf;
-
-	cconf = get_lcd_clk_config(pdrv);
-	if (!cconf)
-		return;
-
-	if (status) {
-		switch (pdrv->config.basic.lcd_type) {
-		case LCD_MLVDS:
-		case LCD_P2P:
-			if (IS_ERR_OR_NULL(cconf->clktree.tcon_gate))
-				LCDERR("%s: tcon_gate\n", __func__);
-			else
-				clk_prepare_enable(cconf->clktree.tcon_gate);
-			if (IS_ERR_OR_NULL(cconf->clktree.tcon_clk))
-				LCDERR("%s: tcon_clk\n", __func__);
-			else
-				clk_prepare_enable(cconf->clktree.tcon_clk);
-			cconf->clktree.clk_gate_optional_state = 1;
-			break;
-		default:
-			break;
-		}
-	} else {
-		switch (pdrv->config.basic.lcd_type) {
-		case LCD_MLVDS:
-		case LCD_P2P:
-			if (IS_ERR_OR_NULL(cconf->clktree.tcon_clk))
-				LCDERR("%s: tcon_clk\n", __func__);
-			else
-				clk_disable_unprepare(cconf->clktree.tcon_clk);
-			if (IS_ERR_OR_NULL(cconf->clktree.tcon_gate))
-				LCDERR("%s: tcon_gate\n", __func__);
-			else
-				clk_disable_unprepare(cconf->clktree.tcon_gate);
-			cconf->clktree.clk_gate_optional_state = 0;
-			break;
-		default:
-			break;
-		}
-	}
-}
-
 void lcd_set_vid_pll_div_dft(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
@@ -1255,10 +1200,6 @@ int lcd_clk_config_print_dft(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	return len;
 }
 
-#define CLK_CHK_MAX    2000000  /*Hz*/
-unsigned long lcd_encl_clk_check_std = 121000000;
-unsigned long lcd_fifo_clk_check_std = 42000000;
-
 int lcd_prbs_clk_check(unsigned long encl_clk, unsigned int encl_msr_id,
 			unsigned long fifo_clk, unsigned int fifo_msr_id, unsigned int cnt)
 {
@@ -1269,7 +1210,7 @@ int lcd_prbs_clk_check(unsigned long encl_clk, unsigned int encl_msr_id,
 	clk_check = meson_clk_measure(encl_msr_id);
 	if (clk_check != encl_clk) {
 		temp = lcd_abs(clk_check, encl_clk);
-		if (temp >= CLK_CHK_MAX) {
+		if (temp >= PLL_CLK_CHECK_MAX) {
 			if (lcd_debug_print_flag & LCD_DBG_PR_TEST) {
 				LCDERR("encl clkmsr error %ld, cnt:%d\n",
 				       clk_check, cnt);
@@ -1279,12 +1220,12 @@ int lcd_prbs_clk_check(unsigned long encl_clk, unsigned int encl_msr_id,
 	}
 
 lcd_prbs_clk_check_next:
-	if (encl_msr_id == LCD_CLK_MSR_INVALID)
+	if (fifo_msr_id == LCD_CLK_MSR_INVALID)
 		return 0;
 	clk_check = meson_clk_measure(fifo_msr_id);
 	if (clk_check != fifo_clk) {
 		temp = lcd_abs(clk_check, fifo_clk);
-		if (temp >= CLK_CHK_MAX) {
+		if (temp >= PLL_CLK_CHECK_MAX) {
 			if (lcd_debug_print_flag & LCD_DBG_PR_TEST) {
 				LCDERR("fifo clkmsr error %ld, cnt:%d\n",
 				       clk_check, cnt);
@@ -1294,4 +1235,128 @@ lcd_prbs_clk_check_next:
 	}
 
 	return 0;
+}
+
+struct lcd_clktree_list_s {
+	const char *name;
+	size_t offset;
+};
+
+static struct lcd_clktree_list_s clktree_list[10] = {
+	{.name = "gp0_pll",           .offset = offsetof(struct lcd_clktree_s, gp0_pll)},
+	{.name = "encl_top_gate",     .offset = offsetof(struct lcd_clktree_s, encl_top_gate)},
+	{.name = "encl_int_gate",     .offset = offsetof(struct lcd_clktree_s, encl_int_gate)},
+	{.name = "dsi_host_gate",     .offset = offsetof(struct lcd_clktree_s, dsi_host_gate)},
+	{.name = "dsi_phy_gate",      .offset = offsetof(struct lcd_clktree_s, dsi_phy_gate)},
+	{.name = "dsi_meas",          .offset = offsetof(struct lcd_clktree_s, dsi_meas)},
+	{.name = "mipi_enable_gate",  .offset = offsetof(struct lcd_clktree_s, mipi_enable_gate)},
+	{.name = "mipi_bandgap_gate", .offset = offsetof(struct lcd_clktree_s, mipi_bandgap_gate)},
+	{.name = "tcon_gate",         .offset = offsetof(struct lcd_clktree_s, tcon_gate)},
+	{.name = "clk_tcon",          .offset = offsetof(struct lcd_clktree_s, tcon_clk)},
+};
+
+void lcd_clktree_bind(struct aml_lcd_drv_s *pdrv, unsigned char status)
+{
+	struct lcd_clk_config_s *cconf;
+	unsigned char i, clk_type, cnt = 0, clk_use;
+	void *clktree_base;
+	struct clk **clk_temp;
+	char clk_names[120];
+
+	memset(clk_names, 0, sizeof(clk_names));
+
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf)
+		return;
+	cconf->clktree.clk_gate_state = status;
+	clktree_base = (void *)&cconf->clktree;
+
+	for (i = 0; i < MAX_CLKTREE_GATE; i++) {
+		clk_type = cconf->data->clktree_index[i];
+		if (!clk_type)
+			break;
+
+		clk_use = 0;
+		switch (clk_type) {
+		case CLKTREE_GP0_PLL:
+			if (cconf->data->vclk_sel) //when G12A/B use GP0 PLL
+				clk_use = 1;
+			break;
+		case CLKTREE_ENCL_TOP_GATE:
+		case CLKTREE_ENCL_INT_GATE:
+			clk_use = 1;
+			break;
+		case CLKTREE_DSI_HOST_GATE:
+		case CLKTREE_DSI_PHY_GATE:
+		case CLKTREE_DSI_MEAS:
+		case CLKTREE_MIPI_ENABLE_GATE:
+		case CLKTREE_MIPI_BANDGAP_GATE:
+			if (pdrv->config.basic.lcd_type == LCD_MIPI)
+				clk_use = 1;
+			break;
+		case CLKTREE_TCON_GATE:
+		case CLKTREE_TCON:
+			if (pdrv->config.basic.lcd_type == LCD_MLVDS ||
+			    pdrv->config.basic.lcd_type == LCD_P2P)
+				clk_use = 1;
+			break;
+		default:
+			break;
+		}
+
+		if (!clk_use)
+			continue;
+
+		clk_temp = (struct clk **)(clktree_base + clktree_list[clk_type].offset);
+		if (status)
+			*clk_temp = devm_clk_get(pdrv->dev, clktree_list[clk_type].name);
+		else
+			devm_clk_put(pdrv->dev, *clk_temp);
+
+		if (IS_ERR_OR_NULL(*clk_temp) && status) {
+			LCDERR("[%d]: %s failed\n", pdrv->index, clktree_list[clk_type].name);
+			continue;
+		}
+		cnt += snprintf(clk_names + cnt, 120 - cnt, " %s", clktree_list[clk_type].name);
+	}
+	LCDPR("[%d]: clktree %s:%s done\n", pdrv->index, status ? "probe" : "remove", clk_names);
+}
+
+void lcd_clktree_gate_switch(struct aml_lcd_drv_s *pdrv, unsigned char status)
+{
+	struct lcd_clk_config_s *cconf;
+	unsigned char i, clk_type, cnt = 0;
+	void *clktree_base;
+	struct clk **clk_temp;
+	char clk_names[120];
+
+	memset(clk_names, 0, sizeof(clk_names));
+
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf)
+		return;
+	cconf->clktree.clk_gate_state = status;
+	clktree_base = (void *)&cconf->clktree;
+
+	for (i = 0; i < MAX_CLKTREE_GATE; i++) {
+		// reverse order for clktree switch off
+		clk_type = cconf->data->clktree_index[status ? i : MAX_CLKTREE_GATE - 1 - i];
+		if (!clk_type)
+			continue;
+
+		clk_temp = (struct clk **)(clktree_base + clktree_list[clk_type].offset);
+		if (IS_ERR_OR_NULL(*clk_temp)) {
+			LCDERR("[%d]: %s : %s failed\n", pdrv->index, status ? "on" : "off",
+				clktree_list[clk_type].name);
+			continue;
+		}
+
+		if (status)
+			clk_prepare_enable(*clk_temp);
+		else
+			clk_disable_unprepare(*clk_temp);
+
+		cnt += snprintf(clk_names + cnt, 120 - cnt, " %s", clktree_list[clk_type].name);
+	}
+	LCDPR("[%d]: %s %s:%s done\n", pdrv->index, __func__, status ? "on" : "off", clk_names);
 }
