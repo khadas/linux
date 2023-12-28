@@ -345,7 +345,7 @@
 	vin-supply = <&vcc5v0_buck>;
 };
 
-&max96712_dphy3_poc {
+&max96712_dphy3_poc_regulator {
 	vin-supply = <&dphy3_vcc12v_buck>;
 };
 
