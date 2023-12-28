@@ -275,7 +275,8 @@ struct dw_hdmi_qp {
 	bool allm_enable;
 	bool support_hdmi;
 	bool skip_connector;
-	int force_output;
+	bool force_kernel_output;	/* force kernel hdmi output specific resolution */
+	int force_output;		/* force hdmi/dvi output mode */
 	int vp_id;
 	int old_vp_id;
 
@@ -1677,6 +1678,9 @@ static bool dw_hdmi_support_scdc(struct dw_hdmi_qp *hdmi,
 	if (!hdmi->ddc)
 		return false;
 
+	if (hdmi->force_kernel_output)
+		return true;
+
 	/* Disable if SCDC is not supported, or if an HF-VSDB block is absent */
 	if (!display->hdmi.scdc.supported ||
 	    !display->hdmi.scdc.scrambling.supported)
@@ -2126,7 +2130,7 @@ dw_hdmi_connector_detect(struct drm_connector *connector, bool force)
 	hdmi->force = DRM_FORCE_UNSPECIFIED;
 	mutex_unlock(&hdmi->mutex);
 
-	if (hdmi->panel)
+	if (hdmi->panel || hdmi->force_kernel_output)
 		return connector_status_connected;
 
 	if (hdmi->next_bridge && hdmi->next_bridge->ops & DRM_BRIDGE_OP_DETECT)
@@ -2263,6 +2267,21 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	void *data = hdmi->plat_data->phy_data;
 	struct drm_property_blob *edid_blob_ptr = connector->edid_blob_ptr;
 	int i, ret = 0;
+
+	if (hdmi->force_kernel_output) {
+		mode = hdmi->plat_data->get_force_timing(data);
+		hdmi->support_hdmi = true;
+		hdmi->sink_is_hdmi = true;
+		hdmi->sink_has_audio = true;
+		mode = drm_mode_duplicate(connector->dev, mode);
+		drm_mode_debug_printmodeline(mode);
+		drm_mode_probed_add(connector, mode);
+		info->edid_hdmi_dc_modes = 0;
+		info->hdmi.y420_dc_modes = 0;
+		info->color_formats = 0;
+
+		return 1;
+	}
 
 	if (hdmi->plat_data->right && hdmi->plat_data->right->next_bridge) {
 		struct drm_bridge *bridge = hdmi->plat_data->right->next_bridge;
@@ -2724,7 +2743,7 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 		drm_scdc_readb(hdmi->ddc, SCDC_TMDS_CONFIG, &val);
 		/* if plug out before hdmi bind, reset hdmi */
 		if (vmode->mtmdsclock >= 340000000 && vmode->mpixelclock <= 600000000 &&
-		    !(val & SCDC_TMDS_BIT_CLOCK_RATIO_BY_40))
+		    !(val & SCDC_TMDS_BIT_CLOCK_RATIO_BY_40) && !hdmi->force_kernel_output)
 			hdmi->logo_plug_out = true;
 	}
 
@@ -2924,6 +2943,9 @@ dw_hdmi_qp_bridge_mode_valid(struct drm_bridge *bridge,
 {
 	struct dw_hdmi_qp *hdmi = bridge->driver_private;
 	const struct dw_hdmi_plat_data *pdata = hdmi->plat_data;
+
+	if (hdmi->force_kernel_output)
+		return MODE_OK;
 
 	if (mode->clock <= 25000)
 		return MODE_CLOCK_RANGE;
@@ -3753,6 +3775,9 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	ret = dw_hdmi_detect_phy(hdmi);
 	if (ret < 0)
 		goto err_ddc;
+
+	if (hdmi->plat_data->get_force_timing(hdmi->plat_data->phy_data))
+		hdmi->force_kernel_output = true;
 
 	hdmi_writel(hdmi, 0, MAINUNIT_0_INT_MASK_N);
 	hdmi_writel(hdmi, 0, MAINUNIT_1_INT_MASK_N);
