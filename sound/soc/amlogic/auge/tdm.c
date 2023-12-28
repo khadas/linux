@@ -1116,6 +1116,12 @@ static void tdm_sharebuffer_prepare(struct snd_pcm_substream *substream,
 
 	ops = get_samesrc_ops(p_tdm->samesource_sel);
 	if (ops) {
+		struct clk *clk = p_tdm->clk;
+
+		if ((p_tdm->setting.standard_sysclk % 11025 == 0) &&
+			!IS_ERR(p_tdm->clk_src_cd)) {
+			clk = p_tdm->clk_src_cd;
+		}
 		ops->prepare(substream,
 			p_tdm->fddr,
 			p_tdm->samesource_sel,
@@ -1124,7 +1130,7 @@ static void tdm_sharebuffer_prepare(struct snd_pcm_substream *substream,
 			1,
 			p_tdm->chipinfo->separate_tohdmitx_en);
 		ops->set_clks(p_tdm->samesource_sel,
-			p_tdm->clk,
+			clk,
 			(p_tdm->last_mclk_freq >> 1), 1);
 	}
 }
