@@ -2282,6 +2282,16 @@ config VIDEO_SC5336
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC5336 camera.
 
+config VIDEO_SC830AI
+	tristate "SmartSens SC830AI sensor support"
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the SmartSens
+	  SC830AI camera.
+
 config VIDEO_SC850SL
 	tristate "SmartSens SC850SL sensor support"
 	depends on I2C && VIDEO_V4L2
