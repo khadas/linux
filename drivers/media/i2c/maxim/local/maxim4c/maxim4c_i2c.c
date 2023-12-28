@@ -7,13 +7,15 @@
  * Author: Cai Wenzhong <cwz@rock-chips.com>
  *
  */
-#include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
-#include "maxim4c_i2c.h"
+#include <linux/i2c-mux.h>
+#include <linux/delay.h>
+
+#include "maxim4c_api.h"
 
 /* Write registers up to 4 at a time */
-int maxim4c_i2c_write_reg(struct i2c_client *client,
+int maxim4c_i2c_write(struct i2c_client *client,
 		u16 reg_addr, u16 reg_len, u32 val_len, u32 reg_val)
 {
 	u32 buf_i, val_i;
@@ -54,10 +56,10 @@ int maxim4c_i2c_write_reg(struct i2c_client *client,
 
 	return 0;
 }
-EXPORT_SYMBOL(maxim4c_i2c_write_reg);
+EXPORT_SYMBOL(maxim4c_i2c_write);
 
 /* Read registers up to 4 at a time */
-int maxim4c_i2c_read_reg(struct i2c_client *client,
+int maxim4c_i2c_read(struct i2c_client *client,
 		u16 reg_addr, u16 reg_len, u32 val_len, u32 *reg_val)
 {
 	struct i2c_msg msgs[2];
@@ -102,74 +104,74 @@ int maxim4c_i2c_read_reg(struct i2c_client *client,
 
 	return 0;
 }
-EXPORT_SYMBOL(maxim4c_i2c_read_reg);
+EXPORT_SYMBOL(maxim4c_i2c_read);
 
 /* Update registers up to 4 at a time */
-int maxim4c_i2c_update_reg(struct i2c_client *client,
+int maxim4c_i2c_update(struct i2c_client *client,
 		u16 reg_addr, u16 reg_len, u32 val_len, u32 val_mask, u32 reg_val)
 {
 	u32 value;
 	int ret;
 
-	ret = maxim4c_i2c_read_reg(client, reg_addr, reg_len, val_len, &value);
+	ret = maxim4c_i2c_read(client, reg_addr, reg_len, val_len, &value);
 	if (ret)
 		return ret;
 
 	value &= ~val_mask;
 	value |= (reg_val & val_mask);
-	ret = maxim4c_i2c_write_reg(client, reg_addr, reg_len, val_len, value);
+	ret = maxim4c_i2c_write(client, reg_addr, reg_len, val_len, value);
 
 	return ret;
 }
-EXPORT_SYMBOL(maxim4c_i2c_update_reg);
+EXPORT_SYMBOL(maxim4c_i2c_update);
 
-int maxim4c_i2c_write_byte(struct i2c_client *client,
-		u16 reg_addr, u16 reg_len, u8 reg_val)
+int maxim4c_i2c_write_reg(struct i2c_client *client,
+			u16 reg_addr, u8 reg_val)
 {
 	int ret = 0;
 
-	ret = maxim4c_i2c_write_reg(client,
-			reg_addr, reg_len,
+	ret = maxim4c_i2c_write(client,
+			reg_addr, MAXIM4C_I2C_REG_ADDR_16BITS,
 			MAXIM4C_I2C_REG_VALUE_08BITS, reg_val);
 
 	return ret;
 }
-EXPORT_SYMBOL(maxim4c_i2c_write_byte);
+EXPORT_SYMBOL(maxim4c_i2c_write_reg);
 
-int maxim4c_i2c_read_byte(struct i2c_client *client,
-		u16 reg_addr, u16 reg_len, u8 *reg_val)
+int maxim4c_i2c_read_reg(struct i2c_client *client,
+			u16 reg_addr, u8 *reg_val)
 {
 	int ret = 0;
 	u32 value = 0;
 	u8 *value_be_p = (u8 *)&value;
 
-	ret = maxim4c_i2c_read_reg(client,
-			reg_addr, reg_len,
+	ret = maxim4c_i2c_read(client,
+			reg_addr, MAXIM4C_I2C_REG_ADDR_16BITS,
 			MAXIM4C_I2C_REG_VALUE_08BITS, &value);
 
 	*reg_val = *value_be_p;
 
 	return ret;
 }
-EXPORT_SYMBOL(maxim4c_i2c_read_byte);
+EXPORT_SYMBOL(maxim4c_i2c_read_reg);
 
-int maxim4c_i2c_update_byte(struct i2c_client *client,
-		u16 reg_addr, u16 reg_len, u8 val_mask, u8 reg_val)
+int maxim4c_i2c_update_reg(struct i2c_client *client,
+		u16 reg_addr, u8 val_mask, u8 reg_val)
 {
 	u8 value;
 	int ret;
 
-	ret = maxim4c_i2c_read_byte(client, reg_addr, reg_len, &value);
+	ret = maxim4c_i2c_read_reg(client, reg_addr, &value);
 	if (ret)
 		return ret;
 
 	value &= ~val_mask;
 	value |= (reg_val & val_mask);
-	ret = maxim4c_i2c_write_byte(client, reg_addr, reg_len, value);
+	ret = maxim4c_i2c_write_reg(client, reg_addr, value);
 
 	return ret;
 }
-EXPORT_SYMBOL(maxim4c_i2c_update_byte);
+EXPORT_SYMBOL(maxim4c_i2c_update_reg);
 
 int maxim4c_i2c_write_array(struct i2c_client *client,
 				const struct maxim4c_i2c_regval *regs)
@@ -179,11 +181,11 @@ int maxim4c_i2c_write_array(struct i2c_client *client,
 
 	for (i = 0; (ret == 0) && (regs[i].reg_addr != MAXIM4C_REG_NULL); i++) {
 		if (regs[i].val_mask != 0)
-			ret = maxim4c_i2c_update_reg(client,
+			ret = maxim4c_i2c_update(client,
 					regs[i].reg_addr, regs[i].reg_len,
 					regs[i].val_len, regs[i].val_mask, regs[i].reg_val);
 		else
-			ret = maxim4c_i2c_write_reg(client,
+			ret = maxim4c_i2c_write(client,
 					regs[i].reg_addr, regs[i].reg_len,
 					regs[i].val_len, regs[i].reg_val);
 
@@ -397,11 +399,189 @@ int maxim4c_i2c_run_init_seq(struct i2c_client *client,
 {
 	int ret = 0;
 
-	if (init_seq == NULL || init_seq->reg_init_seq == NULL)
+	if ((init_seq == NULL) || (init_seq->reg_init_seq == NULL))
 		return 0;
 
 	ret = maxim4c_i2c_write_array(client,
 			init_seq->reg_init_seq);
+
 	return ret;
 }
 EXPORT_SYMBOL(maxim4c_i2c_run_init_seq);
+
+static int __maybe_unused maxim4c_i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
+{
+	maxim4c_t *maxim4c = i2c_mux_priv(muxc);
+	struct i2c_client *client = maxim4c->client;
+	struct device *dev = &client->dev;
+	int ret = 0;
+
+	dev_dbg(dev, "maxim4c i2c mux select chan = %d\n", chan);
+
+	/* Channel select is disabled when configured in the disabled state. */
+	if (maxim4c->i2c_mux.mux_disable) {
+		dev_err(dev, "maxim4c i2c mux is disabled, select error\n");
+		return 0;
+	}
+
+	if (maxim4c->i2c_mux.mux_channel == chan)
+		return 0;
+
+	maxim4c->i2c_mux.mux_channel = chan;
+
+	ret = maxim4c_link_select_remote_control(maxim4c, BIT(chan));
+	if (ret) {
+		dev_err(dev, "maxim4c link select remote control error\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int __maybe_unused maxim4c_i2c_mux_deselect(struct i2c_mux_core *muxc, u32 chan)
+{
+	maxim4c_t *maxim4c = i2c_mux_priv(muxc);
+	struct i2c_client *client = maxim4c->client;
+	struct device *dev = &client->dev;
+	int ret = 0;
+
+	dev_dbg(dev, "maxim4c i2c mux deselect chan = %d\n", chan);
+
+	/* Channel deselect is disabled when configured in the disabled state. */
+	if (maxim4c->i2c_mux.mux_disable) {
+		dev_err(dev, "maxim4c i2c mux is disabled, deselect error\n");
+		return 0;
+	}
+
+	ret = maxim4c_link_select_remote_control(maxim4c, 0);
+	if (ret) {
+		dev_err(dev, "maxim4c link select remote control error\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+int maxim4c_i2c_mux_disable(maxim4c_t *maxim4c)
+{
+	struct device *dev = &maxim4c->client->dev;
+	int ret = 0;
+
+	dev_info(dev, "maxim4c i2c mux disable\n");
+
+	ret = maxim4c_link_select_remote_control(maxim4c, 0xff);
+	if (ret) {
+		dev_err(dev, "maxim4c link select remote control error\n");
+		return ret;
+	}
+
+	maxim4c->i2c_mux.mux_disable = true;
+	return 0;
+}
+EXPORT_SYMBOL(maxim4c_i2c_mux_disable);
+
+int maxim4c_i2c_mux_enable(maxim4c_t *maxim4c, u8 def_mask)
+{
+	struct device *dev = &maxim4c->client->dev;
+	int ret = 0;
+
+	dev_info(dev, "maxim4c i2c mux enable, mask = 0x%02x\n", def_mask);
+
+	ret = maxim4c_link_select_remote_control(maxim4c, def_mask);
+	if (ret) {
+		dev_err(dev, "maxim4c link select remote control error\n");
+		return ret;
+	}
+
+	maxim4c->i2c_mux.mux_disable = false;
+	maxim4c->i2c_mux.mux_channel = -1;
+
+	return 0;
+}
+EXPORT_SYMBOL(maxim4c_i2c_mux_enable);
+
+static u32 maxim4c_i2c_mux_mask(maxim4c_t *maxim4c)
+{
+	struct device *dev = &maxim4c->client->dev;
+	struct device_node *i2c_mux;
+	struct device_node *node = NULL;
+	u32 i2c_mux_mask = 0;
+
+	/* Balance the of_node_put() performed by of_find_node_by_name(). */
+	of_node_get(dev->of_node);
+	i2c_mux = of_find_node_by_name(dev->of_node, "i2c-mux");
+	if (!i2c_mux) {
+		dev_err(dev, "Failed to find i2c-mux node\n");
+		return -EINVAL;
+	}
+
+	/* Identify which i2c-mux channels are enabled */
+	for_each_child_of_node(i2c_mux, node) {
+		u32 id = 0;
+
+		of_property_read_u32(node, "reg", &id);
+		if (id >= MAXIM4C_LINK_ID_MAX)
+			continue;
+
+		if (!of_device_is_available(node)) {
+			dev_dbg(dev, "Skipping disabled I2C bus port %u\n", id);
+			continue;
+		}
+
+		i2c_mux_mask |= BIT(id);
+	}
+	of_node_put(node);
+	of_node_put(i2c_mux);
+
+	return i2c_mux_mask;
+}
+
+int maxim4c_i2c_mux_init(maxim4c_t *maxim4c)
+{
+	struct i2c_client *client = maxim4c->client;
+	struct device *dev = &client->dev;
+	u32 i2c_mux_mask = 0;
+	int i = 0;
+	int ret = 0;
+
+	dev_info(dev, "maxim4c i2c mux init\n");
+
+	if (!i2c_check_functionality(client->adapter,
+				I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
+		return -ENODEV;
+
+	maxim4c->i2c_mux.muxc = i2c_mux_alloc(client->adapter, dev,
+				MAXIM4C_LINK_ID_MAX, 0, I2C_MUX_LOCKED,
+				maxim4c_i2c_mux_select, NULL);
+	if (!maxim4c->i2c_mux.muxc)
+		return -ENOMEM;
+	maxim4c->i2c_mux.muxc->priv = maxim4c;
+
+	for (i = 0; i < MAXIM4C_LINK_ID_MAX; i++) {
+		ret = i2c_mux_add_adapter(maxim4c->i2c_mux.muxc, 0, i, 0);
+		if (ret) {
+			i2c_mux_del_adapters(maxim4c->i2c_mux.muxc);
+			return ret;
+		}
+	}
+
+	i2c_mux_mask = maxim4c_i2c_mux_mask(maxim4c);
+	maxim4c->i2c_mux.i2c_mux_mask = i2c_mux_mask;
+	dev_info(dev, "maxim4c i2c mux mask = 0x%x\n", i2c_mux_mask);
+
+	return 0;
+}
+EXPORT_SYMBOL(maxim4c_i2c_mux_init);
+
+int maxim4c_i2c_mux_deinit(maxim4c_t *maxim4c)
+{
+	if (maxim4c->i2c_mux.muxc)
+		i2c_mux_del_adapters(maxim4c->i2c_mux.muxc);
+
+	maxim4c->i2c_mux.i2c_mux_mask = 0;
+	maxim4c->i2c_mux.mux_disable = false;
+	maxim4c->i2c_mux.mux_channel = -1;
+
+	return 0;
+}
+EXPORT_SYMBOL(maxim4c_i2c_mux_deinit);

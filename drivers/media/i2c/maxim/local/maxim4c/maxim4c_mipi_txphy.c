@@ -27,61 +27,52 @@ static int maxim4c_txphy_init_timing(maxim4c_t *maxim4c)
 		  (maxim4c->mipi_txphy.timing.t_hs_prep & 0x3) << 4 |
 		  (maxim4c->mipi_txphy.timing.t_clk_trail & 0x3) << 2 |
 		  (maxim4c->mipi_txphy.timing.t_clk_przero & 0x3) << 0);
-
-	ret |= maxim4c_i2c_write_byte(client, 0x08A1,
-				      MAXIM4C_I2C_REG_ADDR_16BITS, timing);
+	ret |= maxim4c_i2c_write_reg(client, 0x08A1, timing);
 
 	reg_mask = 0x0F;
 	timing = ((maxim4c->mipi_txphy.timing.t_lpx & 0x3) << 2 |
 		  (maxim4c->mipi_txphy.timing.t_hs_trail & 0x3) << 0);
-
-	ret |= maxim4c_i2c_update_byte(
-		client, 0x08A2, MAXIM4C_I2C_REG_ADDR_16BITS, reg_mask, timing);
+	ret |= maxim4c_i2c_update_reg(client,
+							0x08A2, reg_mask, timing);
 
 	reg_mask = (0x3 << 6);
 	timing = (maxim4c->mipi_txphy.timing.t_lpxesc & 0x3) << 6;
-	ret |= maxim4c_i2c_update_byte(
-		client, 0x08A5, MAXIM4C_I2C_REG_ADDR_16BITS, reg_mask, timing);
+	ret |= maxim4c_i2c_update_reg(client,
+							0x08A5, reg_mask, timing);
 
 	reg_mask = (0x7 << 5);
 	timing = (maxim4c->mipi_txphy.timing.t_lpxesc & 0x7) << 5;
-	ret |= maxim4c_i2c_update_byte(
-		client, 0x08A8, MAXIM4C_I2C_REG_ADDR_16BITS, reg_mask, timing);
+	ret |= maxim4c_i2c_update_reg(client,
+							0x08A8, reg_mask, timing);
 
 	for (phy_idx = 0; phy_idx < MAXIM4C_TXPHY_ID_MAX; phy_idx++) {
 		reg_mask = 0xFF;
 		reg_addr = 0x0905 + 0x40 * phy_idx;
 		timing = maxim4c->mipi_txphy.timing.csi2_t_pre;
-		ret |= maxim4c_i2c_update_byte(client, reg_addr,
-					       MAXIM4C_I2C_REG_ADDR_16BITS,
-					       reg_mask, timing);
+		ret |= maxim4c_i2c_update_reg(client,
+							reg_addr, reg_mask, timing);
 
 		reg_addr = 0x0906 + 0x40 * phy_idx;
 		timing = maxim4c->mipi_txphy.timing.csi2_t_post;
-		ret |= maxim4c_i2c_update_byte(client, reg_addr,
-					       MAXIM4C_I2C_REG_ADDR_16BITS,
-					       reg_mask, timing);
+		ret |= maxim4c_i2c_update_reg(client,
+							reg_addr, reg_mask, timing);
 
 		reg_addr = 0x0907 + 0x40 * phy_idx;
 		timing = maxim4c->mipi_txphy.timing.csi2_tx_gap;
-		ret |= maxim4c_i2c_update_byte(client, reg_addr,
-					       MAXIM4C_I2C_REG_ADDR_16BITS,
-					       reg_mask, timing);
+		ret |= maxim4c_i2c_update_reg(client,
+							reg_addr, reg_mask, timing);
 
 		reg_addr = 0x0908 + 0x40 * phy_idx;
 		timing = maxim4c->mipi_txphy.timing.csi2_twakeup & 0xFF;
-		ret |= maxim4c_i2c_update_byte(client, reg_addr,
-					       MAXIM4C_I2C_REG_ADDR_16BITS,
-					       reg_mask, timing);
+		ret |= maxim4c_i2c_update_reg(client,
+							reg_addr, reg_mask, timing);
 		timing = (maxim4c->mipi_txphy.timing.csi2_twakeup >> 8) & 0xFF;
-		ret |= maxim4c_i2c_update_byte(client, reg_addr + 1,
-					       MAXIM4C_I2C_REG_ADDR_16BITS,
-					       reg_mask, timing);
+		ret |= maxim4c_i2c_update_reg(client,
+							reg_addr + 1, reg_mask, timing);
 		reg_mask = 0x7;
 		timing = (maxim4c->mipi_txphy.timing.csi2_twakeup >> 16) & 0x7;
-		ret |= maxim4c_i2c_update_byte(client, reg_addr + 2,
-					       MAXIM4C_I2C_REG_ADDR_16BITS,
-					       reg_mask, timing);
+		ret |= maxim4c_i2c_update_reg(client,
+							reg_addr + 2, reg_mask, timing);
 	}
 
 	return ret;
@@ -101,9 +92,8 @@ static int maxim4c_txphy_auto_init_deskew(maxim4c_t *maxim4c)
 		phy_cfg = &mipi_txphy->phy_cfg[phy_idx];
 		if (phy_cfg->phy_enable && (phy_cfg->auto_deskew & BIT(7))) {
 			reg_addr = 0x0903 + 0x40 * phy_idx;
-			ret |= maxim4c_i2c_write_byte(client,
-					reg_addr, MAXIM4C_I2C_REG_ADDR_16BITS,
-					phy_cfg->auto_deskew);
+			ret |= maxim4c_i2c_write_reg(client,
+					reg_addr, phy_cfg->auto_deskew);
 		}
 	}
 
@@ -132,9 +122,8 @@ static int maxim4c_mipi_txphy_lane_mapping(maxim4c_t *maxim4c)
 		reg_value |= (phy_cfg->data_lane_map << 4);
 	}
 	if (reg_mask != 0) {
-		ret |= maxim4c_i2c_update_byte(client,
-				0x08A3, MAXIM4C_I2C_REG_ADDR_16BITS,
-				reg_mask, reg_value);
+		ret |= maxim4c_i2c_update_reg(client,
+				0x08A3, reg_mask, reg_value);
 	}
 
 	// MIPI TXPHY C/D: data lane mapping
@@ -151,9 +140,8 @@ static int maxim4c_mipi_txphy_lane_mapping(maxim4c_t *maxim4c)
 		reg_value |= (phy_cfg->data_lane_map << 4);
 	}
 	if (reg_mask != 0) {
-		ret |= maxim4c_i2c_update_byte(client,
-				0x08A4, MAXIM4C_I2C_REG_ADDR_16BITS,
-				reg_mask, reg_value);
+		ret |= maxim4c_i2c_update_reg(client,
+				0x08A4, reg_mask, reg_value);
 	}
 
 	return ret;
@@ -185,9 +173,8 @@ static int maxim4c_mipi_txphy_type_vcx_lane_num(maxim4c_t *maxim4c)
 		reg_value |= ((phy_cfg->data_lane_num - 1) << 6);
 
 		reg_addr = 0x090A + 0x40 * phy_idx;
-		ret |= maxim4c_i2c_update_byte(client,
-				reg_addr, MAXIM4C_I2C_REG_ADDR_16BITS,
-				reg_mask, reg_value);
+		ret |= maxim4c_i2c_update_reg(client,
+				reg_addr, reg_mask, reg_value);
 	}
 
 	return ret;
@@ -214,9 +201,8 @@ int maxim4c_mipi_txphy_enable(maxim4c_t *maxim4c, bool enable)
 		}
 	}
 
-	ret |= maxim4c_i2c_update_byte(client,
-			0x08A2, MAXIM4C_I2C_REG_ADDR_16BITS,
-			reg_mask, reg_value);
+	ret |= maxim4c_i2c_update_reg(client,
+			0x08A2, reg_mask, reg_value);
 
 	return ret;
 }
@@ -254,26 +240,19 @@ int maxim4c_dphy_dpll_predef_set(maxim4c_t *maxim4c, s64 link_freq_hz)
 
 		// Hold DPLL in reset (config_soft_rst_n = 0) before changing the rate
 		reg_addr = 0x1C00 + 0x100 * phy_idx;
-		ret |= maxim4c_i2c_write_byte(client,
-				reg_addr, MAXIM4C_I2C_REG_ADDR_16BITS,
-				0xf4);
+		ret |= maxim4c_i2c_write_reg(client, reg_addr, 0xf4);
 
 		reg_addr = 0x1C03 + 0x100 * phy_idx;
-		ret |= maxim4c_i2c_update_byte(client, reg_addr,
-					       MAXIM4C_I2C_REG_ADDR_16BITS,
-					       0x07, phy_cfg->ssc_ratio);
+		ret |= maxim4c_i2c_update_reg(client,
+						reg_addr, 0x07, phy_cfg->ssc_ratio);
 
 		// Set dpll data rate
 		reg_addr = 0x0415 + 0x03 * phy_idx;
-		ret |= maxim4c_i2c_update_byte(client,
-				reg_addr, MAXIM4C_I2C_REG_ADDR_16BITS,
-				0x3F, dpll_val);
+		ret |= maxim4c_i2c_update_reg(client, reg_addr, 0x3F, dpll_val);
 
 		// Release reset to DPLL (config_soft_rst_n = 1)
 		reg_addr = 0x1C00 + 0x100 * phy_idx;
-		ret |= maxim4c_i2c_write_byte(client,
-				reg_addr, MAXIM4C_I2C_REG_ADDR_16BITS,
-				0xf5);
+		ret |= maxim4c_i2c_write_reg(client, reg_addr, 0xf5);
 	}
 
 	if (ret) {
@@ -281,12 +260,10 @@ int maxim4c_dphy_dpll_predef_set(maxim4c_t *maxim4c, s64 link_freq_hz)
 		return ret;
 	}
 
-	ret = read_poll_timeout(maxim4c_i2c_read_byte, ret,
+	ret = read_poll_timeout(maxim4c_i2c_read_reg, ret,
 				!(ret < 0) && (dpll_lock & dpll_mask),
 				1000, 10000, false,
-				client,
-				0x0400, MAXIM4C_I2C_REG_ADDR_16BITS,
-				&dpll_lock);
+				client, 0x0400, &dpll_lock);
 	if (ret < 0) {
 		dev_err(dev, "DPLL is unlocked: 0x%02x\n", dpll_lock);
 		return ret;
@@ -312,9 +289,8 @@ int maxim4c_mipi_csi_output(maxim4c_t *maxim4c, bool enable)
 		reg_value = enable ? BIT(7) : 0;
 
 		// Force all MIPI clocks running Config
-		ret |= maxim4c_i2c_update_byte(client,
-				0x08A0, MAXIM4C_I2C_REG_ADDR_16BITS,
-				reg_mask, reg_value);
+		ret |= maxim4c_i2c_update_reg(client,
+				0x08A0, reg_mask, reg_value);
 	}
 
 	/* Bit1 of the register 0x040B: CSI_OUT_EN
@@ -325,9 +301,8 @@ int maxim4c_mipi_csi_output(maxim4c_t *maxim4c, bool enable)
 	reg_value = enable ? BIT(1) : 0;
 
 	// MIPI CSI output Setting
-	ret |= maxim4c_i2c_update_byte(client,
-			0x040B, MAXIM4C_I2C_REG_ADDR_16BITS,
-			reg_mask, reg_value);
+	ret |= maxim4c_i2c_update_reg(client,
+			0x040B, reg_mask, reg_value);
 
 	return ret;
 }
@@ -584,9 +559,7 @@ int maxim4c_mipi_txphy_hw_init(maxim4c_t *maxim4c)
 	}
 
 	// MIPI TXPHY Mode setting
-	ret |= maxim4c_i2c_write_byte(client,
-			0x08A0, MAXIM4C_I2C_REG_ADDR_16BITS,
-			mode);
+	ret |= maxim4c_i2c_write_reg(client, 0x08A0, mode);
 
 	// mipi txphy data lane mapping
 	ret |= maxim4c_mipi_txphy_lane_mapping(maxim4c);

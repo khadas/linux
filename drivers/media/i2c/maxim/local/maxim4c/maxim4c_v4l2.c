@@ -16,9 +16,7 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
-#include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
-#include <media/v4l2-subdev.h>
 
 #include "maxim4c_api.h"
 
@@ -96,9 +94,8 @@ static int maxim4c_support_mode_init(maxim4c_t *maxim4c)
 	dev_info(dev, "=== maxim4c support mode init ===\n");
 
 #if MAXIM4C_TEST_PATTERN
-	ret = maxim4c_pattern_support_mode_init(maxim4c);
-	return ret;
-#endif
+	return maxim4c_pattern_support_mode_init(maxim4c);
+#endif /* MAXIM4C_TEST_PATTERN */
 
 	maxim4c->cfg_modes_num = 1;
 	maxim4c->cur_mode = &maxim4c->supported_mode;
@@ -214,7 +211,7 @@ static int maxim4c_support_mode_init(maxim4c_t *maxim4c)
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 static int maxim4c_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	struct maxim4c *maxim4c = v4l2_get_subdevdata(sd);
+	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
 		v4l2_subdev_get_try_format(sd, fh->pad, 0);
 	const struct maxim4c_mode *def_mode = &maxim4c->supported_mode;
@@ -236,7 +233,7 @@ static int maxim4c_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 static int maxim4c_s_power(struct v4l2_subdev *sd, int on)
 {
-	struct maxim4c *maxim4c = v4l2_get_subdevdata(sd);
+	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
 	struct i2c_client *client = maxim4c->client;
 	int ret = 0;
 
@@ -265,7 +262,7 @@ unlock_and_return:
 	return ret;
 }
 
-static void maxim4c_get_module_inf(struct maxim4c *maxim4c,
+static void maxim4c_get_module_inf(maxim4c_t *maxim4c,
 					struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
@@ -275,7 +272,7 @@ static void maxim4c_get_module_inf(struct maxim4c *maxim4c,
 	strscpy(inf->base.lens, maxim4c->len_name, sizeof(inf->base.lens));
 }
 
-static void maxim4c_get_vicap_rst_inf(struct maxim4c *maxim4c,
+static void maxim4c_get_vicap_rst_inf(maxim4c_t *maxim4c,
 				struct rkmodule_vicap_reset_info *rst_info)
 {
 	struct i2c_client *client = maxim4c->client;
@@ -288,7 +285,7 @@ static void maxim4c_get_vicap_rst_inf(struct maxim4c *maxim4c,
 		__func__, rst_info->is_reset);
 }
 
-static void maxim4c_set_vicap_rst_inf(struct maxim4c *maxim4c,
+static void maxim4c_set_vicap_rst_inf(maxim4c_t *maxim4c,
 				struct rkmodule_vicap_reset_info rst_info)
 {
 	maxim4c->is_reset = rst_info.is_reset;
@@ -296,7 +293,7 @@ static void maxim4c_set_vicap_rst_inf(struct maxim4c *maxim4c,
 
 static long maxim4c_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-	struct maxim4c *maxim4c = v4l2_get_subdevdata(sd);
+	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
 	struct rkmodule_csi_dphy_param *dphy_param;
 	long ret = 0;
 
@@ -425,7 +422,7 @@ static long maxim4c_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 }
 #endif /* CONFIG_COMPAT */
 
-static int __maxim4c_start_stream(struct maxim4c *maxim4c)
+static int __maxim4c_start_stream(maxim4c_t *maxim4c)
 {
 	struct device *dev = &maxim4c->client->dev;
 	int ret = 0;
@@ -452,12 +449,14 @@ static int __maxim4c_start_stream(struct maxim4c *maxim4c)
 	link_mask = maxim4c->gmsl_link.link_enable_mask;
 	video_pipe_mask = maxim4c->video_pipe.pipe_enable_mask;
 
-	// disable all remote control
-	ret = maxim4c_link_select_remote_control(maxim4c, 0);
+#if (MAXIM4C_TEST_PATTERN == 0)
+	// remote devices power on
+	ret = maxim4c_remote_devices_power(maxim4c, link_mask, 1);
 	if (ret) {
-		dev_err(dev, "link disable remote control error\n");
+		dev_err(dev, "remote devices power on error\n");
 		return ret;
 	}
+#endif /* MAXIM4C_TEST_PATTERN */
 
 	// disable all video pipe
 	ret = maxim4c_video_pipe_mask_enable(maxim4c, video_pipe_mask, false);
@@ -473,11 +472,15 @@ static int __maxim4c_start_stream(struct maxim4c *maxim4c)
 	}
 
 	link_mask = maxim4c->gmsl_link.link_locked_mask;
-	ret = maxim4c_remote_devices_init(maxim4c, link_mask);
+
+#if (MAXIM4C_TEST_PATTERN == 0)
+	// remote devices start stream
+	ret = maxim4c_remote_devices_s_stream(maxim4c, link_mask, 1);
 	if (ret) {
-		dev_err(dev, "remote devices init error\n");
+		dev_err(dev, "remote devices start stream error\n");
 		return ret;
 	}
+#endif /* MAXIM4C_TEST_PATTERN */
 
 	// mipi txphy enable setting: standby or enable
 	ret = maxim4c_mipi_txphy_enable(maxim4c, true);
@@ -499,12 +502,6 @@ static int __maxim4c_start_stream(struct maxim4c *maxim4c)
 	ret = maxim4c_video_pipe_mask_enable(maxim4c, video_pipe_mask, true);
 	if (ret) {
 		dev_err(dev, "video pipe enable error\n");
-		return ret;
-	}
-
-	ret = maxim4c_link_select_remote_control(maxim4c, link_mask);
-	if (ret) {
-		dev_err(dev, "remote control enable error\n");
 		return ret;
 	}
 
@@ -540,7 +537,7 @@ static int __maxim4c_start_stream(struct maxim4c *maxim4c)
 	return 0;
 }
 
-static int __maxim4c_stop_stream(struct maxim4c *maxim4c)
+static int __maxim4c_stop_stream(maxim4c_t *maxim4c)
 {
 	struct device *dev = &maxim4c->client->dev;
 	u8 link_mask = 0, pipe_mask = 0;
@@ -564,9 +561,16 @@ static int __maxim4c_stop_stream(struct maxim4c *maxim4c)
 
 	ret |= maxim4c_video_pipe_mask_enable(maxim4c, pipe_mask, false);
 
-	ret |= maxim4c_remote_devices_deinit(maxim4c, link_mask);
+#if (MAXIM4C_TEST_PATTERN == 0)
+	// remote devices stop stream
+	ret |= maxim4c_remote_devices_s_stream(maxim4c, link_mask, 0);
+	// remote devices power off
+	ret |= maxim4c_remote_devices_power(maxim4c, link_mask, 0);
+#endif /* MAXIM4C_TEST_PATTERN */
 
-	ret |= maxim4c_link_select_remote_control(maxim4c, 0);
+	// i2c mux enable: default disable all remote channel
+	ret |= maxim4c_i2c_mux_enable(maxim4c, 0x00);
+
 	ret |= maxim4c_link_mask_enable(maxim4c, link_mask, false);
 
 	if (ret) {
@@ -579,7 +583,7 @@ static int __maxim4c_stop_stream(struct maxim4c *maxim4c)
 
 static int maxim4c_s_stream(struct v4l2_subdev *sd, int on)
 {
-	struct maxim4c *maxim4c = v4l2_get_subdevdata(sd);
+	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
 	struct i2c_client *client = maxim4c->client;
 	int ret = 0;
 
@@ -621,7 +625,7 @@ unlock_and_return:
 static int maxim4c_g_frame_interval(struct v4l2_subdev *sd,
 				struct v4l2_subdev_frame_interval *fi)
 {
-	struct maxim4c *maxim4c = v4l2_get_subdevdata(sd);
+	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
 	const struct maxim4c_mode *mode = maxim4c->cur_mode;
 
 	mutex_lock(&maxim4c->mutex);
@@ -635,7 +639,7 @@ static int maxim4c_enum_mbus_code(struct v4l2_subdev *sd,
 				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct maxim4c *maxim4c = v4l2_get_subdevdata(sd);
+	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
 	const struct maxim4c_mode *mode = maxim4c->cur_mode;
 
 	if (code->index != 0)
@@ -649,7 +653,7 @@ static int maxim4c_enum_frame_sizes(struct v4l2_subdev *sd,
 				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_frame_size_enum *fse)
 {
-	struct maxim4c *maxim4c = v4l2_get_subdevdata(sd);
+	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
 
 	if (fse->index >= maxim4c->cfg_modes_num)
 		return -EINVAL;
@@ -670,7 +674,7 @@ maxim4c_enum_frame_interval(struct v4l2_subdev *sd,
 			struct v4l2_subdev_pad_config *cfg,
 			struct v4l2_subdev_frame_interval_enum *fie)
 {
-	struct maxim4c *maxim4c = v4l2_get_subdevdata(sd);
+	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
 
 	if (fie->index >= maxim4c->cfg_modes_num)
 		return -EINVAL;
@@ -687,7 +691,7 @@ static int maxim4c_get_fmt(struct v4l2_subdev *sd,
 			struct v4l2_subdev_pad_config *cfg,
 			struct v4l2_subdev_format *fmt)
 {
-	struct maxim4c *maxim4c = v4l2_get_subdevdata(sd);
+	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
 	const struct maxim4c_mode *mode = maxim4c->cur_mode;
 
 	mutex_lock(&maxim4c->mutex);
@@ -717,7 +721,7 @@ static int maxim4c_set_fmt(struct v4l2_subdev *sd,
 			struct v4l2_subdev_pad_config *cfg,
 			struct v4l2_subdev_format *fmt)
 {
-	struct maxim4c *maxim4c = v4l2_get_subdevdata(sd);
+	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
 	struct device *dev = &maxim4c->client->dev;
 	const struct maxim4c_mode *mode = NULL;
 	u64 link_freq = 0, pixel_rate = 0;
@@ -769,7 +773,7 @@ static int maxim4c_get_selection(struct v4l2_subdev *sd,
 				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_selection *sel)
 {
-	struct maxim4c *maxim4c = v4l2_get_subdevdata(sd);
+	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
 
 	if (sel->target == V4L2_SEL_TGT_CROP_BOUNDS) {
 		sel->r.left = 0;
@@ -785,7 +789,7 @@ static int maxim4c_get_selection(struct v4l2_subdev *sd,
 static int maxim4c_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 				struct v4l2_mbus_config *config)
 {
-	struct maxim4c *maxim4c = v4l2_get_subdevdata(sd);
+	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
 	u32 val = 0;
 	u8 data_lanes = maxim4c->bus_cfg.bus.mipi_csi2.num_data_lanes;
 
@@ -836,7 +840,7 @@ static const struct v4l2_subdev_ops maxim4c_subdev_ops = {
 	.pad = &maxim4c_pad_ops,
 };
 
-static int maxim4c_initialize_controls(struct maxim4c *maxim4c)
+static int maxim4c_initialize_controls(maxim4c_t *maxim4c)
 {
 	struct device *dev = &maxim4c->client->dev;
 	const struct maxim4c_mode *mode;

@@ -9,7 +9,7 @@
 
 #include "maxim4c_i2c.h"
 
-/* Maxim4c Video Pipe In ID: 0 ~ 3 */
+/* Video Pipe In ID: 0 ~ 3 */
 enum {
 	MAXIM4C_PIPE_I_ID_X = 0,
 	MAXIM4C_PIPE_I_ID_Y,
@@ -18,7 +18,7 @@ enum {
 	MAXIM4C_PIPE_I_ID_MAX,
 };
 
-/* Maxim4c Video Pipe Out ID: 0 ~ 7 */
+/* Video Pipe Out ID: 0 ~ 7 */
 enum {
 	MAXIM4C_PIPE_O_ID_0 = 0,
 	MAXIM4C_PIPE_O_ID_1,
@@ -31,7 +31,7 @@ enum {
 	MAXIM4C_PIPE_O_ID_MAX,
 };
 
-/* Maxim4c Video Pipe Out Config */
+/* Video Pipe Out Config */
 struct maxim4c_pipe_cfg {
 	u8 pipe_enable;
 	u8 pipe_idx;

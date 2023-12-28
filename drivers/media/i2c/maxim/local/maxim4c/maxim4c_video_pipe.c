@@ -35,9 +35,8 @@ static int maxim4c_video_pipe_select(maxim4c_t *maxim4c)
 		if ((i % 2 == 1) && (reg_mask != 0)) {
 			reg_addr = 0x00F0 + (i / 2);
 
-			ret |= maxim4c_i2c_update_byte(client,
-					reg_addr, MAXIM4C_I2C_REG_ADDR_16BITS,
-					reg_mask, reg_value);
+			ret |= maxim4c_i2c_update_reg(client,
+					reg_addr, reg_mask, reg_value);
 
 			// Prepare for next register
 			reg_mask = 0;
@@ -252,9 +251,8 @@ int maxim4c_video_pipe_mask_enable(maxim4c_t *maxim4c, u8 video_pipe_mask, bool 
 	}
 
 	if (reg_mask != 0) {
-		ret |= maxim4c_i2c_update_byte(client,
-				0x00F4, MAXIM4C_I2C_REG_ADDR_16BITS,
-				reg_mask, reg_value);
+		ret |= maxim4c_i2c_update_reg(client,
+				0x00F4, reg_mask, reg_value);
 	}
 
 	return ret;
@@ -288,9 +286,8 @@ int maxim4c_video_pipe_linkid_enable(maxim4c_t *maxim4c, u8 link_id, bool enable
 	}
 
 	if (reg_mask != 0) {
-		ret = maxim4c_i2c_update_byte(client,
-				0x00F4, MAXIM4C_I2C_REG_ADDR_16BITS,
-				reg_mask, reg_value);
+		ret = maxim4c_i2c_update_reg(client,
+				0x00F4, reg_mask, reg_value);
 	}
 
 	return ret;
