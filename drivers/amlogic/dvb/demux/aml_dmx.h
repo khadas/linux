@@ -15,6 +15,7 @@
 #include "demux.h"
 #include "dvbdev.h"
 #include <dmxdev.h>
+#include <linux/platform_device.h>
 
 struct sw_demux_ts_feed {
 	struct dmx_ts_feed ts_feed;
@@ -134,4 +135,5 @@ int dmx_get_stc(struct dmx_demux *dmx, unsigned int num,
 		u64 *stc, unsigned int *base);
 int dmx_get_pcr(struct dmx_demux *dmx, unsigned int num,	u64 *pcr);
 int check_dmx_filter_buff(struct dmx_ts_feed *feed, int req_len);
+int ts_clone_probe(struct platform_device *pdev);
 #endif

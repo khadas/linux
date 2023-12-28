@@ -834,7 +834,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 
 	class_register(&aml_stb_class);
 	dmx_regist_dmx_class();
-
+	ts_clone_probe(pdev);
 	dprint("probe dvb done, ret:%d, is_security_dmx:%d\n",
 			ret, is_security_dmx);
 

@@ -2995,6 +2995,24 @@ static ssize_t ts_clone_store(struct class *class,
 	return size;
 }
 
+int ts_clone_probe(struct platform_device *pdev)
+{
+	char buf[32];
+	int ret;
+	u32 value = 0;
+
+	memset(buf, 0, 32);
+	snprintf(buf, sizeof(buf), "ts_clone");
+	ret = of_property_read_u32(pdev->dev.of_node, buf, &value);
+	if (!ret && value == 0) {
+		dprint("ts_clone disable\n");
+	} else {
+		dprint("ts_clone enable\n");
+		ts_clone_store(NULL,  NULL, "1", 1);
+	}
+	return 0;
+}
+
 static int add_adjust_mem_item(int format, int data, int mem_size)
 {
 	struct dmx_adjust_mem_t *adjust_mem_node;
