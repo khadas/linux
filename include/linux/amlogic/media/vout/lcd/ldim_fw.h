@@ -8,6 +8,12 @@
 #ifndef _INC_AML_LDIM_ALG_H_
 #define _INC_AML_LDIM_ALG_H_
 
+enum ldc_chip_type_e {
+	LDC_T7		= 0x00,
+	LDC_T3		= 0x01,
+	LDC_T3X		= 0x02,
+};
+
 enum ldc_dbg_type_e {
 	LDC_DBG_ATTR		= 0x01,
 	LDC_DBG_MEM			= 0x02,

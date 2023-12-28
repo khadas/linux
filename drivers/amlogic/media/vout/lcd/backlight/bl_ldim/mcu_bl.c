@@ -37,7 +37,6 @@ static DEFINE_MUTEX(dev_mutex);
 
 struct blmcu_s {
 	unsigned int dev_on_flag;
-	unsigned char dma_support;
 	unsigned short vsync_cnt;
 	unsigned int rbuf_size;
 	unsigned int tbuf_size;
@@ -102,7 +101,7 @@ static void ldim_vs_debug_info(struct aml_ldim_driver_s *ldim_drv)
 
 	if (bl_mcu->vsync_cnt) //300 vsync print once
 		return;
-	if (ldim_debug_print != 3)
+	if ((ldim_debug_print & LDIM_DBG_PR_DEV_DBG_INFO) == 0)
 		return;
 
 	LDIMPR("%s:\n", __func__);
@@ -224,12 +223,20 @@ static int blmcu_smr(struct aml_ldim_driver_s *ldim_drv, unsigned int *buf,
 				  dev_drv->zone_num);
 	ldim_vs_debug_info(ldim_drv);
 
-	if (dev_drv->spi_sync)
+	switch (dev_drv->spi_sync) {
+	case SPI_SYNC:
 		ret = ldim_spi_write(dev_drv->spi_dev, bl_mcu->tbuf, bl_mcu->tbuf_size);
-	else
+		break;
+	case SPI_ASYNC:
 		ret = ldim_spi_write_async(dev_drv->spi_dev, bl_mcu->tbuf, bl_mcu->rbuf,
-		bl_mcu->tbuf_size, bl_mcu->dma_support, bl_mcu->tbuf_size);
-
+		bl_mcu->tbuf_size, bl_mcu->tbuf_size);
+		break;
+	case SPI_DMA_TRIG:
+	default:
+		ret = ldim_spi_write_dma_trig(dev_drv->spi_dev, bl_mcu->tbuf, bl_mcu->rbuf,
+		bl_mcu->tbuf_size, bl_mcu->tbuf_size);
+		break;
+	}
 	return ret;
 }
 
@@ -303,7 +310,6 @@ static ssize_t blmcu_show(struct class *class, struct class_attribute *attr, cha
 	if (!strcmp(attr->attr.name, "blmcu_status")) {
 		len = sprintf(buf, "blmcu status:\n"
 				"dev_index      = %d\n"
-				"dma_support      = %d\n"
 				"on_flag        = %d\n"
 				"vsync_cnt      = %d\n"
 				"tbuf_size      = %d\n"
@@ -321,7 +327,6 @@ static ssize_t blmcu_show(struct class *class, struct class_attribute *attr, cha
 				"dim_min        = 0x%03x\n",
 				dev_drv->index,
 				bl_mcu->dev_on_flag,
-				bl_mcu->dma_support,
 				bl_mcu->vsync_cnt,
 				bl_mcu->tbuf_size,
 				bl_mcu->rbuf_size,
@@ -347,7 +352,7 @@ static ssize_t blmcu_store(struct class *class, struct class_attribute *attr,
 			    const char *buf, size_t count)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
-	struct ldim_dev_driver_s *dev_drv;
+	struct ldim_dev_driver_s *dev_drv = ldim_drv->dev_drv;
 	unsigned int val;
 	int n = 0;
 	char *buf_orig, *ps, *token;
@@ -373,7 +378,6 @@ static ssize_t blmcu_store(struct class *class, struct class_attribute *attr,
 		parm[n++] = token;
 	}
 
-	dev_drv = ldim_drv->dev_drv;
 	if (!strcmp(parm[0], "init")) {
 		mutex_lock(&dev_mutex);
 		blmcu_hw_init_on(dev_drv);
@@ -406,9 +410,9 @@ static ssize_t blmcu_store(struct class *class, struct class_attribute *attr,
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 0, &val) < 0)
 				goto blmcu_store_err;
-			bl_mcu->dma_support = (unsigned char)val;
+			dev_drv->dma_support = (unsigned char)val;
 		}
-		LDIMPR("dma_support: %d\n", bl_mcu->dma_support);
+		LDIMPR("dma_support: %d\n", dev_drv->dma_support);
 	} else {
 		LDIMERR("argument error!\n");
 	}
@@ -471,7 +475,6 @@ int ldim_dev_blmcu_probe(struct aml_ldim_driver_s *ldim_drv)
 	bl_mcu->pdim = dev_drv->mcu_dim & 0xff;
 	bl_mcu->type = (dev_drv->mcu_dim >> 16) & 0xff;
 	bl_mcu->header = dev_drv->mcu_header;
-	bl_mcu->dma_support = dev_drv->dma_support;
 
 	/* each zone 2 bytes */
 	bl_mcu->rbuf_size = 2 * dev_drv->zone_num;
@@ -492,7 +495,7 @@ int ldim_dev_blmcu_probe(struct aml_ldim_driver_s *ldim_drv)
 		bl_mcu->tbuf_size += 10;
 	else
 		bl_mcu->tbuf_size += 7;
-	if (bl_mcu->dma_support) {
+	if (dev_drv->dma_support && dev_drv->spi_cont != SPI_T3X) {
 		n = bl_mcu->tbuf_size;
 		bl_mcu->tbuf_size = ldim_spi_dma_cycle_align_byte(n);
 		LDIMPR("%s: bl_mcu->tbuf_size is %d --> %d\n", __func__, n, bl_mcu->tbuf_size);
@@ -501,6 +504,11 @@ int ldim_dev_blmcu_probe(struct aml_ldim_driver_s *ldim_drv)
 	if (!bl_mcu->tbuf) {
 		LDIMERR("%s: bl_mcu->tbuf is error\n", __func__);
 		goto ldim_dev_blmcu_probe_err1;
+	}
+
+	if (dev_drv->spi_sync == SPI_DMA_TRIG) {
+		dev_drv->spi_xlen = bl_mcu->tbuf_size;
+		ldim_spi_init_dma_trig(dev_drv->spi_dev);
 	}
 
 	blmcu_ldim_dev_update(dev_drv);

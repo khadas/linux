@@ -292,11 +292,18 @@ static int spi_wregs_duty(struct spi_device *spi, unsigned int chip_cnt, unsigne
 		memset(&tbuf[3 + tlen * chip_cnt], 0, n);
 	}
 
-	if (spi_sync)
+	switch (spi_sync) {
+	case SPI_SYNC:
 		ret = ldim_spi_write(spi, tbuf,	xlen);
-	else
-		ret = ldim_spi_write_async(spi, tbuf, rbuf, xlen,
-			bl_iw7027->dma_support, bl_iw7027->tbuf_size);
+		break;
+	case SPI_ASYNC:
+		ret = ldim_spi_write_async(spi, tbuf, rbuf, xlen, bl_iw7027->tbuf_size);
+		break;
+	case SPI_DMA_TRIG:
+	default:
+		ret = ldim_spi_write_dma_trig(spi, tbuf, rbuf, xlen, bl_iw7027->tbuf_size);
+		break;
+	}
 
 	return ret;
 }
@@ -356,7 +363,7 @@ static int iw7027_reg_write_duty(struct ldim_dev_driver_s *dev_drv,
 	int ret;
 	unsigned long flags = 0;
 
-	if (dev_drv->spi_sync)
+	if (dev_drv->spi_sync == SPI_SYNC)
 		mutex_lock(&spi_mutex);
 	else
 		spin_lock_irqsave(&spi_lock, flags);
@@ -365,7 +372,7 @@ static int iw7027_reg_write_duty(struct ldim_dev_driver_s *dev_drv,
 	if (ret)
 		LDIMERR("%s: reg 0x%x, len %d error\n", __func__, reg, len);
 
-	if (dev_drv->spi_sync)
+	if (dev_drv->spi_sync == SPI_SYNC)
 		mutex_unlock(&spi_mutex);
 	else
 		spin_unlock_irqrestore(&spi_lock, flags);
@@ -633,7 +640,7 @@ static void ldim_vs_debug_info(struct aml_ldim_driver_s *ldim_drv)
 
 	if (bl_iw7027->vsync_cnt)
 		return;
-	if (ldim_debug_print != 3)
+	if ((ldim_debug_print & LDIM_DBG_PR_DEV_DBG_INFO) == 0)
 		return;
 
 	LDIMPR("%s:\n", __func__);
@@ -990,6 +997,11 @@ int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv)
 	if (!bl_iw7027->rbuf)
 		goto ldim_dev_iw7027_probe_err2;
 
+	if (dev_drv->spi_sync == SPI_DMA_TRIG) {
+		dev_drv->spi_xlen = bl_iw7027->tbuf_size;
+		ldim_spi_init_dma_trig(dev_drv->spi_dev);
+	}
+
 	iw7027_ldim_dev_update(dev_drv);
 
 	if (dev_drv->class) {
@@ -1001,7 +1013,7 @@ int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv)
 		}
 	}
 
-	if (dev_drv->spi_sync == 0)
+	if (dev_drv->spi_sync == SPI_ASYNC)
 		spin_lock_init(&spi_lock);
 
 	bl_iw7027->dev_on_flag = 1; /* default enable in uboot */

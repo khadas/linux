@@ -81,7 +81,8 @@
 #define LCD_EVENT_BACKLIGHT_LD_SEL     BIT(28)
 /* lcd backlight brightness update by driver api */
 #define LCD_EVENT_BACKLIGHT_BRIGHTNESS_DIM     BIT(29)
-
+/* lcd backlight pwm choose switch port */
+#define LCD_EVENT_BACKLIGHT_PWM_SWITCH   BIT(30)
 
 /* blocking notify */
 int aml_lcd_notifier_register(struct notifier_block *nb);

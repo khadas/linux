@@ -18,6 +18,7 @@
 
 #define BLPR(fmt, args...)      pr_info("bl: " fmt "", ## args)
 #define BLERR(fmt, args...)     pr_err("bl error: " fmt "", ## args)
+#define BLWARN(fmt, args...)     pr_warn("bl warning: " fmt "", ## args)
 #define AML_BL_NAME		"aml-bl"
 
 #define BL_LEVEL_MAX		255
@@ -120,6 +121,7 @@ struct bl_pwm_config_s {
 	enum bl_pwm_port_e pwm_port;
 	unsigned int level_max;
 	unsigned int level_min;
+	unsigned int bl_level;
 	unsigned int pwm_freq; /* pwm_vs: 1~4(vfreq), pwm: freq(unit: Hz) */
 	unsigned int pwm_duty; /* unit: % */
 	unsigned int pwm_duty_save; /* unit: %, for power on recovery */
@@ -130,7 +132,7 @@ struct bl_pwm_config_s {
 	unsigned int pwm_max; /* internal used for pwm control */
 	unsigned int pwm_min; /* internal used for pwm control */
 	unsigned int pwm_level; /* internal used for pwm control */
-	unsigned int pwm_mapping[7]; /* mapping curve for pwm control */
+	unsigned int pwm_mapping[8]; /* mapping curve for pwm control */
 	unsigned int pwm_phase;	/*pwm_vs phase base on vsync*/
 };
 
@@ -159,6 +161,11 @@ struct bl_config_s {
 	struct bl_pwm_config_s *bl_pwm;
 	struct bl_pwm_config_s *bl_pwm_combo0;
 	struct bl_pwm_config_s *bl_pwm_combo1;
+	struct bl_pwm_config_s *bl_pwm_switch;
+	struct bl_pwm_config_s *bl_pwm_default;
+	enum bl_pwm_port_e bl_pwm_switch_port;
+	unsigned int bl_pwm_switch_freq;
+	unsigned int bl_pwm_switch_flag;
 	unsigned int pwm_on_delay;
 	unsigned int pwm_off_delay;
 
@@ -184,6 +191,7 @@ struct bl_metrics_config_s {
 /* Flags used to signal drivers of state changes */
 /* Upper 4 bits in bl props are reserved for driver internal use */
 #define BL_STATE_DEBUG_FORCE_EN       BIT(8)
+#define BL_STATE_PWM_SWITCH           BIT(7)
 #define BL_STATE_GD_EN                BIT(4)
 #define BL_STATE_LCD_ON               BIT(3)
 #define BL_STATE_BL_INIT_ON           BIT(2)
@@ -228,6 +236,12 @@ struct aml_bl_drv_s {
 	unsigned int pinmux_flag;
 };
 
+struct bl_pwm_init_config_s {
+	unsigned int *pwm_vs_reg;
+	unsigned int pwm_vs_reg_cnt;
+	unsigned int pwm_vs_flag;
+};
+
 struct aml_bl_drv_s *aml_bl_get_driver(int index);
 int aml_bl_index_add(int drv_index, int conf_index);
 
@@ -237,6 +251,8 @@ unsigned int aml_bl_get_level_brightness(struct aml_bl_drv_s *bdrv);
 void bl_pwm_config_init(struct bl_pwm_config_s *bl_pwm);
 enum bl_pwm_port_e bl_pwm_str_to_pwm(const char *str);
 void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status);
+struct bl_pwm_init_config_s *get_pwm_init_cfg(void);
+void bl_pwm_port_switch(unsigned int state);
 
 #define BL_GPIO_OUTPUT_LOW		0
 #define BL_GPIO_OUTPUT_HIGH		1
