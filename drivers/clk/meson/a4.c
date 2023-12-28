@@ -132,6 +132,7 @@ static const struct pll_params_table a4_sys_pll_params_table[] = {
 	PLL_PARAMS(75, 1),  /*DCO=1800M OD=DCO/1=1800M*/
 	PLL_PARAMS(80, 1),  /*DCO=1920M OD=DCO/1=1920M*/
 	PLL_PARAMS(84, 1),  /*DCO=2016M OD=DCO/1=2016M*/
+	{ /* sentinel */ }
 };
 #endif
 
