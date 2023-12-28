@@ -828,6 +828,7 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	u32 diff_time = 1000000;
 	u32 early_time = 0;
 	bool is_free = false;
+	bool is_single_dev = false;
 
 	if (!buf) {
 		v4l2_err(&cif_dev->v4l2_dev, "buf is NULL\n");
@@ -868,9 +869,12 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 	stream->last_rx_buf_idx = dbufs->sequence + 1;
 	atomic_inc(&stream->buf_cnt);
 
+	is_single_dev = rkcif_check_single_dev_stream_on(cif_dev->hw_dev);
 	if (!list_empty(&stream->rx_buf_head) &&
 	    cif_dev->is_thunderboot &&
-	    (!cif_dev->is_rtt_suspend) &&
+	    ((!cif_dev->is_rtt_suspend &&
+	      !cif_dev->is_aov_reserved) ||
+	     !is_single_dev) &&
 	    (dbufs->type == BUF_SHORT ||
 	     (dbufs->type != BUF_SHORT && (!dbufs->is_switch)))) {
 		spin_lock_irqsave(&cif_dev->buffree_lock, buffree_flags);
@@ -899,7 +903,9 @@ static int sditf_s_rx_buffer(struct v4l2_subdev *sd,
 			offset = rx_buf->dummy.size - stream->pixm.plane_fmt[0].bytesperline * 3;
 			memset(rx_buf->dummy.vaddr + offset,
 			       0x00, stream->pixm.plane_fmt[0].bytesperline * 3);
-			if (cif_dev->is_thunderboot)
+			if (cif_dev->is_thunderboot ||
+			    cif_dev->is_rtt_suspend ||
+			    cif_dev->is_aov_reserved)
 				dma_sync_single_for_device(cif_dev->dev,
 							   rx_buf->dummy.dma_addr + rx_buf->dummy.size -
 							   stream->pixm.plane_fmt[0].bytesperline * 3,

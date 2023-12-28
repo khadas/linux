@@ -4569,6 +4569,7 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 	phys_addr_t resmem_free_start;
 	phys_addr_t resmem_free_end;
 	u32 share_head_size = 0;
+	u32 rtt_min_size = 0;
 
 	if (!priv)
 		return;
@@ -4577,7 +4578,7 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 	if (!sd)
 		return;
 
-	if (dev->is_rtt_suspend && dev->is_thunderboot) {
+	if ((dev->is_rtt_suspend || dev->is_aov_reserved) && dev->is_thunderboot) {
 		stream->curr_buf_toisp = NULL;
 		stream->next_buf_toisp = NULL;
 		INIT_LIST_HEAD(&stream->rx_buf_head);
@@ -4596,7 +4597,14 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 				v4l2_info(&stream->cifdev->v4l2_dev,
 					  "share mem head error, rtt head size %d, arm head size %d\n",
 					  dev->share_mem_size, share_head_size);
-			resmem_free_start = dev->resmem_pa + share_head_size + dev->nr_buf_size;
+			if (share_head_size + dev->nr_buf_size > stream->pixm.plane_fmt[0].sizeimage)
+				rtt_min_size = share_head_size + dev->nr_buf_size;
+			else
+				rtt_min_size = stream->pixm.plane_fmt[0].sizeimage;
+			if (dev->is_rtt_suspend)
+				resmem_free_start = dev->resmem_pa + rtt_min_size;
+			else
+				resmem_free_start = dev->resmem_pa + stream->pixm.plane_fmt[0].sizeimage;
 			resmem_free_end = dev->resmem_pa + dev->resmem_size;
 			v4l2_info(&stream->cifdev->v4l2_dev,
 				  "free reserved mem start 0x%x, end 0x%x, share_head_size 0x%x, nr_buf_size 0x%x\n",
@@ -4604,6 +4612,10 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num)
 			free_reserved_area(phys_to_virt(resmem_free_start),
 					   phys_to_virt(resmem_free_end),
 					   -1, "rkisp_thunderboot");
+			if (dev->is_rtt_suspend)
+				dev->resmem_size = rtt_min_size;
+			else
+				dev->resmem_size = stream->pixm.plane_fmt[0].sizeimage;
 		}
 		atomic_set(&stream->buf_cnt, 0);
 		stream->total_buf_num = 0;
@@ -4692,7 +4704,7 @@ int rkcif_init_rx_buf(struct rkcif_stream *stream, int buf_num)
 		dummy->size = pixm->plane_fmt[0].sizeimage;
 		dummy->is_need_vaddr = true;
 		dummy->is_need_dbuf = true;
-		if (dev->is_thunderboot) {
+		if (dev->is_thunderboot || dev->is_rtt_suspend || dev->is_aov_reserved) {
 			if (i == 0)
 				rkcif_get_resmem_head(dev);
 			buf->buf_idx = i;
@@ -7295,8 +7307,6 @@ static bool rkcif_check_can_be_online(struct rkcif_device *cif_dev)
 
 static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 			       enum rkmodule_reset_src reset_src);
-static bool rkcif_check_single_dev_stream_on(struct rkcif_hw *hw);
-
 static long rkcif_ioctl_default(struct file *file, void *fh,
 				bool valid_prio, unsigned int cmd, void *arg)
 {
@@ -10467,7 +10477,7 @@ static bool rkcif_check_buffer_prepare(struct rkcif_stream *stream)
 	return is_update;
 }
 
-static bool rkcif_check_single_dev_stream_on(struct rkcif_hw *hw)
+bool rkcif_check_single_dev_stream_on(struct rkcif_hw *hw)
 {
 	struct rkcif_device *cif_dev = NULL;
 	struct rkcif_stream *stream = NULL;

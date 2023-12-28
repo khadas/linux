@@ -907,6 +907,7 @@ struct rkcif_device {
 	bool				is_rdbk_to_online;
 	bool				is_support_tools;
 	bool				is_rtt_suspend;
+	bool				is_aov_reserved;
 	bool				sensor_state_change;
 	bool				is_toisp_reset;
 	int				rdbk_debug;
@@ -1031,5 +1032,7 @@ static inline u64 rkcif_time_get_ns(struct rkcif_device *dev)
 	else
 		return ktime_get_ns();
 }
+
+bool rkcif_check_single_dev_stream_on(struct rkcif_hw *hw);
 
 #endif
