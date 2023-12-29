@@ -1039,6 +1039,7 @@
 		rockchip,cru = <&cru>;
 		rockchip,grf = <&grf>;
 		rockchip,mclk-calibrate;
+		i2s-lrck-gpio = <&gpio2 RK_PA7 GPIO_ACTIVE_HIGH>; /* i2s_8ch_0_lrcktx */
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s_8ch_0_sclktx
 			     &i2s_8ch_0_sclkrx
@@ -1076,6 +1077,7 @@
 		rockchip,grf = <&grf>;
 		rockchip,mclk-calibrate;
 		rockchip,io-multiplex;
+		i2s-lrck-gpio = <&gpio1 RK_PA5 GPIO_ACTIVE_HIGH>; /* i2s_8ch_1_m0_lrcktx */
 		status = "disabled";
 	};
 
