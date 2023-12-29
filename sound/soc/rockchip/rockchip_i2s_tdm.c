@@ -56,8 +56,6 @@
  *
  */
 
-#define CLK_MAX_COUNT				1000
-#define NSAMPLES				4
 #define XFER_EN					0x3
 #define XFER_DIS				0x0
 #define CKR_V(m, r, t)				((m - 1) << 16 | (r - 1) << 8 | (t - 1) << 0)
@@ -66,6 +64,8 @@
 #define I2S_XCR_IBM_LSJM			I2S_TXCR_IBM_LSJM
 #endif
 
+#define CLK_MAX_COUNT				1000
+#define NSAMPLES				4
 #define DEFAULT_MCLK_FS				256
 #define DEFAULT_FS				48000
 #define CH_GRP_MAX				4  /* The max channel 8 / 2 */
@@ -154,9 +154,9 @@ struct rk_i2s_tdm_dev {
 	int clk_ppm;
 	atomic_t refcount;
 	spinlock_t lock; /* xfer lock */
+	struct gpio_desc *i2s_lrck_gpio;
 #ifdef CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES
 	struct snd_soc_dai *clk_src_dai;
-	struct gpio_desc *i2s_lrck_gpio;
 	struct gpio_desc *tdm_fsync_gpio;
 	unsigned int tx_lanes;
 	unsigned int rx_lanes;
@@ -522,6 +522,87 @@ static void rockchip_i2s_tdm_dma_ctrl(struct rk_i2s_tdm_dev *i2s_tdm,
 		rockchip_i2s_tdm_fifo_xrun_detect(i2s_tdm, stream, 1);
 }
 
+static inline int rockchip_i2s_tdm_clk_assert_h(const struct gpio_desc *desc)
+{
+	int cnt = CLK_MAX_COUNT;
+
+	while (gpiod_get_raw_value(desc) && --cnt)
+		;
+
+	return cnt;
+}
+
+static inline int rockchip_i2s_tdm_clk_assert_l(const struct gpio_desc *desc)
+{
+	int cnt = CLK_MAX_COUNT;
+
+	while (!gpiod_get_raw_value(desc) && --cnt)
+		;
+
+	return cnt;
+}
+
+static inline bool rockchip_i2s_tdm_clk_valid(struct rk_i2s_tdm_dev *i2s_tdm,
+					      bool has_fsync)
+{
+	int dc_h = CLK_MAX_COUNT, dc_l = CLK_MAX_COUNT;
+
+	/*
+	 * TBD: optimize debounce and get value
+	 *
+	 * debounce at least one cycle found, otherwise, the clk ref maybe
+	 * not on the fly.
+	 */
+
+	/* check HIGH-Level */
+	dc_h = rockchip_i2s_tdm_clk_assert_h(i2s_tdm->i2s_lrck_gpio);
+	if (!dc_h)
+		return false;
+
+	/* check LOW-Level */
+	dc_l = rockchip_i2s_tdm_clk_assert_l(i2s_tdm->i2s_lrck_gpio);
+	if (!dc_l)
+		return false;
+
+#ifdef CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES
+	if (!has_fsync)
+		return true;
+
+	/* check HIGH-Level */
+	dc_h = rockchip_i2s_tdm_clk_assert_h(i2s_tdm->tdm_fsync_gpio);
+	if (!dc_h)
+		return false;
+
+	/* check LOW-Level */
+	dc_l = rockchip_i2s_tdm_clk_assert_l(i2s_tdm->tdm_fsync_gpio);
+	if (!dc_l)
+		return false;
+#endif
+
+	return true;
+}
+
+static void __maybe_unused rockchip_i2s_tdm_gpio_clk_meas(struct rk_i2s_tdm_dev *i2s_tdm,
+							  const struct gpio_desc *desc,
+							  const char *name)
+{
+	int h[NSAMPLES], l[NSAMPLES], i;
+
+	dev_dbg(i2s_tdm->dev, "%s:\n", name);
+
+	if (!rockchip_i2s_tdm_clk_valid(i2s_tdm, 1))
+		return;
+
+	for (i = 0; i < NSAMPLES; i++) {
+		h[i] = rockchip_i2s_tdm_clk_assert_h(desc);
+		l[i] = rockchip_i2s_tdm_clk_assert_l(desc);
+	}
+
+	for (i = 0; i < NSAMPLES; i++)
+		dev_dbg(i2s_tdm->dev, "H[%d]: %2d, L[%d]: %2d\n",
+			i, CLK_MAX_COUNT - h[i], i, CLK_MAX_COUNT - l[i]);
+}
+
 #ifdef CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES
 static const char * const tx_lanes_text[] = { "Auto", "SDOx1", "SDOx2", "SDOx3", "SDOx4" };
 static const char * const rx_lanes_text[] = { "Auto", "SDIx1", "SDIx2", "SDIx3", "SDIx4" };
@@ -639,81 +720,6 @@ static int rockchip_i2s_tdm_multi_lanes_set_clk(struct snd_pcm_substream *substr
 	return 0;
 }
 
-static inline int tdm_multi_lanes_clk_assert_h(const struct gpio_desc *desc)
-{
-	int cnt = CLK_MAX_COUNT;
-
-	while (gpiod_get_raw_value(desc) && --cnt)
-		;
-
-	return cnt;
-}
-
-static inline int tdm_multi_lanes_clk_assert_l(const struct gpio_desc *desc)
-{
-	int cnt = CLK_MAX_COUNT;
-
-	while (!gpiod_get_raw_value(desc) && --cnt)
-		;
-
-	return cnt;
-}
-
-static inline bool rockchip_i2s_tdm_clk_valid(struct rk_i2s_tdm_dev *i2s_tdm)
-{
-	int dc_h = CLK_MAX_COUNT, dc_l = CLK_MAX_COUNT;
-
-	/*
-	 * TBD: optimize debounce and get value
-	 *
-	 * debounce at least one cycle found, otherwise, the clk ref maybe
-	 * not on the fly.
-	 */
-
-	/* check HIGH-Level */
-	dc_h = tdm_multi_lanes_clk_assert_h(i2s_tdm->i2s_lrck_gpio);
-	if (!dc_h)
-		return false;
-
-	/* check LOW-Level */
-	dc_l = tdm_multi_lanes_clk_assert_l(i2s_tdm->i2s_lrck_gpio);
-	if (!dc_l)
-		return false;
-
-	/* check HIGH-Level */
-	dc_h = tdm_multi_lanes_clk_assert_h(i2s_tdm->tdm_fsync_gpio);
-	if (!dc_h)
-		return false;
-
-	/* check LOW-Level */
-	dc_l = tdm_multi_lanes_clk_assert_l(i2s_tdm->tdm_fsync_gpio);
-	if (!dc_l)
-		return false;
-
-	return true;
-}
-
-static void __maybe_unused rockchip_i2s_tdm_gpio_clk_meas(struct rk_i2s_tdm_dev *i2s_tdm,
-							  const struct gpio_desc *desc,
-							  const char *name)
-{
-	int h[NSAMPLES], l[NSAMPLES], i;
-
-	dev_dbg(i2s_tdm->dev, "%s:\n", name);
-
-	if (!rockchip_i2s_tdm_clk_valid(i2s_tdm))
-		return;
-
-	for (i = 0; i < NSAMPLES; i++) {
-		h[i] = tdm_multi_lanes_clk_assert_h(desc);
-		l[i] = tdm_multi_lanes_clk_assert_l(desc);
-	}
-
-	for (i = 0; i < NSAMPLES; i++)
-		dev_dbg(i2s_tdm->dev, "H[%d]: %2d, L[%d]: %2d\n",
-			i, CLK_MAX_COUNT - h[i], i, CLK_MAX_COUNT - l[i]);
-}
-
 static int rockchip_i2s_tdm_multi_lanes_start(struct rk_i2s_tdm_dev *i2s_tdm, int stream)
 {
 	unsigned int tdm_h = 0, tdm_l = 0, i2s_h = 0, i2s_l = 0;
@@ -741,7 +747,7 @@ static int rockchip_i2s_tdm_multi_lanes_start(struct rk_i2s_tdm_dev *i2s_tdm, in
 
 	local_irq_save(flags);
 
-	if (!rockchip_i2s_tdm_clk_valid(i2s_tdm)) {
+	if (!rockchip_i2s_tdm_clk_valid(i2s_tdm, 1)) {
 		local_irq_restore(flags);
 		dev_err(i2s_tdm->dev, "Invalid LRCK / FSYNC measured by ref IO\n");
 		return -EINVAL;
@@ -749,36 +755,36 @@ static int rockchip_i2s_tdm_multi_lanes_start(struct rk_i2s_tdm_dev *i2s_tdm, in
 
 	switch (fmt) {
 	case I2S_XCR_IBM_NORMAL:
-		tdm_h = tdm_multi_lanes_clk_assert_h(i2s_tdm->tdm_fsync_gpio);
-		tdm_l = tdm_multi_lanes_clk_assert_l(i2s_tdm->tdm_fsync_gpio);
+		tdm_h = rockchip_i2s_tdm_clk_assert_h(i2s_tdm->tdm_fsync_gpio);
+		tdm_l = rockchip_i2s_tdm_clk_assert_l(i2s_tdm->tdm_fsync_gpio);
 
 		if (i2s_tdm->lrck_ratio == 8) {
-			tdm_multi_lanes_clk_assert_l(i2s_tdm->i2s_lrck_gpio);
-			tdm_multi_lanes_clk_assert_h(i2s_tdm->i2s_lrck_gpio);
-			tdm_multi_lanes_clk_assert_l(i2s_tdm->i2s_lrck_gpio);
-			tdm_multi_lanes_clk_assert_h(i2s_tdm->i2s_lrck_gpio);
+			rockchip_i2s_tdm_clk_assert_l(i2s_tdm->i2s_lrck_gpio);
+			rockchip_i2s_tdm_clk_assert_h(i2s_tdm->i2s_lrck_gpio);
+			rockchip_i2s_tdm_clk_assert_l(i2s_tdm->i2s_lrck_gpio);
+			rockchip_i2s_tdm_clk_assert_h(i2s_tdm->i2s_lrck_gpio);
 		}
 
-		i2s_l = tdm_multi_lanes_clk_assert_l(i2s_tdm->i2s_lrck_gpio);
+		i2s_l = rockchip_i2s_tdm_clk_assert_l(i2s_tdm->i2s_lrck_gpio);
 
 		if (stream == SNDRV_PCM_STREAM_CAPTURE)
-			i2s_h = tdm_multi_lanes_clk_assert_h(i2s_tdm->i2s_lrck_gpio);
+			i2s_h = rockchip_i2s_tdm_clk_assert_h(i2s_tdm->i2s_lrck_gpio);
 		break;
 	case I2S_XCR_IBM_LSJM:
-		tdm_l = tdm_multi_lanes_clk_assert_l(i2s_tdm->tdm_fsync_gpio);
-		tdm_h = tdm_multi_lanes_clk_assert_h(i2s_tdm->tdm_fsync_gpio);
+		tdm_l = rockchip_i2s_tdm_clk_assert_l(i2s_tdm->tdm_fsync_gpio);
+		tdm_h = rockchip_i2s_tdm_clk_assert_h(i2s_tdm->tdm_fsync_gpio);
 
 		if (i2s_tdm->lrck_ratio == 8) {
-			tdm_multi_lanes_clk_assert_h(i2s_tdm->i2s_lrck_gpio);
-			tdm_multi_lanes_clk_assert_l(i2s_tdm->i2s_lrck_gpio);
-			tdm_multi_lanes_clk_assert_h(i2s_tdm->i2s_lrck_gpio);
-			tdm_multi_lanes_clk_assert_l(i2s_tdm->i2s_lrck_gpio);
+			rockchip_i2s_tdm_clk_assert_h(i2s_tdm->i2s_lrck_gpio);
+			rockchip_i2s_tdm_clk_assert_l(i2s_tdm->i2s_lrck_gpio);
+			rockchip_i2s_tdm_clk_assert_h(i2s_tdm->i2s_lrck_gpio);
+			rockchip_i2s_tdm_clk_assert_l(i2s_tdm->i2s_lrck_gpio);
 		}
 
-		tdm_multi_lanes_clk_assert_h(i2s_tdm->i2s_lrck_gpio);
+		rockchip_i2s_tdm_clk_assert_h(i2s_tdm->i2s_lrck_gpio);
 
-		i2s_l = tdm_multi_lanes_clk_assert_l(i2s_tdm->i2s_lrck_gpio);
-		i2s_h = tdm_multi_lanes_clk_assert_h(i2s_tdm->i2s_lrck_gpio);
+		i2s_l = rockchip_i2s_tdm_clk_assert_l(i2s_tdm->i2s_lrck_gpio);
+		i2s_h = rockchip_i2s_tdm_clk_assert_h(i2s_tdm->i2s_lrck_gpio);
 		break;
 	default:
 		local_irq_restore(flags);
@@ -821,19 +827,6 @@ static int rockchip_i2s_tdm_multi_lanes_parse(struct rk_i2s_tdm_dev *i2s_tdm)
 			i2s_tdm->rx_lanes = val;
 	}
 
-	/*
-	 * Should use flag GPIOD_ASIS not to reclaim LRCK pin as GPIO function,
-	 * because we use the same PIN and just read EXT_PORT value which show
-	 * the pin status.
-	 */
-	i2s_tdm->i2s_lrck_gpio = devm_gpiod_get_optional(i2s_tdm->dev, "i2s-lrck",
-							 GPIOD_ASIS);
-	if (IS_ERR(i2s_tdm->i2s_lrck_gpio)) {
-		ret = PTR_ERR(i2s_tdm->i2s_lrck_gpio);
-		dev_err(i2s_tdm->dev, "Failed to get i2s_lrck_gpio %d\n", ret);
-		return ret;
-	}
-
 	/* It's optional, required when use soc clk src, such as: i2s2_2ch */
 	clk_src_node = of_parse_phandle(i2s_tdm->dev->of_node, "rockchip,clk-src", 0);
 	gpiod_flags = clk_src_node ? GPIOD_ASIS : GPIOD_IN;
@@ -873,6 +866,47 @@ static int rockchip_i2s_tdm_multi_lanes_parse(struct rk_i2s_tdm_dev *i2s_tdm)
 }
 #endif
 
+static int rockchip_i2s_tdm_slave_one_frame_start(struct rk_i2s_tdm_dev *i2s_tdm,
+						   int stream)
+{
+	unsigned int msk, val, h;
+	unsigned long flags;
+	bool sof;
+
+	sof = i2s_tdm->tdm_mode && !i2s_tdm->is_master_mode &&
+	      !i2s_tdm->tdm_fsync_half_frame;
+
+	if (!sof)
+		return -ENOSYS;
+
+	if (!i2s_tdm->i2s_lrck_gpio) {
+		dev_err(i2s_tdm->dev, "SOF: should assign 'i2s-lrck-gpio' the pin used in DT\n");
+		return -EINVAL;
+	}
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		msk = I2S_XFER_TXS_MASK;
+		val = I2S_XFER_TXS_START;
+	} else {
+		msk = I2S_XFER_RXS_MASK;
+		val = I2S_XFER_RXS_START;
+	}
+
+	local_irq_save(flags);
+	if (!rockchip_i2s_tdm_clk_valid(i2s_tdm, 0)) {
+		local_irq_restore(flags);
+		dev_err(i2s_tdm->dev, "SOF: invalid LRCK, please check 'i2s-lrck-gpio' in DT\n");
+		return -EINVAL;
+	}
+	h = rockchip_i2s_tdm_clk_assert_h(i2s_tdm->i2s_lrck_gpio);
+	regmap_update_bits(i2s_tdm->regmap, I2S_XFER, msk, val);
+	local_irq_restore(flags);
+
+	dev_dbg(i2s_tdm->dev, "STREAM[%d]: TDM-H: %d\n", stream, CLK_MAX_COUNT - h);
+
+	return 0;
+}
+
 static void rockchip_i2s_tdm_xfer_start(struct rk_i2s_tdm_dev *i2s_tdm,
 					int stream)
 {
@@ -882,6 +916,9 @@ static void rockchip_i2s_tdm_xfer_start(struct rk_i2s_tdm_dev *i2s_tdm,
 			return;
 	}
 #endif
+	if (rockchip_i2s_tdm_slave_one_frame_start(i2s_tdm, stream) != -ENOSYS)
+		return;
+
 	if (i2s_tdm->clk_trcm) {
 		rockchip_i2s_tdm_reset_assert(i2s_tdm);
 		regmap_update_bits(i2s_tdm->regmap, I2S_XFER,
@@ -2854,6 +2891,19 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 
 	i2s_tdm->dev = &pdev->dev;
 	i2s_tdm->lrck_ratio = 1;
+
+	/*
+	 * Should use flag GPIOD_ASIS not to reclaim LRCK pin as GPIO function,
+	 * because we use the same PIN and just read EXT_PORT value which show
+	 * the pin status.
+	 */
+	i2s_tdm->i2s_lrck_gpio = devm_gpiod_get_optional(i2s_tdm->dev, "i2s-lrck",
+							 GPIOD_ASIS);
+	if (IS_ERR(i2s_tdm->i2s_lrck_gpio)) {
+		ret = PTR_ERR(i2s_tdm->i2s_lrck_gpio);
+		dev_err(i2s_tdm->dev, "Failed to get i2s_lrck_gpio %d\n", ret);
+		return ret;
+	}
 
 	of_id = of_match_device(rockchip_i2s_tdm_match, &pdev->dev);
 	if (!of_id)
