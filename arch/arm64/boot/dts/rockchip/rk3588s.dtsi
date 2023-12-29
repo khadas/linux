@@ -4,9 +4,11 @@
  */
 
 #include <dt-bindings/clock/rk3588-cru.h>
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/phy/phy.h>
+#include <dt-bindings/pinctrl/rockchip.h>
 #include <dt-bindings/power/rk3588-power.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
@@ -5657,6 +5659,7 @@
 		resets = <&cru SRST_M_I2S0_8CH_TX>, <&cru SRST_M_I2S0_8CH_RX>;
 		reset-names = "tx-m", "rx-m";
 		rockchip,clk-trcm = <1>;
+		i2s-lrck-gpio = <&gpio1 RK_PC5 GPIO_ACTIVE_HIGH>; /* i2s0_lrck */
 		pinctrl-names = "default", "idle", "clk";
 		pinctrl-0 = <&i2s0_sdi0
 			     &i2s0_sdi1
@@ -5682,6 +5685,7 @@
 		resets = <&cru SRST_M_I2S1_8CH_TX>, <&cru SRST_M_I2S1_8CH_RX>;
 		reset-names = "tx-m", "rx-m";
 		rockchip,clk-trcm = <1>;
+		i2s-lrck-gpio = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>; /* i2s1m0_lrck */
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s1m0_lrck
 			     &i2s1m0_sclk
