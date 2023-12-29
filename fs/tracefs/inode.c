@@ -564,6 +564,16 @@ static char * const allow_trace[] = {
 	"vmscan",
 	"timer",
 	"workqueue",
+	"oom",
+	"ipi",
+	"preemptirq",
+	"clk",
+	"mmc",
+	"cpu_frequency",
+	"devfreq",
+	"per_cpu",
+	"thermal",
+	"filemap",
 };
 
 static int is_allowed_trace(const char *name)
@@ -617,8 +627,14 @@ early_param("allow_trace_enable", early_allow_trace_enable_param);
 struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
 {
 #ifdef CONFIG_AMLOGIC_MEMORY_OPT
-	if (allow_trace_enable && !is_allowed_trace(name))
-		return NULL;
+	if (allow_trace_enable && !is_allowed_trace(name)) {
+		if (parent) {
+			if (!strcmp(parent->d_iname, "events"))
+				return NULL;
+			if (!is_allowed_trace(parent->d_iname))
+				return NULL;
+		}
+	}
 #endif
 	return __create_dir(name, parent, &simple_dir_inode_operations);
 }
