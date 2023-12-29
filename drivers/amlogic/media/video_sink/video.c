@@ -12193,6 +12193,38 @@ static s32 clear_vframe_dovi_md_info(struct vframe_s *vf)
 	return 0;
 }
 
+static enum vframe_signal_fmt_e get_sfmt_from_signal_type(struct vframe_s *vf)
+{
+	if (!vf)
+		return VFRAME_SIGNAL_FMT_INVALID;
+
+	/* invalid src fmt case */
+	if (vf->src_fmt.sei_magic_code != SEI_MAGIC_CODE) {
+		if ((signal_transfer_characteristic == 14 ||
+			 signal_transfer_characteristic == 18) &&
+			signal_color_primaries == 9) {
+			if (signal_cuva)
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_CUVA_HLG;
+			else
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HLG;
+		} else if ((signal_transfer_characteristic == 16) &&
+				 ((signal_color_primaries == 9) ||
+				  (signal_color_primaries == 2))) {
+			if (signal_cuva)
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_CUVA_HDR;
+			else
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
+		} else {
+			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_SDR;
+		}
+	}
+
+	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
+		pr_info("[%s]  %d\n", __func__, vf->src_fmt.fmt);
+
+	return vf->src_fmt.fmt;
+}
+
 s32 update_vframe_src_fmt(struct vframe_s *vf,
 				   void *sei, u32 size, bool dual_layer,
 				   char *prov_name, char *recv_name)
@@ -12359,30 +12391,9 @@ enum vframe_signal_fmt_e get_vframe_src_fmt(struct vframe_s *vf)
 		return VFRAME_SIGNAL_FMT_INVALID;
 
 	/* invalid src fmt case */
-	if (vf->src_fmt.sei_magic_code != SEI_MAGIC_CODE) {
-		if (signal_transfer_characteristic == 18 &&
-			signal_color_primaries == 9) {
-			if (signal_cuva)
-				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_CUVA_HLG;
-			else
-				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HLG;
-		} else if ((signal_transfer_characteristic == 16) &&
-				 ((signal_color_primaries == 9) ||
-				  (signal_color_primaries == 2))) {
-			if (signal_cuva)
-				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_CUVA_HDR;
-			else
-				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
-		} else if (signal_transfer_characteristic == 14 ||
-			signal_transfer_characteristic == 1) {
-			if (signal_color_primaries == 9)
-				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_SDR_2020;
-			else
-				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_SDR;
-		} else {
-			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_SDR;
-		}
-	}
+	if (vf->src_fmt.sei_magic_code != SEI_MAGIC_CODE)
+		return VFRAME_SIGNAL_FMT_INVALID;
+
 	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
 		pr_info("[%s]  %d\n", __func__, vf->src_fmt.fmt);
 
@@ -16060,6 +16071,8 @@ static ssize_t process_fmt_show
 	dispbuf = get_dispbuf(0);
 	if (dispbuf) {
 		fmt = get_vframe_src_fmt(dispbuf);
+		if (fmt == VFRAME_SIGNAL_FMT_INVALID)
+			fmt = get_sfmt_from_signal_type(dispbuf);
 		if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
 		    fmt < VFRAME_SIGNAL_FMT_MAX)
 			ret += sprintf(buf + ret, "vd1: src_fmt = %s; ",
@@ -16113,6 +16126,8 @@ static ssize_t process_fmt_show
 	dispbuf = get_dispbuf(1);
 	if (dispbuf) {
 		fmt = get_vframe_src_fmt(dispbuf);
+		if (fmt == VFRAME_SIGNAL_FMT_INVALID)
+			fmt = get_sfmt_from_signal_type(dispbuf);
 		if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
 		    fmt < VFRAME_SIGNAL_FMT_MAX)
 			ret += sprintf(buf + ret, "vd2: src_fmt = %s; ",
@@ -16170,6 +16185,8 @@ static ssize_t process_fmt_show
 	dispbuf = get_dispbuf(2);
 	if (dispbuf) {
 		fmt = get_vframe_src_fmt(dispbuf);
+		if (fmt == VFRAME_SIGNAL_FMT_INVALID)
+			fmt = get_sfmt_from_signal_type(dispbuf);
 		if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
 		    fmt < VFRAME_SIGNAL_FMT_MAX)
 			ret += sprintf(buf + ret, "vd3: src_fmt = %s; ",
