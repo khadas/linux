@@ -4,6 +4,7 @@
  */
 
 #include <dt-bindings/clock/rk3568-cru.h>
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/rockchip.h>
@@ -2956,6 +2957,7 @@
 		reset-names = "tx-m", "rx-m";
 		rockchip,cru = <&cru>;
 		rockchip,grf = <&grf>;
+		i2s-lrck-gpio = <&gpio1 RK_PA5 GPIO_ACTIVE_HIGH>; /* i2s1m0_lrcktx */
 		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s1m0_sclktx
@@ -2984,6 +2986,7 @@
 		rockchip,cru = <&cru>;
 		rockchip,grf = <&grf>;
 		rockchip,clk-trcm = <1>;
+		i2s-lrck-gpio = <&gpio2 RK_PC3 GPIO_ACTIVE_HIGH>; /* i2s2m0_lrcktx */
 		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s2m0_sclktx
@@ -3006,6 +3009,7 @@
 		rockchip,cru = <&cru>;
 		rockchip,grf = <&grf>;
 		rockchip,clk-trcm = <1>;
+		i2s-lrck-gpio = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>; /* i2s3m0_lrck */
 		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s3m0_sclk
