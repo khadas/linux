@@ -153,9 +153,6 @@
 #define S_CPHY_MODE		HIWORD_UPDATE(1, 3, 3)
 #define M_CPHY_MODE		HIWORD_UPDATE(1, 0, 0)
 
-#define MAX_DPHY_BW		4500000L
-#define MAX_CPHY_BW		2000000L
-
 #define RX_CLK_THS_SETTLE		(0xb30)
 #define RX_LANE0_THS_SETTLE		(0xC30)
 #define RX_LANE0_ERR_SOT_SYNC		(0xC34)
@@ -1506,7 +1503,9 @@ samsung_mipi_dcphy_pll_round_rate(struct samsung_mipi_dcphy *samsung,
 				  unsigned long prate, unsigned long rate,
 				  u8 *prediv, u16 *fbdiv, int *dsm, u8 *scaler)
 {
-	u64 max_fout = samsung->c_option ? MAX_CPHY_BW : MAX_DPHY_BW;
+	u32 max_fout = samsung->c_option ?
+		       samsung->pdata->cphy_tx_max_ksps_per_lane :
+		       samsung->pdata->dphy_tx_max_kbps_per_lane;
 	u64 best_freq = 0;
 	u64 fin, fvco, fout;
 	u8 min_prediv, max_prediv;
@@ -2325,6 +2324,7 @@ static int samsung_mipi_dcphy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	samsung->dev = dev;
+	samsung->pdata = device_get_match_data(dev);
 	platform_set_drvdata(pdev, samsung);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2439,9 +2439,23 @@ static const struct dev_pm_ops samsung_mipi_dcphy_pm_ops = {
 			   samsung_mipi_dcphy_runtime_resume, NULL)
 };
 
+static const struct samsung_mipi_dcphy_plat_data rk3576_samsung_mipi_dcphy_plat_data = {
+	.dphy_tx_max_kbps_per_lane = 2500000L,
+	.cphy_tx_max_ksps_per_lane = 1700000L,
+};
+
+static const struct samsung_mipi_dcphy_plat_data rk3588_samsung_mipi_dcphy_plat_data = {
+	.dphy_tx_max_kbps_per_lane = 4500000L,
+	.cphy_tx_max_ksps_per_lane = 2000000L,
+};
+
 static const struct of_device_id samsung_mipi_dcphy_of_match[] = {
 	{
+		.compatible = "rockchip,rk3576-mipi-dcphy",
+		.data = &rk3576_samsung_mipi_dcphy_plat_data,
+	}, {
 		.compatible = "rockchip,rk3588-mipi-dcphy",
+		.data = &rk3588_samsung_mipi_dcphy_plat_data,
 	},
 	{}
 };
