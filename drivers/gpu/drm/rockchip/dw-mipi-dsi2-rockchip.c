@@ -221,6 +221,7 @@ struct cmd_header {
 };
 
 struct dw_mipi_dsi2_plat_data {
+	bool dsc;
 	const u32 *dsi0_grf_reg_fields;
 	const u32 *dsi1_grf_reg_fields;
 	unsigned long long dphy_max_bit_rate_per_lane;
@@ -1257,7 +1258,8 @@ static int dw_mipi_dsi2_get_dsc_params_from_sink(struct dw_mipi_dsi2 *dsi2,
 
 	dsi2->c_option = of_property_read_bool(np, "phy-c-option");
 	dsi2->scrambling_en = of_property_read_bool(np, "scrambling-enable");
-	dsi2->dsc_enable = of_property_read_bool(np, "compressed-data");
+	dsi2->dsc_enable = dsi2->pdata->dsc ?
+			   of_property_read_bool(np, "compressed-data") : false;
 
 	if (dsi2->slave) {
 		dsi2->slave->c_option = dsi2->c_option;
@@ -1823,6 +1825,15 @@ static const struct dev_pm_ops dw_mipi_dsi2_rockchip_pm_ops = {
 			   dw_mipi_dsi2_runtime_resume, NULL)
 };
 
+static const u32 rk3576_dsi_grf_reg_fields[MAX_FIELDS] = {
+	[TXREQCLKHS_EN]		= GRF_REG_FIELD(0x0028, 1, 1),
+	[GATING_EN]		= GRF_REG_FIELD(0x0028, 0, 0),
+	[IPI_SHUTDN]		= GRF_REG_FIELD(0x0028, 3, 3),
+	[IPI_COLORM]		= GRF_REG_FIELD(0x0028, 2, 2),
+	[IPI_COLOR_DEPTH]	= GRF_REG_FIELD(0x0028, 8, 11),
+	[IPI_FORMAT]		= GRF_REG_FIELD(0x0028, 4, 7),
+};
+
 static const u32 rk3588_dsi0_grf_reg_fields[MAX_FIELDS] = {
 	[TXREQCLKHS_EN]		= GRF_REG_FIELD(0x0000, 11, 11),
 	[GATING_EN]		= GRF_REG_FIELD(0x0000, 10, 10),
@@ -1841,7 +1852,15 @@ static const u32 rk3588_dsi1_grf_reg_fields[MAX_FIELDS] = {
 	[IPI_FORMAT]		= GRF_REG_FIELD(0x0004,  0,  3),
 };
 
+static const struct dw_mipi_dsi2_plat_data rk3576_mipi_dsi2_plat_data = {
+	.dsc = false,
+	.dsi0_grf_reg_fields = rk3576_dsi_grf_reg_fields,
+	.dphy_max_bit_rate_per_lane = 2500000000ULL,
+	.cphy_max_symbol_rate_per_lane = 1700000000ULL,
+};
+
 static const struct dw_mipi_dsi2_plat_data rk3588_mipi_dsi2_plat_data = {
+	.dsc = true,
 	.dsi0_grf_reg_fields = rk3588_dsi0_grf_reg_fields,
 	.dsi1_grf_reg_fields = rk3588_dsi1_grf_reg_fields,
 	.dphy_max_bit_rate_per_lane = 4500000000ULL,
@@ -1850,6 +1869,9 @@ static const struct dw_mipi_dsi2_plat_data rk3588_mipi_dsi2_plat_data = {
 
 static const struct of_device_id dw_mipi_dsi2_dt_ids[] = {
 	{
+		.compatible = "rockchip,rk3576-mipi-dsi2",
+		.data = &rk3576_mipi_dsi2_plat_data,
+	}, {
 		.compatible = "rockchip,rk3588-mipi-dsi2",
 		.data = &rk3588_mipi_dsi2_plat_data,
 	},
