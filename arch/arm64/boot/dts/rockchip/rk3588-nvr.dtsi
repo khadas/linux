@@ -130,7 +130,7 @@
 };
 
 &display_subsystem {
-	clocks = <&hdptxphy_hdmi_clk0>, <&hdptxphy_hdmi_clk1>;
+	clocks = <&hdptxphy_hdmi0>, <&hdptxphy_hdmi0>;
 	clock-names = "hdmi0_phy_pll", "hdmi1_phy_pll";
 };
 
@@ -146,14 +146,6 @@
 &gpu {
 	mali-supply = <&vdd_gpu_s0>;
 	mem-supply = <&vdd_gpu_mem_s0>;
-	status = "okay";
-};
-
-&hdptxphy_hdmi_clk0 {
-	status = "okay";
-};
-
-&hdptxphy_hdmi_clk1 {
 	status = "okay";
 };
 
