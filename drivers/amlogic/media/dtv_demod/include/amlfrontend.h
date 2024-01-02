@@ -129,6 +129,7 @@
 /*  V2.2.019 support dtmb 6M BW */
 /*  V2.2.020 fix atsc-c signal strength issue */
 /*  V2.2.021 fix dvbt overflow when 6M 1/4 and other param */
+/*  V2.2.022 Calibrate DVBC signal strength read from R842 */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -145,8 +146,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V2.2.021"
-#define DTVDEMOD_VER	"2023/12/19: fix dvbt overflow when 6M 1/4 and other param"
+#define AMLDTVDEMOD_VER "V2.2.022"
+#define DTVDEMOD_VER	"2024/01/03: Calibrate DVBC signal strength read from R842"
 #define AMLDTVDEMOD_T2_FW_VER "20231019_141000"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

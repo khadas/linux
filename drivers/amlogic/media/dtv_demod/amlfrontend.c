@@ -701,23 +701,14 @@ static int gxtv_demod_dvbc_read_signal_strength(struct dvb_frontend *fe,
 		s16 *strength)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
-	unsigned int agc_gain = 0;
 
 	*strength = (s16)tuner_get_ch_power(fe);
 	if (tuner_find_by_name(fe, "r842") ||
 		tuner_find_by_name(fe, "r836") ||
-		tuner_find_by_name(fe, "r850")) {
-		*strength += 22;
-
-		if (*strength <= -80) {
-			agc_gain = qam_read_reg(demod, 0x27) & 0x7ff;
-			*strength = (s16)dvbc_get_power_strength(agc_gain, *strength);
-		}
-
-		*strength += 10;
-	} else if (tuner_find_by_name(fe, "mxl661")) {
+		tuner_find_by_name(fe, "r850"))
+		*strength += 6;
+	else if (tuner_find_by_name(fe, "mxl661"))
 		*strength += 3;
-	}
 
 	PR_DVBC("demod [id %d] signal strength %d dBm\n", demod->id, *strength);
 
