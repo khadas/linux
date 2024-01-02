@@ -293,6 +293,7 @@ struct rk628 {
 	struct mipi_timing mipi_timing[2];
 	struct mutex rst_lock;
 	int tx_mode;
+	struct dentry *debug_dir;
 };
 
 static inline int rk628_i2c_write(struct rk628 *rk628, u32 reg, u32 val)
@@ -333,5 +334,6 @@ void rk628_post_process_en(struct rk628 *rk628,
 			   struct videomode *dst,
 			   u64 *dst_pclk);
 void rk628_version_parse(struct rk628 *rk628);
+void rk628_debugfs_create(struct rk628 *rk628);
 
 #endif

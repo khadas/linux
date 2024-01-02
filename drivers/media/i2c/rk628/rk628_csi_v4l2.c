@@ -2821,6 +2821,8 @@ static int rk628_csi_probe(struct i2c_client *client,
 		goto err_work_queues;
 	}
 	csi->rk628->dual_mipi = false;
+	rk628_debugfs_create(csi->rk628);
+
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
 		  client->addr << 1, client->adapter->name);
 
@@ -2844,6 +2846,7 @@ static int rk628_csi_remove(struct i2c_client *client)
 {
 	struct rk628_csi *csi = i2c_get_clientdata(client);
 
+	debugfs_remove_recursive(csi->rk628->debug_dir);
 	if (!csi->hdmirx_irq) {
 		del_timer_sync(&csi->timer);
 		flush_work(&csi->work_i2c_poll);
