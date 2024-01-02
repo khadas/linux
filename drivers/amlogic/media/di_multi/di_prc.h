@@ -370,6 +370,7 @@ void dim_dbg_dct_info(struct dcntr_mem_s *pprecfg);
 void dct_pre_prob(struct platform_device *pdev);
 void dct_pre_remove(struct platform_device *pdev);
 void dct_pre_plink_reg(struct di_ch_s *pch);
+bool dct_can_exit(unsigned int ch);
 
 int dct_pre_ch_show(struct seq_file *s, void *v);
 int dct_pre_reg_show(struct seq_file *s, void *v);

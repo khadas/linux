@@ -2031,7 +2031,8 @@ bool dim_process_unreg(struct di_ch_s *pch)
 		ret = true;
 		break;
 	case EDI_TOP_STATE_UNREG_STEP1:
-		if (dpre_can_exit(ch) && dpst_can_exit(ch)) {
+		if (dpre_can_exit(ch) && dpst_can_exit(ch) &&
+			dct_can_exit(ch)) {
 			dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP2);
 			set_reg_flag(ch, false);
 			set_reg_setting(ch, false);
