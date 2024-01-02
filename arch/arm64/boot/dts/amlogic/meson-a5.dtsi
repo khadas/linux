@@ -488,7 +488,7 @@
 		power-domain-names = "dspa";
 		dsp_clk_freqs = <800000000>;
 		dspsrambase = <0xf7030000>;
-		dspsramsize = <0x3A0000>;
+		dspsramsize = <0x1D0000>;
 		status = "okay";
 	};
 

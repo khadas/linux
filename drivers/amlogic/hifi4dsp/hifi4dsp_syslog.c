@@ -44,14 +44,15 @@ unsigned int show_logbuff_log(struct dsp_ring_buffer *rb, int dspid,
 {
 	char buffer[DSP_LOGBUFF_PRINT_LEN + 1] = {0};
 	unsigned int count = 0;
+	char *ringbuff;
 
 	if (!rb || !len)
 		return 0;
 	else if (len > DSP_LOGBUFF_PRINT_LEN)
 		len = DSP_LOGBUFF_PRINT_LEN;
-
+	ringbuff = rb->buffer;
 	while (len--) {
-		buffer[count++] = rb->buffer[rb->headr++];
+		buffer[count++] =  *(ringbuff + rb->headr++);
 		rb->headr %= rb->size;
 	}
 	buffer[count] = '\0';
