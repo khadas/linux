@@ -1948,6 +1948,9 @@ static void rkisp_start_3a_run(struct rkisp_device *dev)
 		return;
 
 	v4l2_event_queue(vdev, &ev);
+	/* thunderboot no need to wait aiq first param */
+	if (dev->is_pre_on)
+		return;
 	/* rk3326/px30 require first params queued before
 	 * rkisp_params_configure_isp() called
 	 */
