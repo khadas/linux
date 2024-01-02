@@ -82,9 +82,6 @@ struct uvc_request {
 	struct sg_table sgt;
 	u8 header[UVCG_REQUEST_HEADER_LEN];
 	struct uvc_buffer *last_buf;
-#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
-	struct completion req_done;
-#endif
 };
 
 struct uvc_video {

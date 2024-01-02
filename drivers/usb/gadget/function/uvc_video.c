@@ -33,42 +33,11 @@ static bool uvc_using_zero_copy(struct uvc_video *video)
 	else
 		return false;
 }
-
-static void uvc_wait_req_complete(struct uvc_video *video, struct uvc_request *ureq)
-{
-	unsigned long flags;
-	struct usb_request *req;
-	int ret;
-
-	spin_lock_irqsave(&video->req_lock, flags);
-
-	list_for_each_entry(req, &video->req_free, list) {
-		if (req == ureq->req)
-			break;
-	}
-
-	if (req != ureq->req) {
-		reinit_completion(&ureq->req_done);
-
-		spin_unlock_irqrestore(&video->req_lock, flags);
-		ret = wait_for_completion_timeout(&ureq->req_done,
-						  msecs_to_jiffies(500));
-		if (ret == 0)
-			uvcg_warn(&video->uvc->func,
-				  "timed out waiting for req done\n");
-		return;
-	}
-
-	spin_unlock_irqrestore(&video->req_lock, flags);
-}
 #else
 static inline bool uvc_using_zero_copy(struct uvc_video *video)
 {
 	return false;
 }
-
-static inline void uvc_wait_req_complete(struct uvc_video *video, struct uvc_request *ureq)
-{ }
 #endif
 
 /* --------------------------------------------------------------------------
@@ -355,9 +324,6 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 
 	spin_lock_irqsave(&video->req_lock, flags);
 	list_add_tail(&req->list, &video->req_free);
-#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
-	complete(&ureq->req_done);
-#endif
 	spin_unlock_irqrestore(&video->req_lock, flags);
 
 	if (uvc->state == UVC_STATE_STREAMING)
@@ -374,7 +340,6 @@ uvc_video_free_requests(struct uvc_video *video)
 			sg_free_table(&video->ureq[i].sgt);
 
 			if (video->ureq[i].req) {
-				uvc_wait_req_complete(video, &video->ureq[i]);
 				usb_ep_free_request(video->ep, video->ureq[i].req);
 				video->ureq[i].req = NULL;
 			}
@@ -432,9 +397,6 @@ uvc_video_alloc_requests(struct uvc_video *video)
 		video->ureq[i].video = video;
 		video->ureq[i].last_buf = NULL;
 
-#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
-		init_completion(&video->ureq[i].req_done);
-#endif
 		list_add_tail(&video->ureq[i].req->list, &video->req_free);
 		/* req_size/PAGE_SIZE + 1 for overruns and + 1 for header */
 		sg_alloc_table(&video->ureq[i].sgt,
