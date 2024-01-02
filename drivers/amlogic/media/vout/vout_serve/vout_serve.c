@@ -310,12 +310,6 @@ int set_vout_mode(char *name)
 	vout_trim_string(name);
 	VOUTPR("vmode set to %s\n", name);
 
-	if ((vout_check_same_vmodeattr(name) &&
-	    (strcmp(name, vout_mode) == 0))) {
-		VOUTPR("don't set the same mode as current, exit\n");
-		return -1;
-	}
-
 	memset(local_name, 0, sizeof(local_name));
 	snprintf(local_name, VMODE_NAME_LEN_MAX, "%s", name);
 	frac = vout_parse_vout_name(local_name);
