@@ -3274,8 +3274,10 @@ void dw_hdmi_qp_cec_set_hpd(struct dw_hdmi_qp *hdmi, bool plug_in, bool change)
 					   CEC_PHYS_ADDR_INVALID);
 
 	if (hdmi->bridge.dev) {
+#if IS_REACHABLE(CONFIG_DRM_DW_HDMI_CEC)
 		if (change && hdmi->cec_adap && hdmi->cec_adap->devnode.registered)
 			cec_queue_pin_hpd_event(hdmi->cec_adap, plug_in, ktime_get());
+#endif
 		drm_bridge_hpd_notify(&hdmi->bridge, status);
 	}
 }
