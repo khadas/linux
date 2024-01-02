@@ -55,6 +55,12 @@ struct aml_audio_ctrl_ops aml_actrl_mmio_ops = {
 	.update_bits	= aml_audio_mmio_update_bits,
 };
 
+static struct regmap_config aml_audio_regmap_config = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_stride = 4,
+};
+
 struct gate_info {
 	bool clk1_gate_off;
 };
@@ -82,34 +88,47 @@ static const struct of_device_id amlogic_audio_controller_of_match[] = {
 static int register_audio_controller(struct platform_device *pdev,
 				     struct aml_audio_controller *actrl)
 {
-	struct regmap *audioio_regmap, *acc_regmap;
+	struct resource *res_mem;
+	void __iomem *regs;
+	struct regmap *regmap;
+	struct regmap *acc_regmap;
 	struct gate_info *info = (struct gate_info *)of_device_get_match_data(&pdev->dev);
 
-	audioio_regmap = regmap_resource(&pdev->dev, "audio_bus");
-	acc_regmap = regmap_resource(&pdev->dev, "audio_acc");
-	if (IS_ERR(audioio_regmap))
-		return PTR_ERR(audioio_regmap);
+	/* get platform res from dtb */
+	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res_mem)
+		return -ENOENT;
 
-	/* init aml audio bus mmio controller */
-	actrl->audioio_regmap = audioio_regmap;
+	regs = ioremap(res_mem->start, resource_size(res_mem));
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
+
+	acc_regmap = regmap_resource(&pdev->dev, "audio_acc");
 	if (!IS_ERR(acc_regmap))
 		actrl->acc_regmap = acc_regmap;
 	else
 		actrl->acc_regmap = NULL;
 
+	aml_audio_regmap_config.max_register = 4 * resource_size(res_mem);
+
+	regmap = devm_regmap_init_mmio(&pdev->dev, regs,
+				       &aml_audio_regmap_config);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	actrl->audioio_regmap = regmap;
 	actrl->ops = &aml_actrl_mmio_ops;
+
+	if (!IS_ERR(acc_regmap))
+		aml_acc_write(actrl, AUDIO_ACC_CLK_GATE_EN, 0xff);
 
 	platform_set_drvdata(pdev, actrl);
 
 	/* gate on all clks on bringup stage, need gate separately */
 	aml_audiobus_write(actrl, EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
 
-	if (!IS_ERR(acc_regmap))
-		aml_acc_write(actrl, AUDIO_ACC_CLK_GATE_EN, 0xff);
-
 	if (info && !info->clk1_gate_off)
 		aml_audiobus_update_bits(actrl, EE_AUDIO_CLK_GATE_EN1, 0xffffffff, 0xffffffff);
-
 	return 0;
 }
 

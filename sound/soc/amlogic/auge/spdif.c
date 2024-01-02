@@ -153,6 +153,7 @@ static void spdif_sharebuffer_prepare(struct snd_pcm_substream *substream,
 	bool valid = aml_check_sharebuffer_valid(p_spdif->fddr,
 			p_spdif->samesource_sel);
 	struct samesrc_ops *ops = NULL;
+	struct clk *clk = p_spdif->sysclk;
 
 	if (!valid)
 		return;
@@ -168,10 +169,13 @@ static void spdif_sharebuffer_prepare(struct snd_pcm_substream *substream,
 				1,
 				p_spdif->chipinfo->separate_tohdmitx_en
 				);
-
+		if ((p_spdif->standard_sysclk % 11025 == 0) &&
+			!IS_ERR(p_spdif->clk_src_cd)) {
+			clk = p_spdif->clk_src_cd;
+		}
 		if (ops->set_clks)
 			ops->set_clks(p_spdif->samesource_sel,
-				p_spdif->sysclk,
+				clk,
 				p_spdif->sysclk_freq, 1);
 	}
 }
