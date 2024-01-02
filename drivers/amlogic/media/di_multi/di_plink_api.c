@@ -9304,6 +9304,7 @@ int set_holdreg_by_in_out(struct vframe_s *vfm, struct pvpp_dis_para_in_s *in_pa
 			in_para->vinfo.y_d_size / in_para->vinfo.x_d_size;
 	if (screen_ratio < MAX_SCREEN_RATIO) {
 		op->wr(DI_PRE_HOLD, 0x0);
+		ctrl->last_clk_level = -1;
 		dbg_plink1("screen_ratio oversize no need set hold reg\n");
 		return ret;
 	}
