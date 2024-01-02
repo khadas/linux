@@ -52,6 +52,7 @@
 	_IOW('V', BASE_VIDIOC_PRIVATE + 11, long long)
 
 /* BASE_VIDIOC_PRIVATE + 12 for RKISP_CMD_GET_TB_HEAD_V32 */
+/* BASE_VIDIOC_PRIVATE + 14 for RKISP_CMD_SET_TB_HEAD_V32 */
 
 /* for all isp device stop and no power off but resolution change */
 #define RKISP_CMD_MULTI_DEV_FORCE_ENUM \
