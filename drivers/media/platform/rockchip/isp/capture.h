@@ -342,4 +342,5 @@ int rkisp_fop_release(struct file *file);
 int rkisp_get_tb_stream_info(struct rkisp_stream *stream,
 			     struct rkisp_tb_stream_info *info);
 int rkisp_free_tb_stream_buf(struct rkisp_stream *stream);
+int rkisp_stream_buf_cnt(struct rkisp_stream *stream);
 #endif /* _RKISP_PATH_VIDEO_H */

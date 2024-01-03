@@ -833,6 +833,7 @@ static int isp_show(struct seq_file *p, void *v)
 	struct rkisp_device *dev = p->private;
 	struct rkisp_isp_subdev *sdev = &dev->isp_sdev;
 	struct rkisp_sensor_info *sensor = dev->active_sensor;
+	struct rkisp_stream *stream;
 	u32 val = 0;
 
 	seq_printf(p, "%-10s Version:v%02x.%02x.%02x\n",
@@ -864,7 +865,9 @@ static int isp_show(struct seq_file *p, void *v)
 		return 0;
 
 	if (IS_HDR_RDBK(dev->hdr.op_mode)) {
-		seq_printf(p, "%-10s mode:frame%d (frame:%d rate:%dms %s time:%dms frameloss:%d) cnt(total:%d X1:%d X2:%d X3:%d)\n",
+		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2];
+		seq_printf(p, "%-10s mode:frame%d (frame:%d rate:%dms state:%s time:%dms frameloss:%d)"
+			   " cnt(total:%d X1:%d X2:%d X3:%d) rd_bufcnt:%d\n",
 			   "Isp Read",
 			   dev->rd_mode - 3,
 			   dev->dmarx_dev.cur_frame.id,
@@ -875,12 +878,13 @@ static int isp_show(struct seq_file *p, void *v)
 			   dev->rdbk_cnt,
 			   dev->rdbk_cnt_x1,
 			   dev->rdbk_cnt_x2,
-			   dev->rdbk_cnt_x3);
+			   dev->rdbk_cnt_x3,
+			   rkisp_stream_buf_cnt(stream));
 		seq_printf(p, "\t   hw link:%d idle:%d vir(mode:%d index:%d)\n",
 			   dev->hw_dev->dev_link_num, dev->hw_dev->is_idle,
 			   dev->multi_mode, dev->multi_index);
 	} else {
-		seq_printf(p, "%-10s frame:%d %s time:%dms v-blank:%dus\n",
+		seq_printf(p, "%-10s frame:%d state:%s time:%dms v-blank:%dus\n",
 			   "Isp online",
 			   sdev->dbg.id,
 			   (dev->isp_state & ISP_FRAME_END) ? "idle" : "working",
@@ -899,11 +903,11 @@ static int isp_show(struct seq_file *p, void *v)
 			   dev->br_dev.dbg.interval / 1000 / 1000,
 			   dev->br_dev.dbg.frameloss);
 	for (val = 0; val < RKISP_MAX_STREAM; val++) {
-		struct rkisp_stream *stream = &dev->cap_dev.stream[val];
-
+		stream = &dev->cap_dev.stream[val];
 		if (!stream->streaming)
 			continue;
-		seq_printf(p, "%-10s %s Format:%c%c%c%c Size:%dx%d Dcrop(%d,%d|%dx%d) (frame:%d rate:%dms delay:%dms frameloss:%d)\n",
+		seq_printf(p, "%-10s %s Format:%c%c%c%c Size:%dx%d Dcrop(%d,%d|%dx%d)"
+			   " (frame:%d rate:%dms delay:%dms frameloss:%d bufcnt:%d)\n",
 			   "Output",
 			   stream->vnode.vdev.name,
 			   stream->out_fmt.pixelformat,
@@ -919,7 +923,8 @@ static int isp_show(struct seq_file *p, void *v)
 			   stream->dbg.id,
 			   stream->dbg.interval / 1000 / 1000,
 			   stream->dbg.delay / 1000 / 1000,
-			   stream->dbg.frameloss);
+			   stream->dbg.frameloss,
+			   rkisp_stream_buf_cnt(stream));
 	}
 
 	switch (dev->isp_ver) {

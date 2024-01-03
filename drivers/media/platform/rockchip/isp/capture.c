@@ -475,6 +475,23 @@ void rkisp_stream_buf_done_early(struct rkisp_device *dev)
 	}
 }
 
+int rkisp_stream_buf_cnt(struct rkisp_stream *stream)
+{
+	unsigned long lock_flags = 0;
+	struct rkisp_buffer *buf, *tmp;
+	int cnt = 0;
+
+	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+	list_for_each_entry_safe(buf, tmp, &stream->buf_queue, queue)
+		cnt++;
+	if (stream->curr_buf)
+		cnt++;
+	if (stream->next_buf && stream->next_buf != stream->curr_buf)
+		cnt++;
+	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+	return cnt;
+}
+
 struct stream_config rkisp_mp_stream_config = {
 	/* constraints */
 	.max_rsz_width = STREAM_MAX_MP_RSZ_OUTPUT_WIDTH,
