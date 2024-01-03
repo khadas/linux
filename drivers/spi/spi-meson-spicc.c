@@ -1225,6 +1225,9 @@ static int dirspi_dma_trig_start(struct spi_device *spi)
 	struct meson_spicc_device *spicc;
 
 	spicc = spi_controller_get_devdata(spi->controller);
+	writel_bits_relaxed(SPICC_FIFORST_MASK,
+			    FIELD_PREP(SPICC_FIFORST_MASK, 3),
+			    spicc->base + SPICC_TESTREG);
 	writel_bits_relaxed(SPICC_SMC, SPICC_SMC, spicc->base + SPICC_CONREG);
 	writel_bits_relaxed(DMA_EN_SET_BY_VSYNC, DMA_EN_SET_BY_VSYNC,
 			    spicc->base + SPICC_LD_CNTL0);
@@ -1235,11 +1238,25 @@ static int dirspi_dma_trig_start(struct spi_device *spi)
 static int dirspi_dma_trig_stop(struct spi_device *spi)
 {
 	struct meson_spicc_device *spicc;
+	int retry = 100000;
+	u32 dma, sta;
 
 	spicc = spi_controller_get_devdata(spi->controller);
+	while (retry--) {
+		dma = readl_relaxed(spicc->base + SPICC_DMAREG);
+		sta = readl_relaxed(spicc->base + SPICC_STATREG);
+		if (((dma & SPICC_DMA_ENABLE) == 0) &&
+		   (sta & SPICC_TC) && (sta & SPICC_TE))
+			break;
+		udelay(1);
+	}
+
 	writel_bits_relaxed(DMA_EN_SET_BY_VSYNC, 0,
 			    spicc->base + SPICC_LD_CNTL0);
 	writel_bits_relaxed(SPICC_SMC, 0, spicc->base + SPICC_CONREG);
+
+	if (!retry)
+		dev_warn(&spicc->pdev->dev, "dma_en always on\n");
 
 	return 0;
 }
@@ -1562,34 +1579,17 @@ static int meson_spicc_probe(struct platform_device *pdev)
 
 	ctlr->num_chipselect = 4;
 	ctlr->dev.of_node = pdev->dev.of_node;
-#ifdef CONFIG_AMLOGIC_MODIFY
 	ctlr->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH | SPI_LOOP;
 	if (spicc->data->has_endian_ctrl)
 		ctlr->mode_bits |= SPI_LSB_FIRST;
-#else
-	ctlr->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH;
-	ctlr->bits_per_word_mask = SPI_BPW_MASK(32) |
-				     SPI_BPW_MASK(24) |
-				     SPI_BPW_MASK(16) |
-				     SPI_BPW_MASK(8);
-	ctlr->flags = (SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX);
-#endif
-	ctlr->flags = (SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX);
+	ctlr->flags = SPI_CONTROLLER_MUST_TX;
 	ctlr->setup = meson_spicc_setup;
 	ctlr->cleanup = meson_spicc_cleanup;
 	ctlr->prepare_message = meson_spicc_prepare_message;
 	ctlr->unprepare_transfer_hardware = meson_spicc_unprepare_transfer;
 	ctlr->transfer_one = meson_spicc_transfer_one;
 	/* Setup max rate according to the Meson GX datasheet */
-#ifdef CONFIG_AMLOGIC_MODIFY
 	ctlr->max_speed_hz = spicc->data->max_speed_hz;
-#else
-	if ((rate >> 2) > SPICC_MAX_FREQ)
-		ctlr->max_speed_hz = SPICC_MAX_FREQ;
-	else
-		ctlr->max_speed_hz = rate >> 2;
-#endif
-
 	ret = devm_spi_register_master(&pdev->dev, ctlr);
 	if (ret) {
 		dev_err(&pdev->dev, "spi controller registration failed\n");
