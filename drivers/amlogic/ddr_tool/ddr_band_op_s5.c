@@ -147,7 +147,8 @@ static unsigned long s5_get_dmc_freq_quick(struct ddr_bandwidth *db)
 static void s5_dmc_bandwidth_enable(struct ddr_bandwidth *db)
 {
 	void *io;
-	unsigned int i, val;
+	unsigned int i;
+	unsigned long val;
 
 	for (i = 0; i < db->dmc_number; i++) {
 		switch (i) {
@@ -167,7 +168,7 @@ static void s5_dmc_bandwidth_enable(struct ddr_bandwidth *db)
 			break;
 		}
 
-		val = db->mode << 31;
+		val = db->mode ? BIT(31) | DMC_QOS_IRQ : DMC_QOS_IRQ;
 		val |= (readl(io + DMC_MON_CTRL0) & ~BIT(31));
 		writel(val, io + DMC_MON_CTRL0);
 	}
@@ -234,30 +235,25 @@ static int s5_handle_irq(struct ddr_bandwidth *db, struct ddr_grant *dg)
 		}
 
 		val = readl(io + DMC_MON_CTRL0);
-		if (val & DMC_QOS_IRQ) {
-			/*
-			 * get total bytes by each channel, each cycle 16 bytes;
-			 */
-			dg->all_grant    += readl(io + DMC_MON_ALL_BW);
-			dg->all_grant16  += readl(io + DMC_MON_ALL16_BW);
-			for (i = 0; i < db->channels; i++) {
-				off = i * 16 + DMC_MON0_BW;
-				dg->channel_grant[i] += readl(io + off);
-			}
-			ret = 0;
+		/*
+		 * get total bytes by each channel, each cycle 16 bytes;
+		 */
+		dg->all_grant    += readl(io + DMC_MON_ALL_BW);
+		dg->all_grant16  += readl(io + DMC_MON_ALL16_BW);
+		for (i = 0; i < db->channels; i++) {
+			off = i * 16 + DMC_MON0_BW;
+			dg->channel_grant[i] += readl(io + off);
 		}
+		ret = 0;
 	}
+	/* clear irq flags */
+	s5_dmc_bandwidth_enable(db);
 
-	if (!ret) {
-		/* clear irq flags */
-		s5_dmc_bandwidth_enable(db);
-
-		/* each register */
-		dg->all_grant   *= 16;
-		dg->all_grant16 *= 16;
-		for (i = 0; i < db->channels; i++)
-			dg->channel_grant[i] *= 16;
-	}
+	/* each register */
+	dg->all_grant   *= 16;
+	dg->all_grant16 *= 16;
+	for (i = 0; i < db->channels; i++)
+		dg->channel_grant[i] *= 16;
 
 	return ret;
 }
