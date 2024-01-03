@@ -1072,8 +1072,10 @@ static void rkisp_rdbk_work(struct work_struct *work)
 
 void rkisp_check_idle(struct rkisp_device *dev, u32 irq)
 {
+	unsigned long lock_flags = 0;
 	u32 val = 0;
 
+	spin_lock_irqsave(&dev->hw_dev->rdbk_lock, lock_flags);
 	dev->irq_ends |= (irq & dev->irq_ends_mask);
 	v4l2_dbg(3, rkisp_debug, &dev->v4l2_dev,
 		 "%s irq:0x%x ends:0x%x mask:0x%x\n",
@@ -1085,8 +1087,11 @@ void rkisp_check_idle(struct rkisp_device *dev, u32 irq)
 			complete(&dev->hw_dev->monitor.cmpl);
 	}
 	if ((dev->irq_ends & dev->irq_ends_mask) != dev->irq_ends_mask ||
-	    !IS_HDR_RDBK(dev->rd_mode))
+	    !IS_HDR_RDBK(dev->rd_mode)) {
+		spin_unlock_irqrestore(&dev->hw_dev->rdbk_lock, lock_flags);
 		return;
+	}
+	spin_unlock_irqrestore(&dev->hw_dev->rdbk_lock, lock_flags);
 
 	if (dev->sw_rd_cnt)
 		goto end;
