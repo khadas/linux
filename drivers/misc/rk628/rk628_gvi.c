@@ -278,7 +278,6 @@ void rk628_gvi_enable(struct rk628 *rk628)
 	rk628_panel_prepare(rk628);
 	rk628_gvi_enable_color_bar(rk628, gvi);
 	rk628_gvi_post_enable(rk628, gvi);
-	rk628_panel_enable(rk628);
 
 	for (i = 0; i < 100; i++) {
 		rk628_i2c_read(rk628, GVI_STATUS, &val);
@@ -299,6 +298,7 @@ void rk628_gvi_enable(struct rk628 *rk628)
 		dev_info(rk628->dev, "GVI Lock failed, please check hardware!\n");
 		return;
 	}
+	rk628_panel_enable(rk628);
 
 	if (i != 100)
 		gvi->retry_times = 0;
