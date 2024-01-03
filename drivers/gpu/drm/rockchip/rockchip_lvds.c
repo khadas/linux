@@ -494,7 +494,8 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	struct rockchip_lvds *lvds = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
 	struct drm_encoder *encoder = &lvds->encoder;
-	struct drm_connector *connector = &lvds->connector;
+	struct drm_connector *connector = NULL;
+	struct rockchip_drm_private *private = drm_dev->dev_private;
 	int ret;
 
 	/*
@@ -522,8 +523,7 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	drm_encoder_helper_add(encoder, &rockchip_lvds_encoder_helper_funcs);
 
 	if (lvds->panel) {
-		struct rockchip_drm_private *private = drm_dev->dev_private;
-
+		connector = &lvds->connector;
 		ret = drm_connector_init(drm_dev, connector,
 					 &rockchip_lvds_connector_funcs,
 					 DRM_MODE_CONNECTOR_LVDS);
@@ -551,19 +551,29 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 				      "failed to attach encoder: %d\n", ret);
 			goto err_free_connector;
 		}
-
-		lvds->sub_dev.connector = &lvds->connector;
-		lvds->sub_dev.of_node = lvds->dev->of_node;
-		lvds->sub_dev.loader_protect = rockchip_lvds_encoder_loader_protect;
-		rockchip_drm_register_sub_dev(&lvds->sub_dev);
-		drm_object_attach_property(&connector->base, private->connector_id_prop, 0);
 	} else {
+		struct list_head *connector_list;
+
 		ret = drm_bridge_attach(encoder, lvds->bridge, NULL, 0);
 		if (ret) {
 			DRM_DEV_ERROR(lvds->dev,
 				      "failed to attach bridge: %d\n", ret);
 			goto err_free_encoder;
 		}
+		connector_list = &lvds->bridge->dev->mode_config.connector_list;
+
+		list_for_each_entry(connector, connector_list, head)
+			if (drm_connector_has_possible_encoder(connector, &lvds->encoder))
+				break;
+
+	}
+
+	if (connector) {
+		lvds->sub_dev.connector = connector;
+		lvds->sub_dev.of_node = lvds->dev->of_node;
+		lvds->sub_dev.loader_protect = rockchip_lvds_encoder_loader_protect;
+		drm_object_attach_property(&connector->base, private->connector_id_prop, lvds->id);
+		rockchip_drm_register_sub_dev(&lvds->sub_dev);
 	}
 
 	return 0;
