@@ -167,6 +167,8 @@
 };
 
 &cpu0_opp_table {
+	rockchip,low-temp-min-volt = <1000000>;
+
 	opp-408000000 {
 	/delete-property/ opp-suspend;
 	};
