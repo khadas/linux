@@ -688,10 +688,10 @@ struct vdin_vrr_s {
 	unsigned int vrr_mode;
 	/* vrr_en in frame_lock_policy */
 	bool frame_lock_vrr_en;
-	/* vrr states may changed only once and recovery quickly
-	 * app may get wrong state if from prop.spd_data[5]
-	 */
-	u8 cur_spd_data5;
+	/* app get this status */
+	enum vdin_vrr_mode_e pre_vrr_status;
+	/* driver detect status */
+	enum vdin_vrr_mode_e cur_vrr_status;
 };
 
 /* scatter start */

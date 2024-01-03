@@ -6052,26 +6052,35 @@ bool vdin_check_is_spd_data(struct vdin_dev_s *devp)
 		return false;
 }
 
+bool vdin_is_freesync_head(struct tvin_spd_data_s *spd_data)
+{
+	if (!spd_data)
+		return false;
+
+	if (spd_data->data[0] == 0x1A &&
+	    spd_data->data[1] == 0x00 &&
+	    spd_data->data[2] == 0x00)
+		return true;
+	else
+		return false;
+}
+
 bool vdin_check_spd_data_chg(struct vdin_dev_s *devp)
 {
 	if (!devp)
 		return false;
 
-	if ((devp->pre_prop.spd_data.data[0] == 0x1a &&
-	     devp->pre_prop.spd_data.data[1] == 0x00 &&
-	     devp->pre_prop.spd_data.data[2] == 0x00) ||
-	    (devp->prop.spd_data.data[0] == 0x1a &&
-	     devp->prop.spd_data.data[1] == 0x00 &&
-	     devp->prop.spd_data.data[2] == 0x00)) {
+	if (vdin_is_freesync_head(&devp->prop.spd_data) ||
+	    vdin_is_freesync_head(&devp->pre_prop.spd_data)) {
 		/* If freesync states changed or the current state is not the same as
 		 * application got before,report change event.
 		 */
 		if ((devp->pre_prop.spd_data.data[5] >> 2 & 0x3) !=
-		    (devp->prop.spd_data.data[5] >> 2 & 0x3) ||
-		    (devp->prop.spd_data.data[5] >> 2 & 0x3) !=
-		    (devp->vrr_data.cur_spd_data5 >> 2 & 0x3)) {
+		    (devp->prop.spd_data.data[5] >> 2 & 0x3)) {
 			return true;
 		}
+		if (devp->vrr_data.cur_vrr_status != devp->vrr_data.pre_vrr_status)
+			return true;
 	} else {
 		return false;
 	}
@@ -7009,11 +7018,10 @@ enum vdin_vrr_mode_e get_cur_vrr_status(struct vdin_dev_s *devp)
 		sync_duration_val = vinfo->sync_duration_num / vinfo->sync_duration_den;
 	}
 
-	freesync_type = devp->vrr_data.cur_spd_data5 >> 2 & 0x3;
+	freesync_type = devp->pre_prop.spd_data.data[5] >> 2 & 0x3;
 	if (devp->prop.vtem_data.vrr_en) {
-		devp->vrr_data.cur_spd_data5 = 0;
 		ret = VDIN_VRR_BASIC;
-	} else if (vdin_check_is_spd_data(devp) && freesync_type) {
+	} else if (vdin_is_freesync_head(&devp->pre_prop.spd_data) && freesync_type) {
 		if ((freesync_type == 1 || freesync_type == 2) &&
 		    sync_duration_val < 120)
 			ret = VDIN_VRR_FREESYNC;
@@ -7022,6 +7030,8 @@ enum vdin_vrr_mode_e get_cur_vrr_status(struct vdin_dev_s *devp)
 			ret = VDIN_VRR_FREESYNC_PREMIUM;
 		else if (freesync_type == 3)
 			ret = VDIN_VRR_FREESYNC_PREMIUM_PRO;
+		else
+			ret = VDIN_VRR_FREESYNC;
 	} else {
 		ret = VDIN_VRR_OFF;
 	}
