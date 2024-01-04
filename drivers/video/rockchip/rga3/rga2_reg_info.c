@@ -870,6 +870,7 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 
 	u8 dst_fmt_yuv400_en = 0;
 	u8 dst_fmt_y4_en = 0;
+	u8 dst_fmt_y4_lut_en = 0;
 	u8 dst_nn_quantize_en = 0;
 
 	u32 reg = 0;
@@ -1193,6 +1194,15 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	case RGA_FORMAT_Y4:
 		dst_format = 0x8;
 		dst_fmt_y4_en = 1;
+		dst_fmt_y4_lut_en = 1;
+		dst_fmt_yuv400_en = 1;
+		x_div = 1;
+		y_div = 1;
+		break;
+
+	case RGA_FORMAT_Y8:
+		dst_format = 0x8;
+		dst_fmt_y4_lut_en = 1;
 		dst_fmt_yuv400_en = 1;
 		x_div = 1;
 		y_div = 1;
@@ -1306,7 +1316,8 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 	reg = ((reg & (~m_RGA2_DST_INFO_SW_DST_UVVDS_MODE)) |
 	       (s_RGA2_DST_INFO_SW_DST_UVVDS_MODE(msg->uvvds_mode)));
 
-	ydither_en = (msg->dst.format == RGA_FORMAT_Y4)
+	ydither_en = (msg->dst.format == RGA_FORMAT_Y4 ||
+		      msg->dst.format == RGA_FORMAT_Y8)
 		&& ((msg->alpha_rop_flag >> 6) & 0x1);
 
 	*bRGA_DST_INFO = reg;
@@ -1337,11 +1348,11 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
 			pr_err("ydither mode do not support y dir scale\n");
 	}
 
-	if (dst_fmt_y4_en) {
+	if (dst_fmt_y4_lut_en) {
 		*RGA_DST_Y4MAP_LUT0 = (msg->gr_color.gr_x_r & 0xffff) |
-			(msg->gr_color.gr_x_g << 16);
+				      (msg->gr_color.gr_x_g << 16);
 		*RGA_DST_Y4MAP_LUT1 = (msg->gr_color.gr_y_r & 0xffff) |
-			(msg->gr_color.gr_y_g << 16);
+				      (msg->gr_color.gr_y_g << 16);
 	}
 
 	if (dst_nn_quantize_en) {
@@ -2199,8 +2210,8 @@ static int rga2_gen_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct
 		RGA2_set_reg_dst_info(base, msg);
 		dst_nn_quantize_en = (msg->alpha_rop_flag >> 8) & 0x1;
 		if (dst_nn_quantize_en != 1) {
-			if ((msg->dst.format !=
-				RGA_FORMAT_Y4)) {
+			if ((msg->dst.format != RGA_FORMAT_Y4) &&
+			    (msg->dst.format != RGA_FORMAT_Y8)) {
 				RGA2_set_reg_alpha_info(base, msg);
 				RGA2_set_reg_rop_info(base, msg);
 			}
