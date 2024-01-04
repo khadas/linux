@@ -12,6 +12,8 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/of_device.h>
+#include <linux/io.h>
+#include <linux/delay.h>
 #include <linux/amlogic/scpi_protocol.h>
 
 #include "meson_mhu.h"
@@ -33,6 +35,7 @@ struct device *mhu_device;
 struct device *mhu_fifo_device;
 struct device *mhu_pl_device;
 u32 mhu_f;
+void __iomem *aocpu_tick_cnt_addr;
 
 #define CMD_ID_SHIFT		0
 #define CMD_ID_MASK		0xff
@@ -242,6 +245,35 @@ static void scpi_rx_callback(struct mbox_client *cl, void *msg)
 	complete(&scpi_buf->complete);
 }
 
+/*
+ * Check if the aocpu is alive
+ * return - 0: aocpu is alive
+ *        - 1: aocpu is not alive
+ */
+static int check_aocpu_status(void __iomem *sts_addr)
+{
+	u32 aocpu_tick_count_1;
+	u32 aocpu_tick_count_2;
+	int ret = -1;
+
+	if (!sts_addr)
+		return ret;
+
+	aocpu_tick_count_1 = readl(sts_addr);
+	pr_info("%s: aocpu_tick_count_1 = 0x%x\n", __func__,
+			aocpu_tick_count_1);
+	/* Sleep for 50 msec to let tick count update */
+	msleep(50);
+	aocpu_tick_count_2 = readl(sts_addr);
+	pr_info("%s: aocpu_tick_count_2 = 0x%x\n", __func__,
+			aocpu_tick_count_2);
+	if (aocpu_tick_count_1 != aocpu_tick_count_2)
+		ret = 0;
+	else
+		ret = 1;
+	return ret;
+}
+
 int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 		  bool high_priority, int c_chan)
 {
@@ -255,6 +287,7 @@ int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 	char *rx_buf = NULL;
 	unsigned long wait;
 	int ret;
+	int chk_ret;
 	int plhead_len = 0;
 	struct mhu_ctlr *mhu_ctlr;
 	struct platform_device *mhu_pdev;
@@ -399,9 +432,16 @@ int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 
 	wait = msecs_to_jiffies(MBOX_TIME_OUT);
 	ret = wait_for_completion_timeout(&scpi_buf->complete, wait);
-	if (ret == 0) {
-		pr_err("Warning: scpi wait ack time out %d\n", ret);
+	if (!ret) {
+		pr_err("Warning: scpi wait ack timeout %d\n", ret);
 		status = SCPI_ERR_TIMEOUT;
+		chk_ret = check_aocpu_status(aocpu_tick_cnt_addr);
+		if (chk_ret < 0)
+			pr_err("Info: aocpu status addr is NULL\n");
+		else if (chk_ret > 0)
+			pr_info("Info: aocpu is not alive\n");
+		else
+			pr_info("Info: aocpu is alive\n");
 		goto free_channel;
 	}
 
@@ -1314,6 +1354,7 @@ static int  mbox_message_send_common(struct mbox_client *cl,
 	struct mbox_chan *chan;
 	struct scpi_data_buf scpi_buf;
 	int ret = -1;
+	int chk_ret;
 
 	cl->rx_callback = scpi_rx_callback;
 	init_completion(&scpi_buf.complete);
@@ -1347,6 +1388,13 @@ static int  mbox_message_send_common(struct mbox_client *cl,
 	if (!ret) {
 		pr_err("Warning: scpi wait ack timeout\n");
 		ret = -SCPI_ERR_TIMEOUT;
+		chk_ret = check_aocpu_status(aocpu_tick_cnt_addr);
+		if (chk_ret < 0)
+			pr_err("Info: aocpu status addr is NULL\n");
+		else if (chk_ret > 0)
+			pr_info("Info: aocpu is not alive\n");
+		else
+			pr_info("Info: aocpu is alive\n");
 		goto freechannel;
 	}
 	mbox_free_channel(chan);

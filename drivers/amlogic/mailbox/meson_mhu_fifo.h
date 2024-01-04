@@ -53,6 +53,7 @@
 #define REV_MBOX_MASK		0xAA
 #define MBOX_IRQMASK		0xffffffff
 #define MBOX_IRQSHIFT		32
+#define AOCPU_TICK_RD_CHAN	4
 
 int __init aml_mhu_fifo_init(void);
 void aml_mhu_fifo_exit(void);

@@ -41,6 +41,7 @@ extern struct device *mhu_pl_device;
 extern struct device *mhu_sec_device;
 
 extern u32 mhu_f;
+extern void __iomem *aocpu_tick_cnt_addr;
 
 struct mhu_data_buf {
 	u32 cmd;

@@ -948,6 +948,8 @@ static int mhu_fifo_probe(struct platform_device *pdev)
 	}
 
 	mhu_fifo_device = dev;
+	aocpu_tick_cnt_addr = mhu_ctlr->mbox_rd_base +
+		PAYLOAD_OFFSET(AOCPU_TICK_RD_CHAN);
 	/*set mhu type*/
 	mhu_f |= MASK_MHU_FIFO;
 	pr_debug("mbox fifo probe done node:%pK, mhuf:0x%x\n",
