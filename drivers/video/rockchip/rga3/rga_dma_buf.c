@@ -133,6 +133,7 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 		pageCount = end - start;
 		break;
 	case RGA_FORMAT_YCbCr_400:
+	case RGA_FORMAT_Y8:
 		stride = (w + 3) & (~3);
 		size_yrgb = stride * h;
 		start = yrgb_addr >> PAGE_SHIFT;
