@@ -29,4 +29,11 @@ config WIFI_POWER_INIT_OFF
 		and on for android, but other system like yoctos might not fit this
 		strategy. We add a macro CONFIG_YOCTO_WIFI so WIFI can be inited power off
 		to handle dirrerent scenarios.
+
+config AMLOGIC_RFKILL_INIT_SW_UNBLOCK
+	bool "init rfkill sw unblock"
+	default n
+	help
+		Enable init rfkill sw unblock.
+ 		By default,rfkill sw is blocked and not inited.
 endif
