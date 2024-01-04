@@ -114,6 +114,7 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 	new_state->eotf_type_by_property = cur_state->eotf_type_by_property;
 	new_state->dv_mode = cur_state->dv_mode;
 	new_state->preset_vmode = VMODE_INVALID;
+	new_state->force_output_type = cur_state->force_output_type;
 
 	/*reset dynamic info.*/
 	if (amcrtc->priv->logo_show_done)
