@@ -3334,6 +3334,7 @@ static int lcd_timing_fr_update(struct aml_lcd_drv_s *pdrv)
 			       pconf->timing.act_timing.pixel_clk, pclk,
 			       pconf->timing.clk_change);
 		pconf->timing.act_timing.pixel_clk = pclk;
+		pconf->timing.enc_clk = pclk;
 	}
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		if (len > 0)
