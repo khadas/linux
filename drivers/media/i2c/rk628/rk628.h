@@ -296,36 +296,24 @@ struct rk628 {
 	struct dentry *debug_dir;
 };
 
+int rk628_media_i2c_write(struct rk628 *rk628, u32 reg, u32 val);
+int rk628_media_i2c_read(struct rk628 *rk628, u32 reg, u32 *val);
+int rk628_media_i2c_update_bits(struct rk628 *rk628, u32 reg, u32 mask, u32 val);
+
 static inline int rk628_i2c_write(struct rk628 *rk628, u32 reg, u32 val)
 {
-	int region = (reg >> 16) & 0xff;
-	int ret = 0;
-
-	ret = regmap_write(rk628->regmap[region], reg, val);
-	if (ret < 0)
-		pr_info("%s: i2c err reg=0x%x, val=0x%x, ret=%d\n", __func__, reg, val, ret);
-
-	return ret;
+	return rk628_media_i2c_write(rk628, reg, val);
 }
 
 static inline int rk628_i2c_read(struct rk628 *rk628, u32 reg, u32 *val)
 {
-	int region = (reg >> 16) & 0xff;
-	int ret = 0;
-
-	ret = regmap_read(rk628->regmap[region], reg, val);
-	if (ret < 0)
-		pr_info("%s: i2c err reg=0x%x, val=0x%x ret=%d\n", __func__, reg, *val, ret);
-
-	return ret;
+	return rk628_media_i2c_read(rk628, reg, val);
 }
 
 static inline int rk628_i2c_update_bits(struct rk628 *rk628, u32 reg, u32 mask,
 					u32 val)
 {
-	int region = (reg >> 16) & 0xff;
-
-	return regmap_update_bits(rk628->regmap[region], reg, mask, val);
+	return rk628_media_i2c_update_bits(rk628, reg, mask, val);
 }
 
 struct rk628 *rk628_i2c_register(struct i2c_client *client);

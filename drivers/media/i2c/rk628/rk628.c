@@ -262,6 +262,61 @@ static const struct regmap_config rk628_regmap_config[RK628_DEV_MAX] = {
 	},
 };
 
+int rk628_media_i2c_write(struct rk628 *rk628, u32 reg, u32 val)
+{
+	int region = (reg >> 16) & 0xff;
+	int ret = 0;
+
+	if (region >= RK628_DEV_MAX) {
+		dev_err(rk628->dev,
+			"%s: i2c err: invalid arguments, out of register range\n", __func__);
+		return -EINVAL;
+	}
+
+	ret = regmap_write(rk628->regmap[region], reg, val);
+	if (ret < 0)
+		dev_err(rk628->dev,
+			"%s: i2c err reg=0x%x, val=0x%x, ret=%d\n", __func__, reg, val, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL(rk628_media_i2c_write);
+
+int rk628_media_i2c_read(struct rk628 *rk628, u32 reg, u32 *val)
+{
+	int region = (reg >> 16) & 0xff;
+	int ret = 0;
+
+	if (region >= RK628_DEV_MAX) {
+		dev_err(rk628->dev,
+			"%s: i2c err: invalid arguments, out of register range\n", __func__);
+		return -EINVAL;
+	}
+
+	ret = regmap_read(rk628->regmap[region], reg, val);
+	if (ret < 0)
+		dev_err(rk628->dev,
+			"%s: i2c err reg=0x%x, val=0x%x ret=%d\n", __func__, reg, *val, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL(rk628_media_i2c_read);
+
+int rk628_media_i2c_update_bits(struct rk628 *rk628, u32 reg, u32 mask,
+					u32 val)
+{
+	int region = (reg >> 16) & 0xff;
+
+	if (region >= RK628_DEV_MAX) {
+		dev_err(rk628->dev,
+			"%s: i2c err: invalid arguments, out of register range\n", __func__);
+		return -EINVAL;
+	}
+
+	return regmap_update_bits(rk628->regmap[region], reg, mask, val);
+}
+EXPORT_SYMBOL(rk628_media_i2c_update_bits);
+
 static int rk628_reg_show(struct seq_file *s, void *v)
 {
 	const struct regmap_config *reg;
