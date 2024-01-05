@@ -1047,6 +1047,7 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 {
 	struct meson_vpu_osd_layer_info *plane_info;
 	struct meson_vpu_pipeline_state *mvps;
+	struct meson_vpu_sub_pipeline_state *mvsps;
 	struct am_osd_plane *osd_plane = to_am_osd_plane(plane);
 	struct meson_drm *drv;
 	struct drm_private_state *obj_state;
@@ -1075,12 +1076,22 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 	}
 	plane_info = &mvps->plane_info[osd_plane->plane_index];
 
+	mvsps = &mvps->sub_states[plane_info->crtc_index];
+	if (mvsps->more_60) {
+		osd_enable[OSD1_SLICE0] = 1;
+		osd_enable[OSD3_SLICE1] = 1;
+		DRM_DEBUG("%s mode_60hz case, osd0_status=%d  osd2_status=%d\n",
+			__func__, osd_enable[OSD1_SLICE0], osd_enable[OSD3_SLICE1]);
+		return;
+	}
+
 	if (plane_info->enable == 1)
 		osd_enable[plane_info->plane_index] = 1;
 	else
 		osd_enable[plane_info->plane_index] = 0;
 
-	DRM_DEBUG("%s [%d]\n", __func__, osd_plane->plane_index);
+	DRM_DEBUG("%s plane_index=%d, osd_status=%d\n", __func__,
+		plane_info->plane_index, osd_enable[plane_info->plane_index]);
 }
 
 static void meson_video_plane_atomic_update(struct drm_plane *plane,
@@ -1299,7 +1310,8 @@ static void meson_plane_atomic_disable(struct drm_plane *plane,
 	plane_info = &mvps->plane_info[osd_plane->plane_index];
 	osd_enable[plane_info->plane_index] = 0;
 
-	DRM_DEBUG("%s osd %d.\n", __func__, osd_plane->plane_index);
+	DRM_DEBUG("%s plane_index=%d, osd_status=%d\n", __func__,
+		plane_info->plane_index, osd_enable[plane_info->plane_index]);
 }
 
 static void meson_video_plane_atomic_disable(struct drm_plane *plane,
