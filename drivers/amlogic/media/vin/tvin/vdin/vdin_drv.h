@@ -1075,6 +1075,7 @@ struct vdin_dev_s {
 	struct vdin_dts_config_s dts_config;
 	unsigned int common_divisor;
 	unsigned int vrr_frame_rate_min;
+	unsigned int fs_open_cnt;
 };
 
 extern unsigned int max_ignore_frame_cnt;

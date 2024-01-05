@@ -1329,6 +1329,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("hv reverse enabled: %d\n", devp->hv_reverse_en);
 	pr_info("dbg_dump_frames: %d,dbg_stop_dec_delay:%d\n",
 		devp->dbg_dump_frames, devp->dbg_stop_dec_delay);
+	pr_info("fs_open_cnt: %d\n", devp->fs_open_cnt);
 	pr_info("vdin_function_sel: 0x%x\n", devp->vdin_function_sel);
 	pr_info("Vdin driver version :  %s\n", VDIN_VER);
 	pr_info("Vdin driver version_V1 :  %s\n", VDIN_VER_V1);
