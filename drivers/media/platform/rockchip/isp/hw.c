@@ -441,6 +441,9 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 		}, {
 			.base = MI_GAIN_WR_BASE,
 			.shd = MI_GAIN_WR_BASE_SHD,
+		}, {
+			.base = MI_WR_CTRL,
+			.shd = MI_WR_CTRL_SHD,
 		}
 	};
 
@@ -495,7 +498,34 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 			reg = reg_buf + backup[j].base;
 			reg1 = reg_buf + backup[j].shd;
 			backup[j].val = *reg;
-			writel(*reg1, base + backup[j].base);
+			if (backup[j].base == MI_WR_CTRL) {
+				val = *reg1 & 0xf;
+				val |= (*reg & ~0xf);
+			} else {
+				val = *reg1;
+			}
+			writel(val, base + backup[j].base);
+		}
+		if (dev->isp_ver == ISP_V30) {
+			reg = reg_buf + ISP32_MI_WR_CTRL2_SHD;
+			reg1 = reg_buf + ISP3X_MI_BP_WR_CTRL;
+			if ((*reg & ISP32_BP_EN_IN_SHD) != (*reg1 & ISP3X_BP_ENABLE)) {
+				val = *reg & ISP32_BP_EN_IN_SHD;
+				val |= *reg1 & ~ISP3X_BP_ENABLE;
+				writel(val, base + ISP3X_MI_BP_WR_CTRL);
+			}
+			reg1 = reg_buf + ISP32_MI_MPDS_WR_CTRL;
+			if ((*reg & ISP32_MPDS_EN_IN_SHD) != (*reg1 & ISP32_DS_ENABLE)) {
+				val = *reg & ISP32_MPDS_EN_IN_SHD;
+				val |= *reg1 & ~ISP32_DS_ENABLE;
+				writel(val, base + ISP32_MI_MPDS_WR_CTRL);
+			}
+			reg1 = reg_buf + ISP32_MI_BPDS_WR_CTRL;
+			if ((*reg & ISP32_BPDS_EN_IN_SHD) != (*reg1 & ISP32_DS_ENABLE)) {
+				val = *reg & ISP32_BPDS_EN_IN_SHD;
+				val |= *reg1 & ~ISP32_DS_ENABLE;
+				writel(val, base + ISP32_MI_BPDS_WR_CTRL);
+			}
 		}
 
 		/* update module */
@@ -522,6 +552,14 @@ void rkisp_hw_reg_restore(struct rkisp_hw_dev *dev)
 		/* config base_reg */
 		for (j = 0; j < ARRAY_SIZE(backup); j++)
 			writel(backup[j].val, base + backup[j].base);
+		if (dev->isp_ver == ISP_V30) {
+			reg = reg_buf + ISP3X_MI_BP_WR_CTRL;
+			writel(*reg, base + ISP3X_MI_BP_WR_CTRL);
+			reg = reg_buf + ISP32_MI_MPDS_WR_CTRL;
+			writel(*reg, base + ISP32_MI_MPDS_WR_CTRL);
+			reg = reg_buf + ISP32_MI_BPDS_WR_CTRL;
+			writel(*reg, base + ISP32_MI_BPDS_WR_CTRL);
+		}
 		/* base_reg = shd_reg, write is base but read is shd */
 		val = rkisp_read_reg_cache(isp, ISP_MPFBC_HEAD_PTR);
 		writel(val, base + ISP_MPFBC_HEAD_PTR);
