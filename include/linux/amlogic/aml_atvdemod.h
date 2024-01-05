@@ -18,7 +18,8 @@ void aml_fe_get_atvaudio_state(int *state);
 
 /* For atv demod hook tvafe driver state */
 void aml_fe_hook_cvd(hook_func_t atv_mode, hook_func_t cvd_hv_lock,
-		hook_func_t get_fmt, hook_func1_t set_mode);
+		hook_func_t get_fmt, hook_func1_t set_mode,
+		hook_func_t force_fmt);
 #else
 static inline __maybe_unused void aml_fe_get_atvaudio_state(int *state)
 {
@@ -26,7 +27,8 @@ static inline __maybe_unused void aml_fe_get_atvaudio_state(int *state)
 }
 
 static inline __maybe_unused void aml_fe_hook_cvd(hook_func_t atv_mode,
-		hook_func_t cvd_hv_lock, hook_func_t get_fmt, hook_func1_t set_mode)
+		hook_func_t cvd_hv_lock, hook_func_t get_fmt, hook_func1_t set_mode,
+		hook_func_t force_fmt)
 {
 }
 #endif

@@ -21,9 +21,10 @@ static hook_func_t aml_fe_hook_atv_status;
 static hook_func_t aml_fe_hook_hv_lock;
 static hook_func_t aml_fe_hook_get_fmt;
 static hook_func1_t aml_fe_hook_set_mode;
+static hook_func_t aml_fe_hook_force_fmt;
 
 void aml_fe_hook_cvd(hook_func_t atv_mode, hook_func_t cvd_hv_lock,
-	hook_func_t get_fmt, hook_func1_t set_mode)
+	hook_func_t get_fmt, hook_func1_t set_mode, hook_func_t force_fmt)
 {
 	mutex_lock(&aml_fe_hook_mutex);
 
@@ -31,6 +32,7 @@ void aml_fe_hook_cvd(hook_func_t atv_mode, hook_func_t cvd_hv_lock,
 	aml_fe_hook_hv_lock = cvd_hv_lock;
 	aml_fe_hook_get_fmt = get_fmt;
 	aml_fe_hook_set_mode = set_mode;
+	aml_fe_hook_force_fmt = force_fmt;
 
 	mutex_unlock(&aml_fe_hook_mutex);
 
@@ -47,7 +49,8 @@ bool aml_fe_has_hook_up(void)
 	if (!aml_fe_hook_atv_status ||
 			!aml_fe_hook_hv_lock ||
 			!aml_fe_hook_get_fmt ||
-			!aml_fe_hook_set_mode)
+			!aml_fe_hook_set_mode ||
+			!aml_fe_hook_force_fmt)
 		state = false;
 	else
 		state = true;
@@ -65,6 +68,24 @@ bool aml_fe_hook_call_get_fmt(int *fmt)
 
 	if (aml_fe_hook_get_fmt && fmt) {
 		*fmt = aml_fe_hook_get_fmt();
+		state = true;
+	} else {
+		state = false;
+	}
+
+	mutex_unlock(&aml_fe_hook_mutex);
+
+	return state;
+}
+
+bool aml_fe_hook_call_force_fmt(int *fmt)
+{
+	bool state = false;
+
+	mutex_lock(&aml_fe_hook_mutex);
+
+	if (aml_fe_hook_force_fmt && fmt) {
+		*fmt = aml_fe_hook_force_fmt();
 		state = true;
 	} else {
 		state = false;

@@ -635,6 +635,7 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 
 			if (cvbs_std) {
 				verify_cnt++;
+				i--;//confirm format prevent switch format
 				pr_dbg("get cvbs_std verify_cnt:%d, cnt:%d, cvbs_std:0x%x\n",
 						verify_cnt, i,
 						(unsigned int) cvbs_std);
@@ -666,7 +667,7 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 					| V4L2_STD_PAL_DK;
 					p->audmode = V4L2_STD_PAL_DK;
 				}
-				pr_dbg("%s:%d set new std:%#x %#x %s\n", __func__,
+				pr_info("%s:%d set new std:%#x %#x %s\n", __func__,
 					i, (unsigned int)p->std, p->audmode,
 					v4l2_std_to_str(p->std & 0xFF000000));
 				p->frequency += 1;
@@ -679,7 +680,10 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 			}
 			usleep_range(30 * 1000, 30 * 1000 + 100);
 		}
-
+		if (cvbs_std == 0) {
+			if (aml_fe_hook_call_force_fmt(&cvbs_std) == false)
+				pr_err("%s: aml_fe_hook_force_fmt == NULL.\n", __func__);
+		}
 		pr_dbg("get cvbs_std cnt:%d, cvbs_std: 0x%x\n",
 				i, (unsigned int) cvbs_std);
 

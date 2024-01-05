@@ -512,7 +512,7 @@ static int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	g_tvafe_info = tvafe;
 	/* register aml_fe hook for atv search */
 	aml_fe_hook_cvd(tvafe_cvd2_get_atv_format, tvafe_cvd2_get_hv_lock,
-		tvafe_get_v_fmt, tvafe_work_mode);
+		tvafe_get_v_fmt, tvafe_work_mode, tvafe_cvd2_get_force_format);
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_VBI
@@ -675,7 +675,7 @@ static void tvafe_dec_close(struct tvin_frontend_s *fe)
 #ifdef CONFIG_AMLOGIC_ATV_DEMOD
 	g_tvafe_info = NULL;
 	/* register aml_fe hook for atv search */
-	aml_fe_hook_cvd(NULL, NULL, NULL, NULL);
+	aml_fe_hook_cvd(NULL, NULL, NULL, NULL, NULL);
 #endif
 	/**set cvd2 reset to high**/
 	tvafe_cvd2_hold_rst();
