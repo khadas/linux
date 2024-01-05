@@ -7022,12 +7022,12 @@ enum vdin_vrr_mode_e get_cur_vrr_status(struct vdin_dev_s *devp)
 	if (devp->prop.vtem_data.vrr_en) {
 		ret = VDIN_VRR_BASIC;
 	} else if (vdin_is_freesync_head(&devp->pre_prop.spd_data) && freesync_type) {
-		if ((freesync_type == 1 || freesync_type == 2) &&
-		    sync_duration_val < 120)
+		if (freesync_type == 1 && sync_duration_val < 120)
 			ret = VDIN_VRR_FREESYNC;
-		else if ((freesync_type == 1 || freesync_type == 2) &&
-			 sync_duration_val >= 120)
+		else if (freesync_type == 1  && sync_duration_val >= 120)
 			ret = VDIN_VRR_FREESYNC_PREMIUM;
+		else if (freesync_type == 2)
+			ret = VDIN_VRR_BASIC;
 		else if (freesync_type == 3)
 			ret = VDIN_VRR_FREESYNC_PREMIUM_PRO;
 		else
