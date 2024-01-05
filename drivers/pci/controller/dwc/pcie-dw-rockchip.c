@@ -2036,6 +2036,14 @@ retry_regulator:
 
 	reset_control_deassert(rk_pcie->rsts);
 
+	/*
+	 * Misc interrupts was masked by default. However, they will be
+	 * unmasked by FW before jumpping into kernel. Mask all misc interrupts,
+	 * as we don't need to ack them before registering irq. And they will be
+	 * unmasked later.
+	 */
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0xffffffff);
+
 	ret = rk_pcie_request_sys_irq(rk_pcie, pdev);
 	if (ret) {
 		dev_err(dev, "pcie irq init failed\n");
