@@ -225,6 +225,10 @@ static void RGA2_set_mode_ctrl(u8 *base, struct rga2_req *msg)
 	reg = ((reg & (~m_RGA2_MODE_CTRL_SW_OSD_E)) |
 	       (s_RGA2_MODE_CTRL_SW_OSD_E(msg->osd_info.enable)));
 
+	if (msg->gauss_config.size > 0)
+		reg = ((reg & (~m_RGA2_MODE_CTRL_SW_SRC_GAUSS_EN)) |
+			(s_RGA2_MODE_CTRL_SW_SRC_GAUSS_EN(1)));
+
 	*bRGA_MODE_CTL = reg;
 }
 
@@ -1905,6 +1909,50 @@ static void RGA_set_reg_mosaic(u8 *base, struct rga2_req *msg)
 	*bRGA_MOSAIC_MODE = (u32)(msg->mosaic_info.mode & 0x7);
 }
 
+static int RGA_set_reg_gauss(u8 *base, struct rga2_req *msg)
+{
+	uint32_t *bRGA_GAUSS_COE;
+	uint32_t reg = 0;
+	uint32_t *coe;
+
+	bRGA_GAUSS_COE = (u32 *)(base + RGA2_GAUSS_COE_OFFSET);
+
+	if (msg->gauss_config.size != 3) {
+		pr_err("Gaussian blur only support 3x3\n");
+		return -EINVAL;
+	}
+
+	coe = kmalloc(sizeof(uint32_t) * msg->gauss_config.size, GFP_KERNEL);
+	if (coe == NULL) {
+		pr_err("Gaussian blur alloc coe buffer error!\n");
+		return -ENOMEM;
+	}
+
+	if (unlikely(copy_from_user(coe,
+				    u64_to_user_ptr(msg->gauss_config.coe_ptr),
+				    sizeof(uint32_t) * msg->gauss_config.size))) {
+		pr_err("Gaussian blur coe copy_from_user failed\n");
+
+		kfree(coe);
+		return -EFAULT;
+	}
+
+	reg = ((reg & (~m_RGA2_GAUSS_COE_SW_COE0)) |
+	       (s_RGA2_GAUSS_COE_SW_COE0(coe[0])));
+
+	reg = ((reg & (~m_RGA2_GAUSS_COE_SW_COE1)) |
+	       (s_RGA2_GAUSS_COE_SW_COE1(coe[1])));
+
+	reg = ((reg & (~m_RGA2_GAUSS_COE_SW_COE2)) |
+	       (s_RGA2_GAUSS_COE_SW_COE2(coe[2])));
+
+	*bRGA_GAUSS_COE = reg;
+
+	kfree(coe);
+
+	return 0;
+}
+
 static void RGA2_set_reg_osd(u8 *base, struct rga2_req *msg)
 {
 	u32 *bRGA_OSD_CTRL0;
@@ -2213,6 +2261,7 @@ static void RGA2_set_mmu_reg_info(struct rga_scheduler_t *scheduler, u8 *base, s
 
 static int rga2_gen_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct rga2_req *msg)
 {
+	int ret;
 	u8 dst_nn_quantize_en = 0;
 
 	RGA2_set_mode_ctrl(base, msg);
@@ -2236,6 +2285,11 @@ static int rga2_gen_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct
 			RGA_set_reg_mosaic(base, msg);
 		if (msg->osd_info.enable)
 			RGA2_set_reg_osd(base, msg);
+		if (msg->gauss_config.size > 0) {
+			ret = RGA_set_reg_gauss(base, msg);
+			if (ret < 0)
+				return ret;
+		}
 
 		break;
 	case COLOR_FILL_MODE:
@@ -2266,7 +2320,7 @@ static int rga2_gen_reg_info(struct rga_scheduler_t *scheduler, u8 *base, struct
 		break;
 	default:
 		pr_err("ERROR msg render mode %d\n", msg->render_mode);
-		break;
+		return -EINVAL;
 	}
 
 	RGA2_set_mmu_reg_info(scheduler, base, msg);
@@ -2427,6 +2481,8 @@ static void rga_cmd_to_rga2_cmd(struct rga_scheduler_t *scheduler,
 
 	/* RGA2 1106 add */
 	memcpy(&req->mosaic_info, &req_rga->mosaic_info, sizeof(req_rga->mosaic_info));
+
+	memcpy(&req->gauss_config, &req_rga->gauss_config, sizeof(req_rga->gauss_config));
 
 	if ((scheduler->data->feature & RGA_YIN_YOUT) &&
 	    rga_is_only_y_format(req->src.format) &&
@@ -2767,7 +2823,8 @@ static int rga2_init_reg(struct rga_job *job)
 	if (scheduler->data->mmu == RGA_IOMMU)
 		req.CMD_fin_int_enable = 1;
 
-	if (rga2_gen_reg_info(scheduler, (uint8_t *)job->cmd_buf->vaddr, &req) == -1) {
+	ret = rga2_gen_reg_info(scheduler, (uint8_t *)job->cmd_buf->vaddr, &req);
+	if (ret < 0) {
 		pr_err("gen reg info error\n");
 		return -EINVAL;
 	}
