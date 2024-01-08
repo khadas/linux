@@ -786,7 +786,7 @@ static u32 rk_tsadcv2_temp_to_code(const struct chip_tsadc_table *table,
 	u32 error = table->data_mask;
 
 	if (table->kNum)
-		return (((temp / 1000) * table->kNum) / 1000 + table->bNum);
+		return DIV_ROUND_UP(temp / 100 * table->kNum, 10000) + table->bNum;
 
 	low = 0;
 	high = (table->length - 1) - 1; /* ignore the last check for table */
@@ -818,9 +818,9 @@ static u32 rk_tsadcv2_temp_to_code(const struct chip_tsadc_table *table,
 
 	switch (table->mode) {
 	case ADC_DECREMENT:
-		return table->id[mid].code - (num / denom);
+		return table->id[mid].code - DIV_ROUND_UP(num, denom);
 	case ADC_INCREMENT:
-		return table->id[mid].code + (num / denom);
+		return table->id[mid].code + DIV_ROUND_UP(num, denom);
 	default:
 		pr_err("%s: unknown table mode: %d\n", __func__, table->mode);
 		return error;
