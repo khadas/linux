@@ -32,8 +32,6 @@
 #define UDPHY_PMA				0x8000
 
 /* RK3588 VO0 GRF Registers */
-#define RK3588_GRF_VO0_CON0			0x0000
-#define RK3588_GRF_VO0_CON2			0x0008
 #define DP_SINK_HPD_CFG				BIT(11)
 #define DP_SINK_HPD_SEL				BIT(10)
 #define DP_AUX_DIN_SEL				BIT(9)
@@ -1595,6 +1593,41 @@ static const char * const udphy_rst_list[] = {
 	"init", "cmn", "lane", "pcs_apb", "pma_apb"
 };
 
+static const struct rockchip_udphy_cfg rk3576_udphy_cfgs = {
+	.num_rsts = ARRAY_SIZE(udphy_rst_list),
+	.rst_list = udphy_rst_list,
+	.grfcfg	= {
+		/* u2phy-grf */
+		.bvalid_phy_con		= { 0x0010, 1, 0, 0x2, 0x3 },
+		.bvalid_grf_con		= { 0x0000, 15, 14, 0x1, 0x3 },
+
+		/* usb-grf */
+		.usb3otg0_cfg		= { 0x0030, 15, 0, 0x1100, 0x0188 },
+
+		/* usbdpphy-grf */
+		.low_pwrn		= { 0x0004, 13, 13, 0, 1 },
+		.rx_lfps		= { 0x0004, 14, 14, 0, 1 },
+	},
+	.vogrfcfg = {
+		{
+			.hpd_trigger	= { 0x0000, 11, 10, 1, 3 },
+			.dp_lane_reg    = 0x0000,
+		},
+	},
+	.dp_tx_ctrl_cfg = {
+		rk3588_dp_tx_drv_ctrl_rbr_hbr,
+		rk3588_dp_tx_drv_ctrl_rbr_hbr,
+		rk3588_dp_tx_drv_ctrl_hbr2,
+		rk3588_dp_tx_drv_ctrl_hbr3,
+	},
+	.dp_tx_ctrl_cfg_typec = {
+		rk3588_dp_tx_drv_ctrl_rbr_hbr_typec,
+		rk3588_dp_tx_drv_ctrl_rbr_hbr_typec,
+		rk3588_dp_tx_drv_ctrl_hbr2,
+		rk3588_dp_tx_drv_ctrl_hbr3,
+	},
+};
+
 static const struct rockchip_udphy_cfg rk3588_udphy_cfgs = {
 	.num_rsts = ARRAY_SIZE(udphy_rst_list),
 	.rst_list = udphy_rst_list,
@@ -1614,11 +1647,11 @@ static const struct rockchip_udphy_cfg rk3588_udphy_cfgs = {
 	.vogrfcfg = {
 		{
 			.hpd_trigger	= { 0x0000, 11, 10, 1, 3 },
-			.dp_lane_reg	= RK3588_GRF_VO0_CON0,
+			.dp_lane_reg	= 0x0000,
 		},
 		{
 			.hpd_trigger	= { 0x0008, 11, 10, 1, 3 },
-			.dp_lane_reg	= RK3588_GRF_VO0_CON2,
+			.dp_lane_reg	= 0x0008,
 		},
 	},
 	.dp_tx_ctrl_cfg = {
@@ -1636,6 +1669,10 @@ static const struct rockchip_udphy_cfg rk3588_udphy_cfgs = {
 };
 
 static const struct of_device_id rockchip_udphy_dt_match[] = {
+	{
+		.compatible = "rockchip,rk3576-usbdp-phy",
+		.data = &rk3576_udphy_cfgs
+	},
 	{
 		.compatible = "rockchip,rk3588-usbdp-phy",
 		.data = &rk3588_udphy_cfgs
