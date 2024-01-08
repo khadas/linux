@@ -56,9 +56,9 @@
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x3400000>;
+			size = <0xc00000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x05000000 0x3400000>;
+			alloc-ranges = <0x05000000 0xc00000>;
 		};
 
 		logo_reserved:linux,meson-fb {
@@ -120,13 +120,6 @@
 			//no-map;
 		};
 
-		secure_vdec_reserved:linux,secure_vdec_reserved {
-			compatible = "amlogic, secure-vdec-reserved";
-			no-map;
-			size = <0x1000000>;
-			alignment = <0x100000>;
-		};
-
 		/*  vdin0 CMA pool */
 		//vdin0_cma_reserved:linux,vdin0_cma {
 		//	compatible = "shared-dma-pool";
@@ -150,7 +143,7 @@
 	};
 	codec_mm {
 		compatible = "amlogic, codec, mm";
-		memory-region = <&codec_mm_cma &codec_mm_reserved &secure_vdec_reserved>;
+		memory-region = <&codec_mm_cma &codec_mm_reserved>;
 		dev_name = "codec_mm";
 		status = "okay";
 	};
