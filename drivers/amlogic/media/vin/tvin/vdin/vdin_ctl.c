@@ -683,13 +683,11 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 		case TVIN_YUV444:
 			if (IS_HDMI_SRC(port) &&
 			    scan_mod == TVIN_SCAN_MODE_PROGRESSIVE && !manual_md) {
-				if (devp->vdin_pc_mode ||
-				    devp->vdin_function_sel & VDIN_FORCE_444_NOT_CONVERT)
-					format_convert =
-						VDIN_FORMAT_CONVERT_YUV_YUV444;
+				if (!devp->vdin_pc_mode &&
+				    devp->vdin_function_sel & VDIN_444_TO_422_CONVERT)
+					format_convert = VDIN_FORMAT_CONVERT_YUV_YUV422;
 				else
-					format_convert =
-						VDIN_FORMAT_CONVERT_YUV_YUV422;
+					format_convert = VDIN_FORMAT_CONVERT_YUV_YUV444;
 			} else if (devp->prop.dest_cfmt == TVIN_NV21) {
 				format_convert = VDIN_FORMAT_CONVERT_YUV_NV21;
 			} else if (devp->prop.dest_cfmt == TVIN_NV12) {
@@ -715,13 +713,11 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 		case TVIN_RGB444:
 			if (IS_HDMI_SRC(port) &&
 			    scan_mod == TVIN_SCAN_MODE_PROGRESSIVE && !manual_md) {
-				if (devp->vdin_pc_mode ||
-				    devp->vdin_function_sel & VDIN_FORCE_444_NOT_CONVERT)
-					format_convert =
-						VDIN_FORMAT_CONVERT_RGB_RGB;
+				if (!devp->vdin_pc_mode &&
+				    devp->vdin_function_sel & VDIN_444_TO_422_CONVERT)
+					format_convert = VDIN_FORMAT_CONVERT_RGB_YUV422;
 				else
-					format_convert =
-						VDIN_FORMAT_CONVERT_RGB_YUV422;
+					format_convert = VDIN_FORMAT_CONVERT_RGB_YUV444;
 			} else if (devp->prop.dest_cfmt == TVIN_NV21) {
 				format_convert = VDIN_FORMAT_CONVERT_RGB_NV21;
 			} else if (devp->prop.dest_cfmt == TVIN_NV12) {
@@ -2273,6 +2269,8 @@ static inline void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 	/* win_ve */
 	wr_bits(offset, VDIN_WR_V_START_END, (v - 1), WR_VEND_BIT, WR_VEND_WID);
 	/* hconv_mode */
+	if (devp->debug.hconv_mode)
+		hconv_mode = devp->debug.hconv_mode - 1;
 	wr_bits(offset, VDIN_WR_CTRL, hconv_mode, HCONV_MODE_BIT, HCONV_MODE_WID);
 	/* vconv_mode */
 	wr_bits(offset, VDIN_WR_CTRL, 0, VCONV_MODE_BIT, VCONV_MODE_WID);
@@ -2431,6 +2429,8 @@ void vdin_set_wr_ctrl_vsync(struct vdin_dev_s *devp,
 	else
 		swap_cbcr = 0;
 
+	if (devp->debug.hconv_mode)
+		hconv_mode = devp->debug.hconv_mode - 1;
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (rdma_enable) {
 		rdma_write_reg_bits(devp->rdma_handle,

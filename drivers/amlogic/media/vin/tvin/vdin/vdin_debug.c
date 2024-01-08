@@ -3663,6 +3663,14 @@ start_chk:
 			pr_info("vdin%d,vdin_unreg_dmc_notifier\n", devp->index);
 			vdin_unreg_dmc_notifier(devp->index);
 		}
+	} else if (!strcmp(parm[0], "hconv_mode")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 10, &val) == 0) {
+			devp->debug.hconv_mode = val;
+			pr_info("hconv_mode(%d):0x%x\n\n", devp->index,
+				devp->debug.hconv_mode);
+		}
 	} else {
 		pr_info("unknown command:%s\n", parm[0]);
 	}

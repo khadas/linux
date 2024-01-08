@@ -306,7 +306,7 @@ struct match_data_s {
 #define VDIN_V4L2_IOCTL_CHK		BIT(1)
 #define VDIN_ADJUST_VLOCK		BIT(4)
 #define VDIN_GAME_NOT_TANSFER		BIT(6) //control for tx output when game mode
-#define VDIN_FORCE_444_NOT_CONVERT	BIT(7) //commercial display control
+#define VDIN_444_TO_422_CONVERT		BIT(7) //enable vdin 444 to 422 convert
 #define VDIN_ONLY_SEND_WSS_VALUE	BIT(8) //vdin send aspect ratio value
 #define VDIN_SET_DISPLAY_RATIO		BIT(9)
 #define VDIN_NOT_DATA_INPUT_DROP	BIT(10)
@@ -577,6 +577,7 @@ struct vdin_debug_s {
 	unsigned int dbg_reg_addr[DBG_REG_LENGTH];
 	unsigned int dbg_reg_val[DBG_REG_LENGTH];
 	unsigned int dbg_reg_bit[DBG_REG_LENGTH];
+	unsigned int hconv_mode;
 };
 
 struct vdin_dv_s {
