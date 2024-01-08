@@ -924,6 +924,10 @@ static void rockchip_pcie_hot_rst_work(struct work_struct *work)
 	u32 status;
 	int ret;
 
+	dw_pcie_dbi_ro_wr_en(&rockchip->pci);
+	rockchip_pcie_resize_bar(rockchip);
+	dw_pcie_dbi_ro_wr_dis(&rockchip->pci);
+
 	if (rockchip_pcie_readl_apb(rockchip, PCIE_CLIENT_HOT_RESET_CTRL) & PCIE_LTSSM_APP_DLY2_EN) {
 		ret = readl_poll_timeout(rockchip->apb_base + PCIE_CLIENT_LTSSM_STATUS,
 			 status, ((status & 0x3F) == 0), 100, PCIE_HOTRESET_TMOUT_US);
