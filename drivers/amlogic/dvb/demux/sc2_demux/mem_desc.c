@@ -499,6 +499,7 @@ static int dmc_range_get_block(struct dmc_range *range, unsigned int len,
 {
 	struct mem_region *header = range->region_list;
 	struct mem_region *temp = NULL;
+	int keep_4k_align = 0;
 
 	while (header) {
 		if (header->len == len &&
@@ -534,6 +535,14 @@ static int dmc_range_get_block(struct dmc_range *range, unsigned int len,
 	range->region_list = temp;
 	range->free_len -= len;
 	range->free_start_phy += len;
+	keep_4k_align = range->free_start_phy % (4 * 1024);
+	if (keep_4k_align) {
+		keep_4k_align = 4 * 1024 - keep_4k_align;
+		if (range->free_len > keep_4k_align) {
+			range->free_len -= keep_4k_align;
+			range->free_start_phy += keep_4k_align;
+		}
+	}
 	range->ref++;
 
 	*p_virt = temp->start_virt;
