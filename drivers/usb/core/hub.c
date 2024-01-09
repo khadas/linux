@@ -36,10 +36,6 @@
 #include <asm/byteorder.h>
 #include <trace/hooks/usb.h>
 
-#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
-#include <linux/amlogic/usb-v2-common.h>
-#endif
-
 #include "hub.h"
 #include "otg_productlist.h"
 
@@ -2209,9 +2205,6 @@ void usb_disconnect(struct usb_device **pdev)
 	struct usb_device *udev = *pdev;
 	struct usb_hub *hub = NULL;
 	int port1 = 1;
-#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
-		struct usb_hcd *hcd = bus_to_hcd(udev->bus);
-#endif
 
 	/* mark the device as inactive, so any further urb submissions for
 	 * this device (and any of its children) will fail immediately.
@@ -2220,11 +2213,6 @@ void usb_disconnect(struct usb_device **pdev)
 	usb_set_device_state(udev, USB_STATE_NOTATTACHED);
 	dev_info(&udev->dev, "USB disconnect, device number %d\n",
 			udev->devnum);
-#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
-	if (udev->portnum > 0 && udev->level == 1)
-		usb_phy_trim_tuning(hcd->usb_phy, udev->portnum - 1, 1);
-#endif
-
 	/*
 	 * Ensure that the pm runtime code knows that the USB device
 	 * is in the process of being disconnected.
@@ -5450,13 +5438,6 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 loop_disable:
 		hub_port_disable(hub, port1, 1);
 loop:
-#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
-	if (PORT_INIT_TRIES == (i + 1))
-		if (hdev->level == 0)
-			usb_phy_trim_tuning(hcd->usb_phy, port1 - 1, 1);
-	if (PORT_INIT_TRIES == (i + 2) && hdev->level == 0)
-		usb_phy_trim_tuning(hcd->usb_phy, port1 - 1, 0);
-#endif
 		usb_ep0_reinit(udev);
 		release_devnum(udev);
 		hub_free_dev(udev);
