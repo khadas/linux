@@ -1391,6 +1391,10 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	clk_prepare_enable(rk628->soc_24M);
 
+	rk628->vccio_rgb = devm_regulator_get_optional(dev, "vccio-rgb");
+	if (IS_ERR(rk628->vccio_rgb))
+		rk628->vccio_rgb = NULL;
+
 	rk628->enable_gpio = devm_gpiod_get_optional(dev, "enable",
 						     GPIOD_OUT_LOW);
 	if (IS_ERR(rk628->enable_gpio)) {

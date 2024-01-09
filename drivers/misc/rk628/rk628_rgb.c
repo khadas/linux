@@ -10,6 +10,7 @@
 #include "rk628_cru.h"
 #include "rk628_config.h"
 #include "panel.h"
+#include "rk628_rgb.h"
 
 int rk628_rgb_parse(struct rk628 *rk628, struct device_node *rgb_np)
 {
@@ -73,7 +74,7 @@ void rk628_rgb_decoder_create_debugfs_file(struct rk628 *rk628)
 				    rk628, &rk628_rgb_resolution_fops);
 }
 
-void rk628_rgb_decoder_enable(struct rk628 *rk628)
+static void rk628_rgb_decoder_enable(struct rk628 *rk628)
 {
 	/* config sw_input_mode RGB */
 	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_INPUT_MODE_MASK,
@@ -85,49 +86,90 @@ void rk628_rgb_decoder_enable(struct rk628 *rk628)
 				      RGB_RX_MODET_EN | RGB_RX_DCLK_EN);
 		rk628_i2c_update_bits(rk628, GRF_RGB_RX_DBG_MEAS3,
 				      RGB_RX_CNT_EN_MASK, RGB_RX_CNT_EN(1));
+		rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON0, 0x10000);
+		rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON1, 0);
 	}
 
 	/* pinctrl for vop pin */
 	rk628_i2c_write(rk628, GRF_GPIO2AB_SEL_CON, 0xffffffff);
 	rk628_i2c_write(rk628, GRF_GPIO2C_SEL_CON, 0xffff5555);
 	rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x10b010b);
-
-	/* rk628: modify IO drive strength for RGB */
-	rk628_i2c_write(rk628, GRF_GPIO2A_D0_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO2A_D1_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO2B_D0_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO2B_D1_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO2C_D0_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO2C_D1_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO3A_D0_CON, 0xffff1011);
-	rk628_i2c_write(rk628, GRF_GPIO3B_D_CON, 0x10001);
 }
 
-void rk628_rgb_encoder_enable(struct rk628 *rk628)
+static void rk628_rgb_encoder_enable(struct rk628 *rk628)
 {
+	int voltage = 0;
+	u32 d_strength, clk_strength;
+	u64 dclk_delay;
+
 	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
 			      SW_BT_DATA_OEN_MASK | SW_OUTPUT_RGB_MODE_MASK,
 			      SW_OUTPUT_RGB_MODE(OUTPUT_MODE_RGB >> 3));
-	rk628_i2c_update_bits(rk628, GRF_POST_PROC_CON, SW_DCLK_OUT_INV_EN,
-			      SW_DCLK_OUT_INV_EN);
+
+	if (rk628->version != RK628F_VERSION)
+		rk628_i2c_update_bits(rk628, GRF_POST_PROC_CON,
+				      SW_DCLK_OUT_INV_EN, SW_DCLK_OUT_INV_EN);
 
 	/* pinctrl for vop pin */
 	rk628_i2c_write(rk628, GRF_GPIO2AB_SEL_CON, 0xffffffff);
 	rk628_i2c_write(rk628, GRF_GPIO2C_SEL_CON, 0xffff5555);
 	rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x10b010b);
 
+	/*
+	 * Under the same drive strength and DCLK delay, the signal behaves
+	 * differently under different voltage power domains. In order to
+	 * center the eye diagram of the signal, have sufficient signal setup
+	 * and hold time, and ensure that the signal does not overshoot, the
+	 * drive strength and DCLK delay need to be set for the power domains
+	 * of different voltages.
+	 */
+	if (rk628->vccio_rgb)
+		voltage = regulator_get_voltage(rk628->vccio_rgb);
+
+	switch (voltage) {
+	case 1800000:
+		d_strength = 3;
+		clk_strength = 3;
+		dclk_delay = 0x10000000;
+		break;
+	case 3300000:
+		d_strength = 1;
+		clk_strength = 2;
+		dclk_delay = 0x100000000;
+		break;
+	default:
+		d_strength = 1;
+		clk_strength = 2;
+		dclk_delay = 0x100000000;
+	}
+
 	/* rk628: modify IO drive strength for RGB */
-	rk628_i2c_write(rk628, GRF_GPIO2A_D0_CON, 0xffff7777);
-	rk628_i2c_write(rk628, GRF_GPIO2A_D1_CON, 0xffff7777);
-	rk628_i2c_write(rk628, GRF_GPIO2B_D0_CON, 0xffff7777);
-	rk628_i2c_write(rk628, GRF_GPIO2B_D1_CON, 0xffff7777);
-	rk628_i2c_write(rk628, GRF_GPIO2C_D0_CON, 0xffff7777);
-	rk628_i2c_write(rk628, GRF_GPIO2C_D1_CON, 0xffff7777);
-	rk628_i2c_write(rk628, GRF_GPIO3A_D0_CON, 0xffff7077);
-	rk628_i2c_write(rk628, GRF_GPIO3B_D_CON, 0xf0007);
+	if (rk628->version == RK628F_VERSION)
+		d_strength = d_strength * 0x1111 | 0xffff0000;
+	else {
+		d_strength = 0xffff7777;
+		clk_strength = 7;
+	}
+
+	rk628_i2c_write(rk628, GRF_GPIO2A_D0_CON, d_strength);
+	rk628_i2c_write(rk628, GRF_GPIO2A_D1_CON, d_strength);
+	rk628_i2c_write(rk628, GRF_GPIO2B_D0_CON, d_strength);
+	rk628_i2c_write(rk628, GRF_GPIO2B_D1_CON, d_strength);
+	rk628_i2c_write(rk628, GRF_GPIO2C_D0_CON, d_strength);
+	rk628_i2c_write(rk628, GRF_GPIO2C_D1_CON, d_strength);
+	rk628_i2c_write(rk628, GRF_GPIO3A_D0_CON, d_strength & 0xf0fff0ff);
+	rk628_i2c_write(rk628, GRF_GPIO3B_D_CON, clk_strength | 0x000f0000);
+
+	/* rk628: modify DCLK delay for RGB */
+	if (rk628->version == RK628F_VERSION) {
+		rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON0,
+				dclk_delay & 0xffffffff);
+		rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON1,
+				dclk_delay >> 32);
+	}
 }
 
-void rk628_rgb_encoder_disable(struct rk628 *rk628)
+static void rk628_rgb_encoder_disable(struct rk628 *rk628)
 {
 }
 
@@ -198,25 +240,16 @@ static void rk628_bt1120_decoder_timing_cfg(struct rk628 *rk628)
 	rk628_i2c_write(rk628, GRF_BT1120_TIMING_CTRL3, BT1120_DSP_VACT_ST(dsp_vact_st));
 }
 
-void rk628_bt1120_decoder_enable(struct rk628 *rk628)
+static void rk628_bt1120_decoder_enable(struct rk628 *rk628)
 {
 	struct rk628_display_mode *mode = rk628_display_get_src_mode(rk628);
 
-	rk628_set_input_bus_format(rk628, BUS_FMT_YUV420);
+	rk628_set_input_bus_format(rk628, BUS_FMT_YUV422);
+
 	/* pinctrl for vop pin */
 	rk628_i2c_write(rk628, GRF_GPIO2AB_SEL_CON, 0xffffffff);
 	rk628_i2c_write(rk628, GRF_GPIO2C_SEL_CON, 0xffff5555);
 	rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x10b010b);
-
-	/* rk628: modify IO drive strength for RGB */
-	rk628_i2c_write(rk628, GRF_GPIO2A_D0_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO2A_D1_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO2B_D0_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO2B_D1_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO2C_D0_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO2C_D1_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO3A_D0_CON, 0xffff1011);
-	rk628_i2c_write(rk628, GRF_GPIO3B_D_CON, 0xf0001);
 
 	/* config sw_input_mode bt1120 */
 	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_INPUT_MODE_MASK,
@@ -236,6 +269,11 @@ void rk628_bt1120_decoder_enable(struct rk628 *rk628)
 			      DEC_DUALEDGE_EN, DEC_DUALEDGE_EN);
 	rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON0, 0x10000000);
 	rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON1, 0);
+#else
+	if (rk628->version == RK628F_VERSION) {
+		rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON0, 0x10000);
+		rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON1, 0);
+	}
 #endif
 
 	rk628_i2c_update_bits(rk628, GRF_RGB_DEC_CON1, SW_SET_X_MASK,
@@ -252,37 +290,80 @@ void rk628_bt1120_decoder_enable(struct rk628 *rk628)
 			      SW_CAP_EN_PSYNC | SW_CAP_EN_ASYNC | SW_PROGRESS_EN);
 }
 
-void rk628_bt1120_encoder_enable(struct rk628 *rk628)
+static void rk628_bt1120_encoder_enable(struct rk628 *rk628)
 {
 	u32 val = 0;
+	int voltage = 0;
+	u32 strength;
+	u64 dclk_delay;
 
-	rk628_set_output_bus_format(rk628, BUS_FMT_YUV420);
+	rk628_set_output_bus_format(rk628, BUS_FMT_YUV422);
+
 	/* pinctrl for vop pin */
 	rk628_i2c_write(rk628, GRF_GPIO2AB_SEL_CON, 0xffffffff);
 	rk628_i2c_write(rk628, GRF_GPIO2C_SEL_CON, 0xffff5555);
 	rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, 0x10b010b);
 
-	/* rk628: modify IO drive strength for RGB */
-	rk628_i2c_write(rk628, GRF_GPIO2A_D0_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO2A_D1_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO2B_D0_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO2B_D1_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO2C_D0_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO2C_D1_CON, 0xffff1111);
-	rk628_i2c_write(rk628, GRF_GPIO3A_D0_CON, 0xffff1011);
-	rk628_i2c_write(rk628, GRF_GPIO3B_D_CON, 0xf0001);
-
 	rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
 			      SW_BT_DATA_OEN_MASK | SW_OUTPUT_RGB_MODE_MASK,
 			      SW_OUTPUT_RGB_MODE(OUTPUT_MODE_BT1120 >> 3));
 	rk628_i2c_write(rk628, GRF_CSC_CTRL_CON, SW_R2Y_EN(1));
-	rk628_i2c_update_bits(rk628, GRF_POST_PROC_CON,
-			      SW_DCLK_OUT_INV_EN, SW_DCLK_OUT_INV_EN);
+	if (rk628->version != RK628F_VERSION)
+		rk628_i2c_update_bits(rk628, GRF_POST_PROC_CON,
+				      SW_DCLK_OUT_INV_EN, SW_DCLK_OUT_INV_EN);
 
+	/*
+	 * Under the same drive strength and DCLK delay, the signal behaves
+	 * differently under different voltage power domains. In order to
+	 * center the eye diagram of the signal, have sufficient signal setup
+	 * and hold time, and ensure that the signal does not overshoot, the
+	 * drive strength and DCLK delay need to be set for the power domains
+	 * of different voltages.
+	 */
+	if (rk628->vccio_rgb)
+		voltage = regulator_get_voltage(rk628->vccio_rgb);
+
+	switch (voltage) {
+	case 1800000:
+		strength = 3;
+		dclk_delay = 0x100000000;
+		break;
+	case 3300000:
+		strength = 1;
+		dclk_delay = 0x1000000000;
+		break;
+	default:
+		strength = 1;
+		dclk_delay = 0x1000000000;
+	}
+
+	/* rk628: modify IO drive strength for BT1120 */
+	if (rk628->version == RK628F_VERSION)
+		strength = strength * 0x1111 | 0xffff0000;
+	else
+		strength = 0xffff1111;
+
+	rk628_i2c_write(rk628, GRF_GPIO2A_D0_CON, strength);
+	rk628_i2c_write(rk628, GRF_GPIO2A_D1_CON, strength);
+	rk628_i2c_write(rk628, GRF_GPIO2B_D0_CON, strength);
+	rk628_i2c_write(rk628, GRF_GPIO2B_D1_CON, strength);
+	rk628_i2c_write(rk628, GRF_GPIO2C_D0_CON, strength);
+	rk628_i2c_write(rk628, GRF_GPIO2C_D1_CON, strength);
+	rk628_i2c_write(rk628, GRF_GPIO3A_D0_CON, strength & 0xf0fff0ff);
+	rk628_i2c_write(rk628, GRF_GPIO3B_D_CON, strength & 0x000f000f);
+
+	/* rk628: modify DCLK delay for BT1120 */
 #ifdef BT1120_DUAL_EDGE
 	val |= ENC_DUALEDGE_EN(1);
 	rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON0, 0x10000000);
 	rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON1, 0);
+#else
+	if (rk628->version == RK628F_VERSION) {
+		rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON0,
+				dclk_delay & 0xffffffff);
+		rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON1,
+				dclk_delay >> 32);
+	}
 #endif
 	val |= BT1120_UV_SWAP(1);
 	rk628_i2c_write(rk628, GRF_RGB_ENC_CON, val);
@@ -297,4 +378,3 @@ void rk628_bt1120_tx_enable(struct rk628 *rk628)
 {
 	rk628_bt1120_encoder_enable(rk628);
 }
-
