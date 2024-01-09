@@ -9,6 +9,7 @@
 #include <linux/compat.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
+#include <linux/extcon-provider.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -121,6 +122,7 @@ struct rk628_csi {
 	struct rk628_hdcp hdcp;
 	bool i2s_enable_default;
 	HAUDINFO audio_info;
+	struct extcon_dev *extcon;
 	struct rk628_combtxphy *txphy;
 	struct rk628_dsi dsi;
 	const struct rk628_plat_data *plat_data;
@@ -226,6 +228,11 @@ static u8 rk628f_edid_init_data[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD3,
+};
+
+static const unsigned int rk628_csi_extcon_cable[] = {
+	EXTCON_JACK_VIDEO_IN,
+	EXTCON_NONE,
 };
 
 static const struct mipi_timing rk628d_csi_mipi = {
@@ -497,6 +504,7 @@ static void rk628_csi_delayed_work_enable_hotplug(struct work_struct *work)
 	v4l2_ctrl_s_ctrl(csi->detect_tx_5v_ctrl, plugin);
 	v4l2_dbg(1, debug, sd, "%s: 5v_det:%d\n", __func__, plugin);
 	if (plugin) {
+		extcon_set_state_sync(csi->extcon, EXTCON_JACK_VIDEO_IN, true);
 		rk628_csi_enable_interrupts(sd, false);
 		rk628_hdmirx_audio_setup(csi->audio_info);
 		rk628_hdmirx_set_hdcp(csi->rk628, &csi->hdcp, csi->enable_hdcp);
@@ -507,6 +515,7 @@ static void rk628_csi_delayed_work_enable_hotplug(struct work_struct *work)
 			rk628_hdmirx_cec_state_reconfiguration(csi->rk628, csi->cec);
 		rk628_csi_enable_interrupts(sd, true);
 	} else {
+		extcon_set_state_sync(csi->extcon, EXTCON_JACK_VIDEO_IN, false);
 		rk628_hdmirx_plugout(sd);
 	}
 	mutex_unlock(&csi->confctl_mutex);
@@ -3094,6 +3103,19 @@ static int rk628_csi_probe(struct i2c_client *client,
 	if (IS_ERR(csi->classdev))
 		goto err_hdl;
 
+	csi->extcon = devm_extcon_dev_allocate(dev, rk628_csi_extcon_cable);
+	if (IS_ERR(csi->extcon)) {
+		err = PTR_ERR(csi->extcon);
+		v4l2_err(sd, "allocate extcon failed\n");
+		goto err_hdl;
+	}
+
+	err = devm_extcon_dev_register(dev, csi->extcon);
+	if (err) {
+		v4l2_err(sd, "failed to register extcon: %d\n", err);
+		goto err_hdl;
+	}
+
 	INIT_DELAYED_WORK(&csi->delayed_work_enable_hotplug,
 			rk628_csi_delayed_work_enable_hotplug);
 	INIT_DELAYED_WORK(&csi->delayed_work_res_change,
@@ -3104,6 +3126,7 @@ static int rk628_csi_probe(struct i2c_client *client,
 						       rk628,
 						       csi->i2s_enable_default);
 	if (!csi->audio_info) {
+		err = -ENOMEM;
 		v4l2_err(sd, "request audio info fail\n");
 		goto err_work_queues;
 	}
