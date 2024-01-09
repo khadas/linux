@@ -41,23 +41,19 @@ static void rk628_combtxphy_dsi_power_on(struct rk628 *rk628)
 	if (ret < 0)
 		dev_err(rk628->dev, "phy is not lock\n");
 
+	rk628_i2c_update_bits(rk628, COMBTXPHY_CON9,
+			SW_DSI_FSET_EN_MASK | SW_DSI_RCAL_EN_MASK,
+			SW_DSI_FSET_EN | SW_DSI_RCAL_EN(1));
+
 	if (rk628->version == RK628F_VERSION) {
 		rk628_i2c_update_bits(rk628, COMBTXPHY_CON6,
 				      SW_PLL_CTL_CON0_MASK,
 				      SW_PLL_CTL_CON0(1));
 		rk628_i2c_update_bits(rk628, COMBTXPHY_CON9,
-				      SW_DSI_FSET_EN_MASK |
-				      SW_DSI_RCAL_EN_MASK |
-				      SW_DSI_RCAL_TRIM_MASK |
+				      SW_DSI_LPTX_SR_TRIM_MASK |
 				      SW_DSI_HSTX_AMP_TRIM_MASK,
-				      SW_DSI_FSET_EN |
-				      SW_DSI_RCAL_EN(1) |
-				      SW_DSI_RCAL_TRIM(8) |
-				      SW_DSI_HSTX_AMP_TRIM(7));
-	} else {
-		rk628_i2c_update_bits(rk628, COMBTXPHY_CON9,
-				SW_DSI_FSET_EN_MASK | SW_DSI_RCAL_EN_MASK,
-				SW_DSI_FSET_EN | SW_DSI_RCAL_EN(0));
+				      SW_DSI_LPTX_SR_TRIM(0) |
+				      SW_DSI_HSTX_AMP_TRIM(4));
 	}
 
 	usleep_range(200, 400);

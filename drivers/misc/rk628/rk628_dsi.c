@@ -698,8 +698,8 @@ static int rk628_dsi_transfer(struct rk628 *rk628, const struct rk628_dsi *dsi,
 	return msg->tx_len;
 }
 
-int rk628_mipi_dsi_generic_write(struct rk628 *rk628,
-				 const void *payload, size_t size)
+static int rk628_mipi_dsi_generic_write(struct rk628 *rk628,
+					const void *payload, size_t size)
 {
 	const struct rk628_dsi *dsi = &rk628->dsi0;
 	struct mipi_dsi_msg msg;
@@ -732,8 +732,8 @@ int rk628_mipi_dsi_generic_write(struct rk628 *rk628,
 		return rk628_dsi_transfer(rk628, dsi, &msg);
 }
 
-int rk628_mipi_dsi_dcs_write_buffer(struct rk628 *rk628,
-				    const void *data, size_t len)
+static int rk628_mipi_dsi_dcs_write_buffer(struct rk628 *rk628,
+					   const void *data, size_t len)
 {
 	const struct rk628_dsi *dsi = &rk628->dsi0;
 	struct mipi_dsi_msg msg;
@@ -764,7 +764,8 @@ int rk628_mipi_dsi_dcs_write_buffer(struct rk628 *rk628,
 	return rk628_dsi_transfer(rk628, dsi, &msg);
 }
 
-int rk628_mipi_dsi_dcs_read(struct rk628 *rk628, u8 cmd, void *data, size_t len)
+static __maybe_unused int rk628_mipi_dsi_dcs_read(struct rk628 *rk628, u8 cmd,
+						  void *data, size_t len)
 {
 	const struct rk628_dsi *dsi = &rk628->dsi0;
 	struct mipi_dsi_msg msg;
@@ -980,6 +981,9 @@ static void mipi_dphy_set_timing(const struct rk628_dsi *dsi)
 	};
 	unsigned int index;
 
+	if (dsi->lane_mbps < timing_table[0].min_lane_mbps)
+		return;
+
 	for (index = 0; index < ARRAY_SIZE(timing_table); index++)
 		if (dsi->lane_mbps >= timing_table[index].min_lane_mbps &&
 		    dsi->lane_mbps < timing_table[index].max_lane_mbps)
@@ -987,6 +991,9 @@ static void mipi_dphy_set_timing(const struct rk628_dsi *dsi)
 
 	if (index == ARRAY_SIZE(timing_table))
 		--index;
+
+	if (dsi->lane_mbps < timing_table[index].max_lane_mbps)
+		return;
 
 	testif_set_timing(dsi, 0x60, 0x3f, timing_table[index].clk_lp);
 	testif_set_timing(dsi, 0x61, 0x7f, timing_table[index].clk_hs_prepare);
@@ -1087,28 +1094,28 @@ static void mipi_dphy_power_on(struct rk628 *rk628, const struct rk628_dsi *dsi)
 	udelay(10);
 }
 
-void rk628_dsi0_reset_control_assert(struct rk628 *rk628)
+static void rk628_dsi0_reset_control_assert(struct rk628 *rk628)
 {
 	rk628_i2c_write(rk628, CRU_SOFTRST_CON02, 0x400040);
 }
 
-void rk628_dsi0_reset_control_deassert(struct rk628 *rk628)
+static void rk628_dsi0_reset_control_deassert(struct rk628 *rk628)
 {
 	rk628_i2c_write(rk628, CRU_SOFTRST_CON02, 0x400000);
 }
 
-void rk628_dsi1_reset_control_assert(struct rk628 *rk628)
+static void rk628_dsi1_reset_control_assert(struct rk628 *rk628)
 {
 	rk628_i2c_write(rk628, CRU_SOFTRST_CON02, 0x800080);
 }
 
-void rk628_dsi1_reset_control_deassert(struct rk628 *rk628)
+static void rk628_dsi1_reset_control_deassert(struct rk628 *rk628)
 {
 	rk628_i2c_write(rk628, CRU_SOFTRST_CON02, 0x800000);
 }
 
-void rk628_dsi_bridge_pre_enable(struct rk628 *rk628,
-				 const struct rk628_dsi *dsi)
+static void rk628_dsi_bridge_pre_enable(struct rk628 *rk628,
+					const struct rk628_dsi *dsi)
 {
 	u32 val;
 
