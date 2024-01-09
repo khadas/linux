@@ -871,253 +871,168 @@ static int rk628_display_timings_get(struct rk628 *rk628)
 				pr_info(args); \
 		} while (0)
 
-static int rk628_debugfs_dump(struct seq_file *s, void *data)
+static void rk628_show_input_mode(struct seq_file *s)
+{
+	struct rk628 *rk628 = s->private;
+	char input_s[10] = {0};
+
+	/* show input mode */
+	if (rk628_input_is_hdmi(rk628))
+		strcpy(input_s, "HDMI");
+	else if (rk628_input_is_bt1120(rk628))
+		strcpy(input_s, "BT1120");
+	else if (rk628_input_is_rgb(rk628))
+		strcpy(input_s, "RGB");
+
+	if (!strlen(input_s))
+		strcpy(input_s, "unknown ");
+
+	DEBUG_PRINT("input: %s\n", input_s);
+}
+
+static void rk628_show_resolution(struct seq_file *s)
+{
+	struct rk628 *rk628 = s->private;
+	struct rk628_display_mode *src_mode = &rk628->src_mode;
+	u32 src_hactive, src_hs_start, src_hs_end, src_htotal;
+	u32 src_vactive, src_vs_start, src_vs_end, src_vtotal;
+	u32 clk_rx_read;
+	u32 fps;
+
+	/* get timing */
+	clk_rx_read = src_mode->clock;
+	src_hactive = src_mode->hdisplay;
+	src_hs_start = src_mode->hsync_start;
+	src_hs_end = src_mode->hsync_end;
+	src_htotal = src_mode->htotal;
+	src_vactive = src_mode->vdisplay;
+	src_vs_start = src_mode->vsync_start;
+	src_vs_end = src_mode->vsync_end;
+	src_vtotal = src_mode->vtotal;
+
+	/* get fps */
+	fps = clk_rx_read * 1000;
+	do_div(fps, src_htotal * src_vtotal);
+
+	/* print */
+	DEBUG_PRINT("    Display mode: %dx%dp%d,dclk[%u]\n", src_hactive,
+		    src_vactive, fps, clk_rx_read);
+	DEBUG_PRINT("\tH: %d %d %d %d\n", src_hactive, src_hs_start, src_hs_end,
+		    src_htotal);
+	DEBUG_PRINT("\tV: %d %d %d %d\n", src_vactive, src_vs_start, src_vs_end,
+		    src_vtotal);
+}
+
+static void rk628f_show_rgbrx_resolution(struct seq_file *s)
+{
+	struct rk628 *rk628 = s->private;
+	u32 val;
+
+	u64 clk_rx_read;
+	u64 imodet_clk;
+	u32 rgb_rx_eval_time, rgb_rx_clkrate;
+
+	u16 src_hactive = 0, src_vactive = 0;
+	u16 src_htotal, src_vtotal;
+	u32 fps;
+
+	/* get clk rgbrx read */
+	rk628_i2c_read(rk628, GRF_RGB_RX_DBG_MEAS0, &val);
+	rgb_rx_eval_time = (val & RGB_RX_EVAL_TIME_MASK) >> 16;
+
+	rk628_i2c_read(rk628, GRF_RGB_RX_DBG_MEAS2, &val);
+	rgb_rx_clkrate = val & RGB_RX_CLKRATE_MASK;
+
+	imodet_clk = rk628_cru_clk_get_rate(rk628, CGU_CLK_IMODET);
+
+	clk_rx_read = imodet_clk * rgb_rx_clkrate / (rgb_rx_eval_time + 1);
+	do_div(clk_rx_read, 1000);
+
+	/* get timing */
+	if (rk628_input_is_rgb(rk628)) {
+		rk628_i2c_read(rk628, GRF_RGB_RX_DBG_MEAS4, &val);
+		src_vactive = (val >> 16) & 0xffff;
+		src_hactive = val & 0xffff;
+	} else if (rk628_input_is_bt1120(rk628)) {
+		rk628_i2c_read(rk628, GRF_SYSTEM_STATUS3, &val);
+		src_vactive = val & DECODER_1120_LAST_LINE_NUM_MASK;
+
+		rk628_i2c_read(rk628, GRF_SYSTEM_STATUS4, &val);
+		src_hactive = val & DECODER_1120_LAST_PIX_NUM_MASK;
+	}
+
+	rk628_i2c_read(rk628, 0x134, &val);
+	src_htotal = (val & 0xffff0000) >> 16;
+	src_vtotal = val & 0xffff;
+
+	/* get fps */
+	fps = clk_rx_read * 1000;
+	do_div(fps, src_htotal * src_vtotal);
+
+	/* print */
+	DEBUG_PRINT("    Display mode: %dx%dp%d,dclk[%llu]\n", src_hactive,
+		    src_vactive, fps, clk_rx_read);
+	DEBUG_PRINT("\tH-total: %d\n", src_htotal);
+	DEBUG_PRINT("\tV-total: %d\n", src_vtotal);
+}
+
+static void rk628_show_input_resolution(struct seq_file *s)
 {
 	struct rk628 *rk628 = s->private;
 
+	if ((rk628_input_is_rgb(rk628) || rk628_input_is_bt1120(rk628)) &&
+		rk628->version == RK628F_VERSION)
+		rk628f_show_rgbrx_resolution(s);
+	else
+		rk628_show_resolution(s);
+}
+
+static void rk628_show_output_mode(struct seq_file *s)
+{
+	struct rk628 *rk628 = s->private;
+	char output_s[30] = {0};
+	char *p = output_s;
+
+	if (rk628_output_is_gvi(rk628))
+		strcpy(p, "GVI ");
+	else if (rk628_output_is_lvds(rk628))
+		strcpy(p, "LVDS ");
+	else if (rk628_output_is_dsi(rk628))
+		strcpy(p, "DSI ");
+	else if (rk628_output_is_csi(rk628))
+		strcpy(p, "CSI ");
+	p += strlen(p);
+
+	if (rk628_output_is_hdmi(rk628)) {
+		strcpy(p, "HDMI ");
+		p += strlen(p);
+	}
+
+	if (rk628_output_is_rgb(rk628))
+		strcpy(p, "RGB ");
+	else if (rk628_output_is_bt1120(rk628))
+		strcpy(p, "BT1120 ");
+
+	if (!strlen(output_s))
+		strcpy(p, "unknown ");
+
+	DEBUG_PRINT("output: %s\n", output_s);
+}
+
+static void rk628_show_output_resolution(struct seq_file *s)
+{
+	struct rk628 *rk628 = s->private;
 	u32 val;
+	u64 sclk_vop;
 	u32 dsp_htotal, dsp_hs_end, dsp_hact_st, dsp_hact_end;
 	u32 dsp_vtotal, dsp_vs_end, dsp_vact_st, dsp_vact_end;
-	u32 src_hactive, src_hoffset, src_htotal, src_hs_end;
-	u32 src_vactive, src_voffset, src_vtotal, src_vs_end;
-
-	u32 input_mode, output_mode;
-	char input_s[10];
-	char output_s[13];
-
-	bool r2y, y2r;
-	char csc_mode_r2y_s[10];
-	char csc_mode_y2r_s[10];
-	u32 csc;
-	enum csc_mode {
-		BT601_L,
-		BT709_L,
-		BT601_F,
-		BT2020
-	};
-
-	int sw_hsync_pol, sw_vsync_pol;
-	u32 dsp_frame_v_start, dsp_frame_h_start;
-
-	int sclk_vop_sel = 0;
-	u32 sclk_vop_div;
-	u64 sclk_vop;
-	u32 reg_v;
 	u32 fps;
 
-	u32 imodet_clk;
-	u32 imodet_clk_sel;
-	u32 imodet_clk_div;
+	/* get sclk_vop */
+	sclk_vop = rk628_cru_clk_get_rate(rk628, CGU_SCLK_VOP);
+	do_div(sclk_vop, 1000);
 
-	int clk_rx_read_sel = 0;
-	u32 clk_rx_read_div;
-	u64 clk_rx_read;
-
-	u32 tdms_clk_div;
-	u32 tdms_clk;
-	u32 common_tdms_clk[19] = {
-		25170, 27000, 33750, 40000, 59400,
-		65000, 68250, 74250, 83500, 85500,
-		88750, 92812, 101000, 108000, 119000,
-		135000, 148500, 162000, 297000,
-	};
-
-	//get sclk vop
-	rk628_i2c_read(rk628, 0xc0088, &reg_v);
-	sclk_vop_sel = (reg_v & 0x20) ? 1 : 0;
-	rk628_i2c_read(rk628, 0xc00b4, &reg_v);
-	if (reg_v)
-		sclk_vop_div = reg_v;
-	else
-		sclk_vop_div = 0x10002;
-	/* gpll 983.04MHz */
-	/* cpll 1188MHz */
-	if (sclk_vop_sel)
-		sclk_vop = (u64)983040 * ((sclk_vop_div & 0xffff0000) >> 16);
-	else
-		sclk_vop = (u64)1188000 * ((sclk_vop_div & 0xffff0000) >> 16);
-	do_div(sclk_vop, sclk_vop_div & 0xffff);
-
-	//get rx read clk
-	rk628_i2c_read(rk628, 0xc0088, &reg_v);
-	clk_rx_read_sel = (reg_v & 0x10) ? 1 : 0;
-	rk628_i2c_read(rk628, 0xc00b8, &reg_v);
-	if (reg_v)
-		clk_rx_read_div = reg_v;
-	else
-		clk_rx_read_div = 0x10002;
-	/* gpll 983.04MHz */
-	/* cpll 1188MHz */
-	if (clk_rx_read_sel)
-		clk_rx_read = (u64)983040 * ((clk_rx_read_div & 0xffff0000) >> 16);
-	else
-		clk_rx_read = (u64)1188000 * ((clk_rx_read_div & 0xffff0000) >> 16);
-	do_div(clk_rx_read, clk_rx_read_div & 0xffff);
-
-	//get imodet clk
-	rk628_i2c_read(rk628, 0xc0094, &reg_v);
-	imodet_clk_sel = (reg_v & 0x20) ? 1 : 0;
-
-	if (reg_v)
-		imodet_clk_div = (reg_v & 0x1f) + 1;
-	else
-		imodet_clk_div = 0x18;
-	/* gpll 983.04MHz */
-	/* cpll 1188MHz */
-	if (imodet_clk_sel)
-		imodet_clk = 983040 / imodet_clk_div;
-	else
-		imodet_clk = 1188000 / imodet_clk_div;
-
-	//get input interface type
-	rk628_i2c_read(rk628, GRF_SYSTEM_CON0, &val);
-	input_mode = val & 0x7;
-	output_mode = (val & 0xf8) >> 3;
-	sw_hsync_pol = (val & 0x4000000) ? 1 : 0;
-	sw_vsync_pol = (val & 0x2000000) ? 1 : 0;
-	switch (input_mode) {
-	case 0:
-		strcpy(input_s, "HDMI");
-		break;
-	case 1:
-		strcpy(input_s, "reserved");
-		break;
-	case 2:
-		strcpy(input_s, "BT1120");
-		break;
-	case 3:
-		strcpy(input_s, "RGB");
-		break;
-	case 4:
-		strcpy(input_s, "YUV");
-		break;
-	default:
-		strcpy(input_s, "unknown");
-	}
-	DEBUG_PRINT("input:%s\n", input_s);
-	if (input_mode == 0) {
-		//get tdms clk
-		rk628_i2c_read(rk628, 0x16654, &reg_v);
-		reg_v = (reg_v & 0x3f0000) >> 16;
-		if (reg_v >= 0 && reg_v <= 19)
-			tdms_clk = common_tdms_clk[reg_v];
-		else
-			tdms_clk = 148500;
-
-		rk628_i2c_read(rk628, 0x166a8, &reg_v);
-		reg_v = (reg_v & 0xf00) >> 8;
-		if (reg_v == 0x6)
-			tdms_clk_div = 1;
-		else if (reg_v == 0x0)
-			tdms_clk_div = 2;
-		else
-			tdms_clk_div = 1;
-
-		//get input hdmi timing
-		//get horizon timing
-		rk628_i2c_read(rk628, 0x30150, &reg_v);
-		src_hactive = reg_v & 0xffff;
-
-		rk628_i2c_read(rk628, 0x3014c, &reg_v);
-		src_hoffset = (reg_v & 0xffff);
-
-		src_hactive *= tdms_clk_div;
-		src_hoffset *=  tdms_clk_div;
-
-		src_htotal = (reg_v & 0xffff0000)>>16;
-		src_htotal *= tdms_clk_div;
-
-		rk628_i2c_read(rk628, 0x30148, &reg_v);
-		reg_v = reg_v & 0xffff;
-		src_hs_end = reg_v * tdms_clk * tdms_clk_div / imodet_clk;
-
-		//get vertical timing
-		rk628_i2c_read(rk628, 0x30168, &reg_v);
-		src_vactive = reg_v & 0xffff;
-		rk628_i2c_read(rk628, 0x30170, &reg_v);
-		src_vtotal = reg_v & 0xffff;
-		rk628_i2c_read(rk628, 0x30164, &reg_v);
-		src_voffset = (reg_v & 0xffff);
-
-		rk628_i2c_read(rk628, 0x3015c, &reg_v);
-		reg_v = reg_v & 0xffff;
-		src_vs_end = reg_v * clk_rx_read;
-		do_div(src_vs_end, imodet_clk * src_htotal);
-
-		//get fps and print
-		fps = clk_rx_read * 1000;
-		do_div(fps, src_htotal * src_vtotal);
-		DEBUG_PRINT("    Display mode: %dx%dp%d,dclk[%llu],tdms_clk[%d]\n",
-			    src_hactive, src_vactive, fps, clk_rx_read, tdms_clk);
-
-		DEBUG_PRINT("\tH: %d %d %d %d\n", src_hactive, src_htotal - src_hoffset,
-			    src_htotal - src_hoffset + src_hs_end, src_htotal);
-
-		DEBUG_PRINT("\tV: %d %d %d %d\n", src_vactive,
-			    src_vtotal - src_voffset - src_vs_end,
-			    src_vtotal - src_voffset, src_vtotal);
-	} else if (input_mode == 2 || input_mode == 3 || input_mode == 4) {
-		//get timing
-		rk628_i2c_read(rk628, 0x130, &reg_v);
-		src_hactive = reg_v & 0xffff;
-
-		rk628_i2c_read(rk628, 0x12c, &reg_v);
-		src_vactive = (reg_v & 0xffff);
-
-		rk628_i2c_read(rk628, 0x134, &reg_v);
-		src_htotal = (reg_v & 0xffff0000) >> 16;
-		src_vtotal = reg_v & 0xffff;
-
-		//get fps and print
-		fps = clk_rx_read * 1000;
-		do_div(fps, src_htotal * src_vtotal);
-		DEBUG_PRINT("    Display mode: %dx%dp%d,dclk[%llu]\n",
-			    src_hactive, src_vactive, fps, clk_rx_read);
-
-		DEBUG_PRINT("\tH-total: %d\n", src_htotal);
-
-		DEBUG_PRINT("\tV-total: %d\n", src_vtotal);
-	}
-	//get output interface type
-	switch (output_mode & 0x7) {
-	case 1:
-		strcpy(output_s, "GVI");
-		break;
-	case 2:
-		strcpy(output_s, "LVDS");
-		break;
-	case 3:
-		strcpy(output_s, "HDMI");
-		break;
-	case 4:
-		strcpy(output_s, "CSI");
-		break;
-	case 5:
-		strcpy(output_s, "DSI");
-		break;
-	default:
-		strcpy(output_s, "");
-	}
-	strcpy(output_s + 4, " ");
-	switch (output_mode >> 2) {
-	case 0:
-		strcpy(output_s + 5, "");
-		break;
-	case 1:
-		strcpy(output_s + 5, "BT1120");
-		break;
-	case 2:
-		strcpy(output_s + 5, "RGB");
-		break;
-	case 3:
-		strcpy(output_s + 5, "YUV");
-		break;
-	default:
-		strcpy(output_s + 5, "unknown");
-	}
-	DEBUG_PRINT("output:%s\n", output_s);
-
-	//get output timing
+	/* get timing */
 	rk628_i2c_read(rk628, GRF_SCALER_CON3, &val);
 	dsp_htotal = val & 0xffff;
 	dsp_hs_end = (val & 0xff0000) >> 16;
@@ -1134,20 +1049,41 @@ static int rk628_debugfs_dump(struct seq_file *s, void *data)
 	dsp_vact_st = (val & 0xfff0000) >> 16;
 	dsp_vact_end = val & 0xfff;
 
+	/* get fps */
 	fps = sclk_vop * 1000;
 	do_div(fps, dsp_vtotal * dsp_htotal);
 
+	/* print */
 	DEBUG_PRINT("    Display mode: %dx%dp%d,dclk[%llu]\n",
-		    dsp_hact_end - dsp_hact_st, dsp_vact_end - dsp_vact_st, fps, sclk_vop);
+		    dsp_hact_end - dsp_hact_st, dsp_vact_end - dsp_vact_st, fps,
+		    sclk_vop);
 	DEBUG_PRINT("\tH: %d %d %d %d\n", dsp_hact_end - dsp_hact_st,
-		    dsp_htotal - dsp_hact_st, dsp_htotal - dsp_hact_st + dsp_hs_end, dsp_htotal);
+		    dsp_htotal - dsp_hact_st,
+		    dsp_htotal - dsp_hact_st + dsp_hs_end, dsp_htotal);
 	DEBUG_PRINT("\tV: %d %d %d %d\n", dsp_vact_end - dsp_vact_st,
-		    dsp_vtotal - dsp_vact_st, dsp_vtotal - dsp_vact_st + dsp_vs_end, dsp_vtotal);
+		    dsp_vtotal - dsp_vact_st,
+		    dsp_vtotal - dsp_vact_st + dsp_vs_end, dsp_vtotal);
+}
 
-	//get csc and system information
+static void rk628_show_csc_info(struct seq_file *s)
+{
+	struct rk628 *rk628 = s->private;
+	u32 val;
+	bool r2y, y2r;
+	char csc_mode_r2y_s[10];
+	char csc_mode_y2r_s[10];
+	u32 csc;
+	enum csc_mode {
+		BT601_L,
+		BT709_L,
+		BT601_F,
+		BT2020
+	};
+
 	rk628_i2c_read(rk628, GRF_CSC_CTRL_CON, &val);
 	r2y = ((val & 0x10) == 0x10);
 	y2r = ((val & 0x1) == 0x1);
+
 	csc = (val & 0xc0) >> 6;
 	switch (csc) {
 	case BT601_L:
@@ -1188,13 +1124,38 @@ static int rk628_debugfs_dump(struct seq_file *s, void *data)
 		DEBUG_PRINT("\ty2r[1],csc mode:%s\n", csc_mode_y2r_s);
 	else
 		DEBUG_PRINT("\tnot open\n");
+}
+
+static int rk628_debugfs_dump(struct seq_file *s, void *data)
+{
+	struct rk628 *rk628 = s->private;
+	u32 val;
+	int sw_hsync_pol, sw_vsync_pol;
+	u32 dsp_frame_v_start, dsp_frame_h_start;
+
+	/* show input info */
+	rk628_show_input_mode(s);
+	rk628_show_input_resolution(s);
+
+	/* show output info */
+	rk628_show_output_mode(s);
+	rk628_show_output_resolution(s);
+
+	/* show csc info */
+	rk628_show_csc_info(s);
+
+	/* show other info */
+	rk628_i2c_read(rk628, GRF_SYSTEM_CON0, &val);
+	sw_hsync_pol = (val & 0x4000000) ? 1 : 0;
+	sw_vsync_pol = (val & 0x2000000) ? 1 : 0;
 
 	rk628_i2c_read(rk628, GRF_SCALER_CON2, &val);
 	dsp_frame_h_start = val & 0xffff;
 	dsp_frame_v_start = (val & 0xffff0000) >> 16;
 
 	DEBUG_PRINT("system:\n");
-	DEBUG_PRINT("\tsw_hsync_pol:%d, sw_vsync_pol:%d\n", sw_hsync_pol, sw_vsync_pol);
+	DEBUG_PRINT("\tsw_hsync_pol:%d, sw_vsync_pol:%d\n", sw_hsync_pol,
+		    sw_vsync_pol);
 	DEBUG_PRINT("\tdsp_frame_h_start:%d, dsp_frame_v_start:%d\n",
 		    dsp_frame_h_start, dsp_frame_v_start);
 
