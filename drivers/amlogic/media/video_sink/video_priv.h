@@ -117,7 +117,7 @@
 
 #define VIDEO_AUTO_POST_BLEND_DUMMY BIT(24)
 
-#define DISPBUF_TO_PUT_MAX 3
+#define DISPBUF_TO_PUT_MAX 6
 
 #define IS_DI_PROCESSED(vftype) ((vftype) & (VIDTYPE_PRE_INTERLACE | VIDTYPE_DI_PW))
 #define IS_DI_POST(vftype) \
