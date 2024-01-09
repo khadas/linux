@@ -132,6 +132,9 @@ static struct v4l2_capability g_vdin_v4l2_cap[VDIN_MAX_DEVS] = {
 
 int vdin_v4l2_if_isr(struct vdin_dev_s *pdev, struct vframe_s *vfp)
 {
+	struct vb2_queue *vb_que;
+	struct vb2_buffer *vb2buf;
+	struct vb2_v4l2_buffer *vb = NULL;
 	if (!pdev->vbqueue.streaming) {
 		dprintk(2, "not streaming\n");
 		return -1;
@@ -154,15 +157,19 @@ int vdin_v4l2_if_isr(struct vdin_dev_s *pdev, struct vframe_s *vfp)
 		return -1;
 	}
 	/* pop a buffer */
-	pdev->cur_buff = list_first_entry(&pdev->buf_list,
-					  struct vdin_vb_buff, list);
+	vb_que = &pdev->vbqueue;
+	vb2buf = vb_que->bufs[vfp->index];
+
+	vb = to_vb2_v4l2_buffer(vb2buf);
+	pdev->cur_buff = to_vdin_vb_buf(vb);
+
 
 	dprintk(3, "[%s]vf index = %d\n", __func__, vfp->index);
 	pdev->cur_buff->v4l2_vframe_s = vfp;
 	list_del(&pdev->cur_buff->list);
 	spin_unlock(&pdev->qlock);
 	pdev->vdin_v4l2.stats.done_cnt++;
-	vb2_buffer_done(&pdev->cur_buff->vb.vb2_buf, VB2_BUF_STATE_DONE);
+	vb2_buffer_done(vb2buf, VB2_BUF_STATE_DONE);
 
 	return 0;
 }
@@ -877,6 +884,17 @@ static int vdin_vidioc_g_divid_fr(struct vdin_dev_s *pdev,
 	return 0;
 }
 
+/* V4L2_CID_MIN_BUFFERS_FOR_CAPTURE */
+static int vdin_vidioc_g_min_buffers(struct vdin_dev_s *pdev,
+			 struct v4l2_control *ctrl)
+{
+	ctrl->value = 2;
+	dprintk(2, "%s get min buffers value %d\n",
+		__func__, ctrl->value);
+
+	return 0;
+}
+
 /* V4L2_CID_EXT_CAPTURE_OUTPUT_FRAMERATE */
 static int vdin_vidioc_g_output_fr(struct vdin_dev_s *pdev,
 			 struct v4l2_control *ctrl)
@@ -898,6 +916,8 @@ static int vdin_vidioc_g_ctrl(struct file *file, void *priv,
 		ret = vdin_vidioc_g_divid_fr(pdev, ctrl);
 	else if (ctrl->id == V4L2_CID_EXT_CAPTURE_OUTPUT_FRAMERATE)
 		ret = vdin_vidioc_g_output_fr(pdev, ctrl);
+	else if (ctrl->id == V4L2_CID_MIN_BUFFERS_FOR_CAPTURE)
+		ret = vdin_vidioc_g_min_buffers(pdev, ctrl);
 
 	return 0;
 }
