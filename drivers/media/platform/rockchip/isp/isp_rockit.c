@@ -598,7 +598,7 @@ int rkisp_rockit_fps_get(int *dst_fps, struct rkisp_stream *stream)
 	return 0;
 }
 
-bool rkisp_rockit_ctrl_fps(struct rkisp_stream *stream)
+static bool rkisp_rockit_ctrl_fps(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	struct rkisp_sensor_info *sensor = NULL;
@@ -674,6 +674,25 @@ bool rkisp_rockit_ctrl_fps(struct rkisp_stream *stream)
 		*is_discard  = false;
 	}
 	return true;
+}
+
+void rkisp_rockit_frame_start(struct rkisp_device *dev)
+{
+	struct rkisp_stream *stream;
+	int i;
+
+	if (rockit_cfg == NULL)
+		return;
+
+	for (i = 0; i < RKISP_MAX_STREAM; i++) {
+		if (i == RKISP_STREAM_VIR || i == RKISP_STREAM_LUMA)
+			continue;
+		stream = &dev->cap_dev.stream[i];
+		if (!stream->streaming)
+			continue;
+		rkisp_rockit_buf_done(stream, ROCKIT_DVBM_START);
+		rkisp_rockit_ctrl_fps(stream);
+	}
 }
 
 void *rkisp_rockit_function_register(void *function, int cmd)

@@ -724,6 +724,8 @@ void rkisp_trigger_read_back(struct rkisp_device *dev, u8 dma2frm, u32 mode, boo
 		params_vdev->rdbk_times = dma2frm + 1;
 
 run_next:
+	if (!dev->sw_rd_cnt)
+		rkisp_rockit_frame_start(dev);
 	rkisp_params_cfgsram(params_vdev, true);
 	stats_vdev->rdbk_drop = false;
 	if (dev->is_frame_double) {
@@ -4191,6 +4193,7 @@ void rkisp_isp_isr(unsigned int isp_mis,
 			dev->isp_sdev.frm_timestamp = rkisp_time_get_ns(dev);
 			rkisp_isp_queue_event_sof(&dev->isp_sdev);
 			rkisp_stream_frame_start(dev, isp_mis);
+			rkisp_rockit_frame_start(dev);
 		}
 vs_skip:
 		writel(CIF_ISP_V_START, base + CIF_ISP_ICR);
@@ -4345,6 +4348,7 @@ vs_skip:
 		dev->isp_sdev.frm_timestamp = rkisp_time_get_ns(dev);
 		rkisp_isp_queue_event_sof(&dev->isp_sdev);
 		rkisp_stream_frame_start(dev, isp_mis);
+		rkisp_rockit_frame_start(dev);
 	}
 
 	if (isp_mis & ISP3X_OUT_FRM_QUARTER) {
