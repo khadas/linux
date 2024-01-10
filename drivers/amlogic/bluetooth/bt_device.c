@@ -159,9 +159,6 @@ static void off_def_power(struct bt_dev_data *pdata, unsigned long down_time)
 			gpio_direction_output(pdata->gpio_reset,
 				pdata->power_low_level);
 		}
-
-		if (down_time)
-			msleep(down_time);
 	}
 
 #ifndef CONTROL_POWER_EN_LINUX
@@ -171,6 +168,9 @@ static void off_def_power(struct bt_dev_data *pdata, unsigned long down_time)
 	} else {
 		set_usb_bt_power(0);
 	}
+#else
+	if (down_time)
+		msleep(down_time);
 #endif
 }
 
@@ -187,9 +187,6 @@ static void on_def_power(struct bt_dev_data *pdata, unsigned long up_time)
 			gpio_direction_output(pdata->gpio_reset,
 				!pdata->power_low_level);
 		}
-
-		if (up_time)
-			msleep(up_time);
 	}
 
 #ifndef CONTROL_POWER_EN_LINUX
@@ -199,6 +196,9 @@ static void on_def_power(struct bt_dev_data *pdata, unsigned long up_time)
 	} else {
 		set_usb_bt_power(1);
 	}
+#else
+	if (up_time)
+		msleep(up_time);
 #endif
 }
 

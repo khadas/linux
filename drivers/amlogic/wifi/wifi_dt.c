@@ -267,6 +267,8 @@ static void usb_power_control(int is_power, int shift)
 				  (shift ? "WiFi" : "BT"));
 			msleep(200);
 			sdio_reinit();
+		} else if (shift == BT_BIT) {
+			msleep(200);
 		}
 		usb_power |= (1 << shift);
 		WIFI_INFO("Set %s power on !\n",
@@ -278,6 +280,8 @@ static void usb_power_control(int is_power, int shift)
 			msleep(200);
 			WIFI_INFO("Set %s power down\n",
 				  (shift ? "WiFi" : "BT"));
+		} else if (shift == BT_BIT) {
+			msleep(200);
 		}
 	}
 	mutex_unlock(&wifi_bt_mutex);
