@@ -18,15 +18,6 @@
 
 #define INIT_FIFO_STATE			64
 
-#define is_validfs(x) (x == 32000 || \
-			x == 44100 || \
-			x == 48000 || \
-			x == 88200 || \
-			x == 96000 || \
-			x == 176400 || \
-			x == 192000 || \
-			x == 768000)
-
 struct rk628_audiostate {
 	u32 hdmirx_aud_clkrate;
 	u32 fs_audio;
@@ -59,6 +50,18 @@ struct hdmirx_tmdsclk_cnt {
 };
 
 #define HDMIRX_GET_TMDSCLK_TIME		21
+
+static int supported_fs[] = {
+	32000,
+	44100,
+	48000,
+	88200,
+	96000,
+	176400,
+	192000,
+	768000,
+	-1
+};
 
 static int hdcp_load_keys_cb(struct rk628 *rk628, struct rk628_hdcp *hdcp)
 {
@@ -210,6 +213,39 @@ void rk628_hdmirx_controller_setup(struct rk628 *rk628)
 }
 EXPORT_SYMBOL(rk628_hdmirx_controller_setup);
 
+static bool is_validfs(int fs)
+{
+	int i = 0;
+	int fs_t;
+
+	fs_t = supported_fs[i++];
+	while (fs_t > 0) {
+		if (fs == fs_t)
+			return true;
+		fs_t = supported_fs[i++];
+	};
+	return false;
+}
+
+static int rk628_hdmirx_audio_find_closest_fs(struct rk628_audioinfo *aif, int fs)
+{
+	int i = 0;
+	int fs_t;
+	int difference;
+
+	fs_t = supported_fs[i++];
+	while (fs_t > 0) {
+		difference = abs(fs - fs_t);
+		if (difference <= 2000) {
+			if (fs != fs_t)
+				dev_dbg(aif->dev, "%s fix fs from %u to %u", __func__, fs, fs_t);
+			return fs_t;
+		}
+		fs_t = supported_fs[i++];
+	};
+	return fs_t;
+}
+
 static void rk628_hdmirx_audio_fifo_init(struct rk628_audioinfo *aif)
 {
 
@@ -253,8 +289,7 @@ static u32 _rk628_hdmirx_audio_fs(struct rk628_audioinfo *aif)
 	if (cts_decoded != 0) {
 		fs_audio = div_u64((tmdsclk * n_decoded), cts_decoded);
 		fs_audio /= 128;
-		fs_audio = div_u64(fs_audio + 50, 100);
-		fs_audio *= 100;
+		fs_audio = rk628_hdmirx_audio_find_closest_fs(aif, fs_audio);
 	}
 	dev_dbg(aif->dev,
 		"%s: clkrate:%u tmdsclk:%llu, n_decoded:%u, cts_decoded:%u, fs_audio:%u\n",
