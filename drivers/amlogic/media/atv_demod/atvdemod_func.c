@@ -303,7 +303,7 @@ void atv_dmd_misc(void)
 			atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x44,
 					atv_video_gain);
 		else
-			atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x44, 0xfc0808c1);
+			atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x44, 0xfc080841); /* slow vagc*/
 		atv_dmd_wr_long(APB_BLOCK_ADDR_CARR_RCVY, 0x24,
 			carrier_amplif_val);
 	}

@@ -72,8 +72,8 @@ void aml_fe_get_atvaudio_state(int *state)
 	    av_status &&
 	    adc_status) {
 		retrieve_vpll_carrier_lock(&vpll_lock);
-		retrieve_vpll_carrier_line_lock(&line_lock);
-		if ((vpll_lock == 0) && (line_lock == 0)) {
+		//retrieve_vpll_carrier_line_lock(&line_lock);
+		if (vpll_lock == 0 /*&& (line_lock == 0)*/) {
 			/* retrieve_vpll_carrier_audio_power(&power, 1); */
 			*state = 1;
 		} else {
