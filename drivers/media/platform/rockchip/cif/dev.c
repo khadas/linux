@@ -1576,7 +1576,7 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 				goto err_stream_off;
 		}
 
-		if (cif_dev->sditf_cnt > 1) {
+		if (cif_dev->sditf_cnt > 1 && cif_dev->sditf[0]->is_combine_mode) {
 			for (i = 0; i < cif_dev->sditf_cnt; i++) {
 				ret = v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd,
 						       video,
@@ -1660,7 +1660,7 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 				if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 					goto err_stream_off;
 			}
-			if (cif_dev->sditf_cnt > 1) {
+			if (cif_dev->sditf_cnt > 1 && cif_dev->sditf[0]->is_combine_mode) {
 				for (i = 0; i < cif_dev->sditf_cnt; i++) {
 					ret = v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd,
 							       video,
@@ -1983,7 +1983,7 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 	if (ret < 0)
 		goto unregister_lvds;
 
-	if (!completion_done(&dev->cmpl_ntf))
+	if (!dev->is_camera_over_bridge && !completion_done(&dev->cmpl_ntf))
 		complete(&dev->cmpl_ntf);
 	v4l2_info(&dev->v4l2_dev, "Async subdev notifier completed\n");
 
@@ -2135,8 +2135,10 @@ static int rkcif_register_platform_subdevs(struct rkcif_device *cif_dev)
 	} else {
 		cif_dev->is_support_tools = false;
 	}
-	init_completion(&cif_dev->cmpl_ntf);
-	kthread_run(notifier_isp_thread, cif_dev, "notifier isp");
+	if (!cif_dev->is_camera_over_bridge) {
+		init_completion(&cif_dev->cmpl_ntf);
+		kthread_run(notifier_isp_thread, cif_dev, "notifier isp");
+	}
 	ret = cif_subdev_notifier(cif_dev);
 	if (ret < 0) {
 		v4l2_err(&cif_dev->v4l2_dev,
@@ -2871,6 +2873,10 @@ static void rkcif_parse_dts(struct rkcif_device *cif_dev)
 	if (ret != 0)
 		cif_dev->fb_res_bufs = 3;
 	dev_info(cif_dev->dev, "rkcif fastboot reserve bufs num %d\n", cif_dev->fb_res_bufs);
+	if (device_property_read_bool(cif_dev->dev, "camera-over-bridge"))
+		cif_dev->is_camera_over_bridge = true;
+	else
+		cif_dev->is_camera_over_bridge = false;
 }
 
 static int rkcif_get_reserved_mem(struct rkcif_device *cif_dev)
@@ -3038,7 +3044,8 @@ static int __maybe_unused __rkcif_clr_unready_dev(void)
 
 	list_for_each_entry(cif_dev, &rkcif_device_list, list) {
 		v4l2_async_notifier_clr_unready_dev(&cif_dev->notifier);
-		subdev_asyn_register_itf(cif_dev);
+		if (!cif_dev->is_camera_over_bridge)
+			subdev_asyn_register_itf(cif_dev);
 	}
 
 	mutex_unlock(&rkcif_dev_mutex);

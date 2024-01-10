@@ -113,6 +113,7 @@ struct sditf_priv {
 	int num_sensors;
 	int combine_index;
 	int connect_id;
+	int port_count;
 	bool is_combine_mode;
 	atomic_t power_cnt;
 	atomic_t stream_cnt;
