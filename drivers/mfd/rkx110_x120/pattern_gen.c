@@ -9,6 +9,7 @@
 
 #include "rkx110_x120.h"
 #include "rkx110_x120_display.h"
+#include "rkx120_dsi_tx.h"
 #include "hal/cru_api.h"
 
 #define PATTERN_GEN_PATTERN_CTRL	0x0000
@@ -114,7 +115,7 @@ static void pattern_start_stream(struct pattern_gen *pattern_gen, bool is_patter
 		return;
 
 	if (pattern_gen->chip != &serdes->chip[DEVICE_LOCAL])
-		return;
+		goto out;
 
 	if (!strcmp(pattern_gen->name, "lvds0")) {
 		hwclk_reset_deassert(serdes->chip[DEVICE_LOCAL].hwclk,
@@ -170,6 +171,12 @@ static void pattern_start_stream(struct pattern_gen *pattern_gen, bool is_patter
 	}
 
 	rk_serdes_display_video_start(serdes, pattern_gen->route, true);
+
+out:
+	if (pattern_gen->route->remote0_port0 == RK_SERDES_DSI_TX0)
+		rkx120_dsi_tx_reset(serdes, DEVICE_REMOTE0);
+	if (pattern_gen->route->remote1_port0 == RK_SERDES_DSI_TX0)
+		rkx120_dsi_tx_reset(serdes, DEVICE_REMOTE1);
 }
 
 static void pattern_switch_clk_to_pattern(struct pattern_gen *pattern_gen, struct videomode *vm)

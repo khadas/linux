@@ -327,3 +327,14 @@ int rkx120_lvds_tx_enable(struct rk_serdes *serdes, struct rk_serdes_route *rout
 
 	return 0;
 }
+
+int rkx120_lvds_tx_disable(struct rk_serdes *serdes, struct rk_serdes_route *route, u8 remote_id,
+			   u8 phy_id)
+{
+	struct rk_serdes_panel *sd_panel = container_of(route, struct rk_serdes_panel, route);
+	struct rkx120_combtxphy *combtxphy = &sd_panel->combtxphy;
+
+	rkx120_combtxphy_power_off(serdes, combtxphy, remote_id, phy_id);
+
+	return 0;
+}
