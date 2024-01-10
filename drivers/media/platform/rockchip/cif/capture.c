@@ -1636,7 +1636,7 @@ static struct v4l2_subdev *get_rkisp_sd(struct sditf_priv *priv)
 	struct media_pad *pad = NULL;
 
 	if (priv && priv->pads[0].entity->num_links) {
-		if (priv->is_combine_mode)
+		if (priv->is_combine_mode || priv->cif_dev->is_camera_over_bridge)
 			pad = media_entity_remote_pad(&priv->pads[1]);
 		else
 			pad = media_entity_remote_pad(&priv->pads[0]);
@@ -5330,6 +5330,7 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 	u32 frame_time_ns = 0;
 	u64 cur_time = 0;
 	u64 fs_time = 0;
+	int on = 0;
 
 	mutex_lock(&dev->stream_lock);
 
@@ -5373,6 +5374,15 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		}
 
 		media_pipeline_stop(&node->vdev.entity);
+		if (dev->is_camera_over_bridge) {
+			ret = v4l2_subdev_call(dev->sditf[stream->id]->sensor_sd,
+					       video,
+					       s_stream,
+					       on);
+			if (ret < 0)
+				v4l2_err(v4l2_dev, "camera over bridge stream-off failed error:%d\n",
+					 ret);
+		}
 		ret = dev->pipe.set_stream(&dev->pipe, false);
 		if (ret < 0)
 			v4l2_err(v4l2_dev, "pipeline stream-off failed error:%d\n",
@@ -5403,6 +5413,9 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 	if (!atomic_read(&dev->pipe.stream_cnt) &&
 	    dev->channels[0].capture_info.mode == RKMODULE_ONE_CH_TO_MULTI_ISP)
 		rkcif_clean_state_one_to_multi_mode(dev);
+	if (dev->channels[0].capture_info.mode == RKMODULE_MULTI_CH_TO_MULTI_ISP &&
+	    dev->sditf[stream->id])
+		atomic_set(&dev->sditf[stream->id]->frm_sync_seq, 0);
 
 	if ((mode & RKCIF_STREAM_MODE_CAPTURE) == RKCIF_STREAM_MODE_CAPTURE) {
 		/* release buffers */
@@ -6561,6 +6574,7 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 	int ret;
 	int i = 0;
 	u32 skip_frame = 0;
+	int on = 1;
 
 	v4l2_info(&dev->v4l2_dev, "stream[%d] start streaming\n", stream->id);
 
@@ -6730,6 +6744,14 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, enum rkcif_stream_mode mo
 		if (sensor_info->mbus.type != V4L2_MBUS_PARALLEL &&
 		    rkmodule_stream_seq != RKMODULE_START_STREAM_FRONT) {
 			ret = dev->pipe.set_stream(&dev->pipe, true);
+			if (ret < 0)
+				goto stop_stream;
+		}
+		if (dev->is_camera_over_bridge) {
+			ret = v4l2_subdev_call(dev->sditf[stream->id]->sensor_sd,
+					       video,
+					       s_stream,
+					       on);
 			if (ret < 0)
 				goto stop_stream;
 		}
@@ -7097,6 +7119,31 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id)
 	atomic_set(&stream->sub_stream_buf_cnt, 0);
 }
 
+static int rkcif_sensor_set_power(struct rkcif_stream *stream, int on)
+{
+	struct rkcif_device *cif_dev = stream->cifdev;
+	struct sditf_priv *priv = cif_dev->sditf[0];
+	int ret = 0;
+	int i = 0;
+
+	if (cif_dev->terminal_sensor.sd)
+		ret = v4l2_subdev_call(cif_dev->terminal_sensor.sd,
+				       core, s_power, on);
+	if (priv && cif_dev->sditf_cnt > 1) {
+		if (priv->is_combine_mode) {
+			for (i = 0; i < cif_dev->sditf_cnt; i++) {
+				if (cif_dev->sditf[i] && cif_dev->sditf[i]->sensor_sd)
+					v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd, core,
+							 s_power, on);
+			}
+		} else if (cif_dev->is_camera_over_bridge) {
+			v4l2_subdev_call(cif_dev->sditf[stream->id]->sensor_sd, core,
+					 s_power, on);
+		}
+	}
+	return ret;
+}
+
 static int rkcif_fh_open(struct file *filp)
 {
 	struct video_device *vdev = video_devdata(filp);
@@ -7104,7 +7151,7 @@ static int rkcif_fh_open(struct file *filp)
 	struct rkcif_stream *stream = to_rkcif_stream(vnode);
 	struct rkcif_device *cifdev = stream->cifdev;
 	int ret;
-	int i = 0;
+	int on = 1;
 
 	ret = rkcif_attach_hw(cifdev);
 	if (ret)
@@ -7137,18 +7184,7 @@ static int rkcif_fh_open(struct file *filp)
 		if (ret < 0)
 			vb2_fop_release(filp);
 	}
-	if (cifdev->sditf_cnt > 1) {
-		for (i = 0; i < cifdev->sditf_cnt; i++) {
-			if (cifdev->sditf[i]->sensor_sd)
-				ret |= v4l2_subdev_call(cifdev->sditf[i]->sensor_sd,
-							core,
-							s_power,
-							1);
-		}
-		if (ret < 0)
-			v4l2_err(vdev, "set sensor power on fail, ret %d\n",
-				 ret);
-	}
+	ret = rkcif_sensor_set_power(stream, on);
 	return ret;
 }
 
@@ -7159,7 +7195,7 @@ static int rkcif_fh_release(struct file *filp)
 	struct rkcif_stream *stream = to_rkcif_stream(vnode);
 	struct rkcif_device *cifdev = stream->cifdev;
 	int ret = 0;
-	int i = 0;
+	int on = 0;
 
 	ret = vb2_fop_release(filp);
 	if (!ret) {
@@ -7171,18 +7207,7 @@ static int rkcif_fh_release(struct file *filp)
 	}
 
 	pm_runtime_put_sync(cifdev->dev);
-	if (cifdev->sditf_cnt > 1) {
-		for (i = 0; i < cifdev->sditf_cnt; i++) {
-			if (cifdev->sditf[i]->sensor_sd)
-				ret |= v4l2_subdev_call(cifdev->sditf[i]->sensor_sd,
-							core,
-							s_power,
-							0);
-		}
-		if (ret < 0)
-			v4l2_err(vdev, "set sensor power on fail, ret %d\n",
-				 ret);
-	}
+	ret = rkcif_sensor_set_power(stream, on);
 	return ret;
 }
 
@@ -10006,11 +10031,21 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 				 __func__, on ? "on" : "off", p->subdevs[i]->name);
 	}
 
-	if (priv && priv->is_combine_mode && cif_dev->sditf_cnt <= RKCIF_MAX_SDITF) {
-		for (i = 0; i < cif_dev->sditf_cnt; i++) {
-			if (cif_dev->sditf[i] && cif_dev->sditf[i]->sensor_sd)
-				ret = v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd, core, ioctl,
-						       RKMODULE_SET_QUICK_STREAM, &on);
+	if (priv && cif_dev->sditf_cnt > 1) {
+		if (priv->is_combine_mode) {
+			for (i = 0; i < cif_dev->sditf_cnt; i++) {
+				if (cif_dev->sditf[i] && cif_dev->sditf[i]->sensor_sd)
+					ret = v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd, core, ioctl,
+							       RKMODULE_SET_QUICK_STREAM, &on);
+			}
+		} else if (cif_dev->is_camera_over_bridge) {
+			for (i = 0; i < cif_dev->sditf_cnt; i++) {
+				if (cif_dev->sditf[i] && cif_dev->sditf[i]->sensor_sd &&
+				    (cif_dev->stream[i].state == RKCIF_STATE_STREAMING ||
+				     cif_dev->stream[i].state == RKCIF_STATE_RESET_IN_STREAMING))
+					ret = v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd, core, ioctl,
+							       RKMODULE_SET_QUICK_STREAM, &on);
+			}
 		}
 	}
 
@@ -10110,11 +10145,21 @@ static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
 				 p->subdevs[i]->name);
 	}
 
-	if (priv && priv->is_combine_mode && cif_dev->sditf_cnt <= RKCIF_MAX_SDITF) {
-		for (i = 0; i < cif_dev->sditf_cnt; i++) {
-			if (cif_dev->sditf[i] && cif_dev->sditf[i]->sensor_sd)
-				v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd, core, ioctl,
-						 RKMODULE_SET_QUICK_STREAM, &on);
+	if (priv && cif_dev->sditf_cnt > 1) {
+		if (priv->is_combine_mode) {
+			for (i = 0; i < cif_dev->sditf_cnt; i++) {
+				if (cif_dev->sditf[i] && cif_dev->sditf[i]->sensor_sd)
+					ret = v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd, core, ioctl,
+							       RKMODULE_SET_QUICK_STREAM, &on);
+			}
+		} else if (cif_dev->is_camera_over_bridge) {
+			for (i = 0; i < cif_dev->sditf_cnt; i++) {
+				if (cif_dev->sditf[i] && cif_dev->sditf[i]->sensor_sd &&
+				    (cif_dev->stream[i].state == RKCIF_STATE_STREAMING ||
+				     cif_dev->stream[i].state == RKCIF_STATE_RESET_IN_STREAMING))
+					ret = v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd, core, ioctl,
+							       RKMODULE_SET_QUICK_STREAM, &on);
+			}
 		}
 	}
 
@@ -10657,8 +10702,6 @@ void rkcif_set_default_fmt(struct rkcif_device *cif_dev)
 
 	if (cif_dev->terminal_sensor.sd) {
 		for (i = 0; i < stream_num; i++) {
-			if (i == RKCIF_STREAM_MIPI_ID3)
-				cif_dev->stream[i].is_compact = false;
 			memset(&fmt, 0, sizeof(fmt));
 			fmt.pad = i;
 			fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
@@ -11129,7 +11172,10 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 			if (!detect_stream->thunderboot_skip_interval ||
 			    (detect_stream->thunderboot_skip_interval &&
 			    (detect_stream->frame_idx % detect_stream->thunderboot_skip_interval) == 0)) {
-				if (cif_dev->channels[0].capture_info.mode == RKMODULE_ONE_CH_TO_MULTI_ISP)
+				if (cif_dev->channels[0].capture_info.mode == RKMODULE_MULTI_CH_TO_MULTI_ISP &&
+				    cif_dev->sditf[detect_stream->id])
+					sditf_event_inc_sof(cif_dev->sditf[detect_stream->id]);
+				else if (cif_dev->channels[0].capture_info.mode == RKMODULE_ONE_CH_TO_MULTI_ISP)
 					schedule_work(&cif_dev->exp_work);
 				else
 					rkcif_send_sof(cif_dev);
@@ -11290,11 +11336,21 @@ static int rkcif_subdevs_set_power(struct rkcif_device *cif_dev, int on)
 	if (cif_dev->terminal_sensor.sd)
 		ret = v4l2_subdev_call(cif_dev->terminal_sensor.sd,
 				       core, s_power, on);
-	if (priv && priv->is_combine_mode && cif_dev->sditf_cnt <= RKCIF_MAX_SDITF) {
-		for (i = 0; i < cif_dev->sditf_cnt; i++) {
-			if (cif_dev->sditf[i] && cif_dev->sditf[i]->sensor_sd)
-				v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd, core,
-						 s_power, on);
+	if (priv && cif_dev->sditf_cnt > 1) {
+		if (priv->is_combine_mode) {
+			for (i = 0; i < cif_dev->sditf_cnt; i++) {
+				if (cif_dev->sditf[i] && cif_dev->sditf[i]->sensor_sd)
+					v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd, core,
+							 s_power, on);
+			}
+		} else if (cif_dev->is_camera_over_bridge) {
+			for (i = 0; i < cif_dev->sditf_cnt; i++) {
+				if (cif_dev->sditf[i] && cif_dev->sditf[i]->sensor_sd &&
+				    (cif_dev->stream[i].state == RKCIF_STATE_STREAMING ||
+				     cif_dev->stream[i].state == RKCIF_STATE_RESET_IN_STREAMING))
+					v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd, core,
+							 s_power, on);
+			}
 		}
 	}
 	return ret;
@@ -11344,15 +11400,30 @@ static int rkcif_subdevs_set_stream(struct rkcif_device *cif_dev, int on)
 		}
 	}
 
-	if (priv && priv->is_combine_mode && cif_dev->sditf_cnt <= RKCIF_MAX_SDITF) {
-		for (i = 0; i < cif_dev->sditf_cnt; i++) {
-			if (cif_dev->sditf[i] && cif_dev->sditf[i]->sensor_sd) {
-				ret = v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd, video, s_stream, on);
-				if (ret)
-					v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
-						 "%s:stream %s subdev:%s failed\n",
-						 __func__, on ? "on" : "off",
-						 cif_dev->sditf[i]->sensor_sd->name);
+	if (priv && cif_dev->sditf_cnt > 1) {
+		if (cif_dev->is_camera_over_bridge) {
+			for (i = 0; i < cif_dev->sditf_cnt; i++) {
+				if (cif_dev->sditf[i] && cif_dev->sditf[i]->sensor_sd &&
+				    (cif_dev->stream[i].state == RKCIF_STATE_STREAMING ||
+				     cif_dev->stream[i].state == RKCIF_STATE_RESET_IN_STREAMING)) {
+					ret = v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd, video, s_stream, on);
+					if (ret)
+						v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
+							 "%s:stream %s subdev:%s failed\n",
+							 __func__, on ? "on" : "off",
+							 cif_dev->sditf[i]->sensor_sd->name);
+				}
+			}
+		} else if (priv->is_combine_mode) {
+			for (i = 0; i < cif_dev->sditf_cnt; i++) {
+				if (cif_dev->sditf[i] && cif_dev->sditf[i]->sensor_sd) {
+					ret = v4l2_subdev_call(cif_dev->sditf[i]->sensor_sd, video, s_stream, on);
+					if (ret)
+						v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
+							 "%s:stream %s subdev:%s failed\n",
+							 __func__, on ? "on" : "off",
+							 cif_dev->sditf[i]->sensor_sd->name);
+				}
 			}
 		}
 	}
@@ -12157,6 +12228,9 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					spin_lock_irqsave(&stream->fps_lock, flags);
 					stream->readout.fs_timestamp = rkcif_time_get_ns(cif_dev);
 					stream->frame_idx++;
+					if (cif_dev->channels[0].capture_info.mode == RKMODULE_MULTI_CH_TO_MULTI_ISP &&
+					    cif_dev->sditf[stream->id])
+						sditf_event_inc_sof(cif_dev->sditf[stream->id]);
 					spin_unlock_irqrestore(&stream->fps_lock, flags);
 				}
 				stream->is_in_vblank = false;
@@ -12424,6 +12498,9 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 					spin_lock_irqsave(&stream->fps_lock, flags);
 					stream->readout.fs_timestamp = rkcif_time_get_ns(cif_dev);
 					stream->frame_idx++;
+					if (cif_dev->channels[0].capture_info.mode == RKMODULE_MULTI_CH_TO_MULTI_ISP &&
+					    cif_dev->sditf[stream->id])
+						sditf_event_inc_sof(cif_dev->sditf[stream->id]);
 					spin_unlock_irqrestore(&stream->fps_lock, flags);
 				}
 				stream->is_in_vblank = false;

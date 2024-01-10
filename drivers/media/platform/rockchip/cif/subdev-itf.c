@@ -1386,6 +1386,19 @@ static int sditf_subdev_notifier(struct sditf_priv *sditf)
 	return v4l2_async_register_subdev(&sditf->sd);
 }
 
+static int sditf_count_port_nodes(struct device_node *root_node)
+{
+	int count = 0;
+	struct device_node *node = NULL;
+
+	for_each_child_of_node(root_node, node) {
+		if (of_node_cmp(node->name, "port") == 0)
+			count++;
+		count += sditf_count_port_nodes(node);
+	}
+	return count;
+}
+
 static int rkcif_subdev_media_init(struct sditf_priv *priv)
 {
 	struct rkcif_device *cif_dev = priv->cif_dev;
@@ -1394,7 +1407,8 @@ static int rkcif_subdev_media_init(struct sditf_priv *priv)
 	int ret;
 	int pad_num = 0;
 
-	if (priv->is_combine_mode) {
+	priv->port_count = sditf_count_port_nodes(priv->dev->of_node);
+	if (priv->port_count > 1) {
 		priv->pads[0].flags = MEDIA_PAD_FL_SINK;
 		priv->pads[1].flags = MEDIA_PAD_FL_SOURCE;
 		pad_num = 2;
@@ -1430,7 +1444,7 @@ static int rkcif_subdev_media_init(struct sditf_priv *priv)
 	priv->toisp_inf.ch_info[0].is_valid = false;
 	priv->toisp_inf.ch_info[1].is_valid = false;
 	priv->toisp_inf.ch_info[2].is_valid = false;
-	if (priv->is_combine_mode)
+	if (priv->port_count > 1)
 		sditf_subdev_notifier(priv);
 	atomic_set(&priv->power_cnt, 0);
 	atomic_set(&priv->stream_cnt, 0);
