@@ -65,9 +65,6 @@ bob_defaults {
     large_page_support: {
         kbuild_options: ["CONFIG_LARGE_PAGE_SUPPORT=y"],
     },
-    mali_memory_fully_backed: {
-        kbuild_options: ["CONFIG_MALI_MEMORY_FULLY_BACKED=y"],
-    },
     mali_corestack: {
         kbuild_options: ["CONFIG_MALI_CORESTACK=y"],
     },

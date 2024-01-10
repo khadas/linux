@@ -56,7 +56,7 @@ static const char *get_val_type_name(enum kutf_helper_valtype valtype)
  * - Has between 1 and KUTF_HELPER_MAX_VAL_NAME_LEN characters before the \0 terminator
  * - And, each char is in the character set [A-Z0-9_]
  */
-static int validate_val_name(const char *val_str, int str_len)
+static int validate_val_name(const char *val_str, size_t str_len)
 {
 	int i = 0;
 
@@ -92,16 +92,16 @@ static int validate_val_name(const char *val_str, int str_len)
  * That is, before any '\\', '\n' or '"' characters. This is so we don't have
  * to escape the string
  */
-static int find_quoted_string_valid_len(const char *str)
+static size_t find_quoted_string_valid_len(const char *str)
 {
 	char *ptr;
 	const char *check_chars = "\\\n\"";
 
 	ptr = strpbrk(str, check_chars);
 	if (ptr)
-		return (int)(ptr - str);
+		return (size_t)(ptr - str);
 
-	return (int)strlen(str);
+	return strlen(str);
 }
 
 static int kutf_helper_userdata_enqueue(struct kutf_context *context, const char *str)
@@ -116,7 +116,7 @@ static int kutf_helper_userdata_enqueue(struct kutf_context *context, const char
 	if (!str_copy)
 		return -ENOMEM;
 
-	strcpy(str_copy, str);
+	strscpy(str_copy, str, len);
 
 	err = kutf_add_result(context, KUTF_RESULT_USERDATA, str_copy);
 
@@ -185,14 +185,14 @@ EXPORT_SYMBOL(kutf_helper_max_str_len_for_kern);
 int kutf_helper_send_named_str(struct kutf_context *context, const char *val_name,
 			       const char *val_str)
 {
-	int val_str_len;
-	int str_buf_sz;
+	size_t val_str_len;
+	size_t str_buf_sz;
 	char *str_buf = NULL;
 	int ret = 1;
 	char *copy_ptr;
-	int val_name_len;
-	int start_delim_len = strlen(NAMED_STR_START_DELIM);
-	int end_delim_len = strlen(NAMED_STR_END_DELIM);
+	size_t val_name_len;
+	size_t start_delim_len = strlen(NAMED_STR_START_DELIM);
+	size_t end_delim_len = strlen(NAMED_STR_END_DELIM);
 	const char *errmsg = NULL;
 
 	if (validate_val_name(val_name, KUTF_HELPER_MAX_VAL_NAME_LEN + 1)) {
@@ -215,7 +215,7 @@ int kutf_helper_send_named_str(struct kutf_context *context, const char *val_nam
 	if (!str_buf) {
 		errmsg = kutf_dsprintf(
 			&context->fixture_pool,
-			"Failed to send str value named '%s': kmalloc failed, str_buf_sz=%d",
+			"Failed to send str value named '%s': kmalloc failed, str_buf_sz=%zu",
 			val_name, str_buf_sz);
 		goto out_err;
 	}
@@ -270,8 +270,8 @@ int kutf_helper_receive_named_val(struct kutf_context *context,
 	char *recv_str;
 	char *search_ptr;
 	char *name_str = NULL;
-	int name_len;
-	int strval_len;
+	size_t name_len;
+	size_t strval_len;
 	enum kutf_helper_valtype type = KUTF_HELPER_VALTYPE_INVALID;
 	char *strval = NULL;
 	u64 u64val = 0;
@@ -286,7 +286,7 @@ int kutf_helper_receive_named_val(struct kutf_context *context,
 	/* Find the '=', grab the name and validate it */
 	search_ptr = strnchr(recv_str, recv_sz, NAMED_VALUE_SEP[0]);
 	if (search_ptr) {
-		name_len = search_ptr - recv_str;
+		name_len = (size_t)(search_ptr - recv_str);
 		if (!validate_val_name(recv_str, name_len)) {
 			/* no need to reallocate - just modify string in place */
 			name_str = recv_str;
@@ -311,7 +311,7 @@ int kutf_helper_receive_named_val(struct kutf_context *context,
 		/* Find end of string */
 		search_ptr = strnchr(recv_str, recv_sz, NAMED_STR_END_DELIM[0]);
 		if (search_ptr) {
-			strval_len = search_ptr - recv_str;
+			strval_len = (size_t)(search_ptr - recv_str);
 			/* Validate the string to ensure it contains no quotes */
 			if (strval_len == find_quoted_string_valid_len(recv_str)) {
 				/* no need to reallocate - just modify string in place */
@@ -339,7 +339,7 @@ int kutf_helper_receive_named_val(struct kutf_context *context,
 		 * reads characters after the number it'll report -EINVAL
 		 */
 		if (!err) {
-			int len_remain = strnlen(recv_str, recv_sz);
+			size_t len_remain = strnlen(recv_str, recv_sz);
 
 			type = KUTF_HELPER_VALTYPE_U64;
 			recv_str += len_remain;

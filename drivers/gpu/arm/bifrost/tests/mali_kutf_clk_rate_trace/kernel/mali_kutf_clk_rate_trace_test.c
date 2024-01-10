@@ -255,11 +255,11 @@ static const char *kutf_clk_trace_do_get_rate(struct kutf_context *context,
 		spin_unlock(&kbdev->pm.clk_rtm.lock);
 
 		if ((i + 1) == data->nclks)
-			ret += snprintf(portal_msg_buf + ret, PORTAL_MSG_LEN - ret,
+			ret += snprintf(portal_msg_buf + ret, PORTAL_MSG_LEN - (size_t)ret,
 					"0x%lx], GPU_IDLE:%d}", rate, idle);
 		else
-			ret += snprintf(portal_msg_buf + ret, PORTAL_MSG_LEN - ret, "0x%lx, ",
-					rate);
+			ret += snprintf(portal_msg_buf + ret, PORTAL_MSG_LEN - (size_t)ret,
+					"0x%lx, ", rate);
 
 		if (ret >= PORTAL_MSG_LEN) {
 			pr_warn("Message buf overflow with rate array data\n");
@@ -319,7 +319,7 @@ static const char *kutf_clk_trace_do_get_snapshot(struct kutf_context *context,
 			fmt = "(0x%lx, 0x%lx, %u, %u)]}";
 		else
 			fmt = "(0x%lx, 0x%lx, %u, %u), ";
-		ret += snprintf(portal_msg_buf + ret, PORTAL_MSG_LEN - ret, fmt,
+		ret += snprintf(portal_msg_buf + ret, PORTAL_MSG_LEN - (size_t)ret, fmt,
 				snapshot.previous_rate, snapshot.current_rate, snapshot.rate_up_cnt,
 				snapshot.rate_down_cnt);
 		if (ret >= PORTAL_MSG_LEN) {

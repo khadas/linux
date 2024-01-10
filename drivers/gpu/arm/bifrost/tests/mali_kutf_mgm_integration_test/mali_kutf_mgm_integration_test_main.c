@@ -50,7 +50,7 @@ struct kutf_application *mgm_app;
  */
 struct kutf_mgm_fixture_data {
 	struct kbase_device *kbdev;
-	int group_id;
+	unsigned int group_id;
 };
 
 /**
