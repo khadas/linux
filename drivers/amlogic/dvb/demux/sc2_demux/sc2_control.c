@@ -708,6 +708,8 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 		if (cnt)
 			msleep(20);
 		wdma_clean(pchan->id);
+		/*wait the hw can't output*/
+		usleep_range(300, 400);
 		//delay
 //              while (times ++ < 500);
 		pr_dbg("%s wptr:0x%0x\n", __func__,
