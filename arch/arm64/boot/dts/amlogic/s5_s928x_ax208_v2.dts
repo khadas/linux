@@ -578,7 +578,7 @@
 
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
-			mclk-fs = <512>;
+			mclk-fs = <64>;
 			//continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
@@ -600,7 +600,7 @@
 							<1>;
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <16>;
-				system-clock-frequency = <256000>;
+				system-clock-frequency = <512000>;
 			};
 			tdmacodec: codec {
 				sound-dai = <&dummy_codec>;
@@ -1284,11 +1284,11 @@
 		 * 3:spdifout
 		 * 4:spdifout_b
 		 */
-		eqdrc_module = <1>;
+		eqdrc_module = <2>;
 		/* max 0xf, each bit for one lane, usually one lane */
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
-		channel_mask = <0xff>;
+		channel_mask = <0x3>;
 
 		status = "okay";
 	};
@@ -1299,6 +1299,7 @@
 			&clkaudio CLKID_AUDIO_MCLK_B
 			&clkaudio CLKID_AUDIO_RESAMPLE_A>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
+		src-clk-freq = <491520000>;
 
 		/*same with toddr_src
 		 *	TDMIN_A,    0
@@ -1326,6 +1327,7 @@
 			&clkaudio CLKID_AUDIO_MCLK_F
 			&clkaudio CLKID_AUDIO_RESAMPLE_B>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
+		src-clk-freq = <491520000>;
 
 		/*this resample is only used for loopback_A.*/
 		capture_sample_rate = <16000>;
@@ -1386,7 +1388,7 @@
 			"pdm_dclk_srcpll",
 			"pdm_dclk",
 			"pdm_sysclk",
-			"tdminlb_mpll",/* CLKID_HIFI_PLL */
+			"tdminlb_mpll",
 			"tdminlb_mclk";
 
 		/* datain src
@@ -1416,7 +1418,7 @@
 		 * 7: PAD_TDMINB_D*, oe, refer to core pinmux
 		 */
 		/* if tdmin_lb >= 3, use external loopback */
-		datalb_src = <1>;
+		datalb_src = <2>;
 		datalb_chnum = <2>;
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
@@ -1442,7 +1444,7 @@
 			"pdm_dclk_srcpll",
 			"pdm_dclk",
 			"pdm_sysclk",
-			"tdminlb_mpll",/* CLKID_HIFI1_PLL */
+			"tdminlb_mpll",
 			"tdminlb_mclk";
 
 		/* calc mclk for datain_lb */
@@ -1473,7 +1475,7 @@
 		 * 7: PAD_TDMINB_D*, oe, refer to core pinmux
 		 */
 		/* if tdmin_lb >= 3, use external loopback */
-		datalb_src = <1>;
+		datalb_src = <2>;
 		datalb_chnum = <2>;
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
@@ -1485,6 +1487,7 @@
 }; /* end of audiobus */
 
 &earc {
+	suspend-clk-off = <1>;
 	status = "disabled";
 };
 
