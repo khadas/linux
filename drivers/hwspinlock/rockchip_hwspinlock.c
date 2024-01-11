@@ -45,6 +45,14 @@ static int rockchip_hwspinlock_trylock(struct hwspinlock *lock)
 static void rockchip_hwspinlock_unlock(struct hwspinlock *lock)
 {
 	void __iomem *lock_addr = lock->priv;
+	u32 lock_owner = readl(lock_addr) & HWSPINLOCK_ID_MASK;
+
+	if (lock_owner != hwlock_user_id) {
+		dev_warn(lock->bank->dev,
+			 "WARNING: against user %u release a lock held by %u\n",
+			 hwlock_user_id, lock_owner);
+		return;
+	}
 
 	/* Release the lock by writing 0 to it */
 	writel(0, lock_addr);
