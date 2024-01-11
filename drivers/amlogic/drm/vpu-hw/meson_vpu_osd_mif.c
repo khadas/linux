@@ -24,9 +24,13 @@
 #include "meson_vpu_reg.h"
 #include "meson_vpu_util.h"
 
-static int osd_hold_line = 8;
+static int osd_hold_line = VIU1_DEFAULT_HOLD_LINE;
 module_param(osd_hold_line, int, 0664);
 MODULE_PARM_DESC(osd_hold_line, "osd_hold_line");
+
+static int osd_hold_line_viu2 = VIU2_DEFAULT_HOLD_LINE;
+module_param(osd_hold_line_viu2, int, 0664);
+MODULE_PARM_DESC(osd_hold_line_viu2, "osd_hold_line_viu2");
 
 static struct osd_mif_reg_s osd_mif_reg[HW_OSD_MIF_NUM] = {
 	{
@@ -973,7 +977,11 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	osd_scan_mode_config(vblk, reg_ops, reg, pipe->subs[crtc_index].mode.flags &
 				 DRM_MODE_FLAG_INTERLACE);
 	osd_set_dimm_ctrl(vblk, reg_ops, reg, 0);
-	ods_hold_line_config(vblk, reg_ops, reg, osd_hold_line);
+	if (mvos->crtc_index == 1)
+		ods_hold_line_config(vblk, reg_ops, reg, osd_hold_line_viu2);
+	else
+		ods_hold_line_config(vblk, reg_ops, reg, osd_hold_line);
+
 	osd_set_two_ports(mvos->read_ports);
 
 	MESON_DRM_BLOCK("plane_index=%d,HW-OSD=%d\n",
