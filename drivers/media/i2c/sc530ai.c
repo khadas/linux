@@ -81,7 +81,7 @@
 #define SC530AI_REG_ANA_GAIN		0x3e09
 
 #define SC530AI_GAIN_MIN		0x20
-#define SC530AI_GAIN_MAX		(32 * 326)
+#define SC530AI_GAIN_MAX		(9635) //76.48 * 3.938 * 32
 #define SC530AI_GAIN_STEP		1
 #define SC530AI_GAIN_DEFAULT		0x20
 
@@ -1017,39 +1017,40 @@ static void sc530ai_get_gain_reg(u32 total_gain, u32 *again, u32 *dgain,
 		*again = 0x00;
 		*dgain = 0x00;
 		*dgain_fine = gain_factor * 128 / 1000;
-	} else if (gain_factor < 2550) { /* 2x - 2.55x gain */
+	} else if (gain_factor < 2390) { /* 2x - 2.39x gain */
 		*again = 0x01;
 		*dgain = 0x00;
 		*dgain_fine = gain_factor * 128 / 2000;
-	} else if (gain_factor < 2550 * 2) { /* 2.55x - 5.1x gain */
+	} else if (gain_factor < 2390 * 2) { /* 2.39x - 4.78x gain */
 		*again = 0x40;
 		*dgain = 0x00;
-		*dgain_fine = gain_factor * 128 / 2550;
-	} else if (gain_factor < 2550 * 4) { /* 5.1x - 10.2x gain */
+		*dgain_fine = gain_factor * 128 / 2390;
+	} else if (gain_factor < 2390 * 4) { /* 4.78x - 9.56x gain */
 		*again = 0x48;
 		*dgain = 0x00;
-		*dgain_fine = gain_factor * 128 / 5110;
-	} else if (gain_factor < 2550 * 8) { /* 10.2x - 20.4x gain */
+		*dgain_fine = gain_factor * 128 / 2390 / 2;
+	} else if (gain_factor < 2390 * 8) { /* 9.56x - 19.12x gain */
 		*again = 0x49;
 		*dgain = 0x00;
-		*dgain_fine = gain_factor * 128 / 10200;
-	} else if (gain_factor < 2550 * 16) { /* 20.4x - 40.8x gain */
+		*dgain_fine = gain_factor * 128 / 2390 / 4;
+	} else if (gain_factor < 2390 * 16) { /* 19.12x - 38.24x gain */
 		*again = 0x4B;
 		*dgain = 0x00;
-		*dgain_fine = gain_factor * 128 / 20400;
-	} else if (gain_factor < 2550 * 32) { /* 40.8x - 81.6x gain */
+		*dgain_fine = gain_factor * 128 / 2390 / 8;
+	} else if (gain_factor < 2390 * 32) { /* 38.24x - 76.48x gain */
 		*again = 0x4f;
 		*dgain = 0x00;
-		*dgain_fine = gain_factor * 128 / 40800;
-	} else if (gain_factor < 2550 * 64) { /* 81.6x - 163.2x gain */
+		*dgain_fine = gain_factor * 128 / 2390 / 16;
+	} else if (gain_factor < 2390 * 64) { /* 76.48x - 152.96x gain */
 		*again = 0x5f;
 		*dgain = 0x00;
-		*dgain_fine = gain_factor * 128 / 40800 / 2;
-	} else if (gain_factor < 2550 * 128) { /* 163.2x - 326.4x gain */
+		*dgain_fine = gain_factor * 128 / 2390 / 32;
+	} else if (gain_factor < 2390 * 128) { /* 152.96x - 301.1x gain */
 		*again = 0x5f;
 		*dgain = 0x01;
-		*dgain_fine = gain_factor * 128 / 40800 / 4;
+		*dgain_fine = gain_factor * 128 / 2390 / 64;
 	}
+	*dgain_fine = *dgain_fine / 4 * 4;
 }
 
 static int sc530ai_set_hdrae(struct sc530ai *sc530ai,
