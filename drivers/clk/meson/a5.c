@@ -850,12 +850,15 @@ static struct a5_sys_pll_nb_data a5_sys_pll_nb_data = {
 #ifdef CONFIG_ARM
 static const struct pll_params_table a5_hifi_pll_table[] = {
 	PLL_PARAMS(192, 1, 2), /* DCO = 4608M OD = 2 PLL = 1152M */
+	PLL_PARAMS(163, 1, 2), /* DCO = 1944M OD = 4 PLL = 486M */
 	PLL_PARAMS(150, 1, 1), /* DCO = 1806.336M OD = 1 */
+	PLL_PARAMS(150, 1, 2), /* DCO = 1800M OD = 4 PLL = 450M */
 	{ /* sentinel */  }
 };
 #else
 static const struct pll_params_table a5_hifi_pll_table[] = {
 	PLL_PARAMS(192, 1), /* DCO = 4608M OD = 2 PLL = 1152M */
+	PLL_PARAMS(163, 1), /* DCO = 1944M */
 	PLL_PARAMS(150, 1), /* DCO = 1806.336M */
 	{ /* sentinel */  }
 };
@@ -916,7 +919,8 @@ static struct clk_regmap a5_hifi_pll_dco = {
 		.table = a5_hifi_pll_table,
 		.init_regs = a5_hifi_init_regs,
 		.init_count = ARRAY_SIZE(a5_hifi_init_regs),
-		.flags = CLK_MESON_PLL_ROUND_CLOSEST,
+		.flags = CLK_MESON_PLL_ROUND_CLOSEST |
+			 CLK_MESON_PLL_FIXED_FRAC_WEIGHT_PRECISION,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll_dco",
