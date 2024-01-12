@@ -45,6 +45,21 @@ unsigned int tsout_get_ready(void)
 	return READ_CBUS_REG(PID_RDY);
 }
 
+unsigned int tsout_config_save_junk(int flag)
+{
+	union OUT_CFG_FIELD data;
+	u32 cfg_addr = OUT_CFG;
+
+	data.b.sys_freq = 0x18;
+	if (flag)
+		data.b.cfg_save_junk = 1;
+	else
+		data.b.cfg_save_junk = 0;
+
+	WRITE_CBUS_REG(cfg_addr, data.data);
+	return 0;
+}
+
 static void tee_tsout_config_sid_table(u32 sid, u32 begin, u32 length)
 {
 	struct tee_dmx_sid_table_param param = {0};

@@ -73,7 +73,8 @@ union OUT_CFG_FIELD {
 	unsigned int data;
 	struct {
 		unsigned int sys_freq:6;
-		unsigned int rsvd_0:26;
+		unsigned int cfg_save_junk:1;
+		unsigned int rsvd_0:25;
 	} b;
 };
 

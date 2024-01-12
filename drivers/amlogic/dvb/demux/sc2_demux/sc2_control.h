@@ -73,6 +73,7 @@ enum DEMOD_TSIN_SEL_E {
 /*****************************************************/
 /*****************************************************/
 unsigned int tsout_get_ready(void);
+unsigned int tsout_config_save_junk(int flag);
 void tsout_config_sid_table(u32 sid, u32 begin, u32 length);
 void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry,
 			u32 buffer_id, int sid, int sec_level);

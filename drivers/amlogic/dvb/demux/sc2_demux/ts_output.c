@@ -56,6 +56,9 @@ struct es_params_t {
 	int has_splice;
 	unsigned int have_sent_len;
 	u32 dirty_len;
+	s64 pre_time_ms;
+	u32 es_wp;
+	u32 es_header_wp;
 };
 
 struct ts_out {
@@ -2199,6 +2202,54 @@ static int _handle_es_splice(struct out_elem *pout, struct es_params_t *es_param
 	return 0;
 }
 
+static void notify_encrypt_for_t5w(struct out_elem *pout, struct es_params_t *es_params)
+{
+	s64 now_time_ms;
+
+	if (es_params->pre_time_ms == -1) {
+		es_params->pre_time_ms = ktime_to_ms(ktime_get());
+		es_params->es_wp = SC2_bufferid_get_wp_offset(pout->pchan);
+		es_params->es_header_wp = SC2_bufferid_get_wp_offset(pout->pchan1);
+//		dprint("set wp and pre_time\n");
+	} else {
+		now_time_ms = ktime_to_ms(ktime_get());
+		if ((now_time_ms - es_params->pre_time_ms) >= 500) {
+			if (es_params->es_wp != SC2_bufferid_get_wp_offset(pout->pchan) &&
+				es_params->es_header_wp ==
+				SC2_bufferid_get_wp_offset(pout->pchan1)) {
+				if (pout->output_mode) {
+					if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE) {
+						struct dmx_sec_es_data sec_es_data;
+
+						memset(&sec_es_data, 0,
+							sizeof(struct dmx_sec_es_data));
+						sec_es_data.pts_dts_flag = 0xC;
+						out_ts_cb_list(pout, (char *)&sec_es_data,
+							sizeof(struct dmx_sec_es_data), 0, 0);
+						pr_dbg("notify sec mode encrypt type:%d\n",
+							pout->type);
+					}
+				} else {
+					if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE) {
+						struct dmx_non_sec_es_header es_data_header;
+
+						memset(&es_data_header, 0,
+							sizeof(struct dmx_non_sec_es_header));
+						es_data_header.pts_dts_flag = 0xC;
+						out_ts_cb_list(pout, (char *)&es_data_header,
+							sizeof(struct dmx_non_sec_es_header), 0, 0);
+						pr_dbg("notify non-sec mode encrypt type:%d\n",
+							pout->type);
+					}
+				}
+			} else {
+//				es_params->es_wp = SC2_bufferid_get_wp_offset(pout->pchan);
+			}
+			es_params->pre_time_ms = -1;
+		}
+	}
+}
+
 static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 {
 	int ret = 0;
@@ -2237,6 +2288,14 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 		    get_non_sec_es_header(pout, plast_header, pcur_header,
 					  pheader);
 		mutex_unlock(&pout->pts_mutex);
+		/*for t5w some encrypt streams need notify high level*/
+		if (get_dmx_version() == 4) {
+			if (ret == -3) {
+				notify_encrypt_for_t5w(pout, es_params);
+			} else {
+				es_params->pre_time_ms = -1;
+			}
+		}
 		if (ret < 0) {
 			if (ret == -3) {
 				if (pout->type == VIDEO_TYPE && video_es_splice) {
@@ -2903,6 +2962,10 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 		mutex_lock(&es_output_mutex);
 		add_ts_out_list(&es_out_task_tmp, ts_out_tmp);
 		mutex_unlock(&es_output_mutex);
+		if (get_dmx_version() == 4) {
+			tsout_config_save_junk(1);
+			ts_out_tmp->es_params->pre_time_ms = -1;
+		}
 	} else {
 		add_ts_out_list(&ts_out_task_tmp, ts_out_tmp);
 	}
