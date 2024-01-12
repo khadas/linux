@@ -18039,6 +18039,8 @@ static ssize_t cur_ai_scenes_show(struct class *cla,
 
 	if (!vd_layer[0].dispbuf)
 		return 0;
+	if (!vd_layer[0].dispbuf->ai_pq_enable)
+		return 0;
 
 	if (nn_scenes_value[0].maxprob == 0)
 		return 0;

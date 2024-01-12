@@ -132,10 +132,6 @@
 
 #define AIPQ_FLAG_VERSION_1	      0x1   /*1 or 0, is old mode, t3/t3x/s5 HARDWARE do AIPQ*/
 #define AIPQ_FLAG_VERSION_2	      0x2   /*new mode, GPU do AIPQ*/
-#define AIPQ_FLAG_SCENE_CHANGE	      0x10
-#define AIPQ_FLAG_NN_NOT_DONE	      0x20
-#define AIPQ_FLAG_NN_DONE	      0x40
-#define AIPQ_FLAG_FIRST_VFRAME    0x80
 
 /* need check folllowing bits when toggle frame, to trigger property change */
 /* add more bits which indicates display attr change in vf->flag */
