@@ -52,8 +52,8 @@
 
 #define COREID SCPI_DSPA
 
+#define LOOPBACK_CHANNELS        (2)
 #define DSP_PARAM_CARD           2
-#define PCM_PARAM_PERIOD_SIZE    1024
 
 #define GAIN_MAX 0
 #define GAIN_MIN -40
@@ -285,6 +285,7 @@ static int thread_capture(void *data)
 	unsigned int size;
 	struct rpc_pcm_config pconfig;
 	struct buf_info buf;
+	u32 read_size = 0;
 
 	if (!info || !info->private_data)
 		return -EINVAL;
@@ -301,8 +302,12 @@ static int thread_capture(void *data)
 	pconfig.channels = dsp_pcm->pcm_param.channels;
 	pconfig.rate = dsp_pcm->pcm_param.rate;
 	pconfig.format = dsp_pcm->pcm_param.format;
-	pconfig.period_size = dsp_pcm->pcm_param.period_size;
+	pconfig.period_size = DSP_PERIOD_SIZE;
+	pconfig.period_count = PERIOD_COUNT;
 
+	read_size = pconfig.period_size * pconfig.channels *
+			pcm_client_format_to_bytes(pconfig.format) *
+			DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE;
 	dsp_pcm->pcm_handle = audio_device_open(dsp_pcm->pcm_param.card,
 					dsp_pcm->pcm_param.device,
 					PCM_IN, &pconfig, info->dev, COREID);
@@ -314,6 +319,7 @@ static int thread_capture(void *data)
 	pcm_process_client_set_volume_gain(dsp_pcm->pcm_handle, dsp_pcm->db_gain,
 					PCM_CAPTURE, info->dev, COREID);
 	while (dsp_pcm->run_flag && !kthread_should_stop()) {
+		buf.size = read_size;
 		size = pcm_process_client_dqbuf(dsp_pcm->pcm_handle, &buf, &buf,
 				PROCESSBUF, info->dev, COREID);
 		if (buf.size) {
@@ -340,10 +346,9 @@ static int thread_playback(void *data)
 	struct audio_pcm_function_t *info = (struct audio_pcm_function_t *)data;
 	struct audio_pcm_bridge_t *bridge = info->audio_bridge;
 	struct dsp_pcm_t *dsp_pcm;
-	u32 size_one_shot;
-	phys_addr_t shmm_phy = 0;
-	void *shmm_vir = NULL;
 	struct rpc_pcm_config pconfig;
+	struct buf_info buf;
+	u32 send_size = 0;
 
 	if (!info || !info->private_data)
 		return -EINVAL;
@@ -356,10 +361,15 @@ static int thread_playback(void *data)
 		msleep(100);
 	}
 	msleep(100);
+	memset(&buf, 0, sizeof(buf));
 	pconfig.channels = dsp_pcm->pcm_param.channels;
 	pconfig.rate = dsp_pcm->pcm_param.rate;
 	pconfig.format = dsp_pcm->pcm_param.format;
-	pconfig.period_size = dsp_pcm->pcm_param.period_size;
+	pconfig.period_size = DSP_PERIOD_SIZE;
+	pconfig.period_count = PERIOD_COUNT;
+	send_size = pconfig.period_size * pconfig.channels *
+		pcm_client_format_to_bytes(pconfig.format) * DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE;
+	buf.size = send_size;
 
 	pr_info("open playback device!\n");
 	dsp_pcm->pcm_handle = audio_device_open(dsp_pcm->pcm_param.card,
@@ -370,38 +380,34 @@ static int thread_playback(void *data)
 		return -ENXIO;
 	}
 
-	pr_info("malloc share mm!\n");
-	size_one_shot = pcm_client_frame_to_bytes(dsp_pcm->pcm_handle, pconfig.period_size);
-	shmm_vir = aml_dsp_mem_allocate(&shmm_phy, size_one_shot, info->dev, COREID);
-	if (!shmm_vir || !shmm_phy) {
-		pcm_client_close(dsp_pcm->pcm_handle, info->dev, COREID);
-		pr_err("can't malloc share memory---size:%d!\n", size_one_shot);
-		return -ENOMEM;
-	}
+	pr_info("get share mm!\n");
+	/* first call qbuf for get ready buffer address */
+	pcm_process_client_qbuf(dsp_pcm->pcm_handle, &buf,
+						RAWBUF, info->dev, COREID);
+
 	ring_buffer_go_empty(info->rb);
 	pcm_process_client_set_volume_gain(dsp_pcm->pcm_handle, dsp_pcm->db_gain,
 					PCM_PLAYBACK, dsp_pcm->dev, COREID);
 	while (dsp_pcm->run_flag && !kthread_should_stop()) {
 		if (bridge->isolated_enable) {
-			if (!aml_aprocess_complete(dsp_pcm->aprocess, shmm_vir, size_one_shot))
-				memset(shmm_vir, 0, size_one_shot);
+			if (!aml_aprocess_complete(dsp_pcm->aprocess, buf.viraddr, buf.size)) {
+				usleep_range(0, 2000);
+				continue;
+			}
 		} else {
-			if (!no_thread_safe_ring_buffer_get(info->rb, shmm_vir, size_one_shot))
-				memset(shmm_vir, 0, size_one_shot);
+			if (!no_thread_safe_ring_buffer_get(info->rb, buf.viraddr, buf.size))
+				memset(buf.viraddr, 0, buf.size);
 		}
 		dma_sync_single_for_device
 					(hifi4dsp_p[COREID]->dsp->dev,
-					 (phys_addr_t)shmm_phy,
-					 size_one_shot,
+					 (phys_addr_t)buf.phyaddr,
+					 buf.size,
 					 DMA_TO_DEVICE);
-		pcm_process_client_writei_to_speaker(dsp_pcm->pcm_handle, shmm_phy,
-				pconfig.period_size, !dsp_pcm->speaker_process_flag,
-				info->dev, COREID);
+		buf.size = send_size;
+		pcm_process_client_qbuf(dsp_pcm->pcm_handle, &buf,
+						RAWBUF, info->dev, COREID);
 	}
-	pcm_client_close(dsp_pcm->pcm_handle, info->dev, COREID);
-	aml_dsp_mem_free(shmm_phy, info->dev, COREID);
-	shmm_phy = 0;
-	shmm_vir = NULL;
+	pcm_process_client_close(dsp_pcm->pcm_handle, info->dev, COREID);
 	dsp_pcm->run_flag = 0;
 	return 0;
 }
@@ -473,6 +479,7 @@ static int dsp_pcm_set_hw(struct audio_pcm_function_t *audio_pcm, u8 channels, u
 {
 	struct dsp_pcm_t *dsp_pcm;
 	int alsa_format;
+	int period_size = 0;
 
 	if (!audio_pcm || !audio_pcm->private_data) {
 		pr_err("the bridge info is NULL!\n");
@@ -486,23 +493,29 @@ static int dsp_pcm_set_hw(struct audio_pcm_function_t *audio_pcm, u8 channels, u
 	switch (format) {
 	case PCM_FORMAT_S8:
 		alsa_format = SNDRV_PCM_FMTBIT_S8;
+		period_size = DSP_PERIOD_SIZE * channels;
 		break;
 	case PCM_FORMAT_S16_LE:
 		alsa_format = SNDRV_PCM_FMTBIT_S16;
+		period_size = DSP_PERIOD_SIZE * channels * 2;
 		break;
 	case PCM_FORMAT_S32_LE:
 		alsa_format = SNDRV_PCM_FMTBIT_S32;
+		period_size = DSP_PERIOD_SIZE * channels * 4;
 		break;
 	default:
 		alsa_format = SNDRV_PCM_FMTBIT_S16;
+		period_size = DSP_PERIOD_SIZE * channels * 2;
 		break;
 	}
+
+	period_size *= DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE;
 	if (audio_pcm->modeid == PCM_CAPTURE)
-		aml_aprocess_set_hw(dsp_pcm->aprocess, (channels - 2),
-				alsa_format, 16000, PCM_PARAM_PERIOD_SIZE);
+		aml_aprocess_set_hw(dsp_pcm->aprocess, (channels - LOOPBACK_CHANNELS),
+				alsa_format, rate, period_size);
 	else
 		aml_aprocess_set_hw(dsp_pcm->aprocess, channels,
-				alsa_format, rate, PCM_PARAM_PERIOD_SIZE);
+				alsa_format, rate, period_size);
 	return 0;
 }
 
@@ -614,8 +627,7 @@ int dsp_pcm_init(struct audio_pcm_function_t *audio_pcm,
 		return -EINVAL;
 	}
 	dsp_pcm->dev = audio_pcm->dev;
-	dsp_pcm->pcm_param.card = pcm_card; //DSP_PARAM_CARD;
-	dsp_pcm->pcm_param.period_size = PCM_PARAM_PERIOD_SIZE;
+	dsp_pcm->pcm_param.card = pcm_card;
 	dsp_pcm->volume = VOLUME_MAX;
 	dsp_pcm->mute = 0;
 	dsp_pcm->db_gain = dsp_pcm->volume * (GAIN_MAX - GAIN_MIN) /

@@ -9,6 +9,7 @@
 #include <linux/amlogic/meson_mhu_common.h>
 #include <linux/amlogic/scpi_protocol.h>
 #include "dsp_client_api.h"
+#include "bridge_common.h"
 
 int Mbox_invoke(struct device *dev, u32 dspid, int cmd, void *data, u32 len)
 {
@@ -20,7 +21,7 @@ int Mbox_invoke(struct device *dev, u32 dspid, int cmd, void *data, u32 len)
 	return ret;
 }
 
-static u32 pcm_client_format_to_bytes(enum DSP_PCM_FORMAT format)
+u32 pcm_client_format_to_bytes(enum DSP_PCM_FORMAT format)
 {
 	switch (format) {
 	case DSP_PCM_FORMAT_S32_LE:
@@ -220,7 +221,7 @@ int pcm_process_client_dqbuf(void *hdl, struct buf_info *buf, struct buf_info *r
 	arg.pcm = p_aml_pcm_ctx->pcm_srv_hdl;
 	arg.buf_handle = 0;
 	arg.data = 0;
-	arg.count = 0;
+	arg.count = buf->size;
 	arg.out_ret = -EINVAL;
 	if (release_buf && release_buf->handle &&
 		release_buf->phyaddr && release_buf->viraddr &&
@@ -248,8 +249,6 @@ int pcm_process_client_qbuf(void *hdl, struct buf_info *buf, u32 type,
 	struct aml_pro_pcm_ctx *p_aml_pcm_ctx = (struct aml_pro_pcm_ctx *)hdl;
 	struct pcm_process_buf_st arg;
 
-	if (!buf->handle)
-		return 0;
 	if (type == PROCESSBUF)
 		arg.id = 0;
 	else
@@ -257,10 +256,17 @@ int pcm_process_client_qbuf(void *hdl, struct buf_info *buf, u32 type,
 	arg.pcm = p_aml_pcm_ctx->pcm_srv_hdl;
 	arg.buf_handle = buf->handle;
 	arg.data = buf->phyaddr;
-	arg.count = 0;
+	arg.count = buf->size;
 	arg.out_ret = -EINVAL;
 
 	Mbox_invoke(dev, dspid, CMD_APROCESS_QBUF, &arg, sizeof(arg));
+
+	buf->handle = arg.buf_handle;
+	buf->phyaddr = arg.data;
+	buf->size = arg.count;
+
+	if (arg.buf_handle)
+		buf->viraddr = __va((phys_addr_t)buf->phyaddr);
 
 	return arg.out_ret;
 }
@@ -330,7 +336,6 @@ void *audio_device_open(u32 card, u32 device, u32 flags,
 	void *phandle = NULL;
 
 	if (flags & PCM_IN) {
-		config->period_count = 4;
 		config->start_threshold = 0;
 		config->silence_threshold = 0;
 		config->stop_threshold = 0;
@@ -340,11 +345,10 @@ void *audio_device_open(u32 card, u32 device, u32 flags,
 			return NULL;
 		}
 	} else {
-		config->period_count = 4;
 		config->start_threshold = 0;
 		config->silence_threshold = 0;
 		config->stop_threshold = 0;
-		phandle = pcm_client_open(card, device, PCM_OUT, config, dev, dspid);
+		phandle = pcm_process_client_open(card, device, PCM_OUT, config, dev, dspid);
 		if (!phandle) {
 			pr_err("pcm client open fail\n");
 			return NULL;

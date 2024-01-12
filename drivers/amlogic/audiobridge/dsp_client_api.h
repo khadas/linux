@@ -12,6 +12,8 @@
 #define MBX_TINYALSA               0x2
 #define MBX_PIPELINE               0x3
 
+/* 0x20 ~ 0x3F reserved for Customer */
+
 /*sys cmd*/
 #define CMD_SHM_ALLOC              0x3
 #define CMD_SHM_FREE               0x4
@@ -317,6 +319,7 @@ struct buf_info {
 	u32 size;
 };
 
+u32 pcm_client_format_to_bytes(enum DSP_PCM_FORMAT format);
 u32 pcm_client_frame_to_bytes(void *hdl, u32 frame);
 void *pcm_client_open(u32 card, u32 device, u32 flags,
 		struct rpc_pcm_config *config, struct device *dev, u32 dspid);

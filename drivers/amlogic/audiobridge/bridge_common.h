@@ -56,8 +56,18 @@ enum PCM_CONTROL {
 #define VOLUME_MAX 100
 #define VOLUME_MIN 0
 
+/* dsp use smaller period size for low latency but will cause mailbox will
+ * communicating too frequently so mailbox should use bigger period size
+ * arm period size = dsp period size * DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE
+ */
+#define DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE (4)
+#define PERIOD_SIZE_MAX (2048)
+#define PERIOD_COUNT    (4)
+#define DSP_PERIOD_SIZE (128)
+
 struct audio_pcm_function_t {
 	struct ring_buffer *rb;
+	u32 ring_buffer_size;
 	enum PCM_CORE coreid;
 	enum PCM_CARD cardid;
 	enum PCM_MODE modeid;
