@@ -93,6 +93,8 @@ u32 get_timer_filter_en(void);
 u32 get_aipq_set_policy(void);
 u32 get_color_th(void);
 #endif
+u32 get_aipq_sc_flag(void);
+void clear_aipq_sc_flag(void);
 
 extern int vpp_pq_data[AI_SCENES_MAX][SCENES_VALUE];
 extern int scene_prob[2];

@@ -191,8 +191,8 @@ int blue_scene_process(int offset, int enable)
 	if (reg_val != base_val + offset) {
 		if (aipq_smooth_dbg)
 			pr_info("%s, smooth, bld_ofst: %d, baseval: %d, regval: %d, offset: %d, bld_rs: %d, slower_num: %d\n",
-						__func__, bld_offset, base_val, reg_val,
-						offset, bld_rs, slower_num);
+				__func__, bld_offset, base_val, reg_val,
+				offset, bld_rs, slower_num);
 	}
 
 	if (slower_num >= 1024)
@@ -284,8 +284,8 @@ int green_scene_process(int offset, int enable)
 	if (reg_val != base_val + offset) {
 		if (aipq_smooth_dbg)
 			pr_info("%s, smooth, bld_ofst: %d, baseval: %d, regval: %d, offset: %d, bld_rs: %d, slower_num: %d\n",
-						__func__, bld_offset, base_val, reg_val,
-						offset, bld_rs, slower_num);
+				__func__, bld_offset, base_val, reg_val,
+				offset, bld_rs, slower_num);
 	}
 
 	if (slower_num >= 1024)
@@ -458,8 +458,8 @@ int contrast_scene_process(int offset, int enable)
 	if (reg_val != base_val + offset) {
 		if (aipq_smooth_dbg)
 			pr_info("%s, smooth, bld_ofst: %d, baseval: %d, regval: %d, offset: %d, bld_rs: %d\n",
-						__func__, bld_offset, base_val, reg_val,
-						offset, bld_rs);
+				__func__, bld_offset, base_val, reg_val,
+				offset, bld_rs);
 	}
 
 	if (bld_offset == 0) {
@@ -536,8 +536,8 @@ int skintone_scene_process(int offset, int enable)
 	if (reg_val != base_val + offset) {
 		if (aipq_smooth_dbg)
 			pr_info("%s, smooth, bld_ofst: %d, baseval: %d, regval: %d, offset: %d, bld_rs: %d, slower_num: %d\n",
-						__func__, bld_offset, base_val, reg_val,
-						offset, bld_rs, slower_num);
+				__func__, bld_offset, base_val, reg_val,
+				offset, bld_rs, slower_num);
 	}
 
 	if (slower_num >= 1024)
@@ -623,8 +623,8 @@ int saturation_scene_process(int offset, int enable)
 	if (reg_val != base_val + offset) {
 		if (aipq_smooth_dbg)
 			pr_info("%s, smooth, bld_ofst: %d, baseval: %d, regval: %d, offset: %d, bld_rs: %d, slower_num: %d\n",
-						__func__, bld_offset, base_val, reg_val,
-						offset, bld_rs, slower_num);
+				__func__, bld_offset, base_val, reg_val,
+				offset, bld_rs, slower_num);
 	}
 
 	if (slower_num >= 1024)
