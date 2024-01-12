@@ -298,10 +298,10 @@ static const unsigned int i2c3_scl_h_pins[]		= { GPIOH_0 };
 static const unsigned int i2c3_sda_h_pins[]		= { GPIOH_1 };
 static const unsigned int i2c1_scl_h2_pins[]		= { GPIOH_2 };
 static const unsigned int i2c1_sda_h3_pins[]		= { GPIOH_3 };
-static const unsigned int uart_c_tx_h_pins[]		= { GPIOH_4 };
-static const unsigned int uart_c_rx_h_pins[]		= { GPIOH_5 };
-static const unsigned int uart_c_cts_h_pins[]		= { GPIOH_6 };
-static const unsigned int uart_c_rts_h_pins[]		= { GPIOH_7 };
+static const unsigned int uart_c_rts_h_pins[]		= { GPIOH_4 };
+static const unsigned int uart_c_cts_h_pins[]		= { GPIOH_5 };
+static const unsigned int uart_c_rx_h_pins[]		= { GPIOH_6 };
+static const unsigned int uart_c_tx_h_pins[]		= { GPIOH_7 };
 
 /* Bank H func3 */
 static const unsigned int spi_b_mosi_pins[]		= { GPIOH_4 };
