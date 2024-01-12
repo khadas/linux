@@ -467,87 +467,6 @@ free_task:
 #define AV1_PP_TILE_SIZE	GENMASK_ULL(10, 9)
 #define AV1_PP_TILE_16X16	BIT(10)
 
-#define AV1_PP_OUT_LUMA_ADR_INDEX	326
-#define AV1_PP_OUT_CHROMA_ADR_INDEX	328
-
-#define AV1_L2_CACHE_SHAPER_CTRL	0x20
-#define AV1_L2_CACHE_SHAPER_EN		BIT(0)
-#define AV1_L2_CACHE_INT_MASK		0x30
-#define AV1_L2_CACHE_PP0_Y_CONFIG0	0x84
-#define AV1_L2_CACHE_PP0_Y_CONFIG2	0x8c
-#define AV1_L2_CACHE_PP0_Y_CONFIG3	0x90
-#define AV1_L2_CACHE_PP0_U_CONFIG0	0x98
-#define AV1_L2_CACHE_PP0_U_CONFIG2	0xa0
-#define AV1_L2_CACHE_PP0_U_CONFIG3	0xa4
-
-#define AV1_L2_CACHE_RD_ONLY_CTRL	0x204
-#define AV1_L2_CACHE_RD_ONLY_CONFIG	0x208
-
-static int av1dec_set_l2_cache(struct av1dec_dev *dec, struct av1dec_task *task)
-{
-	int val;
-	u32 *regs = (u32 *)task->reg_class[0].data;
-	u32 width = (regs[4] >> 19) * 8;
-	u32 height = ((regs[4] >> 6) & 0x1fff) * 8;
-	u32 pixel_width = (((regs[322]) >> 27) & 0x1F) == 1 ? 8 : 16;
-	u32 pre_fetch_height = 136;
-	u32 max_h;
-	u32 line_cnt;
-	u32 line_size;
-	u32 line_stride;
-
-	/* channel 4, PPU0_Y Configuration */
-	/* afbc sharper can't use open cache.
-	 * afbc out must be tile 16x16.
-	 */
-	if ((regs[AV1_PP_CONFIG_INDEX] & AV1_PP_TILE_SIZE) != AV1_PP_TILE_16X16) {
-		line_size = MPP_ALIGN(MPP_ALIGN(width * pixel_width, 8) / 8, 16);
-		line_stride = MPP_ALIGN(MPP_ALIGN(width * pixel_width, 8) / 8, 16) >> 4;
-		line_cnt = height;
-		max_h = pre_fetch_height;
-
-		writel_relaxed(regs[AV1_PP_OUT_LUMA_ADR_INDEX] + 0x1,
-			       dec->reg_base[AV1DEC_CLASS_CACHE] + AV1_L2_CACHE_PP0_Y_CONFIG0);
-		val = line_size | (line_stride << 16);
-		writel_relaxed(val, dec->reg_base[AV1DEC_CLASS_CACHE] + AV1_L2_CACHE_PP0_Y_CONFIG2);
-
-		val = line_cnt | (max_h << 16);
-		writel_relaxed(val, dec->reg_base[AV1DEC_CLASS_CACHE] + AV1_L2_CACHE_PP0_Y_CONFIG3);
-
-		/* channel 5, PPU0_U Configuration */
-		line_size = MPP_ALIGN(MPP_ALIGN(width * pixel_width, 8) / 8, 16);
-		line_stride = MPP_ALIGN(MPP_ALIGN(width * pixel_width, 8) / 8, 16) >> 4;
-		line_cnt = height >> 1;
-		max_h = pre_fetch_height >> 1;
-
-		writel_relaxed(regs[AV1_PP_OUT_CHROMA_ADR_INDEX] + 0x1,
-			       dec->reg_base[AV1DEC_CLASS_CACHE] + AV1_L2_CACHE_PP0_U_CONFIG0);
-		val = line_size | (line_stride << 16);
-		writel_relaxed(val, dec->reg_base[AV1DEC_CLASS_CACHE] + AV1_L2_CACHE_PP0_U_CONFIG2);
-
-		val = line_cnt | (max_h << 16);
-		writel_relaxed(val, dec->reg_base[AV1DEC_CLASS_CACHE] + AV1_L2_CACHE_PP0_U_CONFIG3);
-		/* mask cache irq */
-		writel_relaxed(0xf, dec->reg_base[AV1DEC_CLASS_CACHE] + AV1_L2_CACHE_INT_MASK);
-
-		/* shaper enable */
-		writel_relaxed(AV1_L2_CACHE_SHAPER_EN,
-			       dec->reg_base[AV1DEC_CLASS_CACHE] + AV1_L2_CACHE_SHAPER_CTRL);
-
-		/* not enable cache en when multi tiles */
-		if (!(regs[10] & BIT(1)))
-			/* cache all en */
-			writel_relaxed(0x00000001, dec->reg_base[AV1DEC_CLASS_CACHE] +
-				AV1_L2_CACHE_RD_ONLY_CONFIG);
-		/* reorder_e and cache_e */
-		writel_relaxed(0x00000081, dec->reg_base[AV1DEC_CLASS_CACHE] +
-			       AV1_L2_CACHE_RD_ONLY_CTRL);
-		/* wmb */
-		wmb();
-	}
-
-	return 0;
-}
 #define REG_CONTROL		0x20
 #define REG_INTRENBL		0x34
 #define REG_ACKNOWLEDGE		0x38
@@ -656,7 +575,6 @@ static int av1dec_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 
 	mpp_debug_enter();
 	mpp_iommu_flush_tlb(mpp->iommu_info);
-	av1dec_set_l2_cache(dec, task);
 	av1dec_set_afbc(dec, task);
 
 	for (i = 0; i < task->w_req_cnt; i++) {
