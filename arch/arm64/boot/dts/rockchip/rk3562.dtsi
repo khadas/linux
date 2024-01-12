@@ -273,7 +273,7 @@
 		rockchip,grf = <&sys_grf>;
 		rockchip,temp-hysteresis = <5000>;
 		rockchip,low-temp = <10000>;
-		rockchip,low-temp-min-volt = <925000>;
+		rockchip,low-temp-min-volt = <1050000>;
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
@@ -501,7 +501,7 @@
 
 		rockchip,temp-hysteresis = <5000>;
 		rockchip,low-temp = <10000>;
-		rockchip,low-temp-min-volt = <900000>;
+		rockchip,low-temp-min-volt = <950000>;
 
 		rockchip,leakage-voltage-sel = <
 			1   15    0

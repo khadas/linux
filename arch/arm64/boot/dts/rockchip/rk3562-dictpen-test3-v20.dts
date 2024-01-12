@@ -167,6 +167,8 @@
 };
 
 &cpu0_opp_table {
+	rockchip,low-temp-min-volt = <1000000>;
+
 	opp-408000000 {
 	/delete-property/ opp-suspend;
 	};
@@ -680,7 +682,7 @@
 				regulator-boot-on;
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1350000>;
-				regulator-init-microvolt = <900000>;
+				regulator-init-microvolt = <950000>;
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <0x2>;
 				regulator-name = "vdd_logic";
@@ -695,7 +697,7 @@
 				regulator-boot-on;
 				regulator-min-microvolt = <825000>;
 				regulator-max-microvolt = <1350000>;
-				regulator-init-microvolt = <900000>;
+				regulator-init-microvolt = <1000000>;
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <0x2>;
 				regulator-name = "vdd_cpu";
