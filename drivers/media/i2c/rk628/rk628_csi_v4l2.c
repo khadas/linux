@@ -122,6 +122,8 @@ struct rk628_csi {
 	struct rk628_dsi dsi;
 	const struct rk628_plat_data *plat_data;
 	struct device *classdev;
+	bool is_streaming;
+	bool csi_ints_en;
 };
 
 struct rk628_csi_mode {
@@ -327,6 +329,8 @@ static struct v4l2_dv_timings dst_timing = {
 
 static void rk628_post_process_setup(struct v4l2_subdev *sd);
 static void rk628_csi_enable_interrupts(struct v4l2_subdev *sd, bool en);
+static void rk628_csi_enable_csi_interrupts(struct v4l2_subdev *sd, bool en);
+static void rk628_csi_clear_csi_interrupts(struct v4l2_subdev *sd);
 static int rk628_csi_s_ctrl_detect_tx_5v(struct v4l2_subdev *sd);
 static int rk628_csi_s_dv_timings(struct v4l2_subdev *sd,
 				 struct v4l2_dv_timings *timings);
@@ -678,8 +682,6 @@ static void rk628_csi_soft_reset(struct v4l2_subdev *sd)
 
 static void enable_csitx(struct v4l2_subdev *sd)
 {
-	u32 i, ret, val;
-	u32 val_csi1 = 0;
 	struct rk628_csi *csi = to_csi(sd);
 
 	//enable dphy1 and split mode
@@ -688,57 +690,38 @@ static void enable_csitx(struct v4l2_subdev *sd)
 	rk628_i2c_update_bits(csi->rk628, GRF_POST_PROC_CON, SW_SPLIT_EN,
 			     csi->rk628->dual_mipi ? SW_SPLIT_EN : 0);
 	rk628_csi_set_csi(sd);
-	for (i = 0; i < CSITX_ERR_RETRY_TIMES; i++) {
-		if (i) {
-			rk628_i2c_update_bits(csi->rk628, CSITX_CSITX_EN,
-						CSITX_EN_MASK, CSITX_EN(0));
-			if (csi->rk628->version >= RK628F_VERSION)
-				rk628_i2c_update_bits(csi->rk628, CSITX1_CSITX_EN,
-						CSITX_EN_MASK, CSITX_EN(0));
-			rk628_i2c_write(csi->rk628, CSITX_CONFIG_DONE, CONFIG_DONE);
-			if (csi->rk628->version >= RK628F_VERSION)
-				rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE);
 
-			usleep_range(5000, 5500);
-			rk628_csi_soft_reset(sd);
-			usleep_range(5000, 5500);
-		}
+	rk628_csi_soft_reset(sd);
+	usleep_range(5000, 5500);
+	//disabled csi state ints
+	rk628_i2c_write(csi->rk628, CSITX_INTR_EN_IMD, 0x0fff0000);
+	if (csi->rk628->version >= RK628F_VERSION)
+		rk628_i2c_write(csi->rk628, CSITX1_INTR_EN_IMD, 0x0fff0000);
 
-		rk628_i2c_update_bits(csi->rk628, CSITX_CSITX_EN,
+	rk628_i2c_update_bits(csi->rk628, CSITX_CSITX_EN,
 					DPHY_EN_MASK |
 					CSITX_EN_MASK,
 					DPHY_EN(1) |
 					CSITX_EN(1));
-		rk628_i2c_write(csi->rk628, CSITX_CONFIG_DONE, CONFIG_DONE_IMD);
-		if (csi->rk628->version >= RK628F_VERSION) {
-			rk628_i2c_update_bits(csi->rk628, CSITX1_CSITX_EN,
+	rk628_i2c_write(csi->rk628, CSITX_CONFIG_DONE, CONFIG_DONE_IMD);
+	if (csi->rk628->version >= RK628F_VERSION) {
+		rk628_i2c_update_bits(csi->rk628, CSITX1_CSITX_EN,
 					DPHY_EN_MASK |
 					CSITX_EN_MASK,
 					DPHY_EN(1) |
 					CSITX_EN(1));
-			rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE_IMD);
-		}
+		rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE_IMD);
+	}
 
-		rk628_i2c_write(csi->rk628, CSITX_ERR_INTR_CLR_IMD, 0xffffffff);
-		if (csi->rk628->version <= RK628D_VERSION)
-			rk628_i2c_update_bits(csi->rk628, CSITX_SYS_CTRL1,
+	rk628_i2c_write(csi->rk628, CSITX_ERR_INTR_CLR_IMD, 0xffffffff);
+	if (csi->rk628->version <= RK628D_VERSION)
+		rk628_i2c_update_bits(csi->rk628, CSITX_SYS_CTRL1,
 				BYPASS_SELECT_MASK, BYPASS_SELECT(0));
-		rk628_i2c_write(csi->rk628, CSITX_CONFIG_DONE, CONFIG_DONE_IMD);
+	rk628_i2c_write(csi->rk628, CSITX_CONFIG_DONE, CONFIG_DONE_IMD);
 
-		if (csi->rk628->version >= RK628F_VERSION) {
-			rk628_i2c_write(csi->rk628, CSITX1_ERR_INTR_CLR_IMD, 0xffffffff);
-			rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE_IMD);
-		}
-		msleep(50);
-		ret = rk628_i2c_read(csi->rk628, CSITX_ERR_INTR_RAW_STATUS_IMD, &val);
-		if (csi->rk628->version >= RK628F_VERSION)
-			ret |= rk628_i2c_read(csi->rk628,
-					CSITX1_ERR_INTR_RAW_STATUS_IMD, &val_csi1);
-		if (!ret && !val && !val_csi1)
-			break;
-
-		v4l2_err(sd, "%s csitx err, retry:%d, err status csi0:%#x, csi1:%#x, ret:%d\n",
-				__func__, i, val, val_csi1, ret);
+	if (csi->rk628->version >= RK628F_VERSION) {
+		rk628_i2c_write(csi->rk628, CSITX1_ERR_INTR_CLR_IMD, 0xffffffff);
+		rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE_IMD);
 	}
 }
 
@@ -877,17 +860,24 @@ static void enable_stream(struct v4l2_subdev *sd, bool en)
 		}
 
 		rk628_hdmirx_vid_enable(sd, true);
-		if (csi->plat_data->tx_mode == DSI_MODE)
+		if (csi->plat_data->tx_mode == DSI_MODE) {
 			enable_dsitx(sd);
-		else
+		} else {
 			enable_csitx(sd);
+			/* csitx int en */
+			rk628_csi_enable_csi_interrupts(sd, true);
+		}
+		csi->is_streaming = true;
 	} else {
 		if (csi->plat_data->tx_mode == CSI_MODE) {
+			rk628_csi_enable_csi_interrupts(sd, false);
+			msleep(20);
 			rk628_hdmirx_vid_enable(sd, false);
 			rk628_csi_disable_stream(sd);
 		} else {
 			rk628_dsi_enable_stream(sd, en);
 		}
+		csi->is_streaming = false;
 	}
 }
 
@@ -1402,6 +1392,48 @@ static void rk628_csi_format_change(struct v4l2_subdev *sd)
 		v4l2_subdev_notify_event(sd, &rk628_csi_ev_fmt);
 }
 
+static void rk628_csi_enable_csi_interrupts(struct v4l2_subdev *sd, bool en)
+{
+	struct rk628_csi *csi = to_csi(sd);
+
+	rk628_csi_clear_csi_interrupts(sd);
+	//disabled csi state ints
+	rk628_i2c_write(csi->rk628, CSITX_INTR_EN_IMD, 0x0fff0000);
+	if (csi->rk628->version >= RK628F_VERSION)
+		rk628_i2c_write(csi->rk628, CSITX1_INTR_EN_IMD, 0x0fff0000);
+
+	//enable csi error ints
+	if (en) {
+		if (csi->rk628->version >= RK628F_VERSION) {
+			rk628_i2c_update_bits(csi->rk628,
+					GRF_INTR0_EN, CSI_INT_EN_MASK | CSI_INT_WRITE_EN_MASK,
+					CSI_INT_EN(3) | CSI_INT_WRITE_EN(3));
+			rk628_i2c_write(csi->rk628, CSITX_ERR_INTR_EN_IMD, 0x0fff0fff);
+			rk628_i2c_write(csi->rk628, CSITX1_ERR_INTR_EN_IMD, 0x0fff0fff);
+		} else {
+			rk628_i2c_update_bits(csi->rk628,
+					GRF_INTR0_EN, CSI_INT_EN_MASK | CSI_INT_WRITE_EN_MASK,
+					CSI_INT_EN(1) | CSI_INT_WRITE_EN(1));
+			rk628_i2c_write(csi->rk628, CSITX_ERR_INTR_EN_IMD, 0x0fff0fff);
+		}
+		csi->csi_ints_en = true;
+	} else {
+		if (csi->rk628->version >= RK628F_VERSION) {
+			rk628_i2c_update_bits(csi->rk628,
+					GRF_INTR0_EN, CSI_INT_EN_MASK | CSI_INT_WRITE_EN_MASK,
+					CSI_INT_EN(0) | CSI_INT_WRITE_EN(3));
+			rk628_i2c_write(csi->rk628, CSITX_ERR_INTR_EN_IMD, 0x0fff0000);
+			rk628_i2c_write(csi->rk628, CSITX1_ERR_INTR_EN_IMD, 0x0fff0000);
+		} else {
+			rk628_i2c_update_bits(csi->rk628,
+					GRF_INTR0_EN, CSI_INT_EN_MASK | CSI_INT_WRITE_EN_MASK,
+					CSI_INT_EN(0) | CSI_INT_WRITE_EN(1));
+			rk628_i2c_write(csi->rk628, CSITX_ERR_INTR_EN_IMD, 0x0fff0000);
+		}
+		csi->csi_ints_en = false;
+	}
+}
+
 static void rk628_csi_enable_interrupts(struct v4l2_subdev *sd, bool en)
 {
 	u32 pdec_ien, md_ien;
@@ -1435,6 +1467,59 @@ static void rk628_csi_enable_interrupts(struct v4l2_subdev *sd, bool en)
 	v4l2_dbg(1, debug, sd, "%s MD_IEN:%#x, PDEC_IEN:%#x\n", __func__, md_ien, pdec_ien);
 }
 
+static void rk628_csi_clear_csi_interrupts(struct v4l2_subdev *sd)
+{
+	struct rk628_csi *csi = to_csi(sd);
+
+	//clr int status
+	rk628_i2c_write(csi->rk628, CSITX_ERR_INTR_CLR_IMD, 0xffffffff);
+	if (csi->rk628->version >= RK628F_VERSION)
+		rk628_i2c_write(csi->rk628, CSITX1_ERR_INTR_CLR_IMD, 0xffffffff);
+
+	if (csi->rk628->version >= RK628F_VERSION)
+		rk628_i2c_update_bits(csi->rk628, GRF_INTR0_CLR_EN, CSI_INT_EN_MASK |
+				CSI_INT_WRITE_EN_MASK, CSI_INT_EN(3) | CSI_INT_WRITE_EN(3));
+	else
+		rk628_i2c_update_bits(csi->rk628, GRF_INTR0_CLR_EN, CSI_INT_EN_MASK |
+				CSI_INT_WRITE_EN_MASK, CSI_INT_EN(1) | CSI_INT_WRITE_EN(1));
+}
+
+static void rk628_csi_error_process(struct v4l2_subdev *sd)
+{
+	struct rk628_csi *csi = to_csi(sd);
+
+	if (csi->is_streaming) {
+		v4l2_info(sd,
+			"%s: csitx is streaming, reset csitx and restart cstitx!\n", __func__);
+		rk628_csi_enable_csi_interrupts(sd, false);
+		rk628_i2c_update_bits(csi->rk628, CSITX_CSITX_EN, CSITX_EN_MASK, CSITX_EN(0));
+		if (csi->rk628->version >= RK628F_VERSION)
+			rk628_i2c_update_bits(csi->rk628, CSITX1_CSITX_EN,
+						CSITX_EN_MASK, CSITX_EN(0));
+		rk628_i2c_write(csi->rk628, CSITX_CONFIG_DONE, CONFIG_DONE);
+		if (csi->rk628->version >= RK628F_VERSION)
+			rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE);
+
+		usleep_range(5000, 5500);
+		rk628_csi_soft_reset(sd);
+		usleep_range(5000, 5500);
+
+		rk628_i2c_update_bits(csi->rk628, CSITX_CSITX_EN, CSITX_EN_MASK, CSITX_EN(1));
+		rk628_i2c_write(csi->rk628, CSITX_CONFIG_DONE, CONFIG_DONE_IMD);
+		if (csi->rk628->version >= RK628F_VERSION) {
+			rk628_i2c_update_bits(csi->rk628, CSITX1_CSITX_EN,
+						CSITX_EN_MASK, CSITX_EN(1));
+			rk628_i2c_write(csi->rk628, CSITX1_CONFIG_DONE, CONFIG_DONE_IMD);
+		}
+		//clr int status
+		rk628_csi_clear_csi_interrupts(sd);
+		rk628_csi_enable_csi_interrupts(sd, true);
+	} else {
+		v4l2_info(sd,
+			"%s: csitx is not streaming\n", __func__);
+	}
+}
+
 static void rk628_work_isr(struct work_struct *work)
 {
 	struct rk628_csi *csi = container_of(work, struct rk628_csi, work_isr);
@@ -1443,8 +1528,13 @@ static void rk628_work_isr(struct work_struct *work)
 	bool plugin;
 	void *audio_info = csi->audio_info;
 	bool handled = false;
+	u32 csi0_raw_ints, csi1_raw_ints = 0x0;
+	u32 int0_status;
 
 	mutex_lock(&csi->rk628->rst_lock);
+	rk628_i2c_read(csi->rk628, GRF_INTR0_STATUS, &int0_status);
+	v4l2_dbg(1, debug, sd, "%s: int0 status: 0x%x\n", __func__, int0_status);
+
 	rk628_i2c_read(csi->rk628, HDMI_RX_MD_ISTS, &md_ints);
 	rk628_i2c_read(csi->rk628, HDMI_RX_PDEC_ISTS, &pdec_ints);
 	if (csi->rk628->version >= RK628F_VERSION &&
@@ -1454,6 +1544,7 @@ static void rk628_work_isr(struct work_struct *work)
 	plugin = tx_5v_power_present(sd);
 	if (!plugin) {
 		rk628_csi_enable_interrupts(sd, false);
+		rk628_csi_enable_csi_interrupts(sd, false);
 		goto __clear_int;
 	}
 
@@ -1506,6 +1597,21 @@ static void rk628_work_isr(struct work_struct *work)
 			handled = true;
 		}
 	}
+
+	if (int0_status & (BIT(6) | BIT(7))) {
+		rk628_i2c_read(csi->rk628, CSITX_ERR_INTR_RAW_STATUS_IMD, &csi0_raw_ints);
+		if (csi->rk628->version >= RK628F_VERSION)
+			rk628_i2c_read(csi->rk628, CSITX1_ERR_INTR_RAW_STATUS_IMD, &csi1_raw_ints);
+
+		if (csi0_raw_ints || csi1_raw_ints) {
+			v4l2_info(sd,
+				"%s: csi interrupt: csi0_raw_ints: 0x%x, csi1_raw_ints: 0x%x!\n",
+				__func__, csi0_raw_ints, csi1_raw_ints);
+			rk628_csi_error_process(sd);
+		}
+		handled = true;
+	}
+
 	if (!handled)
 		v4l2_dbg(1, debug, sd, "%s: unhandled interrupt!\n", __func__);
 
@@ -1517,6 +1623,7 @@ __clear_int:
 		rk628_i2c_write(csi->rk628, GRF_INTR0_CLR_EN, 0x02000200);
 	else
 		rk628_i2c_write(csi->rk628, GRF_INTR0_CLR_EN, 0x01000100);
+	rk628_csi_clear_csi_interrupts(sd);
 
 	mutex_unlock(&csi->rk628->rst_lock);
 }
