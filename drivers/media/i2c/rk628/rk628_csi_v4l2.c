@@ -1764,7 +1764,14 @@ static int rk628_csi_query_dv_timings(struct v4l2_subdev *sd,
 {
 	int ret;
 	struct rk628_csi *csi = to_csi(sd);
+	struct v4l2_dv_timings default_timing =
+				V4L2_DV_BT_CEA_640X480P59_94;
 
+	if (!tx_5v_power_present(sd) || csi->nosignal) {
+		*timings = default_timing;
+		v4l2_info(sd, "%s: not detect 5v, set default timing\n", __func__);
+		return 0;
+	}
 	mutex_lock(&csi->confctl_mutex);
 	ret = rk628_csi_get_detected_timings(sd, timings);
 	mutex_unlock(&csi->confctl_mutex);

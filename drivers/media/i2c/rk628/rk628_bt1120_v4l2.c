@@ -1163,7 +1163,15 @@ static int rk628_bt1120_query_dv_timings(struct v4l2_subdev *sd,
 		struct v4l2_dv_timings *timings)
 {
 	int ret;
+	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
+	struct v4l2_dv_timings default_timing =
+				V4L2_DV_BT_CEA_640X480P59_94;
 
+	if (!tx_5v_power_present(sd) || bt1120->nosignal) {
+		*timings = default_timing;
+		v4l2_info(sd, "%s: not detect 5v, set default timing\n", __func__);
+		return 0;
+	}
 	ret = rk628_bt1120_get_detected_timings(sd, timings);
 	if (ret)
 		return ret;
