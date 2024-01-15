@@ -1800,6 +1800,7 @@ void get_toddr_bits_config(enum toddr_src src,
 		}
 		break;
 	case SPDIFIN:
+	case EARCRX_DMAC:
 		*msb = 28 - 1;
 		*lsb = 4;
 		break;
