@@ -273,6 +273,7 @@ module_param(debug_es_len, int, 0644);
 
 #define READ_CACHE_SIZE      (188)
 #define INVALID_DECODE_RP	(0xFFFFFFFF)
+#define INVALID_PID			0x3FFF
 
 static int out_flush_time = 10;
 static int out_es_flush_time = 10;
@@ -480,7 +481,7 @@ static struct es_entry *_malloc_es_entry_slot(void)
 static int _free_es_entry_slot(struct es_entry *es)
 {
 	if (es) {
-		es->pid = 0;
+		es->pid = INVALID_PID;
 		es->status = -1;
 		es->used = 0;
 		es->buff_id = 0;
@@ -952,7 +953,8 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	}
 	pid = (cur_header[1] & 0x1f) << 8 | cur_header[0];
 	if (pout->es_pes->pid != pid) {
-		dprint("%s pid diff req pid %d, ret pid:%d\n",
+		if (pout->es_pes->pid != INVALID_PID)
+			dprint("%s pid diff req pid %d, ret pid:%d\n",
 		       __func__, pout->es_pes->pid, pid);
 		return -2;
 	}
@@ -3581,7 +3583,8 @@ int ts_output_get_newest_pts(struct out_elem *pout,
 
 		pid = (newest_header[1] & 0x1f) << 8 | newest_header[0];
 		if (pout->es_pes->pid != pid) {
-			dprint("%s pid diff req pid %d, ret pid:%d\n",
+			if (pout->es_pes->pid != INVALID_PID)
+				dprint("%s pid diff req pid %d, ret pid:%d\n",
 				   __func__, pout->es_pes->pid, pid);
 			mutex_unlock(&pout->pts_mutex);
 			return -2;
