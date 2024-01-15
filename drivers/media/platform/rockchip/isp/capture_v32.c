@@ -1485,8 +1485,10 @@ end:
 		return 0;
 	set_mirror_flip(stream);
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
-	stream->curr_buf = stream->next_buf;
-	stream->next_buf = NULL;
+	if (stream->next_buf) {
+		stream->curr_buf = stream->next_buf;
+		stream->next_buf = NULL;
+	}
 	if (!list_empty(&stream->buf_queue)) {
 		stream->next_buf = list_first_entry(&stream->buf_queue,
 						    struct rkisp_buffer, queue);
