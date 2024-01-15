@@ -210,6 +210,10 @@ struct v4l2_frontend_ops {
 	int (*get_property)(struct v4l2_frontend *v4l2_fe,
 			struct v4l2_property *tvp);
 
+	int (*set_frontend)(struct v4l2_frontend *v4l2_fe);
+	int (*get_frontend)(struct v4l2_frontend *v4l2_fe,
+			struct v4l2_analog_parameters *p);
+
 	/* for signal one shot search, return lock status and afc value */
 	int (*tune)(struct v4l2_frontend *v4l2_fe,
 			struct v4l2_tune_status *status);

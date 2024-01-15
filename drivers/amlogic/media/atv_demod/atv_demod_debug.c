@@ -40,9 +40,9 @@
 	DEBUGFS_CREATE_NODE(broad_std, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(aud_std, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(aud_mode, 0640, dentry, u32)\
-	DEBUGFS_CREATE_NODE(aud_auto, 0640, dentry, u32)\
-	DEBUGFS_CREATE_NODE(aud_reinit, 0640, dentry, u32)\
-	DEBUGFS_CREATE_NODE(aud_mono_only, 0640, dentry, u32)\
+	DEBUGFS_CREATE_NODE(aud_auto, 0640, dentry, bool)\
+	DEBUGFS_CREATE_NODE(aud_reinit, 0640, dentry, bool)\
+	DEBUGFS_CREATE_NODE(aud_mono_only, 0640, dentry, bool)\
 	DEBUGFS_CREATE_NODE(over_threshold, 0640, dentry, u64)\
 	DEBUGFS_CREATE_NODE(input_amplitude, 0640, dentry, u64)\
 	DEBUGFS_CREATE_NODE(atvaudio_det_outputmode_en, 0640, dentry, bool)\
@@ -97,6 +97,8 @@
 	DEBUGFS_CREATE_NODE(atv_audio_overmodulated_cnt, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(support_secam_l, 0640, dentry, bool)\
 	DEBUGFS_CREATE_NODE(atvdemod_horiz_freq_det_en, 0640, dentry, bool)\
+	DEBUGFS_CREATE_NODE(check_rssi, 0640, dentry, bool)\
+	DEBUGFS_CREATE_NODE(force_set, 0640, dentry, bool)\
 }
 
 /* name, mode, parent, data, fops, type */
@@ -114,6 +116,7 @@
 	DEBUGFS_CREATE_FILE(afc_default, 0640, dentry, fops, int)\
 	DEBUGFS_CREATE_FILE(snr_threshold, 0640, dentry, fops, int)\
 	DEBUGFS_CREATE_FILE(snr_val, 0640, dentry, fops, int)\
+	DEBUGFS_CREATE_FILE(tuner_rssi, 0640, dentry, fops, int)\
 }
 
 #if defined(AML_ATVDEMOD_DEBUGFS)
@@ -130,6 +133,7 @@ DEBUGFS_DENTRY_DEFINE(sum2_thd_l);
 DEBUGFS_DENTRY_DEFINE(afc_default);
 DEBUGFS_DENTRY_DEFINE(snr_threshold);
 DEBUGFS_DENTRY_DEFINE(snr_val);
+DEBUGFS_DENTRY_DEFINE(tuner_rssi);
 
 struct dentry_value *debugfs_dentry[] = {
 	DEBUGFS_DENTRY_VALUE(non_std_thld_4c_h),
@@ -143,6 +147,7 @@ struct dentry_value *debugfs_dentry[] = {
 	DEBUGFS_DENTRY_VALUE(afc_default),
 	DEBUGFS_DENTRY_VALUE(snr_threshold),
 	DEBUGFS_DENTRY_VALUE(snr_val),
+	DEBUGFS_DENTRY_VALUE(tuner_rssi),
 };
 
 static int debugfs_open(struct inode *node, struct file *file)

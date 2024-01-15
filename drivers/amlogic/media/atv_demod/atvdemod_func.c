@@ -28,6 +28,7 @@ unsigned int aud_mode = AUDIO_OUTMODE_STEREO;
 bool aud_auto = true;
 bool aud_reinit;
 bool aud_mono_only;
+bool force_set;
 unsigned long over_threshold = 0xffff;
 unsigned long input_amplitude = 0xffff;
 
@@ -105,7 +106,6 @@ static char *AUDIO_NAME[] = {
 
 static unsigned int mix1_freq;
 int snr_val;
-int broad_std_except_pal_m;
 
 
 int atvdemod_get_snr_val(void)
@@ -1415,7 +1415,7 @@ void retrieve_vpll_carrier_audio_power(unsigned int *power,
 		unsigned int try_times)
 {
 	unsigned int i = 0;
-	unsigned int carrier_power = 0;
+	unsigned int carrier_power = 0, max = 0, min = 1000;
 	unsigned int carrier_power_total = 0;
 	unsigned long data = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x02);
 
@@ -1427,6 +1427,12 @@ void retrieve_vpll_carrier_audio_power(unsigned int *power,
 	for (i = 0; i < try_times; i++) {
 		carrier_power = atv_dmd_rd_reg(APB_BLOCK_ADDR_SIF_STG_2, 0x03);
 		carrier_power_total += carrier_power & 0xffff;
+
+		if (max < carrier_power)
+			max = carrier_power;
+
+		if (min > carrier_power)
+			min = carrier_power;
 	}
 
 	if (try_times) {
@@ -1436,7 +1442,7 @@ void retrieve_vpll_carrier_audio_power(unsigned int *power,
 		*power = carrier_power & 0xffff;
 	}
 
-	pr_audio("%s: %d.\n", __func__, *power);
+	pr_dbg("%s: %d [min %d, mix %d].\n", __func__, *power, min, max);
 }
 
 int retrieve_vpll_carrier_afc(void)
@@ -2008,7 +2014,7 @@ int atvdemod_init(struct atv_demod_priv *priv)
 	if (amlatvdemod_devp->std != p->param.std ||
 		amlatvdemod_devp->audmode != p->param.audmode ||
 		amlatvdemod_devp->if_freq != p->if_freq ||
-		amlatvdemod_devp->if_inv != p->if_inv) {
+		amlatvdemod_devp->if_inv != p->if_inv || force_set) {
 
 		amlatvdemod_devp->std = p->param.std;
 		amlatvdemod_devp->audmode = p->param.audmode;
@@ -2180,7 +2186,6 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 	struct dvb_frontend *fe = &v4l2_fe->fe;
 	struct v4l2_analog_parameters *p = &v4l2_fe->params;
 	struct analog_parameters params;
-
 	unsigned int carrier_power = 0;
 	unsigned long carrier_power_max = 0;
 	unsigned long carrier_power_average_max = 0;
@@ -2218,7 +2223,7 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 			!((p->std & V4L2_STD_SECAM_L) ||
 				(p->std & V4L2_STD_SECAM_LC))) {
 			secam_signal = true;
-			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M;
+			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
 
 			break;
 		}
@@ -2255,19 +2260,23 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I;
 			cur_std = ID_PAL_I;
 
-			p->std = V4L2_COLOR_STD_PAL | V4L2_STD_PAL_I;
-			p->frequency += 1;
-			p->audmode = V4L2_STD_PAL_I;
+			if (secam_signal)
+				p->std = V4L2_COLOR_STD_SECAM | V4L2_STD_PAL_I;
+			else
+				p->std = V4L2_COLOR_STD_PAL | V4L2_STD_PAL_I;
 
+			p->audmode = V4L2_STD_PAL_I;
 			break;
 		case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I:
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG;
 			cur_std = ID_PAL_BG;
 
-			p->std = V4L2_COLOR_STD_PAL | V4L2_STD_PAL_BG;
-			p->frequency += 1;
-			p->audmode = V4L2_STD_PAL_BG;
+			if (secam_signal)
+				p->std = V4L2_COLOR_STD_SECAM | V4L2_STD_PAL_BG;
+			else
+				p->std = V4L2_COLOR_STD_PAL | V4L2_STD_PAL_BG;
 
+			p->audmode = V4L2_STD_PAL_BG;
 			break;
 		case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG:
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M;
@@ -2275,27 +2284,40 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 
 			if (!ntsc_signal) {
 				p->std = V4L2_COLOR_STD_PAL | V4L2_STD_PAL_M;
-				p->frequency += 1;
 				p->audmode = V4L2_STD_PAL_M;
 			} else {
 				p->std = V4L2_COLOR_STD_NTSC | V4L2_STD_NTSC_M;
-				p->frequency += 1;
 				p->audmode = V4L2_STD_NTSC_M;
 			}
-
 			break;
 		case AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M:
 			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
 			cur_std = ID_PAL_DK;
 
-			p->std = V4L2_COLOR_STD_PAL | V4L2_STD_PAL_DK;
-			p->frequency += 1;
-			p->audmode = V4L2_STD_PAL_DK;
+			if (secam_signal)
+				p->std = V4L2_COLOR_STD_SECAM | V4L2_STD_PAL_DK;
+			else
+				p->std = V4L2_COLOR_STD_PAL | V4L2_STD_PAL_DK;
 
+			p->audmode = V4L2_STD_PAL_DK;
 			break;
 		default:
 			pr_err("unsupport broadcast_standard!!!\n");
 			break;
+		}
+
+		if (secam_signal && (cur_std == ID_PAL_I || cur_std == ID_PAL_M)) {
+			carrier_power_average[cur_std] = 0;
+			num++;
+
+			continue;
+		}
+
+		if (ntsc_signal && cur_std == ID_PAL_I) {
+			carrier_power_average[cur_std] = 0;
+			num++;
+
+			continue;
 		}
 
 		params.frequency = p->frequency;
@@ -2328,7 +2350,7 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 		pr_err("[%s] [num:%d] [broad_std:%d] [%s] audio carrier power: %d. @@@@@@@@@@\n",
 			__func__, num, broad_std, AUDIO_NAME[cur_std],
 			carrier_power);
-		carrier_power_average[cur_std] += carrier_power;
+		carrier_power_average[cur_std] = carrier_power;
 		num++;
 	}
 
@@ -2357,8 +2379,9 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 
 	carrier_power_average_max = carrier_power_max;
 	broad_std = broad_std_final;
-	pr_err("%s:broad_std:%d,carrier_power_average_max:%lu\n",
-			__func__, broad_std, carrier_power_average_max);
+	pr_err("%s:freq:%d,broad_std:%d[%s],carrier_power_average_max:%lu\n",
+			__func__, p->frequency, broad_std,
+			AUDIO_NAME[final_id], carrier_power_average_max);
 
 	if (carrier_power_average_max < AUDIO_CARRIER_POWER_MIN) {
 		pr_err("%s,carrier too low error\n", __func__);
@@ -2372,6 +2395,7 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 
 	if (broad_std == AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_M && pal_signal) {
 		/*the max except palm*/
+		/* pal signal and pal-m power max, so try the second max std. */
 		carrier_power_average[final_id] = 0;
 		final_id = 0;
 		carrier_power_max = carrier_power_average[0];
@@ -2384,31 +2408,37 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 
 		switch (final_id) {
 		case ID_PAL_I:
-			broad_std_except_pal_m =
-					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I;
+			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I;
 			break;
 		case ID_PAL_BG:
-			broad_std_except_pal_m =
-					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG;
+			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG;
 			break;
 		case ID_PAL_DK:
-			broad_std_except_pal_m =
-					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
+			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
 			break;
 		}
 
 		/* for non-standard signal */
-		if (broad_std_except_pal_m ==
-			AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG &&
+		if (broad_std == AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG &&
 			abs(carrier_power_average[ID_PAL_DK] -
 				carrier_power_average[ID_PAL_BG]) < 25)
-			broad_std_except_pal_m =
-					AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
+			broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
 
-		/* pal signal and pal-m power max, so set to second max std. */
-		broad_std = broad_std_except_pal_m;
 		pr_err("%s:pal signal and pal-m power max, set broad_std:%d\n",
 				__func__, broad_std);
+	} else if (broad_std == AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK && secam_signal) {
+		if (carrier_power_average[ID_PAL_DK] < AUDIO_CARRIER_POWER_MIN) {
+			if (p->frequency <= ATV_SECAM_LC_100MHZ)
+				broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_LC;
+			else
+				broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_L;
+
+			pr_err("%s:DK power %lu < MIN %d, set broad_std: L/LC\n",
+					__func__, carrier_power_average[ID_PAL_DK],
+					AUDIO_CARRIER_POWER_MIN);
+		} else {
+			/* TODO: */
+		}
 	} else {
 		/* for non-standard signal */
 		if (carrier_power_average[ID_PAL_I] < 30 &&
@@ -2446,12 +2476,19 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 		p->std |= V4L2_STD_PAL_M;
 		p->audmode = V4L2_STD_PAL_M;
 		break;
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_L:
+		p->std |= V4L2_STD_SECAM_L;
+		p->audmode = V4L2_STD_SECAM_L;
+		break;
+	case AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_LC:
+		p->std |= V4L2_STD_SECAM_LC;
+		p->audmode = V4L2_STD_SECAM_LC;
+		break;
 	default:
 		p->std |= V4L2_STD_PAL_DK;
 		p->audmode = V4L2_STD_PAL_DK;
 	}
 
-	p->frequency += 1;
 	params.frequency = p->frequency;
 	params.mode = p->afc_range;
 	params.audmode = p->audmode;

@@ -432,16 +432,10 @@ static int v4l2_set_frontend(struct v4l2_frontend *v4l2_fe,
 static int v4l2_get_frontend(struct v4l2_frontend *v4l2_fe,
 		struct v4l2_analog_parameters *p)
 {
-	/*memcpy(p, &v4l2_fe->params, sizeof(struct v4l2_analog_parameters));*/
-	p->frequency = v4l2_fe->params.frequency;
-	p->audmode = v4l2_fe->params.audmode;
-	p->soundsys = v4l2_fe->params.soundsys;
-	p->std = v4l2_fe->params.std;
-	p->flag = v4l2_fe->params.flag;
-	p->afc_range = v4l2_fe->params.afc_range;
-	p->reserved = v4l2_fe->params.reserved;
+	int ret = 0;
 
-	pr_dbg("%s: frequency %d.\n", __func__, p->frequency);
+	if (v4l2_fe->ops.get_frontend)
+		ret = v4l2_fe->ops.get_frontend(v4l2_fe, p);
 
 	return 0;
 }
