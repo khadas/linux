@@ -16678,7 +16678,7 @@ int _videopip_set_disable(u32 index, u32 val)
 			try_free_keep_videopip2(0);
 		else if (layer->keep_frame_id == 1)
 			try_free_keep_videopip(0);
-		else if (vd_layer[0].keep_frame_id == 0)
+		else if (layer->keep_frame_id == 0)
 			try_free_keep_video(0);
 	} else {
 		if (layer->dispbuf &&
