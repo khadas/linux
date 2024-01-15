@@ -2100,6 +2100,7 @@ static long rk628_csi_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 			capture_info->multi_dev = csi->multi_dev_info;
 		} else {
 			capture_info->mode = 0;
+			capture_info->multi_dev = csi->multi_dev_info;
 		}
 		break;
 	case RKMODULE_GET_CSI_DSI_INFO:
