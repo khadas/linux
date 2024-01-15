@@ -153,8 +153,7 @@ static int serdes_panel_parse_dt(struct serdes_panel *serdes_panel)
 	if (of_find_property(dev->of_node, "panel-size", &len)) {
 		len /= sizeof(unsigned int);
 		if (len != 2) {
-			dev_err(dev, "panel-size length is error, set 2 default\n",
-				dev->of_node);
+			dev_err(dev, "panel-size length is error, set 2 default\n");
 			len = 2;
 		}
 		ret = of_property_read_u32_array(dev->of_node, "panel-size",
@@ -168,8 +167,7 @@ static int serdes_panel_parse_dt(struct serdes_panel *serdes_panel)
 	if (of_find_property(dev->of_node, "rate-count-ssc", &len)) {
 		len /= sizeof(unsigned int);
 		if (len != 3) {
-			dev_err(dev, "rate-count-ssc length is error, set 3 default\n",
-				dev->of_node);
+			dev_err(dev, "rate-count-ssc length is error, set 3 default\n");
 			len = 3;
 		}
 		ret = of_property_read_u32_array(dev->of_node, "rate-count-ssc",

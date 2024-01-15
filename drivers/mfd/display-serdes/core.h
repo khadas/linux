@@ -38,7 +38,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/extcon-provider.h>
 #include <linux/bitfield.h>
-
+#include <linux/version.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_panel.h>
@@ -46,7 +46,11 @@
 #include <drm/drm_of.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_probe_helper.h>
+#if (KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE)
+#include <drm/display/drm_dp_helper.h>
+#else
 #include <drm/drm_dp_helper.h>
+#endif
 #include <drm/drm_device.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_atomic_state_helper.h>
