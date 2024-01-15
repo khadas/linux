@@ -11296,6 +11296,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 		if (sdr_delay == 0)
 			dolby_vision_flags &= ~FLAG_TOGGLE_FRAME;
 		update_amdv_core2_reg();
+		amdv_on_count = 0;
 		return 0;
 	} else if (sdr_delay != 0) {
 		/* in case mode change to a mode requiring dolby block */
@@ -13755,7 +13756,16 @@ static long amdolby_vision_ioctl(struct file *file,
 					break;
 				}
 				cfg_size = config_data.file_size * sizeof(char);
-				cfg_data = kmalloc(cfg_size, GFP_KERNEL);
+				if (cfg_data) {
+					vfree(cfg_data);
+					cfg_data = NULL;
+				}
+				cfg_data = vmalloc(cfg_size);
+				if (!cfg_data) {
+					ret = -EFAULT;
+					pr_dv_dbg("bin_data malloc fail!\n");
+					break;
+				}
 				argp = (void __user *)config_data.file_data;
 				if (copy_from_user(cfg_data, argp, cfg_size))
 					ret = -EFAULT;
@@ -13769,7 +13779,16 @@ static long amdolby_vision_ioctl(struct file *file,
 					break;
 				}
 				bin_size = config_data.file_size * sizeof(char);
-				bin_data = kmalloc(bin_size, GFP_KERNEL);
+				if (bin_data) {
+					vfree(bin_data);
+					bin_data = NULL;
+				}
+				bin_data = vmalloc(bin_size);
+				if (!bin_data) {
+					ret = -EFAULT;
+					pr_dv_dbg("bin_data malloc fail!\n");
+					break;
+				}
 				argp = (void __user *)config_data.file_data;
 				if (copy_from_user(bin_data, argp, bin_size))
 					ret = -EFAULT;
@@ -13805,10 +13824,10 @@ static long amdolby_vision_ioctl(struct file *file,
 			}
 
 			size = (user_cfg.cfg_size + 1) * sizeof(char);
-			user_cfg_data = kmalloc(size, GFP_KERNEL);
+			user_cfg_data = vmalloc(size);
 			if (!user_cfg_data) {
 				ret = -EFAULT;
-				pr_dv_dbg("user_cfg_data kmalloc fail!\n");
+				pr_dv_dbg("user_cfg_data malloc fail!\n");
 				break;
 			}
 
@@ -13829,6 +13848,10 @@ static long amdolby_vision_ioctl(struct file *file,
 			if (debug_dolby & 0x200)
 				pr_dv_dbg("[DV]: set user cfg success, user cfg size %d\n",
 					user_cfg.cfg_size);
+			if (user_cfg_data) {
+				vfree(user_cfg_data);
+				user_cfg_data = NULL;
+			}
 		} else {
 			ret = -EFAULT;
 		}
@@ -13890,11 +13913,6 @@ static long amdolby_vision_ioctl(struct file *file,
 		ret = -EINVAL;
 		break;
 	}
-
-	kfree(user_cfg_data);
-	kfree(cfg_data);
-	kfree(bin_data);
-
 	return ret;
 }
 
@@ -15800,6 +15818,15 @@ static int __exit amdolby_vision_remove(struct platform_device *pdev)
 	if (graphic_md_buf) {
 		vfree(graphic_md_buf);
 		graphic_md_buf = NULL;
+	}
+
+	if (bin_data) {
+		vfree(bin_data);
+		bin_data = NULL;
+	}
+	if (cfg_data) {
+		vfree(cfg_data);
+		cfg_data = NULL;
 	}
 
 	device_destroy(devp->clsp, devp->devno);
