@@ -7,29 +7,30 @@
 #ifndef __MAXIM4C_DRV_H__
 #define __MAXIM4C_DRV_H__
 
+#include <linux/i2c.h>
+#include <linux/i2c-mux.h>
 #include <linux/workqueue.h>
-#include <linux/rk-camera-module.h>
-#include <linux/mfd/core.h>
 #include <linux/regulator/consumer.h>
+#include <linux/rk-camera-module.h>
 #include <media/media-entity.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
-#include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
-#include <media/v4l2-subdev.h>
 
 #include "maxim4c_i2c.h"
 #include "maxim4c_link.h"
+#include "maxim4c_video_pipe.h"
 #include "maxim4c_mipi_txphy.h"
-#include "maxim4c_remote.h"
 #include "maxim4c_pattern.h"
 
+// max96712/max96722 chip id register and value
 #define MAXIM4C_REG_CHIP_ID		0x0D
 #define MAX96712_CHIP_ID		0xA0
 #define MAX96722_CHIP_ID		0xA1
 
-#define MAXIM4C_NUM_SUPPLIES 2
+/* power supply numbers */
+#define MAXIM4C_NUM_SUPPLIES		2
 
 enum {
 	MAXIM4C_HOT_PLUG_OUT = 0,
@@ -58,11 +59,11 @@ struct maxim4c_mode {
 
 typedef struct maxim4c {
 	struct i2c_client *client;
+	struct maxim4c_i2c_mux i2c_mux;
 	struct clk *xvclk;
-	struct gpio_desc *pwdn_gpio;
-	struct gpio_desc *lock_gpio;
 	struct regulator_bulk_data supplies[MAXIM4C_NUM_SUPPLIES];
-	struct regulator *poc_regulator;
+	struct regulator *pwdn_regulator;
+	struct gpio_desc *lock_gpio;
 
 	struct mutex mutex;
 
@@ -105,9 +106,6 @@ typedef struct maxim4c {
 	struct maxim4c_pattern pattern;
 
 	struct maxim4c_i2c_init_seq extra_init_seq;
-
-	struct mfd_cell remote_mfd_devs[MAXIM4C_LINK_ID_MAX];
-	maxim4c_remote_t *remote_device[MAXIM4C_LINK_ID_MAX];
 
 	struct dentry *dbgfs_root;
 } maxim4c_t;

@@ -71,9 +71,8 @@ int maxim4c_pattern_enable(maxim4c_t *maxim4c, bool enable)
 		/* Generate gradient pattern. */
 		reg_val = enable ? BIT(5) : 0;
 	}
-	ret = maxim4c_i2c_update_byte(client,
-			VPGx_REG(vpgx, 0x1051), MAXIM4C_I2C_REG_ADDR_16BITS,
-			reg_mask, reg_val);
+	ret = maxim4c_i2c_update_reg(client,
+			VPGx_REG(vpgx, 0x1051), reg_mask, reg_val);
 
 	return ret;
 }
@@ -85,30 +84,22 @@ static int maxim4c_pattern_previnit(maxim4c_t *maxim4c)
 	int ret = 0;
 
 	// All links disable at beginning.
-	ret = maxim4c_i2c_write_byte(client,
-			0x0006, MAXIM4C_I2C_REG_ADDR_16BITS,
-			0xF0);
+	ret = maxim4c_i2c_write_reg(client, 0x0006, 0xF0);
 	if (ret)
 		return ret;
 
 	// video pipe disable.
-	ret = maxim4c_i2c_write_byte(client,
-			0x00F4, MAXIM4C_I2C_REG_ADDR_16BITS,
-			0x00);
+	ret = maxim4c_i2c_write_reg(client, 0x00F4, 0x00);
 	if (ret)
 		return ret;
 
 	// MIPI CSI output disable.
-	ret = maxim4c_i2c_write_byte(client,
-			0x040B, MAXIM4C_I2C_REG_ADDR_16BITS,
-			0x00);
+	ret = maxim4c_i2c_write_reg(client, 0x040B, 0x00);
 	if (ret)
 		return ret;
 
 	// MIPI TXPHY standby
-	ret = maxim4c_i2c_update_byte(client,
-			0x08A2, MAXIM4C_I2C_REG_ADDR_16BITS,
-			0xF0, 0x00);
+	ret = maxim4c_i2c_update_reg(client, 0x08A2, 0xF0, 0x00);
 	if (ret)
 		return ret;
 
@@ -144,9 +135,8 @@ static int maxim4c_pattern_config(maxim4c_t *maxim4c)
 
 	// PATGEN_MODE = 0, Pattern generator disabled
 	//	use video from the serializer input
-	ret |= maxim4c_i2c_update_byte(client,
-			VPGx_REG(vpgx, 0x1051), MAXIM4C_I2C_REG_ADDR_16BITS,
-			BIT(5) | BIT(4), 0x00);
+	ret |= maxim4c_i2c_update_reg(client,
+			VPGx_REG(vpgx, 0x1051), BIT(5) | BIT(4), 0x00);
 
 	/* Pattern PCLK:
 	 *	0b00 - 25MHz
@@ -154,9 +144,7 @@ static int maxim4c_pattern_config(maxim4c_t *maxim4c)
 	 *	0b1x - (PATGEN_CLK_SRC: 0 - 150MHz, 1 - 375MHz).
 	 */
 	pattern_pclk = (pattern_pclk & 0x03);
-	ret |= maxim4c_i2c_write_byte(client,
-			0x0009, MAXIM4C_I2C_REG_ADDR_16BITS,
-			pattern_pclk);
+	ret |= maxim4c_i2c_write_reg(client, 0x0009, pattern_pclk);
 	if (pattern_pclk >= PATTERN_PCLK_150M) {
 		reg_mask = BIT(7);
 		if (pattern_pclk == PATTERN_PCLK_375M)
@@ -167,90 +155,84 @@ static int maxim4c_pattern_config(maxim4c_t *maxim4c)
 		if (vpgx == PATTERN_GENERATOR_0) {
 			for (i = 0; i < 4; i++) {
 				reg_addr = 0x01DC + i * 0x20;
-				ret |= maxim4c_i2c_update_byte(client,
-						reg_addr, MAXIM4C_I2C_REG_ADDR_16BITS,
-						reg_mask, reg_val);
+				ret |= maxim4c_i2c_update_reg(client,
+						reg_addr, reg_mask, reg_val);
 			}
 		} else {
 			for (i = 0; i < 4; i++) {
 				reg_addr = 0x025C + i * 0x20;
-				ret |= maxim4c_i2c_update_byte(client,
-						reg_addr, MAXIM4C_I2C_REG_ADDR_16BITS,
-						reg_mask, reg_val);
+				ret |= maxim4c_i2c_update_reg(client,
+						reg_addr, reg_mask, reg_val);
 			}
 		}
 	}
 
 	/* Configure Video Timing Generator for 1920x1080 @ 30 fps. */
 	// VS_DLY = 0
-	ret |= maxim4c_i2c_write_reg(client,
+	ret |= maxim4c_i2c_write(client,
 			VPGx_REG(vpgx, 0x1052), MAXIM4C_I2C_REG_ADDR_16BITS,
 			MAXIM4C_I2C_REG_VALUE_24BITS, 0x000000);
 	// VS_HIGH = Vsw * Htot
-	ret |= maxim4c_i2c_write_reg(client,
+	ret |= maxim4c_i2c_write(client,
 			VPGx_REG(vpgx, 0x1055), MAXIM4C_I2C_REG_ADDR_16BITS,
 			MAXIM4C_I2C_REG_VALUE_24BITS, v_sw * h_tot);
 	// VS_LOW = (Vactive + Vfp + Vbp) * Htot
-	ret |= maxim4c_i2c_write_reg(client,
+	ret |= maxim4c_i2c_write(client,
 			VPGx_REG(vpgx, 0x1058), MAXIM4C_I2C_REG_ADDR_16BITS,
 			MAXIM4C_I2C_REG_VALUE_24BITS, (v_active + v_fp + v_bp) * h_tot);
 	// V2H = VS_DLY
-	ret |= maxim4c_i2c_write_reg(client,
+	ret |= maxim4c_i2c_write(client,
 			VPGx_REG(vpgx, 0x105b), MAXIM4C_I2C_REG_ADDR_16BITS,
 			MAXIM4C_I2C_REG_VALUE_24BITS, 0x000000);
 	// HS_HIGH = Hsw
-	ret |= maxim4c_i2c_write_reg(client,
+	ret |= maxim4c_i2c_write(client,
 			VPGx_REG(vpgx, 0x105e), MAXIM4C_I2C_REG_ADDR_16BITS,
 			MAXIM4C_I2C_REG_VALUE_16BITS, h_sw);
 	// HS_LOW = Hactive + Hfp + Hbp
-	ret |= maxim4c_i2c_write_reg(client,
+	ret |= maxim4c_i2c_write(client,
 			VPGx_REG(vpgx, 0x1060), MAXIM4C_I2C_REG_ADDR_16BITS,
 			MAXIM4C_I2C_REG_VALUE_16BITS, h_active + h_fp + h_bp);
 	// HS_CNT = Vtot
-	ret |= maxim4c_i2c_write_reg(client,
+	ret |= maxim4c_i2c_write(client,
 			VPGx_REG(vpgx, 0x1062), MAXIM4C_I2C_REG_ADDR_16BITS,
 			MAXIM4C_I2C_REG_VALUE_16BITS, v_tot);
 	// V2D = VS_DLY + Htot * (Vsw + Vbp) + (Hsw + Hbp)
-	ret |= maxim4c_i2c_write_reg(client,
+	ret |= maxim4c_i2c_write(client,
 			VPGx_REG(vpgx, 0x1064),	MAXIM4C_I2C_REG_ADDR_16BITS,
 			MAXIM4C_I2C_REG_VALUE_24BITS, h_tot * (v_sw + v_bp) + (h_sw + h_bp));
 	// DE_HIGH = Hactive
-	ret |= maxim4c_i2c_write_reg(client,
+	ret |= maxim4c_i2c_write(client,
 			VPGx_REG(vpgx, 0x1067),	MAXIM4C_I2C_REG_ADDR_16BITS,
 			MAXIM4C_I2C_REG_VALUE_16BITS, h_active);
 	// DE_LOW = Hfp + Hsw + Hbp
-	ret |= maxim4c_i2c_write_reg(client,
+	ret |= maxim4c_i2c_write(client,
 			VPGx_REG(vpgx, 0x1069),	MAXIM4C_I2C_REG_ADDR_16BITS,
 			MAXIM4C_I2C_REG_VALUE_16BITS, h_fp + h_sw + h_bp);
 	// DE_CNT = Vactive
-	ret |= maxim4c_i2c_write_reg(client,
+	ret |= maxim4c_i2c_write(client,
 			VPGx_REG(vpgx, 0x106b),	MAXIM4C_I2C_REG_ADDR_16BITS,
 			MAXIM4C_I2C_REG_VALUE_16BITS, v_active);
 
 	/* Generate VS, HS and DE in free-running mode, Invert HS and VS. */
-	ret |= maxim4c_i2c_write_byte(client,
-			VPGx_REG(vpgx, 0x1050), MAXIM4C_I2C_REG_ADDR_16BITS,
-			0xfb);
+	ret |= maxim4c_i2c_write_reg(client, VPGx_REG(vpgx, 0x1050), 0xfb);
 
 	/* Configure Video Pattern Generator. */
 	if (pattern_mode == PATTERN_CHECKERBOARD) {
 		/* Set checkerboard pattern size. */
-		ret |= maxim4c_i2c_write_reg(client,
+		ret |= maxim4c_i2c_write(client,
 			VPGx_REG(vpgx, 0x1074),	MAXIM4C_I2C_REG_ADDR_16BITS,
 			MAXIM4C_I2C_REG_VALUE_24BITS, 0x3c3c3c);
 
 		/* Set checkerboard pattern colors. */
-		ret |= maxim4c_i2c_write_reg(client,
+		ret |= maxim4c_i2c_write(client,
 			VPGx_REG(vpgx, 0x106e), MAXIM4C_I2C_REG_ADDR_16BITS,
 			MAXIM4C_I2C_REG_VALUE_24BITS, 0xfecc00);
-		ret |= maxim4c_i2c_write_reg(client,
+		ret |= maxim4c_i2c_write(client,
 			VPGx_REG(vpgx, 0x1071), MAXIM4C_I2C_REG_ADDR_16BITS,
 			MAXIM4C_I2C_REG_VALUE_24BITS, 0x006aa7);
 	} else {
 		/* Set gradient increment. */
-		ret |= maxim4c_i2c_write_byte(client,
-				VPGx_REG(vpgx, 0x106d), MAXIM4C_I2C_REG_ADDR_16BITS,
-				0x10);
+		ret |= maxim4c_i2c_write_reg(client, VPGx_REG(vpgx, 0x106d), 0x10);
 	}
 
 	return ret;

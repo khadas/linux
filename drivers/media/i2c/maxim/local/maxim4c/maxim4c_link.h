@@ -7,6 +7,7 @@
 #ifndef __MAXIM4C_LINK_H__
 #define __MAXIM4C_LINK_H__
 
+#include <linux/of_device.h>
 #include "maxim4c_i2c.h"
 
 /* Link cable */
@@ -69,6 +70,7 @@ struct maxim4c_link_cfg {
 	u8 link_rx_rate;
 	u8 link_tx_rate;
 
+	struct device_node *remote_cam_node;
 	struct maxim4c_i2c_init_seq link_init_seq;
 };
 

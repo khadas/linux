@@ -19,10 +19,8 @@ static int maxim4c_link_enable_vdd_ldo1(maxim4c_t *maxim4c)
 	 *	CTRL0: Enable REG_ENABLE
 	 *	CTRL2: Enable REG_MNL
 	 */
-	ret |= maxim4c_i2c_update_byte(client,
-			0x0017, MAXIM4C_I2C_REG_ADDR_16BITS, BIT(2), BIT(2));
-	ret |= maxim4c_i2c_update_byte(client,
-			0x0019, MAXIM4C_I2C_REG_ADDR_16BITS, BIT(4), BIT(4));
+	ret |= maxim4c_i2c_update_reg(client, 0x0017, BIT(2), BIT(2));
+	ret |= maxim4c_i2c_update_reg(client, 0x0019, BIT(4), BIT(4));
 
 	return ret;
 }
@@ -32,9 +30,7 @@ static int maxim4c_link_enable_vdd_ldo2(maxim4c_t *maxim4c)
 	struct i2c_client *client = maxim4c->client;
 	int ret = 0;
 
-	ret |= maxim4c_i2c_write_byte(client,
-			0x06C2, MAXIM4C_I2C_REG_ADDR_16BITS,
-			0x10);
+	ret |= maxim4c_i2c_write_reg(client, 0x06C2, 0x10);
 	// delay 10ms
 	msleep(10);
 
@@ -68,9 +64,7 @@ static int maxim4c_link_set_rate(maxim4c_t *maxim4c)
 			link_rate |= (0x2 << 4);
 	}
 	if (link_rate != 0) {
-		ret |= maxim4c_i2c_write_byte(client,
-				0x0010, MAXIM4C_I2C_REG_ADDR_16BITS,
-				link_rate);
+		ret |= maxim4c_i2c_write_reg(client, 0x0010, link_rate);
 	}
 
 	/* Link C/D rate setting */
@@ -92,9 +86,7 @@ static int maxim4c_link_set_rate(maxim4c_t *maxim4c)
 			link_rate |= (0x2 << 4);
 	}
 	if (link_rate != 0) {
-		ret |= maxim4c_i2c_write_byte(client,
-				0x0011, MAXIM4C_I2C_REG_ADDR_16BITS,
-				link_rate);
+		ret |= maxim4c_i2c_write_reg(client, 0x0011, link_rate);
 	}
 
 	return ret;
@@ -152,32 +144,26 @@ static int maxim4c_link_status_init(maxim4c_t *maxim4c)
 		}
 	}
 
-	ret = maxim4c_i2c_write_byte(client,
-			0x0006, MAXIM4C_I2C_REG_ADDR_16BITS,
-			link_type | link_enable);
+	ret = maxim4c_i2c_write_reg(client, 0x0006, link_type | link_enable);
 
 	reg_mask = BIT(1) | BIT(0);
 	reg_value = 0;
 	for (link_idx = 0; link_idx < MAXIM4C_LINK_ID_MAX; link_idx++) {
 		reg_addr = 0x0B04 + 0x100 * link_idx;
-		ret |= maxim4c_i2c_update_byte(client,
-				reg_addr, MAXIM4C_I2C_REG_ADDR_16BITS,
-				reg_mask, reg_value);
+		ret |= maxim4c_i2c_update_reg(client,
+				reg_addr, reg_mask, reg_value);
 	}
 
 	if (gmsl_link->i2c_ctrl_port == MAXIM4C_I2C_PORT2) {
 		reg_mask = 0x0F;
 		reg_value = 0x0F;
-		ret |= maxim4c_i2c_update_byte(client,
-				0x000E, MAXIM4C_I2C_REG_ADDR_16BITS,
-				reg_mask, reg_value);
+		ret |= maxim4c_i2c_update_reg(client,
+				0x000E, reg_mask, reg_value);
 	}
 
 	reg_mask = 0xFF;
 	reg_value = 0xFF;
-	ret |= maxim4c_i2c_update_byte(client,
-			0x0003, MAXIM4C_I2C_REG_ADDR_16BITS,
-			reg_mask, reg_value);
+	ret |= maxim4c_i2c_update_reg(client, 0x0003, reg_mask, reg_value);
 
 	return ret;
 }
@@ -196,18 +182,14 @@ u8 maxim4c_link_get_lock_state(maxim4c_t *maxim4c, u8 link_mask)
 		link_type = gmsl_link->link_cfg[MAXIM4C_LINK_ID_A].link_type;
 		if (link_type == MAXIM4C_GMSL2) {
 			// GMSL2 Link A
-			maxim4c_i2c_read_byte(client,
-				0x001A, MAXIM4C_I2C_REG_ADDR_16BITS,
-				&link_lock);
+			maxim4c_i2c_read_reg(client, 0x001A, &link_lock);
 			if (link_lock & BIT(3)) {
 				lock_state |= MAXIM4C_LINK_MASK_A;
 				dev_dbg(dev, "GMSL2 Link A locked\n");
 			}
 		} else {
 			// GMSL1 Link A
-			maxim4c_i2c_read_byte(client,
-				0x0BCB, MAXIM4C_I2C_REG_ADDR_16BITS,
-				&link_lock);
+			maxim4c_i2c_read_reg(client, 0x0BCB, &link_lock);
 			if (link_lock & BIT(0)) {
 				lock_state |= MAXIM4C_LINK_MASK_A;
 				dev_dbg(dev, "GMSL1 Link A locked\n");
@@ -226,18 +208,14 @@ u8 maxim4c_link_get_lock_state(maxim4c_t *maxim4c, u8 link_mask)
 		link_type = gmsl_link->link_cfg[MAXIM4C_LINK_ID_B].link_type;
 		if (link_type == MAXIM4C_GMSL2) {
 			// GMSL2 Link B
-			maxim4c_i2c_read_byte(client,
-				0x000A, MAXIM4C_I2C_REG_ADDR_16BITS,
-				&link_lock);
+			maxim4c_i2c_read_reg(client, 0x000A, &link_lock);
 			if (link_lock & BIT(3)) {
 				lock_state |= MAXIM4C_LINK_MASK_B;
 				dev_dbg(dev, "GMSL2 Link B locked\n");
 			}
 		} else {
 			// GMSL1 Link B
-			maxim4c_i2c_read_byte(client,
-				0x0CCB, MAXIM4C_I2C_REG_ADDR_16BITS,
-				&link_lock);
+			maxim4c_i2c_read_reg(client, 0x0CCB, &link_lock);
 			if (link_lock & BIT(0)) {
 				lock_state |= MAXIM4C_LINK_MASK_B;
 				dev_dbg(dev, "GMSL1 Link B locked\n");
@@ -256,18 +234,14 @@ u8 maxim4c_link_get_lock_state(maxim4c_t *maxim4c, u8 link_mask)
 		link_type = gmsl_link->link_cfg[MAXIM4C_LINK_ID_C].link_type;
 		if (link_type == MAXIM4C_GMSL2) {
 			// GMSL2 Link C
-			maxim4c_i2c_read_byte(client,
-				0x000B, MAXIM4C_I2C_REG_ADDR_16BITS,
-				&link_lock);
+			maxim4c_i2c_read_reg(client, 0x000B, &link_lock);
 			if (link_lock & BIT(3)) {
 				lock_state |= MAXIM4C_LINK_MASK_C;
 				dev_dbg(dev, "GMSL2 Link C locked\n");
 			}
 		} else {
 			// GMSL1 Link C
-			maxim4c_i2c_read_byte(client,
-				0x0DCB, MAXIM4C_I2C_REG_ADDR_16BITS,
-				&link_lock);
+			maxim4c_i2c_read_reg(client, 0x0DCB, &link_lock);
 			if (link_lock & BIT(0)) {
 				lock_state |= MAXIM4C_LINK_MASK_C;
 				dev_dbg(dev, "GMSL1 Link C locked\n");
@@ -286,18 +260,14 @@ u8 maxim4c_link_get_lock_state(maxim4c_t *maxim4c, u8 link_mask)
 		link_type = gmsl_link->link_cfg[MAXIM4C_LINK_ID_D].link_type;
 		if (link_type == MAXIM4C_GMSL2) {
 			// GMSL2 Link D
-			maxim4c_i2c_read_byte(client,
-				0x000C, MAXIM4C_I2C_REG_ADDR_16BITS,
-				&link_lock);
+			maxim4c_i2c_read_reg(client, 0x000C, &link_lock);
 			if (link_lock & BIT(3)) {
 				lock_state |= MAXIM4C_LINK_MASK_D;
 				dev_dbg(dev, "GMSL2 Link D locked\n");
 			}
 		} else {
 			// GMSL1 Link D
-			maxim4c_i2c_read_byte(client,
-				0x0ECB, MAXIM4C_I2C_REG_ADDR_16BITS,
-				&link_lock);
+			maxim4c_i2c_read_reg(client, 0x0ECB, &link_lock);
 			if (link_lock & BIT(0)) {
 				lock_state |= MAXIM4C_LINK_MASK_D;
 				dev_dbg(dev, "GMSL1 Link D locked\n");
@@ -315,7 +285,7 @@ u8 maxim4c_link_get_lock_state(maxim4c_t *maxim4c, u8 link_mask)
 }
 EXPORT_SYMBOL(maxim4c_link_get_lock_state);
 
-int maxim4c_link_oneshot_reset(struct maxim4c *maxim4c, u8 link_mask)
+int maxim4c_link_oneshot_reset(maxim4c_t *maxim4c, u8 link_mask)
 {
 	struct i2c_client *client = maxim4c->client;
 	struct device *dev = &client->dev;
@@ -335,16 +305,14 @@ int maxim4c_link_oneshot_reset(struct maxim4c *maxim4c, u8 link_mask)
 
 	if (oneshot_reset != 0) {
 		// One-Shot Reset
-		ret = maxim4c_i2c_write_byte(client,
-				0x0018, MAXIM4C_I2C_REG_ADDR_16BITS,
-				oneshot_reset);
+		ret = maxim4c_i2c_write_reg(client, 0x0018, oneshot_reset);
 	}
 
 	return ret;
 }
 EXPORT_SYMBOL(maxim4c_link_oneshot_reset);
 
-int maxim4c_link_mask_enable(struct maxim4c *maxim4c, u8 link_mask, bool enable)
+int maxim4c_link_mask_enable(maxim4c_t *maxim4c, u8 link_mask, bool enable)
 {
 	struct i2c_client *client = maxim4c->client;
 	struct device *dev = &client->dev;
@@ -366,16 +334,15 @@ int maxim4c_link_mask_enable(struct maxim4c *maxim4c, u8 link_mask, bool enable)
 	if (reg_mask != 0) {
 		reg_value = enable ? reg_mask : 0;
 
-		ret = maxim4c_i2c_update_byte(client,
-				0x0006, MAXIM4C_I2C_REG_ADDR_16BITS,
-				reg_mask, reg_value);
+		ret = maxim4c_i2c_update_reg(client,
+				0x0006, reg_mask, reg_value);
 	}
 
 	return ret;
 }
 EXPORT_SYMBOL(maxim4c_link_mask_enable);
 
-int maxim4c_link_wait_linklock(struct maxim4c *maxim4c, u8 link_mask)
+int maxim4c_link_wait_linklock(maxim4c_t *maxim4c, u8 link_mask)
 {
 	struct i2c_client *client = maxim4c->client;
 	struct device *dev = &client->dev;
@@ -425,7 +392,7 @@ int maxim4c_link_wait_linklock(struct maxim4c *maxim4c, u8 link_mask)
 }
 EXPORT_SYMBOL(maxim4c_link_wait_linklock);
 
-int maxim4c_link_select_remote_enable(struct maxim4c *maxim4c, u8 link_mask)
+int maxim4c_link_select_remote_enable(maxim4c_t *maxim4c, u8 link_mask)
 {
 	struct i2c_client *client = maxim4c->client;
 	struct device *dev = &client->dev;
@@ -454,14 +421,11 @@ int maxim4c_link_select_remote_enable(struct maxim4c *maxim4c, u8 link_mask)
 
 	if (link_mask != 0) {
 		// One-Shot Reset
-		ret |= maxim4c_i2c_write_byte(client,
-				0x0018, MAXIM4C_I2C_REG_ADDR_16BITS,
-				link_reset);
+		ret |= maxim4c_i2c_write_reg(client, 0x0018, link_reset);
 
 		// Link Enable
-		ret |= maxim4c_i2c_update_byte(client,
-				0x0006, MAXIM4C_I2C_REG_ADDR_16BITS,
-				link_enable, link_enable);
+		ret |= maxim4c_i2c_update_reg(client,
+				0x0006, link_enable, link_enable);
 
 		if (ret) {
 			dev_err(dev, "%s: link oneshot reset or enable error, link mask = 0x%x\n",
@@ -480,7 +444,7 @@ int maxim4c_link_select_remote_enable(struct maxim4c *maxim4c, u8 link_mask)
 }
 EXPORT_SYMBOL(maxim4c_link_select_remote_enable);
 
-int maxim4c_link_select_remote_control(struct maxim4c *maxim4c, u8 link_mask)
+int maxim4c_link_select_remote_control(maxim4c_t *maxim4c, u8 link_mask)
 {
 	struct i2c_client *client = maxim4c->client;
 	struct device *dev = &client->dev;
@@ -510,9 +474,8 @@ int maxim4c_link_select_remote_control(struct maxim4c *maxim4c, u8 link_mask)
 				reg_value = 0;
 
 			reg_addr = 0x0B04 + 0x100 * link_idx;
-			ret |= maxim4c_i2c_update_byte(client,
-					reg_addr, MAXIM4C_I2C_REG_ADDR_16BITS,
-					reg_mask, reg_value);
+			ret |= maxim4c_i2c_update_reg(client,
+					reg_addr, reg_mask, reg_value);
 
 			link_mask &= ~BIT(link_idx);
 		}
@@ -523,9 +486,8 @@ int maxim4c_link_select_remote_control(struct maxim4c *maxim4c, u8 link_mask)
 		reg_mask = 0x0F;
 		reg_value = ~link_mask;
 
-		ret |= maxim4c_i2c_update_byte(client,
-				0x000E, MAXIM4C_I2C_REG_ADDR_16BITS,
-				reg_mask, reg_value);
+		ret |= maxim4c_i2c_update_reg(client,
+				0x000E, reg_mask, reg_value);
 	} else if (gmsl_link->i2c_ctrl_port == MAXIM4C_I2C_PORT1) {
 		reg_mask = 0xFF;
 		reg_value = 0;
@@ -536,9 +498,8 @@ int maxim4c_link_select_remote_control(struct maxim4c *maxim4c, u8 link_mask)
 		}
 		reg_value = ~reg_value;
 
-		ret |= maxim4c_i2c_update_byte(client,
-				0x0003, MAXIM4C_I2C_REG_ADDR_16BITS,
-				reg_mask, reg_value);
+		ret |= maxim4c_i2c_update_reg(client,
+				0x0003, reg_mask, reg_value);
 	} else {
 		reg_mask = 0xFF;
 		reg_value = 0;
@@ -549,9 +510,8 @@ int maxim4c_link_select_remote_control(struct maxim4c *maxim4c, u8 link_mask)
 		}
 		reg_value = ~reg_value;
 
-		ret |= maxim4c_i2c_update_byte(client,
-				0x0003, MAXIM4C_I2C_REG_ADDR_16BITS,
-				reg_mask, reg_value);
+		ret |= maxim4c_i2c_update_reg(client,
+				0x0003, reg_mask, reg_value);
 	}
 
 	return ret;
@@ -563,6 +523,7 @@ static int maxim4c_gmsl_link_config_parse_dt(struct device *dev,
 			struct device_node *parent_node)
 {
 	struct device_node *node = NULL;
+	struct device_node *remote_cam_node = NULL;
 	struct device_node *init_seq_node = NULL;
 	struct maxim4c_i2c_init_seq *init_seq = NULL;
 	struct maxim4c_link_cfg *link_cfg = NULL;
@@ -631,6 +592,15 @@ static int maxim4c_gmsl_link_config_parse_dt(struct device *dev,
 			if (ret == 0) {
 				dev_info(dev, "link-rx-rate property: %d", value);
 				link_cfg->link_rx_rate = value;
+			}
+
+			/* link get remote camera node */
+			remote_cam_node = of_parse_phandle(node, "link-remote-cam", 0);
+			if (!IS_ERR_OR_NULL(remote_cam_node)) {
+				dev_info(dev, "remote camera node: %pOF\n", remote_cam_node);
+				link_cfg->remote_cam_node = remote_cam_node;
+			} else {
+				dev_warn(dev, "link-remote-cam node isn't exist\n");
 			}
 
 			/* link init sequence */
@@ -758,6 +728,7 @@ void maxim4c_link_data_init(maxim4c_t *maxim4c)
 		else
 			link_cfg->link_rx_rate = MAXIM4C_LINK_RX_RATE_6GBPS;
 		link_cfg->link_tx_rate = MAXIM4C_LINK_TX_RATE_187_5MPS;
+		link_cfg->remote_cam_node = NULL;
 		link_cfg->link_init_seq.reg_init_seq = NULL;
 	}
 }

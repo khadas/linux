@@ -8,6 +8,7 @@
 #define __MAXIM4C_I2C_H__
 
 #include <linux/i2c.h>
+#include <linux/i2c-mux.h>
 
 /* register address: 8bit or 16bit */
 #define MAXIM4C_I2C_REG_ADDR_08BITS	1
@@ -31,6 +32,13 @@ enum {
 	MAXIM4C_I2C_DEV_MAX,
 };
 
+struct maxim4c_i2c_mux {
+	struct i2c_mux_core *muxc;
+	u32 i2c_mux_mask;
+	u32 mux_channel;
+	bool mux_disable;
+};
+
 /* i2c register array end */
 #define MAXIM4C_REG_NULL		0xFFFF
 
@@ -51,5 +59,28 @@ struct maxim4c_i2c_init_seq {
 	u32 reg_len;
 	u32 val_len;
 };
+
+/* maxim4c i2c read/write api */
+int maxim4c_i2c_write(struct i2c_client *client,
+		u16 reg_addr, u16 reg_len, u32 val_len, u32 reg_val);
+int maxim4c_i2c_read(struct i2c_client *client,
+		u16 reg_addr, u16 reg_len, u32 val_len, u32 *reg_val);
+int maxim4c_i2c_update(struct i2c_client *client,
+		u16 reg_addr, u16 reg_len,
+		u32 val_len, u32 val_mask, u32 reg_val);
+
+int maxim4c_i2c_write_reg(struct i2c_client *client,
+		u16 reg_addr, u8 reg_val);
+int maxim4c_i2c_read_reg(struct i2c_client *client,
+		u16 reg_addr, u8 *reg_val);
+int maxim4c_i2c_update_reg(struct i2c_client *client,
+		u16 reg_addr, u8 val_mask, u8 reg_val);
+
+int maxim4c_i2c_write_array(struct i2c_client *client,
+			const struct maxim4c_i2c_regval *regs);
+int maxim4c_i2c_load_init_seq(struct device *dev,
+	struct device_node *node, struct maxim4c_i2c_init_seq *init_seq);
+int maxim4c_i2c_run_init_seq(struct i2c_client *client,
+			struct maxim4c_i2c_init_seq *init_seq);
 
 #endif /* __MAXIM4C_I2C_H__ */
