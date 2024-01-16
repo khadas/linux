@@ -11488,6 +11488,7 @@ u32 get_cur_enc_num_s5(void)
 		}
 		switch (venc_type) {
 		case 0:
+			bit_offest = 28;
 			reg = S5_VPU_VENCI_STAT;
 			break;
 		case 1:
