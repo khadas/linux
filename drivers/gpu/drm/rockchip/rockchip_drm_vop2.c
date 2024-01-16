@@ -258,6 +258,10 @@ enum vop2_layer_phy_id {
 	ROCKCHIP_VOP2_PHY_ID_INVALID = -1,
 };
 
+struct pixel_shift_data {
+	bool enable;
+};
+
 struct vop2_power_domain {
 	struct vop2_power_domain *parent;
 	struct vop2 *vop2;
@@ -595,6 +599,8 @@ struct vop2_video_port {
 
 	struct drm_flip_work fb_unref_work;
 	unsigned long pending;
+
+	struct pixel_shift_data pixel_shift;
 
 	/**
 	 * @hdr_in: Indicate we have a hdr plane input.
@@ -5176,6 +5182,57 @@ static int vop2_linear_yuv_format_check(struct drm_plane *plane, struct drm_plan
 	return 0;
 }
 
+static int
+vop2_plane_pixel_shift_adjust(struct drm_crtc *crtc, struct drm_plane_state *pstate,
+			      struct rockchip_crtc_state *vcstate, struct vop2_win *win)
+{
+	struct vop2_plane_state *vpstate = to_vop2_plane_state(pstate);
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	struct drm_rect *src = &vpstate->src;
+	uint32_t x1, x2, y1, y2, check_size, actual_w;
+
+	x1 = pstate->dst.x1 + vcstate->shift_x;
+	x2 = pstate->dst.x2 + vcstate->shift_x;
+	y1 = pstate->dst.y1 + vcstate->shift_y;
+	y2 = pstate->dst.y2 + vcstate->shift_y;
+
+	/* If all content of plane is invisible, then ignore to adjust this plane */
+	if (x1 > mode->crtc_hdisplay)
+		return 0;
+
+	if (x2 > mode->crtc_hdisplay)
+		x2 = mode->crtc_hdisplay;
+
+	check_size = mode->flags & DRM_MODE_FLAG_INTERLACE ? mode->vdisplay : mode->crtc_vdisplay;
+	if (y1 > check_size)
+		return 0;
+
+	if (y2 > check_size)
+		y2 = check_size;
+
+	if (vop2->version == VOP_VERSION_RK3568) {
+		if (!vop2_cluster_window(win)) {
+			actual_w = drm_rect_width(src) >> 16;
+			/* workaround for MODE 16 == 1 at scale down mode */
+			if ((actual_w & 0xf) == 1)
+				pstate->src.x2 -= 1 << 16;
+
+			/* workaround for MODE 2 == 1 at scale down mode */
+			if ((x2 - x1) & 0x1)
+				x2 -= 1;
+		}
+	}
+
+	pstate->dst.x1 = x1;
+	pstate->dst.x2 = x2;
+	pstate->dst.y1 = y1;
+	pstate->dst.y2 = y2;
+
+	return 0;
+}
+
 static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_state *state)
 {
 	struct drm_plane_state *pstate = drm_atomic_get_new_plane_state(state, plane);
@@ -5259,6 +5316,9 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 			  pstate->crtc_h);
 		return 0;
 	}
+
+	if (vcstate->shift_x || vcstate->shift_y)
+		vop2_plane_pixel_shift_adjust(crtc, pstate, vcstate, win);
 
 	src->x1 = pstate->src.x1;
 	src->y1 = pstate->src.y1;
@@ -7203,6 +7263,138 @@ static int vop2_cubic_lut_show(struct seq_file *s, void *data)
 	return 0;
 }
 
+static void rockchip_drm_vop2_pixel_shift_duplicate_commit(struct drm_device *dev)
+{
+	struct drm_atomic_state *state;
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	int ret;
+
+	drm_modeset_lock_all(dev);
+
+	state = drm_atomic_helper_duplicate_state(dev, mode_config->acquire_ctx);
+	if (IS_ERR(state))
+		goto unlock;
+
+	state->acquire_ctx = mode_config->acquire_ctx;
+
+	ret = drm_atomic_commit(state);
+	WARN_ON(ret == -EDEADLK);
+	if (ret)
+		DRM_DEV_ERROR(dev->dev, "Failed to update pixel shift frame\n");
+
+	drm_atomic_state_put(state);
+unlock:
+	drm_modeset_unlock_all(dev);
+}
+
+static void rockchip_drm_vop2_pixel_shift_commit(struct drm_device *dev, struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct vop2 *vop2 = vp->vop2;
+	int vp_id = vp->id;
+
+	if (vop2->active_vp_mask & BIT(vp_id)) {
+		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_PIXEL_SHIFT, "vop2 pixel shift x:%d, y:%d\n",
+				 vcstate->shift_x, vcstate->shift_y);
+		rockchip_drm_vop2_pixel_shift_duplicate_commit(dev);
+	}
+}
+
+static ssize_t pixel_shift_store(struct device *dev, struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	struct drm_crtc *crtc = dev_get_drvdata(dev);
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_device *drm_dev = vop2->drm_dev;
+	struct rockchip_crtc_state *vcstate;
+	int shift_x = 0, shift_y = 0;
+	int ret;
+
+	ret = sscanf(buf, "%d%d", &shift_x, &shift_y);
+	/* Unable to move toward negative coordinates */
+	if (ret != 2 || shift_x < 0 || shift_y < 0) {
+		DRM_DEV_ERROR(drm_dev->dev, "Invalid input");
+		return count;
+	}
+
+	vcstate = to_rockchip_crtc_state(crtc->state);
+	vcstate->shift_x = shift_x;
+	vcstate->shift_y = shift_y;
+
+	rockchip_drm_vop2_pixel_shift_commit(drm_dev, crtc);
+
+	return count;
+}
+
+static ssize_t pixel_shift_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct drm_crtc *crtc = dev_get_drvdata(dev);
+	struct rockchip_crtc_state *vcstate;
+	int shift_x = 0, shift_y = 0;
+
+	vcstate = to_rockchip_crtc_state(crtc->state);
+	shift_x = vcstate->shift_x;
+	shift_y = vcstate->shift_y;
+
+	return sprintf(buf, "shift_x:%d, shift_y:%d\n", shift_x, shift_y);
+}
+
+static DEVICE_ATTR_RW(pixel_shift);
+
+static int vop2_pixel_shift_sysfs_init(struct device *dev, struct drm_crtc *crtc)
+{
+	struct vop2 *vop2;
+	struct vop2_video_port *vp;
+	int ret;
+
+	vp = to_vop2_video_port(crtc);
+	vop2 = vp->vop2;
+
+	if (!vp->pixel_shift.enable)
+		return 0;
+
+	ret = device_create_file(dev, &dev_attr_pixel_shift);
+	if (ret) {
+		DRM_DEV_ERROR(vop2->dev, "failed to create pixel_shift for vp%d\n", vp->id);
+		goto disable;
+	}
+
+	return 0;
+
+disable:
+	vp->pixel_shift.enable = false;
+	return ret;
+}
+
+static int vop2_pixel_shift_sysfs_fini(struct device *dev, struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+
+	if (vp->pixel_shift.enable)
+		device_remove_file(dev, &dev_attr_pixel_shift);
+	return 0;
+}
+
+static int vop2_crtc_sysfs_init(struct device *dev, struct drm_crtc *crtc)
+{
+	int ret;
+
+	ret = vop2_pixel_shift_sysfs_init(dev, crtc);
+
+	return ret;
+}
+
+static int vop2_crtc_sysfs_fini(struct device *dev, struct drm_crtc *crtc)
+{
+	int ret;
+
+	ret = vop2_pixel_shift_sysfs_fini(dev, crtc);
+
+	return ret;
+}
+
 #undef DEBUG_PRINT
 
 static struct drm_info_list vop2_debugfs_files[] = {
@@ -7552,6 +7744,8 @@ static int vop2_crtc_get_crc(struct drm_crtc *crtc)
 static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.loader_protect = vop2_crtc_loader_protect,
 	.cancel_pending_vblank = vop2_crtc_cancel_pending_vblank,
+	.sysfs_init = vop2_crtc_sysfs_init,
+	.sysfs_fini = vop2_crtc_sysfs_fini,
 	.debugfs_init = vop2_crtc_debugfs_init,
 	.debugfs_dump = vop2_crtc_debugfs_dump,
 	.regs_dump = vop2_crtc_regs_dump,
@@ -13928,6 +14122,9 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 
 			if (vop2_get_vp_of_status(child))
 				enabled_vp_mask |= BIT(vp_id);
+
+			vop2->vps[vp_id].pixel_shift.enable =
+				of_property_read_bool(child, "rockchip,pixel-shift-enable");
 		}
 
 		if (!vop2_plane_mask_check(vop2)) {

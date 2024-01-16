@@ -76,6 +76,7 @@ enum rockchip_drm_debug_category {
 	VOP_DEBUG_CFG_DONE	= BIT(3),
 	VOP_DEBUG_CLK		= BIT(4),
 	VOP_DEBUG_VSYNC		= BIT(7),
+	VOP_DEBUG_PIXEL_SHIFT	= BIT(8),
 };
 
 enum rk_if_color_depth {
@@ -338,6 +339,8 @@ struct rockchip_crtc_state {
 	int request_refresh_rate;
 	int max_refresh_rate;
 	int min_refresh_rate;
+	int shift_x;
+	int shift_y;
 };
 
 #define to_rockchip_crtc_state(s) \
