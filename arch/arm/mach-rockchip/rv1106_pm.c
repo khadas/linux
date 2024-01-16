@@ -55,6 +55,7 @@ struct rv1106_sleep_ddr_data {
 	u32 gpio0a_iomux_l, gpio0a_iomux_h, gpio0a0_pull;
 	u32 gpio0_ddr_l, gpio0_ddr_h;
 	u32 pmu_wkup_int_st, gpio0_int_st;
+	u32 sleep_clk_freq_hz;
 };
 
 static struct rv1106_sleep_ddr_data ddr_data;
@@ -604,9 +605,9 @@ static void clock_resume(void)
 
 static void pvtm_32k_config(int flag)
 {
-	int value;
-	int pvtm_freq_khz, pvtm_div;
-	int sleep_clk_freq_khz;
+	u64 value, pvtm_freq_hz;
+	int pvtm_div;
+	u32 pvtm_div_freq_hz;
 
 	ddr_data.pmucru_sel_con7 =
 		readl_relaxed(pmucru_base + RV1106_PMUCRU_CLKSEL_CON(7));
@@ -623,7 +624,7 @@ static void pvtm_32k_config(int flag)
 			       pmupvtm_base + RV1106_PVTM_CON(2));
 		writel_relaxed(RV1106_PVTM_CALC_CNT,
 			       pmupvtm_base + RV1106_PVTM_CON(1));
-		writel_relaxed(BITS_WITH_WMASK(0, 0x3, PVTM_START),
+		writel_relaxed(BITS_WITH_WMASK(0, 0x1, PVTM_START),
 			       pmupvtm_base + RV1106_PVTM_CON(0));
 		dsb();
 
@@ -648,8 +649,11 @@ static void pvtm_32k_config(int flag)
 			;
 
 		value = (readl_relaxed(pmupvtm_base + RV1106_PVTM_STATUS(1)));
-		pvtm_freq_khz = (value * 24000 + RV1106_PVTM_CALC_CNT / 2) / RV1106_PVTM_CALC_CNT;
-		pvtm_div = (pvtm_freq_khz + 16) / 32 - 1;
+		pvtm_freq_hz = (value * 24000000 + RV1106_PVTM_CALC_CNT / 2);
+		pvtm_freq_hz = div_u64(pvtm_freq_hz, RV1106_PVTM_CALC_CNT);
+
+		pvtm_div = ((u32)pvtm_freq_hz + RV1106_PVTM_TARGET_FREQ / 2) /
+			   RV1106_PVTM_TARGET_FREQ - 1;
 		if (pvtm_div > 0xfff)
 			pvtm_div = 0xfff;
 
@@ -660,12 +664,19 @@ static void pvtm_32k_config(int flag)
 		writel_relaxed(BITS_WITH_WMASK(0x2, 0x3, 0),
 			       pmucru_base + RV1106_PMUCRU_CLKSEL_CON(7));
 
-		sleep_clk_freq_khz = pvtm_freq_khz / (pvtm_div + 1);
+		pvtm_div_freq_hz = (u32)pvtm_freq_hz  / (pvtm_div + 1);
+		ddr_data.sleep_clk_freq_hz = pvtm_div_freq_hz;
 
-		rkpm_printstr("pvtm real_freq (khz):");
-		rkpm_printhex(sleep_clk_freq_khz);
+		rkpm_printstr("pvtm freq (hz):");
+		rkpm_printdec(pvtm_freq_hz);
+		rkpm_printch('-');
+		rkpm_printdec(pvtm_div_freq_hz);
 		rkpm_printch('\n');
 	}
+
+	rkpm_printstr("sleep freq (hz):");
+	rkpm_printdec(ddr_data.sleep_clk_freq_hz);
+	rkpm_printch('\n');
 }
 
 static void pvtm_32k_config_restore(void)
@@ -674,7 +685,9 @@ static void pvtm_32k_config_restore(void)
 		       pmucru_base + RV1106_PMUCRU_CLKSEL_CON(7));
 
 	if (rk_hptimer_get_mode(hptimer_base) == RK_HPTIMER_SOFT_ADJUST_MODE)
-		rk_hptimer_do_soft_adjust_no_wait(hptimer_base);
+		rk_hptimer_do_soft_adjust_no_wait(hptimer_base,
+						  24000000,
+						  ddr_data.sleep_clk_freq_hz);
 }
 
 static void ddr_sleep_config(void)
