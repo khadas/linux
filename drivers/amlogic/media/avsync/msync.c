@@ -272,21 +272,18 @@ static void session_vsync_update(struct sync_session *session)
 		unsigned long flags;
 		u32 temp = 0;
 		u32 r = 0;
-		u32 den = sync.sync_duration_den;
+		u32 den, tmp2;
 		u64 now;
 
-		/* both den and num * 20 to handle
-		 * speed with multiple of 0.05
-		 */
-		den = den * 20 * session->rate / 1000;
 		spin_lock_irqsave(&session->lock, flags);
-		temp = div_u64_rem(90000ULL * den, sync.sync_duration_num * 20, &r);
-		r /= 20;
+		den = sync.sync_duration_den * session->rate;
+		tmp2 = sync.sync_duration_num * 1000;
+		temp = div_u64_rem(90000ULL * den, tmp2, &r);
 		session->wall_clock += temp;
 		session->wall_clock_inc_remainer += r;
-		if (session->wall_clock_inc_remainer >= sync.sync_duration_num) {
+		if (session->wall_clock_inc_remainer >= tmp2) {
 			session->wall_clock++;
-			session->wall_clock_inc_remainer -= sync.sync_duration_num;
+			session->wall_clock_inc_remainer -= tmp2;
 		}
 		spin_unlock_irqrestore(&session->lock, flags);
 		if (!session->debug_vsync)
