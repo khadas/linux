@@ -29,6 +29,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <linux/types.h>
+#include <linux/timex.h>
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #include <linux/amlogic/media/vfm/vframe.h>
@@ -387,8 +388,8 @@ struct amlvideo2_node {
 	struct vframe_s *amlvideo2_pool_ready;
 
 	bool video_blocking;
-	struct timeval thread_ts1;
-	struct timeval thread_ts2;
+	struct timespec64 thread_ts1;
+	struct timespec64 thread_ts2;
 	int frameinv_adjust;
 	int frameinv;
 	struct vframe_s *tmp_vf;
@@ -3988,7 +3989,6 @@ static int amlvideo2_fillbuff(struct amlvideo2_fh *fh,
 	}
 
 	buf->vb.state = VIDEOBUF_DONE;
-	/* do_gettimeofday(&buf->vb.ts); */
 	return 0;
 }
 
@@ -4232,11 +4232,11 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 		node->frameinv_adjust = 0;
 		node->frameinv = 0;
 		node->thread_ts1.tv_sec = vf->pts_us64 & 0xFFFFFFFF;
-		node->thread_ts1.tv_usec = vf->pts;
+		node->thread_ts1.tv_nsec = vf->pts * 1000;
 		node->frame_inittime = 0;
 	} else {
 		diff = (vf->pts_us64 & 0xFFFFFFFF) - node->thread_ts1.tv_sec;
-		diff = diff * 1000000 + vf->pts - node->thread_ts1.tv_usec;
+		diff = diff * 1000000 + vf->pts - node->thread_ts1.tv_nsec / 1000;
 		if (diff < (int)fh->frm_save_time_us) {
 			vf_inqueue(vf, node);
 			goto unlock;
@@ -4252,18 +4252,18 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 			goto unlock;
 		node->frameinv_adjust = 0;
 		node->frameinv = 0;
-		do_gettimeofday(&node->thread_ts1);
+		ktime_get_ts64(&node->thread_ts1);
 		node->frame_inittime = 0;
 	} else {
-		do_gettimeofday(&node->thread_ts2);
+		ktime_get_ts64(&node->thread_ts2);
 		/* thread_ts2.tv_sec = vf->pts_us64& 0xFFFFFFFF; */
 		/* thread_ts2.tv_usec = vf->pts; */
 		diff = node->thread_ts2.tv_sec - node->thread_ts1.tv_sec;
-		diff = diff * 1000000 + node->thread_ts2.tv_usec -
-			node->thread_ts1.tv_usec;
+		diff = diff * 1000000 + node->thread_ts2.tv_nsec / 1000 -
+			node->thread_ts1.tv_nsec / 1000;
 		node->frameinv += diff;
 		memcpy(&node->thread_ts1, &node->thread_ts2,
-		       sizeof(struct timeval));
+		       sizeof(struct timespec64));
 		active_duration = node->frameinv - node->frameinv_adjust;
 		/* Fill buffer */
 		if (active_duration + 5000 > (int)fh->frm_save_time_us) {
@@ -4327,11 +4327,10 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 	#ifdef USE_VDIN_PTS
 	buf->vb.ts = vf->pts_us64 * 1000000 + vf->pts;
 	node->thread_ts1.tv_sec = vf->pts_us64 & 0xFFFFFFFF;
-	node->thread_ts1.tv_usec = vf->pts;
+	node->thread_ts1.tv_nsec = vf->pts * 1000;
 	#else
 	buf->vb.ts = node->thread_ts2.tv_sec * 1000000
-		+ node->thread_ts2.tv_usec;
-
+		+ node->thread_ts2.tv_nsec / 1000;
 	#endif
 	vf_inqueue(vf, node);
 
@@ -5341,7 +5340,7 @@ start: node->frame_inittime = 1;
 	/* frameinv_adjust = 0; */
 	/* frameinv = 0; */
 	/* tmp_vf = NULL; */
-	do_gettimeofday(&node->thread_ts1);
+	ktime_get_ts64(&node->thread_ts1);
 	return 0;
 }
 
@@ -5696,7 +5695,7 @@ start: node->frame_inittime = 1;
 	/* frameinv_adjust = 0; */
 	/* frameinv = 0; */
 	/* tmp_vf = NULL; */
-	do_gettimeofday(&node->thread_ts1);
+	ktime_get_ts64(&node->thread_ts1);
 #ifdef TEST_LATENCY
 	node->latency_info.cur_time = node->thread_ts1.tv_sec;
 	node->latency_info.cur_time_out = node->thread_ts1.tv_sec;
