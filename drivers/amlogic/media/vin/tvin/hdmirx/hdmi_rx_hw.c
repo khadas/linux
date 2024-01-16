@@ -2224,6 +2224,7 @@ bool rx_clr_tmds_valid(void)
 		}
 		hdmirx_output_en(false);
 		hdmirx_top_irq_en(0, 0);
+		rx_aud_pll_ctl(0);
 		if (log_level & VIDEO_LOG)
 			rx_pr("%s!\n", __func__);
 	}
@@ -4062,11 +4063,11 @@ void rx_aud_pll_ctl(bool en)
 				rx_audio_pll_sw_update();
 			} else {
 				/* disable pll, into reset mode */
-				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x0);
-				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
+				wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x0);
+				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2_T5W);
 				/* [    8] clk_en for cts_hdmirx_aud_pll_clk */
 				tmp &= ~(1 << 8);
-				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
+				wr_reg_clk_ctl(RX_CLK_CTRL2_T5W, tmp);
 			}
 		} else {
 			if (en) {

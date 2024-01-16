@@ -445,12 +445,27 @@ bool is_dfe_sts_ok_t7(void)
 /* long cable detection for <3G need to be change */
 void aml_phy_long_cable_det_t7(void)
 {
-	int tap2_0, tap2_1, tap2_2;
-	int tap2_max = 0;
+	int tap1_0, tap1_1, tap1_2;
 	u32 data32 = 0;
 
 	if (rx.phy.phy_bw > PHY_BW_3)
 		return;
+	//new method via tap1
+	hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHD_CNTL4, T7_EYE_STATUS_EN, 0x0);
+	hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHD_CNTL3, T7_DBG_STS_SEL, 0x0);
+	hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHD_CNTL2, T7_DFE_DBG_STL, 0x1);
+	usleep_range(100, 110);
+	data32 = hdmirx_rd_amlphy(T7_HHI_RX_PHY_DCHD_STAT);
+	tap1_0 = data32 & 0x3f;
+	tap1_1 = (data32 >> 8) & 0x3f;
+	tap1_2 = (data32 >> 16) & 0x3f;
+	if (rx.phy.phy_bw == PHY_BW_2 && (tap1_0 + tap1_1 + tap1_2) > 18) {
+		hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHD_CNTL1, T7_EQ_BYP_VAL1, 0x12);
+		hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHD_CNTL0, T7_EQ_ADP_MODE, 0);
+		usleep_range(10, 20);
+		rx_pr("long cable\n");
+	}
+	/* previous method via tpa2
 	hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHD_CNTL4, T7_EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHD_CNTL3, T7_DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHD_CNTL2, T7_DFE_DBG_STL, 0x2);
@@ -460,7 +475,7 @@ void aml_phy_long_cable_det_t7(void)
 	tap2_1 = get_tap2_t7(((data32 >> 8) & 0x1f));
 	tap2_2 = get_tap2_t7(((data32 >> 16) & 0x1f));
 	if (rx.phy.phy_bw == PHY_BW_2) {
-		/*disable DFE*/
+		//disable DFE
 		hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHD_CNTL2, T7_DFE_RST, 0);
 		tap2_max = 6;
 	} else if (rx.phy.phy_bw == PHY_BW_3) {
@@ -471,6 +486,7 @@ void aml_phy_long_cable_det_t7(void)
 		usleep_range(10, 20);
 		rx_pr("long cable\n");
 	}
+	*/
 }
 
 /* aml_hyper_gain_tuning */
@@ -539,7 +555,7 @@ void aml_dfe_en_t7(void)
 {
 	if (rx.aml_phy.dfe_en) {
 		hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHD_CNTL2, T7_DFE_EN, 1);
-		if (rx.aml_phy.eq_hold)
+		if (rx.aml_phy.eq_hold && rx.phy.phy_bw >= PHY_BW_3)
 			hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHD_CNTL0, T7_EQ_EN, 0);
 		if (rx.aml_phy.eq_retry)
 			aml_eq_retry_t7();
@@ -849,42 +865,12 @@ void aml_eq_cfg_t7(void)
 	}
 	usleep_range(10000, 10100);
 	get_eq_val_t7();
-	/*if (rx.aml_phy.eq_retry)*/
-		/*aml_eq_retry_t7();*/
-	if (rx.phy.phy_bw >= PHY_BW_4) {
-		/* step12 */
-		/* aml_dfe_en(); */
-		/* udelay(100); */
-	} else if (rx.phy.phy_bw == PHY_BW_3) {//3G
-		/* aml_dfe_en(); */
-		/*udelay(100);*/
-		/*t7 removed, tap1 min value*/
-		/* if (rx.aml_phy.tap1_byp) { */
-			/* aml_phy_tap1_byp_t7(); */
-			/* hdmirx_wr_bits_amlphy( */
-				/* T7_HHI_RX_PHY_DCHD_CNTL2, */
-				/* DFE_EN, 0); */
-		/* } */
-		/*udelay(100);*/
-		/* hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHD_CNTL0, */
-			/* _BIT(28), 1); */
-		if (rx.aml_phy.long_cable)
-			;/* aml_phy_long_cable_det_t7(); */
-		if (rx.aml_phy.vga_dbg)
-			;/* aml_vga_tuning_t7();*/
-	} else if (rx.phy.phy_bw == PHY_BW_2) {
-		if (rx.aml_phy.long_cable) {
-			/*1.5G should enable DFE first*/
-			/* aml_dfe_en(); */
-			/* long cable detection*/
-			/* aml_phy_long_cable_det_t7();*/
-			/* 1.5G should disable DFE at the end*/
-			/* udelay(100); */
-			/* aml_dfe_en(); */
-		}
-	}
 	/* enable dfe for all frequency */
 	aml_dfe_en_t7();
+	if (rx.phy.phy_bw == PHY_BW_2 && rx.aml_phy.long_cable) {
+		/* long cable detection*/
+		aml_phy_long_cable_det_t7();
+	}
 	if (is_eq1_tap0_err()) {
 		hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHA_CNTL0, T7_LEQ_BUF_GAIN, 0x0);
 		hdmirx_wr_bits_amlphy(T7_HHI_RX_PHY_DCHA_CNTL0, T7_LEQ_POLE, 0x2);

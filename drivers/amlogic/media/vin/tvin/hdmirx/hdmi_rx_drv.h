@@ -48,7 +48,8 @@
 //emp dbg
 //optimize afifo configuration
 //turn off 2m and 5m clks when shut down
-#define RX_VER0 "ver.2023/11/28"
+//optimize phy init flow
+#define RX_VER0 "ver.2024/01/16"
 
 /*print type*/
 #define	LOG_EN		0x01
