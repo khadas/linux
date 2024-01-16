@@ -575,6 +575,7 @@ struct rk628 {
 	struct notifier_block fb_nb;
 	u32 version;
 	struct regulator *vccio_rgb;
+	int old_blank;
 };
 
 static inline bool rk628_input_is_hdmi(struct rk628 *rk628)

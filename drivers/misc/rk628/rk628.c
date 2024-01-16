@@ -532,6 +532,10 @@ static int rk628_fb_notifier_callback(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	blank = ev_data->data;
+	if (rk628->old_blank == *blank)
+		return NOTIFY_DONE;
+
+	rk628->old_blank = *blank;
 
 	switch (*blank) {
 	case FB_BLANK_UNBLANK:
