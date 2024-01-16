@@ -762,25 +762,25 @@
 		i2c2_bu18tl82_bridge: i2c2-bu18tl82-bridge {
 			compatible = "rohm,bu18tl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c2_bu18tl82_in_dsi0: endpoint {
-					remote-endpoint = <&dsi0_out_i2c2_bu18tl82>;
+					i2c2_bu18tl82_in_dsi0: endpoint {
+						remote-endpoint = <&dsi0_out_i2c2_bu18tl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c2_bu18tl82_out_i2c2_bu18rl82: endpoint {
-					remote-endpoint = <&i2c2_bu18rl82_in_i2c2_bu18tl82>;
+					i2c2_bu18tl82_out_i2c2_bu18rl82: endpoint {
+						remote-endpoint = <&i2c2_bu18rl82_in_i2c2_bu18tl82>;
+					};
 				};
 			};
 		};
@@ -926,25 +926,25 @@
 		i2c2_bu18rl82_bridge: i2c2-bu18rl82-bridge {
 			compatible = "rohm,bu18rl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c2_bu18rl82_in_i2c2_bu18tl82: endpoint {
-					remote-endpoint = <&i2c2_bu18tl82_out_i2c2_bu18rl82>;
+					i2c2_bu18rl82_in_i2c2_bu18tl82: endpoint {
+						remote-endpoint = <&i2c2_bu18tl82_out_i2c2_bu18rl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c2_bu18rl82_out_panel0: endpoint {
-					remote-endpoint = <&panel0_in_i2c2_bu18rl82>;
+					i2c2_bu18rl82_out_panel0: endpoint {
+						remote-endpoint = <&panel0_in_i2c2_bu18rl82>;
+					};
 				};
 			};
 		};
@@ -1065,25 +1065,25 @@
 		i2c4_bu18tl82_bridge: i2c4-bu18tl82-bridge {
 			compatible = "rohm,bu18tl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c4_bu18tl82_in_dp0: endpoint {
-					remote-endpoint = <&dp0_out_i2c4_bu18tl82>;
+					i2c4_bu18tl82_in_dp0: endpoint {
+						remote-endpoint = <&dp0_out_i2c4_bu18tl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c4_bu18tl82_out_i2c4_bu18rl82: endpoint {
-					remote-endpoint = <&i2c4_bu18rl82_in_i2c4_bu18tl82>;
+					i2c4_bu18tl82_out_i2c4_bu18rl82: endpoint {
+						remote-endpoint = <&i2c4_bu18rl82_in_i2c4_bu18tl82>;
+					};
 				};
 			};
 		};
@@ -1224,25 +1224,25 @@
 		i2c4_bu18rl82_bridge: i2c4-bu18rl82-bridge {
 			compatible = "rohm,bu18rl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c4_bu18rl82_in_i2c4_bu18tl82: endpoint {
-					remote-endpoint = <&i2c4_bu18tl82_out_i2c4_bu18rl82>;
+					i2c4_bu18rl82_in_i2c4_bu18tl82: endpoint {
+						remote-endpoint = <&i2c4_bu18tl82_out_i2c4_bu18rl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c4_bu18rl82_out_panel0: endpoint {
-					remote-endpoint = <&panel0_in_i2c4_bu18rl82>;
+					i2c4_bu18rl82_out_panel0: endpoint {
+						remote-endpoint = <&panel0_in_i2c4_bu18rl82>;
+					};
 				};
 			};
 		};
@@ -1371,25 +1371,25 @@
 		i2c5_bu18tl82_bridge: i2c5-bu18tl82-bridge {
 			compatible = "rohm,bu18tl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c5_bu18tl82_in_edp0: endpoint {
-					remote-endpoint = <&edp0_out_i2c5_bu18tl82>;
+					i2c5_bu18tl82_in_edp0: endpoint {
+						remote-endpoint = <&edp0_out_i2c5_bu18tl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c5_bu18tl82_out_i2c5_bu18rl82: endpoint {
-					remote-endpoint = <&i2c5_bu18rl82_in_i2c5_bu18tl82>;
+					i2c5_bu18tl82_out_i2c5_bu18rl82: endpoint {
+						remote-endpoint = <&i2c5_bu18rl82_in_i2c5_bu18tl82>;
+					};
 				};
 			};
 		};
@@ -1533,25 +1533,25 @@
 		i2c5_bu18rl82_bridge: i2c5-bu18rl82-bridge {
 			compatible = "rohm,bu18rl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c5_bu18rl82_in_i2c5_bu18tl82: endpoint {
-					remote-endpoint = <&i2c5_bu18tl82_out_i2c5_bu18rl82>;
+					i2c5_bu18rl82_in_i2c5_bu18tl82: endpoint {
+						remote-endpoint = <&i2c5_bu18tl82_out_i2c5_bu18rl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c5_bu18rl82_out_panel0: endpoint {
-					remote-endpoint = <&panel0_in_i2c5_bu18rl82>;
+					i2c5_bu18rl82_out_panel0: endpoint {
+						remote-endpoint = <&panel0_in_i2c5_bu18rl82>;
+					};
 				};
 			};
 		};
@@ -1706,25 +1706,25 @@
 		i2c6_bu18tl82_bridge: i2c6-bu18tl82-bridge {
 			compatible = "rohm,bu18tl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c6_bu18tl82_in_dsi1: endpoint {
-					remote-endpoint = <&dsi1_out_i2c6_bu18tl82>;
+					i2c6_bu18tl82_in_dsi1: endpoint {
+						remote-endpoint = <&dsi1_out_i2c6_bu18tl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c6_bu18tl82_out_i2c6_bu18rl82: endpoint {
-					remote-endpoint = <&i2c6_bu18rl82_in_i2c6_bu18tl82>;
+					i2c6_bu18tl82_out_i2c6_bu18rl82: endpoint {
+						remote-endpoint = <&i2c6_bu18rl82_in_i2c6_bu18tl82>;
+					};
 				};
 			};
 		};
@@ -1872,25 +1872,25 @@
 		i2c6_bu18rl82_bridge: i2c6-bu18rl82-bridge {
 			compatible = "rohm,bu18rl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c6_bu18rl82_in_i2c6_bu18tl82: endpoint {
-					remote-endpoint = <&i2c6_bu18tl82_out_i2c6_bu18rl82>;
+					i2c6_bu18rl82_in_i2c6_bu18tl82: endpoint {
+						remote-endpoint = <&i2c6_bu18tl82_out_i2c6_bu18rl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c6_bu18rl82_out_panel1: endpoint {
-					remote-endpoint = <&panel1_in_i2c6_bu18rl82>;
+					i2c6_bu18rl82_out_panel1: endpoint {
+						remote-endpoint = <&panel1_in_i2c6_bu18rl82>;
+					};
 				};
 			};
 		};
@@ -2010,24 +2010,25 @@
 		i2c7_bu18tl82_bridge: i2c7-bu18tl82-bridge {
 			compatible = "rohm,bu18tl82-bridge";
 			status = "okay";
-		};
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-				i2c7_bu18tl82_in_edp1: endpoint {
-					remote-endpoint = <&edp1_out_i2c7_bu18tl82>;
+				port@0 {
+					reg = <0>;
+
+					i2c7_bu18tl82_in_edp1: endpoint {
+						remote-endpoint = <&edp1_out_i2c7_bu18tl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c7_bu18tl82_out_i2c7_bu18rl82: endpoint {
-					remote-endpoint = <&i2c7_bu18rl82_in_i2c7_bu18tl82>;
+					i2c7_bu18tl82_out_i2c7_bu18rl82: endpoint {
+						remote-endpoint = <&i2c7_bu18rl82_in_i2c7_bu18tl82>;
+					};
 				};
 			};
 		};
@@ -2144,25 +2145,25 @@
 		i2c7_bu18rl82_bridge: i2c7-bu18rl82-bridge {
 			compatible = "rohm,bu18rl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c7_bu18rl82_in_i2c7_bu18tl82: endpoint {
-					remote-endpoint = <&i2c7_bu18tl82_out_i2c7_bu18rl82>;
+					i2c7_bu18rl82_in_i2c7_bu18tl82: endpoint {
+						remote-endpoint = <&i2c7_bu18tl82_out_i2c7_bu18rl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c7_bu18rl82_out_panel1: endpoint {
-					remote-endpoint = <&panel1_in_i2c7_bu18rl82>;
+					i2c7_bu18rl82_out_panel1: endpoint {
+						remote-endpoint = <&panel1_in_i2c7_bu18rl82>;
+					};
 				};
 			};
 		};
@@ -2289,25 +2290,25 @@
 		i2c8_bu18tl82_bridge: i2c8-bu18tl82-bridge {
 			compatible = "rohm,bu18tl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c8_bu18tl82_in_dp1: endpoint {
-					remote-endpoint = <&dp1_out_i2c8_bu18tl82>;
+					i2c8_bu18tl82_in_dp1: endpoint {
+						remote-endpoint = <&dp1_out_i2c8_bu18tl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c8_bu18tl82_out_i2c8_bu18rl82: endpoint {
-					remote-endpoint = <&i2c8_bu18rl82_in_i2c8_bu18tl82>;
+					i2c8_bu18tl82_out_i2c8_bu18rl82: endpoint {
+						remote-endpoint = <&i2c8_bu18rl82_in_i2c8_bu18tl82>;
+					};
 				};
 			};
 		};
@@ -2424,25 +2425,25 @@
 		i2c8_bu18rl82_bridge: i2c8-bu18rl82-bridge {
 			compatible = "rohm,bu18rl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c8_bu18rl82_in_i2c8_bu18tl82: endpoint {
-					remote-endpoint = <&i2c8_bu18tl82_out_i2c8_bu18rl82>;
+					i2c8_bu18rl82_in_i2c8_bu18tl82: endpoint {
+						remote-endpoint = <&i2c8_bu18tl82_out_i2c8_bu18rl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c8_bu18rl82_out_panel1: endpoint {
-					remote-endpoint = <&panel1_in_i2c8_bu18rl82>;
+					i2c8_bu18rl82_out_panel1: endpoint {
+						remote-endpoint = <&panel1_in_i2c8_bu18rl82>;
+					};
 				};
 			};
 		};
