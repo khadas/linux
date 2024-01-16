@@ -597,8 +597,11 @@ static int vdin_vidioc_dqbuf(struct file *file, void *priv,
 
 	ret = vb2_ioctl_dqbuf(file, priv, p);
 	if (ret) {
-		dprintk(0, "DQ error,ret=%d,%#x\n", ret, file->f_flags);
-		return -1;
+		if (devp->parm.info.status == TVIN_SIG_STATUS_NOSIG)
+			ret = -ENODEV;
+		dprintk(0, "DQ error,ret=%d,%#x,status:%d\n", ret, file->f_flags,
+			devp->parm.info.status);
+		return ret;
 	}
 
 	for (i = 0; i < devp->v4l2_fmt.fmt.pix_mp.num_planes; i++)
