@@ -13,6 +13,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
 
+#include "maxim2c_compact.h"
 #include "maxim2c_i2c.h"
 #include "maxim2c_link.h"
 #include "maxim2c_video_pipe.h"

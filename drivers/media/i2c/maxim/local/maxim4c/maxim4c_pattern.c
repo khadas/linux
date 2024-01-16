@@ -42,7 +42,11 @@ static const struct maxim4c_mode maxim4c_pattern_mode = {
 	.link_freq_idx = 15,
 	.bus_fmt = MEDIA_BUS_FMT_RGB888_1X24,
 	.bpp = 24,
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	.vc[PAD0] = 0,
+#else
 	.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+#endif
 };
 
 /* VPG0 or VPG1 register */

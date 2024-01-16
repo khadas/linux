@@ -66,10 +66,17 @@ static const struct maxim2c_mode maxim2c_def_mode = {
 	.link_freq_idx = 15,
 	.bus_fmt = MEDIA_BUS_FMT_UYVY8_2X8,
 	.bpp = 16,
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	.vc[PAD0] = 0,
+	.vc[PAD1] = 1,
+	.vc[PAD2] = 2,
+	.vc[PAD3] = 3,
+#else
 	.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_1,
 	.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_2,
 	.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_3,
+#endif /* LINUX_VERSION_CODE */
 };
 
 static struct rkmodule_csi_dphy_param rk3588_dcphy_param = {
@@ -212,8 +219,13 @@ static int maxim2c_support_mode_init(maxim2c_t *maxim2c)
 static int maxim2c_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	struct v4l2_mbus_framefmt *try_fmt =
+		v4l2_subdev_get_try_format(sd, fh->state, 0);
+#else
 	struct v4l2_mbus_framefmt *try_fmt =
 		v4l2_subdev_get_try_format(sd, fh->pad, 0);
+#endif
 	const struct maxim2c_mode *def_mode = &maxim2c->supported_mode;
 
 	mutex_lock(&maxim2c->mutex);
@@ -598,7 +610,11 @@ static int maxim2c_s_stream(struct v4l2_subdev *sd, int on)
 		goto unlock_and_return;
 
 	if (on) {
+#if KERNEL_VERSION(5, 5, 0) <= LINUX_VERSION_CODE
 		ret = pm_runtime_resume_and_get(&client->dev);
+#else
+		ret = pm_runtime_get_sync(&client->dev);
+#endif
 		if (ret < 0)
 			goto unlock_and_return;
 
@@ -635,9 +651,15 @@ static int maxim2c_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int maxim2c_enum_mbus_code(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
+				struct v4l2_subdev_mbus_code_enum *code)
+#else
 static int maxim2c_enum_mbus_code(struct v4l2_subdev *sd,
 				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_mbus_code_enum *code)
+#endif
 {
 	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	const struct maxim2c_mode *mode = maxim2c->cur_mode;
@@ -649,9 +671,15 @@ static int maxim2c_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int maxim2c_enum_frame_sizes(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
+				struct v4l2_subdev_frame_size_enum *fse)
+#else
 static int maxim2c_enum_frame_sizes(struct v4l2_subdev *sd,
 				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_frame_size_enum *fse)
+#endif
 {
 	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 
@@ -669,10 +697,15 @@ static int maxim2c_enum_frame_sizes(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int
-maxim2c_enum_frame_interval(struct v4l2_subdev *sd,
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int maxim2c_enum_frame_interval(struct v4l2_subdev *sd,
+			struct v4l2_subdev_state *sd_state,
+			struct v4l2_subdev_frame_interval_enum *fie)
+#else
+static int maxim2c_enum_frame_interval(struct v4l2_subdev *sd,
 			struct v4l2_subdev_pad_config *cfg,
 			struct v4l2_subdev_frame_interval_enum *fie)
+#endif
 {
 	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 
@@ -687,9 +720,15 @@ maxim2c_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int maxim2c_get_fmt(struct v4l2_subdev *sd,
+			struct v4l2_subdev_state *sd_state,
+			struct v4l2_subdev_format *fmt)
+#else
 static int maxim2c_get_fmt(struct v4l2_subdev *sd,
 			struct v4l2_subdev_pad_config *cfg,
 			struct v4l2_subdev_format *fmt)
+#endif
 {
 	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	const struct maxim2c_mode *mode = maxim2c->cur_mode;
@@ -697,7 +736,11 @@ static int maxim2c_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&maxim2c->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+	#else
 		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+	#endif
 #else
 		mutex_unlock(&maxim2c->mutex);
 		return -ENOTTY;
@@ -717,9 +760,15 @@ static int maxim2c_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int maxim2c_set_fmt(struct v4l2_subdev *sd,
+			struct v4l2_subdev_state *sd_state,
+			struct v4l2_subdev_format *fmt)
+#else
 static int maxim2c_set_fmt(struct v4l2_subdev *sd,
 			struct v4l2_subdev_pad_config *cfg,
 			struct v4l2_subdev_format *fmt)
+#endif
 {
 	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	struct device *dev = &maxim2c->client->dev;
@@ -737,7 +786,11 @@ static int maxim2c_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+	#else
 		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+	#endif
 #else
 		mutex_unlock(&maxim2c->mutex);
 		return -ENOTTY;
@@ -769,9 +822,15 @@ static int maxim2c_set_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int maxim2c_get_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
+				struct v4l2_subdev_selection *sel)
+#else
 static int maxim2c_get_selection(struct v4l2_subdev *sd,
 				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_selection *sel)
+#endif
 {
 	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 
@@ -786,6 +845,18 @@ static int maxim2c_get_selection(struct v4l2_subdev *sd,
 	return -EINVAL;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int maxim2c_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
+				struct v4l2_mbus_config *config)
+{
+	struct maxim2c *maxim2c = v4l2_get_subdevdata(sd);
+
+	config->type = V4L2_MBUS_CSI2_DPHY;
+	config->bus.mipi_csi2 = maxim2c->bus_cfg.bus.mipi_csi2;
+
+	return 0;
+}
+#elif KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 static int maxim2c_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 				struct v4l2_mbus_config *config)
 {
@@ -804,6 +875,26 @@ static int maxim2c_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 
 	return 0;
 }
+#else
+static int maxim2c_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *config)
+{
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
+	u32 val = 0;
+	u8 data_lanes = maxim2c->bus_cfg.bus.mipi_csi2.num_data_lanes;
+
+	val |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	val |= (1 << (data_lanes - 1));
+
+	val |= V4L2_MBUS_CSI2_CHANNEL_3 | V4L2_MBUS_CSI2_CHANNEL_2 |
+	       V4L2_MBUS_CSI2_CHANNEL_1 | V4L2_MBUS_CSI2_CHANNEL_0;
+
+	config->type = V4L2_MBUS_CSI2;
+	config->flags = val;
+
+	return 0;
+}
+#endif /* LINUX_VERSION_CODE */
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 static const struct v4l2_subdev_internal_ops maxim2c_internal_ops = {
@@ -822,6 +913,9 @@ static const struct v4l2_subdev_core_ops maxim2c_core_ops = {
 static const struct v4l2_subdev_video_ops maxim2c_video_ops = {
 	.s_stream = maxim2c_s_stream,
 	.g_frame_interval = maxim2c_g_frame_interval,
+#if KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE
+	.g_mbus_config = maxim2c_g_mbus_config,
+#endif
 };
 
 static const struct v4l2_subdev_pad_ops maxim2c_pad_ops = {
@@ -831,7 +925,9 @@ static const struct v4l2_subdev_pad_ops maxim2c_pad_ops = {
 	.get_fmt = maxim2c_get_fmt,
 	.set_fmt = maxim2c_set_fmt,
 	.get_selection = maxim2c_get_selection,
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 	.get_mbus_config = maxim2c_g_mbus_config,
+#endif
 };
 
 static const struct v4l2_subdev_ops maxim2c_subdev_ops = {
@@ -960,7 +1056,11 @@ int maxim2c_v4l2_subdev_init(maxim2c_t *maxim2c)
 		 maxim2c->module_index, facing, MAXIM2C_NAME,
 		 dev_name(sd->dev));
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	ret = v4l2_async_register_subdev_sensor(sd);
+#else
 	ret = v4l2_async_register_subdev_sensor_common(sd);
+#endif
 	if (ret) {
 		dev_err(dev, "v4l2 async register subdev failed\n");
 		goto err_clean_entity;
