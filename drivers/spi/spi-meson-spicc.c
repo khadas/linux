@@ -332,6 +332,7 @@ struct meson_spicc_device {
 	bool				parent_clk_fixed;
 	bool				clk_div_none;
 	bool				toggle_cs_every_word;
+	bool				word_mode_ctrl;
 #endif
 	//struct spi_message		*message;
 	struct spi_transfer		*xfer;
@@ -782,34 +783,6 @@ static inline void meson_spicc_tx(struct meson_spicc_device *spicc)
 			       spicc->base + SPICC_TXDATA);
 }
 
-static inline void meson_spicc_txrx(struct meson_spicc_device *spicc)
-{
-	int xfer = 1;
-	int rx_retry = 1000;
-
-	while (xfer) {
-		xfer = 0;
-		if (spicc->tx_remain && !meson_spicc_txfull(spicc)) {
-			xfer = 1;
-			writel_relaxed(meson_spicc_pull_data(spicc),
-				       spicc->base + SPICC_TXDATA);
-		}
-
-		if (spicc->rx_remain && meson_spicc_rxready(spicc)) {
-			rx_retry = 1000;
-			xfer = 1;
-			meson_spicc_push_data(spicc,
-				readl_relaxed(spicc->base + SPICC_RXDATA));
-		}
-
-		if (spicc->rx_remain && !spicc->tx_remain && rx_retry) {
-			rx_retry--;
-			xfer = 1;
-			udelay(1);
-		}
-	}
-}
-
 static void meson_spicc_hw_prepare(struct meson_spicc_device *spicc,
 				   u16 mode, u8 chip_select)
 {
@@ -883,7 +856,8 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 		udelay(DIV_ROUND_UP(spicc->clk2cs_ns, 1000));
 	/* Empty RX FIFO */
 	meson_spicc_rx(spicc);
-	meson_spicc_txrx(spicc);
+	meson_spicc_tx(spicc);
+	writel_bits_relaxed(SPICC_XCH, SPICC_XCH, spicc->base + SPICC_CONREG);
 
 	/* Enable TC interrupt since we transferred everything */
 	if (!spicc->tx_remain && !spicc->rx_remain) {
@@ -923,7 +897,7 @@ static int meson_spicc_transfer_one(struct spi_controller *ctlr,
 	/* Setup transfer parameters */
 	if (((xfer->len % 8) == 0) &&
 	    (spicc->data->support_dma_burst_len_1 || xfer->len >= 16) &&
-	    (spicc->data->has_word_mode_ctrl || xfer->bits_per_word == 64) &&
+	    (spicc->word_mode_ctrl || xfer->bits_per_word == 64) &&
 	    (spicc->is_dma_mapped || !meson_spicc_dma_map(spicc, xfer))) {
 		spicc->using_dma = 1;
 		spicc->tx_remain = xfer->len / SPICC_DMA_BYTES_PER_WORD;
@@ -958,13 +932,11 @@ static int meson_spicc_transfer_one(struct spi_controller *ctlr,
 		writel_bits_relaxed(SPICC_SMC, SPICC_SMC,
 				    spicc->base + SPICC_CONREG);
 	} else {
-		writel_bits_relaxed(SPICC_SMC, SPICC_SMC,
-				    spicc->base + SPICC_CONREG);
-		meson_spicc_txrx(spicc);
-		if (!spicc->tx_remain)
-			return spicc->rx_remain ? -EIO : 0;
+		meson_spicc_tx(spicc);
 		writel_relaxed(spi_controller_is_slave(spicc->controller) ?
 			SPICC_RR_EN : SPICC_TC_EN, spicc->base + SPICC_INTREG);
+		writel_bits_relaxed(SPICC_XCH, SPICC_XCH,
+				    spicc->base + SPICC_CONREG);
 	}
 
 	return 1;
@@ -1524,6 +1496,10 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	spicc->latency = 0;
 	spicc->parent_clk_fixed = false;
 	spicc->toggle_cs_every_word = false;
+	spicc->word_mode_ctrl = false;
+	if (spicc->data->has_word_mode_ctrl &&
+	    of_property_read_bool(pdev->dev.of_node, "word_mode_ctrl"))
+		spicc->word_mode_ctrl = true;
 	of_property_read_s32(pdev->dev.of_node, "latency", &spicc->latency);
 	if (of_property_read_bool(pdev->dev.of_node, "parent_clk_fixed"))
 		spicc->parent_clk_fixed = true;
