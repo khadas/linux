@@ -611,7 +611,12 @@ static int rk628_hdmi_connector_get_modes(struct drm_connector *connector)
 
 		ret = rockchip_drm_add_modes_noedid(connector);
 
+#if KERNEL_VERSION(5, 18, 0) <= LINUX_VERSION_CODE
+		info->edid_hdmi_ycbcr444_dc_modes = 0;
+		info->edid_hdmi_rgb444_dc_modes = 0;
+#else
 		info->edid_hdmi_dc_modes = 0;
+#endif
 		info->hdmi.y420_dc_modes = 0;
 		info->color_formats = 0;
 

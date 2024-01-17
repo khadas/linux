@@ -1528,7 +1528,11 @@ err_clk:
 	return ret;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static void rk628_i2c_remove(struct i2c_client *client)
+#else
 static int rk628_i2c_remove(struct i2c_client *client)
+#endif
 {
 	struct rk628 *rk628 = i2c_get_clientdata(client);
 	struct device *dev = &client->dev;
@@ -1548,8 +1552,9 @@ static int rk628_i2c_remove(struct i2c_client *client)
 	destroy_workqueue(rk628->monitor_wq);
 	pm_runtime_disable(dev);
 	clk_disable_unprepare(rk628->soc_24M);
-
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
 #ifndef CONFIG_FB
