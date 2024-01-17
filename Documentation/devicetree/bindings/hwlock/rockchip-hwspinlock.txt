@@ -10,6 +10,9 @@ Required properties :
 - #hwlock-cells : hwlock users only use the hwlock id to represent a specific
 	hwlock, so the number of cells should be <1> here.
 
+Optional properties :
+- rockchip,hwlock-user-id : Set hwlock user id (4 bit, default is 0x01).
+
 Please look at the generic hwlock binding for usage information for consumers,
 "Documentation/devicetree/bindings/hwlock/hwlock.txt"
 
