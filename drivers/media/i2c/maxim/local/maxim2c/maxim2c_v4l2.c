@@ -16,9 +16,7 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
-#include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
-#include <media/v4l2-subdev.h>
 
 #include "maxim2c_api.h"
 
@@ -96,9 +94,8 @@ static int maxim2c_support_mode_init(maxim2c_t *maxim2c)
 	dev_info(dev, "=== maxim2c support mode init ===\n");
 
 #if MAXIM2C_TEST_PATTERN
-	ret = maxim2c_pattern_support_mode_init(maxim2c);
-	return ret;
-#endif
+	return maxim2c_pattern_support_mode_init(maxim2c);
+#endif /* MAXIM2C_TEST_PATTERN */
 
 	maxim2c->cfg_modes_num = 1;
 	maxim2c->cur_mode = &maxim2c->supported_mode;
@@ -214,7 +211,7 @@ static int maxim2c_support_mode_init(maxim2c_t *maxim2c)
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 static int maxim2c_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	struct maxim2c *maxim2c = v4l2_get_subdevdata(sd);
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
 		v4l2_subdev_get_try_format(sd, fh->pad, 0);
 	const struct maxim2c_mode *def_mode = &maxim2c->supported_mode;
@@ -236,7 +233,7 @@ static int maxim2c_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 static int maxim2c_s_power(struct v4l2_subdev *sd, int on)
 {
-	struct maxim2c *maxim2c = v4l2_get_subdevdata(sd);
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	struct i2c_client *client = maxim2c->client;
 	int ret = 0;
 
@@ -265,7 +262,7 @@ unlock_and_return:
 	return ret;
 }
 
-static void maxim2c_get_module_inf(struct maxim2c *maxim2c,
+static void maxim2c_get_module_inf(maxim2c_t *maxim2c,
 					struct rkmodule_inf *inf)
 {
 	memset(inf, 0, sizeof(*inf));
@@ -275,7 +272,7 @@ static void maxim2c_get_module_inf(struct maxim2c *maxim2c,
 	strscpy(inf->base.lens, maxim2c->len_name, sizeof(inf->base.lens));
 }
 
-static void maxim2c_get_vicap_rst_inf(struct maxim2c *maxim2c,
+static void maxim2c_get_vicap_rst_inf(maxim2c_t *maxim2c,
 				struct rkmodule_vicap_reset_info *rst_info)
 {
 	struct i2c_client *client = maxim2c->client;
@@ -288,7 +285,7 @@ static void maxim2c_get_vicap_rst_inf(struct maxim2c *maxim2c,
 		__func__, rst_info->is_reset);
 }
 
-static void maxim2c_set_vicap_rst_inf(struct maxim2c *maxim2c,
+static void maxim2c_set_vicap_rst_inf(maxim2c_t *maxim2c,
 				struct rkmodule_vicap_reset_info rst_info)
 {
 	maxim2c->is_reset = rst_info.is_reset;
@@ -296,7 +293,7 @@ static void maxim2c_set_vicap_rst_inf(struct maxim2c *maxim2c,
 
 static long maxim2c_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-	struct maxim2c *maxim2c = v4l2_get_subdevdata(sd);
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	struct rkmodule_csi_dphy_param *dphy_param;
 	long ret = 0;
 
@@ -425,7 +422,7 @@ static long maxim2c_compat_ioctl32(struct v4l2_subdev *sd, unsigned int cmd,
 }
 #endif /* CONFIG_COMPAT */
 
-static int __maxim2c_start_stream(struct maxim2c *maxim2c)
+static int __maxim2c_start_stream(maxim2c_t *maxim2c)
 {
 	struct device *dev = &maxim2c->client->dev;
 	int ret = 0;
@@ -452,12 +449,14 @@ static int __maxim2c_start_stream(struct maxim2c *maxim2c)
 	link_mask = maxim2c->gmsl_link.link_enable_mask;
 	video_pipe_mask = maxim2c->video_pipe.pipe_enable_mask;
 
-	// disable all remote control
-	ret = maxim2c_link_select_remote_control(maxim2c, 0);
+#if (MAXIM2C_TEST_PATTERN == 0)
+	// remote devices power on
+	ret = maxim2c_remote_devices_power(maxim2c, link_mask, 1);
 	if (ret) {
-		dev_err(dev, "link disable remote control error\n");
+		dev_err(dev, "remote devices power on error\n");
 		return ret;
 	}
+#endif /* MAXIM2C_TEST_PATTERN */
 
 	// disable all video pipe
 	ret = maxim2c_video_pipe_mask_enable(maxim2c, video_pipe_mask, false);
@@ -473,11 +472,15 @@ static int __maxim2c_start_stream(struct maxim2c *maxim2c)
 	}
 
 	link_mask = maxim2c->gmsl_link.link_locked_mask;
-	ret = maxim2c_remote_devices_init(maxim2c, link_mask);
+
+#if (MAXIM2C_TEST_PATTERN == 0)
+	// remote devices start stream
+	ret = maxim2c_remote_devices_s_stream(maxim2c, link_mask, 1);
 	if (ret) {
-		dev_err(dev, "remote devices init error\n");
+		dev_err(dev, "remote devices start stream error\n");
 		return ret;
 	}
+#endif /* MAXIM2C_TEST_PATTERN */
 
 	// mipi txphy enable setting: standby or enable
 	ret = maxim2c_mipi_txphy_enable(maxim2c, true);
@@ -499,12 +502,6 @@ static int __maxim2c_start_stream(struct maxim2c *maxim2c)
 	ret = maxim2c_video_pipe_mask_enable(maxim2c, video_pipe_mask, true);
 	if (ret) {
 		dev_err(dev, "video pipe enable error\n");
-		return ret;
-	}
-
-	ret = maxim2c_link_select_remote_control(maxim2c, link_mask);
-	if (ret) {
-		dev_err(dev, "remote control enable error\n");
 		return ret;
 	}
 
@@ -540,7 +537,7 @@ static int __maxim2c_start_stream(struct maxim2c *maxim2c)
 	return 0;
 }
 
-static int __maxim2c_stop_stream(struct maxim2c *maxim2c)
+static int __maxim2c_stop_stream(maxim2c_t *maxim2c)
 {
 	struct device *dev = &maxim2c->client->dev;
 	u8 link_mask = 0, pipe_mask = 0;
@@ -564,9 +561,16 @@ static int __maxim2c_stop_stream(struct maxim2c *maxim2c)
 
 	ret |= maxim2c_video_pipe_mask_enable(maxim2c, pipe_mask, false);
 
-	ret |= maxim2c_remote_devices_deinit(maxim2c, link_mask);
+#if (MAXIM2C_TEST_PATTERN == 0)
+	// remote devices stop stream
+	ret |= maxim2c_remote_devices_s_stream(maxim2c, link_mask, 0);
+	// remote devices power off
+	ret |= maxim2c_remote_devices_power(maxim2c, link_mask, 0);
+#endif /* MAXIM2C_TEST_PATTERN */
 
-	ret |= maxim2c_link_select_remote_control(maxim2c, 0);
+	// i2c mux enable: default disable all remote channel
+	ret |= maxim2c_i2c_mux_enable(maxim2c, 0x00);
+
 	ret |= maxim2c_link_mask_enable(maxim2c, link_mask, false);
 
 	if (ret) {
@@ -579,7 +583,7 @@ static int __maxim2c_stop_stream(struct maxim2c *maxim2c)
 
 static int maxim2c_s_stream(struct v4l2_subdev *sd, int on)
 {
-	struct maxim2c *maxim2c = v4l2_get_subdevdata(sd);
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	struct i2c_client *client = maxim2c->client;
 	int ret = 0;
 
@@ -594,21 +598,20 @@ static int maxim2c_s_stream(struct v4l2_subdev *sd, int on)
 		goto unlock_and_return;
 
 	if (on) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+		ret = pm_runtime_resume_and_get(&client->dev);
+		if (ret < 0)
 			goto unlock_and_return;
-		}
 
 		ret = __maxim2c_start_stream(maxim2c);
 		if (ret) {
 			v4l2_err(sd, "start stream failed while write regs\n");
-			pm_runtime_put(&client->dev);
+			pm_runtime_put_sync(&client->dev);
 			goto unlock_and_return;
 		}
 	} else {
 		__maxim2c_stop_stream(maxim2c);
-		pm_runtime_put(&client->dev);
+		pm_runtime_mark_last_busy(&client->dev);
+		pm_runtime_put_autosuspend(&client->dev);
 	}
 
 	maxim2c->streaming = on;
@@ -622,7 +625,7 @@ unlock_and_return:
 static int maxim2c_g_frame_interval(struct v4l2_subdev *sd,
 				struct v4l2_subdev_frame_interval *fi)
 {
-	struct maxim2c *maxim2c = v4l2_get_subdevdata(sd);
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	const struct maxim2c_mode *mode = maxim2c->cur_mode;
 
 	mutex_lock(&maxim2c->mutex);
@@ -636,7 +639,7 @@ static int maxim2c_enum_mbus_code(struct v4l2_subdev *sd,
 				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct maxim2c *maxim2c = v4l2_get_subdevdata(sd);
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	const struct maxim2c_mode *mode = maxim2c->cur_mode;
 
 	if (code->index != 0)
@@ -650,7 +653,7 @@ static int maxim2c_enum_frame_sizes(struct v4l2_subdev *sd,
 				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_frame_size_enum *fse)
 {
-	struct maxim2c *maxim2c = v4l2_get_subdevdata(sd);
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 
 	if (fse->index >= maxim2c->cfg_modes_num)
 		return -EINVAL;
@@ -671,7 +674,7 @@ maxim2c_enum_frame_interval(struct v4l2_subdev *sd,
 			struct v4l2_subdev_pad_config *cfg,
 			struct v4l2_subdev_frame_interval_enum *fie)
 {
-	struct maxim2c *maxim2c = v4l2_get_subdevdata(sd);
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 
 	if (fie->index >= maxim2c->cfg_modes_num)
 		return -EINVAL;
@@ -688,7 +691,7 @@ static int maxim2c_get_fmt(struct v4l2_subdev *sd,
 			struct v4l2_subdev_pad_config *cfg,
 			struct v4l2_subdev_format *fmt)
 {
-	struct maxim2c *maxim2c = v4l2_get_subdevdata(sd);
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	const struct maxim2c_mode *mode = maxim2c->cur_mode;
 
 	mutex_lock(&maxim2c->mutex);
@@ -718,7 +721,7 @@ static int maxim2c_set_fmt(struct v4l2_subdev *sd,
 			struct v4l2_subdev_pad_config *cfg,
 			struct v4l2_subdev_format *fmt)
 {
-	struct maxim2c *maxim2c = v4l2_get_subdevdata(sd);
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	struct device *dev = &maxim2c->client->dev;
 	const struct maxim2c_mode *mode = NULL;
 	u64 link_freq = 0, pixel_rate = 0;
@@ -770,7 +773,7 @@ static int maxim2c_get_selection(struct v4l2_subdev *sd,
 				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_selection *sel)
 {
-	struct maxim2c *maxim2c = v4l2_get_subdevdata(sd);
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 
 	if (sel->target == V4L2_SEL_TGT_CROP_BOUNDS) {
 		sel->r.left = 0;
@@ -786,7 +789,7 @@ static int maxim2c_get_selection(struct v4l2_subdev *sd,
 static int maxim2c_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 				struct v4l2_mbus_config *config)
 {
-	struct maxim2c *maxim2c = v4l2_get_subdevdata(sd);
+	maxim2c_t *maxim2c = v4l2_get_subdevdata(sd);
 	u32 val = 0;
 	u8 data_lanes = maxim2c->bus_cfg.bus.mipi_csi2.num_data_lanes;
 
@@ -837,7 +840,7 @@ static const struct v4l2_subdev_ops maxim2c_subdev_ops = {
 	.pad = &maxim2c_pad_ops,
 };
 
-static int maxim2c_initialize_controls(struct maxim2c *maxim2c)
+static int maxim2c_initialize_controls(maxim2c_t *maxim2c)
 {
 	struct device *dev = &maxim2c->client->dev;
 	const struct maxim2c_mode *mode;

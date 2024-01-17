@@ -19,10 +19,8 @@ static int maxim2c_link_enable_vdd_ldo1(maxim2c_t *maxim2c)
 	 *	CTRL0: Enable REG_ENABLE
 	 *	CTRL2: Enable REG_MNL
 	 */
-	ret |= maxim2c_i2c_update_byte(client,
-			0x0010, MAXIM2C_I2C_REG_ADDR_16BITS, BIT(2), BIT(2));
-	ret |= maxim2c_i2c_update_byte(client,
-			0x0012, MAXIM2C_I2C_REG_ADDR_16BITS, BIT(4), BIT(4));
+	ret |= maxim2c_i2c_update_reg(client, 0x0010, BIT(2), BIT(2));
+	ret |= maxim2c_i2c_update_reg(client, 0x0012, BIT(4), BIT(4));
 
 	return ret;
 }
@@ -45,9 +43,7 @@ static int maxim2c_link_set_rate(maxim2c_t *maxim2c)
 		else
 			link_rate |= (0x2 << 0);
 
-		ret |= maxim2c_i2c_update_byte(client,
-				0x0001, MAXIM2C_I2C_REG_ADDR_16BITS,
-				0x0F, link_rate);
+		ret |= maxim2c_i2c_update_reg(client, 0x0001, 0x0F, link_rate);
 	}
 
 	/* Link B rate setting */
@@ -60,9 +56,7 @@ static int maxim2c_link_set_rate(maxim2c_t *maxim2c)
 		else
 			link_rate |= (0x2 << 0);
 
-		ret |= maxim2c_i2c_update_byte(client,
-				0x0004, MAXIM2C_I2C_REG_ADDR_16BITS,
-				0x0F, link_rate);
+		ret |= maxim2c_i2c_update_reg(client, 0x0004, 0x0F, link_rate);
 	}
 
 	return ret;
@@ -118,9 +112,7 @@ static int maxim2c_link_status_init(maxim2c_t *maxim2c)
 			}
 		}
 	}
-	ret |= maxim2c_i2c_update_byte(client,
-			0x0006, MAXIM2C_I2C_REG_ADDR_16BITS,
-			reg_mask, reg_value);
+	ret |= maxim2c_i2c_update_reg(client, 0x0006, reg_mask, reg_value);
 
 	// AUTO_LINK disable, LINK_CFG for Link A and Link B select
 	reg_mask = BIT(4) | BIT(1) | BIT(0);
@@ -130,34 +122,26 @@ static int maxim2c_link_status_init(maxim2c_t *maxim2c)
 		if (link_cfg->link_enable)
 			reg_value |= BIT(link_idx);
 	}
-	ret |= maxim2c_i2c_update_byte(client,
-			0x0010, MAXIM2C_I2C_REG_ADDR_16BITS,
-			reg_mask, reg_value);
+	ret |= maxim2c_i2c_update_reg(client, 0x0010, reg_mask, reg_value);
 
 	// GMSL1 Link disable forward and reverse control channel
 	reg_mask = BIT(1) | BIT(0);
 	reg_value = 0;
 	for (link_idx = 0; link_idx < MAXIM2C_LINK_ID_MAX; link_idx++) {
 		reg_addr = 0x0B04 + 0x100 * link_idx;
-		ret |= maxim2c_i2c_update_byte(client,
-				reg_addr, MAXIM2C_I2C_REG_ADDR_16BITS,
-				reg_mask, reg_value);
+		ret |= maxim2c_i2c_update_reg(client, reg_addr, reg_mask, reg_value);
 	}
 
 	// GMSL2 Link disable remote control channel
 	reg_mask = BIT(4);
 	reg_value = BIT(4);
 	reg_addr = 0x0001;
-	ret |= maxim2c_i2c_update_byte(client,
-			reg_addr, MAXIM2C_I2C_REG_ADDR_16BITS,
-			reg_mask, reg_value);
+	ret |= maxim2c_i2c_update_reg(client, reg_addr, reg_mask, reg_value);
 
 	reg_mask = BIT(2);
 	reg_value = BIT(2);
 	reg_addr = 0x0003;
-	ret |= maxim2c_i2c_update_byte(client,
-			reg_addr, MAXIM2C_I2C_REG_ADDR_16BITS,
-			reg_mask, reg_value);
+	ret |= maxim2c_i2c_update_reg(client, reg_addr, reg_mask, reg_value);
 
 	return ret;
 }
@@ -176,18 +160,14 @@ u8 maxim2c_link_get_lock_state(maxim2c_t *maxim2c, u8 link_mask)
 		link_type = gmsl_link->link_cfg[MAXIM2C_LINK_ID_A].link_type;
 		if (link_type == MAXIM2C_GMSL2) {
 			// GMSL2 Link A
-			maxim2c_i2c_read_byte(client,
-				0x0013, MAXIM2C_I2C_REG_ADDR_16BITS,
-				&link_lock);
+			maxim2c_i2c_read_reg(client, 0x0013, &link_lock);
 			if (link_lock & BIT(3)) {
 				lock_state |= MAXIM2C_LINK_MASK_A;
 				dev_dbg(dev, "GMSL2 Link A locked\n");
 			}
 		} else {
 			// GMSL1 Link A
-			maxim2c_i2c_read_byte(client,
-				0x0BCB, MAXIM2C_I2C_REG_ADDR_16BITS,
-				&link_lock);
+			maxim2c_i2c_read_reg(client, 0x0BCB, &link_lock);
 			if (link_lock & BIT(0)) {
 				lock_state |= MAXIM2C_LINK_MASK_A;
 				dev_dbg(dev, "GMSL1 Link A locked\n");
@@ -206,18 +186,14 @@ u8 maxim2c_link_get_lock_state(maxim2c_t *maxim2c, u8 link_mask)
 		link_type = gmsl_link->link_cfg[MAXIM2C_LINK_ID_B].link_type;
 		if (link_type == MAXIM2C_GMSL2) {
 			// GMSL2 Link B
-			maxim2c_i2c_read_byte(client,
-				0x5009, MAXIM2C_I2C_REG_ADDR_16BITS,
-				&link_lock);
+			maxim2c_i2c_read_reg(client, 0x5009, &link_lock);
 			if (link_lock & BIT(3)) {
 				lock_state |= MAXIM2C_LINK_MASK_B;
 				dev_dbg(dev, "GMSL2 Link B locked\n");
 			}
 		} else {
 			// GMSL1 Link B
-			maxim2c_i2c_read_byte(client,
-				0x0CCB, MAXIM2C_I2C_REG_ADDR_16BITS,
-				&link_lock);
+			maxim2c_i2c_read_reg(client, 0x0CCB, &link_lock);
 			if (link_lock & BIT(0)) {
 				lock_state |= MAXIM2C_LINK_MASK_B;
 				dev_dbg(dev, "GMSL1 Link B locked\n");
@@ -235,7 +211,7 @@ u8 maxim2c_link_get_lock_state(maxim2c_t *maxim2c, u8 link_mask)
 }
 EXPORT_SYMBOL(maxim2c_link_get_lock_state);
 
-int maxim2c_link_oneshot_reset(struct maxim2c *maxim2c, u8 link_mask)
+int maxim2c_link_oneshot_reset(maxim2c_t *maxim2c, u8 link_mask)
 {
 	struct i2c_client *client = maxim2c->client;
 	struct device *dev = &client->dev;
@@ -250,9 +226,7 @@ int maxim2c_link_oneshot_reset(struct maxim2c *maxim2c, u8 link_mask)
 		link_idx = MAXIM2C_LINK_ID_A;
 		link_cfg = &gmsl_link->link_cfg[link_idx];
 		if (link_cfg->link_enable && (link_mask & BIT(link_idx))) {
-			ret = maxim2c_i2c_update_byte(client,
-					0x0010, MAXIM2C_I2C_REG_ADDR_16BITS,
-					BIT(5), BIT(5));
+			ret = maxim2c_i2c_update_reg(client, 0x0010, BIT(5), BIT(5));
 			if (ret) {
 				dev_err(dev, "Link A oneshot reset error\n");
 				return ret;
@@ -265,9 +239,7 @@ int maxim2c_link_oneshot_reset(struct maxim2c *maxim2c, u8 link_mask)
 		link_idx = MAXIM2C_LINK_ID_B;
 		link_cfg = &gmsl_link->link_cfg[link_idx];
 		if (link_cfg->link_enable && (link_mask & BIT(link_idx))) {
-			ret = maxim2c_i2c_update_byte(client,
-					0x0012, MAXIM2C_I2C_REG_ADDR_16BITS,
-					BIT(5), BIT(5));
+			ret = maxim2c_i2c_update_reg(client, 0x0012, BIT(5), BIT(5));
 			if (ret) {
 				dev_err(dev, "Link B oneshot reset error\n");
 				return ret;
@@ -279,13 +251,13 @@ int maxim2c_link_oneshot_reset(struct maxim2c *maxim2c, u8 link_mask)
 }
 EXPORT_SYMBOL(maxim2c_link_oneshot_reset);
 
-int maxim2c_link_mask_enable(struct maxim2c *maxim2c, u8 link_mask, bool enable)
+int maxim2c_link_mask_enable(maxim2c_t *maxim2c, u8 link_mask, bool enable)
 {
 	return 0;
 }
 EXPORT_SYMBOL(maxim2c_link_mask_enable);
 
-int maxim2c_link_wait_linklock(struct maxim2c *maxim2c, u8 link_mask)
+int maxim2c_link_wait_linklock(maxim2c_t *maxim2c, u8 link_mask)
 {
 	struct i2c_client *client = maxim2c->client;
 	struct device *dev = &client->dev;
@@ -335,7 +307,7 @@ int maxim2c_link_wait_linklock(struct maxim2c *maxim2c, u8 link_mask)
 }
 EXPORT_SYMBOL(maxim2c_link_wait_linklock);
 
-int maxim2c_link_select_remote_enable(struct maxim2c *maxim2c, u8 link_mask)
+int maxim2c_link_select_remote_enable(maxim2c_t *maxim2c, u8 link_mask)
 {
 	struct i2c_client *client = maxim2c->client;
 	struct device *dev = &client->dev;
@@ -365,7 +337,7 @@ int maxim2c_link_select_remote_enable(struct maxim2c *maxim2c, u8 link_mask)
 }
 EXPORT_SYMBOL(maxim2c_link_select_remote_enable);
 
-int maxim2c_link_select_remote_control(struct maxim2c *maxim2c, u8 link_mask)
+int maxim2c_link_select_remote_control(maxim2c_t *maxim2c, u8 link_mask)
 {
 	struct i2c_client *client = maxim2c->client;
 	struct device *dev = &client->dev;
@@ -394,9 +366,8 @@ int maxim2c_link_select_remote_control(struct maxim2c *maxim2c, u8 link_mask)
 				reg_value = 0;
 
 			reg_addr = 0x0B04 + 0x100 * link_idx;
-			ret |= maxim2c_i2c_update_byte(client,
-					reg_addr, MAXIM2C_I2C_REG_ADDR_16BITS,
-					reg_mask, reg_value);
+			ret |= maxim2c_i2c_update_reg(client,
+					reg_addr, reg_mask, reg_value);
 		} else {
 			// GMSL2 Link remote control channel
 			if (link_idx == MAXIM2C_LINK_ID_A) {
@@ -407,9 +378,8 @@ int maxim2c_link_select_remote_control(struct maxim2c *maxim2c, u8 link_mask)
 					reg_value = 0;
 				else
 					reg_value = BIT(4); // Link A remote control channel disabled
-				ret |= maxim2c_i2c_update_byte(client,
-						reg_addr, MAXIM2C_I2C_REG_ADDR_16BITS,
-						reg_mask, reg_value);
+				ret |= maxim2c_i2c_update_reg(client,
+						reg_addr, reg_mask, reg_value);
 			} else {
 				reg_addr = 0x0003;
 				reg_mask = BIT(2);
@@ -417,9 +387,8 @@ int maxim2c_link_select_remote_control(struct maxim2c *maxim2c, u8 link_mask)
 					reg_value = 0;
 				else
 					reg_value = BIT(2); // Link B remote control channel disabled
-				ret |= maxim2c_i2c_update_byte(client,
-						reg_addr, MAXIM2C_I2C_REG_ADDR_16BITS,
-						reg_mask, reg_value);
+				ret |= maxim2c_i2c_update_reg(client,
+						reg_addr, reg_mask, reg_value);
 			}
 		}
 	}
@@ -433,6 +402,7 @@ static int maxim2c_gmsl_link_config_parse_dt(struct device *dev,
 			struct device_node *parent_node)
 {
 	struct device_node *node = NULL;
+	struct device_node *remote_cam_node = NULL;
 	struct device_node *init_seq_node = NULL;
 	struct maxim2c_i2c_init_seq *init_seq = NULL;
 	struct maxim2c_link_cfg *link_cfg = NULL;
@@ -501,6 +471,15 @@ static int maxim2c_gmsl_link_config_parse_dt(struct device *dev,
 			if (ret == 0) {
 				dev_info(dev, "link-rx-rate property: %d", value);
 				link_cfg->link_rx_rate = value;
+			}
+
+			/* link get remote camera node */
+			remote_cam_node = of_parse_phandle(node, "link-remote-cam", 0);
+			if (!IS_ERR_OR_NULL(remote_cam_node)) {
+				dev_info(dev, "remote camera node: %pOF\n", remote_cam_node);
+				link_cfg->remote_cam_node = remote_cam_node;
+			} else {
+				dev_warn(dev, "link-remote-cam node isn't exist\n");
 			}
 
 			/* link init sequence */
