@@ -215,8 +215,9 @@ static int rockchip_drm_aclk_adjust(struct drm_device *dev,
 	return 0;
 }
 
-static void drm_atomic_helper_connector_commit(struct drm_device *dev,
-					       struct drm_atomic_state *old_state)
+static void
+rockchip_drm_atomic_helper_connector_commit(struct drm_device *dev,
+					    struct drm_atomic_state *old_state)
 {
 	struct drm_connector *connector;
 	struct drm_connector_state *new_conn_state;
@@ -265,7 +266,7 @@ static void rockchip_drm_atomic_helper_commit_tail_rpm(struct drm_atomic_state *
 
 	drm_atomic_helper_fake_vblank(old_state);
 
-	drm_atomic_helper_connector_commit(dev, old_state);
+	rockchip_drm_atomic_helper_connector_commit(dev, old_state);
 
 	drm_atomic_helper_commit_hw_done(old_state);
 

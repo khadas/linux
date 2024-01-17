@@ -22,26 +22,37 @@ struct rockchip_hwspinlock {
 
 /* Hardware spinlock register offsets */
 #define HWSPINLOCK_OFFSET(x)	(0x4 * (x))
+#define HWSPINLOCK_ID_MASK	0x0F
 
-#define HWSPINLOCK_OWNER_ID	0x01
+#define HWLOCK_DEFAULT_USER	0x01
+
+static u32 hwlock_user_id;
 
 static int rockchip_hwspinlock_trylock(struct hwspinlock *lock)
 {
 	void __iomem *lock_addr = lock->priv;
 
-	writel(HWSPINLOCK_OWNER_ID, lock_addr);
+	writel(hwlock_user_id, lock_addr);
 
 	/*
 	 * Get only first 4 bits and compare to HWSPINLOCK_OWNER_ID,
 	 * if equal, we attempt to acquire the lock, otherwise,
 	 * someone else has it.
 	 */
-	return (HWSPINLOCK_OWNER_ID == (0x0F & readl(lock_addr)));
+	return (hwlock_user_id == (readl(lock_addr) & HWSPINLOCK_ID_MASK));
 }
 
 static void rockchip_hwspinlock_unlock(struct hwspinlock *lock)
 {
 	void __iomem *lock_addr = lock->priv;
+	u32 lock_owner = readl(lock_addr) & HWSPINLOCK_ID_MASK;
+
+	if (lock_owner != hwlock_user_id) {
+		dev_warn(lock->bank->dev,
+			 "WARNING: against user %u release a lock held by %u\n",
+			 hwlock_user_id, lock_owner);
+		return;
+	}
 
 	/* Release the lock by writing 0 to it */
 	writel(0, lock_addr);
@@ -56,7 +67,7 @@ static int rockchip_hwspinlock_probe(struct platform_device *pdev)
 {
 	struct rockchip_hwspinlock *hwspin;
 	struct hwspinlock *hwlock;
-	int idx;
+	int idx, ret;
 
 	hwspin = devm_kzalloc(&pdev->dev,
 			      struct_size(hwspin, bank.lock, HWSPINLOCK_NUMBER),
@@ -67,6 +78,12 @@ static int rockchip_hwspinlock_probe(struct platform_device *pdev)
 	hwspin->io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hwspin->io_base))
 		return PTR_ERR(hwspin->io_base);
+
+	ret = device_property_read_u32(&pdev->dev, "rockchip,hwlock-user-id",
+				       &hwlock_user_id);
+	if (ret || !hwlock_user_id || hwlock_user_id > HWSPINLOCK_ID_MASK)
+		hwlock_user_id = HWLOCK_DEFAULT_USER;
+	dev_info(&pdev->dev, "hwlock user id %u\n", hwlock_user_id);
 
 	for (idx = 0; idx < HWSPINLOCK_NUMBER; idx++) {
 		hwlock = &hwspin->bank.lock[idx];

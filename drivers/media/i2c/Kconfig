@@ -2902,8 +2902,7 @@ config VIDEO_VPX3220
 
 source "drivers/media/i2c/rk628/Kconfig"
 
-source "drivers/media/i2c/maxim2c/Kconfig"
-source "drivers/media/i2c/maxim4c/Kconfig"
+source "drivers/media/i2c/maxim/Kconfig"
 
 comment "Video and audio decoders"
 
