@@ -1824,6 +1824,15 @@ static void lcd_config_default(struct aml_lcd_drv_s *pdrv)
 
 	pdrv->init_flag = 0;
 	init_state = lcd_get_venc_init_config(pdrv);
+	pdrv->config.timing.base_timing.h_active = pdrv->config.timing.act_timing.h_active;
+	pdrv->config.timing.dft_timing.h_active = pdrv->config.timing.act_timing.h_active;
+	pdrv->config.timing.base_timing.v_active = pdrv->config.timing.act_timing.v_active;
+	pdrv->config.timing.dft_timing.v_active = pdrv->config.timing.act_timing.v_active;
+	pdrv->config.timing.base_timing.h_period = pdrv->config.timing.act_timing.h_period;
+	pdrv->config.timing.dft_timing.h_period = pdrv->config.timing.act_timing.h_period;
+	pdrv->config.timing.base_timing.v_period = pdrv->config.timing.act_timing.v_period;
+	pdrv->config.timing.dft_timing.v_period = pdrv->config.timing.act_timing.v_period;
+
 	if (init_state) {
 		switch (pdrv->boot_ctrl->init_level) {
 		case LCD_INIT_LEVEL_NORMAL:
