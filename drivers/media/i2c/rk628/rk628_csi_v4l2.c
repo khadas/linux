@@ -2842,7 +2842,11 @@ err_hdl:
 	return err;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static void rk628_csi_remove(struct i2c_client *client)
+#else
 static int rk628_csi_remove(struct i2c_client *client)
+#endif
 {
 	struct rk628_csi *csi = i2c_get_clientdata(client);
 
@@ -2872,8 +2876,9 @@ static int rk628_csi_remove(struct i2c_client *client)
 	rk628_control_assert(csi->rk628, RGU_CSI);
 	if (csi->rk628->version >= RK628F_VERSION)
 		rk628_control_assert(csi->rk628, RGU_CSI1);
-
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
 static struct i2c_driver rk628_csi_i2c_driver = {

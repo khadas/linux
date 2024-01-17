@@ -1192,11 +1192,19 @@ static int rk628_bt1120_g_mbus_config(struct v4l2_subdev *sd,
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
 
 	cfg->type = V4L2_MBUS_BT656;
+#if KERNEL_VERSION(5, 18, 0) <= LINUX_VERSION_CODE
+	cfg->bus.parallel.flags = V4L2_MBUS_HSYNC_ACTIVE_HIGH |
+				V4L2_MBUS_VSYNC_ACTIVE_HIGH |
+				V4L2_MBUS_PCLK_SAMPLE_RISING;
+	if (bt1120->dual_edge)
+		cfg->bus.parallel.flags |= V4L2_MBUS_PCLK_SAMPLE_FALLING;
+#else
 	cfg->flags = V4L2_MBUS_HSYNC_ACTIVE_HIGH |
 				V4L2_MBUS_VSYNC_ACTIVE_HIGH |
 				V4L2_MBUS_PCLK_SAMPLE_RISING;
 	if (bt1120->dual_edge)
 		cfg->flags |= V4L2_MBUS_PCLK_SAMPLE_FALLING;
+#endif
 
 	return 0;
 }
