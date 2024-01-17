@@ -723,14 +723,17 @@ static int rk628_display_route_info_parse(struct rk628 *rk628)
 	int ret = 0;
 	u32 val;
 
-	if (of_property_read_bool(rk628->dev->of_node, "rk628,hdmi-in"))
+	if (of_property_read_bool(rk628->dev->of_node, "rk628,hdmi-in")) {
 		rk628->input_mode = BIT(INPUT_MODE_HDMI);
-	else if (of_property_read_bool(rk628->dev->of_node, "rk628,rgb-in"))
+	} else if (of_property_read_bool(rk628->dev->of_node, "rk628,rgb-in")) {
 		rk628->input_mode = BIT(INPUT_MODE_RGB);
-	else if (of_property_read_bool(rk628->dev->of_node, "rk628,bt1120-in"))
+		ret = rk628_rgb_parse(rk628, NULL);
+	} else if (of_property_read_bool(rk628->dev->of_node, "rk628,bt1120-in")) {
 		rk628->input_mode = BIT(INPUT_MODE_BT1120);
-	else
+		ret = rk628_rgb_parse(rk628, NULL);
+	} else {
 		rk628->input_mode = BIT(INPUT_MODE_RGB);
+	}
 
 	if ((np = of_get_child_by_name(rk628->dev->of_node, "rk628-gvi"))) {
 		rk628->output_mode |= BIT(OUTPUT_MODE_GVI);
@@ -751,10 +754,11 @@ static int rk628_display_route_info_parse(struct rk628 *rk628)
 		rk628->output_mode |= BIT(OUTPUT_MODE_HDMI);
 
 	if (of_property_read_bool(rk628->dev->of_node, "rk628-rgb")) {
-		ret = rk628_rgb_parse(rk628, NULL);
 		rk628->output_mode |= BIT(OUTPUT_MODE_RGB);
+		ret = rk628_rgb_parse(rk628, NULL);
 	} else if (of_property_read_bool(rk628->dev->of_node, "rk628-bt1120")) {
 		rk628->output_mode |= BIT(OUTPUT_MODE_BT1120);
+		ret = rk628_rgb_parse(rk628, NULL);
 	}
 
 	if (of_property_read_u32(rk628->dev->of_node, "mode-sync-pol", &val) < 0)
@@ -1394,10 +1398,6 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
 	clk_prepare_enable(rk628->soc_24M);
-
-	rk628->vccio_rgb = devm_regulator_get_optional(dev, "vccio-rgb");
-	if (IS_ERR(rk628->vccio_rgb))
-		rk628->vccio_rgb = NULL;
 
 	rk628->enable_gpio = devm_gpiod_get_optional(dev, "enable",
 						     GPIOD_OUT_LOW);

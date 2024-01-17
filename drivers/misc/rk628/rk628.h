@@ -433,8 +433,6 @@ enum rk628_v4l2_colorspace {
 	V4L2_COLORSPACE_DCI_P3        = 12,
 };
 
-#undef BT1120_DUAL_EDGE
-
 struct rk628_videomode {
 	u32 pixelclock;	/* pixelclock in Hz */
 
@@ -540,6 +538,11 @@ struct rk628_combtxphy {
 	bool division_mode;
 };
 
+struct rk628_rgb {
+	struct regulator *vccio_rgb;
+	bool bt1120_dual_edge;
+};
+
 struct rk628 {
 	struct device *dev;
 	struct i2c_client *client;
@@ -574,7 +577,7 @@ struct rk628 {
 	void *csi;
 	struct notifier_block fb_nb;
 	u32 version;
-	struct regulator *vccio_rgb;
+	struct rk628_rgb rgb;
 	int old_blank;
 };
 

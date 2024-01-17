@@ -14,7 +14,20 @@
 
 int rk628_rgb_parse(struct rk628 *rk628, struct device_node *rgb_np)
 {
-	return rk628_panel_info_get(rk628, rgb_np);
+	int ret = 0;
+
+	rk628->rgb.vccio_rgb = devm_regulator_get_optional(rk628->dev, "vccio-rgb");
+	if (IS_ERR(rk628->rgb.vccio_rgb))
+		rk628->rgb.vccio_rgb = NULL;
+
+	if ((rk628_input_is_bt1120(rk628) || rk628_output_is_bt1120(rk628)) &&
+	    of_property_read_bool(rk628->dev->of_node, "bt1120-dual-edge"))
+		rk628->rgb.bt1120_dual_edge = true;
+
+	if (rk628_output_is_bt1120(rk628) || rk628_output_is_rgb(rk628))
+		ret = rk628_panel_info_get(rk628, rgb_np);
+
+	return ret;
 }
 
 static int rk628_rgb_resolution_show(struct seq_file *s, void *data)
@@ -123,8 +136,8 @@ static void rk628_rgb_encoder_enable(struct rk628 *rk628)
 	 * drive strength and DCLK delay need to be set for the power domains
 	 * of different voltages.
 	 */
-	if (rk628->vccio_rgb)
-		voltage = regulator_get_voltage(rk628->vccio_rgb);
+	if (rk628->rgb.vccio_rgb)
+		voltage = regulator_get_voltage(rk628->rgb.vccio_rgb);
 
 	switch (voltage) {
 	case 1800000:
@@ -264,17 +277,18 @@ static void rk628_bt1120_decoder_enable(struct rk628 *rk628)
 
 	rk628_cru_clk_set_rate(rk628, CGU_BT1120DEC, mode->clock * 1000);
 
-#ifdef BT1120_DUAL_EDGE
-	rk628_i2c_update_bits(rk628, GRF_RGB_DEC_CON0,
-			      DEC_DUALEDGE_EN, DEC_DUALEDGE_EN);
-	rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON0, 0x10000000);
-	rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON1, 0);
-#else
-	if (rk628->version == RK628F_VERSION) {
-		rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON0, 0x10000);
+	if (rk628->rgb.bt1120_dual_edge) {
+		rk628_i2c_update_bits(rk628, GRF_RGB_DEC_CON0,
+				DEC_DUALEDGE_EN, DEC_DUALEDGE_EN);
+		rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON0, 0x10000000);
 		rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON1, 0);
+	} else {
+		if (rk628->version == RK628F_VERSION) {
+			rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON0,
+					0x10000);
+			rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON1, 0);
+		}
 	}
-#endif
 
 	rk628_i2c_update_bits(rk628, GRF_RGB_DEC_CON1, SW_SET_X_MASK,
 			      SW_SET_X(mode->hdisplay));
@@ -320,8 +334,8 @@ static void rk628_bt1120_encoder_enable(struct rk628 *rk628)
 	 * drive strength and DCLK delay need to be set for the power domains
 	 * of different voltages.
 	 */
-	if (rk628->vccio_rgb)
-		voltage = regulator_get_voltage(rk628->vccio_rgb);
+	if (rk628->rgb.vccio_rgb)
+		voltage = regulator_get_voltage(rk628->rgb.vccio_rgb);
 
 	switch (voltage) {
 	case 1800000:
@@ -353,18 +367,19 @@ static void rk628_bt1120_encoder_enable(struct rk628 *rk628)
 	rk628_i2c_write(rk628, GRF_GPIO3B_D_CON, strength & 0x000f000f);
 
 	/* rk628: modify DCLK delay for BT1120 */
-#ifdef BT1120_DUAL_EDGE
-	val |= ENC_DUALEDGE_EN(1);
-	rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON0, 0x10000000);
-	rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON1, 0);
-#else
-	if (rk628->version == RK628F_VERSION) {
-		rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON0,
-				dclk_delay & 0xffffffff);
-		rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON1,
-				dclk_delay >> 32);
+	if (rk628->rgb.bt1120_dual_edge) {
+		val |= ENC_DUALEDGE_EN(1);
+		rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON0, 0x10000000);
+		rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON1, 0);
+	} else {
+		if (rk628->version == RK628F_VERSION) {
+			rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON0,
+					dclk_delay & 0xffffffff);
+			rk628_i2c_write(rk628, GRF_BT1120_DCLK_DELAY_CON1,
+					dclk_delay >> 32);
+		}
 	}
-#endif
+
 	val |= BT1120_UV_SWAP(1);
 	rk628_i2c_write(rk628, GRF_RGB_ENC_CON, val);
 }
