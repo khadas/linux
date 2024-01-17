@@ -603,7 +603,7 @@ static void clock_resume(void)
 			       vocru_base + RV1106_VOCRU_GATE_CON(i));
 }
 
-static void pvtm_32k_config(int flag)
+static void pvtm_32k_config(void)
 {
 	u64 value, pvtm_freq_hz;
 	int pvtm_div;
@@ -612,13 +612,12 @@ static void pvtm_32k_config(int flag)
 	ddr_data.pmucru_sel_con7 =
 		readl_relaxed(pmucru_base + RV1106_PMUCRU_CLKSEL_CON(7));
 
-	if (flag) {
-		writel_relaxed(BITS_WITH_WMASK(0x1, 0x1, 6), vigrf_base + 0x0);
-		writel_relaxed(BITS_WITH_WMASK(0x4, 0xf, 0), ioc_base[0] + 0);
-		writel_relaxed(BITS_WITH_WMASK(0x1, 0x1, 15),
+	if (slp_cfg->mode_config & RKPM_SLP_32K_EXT) {
+		writel_relaxed(BITS_WITH_WMASK(0x3, 0x3, 14),
 			       pmugrf_base + RV1106_PMUGRF_SOC_CON(1));
 		writel_relaxed(BITS_WITH_WMASK(0x1, 0x3, 0),
 			       pmucru_base + RV1106_PMUCRU_CLKSEL_CON(7));
+		ddr_data.sleep_clk_freq_hz = 32768;
 	} else {
 		writel_relaxed(BITS_WITH_WMASK(0, 0x3, 0),
 			       pmupvtm_base + RV1106_PVTM_CON(2));
@@ -887,7 +886,7 @@ static void soc_sleep_config(void)
 
 	rkpm_printch('a');
 
-	pvtm_32k_config(0);
+	pvtm_32k_config();
 	rkpm_printch('b');
 
 	ddr_sleep_config();
