@@ -10,6 +10,7 @@ snd-soc-rockchip-pdm-objs := rockchip_pdm.o
 snd-soc-rockchip-sai-objs := rockchip_sai.o
 snd-soc-rockchip-spdif-objs := rockchip_spdif.o
 snd-soc-rockchip-spdifrx-objs := rockchip_spdifrx.o
+snd-soc-rockchip-trcm-objs := rockchip_trcm.o
 snd-soc-rockchip-vad-objs := rockchip_vad.o
 ifdef CONFIG_THUMB2_KERNEL
 snd-soc-rockchip-vad-$(CONFIG_THUMB2_KERNEL) += vad_preprocess_thumb.o
@@ -28,6 +29,7 @@ obj-$(CONFIG_SND_SOC_ROCKCHIP_PDM) += snd-soc-rockchip-pdm.o
 obj-$(CONFIG_SND_SOC_ROCKCHIP_SAI) += snd-soc-rockchip-sai.o
 obj-$(CONFIG_SND_SOC_ROCKCHIP_SPDIF) += snd-soc-rockchip-spdif.o
 obj-$(CONFIG_SND_SOC_ROCKCHIP_SPDIFRX) += snd-soc-rockchip-spdifrx.o
+obj-$(CONFIG_SND_SOC_ROCKCHIP_TRCM) += snd-soc-rockchip-trcm.o
 obj-$(CONFIG_SND_SOC_ROCKCHIP_VAD) += snd-soc-rockchip-vad.o
 
 snd-soc-rockchip-hdmi-objs := rockchip_hdmi.o
