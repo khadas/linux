@@ -63,6 +63,17 @@ config SND_SOC_ROCKCHIP_PDM
 	  Rockchip PDM Controller. The Controller supports up to maximum of
 	  8 channels record.
 
+config SND_SOC_ROCKCHIP_PDM_V2
+	tristate "Rockchip PDM Version 2 Controller Driver"
+	depends on HAVE_CLK && SND_SOC_ROCKCHIP
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select RATIONAL
+	help
+	  Say Y or M if you want to add support for PDM driver for
+	  Rockchip PDM Controller Version 2. The Controller supports up
+	  to maximum of 8 channels record. The version 2 pdm support gain
+	  control and more pdm clk, like 2.4MHz.
+
 config SND_SOC_ROCKCHIP_SAI
 	tristate "Rockchip SAI Controller Driver"
 	depends on HAVE_CLK && SND_SOC_ROCKCHIP
