@@ -335,6 +335,8 @@
 #define HDMI_RX_MD_IEN_CLR		(HDMI_RX_BASE + 0x0fc0)
 #define HDMI_RX_MD_IEN_SET		(HDMI_RX_BASE + 0x0fc4)
 #define VACT_LIN_ENSET			BIT(9)
+#define VS_CLK_ENSET			BIT(8)
+#define VTOT_CLK_ENSET			BIT(7)
 #define HACT_PIX_ENSET			BIT(6)
 #define HS_CLK_ENSET			BIT(5)
 #define DE_ACTIVITY_ENSET		BIT(2)
@@ -342,6 +344,8 @@
 #define HS_ACT_ENSET			BIT(0)
 #define HDMI_RX_MD_ISTS			(HDMI_RX_BASE + 0x0fc8)
 #define VACT_LIN_ISTS			BIT(9)
+#define VS_CLK_ISTS			BIT(8)
+#define VTOT_CLK_ISTS			BIT(7)
 #define HACT_PIX_ISTS			BIT(6)
 #define HS_CLK_ISTS			BIT(5)
 #define DE_ACTIVITY_ISTS		BIT(2)
@@ -463,5 +467,6 @@ int rk628_hdmirx_get_timings(struct rk628 *rk628,
 u8 rk628_hdmirx_get_range(struct rk628 *rk628);
 void rk628_hdmirx_controller_reset(struct rk628 *rk628);
 bool rk628_hdmirx_scdc_ced_err(struct rk628 *rk628);
+bool rk628_hdmirx_is_signal_change_ists(struct rk628 *rk628);
 
 #endif

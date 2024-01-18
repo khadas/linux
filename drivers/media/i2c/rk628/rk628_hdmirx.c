@@ -1213,3 +1213,24 @@ bool rk628_hdmirx_scdc_ced_err(struct rk628 *rk628)
 	return true;
 }
 EXPORT_SYMBOL(rk628_hdmirx_scdc_ced_err);
+
+bool rk628_hdmirx_is_signal_change_ists(struct rk628 *rk628)
+{
+	u32 md_ints, pdec_ints;
+	u32 md_mask, pded_madk;
+
+	md_mask = VACT_LIN_ISTS | HACT_PIX_ISTS |
+		  HS_CLK_ISTS | DE_ACTIVITY_ISTS |
+		  VS_ACT_ISTS | HS_ACT_ISTS | VS_CLK_ISTS;
+	rk628_i2c_read(rk628, HDMI_RX_MD_ISTS, &md_ints);
+	if (md_ints & md_mask)
+		return true;
+
+	pded_madk = AVI_CKS_CHG_ISTS;
+	rk628_i2c_read(rk628, HDMI_RX_PDEC_ISTS, &pdec_ints);
+	if (pdec_ints & pded_madk)
+		return true;
+
+	return false;
+}
+EXPORT_SYMBOL(rk628_hdmirx_is_signal_change_ists);

@@ -1403,7 +1403,7 @@ static void rk628_csi_enable_interrupts(struct v4l2_subdev *sd, bool en)
 
 	pdec_mask = AVI_RCV_ENSET | AVI_CKS_CHG_ICLR;
 	md_mask = VACT_LIN_ENSET | HACT_PIX_ENSET | HS_CLK_ENSET |
-		  DE_ACTIVITY_ENSET | VS_ACT_ENSET | HS_ACT_ENSET;
+		  DE_ACTIVITY_ENSET | VS_ACT_ENSET | HS_ACT_ENSET | VS_CLK_ENSET;
 	v4l2_dbg(1, debug, sd, "%s: %sable\n", __func__, en ? "en" : "dis");
 	/* clr irq */
 	rk628_i2c_write(csi->rk628, HDMI_RX_MD_ICLR, md_mask);
@@ -1437,10 +1437,7 @@ static void rk628_work_isr(struct work_struct *work)
 	rk628_i2c_read(csi->rk628, HDMI_RX_MD_ISTS, &md_ints);
 	rk628_i2c_read(csi->rk628, HDMI_RX_PDEC_ISTS, &pdec_ints);
 	if (csi->rk628->version >= RK628F_VERSION &&
-	    (md_ints & (VACT_LIN_ISTS | HACT_PIX_ISTS |
-			HS_CLK_ISTS | DE_ACTIVITY_ISTS |
-			VS_ACT_ISTS | HS_ACT_ISTS) ||
-	     pdec_ints & AVI_CKS_CHG_ISTS))
+	    rk628_hdmirx_is_signal_change_ists(csi->rk628))
 		rk628_set_bg_enable(csi->rk628, true);
 
 	plugin = tx_5v_power_present(sd);
@@ -1466,15 +1463,10 @@ static void rk628_work_isr(struct work_struct *work)
 		}
 	}
 	if (csi->vid_ints_en) {
-		rk628_i2c_read(csi->rk628, HDMI_RX_MD_ISTS, &md_ints);
 		v4l2_dbg(1, debug, sd, "%s: md_ints: %#x, pdec_ints:%#x, plugin: %d\n",
 			 __func__, md_ints, pdec_ints, plugin);
 
-		if ((md_ints & (VACT_LIN_ISTS | HACT_PIX_ISTS |
-				HS_CLK_ISTS | DE_ACTIVITY_ISTS |
-				VS_ACT_ISTS | HS_ACT_ISTS) ||
-		     pdec_ints & AVI_CKS_CHG_ISTS)) {
-
+		if (rk628_hdmirx_is_signal_change_ists(csi->rk628)) {
 			rk628_i2c_read(csi->rk628, HDMI_RX_MD_HACT_PX, &hact);
 			rk628_i2c_read(csi->rk628, HDMI_RX_MD_VAL, &vact);
 			v4l2_dbg(1, debug, sd, "%s: HACT:%#x, VACT:%#x\n",
