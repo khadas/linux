@@ -683,6 +683,7 @@
 			02a8 0003
 			02a9 0004
 			02aa 0005
+			02af 0002	//gpio0 1MHZ
 			0045 0080
 			0046 0007	//1920
 			004b 00d0
@@ -880,9 +881,9 @@
 					function = "DES_TO_SER_GPIO3";
 				};
 
-				100ms-delay {
+				40ms-delay {
 					pins = "BU18RL82_GPIO1";
-					function = "DELAY_100MS";
+					function = "DELAY_40MS";
 				};
 
 				lcd-pwr-en {
@@ -1022,6 +1023,7 @@
 			02a8 0003
 			02a9 0004
 			02aa 0005
+			02af 0002	//gpio0 1MHZ
 			0045 0080
 			0046 0007	//1920
 			004b 00d0
@@ -1219,9 +1221,9 @@
 					function = "DES_TO_SER_GPIO3";
 				};
 
-				100ms-delay {
+				40ms-delay {
 					pins = "BU18RL82_GPIO1";
-					function = "DELAY_100MS";
+					function = "DELAY_40MS";
 				};
 
 				lcd-pwr-en {
@@ -1349,6 +1351,7 @@
 			0275 0020
 			0296 0004
 			0297 000d
+			02af 0002	//gpio0 1MHZ
 			02b2 00c8
 			02b4 0001
 			02b8 00ff
@@ -1552,9 +1555,9 @@
 					function = "DES_TO_SER_GPIO3";
 				};
 
-				100ms-delay {
+				40ms-delay {
 					pins = "BU18RL82_GPIO1";
-					function = "DELAY_100MS";
+					function = "DELAY_40MS";
 				};
 
 				lcd-pwr-en {
@@ -1700,6 +1703,7 @@
 			02a8 0003
 			02a9 0004
 			02aa 0005
+			02af 0002	//gpio0 1MHZ
 			0045 0080
 			0046 0007	//1920
 			004b 00d0
@@ -1899,9 +1903,9 @@
 					function = "DES_TO_SER_GPIO3";
 				};
 
-				100ms-delay {
+				40ms-delay {
 					pins = "BU18RL82_GPIO1";
-					function = "DELAY_100MS";
+					function = "DELAY_40MS";
 				};
 
 				lcd-pwr-en {
@@ -2024,6 +2028,7 @@
 			0275 0020
 			0296 0004
 			0297 000d
+			02af 0002	//gpio0 1MHZ
 			02b2 00c8
 			02b4 0001
 			02b8 00ff
@@ -2335,6 +2340,7 @@
 			02a8 0003
 			02a9 0004
 			02aa 0005
+			02af 0002	//gpio0 1MHZ
 			0045 0080
 			0046 0007	//1920
 			004b 00d0

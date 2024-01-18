@@ -693,9 +693,9 @@
 					pins = "MAX96752_GPIO2";
 					function = "DES_TXID8_TO_SER";
 				};
-				100ms-delay {
+				40ms-delay {
 					pins = "MAX96752_GPIO15";
-					function = "DELAY_100MS";
+					function = "DELAY_40MS";
 				};
 				lcd-pwr-on {
 					pins = "MAX96752_GPIO3";
@@ -823,9 +823,9 @@
 					pins = "MAX96752_GPIO2";
 					function = "DES_TXID14_TO_SER";
 				};
-				100ms-delay {
+				40ms-delay {
 					pins = "MAX96752_GPIO15";
-					function = "DELAY_100MS";
+					function = "DELAY_40MS";
 				};
 				lcd-pwr-on {
 					pins = "MAX96752_GPIO3";
@@ -1367,9 +1367,9 @@
 					pins = "MAX96752_GPIO2";
 					function = "DES_TXID1_TO_SER";
 				};
-				100ms-delay {
+				40ms-delay {
 					pins = "MAX96752_GPIO15";
-					function = "DELAY_100MS";
+					function = "DELAY_40MS";
 				};
 				lcd-pwr-on {
 					pins = "MAX96752_GPIO3";
@@ -1495,9 +1495,9 @@
 					pins = "MAX96752_GPIO2";
 					function = "DES_TXID4_TO_SER";
 				};
-				100ms-delay {
+				40ms-delay {
 					pins = "MAX96752_GPIO15";
-					function = "DELAY_100MS";
+					function = "DELAY_40MS";
 				};
 				lcd-pwr-on {
 					pins = "MAX96752_GPIO3";
@@ -2044,9 +2044,9 @@
 					pins = "MAX96752_GPIO2";
 					function = "DES_TXID1_TO_SER";
 				};
-				100ms-delay {
+				40ms-delay {
 					pins = "MAX96752_GPIO15";
-					function = "DELAY_100MS";
+					function = "DELAY_40MS";
 				};
 				lcd-pwr-on {
 					pins = "MAX96752_GPIO3";
@@ -2173,9 +2173,9 @@
 					pins = "MAX96752_GPIO2";
 					function = "DES_TXID4_TO_SER";
 				};
-				100ms-delay {
+				40ms-delay {
 					pins = "MAX96752_GPIO15";
-					function = "DELAY_100MS";
+					function = "DELAY_40MS";
 				};
 				lcd-pwr-on {
 					pins = "MAX96752_GPIO3";
