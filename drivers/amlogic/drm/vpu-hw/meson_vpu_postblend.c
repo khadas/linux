@@ -536,10 +536,8 @@ static void fix_vpu_clk2_default_regs(struct meson_vpu_block *vblk,
 	reg_ops->rdma_write_reg_bits(VPP_VD1_DSC_CTRL, 0x1, 4, 1);
 	reg_ops->rdma_write_reg_bits(VPP_VD2_DSC_CTRL, 0x1, 4, 1);
 	reg_ops->rdma_write_reg_bits(VPP_VD3_DSC_CTRL, 0x1, 4, 1);
-	reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL, 0x1, 14, 1);
 	reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL, 0x1, 19, 1);
-	reg_ops->rdma_write_reg_bits(MALI_AFBCD1_TOP_CTRL, 0x1, 19, 1);
-	reg_ops->rdma_write_reg_bits(MALI_AFBCD1_TOP_CTRL, 0x1, 19, 1);
+	reg_ops->rdma_write_reg_bits(MALI_AFBCD2_TOP_CTRL, 0x1, 19, 1);
 
 	/* default: osd 12bit path */
 	reg_ops->rdma_write_reg_bits(VPP_VD1_DSC_CTRL, 0x0, 5, 1);
@@ -548,7 +546,7 @@ static void fix_vpu_clk2_default_regs(struct meson_vpu_block *vblk,
 	reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL, 0x0, 15, 1);
 	reg_ops->rdma_write_reg_bits(MALI_AFBCD_TOP_CTRL, 0x0, 20, 1);
 	reg_ops->rdma_write_reg_bits(MALI_AFBCD1_TOP_CTRL, 0x0, 20, 1);
-	reg_ops->rdma_write_reg_bits(MALI_AFBCD1_TOP_CTRL, 0x0, 20, 1);
+	reg_ops->rdma_write_reg_bits(MALI_AFBCD2_TOP_CTRL, 0x0, 20, 1);
 
 	/* OSD3  uses VPP1*/
 	osd_set_vpp_path_default(vblk, reg_ops, 3, 1);
