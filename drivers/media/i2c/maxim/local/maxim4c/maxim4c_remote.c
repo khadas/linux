@@ -24,7 +24,7 @@ int maxim4c_remote_devices_power(maxim4c_t *maxim4c, u8 link_mask, int on)
 	struct device_node *remote_cam_node = NULL;
 	struct i2c_client *remote_cam_client = NULL;
 	struct v4l2_subdev *remote_cam_sd = NULL;
-	int ret = 0, i = 0;
+	int ret = 0, error = 0, i = 0;
 
 	dev_dbg(dev, "%s: link mask = 0x%02x, on = %d\n", __func__, link_mask, on);
 
@@ -57,7 +57,11 @@ int maxim4c_remote_devices_power(maxim4c_t *maxim4c, u8 link_mask, int on)
 		}
 
 		dev_info(dev, "link id = %d remote camera power = %d\n", i, on);
-		ret |= v4l2_subdev_call(remote_cam_sd, core, s_power, on);
+		error = v4l2_subdev_call(remote_cam_sd, core, s_power, on);
+		if (error < 0) {
+			ret |= error;
+			dev_err(dev, "link id = %d remote camera power error = %d\n", i, error);
+		}
 	}
 
 	return ret;
@@ -72,7 +76,7 @@ int maxim4c_remote_devices_s_stream(maxim4c_t *maxim4c, u8 link_mask, int enable
 	struct device_node *remote_cam_node = NULL;
 	struct i2c_client *remote_cam_client = NULL;
 	struct v4l2_subdev *remote_cam_sd = NULL;
-	int ret = 0, i = 0;
+	int ret = 0, error = 0, i = 0;
 
 	dev_dbg(dev, "%s: link mask = 0x%02x, enable = %d\n", __func__, link_mask, enable);
 
@@ -105,7 +109,11 @@ int maxim4c_remote_devices_s_stream(maxim4c_t *maxim4c, u8 link_mask, int enable
 		}
 
 		dev_info(dev, "link id = %d remote camera s_stream = %d\n", i, enable);
-		ret |= v4l2_subdev_call(remote_cam_sd, video, s_stream, enable);
+		error = v4l2_subdev_call(remote_cam_sd, video, s_stream, enable);
+		if (error < 0) {
+			ret |= error;
+			dev_err(dev, "link id = %d remote camera s_stream error = %d\n", i, error);
+		}
 	}
 
 	return ret;
