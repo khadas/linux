@@ -3031,16 +3031,20 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 	i2s_tdm->capture_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	i2s_tdm->capture_dma_data.maxburst = MAXBURST_PER_FIFO;
 
+	ret = clk_prepare_enable(i2s_tdm->hclk);
+	if (ret)
+		return ret;
+
 	ret = rockchip_i2s_tdm_tx_path_prepare(i2s_tdm, node);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "I2S TX path prepare failed: %d\n", ret);
-		return ret;
+		goto err_disable_hclk;
 	}
 
 	ret = rockchip_i2s_tdm_rx_path_prepare(i2s_tdm, node);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "I2S RX path prepare failed: %d\n", ret);
-		return ret;
+		goto err_disable_hclk;
 	}
 
 	atomic_set(&i2s_tdm->refcount, 0);
@@ -3064,7 +3068,7 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 	if (i2s_tdm->quirks & QUIRK_ALWAYS_ON) {
 		ret = rockchip_i2s_tdm_keep_clk_always_on(i2s_tdm);
 		if (ret)
-			return ret;
+			goto err_disable_hclk;
 	}
 
 #ifdef CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES
@@ -3133,6 +3137,9 @@ err_pm_disable:
 err_unmap:
 	rockchip_i2s_tdm_unmap(i2s_tdm);
 #endif
+
+err_disable_hclk:
+	clk_disable_unprepare(i2s_tdm->hclk);
 
 	return ret;
 }
