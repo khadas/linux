@@ -24,6 +24,8 @@
 #include "rk_dsm.h"
 
 #define RK3562_GRF_PERI_AUDIO_CON	(0x0070)
+#define RK3576_SYS_GRF_SOC_CON2		(0x0008)
+#define RK3576_DSM_SEL			(0x0)
 
 struct rk_dsm_soc_data {
 	int (*init)(struct device *dev);
@@ -462,9 +464,6 @@ static int rk3562_soc_init(struct device *dev)
 {
 	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
 
-	if (IS_ERR(rd->grf))
-		return PTR_ERR(rd->grf);
-
 	/* enable internal codec to i2s1 */
 	return regmap_write(rd->grf, RK3562_GRF_PERI_AUDIO_CON,
 			    (BIT(14) << 16 | BIT(14) | 0x0a100a10));
@@ -474,9 +473,6 @@ static void rk3562_soc_deinit(struct device *dev)
 {
 	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
 
-	if (IS_ERR(rd->grf))
-		return;
-
 	regmap_write(rd->grf, RK3562_GRF_PERI_AUDIO_CON, (BIT(14) << 16) | 0x0a100a10);
 }
 
@@ -485,9 +481,31 @@ static const struct rk_dsm_soc_data rk3562_data = {
 	.deinit = rk3562_soc_deinit,
 };
 
+static int rk3576_soc_init(struct device *dev)
+{
+	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
+
+	/* enable internal codec to sai4 */
+	return regmap_write(rd->grf, RK3576_SYS_GRF_SOC_CON2,
+			    BIT(RK3576_DSM_SEL) << 16 | BIT(RK3576_DSM_SEL));
+}
+
+static void rk3576_soc_deinit(struct device *dev)
+{
+	struct rk_dsm_priv *rd = dev_get_drvdata(dev);
+
+	regmap_write(rd->grf, RK3576_SYS_GRF_SOC_CON2, BIT(RK3576_DSM_SEL) << 16);
+}
+
+static const struct rk_dsm_soc_data rk3576_data = {
+	.init = rk3576_soc_init,
+	.deinit = rk3576_soc_deinit,
+};
+
 #ifdef CONFIG_OF
 static const struct of_device_id rd_of_match[] = {
 	{ .compatible = "rockchip,rk3562-dsm", .data = &rk3562_data },
+	{ .compatible = "rockchip,rk3576-dsm", .data = &rk3576_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rd_of_match);
