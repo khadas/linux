@@ -202,16 +202,7 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 		 stream->id, isprk_buf,
 		 isprk_buf->isp_buf.buff_addr[0], isprk_buf->isp_buf.buff_addr[1]);
 
-	/* single sensor with pingpong buf, update next if need */
-	if (ispdev->hw_dev->is_single && !ispdev->is_suspend &&
-	    stream->id != RKISP_STREAM_VIR &&
-	    stream->id != RKISP_STREAM_LUMA &&
-	    stream->streaming && !stream->next_buf) {
-		stream->next_buf = &isprk_buf->isp_buf;
-		stream->ops->update_mi(stream);
-	} else {
-		list_add_tail(&isprk_buf->isp_buf.queue, &stream->buf_queue);
-	}
+	list_add_tail(&isprk_buf->isp_buf.queue, &stream->buf_queue);
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 
 	return 0;
