@@ -178,7 +178,7 @@ EXPORT_SYMBOL(rk628_hdmirx_set_hdcp);
 
 void rk628_hdmirx_controller_setup(struct rk628 *rk628)
 {
-	rk628_i2c_write(rk628, HDMI_RX_HDMI20_CONTROL, 0x10000f11);
+	rk628_i2c_write(rk628, HDMI_RX_HDMI20_CONTROL, 0x10000011);
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_MODE_RECOVER, 0x00000021);
 	rk628_i2c_write(rk628, HDMI_RX_PDEC_CTRL, 0xbfff8011);
 	rk628_i2c_write(rk628, HDMI_RX_PDEC_ASP_CTRL, 0x00000040);
