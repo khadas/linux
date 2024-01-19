@@ -368,7 +368,7 @@ static void rk628_csi_delayed_work_audio_v2(struct work_struct *work)
 						   delayed_work_audio);
 	struct rk628_audiostate *audio_state = &aif->audio_state;
 	struct rk628 *rk628 = aif->rk628;
-	u32 fs_audio;
+	u32 fs_audio, sample_flat;
 	int init_state, pre_state, fifo_status, fifo_ints;
 	unsigned long delay = 500;
 
@@ -423,6 +423,14 @@ static void rk628_csi_delayed_work_audio_v2(struct work_struct *work)
 		}
 	}
 	audio_state->pre_state = fifo_status;
+
+	rk628_i2c_read(rk628, HDMI_RX_AUD_SPARE, &sample_flat);
+	sample_flat = sample_flat & AUDS_MAS_SAMPLE_FLAT;
+	if (!sample_flat)
+		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_I2S_DATA_OEN_MASK, SW_I2S_DATA_OEN(0));
+	else
+		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_I2S_DATA_OEN_MASK, SW_I2S_DATA_OEN(1));
+
 exit:
 	schedule_delayed_work(&aif->delayed_work_audio, msecs_to_jiffies(delay));
 }
