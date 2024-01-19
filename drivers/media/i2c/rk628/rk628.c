@@ -82,10 +82,12 @@ static const struct regmap_range rk628_hdmirx_readable_ranges[] = {
 	regmap_reg_range(HDMI_RX_SCDC_WRDATA0, HDMI_RX_SCDC_WRDATA0),
 	regmap_reg_range(HDMI_RX_HDMI20_STATUS, HDMI_RX_HDMI20_STATUS),
 	regmap_reg_range(HDMI_RX_PDEC_ISTS, HDMI_RX_PDEC_IEN),
+	regmap_reg_range(HDMI_RX_AUD_CEC_ISTS, HDMI_RX_AUD_CEC_IEN),
 	regmap_reg_range(HDMI_RX_AUD_FIFO_ISTS, HDMI_RX_AUD_FIFO_IEN),
 	regmap_reg_range(HDMI_RX_MD_ISTS, HDMI_RX_MD_IEN),
 	regmap_reg_range(HDMI_RX_HDMI_ISTS, HDMI_RX_HDMI_IEN),
 	regmap_reg_range(HDMI_RX_DMI_DISABLE_IF, HDMI_RX_DMI_DISABLE_IF),
+	regmap_reg_range(HDMI_RX_CEC_CTRL, HDMI_RX_CEC_WAKEUPCTRL),
 };
 
 static const struct regmap_access_table rk628_hdmirx_readable_table = {

@@ -113,6 +113,8 @@ struct rk628_csi {
 	bool avi_rcv_rdy;
 	bool vid_ints_en;
 	bool continues_clk;
+	bool cec_enable;
+	struct rk628_hdmirx_cec *cec;
 	struct rk628_hdcp hdcp;
 	bool i2s_enable_default;
 	HAUDINFO audio_info;
@@ -505,6 +507,8 @@ static void rk628_csi_delayed_work_enable_hotplug(struct work_struct *work)
 		rk628_hdmirx_controller_setup(csi->rk628);
 		rk628_hdmirx_hpd_ctrl(sd, true);
 		rk628_hdmirx_config_all(sd);
+		if (csi->cec && csi->cec->adap)
+			rk628_hdmirx_cec_state_reconfiguration(csi->rk628, csi->cec);
 		rk628_csi_enable_interrupts(sd, true);
 		rk628_i2c_update_bits(csi->rk628, GRF_SYSTEM_CON0,
 				SW_I2S_DATA_OEN_MASK, SW_I2S_DATA_OEN(0));
@@ -600,6 +604,9 @@ static void rk628_hdmirx_hpd_ctrl(struct v4l2_subdev *sd, bool en)
 	set_level = en ? en_level : !en_level;
 	rk628_i2c_update_bits(csi->rk628, HDMI_RX_HDMI_SETUP_CTRL,
 			HOT_PLUG_DETECT_MASK, HOT_PLUG_DETECT(set_level));
+
+	if (csi->cec_enable && csi->cec)
+		rk628_hdmirx_cec_hpd(csi->cec, en);
 }
 
 
@@ -1297,7 +1304,7 @@ static void rk628_csi_initial_setup(struct v4l2_subdev *sd)
 
 	/* selete int io function */
 	rk628_i2c_write(csi->rk628, GRF_GPIO3AB_SEL_CON, 0x30002000);
-	rk628_i2c_write(csi->rk628, GRF_GPIO1AB_SEL_CON, HIWORD_UPDATE(0x7, 10, 8));
+	rk628_i2c_write(csi->rk628, GRF_GPIO1AB_SEL_CON, HIWORD_UPDATE(0xf, 11, 8));
 	/* I2S_SCKM0 */
 	rk628_i2c_write(csi->rk628, GRF_GPIO0AB_SEL_CON, HIWORD_UPDATE(0x1, 2, 2));
 	/* I2SLR_M0 */
@@ -1416,6 +1423,10 @@ static void rk628_csi_enable_interrupts(struct v4l2_subdev *sd, bool en)
 		rk628_i2c_write(csi->rk628, HDMI_RX_MD_IEN_CLR, md_mask);
 		rk628_i2c_write(csi->rk628, HDMI_RX_PDEC_IEN_CLR, pdec_mask);
 		rk628_i2c_write(csi->rk628, HDMI_RX_AUD_FIFO_IEN_CLR, 0x1f);
+		if (csi->cec && csi->cec->adap) {
+			rk628_i2c_write(csi->rk628, HDMI_RX_AUD_CEC_IEN_SET, 0);
+			rk628_i2c_write(csi->rk628, HDMI_RX_AUD_CEC_IEN_CLR, ~0);
+		}
 		csi->vid_ints_en = false;
 	}
 	usleep_range(5000, 5000);
@@ -1531,6 +1542,9 @@ static irqreturn_t rk628_csi_irq_handler(int irq, void *dev_id)
 	bool handled = true;
 
 	rk628_csi_isr(&csi->sd, 0, &handled);
+
+	if (csi->cec_enable && csi->cec)
+		rk628_hdmirx_cec_irq(csi->rk628, csi->cec);
 
 	return handled ? IRQ_HANDLED : IRQ_NONE;
 }
@@ -2435,6 +2449,9 @@ static int rk628_csi_probe_of(struct rk628_csi *csi)
 	if (of_property_read_bool(dev->of_node, "hdcp-enable"))
 		hdcp1x_enable = true;
 
+	if (of_property_read_bool(dev->of_node, "cec-enable"))
+		csi->cec_enable = true;
+
 	if (of_property_read_bool(dev->of_node, "i2s-enable-default"))
 		i2s_enable_default = true;
 
@@ -2847,6 +2864,10 @@ static int rk628_csi_remove(struct i2c_client *client)
 		del_timer_sync(&csi->timer);
 		flush_work(&csi->work_i2c_poll);
 	}
+
+	if (csi->cec_enable && csi->cec)
+		rk628_hdmirx_cec_unregister(csi->cec);
+
 	rk628_hdmirx_audio_cancel_work_audio(csi->audio_info, true);
 	rk628_hdmirx_audio_cancel_work_rate_change(csi->audio_info, true);
 	cancel_delayed_work_sync(&csi->delayed_work_enable_hotplug);

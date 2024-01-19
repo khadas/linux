@@ -8,6 +8,8 @@
 #ifndef __RK628_HDMIRX_H
 #define __RK628_HDMIRX_H
 
+#include <media/cec.h>
+#include <media/cec-notifier.h>
 #include <media/v4l2-dv-timings.h>
 #include "rk628.h"
 
@@ -316,7 +318,21 @@
 #define HDMI_RX_PDEC_ICLR		(HDMI_RX_BASE + 0x0f88)
 #define HDMI_RX_PDEC_ISET		(HDMI_RX_BASE + 0x0f8c)
 #define HDMI_RX_AUD_CEC_IEN_CLR		(HDMI_RX_BASE + 0x0f90)
+#define HDMI_RX_AUD_CEC_IEN_SET		(HDMI_RX_BASE + 0x0f94)
+#define ERROR_INIT_ENSET		BIT(20)
+#define ARBLST_ENSET			BIT(19)
+#define NACK_ENSET			BIT(18)
+#define EOM_ENSET			BIT(17)
+#define DONE_ENSET			BIT(16)
+#define HDMI_RX_AUD_CEC_ISTS		(HDMI_RX_BASE + 0x0f98)
+#define ERROR_INIT			BIT(20)
+#define ARBLST				BIT(19)
+#define NACK				BIT(18)
+#define EOM				BIT(17)
+#define DONE				BIT(16)
 #define HDMI_RX_AUD_CEC_IEN		(HDMI_RX_BASE + 0x0f9c)
+#define HDMI_RX_AUD_CEC_ICLR		(HDMI_RX_BASE + 0x0fa0)
+#define HDMI_RX_AUD_CEC_ISET		(HDMI_RX_BASE + 0x0fa4)
 #define HDMI_RX_AUD_FIFO_IEN_CLR	(HDMI_RX_BASE + 0x0fa8)
 #define HDMI_RX_AUD_FIFO_IEN_SET	(HDMI_RX_BASE + 0x0fac)
 #define AFIF_OVERFL_ENSET		BIT(4)
@@ -369,10 +385,28 @@
 #define HDMI_RX_DMI_DISABLE_IF		(HDMI_RX_BASE + 0x0ff4)
 #define VID_ENABLE(x)			UPDATE(x, 7, 7)
 #define VID_ENABLE_MASK			BIT(7)
+#define CEC_ENABLE(x)			UPDATE(x, 5, 5)
+#define CEC_ENABLE_MASK			BIT(5)
 #define AUD_ENABLE(x)			UPDATE(x, 4, 4)
 #define AUD_ENABLE_MASK			BIT(4)
 #define HDMI_ENABLE(x)			UPDATE(x, 2, 2)
 #define HDMI_ENABLE_MASK		BIT(2)
+
+#define HDMI_RX_CEC_CTRL		(HDMI_RX_BASE + 0x1f00)
+#define CEC_CTRL_FRAME_TYP		(3 << 1)
+#define CEC_CTRL_IMMED			(2 << 1)
+#define CEC_CTRL_NORMAL			(1 << 1)
+#define CEC_CTRL_RETRY			(0 << 1)
+#define CEC_SEND			BIT(0)
+#define HDMI_RX_CEC_MASK		(HDMI_RX_BASE + 0x1f08)
+#define HDMI_RX_CEC_ADDR_L		(HDMI_RX_BASE + 0x1f14)
+#define HDMI_RX_CEC_ADDR_H		(HDMI_RX_BASE + 0x1f18)
+#define HDMI_RX_CEC_TX_CNT		(HDMI_RX_BASE + 0x1f1c)
+#define HDMI_RX_CEC_RX_CNT		(HDMI_RX_BASE + 0x1f20)
+#define HDMI_RX_CEC_TX_DATA_0		(HDMI_RX_BASE + 0x1f40)
+#define HDMI_RX_CEC_RX_DATA_0		(HDMI_RX_BASE + 0x1f80)
+#define HDMI_RX_CEC_LOCK		(HDMI_RX_BASE + 0x1fc0)
+#define HDMI_RX_CEC_WAKEUPCTRL		(HDMI_RX_BASE + 0x1fc4)
 
 #define HDMI_RX_IVECTOR_INDEX_CB	(HDMI_RX_BASE + 0x32e4)
 #define HDMI_RX_MAX_REGISTER		HDMI_RX_IVECTOR_INDEX_CB
@@ -434,6 +468,18 @@ struct rk628_hdcp {
 	struct hdcp_keys *keys;
 };
 
+struct rk628_hdmirx_cec {
+	struct device *dev;
+	struct rk628 *rk628;
+	u32 addresses;
+	struct cec_adapter *adap;
+	struct cec_msg rx_msg;
+	unsigned int tx_status;
+	bool tx_done;
+	bool rx_done;
+	struct cec_notifier *notify;
+};
+
 void rk628_hdmirx_set_hdcp(struct rk628 *rk628, struct rk628_hdcp *hdcp, bool en);
 void rk628_hdmirx_controller_setup(struct rk628 *rk628);
 
@@ -469,4 +515,10 @@ void rk628_hdmirx_controller_reset(struct rk628 *rk628);
 bool rk628_hdmirx_scdc_ced_err(struct rk628 *rk628);
 bool rk628_hdmirx_is_signal_change_ists(struct rk628 *rk628);
 
+void rk628_hdmirx_cec_irq(struct rk628 *rk628, struct rk628_hdmirx_cec *cec);
+struct rk628_hdmirx_cec *rk628_hdmirx_cec_register(struct rk628 *rk628);
+void rk628_hdmirx_cec_unregister(struct rk628_hdmirx_cec *cec);
+void rk628_hdmirx_cec_hpd(struct rk628_hdmirx_cec *cec, bool en);
+void rk628_hdmirx_cec_state_reconfiguration(struct rk628 *rk628,
+					    struct rk628_hdmirx_cec *cec);
 #endif

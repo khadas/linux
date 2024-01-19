@@ -433,6 +433,19 @@ static unsigned long rk628_cru_clk_set_rate_sclk_uart(struct rk628 *rk628,
 	return rate;
 }
 
+static unsigned long rk628_cru_clk_set_rate_cec(struct rk628 *rk628,
+						unsigned long rate)
+{
+	unsigned long m, n, parent_rate = REFCLK_RATE;
+
+	rational_best_approximation(rate, parent_rate,
+				    GENMASK(15, 0), GENMASK(15, 0),
+				    &m, &n);
+	rk628_i2c_write(rk628, CRU_CLKSEL_CON12, m << 16 | n);
+
+	return rate;
+}
+
 void rk628_clk_mux_testout(struct rk628 *rk628, int id)
 {
 	switch (id) {
@@ -444,6 +457,9 @@ void rk628_clk_mux_testout(struct rk628 *rk628, int id)
 		break;
 	case CGU_CLK_HDMIRX_AUD:
 		rk628_i2c_write(rk628, CRU_CLKSEL_CON06, 0x000f000b);
+		break;
+	case CGU_CLK_HDMIRX_CEC:
+		rk628_i2c_write(rk628, CRU_CLKSEL_CON06, 0x000f000c);
 		break;
 	}
 }
@@ -472,6 +488,9 @@ int rk628_clk_set_rate(struct rk628 *rk628, unsigned int id,
 		break;
 	case CGU_CLK_HDMIRX_AUD:
 		rk628_cru_clk_set_rate_sclk_hdmirx_aud(rk628, rate);
+		break;
+	case CGU_CLK_HDMIRX_CEC:
+		rk628_cru_clk_set_rate_cec(rk628, rate);
 		break;
 	default:
 		return -EINVAL;
