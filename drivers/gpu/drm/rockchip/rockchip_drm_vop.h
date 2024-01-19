@@ -717,6 +717,28 @@ struct vop2_cluster_regs {
 	struct vop_reg scl_lb_mode;
 	struct vop_reg frm_reset_en;
 
+	struct vop_reg blk_size_h;
+	struct vop_reg blk_size_v;
+	struct vop_reg blk_offset_h;
+	struct vop_reg blk_offset_v;
+	struct vop_reg blk_size_fix;
+	struct vop_reg pix_region_start_h;
+	struct vop_reg pix_region_start_v;
+	struct vop_reg sat_adj_zero;
+	struct vop_reg sat_adj_thr;
+	struct vop_reg sat_adj_k;
+	struct vop_reg sat_w;
+	struct vop_reg dci_en;
+	struct vop_reg uv_adjust_en;
+	struct vop_reg csc_range;
+	struct vop_reg dma_rid;
+	struct vop_reg dma_rlen;
+	struct vop_reg dci_dma_mst;
+	struct vop_reg debug_point_h;
+	struct vop_reg debug_point_v;
+	struct vop_reg debug_mode;
+	struct vop_reg debug_en;
+
 	struct vop_reg src_color_ctrl;
 	struct vop_reg dst_color_ctrl;
 	struct vop_reg src_alpha_ctrl;
@@ -1055,6 +1077,7 @@ struct vop2_win_data {
 	uint8_t axi_yrgb_id;
 	uint8_t axi_uv_id;
 	uint8_t possible_crtcs;
+	uint8_t dci_rid_id;
 
 	uint32_t base;
 	enum drm_plane_type type;

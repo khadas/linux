@@ -231,6 +231,21 @@ struct post_csc {
 	u16 csc_enable;
 };
 
+#define ROCKCHIP_VOP_DCI_LUT_LENGTH 5632
+
+struct dci_data {
+	u32 plat; /* Reserved to distinguish later platform */
+	u8 dci_lut_data[ROCKCHIP_VOP_DCI_LUT_LENGTH];
+	u32 blk_size_h_ratio;
+	u32 blk_size_v_ratio;
+	u32 dci_act_w;
+	u32 dci_act_h;
+	u32 adj0;
+	u32 adj1;
+	u32 uv_adj;
+	u32 dci_en;
+};
+
 struct rockchip_crtc_state {
 	struct drm_crtc_state base;
 	int vp_id;

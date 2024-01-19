@@ -375,6 +375,8 @@ struct vop2_plane_state {
 	int pdaf_data_type;
 	bool async_commit;
 	struct vop_dump_list *planlist;
+
+	struct drm_property_blob *dci_data;
 };
 
 struct vop2_win {
@@ -488,6 +490,14 @@ struct vop2_win {
 	struct drm_property *color_key_prop;
 	struct drm_property *scale_prop;
 	struct drm_property *name_prop;
+	/**
+	 * @dci_data_prop: dci data interaction with userspace
+	 */
+	struct drm_property *dci_data_prop;
+	/**
+	 * @dci_lut_gem_obj: gem obj to store dci lut
+	 */
+	struct rockchip_gem_object *dci_lut_gem_obj;
 };
 
 struct vop2_cluster {
@@ -1905,6 +1915,10 @@ static void vop2_win_disable(struct vop2_win *win, bool skip_splice_win)
 		if (!win->parent && (win->feature & WIN_FEATURE_MULTI_AREA))
 			vop2_win_multi_area_disable(win);
 
+		/* disable post dci */
+		if (win->feature & WIN_FEATURE_DCI)
+			VOP_CLUSTER_SET(vop2, win, dci_en, 0);
+
 		if (win->pd) {
 
 			/*
@@ -2883,6 +2897,25 @@ static void vop2_setup_scale(struct vop2 *vop2, struct vop2_win *win,
 			VOP_SCL_SET(vop2, win, cbcr_hscl_filter_mode, hscl_filter_mode);
 			VOP_SCL_SET(vop2, win, cbcr_vscl_filter_mode, vscl_filter_mode);
 		}
+	}
+}
+
+static bool vop2_is_full_range_csc_mode(int csc_mode)
+{
+	switch (csc_mode) {
+	case CSC_BT601L:
+	case CSC_BT709L:
+	case CSC_BT709L_13BIT:
+	case CSC_BT2020L_13BIT:
+	case CSC_BT2020L:
+		return false;
+	case CSC_BT601F:
+	case CSC_BT709F_13BIT:
+	case CSC_BT2020F_13BIT:
+		return true;
+	default:
+		DRM_ERROR("Unsupported csc mode:%d\n", csc_mode);
+		return true;
 	}
 }
 
@@ -5361,6 +5394,102 @@ static const char *modifier_to_string(uint64_t modifier)
 	}
 }
 
+static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpstate)
+{
+	struct vop2 *vop2 = win->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_win_data *win_data = &vop2_data->win[win->win_id];
+	struct rockchip_gem_object *dci_gem_obj;
+	struct dci_data *dci_data;
+	struct drm_rect *src = &vpstate->src;
+	u32 *dci_lut_kvaddr;
+	dma_addr_t dci_lut_mst;
+	u16 blk_size_h, blk_size_v;
+	u16 blk_offset_h, blk_offset_v;
+	u16 pix_region_start_h, pix_region_start_v;
+	u32 blk_size_fix;
+	u32 blk_size_hor_half, blk_size_ver_half;
+	u8 dw, dh;
+
+	if (!vpstate->dci_data || !vpstate->dci_data->data) {
+		VOP_CLUSTER_SET(vop2, win, dci_en, 0);
+		return;
+	}
+
+	if (!win->dci_lut_gem_obj) {
+		dci_gem_obj = rockchip_gem_create_object(win->vop2->drm_dev,
+			ROCKCHIP_VOP_DCI_LUT_LENGTH, true, 0);
+		if (IS_ERR(dci_gem_obj)) {
+			DRM_ERROR("create dci lut obj failed\n");
+			return;
+		}
+		win->dci_lut_gem_obj = dci_gem_obj;
+	}
+
+	dci_data = (struct dci_data *)vpstate->dci_data->data;
+
+	if (!dci_data->dci_en) {
+		VOP_CLUSTER_SET(vop2, win, dci_en, 0);
+		return;
+	}
+
+	dw = src->x1;
+	dh = src->y1;
+	blk_size_h = (dci_data->blk_size_h_ratio * dci_data->dci_act_w + 512) >> 10;
+	blk_size_v = (dci_data->blk_size_v_ratio * dci_data->dci_act_h + 512) >> 10;
+
+	blk_size_fix = DIV_ROUND_CLOSEST((1 << 25), ((blk_size_h - 1) * (blk_size_v - 1)));
+	blk_size_hor_half = DIV_ROUND_CLOSEST(blk_size_h, 2);
+	blk_size_ver_half = DIV_ROUND_CLOSEST(blk_size_v, 2);
+
+	if (dw < blk_size_hor_half)
+		pix_region_start_h = 0;
+	else
+		pix_region_start_h =
+			DIV_ROUND_DOWN_ULL((u64)(dw - blk_size_hor_half), blk_size_h) + 1;
+
+	if (dh < blk_size_ver_half)
+		pix_region_start_v = 0;
+	else
+		pix_region_start_v =
+			DIV_ROUND_DOWN_ULL((u64)(dh - blk_size_ver_half), blk_size_v) + 1;
+
+	blk_offset_h = dw - blk_size_hor_half - ((pix_region_start_h - 1) * blk_size_h);
+	blk_offset_v = dh - blk_size_ver_half - ((pix_region_start_v - 1) * blk_size_v);
+
+	dci_lut_kvaddr = (u32 *)win->dci_lut_gem_obj->kvaddr;
+	dci_lut_mst = win->dci_lut_gem_obj->dma_addr;
+
+	memcpy(dci_lut_kvaddr, dci_data->dci_lut_data, ROCKCHIP_VOP_DCI_LUT_LENGTH);
+
+	VOP_CLUSTER_SET(vop2, win, dci_dma_mst, dci_lut_mst);
+	/* dci dma rid */
+	VOP_CLUSTER_SET(vop2, win, dma_rid, win_data->dci_rid_id);
+	VOP_CLUSTER_SET(vop2, win, dma_rlen, 0);
+
+	VOP_CLUSTER_SET(vop2, win, blk_size_h, blk_size_h);
+	VOP_CLUSTER_SET(vop2, win, blk_size_v, blk_size_v);
+
+	VOP_CLUSTER_SET(vop2, win, blk_offset_h, blk_offset_h);
+	VOP_CLUSTER_SET(vop2, win, blk_offset_v, blk_offset_v);
+
+	VOP_CLUSTER_SET(vop2, win, pix_region_start_h, pix_region_start_h);
+	VOP_CLUSTER_SET(vop2, win, pix_region_start_v, pix_region_start_v);
+
+	VOP_CLUSTER_SET(vop2, win, blk_size_fix, blk_size_fix);
+
+	VOP_CLUSTER_SET(vop2, win, sat_adj_zero, dci_data->adj0 & 0xffff);
+	VOP_CLUSTER_SET(vop2, win, sat_adj_thr, (dci_data->adj0 >> 16) & 0xffff);
+	VOP_CLUSTER_SET(vop2, win, sat_adj_k, dci_data->adj1 & 0xffff);
+	VOP_CLUSTER_SET(vop2, win, sat_w, (dci_data->adj1 >> 16) & 0x7f);
+
+	VOP_CLUSTER_SET(vop2, win, uv_adjust_en, dci_data->uv_adj);
+	VOP_CLUSTER_SET(vop2, win, csc_range, vop2_is_full_range_csc_mode(vpstate->csc_mode));
+	VOP_CLUSTER_SET(vop2, win, dci_en, 1);
+
+	VOP_CTRL_SET(vop2, lut_dma_en, 1);
+}
+
 static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, struct drm_rect *dst,
 				   struct drm_plane_state *pstate)
 {
@@ -5488,6 +5617,8 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	}
 
 	vop2_setup_csc_mode(vp, vpstate);
+	if (win->feature & WIN_FEATURE_DCI)
+		vop3_dci_config(win, vpstate);
 
 	afbc_half_block_en = vop2_afbc_half_block_enable(vpstate);
 
@@ -5941,6 +6072,9 @@ static struct drm_plane_state *vop2_atomic_plane_duplicate_state(struct drm_plan
 	vpstate->hdr_in = 0;
 	vpstate->hdr2sdr_en = 0;
 
+	if (vpstate->dci_data)
+		drm_property_blob_get(vpstate->dci_data);
+
 	__drm_atomic_helper_plane_duplicate_state(plane, &vpstate->base);
 
 	return &vpstate->base;
@@ -5951,9 +6085,43 @@ static void vop2_atomic_plane_destroy_state(struct drm_plane *plane,
 {
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(state);
 
+	drm_property_blob_put(vpstate->dci_data);
 	__drm_atomic_helper_plane_destroy_state(state);
 
 	kfree(vpstate);
+}
+
+/* copied from drm_atomic.c */
+static int
+vop2_atomic_replace_property_blob_from_id(struct drm_device *dev,
+					 struct drm_property_blob **blob,
+					 uint64_t blob_id,
+					 ssize_t expected_size,
+					 ssize_t expected_elem_size,
+					 bool *replaced)
+{
+	struct drm_property_blob *new_blob = NULL;
+
+	if (blob_id != 0) {
+		new_blob = drm_property_lookup_blob(dev, blob_id);
+		if (new_blob == NULL)
+			return -EINVAL;
+
+		if (expected_size > 0 &&
+		    new_blob->length != expected_size) {
+			drm_property_blob_put(new_blob);
+			return -EINVAL;
+		}
+		if (expected_elem_size > 0 && new_blob->length % expected_elem_size != 0) {
+			drm_property_blob_put(new_blob);
+			return -EINVAL;
+		}
+	}
+
+	*replaced |= drm_property_replace_blob(blob, new_blob);
+	drm_property_blob_put(new_blob);
+
+	return 0;
 }
 
 static int vop2_atomic_plane_set_property(struct drm_plane *plane,
@@ -5961,9 +6129,12 @@ static int vop2_atomic_plane_set_property(struct drm_plane *plane,
 					  struct drm_property *property,
 					  uint64_t val)
 {
+	struct drm_device *drm_dev = plane->dev;
 	struct rockchip_drm_private *private = plane->dev->dev_private;
 	struct vop2_plane_state *vpstate = to_vop2_plane_state(state);
 	struct vop2_win *win = to_vop2_win(plane);
+	int ret;
+	bool replaced = false;
 
 	if (property == private->eotf_prop) {
 		vpstate->eotf = val;
@@ -5978,6 +6149,15 @@ static int vop2_atomic_plane_set_property(struct drm_plane *plane,
 	if (property == win->color_key_prop) {
 		vpstate->color_key = val;
 		return 0;
+	}
+
+	if (property == win->dci_data_prop) {
+		ret = vop2_atomic_replace_property_blob_from_id(drm_dev,
+								&vpstate->dci_data,
+								val,
+								sizeof(struct dci_data), -1,
+								&replaced);
+		return ret;
 	}
 
 	DRM_ERROR("failed to set vop2 plane property id:%d, name:%s\n",
@@ -6019,6 +6199,11 @@ static int vop2_atomic_plane_get_property(struct drm_plane *plane,
 
 	if (property == win->color_key_prop) {
 		*val = vpstate->color_key;
+		return 0;
+	}
+
+	if (property == win->dci_data_prop) {
+		*val = vpstate->dci_data ? vpstate->dci_data->base.id : 0;
 		return 0;
 	}
 
@@ -10931,40 +11116,6 @@ static int vop2_crtc_atomic_get_property(struct drm_crtc *crtc,
 	return -EINVAL;
 }
 
-/* copied from drm_atomic.c */
-static int
-vop2_atomic_replace_property_blob_from_id(struct drm_device *dev,
-					 struct drm_property_blob **blob,
-					 uint64_t blob_id,
-					 ssize_t expected_size,
-					 ssize_t expected_elem_size,
-					 bool *replaced)
-{
-	struct drm_property_blob *new_blob = NULL;
-
-	if (blob_id != 0) {
-		new_blob = drm_property_lookup_blob(dev, blob_id);
-		if (new_blob == NULL)
-			return -EINVAL;
-
-		if (expected_size > 0 &&
-		    new_blob->length != expected_size) {
-			drm_property_blob_put(new_blob);
-			return -EINVAL;
-		}
-		if (expected_elem_size > 0 &&
-		    new_blob->length % expected_elem_size != 0) {
-			drm_property_blob_put(new_blob);
-			return -EINVAL;
-		}
-	}
-
-	*replaced |= drm_property_replace_blob(blob, new_blob);
-	drm_property_blob_put(new_blob);
-
-	return 0;
-}
-
 static int vop2_crtc_atomic_set_property(struct drm_crtc *crtc,
 					 struct drm_crtc_state *state,
 					 struct drm_property *property,
@@ -11556,6 +11707,22 @@ static int vop2_plane_create_feature_property(struct vop2 *vop2, struct vop2_win
 	return 0;
 }
 
+static int vop2_plane_create_dci_property(struct vop2 *vop2, struct vop2_win *win)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create(vop2->drm_dev, DRM_MODE_PROP_BLOB, "DCI_DATA", 0);
+	if (!prop) {
+		DRM_DEV_ERROR(vop2->dev, "create dci data prop for win%d failed\n",
+			      win->win_id);
+		return -ENOMEM;
+	}
+	win->dci_data_prop = prop;
+	drm_object_attach_property(&win->base.base, win->dci_data_prop, 0);
+
+	return 0;
+}
+
 static bool vop3_ignore_plane(struct vop2 *vop2, struct vop2_win *win)
 {
 	if (!is_vop3(vop2))
@@ -11673,6 +11840,9 @@ static int vop2_plane_init(struct vop2 *vop2, struct vop2_win *win, unsigned lon
 	drm_plane_create_zpos_property(&win->base, win->win_id, 0, vop2->registered_num_wins - 1);
 	vop2_plane_create_name_property(vop2, win);
 	vop2_plane_create_feature_property(vop2, win);
+	if (win->feature & WIN_FEATURE_DCI)
+		vop2_plane_create_dci_property(vop2, win);
+
 	max_width = vop2->data->max_input.width;
 	max_height = vop2->data->max_input.height;
 	if (win->feature & WIN_FEATURE_CLUSTER_SUB)
