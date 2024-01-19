@@ -7212,6 +7212,10 @@ static void vop2_dither_setup(struct rockchip_crtc_state *vcstate, struct drm_cr
 		pre_dither_down_en = false;
 
 	if (vp_data->feature & VOP_FEATURE_POST_FRC_V2 && pre_dither_down_en) {
+		vop2_writel(vop2, RK3576_VP0_POST_DITHER_FRC_0, 0x00000000);
+		vop2_writel(vop2, RK3576_VP0_POST_DITHER_FRC_1, 0x01000100);
+		vop2_writel(vop2, RK3576_VP0_POST_DITHER_FRC_2, 0x04030100);
+
 		VOP_MODULE_SET(vop2, vp, pre_dither_down_en, 0);
 		VOP_MODULE_SET(vop2, vp, dither_down_en, 1);/* enable frc2.0 do 10->8 */
 		VOP_MODULE_SET(vop2, vp, dither_down_sel, DITHER_DOWN_FRC);
