@@ -60,7 +60,7 @@ static const char *serdes_gpio_groups[] = {
 	.group_names = serdes_gpio_groups, \
 	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
 	.data = (void *)(const struct serdes_function_data []) { \
-		{ .gpio_rx_en = 1, .gpio_id = id + 2 } \
+		{ .gpio_rx_en = 1, .gpio_id = id ? (id + 2) : 0x12 } \
 	}, \
 } \
 
@@ -71,7 +71,7 @@ static const char *serdes_gpio_groups[] = {
 	.group_names = serdes_gpio_groups, \
 	.num_group_names = ARRAY_SIZE(serdes_gpio_groups), \
 	.data = (void *)(const struct serdes_function_data []) { \
-		{ .gpio_rx_en = 0, .gpio_id = id + 2 } \
+		{ .gpio_rx_en = 0, .gpio_id = id ? (id + 2) : 0x12 } \
 	}, \
 } \
 
@@ -167,6 +167,9 @@ static struct function_desc bu18rl82_functions_desc[] = {
 	FUNCTION_DESC_GPIO_OUTPUT_LOW(),
 
 	FUNCTION_DES_DELAY_MS(10),
+	FUNCTION_DES_DELAY_MS(20),
+	FUNCTION_DES_DELAY_MS(30),
+	FUNCTION_DES_DELAY_MS(40),
 	FUNCTION_DES_DELAY_MS(50),
 	FUNCTION_DES_DELAY_MS(100),
 	FUNCTION_DES_DELAY_MS(200),
