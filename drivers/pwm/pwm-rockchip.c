@@ -30,6 +30,12 @@
 #define PWM_CTRL_TIMER_EN	(1 << 0)
 #define PWM_CTRL_OUTPUT_EN	(1 << 3)
 
+/* PWM_PERIOD_HPR */
+#define PWM_PERIOD_HPR		0x4
+/* PWM_DUTY_LPR */
+#define PWM_DUTY_LPR		0x8
+/* PWM_CTRL */
+#define PWM_CTRL_V1		0xc
 #define PWM_ENABLE		(1 << 0)
 #define PWM_MODE_SHIFT		1
 #define PWM_MODE_MASK		(0x3 << PWM_MODE_SHIFT)
@@ -53,7 +59,6 @@
 #define PWM_PRESCALE_MASK	(0x3 << PWM_PRESCELE_SHIFT)
 #define PWM_SCALE_SHIFT		16
 #define PWM_SCALE_MASK		(0xff << PWM_SCALE_SHIFT)
-
 #define PWM_ONESHOT_COUNT_SHIFT	24
 #define PWM_ONESHOT_COUNT_MASK	(0xff << PWM_ONESHOT_COUNT_SHIFT)
 
@@ -68,6 +73,7 @@
 #define HIWORD_UPDATE(v, l, h)	(((v) << (l)) | (GENMASK(h, l) << 16))
 
 /* VERSION_ID */
+#define VERSION_ID			0x0
 #define CHANNEL_NUM_SUPPORT_SHIFT	0
 #define CHANNEL_NUM_SUPPORT_MASK	(0xf << CHANNEL_NUM_SUPPORT_SHIFT)
 #define CHANNLE_INDEX_SHIFT		4
@@ -82,18 +88,21 @@
 #define MINOR_VERSION_MASK		(0xff << MINOR_VERSION_SHIFT)
 #define MAIN_VERSION_SHIFT		24
 #define MAIN_VERSION_MASK		(0xff << MAIN_VERSION_SHIFT)
-/* PWM_ENABLE */
+/* ENABLE */
+#define ENABLE				0x4
 #define PWM_ENABLE_V4			(0x3 << 0)
 #define PWM_CLK_EN(v)			HIWORD_UPDATE(v, 0, 0)
 #define PWM_EN(v)			HIWORD_UPDATE(v, 1, 1)
 #define PWM_CTRL_UPDATE_EN(v)		HIWORD_UPDATE(v, 2, 2)
 #define PWM_GLOBAL_JOIN_EN(v)		HIWORD_UPDATE(v, 4, 4)
-/* PWM_CLK_CTRL */
+/* CLK_CTRL */
+#define CLK_CTRL			0x8
 #define CLK_PRESCALE(v)			HIWORD_UPDATE(v, 0, 2)
 #define CLK_SCALE(v)			HIWORD_UPDATE(v, 4, 12)
 #define CLK_SRC_SEL(v)			HIWORD_UPDATE(v, 13, 14)
 #define CLK_GLOBAL_SEL(v)		HIWORD_UPDATE(v, 15, 15)
-/* PWM_CTRL */
+/* CTRL */
+#define CTRL_V4				0xc
 #define PWM_MODE(v)			HIWORD_UPDATE(v, 0, 1)
 #define ONESHOT_MODE			0
 #define CONTINUOUS_MODE			1
@@ -105,10 +114,22 @@
 #define INACTIVE_POSITIVE		(1 << 1)
 #define PWM_ALIGNED_INVALID(v)		HIWORD_UPDATE(v, 5, 5)
 #define PWM_IN_SEL(v)			HIWORD_UPDATE(v, 6, 8)
-/* PWM_RPT */
+/* PERIOD */
+#define PERIOD				0x10
+/* DUTY */
+#define DUTY				0x14
+/* OFFSET */
+#define OFFSET				0x18
+/* RPT */
+#define RPT				0x1c
 #define FIRST_DIMENSIONAL_SHIFT		0
 #define SECOND_DIMENSINAL_SHIFT		16
+/* HPC */
+#define HPC				0x2c
+/* LPC */
+#define LPC				0x30
 /* INTSTS*/
+#define INTSTS				0x70
 #define CAP_LPR_INTSTS_SHIFT		0
 #define CAP_HPR_INTSTS_SHIFT		1
 #define ONESHOT_END_INTSTS_SHIFT	2
@@ -128,6 +149,7 @@
 #define WAVE_MAX_INT			BIT(WAVE_MAX_INT_SHIFT)
 #define WAVE_MIDDLE_INT			BIT(WAVE_MIDDLE_INT_SHIFT)
 /* INT_EN */
+#define INT_EN				0x74
 #define CAP_LPR_INT_EN(v)		HIWORD_UPDATE(v, 0, 0)
 #define CAP_HPR_INT_EN(v)		HIWORD_UPDATE(v, 1, 1)
 #define ONESHOT_END_INT_EN(v)		HIWORD_UPDATE(v, 2, 2)
@@ -241,19 +263,9 @@ struct rockchip_pwm_chip {
 struct rockchip_pwm_regs {
 	unsigned long duty;
 	unsigned long period;
-	unsigned long cntr;
 	unsigned long ctrl;
 	unsigned long version;
-
 	unsigned long enable;
-	unsigned long clk_ctrl;
-	unsigned long offset;
-	unsigned long rpt;
-	unsigned long hpr;
-	unsigned long lpr;
-	unsigned long intsts;
-	unsigned long int_en;
-	unsigned long int_mask;
 };
 
 struct rockchip_pwm_funcs {
@@ -409,7 +421,7 @@ static void rockchip_pwm_config_v1(struct pwm_chip *chip, struct pwm_device *pwm
 
 	local_irq_save(flags);
 
-	ctrl = readl_relaxed(pc->base + pc->data->regs.ctrl);
+	ctrl = readl_relaxed(pc->base + PWM_CTRL_V1);
 	if (pc->data->vop_pwm) {
 		if (pc->vop_pwm_en)
 			ctrl |= PWM_ENABLE;
@@ -475,11 +487,11 @@ static void rockchip_pwm_config_v1(struct pwm_chip *chip, struct pwm_device *pwm
 	 */
 	if (pc->data->supports_lock) {
 		ctrl |= PWM_LOCK_EN;
-		writel_relaxed(ctrl, pc->base + pc->data->regs.ctrl);
+		writel_relaxed(ctrl, pc->base + PWM_CTRL_V1);
 	}
 
-	writel(period, pc->base + pc->data->regs.period);
-	writel(duty, pc->base + pc->data->regs.duty);
+	writel(period, pc->base + PWM_PERIOD_HPR);
+	writel(duty, pc->base + PWM_DUTY_LPR);
 
 	if (pc->data->supports_polarity) {
 		ctrl &= ~PWM_POLARITY_MASK;
@@ -499,7 +511,7 @@ static void rockchip_pwm_config_v1(struct pwm_chip *chip, struct pwm_device *pwm
 		ndelay(delay_ns);
 	}
 
-	writel(ctrl, pc->base + pc->data->regs.ctrl);
+	writel(ctrl, pc->base + PWM_CTRL_V1);
 	local_irq_restore(flags);
 }
 
@@ -516,7 +528,7 @@ static int rockchip_pwm_enable_v1(struct pwm_chip *chip, struct pwm_device *pwm,
 			return ret;
 	}
 
-	val = readl_relaxed(pc->base + pc->data->regs.ctrl);
+	val = readl_relaxed(pc->base + PWM_CTRL_V1);
 	val &= ~pc->data->enable_conf_mask;
 
 	if (PWM_OUTPUT_CENTER & pc->data->enable_conf_mask) {
@@ -532,7 +544,7 @@ static int rockchip_pwm_enable_v1(struct pwm_chip *chip, struct pwm_device *pwm,
 		val &= ~enable_conf;
 	}
 
-	writel_relaxed(val, pc->base + pc->data->regs.ctrl);
+	writel_relaxed(val, pc->base + PWM_CTRL_V1);
 	if (pc->data->vop_pwm)
 		pc->vop_pwm_en = enable;
 
@@ -548,12 +560,12 @@ static irqreturn_t rockchip_pwm_irq_v4(int irq, void *data)
 	int val;
 	irqreturn_t ret = IRQ_NONE;
 
-	val = readl_relaxed(pc->base + pc->data->regs.intsts);
+	val = readl_relaxed(pc->base + INTSTS);
 #ifdef CONFIG_PWM_ROCKCHIP_ONESHOT
 	if (val & ONESHOT_END_INT) {
 		struct pwm_state state;
 
-		writel_relaxed(ONESHOT_END_INT, pc->base + pc->data->regs.intsts);
+		writel_relaxed(ONESHOT_END_INT, pc->base + INTSTS);
 
 		/*
 		 * Set pwm state to disabled when the oneshot mode finished.
@@ -570,12 +582,12 @@ static irqreturn_t rockchip_pwm_irq_v4(int irq, void *data)
 	}
 #endif
 	if (val & CAP_LPR_INT) {
-		writel_relaxed(CAP_LPR_INT, pc->base + pc->data->regs.intsts);
+		writel_relaxed(CAP_LPR_INT, pc->base + INTSTS);
 		pc->capture_cnt++;
 
 		ret = IRQ_HANDLED;
 	} else if (val & CAP_HPR_INT) {
-		writel_relaxed(CAP_HPR_INT, pc->base + pc->data->regs.intsts);
+		writel_relaxed(CAP_HPR_INT, pc->base + INTSTS);
 		pc->capture_cnt++;
 
 		ret = IRQ_HANDLED;
@@ -594,13 +606,12 @@ static irqreturn_t rockchip_pwm_irq_v4(int irq, void *data)
 	 * position 2, where the HPR and LPR interrupts come again.
 	 */
 	if (pc->capture_cnt > 3) {
-		writel_relaxed(CAP_LPR_INT | CAP_HPR_INT, pc->base + pc->data->regs.intsts);
-		writel_relaxed(CAP_LPR_INT_EN(false) | CAP_HPR_INT_EN(false),
-			       pc->base + pc->data->regs.int_en);
+		writel_relaxed(CAP_LPR_INT | CAP_HPR_INT, pc->base + INTSTS);
+		writel_relaxed(CAP_LPR_INT_EN(false) | CAP_HPR_INT_EN(false), pc->base + INT_EN);
 	}
 
 	if (val & WAVE_MIDDLE_INT) {
-		writel_relaxed(WAVE_MIDDLE_INT, pc->base + pc->data->regs.intsts);
+		writel_relaxed(WAVE_MIDDLE_INT, pc->base + INTSTS);
 
 		rockchip_pwm_wave_middle_callback(&pc->chip.pwms[0]);
 
@@ -608,7 +619,7 @@ static irqreturn_t rockchip_pwm_irq_v4(int irq, void *data)
 	}
 
 	if (val & WAVE_MAX_INT) {
-		writel_relaxed(WAVE_MAX_INT, pc->base + pc->data->regs.intsts);
+		writel_relaxed(WAVE_MAX_INT, pc->base + INTSTS);
 
 		rockchip_pwm_wave_max_callback(&pc->chip.pwms[0]);
 
@@ -638,16 +649,16 @@ static void rockchip_pwm_config_v4(struct pwm_chip *chip, struct pwm_device *pwm
 	div = (u64)pc->clk_rate * state->duty_cycle;
 	duty = DIV_ROUND_CLOSEST_ULL(div, pc->data->prescaler * NSEC_PER_SEC);
 
-	writel_relaxed(period, pc->base + pc->data->regs.period);
-	writel_relaxed(duty, pc->base + pc->data->regs.duty);
+	writel_relaxed(period, pc->base + PERIOD);
+	writel_relaxed(duty, pc->base + DUTY);
 
 	if (pc->data->supports_polarity) {
 		if (state->polarity == PWM_POLARITY_INVERSED)
 			writel_relaxed(PWM_POLARITY(DUTY_NEGATIVE | INACTIVE_POSITIVE),
-				       pc->base + pc->data->regs.ctrl);
+				       pc->base + CTRL_V4);
 		else
 			writel_relaxed(PWM_POLARITY(DUTY_POSITIVE | INACTIVE_NEGATIVE),
-				       pc->base + pc->data->regs.ctrl);
+				       pc->base + CTRL_V4);
 	}
 
 #ifdef CONFIG_PWM_ROCKCHIP_ONESHOT
@@ -678,20 +689,20 @@ static void rockchip_pwm_config_v4(struct pwm_chip *chip, struct pwm_device *pwm
 
 	if (pc->oneshot_en) {
 		writel_relaxed(PWM_MODE(ONESHOT_MODE) | PWM_ALIGNED_INVALID(true),
-			       pc->base + pc->data->regs.ctrl);
-		writel_relaxed(offset, pc->base + pc->data->regs.offset);
-		writel_relaxed(rpt, pc->base + pc->data->regs.rpt);
-		writel_relaxed(ONESHOT_END_INT_EN(true), pc->base + pc->data->regs.int_en);
+			       pc->base + CTRL_V4);
+		writel_relaxed(offset, pc->base + OFFSET);
+		writel_relaxed(rpt, pc->base + RPT);
+		writel_relaxed(ONESHOT_END_INT_EN(true), pc->base + INT_EN);
 	} else {
 		writel_relaxed(PWM_MODE(CONTINUOUS_MODE) | PWM_ALIGNED_INVALID(false),
-			       pc->base + pc->data->regs.ctrl);
-		writel_relaxed(0, pc->base + pc->data->regs.offset);
+			       pc->base + CTRL_V4);
+		writel_relaxed(0, pc->base + OFFSET);
 		if (!pc->wave_en)
-			writel_relaxed(0, pc->base + pc->data->regs.rpt);
-		writel_relaxed(ONESHOT_END_INT_EN(false), pc->base + pc->data->regs.int_en);
+			writel_relaxed(0, pc->base + RPT);
+		writel_relaxed(ONESHOT_END_INT_EN(false), pc->base + INT_EN);
 	}
 
-	writel_relaxed(PWM_CTRL_UPDATE_EN(true), pc->base + pc->data->regs.enable);
+	writel_relaxed(PWM_CTRL_UPDATE_EN(true), pc->base + ENABLE);
 }
 
 static int rockchip_pwm_enable_v4(struct pwm_chip *chip, struct pwm_device *pwm, bool enable)
@@ -705,7 +716,7 @@ static int rockchip_pwm_enable_v4(struct pwm_chip *chip, struct pwm_device *pwm,
 			return ret;
 	}
 
-	writel_relaxed(PWM_EN(enable) | PWM_CLK_EN(enable), pc->base + pc->data->regs.enable);
+	writel_relaxed(PWM_EN(enable) | PWM_CLK_EN(enable), pc->base + ENABLE);
 
 	if (!enable)
 		clk_disable(pc->clk);
@@ -781,9 +792,9 @@ static void rockchip_pwm_set_capture_v4(struct pwm_chip *chip, struct pwm_device
 	pc->capture_cnt = 0;
 
 	writel_relaxed(enable ? PWM_MODE(CAPTURE_MODE) : PWM_MODE(CONTINUOUS_MODE),
-		       pc->base + pc->data->regs.ctrl);
+		       pc->base + CTRL_V4);
 	writel_relaxed(CAP_LPR_INT_EN(enable) | CAP_HPR_INT_EN(enable) | PWM_IN_SEL(channel_sel),
-		       pc->base + pc->data->regs.int_en);
+		       pc->base + INT_EN);
 }
 
 static int rockchip_pwm_get_capture_result_v4(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -792,19 +803,19 @@ static int rockchip_pwm_get_capture_result_v4(struct pwm_chip *chip, struct pwm_
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	u64 tmp;
 
-	tmp = readl_relaxed(pc->base + pc->data->regs.hpr);
+	tmp = readl_relaxed(pc->base + HPC);
 	tmp *= pc->data->prescaler * NSEC_PER_SEC;
 	capture_res->duty_cycle = DIV_ROUND_CLOSEST_ULL(tmp, pc->clk_rate);
 
-	tmp = readl_relaxed(pc->base + pc->data->regs.lpr);
+	tmp = readl_relaxed(pc->base + LPC);
 	tmp *= pc->data->prescaler * NSEC_PER_SEC;
 	capture_res->period =  DIV_ROUND_CLOSEST_ULL(tmp, pc->clk_rate) + capture_res->duty_cycle;
 
 	if (!capture_res->duty_cycle || !capture_res->period)
 		return -EINVAL;
 
-	writel_relaxed(0, pc->base + pc->data->regs.hpr);
-	writel_relaxed(0, pc->base + pc->data->regs.lpr);
+	writel_relaxed(0, pc->base + HPC);
+	writel_relaxed(0, pc->base + LPC);
 
 	return 0;
 }
@@ -1018,7 +1029,7 @@ static int rockchip_pwm_set_freq_meter_v4(struct pwm_chip *chip, struct pwm_devi
 			return -EINVAL;
 	}
 
-	writel_relaxed(FREQ_INT_EN(enable), pc->base + pc->data->regs.int_en);
+	writel_relaxed(FREQ_INT_EN(enable), pc->base + INT_EN);
 	writel_relaxed(timer_val, pc->base + FREQ_TIMER_VALUE);
 	writel_relaxed(FREQ_EN(enable) | FREQ_CHANNEL_SEL(channel_sel),
 		       pc->base + FREQ_CTRL);
@@ -1033,7 +1044,7 @@ static int rockchip_pwm_get_freq_meter_result_v4(struct pwm_chip *chip, struct p
 	int ret;
 	u32 val;
 
-	ret = readl_relaxed_poll_timeout(pc->base + pc->data->regs.intsts, val, val & FREQ_INT,
+	ret = readl_relaxed_poll_timeout(pc->base + INTSTS, val, val & FREQ_INT,
 					 0, delay_ms * 1000);
 	if (!ret) {
 		dev_err(chip->dev, "failed to wait for freq_meter interrupt\n");
@@ -1106,12 +1117,12 @@ static int rockchip_pwm_global_ctrl_v4(struct pwm_chip *chip, struct pwm_device 
 
 	switch (cmd) {
 	case PWM_GLOBAL_CTRL_JOIN:
-		writel_relaxed(PWM_GLOBAL_JOIN_EN(true), pc->base + pc->data->regs.enable);
-		writel_relaxed(CLK_GLOBAL_SEL(true), pc->base + pc->data->regs.clk_ctrl);
+		writel_relaxed(PWM_GLOBAL_JOIN_EN(true), pc->base + ENABLE);
+		writel_relaxed(CLK_GLOBAL_SEL(true), pc->base + CLK_CTRL);
 		break;
 	case PWM_GLOBAL_CTRL_EXIT:
-		writel_relaxed(PWM_GLOBAL_JOIN_EN(false), pc->base + pc->data->regs.enable);
-		writel_relaxed(CLK_GLOBAL_SEL(false), pc->base + pc->data->regs.clk_ctrl);
+		writel_relaxed(PWM_GLOBAL_JOIN_EN(false), pc->base + ENABLE);
+		writel_relaxed(CLK_GLOBAL_SEL(false), pc->base + CLK_CTRL);
 		break;
 	case PWM_GLOBAL_CTRL_GRANT:
 		arbiter = BIT(pc->channel_id) << GLOBAL_READ_LOCK_SHIFT |
@@ -1148,7 +1159,7 @@ static int rockchip_pwm_global_ctrl_v4(struct pwm_chip *chip, struct pwm_device 
 			return -EINVAL;
 		}
 
-		writel_relaxed(PWM_CLK_EN(true), pc->base + pc->data->regs.enable);
+		writel_relaxed(PWM_CLK_EN(true), pc->base + ENABLE);
 		writel_relaxed(GLOBAL_PWM_EN(true), pc->base + GLOBAL_CTRL);
 		break;
 	case PWM_GLOBAL_CTRL_DISABLE:
@@ -1158,7 +1169,7 @@ static int rockchip_pwm_global_ctrl_v4(struct pwm_chip *chip, struct pwm_device 
 			return -EINVAL;
 		}
 
-		writel_relaxed(PWM_CLK_EN(false), pc->base + pc->data->regs.enable);
+		writel_relaxed(PWM_CLK_EN(false), pc->base + ENABLE);
 		writel_relaxed(GLOBAL_PWM_EN(false), pc->base + GLOBAL_CTRL);
 		break;
 	default:
@@ -1340,9 +1351,9 @@ static int rockchip_pwm_set_wave_v4(struct pwm_chip *chip, struct pwm_device *pw
 	writel_relaxed(offset, pc->base + WAVE_OFFSET);
 	writel_relaxed(middle, pc->base + WAVE_MIDDLE);
 
-	writel_relaxed(rpt, pc->base + pc->data->regs.rpt);
+	writel_relaxed(rpt, pc->base + RPT);
 	writel_relaxed(WAVE_MAX_INT_EN(config->enable) | WAVE_MIDDLE_INT_EN(config->enable),
-		       pc->base + pc->data->regs.int_en);
+		       pc->base + INT_EN);
 
 	pc->wave_en = config->enable;
 
@@ -1479,7 +1490,6 @@ static const struct rockchip_pwm_data pwm_data_v1 = {
 		.version = 0x5c,
 		.duty = 0x04,
 		.period = 0x08,
-		.cntr = 0x00,
 		.ctrl = 0x0c,
 	},
 	.prescaler = 2,
@@ -1501,7 +1511,6 @@ static const struct rockchip_pwm_data pwm_data_v2 = {
 		.version = 0x5c,
 		.duty = 0x08,
 		.period = 0x04,
-		.cntr = 0x00,
 		.ctrl = 0x0c,
 	},
 	.prescaler = 1,
@@ -1524,7 +1533,6 @@ static const struct rockchip_pwm_data pwm_data_vop = {
 		.version = 0x5c,
 		.duty = 0x08,
 		.period = 0x04,
-		.cntr = 0x0c,
 		.ctrl = 0x00,
 	},
 	.prescaler = 1,
@@ -1547,7 +1555,6 @@ static const struct rockchip_pwm_data pwm_data_v3 = {
 		.version = 0x5c,
 		.duty = 0x08,
 		.period = 0x04,
-		.cntr = 0x00,
 		.ctrl = 0x0c,
 	},
 	.prescaler = 1,
@@ -1570,17 +1577,9 @@ static const struct rockchip_pwm_data pwm_data_v4 = {
 	.regs = {
 		.version = 0x0,
 		.enable = 0x4,
-		.clk_ctrl = 0x8,
 		.ctrl = 0xc,
 		.period = 0x10,
 		.duty = 0x14,
-		.offset = 0x18,
-		.rpt = 0x1c,
-		.hpr = 0x2c,
-		.lpr = 0x30,
-		.intsts = 0x70,
-		.int_en = 0x74,
-		.int_mask = 0x78,
 	},
 	.prescaler = 1,
 	.supports_polarity = true,
