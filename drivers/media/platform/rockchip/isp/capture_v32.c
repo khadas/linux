@@ -791,6 +791,7 @@ static int sp_config_mi(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	struct v4l2_pix_format_mplane *out_fmt = &stream->out_fmt;
+	struct capture_fmt *fmt = &stream->out_isp_fmt;
 	struct ispsd_out_fmt *input_isp_fmt =
 			rkisp_get_ispsd_out_fmt(&dev->isp_sdev);
 	u32 sp_in_fmt, val, mask;
@@ -805,7 +806,8 @@ static int sp_config_mi(struct rkisp_stream *stream)
 	* NOTE: plane_fmt[0].sizeimage is total size of all planes for single
 	* memory plane formats, so calculate the size explicitly.
 	*/
-	val = stream->u.sp.y_stride;
+	val = out_fmt->plane_fmt[0].bytesperline;
+	val /= DIV_ROUND_UP(fmt->bpp[0], 8);
 	rkisp_unite_write(dev, ISP3X_MI_SP_WR_Y_LLENGTH, val, false);
 	val *= out_fmt->height;
 	rkisp_unite_write(dev, stream->config->mi.y_pic_size, val, false);

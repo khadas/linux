@@ -171,9 +171,6 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 		isprk_buf->dmabuf = input_rockit_cfg->buf;
 		isprk_buf->mpi_buf = input_rockit_cfg->mpibuf;
 		stream_cfg->rkisp_buff[i] = isprk_buf;
-
-		for (i = 0; i < stream->out_isp_fmt.mplanes; i++)
-			isprk_buf->isp_buf.buff_addr[i] = isprk_buf->buff_addr;
 	}
 
 	if (ispdev->cap_dev.wrap_line && stream->id == RKISP_STREAM_MP) {
@@ -210,14 +207,29 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 	}
 
 	if (stream->out_isp_fmt.mplanes == 1) {
-		for (i = 0; i < stream->out_isp_fmt.cplanes - 1; i++) {
-			height = stream->out_fmt.height;
-			bytesperline = stream->out_fmt.plane_fmt[i].bytesperline;
-			offset = (i == 0) ? bytesperline * height :
-				stream->out_fmt.plane_fmt[i].sizeimage;
-			isprk_buf->isp_buf.buff_addr[i + 1] =
-				isprk_buf->isp_buf.buff_addr[i] + offset;
+		u32 y_offs = input_rockit_cfg->y_offset;
+		u32 u_offs = input_rockit_cfg->u_offset;
+		u32 vir_w = input_rockit_cfg->vir_width;
+		u32 dma_addr = isprk_buf->buff_addr;
+
+		if (vir_w)
+			stream->out_fmt.plane_fmt[0].bytesperline = vir_w;
+		else
+			vir_w = stream->out_fmt.plane_fmt[0].bytesperline;
+		height = stream->out_fmt.height;
+		if (u_offs) {
+			offset = u_offs;
+			if (stream->out_isp_fmt.output_format == ISP32_MI_OUTPUT_YUV420)
+				stream->out_fmt.plane_fmt[1].sizeimage = vir_w * height / 2;
+			else
+				stream->out_fmt.plane_fmt[1].sizeimage = vir_w * height;
+			stream->out_fmt.plane_fmt[0].sizeimage = vir_w * height +
+				stream->out_fmt.plane_fmt[1].sizeimage;
+		} else {
+			offset = vir_w * height;
 		}
+		isprk_buf->isp_buf.buff_addr[0] = dma_addr + y_offs;
+		isprk_buf->isp_buf.buff_addr[1] = dma_addr + offset;
 	}
 
 	v4l2_dbg(2, rkisp_debug, &ispdev->v4l2_dev,
@@ -346,7 +358,7 @@ int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
 {
 	struct rkisp_stream *stream = NULL;
 	struct rkisp_buffer *isp_buf, *buf_temp;
-	int offset, i, ret;
+	int offset, ret;
 	unsigned long lock_flags = 0;
 	u32 reg, val, bytesperline;
 
@@ -390,14 +402,35 @@ int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
 		stream->next_buf = NULL;
 	}
 	list_for_each_entry_safe(isp_buf, buf_temp, &stream->buf_queue, queue) {
+		struct rkisp_rockit_buffer *isprk_buf =
+			container_of(isp_buf, struct rkisp_rockit_buffer, isp_buf);
+
+		if (!isprk_buf)
+			break;
 		if (stream->out_isp_fmt.mplanes == 1) {
-			for (i = 0; i < stream->out_isp_fmt.cplanes - 1; i++) {
-				height = stream->out_fmt.height;
-				bytesperline = stream->out_fmt.plane_fmt[i].bytesperline;
-				offset = (i == 0) ? bytesperline * height :
-					stream->out_fmt.plane_fmt[i].sizeimage;
-				isp_buf->buff_addr[i + 1] = isp_buf->buff_addr[i] + offset;
+			u32 y_offs = input_rockit_cfg->y_offset;
+			u32 u_offs = input_rockit_cfg->u_offset;
+			u32 vir_w = input_rockit_cfg->vir_width;
+			u32 dma_addr = isprk_buf->buff_addr;
+
+			if (vir_w)
+				stream->out_fmt.plane_fmt[0].bytesperline = vir_w;
+			else
+				vir_w = stream->out_fmt.plane_fmt[0].bytesperline;
+			height = stream->out_fmt.height;
+			if (u_offs) {
+				offset = u_offs;
+				if (stream->out_isp_fmt.output_format == ISP32_MI_OUTPUT_YUV420)
+					stream->out_fmt.plane_fmt[1].sizeimage = vir_w * height / 2;
+				else
+					stream->out_fmt.plane_fmt[1].sizeimage = vir_w * height;
+				stream->out_fmt.plane_fmt[0].sizeimage = vir_w * height +
+					stream->out_fmt.plane_fmt[1].sizeimage;
+			} else {
+				offset = vir_w * height;
 			}
+			isp_buf->buff_addr[0] = dma_addr + y_offs;
+			isp_buf->buff_addr[1] = dma_addr + offset;
 		}
 	}
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
