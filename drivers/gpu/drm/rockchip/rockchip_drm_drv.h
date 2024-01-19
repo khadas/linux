@@ -246,6 +246,13 @@ struct dci_data {
 	u32 dci_en;
 };
 
+#define SHARP_REG_LENGTH 692
+
+struct post_sharp {
+	u32 plat; /* Reserved to distinguish later platform */
+	u32 regs[SHARP_REG_LENGTH / 4];
+};
+
 struct rockchip_crtc_state {
 	struct drm_crtc_state base;
 	int vp_id;
@@ -271,6 +278,11 @@ struct rockchip_crtc_state {
 	 * otherwise use hardware te
 	 */
 	bool soft_te;
+	/**
+	 * sharp and post scaler share line buffer,
+	 * So they are mutually exclusive.
+	 */
+	bool sharp_en;
 
 	struct drm_tv_connector_state *tv_state;
 	int left_margin;
@@ -319,6 +331,7 @@ struct rockchip_crtc_state {
 	struct drm_property_blob *hdr_ext_data;
 	struct drm_property_blob *acm_lut_data;
 	struct drm_property_blob *post_csc_data;
+	struct drm_property_blob *post_sharp_data;
 	struct drm_property_blob *cubic_lut_data;
 
 	int request_refresh_rate;

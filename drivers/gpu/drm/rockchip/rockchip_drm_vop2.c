@@ -779,6 +779,10 @@ struct vop2_video_port {
 	 */
 	struct drm_property *post_csc_data_prop;
 	/**
+	 * @post_sharp_data_prop: post sharp data interaction with userspace
+	 */
+	struct drm_property *post_sharp_data_prop;
+	/**
 	 * @output_width_prop: vp max output width prop
 	 */
 	struct drm_property *output_width_prop;
@@ -895,6 +899,7 @@ struct vop2 {
 
 	void __iomem *lut_regs;
 	void __iomem *acm_regs;
+	void __iomem *sharp_regs;
 	/* one time only one process allowed to config the register */
 	spinlock_t reg_lock;
 	/* lock vop2 irq reg */
@@ -10620,6 +10625,40 @@ static void vop3_post_acm_config(struct drm_crtc *crtc, struct post_acm *acm)
 	writel(1, vop2->acm_regs + RK3528_ACM_FETCH_DONE);
 }
 
+static void vop2_post_sharp_config(struct drm_crtc *crtc)
+{
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	struct post_sharp *post_sharp;
+	int i;
+
+	if (!(vp_data->feature & VOP_FEATURE_POST_SHARP))
+		return;
+
+	if (vcstate->left_margin != 100 || vcstate->right_margin != 100 ||
+	    vcstate->top_margin != 100 || vcstate->bottom_margin != 100) {
+		DRM_DEV_ERROR(vop2->dev, "post scale is enabled, sharp can't be enabled\n");
+		return;
+	}
+
+	if (!vcstate->post_sharp_data || !vcstate->post_sharp_data->data ||
+	    !vcstate->yuv_overlay) {
+		writel(0, vop2->sharp_regs);
+		vcstate->sharp_en = false;
+		return;
+	}
+
+	post_sharp = (struct post_sharp *)vcstate->post_sharp_data->data;
+
+	for (i = 0; i < SHARP_REG_LENGTH / 4; i++)
+		writel(post_sharp->regs[i], vop2->sharp_regs + i * 4);
+
+	vcstate->sharp_en = true;
+}
+
 static void vop3_post_config(struct drm_crtc *crtc)
 {
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
@@ -10835,6 +10874,8 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_stat
 		VOP_MODULE_SET(vop2, vp, cubic_lut_update_en, 0);
 	}
 
+	vop2_post_sharp_config(crtc);
+
 	if (vcstate->line_flag)
 		vop2_crtc_enable_line_flag_event(crtc, vcstate->line_flag);
 	else
@@ -10945,6 +10986,8 @@ static struct drm_crtc_state *vop2_crtc_duplicate_state(struct drm_crtc *crtc)
 		drm_property_blob_get(vcstate->post_csc_data);
 	if (vcstate->cubic_lut_data)
 		drm_property_blob_get(vcstate->cubic_lut_data);
+	if (vcstate->post_sharp_data)
+		drm_property_blob_get(vcstate->post_sharp_data);
 
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &vcstate->base);
 	return &vcstate->base;
@@ -10960,6 +11003,7 @@ static void vop2_crtc_destroy_state(struct drm_crtc *crtc,
 	drm_property_blob_put(vcstate->acm_lut_data);
 	drm_property_blob_put(vcstate->post_csc_data);
 	drm_property_blob_put(vcstate->cubic_lut_data);
+	drm_property_blob_put(vcstate->post_sharp_data);
 	kfree(vcstate);
 }
 
@@ -11106,6 +11150,11 @@ static int vop2_crtc_atomic_get_property(struct drm_crtc *crtc,
 		return 0;
 	}
 
+	if (property == vp->post_sharp_data_prop) {
+		*val = (vcstate->post_sharp_data) ? vcstate->post_sharp_data->base.id : 0;
+		return 0;
+	}
+
 	if (property == private->cubic_lut_prop) {
 		*val = (vcstate->cubic_lut_data) ? vcstate->cubic_lut_data->base.id : 0;
 		return 0;
@@ -11130,21 +11179,37 @@ static int vop2_crtc_atomic_set_property(struct drm_crtc *crtc,
 	int ret;
 
 	if (property == mode_config->tv_left_margin_property) {
+		if (vcstate->sharp_en) {
+			DRM_ERROR("sharp is enabled, failed to set %s\n", property->name);
+			return 0;
+		}
 		vcstate->left_margin = val;
 		return 0;
 	}
 
 	if (property == mode_config->tv_right_margin_property) {
+		if (vcstate->sharp_en) {
+			DRM_ERROR("sharp is enabled, failed to set %s\n", property->name);
+			return 0;
+		}
 		vcstate->right_margin = val;
 		return 0;
 	}
 
 	if (property == mode_config->tv_top_margin_property) {
+		if (vcstate->sharp_en) {
+			DRM_ERROR("sharp is enabled, failed to set %s\n", property->name);
+			return 0;
+		}
 		vcstate->top_margin = val;
 		return 0;
 	}
 
 	if (property == mode_config->tv_bottom_margin_property) {
+		if (vcstate->sharp_en) {
+			DRM_ERROR("sharp is enabled, failed to set %s\n", property->name);
+			return 0;
+		}
 		vcstate->bottom_margin = val;
 		return 0;
 	}
@@ -11198,6 +11263,15 @@ static int vop2_crtc_atomic_set_property(struct drm_crtc *crtc,
 								&vcstate->post_csc_data,
 								val,
 								sizeof(struct post_csc), -1,
+								&replaced);
+		return ret;
+	}
+
+	if (property == vp->post_sharp_data_prop) {
+		ret = vop2_atomic_replace_property_blob_from_id(drm_dev,
+								&vcstate->post_sharp_data,
+								val,
+								sizeof(struct post_sharp), -1,
 								&replaced);
 		return ret;
 	}
@@ -12130,6 +12204,22 @@ static int vop2_crtc_create_post_csc_property(struct vop2 *vop2, struct drm_crtc
 
 	return 0;
 }
+
+static int vop2_crtc_create_post_sharp_property(struct vop2 *vop2, struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct drm_property *prop;
+
+	prop = drm_property_create(vop2->drm_dev, DRM_MODE_PROP_BLOB, "POST_SHARP_DATA", 0);
+	if (!prop) {
+		DRM_DEV_ERROR(vop2->dev, "create post sharp data prop for vp%d failed\n", vp->id);
+		return -ENOMEM;
+	}
+	vp->post_sharp_data_prop = prop;
+	drm_object_attach_property(&crtc->base, vp->post_sharp_data_prop, 0);
+
+	return 0;
+}
 #define RK3566_MIRROR_PLANE_MASK (BIT(ROCKCHIP_VOP2_CLUSTER1) | BIT(ROCKCHIP_VOP2_ESMART1) | \
 				  BIT(ROCKCHIP_VOP2_SMART1))
 
@@ -12393,6 +12483,8 @@ static int vop2_create_crtc(struct vop2 *vop2)
 			vop2_crtc_create_post_acm_property(vop2, crtc);
 		if (vp_data->feature & VOP_FEATURE_POST_CSC)
 			vop2_crtc_create_post_csc_property(vop2, crtc);
+		if (vp_data->feature & VOP_FEATURE_POST_SHARP)
+			vop2_crtc_create_post_sharp_property(vop2, crtc);
 
 		registered_num_crtcs++;
 	}
@@ -13096,6 +13188,13 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 		vop2->acm_regs = devm_ioremap_resource(dev, res);
 		if (IS_ERR(vop2->acm_regs))
 			return PTR_ERR(vop2->acm_regs);
+	}
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "sharp_regs");
+	if (res) {
+		vop2->sharp_regs = devm_ioremap_resource(dev, res);
+		if (IS_ERR(vop2->sharp_regs))
+			return PTR_ERR(vop2->sharp_regs);
 	}
 
 	vop2->sys_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
