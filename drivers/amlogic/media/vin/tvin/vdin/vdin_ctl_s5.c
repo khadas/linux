@@ -4818,11 +4818,15 @@ void vdin_vs_proc_monitor_s5(struct vdin_dev_s *devp)
 		else
 			devp->sg_chg_afd_cnt = 0;
 
-		if (devp->vrr_data.vdin_vrr_en_flag != devp->prop.vtem_data.vrr_en ||
-			vdin_check_spd_data_chg(devp))
+		if (vdin_is_vrr_state_chg(devp))
 			devp->vrr_data.vrr_chg_cnt++;
 		else
 			devp->vrr_data.vrr_chg_cnt = 0;
+
+		if (vdin_check_freesync_state_chg(devp))
+			devp->vrr_data.freesync_chg_cnt++;
+		else
+			devp->vrr_data.freesync_chg_cnt = 0;
 
 		if (vdin_isr_monitor & VDIN_ISR_MONITOR_FLAG)
 			pr_info("dv:%d, LL:%d hdr st:%d eotf:%d fg:%d allm:%d sty:0x%x spd:0x%x 0x%x\n",

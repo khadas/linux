@@ -409,12 +409,14 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			devp->sg_chg_afd_cnt = 0;
 		}
 
-		if (devp->vrr_data.vdin_vrr_en_flag != devp->prop.vtem_data.vrr_en ||
-			vdin_check_spd_data_chg(devp)) {
+		if (vdin_is_vrr_state_chg(devp) ||
+		    vdin_check_freesync_state_chg(devp)) {
 			if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
 				devp->vrr_data.vrr_chg_cnt++;
-			if (devp->vrr_data.vrr_chg_cnt > vdin_vrr_chg_cnt) {
+			if (devp->vrr_data.vrr_chg_cnt > vdin_vrr_chg_cnt ||
+			    devp->vrr_data.freesync_chg_cnt > vdin_vrr_chg_cnt) {
 				devp->vrr_data.vrr_chg_cnt = 0;
+				devp->vrr_data.freesync_chg_cnt = 0;
 				signal_chg |= TVIN_SIG_CHG_VRR;
 				vdin_frame_lock_check(devp, 1);
 				if (signal_chg && (sm_debug_enable & VDIN_SM_LOG_L_1))
@@ -429,6 +431,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			}
 		} else {
 			devp->vrr_data.vrr_chg_cnt = 0;
+			devp->vrr_data.freesync_chg_cnt = 0;
 		}
 
 		if (color_range_force)

@@ -333,6 +333,7 @@ struct match_data_s {
 // 23.97 Set this parameter to 23 to distinguish between 24
 #define FPS_23_97_SET_TO_23		23
 #define VDIN_SET_MODE_MAX_FRAME		60
+#define VDIN_VRR_MIN_FRAME_RATE		25
 
 #define IS_HDMI_SRC(src)	\
 		({typeof(src) src_ = src; \
@@ -685,6 +686,7 @@ struct vdin_vrr_s {
 	struct tvin_vtem_data_s vtem_data;
 	struct tvin_spd_data_s spd_data;
 	unsigned int vrr_chg_cnt;
+	unsigned int freesync_chg_cnt;
 	unsigned int vrr_mode;
 	/* vrr_en in frame_lock_policy */
 	bool frame_lock_vrr_en;
@@ -1056,8 +1058,9 @@ struct vdin_dev_s {
 	unsigned int force_disp_skip_num;
 	unsigned int dbg_dump_frames;
 	unsigned int dbg_stop_dec_delay;
-	unsigned int vinfo_std_duration; /* get vinfo out fps value */
-	unsigned int vdin_std_duration; /* get in fps value */
+	unsigned int vout_base_fps; /* get vinfo out base fps value */
+	unsigned int vinfo_std_duration; /* get vinfo out real time fps value */
+	unsigned int vdin_std_duration; /* get in real time fps value */
 	unsigned int dbg_no_swap_en:1;
 	/* 0:auto;1:force on;2:force off */
 	unsigned int dbg_force_one_buffer;

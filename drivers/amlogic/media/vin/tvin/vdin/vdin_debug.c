@@ -3982,6 +3982,41 @@ static ssize_t snow_flag_show(struct device *dev,
 
 static DEVICE_ATTR_RO(snow_flag);
 
+static inline unsigned int vdin_do_div(unsigned long long num, unsigned int den)
+{
+	unsigned long long val = num;
+
+	do_div(val, den);
+
+	return (unsigned int)val;
+}
+
+//for vrr get input fate
+static ssize_t input_rate_show(struct device *dev,
+			 struct device_attribute *attr,
+			 char *buf)
+{
+	u64 tmp_msr_clk_val;
+	unsigned int input_rate = 0;
+	struct vdin_dev_s *devp = dev_get_drvdata(dev);
+
+	if (devp->flags & VDIN_FLAG_DEC_STARTED && devp->irq_cnt > 2) {
+		if (devp->cycle != 0 && devp->msr_clk_val != 0) {
+			tmp_msr_clk_val = (u64)devp->msr_clk_val * 1000;
+			input_rate = vdin_do_div(tmp_msr_clk_val, devp->cycle);
+			return sprintf(buf, "%d.%03d\n",
+				 (input_rate / 1000), (input_rate % 1000));
+		} else {
+			input_rate = devp->parm.info.fps;
+			return sprintf(buf, "%d.000\n", input_rate);
+		}
+	} else {
+		input_rate = devp->parm.info.fps;
+		return sprintf(buf, "%d.000\n", input_rate);
+	}
+}
+static DEVICE_ATTR_RO(input_rate);
+
 static void vdin_dump_sct_state(struct vdin_dev_s *devp)
 {
 	int i, sum = 0;
@@ -4099,6 +4134,7 @@ int vdin_create_debug_files(struct device *dev)
 	/*ret = device_create_file(dev, &dev_attr_debug_for_isp);*/
 	ret = device_create_file(dev, &dev_attr_crop);
 	ret = device_create_file(dev, &dev_attr_snow_flag);
+	ret = device_create_file(dev, &dev_attr_input_rate);
 	return ret;
 }
 
@@ -4117,6 +4153,7 @@ void vdin_remove_debug_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_crop);
 	device_remove_file(dev, &dev_attr_sig_det);
 	device_remove_file(dev, &dev_attr_snow_flag);
+	device_remove_file(dev, &dev_attr_input_rate);
 }
 
 #ifdef DEBUG_SUPPORT

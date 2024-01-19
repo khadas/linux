@@ -186,7 +186,7 @@ void vdin_set_to_vpp_parm(struct vdin_dev_s *devp);
 void vdin_dmc_ctrl(struct vdin_dev_s *devp, bool on_off);
 void vdin_pause_mif_write(struct vdin_dev_s *devp, unsigned int rdma_enable);
 bool vdin_check_is_spd_data(struct vdin_dev_s *devp);
-bool vdin_check_spd_data_chg(struct vdin_dev_s *devp);
+bool vdin_check_freesync_state_chg(struct vdin_dev_s *devp);
 void vdin_sw_reset_s5(struct vdin_dev_s *devp);
 void vdin_bist_s5(struct vdin_dev_s *devp, unsigned int mode);
 #endif

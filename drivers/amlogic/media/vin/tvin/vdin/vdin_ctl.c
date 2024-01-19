@@ -5762,10 +5762,14 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 					__func__, index_disp);
 			return -1;
 		}
-		if (devp->game_mode || devp->skip_disp_md_check)
-			req->disp_mode = VFRAME_DISP_MODE_NULL;
-		else
+		if (devp->game_mode || devp->skip_disp_md_check) {
+			if (devp->frame_drop_num)
+				req->disp_mode = VFRAME_DISP_MODE_SKIP;
+			else
+				req->disp_mode = VFRAME_DISP_MODE_NULL;
+		} else {
 			req->disp_mode = p->disp_mode[index_disp];
+		}
 		if (req->req_mode == 1 && p->skip_vf_num)
 			p->disp_mode[index_disp] = VFRAME_DISP_MODE_UNKNOWN;
 		if (vdin_ctl_dbg & CTL_DEBUG_EVENT_DISP_MODE)
@@ -6065,7 +6069,10 @@ bool vdin_is_freesync_head(struct tvin_spd_data_s *spd_data)
 		return false;
 }
 
-bool vdin_check_spd_data_chg(struct vdin_dev_s *devp)
+/*
+ * check freesync state change
+ */
+bool vdin_check_freesync_state_chg(struct vdin_dev_s *devp)
 {
 	if (!devp)
 		return false;
@@ -6075,8 +6082,8 @@ bool vdin_check_spd_data_chg(struct vdin_dev_s *devp)
 		/* If freesync states changed or the current state is not the same as
 		 * application got before,report change event.
 		 */
-		if ((devp->pre_prop.spd_data.data[5] >> 2 & 0x3) !=
-		    (devp->prop.spd_data.data[5] >> 2 & 0x3)) {
+		if ((devp->pre_prop.spd_data.data[5] >> 1 & 0x7) !=
+		    (devp->prop.spd_data.data[5] >> 1 & 0x7)) {
 			return true;
 		}
 		if (devp->vrr_data.cur_vrr_status != devp->vrr_data.pre_vrr_status)
@@ -6108,10 +6115,12 @@ void vdin_set_freesync_data(struct vdin_dev_s *devp, struct vframe_s *vf)
 	vdin_pr_vrr_data(devp, vf);
 }
 
-static inline bool vdin_is_vrr_state_chg(struct vdin_dev_s *devp)
+/*
+ * check vrr state change
+ */
+bool vdin_is_vrr_state_chg(struct vdin_dev_s *devp)
 {
-	if (devp->vrr_data.vdin_vrr_en_flag != devp->prop.vtem_data.vrr_en ||
-	    vdin_check_spd_data_chg(devp))
+	if (devp->vrr_data.vdin_vrr_en_flag != devp->prop.vtem_data.vrr_en)
 		return true;
 	else
 		return false;
@@ -6178,6 +6187,11 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 			devp->vrr_data.vrr_chg_cnt++;
 		else
 			devp->vrr_data.vrr_chg_cnt = 0;
+
+		if (vdin_check_freesync_state_chg(devp))
+			devp->vrr_data.freesync_chg_cnt++;
+		else
+			devp->vrr_data.freesync_chg_cnt = 0;
 
 		if (vdin_isr_monitor & VDIN_ISR_MONITOR_FLAG)
 			pr_info("dv:%d LL:%d hdr:%d eotf:%d fg:%d allm:%d sty:%#x vrr:%d spd:%#x %#x rate:%d\n",

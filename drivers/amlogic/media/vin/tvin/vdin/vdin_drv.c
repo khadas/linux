@@ -306,6 +306,7 @@ void tvin_update_vdin_prop(void)
 	if (vdin_package_done_check_state(vdin0_devp)) {
 		if (vdin0_devp->game_mode)
 			vdin_pause_hw_write(vdin0_devp, 0);
+		vdin0_devp->frame_drop_num = 1;
 		vdin_vf_skip_all_disp(vdin0_devp->vfp);
 		vdin_drop_frame_info(vdin0_devp, "de start state chg");
 	}
@@ -488,6 +489,7 @@ static inline void vdin_get_in_out_fps(struct vdin_dev_s *devp)
 	unsigned int vinfo_out_fps = 0;
 	const struct vinfo_s *vinfo = NULL;
 
+	vinfo = get_current_vinfo();
 	if (devp->dtdata->hw_ver >= VDIN_HW_T7 && IS_HDMI_SRC(devp->parm.port)) {
 		/* get vin fps */
 		if (devp->cycle != 0)
@@ -501,16 +503,15 @@ static inline void vdin_get_in_out_fps(struct vdin_dev_s *devp)
 		if (vinfo_out_fps != 0) {
 			devp->vinfo_std_duration = vinfo_out_fps / 1000;
 		} else {
-			vinfo = get_current_vinfo();
 			devp->vinfo_std_duration =
 				vinfo->sync_duration_num / vinfo->sync_duration_den;
 		}
 	} else {
 		devp->vdin_std_duration = devp->parm.info.fps;
-		vinfo = get_current_vinfo();
 		devp->vinfo_std_duration =
 			vinfo->sync_duration_num / vinfo->sync_duration_den;
 	}
+	devp->vout_base_fps = vinfo->sync_duration_num / vinfo->sync_duration_den;
 }
 
 static bool vdin_need_game_mode(struct vdin_dev_s *devp)
@@ -554,7 +555,7 @@ static void vdin_game_mode_check(struct vdin_dev_s *devp)
 				devp->game_mode = (VDIN_GAME_MODE_0 |
 					VDIN_GAME_MODE_1);
 			}
-		} else if (devp->parm.info.fps >= 25 &&
+		} else if (devp->parm.info.fps >= VDIN_VRR_MIN_FRAME_RATE &&
 			   devp->parm.info.fps < devp->vrr_frame_rate_min) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0) {
 				devp->game_mode = (VDIN_GAME_MODE_0 |
@@ -640,8 +641,9 @@ static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
 		return;
 
 	if (devp->vrr_data.vrr_mode &&
-	    devp->vdin_std_duration >= 25 &&
-	    devp->vdin_std_duration < devp->vrr_frame_rate_min) {
+	    devp->vdin_std_duration >= VDIN_VRR_MIN_FRAME_RATE &&
+	    (devp->vdin_std_duration < devp->vrr_frame_rate_min ||
+	     devp->vout_base_fps > (devp->prop.fps + VDIN_VRR_MIN_FRAME_RATE))) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0)
 			devp->game_mode = (VDIN_GAME_MODE_0 |
 					VDIN_GAME_MODE_SWITCH_EN);
@@ -656,7 +658,7 @@ static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
 		else
 			devp->game_mode = (VDIN_GAME_MODE_0 |
 					VDIN_GAME_MODE_1);
-	} else if (devp->vdin_std_duration < 25 ||
+	} else if (devp->vdin_std_duration < VDIN_VRR_MIN_FRAME_RATE ||
 		   (devp->vinfo_std_duration >
 		    (devp->vdin_std_duration + 1) * 2)) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0) {
@@ -667,7 +669,7 @@ static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
 			devp->game_mode &= ~VDIN_GAME_MODE_1;
 			devp->game_mode &= ~VDIN_GAME_MODE_2;
 		}
-	} else if ((devp->vdin_std_duration >= 25 &&
+	} else if ((devp->vdin_std_duration >= VDIN_VRR_MIN_FRAME_RATE &&
 		    devp->vdin_std_duration < devp->vrr_frame_rate_min) ||
 		   (devp->vinfo_std_duration >
 		    (devp->vdin_std_duration + 2))) {
@@ -722,7 +724,14 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 				phase_lock_flag = 0;
 			if (phase_lock_flag >= game_mode_phlock_switch_frames) {
 				/* vrr mode vinfo_std_duration not correct so separate judgment */
-				if (devp->vrr_data.vrr_mode && devp->vdin_std_duration >= 25 &&
+				if (devp->vrr_data.vrr_mode &&
+				    devp->vdin_std_duration >= VDIN_VRR_MIN_FRAME_RATE &&
+				    devp->vout_base_fps >
+					(devp->prop.fps + VDIN_VRR_MIN_FRAME_RATE)) {
+					/* lcd not switch to input base fps */
+					devp->game_mode = VDIN_GAME_MODE_0;
+				} else if (devp->vrr_data.vrr_mode &&
+				    devp->vdin_std_duration >= VDIN_VRR_MIN_FRAME_RATE &&
 				    devp->vdin_std_duration < devp->vrr_frame_rate_min) {
 					/*1 to 2 need delay more than one vf*/
 					devp->game_mode = (VDIN_GAME_MODE_0 |
@@ -731,12 +740,12 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 					   devp->vdin_std_duration >= devp->vrr_frame_rate_min) {
 					devp->game_mode = (VDIN_GAME_MODE_0 |
 						VDIN_GAME_MODE_2);
-				} else if (devp->vdin_std_duration < 25 ||
+				} else if (devp->vdin_std_duration < VDIN_VRR_MIN_FRAME_RATE ||
 					   (devp->vinfo_std_duration >
 					    (devp->vdin_std_duration + 1) * 2)) {
 					devp->game_mode &= ~VDIN_GAME_MODE_1;
 					devp->game_mode &= ~VDIN_GAME_MODE_2;
-				} else if ((devp->vdin_std_duration >= 25 &&
+				} else if ((devp->vdin_std_duration >= VDIN_VRR_MIN_FRAME_RATE &&
 					    devp->vdin_std_duration < devp->vrr_frame_rate_min) ||
 					   (devp->vinfo_std_duration >
 					    (devp->vdin_std_duration + 2))) {
@@ -1337,6 +1346,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	devp->dv.chg_cnt = 0;
 	devp->hdr.hdr_chg_cnt = 0;
 	devp->vrr_data.vrr_chg_cnt = 0;
+	devp->vrr_data.freesync_chg_cnt = 0;
 	devp->last_wr_vfe = NULL;
 	irq_max_count = 0;
 	vdin_drop_cnt = 0;
