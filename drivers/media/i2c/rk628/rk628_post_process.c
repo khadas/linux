@@ -1,14 +1,13 @@
-// SPDX-License-Identifier: BSD-3-Clause
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2021 Rockchip Electronics Co. Ltd.
+ * Copyright (c) 2023 Rockchip Electronics Co. Ltd.
  *
- * Author: Wyon Bi <bivvy.bi@rock-chips.com>
  */
-
-#include <linux/debugfs.h>
 #include "rk628.h"
-#include "rk628_config.h"
 #include "rk628_cru.h"
+#include "rk628_hdmirx.h"
+#include "rk628_post_process.h"
+#include <linux/videodev2.h>
 
 #define PQ_CSC_HUE_TABLE_NUM			256
 #define PQ_CSC_MODE_COEF_COMMENT_LEN		32
@@ -208,12 +207,10 @@ static const struct rk_pq_csc_coef rk_csc_table_hdy_cb_cr_to_xv_yccsdy_cb_cr = {
 	0, 1014, -113,
 	0, -74, 1007
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_hdy_cb_cr_to_xv_yccsdy_cb_cr = {
 	-64, -512, -512,
 	64, 512, 512
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_hdy_cb_cr_full_to_xv_yccsdy_cb_cr_full = {
 	0, -512, -512,
 	0, 512, 512
@@ -237,7 +234,6 @@ static const struct rk_pq_csc_coef rk_csc_table_xv_yccsdy_cb_cr_to_rgb_full = {
 	1024, -352, -731,
 	1024, 1815, 0
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_xv_yccsdy_cb_cr_to_rgb_full = {
 	0, -512, -512,
 	0, 0, 0
@@ -249,7 +245,6 @@ static const struct rk_pq_csc_coef rk_csc_table_hdy_cb_cr_to_rgb_full = {
 	1024, -192, -479,
 	1024, 1900, 0
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_hdy_cb_cr_to_rgb_full = {
 	0, -512, -512,
 	0, 0, 0
@@ -261,7 +256,6 @@ static const struct rk_pq_csc_coef rk_csc_table_rgb_to_xv_yccsdy_cb_cr_full = {
 	-173, -339, 512,
 	512, -429, -83
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_rgb_to_xv_yccsdy_cb_cr_full = {
 	0, 0, 0,
 	0, 512, 512
@@ -273,7 +267,6 @@ static const struct rk_pq_csc_coef rk_csc_table_rgb_to_hdy_cb_cr_full = {
 	-117, -395, 512,
 	512, -465, -47
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_rgb_to_hdy_cb_cr_full = {
 	0, 0, 0,
 	0, 512, 512
@@ -285,7 +278,6 @@ static const struct rk_pq_csc_coef rk_csc_table_identity_y_cb_cr_limit_to_y_cb_c
 	0, 1169, 0,
 	0, 0, 1169
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_y_cb_cr_limit_to_y_cb_cr_full = {
 	-64, -512, -512,
 	0, 512, 512
@@ -297,7 +289,6 @@ static const struct rk_pq_csc_coef rk_csc_table_identity_601_limit_to_709_full =
 	0, 1191, 134,
 	0, 88, 1199
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_601_limit_to_709_full = {
 	-64, -512, -512,
 	0, 512, 512
@@ -309,7 +300,6 @@ static const struct rk_pq_csc_coef rk_csc_table_identity_709_limit_to_601_full =
 	0, 1157, -129,
 	0, -85, 1150
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_709_limit_to_601_full = {
 	-64, -512, -512,
 	0, 512, 512
@@ -321,7 +311,6 @@ static const struct rk_pq_csc_coef rk_csc_table_identity_y_cb_cr_full_to_y_cb_cr
 	0, 897, 0,
 	0, 0, 897
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_y_cb_cr_full_to_y_cb_cr_limit = {
 	0, -512, -512,
 	64, 512, 512
@@ -333,7 +322,6 @@ static const struct rk_pq_csc_coef rk_csc_table_identity_y_cb_cr_601_full_to_y_c
 	0, 914, 103,
 	0, 67, 920
 };
-
 static const struct rk_pq_csc_dc_coef
 rk_dc_csc_table_identity_y_cb_cr_601_full_to_y_cb_cr_709_limit = {
 	0, -512, -512,
@@ -346,7 +334,6 @@ static const struct rk_pq_csc_coef rk_csc_table_identity_y_cb_cr_709_full_to_y_c
 	0, 888, -99,
 	0, -65, 882
 };
-
 static const struct rk_pq_csc_dc_coef
 rk_dc_csc_table_identity_y_cb_cr_709_full_to_y_cb_cr_601_limit = {
 	0, -512, -512,
@@ -359,7 +346,6 @@ static const struct rk_pq_csc_coef rk_csc_table_xv_yccsdy_cb_cr_limit_to_rgb_lim
 	1024, -344, -715,
 	1024, 1774, 0
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_xv_yccsdy_cb_cr_limit_to_rgb_limit = {
 	-64, -512, -512,
 	64, 64, 64
@@ -371,7 +357,6 @@ static const struct rk_pq_csc_coef rk_csc_table_hdy_cb_cr_limit_to_rgb_limit = {
 	1024, -188, -469,
 	1024, 1858, 0
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_hdy_cb_cr_limit_to_rgb_limit = {
 	-64, -512, -512,
 	64, 64, 64
@@ -383,7 +368,6 @@ static const struct rk_pq_csc_coef rk_csc_table_rgb_limit_to_xv_yccsdy_cb_cr = {
 	-177, -347, 524,
 	524, -439, -85
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_rgb_limit_to_xv_yccsdy_cb_cr = {
 	-64, -64, -64,
 	64, 512, 512
@@ -395,7 +379,6 @@ static const struct rk_pq_csc_coef rk_csc_table_rgb_limit_to_hdy_cb_cr = {
 	-120, -404, 524,
 	524, -476, -48
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_rgb_limit_to_hdy_cb_cr = {
 	-64, -64, -64,
 	64, 512, 512
@@ -407,7 +390,6 @@ static const struct rk_pq_csc_coef rk_csc_table_xv_yccsdy_cb_cr_to_rgb_limit = {
 	877, -302, -626,
 	877, 1554, 0
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_xv_yccsdy_cb_cr_to_rgb_limit = {
 	0, -512, -512,
 	64, 64, 64
@@ -419,7 +401,6 @@ static const struct rk_pq_csc_coef rk_csc_table_hdy_cb_cr_to_rgb_limit = {
 	877, -164, -410,
 	877, 1627, 0
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_hdy_cb_cr_to_rgb_limit = {
 	0, -512, -512,
 	64, 64, 64
@@ -431,7 +412,6 @@ static const struct rk_pq_csc_coef rk_csc_table_rgb_limit_to_xv_yccsdy_cb_cr_ful
 	-202, -396, 598,
 	598, -501, -97
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_rgb_limit_to_xv_yccsdy_cb_cr_full = {
 	-64, -64, -64,
 	0, 512, 512
@@ -443,7 +423,6 @@ static const struct rk_pq_csc_coef rk_csc_table_rgb_limit_to_hdy_cb_cr_full = {
 	-137, -461, 598,
 	598, -543, -55
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_rgb_limit_to_hdy_cb_cr_full = {
 	-64, -64, -64,
 	0, 512, 512
@@ -455,7 +434,6 @@ static const struct rk_pq_csc_coef rk_csc_table_identity_rgb_to_rgb_limit = {
 	0, 877, 0,
 	0, 0, 877
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_rgb_to_rgb_limit = {
 	0, 0, 0,
 	64, 64, 64
@@ -467,7 +445,6 @@ static const struct rk_pq_csc_coef rk_csc_table_identity_rgb_limit_to_rgb = {
 	0, 1196, 0,
 	0, 0, 1196
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_rgb_limit_to_rgb = {
 	-64, -64, -64,
 	0, 0, 0
@@ -479,7 +456,6 @@ static const struct rk_pq_csc_coef rk_csc_table_identity_rgb_to_rgb = {
 	0, 1024, 0,
 	0, 0, 1024
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_rgb_to_rgb1 = {
 	-64, -64, -64,
 	64, 64, 64
@@ -495,7 +471,6 @@ static const struct rk_pq_csc_coef rk_csc_table_identity_yuv_to_rgb_2020 = {
 	1024, -169, -585,
 	1024, 1927, 0
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_yuv_to_rgb_2020 = {
 	0, -512, -512,
 	0, 0, 0
@@ -507,7 +482,6 @@ static const struct rk_pq_csc_coef rk_csc_table_identity_rgb_limit_to_yuv_limit_
 	-146, -377, 524,
 	524, -482, -42
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_rgb_limit_to_yuv_limit_2020 = {
 	-64, -64, -64,
 	64, 512, 512
@@ -519,7 +493,6 @@ static const struct rk_pq_csc_coef rk_csc_table_identity_rgb_limit_to_yuv_full_2
 	-167, -431, 598,
 	598, -550, -48
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_rgb_limit_to_yuv_full_2020 = {
 	-64, -64, -64,
 	0, 512, 512
@@ -531,7 +504,6 @@ static const struct rk_pq_csc_coef rk_csc_table_identity_rgb_full_to_yuv_limit_2
 	-125, -323, 448,
 	448, -412, -36
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_rgb_full_to_yuv_limit_2020 = {
 	0, 0, 0,
 	64, 512, 512
@@ -543,7 +515,6 @@ static const struct rk_pq_csc_coef rk_csc_table_identity_rgb_full_to_yuv_full_20
 	-143, -369, 512,
 	512, -471, -41
 };
-
 static const struct rk_pq_csc_dc_coef rk_dc_csc_table_identity_rgb_full_to_yuv_full_2020 = {
 	0, 0, 0,
 	0, 512, 512
@@ -963,6 +934,8 @@ enum vop_csc_format {
 	CSC_BT709F_13BIT,
 	CSC_BT2020L_13BIT,
 	CSC_BT2020F_13BIT,
+	CSC_RGBL2BT709F_13BIT,
+	CSC_RGBL2BT2020F_13BIT,
 };
 
 enum vop_csc_mode {
@@ -1022,6 +995,13 @@ static const struct csc_mapping csc_mapping_table[] = {
 		true,
 	},
 	{
+		CSC_RGBL2BT709F_13BIT,
+		OPTM_CS_E_RGB,
+		OPTM_CS_E_XV_YCC_709,
+		false,
+		true,
+	},
+	{
 		CSC_BT2020L_13BIT,
 		OPTM_CS_E_RGB_2020,
 		OPTM_CS_E_XV_YCC_2020,
@@ -1035,30 +1015,13 @@ static const struct csc_mapping csc_mapping_table[] = {
 		true,
 		true,
 	},
-};
-
-static const struct rk_pq_csc_coef r2y_for_y2y = {
-	306, 601, 117,
-	-151, -296, 446,
-	630, -527, -102,
-};
-
-static const struct rk_pq_csc_coef y2r_for_y2y = {
-	1024, -0, 1167,
-	1024, -404, -594,
-	1024, 2081, -1,
-};
-
-static const struct rk_pq_csc_coef rgb_input_swap_matrix = {
-	0, 0, 1,
-	1, 0, 0,
-	0, 1, 0,
-};
-
-static const struct rk_pq_csc_coef yuv_output_swap_matrix = {
-	0, 0, 1,
-	1, 0, 0,
-	0, 1, 0,
+	{
+		CSC_RGBL2BT2020F_13BIT,
+		OPTM_CS_E_RGB_2020,
+		OPTM_CS_E_XV_YCC_2020,
+		false,
+		true,
+	},
 };
 
 static bool is_rgb_format(u64 format)
@@ -1129,6 +1092,47 @@ static int csc_get_mode_index(int post_csc_mode, bool is_input_yuv, bool is_outp
 	return -EINVAL;
 }
 
+static void __maybe_unused csc_matrix_multiply(struct rk_pq_csc_coef *dst,
+				const struct rk_pq_csc_coef *m0,
+				const struct rk_pq_csc_coef *m1)
+{
+	dst->csc_coef00 = m0->csc_coef00 * m1->csc_coef00 +
+			  m0->csc_coef01 * m1->csc_coef10 +
+			  m0->csc_coef02 * m1->csc_coef20;
+
+	dst->csc_coef01 = m0->csc_coef00 * m1->csc_coef01 +
+			  m0->csc_coef01 * m1->csc_coef11 +
+			  m0->csc_coef02 * m1->csc_coef21;
+
+	dst->csc_coef02 = m0->csc_coef00 * m1->csc_coef02 +
+			  m0->csc_coef01 * m1->csc_coef12 +
+			  m0->csc_coef02 * m1->csc_coef22;
+
+	dst->csc_coef10 = m0->csc_coef10 * m1->csc_coef00 +
+			  m0->csc_coef11 * m1->csc_coef10 +
+			  m0->csc_coef12 * m1->csc_coef20;
+
+	dst->csc_coef11 = m0->csc_coef10 * m1->csc_coef01 +
+			  m0->csc_coef11 * m1->csc_coef11 +
+			  m0->csc_coef12 * m1->csc_coef21;
+
+	dst->csc_coef12 = m0->csc_coef10 * m1->csc_coef02 +
+			  m0->csc_coef11 * m1->csc_coef12 +
+			  m0->csc_coef12 * m1->csc_coef22;
+
+	dst->csc_coef20 = m0->csc_coef20 * m1->csc_coef00 +
+			  m0->csc_coef21 * m1->csc_coef10 +
+			  m0->csc_coef22 * m1->csc_coef20;
+
+	dst->csc_coef21 = m0->csc_coef20 * m1->csc_coef01 +
+			  m0->csc_coef21 * m1->csc_coef11 +
+			  m0->csc_coef22 * m1->csc_coef21;
+
+	dst->csc_coef22 = m0->csc_coef20 * m1->csc_coef02 +
+			  m0->csc_coef21 * m1->csc_coef12 +
+			  m0->csc_coef22 * m1->csc_coef22;
+}
+
 static void csc_matrix_ventor_multiply(struct rk_pq_csc_ventor *dst,
 				       const struct rk_pq_csc_coef *m0,
 				       const struct rk_pq_csc_ventor *v0)
@@ -1155,6 +1159,25 @@ static inline s32 pq_csc_simple_round(s32 x, s32 n)
 
 	value = (abs(x) + (1 << (n - 1))) >> (n);
 	return (((x) >= 0) ? value : -value);
+}
+
+static void rockchip_swap_color_channel(bool is_input_yuv, bool is_output_yuv,
+					struct post_csc_coef *csc_simple_coef,
+					struct rk_pq_csc_coef *out_matrix,
+					struct rk_pq_csc_ventor *out_dc)
+{
+	csc_simple_coef->csc_coef00 = out_matrix->csc_coef00;
+	csc_simple_coef->csc_coef01 = out_matrix->csc_coef01;
+	csc_simple_coef->csc_coef02 = out_matrix->csc_coef02;
+	csc_simple_coef->csc_coef10 = out_matrix->csc_coef10;
+	csc_simple_coef->csc_coef11 = out_matrix->csc_coef11;
+	csc_simple_coef->csc_coef12 = out_matrix->csc_coef12;
+	csc_simple_coef->csc_coef20 = out_matrix->csc_coef20;
+	csc_simple_coef->csc_coef21 = out_matrix->csc_coef21;
+	csc_simple_coef->csc_coef22 = out_matrix->csc_coef22;
+	csc_simple_coef->csc_dc0 = out_dc->csc_offset0;
+	csc_simple_coef->csc_dc1 = out_dc->csc_offset1;
+	csc_simple_coef->csc_dc2 = out_dc->csc_offset2;
 }
 
 static int csc_calc_default_output_coef(const struct rk_csc_mode_coef *csc_mode_cfg,
@@ -1198,7 +1221,7 @@ static int csc_calc_default_output_coef(const struct rk_csc_mode_coef *csc_mode_
 	return 0;
 }
 
-static int vop2_convert_csc_mode(int csc_mode, int bit_depth)
+static int vop2_convert_csc_mode(int csc_mode, int bit_depth, int range)
 {
 	switch (csc_mode) {
 	case V4L2_COLORSPACE_SMPTE170M:
@@ -1222,13 +1245,17 @@ static int vop2_convert_csc_mode(int csc_mode, int bit_depth)
 	case V4L2_COLORSPACE_BT709F:
 		if (bit_depth == CSC_10BIT_DEPTH)
 			return CSC_BT601F;
-		else
+		else if (range == CSC_FULL_RANGE)
 			return CSC_BT709F_13BIT;
+		else
+			return CSC_RGBL2BT709F_13BIT;
 	case V4L2_COLORSPACE_BT2020F:
 		if (bit_depth == CSC_10BIT_DEPTH)
 			return CSC_BT601F;
-		else
+		else if (range == CSC_FULL_RANGE)
 			return CSC_BT2020F_13BIT;
+		else
+			return CSC_RGBL2BT2020F_13BIT;
 	default:
 		return CSC_BT709L;
 	}
@@ -1249,20 +1276,11 @@ static int rockchip_calc_post_csc(struct post_csc_coef *csc_simple_coef,
 
 	csc_mode_cfg = &g_mode_csc_coef[ret];
 
+
 	ret = csc_calc_default_output_coef(csc_mode_cfg, &out_matrix, &out_dc);
 
-	csc_simple_coef->csc_coef00 = out_matrix.csc_coef00;
-	csc_simple_coef->csc_coef01 = out_matrix.csc_coef01;
-	csc_simple_coef->csc_coef02 = out_matrix.csc_coef02;
-	csc_simple_coef->csc_coef10 = out_matrix.csc_coef10;
-	csc_simple_coef->csc_coef11 = out_matrix.csc_coef11;
-	csc_simple_coef->csc_coef12 = out_matrix.csc_coef12;
-	csc_simple_coef->csc_coef20 = out_matrix.csc_coef20;
-	csc_simple_coef->csc_coef21 = out_matrix.csc_coef21;
-	csc_simple_coef->csc_coef22 = out_matrix.csc_coef22;
-	csc_simple_coef->csc_dc0 = out_dc.csc_offset0;
-	csc_simple_coef->csc_dc1 = out_dc.csc_offset1;
-	csc_simple_coef->csc_dc2 = out_dc.csc_offset2;
+	rockchip_swap_color_channel(is_input_yuv, is_output_yuv, csc_simple_coef, &out_matrix,
+				    &out_dc);
 
 	csc_simple_coef->csc_dc0 = pq_csc_simple_round(csc_simple_coef->csc_dc0, bit_num);
 	csc_simple_coef->csc_dc1 = pq_csc_simple_round(csc_simple_coef->csc_dc1, bit_num);
@@ -1272,315 +1290,19 @@ static int rockchip_calc_post_csc(struct post_csc_coef *csc_simple_coef,
 	return ret;
 }
 
-static void calc_dsp_frm_hst_vst(const struct rk628_display_mode *src,
-				 const struct rk628_display_mode *dst,
-				 u32 *dsp_frame_hst,
-				 u32 *dsp_frame_vst)
-{
-	u32 bp_in, bp_out;
-	u32 v_scale_ratio;
-	u64 t_frm_st;
-	u64 t_bp_in, t_bp_out, t_delta, tin;
-	u32 src_pixclock, dst_pixclock;
-	u32 dst_htotal, dst_hsync_len, dst_hback_porch;
-	u32 dst_vsync_len, dst_vback_porch, dst_vactive;
-	u32 src_htotal, src_hsync_len, src_hback_porch;
-	u32 src_vtotal, src_vsync_len, src_vback_porch, src_vactive;
-	u32 rem;
-	u32 x;
-
-	src_pixclock = div_u64(1000000000llu, src->clock);
-	dst_pixclock = div_u64(1000000000llu, dst->clock);
-
-	src_hsync_len = src->hsync_end - src->hsync_start;
-	src_hback_porch = src->htotal - src->hsync_end;
-	src_htotal = src->htotal;
-	src_vsync_len = src->vsync_end - src->vsync_start;
-	src_vback_porch = src->vtotal - src->vsync_end;
-	src_vactive = src->vdisplay;
-	src_vtotal = src->vtotal;
-
-	dst_hsync_len = dst->hsync_end - dst->hsync_start;
-	dst_hback_porch = dst->htotal - dst->hsync_end;
-	dst_htotal = dst->htotal;
-	dst_vsync_len = dst->vsync_end - dst->vsync_start;
-	dst_vback_porch = dst->vtotal - dst->vsync_end;
-	dst_vactive = dst->vdisplay;
-
-	bp_in = (src_vback_porch + src_vsync_len) * src_htotal +
-		src_hsync_len + src_hback_porch;
-	bp_out = (dst_vback_porch + dst_vsync_len) * dst_htotal +
-		 dst_hsync_len + dst_hback_porch;
-
-	t_bp_in = bp_in * src_pixclock;
-	t_bp_out = bp_out * dst_pixclock;
-	tin = src_vtotal * src_htotal * src_pixclock;
-
-	v_scale_ratio = src_vactive / dst_vactive;
-	x = 5;
-__retry:
-	if (v_scale_ratio <= 2)
-		t_delta = x * src_htotal * src_pixclock;
-	else
-		t_delta = 12 * src_htotal * src_pixclock;
-
-	if (t_bp_in + t_delta > t_bp_out)
-		t_frm_st = (t_bp_in + t_delta - t_bp_out);
-	else
-		t_frm_st = tin - (t_bp_out - (t_bp_in + t_delta));
-
-	do_div(t_frm_st, src_pixclock);
-	rem = do_div(t_frm_st, src_htotal);
-	if ((t_frm_st < 2 || t_frm_st > 14) && x < 12) {
-		x++;
-		goto __retry;
-	}
-	if (t_frm_st < 2 || t_frm_st > 14)
-		t_frm_st = 4;
-
-	*dsp_frame_hst = rem;
-	*dsp_frame_vst = t_frm_st;
-}
-
-static void rk628_post_process_scaler_init(struct rk628 *rk628,
-					   struct rk628_display_mode *src,
-					   const struct rk628_display_mode *dst)
-{
-	u32 dsp_frame_hst, dsp_frame_vst;
-	u32 scl_hor_mode, scl_ver_mode;
-	u32 scl_v_factor, scl_h_factor;
-	u32 dsp_htotal, dsp_hs_end, dsp_hact_st, dsp_hact_end;
-	u32 dsp_vtotal, dsp_vs_end, dsp_vact_st, dsp_vact_end;
-	u32 dsp_hbor_end, dsp_hbor_st, dsp_vbor_end, dsp_vbor_st;
-	u16 bor_right = 0, bor_left = 0, bor_up = 0, bor_down = 0;
-	u8 hor_down_mode = 0, ver_down_mode = 0;
-	u32 dst_hsync_len, dst_hback_porch, dst_hfront_porch, dst_hactive;
-	u32 dst_vsync_len, dst_vback_porch, dst_vfront_porch, dst_vactive;
-	u32 src_hactive;
-	u32 src_vactive;
-	int gvi_offset = 0;
-
-	if (rk628->version == RK628F_VERSION && rk628->gvi.division_mode)
-		gvi_offset = 4;
-
-	src_hactive = src->hdisplay;
-	src_vactive = src->vdisplay;
-
-	dst_hactive = dst->hdisplay;
-	dst_hsync_len = dst->hsync_end - dst->hsync_start;
-	dst_hback_porch = dst->htotal - dst->hsync_end;
-	dst_hfront_porch = dst->hsync_start - dst->hdisplay;
-	dst_vsync_len = dst->vsync_end - dst->vsync_start;
-	dst_vback_porch = dst->vtotal - dst->vsync_end;
-	dst_vfront_porch = dst->vsync_start - dst->vdisplay;
-	dst_vactive = dst->vdisplay;
-
-	dsp_htotal = dst_hsync_len + dst_hback_porch +
-		     dst_hactive + dst_hfront_porch;
-	dsp_vtotal = dst_vsync_len + dst_vback_porch +
-		     dst_vactive + dst_vfront_porch;
-	dsp_hs_end = dst_hsync_len;
-	dsp_vs_end = dst_vsync_len;
-	dsp_hbor_end = dst_hsync_len + dst_hback_porch + dst_hactive - gvi_offset;
-	dsp_hbor_st = dst_hsync_len + dst_hback_porch - gvi_offset;
-	dsp_vbor_end = dst_vsync_len + dst_vback_porch + dst_vactive;
-	dsp_vbor_st = dst_vsync_len + dst_vback_porch;
-	dsp_hact_st = dsp_hbor_st + bor_left;
-	dsp_hact_end = dsp_hbor_end - bor_right;
-	dsp_vact_st = dsp_vbor_st + bor_up;
-	dsp_vact_end = dsp_vbor_end - bor_down;
-
-	calc_dsp_frm_hst_vst(src, dst, &dsp_frame_hst, &dsp_frame_vst);
-	dev_info(rk628->dev, "dsp_frame_vst:%d  dsp_frame_hst:%d\n",
-		 dsp_frame_vst, dsp_frame_hst);
-
-	if (src_hactive > dst_hactive) {
-		scl_hor_mode = 2;
-
-		if (hor_down_mode == 0) {
-			if ((src_hactive - 1) / (dst_hactive - 1) > 2)
-				scl_h_factor = ((src_hactive - 1) << 14) /
-						(dst_hactive - 1);
-			else
-				scl_h_factor = ((src_hactive - 2) << 14) /
-						(dst_hactive - 1);
-		} else {
-			scl_h_factor = (dst_hactive << 16) / (src_hactive - 1);
-		}
-
-	} else if (src_hactive == dst_hactive) {
-		scl_hor_mode = 0;
-		scl_h_factor = 0;
-	} else {
-		scl_hor_mode = 1;
-		scl_h_factor = ((src_hactive - 1) << 16) / (dst_hactive - 1);
-	}
-
-	if (src_vactive > dst_vactive) {
-		scl_ver_mode = 2;
-
-		if (ver_down_mode == 0) {
-			if ((src_vactive - 1) / (dst_vactive - 1) > 2)
-				scl_v_factor = ((src_vactive - 1) << 14) /
-						(dst_vactive - 1);
-			else
-				scl_v_factor = ((src_vactive - 2) << 14) /
-						(dst_vactive - 1);
-		} else {
-			scl_v_factor = (dst_vactive << 16) / (src_vactive - 1);
-		}
-
-	} else if (src_vactive == dst_vactive) {
-		scl_ver_mode = 0;
-		scl_v_factor = 0;
-	} else {
-		scl_ver_mode = 1;
-		scl_v_factor = ((src_vactive - 1) << 16) / (dst_vactive - 1);
-	}
-
-	rk628_i2c_update_bits(rk628, GRF_RGB_DEC_CON0, SW_HRES_MASK,
-			      SW_HRES(src_hactive));
-	rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_VER_DOWN_MODE(ver_down_mode) |
-			SCL_HOR_DOWN_MODE(hor_down_mode) |
-			SCL_VER_MODE(scl_ver_mode) |
-			SCL_HOR_MODE(scl_hor_mode));
-	rk628_i2c_write(rk628, GRF_SCALER_CON1, SCL_V_FACTOR(scl_v_factor) |
-			SCL_H_FACTOR(scl_h_factor));
-	rk628_i2c_write(rk628, GRF_SCALER_CON2, DSP_FRAME_VST(dsp_frame_vst) |
-			DSP_FRAME_HST(dsp_frame_hst));
-	rk628_i2c_write(rk628, GRF_SCALER_CON3, DSP_HS_END(dsp_hs_end) |
-			DSP_HTOTAL(dsp_htotal));
-	rk628_i2c_write(rk628, GRF_SCALER_CON4, DSP_HACT_END(dsp_hact_end) |
-			DSP_HACT_ST(dsp_hact_st));
-	rk628_i2c_write(rk628, GRF_SCALER_CON5, DSP_VS_END(dsp_vs_end) |
-			DSP_VTOTAL(dsp_vtotal));
-	rk628_i2c_write(rk628, GRF_SCALER_CON6, DSP_VACT_END(dsp_vact_end) |
-			DSP_VACT_ST(dsp_vact_st));
-	rk628_i2c_write(rk628, GRF_SCALER_CON7, DSP_HBOR_END(dsp_hbor_end) |
-			DSP_HBOR_ST(dsp_hbor_st));
-	rk628_i2c_write(rk628, GRF_SCALER_CON8, DSP_VBOR_END(dsp_vbor_end) |
-			DSP_VBOR_ST(dsp_vbor_st));
-}
-
-static int rk628_scaler_color_bar_show(struct seq_file *s, void *data)
-{
-	seq_puts(s, "  Enable horizontal color bar:\n");
-	seq_puts(s, "      example: echo 1 > /sys/kernel/debug/rk628/2-0050/scaler_color_bar\n");
-	seq_puts(s, "  Enable vertical color bar:\n");
-	seq_puts(s, "      example: echo 2 > /sys/kernel/debug/rk628/2-0050/scaler_color_bar\n");
-	seq_puts(s, "  Disable color bar:\n");
-	seq_puts(s, "      example: echo 0 > /sys/kernel/debug/rk628/2-0050/scaler_color_bar\n");
-
-	return 0;
-}
-
-static int rk628_scaler_color_bar_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, rk628_scaler_color_bar_show, inode->i_private);
-}
-
-static ssize_t rk628_scaler_color_bar_write(struct file *file, const char __user *ubuf,
-					    size_t len, loff_t *offp)
-{
-	struct rk628 *rk628 = ((struct seq_file *)file->private_data)->private;
-	u8 mode;
-
-	if (kstrtou8_from_user(ubuf, len, 0, &mode))
-		return -EFAULT;
-
-	switch (mode) {
-	case 0:
-		rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_COLOR_BAR_EN(0));
-		break;
-	case 1:
-		rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_COLOR_BAR_EN(1));
-		rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_COLOR_VER_EN(0));
-		break;
-	case 2:
-	default:
-		rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_COLOR_BAR_EN(1));
-		rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_COLOR_VER_EN(1));
-	}
-
-	return len;
-}
-
-static const struct file_operations rk628_scaler_color_bar_fops = {
-	.owner = THIS_MODULE,
-	.open = rk628_scaler_color_bar_open,
-	.read = seq_read,
-	.write = rk628_scaler_color_bar_write,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-void rk628_post_process_create_debugfs_file(struct rk628 *rk628)
-{
-	debugfs_create_file("scaler_color_bar", 0600, rk628->debug_dir,
-			    rk628, &rk628_scaler_color_bar_fops);
-}
-
-void rk628_post_process_init(struct rk628 *rk628)
-{
-	struct rk628_display_mode *src = &rk628->src_mode;
-	const struct rk628_display_mode *dst = &rk628->dst_mode;
-	u64 dst_rate, src_rate;
-
-	src_rate = src->clock * 1000;
-	dst_rate = src_rate * dst->vtotal * dst->htotal;
-	do_div(dst_rate, (src->vtotal * src->htotal));
-	do_div(dst_rate, 1000);
-	dev_info(rk628->dev, "src %dx%d clock:%d\n",
-		 src->hdisplay, src->vdisplay, src->clock);
-
-	dev_info(rk628->dev, "dst %dx%d clock:%llu\n",
-		 dst->hdisplay, dst->vdisplay, dst_rate);
-
-	rk628_cru_clk_set_rate(rk628, CGU_CLK_RX_READ, src->clock * 1000);
-	rk628_cru_clk_set_rate(rk628, CGU_SCLK_VOP, dst_rate * 1000);
-
-	if (rk628_output_is_hdmi(rk628)) {
-		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_VSYNC_POL_MASK,
-				      SW_VSYNC_POL(rk628->sync_pol));
-		rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0, SW_HSYNC_POL_MASK,
-				      SW_HSYNC_POL(rk628->sync_pol));
-	} else {
-		if (src->flags & DRM_MODE_FLAG_PVSYNC)
-			rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
-					      SW_VSYNC_POL_MASK, SW_VSYNC_POL(1));
-		if (src->flags & DRM_MODE_FLAG_PHSYNC)
-			rk628_i2c_update_bits(rk628, GRF_SYSTEM_CON0,
-					      SW_HSYNC_POL_MASK,
-					      SW_HSYNC_POL(1));
-	}
-
-	rk628_post_process_scaler_init(rk628, src, dst);
-}
-
 static void rk628_post_process_csc(struct rk628 *rk628)
 {
 	enum bus_format in_fmt, out_fmt;
-	struct post_csc_coef csc_coef = {};
+	struct post_csc_coef csc_coef;
 	bool is_input_yuv, is_output_yuv;
-	u32 color_space = V4L2_COLORSPACE_DEFAULT;
+	u32 color_space = V4L2_COLORSPACE_BT709F;
 	u32 csc_mode;
 	u32 val;
 	int range_type;
+	int color_range;
 
-	in_fmt = rk628_get_input_bus_format(rk628);
-	out_fmt = rk628_get_output_bus_format(rk628);
-
-	if (in_fmt == out_fmt) {
-		if (out_fmt == BUS_FMT_YUV422) {
-			rk628_i2c_write(rk628, GRF_CSC_CTRL_CON,
-					SW_YUV2VYU_SWP(1) |
-					SW_R2Y_EN(0));
-			return;
-		}
-		rk628_i2c_write(rk628, GRF_CSC_CTRL_CON, SW_R2Y_EN(0));
-		rk628_i2c_write(rk628, GRF_CSC_CTRL_CON, SW_Y2R_EN(0));
-		return;
-	}
+	in_fmt = rk628_hdmirx_get_format(rk628);
+	out_fmt = rk628->tx_mode ? BUS_FMT_RGB : BUS_FMT_YUV422;
 
 	if (rk628->version == RK628D_VERSION) {
 		if (in_fmt == BUS_FMT_RGB)
@@ -1588,7 +1310,8 @@ static void rk628_post_process_csc(struct rk628 *rk628)
 		else if (out_fmt == BUS_FMT_RGB)
 			rk628_i2c_write(rk628, GRF_CSC_CTRL_CON, SW_Y2R_EN(1));
 	} else {
-		csc_mode = vop2_convert_csc_mode(color_space, CSC_13BIT_DEPTH);
+		color_range = rk628_hdmirx_get_range(rk628);
+		csc_mode = vop2_convert_csc_mode(color_space, CSC_13BIT_DEPTH, color_range);
 
 		is_input_yuv = !is_rgb_format(in_fmt);
 		is_output_yuv = !is_rgb_format(out_fmt);
@@ -1619,13 +1342,15 @@ static void rk628_post_process_csc(struct rk628 *rk628)
 	}
 }
 
-void rk628_post_process_enable(struct rk628 *rk628)
+void rk628_post_process_csc_en(struct rk628 *rk628)
 {
 	rk628_post_process_csc(rk628);
 	rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_EN(1));
 }
+EXPORT_SYMBOL(rk628_post_process_csc_en);
 
-void rk628_post_process_disable(struct rk628 *rk628)
+void rk628_post_process_csc_dis(struct rk628 *rk628)
 {
 	rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_EN(0));
 }
+EXPORT_SYMBOL(rk628_post_process_csc_dis);

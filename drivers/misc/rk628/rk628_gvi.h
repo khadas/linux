@@ -20,6 +20,8 @@
 #define GVI_SYS_RST					HOSTREG(0x0014)
 #define GVI_LINE_FLAG					HOSTREG(0x0018)
 #define GVI_STATUS					HOSTREG(0x001c)
+#define GVI_LOCKED_MASK					0x70
+#define GVI_LOCKED_STATUS				0x40
 #define GVI_PLL_LOCK_TIMEOUT				HOSTREG(0x0030)
 #define GVI_HTPDN_TIMEOUT				HOSTREG(0x0034)
 #define GVI_LOCKN_TIMEOUT				HOSTREG(0x0038)
@@ -214,5 +216,5 @@
 int rk628_gvi_parse(struct rk628 *rk628, struct device_node *gvi_np);
 void rk628_gvi_enable(struct rk628 *rk628);
 void rk628_gvi_disable(struct rk628 *rk628);
-
+void rk628_gvi_create_debugfs_file(struct rk628 *rk628);
 #endif
