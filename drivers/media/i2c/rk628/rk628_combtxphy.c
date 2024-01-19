@@ -49,8 +49,11 @@ static void rk628_combtxphy_dsi_power_on(struct rk628 *rk628)
 	rk628_i2c_update_bits(rk628,  COMBTXPHY_CON0, SW_PD_PLL, 0);
 	usleep_range(100, 200);
 	rk628_i2c_update_bits(rk628,  COMBTXPHY_CON9, SW_DSI_FSET_EN_MASK |
-			      SW_DSI_RCAL_EN_MASK, SW_DSI_FSET_EN |
-			      SW_DSI_RCAL_EN);
+			      SW_DSI_RCAL_EN_MASK | SW_LPTX_SR_TRIM_MASK, SW_DSI_FSET_EN |
+			      SW_DSI_RCAL_EN | SW_LPTX_SR_TRIM(7));
+	if (rk628->tx_mode && rk628->dual_mipi)
+		rk628_i2c_update_bits(rk628, COMBTXPHY_CON6, SW_PLL_CTRL0_MASK, SW_PLL_CTRL0(1));
+
 	usleep_range(100, 200);
 }
 
@@ -111,7 +114,7 @@ void rk628_txphy_set_mode(struct rk628 *rk628, enum phy_mode mode)
 		unsigned int flags = bus_width & 0xff;
 
 		fhsc = fin * (fhsc / fin);
-		if (fhsc < 80 || fhsc > 1500)
+		if (fhsc < 80 || fhsc > 1800)
 			return;
 		else if (fhsc < 375)
 			txphy->rate_div = 4;

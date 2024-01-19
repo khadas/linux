@@ -5,6 +5,7 @@
  * Author: Wyon Bi <bivvy.bi@rock-chips.com>
  */
 
+#include "asm-generic/errno-base.h"
 #include "rk628.h"
 #include "rk628_cru.h"
 
@@ -65,6 +66,9 @@ static unsigned long rk628_cru_clk_get_rate_pll(struct rk628 *rk628,
 	u64 foutvco, foutpostdiv;
 	u32 offset, val;
 
+	if (id == CGU_CLK_APLL && rk628->version < RK628F_VERSION)
+		return 0;
+
 	rk628_i2c_read(rk628, CRU_MODE_CON00, &val);
 	if (id == CGU_CLK_CPLL) {
 		val &= CLK_CPLL_MODE_MASK;
@@ -73,13 +77,20 @@ static unsigned long rk628_cru_clk_get_rate_pll(struct rk628 *rk628,
 			return parent_rate;
 
 		offset = 0x00;
-	} else {
+	} else if (id == CGU_CLK_GPLL) {
 		val &= CLK_GPLL_MODE_MASK;
 		val >>= CLK_GPLL_MODE_SHIFT;
 		if (val == CLK_GPLL_MODE_OSC)
 			return parent_rate;
 
 		offset = 0x20;
+	} else {
+		val &= CLK_APLL_MODE_MASK;
+		val >>= CLK_APLL_MODE_SHIFT;
+		if (val == CLK_APLL_MODE_OSC)
+			return parent_rate;
+
+		offset = 0x40;
 	}
 
 	rk628_i2c_read(rk628, offset + CRU_CPLL_CON0, &con0);
@@ -123,7 +134,7 @@ static unsigned long rk628_cru_clk_set_rate_pll(struct rk628 *rk628,
 	u8 dsmpd = 1, postdiv1 = 0, postdiv2 = 0, refdiv = 0;
 	u16 fbdiv = 0;
 	u32 frac = 0;
-	u64 foutvco, foutpostdiv;
+	u64 foutvco, foutpostdiv, div1, div2;
 	u32 offset, val;
 
 	/*
@@ -140,10 +151,13 @@ static unsigned long rk628_cru_clk_set_rate_pll(struct rk628 *rk628,
 
 	if (id == CGU_CLK_CPLL)
 		offset = 0x00;
-	else
+	else if (id == CGU_CLK_GPLL)
 		offset = 0x20;
+	else
+		offset = 0x40;
 
-	rk628_i2c_write(rk628, offset + CRU_CPLL_CON1, PLL_PD(1));
+	if (id != CGU_CLK_APLL)
+		rk628_i2c_write(rk628, offset + CRU_CPLL_CON1, PLL_PD(1));
 
 	if (fin == fout) {
 		rk628_i2c_write(rk628, offset + CRU_CPLL_CON0, PLL_BYPASS(1));
@@ -162,21 +176,24 @@ static unsigned long rk628_cru_clk_set_rate_pll(struct rk628 *rk628,
 		max_refdiv = 64;
 
 	if (fout < MIN_FVCO_RATE) {
-		postdiv = MIN_FVCO_RATE / fout + 1;
-
-		for (postdiv2 = 1; postdiv2 < 8; postdiv2++) {
-			if (postdiv % postdiv2)
+		div1 = DIV_ROUND_UP(MIN_FVCO_RATE, fout);
+		div2 = DIV_ROUND_UP(MAX_FVCO_RATE, fout);
+		for (postdiv = div1; postdiv <= div2; postdiv++) {
+			/* fix prime number that can not find right div*/
+			for (postdiv2 = 1; postdiv2 < 8; postdiv2++) {
+				if (postdiv % postdiv2)
+					continue;
+				postdiv1 = postdiv / postdiv2;
+				if (postdiv1 > 0 && postdiv1 < 8)
+					break;
+			}
+			if (postdiv2 > 7)
 				continue;
-
-			postdiv1 = postdiv / postdiv2;
-
-			if (postdiv1 > 0 && postdiv1 < 8)
+			else
 				break;
 		}
-
-		if (postdiv2 > 7)
+		if (postdiv > div2)
 			return 0;
-
 		fout *= postdiv1 * postdiv2;
 	} else {
 		postdiv1 = 1;
@@ -244,7 +261,9 @@ static unsigned long rk628_cru_clk_set_rate_pll(struct rk628 *rk628,
 			PLL_REFDIV(refdiv));
 	rk628_i2c_write(rk628, offset + CRU_CPLL_CON2, PLL_FRAC(frac));
 
-	rk628_i2c_write(rk628, offset + CRU_CPLL_CON1, PLL_PD(0));
+	if (id != CGU_CLK_APLL)
+		rk628_i2c_write(rk628, offset + CRU_CPLL_CON1, PLL_PD(0));
+
 	while (1) {
 		rk628_i2c_read(rk628, offset + CRU_CPLL_CON1, &val);
 		if (val & PLL_LOCK)
@@ -293,6 +312,26 @@ static unsigned long rk628_cru_clk_get_rate_sclk_vop(struct rk628 *rk628)
 	m = div >> 16 & 0xffff;
 	n = div & 0xffff;
 	rate = parent_rate * m / n;
+
+	return rate;
+}
+
+static unsigned long rk628_cru_clk_get_rate_clk_imodet(struct rk628 *rk628)
+{
+	unsigned long rate, parent_rate, n;
+	u32 mux, div;
+
+	rk628_i2c_read(rk628, CRU_CLKSEL_CON05, &mux);
+	mux &= CLK_IMODET_SEL_MASK;
+	mux >>= CLK_IMODET_SEL_SHIFT;
+	if (mux == SCLK_VOP_SEL_GPLL)
+		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_GPLL);
+	else
+		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_CPLL);
+
+	rk628_i2c_read(rk628, CRU_CLKSEL_CON05, &div);
+	n = div & 0x1f;
+	rate = parent_rate / (n + 1);
 
 	return rate;
 }
@@ -367,6 +406,51 @@ static unsigned long rk628_cru_clk_set_rate_sclk_uart(struct rk628 *rk628,
 	return rate;
 }
 
+static unsigned long rk628_cru_clk_set_rate_sclk_hdmirx_aud(struct rk628 *rk628, unsigned long rate)
+{
+	u64 parent_rate;
+	u8 div;
+
+	if (rk628->version >= RK628F_VERSION)
+		parent_rate = rk628_cru_clk_set_rate_pll(rk628, CGU_CLK_APLL, rate*4);
+	else
+		parent_rate = rk628_cru_clk_set_rate_pll(rk628, CGU_CLK_GPLL, rate*4);
+	div = DIV_ROUND_CLOSEST_ULL(parent_rate, rate);
+	do_div(parent_rate, div);
+	rate = parent_rate;
+	if (rk628->version >= RK628F_VERSION)
+		rk628_i2c_write(rk628, CRU_CLKSEL_CON05, CLK_HDMIRX_AUD_DIV(div - 1) |
+				CLK_HDMIRX_AUD_SEL_V2(2));
+	else
+		rk628_i2c_write(rk628, CRU_CLKSEL_CON05, CLK_HDMIRX_AUD_DIV(div - 1) |
+				CLK_HDMIRX_AUD_SEL_V1(1));
+	return rate;
+}
+
+static unsigned long rk628_cru_clk_get_rate_sclk_hdmirx_aud(struct rk628 *rk628)
+{
+	unsigned long rate;
+	u64 parent_rate;
+	u8 div;
+	u32 val;
+
+	rk628_i2c_read(rk628, CRU_CLKSEL_CON05, &val);
+	div = ((val & CLK_HDMIRX_AUD_DIV_MASK) >> 6) + 1;
+	if (rk628->version >= RK628F_VERSION)
+		val = (val & CLK_HDMIRX_AUD_SEL_MASK_V2) >> 14;
+	else
+		val = (val & CLK_HDMIRX_AUD_SEL_MASK_V1) >> 15;
+	if (!val)
+		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_CPLL);
+	else if (val == 2)
+		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_APLL);
+	else
+		parent_rate = rk628_cru_clk_get_rate_pll(rk628, CGU_CLK_GPLL);
+	do_div(parent_rate, div);
+	rate = parent_rate;
+	return rate;
+}
+
 static unsigned long
 rk628_cru_clk_get_rate_bt1120_dec_parent(struct rk628 *rk628)
 {
@@ -399,7 +483,11 @@ static unsigned long rk628_cru_clk_set_rate_bt1120_dec(struct rk628 *rk628,
 int rk628_cru_clk_set_rate(struct rk628 *rk628, unsigned int id,
 			   unsigned long rate)
 {
+	if (id == CGU_CLK_APLL && rk628->version < RK628F_VERSION)
+		return -EINVAL;
+
 	switch (id) {
+	case CGU_CLK_APLL:
 	case CGU_CLK_CPLL:
 	case CGU_CLK_GPLL:
 		rk628_cru_clk_set_rate_pll(rk628, id, rate);
@@ -416,8 +504,11 @@ int rk628_cru_clk_set_rate(struct rk628 *rk628, unsigned int id,
 	case CGU_BT1120DEC:
 		rk628_cru_clk_set_rate_bt1120_dec(rk628, rate);
 		break;
+	case CGU_CLK_HDMIRX_AUD:
+		rk628_cru_clk_set_rate_sclk_hdmirx_aud(rk628, rate);
+		break;
 	default:
-		return -1;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -427,13 +518,23 @@ unsigned long rk628_cru_clk_get_rate(struct rk628 *rk628, unsigned int id)
 {
 	unsigned long rate;
 
+	if (id == CGU_CLK_APLL && rk628->version < RK628F_VERSION)
+		return 0;
+
 	switch (id) {
+	case CGU_CLK_APLL:
 	case CGU_CLK_CPLL:
 	case CGU_CLK_GPLL:
 		rate = rk628_cru_clk_get_rate_pll(rk628, id);
 		break;
 	case CGU_SCLK_VOP:
 		rate = rk628_cru_clk_get_rate_sclk_vop(rk628);
+		break;
+	case CGU_CLK_IMODET:
+		rate = rk628_cru_clk_get_rate_clk_imodet(rk628);
+		break;
+	case CGU_CLK_HDMIRX_AUD:
+		rate = rk628_cru_clk_get_rate_sclk_hdmirx_aud(rk628);
 		break;
 	default:
 		return 0;
@@ -449,9 +550,10 @@ void rk628_cru_init(struct rk628 *rk628)
 
 	rk628_i2c_read(rk628, GRF_SYSTEM_STATUS0, &val);
 	mcu_mode = (val & I2C_ONLY_FLAG) ? 0 : 1;
-	if (mcu_mode)
+	if (mcu_mode || rk628->version >= RK628F_VERSION) {
+		rk628_i2c_write(rk628, CRU_MODE_CON00, HIWORD_UPDATE(1, 4, 4));
 		return;
-
+	}
 	rk628_i2c_write(rk628, CRU_GPLL_CON0, 0xffff701d);
 	mdelay(1);
 	rk628_i2c_write(rk628, CRU_MODE_CON00, 0xffff0004);

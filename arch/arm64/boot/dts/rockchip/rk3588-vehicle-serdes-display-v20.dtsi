@@ -652,6 +652,7 @@
 			02a8 0003
 			02a9 0004
 			02aa 0005
+			02af 0002	//gpio0 1MHZ
 			0045 0080
 			0046 0007
 			0047 0080
@@ -762,25 +763,25 @@
 		i2c2_bu18tl82_bridge: i2c2-bu18tl82-bridge {
 			compatible = "rohm,bu18tl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c2_bu18tl82_in_dsi0: endpoint {
-					remote-endpoint = <&dsi0_out_i2c2_bu18tl82>;
+					i2c2_bu18tl82_in_dsi0: endpoint {
+						remote-endpoint = <&dsi0_out_i2c2_bu18tl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c2_bu18tl82_out_i2c2_bu18rl82: endpoint {
-					remote-endpoint = <&i2c2_bu18rl82_in_i2c2_bu18tl82>;
+					i2c2_bu18tl82_out_i2c2_bu18rl82: endpoint {
+						remote-endpoint = <&i2c2_bu18rl82_in_i2c2_bu18tl82>;
+					};
 				};
 			};
 		};
@@ -880,9 +881,9 @@
 					function = "DES_TO_SER_GPIO3";
 				};
 
-				100ms-delay {
+				40ms-delay {
 					pins = "BU18RL82_GPIO1";
-					function = "DELAY_100MS";
+					function = "DELAY_40MS";
 				};
 
 				lcd-pwr-en {
@@ -926,25 +927,25 @@
 		i2c2_bu18rl82_bridge: i2c2-bu18rl82-bridge {
 			compatible = "rohm,bu18rl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c2_bu18rl82_in_i2c2_bu18tl82: endpoint {
-					remote-endpoint = <&i2c2_bu18tl82_out_i2c2_bu18rl82>;
+					i2c2_bu18rl82_in_i2c2_bu18tl82: endpoint {
+						remote-endpoint = <&i2c2_bu18tl82_out_i2c2_bu18rl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c2_bu18rl82_out_panel0: endpoint {
-					remote-endpoint = <&panel0_in_i2c2_bu18rl82>;
+					i2c2_bu18rl82_out_panel0: endpoint {
+						remote-endpoint = <&panel0_in_i2c2_bu18rl82>;
+					};
 				};
 			};
 		};
@@ -972,6 +973,7 @@
 			002d 0018
 			0030 0018
 			0033 0018
+			02af 0002	//gpio0 1MHZ
 			0045 0080
 			0046 0007
 			004b 0038
@@ -1065,25 +1067,25 @@
 		i2c4_bu18tl82_bridge: i2c4-bu18tl82-bridge {
 			compatible = "rohm,bu18tl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c4_bu18tl82_in_dp0: endpoint {
-					remote-endpoint = <&dp0_out_i2c4_bu18tl82>;
+					i2c4_bu18tl82_in_dp0: endpoint {
+						remote-endpoint = <&dp0_out_i2c4_bu18tl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c4_bu18tl82_out_i2c4_bu18rl82: endpoint {
-					remote-endpoint = <&i2c4_bu18rl82_in_i2c4_bu18tl82>;
+					i2c4_bu18tl82_out_i2c4_bu18rl82: endpoint {
+						remote-endpoint = <&i2c4_bu18rl82_in_i2c4_bu18tl82>;
+					};
 				};
 			};
 		};
@@ -1178,9 +1180,9 @@
 					function = "DES_TO_SER_GPIO3";
 				};
 
-				100ms-delay {
+				40ms-delay {
 					pins = "BU18RL82_GPIO1";
-					function = "DELAY_100MS";
+					function = "DELAY_40MS";
 				};
 
 				lcd-pwr-en {
@@ -1224,25 +1226,25 @@
 		i2c4_bu18rl82_bridge: i2c4-bu18rl82-bridge {
 			compatible = "rohm,bu18rl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c4_bu18rl82_in_i2c4_bu18tl82: endpoint {
-					remote-endpoint = <&i2c4_bu18tl82_out_i2c4_bu18rl82>;
+					i2c4_bu18rl82_in_i2c4_bu18tl82: endpoint {
+						remote-endpoint = <&i2c4_bu18tl82_out_i2c4_bu18rl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c4_bu18rl82_out_panel0: endpoint {
-					remote-endpoint = <&panel0_in_i2c4_bu18rl82>;
+					i2c4_bu18rl82_out_panel0: endpoint {
+						remote-endpoint = <&panel0_in_i2c4_bu18rl82>;
+					};
 				};
 			};
 		};
@@ -1290,6 +1292,7 @@
 			0275 0020
 			0296 0004
 			0297 000d
+			02af 0002	//gpio0 1MHZ
 			02b2 00c8
 			02b4 0001
 			02b8 00ff
@@ -1371,25 +1374,25 @@
 		i2c5_bu18tl82_bridge: i2c5-bu18tl82-bridge {
 			compatible = "rohm,bu18tl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c5_bu18tl82_in_edp0: endpoint {
-					remote-endpoint = <&edp0_out_i2c5_bu18tl82>;
+					i2c5_bu18tl82_in_edp0: endpoint {
+						remote-endpoint = <&edp0_out_i2c5_bu18tl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c5_bu18tl82_out_i2c5_bu18rl82: endpoint {
-					remote-endpoint = <&i2c5_bu18rl82_in_i2c5_bu18tl82>;
+					i2c5_bu18tl82_out_i2c5_bu18rl82: endpoint {
+						remote-endpoint = <&i2c5_bu18rl82_in_i2c5_bu18tl82>;
+					};
 				};
 			};
 		};
@@ -1487,9 +1490,9 @@
 					function = "DES_TO_SER_GPIO3";
 				};
 
-				100ms-delay {
+				40ms-delay {
 					pins = "BU18RL82_GPIO1";
-					function = "DELAY_100MS";
+					function = "DELAY_40MS";
 				};
 
 				lcd-pwr-en {
@@ -1533,25 +1536,25 @@
 		i2c5_bu18rl82_bridge: i2c5-bu18rl82-bridge {
 			compatible = "rohm,bu18rl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c5_bu18rl82_in_i2c5_bu18tl82: endpoint {
-					remote-endpoint = <&i2c5_bu18tl82_out_i2c5_bu18rl82>;
+					i2c5_bu18rl82_in_i2c5_bu18tl82: endpoint {
+						remote-endpoint = <&i2c5_bu18tl82_out_i2c5_bu18rl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c5_bu18rl82_out_panel0: endpoint {
-					remote-endpoint = <&panel0_in_i2c5_bu18rl82>;
+					i2c5_bu18rl82_out_panel0: endpoint {
+						remote-endpoint = <&panel0_in_i2c5_bu18rl82>;
+					};
 				};
 			};
 		};
@@ -1595,6 +1598,7 @@
 			02a8 0003
 			02a9 0004
 			02aa 0005
+			02af 0002	//gpio0 1MHZ
 			0045 0080
 			0046 0007
 			0047 0080
@@ -1706,25 +1710,25 @@
 		i2c6_bu18tl82_bridge: i2c6-bu18tl82-bridge {
 			compatible = "rohm,bu18tl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c6_bu18tl82_in_dsi1: endpoint {
-					remote-endpoint = <&dsi1_out_i2c6_bu18tl82>;
+					i2c6_bu18tl82_in_dsi1: endpoint {
+						remote-endpoint = <&dsi1_out_i2c6_bu18tl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c6_bu18tl82_out_i2c6_bu18rl82: endpoint {
-					remote-endpoint = <&i2c6_bu18rl82_in_i2c6_bu18tl82>;
+					i2c6_bu18tl82_out_i2c6_bu18rl82: endpoint {
+						remote-endpoint = <&i2c6_bu18rl82_in_i2c6_bu18tl82>;
+					};
 				};
 			};
 		};
@@ -1826,9 +1830,9 @@
 					function = "DES_TO_SER_GPIO3";
 				};
 
-				100ms-delay {
+				40ms-delay {
 					pins = "BU18RL82_GPIO1";
-					function = "DELAY_100MS";
+					function = "DELAY_40MS";
 				};
 
 				lcd-pwr-en {
@@ -1872,25 +1876,25 @@
 		i2c6_bu18rl82_bridge: i2c6-bu18rl82-bridge {
 			compatible = "rohm,bu18rl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c6_bu18rl82_in_i2c6_bu18tl82: endpoint {
-					remote-endpoint = <&i2c6_bu18tl82_out_i2c6_bu18rl82>;
+					i2c6_bu18rl82_in_i2c6_bu18tl82: endpoint {
+						remote-endpoint = <&i2c6_bu18tl82_out_i2c6_bu18rl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c6_bu18rl82_out_panel1: endpoint {
-					remote-endpoint = <&panel1_in_i2c6_bu18rl82>;
+					i2c6_bu18rl82_out_panel1: endpoint {
+						remote-endpoint = <&panel1_in_i2c6_bu18rl82>;
+					};
 				};
 			};
 		};
@@ -1930,6 +1934,7 @@
 			0275 0020
 			0296 0004
 			0297 000d
+			02af 0002	//gpio0 1MHZ
 			02b2 00c8
 			02b4 0001
 			02b8 00ff
@@ -2010,24 +2015,25 @@
 		i2c7_bu18tl82_bridge: i2c7-bu18tl82-bridge {
 			compatible = "rohm,bu18tl82-bridge";
 			status = "okay";
-		};
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-				i2c7_bu18tl82_in_edp1: endpoint {
-					remote-endpoint = <&edp1_out_i2c7_bu18tl82>;
+				port@0 {
+					reg = <0>;
+
+					i2c7_bu18tl82_in_edp1: endpoint {
+						remote-endpoint = <&edp1_out_i2c7_bu18tl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c7_bu18tl82_out_i2c7_bu18rl82: endpoint {
-					remote-endpoint = <&i2c7_bu18rl82_in_i2c7_bu18tl82>;
+					i2c7_bu18tl82_out_i2c7_bu18rl82: endpoint {
+						remote-endpoint = <&i2c7_bu18rl82_in_i2c7_bu18tl82>;
+					};
 				};
 			};
 		};
@@ -2144,25 +2150,25 @@
 		i2c7_bu18rl82_bridge: i2c7-bu18rl82-bridge {
 			compatible = "rohm,bu18rl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c7_bu18rl82_in_i2c7_bu18tl82: endpoint {
-					remote-endpoint = <&i2c7_bu18tl82_out_i2c7_bu18rl82>;
+					i2c7_bu18rl82_in_i2c7_bu18tl82: endpoint {
+						remote-endpoint = <&i2c7_bu18tl82_out_i2c7_bu18rl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c7_bu18rl82_out_panel1: endpoint {
-					remote-endpoint = <&panel1_in_i2c7_bu18rl82>;
+					i2c7_bu18rl82_out_panel1: endpoint {
+						remote-endpoint = <&panel1_in_i2c7_bu18rl82>;
+					};
 				};
 			};
 		};
@@ -2197,6 +2203,7 @@
 			002d 0018
 			0030 0018
 			0033 0018
+			02af 0002	//gpio0 1MHZ
 			0045 0080
 			0046 0007
 			004b 0038
@@ -2289,25 +2296,25 @@
 		i2c8_bu18tl82_bridge: i2c8-bu18tl82-bridge {
 			compatible = "rohm,bu18tl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c8_bu18tl82_in_dp1: endpoint {
-					remote-endpoint = <&dp1_out_i2c8_bu18tl82>;
+					i2c8_bu18tl82_in_dp1: endpoint {
+						remote-endpoint = <&dp1_out_i2c8_bu18tl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c8_bu18tl82_out_i2c8_bu18rl82: endpoint {
-					remote-endpoint = <&i2c8_bu18rl82_in_i2c8_bu18tl82>;
+					i2c8_bu18tl82_out_i2c8_bu18rl82: endpoint {
+						remote-endpoint = <&i2c8_bu18rl82_in_i2c8_bu18tl82>;
+					};
 				};
 			};
 		};
@@ -2424,25 +2431,25 @@
 		i2c8_bu18rl82_bridge: i2c8-bu18rl82-bridge {
 			compatible = "rohm,bu18rl82-bridge";
 			status = "okay";
-		};
 
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			port@0 {
-				reg = <0>;
+				port@0 {
+					reg = <0>;
 
-				i2c8_bu18rl82_in_i2c8_bu18tl82: endpoint {
-					remote-endpoint = <&i2c8_bu18tl82_out_i2c8_bu18rl82>;
+					i2c8_bu18rl82_in_i2c8_bu18tl82: endpoint {
+						remote-endpoint = <&i2c8_bu18tl82_out_i2c8_bu18rl82>;
+					};
 				};
-			};
 
-			port@1 {
-				reg = <1>;
+				port@1 {
+					reg = <1>;
 
-				i2c8_bu18rl82_out_panel1: endpoint {
-					remote-endpoint = <&panel1_in_i2c8_bu18rl82>;
+					i2c8_bu18rl82_out_panel1: endpoint {
+						remote-endpoint = <&panel1_in_i2c8_bu18rl82>;
+					};
 				};
 			};
 		};

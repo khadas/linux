@@ -1165,7 +1165,7 @@ static void rkisp_pm_complete(struct device *dev)
 	}
 	for (i = 0; i < RKISP_MAX_STREAM; i++) {
 		stream = &isp_dev->cap_dev.stream[i];
-		if (i == RKISP_STREAM_VIR || !stream->streaming || !stream->curr_buf)
+		if (i == RKISP_STREAM_VIR || !stream->streaming)
 			continue;
 		/* skip first frame due to hw no reference frame information */
 		if (isp_dev->is_first_double)

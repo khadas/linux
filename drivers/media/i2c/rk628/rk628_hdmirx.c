@@ -18,15 +18,6 @@
 
 #define INIT_FIFO_STATE			64
 
-#define is_validfs(x) (x == 32000 || \
-			x == 44100 || \
-			x == 48000 || \
-			x == 88200 || \
-			x == 96000 || \
-			x == 176400 || \
-			x == 192000 || \
-			x == 768000)
-
 struct rk628_audiostate {
 	u32 hdmirx_aud_clkrate;
 	u32 fs_audio;
@@ -51,6 +42,25 @@ struct rk628_audioinfo {
 	bool ctsn_ints_en;
 	bool audio_present;
 	struct device *dev;
+};
+
+struct hdmirx_tmdsclk_cnt {
+	u32 tmds_cnt;
+	u8  cnt;
+};
+
+#define HDMIRX_GET_TMDSCLK_TIME		21
+
+static int supported_fs[] = {
+	32000,
+	44100,
+	48000,
+	88200,
+	96000,
+	176400,
+	192000,
+	768000,
+	-1
 };
 
 static int hdcp_load_keys_cb(struct rk628 *rk628, struct rk628_hdcp *hdcp)
@@ -168,11 +178,11 @@ EXPORT_SYMBOL(rk628_hdmirx_set_hdcp);
 
 void rk628_hdmirx_controller_setup(struct rk628 *rk628)
 {
-	rk628_i2c_write(rk628, HDMI_RX_HDMI20_CONTROL, 0x10000f10);
+	rk628_i2c_write(rk628, HDMI_RX_HDMI20_CONTROL, 0x10000f11);
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_MODE_RECOVER, 0x00000021);
 	rk628_i2c_write(rk628, HDMI_RX_PDEC_CTRL, 0xbfff8011);
 	rk628_i2c_write(rk628, HDMI_RX_PDEC_ASP_CTRL, 0x00000040);
-	rk628_i2c_write(rk628, HDMI_RX_HDMI_RESMPL_CTRL, 0x00000001);
+	rk628_i2c_write(rk628, HDMI_RX_HDMI_RESMPL_CTRL, 0x00000000);
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_SYNC_CTRL, 0x00000014);
 	rk628_i2c_write(rk628, HDMI_RX_PDEC_ERR_FILTER, 0x00000008);
 	rk628_i2c_write(rk628, HDMI_RX_SCDC_I2CCONFIG, 0x01000000);
@@ -181,7 +191,7 @@ void rk628_hdmirx_controller_setup(struct rk628 *rk628)
 	rk628_i2c_write(rk628, HDMI_RX_CHLOCK_CONFIG, 0x0030c15c);
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_ERROR_PROTECT, 0x000d0c98);
 	rk628_i2c_write(rk628, HDMI_RX_MD_HCTRL1, 0x00000010);
-	rk628_i2c_write(rk628, HDMI_RX_MD_HCTRL2, 0x00001738);
+	rk628_i2c_write(rk628, HDMI_RX_MD_HCTRL2, 0x0000173a);
 	rk628_i2c_write(rk628, HDMI_RX_MD_VCTRL, 0x00000002);
 	rk628_i2c_write(rk628, HDMI_RX_MD_VTH, 0x0000073a);
 	rk628_i2c_write(rk628, HDMI_RX_MD_IL_POL, 0x00000004);
@@ -189,7 +199,7 @@ void rk628_hdmirx_controller_setup(struct rk628 *rk628)
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_DCM_CTRL, 0x00040414);
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_CKM_EVLTM, 0x00103e70);
 	rk628_i2c_write(rk628, HDMI_RX_HDMI_CKM_F, 0x0c1c0b54);
-	rk628_i2c_write(rk628, HDMI_RX_HDMI_RESMPL_CTRL, 0x00000001);
+	rk628_i2c_update_bits(rk628, HDMI_RX_HDMI_TIMER_CTRL, VIDEO_PERIOD_MASK, VIDEO_PERIOD(1));
 
 	rk628_i2c_update_bits(rk628, HDMI_RX_HDCP_SETTINGS,
 			      HDMI_RESERVED_MASK |
@@ -202,6 +212,39 @@ void rk628_hdmirx_controller_setup(struct rk628 *rk628)
 			      FAST_REAUTH(0));
 }
 EXPORT_SYMBOL(rk628_hdmirx_controller_setup);
+
+static bool is_validfs(int fs)
+{
+	int i = 0;
+	int fs_t;
+
+	fs_t = supported_fs[i++];
+	while (fs_t > 0) {
+		if (fs == fs_t)
+			return true;
+		fs_t = supported_fs[i++];
+	};
+	return false;
+}
+
+static int rk628_hdmirx_audio_find_closest_fs(struct rk628_audioinfo *aif, int fs)
+{
+	int i = 0;
+	int fs_t;
+	int difference;
+
+	fs_t = supported_fs[i++];
+	while (fs_t > 0) {
+		difference = abs(fs - fs_t);
+		if (difference <= 2000) {
+			if (fs != fs_t)
+				dev_dbg(aif->dev, "%s fix fs from %u to %u", __func__, fs, fs_t);
+			return fs_t;
+		}
+		fs_t = supported_fs[i++];
+	};
+	return fs_t;
+}
 
 static void rk628_hdmirx_audio_fifo_init(struct rk628_audioinfo *aif)
 {
@@ -246,8 +289,7 @@ static u32 _rk628_hdmirx_audio_fs(struct rk628_audioinfo *aif)
 	if (cts_decoded != 0) {
 		fs_audio = div_u64((tmdsclk * n_decoded), cts_decoded);
 		fs_audio /= 128;
-		fs_audio = div_u64(fs_audio + 50, 100);
-		fs_audio *= 100;
+		fs_audio = rk628_hdmirx_audio_find_closest_fs(aif, fs_audio);
 	}
 	dev_dbg(aif->dev,
 		"%s: clkrate:%u tmdsclk:%llu, n_decoded:%u, cts_decoded:%u, fs_audio:%u\n",
@@ -304,6 +346,85 @@ static void rk628_hdmirx_audio_enable(struct rk628_audioinfo *aif)
 	aif->fifo_ints_en = true;
 	rk628_i2c_write(aif->rk628, HDMI_RX_AUD_FIFO_IEN_SET,
 			AFIF_OVERFL_ISTS | AFIF_UNDERFL_ISTS);
+}
+
+static const char *audio_fifo_err(u32 fifo_status)
+{
+	switch (fifo_status & (AFIF_UNDERFL_ISTS | AFIF_OVERFL_ISTS)) {
+	case AFIF_UNDERFL_ISTS:
+		return "underflow";
+	case AFIF_OVERFL_ISTS:
+		return "overflow";
+	case AFIF_UNDERFL_ISTS | AFIF_OVERFL_ISTS:
+		return "underflow and overflow";
+	}
+	return "underflow or overflow";
+}
+
+static void rk628_csi_delayed_work_audio_v2(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct rk628_audioinfo *aif = container_of(dwork, struct rk628_audioinfo,
+						   delayed_work_audio);
+	struct rk628_audiostate *audio_state = &aif->audio_state;
+	struct rk628 *rk628 = aif->rk628;
+	u32 fs_audio;
+	int init_state, pre_state, fifo_status, fifo_ints;
+	unsigned long delay = 500;
+
+	fs_audio = _rk628_hdmirx_audio_fs(aif);
+	/* read fifo init status */
+	rk628_i2c_read(rk628, HDMI_RX_AUD_FIFO_ISTS, &fifo_ints);
+	dev_dbg(rk628->dev, "%s: HDMI_RX_AUD_FIFO_ISTS:%#x\r\n", __func__, fifo_ints);
+
+	if (fifo_ints & (AFIF_UNDERFL_ISTS | AFIF_OVERFL_ISTS)) {
+		dev_warn(rk628->dev, "%s: audio %s %#x, with fs %svalid %d\n",
+			 __func__, audio_fifo_err(fifo_ints), fifo_ints,
+			 is_validfs(fs_audio) ? "" : "in", fs_audio);
+		if (is_validfs(fs_audio))
+			rk628_hdmirx_audio_set_fs(aif, fs_audio);
+		rk628_hdmirx_audio_fifo_init(aif);
+		audio_state->pre_state = 0;
+		goto exit;
+	}
+
+	/* read fifo fill status */
+	init_state = audio_state->init_state;
+	pre_state = audio_state->pre_state;
+	rk628_i2c_read(rk628, HDMI_RX_AUD_FIFO_FILLSTS1, &fifo_status);
+	dev_dbg(rk628->dev,
+		"%s: HDMI_RX_AUD_FIFO_FILLSTS1:%#x, single offset:%d, total offset:%d\n",
+		__func__, fifo_status, fifo_status - pre_state, fifo_status - init_state);
+	if (!is_validfs(fs_audio)) {
+		dev_dbg(rk628->dev, "%s: no supported fs(%u), fifo_status %d\n",
+			__func__, fs_audio, fifo_status);
+		delay = 1000;
+	} else if (abs(fs_audio - audio_state->fs_audio) > 1000) {
+		dev_info(rk628->dev, "%s: restart audio fs(%d -> %d)\n",
+			 __func__, audio_state->fs_audio, fs_audio);
+		rk628_hdmirx_audio_set_fs(aif, fs_audio);
+		rk628_hdmirx_audio_fifo_init(aif);
+		audio_state->pre_state = 0;
+		goto exit;
+	}
+	if (fifo_status != 0) {
+		if (!aif->audio_present) {
+			dev_info(rk628->dev, "audio on");
+			aif->audio_present = true;
+		}
+		if (fifo_status - init_state > 16 && fifo_status - pre_state > 0)
+			rk628_hdmirx_audio_clk_inc_rate(aif, 10);
+		else if (fifo_status - init_state < -16 && fifo_status - pre_state < 0)
+			rk628_hdmirx_audio_clk_inc_rate(aif, -10);
+	} else {
+		if (aif->audio_present) {
+			dev_info(rk628->dev, "audio off");
+			aif->audio_present = false;
+		}
+	}
+	audio_state->pre_state = fifo_status;
+exit:
+	schedule_delayed_work(&aif->delayed_work_audio, msecs_to_jiffies(delay));
 }
 
 static void rk628_csi_delayed_work_audio(struct work_struct *work)
@@ -395,10 +516,13 @@ HAUDINFO rk628_hdmirx_audioinfo_alloc(struct device *dev,
 	aif = devm_kzalloc(dev, sizeof(*aif), GFP_KERNEL);
 	if (!aif)
 		return NULL;
-	INIT_DELAYED_WORK(&aif->delayed_work_audio_rate_change,
-			  rk628_csi_delayed_work_audio_rate_change);
-	INIT_DELAYED_WORK(&aif->delayed_work_audio,
-			  rk628_csi_delayed_work_audio);
+	if (rk628->version >= RK628F_VERSION) {
+		INIT_DELAYED_WORK(&aif->delayed_work_audio, rk628_csi_delayed_work_audio_v2);
+	} else {
+		INIT_DELAYED_WORK(&aif->delayed_work_audio, rk628_csi_delayed_work_audio);
+		INIT_DELAYED_WORK(&aif->delayed_work_audio_rate_change,
+				   rk628_csi_delayed_work_audio_rate_change);
+	}
 	aif->confctl_mutex = confctl_mutex;
 	aif->rk628 = rk628;
 	aif->i2s_enabled_default = en;
@@ -432,11 +556,14 @@ EXPORT_SYMBOL(rk628_hdmirx_audio_cancel_work_rate_change);
 void rk628_hdmirx_audio_destroy(HAUDINFO info)
 {
 	struct rk628_audioinfo *aif = (struct rk628_audioinfo *)info;
+	struct rk628 *rk628;
 
 	if (!aif)
 		return;
+	rk628 = aif->rk628;
 	rk628_hdmirx_audio_cancel_work_audio(aif, true);
-	rk628_hdmirx_audio_cancel_work_rate_change(aif, true);
+	if (rk628->version < RK628F_VERSION)
+		rk628_hdmirx_audio_cancel_work_rate_change(aif, true);
 	aif->confctl_mutex = NULL;
 	aif->rk628 = NULL;
 }
@@ -485,6 +612,7 @@ EXPORT_SYMBOL(rk628_hdmirx_audio_i2s_ctrl);
 void rk628_hdmirx_audio_setup(HAUDINFO info)
 {
 	struct rk628_audioinfo *aif = (struct rk628_audioinfo *)info;
+	struct rk628 *rk628 = aif->rk628;
 	u32 audio_pll_n, audio_pll_cts;
 
 	dev_dbg(aif->dev, "%s: setup audio\n", __func__);
@@ -499,6 +627,9 @@ void rk628_hdmirx_audio_setup(HAUDINFO info)
 	aif->fifo_ints_en = false;
 	aif->ctsn_ints_en = false;
 	aif->i2s_enabled = false;
+
+	if (rk628->version >= RK628F_VERSION)
+		rk628_i2c_write(rk628, CRU_MODE_CON00, HIWORD_UPDATE(1, 4, 4));
 
 	rk628_hdmirx_audio_clk_set_rate(aif, 5644800);
 	/* manual aud CTS */
@@ -544,11 +675,17 @@ void rk628_hdmirx_audio_setup(HAUDINFO info)
 			PAO_RATE(0));
 	rk628_i2c_write(aif->rk628, HDMI_RX_AUD_CHEXTR_CTRL,
 			AUD_LAYOUT_CTRL(1));
-	aif->ctsn_ints_en = true;
-	rk628_i2c_write(aif->rk628, HDMI_RX_PDEC_IEN_SET, ACR_N_CHG_ICLR | ACR_CTS_CHG_ICLR);
-	/* audio detect */
-	rk628_i2c_write(aif->rk628, HDMI_RX_PDEC_AUDIODET_CTRL,
-			AUDIODET_THRESHOLD(0));
+	if (rk628->version >= RK628F_VERSION) {
+		rk628_i2c_update_bits(aif->rk628, HDMI_RX_DMI_DISABLE_IF,
+				AUD_ENABLE_MASK, AUD_ENABLE(1));
+		schedule_delayed_work(&aif->delayed_work_audio, msecs_to_jiffies(1000));
+	} else {
+		aif->ctsn_ints_en = true;
+		rk628_i2c_write(aif->rk628, HDMI_RX_PDEC_IEN_SET,
+				ACR_N_CHG_ICLR | ACR_CTS_CHG_ICLR);
+		/* audio detect */
+		rk628_i2c_write(aif->rk628, HDMI_RX_PDEC_AUDIODET_CTRL, AUDIODET_THRESHOLD(0));
+	}
 }
 EXPORT_SYMBOL(rk628_hdmirx_audio_setup);
 
@@ -616,6 +753,9 @@ int rk628_is_avi_ready(struct rk628 *rk628, bool avi_rcv_rdy)
 	u8 cnt = 0, max_cnt = 2;
 	u32 hdcp_ctrl_val = 0;
 
+	if (rk628->version >= RK628F_VERSION)
+		return 1;
+
 	rk628_i2c_read(rk628, HDMI_RX_HDCP_CTRL, &val);
 	if ((val & HDCP_ENABLE_MASK))
 		max_cnt = 5;
@@ -646,3 +786,430 @@ int rk628_is_avi_ready(struct rk628 *rk628, bool avi_rcv_rdy)
 	return 1;
 }
 EXPORT_SYMBOL(rk628_is_avi_ready);
+
+static void hdmirxphy_write(struct rk628 *rk628,  u32 offset, u32 val)
+{
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_ADDRESS, offset);
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_DATAO, val);
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_OPERATION, 1);
+}
+
+static __maybe_unused u32 hdmirxphy_read(struct rk628 *rk628, u32 offset)
+{
+	u32 val;
+
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_ADDRESS, offset);
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_OPERATION, 2);
+	rk628_i2c_read(rk628, HDMI_RX_I2CM_PHYG3_DATAI, &val);
+
+	return val;
+}
+
+static void rk628_hdmirxphy_enable(struct rk628 *rk628, bool is_hdmi2, bool scramble_en)
+{
+	hdmirxphy_write(rk628, 0x02, 0x1860);
+	hdmirxphy_write(rk628, 0x03, 0x0060);
+	if (!is_hdmi2 && scramble_en)
+		hdmirxphy_write(rk628, 0x0d, 0x00c0);
+	else
+		hdmirxphy_write(rk628, 0x0d, 0x0);
+	hdmirxphy_write(rk628, 0x27, 0x1c94);
+	hdmirxphy_write(rk628, 0x28, 0x3713);
+	hdmirxphy_write(rk628, 0x29, 0x24da);
+	hdmirxphy_write(rk628, 0x2a, 0x5492);
+	hdmirxphy_write(rk628, 0x2b, 0x4b0d);
+	hdmirxphy_write(rk628, 0x2d, 0x008c);
+	hdmirxphy_write(rk628, 0x2e, 0x0001);
+
+	if (is_hdmi2)
+		hdmirxphy_write(rk628, 0x0e, 0x0108);
+	else
+		hdmirxphy_write(rk628, 0x0e, 0x0008);
+
+}
+
+static void rk628_hdmirxphy_set_clrdpt(struct rk628 *rk628, bool is_8bit)
+{
+	if (is_8bit)
+		hdmirxphy_write(rk628, 0x03, 0x0000);
+	else
+		hdmirxphy_write(rk628, 0x03, 0x0060);
+}
+
+void rk628_hdmirx_verisyno_phy_power_on(struct rk628 *rk628)
+{
+	bool is_hdmi2 = false;
+	u32 val;
+	int i;
+	bool scramble = false;
+
+	/* wait tx to write scdc tmds ratio */
+	for (i = 0; i < 50; i++) {
+		rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS0, &val);
+		if (val & SCDC_TMDSBITCLKRATIO)
+			break;
+		msleep(20);
+	}
+
+	if (val & SCDC_TMDSBITCLKRATIO)
+		is_hdmi2 = true;
+
+	rk628_i2c_read(rk628, HDMI_RX_HDMI20_STATUS, &val);
+	scramble = (val & SCRAMBDET_MASK) ? true : false;
+
+	dev_info(rk628->dev, "%s: %s, %s\n", __func__, is_hdmi2 ? "hdmi2.0" : "hdmi1.4",
+		 scramble ? "Scramble" : "Descramble");
+	/* power down phy */
+	rk628_i2c_write(rk628, GRF_SW_HDMIRXPHY_CRTL, 0x17);
+	usleep_range(20, 30);
+	rk628_i2c_write(rk628, GRF_SW_HDMIRXPHY_CRTL, 0x15);
+	/* init phy i2c */
+	rk628_i2c_write(rk628, HDMI_RX_SNPS_PHYG3_CTRL, 0);
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_SS_CNTS, 0x018c01d2);
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_FS_HCNT, 0x003c0081);
+	rk628_i2c_write(rk628, HDMI_RX_I2CM_PHYG3_MODE, 1);
+	rk628_i2c_write(rk628, GRF_SW_HDMIRXPHY_CRTL, 0x11);
+	/* enable rx phy */
+	rk628_hdmirxphy_enable(rk628, is_hdmi2, scramble);
+	rk628_i2c_write(rk628, GRF_SW_HDMIRXPHY_CRTL, 0x14);
+	msleep(20);
+}
+EXPORT_SYMBOL(rk628_hdmirx_verisyno_phy_power_on);
+
+void rk628_hdmirx_phy_prepclk_cfg(struct rk628 *rk628)
+{
+	u32 format;
+	bool is_clrdpt_8bit = false;
+
+	usleep_range(20 * 1000, 30 * 1000);
+	rk628_i2c_read(rk628, HDMI_RX_PDEC_AVI_PB, &format);
+	format = (format & VIDEO_FORMAT_MASK) >> 5;
+	dev_info(rk628->dev, "%s: format = %d from AVI\n", __func__, format);
+
+	/* yuv420 should set phy color depth 8bit */
+	if (format == 3)
+		is_clrdpt_8bit = true;
+
+	rk628_i2c_read(rk628, HDMI_RX_PDEC_GCP_AVMUTE, &format);
+	format = (format & PKTDEC_GCP_CD_MASK) >> 4;
+	dev_info(rk628->dev, "%s: format = %d from GCP\n", __func__, format);
+
+	/* 10bit color depth should set phy color depth 8bit */
+	if (format == 5)
+		is_clrdpt_8bit = true;
+
+	rk628_hdmirxphy_set_clrdpt(rk628, is_clrdpt_8bit);
+}
+EXPORT_SYMBOL(rk628_hdmirx_phy_prepclk_cfg);
+
+static const char * const bus_format_str[] = {
+	"RGB",
+	"YUV422",
+	"YUV444",
+	"YUV420",
+	"UNKNOWN",
+};
+
+u8 rk628_hdmirx_get_format(struct rk628 *rk628)
+{
+	u32 val;
+	u8 video_fmt;
+
+	rk628_i2c_read(rk628, HDMI_RX_PDEC_AVI_PB, &val);
+	video_fmt = (val & VIDEO_FORMAT_MASK) >> 5;
+	if (video_fmt > BUS_FMT_UNKNOWN)
+		video_fmt = BUS_FMT_UNKNOWN;
+	dev_info(rk628->dev, "%s: format = %s\n", __func__, bus_format_str[video_fmt]);
+
+	/*
+	 * set avmute value to black
+	 * RGB:    R: CH2[15:0], G:CH0_1[31:16], B: CH0_1[15:0]
+	 * YUV:    Cr:CH2[15:0], Y:CH0_1[31:16], Cb:CH0_1[15:0]
+	 */
+	if (video_fmt == BUS_FMT_RGB) {
+		rk628_i2c_write(rk628, HDMI_VM_CFG_CH0_1, 0x0);
+		rk628_i2c_write(rk628, HDMI_VM_CFG_CH2, 0x0);
+	} else {
+		rk628_i2c_write(rk628, HDMI_VM_CFG_CH0_1, 0x00008000);
+		rk628_i2c_write(rk628, HDMI_VM_CFG_CH2, 0x8000);
+	}
+
+	return video_fmt;
+}
+EXPORT_SYMBOL(rk628_hdmirx_get_format);
+
+void rk628_set_bg_enable(struct rk628 *rk628, bool en)
+{
+	if (en) {
+		if (rk628->tx_mode)
+			rk628_i2c_write(rk628, GRF_BG_CTRL,
+				BG_R_OR_V(0) | BG_B_OR_U(0) | BG_G_OR_Y(0) | BG_ENABLE(1));
+		else
+			rk628_i2c_write(rk628, GRF_BG_CTRL,
+				BG_R_OR_V(512) | BG_B_OR_U(512) | BG_G_OR_Y(64) | BG_ENABLE(1));
+		return;
+	}
+	rk628_i2c_write(rk628, GRF_BG_CTRL, BG_ENABLE(0));
+}
+EXPORT_SYMBOL(rk628_set_bg_enable);
+
+u32 rk628_hdmirx_get_tmdsclk_cnt(struct rk628 *rk628)
+{
+	int i, j;
+	u32 val, tmdsclk_cnt = 0;
+	struct hdmirx_tmdsclk_cnt tmdsclk[HDMIRX_GET_TMDSCLK_TIME] = {0};
+
+	for (i = 0; i < HDMIRX_GET_TMDSCLK_TIME; i++) {
+		rk628_i2c_read(rk628, HDMI_RX_HDMI_CKM_RESULT, &val);
+		tmdsclk_cnt = val & 0xffff;
+		for (j = 0; j < HDMIRX_GET_TMDSCLK_TIME; j++) {
+			if (tmdsclk_cnt == tmdsclk[j].tmds_cnt || !tmdsclk[j].tmds_cnt) {
+				tmdsclk[j].tmds_cnt = tmdsclk_cnt;
+				tmdsclk[j].cnt++;
+				break;
+			}
+		}
+	}
+
+	for (i = 0; i < HDMIRX_GET_TMDSCLK_TIME; i++) {
+		if (!tmdsclk[i].tmds_cnt)
+			return tmdsclk_cnt;
+
+		dev_info(rk628->dev, "tmdsclk_cnt: %d, cnt: %d\n",
+			 tmdsclk[i].tmds_cnt, tmdsclk[i].cnt);
+		if (!i)
+			tmdsclk_cnt = tmdsclk[i].tmds_cnt;
+		else if (tmdsclk[i].cnt > tmdsclk[i - 1].cnt)
+			tmdsclk_cnt = tmdsclk[i].tmds_cnt;
+	}
+
+	return tmdsclk_cnt;
+}
+EXPORT_SYMBOL(rk628_hdmirx_get_tmdsclk_cnt);
+
+static int rk628_hdmirx_read_timing(struct rk628 *rk628,
+				    struct v4l2_dv_timings *timings)
+{
+	struct v4l2_bt_timings *bt = &timings->bt;
+	u32 hact, vact, htotal, vtotal, fps, status;
+	u32 val;
+	u32 modetclk_cnt_hs, modetclk_cnt_vs, hs, vs;
+	u32 hofs_pix, hbp, hfp, vbp, vfp;
+	u32 tmds_clk, tmdsclk_cnt;
+	u64 tmp_data;
+	u8 video_fmt;
+
+	memset(timings, 0, sizeof(struct v4l2_dv_timings));
+	timings->type = V4L2_DV_BT_656_1120;
+	rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS1, &val);
+	status = val;
+
+	rk628_i2c_read(rk628, HDMI_RX_MD_STS, &val);
+	bt->interlaced = val & ILACE_STS ?
+		V4L2_DV_INTERLACED : V4L2_DV_PROGRESSIVE;
+
+	rk628_i2c_read(rk628, HDMI_RX_MD_HACT_PX, &val);
+	hact = val & 0xffff;
+	rk628_i2c_read(rk628, HDMI_RX_MD_VAL, &val);
+	vact = val & 0xffff;
+	rk628_i2c_read(rk628, HDMI_RX_MD_HT1, &val);
+	htotal = (val >> 16) & 0xffff;
+	rk628_i2c_read(rk628, HDMI_RX_MD_VTL, &val);
+	vtotal = val & 0xffff;
+	rk628_i2c_read(rk628, HDMI_RX_MD_HT1, &val);
+	hofs_pix = val & 0xffff;
+	rk628_i2c_read(rk628, HDMI_RX_MD_VOL, &val);
+	vbp = (val & 0xffff) + 1;
+
+	tmdsclk_cnt = rk628_hdmirx_get_tmdsclk_cnt(rk628);
+	tmp_data = tmdsclk_cnt;
+	tmp_data = ((tmp_data * HDMIRX_MODETCLK_HZ) + HDMIRX_MODETCLK_CNT_NUM / 2);
+	do_div(tmp_data, HDMIRX_MODETCLK_CNT_NUM);
+	tmds_clk = tmp_data;
+	if (!htotal || !vtotal || bt->interlaced || vtotal > 3000) {
+		dev_err(rk628->dev, "timing err, %s htotal:%d, vtotal:%d\n",
+			bt->interlaced ? "interlaced is not supported," : "",
+			htotal, vtotal);
+		goto TIMING_ERR;
+	}
+	if (rk628->version >= RK628F_VERSION)
+		fps = tmds_clk  / (htotal * vtotal);
+	else
+		fps = (tmds_clk + (htotal * vtotal) / 2) / (htotal * vtotal);
+
+	rk628_i2c_read(rk628, HDMI_RX_MD_HT0, &val);
+	modetclk_cnt_hs = val & 0xffff;
+	hs = (tmdsclk_cnt * modetclk_cnt_hs + HDMIRX_MODETCLK_CNT_NUM / 2) /
+		HDMIRX_MODETCLK_CNT_NUM;
+
+	rk628_i2c_read(rk628, HDMI_RX_MD_VSC, &val);
+	modetclk_cnt_vs = val & 0xffff;
+	vs = (tmdsclk_cnt * modetclk_cnt_vs + HDMIRX_MODETCLK_CNT_NUM / 2) /
+		HDMIRX_MODETCLK_CNT_NUM;
+	vs = (vs + htotal / 2) / htotal;
+
+	if ((hofs_pix < hs) || (htotal < (hact + hofs_pix)) ||
+			(vtotal < (vact + vs + vbp)) || !vs) {
+		dev_err(rk628->dev, "timing err, total:%dx%d, act:%dx%d, hofs:%d, hs:%d, vs:%d, vbp:%d\n",
+			htotal, vtotal, hact, vact, hofs_pix, hs, vs, vbp);
+		goto TIMING_ERR;
+	}
+	hbp = hofs_pix - hs;
+	hfp = htotal - hact - hofs_pix;
+	vfp = vtotal - vact - vs - vbp;
+
+	video_fmt = rk628_hdmirx_get_format(rk628);
+	if (video_fmt == BUS_FMT_YUV420) {
+		htotal *= 2;
+		hact *= 2;
+		hfp *= 2;
+		hbp *= 2;
+		hs *= 2;
+	}
+
+	dev_info(rk628->dev, "cnt_num:%d, tmds_cnt:%d, hs_cnt:%d, vs_cnt:%d, hofs:%d\n",
+		 HDMIRX_MODETCLK_CNT_NUM, tmdsclk_cnt, modetclk_cnt_hs, modetclk_cnt_vs, hofs_pix);
+
+	bt->width = hact;
+	bt->height = vact;
+	bt->hfrontporch = hfp;
+	bt->hsync = hs;
+	bt->hbackporch = hbp;
+	bt->vfrontporch = vfp;
+	bt->vsync = vs;
+	bt->vbackporch = vbp;
+	if (rk628->version >= RK628F_VERSION)
+		bt->pixelclock = tmds_clk;
+	else
+		bt->pixelclock = htotal * vtotal * fps;
+
+	if (bt->interlaced == V4L2_DV_INTERLACED) {
+		bt->height *= 2;
+		bt->il_vsync = bt->vsync + 1;
+		bt->pixelclock /= 2;
+	}
+	if (video_fmt == BUS_FMT_YUV420)
+		bt->pixelclock *= 2;
+
+	if (vact == 1080 && vtotal > 1500)
+		goto TIMING_ERR;
+
+	dev_info(rk628->dev, "SCDC_REGS1:%#x, act:%dx%d, total:%dx%d, fps:%d, pixclk:%llu\n",
+		 status, hact, vact, htotal, vtotal, fps, bt->pixelclock);
+
+	return 0;
+
+TIMING_ERR:
+	return -ENOLCK;
+}
+
+static int rk628_hdmirx_try_to_get_timing(struct rk628 *rk628,
+					  struct v4l2_dv_timings *timings)
+{
+	int ret, i;
+
+	for (i = 0; i < 5; i++) {
+		ret = rk628_hdmirx_read_timing(rk628, timings);
+		if (!ret)
+			return ret;
+		msleep(20);
+	}
+
+	return ret;
+}
+
+int rk628_hdmirx_get_timings(struct rk628 *rk628,
+			     struct v4l2_dv_timings *timings)
+{
+	int i, cnt = 0, ret = 0;
+	u32 last_w, last_h;
+	u8 last_fmt;
+	struct v4l2_bt_timings *bt = &timings->bt;
+
+	last_w = 0;
+	last_h = 0;
+	last_fmt = BUS_FMT_RGB;
+
+	for (i = 0; i < HDMIRX_GET_TIMING_CNT; i++) {
+		ret = rk628_hdmirx_try_to_get_timing(rk628, timings);
+		if ((last_w == 0) && (last_h == 0)) {
+			last_w = bt->width;
+			last_h = bt->height;
+			last_fmt = rk628_hdmirx_get_format(rk628);
+		}
+
+		if (ret || (last_w != bt->width) || (last_h != bt->height)
+		    || (last_fmt != rk628_hdmirx_get_format(rk628)))
+			cnt = 0;
+		else
+			cnt++;
+
+		if (cnt >= 8)
+			break;
+
+		last_w = bt->width;
+		last_h = bt->height;
+		last_fmt = rk628_hdmirx_get_format(rk628);
+		usleep_range(10*1000, 10*1100);
+	}
+
+	if (cnt < 8) {
+		dev_info(rk628->dev, "%s: res not stable!\n", __func__);
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(rk628_hdmirx_get_timings);
+
+u8 rk628_hdmirx_get_range(struct rk628 *rk628)
+{
+	u32 val;
+	u8 color_range;
+
+	rk628_i2c_read(rk628, HDMI_RX_PDEC_AVI_PB, &val);
+	color_range = (val & RGB_COLORRANGE_MASK) >> 18;
+	if (color_range == 0x1)
+		color_range = CSC_LIMIT_RANGE;
+	else
+		color_range = CSC_FULL_RANGE;
+
+	return color_range;
+}
+EXPORT_SYMBOL(rk628_hdmirx_get_range);
+
+void rk628_hdmirx_controller_reset(struct rk628 *rk628)
+{
+	mutex_lock(&rk628->rst_lock);
+	rk628_control_assert(rk628, RGU_HDMIRX);
+	rk628_control_assert(rk628, RGU_HDMIRX_PON);
+	udelay(10);
+	rk628_control_deassert(rk628, RGU_HDMIRX);
+	rk628_control_deassert(rk628, RGU_HDMIRX_PON);
+	udelay(10);
+	rk628_i2c_write(rk628, HDMI_RX_DMI_SW_RST, 0x000101ff);
+	rk628_i2c_write(rk628, HDMI_RX_DMI_DISABLE_IF, 0x00000000);
+	rk628_i2c_write(rk628, HDMI_RX_DMI_DISABLE_IF, 0x0000017f);
+	rk628_i2c_write(rk628, HDMI_RX_DMI_DISABLE_IF, 0x0001017f);
+	mutex_unlock(&rk628->rst_lock);
+}
+EXPORT_SYMBOL(rk628_hdmirx_controller_reset);
+
+bool rk628_hdmirx_scdc_ced_err(struct rk628 *rk628)
+{
+	u32 val, val1;
+
+	if (rk628->version < RK628F_VERSION)
+		return false;
+
+	rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS1, &val);
+	rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS2, &val1);
+	if (((val >> 15) & SCDC_ERRDET_MASK) < SCDC_CED_ERR_CNT &&
+	    ((val1 >> 15) & SCDC_ERRDET_MASK) < SCDC_CED_ERR_CNT &&
+	    (val1 & SCDC_ERRDET_MASK) < SCDC_CED_ERR_CNT)
+		return false;
+
+	dev_info(rk628->dev, "%s: Character Error(0x%x  0x%x)!\n", __func__, val, val1);
+	return true;
+}
+EXPORT_SYMBOL(rk628_hdmirx_scdc_ced_err);

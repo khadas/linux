@@ -27,9 +27,63 @@
 #include <linux/usb/typec_dp.h>
 #include <linux/usb/typec_mux.h>
 
-#include <linux/phy/phy-rockchip-usbdp.h>
+/* USBDP PHY Register Definitions */
+#define UDPHY_PCS				0x4000
+#define UDPHY_PMA				0x8000
 
-#define BIT_WRITEABLE_SHIFT	16
+/* RK3588 VO0 GRF Registers */
+#define RK3588_GRF_VO0_CON0			0x0000
+#define RK3588_GRF_VO0_CON2			0x0008
+#define DP_SINK_HPD_CFG				BIT(11)
+#define DP_SINK_HPD_SEL				BIT(10)
+#define DP_AUX_DIN_SEL				BIT(9)
+#define DP_AUX_DOUT_SEL				BIT(8)
+#define DP_LANE_SEL_N(n)			GENMASK(2 * (n) + 1, 2 * (n))
+#define DP_LANE_SEL_ALL				GENMASK(7, 0)
+
+/* PMA CMN Registers */
+#define CMN_LANE_MUX_AND_EN_OFFSET		0x0288	/* cmn_reg00A2 */
+#define CMN_DP_LANE_MUX_N(n)			BIT((n) + 4)
+#define CMN_DP_LANE_EN_N(n)			BIT(n)
+#define CMN_DP_LANE_MUX_ALL			GENMASK(7, 4)
+#define CMN_DP_LANE_EN_ALL			GENMASK(3, 0)
+
+#define CMN_DP_LINK_OFFSET			0x28c	/* cmn_reg00A3 */
+#define CMN_DP_TX_LINK_BW			GENMASK(6, 5)
+#define CMN_DP_TX_LANE_SWAP_EN			BIT(2)
+
+#define CMN_SSC_EN_OFFSET			0x2d0	/* cmn_reg00B4 */
+#define CMN_ROPLL_SSC_EN			BIT(1)
+#define CMN_LCPLL_SSC_EN			BIT(0)
+
+#define CMN_ANA_LCPLL_DONE_OFFSET		0x0350	/* cmn_reg00D4 */
+#define CMN_ANA_LCPLL_LOCK_DONE			BIT(7)
+#define CMN_ANA_LCPLL_AFC_DONE			BIT(6)
+
+#define CMN_ANA_ROPLL_DONE_OFFSET		0x0354	/* cmn_reg00D5 */
+#define CMN_ANA_ROPLL_LOCK_DONE			BIT(1)
+#define CMN_ANA_ROPLL_AFC_DONE			BIT(0)
+
+#define CMN_DP_RSTN_OFFSET			0x038c	/* cmn_reg00E3 */
+#define CMN_DP_INIT_RSTN			BIT(3)
+#define CMN_DP_CMN_RSTN				BIT(2)
+#define CMN_CDR_WTCHDG_EN			BIT(1)
+#define CMN_CDR_WTCHDG_MSK_CDR_EN		BIT(0)
+
+#define TRSV_ANA_TX_CLK_OFFSET_N(n)		(0x854 + (n) * 0x800)	/* trsv_reg0215 */
+#define LN_ANA_TX_SER_TXCLK_INV			BIT(1)
+
+#define TRSV_LN0_MON_RX_CDR_DONE_OFFSET		0x0b84	/* trsv_reg02E1 */
+#define TRSV_LN0_MON_RX_CDR_LOCK_DONE		BIT(0)
+
+#define TRSV_LN2_MON_RX_CDR_DONE_OFFSET		0x1b84	/* trsv_reg06E1 */
+#define TRSV_LN2_MON_RX_CDR_LOCK_DONE		BIT(0)
+
+#define BIT_WRITEABLE_SHIFT			16
+#define PHY_AUX_DP_DATA_POL_NORMAL		0
+#define PHY_AUX_DP_DATA_POL_INVERT		1
+#define PHY_LANE_MUX_USB			0
+#define PHY_LANE_MUX_DP				1
 
 enum {
 	DP_BW_RBR,
@@ -70,6 +124,7 @@ struct udphy_grf_cfg {
 struct udphy_vogrf_cfg {
 	/* vo-grf */
 	struct udphy_grf_reg hpd_trigger;
+	u32 dp_lane_reg;
 };
 
 struct dp_tx_drv_ctrl {
@@ -90,14 +145,6 @@ struct rockchip_udphy_cfg {
 	struct udphy_vogrf_cfg vogrfcfg[2];
 	const struct dp_tx_drv_ctrl (*dp_tx_ctrl_cfg[4])[4];
 	const struct dp_tx_drv_ctrl (*dp_tx_ctrl_cfg_typec[4])[4];
-	int (*combophy_init)(struct rockchip_udphy *udphy);
-	int (*dp_phy_set_rate)(struct rockchip_udphy *udphy,
-			       struct phy_configure_opts_dp *dp);
-	int (*dp_phy_set_voltages)(struct rockchip_udphy *udphy,
-				   struct phy_configure_opts_dp *dp);
-	int (*hpd_event_trigger)(struct rockchip_udphy *udphy, bool hpd);
-	int (*dplane_enable)(struct rockchip_udphy *udphy, int dp_lanes);
-	int (*dplane_select)(struct rockchip_udphy *udphy);
 };
 
 struct rockchip_udphy {
@@ -254,7 +301,7 @@ static const struct dp_tx_drv_ctrl rk3588_dp_tx_drv_ctrl_hbr3[4][4] = {
 	},
 };
 
-static const struct reg_sequence rk3588_udphy_24m_refclk_cfg[] = {
+static const struct reg_sequence udphy_24m_refclk_cfg[] = {
 	{0x0090, 0x68}, {0x0094, 0x68},
 	{0x0128, 0x24}, {0x012c, 0x44},
 	{0x0130, 0x3f}, {0x0134, 0x44},
@@ -293,7 +340,7 @@ static const struct reg_sequence rk3588_udphy_24m_refclk_cfg[] = {
 	{0x1a5c, 0xe0}, {0x1a64, 0xa8}
 };
 
-static const struct reg_sequence rk3588_udphy_26m_refclk_cfg[] = {
+static const struct reg_sequence udphy_26m_refclk_cfg[] = {
 	{0x0830, 0x07}, {0x085c, 0x80},
 	{0x1030, 0x07}, {0x105c, 0x80},
 	{0x1830, 0x07}, {0x185c, 0x80},
@@ -320,7 +367,7 @@ static const struct reg_sequence rk3588_udphy_26m_refclk_cfg[] = {
 	{0x1AF0, 0x00}
 };
 
-static const struct reg_sequence rk3588_udphy_init_sequence[] = {
+static const struct reg_sequence udphy_init_sequence[] = {
 	{0x0104, 0x44}, {0x0234, 0xE8},
 	{0x0248, 0x44}, {0x028C, 0x18},
 	{0x081C, 0xE5}, {0x0878, 0x00},
@@ -509,9 +556,27 @@ static void udphy_usb_bvalid_enable(struct rockchip_udphy *udphy, u8 enable)
 static int udphy_dplane_select(struct rockchip_udphy *udphy)
 {
 	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
+	u32 value = 0;
 
-	if (cfg->dplane_select)
-		return cfg->dplane_select(udphy);
+	switch (udphy->mode) {
+	case UDPHY_MODE_DP:
+		value |= 2 << udphy->dp_lane_sel[2] * 2;
+		value |= 3 << udphy->dp_lane_sel[3] * 2;
+		fallthrough;
+	case UDPHY_MODE_DP_USB:
+		value |= 0 << udphy->dp_lane_sel[0] * 2;
+		value |= 1 << udphy->dp_lane_sel[1] * 2;
+		break;
+	case UDPHY_MODE_USB:
+		break;
+	default:
+		break;
+	}
+
+	regmap_write(udphy->vogrf, cfg->vogrfcfg[udphy->id].dp_lane_reg,
+		     ((DP_AUX_DIN_SEL | DP_AUX_DOUT_SEL | DP_LANE_SEL_ALL) << 16) |
+		     FIELD_PREP(DP_AUX_DIN_SEL, udphy->dp_aux_din_sel) |
+		     FIELD_PREP(DP_AUX_DOUT_SEL, udphy->dp_aux_dout_sel) | value);
 
 	return 0;
 }
@@ -539,16 +604,37 @@ static int udphy_dplane_get(struct rockchip_udphy *udphy)
 
 static int udphy_dplane_enable(struct rockchip_udphy *udphy, int dp_lanes)
 {
-	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
-	int ret = 0;
+	u32 val = 0;
+	int i;
 
-	if (cfg->dplane_enable)
-		ret = cfg->dplane_enable(udphy, dp_lanes);
+	for (i = 0; i < dp_lanes; i++)
+		val |= BIT(udphy->dp_lane_sel[i]);
 
-	return ret;
+	regmap_update_bits(udphy->pma_regmap, CMN_LANE_MUX_AND_EN_OFFSET,
+			   CMN_DP_LANE_EN_ALL,
+			   FIELD_PREP(CMN_DP_LANE_EN_ALL, val));
+
+	if (!dp_lanes)
+		regmap_update_bits(udphy->pma_regmap, CMN_DP_RSTN_OFFSET,
+				   CMN_DP_CMN_RSTN,
+				   FIELD_PREP(CMN_DP_CMN_RSTN, 0x0));
+
+	return 0;
 }
 
-static int upphy_set_typec_default_mapping(struct rockchip_udphy *udphy)
+static int udphy_dp_hpd_event_trigger(struct rockchip_udphy *udphy, bool hpd)
+{
+	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
+
+	udphy->dp_sink_hpd_sel = true;
+	udphy->dp_sink_hpd_cfg = hpd;
+
+	grfreg_write(udphy->vogrf, &cfg->vogrfcfg[udphy->id].hpd_trigger, hpd);
+
+	return 0;
+}
+
+static int udphy_set_typec_default_mapping(struct rockchip_udphy *udphy)
 {
 	if (udphy->flip) {
 		udphy->dp_lane_sel[0] = 0;
@@ -599,7 +685,7 @@ static int udphy_orien_sw_set(struct typec_switch_dev *sw,
 	}
 
 	udphy->flip = (orien == TYPEC_ORIENTATION_REVERSE) ? true : false;
-	upphy_set_typec_default_mapping(udphy);
+	udphy_set_typec_default_mapping(udphy);
 	udphy_usb_bvalid_enable(udphy, true);
 
 unlock_ret:
@@ -632,9 +718,150 @@ static void udphy_orien_switch_unregister(void *data)
 	typec_switch_unregister(udphy->sw);
 }
 
-static int udphy_setup(struct rockchip_udphy *udphy)
+static int udphy_refclk_set(struct rockchip_udphy *udphy)
+{
+	unsigned long rate;
+	int ret;
+
+	/* configure phy reference clock */
+	rate = clk_get_rate(udphy->refclk);
+	dev_dbg(udphy->dev, "refclk freq %ld\n", rate);
+
+	switch (rate) {
+	case 24000000:
+		ret = regmap_multi_reg_write(udphy->pma_regmap, udphy_24m_refclk_cfg,
+					     ARRAY_SIZE(udphy_24m_refclk_cfg));
+		if (ret)
+			return ret;
+		break;
+	case 26000000:
+		/* register default is 26MHz */
+		ret = regmap_multi_reg_write(udphy->pma_regmap, udphy_26m_refclk_cfg,
+					     ARRAY_SIZE(udphy_26m_refclk_cfg));
+		if (ret)
+			return ret;
+		break;
+	default:
+		dev_err(udphy->dev, "unsupported refclk freq %ld\n", rate);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int udphy_status_check(struct rockchip_udphy *udphy)
+{
+	unsigned int val;
+	int ret;
+
+	/* LCPLL check */
+	if (udphy->mode & UDPHY_MODE_USB) {
+		ret = regmap_read_poll_timeout(udphy->pma_regmap, CMN_ANA_LCPLL_DONE_OFFSET,
+					       val, (val & CMN_ANA_LCPLL_AFC_DONE) &&
+					       (val & CMN_ANA_LCPLL_LOCK_DONE), 200, 100000);
+		if (ret) {
+			dev_err(udphy->dev, "cmn ana lcpll lock timeout\n");
+			return ret;
+		}
+	}
+
+	if (udphy->mode & UDPHY_MODE_USB) {
+		if (!udphy->flip) {
+			ret = regmap_read_poll_timeout(udphy->pma_regmap,
+						       TRSV_LN0_MON_RX_CDR_DONE_OFFSET, val,
+						       val & TRSV_LN0_MON_RX_CDR_LOCK_DONE,
+						       200, 100000);
+			if (ret)
+				dev_notice(udphy->dev, "trsv ln0 mon rx cdr lock timeout\n");
+		} else {
+			ret = regmap_read_poll_timeout(udphy->pma_regmap,
+						       TRSV_LN2_MON_RX_CDR_DONE_OFFSET, val,
+						       val & TRSV_LN2_MON_RX_CDR_LOCK_DONE,
+						       200, 100000);
+			if (ret)
+				dev_notice(udphy->dev, "trsv ln2 mon rx cdr lock timeout\n");
+		}
+	}
+
+	return 0;
+}
+
+static int udphy_init(struct rockchip_udphy *udphy)
 {
 	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
+	int ret;
+
+	/* enable rx lfps for usb */
+	if (udphy->mode & UDPHY_MODE_USB)
+		grfreg_write(udphy->udphygrf, &cfg->grfcfg.rx_lfps, true);
+
+	/* Step 1: power on pma and deassert apb rstn */
+	grfreg_write(udphy->udphygrf, &cfg->grfcfg.low_pwrn, true);
+
+	udphy_reset_deassert(udphy, "pma_apb");
+	udphy_reset_deassert(udphy, "pcs_apb");
+
+	/* Step 2: set init sequence and phy refclk */
+	ret = regmap_multi_reg_write(udphy->pma_regmap, udphy_init_sequence,
+				     ARRAY_SIZE(udphy_init_sequence));
+	if (ret) {
+		dev_err(udphy->dev, "init sequence set error %d\n", ret);
+		goto assert_apb;
+	}
+
+	ret = udphy_refclk_set(udphy);
+	if (ret) {
+		dev_err(udphy->dev, "refclk set error %d\n", ret);
+		goto assert_apb;
+	}
+
+	/* Step 3: configure lane mux */
+	regmap_update_bits(udphy->pma_regmap, CMN_LANE_MUX_AND_EN_OFFSET,
+			   CMN_DP_LANE_MUX_ALL | CMN_DP_LANE_EN_ALL,
+			   FIELD_PREP(CMN_DP_LANE_MUX_N(3), udphy->lane_mux_sel[3]) |
+			   FIELD_PREP(CMN_DP_LANE_MUX_N(2), udphy->lane_mux_sel[2]) |
+			   FIELD_PREP(CMN_DP_LANE_MUX_N(1), udphy->lane_mux_sel[1]) |
+			   FIELD_PREP(CMN_DP_LANE_MUX_N(0), udphy->lane_mux_sel[0]) |
+			   FIELD_PREP(CMN_DP_LANE_EN_ALL, 0));
+
+	/* Step 4: deassert init rstn and wait for 200ns from datasheet */
+	if (udphy->mode & UDPHY_MODE_USB)
+		udphy_reset_deassert(udphy, "init");
+
+	if (udphy->mode & UDPHY_MODE_DP) {
+		regmap_update_bits(udphy->pma_regmap, CMN_DP_RSTN_OFFSET,
+				   CMN_DP_INIT_RSTN,
+				   FIELD_PREP(CMN_DP_INIT_RSTN, 0x1));
+	}
+
+	udelay(1);
+
+	/*  Step 5: deassert cmn/lane rstn */
+	if (udphy->mode & UDPHY_MODE_USB) {
+		udphy_reset_deassert(udphy, "cmn");
+		udphy_reset_deassert(udphy, "lane");
+	}
+
+	/*  Step 6: wait for lock done of pll */
+	ret = udphy_status_check(udphy);
+	if (ret)
+		goto assert_phy;
+
+	return 0;
+
+assert_phy:
+	udphy_reset_assert(udphy, "init");
+	udphy_reset_assert(udphy, "cmn");
+	udphy_reset_assert(udphy, "lane");
+
+assert_apb:
+	udphy_reset_assert(udphy, "pma_apb");
+	udphy_reset_assert(udphy, "pcs_apb");
+	return ret;
+}
+
+static int udphy_setup(struct rockchip_udphy *udphy)
+{
 	int ret = 0;
 
 	ret = clk_bulk_prepare_enable(udphy->num_clks, udphy->clks);
@@ -643,13 +870,11 @@ static int udphy_setup(struct rockchip_udphy *udphy)
 		return ret;
 	}
 
-	if (cfg->combophy_init) {
-		ret = cfg->combophy_init(udphy);
-		if (ret) {
-			dev_err(udphy->dev, "failed to init combophy\n");
-			clk_bulk_disable_unprepare(udphy->num_clks, udphy->clks);
-			return ret;
-		}
+	ret = udphy_init(udphy);
+	if (ret) {
+		dev_err(udphy->dev, "failed to init combophy\n");
+		clk_bulk_disable_unprepare(udphy->num_clks, udphy->clks);
+		return ret;
 	}
 
 	return 0;
@@ -984,32 +1209,100 @@ static int rockchip_dp_phy_verify_config(struct rockchip_udphy *udphy,
 	return 0;
 }
 
+static void udphy_dp_set_voltage(struct rockchip_udphy *udphy, u8 bw,
+					u32 voltage, u32 pre, u32 lane)
+{
+	u32 offset = 0x800 * lane;
+	u32 val;
+	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
+	const struct dp_tx_drv_ctrl (*dp_ctrl)[4];
+
+	dp_ctrl = udphy->mux ? cfg->dp_tx_ctrl_cfg_typec[bw] : cfg->dp_tx_ctrl_cfg[bw];
+	val = dp_ctrl[voltage][pre].trsv_reg0204;
+	regmap_write(udphy->pma_regmap, 0x0810 + offset, val);
+
+	val = dp_ctrl[voltage][pre].trsv_reg0205;
+	regmap_write(udphy->pma_regmap, 0x0814 + offset, val);
+
+	val = dp_ctrl[voltage][pre].trsv_reg0206;
+	regmap_write(udphy->pma_regmap, 0x0818 + offset, val);
+
+	val = dp_ctrl[voltage][pre].trsv_reg0207;
+	regmap_write(udphy->pma_regmap, 0x081c + offset, val);
+}
+
 static int rockchip_dp_phy_configure(struct phy *phy,
 				     union phy_configure_opts *opts)
 {
 	struct rockchip_udphy *udphy = phy_get_drvdata(phy);
-	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
+	struct phy_configure_opts_dp *dp = &opts->dp;
+	u32 i, val, lane;
 	int ret;
 
-	ret = rockchip_dp_phy_verify_config(udphy, &opts->dp);
+	ret = rockchip_dp_phy_verify_config(udphy, dp);
 	if (ret)
 		return ret;
 
-	if (opts->dp.set_rate && cfg->dp_phy_set_rate) {
-		ret = cfg->dp_phy_set_rate(udphy, &opts->dp);
+	if (dp->set_rate) {
+		regmap_update_bits(udphy->pma_regmap, CMN_DP_RSTN_OFFSET,
+				   CMN_DP_CMN_RSTN, FIELD_PREP(CMN_DP_CMN_RSTN, 0x0));
+
+		switch (dp->link_rate) {
+		case 1620:
+			udphy->bw = DP_BW_RBR;
+			break;
+		case 2700:
+			udphy->bw = DP_BW_HBR;
+			break;
+		case 5400:
+			udphy->bw = DP_BW_HBR2;
+			break;
+		case 8100:
+			udphy->bw = DP_BW_HBR3;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		regmap_update_bits(udphy->pma_regmap, CMN_DP_LINK_OFFSET, CMN_DP_TX_LINK_BW,
+				   FIELD_PREP(CMN_DP_TX_LINK_BW, udphy->bw));
+		regmap_update_bits(udphy->pma_regmap, CMN_SSC_EN_OFFSET, CMN_ROPLL_SSC_EN,
+				   FIELD_PREP(CMN_ROPLL_SSC_EN, dp->ssc));
+		regmap_update_bits(udphy->pma_regmap, CMN_DP_RSTN_OFFSET, CMN_DP_CMN_RSTN,
+				   FIELD_PREP(CMN_DP_CMN_RSTN, 0x1));
+
+		ret = regmap_read_poll_timeout(udphy->pma_regmap, CMN_ANA_ROPLL_DONE_OFFSET, val,
+					       FIELD_GET(CMN_ANA_ROPLL_LOCK_DONE, val) &&
+					       FIELD_GET(CMN_ANA_ROPLL_AFC_DONE, val),
+					       0, 1000);
 		if (ret) {
-			dev_err(udphy->dev,
-				"rockchip_hdptx_phy_set_rate failed\n");
+			dev_err(udphy->dev, "ROPLL is not lock, set_rate failed\n");
 			return ret;
 		}
 	}
 
-	if (opts->dp.set_voltages && cfg->dp_phy_set_voltages) {
-		ret = cfg->dp_phy_set_voltages(udphy, &opts->dp);
-		if (ret) {
-			dev_err(udphy->dev,
-				"rockchip_dp_phy_set_voltages failed\n");
-			return ret;
+	if (dp->set_voltages) {
+		for (i = 0; i < dp->lanes; i++) {
+			lane = udphy->dp_lane_sel[i];
+			switch (dp->link_rate) {
+			case 1620:
+			case 2700:
+				regmap_update_bits(udphy->pma_regmap,
+						   TRSV_ANA_TX_CLK_OFFSET_N(lane),
+						   LN_ANA_TX_SER_TXCLK_INV,
+						   FIELD_PREP(LN_ANA_TX_SER_TXCLK_INV,
+						   udphy->lane_mux_sel[lane]));
+				break;
+			case 5400:
+			case 8100:
+				regmap_update_bits(udphy->pma_regmap,
+						   TRSV_ANA_TX_CLK_OFFSET_N(lane),
+						   LN_ANA_TX_SER_TXCLK_INV,
+						   FIELD_PREP(LN_ANA_TX_SER_TXCLK_INV, 0x0));
+				break;
+			}
+
+			udphy_dp_set_voltage(udphy, udphy->bw, dp->voltage[i], dp->pre[i], lane);
 		}
 	}
 
@@ -1069,7 +1362,6 @@ static int usbdp_typec_mux_set(struct typec_mux_dev *mux,
 			       struct typec_mux_state *state)
 {
 	struct rockchip_udphy *udphy = typec_mux_get_drvdata(mux);
-	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
 	u8 mode;
 
 	mutex_lock(&udphy->mutex);
@@ -1106,24 +1398,19 @@ static int usbdp_typec_mux_set(struct typec_mux_dev *mux,
 		struct typec_displayport_data *data = state->data;
 
 		if (!data) {
-			if (cfg->hpd_event_trigger)
-				cfg->hpd_event_trigger(udphy, false);
+			udphy_dp_hpd_event_trigger(udphy, false);
 		} else if (data->status & DP_STATUS_IRQ_HPD) {
-			if (cfg->hpd_event_trigger) {
-				cfg->hpd_event_trigger(udphy, false);
-				usleep_range(750, 800);
-				cfg->hpd_event_trigger(udphy, true);
-			}
+			udphy_dp_hpd_event_trigger(udphy, false);
+			usleep_range(750, 800);
+			udphy_dp_hpd_event_trigger(udphy, true);
 		} else if (data->status & DP_STATUS_HPD_STATE) {
 			if (udphy->mode != mode) {
 				udphy->mode = mode;
 				udphy->mode_change = true;
 			}
-			if (cfg->hpd_event_trigger)
-				cfg->hpd_event_trigger(udphy, true);
+			udphy_dp_hpd_event_trigger(udphy, true);
 		} else {
-			if (cfg->hpd_event_trigger)
-				cfg->hpd_event_trigger(udphy, false);
+			udphy_dp_hpd_event_trigger(udphy, false);
 		}
 	}
 
@@ -1290,308 +1577,12 @@ put_child:
 	return ret;
 }
 
-static int rk3588_udphy_refclk_set(struct rockchip_udphy *udphy)
-{
-	unsigned long rate;
-	int ret;
-
-	/* configure phy reference clock */
-	rate = clk_get_rate(udphy->refclk);
-	dev_dbg(udphy->dev, "refclk freq %ld\n", rate);
-
-	switch (rate) {
-	case 24000000:
-		ret = regmap_multi_reg_write(udphy->pma_regmap, rk3588_udphy_24m_refclk_cfg,
-					     ARRAY_SIZE(rk3588_udphy_24m_refclk_cfg));
-		if (ret)
-			return ret;
-		break;
-	case 26000000:
-		/* register default is 26MHz */
-		ret = regmap_multi_reg_write(udphy->pma_regmap, rk3588_udphy_26m_refclk_cfg,
-					     ARRAY_SIZE(rk3588_udphy_26m_refclk_cfg));
-		if (ret)
-			return ret;
-		break;
-	default:
-		dev_err(udphy->dev, "unsupported refclk freq %ld\n", rate);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int rk3588_udphy_status_check(struct rockchip_udphy *udphy)
-{
-	unsigned int val;
-	int ret;
-
-	/* LCPLL check */
-	if (udphy->mode & UDPHY_MODE_USB) {
-		ret = regmap_read_poll_timeout(udphy->pma_regmap, CMN_ANA_LCPLL_DONE_OFFSET,
-					       val, (val & CMN_ANA_LCPLL_AFC_DONE) &&
-					       (val & CMN_ANA_LCPLL_LOCK_DONE), 200, 100000);
-		if (ret) {
-			dev_err(udphy->dev, "cmn ana lcpll lock timeout\n");
-			return ret;
-		}
-	}
-
-	if (udphy->mode & UDPHY_MODE_USB) {
-		if (!udphy->flip) {
-			ret = regmap_read_poll_timeout(udphy->pma_regmap,
-						       TRSV_LN0_MON_RX_CDR_DONE_OFFSET, val,
-						       val & TRSV_LN0_MON_RX_CDR_LOCK_DONE,
-						       200, 100000);
-			if (ret)
-				dev_notice(udphy->dev, "trsv ln0 mon rx cdr lock timeout\n");
-		} else {
-			ret = regmap_read_poll_timeout(udphy->pma_regmap,
-						       TRSV_LN2_MON_RX_CDR_DONE_OFFSET, val,
-						       val & TRSV_LN2_MON_RX_CDR_LOCK_DONE,
-						       200, 100000);
-			if (ret)
-				dev_notice(udphy->dev, "trsv ln2 mon rx cdr lock timeout\n");
-		}
-	}
-
-	return 0;
-}
-
-static int rk3588_udphy_init(struct rockchip_udphy *udphy)
-{
-	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
-	int ret;
-
-	/* enable rx lfps for usb */
-	if (udphy->mode & UDPHY_MODE_USB)
-		grfreg_write(udphy->udphygrf, &cfg->grfcfg.rx_lfps, true);
-
-	/* Step 1: power on pma and deassert apb rstn */
-	grfreg_write(udphy->udphygrf, &cfg->grfcfg.low_pwrn, true);
-
-	udphy_reset_deassert(udphy, "pma_apb");
-	udphy_reset_deassert(udphy, "pcs_apb");
-
-	/* Step 2: set init sequence and phy refclk */
-	ret = regmap_multi_reg_write(udphy->pma_regmap, rk3588_udphy_init_sequence,
-				     ARRAY_SIZE(rk3588_udphy_init_sequence));
-	if (ret) {
-		dev_err(udphy->dev, "init sequence set error %d\n", ret);
-		goto assert_apb;
-	}
-
-	ret = rk3588_udphy_refclk_set(udphy);
-	if (ret) {
-		dev_err(udphy->dev, "refclk set error %d\n", ret);
-		goto assert_apb;
-	}
-
-	/* Step 3: configure lane mux */
-	regmap_update_bits(udphy->pma_regmap, CMN_LANE_MUX_AND_EN_OFFSET,
-			   CMN_DP_LANE_MUX_ALL | CMN_DP_LANE_EN_ALL,
-			   FIELD_PREP(CMN_DP_LANE_MUX_N(3), udphy->lane_mux_sel[3]) |
-			   FIELD_PREP(CMN_DP_LANE_MUX_N(2), udphy->lane_mux_sel[2]) |
-			   FIELD_PREP(CMN_DP_LANE_MUX_N(1), udphy->lane_mux_sel[1]) |
-			   FIELD_PREP(CMN_DP_LANE_MUX_N(0), udphy->lane_mux_sel[0]) |
-			   FIELD_PREP(CMN_DP_LANE_EN_ALL, 0));
-
-	/* Step 4: deassert init rstn and wait for 200ns from datasheet */
-	if (udphy->mode & UDPHY_MODE_USB)
-		udphy_reset_deassert(udphy, "init");
-
-	if (udphy->mode & UDPHY_MODE_DP) {
-		regmap_update_bits(udphy->pma_regmap, CMN_DP_RSTN_OFFSET,
-				   CMN_DP_INIT_RSTN,
-				   FIELD_PREP(CMN_DP_INIT_RSTN, 0x1));
-	}
-
-	udelay(1);
-
-	/*  Step 5: deassert cmn/lane rstn */
-	if (udphy->mode & UDPHY_MODE_USB) {
-		udphy_reset_deassert(udphy, "cmn");
-		udphy_reset_deassert(udphy, "lane");
-	}
-
-	/*  Step 6: wait for lock done of pll */
-	ret = rk3588_udphy_status_check(udphy);
-	if (ret)
-		goto assert_phy;
-
-	return 0;
-
-assert_phy:
-	udphy_reset_assert(udphy, "init");
-	udphy_reset_assert(udphy, "cmn");
-	udphy_reset_assert(udphy, "lane");
-
-assert_apb:
-	udphy_reset_assert(udphy, "pma_apb");
-	udphy_reset_assert(udphy, "pcs_apb");
-	return ret;
-}
-
-static int rk3588_udphy_hpd_event_trigger(struct rockchip_udphy *udphy, bool hpd)
-{
-	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
-
-	udphy->dp_sink_hpd_sel = true;
-	udphy->dp_sink_hpd_cfg = hpd;
-
-	grfreg_write(udphy->vogrf, &cfg->vogrfcfg[udphy->id].hpd_trigger, hpd);
-
-	return 0;
-}
-
-static int rk3588_udphy_dplane_enable(struct rockchip_udphy *udphy, int dp_lanes)
-{
-	int i;
-	u32 val = 0;
-
-	for (i = 0; i < dp_lanes; i++)
-		val |= BIT(udphy->dp_lane_sel[i]);
-
-	regmap_update_bits(udphy->pma_regmap, CMN_LANE_MUX_AND_EN_OFFSET, CMN_DP_LANE_EN_ALL,
-			   FIELD_PREP(CMN_DP_LANE_EN_ALL, val));
-
-	if (!dp_lanes)
-		regmap_update_bits(udphy->pma_regmap, CMN_DP_RSTN_OFFSET,
-				   CMN_DP_CMN_RSTN, FIELD_PREP(CMN_DP_CMN_RSTN, 0x0));
-
-	return 0;
-}
-
-static int rk3588_udphy_dplane_select(struct rockchip_udphy *udphy)
-{
-	u32 value = 0;
-
-	switch (udphy->mode) {
-	case UDPHY_MODE_DP:
-		value |= 2 << udphy->dp_lane_sel[2] * 2;
-		value |= 3 << udphy->dp_lane_sel[3] * 2;
-		fallthrough;
-	case UDPHY_MODE_DP_USB:
-		value |= 0 << udphy->dp_lane_sel[0] * 2;
-		value |= 1 << udphy->dp_lane_sel[1] * 2;
-		break;
-	case UDPHY_MODE_USB:
-		break;
-	default:
-		break;
-	}
-
-	regmap_write(udphy->vogrf, udphy->id ? RK3588_GRF_VO0_CON2 : RK3588_GRF_VO0_CON0,
-		     ((DP_AUX_DIN_SEL | DP_AUX_DOUT_SEL | DP_LANE_SEL_ALL) << 16) |
-		     FIELD_PREP(DP_AUX_DIN_SEL, udphy->dp_aux_din_sel) |
-		     FIELD_PREP(DP_AUX_DOUT_SEL, udphy->dp_aux_dout_sel) | value);
-
-	return 0;
-}
-
-static int rk3588_dp_phy_set_rate(struct rockchip_udphy *udphy,
-				  struct phy_configure_opts_dp *dp)
-{
-	u32 val;
-	int ret;
-
-	regmap_update_bits(udphy->pma_regmap, CMN_DP_RSTN_OFFSET,
-			   CMN_DP_CMN_RSTN, FIELD_PREP(CMN_DP_CMN_RSTN, 0x0));
-
-	switch (dp->link_rate) {
-	case 1620:
-		udphy->bw = DP_BW_RBR;
-		break;
-	case 2700:
-		udphy->bw = DP_BW_HBR;
-		break;
-	case 5400:
-		udphy->bw = DP_BW_HBR2;
-		break;
-	case 8100:
-		udphy->bw = DP_BW_HBR3;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	regmap_update_bits(udphy->pma_regmap, CMN_DP_LINK_OFFSET, CMN_DP_TX_LINK_BW,
-			   FIELD_PREP(CMN_DP_TX_LINK_BW, udphy->bw));
-	regmap_update_bits(udphy->pma_regmap, CMN_SSC_EN_OFFSET, CMN_ROPLL_SSC_EN,
-			   FIELD_PREP(CMN_ROPLL_SSC_EN, dp->ssc));
-	regmap_update_bits(udphy->pma_regmap, CMN_DP_RSTN_OFFSET, CMN_DP_CMN_RSTN,
-			   FIELD_PREP(CMN_DP_CMN_RSTN, 0x1));
-
-	ret = regmap_read_poll_timeout(udphy->pma_regmap, CMN_ANA_ROPLL_DONE_OFFSET, val,
-				       FIELD_GET(CMN_ANA_ROPLL_LOCK_DONE, val) &&
-				       FIELD_GET(CMN_ANA_ROPLL_AFC_DONE, val),
-				       0, 1000);
-	if (ret) {
-		dev_err(udphy->dev, "ROPLL is not lock\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-static void rk3588_dp_phy_set_voltage(struct rockchip_udphy *udphy, u8 bw,
-				      u32 voltage, u32 pre, u32 lane)
-{
-	u32 offset = 0x800 * lane;
-	u32 val;
-	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
-	const struct dp_tx_drv_ctrl (*dp_ctrl)[4];
-
-	dp_ctrl = udphy->mux ? cfg->dp_tx_ctrl_cfg_typec[bw] : cfg->dp_tx_ctrl_cfg[bw];
-	val = dp_ctrl[voltage][pre].trsv_reg0204;
-	regmap_write(udphy->pma_regmap, 0x0810 + offset, val);
-
-	val = dp_ctrl[voltage][pre].trsv_reg0205;
-	regmap_write(udphy->pma_regmap, 0x0814 + offset, val);
-
-	val = dp_ctrl[voltage][pre].trsv_reg0206;
-	regmap_write(udphy->pma_regmap, 0x0818 + offset, val);
-
-	val = dp_ctrl[voltage][pre].trsv_reg0207;
-	regmap_write(udphy->pma_regmap, 0x081c + offset, val);
-}
-
-static int rk3588_dp_phy_set_voltages(struct rockchip_udphy *udphy,
-				      struct phy_configure_opts_dp *dp)
-{
-	u32 i, lane;
-
-	for (i = 0; i < dp->lanes; i++) {
-		lane = udphy->dp_lane_sel[i];
-		switch (dp->link_rate) {
-		case 1620:
-		case 2700:
-			regmap_update_bits(udphy->pma_regmap, TRSV_ANA_TX_CLK_OFFSET_N(lane),
-					   LN_ANA_TX_SER_TXCLK_INV,
-					   FIELD_PREP(LN_ANA_TX_SER_TXCLK_INV,
-					   udphy->lane_mux_sel[lane]));
-			break;
-		case 5400:
-		case 8100:
-			regmap_update_bits(udphy->pma_regmap, TRSV_ANA_TX_CLK_OFFSET_N(lane),
-					   LN_ANA_TX_SER_TXCLK_INV,
-					   FIELD_PREP(LN_ANA_TX_SER_TXCLK_INV, 0x0));
-			break;
-		}
-
-		rk3588_dp_phy_set_voltage(udphy, udphy->bw, dp->voltage[i], dp->pre[i], lane);
-	}
-
-	return 0;
-}
-
 static int __maybe_unused udphy_resume(struct device *dev)
 {
 	struct rockchip_udphy *udphy = dev_get_drvdata(dev);
-	const struct rockchip_udphy_cfg *cfg = udphy->cfgs;
 
 	if (udphy->dp_sink_hpd_sel)
-		cfg->hpd_event_trigger(udphy, udphy->dp_sink_hpd_cfg);
+		udphy_dp_hpd_event_trigger(udphy, udphy->dp_sink_hpd_cfg);
 
 	return 0;
 }
@@ -1600,13 +1591,13 @@ static const struct dev_pm_ops udphy_pm_ops = {
 	SET_LATE_SYSTEM_SLEEP_PM_OPS(NULL, udphy_resume)
 };
 
-static const char * const rk3588_udphy_rst_l[] = {
+static const char * const udphy_rst_list[] = {
 	"init", "cmn", "lane", "pcs_apb", "pma_apb"
 };
 
 static const struct rockchip_udphy_cfg rk3588_udphy_cfgs = {
-	.num_rsts = ARRAY_SIZE(rk3588_udphy_rst_l),
-	.rst_list = rk3588_udphy_rst_l,
+	.num_rsts = ARRAY_SIZE(udphy_rst_list),
+	.rst_list = udphy_rst_list,
 	.grfcfg	= {
 		/* u2phy-grf */
 		.bvalid_phy_con		= { 0x0008, 1, 0, 0x2, 0x3 },
@@ -1623,9 +1614,11 @@ static const struct rockchip_udphy_cfg rk3588_udphy_cfgs = {
 	.vogrfcfg = {
 		{
 			.hpd_trigger	= { 0x0000, 11, 10, 1, 3 },
+			.dp_lane_reg	= RK3588_GRF_VO0_CON0,
 		},
 		{
 			.hpd_trigger	= { 0x0008, 11, 10, 1, 3 },
+			.dp_lane_reg	= RK3588_GRF_VO0_CON2,
 		},
 	},
 	.dp_tx_ctrl_cfg = {
@@ -1640,12 +1633,6 @@ static const struct rockchip_udphy_cfg rk3588_udphy_cfgs = {
 		rk3588_dp_tx_drv_ctrl_hbr2,
 		rk3588_dp_tx_drv_ctrl_hbr3,
 	},
-	.combophy_init = rk3588_udphy_init,
-	.dp_phy_set_rate = rk3588_dp_phy_set_rate,
-	.dp_phy_set_voltages = rk3588_dp_phy_set_voltages,
-	.hpd_event_trigger = rk3588_udphy_hpd_event_trigger,
-	.dplane_enable = rk3588_udphy_dplane_enable,
-	.dplane_select = rk3588_udphy_dplane_select,
 };
 
 static const struct of_device_id rockchip_udphy_dt_match[] = {

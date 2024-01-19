@@ -293,8 +293,8 @@
 
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "max96712";
-		rockchip,camera-module-lens-name = "max96712";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
 
 		port {
 			max96712_dphy0_out: endpoint {
@@ -700,8 +700,8 @@
 
 					rockchip,camera-module-index = <0>;
 					rockchip,camera-module-facing = "back";
-					rockchip,camera-module-name = "ox01f10";
-					rockchip,camera-module-lens-name = "ox01f10";
+					rockchip,camera-module-name = "default";
+					rockchip,camera-module-lens-name = "default";
 
 					/* port config start */
 					port {
@@ -771,8 +771,8 @@
 
 					rockchip,camera-module-index = <0>;
 					rockchip,camera-module-facing = "back";
-					rockchip,camera-module-name = "ox01f10";
-					rockchip,camera-module-lens-name = "ox01f10";
+					rockchip,camera-module-name = "default";
+					rockchip,camera-module-lens-name = "default";
 
 					/* port config start */
 					port {
@@ -842,8 +842,8 @@
 
 					rockchip,camera-module-index = <2>;
 					rockchip,camera-module-facing = "back";
-					rockchip,camera-module-name = "ox01f10";
-					rockchip,camera-module-lens-name = "ox01f10";
+					rockchip,camera-module-name = "default";
+					rockchip,camera-module-lens-name = "default";
 
 					/* port config start */
 					port {
@@ -913,8 +913,8 @@
 
 					rockchip,camera-module-index = <3>;
 					rockchip,camera-module-facing = "back";
-					rockchip,camera-module-name = "ox01f10";
-					rockchip,camera-module-lens-name = "ox01f10";
+					rockchip,camera-module-name = "default";
+					rockchip,camera-module-lens-name = "default";
 
 					/* port config start */
 					port {
@@ -949,8 +949,8 @@
 
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "max96722";
-		rockchip,camera-module-lens-name = "max96722";
+		rockchip,camera-module-name = "default";
+		rockchip,camera-module-lens-name = "default";
 
 		port {
 			max96722_dphy3_out: endpoint {
@@ -1236,8 +1236,8 @@
 
 					rockchip,camera-module-index = <0>;
 					rockchip,camera-module-facing = "back";
-					rockchip,camera-module-name = "ov2311";
-					rockchip,camera-module-lens-name = "ov2311";
+					rockchip,camera-module-name = "default";
+					rockchip,camera-module-lens-name = "default";
 
 					/* port config start */
 					port {
@@ -1301,8 +1301,8 @@
 
 					rockchip,camera-module-index = <1>;
 					rockchip,camera-module-facing = "back";
-					rockchip,camera-module-name = "ov2312";
-					rockchip,camera-module-lens-name = "ov2312";
+					rockchip,camera-module-name = "default";
+					rockchip,camera-module-lens-name = "default";
 
 					/* port config start */
 					port {

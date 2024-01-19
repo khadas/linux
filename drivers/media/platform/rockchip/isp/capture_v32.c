@@ -1081,20 +1081,20 @@ static void update_mi(struct rkisp_stream *stream)
 				if (!ISP3X_ISP_OUT_LINE(rkisp_read(dev, ISP3X_ISP_DEBUG2, true))) {
 					stream->ops->enable_mi(stream);
 					stream_self_update(stream);
-					if (!stream->curr_buf) {
-						stream->curr_buf = stream->next_buf;
-						stream->next_buf = NULL;
-					}
 					/* maybe no next buf to preclose mi */
 					stream->ops->disable_mi(stream);
-				} else if (stream->is_pause) {
+				} else {
 					/* isp working and mi closed
 					 * config buf and enable mi, capture at next frame
 					 */
 					stream->ops->enable_mi(stream);
 					stream->is_pause = false;
 				}
-			} else if (stream->is_pause) {
+				if (!stream->curr_buf) {
+					stream->curr_buf = stream->next_buf;
+					stream->next_buf = NULL;
+				}
+			} else {
 				/* isp working and mi no to close
 				 * config buf will auto update at frame end
 				 */
@@ -1143,11 +1143,12 @@ static void update_mi(struct rkisp_stream *stream)
 	}
 
 	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
-		 "%s stream:%d Y:0x%x CB:0x%x | Y_SHD:0x%x\n",
-		 __func__, stream->id,
+		 "%s stream:%d cur:%p next:%p Y:0x%x CB:0x%x | Y_SHD:0x%x pause:%d stop:%d\n",
+		 __func__, stream->id, stream->curr_buf, stream->next_buf,
 		 rkisp_read(dev, stream->config->mi.y_base_ad_init, false),
 		 rkisp_read(dev, stream->config->mi.cb_base_ad_init, false),
-		 rkisp_read(dev, stream->config->mi.y_base_ad_shd, true));
+		 rkisp_read(dev, stream->config->mi.y_base_ad_shd, true),
+		 stream->is_pause, stream->ops->is_stream_stopped(stream));
 }
 
 static int set_mirror_flip(struct rkisp_stream *stream)
@@ -1376,17 +1377,16 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
 			rkisp_stream_config_rsz(stream, false);
 			stream->is_crop_upd = false;
 		}
-		/* update buf for multi sensor at readback */
-		if (!mis && !stream->ispdev->hw_dev->is_single &&
-		    !stream->curr_buf &&
-		    !list_empty(&stream->buf_queue)) {
+		if (!list_empty(&stream->buf_queue) &&
+		    ((dev->hw_dev->is_single && !stream->next_buf) ||
+		     (!dev->hw_dev->is_single && !stream->curr_buf))) {
 			stream->next_buf = list_first_entry(&stream->buf_queue,
 							struct rkisp_buffer, queue);
 			list_del(&stream->next_buf->queue);
 			stream->ops->update_mi(stream);
 		}
 		/* check frame loss */
-		if (mis && stream->ops->is_stream_stopped(stream))
+		if (stream->ops->is_stream_stopped(stream))
 			stream->dbg.frameloss++;
 	}
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
@@ -1678,16 +1678,7 @@ static void rkisp_buf_queue(struct vb2_buffer *vb)
 		 stream->id, ispbuf->buff_addr[0]);
 
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
-	/* single sensor with pingpong buf, update next if need */
-	if (dev->hw_dev->is_single &&
-	    stream->id != RKISP_STREAM_VIR &&
-	    stream->id != RKISP_STREAM_LUMA &&
-	    stream->streaming && !stream->next_buf) {
-		stream->next_buf = ispbuf;
-		stream->ops->update_mi(stream);
-	} else {
-		list_add_tail(&ispbuf->queue, &stream->buf_queue);
-	}
+	list_add_tail(&ispbuf->queue, &stream->buf_queue);
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 }
 
