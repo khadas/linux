@@ -423,8 +423,6 @@ static void rk628_bt1120_delayed_work_enable_hotplug(struct work_struct *work)
 		if (bt1120->cec && bt1120->cec->adap)
 			rk628_hdmirx_cec_state_reconfiguration(bt1120->rk628, bt1120->cec);
 		rk628_bt1120_enable_interrupts(sd, true);
-		rk628_i2c_update_bits(bt1120->rk628, GRF_SYSTEM_CON0,
-				SW_I2S_DATA_OEN_MASK, SW_I2S_DATA_OEN(0));
 	} else {
 		bt1120->nosignal = true;
 		rk628_hdmirx_plugout(sd);
@@ -486,7 +484,7 @@ static void rk628_delayed_work_res_change(struct work_struct *work)
 				rk628_hdmirx_inno_phy_power_off(sd);
 				rk628_hdmirx_controller_reset(bt1120->rk628);
 				schedule_delayed_work(&bt1120->delayed_work_enable_hotplug,
-						      msecs_to_jiffies(800));
+						      msecs_to_jiffies(1100));
 			} else {
 				rk628_bt1120_enable_interrupts(sd, false);
 				enable_stream(sd, false);
@@ -870,12 +868,14 @@ static void rk628_bt1120_initial_setup(struct v4l2_subdev *sd)
 			SW_OUTPUT_MODE_MASK |
 			SW_EFUSE_HDCP_EN_MASK |
 			SW_HSYNC_POL_MASK |
-			SW_VSYNC_POL_MASK,
+			SW_VSYNC_POL_MASK |
+			SW_I2S_DATA_OEN_MASK,
 			SW_INPUT_MODE(INPUT_MODE_HDMI) |
 			SW_OUTPUT_MODE(OUTPUT_MODE_BT1120) |
 			SW_EFUSE_HDCP_EN(0) |
 			SW_HSYNC_POL(1) |
-			SW_VSYNC_POL(1));
+			SW_VSYNC_POL(1) |
+			SW_I2S_DATA_OEN(0));
 	rk628_hdmirx_controller_reset(bt1120->rk628);
 
 	def_edid.pad = 0;

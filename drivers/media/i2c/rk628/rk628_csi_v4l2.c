@@ -210,7 +210,7 @@ static u8 rk628f_edid_init_data[] = {
 	0x60, 0x61, 0x23, 0x09, 0x07, 0x07, 0x83, 0x01,
 	0x00, 0x00, 0x6D, 0x03, 0x0C, 0x00, 0x10, 0x00,
 	0x00, 0x44, 0x20, 0x00, 0x60, 0x03, 0x02, 0x01,
-	0x67, 0xD8, 0x5D, 0xC4, 0x01, 0x78, 0xC0, 0x00,
+	0x67, 0xD8, 0x5D, 0xC4, 0x01, 0x78, 0x80, 0x00,
 	0xE3, 0x05, 0x03, 0x01, 0xE4, 0x0F, 0x00, 0x18,
 	0x00, 0x02, 0x3A, 0x80, 0x18, 0x71, 0x38, 0x2D,
 	0x40, 0x58, 0x2C, 0x45, 0x00, 0xB9, 0xA8, 0x42,
@@ -220,7 +220,7 @@ static u8 rk628f_edid_init_data[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x93,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD3,
 };
 
 static const struct mipi_timing rk628d_csi_mipi = {
@@ -510,8 +510,6 @@ static void rk628_csi_delayed_work_enable_hotplug(struct work_struct *work)
 		if (csi->cec && csi->cec->adap)
 			rk628_hdmirx_cec_state_reconfiguration(csi->rk628, csi->cec);
 		rk628_csi_enable_interrupts(sd, true);
-		rk628_i2c_update_bits(csi->rk628, GRF_SYSTEM_CON0,
-				SW_I2S_DATA_OEN_MASK, SW_I2S_DATA_OEN(0));
 	} else {
 		rk628_hdmirx_plugout(sd);
 	}
@@ -570,7 +568,7 @@ static void rk628_delayed_work_res_change(struct work_struct *work)
 				rk628_hdmirx_inno_phy_power_off(sd);
 				rk628_hdmirx_controller_reset(csi->rk628);
 				schedule_delayed_work(&csi->delayed_work_enable_hotplug,
-						      msecs_to_jiffies(800));
+						      msecs_to_jiffies(1100));
 			} else {
 				rk628_hdmirx_audio_cancel_work_audio(csi->audio_info, true);
 				rk628_hdmirx_inno_phy_power_off(sd);
@@ -1340,12 +1338,14 @@ static void rk628_csi_initial_setup(struct v4l2_subdev *sd)
 			mask |
 			SW_EFUSE_HDCP_EN_MASK |
 			SW_HSYNC_POL_MASK |
-			SW_VSYNC_POL_MASK,
+			SW_VSYNC_POL_MASK |
+			SW_I2S_DATA_OEN_MASK,
 			SW_INPUT_MODE(INPUT_MODE_HDMI) |
 			val |
 			SW_EFUSE_HDCP_EN(0) |
 			SW_HSYNC_POL(1) |
-			SW_VSYNC_POL(1));
+			SW_VSYNC_POL(1) |
+			SW_I2S_DATA_OEN(0));
 	rk628_hdmirx_controller_reset(csi->rk628);
 
 	def_edid.pad = 0;
