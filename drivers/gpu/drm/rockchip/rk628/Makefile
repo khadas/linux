@@ -3,8 +3,7 @@
 # Makefile for the Rockchip RK628 display bridge driver.
 #
 
-obj-$(CONFIG_DRM_ROCKCHIP_RK628) += rk628_combrxphy.o \
-				    rk628_combtxphy.o \
+obj-$(CONFIG_DRM_ROCKCHIP_RK628) += rk628_combtxphy.o \
 				    rk628_dsi.o \
 				    rk628_gvi.o \
 				    rk628_lvds.o \
