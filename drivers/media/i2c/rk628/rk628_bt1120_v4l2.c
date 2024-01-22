@@ -820,13 +820,12 @@ static int rk628_hdmirx_phy_setup(struct v4l2_subdev *sd)
 
 	return 0;
 }
-
-static void rk628_bt1120_initial_setup(struct v4l2_subdev *sd)
+static void rk628_bt1120_initial(struct v4l2_subdev *sd)
 {
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
 	struct v4l2_subdev_edid def_edid;
 
-	/* selete int io function */
+	/* select int io function */
 	rk628_i2c_write(bt1120->rk628, GRF_GPIO3AB_SEL_CON, 0x30002000);
 	rk628_i2c_write(bt1120->rk628, GRF_GPIO1AB_SEL_CON, HIWORD_UPDATE(0x7, 11, 8));
 	/* I2S_SCKM0 */
@@ -873,7 +872,13 @@ static void rk628_bt1120_initial_setup(struct v4l2_subdev *sd)
 	def_edid.edid = edid_init_data;
 	rk628_bt1120_s_edid(sd, &def_edid);
 	rk628_hdmirx_set_hdcp(bt1120->rk628, &bt1120->hdcp, false);
+}
 
+static void rk628_bt1120_initial_setup(struct v4l2_subdev *sd)
+{
+	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
+
+	rk628_bt1120_initial(sd);
 	if (tx_5v_power_present(sd))
 		schedule_delayed_work(&bt1120->delayed_work_enable_hotplug, 4000);
 }
@@ -1685,6 +1690,91 @@ static irqreturn_t plugin_detect_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int rk628_bt1120_power_on(struct rk628_bt1120 *bt1120)
+{
+	clk_prepare_enable(bt1120->soc_24M);
+	if (bt1120->enable_gpio) {
+		gpiod_set_value(bt1120->enable_gpio, 1);
+		usleep_range(10000, 11000);
+	}
+	gpiod_set_value(bt1120->reset_gpio, 0);
+	usleep_range(10000, 11000);
+	gpiod_set_value(bt1120->reset_gpio, 1);
+	usleep_range(10000, 11000);
+	gpiod_set_value(bt1120->reset_gpio, 0);
+	usleep_range(10000, 11000);
+
+	if (bt1120->power_gpio) {
+		gpiod_set_value(bt1120->power_gpio, 1);
+		usleep_range(10000, 11000);
+	}
+
+	return 0;
+}
+
+static int rk628_bt1120_power_off(struct rk628_bt1120 *bt1120)
+{
+	if (bt1120->enable_gpio) {
+		gpiod_set_value(bt1120->enable_gpio, 0);
+		usleep_range(10000, 11000);
+	}
+	gpiod_set_value(bt1120->reset_gpio, 1);
+	usleep_range(10000, 11000);
+	gpiod_set_value(bt1120->reset_gpio, 0);
+	usleep_range(10000, 11000);
+	gpiod_set_value(bt1120->reset_gpio, 1);
+	usleep_range(10000, 11000);
+
+	if (bt1120->power_gpio) {
+		gpiod_set_value(bt1120->power_gpio, 0);
+		usleep_range(10000, 11000);
+	}
+	clk_disable_unprepare(bt1120->soc_24M);
+
+	return 0;
+}
+
+static int rk628_bt1120_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
+
+	v4l2_info(sd, "%s: resume!\n", __func__);
+
+	rk628_bt1120_power_on(bt1120);
+	rk628_cru_initialize(bt1120->rk628);
+	rk628_bt1120_initial(sd);
+	rk628_hdmirx_plugout(sd);
+	enable_irq(bt1120->hdmirx_irq);
+	schedule_delayed_work(&bt1120->delayed_work_enable_hotplug,
+			     msecs_to_jiffies(500));
+
+	return 0;
+}
+
+static int rk628_bt1120_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
+
+	v4l2_info(sd, "%s: suspend!\n", __func__);
+
+	disable_irq(bt1120->hdmirx_irq);
+	cancel_delayed_work_sync(&bt1120->delayed_work_res_change);
+	cancel_delayed_work_sync(&bt1120->delayed_work_enable_hotplug);
+	rk628_hdmirx_audio_cancel_work_audio(bt1120->audio_info, true);
+	rk628_bt1120_power_off(bt1120);
+
+	return 0;
+}
+
+static const struct dev_pm_ops rk628_bt1120_pm_ops = {
+	.suspend = rk628_bt1120_suspend,
+	.resume = rk628_bt1120_resume,
+};
+
 static int rk628_bt1120_probe_of(struct rk628_bt1120 *bt1120)
 {
 	struct device *dev = bt1120->dev;
@@ -1701,28 +1791,27 @@ static int rk628_bt1120_probe_of(struct rk628_bt1120 *bt1120)
 		ret = PTR_ERR(bt1120->soc_24M);
 		dev_err(dev, "Unable to get soc_24M: %d\n", ret);
 	}
-	clk_prepare_enable(bt1120->soc_24M);
 
 	bt1120->enable_gpio = devm_gpiod_get_optional(dev, "enable",
 						     GPIOD_OUT_LOW);
 	if (IS_ERR(bt1120->enable_gpio)) {
 		ret = PTR_ERR(bt1120->enable_gpio);
 		dev_err(dev, "failed to request enable GPIO: %d\n", ret);
-		goto clk_put;
+		return ret;
 	}
 
 	bt1120->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(bt1120->reset_gpio)) {
 		ret = PTR_ERR(bt1120->reset_gpio);
 		dev_err(dev, "failed to request reset GPIO: %d\n", ret);
-		goto clk_put;
+		return ret;
 	}
 
 	bt1120->power_gpio = devm_gpiod_get_optional(dev, "power", GPIOD_OUT_HIGH);
 	if (IS_ERR(bt1120->power_gpio)) {
 		dev_err(dev, "failed to get power gpio\n");
 		ret = PTR_ERR(bt1120->power_gpio);
-		goto clk_put;
+		return ret;
 	}
 
 	bt1120->plugin_det_gpio = devm_gpiod_get_optional(dev, "plugin-det",
@@ -1730,25 +1819,9 @@ static int rk628_bt1120_probe_of(struct rk628_bt1120 *bt1120)
 	if (IS_ERR(bt1120->plugin_det_gpio)) {
 		dev_err(dev, "failed to get hdmirx det gpio\n");
 		ret = PTR_ERR(bt1120->plugin_det_gpio);
-		goto clk_put;
+		return ret;
 	}
 	bt1120->rk628->hdmirx_det_gpio = bt1120->plugin_det_gpio;
-
-	if (bt1120->enable_gpio) {
-		gpiod_set_value(bt1120->enable_gpio, 1);
-		usleep_range(10000, 11000);
-	}
-	gpiod_set_value(bt1120->reset_gpio, 0);
-	usleep_range(10000, 11000);
-	gpiod_set_value(bt1120->reset_gpio, 1);
-	usleep_range(10000, 11000);
-	gpiod_set_value(bt1120->reset_gpio, 0);
-	usleep_range(10000, 11000);
-
-	if (bt1120->power_gpio) {
-		gpiod_set_value(bt1120->power_gpio, 1);
-		usleep_range(500, 510);
-	}
 
 	if (of_property_read_bool(dev->of_node, "hdcp-enable"))
 		hdcp1x_enable = true;
@@ -1769,14 +1842,14 @@ static int rk628_bt1120_probe_of(struct rk628_bt1120 *bt1120)
 	if (!ep) {
 		dev_err(dev, "missing endpoint node\n");
 		ret = -EINVAL;
-		goto clk_put;
+		return ret;
 	}
 
 	ret = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(ep), &endpoint);
 	of_node_put(ep);
 	if (ret) {
 		dev_err(dev, "failed to parse endpoint\n");
-		goto clk_put;
+		return ret;
 	}
 
 	bt1120->enable_hdcp = hdcp1x_enable;
@@ -1792,9 +1865,6 @@ static int rk628_bt1120_probe_of(struct rk628_bt1120 *bt1120)
 	ret = 0;
 
 	v4l2_fwnode_endpoint_free(&endpoint);
-
-clk_put:
-	clk_disable_unprepare(bt1120->soc_24M);
 
 	return ret;
 }
@@ -1855,6 +1925,7 @@ static int rk628_bt1120_probe(struct i2c_client *client,
 		return err;
 	}
 
+	rk628_bt1120_power_on(bt1120);
 	rk628_cru_initialize(rk628);
 
 	rk628_version_parse(rk628);
@@ -2007,6 +2078,7 @@ err_hdl:
 	mutex_destroy(&bt1120->confctl_mutex);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(&bt1120->hdl);
+	rk628_bt1120_power_off(bt1120);
 	return err;
 }
 
@@ -2039,6 +2111,7 @@ static int rk628_bt1120_remove(struct i2c_client *client)
 	rk628_control_assert(bt1120->rk628, RGU_CLK_RX);
 	rk628_control_assert(bt1120->rk628, RGU_VOP);
 	rk628_control_assert(bt1120->rk628, RGU_BT1120DEC);
+	rk628_bt1120_power_off(bt1120);
 
 	return 0;
 }
@@ -2059,6 +2132,7 @@ MODULE_DEVICE_TABLE(of, rk628_bt1120_of_match);
 static struct i2c_driver rk628_bt1120_i2c_driver = {
 	.driver = {
 		.name = "rk628-bt1120-v4l2",
+		.pm = &rk628_bt1120_pm_ops,
 		.of_match_table = of_match_ptr(rk628_bt1120_of_match),
 	},
 	.id_table = rk628_bt1120_i2c_id,
