@@ -2275,8 +2275,8 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 		} else if (buf[1] == 'i') { /* bit */
 			ret = sscanf(buf, "bit %d", &val[0]);
 			if (ret == 1) {
-				pconf->basic.lcd_bits = val[4];
-				pr_info("set lcd_bits=%d\n", val[4]);
+				pconf->basic.lcd_bits = val[0];
+				pr_info("set lcd_bits=%d\n", val[0]);
 				lcd_debug_config_update(pdrv);
 			} else {
 				LCDERR("invalid data\n");
