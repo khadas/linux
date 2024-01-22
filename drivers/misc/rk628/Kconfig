@@ -16,6 +16,14 @@ config RK628_MISC_HDMITX
 	  Say y here to enable Rockchip rk628 misc hdmitx driver.
 	  This option is used to support hdmi output.
 
+config RK628_MISC_GPIO_TEST
+	bool "RK628 gpio test function support"
+	default n
+	depends on RK628_MISC
+	help
+	Say y here to enable Rockchip rk628 gpio test function support.
+	  This option is used to switch gpio mux and output level.
+
 config ROCKCHIP_THUNDER_BOOT_RK628
 	bool "Rockchip RK628 Thunder Boot support"
 	default n

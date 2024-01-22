@@ -178,7 +178,7 @@ int rk628_misc_gpio_set_direction(struct rk628 *rk628, int gpio, int direction)
 	return 0;
 }
 
-
+#ifdef RK628_MISC_GPIO_TEST
 int rk628_misc_iomux_init(struct rk628 *rk628)
 {
 	int i, iomux_base, offset, val, mux;
@@ -195,7 +195,7 @@ int rk628_misc_iomux_init(struct rk628 *rk628)
 
 	return 0;
 }
-
+#endif
 
 int rk628_misc_gpio_direction_input(struct rk628 *rk628, int gpio)
 {
@@ -295,8 +295,7 @@ int rk628_misc_gpio_set_pull_highz_up_down(struct rk628 *rk628, int gpio, int pu
 	return 0;
 }
 
-
-
+#ifdef RK628_MISC_GPIO_TEST
 int rk628_misc_gpio_test_all(struct rk628 *rk628)
 {
 	int i;
@@ -323,4 +322,5 @@ int rk628_misc_gpio_test_all(struct rk628 *rk628)
 
 	return 0;
 }
+#endif
 
