@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/vout/hdmitx/hdmi_tx_20/dv_emp_vsem.c
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -53,7 +52,7 @@
 #include "./hw/hdmi_tx_reg.h"
 #include "./../../../enhancement/amdolby_vision/md_config.h"
 
-#include "dv_emp_vsem.h"
+#include "amdv_emp_vsem.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) "emp: " fmt
@@ -352,10 +351,15 @@ int send_emp(enum eotf_type type,
 		return -1;
 	}
 
-	if (hdr_status_pos != 2)
-		pr_info("EMP hdmitx_set_vsif_pkt: type = %d\n", type);
-	hdr_status_pos = 2;
-	hdev->hdmi_current_eotf_type = type;
+	if (hdev->hdmi_current_eotf_type != type ||
+		hdev->hdmi_current_tunnel_mode != tunnel_mode ||
+		hdev->hdmi_current_signal_sdr != signal_sdr) {
+		hdev->hdmi_current_eotf_type = type;
+		hdev->hdmi_current_tunnel_mode = tunnel_mode;
+		hdev->hdmi_current_signal_sdr = signal_sdr;
+		pr_info("%s: type=%d, tunnel_mode=%d, signal_sdr=%d\n",
+			__func__, type, tunnel_mode, signal_sdr);
+	}
 	hdmitx_emp_infoframe(hdev, type, type_save, signal_sdr);
 	type_save = type;
 	if (type != EOTF_T_DOLBYVISION && type != EOTF_T_LL_MODE) {

@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/vout/hdmitx/hdmi_tx_20/dv_emp_vsem.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -65,7 +64,5 @@ struct emp_hdmi_cfg {
 				int vsem_len,
 				bool signal_sdr);
 };
-
-extern int hdr_status_pos;
 
 #endif /* _EDR_METADATA_OVER_HDMI_H_ */

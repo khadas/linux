@@ -1416,6 +1416,7 @@ enum hdmi_tf_type hdmitx21_get_cur_dv_st(void)
 	struct hdmi_avi_infoframe *avi = (struct hdmi_avi_infoframe *)&info;
 	unsigned int ieee_code = 0;
 	unsigned int size = 0;
+	unsigned int amdv_signal = 0;
 	enum hdmi_colorspace cs = 0;
 
 	if (!hdmitx_vsif_en(body))
@@ -1433,7 +1434,7 @@ enum hdmi_tf_type hdmitx21_get_cur_dv_st(void)
 
 	size = body[2];
 	ieee_code = body[4] | (body[5] << 8) | (body[6] << 16);
-	/* dolby_vision_signal == body[7] & 0x3 */
+	amdv_signal = body[7] & 0x3;
 
 	ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_AVI, body);
 	if (ret <= 0)
@@ -1445,9 +1446,17 @@ enum hdmi_tf_type hdmitx21_get_cur_dv_st(void)
 
 	if ((ieee_code == HDMI_IEEE_OUI && size == 0x18) ||
 	    (ieee_code == DOVI_IEEEOUI && size == 0x1b)) {
-		if (cs == HDMI_COLORSPACE_YUV422) /* Y422 */
+		/* When outputting DV_LL, cs needs to be 422,
+		 * Dolby_Vision_Signal (bit1) is 1,
+		 * and Low_Latency (bit0) is 1
+		 */
+		if (cs == HDMI_COLORSPACE_YUV422 && amdv_signal == 0x3)
 			type = HDMI_DV_VSIF_LL;
-		if (cs == HDMI_COLORSPACE_RGB) /* RGB */
+		/* When outputting DV_STD, cs needs to be rgb,
+		 * Dolby_Vision_Signal (bit1) is 1,
+		 * and Low_Latency (bit0) is 0
+		 */
+		if (cs == HDMI_COLORSPACE_RGB && amdv_signal == 0x2)
 			type = HDMI_DV_VSIF_STD;
 	}
 	return type;
