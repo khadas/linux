@@ -866,12 +866,6 @@ static int rockchip_i2s_tdm_multi_lanes_parse(struct rk_i2s_tdm_dev *i2s_tdm)
 	unsigned int val;
 	int ret;
 
-	i2s_tdm->is_tdm_multi_lanes =
-		device_property_read_bool(i2s_tdm->dev, "rockchip,tdm-multi-lanes");
-
-	if (!i2s_tdm->is_tdm_multi_lanes)
-		return 0;
-
 	i2s_tdm->tx_lanes = 1;
 	i2s_tdm->rx_lanes = 1;
 
@@ -2936,19 +2930,6 @@ err_hclk:
 	return ret;
 }
 
-static void __maybe_unused rockchip_i2s_tdm_unmap(struct rk_i2s_tdm_dev *i2s_tdm)
-{
-#ifdef HAVE_SYNC_RESET
-	if (i2s_tdm->cru_base)
-		iounmap(i2s_tdm->cru_base);
-#endif
-
-#ifdef CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES
-	if (i2s_tdm->clk_src_base)
-		iounmap(i2s_tdm->clk_src_base);
-#endif
-}
-
 static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -3100,25 +3081,32 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 		}
 	}
 
+	ret = rockchip_i2s_tdm_tx_path_prepare(i2s_tdm, node);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "I2S TX path prepare failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = rockchip_i2s_tdm_rx_path_prepare(i2s_tdm, node);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "I2S RX path prepare failed: %d\n", ret);
+		return ret;
+	}
+
+	dev_set_drvdata(&pdev->dev, i2s_tdm);
+
 	ret = clk_prepare_enable(i2s_tdm->hclk);
 	if (ret) {
 		return dev_err_probe(i2s_tdm->dev, ret,
 				     "Failed to enable clock hclk\n");
 	}
 
-	ret = rockchip_i2s_tdm_tx_path_prepare(i2s_tdm, node);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "I2S TX path prepare failed: %d\n", ret);
+	ret = i2s_tdm_prepare_enable_mclk(i2s_tdm);
+	if (ret) {
+		ret = dev_err_probe(i2s_tdm->dev, ret,
+				    "Failed to enable one or more mclks\n");
 		goto err_disable_hclk;
 	}
-
-	ret = rockchip_i2s_tdm_rx_path_prepare(i2s_tdm, node);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "I2S RX path prepare failed: %d\n", ret);
-		goto err_disable_hclk;
-	}
-
-	dev_set_drvdata(&pdev->dev, i2s_tdm);
 
 	if (i2s_tdm->mclk_calibrate) {
 		i2s_tdm->mclk_root0_initial_freq = clk_get_rate(i2s_tdm->mclk_root0);
@@ -3137,6 +3125,16 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 	if (i2s_tdm->soc_data && i2s_tdm->soc_data->init)
 		i2s_tdm->soc_data->init(&pdev->dev, res->start);
 
+#ifdef CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES
+	i2s_tdm->is_tdm_multi_lanes =
+		device_property_read_bool(i2s_tdm->dev, "rockchip,tdm-multi-lanes");
+
+	if (i2s_tdm->is_tdm_multi_lanes) {
+		ret = rockchip_i2s_tdm_multi_lanes_parse(i2s_tdm);
+		if (ret)
+			goto err_disable_hclk;
+	}
+#endif
 	/*
 	 * CLK_ALWAYS_ON should be placed after all registers write done,
 	 * because this situation will enable XFER bit which will make
@@ -3148,12 +3146,6 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 			goto err_disable_hclk;
 	}
 
-#ifdef CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES
-	ret = rockchip_i2s_tdm_multi_lanes_parse(i2s_tdm);
-	if (ret)
-		goto err_unmap;
-#endif
-
 #ifdef HAVE_SYNC_RESET
 	sync = of_device_is_compatible(node, "rockchip,px30-i2s-tdm") ||
 	       of_device_is_compatible(node, "rockchip,rk1808-i2s-tdm") ||
@@ -3164,10 +3156,8 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 
 		cru_node = of_parse_phandle(node, "rockchip,cru", 0);
 		i2s_tdm->cru_base = of_iomap(cru_node, 0);
-		if (!i2s_tdm->cru_base) {
-			ret = -ENOENT;
-			goto err_unmap;
-		}
+		if (!i2s_tdm->cru_base)
+			return -ENOENT;
 
 		i2s_tdm->id = (res->start >> 16) & GENMASK(3, 0);
 	}
@@ -3209,11 +3199,6 @@ err_suspend:
 		i2s_tdm_runtime_suspend(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-#if defined(HAVE_SYNC_RESET) || defined(CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES)
-err_unmap:
-	rockchip_i2s_tdm_unmap(i2s_tdm);
-#endif
-
 err_disable_hclk:
 	clk_disable_unprepare(i2s_tdm->hclk);
 
@@ -3222,8 +3207,11 @@ err_disable_hclk:
 
 static int rockchip_i2s_tdm_remove(struct platform_device *pdev)
 {
-#if defined(HAVE_SYNC_RESET) || defined(CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES)
-	rockchip_i2s_tdm_unmap(dev_get_drvdata(&pdev->dev));
+#ifdef CONFIG_SND_SOC_ROCKCHIP_I2S_TDM_MULTI_LANES
+	struct rk_i2s_tdm_dev *i2s_tdm = dev_get_drvdata(&pdev->dev);
+
+	if (i2s_tdm->clk_src_base)
+		iounmap(i2s_tdm->clk_src_base);
 #endif
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		i2s_tdm_runtime_suspend(&pdev->dev);
