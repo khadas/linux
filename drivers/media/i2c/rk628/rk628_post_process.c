@@ -1293,7 +1293,7 @@ static int rockchip_calc_post_csc(struct post_csc_coef *csc_simple_coef,
 static void rk628_post_process_csc(struct rk628 *rk628)
 {
 	enum bus_format in_fmt, out_fmt;
-	struct post_csc_coef csc_coef;
+	struct post_csc_coef csc_coef = {};
 	bool is_input_yuv, is_output_yuv;
 	u32 color_space = V4L2_COLORSPACE_BT709F;
 	u32 csc_mode;

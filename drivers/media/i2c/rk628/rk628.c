@@ -322,7 +322,7 @@ static int rk628_reg_show(struct seq_file *s, void *v)
 	const struct regmap_config *reg;
 	struct rk628 *rk628 = s->private;
 	unsigned int i, j;
-	u32 val;
+	u32 val = 0;
 
 	seq_printf(s, "rk628_%s:\n", file_dentry(s->file)->d_iname);
 
