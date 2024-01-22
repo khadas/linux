@@ -76,7 +76,7 @@
 &pinctrl {
 	buttons {
 		pwr_key: pwr-key {
-			rockchip,pins = <0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 };
