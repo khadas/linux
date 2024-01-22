@@ -1188,6 +1188,7 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 	struct vt_cmd *cmd;
 	int id = data->tunnel_id;
 
+	mutex_lock(&dev->instance_lock);
 	instance = idr_find(&dev->instance_idr, id);
 
 	if (data->video_cmd == VT_VIDEO_SET_COLOR_BLACK ||
@@ -1199,19 +1200,24 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 		/* no instance or instance has no consumer */
 		if (!instance || !instance->consumer) {
 			vt_debug(VT_DEBUG_CMD, "vt [%d] set solid color, no consumer", id);
+			mutex_unlock(&dev->instance_lock);
 			return -ENOTCONN;
 		}
 	} else {
 		if (data->video_cmd != VT_VIDEO_SET_SOURCE_CROP &&
 				data->video_cmd != VT_VIDEO_SET_DISPLAY_FRAME) {
-			if (!instance || session->role != VT_ROLE_PRODUCER)
+			if (!instance || session->role != VT_ROLE_PRODUCER) {
+				mutex_unlock(&dev->instance_lock);
 				return -EINVAL;
+			}
 		}
 	}
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
-	if (!cmd)
+	if (!cmd) {
+		mutex_unlock(&dev->instance_lock);
 		return -ENOMEM;
+	}
 
 	mutex_lock(&instance->cmd_lock);
 	cmd->cmd = data->video_cmd;
@@ -1247,6 +1253,7 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 		wake_up_interruptible(&instance->consumer->wait_cmd);
 	}
 	mutex_unlock(&instance->lock);
+	mutex_unlock(&dev->instance_lock);
 
 	return 0;
 }
