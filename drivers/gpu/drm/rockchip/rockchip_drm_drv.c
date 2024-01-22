@@ -1543,6 +1543,65 @@ static void rockchip_gem_pool_destroy(struct drm_device *drm)
 	gen_pool_destroy(private->secure_buffer_pool);
 }
 
+static int rockchip_drm_sysfs_init(struct drm_device *drm_dev)
+{
+	struct rockchip_drm_private *priv = drm_dev->dev_private;
+	struct device *dev;
+	struct drm_crtc *crtc = NULL;
+	int pipe, ret;
+
+	drm_for_each_crtc(crtc, drm_dev) {
+		dev = kzalloc(sizeof(struct device), GFP_KERNEL);
+		if (!dev)
+			return -ENOMEM;
+
+		ret = dev_set_name(dev, "%s", crtc->name);
+		if (ret)
+			goto cleanup;
+
+		dev->parent = drm_dev->primary->kdev;
+		ret = device_register(dev);
+		if (ret) {
+			put_device(dev);
+			goto cleanup;
+		}
+
+		dev_set_drvdata(dev, crtc);
+		pipe = drm_crtc_index(crtc);
+		priv->sysfs_devs[pipe] = dev;
+
+		if (priv->crtc_funcs[pipe] && priv->crtc_funcs[pipe]->sysfs_init)
+			priv->crtc_funcs[pipe]->sysfs_init(dev, crtc);
+	}
+
+	return 0;
+
+cleanup:
+	kfree(dev);
+	return ret;
+}
+
+static void rockchip_drm_sysfs_fini(struct drm_device *drm_dev)
+{
+	struct rockchip_drm_private *priv = drm_dev->dev_private;
+	struct drm_crtc *crtc = NULL;
+	struct device *dev;
+	int pipe;
+
+	drm_for_each_crtc(crtc, drm_dev) {
+		pipe = drm_crtc_index(crtc);
+		dev = priv->sysfs_devs[pipe];
+
+		if (dev) {
+			if (priv->crtc_funcs[pipe] && priv->crtc_funcs[pipe]->sysfs_fini)
+				priv->crtc_funcs[pipe]->sysfs_fini(dev, crtc);
+			device_unregister(dev);
+			kfree(dev);
+			priv->sysfs_devs[pipe] = NULL;
+		}
+	}
+}
+
 static int rockchip_drm_bind(struct device *dev)
 {
 	struct drm_device *drm_dev;
@@ -1644,6 +1703,8 @@ static int rockchip_drm_bind(struct device *dev)
 
 	drm_fbdev_generic_setup(drm_dev, 0);
 
+	rockchip_drm_sysfs_init(drm_dev);
+
 	return 0;
 err_kms_helper_poll_fini:
 	rockchip_gem_pool_destroy(drm_dev);
@@ -1664,6 +1725,7 @@ static void rockchip_drm_unbind(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
+	rockchip_drm_sysfs_fini(drm_dev);
 	drm_dev_unregister(drm_dev);
 
 	rockchip_gem_pool_destroy(drm_dev);
