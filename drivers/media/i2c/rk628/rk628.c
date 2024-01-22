@@ -426,6 +426,7 @@ static void rk628_debugfs_register_create(struct rk628 *rk628)
 			continue;
 		debugfs_create_file(reg->name, 0600, dir, rk628, &rk628_reg_fops);
 	}
+	rk628_hdmirx_phy_debugfs_register_create(rk628, dir);
 }
 
 void rk628_debugfs_create(struct rk628 *rk628)

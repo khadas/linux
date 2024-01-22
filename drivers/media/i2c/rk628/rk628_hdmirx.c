@@ -1518,3 +1518,71 @@ bool rk628_hdmirx_is_signal_change_ists(struct rk628 *rk628)
 	return false;
 }
 EXPORT_SYMBOL(rk628_hdmirx_is_signal_change_ists);
+
+static int rk628_hdmirx_phy_reg_show(struct seq_file *s, void *v)
+{
+	struct rk628 *rk628 = s->private;
+	unsigned int i;
+
+	seq_printf(s, "rk628_%s:\n", file_dentry(s->file)->d_iname);
+
+	for (i = 0; i <= 0xb7; i++)
+		seq_printf(s, "0x%02x: %08x\n", i, hdmirxphy_read(rk628, i));
+
+	return 0;
+}
+
+static ssize_t rk628_hdmirx_phy_reg_write(struct file *file, const char __user *buf,
+			       size_t count, loff_t *ppos)
+{
+	struct rk628 *rk628 = file->f_path.dentry->d_inode->i_private;
+	u32 addr;
+	u32 val;
+	char kbuf[25];
+	int ret;
+
+	if (count >= sizeof(kbuf))
+		return -ENOSPC;
+
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+
+	kbuf[count] = '\0';
+
+	ret = sscanf(kbuf, "%x%x", &addr, &val);
+	if (ret != 2)
+		return -EINVAL;
+
+	if (addr > 0xb7)
+		return -EINVAL;
+
+	hdmirxphy_write(rk628, addr, val);
+
+	return count;
+}
+
+static int rk628_hdmirx_phy_reg_open(struct inode *inode, struct file *file)
+{
+	struct rk628 *rk628 = inode->i_private;
+
+	return single_open(file, rk628_hdmirx_phy_reg_show, rk628);
+}
+
+static const struct file_operations rk628_hdmirx_phy_reg_fops = {
+	.owner          = THIS_MODULE,
+	.open           = rk628_hdmirx_phy_reg_open,
+	.read           = seq_read,
+	.write          = rk628_hdmirx_phy_reg_write,
+	.llseek         = seq_lseek,
+	.release        = single_release,
+};
+void rk628_hdmirx_phy_debugfs_register_create(struct rk628 *rk628, struct dentry *dir)
+{
+	if (rk628->version < RK628F_VERSION)
+		return;
+	if (IS_ERR(dir))
+		return;
+
+	debugfs_create_file("hdmirxphy", 0600, dir, rk628, &rk628_hdmirx_phy_reg_fops);
+}
+EXPORT_SYMBOL(rk628_hdmirx_phy_debugfs_register_create);
