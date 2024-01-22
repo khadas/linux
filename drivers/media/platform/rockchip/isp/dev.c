@@ -342,8 +342,10 @@ static int rkisp_pipeline_set_stream(struct rkisp_pipeline *p, bool on)
 			goto err;
 		/* phy -> sensor */
 		for (i = 0; i < p->num_subdevs; ++i) {
-			if ((dev->vicap_in.merge_num > 1) &&
-			    (p->subdevs[i]->entity.function == MEDIA_ENT_F_CAM_SENSOR))
+			if (((dev->vicap_in.merge_num > 1) &&
+			     (p->subdevs[i]->entity.function == MEDIA_ENT_F_CAM_SENSOR)) ||
+			    (dev->isp_inp & INP_CIF && IS_HDR_RDBK(dev->rd_mode) &&
+			     (!dev->is_rdbk_auto)))
 				continue;
 			ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
 			if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
@@ -362,8 +364,10 @@ static int rkisp_pipeline_set_stream(struct rkisp_pipeline *p, bool on)
 		}
 		/* sensor -> phy */
 		for (i = p->num_subdevs - 1; i >= 0; --i) {
-			if ((dev->vicap_in.merge_num > 1) &&
-			    (p->subdevs[i]->entity.function == MEDIA_ENT_F_CAM_SENSOR))
+			if (((dev->vicap_in.merge_num > 1) &&
+			     (p->subdevs[i]->entity.function == MEDIA_ENT_F_CAM_SENSOR)) ||
+			    (dev->isp_inp & INP_CIF && IS_HDR_RDBK(dev->rd_mode) &&
+			     (!dev->is_rdbk_auto)))
 				continue;
 			v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
 		}
