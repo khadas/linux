@@ -6,6 +6,7 @@
  */
 
 #include "rk628.h"
+#include "rk628_gpio.h"
 
 static int rk628_calc_mux_offset(struct rk628 *rk628, int mux, int reg, int offset)
 {

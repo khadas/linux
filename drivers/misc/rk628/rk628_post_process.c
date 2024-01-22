@@ -9,6 +9,7 @@
 #include "rk628.h"
 #include "rk628_config.h"
 #include "rk628_cru.h"
+#include "rk628_post_process.h"
 
 #define PQ_CSC_HUE_TABLE_NUM			256
 #define PQ_CSC_MODE_COEF_COMMENT_LEN		32
@@ -1035,30 +1036,6 @@ static const struct csc_mapping csc_mapping_table[] = {
 		true,
 		true,
 	},
-};
-
-static const struct rk_pq_csc_coef r2y_for_y2y = {
-	306, 601, 117,
-	-151, -296, 446,
-	630, -527, -102,
-};
-
-static const struct rk_pq_csc_coef y2r_for_y2y = {
-	1024, -0, 1167,
-	1024, -404, -594,
-	1024, 2081, -1,
-};
-
-static const struct rk_pq_csc_coef rgb_input_swap_matrix = {
-	0, 0, 1,
-	1, 0, 0,
-	0, 1, 0,
-};
-
-static const struct rk_pq_csc_coef yuv_output_swap_matrix = {
-	0, 0, 1,
-	1, 0, 0,
-	0, 1, 0,
 };
 
 static bool is_rgb_format(u64 format)
