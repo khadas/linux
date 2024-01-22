@@ -1375,6 +1375,29 @@ TIMING_ERR:
 	return -ENOLCK;
 }
 
+bool rk628_hdmirx_tx_5v_power_detect(struct gpio_desc *det_gpio)
+{
+	bool ret;
+	int val, i, cnt;
+
+	/* Direct Mode */
+	if (!det_gpio)
+		return true;
+
+	cnt = 0;
+	for (i = 0; i < 5; i++) {
+		val = gpiod_get_value(det_gpio);
+		if (val > 0)
+			cnt++;
+		usleep_range(500, 600);
+	}
+
+	ret = (cnt >= 3) ? true : false;
+
+	return ret;
+}
+EXPORT_SYMBOL(rk628_hdmirx_tx_5v_power_detect);
+
 static int rk628_hdmirx_try_to_get_timing(struct rk628 *rk628,
 					  struct v4l2_dv_timings *timings)
 {
@@ -1404,6 +1427,11 @@ int rk628_hdmirx_get_timings(struct rk628 *rk628,
 	last_fmt = BUS_FMT_RGB;
 
 	for (i = 0; i < HDMIRX_GET_TIMING_CNT; i++) {
+		if (!rk628_hdmirx_tx_5v_power_detect(rk628->hdmirx_det_gpio)) {
+			dev_info(rk628->dev, "%s: hdmi plug out!\n", __func__);
+			return -EINVAL;
+		}
+
 		ret = rk628_hdmirx_try_to_get_timing(rk628, timings);
 		if ((last_w == 0) && (last_h == 0)) {
 			last_w = bt->width;

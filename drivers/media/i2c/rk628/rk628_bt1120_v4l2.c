@@ -248,22 +248,9 @@ static inline struct rk628_bt1120 *to_bt1120(struct v4l2_subdev *sd)
 static bool tx_5v_power_present(struct v4l2_subdev *sd)
 {
 	bool ret;
-	int val, i, cnt;
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
 
-	/* Direct Mode */
-	if (!bt1120->plugin_det_gpio)
-		return true;
-
-	cnt = 0;
-	for (i = 0; i < 5; i++) {
-		val = gpiod_get_value(bt1120->plugin_det_gpio);
-		if (val > 0)
-			cnt++;
-		usleep_range(500, 600);
-	}
-
-	ret = (cnt >= 3) ? true : false;
+	ret = rk628_hdmirx_tx_5v_power_detect(bt1120->plugin_det_gpio);
 	v4l2_dbg(1, debug, sd, "%s: %d\n", __func__, ret);
 
 	return ret;
@@ -1736,6 +1723,7 @@ static int rk628_bt1120_probe_of(struct rk628_bt1120 *bt1120)
 		ret = PTR_ERR(bt1120->plugin_det_gpio);
 		goto clk_put;
 	}
+	bt1120->rk628->hdmirx_det_gpio = bt1120->plugin_det_gpio;
 
 	if (bt1120->enable_gpio) {
 		gpiod_set_value(bt1120->enable_gpio, 1);

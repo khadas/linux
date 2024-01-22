@@ -8,9 +8,11 @@
 #ifndef __RK628_HDMIRX_H
 #define __RK628_HDMIRX_H
 
+#include <linux/gpio/consumer.h>
 #include <media/cec.h>
 #include <media/cec-notifier.h>
 #include <media/v4l2-dv-timings.h>
+
 #include "rk628.h"
 
 /* --------- EDID and HDCP KEY ------- */
@@ -509,6 +511,7 @@ void rk628_hdmirx_phy_prepclk_cfg(struct rk628 *rk628);
 int rk628_hdmirx_verisyno_phy_init(struct rk628 *rk628);
 u8 rk628_hdmirx_get_format(struct rk628 *rk628);
 void rk628_set_bg_enable(struct rk628 *rk628, bool en);
+bool rk628_hdmirx_tx_5v_power_detect(struct gpio_desc *det_gpio);
 u32 rk628_hdmirx_get_tmdsclk_cnt(struct rk628 *rk628);
 int rk628_hdmirx_get_timings(struct rk628 *rk628,
 			     struct v4l2_dv_timings *timings);

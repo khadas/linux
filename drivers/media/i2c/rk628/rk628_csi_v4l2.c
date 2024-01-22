@@ -361,22 +361,9 @@ static inline struct rk628_csi *to_csi(struct v4l2_subdev *sd)
 static bool tx_5v_power_present(struct v4l2_subdev *sd)
 {
 	bool ret;
-	int val, i, cnt;
 	struct rk628_csi *csi = to_csi(sd);
 
-	/* Direct Mode */
-	if (!csi->plugin_det_gpio)
-		return true;
-
-	cnt = 0;
-	for (i = 0; i < 5; i++) {
-		val = gpiod_get_value(csi->plugin_det_gpio);
-		if (val > 0)
-			cnt++;
-		usleep_range(500, 600);
-	}
-
-	ret = (cnt >= 3) ? true : false;
+	ret = rk628_hdmirx_tx_5v_power_detect(csi->plugin_det_gpio);
 	v4l2_dbg(1, debug, sd, "%s: %d\n", __func__, ret);
 
 	return ret;
@@ -2554,6 +2541,7 @@ static int rk628_csi_probe_of(struct rk628_csi *csi)
 		ret = PTR_ERR(csi->plugin_det_gpio);
 		goto clk_put;
 	}
+	csi->rk628->hdmirx_det_gpio = csi->plugin_det_gpio;
 
 	if (csi->enable_gpio) {
 		gpiod_set_value(csi->enable_gpio, 1);
