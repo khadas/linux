@@ -84,8 +84,6 @@ struct txrx_config {
 	u32 rxonly;
 };
 
-struct rk_i2s_tdm_dev;
-
 struct rk_i2s_soc_data {
 	u32 softrst_offset;
 	u32 grf_reg_offset;
@@ -93,7 +91,6 @@ struct rk_i2s_soc_data {
 	int config_count;
 	const struct txrx_config *configs;
 	int (*init)(struct device *dev, u32 addr);
-	void (*src_clk_ctrl)(struct rk_i2s_tdm_dev *i2s_tdm, bool en);
 };
 
 struct rk_i2s_tdm_dev {
@@ -128,8 +125,9 @@ struct rk_i2s_tdm_dev {
 	struct pinctrl_state *clk_state;
 	const struct rk_i2s_soc_data *soc_data;
 #ifdef HAVE_SYNC_RESET
-	int id;
 	void __iomem *cru_base;
+	int tx_reset_id;
+	int rx_reset_id;
 #endif
 	bool is_master_mode;
 	bool io_multiplex;
@@ -289,145 +287,147 @@ static inline bool is_dma_active(struct rk_i2s_tdm_dev *i2s_tdm, int stream)
 }
 
 #ifdef HAVE_SYNC_RESET
-static void rockchip_i2s_tdm_src_clk_ctrl(struct rk_i2s_tdm_dev *i2s_tdm, bool en,
-					  unsigned int gate_reg, unsigned int gate_val,
-					  unsigned int sel_reg)
+#if defined(CONFIG_ARM) && !defined(writeq)
+static inline void __raw_writeq(u64 val, volatile void __iomem *addr)
 {
-	int val = readl(i2s_tdm->cru_base + sel_reg);
-
-	if (!gate_reg || !sel_reg)
-		return;
-
-	if (IS_I2S_CLK_SRC_MCLKIN(val) && en)
-		writel(I2S_CLK_SRC_MCLKIN, i2s_tdm->cru_base + sel_reg);
-
-	writel(gate_val, i2s_tdm->cru_base + gate_reg);
-
-	if (IS_I2S_CLK_SRC_MCLKIN(val) && !en)
-		writel(I2S_CLK_SRC_PLL, i2s_tdm->cru_base + sel_reg);
+	asm volatile("strd %0, %H0, [%1]" : : "r" (val), "r" (addr));
 }
-
-static void rockchip_i2s_tdm_px30_src_clk_ctrl(struct rk_i2s_tdm_dev *i2s_tdm, bool en)
-{
-	unsigned int gate_reg = 0, gate_val = 0, sel_reg = 0;
-
-	switch (i2s_tdm->clk_trcm) {
-	case I2S_CKR_TRCM_TXONLY:
-		sel_reg  = PX30_CLKSEL_CON28_I2S0_TX;
-		gate_reg = PX30_CLKGATE_CON9;
-		gate_val = en ? PX30_CLKGATE_CON9_I2S0_TX_PLL_EN :
-				PX30_CLKGATE_CON9_I2S0_TX_PLL_DIS;
-		break;
-	case I2S_CKR_TRCM_RXONLY:
-		sel_reg  = PX30_CLKSEL_CON58_I2S0_RX;
-		gate_reg = PX30_CLKGATE_CON17;
-		gate_val = en ? PX30_CLKGATE_CON17_I2S0_RX_PLL_EN :
-				PX30_CLKGATE_CON17_I2S0_RX_PLL_DIS;
-		break;
-	}
-
-	rockchip_i2s_tdm_src_clk_ctrl(i2s_tdm, en, gate_reg, gate_val, sel_reg);
-}
-
-static void rockchip_i2s_tdm_rk1808_src_clk_ctrl(struct rk_i2s_tdm_dev *i2s_tdm, bool en)
-{
-	unsigned int gate_reg = 0, gate_val = 0, sel_reg = 0;
-
-	switch (i2s_tdm->clk_trcm) {
-	case I2S_CKR_TRCM_TXONLY:
-		sel_reg  = RK1808_CLKSEL_CON32_I2S0_TX;
-		gate_reg = RK1808_CLKGATE_CON17;
-		gate_val = en ? RK1808_CLKGATE_CON17_I2S0_TX_PLL_EN :
-				RK1808_CLKGATE_CON17_I2S0_TX_PLL_DIS;
-		break;
-	case I2S_CKR_TRCM_RXONLY:
-		sel_reg  = RK1808_CLKSEL_CON34_I2S0_RX;
-		gate_reg = RK1808_CLKGATE_CON18;
-		gate_val = en ? RK1808_CLKGATE_CON18_I2S0_RX_PLL_EN :
-				RK1808_CLKGATE_CON18_I2S0_RX_PLL_DIS;
-		break;
-	}
-
-	rockchip_i2s_tdm_src_clk_ctrl(i2s_tdm, en, gate_reg, gate_val, sel_reg);
-}
-
-static void rockchip_i2s_tdm_rk3308_src_clk_ctrl(struct rk_i2s_tdm_dev *i2s_tdm, bool en)
-{
-	unsigned int gate_reg = 0, gate_val = 0, sel_reg = 0;
-
-	/* I2S_8CH_2 used for internal and TRCM-none mode default */
-	switch (i2s_tdm->id) {
-	case 0:
-		switch (i2s_tdm->clk_trcm) {
-		case I2S_CKR_TRCM_TXONLY:
-			sel_reg  = RK3308_CLKSEL_CON52_I2S0_TX;
-			gate_reg = RK3308_CLKGATE_CON10;
-			gate_val = en ? RK3308_CLKGATE_CON10_I2S0_TX_PLL_EN :
-					RK3308_CLKGATE_CON10_I2S0_TX_PLL_DIS;
-			break;
-		case I2S_CKR_TRCM_RXONLY:
-			sel_reg  = RK3308_CLKSEL_CON54_I2S0_RX;
-			gate_reg = RK3308_CLKGATE_CON11;
-			gate_val = en ? RK3308_CLKGATE_CON11_I2S0_RX_PLL_EN :
-					RK3308_CLKGATE_CON11_I2S0_RX_PLL_DIS;
-			break;
-		}
-		break;
-	case 1:
-		switch (i2s_tdm->clk_trcm) {
-		case I2S_CKR_TRCM_TXONLY:
-			sel_reg  = RK3308_CLKSEL_CON56_I2S1_TX;
-			gate_reg = RK3308_CLKGATE_CON11;
-			gate_val = en ? RK3308_CLKGATE_CON11_I2S1_TX_PLL_EN :
-					RK3308_CLKGATE_CON11_I2S1_TX_PLL_DIS;
-			break;
-		case I2S_CKR_TRCM_RXONLY:
-			sel_reg  = RK3308_CLKSEL_CON58_I2S1_RX;
-			gate_reg = RK3308_CLKGATE_CON11;
-			gate_val = en ? RK3308_CLKGATE_CON11_I2S1_RX_PLL_EN :
-					RK3308_CLKGATE_CON11_I2S1_RX_PLL_DIS;
-			break;
-		}
-		break;
-	}
-
-	rockchip_i2s_tdm_src_clk_ctrl(i2s_tdm, en, gate_reg, gate_val, sel_reg);
-}
+#define writeq(v,c) ({ __iowmb(); __raw_writeq((__force u64) cpu_to_le64(v), c); })
+#endif
 
 static void rockchip_i2s_tdm_reset_assert(struct rk_i2s_tdm_dev *i2s_tdm)
 {
+	int tx_bank, rx_bank, tx_offset, rx_offset, tx_id, rx_id;
+	void __iomem *cru_reset, *addr;
+	unsigned long flags;
+	u64 val;
+
 	if (!i2s_tdm->cru_base || !i2s_tdm->soc_data || !i2s_tdm->is_master_mode)
 		return;
 
-	if (IS_ERR_OR_NULL(i2s_tdm->tx_reset) || IS_ERR_OR_NULL(i2s_tdm->rx_reset))
+	tx_id = i2s_tdm->tx_reset_id;
+	rx_id = i2s_tdm->rx_reset_id;
+	if (tx_id < 0 || rx_id < 0)
 		return;
 
-	reset_control_assert(i2s_tdm->tx_reset);
-	reset_control_assert(i2s_tdm->rx_reset);
+	tx_bank = tx_id / 16;
+	tx_offset = tx_id % 16;
+	rx_bank = rx_id / 16;
+	rx_offset = rx_id % 16;
 
+	dev_dbg(i2s_tdm->dev,
+		"tx_bank: %d, rx_bank: %d,tx_offset: %d, rx_offset: %d\n",
+		tx_bank, rx_bank, tx_offset, rx_offset);
+
+	cru_reset = i2s_tdm->cru_base + i2s_tdm->soc_data->softrst_offset;
+
+	switch (abs(tx_bank - rx_bank)) {
+	case 0:
+		writel(BIT(tx_offset) | BIT(rx_offset) |
+		       (BIT(tx_offset) << 16) | (BIT(rx_offset) << 16),
+		       cru_reset + (tx_bank * 4));
+		break;
+	case 1:
+		if (tx_bank < rx_bank) {
+			val = BIT(rx_offset) | (BIT(rx_offset) << 16);
+			val <<= 32;
+			val |= BIT(tx_offset) | (BIT(tx_offset) << 16);
+			addr = cru_reset + (tx_bank * 4);
+		} else {
+			val = BIT(tx_offset) | (BIT(tx_offset) << 16);
+			val <<= 32;
+			val |= BIT(rx_offset) | (BIT(rx_offset) << 16);
+			addr = cru_reset + (rx_bank * 4);
+		}
+
+		if (IS_ALIGNED((uintptr_t)addr, 8)) {
+			writeq(val, addr);
+			break;
+		}
+		fallthrough;
+	default:
+		local_irq_save(flags);
+		writel(BIT(tx_offset) | (BIT(tx_offset) << 16),
+		       cru_reset + (tx_bank * 4));
+		writel(BIT(rx_offset) | (BIT(rx_offset) << 16),
+		       cru_reset + (rx_bank * 4));
+		local_irq_restore(flags);
+		break;
+	}
 	/* delay for reset assert done */
 	udelay(10);
 }
 
 static void rockchip_i2s_tdm_reset_deassert(struct rk_i2s_tdm_dev *i2s_tdm)
 {
+	int tx_bank, rx_bank, tx_offset, rx_offset, tx_id, rx_id;
+	void __iomem *cru_reset, *addr;
+	unsigned long flags;
+	u64 val;
+
 	if (!i2s_tdm->cru_base || !i2s_tdm->soc_data || !i2s_tdm->is_master_mode)
 		return;
 
-	if (IS_ERR_OR_NULL(i2s_tdm->tx_reset) || IS_ERR_OR_NULL(i2s_tdm->rx_reset))
+	tx_id = i2s_tdm->tx_reset_id;
+	rx_id = i2s_tdm->rx_reset_id;
+	if (tx_id < 0 || rx_id < 0)
 		return;
 
-	if (i2s_tdm->soc_data && i2s_tdm->soc_data->src_clk_ctrl)
-		i2s_tdm->soc_data->src_clk_ctrl(i2s_tdm, 0);
+	tx_bank = tx_id / 16;
+	tx_offset = tx_id % 16;
+	rx_bank = rx_id / 16;
+	rx_offset = rx_id % 16;
 
-	reset_control_deassert(i2s_tdm->tx_reset);
-	reset_control_deassert(i2s_tdm->rx_reset);
+	dev_dbg(i2s_tdm->dev,
+		"tx_bank: %d, rx_bank: %d,tx_offset: %d, rx_offset: %d\n",
+		tx_bank, rx_bank, tx_offset, rx_offset);
 
-	if (i2s_tdm->soc_data && i2s_tdm->soc_data->src_clk_ctrl)
-		i2s_tdm->soc_data->src_clk_ctrl(i2s_tdm, 1);
+	cru_reset = i2s_tdm->cru_base + i2s_tdm->soc_data->softrst_offset;
 
+	switch (abs(tx_bank - rx_bank)) {
+	case 0:
+		writel((BIT(tx_offset) << 16) | (BIT(rx_offset) << 16),
+		       cru_reset + (tx_bank * 4));
+		break;
+	case 1:
+		if (tx_bank < rx_bank) {
+			val = (BIT(rx_offset) << 16);
+			val <<= 32;
+			val |= (BIT(tx_offset) << 16);
+			addr = cru_reset + (tx_bank * 4);
+		} else {
+			val = (BIT(tx_offset) << 16);
+			val <<= 32;
+			val |= (BIT(rx_offset) << 16);
+			addr = cru_reset + (rx_bank * 4);
+		}
+
+		if (IS_ALIGNED((uintptr_t)addr, 8)) {
+			writeq(val, addr);
+			break;
+		}
+		fallthrough;
+	default:
+		local_irq_save(flags);
+		writel((BIT(tx_offset) << 16),
+		       cru_reset + (tx_bank * 4));
+		writel((BIT(rx_offset) << 16),
+		       cru_reset + (rx_bank * 4));
+		local_irq_restore(flags);
+		break;
+	}
 	/* delay for reset deassert done */
 	udelay(10);
+}
+
+/*
+ * make sure both tx and rx are reset at the same time for sync lrck
+ * when clk_trcm > 0
+ */
+static void rockchip_i2s_tdm_sync_reset(struct rk_i2s_tdm_dev *i2s_tdm)
+{
+	rockchip_i2s_tdm_reset_assert(i2s_tdm);
+	rockchip_i2s_tdm_reset_deassert(i2s_tdm);
 }
 #else
 static inline void rockchip_i2s_tdm_reset_assert(struct rk_i2s_tdm_dev *i2s_tdm)
@@ -436,34 +436,43 @@ static inline void rockchip_i2s_tdm_reset_assert(struct rk_i2s_tdm_dev *i2s_tdm)
 static inline void rockchip_i2s_tdm_reset_deassert(struct rk_i2s_tdm_dev *i2s_tdm)
 {
 }
+static inline void rockchip_i2s_tdm_sync_reset(struct rk_i2s_tdm_dev *i2s_tdm)
+{
+}
 #endif
 
-static void rockchip_i2s_tdm_reset(struct rk_i2s_tdm_dev *i2s_tdm, unsigned int clr)
+static void rockchip_i2s_tdm_reset(struct reset_control *rc)
 {
-	if ((clr & I2S_CLR_TXC) && !IS_ERR_OR_NULL(i2s_tdm->tx_reset)) {
-		reset_control_assert(i2s_tdm->tx_reset);
-		/* delay for reset assert done */
-		udelay(10);
-		reset_control_deassert(i2s_tdm->tx_reset);
-		/* delay for reset deassert done */
-		udelay(10);
-	}
+	if (IS_ERR_OR_NULL(rc))
+		return;
 
-	if ((clr & I2S_CLR_RXC) && !IS_ERR_OR_NULL(i2s_tdm->rx_reset)) {
-		reset_control_assert(i2s_tdm->rx_reset);
-		/* delay for reset assert done */
-		udelay(10);
-		reset_control_deassert(i2s_tdm->rx_reset);
-		/* delay for reset deassert done */
-		udelay(10);
-	}
+	reset_control_assert(rc);
+	/* delay for reset assert done */
+	udelay(10);
+	reset_control_deassert(rc);
+	/* delay for reset deassert done */
+	udelay(10);
 }
 
 static int rockchip_i2s_tdm_clear(struct rk_i2s_tdm_dev *i2s_tdm,
 				  unsigned int clr)
 {
+	struct reset_control *rst = NULL;
 	unsigned int val = 0;
 	int ret = 0;
+
+	switch (clr) {
+	case I2S_CLR_TXC:
+		rst = i2s_tdm->tx_reset;
+		break;
+	case I2S_CLR_RXC:
+		rst = i2s_tdm->rx_reset;
+		break;
+	case I2S_CLR_TXC | I2S_CLR_RXC:
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	regmap_update_bits(i2s_tdm->regmap, I2S_CLR, clr, clr);
 	ret = regmap_read_poll_timeout_atomic(i2s_tdm->regmap, I2S_CLR, val,
@@ -502,7 +511,10 @@ static int rockchip_i2s_tdm_clear(struct rk_i2s_tdm_dev *i2s_tdm,
 	return 0;
 
 reset:
-	rockchip_i2s_tdm_reset(i2s_tdm, clr);
+	if (i2s_tdm->clk_trcm)
+		rockchip_i2s_tdm_sync_reset(i2s_tdm);
+	else
+		rockchip_i2s_tdm_reset(rst);
 
 	return 0;
 }
@@ -2430,9 +2442,6 @@ static const struct rk_i2s_soc_data px30_i2s_soc_data = {
 	.configs = px30_txrx_config,
 	.config_count = ARRAY_SIZE(px30_txrx_config),
 	.init = common_soc_init,
-#ifdef HAVE_SYNC_RESET
-	.src_clk_ctrl = rockchip_i2s_tdm_px30_src_clk_ctrl,
-#endif
 };
 
 static const struct rk_i2s_soc_data rk1808_i2s_soc_data = {
@@ -2440,9 +2449,6 @@ static const struct rk_i2s_soc_data rk1808_i2s_soc_data = {
 	.configs = rk1808_txrx_config,
 	.config_count = ARRAY_SIZE(rk1808_txrx_config),
 	.init = common_soc_init,
-#ifdef HAVE_SYNC_RESET
-	.src_clk_ctrl = rockchip_i2s_tdm_rk1808_src_clk_ctrl,
-#endif
 };
 
 static const struct rk_i2s_soc_data rk3308_i2s_soc_data = {
@@ -2452,9 +2458,6 @@ static const struct rk_i2s_soc_data rk3308_i2s_soc_data = {
 	.configs = rk3308_txrx_config,
 	.config_count = ARRAY_SIZE(rk3308_txrx_config),
 	.init = common_soc_init,
-#ifdef HAVE_SYNC_RESET
-	.src_clk_ctrl = rockchip_i2s_tdm_rk3308_src_clk_ctrl,
-#endif
 };
 
 static const struct rk_i2s_soc_data rk3568_i2s_soc_data = {
@@ -2495,6 +2498,26 @@ static const struct of_device_id rockchip_i2s_tdm_match[] = {
 #endif
 	{},
 };
+
+#ifdef HAVE_SYNC_RESET
+static int of_i2s_resetid_get(struct device_node *node,
+			      const char *id)
+{
+	struct of_phandle_args args;
+	int index = 0;
+	int ret;
+
+	if (id)
+		index = of_property_match_string(node,
+						 "reset-names", id);
+	ret = of_parse_phandle_with_args(node, "resets", "#reset-cells",
+					 index, &args);
+	if (ret)
+		return ret;
+
+	return args.args[0];
+}
+#endif
 
 static const struct snd_soc_dai_driver i2s_tdm_dai = {
 	.probe = rockchip_i2s_tdm_dai_probe,
@@ -3038,6 +3061,24 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 		}
 	}
 
+#ifdef HAVE_SYNC_RESET
+	sync = of_device_is_compatible(node, "rockchip,px30-i2s-tdm") ||
+	       of_device_is_compatible(node, "rockchip,rk1808-i2s-tdm") ||
+	       of_device_is_compatible(node, "rockchip,rk3308-i2s-tdm");
+
+	if (i2s_tdm->clk_trcm && sync) {
+		struct device_node *cru_node;
+
+		cru_node = of_parse_phandle(node, "rockchip,cru", 0);
+		i2s_tdm->cru_base = of_iomap(cru_node, 0);
+		if (!i2s_tdm->cru_base)
+			return -ENOENT;
+
+		i2s_tdm->tx_reset_id = of_i2s_resetid_get(node, "tx-m");
+		i2s_tdm->rx_reset_id = of_i2s_resetid_get(node, "rx-m");
+	}
+#endif
+
 	i2s_tdm->io_multiplex =
 		of_property_read_bool(node, "rockchip,io-multiplex");
 
@@ -3145,23 +3186,6 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 		if (ret)
 			goto err_disable_hclk;
 	}
-
-#ifdef HAVE_SYNC_RESET
-	sync = of_device_is_compatible(node, "rockchip,px30-i2s-tdm") ||
-	       of_device_is_compatible(node, "rockchip,rk1808-i2s-tdm") ||
-	       of_device_is_compatible(node, "rockchip,rk3308-i2s-tdm");
-
-	if (i2s_tdm->clk_trcm && sync) {
-		struct device_node *cru_node;
-
-		cru_node = of_parse_phandle(node, "rockchip,cru", 0);
-		i2s_tdm->cru_base = of_iomap(cru_node, 0);
-		if (!i2s_tdm->cru_base)
-			return -ENOENT;
-
-		i2s_tdm->id = (res->start >> 16) & GENMASK(3, 0);
-	}
-#endif
 
 	/*
 	 * MUST: after pm_runtime_enable step, any register R/W
