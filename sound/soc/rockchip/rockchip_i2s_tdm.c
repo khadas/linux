@@ -25,7 +25,6 @@
 #include "rockchip_i2s_tdm.h"
 #include "rockchip_dlp_pcm.h"
 #include "rockchip_utils.h"
-#include "rockchip_trcm.h"
 
 #define DRV_NAME "rockchip-i2s-tdm"
 
@@ -118,7 +117,6 @@ struct rk_i2s_tdm_dev {
 	struct snd_dmaengine_dai_dma_data playback_dma_data;
 	struct snd_pcm_substream *substreams[SNDRV_PCM_STREAM_LAST + 1];
 	unsigned int wait_time[SNDRV_PCM_STREAM_LAST + 1];
-	struct snd_soc_component *pcm_comp;
 	struct reset_control *tx_reset;
 	struct reset_control *rx_reset;
 	struct pinctrl *pinctrl;
@@ -135,7 +133,6 @@ struct rk_i2s_tdm_dev {
 	bool tdm_mode;
 	bool tdm_fsync_half_frame;
 	bool is_dma_active[SNDRV_PCM_STREAM_LAST + 1];
-	bool dma_guard_initialized;
 	unsigned int mclk_rx_freq;
 	unsigned int mclk_tx_freq;
 	unsigned int mclk_root0_freq;
@@ -254,6 +251,76 @@ err_mclk_tx_src:
 err_mclk_rx:
 	clk_disable_unprepare(i2s_tdm->mclk_tx);
 err_mclk_tx:
+	return ret;
+}
+
+static int __maybe_unused i2s_tdm_runtime_suspend(struct device *dev)
+{
+	struct rk_i2s_tdm_dev *i2s_tdm = dev_get_drvdata(dev);
+
+	regcache_cache_only(i2s_tdm->regmap, true);
+	i2s_tdm_disable_unprepare_mclk(i2s_tdm);
+
+	clk_disable_unprepare(i2s_tdm->hclk);
+
+	pinctrl_pm_select_idle_state(dev);
+
+	return 0;
+}
+
+static int rockchip_i2s_tdm_pinctrl_select_clk_state(struct device *dev)
+{
+	struct rk_i2s_tdm_dev *i2s_tdm = dev_get_drvdata(dev);
+
+	if (IS_ERR_OR_NULL(i2s_tdm->pinctrl) || !i2s_tdm->clk_state)
+		return 0;
+
+	pinctrl_select_state(i2s_tdm->pinctrl, i2s_tdm->clk_state);
+
+	return 0;
+}
+
+static int __maybe_unused i2s_tdm_runtime_resume(struct device *dev)
+{
+	struct rk_i2s_tdm_dev *i2s_tdm = dev_get_drvdata(dev);
+	int ret;
+
+	/*
+	 * pinctrl default state is invoked by ASoC framework, so,
+	 * we just handle clk state here if DT assigned.
+	 */
+	if (i2s_tdm->is_master_mode)
+		rockchip_i2s_tdm_pinctrl_select_clk_state(dev);
+
+	ret = clk_prepare_enable(i2s_tdm->hclk);
+	if (ret)
+		goto err_hclk;
+
+	ret = i2s_tdm_prepare_enable_mclk(i2s_tdm);
+	if (ret)
+		goto err_mclk;
+
+	regcache_cache_only(i2s_tdm->regmap, false);
+	regcache_mark_dirty(i2s_tdm->regmap);
+
+	ret = regcache_sync(i2s_tdm->regmap);
+	if (ret)
+		goto err_regcache;
+
+	/*
+	 * should be placed after regcache sync done to back
+	 * to the slave mode and then enable clk state.
+	 */
+	if (!i2s_tdm->is_master_mode)
+		rockchip_i2s_tdm_pinctrl_select_clk_state(dev);
+
+	return 0;
+
+err_regcache:
+	i2s_tdm_disable_unprepare_mclk(i2s_tdm);
+err_mclk:
+	clk_disable_unprepare(i2s_tdm->hclk);
+err_hclk:
 	return ret;
 }
 
@@ -1032,38 +1099,23 @@ static void rockchip_i2s_tdm_xfer_stop(struct rk_i2s_tdm_dev *i2s_tdm,
 	rockchip_i2s_tdm_clear(i2s_tdm, clr);
 }
 
-static void rockchip_i2s_tdm_xfer_trcm_start(struct rk_i2s_tdm_dev *i2s_tdm,
-					     int stream)
+static void rockchip_i2s_tdm_xfer_trcm_start(struct rk_i2s_tdm_dev *i2s_tdm)
 {
-	int bstream = SNDRV_PCM_STREAM_LAST - stream;
 	unsigned long flags;
-	u32 val, en;
 
 	spin_lock_irqsave(&i2s_tdm->lock, flags);
-	if (++i2s_tdm->refcount == 1) {
-		if (i2s_tdm->dma_guard_initialized) {
-			regmap_read(i2s_tdm->regmap, I2S_DMACR, &val);
-			en = I2S_DMACR_RDE(1) | I2S_DMACR_TDE(1);
-			if ((val & en) != en) {
-				dmaengine_trcm_dma_guard_ctrl(i2s_tdm->pcm_comp, bstream, 1);
-				rockchip_i2s_tdm_dma_ctrl(i2s_tdm, bstream, 1);
-			}
-		}
+	if (++i2s_tdm->refcount == 1)
 		rockchip_i2s_tdm_xfer_start(i2s_tdm, 0);
-	}
 	spin_unlock_irqrestore(&i2s_tdm->lock, flags);
 }
 
-static void rockchip_i2s_tdm_xfer_trcm_stop(struct rk_i2s_tdm_dev *i2s_tdm,
-					    int stream)
+static void rockchip_i2s_tdm_xfer_trcm_stop(struct rk_i2s_tdm_dev *i2s_tdm)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&i2s_tdm->lock, flags);
 	if (--i2s_tdm->refcount == 0)
 		rockchip_i2s_tdm_xfer_stop(i2s_tdm, 0, false);
-	if (i2s_tdm->dma_guard_initialized)
-		rockchip_i2s_tdm_dma_ctrl(i2s_tdm, stream, 1);
 	spin_unlock_irqrestore(&i2s_tdm->lock, flags);
 }
 
@@ -1072,9 +1124,6 @@ static void rockchip_i2s_tdm_trcm_pause(struct snd_pcm_substream *substream,
 {
 	int stream = substream->stream;
 	int bstream = SNDRV_PCM_STREAM_LAST - stream;
-
-	if (i2s_tdm->pcm_comp)
-		dmaengine_trcm_dma_guard_ctrl(i2s_tdm->pcm_comp, stream, 0);
 
 	/* store the current state, prepare for resume if necessary */
 	i2s_tdm->is_dma_active[bstream] = is_dma_active(i2s_tdm, bstream);
@@ -1088,17 +1137,14 @@ static void rockchip_i2s_tdm_trcm_pause(struct snd_pcm_substream *substream,
 static void rockchip_i2s_tdm_trcm_resume(struct snd_pcm_substream *substream,
 					 struct rk_i2s_tdm_dev *i2s_tdm)
 {
-	int stream = substream->stream;
 	int bstream = SNDRV_PCM_STREAM_LAST - substream->stream;
 
-	if (i2s_tdm->pcm_comp) {
-		dmaengine_trcm_dma_guard_ctrl(i2s_tdm->pcm_comp, stream, 1);
-		rockchip_i2s_tdm_dma_ctrl(i2s_tdm, stream, 1);
-	}
-
+	/*
+	 * just resume bstream, because current stream will be
+	 * startup in the trigger-cmd-START
+	 */
 	if (i2s_tdm->is_dma_active[bstream])
 		rockchip_i2s_tdm_dma_ctrl(i2s_tdm, bstream, 1);
-
 	rockchip_i2s_tdm_xfer_start(i2s_tdm, bstream);
 }
 
@@ -1118,7 +1164,7 @@ static void rockchip_i2s_tdm_start(struct rk_i2s_tdm_dev *i2s_tdm, int stream)
 	rockchip_i2s_tdm_dma_ctrl(i2s_tdm, stream, 1);
 
 	if (i2s_tdm->clk_trcm)
-		rockchip_i2s_tdm_xfer_trcm_start(i2s_tdm, stream);
+		rockchip_i2s_tdm_xfer_trcm_start(i2s_tdm);
 	else
 		rockchip_i2s_tdm_xfer_start(i2s_tdm, stream);
 }
@@ -1128,7 +1174,7 @@ static void rockchip_i2s_tdm_stop(struct rk_i2s_tdm_dev *i2s_tdm, int stream)
 	rockchip_i2s_tdm_dma_ctrl(i2s_tdm, stream, 0);
 
 	if (i2s_tdm->clk_trcm)
-		rockchip_i2s_tdm_xfer_trcm_stop(i2s_tdm, stream);
+		rockchip_i2s_tdm_xfer_trcm_stop(i2s_tdm);
 	else
 		rockchip_i2s_tdm_xfer_stop(i2s_tdm, stream, false);
 }
@@ -1611,19 +1657,13 @@ static bool is_params_dirty(struct snd_pcm_substream *substream,
 }
 
 static int rockchip_i2s_tdm_params_trcm(struct snd_pcm_substream *substream,
-					struct snd_pcm_hw_params *params,
 					struct snd_soc_dai *dai,
 					unsigned int div_bclk,
 					unsigned int div_lrck,
 					unsigned int fmt)
 {
 	struct rk_i2s_tdm_dev *i2s_tdm = to_info(dai);
-	struct snd_soc_component *comp = i2s_tdm->pcm_comp;
 	unsigned long flags;
-
-	/* Prepare params changes for trcm dma guard resume */
-	if (comp && comp->driver->hw_params)
-		comp->driver->hw_params(comp, substream, params);
 
 	spin_lock_irqsave(&i2s_tdm->lock, flags);
 	if (i2s_tdm->refcount)
@@ -1648,9 +1688,6 @@ static int rockchip_i2s_tdm_params_trcm(struct snd_pcm_substream *substream,
 	if (i2s_tdm->refcount)
 		rockchip_i2s_tdm_trcm_resume(substream, i2s_tdm);
 	spin_unlock_irqrestore(&i2s_tdm->lock, flags);
-
-	if (comp && !i2s_tdm->dma_guard_initialized)
-		i2s_tdm->dma_guard_initialized = true;
 
 	return 0;
 }
@@ -1872,7 +1909,7 @@ static int rockchip_i2s_tdm_hw_params(struct snd_pcm_substream *substream,
 		return 0;
 
 	if (i2s_tdm->clk_trcm)
-		rockchip_i2s_tdm_params_trcm(substream, params, dai, div_bclk, div_lrck, val);
+		rockchip_i2s_tdm_params_trcm(substream, dai, div_bclk, div_lrck, val);
 	else
 		rockchip_i2s_tdm_params(substream, dai, div_bclk, div_lrck, val);
 
@@ -2820,7 +2857,7 @@ static int rockchip_i2s_tdm_keep_clk_always_on(struct rk_i2s_tdm_dev *i2s_tdm)
 			   I2S_CKR_RSD(div_lrck) | I2S_CKR_TSD(div_lrck));
 
 	if (i2s_tdm->clk_trcm)
-		rockchip_i2s_tdm_xfer_trcm_start(i2s_tdm, SNDRV_PCM_STREAM_PLAYBACK);
+		rockchip_i2s_tdm_xfer_trcm_start(i2s_tdm);
 	else
 		rockchip_i2s_tdm_xfer_start(i2s_tdm, SNDRV_PCM_STREAM_PLAYBACK);
 
@@ -2834,8 +2871,6 @@ static int rockchip_i2s_tdm_keep_clk_always_on(struct rk_i2s_tdm_dev *i2s_tdm)
 
 static int rockchip_i2s_tdm_register_platform(struct device *dev)
 {
-	struct rk_i2s_tdm_dev *i2s_tdm = dev_get_drvdata(dev);
-	struct snd_soc_component *comp;
 	int ret = 0;
 
 	if (device_property_read_bool(dev, "rockchip,no-dmaengine")) {
@@ -2850,106 +2885,10 @@ static int rockchip_i2s_tdm_register_platform(struct device *dev)
 		return ret;
 	}
 
-	if (i2s_tdm->clk_trcm) {
-		ret =  devm_snd_dmaengine_trcm_register(dev);
-		if (ret) {
-			dev_err(dev, "Could not register TRCM PCM\n");
-			return ret;
-		}
-
-		comp = snd_soc_lookup_component(i2s_tdm->dev,
-						SND_DMAENGINE_TRCM_DRV_NAME);
-		if (!comp) {
-			dev_err(dev, "Could not find TRCM PCM\n");
-			ret = -ENODEV;
-		}
-
-		i2s_tdm->pcm_comp = comp;
-
-		return ret;
-	}
-
 	ret = devm_snd_dmaengine_pcm_register(dev, NULL, 0);
 	if (ret)
 		dev_err(dev, "Could not register PCM\n");
 
-	return ret;
-}
-
-static int __maybe_unused i2s_tdm_runtime_suspend(struct device *dev)
-{
-	struct rk_i2s_tdm_dev *i2s_tdm = dev_get_drvdata(dev);
-
-	if (i2s_tdm->pcm_comp && i2s_tdm->clk_trcm) {
-		rockchip_i2s_tdm_dma_ctrl(i2s_tdm, 0, 0);
-		rockchip_i2s_tdm_dma_ctrl(i2s_tdm, 1, 0);
-		dmaengine_trcm_dma_guard_ctrl(i2s_tdm->pcm_comp, 0, 0);
-		dmaengine_trcm_dma_guard_ctrl(i2s_tdm->pcm_comp, 1, 0);
-	}
-
-	regcache_cache_only(i2s_tdm->regmap, true);
-	i2s_tdm_disable_unprepare_mclk(i2s_tdm);
-
-	clk_disable_unprepare(i2s_tdm->hclk);
-
-	pinctrl_pm_select_idle_state(dev);
-
-	return 0;
-}
-
-static int rockchip_i2s_tdm_pinctrl_select_clk_state(struct device *dev)
-{
-	struct rk_i2s_tdm_dev *i2s_tdm = dev_get_drvdata(dev);
-
-	if (IS_ERR_OR_NULL(i2s_tdm->pinctrl) || !i2s_tdm->clk_state)
-		return 0;
-
-	pinctrl_select_state(i2s_tdm->pinctrl, i2s_tdm->clk_state);
-
-	return 0;
-}
-
-static int __maybe_unused i2s_tdm_runtime_resume(struct device *dev)
-{
-	struct rk_i2s_tdm_dev *i2s_tdm = dev_get_drvdata(dev);
-	int ret;
-
-	/*
-	 * pinctrl default state is invoked by ASoC framework, so,
-	 * we just handle clk state here if DT assigned.
-	 */
-	if (i2s_tdm->is_master_mode)
-		rockchip_i2s_tdm_pinctrl_select_clk_state(dev);
-
-	ret = clk_prepare_enable(i2s_tdm->hclk);
-	if (ret)
-		goto err_hclk;
-
-	ret = i2s_tdm_prepare_enable_mclk(i2s_tdm);
-	if (ret)
-		goto err_mclk;
-
-	regcache_cache_only(i2s_tdm->regmap, false);
-	regcache_mark_dirty(i2s_tdm->regmap);
-
-	ret = regcache_sync(i2s_tdm->regmap);
-	if (ret)
-		goto err_regcache;
-
-	/*
-	 * should be placed after regcache sync done to back
-	 * to the slave mode and then enable clk state.
-	 */
-	if (!i2s_tdm->is_master_mode)
-		rockchip_i2s_tdm_pinctrl_select_clk_state(dev);
-
-	return 0;
-
-err_regcache:
-	i2s_tdm_disable_unprepare_mclk(i2s_tdm);
-err_mclk:
-	clk_disable_unprepare(i2s_tdm->hclk);
-err_hclk:
 	return ret;
 }
 
