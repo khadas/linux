@@ -125,6 +125,18 @@ struct rkvdec_link_info {
 	u32 tb_reg_cycle;
 	bool hack_setup;
 	struct rkvdec_link_status reg_status;
+
+	/* register for vdpu383 later */
+	u32 ip_reset_base;
+	u32 ip_reset_en;
+	u32 irq_base;
+	u32 irq_mask;
+	u32 status_base;
+	u32 status_mask;
+	u32 err_mask;
+	u32 ip_reset_mask;
+	u32 ip_time_base;
+	u32 en_base;
 };
 
 struct rkvdec_link_dev {
@@ -202,6 +214,7 @@ struct rkvdec2_ccu {
 extern struct rkvdec_link_info rkvdec_link_rk356x_hw_info;
 extern struct rkvdec_link_info rkvdec_link_v2_hw_info;
 extern struct rkvdec_link_info rkvdec_link_vdpu382_hw_info;
+extern struct rkvdec_link_info rkvdec_link_vdpu383_hw_info;
 
 int rkvdec_link_dump(struct mpp_dev *mpp);
 

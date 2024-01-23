@@ -30,30 +30,47 @@
  * hardware information
  */
 static struct mpp_hw_info rkvdec_v2_hw_info = {
-	.reg_num = RKVDEC_REG_NUM,
-	.reg_id = RKVDEC_REG_HW_ID_INDEX,
-	.reg_start = RKVDEC_REG_START_INDEX,
-	.reg_end = RKVDEC_REG_END_INDEX,
-	.reg_en = RKVDEC_REG_START_EN_INDEX,
+	.reg_num = 279,
+	.reg_id = 0,
+	.reg_start = 0,
+	.reg_end = 278,
+	.reg_en = 10,
+	.reg_fmt = 9,
+	.reg_ret_status = 224,
 	.link_info = &rkvdec_link_v2_hw_info,
 };
 
 static struct mpp_hw_info rkvdec_rk356x_hw_info = {
-	.reg_num = RKVDEC_REG_NUM,
-	.reg_id = RKVDEC_REG_HW_ID_INDEX,
-	.reg_start = RKVDEC_REG_START_INDEX,
-	.reg_end = RKVDEC_REG_END_INDEX,
-	.reg_en = RKVDEC_REG_START_EN_INDEX,
+	.reg_num = 279,
+	.reg_id = 0,
+	.reg_start = 0,
+	.reg_end = 278,
+	.reg_en = 10,
+	.reg_fmt = 9,
+	.reg_ret_status = 224,
 	.link_info = &rkvdec_link_rk356x_hw_info,
 };
 
 static struct mpp_hw_info rkvdec_vdpu382_hw_info = {
-	.reg_num = RKVDEC_REG_NUM,
-	.reg_id = RKVDEC_REG_HW_ID_INDEX,
-	.reg_start = RKVDEC_REG_START_INDEX,
-	.reg_end = RKVDEC_REG_END_INDEX,
-	.reg_en = RKVDEC_REG_START_EN_INDEX,
+	.reg_num = 279,
+	.reg_id = 0,
+	.reg_start = 0,
+	.reg_end = 278,
+	.reg_en = 10,
+	.reg_fmt = 9,
+	.reg_ret_status = 224,
 	.link_info = &rkvdec_link_vdpu382_hw_info,
+};
+
+static struct mpp_hw_info rkvdec_vdpu383_hw_info = {
+	.reg_num = 360,
+	.reg_id = 0,
+	.reg_start = 0,
+	.reg_end = 359,
+	.reg_en = 16,
+	.reg_fmt = 8,
+	.reg_ret_status = 15,
+	.link_info = &rkvdec_link_vdpu383_hw_info,
 };
 
 /*
@@ -105,11 +122,77 @@ static struct mpp_trans_info rkvdec_v2_trans[] = {
 	}
 };
 
+/*
+ * file handle translate information
+ */
+static const u16 trans_vdpu383_tbl_h265d[] = {
+	128, 129, 130, 131, 132, 133, 134, 140, 142, 144, 146, 148, 150, 152, 154,
+	156, 158, 160, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179,
+	180, 181, 182, 183, 184, 185, 192, 194, 195, 196, 197, 198, 199, 200, 201,
+	202, 203, 204, 205, 206, 207, 208, 209, 210, 216, 217, 218, 219, 220, 221,
+	222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232
+};
+
+static const u16 trans_vdpu383_tbl_h264d[] = {
+	128, 129, 130, 131, 132, 133, 134, 140, 142, 144, 146, 148, 150, 152, 154,
+	156, 158, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180,
+	181, 182, 183, 184, 185, 192, 194, 195, 196, 197, 198, 199, 200, 201, 202,
+	203, 204, 205, 206, 207, 208, 209, 210, 216, 217, 218, 219, 220, 221, 222,
+	223, 224, 225, 226, 227, 228, 229, 230, 231, 232
+};
+
+static const u16 trans_vdpu383_tbl_vp9d[] = {
+	128, 129, 130, 131, 132, 133, 134, 140, 142, 144, 146, 148, 150, 152, 154,
+	156, 158, 160, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179,
+	180, 181, 182, 183, 184, 185, 192, 194, 195, 196, 197, 198, 199, 200, 201,
+	202, 203, 204, 205, 206, 207, 208, 209, 210, 216, 217, 218, 219, 220, 221,
+	222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232
+};
+
+static const u16 trans_vdpu383_tbl_avs2d[] = {
+	128, 129, 130, 131, 132, 133, 134, 140, 142, 144, 146, 148, 150, 152, 154,
+	156, 158, 160, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179,
+	180, 181, 182, 183, 184, 185, 192, 194, 195, 196, 197, 198, 199, 200, 201,
+	202, 203, 204, 205, 206, 207, 208, 209, 210, 216, 217, 218, 219, 220, 221,
+	222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232
+};
+
+static const u16 trans_vdpu383_tbl_av1d[] = {
+	128, 131, 133, 134, 140, 142, 144, 146, 148, 150, 152, 154,
+	156, 158, 160, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179,
+	180, 181, 182, 183, 184, 185, 192, 194, 195, 196, 197, 198, 199, 200, 201,
+	202, 203, 204, 205, 206, 207, 208, 209, 210, 216, 217, 218, 219, 220, 221,
+	222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232
+};
+
+static struct mpp_trans_info rkvdec_vdpu383_trans[] = {
+	[RKVDEC_FMT_H265D] = {
+		.count = ARRAY_SIZE(trans_vdpu383_tbl_h265d),
+		.table = trans_vdpu383_tbl_h265d,
+	},
+	[RKVDEC_FMT_H264D] = {
+		.count = ARRAY_SIZE(trans_vdpu383_tbl_h264d),
+		.table = trans_vdpu383_tbl_h264d,
+	},
+	[RKVDEC_FMT_VP9D] = {
+		.count = ARRAY_SIZE(trans_vdpu383_tbl_vp9d),
+		.table = trans_vdpu383_tbl_vp9d,
+	},
+	[RKVDEC_FMT_AVS2] = {
+		.count = ARRAY_SIZE(trans_vdpu383_tbl_avs2d),
+		.table = trans_vdpu383_tbl_avs2d,
+	},
+	[RKVDEC_FMT_AV1D] = {
+		.count = ARRAY_SIZE(trans_vdpu383_tbl_av1d),
+		.table = trans_vdpu383_tbl_av1d,
+	}
+};
+
 static int mpp_extract_rcb_info(struct rkvdec2_rcb_info *rcb_inf,
 				struct mpp_request *req)
 {
-	int max_size = ARRAY_SIZE(rcb_inf->elem);
-	int cnt = req->size / sizeof(rcb_inf->elem[0]);
+	u32 max_size = ARRAY_SIZE(rcb_inf->elem);
+	u32 cnt = req->size / sizeof(rcb_inf->elem[0]);
 
 	if (req->size > sizeof(rcb_inf->elem)) {
 		mpp_err("count %d,max_size %d\n", cnt, max_size);
@@ -155,8 +238,8 @@ static int rkvdec2_extract_task_msg(struct mpp_session *session,
 			memcpy(&task->w_reqs[task->w_req_cnt++], req, sizeof(*req));
 		} break;
 		case MPP_CMD_SET_REG_READ: {
-			int req_base;
-			int max_size;
+			u32 req_base;
+			u32 max_size;
 
 			if (req->offset >= RKVDEC_PERF_SEL_OFFSET) {
 				req_base = RKVDEC_PERF_SEL_OFFSET;
@@ -200,7 +283,7 @@ int mpp_set_rcbbuf(struct mpp_dev *mpp, struct mpp_session *session,
 	mpp_debug_enter();
 
 	if (priv && dec->rcb_iova) {
-		int i;
+		u32 i;
 		u32 reg_idx, rcb_size, rcb_offset;
 		struct rkvdec2_rcb_info *rcb_inf = &priv->rcb_inf;
 		u32 width = priv->codec_info[DEC_INFO_WIDTH].val;
@@ -247,7 +330,8 @@ int rkvdec2_task_init(struct mpp_dev *mpp, struct mpp_session *session,
 
 	/* process fd in register */
 	if (!(msgs->flags & MPP_FLAGS_REG_FD_NO_TRANS)) {
-		u32 fmt = RKVDEC_GET_FORMAT(task->reg[RKVDEC_REG_FORMAT_INDEX]);
+		int reg_fmt = mpp_task->hw_info->reg_fmt;
+		u32 fmt = RKVDEC_GET_FORMAT(task->reg[reg_fmt]);
 
 		ret = mpp_translate_reg_address(session, mpp_task,
 						fmt, task->reg, &task->off_inf);
@@ -309,6 +393,7 @@ static void *rkvdec2_rk3568_alloc_task(struct mpp_session *session,
 				       struct mpp_task_msgs *msgs)
 {
 	u32 fmt;
+	int reg_fmt;
 	struct mpp_task *mpp_task = NULL;
 	struct rkvdec2_task *task = NULL;
 
@@ -317,7 +402,8 @@ static void *rkvdec2_rk3568_alloc_task(struct mpp_session *session,
 		return NULL;
 
 	task = to_rkvdec2_task(mpp_task);
-	fmt = RKVDEC_GET_FORMAT(task->reg[RKVDEC_REG_FORMAT_INDEX]);
+	reg_fmt = mpp_task->hw_info->reg_fmt;
+	fmt = RKVDEC_GET_FORMAT(task->reg[reg_fmt]);
 	/* workaround for rk356x, fix the hw bug of cabac/cavlc switch only in h264d */
 	task->need_hack = (fmt == RKVDEC_FMT_H264D);
 
@@ -332,7 +418,7 @@ static int rkvdec2_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	/* set cache size */
 	u32 reg = RKVDEC_CACHE_PERMIT_CACHEABLE_ACCESS |
 		  RKVDEC_CACHE_PERMIT_READ_ALLOCATE;
-	int i;
+	u32 i;
 
 	mpp_debug_enter();
 
@@ -349,7 +435,7 @@ static int rkvdec2_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 
 	/* set registers for hardware */
 	for (i = 0; i < task->w_req_cnt; i++) {
-		int s, e;
+		u32 s, e;
 		struct mpp_request *req = &task->w_reqs[i];
 
 		s = req->offset / sizeof(u32);
@@ -397,6 +483,60 @@ static int rkvdec2_rk3568_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	return ret;
 }
 
+static int rkvdec_vdpu383_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
+{
+	struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
+	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
+	u32 timing_en = mpp->srv->timing_en;
+	struct rkvdec_link_dev *link = dec->link_dec;
+
+	/* set cache size */
+	u32 reg = RKVDEC_CACHE_PERMIT_CACHEABLE_ACCESS |
+		  RKVDEC_CACHE_PERMIT_READ_ALLOCATE;
+	u32 i;
+
+	mpp_debug_enter();
+
+	if (!mpp_debug_unlikely(DEBUG_CACHE_32B))
+		reg |= RKVDEC_CACHE_LINE_SIZE_64_BYTES;
+
+	mpp_write_relaxed(mpp, RKVDEC_REG_CACHE0_SIZE_BASE, reg);
+	/* clear cache */
+	mpp_write_relaxed(mpp, RKVDEC_REG_CLR_CACHE0_BASE, 1);
+
+	/* set registers for hardware */
+	for (i = 0; i < task->w_req_cnt; i++) {
+		u32 s, e;
+		struct mpp_request *req = &task->w_reqs[i];
+
+		s = req->offset / sizeof(u32);
+		e = s + req->size / sizeof(u32);
+		mpp_write_req(mpp, task->reg, s, e, -1);
+	}
+
+	/* flush tlb before starting hardware */
+	mpp_iommu_flush_tlb(mpp->iommu_info);
+
+	/* init current task */
+	mpp->cur_task = mpp_task;
+
+	mpp_task_run_begin(mpp_task, timing_en, MPP_WORK_TIMEOUT_DELAY);
+
+	/* set ip time out threshold, ip watch-dog */
+	writel_relaxed(0x7fffff, link->reg_base + link->info->ip_time_base);
+
+	/* Flush the register before the start the device */
+	wmb();
+	/* enable hardware */
+	writel(RKVDEC_START_EN, link->reg_base + link->info->en_base);
+
+	mpp_task_run_end(mpp_task, timing_en);
+
+	mpp_debug_leave();
+
+	return 0;
+}
+
 static int rkvdec2_irq(struct mpp_dev *mpp)
 {
 	mpp->irq_status = mpp_read(mpp, RKVDEC_REG_INT_EN);
@@ -406,6 +546,30 @@ static int rkvdec2_irq(struct mpp_dev *mpp)
 	mpp_write(mpp, RKVDEC_REG_INT_EN, 0);
 
 	return IRQ_WAKE_THREAD;
+}
+
+static int rkvdec_vdpu383_irq(struct mpp_dev *mpp)
+{
+	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
+	struct rkvdec_link_dev *link = dec->link_dec;
+	u32 irq_val;
+	u32 irq_bits = link->info->irq_mask >> 16;
+	u32 status_bits = link->info->status_mask >> 16;
+
+	/* read and clear irq */
+	irq_val = readl_relaxed(link->reg_base + link->info->irq_base);
+	if (!(irq_val & irq_bits))
+		return IRQ_NONE;
+	writel(link->info->irq_mask, link->reg_base + link->info->irq_base);
+
+	/* read and clear status */
+	mpp->irq_status = readl_relaxed(link->reg_base + link->info->status_base);
+	writel(link->info->status_mask, link->reg_base + link->info->status_base);
+	/* wake isr to handle current task */
+	if (mpp->irq_status & status_bits)
+		return IRQ_WAKE_THREAD;
+
+	return IRQ_NONE;
 }
 
 static int rkvdec2_isr(struct mpp_dev *mpp)
@@ -429,6 +593,43 @@ static int rkvdec2_isr(struct mpp_dev *mpp)
 	mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n", task->irq_status);
 	err_mask = RKVDEC_COLMV_REF_ERR_STA | RKVDEC_BUF_EMPTY_STA |
 		   RKVDEC_TIMEOUT_STA | RKVDEC_ERROR_STA;
+	if (err_mask & task->irq_status) {
+		atomic_inc(&mpp->reset_request);
+		if (mpp_debug_unlikely(DEBUG_DUMP_ERR_REG)) {
+			mpp_debug(DEBUG_DUMP_ERR_REG, "irq_status: %08x\n", task->irq_status);
+			mpp_task_dump_hw_reg(mpp);
+		}
+	}
+
+	mpp_task_finish(mpp_task->session, mpp_task);
+
+	mpp_debug_leave();
+	return IRQ_HANDLED;
+}
+
+static int rkvdec_vdpu383_isr(struct mpp_dev *mpp)
+{
+	u32 err_mask;
+	struct rkvdec2_task *task = NULL;
+	struct mpp_task *mpp_task = mpp->cur_task;
+	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
+
+	/* FIXME use a spin lock here */
+	if (!mpp_task) {
+		dev_err(mpp->dev, "no current task\n");
+		return IRQ_HANDLED;
+	}
+	mpp_task->hw_cycles = mpp_read(mpp, RKVDEC_PERF_WORKING_CNT);
+	mpp_time_diff_with_hw_time(mpp_task, dec->cycle_clk->real_rate_hz);
+	mpp->cur_task = NULL;
+	task = to_rkvdec2_task(mpp_task);
+	task->irq_status = mpp->irq_status;
+
+	mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n", task->irq_status);
+	/* TODO */
+
+	/* handle error */
+	err_mask = dec->link_dec->info->err_mask;
 	if (err_mask & task->irq_status) {
 		atomic_inc(&mpp->reset_request);
 		if (mpp_debug_unlikely(DEBUG_DUMP_ERR_REG)) {
@@ -487,7 +688,7 @@ static int rkvdec2_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 		req = &task->r_reqs[i];
 		/* read perf register */
 		if (req->offset >= RKVDEC_PERF_SEL_OFFSET) {
-			int off = req->offset - RKVDEC_PERF_SEL_OFFSET;
+			u32 off = req->offset - RKVDEC_PERF_SEL_OFFSET;
 
 			s = off / sizeof(u32);
 			e = s + req->size / sizeof(u32);
@@ -500,6 +701,62 @@ static int rkvdec2_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	}
 	/* revert hack for irq status */
 	task->reg[RKVDEC_REG_INT_EN_INDEX] = task->irq_status;
+
+	/* revert hack for decoded length */
+	dec_get = mpp_read_relaxed(mpp, RKVDEC_REG_RLC_BASE);
+	dec_length = dec_get - task->strm_addr;
+	task->reg[RKVDEC_REG_RLC_BASE_INDEX] = dec_length << 10;
+	mpp_debug(DEBUG_REGISTER, "dec_get %08x dec_length %d\n", dec_get, dec_length);
+
+	if (mpp->srv->timing_en) {
+		s64 time_diff;
+
+		mpp_task->on_finish = ktime_get();
+		set_bit(TASK_TIMING_FINISH, &mpp_task->state);
+
+		time_diff = ktime_us_delta(mpp_task->on_finish, mpp_task->on_create);
+
+		if (mpp->timing_check && time_diff > (s64)mpp->timing_check)
+			mpp_task_dump_timing(mpp_task, time_diff);
+	}
+
+	mpp_debug_leave();
+
+	return 0;
+}
+
+static int rkvdec_vdpu383_finish(struct mpp_dev *mpp, struct mpp_task *mpp_task)
+{
+	u32 i;
+	u32 dec_get;
+	s32 dec_length;
+	u32 reg_ret_status;
+	struct rkvdec2_task *task = to_rkvdec2_task(mpp_task);
+	struct mpp_request *req;
+	u32 s, e;
+
+	mpp_debug_enter();
+
+	/* read register after running */
+	for (i = 0; i < task->r_req_cnt; i++) {
+		req = &task->r_reqs[i];
+		/* read perf register */
+		if (req->offset >= RKVDEC_PERF_SEL_OFFSET) {
+			u32 off = req->offset - RKVDEC_PERF_SEL_OFFSET;
+
+			s = off / sizeof(u32);
+			e = s + req->size / sizeof(u32);
+			rkvdec2_read_perf_sel(mpp, task->reg_sel, s, e);
+		} else {
+			s = req->offset / sizeof(u32);
+			e = s + req->size / sizeof(u32);
+			mpp_read_req(mpp, task->reg, s, e);
+		}
+	}
+	/* revert hack for irq status */
+	reg_ret_status = mpp->var->hw_info->reg_ret_status;
+	task->reg[reg_ret_status] = task->irq_status;
+
 	/* revert hack for decoded length */
 	dec_get = mpp_read_relaxed(mpp, RKVDEC_REG_RLC_BASE);
 	dec_length = dec_get - task->strm_addr;
@@ -534,7 +791,7 @@ int rkvdec2_result(struct mpp_dev *mpp, struct mpp_task *mpp_task,
 		req = &task->r_reqs[i];
 
 		if (req->offset >= RKVDEC_PERF_SEL_OFFSET) {
-			int off = req->offset - RKVDEC_PERF_SEL_OFFSET;
+			u32 off = req->offset - RKVDEC_PERF_SEL_OFFSET;
 
 			if (copy_to_user(req->data,
 					 (u8 *)task->reg_sel + off,
@@ -569,8 +826,8 @@ static int rkvdec2_control(struct mpp_session *session, struct mpp_request *req)
 {
 	switch (req->cmd) {
 	case MPP_CMD_SEND_CODEC_INFO: {
-		int i;
-		int cnt;
+		u32 i;
+		u32 cnt;
 		struct codec_info_elem elem;
 		struct rkvdec2_session_priv *priv;
 
@@ -1178,6 +1435,24 @@ int rkvdec2_reset(struct mpp_dev *mpp)
 	return 0;
 }
 
+static int rkvdec_vdpu383_reset(struct mpp_dev *mpp)
+{
+	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
+	struct rkvdec_link_dev *link = dec->link_dec;
+
+	mpp_debug_enter();
+
+	/* use ip reset to reset core and mmu */
+	writel(link->info->ip_reset_en, link->reg_base + link->info->ip_reset_base);
+	udelay(5);
+	/* clear reset ready status bit */
+	writel(link->info->ip_reset_mask, link->reg_base + link->info->status_base);
+
+	mpp_debug_leave();
+
+	return 0;
+}
+
 static struct mpp_hw_ops rkvdec_v2_hw_ops = {
 	.init = rkvdec2_init,
 	.clk_on = rkvdec2_clk_on,
@@ -1206,6 +1481,15 @@ static struct mpp_hw_ops rkvdec_rk3588_hw_ops = {
 	.reset = rkvdec2_sip_reset,
 };
 
+static struct mpp_hw_ops rkvdec_vdpu383_hw_ops = {
+	.init = rkvdec2_init,
+	.clk_on = rkvdec2_clk_on,
+	.clk_off = rkvdec2_clk_off,
+	.get_freq = rkvdec2_get_freq,
+	.set_freq = rkvdec2_set_freq,
+	.reset = rkvdec_vdpu383_reset,
+};
+
 static struct mpp_dev_ops rkvdec_v2_dev_ops = {
 	.alloc_task = rkvdec2_alloc_task,
 	.run = rkvdec2_run,
@@ -1231,6 +1515,19 @@ static struct mpp_dev_ops rkvdec_rk3568_dev_ops = {
 	.init_session = rkvdec2_init_session,
 	.free_session = rkvdec2_free_session,
 	.dump_dev = rkvdec_link_dump,
+};
+
+static struct mpp_dev_ops rkvdec_vdpu383_dev_ops = {
+	.alloc_task = rkvdec2_alloc_task,
+	.run = rkvdec_vdpu383_run,
+	.irq = rkvdec_vdpu383_irq,
+	.isr = rkvdec_vdpu383_isr,
+	.finish = rkvdec_vdpu383_finish,
+	.result = rkvdec2_result,
+	.free_task = rkvdec2_free_task,
+	.ioctl = rkvdec2_control,
+	.init_session = rkvdec2_init_session,
+	.free_session = rkvdec2_free_session,
 };
 
 static const struct mpp_dev_var rkvdec_v2_data = {
@@ -1265,6 +1562,14 @@ static const struct mpp_dev_var rkvdec_rk3588_data = {
 	.dev_ops = &rkvdec_v2_dev_ops,
 };
 
+static const struct mpp_dev_var rkvdec_rk3576_data = {
+	.device_type = MPP_DEVICE_RKVDEC,
+	.hw_info = &rkvdec_vdpu383_hw_info,
+	.trans_info = rkvdec_vdpu383_trans,
+	.hw_ops = &rkvdec_vdpu383_hw_ops,
+	.dev_ops = &rkvdec_vdpu383_dev_ops,
+};
+
 static const struct of_device_id mpp_rkvdec2_dt_match[] = {
 	{
 		.compatible = "rockchip,rkv-decoder-v2",
@@ -1292,6 +1597,12 @@ static const struct of_device_id mpp_rkvdec2_dt_match[] = {
 	{
 		.compatible = "rockchip,rkv-decoder-rk3562",
 		.data = &rkvdec_vdpu382_data,
+	},
+#endif
+#ifdef CONFIG_CPU_RK3576
+	{
+		.compatible = "rockchip,rkv-decoder-rk3576",
+		.data = &rkvdec_rk3576_data,
 	},
 #endif
 	{},
@@ -1459,7 +1770,7 @@ static int rkvdec2_alloc_rcbbuf(struct platform_device *pdev, struct rkvdec2_dev
 	dec->rcb_info_count = device_property_count_u32(dev, "rockchip,rcb-info");
 	if (dec->rcb_info_count > 0 &&
 	    dec->rcb_info_count <= (sizeof(dec->rcb_infos) / sizeof(u32))) {
-		int i;
+		u32 i;
 
 		ret = device_property_read_u32_array(dev, "rockchip,rcb-info",
 						     dec->rcb_infos, dec->rcb_info_count);
@@ -1596,7 +1907,7 @@ static int rkvdec2_probe_default(struct platform_device *pdev)
 	rkvdec2_alloc_rcbbuf(pdev, dec);
 	rkvdec2_link_init(pdev, dec);
 
-	if (dec->link_dec) {
+	if (dec->link_dec && (mpp->task_capacity > 1)) {
 		ret = devm_request_threaded_irq(dev, mpp->irq,
 						rkvdec2_link_irq_proc, NULL,
 						IRQF_SHARED, dev_name(dev), mpp);
@@ -1617,9 +1928,13 @@ static int rkvdec2_probe_default(struct platform_device *pdev)
 
 	mpp->session_max_buffers = RKVDEC_SESSION_MAX_BUFFERS;
 	rkvdec2_procfs_init(mpp);
-	rkvdec2_link_procfs_init(mpp);
+	if (dec->link_dec && (mpp->task_capacity > 1))
+		rkvdec2_link_procfs_init(mpp);
+
 	/* register current device to mpp service */
 	mpp_dev_register_srv(mpp, mpp->srv);
+
+	dev_info(dev, "probing finish\n");
 
 	return ret;
 }
