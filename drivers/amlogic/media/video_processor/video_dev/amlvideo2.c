@@ -5507,9 +5507,9 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	    node->porttype == TVIN_PORT_VIU2_OSD1 ||
 	    node->porttype == TVIN_PORT_VIU3_OSD1) {
 		if (node->porttype == TVIN_PORT_VIU1_WB0_VD1)
-			get_vdx_axis(0, axis);
+			get_vdx_real_axis(0, axis);
 		else if (node->porttype == TVIN_PORT_VIU2_VD1)
-			get_vdx_axis(1, axis);
+			get_vdx_real_axis(1, axis);
 
 		if (node->porttype == TVIN_PORT_VIU1_WB0_VD1 ||
 			node->porttype == TVIN_PORT_VIU2_VD1) {
