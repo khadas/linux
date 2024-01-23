@@ -4515,7 +4515,7 @@ static void vehicle_csi2_err_print_work(struct work_struct *work)
 	pr_err("mipi_csi2: ERR%d:0x%x %s\n", err_state->err_num,
 		err_state->err_val, err_state->err_str);
 	if (err_state->err_num == 1)
-		pr_info("mipi_csi2: err_stat:0x%x\n", err_state->err_stat);
+		pr_info("mipi_csi2: err_stat:0x%lx\n", err_state->err_stat);
 }
 
 static irqreturn_t vehicle_csirx_irq1(int irq, void *data)
