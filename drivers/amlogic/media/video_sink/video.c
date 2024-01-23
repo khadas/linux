@@ -18954,6 +18954,7 @@ static ssize_t aisr_demo_en_store(struct class *cla,
 	}
 	if (res != cur_dev->aisr_demo_en) {
 		cur_dev->aisr_demo_en = res;
+		vd_layer[0].property_changed = true;
 	}
 	return count;
 }
