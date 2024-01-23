@@ -1135,6 +1135,12 @@ struct extn_chipinfo t7_extn_chipinfo = {
 	.frhdmirx_version = T7_FRHDMIRX,
 };
 
+struct extn_chipinfo t5m_extn_chipinfo = {
+	.arc_version	= T5M_ARC,
+	.PAO_channel_sync = false,
+	.frhdmirx_version = T7_FRHDMIRX,
+};
+
 static const struct of_device_id extn_device_id[] = {
 	{
 		.compatible = "amlogic, snd-extn",
@@ -1151,6 +1157,10 @@ static const struct of_device_id extn_device_id[] = {
 	{
 		.compatible = "amlogic, t7-snd-extn",
 		.data       = &t7_extn_chipinfo,
+	},
+	{
+		.compatible = "amlogic, t5m-snd-extn",
+		.data       = &t5m_extn_chipinfo,
 	},
 	{}
 };

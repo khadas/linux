@@ -319,14 +319,6 @@ bool aml_get_earctx_reset_hpd(void)
 	return s_earc->tx_reset_hpd;
 }
 
-void aml_earctx_enable_d2a(int enable)
-{
-	if (!s_earc)
-		return;
-
-	return earctx_enable_d2a(s_earc->tx_top_map, enable);
-}
-
 static void earctx_init(int earc_port, bool st)
 {
 	struct earc *p_earc = s_earc;
@@ -2014,7 +2006,7 @@ static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode)
 	defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 	if (!p_earc->tx_earc_mode) {
 		rx_earc_hpd_cntl(); /* reset hpd */
-		aml_earctx_enable_d2a(false);
+		earctx_enable_d2a(p_earc->tx_top_map, false);
 	}
 #endif
 	/* set arc initiated and arc_enable */
@@ -2025,7 +2017,7 @@ static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode)
 	defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 	if (p_earc->tx_earc_mode) {
 		p_earc->tx_reset_hpd = true;
-		aml_earctx_enable_d2a(true);
+		earctx_enable_d2a(p_earc->tx_top_map, true);
 		rx_earc_hpd_cntl(); /* reset hpd */
 	}
 #endif
@@ -2111,7 +2103,7 @@ static void earc_resume(void)
 	/* open bandgap, bit [1] = 0 */
 	if (p_earc->chipinfo->arc_version == TM2_ARC)
 		aml_hiubus_update_bits(HHI_HDMIRX_PHY_MISC2, 0x1 << 1, 0);
-	else if (p_earc->chipinfo->arc_version >= T7_ARC)
+	else if (p_earc->chipinfo->arc_version == T7_ARC)
 		hdmirx_arc_update_reg(HDMIRX_PHY_MISC2, 0x1 << 1, 0);
 
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
@@ -2792,6 +2784,18 @@ struct earc_chipinfo t3_earc_chipinfo = {
 	.arc_version = T7_ARC,
 };
 
+struct earc_chipinfo t5m_earc_chipinfo = {
+	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
+	.rx_dmac_sync_int = false,
+	.rterm_on = true,
+	.no_ana_auto_cal = true,
+	.chnum_mult_mode = true,
+	.unstable_tick_sel = true,
+	.rx_enable = false,
+	.tx_enable = true,
+	.arc_version = T5M_ARC,
+};
+
 struct earc_chipinfo s5_earc_chipinfo = {
 	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
 	.rx_dmac_sync_int = false,
@@ -2827,6 +2831,10 @@ static const struct of_device_id earc_device_id[] = {
 	{
 		.compatible = "amlogic, t3-snd-earc",
 		.data = &t3_earc_chipinfo,
+	},
+	{
+		.compatible = "amlogic, t5m-snd-earc",
+		.data = &t5m_earc_chipinfo,
 	},
 	{
 		.compatible = "amlogic, s5-snd-earc",
@@ -2928,7 +2936,7 @@ static void send_uevent_work_func(struct work_struct *p_work)
 
 	if (type == ATNDTYP_ARC) {
 		msleep(700);
-		aml_earctx_enable_d2a(true);
+		earctx_enable_d2a(p_earc->tx_top_map, true);
 		earctx_update_attend_event(p_earc, false, true);
 	} else if (type == ATNDTYP_DISCNCT) {
 		earctx_update_attend_event(p_earc, false, false);
@@ -3291,7 +3299,7 @@ static int earc_platform_suspend(struct platform_device *pdev,
 
 	/* shutdown the power */
 	if (!IS_ERR(p_earc->tx_cmdc_map))
-		aml_earctx_enable_d2a(false);
+		earctx_enable_d2a(p_earc->tx_top_map, false);
 	p_earc->resumed = false;
 
 	return 0;
