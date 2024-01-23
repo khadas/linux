@@ -905,6 +905,10 @@ cif_input_fmt *rkcif_get_input_fmt(struct rkcif_device *dev, struct v4l2_rect *r
 			if (ch_info.data_bit > 0)
 				csi_info->data_bit = ch_info.data_bit;
 		}
+		if (ch_info.field == 0)
+			fmt.format.field = V4L2_FIELD_NONE;
+		else
+			fmt.format.field = ch_info.field;
 	} else {
 		csi_info->vc = 0xff;
 	}
