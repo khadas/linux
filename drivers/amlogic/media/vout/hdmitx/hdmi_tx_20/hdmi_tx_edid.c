@@ -2504,7 +2504,8 @@ static bool is_rx_support_y420(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 	struct rx_cap *prxcap = &hdev->rxcap;
 	bool ret = false;
 
-	vic += HDMITX_VIC420_OFFSET;
+	if (vic < HDMITX_VIC420_OFFSET)
+		vic += HDMITX_VIC420_OFFSET;
 	for (i = 0; i < VIC_MAX_NUM; i++) {
 		if (prxcap->VIC[i]) {
 			if (prxcap->VIC[i] == vic) {
