@@ -1439,6 +1439,9 @@ int rk628_hdmirx_get_timings(struct rk628 *rk628,
 			last_fmt = rk628_hdmirx_get_format(rk628);
 		}
 
+		if (ret && i > 2)
+			return -EINVAL;
+
 		if (ret || (last_w != bt->width) || (last_h != bt->height)
 		    || (last_fmt != rk628_hdmirx_get_format(rk628)))
 			cnt = 0;

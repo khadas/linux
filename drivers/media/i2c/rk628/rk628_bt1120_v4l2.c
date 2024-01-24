@@ -234,7 +234,7 @@ static int rk628_bt1120_s_edid(struct v4l2_subdev *sd,
 static int rk628_hdmirx_inno_phy_power_on(struct v4l2_subdev *sd);
 static int rk628_hdmirx_inno_phy_power_off(struct v4l2_subdev *sd);
 static int rk628_hdmirx_phy_setup(struct v4l2_subdev *sd);
-static void rk628_bt1120_format_change(struct v4l2_subdev *sd);
+static int rk628_bt1120_format_change(struct v4l2_subdev *sd);
 static void enable_stream(struct v4l2_subdev *sd, bool enable);
 static void rk628_hdmirx_vid_enable(struct v4l2_subdev *sd, bool en);
 static void rk628_hdmirx_hpd_ctrl(struct v4l2_subdev *sd, bool en);
@@ -342,9 +342,11 @@ static void rk628_hdmirx_config_all(struct v4l2_subdev *sd)
 
 	ret = rk628_hdmirx_phy_setup(sd);
 	if (ret >= 0 && !rk628_hdmirx_scdc_ced_err(bt1120->rk628)) {
-		rk628_bt1120_format_change(sd);
-		bt1120->nosignal = false;
-		return;
+		ret = rk628_bt1120_format_change(sd);
+		if (!ret) {
+			bt1120->nosignal = false;
+			return;
+		}
 	}
 
 	if (ret < 0 || rk628_hdmirx_scdc_ced_err(bt1120->rk628)) {
@@ -876,7 +878,7 @@ static void rk628_bt1120_initial_setup(struct v4l2_subdev *sd)
 		schedule_delayed_work(&bt1120->delayed_work_enable_hotplug, 4000);
 }
 
-static void rk628_bt1120_format_change(struct v4l2_subdev *sd)
+static int rk628_bt1120_format_change(struct v4l2_subdev *sd)
 {
 	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
 	struct v4l2_dv_timings timings;
@@ -884,8 +886,13 @@ static void rk628_bt1120_format_change(struct v4l2_subdev *sd)
 		.type = V4L2_EVENT_SOURCE_CHANGE,
 		.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
 	};
+	int ret;
 
-	rk628_bt1120_get_detected_timings(sd, &timings);
+	ret = rk628_bt1120_get_detected_timings(sd, &timings);
+	if (ret) {
+		v4l2_dbg(1, debug, sd, "%s: get timing fail\n", __func__);
+		return ret;
+	}
 	if (!v4l2_match_dv_timings(&bt1120->timings, &timings, 0, false)) {
 		/* automatically set timing rather than set by userspace */
 		rk628_bt1120_s_dv_timings(sd, &timings);
@@ -896,6 +903,8 @@ static void rk628_bt1120_format_change(struct v4l2_subdev *sd)
 
 	if (sd->devnode)
 		v4l2_subdev_notify_event(sd, &rk628_bt1120_ev_fmt);
+
+	return 0;
 }
 
 static void rk628_bt1120_enable_interrupts(struct v4l2_subdev *sd, bool en)
