@@ -1664,6 +1664,7 @@ static bool is_dvbv3_delsys(u32 delsys)
 
 #ifdef CONFIG_AMLOGIC_DVB_COMPAT
 	status = (delsys == SYS_DVBT) || (delsys == SYS_DVBC_ANNEX_A) ||
+		 (delsys == SYS_DVBC_ANNEX_B) || (delsys == SYS_DVBC_ANNEX_C) ||
 		 (delsys == SYS_DVBS) || (delsys == SYS_ATSC) ||
 		 (delsys == SYS_DTMB) || (delsys == SYS_DVBS2) ||
 		 (delsys == SYS_DVBT2) || (delsys == SYS_ISDBC) ||
