@@ -2466,14 +2466,14 @@ int __imx415_power_on(struct imx415 *imx415)
 	if (imx415->is_thunderboot)
 		return 0;
 
-	/* At least 20us between XCLR and I2C communication */
-	usleep_range(20*1000, 30*1000);
-
 	ret = regulator_bulk_enable(IMX415_NUM_SUPPLIES, imx415->supplies);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable regulators\n");
 		goto err_pinctrl;
 	}
+
+	/* At least 20us between XCLR and I2C communication */
+	usleep_range(20*1000, 30*1000);
 
 	return 0;
 
