@@ -16,7 +16,7 @@
 
 #include "maxim_remote.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(3, 0x00, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x01, 0x00)
 
 #define MAX9295_NAME			"max9295"
 
@@ -527,13 +527,19 @@ static int max9295_probe(struct i2c_client *client,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 static int max9295_remove(struct i2c_client *client)
+#else
+static void max9295_remove(struct i2c_client *client)
+#endif
 {
 	maxim_remote_ser_t *max9295 = i2c_get_clientdata(client);
 
 	mutex_destroy(&max9295->mutex);
 
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
 static const struct of_device_id max9295_of_match[] = {

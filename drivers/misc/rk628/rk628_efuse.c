@@ -9,6 +9,7 @@
 
 #include <linux/gpio/consumer.h>
 #include "rk628.h"
+#include "rk628_efuse.h"
 
 #define EFUSE_SIZE		64
 

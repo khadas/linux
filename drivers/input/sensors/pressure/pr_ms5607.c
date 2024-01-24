@@ -279,7 +279,7 @@ static const struct i2c_device_id pressure_ms5607_id[] = {
 
 static struct i2c_driver pressure_ms5607_driver = {
 	.probe = pressure_ms5607_probe,
-	.remove = pressure_ms5607_remove,
+	.remove = (void *)pressure_ms5607_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = pressure_ms5607_id,
 	.driver = {

@@ -16,7 +16,7 @@
 
 #include "maxim_remote.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(3, 0x00, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x01, 0x00)
 
 #define MAX96717_NAME			"maxim-max96717"
 
@@ -477,13 +477,19 @@ static int max96717_probe(struct i2c_client *client,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 static int max96717_remove(struct i2c_client *client)
+#else
+static void max96717_remove(struct i2c_client *client)
+#endif
 {
 	maxim_remote_ser_t *max96717 = i2c_get_clientdata(client);
 
 	mutex_destroy(&max96717->mutex);
 
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
 static const struct of_device_id max96717_of_match[] = {

@@ -933,6 +933,8 @@ static const struct drm_prop_enum_list color_format_enum_list[] = {
 	{ RK_IF_FORMAT_YCBCR444, "ycbcr444" },
 	{ RK_IF_FORMAT_YCBCR422, "ycbcr422" },
 	{ RK_IF_FORMAT_YCBCR420, "ycbcr420" },
+	{ RK_IF_FORMAT_YCBCR_HQ, "ycbcr_high_subsampling" },
+	{ RK_IF_FORMAT_YCBCR_LQ, "ycbcr_low_subsampling" },
 };
 
 static const struct dw_dp_output_format *dw_dp_get_output_format(u32 bus_format)
@@ -1360,7 +1362,7 @@ static int dw_dp_connector_atomic_check(struct drm_connector *conn,
 	}
 
 	if ((dp_new_state->color_format < RK_IF_FORMAT_RGB) ||
-	    (dp_new_state->color_format > RK_IF_FORMAT_YCBCR420)) {
+	    (dp_new_state->color_format > RK_IF_FORMAT_YCBCR_LQ)) {
 		dev_err(dp->dev, "set invalid color format:%d\n", dp_new_state->color_format);
 		return -EINVAL;
 	}
@@ -3250,6 +3252,21 @@ static struct edid *dw_dp_bridge_get_edid(struct drm_bridge *bridge,
 	return edid;
 }
 
+static void dw_dp_swap_fmts(u32 *fmt, int count)
+{
+	int i;
+	u32 temp_fmt;
+
+	if (!count)
+		return;
+
+	for (i = 0; i < count / 2; i++) {
+		temp_fmt = fmt[i];
+		fmt[i] = fmt[count - i - 1];
+		fmt[count - i - 1] = temp_fmt;
+	}
+}
+
 static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 					struct drm_bridge_state *bridge_state,
 					struct drm_crtc_state *crtc_state,
@@ -3314,7 +3331,11 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 			continue;
 
 		if (dp_state->bpc != 0) {
-			if ((fmt->bpc != dp_state->bpc) ||
+			if (fmt->bpc != dp_state->bpc)
+				continue;
+
+			if (dp_state->color_format != RK_IF_FORMAT_YCBCR_HQ &&
+			    dp_state->color_format != RK_IF_FORMAT_YCBCR_LQ &&
 			    (fmt->color_format != BIT(dp_state->color_format)))
 				continue;
 		}
@@ -3324,6 +3345,9 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 
 		output_fmts[j++] = fmt->bus_format;
 	}
+
+	if (dp_state->color_format == RK_IF_FORMAT_YCBCR_LQ)
+		dw_dp_swap_fmts(output_fmts, j);
 
 	*num_output_fmts = j;
 

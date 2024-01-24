@@ -696,7 +696,7 @@ static const struct i2c_device_id compass_akm8963_id[] = {
 
 static struct i2c_driver compass_akm8963_driver = {
 	.probe = compass_akm8963_probe,
-	.remove = compass_akm8963_remove,
+	.remove = (void *)compass_akm8963_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = compass_akm8963_id,
 	.driver = {

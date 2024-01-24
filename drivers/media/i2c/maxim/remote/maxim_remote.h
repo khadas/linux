@@ -9,6 +9,21 @@
 
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/version.h>
+
+#if KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE
+enum rkmodule_pad_type {
+	PAD0,
+	PAD1,
+	PAD2,
+	PAD3,
+	PAD_MAX,
+};
+
+#ifndef fallthrough
+#define fallthrough
+#endif
+#endif /* LINUX_VERSION_CODE */
 
 /* I2C Device ID */
 enum {
