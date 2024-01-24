@@ -840,7 +840,8 @@ static int rk628_hdmi_audio_hw_params(struct device *dev, void *d,
 				      struct hdmi_codec_daifmt *daifmt,
 				      struct hdmi_codec_params *params)
 {
-	struct rk628_hdmi *hdmi = dev_get_drvdata(dev);
+	struct rk628 *rk628 = dev_get_drvdata(dev);
+	struct rk628_hdmi *hdmi = rk628->hdmitx;
 	struct audio_info audio = {
 		.sample_width = params->sample_width,
 		.sample_rate = params->sample_rate,
@@ -874,7 +875,8 @@ static void rk628_hdmi_audio_shutdown(struct device *dev, void *d)
 static int rk628_hdmi_audio_mute(struct device *dev, void *d, bool mute,
 				 int direction)
 {
-	struct rk628_hdmi *hdmi = dev_get_drvdata(dev);
+	struct rk628 *rk628 = dev_get_drvdata(dev);
+	struct rk628_hdmi *hdmi = rk628->hdmitx;
 
 	if (!hdmi->hdmi_data.sink_has_audio) {
 		dev_err(hdmi->dev, "Sink do not support audio!\n");
@@ -896,7 +898,8 @@ static int rk628_hdmi_audio_mute(struct device *dev, void *d, bool mute,
 static int rk628_hdmi_audio_get_eld(struct device *dev, void *d,
 				    u8 *buf, size_t len)
 {
-	struct rk628_hdmi *hdmi = dev_get_drvdata(dev);
+	struct rk628 *rk628 = dev_get_drvdata(dev);
+	struct rk628_hdmi *hdmi = rk628->hdmitx;
 	struct drm_mode_config *config = &hdmi->bridge.dev->mode_config;
 	struct drm_connector *connector;
 	int ret = -ENODEV;
@@ -1231,7 +1234,6 @@ int rk628_hdmitx_enable(struct rk628 *rk628)
 	irq = rk628->client->irq;
 	if (irq < 0)
 		return irq;
-	dev_set_drvdata(dev, hdmi);
 
 	rk628_hdmi_reset(hdmi);
 
