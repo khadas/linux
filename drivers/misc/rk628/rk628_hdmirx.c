@@ -93,7 +93,7 @@ struct rk628_hdmirx {
 	struct rk628_audiostate audio_state;
 };
 
-void rk628_hdmirx_reset_control_assert(struct rk628 *rk628)
+static void rk628_hdmirx_reset_control_assert(struct rk628 *rk628)
 {
 	/* presetn_hdmirx */
 	rk628_i2c_write(rk628, CRU_SOFTRST_CON02, 0x40004);
@@ -101,7 +101,7 @@ void rk628_hdmirx_reset_control_assert(struct rk628 *rk628)
 	rk628_i2c_write(rk628, CRU_SOFTRST_CON02, 0x10001000);
 }
 
-void rk628_hdmirx_reset_control_deassert(struct rk628 *rk628)
+static void rk628_hdmirx_reset_control_deassert(struct rk628 *rk628)
 {
 	/* presetn_hdmirx */
 	rk628_i2c_write(rk628, CRU_SOFTRST_CON02, 0x40000);
@@ -127,7 +127,7 @@ static u32 hdmirx_phy_read(struct rk628 *rk628, u32 offset)
 	return val;
 }
 
-void rk628_hdmirx_phy_enable(struct rk628 *rk628, bool is_hdmi2)
+static void rk628_hdmirx_phy_enable(struct rk628 *rk628, bool is_hdmi2)
 {
 	hdmirx_phy_write(rk628, 0x02, 0x1860);
 	hdmirx_phy_write(rk628, 0x03, 0x0060);
@@ -203,7 +203,7 @@ static const struct file_operations rk628_hdmirx_phy_fops = {
 	.release = single_release,
 };
 
-void rk628_hdmirx_phy_set_clrdpt(struct rk628 *rk628, bool is_8bit)
+static void rk628_hdmirx_phy_set_clrdpt(struct rk628 *rk628, bool is_8bit)
 {
 	if (is_8bit)
 		hdmirx_phy_write(rk628, 0x03, 0x0000);

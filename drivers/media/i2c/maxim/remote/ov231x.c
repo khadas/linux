@@ -291,8 +291,13 @@ static const struct dev_pm_ops ov231x_pm_ops = {
 static int ov231x_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct ov231x *ov231x = v4l2_get_subdevdata(sd);
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	struct v4l2_mbus_framefmt *try_fmt =
+				v4l2_subdev_get_try_format(sd, fh->state, 0);
+#else
 	struct v4l2_mbus_framefmt *try_fmt =
 				v4l2_subdev_get_try_format(sd, fh->pad, 0);
+#endif
 	const struct ov231x_mode *def_mode = &ov231x->supported_modes[0];
 
 	mutex_lock(&ov231x->mutex);
@@ -582,9 +587,15 @@ static int ov231x_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int ov231x_enum_mbus_code(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
+				struct v4l2_subdev_mbus_code_enum *code)
+#else
 static int ov231x_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
+#endif
 {
 	struct ov231x *ov231x = v4l2_get_subdevdata(sd);
 
@@ -595,9 +606,15 @@ static int ov231x_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int ov231x_enum_frame_sizes(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
+				struct v4l2_subdev_frame_size_enum *fse)
+#else
 static int ov231x_enum_frame_sizes(struct v4l2_subdev *sd,
 				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_frame_size_enum *fse)
+#endif
 {
 	struct ov231x *ov231x = v4l2_get_subdevdata(sd);
 
@@ -615,9 +632,15 @@ static int ov231x_enum_frame_sizes(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int ov231x_enum_frame_interval(struct v4l2_subdev *sd,
+			struct v4l2_subdev_state *sd_state,
+			struct v4l2_subdev_frame_interval_enum *fie)
+#else
 static int ov231x_enum_frame_interval(struct v4l2_subdev *sd,
 			struct v4l2_subdev_pad_config *cfg,
 			struct v4l2_subdev_frame_interval_enum *fie)
+#endif
 {
 	struct ov231x *ov231x = v4l2_get_subdevdata(sd);
 
@@ -660,9 +683,15 @@ ov231x_find_best_fit(struct ov231x *ov231x, struct v4l2_subdev_format *fmt)
 	return &ov231x->supported_modes[cur_best_fit];
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 static int ov231x_set_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
-			  struct v4l2_subdev_format *fmt)
+			struct v4l2_subdev_state *sd_state,
+			struct v4l2_subdev_format *fmt)
+#else
+static int ov231x_set_fmt(struct v4l2_subdev *sd,
+			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_format *fmt)
+#endif
 {
 	struct ov231x *ov231x = v4l2_get_subdevdata(sd);
 	struct device *dev = &ov231x->client->dev;
@@ -679,7 +708,11 @@ static int ov231x_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+	#else
 		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+	#endif
 #else
 		mutex_unlock(&ov231x->mutex);
 		return -ENOTTY;
@@ -705,9 +738,15 @@ static int ov231x_set_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int ov231x_get_fmt(struct v4l2_subdev *sd,
+			struct v4l2_subdev_state *sd_state,
+			struct v4l2_subdev_format *fmt)
+#else
 static int ov231x_get_fmt(struct v4l2_subdev *sd,
 			struct v4l2_subdev_pad_config *cfg,
 			struct v4l2_subdev_format *fmt)
+#endif
 {
 	struct ov231x *ov231x = v4l2_get_subdevdata(sd);
 	const struct ov231x_mode *mode = ov231x->cur_mode;
@@ -715,7 +754,11 @@ static int ov231x_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&ov231x->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+	#else
 		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+	#endif
 #else
 		mutex_unlock(&ov231x->mutex);
 		return -ENOTTY;
@@ -731,9 +774,15 @@ static int ov231x_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int ov231x_get_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state,
+				struct v4l2_subdev_selection *sel)
+#else
 static int ov231x_get_selection(struct v4l2_subdev *sd,
 				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_selection *sel)
+#endif
 {
 	struct ov231x *ov231x = v4l2_get_subdevdata(sd);
 
@@ -748,6 +797,18 @@ static int ov231x_get_selection(struct v4l2_subdev *sd,
 	return -EINVAL;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static int ov231x_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
+				struct v4l2_mbus_config *config)
+{
+	struct ov231x *ov231x = v4l2_get_subdevdata(sd);
+
+	config->type = V4L2_MBUS_CSI2_DPHY;
+	config->bus.mipi_csi2 = ov231x->bus_cfg.bus.mipi_csi2;
+
+	return 0;
+}
+#elif KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 static int ov231x_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 				struct v4l2_mbus_config *config)
 {
@@ -766,6 +827,26 @@ static int ov231x_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 
 	return 0;
 }
+#else
+static int ov231x_g_mbus_config(struct v4l2_subdev *sd,
+				struct v4l2_mbus_config *config)
+{
+	struct ov231x *ov231x = v4l2_get_subdevdata(sd);
+	u32 val = 0;
+	u8 data_lanes = ov231x->bus_cfg.bus.mipi_csi2.num_data_lanes;
+
+	val |= V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	val |= (1 << (data_lanes - 1));
+
+	val |= V4L2_MBUS_CSI2_CHANNEL_3 | V4L2_MBUS_CSI2_CHANNEL_2 |
+	       V4L2_MBUS_CSI2_CHANNEL_1 | V4L2_MBUS_CSI2_CHANNEL_0;
+
+	config->type = V4L2_MBUS_CSI2;
+	config->flags = val;
+
+	return 0;
+}
+#endif /* LINUX_VERSION_CODE */
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 static const struct v4l2_subdev_internal_ops ov231x_internal_ops = {
@@ -784,6 +865,9 @@ static const struct v4l2_subdev_core_ops ov231x_core_ops = {
 static const struct v4l2_subdev_video_ops ov231x_video_ops = {
 	.s_stream = ov231x_s_stream,
 	.g_frame_interval = ov231x_g_frame_interval,
+#if KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE
+	.g_mbus_config = ov231x_g_mbus_config,
+#endif
 };
 
 static const struct v4l2_subdev_pad_ops ov231x_pad_ops = {
@@ -793,7 +877,9 @@ static const struct v4l2_subdev_pad_ops ov231x_pad_ops = {
 	.get_fmt = ov231x_get_fmt,
 	.set_fmt = ov231x_set_fmt,
 	.get_selection = ov231x_get_selection,
+#if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
 	.get_mbus_config = ov231x_g_mbus_config,
+#endif
 };
 
 static const struct v4l2_subdev_ops ov231x_subdev_ops = {
@@ -998,7 +1084,11 @@ static int ov231x_probe(struct i2c_client *client,
 		 ov231x->module_index, facing, OV231X_NAME,
 		 dev_name(sd->dev));
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	ret = v4l2_async_register_subdev_sensor(sd);
+#else
 	ret = v4l2_async_register_subdev_sensor_common(sd);
+#endif
 	if (ret) {
 		dev_err(dev, "v4l2 async register subdev failed\n");
 		goto err_clean_entity;
@@ -1046,7 +1136,11 @@ err_destroy_mutex:
 	return ret;
 }
 
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 static int ov231x_remove(struct i2c_client *client)
+#else
+static void ov231x_remove(struct i2c_client *client)
+#endif
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov231x *ov231x = v4l2_get_subdevdata(sd);
@@ -1065,7 +1159,9 @@ static int ov231x_remove(struct i2c_client *client)
 		__ov231x_power_off(ov231x);
 	pm_runtime_set_suspended(&client->dev);
 
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
 static const struct of_device_id ov231x_of_match[] = {

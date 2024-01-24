@@ -414,16 +414,6 @@ config PINCTRL_PISTACHIO
 	help
 	  This support pinctrl and GPIO driver for IMG Pistachio SoC.
 
-config PINCTRL_RK628
-	tristate "Pinctrl and GPIO driver for RK628 PMIC"
-	depends on MFD_RK628
-	select GPIOLIB
-	select PINMUX
-	select GENERIC_PINCONF
-	select REGMAP_IRQ
-	help
-	  This selects the pinctrl driver for RK628.
-
 config PINCTRL_RK805
 	tristate "Pinctrl and GPIO driver for RK805 PMIC"
 	depends on MFD_RK808

@@ -27,6 +27,8 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
+#include "cam-tb-setup.h"
+#include "cam-sleep-wakeup.h"
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
@@ -163,6 +165,7 @@ struct sc450ai {
 	bool			is_thunderboot;
 	bool			is_first_streamoff;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
+	struct cam_sw_info *cam_sw_inf;
 };
 
 #define to_sc450ai(sd) container_of(sd, struct sc450ai, subdev)
@@ -1251,6 +1254,8 @@ static int __sc450ai_power_on(struct sc450ai *sc450ai)
 		return ret;
 	}
 
+	cam_sw_regulator_bulk_init(sc450ai->cam_sw_inf, SC450AI_NUM_SUPPLIES, sc450ai->supplies);
+
 	if (sc450ai->is_thunderboot)
 		return 0;
 
@@ -1317,6 +1322,51 @@ static void __sc450ai_power_off(struct sc450ai *sc450ai)
 	regulator_bulk_disable(SC450AI_NUM_SUPPLIES, sc450ai->supplies);
 }
 
+#if IS_REACHABLE(CONFIG_VIDEO_CAM_SLEEP_WAKEUP)
+static int __maybe_unused sc450ai_resume(struct device *dev)
+{
+	int ret;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct sc450ai *sc450ai = to_sc450ai(sd);
+
+	cam_sw_prepare_wakeup(sc450ai->cam_sw_inf, dev);
+
+	usleep_range(4000, 5000);
+	cam_sw_write_array(sc450ai->cam_sw_inf);
+
+	if (__v4l2_ctrl_handler_setup(&sc450ai->ctrl_handler))
+		dev_err(dev, "__v4l2_ctrl_handler_setup fail!");
+
+	if (sc450ai->has_init_exp && sc450ai->cur_mode != NO_HDR) {	// hdr mode
+		ret = sc450ai_ioctl(&sc450ai->subdev, PREISP_CMD_SET_HDRAE_EXP,
+				    &sc450ai->cam_sw_inf->hdr_ae);
+		if (ret) {
+			dev_err(&sc450ai->client->dev, "set exp fail in hdr mode\n");
+			return ret;
+		}
+	}
+	return 0;
+}
+
+static int __maybe_unused sc450ai_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct sc450ai *sc450ai = to_sc450ai(sd);
+
+	cam_sw_write_array_cb_init(sc450ai->cam_sw_inf, client,
+				   (void *)sc450ai->cur_mode->reg_list,
+				   (sensor_write_array)sc450ai_write_array);
+	cam_sw_prepare_sleep(sc450ai->cam_sw_inf);
+
+	return 0;
+}
+#else
+#define sc450ai_resume NULL
+#define sc450ai_suspend NULL
+#endif
+
 static int __maybe_unused sc450ai_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1377,6 +1427,7 @@ static int sc450ai_enum_frame_interval(struct v4l2_subdev *sd,
 static const struct dev_pm_ops sc450ai_pm_ops = {
 	SET_RUNTIME_PM_OPS(sc450ai_runtime_suspend,
 			   sc450ai_runtime_resume, NULL)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(sc450ai_suspend, sc450ai_resume)
 };
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
@@ -1750,6 +1801,14 @@ static int sc450ai_probe(struct i2c_client *client,
 		goto err_power_off;
 #endif
 
+	if (!sc450ai->cam_sw_inf) {
+		sc450ai->cam_sw_inf = cam_sw_init();
+		cam_sw_clk_init(sc450ai->cam_sw_inf, sc450ai->xvclk,
+			sc450ai->cur_mode->xvclk_freq);
+		cam_sw_reset_pin_init(sc450ai->cam_sw_inf, sc450ai->reset_gpio, 0);
+		cam_sw_pwdn_pin_init(sc450ai->cam_sw_inf, sc450ai->pwdn_gpio, 1);
+	}
+
 	memset(facing, 0, sizeof(facing));
 	if (strcmp(sc450ai->module_facing, "back") == 0)
 		facing[0] = 'b';
@@ -1799,6 +1858,8 @@ static int sc450ai_remove(struct i2c_client *client)
 #endif
 	v4l2_ctrl_handler_free(&sc450ai->ctrl_handler);
 	mutex_destroy(&sc450ai->mutex);
+
+	cam_sw_deinit(sc450ai->cam_sw_inf);
 
 	pm_runtime_disable(&client->dev);
 	if (!pm_runtime_status_suspended(&client->dev))

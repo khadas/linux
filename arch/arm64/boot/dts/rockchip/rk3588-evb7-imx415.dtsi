@@ -5,14 +5,6 @@
  */
 
 / {
-	cam_ircut0: cam_ircut {
-		status = "okay";
-		compatible = "rockchip,ircut";
-		ircut-open-gpios = <&gpio4 RK_PA0 GPIO_ACTIVE_HIGH>;
-		ircut-close-gpios  = <&gpio4 RK_PA1 GPIO_ACTIVE_HIGH>;
-		rockchip,camera-module-index = <0>;
-		rockchip,camera-module-facing = "back";
-	};
 	vcc_mipidphy0: vcc-mipidcphy0-regulator {
 		compatible = "regulator-fixed";
 		gpio = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
@@ -74,7 +66,6 @@
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT2022-PX1";
 		rockchip,camera-module-lens-name = "IR0147-50IRC-8M-F20";
-		lens-focus = <&cam_ircut0>;
 		port {
 			imx415_out0: endpoint {
 				remote-endpoint = <&mipidphy0_in_ucam0>;

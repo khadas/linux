@@ -47,6 +47,10 @@
  *     2. remote serializer is abstracted as v4l2 subdev
  *     3. remote camera is bound to remote serializer
  *
+ * V3.01.00
+ *     1. fixed remote camera s_stream and s_power api return error.
+ *     2. compatible with kernel v4.19/v5.10/v6.1
+ *
  */
 #include <linux/clk.h>
 #include <linux/i2c.h>
@@ -74,7 +78,7 @@
 
 #include "maxim4c_api.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(3, 0x00, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(3, 0x01, 0x00)
 
 #define MAXIM4C_XVCLK_FREQ		25000000
 
@@ -799,7 +803,11 @@ err_destroy_mutex:
 	return ret;
 }
 
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 static int maxim4c_remove(struct i2c_client *client)
+#else
+static void maxim4c_remove(struct i2c_client *client)
+#endif
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	maxim4c_t *maxim4c = v4l2_get_subdevdata(sd);
@@ -818,8 +826,9 @@ static int maxim4c_remove(struct i2c_client *client)
 	if (!pm_runtime_status_suspended(&client->dev))
 		maxim4c_device_power_off(maxim4c);
 	pm_runtime_set_suspended(&client->dev);
-
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
 static const struct of_device_id maxim4c_of_match[] = {

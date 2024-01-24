@@ -65,7 +65,7 @@ static const struct regmap_range rk628_hdmirx_readable_ranges[] = {
 	regmap_reg_range(HDMI_RX_AUD_PLL_CTRL, HDMI_RX_AUD_PLL_CTRL),
 	regmap_reg_range(HDMI_RX_AUD_CLK_CTRL, HDMI_RX_AUD_CLK_CTRL),
 	regmap_reg_range(HDMI_RX_AUD_FIFO_CTRL, HDMI_RX_AUD_FIFO_TH),
-	regmap_reg_range(HDMI_RX_AUD_CHEXTR_CTRL, HDMI_RX_AUD_PAO_CTRL),
+	regmap_reg_range(HDMI_RX_AUD_CHEXTR_CTRL, HDMI_RX_AUD_SPARE),
 	regmap_reg_range(HDMI_RX_AUD_FIFO_STS, HDMI_RX_AUD_FIFO_STS),
 	regmap_reg_range(HDMI_RX_AUDPLL_GEN_CTS, HDMI_RX_AUDPLL_GEN_N),
 	regmap_reg_range(HDMI_RX_I2CM_PHYG3_DATAI, HDMI_RX_I2CM_PHYG3_DATAI),
@@ -82,10 +82,12 @@ static const struct regmap_range rk628_hdmirx_readable_ranges[] = {
 	regmap_reg_range(HDMI_RX_SCDC_WRDATA0, HDMI_RX_SCDC_WRDATA0),
 	regmap_reg_range(HDMI_RX_HDMI20_STATUS, HDMI_RX_HDMI20_STATUS),
 	regmap_reg_range(HDMI_RX_PDEC_ISTS, HDMI_RX_PDEC_IEN),
+	regmap_reg_range(HDMI_RX_AUD_CEC_ISTS, HDMI_RX_AUD_CEC_IEN),
 	regmap_reg_range(HDMI_RX_AUD_FIFO_ISTS, HDMI_RX_AUD_FIFO_IEN),
 	regmap_reg_range(HDMI_RX_MD_ISTS, HDMI_RX_MD_IEN),
 	regmap_reg_range(HDMI_RX_HDMI_ISTS, HDMI_RX_HDMI_IEN),
 	regmap_reg_range(HDMI_RX_DMI_DISABLE_IF, HDMI_RX_DMI_DISABLE_IF),
+	regmap_reg_range(HDMI_RX_CEC_CTRL, HDMI_RX_CEC_WAKEUPCTRL),
 };
 
 static const struct regmap_access_table rk628_hdmirx_readable_table = {
@@ -322,7 +324,7 @@ static int rk628_reg_show(struct seq_file *s, void *v)
 	const struct regmap_config *reg;
 	struct rk628 *rk628 = s->private;
 	unsigned int i, j;
-	u32 val;
+	u32 val = 0;
 
 	seq_printf(s, "rk628_%s:\n", file_dentry(s->file)->d_iname);
 

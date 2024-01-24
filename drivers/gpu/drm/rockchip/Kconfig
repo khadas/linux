@@ -165,7 +165,6 @@ config ROCKCHIP_DW_HDCP2
 	  Designware HDCP2 Controller.
 
 source "drivers/gpu/drm/rockchip/rk618/Kconfig"
-source "drivers/gpu/drm/rockchip/rk628/Kconfig"
 source "drivers/gpu/drm/rockchip/ebc-dev/Kconfig"
 
 endif

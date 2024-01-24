@@ -349,6 +349,10 @@
 	vin-supply = <&dphy3_vcc12v_buck>;
 };
 
+&max96712_dphy3 {
+	lock-gpios = <&gpio4 RK_PA3 GPIO_ACTIVE_HIGH>;
+};
+
 &max96756_dphy0_vcc1v2 {
 	vin-supply = <&vcc5v0_buck>;
 };

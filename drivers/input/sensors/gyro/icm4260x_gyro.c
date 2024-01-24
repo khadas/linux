@@ -182,7 +182,7 @@ static const struct i2c_device_id gyro_icm4260x_id[] = {
 
 static struct i2c_driver gyro_icm4260x_driver = {
 	.probe = gyro_icm4260x_probe,
-	.remove = gyro_icm4260x_remove,
+	.remove = (void *)gyro_icm4260x_remove,
 	.shutdown = sensor_shutdown,
 	.id_table = gyro_icm4260x_id,
 	.driver = {
