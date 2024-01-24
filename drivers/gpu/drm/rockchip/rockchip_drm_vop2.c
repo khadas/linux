@@ -259,6 +259,10 @@ enum vop2_layer_phy_id {
 };
 
 struct pixel_shift_data {
+	u64 last_crtc_update_count;
+	u64 crtc_update_count;
+	struct drm_crtc *crtc;
+	struct delayed_work pixel_shift_work;
 	bool enable;
 };
 
@@ -7301,6 +7305,20 @@ static void rockchip_drm_vop2_pixel_shift_commit(struct drm_device *dev, struct 
 	}
 }
 
+static void pixel_shift_work(struct work_struct *work)
+{
+	struct pixel_shift_data *data;
+	struct drm_crtc *crtc;
+	struct drm_device *drm_dev;
+
+	data = container_of(to_delayed_work(work), struct pixel_shift_data, pixel_shift_work);
+	crtc = data->crtc;
+	drm_dev = crtc->dev;
+
+	if (data->crtc_update_count == data->last_crtc_update_count)
+		rockchip_drm_vop2_pixel_shift_commit(drm_dev, crtc);
+}
+
 static ssize_t pixel_shift_store(struct device *dev, struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
@@ -7323,7 +7341,10 @@ static ssize_t pixel_shift_store(struct device *dev, struct device_attribute *at
 	vcstate->shift_x = shift_x;
 	vcstate->shift_y = shift_y;
 
-	rockchip_drm_vop2_pixel_shift_commit(drm_dev, crtc);
+	if (!delayed_work_pending(&vp->pixel_shift.pixel_shift_work)) {
+		vp->pixel_shift.last_crtc_update_count = vp->pixel_shift.crtc_update_count;
+		schedule_delayed_work(&vp->pixel_shift.pixel_shift_work, msecs_to_jiffies(100));
+	}
 
 	return count;
 }
@@ -7360,6 +7381,9 @@ static int vop2_pixel_shift_sysfs_init(struct device *dev, struct drm_crtc *crtc
 		DRM_DEV_ERROR(vop2->dev, "failed to create pixel_shift for vp%d\n", vp->id);
 		goto disable;
 	}
+
+	vp->pixel_shift.crtc = crtc;
+	INIT_DELAYED_WORK(&vp->pixel_shift.pixel_shift_work, pixel_shift_work);
 
 	return 0;
 
@@ -11591,6 +11615,8 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_stat
 		drm_flip_work_queue(&vp->fb_unref_work, old_pstate->fb);
 		set_bit(VOP_PENDING_FB_UNREF, &vp->pending);
 	}
+
+	vp->pixel_shift.crtc_update_count++;
 }
 
 static const struct drm_crtc_helper_funcs vop2_crtc_helper_funcs = {
