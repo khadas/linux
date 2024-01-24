@@ -1104,8 +1104,13 @@ static struct clk_regmap s4_hifi_pll = {
 		.offset = ANACTRL_HIFIPLL_CTRL0,
 		.shift = 16,
 		.width = 2,
+#ifdef S4_HIFI_PLL_DEAL
+		.flags = (CLK_DIVIDER_POWER_OF_TWO |
+			  CLK_DIVIDER_READ_ONLY),
+#else
 		.flags = (CLK_DIVIDER_POWER_OF_TWO |
 				CLK_DIVIDER_ROUND_CLOSEST),
+#endif
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll",
