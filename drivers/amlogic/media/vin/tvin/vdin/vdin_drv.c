@@ -580,7 +580,7 @@ static void vdin_game_mode_check(struct vdin_dev_s *devp)
 	}
 
 	/* dv is auto game not support manual set game */
-	if (vdin_dv_not_manual_game(devp))
+	if (vdin_dv_not_game_mode(devp))
 		devp->game_mode = 0;
 
 	if (vdin_force_game_mode)
@@ -689,7 +689,7 @@ static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
 	}
 
 	/* dv is auto game not support manual set game */
-	if (vdin_dv_not_manual_game(devp))
+	if (vdin_dv_not_game_mode(devp))
 		devp->game_mode = 0;
 
 	if (vdin_force_game_mode)
@@ -2818,7 +2818,7 @@ static void vdin_set_vfe_info(struct vdin_dev_s *devp, struct vf_entry *vfe)
 	else
 		vfe->vf.flag &= ~VFRAME_FLAG_GAME_MODE;
 
-	if (devp->prop.latency.allm_mode)
+	if (devp->prop.latency.allm_mode && !vdin_dv_is_sink_led(devp))
 		vfe->vf.flag |= VFRAME_FLAG_ALLM_MODE;
 	else
 		vfe->vf.flag &= ~VFRAME_FLAG_ALLM_MODE;

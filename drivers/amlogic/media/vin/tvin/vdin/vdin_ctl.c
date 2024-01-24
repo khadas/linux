@@ -6970,6 +6970,10 @@ bool vdin_is_auto_game_mode(struct vdin_dev_s *devp)
 	if (devp->parm.info.status != TVIN_SIG_STATUS_STABLE)
 		return false;
 
+	/* sink-led not support game mode */
+	if (vdin_dv_is_sink_led(devp))
+		return false;
+
 	if (devp->prop.latency.allm_mode || vdin_is_vrr_state(devp) ||
 	    (devp->prop.latency.it_content && devp->prop.latency.cn_type == GAME))
 		return true;

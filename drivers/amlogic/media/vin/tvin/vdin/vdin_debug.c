@@ -1297,6 +1297,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->prop.filmmaker.fmm_flag, devp->prop.filmmaker.fmm_vsif_flag);
 	pr_info("dv emp size:%d crc_flag:%d\n", devp->prop.emp_data.size,
 		devp->dv.dv_crc_check);
+	pr_info("dv_is_not_std:%d\n", devp->dv_is_not_std);
 	pr_info("size of struct vdin_dev_s: %d\n", devp->vdin_dev_ssize);
 	pr_info("devp->dv.dv_vsif:(%d,%d,%d,%d,%d,%d,%d,%d);\n",
 		devp->dv.dv_vsif.dolby_vision_signal,

@@ -272,20 +272,6 @@ bool vdin_dv_is_visf_data(struct vdin_dev_s *devp)
 		return false;
 }
 
-/*
- * return value:
- *	true: dv is auto game not support manual set game
- *	false: support set game
- */
-bool vdin_dv_not_manual_game(struct vdin_dev_s *devp)
-{
-	if (devp->dv.dv_flag && !devp->prop.latency.allm_mode &&
-	    !devp->prop.low_latency && !devp->vrr_data.vrr_mode)
-		return true;
-	else
-		return false;
-}
-
 /* some device force send dv 444 source-led need convert to 422 and bypass detunnel
  * return value:
  *	true: dv is not standard source-led
@@ -294,8 +280,7 @@ bool vdin_dv_not_manual_game(struct vdin_dev_s *devp)
 bool vdin_dv_is_not_std_source_led(struct vdin_dev_s *devp)
 {
 	if (devp->dv.dv_flag &&
-	    (devp->dv.low_latency || devp->prop.latency.allm_mode ||
-	     devp->prop.vtem_data.vrr_en)) {
+	    (devp->dv.low_latency || devp->prop.vtem_data.vrr_en)) {
 		if (devp->prop.color_format == TVIN_YUV422 &&
 		    devp->fmt_info_p->h_active >= 1280 &&
 		    devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_PROGRESSIVE)
@@ -305,4 +290,34 @@ bool vdin_dv_is_not_std_source_led(struct vdin_dev_s *devp)
 	} else {
 		return false;
 	}
+}
+
+/* check signal is sink-led
+ * return value:
+ *	true: dv is sink-led
+ *	false: dv not sink-led
+ */
+bool vdin_dv_is_sink_led(struct vdin_dev_s *devp)
+{
+	if (devp->dv.dv_flag && !devp->dv_is_not_std &&
+	    devp->prop.color_format == TVIN_RGB444)
+		return true;
+	else
+		return false;
+}
+
+/* 1.sink-led not game mode
+ * 2.dv is auto game not support manual set game
+ * return value:
+ *	true: dv not game
+ *	false: has game
+ */
+bool vdin_dv_not_game_mode(struct vdin_dev_s *devp)
+{
+	if (vdin_dv_is_sink_led(devp) ||
+	    (devp->dv.dv_flag && !devp->prop.latency.allm_mode &&
+	     !devp->prop.low_latency && !devp->vrr_data.vrr_mode))
+		return true;
+	else
+		return false;
 }
