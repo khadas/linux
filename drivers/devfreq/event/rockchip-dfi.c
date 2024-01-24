@@ -66,6 +66,7 @@
 /* DDRMON_CTRL */
 #define DDRMON_CTRL			0x04
 #define CLR_DDRMON_CTRL			(0xffff0000 << 0)
+#define DDR2_3_EN			(0x10001 << 15)
 #define LPDDR5_BANK_MODE(m)		((0x30000 | ((m) & 0x3)) << 7)
 #define LPDDR5_EN			(0x10001 << 6)
 #define DDR4_EN				(0x10001 << 5)
@@ -75,6 +76,10 @@
 #define SOFTWARE_EN			(0x10001 << 1)
 #define SOFTWARE_DIS			(0x10000 << 1)
 #define TIME_CNT_EN			(0x10001 << 0)
+
+/* DDRMON_CTRL1 */
+#define LPDDR5_BANK_MODE_CTRL1(m)	((0x30000 | ((m) & 0x3)) << 1)
+#define LPDDR5_EN_CTRL1			(0x10001 << 0)
 
 #define DDRMON_CH0_COUNT_NUM		0x28
 #define DDRMON_CH0_DFI_ACCESS_NUM	0x2c
@@ -86,6 +91,7 @@
 
 enum {
 	DDR4 = 0,
+	DDR2 = 2,
 	DDR3 = 3,
 	LPDDR2 = 5,
 	LPDDR3 = 6,
@@ -117,7 +123,13 @@ struct rockchip_dfi {
 	struct regmap *regmap_pmugrf;
 	struct clk *clk;
 	u32 dram_type;
+	u32 mon_version;
 	u32 mon_idx;
+	u32 mon_ctrl0;
+	u32 mon_ctrl1;
+	u32 mon_access_num;
+	u32 mon_count_num;
+	u32 lp5_ctrl_val;
 	u32 count_rate;
 	u32 dram_dynamic_info_reg;
 	/* 0: BG mode, 1: 16 Bank mode, 2: 8 bank mode */
@@ -356,11 +368,32 @@ static const struct devfreq_event_ops rk3368_dfi_ops = {
 	.set_event = rk3368_dfi_set_event,
 };
 
+static void rockchip_dfi_get_mon_version(struct devfreq_event_dev *edev)
+{
+	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
+	void __iomem *dfi_regs = info->regs;
+
+	info->mon_version = readl_relaxed(dfi_regs);
+
+	if (info->mon_version < 0x40) {
+		info->mon_ctrl0 = 0x4;
+		info->mon_ctrl1 = 0x4;
+		info->mon_access_num = 0x2c;
+		info->mon_count_num = 0x28;
+	} else {
+		info->mon_ctrl0 = 0x4;
+		info->mon_ctrl1 = 0x8;
+		info->mon_access_num = 0x34;
+		info->mon_count_num = 0x30;
+	}
+}
+
 static void rockchip_dfi_start_hardware_counter(struct devfreq_event_dev *edev)
 {
 	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
 	void __iomem *dfi_regs = info->regs;
 	u32 mon_idx = 0, val_6 = 0;
+	u32 ctrl0 = info->mon_ctrl0, ctrl1 = info->mon_ctrl1;
 	u32 i;
 
 	if (info->mon_idx)
@@ -377,22 +410,34 @@ static void rockchip_dfi_start_hardware_counter(struct devfreq_event_dev *edev)
 	for (i = 0; i < MAX_DMC_NUM_CH; i++) {
 		if (!(info->ch_msk & BIT(i)))
 			continue;
+
+		if (i > 0 && mon_idx == 0)
+			continue;
+
 		/* clear DDRMON_CTRL setting */
-		writel_relaxed(CLR_DDRMON_CTRL, dfi_regs + i * mon_idx + DDRMON_CTRL);
+		writel_relaxed(CLR_DDRMON_CTRL, dfi_regs + i * mon_idx + ctrl0);
 
 		/* set ddr type to dfi */
-		if (info->dram_type == LPDDR3 || info->dram_type == LPDDR2)
-			writel_relaxed(LPDDR2_3_EN, dfi_regs + i * mon_idx + DDRMON_CTRL);
-		else if (info->dram_type == LPDDR4 || info->dram_type == LPDDR4X)
-			writel_relaxed(LPDDR4_EN, dfi_regs + i * mon_idx + DDRMON_CTRL);
-		else if (info->dram_type == DDR4)
-			writel_relaxed(DDR4_EN, dfi_regs + i * mon_idx + DDRMON_CTRL);
-		else if (info->dram_type == LPDDR5)
-			writel_relaxed(LPDDR5_EN | LPDDR5_BANK_MODE(info->lp5_bank_mode),
-				       dfi_regs + i * mon_idx + DDRMON_CTRL);
+		if (info->dram_type == LPDDR3 || info->dram_type == LPDDR2) {
+			writel_relaxed(LPDDR2_3_EN, dfi_regs + i * mon_idx + ctrl0);
+		} else if (info->dram_type == LPDDR4 || info->dram_type == LPDDR4X) {
+			writel_relaxed(LPDDR4_EN, dfi_regs + i * mon_idx + ctrl0);
+		} else if ((info->dram_type == DDR2) || (info->dram_type == DDR3)) {
+			writel_relaxed(DDR2_3_EN, dfi_regs + i * mon_idx + ctrl0);
+		} else if (info->dram_type == DDR4) {
+			writel_relaxed(DDR4_EN, dfi_regs + i * mon_idx + ctrl0);
+		} else if (info->dram_type == LPDDR5) {
+			if (info->mon_version < 0x40)
+				writel_relaxed(LPDDR5_EN | LPDDR5_BANK_MODE(info->lp5_bank_mode),
+					       dfi_regs + i * mon_idx + ctrl0);
+			else
+				writel_relaxed(LPDDR5_EN_CTRL1 |
+					       LPDDR5_BANK_MODE_CTRL1(info->lp5_bank_mode),
+					       dfi_regs + i * mon_idx + ctrl1);
+		}
 
 		/* enable count, use software mode */
-		writel_relaxed(SOFTWARE_EN, dfi_regs + i * mon_idx + DDRMON_CTRL);
+		writel_relaxed(SOFTWARE_EN, dfi_regs + i * mon_idx + ctrl0);
 	}
 }
 
@@ -408,6 +453,10 @@ static void rockchip_dfi_stop_hardware_counter(struct devfreq_event_dev *edev)
 	for (i = 0; i < MAX_DMC_NUM_CH; i++) {
 		if (!(info->ch_msk & BIT(i)))
 			continue;
+
+		if (i > 0 && mon_idx == 0)
+			continue;
+
 		writel_relaxed(SOFTWARE_DIS, dfi_regs + i * mon_idx + DDRMON_CTRL);
 	}
 }
@@ -418,7 +467,7 @@ static int rockchip_dfi_get_busier_ch(struct devfreq_event_dev *edev)
 	u32 tmp, max = 0;
 	u32 i, busier_ch = 0;
 	void __iomem *dfi_regs = info->regs;
-	u32 mon_idx = 0x20, count_rate = 1;
+	u32 mon_idx = 0x14, count_rate = 1;
 
 	rockchip_dfi_stop_hardware_counter(edev);
 
@@ -434,11 +483,11 @@ static int rockchip_dfi_get_busier_ch(struct devfreq_event_dev *edev)
 
 		/* rk3588 counter is dfi clk rate */
 		info->ch_usage[i].total = readl_relaxed(dfi_regs +
-				DDRMON_CH0_COUNT_NUM + i * mon_idx) * count_rate;
+				info->mon_count_num + i * mon_idx) * count_rate;
 
 		/* LPDDR5 LPDDR4 and LPDDR4X BL = 16,other DDR type BL = 8 */
 		tmp = readl_relaxed(dfi_regs +
-				DDRMON_CH0_DFI_ACCESS_NUM + i * mon_idx);
+				info->mon_access_num + i * mon_idx);
 		if (info->dram_type == LPDDR4 || info->dram_type == LPDDR4X)
 			tmp *= 8;
 		else if (info->dram_type == LPDDR5)
@@ -481,6 +530,8 @@ static int rockchip_dfi_enable(struct devfreq_event_dev *edev)
 			return ret;
 		}
 	}
+
+	rockchip_dfi_get_mon_version(edev);
 
 	rockchip_dfi_start_hardware_counter(edev);
 	return 0;
@@ -550,6 +601,21 @@ static __maybe_unused __init int rk3588_dfi_init(struct platform_device *pdev,
 	data->clk = NULL;
 
 	desc->ops = &rockchip_dfi_ops;
+
+	return 0;
+}
+
+static __maybe_unused __init int rk3576_dfi_init(struct platform_device *pdev,
+						 struct rockchip_dfi *data,
+						 struct devfreq_event_desc *desc)
+{
+	int ret;
+
+	ret = rk3588_dfi_init(pdev, data, desc);
+	if (ret)
+		return ret;
+
+	data->mon_idx = 0x10000;
 
 	return 0;
 }
@@ -791,6 +857,9 @@ static const struct of_device_id rockchip_dfi_id_match[] = {
 #endif
 #ifdef CONFIG_CPU_RK3568
 	{ .compatible = "rockchip,rk3568-dfi", .data = px30_dfi_init },
+#endif
+#ifdef CONFIG_CPU_RK3576
+	{ .compatible = "rockchip,rk3576-dfi", .data = rk3576_dfi_init },
 #endif
 #ifdef CONFIG_CPU_RK3588
 	{ .compatible = "rockchip,rk3588-dfi", .data = rk3588_dfi_init },
