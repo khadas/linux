@@ -18,7 +18,7 @@
 
 #define DRIVER_VERSION			KERNEL_VERSION(3, 0x01, 0x00)
 
-#define MAX9295_NAME			"max9295"
+#define MAX9295_NAME			"maxim-max9295"
 
 #define MAX9295_I2C_ADDR_DEF		0x40
 
@@ -456,6 +456,8 @@ static int max9295_module_init(maxim_remote_ser_t *max9295)
 		return ret;
 	}
 
+	max9295->ser_state = MAXIM_REMOTE_SER_INIT;
+
 	return 0;
 }
 
@@ -467,6 +469,8 @@ static int max9295_module_deinit(maxim_remote_ser_t *max9295)
 	ret |= max9295_i2c_addr_def(max9295);
 #endif
 	ret |= max9295_soft_power_down(max9295);
+
+	max9295->ser_state = MAXIM_REMOTE_SER_DEINIT;
 
 	return ret;
 }
@@ -515,6 +519,7 @@ static int max9295_probe(struct i2c_client *client,
 	max9295->client = client;
 	max9295->ser_i2c_addr_map = client->addr;
 	max9295->ser_ops = &max9295_ser_ops;
+	max9295->ser_state = MAXIM_REMOTE_SER_DEINIT;
 
 	i2c_set_clientdata(client, max9295);
 
@@ -536,6 +541,8 @@ static void max9295_remove(struct i2c_client *client)
 	maxim_remote_ser_t *max9295 = i2c_get_clientdata(client);
 
 	mutex_destroy(&max9295->mutex);
+
+	max9295->ser_state = MAXIM_REMOTE_SER_DEINIT;
 
 #if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	return 0;
