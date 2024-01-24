@@ -67,6 +67,10 @@ bool rkisp_irq_dbg;
 module_param_named(irq_dbg, rkisp_irq_dbg, bool, 0644);
 MODULE_PARM_DESC(irq_dbg, "rkisp interrupt runtime");
 
+bool rkisp_buf_dbg;
+module_param_named(buf_dbg, rkisp_buf_dbg, bool, 0644);
+MODULE_PARM_DESC(buf_dbg, "rkisp check output buf");
+
 static bool rkisp_rdbk_auto;
 module_param_named(rdbk_auto, rkisp_rdbk_auto, bool, 0644);
 MODULE_PARM_DESC(irq_dbg, "rkisp and vicap auto readback mode");

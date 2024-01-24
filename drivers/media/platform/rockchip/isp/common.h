@@ -57,7 +57,7 @@
 #define RKISP_PLANE_CR			2
 
 #define RKISP_EMDDATA_FIFO_MAX		4
-#define RKISP_DMATX_CHECK              0xA5A5A5A5
+#define RKISP_DATA_CHECK		0xA5A5A5A5
 
 #define RKISP_MOTION_DECT_TS_SIZE	16
 
@@ -137,6 +137,7 @@ struct rkisp_dummy_buffer {
 extern int rkisp_debug;
 extern bool rkisp_monitor;
 extern bool rkisp_irq_dbg;
+extern bool rkisp_buf_dbg;
 extern u64 rkisp_debug_reg;
 extern struct platform_driver rkisp_plat_drv;
 

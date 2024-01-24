@@ -20,10 +20,8 @@ struct rkisp_rockit_buffer {
 	void *mpi_buf;
 	struct list_head queue;
 	int buf_id;
-	union {
-		u32 buff_addr;
-		void *vaddr;
-	};
+	u32 buff_addr;
+	void *vaddr;
 };
 
 static struct rkisp_stream *rkisp_rockit_get_stream(struct rockit_cfg *input_rockit_cfg)
@@ -158,6 +156,14 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 		} else {
 			isprk_buf->buff_addr = *((u32 *)g_ops->cookie(mem));
 		}
+		if (rkisp_buf_dbg) {
+			u64 *data;
+
+			isprk_buf->vaddr = g_ops->vaddr(mem);
+			data = isprk_buf->vaddr;
+			if (data)
+				*data = RKISP_DATA_CHECK;
+		}
 		get_dma_buf(input_rockit_cfg->buf);
 
 		isprk_buf->mpi_mem = mem;
@@ -232,10 +238,19 @@ int rkisp_rockit_buf_done(struct rkisp_stream *stream, int cmd)
 
 		rockit_cfg->frame.u32TimeRef = stream->curr_buf->vb.sequence;
 		v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
-			 "%s stream:%d seq:%d buf:0x%x done\n",
-			 __func__, stream->id,
+			 "stream:%d seq:%d rockit buf done:0x%x\n",
+			 stream->id,
 			 stream->curr_buf->vb.sequence,
 			 stream->curr_buf->buff_addr[0]);
+		if (rkisp_buf_dbg) {
+			u64 *data = isprk_buf->vaddr;
+
+			if (data && *data == RKISP_DATA_CHECK)
+				v4l2_info(&dev->v4l2_dev,
+					  "rockit seq:%d data no update:%llx %llx\n",
+					  stream->curr_buf->vb.sequence,
+					  *data, *(data + 1));
+		}
 	} else {
 		if (stream->ispdev->cap_dev.wrap_line &&
 		    stream->id == RKISP_STREAM_MP) {
@@ -495,6 +510,7 @@ int rkisp_rockit_buf_free(struct rkisp_stream *stream)
 				g_ops->unmap_dmabuf(isprk_buf->mpi_mem);
 				g_ops->detach_dmabuf(isprk_buf->mpi_mem);
 				dma_buf_put(isprk_buf->dmabuf);
+				isprk_buf->vaddr = NULL;
 			}
 			kfree(stream_cfg->rkisp_buff[i]);
 			stream_cfg->rkisp_buff[i] = NULL;

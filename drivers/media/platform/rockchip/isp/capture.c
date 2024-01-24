@@ -1597,13 +1597,19 @@ static void rkisp_buf_done_task(unsigned long arg)
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 
 	while (!list_empty(&local_list)) {
+		u64 *data;
+
 		buf = list_first_entry(&local_list,
 				       struct rkisp_buffer, queue);
 		list_del(&buf->queue);
-
+		data = buf->vaddr[0];
 		v4l2_dbg(2, rkisp_debug, &stream->ispdev->v4l2_dev,
-			 "stream:%d seq:%d buf:0x%x done\n",
+			 "stream:%d seq:%d buf done:0x%x\n",
 			 stream->id, buf->vb.sequence, buf->buff_addr[0]);
+		if (rkisp_buf_dbg && data && *data == RKISP_DATA_CHECK)
+			v4l2_dbg(0, rkisp_debug, &stream->ispdev->v4l2_dev,
+				 "seq:%d data no update:%llx %llx\n",
+				 buf->vb.sequence, *data, *(data + 1));
 		vb2_buffer_done(&buf->vb.vb2_buf,
 				stream->streaming ? VB2_BUF_STATE_DONE : VB2_BUF_STATE_ERROR);
 	}
