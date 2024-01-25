@@ -2059,16 +2059,18 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 	if (dev->isp_ver >= ISP_V20)
 		writel(0, base + ISP_LSC_CTRL);
 	/* stop ISP */
-	val = readl(base + CIF_ISP_CTRL);
+	val = rkisp_read(dev, CIF_ISP_CTRL, true);
 	val &= ~(CIF_ISP_CTRL_ISP_INFORM_ENABLE | CIF_ISP_CTRL_ISP_ENABLE);
-	writel(val, base + CIF_ISP_CTRL);
+	rkisp_write(dev, CIF_ISP_CTRL, val, true);
 
-	val = readl(base + CIF_ISP_CTRL);
-	writel(val | CIF_ISP_CTRL_ISP_CFG_UPD, base + CIF_ISP_CTRL);
-	if (hw->unite == ISP_UNITE_TWO)
-		rkisp_next_write(dev, CIF_ISP_CTRL,
-				 val | CIF_ISP_CTRL_ISP_CFG_UPD, true);
-
+	val = rkisp_read(dev, CIF_ISP_CTRL, true);
+	val |= CIF_ISP_CTRL_ISP_CFG_UPD;
+	rkisp_write(dev, CIF_ISP_CTRL, val, true);
+	rkisp_clear_reg_cache_bits(dev, CIF_ISP_CTRL, CIF_ISP_CTRL_ISP_CFG_UPD);
+	if (hw->unite == ISP_UNITE_TWO) {
+		rkisp_next_write(dev, CIF_ISP_CTRL, val, true);
+		rkisp_next_clear_reg_cache_bits(dev, CIF_ISP_CTRL, CIF_ISP_CTRL_ISP_CFG_UPD);
+	}
 	readx_poll_timeout_atomic(readl, base + CIF_ISP_RIS,
 				  val, val & CIF_ISP_OFF, 20, 100);
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
