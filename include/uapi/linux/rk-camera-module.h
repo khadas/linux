@@ -669,6 +669,7 @@ struct rkmodule_channel_info {
 	__u32 bus_fmt;
 	__u32 data_type;
 	__u32 data_bit;
+	__u32 field;
 } __attribute__ ((packed));
 
 /*

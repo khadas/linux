@@ -409,6 +409,8 @@ static int max96717_module_init(maxim_remote_ser_t *max96717)
 		return ret;
 	}
 
+	max96717->ser_state = MAXIM_REMOTE_SER_INIT;
+
 	return 0;
 }
 
@@ -417,6 +419,8 @@ static int max96717_module_deinit(maxim_remote_ser_t *max96717)
 	int ret = 0;
 
 	ret |= max96717_i2c_addr_def(max96717);
+
+	max96717->ser_state = MAXIM_REMOTE_SER_DEINIT;
 
 	return ret;
 }
@@ -465,6 +469,7 @@ static int max96717_probe(struct i2c_client *client,
 	max96717->client = client;
 	max96717->ser_i2c_addr_map = client->addr;
 	max96717->ser_ops = &max96717_ser_ops;
+	max96717->ser_state = MAXIM_REMOTE_SER_DEINIT;
 
 	i2c_set_clientdata(client, max96717);
 
@@ -486,6 +491,8 @@ static void max96717_remove(struct i2c_client *client)
 	maxim_remote_ser_t *max96717 = i2c_get_clientdata(client);
 
 	mutex_destroy(&max96717->mutex);
+
+	max96717->ser_state = MAXIM_REMOTE_SER_DEINIT;
 
 #if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	return 0;
