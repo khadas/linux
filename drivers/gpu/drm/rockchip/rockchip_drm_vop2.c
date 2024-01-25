@@ -6331,7 +6331,8 @@ static void vop2_dump_connector_on_crtc(struct drm_crtc *crtc, struct seq_file *
 	drm_connector_list_iter_begin(crtc->dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (crtc->state->connector_mask & drm_connector_mask(connector))
-			DEBUG_PRINT("    Connector: %s\n", connector->name);
+			DEBUG_PRINT("    Connector:%s\tEncoder: %s\n",
+				    connector->name, connector->encoder->name);
 
 	}
 	drm_connector_list_iter_end(&conn_iter);
