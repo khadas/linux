@@ -25,6 +25,10 @@ enum rkmodule_pad_type {
 #endif
 #endif /* LINUX_VERSION_CODE */
 
+/* Serializer State */
+#define MAXIM_REMOTE_SER_DEINIT		0
+#define MAXIM_REMOTE_SER_INIT		1
+
 /* I2C Device ID */
 enum {
 	MAXIM_REMOTE_I2C_SER_DEF,	/* Serializer I2C address: Default */
@@ -76,6 +80,7 @@ typedef struct maxim_remote_ser {
 	u8 cam_i2c_addr_def;
 	u8 cam_i2c_addr_map;
 
+	u32 ser_state;
 	struct maxim_remote_init_seq ser_init_seq;
 	const struct maxim_remote_ser_ops *ser_ops;
 } maxim_remote_ser_t;
@@ -325,4 +330,11 @@ static inline struct maxim_remote_ser *maxim_remote_cam_bind_ser(struct device *
 	}
 }
 
+static inline bool maxim_remote_ser_is_inited(maxim_remote_ser_t *remote_ser)
+{
+	if (remote_ser && (remote_ser->ser_state == MAXIM_REMOTE_SER_INIT))
+		return true;
+
+	return false;
+}
 #endif /* __MAXIM_REMOTE_H__ */

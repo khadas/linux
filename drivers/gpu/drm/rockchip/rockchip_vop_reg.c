@@ -1648,6 +1648,7 @@ static const struct vop_win_data px30_vop_big_win_data[] = {
 	  .type = DRM_PLANE_TYPE_OVERLAY },
 	{ .base = 0x00, .phy = &rk3366_lit_win1_data,
 	  .type = DRM_PLANE_TYPE_PRIMARY,
+	  .format_modifiers = format_modifiers_afbc,
 	  .feature = WIN_FEATURE_AFBDC },
 	{ .base = 0xe0, .phy = &px30_win23_data,
 	  .type = DRM_PLANE_TYPE_CURSOR,

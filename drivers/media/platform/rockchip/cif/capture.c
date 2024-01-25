@@ -893,6 +893,10 @@ cif_input_fmt *rkcif_get_input_fmt(struct rkcif_device *dev, struct v4l2_rect *r
 			if (ch_info.data_bit > 0)
 				csi_info->data_bit = ch_info.data_bit;
 		}
+		if (ch_info.field == 0)
+			fmt.format.field = V4L2_FIELD_NONE;
+		else
+			fmt.format.field = ch_info.field;
 	} else {
 		csi_info->vc = 0xff;
 	}
@@ -11357,6 +11361,7 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 				wake_up(&stream->wq_stopped);
 				continue;
 			}
+			stream->buf_wake_up_cnt++;
 
 			if (stream->state != RKCIF_STATE_STREAMING)
 				continue;
@@ -11501,6 +11506,7 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 					wake_up(&stream->wq_stopped);
 					return;
 				}
+				stream->buf_wake_up_cnt++;
 
 				frmid = CIF_GET_FRAME_ID(cif_frmst);
 				if ((cif_frmst == 0xfffd0002) || (cif_frmst == 0xfffe0002)) {
@@ -11570,6 +11576,7 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 					wake_up(&stream->wq_stopped);
 					continue;
 				}
+				stream->buf_wake_up_cnt++;
 
 				if (stream->state != RKCIF_STATE_STREAMING)
 					continue;
@@ -11678,6 +11685,7 @@ void rkcif_irq_lite_lvds(struct rkcif_device *cif_dev)
 			if (stream->state != RKCIF_STATE_STREAMING)
 				continue;
 
+			stream->buf_wake_up_cnt++;
 			switch (mipi_id) {
 			case RKCIF_STREAM_MIPI_ID0:
 				stream->frame_phase = SW_FRM_END_ID0(intstat);

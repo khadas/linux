@@ -154,6 +154,7 @@
 
 #define to_vop_win(x) container_of(x, struct vop_win, base)
 #define to_vop_plane_state(x) container_of(x, struct vop_plane_state, base)
+#define AFBC_Y2R_COLOR_TRANSFORM (1 << 4)
 
 enum vop_pending {
 	VOP_PENDING_FB_UNREF,
@@ -2021,7 +2022,7 @@ static void vop_plane_setup_color_key(struct drm_plane *plane)
 }
 
 static void vop_plane_atomic_update(struct drm_plane *plane,
-		struct drm_atomic_state *state)
+				    struct drm_atomic_state *state)
 {
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
 									   plane);
@@ -2044,9 +2045,9 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	uint32_t val;
 	bool rb_swap, global_alpha_en, uv_swap;
 	int is_yuv = fb->format->is_yuv;
+	bool afbc_en = false;
 
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-	bool AFBC_flag = false;
 	struct vop_dump_list *planlist;
 	unsigned long num_pages;
 	struct page **pages;
@@ -2061,10 +2062,6 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		num_pages = rk_obj->num_pages;
 		pages = rk_obj->pages;
 	}
-	if (fb->modifier == DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16))
-		AFBC_flag = true;
-	else
-		AFBC_flag = false;
 #endif
 
 	/*
@@ -2215,11 +2212,14 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	VOP_WIN_SET(vop, win, gate, 1);
 	spin_unlock(&vop->reg_lock);
 
+	if (rockchip_afbc(plane, fb->modifier))
+		afbc_en = true;
 	rockchip_drm_dbg(vop->dev, VOP_DEBUG_PLANE,
 			 "update win%d-area%d [%dx%d->%dx%d@(%d, %d)] zpos:%d fmt[%p4cc%s] addr[%pad] by %s\n",
 			 win->win_id, win->area_id, actual_w, actual_h,
 			 dsp_w, dsp_h, dsp_stx, dsp_sty, vop_plane_state->zpos, &fb->format->format,
-			 fb->modifier ? "[AFBC]" : "", &vop_plane_state->yrgb_mst, current->comm);
+			 afbc_en ? "[AFBC]" : "",
+			 &vop_plane_state->yrgb_mst, current->comm);
 	/*
 	 * spi interface(vop_plane_state->yrgb_kvaddr, fb->pixel_format,
 	 * actual_w, actual_h)
@@ -2231,7 +2231,7 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 
 	planlist = kmalloc(sizeof(*planlist), GFP_KERNEL);
 	if (planlist) {
-		planlist->dump_info.AFBC_flag = AFBC_flag;
+		planlist->dump_info.AFBC_flag = afbc_en;
 		planlist->dump_info.area_id = win->area_id;
 		planlist->dump_info.win_id = win->win_id;
 		planlist->dump_info.yuv_format =
@@ -2727,8 +2727,6 @@ static int vop_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	struct drm_gem_object *obj;
 	struct rockchip_gem_object *rk_obj;
 	dma_addr_t fb_addr;
-	u64 afbdc_format =
-		DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16);
 
 	DEBUG_PRINT("    win%d-%d: %s\n", win->win_id, win->area_id,
 		    state->crtc ? "ACTIVE" : "DISABLED");
@@ -2740,7 +2738,7 @@ static int vop_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 
 	DEBUG_PRINT("\tformat: %p4cc%s%s[%d] color_space[%d]\n",
 		    &fb->format->format,
-		    fb->modifier == afbdc_format ? "[AFBC]" : "",
+		    rockchip_afbc(plane, state->fb->modifier) ? "[AFBC]" : "",
 		    pstate->eotf ? " HDR" : " SDR", pstate->eotf,
 		    pstate->color_space);
 	DEBUG_PRINT("\tcsc: y2r[%d] r2r[%d] r2y[%d] csc mode[%d]\n",
@@ -3670,8 +3668,8 @@ static int vop_afbdc_atomic_check(struct drm_crtc *crtc,
 
 		if (pstate->crtc != crtc || !fb)
 			continue;
-		if (fb->modifier !=
-			DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16))
+
+		if (!rockchip_afbc(plane, fb->modifier))
 			continue;
 
 		if (!VOP_CTRL_SUPPORT(vop, afbdc_en)) {
@@ -3724,6 +3722,9 @@ static int vop_afbdc_atomic_check(struct drm_crtc *crtc,
 			fb_addr = rk_obj->dma_addr + fb->offsets[0];
 
 			s->afbdc_win_format = afbdc_format;
+			/* Enable color transform for YTR */
+			if (fb->modifier & AFBC_FORMAT_MOD_YTR)
+				s->afbdc_win_format |= AFBC_Y2R_COLOR_TRANSFORM;
 			s->afbdc_win_id = win->win_id;
 			s->afbdc_win_ptr = fb_addr;
 			s->afbdc_win_vir_width = fb->width;
@@ -3760,6 +3761,9 @@ static int vop_afbdc_atomic_check(struct drm_crtc *crtc,
 			return -EINVAL;
 		}
 		s->afbdc_win_format = afbdc_format;
+		/* Enable color transform for YTR */
+		if (fb->modifier & AFBC_FORMAT_MOD_YTR)
+			s->afbdc_win_format |= AFBC_Y2R_COLOR_TRANSFORM;
 		s->afbdc_win_width = fb->width - 1;
 		s->afbdc_win_height = (drm_rect_height(src) >> 16) - 1;
 		s->afbdc_win_id = win->win_id;
@@ -4121,7 +4125,7 @@ static void vop_cfg_update(struct drm_crtc *crtc,
 	if (s->afbdc_en) {
 		u32 pic_size, pic_offset;
 
-		VOP_CTRL_SET(vop, afbdc_format, s->afbdc_win_format | 1 << 4);
+		VOP_CTRL_SET(vop, afbdc_format, s->afbdc_win_format);
 		VOP_CTRL_SET(vop, afbdc_hreg_block_split, 0);
 		VOP_CTRL_SET(vop, afbdc_sel, s->afbdc_win_id);
 		VOP_CTRL_SET(vop, afbdc_hdr_ptr, s->afbdc_win_ptr);

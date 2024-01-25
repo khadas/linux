@@ -4883,6 +4883,15 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 		}
 	}
 
+	if (vp->vop2->version == VOP_VERSION_RK3588) {
+		if (!vpstate->afbc_en &&
+		    (fb->format->format == DRM_FORMAT_XRGB2101010 ||
+		     fb->format->format == DRM_FORMAT_XBGR2101010)) {
+			DRM_ERROR("RK3588 unsupported linear XRGB2101010 at %s\n", win->name);
+			return -EINVAL;
+		}
+	}
+
 	if (vp->vop2->version > VOP_VERSION_RK3568) {
 		if (vop2_cluster_window(win) && !vpstate->afbc_en && fb->format->is_yuv && !is_vop3(vop2)) {
 			DRM_ERROR("Unsupported linear yuv format at %s\n", win->name);
@@ -7737,7 +7746,8 @@ static void vop3_setup_pipe_dly(struct vop2_video_port *vp, const struct vop2_zp
 		sdr_win_dly = 0;
 	}
 
-	pre_scan_dly = bg_dly + (hdisplay >> 1) - 1;
+	/* hdisplay must roundup as 2 pixel */
+	pre_scan_dly = bg_dly + (roundup(hdisplay, 2) >> 1) - 1;
 	pre_scan_dly = (pre_scan_dly << 16) | hsync_len;
 	VOP_MODULE_SET(vop2, vp, bg_dly, bg_dly);
 	VOP_MODULE_SET(vop2, vp, pre_scan_htiming, pre_scan_dly);
@@ -9305,10 +9315,14 @@ static void vop2_setup_dly_for_vp(struct vop2_video_port *vp)
 		hdisplay = adjusted_mode->crtc_hdisplay;
 	}
 
+	/*
+	 * splice mode: hdisplay must roundup as 4 pixel,
+	 * no splice mode: hdisplay must roundup as 2 pixel.
+	 */
 	if (vcstate->splice_mode)
-		pre_scan_dly = bg_dly + (hdisplay >> 2) - 1;
+		pre_scan_dly = bg_dly + (roundup(hdisplay, 4) >> 2) - 1;
 	else
-		pre_scan_dly = bg_dly + (hdisplay >> 1) - 1;
+		pre_scan_dly = bg_dly + (roundup(hdisplay, 2) >> 1) - 1;
 
 	if (vop2->version == VOP_VERSION_RK3588 && hsync_len < 8)
 		hsync_len = 8;
