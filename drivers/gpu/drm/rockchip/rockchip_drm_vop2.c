@@ -4885,6 +4885,15 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 		}
 	}
 
+	if (vp->vop2->version == VOP_VERSION_RK3588) {
+		if (!vpstate->afbc_en &&
+		    (fb->format->format == DRM_FORMAT_XRGB2101010 ||
+		     fb->format->format == DRM_FORMAT_XBGR2101010)) {
+			DRM_ERROR("RK3588 unsupported linear XRGB2101010 at %s\n", win->name);
+			return -EINVAL;
+		}
+	}
+
 	if (vp->vop2->version > VOP_VERSION_RK3568) {
 		if (vop2_cluster_window(win) && !vpstate->afbc_en && fb->format->is_yuv && !is_vop3(vop2)) {
 			DRM_ERROR("Unsupported linear yuv format at %s\n", win->name);
