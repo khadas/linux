@@ -2078,6 +2078,11 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	INIT_WORK(&cif_dev->sensor_work.work, rkcif_set_sensor_stream);
 	INIT_DELAYED_WORK(&cif_dev->work_deal_err, rkcif_deal_err_intr);
 
+	if (cif_dev->inf_id == RKCIF_MIPI_LVDS && cif_dev->chip_id <= CHIP_RK3562_CIF)
+		cif_dev->use_hw_interlace = false;
+	else
+		cif_dev->use_hw_interlace = true;
+
 	if (cif_dev->chip_id < CHIP_RV1126_CIF) {
 		if (cif_dev->inf_id == RKCIF_MIPI_LVDS) {
 			rkcif_stream_init(cif_dev, RKCIF_STREAM_MIPI_ID0);

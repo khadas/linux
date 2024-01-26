@@ -839,6 +839,13 @@ struct rkcif_sensor_work {
 	int on;
 };
 
+enum rkcif_interlace_mode {
+	RKCIF_INTERLACE_NONE,
+	RKCIF_INTERLACE_SOFT,
+	RKCIF_INTERLACE_SOFT_AUTO,
+	RKCIF_INTERLACE_HW,
+};
+
 /*
  * struct rkcif_device - ISP platform device
  * @base_addr: base register address
@@ -915,6 +922,7 @@ struct rkcif_device {
 	bool				is_aov_reserved;
 	bool				sensor_state_change;
 	bool				is_toisp_reset;
+	bool				use_hw_interlace;
 	int				rdbk_debug;
 	struct rkcif_sync_cfg		sync_cfg;
 	int				sditf_cnt;
