@@ -483,7 +483,8 @@ rockchip_tve_encoder_atomic_check(struct drm_encoder *encoder,
 	 */
 	if (tve->soc_type == SOC_RK3528)
 		s->output_if |= VOP_OUTPUT_IF_BT656;
-	s->color_space = V4L2_COLORSPACE_SMPTE170M;
+	s->color_encoding = DRM_COLOR_YCBCR_BT601;
+	s->color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
 	s->tv_state = &conn_state->tv;
 
 	return 0;
