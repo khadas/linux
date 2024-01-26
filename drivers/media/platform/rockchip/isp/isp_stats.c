@@ -145,11 +145,12 @@ static void rkisp_stats_vb2_buf_queue(struct vb2_buffer *vb)
 	struct rkisp_buffer *stats_buf = to_rkisp_buffer(vbuf);
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct rkisp_isp_stats_vdev *stats_dev = vq->drv_priv;
+	struct rkisp_device *dev = stats_dev->dev;
 	u32 size = stats_dev->vdev_fmt.fmt.meta.buffersize;
 	unsigned long flags;
 
 	stats_buf->vaddr[0] = vb2_plane_vaddr(vb, 0);
-	if (stats_dev->dev->isp_ver == ISP_V32) {
+	if (dev->isp_ver == ISP_V32) {
 		struct sg_table *sgt = vb2_dma_sg_plane_desc(vb, 0);
 
 		stats_buf->buff_addr[0] = sg_dma_address(sgt->sgl);
@@ -157,11 +158,12 @@ static void rkisp_stats_vb2_buf_queue(struct vb2_buffer *vb)
 	if (stats_buf->vaddr[0])
 		memset(stats_buf->vaddr[0], 0, size);
 	spin_lock_irqsave(&stats_dev->rd_lock, flags);
-	if (stats_dev->dev->isp_ver == ISP_V32 && stats_dev->dev->is_pre_on) {
+	if (dev->isp_ver == ISP_V32 && dev->is_pre_on) {
 		struct rkisp32_isp_stat_buffer *buf = stats_dev->stats_buf[0].vaddr;
 
-		if (buf && !buf->frame_id && buf->meas_type && stats_buf->vaddr[0]) {
-			dev_info(stats_dev->dev->dev,
+		if (dev->isp_state & ISP_START && stats_buf->vaddr[0] &&
+		    buf && !buf->frame_id && buf->meas_type) {
+			dev_info(dev->dev,
 				 "tb stat seq:%d meas_type:0x%x\n",
 				 buf->frame_id, buf->meas_type);
 			memcpy(stats_buf->vaddr[0], buf, sizeof(struct rkisp32_isp_stat_buffer));
