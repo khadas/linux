@@ -10839,6 +10839,7 @@ void di_unreg_variable(unsigned int channel)
 	pch->record_10bit_flag = 0;
 	pch->record_8bit_flag = 0;
 #endif
+	get_datal()->ch_data[channel].dbg_data.pfm_out = NULL;
 	set_bypass2_complete(channel, false);
 	init_completion(&tsk->fcmd[channel].alloc_done);
 	dbg_timer_clear(channel);
