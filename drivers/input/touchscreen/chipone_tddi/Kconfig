@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# chipone Touchscreen driver configuration
+#
+
+config TOUCHSCREEN_CHIPONE_9551R
+    tristate "chipone Touchscreen"
+    depends on I2C
+    default n
+    help
+      Say Y here if you have chipone touch panel.
+      If unsure, say N.
