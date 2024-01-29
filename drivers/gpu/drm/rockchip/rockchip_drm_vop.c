@@ -145,10 +145,10 @@
 #define VOP_WIN_TO_INDEX(vop_win) \
 	((vop_win) - (vop_win)->vop->win)
 
-#define VOP_GRF_SET(vop, reg, v) \
+#define VOP_GRF_SET(vop, grf, reg, v) \
 	do { \
-		if (vop->data->grf_ctrl) { \
-			vop_grf_writel(vop, vop->data->grf_ctrl->reg, v); \
+		if (vop->data->grf) { \
+			vop_grf_writel(vop->grf, vop->data->grf->reg, v); \
 		} \
 	} while (0)
 
@@ -355,16 +355,16 @@ static void vop_unlock(struct vop *vop)
 	mutex_unlock(&vop->vop_lock);
 }
 
-static inline void vop_grf_writel(struct vop *vop, struct vop_reg reg, u32 v)
+static inline void vop_grf_writel(struct regmap *regmap, struct vop_reg reg, u32 v)
 {
 	u32 val = 0;
 
-	if (IS_ERR_OR_NULL(vop->grf))
+	if (IS_ERR_OR_NULL(regmap))
 		return;
 
-	if (VOP_REG_SUPPORT(vop, reg)) {
+	if (reg.mask) {
 		val = (v << reg.shift) | (reg.mask << (reg.shift + 16));
-		regmap_write(vop->grf, reg.offset, val);
+		regmap_write(regmap, reg.offset, val);
 	}
 }
 
@@ -1657,7 +1657,7 @@ static void vop_initial(struct drm_crtc *crtc)
 	vop_enable_debug_irq(crtc);
 
 	if (vop->version == VOP_VERSION(2, 0xd)) {
-		VOP_GRF_SET(vop, grf_vopl_sel, 1);
+		VOP_GRF_SET(vop, grf, grf_vopl_sel, 1);
 		VOP_CTRL_SET(vop, enable, 1);
 	}
 }
@@ -3559,7 +3559,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 		VOP_CTRL_SET(vop, lvds_en, 1);
 		VOP_CTRL_SET(vop, lvds_pin_pol, val);
 		VOP_CTRL_SET(vop, lvds_dclk_pol, dclk_inv);
-		VOP_GRF_SET(vop, grf_dclk_inv, dclk_inv);
+		VOP_GRF_SET(vop, grf, grf_dclk_inv, dclk_inv);
 		if (s->output_if & VOP_OUTPUT_IF_BT1120) {
 			VOP_CTRL_SET(vop, bt1120_en, 1);
 			yc_swap = is_yc_swap(s->bus_format);
@@ -5254,10 +5254,9 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 		if (IS_ERR(vop->lut_regs))
 			return PTR_ERR(vop->lut_regs);
 	}
-	vop->grf = syscon_regmap_lookup_by_phandle(dev->of_node,
-						   "rockchip,grf");
-	if (IS_ERR(vop->grf))
-		dev_err(dev, "missing rockchip,grf property\n");
+
+	vop->grf = syscon_regmap_lookup_by_phandle_optional(dev->of_node, "rockchip,grf");
+
 	vop->hclk = devm_clk_get(vop->dev, "hclk_vop");
 	if (IS_ERR(vop->hclk)) {
 		dev_err(vop->dev, "failed to get hclk source\n");
