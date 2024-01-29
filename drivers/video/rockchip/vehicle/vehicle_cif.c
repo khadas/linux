@@ -5136,7 +5136,7 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 		for (i = 0; i < clk->rsts_num; i++) {
 			struct reset_control *rst = NULL;
 
-			if (rk3568_cif_rsts[i])
+			if (rk3588_cif_rsts[i])
 				rst = devm_reset_control_get(dev, rk3588_cif_rsts[i]);
 			if (IS_ERR(rst)) {
 				dev_err(dev, "failed to get %s\n", rk3588_cif_rsts[i]);
@@ -5148,7 +5148,7 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 		for (i = 0; i < clk->rsts_num; i++) {
 			struct reset_control *rst = NULL;
 
-			if (rk3568_cif_rsts[i])
+			if (rk3562_cif_rsts[i])
 				rst = devm_reset_control_get(dev, rk3562_cif_rsts[i]);
 			if (IS_ERR(rst)) {
 				dev_err(dev, "failed to get %s\n", rk3562_cif_rsts[i]);
@@ -5181,13 +5181,15 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 
 	/*  3. request cif irq & mipi csi irq1-2 */
 	if (cif->chip_id >= CHIP_RK3588_VEHICLE_CIF) {
-		ret = request_irq(cif->irq, rk_camera_irq_v1, IRQF_SHARED, "vehicle_cif", cif);
+		ret = devm_request_irq(dev, cif->irq,
+				rk_camera_irq_v1, IRQF_SHARED, "vehicle_cif", cif);
 		if (ret < 0) {
 			VEHICLE_DGERR("request cif irq failed!\n");
 			return -EINVAL;
 		}
 	} else {
-		ret = request_irq(cif->irq, rk_camera_irq, IRQF_SHARED, "vehicle_cif", cif);
+		ret = devm_request_irq(dev, cif->irq,
+				rk_camera_irq, IRQF_SHARED, "vehicle_cif", cif);
 		if (ret < 0) {
 			VEHICLE_DGERR("request cif irq failed!\n");
 			return -EINVAL;
@@ -5197,14 +5199,14 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 	VEHICLE_DG("%s(%d):\n", __func__, __LINE__);
 
 	if (inf_id == RKCIF_MIPI_LVDS) {
-		ret = request_irq(cif->csi2_irq1, vehicle_csirx_irq1,
+		ret = devm_request_irq(dev, cif->csi2_irq1, vehicle_csirx_irq1,
 				IRQF_SHARED, "vehicle_csi_intr1", cif);
 		if (ret < 0) {
 			VEHICLE_DGERR("request csirx irq1 failed!\n");
 			return -EINVAL;
 		}
 
-		ret = request_irq(cif->csi2_irq2, vehicle_csirx_irq2,
+		ret = devm_request_irq(dev, cif->csi2_irq2, vehicle_csirx_irq2,
 				IRQF_SHARED, "vehicle_csi_intr2", cif);
 		if (ret < 0) {
 			VEHICLE_DGERR("request csirx irq2 failed!\n");
@@ -5318,10 +5320,10 @@ int vehicle_cif_deinit(struct vehicle_cif *cif)
 		mutex_destroy(&dphy_hw->mutex);
 	}
 
-	free_irq(cif->irq, cif);
+	devm_free_irq(dev, cif->irq, cif);
 	if (inf_id == RKCIF_MIPI_LVDS) {
-		free_irq(cif->csi2_irq1, cif);
-		free_irq(cif->csi2_irq2, cif);
+		devm_free_irq(dev, cif->csi2_irq1, cif);
+		devm_free_irq(dev, cif->csi2_irq2, cif);
 	}
 	if (cif->err_state.err_print_wq) {
 		flush_workqueue(cif->err_state.err_print_wq);
