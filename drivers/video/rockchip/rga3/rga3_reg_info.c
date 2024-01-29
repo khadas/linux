@@ -1761,11 +1761,13 @@ static int rga3_scale_check(const struct rga3_req *req)
 	win0_dah = req->win0.dst_act_h;
 
 	if (((win0_saw >> 3) > win0_daw) || ((win0_sah >> 3) > win0_dah)) {
-		pr_info("win0 unsupported to scaling less than 1/8 times.\n");
+		pr_info("win0 unsupported to scaling less than 1/8 times. src[%d, %d], dst[%d, %d]\n",
+			win0_saw, win0_sah, win0_daw, win0_dah);
 		return -EINVAL;
 	}
 	if (((win0_daw >> 3) > win0_saw) || ((win0_dah >> 3) > win0_sah)) {
-		pr_info("win0 unsupported to scaling more than 8 times.\n");
+		pr_info("win0 unsupported to scaling more than 8 times. src[%d, %d], dst[%d, %d]\n",
+			win0_saw, win0_sah, win0_daw, win0_dah);
 		return -EINVAL;
 	}
 
@@ -1776,11 +1778,13 @@ static int rga3_scale_check(const struct rga3_req *req)
 		win1_dah = req->win1.dst_act_h;
 
 		if (((win1_saw >> 3) > win1_daw) || ((win1_sah >> 3) > win1_dah)) {
-			pr_info("win1 unsupported to scaling less than 1/8 times.\n");
+			pr_info("win1 unsupported to scaling less than 1/8 times. src[%d, %d], dst[%d, %d]\n",
+				win1_saw, win1_sah, win1_daw, win1_dah);
 			return -EINVAL;
 		}
 		if (((win1_daw >> 3) > win1_saw) || ((win1_dah >> 3) > win1_sah)) {
-			pr_info("win1 unsupported to scaling more than 8 times.\n");
+			pr_info("win1 unsupported to scaling more than 8 times. src[%d, %d], dst[%d, %d]\n",
+				win1_saw, win1_sah, win1_daw, win1_dah);
 			return -EINVAL;
 		}
 	}
