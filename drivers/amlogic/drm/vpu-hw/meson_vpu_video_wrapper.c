@@ -172,6 +172,9 @@ static void video_dummy_data_set(struct am_meson_crtc_state *crtc_state)
 	int r, g, b, alpha, y, u, v;
 	u32 vpp_index = 0;
 
+	if (!crtc_state->crtc_bgcolor_flag)
+		return;
+
 	b = (crtc_state->crtc_bgcolor & 0xffff) / 256;
 	g = ((crtc_state->crtc_bgcolor >> 16) & 0xffff) / 256;
 	r = ((crtc_state->crtc_bgcolor >> 32) & 0xffff) / 256;

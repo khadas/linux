@@ -310,6 +310,7 @@ static int meson_crtc_atomic_set_property(struct drm_crtc *crtc,
 		return 0;
 	} else if (property == meson_crtc->bgcolor_property) {
 		crtc_state->crtc_bgcolor = val;
+		crtc_state->crtc_bgcolor_flag = true;
 		return 0;
 	} else if (property == meson_crtc->dv_mode_property) {
 		crtc_state->dv_mode = val;

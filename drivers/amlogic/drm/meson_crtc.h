@@ -64,6 +64,7 @@ struct am_meson_crtc_state {
 	/*eotf value by property*/
 	u8 eotf_type_by_property;
 	/*crtc background*/
+	bool crtc_bgcolor_flag;
 	u64 crtc_bgcolor;
 	u64 force_output_type;
 	/*basic refresh rate*/
