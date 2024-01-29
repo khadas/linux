@@ -2015,6 +2015,7 @@ struct rkisp_thunderboot_resmem_head {
 	__u32 exp_time_reg[3];
 	__u32 exp_gain_reg[3];
 	__u32 exp_isp_dgain[3];
+	__u32 dcg_mode[3];
 	__u32 nr_buf_size;
 	__u32 share_mem_size;
 } __attribute__ ((packed));
