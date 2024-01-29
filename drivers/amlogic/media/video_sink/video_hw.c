@@ -6335,6 +6335,7 @@ void rx_mute_vpp(void)
 	}
 	pr_info("call %s to mute video\n", __func__);
 	video_mute_array[HDMI_RX_MUTE_SET] = true;
+	video_mute_status = VIDEO_MUTE_ON_VPP;
 }
 EXPORT_SYMBOL(rx_mute_vpp);
 
@@ -6437,7 +6438,7 @@ static inline void unmute_vpp(void)
 	}
 }
 
-static void check_video_mute(void)
+void check_video_mute(void)
 {
 	check_video_mute_state();
 	if (video_mute_on) {

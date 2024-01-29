@@ -7407,6 +7407,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			if (debug_flag & DEBUG_FLAG_BASIC_INFO)
 				pr_info("video suspend, vsync exit\n");
 		log_out = 0;
+		check_video_mute();
 		return IRQ_HANDLED;
 	}
 	if (debug_flag & DEBUG_FLAG_VSYNC_DONONE)

@@ -748,7 +748,7 @@ void vd_clip_setting(u8 layer_id,
 void proc_vd_vsc_phase_per_vsync(struct video_layer_s *layer,
 				 struct vpp_frame_par_s *frame_par,
 				 struct vframe_s *vf);
-
+void check_video_mute(void);
 void vpp_blend_update(const struct vinfo_s *vinfo);
 void vpp_blend_update_t7(const struct vinfo_s *vinfo);
 void vppx_vd_blend_setting(struct video_layer_s *layer, struct blend_setting_s *setting);
