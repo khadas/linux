@@ -225,15 +225,8 @@ static bool rga_check_scale(const struct rga_hw_data *data,
 
 	sw = src0->act_w;
 	sh = src0->act_h;
-
-	if ((rga_base->sina == 65536 && rga_base->cosa == 0)
-		|| (rga_base->sina == -65536 && rga_base->cosa == 0)) {
-		dw = dst->act_h;
-		dh = dst->act_w;
-	} else {
-		dw = dst->act_w;
-		dh = dst->act_h;
-	}
+	dw = dst->act_w;
+	dh = dst->act_h;
 
 	if (sw > dw) {
 		if ((sw >> data->max_downscale_factor) > dw)
