@@ -2008,10 +2008,6 @@ static const struct vop_ctrl rk3576_lit_ctrl_data = {
 	.dclk_pol = VOP_REG(EBC_VOP_DSP_CTRL0, 0x1, 4),
 	.rgb_pin_pol = VOP_REG(EBC_VOP_DSP_CTRL0, 0x7, 5),
 	.standby = VOP_REG(EBC_VOP_DSP_CTRL0, 0x1, 15),
-	.mipi_1to4_en = VOP_REG(EBC_VOP_DSP_CTRL0, 0x1, 24),
-	.mipi_pin_pol = VOP_REG(EBC_VOP_DSP_CTRL0, 0x3, 25),
-	.hdmi_1to4_en = VOP_REG(EBC_VOP_DSP_CTRL0, 0x1, 28),
-	.hdmi_pin_pol = VOP_REG(EBC_VOP_DSP_CTRL0, 0x3, 29),
 	.out_dresetn = VOP_REG(EBC_VOP_DSP_CTRL0, 0x1, 31),
 
 	.dsp_interlace = VOP_REG(EBC_VOP_DSP_CTRL1, 0x1, 0),
@@ -2095,6 +2091,17 @@ static const struct vop_win_data rk3576_lit_win_data[] = {
 	  .type = DRM_PLANE_TYPE_PRIMARY },
 };
 
+static const struct vop_grf_ctrl rk3576_lit_vo0_grf_ctrl = {
+	.grf_edp_ch_sel = VOP_REG(RK3576_VO0_GRF_SOC_CON9, 0x1, 10),
+	.grf_hdmi_ch_sel = VOP_REG(RK3576_VO0_GRF_SOC_CON9, 0x1, 9),
+	.grf_mipi_ch_sel = VOP_REG(RK3576_VO0_GRF_SOC_CON9, 0x1, 8),
+	.grf_hdmi_pin_pol = VOP_REG(RK3576_VO0_GRF_SOC_CON13, 0x3, 5),
+	.grf_hdmi_1to4_en = VOP_REG(RK3576_VO0_GRF_SOC_CON13, 0x1, 4),
+	.grf_mipi_mode = VOP_REG(RK3576_VO0_GRF_SOC_CON13, 0x1, 3),
+	.grf_mipi_pin_pol = VOP_REG(RK3576_VO0_GRF_SOC_CON13, 0x3, 1),
+	.grf_mipi_1to4_en = VOP_REG(RK3576_VO0_GRF_SOC_CON13, 0x1, 1),
+};
+
 static const struct vop_grf_ctrl rk3576_lit_grf_ctrl = {
 	.grf_dclk_inv = VOP_REG(RK3576_IOC_GRF_MISC_CON8, 0x1, 9),
 	.grf_vopl_sel = VOP_REG(RK3576_IOC_GRF_MISC_CON8, 0x1, 11),
@@ -2108,6 +2115,7 @@ static const struct vop_data rk3576_vop_lit = {
 	.max_output = {1920, 1920},
 	.ctrl = &rk3576_lit_ctrl_data,
 	.intr = &rk3576_lit_intr,
+	.vo0_grf = &rk3576_lit_vo0_grf_ctrl,
 	.grf = &rk3576_lit_grf_ctrl,
 	.win = rk3576_lit_win_data,
 	.win_size = ARRAY_SIZE(rk3576_lit_win_data),

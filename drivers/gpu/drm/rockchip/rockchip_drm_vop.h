@@ -432,8 +432,6 @@ struct vop_ctrl {
 	/* ebc vop */
 	struct vop_reg enable;
 	struct vop_reg inf_out_en;
-	struct vop_reg mipi_1to4_en;
-	struct vop_reg hdmi_1to4_en;
 	struct vop_reg out_dresetn;
 };
 
@@ -1219,6 +1217,19 @@ struct vop_grf_ctrl {
 	struct vop_reg grf_hdmi0_pin_pol;
 	struct vop_reg grf_hdmi1_pin_pol;
 	struct vop_reg grf_vopl_sel;
+	/*
+	 * For rk3576, vopl supports eDP/HDMI/MIPI by the 1to4
+	 * module, which can transfer 1 pixle/cycle data from
+	 * vopl to 4 pixle/cycle data for HDMI/MIPI controllers.
+	 */
+	struct vop_reg grf_edp_ch_sel;
+	struct vop_reg grf_hdmi_ch_sel;
+	struct vop_reg grf_mipi_ch_sel;
+	struct vop_reg grf_hdmi_pin_pol;
+	struct vop_reg grf_hdmi_1to4_en;
+	struct vop_reg grf_mipi_mode;
+	struct vop_reg grf_mipi_pin_pol;
+	struct vop_reg grf_mipi_1to4_en;
 };
 
 struct vop_data {
@@ -1230,6 +1241,7 @@ struct vop_data {
 	const struct vop_csc_table *csc_table;
 	const struct vop_hdr_table *hdr_table;
 	const struct vop_grf_ctrl *grf;
+	const struct vop_grf_ctrl *vo0_grf;
 	unsigned int win_size;
 	uint32_t version;
 	struct vop_rect max_input;

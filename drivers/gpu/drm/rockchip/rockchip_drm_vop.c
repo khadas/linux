@@ -263,6 +263,7 @@ struct vop {
 	uint32_t *regsbak;
 	void __iomem *regs;
 	struct regmap *grf;
+	struct regmap *vo0_grf;
 
 	/* physical map length of vop register */
 	uint32_t len;
@@ -3575,13 +3576,25 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 		VOP_CTRL_SET(vop, edp_en, 1);
 		VOP_CTRL_SET(vop, edp_pin_pol, val);
 		VOP_CTRL_SET(vop, edp_dclk_pol, dclk_inv);
+		VOP_CTRL_SET(vop, inf_out_en, 1);
+		VOP_GRF_SET(vop, vo0_grf, grf_edp_ch_sel, 1);
 		break;
 	case DRM_MODE_CONNECTOR_HDMIA:
 		VOP_CTRL_SET(vop, hdmi_en, 1);
 		VOP_CTRL_SET(vop, hdmi_pin_pol, val);
 		VOP_CTRL_SET(vop, hdmi_dclk_pol, 1);
+		VOP_CTRL_SET(vop, inf_out_en, 1);
+		VOP_GRF_SET(vop, vo0_grf, grf_hdmi_ch_sel, 1);
+		VOP_GRF_SET(vop, vo0_grf, grf_hdmi_pin_pol, val);
+		VOP_GRF_SET(vop, vo0_grf, grf_hdmi_1to4_en, val);
 		break;
 	case DRM_MODE_CONNECTOR_DSI:
+		/*
+		 * RK3576 DSI CTRL hsync/vsync polarity is positive and can't update,
+		 * so set VOP hsync/vsync polarity as positive by default.
+		 */
+		if (vop->version == VOP_VERSION(2, 0xd))
+			val = BIT(HSYNC_POSITIVE) | BIT(VSYNC_POSITIVE);
 		VOP_CTRL_SET(vop, mipi_en, 1);
 		VOP_CTRL_SET(vop, mipi_pin_pol, val);
 		VOP_CTRL_SET(vop, mipi_dclk_pol, dclk_inv);
@@ -3590,6 +3603,11 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 		VOP_CTRL_SET(vop, data01_swap,
 			!!(s->output_flags & ROCKCHIP_OUTPUT_DATA_SWAP) ||
 			vop->dual_channel_swap);
+		VOP_CTRL_SET(vop, inf_out_en, 1);
+		VOP_GRF_SET(vop, vo0_grf, grf_mipi_ch_sel, 1);
+		VOP_GRF_SET(vop, vo0_grf, grf_mipi_mode, 1);
+		VOP_GRF_SET(vop, vo0_grf, grf_mipi_pin_pol, val);
+		VOP_GRF_SET(vop, vo0_grf, grf_mipi_1to4_en, 1);
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
 		VOP_CTRL_SET(vop, dp_dclk_pol, 0);
@@ -5256,6 +5274,7 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	vop->grf = syscon_regmap_lookup_by_phandle_optional(dev->of_node, "rockchip,grf");
+	vop->vo0_grf = syscon_regmap_lookup_by_phandle_optional(dev->of_node, "rockchip,vo0-grf");
 
 	vop->hclk = devm_clk_get(vop->dev, "hclk_vop");
 	if (IS_ERR(vop->hclk)) {
