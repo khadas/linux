@@ -75,6 +75,11 @@ static const struct rknpu_irqs_data rknpu_irqs[] = {
 	{ "npu_irq", rknpu_core0_irq_handler }
 };
 
+static const struct rknpu_irqs_data rk3576_npu_irqs[] = {
+	{ "npu0_irq", rknpu_core0_irq_handler },
+	{ "npu1_irq", rknpu_core1_irq_handler }
+};
+
 static const struct rknpu_irqs_data rk3588_npu_irqs[] = {
 	{ "npu0_irq", rknpu_core0_irq_handler },
 	{ "npu1_irq", rknpu_core1_irq_handler },
@@ -197,6 +202,25 @@ static const struct rknpu_config rk3562_rknpu_config = {
 	.amount_core = NULL,
 };
 
+static const struct rknpu_config rk3576_rknpu_config = {
+	.bw_priority_addr = 0x0,
+	.bw_priority_length = 0x0,
+	.dma_mask = DMA_BIT_MASK(40),
+	.pc_data_amount_scale = 2,
+	.pc_task_number_bits = 16,
+	.pc_task_number_mask = 0xffff,
+	.pc_task_status_offset = 0x48,
+	.pc_dma_ctrl = 1,
+	.irqs = rk3576_npu_irqs,
+	.num_irqs = ARRAY_SIZE(rk3576_npu_irqs),
+	.nbuf_phyaddr = 0x3fe80000,
+	.nbuf_size = 1024 * 1024,
+	.max_submit_number = (1 << 16) - 1,
+	.core_mask = 0x3,
+	.amount_top = &rknpu_top_amount,
+	.amount_core = &rknpu_core_amount,
+};
+
 /* driver probe and init */
 static const struct of_device_id rknpu_of_match[] = {
 	{
@@ -218,6 +242,10 @@ static const struct of_device_id rknpu_of_match[] = {
 	{
 		.compatible = "rockchip,rk3562-rknpu",
 		.data = &rk3562_rknpu_config,
+	},
+	{
+		.compatible = "rockchip,rk3576-rknpu",
+		.data = &rk3576_rknpu_config,
 	},
 	{},
 };
