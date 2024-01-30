@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+#include <linux/delay.h>
+#include <linux/i2c.h>
+#include <linux/kernel.h>
+#include <linux/mfd/core.h>
+#include <linux/module.h>
+#include <linux/of_platform.h>
+#include <linux/regmap.h>
+
+struct pmic_mfd_data {
+	struct device *dev;
+	const struct regmap_config *regmap_config;
+	const struct mfd_cell *mfd_cell;
+	size_t mfd_cell_size;
+};
+
+static const struct regmap_config regmap_config_8r_8v = {
+	.reg_bits = 8,
+	.val_bits = 8,
+};
+
+static int pmic_mfd_i2c_probe(struct i2c_client *i2c)
+{
+	struct pmic_mfd_data *data;
+	const struct regmap_config *regmap_config;
+	struct regmap *regmap;
+	int ret;
+
+	data = (struct pmic_mfd_data *)device_get_match_data(&i2c->dev);
+	if (!data)
+		return -ENODEV;
+
+	data->dev = &i2c->dev;
+
+	/* If no regmap_config is specified, use the default 8reg and 8val bits */
+	if (!data->regmap_config)
+		regmap_config = &regmap_config_8r_8v;
+	else
+		regmap_config = data->regmap_config;
+
+	regmap = devm_regmap_init_i2c(i2c, regmap_config);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	/* If no MFD cells are specified, register using the DT child nodes instead */
+	if (!data->mfd_cell)
+		return devm_of_platform_populate(&i2c->dev);
+
+	ret = devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_AUTO, data->mfd_cell,
+				   data->mfd_cell_size, NULL, 0, NULL);
+	if (ret) {
+		dev_err(&i2c->dev, "Failed to add child devices\n");
+		return ret;
+	}
+
+	dev_info(&i2c->dev, "EBC PMIC MFD driver probe success\n");
+
+	return 0;
+}
+
+static const struct of_device_id pmic_mfd_i2c_of_match[] = {
+	{}
+};
+MODULE_DEVICE_TABLE(of, pmic_mfd_i2c_of_match);
+
+static struct i2c_driver eink_pmic_mfd_i2c_driver = {
+	.probe_new = pmic_mfd_i2c_probe,
+	.driver = {
+		.name = "rockchip-eink-pmic-mfd-i2c",
+		.of_match_table = pmic_mfd_i2c_of_match,
+	},
+};
+module_i2c_driver(eink_pmic_mfd_i2c_driver);
+
+
+MODULE_DESCRIPTION("Rockchip EINK PMIC MFD I2C Driver");
+MODULE_LICENSE("GPL");

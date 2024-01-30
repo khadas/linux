@@ -2,3 +2,4 @@
 
 obj-$(CONFIG_ROCKCHIP_EBC_DEV) += ebc_pmic.o
 obj-$(CONFIG_EPD_TPS65185_SENSOR) += tps65185.o
+obj-$(CONFIG_ROCKCHIP_EBC_DEV) += ebc_pmic_mfd.o
