@@ -64,6 +64,7 @@ static int pmic_mfd_i2c_probe(struct i2c_client *i2c)
 
 static const struct mfd_cell sy7636a_cells[] = {
 	{ .name = "sy7636a-regulator", },
+	{ .name = "sy7636a-thermal", },
 };
 
 static struct pmic_mfd_data silergy_sy7636a = {
