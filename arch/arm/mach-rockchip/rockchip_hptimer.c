@@ -92,18 +92,23 @@ static int rk_hptimer_wait_begin_end_valid(void __iomem *base, u64 wait_us)
 	}
 }
 
-static u64 rk_hptimer_get_soft_adjust_delt_cnt(void __iomem *base)
+static u64 rk_hptimer_get_soft_adjust_delt_cnt(void __iomem *base, u32 hf, u32 lf)
 {
 	u64 begin, end, delt;
+	u32 tmp;
 
 	if (rk_hptimer_wait_begin_end_valid(base, HPTIMER_WAIT_MAX_US))
 		return 0;
 
+	/* (T32_24END - T24_32BEGIN + 2) * (T24 - T32) / T32 + 2.5 * T24/T32 + 2 */
 	begin = (u64)readl_relaxed(base + TIMER_HP_T24_32BEGIN0) |
 		(u64)readl_relaxed(base + TIMER_HP_T24_32BEGIN1) << 32;
 	end = (u64)readl_relaxed(base + TIMER_HP_T32_24END0) |
 	      (u64)readl_relaxed(base + TIMER_HP_T32_24END1) << 32;
-	delt = (end - begin) * T24M_GCD / T32K_GCD;
+	delt = (end - begin + 2) * (hf - lf);
+	delt = div_u64(delt, lf);
+	tmp = (2 * hf + hf / 2) / lf;
+	delt = delt + tmp + 2;
 
 	writel_relaxed(0x3, base + TIMER_HP_BEGIN_END_VALID);
 
@@ -167,18 +172,18 @@ int rk_hptimer_wait_mode(void __iomem *base, enum rk_hptimer_mode_t mode)
 	return 0;
 }
 
-void rk_hptimer_do_soft_adjust(void __iomem *base)
+void rk_hptimer_do_soft_adjust(void __iomem *base, u32 hf, u32 lf)
 {
-	u64 delt = rk_hptimer_get_soft_adjust_delt_cnt(base);
+	u64 delt = rk_hptimer_get_soft_adjust_delt_cnt(base, hf, lf);
 
 	rk_hptimer_soft_adjust_req(base, delt);
 
 	rk_hptimer_wait_mode(base, RK_HPTIMER_SOFT_ADJUST_MODE);
 }
 
-void rk_hptimer_do_soft_adjust_no_wait(void __iomem *base)
+void rk_hptimer_do_soft_adjust_no_wait(void __iomem *base, u32 hf, u32 lf)
 {
-	u64 delt = rk_hptimer_get_soft_adjust_delt_cnt(base);
+	u64 delt = rk_hptimer_get_soft_adjust_delt_cnt(base, hf, lf);
 
 	rk_hptimer_soft_adjust_req(base, delt);
 }

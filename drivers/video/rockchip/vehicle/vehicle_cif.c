@@ -2747,9 +2747,8 @@ static int vehicle_cif_csi_channel_init(struct vehicle_cif *cif,
 			return -EINVAL;
 		}
 	}
-	// channel->fmt_val = fmt->csi_fmt_val;
-	/* set cif input format yuv422*/
-	channel->fmt_val = CSI_WRDDR_TYPE_YUV422;
+
+	channel->fmt_val = fmt->csi_fmt_val;
 	VEHICLE_INFO("%s, LINE=%d, channel->fmt_val = 0x%x, fmt->csi_fmt_val= 0x%x",
 				__func__, __LINE__, channel->fmt_val, fmt->csi_fmt_val);
 	/*
@@ -3225,6 +3224,7 @@ static int vehicle_cif_csi2_s_stream(struct vehicle_cif *cif,
 		} else {
 			val |= infmt->csi_yuv_order;
 		}
+
 		rkcif_write_reg(cif, get_reg_index_of_id_ctrl0(channel->id), val);
 		cif->state = RKCIF_STATE_STREAMING;
 	} else {
@@ -3266,7 +3266,7 @@ static int vehicle_cif_csi2_s_stream_v1(struct vehicle_cif *cif,
 	channel = &cif->channels[0];
 
 	if (enable) {
-		val = CSI_ENABLE_CAPTURE | CSI_DMA_ENABLE | channel->fmt_val |
+		val = CSI_ENABLE_CAPTURE | CSI_DMA_ENABLE |
 		      channel->cmd_mode_en << 26 | CSI_ENABLE_CROP_V1 |
 		      channel->id << 8 | channel->data_type << 10;
 
@@ -3275,7 +3275,7 @@ static int vehicle_cif_csi2_s_stream_v1(struct vehicle_cif *cif,
 			VEHICLE_INFO("Input fmt is invalid, use default!\n");
 			val |= CSI_YUV_INPUT_ORDER_UYVY;
 		} else {
-			val |= infmt->csi_yuv_order;
+			val |= infmt->csi_yuv_order | infmt->csi_fmt_val;
 		}
 
 		if (cfg->output_format == CIF_OUTPUT_FORMAT_420) {
