@@ -62,7 +62,17 @@ static int pmic_mfd_i2c_probe(struct i2c_client *i2c)
 	return 0;
 }
 
+static const struct mfd_cell sy7636a_cells[] = {
+	{ .name = "sy7636a-regulator", },
+};
+
+static struct pmic_mfd_data silergy_sy7636a = {
+	.mfd_cell = sy7636a_cells,
+	.mfd_cell_size = ARRAY_SIZE(sy7636a_cells),
+};
+
 static const struct of_device_id pmic_mfd_i2c_of_match[] = {
+	{ .compatible = "silergy,sy7636a-pmic", .data = &silergy_sy7636a},
 	{}
 };
 MODULE_DEVICE_TABLE(of, pmic_mfd_i2c_of_match);
