@@ -272,7 +272,7 @@ int dmaengine_trcm_dma_guard_ctrl(struct snd_soc_component *component,
 		return 0;
 
 	if (!en)
-		return dmaengine_terminate_async(chan);
+		return dmaengine_terminate_sync(chan);
 
 	direction = stream ? DMA_DEV_TO_MEM : DMA_MEM_TO_DEV;
 
@@ -304,7 +304,7 @@ static int dmaengine_trcm_trigger(struct snd_soc_component *component,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		dmaengine_terminate_async(prtd->dma_chan);
+		dmaengine_terminate_sync(prtd->dma_chan);
 		ret = dmaengine_trcm_prepare_and_submit(substream);
 		if (ret)
 			return ret;
@@ -318,13 +318,13 @@ static int dmaengine_trcm_trigger(struct snd_soc_component *component,
 		if (runtime->info & SNDRV_PCM_INFO_PAUSE)
 			dmaengine_pause(prtd->dma_chan);
 		else
-			dmaengine_terminate_async(prtd->dma_chan);
+			dmaengine_terminate_sync(prtd->dma_chan);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		dmaengine_pause(prtd->dma_chan);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		dmaengine_terminate_async(prtd->dma_chan);
+		dmaengine_terminate_sync(prtd->dma_chan);
 		dmaengine_trcm_dma_guard_ctrl(component, substream->stream, 1);
 		break;
 	default:
