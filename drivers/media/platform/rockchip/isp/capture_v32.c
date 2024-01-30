@@ -1081,6 +1081,10 @@ static void update_mi(struct rkisp_stream *stream)
 				if (!ISP3X_ISP_OUT_LINE(rkisp_read(dev, ISP3X_ISP_DEBUG2, true))) {
 					stream->ops->enable_mi(stream);
 					stream_self_update(stream);
+					if (!stream->curr_buf) {
+						stream->curr_buf = stream->next_buf;
+						stream->next_buf = NULL;
+					}
 					/* maybe no next buf to preclose mi */
 					stream->ops->disable_mi(stream);
 				} else {
@@ -1089,10 +1093,6 @@ static void update_mi(struct rkisp_stream *stream)
 					 */
 					stream->ops->enable_mi(stream);
 					stream->is_pause = false;
-				}
-				if (!stream->curr_buf) {
-					stream->curr_buf = stream->next_buf;
-					stream->next_buf = NULL;
 				}
 			} else {
 				/* isp working and mi no to close
@@ -1362,6 +1362,7 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	unsigned long lock_flags = 0;
+	u32 val;
 
 	if (stream->streaming && dev->isp_ver == ISP_V32) {
 		rkisp_rockit_buf_done(stream, ROCKIT_DVBM_START);
@@ -1384,6 +1385,24 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
 							struct rkisp_buffer, queue);
 			list_del(&stream->next_buf->queue);
 			stream->ops->update_mi(stream);
+		} else if (dev->hw_dev->is_single &&
+			   stream->next_buf && !stream->curr_buf) {
+			val = rkisp_read(dev, ISP3X_ISP_DEBUG2, true);
+			if (stream->ops->is_stream_stopped(stream) &&
+			    !ISP3X_ISP_OUT_LINE(val)) {
+				stream->ops->enable_mi(stream);
+				stream_self_update(stream);
+			}
+			if (!stream->ops->is_stream_stopped(stream)) {
+				stream->curr_buf = stream->next_buf;
+				stream->next_buf = NULL;
+				if (!list_empty(&stream->buf_queue)) {
+					stream->next_buf = list_first_entry(&stream->buf_queue,
+									struct rkisp_buffer, queue);
+					list_del(&stream->next_buf->queue);
+				}
+				stream->ops->update_mi(stream);
+			}
 		}
 		/* check frame loss */
 		if (stream->ops->is_stream_stopped(stream))
