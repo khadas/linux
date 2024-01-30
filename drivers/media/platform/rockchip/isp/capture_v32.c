@@ -752,7 +752,8 @@ static int mp_config_mi(struct rkisp_stream *stream)
 
 	mi_frame_end_int_enable(stream);
 	/* set up first buffer */
-	mi_frame_end(stream, FRAME_INIT);
+	if (dev->cap_dev.wrap_line && stream->dummy_buf.mem_priv)
+		mi_frame_end(stream, FRAME_INIT);
 
 	rkisp_unite_write(dev, stream->config->mi.y_offs_cnt_init, 0, false);
 	rkisp_unite_write(dev, stream->config->mi.cb_offs_cnt_init, 0, false);
@@ -1364,11 +1365,6 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
 	unsigned long lock_flags = 0;
 	u32 val;
 
-	if (stream->streaming && dev->isp_ver == ISP_V32) {
-		rkisp_rockit_buf_done(stream, ROCKIT_DVBM_START);
-		rkisp_rockit_ctrl_fps(stream);
-	}
-
 	/* readback start to update stream buf if null */
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	if (stream->streaming) {
@@ -1709,17 +1705,19 @@ static int rkisp_create_dummy_buf(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	struct rkisp_dummy_buffer *buf = &stream->dummy_buf;
-	int ret;
+	int ret = 0;
 
 	/* mainpath for warp default */
 	if (!dev->cap_dev.wrap_line || stream->id != RKISP_STREAM_MP)
 		return 0;
 
-	buf->size = dev->cap_dev.wrap_width * dev->cap_dev.wrap_line * 2;
-	if (stream->out_isp_fmt.output_format == ISP32_MI_OUTPUT_YUV420)
-		buf->size = buf->size - buf->size / 4;
-	buf->is_need_dbuf = true;
-	ret = rkisp_alloc_buffer(stream->ispdev, buf);
+	if (!buf->dma_addr) {
+		buf->size = dev->cap_dev.wrap_width * dev->cap_dev.wrap_line * 2;
+		if (stream->out_isp_fmt.output_format == ISP32_MI_OUTPUT_YUV420)
+			buf->size = buf->size - buf->size / 4;
+		buf->is_need_dbuf = true;
+		ret = rkisp_alloc_buffer(stream->ispdev, buf);
+	}
 	if (ret == 0) {
 		ret = rkisp_dvbm_init(stream);
 		if (ret < 0)
@@ -1737,6 +1735,7 @@ static void rkisp_destroy_dummy_buf(struct rkisp_stream *stream)
 		return;
 	rkisp_dvbm_deinit();
 	rkisp_free_buffer(dev, &stream->dummy_buf);
+	stream->dummy_buf.dma_addr = 0;
 }
 
 static void destroy_buf_queue(struct rkisp_stream *stream,
@@ -2044,7 +2043,7 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 		goto buffer_done;
 
 	if (dev->isp_ver == ISP_V32 &&
-	    count == 0 && !stream->dummy_buf.mem_priv &&
+	    count == 0 && !stream->dummy_buf.dma_addr &&
 	    list_empty(&stream->buf_queue)) {
 		v4l2_err(v4l2_dev, "no buf for %s\n", node->vdev.name);
 		ret = -EINVAL;

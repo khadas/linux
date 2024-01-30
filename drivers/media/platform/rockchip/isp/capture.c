@@ -1155,12 +1155,8 @@ static int rkisp_set_wrap_line(struct rkisp_stream *stream, struct rkisp_wrap_in
 {
 	struct rkisp_device *dev = stream->ispdev;
 
-	if (dev->isp_ver != ISP_V32 ||
-	    dev->hw_dev->dev_link_num > 1 ||
-	    !stream->ops->set_wrap ||
-	    dev->hw_dev->unite) {
-		v4l2_err(&dev->v4l2_dev,
-			 "wrap only support for single sensor and mainpath\n");
+	if (!stream->ops->set_wrap) {
+		v4l2_err(&dev->v4l2_dev, "no support wrap\n");
 		return -EINVAL;
 	}
 	dev->cap_dev.wrap_width = arg->width;

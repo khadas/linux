@@ -161,65 +161,55 @@ static bool rga_check_align(uint32_t byte_stride_align, uint32_t format, uint16_
 	return false;
 }
 
-static bool rga_check_src0(const struct rga_hw_data *data,
-			 struct rga_img_info_t *src0)
+static bool rga_check_channel(const struct rga_hw_data *data,
+			      struct rga_img_info_t *img,
+			      const char *name, int input, int win_num)
 {
-	if (!rga_check_resolution(&data->input_range, src0->act_w, src0->act_h))
+	const struct rga_rect_range *range;
+
+	if (input)
+		range = &data->input_range;
+	else
+		range = &data->output_range;
+
+	if (!rga_check_resolution(range, img->act_w, img->act_h)) {
+		if (DEBUGGER_EN(MSG))
+			pr_info("%s resolution check error, input range[%dx%d ~ %dx%d], [w,h] = [%d, %d]\n",
+				name,
+				data->input_range.min.width, data->input_range.min.height,
+				data->input_range.max.width, data->input_range.max.height,
+				img->act_w, img->act_h);
+
 		return false;
+	}
 
 	if (data == &rga3_data &&
 	    !rga_check_resolution(&data->input_range,
-				  src0->act_w + src0->x_offset,
-				  src0->act_h + src0->y_offset))
+				  img->act_w + img->x_offset,
+				  img->act_h + img->y_offset)) {
+		if (DEBUGGER_EN(MSG))
+			pr_info("%s RGA3 resolution check error, input range[%dx%d ~ %dx%d], [w+x,h+y] = [%d, %d]\n",
+				name,
+				data->input_range.min.width, data->input_range.min.height,
+				data->input_range.max.width, data->input_range.max.height,
+				img->act_w + img->x_offset,
+				img->act_h + img->y_offset);
 		return false;
+	}
 
-	if (!rga_check_format(data, src0->rd_mode, src0->format, 0))
+	if (!rga_check_format(data, img->rd_mode, img->format, win_num)) {
+		if (DEBUGGER_EN(MSG))
+			pr_info("%s format check error, mode = %#x, format = %#x\n",
+				name, img->rd_mode, img->format);
 		return false;
+	}
 
-	if (!rga_check_align(data->byte_stride_align, src0->format, src0->vir_w))
+	if (!rga_check_align(data->byte_stride_align, img->format, img->vir_w)) {
+		if (DEBUGGER_EN(MSG))
+			pr_info("%s align check error, byte_stride_align[%d], format[%#x], vir_w[%d]\n",
+				name, data->byte_stride_align, img->format, img->vir_w);
 		return false;
-
-	return true;
-}
-
-static bool rga_check_src1(const struct rga_hw_data *data,
-			 struct rga_img_info_t *src1)
-{
-	if (!rga_check_resolution(&data->input_range, src1->act_w, src1->act_h))
-		return false;
-
-	if (data == &rga3_data &&
-	    !rga_check_resolution(&data->input_range,
-				  src1->act_w + src1->x_offset,
-				  src1->act_h + src1->y_offset))
-		return false;
-
-	if (!rga_check_format(data, src1->rd_mode, src1->format, 1))
-		return false;
-
-	if (!rga_check_align(data->byte_stride_align, src1->format, src1->vir_w))
-		return false;
-
-	return true;
-}
-
-static bool rga_check_dst(const struct rga_hw_data *data,
-			 struct rga_img_info_t *dst)
-{
-	if (!rga_check_resolution(&data->output_range, dst->act_w, dst->act_h))
-		return false;
-
-	if (data == &rga3_data &&
-	    !rga_check_resolution(&data->output_range,
-				  dst->act_w + dst->x_offset,
-				  dst->act_h + dst->y_offset))
-		return false;
-
-	if (!rga_check_format(data, dst->rd_mode, dst->format, 2))
-		return false;
-
-	if (!rga_check_align(data->byte_stride_align, dst->format, dst->vir_w))
-		return false;
+	}
 
 	return true;
 }
@@ -235,33 +225,33 @@ static bool rga_check_scale(const struct rga_hw_data *data,
 
 	sw = src0->act_w;
 	sh = src0->act_h;
-
-	if ((rga_base->sina == 65536 && rga_base->cosa == 0)
-		|| (rga_base->sina == -65536 && rga_base->cosa == 0)) {
-		dw = dst->act_h;
-		dh = dst->act_w;
-	} else {
-		dw = dst->act_w;
-		dh = dst->act_h;
-	}
+	dw = dst->act_w;
+	dh = dst->act_h;
 
 	if (sw > dw) {
 		if ((sw >> data->max_downscale_factor) > dw)
-			return false;
+			goto check_error;
 	} else if (sw < dw) {
 		if ((sw << data->max_upscale_factor) < dw)
-			return false;
+			goto check_error;
 	}
 
 	if (sh > dh) {
 		if ((sh >> data->max_downscale_factor) > dh)
-			return false;
+			goto check_error;
 	} else if (sh < dh) {
 		if ((sh << data->max_upscale_factor) < dh)
-			return false;
+			goto check_error;
 	}
 
 	return true;
+check_error:
+	if (DEBUGGER_EN(MSG))
+		pr_info("scale check error, scale limit[1/%d ~ %d], src[%d, %d], dst[%d, %d]\n",
+			(1 << data->max_downscale_factor), (1 << data->max_upscale_factor),
+			sw, sh, dw, dh);
+
+	return false;
 }
 
 int rga_job_assign(struct rga_job *job)
@@ -315,7 +305,7 @@ int rga_job_assign(struct rga_job *job)
 		if (feature > 0) {
 			if (!(feature & data->feature)) {
 				if (DEBUGGER_EN(MSG))
-					pr_info("core = %d, break on feature",
+					pr_info("core = %d, break on feature\n",
 						scheduler->core);
 				continue;
 			}
@@ -324,20 +314,38 @@ int rga_job_assign(struct rga_job *job)
 		/* only colorfill need single win (colorpalette?) */
 		if (!(feature & 1)) {
 			if (src1->yrgb_addr > 0) {
-				if ((!(src0->rd_mode & data->win[0].rd_mode)) ||
-					(!(src1->rd_mode & data->win[1].rd_mode)) ||
-					(!(dst->rd_mode & data->win[2].rd_mode))) {
+				if (!(src0->rd_mode & data->win[0].rd_mode)) {
 					if (DEBUGGER_EN(MSG))
-						pr_info("core = %d, ABC break on rd_mode",
-							scheduler->core);
+						pr_info("core[%#x], src0 break on rd_mode[%#x]\n",
+							scheduler->core, src0->rd_mode);
+					continue;
+				}
+
+				if (!(src1->rd_mode & data->win[1].rd_mode)) {
+					if (DEBUGGER_EN(MSG))
+						pr_info("core[%#x], src1 break on rd_mode[%#x]\n",
+							scheduler->core, src1->rd_mode);
+					continue;
+				}
+
+				if (!(dst->rd_mode & data->win[2].rd_mode)) {
+					if (DEBUGGER_EN(MSG))
+						pr_info("core[%#x], dst break on rd_mode[%#x]\n",
+							scheduler->core, dst->rd_mode);
 					continue;
 				}
 			} else {
-				if ((!(src0->rd_mode & data->win[0].rd_mode)) ||
-					(!(dst->rd_mode & data->win[2].rd_mode))) {
+				if (!(src0->rd_mode & data->win[0].rd_mode)) {
 					if (DEBUGGER_EN(MSG))
-						pr_info("core = %d, ABB break on rd_mode",
-							scheduler->core);
+						pr_info("core[%#x], src break on rd_mode[%#x]\n",
+							scheduler->core, src0->rd_mode);
+					continue;
+				}
+
+				if (!(dst->rd_mode & data->win[2].rd_mode)) {
+					if (DEBUGGER_EN(MSG))
+						pr_info("core[%#x], dst break on rd_mode[%#x]\n",
+							scheduler->core, dst->rd_mode);
 					continue;
 				}
 			}
@@ -349,26 +357,26 @@ int rga_job_assign(struct rga_job *job)
 				continue;
 			}
 
-			if (!rga_check_src0(data, src0)) {
+			if (!rga_check_channel(data, src0, "src0", true, 0)) {
 				if (DEBUGGER_EN(MSG))
-					pr_info("core = %d, break on rga_check_src0",
+					pr_info("core = %d, break on src0",
 						scheduler->core);
 				continue;
 			}
 
 			if (src1->yrgb_addr > 0) {
-				if (!rga_check_src1(data, src1)) {
+				if (!rga_check_channel(data, src1, "src1", true, 1)) {
 					if (DEBUGGER_EN(MSG))
-						pr_info("core = %d, break on rga_check_src1",
+						pr_info("core = %d, break on src1",
 							scheduler->core);
 					continue;
 				}
 			}
 		}
 
-		if (!rga_check_dst(data, dst)) {
+		if (!rga_check_channel(data, dst, "dst", false, 2)) {
 			if (DEBUGGER_EN(MSG))
-				pr_info("core = %d, break on rga_check_dst",
+				pr_info("core = %d, break on dst",
 					scheduler->core);
 			continue;
 		}
