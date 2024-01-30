@@ -1274,12 +1274,25 @@ static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 }
 
 static void rkvenc2_read_slice_len(struct mpp_dev *mpp, struct rkvenc_task *task,
-				   u32 last)
+				   u32 *irq_status)
 {
+	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+	struct rkvenc_hw_info *hw = enc->hw_info;
 	u32 sli_num = mpp_read_relaxed(mpp, RKVENC2_REG_SLICE_NUM_BASE);
+	u32 new_irq_status = mpp_read(mpp, hw->int_sta_base);
 	union rkvenc2_slice_len_info slice_info;
 	u32 task_id = task->mpp_task.task_id;
 	u32 i;
+	u32 last = 0;
+
+	/* Need update irq status and slice number when enc done ready with new status*/
+	if ((new_irq_status != *irq_status) && (new_irq_status & INT_STA_ENC_DONE_STA)) {
+		*irq_status |= new_irq_status;
+		sli_num = mpp_read_relaxed(mpp, RKVENC2_REG_SLICE_NUM_BASE);
+		mpp_write(mpp, hw->int_clr_base, new_irq_status);
+	}
+
+	last = *irq_status & INT_STA_ENC_DONE_STA;
 
 	mpp_dbg_slice("task %d wr %3d len start %s\n", task_id,
 		      sli_num, last ? "last" : "");
@@ -1348,7 +1361,7 @@ static int rkvenc_irq(struct mpp_dev *mpp)
 	if (task && task->task_split &&
 	    (irq_status & (INT_STA_SLC_DONE_STA | INT_STA_ENC_DONE_STA))) {
 		mpp_time_part_diff(mpp_task);
-		rkvenc2_read_slice_len(mpp, task, irq_status & INT_STA_ENC_DONE_STA);
+		rkvenc2_read_slice_len(mpp, task, &irq_status);
 		wake_up(&mpp_task->wait);
 	}
 
