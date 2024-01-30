@@ -12448,6 +12448,11 @@ static int aml_lcd_gamma_notifier(struct notifier_block *nb,
 	if ((event & LCD_EVENT_GAMMA_UPDATE) == 0)
 		return NOTIFY_DONE;
 
+	if (!data) {
+		pr_amvecm_dbg("%s: %d\n", __func__, __LINE__);
+		return NOTIFY_DONE;
+	}
+
 	param = (unsigned int *)data;
 	/*gamma_index: select which vpp,  vpp0/vpp1/vpp2 gamma*/
 	gamma_index = param[0];
@@ -12455,6 +12460,11 @@ static int aml_lcd_gamma_notifier(struct notifier_block *nb,
 	 *0xff: default(not tcon) gamma
 	 */
 	gm_par_idx = param[1];
+
+	if (gm_par_idx >= FREESYNC_DYNAMIC_GAMMA_NUM) {
+		pr_amvecm_dbg("%s: %d\n", __func__, __LINE__);
+		return NOTIFY_DONE;
+	}
 
 	if (gm_par_idx != 0xff) {
 		if (!frame_lock_get_vrr_status())
