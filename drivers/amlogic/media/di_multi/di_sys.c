@@ -47,6 +47,7 @@
 #include <linux/string.h>
 #include <linux/compat.h>
 #include <linux/of_device.h>
+#include <linux/clk-provider.h>
 
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vpu/vpu.h>
@@ -4239,7 +4240,13 @@ static void dim_shutdown(struct platform_device *pdev)
 
 	if (!is_meson_txlx_cpu())
 		diext_clk_b_sw(false);
-	if (!DIM_IS_IC(T5) && !DIM_IS_IC(T5DB) && !DIM_IS_IC(T5D))
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
+#ifdef CLK_TREE_SUPPORT
+		clk_disable_unprepare(di_devp->vpu_clkb);
+#endif
+	}
+	if (!DIM_IS_IC(T5) && !DIM_IS_IC(T5DB) && !DIM_IS_IC(T5D) &&
+		__clk_is_enabled(di_devp->vpu_clk_mux))
 		clk_disable_unprepare(di_devp->vpu_clk_mux);
 	PR_INF("%s.\n", __func__);
 }

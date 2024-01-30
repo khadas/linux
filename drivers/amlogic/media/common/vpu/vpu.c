@@ -2624,7 +2624,8 @@ static int vpu_resume(struct platform_device *pdev)
 
 static void vpu_shutdown(struct platform_device *pdev)
 {
-	if (!IS_ERR_OR_NULL(vpu_conf.vpu_clk) &&
+	if (vpu_conf.data->gp_pll_valid &&
+		!IS_ERR_OR_NULL(vpu_conf.vpu_clk) &&
 		__clk_is_enabled(vpu_conf.vpu_clk))
 		clk_disable_unprepare(vpu_conf.vpu_clk);
 
