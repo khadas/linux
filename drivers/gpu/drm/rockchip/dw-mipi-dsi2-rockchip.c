@@ -998,7 +998,8 @@ dw_mipi_dsi2_encoder_atomic_check(struct drm_encoder *encoder,
 	s->bus_flags = info->bus_flags;
 
 	s->tv_state = &conn_state->tv;
-	s->color_space = V4L2_COLORSPACE_DEFAULT;
+	s->color_encoding = DRM_COLOR_YCBCR_BT709;
+	s->color_range = DRM_COLOR_YCBCR_FULL_RANGE;
 
 	if (!(dsi2->mode_flags & MIPI_DSI_MODE_VIDEO)) {
 		s->output_flags |= ROCKCHIP_OUTPUT_MIPI_DS_MODE;

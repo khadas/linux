@@ -1017,7 +1017,7 @@ static const struct csc_mapping csc_mapping_table[] = {
 		true,
 	},
 	{
-		CSC_BT2020,
+		CSC_BT2020L,
 		OPTM_CS_E_RGB_2020,
 		OPTM_CS_E_XV_YCC_2020,
 		true,

@@ -30,7 +30,7 @@ void rkisp_rockit_buf_state_clear(struct rkisp_stream *stream);
 int rkisp_rockit_buf_free(struct rkisp_stream *stream);
 void rkisp_rockit_dev_init(struct rkisp_device *dev);
 void rkisp_rockit_dev_deinit(void);
-bool rkisp_rockit_ctrl_fps(struct rkisp_stream *stream);
+void rkisp_rockit_frame_start(struct rkisp_device *dev);
 int rkisp_rockit_fps_set(int *dst_fps, struct rkisp_stream *stream);
 int rkisp_rockit_fps_get(int *dst_fps, struct rkisp_stream *stream);
 int rkisp_rockit_buf_done(struct rkisp_stream *stream, int cmd);
@@ -44,7 +44,7 @@ static inline void rkisp_rockit_buf_state_clear(struct rkisp_stream *stream) { r
 static inline int rkisp_rockit_buf_free(struct rkisp_stream *stream) { return -EINVAL; }
 static inline void rkisp_rockit_dev_init(struct rkisp_device *dev) { return; }
 static inline void rkisp_rockit_dev_deinit(void) {}
-static inline bool rkisp_rockit_ctrl_fps(struct rkisp_stream *stream) { return false; }
+static inline void rkisp_rockit_frame_start(struct rkisp_device *dev) {}
 static inline int rkisp_rockit_fps_set(int *dst_fps, struct rkisp_stream *stream) { return -EINVAL; }
 static inline int rkisp_rockit_fps_get(int *dst_fps, struct rkisp_stream *stream) { return -EINVAL; }
 static inline int rkisp_rockit_buf_done(struct rkisp_stream *stream, int cmd) { return -EINVAL; }

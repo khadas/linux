@@ -48,7 +48,7 @@
 #define DRIVER_NAME	"rockchip"
 #define DRIVER_DESC	"RockChip Soc DRM"
 #define DRIVER_DATE	"20140818"
-#define DRIVER_MAJOR	3
+#define DRIVER_MAJOR	4
 #define DRIVER_MINOR	0
 
 #define for_each_displayid_db(displayid, block, idx, length) \
@@ -446,6 +446,33 @@ u32 rockchip_drm_get_dclk_by_width(int width)
 	return dclk_khz;
 }
 EXPORT_SYMBOL(rockchip_drm_get_dclk_by_width);
+
+static const char * const color_encoding_name[] = {
+	[DRM_COLOR_YCBCR_BT601] = "BT.601",
+	[DRM_COLOR_YCBCR_BT709] = "BT.709",
+	[DRM_COLOR_YCBCR_BT2020] = "BT.2020",
+};
+
+static const char * const color_range_name[] = {
+	[DRM_COLOR_YCBCR_LIMITED_RANGE] = "Limited",
+	[DRM_COLOR_YCBCR_FULL_RANGE] = "Full",
+};
+
+const char *rockchip_drm_get_color_encoding_name(enum drm_color_encoding encoding)
+{
+	if (WARN_ON(encoding >= ARRAY_SIZE(color_encoding_name)))
+		return "unknown";
+
+	return color_encoding_name[encoding];
+}
+
+const char *rockchip_drm_get_color_range_name(enum drm_color_range range)
+{
+	if (WARN_ON(range >= ARRAY_SIZE(color_range_name)))
+		return "unknown";
+
+	return color_range_name[range];
+}
 
 static int
 cea_db_tag(const u8 *db)
@@ -1338,12 +1365,6 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 	if (!prop)
 		return -ENOMEM;
 	private->eotf_prop = prop;
-
-	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
-					 "COLOR_SPACE", 0, 12);
-	if (!prop)
-		return -ENOMEM;
-	private->color_space_prop = prop;
 
 	prop = drm_property_create_range(dev, DRM_MODE_PROP_ATOMIC,
 					 "ASYNC_COMMIT", 0, 1);

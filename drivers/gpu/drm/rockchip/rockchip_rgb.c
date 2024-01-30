@@ -270,6 +270,8 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 	else
 		s->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 
+	s->color_range = DRM_COLOR_YCBCR_FULL_RANGE;
+	s->color_encoding = DRM_COLOR_YCBCR_BT709;
 	switch (s->bus_format) {
 	case MEDIA_BUS_FMT_RGB666_1X18:
 		s->output_mode = ROCKCHIP_OUT_MODE_P666;
@@ -304,6 +306,8 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 	case MEDIA_BUS_FMT_VYUY8_2X8:
 		s->output_mode = ROCKCHIP_OUT_MODE_BT656;
 		s->output_if = VOP_OUTPUT_IF_BT656;
+		s->color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
+		s->color_encoding = DRM_COLOR_YCBCR_BT601;
 		break;
 	case MEDIA_BUS_FMT_YUYV8_1X16:
 	case MEDIA_BUS_FMT_YVYU8_1X16:
@@ -311,6 +315,7 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 	case MEDIA_BUS_FMT_VYUY8_1X16:
 		s->output_mode = ROCKCHIP_OUT_MODE_BT1120;
 		s->output_if = VOP_OUTPUT_IF_BT1120;
+		s->color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X24:
 	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
@@ -324,7 +329,6 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 	s->bus_flags = info->bus_flags;
 	s->tv_state = &conn_state->tv;
 	s->eotf = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
-	s->color_space = V4L2_COLORSPACE_DEFAULT;
 
 	return 0;
 }

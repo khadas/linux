@@ -2402,13 +2402,20 @@ secondary:
 	hdmi->bus_format = s->bus_format;
 
 	if (hdmi->enc_out_encoding == V4L2_YCBCR_ENC_BT2020)
-		s->color_space = V4L2_COLORSPACE_BT2020;
-	else if (colorformat == RK_IF_FORMAT_RGB)
-		s->color_space = V4L2_COLORSPACE_DEFAULT;
+		s->color_encoding = DRM_COLOR_YCBCR_BT2020;
+	else if (colorformat == RK_IF_FORMAT_RGB)/* sRGB color space is almost equal to bt.709 */
+		s->color_encoding = DRM_COLOR_YCBCR_BT709;
 	else if (hdmi->enc_out_encoding == V4L2_YCBCR_ENC_709)
-		s->color_space = V4L2_COLORSPACE_REC709;
+		s->color_encoding = DRM_COLOR_YCBCR_BT709;
 	else
-		s->color_space = V4L2_COLORSPACE_SMPTE170M;
+		s->color_encoding = DRM_COLOR_YCBCR_BT601;
+
+	if (colorformat == RK_IF_FORMAT_RGB)
+		s->color_range = hdmi->hdmi_quant_range == HDMI_QUANTIZATION_RANGE_LIMITED ?
+					DRM_COLOR_YCBCR_LIMITED_RANGE : DRM_COLOR_YCBCR_FULL_RANGE;
+	else
+		s->color_range = hdmi->hdmi_quant_range == HDMI_QUANTIZATION_RANGE_FULL ?
+					DRM_COLOR_YCBCR_FULL_RANGE : DRM_COLOR_YCBCR_LIMITED_RANGE;
 
 	if (hdmi->plat_data->split_mode && !secondary) {
 		hdmi = rockchip_hdmi_find_by_id(hdmi->dev->driver, !hdmi->id);
@@ -2865,7 +2872,7 @@ dw_hdmi_rockchip_attach_properties(struct drm_connector *connector,
 
 	if (!hdmi->is_hdmi_qp) {
 		prop = drm_property_create_enum(connector->dev, 0,
-						"hdmi_quant_range",
+						"quant_range",
 						quant_range_enum_list,
 						ARRAY_SIZE(quant_range_enum_list));
 		if (prop) {

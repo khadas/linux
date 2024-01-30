@@ -340,7 +340,8 @@ rockchip_lvds_encoder_atomic_check(struct drm_encoder *encoder,
 	s->bus_flags = info->bus_flags;
 	s->tv_state = &conn_state->tv;
 	s->eotf = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
-	s->color_space = V4L2_COLORSPACE_DEFAULT;
+	s->color_encoding = DRM_COLOR_YCBCR_BT709;
+	s->color_range = DRM_COLOR_YCBCR_FULL_RANGE;
 
 	switch (lvds->pixel_order) {
 	case ROCKCHIP_LVDS_DUAL_LINK_ODD_EVEN_PIXELS:

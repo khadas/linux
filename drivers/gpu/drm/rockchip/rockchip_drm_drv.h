@@ -281,7 +281,8 @@ struct rockchip_crtc_state {
 	int post_y2r_en;
 	int post_csc_mode;
 	int bcsh_en;
-	int color_space;
+	enum drm_color_encoding color_encoding;
+	enum drm_color_range color_range;
 	int eotf;
 	u32 background;
 	u32 line_flag;
@@ -507,7 +508,6 @@ struct rockchip_drm_private {
 
 	/* private plane prop */
 	struct drm_property *eotf_prop;
-	struct drm_property *color_space_prop;
 	struct drm_property *async_commit_prop;
 	struct drm_property *share_id_prop;
 
@@ -567,6 +567,8 @@ void rockchip_drm_te_handle(struct drm_crtc *crtc);
 void drm_mode_convert_to_split_mode(struct drm_display_mode *mode);
 void drm_mode_convert_to_origin_mode(struct drm_display_mode *mode);
 u32 rockchip_drm_get_dclk_by_width(int width);
+const char *rockchip_drm_get_color_encoding_name(enum drm_color_encoding encoding);
+const char *rockchip_drm_get_color_range_name(enum drm_color_range range);
 #if IS_REACHABLE(CONFIG_DRM_ROCKCHIP)
 int rockchip_drm_get_sub_dev_type(void);
 u32 rockchip_drm_get_scan_line_time_ns(void);

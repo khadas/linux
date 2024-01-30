@@ -180,7 +180,6 @@ struct vop_plane_state {
 	bool y2r_en;
 	bool r2r_en;
 	bool r2y_en;
-	int color_space;
 	u32 color_key;
 	unsigned int csc_mode;
 	int global_alpha;
@@ -1030,18 +1029,17 @@ static int vop_hdr_atomic_check(struct drm_crtc *crtc,
 	pre_sdr2hdr_state = 0;
 	post_sdr2hdr_state = 0;
 	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
-		struct vop_plane_state *vop_plane_state;
 		struct vop_win *win = to_vop_win(plane);
 
 		pstate = drm_atomic_get_plane_state(state, plane);
 		if (IS_ERR(pstate))
 			return PTR_ERR(pstate);
-		vop_plane_state = to_vop_plane_state(pstate);
 		if (!pstate->fb)
 			continue;
 
-		if (vop_plane_state->color_space == V4L2_COLORSPACE_BT2020 &&
-		    vop_plane_state->color_space > s->color_space) {
+		/* bt.2020 to bt.709 */
+		if (pstate->color_encoding == DRM_COLOR_YCBCR_BT2020 &&
+		    s->color_encoding != DRM_COLOR_YCBCR_BT2020) {
 			if (win->feature & WIN_FEATURE_PRE_OVERLAY) {
 				pre_sdr2hdr_mode = BT2020_TO_BT709;
 				pre_sdr2hdr_state |= BIT(plane_id);
@@ -1050,8 +1048,10 @@ static int vop_hdr_atomic_check(struct drm_crtc *crtc,
 				post_sdr2hdr_state |= BIT(plane_id);
 			}
 		}
-		if (s->color_space == V4L2_COLORSPACE_BT2020 &&
-		    vop_plane_state->color_space < s->color_space) {
+
+		/* bt.709 to bt.2020 */
+		if (s->color_encoding == DRM_COLOR_YCBCR_BT2020 &&
+		    pstate->color_encoding != DRM_COLOR_YCBCR_BT2020) {
 			if (win->feature & WIN_FEATURE_PRE_OVERLAY) {
 				pre_sdr2hdr_mode = BT709_TO_BT2020;
 				pre_sdr2hdr_state |= BIT(plane_id);
@@ -1088,24 +1088,43 @@ exit_hdr_convert:
 	return 0;
 }
 
-static int to_vop_csc_mode(int csc_mode)
+static enum vop_csc_format to_vop_csc_mode(enum drm_color_encoding color_encoding,
+					   enum drm_color_range color_range)
 {
-	switch (csc_mode) {
-	case V4L2_COLORSPACE_SMPTE170M:
-	case V4L2_COLORSPACE_470_SYSTEM_M:
-	case V4L2_COLORSPACE_470_SYSTEM_BG:
-		return CSC_BT601L;
-	case V4L2_COLORSPACE_REC709:
-	case V4L2_COLORSPACE_SMPTE240M:
-	case V4L2_COLORSPACE_DEFAULT:
-		return CSC_BT709L;
-	case V4L2_COLORSPACE_JPEG:
-		return CSC_BT601F;
-	case V4L2_COLORSPACE_BT2020:
-		return CSC_BT2020;
+	bool full_range = color_range == DRM_COLOR_YCBCR_FULL_RANGE ? 1 : 0;
+	enum vop_csc_format csc_mode = CSC_BT709L;
+
+	switch (color_encoding) {
+	case DRM_COLOR_YCBCR_BT601:
+		if (full_range)
+			csc_mode = CSC_BT601F;
+		else
+			csc_mode = CSC_BT601L;
+		break;
+
+	case DRM_COLOR_YCBCR_BT709:
+		if (full_range) {
+			csc_mode = CSC_BT601F;
+			DRM_DEBUG("Unsupported bt709f at 10bit csc depth, use bt601f instead\n");
+		} else {
+			csc_mode = CSC_BT709L;
+		}
+		break;
+
+	case DRM_COLOR_YCBCR_BT2020:
+		if (full_range) {
+			csc_mode = CSC_BT601F;
+			DRM_DEBUG("Unsupported bt2020f at 10bit csc depth, use bt601f instead\n");
+		} else {
+			csc_mode = CSC_BT2020L;
+		}
+		break;
+
 	default:
-		return CSC_BT709L;
+		DRM_ERROR("Unsuport color_encoding:%d\n", color_encoding);
 	}
+
+	return csc_mode;
 }
 
 static void vop_disable_all_planes(struct vop *vop)
@@ -1154,13 +1173,17 @@ static void vop_disable_all_planes(struct vop *vop)
  *
  * 11. RGB       --> bypass                --> RGB_OUTPUT(709)
  */
-static int vop_setup_csc_table(const struct vop_csc_table *csc_table,
-			       bool is_input_yuv, bool is_output_yuv,
-			       int input_csc, int output_csc,
+static int vop_setup_csc_table(struct rockchip_crtc_state *s,
+			       struct drm_plane_state *pstate, const struct vop_csc_table *csc_table,
 			       const uint32_t **y2r_table,
 			       const uint32_t **r2r_table,
 			       const uint32_t **r2y_table)
 {
+	bool is_input_yuv = is_yuv_support(pstate->fb->format->format);
+	bool is_output_yuv = is_yuv_output(s->bus_format);
+	int input_csc = pstate->color_encoding;
+	int output_csc = s->color_encoding;
+
 	*y2r_table = NULL;
 	*r2r_table = NULL;
 	*r2y_table = NULL;
@@ -1169,28 +1192,25 @@ static int vop_setup_csc_table(const struct vop_csc_table *csc_table,
 		return 0;
 
 	if (is_output_yuv) {
-		if (output_csc == V4L2_COLORSPACE_BT2020) {
+		if (output_csc == DRM_COLOR_YCBCR_BT2020) {
 			if (is_input_yuv) {
-				if (input_csc == V4L2_COLORSPACE_BT2020)
+				if (input_csc == DRM_COLOR_YCBCR_BT2020)
 					return 0;
 				*y2r_table = csc_table->y2r_bt709;
 			}
-			if (input_csc != V4L2_COLORSPACE_BT2020)
+			if (input_csc != DRM_COLOR_YCBCR_BT2020)
 				*r2r_table = csc_table->r2r_bt709_to_bt2020;
 			*r2y_table = csc_table->r2y_bt2020;
 		} else {
-			if (is_input_yuv && input_csc == V4L2_COLORSPACE_BT2020)
+			if (is_input_yuv && input_csc == DRM_COLOR_YCBCR_BT2020)
 				*y2r_table = csc_table->y2r_bt2020;
-			if (input_csc == V4L2_COLORSPACE_BT2020)
+			if (input_csc == DRM_COLOR_YCBCR_BT2020)
 				*r2r_table = csc_table->r2r_bt2020_to_bt709;
 			if (!is_input_yuv || *y2r_table) {
-				if (output_csc == V4L2_COLORSPACE_REC709 ||
-				    output_csc == V4L2_COLORSPACE_SMPTE240M ||
-				    output_csc == V4L2_COLORSPACE_DEFAULT)
+				if (output_csc == DRM_COLOR_YCBCR_BT709)
 					*r2y_table = csc_table->r2y_bt709;
-				else if (output_csc == V4L2_COLORSPACE_SMPTE170M ||
-					 output_csc == V4L2_COLORSPACE_470_SYSTEM_M ||
-					 output_csc == V4L2_COLORSPACE_470_SYSTEM_BG)
+				else if (output_csc == DRM_COLOR_YCBCR_BT601 &&
+					 s->color_range == DRM_COLOR_YCBCR_LIMITED_RANGE)
 					*r2y_table = csc_table->r2y_bt601_12_235; /* bt601 limit */
 				else
 					*r2y_table = csc_table->r2y_bt601; /* bt601 full */
@@ -1203,23 +1223,20 @@ static int vop_setup_csc_table(const struct vop_csc_table *csc_table,
 		/*
 		 * is possible use bt2020 on rgb mode?
 		 */
-		if (WARN_ON(output_csc == V4L2_COLORSPACE_BT2020))
+		if (WARN_ON(output_csc == DRM_COLOR_YCBCR_BT2020))
 			return -EINVAL;
 
-		if (input_csc == V4L2_COLORSPACE_BT2020)
+		if (input_csc == DRM_COLOR_YCBCR_BT2020)
 			*y2r_table = csc_table->y2r_bt2020;
-		else if (input_csc == V4L2_COLORSPACE_REC709 ||
-			 input_csc == V4L2_COLORSPACE_SMPTE240M ||
-			 input_csc == V4L2_COLORSPACE_DEFAULT)
+		else if (input_csc == DRM_COLOR_YCBCR_BT709)
 			*y2r_table = csc_table->y2r_bt709;
-		else if (input_csc == V4L2_COLORSPACE_SMPTE170M ||
-			 input_csc == V4L2_COLORSPACE_470_SYSTEM_M ||
-			 input_csc == V4L2_COLORSPACE_470_SYSTEM_BG)
+		else if (input_csc == DRM_COLOR_YCBCR_BT601 &&
+			 pstate->color_range == DRM_COLOR_YCBCR_LIMITED_RANGE)
 			*y2r_table = csc_table->y2r_bt601_12_235; /* bt601 limit */
 		else
 			*y2r_table = csc_table->y2r_bt601;  /* bt601 full */
 
-		if (input_csc == V4L2_COLORSPACE_BT2020)
+		if (input_csc == DRM_COLOR_YCBCR_BT2020)
 			/*
 			 * We don't have bt601 to bt709 table, force use bt709.
 			 */
@@ -1227,19 +1244,6 @@ static int vop_setup_csc_table(const struct vop_csc_table *csc_table,
 	}
 
 	return 0;
-}
-
-static void vop_setup_csc_mode(bool is_input_yuv, bool is_output_yuv,
-			       int input_csc, int output_csc,
-			       bool *y2r_en, bool *r2y_en, int *csc_mode)
-{
-	if (is_input_yuv && !is_output_yuv) {
-		*y2r_en = true;
-		*csc_mode =  to_vop_csc_mode(input_csc);
-	} else if (!is_input_yuv && is_output_yuv) {
-		*r2y_en = true;
-		*csc_mode = to_vop_csc_mode(output_csc);
-	}
 }
 
 static int vop_csc_atomic_check(struct drm_crtc *crtc,
@@ -1272,21 +1276,20 @@ static int vop_csc_atomic_check(struct drm_crtc *crtc,
 		vop_plane_state->r2r_en = false;
 		vop_plane_state->r2y_en = false;
 
-		ret = vop_setup_csc_table(csc_table, is_input_yuv,
-					  is_output_yuv,
-					  vop_plane_state->color_space,
-					  s->color_space,
+		ret = vop_setup_csc_table(s, pstate, csc_table,
 					  &vop_plane_state->y2r_table,
 					  &vop_plane_state->r2r_table,
 					  &vop_plane_state->r2y_table);
 		if (ret)
 			return ret;
 
-		vop_setup_csc_mode(is_input_yuv, s->yuv_overlay,
-				   vop_plane_state->color_space, s->color_space,
-				   &vop_plane_state->y2r_en,
-				   &vop_plane_state->r2y_en,
-				   &vop_plane_state->csc_mode);
+		if (is_input_yuv && !is_output_yuv) {
+			vop_plane_state->y2r_en = true;
+			vop_plane_state->csc_mode = to_vop_csc_mode(pstate->color_encoding, pstate->color_range);
+		} else if (!is_input_yuv && is_output_yuv) {
+			vop_plane_state->r2y_en = true;
+			vop_plane_state->csc_mode = to_vop_csc_mode(s->color_encoding, s->color_range);
+		}
 
 		if (csc_table) {
 			vop_plane_state->y2r_en = !!vop_plane_state->y2r_table;
@@ -2526,11 +2529,6 @@ static int vop_atomic_plane_set_property(struct drm_plane *plane,
 		return 0;
 	}
 
-	if (property == private->color_space_prop) {
-		plane_state->color_space = val;
-		return 0;
-	}
-
 	if (property == private->async_commit_prop) {
 		plane_state->async_commit = val;
 		return 0;
@@ -2558,11 +2556,6 @@ static int vop_atomic_plane_get_property(struct drm_plane *plane,
 
 	if (property == private->eotf_prop) {
 		*val = plane_state->eotf;
-		return 0;
-	}
-
-	if (property == private->color_space_prop) {
-		*val = plane_state->color_space;
 		return 0;
 	}
 
@@ -2736,11 +2729,11 @@ static int vop_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	src = &pstate->src;
 	dest = &pstate->dest;
 
-	DEBUG_PRINT("\tformat: %p4cc%s%s[%d] color_space[%d]\n",
+	DEBUG_PRINT("\tformat: %p4cc%s%s[%d] color-encoding[%d] color-range[%d]\n",
 		    &fb->format->format,
 		    rockchip_afbc(plane, state->fb->modifier) ? "[AFBC]" : "",
 		    pstate->eotf ? " HDR" : " SDR", pstate->eotf,
-		    pstate->color_space);
+		    state->color_encoding, state->color_range);
 	DEBUG_PRINT("\tcsc: y2r[%d] r2r[%d] r2y[%d] csc mode[%d]\n",
 		    pstate->y2r_en, pstate->r2r_en, pstate->r2y_en,
 		    pstate->csc_mode);
@@ -2798,8 +2791,8 @@ static int vop_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
 		    drm_get_bus_format_name(state->bus_format));
 	DEBUG_PRINT("\toverlay_mode[%d] output_mode[%x]",
 		    state->yuv_overlay, state->output_mode);
-	DEBUG_PRINT(" color_space[%d]\n",
-		    state->color_space);
+	DEBUG_PRINT("color-encoding[%d] color-range[%d]\n",
+		    state->color_encoding, state->color_range);
 	DEBUG_PRINT("    Display mode: %dx%d%s%d\n",
 		    mode->hdisplay, mode->vdisplay, interlaced ? "i" : "p",
 		    drm_mode_vrefresh(mode));
@@ -4047,7 +4040,7 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 			s->post_y2r_en = 1;
 	}
 
-	s->post_csc_mode = to_vop_csc_mode(s->color_space);
+	s->post_csc_mode = to_vop_csc_mode(s->color_encoding, s->color_range);
 	VOP_CTRL_SET(vop, bcsh_r2y_en, s->post_r2y_en);
 	VOP_CTRL_SET(vop, bcsh_y2r_en, s->post_y2r_en);
 	VOP_CTRL_SET(vop, bcsh_r2y_csc_mode, s->post_csc_mode);
@@ -4696,8 +4689,14 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 	drm_object_attach_property(&win->base.base, vop->plane_feature_prop,
 				   feature);
 	drm_object_attach_property(&win->base.base, private->eotf_prop, 0);
-	drm_object_attach_property(&win->base.base,
-				   private->color_space_prop, 0);
+	drm_plane_create_color_properties(&win->base,
+					  BIT(DRM_COLOR_YCBCR_BT601) |
+					  BIT(DRM_COLOR_YCBCR_BT709) |
+					  BIT(DRM_COLOR_YCBCR_BT2020),
+					  BIT(DRM_COLOR_YCBCR_LIMITED_RANGE) |
+					  BIT(DRM_COLOR_YCBCR_FULL_RANGE),
+					  DRM_COLOR_YCBCR_BT601,
+					  DRM_COLOR_YCBCR_LIMITED_RANGE);
 	if (VOP_WIN_SUPPORT(vop, win, global_alpha_val))
 		drm_plane_create_alpha_property(&win->base);
 	drm_object_attach_property(&win->base.base,

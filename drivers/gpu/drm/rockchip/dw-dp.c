@@ -2621,9 +2621,9 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 	s->tv_state = &conn_state->tv;
 	s->eotf = dp->eotf_type;
 	if (dw_dp_is_hdr_eotf(s->eotf))
-		s->color_space = V4L2_COLORSPACE_BT2020;
+		s->color_encoding = DRM_COLOR_YCBCR_BT2020;
 	else
-		s->color_space = V4L2_COLORSPACE_DEFAULT;
+		s->color_encoding = DRM_COLOR_YCBCR_BT709;
 
 	dw_dp_mode_fixup(dp, &crtc_state->adjusted_mode);
 
