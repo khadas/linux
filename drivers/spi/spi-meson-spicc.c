@@ -541,9 +541,7 @@ static int meson_spicc_set_speed(struct meson_spicc_device *spicc, int hz)
 	int ret = 0;
 
 	/* Setup clock speed */
-	if (!spi_controller_is_slave(spicc->controller) && hz &&
-	    spicc->speed_hz != hz) {
-		spicc->speed_hz = hz;
+	if (!spi_controller_is_slave(spicc->controller) && hz) {
 		ret = clk_set_rate(spicc->clk, hz);
 		if (ret)
 			dev_err(&spicc->pdev->dev, "set clk rate failed\n");
@@ -788,12 +786,6 @@ static void meson_spicc_hw_prepare(struct meson_spicc_device *spicc,
 {
 	u32 conf = 0;
 
-	/* disable/enable to clean the residue of last transfer */
-	writel_bits_relaxed(SPICC_ENABLE, 0,
-			    spicc->base + SPICC_CONREG);
-	writel_bits_relaxed(SPICC_ENABLE, 1,
-			    spicc->base + SPICC_CONREG);
-
 	writel_bits_relaxed(SPICC_FIFORST_MASK,
 			FIELD_PREP(SPICC_FIFORST_MASK, 3),
 			spicc->base + SPICC_TESTREG);
@@ -911,8 +903,9 @@ static int meson_spicc_transfer_one(struct spi_controller *ctlr,
 	meson_spicc_set_width(spicc, xfer->bits_per_word);
 	meson_spicc_set_endian(spicc, spi->mode & SPI_LSB_FIRST);
 	meson_spicc_set_word_mode(spicc);
-	if (spicc->xfer != &spicc->async_xfer)
-		meson_spicc_set_speed(spicc, xfer->speed_hz);
+
+	meson_spicc_set_speed(spicc, xfer->speed_hz);
+
 	if (!xfer->len)
 		return 0;
 
@@ -992,11 +985,11 @@ static int meson_spicc_setup(struct spi_device *spi)
 		cdata->dirspi_dma_trig = dirspi_dma_trig;
 		cdata->dirspi_dma_trig_start = dirspi_dma_trig_start;
 		cdata->dirspi_dma_trig_stop = dirspi_dma_trig_stop;
+		meson_spicc_hw_prepare(spicc, spi->mode, spi->chip_select);
+		meson_spicc_set_width(spicc, spi->bits_per_word);
+		meson_spicc_set_speed(spicc, spi->max_speed_hz);
 	}
 
-	meson_spicc_hw_prepare(spicc, spi->mode, spi->chip_select);
-	meson_spicc_set_width(spicc, spi->bits_per_word);
-	meson_spicc_set_speed(spicc, spi->max_speed_hz);
 #endif
 
 	if (!spi->controller_state)
@@ -1055,8 +1048,6 @@ static int meson_spicc_hw_init(struct meson_spicc_device *spicc)
 	if (!spi_controller_is_slave(spicc->controller)) {
 		writel_relaxed(SPICC_ENABLE | SPICC_MODE_MASTER,
 			       spicc->base + SPICC_CONREG);
-		if (spicc->data->has_oen)
-			writel_relaxed(0xf020000, spicc->base + SPICC_ENH_CTL0);
 		spicc->bits_per_word = 0;
 	} else {
 		writel_relaxed(SPICC_ENABLE, spicc->base + SPICC_CONREG);
@@ -1268,9 +1259,9 @@ static struct clk_div_table power2_div_table[9] = {
 	{4, 64}, {5, 128}, {6, 256}, {7, 512}, {0}
 };
 
-static struct clk_div_table linear_div_table[255] = {
+static struct clk_div_table linear_div_table[256] = {
 	[0] = {0},
-	[254] = {0}
+	[255] = {0}
 };
 
 static struct clk *
@@ -1357,8 +1348,8 @@ static struct clk *meson_spicc_clk_get(struct meson_spicc_device *spicc)
 
 	if (!linear_div_table[0].div)
 		for (i = 0; i < ARRAY_SIZE(linear_div_table) - 1; i++) {
-			linear_div_table[i].val = i + 2;
-			linear_div_table[i].div = (i + 3) * 2;
+			linear_div_table[i].val = i;
+			linear_div_table[i].div = (i + 1) * 2;
 		}
 
 	/* Get power-of-two divider clk */
@@ -1679,7 +1670,7 @@ static struct meson_spicc_data meson_spicc_gx_data __initdata = {
 };
 
 static struct meson_spicc_data meson_spicc_axg_data __initdata = {
-	.max_speed_hz = 80000000,
+	.max_speed_hz = 84000000,
 	.has_linear_div = true,
 	.has_oen = true,
 	.has_async_clk = true,
