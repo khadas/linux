@@ -21,6 +21,7 @@
 		serial1 = &uart_A;
 		serial2 = &uart_D;
 		serial3 = &uart_E;
+		serial4 = &uart_AO;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;

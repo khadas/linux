@@ -1526,6 +1526,20 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&e_uart_pins>;
 		};
+
+		uart_AO: serial@fe08e500 {
+			compatible = "amlogic,meson-uart";
+			reg = <0x0 0xfe08e500 0x0 0x18>;
+			interrupts = <0 138 1>;
+			status = "disabled";
+			clocks = <&xtal
+				&clkc CLKID_SYS_CLK_UART_C>;
+			clock-names = "clk_uart",
+				"clk_gate";
+			fifosize = < 64 >;
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart_ao_pins1>;
+		};
 	};
 
 	mesonstream {
@@ -1939,6 +1953,25 @@
 		};
 	};
 
+	uart_ao_pins0:ao_uart0 {
+		mux {
+			groups = "uart_ao_c_tx_ao0",
+				"uart_ao_c_rx_ao1";
+			function = "uart_c_ao";
+			bias-pull-up;
+			drive-strength-microamp = <4000>;
+		};
+	};
+
+	uart_ao_pins1:ao_uart1 {
+		mux {
+			groups = "uart_ao_c_tx_ao4",
+				"uart_ao_c_rx_ao5";
+			function = "uart_c_ao";
+			bias-pull-up;
+			drive-strength-microamp = <4000>;
+		};
+	};
 };
 
 &periphs_pinctrl {
