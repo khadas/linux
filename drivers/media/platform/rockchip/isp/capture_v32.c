@@ -752,7 +752,7 @@ static int mp_config_mi(struct rkisp_stream *stream)
 
 	mi_frame_end_int_enable(stream);
 	/* set up first buffer */
-	if (dev->cap_dev.wrap_line && stream->dummy_buf.mem_priv)
+	if (!dev->cap_dev.wrap_line || stream->dummy_buf.mem_priv)
 		mi_frame_end(stream, FRAME_INIT);
 
 	rkisp_unite_write(dev, stream->config->mi.y_offs_cnt_init, 0, false);
