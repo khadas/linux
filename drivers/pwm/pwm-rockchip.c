@@ -84,6 +84,7 @@
 #define COUNTER_SUPPORT			BIT(11)
 #define WAVE_SUPPORT			BIT(12)
 #define FILTER_SUPPORT			BIT(13)
+#define BIPHASIC_SUPPORT		BIT(14)
 #define MINOR_VERSION_SHIFT		16
 #define MINOR_VERSION_MASK		(0xff << MINOR_VERSION_SHIFT)
 #define MAIN_VERSION_SHIFT		24
@@ -128,6 +129,20 @@
 #define HPC				0x2c
 /* LPC */
 #define LPC				0x30
+/* BIPHASIC_COUNTER_CTRL0 */
+#define BIPHASIC_CTRL0			0x40
+#define BIPHASIC_EN(v)			HIWORD_UPDATE(v, 0, 0)
+#define BIPHASIC_CONTINOUS_MODE_EN(v)	HIWORD_UPDATE(v, 1, 1)
+#define BIPHASIC_MODE(v)		HIWORD_UPDATE(v, 3, 5)
+#define BIPHASIC_SYNC_EN(v)		HIWORD_UPDATE(v, 7, 7)
+/* BIPHASIC_COUNTER_CTRL1 */
+#define BIPHASIC_CTRL1			0x44
+/* BIPHASIC_COUNTER_TIMER_VALUE */
+#define BIPHASIC_TIMER_VALUE		0x48
+/* BIPHASIC_COUNTER_RESULT_VALUE */
+#define BIPHASIC_RESULT_VALUE		0x4c
+/* BIPHASIC_COUNTER_RESULT_VALUE_SYNC */
+#define BIPHASIC_RESULT_VALUE_SYNC	0x50
 /* INTSTS*/
 #define INTSTS				0x70
 #define CAP_LPR_INTSTS_SHIFT		0
@@ -137,8 +152,9 @@
 #define FREQ_INTSTS_SHIFT		4
 #define PWR_INTSTS_SHIFT		5
 #define IR_TRANS_END_INTSTS_SHIFT	6
-#define WAVE_MAX_INT_SHIFT		7
-#define WAVE_MIDDLE_INT_SHIFT		8
+#define WAVE_MAX_INTSTS_SHIFT		7
+#define WAVE_MIDDLE_INTSTS_SHIFT	8
+#define BIPHASIC_INISTS_SHIFT		9
 #define CAP_LPR_INT			BIT(CAP_LPR_INTSTS_SHIFT)
 #define CAP_HPR_INT			BIT(CAP_HPR_INTSTS_SHIFT)
 #define ONESHOT_END_INT			BIT(ONESHOT_END_INTSTS_SHIFT)
@@ -146,8 +162,9 @@
 #define FREQ_INT			BIT(FREQ_INTSTS_SHIFT)
 #define PWR_INT				BIT(PWR_INTSTS_SHIFT)
 #define IR_TRANS_END_INT		BIT(IR_TRANS_END_INTSTS_SHIFT)
-#define WAVE_MAX_INT			BIT(WAVE_MAX_INT_SHIFT)
-#define WAVE_MIDDLE_INT			BIT(WAVE_MIDDLE_INT_SHIFT)
+#define WAVE_MAX_INT			BIT(WAVE_MAX_INTSTS_SHIFT)
+#define WAVE_MIDDLE_INT			BIT(WAVE_MIDDLE_INTSTS_SHIFT)
+#define BIPHASIC_INT			BIT(BIPHASIC_INISTS_SHIFT)
 /* INT_EN */
 #define INT_EN				0x74
 #define CAP_LPR_INT_EN(v)		HIWORD_UPDATE(v, 0, 0)
@@ -159,6 +176,7 @@
 #define IR_TRANS_END_INT_EN(v)		HIWORD_UPDATE(v, 6, 6)
 #define WAVE_MAX_INT_EN(v)		HIWORD_UPDATE(v, 7, 7)
 #define WAVE_MIDDLE_INT_EN(v)		HIWORD_UPDATE(v, 8, 8)
+#define BIPHASIC_INT_EN(v)		HIWORD_UPDATE(v, 9, 9)
 /* WAVE_MEM_ARBITER */
 #define WAVE_MEM_ARBITER		0x80
 #define WAVE_MEM_GRANT_SHIFT		0
@@ -242,6 +260,7 @@ struct rockchip_pwm_chip {
 	struct pinctrl_state *active_state;
 	struct delayed_work pwm_work;
 	const struct rockchip_pwm_data *data;
+	const struct rockchip_pwm_biphasic_config *biphasic_config;
 	struct resource *res;
 	struct dentry *debugfs;
 	void __iomem *base;
@@ -256,7 +275,9 @@ struct rockchip_pwm_chip {
 	bool freq_meter_support;
 	bool counter_support;
 	bool wave_support;
+	bool biphasic_support;
 	bool freq_res_valid;
+	bool biphasic_res_valid;
 	int channel_id;
 	int irq;
 	u8 main_version;
@@ -295,6 +316,10 @@ struct rockchip_pwm_funcs {
 			      enum rockchip_pwm_wave_table_width_mode width_mode);
 	int (*set_wave)(struct pwm_chip *chip, struct pwm_device *pwm,
 			struct rockchip_pwm_wave_config *config);
+	int (*set_biphasic)(struct pwm_chip *chip, struct pwm_device *pwm,
+			    struct rockchip_pwm_biphasic_config *config);
+	int (*get_biphasic_result)(struct pwm_chip *chip, struct pwm_device *pwm,
+				   unsigned long *biphasic_res);
 	irqreturn_t (*irq_handler)(int irq, void *data);
 };
 
@@ -651,6 +676,12 @@ static irqreturn_t rockchip_pwm_irq_v4(int irq, void *data)
 		writel_relaxed(FREQ_INT, pc->base + INTSTS);
 		pc->freq_res_valid = true;
 
+		ret = IRQ_HANDLED;
+	}
+
+	if (val & BIPHASIC_INT) {
+		writel_relaxed(BIPHASIC_INT, pc->base + INTSTS);
+		pc->biphasic_res_valid = true;
 		ret = IRQ_HANDLED;
 	}
 
@@ -1562,6 +1593,194 @@ err_disable_pclk:
 }
 EXPORT_SYMBOL_GPL(rockchip_pwm_set_wave);
 
+static int rockchip_pwm_set_biphasic_v4(struct pwm_chip *chip, struct pwm_device *pwm,
+					struct rockchip_pwm_biphasic_config *config)
+{
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+	u64 div = 0;
+	u32 ctrl = 0;
+	u32 timer_val = 0;
+	int ret = 0;
+
+	if (config->enable) {
+		if (!config->is_continuous && !config->delay_ms) {
+			dev_err(chip->dev, "The delay_ms can not be 0 in normal mode for PWM%d\n",
+				pc->channel_id);
+			return -EINVAL;
+		}
+
+		ret = clk_enable(pc->clk);
+		if (ret)
+			return ret;
+		pc->biphasic_res_valid = false;
+
+		ctrl = BIPHASIC_EN(true) |
+		       BIPHASIC_CONTINOUS_MODE_EN(config->is_continuous) |
+		       BIPHASIC_MODE(config->mode == PWM_BIPHASIC_COUNTER_MODE0_FREQ ?
+				     PWM_BIPHASIC_COUNTER_MODE0 : config->mode) |
+		       BIPHASIC_SYNC_EN(config->is_continuous);
+
+		div = (u64)pc->clk_rate * config->delay_ms;
+		timer_val = DIV_ROUND_CLOSEST_ULL(div, MSEC_PER_SEC);
+
+		pc->biphasic_config = config;
+	} else {
+		ctrl = BIPHASIC_EN(false);
+
+		pc->biphasic_config = NULL;
+	}
+
+	writel_relaxed(BIPHASIC_INT_EN(config->enable), pc->base + INT_EN);
+	writel_relaxed(ctrl, pc->base + BIPHASIC_CTRL0);
+	writel_relaxed(timer_val, pc->base + BIPHASIC_TIMER_VALUE);
+
+	if (!config->enable)
+		clk_disable(pc->clk);
+
+	return 0;
+}
+
+int rockchip_pwm_set_biphasic(struct pwm_device *pwm, struct rockchip_pwm_biphasic_config *config,
+			      unsigned long *biphasic_res)
+{
+	struct pwm_chip *chip;
+	struct rockchip_pwm_chip *pc;
+	struct pwm_state curstate;
+	int ret = 0;
+
+	if (!pwm)
+		return -EINVAL;
+
+	chip = pwm->chip;
+	pc = to_rockchip_pwm_chip(chip);
+
+	if (!pc->biphasic_support ||
+	    !pc->data->funcs.set_biphasic || !pc->data->funcs.get_biphasic_result) {
+		dev_err(chip->dev, "Unsupported biphasic counter mode\n");
+		return -EINVAL;
+	}
+
+	pwm_get_state(pwm, &curstate);
+	if (curstate.enabled) {
+		dev_err(chip->dev, "Failed to enable biphasic counter mode because PWM%d is busy\n",
+			pc->channel_id);
+		return -EBUSY;
+	}
+
+	ret = clk_enable(pc->pclk);
+	if (ret)
+		return ret;
+
+	ret = pinctrl_select_state(pc->pinctrl, pc->active_state);
+	if (ret) {
+		dev_err(chip->dev, "Failed to select pinctrl state\n");
+		goto err_disable_pclk;
+	}
+
+	ret = pc->data->funcs.set_biphasic(chip, pwm, config);
+	if (ret) {
+		dev_err(chip->dev, "Failed to setup biphasic counter mode for PWM%d\n",
+			pc->channel_id);
+	} else {
+		if (pc->biphasic_config->enable && !config->is_continuous) {
+			ret = pc->data->funcs.get_biphasic_result(chip, pwm, biphasic_res);
+			if (ret) {
+				dev_err(chip->dev,
+					"Failed to get biphasic counter result for PWM%d\n",
+					pc->channel_id);
+			}
+			config->enable = false;
+			pc->data->funcs.set_biphasic(chip, pwm, config);
+		}
+	}
+
+err_disable_pclk:
+	clk_disable(pc->pclk);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rockchip_pwm_set_biphasic);
+
+static int rockchip_pwm_get_biphasic_result_v4(struct pwm_chip *chip, struct pwm_device *pwm,
+					       unsigned long *biphasic_res)
+{
+	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
+	const struct rockchip_pwm_biphasic_config *config = pc->biphasic_config;
+	u32 val;
+	u32 biphasic_timer;
+
+	if (!config->is_continuous) {
+		usleep_range(config->delay_ms * USEC_PER_MSEC, config->delay_ms * USEC_PER_MSEC);
+
+		if (pc->biphasic_res_valid) {
+			*biphasic_res = readl_relaxed(pc->base + BIPHASIC_RESULT_VALUE);
+			if (!*biphasic_res)
+				return -EINVAL;
+
+			if (pc->biphasic_config->mode == PWM_BIPHASIC_COUNTER_MODE0_FREQ) {
+				val = *biphasic_res;
+				biphasic_timer = readl_relaxed(pc->base + BIPHASIC_TIMER_VALUE);
+				*biphasic_res = DIV_ROUND_CLOSEST_ULL(pc->clk_rate * val,
+								      biphasic_timer);
+			}
+
+			pc->biphasic_res_valid = false;
+		} else {
+			dev_err(chip->dev, "failed to wait for biphasic counter interrupt\n");
+			return -ETIMEDOUT;
+		}
+	} else {
+		*biphasic_res = readl_relaxed(pc->base + BIPHASIC_RESULT_VALUE_SYNC);
+	}
+
+	return 0;
+}
+
+int rockchip_pwm_get_biphasic_result(struct pwm_device *pwm, unsigned long *biphasic_res)
+{
+	struct pwm_chip *chip;
+	struct rockchip_pwm_chip *pc;
+	int ret = 0;
+
+	if (!pwm)
+		return -EINVAL;
+
+	chip = pwm->chip;
+	pc = to_rockchip_pwm_chip(chip);
+
+	if (!pc->biphasic_support ||
+	    !pc->data->funcs.set_biphasic || !pc->data->funcs.get_biphasic_result) {
+		dev_err(chip->dev, "Unsupported biphasic counter mode\n");
+		return -EINVAL;
+	}
+
+	if (!pc->biphasic_config) {
+		dev_err(chip->dev, "Failed to parse biphasic counter config\n");
+		return -EINVAL;
+	}
+
+	if (!pc->biphasic_config->is_continuous || !pc->biphasic_config->enable) {
+		dev_err(chip->dev, "Unsupported to get result in real time in normal mode\n");
+		return -EINVAL;
+	}
+
+	ret = clk_enable(pc->pclk);
+	if (ret)
+		return ret;
+
+	ret = pc->data->funcs.get_biphasic_result(chip, pwm, biphasic_res);
+	if (ret) {
+		dev_err(chip->dev, "Failed to get biphasic counter result for PWM%d\n",
+			pc->channel_id);
+		return -EINVAL;
+	}
+
+	clk_disable(pc->pclk);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rockchip_pwm_get_biphasic_result);
+
 #ifdef CONFIG_DEBUG_FS
 static int rockchip_pwm_debugfs_show(struct seq_file *s, void *data)
 {
@@ -1750,6 +1969,8 @@ static const struct rockchip_pwm_data pwm_data_v4 = {
 		.global_ctrl = rockchip_pwm_global_ctrl_v4,
 		.set_wave_table = rockchip_pwm_set_wave_table_v4,
 		.set_wave = rockchip_pwm_set_wave_v4,
+		.set_biphasic = rockchip_pwm_set_biphasic_v4,
+		.get_biphasic_result = rockchip_pwm_get_biphasic_result_v4,
 		.irq_handler = rockchip_pwm_irq_v4,
 	},
 };
@@ -1857,6 +2078,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 		pc->freq_meter_support = !!(version & FREQ_METER_SUPPORT);
 		pc->counter_support = !!(version & COUNTER_SUPPORT);
 		pc->wave_support = !!(version & WAVE_SUPPORT);
+		pc->biphasic_support = !!(version & BIPHASIC_SUPPORT);
 	} else {
 		pc->channel_id = rockchip_pwm_get_channel_id(pdev->dev.of_node->full_name);
 	}
