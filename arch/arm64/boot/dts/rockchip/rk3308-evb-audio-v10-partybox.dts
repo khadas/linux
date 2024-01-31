@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+
+#include "rk3308-evb-audio-v10-display-rgb.dts"
+
+/ {
+	model = "Rockchip RK3308 EVB AUDIO V10 PARTYBOX";
+	compatible = "rockchip,rk3308-evb-audio-v10-partybox", "rockchip,rk3308";
+
+	chosen {
+		bootargs = "earlycon=uart8250,mmio32,0xff0c0000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=squashfs rootwait snd_aloop.index=7 snd_aloop.use_raw_jiffies=1 isolcpus=3 nohz_full=3";
+	};
+};
+
+&acodec {
+	rockchip,micbias1;
+	rockchip,micbias2;
+	rockchip,no-hp-det;
+	rockchip,en-always-grps = <1 2 3>;
+	rockchip,adc-grps-route = <0 1 2 3>;
+};
+
+&cpu0_opp_table {
+	opp-408000000 {
+		status = "disabled";
+	};
+	opp-600000000 {
+		status = "disabled";
+	};
+	opp-1200000000 {
+		status = "okay";
+	};
+	opp-1296000000 {
+		status = "okay";
+	};
+};
+
+&rk3308bs_cpu0_opp_table {
+	opp-408000000 {
+		status = "disabled";
+	};
+	opp-600000000 {
+		status = "disabled";
+	};
+	opp-1008000000 {
+		status = "okay";
+	};
+	opp-1104000000 {
+		status = "okay";
+	};
+};
