@@ -16,6 +16,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-evb-audio-v10-display-rgb.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-evb-audio-v10-partybox.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-evb-dmic-pdm-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-evb-dmic-pdm-v13.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-partybox-coreboard-demo-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308-roc-cc.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308b-evb-amic-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3308b-evb-amic-v10-amp.dtb
