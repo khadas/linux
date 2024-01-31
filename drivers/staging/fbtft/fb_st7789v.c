@@ -78,10 +78,17 @@ static int init_display(struct fbtft_par *par)
 {
 	write_reg(par, 0x11);
 	usleep_range(100, 200);
+	/* display and color format setting */
 	write_reg(par, 0x36, 0x00);
+	/* rgb interface setting, 55: RGB565 66:RGB666 */
 	write_reg(par, 0x3a, 0x55);
+	/* RAM control, f8: Little-Endian f0: Big-Endian(default)*/
+	// usleep_range(100, 200);
+	// write_reg(par, 0xb0, 0x00, 0xf8);
+	/* ST7789V Frame rate setting */
 	write_reg(par, 0xb2, 0x0c, 0x0c, 0x00, 0x33, 0x33);
 	write_reg(par, 0xb7, 0x35);
+	/* ST7789V Power setting */
 	write_reg(par, 0xbb, 0x19);
 	write_reg(par, 0xc0, 0x2c);
 	write_reg(par, 0xc2, 0x01);
@@ -90,12 +97,13 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0xc6, 0x0f);
 	write_reg(par, 0xd0, 0xa4, 0xa1);
 
-       /* gamma setting */
+	/* ST7789V gamma setting */
 	write_reg(par, 0xe0, 0xd0, 0x04, 0x0d, 0x11, 0x13,
 			0x2b, 0x3f, 0x54, 0x4c, 0x18, 0x0d, 0x0b, 0x1f, 0x23);
 	write_reg(par, 0xe1, 0xd0, 0x04, 0x0c, 0x11, 0x13,
 			0x2c, 0x3f, 0x44, 0x51, 0x2f, 0x1f, 0x1f, 0x20, 0x23);
 
+	/* ST7789V panel turn on display */
 	write_reg(par, 0x29);
 	return 0;
 }
@@ -217,6 +225,9 @@ static void write_register(struct fbtft_par *par, int len, ...)
 			par->buf[i] = va_arg(args, unsigned int);
 
 		/* keep DC low for all command bytes to transfer */
+#ifdef CONFIG_FB_TFT_SPI_DMA
+		par->spi->bits_per_word = 8;
+#endif
 		fbtft_write_buf_dc(par, par->buf, len, 0);
 	} else if (len > 1) {
 		/*write command and data*/
@@ -224,6 +235,9 @@ static void write_register(struct fbtft_par *par, int len, ...)
 			par->buf[i] = va_arg(args, unsigned int);
 
 		/* keep DC low for all command bytes to transfer */
+#ifdef CONFIG_FB_TFT_SPI_DMA
+		par->spi->bits_per_word = 8;
+#endif
 		fbtft_write_buf_dc(par, par->buf, 1, 0);
 
 		/* keep DC high for all data bytes to transfer */
