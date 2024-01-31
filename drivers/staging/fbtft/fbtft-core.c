@@ -341,7 +341,11 @@ static void fbtft_mkdirty(struct fb_info *info, int y, int height)
 	/* special case, needed ? */
 	if (y == -1) {
 		y = 0;
+#ifdef CONFIG_AMLOGIC_MODIFY
+		height = info->var.yres;
+#else
 		height = info->var.yres - 1;
+#endif
 	}
 
 	/* Mark display lines/area as dirty */
