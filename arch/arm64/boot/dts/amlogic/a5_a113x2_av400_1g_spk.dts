@@ -657,7 +657,7 @@
 		/*this resample is only used for loopback_A.*/
 		capture_sample_rate = <16000>;
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	vad:vad {
@@ -769,7 +769,7 @@
 		/* max 0xf, each bit for one lane, usually one lane */
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
-		channel_mask = <0xff>;
+		channel_mask = <0x03>;
 		status = "okay";
 	};
 }; /* end of audiobus */
