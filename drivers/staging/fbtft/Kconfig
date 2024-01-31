@@ -180,6 +180,14 @@ config FB_TFT_SPI_DMA
 	help
 	  This enables SPI DMA mode for spi panel
 
+config FB_TFT_EXTRA_FORMAT
+	bool "FB driver support 18/24/32-bpp image formats"
+	depends on FB_TFT_SPI_DMA
+	help
+	  This enables FB driver support 18/24/32-bpp image formats,
+	  such as RGB666/RGB888/RGBA8888. Please note that currently,
+	  support is limited to usage under SPI DMA mode.
+
 config FB_TFT_TINYLCD
 	tristate "FB driver for tinylcd.com display"
 	depends on FB_TFT
