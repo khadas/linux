@@ -2353,10 +2353,11 @@
 		downdifferential = <10>;
 		status = "disabled";
 
+		dynamic-power-coefficient = <733>;
+
 		gpu_power_model: power_model {
 			compatible = "arm,mali-simple-power-model";
 			static-coefficient = <411000>;
-			dynamic-coefficient = <733>;
 			ts = <32000 4700 (-80) 2>;
 			thermal-zone = "gpu-thermal";
 		};
