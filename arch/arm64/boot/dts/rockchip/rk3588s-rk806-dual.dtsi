@@ -531,6 +531,7 @@
 			vdd_cpu_big1_s0: DCDC_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-init-microvolt = <800000>;
 				regulator-min-microvolt = <550000>;
 				regulator-max-microvolt = <1050000>;
 				regulator-ramp-delay = <12500>;
@@ -543,6 +544,7 @@
 			vdd_cpu_big0_s0: DCDC_REG2 {
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-init-microvolt = <800000>;
 				regulator-min-microvolt = <550000>;
 				regulator-max-microvolt = <1050000>;
 				regulator-ramp-delay = <12500>;
@@ -555,6 +557,7 @@
 			vdd_cpu_lit_s0: DCDC_REG3 {
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-init-microvolt = <800000>;
 				regulator-min-microvolt = <550000>;
 				regulator-max-microvolt = <950000>;
 				regulator-ramp-delay = <12500>;
@@ -580,6 +583,7 @@
 			vdd_cpu_big1_mem_s0: DCDC_REG5 {
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-init-microvolt = <800000>;
 				regulator-min-microvolt = <675000>;
 				regulator-max-microvolt = <1050000>;
 				regulator-ramp-delay = <12500>;
@@ -593,6 +597,7 @@
 			vdd_cpu_big0_mem_s0: DCDC_REG6 {
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-init-microvolt = <800000>;
 				regulator-min-microvolt = <675000>;
 				regulator-max-microvolt = <1050000>;
 				regulator-ramp-delay = <12500>;
@@ -617,6 +622,7 @@
 			vdd_cpu_lit_mem_s0: DCDC_REG8 {
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-init-microvolt = <800000>;
 				regulator-min-microvolt = <675000>;
 				regulator-max-microvolt = <950000>;
 				regulator-ramp-delay = <12500>;
