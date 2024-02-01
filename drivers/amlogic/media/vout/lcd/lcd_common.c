@@ -2244,14 +2244,14 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 	return ret;
 }
 
-static int lcd_config_load_from_unifykey_v2(struct lcd_config_s *pconf,
+static int lcd_config_load_from_unifykey_v2(struct aml_lcd_drv_s *pdrv,
 					    unsigned char *p,
 					    unsigned int key_len,
 					    unsigned int offset)
 {
 	struct aml_lcd_unifykey_header_s *lcd_header;
-	struct phy_config_s *phy_cfg = &pconf->phy_cfg;
-	struct cus_ctrl_config_s *cus_ctrl = &pconf->cus_ctrl;
+	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
+	struct cus_ctrl_config_s *cus_ctrl = &pdrv->config.cus_ctrl;
 	unsigned int temp, len;
 	int i, ret;
 
@@ -2324,16 +2324,16 @@ static int lcd_config_load_from_unifykey_v2(struct lcd_config_s *pconf,
 		((*(p + LCD_UKEY_CUS_CTRL_ATTR_FLAG + 1)) << 8) |
 		((*(p + LCD_UKEY_CUS_CTRL_ATTR_FLAG + 2)) << 16) |
 		((*(p + LCD_UKEY_CUS_CTRL_ATTR_FLAG + 3)) << 24));
-	if (lcd_debug_print_flag)
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("%s: cus_ctrl_flag=0x%x\n", __func__, cus_ctrl->flag);
 
 	if (cus_ctrl->flag & 0x1) {
 		temp = (*(p + LCD_UKEY_CUS_CTRL_ATTR_0) |
 			*(p + LCD_UKEY_CUS_CTRL_ATTR_0 + 1) << 8);
-		cus_ctrl->dlg_flag = temp & 0xf;
+		cus_ctrl->ufr_flag = temp & 0xf;
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("%s: cus_ctrl dlg_flag=%d\n",
-			      __func__, cus_ctrl->dlg_flag);
+			LCDPR("%s: cus_ctrl ultra refresh rate flag=%d\n",
+			      __func__, cus_ctrl->ufr_flag);
 		}
 		temp = (*(p + LCD_UKEY_CUS_CTRL_ATTR_0_PARM0) |
 			*(p + LCD_UKEY_CUS_CTRL_ATTR_0_PARM0 + 1) << 8);
@@ -2349,6 +2349,21 @@ static int lcd_config_load_from_unifykey_v2(struct lcd_config_s *pconf,
 			LCDPR("%s: cus_ctrl attr_0_para1=%d\n",
 			      __func__, cus_ctrl->attr_0_para1);
 		}
+
+		memcpy(&cus_ctrl->dft_timing, &pdrv->config.timing.dft_timing,
+			sizeof(struct lcd_detail_timing_s));
+		cus_ctrl->dft_timing.v_active /= 2;
+		cus_ctrl->dft_timing.v_period /= 2;
+		cus_ctrl->dft_timing.frame_rate *= 2;
+		temp = cus_ctrl->dft_timing.v_period - cus_ctrl->dft_timing.v_active -
+			cus_ctrl->dft_timing.vsync_width - cus_ctrl->dft_timing.vsync_bp;
+		cus_ctrl->dft_timing.vsync_fp = temp;
+		cus_ctrl->dft_timing.v_period_min = cus_ctrl->attr_0_para0;
+		cus_ctrl->dft_timing.v_period_max = cus_ctrl->attr_0_para1;
+		cus_ctrl->dft_timing.frame_rate_min = 0;
+		cus_ctrl->dft_timing.frame_rate_max = 0;
+
+		lcd_fr_range_update(&cus_ctrl->dft_timing);
 	}
 
 	return 0;
@@ -2642,7 +2657,7 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 
 	if (lcd_header.version == 2) {
 		p = para + lcd_header.block_cur_size;
-		lcd_config_load_from_unifykey_v2(pconf, p, key_len, lcd_header.block_cur_size);
+		lcd_config_load_from_unifykey_v2(pdrv, p, key_len, lcd_header.block_cur_size);
 	}
 
 	kfree(para);

@@ -111,6 +111,7 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 		lcd_if_enable_retry(pdrv);
 	}
 
+	pdrv->vmode_switch = 0;
 	pdrv->status |= LCD_STATUS_VMODE_ACTIVE;
 	mutex_unlock(&lcd_power_mutex);
 
@@ -236,17 +237,17 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 		return -1;
 
 	if ((pdrv->status & LCD_STATUS_ENCL_ON) == 0) {
-		LCDPR("%s: lcd is disabled, exit\n", __func__);
+		LCDPR("[%d]: %s: lcd is disabled, exit\n", pdrv->index, __func__);
 		return -1;
 	}
 
 	if (lcd_fr_is_fixed(pdrv)) {
-		LCDPR("%s: fixed timing, exit\n", __func__);
+		LCDPR("[%d]: %s: fixed timing, exit\n", pdrv->index, __func__);
 		return -1;
 	}
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("fr_auto_flag = 0x%x\n", pdrv->config.fr_auto_flag);
+		LCDPR("[%d]: fr_auto_flag = 0x%x\n", pdrv->index, pdrv->config.fr_auto_flag);
 
 	info = &pdrv->vinfo;
 	switch (pdrv->config.fr_auto_flag) {
@@ -259,26 +260,31 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 		n = ARRAY_SIZE(lcd_vframe_match_table_2);
 		break;
 	default:
-		LCDPR("%s: fr_auto_flag = 0x%x, disabled\n",
-		      __func__, pdrv->config.fr_auto_flag);
+		LCDPR("[%d]: %s: fr_auto_flag = 0x%x, disabled\n",
+		      pdrv->index, __func__, pdrv->config.fr_auto_flag);
 		return 0;
 	}
 
 	if (duration == 0) { /* end hint */
-		LCDPR("%s: return mode = %s, fr_auto_flag = 0x%x\n", __func__,
+		LCDPR("[%d]: %s: return mode = %s, fr_auto_flag = 0x%x\n",
+			pdrv->index, __func__,
 			info->name, pdrv->config.fr_auto_flag);
 
 		pdrv->fr_duration = 0;
 		if (pdrv->fr_mode == 0) {
-			LCDPR("%s: fr_mode is invalid, exit\n", __func__);
+			LCDPR("[%d]: %s: fr_mode is invalid, exit\n", pdrv->index, __func__);
 			return 0;
 		}
 
 		/* update frame rate */
-		pdrv->config.timing.act_timing.frame_rate = pdrv->cur_duration.frame_rate;
-		pdrv->config.timing.act_timing.sync_duration_num = pdrv->cur_duration.duration_num;
-		pdrv->config.timing.act_timing.sync_duration_den = pdrv->cur_duration.duration_den;
-		pdrv->config.timing.act_timing.frac = pdrv->cur_duration.frac;
+		pdrv->config.timing.act_timing.frame_rate =
+			pdrv->config.timing.base_timing.frame_rate;
+		pdrv->config.timing.act_timing.sync_duration_num =
+			pdrv->config.timing.base_timing.sync_duration_num;
+		pdrv->config.timing.act_timing.sync_duration_den =
+			pdrv->config.timing.base_timing.sync_duration_den;
+		pdrv->config.timing.act_timing.frac =
+			pdrv->config.timing.base_timing.frac;
 		pdrv->fr_mode = 0;
 	} else {
 		for (i = 0; i < n; i++) {
@@ -291,21 +297,21 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 			}
 		}
 		if (find == 0) {
-			LCDERR("%s: can't support duration %d\n, exit\n",
-			       __func__, duration);
+			LCDERR("[%d]: %s: can't support duration %d\n, exit\n",
+			       pdrv->index, __func__, duration);
 			return -1;
 		}
 
-		LCDPR("%s: fr_auto_flag = 0x%x, duration = %d, frame_rate = %d\n",
-		      __func__, pdrv->config.fr_auto_flag,
+		LCDPR("[%d]: %s: fr_auto_flag = 0x%x, duration = %d, frame_rate = %d\n",
+		      pdrv->index, __func__, pdrv->config.fr_auto_flag,
 		      duration, frame_rate);
 
 		pdrv->fr_duration = duration;
 		/* if the sync_duration is same as current */
 		if (duration_num == pdrv->config.timing.act_timing.sync_duration_num &&
 		    duration_den == pdrv->config.timing.act_timing.sync_duration_den) {
-			LCDPR("%s: sync_duration is the same, exit\n",
-			      __func__);
+			LCDPR("[%d]: %s: sync_duration is the same, exit\n",
+			      pdrv->index, __func__);
 			return 0;
 		}
 
@@ -417,12 +423,6 @@ static void lcd_tablet_vinfo_update(struct aml_lcd_drv_s *pdrv)
 		return;
 
 	ptiming = &pdrv->config.timing.act_timing;
-
-	/* store current duration */
-	pdrv->cur_duration.frame_rate = ptiming->frame_rate;
-	pdrv->cur_duration.duration_num = ptiming->sync_duration_num;
-	pdrv->cur_duration.duration_den = ptiming->sync_duration_den;
-	pdrv->cur_duration.frac = ptiming->frac;
 
 	pdrv->vinfo.width = ptiming->h_active;
 	pdrv->vinfo.height = ptiming->v_active;

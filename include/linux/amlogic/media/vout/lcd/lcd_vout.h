@@ -503,7 +503,9 @@ enum lcd_phy_set_status {
 
 struct cus_ctrl_config_s {
 	unsigned int flag;
-	unsigned char dlg_flag;
+	unsigned char ufr_flag;
+	struct lcd_detail_timing_s dft_timing;
+
 	unsigned long long mute_time;
 	unsigned long long unmute_time;
 	unsigned long long switch_time;
@@ -601,11 +603,35 @@ struct lcd_debug_ctrl_s {
 	unsigned char debug_lcd_mode;
 };
 
+#define LCD_DURATION_MAX    8
 struct lcd_duration_s {
 	unsigned int frame_rate;
 	unsigned int duration_num;
 	unsigned int duration_den;
 	unsigned int frac;
+};
+
+struct lcd_vmode_info_s {
+	char name[32];
+	unsigned int width;
+	unsigned int height;
+	unsigned int base_fr;
+	unsigned int duration_index;
+	unsigned int duration_cnt;
+	struct lcd_duration_s duration[LCD_DURATION_MAX];
+	struct lcd_detail_timing_s *dft_timing;
+};
+
+struct lcd_vmode_list_s {
+	struct lcd_vmode_info_s *info;
+	struct lcd_vmode_list_s *next;
+};
+
+struct lcd_vmode_mgr_s {
+	unsigned int vmode_cnt;
+	struct lcd_vmode_list_s *vmode_list_header;
+	struct lcd_vmode_info_s *cur_vmode_info;
+	struct lcd_vmode_info_s *next_vmode_info;
 };
 
 struct lcd_data_s {
@@ -665,7 +691,7 @@ struct aml_lcd_drv_s {
 	char vsync_isr_name[3][15];
 	char vbyone_isr_name[10];
 	char output_name[30];
-	unsigned int vmode_update;
+	unsigned int vmode_switch;
 	unsigned char config_check_glb;
 	unsigned char config_check_en;
 
@@ -674,7 +700,7 @@ struct aml_lcd_drv_s {
 	struct device *dev;
 	struct lcd_config_s config;
 	struct lcd_duration_s *std_duration;
-	struct lcd_duration_s cur_duration;
+	struct lcd_vmode_mgr_s vmode_mgr;
 	struct vinfo_s vinfo;
 	void *clk_conf;
 	struct lcd_reg_map_s *reg_map;

@@ -209,7 +209,6 @@ int lcd_tv_driver_change(struct aml_lcd_drv_s *pdrv)
 	if (ret)
 		return -1;
 
-	lcd_frame_rate_change(pdrv);
 #ifdef CONFIG_AMLOGIC_VPU
 	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.enc_clk);
 #endif

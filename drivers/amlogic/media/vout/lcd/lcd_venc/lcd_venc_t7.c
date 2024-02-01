@@ -455,7 +455,7 @@ static void lcd_venc_change_timing(struct aml_lcd_drv_s *pdrv)
 
 	offset = pdrv->data->offset_venc[pdrv->index];
 
-	if (pdrv->vmode_update) {
+	if (pdrv->vmode_switch) {
 		lcd_venc_set_timing(pdrv);
 	} else {
 		htotal = lcd_vcbus_read(ENCL_VIDEO_MAX_PXCNT + offset) + 1;

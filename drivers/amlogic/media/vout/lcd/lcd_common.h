@@ -73,7 +73,8 @@
 /* 20231113: update vrr_dev register flow for tablet mode*/
 /* 20231205: add lcd config check*/
 /* 20231218: update timing management*/
-#define LCD_DRV_VERSION    "20231218"
+/* 20240129: update display mode management*/
+#define LCD_DRV_VERSION    "20240129"
 
 extern struct mutex lcd_vout_mutex;
 
