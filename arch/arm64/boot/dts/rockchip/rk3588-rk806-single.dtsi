@@ -165,6 +165,7 @@
 			vdd_cpu_lit_s0: vdd_cpu_lit_mem_s0: DCDC_REG2 {
 				regulator-always-on;
 				regulator-boot-on;
+				regulator-init-microvolt = <800000>;
 				regulator-min-microvolt = <550000>;
 				regulator-max-microvolt = <950000>;
 				regulator-ramp-delay = <12500>;
