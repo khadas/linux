@@ -793,9 +793,6 @@ static int __os08a10_start_stream(struct os08a10 *os08a10)
 {
 	int ret;
 
-	ret = os08a10_write_array(os08a10->client, os08a10_global_regs);
-	if (ret) 
-		return ret;
 	ret = os08a10_write_array(os08a10->client, os08a10->cur_mode->reg_list);
 	if (ret)
 		return ret;
@@ -898,14 +895,14 @@ static int os08a10_s_power(struct v4l2_subdev *sd, int on)
 			pm_runtime_put_noidle(&client->dev);
 			goto unlock_and_return;
 		}
-#if 0
+
 		ret = os08a10_write_array(os08a10->client, os08a10_global_regs);
 		if (ret) {
 			v4l2_err(sd, "could not set init registers\n");
 			pm_runtime_put_noidle(&client->dev);
 			goto unlock_and_return;
 		}
-#endif
+
 		os08a10->power_on = true;
 		/* export gpio */
 		if (!IS_ERR(os08a10->reset_gpio))
@@ -1061,7 +1058,7 @@ static int os08a10_enum_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (fie->code != OS08A10_MEDIA_BUS_FMT)
-		return -EINVAL;
+		//return -EINVAL;
 
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
