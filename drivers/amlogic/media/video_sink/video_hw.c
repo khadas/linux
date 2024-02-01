@@ -3058,6 +3058,12 @@ static void vd_afbc_setting_tl1(struct video_layer_s *layer, struct mif_pos_s *s
 			(mif_blk_bgn_v << 16) |
 			mif_blk_end_v);
 	}
+	if (video_is_meson_t3_cpu() ||
+		video_is_meson_t5w_cpu()) {
+		if ((pix_end_v - pix_bgn_v + 1) % 2)
+			pix_end_v++;
+	}
+
 	cur_dev->rdma_func[vpp_index].rdma_wr
 		(vd_afbc_reg->afbc_pixel_ver_scope,
 		(pix_bgn_v << 16) |
