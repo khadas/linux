@@ -444,6 +444,45 @@
  * 13.no set clk if assigned-clock-rates in dts
  * 14.distinguish buf done or subscribed event for param poll
  * 15.fix repeated reporting statistics if stats video on/off
+ *
+ * v2.3.0 (AIQ v5.3.0)
+ * 1.fix drc and hdrmge err for multi sensor
+ * 2.fix 3dlut for multi sensor
+ * 3.fix stream init pause state
+ * 4.fix refer to sram info for multi sensor
+ * 5.add api get isp work mode for rockit
+ * 6.remove __isp_config_hdrshd
+ * 7.add lock to save tb info
+ * 8.fix list buf delete err
+ * 9.fix get tb info
+ * 10.add iqtool video for isp21
+ * 11.fix image effect for frame two-run
+ * 12.fix underperformance for frame two-run
+ * 13.support unite mode for isp32
+ *
+ * v2.4.0 (AIQ v5.4.0)
+ * 1.fix rv1106g3 4k cmsk right
+ * 2.fix image effect for rv1106 4k
+ * 3.add RKISP_VICAP_CMD_QUICK_STREAM CMD
+ * 4.support suspend and resume
+ * 5.pm add call sensor s_power
+ * 6.suspend resume with rtt
+ * 7.fix resume hold by lut error
+ * 8.fix rv1106g3 4k can't cmsk rightmost
+ * 9.fix rv1106 resume no output
+ * 10.support to do reset in online mode
+ * 11.support change work mode to online with quick stream
+ * 12.fix build warning
+ * 13.frame timestamp change to sof
+ * 14.fix wnd_num cause array access out of bounds
+ * 15.fix rv1106 cycle kill rkipc null pointer
+ * 16.fix power_cnt if error
+ * 17.fix rockit set_fmt stuck
+ * 18.fix info2ddr no enable
+ * 19.fix reset can't open
+ * 20.more time to wait isp end
+ * 21.add mode for rv1106 suspend without rtt
+ * 22.fix is_on false cause pm isp die
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION

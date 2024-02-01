@@ -873,6 +873,7 @@ static const struct spinand_manufacturer *spinand_manufacturers[] = {
 	&skyhigh_spinand_manufacturer,
 	&toshiba_spinand_manufacturer,
 	&unim_spinand_manufacturer,
+	&unim_zl_spinand_manufacturer,
 	&winbond_spinand_manufacturer,
 	&xincun_spinand_manufacturer,
 	&xtx_spinand_manufacturer,
@@ -1117,6 +1118,13 @@ static int spinand_reinit(struct mtd_info *mtd)
 		ret = spinand_select_target(spinand, i);
 		if (ret)
 			return ret;
+
+		/* HWP_EN must be enabled first before block unlock region is set */
+		if (spinand->id.data[0] == 0x01) {
+			ret = spinand_lock_block(spinand, HWP_EN);
+			if (ret)
+				return ret;
+		}
 
 		ret = spinand_lock_block(spinand, BL_ALL_UNLOCKED);
 		if (ret)

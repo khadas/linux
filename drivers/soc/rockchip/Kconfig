@@ -18,6 +18,14 @@ config NO_GKI
 
 	  If unsure, say Y.
 
+config ROCKCHIP_DISABLE_UNUSED
+	tristate "Rockchip Disable Unused"
+	default m if GKI_HACKS_TO_FIX
+	help
+	  Disable unused clk and power down after module init.
+
+	  If unsure, say "N".
+
 #
 # Rockchip Soc drivers
 #
@@ -43,6 +51,12 @@ config ROCKCHIP_CPUINFO
 	  Serial can read from /proc/cpuinfo.
 
 	  If unsure, say N.
+
+config ROCKCHIP_CSU
+	tristate "Rockchip Clock Subunit Driver"
+	depends on ARCH_ROCKCHIP
+	help
+	  This adds the clock subunit driver for Rockchip SoCs.
 
 config ROCKCHIP_GRF
 	tristate "Rockchip General Register Files support"
@@ -158,7 +172,6 @@ config ROCKCHIP_RAMDISK
 
 config ROCKCHIP_SUSPEND_MODE
 	tristate "Rockchip suspend mode config"
-	depends on ROCKCHIP_SIP
 	help
 	  Say Y here if you want to set the suspend mode to the ATF.
 

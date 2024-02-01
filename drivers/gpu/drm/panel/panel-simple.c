@@ -160,6 +160,11 @@ struct panel_simple {
 	enum drm_panel_orientation orientation;
 };
 
+static inline void panel_simple_msleep(unsigned int msecs)
+{
+	usleep_range(msecs * 1000, msecs * 1000 + 100);
+}
+
 static inline struct panel_simple *to_panel_simple(struct drm_panel *panel)
 {
 	return container_of(panel, struct panel_simple, base);
@@ -277,7 +282,7 @@ static int panel_simple_xfer_dsi_cmd_seq(struct panel_simple *panel,
 			dev_err(dev, "failed to write dcs cmd: %d\n", err);
 
 		if (cmd->header.delay)
-			msleep(cmd->header.delay);
+			panel_simple_msleep(cmd->header.delay);
 	}
 
 	return 0;
@@ -300,7 +305,7 @@ static int panel_simple_xfer_spi_cmd_seq(struct panel_simple *panel, struct pane
 			return ret;
 
 		if (cmd->header.delay)
-			usleep_range(cmd->header.delay * 1000, (cmd->header.delay + 1) * 1000);
+			panel_simple_msleep(cmd->header.delay);
 	}
 
 	return 0;
@@ -478,7 +483,7 @@ static int panel_simple_disable(struct drm_panel *panel)
 		return 0;
 
 	if (p->desc->delay.disable)
-		msleep(p->desc->delay.disable);
+		panel_simple_msleep(p->desc->delay.disable);
 
 	p->enabled = false;
 
@@ -510,7 +515,7 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 	panel_simple_regulator_disable(p);
 
 	if (p->desc->delay.unprepare)
-		msleep(p->desc->delay.unprepare);
+		panel_simple_msleep(p->desc->delay.unprepare);
 
 	p->prepared = false;
 
@@ -564,7 +569,7 @@ static int panel_simple_prepare(struct drm_panel *panel)
 	if (p->no_hpd)
 		delay += p->desc->delay.hpd_absent_delay;
 	if (delay)
-		msleep(delay);
+		panel_simple_msleep(delay);
 
 	if (p->hpd_gpio) {
 		if (IS_ERR(p->hpd_gpio)) {
@@ -594,7 +599,7 @@ static int panel_simple_prepare(struct drm_panel *panel)
 //	gpiod_direction_output(p->reset_gpio, 0);
 
 	if (p->desc->delay.init)
-		msleep(p->desc->delay.init);
+		panel_simple_msleep(p->desc->delay.init);
 
 	if (p->desc->init_seq) {
 		if (p->desc->cmd_type == CMD_TYPE_SPI) {
@@ -621,7 +626,7 @@ static int panel_simple_enable(struct drm_panel *panel)
 		return 0;
 
 	if (p->desc->delay.enable)
-		msleep(p->desc->delay.enable);
+		panel_simple_msleep(p->desc->delay.enable);
 
 	p->enabled = true;
 
@@ -1042,8 +1047,8 @@ static const struct panel_desc ampire_am_480272h3tmqw_t01h = {
 	.num_modes = 1,
 	.bpc = 8,
 	.size = {
-		.width = 105,
-		.height = 67,
+		.width = 99,
+		.height = 58,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
@@ -1348,21 +1353,21 @@ static const struct panel_desc auo_g104sn02 = {
 	},
 };
 
-static const struct drm_display_mode auo_g121ean01_mode = {
-	.clock = 66700,
-	.hdisplay = 1280,
-	.hsync_start = 1280 + 58,
-	.hsync_end = 1280 + 58 + 8,
-	.htotal = 1280 + 58 + 8 + 70,
-	.vdisplay = 800,
-	.vsync_start = 800 + 6,
-	.vsync_end = 800 + 6 + 4,
-	.vtotal = 800 + 6 + 4 + 10,
+static const struct display_timing auo_g121ean01_timing = {
+	.pixelclock = { 60000000, 74400000, 90000000 },
+	.hactive = { 1280, 1280, 1280 },
+	.hfront_porch = { 20, 50, 100 },
+	.hback_porch = { 20, 50, 100 },
+	.hsync_len = { 30, 100, 200 },
+	.vactive = { 800, 800, 800 },
+	.vfront_porch = { 2, 10, 25 },
+	.vback_porch = { 2, 10, 25 },
+	.vsync_len = { 4, 18, 50 },
 };
 
 static const struct panel_desc auo_g121ean01 = {
-	.modes = &auo_g121ean01_mode,
-	.num_modes = 1,
+	.timings = &auo_g121ean01_timing,
+	.num_timings = 1,
 	.bpc = 8,
 	.size = {
 		.width = 261,
@@ -1538,7 +1543,9 @@ static const struct panel_desc auo_t215hvn01 = {
 	.delay = {
 		.disable = 5,
 		.unprepare = 1000,
-	}
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
 static const struct drm_display_mode avic_tm070ddh03_mode = {
@@ -2429,6 +2436,7 @@ static const struct panel_desc innolux_at043tn24 = {
 		.height = 54,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.connector_type = DRM_MODE_CONNECTOR_DPI,
 	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
 };
 
@@ -3490,6 +3498,7 @@ static const struct drm_display_mode powertip_ph800480t013_idf02_mode = {
 	.vsync_start = 480 + 49,
 	.vsync_end = 480 + 49 + 2,
 	.vtotal = 480 + 49 + 2 + 22,
+	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
 };
 
 static const struct panel_desc powertip_ph800480t013_idf02  = {

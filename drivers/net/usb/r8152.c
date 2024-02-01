@@ -2825,6 +2825,9 @@ static inline int __r8152_poll(struct r8152 *tp, int budget)
 	struct napi_struct *napi = &tp->napi;
 	int work_done;
 
+	if (!budget)
+		return 0;
+
 	work_done = rx_bottom(tp, budget);
 
 	if (work_done < budget) {

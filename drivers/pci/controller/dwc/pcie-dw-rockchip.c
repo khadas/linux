@@ -8,6 +8,7 @@
  * Author: Simon Xue <xxm@rock-chips.com>
  */
 
+#include <dt-bindings/phy/phy.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
@@ -142,6 +143,7 @@ enum rk_pcie_device_mode {
 #define PCIE_PL_ORDER_RULE_CTRL_OFF	0x8B4
 #define RK_PCIE_L2_TMOUT_US		5000
 #define RK_PCIE_HOTRESET_TMOUT_US	10000
+#define RK_PCIE_ENUM_HW_RETRYIES	2
 
 enum rk_pcie_ltssm_code {
 	S_L0 = 0x11,
@@ -192,6 +194,8 @@ struct rk_pcie {
 	u32				msi_vector_num;
 	struct workqueue_struct		*hot_rst_wq;
 	struct work_struct		hot_rst_work;
+	u32				comp_prst[2];
+	u32				intx;
 };
 
 struct rk_pcie_of_data {
@@ -200,6 +204,8 @@ struct rk_pcie_of_data {
 };
 
 #define to_rk_pcie(x)	dev_get_drvdata((x)->dev)
+static int rk_pcie_disable_power(struct rk_pcie *rk_pcie);
+static int rk_pcie_enable_power(struct rk_pcie *rk_pcie);
 
 static int rk_pcie_read(void __iomem *addr, int size, u32 *val)
 {
@@ -700,24 +706,6 @@ static inline void rk_pcie_enable_ltssm(struct rk_pcie *rk_pcie)
 	rk_pcie_writel_apb(rk_pcie, 0x0, 0xC000C);
 }
 
-static int rk_pcie_link_up(struct dw_pcie *pci)
-{
-	struct rk_pcie *rk_pcie = to_rk_pcie(pci);
-	u32 val;
-
-	if (rk_pcie->is_rk1808) {
-		val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_GENERAL_DEBUG);
-		if ((val & (PCIE_PHY_LINKUP | PCIE_DATA_LINKUP)) == 0x3)
-			return 1;
-	} else {
-		val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS);
-		if ((val & (RDLH_LINKUP | SMLH_LINKUP)) == 0x30000)
-			return 1;
-	}
-
-	return 0;
-}
-
 static void rk_pcie_enable_debug(struct rk_pcie *rk_pcie)
 {
 	if (!IS_ENABLED(CONFIG_DEBUG_FS))
@@ -756,6 +744,8 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 	int retries, power;
 	struct rk_pcie *rk_pcie = to_rk_pcie(pci);
 	bool std_rc = rk_pcie->mode == RK_PCIE_RC_TYPE && !rk_pcie->dma_obj;
+	int hw_retries = 0;
+	u32 ltssm;
 
 	/*
 	 * For standard RC, even if the link has been setup by firmware,
@@ -767,77 +757,92 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 		return 0;
 	}
 
-	/* Rest the device */
-	gpiod_set_value_cansleep(rk_pcie->rst_gpio, 0);
+	for (hw_retries = 0; hw_retries < RK_PCIE_ENUM_HW_RETRYIES; hw_retries++) {
+		/* Rest the device */
+		gpiod_set_value_cansleep(rk_pcie->rst_gpio, 0);
 
-	rk_pcie_disable_ltssm(rk_pcie);
-	rk_pcie_link_status_clear(rk_pcie);
-	rk_pcie_enable_debug(rk_pcie);
+		rk_pcie_disable_ltssm(rk_pcie);
+		rk_pcie_link_status_clear(rk_pcie);
+		rk_pcie_enable_debug(rk_pcie);
 
-	/* Enable client reset or link down interrupt */
-	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0x40000);
+		/* Enable client reset or link down interrupt */
+		rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0x40000);
 
-	/* Enable LTSSM */
-	rk_pcie_enable_ltssm(rk_pcie);
+		/* Enable LTSSM */
+		rk_pcie_enable_ltssm(rk_pcie);
 
-	/*
-	 * In resume routine, function devices' resume function must be late after
-	 * controllers'. Some devices, such as Wi-Fi, need special IO setting before
-	 * finishing training. So there must be timeout here. These kinds of devices
-	 * need rescan devices by its driver when used. So no need to waste time waiting
-	 * for training pass.
-	 */
-	if (rk_pcie->in_suspend && rk_pcie->skip_scan_in_resume) {
-		rfkill_get_wifi_power_state(&power);
-		if (!power) {
-			gpiod_set_value_cansleep(rk_pcie->rst_gpio, 1);
-			return 0;
-		}
-	}
-
-	/*
-	 * PCIe requires the refclk to be stable for 100µs prior to releasing
-	 * PERST and T_PVPERL (Power stable to PERST# inactive) should be a
-	 * minimum of 100ms.  See table 2-4 in section 2.6.2 AC, the PCI Express
-	 * Card Electromechanical Specification 3.0. So 100ms in total is the min
-	 * requuirement here. We add a 200ms by default for sake of hoping everthings
-	 * work fine. If it doesn't, please add more in DT node by add rockchip,perst-inactive-ms.
-	 */
-	msleep(rk_pcie->perst_inactive_ms);
-	gpiod_set_value_cansleep(rk_pcie->rst_gpio, 1);
-
-	/*
-	 * Add this 1ms delay because we observe link is always up stably after it and
-	 * could help us save 20ms for scanning devices.
-	 */
-	usleep_range(1000, 1100);
-
-	for (retries = 0; retries < 100; retries++) {
-		if (dw_pcie_link_up(pci)) {
-			/*
-			 * We may be here in case of L0 in Gen1. But if EP is capable
-			 * of Gen2 or Gen3, Gen switch may happen just in this time, but
-			 * we keep on accessing devices in unstable link status. Given
-			 * that LTSSM max timeout is 24ms per period, we can wait a bit
-			 * more for Gen switch.
-			 */
-			msleep(50);
-			/* In case link drop after linkup, double check it */
-			if (dw_pcie_link_up(pci)) {
-				dev_info(pci->dev, "PCIe Link up, LTSSM is 0x%x\n",
-					 rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
-				rk_pcie_debug_dump(rk_pcie);
+		/*
+		 * In resume routine, function devices' resume function must be late after
+		 * controllers'. Some devices, such as Wi-Fi, need special IO setting before
+		 * finishing training. So there must be timeout here. These kinds of devices
+		 * need rescan devices by its driver when used. So no need to waste time waiting
+		 * for training pass.
+		 */
+		if (rk_pcie->in_suspend && rk_pcie->skip_scan_in_resume) {
+			rfkill_get_wifi_power_state(&power);
+			if (!power) {
+				gpiod_set_value_cansleep(rk_pcie->rst_gpio, 1);
 				return 0;
 			}
 		}
 
-		dev_info_ratelimited(pci->dev, "PCIe Linking... LTSSM is 0x%x\n",
-				     rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
-		rk_pcie_debug_dump(rk_pcie);
-		msleep(20);
-	}
+		/*
+		 * PCIe requires the refclk to be stable for 100µs prior to releasing
+		 * PERST and T_PVPERL (Power stable to PERST# inactive) should be a
+		 * minimum of 100ms.  See table 2-4 in section 2.6.2 AC, the PCI Express
+		 * Card Electromechanical Specification 3.0. So 100ms in total is the min
+		 * requuirement here. We add a 200ms by default for sake of hoping everthings
+		 * work fine. If it doesn't, please add more in DT node by add rockchip,perst-inactive-ms.
+		 */
+		msleep(rk_pcie->perst_inactive_ms);
+		gpiod_set_value_cansleep(rk_pcie->rst_gpio, 1);
 
-	dev_err(pci->dev, "PCIe Link Fail\n");
+		/*
+		 * Add this 1ms delay because we observe link is always up stably after it and
+		 * could help us save 20ms for scanning devices.
+		 */
+		usleep_range(1000, 1100);
+
+		for (retries = 0; retries < 100; retries++) {
+			if (dw_pcie_link_up(pci)) {
+				/*
+				 * We may be here in case of L0 in Gen1. But if EP is capable
+				 * of Gen2 or Gen3, Gen switch may happen just in this time, but
+				 * we keep on accessing devices in unstable link status. Given
+				 * that LTSSM max timeout is 24ms per period, we can wait a bit
+				 * more for Gen switch.
+				 */
+				msleep(50);
+				/* In case link drop after linkup, double check it */
+				if (dw_pcie_link_up(pci)) {
+					dev_info(pci->dev, "PCIe Link up, LTSSM is 0x%x\n",
+						rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
+					rk_pcie_debug_dump(rk_pcie);
+					return 0;
+				}
+			}
+
+			dev_info_ratelimited(pci->dev, "PCIe Linking... LTSSM is 0x%x\n",
+					rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
+			rk_pcie_debug_dump(rk_pcie);
+			msleep(20);
+		}
+
+		/*
+		 * In response to the situation where PCIe peripherals cannot be
+		 * enumerated due tosignal abnormalities, reset PERST# and reset
+		 * the peripheral power supply, then restart the enumeration.
+		 */
+		ltssm = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS);
+		dev_err(pci->dev, "PCIe Link Fail, LTSSM is 0x%x, hw_retries=%d\n", ltssm, hw_retries);
+		if (ltssm >= 3 && !rk_pcie->is_signal_test) {
+			rk_pcie_disable_power(rk_pcie);
+			msleep(1000);
+			rk_pcie_enable_power(rk_pcie);
+		} else {
+			break;
+		}
+	}
 
 	return rk_pcie->is_signal_test == true ? 0 : -EINVAL;
 }
@@ -1127,8 +1132,8 @@ static int rk_pcie_host_init(struct pcie_port *pp)
 	dw_pcie_setup_rc(pp);
 
 	/* Disable BAR0 BAR1 */
-	dw_pcie_writel_dbi(pci, PCIE_TYPE0_HDR_DBI2_OFFSET + 0x10 + BAR_0 * 4, 0);
-	dw_pcie_writel_dbi(pci, PCIE_TYPE0_HDR_DBI2_OFFSET + 0x10 + BAR_1 * 4, 0);
+	dw_pcie_writel_dbi2(pci, PCI_BASE_ADDRESS_0, 0x0);
+	dw_pcie_writel_dbi2(pci, PCI_BASE_ADDRESS_1, 0x0);
 
 	ret = rk_pcie_establish_link(pci);
 
@@ -1201,7 +1206,6 @@ static int rk_pcie_add_ep(struct rk_pcie *rk_pcie)
 		return ret;
 	}
 
-	rk_pcie->pci->dbi_base2 = rk_pcie->pci->dbi_base + PCIE_TYPE0_HDR_DBI2_OFFSET;
 	rk_pcie->pci->atu_base = rk_pcie->pci->dbi_base + DEFAULT_DBI_ATU_OFFSET;
 	rk_pcie->pci->iatu_unroll_enabled = rk_pcie_iatu_unroll_enabled(rk_pcie->pci);
 
@@ -1261,6 +1265,7 @@ static int rk_pcie_resource_get(struct platform_device *pdev,
 		return PTR_ERR(rk_pcie->dbi_base);
 
 	rk_pcie->pci->dbi_base = rk_pcie->dbi_base;
+	rk_pcie->pci->dbi_base2 = rk_pcie->pci->dbi_base + PCIE_TYPE0_HDR_DBI2_OFFSET;
 
 	apb_base = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"pcie-apb");
@@ -1599,7 +1604,6 @@ MODULE_DEVICE_TABLE(of, rk_pcie_of_match);
 
 static const struct dw_pcie_ops dw_pcie_ops = {
 	.start_link = rk_pcie_establish_link,
-	.link_up = rk_pcie_link_up,
 };
 
 static int rk1808_pcie_fixup(struct rk_pcie *rk_pcie, struct device_node *np)
@@ -1680,7 +1684,7 @@ static struct irq_chip rk_pcie_legacy_irq_chip = {
 static int rk_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
 			    irq_hw_number_t hwirq)
 {
-	irq_set_chip_and_handler(irq, &rk_pcie_legacy_irq_chip, handle_simple_irq);
+	irq_set_chip_and_handler(irq, &rk_pcie_legacy_irq_chip, handle_level_irq);
 	irq_set_chip_data(irq, domain->host_data);
 
 	return 0;
@@ -1986,6 +1990,7 @@ static int rk_pcie_really_probe(void *p)
 
 	if (!IS_ERR_OR_NULL(rk_pcie->prsnt_gpio)) {
 		if (!gpiod_get_value(rk_pcie->prsnt_gpio)) {
+			dev_info(dev, "device isn't present\n");
 			ret = -ENODEV;
 			goto release_driver;
 		}
@@ -2081,11 +2086,25 @@ retry_regulator:
 		rk_pcie->is_signal_test = true;
 	}
 
-	/* Force into compliance mode */
-	if (device_property_read_bool(dev, "rockchip,compliance-mode")) {
-		val = dw_pcie_readl_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS);
-		val |= BIT(4);
-		dw_pcie_writel_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS, val);
+	/*
+	 * Force into compliance mode
+	 * comp_prst is a two dimensional array of which the first element
+	 * stands for speed mode, and the second one is preset value encoding:
+	 * [0] 0->SMA tool control the signal switch, 1/2/3 is for manual Gen setting
+	 * [1] transmitter setting for manual Gen setting, valid only if [0] isn't zero.
+	 */
+	if (!device_property_read_u32_array(dev, "rockchip,compliance-mode",
+					    rk_pcie->comp_prst, 2)) {
+		BUG_ON(rk_pcie->comp_prst[0] > 3 || rk_pcie->comp_prst[1] > 10);
+		if (!rk_pcie->comp_prst[0]) {
+			dev_info(dev, "Auto compliance mode for SMA tool.\n");
+		} else {
+			dev_info(dev, "compliance mode for soldered board Gen%d, P%d.\n",
+				 rk_pcie->comp_prst[0], rk_pcie->comp_prst[1]);
+			val = dw_pcie_readl_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS);
+			val |= BIT(4) | rk_pcie->comp_prst[0] | (rk_pcie->comp_prst[1] << 12);
+			dw_pcie_writel_dbi(pci, PCIE_CAP_LINK_CONTROL2_LINK_STATUS, val);
+		}
 		rk_pcie->is_signal_test = true;
 	}
 
@@ -2338,11 +2357,19 @@ static int __maybe_unused rockchip_dw_pcie_suspend(struct device *dev)
 no_l2:
 	rk_pcie_disable_ltssm(rk_pcie);
 
+	ret = phy_validate(rk_pcie->phy, PHY_TYPE_PCIE, 0, NULL);
+	if (ret && ret != -EOPNOTSUPP) {
+		dev_err(dev, "PHY is reused by other controller, check the dts!\n");
+		return ret;
+	}
+
 	/* make sure assert phy success */
 	usleep_range(200, 300);
 
 	phy_power_off(rk_pcie->phy);
 	phy_exit(rk_pcie->phy);
+
+	rk_pcie->intx = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_INTR_MASK_LEGACY);
 
 	clk_bulk_disable_unprepare(rk_pcie->clk_cnt, rk_pcie->clks);
 
@@ -2407,6 +2434,9 @@ static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 
 	if (std_rc)
 		dw_pcie_setup_rc(&rk_pcie->pci->pp);
+
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK_LEGACY,
+			   rk_pcie->intx | 0xffff0000);
 
 	ret = rk_pcie_establish_link(rk_pcie->pci);
 	if (ret) {

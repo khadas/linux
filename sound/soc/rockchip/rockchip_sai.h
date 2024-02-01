@@ -97,10 +97,12 @@
 #define SAI_DMACR_RDE(x)		((x) << 24)
 #define SAI_DMACR_RDL_MASK		GENMASK(20, 16)
 #define SAI_DMACR_RDL(x)		((x - 1) << 16)
+#define SAI_DMACR_RDL_V(v)		((((v) & SAI_DMACR_RDL_MASK) >> 16) + 1)
 #define SAI_DMACR_TDE_MASK		BIT(8)
 #define SAI_DMACR_TDE(x)		((x) << 8)
 #define SAI_DMACR_TDL_MASK		GENMASK(4, 0)
 #define SAI_DMACR_TDL(x)		((x) << 0)
+#define SAI_DMACR_TDL_V(v)		(((v) & SAI_DMACR_TDL_MASK) >> 0)
 
 /* INTCR Interrupt Ctrl Register */
 #define SAI_INTCR_RXOIC			BIT(18)
@@ -119,6 +121,16 @@
 /* XSHIFT: Transfer / Receive Frame Sync Shift Register */
 #define SAI_XSHIFT_SEL_MASK		GENMASK(23, 0)
 #define SAI_XSHIFT_SEL(x)		(x)
+
+/* XFIFOLR: Transfer / Receive FIFO Level Register */
+#define SAI_FIFOLR_XFL3_SHIFT		18
+#define SAI_FIFOLR_XFL3_MASK		GENMASK(23, 18)
+#define SAI_FIFOLR_XFL2_SHIFT		12
+#define SAI_FIFOLR_XFL2_MASK		GENMASK(17, 12)
+#define SAI_FIFOLR_XFL1_SHIFT		6
+#define SAI_FIFOLR_XFL1_MASK		GENMASK(11, 6)
+#define SAI_FIFOLR_XFL0_SHIFT		0
+#define SAI_FIFOLR_XFL0_MASK		GENMASK(5, 0)
 
 /* SAI Registers */
 #define SAI_TXCR			(0x0000)

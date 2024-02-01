@@ -179,11 +179,13 @@ static int debug_getc(struct platform_device *pdev)
 
 	if (lsr & UART_LSR_DR) {
 		temp = rk_fiq_read(t, UART_RX);
-		buf[n & 0x1f] = temp;
-		n++;
-		if (temp == 'q' && n > 2) {
-			if ((buf[(n - 2) & 0x1f] == 'i') &&
-			    (buf[(n - 3) & 0x1f] == 'f'))
+		buf[++n & 0x1f] = temp;
+
+		if (temp == 'q') {
+			if ((buf[(n - 1) & 0x1f] == 'i') &&
+			    (buf[(n - 2) & 0x1f] == 'f') &&
+			    (buf[(n - 3) & 0x1f] != '_') &&
+			    (buf[(n - 3) & 0x1f] != ' '))
 				return FIQ_DEBUGGER_BREAK;
 			else
 				return temp;
@@ -761,6 +763,11 @@ static int fiq_debugger_cpu_offine_migrate_fiq(unsigned int cpu)
 	if ((sip_fiq_debugger_is_enabled()) &&
 	    (sip_fiq_debugger_get_target_cpu() == cpu)) {
 		target_cpu = cpumask_any_but(cpu_online_mask, cpu);
+		if (target_cpu >= nr_cpu_ids) {
+			pr_err("%s: migrate fiq fail!\n", __func__);
+			return -EBUSY;
+		}
+
 		sip_fiq_debugger_switch_cpu(target_cpu);
 	}
 

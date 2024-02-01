@@ -455,6 +455,7 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 		phys_addr = sg_phys(buffer->sgt->sgl);
 		if (phys_addr == 0) {
 			pr_err("%s get physical address error!", __func__);
+			ret = -EFAULT;
 			goto unmap_buffer;
 		}
 
@@ -571,6 +572,7 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 		phys_addr = sg_phys(sgt->sgl);
 		if (phys_addr == 0) {
 			pr_err("%s get physical address error!", __func__);
+			ret = -EFAULT;
 			goto free_sgt;
 		}
 
@@ -621,8 +623,9 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 		if (mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS)
 			break;
 
-		pr_err("Current %s[%d] cannot support virtual address!\n",
+		pr_err("Current %s[%d] cannot support physically discontinuous virtual address!\n",
 		       rga_get_mmu_type_str(scheduler->data->mmu), scheduler->data->mmu);
+		ret = -EOPNOTSUPP;
 		goto free_dma_buffer;
 	}
 
@@ -840,9 +843,15 @@ static int rga_mm_handle_remove(int id, void *ptr, void *data)
 	return 0;
 }
 
+static void rga_mm_buffer_destroy(struct rga_internal_buffer *buffer)
+{
+	rga_mm_kref_release_buffer(&buffer->refcount);
+}
+
 static struct rga_internal_buffer *
 rga_mm_lookup_external(struct rga_mm *mm_session,
-		       struct rga_external_buffer *external_buffer)
+		       struct rga_external_buffer *external_buffer,
+		       struct mm_struct *current_mm)
 {
 	int id;
 	struct dma_buf *dma_buf = NULL;
@@ -875,8 +884,12 @@ rga_mm_lookup_external(struct rga_mm *mm_session,
 				continue;
 
 			if (temp_buffer->virt_addr->addr == external_buffer->memory) {
-				output_buffer = temp_buffer;
-				break;
+				if (temp_buffer->current_mm == current_mm) {
+					output_buffer = temp_buffer;
+					break;
+				}
+
+				continue;
 			}
 		}
 
@@ -1302,13 +1315,6 @@ static int rga_mm_sync_dma_sg_for_device(struct rga_internal_buffer *buffer,
 	struct sg_table *sgt;
 	struct rga_scheduler_t *scheduler;
 
-	sgt = rga_mm_lookup_sgt(buffer);
-	if (sgt == NULL) {
-		pr_err("%s(%d), failed to get sgt, core = 0x%x\n",
-		       __func__, __LINE__, job->core);
-		return -EINVAL;
-	}
-
 	scheduler = buffer->dma_buffer->scheduler;
 	if (scheduler == NULL) {
 		pr_err("%s(%d), failed to get scheduler, core = 0x%x\n",
@@ -1316,7 +1322,19 @@ static int rga_mm_sync_dma_sg_for_device(struct rga_internal_buffer *buffer,
 		return -EFAULT;
 	}
 
-	dma_sync_sg_for_device(scheduler->dev, sgt->sgl, sgt->orig_nents, dir);
+	if (buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS &&
+	    scheduler->data->mmu != RGA_IOMMU) {
+		dma_sync_single_for_device(scheduler->dev, buffer->phys_addr, buffer->size, dir);
+	} else {
+		sgt = rga_mm_lookup_sgt(buffer);
+		if (sgt == NULL) {
+			pr_err("%s(%d), failed to get sgt, core = 0x%x\n",
+			       __func__, __LINE__, job->core);
+			return -EINVAL;
+		}
+
+		dma_sync_sg_for_device(scheduler->dev, sgt->sgl, sgt->orig_nents, dir);
+	}
 
 	return 0;
 }
@@ -1328,13 +1346,6 @@ static int rga_mm_sync_dma_sg_for_cpu(struct rga_internal_buffer *buffer,
 	struct sg_table *sgt;
 	struct rga_scheduler_t *scheduler;
 
-	sgt = rga_mm_lookup_sgt(buffer);
-	if (sgt == NULL) {
-		pr_err("%s(%d), failed to get sgt, core = 0x%x\n",
-		       __func__, __LINE__, job->core);
-		return -EINVAL;
-	}
-
 	scheduler = buffer->dma_buffer->scheduler;
 	if (scheduler == NULL) {
 		pr_err("%s(%d), failed to get scheduler, core = 0x%x\n",
@@ -1342,7 +1353,19 @@ static int rga_mm_sync_dma_sg_for_cpu(struct rga_internal_buffer *buffer,
 		return -EFAULT;
 	}
 
-	dma_sync_sg_for_cpu(scheduler->dev, sgt->sgl, sgt->orig_nents, dir);
+	if (buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS &&
+	    scheduler->data->mmu != RGA_IOMMU) {
+		dma_sync_single_for_cpu(scheduler->dev, buffer->phys_addr, buffer->size, dir);
+	} else {
+		sgt = rga_mm_lookup_sgt(buffer);
+		if (sgt == NULL) {
+			pr_err("%s(%d), failed to get sgt, core = 0x%x\n",
+			       __func__, __LINE__, job->core);
+			return -EINVAL;
+		}
+
+		dma_sync_sg_for_cpu(scheduler->dev, sgt->sgl, sgt->orig_nents, dir);
+	}
 
 	return 0;
 }
@@ -1474,6 +1497,11 @@ static void rga_mm_put_buffer(struct rga_mm *mm,
 		if (rga_mm_sync_dma_sg_for_cpu(internal_buffer, job, dir))
 			pr_err("sync sgt for cpu error!\n");
 
+	if (DEBUGGER_EN(MM)) {
+		pr_info("handle[%d] put info:\n", (int)internal_buffer->handle);
+		rga_mm_dump_buffer(internal_buffer);
+	}
+
 	mutex_lock(&mm->lock);
 	kref_put(&internal_buffer->refcount, rga_mm_kref_release_buffer);
 	mutex_unlock(&mm->lock);
@@ -1581,6 +1609,53 @@ static int rga_mm_get_handle_info(struct rga_job *job)
 
 	req = &job->rga_command_base;
 	mm = rga_drvdata->mm;
+
+	switch (req->render_mode) {
+	case BITBLT_MODE:
+	case COLOR_PALETTE_MODE:
+		if (unlikely(req->src.yrgb_addr <= 0)) {
+			pr_err("render_mode[0x%x] src0 channel handle[%ld] must is valid!",
+			       req->render_mode, (unsigned long)req->src.yrgb_addr);
+			return -EINVAL;
+		}
+
+		if (unlikely(req->dst.yrgb_addr <= 0)) {
+			pr_err("render_mode[0x%x] dst channel handle[%ld] must is valid!",
+			       req->render_mode, (unsigned long)req->dst.yrgb_addr);
+			return -EINVAL;
+		}
+
+		if (req->bsfilter_flag) {
+			if (unlikely(req->pat.yrgb_addr <= 0)) {
+				pr_err("render_mode[0x%x] src1/pat channel handle[%ld] must is valid!",
+				       req->render_mode, (unsigned long)req->pat.yrgb_addr);
+				return -EINVAL;
+			}
+		}
+
+		break;
+	case COLOR_FILL_MODE:
+		if (unlikely(req->dst.yrgb_addr <= 0)) {
+			pr_err("render_mode[0x%x] dst channel handle[%ld] must is valid!",
+			       req->render_mode, (unsigned long)req->dst.yrgb_addr);
+			return -EINVAL;
+		}
+
+		break;
+
+	case UPDATE_PALETTE_TABLE_MODE:
+	case UPDATE_PATTEN_BUF_MODE:
+		if (unlikely(req->pat.yrgb_addr <= 0)) {
+			pr_err("render_mode[0x%x] lut/pat channel handle[%ld] must is valid!, req->render_mode",
+			       req->render_mode, (unsigned long)req->pat.yrgb_addr);
+			return -EINVAL;
+		}
+
+		break;
+	default:
+		pr_err("%s, unknown render mode!\n", __func__);
+		break;
+	}
 
 	if (likely(req->src.yrgb_addr > 0)) {
 		ret = rga_mm_get_channel_handle_info(mm, job, &req->src,
@@ -1926,6 +2001,7 @@ error_unmap_buffer:
 int rga_mm_map_job_info(struct rga_job *job)
 {
 	int ret;
+	ktime_t timestamp = ktime_get();
 
 	if (job->flags & RGA_JOB_USE_HANDLE) {
 		ret = rga_mm_get_handle_info(job);
@@ -1933,12 +2009,20 @@ int rga_mm_map_job_info(struct rga_job *job)
 			pr_err("failed to get buffer from handle\n");
 			return ret;
 		}
+
+		if (DEBUGGER_EN(TIME))
+			pr_info("request[%d], get buffer_handle info cost %lld us\n",
+				job->request_id, ktime_us_delta(ktime_get(), timestamp));
 	} else {
 		ret = rga_mm_map_buffer_info(job);
 		if (ret < 0) {
 			pr_err("failed to map buffer\n");
 			return ret;
 		}
+
+		if (DEBUGGER_EN(TIME))
+			pr_info("request[%d], map buffer cost %lld us\n",
+				job->request_id, ktime_us_delta(ktime_get(), timestamp));
 	}
 
 	return 0;
@@ -1946,14 +2030,35 @@ int rga_mm_map_job_info(struct rga_job *job)
 
 void rga_mm_unmap_job_info(struct rga_job *job)
 {
-	if (job->flags & RGA_JOB_USE_HANDLE)
+	ktime_t timestamp = ktime_get();
+
+	if (job->flags & RGA_JOB_USE_HANDLE) {
 		rga_mm_put_handle_info(job);
-	else
+
+		if (DEBUGGER_EN(TIME))
+			pr_info("request[%d], put buffer_handle info cost %lld us\n",
+				job->request_id, ktime_us_delta(ktime_get(), timestamp));
+	} else {
 		rga_mm_unmap_buffer_info(job);
+
+		if (DEBUGGER_EN(TIME))
+			pr_info("request[%d], unmap buffer cost %lld us\n",
+				job->request_id, ktime_us_delta(ktime_get(), timestamp));
+	}
 }
 
-uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
-			      struct rga_session *session)
+/*
+ * rga_mm_import_buffer - Importing external buffer into the RGA driver
+ *
+ * @external_buffer: [in] Parameters of external buffer
+ * @session:         [in] Session of the current process
+ *
+ * returns:
+ * if return value > 0, the buffer import is successful and is the generated
+ * buffer-handle, negative error code on failure.
+ */
+int rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
+			 struct rga_session *session)
 {
 	int ret = 0, new_id;
 	struct rga_mm *mm;
@@ -1962,17 +2067,23 @@ uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 	mm = rga_drvdata->mm;
 	if (mm == NULL) {
 		pr_err("rga mm is null!\n");
-		return 0;
+		return -EFAULT;
 	}
 
 	mutex_lock(&mm->lock);
 
 	/* first, Check whether to rga_mm */
-	internal_buffer = rga_mm_lookup_external(mm, external_buffer);
+	internal_buffer = rga_mm_lookup_external(mm, external_buffer, current->mm);
 	if (!IS_ERR_OR_NULL(internal_buffer)) {
 		kref_get(&internal_buffer->refcount);
 
 		mutex_unlock(&mm->lock);
+
+		if (DEBUGGER_EN(MM)) {
+			pr_info("import existing buffer:\n");
+			rga_mm_dump_buffer(internal_buffer);
+		}
+
 		return internal_buffer->handle;
 	}
 
@@ -1982,7 +2093,7 @@ uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 		pr_err("%s alloc internal_buffer error!\n", __func__);
 
 		mutex_unlock(&mm->lock);
-		return 0;
+		return -ENOMEM;
 	}
 
 	ret = rga_mm_map_buffer(external_buffer, internal_buffer, NULL, true);
@@ -2001,6 +2112,7 @@ uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 	idr_preload_end();
 	if (new_id < 0) {
 		pr_err("internal_buffer alloc id failed!\n");
+		ret = new_id;
 		goto FREE_INTERNAL_BUFFER;
 	}
 
@@ -2019,7 +2131,7 @@ FREE_INTERNAL_BUFFER:
 	mutex_unlock(&mm->lock);
 	kfree(internal_buffer);
 
-	return 0;
+	return ret;
 }
 
 int rga_mm_release_buffer(uint32_t handle)
@@ -2071,9 +2183,9 @@ int rga_mm_session_release_buffer(struct rga_session *session)
 
 	idr_for_each_entry(&mm->memory_idr, buffer, i) {
 		if (session == buffer->session) {
-			pr_err("[tgid:%d] Decrement the reference of handle[%d] when the user exits\n",
+			pr_err("[tgid:%d] Destroy handle[%d] when the user exits\n",
 			       session->tgid, buffer->handle);
-			kref_put(&buffer->refcount, rga_mm_kref_release_buffer);
+			rga_mm_buffer_destroy(buffer);
 		}
 	}
 

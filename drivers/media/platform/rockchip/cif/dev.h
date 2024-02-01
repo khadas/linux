@@ -94,6 +94,13 @@
 #define CROP_SRC_SENSOR_MASK		(0x1 << 0)
 #define CROP_SRC_USR_MASK		(0x1 << 1)
 
+/*
+ * max wait time for stream stop
+ */
+#define RKCIF_STOP_MAX_WAIT_TIME_MS	(500)
+
+#define RKCIF_SKIP_FRAME_MAX		(16)
+
 enum rkcif_workmode {
 	RKCIF_WORKMODE_ONEFRAME = 0x00,
 	RKCIF_WORKMODE_PINGPONG = 0x01,
@@ -471,6 +478,18 @@ struct rkcif_sync_cfg {
 	u32 group;
 };
 
+enum rkcif_toisp_buf_update_state {
+	RKCIF_TOISP_BUF_ROTATE,
+	RKCIF_TOISP_BUF_THESAME,
+	RKCIF_TOISP_BUF_LOSS,
+};
+
+struct rkcif_toisp_buf_state {
+	enum rkcif_toisp_buf_update_state state;
+	int check_cnt;
+	bool is_early_update;
+};
+
 /*
  * struct rkcif_stream - Stream states TODO
  *
@@ -530,6 +549,7 @@ struct rkcif_stream {
 	struct rkcif_rx_buffer		rx_buf[RKISP_VICAP_BUF_CNT_MAX];
 	struct list_head		rx_buf_head;
 	int				total_buf_num;
+	int				rx_buf_num;
 	u64				line_int_cnt;
 	int				lack_buf_cnt;
 	unsigned int			buf_wake_up_cnt;
@@ -540,6 +560,10 @@ struct rkcif_stream {
 	int				last_frame_idx;
 	int				new_fource_idx;
 	atomic_t			buf_cnt;
+	struct completion		stop_complete;
+	struct rkcif_toisp_buf_state	toisp_buf_state;
+	u32				skip_frame;
+	u32				cur_skip_frame;
 	bool				stopping;
 	bool				crop_enable;
 	bool				crop_dyn_en;
@@ -556,6 +580,9 @@ struct rkcif_stream {
 	bool				is_in_vblank;
 	bool				is_change_toisp;
 	bool				is_stop_capture;
+	bool				is_wait_dma_stop;
+	bool				is_single_cap;
+	bool				is_wait_stop_complete;
 };
 
 struct rkcif_lvds_subdev {
@@ -791,6 +818,20 @@ struct rkcif_err_state_work {
 	u32 intstat;
 	u32 lastline;
 	u32 lastpixel;
+	u32 size_id0;
+	u32 size_id1;
+	u32 size_id2;
+	u32 size_id3;
+};
+
+enum rkcif_resume_user {
+	RKCIF_RESUME_CIF,
+	RKCIF_RESUME_ISP,
+};
+
+struct rkcif_sensor_work {
+	struct work_struct work;
+	int on;
 };
 
 /*
@@ -821,6 +862,7 @@ struct rkcif_device {
 	int				chip_id;
 	atomic_t			stream_cnt;
 	atomic_t			power_cnt;
+	atomic_t			streamoff_cnt;
 	struct mutex			stream_lock; /* lock between streams */
 	struct mutex			scale_lock; /* lock between scale dev */
 	struct mutex			tools_lock; /* lock between tools dev */
@@ -853,6 +895,7 @@ struct rkcif_device {
 	struct completion		cmpl_ntf;
 	struct csi2_dphy_hw		*dphy_hw;
 	phys_addr_t			resmem_pa;
+	dma_addr_t			resmem_addr;
 	size_t				resmem_size;
 	struct rk_tb_client		tb_client;
 	bool				is_start_hdr;
@@ -863,6 +906,9 @@ struct rkcif_device {
 	bool				is_thunderboot;
 	bool				is_rdbk_to_online;
 	bool				is_support_tools;
+	bool				is_rtt_suspend;
+	bool				sensor_state_change;
+	bool				is_toisp_reset;
 	int				rdbk_debug;
 	struct rkcif_sync_cfg		sync_cfg;
 	int				sditf_cnt;
@@ -871,6 +917,14 @@ struct rkcif_device {
 	int				sensor_linetime;
 	u32				err_state;
 	struct rkcif_err_state_work	err_state_work;
+	struct rkcif_sensor_work	sensor_work;
+	int				resume_mode;
+	u32				nr_buf_size;
+	u32				share_mem_size;
+	u32				thunderboot_sensor_num;
+	int				sensor_state;
+	u32				intr_mask;
+	struct delayed_work		work_deal_err;
 };
 
 extern struct platform_driver rkcif_plat_drv;
@@ -967,5 +1021,15 @@ void rkcif_rockit_dev_init(struct rkcif_device *dev);
 void rkcif_rockit_dev_deinit(void);
 
 void rkcif_err_print_work(struct work_struct *work);
+int rkcif_stream_suspend(struct rkcif_device *cif_dev, int mode);
+int rkcif_stream_resume(struct rkcif_device *cif_dev, int mode);
+
+static inline u64 rkcif_time_get_ns(struct rkcif_device *dev)
+{
+	if (dev->chip_id == CHIP_RV1106_CIF)
+		return ktime_get_boottime_ns();
+	else
+		return ktime_get_ns();
+}
 
 #endif

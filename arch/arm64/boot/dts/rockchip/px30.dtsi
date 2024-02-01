@@ -26,6 +26,10 @@
 
 	aliases {
 		ethernet0 = &gmac;
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+		gpio3 = &gpio3;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -644,7 +648,7 @@
 			status = "disabled";
 		};
 
-		reboot-mode {
+		reboot_mode: reboot-mode {
 			compatible = "syscon-reboot-mode";
 			offset = <0x200>;
 			mode-bootloader = <BOOT_BL_DOWNLOAD>;
@@ -1045,6 +1049,7 @@
 	pwm0: pwm@ff200000 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff200000 0x0 0x10>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_PWM0>, <&cru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
 		pinctrl-names = "active";
@@ -1056,6 +1061,7 @@
 	pwm1: pwm@ff200010 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff200010 0x0 0x10>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_PWM0>, <&cru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
 		pinctrl-names = "active";
@@ -1067,6 +1073,7 @@
 	pwm2: pwm@ff200020 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff200020 0x0 0x10>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_PWM0>, <&cru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
 		pinctrl-names = "active";
@@ -1078,6 +1085,8 @@
 	pwm3: pwm@ff200030 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff200030 0x0 0x10>;
+		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_PWM0>, <&cru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
 		pinctrl-names = "active";
@@ -1089,6 +1098,7 @@
 	pwm4: pwm@ff208000 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff208000 0x0 0x10>;
+		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
 		pinctrl-names = "active";
@@ -1100,6 +1110,7 @@
 	pwm5: pwm@ff208010 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff208010 0x0 0x10>;
+		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
 		pinctrl-names = "active";
@@ -1111,6 +1122,7 @@
 	pwm6: pwm@ff208020 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff208020 0x0 0x10>;
+		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
 		pinctrl-names = "active";
@@ -1122,6 +1134,8 @@
 	pwm7: pwm@ff208030 {
 		compatible = "rockchip,px30-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff208030 0x0 0x10>;
+		interrupts = <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
 		pinctrl-names = "active";
@@ -1689,7 +1703,7 @@
 
 	vopb: vop@ff460000 {
 		compatible = "rockchip,px30-vop-big";
-		reg = <0x0 0xff460000 0x0 0x1fc>, <0x0 0xff460a00 0x0 0x400>;
+		reg = <0x0 0xff460000 0x0 0x260>, <0x0 0xff460a00 0x0 0x400>;
 		rockchip,grf = <&grf>;
 		reg-names = "regs", "gamma_lut";
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
@@ -2013,11 +2027,11 @@
 		downdifferential = <20>;
 		system-status-freq = <
 			/*system status         freq(KHz)*/
-			SYS_STATUS_NORMAL       528000
+			SYS_STATUS_NORMAL       666000
 			SYS_STATUS_REBOOT       450000
 			SYS_STATUS_SUSPEND      194000
 			SYS_STATUS_VIDEO_1080P  450000
-			SYS_STATUS_BOOST        528000
+			SYS_STATUS_BOOST        666000
 			SYS_STATUS_ISP          666000
 			SYS_STATUS_PERFORMANCE  1056000
 		>;
@@ -2087,14 +2101,6 @@
 			opp-microvolt-L2 = <950000>;
 			opp-microvolt-L3 = <950000>;
 		};
-		opp-528000000 {
-			opp-hz = /bits/ 64 <528000000>;
-			opp-microvolt = <975000>;
-			opp-microvolt-L0 = <975000>;
-			opp-microvolt-L1 = <975000>;
-			opp-microvolt-L2 = <950000>;
-			opp-microvolt-L3 = <950000>;
-		};
 		opp-666000000 {
 			opp-hz = /bits/ 64 <666000000>;
 			opp-microvolt = <1050000>;
@@ -2124,11 +2130,6 @@
 		opp-328000000 {
 			opp-hz = /bits/ 64 <328000000>;
 			opp-microvolt = <950000>;
-		};
-		opp-528000000 {
-			opp-hz = /bits/ 64 <528000000>;
-			opp-microvolt = <950000>;
-			status = "disabled";
 		};
 		opp-666000000 {
 			opp-hz = /bits/ 64 <666000000>;

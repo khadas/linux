@@ -20,7 +20,6 @@
 #include <media/videobuf2-dma-contig.h>
 #include <media/v4l2-fwnode.h>
 #include <linux/iommu.h>
-#include <dt-bindings/soc/rockchip-system-status.h>
 #include <soc/rockchip/rockchip-system-status.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
@@ -1134,6 +1133,7 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 			cif_dev->reset_watchdog_timer.is_triggered = false;
 			cif_dev->reset_watchdog_timer.is_running = false;
 			cif_dev->err_state_work.last_timestamp = 0;
+			cif_dev->is_toisp_reset = false;
 			for (i = 0; i < cif_dev->num_channels; i++)
 				cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt[i] = 0;
 			cif_dev->reset_watchdog_timer.run_cnt = 0;
@@ -1218,6 +1218,7 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 				cif_dev->is_start_hdr = true;
 				cif_dev->reset_watchdog_timer.is_triggered = false;
 				cif_dev->reset_watchdog_timer.is_running = false;
+				cif_dev->is_toisp_reset = false;
 				for (i = 0; i < cif_dev->num_channels; i++)
 					cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt[i] = 0;
 				cif_dev->reset_watchdog_timer.run_cnt = 0;
@@ -1908,6 +1909,32 @@ static void rkcif_init_reset_monitor(struct rkcif_device *dev)
 	INIT_WORK(&dev->reset_work.work, rkcif_reset_work);
 }
 
+void rkcif_set_sensor_stream(struct work_struct *work)
+{
+	struct rkcif_sensor_work *sensor_work = container_of(work,
+						struct rkcif_sensor_work,
+						work);
+	struct rkcif_device *cif_dev = container_of(sensor_work,
+						    struct rkcif_device,
+						    sensor_work);
+
+	v4l2_subdev_call(cif_dev->terminal_sensor.sd,
+			core, ioctl,
+			RKMODULE_SET_QUICK_STREAM,
+			&sensor_work->on);
+}
+
+static void rkcif_deal_err_intr(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct rkcif_device *cif_dev = container_of(dwork,
+						    struct rkcif_device,
+						    work_deal_err);
+
+	cif_dev->intr_mask |= CSI_BANDWIDTH_LACK_V1;
+	rkcif_write_register_or(cif_dev, CIF_REG_MIPI_LVDS_INTEN, CSI_BANDWIDTH_LACK_V1);
+}
+
 int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int inf_id)
 {
 	struct device *dev = cif_dev->dev;
@@ -1927,6 +1954,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	atomic_set(&cif_dev->pipe.power_cnt, 0);
 	atomic_set(&cif_dev->pipe.stream_cnt, 0);
 	atomic_set(&cif_dev->power_cnt, 0);
+	atomic_set(&cif_dev->streamoff_cnt, 0);
 	cif_dev->is_start_hdr = false;
 	cif_dev->pipe.open = rkcif_pipeline_open;
 	cif_dev->pipe.close = rkcif_pipeline_close;
@@ -1940,11 +1968,15 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->early_line = 0;
 	cif_dev->is_thunderboot = false;
 	cif_dev->rdbk_debug = 0;
+
+	cif_dev->resume_mode = 0;
 	memset(&cif_dev->channels[0].capture_info, 0, sizeof(cif_dev->channels[0].capture_info));
 	if (cif_dev->chip_id == CHIP_RV1126_CIF_LITE)
 		cif_dev->isr_hdl = rkcif_irq_lite_handler;
 
 	INIT_WORK(&cif_dev->err_state_work.work, rkcif_err_print_work);
+	INIT_WORK(&cif_dev->sensor_work.work, rkcif_set_sensor_stream);
+	INIT_DELAYED_WORK(&cif_dev->work_deal_err, rkcif_deal_err_intr);
 
 	if (cif_dev->chip_id < CHIP_RV1126_CIF) {
 		if (cif_dev->inf_id == RKCIF_MIPI_LVDS) {
@@ -2118,6 +2150,8 @@ static int rkcif_get_reserved_mem(struct rkcif_device *cif_dev)
 	struct resource r;
 	int ret;
 
+	cif_dev->is_thunderboot = false;
+	cif_dev->is_rtt_suspend = false;
 	/* Get reserved memory region from Device-tree */
 	np = of_parse_phandle(dev->of_node, "memory-region-thunderboot", 0);
 	if (!np) {
@@ -2133,7 +2167,14 @@ static int rkcif_get_reserved_mem(struct rkcif_device *cif_dev)
 
 	cif_dev->resmem_pa = r.start;
 	cif_dev->resmem_size = resource_size(&r);
-	cif_dev->is_thunderboot = true;
+	cif_dev->resmem_addr = dma_map_single(dev, phys_to_virt(r.start),
+					      sizeof(struct rkisp_thunderboot_resmem_head),
+					      DMA_BIDIRECTIONAL);
+
+	if (device_property_read_bool(dev, "rtt-suspend"))
+		cif_dev->is_rtt_suspend = true;
+	if (IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP))
+		cif_dev->is_thunderboot = true;
 	dev_info(dev, "Allocated reserved memory, paddr: 0x%x, size 0x%x\n",
 		 (u32)cif_dev->resmem_pa,
 		 (u32)cif_dev->resmem_size);
@@ -2211,6 +2252,22 @@ static int rkcif_plat_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused rkcif_sleep_suspend(struct device *dev)
+{
+	struct rkcif_device *cif_dev = dev_get_drvdata(dev);
+
+	rkcif_stream_suspend(cif_dev, RKCIF_RESUME_CIF);
+	return 0;
+}
+
+static int __maybe_unused rkcif_sleep_resume(struct device *dev)
+{
+	struct rkcif_device *cif_dev = dev_get_drvdata(dev);
+
+	rkcif_stream_resume(cif_dev, RKCIF_RESUME_CIF);
+	return 0;
+}
+
 static int __maybe_unused rkcif_runtime_suspend(struct device *dev)
 {
 	struct rkcif_device *cif_dev = dev_get_drvdata(dev);
@@ -2281,8 +2338,7 @@ late_initcall(rkcif_clr_unready_dev);
 #endif
 
 static const struct dev_pm_ops rkcif_plat_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(rkcif_sleep_suspend, rkcif_sleep_resume)
 	SET_RUNTIME_PM_OPS(rkcif_runtime_suspend, rkcif_runtime_resume, NULL)
 };
 

@@ -888,8 +888,10 @@ static int rockchip_usb2phy_power_on(struct phy *phy)
 		goto unlock;
 
 	ret = property_enable(base, &rport->port_cfg->phy_sus, false);
-	if (ret)
+	if (ret) {
+		clk_disable_unprepare(rphy->clk480m);
 		goto unlock;
+	}
 
 	/*
 	 * For rk3588, it needs to reset phy when exit from
@@ -902,8 +904,10 @@ static int rockchip_usb2phy_power_on(struct phy *phy)
 	if (rport->port_id == USB2PHY_PORT_OTG &&
 	    of_device_is_compatible(rphy->dev->of_node, "rockchip,rk3588-usb2phy")) {
 		ret = rockchip_usb2phy_reset(rphy);
-		if (ret)
+		if (ret) {
+			clk_disable_unprepare(rphy->clk480m);
 			goto unlock;
+		}
 	}
 
 	/* waiting for the utmi_clk to become stable */
@@ -1767,8 +1771,12 @@ static irqreturn_t rockchip_usb2phy_id_irq(int irq, void *data)
 	if (property_enabled(rphy->grf, &rport->port_cfg->idfall_det_st)) {
 		property_enable(rphy->grf, &rport->port_cfg->idfall_det_clr,
 				true);
-		/* switch to host if id fall det and iddig status is low */
-		if (!property_enabled(rphy->grf, &rport->port_cfg->utmi_iddig))
+		/*
+		 * if id fall det, switch to host if ID Detector pin is floating
+		 * or iddig status is low.
+		 */
+		if (!rport->port_cfg->utmi_iddig.enable ||
+		    !property_enabled(rphy->grf, &rport->port_cfg->utmi_iddig))
 			cable_vbus_state = true;
 	} else if (property_enabled(rphy->grf, &rport->port_cfg->idrise_det_st)) {
 		property_enable(rphy->grf, &rport->port_cfg->idrise_det_clr,
@@ -3428,7 +3436,6 @@ static const struct rockchip_usb2phy_cfg rk3328_phy_cfgs[] = {
 				.ls_det_clr	= { 0x0118, 0, 0, 0, 1 },
 				.utmi_avalid	= { 0x0120, 10, 10, 0, 1 },
 				.utmi_bvalid	= { 0x0120, 9, 9, 0, 1 },
-				.utmi_iddig	= { 0x0120, 6, 6, 0, 1 },
 				.utmi_ls	= { 0x0120, 5, 4, 0, 1 },
 				.vbus_det_en	= { 0x001c, 15, 15, 1, 0 },
 			},

@@ -86,6 +86,12 @@ enum rga_scale_down_mode {
 	RGA_SCALE_DOWN_AVG	= 0x1,
 };
 
+enum RGA_SCHEDULER_CORE {
+	RGA_SCHEDULER_RGA3_CORE0 = 1 << 0,
+	RGA_SCHEDULER_RGA3_CORE1 = 1 << 1,
+	RGA_SCHEDULER_RGA2_CORE0 = 1 << 2,
+};
+
 /* RGA process mode enum */
 enum {
 	BITBLT_MODE			= 0x0,
@@ -139,6 +145,7 @@ enum {
 	RGA_YUV_VDS			= 0x1 << 10,
 	RGA_OSD				= 0x1 << 11,
 	RGA_PRE_INTR			= 0x1 << 12,
+	RGA_FULL_CSC			= 0x1 << 13,
 };
 
 enum rga_surf_format {
@@ -380,6 +387,16 @@ struct rga_full_csc {
 	struct rga_csc_coe coe_v;
 };
 
+struct rga_csc_range {
+	uint16_t max;
+	uint16_t min;
+};
+
+struct rga_csc_clip {
+	struct rga_csc_range y;
+	struct rga_csc_range uv;
+};
+
 struct rga_mosaic_info {
 	uint8_t enable;
 	uint8_t mode;
@@ -556,6 +573,12 @@ struct rga_img_info_t {
 	uint16_t enable;
 };
 
+struct rga_feature {
+	uint32_t global_alpha_en:1;
+	uint32_t full_csc_clip_en:1;
+	uint32_t user_close_fence:1;
+};
+
 struct rga_req {
 	/* (enum) process mode sel */
 	uint8_t render_mode;
@@ -612,7 +635,7 @@ struct rga_req {
 	/* porter duff alpha mode sel */
 	uint8_t PD_mode;
 
-	/* global alpha value */
+	/* legacy: global alpha value */
 	uint8_t alpha_global_value;
 
 	/* rop2/3/4 code scan from rop code table*/
@@ -674,7 +697,15 @@ struct rga_req {
 
 	struct rga_pre_intr_info pre_intr_info;
 
-	uint8_t reservr[59];
+	/* global alpha */
+	uint8_t fg_global_alpha;
+	uint8_t bg_global_alpha;
+
+	struct rga_feature feature;
+
+	struct rga_csc_clip full_csc_clip;
+
+	uint8_t reservr[43];
 };
 
 struct rga_alpha_config {

@@ -141,7 +141,7 @@ static void csi2_update_sensor_info(struct csi2_dev *csi2)
 		break;
 	default:
 		v4l2_warn(&csi2->sd, "lane num is invalid\n");
-		csi2->bus.num_data_lanes = 0;
+		csi2->bus.num_data_lanes = 4;
 		break;
 	}
 
@@ -252,6 +252,8 @@ static int csi2_start(struct csi2_dev *csi2)
 			v4l2_err(&csi2->sd, "%s: enable clks failed\n", __func__);
 			return ret;
 		}
+		enable_irq(csi2->csi2_hw[csi_idx]->irq1);
+		enable_irq(csi2->csi2_hw[csi_idx]->irq2);
 		csi2_enable(csi2->csi2_hw[csi_idx], host_type);
 	}
 
@@ -269,6 +271,8 @@ static int csi2_start(struct csi2_dev *csi2)
 err_assert_reset:
 	for (i = 0; i < csi2->csi_info.csi_num; i++) {
 		csi_idx = csi2->csi_info.csi_idx[i];
+		disable_irq(csi2->csi2_hw[csi_idx]->irq1);
+		disable_irq(csi2->csi2_hw[csi_idx]->irq2);
 		csi2_disable(csi2->csi2_hw[csi_idx]);
 		csi2_disable_clks(csi2->csi2_hw[csi_idx]);
 	}
@@ -286,6 +290,8 @@ static void csi2_stop(struct csi2_dev *csi2)
 
 	for (i = 0; i < csi2->csi_info.csi_num; i++) {
 		csi_idx = csi2->csi_info.csi_idx[i];
+		disable_irq(csi2->csi2_hw[csi_idx]->irq1);
+		disable_irq(csi2->csi2_hw[csi_idx]->irq2);
 		csi2_disable(csi2->csi2_hw[csi_idx]);
 		csi2_hw_do_reset(csi2->csi2_hw[csi_idx]);
 		csi2_disable_clks(csi2->csi2_hw[csi_idx]);
@@ -399,6 +405,7 @@ static int csi2_media_init(struct v4l2_subdev *sd)
 	csi2->crop.left = 0;
 	csi2->crop.width = RKCIF_DEFAULT_WIDTH;
 	csi2->crop.height = RKCIF_DEFAULT_HEIGHT;
+	csi2->bus.num_data_lanes = 4;
 
 	return media_entity_pads_init(&sd->entity, num_pads, csi2->pad);
 }
@@ -664,15 +671,10 @@ static int csi2_parse_endpoint(struct device *dev,
 			       struct v4l2_fwnode_endpoint *vep,
 			       struct v4l2_async_subdev *asd)
 {
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct csi2_dev *csi2 = sd_to_dev(sd);
-
 	if (vep->base.port != 0) {
 		dev_err(dev, "The csi host node needs to parse port 0\n");
 		return -EINVAL;
 	}
-
-	csi2->bus = vep->bus.mipi_csi2;
 
 	return 0;
 }
@@ -777,7 +779,7 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 {
 	struct device *dev = ctx;
 	struct csi2_hw *csi2_hw = dev_get_drvdata(dev);
-	struct csi2_dev *csi2 = csi2_hw->csi2;
+	struct csi2_dev *csi2 = NULL;
 	struct csi2_err_stats *err_list = NULL;
 	unsigned long err_stat = 0;
 	u32 val;
@@ -786,6 +788,16 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 	char vc_info[CSI_VCINFO_LEN] = {0};
 	bool is_add_cnt = false;
 
+	if (!csi2_hw) {
+		disable_irq_nosync(irq);
+		return IRQ_HANDLED;
+	}
+
+	csi2 = csi2_hw->csi2;
+	if (!csi2) {
+		disable_irq_nosync(irq);
+		return IRQ_HANDLED;
+	}
 	val = read_csihost_reg(csi2_hw->base, CSIHOST_ERR1);
 	if (val) {
 		if (val & CSIHOST_ERR1_PHYERR_SPTSYNCHS) {
@@ -885,6 +897,11 @@ static irqreturn_t rk_csirx_irq2_handler(int irq, void *ctx)
 	char cur_str[CSI_ERRSTR_LEN] = {0};
 	char err_str[CSI_ERRSTR_LEN] = {0};
 	char vc_info[CSI_VCINFO_LEN] = {0};
+
+	if (!csi2_hw) {
+		disable_irq_nosync(irq);
+		return IRQ_HANDLED;
+	}
 
 	val = read_csihost_reg(csi2_hw->base, CSIHOST_ERR2);
 	if (val) {
@@ -1262,6 +1279,7 @@ static int csi2_hw_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq_byname(pdev, "csi-intr1");
 	if (irq > 0) {
+		irq_set_status_flags(irq, IRQ_NOAUTOEN);
 		ret = devm_request_irq(&pdev->dev, irq,
 				       rk_csirx_irq1_handler, 0,
 				       dev_driver_string(&pdev->dev),
@@ -1276,6 +1294,7 @@ static int csi2_hw_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq_byname(pdev, "csi-intr2");
 	if (irq > 0) {
+		irq_set_status_flags(irq, IRQ_NOAUTOEN);
 		ret = devm_request_irq(&pdev->dev, irq,
 				       rk_csirx_irq2_handler, 0,
 				       dev_driver_string(&pdev->dev),

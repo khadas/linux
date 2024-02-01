@@ -137,7 +137,7 @@ static struct rockchip_pll_clock rk3562_pll_clks[] __initdata = {
 		     0, RK3562_PMU1_PLL_CON(0),
 		     RK3562_PMU1_MODE_CON, 0, 2, 0, rk3562_pll_rates),
 	[dpll] = PLL(pll_rk3328, PLL_DPLL, "dpll", mux_pll_p,
-		     0, RK3562_SUBDDR_PLL_CON(0),
+		     CLK_IS_CRITICAL, RK3562_SUBDDR_PLL_CON(0),
 		     RK3562_SUBDDR_MODE_CON, 0, 1, 0, NULL),
 };
 
@@ -624,7 +624,7 @@ static struct rockchip_clk_branch rk3562_clk_branches[] __initdata = {
 	COMPOSITE(CLK_UART3_SRC, "clk_uart3_src", gpll_cpll_p, 0,
 			RK3562_PERI_CLKSEL_CON(25), 8, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3562_PERI_CLKGATE_CON(7), 15, GFLAGS),
-	COMPOSITE_FRACMUX(CLK_UART3_FRAC, "clk_uart3_frac", "clk_uart3", CLK_SET_RATE_PARENT,
+	COMPOSITE_FRACMUX(CLK_UART3_FRAC, "clk_uart3_frac", "clk_uart3_src", CLK_SET_RATE_PARENT,
 			RK3562_PERI_CLKSEL_CON(26), 0,
 			RK3562_PERI_CLKGATE_CON(8), 0, GFLAGS,
 			&rk3562_clk_uart3_fracmux),
@@ -1011,10 +1011,10 @@ static struct rockchip_clk_branch rk3562_clk_branches[] __initdata = {
 			RK3562_CLKGATE_CON(13), 6, GFLAGS),
 	GATE(HCLK_VOP, "hclk_vop", "hclk_vo_pre", 0,
 			RK3562_CLKGATE_CON(13), 7, GFLAGS),
-	COMPOSITE(DCLK_VOP, "dclk_vop", gpll_dmyhpll_vpll_apll_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+	COMPOSITE(DCLK_VOP, "dclk_vop", gpll_dmyhpll_vpll_apll_p, CLK_SET_RATE_NO_REPARENT,
 			RK3562_CLKSEL_CON(30), 14, 2, MFLAGS, 0, 8, DFLAGS,
 			RK3562_CLKGATE_CON(13), 8, GFLAGS),
-	COMPOSITE(DCLK_VOP1, "dclk_vop1", gpll_dmyhpll_vpll_apll_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
+	COMPOSITE(DCLK_VOP1, "dclk_vop1", gpll_dmyhpll_vpll_apll_p, CLK_SET_RATE_NO_REPARENT,
 			RK3562_CLKSEL_CON(31), 14, 2, MFLAGS, 0, 8, DFLAGS,
 			RK3562_CLKGATE_CON(13), 9, GFLAGS),
 };

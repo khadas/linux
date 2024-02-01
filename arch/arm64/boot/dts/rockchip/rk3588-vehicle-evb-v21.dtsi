@@ -52,10 +52,11 @@
 	vcc3v3_pcie_wifi: vcc3v3-pcie-wifi {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_pcie_wifi";
+		regulator-always-on;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		enable-active-high;
-		//gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_HIGH>;
 		startup-delay-us = <5000>;
 		vin-supply = <&vcc_3v3_s0>;
 	};
@@ -123,18 +124,10 @@
 		compatible = "wlan-platdata";
 		wifi_chip_type = "ap6398s";
 		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_poweren_gpio>, <&wifi_host_wake_irq>;
+		pinctrl-0 = <&wifi_host_wake_irq>;
 		WIFI,host_wake_irq = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
 		WIFI,poweren_gpio = <&gpio3 RK_PA3 GPIO_ACTIVE_HIGH>;
 		status = "okay";
-	};
-
-	dummy_codec: dummy-codec {
-		status = "okay";
-		compatible = "rockchip,dummy-codec";
-		#sound-dai-cells = <0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&rk3308_reset>;
 	};
 
 	car_rk3308_sound: car-rk3308-sound {
@@ -147,9 +140,11 @@
 		simple-audio-card,frame-master = <&codec_master>;
 		simple-audio-card,cpu {
 			sound-dai = <&i2s0_8ch>;
+			dai-tdm-slot-num = <8>;
+			dai-tdm-slot-width = <32>;
 		};
 		codec_master: simple-audio-card,codec {
-			sound-dai = <&dummy_codec>;
+			sound-dai = <&spi_codec>;
 		};
 	};
 };
@@ -207,6 +202,7 @@
 
 &i2s0_8ch {
 	status = "okay";
+	rockchip,tdm-fsync-half-frame;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s0_lrck
 		     &i2s0_sclk
@@ -287,9 +283,6 @@
 			rockchip,pins = <0 RK_PB7 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 
-		wifi_poweren_gpio: wifi-power-gpio {
-			rockchip,pins = <3 RK_PA3 RK_FUNC_GPIO &pcfg_pull_down>;
-		};
 	};
 
 	rk3308 {
@@ -336,6 +329,30 @@
 
 &sdmmc {
 	status = "disabled";
+};
+
+&spi4 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi4m0_cs1 &spi4m0_pins>;
+
+	spi_codec: spi-codec@1 {
+		compatible ="rockchip,spi-codec";
+		reg = <1>;
+		spi-lsb-first;
+		spi-max-frequency = <5000000>;
+		#sound-dai-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&rk3308_reset>;
+		status = "okay";
+	};
+};
+
+&uart7 {
+	/delete-property/ dmas;
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart7m1_xfer &uart7m1_ctsn>;
 };
 
 &uart9 {

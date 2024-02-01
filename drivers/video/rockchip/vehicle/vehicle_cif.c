@@ -37,7 +37,6 @@
 #include <media/v4l2-mediabus.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
-#include <dt-bindings/soc/rockchip-system-status.h>
 #include <soc/rockchip/rockchip-system-status.h>
 #include <linux/phy/phy.h>
 #include <linux/uaccess.h>
@@ -5223,6 +5222,7 @@ int vehicle_cif_init(struct vehicle_cif *cif)
 	if (inf_id == RKCIF_MIPI_LVDS) {
 		/* 5. set csi2-mipi-dphy reg */
 		if (cif->dphy_hw->chip_id == CHIP_ID_RK3588 ||
+		    cif->dphy_hw->chip_id == CHIP_ID_RK3568 ||
 		    cif->dphy_hw->chip_id == CHIP_ID_RK3562)
 			cif->dphy_hw->csi2_dphy_base = cif->csi2_dphy_base;
 
