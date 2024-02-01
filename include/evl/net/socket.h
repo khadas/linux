@@ -32,6 +32,7 @@ struct evl_net_proto {
 		struct sockaddr *addr, int len);
 	int (*connect)(struct evl_socket *esk,
 		struct sockaddr *addr, int len, int flags);
+	int (*shutdown)(struct evl_socket *esk, int how);
 	int (*ioctl)(struct evl_socket *esk, unsigned int cmd,
 		unsigned long arg);
 	ssize_t (*oob_send)(struct evl_socket *esk,

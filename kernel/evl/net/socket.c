@@ -377,6 +377,27 @@ int sock_oob_connect(struct socket *sock,
 	return esk->proto->connect(esk, addr, len, flags);
 }
 
+/*
+ * In-band call from the common network stack to shutdown the
+ * socket. We end up here _after_ the socket was successfully shut
+ * down by the in-band network stack.
+ */
+int sock_oob_shutdown(struct socket *sock, int how)
+{
+	struct evl_socket *esk = evl_sk(sock->sk);
+
+	/*
+	 * If @sock belongs to PF_OOB, then evl_sock_shutdown() already
+	 * handled the connection. We ony care about common protocols
+	 * for which we have an out-of-band extension
+	 * (e.g. AF_INET/IPPROTO_UDP).
+	 */
+	if (sock->sk->sk_family == PF_OOB || !esk->proto->shutdown)
+		return 0;
+
+	return esk->proto->shutdown(esk, how);
+}
+
 static int socket_send_recv(struct evl_socket *esk,
 			struct user_oob_msghdr __user *u_msghdr,
 			unsigned int cmd)
@@ -584,6 +605,13 @@ static int evl_sock_connect(struct socket *sock,
 	return esk->proto->connect(esk, u_addr, len, flags);
 }
 
+static int evl_sock_shutdown(struct socket *sock, int how)
+{
+	struct evl_socket *esk = evl_sk(sock->sk);
+
+	return esk->proto->shutdown(esk, how);
+}
+
 static int evl_sock_release(struct socket *sock)
 {
 	/*
@@ -599,12 +627,12 @@ static const struct proto_ops netproto_ops = {
 	.release =	evl_sock_release,
 	.bind =		evl_sock_bind,
 	.connect =	evl_sock_connect,
+	.shutdown =	evl_sock_shutdown,
 	.socketpair =	sock_no_socketpair,
 	.accept =	sock_no_accept,
 	.getname =	sock_no_getname,
 	.ioctl =	sock_inband_ioctl,
 	.listen =	sock_no_listen,
-	.shutdown =	sock_no_shutdown,
 	.sendmsg =	sock_no_sendmsg,
 	.recvmsg =	sock_no_recvmsg,
 	.mmap =		sock_no_mmap,
