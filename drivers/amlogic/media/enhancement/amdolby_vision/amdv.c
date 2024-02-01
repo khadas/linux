@@ -3163,10 +3163,20 @@ static int amdv_policy_process_v1(struct vframe_s *vf,
 	}
 
 	if (vf) {
-		h = (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compHeight : vf->height;
-		w = (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compWidth : vf->width;
+		if (vf->type & VIDTYPE_COMPRESS) {
+			if (is_src_crop_valid(vf->src_crop)) {
+				w = vf->compWidth -
+					vf->src_crop.left - vf->src_crop.right;
+				h = vf->compHeight -
+					vf->src_crop.top - vf->src_crop.bottom;
+			} else {
+				w = vf->compWidth;
+				h = vf->compHeight;
+			}
+		} else {
+			w = vf->width;
+			h = vf->height;
+		}
 		if ((w > 4096 || h > 2160) &&
 			!support_8k_amdv())  {
 			if (dolby_vision_mode !=
@@ -3475,10 +3485,20 @@ static int amdv_policy_process_v2_stb(struct vframe_s *vf,
 	int w = 0;
 
 	if (vf) {
-		h = (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compHeight : vf->height;
-		w = (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compWidth : vf->width;
+		if (vf->type & VIDTYPE_COMPRESS) {
+			if (is_src_crop_valid(vf->src_crop)) {
+				w = vf->compWidth -
+					vf->src_crop.left - vf->src_crop.right;
+				h = vf->compHeight -
+					vf->src_crop.top - vf->src_crop.bottom;
+			} else {
+				w = vf->compWidth;
+				h = vf->compHeight;
+			}
+		} else {
+			w = vf->width;
+			h = vf->height;
+		}
 		if ((w > 4096 || h > 2160) &&
 			!support_8k_amdv())  {
 			if (dolby_vision_mode !=
@@ -6753,12 +6773,24 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 	memset(&req, 0, (sizeof(struct provider_aux_req_s)));
 	memset(&el_req, 0, (sizeof(struct provider_aux_req_s)));
 
-	if (vf) {
-		video_frame = true;
-		w = (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compWidth : vf->width;
-		h = (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compHeight : vf->height;
+	if (vf && vf->type & VIDTYPE_COMPRESS) {
+		if (is_src_crop_valid(vf->src_crop)) {
+			w = vf->compWidth -
+				vf->src_crop.left - vf->src_crop.right;
+			h = vf->compHeight -
+				vf->src_crop.top - vf->src_crop.bottom;
+			if (debug_dolby & 0x8)
+				pr_dv_dbg("%s size %d %d, crop %d %d %d %d\n",
+					__func__, vf->compWidth, vf->compHeight,
+					vf->src_crop.left, vf->src_crop.right,
+					vf->src_crop.top, vf->src_crop.bottom);
+		} else {
+			w = vf->compWidth;
+			h = vf->compHeight;
+		}
+	} else if (vf) {
+		w = vf->width;
+		h = vf->height;
 	}
 
 	if (is_aml_tvmode() && vf &&
@@ -8518,10 +8550,25 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 		src_format = FORMAT_SDR; /*SDR8 by default*/
 	if (vf) {
 		video_frame = true;
-		w = (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compWidth : vf->width;
-		h = (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compHeight : vf->height;
+		if (vf->type & VIDTYPE_COMPRESS) {
+			if (is_src_crop_valid(vf->src_crop)) {
+				w = vf->compWidth -
+					vf->src_crop.left - vf->src_crop.right;
+				h = vf->compHeight -
+					vf->src_crop.top - vf->src_crop.bottom;
+				if (debug_dolby & 0x8)
+					pr_dv_dbg("%s size %d %d, crop %d %d %d %d\n",
+						__func__, vf->compWidth, vf->compHeight,
+						vf->src_crop.left, vf->src_crop.right,
+						vf->src_crop.top, vf->src_crop.bottom);
+			} else {
+				w = vf->compWidth;
+				h = vf->compHeight;
+			}
+		} else {
+			w = vf->width;
+			h = vf->height;
+		}
 
 		dv_id = vf->src_fmt.dv_id;
 		if (!dv_inst_valid(dv_id)) {
@@ -10784,10 +10831,21 @@ static void update_aoi_flag(struct vframe_s *vf, u32 display_size)
 	int disp_h;
 	int disp_v;
 
-	tmp_h = (vf->type & VIDTYPE_COMPRESS) ?
-		vf->compWidth : vf->width;
-	tmp_v = (vf->type & VIDTYPE_COMPRESS) ?
-		vf->compHeight : vf->height;
+	if (vf->type & VIDTYPE_COMPRESS) {
+		if (is_src_crop_valid(vf->src_crop)) {
+			tmp_h = vf->compWidth -
+				vf->src_crop.left - vf->src_crop.right;
+			tmp_v = vf->compHeight -
+				vf->src_crop.top - vf->src_crop.bottom;
+		} else {
+			tmp_h = vf->compWidth;
+			tmp_v = vf->compHeight;
+		}
+	} else {
+		tmp_h = vf->width;
+		tmp_v = vf->height;
+	}
+
 	if (tmp_h != ((display_size >> 16) & 0xffff) ||
 		tmp_v != (display_size & 0xffff)) {
 		disp_h = (display_size >> 16) & 0xffff;
@@ -10941,11 +10999,19 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 	}
 
 	if (dolby_vision_flags & FLAG_CERTIFICATION) {
-		if (vf) {
-			h_size = (vf->type & VIDTYPE_COMPRESS) ?
-				vf->compWidth : vf->width;
-			v_size = (vf->type & VIDTYPE_COMPRESS) ?
-				vf->compHeight : vf->height;
+		if (vf && vf->type & VIDTYPE_COMPRESS) {
+			if (is_src_crop_valid(vf->src_crop)) {
+				h_size = vf->compWidth -
+					vf->src_crop.left - vf->src_crop.right;
+				v_size = vf->compHeight -
+					vf->src_crop.top - vf->src_crop.bottom;
+			} else {
+				h_size = vf->compWidth;
+				v_size = vf->compHeight;
+			}
+		} else if (vf) {
+			h_size = vf->width;
+			v_size = vf->height;
 		} else {
 			h_size = 0;
 			v_size = 0;
@@ -11813,17 +11879,33 @@ static int amdolby_vision_process_v2_stb
 	}
 
 	if (dolby_vision_flags & FLAG_CERTIFICATION) {
-		if (vf) {
-			h_size[0] = (vf->type & VIDTYPE_COMPRESS) ?
-				vf->compWidth : vf->width;
-			v_size[0] = (vf->type & VIDTYPE_COMPRESS) ?
-				vf->compHeight : vf->height;
+		if (vf && vf->type & VIDTYPE_COMPRESS) {
+			if (is_src_crop_valid(vf->src_crop)) {
+				h_size[0] = vf->compWidth -
+					vf->src_crop.left - vf->src_crop.right;
+				v_size[0] = vf->compHeight -
+					vf->src_crop.top - vf->src_crop.bottom;
+			} else {
+				h_size[0] = vf->compWidth;
+				v_size[0] = vf->compHeight;
+			}
+		} else if (vf) {
+			h_size[0] = vf->width;
+			v_size[0] = vf->height;
 		}
-		if (vf_2) {
-			h_size[1] = (vf_2->type & VIDTYPE_COMPRESS) ?
-				vf_2->compWidth : vf_2->width;
-			v_size[1] = (vf_2->type & VIDTYPE_COMPRESS) ?
-				vf_2->compHeight : vf_2->height;
+		if (vf_2 && vf_2->type & VIDTYPE_COMPRESS) {
+			if (is_src_crop_valid(vf_2->src_crop)) {
+				h_size[1] = vf_2->compWidth -
+					vf_2->src_crop.left - vf_2->src_crop.right;
+				v_size[1] = vf_2->compHeight -
+					vf_2->src_crop.top - vf_2->src_crop.bottom;
+			} else {
+				h_size[1] = vf_2->compWidth;
+				v_size[1] = vf_2->compHeight;
+			}
+		} else if (vf_2) {
+			h_size[1] = vf_2->width;
+			v_size[1] = vf_2->height;
 		}
 
 		/*don't use run mode for cert*/
@@ -12783,10 +12865,20 @@ int get_amdv_hdr_policy(struct vframe_s *vf)
 	}
 
 	if (vf) {
-		h = (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compHeight : vf->height;
-		w = (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compWidth : vf->width;
+		if (vf->type & VIDTYPE_COMPRESS) {
+			if (is_src_crop_valid(vf->src_crop)) {
+				w = vf->compWidth -
+					vf->src_crop.left - vf->src_crop.right;
+				h = vf->compHeight -
+					vf->src_crop.top - vf->src_crop.bottom;
+			} else {
+				w = vf->compWidth;
+				h = vf->compHeight;
+			}
+		} else {
+			w = vf->width;
+			h = vf->height;
+		}
 		if ((w > 4096 || h > 2160) && !support_8k_amdv())
 			ret = 0;
 	};
