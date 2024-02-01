@@ -661,7 +661,6 @@ static struct evl_net_proto ether_packet_proto = {
 	.attach	= attach_packet_socket,
 	.detach = detach_packet_socket,
 	.bind = bind_packet_socket,
-	.connect = evl_proto_no_connect,
 	.oob_send = send_packet,
 	.oob_poll = poll_packet,
 	.oob_receive = receive_packet,
