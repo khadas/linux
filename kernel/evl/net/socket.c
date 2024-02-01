@@ -499,10 +499,9 @@ void sock_oob_detach(struct sock *sk)
 
 /*
  * In-band call from the common network stack to complete a binding
- * (@sock is out-of-band capable). We end up here _before_ an attempt
- * is made to bind a socket to the given address by the in-band
- * network stack, so that we can do preliminary EVL-specific binding
- * work.
+ * (@sock is out-of-band capable). We end up here _after_ a successful
+ * binding of the network socket to the given address by the in-band
+ * stack.
  */
 int sock_oob_bind(struct socket *sock, struct sockaddr *addr, int len)
 {
@@ -514,7 +513,7 @@ int sock_oob_bind(struct socket *sock, struct sockaddr *addr, int len)
 	 * for which we have an out-of-band extension
 	 * (e.g. AF_PACKET).
 	 */
-	if (sock->sk->sk_family == PF_OOB)
+	if (sock->sk->sk_family == PF_OOB || !esk->proto->bind)
 		return 0;
 
 	return esk->proto->bind(esk, addr, len);
@@ -536,7 +535,7 @@ int sock_oob_connect(struct socket *sock,
 	 * for which we have an out-of-band extension
 	 * (e.g. AF_INET/IPPROTO_UDP).
 	 */
-	if (sock->sk->sk_family == PF_OOB)
+	if (sock->sk->sk_family == PF_OOB || !esk->proto->connect)
 		return 0;
 
 	return esk->proto->connect(esk, addr, len, flags);
@@ -830,11 +829,3 @@ const struct net_proto_family evl_family_ops = {
 	.create = create_evl_socket,
 	.owner	= THIS_MODULE,
 };
-
-int evl_proto_no_connect(struct evl_socket *esk,
-			struct sockaddr *addr,
-			int len, int flags)
-{
-	return 0;
-}
-EXPORT_SYMBOL_GPL(evl_proto_no_connect);

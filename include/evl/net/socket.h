@@ -124,8 +124,4 @@ int evl_charge_socket_wmem(struct evl_socket *esk,
 			struct sk_buff *skb,
 			ktime_t timeout, enum evl_tmode tmode);
 
-int evl_proto_no_connect(struct evl_socket *esk,
-			struct sockaddr *addr,
-			int len, int flags);
-
 #endif /* !_EVL_NET_SOCKET_H */
