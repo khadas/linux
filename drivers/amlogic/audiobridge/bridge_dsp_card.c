@@ -12,25 +12,26 @@
 #include <sound/soc.h>
 #include "bridge_dsp_card.h"
 
-#define BUFF_SIZE_MAX	(PAGE_SIZE * 64)
-#define SOUND_CARD_ID 2
+/*
+ * define pcm harward buffer capability not real size
+ * support max period bytes size = 8channels * 4bytes * 2048(period size)
+ * max buffer size = max period size * period count, real size much smaller than this value
+ **/
+#define PRD_SIZE_MAX     (PAGE_SIZE * 2)
+#define BUFF_SIZE_MAX    (PRD_SIZE_MAX * 4)
+#define SOUND_CARD_ID    (2)
+
 struct aml_aprocess_card *aprocess_card;
 unsigned int dsp_pcm_num;
 static struct snd_pcm_hardware aml_aprocess_hardware = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER
 		 | SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID
 		 | SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME,
-	.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE,
-	.rate_min = 16000,
-	.rate_max = 96000,
-	.channels_min = 2,
-	.channels_max = 8,
+	.rates = SNDRV_PCM_RATE_CONTINUOUS,
 	.buffer_bytes_max = BUFF_SIZE_MAX,
-	.period_bytes_max	=	DSP_PERIOD_SIZE,
-	.period_bytes_min	=	DSP_PERIOD_SIZE,
-	.periods_min		=	PERIOD_COUNT,
-	.periods_max		=	PERIOD_COUNT,
-	.fifo_size		=	0,
+	.period_bytes_max = PRD_SIZE_MAX,
+	.periods_min      = BUFF_SIZE_MAX / PRD_SIZE_MAX,
+	.periods_max      = BUFF_SIZE_MAX / PRD_SIZE_MAX,
 };
 
 void aml_aprocess_set_hw(struct aml_aprocess *p_aprocess, int channels,
@@ -41,7 +42,7 @@ void aml_aprocess_set_hw(struct aml_aprocess *p_aprocess, int channels,
 	p_aprocess->g_hw.rate_min = rate;
 	p_aprocess->g_hw.rate_max = rate;
 	p_aprocess->g_hw.channels_min = channels;
-	p_aprocess->g_hw.channels_min = channels;
+	p_aprocess->g_hw.channels_max = channels;
 	p_aprocess->g_hw.formats = format;
 	if (format == SNDRV_PCM_FMTBIT_S8)
 		p_aprocess->g_hw.period_bytes_min = channels * period;
@@ -51,10 +52,6 @@ void aml_aprocess_set_hw(struct aml_aprocess *p_aprocess, int channels,
 		p_aprocess->g_hw.period_bytes_min = 4 * channels * period;
 	else
 		p_aprocess->g_hw.period_bytes_min = 2 * channels * period;
-
-	p_aprocess->g_hw.period_bytes_max = p_aprocess->g_hw.period_bytes_min;
-
-	p_aprocess->g_hw.buffer_bytes_max = 16 * p_aprocess->g_hw.period_bytes_max;
 }
 
 int aml_aprocess_complete(struct aml_aprocess *p_aprocess, char *out, int size)

@@ -469,6 +469,7 @@
 		aml-audio-line,link@0 {
 			auto-running = <1>;
 			def-volume = <50>;
+			isolated = <1>;
 			src {
 				/* 0-arm,1-dsp,2-uac */
 				core = <1>;
@@ -493,6 +494,7 @@
 		aml-audio-line,link@1 {
 			auto-running = <1>;
 			def-volume = <100>;
+			isolated = <1>;
 			src {
 				core = <2>;
 				sound-card = <0>;

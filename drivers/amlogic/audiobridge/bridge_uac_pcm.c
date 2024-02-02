@@ -361,9 +361,12 @@ static int uac_pcm_set_hw(struct audio_pcm_function_t *audio_pcm,
 static int uac_pcm_get_status(struct audio_pcm_function_t *audio_pcm)
 {
 	struct uac_pcm_t *uac_pcm;
+	struct audio_pcm_bridge_t *bridge;
 
-	if (!audio_pcm || !audio_pcm->private_data)
+	bridge = audio_pcm->audio_bridge;
+	if (!audio_pcm || !audio_pcm->private_data || bridge->isolated_enable)
 		return 0;
+
 	uac_pcm = audio_pcm->private_data;
 
 	return uac_pcm->run_flag;

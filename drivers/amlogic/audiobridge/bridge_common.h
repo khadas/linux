@@ -60,10 +60,10 @@ enum PCM_CONTROL {
  * communicating too frequently so mailbox should use bigger period size
  * arm period size = dsp period size * DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE
  */
-#define DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE (4)
+#define DSP_PERIOD_SIZE_TO_ARM_PERIOD_SIZE (1)
 #define PERIOD_SIZE_MAX (2048)
 #define PERIOD_COUNT    (4)
-#define DSP_PERIOD_SIZE (128)
+#define DSP_PERIOD_SIZE (1024)
 
 struct audio_pcm_function_t {
 	struct ring_buffer *rb;
