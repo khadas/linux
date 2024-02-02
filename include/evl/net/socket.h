@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <linux/skbuff.h>
 #include <evl/wait.h>
 #include <evl/file.h>
@@ -27,7 +27,8 @@ struct net_device;
 struct evl_net_proto {
 	int (*attach)(struct evl_socket *esk,
 		struct evl_net_proto *proto, int protocol);
-	void (*detach)(struct evl_socket *esk);
+	void (*release)(struct evl_socket *esk);
+	void (*destroy)(struct evl_socket *esk);
 	int (*bind)(struct evl_socket *esk,
 		struct sockaddr *addr, int len);
 	int (*connect)(struct evl_socket *esk,
@@ -72,6 +73,7 @@ struct evl_socket {
 	struct evl_wait_queue wmem_wait;
 	struct evl_crossing wmem_drain;
 	int protocol;
+	refcount_t refs;	/* release vs destroy */
 	union {
 		struct {
 			int real_ifindex;

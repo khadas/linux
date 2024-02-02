@@ -217,8 +217,8 @@ static struct evl_net_proto *find_oob_proto(int domain, int type, int protocol)
 }
 
 /*
- * In-band call from the common network stack creating a new socket,
- * @sock is already bound to a file. We know the following:
+ * In-band call from the common network stack creating a new BSD
+ * socket, @sock is already bound to a file. We know the following:
  *
  * - the caller wants us either to attach an out-of-band extension to
  *   a common protocol (e.g. AF_PACKET over ethernet), or to set up an
@@ -257,8 +257,10 @@ int sock_oob_attach(struct socket *sock)
 		esk = kzalloc(sizeof(*esk), GFP_KERNEL);
 		if (esk == NULL)
 			return -ENOMEM;
+		refcount_set(&esk->refs, 2); /* release + destroy */
 	} else {
 		esk = (struct evl_socket *)sk;
+		refcount_set(&esk->refs, 1); /* release only */
 	}
 
 	esk->sk = sk;
@@ -307,6 +309,26 @@ fail_open:
 }
 
 /*
+ * In-band call from the common network stack releasing a BSD socket,
+ * @sock is still bound to a file, but the network representation
+ * sock->sk might be stale.
+ */
+void sock_oob_release(struct socket *sock)
+{
+	struct evl_socket *esk = evl_sk_from_file(sock->file);
+
+	if (esk->proto->release)
+		esk->proto->release(esk);
+
+	evl_release_file(&esk->efile);
+	/* Wait for the stack to drain in-flight outgoing buffers. */
+	evl_pass_crossing(&esk->wmem_drain);
+
+	if (refcount_dec_and_test(&esk->refs))
+		kfree(esk);
+}
+
+/*
  * In-band call from the common network stack which is about to
  * destruct a socket, releasing all resources attached (@sock is
  * out-of-band capable).
@@ -315,19 +337,16 @@ void sock_oob_destroy(struct sock *sk)
 {
 	struct evl_socket *esk = evl_sk(sk);
 
-	evl_release_file(&esk->efile);
-	/* Wait for the stack to drain in-flight outgoing buffers. */
-	evl_pass_crossing(&esk->wmem_drain);
 	/* We are detaching, so rmem_count can be left out of sync. */
 	evl_net_free_skb_list(&esk->input);
 
 	evl_destroy_wait(&esk->input_wait);
 	evl_destroy_wait(&esk->wmem_wait);
 
-	if (esk->proto->detach)
-		esk->proto->detach(esk);
+	if (esk->proto->destroy)
+		esk->proto->destroy(esk);
 
-	if (sk->sk_family != PF_OOB)
+	if (sk->sk_family != PF_OOB && refcount_dec_and_test(&esk->refs))
 		kfree(esk);	/* meaning sk != esk. */
 
 	sk->oob_data = NULL;
