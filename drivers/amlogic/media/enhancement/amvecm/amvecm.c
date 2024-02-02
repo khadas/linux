@@ -9463,10 +9463,13 @@ void resume_recovery_process(void)
 
 		resume_cm();
 		resume_ve();
+		resume_dnlp();
+		resume_vadj1();
+		resume_wb();
 		resume_vadj2();
 		resume_lut3d();
 		suspend_drv_status_set(false);
-		pr_info("amvecm: resume recovery\n");
+		pr_info("amvecm: resume recovery vsync\n");
 	}
 }
 
@@ -12630,10 +12633,7 @@ static int amvecm_drv_resume(struct platform_device *pdev)
 		vlock_clk_resume();
 
 	if (suspend_drv_status_get()) {
-		resume_dnlp();
-		resume_vadj1();
 		vecm_latch_flag2 |= FLAG_RESUME_RECOVERY;
-		resume_wb();
 		resume_mtx_flag_set(true);
 	}
 	pr_info("amvecm: resume module\n");
