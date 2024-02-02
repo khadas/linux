@@ -707,7 +707,7 @@
 		rockchip,reboot-freq = <1416000>;		/* KHz */
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <10000>;
+		rockchip,low-temp = <15000>;
 		rockchip,low-temp-min-volt = <800000>;
 		rockchip,high-temp = <85000>;
 		rockchip,high-temp-max-freq = <1608000>;
@@ -972,7 +972,7 @@
 		rockchip,reboot-freq = <1800000>;		/* KHz */
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <10000>;
+		rockchip,low-temp = <15000>;
 		rockchip,low-temp-min-volt = <800000>;
 		rockchip,high-temp = <85000>;
 		rockchip,high-temp-max-freq = <2208000>;
@@ -1305,7 +1305,7 @@
 		rockchip,reboot-freq = <1800000>;		/* KHz */
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <10000>;
+		rockchip,low-temp = <15000>;
 		rockchip,low-temp-min-volt = <800000>;
 		rockchip,high-temp = <85000>;
 		rockchip,high-temp-max-freq = <2208000>;
@@ -1771,7 +1771,7 @@
 			58	254	3
 		>;
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <10000>;
+		rockchip,low-temp = <15000>;
 		rockchip,low-temp-min-volt = <750000>;
 
 		/* RK3588 dmc OPPs */
@@ -2379,7 +2379,7 @@
 		intermediate-threshold-freq = <400000>;	/* KHz */
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <10000>;
+		rockchip,low-temp = <15000>;
 		rockchip,low-temp-min-volt = <750000>;
 		rockchip,high-temp = <85000>;
 		rockchip,high-temp-max-freq = <800000>;
@@ -3472,7 +3472,7 @@
 		rockchip,init-freq = <1000000>;		/* KHz */
 
 		rockchip,temp-hysteresis = <5000>;
-		rockchip,low-temp = <10000>;
+		rockchip,low-temp = <15000>;
 		rockchip,low-temp-min-volt = <750000>;
 		rockchip,high-temp = <85000>;
 		rockchip,high-temp-max-freq = <800000>;
