@@ -49,6 +49,12 @@ struct mtd_blktrans_ops {
 		    unsigned long block, char *buffer);
 	int (*writesect)(struct mtd_blktrans_dev *dev,
 		     unsigned long block, char *buffer);
+#if (IS_ENABLED(CONFIG_MTD_NAND_MESON) || IS_ENABLED(CONFIG_MTD_SPI_NAND_MESON))
+	int (*readsects)(struct mtd_blktrans_dev *dev,
+		    unsigned long block, unsigned int cnt, char *buffer);
+	int (*writesects)(struct mtd_blktrans_dev *dev,
+		     unsigned long block, unsigned int cnt, char *buffer);
+#endif
 	int (*discard)(struct mtd_blktrans_dev *dev,
 		       unsigned long block, unsigned nr_blocks);
 	void (*background)(struct mtd_blktrans_dev *dev);
