@@ -1166,8 +1166,13 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 
 static void videoqueue_start(struct video_queue_dev *dev)
 {
-	wake_up_process(dev->file_thread);
-	wake_up_process(dev->fence_thread);
+	if (dev->file_thread && dev->fence_thread) {
+		wake_up_process(dev->file_thread);
+		wake_up_process(dev->fence_thread);
+	} else {
+		vq_print(P_ERROR, "%s: err, file_thread=%px,fence_thread=%px\n",
+			__func__, dev->file_thread, dev->fence_thread);
+	}
 }
 
 static int video_receiver_event_fun(int type, void *data,
