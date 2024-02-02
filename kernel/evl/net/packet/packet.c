@@ -240,8 +240,8 @@ static int attach_packet_socket(struct evl_socket *esk,
 	return 0;
 }
 
-/* in-band, esk->lock held or socket_release() */
-static void detach_packet_socket(struct evl_socket *esk)
+/* in-band, esk->lock held or __sk_destruct() */
+static void destroy_packet_socket(struct evl_socket *esk)
 {
 	struct evl_net_rxqueue *rxq, *n;
 	unsigned long flags;
@@ -317,7 +317,7 @@ static int bind_packet_socket(struct evl_socket *esk,
 	sll->sll_ifindex = real_ifindex;
 
 	if (esk->protocol != ntohs(sll->sll_protocol)) {
-		detach_packet_socket(esk);
+		destroy_packet_socket(esk);
 		/*
 		 * Since the old binding was dropped, we would not
 		 * receive anything if the new binding fails. This
@@ -660,7 +660,7 @@ static __poll_t poll_packet(struct evl_socket *esk,
 
 static struct evl_net_proto ether_packet_proto = {
 	.attach	= attach_packet_socket,
-	.detach = detach_packet_socket,
+	.destroy = destroy_packet_socket,
 	.bind = bind_packet_socket,
 	.oob_send = send_packet,
 	.oob_poll = poll_packet,
