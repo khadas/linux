@@ -4389,7 +4389,7 @@ static void amlvideo2_sleep(struct amlvideo2_fh *fh)
 
 	/* stop_task: */
 	/* remove_wait_queue(&dma_q->wq, &wait); */
-	try_to_freeze();
+	/*try_to_freeze();*/
 }
 
 static int amlvideo2_thread(void *data)
@@ -4410,11 +4410,11 @@ static int amlvideo2_thread(void *data)
 	}
 	dpr_err(node->vid_dev, 1, "thread started\n");
 
-	set_freezable();
+	/*set_freezable();*/
 
 	while (1) {
 #ifdef CONFIG_PM
-		if (atomic_read(&node->is_suspend))
+		if (atomic_read(&node->is_suspend) && node->vidq.task_running == 1)
 			wait_for_completion(&node->thread_sema);
 #endif
 		if (kthread_should_stop()) {
@@ -4575,6 +4575,7 @@ static void amlvideo2_stop_thread(struct amlvideo2_node_dmaqueue *dma_q)
 			else
 				pr_info("ready to stop amlvideo2.1 thread\n");
 		}
+		complete(&node->thread_sema);
 		ret = kthread_stop(dma_q->kthread);
 		if (ret < 0)
 			pr_info("%s, ret = %d .\n", __func__, ret);
