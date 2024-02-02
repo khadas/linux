@@ -3985,6 +3985,15 @@ uint32_t sink_dv_support(const struct vinfo_s *vinfo)
 	    /*in the future, some new flag in vsvdb will be used to judge dv cap*/
 		return 0;
 	}
+	/* the display effect of 480/576p is not good on some TVs. */
+	/* currently some TVs not support smpte. */
+	if (strstr(vinfo->name, "480p") ||
+		strstr(vinfo->name, "576p") ||
+		strstr(vinfo->name, "720x480p") ||
+		strstr(vinfo->name, "720x576p") ||
+		strstr(vinfo->name, "smpte")) {
+		return 0;
+	}
 	/* for interlace output */
 	if (vinfo->height != vinfo->field_height)
 		return 0;
