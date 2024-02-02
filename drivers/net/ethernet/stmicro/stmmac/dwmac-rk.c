@@ -25,6 +25,7 @@
 #include <linux/regmap.h>
 #include <linux/pm_runtime.h>
 #include <linux/soc/rockchip/rk_vendor_storage.h>
+#include <soc/rockchip/rockchip_csu.h>
 #include "stmmac_platform.h"
 #include "dwmac-rk-tool.h"
 
@@ -80,6 +81,9 @@ struct rk_priv_data {
 
 	unsigned char otp_data;
 	unsigned int bgs_increment;
+
+	struct csu_clk *csu_aclk;
+	struct csu_clk *csu_pclk;
 };
 
 /* XPCS */
@@ -2322,6 +2326,21 @@ static int rk_gmac_clk_init(struct plat_stmmacenet_data *plat)
 	return 0;
 }
 
+static int rk_gmac_csu_init(struct plat_stmmacenet_data *plat)
+{
+	struct rk_priv_data *bsp_priv = plat->bsp_priv;
+	struct device *dev = &bsp_priv->pdev->dev;
+
+	bsp_priv->csu_aclk = rockchip_csu_get(dev, "aclk");
+	if (IS_ERR(bsp_priv->csu_aclk))
+		bsp_priv->csu_aclk = NULL;
+	bsp_priv->csu_pclk = rockchip_csu_get(dev, "pclk");
+	if (IS_ERR(bsp_priv->csu_pclk))
+		bsp_priv->csu_pclk = NULL;
+
+	return 0;
+}
+
 static int gmac_clk_enable(struct rk_priv_data *bsp_priv, bool enable)
 {
 	int phy_iface = bsp_priv->phy_iface;
@@ -2367,6 +2386,9 @@ static int gmac_clk_enable(struct rk_priv_data *bsp_priv, bool enable)
 				bsp_priv->ops->set_clock_selection(bsp_priv,
 					       bsp_priv->clock_input, true);
 
+			rockchip_csu_disable(bsp_priv->csu_aclk);
+			rockchip_csu_disable(bsp_priv->csu_pclk);
+
 			/**
 			 * if (!IS_ERR(bsp_priv->clk_mac))
 			 *	clk_prepare_enable(bsp_priv->clk_mac);
@@ -2402,6 +2424,9 @@ static int gmac_clk_enable(struct rk_priv_data *bsp_priv, bool enable)
 
 			clk_disable_unprepare(bsp_priv->clk_xpcs_eee);
 
+			rockchip_csu_enable(bsp_priv->csu_aclk);
+			rockchip_csu_enable(bsp_priv->csu_pclk);
+
 			/**
 			 * if (!IS_ERR(bsp_priv->clk_mac))
 			 *	clk_disable_unprepare(bsp_priv->clk_mac);
@@ -2418,9 +2443,6 @@ static int rk_gmac_phy_power_on(struct rk_priv_data *bsp_priv, bool enable)
 	struct regulator *ldo = bsp_priv->regulator;
 	int ret;
 	struct device *dev = &bsp_priv->pdev->dev;
-
-	if (!ldo)
-		return 0;
 
 	if (enable) {
 		ret = regulator_enable(ldo);
@@ -2453,14 +2475,11 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 	bsp_priv->ops = ops;
 	bsp_priv->bus_id = plat->bus_id;
 
-	bsp_priv->regulator = devm_regulator_get_optional(dev, "phy");
+	bsp_priv->regulator = devm_regulator_get(dev, "phy");
 	if (IS_ERR(bsp_priv->regulator)) {
-		if (PTR_ERR(bsp_priv->regulator) == -EPROBE_DEFER) {
-			dev_err(dev, "phy regulator is not available yet, deferred probing\n");
-			return ERR_PTR(-EPROBE_DEFER);
-		}
-		dev_err(dev, "no regulator found\n");
-		bsp_priv->regulator = NULL;
+		ret = PTR_ERR(bsp_priv->regulator);
+		dev_err_probe(dev, ret, "failed to get phy regulator\n");
+		return ERR_PTR(ret);
 	}
 
 	ret = of_property_read_string(dev->of_node, "clock_in_out", &strings);
@@ -2786,6 +2805,8 @@ static int rk_gmac_probe(struct platform_device *pdev)
 		ret = PTR_ERR(plat_dat->bsp_priv);
 		goto err_remove_config_dt;
 	}
+
+	rk_gmac_csu_init(plat_dat);
 
 	ret = rk_gmac_clk_init(plat_dat);
 	if (ret)

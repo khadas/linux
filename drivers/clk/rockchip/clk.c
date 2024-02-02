@@ -24,6 +24,10 @@
 #include <linux/rational.h>
 #include "clk.h"
 
+#ifdef MODULE
+static HLIST_HEAD(clk_ctx_list);
+#endif
+
 /**
  * Register a clock branch.
  * Most clock branches have a form like
@@ -185,6 +189,14 @@ static void rockchip_fractional_approximation(struct clk_hw *hw,
 	struct clk_hw *p_parent;
 	unsigned long scale;
 
+	if (rate == 0) {
+		pr_warn("%s p_rate(%ld), rate(%ld), maybe invalid frequency setting!\n",
+			clk_hw_get_name(hw), *parent_rate, rate);
+		*m = 0;
+		*n = 1;
+		return;
+	}
+
 	p_rate = clk_hw_get_rate(clk_hw_get_parent(hw));
 	if ((rate * 20 > p_rate) && (p_rate % rate != 0)) {
 		p_parent = clk_hw_get_parent(clk_hw_get_parent(hw));
@@ -221,6 +233,13 @@ static void rockchip_fractional_approximation(struct clk_hw *hw,
 	 * for m and n. In the result it will be the nearest rate left shifted
 	 * by (scale - fd->nwidth) bits.
 	 */
+	if (*parent_rate == 0) {
+		pr_warn("%s p_rate(%ld), rate(%ld), maybe invalid frequency setting!\n",
+			clk_hw_get_name(hw), *parent_rate, rate);
+		*m = 0;
+		*n = 1;
+		return;
+	}
 	scale = fls_long(*parent_rate / rate - 1);
 	if (scale > fd->nwidth)
 		rate <<= scale - fd->nwidth;
@@ -417,6 +436,10 @@ struct rockchip_clk_provider *rockchip_clk_init(struct device_node *np,
 						   "rockchip,grf");
 	ctx->pmugrf = syscon_regmap_lookup_by_phandle(ctx->cru_node,
 						   "rockchip,pmugrf");
+
+#ifdef MODULE
+	hlist_add_head(&ctx->list_node, &clk_ctx_list);
+#endif
 
 	return ctx;
 
@@ -783,4 +806,30 @@ void rockchip_clk_unprotect(void)
 
 }
 EXPORT_SYMBOL_GPL(rockchip_clk_unprotect);
+
+void rockchip_clk_disable_unused(void)
+{
+	struct rockchip_clk_provider *ctx;
+	struct clk *clk;
+	struct clk_hw *hw;
+	int i = 0, flag = 0;
+
+	hlist_for_each_entry(ctx, &clk_ctx_list, list_node) {
+		for (i = 0; i < ctx->clk_data.clk_num; i++) {
+			clk = ctx->clk_data.clks[i];
+			if (clk && !IS_ERR(clk)) {
+				hw = __clk_get_hw(clk);
+				if (hw)
+					flag = clk_hw_get_flags(hw);
+				if (flag & CLK_IGNORE_UNUSED)
+					continue;
+				if (flag & CLK_IS_CRITICAL)
+					continue;
+				clk_prepare_enable(clk);
+				clk_disable_unprepare(clk);
+			}
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(rockchip_clk_disable_unused);
 #endif /* MODULE */

@@ -183,6 +183,9 @@
 #define RKMODULE_SET_CAPTURE_MODE  \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 40, struct rkmodule_capture_info)
 
+#define RKMODULE_GET_SKIP_FRAME  \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 41, __u32)
+
 struct rkmodule_i2cdev_info {
 	__u8 slave_addr;
 } __attribute__ ((packed));
@@ -326,6 +329,7 @@ struct rkmodule_pdaf_inf {
 	__u32 dccmap_height;
 	__u32 dcc_mode;
 	__u32 dcc_dir;
+	__u32 pd_offset;
 	__u16 gainmap[RKMODULE_PADF_GAINMAP_LEN];
 	__u16 dccmap[RKMODULE_PDAF_DCCMAP_LEN];
 } __attribute__ ((packed));
@@ -637,6 +641,7 @@ enum rkmodule_reset_src {
 	RKICF_RESET_SRC_ERR_CUTOFF,
 	RKCIF_RESET_SRC_ERR_HOTPLUG,
 	RKCIF_RESET_SRC_ERR_APP,
+	RKCIF_RESET_SRC_ERR_ISP,
 };
 
 struct rkmodule_vicap_reset_info {

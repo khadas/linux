@@ -72,6 +72,8 @@ static bool md_init_done;
 static void __iomem *md_elf_mem;
 static resource_size_t md_elf_size;
 static struct proc_dir_entry *proc_rk_minidump;
+static bool md_is_ddr_address_default(u64 phys_addr);
+bool (*md_is_ddr_address)(u64 virt_addr) = md_is_ddr_address_default;
 
 /* Number of pending entries to be added in ToC regions */
 static unsigned int pendings;
@@ -168,6 +170,8 @@ static void md_update_ss_toc(const struct md_region *entry)
 	shdr->sh_flags = SHF_WRITE;
 	shdr->sh_offset = minidump_elfheader.elf_offset;
 	shdr->sh_entsize = 0;
+	shdr->sh_addralign = shdr->sh_addr;	/* backup */
+	shdr->sh_entsize = entry->phys_addr;	/* backup */
 
 	if (strstr((const char *)mdr->name, "note"))
 		phdr->p_type = PT_NOTE;
@@ -178,6 +182,7 @@ static void md_update_ss_toc(const struct md_region *entry)
 	phdr->p_paddr = entry->phys_addr;
 	phdr->p_filesz = phdr->p_memsz =  mdr->region_size;
 	phdr->p_flags = PF_R | PF_W;
+	phdr->p_align = phdr->p_paddr;		/* backup */
 	minidump_elfheader.elf_offset += shdr->sh_size;
 	mdr->md_valid = MD_REGION_VALID;
 	minidump_table.md_ss_toc->ss_region_count++;
@@ -210,6 +215,26 @@ static inline int validate_region(const struct md_region *entry)
 	}
 
 	return 0;
+}
+
+int md_is_in_the_region(u64 addr)
+{
+	struct md_region *mdr;
+	u32 entries;
+	int i;
+
+	entries = minidump_table.num_regions;
+
+	for (i = 0; i < entries; i++) {
+		mdr = &minidump_table.entry[i];
+		if (mdr->virt_addr <= addr && addr < (mdr->virt_addr + mdr->size))
+			break;
+	}
+
+	if (i < entries)
+		return 1;
+	else
+		return 0;
 }
 
 int rk_minidump_update_region(int regno, const struct md_region *entry)
@@ -254,8 +279,11 @@ int rk_minidump_update_region(int regno, const struct md_region *entry)
 	phdr = elf_program(hdr, regno + 1);
 
 	shdr->sh_addr = (elf_addr_t)entry->virt_addr;
+	shdr->sh_addralign = shdr->sh_addr;	/* backup */
+	shdr->sh_entsize = entry->phys_addr;	/* backup */
 	phdr->p_vaddr = entry->virt_addr;
 	phdr->p_paddr = entry->phys_addr;
+	phdr->p_align = phdr->p_paddr;		/* backup */
 
 err_unlock:
 	read_unlock_irqrestore(&mdt_remove_lock, flags);
@@ -595,6 +623,22 @@ static const struct proc_ops rk_minidump_proc_ops = {
 	.proc_read	= rk_minidump_read_elf,
 };
 
+static bool md_is_ddr_address_rk3588(u64 phys_addr)
+{
+	/* peripheral address space */
+	if (phys_addr >= 0xf0000000 && phys_addr < 0x100000000)
+		return false;
+	/* DDR is up to 32GB */
+	if (phys_addr > 0x800000000)
+		return false;
+	return true;
+}
+
+static bool md_is_ddr_address_default(u64 phys_addr)
+{
+	return true;
+}
+
 static int rk_minidump_driver_probe(struct platform_device *pdev)
 {
 	unsigned int i;
@@ -655,10 +699,16 @@ static int rk_minidump_driver_probe(struct platform_device *pdev)
 		phdr = (Elf64_Phdr *)(md_elf_mem + (ulong)ehdr->e_phoff);
 		phdr += ehdr->e_phnum - 1;
 		md_elf_size = phdr->p_memsz + phdr->p_offset;
-
-		pr_info("Create /proc/rk_md/minidump...\n");
+		if (md_elf_size > r_size)
+			md_elf_size = r_size;
+		pr_info("Create /proc/rk_md/minidump, size:0x%llx...\n", md_elf_size);
 		proc_rk_minidump = proc_create("minidump", 0400, base_dir, &rk_minidump_proc_ops);
+	} else {
+		pr_info("Create /proc/rk_md/minidump fail...\n");
 	}
+
+	if (of_machine_is_compatible("rockchip,rk3588"))
+		md_is_ddr_address = md_is_ddr_address_rk3588;
 
 	/* Check global minidump support initialization */
 	if (!md_global_toc->md_toc_init) {
@@ -673,6 +723,7 @@ static int rk_minidump_driver_probe(struct platform_device *pdev)
 	md_ss_toc->encryption_status = MD_SS_ENCR_NONE;
 	md_ss_toc->encryption_required = MD_SS_ENCR_REQ;
 	md_ss_toc->elf_header = (u64)r.start;
+	md_ss_toc->minidump_table = (u64)virt_to_phys(&minidump_table);
 
 	minidump_table.md_ss_toc = md_ss_toc;
 	minidump_table.md_regions = devm_kzalloc(&pdev->dev, (MAX_NUM_ENTRIES *

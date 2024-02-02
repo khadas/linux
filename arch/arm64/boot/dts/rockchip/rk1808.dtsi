@@ -378,13 +378,14 @@
 			phy-names = "usb2-phy", "usb3-phy";
 			phy_type = "utmi_wide";
 			snps,dis_enblslpm_quirk;
-			snps,dis-u1u2-quirk;
+			snps,dis-u1-entry-quirk;
+			snps,dis-u2-entry-quirk;
 			snps,dis-u2-freeclk-exists-quirk;
 			snps,dis_u2_susphy_quirk;
 			snps,dis_u3_susphy_quirk;
 			snps,dis-del-phy-power-chg-quirk;
 			snps,tx-ipgap-linecheck-dis-quirk;
-			snps,xhci-trb-ent-quirk;
+			snps,parkmode-disable-hs-quirk;
 			snps,parkmode-disable-ss-quirk;
 			status = "disabled";
 		};
@@ -806,6 +807,7 @@
 	pwm0: pwm@ff3d0000 {
 		compatible = "rockchip,rk1808-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff3d0000 0x0 0x10>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm0_pin>;
@@ -817,6 +819,7 @@
 	pwm1: pwm@ff3d0010 {
 		compatible = "rockchip,rk1808-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff3d0010 0x0 0x10>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm1_pin>;
@@ -828,6 +831,7 @@
 	pwm2: pwm@ff3d0020 {
 		compatible = "rockchip,rk1808-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff3d0020 0x0 0x10>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm2_pin>;
@@ -839,6 +843,8 @@
 	pwm3: pwm@ff3d0030 {
 		compatible = "rockchip,rk1808-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff3d0030 0x0 0x10>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm3_pin>;
@@ -850,6 +856,7 @@
 	pwm4: pwm@ff3d8000 {
 		compatible = "rockchip,rk1808-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff3d8000 0x0 0x10>;
+		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm4_pin>;
@@ -861,6 +868,7 @@
 	pwm5: pwm@ff3d8010 {
 		compatible = "rockchip,rk1808-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff3d8010 0x0 0x10>;
+		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm5_pin>;
@@ -872,6 +880,7 @@
 	pwm6: pwm@ff3d8020 {
 		compatible = "rockchip,rk1808-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff3d8020 0x0 0x10>;
+		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm6_pin>;
@@ -883,6 +892,8 @@
 	pwm7: pwm@ff3d8030 {
 		compatible = "rockchip,rk1808-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff3d8030 0x0 0x10>;
+		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm7_pin>;
@@ -1211,6 +1222,7 @@
 	pwm8: pwm@ff5d0000 {
 		compatible = "rockchip,rk1808-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff5d0000 0x0 0x10>;
+		interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm8_pin>;
@@ -1222,6 +1234,7 @@
 	pwm9: pwm@fff5d0010 {
 		compatible = "rockchip,rk1808-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff5d0010 0x0 0x10>;
+		interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm9_pin>;
@@ -1233,6 +1246,7 @@
 	pwm10: pwm@ff5d0020 {
 		compatible = "rockchip,rk1808-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff5d0020 0x0 0x10>;
+		interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm10_pin>;
@@ -1244,6 +1258,8 @@
 	pwm11: pwm@ff5d0030 {
 		compatible = "rockchip,rk1808-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff5d0030 0x0 0x10>;
+		interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm11_pin>;
@@ -1699,7 +1715,7 @@
 		reg = <0x0 0xffc60000 0x0 0x4000>;
 		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>,
 			 <&cru SCLK_SDIO_DRV>, <&cru SCLK_SDIO_SAMPLE>;
-		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		max-frequency = <150000000>;
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
@@ -1796,7 +1812,7 @@
 		reg = <0x0 0xffcf0000 0x0 0x4000>;
 		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>,
 			 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
-		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		max-frequency = <150000000>;
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
@@ -1810,7 +1826,7 @@
 		reg = <0x0 0xffd00000 0x0 0x4000>;
 		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>,
 			 <&cru SCLK_EMMC_DRV>, <&cru SCLK_EMMC_SAMPLE>;
-		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
+		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
 		max-frequency = <150000000>;
 		fifo-depth = <0x100>;
 		interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;

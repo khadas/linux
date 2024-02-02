@@ -4,7 +4,7 @@
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
 rockchipdrm-y := rockchip_drm_drv.o rockchip_drm_fb.o \
-		rockchip_drm_gem.o rockchip_drm_logo.o \
+		 rockchip_drm_gem.o rockchip_drm_logo.o rockchip_drm_clk.o\
 
 rockchipdrm-$(CONFIG_ROCKCHIP_VOP) += rockchip_drm_vop.o rockchip_vop_reg.o
 rockchipdrm-$(CONFIG_ROCKCHIP_VOP2) += rockchip_drm_vop2.o rockchip_vop2_reg.o rockchip_post_csc.o
@@ -16,7 +16,8 @@ rockchipdrm-$(CONFIG_ROCKCHIP_DRM_SELF_TEST) += rockchip_drm_display_pattern.o	\
 						rockchip_drm_self_test.o
 
 rockchipdrm-$(CONFIG_ROCKCHIP_ANALOGIX_DP) += analogix_dp-rockchip.o
-rockchipdrm-$(CONFIG_ROCKCHIP_CDN_DP) += cdn-dp-core.o cdn-dp-reg.o
+rockchipdrm-$(CONFIG_ROCKCHIP_CDN_DP) += cdn-dp-core.o cdn-dp-reg.o \
+					 cdn-dp-link-training.o
 rockchipdrm-$(CONFIG_ROCKCHIP_DRM_TVE) += rockchip_drm_tve.o
 rockchipdrm-$(CONFIG_ROCKCHIP_DW_HDMI) += dw_hdmi-rockchip.o
 rockchipdrm-$(CONFIG_ROCKCHIP_DW_MIPI_DSI) += dw-mipi-dsi-rockchip.o \

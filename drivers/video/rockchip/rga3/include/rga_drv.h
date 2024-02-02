@@ -86,8 +86,8 @@
 #define STR(x) STR_HELPER(x)
 
 #define DRIVER_MAJOR_VERISON		1
-#define DRIVER_MINOR_VERSION		2
-#define DRIVER_REVISION_VERSION		27
+#define DRIVER_MINOR_VERSION		3
+#define DRIVER_REVISION_VERSION		1
 #define DRIVER_PATCH_VERSION
 
 #define DRIVER_VERSION (STR(DRIVER_MAJOR_VERISON) "." STR(DRIVER_MINOR_VERSION) \
@@ -97,7 +97,7 @@
 #define RGA_JOB_TIMEOUT_DELAY		HZ
 #define RGA_RESET_TIMEOUT			1000
 
-#define RGA_MAX_SCHEDULER	3
+#define RGA_MAX_SCHEDULER	RGA_HW_SIZE
 #define RGA_MAX_BUS_CLK		10
 
 #define RGA_BUFFER_POOL_MAX_SIZE	64
@@ -272,6 +272,7 @@ struct rga_job {
 	struct rga_req rga_command_base;
 	uint32_t cmd_reg[32 * 8];
 	struct rga_full_csc full_csc;
+	struct rga_csc_clip full_csc_clip;
 	struct rga_pre_intr_info pre_intr_info;
 
 	struct rga_job_buffer src_buffer;
@@ -379,6 +380,7 @@ struct rga_request {
 	 */
 	struct mm_struct *current_mm;
 
+	struct rga_feature feature;
 	/* TODO: add some common work */
 };
 

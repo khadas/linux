@@ -567,6 +567,7 @@ int rockchip_drm_endpoint_is_subdriver(struct device_node *ep);
 uint32_t rockchip_drm_of_find_possible_crtcs(struct drm_device *dev,
 					     struct device_node *port);
 uint32_t rockchip_drm_get_bpp(const struct drm_format_info *info);
+uint32_t rockchip_drm_get_cycles_per_pixel(uint32_t bus_format);
 int rockchip_drm_get_yuv422_format(struct drm_connector *connector,
 				   struct edid *edid);
 int rockchip_drm_parse_cea_ext(struct rockchip_drm_dsc_cap *dsc_cap,
@@ -575,6 +576,8 @@ int rockchip_drm_parse_cea_ext(struct rockchip_drm_dsc_cap *dsc_cap,
 int rockchip_drm_parse_next_hdr(struct next_hdr_sink_data *sink_data,
 				const struct edid *edid);
 int rockchip_drm_parse_colorimetry_data_block(u8 *colorimetry, const struct edid *edid);
+long rockchip_drm_dclk_round_rate(u32 version, struct clk *dclk, unsigned long rate);
+int rockchip_drm_dclk_set_rate(u32 version, struct clk *dclk, unsigned long rate);
 
 __printf(3, 4)
 void rockchip_drm_dbg(const struct device *dev, enum rockchip_drm_debug_category category,

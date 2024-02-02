@@ -220,6 +220,9 @@
 		rockchip,pvtm-temp-prop = <0 0>;
 		rockchip,pvtm-thermal-zone = "soc-thermal";
 		rockchip,grf = <&grf>;
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <900000>;
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
@@ -644,12 +647,14 @@
 			resets = <&cru SRST_ARESETN_USB3OTG>;
 			reset-names = "usb3-otg";
 			snps,dis_enblslpm_quirk;
-			snps,dis-u1u2-quirk;
+			snps,dis-u1-entry-quirk;
+			snps,dis-u2-entry-quirk;
 			snps,dis-u2-freeclk-exists-quirk;
 			snps,dis-del-phy-power-chg-quirk;
 			snps,dis-tx-ipgap-linecheck-quirk;
-			snps,xhci-trb-ent-quirk;
 			snps,dis_rxdet_inp3_quirk;
+			snps,parkmode-disable-hs-quirk;
+			snps,parkmode-disable-ss-quirk;
 			quirk-skip-phy-init;
 			status = "disabled";
 		};
@@ -1070,6 +1075,9 @@
 		rockchip,pvtm-temp-prop = <0 0>;
 		rockchip,pvtm-thermal-zone = "soc-thermal";
 		rockchip,grf = <&grf>;
+		rockchip,temp-hysteresis = <5000>;
+		rockchip,low-temp = <10000>;
+		rockchip,low-temp-min-volt = <900000>;
 
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
@@ -1528,9 +1536,8 @@
 		ddc-i2c-scl-low-time-ns = <10000>;
 		reg-io-width = <4>;
 		rockchip,grf = <&grf>;
-		pinctrl-names = "default", "idle";
+		pinctrl-names = "default";
 		pinctrl-0 = <&hdmi_pins>;
-		pinctrl-1 = <&hdmi_pins_idle>;
 		phys = <&hdmiphy>;
 		phy-names = "hdmi";
 		#sound-dai-cells = <0>;
@@ -1795,6 +1802,7 @@
 	pwm0: pwm@ffa90000 {
 		compatible = "rockchip,rk3528-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xffa90000 0x0 0x10>;
+		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm0m0_pins>;
@@ -1806,6 +1814,7 @@
 	pwm1: pwm@ffa90010 {
 		compatible = "rockchip,rk3528-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xffa90010 0x0 0x10>;
+		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm1m0_pins>;
@@ -1817,6 +1826,7 @@
 	pwm2: pwm@ffa90020 {
 		compatible = "rockchip,rk3528-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xffa90020 0x0 0x10>;
+		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm2m0_pins>;
@@ -1841,6 +1851,7 @@
 	pwm4: pwm@ffa98000 {
 		compatible = "rockchip,rk3528-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xffa98000 0x0 0x10>;
+		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm4m0_pins>;
@@ -1852,6 +1863,7 @@
 	pwm5: pwm@ffa98010 {
 		compatible = "rockchip,rk3528-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xffa98010 0x0 0x10>;
+		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm5m0_pins>;
@@ -1863,6 +1875,7 @@
 	pwm6: pwm@ffa98020 {
 		compatible = "rockchip,rk3528-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xffa98020 0x0 0x10>;
+		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 		#pwm-cells = <3>;
 		pinctrl-names = "active";
 		pinctrl-0 = <&pwm6m0_pins>;
@@ -1916,6 +1929,8 @@
 		rockchip,hw-tshut-temp = <120000>;
 		rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
 		rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+		nvmem-cells = <&cpu_tsadc_trim_l>, <&cpu_tsadc_trim_h>;
+		nvmem-cell-names = "trim_l", "trim_h";
 		status = "disabled";
 	};
 
@@ -2315,6 +2330,12 @@
 		};
 		dmc_opp_info: dmc-opp-info@3e {
 			reg = <0x3e 0x6>;
+		};
+		cpu_tsadc_trim_l: cpu-tsadc-trim-l@44 {
+			reg = <0x44 0x1>;
+		};
+		cpu_tsadc_trim_h: cpu-tsadc-trim-h@45 {
+			reg = <0x45 0x1>;
 		};
 	};
 

@@ -461,6 +461,12 @@ static int config_usb_cfg_link(
 	 * from another gadget or a random directory.
 	 * Also a function instance can only be linked once.
 	 */
+
+	if (gi->composite.gadget_driver.udc_name) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	list_for_each_entry(a_fi, &gi->available_func, cfs_list) {
 		if (a_fi == fi)
 			break;
@@ -1549,10 +1555,11 @@ static int android_setup(struct usb_gadget *gadget,
 	int value = -EOPNOTSUPP;
 	struct usb_function_instance *fi;
 
-	if (!android_device)
+	cdev = get_gadget_data(gadget);
+	if (!cdev)
 		return 0;
 
-	gi = dev_get_drvdata(android_device);
+	gi = container_of(cdev, struct gadget_info, cdev);
 	spin_lock_irqsave(&gi->spinlock, flags);
 	cdev = get_gadget_data(gadget);
 	if (!cdev || gi->unbind) {

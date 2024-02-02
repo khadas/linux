@@ -164,6 +164,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RK3528
 	imply SND_SOC_RK730
 	imply SND_SOC_RK817
+	imply SND_SOC_ROCKCHIP_SPI_CODEC
 	imply SND_SOC_RT274
 	imply SND_SOC_RT286
 	imply SND_SOC_RT298
@@ -216,6 +217,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TAS5720
 	imply SND_SOC_TAS6424
 	imply SND_SOC_TDA7419
+	imply SND_SOC_TDA7803
 	imply SND_SOC_TFA9879
 	imply SND_SOC_TLV320ADCX140
 	imply SND_SOC_TLV320AIC23_I2C
@@ -1169,6 +1171,15 @@ config SND_SOC_RL6347A
 	default m if SND_SOC_RT286=m
 	default m if SND_SOC_RT298=m
 
+config SND_SOC_ROCKCHIP_SPI_CODEC
+	tristate "SPI CODEC"
+	depends on ARCH_ROCKCHIP
+	depends on SPI_MASTER
+	select REGMAP_SPI
+	help
+	  Enable support for a remote audio dsp which act as a codec.
+	  Control the adsp by spi.
+
 config SND_SOC_RT274
 	tristate
 	depends on I2C
@@ -1392,6 +1403,7 @@ config SND_SOC_STA529
 config SND_SOC_STAC9766
 	tristate
 	depends on SND_SOC_AC97_BUS
+	select REGMAP_AC97
 
 config SND_SOC_STI_SAS
 	tristate "codec Audio support for STI SAS codec"
@@ -1439,6 +1451,11 @@ config SND_SOC_TAS6424
 
 config SND_SOC_TDA7419
 	tristate "ST TDA7419 audio processor"
+	depends on I2C
+	select REGMAP_I2C
+
+config SND_SOC_TDA7803
+	tristate "ST TDA7803 audio processor"
 	depends on I2C
 	select REGMAP_I2C
 
@@ -1798,7 +1815,7 @@ config SND_SOC_WSA881X
 config SND_SOC_ZL38060
 	tristate "Microsemi ZL38060 Connected Home Audio Processor"
 	depends on SPI_MASTER
-	select GPIOLIB
+	depends on GPIOLIB
 	select REGMAP
 	help
 	  Support for ZL38060 Connected Home Audio Processor from Microsemi,

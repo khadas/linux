@@ -5,11 +5,11 @@
  * Author: Dingxian Wen <shawn.wen@rock-chips.com>
  */
 
-#include <dt-bindings/soc/rockchip-system-status.h>
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
+#include <linux/dma-fence.h>
 #include <linux/dma-mapping.h>
 #include <linux/extcon-provider.h>
 #include <linux/fs.h>
@@ -30,11 +30,13 @@
 #include <linux/rk_hdmirx_config.h>
 #include <linux/rockchip/rockchip_sip.h>
 #include <linux/seq_file.h>
+#include <linux/sync_file.h>
 #include <linux/v4l2-dv-timings.h>
 #include <linux/workqueue.h>
 #include <media/cec.h>
 #include <media/cec-notifier.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-controls_rockchip.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-dv-timings.h>
@@ -45,14 +47,18 @@
 #include <media/videobuf2-v4l2.h>
 #include <soc/rockchip/rockchip-system-status.h>
 #include <sound/hdmi-codec.h>
+#include <linux/rk_hdmirx_class.h>
 #include "rk_hdmirx.h"
 #include "rk_hdmirx_cec.h"
 #include "rk_hdmirx_hdcp.h"
 
-static struct class *hdmirx_class;
 static int debug;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "debug level (0-3)");
+MODULE_PARM_DESC(debug, "debug level (0-4)");
+
+static bool low_latency;
+module_param(low_latency, bool, 0644);
+MODULE_PARM_DESC(low_latency, "low_latency en(0-1)");
 
 #define	RK_HDMIRX_DRVNAME		"rk_hdmirx"
 #define EDID_NUM_BLOCKS_MAX		2
@@ -143,6 +149,12 @@ struct hdmirx_reg_table {
 	enum hdmirx_reg_attr attr;
 };
 
+struct hdmirx_fence_context {
+	u64 context;
+	u64 seqno;
+	spinlock_t spinlock;
+};
+
 struct hdmirx_buffer {
 	struct vb2_v4l2_buffer vb;
 	struct list_head queue;
@@ -177,6 +189,12 @@ struct hdmirx_stream {
 	u32 irq_stat;
 };
 
+struct hdmirx_fence {
+	struct list_head fence_list;
+	struct dma_fence *fence;
+	int fence_fd;
+};
+
 struct rk_hdmirx_dev {
 	struct cec_notifier *cec_notifier;
 	struct cpufreq_policy *policy;
@@ -188,6 +206,8 @@ struct rk_hdmirx_dev {
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler hdl;
 	struct v4l2_ctrl *detect_tx_5v_ctrl;
+	struct v4l2_ctrl *audio_sampling_rate_ctrl;
+	struct v4l2_ctrl *audio_present_ctrl;
 	struct v4l2_dv_timings timings;
 	struct gpio_desc *hdmirx_det_gpio;
 	struct work_struct work_wdt_config;
@@ -201,6 +221,7 @@ struct rk_hdmirx_dev {
 	struct hdmirx_audiostate audio_state;
 	struct extcon_dev *extcon;
 	struct hdmirx_cec *cec;
+	struct hdmirx_fence_context fence_ctx;
 	struct mutex stream_lock;
 	struct mutex work_lock;
 	struct pm_qos_request pm_qos;
@@ -212,6 +233,9 @@ struct rk_hdmirx_dev {
 	struct regmap *grf;
 	struct regmap *vo1_grf;
 	struct rk_hdmirx_hdcp *hdcp;
+	struct hdmirx_fence *hdmirx_fence;
+	struct list_head qbuf_fence_list_head;
+	struct list_head done_fence_list_head;
 	void __iomem *regs;
 	int edid_version;
 	int audio_present;
@@ -243,11 +267,13 @@ struct rk_hdmirx_dev {
 	u32 color_depth;
 	u32 cpu_freq_khz;
 	u32 bound_cpu;
+	u32 phy_cpuid;
 	u32 fps;
 	u32 wdt_cfg_bound_cpu;
 	u8 edid[EDID_BLOCK_SIZE * 2];
 	hdmi_codec_plugged_cb plugged_cb;
 	spinlock_t rst_lock;
+	spinlock_t fence_lock;
 };
 
 static const unsigned int hdmirx_extcon_cable[] = {
@@ -410,6 +436,64 @@ static u32 hdmirx_readl(struct rk_hdmirx_dev *hdmirx_dev, int reg)
 	return val;
 }
 
+static const char *hdmirx_fence_get_name(struct dma_fence *fence)
+{
+	return RK_HDMIRX_DRVNAME;
+}
+
+static const struct dma_fence_ops hdmirx_fence_ops = {
+	.get_driver_name = hdmirx_fence_get_name,
+	.get_timeline_name = hdmirx_fence_get_name,
+};
+
+static void hdmirx_fence_context_init(struct hdmirx_fence_context *fence_ctx)
+{
+	fence_ctx->context = dma_fence_context_alloc(1);
+	spin_lock_init(&fence_ctx->spinlock);
+}
+
+static struct dma_fence *hdmirx_dma_fence_alloc(struct hdmirx_fence_context *fence_ctx)
+{
+	struct dma_fence *fence = NULL;
+
+	if (fence_ctx == NULL) {
+		pr_err("fence_context is NULL!\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	if (!fence)
+		return ERR_PTR(-ENOMEM);
+
+	dma_fence_init(fence, &hdmirx_fence_ops, &fence_ctx->spinlock,
+		       fence_ctx->context, ++fence_ctx->seqno);
+
+	return fence;
+}
+
+static int hdmirx_dma_fence_get_fd(struct dma_fence *fence)
+{
+	struct sync_file *sync_file = NULL;
+	int fence_fd = -1;
+
+	if (!fence)
+		return -EINVAL;
+
+	fence_fd = get_unused_fd_flags(O_CLOEXEC);
+	if (fence_fd < 0)
+		return fence_fd;
+
+	sync_file = sync_file_create(fence);
+	if (!sync_file) {
+		put_unused_fd(fence_fd);
+		return -ENOMEM;
+	}
+
+	fd_install(fence_fd, sync_file->file);
+
+	return fence_fd;
+}
+
 static void hdmirx_reset_dma(struct rk_hdmirx_dev *hdmirx_dev)
 {
 	unsigned long lock_flags = 0;
@@ -471,6 +555,7 @@ static int hdmirx_subscribe_event(struct v4l2_fh *fh,
 	case V4L2_EVENT_CTRL:
 		return v4l2_ctrl_subscribe_event(fh, sub);
 	case RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST:
+	case RK_HDMIRX_V4L2_EVENT_AUDIOINFO:
 		return v4l2_event_subscribe(fh, sub, 0, NULL);
 
 	default:
@@ -529,6 +614,16 @@ static int hdmirx_g_dv_timings(struct file *file, void *_fh,
 	struct rk_hdmirx_dev *hdmirx_dev = stream->hdmirx_dev;
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 	u32 dma_cfg1;
+
+	if (port_no_link(hdmirx_dev)) {
+		v4l2_err(v4l2_dev, "%s port has no link!\n", __func__);
+		return -ENOLINK;
+	}
+
+	if (signal_not_lock(hdmirx_dev)) {
+		v4l2_err(v4l2_dev, "%s signal is not locked!\n", __func__);
+		return -ENOLCK;
+	}
 
 	*timings = hdmirx_dev->timings;
 	dma_cfg1 = hdmirx_readl(hdmirx_dev, DMA_CONFIG1);
@@ -1558,7 +1653,7 @@ static int hdmirx_wait_lock_and_get_timing(struct rk_hdmirx_dev *hdmirx_dev)
 	}
 
 	hdmirx_reset_dma(hdmirx_dev);
-	usleep_range(200*1000, 200*1010);
+	usleep_range(500*1000, 500*1010);
 	hdmirx_format_change(hdmirx_dev);
 
 	return 0;
@@ -1921,6 +2016,39 @@ static int hdmirx_queue_setup(struct vb2_queue *queue,
 	return 0;
 }
 
+static void hdmirx_qbuf_alloc_fence(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	struct dma_fence *fence;
+	int fence_fd;
+	struct hdmirx_fence *hdmirx_fence;
+	unsigned long lock_flags = 0;
+	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+
+	fence = hdmirx_dma_fence_alloc(&hdmirx_dev->fence_ctx);
+	if (!IS_ERR(fence)) {
+		fence_fd = hdmirx_dma_fence_get_fd(fence);
+		if (fence_fd >= 0) {
+			hdmirx_fence = kzalloc(sizeof(struct hdmirx_fence), GFP_KERNEL);
+			if (!hdmirx_fence) {
+				v4l2_err(v4l2_dev, "%s: failed to alloc hdmirx_fence!\n", __func__);
+				return;
+			}
+			hdmirx_fence->fence = fence;
+			hdmirx_fence->fence_fd = fence_fd;
+			spin_lock_irqsave(&hdmirx_dev->fence_lock, lock_flags);
+			list_add_tail(&hdmirx_fence->fence_list, &hdmirx_dev->qbuf_fence_list_head);
+			spin_unlock_irqrestore(&hdmirx_dev->fence_lock, lock_flags);
+			v4l2_dbg(3, debug, v4l2_dev, "%s: fence:%p, fence_fd:%d\n",
+				 __func__, fence, fence_fd);
+		} else {
+			dma_fence_put(fence);
+			v4l2_err(v4l2_dev, "%s: failed to get fence fd!\n", __func__);
+		}
+	} else {
+		v4l2_err(v4l2_dev, "%s: alloc fence failed!\n", __func__);
+	}
+}
+
 /*
  * The vb2_buffer are stored in hdmirx_buffer, in order to unify
  * mplane buffer and none-mplane buffer.
@@ -1935,6 +2063,8 @@ static void hdmirx_buf_queue(struct vb2_buffer *vb)
 	const struct hdmirx_output_fmt *out_fmt;
 	unsigned long lock_flags = 0;
 	int i;
+	struct rk_hdmirx_dev *hdmirx_dev;
+	struct v4l2_device *v4l2_dev;
 
 	if (vb == NULL) {
 		pr_err("%s: vb null pointer err!\n", __func__);
@@ -1947,6 +2077,9 @@ static void hdmirx_buf_queue(struct vb2_buffer *vb)
 	stream = vb2_get_drv_priv(queue);
 	pixm = &stream->pixm;
 	out_fmt = stream->out_fmt;
+
+	hdmirx_dev = stream->hdmirx_dev;
+	v4l2_dev = &hdmirx_dev->v4l2_dev;
 
 	memset(hdmirx_buf->buff_addr, 0, sizeof(hdmirx_buf->buff_addr));
 	/*
@@ -1969,9 +2102,58 @@ static void hdmirx_buf_queue(struct vb2_buffer *vb)
 		}
 	}
 
+	v4l2_dbg(4, debug, v4l2_dev, "qbuf fd:%d\n", vb->planes[0].m.fd);
+
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	list_add_tail(&hdmirx_buf->queue, &stream->buf_head);
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+
+	if (low_latency)
+		hdmirx_qbuf_alloc_fence(hdmirx_dev);
+}
+
+static void hdmirx_free_fence(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	unsigned long lock_flags = 0;
+	struct hdmirx_fence *vb_fence, *done_fence;
+	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+	LIST_HEAD(local_list);
+
+	spin_lock_irqsave(&hdmirx_dev->fence_lock, lock_flags);
+	if (hdmirx_dev->hdmirx_fence) {
+		v4l2_dbg(2, debug, v4l2_dev, "%s: signal hdmirx_fence fd:%d\n",
+			 __func__, hdmirx_dev->hdmirx_fence->fence_fd);
+		dma_fence_signal(hdmirx_dev->hdmirx_fence->fence);
+		dma_fence_put(hdmirx_dev->hdmirx_fence->fence);
+		kfree(hdmirx_dev->hdmirx_fence);
+		hdmirx_dev->hdmirx_fence = NULL;
+	}
+
+	list_replace_init(&hdmirx_dev->qbuf_fence_list_head, &local_list);
+	spin_unlock_irqrestore(&hdmirx_dev->fence_lock, lock_flags);
+
+	while (!list_empty(&local_list)) {
+		vb_fence = list_first_entry(&local_list, struct hdmirx_fence, fence_list);
+		list_del(&vb_fence->fence_list);
+		v4l2_dbg(2, debug, v4l2_dev, "%s: free qbuf_fence fd:%d\n",
+			 __func__, vb_fence->fence_fd);
+		dma_fence_put(vb_fence->fence);
+		put_unused_fd(vb_fence->fence_fd);
+		kfree(vb_fence);
+	}
+
+	spin_lock_irqsave(&hdmirx_dev->fence_lock, lock_flags);
+	list_replace_init(&hdmirx_dev->done_fence_list_head, &local_list);
+	spin_unlock_irqrestore(&hdmirx_dev->fence_lock, lock_flags);
+	while (!list_empty(&local_list)) {
+		done_fence = list_first_entry(&local_list, struct hdmirx_fence, fence_list);
+		list_del(&done_fence->fence_list);
+		v4l2_dbg(2, debug, v4l2_dev, "%s: free done_fence fd:%d\n",
+			 __func__, done_fence->fence_fd);
+		dma_fence_put(done_fence->fence);
+		put_unused_fd(done_fence->fence_fd);
+		kfree(done_fence);
+	}
 }
 
 static void return_all_buffers(struct hdmirx_stream *stream,
@@ -1979,6 +2161,7 @@ static void return_all_buffers(struct hdmirx_stream *stream,
 {
 	struct hdmirx_buffer *buf;
 	unsigned long flags;
+	struct rk_hdmirx_dev *hdmirx_dev = stream->hdmirx_dev;
 
 	spin_lock_irqsave(&stream->vbq_lock, flags);
 	if (stream->curr_buf)
@@ -1997,6 +2180,8 @@ static void return_all_buffers(struct hdmirx_stream *stream,
 		spin_lock_irqsave(&stream->vbq_lock, flags);
 	}
 	spin_unlock_irqrestore(&stream->vbq_lock, flags);
+
+	hdmirx_free_fence(hdmirx_dev);
 }
 
 static void hdmirx_stop_streaming(struct vb2_queue *queue)
@@ -2045,6 +2230,7 @@ static int hdmirx_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct v4l2_dv_timings timings = hdmirx_dev->timings;
 	struct v4l2_bt_timings *bt = &timings.bt;
 	int line_flag;
+	int delay_line;
 	uint32_t touch_flag;
 
 	if (!hdmirx_dev->get_timing) {
@@ -2059,7 +2245,7 @@ static int hdmirx_start_streaming(struct vb2_queue *queue, unsigned int count)
 	}
 
 	mutex_lock(&hdmirx_dev->stream_lock);
-	touch_flag = (hdmirx_dev->bound_cpu << 1) | 0x1;
+	touch_flag = (hdmirx_dev->phy_cpuid << 1) | 0x1;
 	sip_hdmirx_config(HDMIRX_AUTO_TOUCH_EN, 0, touch_flag, 100);
 	stream->frame_idx = 0;
 	stream->line_flag_int_cnt = 0;
@@ -2096,12 +2282,19 @@ static int hdmirx_start_streaming(struct vb2_queue *queue, unsigned int count)
 
 	if (bt->height) {
 		if (bt->interlaced == V4L2_DV_INTERLACED)
-			line_flag = bt->height / 4;
-		else
 			line_flag = bt->height / 2;
+		else
+			line_flag = bt->height;
+
+		if (low_latency && hdmirx_dev->fps >= 59)
+			delay_line = 10;
+		else
+			delay_line = line_flag * 2 / 3;
+
+		v4l2_info(v4l2_dev, "%s: delay_line:%d\n", __func__, delay_line);
 		hdmirx_update_bits(hdmirx_dev, DMA_CONFIG7,
 				LINE_FLAG_NUM_MASK,
-				LINE_FLAG_NUM(line_flag));
+				LINE_FLAG_NUM(delay_line));
 	} else {
 		v4l2_err(v4l2_dev, "height err: %d\n", bt->height);
 	}
@@ -2160,6 +2353,57 @@ static int hdmirx_get_hdcp_auth_status(struct rk_hdmirx_dev *hdmirx_dev)
 	val = hdmirx_readl(hdmirx_dev, HDCP_INT_STATUS) & 0x40;
 
 	return val ? 1 : 0;
+}
+
+static void hdmirx_dqbuf_get_done_fence(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	unsigned long lock_flags = 0;
+	struct hdmirx_fence *done_fence;
+	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+
+	spin_lock_irqsave(&hdmirx_dev->fence_lock, lock_flags);
+	if (!list_empty(&hdmirx_dev->done_fence_list_head)) {
+		done_fence = list_first_entry(&hdmirx_dev->done_fence_list_head,
+				struct hdmirx_fence, fence_list);
+		list_del(&done_fence->fence_list);
+	} else {
+		done_fence = NULL;
+	}
+	spin_unlock_irqrestore(&hdmirx_dev->fence_lock, lock_flags);
+
+	if (done_fence) {
+		spin_lock_irqsave(&hdmirx_dev->fence_lock, lock_flags);
+		if (hdmirx_dev->hdmirx_fence) {
+			v4l2_err(v4l2_dev, "%s: last fence not signal, signal now!\n", __func__);
+			dma_fence_signal(hdmirx_dev->hdmirx_fence->fence);
+			dma_fence_put(hdmirx_dev->hdmirx_fence->fence);
+			v4l2_dbg(2, debug, v4l2_dev, "%s: signal fence:%p, old_fd:%d\n",
+				 __func__,
+				 hdmirx_dev->hdmirx_fence->fence,
+				 hdmirx_dev->hdmirx_fence->fence_fd);
+			kfree(hdmirx_dev->hdmirx_fence);
+			hdmirx_dev->hdmirx_fence = NULL;
+		}
+		hdmirx_dev->hdmirx_fence = done_fence;
+		spin_unlock_irqrestore(&hdmirx_dev->fence_lock, lock_flags);
+		v4l2_dbg(3, debug, v4l2_dev, "%s: fence:%p, fence_fd:%d\n",
+			 __func__, done_fence->fence, done_fence->fence_fd);
+	}
+}
+
+static int hdmirx_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
+{
+	int ret;
+	struct hdmirx_stream *stream = video_drvdata(file);
+	struct rk_hdmirx_dev *hdmirx_dev = stream->hdmirx_dev;
+
+	if (!hdmirx_dev->get_timing)
+		return -EINVAL;
+
+	ret = vb2_ioctl_dqbuf(file, priv, p);
+	hdmirx_dqbuf_get_done_fence(hdmirx_dev);
+
+	return ret;
 }
 
 static long hdmirx_ioctl_default(struct file *file, void *fh,
@@ -2280,7 +2524,7 @@ static const struct v4l2_ioctl_ops hdmirx_v4l2_ioctl_ops = {
 	.vidioc_create_bufs = vb2_ioctl_create_bufs,
 	.vidioc_qbuf = vb2_ioctl_qbuf,
 	.vidioc_expbuf = vb2_ioctl_expbuf,
-	.vidioc_dqbuf = vb2_ioctl_dqbuf,
+	.vidioc_dqbuf = hdmirx_dqbuf,
 	.vidioc_prepare_buf = vb2_ioctl_prepare_buf,
 	.vidioc_streamon = vb2_ioctl_streamon,
 	.vidioc_streamoff = vb2_ioctl_streamoff,
@@ -2343,12 +2587,23 @@ static int hdmirx_register_stream_vdev(struct hdmirx_stream *stream)
 	return 0;
 }
 
+static void process_audio_change(struct rk_hdmirx_dev *hdmirx_dev)
+{
+	struct hdmirx_stream *stream = &hdmirx_dev->stream;
+	const struct v4l2_event evt_audio_info = {
+		.type = RK_HDMIRX_V4L2_EVENT_AUDIOINFO,
+	};
+	v4l2_event_queue(&stream->vdev, &evt_audio_info);
+}
+
 static void process_signal_change(struct rk_hdmirx_dev *hdmirx_dev)
 {
+	unsigned long lock_flags = 0;
 	struct hdmirx_stream *stream = &hdmirx_dev->stream;
 	const struct v4l2_event evt_signal_lost = {
 		.type = RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST,
 	};
+	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 
 	hdmirx_dev->get_timing = false;
 	sip_hdmirx_config(HDMIRX_INFO_NOTIFY, 0, DMA_CONFIG6, 0);
@@ -2366,6 +2621,18 @@ static void process_signal_change(struct rk_hdmirx_dev *hdmirx_dev)
 	v4l2_event_queue(&stream->vdev, &evt_signal_lost);
 	if (hdmirx_dev->hdcp && hdmirx_dev->hdcp->hdcp_stop)
 		hdmirx_dev->hdcp->hdcp_stop(hdmirx_dev->hdcp);
+	spin_lock_irqsave(&hdmirx_dev->fence_lock, lock_flags);
+	if (hdmirx_dev->hdmirx_fence) {
+		dma_fence_signal(hdmirx_dev->hdmirx_fence->fence);
+		dma_fence_put(hdmirx_dev->hdmirx_fence->fence);
+		v4l2_dbg(2, debug, v4l2_dev, "%s: signal fence:%p, old_fd:%d\n",
+			 __func__,
+			 hdmirx_dev->hdmirx_fence->fence,
+			 hdmirx_dev->hdmirx_fence->fence_fd);
+		kfree(hdmirx_dev->hdmirx_fence);
+		hdmirx_dev->hdmirx_fence = NULL;
+	}
+	spin_unlock_irqrestore(&hdmirx_dev->fence_lock, lock_flags);
 	schedule_delayed_work_on(hdmirx_dev->bound_cpu,
 			&hdmirx_dev->delayed_work_res_change,
 			msecs_to_jiffies(1000));
@@ -2473,13 +2740,28 @@ static void mainunit_2_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
 	hdmirx_writel(hdmirx_dev, MAINUNIT_2_INT_FORCE, 0x0);
 }
 
+/*
+ * In the normal preview, some scenarios will trigger the change interrupt
+ * by mistake, and the trigger source of the interrupt needs to be detected
+ * to avoid the problem.
+ */
 static void pkt_0_int_handler(struct rk_hdmirx_dev *hdmirx_dev,
 		int status, bool *handled)
 {
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+	u32 pre_fmt_fourcc = hdmirx_dev->cur_fmt_fourcc;
+	u32 pre_color_range = hdmirx_dev->cur_color_range;
+	u32 pre_color_space = hdmirx_dev->cur_color_space;
 
 	if ((status & PKTDEC_AVIIF_CHG_IRQ)) {
-		process_signal_change(hdmirx_dev);
+		hdmirx_get_color_range(hdmirx_dev);
+		hdmirx_get_color_space(hdmirx_dev);
+		hdmirx_get_pix_fmt(hdmirx_dev);
+		if (hdmirx_dev->cur_fmt_fourcc != pre_fmt_fourcc ||
+		    hdmirx_dev->cur_color_range != pre_color_range ||
+		    hdmirx_dev->cur_color_space != pre_color_space) {
+			process_signal_change(hdmirx_dev);
+		}
 		v4l2_dbg(2, debug, v4l2_dev, "%s: ptk0_st:%#x\n",
 				__func__, status);
 		*handled = true;
@@ -2583,6 +2865,8 @@ static void hdmirx_vb_done(struct hdmirx_stream *stream,
 {
 	const struct hdmirx_output_fmt *fmt = stream->out_fmt;
 	u32 i;
+	struct rk_hdmirx_dev *hdmirx_dev = stream->hdmirx_dev;
+	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 
 	/* Dequeue a filled buffer */
 	for (i = 0; i < fmt->mplanes; i++) {
@@ -2592,10 +2876,12 @@ static void hdmirx_vb_done(struct hdmirx_stream *stream,
 
 	vb_done->vb2_buf.timestamp = ktime_get_ns();
 	vb2_buffer_done(&vb_done->vb2_buf, VB2_BUF_STATE_DONE);
+	v4l2_dbg(4, debug, v4l2_dev, "vb_done fd:%d", vb_done->vb2_buf.planes[0].m.fd);
 }
 
 static void dma_idle_int_handler(struct rk_hdmirx_dev *hdmirx_dev, bool *handled)
 {
+	unsigned long lock_flags = 0;
 	struct hdmirx_stream *stream = &hdmirx_dev->stream;
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 	struct v4l2_dv_timings timings = hdmirx_dev->timings;
@@ -2605,6 +2891,22 @@ static void dma_idle_int_handler(struct rk_hdmirx_dev *hdmirx_dev, bool *handled
 	if (!(stream->irq_stat) && !(stream->irq_stat & LINE_FLAG_INT_EN))
 		v4l2_dbg(1, debug, v4l2_dev,
 			 "%s: last time have no line_flag_irq\n", __func__);
+
+	if (low_latency) {
+		spin_lock_irqsave(&hdmirx_dev->fence_lock, lock_flags);
+		if (hdmirx_dev->hdmirx_fence) {
+			dma_fence_signal(hdmirx_dev->hdmirx_fence->fence);
+			dma_fence_put(hdmirx_dev->hdmirx_fence->fence);
+			v4l2_dbg(3, debug, v4l2_dev, "%s: signal fence:%p, old_fd:%d\n",
+				 __func__,
+				 hdmirx_dev->hdmirx_fence->fence,
+				 hdmirx_dev->hdmirx_fence->fence_fd);
+			kfree(hdmirx_dev->hdmirx_fence);
+			hdmirx_dev->hdmirx_fence = NULL;
+		}
+		spin_unlock_irqrestore(&hdmirx_dev->fence_lock, lock_flags);
+		goto DMA_IDLE_OUT;
+	}
 
 	if (stream->line_flag_int_cnt <= FILTER_FRAME_CNT)
 		goto DMA_IDLE_OUT;
@@ -2618,6 +2920,9 @@ static void dma_idle_int_handler(struct rk_hdmirx_dev *hdmirx_dev, bool *handled
 			if (vb_done) {
 				vb_done->vb2_buf.timestamp = ktime_get_ns();
 				vb_done->sequence = stream->frame_idx;
+				/* config userbits 0 or 0xffffffff as invalid fence_fd*/
+				memset(vb_done->timecode.userbits, 0xff,
+				       sizeof(vb_done->timecode.userbits));
 				hdmirx_vb_done(stream, vb_done);
 				stream->frame_idx++;
 				if (stream->frame_idx == 30)
@@ -2639,13 +2944,50 @@ DMA_IDLE_OUT:
 	*handled = true;
 }
 
+static void hdmirx_add_fence_to_vb_done(struct hdmirx_stream *stream,
+					struct vb2_v4l2_buffer *vb_done)
+{
+	unsigned long lock_flags = 0;
+	struct hdmirx_fence *vb_fence;
+	struct rk_hdmirx_dev *hdmirx_dev = stream->hdmirx_dev;
+	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+
+	spin_lock_irqsave(&hdmirx_dev->fence_lock, lock_flags);
+	if (!list_empty(&hdmirx_dev->qbuf_fence_list_head)) {
+		vb_fence = list_first_entry(&hdmirx_dev->qbuf_fence_list_head,
+				struct hdmirx_fence, fence_list);
+		list_del(&vb_fence->fence_list);
+	} else {
+		vb_fence = NULL;
+	}
+
+	if (vb_fence)
+		list_add_tail(&vb_fence->fence_list, &hdmirx_dev->done_fence_list_head);
+	spin_unlock_irqrestore(&hdmirx_dev->fence_lock, lock_flags);
+
+	if (vb_fence) {
+		/*  pass the fence_fd to userspace through timecode.userbits */
+		if (put_user(vb_fence->fence_fd, vb_done->timecode.userbits))
+			v4l2_err(v4l2_dev, "%s: failed to trans fence fd!\n", __func__);
+
+		v4l2_dbg(3, debug, v4l2_dev, "%s: fence:%p, fence_fd:%d\n",
+			 __func__, vb_fence->fence, vb_fence->fence_fd);
+	} else {
+		/* config userbits 0 or 0xffffffff as invalid fence_fd*/
+		memset(vb_done->timecode.userbits, 0xff, sizeof(vb_done->timecode.userbits));
+		v4l2_err(v4l2_dev, "%s: failed to get fence fd!\n", __func__);
+	}
+}
+
 static void line_flag_int_handler(struct rk_hdmirx_dev *hdmirx_dev, bool *handled)
 {
+	unsigned long lock_flags = 0;
 	struct hdmirx_stream *stream = &hdmirx_dev->stream;
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 	struct v4l2_dv_timings timings = hdmirx_dev->timings;
 	struct v4l2_bt_timings *bt = &timings.bt;
 	u32 dma_cfg6;
+	struct vb2_v4l2_buffer *vb_done = NULL;
 
 	stream->line_flag_int_cnt++;
 	if (!(stream->irq_stat) && !(stream->irq_stat & HDMIRX_DMA_IDLE_INT))
@@ -2662,6 +3004,19 @@ static void line_flag_int_handler(struct rk_hdmirx_dev *hdmirx_dev, bool *handle
 
 	if ((bt->interlaced != V4L2_DV_INTERLACED) ||
 			(stream->line_flag_int_cnt % 2 == 0)) {
+		spin_lock_irqsave(&hdmirx_dev->fence_lock, lock_flags);
+		if (hdmirx_dev->hdmirx_fence) {
+			dma_fence_signal(hdmirx_dev->hdmirx_fence->fence);
+			dma_fence_put(hdmirx_dev->hdmirx_fence->fence);
+			v4l2_dbg(2, debug, v4l2_dev, "%s: signal last fence:%p, old_fd:%d\n",
+				 __func__,
+				 hdmirx_dev->hdmirx_fence->fence,
+				 hdmirx_dev->hdmirx_fence->fence_fd);
+			kfree(hdmirx_dev->hdmirx_fence);
+			hdmirx_dev->hdmirx_fence = NULL;
+		}
+		spin_unlock_irqrestore(&hdmirx_dev->fence_lock, lock_flags);
+
 		if (!stream->next_buf) {
 			spin_lock(&stream->vbq_lock);
 			if (!list_empty(&stream->buf_head)) {
@@ -2673,15 +3028,44 @@ static void line_flag_int_handler(struct rk_hdmirx_dev *hdmirx_dev, bool *handle
 			}
 			spin_unlock(&stream->vbq_lock);
 
-			if (stream->next_buf) {
-				hdmirx_writel(hdmirx_dev, DMA_CONFIG2,
-					stream->next_buf->buff_addr[HDMIRX_PLANE_Y]);
-				hdmirx_writel(hdmirx_dev, DMA_CONFIG3,
-					stream->next_buf->buff_addr[HDMIRX_PLANE_CBCR]);
-			} else {
-				v4l2_dbg(3, debug, v4l2_dev,
-					 "%s: No buffer is available\n", __func__);
+		}
+
+		if (stream->next_buf) {
+			hdmirx_writel(hdmirx_dev, DMA_CONFIG2,
+				stream->next_buf->buff_addr[HDMIRX_PLANE_Y]);
+			hdmirx_writel(hdmirx_dev, DMA_CONFIG3,
+				stream->next_buf->buff_addr[HDMIRX_PLANE_CBCR]);
+
+			if (low_latency) {
+				if (stream->curr_buf)
+					vb_done = &stream->curr_buf->vb;
+
+				if (vb_done) {
+					hdmirx_add_fence_to_vb_done(stream, vb_done);
+					vb_done->vb2_buf.timestamp = ktime_get_ns();
+					vb_done->sequence = stream->frame_idx;
+					hdmirx_vb_done(stream, vb_done);
+					stream->frame_idx++;
+					if (stream->frame_idx == 30)
+						v4l2_info(v4l2_dev, "rcv frames\n");
+				}
+
+				stream->curr_buf = stream->next_buf;
+				stream->next_buf = NULL;
 			}
+		} else {
+			v4l2_dbg(3, debug, v4l2_dev,
+				 "%s: next_buf NULL, drop the frame!\n", __func__);
+		}
+
+		if (stream->curr_buf) {
+			v4l2_dbg(4, debug, v4l2_dev, "%s: curr_fd:%d\n",
+				 __func__, stream->curr_buf->vb.vb2_buf.planes[0].m.fd);
+		}
+
+		if (stream->next_buf) {
+			v4l2_dbg(4, debug, v4l2_dev, "%s: next_fd:%d\n",
+				 __func__, stream->next_buf->vb.vb2_buf.planes[0].m.fd);
 		}
 	} else {
 		v4l2_dbg(3, debug, v4l2_dev, "%s: interlace:%d, line_flag_int_cnt:%d\n",
@@ -3172,7 +3556,7 @@ static void hdmirx_delayed_work_audio(struct work_struct *work)
 							struct rk_hdmirx_dev,
 							delayed_work_audio);
 	struct hdmirx_audiostate *as = &hdmirx_dev->audio_state;
-	u32 fs_audio, ch_audio;
+	u32 fs_audio, ch_audio, sample_flat;
 	int cur_state, init_state, pre_state, fifo_status2;
 	unsigned long delay = 200;
 
@@ -3223,6 +3607,7 @@ static void hdmirx_delayed_work_audio(struct work_struct *work)
 		if (!hdmirx_dev->audio_present) {
 			dev_info(hdmirx_dev->dev, "audio on");
 			hdmirx_audio_handle_plugged_change(hdmirx_dev, 1);
+			process_audio_change(hdmirx_dev);
 			hdmirx_dev->audio_present = true;
 		}
 		if (cur_state - init_state > 16 && cur_state - pre_state > 0)
@@ -3233,10 +3618,15 @@ static void hdmirx_delayed_work_audio(struct work_struct *work)
 		if (hdmirx_dev->audio_present) {
 			dev_info(hdmirx_dev->dev, "audio off");
 			hdmirx_audio_handle_plugged_change(hdmirx_dev, 0);
+			process_audio_change(hdmirx_dev);
 			hdmirx_dev->audio_present = false;
 		}
 	}
 	as->pre_state = cur_state;
+
+	sample_flat = hdmirx_readl(hdmirx_dev, AUDIO_PROC_STATUS1) & AUD_SAMPLE_FLAT;
+	hdmirx_update_bits(hdmirx_dev, AUDIO_PROC_CONFIG0, I2S_EN, sample_flat ? 0 : I2S_EN);
+
 exit:
 	schedule_delayed_work_on(hdmirx_dev->bound_cpu,
 			&hdmirx_dev->delayed_work_audio,
@@ -4146,6 +4536,50 @@ static void hdmirx_cancel_cpu_limit_freq(struct rk_hdmirx_dev *hdmirx_dev)
 		dev_err(hdmirx_dev->dev, "%s freq qos nod add\n", __func__);
 }
 
+static int hdmirx_get_custom_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct rk_hdmirx_dev *hdmirx_dev = container_of(ctrl->handler, struct rk_hdmirx_dev, hdl);
+	int ret = 0;
+
+	if (ctrl->id == RK_V4L2_CID_AUDIO_SAMPLING_RATE) {
+		*ctrl->p_new.p_s32 = hdmirx_dev->audio_state.fs_audio;
+	} else if (ctrl->id == RK_V4L2_CID_AUDIO_PRESENT) {
+		*ctrl->p_new.p_s32 = tx_5v_power_present(hdmirx_dev) ?
+					hdmirx_dev->audio_present : 0;
+	} else {
+		ret = -EINVAL;
+	}
+	return ret;
+}
+
+static const struct v4l2_ctrl_ops hdmirx_custom_ctrl_ops = {
+	.g_volatile_ctrl = hdmirx_get_custom_ctrl,
+};
+
+static const struct v4l2_ctrl_config hdmirx_ctrl_audio_sampling_rate = {
+	.ops = &hdmirx_custom_ctrl_ops,
+	.id = RK_V4L2_CID_AUDIO_SAMPLING_RATE,
+	.name = "Audio sampling rate",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 0,
+	.max = 768000,
+	.step = 1,
+	.def = 0,
+	.flags = V4L2_CTRL_FLAG_READ_ONLY,
+};
+
+static const struct v4l2_ctrl_config hdmirx_ctrl_audio_present = {
+	.ops = &hdmirx_custom_ctrl_ops,
+	.id = RK_V4L2_CID_AUDIO_PRESENT,
+	.name = "Audio present",
+	.type = V4L2_CTRL_TYPE_BOOLEAN,
+	.min = 0,
+	.max = 1,
+	.step = 1,
+	.def = 0,
+	.flags = V4L2_CTRL_FLAG_READ_ONLY,
+};
+
 static int hdmirx_probe(struct platform_device *pdev)
 {
 	const struct v4l2_dv_timings timings_def = HDMIRX_DEFAULT_TIMING;
@@ -4179,23 +4613,35 @@ static int hdmirx_probe(struct platform_device *pdev)
 		return PTR_ERR(hdmirx_dev->regs);
 	}
 
-	if (sip_cpu_logical_map_mpidr(0) == 0)
-		cpu_aff = sip_cpu_logical_map_mpidr(4); // big cpu0
-	else
-		cpu_aff = sip_cpu_logical_map_mpidr(1); // big cpu1
+	/*
+	 * Bind HDMIRX's FIQ and driver interrupt processing to big cpu1
+	 * in order to quickly respond to FIQ and prevent them from affecting
+	 * each other.
+	 */
+	if (sip_cpu_logical_map_mpidr(0) == 0) {
+		cpu_aff = sip_cpu_logical_map_mpidr(5);
+		hdmirx_dev->bound_cpu = 5;
+	} else {
+		cpu_aff = sip_cpu_logical_map_mpidr(1);
+		hdmirx_dev->bound_cpu = 1;
+	}
 
 	sip_fiq_control(RK_SIP_FIQ_CTRL_SET_AFF, RK_IRQ_HDMIRX_HDMI, cpu_aff);
-	hdmirx_dev->bound_cpu = (cpu_aff >> 8) & 0xf;
+	hdmirx_dev->phy_cpuid = (cpu_aff >> 8) & 0xf;
 	hdmirx_dev->wdt_cfg_bound_cpu = hdmirx_dev->bound_cpu + 1;
-	dev_info(dev, "%s: cpu_aff:%#x, Bound_cpu:%d, wdt_cfg_bound_cpu:%d\n",
+	dev_info(dev, "%s: cpu_aff:%#x, Bound_cpu:%d, wdt_cfg_bound_cpu:%d, phy_cpuid:%d\n",
 			__func__, cpu_aff,
 			hdmirx_dev->bound_cpu,
-			hdmirx_dev->wdt_cfg_bound_cpu);
+			hdmirx_dev->wdt_cfg_bound_cpu,
+			hdmirx_dev->phy_cpuid);
 	cpu_latency_qos_add_request(&hdmirx_dev->pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	mutex_init(&hdmirx_dev->stream_lock);
 	mutex_init(&hdmirx_dev->work_lock);
 	spin_lock_init(&hdmirx_dev->rst_lock);
+	spin_lock_init(&hdmirx_dev->fence_lock);
+	INIT_LIST_HEAD(&hdmirx_dev->qbuf_fence_list_head);
+	INIT_LIST_HEAD(&hdmirx_dev->done_fence_list_head);
 	INIT_WORK(&hdmirx_dev->work_wdt_config,
 			hdmirx_work_wdt_config);
 	INIT_DELAYED_WORK(&hdmirx_dev->delayed_work_hotplug,
@@ -4259,10 +4705,19 @@ static int hdmirx_probe(struct platform_device *pdev)
 	strscpy(v4l2_dev->name, dev_name(dev), sizeof(v4l2_dev->name));
 
 	hdl = &hdmirx_dev->hdl;
-	v4l2_ctrl_handler_init(hdl, 1);
+	v4l2_ctrl_handler_init(hdl, 3);
 	hdmirx_dev->detect_tx_5v_ctrl = v4l2_ctrl_new_std(hdl,
 			NULL, V4L2_CID_DV_RX_POWER_PRESENT,
 			0, 1, 0, 0);
+	/* custom controls */
+	hdmirx_dev->audio_sampling_rate_ctrl = v4l2_ctrl_new_custom(hdl,
+			&hdmirx_ctrl_audio_sampling_rate, NULL);
+	if (hdmirx_dev->audio_sampling_rate_ctrl)
+		hdmirx_dev->audio_sampling_rate_ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
+	hdmirx_dev->audio_present_ctrl = v4l2_ctrl_new_custom(hdl,
+			&hdmirx_ctrl_audio_present, NULL);
+	if (hdmirx_dev->audio_present_ctrl)
+		hdmirx_dev->audio_present_ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 	if (hdl->error) {
 		dev_err(dev, "v4l2 ctrl handler init failed!\n");
 		ret = hdl->error;
@@ -4293,7 +4748,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_unreg_video_dev;
 
-	hdmirx_dev->classdev = device_create_with_groups(hdmirx_class,
+	hdmirx_dev->classdev = device_create_with_groups(rk_hdmirx_class(),
 							 dev, MKDEV(0, 0),
 							 hdmirx_dev,
 							 hdmirx_groups,
@@ -4370,7 +4825,8 @@ static int hdmirx_probe(struct platform_device *pdev)
 	hdmirx_register_hdcp(dev, hdmirx_dev, hdmirx_dev->hdcp_enable);
 
 	hdmirx_register_debugfs(hdmirx_dev->dev, hdmirx_dev);
-
+	hdmirx_fence_context_init(&hdmirx_dev->fence_ctx);
+	hdmirx_dev->hdmirx_fence = NULL;
 	hdmirx_dev->initialized = true;
 	dev_info(dev, "%s driver probe ok!\n", dev_name(dev));
 
@@ -4401,7 +4857,6 @@ static int hdmirx_remove(struct platform_device *pdev)
 	struct rk_hdmirx_dev *hdmirx_dev = dev_get_drvdata(dev);
 
 	debugfs_remove_recursive(hdmirx_dev->debugfs_dir);
-
 	cpu_latency_qos_remove_request(&hdmirx_dev->pm_qos);
 	cancel_delayed_work(&hdmirx_dev->delayed_work_hotplug);
 	cancel_delayed_work(&hdmirx_dev->delayed_work_res_change);
@@ -4451,9 +4906,6 @@ static struct platform_driver hdmirx_driver = {
 
 static int __init hdmirx_init(void)
 {
-	hdmirx_class = class_create(THIS_MODULE, "hdmirx");
-	if (IS_ERR(hdmirx_class))
-		return PTR_ERR(hdmirx_class);
 	return platform_driver_register(&hdmirx_driver);
 }
 module_init(hdmirx_init);
@@ -4461,7 +4913,6 @@ module_init(hdmirx_init);
 static void __exit hdmirx_exit(void)
 {
 	platform_driver_unregister(&hdmirx_driver);
-	class_destroy(hdmirx_class);
 }
 module_exit(hdmirx_exit);
 

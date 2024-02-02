@@ -57,12 +57,9 @@ static int rockchip_cpuinfo_probe(struct platform_device *pdev)
 	}
 
 	cell = nvmem_cell_get(dev, "id");
-	if (IS_ERR(cell)) {
-		dev_err(dev, "failed to get id cell: %ld\n", PTR_ERR(cell));
-		if (PTR_ERR(cell) == -EPROBE_DEFER)
-			return PTR_ERR(cell);
-		return PTR_ERR(cell);
-	}
+	if (IS_ERR(cell))
+		return dev_err_probe(dev, PTR_ERR(cell), "failed to get id cell\n");
+
 	efuse_buf = nvmem_cell_read(cell, &len);
 	nvmem_cell_put(cell);
 	if (IS_ERR(efuse_buf))
@@ -214,7 +211,10 @@ static void rk3308_init(void)
 
 static void rk3528_init(void)
 {
-	rockchip_soc_id = ROCKCHIP_SOC_RK3528;
+	if (of_machine_is_compatible("rockchip,rk3528"))
+		rockchip_soc_id = ROCKCHIP_SOC_RK3528;
+	else if (of_machine_is_compatible("rockchip,rk3528a"))
+		rockchip_soc_id = ROCKCHIP_SOC_RK3528A;
 }
 
 #define RK356X_PMU_GRF_PHYS		0xfdc20000
@@ -235,6 +235,12 @@ static void rk356x_set_cpu_version(void)
 static void rk3566_init(void)
 {
 	rockchip_soc_id = ROCKCHIP_SOC_RK3566;
+	rk356x_set_cpu_version();
+}
+
+static void rk3567_init(void)
+{
+	rockchip_soc_id = ROCKCHIP_SOC_RK3567;
 	rk356x_set_cpu_version();
 }
 
@@ -270,6 +276,8 @@ int rockchip_soc_id_init(void)
 		rk3528_init();
 	}  else if (cpu_is_rk3566()) {
 		rk3566_init();
+	}  else if (cpu_is_rk3567()) {
+		rk3567_init();
 	} else if (cpu_is_rk3568()) {
 		rk3568_init();
 	} else if (cpu_is_px30()) {

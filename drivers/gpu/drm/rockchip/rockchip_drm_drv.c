@@ -37,7 +37,6 @@
 #include "rockchip_drm_logo.h"
 
 #include "../drm_crtc_internal.h"
-#include "../drivers/clk/rockchip/clk.h"
 
 #define DRIVER_NAME	"rockchip"
 #define DRIVER_DESC	"RockChip Soc DRM"
@@ -199,6 +198,30 @@ uint32_t rockchip_drm_get_bpp(const struct drm_format_info *info)
 	return 0;
 }
 EXPORT_SYMBOL(rockchip_drm_get_bpp);
+
+uint32_t rockchip_drm_get_cycles_per_pixel(uint32_t bus_format)
+{
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_RGB565_1X16:
+	case MEDIA_BUS_FMT_RGB666_1X18:
+	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
+		return 1;
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_BGR565_2X8_LE:
+		return 2;
+	case MEDIA_BUS_FMT_RGB666_3X6:
+	case MEDIA_BUS_FMT_RGB888_3X8:
+	case MEDIA_BUS_FMT_BGR888_3X8:
+		return 3;
+	case MEDIA_BUS_FMT_RGB888_DUMMY_4X8:
+	case MEDIA_BUS_FMT_BGR888_DUMMY_4X8:
+		return 4;
+	default:
+		return 1;
+	}
+}
+EXPORT_SYMBOL(rockchip_drm_get_cycles_per_pixel);
 
 /**
  * rockchip_drm_of_find_possible_crtcs - find the possible CRTCs for an active
@@ -1559,8 +1582,6 @@ static int rockchip_drm_bind(struct device *dev)
 	ret = drm_dev_register(drm_dev, 0);
 	if (ret)
 		goto err_kms_helper_poll_fini;
-
-	rockchip_clk_unprotect();
 
 	return 0;
 err_kms_helper_poll_fini:

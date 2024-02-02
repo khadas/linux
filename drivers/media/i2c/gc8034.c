@@ -1468,6 +1468,7 @@ static void gc8034_get_otp(struct otp_info *otp,
 		inf->pdaf.flag = 1;
 		inf->pdaf.gainmap_width = otp->pdaf_data.gainmap_width;
 		inf->pdaf.gainmap_height = otp->pdaf_data.gainmap_height;
+		inf->pdaf.pd_offset = otp->pdaf_data.pd_offset;
 		inf->pdaf.dcc_mode = otp->pdaf_data.dcc_mode;
 		inf->pdaf.dcc_dir = otp->pdaf_data.dcc_dir;
 		inf->pdaf.dccmap_width = otp->pdaf_data.dccmap_width;
@@ -2573,6 +2574,8 @@ static int __gc8034_power_on(struct gc8034 *gc8034)
 	usleep_range(500, 1000);
 	if (!IS_ERR(gc8034->reset_gpio))
 		gpiod_set_value_cansleep(gc8034->reset_gpio, 0);
+
+	usleep_range(6000, 7000);
 
 	/* 8192 cycles prior to first SCCB transaction */
 	delay_us = gc8034_cal_delay(8192);

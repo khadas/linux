@@ -9,6 +9,7 @@
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/power/rk3562-power.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/soc/rockchip-csu.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/soc/rockchip-system-status.h>
 #include <dt-bindings/suspend/rockchip-rk3562.h>
@@ -352,27 +353,13 @@
 		};
 	};
 
-	arm-pmu {
+	arm_pmu: arm-pmu {
 		compatible = "arm,cortex-a53-pmu";
 		interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 229 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
-	};
-
-	bus_soc: bus-soc {
-		compatible = "rockchip,rk3562-bus";
-		rockchip,busfreq-policy = "smc";
-		rockchip,soc-bus-table = <0 0x00a000a8 0x7001>,
-					 <1 0x00a000a8 0x7c39>,
-					 <2 0x00a000a8 0x7c39>,
-					 <3 0x00a000a8 0x7c39>,
-					 <4 0x00a000a5 0xb007>,
-					 <5 0x00a000a8 0x7034>,
-					 <6 0x00a000a8 0x7034>,
-					 <7 0x00a000a8 0x7034>,
-					 <8 0x00a000a8 0x7001>;
 	};
 
 	cpuinfo {
@@ -421,6 +408,23 @@
 		compatible = "rockchip,rk3562-csi2-dphy";
 		rockchip,hw = <&csi2_dphy0_hw>, <&csi2_dphy1_hw>;
 		status = "disabled";
+	};
+
+	csu: csu {
+		compatible = "rockchip,rk3562-csu";
+		rockchip,clock = <CSU_GMAC_ACLK  1>,
+				 <CSU_GMAC_PCLK  3>,
+				 <CSU_VOP_ACLK   4>,
+				 <CSU_MCU_CLK    2>;
+		rockchip,bus = <0 0x00a000a8 0x7001>,
+			       <1 0x00a000a8 0x7c39>,
+			       <2 0x00a000a8 0x7c39>,
+			       <3 0x00a000a8 0x7c39>,
+			       <4 0x00a000a4 0xb007>,
+			       <5 0x00a000a8 0x7034>,
+			       <6 0x00a000a8 0x7034>,
+			       <7 0x00a000a8 0x7034>,
+			       <8 0x00a000a8 0x7001>;
 	};
 
 	display_subsystem: display-subsystem {
@@ -843,6 +847,8 @@
 			snps,dis-del-phy-power-chg-quirk;
 			snps,dis-tx-ipgap-linecheck-quirk;
 			snps,dis_rxdet_inp3_quirk;
+			snps,parkmode-disable-hs-quirk;
+			snps,parkmode-disable-ss-quirk;
 			quirk-skip-phy-init;
 			status = "disabled";
 		};
@@ -897,9 +903,19 @@
 		reg = <0x0 0xfee03800 0x0 0x20>;
 	};
 
+	shaping_dam2ddr: shaping@fee03888 {
+		compatible = "syscon";
+		reg = <0x0 0xfee03888 0x0 0x4>;
+	};
+
 	qos_mcu: qos@fee10000 {
 		compatible = "syscon";
 		reg = <0x0 0xfee10000 0x0 0x20>;
+	};
+
+	shaping_mcu: shaping@fee10088 {
+		compatible = "syscon";
+		reg = <0x0 0xfee10088 0x0 0x4>;
 	};
 
 	qos_dft_apb: qos@fee10100 {
@@ -907,14 +923,29 @@
 		reg = <0x0 0xfee10100 0x0 0x20>;
 	};
 
+	shaping_dft_apb: shaping@fee10188 {
+		compatible = "syscon";
+		reg = <0x0 0xfee10188 0x0 0x4>;
+	};
+
 	qos_gmac: qos@fee10200 {
 		compatible = "syscon";
 		reg = <0x0 0xfee10200 0x0 0x20>;
 	};
 
+	shaping_gmac: shaping@fee10288 {
+		compatible = "syscon";
+		reg = <0x0 0xfee10288 0x0 0x4>;
+	};
+
 	qos_mac100: qos@fee10300 {
 		compatible = "syscon";
 		reg = <0x0 0xfee10300 0x0 0x20>;
+	};
+
+	shaping_mac100: shaping@fee10388 {
+		compatible = "syscon";
+		reg = <0x0 0xfee10388 0x0 0x4>;
 	};
 
 	qos_dcf: qos@fee10400 {
@@ -927,9 +958,19 @@
 		reg = <0x0 0xfee20000 0x0 0x20>;
 	};
 
+	shaping_cpu: shaping@fee20088 {
+		compatible = "syscon";
+		reg = <0x0 0xfee20088 0x0 0x4>;
+	};
+
 	qos_daplite_apb: qos@fee20100 {
 		compatible = "syscon";
 		reg = <0x0 0xfee20100 0x0 0x20>;
+	};
+
+	shaping_daplite_apb: shaping@fee20188 {
+		compatible = "syscon";
+		reg = <0x0 0xfee20188 0x0 0x4>;
 	};
 
 	qos_gpu: qos@fee30000 {
@@ -938,9 +979,19 @@
 		priority-init = <0x202>;
 	};
 
+	shaping_gpu: shaping@fee30088 {
+		compatible = "syscon";
+		reg = <0x0 0xfee30088 0x0 0x4>;
+	};
+
 	qos_npu: qos@fee40000 {
 		compatible = "syscon";
 		reg = <0x0 0xfee40000 0x0 0x20>;
+	};
+
+	shaping_npu: shaping@fee40088 {
+		compatible = "syscon";
+		reg = <0x0 0xfee40088 0x0 0x4>;
 	};
 
 	qos_rkvdec: qos@fee50000 {
@@ -948,9 +999,19 @@
 		reg = <0x0 0xfee50000 0x0 0x20>;
 	};
 
+	shaping_rkvdec: shaping@fee50088 {
+		compatible = "syscon";
+		reg = <0x0 0xfee50088 0x0 0x4>;
+	};
+
 	qos_vepu: qos@fee60000 {
 		compatible = "syscon";
 		reg = <0x0 0xfee60000 0x0 0x20>;
+	};
+
+	shaping_vepu: shaping@fee60088 {
+		compatible = "syscon";
+		reg = <0x0 0xfee60088 0x0 0x4>;
 	};
 
 	qos_isp: qos@fee70000 {
@@ -958,9 +1019,19 @@
 		reg = <0x0 0xfee70000 0x0 0x20>;
 	};
 
+	shaping_isp: shaping@fee70088 {
+		compatible = "syscon";
+		reg = <0x0 0xfee70088 0x0 0x4>;
+	};
+
 	qos_vicap: qos@fee70100 {
 		compatible = "syscon";
 		reg = <0x0 0xfee70100 0x0 0x20>;
+	};
+
+	shaping_vicap: shaping@fee70188 {
+		compatible = "syscon";
+		reg = <0x0 0xfee70188 0x0 0x4>;
 	};
 
 	qos_vop: qos@fee80000 {
@@ -968,9 +1039,19 @@
 		reg = <0x0 0xfee80000 0x0 0x20>;
 	};
 
+	shaping_vop: shaping@fee80088 {
+		compatible = "syscon";
+		reg = <0x0 0xfee80088 0x0 0x4>;
+	};
+
 	qos_jpeg: qos@fee90000 {
 		compatible = "syscon";
 		reg = <0x0 0xfee90000 0x0 0x20>;
+	};
+
+	shaping_jpeg: shaping@fee90088 {
+		compatible = "syscon";
+		reg = <0x0 0xfee90088 0x0 0x4>;
 	};
 
 	qos_rga_rd: qos@fee90100 {
@@ -978,9 +1059,19 @@
 		reg = <0x0 0xfee90100 0x0 0x20>;
 	};
 
+	shaping_rga_rd: shaping@fee90188 {
+		compatible = "syscon";
+		reg = <0x0 0xfee90188 0x0 0x4>;
+	};
+
 	qos_rga_wr: qos@fee90200 {
 		compatible = "syscon";
 		reg = <0x0 0xfee90200 0x0 0x20>;
+	};
+
+	shaping_rga_wr: shaping@fee90288 {
+		compatible = "syscon";
+		reg = <0x0 0xfee90288 0x0 0x4>;
 	};
 
 	qos_pcie: qos@feea0000 {
@@ -988,9 +1079,20 @@
 		reg = <0x0 0xfeea0000 0x0 0x20>;
 	};
 
+	shaping_pcie: shaping@feea0088 {
+		compatible = "syscon";
+		reg = <0x0 0xfeea0088 0x0 0x4>;
+		shaping-init = <0x5>;
+	};
+
 	qos_usb3: qos@feea0100 {
 		compatible = "syscon";
 		reg = <0x0 0xfeea0100 0x0 0x20>;
+	};
+
+	shaping_usb3: shaping@feea0188 {
+		compatible = "syscon";
+		reg = <0x0 0xfeea0188 0x0 0x4>;
 	};
 
 	qos_crypto_apb: qos@feeb0000 {
@@ -998,9 +1100,19 @@
 		reg = <0x0 0xfeeb0000 0x0 0x20>;
 	};
 
+	shaping_crypto_apb: shaping@feeb0088 {
+		compatible = "syscon";
+		reg = <0x0 0xfeeb0088 0x0 0x4>;
+	};
+
 	qos_crypto: qos@feeb0100 {
 		compatible = "syscon";
 		reg = <0x0 0xfeeb0100 0x0 0x20>;
+	};
+
+	shaping_crypto: shaping@feeb0188 {
+		compatible = "syscon";
+		reg = <0x0 0xfeeb0188 0x0 0x4>;
 	};
 
 	qos_dmac: qos@feeb0200 {
@@ -1008,9 +1120,19 @@
 		reg = <0x0 0xfeeb0200 0x0 0x20>;
 	};
 
+	shaping_dmac: shaping@feeb0288 {
+		compatible = "syscon";
+		reg = <0x0 0xfeeb0288 0x0 0x4>;
+	};
+
 	qos_emmc: qos@feeb0300 {
 		compatible = "syscon";
 		reg = <0x0 0xfeeb0300 0x0 0x20>;
+	};
+
+	shaping_emmc: shaping@feeb0388 {
+		compatible = "syscon";
+		reg = <0x0 0xfeeb0388 0x0 0x4>;
 	};
 
 	qos_fspi: qos@feeb0400 {
@@ -1018,9 +1140,19 @@
 		reg = <0x0 0xfeeb0400 0x0 0x20>;
 	};
 
+	shaping_fspi: shaping@feeb0488 {
+		compatible = "syscon";
+		reg = <0x0 0xfeeb0488 0x0 0x4>;
+	};
+
 	qos_rkdma: qos@feeb0500 {
 		compatible = "syscon";
 		reg = <0x0 0xfeeb0500 0x0 0x20>;
+	};
+
+	shaping_rkdma: shaping@feeb0588 {
+		compatible = "syscon";
+		reg = <0x0 0xfeeb0588 0x0 0x4>;
 	};
 
 	qos_sdmmc0: qos@feeb0600 {
@@ -1028,14 +1160,29 @@
 		reg = <0x0 0xfeeb0600 0x0 0x20>;
 	};
 
+	shaping_sdmmc0: shaping@feeb0688 {
+		compatible = "syscon";
+		reg = <0x0 0xfeeb0688 0x0 0x4>;
+	};
+
 	qos_sdmmc1: qos@feeb0700 {
 		compatible = "syscon";
 		reg = <0x0 0xfeeb0700 0x0 0x20>;
 	};
 
+	shaping_sdmmc1: shaping@feeb0788 {
+		compatible = "syscon";
+		reg = <0x0 0xfeeb0788 0x0 0x4>;
+	};
+
 	qos_usb2: qos@feeb0800 {
 		compatible = "syscon";
 		reg = <0x0 0xfeeb0800 0x0 0x20>;
+	};
+
+	shaping_usb2: shaping@feeb0888 {
+		compatible = "syscon";
+		reg = <0x0 0xfeeb0888 0x0 0x4>;
 	};
 
 	pmu_grf: syscon@ff010000 {
@@ -1248,16 +1395,19 @@
 			pd_gpu@RK3562_PD_GPU {
 				reg = <RK3562_PD_GPU>;
 				pm_qos = <&qos_gpu>;
+				pm_shaping = <&shaping_gpu>;
 			};
 			/* These power domains are grouped by VD_NPU */
 			pd_npu@RK3562_PD_NPU {
 				reg = <RK3562_PD_NPU>;
 				pm_qos = <&qos_npu>;
+				pm_shaping = <&shaping_npu>;
 			};
 			/* These power domains are grouped by VD_LOGIC */
 			pd_vdpu@RK3562_PD_VDPU {
 				reg = <RK3562_PD_VDPU>;
 				pm_qos = <&qos_rkvdec>;
+				pm_shaping = <&shaping_rkvdec>;
 			};
 			pd_vi@RK3562_PD_VI {
 				reg = <RK3562_PD_VI>;
@@ -1265,10 +1415,13 @@
 				#size-cells = <0>;
 				pm_qos = <&qos_isp>,
 					 <&qos_vicap>;
+				pm_shaping = <&shaping_isp>,
+					     <&shaping_vicap>;
 
 				pd_vepu@RK3562_PD_VEPU {
 					reg = <RK3562_PD_VEPU>;
 					pm_qos = <&qos_vepu>;
+					pm_shaping = <&shaping_vepu>;
 				};
 			};
 			pd_vo@RK3562_PD_VO {
@@ -1276,18 +1429,24 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				pm_qos = <&qos_vop>;
+				pm_shaping= <&shaping_vop>;
 
 				pd_rga@RK3562_PD_RGA {
 					reg = <RK3562_PD_RGA>;
 					pm_qos = <&qos_rga_rd>,
 						 <&qos_rga_wr>,
 						 <&qos_jpeg>;
+					pm_shaping = <&shaping_rga_rd>,
+						     <&shaping_rga_wr>,
+						     <&shaping_jpeg>;
 				};
 			};
 			pd_php@RK3562_PD_PHP {
 				reg = <RK3562_PD_PHP>;
 				pm_qos = <&qos_pcie>,
 					 <&qos_usb3>;
+				pm_shaping = <&shaping_pcie>,
+					     <&shaping_usb3>;
 			};
 		};
 	};
@@ -1741,6 +1900,8 @@
 		reset-names = "axi",
 			      "ahb",
 			      "dclk_vp0";
+		rockchip,csu = <&csu CSU_VOP_ACLK>;
+		rockchip,csu-names = "aclk";
 		iommus = <&vop_mmu>;
 		power-domains = <&power RK3562_PD_VO>;
 		rockchip,grf = <&ioc_grf>;
@@ -2264,6 +2425,7 @@
 			     &i2s0m0_sdo2
 			     &i2s0m0_sdo3>;
 		#sound-dai-cells = <0>;
+		sound-name-prefix = "SAI0";
 		status = "disabled";
 	};
 
@@ -2291,6 +2453,7 @@
 			     &i2s1m0_sdo2
 			     &i2s1m0_sdo3>;
 		#sound-dai-cells = <0>;
+		sound-name-prefix = "SAI1";
 		status = "disabled";
 	};
 
@@ -2312,6 +2475,7 @@
 			     &i2s2m0_sdi
 			     &i2s2m0_sdo>;
 		#sound-dai-cells = <0>;
+		sound-name-prefix = "SAI2";
 		status = "disabled";
 	};
 
@@ -2679,6 +2843,8 @@
 			      "pclk_mac", "aclk_mac";
 		resets = <&cru SRST_A_GMAC>;
 		reset-names = "stmmaceth";
+		rockchip,csu = <&csu CSU_GMAC_ACLK>, <&csu CSU_GMAC_PCLK>;
+		rockchip,csu-names = "aclk", "pclk";
 
 		snps,mixed-burst;
 		snps,tso;
@@ -2797,6 +2963,8 @@
 			      "pclk_mac", "aclk_mac";
 		resets = <&cru SRST_A_MAC100>;
 		reset-names = "stmmaceth";
+		rockchip,csu = <&csu CSU_GMAC_ACLK>, <&csu CSU_GMAC_PCLK>;
+		rockchip,csu-names = "aclk", "pclk";
 		status = "disabled";
 
 		mdio1: mdio {

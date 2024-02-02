@@ -31,8 +31,10 @@
 #define PDM_FILTER_DELAY_MS_MIN		(20)
 #define PDM_FILTER_DELAY_MS_MAX		(1000)
 #define PDM_CLK_SHIFT_PPM_MAX		(1000000) /* 1 ppm */
-#define CLK_PPM_MIN		(-1000)
-#define CLK_PPM_MAX		(1000)
+#define CLK_PPM_MIN			(-1000)
+#define CLK_PPM_MAX			(1000)
+
+#define QUIRK_ALWAYS_ON			BIT(0)
 
 enum rk_pdm_version {
 	RK_PDM_RK3229,
@@ -56,6 +58,7 @@ struct rk_pdm_dev {
 	enum rk_pdm_version version;
 	unsigned int clk_root_rate;
 	unsigned int clk_root_initial_rate;
+	unsigned int quirks;
 	int clk_ppm;
 	bool clk_calibrate;
 };
@@ -95,6 +98,16 @@ static struct rk_pdm_ds_ratio ds_ratio[] = {
 	{ 4, 12000 },
 	{ 4, 11025 },
 	{ 4, 8000 },
+};
+
+static const struct pdm_of_quirks {
+	char *quirk;
+	int id;
+} of_quirks[] = {
+	{
+		.quirk = "rockchip,always-on",
+		.id = QUIRK_ALWAYS_ON,
+	},
 };
 
 static unsigned int get_pdm_clk(struct rk_pdm_dev *pdm, unsigned int sr,
@@ -508,8 +521,8 @@ static int rockchip_pdm_start_delay_info(struct snd_kcontrol *kcontrol,
 static int rockchip_pdm_start_delay_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
-	struct rk_pdm_dev *pdm = snd_soc_dai_get_drvdata(dai);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_pdm_dev *pdm = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = pdm->start_delay_ms;
 
@@ -519,8 +532,8 @@ static int rockchip_pdm_start_delay_get(struct snd_kcontrol *kcontrol,
 static int rockchip_pdm_start_delay_put(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
-	struct rk_pdm_dev *pdm = snd_soc_dai_get_drvdata(dai);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_pdm_dev *pdm = snd_soc_component_get_drvdata(component);
 
 	if ((ucontrol->value.integer.value[0] < PDM_START_DELAY_MS_MIN) ||
 	    (ucontrol->value.integer.value[0] > PDM_START_DELAY_MS_MAX))
@@ -546,8 +559,8 @@ static int rockchip_pdm_filter_delay_info(struct snd_kcontrol *kcontrol,
 static int rockchip_pdm_filter_delay_get(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
-	struct rk_pdm_dev *pdm = snd_soc_dai_get_drvdata(dai);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_pdm_dev *pdm = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = pdm->filter_delay_ms;
 
@@ -557,8 +570,8 @@ static int rockchip_pdm_filter_delay_get(struct snd_kcontrol *kcontrol,
 static int rockchip_pdm_filter_delay_put(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
-	struct rk_pdm_dev *pdm = snd_soc_dai_get_drvdata(dai);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_pdm_dev *pdm = snd_soc_component_get_drvdata(component);
 
 	if ((ucontrol->value.integer.value[0] < PDM_FILTER_DELAY_MS_MIN) ||
 	    (ucontrol->value.integer.value[0] > PDM_FILTER_DELAY_MS_MAX))
@@ -569,7 +582,31 @@ static int rockchip_pdm_filter_delay_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+static const char * const rpaths_text[] = {
+	"From SDI0", "From SDI1", "From SDI2", "From SDI3" };
+
+static SOC_ENUM_SINGLE_DECL(rpath3_enum, PDM_CLK_CTRL, 14, rpaths_text);
+static SOC_ENUM_SINGLE_DECL(rpath2_enum, PDM_CLK_CTRL, 12, rpaths_text);
+static SOC_ENUM_SINGLE_DECL(rpath1_enum, PDM_CLK_CTRL, 10, rpaths_text);
+static SOC_ENUM_SINGLE_DECL(rpath0_enum, PDM_CLK_CTRL, 8, rpaths_text);
+
+static const char * const hpf_cutoff_text[] = {
+	"3.79Hz", "60Hz", "243Hz", "493Hz",
+};
+
+static SOC_ENUM_SINGLE_DECL(hpf_cutoff_enum, PDM_HPF_CTRL,
+			    0, hpf_cutoff_text);
+
 static const struct snd_kcontrol_new rockchip_pdm_controls[] = {
+	SOC_ENUM("Receive PATH3 Source Select", rpath3_enum),
+	SOC_ENUM("Receive PATH2 Source Select", rpath2_enum),
+	SOC_ENUM("Receive PATH1 Source Select", rpath1_enum),
+	SOC_ENUM("Receive PATH0 Source Select", rpath0_enum),
+
+	SOC_ENUM("HPF Cutoff", hpf_cutoff_enum),
+	SOC_SINGLE("HPFL Switch", PDM_HPF_CTRL, 3, 1, 0),
+	SOC_SINGLE("HPFR Switch", PDM_HPF_CTRL, 2, 1, 0),
+
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 		.name = "PDM Start Delay Ms",
@@ -603,8 +640,8 @@ static int rockchip_pdm_clk_compensation_get(struct snd_kcontrol *kcontrol,
 					     struct snd_ctl_elem_value *ucontrol)
 
 {
-	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
-	struct rk_pdm_dev *pdm = snd_soc_dai_get_drvdata(dai);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_pdm_dev *pdm = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.integer.value[0] = pdm->clk_ppm;
 
@@ -614,8 +651,8 @@ static int rockchip_pdm_clk_compensation_get(struct snd_kcontrol *kcontrol,
 static int rockchip_pdm_clk_compensation_put(struct snd_kcontrol *kcontrol,
 					     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_dai *dai = snd_kcontrol_chip(kcontrol);
-	struct rk_pdm_dev *pdm = snd_soc_dai_get_drvdata(dai);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rk_pdm_dev *pdm = snd_soc_component_get_drvdata(component);
 
 	int ppm = ucontrol->value.integer.value[0];
 
@@ -640,10 +677,12 @@ static int rockchip_pdm_dai_probe(struct snd_soc_dai *dai)
 	struct rk_pdm_dev *pdm = to_info(dai);
 
 	dai->capture_dma_data = &pdm->capture_dma_data;
-	snd_soc_add_dai_controls(dai, rockchip_pdm_controls,
-				 ARRAY_SIZE(rockchip_pdm_controls));
+
 	if (pdm->clk_calibrate)
-		snd_soc_add_dai_controls(dai, &rockchip_pdm_compensation_control, 1);
+		snd_soc_add_component_controls(dai->component,
+					       &rockchip_pdm_compensation_control,
+					       1);
+
 	return 0;
 }
 
@@ -724,6 +763,8 @@ static struct snd_soc_dai_driver rockchip_pdm_dai = {
 
 static const struct snd_soc_component_driver rockchip_pdm_component = {
 	.name = "rockchip-pdm",
+	.controls = rockchip_pdm_controls,
+	.num_controls = ARRAY_SIZE(rockchip_pdm_controls),
 };
 
 static int rockchip_pdm_pinctrl_select_clk_state(struct device *dev)
@@ -929,6 +970,29 @@ static int rockchip_pdm_path_parse(struct rk_pdm_dev *pdm, struct device_node *n
 	return 0;
 }
 
+static int rockchip_pdm_keep_clk_always_on(struct rk_pdm_dev *pdm)
+{
+	pm_runtime_forbid(pdm->dev);
+
+	dev_info(pdm->dev, "CLK-ALWAYS-ON: samplerate: %d\n", PDM_DEFAULT_RATE);
+
+	return 0;
+}
+
+static int rockchip_pdm_parse_quirks(struct rk_pdm_dev *pdm)
+{
+	int ret = 0, i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(of_quirks); i++)
+		if (device_property_read_bool(pdm->dev, of_quirks[i].quirk))
+			pdm->quirks |= of_quirks[i].id;
+
+	if (pdm->quirks & QUIRK_ALWAYS_ON)
+		ret = rockchip_pdm_keep_clk_always_on(pdm);
+
+	return ret;
+}
+
 static int rockchip_pdm_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -1003,6 +1067,27 @@ static int rockchip_pdm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	rockchip_pdm_set_samplerate(pdm, PDM_DEFAULT_RATE);
+	rockchip_pdm_rxctrl(pdm, 0);
+
+	ret = rockchip_pdm_path_parse(pdm, node);
+	if (ret != 0 && ret != -ENOENT)
+		goto err_clk;
+
+	ret = rockchip_pdm_parse_quirks(pdm);
+	if (ret)
+		goto err_clk;
+
+	/*
+	 * MUST: after pm_runtime_enable step, any register R/W
+	 * should be wrapped with pm_runtime_get_sync/put.
+	 *
+	 * Another approach is to enable the regcache true to
+	 * avoid access HW registers.
+	 *
+	 * Alternatively, performing the registers R/W before
+	 * pm_runtime_enable is also a good option.
+	 */
 	pm_runtime_enable(&pdev->dev);
 	if (!pm_runtime_enabled(&pdev->dev)) {
 		ret = rockchip_pdm_runtime_resume(&pdev->dev);
@@ -1018,13 +1103,6 @@ static int rockchip_pdm_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "could not register dai: %d\n", ret);
 		goto err_suspend;
 	}
-
-	rockchip_pdm_set_samplerate(pdm, PDM_DEFAULT_RATE);
-	rockchip_pdm_rxctrl(pdm, 0);
-
-	ret = rockchip_pdm_path_parse(pdm, node);
-	if (ret != 0 && ret != -ENOENT)
-		goto err_suspend;
 
 	if (of_property_read_bool(node, "rockchip,no-dmaengine")) {
 		dev_info(&pdev->dev, "Used for Multi-DAI\n");
@@ -1046,7 +1124,7 @@ err_suspend:
 		rockchip_pdm_runtime_suspend(&pdev->dev);
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
-
+err_clk:
 	clk_disable_unprepare(pdm->hclk);
 
 	return ret;

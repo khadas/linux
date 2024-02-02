@@ -15,11 +15,14 @@
 #include <asm/fiq_glue.h>
 #include <asm/tlbflush.h>
 #include <asm/suspend.h>
+#include <dt-bindings/suspend/rockchip-rv1106.h>
+#include <linux/irqchip/arm-gic.h>
+#include <linux/rockchip/rockchip_pm_config.h>
 
 #include "rkpm_gicv2.h"
 #include "rkpm_helpers.h"
 #include "rkpm_uart.h"
-
+#include "rockchip_hptimer.h"
 #include "rv1106_pm.h"
 
 #define RV1106_PM_REG_REGION_MEM_SIZE		SZ_4K
@@ -56,8 +59,11 @@ struct rv1106_sleep_ddr_data {
 
 static struct rv1106_sleep_ddr_data ddr_data;
 
+static const struct rk_sleep_config *slp_cfg;
+
 static void __iomem *pmucru_base;
 static void __iomem *cru_base;
+static void __iomem *pvtpllcru_base;
 static void __iomem *pericru_base;
 static void __iomem *vicru_base;
 static void __iomem *npucru_base;
@@ -86,11 +92,13 @@ static void __iomem *uartdbg_base;
 static void __iomem *pmu_base;
 static void __iomem *gicd_base;
 static void __iomem *gicc_base;
+static void __iomem *hptimer_base;
 static void __iomem *firewall_ddr_base;
 static void __iomem *firewall_syssram_base;
 static void __iomem *pmu_base;
 static void __iomem *nstimer_base;
 static void __iomem *stimer_base;
+static void __iomem *mbox_base;
 static void __iomem *ddrc_base;
 static void __iomem *ioc_base[5];
 static void __iomem *gpio_base[5];
@@ -102,6 +110,10 @@ static struct reg_region vd_core_reg_rgns[] = {
 	/* core_cru */
 	{ REG_REGION(0x300, 0x310, 4, &corecru_base, WMSK_VAL)},
 	{ REG_REGION(0x800, 0x804, 4, &corecru_base, WMSK_VAL)},
+
+	/* pvtpll_cru */
+	{ REG_REGION(0x00, 0x24, 4, &pvtpllcru_base, WMSK_VAL)},
+	{ REG_REGION(0x30, 0x54, 4, &pvtpllcru_base, WMSK_VAL)},
 
 	/* core_sgrf */
 	{ REG_REGION(0x004, 0x014, 4, &coresgrf_base, 0)},
@@ -274,6 +286,8 @@ static struct reg_region vd_log_reg_rgns[] = {
 	{ REG_REGION(0x30, 0x30, 4, &stimer_base, 0)},
 };
 
+static int is_rv1103, is_rv1106;
+
 #define PLL_LOCKED_TIMEOUT		600000U
 
 static void pm_pll_wait_lock(u32 pll_id)
@@ -309,7 +323,10 @@ static void gic400_save(void)
 
 static void gic400_restore(void)
 {
-	rkpm_gicv2_dist_restore(gicd_base, &gicd_ctx_save);
+	if (IS_ENABLED(CONFIG_RV1106_HPMCU_FAST_WAKEUP))
+		writel_relaxed(0x3, gicd_base + GIC_DIST_CTRL);
+	else
+		rkpm_gicv2_dist_restore(gicd_base, &gicd_ctx_save);
 	rkpm_gicv2_cpu_restore(gicd_base, gicc_base, &gicc_ctx_save);
 }
 
@@ -377,7 +394,7 @@ static void rv1106_dbg_pmu_wkup_src(void)
 	if (pmu_int_st & BIT(RV1106_PMU_WAKEUP_USBDEV_EN))
 		rkpm_printstr("USBDEV detect wakeup\n");
 
-	if (pmu_int_st & BIT(RV1106_PMU_WAKEUP_TIMEROUT_EN))
+	if (pmu_int_st & BIT(RV1106_PMU_WAKEUP_TIMEOUT_EN))
 		rkpm_printstr("TIMEOUT interrupt wakeup\n");
 
 	rkpm_printch('\n');
@@ -408,6 +425,87 @@ static void __init rv1106_config_bootdata(void)
 
 	rkpm_bootdata_l2ctlr_f = 1;
 	rkpm_bootdata_l2ctlr = rv1106_l2_config();
+}
+
+static void writel_clrset_bits(u32 clr, u32 set, void __iomem *addr)
+{
+	u32 val = readl_relaxed(addr);
+
+	val &= ~clr;
+	val |= set;
+	writel_relaxed(val, addr);
+}
+
+static void gic_irq_en(int irq)
+{
+	writel_clrset_bits(0xff << irq % 4 * 8, 0x1 << irq % 4 * 8,
+			   gicd_base + GIC_DIST_TARGET + (irq >> 2 << 2));
+	writel_clrset_bits(0xff << irq % 4 * 8, 0xa0 << irq % 4 * 8,
+			   gicd_base + GIC_DIST_PRI + (irq >> 2 << 2));
+	writel_clrset_bits(0x3 << irq % 16 * 2, 0x1 << irq % 16 * 2,
+			   gicd_base + GIC_DIST_CONFIG + (irq >> 4 << 2));
+	writel_clrset_bits(BIT(irq % 32), BIT(irq % 32),
+			   gicd_base + GIC_DIST_IGROUP + (irq >> 5 << 2));
+
+	dsb(sy);
+	writel_relaxed(0x1 << irq % 32, gicd_base + GIC_DIST_ENABLE_SET + (irq >> 5 << 2));
+	dsb(sy);
+}
+
+static int is_hpmcu_mbox_int(void)
+{
+	return !!(readl(mbox_base + RV1106_MBOX_B2A_STATUS) & BIT(0));
+}
+
+static void hpmcu_start(void)
+{
+	/* enable hpmcu mailbox AP irq */
+	gic_irq_en(RV1106_HPMCU_MBOX_IRQ_AP);
+
+	/* tell hpmcu that we are currently in system wake up. */
+	writel(RV1106_SYS_IS_WKUP, pmu_base + RV1106_PMU_SYS_REG(0));
+
+	/* set the mcu uncache area, usually set the devices address */
+	writel(0xff000, coregrf_base + RV1106_COREGRF_CACHE_PERI_ADDR_START);
+	writel(0xffc00, coregrf_base + RV1106_COREGRF_CACHE_PERI_ADDR_END);
+	/* Reset the hp mcu */
+	writel(0x1e001e, corecru_base + RV1106_COERCRU_SFTRST_CON(1));
+	/* set the mcu addr */
+	writel(RV1106_HPMCU_BOOT_ADDR,
+	       coresgrf_base + RV1106_CORESGRF_HPMCU_BOOTADDR);
+	dsb(sy);
+
+	/* release the mcu */
+	writel(0x1e0000, corecru_base + RV1106_COERCRU_SFTRST_CON(1));
+	dsb(sy);
+}
+
+static int hpmcu_fast_wkup(void)
+{
+	u32 cmd;
+
+	hpmcu_start();
+
+	while (1) {
+		rkpm_printstr("-s-\n");
+		dsb(sy);
+		wfi();
+		rkpm_printstr("-w-\n");
+
+		if (is_hpmcu_mbox_int()) {
+			rkpm_printstr("-h-mbox-\n");
+			/* clear system wake up state */
+			writel(0, pmu_base + RV1106_PMU_SYS_REG(0));
+			writel(BIT(0), mbox_base + RV1106_MBOX_B2A_STATUS);
+			break;
+		}
+	}
+
+	cmd = readl(mbox_base + RV1106_MBOX_B2A_CMD_0);
+	if (cmd == RV1106_MBOX_CMD_AP_SUSPEND)
+		return 1;
+	else
+		return 0;
 }
 
 static void clock_suspend(void)
@@ -560,6 +658,9 @@ static void pvtm_32k_config_restore(void)
 {
 	writel_relaxed(WITH_16BITS_WMSK(ddr_data.pmucru_sel_con7),
 		       pmucru_base + RV1106_PMUCRU_CLKSEL_CON(7));
+
+	if (rk_hptimer_get_mode(hptimer_base) == RK_HPTIMER_SOFT_ADJUST_MODE)
+		rk_hptimer_do_soft_adjust_no_wait(hptimer_base);
 }
 
 static void ddr_sleep_config(void)
@@ -616,10 +717,11 @@ static void pmu_sleep_config(void)
 	ddr_data.ioc1_1a_iomux_l = readl_relaxed(ioc_base[1] + 0);
 
 	pmu_wkup_con =
-		/* BIT(RV1106_PMU_WAKEUP_TIMEROUT_EN) | */
 		/* BIT(RV1106_PMU_WAKEUP_CPU_INT_EN) | */
 		BIT(RV1106_PMU_WAKEUP_GPIO_INT_EN) |
 		0;
+	if (IS_ENABLED(CONFIG_RV1106_PMU_WAKEUP_TIMEOUT))
+		pmu_wkup_con |= BIT(RV1106_PMU_WAKEUP_TIMEOUT_EN);
 
 	pmu_pwr_con =
 		BIT(RV1106_PMU_PWRMODE_EN) |
@@ -685,30 +787,21 @@ static void pmu_sleep_config(void)
 		BIT(RV1106_PMU_GPLL_PD_ENA) |
 		0;
 
-	/* pmic_sleep */
-	/* gpio0_a3 activelow, gpio0_a4 active high */
-	writel_relaxed(BITS_WITH_WMASK(0x4, 0x7, 0), pmugrf_base + RV1106_PMUGRF_SOC_CON(1));
-	/* select sleep func */
-	writel_relaxed(BITS_WITH_WMASK(0x1, 0x1, 0), pmugrf_base + RV1106_PMUGRF_SOC_CON(1));
-	/* gpio0_a3 iomux */
-	writel_relaxed(BITS_WITH_WMASK(0x1, 0xf, 12), ioc_base[0] + 0);
-
 	/* pmu_debug */
 	writel_relaxed(0xffffff01, pmu_base + RV1106_PMU_INFO_TX_CON);
 	writel_relaxed(BITS_WITH_WMASK(0x1, 0xf, 4), ioc_base[1] + 0);
 
 	/* pmu count */
-	writel_relaxed(clk_freq_khz * 32, pmu_base + RV1106_PMU_OSC_STABLE_CNT);
-	writel_relaxed(clk_freq_khz * 32, pmu_base + RV1106_PMU_PMIC_STABLE_CNT);
-	writel_relaxed(clk_freq_khz * 3000, pmu_base + RV1106_PMU_WAKEUP_TIMEOUT_CNT);
+	writel_relaxed(clk_freq_khz * 10, pmu_base + RV1106_PMU_OSC_STABLE_CNT);
+	writel_relaxed(clk_freq_khz * 5, pmu_base + RV1106_PMU_PMIC_STABLE_CNT);
 
 	/* Pmu's clk has switched to 24M back When pmu FSM counts
 	 * the follow counters, so we should use 24M to calculate
 	 * these counters.
 	 */
-	writel_relaxed(24000 * 2, pmu_base + RV1106_PMU_WAKEUP_RSTCLR_CNT);
-	writel_relaxed(24000 * 5, pmu_base + RV1106_PMU_PLL_LOCK_CNT);
-	writel_relaxed(24000 * 5, pmu_base + RV1106_PMU_PWM_SWITCH_CNT);
+	writel_relaxed(12000, pmu_base + RV1106_PMU_WAKEUP_RSTCLR_CNT);
+	writel_relaxed(12000, pmu_base + RV1106_PMU_PLL_LOCK_CNT);
+	writel_relaxed(24000 * 2, pmu_base + RV1106_PMU_PWM_SWITCH_CNT);
 
 	/* pmu reset hold */
 	writel_relaxed(0xffffffff, pmugrf_base + RV1106_PMUGRF_SOC_CON(4));
@@ -831,51 +924,71 @@ static void gpio0_set_direct(u32 pin_id, int out)
 			       gpio_base[0] + RV1106_GPIO_SWPORT_DDR_H);
 }
 
+static void gpio0_set_lvl(u32 pin_id, int lvl)
+{
+	u32 sft = (pin_id % 16);
+
+	if (pin_id < 16)
+		writel_relaxed(BITS_WITH_WMASK(lvl, 0x1, sft),
+			       gpio_base[0] + RV1106_GPIO_SWPORT_DR_L);
+	else
+		writel_relaxed(BITS_WITH_WMASK(lvl, 0x1, sft),
+			       gpio_base[0] + RV1106_GPIO_SWPORT_DR_H);
+}
+
 static void gpio_config(void)
 {
+	u32 iomux, dir, lvl, pull, id;
+	u32 cfg, i;
+
+	if (slp_cfg == NULL)
+		return;
+
 	ddr_data.gpio0a_iomux_l = readl_relaxed(ioc_base[0] + 0);
 	ddr_data.gpio0a_iomux_h = readl_relaxed(ioc_base[0] + 0x4);
 	ddr_data.gpio0a0_pull = readl_relaxed(ioc_base[0] + 0x38);
 	ddr_data.gpio0_ddr_l = readl_relaxed(gpio_base[0] + RV1106_GPIO_SWPORT_DDR_L);
 	ddr_data.gpio0_ddr_h = readl_relaxed(gpio_base[0] + RV1106_GPIO_SWPORT_DDR_H);
 
-	/* gpio0_a0, input, pulldown */
-	gpio0_set_iomux(0, 0);
-	gpio0_set_pull(0, RV1106_GPIO_PULL_DOWN);
-	gpio0_set_direct(0, 0);
+	for (i = 0; i < slp_cfg->sleep_io_config_cnt; i++) {
+		cfg = slp_cfg->sleep_io_config[i];
+		iomux = RKPM_IO_CFG_GET_IOMUX(cfg);
+		dir = RKPM_IO_CFG_GET_GPIO_DIR(cfg);
+		lvl = RKPM_IO_CFG_GET_GPIO_LVL(cfg);
+		pull = RKPM_IO_CFG_GET_PULL(cfg);
+		id = RKPM_IO_CFG_GET_ID(cfg);
 
-#ifdef RV1106_GPIO0_A1_LOWPOWER
-	/* gpio0_a1, input, pulldown */
-	gpio0_set_iomux(1, 0);
-	gpio0_set_pull(1, RV1106_GPIO_PULL_DOWN);
-	gpio0_set_direct(1, 0);
-#endif
-	/* gpio0_a2, input, pulldown */
-	gpio0_set_iomux(2, 0);
-	gpio0_set_pull(2, RV1106_GPIO_PULL_DOWN);
-	gpio0_set_direct(2, 0);
+		if (is_rv1106 && id == 3) {
+			/* gpio0_a3, pullnone */
+			gpio0_set_iomux(3, 1);
+			gpio0_set_pull(3, RV1106_GPIO_PULL_NONE);
+			continue;
+		}
 
-	/* gpio0_a3, pullnone */
-	gpio0_set_pull(3, RV1106_GPIO_PULL_NONE);
+		if (is_rv1103 && id == 4) {
+			/* gpio0_a4, pullnone */
+			gpio0_set_iomux(4, 1);
+			gpio0_set_pull(4, RV1106_GPIO_PULL_NONE);
+			continue;
+		}
 
-	/* gpio0_a4, input, pulldown */
-	gpio0_set_iomux(4, 0);
-	gpio0_set_pull(4, RV1106_GPIO_PULL_DOWN);
-	gpio0_set_direct(4, 0);
+		if (iomux == RKPM_IO_CFG_IOMUX_GPIO_VAL) {
+			if (dir == RKPM_IO_CFG_GPIO_DIR_INPUT_VAL)
+				gpio0_set_lvl(id, lvl);
 
-	/* gpio0_a5, input, pullnone */
-	gpio0_set_iomux(5, 0);
-	gpio0_set_pull(5, RV1106_GPIO_PULL_NONE);
-	gpio0_set_direct(5, 0);
+			gpio0_set_direct(id, dir);
+		}
 
-	/* gpio0_a6, input, pullnone */
-	gpio0_set_iomux(6, 0);
-	gpio0_set_pull(6, RV1106_GPIO_PULL_NONE);
-	gpio0_set_direct(6, 0);
+		gpio0_set_iomux(id, iomux);
+		gpio0_set_pull(id, pull);
+	}
 }
 
 static void gpio_restore(void)
 {
+	if (slp_cfg == NULL)
+		return;
+
 	writel_relaxed(WITH_16BITS_WMSK(ddr_data.gpio0a_iomux_l), ioc_base[0] + 0);
 	writel_relaxed(WITH_16BITS_WMSK(ddr_data.gpio0a_iomux_h), ioc_base[0] + 0x4);
 
@@ -949,7 +1062,18 @@ static int rockchip_lpmode_enter(unsigned long arg)
 
 	cpu_do_idle();
 
-	pr_err("%s: Failed to suspend\n", __func__);
+#if RV1106_WAKEUP_TO_SYSTEM_RESET
+	/* If reaches here, it means wakeup source cames before cpu enter wfi.
+	 * So we should do system reset if RV1106_WAKEUP_TO_SYSTEM_RESET.
+	 */
+	writel_relaxed(0x000c000c, cru_base + RV1106_CRU_GLB_RST_CON);
+	writel_relaxed(0xffff0000, pmugrf_base + RV1106_PMUGRF_SOC_CON(4));
+	writel_relaxed(0xffff0000, pmugrf_base + RV1106_PMUGRF_SOC_CON(5));
+	dsb(sy);
+	writel_relaxed(0xfdb9, cru_base + RV1106_CRU_GLB_SRST_FST);
+#endif
+
+	rkpm_printstr("Failed to suspend\n");
 
 	return 1;
 }
@@ -958,12 +1082,15 @@ static int rv1106_suspend_enter(suspend_state_t state)
 {
 	rkpm_printstr("rv1106 enter sleep\n");
 
+	slp_cfg = rockchip_get_cur_sleep_config();
+
 	local_fiq_disable();
 
 	rv1106_dbg_irq_prepare();
 
 	rkpm_printch('-');
 
+RE_ENTER_SLEEP:
 	clock_suspend();
 	rkpm_printch('0');
 
@@ -1001,6 +1128,23 @@ static int rv1106_suspend_enter(suspend_state_t state)
 	clock_resume();
 	rkpm_printch('-');
 
+	/* Check whether it's time_out wakeup */
+	if (IS_ENABLED(CONFIG_RV1106_HPMCU_FAST_WAKEUP)) {
+		if (hpmcu_fast_wkup()) {
+			rkpm_gicv2_dist_restore(gicd_base, &gicd_ctx_save);
+			goto RE_ENTER_SLEEP;
+		} else {
+			rkpm_gicv2_dist_restore(gicd_base, &gicd_ctx_save);
+			rkpm_gicv2_cpu_restore(gicd_base, gicc_base, &gicc_ctx_save);
+		}
+	}
+
+	if (rk_hptimer_get_mode(hptimer_base) == RK_HPTIMER_SOFT_ADJUST_MODE) {
+		if (rk_hptimer_wait_mode(hptimer_base,
+					 RK_HPTIMER_SOFT_ADJUST_MODE))
+			rkpm_printstr("WARN: can't wait hptimer soft adjust mode!\n");
+	}
+
 	fiq_glue_resume();
 
 	rv1106_dbg_irq_finish();
@@ -1015,6 +1159,11 @@ static int __init rv1106_suspend_init(struct device_node *np)
 {
 	void __iomem *dev_reg_base;
 
+	if (of_machine_is_compatible("rockchip,rv1103"))
+		is_rv1103 = 1;
+	else if (of_machine_is_compatible("rockchip,rv1106"))
+		is_rv1106 = 1;
+
 	dev_reg_base = ioremap(RV1106_DEV_REG_BASE, RV1106_DEV_REG_SIZE);
 	if (dev_reg_base)
 		pr_info("%s map dev_reg 0x%x -> 0x%x\n",
@@ -1024,6 +1173,8 @@ static int __init rv1106_suspend_init(struct device_node *np)
 
 	gicd_base = dev_reg_base + RV1106_GIC_OFFSET + 0x1000;
 	gicc_base = dev_reg_base + RV1106_GIC_OFFSET + 0x2000;
+
+	hptimer_base = dev_reg_base + RV1106_HPTIMER_OFFSET;
 
 	firewall_ddr_base = dev_reg_base + RV1106_FW_DDR_OFFSET;
 	firewall_syssram_base = dev_reg_base + RV1106_FW_SRAM_OFFSET;
@@ -1056,12 +1207,14 @@ static int __init rv1106_suspend_init(struct device_node *np)
 
 	pmucru_base = dev_reg_base + RV1106_PMUCRU_OFFSET;
 	cru_base = dev_reg_base + RV1106_CRU_OFFSET;
+	pvtpllcru_base = dev_reg_base + RV1106_PVTPLLCRU_OFFSET;
 	pericru_base = dev_reg_base + RV1106_PERICRU_OFFSET;
 	vicru_base = dev_reg_base + RV1106_VICRU_OFFSET;
 	npucru_base = dev_reg_base + RV1106_NPUCRU_OFFSET;
 	corecru_base = dev_reg_base + RV1106_CORECRU_OFFSET;
 	venccru_base = dev_reg_base + RV1106_VENCCRU_OFFSET;
 	vocru_base = dev_reg_base + RV1106_VOCRU_OFFSET;
+	mbox_base = dev_reg_base + RV1106_MBOX_OFFSET;
 
 	ioc_base[0] = dev_reg_base + RV1106_GPIO0IOC_OFFSET;
 	ioc_base[1] = dev_reg_base + RV1106_GPIO1IOC_OFFSET;
@@ -1091,6 +1244,10 @@ static int __init rv1106_suspend_init(struct device_node *np)
 #endif
 	/* biu auto con */
 	writel_relaxed(0x07ff07ff, pmu_base + RV1106_PMU_BIU_AUTO_CON);
+
+	/* gpio0_a3 activelow, gpio0_a4 active high, select sleep func */
+	writel_relaxed(BITS_WITH_WMASK(0x5, 0x7, 0),
+		       pmugrf_base + RV1106_PMUGRF_SOC_CON(1));
 
 	rkpm_region_mem_init(RV1106_PM_REG_REGION_MEM_SIZE);
 	rkpm_reg_rgns_init();

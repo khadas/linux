@@ -287,9 +287,42 @@ static int rockchip_combphy_exit(struct phy *phy)
 	return 0;
 }
 
+static const char *rockchip_combphy_mode2str(enum phy_mode mode)
+{
+	switch (mode) {
+	case PHY_TYPE_SATA:
+		return "SATA";
+	case PHY_TYPE_PCIE:
+		return "PCIe";
+	case PHY_TYPE_USB3:
+		return "USB3";
+	case PHY_TYPE_SGMII:
+	case PHY_TYPE_QSGMII:
+		return "GMII";
+	default:
+		return "Unknown";
+	}
+}
+
+static int rockchip_combphy_validate(struct phy *phy, enum phy_mode mode, int submode,
+			      union phy_configure_opts *opts)
+{
+	struct rockchip_combphy_priv *priv = phy_get_drvdata(phy);
+
+	if (mode != priv->mode) {
+		dev_err(priv->dev, "expected mode is %s, but current mode is %s\n",
+			rockchip_combphy_mode2str(mode),
+			rockchip_combphy_mode2str(priv->mode));
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct phy_ops rochchip_combphy_ops = {
 	.init = rockchip_combphy_init,
 	.exit = rockchip_combphy_exit,
+	.validate = rockchip_combphy_validate,
 	.owner = THIS_MODULE,
 };
 
@@ -482,6 +515,18 @@ static int rk3528_combphy_cfg(struct rockchip_combphy_priv *priv)
 		val &= ~GENMASK(17, 17);
 		val |= 0x01 << 17;
 		writel(val, priv->mmio + 0x200);
+
+		/* Set slow slew rate control for PI */
+		val = readl(priv->mmio + 0x204);
+		val &= ~GENMASK(2, 0);
+		val |= 0x07;
+		writel(val, priv->mmio + 0x204);
+
+		/* Set CDR phase path with 2x gain */
+		val = readl(priv->mmio + 0x204);
+		val &= ~GENMASK(5, 5);
+		val |= 0x01 << 5;
+		writel(val, priv->mmio + 0x204);
 
 		/* Set Rx squelch input filler bandwidth */
 		val = readl(priv->mmio + 0x20c);

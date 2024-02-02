@@ -650,7 +650,7 @@ static long rga_ioctl_import_buffer(unsigned long arg, struct rga_session *sessi
 		}
 
 		ret = rga_mm_import_buffer(&external_buffer[i], session);
-		if (ret == 0) {
+		if (ret <= 0) {
 			pr_err("buffer[%d] mm import buffer failed! memory = 0x%lx, type = %s(0x%x)\n",
 			       i, (unsigned long)external_buffer[i].memory,
 			       rga_get_memory_type_str(external_buffer[i].type),
@@ -884,11 +884,6 @@ static long rga_ioctl_blit(unsigned long arg, uint32_t cmd, struct rga_session *
 	rga_req = request->task_list;
 	/* In the BLIT_SYNC/BLIT_ASYNC command, in_fence_fd needs to be set. */
 	request->acquire_fence_fd = rga_req->in_fence_fd;
-
-	if (DEBUGGER_EN(MSG)) {
-		pr_info("Blit mode: request id = %d", user_request.id);
-		rga_cmd_print_debug_info(rga_req);
-	}
 
 	ret = rga_request_submit(request);
 	if (ret < 0) {

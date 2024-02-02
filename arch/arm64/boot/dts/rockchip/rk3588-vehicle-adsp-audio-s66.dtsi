@@ -37,9 +37,7 @@
 	sound1 {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "rockchip,bt";
-		simple-audio-card,format = "dsp_a";
-		simple-audio-card,bitclock-inversion = <1>;
-		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,format = "i2s";
 		simple-audio-card,cpu {
 			sound-dai = <&i2s3_2ch>;
 		};
@@ -60,8 +58,8 @@
 	i2s-lrck-gpio = <&gpio4 RK_PA2 GPIO_ACTIVE_HIGH>;
 	tdm-fsync-gpio = <&gpio4 RK_PA0 GPIO_ACTIVE_HIGH>;
 	rockchip,tdm-multi-lanes;
-	rockchip,tx-lanes = <3>;
-	rockchip,rx-lanes = <2>;
+	rockchip,tdm-tx-lanes = <3>;
+	rockchip,tdm-rx-lanes = <2>;
 	rockchip,clk-trcm = <1>;
 	status = "okay";
 };
@@ -71,12 +69,14 @@
 	assigned-clock-parents = <&mclkin_i2s3>;
 	pinctrl-0 = <&i2s3_sdi
 		     &i2s3_sdo
+		     &i2s3_lrck
+		     &i2s3_sclk
 		     &i2s3_mclk>;
 	status = "okay";
 };
 
 &mclkin_i2s3 {
-	clock-frequency = <12288000>;
+	clock-frequency = <24576000>;
 };
 
 &spi3 {
