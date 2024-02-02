@@ -438,7 +438,7 @@ void evl_net_uncharge_skb_wmem(struct sk_buff *skb)
 	/*
 	 * If set, the tracking socket cannot be stale as it has to
 	 * pass the wmem_crossing first before unwinding in
-	 * sock_oob_detach().
+	 * sock_oob_destroy().
 	 */
 	if (esk) {
 		EVL_NET_CB(skb)->tracker = NULL;

@@ -173,7 +173,7 @@ void evl_uncharge_socket_wmem(struct evl_socket *esk, size_t size)
 
 	/*
 	 * The tracking socket cannot be stale as it has to pass the
-	 * wmem_crossing first before unwinding in sock_oob_detach().
+	 * wmem_crossing first before unwinding in sock_oob_destroy().
 	 */
 	raw_spin_lock_irqsave(&esk->wmem_wait.wchan.lock, flags);
 
@@ -308,9 +308,10 @@ fail_open:
 
 /*
  * In-band call from the common network stack which is about to
- * release a socket (@sock is out-of-band capable).
+ * destruct a socket, releasing all resources attached (@sock is
+ * out-of-band capable).
  */
-void sock_oob_detach(struct sock *sk)
+void sock_oob_destroy(struct sock *sk)
 {
 	struct evl_socket *esk = evl_sk(sk);
 
@@ -586,9 +587,8 @@ static int evl_sock_connect(struct socket *sock,
 static int evl_sock_release(struct socket *sock)
 {
 	/*
-	 * Cleanup happens from sock_oob_detach(), so that PF_OOB
-	 * and common protocols sockets we piggybacked on are
-	 * released.
+	 * Cleanup happens from sock_oob_destroy(), so that PF_OOB and
+	 * common protocols sockets we piggybacked on are released.
 	 */
 	return 0;
 }
