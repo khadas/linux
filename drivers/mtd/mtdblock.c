@@ -277,7 +277,12 @@ static int mtdblock_readsect(struct mtd_blktrans_dev *dev,
 			      unsigned long block, char *buf)
 {
 	struct mtdblk_dev *mtdblk = container_of(dev, struct mtdblk_dev, mbd);
+#if (IS_ENABLED(CONFIG_AMLOGIC_MTD_NAND) || IS_ENABLED(CONFIG_AMLOGIC_MTD_SPI_NAND))
+	return do_cached_read(mtdblk, block << dev->tr->blkshift,
+							dev->tr->blksize, buf);
+#else
 	return do_cached_read(mtdblk, block<<9, 512, buf);
+#endif
 }
 
 static int mtdblock_writesect(struct mtd_blktrans_dev *dev,
@@ -293,8 +298,42 @@ static int mtdblock_writesect(struct mtd_blktrans_dev *dev,
 		 * return -EAGAIN sometimes, but why bother?
 		 */
 	}
+#if (IS_ENABLED(CONFIG_AMLOGIC_MTD_NAND) || IS_ENABLED(CONFIG_AMLOGIC_MTD_SPI_NAND))
+	return do_cached_write(mtdblk, block << dev->tr->blkshift,
+							dev->tr->blksize, buf);
+#else
 	return do_cached_write(mtdblk, block<<9, 512, buf);
+#endif
 }
+
+#if (IS_ENABLED(CONFIG_AMLOGIC_MTD_NAND) || IS_ENABLED(CONFIG_AMLOGIC_MTD_SPI_NAND))
+static int mtdblock_writesects(struct mtd_blktrans_dev *dev,
+			      unsigned long block, unsigned int cnt, char *buf)
+{
+	struct mtdblk_dev *mtdblk = container_of(dev, struct mtdblk_dev, mbd);
+
+	if (unlikely(!mtdblk->cache_data && mtdblk->cache_size)) {
+		mtdblk->cache_data = vmalloc(mtdblk->mbd.mtd->erasesize);
+		if (!mtdblk->cache_data)
+			return -EINTR;
+		/* -EINTR is not really correct, but it is the best match
+		 * documented in man 2 write for all cases.  We could also
+		 * return -EAGAIN sometimes, but why bother?
+		 */
+	}
+	return do_cached_write(mtdblk, block << dev->tr->blkshift,
+						cnt << dev->tr->blkshift, buf);
+}
+
+static int mtdblock_readsects(struct mtd_blktrans_dev *dev,
+			      unsigned long block, unsigned int cnt, char *buf)
+{
+	struct mtdblk_dev *mtdblk = container_of(dev, struct mtdblk_dev, mbd);
+
+	return do_cached_read(mtdblk, block << dev->tr->blkshift,
+						cnt << dev->tr->blkshift, buf);
+}
+#endif
 
 static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 {
@@ -413,7 +452,13 @@ static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	dev->mbd.mtd = mtd;
 	dev->mbd.devnum = mtd->index;
 
+#if (IS_ENABLED(CONFIG_AMLOGIC_MTD_NAND) || IS_ENABLED(CONFIG_AMLOGIC_MTD_SPI_NAND))
+	tr->blksize = mtd->writesize;
+	tr->blkshift = ffs(tr->blksize) - 1;
+	dev->mbd.size = mtd->size >> tr->blkshift;
+#else
 	dev->mbd.size = mtd->size >> 9;
+#endif
 
 #ifdef CONFIG_AMLOGIC_NAND
 	if (!mtd_can_have_bb(mtd))
@@ -456,6 +501,10 @@ static struct mtd_blktrans_ops mtdblock_tr = {
 	.release	= mtdblock_release,
 	.readsect	= mtdblock_readsect,
 	.writesect	= mtdblock_writesect,
+#if (IS_ENABLED(CONFIG_AMLOGIC_MTD_NAND) || IS_ENABLED(CONFIG_AMLOGIC_MTD_SPI_NAND))
+	.readsects	= mtdblock_readsects,
+	.writesects	= mtdblock_writesects,
+#endif
 	.add_mtd	= mtdblock_add_mtd,
 	.remove_dev	= mtdblock_remove_dev,
 	.owner		= THIS_MODULE,

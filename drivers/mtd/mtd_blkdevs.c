@@ -69,27 +69,45 @@ static blk_status_t do_blktrans_request(struct mtd_blktrans_ops *tr,
 		return BLK_STS_OK;
 	case REQ_OP_READ:
 		buf = kmap(bio_page(req->bio)) + bio_offset(req->bio);
+#if (IS_ENABLED(CONFIG_AMLOGIC_MTD_NAND) || IS_ENABLED(CONFIG_AMLOGIC_MTD_SPI_NAND))
+		if (tr->readsects(dev, block, nsect, buf)) {
+			kunmap(bio_page(req->bio));
+			return BLK_STS_IOERR;
+		}
+#else
 		for (; nsect > 0; nsect--, block++, buf += tr->blksize) {
 			if (tr->readsect(dev, block, buf)) {
 				kunmap(bio_page(req->bio));
 				return BLK_STS_IOERR;
 			}
 		}
+#endif
 		kunmap(bio_page(req->bio));
 		rq_flush_dcache_pages(req);
 		return BLK_STS_OK;
 	case REQ_OP_WRITE:
+#if (IS_ENABLED(CONFIG_AMLOGIC_MTD_NAND) || IS_ENABLED(CONFIG_AMLOGIC_MTD_SPI_NAND))
+		if (!tr->writesects)
+#else
 		if (!tr->writesect)
+#endif
 			return BLK_STS_IOERR;
 
 		rq_flush_dcache_pages(req);
 		buf = kmap(bio_page(req->bio)) + bio_offset(req->bio);
+#if (IS_ENABLED(CONFIG_AMLOGIC_MTD_NAND) || IS_ENABLED(CONFIG_AMLOGIC_MTD_SPI_NAND))
+		if (tr->writesects(dev, block, nsect, buf)) {
+			kunmap(bio_page(req->bio));
+			return BLK_STS_IOERR;
+		}
+#else
 		for (; nsect > 0; nsect--, block++, buf += tr->blksize) {
 			if (tr->writesect(dev, block, buf)) {
 				kunmap(bio_page(req->bio));
 				return BLK_STS_IOERR;
 			}
 		}
+#endif
 		kunmap(bio_page(req->bio));
 		return BLK_STS_OK;
 	default:
@@ -318,7 +336,11 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 
 	mutex_init(&new->lock);
 	kref_init(&new->ref);
+#if (IS_ENABLED(CONFIG_AMLOGIC_MTD_NAND) || IS_ENABLED(CONFIG_AMLOGIC_MTD_SPI_NAND))
+	if (!tr->writesects)
+#else
 	if (!tr->writesect)
+#endif
 		new->readonly = 1;
 
 	ret = -ENOMEM;
@@ -326,8 +348,14 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	if (!new->tag_set)
 		goto out_list_del;
 
+#if (IS_ENABLED(CONFIG_AMLOGIC_MTD_NAND) || IS_ENABLED(CONFIG_AMLOGIC_MTD_SPI_NAND))
+	ret = blk_mq_alloc_sq_tag_set(new->tag_set, &mtd_mq_ops, 64,
+			BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING);
+#else
 	ret = blk_mq_alloc_sq_tag_set(new->tag_set, &mtd_mq_ops, 2,
 			BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING);
+
+#endif
 	if (ret)
 		goto out_kfree_tag_set;
 
