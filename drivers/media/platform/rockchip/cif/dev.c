@@ -599,6 +599,104 @@ static ssize_t rkcif_store_rdbk_debug(struct device *dev,
 }
 static DEVICE_ATTR(rdbk_debug, 0200, rkcif_show_rdbk_debug, rkcif_store_rdbk_debug);
 
+static ssize_t rkcif_show_odd_frame_id(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int ret;
+
+	ret = snprintf(buf, PAGE_SIZE, "%d %d %d %d\n",
+		       cif_dev->stream[0].odd_frame_id ? 1 : 0,
+		       cif_dev->stream[1].odd_frame_id ? 1 : 0,
+		       cif_dev->stream[2].odd_frame_id ? 1 : 0,
+		       cif_dev->stream[3].odd_frame_id ? 1 : 0);
+	return ret;
+}
+
+static ssize_t rkcif_store_odd_frame_id(struct device *dev,
+					       struct device_attribute *attr,
+					       const char *buf, size_t len)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int i, index;
+	char val[4];
+
+	if (buf) {
+		index = 0;
+		for (i = 0; i < len; i++) {
+			if (buf[i] == ' ')
+				continue;
+			else if (buf[i] == '\0')
+				break;
+			val[index] = buf[i];
+			index++;
+			if (index == 4)
+				break;
+		}
+
+		for (i = 0; i < index; i++) {
+			if (val[i] - '0' == 0)
+				cif_dev->stream[i].odd_frame_id = 0;
+			else
+				cif_dev->stream[i].odd_frame_id = 1;
+		}
+	}
+
+	return len;
+}
+static DEVICE_ATTR(odd_frame_id, S_IWUSR | S_IRUSR,
+		   rkcif_show_odd_frame_id, rkcif_store_odd_frame_id);
+
+static ssize_t rkcif_show_odd_frame_fisrt(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int ret;
+
+	ret = snprintf(buf, PAGE_SIZE, "%d %d %d %d\n",
+		       cif_dev->stream[0].odd_frame_first ? 1 : 0,
+		       cif_dev->stream[1].odd_frame_first ? 1 : 0,
+		       cif_dev->stream[2].odd_frame_first ? 1 : 0,
+		       cif_dev->stream[3].odd_frame_first ? 1 : 0);
+	return ret;
+}
+
+static ssize_t rkcif_store_odd_frame_fisrt(struct device *dev,
+					       struct device_attribute *attr,
+					       const char *buf, size_t len)
+{
+	struct rkcif_device *cif_dev = (struct rkcif_device *)dev_get_drvdata(dev);
+	int i, index;
+	char val[4];
+
+	if (buf) {
+		index = 0;
+		for (i = 0; i < len; i++) {
+			if (buf[i] == ' ')
+				continue;
+			else if (buf[i] == '\0')
+				break;
+			val[index] = buf[i];
+			index++;
+			if (index == 4)
+				break;
+		}
+
+		for (i = 0; i < index; i++) {
+			if (val[i] - '0' == 0)
+				cif_dev->stream[i].odd_frame_first = 0;
+			else
+				cif_dev->stream[i].odd_frame_first = 1;
+		}
+	}
+
+	return len;
+}
+static DEVICE_ATTR(odd_frame_first, S_IWUSR | S_IRUSR,
+		   rkcif_show_odd_frame_fisrt, rkcif_store_odd_frame_fisrt);
+
 static struct attribute *dev_attrs[] = {
 	&dev_attr_compact_test.attr,
 	&dev_attr_wait_line.attr,
@@ -610,6 +708,8 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_scale_ch3_blc.attr,
 	&dev_attr_fps.attr,
 	&dev_attr_rdbk_debug.attr,
+	&dev_attr_odd_frame_id.attr,
+	&dev_attr_odd_frame_first.attr,
 	NULL,
 };
 
@@ -1953,6 +2053,11 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	INIT_WORK(&cif_dev->err_state_work.work, rkcif_err_print_work);
 	INIT_WORK(&cif_dev->sensor_work.work, rkcif_set_sensor_stream);
 	INIT_DELAYED_WORK(&cif_dev->work_deal_err, rkcif_deal_err_intr);
+
+	if (cif_dev->inf_id == RKCIF_MIPI_LVDS && cif_dev->chip_id <= CHIP_RK3562_CIF)
+		cif_dev->use_hw_interlace = false;
+	else
+		cif_dev->use_hw_interlace = true;
 
 	if (cif_dev->chip_id < CHIP_RV1126_CIF) {
 		if (cif_dev->inf_id == RKCIF_MIPI_LVDS) {
