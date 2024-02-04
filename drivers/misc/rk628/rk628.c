@@ -672,49 +672,56 @@ static bool rk628_display_route_check(struct rk628 *rk628)
 	return true;
 }
 
-static void rk628_final_display_route(struct rk628 *rk628)
+static void rk628_current_display_route(struct rk628 *rk628, char *input_s,
+					int input_s_len, char *output_s,
+					int output_s_len)
 {
-	char *input = NULL;
-	char *output = NULL;
-	char buf[20];
+	*input_s = '\0';
+	*output_s = '\0';
 
-	if (rk628_input_is_hdmi(rk628))
-		input = "hdmi";
+	if (rk628_input_is_rgb(rk628))
+		strlcat(input_s, "RGB", input_s_len);
 	else if (rk628_input_is_bt1120(rk628))
-		input = "bt1120";
+		strlcat(input_s, "BT1120", input_s_len);
+	else if (rk628_input_is_hdmi(rk628))
+		strlcat(input_s, "HDMI", input_s_len);
 	else
-		input = "rgb";
+		strlcat(input_s, "unknown", input_s_len);
+
+	if (rk628_output_is_rgb(rk628))
+		strlcat(output_s, "RGB ", output_s_len);
+
+	if (rk628_output_is_bt1120(rk628))
+		strlcat(output_s, "BT1120 ", output_s_len);
 
 	if (rk628_output_is_gvi(rk628))
-		output = "gvi";
-	else if (rk628_output_is_lvds(rk628))
-		output = "lvds";
-	else if (rk628_output_is_dsi(rk628))
-		output = "dsi";
-	else if (rk628_output_is_csi(rk628))
-		output = "csi";
+		strlcat(output_s, "GVI ", output_s_len);
 
-	if (rk628_output_is_bt1120(rk628)) {
-		if (output)
-			sprintf(buf, "%s & %s", output, "bt1120");
-		else
-			output = "bt1120";
-	} else if (rk628_output_is_rgb(rk628)) {
-		if (output)
-			sprintf(buf, "%s & %s", output, "rgb");
-		else
-			output = "rgb";
-	}
+	if (rk628_output_is_lvds(rk628))
+		strncat(output_s, "LVDS ", output_s_len);
 
-	if (rk628_output_is_hdmi(rk628)) {
-		if (output)
-			sprintf(buf, "%s & %s", output, "hdmi");
-		else
-			output = "hdmi";
-	}
+	if (rk628_output_is_dsi(rk628))
+		strlcat(output_s, "DSI ", output_s_len);
 
-	dev_info(rk628->dev, "input_mode:%s output_mode:%s\n", input,
-		 hweight32(rk628->output_mode) > 1 ? buf : output);
+	if (rk628_output_is_csi(rk628))
+		strlcat(output_s, "CSI ", output_s_len);
+
+	if (rk628_output_is_hdmi(rk628))
+		strlcat(output_s, "HDMI ", output_s_len);
+
+	if (!strlen(output_s))
+		strlcat(output_s, "unknown", output_s_len);
+}
+
+static void rk628_show_current_display_route(struct rk628 *rk628)
+{
+	char input_s[10], output_s[30];
+
+	rk628_current_display_route(rk628, input_s, sizeof(input_s),
+				    output_s, sizeof(output_s));
+
+	dev_info(rk628->dev, "input_mode: %s, output_mode: %s\n", input_s,
+		 output_s);
 }
 
 static int rk628_display_route_info_parse(struct rk628 *rk628)
@@ -889,25 +896,6 @@ static int rk628_display_timings_get(struct rk628 *rk628)
 				pr_info(args); \
 		} while (0)
 
-static void rk628_show_input_mode(struct seq_file *s)
-{
-	struct rk628 *rk628 = s->private;
-	char input_s[10] = {0};
-
-	/* show input mode */
-	if (rk628_input_is_hdmi(rk628))
-		strcpy(input_s, "HDMI");
-	else if (rk628_input_is_bt1120(rk628))
-		strcpy(input_s, "BT1120");
-	else if (rk628_input_is_rgb(rk628))
-		strcpy(input_s, "RGB");
-
-	if (!strlen(input_s))
-		strcpy(input_s, "unknown ");
-
-	DEBUG_PRINT("input: %s\n", input_s);
-}
-
 static void rk628_show_resolution(struct seq_file *s)
 {
 	struct rk628 *rk628 = s->private;
@@ -1003,38 +991,6 @@ static void rk628_show_input_resolution(struct seq_file *s)
 		rk628f_show_rgbrx_resolution(s);
 	else
 		rk628_show_resolution(s);
-}
-
-static void rk628_show_output_mode(struct seq_file *s)
-{
-	struct rk628 *rk628 = s->private;
-	char output_s[30] = {0};
-	char *p = output_s;
-
-	if (rk628_output_is_gvi(rk628))
-		strcpy(p, "GVI ");
-	else if (rk628_output_is_lvds(rk628))
-		strcpy(p, "LVDS ");
-	else if (rk628_output_is_dsi(rk628))
-		strcpy(p, "DSI ");
-	else if (rk628_output_is_csi(rk628))
-		strcpy(p, "CSI ");
-	p += strlen(p);
-
-	if (rk628_output_is_hdmi(rk628)) {
-		strcpy(p, "HDMI ");
-		p += strlen(p);
-	}
-
-	if (rk628_output_is_rgb(rk628))
-		strcpy(p, "RGB ");
-	else if (rk628_output_is_bt1120(rk628))
-		strcpy(p, "BT1120 ");
-
-	if (!strlen(output_s))
-		strcpy(p, "unknown ");
-
-	DEBUG_PRINT("output: %s\n", output_s);
 }
 
 static void rk628_show_output_resolution(struct seq_file *s)
@@ -1147,16 +1103,20 @@ static void rk628_show_csc_info(struct seq_file *s)
 static int rk628_debugfs_dump(struct seq_file *s, void *data)
 {
 	struct rk628 *rk628 = s->private;
+	char input_s[10], output_s[30];
 	u32 val;
 	int sw_hsync_pol, sw_vsync_pol;
 	u32 dsp_frame_v_start, dsp_frame_h_start;
 
+	rk628_current_display_route(rk628, input_s, sizeof(input_s),
+				    output_s, sizeof(output_s));
+
 	/* show input info */
-	rk628_show_input_mode(s);
+	DEBUG_PRINT("input: %s\n", input_s);
 	rk628_show_input_resolution(s);
 
 	/* show output info */
-	rk628_show_output_mode(s);
+	DEBUG_PRINT("output: %s\n", output_s);
 	rk628_show_output_resolution(s);
 
 	/* show csc info */
@@ -1453,13 +1413,14 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (ret)
 		goto err_clk;
 
+	rk628_show_current_display_route(rk628);
+
 	if (!rk628_display_route_check(rk628)) {
 		dev_err(dev, "display route check err\n");
 		ret = -EINVAL;
 		goto err_clk;
 	}
 
-	rk628_final_display_route(rk628);
 	rk628_pwr_consumption_init(rk628);
 
 #ifdef CONFIG_FB
