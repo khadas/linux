@@ -8598,7 +8598,7 @@ static unsigned int drm_hdmitx_get_tx_hdcp_cap(void)
 	return lstore;
 }
 
-static unsigned int drm_hdmitx_get_rx_hdcp_cap(void)
+unsigned int drm_hdmitx_get_rx_hdcp_cap(void)
 {
 	unsigned int rxhdcp = 0;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();

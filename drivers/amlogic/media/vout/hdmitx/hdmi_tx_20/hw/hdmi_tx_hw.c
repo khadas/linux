@@ -48,6 +48,7 @@
 #include "checksha.h"
 #include "reg_sc2.h"
 #include "hdmi_tx_debug_reg.h"
+#include "../meson_drm_hdmitx.h"
 
 static void mode420_half_horizontal_para(void);
 static void hdmi_phy_suspend(void);
@@ -3480,6 +3481,8 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		hdmitx_set_uevent_state(event_type, value);
 	} else if (strncmp(tmpbuf, "dump_emp", 8) == 0) {
 		dump_emp_packet();
+	} else if (strncmp(tmpbuf, "drm_hdcp_ver", 12) == 0) {
+		pr_info("test drm_hdcp_ver: %d\n", drm_get_rx_hdcp_cap());
 	}
 }
 

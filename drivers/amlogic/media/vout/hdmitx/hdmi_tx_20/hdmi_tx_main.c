@@ -9230,6 +9230,8 @@ unsigned int drm_get_rx_hdcp_cap(void)
 	 * read hdcp version of sink during hdcp1.4 authentication.
 	 * if hdcp1.4 authentication currently, force return hdcp1.4
 	 */
+	if (hdmitx_device.hdcp_mode == 1)
+		return 0x1;
 
 	/* if TX don't have HDCP22 key, skip RX hdcp22 ver */
 	if (hdmitx_device.hwop.cntlddc(&hdmitx_device,

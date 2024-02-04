@@ -35,6 +35,7 @@
 #include "common.h"
 #include "../hdmi_tx_ext.h"
 #include <linux/amlogic/clk_measure.h>
+#include "../hdmi_tx.h"
 
 #define MESON_CPU_ID_T7 0
 static void hdmi_phy_suspend(void);
@@ -2404,6 +2405,8 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 			hd21_read_reg(CLKCTRL_HDMI_VID_PLL_CLK_DIV));
 		pr_info("RJ: CLKCTRL_HTX_CLK_CTRL1         0xfe000120: 0x%08x\n",
 			hd21_read_reg(CLKCTRL_HTX_CLK_CTRL1));
+	} else if (strncmp(tmpbuf, "drm_hdcp_ver", 12) == 0) {
+		pr_info("test drm_hdcp_ver: %d\n", drm_hdmitx_get_rx_hdcp_cap());
 	}
 }
 
