@@ -28,6 +28,7 @@
 #include <linux/amlogic/media/frame_sync/timestamp.h>
 #include <linux/amlogic/media/frame_sync/tsync.h>
 #endif
+#include <linux/compat.h>
 
 #define VIDEOSYNC_DEVICE_NAME   "videosync"
 #define RECEIVER_NAME "videosync"
