@@ -4481,7 +4481,8 @@ static void rkcif_check_buffer_update_pingpong(struct rkcif_stream *stream,
 				stream->to_stop_dma = 0;
 				wake_up(&stream->wq_stopped);
 			} else {
-				stream->to_en_dma = RKCIF_DMAEN_BY_VICAP;
+				if (stream->cifdev->resume_mode != RKISP_RTT_MODE_ONE_FRAME)
+					stream->to_en_dma = RKCIF_DMAEN_BY_VICAP;
 				v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
 					 "%s stream[%d] start dma capture, frame cnt %d\n",
 					 __func__, stream->id, stream->frame_idx);
@@ -7443,6 +7444,7 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 			rkcif_dphy_quick_stream(dev, stream_param->on);
 			v4l2_subdev_call(dev->terminal_sensor.sd, core, ioctl,
 					 RKMODULE_SET_QUICK_STREAM, &stream_param->on);
+			dev->resume_mode = RKISP_RTT_MODE_MULTI_FRAME;
 		} else {
 			if (dev->sditf[0]->mode.rdbk_mode == RKISP_VICAP_ONLINE) {
 				for (i = 0; i < stream_num - 1; i++) {

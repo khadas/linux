@@ -34,6 +34,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 #include <video/videomode.h>
+#include <linux/rk_hdmirx_config.h>
 
 #include "rk628.h"
 #include "rk628_combrxphy.h"
@@ -1530,6 +1531,9 @@ static void rk628_work_isr(struct work_struct *work)
 	bool handled = false;
 	u32 csi0_raw_ints, csi1_raw_ints = 0x0;
 	u32 int0_status;
+	const struct v4l2_event evt_signal_lost = {
+		.type = RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST,
+	};
 
 	mutex_lock(&csi->rk628->rst_lock);
 	rk628_i2c_read(csi->rk628, GRF_INTR0_STATUS, &int0_status);
@@ -1579,6 +1583,7 @@ static void rk628_work_isr(struct work_struct *work)
 				enable_stream(sd, false);
 				csi->nosignal = true;
 			}
+			v4l2_event_queue(sd->devnode, &evt_signal_lost);
 			schedule_delayed_work(&csi->delayed_work_res_change, msecs_to_jiffies(100));
 
 			v4l2_dbg(1, debug, sd, "%s: hact/vact change, md_ints: %#x\n",
@@ -1681,6 +1686,8 @@ static int rk628_csi_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 		return v4l2_src_change_event_subdev_subscribe(sd, fh, sub);
 	case V4L2_EVENT_CTRL:
 		return v4l2_ctrl_subdev_subscribe_event(sd, fh, sub);
+	case RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST:
+		return v4l2_event_subscribe(fh, sub, 0, NULL);
 	default:
 		return -EINVAL;
 	}
@@ -2471,10 +2478,13 @@ static irqreturn_t plugin_detect_irq(int irq, void *dev_id)
 {
 	struct rk628_csi *csi = dev_id;
 	struct v4l2_subdev *sd = &csi->sd;
+	const struct v4l2_event evt_signal_lost = {
+		.type = RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST,
+	};
 
 	/* control hpd after 50ms */
 	schedule_delayed_work(&csi->delayed_work_enable_hotplug, HZ / 20);
-	tx_5v_power_present(sd);
+	v4l2_event_queue(sd->devnode, &evt_signal_lost);
 
 	return IRQ_HANDLED;
 }
