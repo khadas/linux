@@ -121,6 +121,7 @@
 #define HDMI_RX_HDCP_DBG		(HDMI_RX_BASE + 0x00e0)
 #define HDMI_RX_HDCP_AN0		(HDMI_RX_BASE + 0x00f0)
 #define HDMI_RX_HDCP_STS		(HDMI_RX_BASE + 0x00fc)
+#define HDCP_ENC_STATE			BIT(9)
 #define HDMI_RX_MD_HCTRL1		(HDMI_RX_BASE + 0x0140)
 #define HACT_PIX_ITH(x)			UPDATE(x, 10, 8)
 #define HACT_PIX_SRC(x)			UPDATE(x, 5, 5)
@@ -516,6 +517,7 @@ u32 rk628_hdmirx_get_tmdsclk_cnt(struct rk628 *rk628);
 int rk628_hdmirx_get_timings(struct rk628 *rk628,
 			     struct v4l2_dv_timings *timings);
 u8 rk628_hdmirx_get_range(struct rk628 *rk628);
+int rk628_hdmirx_get_hdcp_enc_status(struct rk628 *rk628);
 void rk628_hdmirx_controller_reset(struct rk628 *rk628);
 bool rk628_hdmirx_scdc_ced_err(struct rk628 *rk628);
 bool rk628_hdmirx_is_signal_change_ists(struct rk628 *rk628);

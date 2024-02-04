@@ -44,6 +44,19 @@ enum hdmirx_color_space {
 	HDMIRX_BT2020_RGB_OR_YCC = 6,
 };
 
+/* hdmirx scan mode */
+enum hdmirx_scan_mode {
+	HDMIRX_PROGRESSIVE = 0,
+	HDMIRX_INTERLACED = 1,
+};
+
+enum hdmirx_edid_mode {
+	HDMIRX_EDID_2K60HZ_YUV444,
+	HDMIRX_EDID_4K30HZ_YUV444,
+	HDMIRX_EDID_4K60HZ_YUV444,
+	HDMIRX_EDID_4K60HZ_YUV420,
+};
+
 /* Private v4l2 ioctl */
 #define RK_HDMIRX_CMD_GET_FPS \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 0, int)
@@ -77,6 +90,18 @@ enum hdmirx_color_space {
 
 #define RK_HDMIRX_CMD_GET_COLOR_SPACE \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 10, int)
+
+#define RK_HDMIRX_CMD_GET_SCAN_MODE  \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 11, __u8)
+
+#define RK_HDMIRX_CMD_GET_EDID_MODE  \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 12, __u8)
+
+#define RK_HDMIRX_CMD_SET_EDID_MODE  \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 13, __u8)
+
+#define RK_HDMIRX_CMD_GET_HDCP_ENC_STATUS  \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 14, __u8)
 
 /* Private v4l2 event */
 #define RK_HDMIRX_V4L2_EVENT_SIGNAL_LOST \

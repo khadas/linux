@@ -213,6 +213,17 @@ void rk628_hdmirx_controller_setup(struct rk628 *rk628)
 }
 EXPORT_SYMBOL(rk628_hdmirx_controller_setup);
 
+int rk628_hdmirx_get_hdcp_enc_status(struct rk628 *rk628)
+{
+	u32 val;
+
+	rk628_i2c_read(rk628, HDMI_RX_HDCP_STS, &val);
+	val &= HDCP_ENC_STATE;
+
+	return val ? 1 : 0;
+}
+EXPORT_SYMBOL(rk628_hdmirx_get_hdcp_enc_status);
+
 static bool is_validfs(int fs)
 {
 	int i = 0;
