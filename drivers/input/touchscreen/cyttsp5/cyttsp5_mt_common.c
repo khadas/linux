@@ -637,11 +637,14 @@ static int cyttsp5_setup_input_device(struct device *dev)
 			else if (i == CY_ABS_P_OST)
 				max = max_p;
 			/*change x-y max value*/
-			if(signal == ABS_MT_POSITION_X)
-				max = screen_max_x;
-			if(signal == ABS_MT_POSITION_Y)
-				max = screen_max_y;
-			
+			if(signal == ABS_MT_POSITION_X) {
+				screen_max_x = max;
+				dev_info(dev, "screen_max_x = %d\n", screen_max_x);
+			}
+			if(signal == ABS_MT_POSITION_Y) {
+				screen_max_y = max;
+				dev_info(dev, "screen_max_y = %d\n", screen_max_y);
+			}
 			input_set_abs_params(md->input, signal, min, max,
 				MT_PARAM_FUZZ(md, i), MT_PARAM_FLAT(md, i));
 			parade_debug(dev, DEBUG_LEVEL_1,
@@ -711,14 +714,6 @@ int cyttsp5_mt_probe(struct device *dev)
 		goto error_no_pdata;
 	}
 	mt_pdata = pdata->mt_pdata;
-	revert_x_flag = mt_pdata->swap_x;
-	revert_y_flag = mt_pdata->swap_y;
-	exchange_x_y_flag = mt_pdata->xy_exchange;
-	if (exchange_x_y_flag) {
-		int tmp = screen_max_x;
-		screen_max_x = screen_max_y;
-		screen_max_y = tmp;
-	}
 
 	//printk("*****cyttsp5_mt_probe 1111\n");
 	cyttsp5_init_function_ptrs(md);
@@ -764,6 +759,15 @@ int cyttsp5_mt_probe(struct device *dev)
 			__func__, md->si);
 		_cyttsp5_subscribe_attention(dev, CY_ATTEN_STARTUP,
 			CYTTSP5_MT_NAME, cyttsp5_setup_input_attention, 0);
+	}
+
+	revert_x_flag = mt_pdata->swap_x;
+	revert_y_flag = mt_pdata->swap_y;
+	exchange_x_y_flag = mt_pdata->xy_exchange;
+	if (exchange_x_y_flag) {
+		int tmp = screen_max_x;
+		screen_max_x = screen_max_y;
+		screen_max_y = tmp;
 	}
 
 	return 0;
