@@ -1135,7 +1135,7 @@ static void rockchip_rv1106_pvtpll_init(struct rockchip_clk_provider *ctx)
 	writel_relaxed(0xffff0004, ctx->reg_base + CRU_PVTPLL1_CON2_H);
 	writel_relaxed(0x00030003, ctx->reg_base + CRU_PVTPLL1_CON0_L);
 
-	schedule_delayed_work(&pvtpll_calibrate_work, msecs_to_jiffies(3000));
+	queue_delayed_work(system_freezable_wq, &pvtpll_calibrate_work, msecs_to_jiffies(300));
 }
 
 static int rv1106_clk_panic(struct notifier_block *this,
