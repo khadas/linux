@@ -1043,12 +1043,15 @@ static inline void vop2_mask_write(struct vop2 *vop2, uint32_t offset,
 {
 	uint32_t cached_val;
 
-	if (!mask)
+	if (!mask || !vop2 || !vop2->regs)
 		return;
 
 	if (write_mask) {
 		v = ((v & mask) << shift) | (mask << (shift + 16));
 	} else {
+		if (!vop2->regsbak)
+			return;
+
 		cached_val = vop2->regsbak[offset >> 2];
 
 		v = (cached_val & ~(mask << shift)) | ((v & mask) << shift);
@@ -3966,6 +3969,10 @@ static void vop2_power_domain_off_by_disabled_vp(struct vop2_power_domain *pd)
 		phys_id = ffs(pd->data->module_id_mask) - 1;
 		win = vop2_find_win_by_phys_id(vop2, phys_id);
 		vp_id = ffs(win->vp_mask) - 1;
+		if (vp_id >= ROCKCHIP_MAX_CRTC) {
+			DRM_DEV_ERROR(vop2->dev, "unexpected vp%d\n", vp_id);
+			return;
+		}
 		vp = &vop2->vps[vp_id];
 	} else {
 		DRM_DEV_ERROR(vop2->dev, "unexpected power on pd%d\n", ffs(pd->data->id) - 1);
@@ -4102,7 +4109,7 @@ static int vop2_extend_clk_init(struct vop2 *vop2)
 
 		extend_pll->clk = clk;
 		extend_pll->vp_mask = 0;
-		strncpy(extend_pll->clk_name, extend_clk_name[i], sizeof(extend_pll->clk_name));
+		strscpy_pad(extend_pll->clk_name, extend_clk_name[i], sizeof(extend_pll->clk_name));
 		list_add_tail(&extend_pll->list, &vop2->extend_clk_list_head);
 	}
 
@@ -9473,7 +9480,7 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_stat
 	struct drm_plane *plane;
 	struct vop2_plane_state *vpstate;
 	struct vop2_zpos *vop2_zpos;
-	struct vop2_zpos *vop2_zpos_splice;
+	struct vop2_zpos *vop2_zpos_splice = NULL;
 	struct vop2_cluster cluster;
 	uint8_t nr_layers = 0;
 	uint8_t splice_nr_layers = 0;
@@ -9545,7 +9552,7 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_stat
 		rockchip_drm_dbg(vop2->dev, VOP_DEBUG_OVERLAY, "%s active zpos:%d for vp%d from vp%d\n",
 				 win->name, vpstate->zpos, vp->id, old_vp->id);
 		/* left and right win may have different number */
-		if (vcstate->splice_mode) {
+		if (vcstate->splice_mode && vop2_zpos_splice) {
 			splice_win = vop2_find_win_by_phys_id(vop2, win->splice_win_id);
 			splice_win->splice_mode_right = true;
 			splice_win->left_win = win;
