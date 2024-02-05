@@ -27,9 +27,15 @@
 /* System control */
 #define SFC_CTRL			0x0
 #define  SFC_CTRL_PHASE_SEL_NEGETIVE	BIT(1)
+#define  SFC_CTRL_DTR_MODE		BIT(2)
 #define  SFC_CTRL_CMD_BITS_SHIFT	8
 #define  SFC_CTRL_ADDR_BITS_SHIFT	10
 #define  SFC_CTRL_DATA_BITS_SHIFT	12
+#define  SFC_CTRL_DTR_MODE_BY_DEVICE	BIT(17)
+#define  SFC_CTRL_CMD_STR_SHIFT		19
+#define  SFC_CTRL_ADDR_STR_SHIFT	20
+#define  SFC_CTRL_CMD_CTRL_CMD_EXT	(2 << 27)
+#define  SFC_CTRL_WPEN			BIT(29)
 
 /* Interrupt mask */
 #define SFC_IMR				0x4
@@ -87,7 +93,7 @@
 #define  SFC_FSR_TX_IS_EMPTY		BIT(1)
 #define  SFC_FSR_RX_IS_EMPTY		BIT(2)
 #define  SFC_FSR_RX_IS_FULL		BIT(3)
-#define  SFC_FSR_TXLV_MASK		GENMASK(12, 8)
+#define  SFC_FSR_TXLV_MASK		GENMASK(13, 8)
 #define  SFC_FSR_TXLV_SHIFT		8
 #define  SFC_FSR_RXLV_MASK		GENMASK(20, 16)
 #define  SFC_FSR_RXLV_SHIFT		16
@@ -121,6 +127,14 @@
 #define SFC_DLL_CTRL0_SCLK_SMP_DLL	BIT(15)
 #define SFC_DLL_CTRL0_DLL_MAX_VER4	0xFFU
 #define SFC_DLL_CTRL0_DLL_MAX_VER5	0x1FFU
+
+/* Dummy Cycle Control Register */
+#define SFC_DUMM_CTRL			0x74
+#define SFC_DUMMY_CTRL_SEL		BIT(0)
+#define SFC_DUMMY_CTRL_EXT_SHIFT	1
+
+/* Command Extend Register */
+#define SFC_CMD_EXT			0x78
 
 /* Master trigger */
 #define SFC_DMA_TRIGGER			0x80
@@ -222,21 +236,20 @@ static u16 rockchip_sfc_get_version(struct rockchip_sfc *sfc)
 
 static u32 rockchip_sfc_get_max_iosize(struct rockchip_sfc *sfc)
 {
+	if (sfc->version >= SFC_VER_4)
+		return SFC_MAX_IOSIZE_VER4;
+
 	return SFC_MAX_IOSIZE_VER3;
 }
 
 static u32 rockchip_sfc_get_max_dll_cells(struct rockchip_sfc *sfc)
 {
-	switch (rockchip_sfc_get_version(sfc)) {
-	case SFC_VER_8:
-	case SFC_VER_6:
-	case SFC_VER_5:
+	if (sfc->version > SFC_VER_4)
 		return SFC_DLL_CTRL0_DLL_MAX_VER5;
-	case SFC_VER_4:
+	else if (sfc->version == SFC_VER_4)
 		return SFC_DLL_CTRL0_DLL_MAX_VER4;
-	default:
+	else
 		return 0;
-	}
 }
 
 static void rockchip_sfc_set_delay_lines(struct rockchip_sfc *sfc, u16 cells, u8 cs)
@@ -310,7 +323,8 @@ static int rockchip_sfc_wait_rxfifo_ready(struct rockchip_sfc *sfc, u32 timeout_
 				 status & SFC_FSR_RXLV_MASK, 0,
 				 timeout_us);
 	if (ret) {
-		dev_dbg(sfc->dev, "sfc wait rx fifo timeout\n");
+		print_hex_dump(KERN_WARNING, "sfc", DUMP_PREFIX_OFFSET, 4, 4, sfc->regbase, 0x104, 0);
+		dev_err(sfc->dev, "sfc wait rx fifo timeout\n");
 
 		return -ETIMEDOUT;
 	}
@@ -338,12 +352,19 @@ static int rockchip_sfc_xfer_setup(struct rockchip_sfc *sfc,
 				   const struct spi_mem_op *op,
 				   u32 len)
 {
-	u32 ctrl = 0, cmd = 0;
+	u32 ctrl = 0, cmd = 0, cmd_ext = 0, dummy_ext = 0;
 	u8 cs = mem->spi->chip_select;
 
 	/* set CMD */
-	cmd = op->cmd.opcode;
-	ctrl |= ((op->cmd.buswidth >> 1) << SFC_CTRL_CMD_BITS_SHIFT);
+	if (op->cmd.nbytes == 2) {
+		cmd_ext = op->cmd.opcode;
+		ctrl |= SFC_CTRL_CMD_CTRL_CMD_EXT;
+	} else {
+		cmd = op->cmd.opcode;
+	}
+
+	ctrl |= (find_first_bit((unsigned long *)&op->cmd.buswidth, 8) << SFC_CTRL_CMD_BITS_SHIFT);
+	ctrl |= (!op->cmd.dtr) << SFC_CTRL_CMD_STR_SHIFT;
 
 	/* set ADDR */
 	if (op->addr.nbytes) {
@@ -354,14 +375,18 @@ static int rockchip_sfc_xfer_setup(struct rockchip_sfc *sfc,
 		} else {
 			cmd |= SFC_CMD_ADDR_XBITS << SFC_CMD_ADDR_SHIFT;
 			writel(op->addr.nbytes * 8 - 1, sfc->regbase + cs * SFC_CS1_REG_OFFSET + SFC_ABIT);
+			dev_dbg(sfc->dev, "sfc addrxbits=%d\n", op->addr.nbytes * 8 - 1);
 		}
 
-		ctrl |= ((op->addr.buswidth >> 1) << SFC_CTRL_ADDR_BITS_SHIFT);
+		ctrl |= (find_first_bit((unsigned long *)&op->addr.buswidth, 8) << SFC_CTRL_ADDR_BITS_SHIFT);
 	}
+	ctrl |= (!op->addr.dtr) << SFC_CTRL_ADDR_STR_SHIFT;
 
 	/* set DUMMY */
 	if (op->dummy.nbytes) {
-		if (op->dummy.buswidth == 4)
+		if (op->dummy.buswidth == 8)
+			dummy_ext |= ((op->dummy.nbytes / 2) << SFC_DUMMY_CTRL_EXT_SHIFT | SFC_DUMMY_CTRL_SEL); /* dtr */
+		else if (op->dummy.buswidth == 4)
 			cmd |= op->dummy.nbytes * 2 << SFC_CMD_DUMMY_SHIFT;
 		else if (op->dummy.buswidth == 2)
 			cmd |= op->dummy.nbytes * 4 << SFC_CMD_DUMMY_SHIFT;
@@ -374,25 +399,34 @@ static int rockchip_sfc_xfer_setup(struct rockchip_sfc *sfc,
 		writel(len, sfc->regbase + SFC_LEN_EXT);
 	else
 		cmd |= len << SFC_CMD_TRAN_BYTES_SHIFT;
-	if (len) {
-		if (op->data.dir == SPI_MEM_DATA_OUT)
-			cmd |= SFC_CMD_DIR_WR << SFC_CMD_DIR_SHIFT;
 
-		ctrl |= ((op->data.buswidth >> 1) << SFC_CTRL_DATA_BITS_SHIFT);
-	}
-	if (!len && op->addr.nbytes)
+	if ((len && op->data.dir == SPI_MEM_DATA_OUT) || (!len && op->addr.nbytes))
 		cmd |= SFC_CMD_DIR_WR << SFC_CMD_DIR_SHIFT;
+	if (len)
+		ctrl |= (find_first_bit((unsigned long *)&op->data.buswidth, 8) << SFC_CTRL_DATA_BITS_SHIFT);
 
 	/* set the Controller */
-	ctrl |= SFC_CTRL_PHASE_SEL_NEGETIVE;
-	cmd |= mem->spi->chip_select << SFC_CMD_CS_SHIFT;
+	ctrl |= SFC_CTRL_PHASE_SEL_NEGETIVE | SFC_CTRL_WPEN;
+	if (op->cmd.buswidth > 1)
+		ctrl |= SFC_CTRL_WPEN;
 
-	dev_dbg(sfc->dev, "sfc addr.nbytes=%x(x%d) dummy.nbytes=%x(x%d)\n",
+	/* Workaround, binding dqs with buswidth 8 */
+	if (op->cmd.buswidth == 8)
+		ctrl |= (SFC_CTRL_DTR_MODE | SFC_CTRL_DTR_MODE_BY_DEVICE);
+
+	cmd |= cs << SFC_CMD_CS_SHIFT;
+
+	dev_dbg(sfc->dev, "sfc cmd.nbytes=%x(x%d) addr.nbytes=%x(x%d) dummy.nbytes=%x(x%d)\n",
+		op->cmd.nbytes, op->cmd.buswidth,
 		op->addr.nbytes, op->addr.buswidth,
 		op->dummy.nbytes, op->dummy.buswidth);
-	dev_dbg(sfc->dev, "sfc ctrl=%x cmd=%x addr=%llx len=%x\n",
-		ctrl, cmd, op->addr.val, len);
+	dev_dbg(sfc->dev, "sfc ctrl=%x cmd=%x cmd_ext=%x addr=%llx dummy_ext=%x len=%x\n",
+		ctrl, cmd, cmd_ext, op->addr.val, cmd_ext, len);
 
+	if (cmd_ext)
+		writel(cmd_ext, sfc->regbase + SFC_CMD_EXT);
+	if (sfc->version >= SFC_VER_8)
+		writel(dummy_ext, sfc->regbase + SFC_DUMM_CTRL);
 	writel(ctrl, sfc->regbase + cs * SFC_CS1_REG_OFFSET + SFC_CTRL);
 	writel(cmd, sfc->regbase + SFC_CMD);
 	if (op->addr.nbytes)
@@ -678,7 +712,7 @@ static int rockchip_sfc_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op
 
 		if (ret != len) {
 			dev_err(sfc->dev, "xfer data failed ret %d dir %d\n", ret, op->data.dir);
-
+			rockchip_sfc_reset(sfc);
 			ret = -EIO;
 			goto out;
 		}
@@ -701,9 +735,21 @@ static int rockchip_sfc_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *o
 	return 0;
 }
 
+static bool rockchip_sfc_supports_op(struct spi_mem *mem, const struct spi_mem_op *op)
+{
+	/*
+	 * The number of address bytes should be equal to or less than 4 bytes.
+	 */
+	if (op->addr.nbytes > 4)
+		return false;
+
+	return true;
+}
+
 static const struct spi_controller_mem_ops rockchip_sfc_mem_ops = {
 	.exec_op = rockchip_sfc_exec_mem_op,
 	.adjust_op_size = rockchip_sfc_adjust_op_size,
+	.supports_op = rockchip_sfc_supports_op,
 };
 
 static irqreturn_t rockchip_sfc_irq_handler(int irq, void *dev_id)
@@ -741,7 +787,6 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 	master->flags = SPI_MASTER_HALF_DUPLEX;
 	master->mem_ops = &rockchip_sfc_mem_ops;
 	master->dev.of_node = pdev->dev.of_node;
-	master->mode_bits = SPI_TX_QUAD | SPI_TX_DUAL | SPI_RX_QUAD | SPI_RX_DUAL;
 	master->max_speed_hz = SFC_MAX_SPEED;
 	master->num_chipselect = SFC_MAX_CHIPSELECT_NUM;
 
@@ -836,6 +881,10 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 
 	sfc->max_iosize = rockchip_sfc_get_max_iosize(sfc);
 	sfc->version = rockchip_sfc_get_version(sfc);
+
+	master->mode_bits = SPI_TX_QUAD | SPI_TX_DUAL | SPI_RX_QUAD | SPI_RX_DUAL;
+	if (sfc->version >= SFC_VER_8)
+		master->mode_bits |= SPI_TX_OCTAL | SPI_RX_OCTAL;
 
 	pm_runtime_set_autosuspend_delay(dev, ROCKCHIP_AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(dev);
