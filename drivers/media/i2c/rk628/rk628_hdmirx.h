@@ -8,9 +8,11 @@
 #ifndef __RK628_HDMIRX_H
 #define __RK628_HDMIRX_H
 
+#include <linux/gpio/consumer.h>
 #include <media/cec.h>
 #include <media/cec-notifier.h>
 #include <media/v4l2-dv-timings.h>
+
 #include "rk628.h"
 
 /* --------- EDID and HDCP KEY ------- */
@@ -119,6 +121,7 @@
 #define HDMI_RX_HDCP_DBG		(HDMI_RX_BASE + 0x00e0)
 #define HDMI_RX_HDCP_AN0		(HDMI_RX_BASE + 0x00f0)
 #define HDMI_RX_HDCP_STS		(HDMI_RX_BASE + 0x00fc)
+#define HDCP_ENC_STATE			BIT(9)
 #define HDMI_RX_MD_HCTRL1		(HDMI_RX_BASE + 0x0140)
 #define HACT_PIX_ITH(x)			UPDATE(x, 10, 8)
 #define HACT_PIX_SRC(x)			UPDATE(x, 5, 5)
@@ -438,7 +441,7 @@
 #define MIPI_DATARATE_MBPS_HIGH		1300
 
 #define POLL_INTERVAL_MS		1000
-#define RXPHY_CFG_MAX_TIMES		10
+#define RXPHY_CFG_MAX_TIMES		5
 #define CSITX_ERR_RETRY_TIMES		3
 
 #define USE_4_LANES			4
@@ -509,10 +512,12 @@ void rk628_hdmirx_phy_prepclk_cfg(struct rk628 *rk628);
 int rk628_hdmirx_verisyno_phy_init(struct rk628 *rk628);
 u8 rk628_hdmirx_get_format(struct rk628 *rk628);
 void rk628_set_bg_enable(struct rk628 *rk628, bool en);
+bool rk628_hdmirx_tx_5v_power_detect(struct gpio_desc *det_gpio);
 u32 rk628_hdmirx_get_tmdsclk_cnt(struct rk628 *rk628);
 int rk628_hdmirx_get_timings(struct rk628 *rk628,
 			     struct v4l2_dv_timings *timings);
 u8 rk628_hdmirx_get_range(struct rk628 *rk628);
+int rk628_hdmirx_get_hdcp_enc_status(struct rk628 *rk628);
 void rk628_hdmirx_controller_reset(struct rk628 *rk628);
 bool rk628_hdmirx_scdc_ced_err(struct rk628 *rk628);
 bool rk628_hdmirx_is_signal_change_ists(struct rk628 *rk628);
