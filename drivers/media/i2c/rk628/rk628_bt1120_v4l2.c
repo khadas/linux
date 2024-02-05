@@ -946,6 +946,19 @@ static void rk628_bt1120_enable_interrupts(struct v4l2_subdev *sd, bool en)
 	v4l2_dbg(1, debug, sd, "%s MD_IEN:%#x, PDEC_IEN:%#x\n", __func__, md_ien, pdec_ien);
 }
 
+static void rk628_bt1120_clear_hdmirx_interrupts(struct v4l2_subdev *sd)
+{
+	struct rk628_bt1120 *bt1120 = to_bt1120(sd);
+
+	/* clear interrupts */
+	rk628_i2c_write(bt1120->rk628, HDMI_RX_MD_ICLR, 0xffffffff);
+	rk628_i2c_write(bt1120->rk628, HDMI_RX_PDEC_ICLR, 0xffffffff);
+	if (bt1120->rk628->version >= RK628F_VERSION)
+		rk628_i2c_write(bt1120->rk628, GRF_INTR0_CLR_EN, 0x02000200);
+	else
+		rk628_i2c_write(bt1120->rk628, GRF_INTR0_CLR_EN, 0x01000100);
+}
+
 static void rk628_work_isr(struct work_struct *work)
 {
 	struct rk628_bt1120 *bt1120 = container_of(work, struct rk628_bt1120, work_isr);
@@ -954,19 +967,22 @@ static void rk628_work_isr(struct work_struct *work)
 	bool plugin;
 	void *audio_info = bt1120->audio_info;
 	bool handled = false;
+	u32 int0_status;
 
 	mutex_lock(&bt1120->rk628->rst_lock);
+	rk628_i2c_read(bt1120->rk628, GRF_INTR0_STATUS, &int0_status);
+	v4l2_dbg(1, debug, sd, "%s: int0 status: 0x%x\n", __func__, int0_status);
+
 	rk628_i2c_read(bt1120->rk628, HDMI_RX_MD_ISTS, &md_ints);
 	rk628_i2c_read(bt1120->rk628, HDMI_RX_PDEC_ISTS, &pdec_ints);
 	if (bt1120->rk628->version >= RK628F_VERSION &&
-	    rk628_hdmirx_is_signal_change_ists(bt1120->rk628))
+	    rk628_hdmirx_is_signal_change_ists(bt1120->rk628, md_ints, pdec_ints))
 		rk628_set_bg_enable(bt1120->rk628, true);
 
+	rk628_bt1120_clear_hdmirx_interrupts(sd);
 	plugin = tx_5v_power_present(sd);
-	if (!plugin) {
+	if (!plugin)
 		rk628_bt1120_enable_interrupts(sd, false);
-		goto __clear_int;
-	}
 
 	if (bt1120->rk628->version < RK628F_VERSION) {
 		if (rk628_audio_ctsnints_enabled(audio_info)) {
@@ -988,7 +1004,7 @@ static void rk628_work_isr(struct work_struct *work)
 		v4l2_dbg(1, debug, sd, "%s: md_ints: %#x, pdec_ints:%#x, plugin: %d\n",
 			 __func__, md_ints, pdec_ints, plugin);
 
-		if (rk628_hdmirx_is_signal_change_ists(bt1120->rk628)) {
+		if (rk628_hdmirx_is_signal_change_ists(bt1120->rk628, md_ints, pdec_ints)) {
 
 			rk628_i2c_read(bt1120->rk628, HDMI_RX_MD_HACT_PX, &hact);
 			rk628_i2c_read(bt1120->rk628, HDMI_RX_MD_VAL, &vact);
@@ -1018,15 +1034,6 @@ static void rk628_work_isr(struct work_struct *work)
 	}
 	if (!handled)
 		v4l2_dbg(1, debug, sd, "%s: unhandled interrupt!\n", __func__);
-
-__clear_int:
-	/* clear interrupts */
-	rk628_i2c_write(bt1120->rk628, HDMI_RX_MD_ICLR, 0xffffffff);
-	rk628_i2c_write(bt1120->rk628, HDMI_RX_PDEC_ICLR, 0xffffffff);
-	if (bt1120->rk628->version >= RK628F_VERSION)
-		rk628_i2c_write(bt1120->rk628, GRF_INTR0_CLR_EN, 0x02000200);
-	else
-		rk628_i2c_write(bt1120->rk628, GRF_INTR0_CLR_EN, 0x01000100);
 
 	mutex_unlock(&bt1120->rk628->rst_lock);
 }
