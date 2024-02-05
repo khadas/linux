@@ -234,6 +234,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568m-serdes-v1-evb-display-rgb2lvds-lp4x-v10.d
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568m-serdes-v1-evb-display-rgb2rgb-lp4x-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568m-serdes-v1-evb-display-super-frame-dsi0-command2dsi-lp4x-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568m-serdes-v1-evb-display-super-frame-dsi0-command2lvds0-lp4x-v10.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-ebook-x3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-evb1-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-evb1-v10-edp-NV140QUM-N61.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-evb1-v10-linux.dtb
