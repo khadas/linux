@@ -15,6 +15,7 @@
 #include <linux/iommu.h>
 #include <linux/pfn_t.h>
 #include <linux/version.h>
+#include <linux/version_compat_defs.h>
 #include <asm/cacheflush.h>
 
 #if KERNEL_VERSION(5, 10, 0) <= LINUX_VERSION_CODE
@@ -1336,7 +1337,7 @@ int rknpu_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 		return -EINVAL;
 
 	vaddr = vmap(rknpu_obj->pages, rknpu_obj->num_pages, VM_MAP,
-			  PAGE_KERNEL);
+		     PAGE_KERNEL);
 	if (!vaddr)
 		return -ENOMEM;
 
