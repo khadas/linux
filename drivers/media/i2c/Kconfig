@@ -2129,6 +2129,16 @@ config VIDEO_SC230AI
 	  This is a Video4Linux2 sensor driver for the SmartSens
 	  SC230AI camera.
 
+config VIDEO_SC231HAI
+	tristate "SmartSens SC231HAI sensor support"
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the SmartSens
+	  SC231HAI camera.
+
 config VIDEO_SC2310
 	tristate "SmartSens SC2310 sensor support"
 	depends on I2C && VIDEO_V4L2
