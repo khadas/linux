@@ -549,7 +549,7 @@ KBUILD_AFLAGS   := -D__ASSEMBLY__ -fno-PIE
 KBUILD_CFLAGS   := -Wall -Wundef -Werror=strict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common -fshort-wchar -fno-PIE \
 		   -Werror=implicit-function-declaration -Werror=implicit-int \
-		   -Werror=return-type -Wno-format-security \
+		   -Werror=return-type -Wno-format-security -Wno-address \
 		   -std=gnu89
 KBUILD_CPPFLAGS := -D__KERNEL__
 KBUILD_AFLAGS_KERNEL :=
@@ -709,7 +709,7 @@ drivers-y	:= drivers/ sound/
 ifdef CONFIG_AMLOGIC_IN_KERNEL_MODULES
 drivers-y	+= $(COMMON_DRIVERS_DIR)/drivers/ $(COMMON_DRIVERS_DIR)/sound/
 drivers-y       += $(COMMON_DRIVERS_DIR)/samples/
-KBUILD_CFLAGS += -Wno-misleading-indentation
+KBUILD_CFLAGS += -Wno-misleading-indentation -Wno-error=address -Wno-enum-int-mismatch -Wno-frame-larger-than -Wno-stringop-overread
 endif
 drivers-$(CONFIG_SAMPLES) += samples/
 drivers-$(CONFIG_NET) += net/
@@ -831,10 +831,6 @@ ifdef CONFIG_READABLE_ASM
 # ipa clone creates specialized cloned functions
 # partial inlining inlines only parts of functions
 KBUILD_CFLAGS += -fno-reorder-blocks -fno-ipa-cp-clone -fno-partial-inlining
-endif
-
-ifneq ($(CONFIG_FRAME_WARN),0)
-KBUILD_CFLAGS += -Wframe-larger-than=$(CONFIG_FRAME_WARN)
 endif
 
 ifndef CONFIG_AMLOGIC_STACKPROTECTOR
