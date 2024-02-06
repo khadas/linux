@@ -591,7 +591,7 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
 	unsigned int enabled, m, n, frac = 0;
 	unsigned long old_rate;
-	int ret;
+	int ret, retry_cnt = 0;
 #if defined CONFIG_AMLOGIC_MODIFY && defined CONFIG_ARM
 	unsigned int od;
 #endif
@@ -609,7 +609,8 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (ret)
 		return ret;
 
-	enabled = meson_parm_read(clk->map, &pll->en);
+retry:
+	enabled = meson_clk_pll_is_enabled(hw);
 #ifdef CONFIG_AMLOGIC_MODIFY
 	/* Don't disable pll if it's just changing frac */
 	if ((meson_parm_read(clk->map, &pll->m) != m ||
@@ -652,15 +653,12 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	ret = meson_clk_pll_enable(hw);
 	if (ret) {
-		pr_warn("%s: pll did not lock, trying to restore old rate %lu\n",
-			__func__, old_rate);
-		/*
-		 * FIXME: Do we really need/want this HACK ?
-		 * It looks unsafe. what happens if the clock gets into a
-		 * broken state and we can't lock back on the old_rate ? Looks
-		 * like an infinite recursion is possible
-		 */
-		meson_clk_pll_set_rate(hw, old_rate, parent_rate);
+		if (retry_cnt < 10) {
+			retry_cnt++;
+			pr_warn("%s: pll did not lock, retry %d\n", __func__,
+				retry_cnt);
+			goto retry;
+		}
 	}
 
 	return ret;
