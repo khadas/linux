@@ -816,13 +816,14 @@ static struct devfreq_governor devfreq_vdec2_ondemand = {
 static unsigned long rkvdec2_get_static_power(struct devfreq *devfreq,
 					      unsigned long voltage)
 {
-	struct rkvdec2_dev *dec = devfreq->data;
+	struct device *dev = devfreq->dev.parent;
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
+	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 
-	if (!dec->model_data)
+	if (!dec || !dec->model_data)
 		return 0;
-	else
-		return rockchip_ipa_get_static_power(dec->model_data,
-						     voltage);
+
+	return rockchip_ipa_get_static_power(dec->model_data, voltage);
 }
 
 static struct devfreq_cooling_power vdec2_cooling_power_data = {
