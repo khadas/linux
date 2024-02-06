@@ -200,6 +200,9 @@ rockchip_ipa_get_static_power(struct ipa_power_model_data *data,
 	int temp;
 	int ret;
 
+	if (!data)
+		return 0;
+
 	ret = data->tz->ops->get_temp(data->tz, &temp);
 	if (ret) {
 		pr_err("%s:failed to read %s temp\n",
