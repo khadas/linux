@@ -329,8 +329,8 @@ static int devfreq_target(struct device *dev,
 	struct dev_pm_opp *opp;
 	unsigned long target_volt, target_freq;
 	unsigned long aclk_rate_hz, core_rate_hz, cabac_rate_hz;
-
-	struct rkvdec_dev *dec = dev_get_drvdata(dev);
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
+	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 	struct devfreq *devfreq = dec->devfreq;
 	struct devfreq_dev_status *stat = &devfreq->last_status;
 	unsigned long old_clk_rate = stat->current_frequency;
@@ -396,7 +396,8 @@ static int devfreq_target(struct device *dev,
 static int devfreq_get_cur_freq(struct device *dev,
 				unsigned long *freq)
 {
-	struct rkvdec_dev *dec = dev_get_drvdata(dev);
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
+	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 
 	*freq = clk_get_rate(dec->aclk_info.clk);
 
@@ -406,7 +407,8 @@ static int devfreq_get_cur_freq(struct device *dev,
 static int devfreq_get_dev_status(struct device *dev,
 				  struct devfreq_dev_status *stat)
 {
-	struct rkvdec_dev *dec = dev_get_drvdata(dev);
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
+	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 	struct devfreq *devfreq = dec->devfreq;
 
 	memcpy(stat, &devfreq->last_status, sizeof(*stat));
@@ -420,12 +422,11 @@ static struct devfreq_dev_profile devfreq_profile = {
 	.get_dev_status	= devfreq_get_dev_status,
 };
 
-static unsigned long
-model_static_power(struct devfreq *devfreq,
-		   unsigned long voltage)
+static unsigned long model_static_power(struct devfreq *devfreq, unsigned long voltage)
 {
 	struct device *dev = devfreq->dev.parent;
-	struct rkvdec_dev *dec = dev_get_drvdata(dev);
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
+	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
 	struct thermal_zone_device *tz = dec->thermal_zone;
 
 	int temperature;
@@ -1387,7 +1388,7 @@ static int rkvdec_devfreq_init(struct mpp_dev *mpp)
 
 	/* power simplle init */
 	ret = power_model_simple_init(mpp);
-	if (!ret && dec->devfreq) {
+	if (!ret) {
 		dec->devfreq_cooling =
 			of_devfreq_cooling_register_power(mpp->dev->of_node,
 							  dec->devfreq,
@@ -2018,11 +2019,11 @@ static int rkvdec_probe(struct platform_device *pdev)
 static int rkvdec_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct rkvdec_dev *dec = platform_get_drvdata(pdev);
+	struct mpp_dev *mpp = platform_get_drvdata(pdev);
 
 	dev_info(dev, "remove device\n");
-	mpp_dev_remove(&dec->mpp);
-	rkvdec_procfs_remove(&dec->mpp);
+	mpp_dev_remove(mpp);
+	rkvdec_procfs_remove(mpp);
 
 	return 0;
 }

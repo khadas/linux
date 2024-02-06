@@ -1168,7 +1168,7 @@ static int av1dec_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mpp = &dec->mpp;
-	platform_set_drvdata(pdev, dec);
+	platform_set_drvdata(pdev, mpp);
 
 	if (pdev->dev.of_node) {
 		match = of_match_node(mpp_av1dec_dt_match, pdev->dev.of_node);
@@ -1220,39 +1220,19 @@ failed_get_irq:
 static int av1dec_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct av1dec_dev *dec = platform_get_drvdata(pdev);
+	struct mpp_dev *mpp = platform_get_drvdata(pdev);
 
 	dev_info(dev, "remove device\n");
-	mpp_dev_remove(&dec->mpp);
-	av1dec_procfs_remove(&dec->mpp);
+	mpp_dev_remove(mpp);
+	av1dec_procfs_remove(mpp);
 
 	return 0;
-}
-
-static void av1dec_shutdown(struct platform_device *pdev)
-{
-	int ret;
-	int val;
-	struct device *dev = &pdev->dev;
-	struct av1dec_dev *dec = platform_get_drvdata(pdev);
-	struct mpp_dev *mpp = &dec->mpp;
-
-	dev_info(dev, "shutdown device\n");
-
-	atomic_inc(&mpp->srv->shutdown_request);
-	ret = readx_poll_timeout(atomic_read,
-				 &mpp->task_count,
-				 val, val == 0, 1000, 200000);
-	if (ret == -ETIMEDOUT)
-		dev_err(dev, "wait total running time out\n");
-
-	dev_info(dev, "shutdown success\n");
 }
 
 struct platform_driver rockchip_av1dec_driver = {
 	.probe = av1dec_probe,
 	.remove = av1dec_remove,
-	.shutdown = av1dec_shutdown,
+	.shutdown = mpp_dev_shutdown,
 	.driver = {
 		.name = AV1DEC_DRIVER_NAME,
 		.of_match_table = of_match_ptr(mpp_av1dec_dt_match),
