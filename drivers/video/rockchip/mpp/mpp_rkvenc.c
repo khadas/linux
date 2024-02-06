@@ -850,8 +850,8 @@ static int rkvenc_devfreq_target(struct device *dev,
 	struct dev_pm_opp *opp;
 	unsigned long target_volt, target_freq;
 	int ret = 0;
-
-	struct rkvenc_dev *enc = dev_get_drvdata(dev);
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
+	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 	struct devfreq *devfreq = enc->devfreq;
 	struct devfreq_dev_status *stat = &devfreq->last_status;
 	unsigned long old_clk_rate = stat->current_frequency;
@@ -913,7 +913,8 @@ static int rkvenc_devfreq_get_dev_status(struct device *dev,
 static int rkvenc_devfreq_get_cur_freq(struct device *dev,
 				       unsigned long *freq)
 {
-	struct rkvenc_dev *enc = dev_get_drvdata(dev);
+	struct mpp_dev *mpp = dev_get_drvdata(dev);
+	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 
 	*freq = enc->core_last_rate_hz;
 
