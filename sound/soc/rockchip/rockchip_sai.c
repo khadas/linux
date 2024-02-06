@@ -11,6 +11,7 @@
 #include <linux/of_gpio.h>
 #include <linux/of_device.h>
 #include <linux/clk.h>
+#include <linux/clk/rockchip.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
@@ -24,6 +25,8 @@
 
 #define DRV_NAME		"rockchip-sai"
 
+#define CLK_PPM_MIN		(-1000)
+#define CLK_PPM_MAX		(1000)
 #define CLK_SHIFT_RATE_HZ_MAX	5
 #define FW_RATIO_MAX		8
 #define FW_RATIO_MIN		1
@@ -46,6 +49,7 @@ struct rk_sai_dev {
 	struct device *dev;
 	struct clk *hclk;
 	struct clk *mclk;
+	struct clk *mclk_root;
 	struct regmap *regmap;
 	struct reset_control *rst_h;
 	struct reset_control *rst_m;
@@ -58,14 +62,18 @@ struct rk_sai_dev {
 	unsigned int sdi[MAX_LANES];
 	unsigned int sdo[MAX_LANES];
 	unsigned int quirks;
+	unsigned int mclk_root_rate;
+	unsigned int mclk_root_initial_rate;
 	unsigned int version;
 	enum fpw_mode fpw;
 	int  fw_ratio;
+	int  clk_ppm;
 	bool has_capture;
 	bool has_playback;
 	bool is_master_mode;
 	bool is_tdm;
 	bool is_clk_auto;
+	bool is_mclk_calibrate;
 };
 
 static const struct sai_of_quirks {
@@ -717,6 +725,72 @@ static int rockchip_sai_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
+static int rockchip_sai_set_mclk_root_ppm(struct rk_sai_dev *sai, int ppm)
+{
+	unsigned long rate, rate_target;
+	int delta, ret;
+
+	if (ppm == sai->clk_ppm)
+		return 0;
+
+	rate = sai->mclk_root_rate;
+
+	ret = rockchip_pll_clk_compensation(sai->mclk_root, ppm);
+	if (ret != -ENOSYS)
+		goto out;
+
+	delta = (ppm < 0) ? -1 : 1;
+	delta *= (int)div64_u64((uint64_t)rate * (uint64_t)abs(ppm) + 500000, 1000000);
+
+	rate_target = rate + delta;
+
+	if (!rate_target)
+		return -EINVAL;
+
+	ret = clk_set_rate(sai->mclk_root, rate_target);
+	if (ret)
+		return ret;
+out:
+	if (!ret)
+		sai->clk_ppm = ppm;
+
+	return ret;
+}
+
+static int rockchip_sai_init_mclk_root_rate(struct rk_sai_dev *sai,
+					    unsigned int mclk_rate)
+{
+	unsigned int mclk_root_rate, div, delta;
+	uint64_t ppm;
+	int ret;
+
+	if (!sai->is_mclk_calibrate)
+		return 0;
+
+	ret = rockchip_sai_set_mclk_root_ppm(sai, 0);
+	if (ret)
+		return ret;
+
+	mclk_root_rate = sai->mclk_root_rate;
+	delta = abs(mclk_root_rate % mclk_rate - mclk_rate);
+	ppm = div64_u64((uint64_t)delta * 1000000, (uint64_t)mclk_root_rate);
+
+	if (ppm) {
+		div = DIV_ROUND_CLOSEST(sai->mclk_root_initial_rate, mclk_rate);
+		if (!div)
+			return -EINVAL;
+
+		mclk_root_rate = mclk_rate * round_up(div, 2);
+		ret = clk_set_rate(sai->mclk_root, mclk_root_rate);
+		if (ret)
+			return ret;
+
+		sai->mclk_root_rate = clk_get_rate(sai->mclk_root);
+	}
+
+	return 0;
+}
+
 static int rockchip_sai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 				   unsigned int freq, int dir)
 {
@@ -726,12 +800,63 @@ static int rockchip_sai_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	if (!freq || sai->is_clk_auto)
 		return 0;
 
+	ret = rockchip_sai_init_mclk_root_rate(sai, freq);
+	if (ret) {
+		dev_err(sai->dev, "Failed to init mclk_root rate %d\n", ret);
+		return ret;
+	}
+
 	ret = clk_set_rate(sai->mclk, freq);
 	if (ret)
 		dev_err(sai->dev, "Failed to set mclk %d\n", ret);
 
 	return ret;
 }
+
+static int rockchip_sai_clk_compensation_info(struct snd_kcontrol *kcontrol,
+					      struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = CLK_PPM_MIN;
+	uinfo->value.integer.max = CLK_PPM_MAX;
+	uinfo->value.integer.step = 1;
+
+	return 0;
+}
+
+static int rockchip_sai_clk_compensation_get(struct snd_kcontrol *kcontrol,
+					     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(compnt);
+
+	ucontrol->value.integer.value[0] = sai->clk_ppm;
+
+	return 0;
+}
+
+static int rockchip_sai_clk_compensation_put(struct snd_kcontrol *kcontrol,
+					     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *compnt = snd_soc_kcontrol_component(kcontrol);
+	struct rk_sai_dev *sai = snd_soc_component_get_drvdata(compnt);
+	int ppm = ucontrol->value.integer.value[0];
+
+	if ((ucontrol->value.integer.value[0] < CLK_PPM_MIN) ||
+	    (ucontrol->value.integer.value[0] > CLK_PPM_MAX))
+		return -EINVAL;
+
+	return rockchip_sai_set_mclk_root_ppm(sai, ppm);
+}
+
+static struct snd_kcontrol_new rockchip_sai_compensation_control = {
+	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+	.name = "PCM Clk Compensation In PPM",
+	.info = rockchip_sai_clk_compensation_info,
+	.get = rockchip_sai_clk_compensation_get,
+	.put = rockchip_sai_clk_compensation_put,
+};
 
 static int rockchip_sai_dai_probe(struct snd_soc_dai *dai)
 {
@@ -740,6 +865,11 @@ static int rockchip_sai_dai_probe(struct snd_soc_dai *dai)
 	snd_soc_dai_init_dma_data(dai,
 		sai->has_playback ? &sai->playback_dma_data : NULL,
 		sai->has_capture  ? &sai->capture_dma_data  : NULL);
+
+	if (sai->is_mclk_calibrate)
+		snd_soc_add_component_controls(dai->component,
+					       &rockchip_sai_compensation_control,
+					       1);
 
 	return 0;
 }
@@ -1586,6 +1716,21 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Failed to request irq %d\n", irq);
 			return ret;
 		}
+	}
+
+	sai->is_mclk_calibrate =
+		device_property_read_bool(&pdev->dev, "rockchip,mclk-calibrate");
+	if (sai->is_mclk_calibrate) {
+		sai->mclk_root = devm_clk_get(&pdev->dev, "mclk_root");
+		if (IS_ERR(sai->mclk_root)) {
+			dev_err(&pdev->dev, "Should assign 'mclk_root' in DT\n");
+			return PTR_ERR(sai->mclk_root);
+		}
+
+		sai->mclk_root_initial_rate = clk_get_rate(sai->mclk_root);
+		sai->mclk_root_rate = sai->mclk_root_initial_rate;
+
+		dev_info(&pdev->dev, "Have mclk compensation feature\n");
 	}
 
 	sai->mclk = devm_clk_get(&pdev->dev, "mclk");
