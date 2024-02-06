@@ -55,8 +55,8 @@
 		panel-unprepare-delay-ms = <10>;
 		panel-disable-delay-ms = <60>;
 
-		rk628,rgb-in;
-		rk628-dsi {
+		rk628-rgb-in;
+		rk628-dsi-out {
 			//rockchip,dual-channel;
 			dsi,eotp;
 			dsi,video-mode;

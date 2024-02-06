@@ -23,8 +23,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&rk628_reset &refclk_pins>;
 
-		rk628,rgb-in;
-		rk628,hdmi-out;
+		rk628-rgb-in;
+		rk628-hdmi-out;
 		status = "okay";
 
 		port {

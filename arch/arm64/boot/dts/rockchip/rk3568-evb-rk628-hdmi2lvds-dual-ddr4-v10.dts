@@ -25,8 +25,8 @@
 		panel-unprepare-delay-ms = <10>;
 		panel-disable-delay-ms = <60>;
 
-		rk628,hdmi-in;
-		rk628-lvds {
+		rk628-hdmi-in;
+		rk628-lvds-out {
 			/* "jeida_18","vesa_24","vesa_18" */
 			bus-format = "vesa_24";
 

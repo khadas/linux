@@ -22,8 +22,8 @@
 	panel-disable-delay-ms = <240>;
 	panel-init-delay-ms = <240>;
 
-	rk628,hdmi-in;
-	rk628-dsi {
+	rk628-hdmi-in;
+	rk628-dsi-out {
 		rockchip,lane-mbps = <1100>;
 		rockchip,dual-channel;
 		dsi,eotp;
