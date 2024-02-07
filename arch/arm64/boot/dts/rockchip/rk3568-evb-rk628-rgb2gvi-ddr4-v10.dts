@@ -62,8 +62,8 @@
 		clocks = <&pmucru CLK_WIFI>;
 		clock-names = "soc_24M";
 
-		rk628,rgb-in;
-		rk628-gvi {
+		rk628-rgb-in;
+		rk628-gvi-out {
 			/* "rgb666"
 			 * "rgb888"
 			 * "rgb101010"

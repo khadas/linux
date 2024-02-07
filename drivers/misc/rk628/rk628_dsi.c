@@ -830,7 +830,10 @@ static u32 rk628_dsi_get_lane_rate(const struct rk628_dsi *dsi)
 	u32 max_lane_rate = 1500;
 	u8 bpp, lanes;
 
-	dsi_np = of_find_node_by_name(dsi->rk628->dev->of_node, "rk628-dsi");
+	dsi_np = of_find_node_by_name(dsi->rk628->dev->of_node, "rk628-dsi-out");
+	if (!dsi_np)
+		dsi_np = of_find_node_by_name(dsi->rk628->dev->of_node,
+					      "rk628-dsi");
 	if (dsi_np && !of_property_read_u32(dsi_np, "rockchip,lane-mbps", &value)) {
 		lane_rate = value;
 	} else {
