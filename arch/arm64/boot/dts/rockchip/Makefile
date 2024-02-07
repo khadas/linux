@@ -240,6 +240,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-evb1-v10-tp2815-ahd2csi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-test1-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-test1-v10-eink.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-test1-v10-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-test1-v10-sii9022-bt1120-to-hdmi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-test2-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-test2-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576-iotest-v10.dtb
