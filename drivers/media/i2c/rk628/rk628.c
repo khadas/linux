@@ -429,6 +429,62 @@ static void rk628_debugfs_register_create(struct rk628 *rk628)
 	rk628_hdmirx_phy_debugfs_register_create(rk628, dir);
 }
 
+static int rk628_dbg_en_show(struct seq_file *s, void *v)
+{
+	struct rk628 *rk628 = s->private;
+
+	seq_printf(s, "%d\n", rk628->dbg_en);
+
+	return 0;
+}
+
+static ssize_t rk628_dbg_en_write(struct file *file, const char __user *buf,
+				  size_t count, loff_t *ppos)
+{
+	struct rk628 *rk628 = file->f_path.dentry->d_inode->i_private;
+	char kbuf[25];
+	int enable;
+
+	if (!rk628)
+		return -EINVAL;
+
+	if (count >= sizeof(kbuf))
+		return -ENOSPC;
+
+	if (copy_from_user(kbuf, buf, count))
+		return -EFAULT;
+
+	kbuf[count] = '\0';
+
+	if (kstrtoint(kbuf, 10, &enable))
+		return -EINVAL;
+
+	rk628->dbg_en = enable;
+
+	return count;
+}
+
+static int rk628_dbg_en_open(struct inode *inode, struct file *file)
+{
+	struct rk628 *rk628 = inode->i_private;
+
+	return single_open(file, rk628_dbg_en_show, rk628);
+}
+
+static const struct file_operations rk628_dbg_en_fops = {
+	.owner          = THIS_MODULE,
+	.open           = rk628_dbg_en_open,
+	.read           = seq_read,
+	.write          = rk628_dbg_en_write,
+	.llseek         = seq_lseek,
+	.release        = single_release,
+};
+
+static void rk628_dbg_en_node(struct rk628 *rk628)
+{
+	debugfs_create_file("debug", 0600, rk628->debug_dir, rk628, &rk628_dbg_en_fops);
+}
+
 void rk628_debugfs_create(struct rk628 *rk628)
 {
 	rk628->debug_dir = debugfs_create_dir(dev_name(rk628->dev), debugfs_lookup("rk628", NULL));
@@ -436,6 +492,7 @@ void rk628_debugfs_create(struct rk628 *rk628)
 		return;
 
 	rk628_debugfs_register_create(rk628);
+	rk628_dbg_en_node(rk628);
 }
 EXPORT_SYMBOL(rk628_debugfs_create);
 

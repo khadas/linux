@@ -122,6 +122,7 @@
 #define HDMI_RX_HDCP_AN0		(HDMI_RX_BASE + 0x00f0)
 #define HDMI_RX_HDCP_STS		(HDMI_RX_BASE + 0x00fc)
 #define HDCP_ENC_STATE			BIT(9)
+#define HDCP_AUTH_START			BIT(8)
 #define HDMI_RX_MD_HCTRL1		(HDMI_RX_BASE + 0x0140)
 #define HACT_PIX_ITH(x)			UPDATE(x, 10, 8)
 #define HACT_PIX_SRC(x)			UPDATE(x, 5, 5)
@@ -476,6 +477,8 @@ struct hdcp_keys {
 struct rk628_hdcp {
 	char *seeds;
 	struct hdcp_keys *keys;
+	struct rk628 *rk628;
+	int enable;
 };
 
 struct rk628_hdmirx_cec {
@@ -535,4 +538,5 @@ void rk628_hdmirx_cec_hpd(struct rk628_hdmirx_cec *cec, bool en);
 void rk628_hdmirx_cec_state_reconfiguration(struct rk628 *rk628,
 					    struct rk628_hdmirx_cec *cec);
 void rk628_hdmirx_phy_debugfs_register_create(struct rk628 *rk628, struct dentry *dir);
+void rk628_hdmirx_debugfs_create(struct rk628 *rk628, struct rk628_hdcp *hdcp);
 #endif

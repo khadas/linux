@@ -499,7 +499,7 @@ static void rk628_csi_delayed_work_enable_hotplug(struct work_struct *work)
 	if (plugin) {
 		rk628_csi_enable_interrupts(sd, false);
 		rk628_hdmirx_audio_setup(csi->audio_info);
-		rk628_hdmirx_set_hdcp(csi->rk628, &csi->hdcp, csi->enable_hdcp);
+		rk628_hdmirx_set_hdcp(csi->rk628, &csi->hdcp, csi->hdcp.enable);
 		rk628_hdmirx_controller_setup(csi->rk628);
 		rk628_hdmirx_hpd_ctrl(sd, true);
 		rk628_hdmirx_config_all(sd);
@@ -570,7 +570,7 @@ static void rk628_delayed_work_res_change(struct work_struct *work)
 				rk628_hdmirx_inno_phy_power_off(sd);
 				rk628_hdmirx_controller_reset(csi->rk628);
 				rk628_hdmirx_audio_setup(csi->audio_info);
-				rk628_hdmirx_set_hdcp(csi->rk628, &csi->hdcp, csi->enable_hdcp);
+				rk628_hdmirx_set_hdcp(csi->rk628, &csi->hdcp, csi->hdcp.enable);
 				rk628_hdmirx_controller_setup(csi->rk628);
 				rk628_hdmirx_hpd_ctrl(sd, true);
 				rk628_hdmirx_config_all(sd);
@@ -2933,6 +2933,7 @@ static int rk628_csi_probe_of(struct rk628_csi *csi)
 
 	csi->csi_lanes_in_use = endpoint.bus.mipi_csi2.num_data_lanes;
 	csi->enable_hdcp = hdcp1x_enable;
+	csi->hdcp.enable = hdcp1x_enable;
 	csi->i2s_enable_default = i2s_enable_default;
 	csi->scaler_en = scaler_en;
 	if (csi->scaler_en)
@@ -3280,6 +3281,7 @@ static int rk628_csi_probe(struct i2c_client *client,
 	}
 	csi->rk628->dual_mipi = false;
 	rk628_debugfs_create(csi->rk628);
+	rk628_hdmirx_debugfs_create(rk628, &csi->hdcp);
 
 	if (csi->cec_enable)
 		csi->cec = rk628_hdmirx_cec_register(rk628);
