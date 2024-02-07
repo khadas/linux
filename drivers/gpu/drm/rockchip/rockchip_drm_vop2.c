@@ -11299,6 +11299,12 @@ static int vop2_crtc_create_post_csc_property(struct vop2 *vop2, struct drm_crtc
 #define RK3566_MIRROR_PLANE_MASK (BIT(ROCKCHIP_VOP2_CLUSTER1) | BIT(ROCKCHIP_VOP2_ESMART1) | \
 				  BIT(ROCKCHIP_VOP2_SMART1))
 
+static inline bool vop2_win_can_link_to_vp(struct vop2_video_port *vp, struct vop2_win *win)
+{
+	return (!win->possible_crtcs ||
+		(win->possible_crtcs && (win->possible_crtcs & BIT(vp->id))));
+}
+
 /*
  * Returns:
  * Registered crtc number on success, negative error code on failure.
@@ -11414,14 +11420,17 @@ static int vop2_create_crtc(struct vop2 *vop2)
 				plane_mask &= ~RK3566_MIRROR_PLANE_MASK;
 			}
 		}
+		find_primary_plane = false;
 
 		if (vp->primary_plane_phy_id >= 0) {
 			win = vop2_find_win_by_phys_id(vop2, vp->primary_plane_phy_id);
-			if (win) {
+			if (win && vop2_win_can_link_to_vp(vp, win)) {
 				find_primary_plane = true;
 				win->type = DRM_PLANE_TYPE_PRIMARY;
 			}
-		} else {
+		}
+
+		if (!find_primary_plane) {
 			j = 0;
 			while (j < vop2->registered_num_wins) {
 				be_used_for_primary_plane = false;
@@ -11432,6 +11441,9 @@ static int vop2_create_crtc(struct vop2 *vop2)
 					continue;
 
 				if (win->type != DRM_PLANE_TYPE_PRIMARY)
+					continue;
+
+				if (!vop2_win_can_link_to_vp(vp, win))
 					continue;
 
 				for (k = 0; k < vop2_data->nr_vps; k++) {

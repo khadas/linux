@@ -939,6 +939,7 @@ struct rkcif_device {
 	int				sensor_state;
 	u32				intr_mask;
 	struct delayed_work		work_deal_err;
+	u32				other_intstat[RKMODULE_MULTI_DEV_NUM];
 };
 
 extern struct platform_driver rkcif_plat_drv;

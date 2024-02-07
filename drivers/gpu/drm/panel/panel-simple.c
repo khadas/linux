@@ -218,6 +218,8 @@ struct panel_simple {
 
 	struct drm_dsc_picture_parameter_set *pps;
 	enum drm_panel_orientation orientation;
+
+	bool loader_protect;
 };
 
 static inline void panel_simple_msleep(unsigned int msecs)
@@ -536,6 +538,8 @@ int panel_simple_loader_protect(struct drm_panel *panel)
 	struct panel_simple *p = to_panel_simple(panel);
 	int err;
 
+	p->loader_protect = true;
+
 	err = pm_runtime_get_sync(panel->dev);
 	if (err < 0) {
 		pm_runtime_put_autosuspend(panel->dev);
@@ -567,14 +571,24 @@ static int panel_simple_disable(struct drm_panel *panel)
 static int panel_simple_suspend(struct device *dev)
 {
 	struct panel_simple *p = dev_get_drvdata(dev);
+	struct drm_panel *panel = &p->base;
+
+	if (p->desc->exit_seq) {
+		if (p->desc->cmd_type == CMD_TYPE_SPI) {
+			if (panel_simple_xfer_spi_cmd_seq(p, p->desc->exit_seq)) {
+				dev_err(panel->dev, "failed to send exit spi cmds seq\n");
+				return -EINVAL;
+			}
+		} else {
+			if (p->dsi)
+				panel_simple_xfer_dsi_cmd_seq(p, p->desc->exit_seq);
+		}
+	}
 
 	gpiod_set_value_cansleep(p->reset_gpio, 1);
 	gpiod_set_value_cansleep(p->enable_gpio, 0);
 
 	panel_simple_regulator_disable(p);
-
-	if (p->desc->delay.unprepare)
-		panel_simple_msleep(p->desc->delay.unprepare);
 
 	p->unprepared_time = ktime_get_boottime();
 
@@ -593,18 +607,6 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 	if (!p->prepared)
 		return 0;
 
-	if (p->desc->exit_seq) {
-		if (p->desc->cmd_type == CMD_TYPE_SPI) {
-			if (panel_simple_xfer_spi_cmd_seq(p, p->desc->exit_seq)) {
-				dev_err(panel->dev, "failed to send exit spi cmds seq\n");
-				return -EINVAL;
-			}
-		} else {
-			if (p->dsi)
-				panel_simple_xfer_dsi_cmd_seq(p, p->desc->exit_seq);
-		}
-	}
-
 	pm_runtime_mark_last_busy(panel->dev);
 	ret = pm_runtime_put_autosuspend(panel->dev);
 	if (ret < 0)
@@ -617,6 +619,7 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 static int panel_simple_resume(struct device *dev)
 {
 	struct panel_simple *p = dev_get_drvdata(dev);
+	struct drm_panel *panel = &p->base;
 	int err;
 
 	panel_simple_wait(p->unprepared_time, p->desc->delay.unprepare);
@@ -634,22 +637,9 @@ static int panel_simple_resume(struct device *dev)
 
 	p->prepared_time = ktime_get_boottime();
 
-	return 0;
-}
-
-static int panel_simple_prepare(struct drm_panel *panel)
-{
-	struct panel_simple *p = to_panel_simple(panel);
-	int ret;
-
-	/* Preparing when already prepared is a no-op */
-	if (p->prepared)
+	if (p->loader_protect) {
+		p->loader_protect = false;
 		return 0;
-
-	ret = pm_runtime_get_sync(panel->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(panel->dev);
-		return ret;
 	}
 
 	gpiod_set_value_cansleep(p->reset_gpio, 1);
@@ -672,6 +662,24 @@ static int panel_simple_prepare(struct drm_panel *panel)
 			if (p->dsi)
 				panel_simple_xfer_dsi_cmd_seq(p, p->desc->init_seq);
 		}
+	}
+
+	return 0;
+}
+
+static int panel_simple_prepare(struct drm_panel *panel)
+{
+	struct panel_simple *p = to_panel_simple(panel);
+	int ret;
+
+	/* Preparing when already prepared is a no-op */
+	if (p->prepared)
+		return 0;
+
+	ret = pm_runtime_get_sync(panel->dev);
+	if (ret < 0) {
+		pm_runtime_put_autosuspend(panel->dev);
+		return ret;
 	}
 
 	p->prepared = true;
