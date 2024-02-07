@@ -406,7 +406,7 @@ static void rk628_bt1120_delayed_work_enable_hotplug(struct work_struct *work)
 		rk628_set_io_func_to_vop(bt1120->rk628);
 		rk628_bt1120_enable_interrupts(sd, false);
 		rk628_hdmirx_audio_setup(bt1120->audio_info);
-		rk628_hdmirx_set_hdcp(bt1120->rk628, &bt1120->hdcp, bt1120->enable_hdcp);
+		rk628_hdmirx_set_hdcp(bt1120->rk628, &bt1120->hdcp, bt1120->hdcp.enable);
 		rk628_hdmirx_controller_setup(bt1120->rk628);
 		rk628_hdmirx_hpd_ctrl(sd, true);
 		rk628_hdmirx_config_all(sd);
@@ -1852,6 +1852,7 @@ static int rk628_bt1120_probe_of(struct rk628_bt1120 *bt1120)
 	}
 
 	bt1120->enable_hdcp = hdcp1x_enable;
+	bt1120->hdcp.enable = hdcp1x_enable;
 	bt1120->i2s_enable_default = i2s_enable_default;
 	bt1120->scaler_en = scaler_en;
 	if (bt1120->scaler_en)
@@ -1860,6 +1861,9 @@ static int rk628_bt1120_probe_of(struct rk628_bt1120 *bt1120)
 	bt1120->nosignal = true;
 	bt1120->stream_state = 0;
 	bt1120->avi_rcv_rdy = false;
+
+	rk628_debugfs_create(bt1120->rk628);
+	rk628_hdmirx_debugfs_create(bt1120->rk628, &bt1120->hdcp);
 
 	ret = 0;
 
@@ -2085,6 +2089,7 @@ static void rk628_bt1120_remove(struct i2c_client *client)
 {
 	struct rk628_bt1120 *bt1120 = i2c_get_clientdata(client);
 
+	debugfs_remove_recursive(bt1120->rk628->debug_dir);
 	if (!bt1120->hdmirx_irq) {
 		del_timer_sync(&bt1120->timer);
 		flush_work(&bt1120->work_i2c_poll);
