@@ -200,6 +200,7 @@ struct pq_ctrl_s dv_cfg_bypass;
 #define RECOVERY_REG_SR_MAX 234
 #define RECOVERY_REG_LC_MAX 13
 #define RECOVERY_REG_VE_MAX 8
+#define RECOVERY_REG_MTX_MAX 14
 
 bool resume_mtx_flag;
 bool suspend_drv_flag;
@@ -9018,27 +9019,48 @@ void suspend_ve(void)
 {
 	int i;
 	unsigned int reg;
+	unsigned int length = 0;
+	unsigned int mtx_start_idx = 0;
 
 	if (!pq_cfg.black_ext_en &&
-		!pq_cfg.chroma_cor_en)
-		return;
+		!pq_cfg.chroma_cor_en) {
+		length = RECOVERY_REG_MTX_MAX * 2;
+		mtx_start_idx = 0;
+	} else {
+		length = RECOVERY_REG_MTX_MAX * 2 + RECOVERY_REG_VE_MAX;
+		mtx_start_idx = RECOVERY_REG_VE_MAX;
+	}
 
-	reg_ve_list =
-		kcalloc(RECOVERY_REG_VE_MAX, sizeof(struct am_reg_s), GFP_KERNEL);
+	reg_ve_list = kcalloc(length, sizeof(struct am_reg_s), GFP_KERNEL);
 	if (!reg_ve_list)
 		return;
 
-	reg = VPP_BLACKEXT_CTRL;
-	reg_ve_list[0].addr = reg;
-	reg = VPP_BLUE_STRETCH_1;
-	for (i = 1; i < 4; i++)
-		reg_ve_list[i].addr = reg + i - 1;
+	if (pq_cfg.black_ext_en || pq_cfg.chroma_cor_en) {
+		reg = VPP_BLACKEXT_CTRL;
+		reg_ve_list[0].addr = reg;
+		reg = VPP_BLUE_STRETCH_1;
+		for (i = 1; i < 4; i++)
+			reg_ve_list[i].addr = reg + i - 1;
 
-	reg = VPP_CCORING_CTRL;
-	for (i = 4; i < RECOVERY_REG_VE_MAX; i++)
-		reg_ve_list[i].addr = reg + i - 4;
+		reg = VPP_CCORING_CTRL;
+		for (i = 4; i < RECOVERY_REG_VE_MAX; i++)
+			reg_ve_list[i].addr = reg + i - 4;
+	}
 
-	for (i = 0; i < RECOVERY_REG_VE_MAX; i++) {
+	reg = OSD1_HDR2_MATRIXI_COEF00_01;
+	for (i = mtx_start_idx; i < mtx_start_idx + 12; i++)
+		reg_ve_list[i].addr = reg + i - mtx_start_idx;
+
+	reg = OSD1_HDR2_MATRIXI_CLIP;
+	reg_ve_list[mtx_start_idx + 12].addr = reg;
+	reg = OSD1_HDR2_MATRIXI_EN_CTRL;
+	reg_ve_list[mtx_start_idx + 13].addr = reg;
+
+	reg = VPP_POST2_MATRIX_COEF00_01;
+	for (i = mtx_start_idx + 14; i < mtx_start_idx + 28; i++)
+		reg_ve_list[i].addr = reg + i - 14 - mtx_start_idx;
+
+	for (i = 0; i < length; i++) {
 		reg_ve_list[i].type = REG_TYPE_VCBUS;
 		reg_ve_list[i].mask = 0xffffffff;
 		reg = reg_ve_list[i].addr;
@@ -9262,13 +9284,17 @@ void suspend_lc(void)
 
 void resume_ve(void)
 {
+	unsigned int length = 0;
+
 	if (!pq_cfg.black_ext_en &&
 		!pq_cfg.chroma_cor_en)
-		return;
+		length = RECOVERY_REG_MTX_MAX * 2;
+	else
+		length = RECOVERY_REG_MTX_MAX * 2 + RECOVERY_REG_VE_MAX;
 
-	amregs_store.length = RECOVERY_REG_VE_MAX;
+	amregs_store.length = length;
 	if (!(memcpy(amregs_store.am_reg, reg_ve_list,
-		RECOVERY_REG_VE_MAX * sizeof(struct am_reg_s))))
+		length * sizeof(struct am_reg_s))))
 		return;
 
 	cm_load_reg(&amregs_store);
