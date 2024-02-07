@@ -24,6 +24,7 @@
 #include <linux/kallsyms.h>
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
+#include <linux/sched/clock.h>
 #include <linux/amlogic/page_trace.h>
 #include "ddr_port.h"
 #include "dmc_monitor.h"
@@ -44,8 +45,8 @@
 #define DMC_VIO_ADDR2		((0x00bb  << 2))
 #define DMC_VIO_ADDR3		((0x00bc  << 2))
 
-#define PROT1_VIOLATION		BIT(23)
-#define PROT0_VIOLATION		BIT(22)
+#define DMC_VIO_PROT0		BIT(22)
+#define DMC_VIO_PROT1		BIT(23)
 
 static size_t c1_dmc_dump_reg(char *buf)
 {
@@ -80,56 +81,74 @@ static size_t c1_dmc_dump_reg(char *buf)
 	return sz;
 }
 
-static void check_violation(struct dmc_monitor *mon, void *data)
+static int check_violation(struct dmc_monitor *mon, void *data)
 {
-	char rw = 'n';
-	int port, subport;
+	int ret = -1;
 	unsigned long irqreg;
-	unsigned long addr = 0, status = 0;
-
-	char title[10];
+	struct page *page;
+	struct page_trace *trace;
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 
 	irqreg = dmc_prot_rw(NULL, DMC_SEC_STATUS, 0, DMC_READ);
 	if (irqreg & DMC_WRITE_VIOLATION) {
-		status = dmc_prot_rw(NULL, DMC_VIO_ADDR1, 0, DMC_READ);
-		addr = dmc_prot_rw(NULL, DMC_VIO_ADDR0, 0, DMC_READ);
-		rw = 'w';
+		mon_comm->time = sched_clock();
+		mon_comm->status = dmc_prot_rw(NULL, DMC_VIO_ADDR1, 0, DMC_READ);
+		mon_comm->addr = dmc_prot_rw(NULL, DMC_VIO_ADDR0, 0, DMC_READ);
+		mon_comm->rw = 'w';
+		page = phys_to_page(mon_comm->addr);
+		trace = find_page_base(page);
+		if (trace)
+			mon_comm->trace = *trace;
+		else
+			mon_comm->trace.ip_data = IP_INVALID;
+		mon_comm->page_flags = page->flags & PAGEFLAGS_MASK;
+		ret = 0;
 	} else if (irqreg & DMC_READ_VIOLATION) {
-		status = dmc_prot_rw(NULL, DMC_VIO_ADDR3 + (1 << 2), 0, DMC_READ);
-		addr = dmc_prot_rw(NULL, DMC_VIO_ADDR2, 0, DMC_READ);
-		rw = 'r';
+		mon_comm->time = sched_clock();
+		mon_comm->status = dmc_prot_rw(NULL, DMC_VIO_ADDR3 + (1 << 2), 0, DMC_READ);
+		mon_comm->addr = dmc_prot_rw(NULL, DMC_VIO_ADDR2, 0, DMC_READ);
+		mon_comm->rw = 'r';
+		page = phys_to_page(mon_comm->addr);
+		trace = find_page_base(page);
+		if (trace)
+			mon_comm->trace = *trace;
+		else
+			mon_comm->trace.ip_data = IP_INVALID;
+		mon_comm->page_flags = page->flags & PAGEFLAGS_MASK;
+		ret = 0;
 	}
+	return ret;
+}
 
-	/* clear irq */
-	dmc_prot_rw(NULL, DMC_SEC_STATUS, irqreg, DMC_WRITE);
+static int c1_dmc_mon_irq(struct dmc_monitor *mon, void *data, char clear)
+{
+	if (clear)
+		/* clear irq */
+		dmc_prot_rw(NULL, DMC_SEC_STATUS, 0x3, DMC_WRITE);
+	else
+		return check_violation(mon, data);
 
-	if (!(status & (PROT0_VIOLATION | PROT1_VIOLATION)))
-		return;
+	return 0;
+}
 
-	if (addr > mon->addr_end)
-		return;
+static void c1_dmc_vio_to_port(void *data, unsigned long *vio_bit)
+{
+	int port = 0, subport = 0;
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 
-	port = status & 0x1f;
-	subport = (status >> 9) & 0x7;
+	*vio_bit = DMC_VIO_PROT1 | DMC_VIO_PROT0;
+	port = mon_comm->status & 0x1f;
+	subport = (mon_comm->status >> 9) & 0x7;
 	if (port == 16)
 		port = subport + 9;
 
-	if (dmc_violation_ignore(title, addr, status | PROT0_VIOLATION | PROT1_VIOLATION,
-				 port, subport, rw))
-		return;
+	mon_comm->port.name = to_ports(port);
+	if (!mon_comm->port.name)
+		sprintf(mon_comm->port.id, "%d", port);
 
-#if IS_ENABLED(CONFIG_EVENT_TRACING)
-	if (mon->debug & DMC_DEBUG_TRACE) {
-		show_violation_mem_trace_event(addr, status, port, subport, rw);
-		return;
-	}
-#endif
-	show_violation_mem_printk(title, addr, status, port, subport, rw);
-}
-
-static void c1_dmc_mon_irq(struct dmc_monitor *mon, void *data)
-{
-	check_violation(mon, data);
+	mon_comm->sub.name = to_sub_ports_name(port, subport, mon_comm->rw);
+	if (!mon_comm->sub.name)
+		sprintf(mon_comm->sub.id, "%d", subport);
 }
 
 static int c1_dmc_mon_set(struct dmc_monitor *mon)
@@ -239,9 +258,10 @@ static int c1_dmc_reg_control(char *input, char control, char *output)
 }
 
 struct dmc_mon_ops c1_dmc_mon_ops = {
-	.handle_irq = c1_dmc_mon_irq,
+	.handle_irq  = c1_dmc_mon_irq,
+	.vio_to_port = c1_dmc_vio_to_port,
 	.set_monitor = c1_dmc_mon_set,
-	.disable    = c1_dmc_mon_disable,
-	.dump_reg   = c1_dmc_dump_reg,
-	.reg_control   = c1_dmc_reg_control,
+	.disable     = c1_dmc_mon_disable,
+	.dump_reg    = c1_dmc_dump_reg,
+	.reg_control = c1_dmc_reg_control,
 };

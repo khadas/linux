@@ -24,25 +24,58 @@
 #include <linux/kallsyms.h>
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
-#include <linux/amlogic/page_trace.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/arm-smccc.h>
 #include <linux/highmem.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_reserved_mem.h>
 #include "dmc_monitor.h"
 #include "ddr_port.h"
 #include <linux/amlogic/gki_module.h>
+#include <asm/module.h>
+#include <linux/mmzone.h>
 #include <linux/amlogic/dmc_dev_access.h>
+#include <linux/sched/cputime.h>
+#include <linux/sched/clock.h>
+#include <linux/string.h>
 
 #define CREATE_TRACE_POINTS
 #include "dmc_trace.h"
 
+// #define DEBUG
+#define DMC_VERSION		"1.3"
+
+#define IRQ_CHECK		0
+#define IRQ_CLEAR		1
+
+#define DMC_RATELIMIT_BURST	30
+#define dmc_pr_crit(fmt, addr, val, status, port, subport, page_flags, buddy, slab, lru, trace, time, rw, title, rs)	\
+({															\
+	if (__ratelimit(rs))												\
+		pr_crit(fmt, addr, val, status, port, subport, page_flags, buddy, slab, lru, trace, time, rw, title);	\
+})
+
 struct dmc_monitor *dmc_mon;
-struct black_dev_list black_dev;
 
 static unsigned long init_dev_mask;
 static unsigned long init_start_addr;
 static unsigned long init_end_addr;
 static unsigned long init_dmc_debug;
+
+static bool dmc_reserved_flag;
+static int dmc_original_debug;
+
+/* irq thread enabled */
+static unsigned char init_dmc_irq_thread_en = 1;
+/* ns, irq check time, default is 5000000*/
+static unsigned long init_dmc_irq_check_ns = 5000000;
+/* default 5ms check once, if thread run over ratio(default 32/128), thread will be sleep */
+static unsigned char init_dmc_irq_ratio = 32;
+/* sleep time(us) when irq too much */
+static unsigned long init_dmc_irq_usleep = 500;
+/* thread irq recheck time */
+static unsigned long init_thread_recheck_ns;
 
 static int early_dmc_param(char *buf)
 {
@@ -50,10 +83,7 @@ static int early_dmc_param(char *buf)
 	/*
 	 * Patten:  dmc_monitor=[start_addr],[end_addr],[mask]
 	 * Example: dmc_monitor=0x00000000,0x20000000,0x7fce
-	 * config: bit 0 - exclude (t3/t7/p1/c3)
-	 *	   bit 1 - write;
-	 *	   bit 2 - read;
-	 *	   bit 3 - cma print;
+	 * debug: cat /sys/class/dmc_monitor/debug
 	 */
 	if (!buf)
 		return -EINVAL;
@@ -75,29 +105,89 @@ static int early_dmc_param(char *buf)
 }
 __setup("dmc_monitor=", early_dmc_param);
 
-static int early_dmc_dev_blacklist(char *buf)
+/* only used to dmc filter set on uboot cmdline */
+static char dmc_filter_early_buf[1024];
+static int early_dmc_filter(char *buf)
 {
-	const char c = ',';
-	int i = 0, off_s = 0, off_e = 0;
-
-	while (i < strlen(buf)) {
-		if (buf[i] == c) {
-			off_e = i;
-			memcpy(black_dev.device[black_dev.num++], buf + off_s, off_e - off_s);
-			off_s = off_e + 1;
-		}
-		i++;
-		if (black_dev.num >= 10)
-			black_dev.num = 0;
-	}
-	if (off_s < strlen(buf))
-		memcpy(black_dev.device[black_dev.num++], buf + off_s, strlen(buf) - off_s);
-
-	pr_info("dmc_dev_blacklist, buf:%s\n", buf);
+	/*
+	 * set dev name or symbol will be ignore print when access
+	 * Patten:  dmc_filter=[dev_name],[or symbol_name]
+	 * Example: dmc_monitor=USB,ETH,__dma_direct_alloc_pages
+	 * debug: cat /sys/class/dmc_monitor/filter
+	 */
+	snprintf(dmc_filter_early_buf, 1024, "%s", buf);
+	pr_info("dmc_filter, buf:%s\n", buf);
 
 	return 0;
 }
-__setup("dmc_dev_blacklist=", early_dmc_dev_blacklist);
+__setup("dmc_filter=", early_dmc_filter);
+
+static int early_dmc_irq_thread(char *buf)
+{
+	int ret;
+	unsigned char irq_thread_en = 0, irq_ratio = 0;
+	unsigned long dmc_irq_check_time = 0, dmc_irq_usleep = 0;
+	unsigned long thread_recheck_ns = 0;
+
+	ret = sscanf(buf, "%hhd,%ld,%hhd,%ld, %ld",
+		     &irq_thread_en, &dmc_irq_check_time, &irq_ratio,
+		     &dmc_irq_usleep, &thread_recheck_ns);
+	if (ret < 0)
+		return -EINVAL;
+
+	init_dmc_irq_thread_en = irq_thread_en;
+
+	if (dmc_irq_check_time)
+		init_dmc_irq_check_ns = dmc_irq_check_time;
+
+	if (irq_ratio)
+		init_dmc_irq_ratio = irq_ratio;
+
+	if (dmc_irq_usleep)
+		init_dmc_irq_usleep = dmc_irq_usleep;
+
+	if (thread_recheck_ns)
+		init_thread_recheck_ns = thread_recheck_ns;
+
+	pr_info("dmc_irq_thread, en:%d, check time:%ld, ratio:%d, usleep_time:%ld, thread recheck:%ld\n",
+			init_dmc_irq_thread_en, init_dmc_irq_check_ns,
+			init_dmc_irq_ratio, init_dmc_irq_usleep, init_thread_recheck_ns);
+
+	return 0;
+}
+__setup("dmc_irq_thread=", early_dmc_irq_thread);
+
+static int set_dmc_filter(unsigned char *buf)
+{
+	int i = 0;
+	static const char c[] = ",";
+	char *buffer, *p;
+
+	buffer = kstrdup(buf, GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+
+	do {
+		p = strsep(&buffer, c);
+		if (p) {
+			if (dmc_mon->filter.num >= DMC_FILTER_MAX) {
+				pr_warn("dmc_filter set over max:%d!\n", DMC_FILTER_MAX);
+				return 0;
+			}
+
+			for (i = 0; i < dmc_mon->filter.num; i++) {
+				if (!strcmp(p, dmc_mon->filter.name[i]))
+					return 0;
+			}
+			sprintf(dmc_mon->filter.name[i], "%s", p);
+			dmc_mon->filter.num++;
+		}
+	} while (p);
+
+	kfree(buffer);
+
+	return 0;
+}
 
 unsigned long read_violation_mem(unsigned long addr, char rw)
 {
@@ -123,35 +213,41 @@ unsigned long read_violation_mem(unsigned long addr, char rw)
 	return val;
 }
 
-static void get_page_flags(struct page *page, char *buf)
+void show_violation_mem_printk(char *title, void *data)
 {
-	sprintf(buf, "bd:%d sb:%d lru:%d", PageBuddy(page), PageSlab(page), PageLRU(page));
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
+
+	static DEFINE_RATELIMIT_STATE(dmc_rs, HZ, DMC_RATELIMIT_BURST);
+
+	dmc_pr_crit(DMC_TAG " addr=%09lx val=%016lx s=%08lx port=%s sub=%s f:%08lx bd:%d sb:%d lru:%d a:%ps t:%lld rw:%c%s\n",
+		mon_comm->addr, read_violation_mem(mon_comm->addr, mon_comm->rw),
+		mon_comm->status,
+		virt_addr_valid(mon_comm->port.name) ? mon_comm->port.name : mon_comm->port.id,
+		virt_addr_valid(mon_comm->sub.name) ? mon_comm->sub.name : mon_comm->sub.id,
+		mon_comm->page_flags,
+		mon_comm->page_flags & PAGE_FLAGS_CHECK_AT_FREE ? 1 : 0,
+		test_bit(PG_slab, &mon_comm->page_flags),
+		test_bit(PG_lru, &mon_comm->page_flags),
+		(void *)unpack_ip(&mon_comm->trace),
+		mon_comm->time, mon_comm->rw, title, &dmc_rs);
 }
 
-void show_violation_mem_printk(char *title, unsigned long addr, unsigned long status,
-				int port, int sub_port, char rw)
+void show_violation_mem_trace_event(char *title, void *data)
 {
-	struct page *page;
-	char buffer[32] = {0};
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
+	char *port = virt_addr_valid(mon_comm->port.name) ? mon_comm->port.name : mon_comm->port.id;
+	char *sub = virt_addr_valid(mon_comm->sub.name) ? mon_comm->sub.name : mon_comm->sub.id;
 
-	page = phys_to_page(addr);
-	get_page_flags(page, buffer);
-
-	pr_crit(DMC_TAG "%s addr=%09lx val=%016lx s=%08lx port=%s sub=%s rw:%c %s a:%ps\n",
-		title, addr, read_violation_mem(addr, rw),
-		status, to_ports(port),
-		to_sub_ports_name(port, sub_port, rw),
-		rw, buffer, (void *)get_page_trace(page));
-}
-
-void show_violation_mem_trace_event(unsigned long addr, unsigned long status,
-				    int port, int sub_port, char rw)
-{
-	trace_dmc_violation(addr, status, port, sub_port, rw);
+	trace_dmc_violation(title, mon_comm->addr,
+				mon_comm->status, port, sub,
+				mon_comm->rw,
+				unpack_ip(&mon_comm->trace),
+				mon_comm->page_flags,
+				mon_comm->time);
 }
 
 unsigned long dmc_prot_rw(void  __iomem *base,
-			  unsigned long off, unsigned long value, int rw)
+			  long off, unsigned long value, int rw)
 {
 	if (base) {
 		if (rw == DMC_WRITE) {
@@ -161,7 +257,7 @@ unsigned long dmc_prot_rw(void  __iomem *base,
 			return readl(base + off);
 		}
 	} else {
-		return dmc_rw(off + dmc_mon->io_base, value, rw);
+		return dmc_rw(off + dmc_mon->sec_base, value, rw);
 	}
 }
 
@@ -189,17 +285,12 @@ static int dev_name_to_id(const char *dev_name)
 
 char *to_ports(int id)
 {
-	static char *name;
-	static int last_id = -1;
+	char *name;
 	int i;
-
-	if (id == last_id)
-		return name;
 
 	for (i = 0; i < dmc_mon->port_num; i++) {
 		if (dmc_mon->port[i].port_id == id) {
 			name =  dmc_mon->port[i].port_name;
-			last_id = id;
 			return name;
 		}
 	}
@@ -208,16 +299,11 @@ char *to_ports(int id)
 
 char *to_sub_ports_name(int mid, int sid, char rw)
 {
-	static char id_str[MAX_NAME];
-	static int last_mid, last_sid;
-	static char *name;
+	char *name = NULL;
 	int i, s_port = 0;
 
-	if (mid == last_mid && sid == last_sid)
-		return name;
-
 	if (strstr(to_ports(mid), "VPU")) {
-		name = vpu_to_sub_port(to_ports(mid), rw, sid, id_str);
+		name = vpu_to_sub_port(to_ports(mid), rw, sid, NULL);
 	} else if (strstr(to_ports(mid), "DEVICE")) {
 		if (strstr(to_ports(mid), "DEVICE1"))
 			s_port = sid + PORT_MAJOR + 8;
@@ -230,9 +316,6 @@ char *to_sub_ports_name(int mid, int sid, char rw)
 				break;
 			}
 		}
-	} else {
-		sprintf(id_str, "%2d", sid);
-		name = id_str;
 	}
 
 	return name;
@@ -282,57 +365,155 @@ static unsigned int get_other_dev_mask(void)
 	return ret;
 }
 
-int dmc_violation_ignore(char *title, unsigned long addr, unsigned long status,
-				int port, int subport, char rw)
+static void output_violation(struct dmc_monitor *mon, void *data, char *title)
 {
-	int is_ignore = 0, i;
-	struct page *page;
-	struct page_trace *trace;
+	unsigned long vio_bit = 0;
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 
-	page = phys_to_page(addr);
-	trace = find_page_base(page);
-	if (trace && trace->order != IP_INVALID && trace->migrate_type == MIGRATE_CMA) {
-		if (dmc_mon->debug & DMC_DEBUG_CMA) {
-			sprintf(title, "%s", "_CMA");
-			is_ignore = 0;
-		} else {
-			is_ignore = 1;
-		}
+	/* get port subport and vio_bit */
+	if (dmc_mon->ops && dmc_mon->ops->vio_to_port)
+		dmc_mon->ops->vio_to_port(data, &vio_bit);
+
+	if (!(mon_comm->status & vio_bit))
+		goto irq_finish;
+
+	if (mon_comm->addr > mon->addr_end)
+		goto irq_finish;
+
+	/* ignore violation */
+	if (dmc_violation_ignore(title, data, vio_bit))
+		goto irq_finish;
+
+	/* violation print */
+#if IS_ENABLED(CONFIG_EVENT_TRACING)
+	if (mon->debug & DMC_DEBUG_TRACE) {
+		show_violation_mem_trace_event(title, data);
+		goto irq_finish;
 	}
-	if ((addr & PAGE_MASK) == dmc_mon->last_addr &&
-	     status == dmc_mon->last_status &&
-	     trace && trace->ip_data == dmc_mon->last_trace) {
-		if (dmc_mon->debug & DMC_DEBUG_SAME) {
-			sprintf(title, "%s", "_SAME");
-			is_ignore = 0;
-		} else {
-			is_ignore = 1;
-		}
-	}
-	if (!(dmc_mon->debug & DMC_DEBUG_TRACE)) {
-		for (i = 0; i < black_dev.num; i++) {
-			if (strstr(to_ports(port), black_dev.device[i])) {
-				is_ignore = 1;
-				break;
-			} else if (strstr(to_sub_ports_name(port, subport, rw),
-								black_dev.device[i])) {
-				is_ignore = 1;
+#endif
+	show_violation_mem_printk(title, data);
+
+	/* sleep if the irq too much */
+irq_finish:
+	if (mon->debug & DMC_DEBUG_IRQ_THREAD)
+		dmc_irq_sleep(data);
+}
+
+void dmc_output_violation(struct dmc_monitor *mon, void *data)
+{
+	char title[10];
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
+	struct dmc_mon_comm mon_comm_tmp = *mon_comm;
+	unsigned long long t;
+
+	if (dmc_mon->ops && dmc_mon->ops->handle_irq) {
+		/* clear violation and flush */
+		dmc_mon->ops->handle_irq(mon, data, IRQ_CLEAR);
+
+		t = sched_clock();
+		do {
+			/* check new violation happened */
+			if (!dmc_mon->ops->handle_irq(mon, &mon_comm_tmp, IRQ_CHECK)) {
+				/* print old violation info */
+				output_violation(mon, data, title);
+				mon_comm->time = mon_comm_tmp.time;
+				mon_comm->addr = mon_comm_tmp.addr;
+				mon_comm->status = mon_comm_tmp.status;
+				mon_comm->trace = mon_comm_tmp.trace;
+				mon_comm->page_flags = mon_comm_tmp.page_flags;
+				mon_comm->rw = mon_comm_tmp.rw;
+				sprintf(title, "%s", "_isr");
 				break;
 			}
+		} while (sched_clock() - t < init_thread_recheck_ns);
+
+		/* if not new violation, print old info, otherwise new info*/
+		output_violation(mon, data, title);
+
+		/* clear violation and flush */
+		dmc_mon->ops->handle_irq(mon, data, IRQ_CLEAR);
+	}
+}
+
+int dmc_violation_ignore(char *title, void *data, unsigned long vio_bit)
+{
+	int i, is_ignore = 0;
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
+	unsigned long status = mon_comm->status | vio_bit;
+	struct page_trace *trace = &mon_comm->trace;
+#ifdef CONFIG_KALLSYMS
+	char sym[KSYM_SYMBOL_LEN];
+#endif
+
+	/* if trace invalid , should not be ignore*/
+	if (trace && trace->order == IP_INVALID)
+		goto dmc_ignore;
+
+	/* ignore cma driver pages */
+	if (trace->migrate_type == MIGRATE_CMA) {
+		if (dmc_mon->debug & DMC_DEBUG_CMA) {
+			sprintf(title, "%s", "_cma");
+		} else {
+			is_ignore = 1;
+			goto dmc_ignore;
 		}
 	}
-	dmc_mon->last_trace = trace ? trace->ip_data : 0xdeaddead;
-	dmc_mon->last_addr = addr & PAGE_MASK;
-	dmc_mon->last_status = status;
+
+	/* ignore violation on same page/same port */
+	if ((mon_comm->addr & PAGE_MASK) == mon_comm->last_addr &&
+	     status == mon_comm->last_status &&
+	     trace->ip_data == mon_comm->last_trace) {
+		if (dmc_mon->debug & DMC_DEBUG_SAME) {
+			sprintf(title, "%s", "_same");
+		} else {
+			is_ignore = 1;
+			goto dmc_ignore;
+		}
+	}
+
+#ifdef CONFIG_KALLSYMS
+	sprint_symbol_no_offset(sym, unpack_ip(&mon_comm->trace));
+#endif
+
+	/* ignore black dev or symbol filter */
+	for (i = 0; i < dmc_mon->filter.num; i++) {
+		if (virt_addr_valid(mon_comm->port.name)) {
+			if (strstr(mon_comm->port.name, dmc_mon->filter.name[i])) {
+				is_ignore = 1;
+				goto dmc_ignore;
+			}
+		}
+		if (virt_addr_valid(mon_comm->sub.name)) {
+			if (strstr(mon_comm->sub.name, dmc_mon->filter.name[i])) {
+				is_ignore = 1;
+				goto dmc_ignore;
+			}
+		}
+	#ifdef CONFIG_KALLSYMS
+		if (strstr(sym, dmc_mon->filter.name[i]) == sym) {
+			is_ignore = 1;
+			goto dmc_ignore;
+		}
+	#endif
+	}
+
+dmc_ignore:
+	mon_comm->last_trace = trace ? trace->ip_data : 0xdeaddead;
+	mon_comm->last_addr = mon_comm->addr & PAGE_MASK;
+	mon_comm->last_status = status;
+
 	return is_ignore;
 }
 
 static void dmc_set_default(struct dmc_monitor *mon)
 {
+	char default_filter_dev[] = "USB,ETH,EMMC";
+	char default_filter_sym[] = "__dma_direct_alloc_pages,codec_mm_page_alloc_all_locked";
+
+	set_dmc_filter(default_filter_dev);
+	set_dmc_filter(default_filter_sym);
+
 	if (dmc_dev_is_byte(mon)) {
-		strcpy(black_dev.device[black_dev.num++], "USB");
-		strcpy(black_dev.device[black_dev.num++], "ETH");
-		strcpy(black_dev.device[black_dev.num++], "EMMC");
 		switch (mon->chip) {
 	#ifdef CONFIG_AMLOGIC_DMC_MONITOR_T7
 		case DMC_TYPE_T7:
@@ -370,10 +551,66 @@ static void dmc_set_default(struct dmc_monitor *mon)
 	} else {
 		mon->device = get_other_dev_mask();
 	}
+
 	pr_emerg("set dmc default: device=%llx, debug=%x\n", mon->device, mon->debug);
+
 	if (dmc_mon->addr_start < dmc_mon->addr_end && dmc_mon->ops &&
 	     dmc_mon->ops->set_monitor)
 		dmc_mon->ops->set_monitor(dmc_mon);
+}
+
+static void dmc_clear_reserved_memory(struct dmc_monitor *mon)
+{
+	if (dmc_reserved_flag) {
+		mon->debug = dmc_original_debug;
+		mon->device = 0;
+		mon->addr_start = 0;
+		mon->addr_end = 0;
+		dmc_reserved_flag = 0;
+	}
+}
+
+static void dmc_enabled_reserved_memory(struct platform_device *pdev, struct dmc_monitor *mon)
+{
+	struct device_node *node;
+	struct reserved_mem *rmem;
+
+	node = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
+	if (!node)
+		return;
+
+	rmem = of_reserved_mem_lookup(node);
+	if (!rmem) {
+		pr_info("no such reserved mem of dmc_monitor\n");
+		return;
+	}
+
+	if (!rmem->size)
+		return;
+
+	mon->addr_start = rmem->base;
+	mon->addr_end = rmem->base + rmem->size - 1;
+
+	dmc_original_debug = mon->debug;
+
+	if (dmc_dev_is_byte(mon)) {
+		mon->device = 0x0102;
+		mon->debug &= ~DMC_DEBUG_INCLUDE;
+	} else {
+		mon->device = get_all_dev_mask();
+		mon->device &= 0xfffffffffffffffe;
+	}
+
+	mon->debug &= ~DMC_DEBUG_TRACE;
+	mon->debug |= DMC_DEBUG_CMA;
+	mon->debug |= DMC_DEBUG_SAME;
+	dmc_reserved_flag = 1;
+
+	if (mon->addr_start < mon->addr_end && mon->ops && mon->ops->set_monitor) {
+		pr_emerg("DMC DEBUG MEMORY ENABLED: range:%lx-%lx, device=%llx, debug=%x\n",
+				mon->addr_start, mon->addr_end, mon->device, mon->debug);
+		mon->ops->set_monitor(mon);
+	}
 }
 
 size_t dump_dmc_reg(char *buf)
@@ -384,7 +621,7 @@ size_t dump_dmc_reg(char *buf)
 
 	if (dmc_mon->ops && dmc_mon->ops->dump_reg)
 		sz += dmc_mon->ops->dump_reg(buf);
-	sz += sprintf(buf + sz, "IO_BASE:0x%lx\n", dmc_mon->io_base);
+	sz += sprintf(buf + sz, "SEC_BASE:0x%lx\n", dmc_mon->sec_base);
 	sz += sprintf(buf + sz, "DMC_DEBUG:0x%x\n", dmc_mon->debug);
 	sz += sprintf(buf + sz, "RANGE:0x%lx - 0x%lx\n",
 		      dmc_mon->addr_start, dmc_mon->addr_end);
@@ -443,18 +680,61 @@ static void serror_dump_dmc_reg(void)
 	}
 }
 
-static irqreturn_t dmc_monitor_irq_handler(int irq, void *dev_instance)
+static irqreturn_t __nocfi dmc_monitor_irq_handler(int irq, void *dev_instance)
 {
 	if (dmc_mon->ops && dmc_mon->ops->handle_irq)
-		dmc_mon->ops->handle_irq(dmc_mon, dev_instance);
+		dmc_mon->ops->handle_irq(dmc_mon, dev_instance, IRQ_CHECK);
+
+	if (dmc_mon->debug & DMC_DEBUG_IRQ_THREAD)
+		return IRQ_WAKE_THREAD;
+
+	dmc_output_violation(dmc_mon, dev_instance);
 
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t dmc_irq_thread(int irq, void *dev_instance)
+{
+	dmc_output_violation(dmc_mon, dev_instance);
+
+	return IRQ_HANDLED;
+}
+
+void dmc_irq_sleep(void *data)
+{
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
+	unsigned long long sys_clock, task_time;
+	u64 t_ns = 0;
+
+	/* get system and thread runtime from before irq to current */
+	sys_clock = sched_clock();
+
+	/* old soc may creat a secure irq when irq set but irq thread not be init */
+	if (!mon_comm->irq_thread_task)
+		return;
+
+	task_time = task_sched_runtime(mon_comm->irq_thread_task);
+
+	if (sys_clock - mon_comm->sys_run_time >= init_dmc_irq_check_ns * 2) {
+	/* If the time between two interruptions is more than 10ms, refresh and recalculate */
+		mon_comm->sys_run_time = sys_clock;
+		mon_comm->irq_run_time = task_time;
+	} else if (sys_clock - mon_comm->sys_run_time >= init_dmc_irq_check_ns) {
+		t_ns = task_time - mon_comm->irq_run_time;
+		/* if system run than 5ms, and thread runtime than ratio, sleep */
+		if (t_ns >= (init_dmc_irq_check_ns >> 7) * init_dmc_irq_ratio)
+			usleep_range(init_dmc_irq_usleep, init_dmc_irq_usleep + 100);
+
+		mon_comm->sys_run_time = sys_clock;
+		mon_comm->irq_run_time = task_time;
+	}
+}
+
 static int dmc_irq_set(struct device_node *node, int save_irq, int request)
 {
-	static int irq[4], save_irq_num, request_num;
-	int r = 0, i;
+	static int save_irq_num, request_num;
+	int irq, r = 0, i, affinity_cpu = 1;
+	struct irq_desc *desc;
 
 	pr_info("%s: save_irq=%d, request=%d\n", __func__, save_irq, request);
 	if (!save_irq && !save_irq_num)
@@ -464,65 +744,37 @@ static int dmc_irq_set(struct device_node *node, int save_irq, int request)
 
 	for (i = 0; i < dmc_mon->mon_number; i++) {
 		if (save_irq) {
-			irq[i] = of_irq_get(node, i);
+			dmc_mon->mon_comm[i].irq = of_irq_get(node, i);
 			save_irq_num++;
 			if (!request)
 				continue;
 		}
 
+		irq = dmc_mon->mon_comm[i].irq;
 		if (request) {
-			switch (i) {
-			case 0:
-				if (dmc_mon->io_mem1)
-					r = request_irq(irq[i], dmc_monitor_irq_handler,
-							IRQF_SHARED, "dmc_monitor",
-							dmc_mon->io_mem1);
-				else
-					r = request_irq(irq[i], dmc_monitor_irq_handler,
-							IRQF_SHARED, "dmc_monitor", dmc_mon);
-				break;
-			case 1:
-				r = request_irq(irq[i], dmc_monitor_irq_handler,
-						IRQF_SHARED, "dmc_monitor", dmc_mon->io_mem2);
-				break;
-			case 2:
-				r = request_irq(irq[i], dmc_monitor_irq_handler,
-						IRQF_SHARED, "dmc_monitor", dmc_mon->io_mem3);
-				break;
-			case 3:
-				r = request_irq(irq[i], dmc_monitor_irq_handler,
-						IRQF_SHARED, "dmc_monitor", dmc_mon->io_mem4);
-				break;
-			default:
-				break;
-			}
+			r = request_threaded_irq(irq,
+						 dmc_monitor_irq_handler,
+						 dmc_irq_thread,
+						 IRQF_SHARED | IRQF_ONESHOT,
+						 "dmc_monitor", &dmc_mon->mon_comm[i]);
 			if (r < 0) {
-				pr_err("request irq failed:%d, r:%d\n", irq[i], r);
+				pr_err("request irq fail:%d, r:%d\n", irq, r);
 				request_num = 0;
 				dmc_mon = NULL;
 				return -EINVAL;
 			}
+
+			if (affinity_cpu <= num_online_cpus()) {
+				irq_set_affinity_hint(irq, get_cpu_mask(affinity_cpu));
+				affinity_cpu++;
+			} else {
+				irq_set_affinity_hint(irq, get_cpu_mask(num_online_cpus()));
+			}
+			desc = irq_to_desc(irq);
+			dmc_mon->mon_comm[i].irq_thread_task = desc->action->thread;
 			request_num++;
 		} else {
-			switch (i) {
-			case 0:
-				if (dmc_mon->io_mem1)
-					free_irq(irq[i], dmc_mon->io_mem1);
-				else
-					free_irq(irq[i], dmc_mon);
-				break;
-			case 1:
-				free_irq(irq[i], dmc_mon->io_mem2);
-				break;
-			case 2:
-				free_irq(irq[i], dmc_mon->io_mem3);
-				break;
-			case 3:
-				free_irq(irq[i], dmc_mon->io_mem4);
-				break;
-			default:
-				break;
-			}
+			free_irq(irq, &dmc_mon->mon_comm[i]);
 			request_num--;
 		}
 	}
@@ -576,6 +828,7 @@ int dmc_set_monitor(unsigned long start, unsigned long end,
 	if (!dmc_mon)
 		return -EINVAL;
 
+	dmc_clear_reserved_memory(dmc_mon);
 	dmc_mon->addr_start = start;
 	dmc_mon->addr_end   = end;
 	dmc_regulation_dev(dev_mask, en);
@@ -601,6 +854,8 @@ EXPORT_SYMBOL(dmc_set_monitor_by_name);
 
 void dmc_monitor_disable(void)
 {
+	memset(&dmc_mon->filter, 0, sizeof(dmc_mon->filter));
+
 	if (dmc_mon->ops && dmc_mon->ops->disable)
 		return dmc_mon->ops->disable(dmc_mon);
 }
@@ -613,6 +868,7 @@ static ssize_t range_show(struct class *cla,
 		pr_err("Can't find ops for chip:%x\n", dmc_mon->chip);
 		return 0;
 	}
+
 	return sprintf(buf, "%08lx - %08lx\n",
 		       dmc_mon->addr_start, dmc_mon->addr_end);
 }
@@ -623,6 +879,7 @@ static ssize_t range_store(struct class *cla,
 {
 	int ret;
 	unsigned long start, end;
+
 	if (!dmc_mon->ops) {
 		pr_err("Can't find ops for chip:%x\n", dmc_mon->chip);
 		return count;
@@ -648,6 +905,9 @@ static ssize_t device_store(struct class *cla,
 		pr_err("Can't find ops for chip:%x\n", dmc_mon->chip);
 		return count;
 	}
+
+	dmc_clear_reserved_memory(dmc_mon);
+
 	if (!strncmp(buf, "none", 4)) {
 		dmc_monitor_disable();
 		return count;
@@ -657,6 +917,7 @@ static ssize_t device_store(struct class *cla,
 		dmc_set_default(dmc_mon);
 		return count;
 	}
+
 	if (dmc_dev_is_byte(dmc_mon)) {
 		i = dev_name_to_id(buf);
 		if (i < 0) {
@@ -693,6 +954,7 @@ static ssize_t device_show(struct class *cla,
 		pr_err("Can't find ops for chip:%x\n", dmc_mon->chip);
 		return 0;
 	}
+
 	s += sprintf(buf + s, "supported device:\n");
 	for (i = 0; i < dmc_mon->port_num; i++) {
 		if (dmc_mon->port[i].port_id >= PORT_MAJOR &&
@@ -725,27 +987,27 @@ static ssize_t debug_store(struct class *cla,
 		return count;
 	}
 
-	if (strstr(string, "write")) {
+	if (strstr(string, "write") == string) {
 		if (val)
 			dmc_mon->debug |= DMC_DEBUG_WRITE;
 		else
 			dmc_mon->debug &= ~DMC_DEBUG_WRITE;
-	} else if (strstr(string, "read")) {
+	} else if (strstr(string, "read") == string) {
 		if (val)
 			dmc_mon->debug |= DMC_DEBUG_READ;
 		else
 			dmc_mon->debug &= ~DMC_DEBUG_READ;
-	} else if (strstr(string, "cma")) {
+	} else if (strstr(string, "cma") == string) {
 		if (val)
 			dmc_mon->debug |= DMC_DEBUG_CMA;
 		else
 			dmc_mon->debug &= ~DMC_DEBUG_CMA;
-	} else if (strstr(string, "same")) {
+	} else if (strstr(string, "same") == string) {
 		if (val)
 			dmc_mon->debug |= DMC_DEBUG_SAME;
 		else
 			dmc_mon->debug &= ~DMC_DEBUG_SAME;
-	}  else if (strstr(string, "include")) {
+	} else if (strstr(string, "include") == string) {
 		if (dmc_dev_is_byte(dmc_mon)) {
 			if (val)
 				dmc_mon->debug |= DMC_DEBUG_INCLUDE;
@@ -754,12 +1016,12 @@ static ssize_t debug_store(struct class *cla,
 		} else {
 			pr_emerg("dmc not support include set\n");
 		}
-	} else if (strstr(string, "trace")) {
+	} else if (strstr(string, "trace") == string) {
 		if (val)
 			dmc_mon->debug |= DMC_DEBUG_TRACE;
 		else
 			dmc_mon->debug &= ~DMC_DEBUG_TRACE;
-	} else if (strstr(string, "suspend")) {
+	} else if (strstr(string, "suspend") == string) {
 		if (val) {
 			dmc_mon->debug |= DMC_DEBUG_SUSPEND;
 			if (dmc_irq_set(NULL, 0, 0) < 0)
@@ -769,7 +1031,7 @@ static ssize_t debug_store(struct class *cla,
 			if (dmc_irq_set(NULL, 0, 1) < 0)
 				pr_emerg("request dmc irq error\n");
 		}
-	} else if (strstr(string, "serror")) {
+	} else if (strstr(string, "serror") == string) {
 		if (val) {
 			dmc_mon->debug |= DMC_DEBUG_SERROR;
 			if (dmc_mon->ops && dmc_mon->ops->reg_control)
@@ -778,13 +1040,17 @@ static ssize_t debug_store(struct class *cla,
 		} else {
 			dmc_mon->debug &= ~DMC_DEBUG_SERROR;
 		}
+	} else if (strstr(string, "irq") == string) {
+		if (val)
+			dmc_mon->debug |= DMC_DEBUG_IRQ_THREAD;
+		else
+			dmc_mon->debug &= ~DMC_DEBUG_IRQ_THREAD;
 	} else {
 		pr_info("invalid param name:%s\n", buf);
 		return count;
 	}
-		if (dmc_mon->addr_start < dmc_mon->addr_end && dmc_mon->ops &&
-				dmc_mon->ops->set_monitor)
-			dmc_mon->ops->set_monitor(dmc_mon);
+
+	dmc_set_monitor(dmc_mon->addr_start, dmc_mon->addr_end, dmc_mon->device, 1);
 
 	return count;
 }
@@ -794,6 +1060,7 @@ static ssize_t debug_show(struct class *cla,
 {
 	int s = 0;
 
+	s += sprintf(buf + s, "dmc version: %s\n", DMC_VERSION);
 	s += sprintf(buf + s, "debug value: 0x%02x\n", dmc_mon->debug);
 	s += sprintf(buf + s, "write:   write monitor:%d\n",
 			dmc_mon->debug & DMC_DEBUG_WRITE ? 1 : 0);
@@ -811,6 +1078,11 @@ static ssize_t debug_show(struct class *cla,
 			dmc_mon->debug & DMC_DEBUG_SUSPEND ? 1 : 0);
 	s += sprintf(buf + s, "serror:  serror debug :%d\n",
 			dmc_mon->debug & DMC_DEBUG_SERROR ? 1 : 0);
+	s += sprintf(buf + s, "irq:     irq_thread :%d, time:%ld, ratio:%d, irq_usleep:%ld, recheck:%ld\n",
+				dmc_mon->debug & DMC_DEBUG_IRQ_THREAD ? 1 : 0,
+				init_dmc_irq_check_ns, init_dmc_irq_ratio,
+				init_dmc_irq_usleep, init_thread_recheck_ns);
+	s += sprintf(buf + s, "pr_limit: printk ratelimit :%d\n", DMC_RATELIMIT_BURST);
 
 	return s;
 }
@@ -852,39 +1124,41 @@ static ssize_t cmdline_show(struct class *cla,
 	count += sprintf(buf + count,
 			 "setenv initargs $initargs dmc_monitor=0x%lx,0x%lx,0x%llx,0x%x",
 			 dmc_mon->addr_start, dmc_mon->addr_end, dmc_mon->device, dmc_mon->debug);
-	if (black_dev.num) {
-		count += sprintf(buf + count, " dmc_dev_blacklist=%s", black_dev.device[0]);
-		for (i = 1; i < black_dev.num; i++)
-			count += sprintf(buf + count, ",%s", black_dev.device[i]);
+	if (dmc_mon->filter.num) {
+		count += sprintf(buf + count, " dmc_filter=%s", dmc_mon->filter.name[0]);
+		for (i = 1; i < dmc_mon->filter.num; i++)
+			count += sprintf(buf + count, ",%s", dmc_mon->filter.name[i]);
 	}
 	count += sprintf(buf + count, ";saveenv;reset;\n");
 	return count;
 }
 static CLASS_ATTR_RO(cmdline);
 
-static ssize_t dev_blacklist_store(struct class *cla,
+static ssize_t filter_store(struct class *cla,
 			  struct class_attribute *attr,
 			  const char *buf, size_t count)
 {
 	if (!strncmp(buf, "none", 4))
-		memset(&black_dev, 0, sizeof(black_dev));
+		memset(&dmc_mon->filter, 0, sizeof(dmc_mon->filter));
 	else
-		early_dmc_dev_blacklist((char *)buf);
+		set_dmc_filter((char *)buf);
+
 	return count;
 }
 
-static ssize_t dev_blacklist_show(struct class *cla,
+static ssize_t filter_show(struct class *cla,
 			 struct class_attribute *attr, char *buf)
 {
 	unsigned int count = 0;
 	int i;
 
-	count += sprintf(buf + count, "dev black list:\n");
-	for (i = 0; i < black_dev.num; i++)
-		count += sprintf(buf + count, "%s\n", black_dev.device[i]);
+	count += sprintf(buf + count, "filter list:\n");
+	for (i = 0; i < dmc_mon->filter.num; i++)
+		count += sprintf(buf + count, "%s\n", dmc_mon->filter.name[i]);
+
 	return count;
 }
-static CLASS_ATTR_RW(dev_blacklist);
+static CLASS_ATTR_RW(filter);
 
 static ssize_t reg_analysis_store(struct class *cla,
 			  struct class_attribute *attr,
@@ -897,6 +1171,7 @@ static ssize_t reg_analysis_store(struct class *cla,
 		ret = dmc_mon->ops->reg_control((char *)buf, 'a', info);
 	if (ret)
 		pr_emerg("%s", info);
+
 	return count;
 }
 static CLASS_ATTR_WO(reg_analysis);
@@ -907,7 +1182,7 @@ static struct attribute *dmc_monitor_attrs[] = {
 	&class_attr_dump.attr,
 	&class_attr_debug.attr,
 	&class_attr_cmdline.attr,
-	&class_attr_dev_blacklist.attr,
+	&class_attr_filter.attr,
 	&class_attr_reg_analysis.attr,
 #if IS_ENABLED(CONFIG_AMLOGIC_DMC_DEV_ACCESS)
 	&class_attr_dev_access.attr,
@@ -927,9 +1202,7 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 	mon->mon_number = 1;
 	mon->debug |= DMC_DEBUG_INCLUDE;
 	mon->debug |= DMC_DEBUG_WRITE;
-#if IS_ENABLED(CONFIG_EVENT_TRACING)
-	mon->debug |= DMC_DEBUG_TRACE;
-#endif
+	mon->debug &= ~DMC_DEBUG_TRACE;
 
 	switch (chip) {
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_G12
@@ -1028,7 +1301,7 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 	struct vpu_sub_desc *vpu_desc = NULL;
 	struct resource *res;
 
-	pr_info("%s\n", __func__);
+	pr_info("dmc version:%s\n", DMC_VERSION);
 	dmc_mon = devm_kzalloc(&pdev->dev, sizeof(*dmc_mon), GFP_KERNEL);
 	if (!dmc_mon)
 		return -ENOMEM;
@@ -1062,28 +1335,14 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	dmc_mon->io_base = tmp;
+	dmc_mon->sec_base = tmp;
 
 	/* for register not in secure world */
 	for (i = 0; i < dmc_mon->mon_number; i++) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (res) {
-			switch (i) {
-			case 0:
-				dmc_mon->io_mem1 = ioremap(res->start, res->end - res->start);
-				break;
-			case 1:
-				dmc_mon->io_mem2 = ioremap(res->start, res->end - res->start);
-				break;
-			case 2:
-				dmc_mon->io_mem3 = ioremap(res->start, res->end - res->start);
-				break;
-			case 3:
-				dmc_mon->io_mem4 = ioremap(res->start, res->end - res->start);
-				break;
-			default:
-				break;
-			}
+			dmc_mon->mon_comm[i].io_base = res->start;
+			dmc_mon->mon_comm[i].io_mem = ioremap(res->start, res->end - res->start);
 		}
 	}
 
@@ -1096,6 +1355,14 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 
 	if (init_dmc_debug)
 		dmc_mon->debug = init_dmc_debug;
+
+	if (init_dmc_irq_thread_en)
+		dmc_mon->debug |= DMC_DEBUG_IRQ_THREAD;
+
+	if (strlen(dmc_filter_early_buf))
+		set_dmc_filter(dmc_filter_early_buf);
+
+	dmc_enabled_reserved_memory(pdev, dmc_mon);
 
 	if (init_dev_mask) {
 		dmc_set_monitor(init_start_addr,

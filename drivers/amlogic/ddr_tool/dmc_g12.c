@@ -24,6 +24,7 @@
 #include <linux/kallsyms.h>
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
+#include <linux/sched/clock.h>
 #include <linux/amlogic/page_trace.h>
 #include "ddr_port.h"
 #include "dmc_monitor.h"
@@ -37,9 +38,6 @@
 #define DMC_VIO_ADDR1		((0x00ba  << 2))
 #define DMC_VIO_ADDR2		((0x00bb  << 2))
 #define DMC_VIO_ADDR3		((0x00bc  << 2))
-
-#define DMC_VIO_PROT_RANGE0	BIT(21)
-#define DMC_VIO_PROT_RANGE1	BIT(22)
 
 static size_t g12_dmc_dump_reg(char *buf)
 {
@@ -65,73 +63,91 @@ static size_t g12_dmc_dump_reg(char *buf)
 	return sz;
 }
 
-static void check_violation(struct dmc_monitor *mon, void *data)
+static int check_violation(struct dmc_monitor *mon, void *data)
 {
-	char rw = 'n';
-	int port, subport;
+	int ret = -1;
 	unsigned long irqreg;
-	unsigned long addr = 0, status = 0;
-	char title[10];
-	char off1, off2;
+	struct page *page;
+	struct page_trace *trace;
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
 
 	irqreg = dmc_prot_rw(NULL, DMC_SEC_STATUS, 0, DMC_READ);
 	if (irqreg & DMC_WRITE_VIOLATION) {
-		status = dmc_prot_rw(NULL, DMC_VIO_ADDR1, 0, DMC_READ);
-		addr = dmc_prot_rw(NULL, DMC_VIO_ADDR0, 0, DMC_READ);
-		rw = 'w';
+		mon_comm->time = sched_clock();
+		mon_comm->status = dmc_prot_rw(NULL, DMC_VIO_ADDR1, 0, DMC_READ);
+		mon_comm->addr = dmc_prot_rw(NULL, DMC_VIO_ADDR0, 0, DMC_READ);
+		mon_comm->rw = 'w';
+		page = phys_to_page(mon_comm->addr);
+		trace = find_page_base(page);
+		if (trace)
+			mon_comm->trace = *trace;
+		else
+			mon_comm->trace.ip_data = IP_INVALID;
+		mon_comm->page_flags = page->flags & PAGEFLAGS_MASK;
+		ret = 0;
 	} else if (irqreg & DMC_READ_VIOLATION) {
-		status = dmc_prot_rw(NULL, DMC_VIO_ADDR3 + (1 << 2), 0, DMC_READ);
-		addr = dmc_prot_rw(NULL, DMC_VIO_ADDR2, 0, DMC_READ);
-		rw = 'r';
+		mon_comm->time = sched_clock();
+		mon_comm->status = dmc_prot_rw(NULL, DMC_VIO_ADDR3 + (1 << 2), 0, DMC_READ);
+		mon_comm->addr = dmc_prot_rw(NULL, DMC_VIO_ADDR2, 0, DMC_READ);
+		mon_comm->rw = 'r';
+		page = phys_to_page(mon_comm->addr);
+		trace = find_page_base(page);
+		if (trace)
+			mon_comm->trace = *trace;
+		else
+			mon_comm->trace.ip_data = IP_INVALID;
+		mon_comm->page_flags = page->flags & PAGEFLAGS_MASK;
+		ret = 0;
 	}
 
-	/* clear irq */
-	dmc_prot_rw(NULL, DMC_SEC_STATUS, irqreg, DMC_WRITE);
+	return ret;
+}
 
-	switch (mon->chip) {
+static int g12_dmc_mon_irq(struct dmc_monitor *mon, void *data, char clear)
+{
+	if (clear)
+		/* clear irq */
+		dmc_prot_rw(NULL, DMC_SEC_STATUS, 0x3, DMC_WRITE);
+	else
+		return check_violation(mon, data);
+
+	return 0;
+}
+
+static void g12_dmc_vio_to_port(void *data, unsigned long *vio_bit)
+{
+	int port = 0, subport = 0;
+	struct dmc_mon_comm *mon_comm = (struct dmc_mon_comm *)data;
+
+	switch (dmc_mon->chip) {
+	case DMC_TYPE_G12A:
+		*vio_bit = BIT(22) | BIT(21);
+		port = (mon_comm->status >> 10) & 0x1f;
+		subport = (mon_comm->status >> 6) & 0xf;
+		break;
 	case DMC_TYPE_G12B:
-		/* bit fix for G12B */
-		off1 = 24;
-		off2 = 13;
+		*vio_bit = BIT(25) | BIT(24);
+		port = (mon_comm->status >> 13) & 0x1f;
+		subport = (mon_comm->status >> 6) & 0xf;
 		break;
 	case DMC_TYPE_SM1:
 	case DMC_TYPE_TL1:
 	case DMC_TYPE_TM2:
-		/* bit fix for SM1/TL1/TM2 */
-		off1 = 22;
-		off2 = 11;
+		*vio_bit = BIT(23) | BIT(22);
+		port = (mon_comm->status >> 11) & 0x1f;
+		subport = (mon_comm->status >> 6) & 0xf;
 		break;
-
-	default: /* G12A */
-		off1 = 21;
-		off2 = 10;
+	default:
 		break;
 	}
 
-	if (!(status & (0x3 << off1)))
-		return;
+	mon_comm->port.name = to_ports(port);
+	if (!mon_comm->port.name)
+		sprintf(mon_comm->port.id, "%d", port);
 
-	if (addr > mon->addr_end)
-		return;
-
-	port = (status >> off2) & 0x1f;
-	subport = (status >> 6) & 0xf;
-
-	if (dmc_violation_ignore(title, addr, status | (0x3 << off1), port, subport, rw))
-		return;
-
-#if IS_ENABLED(CONFIG_EVENT_TRACING)
-	if (mon->debug & DMC_DEBUG_TRACE) {
-		show_violation_mem_trace_event(addr, status, port, subport, rw);
-		return;
-	}
-#endif
-	show_violation_mem_printk(title, addr, status, port, subport, rw);
-}
-
-static void g12_dmc_mon_irq(struct dmc_monitor *mon, void *data)
-{
-	check_violation(mon, data);
+	mon_comm->sub.name = to_sub_ports_name(port, subport, mon_comm->rw);
+	if (!mon_comm->sub.name)
+		sprintf(mon_comm->sub.id, "%d", subport);
 }
 
 static int g12_dmc_mon_set(struct dmc_monitor *mon)
@@ -141,7 +157,7 @@ static int g12_dmc_mon_set(struct dmc_monitor *mon)
 
 	/* aligned to 64KB */
 	wb = mon->addr_start & 0x01;
-	end = ALIGN(mon->addr_end, DMC_ADDR_SIZE);
+	end = ALIGN_DOWN(mon->addr_end, DMC_ADDR_SIZE);
 
 	dmc_prot_rw(NULL, DMC_SEC_STATUS, 0x3, DMC_WRITE);
 
@@ -252,9 +268,10 @@ static int g12_dmc_reg_control(char *input, char control, char *output)
 }
 
 struct dmc_mon_ops g12_dmc_mon_ops = {
-	.handle_irq = g12_dmc_mon_irq,
+	.handle_irq  = g12_dmc_mon_irq,
+	.vio_to_port = g12_dmc_vio_to_port,
 	.set_monitor = g12_dmc_mon_set,
-	.disable    = g12_dmc_mon_disable,
-	.dump_reg   = g12_dmc_dump_reg,
-	.reg_control   = g12_dmc_reg_control,
+	.disable     = g12_dmc_mon_disable,
+	.dump_reg    = g12_dmc_dump_reg,
+	.reg_control = g12_dmc_reg_control,
 };
