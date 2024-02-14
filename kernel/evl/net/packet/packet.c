@@ -527,28 +527,29 @@ static ssize_t copy_packet_to_user(struct user_oob_msghdr __user *u_msghdr,
 	if (ret)
 		return -EFAULT;
 
-	if (!name_ptr) {
+	if (name_ptr) {
+		if (namelen != sizeof(addr)) {
+			if (namelen < sizeof(addr))
+				return -EINVAL;
+			ret = raw_put_user(sizeof(addr), &u_msghdr->namelen);
+			if (ret)
+				return -EFAULT;
+		}
+		addr.sll_family = AF_PACKET;
+		addr.sll_protocol = skb->protocol;
+		addr.sll_ifindex = skb->dev->ifindex;
+		addr.sll_hatype = skb->dev->type;
+		addr.sll_pkttype = skb->pkt_type;
+		addr.sll_halen = dev_parse_header(skb, addr.sll_addr);
+		u_addr = evl_valptr64(name_ptr, struct sockaddr_ll);
+		ret = raw_copy_to_user(u_addr, &addr, sizeof(addr));
+		if (ret)
+			return -EFAULT;
+	} else {
 		if (namelen)
 			return -EINVAL;
-		goto copy_data;
 	}
 
-	if (namelen < sizeof(addr))
-		return -EINVAL;
-
-	addr.sll_family = AF_PACKET;
-	addr.sll_protocol = skb->protocol;
-	addr.sll_ifindex = skb->dev->ifindex;
-	addr.sll_hatype = skb->dev->type;
-	addr.sll_pkttype = skb->pkt_type;
-	addr.sll_halen = dev_parse_header(skb, addr.sll_addr);
-
-	u_addr = evl_valptr64(name_ptr, struct sockaddr_ll);
-	ret = raw_copy_to_user(u_addr, &addr, sizeof(addr));
-	if (ret)
-		return -EFAULT;
-
-copy_data:
 	count = evl_copy_to_uio(iov, iovlen, skb->data, skb->len);
 	if (count < skb->len)
 		msg_flags |= MSG_TRUNC;
