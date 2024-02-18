@@ -2270,6 +2270,18 @@ static ssize_t hdcp14_onoff_show(struct device *dev,
 	return pos;
 }
 
+static ssize_t hdcp14_onoff_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf,
+				size_t count)
+{
+	if (strncmp(buf, "1", 1) == 0)
+		hdcp14_on = 1;
+	else
+		hdcp14_on = 0;
+	return count;
+}
+
 static ssize_t hdcp22_onoff_show(struct device *dev,
 			  struct device_attribute *attr,
 			  char *buf)
@@ -2278,6 +2290,20 @@ static ssize_t hdcp22_onoff_show(struct device *dev,
 
 	pos += sprintf(buf, "%d", hdcp22_on);
 	return pos;
+}
+
+static ssize_t hdcp22_onoff_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf,
+				size_t count)
+{
+	if (strncmp(buf, "1", 1) == 0)
+		hdcp22_on = 1;
+	else
+		hdcp22_on = 0;
+	if (rx.chip_id >= CHIP_ID_T7)
+		hdmirx_wr_cor(RX_HDCP2x_CTRL_PWD_IVCRX, hdcp22_on);
+	return count;
 }
 
 static ssize_t hw_info_show(struct device *dev,
@@ -2778,8 +2804,8 @@ static DEVICE_ATTR_RO(scan_mode);
 static DEVICE_ATTR_RW(edid_with_port);
 static DEVICE_ATTR_RW(vrr_func_ctrl);
 static DEVICE_ATTR_RW(allm_func_ctrl);
-static DEVICE_ATTR_RO(hdcp14_onoff);
-static DEVICE_ATTR_RO(hdcp22_onoff);
+static DEVICE_ATTR_RW(hdcp14_onoff);
+static DEVICE_ATTR_RW(hdcp22_onoff);
 static DEVICE_ATTR_RO(mode);
 static DEVICE_ATTR_RO(colorspace);
 static DEVICE_ATTR_RO(colordepth);
