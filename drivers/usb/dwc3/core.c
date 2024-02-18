@@ -1980,17 +1980,17 @@ static int dwc3_probe(struct platform_device *pdev)
 	if (ret)
 		goto err5;
 
-	if (dwc->dr_mode == USB_DR_MODE_OTG &&
-	    of_device_is_compatible(dev->parent->of_node,
-				    "rockchip,rk3399-dwc3")) {
-#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
-		pm_runtime_set_autosuspend_delay(dev, 100);
-#endif
+	if (IS_REACHABLE(CONFIG_ARCH_ROCKCHIP) && dwc->dr_mode == USB_DR_MODE_OTG &&
+	    (of_device_is_compatible(dev->parent->of_node, "rockchip,rk3399-dwc3") ||
+	     of_device_is_compatible(dev->of_node, "rockchip,rk3576-dwc3"))) {
+		if (IS_REACHABLE(CONFIG_NO_GKI))
+			pm_runtime_set_autosuspend_delay(dev, 100);
 		pm_runtime_allow(dev);
 		pm_runtime_put_sync_suspend(dev);
-	} else {
-		pm_runtime_put(dev);
+		return 0;
 	}
+
+	pm_runtime_put(dev);
 
 	return 0;
 
