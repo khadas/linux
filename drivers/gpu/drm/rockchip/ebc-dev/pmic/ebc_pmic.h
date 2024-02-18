@@ -8,6 +8,7 @@
 #ifndef EBC_PMIC_H
 #define EBC_PMIC_H
 
+#include <linux/regulator/consumer.h>
 #include "../ebc_dev.h"
 
 #define VCOM_MIN_MV		0
@@ -57,4 +58,6 @@ static inline int ebc_pmic_get_vcom(struct ebc_pmic *pmic)
 
 int ebc_pmic_set_vcom(struct ebc_pmic *pmic, int value);
 void ebc_pmic_verity_vcom(struct ebc_pmic *pmic);
+int ebc_regulator_set_vcom(struct regulator *r, int value);
+void ebc_regulator_verity_vcom(struct regulator *r);
 #endif
