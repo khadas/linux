@@ -10702,6 +10702,21 @@ static void vop2_cfg_update(struct drm_crtc *crtc,
 		out_mode = ROCKCHIP_OUT_MODE_P888;
 	else
 		out_mode = vcstate->output_mode;
+
+	if (out_mode == ROCKCHIP_OUT_MODE_YUV420) {
+		if (vop2->version == VOP_VERSION_RK3588 && output_if_is_dp(vcstate->output_if))
+			out_mode = RK3588_DP_OUT_MODE_YUV420;
+	} else if (out_mode == ROCKCHIP_OUT_MODE_YUV422) {
+		if (vop2->version == VOP_VERSION_RK3576 && output_if_is_edp(vcstate->output_if))
+			out_mode = RK3576_EDP_OUT_MODE_YUV422;
+		else if (vop2->version == VOP_VERSION_RK3588 && output_if_is_edp(vcstate->output_if))
+			out_mode = RK3588_EDP_OUTPUT_MODE_YUV422;
+		else if (vop2->version == VOP_VERSION_RK3576 && output_if_is_hdmi(vcstate->output_if))
+			out_mode = RK3576_HDMI_OUT_MODE_YUV422;
+		else if (output_if_is_dp(vcstate->output_if))
+			out_mode = RK3588_DP_OUT_MODE_YUV422;
+	}
+
 	VOP_MODULE_SET(vop2, vp, out_mode, out_mode);
 
 	vop2_post_color_swap(crtc);
