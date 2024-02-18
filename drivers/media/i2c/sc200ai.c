@@ -50,7 +50,7 @@
 #define SC200AI_BITS_PER_SAMPLE		10
 #define SC200AI_LINK_FREQ_371		371250000// 742.5Mbps
 
-#define PIXEL_RATE_WITH_371M_10BIT		(SC200AI_LINK_FREQ_371 * 2 * \
+#define PIXEL_RATE_WITH_371M_10BIT	(SC200AI_LINK_FREQ_371 * 2 * \
 					SC200AI_LANES / SC200AI_BITS_PER_SAMPLE)
 
 #define SC200AI_XVCLK_FREQ		27000000
@@ -61,6 +61,10 @@
 #define SC200AI_REG_CTRL_MODE		0x0100
 #define SC200AI_MODE_SW_STANDBY		0x0
 #define SC200AI_MODE_STREAMING		BIT(0)
+
+#define SC200AI_REG_MIPI_CTRL		0x3019
+#define SC200AI_MIPI_CTRL_ON		0x0c
+#define SC200AI_MIPI_CTRL_OFF		0x0f
 
 #define SC200AI_REG_EXPOSURE_H		0x3e00
 #define SC200AI_REG_EXPOSURE_M		0x3e01
@@ -102,12 +106,12 @@
 
 #define SC200AI_FLIP_MIRROR_REG		0x3221
 
-#define SC200AI_FETCH_EXP_H(VAL)		(((VAL) >> 12) & 0xF)
-#define SC200AI_FETCH_EXP_M(VAL)		(((VAL) >> 4) & 0xFF)
-#define SC200AI_FETCH_EXP_L(VAL)		(((VAL) & 0xF) << 4)
+#define SC200AI_FETCH_EXP_H(VAL)	(((VAL) >> 12) & 0xF)
+#define SC200AI_FETCH_EXP_M(VAL)	(((VAL) >> 4) & 0xFF)
+#define SC200AI_FETCH_EXP_L(VAL)	(((VAL) & 0xF) << 4)
 
-#define SC200AI_FETCH_AGAIN_H(VAL)		(((VAL) >> 8) & 0x03)
-#define SC200AI_FETCH_AGAIN_L(VAL)		((VAL) & 0xFF)
+#define SC200AI_FETCH_AGAIN_H(VAL)	(((VAL) >> 8) & 0x03)
+#define SC200AI_FETCH_AGAIN_L(VAL)	((VAL) & 0xFF)
 
 #define SC200AI_FETCH_MIRROR(VAL, ENABLE)	(ENABLE ? VAL | 0x06 : VAL & 0xf9)
 #define SC200AI_FETCH_FLIP(VAL, ENABLE)		(ENABLE ? VAL | 0x60 : VAL & 0x9f)
@@ -1233,11 +1237,17 @@ static long sc200ai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 
 		if (stream) {
 			gpiod_set_value_cansleep(sc200ai->pwdn_gpio, 1);
-			ret = sc200ai_write_reg(sc200ai->client, SC200AI_REG_CTRL_MODE,
+			ret = sc200ai_write_reg(sc200ai->client, SC200AI_REG_MIPI_CTRL,
+				 SC200AI_REG_VALUE_08BIT, SC200AI_MIPI_CTRL_ON);
+
+			ret |= sc200ai_write_reg(sc200ai->client, SC200AI_REG_CTRL_MODE,
 				 SC200AI_REG_VALUE_08BIT, SC200AI_MODE_STREAMING);
 		} else {
 			ret = sc200ai_write_reg(sc200ai->client, SC200AI_REG_CTRL_MODE,
 				 SC200AI_REG_VALUE_08BIT, SC200AI_MODE_SW_STANDBY);
+
+			ret |= sc200ai_write_reg(sc200ai->client, SC200AI_REG_MIPI_CTRL,
+				 SC200AI_REG_VALUE_08BIT, SC200AI_MIPI_CTRL_OFF);
 			gpiod_set_value_cansleep(sc200ai->pwdn_gpio, 0);
 		}
 		break;
@@ -1934,7 +1944,7 @@ static int sc200ai_check_sensor_id(struct sc200ai *sc200ai,
 		return -ENODEV;
 	}
 
-	dev_info(dev, "Detected OV%06x sensor\n", CHIP_ID);
+	dev_info(dev, "Detected SC200AI (%06x) sensor\n", CHIP_ID);
 
 	return 0;
 }
