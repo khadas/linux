@@ -729,8 +729,8 @@ struct vop2_cluster_regs {
 	struct vop_reg dci_en;
 	struct vop_reg uv_adjust_en;
 	struct vop_reg csc_range;
-	struct vop_reg dma_rid;
-	struct vop_reg dma_rlen;
+	struct vop_reg dci_dma_rid;
+	struct vop_reg dci_dma_rlen;
 	struct vop_reg dci_dma_mst;
 	struct vop_reg debug_point_h;
 	struct vop_reg debug_point_v;
@@ -1270,6 +1270,7 @@ struct vop2_ctrl {
 	struct vop_reg rkmmu_v2_sel_axi;
 	struct vop_reg dsp_vs_t_sel;
 	struct vop_reg lut_dma_en;
+	struct vop_reg lut_use_axi1;
 	struct vop_reg axi_outstanding_max_num;
 	struct vop_reg axi_max_outstanding_en;
 	struct vop_reg hdmi_dclk_out_en;

@@ -3818,7 +3818,7 @@ static int vop2_crtc_atomic_cubic_lut_set(struct drm_crtc *crtc,
 		*cubic_lut_kvaddr = 0;
 	}
 
-	VOP_MODULE_SET(vop2, vp, lut_dma_rid, vp->lut_dma_rid);
+	VOP_MODULE_SET(vop2, vp, lut_dma_rid, vp->lut_dma_rid - vp->id);
 	VOP_MODULE_SET(vop2, vp, cubic_lut_mst, cubic_lut_mst);
 	VOP_MODULE_SET(vop2, vp, cubic_lut_update_en, 1);
 	VOP_MODULE_SET(vop2, vp, cubic_lut_en, 1);
@@ -4100,6 +4100,7 @@ static void vop2_initial(struct drm_crtc *crtc)
 
 			if (vop2->version == VOP_VERSION_RK3576 && vop2->merge_irq == true)
 				VOP_CTRL_SET(vop2, vp_intr_merge_en, 1);
+			VOP_CTRL_SET(vop2, lut_use_axi1, 0);
 		}
 
 		VOP_CTRL_SET(vop2, cfg_done_en, 1);
@@ -5469,8 +5470,8 @@ static void vop3_dci_config(struct vop2_win *win, struct vop2_plane_state *vpsta
 
 	VOP_CLUSTER_SET(vop2, win, dci_dma_mst, dci_lut_mst);
 	/* dci dma rid */
-	VOP_CLUSTER_SET(vop2, win, dma_rid, win_data->dci_rid_id);
-	VOP_CLUSTER_SET(vop2, win, dma_rlen, 0);
+	VOP_CLUSTER_SET(vop2, win, dci_dma_rid, win_data->dci_rid_id);
+	VOP_CLUSTER_SET(vop2, win, dci_dma_rlen, 0);
 
 	VOP_CLUSTER_SET(vop2, win, blk_size_h, blk_size_h);
 	VOP_CLUSTER_SET(vop2, win, blk_size_v, blk_size_v);
