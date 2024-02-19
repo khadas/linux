@@ -2906,6 +2906,13 @@ static struct drm_display_mode *dw_hdmi_rockchip_get_force_timing(void *data)
 	return &hdmi->force_mode;
 }
 
+static u32 dw_hdmi_rockchip_get_refclk_rate(void *data)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	return clk_get_rate(hdmi->hdmitx_ref);
+}
+
 static const struct drm_prop_enum_list color_depth_enum_list[] = {
 	{ 0, "Automatic" }, /* Prefer highest color depth */
 	{ 8, "24bit" },
@@ -3949,6 +3956,8 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		dw_hdmi_rockchip_set_hdcp14_mem;
 	plat_data->get_force_timing =
 		dw_hdmi_rockchip_get_force_timing;
+	plat_data->get_refclk_rate =
+		dw_hdmi_rockchip_get_refclk_rate;
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 
 	secondary = rockchip_hdmi_find_by_id(dev->driver, !hdmi->id);

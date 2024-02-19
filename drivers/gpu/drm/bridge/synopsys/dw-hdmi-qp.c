@@ -299,6 +299,8 @@ struct dw_hdmi_qp {
 	u32 flt_intr;
 	u32 earc_intr;
 
+	u32 refclk_rate;
+
 	struct mutex audio_mutex;
 	unsigned int sample_rate;
 	unsigned int audio_cts;
@@ -3782,9 +3784,11 @@ __dw_hdmi_probe(struct platform_device *pdev,
 	if (hdmi->plat_data->get_force_timing(hdmi->plat_data->phy_data))
 		hdmi->force_kernel_output = true;
 
+	hdmi->refclk_rate = hdmi->plat_data->get_refclk_rate(hdmi->plat_data->phy_data);
+
 	hdmi_writel(hdmi, 0, MAINUNIT_0_INT_MASK_N);
 	hdmi_writel(hdmi, 0, MAINUNIT_1_INT_MASK_N);
-	hdmi_writel(hdmi, 428571429, TIMER_BASE_CONFIG0);
+	hdmi_writel(hdmi, hdmi->refclk_rate, TIMER_BASE_CONFIG0);
 	hdmi->logo_plug_out = false;
 	if (hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data) == connector_status_connected &&
 	    hdmi_readl(hdmi, I2CM_INTERFACE_CONTROL0)) {
@@ -4105,7 +4109,7 @@ void dw_hdmi_qp_resume(struct device *dev, struct dw_hdmi_qp *hdmi)
 
 	hdmi_writel(hdmi, 0, MAINUNIT_0_INT_MASK_N);
 	hdmi_writel(hdmi, 0, MAINUNIT_1_INT_MASK_N);
-	hdmi_writel(hdmi, 428571429, TIMER_BASE_CONFIG0);
+	hdmi_writel(hdmi, hdmi->refclk_rate, TIMER_BASE_CONFIG0);
 
 	pinctrl_pm_select_default_state(dev);
 

@@ -268,6 +268,7 @@ struct dw_hdmi_plat_data {
 	void (*set_ddc_io)(void *data, bool enable);
 	void (*set_hdcp14_mem)(void *data, bool enable);
 	struct drm_display_mode *(*get_force_timing)(void *data);
+	u32 (*get_refclk_rate)(void *data);
 
 	/* Vendor Property support */
 	const struct dw_hdmi_property_ops *property_ops;
