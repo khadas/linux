@@ -87,9 +87,12 @@ enum rga_scale_down_mode {
 };
 
 enum RGA_SCHEDULER_CORE {
-	RGA_SCHEDULER_RGA3_CORE0 = 1 << 0,
-	RGA_SCHEDULER_RGA3_CORE1 = 1 << 1,
-	RGA_SCHEDULER_RGA2_CORE0 = 1 << 2,
+	RGA3_SCHEDULER_CORE0	= 1 << 0,
+	RGA3_SCHEDULER_CORE1	= 1 << 1,
+	RGA2_SCHEDULER_CORE0	= 1 << 2,
+	RGA2_SCHEDULER_CORE1	= 1 << 3,
+	RGA_CORE_MASK		= 0xf,
+	RGA_NONE_CORE		= 0x0,
 };
 
 enum rga_scale_interp {
