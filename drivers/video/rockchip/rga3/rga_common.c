@@ -636,12 +636,14 @@ const char *rga_get_mmu_type_str(enum rga_mmu mmu_type)
 const char *rga_get_core_name(enum RGA_SCHEDULER_CORE core)
 {
 	switch (core) {
-	case RGA_SCHEDULER_RGA3_CORE0:
+	case RGA3_SCHEDULER_CORE0:
 		return "RGA3_core0";
-	case RGA_SCHEDULER_RGA3_CORE1:
+	case RGA3_SCHEDULER_CORE1:
 		return "RGA3_core1";
-	case RGA_SCHEDULER_RGA2_CORE0:
+	case RGA2_SCHEDULER_CORE0:
 		return "RGA2_core0";
+	case RGA2_SCHEDULER_CORE1:
+		return "RGA2_core1";
 	default:
 		return "unknown_core";
 	}

@@ -114,15 +114,6 @@
 extern struct rga_drvdata_t *rga_drvdata;
 
 enum {
-	RGA3_SCHEDULER_CORE0		= 1 << 0,
-	RGA3_SCHEDULER_CORE1		= 1 << 1,
-	RGA2_SCHEDULER_CORE0		= 1 << 2,
-	RGA2_SCHEDULER_CORE1		= 1 << 3,
-	RGA_CORE_MASK			= 0xf,
-	RGA_NONE_CORE			= 0x0,
-};
-
-enum {
 	RGA_CMD_SLAVE		= 1,
 	RGA_CMD_MASTER		= 2,
 };
