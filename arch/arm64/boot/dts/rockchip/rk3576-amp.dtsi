@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2024 Rockchip Electronics Co., Ltd.
+ */
+
+#include <dt-bindings/soc/rockchip-amp.h>
+
+/ {
+	rockchip_amp: rockchip-amp {
+		compatible = "rockchip,amp";
+		clocks = <&cru FCLK_BUS_CM0_CORE>, <&cru CLK_BUS_CM0_RTC>,
+			<&cru FCLK_PMU_CM0_CORE>, <&cru CLK_PMU_CM0_RTC>,
+			<&cru PCLK_MAILBOX0>,
+			<&cru SCLK_UART5>, <&cru PCLK_UART5>,
+			<&cru PCLK_BUSTIMER1>, <&cru CLK_TIMER10>, <&cru CLK_TIMER11>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart5m2_xfer>;
+
+		status = "okay";
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/* mcu address */
+		mcu_reserved: mcu@48200000 {
+			reg = <0x0 0x48200000 0x0 0x100000>;
+			no-map;
+		};
+	};
+};
+
