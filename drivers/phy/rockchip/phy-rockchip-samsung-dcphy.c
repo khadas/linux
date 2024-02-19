@@ -1515,6 +1515,11 @@ samsung_mipi_dcphy_pll_round_rate(struct samsung_mipi_dcphy *samsung,
 	u32 min_delta = UINT_MAX;
 	long _dsm, best_dsm = 0;
 
+	if (!prate) {
+		dev_err(samsung->dev, "prate of pll can not be set zero\n");
+		return 0;
+	}
+
 	/*
 	 * The PLL output frequency can be calculated using a simple formula:
 	 * Fvco = ((m+k/65536) x 2 x Fin) / p
@@ -1846,7 +1851,7 @@ samsung_mipi_dcphy_pll_calc_rate(struct samsung_mipi_dcphy *samsung,
 	unsigned long prate = clk_get_rate(samsung->ref_clk);
 	unsigned long fout;
 	u8 scaler = 0, mfr = 0, mrr = 0;
-	u16 fbdiv = 1;
+	u16 fbdiv = 0;
 	u8 prediv = 1;
 	int dsm = 0;
 	int ret;
