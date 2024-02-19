@@ -82,6 +82,11 @@ struct spd_infoframe_st {
 	} des_u;
 };
 
+struct hdmirx_hpd_info {
+	int signal;
+	int port;
+};
+
 #define HDMI_IOC_MAGIC 'H'
 #define HDMI_IOC_HDCP_ON	_IO(HDMI_IOC_MAGIC, 0x01)
 #define HDMI_IOC_HDCP_OFF	_IO(HDMI_IOC_MAGIC, 0x02)
@@ -102,5 +107,7 @@ struct spd_infoframe_st {
 #define HDMI_IOC_GET_SPD_SRC_INFO	_IOR(HDMI_IOC_MAGIC, 0x11, struct spd_infoframe_st)
 #define HDMI_5V_PIN_STATUS		_IOR(HDMI_IOC_MAGIC, 0x12, unsigned int)
 #define HDMI_IOC_EDID_UPDATE_WITH_PORT  _IOW(HDMI_IOC_MAGIC, 0x13, unsigned char)
+#define HDMI_IOC_SET_HPD	_IOW(HDMI_IOC_MAGIC, 0x15, struct hdmirx_hpd_info)
+#define HDMI_IOC_GET_HPD	_IOR(HDMI_IOC_MAGIC, 0x16, struct hdmirx_hpd_info)
 
 #endif

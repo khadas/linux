@@ -3213,7 +3213,7 @@ void rx_force_hpd_cfg(u8 hpd_level);
 int rx_set_port_hpd(u8 port_id, bool val);
 void rx_set_cur_hpd(u8 val, u8 func);
 unsigned int rx_get_hdmi5v_sts(void);
-unsigned int rx_get_hpd_sts(void);
+unsigned int rx_get_hpd_sts(u8 port);
 void cec_hw_reset(unsigned int cec_sel);
 void rx_force_hpd_cfg(u8 hpd_level);
 void rx_force_rxsense_cfg(u8 level);

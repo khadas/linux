@@ -1459,9 +1459,9 @@ EXPORT_SYMBOL(rx_get_hdmi5v_sts);
 /*
  * rx_get_hpd_sts - get current hpd status on all ports
  */
-unsigned int rx_get_hpd_sts(void)
+unsigned int rx_get_hpd_sts(u8 port)
 {
-	return hdmirx_rd_top(TOP_HPD_PWR5V) & 0xf;
+	return (hdmirx_rd_top(TOP_HPD_PWR5V) >> port) & 0x1;
 }
 
 /*
