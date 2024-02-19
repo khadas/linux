@@ -317,6 +317,7 @@ struct dw_dp_link {
 	struct drm_dp_desc desc;
 	u8 sink_count;
 	u8 vsc_sdp_extension_for_colorimetry_supported;
+	bool sink_support_mst;
 };
 
 struct dw_dp_video {
@@ -1566,6 +1567,8 @@ static int dw_dp_link_probe(struct dw_dp *dp)
 		if (!link->sink_count)
 			return -ENODEV;
 	}
+
+	link->sink_support_mst = drm_dp_read_mst_cap(&dp->aux, dp->link.dpcd);
 
 	ret = drm_dp_dpcd_readb(&dp->aux, DP_DPRX_FEATURE_ENUMERATION_LIST,
 				&dpcd);
@@ -4094,7 +4097,6 @@ static enum drm_connector_status dw_dp_bridge_detect(struct drm_bridge *bridge)
 {
 	struct dw_dp *dp = bridge_to_dp(bridge);
 	enum drm_connector_status status = connector_status_connected;
-	bool sink_support_mst;
 
 	if (dp->panel)
 		drm_panel_prepare(dp->panel);
@@ -4122,11 +4124,13 @@ out:
 			dev_info(dp->dev, "MST device may have disappeared\n");
 			dp->is_mst = false;
 			drm_dp_mst_topology_mgr_set_mst(&dp->mst_mgr, dp->is_mst);
+			phy_power_off(dp->phy);
 		}
 	} else {
-		sink_support_mst = drm_dp_read_mst_cap(&dp->aux, dp->link.dpcd);
-		if (sink_support_mst && dp->mst_mgr.cbs) {
+		if (dp->link.sink_support_mst && dp->mst_mgr.cbs) {
 			dev_info(dp->dev, "MST device appeared\n");
+			if (!dp->is_mst)
+				phy_power_on(dp->phy);
 			dp->is_mst = true;
 			drm_dp_mst_topology_mgr_set_mst(&dp->mst_mgr, dp->is_mst);
 			status = connector_status_disconnected;
