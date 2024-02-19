@@ -132,6 +132,14 @@
 #define SAI_FIFOLR_XFL0_SHIFT		0
 #define SAI_FIFOLR_XFL0_MASK		GENMASK(5, 0)
 
+/* STATUS Status Register (VERSION > 0x23070000) */
+#define SAI_STATUS_RX_IDLE		BIT(3)
+#define SAI_STATUS_TX_IDLE		BIT(2)
+#define SAI_STATUS_FS_IDLE		BIT(1)
+
+/* VERSION */
+#define SAI_VER_2307			0x23070000
+
 /* SAI Registers */
 #define SAI_TXCR			(0x0000)
 #define SAI_FSCR			(0x0004)
@@ -160,6 +168,7 @@
 #define SAI_RX_DATA_CNT			(0x0060)
 #define SAI_TX_SHIFT			(0x0064)
 #define SAI_RX_SHIFT			(0x0068)
+#define SAI_STATUS			(0x006c)
 #define SAI_VERSION			(0x0070)
 
 #endif /* _ROCKCHIP_SAI_H */

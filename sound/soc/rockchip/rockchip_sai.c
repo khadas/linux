@@ -60,6 +60,7 @@ struct rk_sai_dev {
 	unsigned int quirks;
 	unsigned int mclk_root_rate;
 	unsigned int mclk_root_initial_rate;
+	unsigned int version;
 	enum fpw_mode fpw;
 	int  fw_ratio;
 	int  clk_ppm;
@@ -81,11 +82,53 @@ static const struct sai_of_quirks {
 	},
 };
 
+static int rockchip_sai_poll_clk_idle(struct rk_sai_dev *sai)
+{
+	unsigned int reg, idle, val;
+	int ret;
+
+	if (sai->version > SAI_VER_2307) {
+		reg = SAI_STATUS;
+		idle = SAI_STATUS_FS_IDLE;
+	} else {
+		reg = SAI_XFER;
+		idle = SAI_XFER_FS_IDLE;
+	}
+
+	dev_dbg(sai->dev, "%s: ver: 0x%x\n", __func__, sai->version);
+
+	ret = regmap_read_poll_timeout_atomic(sai->regmap, reg, val,
+					      (val & idle), 10, TIMEOUT_US);
+	if (ret < 0)
+		dev_warn(sai->dev, "Failed to idle FS\n");
+
+	return ret;
+}
+
+static int rockchip_sai_poll_stream_idle(struct rk_sai_dev *sai, int stream)
+{
+	unsigned int reg, idle, val;
+	int ret;
+
+	if (sai->version > SAI_VER_2307) {
+		reg = SAI_STATUS;
+		idle = stream ? SAI_STATUS_RX_IDLE : SAI_STATUS_TX_IDLE;
+	} else {
+		reg = SAI_XFER;
+		idle = stream ? SAI_XFER_RX_IDLE : SAI_XFER_TX_IDLE;
+	}
+
+	ret = regmap_read_poll_timeout_atomic(sai->regmap, reg, val,
+					      (val & idle), 10, TIMEOUT_US);
+	if (ret < 0)
+		dev_warn(sai->dev, "Failed to idle stream\n");
+
+	return ret;
+}
+
 static int rockchip_sai_runtime_suspend(struct device *dev)
 {
 	struct rk_sai_dev *sai = dev_get_drvdata(dev);
-	unsigned int val;
-	int ret;
 
 	if (sai->is_master_mode)
 		regmap_update_bits(sai->regmap, SAI_XFER,
@@ -94,10 +137,7 @@ static int rockchip_sai_runtime_suspend(struct device *dev)
 				   SAI_XFER_CLK_DIS |
 				   SAI_XFER_FSS_DIS);
 
-	ret = regmap_read_poll_timeout_atomic(sai->regmap, SAI_XFER, val,
-					      (val & SAI_XFER_FS_IDLE), 10, TIMEOUT_US);
-	if (ret < 0)
-		dev_warn(sai->dev, "Failed to idle FS\n");
+	rockchip_sai_poll_clk_idle(sai);
 
 	regcache_cache_only(sai->regmap, true);
 	/*
@@ -262,27 +302,20 @@ static void rockchip_sai_xfer_start(struct rk_sai_dev *sai, int stream)
 
 static void rockchip_sai_xfer_stop(struct rk_sai_dev *sai, int stream)
 {
-	unsigned int msk, val, clr, idle;
-	int ret;
+	unsigned int msk, val, clr;
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		msk = SAI_XFER_TXS_MASK;
 		val = SAI_XFER_TXS_DIS;
 		clr = SAI_CLR_TXC;
-		idle = SAI_XFER_TX_IDLE;
 	} else {
 		msk = SAI_XFER_RXS_MASK;
 		val = SAI_XFER_RXS_DIS;
 		clr = SAI_CLR_RXC;
-		idle = SAI_XFER_RX_IDLE;
 	}
 
 	regmap_update_bits(sai->regmap, SAI_XFER, msk, val);
-	ret = regmap_read_poll_timeout_atomic(sai->regmap, SAI_XFER, val,
-					      (val & idle), 10, TIMEOUT_US);
-	if (ret < 0)
-		dev_warn(sai->dev, "Failed to idle stream %d\n", stream);
-
+	rockchip_sai_poll_stream_idle(sai, stream);
 	rockchip_sai_clear(sai, clr);
 }
 
@@ -860,6 +893,7 @@ static bool rockchip_sai_rd_reg(struct device *dev, unsigned int reg)
 	case SAI_RX_DATA_CNT:
 	case SAI_TX_SHIFT:
 	case SAI_RX_SHIFT:
+	case SAI_STATUS:
 	case SAI_VERSION:
 		return true;
 	default:
@@ -880,6 +914,8 @@ static bool rockchip_sai_volatile_reg(struct device *dev, unsigned int reg)
 	case SAI_RXDR:
 	case SAI_TX_DATA_CNT:
 	case SAI_RX_DATA_CNT:
+	case SAI_STATUS:
+	case SAI_VERSION:
 		return true;
 	default:
 		return false;
@@ -1587,6 +1623,8 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get hclk\n");
 		return PTR_ERR(sai->hclk);
 	}
+
+	regmap_read(sai->regmap, SAI_VERSION, &sai->version);
 
 	ret = rockchip_sai_parse_quirks(sai);
 	if (ret)
