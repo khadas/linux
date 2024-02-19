@@ -40,6 +40,7 @@
 #define SII902X_TPI_AVI_PIXEL_REP_4X		3
 #define SII902X_TPI_AVI_PIXEL_REP_2X		1
 #define SII902X_TPI_AVI_PIXEL_REP_NONE		0
+#define SII902X_TPI_CLK_RATIO_MASK		GENMASK(7, 6)
 #define SII902X_TPI_CLK_RATIO_HALF		(0 << 6)
 #define SII902X_TPI_CLK_RATIO_1X		(1 << 6)
 #define SII902X_TPI_CLK_RATIO_2X		(2 << 6)
@@ -550,6 +551,7 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 	u8 buf[HDMI_INFOFRAME_SIZE(AVI)];
 	struct hdmi_avi_infoframe frame;
 	u16 pixel_clock_10kHz = adj->clock / 10;
+	u8 ratio;
 	int ret, vrefresh;
 
 	if (sii902x->loader_protect) {
@@ -570,8 +572,7 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 	buf[5] = adj->crtc_htotal >> 8;
 	buf[6] = adj->crtc_vtotal;
 	buf[7] = adj->crtc_vtotal >> 8;
-	buf[8] = SII902X_TPI_CLK_RATIO_1X | SII902X_TPI_AVI_PIXEL_REP_NONE |
-		 SII902X_TPI_AVI_PIXEL_REP_BUS_24BIT;
+	buf[8] = SII902X_TPI_AVI_PIXEL_REP_NONE | SII902X_TPI_AVI_PIXEL_REP_BUS_24BIT;
 	switch (sii902x->bus_format) {
 	case MEDIA_BUS_FMT_YUYV8_1X16:
 	case MEDIA_BUS_FMT_YVYU8_1X16:
@@ -619,6 +620,13 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 	ret = regmap_bulk_write(regmap, SII902X_TPI_VIDEO_DATA, buf, 10);
 	if (ret)
 		goto out;
+
+	if (sii902x->mode.flags & DRM_MODE_FLAG_INTERLACE)
+		ratio = SII902X_TPI_CLK_RATIO_2X;
+	else
+		ratio = SII902X_TPI_CLK_RATIO_1X;
+	regmap_update_bits(sii902x->regmap, SII902X_TPI_PIXEL_REPETITION,
+			   SII902X_TPI_CLK_RATIO_MASK, ratio);
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame,
 						       &sii902x->connector, adj);
