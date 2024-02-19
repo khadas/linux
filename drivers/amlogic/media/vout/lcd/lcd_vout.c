@@ -420,7 +420,22 @@ static void lcd_dlg_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 
 static void lcd_power_encl_on(struct aml_lcd_drv_s *pdrv)
 {
+	int ret;
+
 	mutex_lock(&lcd_vout_mutex);
+
+	if (pdrv->config_check_en == 0) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("[%d]: config_check disabled\n", pdrv->index);
+	} else {
+		ret = lcd_config_timing_check(pdrv, &pdrv->config.timing.act_timing);
+		if (ret & 0x55) {
+			LCDERR("[%d]: %s: config timing check fatal error!\n",
+				pdrv->index, __func__);
+			mutex_unlock(&lcd_vout_mutex);
+			return;
+		}
+	}
 
 	if (pdrv->status & LCD_STATUS_ENCL_ON) {
 		LCDPR("[%d]: %s: on already\n", pdrv->index, __func__);
@@ -973,6 +988,10 @@ static int lcd_power_if_on_notifier(struct notifier_block *nb,
 	if ((pdrv->status & LCD_STATUS_ENCL_ON) == 0) {
 		LCDPR("[%d]: %s: force power on controller ahead\n", pdrv->index, __func__);
 		lcd_power_encl_on(pdrv);
+		if ((pdrv->status & LCD_STATUS_ENCL_ON) == 0) {
+			LCDERR("[%d]: %s: encl_on failed!\n", pdrv->index, __func__);
+			return NOTIFY_DONE;
+		}
 	}
 
 	lcd_power_if_on(pdrv);

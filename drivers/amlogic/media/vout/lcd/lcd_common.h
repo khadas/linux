@@ -74,7 +74,8 @@
 /* 20231205: add lcd config check*/
 /* 20231218: update timing management*/
 /* 20240129: update display mode management*/
-#define LCD_DRV_VERSION    "20240129"
+/* 20240218: optimize lcd config check sequence*/
+#define LCD_DRV_VERSION    "20240218"
 
 extern struct mutex lcd_vout_mutex;
 
@@ -113,7 +114,7 @@ void lcd_mlvds_pinmux_set(struct aml_lcd_drv_s *pdrv, int status);
 void lcd_p2p_pinmux_set(struct aml_lcd_drv_s *pdrv, int status);
 void lcd_edp_pinmux_set(struct aml_lcd_drv_s *pdrv, int status);
 
-int lcd_config_check(struct aml_lcd_drv_s *pdrv);
+int lcd_config_timing_check(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming);
 int lcd_base_config_load_from_dts(struct aml_lcd_drv_s *pdrv);
 void lcd_mlvds_phy_ckdi_config(struct aml_lcd_drv_s *pdrv);
 int lcd_get_config(struct aml_lcd_drv_s *pdrv);
@@ -196,15 +197,15 @@ int lcd_tcon_od_set(struct aml_lcd_drv_s *pdrv, int flag);
 int lcd_tcon_od_get(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_core_reg_get(struct aml_lcd_drv_s *pdrv,
 			  unsigned char *buf, unsigned int size);
-int lcd_tcon_check(struct aml_lcd_drv_s *pdrv, char *ferr_str, char *warn_str);
 int lcd_tcon_enable(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_reload(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_reload_pre(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_disable(struct aml_lcd_drv_s *pdrv);
+void lcd_tcon_dbg_check(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming);
 void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv);
 
 /* tcon debug */
-int lcd_tcon_info_print(char *buf, int offset);
+int lcd_tcon_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 ssize_t lcd_tcon_debug_show(struct device *dev, struct device_attribute *attr, char *buf);
 ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 				const char *buf, size_t count);

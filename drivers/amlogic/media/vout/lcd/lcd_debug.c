@@ -585,7 +585,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		pconf->timing.ss_freq, pconf->timing.ss_mode,
 		pconf->timing.pll_flag, pconf->timing.act_timing.fr_adjust_type);
 
-	ret = lcd_config_check(pdrv);
+	ret = lcd_config_timing_check(pdrv, &pconf->timing.act_timing);
 	herr = ret & 0xf;
 	verr = (ret >> 4) & 0xf;
 	n = lcd_debug_info_len(len + offset);
@@ -809,7 +809,7 @@ static int lcd_info_tcon_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset
 	    pdrv->config.basic.lcd_type != LCD_P2P)
 		return len;
 
-	len = lcd_tcon_info_print(buf, offset);
+	len = lcd_tcon_info_print(pdrv, buf, offset);
 
 	return len;
 }
@@ -2223,9 +2223,9 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 				return -EINVAL;
 			}
 		} else if (buf[1] == 'h') { /* check */
-			ret = lcd_config_check(pdrv);
+			ret = lcd_config_timing_check(pdrv, &pconf->timing.act_timing);
 			if (ret == 0)
-				pr_info("lcd_config_check: PASS\n");
+				pr_info("lcd config_timing_check: PASS\n");
 			pr_info("disp_tmg_min_req:\n"
 				"  alert_lvl  %d\n"
 				"  hswbp  %d\n"
@@ -2235,6 +2235,10 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 				pdrv->disp_req.alert_level,
 				pdrv->disp_req.hswbp_vid, pdrv->disp_req.hfp_vid,
 				pdrv->disp_req.vswbp_vid, pdrv->disp_req.vfp_vid);
+			if (pconf->basic.lcd_type == LCD_MLVDS ||
+			    pconf->basic.lcd_type == LCD_P2P) {
+				lcd_tcon_dbg_check(pdrv, &pconf->timing.act_timing);
+			}
 			pr_info("config_check_glb: %d, config_check: 0x%x, config_check_en: %d\n\n",
 				pdrv->config_check_glb, pconf->basic.config_check,
 				pdrv->config_check_en);

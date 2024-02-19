@@ -807,11 +807,8 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 //     bit[5]:vfp: warning, only print warning message
 //     bit[6]:vswbp: fatal error, block driver
 //     bit[7]:vswbp: warning, only print warning message
-//     bit[8]:tcon: fatal error, block driver
-//     bit[9]:tcon: warning, only print warning message
-int lcd_config_check(struct aml_lcd_drv_s *pdrv)
+int lcd_config_timing_check(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming)
 {
-	struct lcd_detail_timing_s *ptiming = &pdrv->config.timing.dft_timing;
 	short hpw = ptiming->hsync_width;
 	short hbp = ptiming->hsync_bp;
 	short hfp = ptiming->hsync_fp;
@@ -820,15 +817,8 @@ int lcd_config_check(struct aml_lcd_drv_s *pdrv)
 	short vfp = ptiming->vsync_fp;
 	short temp, hfp_min, vfp_min, vfp_cmpr_tail = 0;
 	char *ferr_str = NULL, *warn_str = NULL;
-	char *tcon_ferr_str = NULL, *tcon_warn_str = NULL;
 	int ferr_len = 0, warn_len = 0, ferr_left, warn_left;
-	int tcon_valid = 0, ret = 0;
-
-	if (pdrv->config.basic.lcd_type == LCD_MLVDS ||
-	    pdrv->config.basic.lcd_type == LCD_P2P) {
-		tcon_valid = 1;
-		vfp_cmpr_tail = 3;
-	}
+	int ret = 0;
 
 	ferr_str = kzalloc(PR_BUF_MAX, GFP_KERNEL);
 	if (!ferr_str) {
@@ -841,22 +831,10 @@ int lcd_config_check(struct aml_lcd_drv_s *pdrv)
 		kfree(ferr_str);
 		return 0;
 	}
-	if (tcon_valid) {
-		tcon_ferr_str = kzalloc(PR_BUF_MAX, GFP_KERNEL);
-		if (!tcon_ferr_str) {
-			LCDERR("config_check fail for NOMEM\n");
-			kfree(ferr_str);
-			kfree(warn_str);
-			return 0;
-		}
-		tcon_warn_str = kzalloc(PR_BUF_MAX, GFP_KERNEL);
-		if (!tcon_warn_str) {
-			LCDERR("config_check fail for NOMEM\n");
-			kfree(ferr_str);
-			kfree(warn_str);
-			kfree(tcon_ferr_str);
-			return 0;
-		}
+
+	if (pdrv->config.basic.lcd_type == LCD_MLVDS ||
+	    pdrv->config.basic.lcd_type == LCD_P2P) {
+		vfp_cmpr_tail = 3;
 	}
 
 	if (hfp <= 0) {
@@ -895,7 +873,7 @@ int lcd_config_check(struct aml_lcd_drv_s *pdrv)
 	//display timing check
 	//hswbp
 	if (pdrv->disp_req.hswbp_vid == 0)
-		goto lcd_config_valid_check_vid_hfp;
+		goto lcd_config_timing_check_vid_hfp;
 	temp = hpw + hbp;
 	if (temp < pdrv->disp_req.hswbp_vid) {
 		if (pdrv->disp_req.alert_level == 1) {
@@ -913,10 +891,10 @@ int lcd_config_check(struct aml_lcd_drv_s *pdrv)
 		}
 	}
 
-lcd_config_valid_check_vid_hfp:
+lcd_config_timing_check_vid_hfp:
 	//hfp
 	if (pdrv->disp_req.hfp_vid == 0)
-		goto lcd_config_valid_check_vid_vswbp;
+		goto lcd_config_timing_check_vid_vswbp;
 	if (hfp < pdrv->disp_req.hfp_vid) {
 		if (pdrv->disp_req.alert_level == 1) {
 			warn_left = lcd_debug_info_len(warn_len);
@@ -933,10 +911,10 @@ lcd_config_valid_check_vid_hfp:
 		}
 	}
 
-lcd_config_valid_check_vid_vswbp:
+lcd_config_timing_check_vid_vswbp:
 	//vswbp
 	if (pdrv->disp_req.vswbp_vid == 0)
-		goto lcd_config_valid_check_vid_vfp;
+		goto lcd_config_timing_check_vid_vfp;
 	temp = vpw + vbp;
 	if (temp < pdrv->disp_req.vswbp_vid) {
 		if (pdrv->disp_req.alert_level == 1) {
@@ -954,10 +932,10 @@ lcd_config_valid_check_vid_vswbp:
 		}
 	}
 
-lcd_config_valid_check_vid_vfp:
+lcd_config_timing_check_vid_vfp:
 	//vfp
 	if (pdrv->disp_req.vfp_vid == 0)
-		goto lcd_config_valid_check_next;
+		goto lcd_config_timing_check_end;
 	temp = pdrv->disp_req.vfp_vid + vfp_cmpr_tail;
 	if (vfp < temp) {
 		if (pdrv->disp_req.alert_level == 1) {
@@ -975,14 +953,9 @@ lcd_config_valid_check_vid_vfp:
 		}
 	}
 
-lcd_config_valid_check_next:
-	if (tcon_valid) {
-		temp = lcd_tcon_check(pdrv, tcon_ferr_str, tcon_warn_str);
-		ret |= ((temp & 0x3) << 8);
-	}
-
+lcd_config_timing_check_end:
 	if (ret) {
-		pr_err("**************** lcd config check ****************\n");
+		pr_err("**************** lcd config timing check ****************\n");
 		if (ret & 0x55) {
 			pr_err("lcd: FATAL ERROR:\n"
 				"%s\n", ferr_str);
@@ -991,23 +964,10 @@ lcd_config_valid_check_next:
 			pr_err("lcd: WARNING:\n"
 				"%s\n", warn_str);
 		}
-
-		if (tcon_valid) {
-			if (ret & 0x100) {
-				pr_err("lcd: tcon: FATAL ERROR:\n"
-					"%s\n", tcon_ferr_str);
-			}
-			if (ret & 0x200) {
-				pr_err("lcd: tcon: WARNING:\n"
-					"%s\n", tcon_warn_str);
-			}
-		}
-		pr_err("************** lcd config check end ****************\n");
+		pr_err("************** lcd config timing check end ****************\n");
 	}
 	kfree(ferr_str);
 	kfree(warn_str);
-	kfree(tcon_ferr_str);
-	kfree(tcon_warn_str);
 
 	return ret;
 }
@@ -2225,6 +2185,8 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		break;
 	}
 
+	lcd_config_timing_check(pdrv, &pdrv->config.timing.dft_timing);
+
 	lcd_vlock_param_load_from_dts(pdrv, child);
 	ret = lcd_power_load_from_dts(pdrv, child);
 
@@ -2364,6 +2326,8 @@ static int lcd_config_load_from_unifykey_v2(struct aml_lcd_drv_s *pdrv,
 		cus_ctrl->dft_timing.frame_rate_max = 0;
 
 		lcd_fr_range_update(&cus_ctrl->dft_timing);
+
+		lcd_config_timing_check(pdrv, &cus_ctrl->dft_timing);
 	}
 
 	return 0;
@@ -2646,6 +2610,8 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 		break;
 	}
 
+	lcd_config_timing_check(pdrv, &pdrv->config.timing.dft_timing);
+
 	lcd_vlock_param_load_from_unifykey(pdrv, para);
 
 	/* step 3: check power sequence */
@@ -2673,6 +2639,11 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 
 static int lcd_config_load_init(struct aml_lcd_drv_s *pdrv)
 {
+	if (pdrv->config.basic.config_check & 0x2)
+		pdrv->config_check_en = pdrv->config.basic.config_check & 0x1;
+	else
+		pdrv->config_check_en = pdrv->config_check_glb;
+
 	switch (pdrv->config.fr_auto_cus) {
 	case 0: //follow global fr_auto_policy
 		pdrv->config.fr_auto_flag = pdrv->fr_auto_policy;
@@ -2728,21 +2699,6 @@ int lcd_get_config(struct aml_lcd_drv_s *pdrv)
 	lcd_config_load_print(pdrv);
 
 	lcd_tcon_probe(pdrv);
-
-	if (pdrv->config.basic.config_check & 0x2)
-		pdrv->config_check_en = pdrv->config.basic.config_check & 0x1;
-	else
-		pdrv->config_check_en = pdrv->config_check_glb;
-	if (pdrv->config_check_en == 0) {
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-			LCDPR("[%d]: config_check disabled\n", pdrv->index);
-	} else {
-		ret = lcd_config_check(pdrv);
-		if (ret & 0x155) {
-			LCDERR("[%d]: %s: lcd config check fatal error!\n", pdrv->index, __func__);
-			return -1;
-		}
-	}
 
 	return 0;
 }

@@ -345,6 +345,53 @@ unsigned char *lcd_tcon_paddrtovaddr(unsigned long paddr, unsigned int mem_size)
  * tcon function api
  * **********************************
  */
+//ret:  bit[0]:tcon: fatal error, block driver
+//      bit[1]:tcon: warning, only print warning message
+int lcd_tcon_init_setting_check(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming,
+		unsigned char *core_reg_table)
+{
+	char *ferr_str, *warn_str;
+	int ret;
+
+	ret = lcd_tcon_valid_check();
+	if (ret)
+		return -1;
+
+	ferr_str = kzalloc(PR_BUF_MAX, GFP_KERNEL);
+	if (!ferr_str) {
+		LCDERR("tcon: setting_check fail for NOMEM\n");
+		return 0;
+	}
+	warn_str = kzalloc(PR_BUF_MAX, GFP_KERNEL);
+	if (!warn_str) {
+		LCDERR("tcon: setting_check fail for NOMEM\n");
+		kfree(ferr_str);
+		return 0;
+	}
+
+	if (lcd_tcon_conf->tcon_check)
+		ret = lcd_tcon_conf->tcon_check(pdrv, ptiming, core_reg_table, ferr_str, warn_str);
+	else
+		ret = 0;
+
+	if (ret) {
+		pr_err("**************** lcd tcon setting check ****************\n");
+		if (ret & 0x1) {
+			pr_err("lcd: tcon: FATAL ERROR:\n"
+				"%s\n", ferr_str);
+		}
+		if (ret & 0x2) {
+			pr_err("lcd: tcon: WARNING:\n"
+				"%s\n", warn_str);
+		}
+		pr_err("************** lcd tcon setting check end ****************\n");
+	}
+	kfree(ferr_str);
+	kfree(warn_str);
+
+	return ret;
+}
+
 unsigned int lcd_tcon_reg_read(struct aml_lcd_drv_s *pdrv, unsigned int addr)
 {
 	unsigned int val;
@@ -654,7 +701,7 @@ static int lcd_tcon_axi_mem_print(char *buf, int offset)
 	return len;
 }
 
-int lcd_tcon_info_print(char *buf, int offset)
+int lcd_tcon_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 {
 	unsigned int size, file_size, cnt, m, sec_protect, sec_handle, *data;
 	unsigned char *mem_vaddr;
@@ -665,6 +712,9 @@ int lcd_tcon_info_print(char *buf, int offset)
 	ret = lcd_tcon_valid_check();
 	if (ret)
 		return len;
+
+	lcd_tcon_init_setting_check(pdrv, &pdrv->config.timing.act_timing,
+			tcon_local_cfg.cur_core_reg_table);
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
@@ -950,7 +1000,7 @@ int lcd_tcon_core_update(struct aml_lcd_drv_s *pdrv)
 		return -1;
 
 	lcd_tcon_core_reg_set(pdrv, lcd_tcon_conf,
-		&tcon_mm_table, tcon_mm_table.core_reg_table);
+		&tcon_mm_table, tcon_local_cfg.cur_core_reg_table);
 
 	return 0;
 }
@@ -1036,20 +1086,13 @@ void lcd_tcon_disable(struct aml_lcd_drv_s *pdrv)
 		lcd_tcon_conf->tcon_disable(pdrv);
 }
 
-int lcd_tcon_check(struct aml_lcd_drv_s *pdrv, char *ferr_str, char *warn_str)
+void lcd_tcon_dbg_check(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming)
 {
 	int ret;
 
-	ret = lcd_tcon_valid_check();
-	if (ret)
-		return -1;
-
-	if (lcd_tcon_conf->tcon_check)
-		ret = lcd_tcon_conf->tcon_check(pdrv, ferr_str, warn_str);
-	else
-		ret = 0;
-
-	return ret;
+	ret = lcd_tcon_init_setting_check(pdrv, ptiming, tcon_local_cfg.cur_core_reg_table);
+	if (ret == 0)
+		pr_info("lcd tcon setting check: PASS\n");
 }
 
 static void lcd_tcon_time_sort_save(unsigned long long *table, unsigned long long data)
@@ -2169,10 +2212,12 @@ void lcd_tcon_data_block_regen_crc(unsigned char *data)
 int lcd_tcon_data_load(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf, int index)
 {
 	struct lcd_tcon_data_block_header_s *block_header;
+	struct lcd_tcon_init_block_header_s *init_header;
 	struct tcon_data_priority_s *data_prio;
 	unsigned int priority;
 	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
-	unsigned int *core_reg_table;
+	struct lcd_detail_timing_s match_timing;
+	unsigned char *core_reg_table;
 	int j;
 
 	if (!tcon_mm_table.data_size) {
@@ -2192,21 +2237,25 @@ int lcd_tcon_data_load(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf, int 
 		return -1;
 	}
 
-	if (block_header->block_type != LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT) {
-		tcon_mm_table.valid_flag |= block_header->block_flag;
-		if (block_header->block_flag == LCD_TCON_DATA_VALID_DEMURA)
-			tcon_mm_table.demura_cnt++;
-	} else {
-		core_reg_table = (unsigned int *)(data_buf +
-			sizeof(struct lcd_tcon_data_block_header_s));
-
+	if (block_header->block_type == LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT) {
 		if (!tcon_conf)
 			return -1;
 
-		lcd_tcon_od_pre_disable((unsigned char *)core_reg_table);
+		init_header = (struct lcd_tcon_init_block_header_s *)data_buf;
+		core_reg_table = data_buf + sizeof(struct lcd_tcon_data_block_header_s);
+
+		lcd_tcon_od_pre_disable(core_reg_table);
 		if (tcon_conf->tcon_axi_mem_update)
-			tcon_conf->tcon_axi_mem_update(core_reg_table);
+			tcon_conf->tcon_axi_mem_update((unsigned int *)core_reg_table);
 		lcd_tcon_data_block_regen_crc(data_buf);
+
+		match_timing.h_active = init_header->h_active;
+		match_timing.v_active = init_header->v_active;
+		lcd_tcon_init_setting_check(pdrv, &match_timing, core_reg_table);
+	} else {
+		tcon_mm_table.valid_flag |= block_header->block_flag;
+		if (block_header->block_flag == LCD_TCON_DATA_VALID_DEMURA)
+			tcon_mm_table.demura_cnt++;
 	}
 
 	/* insertion sort for block data init_priority */
@@ -2957,7 +3006,7 @@ static void lcd_tcon_intr_init(struct aml_lcd_drv_s *pdrv)
 	lcd_tcon_write(pdrv, TCON_INTR_MASKN, TCON_INTR_MASKN_VAL);
 }
 
-static int lcd_tcon_load_init_data_from_unifykey(void)
+static int lcd_tcon_load_init_data_from_unifykey(struct aml_lcd_drv_s *pdrv)
 {
 	int key_len, data_len, ret;
 
@@ -2993,7 +3042,7 @@ void lcd_tcon_init_data_version_update(char *data_buf)
 	tcon_local_cfg.bin_ver[TCON_BIN_VER_LEN - 1] = '\0';
 }
 
-static int lcd_tcon_load_init_data_from_unifykey_new(void)
+static int lcd_tcon_load_init_data_from_unifykey_new(struct aml_lcd_drv_s *pdrv)
 {
 	int key_len, data_len;
 	unsigned char *buf, *p;
@@ -3042,6 +3091,10 @@ static int lcd_tcon_load_init_data_from_unifykey_new(void)
 
 	kfree(buf);
 
+	tcon_local_cfg.cur_core_reg_table = tcon_mm_table.core_reg_table;
+	lcd_tcon_init_setting_check(pdrv, &pdrv->config.timing.dft_timing,
+			tcon_mm_table.core_reg_table);
+
 	LCDPR("tcon: load init data len: %d, ver: %s\n",
 	      data_len, tcon_local_cfg.bin_ver);
 	return 0;
@@ -3057,9 +3110,9 @@ static int lcd_tcon_get_config(struct aml_lcd_drv_s *pdrv)
 	tcon_mm_table.data_init = NULL;
 	tcon_mm_table.core_reg_table_size = lcd_tcon_conf->reg_table_len;
 	if (lcd_tcon_conf->core_reg_ver)
-		lcd_tcon_load_init_data_from_unifykey_new();
+		lcd_tcon_load_init_data_from_unifykey_new(pdrv);
 	else
-		lcd_tcon_load_init_data_from_unifykey();
+		lcd_tcon_load_init_data_from_unifykey(pdrv);
 
 	lcd_tcon_bin_load(pdrv);
 	pdrv->tcon_status = tcon_mm_table.valid_flag;

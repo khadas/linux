@@ -61,7 +61,8 @@ struct lcd_tcon_config_s {
 	int (*tcon_reload)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_enable)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_disable)(struct aml_lcd_drv_s *pdrv);
-	int (*tcon_check)(struct aml_lcd_drv_s *pdrv, char *ferr_str, char *warn_str);
+	int (*tcon_check)(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming,
+			unsigned char *core_reg_table, char *ferr_str, char *warn_str);
 };
 
 struct tcon_rmem_config_s {
@@ -164,6 +165,7 @@ struct tcon_mem_map_table_s {
 struct lcd_tcon_local_cfg_s {
 	char bin_ver[TCON_BIN_VER_LEN];
 	spinlock_t multi_list_lock; /* for tcon multi lut list change */
+	unsigned char *cur_core_reg_table;
 
 	struct cdev   cdev;
 	struct device *dev;
@@ -261,8 +263,12 @@ int lcd_tcon_disable_t3(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_reload_t3(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_reload_pre_t3(struct aml_lcd_drv_s *pdrv);
 
-int lcd_tcon_setting_check_t5(struct aml_lcd_drv_s *pdrv, char *ferr_str, char *warn_str);
-int lcd_tcon_setting_check_t5d(struct aml_lcd_drv_s *pdrv, char *ferr_str, char *warn_str);
+int lcd_tcon_init_setting_check(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming,
+		unsigned char *core_reg_table);
+int lcd_tcon_setting_check_t5(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming,
+		unsigned char *core_reg_table, char *ferr_str, char *warn_str);
+int lcd_tcon_setting_check_t5d(struct aml_lcd_drv_s *pdrv, struct lcd_detail_timing_s *ptiming,
+		unsigned char *core_reg_table, char *ferr_str, char *warn_str);
 
 /* common */
 unsigned char *lcd_tcon_paddrtovaddr(unsigned long paddr, unsigned int mem_size);
