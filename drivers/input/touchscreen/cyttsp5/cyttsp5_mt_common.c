@@ -36,8 +36,8 @@
 #define MT_PARAM_FUZZ(md, sig_ost) PARAM_FUZZ(md->pdata->frmwrk, sig_ost)
 #define MT_PARAM_FLAT(md, sig_ost) PARAM_FLAT(md->pdata->frmwrk, sig_ost)
 
-static int screen_max_x 		= 1872;
-static int screen_max_y 		= 1404;
+static int screen_max_x 		= 0;
+static int screen_max_y 		= 0;
 static int revert_x_flag 		= 0;
 static int revert_y_flag 		= 0;
 static int exchange_x_y_flag 	= 0;
@@ -636,17 +636,24 @@ static int cyttsp5_setup_input_device(struct device *dev)
 				max = max_y;
 			else if (i == CY_ABS_P_OST)
 				max = max_p;
+
 			/*change x-y max value*/
 			if(signal == ABS_MT_POSITION_X) {
+				if (screen_max_x > 0)
+					input_set_abs_params(md->input, signal, min, screen_max_x,
+						MT_PARAM_FUZZ(md, i), MT_PARAM_FLAT(md, i));
 				screen_max_x = max;
 				dev_info(dev, "screen_max_x = %d\n", screen_max_x);
-			}
-			if(signal == ABS_MT_POSITION_Y) {
+			} else if (signal == ABS_MT_POSITION_Y) {
+				if (screen_max_y > 0)
+					input_set_abs_params(md->input, signal, min, screen_max_y,
+						MT_PARAM_FUZZ(md, i), MT_PARAM_FLAT(md, i));
 				screen_max_y = max;
 				dev_info(dev, "screen_max_y = %d\n", screen_max_y);
+			} else {
+				input_set_abs_params(md->input, signal, min, max,
+					MT_PARAM_FUZZ(md, i), MT_PARAM_FLAT(md, i));
 			}
-			input_set_abs_params(md->input, signal, min, max,
-				MT_PARAM_FUZZ(md, i), MT_PARAM_FLAT(md, i));
 			parade_debug(dev, DEBUG_LEVEL_1,
 				"%s: register signal=%02X min=%d max=%d\n",
 				__func__, signal, min, max);
@@ -746,6 +753,11 @@ int cyttsp5_mt_probe(struct device *dev)
 	md->input->open = cyttsp5_mt_open;
 	md->input->close = cyttsp5_mt_close;
 	input_set_drvdata(md->input, md);
+
+	if (mt_pdata->max_x > 0)
+		screen_max_x = mt_pdata->max_x;
+	if (mt_pdata->max_y > 0)
+		screen_max_y = mt_pdata->max_y;
 
 	/* get sysinfo */
 	md->si = _cyttsp5_request_sysinfo(dev);

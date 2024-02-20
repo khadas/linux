@@ -295,6 +295,18 @@ static void *create_and_get_mt_pdata(struct device_node *dev_node)
 	if (!rc)
 		pdata->vkeys_y = value;
 
+	rc = of_property_read_u32(dev_node, "cy,max_x", &value);
+	if (!rc)
+		pdata->max_x = value;
+	else
+		pdata->max_x = -1;
+
+	rc = of_property_read_u32(dev_node, "cy,max_y", &value);
+	if (!rc)
+		pdata->max_y = value;
+	else
+		pdata->max_y = -1;
+
 	rc = of_property_read_u32(dev_node, "cy,revert_x", &value);
 	if (!rc)
 		pdata->swap_x = value;
