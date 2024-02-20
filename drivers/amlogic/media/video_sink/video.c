@@ -21647,6 +21647,7 @@ static int amvideom_probe(struct platform_device *pdev)
 			vd_layer[2].vpp_index = VPP2;
 			vd_layer_vpp[1].vpp_index = VPP2;
 			vd_layer_vpp[1].layer_id = 2;
+			vppx_vdx_mux_set();
 		}
 	}
 	prop = of_get_property(pdev->dev.of_node, "vpp1_layer_count", NULL);

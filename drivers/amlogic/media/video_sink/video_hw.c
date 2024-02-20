@@ -6896,6 +6896,23 @@ static void post_blend_dummy_data_update(u32 vpp_index)
 	}
 }
 
+void vppx_vdx_mux_set(void)
+{
+	u32 vd_path_msic_ctrl;
+
+	vd_path_msic_ctrl =
+		READ_VCBUS_REG(viu_misc_reg.vd_path_misc_ctrl);
+	/* remove vpp0 */
+	vd_path_msic_ctrl &= 0xfffff00f;
+	/* set vd2 vpp1 */
+	vd_path_msic_ctrl |= 2 << 12;
+	/* set vd3 vpp2 */
+	vd_path_msic_ctrl &= 0xfffff0ff;
+	vd_path_msic_ctrl |= 3 << 16;
+	WRITE_VCBUS_REG(viu_misc_reg.vd_path_misc_ctrl,
+		vd_path_msic_ctrl);
+}
+
 void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 {
 	static u32 t7_vd1_enabled, vpp_misc_set_save;
