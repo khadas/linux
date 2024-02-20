@@ -48,5 +48,7 @@ struct ebc_panel {
 	u32 mirror;
 	u32 disable_logo;
 	u32 rearrange;
+	u32 sdoe_mode;
+	u32 sdce_width;
 };
 #endif
