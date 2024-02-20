@@ -3408,6 +3408,14 @@ static void vop_update_csc(struct drm_crtc *crtc)
 	else
 		VOP_CTRL_SET(vop, dsp_data_swap, 0);
 
+	/*
+	 * For RK3576 vopl, rg_swap and rb_swap need to be enabled in
+	 * YUV444 bus_format.
+	 */
+	if ((VOP_MAJOR(vop->version) == 2 && VOP_MINOR(vop->version) == 0xd) &&
+	    s->bus_format == MEDIA_BUS_FMT_YUV8_1X24)
+		VOP_CTRL_SET(vop, dsp_data_swap, DSP_RG_SWAP | DSP_RB_SWAP);
+
 	VOP_CTRL_SET(vop, out_mode, s->output_mode);
 
 	vop_dither_setup(crtc);
