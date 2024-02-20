@@ -118,6 +118,11 @@
 #define RK3576_10BPC                   (0x6 << 8)
 #define RK3576_CECIN_MASK		BIT(3)
 
+#define RK3576_VO0_GRF_SOC_CON12	0x0030
+#define RK3576_GRF_OSDA_DLYN		(0xf << 12)
+#define RK3576_GRF_OSDA_DIV		(0x7f << 1)
+#define RK3576_GRF_OSDA_DLY_EN		BIT(0)
+
 #define RK3576_VO0_GRF_SOC_CON14	0x0038
 #define RK3576_I2S_SEL_MASK		BIT(0)
 #define RK3576_SPDIF_SEL_MASK		BIT(1)
@@ -310,6 +315,7 @@ struct rockchip_hdmi {
 	bool timing_force_output;
 	struct drm_display_mode force_mode;
 	u32 force_bus_format;
+	u32 sda_falling_delay_ns;
 };
 
 #define to_rockchip_hdmi(x)	container_of(x, struct rockchip_hdmi, x)
@@ -1714,6 +1720,9 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 		if (of_property_read_u32(np, "force-bus-format", &hdmi->force_bus_format))
 			hdmi->force_bus_format = MEDIA_BUS_FMT_RGB888_1X24;
 	}
+
+	if (of_property_read_u32(np, "rockchip,sda-falling-delay-ns", &hdmi->sda_falling_delay_ns))
+		hdmi->sda_falling_delay_ns = 0;
 
 	hdmi->hpd_gpiod = devm_gpiod_get_optional(hdmi->dev, "hpd", GPIOD_IN);
 
@@ -3505,9 +3514,33 @@ static int dw_hdmi_qp_rockchip_genphy_init(struct dw_hdmi_qp *dw_hdmi, void *dat
 	return phy_power_on(hdmi->phy);
 }
 
+static
+void dw_hdmi_qp_rockchip_sda_delay_cal(struct rockchip_hdmi *hdmi, u8 *sda_dlyn, u8 *sda_div)
+{
+	u8 i;
+	u32 val;
+
+	for (i = 0; i <= 127; i++) {
+		val = DIV_ROUND_UP(hdmi->sda_falling_delay_ns, (i + 1) * 40);
+
+		if (val <= 15)
+			break;
+	}
+
+	if (i > 127) {
+		dev_err(hdmi->dev, "delay %d ns,can't calculate correct sda falling delay cfg\n",
+			hdmi->sda_falling_delay_ns);
+		return;
+	}
+
+	*sda_div = i;
+	*sda_dlyn = val;
+}
+
 static void rk3576_io_path_init(struct rockchip_hdmi *hdmi)
 {
 	u32 val;
+	u8 sda_dlyn = 0, sda_div = 0;
 
 	if (!hdmi->vo0_regmap)
 		return;
@@ -3520,6 +3553,17 @@ static void rk3576_io_path_init(struct rockchip_hdmi *hdmi)
 
 	val = HIWORD_UPDATE(0, RK3576_HDMITX_HPD_INT_MSK);
 	regmap_write(hdmi->regmap, RK3576_IOC_MISC_CON0, val);
+
+	if (hdmi->sda_falling_delay_ns) {
+		dw_hdmi_qp_rockchip_sda_delay_cal(hdmi, &sda_dlyn, &sda_div);
+		if (sda_dlyn) {
+			val = HIWORD_UPDATE(sda_dlyn << 12, RK3576_GRF_OSDA_DLYN) |
+			      HIWORD_UPDATE(sda_div << 1, RK3576_GRF_OSDA_DIV) |
+			      HIWORD_UPDATE(1, RK3576_GRF_OSDA_DLY_EN);
+
+			regmap_write(hdmi->vo0_regmap, RK3576_VO0_GRF_SOC_CON12, val);
+		}
+	}
 }
 
 static enum drm_connector_status
