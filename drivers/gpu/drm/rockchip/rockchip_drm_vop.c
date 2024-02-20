@@ -1696,6 +1696,7 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 	drm_crtc_vblank_off(crtc);
 	VOP_CTRL_SET(vop, out_mode, ROCKCHIP_OUT_MODE_P888);
 	VOP_CTRL_SET(vop, afbdc_en, 0);
+	VOP_CTRL_SET(vop, out_dresetn, 0);
 	vop_disable_all_planes(vop);
 
 	/*
@@ -3585,6 +3586,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 		VOP_CTRL_SET(vop, edp_pin_pol, val);
 		VOP_CTRL_SET(vop, edp_dclk_pol, dclk_inv);
 		VOP_CTRL_SET(vop, inf_out_en, 1);
+		VOP_CTRL_SET(vop, out_dresetn, 1);
 		VOP_GRF_SET(vop, vo0_grf, grf_edp_ch_sel, 1);
 		break;
 	case DRM_MODE_CONNECTOR_HDMIA:
@@ -3592,9 +3594,10 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 		VOP_CTRL_SET(vop, hdmi_pin_pol, val);
 		VOP_CTRL_SET(vop, hdmi_dclk_pol, 1);
 		VOP_CTRL_SET(vop, inf_out_en, 1);
+		VOP_CTRL_SET(vop, out_dresetn, 1);
 		VOP_GRF_SET(vop, vo0_grf, grf_hdmi_ch_sel, 1);
 		VOP_GRF_SET(vop, vo0_grf, grf_hdmi_pin_pol, val);
-		VOP_GRF_SET(vop, vo0_grf, grf_hdmi_1to4_en, val);
+		VOP_GRF_SET(vop, vo0_grf, grf_hdmi_1to4_en, 1);
 		break;
 	case DRM_MODE_CONNECTOR_DSI:
 		/*
@@ -3612,8 +3615,9 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 			!!(s->output_flags & ROCKCHIP_OUTPUT_DATA_SWAP) ||
 			vop->dual_channel_swap);
 		VOP_CTRL_SET(vop, inf_out_en, 1);
+		VOP_CTRL_SET(vop, out_dresetn, 1);
 		VOP_GRF_SET(vop, vo0_grf, grf_mipi_ch_sel, 1);
-		VOP_GRF_SET(vop, vo0_grf, grf_mipi_mode, 1);
+		VOP_GRF_SET(vop, vo0_grf, grf_mipi_mode, 0);
 		VOP_GRF_SET(vop, vo0_grf, grf_mipi_pin_pol, val);
 		VOP_GRF_SET(vop, vo0_grf, grf_mipi_1to4_en, 1);
 		break;
