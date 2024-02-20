@@ -4115,6 +4115,8 @@ static void vop2_initial(struct drm_crtc *crtc)
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
 	uint32_t current_vp_id = vp->id;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	struct vop2_wb *wb = &vop2->wb;
 	int ret;
 
@@ -4175,6 +4177,13 @@ static void vop2_initial(struct drm_crtc *crtc)
 			VOP_CTRL_SET(vop2, lut_use_axi1, 0);
 		}
 
+		/*
+		 * After vop initialization, keep sw_sharp_enable always on.
+		 * Only enable/disable sharp submodule to avoid black screen.
+		 */
+		if (vp_data->feature & VOP_FEATURE_POST_SHARP)
+			writel(0x1, vop2->sharp_regs);
+
 		/* disable immediately enable bit for dp */
 		VOP_CTRL_SET(vop2, dp0_regdone_imd_en, 0);
 		VOP_CTRL_SET(vop2, dp1_regdone_imd_en, 0);
@@ -4182,6 +4191,7 @@ static void vop2_initial(struct drm_crtc *crtc)
 
 		/* Set reg done every field for interlace */
 		VOP_CTRL_SET(vop2, reg_done_frm, 0);
+
 		VOP_CTRL_SET(vop2, cfg_done_en, 1);
 		/*
 		 * Disable auto gating, this is a workaround to
@@ -10305,6 +10315,29 @@ static void vop2_crtc_update_vrr(struct drm_crtc *crtc)
 	rockchip_connector_update_vfp_for_vrr(crtc, adjust_mode, new_vfp);
 }
 
+static bool post_sharp_enabled(struct drm_crtc *crtc)
+{
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+
+	if (!(vp_data->feature & VOP_FEATURE_POST_SHARP))
+		return false;
+
+	if (!vcstate->post_sharp_data || !vcstate->post_sharp_data->data)
+		return false;
+
+	if (vcstate->left_margin != 100 || vcstate->right_margin != 100 ||
+	    vcstate->top_margin != 100 || vcstate->bottom_margin != 100) {
+		DRM_DEV_ERROR(vop2->dev, "post scale is enabled, sharp can't be enabled\n");
+		return false;
+	}
+
+	return true;
+}
+
 static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_state *state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -10322,7 +10355,11 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_atomic_stat
 	bool hdr10_at_splice_mode = false;
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 
-	vcstate->yuv_overlay = is_yuv_output(vcstate->bus_format);
+	/* sharp must work in yuv color space */
+	if (post_sharp_enabled(crtc))
+		vcstate->yuv_overlay = true;
+	else
+		vcstate->yuv_overlay = is_yuv_output(vcstate->bus_format);
 	vop2_zpos = kmalloc_array(vop2->data->win_size, sizeof(*vop2_zpos), GFP_KERNEL);
 	if (!vop2_zpos)
 		return;
@@ -10793,23 +10830,16 @@ static void vop2_post_sharp_config(struct drm_crtc *crtc)
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
-	const struct vop2_data *vop2_data = vop2->data;
-	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	struct post_sharp *post_sharp;
 	int i;
 
-	if (!(vp_data->feature & VOP_FEATURE_POST_SHARP))
-		return;
-
-	if (vcstate->left_margin != 100 || vcstate->right_margin != 100 ||
-	    vcstate->top_margin != 100 || vcstate->bottom_margin != 100) {
-		DRM_DEV_ERROR(vop2->dev, "post scale is enabled, sharp can't be enabled\n");
-		return;
-	}
-
-	if (!vcstate->post_sharp_data || !vcstate->post_sharp_data->data ||
-	    !vcstate->yuv_overlay) {
-		writel(0, vop2->sharp_regs);
+	/* sharp work in yuv color space, if it is rgb overlay sharp shouldn't be enabled */
+	if (!vcstate->yuv_overlay || !post_sharp_enabled(crtc)) {
+		/*
+		 * Only disable all submodule when sharp turn off,
+		 * keep sw_sharp_enable always on
+		 */
+		writel(0x1, vop2->sharp_regs);
 		vcstate->sharp_en = false;
 		return;
 	}
