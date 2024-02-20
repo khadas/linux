@@ -27,6 +27,24 @@
 
 #define RV1106_PM_REG_REGION_MEM_SIZE		SZ_4K
 
+#define CRU_PVTPLL0_CON0_L		0x00
+#define CRU_PVTPLL0_CON0_H		0x04
+#define CRU_PVTPLL0_CON1_L		0x08
+#define CRU_PVTPLL0_CON1_H		0x0c
+#define CRU_PVTPLL0_CON2_L		0x10
+#define CRU_PVTPLL0_CON2_H		0x14
+#define CRU_PVTPLL0_CON3_L		0x18
+#define CRU_PVTPLL0_CON3_H		0x1c
+
+#define CRU_PVTPLL1_CON0_L		0x30
+#define CRU_PVTPLL1_CON0_H		0x34
+#define CRU_PVTPLL1_CON1_L		0x38
+#define CRU_PVTPLL1_CON1_H		0x3c
+#define CRU_PVTPLL1_CON2_L		0x40
+#define CRU_PVTPLL1_CON2_H		0x44
+#define CRU_PVTPLL1_CON3_L		0x48
+#define CRU_PVTPLL1_CON3_H		0x4c
+
 enum {
 	RV1106_GPIO_PULL_NONE,
 	RV1106_GPIO_PULL_UP,
@@ -113,10 +131,6 @@ static struct reg_region vd_core_reg_rgns[] = {
 	/* core_cru */
 	{ REG_REGION(0x300, 0x310, 4, &corecru_base, WMSK_VAL)},
 	{ REG_REGION(0x800, 0x804, 4, &corecru_base, WMSK_VAL)},
-
-	/* pvtpll_cru */
-	{ REG_REGION(0x00, 0x24, 4, &pvtpllcru_base, WMSK_VAL)},
-	{ REG_REGION(0x30, 0x54, 4, &pvtpllcru_base, WMSK_VAL)},
 
 	/* core_sgrf */
 	{ REG_REGION(0x004, 0x014, 4, &coresgrf_base, 0)},
@@ -1028,6 +1042,28 @@ static void gpio_restore(void)
 
 static struct uart_debug_ctx debug_port_save;
 static u32 cru_mode;
+static u32 pvtpll0_length, pvtpll1_length;
+
+static void pvtpllcru_save(void)
+{
+	pvtpll0_length = readl_relaxed(pvtpllcru_base + CRU_PVTPLL0_CON0_H);
+	pvtpll1_length = readl_relaxed(pvtpllcru_base + CRU_PVTPLL1_CON0_H);
+}
+
+static void pvtpllcru_restore(void)
+{
+	writel_relaxed(0x00030000, pvtpllcru_base + CRU_PVTPLL0_CON0_L);
+	writel_relaxed(0x007f0000 | pvtpll0_length, pvtpllcru_base + CRU_PVTPLL0_CON0_H);
+	writel_relaxed(0xffff0018, pvtpllcru_base + CRU_PVTPLL0_CON1_L);
+	writel_relaxed(0xffff0004, pvtpllcru_base + CRU_PVTPLL0_CON2_H);
+	writel_relaxed(0x00030003, pvtpllcru_base + CRU_PVTPLL0_CON0_L);
+
+	writel_relaxed(0x00030000, pvtpllcru_base + CRU_PVTPLL1_CON0_L);
+	writel_relaxed(0x007f0000 | pvtpll1_length, pvtpllcru_base + CRU_PVTPLL1_CON0_H);
+	writel_relaxed(0xffff0018, pvtpllcru_base + CRU_PVTPLL1_CON1_L);
+	writel_relaxed(0xffff0004, pvtpllcru_base + CRU_PVTPLL1_CON2_H);
+	writel_relaxed(0x00030003, pvtpllcru_base + CRU_PVTPLL1_CON0_L);
+}
 
 static void vd_log_regs_save(void)
 {
@@ -1038,6 +1074,7 @@ static void vd_log_regs_save(void)
 	gic400_save();
 	rkpm_printch('b');
 
+	pvtpllcru_save();
 	rkpm_reg_rgn_save(vd_core_reg_rgns, ARRAY_SIZE(vd_core_reg_rgns));
 	rkpm_printch('c');
 	rkpm_reg_rgn_save(vd_log_reg_rgns, ARRAY_SIZE(vd_log_reg_rgns));
@@ -1056,6 +1093,7 @@ static void vd_log_regs_restore(void)
 
 	rkpm_reg_rgn_restore(vd_core_reg_rgns, ARRAY_SIZE(vd_core_reg_rgns));
 	rkpm_reg_rgn_restore(vd_log_reg_rgns, ARRAY_SIZE(vd_log_reg_rgns));
+	pvtpllcru_restore();
 
 	/* wait lock */
 	pm_pll_wait_lock(RV1106_APLL_ID);
