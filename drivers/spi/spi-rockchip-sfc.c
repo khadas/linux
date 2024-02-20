@@ -207,6 +207,7 @@ struct rockchip_sfc {
 	u32 max_iosize;
 	u32 dll_cells[SFC_MAX_CHIPSELECT_NUM];
 	u16 version;
+	struct gpio_desc *rst_gpio;
 };
 
 static int rockchip_sfc_reset(struct rockchip_sfc *sfc)
@@ -912,6 +913,19 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 			goto err_dma;
 		}
 		sfc->dma_buffer = virt_to_phys(sfc->buffer);
+	}
+
+	sfc->rst_gpio = devm_gpiod_get_optional(&pdev->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(sfc->rst_gpio)) {
+		dev_err(&pdev->dev, "invalid reset-gpios property in node\n");
+		ret = PTR_ERR(sfc->rst_gpio);
+		goto err_dma;
+	} else if (sfc->rst_gpio) {
+		dev_info(&pdev->dev, "reset OCTA Flash at first\n");
+		gpiod_set_value_cansleep(sfc->rst_gpio, 1);
+		mdelay(1);
+		gpiod_set_value_cansleep(sfc->rst_gpio, 0);
+		mdelay(1);
 	}
 
 	ret = spi_register_master(master);
