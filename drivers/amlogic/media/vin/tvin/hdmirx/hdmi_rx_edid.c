@@ -22,6 +22,7 @@
 #include "hdmi_rx_drv.h"
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_hw.h"
+#include "hdmi_rx_wrapper.h"
 
 enum edid_delivery_mothed_e edid_delivery_mothed;
 /* temp edid buff for edid calc & update */
@@ -1835,6 +1836,7 @@ bool rx_edid_set_aud_sad(u_char *sad, u_char len)
 			return false;
 		tmp_sad_len = len;
 	}
+	wait_ddc_idle();
 	hdmi_rx_top_edid_update();
 	if (rx.open_fg && rx.port != rx.arc_port) {
 		if (atmos_edid_update_hpd_en)
