@@ -142,6 +142,7 @@ struct rkisp_isp_params_val_v39 {
 	u32 buf_info_cnt;
 	int buf_info_idx;
 
+	struct rkisp_dummy_buffer buf_gain;
 	struct rkisp_dummy_buffer buf_3dnr_iir;
 	struct rkisp_dummy_buffer buf_3dnr_cur;
 

@@ -286,7 +286,10 @@ struct rkisp_device {
 
 	struct mutex buf_lock;
 	spinlock_t cmsk_lock;
+	spinlock_t aiisp_lock;
 	struct rkisp_cmsk_cfg cmsk_cfg;
+	struct rkisp_aiisp_cfg aiisp_cfg;
+
 	bool is_cmsk_upd;
 	bool is_hw_link;
 	bool is_bigmode;
@@ -298,6 +301,8 @@ struct rkisp_device {
 	bool is_suspend;
 	bool suspend_sync;
 	bool is_suspend_one_frame;
+	bool is_aiisp_en;
+	bool is_aiisp_upd;
 
 	struct rkisp_vicap_input vicap_in;
 
