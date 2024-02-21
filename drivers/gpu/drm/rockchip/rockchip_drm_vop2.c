@@ -10671,7 +10671,7 @@ static void vop3_post_config(struct drm_crtc *crtc)
 	csc = vcstate->post_csc_data ? (struct post_csc *)vcstate->post_csc_data->data : NULL;
 	if (csc && memcmp(&vp->csc_info, csc, sizeof(struct post_csc)))
 		memcpy(&vp->csc_info, csc, sizeof(struct post_csc));
-	vop3_post_csc_config(crtc, &vp->acm_info, &vp->csc_info);
+	vop3_post_csc_config(crtc, &vp->acm_info, vp->csc_info.csc_enable ? &vp->csc_info : NULL);
 
 	acm = vcstate->acm_lut_data ? (struct post_acm *)vcstate->acm_lut_data->data : NULL;
 
