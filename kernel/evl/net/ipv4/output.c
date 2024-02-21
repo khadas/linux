@@ -11,6 +11,7 @@
 #include <net/ip.h>
 #include <evl/random.h>
 #include <evl/net/socket.h>
+#include <evl/net/device.h>
 #include <evl/net/skb.h>
 #include <evl/net/ipv4.h>
 #include <evl/net/ipv4/route.h>
@@ -69,8 +70,10 @@ struct sk_buff *evl_net_ipv4_build_datagram(struct evl_socket *esk,
 				ktime_t timeout,
 				struct evl_net_ipv4_cookie *ipc)
 {
-	struct net_device *dev = vlan_dev_real_dev(evl_net_route_dev(ert));
-	size_t maxfraglen, chunksz, i_offset = 0, offset = 0, thdrlen = 0;
+	struct net_device *dev = evl_net_route_dev(ert),
+		*real_dev = evl_net_real_dev(dev);
+	size_t maxfraglen, chunksz, i_offset = 0,
+		offset = 0, thdrlen = 0;
 	struct sk_buff *head = NULL, *skb, **skbp = NULL;
 	struct dst_entry *dst = evl_net_route_dst(ert);
 	struct sock *sk = esk->sk;
@@ -88,7 +91,7 @@ struct sk_buff *evl_net_ipv4_build_datagram(struct evl_socket *esk,
 	if (EVL_WARN_ON(NET, datalen == 0))
 		return ERR_PTR(-EINVAL);
 
-	mtu = ip_sk_use_pmtu(sk) ? dst_mtu(dst) : READ_ONCE(dev->mtu);
+	mtu = ip_sk_use_pmtu(sk) ? dst_mtu(dst) : READ_ONCE(real_dev->mtu);
 	if (!inetdev_valid_mtu(mtu))
 		return ERR_PTR(-ENETUNREACH); /* Smaller than min ipv4 MTU? */
 
@@ -105,7 +108,7 @@ struct sk_buff *evl_net_ipv4_build_datagram(struct evl_socket *esk,
 		   &ipc->saddr, &ipc->daddr, mtu, ipc->transhdrlen, maxfraglen);
 
 	for (;;) {
-		skb = evl_net_wget_skb(esk, dev, timeout);
+		skb = evl_net_wget_skb(esk, real_dev, timeout);
 		if (IS_ERR(skb)) {
 			ret = PTR_ERR(skb);
 			goto fail;

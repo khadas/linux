@@ -9,6 +9,8 @@
 
 #ifdef CONFIG_EVL_NET
 
+#include <linux/if_vlan.h>
+
 struct evl_socket;
 struct evl_netdev_activation;
 struct notifier_block;
@@ -27,6 +29,14 @@ void evl_net_get_dev(struct net_device *dev);
 void evl_net_put_dev(struct net_device *dev);
 
 void evl_net_wake_rx(struct net_device *dev);
+
+static inline struct net_device *evl_net_real_dev(struct net_device *dev)
+{
+	if (is_vlan_dev(dev))
+		return vlan_dev_real_dev(dev);
+
+	return dev;
+}
 
 #endif
 

@@ -80,7 +80,7 @@ static bool __packet_deliver(struct evl_net_rxqueue *rxq,
 			if (ifindex != dev->ifindex)
 				continue;
 			vlan_id = READ_ONCE(esk->u.packet.vlan_id);
-			if (skb_vlan_tag_get_id(skb) != vlan_id)
+			if (vlan_id && skb_vlan_tag_get_id(skb) != vlan_id)
 				continue;
 		}
 
@@ -293,28 +293,24 @@ static int bind_packet_socket(struct evl_socket *esk,
 
 	mutex_lock(&esk->lock);
 
-	old_ifindex = esk->u.packet.vlan_ifindex;
+	old_ifindex = esk->u.packet.ifindex;
 	if (new_ifindex != old_ifindex) {
 		if (new_ifindex) {
-			/* @dev has to be a VLAN device. */
 			dev = evl_net_get_dev_by_index(esk->net, new_ifindex);
 			if (dev == NULL)
 				return -EINVAL;
-			vlan_id = vlan_dev_vlan_id(dev);
-			real_ifindex = vlan_dev_real_dev(dev)->ifindex;
+			if (is_vlan_dev(dev)) {
+				vlan_id = vlan_dev_vlan_id(dev);
+				real_ifindex = vlan_dev_real_dev(dev)->ifindex;
+			} else {
+				vlan_id = 0;
+				real_ifindex = dev->ifindex;
+			}
 		} else {
 			vlan_id = 0;
 			real_ifindex = 0;
 		}
 	}
-
-	/*
-	 * We precede the regular AF_PACKET bind handler which makes
-	 * no sense of bindings to VLAN devices unlike we do. Fix up
-	 * the address accordingly, pointing at the real device
-	 * instead.
-	 */
-	sll->sll_ifindex = real_ifindex;
 
 	if (esk->protocol != ntohs(sll->sll_protocol)) {
 		destroy_packet_socket(esk);
@@ -342,7 +338,7 @@ static int bind_packet_socket(struct evl_socket *esk,
 		/* First change the real interface, next the vid. */
 		WRITE_ONCE(esk->u.packet.real_ifindex, real_ifindex);
 		esk->u.packet.vlan_id = vlan_id;
-		WRITE_ONCE(esk->u.packet.vlan_ifindex, new_ifindex);
+		WRITE_ONCE(esk->u.packet.ifindex, new_ifindex);
 	}
 	raw_spin_unlock_irqrestore(&esk->oob_lock, flags);
 
@@ -358,7 +354,7 @@ static int bind_packet_socket(struct evl_socket *esk,
 static struct net_device *get_netif_packet(struct evl_socket *esk)
 {
 	return  evl_net_get_dev_by_index(esk->net,
-					esk->u.packet.vlan_ifindex);
+					esk->u.packet.ifindex);
 }
 
 static struct net_device *find_xmit_device(struct evl_socket *esk,
@@ -448,13 +444,13 @@ static ssize_t send_packet(struct evl_socket *esk,
 		return PTR_ERR(dev);
 
 	/*
-	 * Since @dev is a VLAN device, then @real_dev cannot be stale
+	 * If @dev is a VLAN device, then @real_dev cannot be stale
 	 * until @dev goes down per the in-band refcounting
-	 * guarantee. Since we hold a crossing reference on @dev, it
-	 * cannot go down as it would need to pass the crossing first,
-	 * so @real_dev cannot go stale until we are done.
+	 * guarantee. Since we hold a crossing reference on @real_dev,
+	 * it cannot go down as it would need to pass the crossing
+	 * first, so @real_dev cannot go stale until we are done.
 	 */
-	real_dev = vlan_dev_real_dev(dev);
+	real_dev = evl_net_real_dev(dev);
 	skb = evl_net_dev_alloc_skb(real_dev, timeout, tmode);
 	if (IS_ERR(skb)) {
 		ret = PTR_ERR(skb);
