@@ -105,6 +105,7 @@
 
 #define RK3576_VO0_GRF_SOC_CON1		0x0004
 #define RK3576_HDMITX_FRL_MOD		BIT(0)
+#define RK3576_HDMI_HDCP14_MEM_EN	BIT(15)
 
 #define RK3576_VO0_GRF_SOC_CON8		0x0020
 #define RK3576_COLOR_FORMAT_MASK	(0xf << 4)
@@ -193,6 +194,7 @@ struct rockchip_hdmi_chip_ops {
 	void (*io_path_init)(struct rockchip_hdmi *hdmi);
 	irqreturn_t (*hdmi_hardirq)(int irq, void *dev_id);
 	irqreturn_t (*hdmi_thread)(int irq, void *dev_id);
+	void (*set_hdcp14_mem)(struct rockchip_hdmi *hdmi, bool enable);
 };
 
 /**
@@ -2881,9 +2883,19 @@ static void dw_hdmi_rockchip_set_ddc_io(void *data, bool enable)
 	}
 }
 
-static void dw_hdmi_rockchip_set_hdcp14_mem(void *data, bool enable)
+static void rk3576_set_hdcp14_mem(struct rockchip_hdmi *hdmi, bool enable)
 {
-	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+	u32 val;
+
+	if (!hdmi->vo0_regmap)
+		return;
+
+	val = HIWORD_UPDATE(enable << 15, RK3576_HDMI_HDCP14_MEM_EN);
+	regmap_write(hdmi->vo0_regmap, RK3576_VO0_GRF_SOC_CON1, val);
+}
+
+static void rk3588_set_hdcp14_mem(struct rockchip_hdmi *hdmi, bool enable)
+{
 	u32 val;
 
 	if (!hdmi->vo1_regmap)
@@ -2894,6 +2906,13 @@ static void dw_hdmi_rockchip_set_hdcp14_mem(void *data, bool enable)
 		regmap_write(hdmi->vo1_regmap, RK3588_GRF_VO1_CON4, val);
 	else
 		regmap_write(hdmi->vo1_regmap, RK3588_GRF_VO1_CON7, val);
+}
+
+static void dw_hdmi_rockchip_set_hdcp14_mem(void *data, bool enable)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+
+	hdmi->chip_data->ops->set_hdcp14_mem(hdmi, enable);
 }
 
 static struct drm_display_mode *dw_hdmi_rockchip_get_force_timing(void *data)
@@ -3801,6 +3820,7 @@ static const struct rockchip_hdmi_chip_ops rk3576_hdmi_chip_ops = {
 	.io_path_init = rk3576_io_path_init,
 	.hdmi_hardirq = rk3576_hdmi_hardirq,
 	.hdmi_thread = rk3576_hdmi_thread,
+	.set_hdcp14_mem = rk3576_set_hdcp14_mem,
 };
 
 struct rockchip_hdmi_chip_data rk3576_hdmi_chip_data = {
@@ -3835,6 +3855,7 @@ static const struct rockchip_hdmi_chip_ops rk3588_hdmi_chip_ops = {
 	.io_path_init = rk3588_io_path_init,
 	.hdmi_hardirq = rk3588_hdmi_hardirq,
 	.hdmi_thread = rk3588_hdmi_thread,
+	.set_hdcp14_mem = rk3588_set_hdcp14_mem,
 };
 
 struct rockchip_hdmi_chip_data rk3588_hdmi_chip_data = {
