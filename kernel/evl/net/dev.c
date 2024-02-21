@@ -82,10 +82,10 @@ start_handler_thread(struct net_device *dev,
 }
 
 static int enable_oob_port(struct net_device *dev,
-			struct evl_netdev_activation *act)
+			struct evl_netdev_activation *act) /* inband, rtnl_lock held */
 {
 	struct oob_netdev_state *nds, *vnds;
-	struct evl_netdev_state *est;
+	struct evl_netdev_state *pest, *est;
 	struct net_device *real_dev;
 	struct evl_kthread *kt;
 	unsigned long flags;
@@ -116,8 +116,8 @@ static int enable_oob_port(struct net_device *dev,
 	 */
 	real_dev = vlan_dev_real_dev(dev);
 	nds = &real_dev->oob_context.dev_state;
-	est = nds->estate;
-	if (est == NULL) {
+	est = pest = nds->estate;
+	if (pest == NULL) {
 		est = kzalloc(sizeof(*est), GFP_KERNEL);
 		if (est == NULL)
 			return -ENOMEM;
@@ -145,8 +145,10 @@ static int enable_oob_port(struct net_device *dev,
 	est->pool_max = act->poolsz;
 	est->buf_size = act->bufsz;
 	est->qdisc = evl_net_alloc_qdisc(&evl_net_qdisc_fifo);
-	if (IS_ERR(est->qdisc))
-		return PTR_ERR(est->qdisc);
+	if (IS_ERR(est->qdisc)) {
+		ret = PTR_ERR(est->qdisc);
+		goto fail_alloc_qdisc;
+	}
 
 	ret = evl_net_dev_build_pool(real_dev);
 	if (ret)
@@ -202,8 +204,11 @@ fail_start_rx:
 	evl_destroy_flag(&est->rx_flag);
 fail_build_pool:
 	evl_net_free_qdisc(est->qdisc);
-	kfree(est);
-	nds->estate = NULL;
+fail_alloc_qdisc:
+	if (!pest) {
+		kfree(est);
+		nds->estate = NULL;
+	}
 
 	return ret;
 }
