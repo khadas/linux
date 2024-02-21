@@ -6138,7 +6138,7 @@ bool vdin_package_done_check_state(struct vdin_dev_s *devp)
 {
 	if (devp->dv.dv_flag != devp->prop.dolby_vision ||
 	    devp->prop.vdin_hdr_flag != devp->pre_prop.vdin_hdr_flag ||
-	    devp->prop.latency.allm_mode != devp->pre_prop.latency.allm_mode ||
+	    !!devp->prop.latency.allm_mode != !!devp->pre_prop.latency.allm_mode ||
 	    vdin_is_vrr_state_chg(devp) ||
 	    devp->prop.color_format != devp->pre_prop.color_format ||
 	    devp->parm.info.status != TVIN_SIG_STATUS_STABLE)
@@ -6162,7 +6162,7 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 		else
 			devp->hdr.hdr_chg_cnt = 0;
 
-		if (devp->prop.latency.allm_mode != devp->pre_prop.latency.allm_mode ||
+		if (!!devp->prop.latency.allm_mode != !!devp->pre_prop.latency.allm_mode ||
 		    devp->prop.latency.it_content != devp->pre_prop.latency.it_content ||
 		    devp->prop.latency.cn_type != devp->pre_prop.latency.cn_type ||
 		    devp->prop.filmmaker.fmm_flag != devp->pre_prop.filmmaker.fmm_flag)

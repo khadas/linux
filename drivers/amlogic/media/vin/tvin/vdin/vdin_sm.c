@@ -317,8 +317,8 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			}
 		}
 
-		if (devp->pre_prop.latency.allm_mode !=
-		    devp->prop.latency.allm_mode) {
+		if (!!devp->prop.latency.allm_mode !=
+			!!devp->pre_prop.latency.allm_mode) {
 			if (devp->dv.allm_chg_cnt > vdin_dv_chg_cnt) {
 				devp->dv.allm_chg_cnt = 0;
 				signal_chg |= TVIN_SIG_CHG_DV_ALLM;

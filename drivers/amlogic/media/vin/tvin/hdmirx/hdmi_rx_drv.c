@@ -1398,7 +1398,7 @@ void hdmirx_get_repetition_info(struct tvin_sig_property_s *prop)
 void hdmirx_get_latency_info(struct tvin_sig_property_s *prop)
 {
 	prop->latency.allm_mode =
-		rx.vs_info_details.hdmi_allm || rx.vs_info_details.dv_allm;
+		rx.vs_info_details.hdmi_allm | (rx.vs_info_details.dv_allm << 1);
 	prop->latency.it_content = rx.cur.it_content;
 	prop->latency.cn_type = rx.cur.cn_type;
 #ifdef CONFIG_AMLOGIC_HDMITX

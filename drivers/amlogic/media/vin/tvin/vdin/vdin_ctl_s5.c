@@ -4804,7 +4804,7 @@ void vdin_vs_proc_monitor_s5(struct vdin_dev_s *devp)
 		else
 			devp->hdr.hdr_chg_cnt = 0;
 
-		if (devp->prop.latency.allm_mode != devp->pre_prop.latency.allm_mode ||
+		if (!!devp->prop.latency.allm_mode != !!devp->pre_prop.latency.allm_mode ||
 		    devp->prop.latency.it_content != devp->pre_prop.latency.it_content ||
 		    devp->prop.latency.cn_type != devp->pre_prop.latency.cn_type)
 			devp->dv.allm_chg_cnt++;
