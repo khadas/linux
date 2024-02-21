@@ -125,7 +125,7 @@ static void skb_recycler(struct evl_work *work)
  * get_headroom - Get the headroom length for a buffer.
  *
  * The current assumption is that we are going to deal with ethernet
- * devices. Therefore the length of a VLAN header is included in the
+ * devices. Therefore the length of a VLAN header is added to the
  * headroom, so that the lower layers never have to reallocate because
  * of the 802.1q encapsulation.
  */

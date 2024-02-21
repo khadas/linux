@@ -83,8 +83,8 @@ struct evl_socket {
 		/* Packet interface data. */
 		struct {
 			int real_ifindex;
-			int vlan_ifindex;
-			u16 vlan_id;
+			int ifindex; /* Same as real_ifindex or vlan ifindex */
+			u16 vlan_id; /* non-zero if vlan device, zero otherwise */
 			u32 proto_hash;
 		} packet;
 		/* Used by all IP protocols we support. */

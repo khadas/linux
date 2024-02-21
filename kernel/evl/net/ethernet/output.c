@@ -7,8 +7,8 @@
 #include <linux/errno.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-#include <linux/if_vlan.h>
 #include <evl/net/socket.h>
+#include <evl/net/device.h>
 #include <evl/net/output.h>
 
 /**
@@ -44,7 +44,7 @@ static int ether_transmit_one(struct net_device *dev, struct sk_buff *skb,
 	eth = skb_push(skb, ETH_HLEN);
 	skb_reset_mac_header(skb);
 	eth->h_proto = skb->protocol;
-	ether_addr_copy(eth->h_source, vlan_dev_real_dev(dev)->dev_addr);
+	ether_addr_copy(eth->h_source, evl_net_real_dev(dev)->dev_addr);
 	ether_addr_copy(eth->h_dest, hw_dst);
 
 	return evl_net_ether_transmit_raw(dev, skb);

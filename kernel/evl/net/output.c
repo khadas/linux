@@ -151,7 +151,7 @@ static int xmit_oob(struct net_device *dev, struct sk_buff *skb)
  *	Add an outgoing packet to the out-of-band transmit queue, so
  *	that it will be handed over to the device referred to by
  *	@skb->dev. The packet is complete (e.g. the VLAN tag is set if
- *	@skb->dev is an ethernet device).
+ *	@skb->dev is a VLAN device).
  *
  *	@skb the packet to queue. Must not be linked to any upstream
  *	queue.
@@ -170,9 +170,6 @@ int evl_net_transmit(struct sk_buff *skb) /* oob or in-band */
 	bool kick;
 
 	if (EVL_WARN_ON(NET, !dev))
-		return -EINVAL;
-
-	if (EVL_WARN_ON(NET, is_vlan_dev(dev)))
 		return -EINVAL;
 
 	if (EVL_WARN_ON(NET, skb->sk))

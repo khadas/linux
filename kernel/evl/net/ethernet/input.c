@@ -20,9 +20,9 @@ static struct evl_net_handler evl_net_ether;
  * evl_net_ether_accept - Stage dispatcher for ethernet packets
  *
  * Decide whether an incoming ethernet packet should be delivered via
- * the out-of-band networking stack instead of the in-band one. Since
- * all out-of-band ethernet traffic is required to go through VLANs,
- * all we need to do is checking whether the VLAN information stored
+ * the out-of-band networking stack instead of the in-band one. Our
+ * primary selector for out-of-band ethernet traffic is VLAN tagging,
+ * all we need to do is checking whether some VLAN information stored
  * into the packet matches a VID reserved for such traffic.
  *
  * Currently, we only deal with IP input on ethernet medium.
