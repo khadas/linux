@@ -6773,24 +6773,27 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 	memset(&req, 0, (sizeof(struct provider_aux_req_s)));
 	memset(&el_req, 0, (sizeof(struct provider_aux_req_s)));
 
-	if (vf && vf->type & VIDTYPE_COMPRESS) {
-		if (is_src_crop_valid(vf->src_crop)) {
-			w = vf->compWidth -
-				vf->src_crop.left - vf->src_crop.right;
-			h = vf->compHeight -
-				vf->src_crop.top - vf->src_crop.bottom;
-			if (debug_dolby & 0x8)
-				pr_dv_dbg("%s size %d %d, crop %d %d %d %d\n",
-					__func__, vf->compWidth, vf->compHeight,
-					vf->src_crop.left, vf->src_crop.right,
-					vf->src_crop.top, vf->src_crop.bottom);
+	if (vf) {
+		video_frame = true;
+		if (vf->type & VIDTYPE_COMPRESS) {
+			if (is_src_crop_valid(vf->src_crop)) {
+				w = vf->compWidth -
+					vf->src_crop.left - vf->src_crop.right;
+				h = vf->compHeight -
+					vf->src_crop.top - vf->src_crop.bottom;
+				if (debug_dolby & 0x8)
+					pr_dv_dbg("%s size %d %d, crop %d %d %d %d\n",
+						__func__, vf->compWidth, vf->compHeight,
+						vf->src_crop.left, vf->src_crop.right,
+						vf->src_crop.top, vf->src_crop.bottom);
+			} else {
+				w = vf->compWidth;
+				h = vf->compHeight;
+			}
 		} else {
-			w = vf->compWidth;
-			h = vf->compHeight;
+			w = vf->width;
+			h = vf->height;
 		}
-	} else if (vf) {
-		w = vf->width;
-		h = vf->height;
 	}
 
 	if (is_aml_tvmode() && vf &&
