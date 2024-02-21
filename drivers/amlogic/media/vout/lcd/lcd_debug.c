@@ -33,14 +33,15 @@
 #include "lcd_common.h"
 #include "lcd_debug.h"
 
-void lcd_debug_parse_param(char *buf_orig, char **parm)
+int  lcd_debug_parse_param(char *buf_orig, char **parm, int max_parm)
+
 {
 	char *ps, *token;
 	char str[3] = {' ', '\n', '\0'};
 	unsigned int n = 0;
 
 	ps = buf_orig;
-	while (1) {
+	while (n < max_parm) {
 		token = strsep(&ps, str);
 		if (!token)
 			break;
@@ -48,6 +49,7 @@ void lcd_debug_parse_param(char *buf_orig, char **parm)
 			continue;
 		parm[n++] = token;
 	}
+	return n;
 }
 
 static void lcd_debug_info_print(char *print_buf)
@@ -3778,8 +3780,9 @@ static ssize_t lcd_debug_dump_show(struct device *dev,
 static ssize_t lcd_debug_dump_store(struct device *dev, struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
+#define __MAX_PARAM 47
 	char *buf_orig;
-	char *parm[47] = {NULL};
+	char *parm[__MAX_PARAM] = {NULL};
 
 	if (!buf)
 		return count;
@@ -3788,7 +3791,7 @@ static ssize_t lcd_debug_dump_store(struct device *dev, struct device_attribute 
 		LCDERR("%s: buf malloc error\n", __func__);
 		return count;
 	}
-	lcd_debug_parse_param(buf_orig, (char **)&parm);
+	lcd_debug_parse_param(buf_orig, (char **)&parm, __MAX_PARAM);
 
 	if (strcmp(parm[0], "info") == 0) {
 		lcd_debug_dump_state = LCD_DEBUG_DUMP_INFO_BASIC;
@@ -3826,6 +3829,7 @@ static ssize_t lcd_debug_dump_store(struct device *dev, struct device_attribute 
 
 	kfree(buf_orig);
 	return count;
+#undef __MAX_PARAM
 }
 
 static ssize_t lcd_debug_print_show(struct device *dev,
@@ -4045,10 +4049,11 @@ static ssize_t lcd_debug_vs_msr_show(struct device *dev,
 static ssize_t lcd_debug_vs_msr_store(struct device *dev, struct device_attribute *attr,
 					const char *buf, size_t count)
 {
+#define __MAX_PARAM 8
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	char *buf_orig;
-	char *parm[8] = {NULL};
-	unsigned int temp, msr_en;
+	char *parm[__MAX_PARAM] = {NULL};
+	unsigned int temp, msr_en = 0;
 	int ret;
 
 	if (!buf)
@@ -4058,7 +4063,7 @@ static ssize_t lcd_debug_vs_msr_store(struct device *dev, struct device_attribut
 		LCDERR("%s: buf malloc error\n", __func__);
 		return count;
 	}
-	lcd_debug_parse_param(buf_orig, (char **)&parm);
+	lcd_debug_parse_param(buf_orig, (char **)&parm, __MAX_PARAM);
 
 	if (strcmp(parm[0], "init") == 0) {
 		if (!parm[1]) {
@@ -4147,6 +4152,7 @@ static ssize_t lcd_debug_vs_msr_store(struct device *dev, struct device_attribut
 lcd_debug_vs_msr_store_next:
 	kfree(buf_orig);
 	return count;
+#undef __MAX_PARAM
 }
 
 static struct device_attribute lcd_debug_attrs[] = {

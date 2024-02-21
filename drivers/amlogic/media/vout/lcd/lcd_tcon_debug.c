@@ -557,6 +557,7 @@ static int lcd_tcon_reg_table_check(unsigned char *table, unsigned int size)
 ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 				const char *buf, size_t count)
 {
+#define __MAX_PARAM 520
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	char *buf_orig;
 	char **parm = NULL;
@@ -577,13 +578,13 @@ ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 	if (!buf_orig)
 		return count;
 
-	parm = kcalloc(520, sizeof(char *), GFP_KERNEL);
+	parm = kcalloc(__MAX_PARAM, sizeof(char *), GFP_KERNEL);
 	if (!parm) {
 		kfree(buf_orig);
 		return count;
 	}
 
-	lcd_debug_parse_param(buf_orig, parm);
+	lcd_debug_parse_param(buf_orig, parm, __MAX_PARAM);
 
 	if (strcmp(parm[0], "reg") == 0) {
 		if (!parm[1]) {
@@ -938,6 +939,7 @@ lcd_tcon_debug_store_err:
 	kfree(parm);
 	kfree(buf_orig);
 	return count;
+#undef __MAX_PARAM
 }
 
 ssize_t lcd_tcon_status_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -1039,6 +1041,7 @@ ssize_t lcd_tcon_reg_debug_show(struct device *dev, struct device_attribute *att
 ssize_t lcd_tcon_reg_debug_store(struct device *dev, struct device_attribute *attr,
 				const char *buf, size_t count)
 {
+#define __MAX_PARAM 1500
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	char *buf_orig;
 	char **parm = NULL;
@@ -1061,14 +1064,14 @@ ssize_t lcd_tcon_reg_debug_store(struct device *dev, struct device_attribute *at
 		return count;
 	}
 
-	parm = kcalloc(1500, sizeof(char *), GFP_KERNEL);
+	parm = kcalloc(__MAX_PARAM, sizeof(char *), GFP_KERNEL);
 	if (!parm) {
 		kfree(buf_orig);
 		mutex_unlock(&lcd_tcon_dbg_mutex);
 		return count;
 	}
 
-	lcd_debug_parse_param(buf_orig, parm);
+	lcd_debug_parse_param(buf_orig, parm, __MAX_PARAM);
 
 	if (strcmp(parm[0], "wn") == 0) {
 		if (!parm[3])
@@ -1232,6 +1235,7 @@ lcd_tcon_adb_debug_store_err:
 	kfree(buf_orig);
 	mutex_unlock(&lcd_tcon_dbg_mutex);
 	return count;
+#undef __MAX_PARAM
 }
 
 ssize_t lcd_tcon_fw_dbg_show(struct device *dev, struct device_attribute *attr, char *buf)

@@ -18,6 +18,7 @@
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include "lcd_common.h"
+#include "lcd_tcon_swpdf.h"
 
 int lcd_cus_ctrl_dump_raw_data(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 {
@@ -187,6 +188,10 @@ int lcd_cus_ctrl_dump_info(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		case LCD_CUS_CTRL_TYPE_TCON_SW_POL:
 			break;
 		case LCD_CUS_CTRL_TYPE_TCON_SW_PDF:
+			n = lcd_debug_info_len(len + offset);
+			len += snprintf((buf + len), n, "  swpdf_flag:0x%x\n",
+				pdrv->config.customer_sw_pdf);
+
 			break;
 		default:
 			break;
@@ -538,7 +543,84 @@ static int lcd_cus_ctrl_attr_parse_tcon_sw_pol_ukey(struct aml_lcd_drv_s *pdrv,
 static int lcd_cus_ctrl_attr_parse_tcon_sw_pdf_ukey(struct aml_lcd_drv_s *pdrv,
 		struct lcd_cus_ctrl_attr_config_s *attr_conf, unsigned char *p)
 {
-	return 0;
+	u32 th[2];
+	s32 blk_cnt = 0, act_cnt = 0, i = 0, k = 0;
+	struct swpdf_s *pdf = get_swpdf();
+	struct swpdf_pat_s *pat = NULL;
+	u32 x, y, w, h, reg, mask, val, bus, pattern_cnt, mat[4];
+	s32 offset = 0;
+
+	pattern_cnt = attr_conf->param_flag << 4 | attr_conf->attr_flag;
+
+	if (pattern_cnt > SWPDF_PATTERN_MAX || pattern_cnt <= 0)
+		return -1;
+
+	pdrv->config.customer_sw_pdf = 0;
+	for (i = 0; i < pattern_cnt; i++)
+		pdrv->config.customer_sw_pdf |= 1 << i;
+
+	lcd_swpdf_init(pdrv);
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
+		lcd_dbg_mem_dump(p, attr_conf->param_size);
+
+	for (i = 0; i < pattern_cnt; i++) {
+		blk_cnt = __p_to_u8(p + offset);
+		offset += 1;
+		act_cnt = __p_to_u8(p + offset);
+		offset += 1;
+
+		th[0] =  __p_to_u16(p + offset);
+		offset += 2;
+		th[1] =  __p_to_u16(p + offset);
+		offset += 2;
+
+		pat = swpdf_pat_create_add(pdf, th[0], th[1]);
+		if (!pat) {
+			LCDERR("swpdf pattern_%d create fail: blk_cnt:%d, act_cnt:%d thres: %d-%d",
+				i, blk_cnt, act_cnt, th[0], th[1]);
+			continue;
+		}
+
+		for (k = 0; k < blk_cnt; k++) {
+			x = __p_to_u16(p + offset);
+			offset += 2;
+			y = __p_to_u16(p + offset);
+			offset += 2;
+			w = __p_to_u8(p + offset);
+			offset += 1;
+			h = __p_to_u8(p + offset);
+			offset += 1;
+			mat[0] = __p_to_u32(p + offset);
+			offset += 4;
+			mat[1] = __p_to_u32(p + offset);
+			offset += 4;
+			mat[2] = __p_to_u32(p + offset);
+			offset += 4;
+			mat[3] = __p_to_u32(p + offset);
+			offset += 4;
+			if (!swpdf_block_create_add(pat, x, y, w, h, mat))
+				LCDERR("add blk:[%d, %d, %d, %d] mat:[%08x, %08x, %08x, %08x]\n",
+					x, y, w, h, mat[0], mat[1], mat[2], mat[3]);
+		}
+
+		for (k = 0; k < act_cnt; k++) {
+			reg = __p_to_u32(p + offset);
+			offset += 4;
+			mask = __p_to_u32(p + offset);
+			offset += 4;
+			val = __p_to_u32(p + offset);
+			offset += 4;
+			bus = __p_to_u8(p + offset);
+			offset += 1;
+			if (!swpdf_act_create_add(pat, reg, mask, val, bus))
+				LCDERR("add act: reg=0x%x, mask=0x%x, val=0x%x\n", reg, mask, val);
+		}
+		if (pdrv->status & LCD_STATUS_IF_ON)
+			swpdf_act_pat(pat, SWPDF_ACT_RD_DFT);
+	}
+
+	return offset;
 }
 
 int lcd_cus_ctrl_load_from_unifykey(struct aml_lcd_drv_s *pdrv, unsigned char *buf,
@@ -637,7 +719,6 @@ int lcd_cus_ctrl_load_from_unifykey(struct aml_lcd_drv_s *pdrv, unsigned char *b
 					&attr_conf[n], (p + 4));
 				break;
 			case LCD_CUS_CTRL_TYPE_TCON_SW_PDF:
-				LCDERR("todo\n");
 				ret = lcd_cus_ctrl_attr_parse_tcon_sw_pdf_ukey(pdrv,
 					&attr_conf[n], (p + 4));
 				break;

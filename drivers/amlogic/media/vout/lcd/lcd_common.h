@@ -77,10 +77,28 @@
 /* 20240218: optimize lcd config check sequence*/
 /* 20240222: update custom control support*/
 /* 20240226: add tcon init_table pre_proc*/
-#define LCD_DRV_VERSION    "20240226"
+/* 20240307: update swpdf support*/
+#define LCD_DRV_VERSION    "20240307"
+
+static inline unsigned char __p_to_u8(void *p)
+{
+	return p ? (((u8 *)(p))[0]) : 0;
+}
+
+/* unsafety, must ensure the length of memory */
+static inline unsigned short __p_to_u16(void *p)
+{
+	return p ? (((u8 *)(p))[0] | (((u8 *)(p))[1] << 8)) : 0;
+}
+
+/* unsafety, must ensure the length of memory */
+static inline unsigned int __p_to_u32(void *p)
+{
+	return p ? (((u8 *)(p))[0] | (((u8 *)(p))[1] << 8) |
+		(((u8 *)(p))[2] << 16) | (((u8 *)(p))[3] << 24)) : 0;
+}
 
 extern struct mutex lcd_vout_mutex;
-
 extern spinlock_t lcd_reg_spinlock;
 extern int lcd_vout_serve_bypass;
 extern struct mutex lcd_tcon_dbg_mutex;
@@ -95,6 +113,7 @@ static inline unsigned long long lcd_do_div(unsigned long long num, unsigned int
 }
 
 /* lcd common */
+void lcd_dbg_mem_dump(void *addr, size_t size);
 void lcd_delay_us(int us);
 void lcd_delay_ms(int ms);
 unsigned char aml_lcd_i2c_bus_get_str(const char *str);
@@ -104,7 +123,7 @@ unsigned char lcd_mode_str_to_mode(const char *str);
 char *lcd_mode_mode_to_str(int mode);
 u8 *lcd_vmap(ulong addr, u32 size);
 void lcd_unmap_phyaddr(u8 *vaddr);
-void lcd_debug_parse_param(char *buf_orig, char **parm);
+int  lcd_debug_parse_param(char *buf_orig, char **parm, int max_parm);
 
 void lcd_cpu_gpio_probe(struct aml_lcd_drv_s *pdrv, unsigned int index);
 void lcd_cpu_gpio_set(struct aml_lcd_drv_s *pdrv, unsigned int index, int value);

@@ -558,6 +558,7 @@ struct lcd_config_s {
 	unsigned char custom_pinmux;
 	unsigned char fr_auto_cus;  //0=follow global setting, 0xff=disable
 	unsigned char fr_auto_flag; //final fr_auto policy
+	unsigned int customer_sw_pdf;
 };
 
 #define LCD_INIT_LEVEL_NORMAL         0

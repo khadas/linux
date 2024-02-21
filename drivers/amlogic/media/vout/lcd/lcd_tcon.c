@@ -41,7 +41,7 @@
 #include "lcd_common.h"
 #include "lcd_reg.h"
 #include "lcd_tcon.h"
-/*#include "tcon_ceds.h"*/
+#include "lcd_tcon_swpdf.h"
 
 static struct lcd_tcon_config_s *lcd_tcon_conf;
 static struct tcon_rmem_s tcon_rmem = {
@@ -1788,6 +1788,9 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 			spin_unlock_irqrestore(&tcon_local_cfg.multi_list_lock, flags);
 		}
 	}
+
+	if (pdrv->config.customer_sw_pdf)
+		lcd_swpdf_vs_handle();
 
 	if (tcon_fw->vsync_isr)
 		tcon_fw->vsync_isr(tcon_fw);

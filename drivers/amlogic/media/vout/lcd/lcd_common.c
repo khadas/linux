@@ -159,6 +159,25 @@ char *lcd_mode_mode_to_str(int mode)
 	return lcd_mode_table[mode];
 }
 
+void lcd_dbg_mem_dump(void *addr, size_t size)
+{
+	int i = 0, j = 0, k = 0, len = 0;
+	unsigned char buf[128], *p = (unsigned char *)addr;
+
+	if (!addr)
+		return;
+	LCDPR("memory dump addr:%px, size:0x%x\n", addr, (unsigned int)size);
+	for (j = 0; j < size / 16; j++) {
+		len = 0;
+		for (i = 0; i < 16; i++, k++)
+			len += sprintf(buf, "%02x ", p[k]);
+		LCDPR("0x%04x:%s\n", j * 0x10, buf);
+	}
+	for (i = 0, len = 0; i < size % 16; i++, k++)
+		len += sprintf(buf, "%02x ", p[k]);
+	LCDPR("0x%04x:%s\n", j * 0x10, buf);
+}
+
 u8 *lcd_vmap(ulong addr, u32 size)
 {
 	u8 *vaddr = NULL;
