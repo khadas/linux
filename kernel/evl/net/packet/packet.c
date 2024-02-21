@@ -298,7 +298,7 @@ static int bind_packet_socket(struct evl_socket *esk,
 		if (new_ifindex) {
 			dev = evl_net_get_dev_by_index(esk->net, new_ifindex);
 			if (dev == NULL)
-				return -EINVAL;
+				goto out;
 			if (is_vlan_dev(dev)) {
 				vlan_id = vlan_dev_vlan_id(dev);
 				real_ifindex = vlan_dev_real_dev(dev)->ifindex;
