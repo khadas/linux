@@ -115,6 +115,7 @@
 #define  SFC_VER_5			0x5
 #define  SFC_VER_6			0x6
 #define  SFC_VER_8			0x8
+#define  SFC_VER_10			0x10
 
 /* Delay line controller resiter */
 #define SFC_DLL_CTRL0			0x3C
@@ -168,8 +169,10 @@
 /* Maximum clock values from datasheet suggest keeping clock value under
  * 150MHz. No minimum or average value is suggested.
  */
-#define SFC_MAX_SPEED		(150 * 1000 * 1000)
-#define SFC_DLL_THRESHOLD_RATE	(50 * 1000 * 1000)
+#define SFC_MAX_SPEED			(150 * 1000 * 1000)
+#define SFC_DLL_THRESHOLD_RATE		(50 * 1000 * 1000)
+#define SFC_X2_MAX_SPEED		(300 * 1000 * 1000)
+#define SFC_X2_DLL_THRESHOLD_RATE	(100 * 1000 * 1000)
 
 #define SFC_DLL_TRANING_STEP		10	/* Training step */
 #define SFC_DLL_TRANING_VALID_WINDOW	80	/* Valid DLL winbow */
@@ -226,6 +229,22 @@ static u32 rockchip_sfc_get_max_iosize(struct rockchip_sfc *sfc)
 		return SFC_MAX_IOSIZE_VER4;
 
 	return SFC_MAX_IOSIZE_VER3;
+}
+
+static u32 rockchip_sfc_get_max_rate(struct rockchip_sfc *sfc)
+{
+	if (sfc->version >= SFC_VER_8)
+		return SFC_X2_MAX_SPEED;
+
+	return SFC_MAX_SPEED;
+}
+
+static u32 rockchip_sfc_get_max_dll_threshold(struct rockchip_sfc *sfc)
+{
+	if (sfc->version >= SFC_VER_8)
+		return SFC_X2_DLL_THRESHOLD_RATE;
+
+	return SFC_DLL_THRESHOLD_RATE;
 }
 
 static u32 rockchip_sfc_get_max_dll_cells(struct rockchip_sfc *sfc)
@@ -595,14 +614,14 @@ static void rockchip_sfc_delay_lines_tuning(struct rockchip_sfc *sfc, struct spi
 	bool dll_valid = false;
 	u8 cs = mem->spi->chip_select;
 
-	clk_set_rate(sfc->clk, SFC_DLL_THRESHOLD_RATE);
+	clk_set_rate(sfc->clk, rockchip_sfc_get_max_dll_threshold(sfc));
 	op.data.buf.in = &id;
 	rockchip_sfc_exec_op_bypass(sfc, mem, &op);
 	if ((0xFF == id[0] && 0xFF == id[1]) ||
 	    (0x00 == id[0] && 0x00 == id[1])) {
 		dev_dbg(sfc->dev, "no dev, dll by pass\n");
 		clk_set_rate(sfc->clk, sfc->speed[cs]);
-		sfc->speed[cs] = SFC_DLL_THRESHOLD_RATE;
+		sfc->speed[cs] = rockchip_sfc_get_max_dll_threshold(sfc);
 
 		return;
 	}
@@ -654,11 +673,11 @@ static void rockchip_sfc_delay_lines_tuning(struct rockchip_sfc *sfc, struct spi
 		dev_err(sfc->dev, "%d %d dll training failed in %dMHz, reduce the frequency\n",
 			left, right, sfc->speed[cs]);
 		rockchip_sfc_set_delay_lines(sfc, 0, cs);
-		clk_set_rate(sfc->clk, SFC_DLL_THRESHOLD_RATE);
-		mem->spi->max_speed_hz = SFC_DLL_THRESHOLD_RATE;
-		sfc->cur_speed = SFC_DLL_THRESHOLD_RATE;
+		clk_set_rate(sfc->clk, rockchip_sfc_get_max_dll_threshold(sfc));
+		mem->spi->max_speed_hz = rockchip_sfc_get_max_dll_threshold(sfc);
+		sfc->cur_speed = rockchip_sfc_get_max_dll_threshold(sfc);
 		sfc->cur_real_speed = clk_get_rate(sfc->clk);
-		sfc->speed[cs] = SFC_DLL_THRESHOLD_RATE;
+		sfc->speed[cs] = rockchip_sfc_get_max_dll_threshold(sfc);
 	}
 }
 
@@ -684,7 +703,7 @@ static int rockchip_sfc_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op
 		sfc->cur_speed = mem->spi->max_speed_hz;
 		sfc->cur_real_speed = clk_get_rate(sfc->clk);
 		if (rockchip_sfc_get_version(sfc) >= SFC_VER_4) {
-			if (clk_get_rate(sfc->clk) > SFC_DLL_THRESHOLD_RATE)
+			if (clk_get_rate(sfc->clk) > rockchip_sfc_get_max_dll_threshold(sfc))
 				rockchip_sfc_delay_lines_tuning(sfc, mem);
 			else
 				rockchip_sfc_set_delay_lines(sfc, 0, cs);
@@ -770,8 +789,6 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 	master->flags = SPI_MASTER_HALF_DUPLEX;
 	master->mem_ops = &rockchip_sfc_mem_ops;
 	master->dev.of_node = pdev->dev.of_node;
-	master->mode_bits = SPI_TX_QUAD | SPI_TX_DUAL | SPI_RX_QUAD | SPI_RX_DUAL;
-	master->max_speed_hz = SFC_MAX_SPEED;
 	master->num_chipselect = SFC_MAX_CHIPSELECT_NUM;
 
 	sfc = spi_master_get_devdata(master);
@@ -853,6 +870,11 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 
 	sfc->version = rockchip_sfc_get_version(sfc);
 	sfc->max_iosize = rockchip_sfc_get_max_iosize(sfc);
+
+	master->mode_bits = SPI_TX_QUAD | SPI_TX_DUAL | SPI_RX_QUAD | SPI_RX_DUAL;
+	master->max_speed_hz = rockchip_sfc_get_max_rate(sfc);
+	if (sfc->version >= SFC_VER_8)
+		master->mode_bits |= SPI_TX_OCTAL | SPI_RX_OCTAL;
 
 	pm_runtime_set_autosuspend_delay(dev, ROCKCHIP_AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(dev);
