@@ -246,6 +246,7 @@ struct rockchip_pwm_chip {
 	struct dentry *debugfs;
 	void __iomem *base;
 	unsigned long clk_rate;
+	unsigned long is_clk_enabled;
 	bool vop_pwm_en; /* indicate voppwm mirror register state */
 	bool center_aligned;
 	bool oneshot_en;
@@ -1114,6 +1115,7 @@ static int rockchip_pwm_global_ctrl_v4(struct pwm_chip *chip, struct pwm_device 
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	u32 arbiter = 0;
 	u32 val = 0;
+	int ret = 0;
 
 	switch (cmd) {
 	case PWM_GLOBAL_CTRL_JOIN:
@@ -1159,6 +1161,12 @@ static int rockchip_pwm_global_ctrl_v4(struct pwm_chip *chip, struct pwm_device 
 			return -EINVAL;
 		}
 
+		if (!test_and_set_bit(0, &pc->is_clk_enabled)) {
+			ret = clk_enable(pc->clk);
+			if (ret)
+				return ret;
+		}
+
 		writel_relaxed(PWM_CLK_EN(true), pc->base + ENABLE);
 		writel_relaxed(GLOBAL_PWM_EN(true), pc->base + GLOBAL_CTRL);
 		break;
@@ -1171,6 +1179,10 @@ static int rockchip_pwm_global_ctrl_v4(struct pwm_chip *chip, struct pwm_device 
 
 		writel_relaxed(PWM_CLK_EN(false), pc->base + ENABLE);
 		writel_relaxed(GLOBAL_PWM_EN(false), pc->base + GLOBAL_CTRL);
+
+		if (test_and_clear_bit(0, &pc->is_clk_enabled))
+			clk_disable(pc->clk);
+
 		break;
 	default:
 		dev_err(chip->dev, "Unsupported global ctrl cmd %d\n", cmd);
@@ -1208,6 +1220,12 @@ int rockchip_pwm_global_ctrl(struct pwm_device *pwm, enum rockchip_pwm_global_ct
 	ret = clk_enable(pc->pclk);
 	if (ret)
 		return ret;
+
+	ret = pinctrl_select_state(pc->pinctrl, pc->active_state);
+	if (ret) {
+		dev_err(chip->dev, "Failed to select pinctrl state\n");
+		goto err_disable_pclk;
+	}
 
 	ret = pc->data->funcs.global_ctrl(chip, pwm, cmd);
 	if (ret) {
