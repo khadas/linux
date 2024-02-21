@@ -1418,13 +1418,24 @@ static int rockchip_pwm_debugfs_show(struct seq_file *s, void *data)
 			return ret;
 	}
 
-	regs_start = (u32)pc->res->start - pc->channel_id * 0x10;
-	for (i = 0; i < 0x40; i += 4) {
-		seq_printf(s, "%08x:  %08x %08x %08x %08x\n", regs_start + i * 4,
-			   readl_relaxed(pc->base + (4 * i)),
-			   readl_relaxed(pc->base + (4 * (i + 1))),
-			   readl_relaxed(pc->base + (4 * (i + 2))),
-			   readl_relaxed(pc->base + (4 * (i + 3))));
+	if (pc->main_version >= 4) {
+		regs_start = (u32)pc->res->start;
+		for (i = 0; i < 0x80; i += 4) {
+			seq_printf(s, "%08x:  %08x %08x %08x %08x\n", regs_start + i * 4,
+				   readl_relaxed(pc->base + (4 * i)),
+				   readl_relaxed(pc->base + (4 * (i + 1))),
+				   readl_relaxed(pc->base + (4 * (i + 2))),
+				   readl_relaxed(pc->base + (4 * (i + 3))));
+		}
+	} else {
+		regs_start = (u32)pc->res->start - pc->channel_id * 0x10;
+		for (i = 0; i < 0x40; i += 4) {
+			seq_printf(s, "%08x:  %08x %08x %08x %08x\n", regs_start + i * 4,
+				   readl_relaxed(pc->base + (4 * i)),
+				   readl_relaxed(pc->base + (4 * (i + 1))),
+				   readl_relaxed(pc->base + (4 * (i + 2))),
+				   readl_relaxed(pc->base + (4 * (i + 3))));
+		}
 	}
 
 	if (!pc->oneshot_en)
