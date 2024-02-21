@@ -670,7 +670,6 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 				pr_info("%s:%d set new std:%#x %#x %s\n", __func__,
 					i, (unsigned int)p->std, p->audmode,
 					v4l2_std_to_str(p->std & 0xFF000000));
-				p->frequency += 1;
 				params.frequency = p->frequency;
 				params.mode = p->afc_range;
 				params.audmode = p->audmode;
@@ -692,7 +691,6 @@ static void atvdemod_fe_try_analog_format(struct v4l2_frontend *v4l2_fe,
 					__func__);
 			cvbs_std = TVIN_SIG_FMT_CVBS_PAL_I;
 			p->std = V4L2_COLOR_STD_PAL | V4L2_STD_PAL_DK;
-			p->frequency += 1;
 			p->audmode = V4L2_STD_PAL_DK;
 
 			params.frequency = p->frequency;
@@ -1226,6 +1224,8 @@ static int atvdemod_fe_tune(struct v4l2_frontend *v4l2_fe,
 static int atvdemod_fe_detect(struct v4l2_frontend *v4l2_fe)
 {
 	struct v4l2_analog_parameters *p = &v4l2_fe->params;
+	struct analog_parameters *param = NULL;
+	struct atv_demod_priv *priv = NULL;
 	struct dvb_frontend *fe = &v4l2_fe->fe;
 	int priv_cfg = 0;
 	v4l2_std_id std_bk = 0;
@@ -1233,16 +1233,28 @@ static int atvdemod_fe_detect(struct v4l2_frontend *v4l2_fe)
 	unsigned int soundsys = 0;
 	int auto_detect = AUTO_DETECT_COLOR | AUTO_DETECT_AUDIO;
 
+	priv = fe->analog_demod_priv;
+	param = &priv->atvdemod_param.param;
+
 	priv_cfg = AML_ATVDEMOD_SCAN_MODE;
 	if (fe->ops.analog_ops.set_config)
 		fe->ops.analog_ops.set_config(fe, &priv_cfg);
 
 	atvdemod_fe_try_analog_format(v4l2_fe, auto_detect,
 			&std_bk, &audio, &soundsys);
+
+	pr_info("[%s] freq:%d, std_bk:0x%x, audmode:0x%x, search OK.\n",
+			__func__, p->frequency, (unsigned int)std_bk, audio);
+
 	if (std_bk != 0) {
 		p->audmode = audio;
 		p->std = std_bk;
 		p->soundsys = soundsys;
+
+		param->audmode = audio;
+		param->std = std_bk;
+		param->frequency = p->frequency;
+
 		std_bk = 0;
 		audio = 0;
 	}
@@ -1256,7 +1268,7 @@ static int atvdemod_fe_detect(struct v4l2_frontend *v4l2_fe)
 
 static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 {
-	/* struct analog_parameters params; */
+	struct analog_parameters *param;
 	struct dvb_frontend *fe = &v4l2_fe->fe;
 	struct atv_demod_priv *priv = NULL;
 	struct v4l2_analog_parameters *p = &v4l2_fe->params;
@@ -1292,6 +1304,7 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 	}
 
 	priv = fe->analog_demod_priv;
+	param = &priv->atvdemod_param.param;
 	if (atvdemod_check_exited(v4l2_fe)) {
 		pr_err("[%s] ATV state is not work.\n", __func__);
 		return V4L2_SEARCH_INVALID;
@@ -1411,9 +1424,12 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 				if (std_bk != 0) {
 					p->audmode = audio;
 					p->std = std_bk;
-					/*avoid std unenable */
-					p->frequency -= 1;
 					p->soundsys = soundsys;
+
+					param->audmode = audio;
+					param->std = std_bk;
+					param->frequency = p->frequency;
+
 					std_bk = 0;
 					audio = 0;
 				} else {
