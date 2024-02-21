@@ -1894,7 +1894,7 @@ static void vop2_win_disable(struct vop2_win *win, bool skip_splice_win)
 		 * mst_en=0 and port0_extra_alpha_en=0[this take effect immediately and lead to esmat less fs],
 		 * so we set win_port_sel to 0 to avoid esmart1/3 close failed.
 		 */
-		if (vop2->version == VOP_VERSION_RK3576 && win->vp_mask == BIT(0) &&
+		if (vop2->version == VOP_VERSION_RK3576 && !win->parent && win->vp_mask == BIT(0) &&
 		    (win->phys_id == ROCKCHIP_VOP2_ESMART1 || win->phys_id == ROCKCHIP_VOP2_ESMART3))
 			VOP_CTRL_SET(vop2, win_vp_id[win->phys_id], 0);
 
