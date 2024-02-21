@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
+ *
+ * Author: Zorro Liu <zorro.liu@rock-chips.com>
+ */
+
 	.text
 	.file	"pvi_waveform.c"
 	.file	1 "/home/lyx/rk-android14/kernel-6.1" "./include/uapi/asm-generic/int-ll64.h"

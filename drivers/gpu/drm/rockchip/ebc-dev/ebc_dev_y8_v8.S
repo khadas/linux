@@ -1721,17 +1721,17 @@ ebc_probe:
 	cbnz	w0, .LBB4_37
 .Ltmp389:
 	.loc	1 3786 28
-	ldp	w9, w8, [x21, #124]
+	ldp	w9, w8, [x21, #116]
 	.loc	1 3792 8
 	mov	x0, x21
 .Ltmp390:
-	.loc	1 3788 49
+	.loc	1 3788 45
 	mul	w10, w9, w8
 	.loc	1 3786 19
 	str	w8, [x21, #300]
 	.loc	1 3787 18
 	str	w9, [x21, #304]
-	.loc	1 3789 72
+	.loc	1 3789 64
 	lsr	w8, w10, #2
 	.loc	1 3788 30
 	stp	w10, w8, [x21, #236]
@@ -2731,7 +2731,7 @@ ebc_buffer_manage_init:
 	stp	x13, x9, [x19, #80]
 .Ltmp631:
 	.loc	1 3504 47
-	ldp	w11, w10, [x19, #124]
+	ldp	w11, w10, [x19, #116]
 .Ltmp632:
 	.loc	1 3489 30
 	stp	x12, x9, [x19, #392]
@@ -2743,7 +2743,7 @@ ebc_buffer_manage_init:
 	add	x9, x8, x9
 	.loc	1 3501 59
 	add	x12, x8, x12
-	.loc	1 3504 57
+	.loc	1 3504 53
 	mul	w2, w10, w11
 	.loc	1 3502 66
 	add	x8, x8, x13
@@ -2755,12 +2755,12 @@ ebc_buffer_manage_init:
 	bl	memset
 .Ltmp634:
 	.loc	1 3505 50
-	ldp	w8, w9, [x19, #124]
+	ldp	w8, w9, [x19, #116]
 	.loc	1 3505 19 is_stmt 0
 	ldr	x0, [x19, #376]
 	.loc	1 3505 2
 	mov	w1, wzr
-	.loc	1 3505 60
+	.loc	1 3505 56
 	mul	w2, w9, w8
 	.loc	1 3505 2
 	bl	memset
@@ -3690,8 +3690,8 @@ ebc_logo_init:
 	cbz	x0, .LBB12_12
 .Ltmp821:
 	.loc	1 3641 70
-	ldp	w8, w9, [x20, #84]
-	.loc	1 3641 80 is_stmt 0
+	ldp	w8, w9, [x20, #76]
+	.loc	1 3641 76 is_stmt 0
 	mul	w8, w9, w8
 .Ltmp822:
 	.loc	1 3581 2 is_stmt 1
@@ -3736,11 +3736,11 @@ ebc_logo_init:
 	.loc	1 3642 18
 	str	w8, [x0, #40]
 	.loc	1 3645 25
-	ldr	w8, [x20, #84]
+	ldr	w8, [x20, #76]
 	.loc	1 3645 16 is_stmt 0
 	str	w8, [x0, #56]
 	.loc	1 3646 25 is_stmt 1
-	ldr	w8, [x20, #88]
+	ldr	w8, [x20, #80]
 	.loc	1 3646 16 is_stmt 0
 	stp	w8, w9, [x0, #60]
 .Ltmp832:
@@ -3761,8 +3761,8 @@ ebc_logo_init:
 	cbz	x0, .LBB12_18
 .Ltmp836:
 	.loc	1 3655 70
-	ldp	w8, w9, [x20, #84]
-	.loc	1 3655 80 is_stmt 0
+	ldp	w8, w9, [x20, #76]
+	.loc	1 3655 76 is_stmt 0
 	mul	w8, w9, w8
 .Ltmp837:
 	.loc	1 3581 2 is_stmt 1
@@ -3807,11 +3807,11 @@ ebc_logo_init:
 	.loc	1 3656 18
 	str	w8, [x0, #40]
 	.loc	1 3659 25
-	ldr	w8, [x20, #84]
+	ldr	w8, [x20, #76]
 	.loc	1 3659 16 is_stmt 0
 	str	w8, [x0, #56]
 	.loc	1 3660 25 is_stmt 1
-	ldr	w8, [x20, #88]
+	ldr	w8, [x20, #80]
 	.loc	1 3660 16 is_stmt 0
 	stp	w8, w9, [x0, #60]
 	.loc	1 3662 4 is_stmt 1
@@ -3875,16 +3875,16 @@ ebc_logo_init:
 	add	x1, x1, :lo12:.L.str.99
 	bl	_dev_info
 .Ltmp858:
-	.loc	1 3606 50
-	ldp	w9, w8, [x20, #84]
+	.loc	1 3606 46
+	ldp	w9, w8, [x20, #76]
 .Ltmp859:
 	.loc	184 558 9
 	mov	w1, #3520
 .Ltmp860:
-	.loc	1 3606 41
+	.loc	1 3606 37
 	mul	w8, w8, w9
 .Ltmp861:
-	.loc	1 3606 61 is_stmt 0
+	.loc	1 3606 53 is_stmt 0
 	lsr	w0, w8, #1
 .Ltmp862:
 	.loc	184 558 9 is_stmt 1
@@ -3893,8 +3893,8 @@ ebc_logo_init:
 	.loc	1 3607 8
 	cbz	x0, .LBB12_35
 .Ltmp864:
-	.loc	1 3611 116
-	ldp	w9, w8, [x20, #84]
+	.loc	1 3611 112
+	ldp	w9, w8, [x20, #76]
 	.loc	1 3611 73 is_stmt 0
 	ldp	x11, x12, [x19, #208]
 	.loc	1 0 0
@@ -3903,11 +3903,11 @@ ebc_logo_init:
 	.loc	1 3611 50
 	ldr	w10, [sp, #4]
 .Ltmp866:
-	.loc	1 3611 107
+	.loc	1 3611 103
 	mul	w8, w8, w9
 	.loc	1 3611 61
 	sub	x9, x10, x11
-	.loc	1 3611 127
+	.loc	1 3611 119
 	lsr	w2, w8, #1
 	.loc	1 3611 47
 	add	x1, x12, x9
@@ -3953,16 +3953,16 @@ ebc_logo_init:
 	add	x1, x1, :lo12:.L.str.102
 	bl	_dev_info
 .Ltmp877:
-	.loc	1 3620 50
-	ldp	w9, w8, [x20, #84]
+	.loc	1 3620 46
+	ldp	w9, w8, [x20, #76]
 .Ltmp878:
 	.loc	184 558 9
 	mov	w1, #3520
 .Ltmp879:
-	.loc	1 3620 41
+	.loc	1 3620 37
 	mul	w8, w8, w9
 .Ltmp880:
-	.loc	1 3620 61 is_stmt 0
+	.loc	1 3620 53 is_stmt 0
 	lsr	w0, w8, #1
 .Ltmp881:
 	.loc	184 558 9 is_stmt 1
@@ -3971,8 +3971,8 @@ ebc_logo_init:
 	.loc	1 3621 8
 	cbz	x0, .LBB12_36
 .Ltmp883:
-	.loc	1 3625 116
-	ldp	w9, w8, [x20, #84]
+	.loc	1 3625 112
+	ldp	w9, w8, [x20, #76]
 	.loc	1 3625 73 is_stmt 0
 	ldp	x11, x12, [x19, #208]
 	.loc	1 0 0
@@ -3981,11 +3981,11 @@ ebc_logo_init:
 	.loc	1 3625 50
 	ldr	w10, [sp]
 .Ltmp885:
-	.loc	1 3625 107
+	.loc	1 3625 103
 	mul	w8, w8, w9
 	.loc	1 3625 61
 	sub	x9, x10, x11
-	.loc	1 3625 127
+	.loc	1 3625 119
 	lsr	w2, w8, #1
 	.loc	1 3625 47
 	add	x1, x12, x9
@@ -4012,7 +4012,7 @@ ebc_logo_init:
 	bl	ebc_empty_buf_get
 .Ltmp890:
 	.loc	1 2863 38
-	ldp	w8, w9, [x20, #84]
+	ldp	w8, w9, [x20, #76]
 	.loc	1 2862 8
 	mov	x23, x0
 .Ltmp891:
@@ -4020,7 +4020,7 @@ ebc_logo_init:
 	ldr	x0, [x0, #16]
 	.loc	1 2863 2 is_stmt 0
 	mov	w1, #240
-	.loc	1 2863 48
+	.loc	1 2863 44
 	mul	w2, w9, w8
 	.loc	1 2863 2
 	bl	memset
@@ -4035,11 +4035,11 @@ ebc_logo_init:
 	.loc	1 2864 16
 	str	w8, [x23, #40]
 	.loc	1 2867 23
-	ldr	w8, [x20, #84]
+	ldr	w8, [x20, #76]
 	.loc	1 2867 14 is_stmt 0
 	str	w8, [x23, #56]
 	.loc	1 2868 23 is_stmt 1
-	ldr	w8, [x20, #88]
+	ldr	w8, [x20, #80]
 	.loc	1 2868 14 is_stmt 0
 	stp	w8, w9, [x23, #60]
 	b	.LBB12_11
@@ -9280,9 +9280,9 @@ get_overlay_image2:
 	stur	x0, [x29, #-8]
 .Ltmp2109:
 	.loc	1 685 17
-	ldp	w25, w10, [x8, #124]
+	ldp	w25, w10, [x8, #116]
 .Ltmp2110:
-	.loc	1 685 27 is_stmt 0
+	.loc	1 685 23 is_stmt 0
 	lsr	w20, w25, #3
 .Ltmp2111:
 	.loc	1 688 6 is_stmt 1
@@ -9342,7 +9342,7 @@ get_overlay_image2:
 	mov	w27, wzr
 .Ltmp2126:
 .LBB17_5:
-	.loc	1 702 31 is_stmt 1
+	.loc	1 702 27 is_stmt 1
 	lsr	w26, w25, #2
 .Ltmp2127:
 	.loc	1 703 60
@@ -10446,9 +10446,9 @@ get_overlay_image:
 	.loc	1 616 6 is_stmt 1
 	cmp	w6, #3
 	.loc	1 613 17
-	ldp	w11, w8, [x27, #124]
+	ldp	w11, w8, [x27, #116]
 .Ltmp2446:
-	.loc	1 613 27 is_stmt 0
+	.loc	1 613 23 is_stmt 0
 	lsr	w12, w11, #3
 .Ltmp2447:
 	.loc	1 616 6 is_stmt 1
@@ -10514,37 +10514,37 @@ get_overlay_image:
 	.loc	1 631 13 is_stmt 1
 	ldr	w9, [x27, #196]
 .Ltmp2464:
-	.loc	1 630 31
+	.loc	1 630 27
 	lsr	w25, w11, #2
 .Ltmp2465:
-	.loc	1 0 31 is_stmt 0
+	.loc	1 0 27 is_stmt 0
 	stp	w12, w11, [sp]
 	.loc	1 631 6 is_stmt 1
 	cbz	w9, .LBB18_36
 .Ltmp2466:
-	.loc	1 632 41
+	.loc	1 632 37
 	sub	w8, w8, w28
-	.loc	1 632 88 is_stmt 0
+	.loc	1 632 84 is_stmt 0
 	sub	w9, w28, w26
 	.loc	1 632 3
 	mov	w1, wzr
-	.loc	1 632 51
+	.loc	1 632 47
 	mul	w8, w8, w25
-	.loc	1 632 78
+	.loc	1 632 74
 	mul	w9, w9, w25
 	.loc	1 632 19
 	add	x0, x24, x8
-	.loc	1 632 68
+	.loc	1 632 64
 	sxtw	x2, w9
 	.loc	1 632 3
 	bl	memset
 .Ltmp2467:
 	.loc	1 633 23 is_stmt 1
-	ldr	w8, [x27, #128]
-	.loc	1 633 38 is_stmt 0
+	ldr	w8, [x27, #120]
+	.loc	1 633 34 is_stmt 0
 	mvn	w9, w26
 	add	w8, w8, w9
-	.loc	1 633 43
+	.loc	1 633 39
 	mul	w8, w8, w25
 	.loc	1 634 17 is_stmt 1
 	neg	w25, w25
@@ -11231,7 +11231,7 @@ get_overlay_image_area2:
 	add	x15, x2, x15
 .Ltmp2650:
 	.loc	1 1038 45 is_stmt 1
-	ldr	w12, [x14, #124]
+	ldr	w12, [x14, #116]
 .Ltmp2651:
 	.loc	1 0 45 is_stmt 0
 	str	x14, [sp, #40]
@@ -11250,7 +11250,7 @@ get_overlay_image_area2:
 	str	w15, [sp, #12]
 	ldr	x15, [sp, #56]
 .Ltmp2655:
-	.loc	1 1038 55
+	.loc	1 1038 51
 	lsr	w12, w12, #2
 .Ltmp2656:
 	.loc	1 1038 26
@@ -11279,10 +11279,10 @@ get_overlay_image_area2:
 	ldr	x15, [sp, #56]
 .Ltmp2662:
 	.loc	1 1041 42 is_stmt 1
-	ldr	w12, [x12, #124]
+	ldr	w12, [x12, #116]
 	.loc	1 1041 33 is_stmt 0
 	mul	w12, w12, w8
-	.loc	1 1041 52
+	.loc	1 1041 48
 	lsr	w12, w12, #2
 	.loc	1 1041 28
 	add	x4, x15, x12
@@ -11775,8 +11775,8 @@ get_overlay_image_area:
 	cbz	w2, .LBB20_6
 .Ltmp2759:
 	.loc	1 809 39
-	ldp	w0, w15, [x14, #124]
-	.loc	1 809 54 is_stmt 0
+	ldp	w0, w15, [x14, #116]
+	.loc	1 809 50 is_stmt 0
 	mvn	w3, w8
 .Ltmp2760:
 	add	w15, w15, w3
@@ -11788,7 +11788,7 @@ get_overlay_image_area:
 .Ltmp2762:
 .LBB20_6:
 	.loc	1 811 42
-	ldr	w15, [x14, #124]
+	ldr	w15, [x14, #116]
 	mov	w0, w8
 .Ltmp2763:
 	.loc	1 817 3
@@ -12195,10 +12195,10 @@ get_auto_image2:
 	stur	x0, [x29, #-8]
 .Ltmp2854:
 	.loc	1 1363 17 is_stmt 1
-	ldp	w23, w25, [x8, #124]
+	ldp	w23, w25, [x8, #116]
 	str	x8, [sp, #24]
 .Ltmp2855:
-	.loc	1 1363 27 is_stmt 0
+	.loc	1 1363 23 is_stmt 0
 	lsr	w24, w23, #3
 .Ltmp2856:
 	.loc	1 1366 6 is_stmt 1
@@ -12254,27 +12254,27 @@ get_auto_image2:
 	mov	w27, wzr
 .Ltmp2870:
 .LBB21_5:
-	.loc	1 1379 59 is_stmt 1
+	.loc	1 1379 55 is_stmt 1
 	subs	w8, w25, w27
 	.loc	1 1379 23 is_stmt 0
 	mul	w9, w27, w23
 	ldur	x10, [x29, #-8]
 	.loc	1 1379 2
 	mov	w1, wzr
-	.loc	1 1379 64
+	.loc	1 1379 60
 	mul	w8, w8, w23
-	.loc	1 1379 42
+	.loc	1 1379 38
 	lsr	w9, w9, #2
 	.loc	1 1379 18
 	add	x0, x10, x9
-	.loc	1 1379 83
+	.loc	1 1379 75
 	lsr	w2, w8, #2
 	.loc	1 1379 2
 	bl	memset
 .Ltmp2871:
 	.loc	1 0 2
 	mov	w8, wzr
-	.loc	1 1379 59
+	.loc	1 1379 55
 	cmp	w25, w27
 .Ltmp2872:
 	.loc	1 1380 2 is_stmt 1
@@ -12311,7 +12311,7 @@ get_auto_image2:
 .Ltmp2879:
 	.loc	1 0 3 is_stmt 0
 	ldp	x26, x9, [sp, #16]
-	ldr	w9, [x9, #124]
+	ldr	w9, [x9, #116]
 .Ltmp2880:
 	.loc	1 1382 3
 	mul	w28, w9, w27
@@ -12471,9 +12471,9 @@ get_auto_image:
 	ldr	x8, [x8, :lo12:global_ebc]
 .Ltmp2913:
 	.loc	1 1078 17
-	ldp	w9, w10, [x8, #124]
+	ldp	w9, w10, [x8, #116]
 .Ltmp2914:
-	.loc	1 1078 27 is_stmt 0
+	.loc	1 1078 23 is_stmt 0
 	lsr	w15, w9, #3
 .Ltmp2915:
 	.loc	1 1081 6 is_stmt 1
@@ -12582,9 +12582,9 @@ get_auto_image:
 	cbz	w14, .LBB22_12
 .Ltmp2940:
 	.loc	1 1096 39
-	ldp	w5, w17, [x8, #124]
+	ldp	w5, w17, [x8, #116]
 .Ltmp2941:
-	.loc	1 1096 54 is_stmt 0
+	.loc	1 1096 50 is_stmt 0
 	mvn	w0, w12
 .Ltmp2942:
 	add	w0, w17, w0
@@ -12596,7 +12596,7 @@ get_auto_image:
 .Ltmp2944:
 .LBB22_12:
 	.loc	1 1098 42
-	ldr	w0, [x8, #124]
+	ldr	w0, [x8, #116]
 .Ltmp2945:
 	.loc	1 0 42 is_stmt 0
 	mov	w5, w12
@@ -13074,12 +13074,12 @@ direct_mode_data_change_part2:
 	ldr	x8, [x8, :lo12:global_ebc]
 .Ltmp3053:
 	.loc	1 1549 17
-	ldp	w22, w23, [x8, #124]
+	ldp	w22, w23, [x8, #116]
 .Ltmp3054:
-	.loc	1 1549 27 is_stmt 0
+	.loc	1 1549 23 is_stmt 0
 	lsr	w9, w22, #3
 .Ltmp3055:
-	.loc	1 0 27
+	.loc	1 0 23
 	str	w9, [sp, #4]
 	.loc	1 1552 6 is_stmt 1
 	b.eq	.LBB23_3
@@ -13120,7 +13120,7 @@ direct_mode_data_change_part2:
 	mov	w24, wzr
 .Ltmp3066:
 .LBB23_5:
-	.loc	1 1563 31 is_stmt 1
+	.loc	1 1563 27 is_stmt 1
 	lsr	w27, w22, #2
 .Ltmp3067:
 	.loc	1 1564 58
@@ -13658,12 +13658,12 @@ direct_mode_data_change_part:
 	ldr	x26, [x8, :lo12:global_ebc]
 .Ltmp3181:
 	.loc	1 1460 17
-	ldp	w22, w8, [x26, #124]
+	ldp	w22, w8, [x26, #116]
 .Ltmp3182:
-	.loc	1 1460 27 is_stmt 0
+	.loc	1 1460 23 is_stmt 0
 	lsr	w10, w22, #3
 .Ltmp3183:
-	.loc	1 0 27
+	.loc	1 0 23
 	stur	w10, [x29, #-4]
 	.loc	1 1463 6 is_stmt 1
 	b.eq	.LBB24_3
@@ -13706,7 +13706,7 @@ direct_mode_data_change_part:
 .Ltmp3193:
 .LBB24_6:
 	ldrb	w28, [x3, #56]
-	.loc	1 1474 31 is_stmt 1
+	.loc	1 1474 27 is_stmt 1
 	lsr	w25, w22, #2
 .Ltmp3194:
 	.loc	1 0 0 is_stmt 0
@@ -13722,29 +13722,29 @@ direct_mode_data_change_part:
 	.loc	1 1475 6
 	cbz	w9, .LBB24_8
 .Ltmp3198:
-	.loc	1 1476 41 is_stmt 1
+	.loc	1 1476 37 is_stmt 1
 	sub	w8, w8, w24
-	.loc	1 1476 88 is_stmt 0
+	.loc	1 1476 84 is_stmt 0
 	sub	w9, w24, w23
 	.loc	1 1476 3
 	mov	w1, wzr
-	.loc	1 1476 51
+	.loc	1 1476 47
 	mul	w8, w8, w25
-	.loc	1 1476 78
+	.loc	1 1476 74
 	mul	w9, w9, w25
 	.loc	1 1476 19
 	add	x0, x21, x8
-	.loc	1 1476 68
+	.loc	1 1476 64
 	sxtw	x2, w9
 	.loc	1 1476 3
 	bl	memset
 .Ltmp3199:
 	.loc	1 1477 23 is_stmt 1
-	ldr	w8, [x26, #128]
-	.loc	1 1477 38 is_stmt 0
+	ldr	w8, [x26, #120]
+	.loc	1 1477 34 is_stmt 0
 	mvn	w9, w23
 	add	w8, w8, w9
-	.loc	1 1477 43
+	.loc	1 1477 39
 	mul	w8, w8, w25
 	.loc	1 1478 17 is_stmt 1
 	neg	w25, w25
@@ -14049,12 +14049,12 @@ direct_mode_data_change2:
 	ldr	x8, [x8, :lo12:global_ebc]
 .Ltmp3265:
 	.loc	1 1508 18
-	ldp	w8, w11, [x8, #124]
+	ldp	w8, w11, [x8, #116]
 .Ltmp3266:
 	.loc	1 1514 14
 	cmp	w11, #0
 .Ltmp3267:
-	.loc	1 1507 27
+	.loc	1 1507 23
 	lsr	w13, w8, #3
 .Ltmp3268:
 	.loc	1 1514 14
@@ -14398,7 +14398,7 @@ direct_mode_data_change:
 	ldr	x9, [x8, :lo12:global_ebc]
 .Ltmp3322:
 	.loc	1 1419 17
-	ldp	w8, w11, [x9, #124]
+	ldp	w8, w11, [x9, #116]
 .Ltmp3323:
 	.loc	1 1433 13
 	ldr	w13, [x9, #196]
@@ -14406,7 +14406,7 @@ direct_mode_data_change:
 	.loc	1 1426 14
 	cmp	w11, #0
 .Ltmp3325:
-	.loc	1 1419 27
+	.loc	1 1419 23
 	lsr	w14, w8, #3
 .Ltmp3326:
 	.loc	1 1426 14
@@ -14440,7 +14440,7 @@ direct_mode_data_change:
 	.loc	1 1427 14
 	sbfiz	x12, x15, #3, #32
 .Ltmp3336:
-	.loc	1 1434 38
+	.loc	1 1434 34
 	mvn	w15, w9
 .Ltmp3337:
 	.loc	1 1427 14
@@ -14449,13 +14449,13 @@ direct_mode_data_change:
 	.loc	1 1428 14
 	add	x12, x2, x12
 .Ltmp3339:
-	.loc	1 1438 32
+	.loc	1 1438 28
 	lsr	w16, w8, #2
 .Ltmp3340:
 	.loc	1 1422 6
 	csel	w10, w11, w10, eq
 .Ltmp3341:
-	.loc	1 1434 38
+	.loc	1 1434 34
 	add	w15, w11, w15
 .Ltmp3342:
 	.loc	1 1422 6
@@ -16200,7 +16200,7 @@ ebc_io_ctl:
 	bl	ebc_phy_buf_base_get
 .Ltmp3707:
 	.loc	1 3024 27 is_stmt 1
-	ldp	w8, w11, [x21, #124]
+	ldp	w8, w11, [x21, #116]
 	.loc	1 3026 33
 	ldr	w9, [x21, #192]
 	.loc	1 3021 31
@@ -16330,7 +16330,7 @@ ebc_io_ctl:
 .Ltmp3734:
 .LBB34_17:
 	.loc	1 3127 27
-	ldp	w8, w9, [x21, #124]
+	ldp	w8, w9, [x21, #116]
 	.loc	1 3129 33
 	ldr	w10, [x21, #192]
 .Ltmp3735:
@@ -16377,7 +16377,7 @@ ebc_io_ctl:
 	bl	ebc_phy_buf_base_get
 .Ltmp3745:
 	.loc	1 3005 27 is_stmt 1
-	ldp	w8, w11, [x21, #124]
+	ldp	w8, w11, [x21, #116]
 	.loc	1 3007 33
 	ldr	w9, [x21, #192]
 	.loc	1 3002 31
@@ -19563,7 +19563,7 @@ auto_frame_state_read:
 	ldr	x8, [x8, :lo12:global_ebc]
 .Ltmp4316:
 	.loc	1 0 29 is_stmt 0
-	ldp	w10, w9, [x8, #124]
+	ldp	w10, w9, [x8, #116]
 	mul	w9, w10, w9
 .Ltmp4317:
 	.loc	1 3361 2 is_stmt 1

@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
+ *
+ * Author: Zorro Liu <zorro.liu@rock-chips.com>
+ */
+
 	.text
 	.file	"rkf_waveform.c"
 	.file	1 "/home/lyx/rk-android14/kernel-6.1" "drivers/gpu/drm/rockchip/ebc-dev/epdlut/epd_lut.h"
