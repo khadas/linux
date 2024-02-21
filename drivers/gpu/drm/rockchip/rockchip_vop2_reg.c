@@ -4496,6 +4496,7 @@ static const struct vop_grf_ctrl rk3576_ioc_grf_ctrl = {
 
 static const struct vop2_ctrl rk3576_vop_ctrl = {
 	.cfg_done_en = VOP_REG(RK3568_REG_CFG_DONE, 0x1, 15),
+	.reg_done_frm = VOP_REG_MASK(RK3576_SYS_PORT_CTRL_IMD, 0x7, 0),
 	.wb_cfg_done = VOP_REG_MASK(RK3568_REG_CFG_DONE, 0x1, 14),
 	.auto_gating_en = VOP_REG(RK3568_SYS_AUTO_GATING_CTRL, 0x1, 31),
 	.aclk_pre_auto_gating_en = VOP_REG(RK3568_SYS_AUTO_GATING_CTRL, 0x1, 7),
