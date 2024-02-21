@@ -775,6 +775,11 @@ static inline unsigned int bl_brightness_level_map(struct aml_bl_drv_s *bdrv,
 	else
 		level = brightness;
 
+	if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV) {
+		BLPR("%s: input brightness=%d, output level=%d\n",
+			__func__, brightness, level);
+	}
+
 	return level;
 }
 
@@ -784,7 +789,15 @@ static inline unsigned int bl_gd_level_map(struct aml_bl_drv_s *bdrv, unsigned i
 
 	min = bdrv->bconf.level_min;
 	max = bdrv->bconf.level_max;
+
+	if (bdrv->level_brightness <= min)
+		return min;
+
 	val = (gd_level * (bdrv->level_brightness - min)) / 4095 + min;
+	if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV) {
+		BLPR("%s: input gd_level=%d, output val=%d, min=%d, max=%d\n",
+			__func__, gd_level, val, min, max);
+	}
 
 	return val;
 }
@@ -2124,7 +2137,8 @@ static int bl_gd_diming_func(struct aml_bl_drv_s *bdrv, unsigned int level)
 	if (((bdrv->state & BL_STATE_LCD_ON) == 0) ||
 	    (bdrv->state & BL_STATE_BL_INIT_ON) ||
 	    ((bdrv->state & BL_STATE_BL_POWER_ON) == 0) ||
-	    ((bdrv->state & BL_STATE_BL_ON) == 0))
+	    ((bdrv->state & BL_STATE_BL_ON) == 0) ||
+	    (bdrv->level_brightness == 0))
 		return 0;
 
 	/* atomic notifier, can't schedule or sleep */
@@ -2346,6 +2360,8 @@ static inline void bl_vsync_handler(struct aml_bl_drv_s *bdrv)
 	if ((bdrv->state & BL_STATE_BL_ON) == 0)
 		return;
 	if (bdrv->brightness_bypass)
+		return;
+	if (bdrv->level_brightness == 0)
 		return;
 
 	bl_metrics_conf = &bdrv->bl_metrics_conf;
