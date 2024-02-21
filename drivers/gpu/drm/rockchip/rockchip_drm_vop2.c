@@ -5796,6 +5796,7 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		VOP_CLUSTER_SET(vop2, win, scl_lb_mode, lb_mode == 1 ? 3 : 0);
 		VOP_CLUSTER_SET(vop2, win, enable, 1);
 		VOP_CLUSTER_SET(vop2, win, frm_reset_en, 1);
+		VOP_CLUSTER_SET(vop2, win, dma_stride_4k_disable, 1);
 	}
 	spin_unlock(&vop2->reg_lock);
 }

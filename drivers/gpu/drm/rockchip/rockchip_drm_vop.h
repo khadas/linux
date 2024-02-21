@@ -714,6 +714,7 @@ struct vop2_cluster_regs {
 	struct vop_reg lb_mode;
 	struct vop_reg scl_lb_mode;
 	struct vop_reg frm_reset_en;
+	struct vop_reg dma_stride_4k_disable;
 
 	struct vop_reg blk_size_h;
 	struct vop_reg blk_size_v;
