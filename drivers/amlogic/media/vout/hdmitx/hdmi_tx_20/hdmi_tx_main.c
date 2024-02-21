@@ -8659,8 +8659,6 @@ static int amhdmitx_probe(struct platform_device *pdev)
 					 WQ_SYSFS | WQ_FREEZABLE, 0);
 	INIT_DELAYED_WORK(&hdev->work_cedst, hdmitx_cedst_process);
 
-	hdev->tx_aud_cfg = 1; /* default audio configure is on */
-
 	hdev->hwop.setupirq(hdev);
 
 	if (hdev->hpd_state) {

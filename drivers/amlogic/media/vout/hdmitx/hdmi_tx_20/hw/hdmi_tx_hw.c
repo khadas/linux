@@ -2789,6 +2789,8 @@ static void set_aud_fifo_rst(void)
 	/* need reset again */
 	hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF0, 1, 7, 1);
 	hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF0, 0, 7, 1);
+	udelay(10);
+	hdmitx_wr_reg(HDMITX_DWC_AUD_N1, hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
 }
 
 static void set_aud_samp_pkt(struct hdmitx_dev *hdev,
@@ -2853,15 +2855,19 @@ static void audio_mute_op(bool flag)
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 0, 0, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 0, 3, 1);
 	} else {
+		set_aud_fifo_rst();
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 1, 0, 1);
 		if (GET_OUTCHN_MSK(hdev->aud_output_ch))
 			hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0,
 				GET_OUTCHN_MSK(hdev->aud_output_ch), 0, 4);
 		else
 			hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0xf, 0, 4);
 		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, !!audio_param->aud_src_if, 5, 1);
+		if (audio_param->fifo_rst) {
+			hdev->hwop.cntlmisc(hdev, MISC_AUDIO_RESET, 1);
+			pr_info("reset audio fifo_rst\n");
+		}
 		usleep_range(2000, 3000);
-		hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, 0xe7);
-		hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF0, 1, 7, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 3, 1);
 	}
@@ -2967,21 +2973,22 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		usleep_range(40, 50);
 	}
 	set_aud_fifo_rst();
-	usleep_range(9, 11);
-	hdmitx_wr_reg(HDMITX_DWC_AUD_N1, hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 1, 0, 1);
-	if (GET_OUTCHN_MSK(hdev->aud_output_ch))
-		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0,
-			GET_OUTCHN_MSK(hdev->aud_output_ch), 0, 4);
-	else
-		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0xf, 0, 4);
-	hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, !!audio_param->aud_src_if, 5, 1);
+	if (hdev->tx_aud_cfg) {
+		if (GET_OUTCHN_MSK(hdev->aud_output_ch))
+			hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0,
+				GET_OUTCHN_MSK(hdev->aud_output_ch), 0, 4);
+		else
+			hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, 0xf, 0, 4);
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, !!audio_param->aud_src_if, 5, 1);
+	}
 	if (audio_param->fifo_rst) {
 		hdev->hwop.cntlmisc(hdev, MISC_AUDIO_RESET, 1);
 		pr_info("reset audio fifo_rst\n");
 	}
 	usleep_range(2000, 3000);
-	hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
+	if (hdev->tx_aud_cfg)
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 0, 1);
 	mutex_unlock(&aud_mutex);
 
 	return 1;
