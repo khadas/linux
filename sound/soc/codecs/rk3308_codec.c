@@ -3700,7 +3700,7 @@ static int rk3308_codec_dapm_controls_prepare(struct rk3308_codec_priv *rk3308)
 	int grp;
 
 	for (grp = 0; grp < ADC_LR_GROUP_MAX; grp++)
-		rk3308->hpf_cutoff[grp] = 0;
+		rk3308->hpf_cutoff[grp] = 1;
 
 	rk3308_codec_dapm_mic_gains(rk3308);
 
