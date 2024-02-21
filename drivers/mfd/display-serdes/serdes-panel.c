@@ -219,7 +219,7 @@ static int serdes_panel_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to parse serdes DT\n");
 
-	serdes_panel->backlight = devm_of_find_backlight(dev);
+	serdes_panel->backlight = of_find_backlight_by_node(dev->of_node);
 	if (IS_ERR(serdes_panel->backlight))
 		return dev_err_probe(dev, PTR_ERR(serdes_panel->backlight),
 				     "failed to get serdes backlight\n");
@@ -242,6 +242,10 @@ static int serdes_panel_probe(struct platform_device *pdev)
 static int serdes_panel_remove(struct platform_device *pdev)
 {
 	struct serdes_panel *serdes_panel = platform_get_drvdata(pdev);
+	struct backlight_device *backlight = serdes_panel->backlight;
+
+	if (backlight)
+		put_device(&backlight->dev);
 
 	drm_panel_remove(&serdes_panel->panel);
 
