@@ -16,6 +16,7 @@
 #include <evl/list.h>
 #include <evl/flag.h>
 #include <evl/net.h>
+#include <evl/net/device.h>
 #include <evl/net/ipv4.h>
 
 /*
@@ -61,10 +62,10 @@ void evl_net_wake_rx(struct net_device *dev)
  * Schedule an incoming packet for delivery to a listening EVL socket
  * This call is either invoked:
  *
- * - in-band by a protocol-specific stage dispatcher
- *   (e.g. evl_net_ether_accept()) diverting packets from the regular
- *   networking stack, in order to queue work for its .ingress()
- *   handler.
+ * - in-band by a protocol-specific out-of-band packet filter
+ *   (e.g. evl_net_ether_accept(), evl_net_ether_accept_vlan())
+ *   diverting packets from the regular networking stack, in order to
+ *   queue work for its .ingress() handler.
  *
  * - out-of-band on behalf of a fully oob capable NIC driver,
  *   typically from an out-of-band (RX) IRQ context.
@@ -126,6 +127,12 @@ void evl_net_free_rxqueue(struct evl_net_rxqueue *rxq)
  * Decide whether we should channel a freshly incoming packet to our
  * out-of-band stack. May be called from any stage.
  *
+ * Delivery is trivially simple at the moment: the set of protocols we
+ * handle is statically defined, currently ETH_P_IP. The point is to
+ * provide an expedited data path via the oob stage for the protocols
+ * which most users need, without reinventing the whole networking
+ * infrastructure.
+ *
  * @skb the packet to inspect for oob delivery. May be linked to some
  * upstream queue.
  *
@@ -140,23 +147,54 @@ bool netif_oob_deliver(struct sk_buff *skb) /* oob or in-band */
 	skb_reset_mac_len(skb);
 
 	/*
-	 * Delivery is trivially simple at the moment: the set of
-	 * protocols we handle is statically defined. The point is to
-	 * provide an expedited data path via the oob stage for the
-	 * protocols which most users need, without reinventing the
-	 * whole networking infrastructure. XDP would not help here
-	 * for several reasons.
+	 * Filter the incoming packet through the eBPF RX program
+	 * attached to the input device (if any), passing it down to
+	 * the regular in-band stack if the filter code says that we
+	 * are not interested in it.
+	 */
+	switch (evl_net_filter_rx(skb->dev, skb)) {
+	case EVL_RX_VLAN:
+		/*
+		 * Apply our VLAN rules to decide whether this is an
+		 * oob packet.
+		 */
+		break;
+	case EVL_RX_ACCEPT:
+		/* Direct the packet to the oob stack unconditionally. */
+		switch (skb->protocol) {
+		case htons(ETH_P_IP):
+			return evl_net_ether_accept(skb);
+		default:
+			/*
+			 * We don't deal with non-IP protocols, and
+			 * the filter mistakenly told us to handle the
+			 * packet. Leave it to inband.
+			 */
+			return false;
+		}
+	case EVL_RX_SKIP:
+		/* Leave the packet to inband. */
+		return false;
+	case EVL_RX_DROP:
+		/* Blackhole. */
+		evl_net_free_skb(skb);
+		return true;
+	}
+
+	/*
+	 * Fallback to VLAN-based filtering to figure out whether the
+	 * packet should be handled by the oob stack.
 	 */
 	switch (skb->protocol) {
-	case htons(ETH_P_IP):	/* Try IP over ethernet. */
-		return evl_net_ether_accept(skb);
+	case htons(ETH_P_IP):
+		return evl_net_ether_accept_vlan(skb);
 	default:
 		/*
 		 * For those adapters without hw-accelerated VLAN
 		 * capabilities, check the ethertype directly.
 		 */
 		if (eth_type_vlan(skb->protocol))
-			return evl_net_ether_accept(skb);
+			return evl_net_ether_accept_vlan(skb);
 
 		return false;
 	}

@@ -13,6 +13,7 @@
 #include <net/sock.h>
 #include <evl/net/skb.h>
 #include <evl/net/input.h>
+#include <uapi/evl/net/net-abi.h>
 
 int evl_net_init(void);
 
