@@ -1,5 +1,5 @@
 obj-$(CONFIG_EVL_NET) += ethernet/ packet/ ipv4/ qdisc/
 
-obj-$(CONFIG_EVL_NET) += net.o
+obj-$(CONFIG_EVL_NET) += networking.o
 
-net-y := init.o socket.o dev.o input.o output.o skb.o route.o
+networking-y := net.o socket.o dev.o input.o output.o skb.o route.o

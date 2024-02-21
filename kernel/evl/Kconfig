@@ -94,6 +94,7 @@ config EVL_NET
 	select NET_OOB
 	select NET_SCHED
 	select NET_SCH_OOB
+	select BPF_OOB
 	select INET
 	select VLAN_8021Q
 	help
@@ -174,6 +175,16 @@ config EVL_NR_OBSERVABLES
        of itself an observable which can be monitored for events;
        observables attached to threads are not accounted for in this
        value.
+
+config EVL_NR_NETDEV
+	depends on EVL_NET
+	int "Maximum number of netdevices"
+	range 1 256
+	default 8
+	help
+
+	This value gives the maximum number of network devices which
+	can deal with out-of-band traffic.
 
 endmenu
 

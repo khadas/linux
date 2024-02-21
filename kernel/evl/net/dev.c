@@ -11,9 +11,15 @@
 #include <linux/if_vlan.h>
 #include <linux/err.h>
 #include <linux/rtnetlink.h>
+#include <linux/bpf.h>
+#include <linux/filter.h>
+#include <linux/anon_inodes.h>
+#include <linux/file.h>
+#include <evl/uaccess.h>
 #include <evl/sched.h>
 #include <evl/thread.h>
 #include <evl/crossing.h>
+#include <evl/factory.h>
 #include <evl/net/socket.h>
 #include <evl/net/device.h>
 #include <evl/net/skb.h>
@@ -58,6 +64,9 @@
 static LIST_HEAD(oob_netdev_list);
 
 static DEFINE_HARD_SPINLOCK(oob_netdev_lock);
+
+static void __set_rx_filter(struct evl_netdev_state *est,
+			struct evl_net_ebpf_filter *filter);
 
 static struct evl_kthread *
 start_handler_thread(struct net_device *dev,
@@ -141,6 +150,7 @@ static int enable_oob_port(struct net_device *dev,
 	est->pool_free = 0;
 	est->pool_max = act->poolsz;
 	est->buf_size = act->bufsz;
+	spin_lock_init(&est->filter_lock);
 	est->qdisc = evl_net_alloc_qdisc(&evl_net_qdisc_fifo);
 	if (IS_ERR(est->qdisc)) {
 		ret = PTR_ERR(est->qdisc);
@@ -193,8 +203,10 @@ fail_start_tx:
 	 * No skb has flowed yet, no pending recycling op. Likewise,
 	 * we cannot have any rxq in the cache or dump lists.
 	 */
-	evl_stop_kthread(est->rx_handler);
-	evl_destroy_flag(&est->tx_flag);
+	if (netdev_is_oob_capable(real_dev)) {
+		evl_stop_kthread(est->rx_handler);
+		evl_destroy_flag(&est->tx_flag);
+	}
 fail_start_rx:
 	evl_net_dev_purge_pool(real_dev);
 	evl_destroy_flag(&est->rx_flag);
@@ -267,6 +279,7 @@ static void disable_oob_port(struct net_device *dev) /* inband, rtnl_lock held *
 	if (est->tx_handler)
 		evl_stop_kthread(est->tx_handler);
 
+	__set_rx_filter(est, NULL);
 	evl_net_dev_purge_pool(real_dev);
 	evl_net_free_qdisc(est->qdisc);
 	kfree(est);
@@ -274,7 +287,7 @@ static void disable_oob_port(struct net_device *dev) /* inband, rtnl_lock held *
 }
 
 static int switch_oob_port(struct net_device *dev,
-			struct evl_netdev_activation *act) /* in-band */
+			struct evl_netdev_activation *act) /* rtnl_lock held, in-band */
 {
 	int ret = 0;
 
@@ -336,6 +349,29 @@ struct net_device *evl_net_get_dev_by_index(struct net *net, int ifindex)
 		dev = container_of(nds, struct net_device,
 				oob_context.dev_state);
 		if (dev_net(dev) == net && dev->ifindex == ifindex) {
+			evl_down_crossing(&nds->crossing);
+			ret = dev;
+			break;
+		}
+	}
+
+	raw_spin_unlock_irqrestore(&oob_netdev_lock, flags);
+
+	return ret;
+}
+
+struct net_device *evl_net_get_dev_by_name(struct net *net, const char *name)
+{
+	struct net_device *dev, *ret = NULL;
+	struct oob_netdev_state *nds;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&oob_netdev_lock, flags);
+
+	list_for_each_entry(nds, &oob_netdev_list, next) {
+		dev = container_of(nds, struct net_device,
+				oob_context.dev_state);
+		if (dev_net(dev) == net && !strcmp(netdev_name(dev), name)) {
 			evl_down_crossing(&nds->crossing);
 			ret = dev;
 			break;
@@ -430,4 +466,153 @@ int evl_netdev_event(struct notifier_block *ev_block,
 	}
 
 	return NOTIFY_DONE;
+}
+
+enum evl_net_rx_action
+__evl_net_filter_rx(struct evl_netdev_state *est, struct sk_buff *skb)
+{
+	enum evl_net_rx_action ret = EVL_RX_VLAN;
+	struct evl_net_ebpf_filter *filter;
+
+	rcu_read_lock();
+
+	filter = rcu_dereference(est->rx_filter);
+	if (filter)
+		ret = bpf_prog_run_clear_cb(filter->prog, skb);
+
+	rcu_read_unlock();
+
+	return ret;
+}
+
+static void drop_rx_filter(struct rcu_head *rcu)
+{
+	struct evl_net_ebpf_filter *filter = container_of(rcu, struct evl_net_ebpf_filter, rcu);
+
+	bpf_prog_destroy(filter->prog);
+	kfree(filter);
+}
+
+static void __set_rx_filter(struct evl_netdev_state *est,
+			struct evl_net_ebpf_filter *filter)
+{
+	struct evl_net_ebpf_filter *old;
+
+	spin_lock_bh(&est->filter_lock);
+	old = rcu_dereference_protected(est->rx_filter,
+				lockdep_is_held(&est->filter_lock));
+	rcu_assign_pointer(est->rx_filter, filter);
+	if (filter)
+		__set_bit(EVL_NETDEV_RXFILTER_BIT, &est->flags);
+	else
+		__clear_bit(EVL_NETDEV_RXFILTER_BIT, &est->flags);
+	spin_unlock_bh(&est->filter_lock);
+
+	if (old)
+		call_rcu(&old->rcu, drop_rx_filter);
+}
+
+/*
+ * set_rx_filter - install an eBPF filter module to redirect ingress
+ * traffic to the proper network stack, inband or oob.  @dev is a
+ * physical interface.
+ */
+static int set_rx_filter(struct net_device *dev, unsigned long arg)
+{
+	struct oob_netdev_state *nds = &dev->oob_context.dev_state;
+	struct evl_net_ebpf_filter *new = NULL;
+	struct bpf_prog *prog;
+	int ret, fd;
+
+	ret = raw_get_user(fd, (__s32 *)arg);
+	if (ret)
+		return -EFAULT;
+
+	if (fd != -1) {
+		prog = bpf_prog_get_type(fd, BPF_PROG_TYPE_SOCKET_FILTER);
+		if (IS_ERR(prog)) {
+			netdev_warn(dev, "invalid out-of-band eBPF filter\n");
+			return PTR_ERR(prog);
+		}
+		new = kmalloc(sizeof(*new), GFP_KERNEL);
+		if (!new)
+			return -ENOMEM;
+		new->prog = prog;
+		netdev_notice(dev, "out-of-band eBPF filter installed\n");
+	}
+
+	__set_rx_filter(nds->estate, new);
+
+	return 0;
+}
+
+static long netdev_ioctl(struct file *filp, unsigned int cmd,
+			unsigned long arg)
+{
+	struct net_device *dev = filp->private_data;
+	int ret = -ENOTTY;
+
+	switch (cmd) {
+	case EVL_NDEVIOC_SETRXEBPF:
+		/*
+		 * The underlying physical device of a VLAN interface
+		 * supports the eBPF filter.
+		 */
+		if (is_vlan_dev(dev))
+			dev = vlan_dev_real_dev(dev);
+		ret = set_rx_filter(dev, arg);
+		break;
+	}
+
+	return ret;
+}
+
+static int netdev_release(struct inode *inode, struct file *filp)
+{
+	struct net_device *dev = filp->private_data;
+
+	evl_net_put_dev(dev);
+
+	return 0;
+}
+
+static const struct file_operations netdev_fops = {
+	.open		= stream_open,
+	.release	= netdev_release,
+	.unlocked_ioctl	= netdev_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= compat_ptr_ioctl,
+#endif
+};
+
+int evl_net_dev_allocfd(struct net *net, const char *devname)
+{
+	struct net_device *dev;
+	struct file *filp;
+	int ret, fd;
+
+	dev = evl_net_get_dev_by_name(net, devname);
+	if (!dev)		/* Not an oob port. */
+		return -ENXIO;
+
+	filp = anon_inode_getfile("[evl-netdev]", &netdev_fops,
+				dev, O_RDWR|O_CLOEXEC);
+	if (IS_ERR(filp))
+		return PTR_ERR(filp);
+
+	fd = get_unused_fd_flags(O_RDWR|O_CLOEXEC);
+	if (fd < 0) {
+		ret = fd;
+		goto fail;
+	}
+
+	filp->private_data = dev;
+
+	fd_install(fd, filp);
+
+	return fd;
+fail:
+	filp_close(filp, current->files);
+
+	return ret;
 }

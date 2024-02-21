@@ -12,6 +12,7 @@
 #include <linux/nsproxy.h>
 #include <net/net_namespace.h>
 #include <evl/factory.h>
+#include <evl/uaccess.h>
 #include <evl/net/qdisc.h>
 #include <evl/net/packet.h>
 #include <evl/net/device.h>
@@ -101,7 +102,46 @@ void __init evl_net_cleanup(void)
 	evl_net_cleanup_pools();
 }
 
-static const struct file_operations net_fops;
+static long net_ioctl(struct file *filp, unsigned int cmd,
+		unsigned long arg)
+{
+	struct evl_net_devfd req, __user *u_req;
+	const char __user *u_name;
+	struct filename *devname;
+	long ret;
+	int ufd;
+
+	switch (cmd) {
+	case EVL_NET_GETDEVFD:
+		u_req = (typeof(u_req))arg;
+		ret = copy_from_user(&req, u_req, sizeof(req));
+		if (ret)
+			return -EFAULT;
+		u_name = evl_valptr64(req.name_ptr, const char);
+		devname = getname(u_name);
+		if (IS_ERR(devname))
+			return PTR_ERR(devname);
+		ufd = evl_net_dev_allocfd(current->nsproxy->net_ns, devname->name);
+		putname(devname);
+		if (ufd < 0)
+			return ret;
+		ret = put_user((__u32)ufd, &u_req->fd);
+		if (ret)
+			return -EFAULT;
+		break;
+	default:
+		ret = -ENOTTY;
+	}
+
+	return ret;
+}
+
+static const struct file_operations net_fops = {
+	.unlocked_ioctl	= net_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= compat_ptr_ioctl,
+#endif
+};
 
 static ssize_t vlans_show(struct device *dev,
 			struct device_attribute *attr,

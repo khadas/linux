@@ -5,6 +5,7 @@
 #ifdef CONFIG_EVL_NET
 
 #include <linux/list.h>
+#include <linux/rcupdate.h>
 #include <evl/wait.h>
 #include <evl/poll.h>
 #include <evl/flag.h>
@@ -12,11 +13,19 @@
 
 struct evl_net_qdisc;
 struct evl_kthread;
+struct bpf_prog;
 
 struct evl_net_skb_queue {
 	struct list_head queue;
 	hard_spinlock_t lock;
 };
+
+struct evl_net_ebpf_filter {
+	struct rcu_head rcu;
+	struct bpf_prog *prog;
+};
+
+#define EVL_NETDEV_RXFILTER_BIT  0
 
 struct evl_netdev_state {
 	/* Buffer pool management */
@@ -34,6 +43,11 @@ struct evl_netdev_state {
 	struct evl_net_qdisc *qdisc;
 	struct evl_kthread *tx_handler;
 	struct evl_flag tx_flag;
+	/* RX filter/redirector */
+	spinlock_t filter_lock;
+	struct evl_net_ebpf_filter __rcu *rx_filter;
+	/* Runtime state flags. */
+	unsigned long flags;
 	/* Count of oob ports referring to this device. */
 	int refs;
 };

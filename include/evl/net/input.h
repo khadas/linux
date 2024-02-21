@@ -35,6 +35,8 @@ void evl_net_free_rxqueue(struct evl_net_rxqueue *rxq);
 
 bool evl_net_ether_accept(struct sk_buff *skb);
 
+bool evl_net_ether_accept_vlan(struct sk_buff *skb);
+
 static inline bool evl_net_rxqueue_active(struct evl_net_rxqueue *rxq)
 {
 	return list_empty(&rxq->subscribers);
