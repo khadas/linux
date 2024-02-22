@@ -23,6 +23,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spi/spi-mem.h>
+#include <linux/of_gpio.h>
 
 /* System control */
 #define SFC_CTRL			0x0
@@ -208,6 +209,7 @@ struct rockchip_sfc {
 	u32 dll_cells[SFC_MAX_CHIPSELECT_NUM];
 	u16 version;
 	struct gpio_desc *rst_gpio;
+	struct gpio_desc **cs_gpiods;
 };
 
 static int rockchip_sfc_reset(struct rockchip_sfc *sfc)
@@ -422,8 +424,8 @@ static int rockchip_sfc_xfer_setup(struct rockchip_sfc *sfc,
 		op->cmd.nbytes, op->cmd.buswidth,
 		op->addr.nbytes, op->addr.buswidth,
 		op->dummy.nbytes, op->dummy.buswidth);
-	dev_dbg(sfc->dev, "sfc ctrl=%x cmd=%x cmd_ext=%x addr=%llx dummy_ext=%x len=%x\n",
-		ctrl, cmd, cmd_ext, op->addr.val, cmd_ext, len);
+	dev_dbg(sfc->dev, "sfc ctrl=%x cmd=%x cmd_ext=%x addr=%llx dummy_ext=%x len=%x cs=%d\n",
+		ctrl, cmd, cmd_ext, op->addr.val, cmd_ext, len, cs);
 
 	if (cmd_ext)
 		writel(cmd_ext, sfc->regbase + SFC_CMD_EXT);
@@ -596,14 +598,27 @@ static int rockchip_sfc_xfer_done(struct rockchip_sfc *sfc, u32 timeout_us)
 	return ret;
 }
 
+static void rockchip_sfc_set_cs_gpio(struct rockchip_sfc *sfc, u8 cs, bool enable)
+{
+	if (sfc->cs_gpiods) {
+		if (has_acpi_companion(sfc->dev))
+			gpiod_set_value_cansleep(sfc->cs_gpiods[cs], !enable);
+		else
+			/* Polarity handled by GPIO library */
+			gpiod_set_value_cansleep(sfc->cs_gpiods[cs], enable);
+	}
+}
+
 static int rockchip_sfc_exec_op_bypass(struct rockchip_sfc *sfc,
 				       struct spi_mem *mem,
 				       const struct spi_mem_op *op)
 {
 	u32 len = min_t(u32, op->data.nbytes, sfc->max_iosize);
+	u8 cs = mem->spi->chip_select;
 	u32 ret;
 
 	rockchip_sfc_adjust_op_work((struct spi_mem_op *)op);
+	rockchip_sfc_set_cs_gpio(sfc, cs, true);
 	rockchip_sfc_xfer_setup(sfc, mem, op, len);
 	ret = rockchip_sfc_xfer_data_poll(sfc, op, len);
 	if (ret != len) {
@@ -612,7 +627,10 @@ static int rockchip_sfc_exec_op_bypass(struct rockchip_sfc *sfc,
 		return -EIO;
 	}
 
-	return rockchip_sfc_xfer_done(sfc, 100000);
+	ret = rockchip_sfc_xfer_done(sfc, 100000);
+	rockchip_sfc_set_cs_gpio(sfc, cs, false);
+
+	return ret;
 }
 
 static void rockchip_sfc_delay_lines_tuning(struct rockchip_sfc *sfc, struct spi_mem *mem)
@@ -728,6 +746,7 @@ static int rockchip_sfc_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op
 	}
 
 	rockchip_sfc_adjust_op_work((struct spi_mem_op *)op);
+	rockchip_sfc_set_cs_gpio(sfc, cs, true);
 	rockchip_sfc_xfer_setup(sfc, mem, op, len);
 	if (len) {
 		if (likely(sfc->use_dma) && len >= SFC_DMA_TRANS_THRETHOLD && !(len & 0x3)) {
@@ -748,6 +767,7 @@ static int rockchip_sfc_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op
 
 	ret = rockchip_sfc_xfer_done(sfc, 100000);
 out:
+	rockchip_sfc_set_cs_gpio(sfc, cs, false);
 	pm_runtime_mark_last_busy(sfc->dev);
 	pm_runtime_put_autosuspend(sfc->dev);
 
@@ -797,6 +817,53 @@ static irqreturn_t rockchip_sfc_irq_handler(int irq, void *dev_id)
 	}
 
 	return IRQ_NONE;
+}
+
+static int rockchip_sfc_get_gpio_descs(struct spi_controller *ctlr, struct rockchip_sfc *sfc)
+{
+	int nb, i;
+	struct gpio_desc **cs;
+	struct device *dev = &ctlr->dev;
+	unsigned int num_cs_gpios = 0;
+
+	nb = gpiod_count(dev, "sfc-cs");
+	ctlr->num_chipselect = max_t(int, nb, ctlr->num_chipselect);
+
+	if (nb == 0 || nb == -ENOENT)
+		return 0;
+	else if (nb < 0)
+		return nb;
+
+	cs = devm_kcalloc(dev, ctlr->num_chipselect, sizeof(*cs),
+			  GFP_KERNEL);
+	if (!cs)
+		return -ENOMEM;
+	sfc->cs_gpiods = cs;
+
+	for (i = 0; i < nb; i++) {
+		cs[i] = devm_gpiod_get_index_optional(dev, "sfc-cs", i,
+						      GPIOD_OUT_LOW);
+		if (IS_ERR(cs[i]))
+			return PTR_ERR(cs[i]);
+
+		if (cs[i]) {
+			/*
+			 * If we find a CS GPIO, name it after the device and
+			 * chip select line.
+			 */
+			char *gpioname;
+
+			gpioname = devm_kasprintf(dev, GFP_KERNEL, "%s CS%d",
+						  dev_name(dev), i);
+			if (!gpioname)
+				return -ENOMEM;
+			gpiod_set_consumer_name(cs[i], gpioname);
+			num_cs_gpios++;
+			continue;
+		}
+	}
+
+	return 0;
 }
 
 static int rockchip_sfc_probe(struct platform_device *pdev)
@@ -852,6 +919,12 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 
 	sfc->use_dma = !of_property_read_bool(sfc->dev->of_node,
 					      "rockchip,sfc-no-dma");
+
+	ret = rockchip_sfc_get_gpio_descs(master, sfc);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to get gpio_descs\n");
+		return ret;
+	}
 
 	ret = clk_prepare_enable(sfc->hclk);
 	if (ret) {
