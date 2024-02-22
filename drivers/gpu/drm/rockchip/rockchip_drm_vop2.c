@@ -4327,7 +4327,7 @@ static int vop2_extend_clk_init(struct vop2 *vop2)
 
 	INIT_LIST_HEAD(&vop2->extend_clk_list_head);
 
-	if (vop2->version != VOP_VERSION_RK3588)
+	if (vop2->version != VOP_VERSION_RK3588 && vop2->version != VOP_VERSION_RK3576)
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(extend_clk_name); i++) {
@@ -4443,6 +4443,9 @@ static int vop2_clk_set_parent_extend(struct vop2_video_port *vp,
 	struct vop2_extend_pll *hdmi0_phy_pll, *hdmi1_phy_pll;
 	struct drm_crtc *crtc = &vp->rockchip_crtc.crtc;
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
+
+	if (list_empty(&vop2->extend_clk_list_head))
+		return 0;
 
 	hdmi0_phy_pll = vop2_extend_clk_find_by_name(vop2, "hdmi0_phy_pll");
 	hdmi1_phy_pll = vop2_extend_clk_find_by_name(vop2, "hdmi1_phy_pll");
@@ -7775,14 +7778,16 @@ static int vop3_calc_cru_cfg(struct drm_crtc *crtc)
 	bool interface_dclk_sel, interface_pix_clk_sel = 0;
 	bool double_pixel = adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK || vcstate->output_if & VOP_OUTPUT_IF_BT656;
 
-	if (double_pixel || vp->id == 1 || vp->id == 2 ||
-	    (vp->id == 0 && vcstate->output_if & VOP_OUTPUT_IF_eDP0 && split_mode == 0))
+	if (vp->id == 1 || vp->id == 2 ||
+	    (vp->id == 0 && vcstate->output_if & VOP_OUTPUT_IF_eDP0) ||
+	    (vcstate->output_if & VOP_OUTPUT_IF_HDMI0 && (adjusted_mode->crtc_clock <= VOP2_MAX_DCLK_RATE)))
 		vp->dclk_div = 1;/* no div */
 	else
 		vp->dclk_div = 2;/* div2 */
 
 	if (double_pixel ||
-	    (vp->id == 0 && vcstate->output_if & VOP_OUTPUT_IF_eDP0 && split_mode == 0))
+	    (vp->id == 0 && vcstate->output_if & VOP_OUTPUT_IF_eDP0) ||
+	    (vcstate->output_if & VOP_OUTPUT_IF_HDMI0 && (adjusted_mode->crtc_clock <= VOP2_MAX_DCLK_RATE)))
 		post_dclk_core_sel = 1;/* div2 */
 	else
 		post_dclk_core_sel = 0;/* no div */
@@ -8350,6 +8355,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 	struct vop2_clk *if_pixclk = NULL;
 	struct vop2_clk *if_dclk = NULL;
 	struct vop2_clk *dclk, *dclk_out, *dclk_core;
+	unsigned long dclk_rate;
 	int splice_en = 0;
 	int port_mux;
 	int ret;
@@ -8716,22 +8722,21 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_sta
 
 	snprintf(clk_name, sizeof(clk_name), "dclk%d", vp->id);
 	dclk = vop2_clk_get(vop2, clk_name);
-	if (dclk) {
-		/*
-		 * use HDMI_PHY_PLL as dclk source under 4K@60 if it is available,
-		 * otherwise use system cru as dclk source.
-		 */
-		ret = vop2_clk_set_parent_extend(vp, vcstate, true);
-		if (ret < 0)
-			goto out;
 
-		rockchip_drm_dclk_set_rate(vop2->version, vp->dclk, dclk->rate);
-		DRM_DEV_INFO(vop2->dev, "set %s to %ld, get %ld\n",
-			      __clk_get_name(vp->dclk), dclk->rate, clk_get_rate(vp->dclk));
-	} else {
-		rockchip_drm_dclk_set_rate(vop2->version, vp->dclk,
-					   adjusted_mode->crtc_clock * 1000 / vp->dclk_div);
-	}
+	/*
+	 * use HDMI_PHY_PLL as dclk source under 4K@60 if it is available,
+	 * otherwise use system cru as dclk source.
+	 */
+	ret = vop2_clk_set_parent_extend(vp, vcstate, true);
+	if (ret < 0)
+		goto out;
+	if (dclk)
+		dclk_rate = dclk->rate;
+	else
+		dclk_rate = adjusted_mode->crtc_clock * 1000 / vp->dclk_div;
+	rockchip_drm_dclk_set_rate(vop2->version, vp->dclk, dclk_rate);
+	DRM_DEV_INFO(vop2->dev, "set %s to %ld, get %ld\n",
+		     __clk_get_name(vp->dclk), dclk_rate, clk_get_rate(vp->dclk));
 
 	if (vp_data->feature & VOP_FEATURE_OVERSCAN)
 		vop2_post_config(crtc);
