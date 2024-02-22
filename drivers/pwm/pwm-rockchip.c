@@ -209,7 +209,7 @@
 /* FREQ_CTRL */
 #define FREQ_CTRL			0x1c4
 #define FREQ_EN(v)			HIWORD_UPDATE(v, 0, 0)
-#define FREQ_CLK_SEL(v)			HIWORD_UPDATE(v, 1, 2)
+#define FREQ_CLK_SEL(v)			HIWORD_UPDATE(v, 1, 1)
 #define FREQ_CHANNEL_SEL(v)		HIWORD_UPDATE(v, 3, 5)
 #define FREQ_CLK_SWITCH_MODE(v)		HIWORD_UPDATE(v, 6, 6)
 #define FREQ_TIMIER_CLK_SEL(v)		HIWORD_UPDATE(v, 7, 7)
@@ -256,6 +256,7 @@ struct rockchip_pwm_chip {
 	bool freq_meter_support;
 	bool counter_support;
 	bool wave_support;
+	bool freq_res_valid;
 	int channel_id;
 	int irq;
 	u8 main_version;
@@ -281,7 +282,9 @@ struct rockchip_pwm_funcs {
 	int (*get_counter_result)(struct pwm_chip *chip, struct pwm_device *pwm,
 				  unsigned long *counter_res, bool is_clear);
 	int (*set_freq_meter)(struct pwm_chip *chip, struct pwm_device *pwm,
-			      bool enable, unsigned long delay_ms);
+			      unsigned long delay_ms,
+			      enum rockchip_pwm_freq_meter_input_sel input_sel,
+			      bool enable);
 	int (*get_freq_meter_result)(struct pwm_chip *chip, struct pwm_device *pwm,
 				     unsigned long delay_ms, unsigned long *freq_hz);
 	int (*global_ctrl)(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -641,6 +644,13 @@ static irqreturn_t rockchip_pwm_irq_v4(int irq, void *data)
 	if (pc->capture_cnt > 3) {
 		writel_relaxed(CAP_LPR_INT | CAP_HPR_INT, pc->base + INTSTS);
 		writel_relaxed(CAP_LPR_INT_EN(false) | CAP_HPR_INT_EN(false), pc->base + INT_EN);
+	}
+
+	if (val & FREQ_INT) {
+		writel_relaxed(FREQ_INT, pc->base + INTSTS);
+		pc->freq_res_valid = true;
+
+		ret = IRQ_HANDLED;
 	}
 
 	if (val & WAVE_MIDDLE_INT) {
@@ -1077,7 +1087,9 @@ err_disable_pclk:
 EXPORT_SYMBOL_GPL(rockchip_pwm_get_counter_result);
 
 static int rockchip_pwm_set_freq_meter_v4(struct pwm_chip *chip, struct pwm_device *pwm,
-					  bool enable, unsigned long delay_ms)
+					  unsigned long delay_ms,
+					  enum rockchip_pwm_freq_meter_input_sel input_sel,
+					  bool enable)
 {
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	u64 div = 0;
@@ -1085,8 +1097,14 @@ static int rockchip_pwm_set_freq_meter_v4(struct pwm_chip *chip, struct pwm_devi
 	u32 arbiter = 0;
 	u32 channel_sel = 0;
 	u32 val;
+	int ret;
 
 	if (enable) {
+		ret = clk_enable(pc->clk);
+		if (ret)
+			return ret;
+		pc->freq_res_valid = false;
+
 		arbiter = BIT(pc->channel_id) << FREQ_READ_LOCK_SHIFT |
 			  BIT(pc->channel_id) << FREQ_GRANT_SHIFT;
 		channel_sel = pc->channel_id;
@@ -1104,8 +1122,11 @@ static int rockchip_pwm_set_freq_meter_v4(struct pwm_chip *chip, struct pwm_devi
 
 	writel_relaxed(FREQ_INT_EN(enable), pc->base + INT_EN);
 	writel_relaxed(timer_val, pc->base + FREQ_TIMER_VALUE);
-	writel_relaxed(FREQ_EN(enable) | FREQ_CHANNEL_SEL(channel_sel),
+	writel_relaxed(FREQ_EN(enable) | FREQ_CLK_SEL(input_sel) | FREQ_CHANNEL_SEL(channel_sel),
 		       pc->base + FREQ_CTRL);
+
+	if (!enable)
+		clk_disable(pc->clk);
 
 	return 0;
 }
@@ -1114,24 +1135,29 @@ static int rockchip_pwm_get_freq_meter_result_v4(struct pwm_chip *chip, struct p
 						 unsigned long delay_ms, unsigned long *freq_hz)
 {
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
-	int ret;
-	u32 val;
+	u32 freq_res;
+	u32 freq_timer;
 
-	ret = readl_relaxed_poll_timeout(pc->base + INTSTS, val, val & FREQ_INT,
-					 0, delay_ms * 1000);
-	if (!ret) {
+	usleep_range(delay_ms * USEC_PER_MSEC, delay_ms * USEC_PER_MSEC);
+
+	if (pc->freq_res_valid) {
+		freq_res = readl_relaxed(pc->base + FREQ_RESULT_VALUE);
+		freq_timer = readl_relaxed(pc->base + FREQ_TIMER_VALUE);
+		*freq_hz = DIV_ROUND_CLOSEST_ULL(pc->clk_rate * freq_res, freq_timer);
+		if (!*freq_hz)
+			return -EINVAL;
+
+		pc->freq_res_valid = false;
+	} else {
 		dev_err(chip->dev, "failed to wait for freq_meter interrupt\n");
 		return -ETIMEDOUT;
 	}
-
-	*freq_hz = readl_relaxed(pc->base + FREQ_RESULT_VALUE);
-	if (!*freq_hz)
-		return -EINVAL;
 
 	return 0;
 }
 
 int rockchip_pwm_set_freq_meter(struct pwm_device *pwm, unsigned long delay_ms,
+				enum rockchip_pwm_freq_meter_input_sel input_sel,
 				unsigned long *freq_hz)
 {
 	struct pwm_chip *chip;
@@ -1162,7 +1188,13 @@ int rockchip_pwm_set_freq_meter(struct pwm_device *pwm, unsigned long delay_ms,
 	if (ret)
 		return ret;
 
-	ret = pc->data->funcs.set_freq_meter(chip, pwm, true, delay_ms);
+	ret = pinctrl_select_state(pc->pinctrl, pc->active_state);
+	if (ret) {
+		dev_err(chip->dev, "Failed to select pinctrl state\n");
+		goto err_disable_pclk;
+	}
+
+	ret = pc->data->funcs.set_freq_meter(chip, pwm, delay_ms, input_sel, true);
 	if (ret) {
 		dev_err(chip->dev, "Failed to abtain frequency meter arbitration for PWM%d\n",
 			pc->channel_id);
@@ -1173,8 +1205,9 @@ int rockchip_pwm_set_freq_meter(struct pwm_device *pwm, unsigned long delay_ms,
 				pc->channel_id);
 		}
 	}
-	pc->data->funcs.set_freq_meter(chip, pwm, false, 0);
+	pc->data->funcs.set_freq_meter(chip, pwm, 0, 0, false);
 
+err_disable_pclk:
 	clk_disable(pc->pclk);
 
 	return ret;

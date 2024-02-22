@@ -29,6 +29,16 @@ enum rockchip_pwm_global_ctrl_cmd {
 };
 
 /**
+ * enum rockchip_pwm_freq_meter_input_sel - select the input src of frequency meter
+ * @PWM_FREQ_METER_INPUT_FROM_IO: input from PWM IO
+ * @PWM_FREQ_METER_INPUT_FROM_CRU: input from CRU
+ */
+enum rockchip_pwm_freq_meter_input_sel {
+	PWM_FREQ_METER_INPUT_FROM_IO,
+	PWM_FREQ_METER_INPUT_FROM_CRU,
+};
+
+/**
  * struct rockchip_pwm_wave_table - wave table config object
  * @offset: the offset of wave table to set
  * @len: the length of wave table to set
@@ -129,11 +139,13 @@ int rockchip_pwm_get_counter_result(struct pwm_device *pwm,
  * rockchip_pwm_set_freq_meter() - setup pwm frequency meter mode
  * @pwm: PWM device
  * @delay_ms: time to wait, in milliseconds, before getting frequency meter result
+ * @input_sel: selec the input of frequency meter
  * @freq_hz: parameter in Hz to fill with frequency meter result
  *
  * Returns: 0 on success or a negative error code on failure.
  */
 int rockchip_pwm_set_freq_meter(struct pwm_device *pwm, unsigned long delay_ms,
+				enum rockchip_pwm_freq_meter_input_sel input_sel,
 				unsigned long *freq_hz);
 
 /**
@@ -166,6 +178,7 @@ static inline int rockchip_pwm_get_counter_result(struct pwm_device *pwm,
 }
 
 static inline int rockchip_pwm_set_freq_meter(struct pwm_device *pwm, unsigned long delay_ms,
+					      enum rockchip_pwm_freq_meter_input_sel input_sel,
 					      unsigned long *freq_hz)
 {
 	return 0;
