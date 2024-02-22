@@ -8782,6 +8782,9 @@ void __cant_migrate(const char *file, int line)
 {
 	static unsigned long prev_jiffy;
 
+	if (irqs_pipelined() && (running_oob() || hard_irqs_disabled()))
+		return;
+
 	if (irqs_disabled())
 		return;
 
