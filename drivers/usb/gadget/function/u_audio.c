@@ -503,11 +503,24 @@ int u_audio_start_playback(struct g_audio *audio_dev)
 			    num_channels(params->p_chmask);
 	rate = params->p_srate * uac->p_framesize;
 	uac->p_interval = factor / (1 << (ep_desc->bInterval - 1));
+#ifdef CONFIG_AMLOGIC_MODIFY
+	uac->p_pktsize = min_t(unsigned int,
+				uac->p_framesize *
+					(params->p_srate / uac->p_interval),
+				prm->max_psize);
+#else
 	uac->p_pktsize = min_t(unsigned int, rate / uac->p_interval,
 				prm->max_psize);
 
+#endif
+
 	if (uac->p_pktsize < prm->max_psize)
+#ifdef CONFIG_AMLOGIC_MODIFY
+		uac->p_pktsize_residue = uac->p_framesize *
+				(params->p_srate % uac->p_interval);
+#else
 		uac->p_pktsize_residue = rate % uac->p_interval;
+#endif
 	else
 		uac->p_pktsize_residue = 0;
 
