@@ -188,6 +188,31 @@ out:
 	return ret;
 }
 
+static int rk3576_cpu_set_read_margin(struct device *dev,
+				      struct rockchip_opp_info *opp_info,
+				      u32 rm)
+{
+	if (!opp_info->volt_rm_tbl)
+		return 0;
+	if (rm == opp_info->current_rm || rm  == UINT_MAX)
+		return 0;
+
+	dev_dbg(dev, "set rm to %d\n", rm);
+	if (opp_info->grf) {
+		regmap_write(opp_info->grf, 0x3c, 0x001c0000 | (rm << 2));
+		regmap_write(opp_info->grf, 0x44, 0x001c0000 | (rm << 2));
+		regmap_write(opp_info->grf, 0x38, 0x00020002);
+		udelay(1);
+		regmap_write(opp_info->grf, 0x38, 0x00020000);
+	}
+	if (opp_info->cci_grf)
+		regmap_write(opp_info->cci_grf, 0x54, 0x001c0000 | (rm << 2));
+
+	opp_info->current_rm = rm;
+
+	return 0;
+}
+
 static int rk3588_get_soc_info(struct device *dev, struct device_node *np,
 			       int *bin, int *process)
 {
@@ -380,6 +405,11 @@ static const struct rockchip_opp_data rk3588_cpu_opp_data = {
 	.config_regulators = cpu_opp_config_regulators,
 };
 
+static const struct rockchip_opp_data rk3576_cpu_opp_data = {
+	.set_read_margin = rk3576_cpu_set_read_margin,
+	.config_regulators = cpu_opp_config_regulators,
+};
+
 static const struct rockchip_opp_data rv1126_cpu_opp_data = {
 	.get_soc_info = rv1126_get_soc_info,
 };
@@ -404,6 +434,10 @@ static const struct of_device_id rockchip_cpufreq_of_match[] = {
 	{
 		.compatible = "rockchip,rk3399",
 		.data = (void *)&rk3399_cpu_opp_data,
+	},
+	{
+		.compatible = "rockchip,rk3576",
+		.data = (void *)&rk3576_cpu_opp_data,
 	},
 	{
 		.compatible = "rockchip,rk3588",
