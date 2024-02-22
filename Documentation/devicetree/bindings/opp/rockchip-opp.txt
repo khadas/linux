@@ -51,6 +51,7 @@ In 'operating-points-v2' table:
 
 - rockchip,grf: The phandle of the syscon node for GRF register.
 - rockchip,dsu-grf: the phandle of the syscon node for DSU GRF register.
+- rockchip,cci-grf: the phandle of the syscon node for CCI GRF register.
 - rockchip,opp-clocks: List of clocks for accessing pvtpll and read margin.
 - volt-mem-read-margin: The property is an array of 2-tuples items, and
                        each item consists voltage an memory read margin like
