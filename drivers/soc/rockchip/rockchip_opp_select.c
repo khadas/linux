@@ -1498,6 +1498,25 @@ static void rockchip_get_scale_volt_sel(struct device *dev, char *lkg_name,
 	of_node_put(np);
 }
 
+static int rockchip_opp_set_regulator_helper(struct device *dev,
+					     struct rockchip_opp_info *info)
+{
+	struct opp_table *opp_table;
+
+	if (!info || !info->data || !info->data->config_regulators)
+		return 0;
+
+	opp_table = dev_pm_opp_get_opp_table(dev);
+	if (IS_ERR(opp_table))
+		return PTR_ERR(opp_table);
+
+	opp_table->config_regulators = info->data->config_regulators;
+
+	dev_pm_opp_put_opp_table(opp_table);
+
+	return 0;
+}
+
 static int rockchip_opp_set_config(struct device *dev, struct rockchip_opp_info *info,
 				   const char *clk_name, const char *reg_name)
 {
@@ -1558,6 +1577,16 @@ static int rockchip_opp_set_config(struct device *dev, struct rockchip_opp_info 
 	if (info->opp_token < 0) {
 		dev_err(dev, "failed to set opp config\n");
 		return info->opp_token;
+	}
+
+	/*
+	 * The dev_pm_opp_set_config() only support setting regulator helper
+	 * for multiple regulators, but on some platforms, still need to set
+	 * regulator helper for single regulator.
+	 */
+	if (rockchip_opp_set_regulator_helper(dev, info)) {
+		dev_err(dev, "failed to set opp regulator helper\n");
+		return -EINVAL;
 	}
 
 	return 0;
