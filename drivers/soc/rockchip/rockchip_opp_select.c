@@ -2307,7 +2307,7 @@ int rockchip_opp_config_clks(struct device *dev, struct opp_table *opp_table,
 	unsigned long *target = data;
 	int ret;
 
-	if (!info->is_runtime_active)
+	if (info->is_scmi_clk && !info->is_runtime_active)
 		return 0;
 
 	ret = clk_bulk_prepare_enable(info->nclocks, info->clocks);
