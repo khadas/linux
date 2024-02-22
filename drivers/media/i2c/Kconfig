@@ -2068,6 +2068,17 @@ config VIDEO_AW8601
 	  capability. This is designed for linear control of
 	  voice coil motors, controlled via I2C serial interface.
 
+config VIDEO_CES6301
+	tristate "CES6301 lens voice coil support"
+	depends on I2C && VIDEO_DEV
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  This is a driver for the CES6301 camera lens voice coil.
+	  CES6301 is a 10 bit DAC with 120mA output current sink
+	  capability. This is designed for linear control of
+	  voice coil motors, controlled via I2C serial interface.
+
 config VIDEO_CN3927V
 	tristate "CN3927V lens voice coil support"
 	depends on I2C && VIDEO_DEV
