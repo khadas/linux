@@ -16,14 +16,26 @@ int rk628_rgb_parse(struct rk628 *rk628, struct device_node *rgb_np)
 {
 	int ret = 0;
 
+	/* input/output: rgb/bt1120 */
 	rk628->rgb.vccio_rgb = devm_regulator_get_optional(rk628->dev, "vccio-rgb");
 	if (IS_ERR(rk628->rgb.vccio_rgb))
 		rk628->rgb.vccio_rgb = NULL;
 
+	/* input/output: bt1120 */
 	if ((rk628_input_is_bt1120(rk628) || rk628_output_is_bt1120(rk628)) &&
 	    of_property_read_bool(rk628->dev->of_node, "bt1120-dual-edge"))
 		rk628->rgb.bt1120_dual_edge = true;
 
+	/* input: bt1120 */
+	if (rk628_input_is_bt1120(rk628)) {
+		if (of_property_read_bool(rk628->dev->of_node, "bt1120-yc-swap"))
+			rk628->rgb.bt1120_yc_swap = true;
+
+		if (of_property_read_bool(rk628->dev->of_node, "bt1120-uv-swap"))
+			rk628->rgb.bt1120_uv_swap = true;
+	}
+
+	/* output: rgb/bt1120 */
 	if (rk628_output_is_bt1120(rk628) || rk628_output_is_rgb(rk628))
 		ret = rk628_panel_info_get(rk628, rgb_np);
 
@@ -300,8 +312,14 @@ static void rk628_bt1120_decoder_enable(struct rk628 *rk628)
 			      SW_BT_DATA_OEN | SW_INPUT_MODE(INPUT_MODE_BT1120));
 	rk628_i2c_write(rk628, GRF_CSC_CTRL_CON, SW_Y2R_EN(1));
 	rk628_i2c_update_bits(rk628, GRF_RGB_DEC_CON0,
-			      SW_CAP_EN_PSYNC | SW_CAP_EN_ASYNC | SW_PROGRESS_EN,
-			      SW_CAP_EN_PSYNC | SW_CAP_EN_ASYNC | SW_PROGRESS_EN);
+			      SW_CAP_EN_PSYNC | SW_CAP_EN_ASYNC |
+			      SW_PROGRESS_EN |
+			      SW_BT1120_YC_SWAP |
+			      SW_BT1120_UV_SWAP,
+			      SW_CAP_EN_PSYNC | SW_CAP_EN_ASYNC |
+			      SW_PROGRESS_EN |
+			      (rk628->rgb.bt1120_yc_swap ? SW_BT1120_YC_SWAP : 0) |
+			      (rk628->rgb.bt1120_uv_swap ? SW_BT1120_UV_SWAP : 0));
 }
 
 static void rk628_bt1120_encoder_enable(struct rk628 *rk628)
