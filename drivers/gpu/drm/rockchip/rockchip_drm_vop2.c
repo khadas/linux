@@ -619,6 +619,12 @@ struct vop2_video_port {
 	 *
 	 */
 	bool skip_vsync;
+	/**
+	 * @has_dci_enabled_win: Indicate dci enables on this vp.
+	 * post csc input will be full range yuv.
+	 *
+	 */
+	bool has_dci_enabled_win;
 
 	/**
 	 * @bg_ovl_dly: The timing delay from background layer
@@ -5299,6 +5305,13 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_atomic_st
 			vpstate->yrgb_mst += offset;
 	}
 	vpstate->mst_end = rk_obj->dma_addr + rk_obj->size;
+
+	if (win->feature & WIN_FEATURE_DCI) {
+		if (vpstate->dci_data)
+			vp->has_dci_enabled_win = true;
+		else
+			vp->has_dci_enabled_win = false;
+	}
 
 	return 0;
 }
@@ -10615,13 +10628,26 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2 *vop2 = vp->vop2;
+	struct drm_plane *plane;
+	struct drm_plane_state *pstate;
 	struct post_csc_coef csc_coef;
+	struct post_csc_convert_mode convert_mode;
 	bool acm_enable;
-	bool is_input_yuv = false;
-	bool is_output_yuv = false;
 	bool post_r2y_en = false;
 	bool post_csc_en = false;
+	bool has_yuv_plane = false;
 	int range_type;
+
+	drm_atomic_crtc_for_each_plane(plane, crtc) {
+		struct vop2_win *win = to_vop2_win(plane);
+
+		pstate = win->base.state;
+
+		if (pstate->fb->format->is_yuv) {
+			has_yuv_plane = true;
+			break;
+		}
+	}
 
 	if (!acm)
 		acm_enable = false;
@@ -10648,16 +10674,31 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 		post_csc_en = true;
 
 	if (vcstate->yuv_overlay || post_r2y_en)
-		is_input_yuv = true;
+		convert_mode.is_input_yuv = true;
 
 	if (is_yuv_output(vcstate->bus_format))
-		is_output_yuv = true;
+		convert_mode.is_output_yuv = true;
+
+	if (vp->has_dci_enabled_win)
+		convert_mode.is_input_full_range = true;
+	else if (has_yuv_plane)
+		convert_mode.is_input_full_range =
+			pstate->color_range == DRM_COLOR_YCBCR_FULL_RANGE ? 1 : 0;
+	else
+		convert_mode.is_input_full_range =
+			vcstate->color_range == DRM_COLOR_YCBCR_FULL_RANGE ? 1 : 0;
+
+	convert_mode.is_output_full_range =
+		vcstate->color_range == DRM_COLOR_YCBCR_FULL_RANGE ? 1 : 0;
 
 	vcstate->post_csc_mode = vop2_convert_csc_mode(vcstate->color_encoding, vcstate->color_range, CSC_13BIT_DEPTH);
 
 	if (post_csc_en) {
-		rockchip_calc_post_csc(csc, &csc_coef, vcstate->post_csc_mode, is_input_yuv,
-				       is_output_yuv);
+		if (has_yuv_plane)
+			convert_mode.color_encoding = pstate->color_encoding;
+		else
+			convert_mode.color_encoding = vcstate->color_encoding;
+		rockchip_calc_post_csc(csc, &csc_coef, &convert_mode);
 
 		VOP_MODULE_SET(vop2, vp, csc_coe00, csc_coef.csc_coef00);
 		VOP_MODULE_SET(vop2, vp, csc_coe01, csc_coef.csc_coef01);
@@ -10673,7 +10714,7 @@ static void vop3_post_csc_config(struct drm_crtc *crtc, struct post_acm *acm, st
 		VOP_MODULE_SET(vop2, vp, csc_offset2, csc_coef.csc_dc2);
 
 		range_type = csc_coef.range_type ? 0 : 1;
-		range_type <<= is_input_yuv ? 0 : 1;
+		range_type <<= convert_mode.is_input_yuv ? 0 : 1;
 		VOP_MODULE_SET(vop2, vp, csc_mode, range_type);
 	}
 

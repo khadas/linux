@@ -611,6 +611,14 @@ enum vop_hdr_format {
 	HDR_FORMAT_MAX,
 };
 
+struct post_csc_convert_mode {
+	enum drm_color_encoding color_encoding;
+	bool is_input_yuv;
+	bool is_output_yuv;
+	bool is_input_full_range;
+	bool is_output_full_range;
+};
+
 struct post_csc_coef {
 	s32 csc_coef00;
 	s32 csc_coef01;
