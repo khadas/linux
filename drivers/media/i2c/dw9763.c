@@ -77,6 +77,8 @@ struct dw9763_device {
 	struct mutex lock;
 	struct regulator *supply;
 	bool power_on;
+
+	atomic_t open_cnt;
 };
 
 static inline struct dw9763_device *to_dw9763_vcm(struct v4l2_ctrl *ctrl)
@@ -405,23 +407,25 @@ static int dw9763_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		return rval;
 	}
 
-	dw9763_init(client);
+	if (dev_vcm->power_on && atomic_inc_return(&dev_vcm->open_cnt) == 1) {
+		dw9763_init(client);
 
-	v4l2_dbg(1, debug, sd, "%s: current_lens_pos %d, current_related_pos %d\n",
-		 __func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
+		v4l2_dbg(1, debug, sd, "%s: current_lens_pos %d, current_related_pos %d\n",
+			 __func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
 
-	move_time = 1000 * dw9763_move_time(dev_vcm, DW9763_GRADUAL_MOVELENS_STEPS);
-	while (dac <= dev_vcm->current_lens_pos) {
-		dw9763_set_dac(dev_vcm, dac);
-		usleep_range(move_time, move_time + 100);
-		dac += DW9763_GRADUAL_MOVELENS_STEPS;
-		if (dac > dev_vcm->current_lens_pos)
-			break;
-	}
+		move_time = 1000 * dw9763_move_time(dev_vcm, DW9763_GRADUAL_MOVELENS_STEPS);
+		while (dac <= dev_vcm->current_lens_pos) {
+			dw9763_set_dac(dev_vcm, dac);
+			usleep_range(move_time, move_time + 100);
+			dac += DW9763_GRADUAL_MOVELENS_STEPS;
+			if (dac > dev_vcm->current_lens_pos)
+				break;
+		}
 
-	if (dac > dev_vcm->current_lens_pos) {
-		dac = dev_vcm->current_lens_pos;
-		dw9763_set_dac(dev_vcm, dac);
+		if (dac > dev_vcm->current_lens_pos) {
+			dac = dev_vcm->current_lens_pos;
+			dw9763_set_dac(dev_vcm, dac);
+		}
 	}
 
 #ifdef CONFIG_PM
@@ -444,27 +448,29 @@ static int dw9763_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		  atomic_read(&sd->dev->power.usage_count));
 #endif
 
-	v4l2_dbg(1, debug, sd, "%s: current_lens_pos %d, current_related_pos %d\n",
-		 __func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
+	if (dev_vcm->power_on && atomic_dec_return(&dev_vcm->open_cnt) == 0) {
+		v4l2_dbg(1, debug, sd, "%s: current_lens_pos %d, current_related_pos %d\n",
+			 __func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
 
-	dac -= DW9763_GRADUAL_MOVELENS_STEPS;
-	move_time = 1000 * dw9763_move_time(dev_vcm, DW9763_GRADUAL_MOVELENS_STEPS);
-	while (dac >= DW9763_GRADUAL_MOVELENS_STEPS) {
-		dw9763_set_dac(dev_vcm, dac);
-		usleep_range(move_time, move_time + 1000);
 		dac -= DW9763_GRADUAL_MOVELENS_STEPS;
-		if (dac <= 0)
-			break;
-	}
+		move_time = 1000 * dw9763_move_time(dev_vcm, DW9763_GRADUAL_MOVELENS_STEPS);
+		while (dac >= DW9763_GRADUAL_MOVELENS_STEPS) {
+			dw9763_set_dac(dev_vcm, dac);
+			usleep_range(move_time, move_time + 1000);
+			dac -= DW9763_GRADUAL_MOVELENS_STEPS;
+			if (dac <= 0)
+				break;
+		}
 
-	if (dac < DW9763_GRADUAL_MOVELENS_STEPS) {
-		dac = DW9763_GRADUAL_MOVELENS_STEPS / 2;
-		dw9763_set_dac(dev_vcm, dac);
+		if (dac < DW9763_GRADUAL_MOVELENS_STEPS) {
+			dac = DW9763_GRADUAL_MOVELENS_STEPS / 2;
+			dw9763_set_dac(dev_vcm, dac);
+		}
+		/* set to power down mode */
+		ret = dw9763_write_reg(client, 0x02, 1, 0x01);
+		if (ret)
+			dev_err(&client->dev, "failed to set power down mode!\n");
 	}
-	/* set to power down mode */
-	ret = dw9763_write_reg(client, 0x02, 1, 0x01);
-	if (ret)
-		dev_err(&client->dev, "failed to set power down mode!\n");
 
 	pm_runtime_put(sd->dev);
 #ifdef CONFIG_PM
@@ -926,6 +932,7 @@ static int dw9763_probe(struct i2c_client *client,
 
 	dw9763_dev->vcm_movefull_t =
 		dw9763_move_time(dw9763_dev, DW9763_MAX_REG);
+	atomic_set(&dw9763_dev->open_cnt, 0);
 	pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
