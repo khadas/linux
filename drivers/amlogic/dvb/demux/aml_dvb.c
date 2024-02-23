@@ -815,7 +815,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 		if (tsn_in == INPUT_DEMOD)
 			advb->dmx[i].sid = advb->ts[advb->dmx[i].ts_index].ts_sid;
 		else
-			advb->dmx[i].sid = -1;
+			advb->dmx[i].sid = 0;
 		advb->dmx[i].hw_source = hw_source;
 		ret = dmx_init(&advb->dmx[i], padater);
 		if (ret)
