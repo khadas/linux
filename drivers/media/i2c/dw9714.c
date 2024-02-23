@@ -99,6 +99,8 @@ struct dw9714_device {
 	struct regulator *supply;
 	struct i2c_client *client;
 	bool power_on;
+
+	atomic_t open_cnt;
 };
 
 struct TimeTabel_s {
@@ -735,22 +737,24 @@ static int dw9714_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		return rval;
 	}
 
-	dw9714_init(client);
+	if (dev_vcm->power_on && atomic_inc_return(&dev_vcm->open_cnt) == 1) {
+		dw9714_init(client);
 
-	dev_dbg(&client->dev, "%s: current_lens_pos %d, current_related_pos %d\n",
-		__func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
-	move_time = 1000 * dw9714_move_time(dev_vcm, DW9714_GRADUAL_MOVELENS_STEPS);
-	while (dac <= dev_vcm->current_lens_pos) {
-		dw9714_set_dac(dev_vcm, dac);
-		usleep_range(move_time, move_time + 1000);
-		dac += DW9714_GRADUAL_MOVELENS_STEPS;
-		if (dac >= dev_vcm->current_lens_pos)
-			break;
-	}
+		dev_dbg(&client->dev, "%s: current_lens_pos %d, current_related_pos %d\n",
+			__func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
+		move_time = 1000 * dw9714_move_time(dev_vcm, DW9714_GRADUAL_MOVELENS_STEPS);
+		while (dac <= dev_vcm->current_lens_pos) {
+			dw9714_set_dac(dev_vcm, dac);
+			usleep_range(move_time, move_time + 1000);
+			dac += DW9714_GRADUAL_MOVELENS_STEPS;
+			if (dac >= dev_vcm->current_lens_pos)
+				break;
+		}
 
-	if (dac > dev_vcm->current_lens_pos) {
-		dac = dev_vcm->current_lens_pos;
-		dw9714_set_dac(dev_vcm, dac);
+		if (dac > dev_vcm->current_lens_pos) {
+			dac = dev_vcm->current_lens_pos;
+			dw9714_set_dac(dev_vcm, dac);
+		}
 	}
 
 	return 0;
@@ -763,20 +767,22 @@ static int dw9714_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	int dac = dev_vcm->current_lens_pos;
 	unsigned int move_time;
 
-	dev_dbg(&client->dev, "%s: current_lens_pos %d, current_related_pos %d\n",
-		__func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
-	move_time = 1000 * dw9714_move_time(dev_vcm, DW9714_GRADUAL_MOVELENS_STEPS);
-	while (dac >= 0) {
-		dw9714_set_dac(dev_vcm, dac);
-		usleep_range(move_time, move_time + 1000);
-		dac -= DW9714_GRADUAL_MOVELENS_STEPS;
-		if (dac <= 0)
-			break;
-	}
+	if (dev_vcm->power_on && atomic_dec_return(&dev_vcm->open_cnt) == 0) {
+		dev_dbg(&client->dev, "%s: current_lens_pos %d, current_related_pos %d\n",
+			__func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
+		move_time = 1000 * dw9714_move_time(dev_vcm, DW9714_GRADUAL_MOVELENS_STEPS);
+		while (dac >= 0) {
+			dw9714_set_dac(dev_vcm, dac);
+			usleep_range(move_time, move_time + 1000);
+			dac -= DW9714_GRADUAL_MOVELENS_STEPS;
+			if (dac <= 0)
+				break;
+		}
 
-	if (dac < 0) {
-		dac = 0;
-		dw9714_set_dac(dev_vcm, dac);
+		if (dac < 0) {
+			dac = 0;
+			dw9714_set_dac(dev_vcm, dac);
+		}
 	}
 
 	pm_runtime_put(sd->dev);
@@ -1346,6 +1352,7 @@ static int dw9714_probe(struct i2c_client *client,
 	dw9714_dev->end_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
 	dw9714_dev->vcm_movefull_t =
 		dw9714_move_time(dw9714_dev, DW9714_MAX_REG);
+	atomic_set(&dw9714_dev->open_cnt, 0);
 	pm_runtime_enable(&client->dev);
 
 	add_sysfs_interfaces(&client->dev);
