@@ -76,6 +76,7 @@ struct pvtpll_opp_table {
  * @volt_rm_tbl:	Pointer to voltage to memory read margin conversion table.
  * @grf:		General Register Files regmap.
  * @dsu_grf:		DSU General Register Files regmap.
+ * @cci_grf:		CCI General Register Files regmap.
  * @clocks:		Pvtpll clocks.
  * @nclocks:		Number of pvtpll clock.
  * @intermediate_threshold_freq: The frequency threshold of intermediate rate.
@@ -109,7 +110,10 @@ struct rockchip_opp_info {
 
 	struct volt_rm_table *volt_rm_tbl;
 	struct regmap *grf;
-	struct regmap *dsu_grf;
+	union {
+		struct regmap *dsu_grf;
+		struct regmap *cci_grf;
+	};
 	struct clk_bulk_data *clocks;
 	int nclocks;
 	unsigned long intermediate_threshold_freq;

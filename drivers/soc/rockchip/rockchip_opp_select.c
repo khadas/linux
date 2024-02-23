@@ -1700,8 +1700,12 @@ int rockchip_init_opp_info(struct device *dev, struct rockchip_opp_info *info,
 	if (IS_ERR(info->grf))
 		info->grf = NULL;
 	info->dsu_grf = syscon_regmap_lookup_by_phandle(np, "rockchip,dsu-grf");
-	if (IS_ERR(info->dsu_grf))
+	if (IS_ERR(info->dsu_grf)) {
 		info->dsu_grf = NULL;
+		info->cci_grf = syscon_regmap_lookup_by_phandle(np, "rockchip,cci-grf");
+		if (IS_ERR(info->cci_grf))
+			info->cci_grf = NULL;
+	}
 
 	ret = rockchip_get_opp_clk(dev, np, info);
 	if (ret)
