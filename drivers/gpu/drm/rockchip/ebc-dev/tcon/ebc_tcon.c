@@ -321,10 +321,10 @@ static int rk3576_tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 	tcon_write(tcon, RK3576_EBC_DSP_VTIMING1,
 		   RK3576_DSP_VACT_END(panel->fsl + panel->fbl + panel->fdl) |
 		   RK3576_DSP_VACT_ST(panel->fsl + panel->fbl));
-	tcon_write(tcon, RK3576_EBC_DSP_ACT_INFO, RK3576_DSP_HEIGHT(height) |
-		   RK3576_DSP_WIDTH(width));
-	tcon_write(tcon, RK3576_EBC_WIN_VIR, RK3576_WIN_VIR_HEIGHT(vir_height) |
-		   RK3576_WIN_VIR_WIDTH(vir_width));
+	tcon_write(tcon, RK3576_EBC_DSP_ACT_INFO, RK3576_DSP_HEIGHT(vir_height) |
+		   RK3576_DSP_WIDTH(vir_width));
+	tcon_write(tcon, RK3576_EBC_WIN_VIR, RK3576_WIN_VIR_HEIGHT(height) |
+		   RK3576_WIN_VIR_WIDTH(width));
 	tcon_write(tcon, RK3576_EBC_WIN_ACT, RK3576_WIN_ACT_HEIGHT(height) |
 		   RK3576_WIN_ACT_WIDTH(width));
 	tcon_write(tcon, RK3576_EBC_WIN_DSP, RK3576_WIN_DSP_HEIGHT(height) |
@@ -509,8 +509,8 @@ static int tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 				DSP_VTOTAL(panel->fsl + panel->fbl + panel->fdl + panel->fel) | DSP_VS_END(panel->fsl));
 	tcon_write(tcon, EBC_DSP_VTIMING1,
 				DSP_VACT_END(panel->fsl + panel->fbl + panel->fdl) | DSP_VACT_ST(panel->fsl + panel->fbl));
-	tcon_write(tcon, EBC_DSP_ACT_INFO, DSP_HEIGHT(height) | DSP_WIDTH(width));
-	tcon_write(tcon, EBC_WIN_VIR, WIN_VIR_HEIGHT(vir_height) | WIN_VIR_WIDTH(vir_width));
+	tcon_write(tcon, EBC_DSP_ACT_INFO, DSP_HEIGHT(vir_height) | DSP_WIDTH(vir_width));
+	tcon_write(tcon, EBC_WIN_VIR, WIN_VIR_HEIGHT(height) | WIN_VIR_WIDTH(width));
 	tcon_write(tcon, EBC_WIN_ACT, WIN_ACT_HEIGHT(height) | WIN_ACT_WIDTH(width));
 	tcon_write(tcon, EBC_WIN_DSP, WIN_DSP_HEIGHT(height) | WIN_DSP_WIDTH(width));
 	tcon_write(tcon, EBC_WIN_DSP_ST, WIN_DSP_YST(panel->fsl + panel->fbl) | WIN_DSP_XST(panel->lsl + panel->lbl));
