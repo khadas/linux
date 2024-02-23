@@ -1037,6 +1037,7 @@ struct vop2_wb_regs {
 	struct vop_reg vir_stride_en;
 	struct vop_reg act_width;
 	struct vop_reg one_frame_mode;
+	struct vop_reg auto_gating;
 };
 
 struct vop2_power_domain_data {

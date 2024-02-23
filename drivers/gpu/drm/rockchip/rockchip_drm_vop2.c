@@ -3564,22 +3564,30 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 		VOP_MODULE_SET(vop2, wb, scale_x_en, wb_state->scale_x_en);
 		VOP_MODULE_SET(vop2, wb, scale_y_en, wb_state->scale_y_en);
 		VOP_MODULE_SET(vop2, wb, r2y_en, r2y);
-		if (vop2->version == VOP_VERSION_RK3576) {
-			bool  enable_one_frame_mode = true;
+
+		/*
+		 * From rk3576, VOP writeback can support oneshot mode, and
+		 * at rk3576 writbeback oneshot mode must disable auto gating.
+		 */
+		if (!is_vop3(vop2) || vop2->version == VOP_VERSION_RK3528 ||
+		    vop2->version == VOP_VERSION_RK3562) {
+			VOP_MODULE_SET(vop2, wb, enable, 1);
+		} else {
+			bool one_frame_mode = true;
 
 			VOP_MODULE_SET(vop2, wb, act_width, fb->width - 1);
 			VOP_MODULE_SET(vop2, wb, vir_stride, fb->pitches[0] >> 2);
 			VOP_MODULE_SET(vop2, wb, vir_stride_en, 1);
-
-			if (enable_one_frame_mode) {
+			if (one_frame_mode) {
+				if (vop2->version == VOP_VERSION_RK3576)
+					VOP_MODULE_SET(vop2, wb, auto_gating, 0);
 				VOP_MODULE_SET(vop2, wb, one_frame_mode, 1);
 				vop2_write_reg_uncached(vop2, &wb->regs->enable, 1);
 			} else {
 				VOP_MODULE_SET(vop2, wb, enable, 1);
 			}
-		} else {
-			VOP_MODULE_SET(vop2, wb, enable, 1);
 		}
+
 		vop2_wb_irqs_enable(vop2);
 		VOP_CTRL_SET(vop2, wb_dma_finish_and_en, 1);
 	}

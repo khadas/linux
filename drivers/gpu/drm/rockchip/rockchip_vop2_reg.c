@@ -906,6 +906,7 @@ static const struct vop2_wb_regs rk3576_vop_wb_regs = {
 	.vir_stride = VOP_REG(RK3576_WB_VIR_STRIDE, 0x1fff, 0),
 	.vir_stride_en = VOP_REG(RK3576_WB_VIR_STRIDE, 0x1, 15),
 	.act_width = VOP_REG(RK3576_WB_VIR_STRIDE, 0x1fff, 16),
+	.auto_gating = VOP_REG(RK3568_SYS_AUTO_GATING_CTRL, 0x1, 11),
 };
 
 static const struct vop2_wb_data rk3576_vop_wb_data = {
