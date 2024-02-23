@@ -1139,4 +1139,9 @@ enum cif_reg_index {
 #define TOISP_END_CH1_RK3576(index)		(0x1 << (8 + index * 3))
 #define TOISP_END_CH2_RK3576(index)		(0x1 << (9 + index * 3))
 
+/* GLB SETTING*/
+#define GLB_RESET_IDI_EN_RK3588			(BIT(9))
+#define GLB_RESET_IDI_EN_RK3576			(BIT(30))
+#define SW_DPHY1_SPLIT_EN_RK3576		(BIT(25))
+#define SW_DPHY2_SPLIT_EN_RK3576		(BIT(26))
 #endif
