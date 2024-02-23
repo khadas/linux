@@ -622,11 +622,11 @@ static int render_frame_block(void)
 		new_vf->type =
 			VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD |
 			VIDTYPE_VIU_NV21 | VIDTYPE_PIC;
-	/* indicate the vframe is a limited range frame */
+	/* indicate the vframe is a full range frame */
 	new_vf->signal_type =
 		  (1 << 29)  /* video available */
 		| (5 << 26)  /* unspecified */
-		| (0 << 25)  /* limited */
+		| (1 << 25)  /* 0:limited 1:full */
 		| (1 << 24); /* color available */
 	if (dev->disp_width >= ZOOM_WIDTH && dev->disp_height >= ZOOM_HEIGHT) {
 		/* >= 720p, use 709 */
@@ -1124,12 +1124,15 @@ int picdec_fill_buffer(struct vframe_s *vf, struct ge2d_context_s *context,
 	ge2d_config->dst_para.mem_type = CANVAS_TYPE_INVALID;
 	if (picdec_device.output_format_mode)
 		/* set dst format with bt601 or bt709 */
-		ge2d_config->dst_para.format =
+		ge2d_config->dst_para.format = GE2D_FORMAT_FULL_RANGE |
 			GE2D_FORMAT_S24_YUV444 |
 			((vf->signal_type & (0xff << 16)) == (1 << 16) ?
 				GE2D_FORMAT_BT709 : GE2D_FORMAT_BT601);
 	else
-		ge2d_config->dst_para.format = GE2D_FORMAT_M24_NV21;
+		ge2d_config->dst_para.format = GE2D_FORMAT_FULL_RANGE |
+			GE2D_FORMAT_M24_NV21 |
+			((vf->signal_type & (0xff << 16)) == (1 << 16) ?
+				GE2D_FORMAT_BT709 : GE2D_FORMAT_BT601);
 	ge2d_config->dst_para.fill_color_en = 0;
 	ge2d_config->dst_para.fill_mode = 0;
 	ge2d_config->dst_para.x_rev = 0;
