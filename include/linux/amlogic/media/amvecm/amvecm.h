@@ -218,6 +218,11 @@ enum wr_md_e {
 	WR_DMA,
 };
 
+enum rw_md_e {
+	RD_MOD = 1,
+	WR_MOD
+};
+
 /* CMS ioctl data structure */
 struct cms_data_s {
 	int color;
@@ -317,6 +322,8 @@ enum vlk_chiptype {
 	vlock_chip_t5,/*same as t5d/t5w*/
 	vlock_chip_t7,
 	vlock_chip_t3,
+	vlock_chip_t5m,
+	vlock_chip_t3x,
 };
 
 enum chip_type {
@@ -326,7 +333,9 @@ enum chip_type {
 	chip_t5w,
 	chip_s5,
 	chip_a4,
-	chip_t5m
+	chip_t5m,
+	chip_t3x,
+	chip_txhd2
 };
 
 enum chip_cls_e {

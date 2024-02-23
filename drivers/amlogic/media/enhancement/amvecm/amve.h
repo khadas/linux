@@ -219,7 +219,7 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md);
 unsigned int skip_pq_ctrl_load(struct am_reg_s *p);
 void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb);
 void lcd_gamma_api(unsigned int index, u16 *r_data, u16 *g_data,
-	u16 *b_data, int rdma_write, int rw_flag);
+	u16 *b_data, enum wr_md_e wr_mod, enum rw_md_e rw_mod);
 void vpp_pst_hist_sta_config(int en,
 	enum pst_hist_mod mod,
 	enum pst_hist_pos pos,

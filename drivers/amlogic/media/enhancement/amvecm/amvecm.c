@@ -5896,9 +5896,9 @@ static ssize_t set_gamma_pattern_store(struct class *cls,
 
 	if (cpu_after_eq_t7()) {
 		if (!data_path)
-			lcd_gamma_api(gamma_index, r_val, g_val, b_val, 0, 0);
+			lcd_gamma_api(gamma_index, r_val, g_val, b_val, WR_VCB, WR_MOD);
 		else
-			lcd_gamma_api(gamma_index_sub, r_val, g_val, b_val, 0, 0);
+			lcd_gamma_api(gamma_index_sub, r_val, g_val, b_val, WR_VCB, WR_MOD);
 	} else {
 		amve_write_gamma_table(r_val, H_SEL_R);
 		amve_write_gamma_table(g_val, H_SEL_G);
@@ -11691,36 +11691,17 @@ struct gamma_data_s *get_gm_data(void)
 void amvecm_gamma_init(bool en)
 {
 	unsigned int i, j, k;
-	unsigned short data[256];
+	unsigned short data[257];
 	unsigned short temp;
 	struct gamma_data_s *p_gm;
 
 	if (chip_cls_id == STB_CHIP)
 		return;
 
-	if (chip_type_id == chip_a4) {
-		p_gm = get_gm_data();
-		p_gm->max_idx = 257;
-		p_gm->auto_inc = 1 << L_H_AUTO_INC_2;
-		p_gm->addr_port = LCD_GAMMA_ADDR_PORT0_A4;
-		p_gm->data_port = LCD_GAMMA_DATA_PORT0_A4;
-		for (i = 0; i < p_gm->max_idx; i++) {
-			temp = i << 2;
-			if (temp >= (1 << 10))
-				temp = (1 << 10) - 1;
-			p_gm->gm_tbl.gamma_r[i] = temp;
-			p_gm->gm_tbl.gamma_g[i] = temp;
-			p_gm->gm_tbl.gamma_b[i] = temp;
-		}
-		lcd_gamma_api(0, p_gm->gm_tbl.gamma_r,
-				p_gm->gm_tbl.gamma_g,
-				p_gm->gm_tbl.gamma_b,
-				0, 0);
-		return;
-	}
-
-	for (i = 0; i < 256; i++) {
+	for (i = 0; i < 257; i++) {
 		data[i] = i << 2;
+		if (data[i] >= (1 << 10))
+			data[i] = (1 << 10) - 1;
 		video_gamma_table_r.data[i] = data[i];
 		video_gamma_table_g.data[i] = data[i];
 		video_gamma_table_b.data[i] = data[i];
@@ -11735,11 +11716,37 @@ void amvecm_gamma_init(bool en)
 			vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
 			vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
 			vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
+		} else if (chip_type_id == chip_t5m ||
+			  chip_type_id == chip_t3x ||
+			  chip_type_id == chip_txhd2 ||
+			  chip_type_id == chip_a4) {
+			p_gm = get_gm_data();
+			p_gm->max_idx = 257;
+			p_gm->auto_inc = 1 << L_H_AUTO_INC_2;
+			if (chip_type_id == chip_a4) {
+				p_gm->addr_port = LCD_GAMMA_ADDR_PORT0_A4;
+				p_gm->data_port = LCD_GAMMA_DATA_PORT0_A4;
+			} else {
+				p_gm->addr_port = LCD_GAMMA_ADDR_PORT0;
+				p_gm->data_port = LCD_GAMMA_DATA_PORT0;
+			}
+			for (i = 0; i < p_gm->max_idx; i++) {
+				temp = i << 2;
+				if (temp >= (1 << 10))
+					temp = (1 << 10) - 1;
+				p_gm->gm_tbl.gamma_r[i] = temp;
+				p_gm->gm_tbl.gamma_g[i] = temp;
+				p_gm->gm_tbl.gamma_b[i] = temp;
+			}
+			lcd_gamma_api(0, p_gm->gm_tbl.gamma_r,
+					p_gm->gm_tbl.gamma_g,
+					p_gm->gm_tbl.gamma_b,
+					WR_VCB, WR_MOD);
 		} else {
 			lcd_gamma_api(0, video_gamma_table_r.data,
 				video_gamma_table_g.data,
 				video_gamma_table_b.data,
-				0, 0);
+				WR_VCB, WR_MOD);
 		}
 	} else {
 		vpp_disable_lcd_gamma_table(0, 0);
@@ -12153,6 +12160,43 @@ static const struct vecm_match_data_s vecm_dt_a4 = {
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 };
 
+static const struct vecm_match_data_s vecm_dt_t5m = {
+	.chip_id = chip_t5m,
+	.chip_cls = TV_CHIP,
+	.vlk_chip = vlock_chip_t5m,
+	.vlk_support = true,
+	.vlk_new_fsm = 1,
+	.vlk_hwver = vlock_hw_tm2verb,
+	.vlk_phlock_en = true,
+	.vlk_pll_sel = vlock_pll_sel_tcon,
+	.vlk_ctl_for_frc = 0,
+	.vrr_support_flag = 1,
+};
+
+static const struct vecm_match_data_s vecm_dt_t3x = {
+	.chip_id = chip_t3x,
+	.chip_cls = TV_CHIP,
+	.vlk_chip = vlock_chip_t3x,
+	.vlk_support = true,
+	.vlk_new_fsm = 1,
+	.vlk_hwver = vlock_hw_tm2verb,
+	.vlk_phlock_en = true,
+	.vlk_pll_sel = vlock_pll_sel_tcon,
+	.vrr_support_flag = 1,
+};
+
+static const struct vecm_match_data_s vecm_dt_txhd2 = {
+	.chip_id = chip_txhd2,
+	.chip_cls = TV_CHIP,
+	.vlk_chip = vlock_chip_t5,
+	.vlk_support = true,
+	.vlk_new_fsm = 1,
+	.vlk_hwver = vlock_hw_tm2verb,
+	.vlk_phlock_en = true,
+	.vlk_pll_sel = vlock_pll_sel_tcon,
+	.vrr_support_flag = 0,
+};
+
 static const struct of_device_id aml_vecm_dt_match[] = {
 	{
 		.compatible = "amlogic, vecm",
@@ -12204,6 +12248,18 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 		.compatible = "amlogic, vecm-a4",
 		.data = &vecm_dt_a4,
 	},
+	{
+		.compatible = "amlogic, vecm-t5m",
+		.data = &vecm_dt_t5m,
+	},
+	{
+		.compatible = "amlogic, vecm-t3x",
+		.data = &vecm_dt_t3x,
+	},
+	{
+		.compatible = "amlogic, vecm-txhd2",
+		.data = &vecm_dt_txhd2,
+	},
 	{},
 };
 
@@ -12230,7 +12286,7 @@ static void aml_vecm_match_init(struct vecm_match_data_s *pdata)
 static void aml_vecm_dt_parse(struct amvecm_dev_s *devp, struct platform_device *pdev)
 {
 	struct device_node *node;
-	unsigned int val;
+	unsigned int val = 0;
 	int ret;
 	const struct of_device_id *of_id;
 	struct vecm_match_data_s *matchdata;

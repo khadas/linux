@@ -416,14 +416,7 @@ int vpp_get_vout_viu_mux(void)
 void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write)
 {
 	unsigned int offset = 0x0;
-	unsigned int reg;
-
-	if (chip_type_id == chip_a4)
-		reg = LCD_GAMMA_CNTL_PORT0_A4;
-	else if (cpu_after_eq_t7())
-		reg = LCD_GAMMA_CNTL_PORT0;
-	else
-		reg = L_GAMMA_CNTL_PORT;
+	unsigned int reg = L_GAMMA_CNTL_PORT;
 
 	if (viu_sel == 0) /*venc0*/
 		offset = 0;
@@ -431,6 +424,20 @@ void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write)
 		offset = 0x100;
 	else if (viu_sel == 2) /*venc2*/
 		offset = 0x200;
+
+	if (cpu_after_eq_t7()) {
+		if (chip_type_id == chip_a4) {
+			reg = LCD_GAMMA_CNTL_PORT0_A4;
+		} else if (chip_type_id == chip_t3x) {
+			reg = 0x14e9;
+		} else if (chip_type_id == chip_txhd2) {
+			reg = L_GAMMA_CNTL_PORT;
+			rdma_write = 1;
+		} else {
+			reg = LCD_GAMMA_CNTL_PORT0;
+		}
+	}
+
 	if (cpu_after_eq_t7()) {
 		if (rdma_write)
 			VSYNC_WRITE_VPP_REG_BITS(reg + offset,
@@ -438,28 +445,19 @@ void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write)
 		else
 			WRITE_VPP_REG_BITS(reg + offset,
 				1, L_GAMMA_EN, 1);
-		return;
+	} else {
+		if (rdma_write == 1) /* viu1 vsync rdma */
+			VSYNC_WRITE_VPP_REG_BITS(reg, 1, GAMMA_EN, 1);
+		else
+			WRITE_VPP_REG_BITS(reg, 1, GAMMA_EN, 1);
 	}
-
-	if (rdma_write == 1) /* viu1 vsync rdma */
-		VSYNC_WRITE_VPP_REG_BITS(reg, 1, GAMMA_EN, 1);
-	else
-		WRITE_VPP_REG_BITS(reg, 1, GAMMA_EN, 1);
-
 	pr_amve_dbg("\n[amve..] set enable_lcd_gamma_table.\n");
 }
 
 void vpp_disable_lcd_gamma_table(int viu_sel, int rdma_write)
 {
 	unsigned int offset = 0x0;
-	unsigned int reg;
-
-	if (chip_type_id == chip_a4)
-		reg = LCD_GAMMA_CNTL_PORT0_A4;
-	else if (cpu_after_eq_t7())
-		reg = LCD_GAMMA_CNTL_PORT0;
-	else
-		reg = L_GAMMA_CNTL_PORT;
+	unsigned int reg = L_GAMMA_CNTL_PORT;
 
 	if (viu_sel == 0) /*venc0*/
 		offset = 0;
@@ -469,20 +467,31 @@ void vpp_disable_lcd_gamma_table(int viu_sel, int rdma_write)
 		offset = 0x200;
 
 	if (cpu_after_eq_t7()) {
+		if (chip_type_id == chip_a4) {
+			reg = LCD_GAMMA_CNTL_PORT0_A4;
+		} else if (chip_type_id == chip_t3x) {
+			reg = 0x14e9;
+		} else if (chip_type_id == chip_txhd2) {
+			reg = L_GAMMA_CNTL_PORT;
+			rdma_write = 1;
+		} else {
+			reg = LCD_GAMMA_CNTL_PORT0;
+		}
+	}
+
+	if (cpu_after_eq_t7()) {
 		if (rdma_write)
 			VSYNC_WRITE_VPP_REG_BITS(reg + offset,
 				0, L_GAMMA_EN, 1);
 		else
 			WRITE_VPP_REG_BITS(reg + offset,
 				0, L_GAMMA_EN, 1);
-		return;
+	} else {
+		if (rdma_write == 1) /* viu1 vsync rdma */
+			VSYNC_WRITE_VPP_REG_BITS(reg, 0, GAMMA_EN, 1);
+		else
+			WRITE_VPP_REG_BITS(reg, 0, GAMMA_EN, 1);
 	}
-
-	if (rdma_write == 1) /* viu1 vsync rdma */
-		VSYNC_WRITE_VPP_REG_BITS(reg, 0, GAMMA_EN, 1);
-	else
-		WRITE_VPP_REG_BITS(reg, 0, GAMMA_EN, 1);
-
 	pr_amve_dbg("\n[amve..] set disable_lcd_gamma_table.\n");
 }
 
@@ -492,15 +501,16 @@ void vpp_disable_lcd_gamma_table(int viu_sel, int rdma_write)
  *rw_flag:  0 write gamma,  1: read gamma
  */
 void lcd_gamma_api(unsigned int index, u16 *r_data, u16 *g_data, u16 *b_data,
-	int rdma_write, int rw_flag)
+	enum wr_md_e wr_mod, enum rw_md_e rw_mod)
 {
 	int i;
 	unsigned int val;
 	unsigned int offset = 0;
 	unsigned int max_idx;
 	unsigned int auto_inc;
-	unsigned int addr_port;
-	unsigned int data_port;
+	struct gamma_data_s *p_gm;
+	unsigned int addr_port = LCD_GAMMA_ADDR_PORT0;
+	unsigned int data_port = LCD_GAMMA_DATA_PORT0;
 
 	/*
 	 * A4 gamma change to 257 points, other chip 256 points,
@@ -515,43 +525,62 @@ void lcd_gamma_api(unsigned int index, u16 *r_data, u16 *g_data, u16 *b_data,
 		offset = 0x200;
 
 	if (chip_type_id == chip_a4) {
-		auto_inc = L_H_AUTO_INC_2;
+		auto_inc = 0x1 << L_H_AUTO_INC_2;
 		max_idx = 257;
-		addr_port = LCD_GAMMA_ADDR_PORT0_A4;
-		data_port = LCD_GAMMA_DATA_PORT0_A4;
+	} else if (chip_type_id == chip_t5m ||
+		chip_type_id == chip_t3x ||
+		chip_type_id == chip_txhd2) {
+		p_gm = get_gm_data();
+		auto_inc = p_gm->auto_inc;
+		max_idx = p_gm->max_idx;
 	} else {
-		auto_inc = L_H_AUTO_INC;
+		auto_inc = 0x1 << L_H_AUTO_INC;
 		max_idx = 256;
-		addr_port = LCD_GAMMA_ADDR_PORT0;
-		data_port = LCD_GAMMA_DATA_PORT0;
 	}
 
-	if (rw_flag) {
+	if (chip_type_id == chip_a4) {
+		addr_port = LCD_GAMMA_ADDR_PORT0_A4;
+		data_port = LCD_GAMMA_DATA_PORT0_A4;
+	} else if (chip_type_id == chip_t3x) {
+		addr_port = 0x14eb;
+		data_port = 0x14ea;
+	} else if (chip_type_id == chip_txhd2) {
+		addr_port = L_GAMMA_ADDR_PORT;
+		data_port = L_GAMMA_DATA_PORT;
+	}
+
+	if (rw_mod == RD_MOD) {
 		WRITE_VPP_REG(addr_port + offset,
-			(0x1 << L_H_AUTO_INC));
+			(auto_inc));
 		for (i = 0; i < max_idx; i++) {
 			val = READ_VPP_REG(data_port + offset);
 			r_data[i] = (val >> L_GAMMA_R) & 0x3ff;
 			g_data[i] = (val >> L_GAMMA_G) & 0x3ff;
 			b_data[i] = (val >> L_GAMMA_B) & 0x3ff;
 		}
-	} else {
-		if (rdma_write) {
-			VSYNC_WRITE_VPP_REG(addr_port + offset,
-				(0x1 << auto_inc));
-			for (i = 0; i < max_idx; i++)
-				VSYNC_WRITE_VPP_REG(data_port +
-					offset,
-				(r_data[i] << L_GAMMA_R) | (g_data[i] << L_GAMMA_G) |
-				(b_data[i] << L_GAMMA_B));
-		} else {
-			WRITE_VPP_REG(addr_port + offset,
-				(0x1 << auto_inc));
-			for (i = 0; i < max_idx; i++)
-				WRITE_VPP_REG(data_port + offset,
-				(r_data[i] << L_GAMMA_R) | (g_data[i] << L_GAMMA_G) |
-				(b_data[i] << L_GAMMA_B));
-		}
+		return;
+	}
+
+	switch (wr_mod) {
+	case WR_VCB:
+		WRITE_VPP_REG(addr_port + offset,
+			auto_inc);
+		for (i = 0; i < max_idx; i++)
+			WRITE_VPP_REG(data_port + offset,
+			(r_data[i] << L_GAMMA_R) | (g_data[i] << L_GAMMA_G) |
+			(b_data[i] << L_GAMMA_B));
+		break;
+	case WR_DMA:
+		VSYNC_WRITE_VPP_REG(addr_port + offset,
+			auto_inc);
+		for (i = 0; i < max_idx; i++)
+			VSYNC_WRITE_VPP_REG(data_port +
+				offset,
+			(r_data[i] << L_GAMMA_R) | (g_data[i] << L_GAMMA_G) |
+			(b_data[i] << L_GAMMA_B));
+		break;
+	default:
+		break;
 	}
 }
 
@@ -605,17 +634,24 @@ void vpp_get_lcd_gamma_table(u32 rgb_mask)
 	int cnt = 0;
 	struct gamma_data_s *p_gm;
 
-	if (chip_type_id == chip_a4) {
-		p_gm = get_gm_data();
-		lcd_gamma_api(gamma_index, p_gm->dbg_gm_tbl.gamma_r,
-			p_gm->dbg_gm_tbl.gamma_g, p_gm->dbg_gm_tbl.gamma_b,
-			0, 1);
-		return;
-	}
-
 	if (cpu_after_eq_t7()) {
-		lcd_gamma_api(gamma_index, gamma_data_r,
-			gamma_data_g, gamma_data_b, 0, 1);
+		if (chip_type_id == chip_t5m ||
+			chip_type_id == chip_t3x ||
+			chip_type_id == chip_txhd2 ||
+			chip_type_id == chip_a4) {
+			p_gm = get_gm_data();
+			lcd_gamma_api(gamma_index,
+				p_gm->dbg_gm_tbl.gamma_r,
+				p_gm->dbg_gm_tbl.gamma_g,
+				p_gm->dbg_gm_tbl.gamma_b,
+				WR_VCB, RD_MOD);
+		} else {
+			lcd_gamma_api(gamma_index,
+				gamma_data_r,
+				gamma_data_g,
+				gamma_data_b,
+				WR_VCB, RD_MOD);
+		}
 		return;
 	}
 
@@ -670,7 +706,7 @@ void vpp_get_lcd_gamma_table_sub(void)
 			gamma_data_r,
 			gamma_data_g,
 			gamma_data_b,
-			0, 1);
+			WR_VCB, RD_MOD);
 }
 
 void amve_write_gamma_table(u16 *data, u32 rgb_mask)
@@ -681,36 +717,38 @@ void amve_write_gamma_table(u16 *data, u32 rgb_mask)
 	struct gamma_data_s *p_gm;
 	int max_idx;
 
-	if (chip_type_id == chip_a4) {
-		p_gm = get_gm_data();
-		max_idx = p_gm->max_idx;
-		lcd_gamma_api(gamma_index, p_gm->dbg_gm_tbl.gamma_r,
-			p_gm->dbg_gm_tbl.gamma_g, p_gm->dbg_gm_tbl.gamma_b,
-			0, 1);
-		if (rgb_mask == H_SEL_R)
-			memcpy(p_gm->dbg_gm_tbl.gamma_r, data, sizeof(u16) * max_idx);
-		else if (rgb_mask == H_SEL_G)
-			memcpy(p_gm->dbg_gm_tbl.gamma_g, data, sizeof(u16) * max_idx);
-		else if (rgb_mask == H_SEL_B)
-			memcpy(p_gm->dbg_gm_tbl.gamma_b, data, sizeof(u16) * max_idx);
-		lcd_gamma_api(gamma_index, p_gm->dbg_gm_tbl.gamma_r,
-			p_gm->dbg_gm_tbl.gamma_g, p_gm->dbg_gm_tbl.gamma_b,
-			0, 0);
-		return;
-	}
-
 	if (cpu_after_eq_t7()) {
-		lcd_gamma_api(gamma_index, gamma_data_r,
-			gamma_data_g, gamma_data_b, 0, 1);
-		if (rgb_mask == H_SEL_R)
-			memcpy(gamma_data_r, data, sizeof(u16) * 256);
-		else if (rgb_mask == H_SEL_G)
-			memcpy(gamma_data_g, data, sizeof(u16) * 256);
-		else if (rgb_mask == H_SEL_B)
-			memcpy(gamma_data_b, data, sizeof(u16) * 256);
-		lcd_gamma_api(gamma_index, gamma_data_r,
-			gamma_data_g, gamma_data_b, 0, 0);
-		return;
+		if (chip_type_id == chip_t5m ||
+			chip_type_id == chip_t3x ||
+			chip_type_id == chip_txhd2 ||
+			chip_type_id == chip_a4) {
+			p_gm = get_gm_data();
+			max_idx = p_gm->max_idx;
+			lcd_gamma_api(gamma_index, p_gm->dbg_gm_tbl.gamma_r,
+				p_gm->dbg_gm_tbl.gamma_g, p_gm->dbg_gm_tbl.gamma_b,
+				WR_VCB, RD_MOD);
+			if (rgb_mask == H_SEL_R)
+				memcpy(p_gm->dbg_gm_tbl.gamma_r, data, sizeof(u16) * max_idx);
+			else if (rgb_mask == H_SEL_G)
+				memcpy(p_gm->dbg_gm_tbl.gamma_g, data, sizeof(u16) * max_idx);
+			else if (rgb_mask == H_SEL_B)
+				memcpy(p_gm->dbg_gm_tbl.gamma_b, data, sizeof(u16) * max_idx);
+			lcd_gamma_api(gamma_index, p_gm->dbg_gm_tbl.gamma_r,
+				p_gm->dbg_gm_tbl.gamma_g, p_gm->dbg_gm_tbl.gamma_b,
+				WR_VCB, WR_MOD);
+		} else {
+			lcd_gamma_api(gamma_index, gamma_data_r,
+				gamma_data_g, gamma_data_b, WR_VCB, RD_MOD);
+			if (rgb_mask == H_SEL_R)
+				memcpy(gamma_data_r, data, sizeof(u16) * 256);
+			else if (rgb_mask == H_SEL_G)
+				memcpy(gamma_data_g, data, sizeof(u16) * 256);
+			else if (rgb_mask == H_SEL_B)
+				memcpy(gamma_data_b, data, sizeof(u16) * 256);
+			lcd_gamma_api(gamma_index, gamma_data_r,
+				gamma_data_g, gamma_data_b, WR_VCB, WR_MOD);
+			return;
+		}
 	}
 
 	if (!(READ_VPP_REG(ENCL_VIDEO_EN) & 0x1))
@@ -752,7 +790,7 @@ void amve_write_gamma_table_sub(u16 *data, u32 rgb_mask)
 {
 	if (is_meson_t7_cpu()) {
 		lcd_gamma_api(gamma_index_sub,
-			gamma_data_r, gamma_data_g, gamma_data_b, 0, 1);
+			gamma_data_r, gamma_data_g, gamma_data_b, WR_VCB, RD_MOD);
 
 		if (rgb_mask == H_SEL_R)
 			memcpy(gamma_data_r, data, sizeof(u16) * 256);
@@ -762,7 +800,7 @@ void amve_write_gamma_table_sub(u16 *data, u32 rgb_mask)
 			memcpy(gamma_data_b, data, sizeof(u16) * 256);
 
 		lcd_gamma_api(gamma_index_sub,
-			gamma_data_r, gamma_data_g, gamma_data_b, 0, 0);
+			gamma_data_r, gamma_data_g, gamma_data_b, WR_VCB, WR_MOD);
 	}
 }
 
@@ -1286,24 +1324,39 @@ void ve_lcd_gamma_process(void)
 		pr_amve_dbg("\n[amve..] set vpp_disable_lcd_gamma_table OK!!!\n");
 	}
 
-	if (cpu_after_eq_t7() || chip_type_id == chip_a4) {
-		if ((vecm_latch_flag & FLAG_GAMMA_TABLE_R) &&
-			(vecm_latch_flag & FLAG_GAMMA_TABLE_G) &&
+	if (cpu_after_eq_t7()) {
+		if ((vecm_latch_flag & FLAG_GAMMA_TABLE_R) ||
+			(vecm_latch_flag & FLAG_GAMMA_TABLE_G) ||
 			(vecm_latch_flag & FLAG_GAMMA_TABLE_B)) {
-			vecm_latch_flag &= ~FLAG_GAMMA_TABLE_R;
-			vecm_latch_flag &= ~FLAG_GAMMA_TABLE_G;
-			vecm_latch_flag &= ~FLAG_GAMMA_TABLE_B;
-			if (chip_type_id == chip_a4) {
+			if (vecm_latch_flag & FLAG_GAMMA_TABLE_R)
+				vecm_latch_flag &= ~FLAG_GAMMA_TABLE_R;
+			if (vecm_latch_flag & FLAG_GAMMA_TABLE_G)
+				vecm_latch_flag &= ~FLAG_GAMMA_TABLE_G;
+			if (vecm_latch_flag & FLAG_GAMMA_TABLE_B)
+				vecm_latch_flag &= ~FLAG_GAMMA_TABLE_B;
+			if (chip_type_id == chip_t5m ||
+				chip_type_id == chip_t3x ||
+				chip_type_id == chip_txhd2 ||
+				chip_type_id == chip_a4) {
 				p_gm = get_gm_data();
+				memcpy(p_gm->gm_tbl.gamma_r,
+					video_gamma_table_r.data,
+					sizeof(u16) * p_gm->max_idx);
+				memcpy(p_gm->gm_tbl.gamma_g,
+					video_gamma_table_g.data,
+					sizeof(u16) * p_gm->max_idx);
+				memcpy(p_gm->gm_tbl.gamma_b,
+					video_gamma_table_b.data,
+					sizeof(u16) * p_gm->max_idx);
 				lcd_gamma_api(gamma_index, p_gm->gm_tbl.gamma_r,
 					p_gm->gm_tbl.gamma_g,
 					p_gm->gm_tbl.gamma_b,
-					1, 0);
+					WR_DMA, WR_MOD);
 			} else {
 				lcd_gamma_api(gamma_index, video_gamma_table_r.data,
 					video_gamma_table_g.data,
 					video_gamma_table_b.data,
-					1, 0);
+					WR_DMA, WR_MOD);
 			}
 			pr_amve_dbg("\n[amve..] set vpp_set_lcd_gamma_table OK!!!\n");
 		}
@@ -1413,7 +1466,7 @@ void ve_lcd_gamma_process(void)
 				video_gamma_table_r_sub.data,
 				video_gamma_table_g_sub.data,
 				video_gamma_table_b_sub.data,
-				1, 0);
+				WR_DMA, WR_MOD);
 			pr_amve_dbg("\n[amve] set_lcd_gamma_table_sub OK!!!\n");
 		}
 	}
