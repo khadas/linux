@@ -4406,6 +4406,41 @@ static u32 rkcif_get_parse_type_rk3576(const struct cif_input_fmt	*cif_fmt_in)
 	return parse_type;
 }
 
+static u32 rkcif_get_split_dphy_mask_rk3576(struct rkcif_device *dev)
+{
+	u32 val = 0;
+	int i = 0;
+	bool is_split = false;
+
+	switch (dev->csi_host_idx) {
+	case 0:
+		break;
+	case 1:
+	case 2:
+		for (i = 0; i < dev->hw_dev->dev_num; i++) {
+			if (dev->hw_dev->cif_dev[i]->csi_host_idx == 2) {
+				is_split = true;
+				break;
+			}
+		}
+		break;
+	case 3:
+	case 4:
+		for (i = 0; i < dev->hw_dev->dev_num; i++) {
+			if (dev->hw_dev->cif_dev[i]->csi_host_idx == 4) {
+				is_split = true;
+				break;
+			}
+		}
+		break;
+	default:
+		break;
+	}
+	if (is_split)
+		val = SW_DPHY2_SPLIT_EN_RK3576;
+	return val;
+}
+
 /*config reg for rk3588*/
 static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 				       struct csi_channel_info *channel,
@@ -4443,6 +4478,17 @@ static int rkcif_csi_channel_set_v1(struct rkcif_stream *stream,
 				 RKCIF_CMD_SET_PPI_DATA_DEBUG,
 				 &stream->sw_dbg_en);
 	}
+
+	if (dev->chip_id == CHIP_RK3588_CIF ||
+	    dev->chip_id == CHIP_RV1106_CIF ||
+	    dev->chip_id == CHIP_RK3562_CIF) {
+		val = GLB_RESET_IDI_EN_RK3588;
+	} else if (dev->chip_id == CHIP_RK3576_CIF) {
+		val = GLB_RESET_IDI_EN_RK3576;
+		val |= rkcif_get_split_dphy_mask_rk3576(dev);
+	}
+	rkcif_write_register_or(dev, CIF_REG_GLB_CTRL, val);
+
 	rkcif_write_register_and(dev, CIF_REG_MIPI_LVDS_INTSTAT,
 				 ~(CSI_START_INTSTAT(channel->id) |
 				 CSI_DMA_END_INTSTAT(channel->id) |
