@@ -8306,7 +8306,11 @@ static void vop3_setup_pipe_dly(struct vop2_video_port *vp, const struct vop2_zp
 
 	/* hdisplay must roundup as 2 pixel */
 	pre_scan_dly = bg_dly + (roundup(hdisplay, 2) >> 1) - 1;
-	pre_scan_dly = (pre_scan_dly << 16) | hsync_len;
+	/**
+	 * pre_scan_hblank minimum value is 8, otherwise the win reset signal will
+	 * lead to first line data be zero.
+	 */
+	pre_scan_dly = (pre_scan_dly << 16) | (hsync_len < 8 ? 8 : hsync_len);
 	VOP_MODULE_SET(vop2, vp, bg_dly, bg_dly);
 	VOP_MODULE_SET(vop2, vp, pre_scan_htiming, pre_scan_dly);
 
