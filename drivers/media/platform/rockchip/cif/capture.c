@@ -10957,6 +10957,7 @@ void rkcif_irq_handle_toisp(struct rkcif_device *cif_dev, unsigned int intstat_g
 		return;
 
 	for (i = 0; i < 2; i++) {
+		to_check = false;
 		if (priv->toisp_inf.link_mode == TOISP0 &&
 		    i == 0) {
 			to_check = true;
