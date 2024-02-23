@@ -29,6 +29,16 @@ enum rockchip_pwm_global_ctrl_cmd {
 };
 
 /**
+ * enum rockchip_pwm_counter_input_sel - select the input src of counter
+ * @PWM_COUNTER_INPUT_FROM_IO: input from PWM IO
+ * @PWM_COUNTER_INPUT_FROM_CRU: input from CRU
+ */
+enum rockchip_pwm_counter_input_sel {
+	PWM_COUNTER_INPUT_FROM_IO,
+	PWM_COUNTER_INPUT_FROM_CRU,
+};
+
+/**
  * enum rockchip_pwm_freq_meter_input_sel - select the input src of frequency meter
  * @PWM_FREQ_METER_INPUT_FROM_IO: input from PWM IO
  * @PWM_FREQ_METER_INPUT_FROM_CRU: input from CRU
@@ -122,7 +132,9 @@ struct rockchip_pwm_wave_config {
  *
  * Returns: 0 on success or a negative error code on failure.
  */
-int rockchip_pwm_set_counter(struct pwm_device *pwm, bool enable);
+int rockchip_pwm_set_counter(struct pwm_device *pwm,
+			     enum rockchip_pwm_counter_input_sel input_sel,
+			     bool enable);
 
 /**
  * rockchip_pwm_get_counter_result() - get counter result
@@ -166,7 +178,9 @@ int rockchip_pwm_global_ctrl(struct pwm_device *pwm, enum rockchip_pwm_global_ct
  */
 int rockchip_pwm_set_wave(struct pwm_device *pwm, struct rockchip_pwm_wave_config *config);
 #else
-static inline int rockchip_pwm_set_counter(struct pwm_device *pwm, bool enable)
+static inline int rockchip_pwm_set_counter(struct pwm_device *pwm,
+					   enum rockchip_pwm_counter_input_sel input_sel,
+					   bool enable);
 {
 	return 0;
 }

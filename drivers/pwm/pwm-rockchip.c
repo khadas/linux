@@ -278,7 +278,8 @@ struct rockchip_pwm_funcs {
 	void (*set_capture)(struct pwm_chip *chip, struct pwm_device *pwm, bool enable);
 	int (*get_capture_result)(struct pwm_chip *chip, struct pwm_device *pwm,
 				  struct pwm_capture *catpure_res);
-	int (*set_counter)(struct pwm_chip *chip, struct pwm_device *pwm, bool enable);
+	int (*set_counter)(struct pwm_chip *chip, struct pwm_device *pwm,
+			   enum rockchip_pwm_counter_input_sel input_sel, bool enable);
 	int (*get_counter_result)(struct pwm_chip *chip, struct pwm_device *pwm,
 				  unsigned long *counter_res, bool is_clear);
 	int (*set_freq_meter)(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -960,12 +961,14 @@ err_disable_pclk:
 }
 
 static int rockchip_pwm_set_counter_v4(struct pwm_chip *chip, struct pwm_device *pwm,
+				       enum rockchip_pwm_counter_input_sel input_sel,
 				       bool enable)
 {
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	u32 arbiter = 0;
 	u32 channel_sel = 0;
 	u32 val;
+	int ret;
 
 	if (enable) {
 		arbiter = BIT(pc->channel_id) << COUNTER_READ_LOCK_SHIFT |
@@ -980,13 +983,25 @@ static int rockchip_pwm_set_counter_v4(struct pwm_chip *chip, struct pwm_device 
 			return -EINVAL;
 	}
 
-	writel_relaxed(COUNTER_EN(enable) | COUNTER_CHANNEL_SEL(channel_sel),
+	if (enable) {
+		ret = clk_enable(pc->clk);
+		if (ret)
+			return ret;
+	}
+
+	writel_relaxed(COUNTER_EN(enable) | COUNTER_CLK_SEL(input_sel) |
+		       COUNTER_CHANNEL_SEL(channel_sel),
 		       pc->base + COUNTER_CTRL);
+
+	if (!enable)
+		clk_disable(pc->clk);
 
 	return 0;
 }
 
-int rockchip_pwm_set_counter(struct pwm_device *pwm, bool enable)
+int rockchip_pwm_set_counter(struct pwm_device *pwm,
+			     enum rockchip_pwm_counter_input_sel input_sel,
+			     bool enable)
 {
 	struct pwm_chip *chip;
 	struct rockchip_pwm_chip *pc;
@@ -1016,7 +1031,13 @@ int rockchip_pwm_set_counter(struct pwm_device *pwm, bool enable)
 	if (ret)
 		return ret;
 
-	ret = pc->data->funcs.set_counter(chip, pwm, enable);
+	ret = pinctrl_select_state(pc->pinctrl, pc->active_state);
+	if (ret) {
+		dev_err(chip->dev, "Failed to select pinctrl state\n");
+		goto err_disable_pclk;
+	}
+
+	ret = pc->data->funcs.set_counter(chip, pwm, input_sel, enable);
 	if (ret) {
 		dev_err(chip->dev, "Failed to abtain counter arbitration for PWM%d\n",
 			pc->channel_id);
