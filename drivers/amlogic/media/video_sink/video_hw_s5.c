@@ -11141,32 +11141,33 @@ void set_video_slice_policy(struct video_layer_s *layer,
 	update_vd_src_info(layer->layer_id,
 		src_width, src_height, vf->compWidth, vf->compHeight);
 	if (layer->layer_id == 0) {
-		/* check output */
-		if (vinfo) {
-			/* output: (4k-8k], input <= 4k */
-			if ((vinfo->width > 4096 && vinfo->height > 2160) &&
-				(src_width <= 4096 && src_height <= 2160)) {
-				pi_en = 1;
-			/* 4k 120hz */
-			} else if (vinfo->width > 1920 && vinfo->height > 1080 &&
-				(vinfo->sync_duration_num /
-			    vinfo->sync_duration_den > 60)) {
-				slice_num = 2;
-				if (debug_flag_s5 & DEBUG_VD_PROC)
-					pr_info("%s:dv on=%d\n", __func__, is_amdv_on());
-				if (is_amdv_on())
-					vd1s1_vd2_prebld_en = 1;
-				if (vd1s1_vd2_prebld_en != last_vd1s1_vd2_prebld_en)
-					vd_layer[0].property_changed = true;
-				last_vd1s1_vd2_prebld_en = vd1s1_vd2_prebld_en;
-			} else {
-				slice_num = 1;
-			}
-		}
+		/* check input */
 		if (src_width > 4096 && src_height > 2160) {
 			/* input: (4k-8k] */
 			slice_num = 4;
 			vd1s1_vd2_prebld_en = 0;
+		} else {
+			/* check output */
+			if (vinfo) {
+				/* output: (4k-8k], input <= 4k */
+				if (vinfo->width > 4096 && vinfo->height > 2160) {
+					pi_en = 1;
+				/* 4k 120hz */
+				} else if (vinfo->width > 1920 && vinfo->height > 1080 &&
+					(vinfo->sync_duration_num /
+				    vinfo->sync_duration_den > 60)) {
+					slice_num = 2;
+					if (debug_flag_s5 & DEBUG_VD_PROC)
+						pr_info("%s:dv on=%d\n", __func__, is_amdv_on());
+					if (is_amdv_on())
+						vd1s1_vd2_prebld_en = 1;
+					if (vd1s1_vd2_prebld_en != last_vd1s1_vd2_prebld_en)
+						vd_layer[0].property_changed = true;
+					last_vd1s1_vd2_prebld_en = vd1s1_vd2_prebld_en;
+				} else {
+					slice_num = 1;
+				}
+			}
 		}
 		layer->slice_num = slice_num;
 		layer->pi_enable = pi_en;
