@@ -108,6 +108,7 @@ static int spidev_slv_write_and_read(struct spidev_rkslv_data *spidev, const voi
 			.tx_buf = tx_buf,
 			.rx_buf = rx_buf,
 			.len = len,
+			.bits_per_word = bit_per_word,
 		};
 	struct spi_message m;
 	int ret;
@@ -375,7 +376,7 @@ static int spidev_rkslv_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int spidev_rkslv_remove(struct spi_device *spi)
+static void spidev_rkslv_remove(struct spi_device *spi)
 {
 	struct spidev_rkslv_data *spidev = dev_get_drvdata(&spi->dev);
 
@@ -383,8 +384,6 @@ static int spidev_rkslv_remove(struct spi_device *spi)
 	spi_slave_abort(spi);
 	kthread_stop(spidev->tsk);
 	misc_deregister(&spidev->misc_dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF

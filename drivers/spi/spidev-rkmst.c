@@ -442,11 +442,11 @@ static ssize_t spidev_rkmst_misc_write(struct file *filp, const char __user *buf
 		if (!tempbuf)
 			return -ENOMEM;
 
-		prandom_bytes(tempbuf, len);
+		get_random_bytes(tempbuf, len);
 		spidev_rkmst_xfer(spidev, tempbuf, NULL, addr, len);
 		start_time = ktime_get();
 		for (i = 0; i < loops; i++) {
-			prandom_bytes(spidev->txbuf, len);
+			get_random_bytes(spidev->txbuf, len);
 			spidev_rkmst_xfer(spidev, spidev->txbuf, spidev->rxbuf, addr, len);
 			if (memcmp(spidev->rxbuf, tempbuf, len)) {
 				dev_err(&spi->dev, "dulplex autotest failed, loops=%d\n", i);
@@ -487,7 +487,7 @@ static ssize_t spidev_rkmst_misc_write(struct file *filp, const char __user *buf
 
 		start_time = ktime_get();
 		for (i = 0; i < loops; i++) {
-			prandom_bytes(spidev->txbuf, len);
+			get_random_bytes(spidev->txbuf, len);
 			spidev_rkmst_xfer(spidev, spidev->txbuf, NULL, addr, len);
 			spidev_rkmst_xfer(spidev, NULL, spidev->rxbuf, addr, len);
 			if (memcmp(spidev->rxbuf, spidev->txbuf, len)) {
@@ -601,13 +601,11 @@ static int spidev_rkmst_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int spidev_rkmst_remove(struct spi_device *spi)
+static void spidev_rkmst_remove(struct spi_device *spi)
 {
 	struct spidev_rkmst_data *spidev = dev_get_drvdata(&spi->dev);
 
 	misc_deregister(&spidev->misc_dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
