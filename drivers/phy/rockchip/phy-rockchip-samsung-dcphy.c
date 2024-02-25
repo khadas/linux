@@ -2053,6 +2053,11 @@ static int samsung_dcphy_rx_config_common(struct csi2_dphy *dphy,
 			regmap_write(samsung->regmap, RX_COMBO_S0D0_ANA_CON7, 0x40);
 			regmap_write(samsung->regmap, RX_COMBO_S0D0_DESKEW_CON2,
 				     dphy->dphy_param.skew_data_cal_clk[0]);
+			if (dphy->data_rate_mbps >= 1500 &&
+			    dphy->drv_data->chip_id >= CHIP_ID_RK3576) {
+				regmap_write(samsung->regmap, RX_COMBO_S0D0_DESKEW_CON0, BIT(0));
+				regmap_write(samsung->regmap, RX_COMBO_S0D0_DESKEW_CON4, 0x81A);
+			}
 		}
 		if (sensor->lanes > 0x01) {
 			regmap_write(samsung->regmap, RX_COMBO_S0D1_GNR_CON1, 0x1450);
@@ -2065,6 +2070,11 @@ static int samsung_dcphy_rx_config_common(struct csi2_dphy *dphy,
 			regmap_write(samsung->regmap, RX_COMBO_S0D1_ANA_CON7, 0x40);
 			regmap_write(samsung->regmap, RX_COMBO_S0D1_DESKEW_CON2,
 				     dphy->dphy_param.skew_data_cal_clk[1]);
+			if (dphy->data_rate_mbps >= 1500 &&
+			    dphy->drv_data->chip_id >= CHIP_ID_RK3576) {
+				regmap_write(samsung->regmap, RX_COMBO_S0D1_DESKEW_CON0, BIT(0));
+				regmap_write(samsung->regmap, RX_COMBO_S0D1_DESKEW_CON4, 0x81A);
+			}
 		}
 		if (sensor->lanes > 0x02) {
 			regmap_write(samsung->regmap, RX_COMBO_S0D2_GNR_CON1, 0x1450);
@@ -2077,6 +2087,11 @@ static int samsung_dcphy_rx_config_common(struct csi2_dphy *dphy,
 			regmap_write(samsung->regmap, RX_COMBO_S0D2_ANA_CON7, 0x40);
 			regmap_write(samsung->regmap, RX_COMBO_S0D2_DESKEW_CON2,
 				     dphy->dphy_param.skew_data_cal_clk[2]);
+			if (dphy->data_rate_mbps >= 1500 &&
+			    dphy->drv_data->chip_id >= CHIP_ID_RK3576) {
+				regmap_write(samsung->regmap, RX_COMBO_S0D2_DESKEW_CON0, BIT(0));
+				regmap_write(samsung->regmap, RX_COMBO_S0D2_DESKEW_CON4, 0x81A);
+			}
 		}
 		if (sensor->lanes > 0x03) {
 			regmap_write(samsung->regmap, RX_S0D3_GNR_CON1, 0x1450);
@@ -2088,6 +2103,11 @@ static int samsung_dcphy_rx_config_common(struct csi2_dphy *dphy,
 				     (dphy->dphy_param.lp_escclk_pol_sel[3] << 11));
 			regmap_write(samsung->regmap, RX_S0D3_DESKEW_CON2,
 				     dphy->dphy_param.skew_data_cal_clk[3]);
+			if (dphy->data_rate_mbps >= 1500 &&
+			    dphy->drv_data->chip_id >= CHIP_ID_RK3576) {
+				regmap_write(samsung->regmap, RX_S0D3_DESKEW_CON0, BIT(0));
+				regmap_write(samsung->regmap, RX_S0D3_DESKEW_CON4, 0x81A);
+			}
 		}
 	} else {
 		if (sensor->lanes > 0x00) {
@@ -2099,6 +2119,9 @@ static int samsung_dcphy_rx_config_common(struct csi2_dphy *dphy,
 			regmap_write(samsung->regmap, RX_COMBO_S0D0_ANA_CON7, 0x40);
 			regmap_write(samsung->regmap, RX_COMBO_S0D0_CRC_CON1, 0x1500);
 			regmap_write(samsung->regmap, RX_COMBO_S0D0_CRC_CON2, 0x30);
+			if (dphy->data_rate_mbps >= 3000 &&
+			    dphy->drv_data->chip_id >= CHIP_ID_RK3576)
+				regmap_write(samsung->regmap, RX_COMBO_S0D0_DESKEW_CON0, BIT(0));
 		}
 		if (sensor->lanes > 0x01) {
 			regmap_write(samsung->regmap, RX_COMBO_S0D1_GNR_CON1, 0x1450);
@@ -2109,6 +2132,9 @@ static int samsung_dcphy_rx_config_common(struct csi2_dphy *dphy,
 			regmap_write(samsung->regmap, RX_COMBO_S0D1_ANA_CON7, 0x40);
 			regmap_write(samsung->regmap, RX_COMBO_S0D1_CRC_CON1, 0x1500);
 			regmap_write(samsung->regmap, RX_COMBO_S0D1_CRC_CON2, 0x30);
+			if (dphy->data_rate_mbps >= 3000 &&
+			    dphy->drv_data->chip_id >= CHIP_ID_RK3576)
+				regmap_write(samsung->regmap, RX_COMBO_S0D1_DESKEW_CON0, BIT(0));
 		}
 		if (sensor->lanes > 0x02) {
 			regmap_write(samsung->regmap, RX_COMBO_S0D2_GNR_CON1, 0x1450);
@@ -2119,6 +2145,9 @@ static int samsung_dcphy_rx_config_common(struct csi2_dphy *dphy,
 			regmap_write(samsung->regmap, RX_COMBO_S0D2_ANA_CON7, 0x40);
 			regmap_write(samsung->regmap, RX_COMBO_S0D2_CRC_CON1, 0x1500);
 			regmap_write(samsung->regmap, RX_COMBO_S0D2_CRC_CON2, 0x30);
+			if (dphy->data_rate_mbps >= 3000 &&
+			    dphy->drv_data->chip_id >= CHIP_ID_RK3576)
+				regmap_write(samsung->regmap, RX_COMBO_S0D2_DESKEW_CON0, BIT(0));
 		}
 	}
 	return 0;
