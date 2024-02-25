@@ -110,6 +110,7 @@ struct rockchip_pwm_wave_config {
 	bool enable;
 	bool duty_en;
 	bool period_en;
+	unsigned long clk_rate;
 	u16 rpt;
 	u32 width_mode;
 	u32 update_mode;
