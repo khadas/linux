@@ -160,7 +160,7 @@
 #define SFC_MAX_CHIPSELECT_NUM		2
 
 #define SFC_MAX_IOSIZE_VER3		(512 * 31)
-#define SFC_MAX_IOSIZE_VER4		(0xFFFFFFFFU)
+#define SFC_MAX_IOSIZE_VER4		(0x10000U) /* Although up to 4GB, 64KB is enough with less mem reserved */
 
 /* DMA is only enabled for large data transmission */
 #define SFC_DMA_TRANS_THRETHOLD		(0x40)
@@ -222,6 +222,9 @@ static u16 rockchip_sfc_get_version(struct rockchip_sfc *sfc)
 
 static u32 rockchip_sfc_get_max_iosize(struct rockchip_sfc *sfc)
 {
+	if (sfc->version >= SFC_VER_4)
+		return SFC_MAX_IOSIZE_VER4;
+
 	return SFC_MAX_IOSIZE_VER3;
 }
 
@@ -488,20 +491,46 @@ static int rockchip_sfc_xfer_data_dma(struct rockchip_sfc *sfc,
 				      const struct spi_mem_op *op, u32 len)
 {
 	int ret;
+#ifdef ROCKCHIP_SFC_VERBOSE
+	ktime_t start_time;
+	ktime_t end_time;
+	unsigned long us = 0;
+#endif
 
 	dev_dbg(sfc->dev, "sfc xfer_dma len=%x\n", len);
 
-	if (op->data.dir == SPI_MEM_DATA_OUT)
+	if (op->data.dir == SPI_MEM_DATA_OUT) {
 		memcpy(sfc->buffer, op->data.buf.out, len);
+		dma_sync_single_for_device(sfc->dev, sfc->dma_buffer, len, DMA_TO_DEVICE);
+	}
 
+#ifdef ROCKCHIP_SFC_VERBOSE
+	start_time = ktime_get();
+#endif
 	ret = rockchip_sfc_fifo_transfer_dma(sfc, sfc->dma_buffer, len);
 	if (!wait_for_completion_timeout(&sfc->cp, msecs_to_jiffies(2000))) {
 		dev_err(sfc->dev, "DMA wait for transfer finish timeout\n");
 		ret = -ETIMEDOUT;
 	}
+#ifdef ROCKCHIP_SFC_VERBOSE
+	end_time = ktime_get();
+	us = ktime_to_us(ktime_sub(end_time, start_time));
+	dev_err(sfc->dev, "sfc io %d cost %ldus speed:%ldKB/S %llx\n", len, us, len * 1000 / us, sfc->dma_buffer);
+#endif
 	rockchip_sfc_irq_mask(sfc, SFC_IMR_DMA);
-	if (op->data.dir == SPI_MEM_DATA_IN)
+
+#ifdef ROCKCHIP_SFC_VERBOSE
+	start_time = ktime_get();
+#endif
+	if (op->data.dir == SPI_MEM_DATA_IN) {
+		dma_sync_single_for_cpu(sfc->dev, sfc->dma_buffer, len, DMA_FROM_DEVICE);
 		memcpy(op->data.buf.in, sfc->buffer, len);
+	}
+#ifdef ROCKCHIP_SFC_VERBOSE
+	end_time = ktime_get();
+	us = ktime_to_us(ktime_sub(end_time, start_time));
+	dev_err(sfc->dev, "sfc cp %d cost %ldus speed:%ldKB/S\n", len, us, len * 1000 / us);
+#endif
 
 	return ret;
 }
@@ -780,20 +809,6 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 	sfc->use_dma = !of_property_read_bool(sfc->dev->of_node,
 					      "rockchip,sfc-no-dma");
 
-	if (sfc->use_dma) {
-		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
-		if (ret) {
-			dev_warn(dev, "Unable to set dma mask\n");
-			return ret;
-		}
-
-		sfc->buffer = dmam_alloc_coherent(dev, SFC_MAX_IOSIZE_VER3,
-						  &sfc->dma_buffer,
-						  GFP_KERNEL);
-		if (!sfc->buffer)
-			return -ENOMEM;
-	}
-
 	ret = clk_prepare_enable(sfc->hclk);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to enable ahb clk\n");
@@ -836,14 +851,21 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_irq;
 
-	sfc->max_iosize = rockchip_sfc_get_max_iosize(sfc);
 	sfc->version = rockchip_sfc_get_version(sfc);
+	sfc->max_iosize = rockchip_sfc_get_max_iosize(sfc);
 
 	pm_runtime_set_autosuspend_delay(dev, ROCKCHIP_AUTOSUSPEND_DELAY);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_get_noresume(dev);
+
+	if (sfc->use_dma) {
+		sfc->buffer = (u8 *)__get_free_pages(GFP_KERNEL | GFP_DMA32, get_order(sfc->max_iosize));
+		if (!sfc->buffer)
+			return -ENOMEM;
+		sfc->dma_buffer = virt_to_phys(sfc->buffer);
+	}
 
 	ret = spi_register_master(master);
 	if (ret)
@@ -855,6 +877,7 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 	return 0;
 
 err_register:
+	free_pages((unsigned long)sfc->buffer, get_order(sfc->max_iosize));
 	pm_runtime_disable(sfc->dev);
 	pm_runtime_set_suspended(sfc->dev);
 	pm_runtime_dont_use_autosuspend(sfc->dev);
@@ -871,6 +894,7 @@ static int rockchip_sfc_remove(struct platform_device *pdev)
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct rockchip_sfc *sfc = platform_get_drvdata(pdev);
 
+	free_pages((unsigned long)sfc->buffer, get_order(sfc->max_iosize));
 	spi_unregister_master(master);
 
 	clk_disable_unprepare(sfc->clk);
