@@ -1189,6 +1189,12 @@ void rkcif_enable_dvp_clk_dual_edge(struct rkcif_device *dev, bool on)
 			else
 				val = RV1106_CIF_PCLK_SINGLE_EDGE;
 			rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
+		} else if (dev->chip_id == CHIP_RK3576_CIF) {
+			if (on)
+				val = RK3568_CIF_PCLK_DUAL_EDGE;
+			else
+				val = RK3568_CIF_PCLK_SINGLE_EDGE;
+			rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
 		}
 	}
 
@@ -1208,22 +1214,17 @@ void rkcif_config_dvp_clk_sampling_edge(struct rkcif_device *dev,
 				val = CIF_PCLK_SAMPLING_EDGE_RISING;
 			else
 				val = CIF_PCLK_SAMPLING_EDGE_FALLING;
-		}
-
-		if (dev->chip_id == CHIP_RK3568_CIF) {
+		} else if (dev->chip_id == CHIP_RK3568_CIF) {
 			if (edge == RKCIF_CLK_RISING)
 				val = RK3568_CIF_PCLK_SAMPLING_EDGE_RISING;
 			else
 				val = RK3568_CIF_PCLK_SAMPLING_EDGE_FALLING;
-		}
-
-		if (dev->chip_id == CHIP_RK3588_CIF) {
+		} else if (dev->chip_id == CHIP_RK3588_CIF) {
 			if (edge == RKCIF_CLK_RISING)
 				val = RK3588_CIF_PCLK_SAMPLING_EDGE_RISING;
 			else
 				val = RK3588_CIF_PCLK_SAMPLING_EDGE_FALLING;
-		}
-		if (dev->chip_id == CHIP_RV1106_CIF) {
+		} else if (dev->chip_id == CHIP_RV1106_CIF) {
 			if (dev->dphy_hw) {
 				if (edge == RKCIF_CLK_RISING)
 					val = RV1106_CIF_PCLK_EDGE_RISING_M0;
@@ -1237,6 +1238,11 @@ void rkcif_config_dvp_clk_sampling_edge(struct rkcif_device *dev,
 				rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_VENC, val);
 				return;
 			}
+		} else if (dev->chip_id == CHIP_RK3576_CIF) {
+			if (edge == RKCIF_CLK_RISING)
+				val = RK3576_CIF_PCLK_SAMPLING_EDGE_RISING;
+			else
+				val = RK3576_CIF_PCLK_SAMPLING_EDGE_FALLING;
 		}
 		rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
 	}

@@ -5758,6 +5758,67 @@ static u32 rkcif_determine_input_mode_rk3588(struct rkcif_stream *stream)
 	return mode;
 }
 
+static u32 rkcif_determine_input_mode_rk3576(struct rkcif_stream *stream)
+{
+	struct rkcif_device *dev = stream->cifdev;
+	struct rkcif_sensor_info *sensor_info = dev->active_sensor;
+	struct rkcif_sensor_info *terminal_sensor = &dev->terminal_sensor;
+	__u32 intf = BT656_STD_RAW;
+	u32 mode = INPUT_MODE_YUV;
+	v4l2_std_id std;
+	int ret;
+
+	ret = v4l2_subdev_call(sensor_info->sd, video, querystd, &std);
+	if (ret == 0) {
+		/* retrieve std from sensor if exist */
+		switch (std) {
+		case V4L2_STD_NTSC:
+		case V4L2_STD_PAL:
+			mode = INPUT_BT656_YUV422 << 2;
+			break;
+		case V4L2_STD_ATSC:
+			mode = INPUT_BT1120_YUV422 << 2;
+			break;
+		default:
+			v4l2_err(&dev->v4l2_dev,
+				 "std: %lld is not supported", std);
+		}
+		mode |= CSI_WRDDR_TYPE_RAW8 << 11;
+	} else {
+		/* determine input mode by mbus_code (fmt_type) */
+		switch (stream->cif_fmt_in->fmt_type) {
+		case CIF_FMT_TYPE_YUV:
+			if (sensor_info->mbus.type == V4L2_MBUS_BT656) {
+				if ((sensor_info->mbus.bus.parallel.flags & CIF_DVP_PCLK_DUAL_EDGE) == CIF_DVP_PCLK_DUAL_EDGE)
+					mode = INPUT_BT1120_YUV422 << 2;
+				else
+					mode = INPUT_BT656_YUV422 << 2;
+			} else {
+				mode = INPUT_BT601_YUV422 << 2;
+			}
+			mode |= CSI_WRDDR_TYPE_RAW8 << 11;
+			break;
+		case CIF_FMT_TYPE_RAW:
+			ret = v4l2_subdev_call(terminal_sensor->sd,
+					       core, ioctl,
+					       RKMODULE_GET_BT656_INTF_TYPE,
+					       &intf);
+			if (!ret) {
+				if (intf == BT656_SONY_RAW)
+					mode = INPUT_SONY_RAW << 2;
+				else
+					mode = INPUT_BT601_RAW << 2;
+			} else {
+				mode = INPUT_BT601_RAW << 2;
+			}
+			mode |= stream->cif_fmt_in->csi_fmt_val << 11;
+			break;
+		}
+	}
+	return mode;
+}
+
+
 static inline u32 rkcif_scl_ctl(struct rkcif_stream *stream)
 {
 	u32 fmt_type = stream->cif_fmt_in->fmt_type;
@@ -6124,6 +6185,84 @@ static int rkcif_dvp_get_output_type_mask(struct rkcif_stream *stream)
 	return mask;
 }
 
+static int rkcif_dvp_get_output_type_mask_rk3576(struct rkcif_stream *stream)
+{
+	unsigned int mask;
+	const struct cif_output_fmt *fmt = stream->cif_fmt_out;
+
+	switch (fmt->fourcc) {
+	case V4L2_PIX_FMT_NV16:
+		mask = (CSI_WRDDR_TYPE_YUV422SP_RK3588 << 15) |
+		       CSI_YUV_OUTPUT_ORDER_UYVY;
+		break;
+	case V4L2_PIX_FMT_NV61:
+		mask = (CSI_WRDDR_TYPE_YUV422SP_RK3588 << 15) |
+		       CSI_YUV_OUTPUT_ORDER_VYUY;
+		break;
+	case V4L2_PIX_FMT_NV12:
+		mask = (CSI_WRDDR_TYPE_YUV420SP_RK3588 << 15) |
+		       CSI_YUV_OUTPUT_ORDER_UYVY;
+		break;
+	case V4L2_PIX_FMT_NV21:
+		mask = (CSI_WRDDR_TYPE_YUV420SP_RK3588 << 15) |
+		       CSI_YUV_OUTPUT_ORDER_VYUY;
+		break;
+	case V4L2_PIX_FMT_YUYV:
+		mask = (CSI_WRDDR_TYPE_YUV_PACKET << 15) |
+		       CSI_YUV_OUTPUT_ORDER_YUYV;
+		break;
+	case V4L2_PIX_FMT_YVYU:
+		mask = (CSI_WRDDR_TYPE_YUV_PACKET << 15) |
+		       CSI_YUV_OUTPUT_ORDER_YVYU;
+		break;
+	case V4L2_PIX_FMT_UYVY:
+		mask = (CSI_WRDDR_TYPE_YUV_PACKET << 15) |
+		       CSI_YUV_OUTPUT_ORDER_UYVY;
+		break;
+	case V4L2_PIX_FMT_VYUY:
+		mask = (CSI_WRDDR_TYPE_YUV_PACKET << 15) |
+		       CSI_YUV_OUTPUT_ORDER_VYUY;
+		break;
+	case V4L2_PIX_FMT_RGB24:
+	case V4L2_PIX_FMT_BGR24:
+	case V4L2_PIX_FMT_RGB565:
+	case V4L2_PIX_FMT_BGR666:
+		mask = CSI_WRDDR_TYPE_RAW_COMPACT << 15;
+		break;
+	case V4L2_PIX_FMT_SRGGB8:
+	case V4L2_PIX_FMT_SGRBG8:
+	case V4L2_PIX_FMT_SGBRG8:
+	case V4L2_PIX_FMT_SBGGR8:
+	case V4L2_PIX_FMT_SRGGB10:
+	case V4L2_PIX_FMT_SGRBG10:
+	case V4L2_PIX_FMT_SGBRG10:
+	case V4L2_PIX_FMT_SBGGR10:
+	case V4L2_PIX_FMT_SRGGB12:
+	case V4L2_PIX_FMT_SGRBG12:
+	case V4L2_PIX_FMT_SGBRG12:
+	case V4L2_PIX_FMT_SBGGR12:
+	case V4L2_PIX_FMT_GREY:
+	case V4L2_PIX_FMT_Y10:
+	case V4L2_PIX_FMT_Y12:
+		if (stream->is_compact)
+			mask = CSI_WRDDR_TYPE_RAW_COMPACT << 15;
+		else
+			mask = CSI_WRDDR_TYPE_RAW_UNCOMPACT << 15;
+		break;
+	case V4L2_PIX_FMT_SBGGR16:
+	case V4L2_PIX_FMT_SGBRG16:
+	case V4L2_PIX_FMT_SGRBG16:
+	case V4L2_PIX_FMT_SRGGB16:
+	case V4L2_PIX_FMT_Y16:
+		mask = CSI_WRDDR_TYPE_RAW_UNCOMPACT << 15;
+		break;
+	default:
+		mask = CSI_WRDDR_TYPE_RAW_COMPACT << 15;
+		break;
+	}
+	return mask;
+}
+
 static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 {
 	u32 val, mbus_flags, href_pol, vsync_pol,
@@ -6229,8 +6368,10 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 
 	if (dev->chip_id < CHIP_RK3588_CIF)
 		inputmode = rkcif_determine_input_mode(stream);
-	else
+	else if (dev->chip_id < CHIP_RK3576_CIF)
 		inputmode = rkcif_determine_input_mode_rk3588(stream);
+	else
+		inputmode = rkcif_determine_input_mode_rk3576(stream);
 	if (dev->chip_id <= CHIP_RK1808_CIF) {
 		if (inputmode == INPUT_MODE_BT1120) {
 			if (stream->cif_fmt_in->field == V4L2_FIELD_NONE)
@@ -6303,7 +6444,7 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 			val |= CIF_HIGH_ALIGN;
 		else
 			val &= ~CIF_HIGH_ALIGN;
-	} else {
+	} else if (dev->chip_id < CHIP_RK3576_CIF) {
 		out_fmt_mask = rkcif_dvp_get_output_type_mask(stream);
 		in_fmt_yuv_order = rkcif_dvp_get_input_yuv_order(stream);
 		val = vsync_pol | href_pol | inputmode
@@ -6318,6 +6459,21 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 			val |= CIF_HIGH_ALIGN_RK3588;
 		else
 			val &= ~CIF_HIGH_ALIGN_RK3588;
+	} else {
+		out_fmt_mask = rkcif_dvp_get_output_type_mask_rk3576(stream);
+		val = vsync_pol | href_pol
+			| inputmode
+			| yc_swap
+			| out_fmt_mask
+			| stream->cif_fmt_in->dvp_fmt_val
+			| multi_id_en
+			| xfer_mode
+			| multi_id_sel | multi_id_mode
+			| (bt1120_edge_mode >> 8);
+		if (stream->is_high_align)
+			val |= (CIF_HIGH_ALIGN_RK3588 << 2);
+		else
+			val &= ~(CIF_HIGH_ALIGN_RK3588 << 2);
 	}
 	if (dev->chip_id >= CHIP_RK3576_CIF)
 		val |= DVP_UVDS_EN;
@@ -6371,13 +6527,16 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 		/* enable line int for sof */
 		rkcif_write_register(dev, CIF_REG_DVP_LINE_INT_NUM, 0x1);
 		rkcif_write_register_or(dev, CIF_REG_DVP_INTEN, LINE_INT_EN);
-	} else {
+	} else if (dev->chip_id < CHIP_RK3576_CIF) {
 		if (dev->chip_id == CHIP_RV1106_CIF)
 			reserved = 0xfc3c0000;
 		else
 			reserved = 0;
 		rkcif_write_register(dev, CIF_REG_DVP_INTSTAT, 0x3c3ffff | reserved);
 		rkcif_write_register_or(dev, CIF_REG_DVP_INTEN, 0x033ffff);//0x3c3ffff
+	} else {
+		rkcif_write_register(dev, CIF_REG_DVP_INTSTAT, 0x3c3ffff);
+		rkcif_write_register_or(dev, CIF_REG_DVP_INTEN, 0x3c3ff0f);
 	}
 
 	if (stream->dma_en) {
@@ -6400,13 +6559,12 @@ static int rkcif_stream_start(struct rkcif_stream *stream, unsigned int mode)
 							stream->id);
 		}
 	}
-	rkcif_write_register_or(dev, CIF_REG_DVP_INTEN,
-				DVP_DMA_END_INTSTAT(stream->id) |
-				INTSTAT_ERR | PST_INF_FRAME_END);
 
-	/* enable line int for sof */
-	rkcif_write_register(dev, CIF_REG_DVP_LINE_INT_NUM, 0x1);
-	rkcif_write_register_or(dev, CIF_REG_DVP_INTEN, LINE_INT_EN);
+	if (dev->chip_id < CHIP_RK3588_CIF) {
+		/* enable line int for sof */
+		rkcif_write_register(dev, CIF_REG_DVP_LINE_INT_NUM, 0x1);
+		rkcif_write_register_or(dev, CIF_REG_DVP_INTEN, LINE_INT_EN);
+	}
 
 	if (dev->workmode == RKCIF_WORKMODE_ONEFRAME)
 		workmode = MODE_ONEFRAME;
@@ -12234,10 +12392,21 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 			cif_dev->irq_stats.frm_end_cnt[stream->id]++;
 		}
 
-		if (intstat & DVP_FRAME0_START_ID0 || intstat & DVP_FRAME1_START_ID0) {
-			stream->is_in_vblank = false;
-			if (!stream->cur_skip_frame)
-				rkcif_deal_sof(cif_dev);
+		for (i = 0; i < RKCIF_STREAM_DVP; i++) {
+			if (intstat & (cif_dev->chip_id < CHIP_RK3576_CIF ?
+			    DVP_START_INTSTAT(i) : DVP_START_INTSTAT_RK3576(i))) {
+				stream = &cif_dev->stream[i];
+				if (i == 0) {
+					if (!stream->cur_skip_frame)
+						rkcif_deal_sof(cif_dev);
+				} else {
+					spin_lock_irqsave(&stream->fps_lock, flags);
+					stream->readout.fs_timestamp = rkcif_time_get_ns(cif_dev);
+					stream->frame_idx++;
+					spin_unlock_irqrestore(&stream->fps_lock, flags);
+				}
+				stream->is_in_vblank = false;
+			}
 		}
 
 		if (stream->crop_dyn_en)
