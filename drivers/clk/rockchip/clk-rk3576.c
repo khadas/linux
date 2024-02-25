@@ -884,7 +884,7 @@ static struct rockchip_clk_branch rk3576_clk_branches[] __initdata = {
 	COMPOSITE(HCLK_DDR_ROOT, "hclk_ddr_root", gpll_cpll_p, CLK_IGNORE_UNUSED,
 			RK3576_CLKSEL_CON(77), 5, 1, MFLAGS, 0, 5, DFLAGS,
 			RK3576_CLKGATE_CON(22), 11, GFLAGS),
-	GATE(FCLK_DDR_CM0_CORE, "fclk_ddr_cm0_core", "hclk_ddr_root", 0,
+	GATE(FCLK_DDR_CM0_CORE, "fclk_ddr_cm0_core", "hclk_ddr_root", CLK_IS_CRITICAL,
 			RK3576_CLKGATE_CON(22), 15, GFLAGS),
 	COMPOSITE_NODIV(CLK_DDR_TIMER_ROOT, "clk_ddr_timer_root", mux_100m_24m_p, 0,
 			RK3576_CLKSEL_CON(77), 6, 1, MFLAGS,
