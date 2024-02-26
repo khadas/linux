@@ -790,6 +790,8 @@ config TOUCHSCREEN_HTCPEN
 	  To compile this driver as a module, choose M here: the
 	  module will be called htcpen.
 
+source "drivers/input/touchscreen/parade/Kconfig"
+
 config TOUCHSCREEN_PENMOUNT
 	tristate "Penmount serial touchscreen"
 	select SERIO
