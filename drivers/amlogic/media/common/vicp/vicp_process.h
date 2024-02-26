@@ -39,6 +39,8 @@ extern struct vicp_hdr_data_s *vicp_hdr;
 extern u32 rdma_en;
 extern u32 debug_rdma_en;
 extern u32 fgrain_en;
+extern u32 debug_reg_en;
+
 
 /* *********************************************************************** */
 /* ************************* enum definitions **************************.*/

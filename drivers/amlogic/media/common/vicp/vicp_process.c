@@ -1946,7 +1946,7 @@ static void set_vid_cmpr_all_param(struct vid_cmpr_top_s *vid_cmpr_top)
 			vid_cmpr_afbcd.v_skip_uv = 0;
 		}
 		vid_cmpr_afbcd.rev_mode = vid_cmpr_top->rot_rev_mode;
-		vid_cmpr_afbcd.def_color_y = 0x00 << (vid_cmpr_top->src_compbits - 8);
+		vid_cmpr_afbcd.def_color_y = 0x3ff;/*<< (vid_cmpr_top->src_compbits - 8);*/
 		vid_cmpr_afbcd.def_color_u = 0x80 << (vid_cmpr_top->src_compbits - 8);
 		vid_cmpr_afbcd.def_color_v = 0x80 << (vid_cmpr_top->src_compbits - 8);
 		vid_cmpr_afbcd.win_bgn_h = vid_cmpr_top->src_win_bgn_h;
@@ -2609,6 +2609,11 @@ int vicp_process_task(struct vid_cmpr_top_s *vid_cmpr_top)
 			last_output_end_v = vid_cmpr_top->out_win_end_v;
 			last_output_begin_h = vid_cmpr_top->out_win_bgn_h;
 			last_output_end_h = vid_cmpr_top->out_win_end_h;
+		}
+
+		if (debug_reg_en) {
+			vicp_print(VICP_INFO, "%s: reg debug enable.\n", __func__);
+			is_need_update_all = false;
 		}
 
 		if (print_flag & VICP_INFO) {

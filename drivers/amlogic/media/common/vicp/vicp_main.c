@@ -70,6 +70,7 @@ u32 debug_axis_en;
 struct output_axis_s axis;
 u32 rdma_en;
 u32 debug_rdma_en;
+u32 debug_reg_en;
 
 struct mutex vicp_mutex; /*used to avoid user space call at the same time*/
 struct vicp_hdr_data_s *vicp_hdr;
@@ -518,6 +519,29 @@ static ssize_t debug_rdma_en_store(struct class *cla, struct class_attribute *at
 	return count;
 }
 
+static ssize_t debug_reg_en_show(struct class *cla, struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 80, "current debug_reg_enable is %d.\n", debug_reg_en);
+}
+
+static ssize_t debug_reg_en_store(struct class *cla, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	debug_reg_en = tmp;
+
+	pr_info("set debug_reg_en to %d.\n", debug_reg_en);
+	return count;
+}
+
 static CLASS_ATTR_RW(print_flag);
 static CLASS_ATTR_RW(reg);
 static CLASS_ATTR_RW(demo_enable);
@@ -531,6 +555,7 @@ static CLASS_ATTR_RW(debug_axis_en);
 static CLASS_ATTR_RW(axis);
 static CLASS_ATTR_RW(rdma_en);
 static CLASS_ATTR_RW(debug_rdma_en);
+static CLASS_ATTR_RW(debug_reg_en);
 
 static struct attribute *vicp_class_attrs[] = {
 	&class_attr_print_flag.attr,
@@ -546,6 +571,7 @@ static struct attribute *vicp_class_attrs[] = {
 	&class_attr_axis.attr,
 	&class_attr_rdma_en.attr,
 	&class_attr_debug_rdma_en.attr,
+	&class_attr_debug_reg_en.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(vicp_class);
