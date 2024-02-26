@@ -261,7 +261,7 @@ static int aml_hwspinlock_probe(struct platform_device *pdev)
 	struct bakery_lock *bakery_lock;
 	void __iomem *addr;
 	u32 bakery_cpus;
-	u32 spinlock_init_date;
+	u32 spinlock_init_addr;
 	u32 recv_size;
 	u32 p_recv;
 	int err, i;
@@ -270,11 +270,15 @@ static int aml_hwspinlock_probe(struct platform_device *pdev)
 		recv_size = sizeof(recv_size);
 		if (mbox_message_send_ao_sync(&pdev->dev, SCPI_CMD_GET_SPINLOCK,
 				NULL, 0, &p_recv, recv_size, 0) < 0) {
-			spinlock_init_date = 0;
+			spinlock_init_addr = 0;
 		} else {
-			spinlock_init_date = p_recv;
+			spinlock_init_addr = p_recv;
 		}
-		addr = ioremap(spinlock_init_date, 0x80);
+		if (!spinlock_init_addr) {
+			dev_err(dev, "failed to get address from mbox\n");
+			return -ENXIO;
+		}
+		addr = ioremap(spinlock_init_addr, 0x80);
 		if (IS_ERR_OR_NULL(addr))
 			return PTR_ERR(addr);
 	} else {
