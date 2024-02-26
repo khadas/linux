@@ -2534,6 +2534,9 @@
 		rockchip,srv = <&mpp_srv>;
 		rockchip,task-capacity = <8>;
 		rockchip,taskqueue-node = <5>;
+		rockchip,sram = <&rkvdec_sram>;
+		rockchip,rcb-iova = <0x10000000 0x78000>;
+		rockchip,rcb-min-width = <512>;
 		power-domains = <&power RK3576_PD_VDEC>;
 		status = "disabled";
 	};
@@ -5266,6 +5269,20 @@
 		rockchip,grf = <&mipidphy1_grf>;
 		rockchip,sys_grf = <&sys_grf>;
 		status = "okay";
+	};
+
+	sram: sram@3ff88000 {
+		compatible = "mmio-sram";
+		reg = <0x0 0x3ff88000 0x0 0x78000>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0x3ff88000 0x78000>;
+
+		/* start address and size should be 4k align */
+		rkvdec_sram: rkvdec-sram@0 {
+			reg = <0x0 0x78000>;
+		};
 	};
 
 	scmi_shmem: scmi-shmem@4010f000 {
