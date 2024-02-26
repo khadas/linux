@@ -1286,7 +1286,7 @@
 
 &aml_wifi{
 	status = "okay";
-	interrupt-gpios = <&ao_gpio  GPIOX_8 GPIO_ACTIVE_HIGH>;
+	interrupt-gpios = <&gpio  GPIOX_8 GPIO_ACTIVE_HIGH>;
 	pinctrl-0 = <&pwm_a_pins2>;
 	power_on-gpios = <&gpio  GPIOX_15  GPIO_ACTIVE_HIGH>;
 	chip_en-gpios = <&gpio   GPIOX_7  GPIO_ACTIVE_HIGH>;
