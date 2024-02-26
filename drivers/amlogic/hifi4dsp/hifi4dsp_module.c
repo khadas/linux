@@ -216,8 +216,6 @@ static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 			pr_err("%s error: HIFI4DSP_LOAD is error", __func__);
 			goto err;
 		}
-		pr_debug("\ninfo->fw1_name : %s\n", usrinfo->fw1_name);
-		pr_debug("\ninfo->fw2_name : %s\n", usrinfo->fw2_name);
 		priv->dsp->info = usrinfo;
 		hifi4dsp_driver_load_fw(priv->dsp);
 	break;
@@ -448,7 +446,10 @@ static int hifi4dsp_driver_load_fw(struct hifi4dsp_dsp *dsp)
 		return -1;
 	}
 	dsp->dsp_fw = new_dsp_fw;  /*set newest fw as def fw of dsp*/
-	strcpy(new_dsp_fw->name, info->fw_name);
+	if (snprintf(new_dsp_fw->name, 32, info->fw_name) > 31) {
+		pr_err("%s error: dsp fw_name exceeds specified length", __func__);
+		return -1;
+	}
 	if (info->phy_addr != 0) { /*to be improved*/
 		//info->phy_addr may !=0, but illegal
 		new_dsp_fw->paddr = info->phy_addr;
@@ -486,7 +487,10 @@ static int hifi4dsp_driver_load_2fw(struct hifi4dsp_dsp *dsp)
 		return -1;
 	}
 	dsp->dsp_fw = new_dsp_ddr_fw;  /*set newest fw as def fw of dsp*/
-	strcpy(new_dsp_ddr_fw->name, info->fw1_name);
+	if (snprintf(new_dsp_ddr_fw->name, 32, info->fw1_name) > 31) {
+		pr_err("%s error: dsp fw1_name exceeds specified length", __func__);
+		return -1;
+	}
 	new_dsp_ddr_fw->paddr = dsp->pdata->fw_paddr;
 	new_dsp_ddr_fw->buf = dsp->pdata->fw_buf;
 	pr_debug("new_dsp_ddr_fw, name=%s, paddr=0x%llx, virtual addr:0x%lx\n",
@@ -505,7 +509,10 @@ static int hifi4dsp_driver_load_2fw(struct hifi4dsp_dsp *dsp)
 		return -1;
 	}
 	dsp->dsp_fw = new_dsp_sram_fw;
-	strcpy(new_dsp_sram_fw->name, info->fw2_name);
+	if (snprintf(new_dsp_sram_fw->name, 32, info->fw2_name) > 31) {
+		pr_err("%s error: dsp fw2_name exceeds specified length", __func__);
+		return -1;
+	}
 	new_dsp_sram_fw->paddr = dsp->id ? dspb_sram_addr : boot_sram_addr;
 	new_dsp_sram_fw->buf = dsp->id ? g_regbases.sram_base_b : g_regbases.sram_base;
 	hifi4dsp_fw_sram_load(new_dsp_sram_fw);
