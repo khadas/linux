@@ -31,8 +31,9 @@ enum epd_lut_type {
 
 struct epd_lut_data {
 	unsigned int frame_num;
+	unsigned int repair_frame_num;
 	unsigned int *data;
-	u8 *wf_table[2];
+	u8 *wf_table[3];
 };
 
 /*

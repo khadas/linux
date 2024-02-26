@@ -66,6 +66,8 @@
 #define EBC_GET_BUF_FORMAT		(0x7010)
 #define EBC_DROP_PREV_BUFFER		(0x7011)
 #define EBC_GET_STATUS				(0x7012)
+#define EBC_SET_FB_BLANK				(0x7013)
+#define EBC_SET_FB_UNBLANK			(0x7014)
 
 /*
  * IMPORTANT: Those values is corresponding to android hardware program,
