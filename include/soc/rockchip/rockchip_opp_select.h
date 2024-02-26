@@ -104,6 +104,7 @@ struct rockchip_opp_info {
 	struct mutex dvfs_mutex;
 	const struct rockchip_opp_data *data;
 	struct pvtpll_opp_table *opp_table;
+	struct regmap *pvtpll_base;
 	unsigned int pvtpll_avg_offset;
 	unsigned int pvtpll_min_rate;
 	unsigned int pvtpll_volt_step;
