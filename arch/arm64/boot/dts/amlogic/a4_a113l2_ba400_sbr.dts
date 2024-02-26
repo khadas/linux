@@ -816,7 +816,7 @@
 		/* max 0xf, each bit for one lane, usually one lane */
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
-		channel_mask = <0x03>;
+		channel_mask = <0xff>;
 		status = "okay";
 	};
 }; /* end of audiobus */
