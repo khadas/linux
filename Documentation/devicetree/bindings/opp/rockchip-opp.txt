@@ -62,6 +62,7 @@ In 'operating-points-v2' table:
                        target frequency less than the threshold frequency,
                        there may be no need to set intermediate rate.
 
+- rockchip,pvtpll: The phandle of the syscon node for PVTPLL register.
 - rockchip,pvtpll-table: The property is an array of 5-tuples items, and
                        each item consists frequency and pvtpll config like
                        <freq_khz ring length low_temp_ring low_temp_length>,
