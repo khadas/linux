@@ -12095,9 +12095,9 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					if (!ret)
 						stream->is_finish_stop_dma = true;
 				}
+				spin_unlock_irqrestore(&stream->vbq_lock, flags);
 				if (stream->to_en_dma)
 					rkcif_enable_dma_capture(stream, false);
-				spin_unlock_irqrestore(&stream->vbq_lock, flags);
 				if (rkcif_get_interlace_mode(stream) == RKCIF_INTERLACE_SOFT_AUTO)
 					rkcif_check_mipi_interlaced_frame_id(stream);
 			}
