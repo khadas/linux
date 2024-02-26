@@ -226,6 +226,8 @@ struct meson_vpu_osd_state {
 	u32 dst_h;
 	int dst_x;
 	int dst_y;
+	u32 fb_w;
+	u32 fb_h;
 	int s_mode;
 	int r_mode;
 	u32 plane_index;

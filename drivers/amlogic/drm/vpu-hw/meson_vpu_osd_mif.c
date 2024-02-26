@@ -739,6 +739,8 @@ static int osd_check_state(struct meson_vpu_block *vblk,
 	mvos->src_y = plane_info->src_y;
 	mvos->src_w = plane_info->src_w;
 	mvos->src_h = plane_info->src_h;
+	mvos->fb_w = plane_info->fb_w;
+	mvos->fb_h = plane_info->fb_h;
 	mvos->byte_stride = plane_info->byte_stride;
 	mvos->phy_addr = plane_info->phy_addr;
 	mvos->pixel_format = plane_info->pixel_format;
@@ -919,14 +921,9 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 
 	src_h = mvos->src_h + mvos->src_y;
 	byte_stride = mvos->byte_stride;
-	if (osd->mif_acc_mode == LINEAR_MIF) {
-		if (mvsps->more_60)
-			byte_stride = line_stride_calc(mvos->pixel_format,
-						mvos->src_w * 2, 0);
-		else
-			byte_stride = line_stride_calc(mvos->pixel_format,
-						mvos->src_w, 0);
-	}
+	if (osd->mif_acc_mode == LINEAR_MIF)
+		byte_stride = line_stride_calc(mvos->pixel_format,
+					mvos->fb_w, 0);
 	phy_addr = mvos->phy_addr;
 	scope_src.h_start = mvos->src_x;
 	scope_src.h_end = mvos->src_x + mvos->src_w - 1;
