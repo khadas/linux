@@ -102,8 +102,13 @@ EXPORT_SYMBOL(contig_page_data);
 #endif
 
 #if defined(CONFIG_ROCKCHIP_THUNDER_BOOT) && defined(CONFIG_SMP)
-static unsigned long defer_start __initdata;
-static unsigned long defer_end __initdata;
+static int db_count __initdata;
+#define DB_COUNT_MAX 4
+
+static struct deferred_block {
+	unsigned long defer_start;
+	unsigned long defer_end;
+} db[DB_COUNT_MAX] __initdata;
 
 #define DEFAULT_DEFER_FREE_BLOCK_SIZE SZ_256M
 static unsigned long defer_free_block_size __initdata =
@@ -2064,21 +2069,23 @@ static void __init __free_pages_memory(unsigned long start, unsigned long end)
 #if defined(CONFIG_ROCKCHIP_THUNDER_BOOT) && defined(CONFIG_SMP)
 int __init defer_free_memblock(void *unused)
 {
-	if (defer_start == 0)
-		return 0;
+	int i;
 
-	pr_debug("start = %ld, end = %ld\n", defer_start, defer_end);
+	for (i = 0; i < db_count; i++) {
+		pr_debug("%s: start = %ld, end = %ld\n",
+			 __func__, db[i].defer_start, db[i].defer_end);
 
-	__free_pages_memory(defer_start, defer_end);
+		__free_pages_memory(db[i].defer_start, db[i].defer_end);
 
-	totalram_pages_add(defer_end - defer_start);
+		totalram_pages_add(db[i].defer_end - db[i].defer_start);
 
-	pr_info("%s: size %luM free %luM [%luM - %luM] total %luM\n", __func__,
-		defer_free_block_size >> 20,
-		(defer_end - defer_start) >> (20 - PAGE_SHIFT),
-		defer_end >> (20 - PAGE_SHIFT),
-		defer_start >> (20 - PAGE_SHIFT),
-		totalram_pages() >> (20 - PAGE_SHIFT));
+		pr_info("%s: size %luM free %luM [%luM - %luM] total %luM\n",
+			__func__, defer_free_block_size >> 20,
+			(db[i].defer_end - db[i].defer_start) >> (20 - PAGE_SHIFT),
+			db[i].defer_start >> (20 - PAGE_SHIFT),
+			db[i].defer_end >> (20 - PAGE_SHIFT),
+			totalram_pages() >> (20 - PAGE_SHIFT));
+	}
 	return 0;
 }
 #endif
@@ -2094,10 +2101,11 @@ static unsigned long __init __free_memory_core(phys_addr_t start,
 		return 0;
 
 #if defined(CONFIG_ROCKCHIP_THUNDER_BOOT) && defined(CONFIG_SMP)
-	if ((end - start) > defer_free_block_size) {
-		defer_start = start_pfn;
-		defer_end = end_pfn;
-
+	pr_debug("%s, start = %pa, end = %pa\n", __func__, &start, &end);
+	if ((end - start) > defer_free_block_size && (db_count < ARRAY_SIZE(db))) {
+		db[db_count].defer_start = start_pfn;
+		db[db_count].defer_end = end_pfn;
+		db_count++;
 		return 0;
 	}
 #endif
