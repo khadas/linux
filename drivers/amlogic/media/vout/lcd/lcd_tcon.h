@@ -55,7 +55,7 @@ struct lcd_tcon_config_s {
 	unsigned int *axi_reg;
 	void (*tcon_axi_mem_config)(void);
 	void (*tcon_axi_mem_secure)(void);
-	void (*tcon_axi_mem_update)(unsigned int *table);
+	void (*tcon_init_table_pre_proc)(unsigned char *table);
 	void (*tcon_global_reset)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_reload_pre)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_reload)(struct aml_lcd_drv_s *pdrv);
@@ -244,12 +244,12 @@ void lcd_tcon_fw_base_timing_update(struct aml_lcd_drv_s *pdrv);
  * **********************************
  */
 /* internal */
-void lcd_tcon_od_pre_disable(unsigned char *table);
 int lcd_tcon_valid_check(void);
 struct tcon_rmem_s *get_lcd_tcon_rmem(void);
 struct tcon_mem_map_table_s *get_lcd_tcon_mm_table(void);
 void lcd_tcon_global_reset_t5(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_global_reset_t3(struct aml_lcd_drv_s *pdrv);
+void lcd_tcon_init_table_pre_proc(unsigned char *table);
 void lcd_tcon_core_reg_set(struct aml_lcd_drv_s *pdrv,
 			   struct lcd_tcon_config_s *tcon_conf,
 			   struct tcon_mem_map_table_s *mm_table,
