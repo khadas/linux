@@ -96,6 +96,7 @@ struct sc89890_device {
 
 	struct regulator_dev *otg_vbus_reg;
 	unsigned long usb_event;
+	struct gpio_desc *gpiod_otg_en;
 
 	struct regmap *rmap;
 	struct regmap_field *rmap_fields[F_MAX_FIELDS];
@@ -265,12 +266,12 @@ enum sc89890_table_ids {
 	TBL_IILIM,
 	TBL_VREG,
 	TBL_BOOSTV,
-	TBL_SYSVMIN,
 	TBL_VBATCOMP,
 	TBL_RBATCOMP,
 
 	/* lookup tables */
 	TBL_TREG,
+	TBL_SYSVMIN,
 	TBL_BOOSTI,
 };
 
@@ -281,10 +282,16 @@ static const u32 sc89890_treg_tbl[] = { 60, 80, 100, 120 };
 
 /* Boost mode current limit lookup table, in uA */
 static const u32 sc89890_boosti_tbl[] = {
-	500000, 700000, 1100000, 1300000, 1600000, 1800000, 2100000, 2400000
+	500000, 750000, 1200000, 1400000, 1650000, 1875000, 2150000, 2450000
 };
 
 #define SC89890_BOOSTI_TBL_SIZE		ARRAY_SIZE(sc89890_boosti_tbl)
+
+/* sys min voltage lookup table, in uV */
+static const u32 sc89890_vsys_tbl[] = {
+	2600000, 2800000, 3000000, 3200000, 3400000, 3500000, 3600000, 3700000
+};
+#define SC89890_VSYS_TBL_SIZE		ARRAY_SIZE(sc89890_vsys_tbl)
 
 struct sc89890_range {
 	u32 min;
@@ -305,14 +312,14 @@ static const union {
 	[TBL_ICHG] = { .rt = {0, 5056000, 64000} }, /* uA */
 	[TBL_ITERM] = { .rt = {64000, 1024000, 64000} }, /* uA */
 	[TBL_IILIM] = { .rt = {100000, 3250000, 50000} }, /* uA */
-	[TBL_VREG] = { .rt = {3840000, 4608000, 16000} }, /* uV */
-	[TBL_BOOSTV] = { .rt = {4550000, 5510000, 64000} }, /* uV */
-	[TBL_SYSVMIN] = { .rt = {3000000, 3700000, 100000} }, /* uV */
+	[TBL_VREG] = { .rt = {3840000, 4848000, 16000} }, /* uV */
+	[TBL_BOOSTV] = { .rt = {3900000, 5400000, 100000} }, /* uV */
 	[TBL_VBATCOMP] = { .rt = {0, 224000, 32000} }, /* uV */
 	[TBL_RBATCOMP] = { .rt = {0, 140000, 20000} }, /* uOhm */
 
 	/* lookup tables */
 	[TBL_TREG] = { .lt = {sc89890_treg_tbl, SC89890_TREG_TBL_SIZE} },
+	[TBL_SYSVMIN] = { .lt = {sc89890_vsys_tbl, SC89890_VSYS_TBL_SIZE} }, /* uV */
 	[TBL_BOOSTI] = { .lt = {sc89890_boosti_tbl, SC89890_BOOSTI_TBL_SIZE} }
 };
 
@@ -593,6 +600,16 @@ static int sc89890_power_supply_get_property(struct power_supply *psy,
 	return 0;
 }
 
+static int sc89890_enable_charger(struct sc89890_device *sc89890)
+{
+	return sc89890_field_write(sc89890, F_CHG_CFG, 1);
+}
+
+static int sc89890_disable_charger(struct sc89890_device *sc89890)
+{
+	return sc89890_field_write(sc89890, F_CHG_CFG, 0);
+}
+
 static int sc89890_power_supply_set_property(struct power_supply *psy,
 					     enum power_supply_property psp,
 					     const union power_supply_propval *val)
@@ -615,6 +632,17 @@ static int sc89890_power_supply_set_property(struct power_supply *psy,
 			dev_err(sc89890->dev, "set input current limit failed\n");
 		break;
 
+	case POWER_SUPPLY_PROP_ONLINE:
+		if (val->intval) {
+			ret = sc89890_enable_charger(sc89890);
+			if (ret < 0)
+				dev_err(sc89890->dev, "enable charge failed\n");
+		} else {
+			ret = sc89890_disable_charger(sc89890);
+			if (ret < 0)
+				dev_err(sc89890->dev, "disable charge failed\n");
+		}
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -809,6 +837,10 @@ static int sc89890_otg_vbus_enable(struct regulator_dev *dev)
 {
 	struct sc89890_device *sc = rdev_get_drvdata(dev);
 
+	if (!IS_ERR_OR_NULL(sc->gpiod_otg_en))
+		gpiod_direction_output(sc->gpiod_otg_en, 0x1);
+
+	sc89890_disable_charger(sc);
 	sc89890_set_otg_vbus(sc, true);
 
 	return 0;
@@ -817,6 +849,9 @@ static int sc89890_otg_vbus_enable(struct regulator_dev *dev)
 static int sc89890_otg_vbus_disable(struct regulator_dev *dev)
 {
 	struct sc89890_device *sc = rdev_get_drvdata(dev);
+
+	if (!IS_ERR_OR_NULL(sc->gpiod_otg_en))
+		gpiod_direction_output(sc->gpiod_otg_en, 0x0);
 
 	sc89890_set_otg_vbus(sc, false);
 
@@ -858,8 +893,12 @@ static int sc89890_register_otg_vbus_regulator(struct sc89890_device *sc)
 	np = of_get_child_by_name(sc->dev->of_node, "regulators");
 	if (!np) {
 		dev_warn(sc->dev, "cannot find regulators node\n");
-		return -ENXIO;
+		return 0;
 	}
+
+	sc->gpiod_otg_en = devm_gpiod_get_optional(sc->dev, "otg-en", GPIOD_OUT_LOW);
+	if (IS_ERR_OR_NULL(sc->gpiod_otg_en))
+		dev_warn(sc->dev, "failed to request GPIO otg en pin\n");
 
 	config.dev = sc->dev;
 	config.driver_data = sc;
@@ -1112,7 +1151,9 @@ static int sc89890_probe(struct i2c_client *client,
 	if (ret)
 		goto irq_fail;
 
-	sc89890_register_otg_vbus_regulator(sc89890);
+	ret = sc89890_register_otg_vbus_regulator(sc89890);
+	if (ret)
+		return ret;
 	sc89890_create_device_node(sc89890->dev);
 
 	return 0;
