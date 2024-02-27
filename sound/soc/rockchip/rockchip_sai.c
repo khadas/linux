@@ -1624,15 +1624,19 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 		return PTR_ERR(sai->hclk);
 	}
 
+	ret = clk_prepare_enable(sai->hclk);
+	if (ret)
+		return ret;
+
 	regmap_read(sai->regmap, SAI_VERSION, &sai->version);
 
 	ret = rockchip_sai_parse_quirks(sai);
 	if (ret)
-		return ret;
+		goto err_disable_hclk;
 
 	ret = rockchip_sai_init_dai(sai, res, &dai);
 	if (ret)
-		return ret;
+		goto err_disable_hclk;
 
 	/*
 	 * MUST: after pm_runtime_enable step, any register R/W
@@ -1658,6 +1662,7 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 		goto err_runtime_suspend;
 
 	if (device_property_read_bool(&pdev->dev, "rockchip,no-dmaengine")) {
+		clk_disable_unprepare(sai->hclk);
 		dev_info(&pdev->dev, "Used for Multi-DAI\n");
 		return 0;
 	}
@@ -1670,6 +1675,8 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_runtime_suspend;
 
+	clk_disable_unprepare(sai->hclk);
+
 	return 0;
 
 err_runtime_suspend:
@@ -1677,6 +1684,8 @@ err_runtime_suspend:
 		rockchip_sai_runtime_suspend(&pdev->dev);
 err_runtime_disable:
 	pm_runtime_disable(&pdev->dev);
+err_disable_hclk:
+	clk_disable_unprepare(sai->hclk);
 
 	return ret;
 }
