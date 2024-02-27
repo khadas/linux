@@ -775,6 +775,7 @@ static int ebc_tcon_remove(struct platform_device *pdev)
 static struct rockchip_ebc_tcon_data rk3568_ebc_data = {
 	.volatile_reg = tcon_is_volatile_reg,
 	.tcon = {
+		.version = EBC_VERSION_RK3568,
 		.enable = tcon_enable,
 		.disable = tcon_disable,
 		.dsp_mode_set = tcon_dsp_mode_set,
@@ -788,6 +789,7 @@ static struct rockchip_ebc_tcon_data rk3568_ebc_data = {
 static struct rockchip_ebc_tcon_data rk3576_ebc_data = {
 	.volatile_reg = rk3576_tcon_is_volatile_reg,
 	.tcon = {
+		.version = EBC_VERSION_RK3576,
 		.enable = rk3576_tcon_enable,
 		.disable = rk3576_tcon_disable,
 		.dsp_mode_set = rk3576_tcon_dsp_mode_set,

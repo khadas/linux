@@ -10,11 +10,11 @@
 
 #include "../ebc_panel.h"
 
-//update mode define
+/* update mode */
 #define NORMAL_UPDATE	0
 #define DIFF_UPDATE	1
 
-//display mode define
+/* display mode */
 #define DIRECT_MODE	0
 #define LUT_MODE	1
 #define THREE_WIN_MODE	1
@@ -28,6 +28,11 @@ enum ebc_tcon_data_format {
 	EBC_Y5_FORMAT = 4,
 };
 
+enum ebc_tcon_version {
+	EBC_VERSION_RK3568 = 0,
+	EBC_VERSION_RK3576 = 1,
+};
+
 struct ebc_tcon {
 	struct device *dev;
 	void __iomem *regs;
@@ -38,6 +43,8 @@ struct ebc_tcon {
 	struct clk *hclk;
 	struct clk *dclk;
 	struct regmap *regmap_base;
+
+	u32 version;
 
 	int (*enable)(struct ebc_tcon *tcon, struct ebc_panel *panel);
 	void (*disable)(struct ebc_tcon *tcon);
