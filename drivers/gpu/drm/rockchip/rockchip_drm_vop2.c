@@ -7364,6 +7364,15 @@ static bool vop2_crtc_mode_fixup(struct drm_crtc *crtc,
 		}
 	}
 
+	/*
+	 * For RK3576 YUV420 output, hden signal introduce one cycle delay,
+	 * so we need to adjust hfp and hbp to compatible with this design.
+	 */
+	if (vop2->version == VOP_VERSION_RK3576 && vcstate->output_mode == ROCKCHIP_OUT_MODE_YUV420) {
+		adj_mode->hsync_start += 2;
+		adj_mode->hsync_end += 2;
+	}
+
 	drm_mode_set_crtcinfo(adj_mode, CRTC_INTERLACE_HALVE_V | CRTC_STEREO_DOUBLE);
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK || vcstate->output_if & VOP_OUTPUT_IF_BT656)
