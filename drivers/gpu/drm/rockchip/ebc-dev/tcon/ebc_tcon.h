@@ -44,6 +44,8 @@ struct ebc_tcon {
 	struct clk *dclk;
 	struct regmap *regmap_base;
 
+	struct ebc_panel *panel;
+	int display_mode;
 	u32 version;
 
 	int (*enable)(struct ebc_tcon *tcon, struct ebc_panel *panel);

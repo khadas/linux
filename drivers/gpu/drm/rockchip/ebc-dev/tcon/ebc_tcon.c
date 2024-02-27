@@ -407,10 +407,11 @@ static int rk3576_tcon_enable(struct ebc_tcon *tcon, struct ebc_panel *panel)
 		val = RK3576_DSP_SDOE_MODE(0);
 	tcon_write(tcon, RK3576_EBC_DSP_CTRL,
 		   RK3576_DSP_SWAP_MODE(panel->panel_16bit ? 2 : 3) | RK3576_DSP_VCOM_MODE(1) |
-		   RK3576_DSP_SDCLK_DIV(panel->panel_16bit ? 7 : 3) | val);
+		   val);
 	rk3576_tcon_cfg_done(tcon);
 
 	enable_irq(tcon->irq);
+	tcon->panel = panel;
 
 	return 0;
 }
@@ -431,6 +432,27 @@ static void rk3576_tcon_dsp_mode_set(struct ebc_tcon *tcon, int update_mode,
 				     int display_mode, int three_win_mode,
 				     int eink_mode)
 {
+	struct ebc_panel *panel = tcon->panel;
+	u32 val;
+	int ret;
+
+	if (panel && display_mode != tcon->display_mode) {
+		if (display_mode == DIRECT_MODE)
+			ret = clk_set_rate(tcon->dclk, panel->sdck);
+		else
+			ret = clk_set_rate(tcon->dclk,
+					   panel->sdck * ((panel->panel_16bit ? 7 : 3) + 1));
+		if (ret)
+			dev_err(tcon->dev, "Failed to set dclk:%d\n", ret);
+	}
+
+	if (display_mode == DIRECT_MODE)
+		val = RK3576_DSP_SDCLK_DIV(0);
+	else
+		val = RK3576_DSP_SDCLK_DIV((panel && panel->panel_16bit) ? 7 : 3);
+
+	tcon->display_mode = display_mode;
+
 	tcon_write(tcon, RK3576_EBC_WIN1_CTRL, RK3576_WIN_AXI_GATHER_NUM(8) |
 		   RK3576_WIN_AXI_GATHER_EN | RK3576_WIN_RID(2) | ((!!display_mode) |
 		   (!!three_win_mode)));
@@ -438,8 +460,9 @@ static void rk3576_tcon_dsp_mode_set(struct ebc_tcon *tcon, int update_mode,
 		   RK3576_WIN_AXI_GATHER_EN | RK3576_WIN_RID(3) | (!!three_win_mode));
 
 	tcon_update_bits(tcon, RK3576_EBC_DSP_CTRL, RK3576_UPDATE_MODE_MASK |
-			 RK3576_DISPLAY_MODE_MASK, RK3576_DSP_UPDATE_MODE(!!update_mode) |
-			 RK3576_DSP_DISPLAY_MODE(!!display_mode));
+			 RK3576_DISPLAY_MODE_MASK | RK3576_DSP_SDCLK_DIV_MASK,
+			 RK3576_DSP_UPDATE_MODE(!!update_mode) |
+			 RK3576_DSP_DISPLAY_MODE(!!display_mode) | val);
 	tcon_update_bits(tcon, RK3576_EBC_EPD_CTRL, RK3576_THREE_WIN_MODE_MASK,
 			 RK3576_DSP_THREE_WIN_MODE(!!three_win_mode));
 	/* always set frm start bit 0 before real frame start */
@@ -758,6 +781,8 @@ static int ebc_tcon_probe(struct platform_device *pdev)
 	}
 
 	tcon->dev = dev;
+	/* set lut mode as default display mode */
+	tcon->display_mode = LUT_MODE;
 	platform_set_drvdata(pdev, tcon);
 
 	pm_runtime_enable(dev);
