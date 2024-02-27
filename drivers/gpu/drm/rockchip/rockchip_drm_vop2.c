@@ -10471,6 +10471,13 @@ static void vop2_tv_config_update(struct drm_crtc *crtc,
 	    vcstate->tv_state->contrast != 50 ||
 	    vcstate->tv_state->saturation != 50 || vcstate->tv_state->hue != 50)
 		vcstate->bcsh_en = 1;
+
+	if (!vp_data->regs->bcsh_en.mask) {
+		if (vcstate->bcsh_en)
+			DRM_WARN("VP%d unsupported BCSH\n", vp->id);
+		return;
+	}
+
 	/*
 	 * The BCSH only need to config once except one of the following
 	 * condition changed:
