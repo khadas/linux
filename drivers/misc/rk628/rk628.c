@@ -440,8 +440,12 @@ static void rk628_display_enable(struct rk628 *rk628)
 	if (rk628_input_is_rgb(rk628))
 		rk628_rgb_rx_enable(rk628);
 
-	if (rk628_input_is_bt1120(rk628))
-		rk628_bt1120_rx_enable(rk628);
+	/*
+	 * bt1120 needs to configure the timing register, but hdmitx will modify
+	 * the timing as needed, so the bt1120 enable process is moved to the
+	 * configuration of post_process (function rk628_post_process_enable in
+	 * rk628_post_process.c)
+	 */
 
 	if (rk628_output_is_rgb(rk628))
 		rk628_rgb_tx_enable(rk628);

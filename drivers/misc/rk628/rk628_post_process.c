@@ -10,6 +10,7 @@
 #include "rk628_config.h"
 #include "rk628_cru.h"
 #include "rk628_post_process.h"
+#include "rk628_rgb.h"
 
 #define PQ_CSC_HUE_TABLE_NUM			256
 #define PQ_CSC_MODE_COEF_COMMENT_LEN		32
@@ -1598,6 +1599,12 @@ static void rk628_post_process_csc(struct rk628 *rk628)
 
 void rk628_post_process_enable(struct rk628 *rk628)
 {
+	/*
+	 * bt1120 needs to configure the timing register, but hdmitx will modify
+	 * the timing as needed, so the bt1120 enable process is moved here.
+	 */
+	if (rk628_input_is_bt1120(rk628))
+		rk628_bt1120_rx_enable(rk628);
 	rk628_post_process_csc(rk628);
 	rk628_i2c_write(rk628, GRF_SCALER_CON0, SCL_EN(1));
 }
