@@ -384,6 +384,14 @@ config TOUCHSCREEN_FTS
 	  Say Y here if you have Focaltech touch panel.
 	  If unsure, say N.
 
+config TOUCHSCREEN_FT5726
+	tristate "Focaltech Touchscreen FT5726"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you have Focaltech touch panel.
+	  If unsure, say N.
+
 config TOUCHSCREEN_FUJITSU
 	tristate "Fujitsu serial touchscreen"
 	select SERIO
