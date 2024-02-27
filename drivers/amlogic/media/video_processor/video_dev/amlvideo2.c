@@ -4516,6 +4516,12 @@ static int amlvideo2_start_thread(struct amlvideo2_fh *fh)
 	node->tmp_vf = NULL;
 	dma_q->task_running = 1;
 
+	node->context = create_ge2d_work_queue();
+	if (!node->context) {
+		mutex_unlock(&node->mutex);
+		pr_info("amlvideo2 create_ge2d_work_queue error!\n");
+		return -1;
+	}
 	#ifdef MULTI_NODE
 	dma_q->kthread =
 		kthread_run(amlvideo2_thread, fh,
@@ -4582,6 +4588,8 @@ static void amlvideo2_stop_thread(struct amlvideo2_node_dmaqueue *dma_q)
 
 		dma_q->kthread = NULL;
 	}
+	if (node->context)
+		destroy_ge2d_work_queue(node->context);
 	mutex_unlock(&node->mutex);
 	if (amlvideo2_dbg_en & 1) {
 		if (node->vid == 0)
@@ -6668,9 +6676,6 @@ static int amlvideo2_release_node(struct amlvideo2_device *vid_dev)
 			vfd = vid_dev->node[i]->vfd;
 			video_device_release(vfd);
 			vf_unreg_receiver(&vid_dev->node[i]->recv);
-			if (vid_dev->node[i]->context)
-				destroy_ge2d_work_queue
-					(vid_dev->node[i]->context);
 			kfree(vid_dev->node[i]->fh);
 			kfree(vid_dev->node[i]->amlvideo2_pool_ready);
 			vid_dev->node[i]->fh = NULL;
@@ -6743,12 +6748,7 @@ static int amlvideo2_create_node(struct platform_device *pdev, int node_id)
 			 (struct vframe_s **)
 			 &vid_node->amlvideo2_pool_ready[0]);
 	}
-	vid_node->context = create_ge2d_work_queue();
-	if (!vid_node->context) {
-		kfree(vid_node->amlvideo2_pool_ready);
-		kfree(vid_node);
-		return ret;
-	}
+
 	/* init video dma queues */
 	INIT_LIST_HEAD(&vid_node->vidq.active);
 	init_waitqueue_head(&vid_node->vidq.wq);
@@ -6763,7 +6763,6 @@ static int amlvideo2_create_node(struct platform_device *pdev, int node_id)
 #endif
 	vfd = video_device_alloc();
 	if (!vfd) {
-		destroy_ge2d_work_queue(vid_node->context);
 		kfree(vid_node->amlvideo2_pool_ready);
 		kfree(vid_node);
 		return ret;
@@ -6778,7 +6777,6 @@ static int amlvideo2_create_node(struct platform_device *pdev, int node_id)
 	if (ret < 0) {
 		ret = -ENODEV;
 		video_device_release(vfd);
-		destroy_ge2d_work_queue(vid_node->context);
 		kfree(vid_node->amlvideo2_pool_ready);
 		kfree(vid_node);
 		return ret;
@@ -6787,7 +6785,6 @@ static int amlvideo2_create_node(struct platform_device *pdev, int node_id)
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 	if (!fh) {
 		video_device_release(vfd);
-		destroy_ge2d_work_queue(vid_node->context);
 		kfree(vid_node->amlvideo2_pool_ready);
 		kfree(vid_node);
 		return ret;
