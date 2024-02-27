@@ -135,11 +135,8 @@ static void RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
 
 			*bRGA_SRC_X_FACTOR = ((param_x & 0xffff) | ((scale_x_offset) << 16));
 		} else {
-#if SCALE_DOWN_LARGE
-			param_x = ((dw) << 16) / (sw) + 1;
-#else
-			param_x = ((dw) << 16) / (sw);
-#endif
+			param_x = ((dw << 16) + (sw / 2)) / sw;
+
 			*bRGA_SRC_X_FACTOR |= ((param_x & 0xffff) << 0);
 		}
 	} else if (sw < dw) {
@@ -161,11 +158,8 @@ static void RGA2_reg_get_param(unsigned char *base, struct rga2_req *msg)
 
 			*bRGA_SRC_Y_FACTOR = ((param_y & 0xffff) | ((scale_y_offset) << 16));
 		} else {
-#if SCALE_DOWN_LARGE
-			param_y = ((dh) << 16) / (sh) + 1;
-#else
-			param_y = ((dh) << 16) / (sh);
-#endif
+			param_y = ((dh << 16) + (sh / 2)) / sh;
+
 			*bRGA_SRC_Y_FACTOR |= ((param_y & 0xffff) << 0);
 		}
 	} else if (sh < dh) {
