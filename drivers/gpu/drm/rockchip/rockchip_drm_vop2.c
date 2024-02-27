@@ -10777,12 +10777,15 @@ static void vop3_post_acm_config(struct drm_crtc *crtc, struct post_acm *acm)
 	if (!acm || !acm->acm_enable)
 		return;
 
-	/*
-	 * If acm update parameters, it need disable acm in the first frame,
-	 * then update parameters and enable acm in second frame.
-	 */
-	vop2_cfg_done(crtc);
-	readx_poll_timeout(readl, vop2->acm_regs + RK3528_ACM_CTRL, value, !value, 200, 50000);
+	if (vop2->version == VOP_VERSION_RK3528) {
+		/*
+		 * If acm update parameters, it need disable acm in the first frame,
+		 * then update parameters and enable acm in second frame.
+		 */
+		vop2_cfg_done(crtc);
+		readx_poll_timeout(readl, vop2->acm_regs + RK3528_ACM_CTRL, value, !value,
+				   200, 50000);
+	}
 
 	value = RK3528_ACM_ENABLE + ((adjusted_mode->hdisplay & 0xfff) << 8) +
 		((adjusted_mode->vdisplay & 0xfff) << 20);
