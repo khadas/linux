@@ -2381,10 +2381,16 @@ int vpp_set_lut3d(int bfromkey,
 
 		if (bfromkey == 1) {
 #ifdef CONFIG_AMLOGIC_LCD
+			ret = lcd_unifykey_get_size("lcd_3dlut", &key_len);
+			if (ret < 0) {
+				kfree(pkeylutall);
+				kfree(pkeylut);
+				return 1;
+			}
 			ret =
 			lcd_unifykey_get_no_header("lcd_3dlut",
 						   (unsigned char *)pkeylutall,
-						   &key_len);
+						   key_len);
 			if (ret < 0) {
 				kfree(pkeylutall);
 				kfree(pkeylut);

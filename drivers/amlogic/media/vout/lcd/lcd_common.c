@@ -1595,39 +1595,35 @@ static int lcd_optical_load_from_unifykey(struct aml_lcd_drv_s *pdrv)
 	else
 		sprintf(key_str, "lcd%d_optical", pdrv->index);
 
-	ret = lcd_unifykey_check(key_str);
+	ret = lcd_unifykey_get_size(key_str, &key_len);
 	if (ret < 0)
 		return -1;
 
-	LCDPR("[%d]: %s: find ukey %s\n", pdrv->index, __func__, key_str);
+	len = LCD_UKEY_HEAD_SIZE;
+	ret = lcd_unifykey_len_check(key_len, len);
+	if (ret < 0) {
+		LCDERR("[%d]: %s: unifykey header length is incorrect\n",
+		       pdrv->index, key_str);
+		return -1;
+	}
 
-	key_len = LCD_UKEY_OPTICAL_SIZE;
+	LCDPR("[%d]: %s: find ukey: %s\n", pdrv->index, __func__, key_str);
+
 	para = kzalloc(key_len, GFP_KERNEL);
 	if (!para)
 		return -1;
 
-	ret = lcd_unifykey_get(key_str, para, &key_len);
+	ret = lcd_unifykey_get(key_str, para, key_len);
 	if (ret < 0) {
 		kfree(para);
 		return -1;
 	}
 
-	/* step 1: check header */
-	len = LCD_UKEY_HEAD_SIZE;
-	ret = lcd_unifykey_len_check(key_len, len);
-	if (ret < 0) {
-		LCDERR("[%d]: %s unifykey header length is incorrect\n",
-		       pdrv->index, key_str);
-		kfree(para);
-		return -1;
-	}
-
+	/* check parameters */
 	len = LCD_UKEY_OPTICAL_SIZE;
-
-	/* step 2: check parameters */
 	ret = lcd_unifykey_len_check(key_len, len);
 	if (ret < 0) {
-		LCDERR("[%d]: %s unifykey parameters length is incorrect\n",
+		LCDERR("[%d]: %s: unifykey parameters length is incorrect\n",
 		       pdrv->index, key_str);
 		kfree(para);
 		return -1;
@@ -2213,8 +2209,7 @@ static int lcd_config_load_from_unifykey_v2(struct aml_lcd_drv_s *pdrv,
 {
 	struct aml_lcd_unifykey_header_s *lcd_header;
 	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
-	struct cus_ctrl_config_s *cus_ctrl = &pdrv->config.cus_ctrl;
-	unsigned int temp, len;
+	unsigned int len, size;
 	int i, ret;
 
 	lcd_header = (struct aml_lcd_unifykey_header_s *)p;
@@ -2281,54 +2276,8 @@ static int lcd_config_load_from_unifykey_v2(struct aml_lcd_drv_s *pdrv,
 		}
 	}
 
-	/* cus_ctrl_config */
-	cus_ctrl->flag = (*(p + LCD_UKEY_CUS_CTRL_ATTR_FLAG) |
-		((*(p + LCD_UKEY_CUS_CTRL_ATTR_FLAG + 1)) << 8) |
-		((*(p + LCD_UKEY_CUS_CTRL_ATTR_FLAG + 2)) << 16) |
-		((*(p + LCD_UKEY_CUS_CTRL_ATTR_FLAG + 3)) << 24));
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("%s: cus_ctrl_flag=0x%x\n", __func__, cus_ctrl->flag);
-
-	if (cus_ctrl->flag & 0x1) {
-		temp = (*(p + LCD_UKEY_CUS_CTRL_ATTR_0) |
-			*(p + LCD_UKEY_CUS_CTRL_ATTR_0 + 1) << 8);
-		cus_ctrl->ufr_flag = temp & 0xf;
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("%s: cus_ctrl ultra refresh rate flag=%d\n",
-			      __func__, cus_ctrl->ufr_flag);
-		}
-		temp = (*(p + LCD_UKEY_CUS_CTRL_ATTR_0_PARM0) |
-			*(p + LCD_UKEY_CUS_CTRL_ATTR_0_PARM0 + 1) << 8);
-		cus_ctrl->attr_0_para0 = temp;
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("%s: cus_ctrl attr_0_para0=%d\n",
-			      __func__, cus_ctrl->attr_0_para0);
-		}
-		temp = (*(p + LCD_UKEY_CUS_CTRL_ATTR_0_PARM1) |
-			*(p + LCD_UKEY_CUS_CTRL_ATTR_0_PARM1 + 1) << 8);
-		cus_ctrl->attr_0_para1 = temp;
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("%s: cus_ctrl attr_0_para1=%d\n",
-			      __func__, cus_ctrl->attr_0_para1);
-		}
-
-		memcpy(&cus_ctrl->dft_timing, &pdrv->config.timing.dft_timing,
-			sizeof(struct lcd_detail_timing_s));
-		cus_ctrl->dft_timing.v_active /= 2;
-		cus_ctrl->dft_timing.v_period /= 2;
-		cus_ctrl->dft_timing.frame_rate *= 2;
-		temp = cus_ctrl->dft_timing.v_period - cus_ctrl->dft_timing.v_active -
-			cus_ctrl->dft_timing.vsync_width - cus_ctrl->dft_timing.vsync_bp;
-		cus_ctrl->dft_timing.vsync_fp = temp;
-		cus_ctrl->dft_timing.v_period_min = cus_ctrl->attr_0_para0;
-		cus_ctrl->dft_timing.v_period_max = cus_ctrl->attr_0_para1;
-		cus_ctrl->dft_timing.frame_rate_min = 0;
-		cus_ctrl->dft_timing.frame_rate_max = 0;
-
-		lcd_fr_range_update(&cus_ctrl->dft_timing);
-
-		lcd_config_timing_check(pdrv, &cus_ctrl->dft_timing);
-	}
+	size = LCD_UKEY_CUS_CTRL_ATTR_FLAG;
+	lcd_cus_ctrl_load_from_unifykey(pdrv, (p + size), (key_len - size));
 
 	return 0;
 }
@@ -2339,7 +2288,7 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 	int key_len, len;
 	unsigned char *p;
 	const char *str;
-	struct aml_lcd_unifykey_header_s lcd_header;
+	struct aml_lcd_unifykey_header_s *lcd_header;
 	struct lcd_config_s *pconf = &pdrv->config;
 	struct lcd_detail_timing_s *ptiming = &pdrv->config.timing.dft_timing;
 	struct phy_config_s *phy_cfg = &pdrv->config.phy_cfg;
@@ -2347,36 +2296,37 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 	unsigned int temp, temp2;
 	int ret, i = 0;
 
-	key_len = LCD_UKEY_LCD_SIZE;
-	para = kzalloc(key_len, GFP_KERNEL);
-	if (!para)
+	ret = lcd_unifykey_get_size(key_str, &key_len);
+	if (ret)
 		return -1;
-
-	ret = lcd_unifykey_get(key_str, para, &key_len);
-	if (ret < 0) {
-		kfree(para);
-		return -1;
-	}
-
-	/* step 1: check header */
 	len = LCD_UKEY_HEAD_SIZE;
 	ret = lcd_unifykey_len_check(key_len, len);
 	if (ret < 0) {
 		LCDERR("[%d]: unifykey header length is incorrect\n", pdrv->index);
+		return -1;
+	}
+
+	para = kzalloc(key_len, GFP_KERNEL);
+	if (!para)
+		return -1;
+
+	ret = lcd_unifykey_get(key_str, para, key_len);
+	if (ret < 0) {
 		kfree(para);
 		return -1;
 	}
 
-	lcd_unifykey_header_check(para, &lcd_header);
+	/* step 1: check header size */
+	lcd_header = (struct aml_lcd_unifykey_header_s *)para;
 	LCDPR("[%d]: unifykey version: 0x%04x\n",
-	      pdrv->index, lcd_header.version);
+	      pdrv->index, lcd_header->version);
 	len = LCD_UKEY_DATA_LEN_V1; /*10+36+18+31+20*/
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		LCDPR("[%d]: unifykey header:\n", pdrv->index);
-		LCDPR("crc32             = 0x%08x\n", lcd_header.crc32);
-		LCDPR("data_len          = %d\n", lcd_header.data_len);
-		LCDPR("block_next_flag   = %d\n", lcd_header.block_next_flag);
-		LCDPR("block_cur_size    = 0x%04x\n", lcd_header.block_cur_size);
+		LCDPR("crc32             = 0x%08x\n", lcd_header->crc32);
+		LCDPR("data_len          = %d\n", lcd_header->data_len);
+		LCDPR("block_next_flag   = %d\n", lcd_header->block_next_flag);
+		LCDPR("block_cur_size    = 0x%04x\n", lcd_header->block_cur_size);
 	}
 
 	/* step 2: check lcd parameters */
@@ -2621,9 +2571,9 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 		return -1;
 	}
 
-	if (lcd_header.version == 2) {
-		p = para + lcd_header.block_cur_size;
-		lcd_config_load_from_unifykey_v2(pdrv, p, key_len, lcd_header.block_cur_size);
+	if (lcd_header->version == 2) {
+		p = para + lcd_header->block_cur_size;
+		lcd_config_load_from_unifykey_v2(pdrv, p, key_len, lcd_header->block_cur_size);
 	}
 
 	kfree(para);

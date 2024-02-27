@@ -75,7 +75,8 @@
 /* 20231218: update timing management*/
 /* 20240129: update display mode management*/
 /* 20240218: optimize lcd config check sequence*/
-#define LCD_DRV_VERSION    "20240218"
+/* 20240222: update custom control support*/
+#define LCD_DRV_VERSION    "20240222"
 
 extern struct mutex lcd_vout_mutex;
 
@@ -146,6 +147,19 @@ void lcd_vrr_dev_unregister(struct aml_lcd_drv_s *pdrv);
 void lcd_queue_work(struct work_struct *work);
 inline void lcd_queue_delayed_work(struct delayed_work *delayed_work, int ms);
 unsigned int cal_crc32(unsigned int crc, const unsigned char *buf, int buf_len);
+
+/* lcd cus_ctrl */
+int lcd_cus_ctrl_dump_raw_data(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
+int lcd_cus_ctrl_dump_info(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
+int lcd_cus_ctrl_load_from_dts(struct aml_lcd_drv_s *pdrv, struct device_node *child);
+int lcd_cus_ctrl_load_from_unifykey(struct aml_lcd_drv_s *pdrv, unsigned char *buf,
+		unsigned int max_size);
+void lcd_cus_ctrl_config_remove(struct aml_lcd_drv_s *pdrv);
+int lcd_cus_ctrl_config_update(struct aml_lcd_drv_s *pdrv, void *param, unsigned int mask_sel);
+void lcd_cus_ctrl_state_clear(struct aml_lcd_drv_s *pdrv, unsigned int mask_sel);
+int lcd_cus_ctrl_timing_is_valid(struct aml_lcd_drv_s *pdrv);
+int lcd_cus_ctrl_timing_is_activated(struct aml_lcd_drv_s *pdrv);
+struct lcd_detail_timing_s **lcd_cus_ctrl_timing_match_get(struct aml_lcd_drv_s *pdrv);
 
 /* lcd phy */
 void lcd_phy_tcon_chpi_bbc_init_tl1(struct lcd_config_s *pconf);

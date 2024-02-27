@@ -265,6 +265,8 @@ static struct lcd_vmode_info_s *lcd_vmode_general_find(struct lcd_detail_timing_
 static void lcd_output_vmode_init(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_vmode_info_s *vmode_find = NULL;
+	struct lcd_detail_timing_s **timing_match;
+	int i;
 
 	if (!pdrv)
 		return;
@@ -282,15 +284,22 @@ static void lcd_output_vmode_init(struct aml_lcd_drv_s *pdrv)
 	}
 	lcd_vmode_add_list(pdrv, vmode_find);
 
-	if (pdrv->config.cus_ctrl.ufr_flag) {
-		vmode_find = lcd_vmode_default_find(&pdrv->config.cus_ctrl.dft_timing);
-		if (!vmode_find) {
-			//--general mode: (h)x(v)p(frame_rate)hz
-			vmode_find = lcd_vmode_general_find(&pdrv->config.cus_ctrl.dft_timing);
-			if (!vmode_find)
-				return;
+	timing_match = lcd_cus_ctrl_timing_match_get(pdrv);
+	if (timing_match) {
+		for (i = 0; i < pdrv->config.cus_ctrl.timing_cnt; i++) {
+			if (!timing_match[i])
+				break;
+
+			vmode_find = lcd_vmode_default_find(timing_match[i]);
+			if (!vmode_find) {
+				//--general mode: (h)x(v)p(frame_rate)hz
+				vmode_find = lcd_vmode_general_find(timing_match[i]);
+				if (!vmode_find)
+					continue;
+			}
+			lcd_vmode_add_list(pdrv, vmode_find);
 		}
-		lcd_vmode_add_list(pdrv, vmode_find);
+		kfree(timing_match);
 	}
 }
 
@@ -476,6 +485,7 @@ static void lcd_vmode_update(struct aml_lcd_drv_s *pdrv)
 		ptiming = pdrv->vmode_mgr.cur_vmode_info->dft_timing;
 		memcpy(&pdrv->config.timing.base_timing, ptiming,
 			sizeof(struct lcd_detail_timing_s));
+		lcd_cus_ctrl_config_update(pdrv, (void *)ptiming, LCD_CUS_CTRL_SEL_TIMMING);
 
 		//update base_timing to act_timing
 		lcd_enc_timing_init_config(pdrv);
@@ -518,7 +528,7 @@ static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv, int flag)
 	if (pdrv->vmode_switch == 0)
 		return;
 
-	if (pdrv->config.cus_ctrl.ufr_flag == 3) {
+	if (pdrv->config.cus_ctrl.timing_switch_flag == 3) {
 		if (!flag) {
 			//mute
 			lcd_screen_black(pdrv);

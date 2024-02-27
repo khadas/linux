@@ -1359,7 +1359,7 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 	unsigned char *p;
 	const char *str;
 	unsigned char temp;
-	struct aml_lcd_unifykey_header_s bl_header;
+	struct aml_lcd_unifykey_header_s *bl_header;
 	struct bl_pwm_config_s *bl_pwm;
 	struct bl_pwm_config_s *pwm_combo0, *pwm_combo1;
 	unsigned int level, tempfreq;
@@ -1368,29 +1368,30 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 	if (!key_name)
 		return -1;
 
-	key_len = LCD_UKEY_BL_SIZE;
+	ret = lcd_unifykey_get_size(key_name, &key_len);
+	if (ret)
+		return -1;
 	para = kcalloc(key_len, (sizeof(unsigned char)), GFP_KERNEL);
 	if (!para)
 		return -1;
 
-	ret = lcd_unifykey_get(key_name, para, &key_len);
+	ret = lcd_unifykey_get(key_name, para, key_len);
 	if (ret < 0) {
 		kfree(para);
 		return -1;
 	}
 
 	/* step 1: check header */
-	len = LCD_UKEY_HEAD_SIZE;
-	ret = lcd_unifykey_len_check(key_len, len);
-	if (ret < 0) {
-		BLERR("[%d]: unifykey header length is incorrect\n", bdrv->index);
-		kfree(para);
-		return -1;
+	bl_header = (struct aml_lcd_unifykey_header_s *)para;
+	BLPR("[%d]: unifykey version: 0x%04x\n", bdrv->index, bl_header->version);
+	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
+		BLPR("unifykey header:\n");
+		BLPR("crc32             = 0x%08x\n", bl_header->crc32);
+		BLPR("data_len          = %d\n", bl_header->data_len);
 	}
 
-	lcd_unifykey_header_check(para, &bl_header);
-	BLPR("[%d]: unifykey version: 0x%04x\n", bdrv->index, bl_header.version);
-	switch (bl_header.version) {
+	/* step 2: check backlight parameters */
+	switch (bl_header->version) {
 	case 2:
 		len = 10 + 30 + 12 + 8 + 32 + 10;
 		break;
@@ -1398,13 +1399,6 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 		len = 10 + 30 + 12 + 8 + 32;
 		break;
 	}
-	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
-		BLPR("unifykey header:\n");
-		BLPR("crc32             = 0x%08x\n", bl_header.crc32);
-		BLPR("data_len          = %d\n", bl_header.data_len);
-	}
-
-	/* step 2: check backlight parameters */
 	ret = lcd_unifykey_len_check(key_len, len);
 	if (ret < 0) {
 		BLERR("[%d]: unifykey length is incorrect\n", bdrv->index);
@@ -1464,7 +1458,7 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 	bconf->power_off_delay = (*(p + LCD_UKEY_BL_OFF_DELAY) |
 		((*(p + LCD_UKEY_BL_OFF_DELAY + 1)) << 8));
 
-	if (bl_header.version == 2) {
+	if (bl_header->version == 2) {
 		bconf->en_sequence_reverse = (*(p + LCD_UKEY_BL_CUST_VAL_0) |
 				((*(p + LCD_UKEY_BL_CUST_VAL_0 + 1)) << 8));
 	} else {

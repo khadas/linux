@@ -1173,7 +1173,7 @@ static int lcd_extern_get_config_unifykey(struct lcd_extern_driver_s *edrv,
 					  struct lcd_extern_dev_s *edev)
 {
 	struct lcd_extern_config_s *econf;
-	struct aml_lcd_unifykey_header_s ext_header;
+	struct aml_lcd_unifykey_header_s *ext_header;
 	unsigned char *para, *p;
 	int key_len, len;
 	const char *str;
@@ -1183,12 +1183,14 @@ static int lcd_extern_get_config_unifykey(struct lcd_extern_driver_s *edrv,
 		return -1;
 
 	econf = &edev->config;
-	key_len = LCD_UKEY_LCD_EXT_SIZE;
+	ret = lcd_unifykey_get_size(edrv->ukey_name, &key_len);
+	if (ret)
+		return -1;
 	para = kcalloc(key_len, sizeof(unsigned char), GFP_KERNEL);
 	if (!para)
 		return -1;
 
-	ret = lcd_unifykey_get(edrv->ukey_name, para, &key_len);
+	ret = lcd_unifykey_get(edrv->ukey_name, para, key_len);
 	if (ret)
 		goto lcd_ext_get_config_ukey_error;
 
@@ -1201,12 +1203,12 @@ static int lcd_extern_get_config_unifykey(struct lcd_extern_driver_s *edrv,
 	}
 
 	/* header: 10byte */
-	lcd_unifykey_header_check(para, &ext_header);
+	ext_header = (struct aml_lcd_unifykey_header_s *)para;
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		EXTPR("unifykey header:\n");
-		EXTPR("crc32             = 0x%08x\n", ext_header.crc32);
-		EXTPR("data_len          = %d\n", ext_header.data_len);
-		EXTPR("version           = 0x%04x\n", ext_header.version);
+		EXTPR("crc32             = 0x%08x\n", ext_header->crc32);
+		EXTPR("data_len          = %d\n", ext_header->data_len);
+		EXTPR("version           = 0x%04x\n", ext_header->version);
 	}
 
 	/* basic: 33byte */

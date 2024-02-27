@@ -719,45 +719,30 @@ static int lcd_info_adv_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 				i, phy->lane[i].preem);
 	}
 
-	/* cus_ctrl_attr */
-	n = lcd_debug_info_len(len + offset);
-	len += snprintf((buf + len), n,
-			"\nlcd cus_ctrl:\n"
-			"ctrl_flag:     0x%x\n"
-			"ufr_flag:      %u\n"
-			"dlg_time:      %llu\n"
-			"attr_0_para0:  %u\n"
-			"attr_0_para1:  %u\n",
-			pdrv->config.cus_ctrl.flag,
-			pdrv->config.cus_ctrl.ufr_flag,
-			pdrv->config.cus_ctrl.dlg_time,
-			pdrv->config.cus_ctrl.attr_0_para0,
-			pdrv->config.cus_ctrl.attr_0_para1);
-
 	return len;
 }
 
-static ssize_t lcd_dlg_time_show(struct device *dev,
+static ssize_t lcd_cus_ctrl_switch_time_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	ssize_t len = 0;
 
-	if (pdrv->config.cus_ctrl.ufr_flag == 3) {
-		len = sprintf(buf, "dlg times attr:\n"
-				"ctrl_flag:     0x%x\n"
-				"ufr_flag:      %u\n"
+	if (pdrv->config.cus_ctrl.timing_switch_flag == 3) {
+		len = sprintf(buf, "switch times attr:\n"
+				"switch_type:    0x%x\n"
+				"switch_flag:    %u\n"
 				"mute_time:      %llu\n"
-				"switch_time:      %llu\n"
+				"switch_time:    %llu\n"
 				"level_shfit_time:      %llu\n"
 				"tcon_reload_time(total):      %llu\n"
 				"tcon_reg_set_time:      %llu\n"
-				"tcon_data_set_time:      %llu\n"
-				"driver_change_time:      %llu\n"
+				"tcon_data_set_time:     %llu\n"
+				"driver_change_time:     %llu\n"
 				"unmute_time:      %llu\n"
-				"dlg_time:      %llu\n",
-				pdrv->config.cus_ctrl.flag,
-				pdrv->config.cus_ctrl.ufr_flag,
+				"switch_full_time: %llu\n",
+				pdrv->config.cus_ctrl.active_timing_type,
+				pdrv->config.cus_ctrl.timing_switch_flag,
 				pdrv->config.cus_ctrl.mute_time,
 				pdrv->config.cus_ctrl.switch_time,
 				pdrv->config.cus_ctrl.level_shift_time,
@@ -767,23 +752,23 @@ static ssize_t lcd_dlg_time_show(struct device *dev,
 				pdrv->config.cus_ctrl.driver_change_time,
 				pdrv->config.cus_ctrl.unmute_time,
 				pdrv->config.cus_ctrl.dlg_time);
-	} else if (pdrv->config.cus_ctrl.ufr_flag == 2) {
-		len = sprintf(buf, "dlg times attr:\n"
-				"ctrl_flag:     0x%x\n"
-				"ufr_flag:      %u\n"
+	} else if (pdrv->config.cus_ctrl.timing_switch_flag == 2) {
+		len = sprintf(buf, "switch times attr:\n"
+				"switch_type:    0x%x\n"
+				"switch_flag:    %u\n"
 				"mute_time:      %llu\n"
-				"bl_off_time:      %llu\n"
+				"bl_off_time:    %llu\n"
 				"driver_disable_time:      %llu\n"
 				"power_off_time:      %llu\n"
-				"driver_init_time:      %llu\n"
-				"level_shfit_time:      %llu\n"
+				"driver_init_time:    %llu\n"
+				"level_shfit_time:    %llu\n"
 				"bl_on_time:      %llu\n"
-				"unmute_time:      %llu\n"
-				"switch_time:      %llu\n"
-				"driver_change_time:      %llu\n"
-				"dlg_time:      %llu\n",
-				pdrv->config.cus_ctrl.flag,
-				pdrv->config.cus_ctrl.ufr_flag,
+				"unmute_time:     %llu\n"
+				"switch_time:     %llu\n"
+				"driver_change_time: %llu\n"
+				"switch_full_time:   %llu\n",
+				pdrv->config.cus_ctrl.active_timing_type,
+				pdrv->config.cus_ctrl.timing_switch_flag,
 				pdrv->config.cus_ctrl.mute_time,
 				pdrv->config.cus_ctrl.bl_off_time,
 				pdrv->config.cus_ctrl.driver_disable_time,
@@ -2344,6 +2329,9 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 		lcd_info_adv_print(pdrv, print_buf, 0);
 		lcd_debug_info_print(print_buf);
 		memset(print_buf, 0, PR_BUF_MAX);
+		lcd_cus_ctrl_dump_info(pdrv, print_buf, 0);
+		lcd_debug_info_print(print_buf);
+		memset(print_buf, 0, PR_BUF_MAX);
 		lcd_info_tcon_print(pdrv, print_buf, 0);
 		lcd_debug_info_print(print_buf);
 		memset(print_buf, 0, PR_BUF_MAX);
@@ -2415,6 +2403,9 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 		lcd_info_adv_print(pdrv, print_buf, 0);
 		lcd_debug_info_print(print_buf);
 		memset(print_buf, 0, PR_BUF_MAX);
+		lcd_cus_ctrl_dump_info(pdrv, print_buf, 0);
+		lcd_debug_info_print(print_buf);
+		memset(print_buf, 0, PR_BUF_MAX);
 		lcd_info_tcon_print(pdrv, print_buf, 0);
 		lcd_debug_info_print(print_buf);
 		memset(print_buf, 0, PR_BUF_MAX);
@@ -2447,7 +2438,7 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 		LCDPR("key_valid: %d, config_load: %d\n",
 		      pdrv->key_valid, pdrv->config_load);
 		if (pdrv->key_valid)
-			lcd_unifykey_print();
+			lcd_unifykey_print(pdrv->index);
 		break;
 	case 'h': /* hdr */
 		print_buf = kcalloc(PR_BUF_MAX, sizeof(char), GFP_KERNEL);
@@ -3714,15 +3705,16 @@ static ssize_t lcd_debug_vlock_show(struct device *dev,
 
 #define LCD_DEBUG_DUMP_INFO_BASIC     0
 #define LCD_DEBUG_DUMP_INFO_ADV       1
-#define LCD_DEBUG_DUMP_INFO_TCON      2
-#define LCD_DEBUG_DUMP_INFO_POWER     3
-#define LCD_DEBUG_DUMP_REG_CLK        4
-#define LCD_DEBUG_DUMP_REG_ENCL       5
-#define LCD_DEBUG_DUMP_REG_IF         6
-#define LCD_DEBUG_DUMP_REG_PHY        7
-#define LCD_DEBUG_DUMP_REG_PINMUX     8
-#define LCD_DEBUG_DUMP_OPTICAL        9
-#define LCD_DEBUG_DUMP_CLK_PARA       10
+#define LCD_DEBUG_DUMP_INFO_CUS_CTRL  2
+#define LCD_DEBUG_DUMP_INFO_TCON      3
+#define LCD_DEBUG_DUMP_INFO_POWER     4
+#define LCD_DEBUG_DUMP_REG_CLK        5
+#define LCD_DEBUG_DUMP_REG_ENCL       6
+#define LCD_DEBUG_DUMP_REG_IF         7
+#define LCD_DEBUG_DUMP_REG_PHY        8
+#define LCD_DEBUG_DUMP_REG_PINMUX     9
+#define LCD_DEBUG_DUMP_OPTICAL        10
+#define LCD_DEBUG_DUMP_CLK_PARA       11
 static int lcd_debug_dump_state;
 static ssize_t lcd_debug_dump_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
@@ -3741,6 +3733,9 @@ static ssize_t lcd_debug_dump_show(struct device *dev,
 		break;
 	case LCD_DEBUG_DUMP_INFO_ADV:
 		lcd_info_adv_print(pdrv, print_buf, 0);
+		break;
+	case LCD_DEBUG_DUMP_INFO_CUS_CTRL:
+		lcd_cus_ctrl_dump_info(pdrv, print_buf, 0);
 		break;
 	case LCD_DEBUG_DUMP_INFO_TCON:
 		lcd_info_tcon_print(pdrv, print_buf, 0);
@@ -3801,6 +3796,8 @@ static ssize_t lcd_debug_dump_store(struct device *dev, struct device_attribute 
 		lcd_debug_dump_state = LCD_DEBUG_DUMP_INFO_BASIC;
 	} else if (strcmp(parm[0], "adv") == 0) {
 		lcd_debug_dump_state = LCD_DEBUG_DUMP_INFO_ADV;
+	} else if (strcmp(parm[0], "cus_ctrl") == 0) {
+		lcd_debug_dump_state = LCD_DEBUG_DUMP_INFO_CUS_CTRL;
 	} else if (strcmp(parm[0], "tcon") == 0) {
 		lcd_debug_dump_state = LCD_DEBUG_DUMP_INFO_TCON;
 	} else if (strcmp(parm[0], "power") == 0) {
@@ -3914,13 +3911,7 @@ static ssize_t lcd_debug_cus_ctrl_show(struct device *dev,
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 
-	return sprintf(buf, "cus_ctrl:\n"
-		"ufr_flag: %d\n"
-		"attr_0_para0: %d\n"
-		"attr_0_para1: %d\n",
-		pdrv->config.cus_ctrl.ufr_flag,
-		pdrv->config.cus_ctrl.attr_0_para0,
-		pdrv->config.cus_ctrl.attr_0_para1);
+	return lcd_cus_ctrl_dump_info(pdrv, buf, 0);
 }
 
 static ssize_t lcd_debug_vinfo_show(struct device *dev,
@@ -4177,7 +4168,7 @@ static struct device_attribute lcd_debug_attrs[] = {
 	__ATTR(prbs,        0644, lcd_debug_prbs_show, lcd_debug_prbs_store),
 	__ATTR(reg,         0200, NULL, lcd_debug_reg_store),
 	__ATTR(vlock,       0444, lcd_debug_vlock_show, NULL),
-	__ATTR(dlg_time,    0444, lcd_dlg_time_show, NULL),
+	__ATTR(switch_time, 0444, lcd_cus_ctrl_switch_time_show, NULL),
 	__ATTR(dump,        0644, lcd_debug_dump_show, lcd_debug_dump_store),
 	__ATTR(print,       0644, lcd_debug_print_show, lcd_debug_print_store),
 	__ATTR(cus_ctrl,    0444, lcd_debug_cus_ctrl_show, NULL),

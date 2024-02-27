@@ -21,6 +21,7 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vrr/vrr.h>
 #include <linux/amlogic/media/vout/lcd/aml_lcd.h>
+#include <linux/amlogic/media/vout/lcd/lcd_cus_ctrl.h>
 #include <linux/amlogic/media/vout/lcd/lcd_tcon_data.h>
 
 /* **********************************
@@ -502,9 +503,14 @@ enum lcd_phy_set_status {
 };
 
 struct cus_ctrl_config_s {
-	unsigned int flag;
-	unsigned char ufr_flag;
-	struct lcd_detail_timing_s dft_timing;
+	unsigned int ctrl_en;
+	unsigned int ctrl_cnt;
+	unsigned int timing_cnt;
+	unsigned int active_timing_type;
+	unsigned char timing_switch_flag;
+	unsigned char timing_ctrl_valid;
+
+	struct lcd_cus_ctrl_attr_config_s *attr_config;
 
 	unsigned long long mute_time;
 	unsigned long long unmute_time;
@@ -520,14 +526,6 @@ struct cus_ctrl_config_s {
 	unsigned long long data_set_time;
 	unsigned long long level_shift_time;
 	unsigned long long dlg_time;
-	unsigned short attr_0_para0;
-	unsigned short attr_0_para1;
-	unsigned short attr_0_para2;
-	unsigned short attr_0_para3;
-	unsigned short attr_0_para4;
-	unsigned short attr_0_para5;
-	unsigned short attr_0_para6;
-	unsigned short attr_0_para7;
 };
 
 struct lcd_power_ctrl_s {

@@ -1360,7 +1360,7 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 	int key_len, len;
 	const char *str;
 	unsigned int temp, temp_val;
-	struct aml_lcd_unifykey_header_s ldev_header;
+	struct aml_lcd_unifykey_header_s *ldev_header;
 	struct bl_pwm_config_s *bl_pwm;
 	struct ldim_profile_s *profile;
 	int i, ret = 0;
@@ -1370,14 +1370,16 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
 		LDIMPR("load ldim_dev config from unifykey\n");
 
-	key_len = LCD_UKEY_LDIM_DEV_SIZE;
+	ret = lcd_unifykey_get_size("ldim_dev", &key_len);
+	if (ret)
+		return -1;
 	para = kcalloc(key_len, (sizeof(unsigned char)), GFP_KERNEL);
 	if (!para) {
 		LDIMERR("para kcalloc failed!!\n");
 		return -1;
 	}
 
-	ret = lcd_unifykey_get("ldim_dev", para, &key_len);
+	ret = lcd_unifykey_get("ldim_dev", para, key_len);
 	if (ret < 0) {
 		LDIMERR("get ldim_dev unifykey failed!!\n");
 		kfree(para);
@@ -1385,23 +1387,16 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 	}
 
 	/* step 1: check header */
-	len = LCD_UKEY_HEAD_SIZE;
-	ret = lcd_unifykey_len_check(key_len, len);
-	if (ret < 0) {
-		LDIMERR("unifykey header length is incorrect\n");
-		kfree(para);
-		return -1;
-	}
-
-	lcd_unifykey_header_check(para, &ldev_header);
-	LDIMPR("unifykey version: 0x%04x\n", ldev_header.version);
+	ldev_header = (struct aml_lcd_unifykey_header_s *)para;
+	LDIMPR("unifykey version: 0x%04x\n", ldev_header->version);
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
 		LDIMPR("unifykey header:\n");
-		LDIMPR("crc32             = 0x%08x\n", ldev_header.crc32);
-		LDIMPR("data_len          = %d\n", ldev_header.data_len);
+		LDIMPR("crc32             = 0x%08x\n", ldev_header->crc32);
+		LDIMPR("data_len          = %d\n", ldev_header->data_len);
 	}
 
-	/* step 2: check backlight parameters */
+	/* step 2: check parameters */
+	len = 65; //10+30+25
 	ret = lcd_unifykey_len_check(key_len, len);
 	if (ret < 0) {
 		LDIMERR("unifykey length is incorrect\n");

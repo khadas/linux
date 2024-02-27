@@ -3011,15 +3011,14 @@ static int lcd_tcon_load_init_data_from_unifykey(struct aml_lcd_drv_s *pdrv)
 	int key_len, data_len, ret;
 
 	data_len = tcon_mm_table.core_reg_table_size;
-	tcon_mm_table.core_reg_table =
-		kcalloc(data_len, sizeof(unsigned char), GFP_KERNEL);
+	ret = lcd_unifykey_get_size("lcd_tcon", &key_len);
+	if (ret)
+		return -1;
+	tcon_mm_table.core_reg_table = kcalloc(key_len, sizeof(unsigned char), GFP_KERNEL);
 	if (!tcon_mm_table.core_reg_table)
 		return -1;
-	key_len = data_len;
-	ret = lcd_unifykey_get_no_header("lcd_tcon", tcon_mm_table.core_reg_table, &key_len);
+	ret = lcd_unifykey_get_no_header("lcd_tcon", tcon_mm_table.core_reg_table, key_len);
 	if (ret)
-		goto lcd_tcon_load_init_data_err;
-	if (key_len != data_len)
 		goto lcd_tcon_load_init_data_err;
 
 	memset(tcon_local_cfg.bin_ver, 0, TCON_BIN_VER_LEN);
@@ -3050,9 +3049,16 @@ static int lcd_tcon_load_init_data_from_unifykey_new(struct aml_lcd_drv_s *pdrv)
 	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
 	int ret;
 
-	data_len = tcon_mm_table.core_reg_table_size +
-		LCD_TCON_DATA_BLOCK_HEADER_SIZE;
-	buf = kcalloc(data_len, sizeof(unsigned char), GFP_KERNEL);
+	data_len = tcon_mm_table.core_reg_table_size + LCD_TCON_DATA_BLOCK_HEADER_SIZE;
+	ret = lcd_unifykey_get_size("lcd_tcon", &key_len);
+	if (ret)
+		return -1;
+	if (key_len < data_len) {
+		LCDERR("%s: key_len %d is not enough, need %d\n",
+			__func__, key_len, data_len);
+		return -1;
+	}
+	buf = kcalloc(key_len, sizeof(unsigned char), GFP_KERNEL);
 	if (!buf)
 		return -1;
 	data_header = kzalloc(LCD_TCON_DATA_BLOCK_HEADER_SIZE, GFP_KERNEL);
@@ -3060,11 +3066,8 @@ static int lcd_tcon_load_init_data_from_unifykey_new(struct aml_lcd_drv_s *pdrv)
 		goto lcd_tcon_load_init_data_new_err;
 	tcon_mm_table.core_reg_header = data_header;
 
-	key_len = data_len;
-	ret = lcd_unifykey_get_tcon("lcd_tcon", buf, &key_len);
+	ret = lcd_unifykey_get_tcon("lcd_tcon", buf, key_len);
 	if (ret)
-		goto lcd_tcon_load_init_data_new_err;
-	if (key_len != data_len)
 		goto lcd_tcon_load_init_data_new_err;
 	memcpy(data_header, buf, LCD_TCON_DATA_BLOCK_HEADER_SIZE);
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
