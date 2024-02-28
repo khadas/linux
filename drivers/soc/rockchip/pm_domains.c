@@ -114,6 +114,7 @@ struct rockchip_pm_domain {
 	bool *shaping_is_need_init;
 	int num_clks;
 	struct clk_bulk_data *clks;
+	bool is_always_on;
 	bool is_ignore_pwr;
 	bool is_qos_saved;
 	bool is_qos_need_init;
@@ -1482,6 +1483,9 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	if (error)
 		goto err_unprepare_clocks;
 
+	if (of_property_read_bool(node, "rockchip,always-on"))
+		pd->is_always_on = true;
+
 	if (pd->info->name)
 		pd->genpd.name = pd->info->name;
 	else
@@ -1492,7 +1496,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	pd->genpd.detach_dev = rockchip_pd_detach_dev;
 	if (pd_info->active_wakeup)
 		pd->genpd.flags |= GENPD_FLAG_ACTIVE_WAKEUP;
-	if (pd_info->always_on || pd_info->keepon_startup) {
+	if (pd_info->always_on || pd_info->keepon_startup || pd->is_always_on) {
 		error = rockchip_pd_add_alwasy_on_flag(pd);
 		if (error)
 			goto err_unprepare_clocks;
@@ -1645,6 +1649,8 @@ void rockchip_pd_disable_unused(void)
 		genpd = g_pmu->genpd_data.domains[i];
 		if (genpd) {
 			pd = to_rockchip_pd(genpd);
+			if (pd->is_always_on)
+				continue;
 			if (pd->info->always_on)
 				continue;
 			if (pd->info->keepon_startup &&
@@ -1669,6 +1675,8 @@ static void rockchip_pd_keepon_do_release(void)
 		genpd = g_pmu->genpd_data.domains[i];
 		if (genpd) {
 			pd = to_rockchip_pd(genpd);
+			if (pd->is_always_on)
+				continue;
 			if (pd->info->always_on)
 				continue;
 			if (!pd->info->keepon_startup)
