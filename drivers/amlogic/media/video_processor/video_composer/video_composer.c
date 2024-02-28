@@ -1834,6 +1834,7 @@ static bool check_dewarp_support_status(struct composer_dev *dev,
 	struct vframe_s *src_vf = NULL;
 	struct file *file_vf = NULL;
 	bool is_dec_vf = false, is_v4l_vf = false;
+	u32 crop_w, crop_h;
 
 	if (IS_ERR_OR_NULL(dev) || IS_ERR_OR_NULL(received_frames)) {
 		vc_print(dev->index, PRINT_ERROR, "%s: invalid param.\n", __func__);
@@ -1848,6 +1849,8 @@ static bool check_dewarp_support_status(struct composer_dev *dev,
 	vframe_para.dst_vf_width = dewarp_rotate_width;
 	vframe_para.dst_vf_height = dewarp_rotate_height;
 	vframe_para.src_vf_angle = frame_info.transform;
+	crop_w = frame_info.crop_w;
+	crop_h = frame_info.crop_h;
 	file_vf = received_frames->file_vf[0];
 	is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
 	is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
@@ -1859,9 +1862,22 @@ static bool check_dewarp_support_status(struct composer_dev *dev,
 			vframe_para.src_vf_format = NV12;
 		} else {
 			vframe_para.src_vf_format = get_dewarp_format(dev->index, src_vf);
+			if (crop_w > 0 || crop_h > 0) {
+				if (src_vf->type & VIDTYPE_COMPRESS) {
+					crop_w = vframe_para.src_vf_width *
+						src_vf->width / src_vf->compWidth;
+					crop_h = vframe_para.src_vf_height *
+						src_vf->width / src_vf->compWidth;
+				}
+				if (crop_w != src_vf->width || crop_h != src_vf->height)
+					return false;
+			}
 		}
 	} else {
 		vframe_para.src_vf_format = NV12;
+		if ((crop_w > 0 || crop_h > 0) &&
+			(crop_w != frame_info.buffer_w || crop_h != frame_info.buffer_h))
+			return false;
 	}
 	dev->dewarp_para.vf_para = &vframe_para;
 	if (dev->need_rotate && is_dewarp_supported(dev->index, dev->dewarp_para.vf_para))
@@ -3319,7 +3335,8 @@ static void video_composer_task(struct composer_dev *dev)
 				vf->canvas0_config[0].height;
 			vf->width = frame_info->buffer_w;
 			vf->height = frame_info->buffer_h;
-			if (meson_uvm_get_usage(file_vf->private_data, &usage) < 0)
+			if (dmabuf_is_uvm(file_vf->private_data) &&
+				meson_uvm_get_usage(file_vf->private_data, &usage) < 0)
 				vc_print(dev->index, PRINT_ERROR,
 					"%s:meson_uvm_get_usage fail.\n", __func__);
 			if (frame_info->buffer_format == YUV444) {
@@ -3853,8 +3870,8 @@ static void set_frames_info(struct composer_dev *dev,
 		return;
 	}
 
+	j = 0;
 	while (1) {
-		j = 0;
 		for (i = 0; i < FRAMES_INFO_POOL_SIZE; i++) {
 			if (!atomic_read(&dev->received_frames[i].on_use))
 				break;
