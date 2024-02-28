@@ -199,6 +199,7 @@ struct mpp_hw_info {
 	int reg_fmt;
 	u32 reg_ret_status;
 	void *link_info;
+	u32 magic_base;
 };
 
 struct mpp_trans_info {

@@ -16,6 +16,7 @@
 #include "mpp_rkvdec2_link.h"
 
 #include "hack/mpp_rkvdec2_hack_rk3568.c"
+#include "hack/mpp_hack_rk3576.h"
 
 #include <soc/rockchip/rockchip_dmc.h>
 #include <soc/rockchip/rockchip_opp_select.h>
@@ -70,6 +71,7 @@ static struct mpp_hw_info rkvdec_vdpu383_hw_info = {
 	.reg_en = 16,
 	.reg_fmt = 8,
 	.reg_ret_status = 15,
+	.magic_base = 0x100,
 	.link_info = &rkvdec_link_vdpu383_hw_info,
 };
 
@@ -565,6 +567,7 @@ static int rkvdec_vdpu383_irq(struct mpp_dev *mpp)
 	/* read and clear status */
 	mpp->irq_status = readl_relaxed(link->reg_base + link->info->status_base);
 	writel(link->info->status_mask, link->reg_base + link->info->status_base);
+
 	/* wake isr to handle current task */
 	if (mpp->irq_status & status_bits)
 		return IRQ_WAKE_THREAD;
@@ -1275,6 +1278,17 @@ static int rkvdec2_rk3568_init(struct mpp_dev *mpp)
 	return ret;
 }
 
+static int rkvdec2_rk3576_init(struct mpp_dev *mpp)
+{
+	int ret;
+
+	rk3576_workaround_init(mpp);
+
+	ret = rkvdec2_init(mpp);
+
+	return ret;
+}
+
 static int rkvdec2_rk3568_exit(struct mpp_dev *mpp)
 {
 	struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
@@ -1283,6 +1297,15 @@ static int rkvdec2_rk3568_exit(struct mpp_dev *mpp)
 
 	if (dec->fix)
 		mpp_dma_free(dec->fix);
+
+	return 0;
+}
+
+static int rkvdec2_rk3576_exit(struct mpp_dev *mpp)
+{
+	rkvdec2_devfreq_remove(mpp);
+
+	rk3576_workaround_exit(mpp);
 
 	return 0;
 }
@@ -1481,8 +1504,9 @@ static struct mpp_hw_ops rkvdec_rk3588_hw_ops = {
 	.reset = rkvdec2_sip_reset,
 };
 
-static struct mpp_hw_ops rkvdec_vdpu383_hw_ops = {
-	.init = rkvdec2_init,
+static struct mpp_hw_ops rkvdec_rk3576_hw_ops = {
+	.init = rkvdec2_rk3576_init,
+	.exit = rkvdec2_rk3576_exit,
 	.clk_on = rkvdec2_clk_on,
 	.clk_off = rkvdec2_clk_off,
 	.get_freq = rkvdec2_get_freq,
@@ -1566,7 +1590,7 @@ static const struct mpp_dev_var rkvdec_rk3576_data = {
 	.device_type = MPP_DEVICE_RKVDEC,
 	.hw_info = &rkvdec_vdpu383_hw_info,
 	.trans_info = rkvdec_vdpu383_trans,
-	.hw_ops = &rkvdec_vdpu383_hw_ops,
+	.hw_ops = &rkvdec_rk3576_hw_ops,
 	.dev_ops = &rkvdec_vdpu383_dev_ops,
 };
 
@@ -2042,6 +2066,7 @@ static int __maybe_unused rkvdec2_runtime_resume(struct device *dev)
 		mpp_clk_safe_enable(ccu->aclk_info.clk);
 	} else {
 		struct mpp_dev *mpp = dev_get_drvdata(dev);
+		struct rkvdec2_dev *dec = to_rkvdec2_dev(mpp);
 
 		if (mpp->hw_ops->clk_on)
 			mpp->hw_ops->clk_on(mpp);
@@ -2052,7 +2077,9 @@ static int __maybe_unused rkvdec2_runtime_resume(struct device *dev)
 			if (mpp->iommu_info && mpp->iommu_info->got_irq)
 				enable_irq(mpp->iommu_info->irq);
 		}
-
+		/* work workaround */
+		if (dec->fix)
+			rk3576_workaround_run(mpp);
 	}
 
 	return 0;
