@@ -3730,6 +3730,8 @@ dw_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_p
 	drm_connector_helper_add(&mst_conn->connector, &dw_dp_mst_connector_helper_funcs);
 	mst_conn->connector.funcs->reset(&mst_conn->connector);
 	for (i = 0; i < dp->mst_port_num; i++) {
+		if (!of_device_is_available(dp->mst_enc[i].port_node))
+			continue;
 		ret = drm_connector_attach_encoder(&mst_conn->connector, &dp->mst_enc[i].encoder);
 		if (ret)
 			goto err;
@@ -3769,6 +3771,8 @@ dw_dp_create_fake_mst_encoders(struct dw_dp *dp)
 	int i;
 
 	for (i = 0; i < dp->mst_port_num; i++) {
+		if (!of_device_is_available(dp->mst_enc[i].port_node))
+			continue;
 		drm_encoder_init(dp->encoder.dev, &dp->mst_enc[i].encoder,
 				 &dw_dp_mst_encoder_funcs, DRM_MODE_ENCODER_DPMST,
 				 "DP-MST %d", i);
