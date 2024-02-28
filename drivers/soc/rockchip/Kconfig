@@ -250,9 +250,24 @@ config ROCKCHIP_MINI_KERNEL
 config ROCKCHIP_THUNDER_BOOT
 	bool "Rockchip Thunder Boot support"
 	depends on NO_GKI
+	select ROCKCHIP_THUNDER_BOOT_DEFER_FREE_MEMBLOCK if SMP
 	help
 	  Say y here to enable Rockchip thunder boot support.
 	  This option make the kernel boot faster.
+
+config ROCKCHIP_THUNDER_BOOT_DEFER_FREE_MEMBLOCK
+	bool "Defer free large memblock to Buddy allocator"
+	depends on SMP
+	depends on NO_GKI
+	help
+	  The physical memory of a system is divided into several types, like
+	  memory reserved for device, for kernel pagetable, etc. The remaining
+	  area is for Buddy allocator. Normally, The memory for Buddy is consist
+	  of different size blocks, so, under meeting the memory request of kernel
+	  booting, we can defer free the large block size to Buddy which can be
+	  done later in work queue in parallel to other kernel threads, and the
+	  size of the large block can be defined in kernel command line
+	  by "defer_free_block_size" boot parameter.
 
 config ROCKCHIP_THUNDER_BOOT_MMC
 	bool "Rockchip Thunder Boot from MMC"

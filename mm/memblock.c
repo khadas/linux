@@ -101,7 +101,7 @@ struct pglist_data __refdata contig_page_data;
 EXPORT_SYMBOL(contig_page_data);
 #endif
 
-#if defined(CONFIG_ROCKCHIP_THUNDER_BOOT) && defined(CONFIG_SMP)
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT_DEFER_FREE_MEMBLOCK
 static int db_count __initdata;
 #define DB_COUNT_MAX 4
 
@@ -2066,7 +2066,7 @@ static void __init __free_pages_memory(unsigned long start, unsigned long end)
 	}
 }
 
-#if defined(CONFIG_ROCKCHIP_THUNDER_BOOT) && defined(CONFIG_SMP)
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT_DEFER_FREE_MEMBLOCK
 int __init defer_free_memblock(void *unused)
 {
 	int i;
@@ -2100,7 +2100,7 @@ static unsigned long __init __free_memory_core(phys_addr_t start,
 	if (start_pfn >= end_pfn)
 		return 0;
 
-#if defined(CONFIG_ROCKCHIP_THUNDER_BOOT) && defined(CONFIG_SMP)
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT_DEFER_FREE_MEMBLOCK
 	pr_debug("%s, start = %pa, end = %pa\n", __func__, &start, &end);
 	if ((end - start) > defer_free_block_size && (db_count < ARRAY_SIZE(db))) {
 		db[db_count].defer_start = start_pfn;
