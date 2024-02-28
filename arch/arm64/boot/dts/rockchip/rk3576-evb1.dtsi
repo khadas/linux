@@ -539,6 +539,10 @@
 	status = "okay";
 };
 
+&ufs {
+	status = "okay";
+};
+
 &u2phy0_otg {
 	rockchip,typec-vbus-det;
 };
