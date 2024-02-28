@@ -315,6 +315,16 @@ static int ufs_rockchip_rk3576_init(struct ufs_hba *hba)
 	struct device *dev = hba->dev;
 
 	hba->quirks = UFSHCI_QUIRK_BROKEN_HCE | UFSHCD_QUIRK_SKIP_DEF_UNIPRO_TIMEOUT_SETTING;
+
+	/* Enable runtime autosuspend */
+	hba->caps |= UFSHCD_CAP_RPM_AUTOSUSPEND;
+	/* Enable clock-gating */
+	hba->caps |= UFSHCD_CAP_CLK_GATING;
+	/* Enable BKOPS when suspend */
+	hba->caps |= UFSHCD_CAP_AUTO_BKOPS_SUSPEND;
+	/* Enable putting device into deep sleep */
+	hba->caps |= UFSHCD_CAP_DEEPSLEEP;
+
 	ret = ufs_rockchip_common_init(hba);
 	if (ret) {
 		dev_err(dev, "ufs common init fail\n");
@@ -324,9 +334,26 @@ static int ufs_rockchip_rk3576_init(struct ufs_hba *hba)
 	return 0;
 }
 
+static int ufs_rockchip_device_reset(struct ufs_hba *hba)
+{
+	struct ufs_rockchip_host *host = ufshcd_get_variant(hba);
+
+	if (!host->rst_gpio)
+		return -EOPNOTSUPP;
+
+	gpiod_set_value_cansleep(host->rst_gpio, 0);
+	udelay(20);
+
+	gpiod_set_value_cansleep(host->rst_gpio, 1);
+	udelay(20);
+
+	return 0;
+}
+
 static const struct ufs_hba_variant_ops ufs_hba_rk3576_vops = {
 	.name = "rk3576",
 	.init = ufs_rockchip_rk3576_init,
+	.device_reset = ufs_rockchip_device_reset,
 	.hce_enable_notify = ufs_rockchip_hce_enable_notify,
 	.phy_initialization = ufs_rockchip_rk3576_phy_init,
 	.suspend = ufs_rockchip_suspend,
@@ -361,9 +388,39 @@ static int ufs_rockchip_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int ufs_rockchip_runtime_suspend(struct device *dev)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	struct ufs_rockchip_host *host = ufshcd_get_variant(hba);
+	int ret = 0;
+
+	ret = ufshcd_runtime_suspend(dev);
+	if (ret)
+		return ret;
+
+	clk_disable_unprepare(host->ref_out_clk);
+
+	return 0;
+}
+
+static int ufs_rockchip_runtime_resume(struct device *dev)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+	struct ufs_rockchip_host *host = ufshcd_get_variant(hba);
+	int err;
+
+	err = clk_prepare_enable(host->ref_out_clk);
+	if (err) {
+		dev_err(hba->dev, "failed to enable ref out clock %d\n", err);
+		return err;
+	}
+
+	return ufshcd_runtime_resume(dev);
+}
+
 static const struct dev_pm_ops ufs_rockchip_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(ufshcd_system_suspend, ufshcd_system_resume)
-	SET_RUNTIME_PM_OPS(ufshcd_runtime_suspend, ufshcd_runtime_resume, NULL)
+	SET_RUNTIME_PM_OPS(ufs_rockchip_runtime_suspend, ufs_rockchip_runtime_resume, NULL)
 	.prepare	 = ufshcd_suspend_prepare,
 	.complete	 = ufshcd_resume_complete,
 };
