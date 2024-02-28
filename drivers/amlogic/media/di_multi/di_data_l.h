@@ -176,6 +176,7 @@ enum EDI_CFG_TOP_IDX {
 #ifdef CONFIG_AMLOGIC_MEDIA_THERMAL
 	EDI_CFG_TEMP_CONTROL,
 #endif
+	EDI_CFG_PRE_NUB,
 	EDI_CFG_END,
 };
 
@@ -2093,6 +2094,8 @@ struct di_ch_s {
 	unsigned int cur_index;
 	unsigned int switch_index;
 #endif
+	unsigned int sts_keep	: 1,
+			rev	: 31;
 };
 
 struct dim_policy_s {

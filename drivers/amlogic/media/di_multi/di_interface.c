@@ -493,6 +493,7 @@ int new_create_instance(struct di_init_parm parm)
 	pch->sum_reg_cnt++;
 	dim_api_reg(DIME_REG_MODE_NEW, pch);
 	npst_reset(pch);
+	pch->sts_keep = parm.buffer_keep;
 	pch->itf.opins_m_back_in	= nins_m_recycle_ins;
 	pch->itf.op_m_unreg		= nins_m_unreg_new;
 	pch->ponly_set = false;
@@ -865,6 +866,23 @@ int new_release_keep_buf(struct di_buffer *buffer)
 			LCMD2(ECMD_RL_KEEP,
 			     ch,
 			     ndis1->header.index));
+	return 0;
+}
+
+/**********************************************************
+ * @brief  set_buffer_num
+ *
+ * @param[in]  set buffer number pre/post
+ *
+ * @return      number or fail type
+ *********************************************************/
+int set_buffer_num(unsigned int post, unsigned int pre)
+{
+	dbg_reg("%s:%d,%d\n", __func__, post, pre);
+	if (post)
+		cfgs(POST_NUB, post);
+	if (pre)
+		cfgs(PRE_NUB, pre);
 	return 0;
 }
 

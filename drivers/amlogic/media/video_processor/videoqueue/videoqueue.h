@@ -40,6 +40,7 @@ struct video_queue_dev {
 	DECLARE_KFIFO(file_q, struct file *, FILE_CNT);
 	DECLARE_KFIFO(display_q, struct file *, FILE_CNT);
 	DECLARE_KFIFO(dq_info_q, struct dequeu_info *, FILE_CNT);
+	DECLARE_KFIFO(out2vt_q, struct file *, FILE_CNT);
 	int inst;
 	struct task_struct *file_thread;
 	struct task_struct *fence_thread;
@@ -59,7 +60,6 @@ struct video_queue_dev {
 	struct completion file_thread_done;
 	struct completion fence_thread_done;
 	u64 pts_last;
-	int last_vsync_diff;
 	char *provider_name;
 	int check_sync_count;
 	bool sync_need_delay;
@@ -76,6 +76,10 @@ struct video_queue_dev {
 	int dv_inst;
 	int frame_skip_check_cnt;
 	struct mutex mutex_file; /*for file_q*/
+	int di_backend_en;
+	struct dp_buf_mgr_t *dp_buf_mgr;
+	int dp_buf_mgr_index;
+	struct mutex mutex_reg;/*for reg or unreg*/
 };
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN

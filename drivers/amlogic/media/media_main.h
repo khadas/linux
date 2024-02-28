@@ -721,4 +721,14 @@ static inline int vpq_init(void)
 	return 0;
 }
 #endif
+
+#ifdef CONFIG_AMLOGIC_DI_PROCESS
+int di_process_module_init(void);
+#else
+static inline int di_process_module_init(void)
+{
+	return 0;
+}
+#endif
+
 #endif

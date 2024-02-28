@@ -297,6 +297,12 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			0,
 			K_DI_CFG_T_FLG_DTS},
 #endif
+	[EDI_CFG_PRE_NUB]  = {"pre_nub",
+			/* 0:not config pre nub;*/
+			EDI_CFG_PRE_NUB,
+			5,
+			K_DI_CFG_T_FLG_DTS},
+
 	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
 			K_DI_CFG_T_FLG_NONE},
 
@@ -3154,7 +3160,7 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 	struct di_ch_s *pch = get_chdata(ch);
 	struct div2_mm_s *mm;
 	enum EDI_SGN sgn;
-	unsigned int post_nub;
+	unsigned int post_nub, pre_nub;
 	bool ponly_enable = false;
 	bool ponly_by_firstp = false;
 
@@ -3270,6 +3276,10 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		mm->cfg.fix_buf = 1;
 	else
 		mm->cfg.fix_buf = 0;
+
+	pre_nub = cfgg(PRE_NUB);
+	if ((pre_nub) && pre_nub <= MAX_LOCAL_BUF_NUM)
+		mm->cfg.num_local = pre_nub;
 
 	if (pch->ponly)
 		mm->cfg.num_local = 0;

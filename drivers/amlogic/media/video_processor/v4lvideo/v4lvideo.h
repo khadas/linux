@@ -251,6 +251,8 @@ struct v4lvideo_dev {
 	bool opened;
 	struct v4lvideo_active_file active_file[V4LVIDEO_POOL_SIZE];
 	int dv_inst;
+	struct dp_buf_mgr_t *dp_buf_mgr;
+	u32 v4l_reset_count;
 };
 
 enum vframe_source_type {

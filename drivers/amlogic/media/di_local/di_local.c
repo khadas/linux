@@ -251,6 +251,15 @@ int di_release_keep_buf(struct di_buffer *buffer)
 }
 EXPORT_SYMBOL(di_release_keep_buf);
 
+int di_set_buffer_num(unsigned int post, unsigned int pre)
+{
+	if (dil_api && dil_api->set_buffer_num)
+		return dil_api->set_buffer_num(post, pre);
+	PR_ERR("%s:not attach\n", __func__);
+	return 0;
+}
+EXPORT_SYMBOL(di_set_buffer_num);
+
 int di_get_output_buffer_num(int index)
 {
 	if (dil_api && dil_api->new_get_output_buffer_num)

@@ -875,12 +875,12 @@ static struct file_private_data *vc_get_file_private(struct composer_dev *dev,
 	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
 				 VF_PROCESS_V4LVIDEO);
 	if (!uhmod) {
-		vc_print(dev->index, PRINT_ERROR, "dma file file_private_data is NULL\n");
+		vc_print(dev->index, PRINT_ERROR, "%s: uhmod is NULL\n", __func__);
 		return NULL;
 	}
 
 	if (IS_ERR_VALUE(uhmod) || !uhmod->arg) {
-		vc_print(dev->index, PRINT_ERROR, "dma file file_private_data is NULL\n");
+		vc_print(dev->index, PRINT_ERROR, "%s: file_private_data is NULL.\n", __func__);
 		return NULL;
 	}
 	file_private_data = uhmod->arg;
@@ -904,12 +904,12 @@ static struct vf_nn_sr_t *vc_get_hfout_data(struct composer_dev *dev,
 	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
 				 PROCESS_NN);
 	if (!uhmod) {
-		vc_print(dev->index, PRINT_OTHER, "dma file file_private_data is NULL 1\n");
+		vc_print(dev->index, PRINT_OTHER, "%s: uhmod is NULL.\n", __func__);
 		return NULL;
 	}
 
 	if (IS_ERR_VALUE(uhmod) || !uhmod->arg) {
-		vc_print(dev->index, PRINT_ERROR, "dma file file_private_data is NULL 2\n");
+		vc_print(dev->index, PRINT_ERROR, "%s: file_private_data is NULL.\n", __func__);
 		return NULL;
 	}
 	srout_data = uhmod->arg;
@@ -933,12 +933,12 @@ static struct vf_dalton_t *vc_get_dalton_info(struct composer_dev *dev,
 	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
 				 PROCESS_DALTON);
 	if (!uhmod) {
-		vc_print(dev->index, PRINT_OTHER, "dma file file_private_data is NULL 1\n");
+		vc_print(dev->index, PRINT_OTHER, "%s: uhmod is NULL.\n", __func__);
 		return NULL;
 	}
 
 	if (IS_ERR_VALUE(uhmod) || !uhmod->arg) {
-		vc_print(dev->index, PRINT_ERROR, "dma file file_private_data is NULL 2\n");
+		vc_print(dev->index, PRINT_ERROR, "%s: file_private_data is NULL.\n", __func__);
 		return NULL;
 	}
 	dalton_info = uhmod->arg;
@@ -988,12 +988,12 @@ static struct vf_aicolor_t *vc_get_aicolor_info(struct composer_dev *dev,
 	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
 				 PROCESS_AICOLOR);
 	if (!uhmod) {
-		vc_print(dev->index, PRINT_OTHER, "dma file file_private_data is NULL 1\n");
+		vc_print(dev->index, PRINT_OTHER, "%s: uhmod is NULL.\n", __func__);
 		return NULL;
 	}
 
 	if (IS_ERR_VALUE(uhmod) || !uhmod->arg) {
-		vc_print(dev->index, PRINT_ERROR, "dma file file_private_data is NULL 2\n");
+		vc_print(dev->index, PRINT_ERROR, "%s: file_private_data is NULL.\n", __func__);
 		return NULL;
 	}
 	aicolor_info = uhmod->arg;
@@ -2023,6 +2023,48 @@ static struct vf_aiface_t *aiface_info_adjust(struct composer_dev *dev, struct f
 	return aiface_info;
 }
 
+static int video_wait_file_fence(struct composer_dev *dev,
+				   struct file *fence_file)
+{
+	struct sync_file *sync_file = NULL;
+	struct dma_fence *fence_obj = NULL;
+	int ret = 1;
+	u64 timestamp;
+
+	if (!IS_ERR_OR_NULL(fence_file)) {
+		sync_file = (struct sync_file *)fence_file->private_data;
+	} else {
+		vc_print(dev->index, PRINT_FENCE, "wait: fence_file is NULL\n");
+		return 1;
+	}
+
+	if (!IS_ERR_OR_NULL(sync_file)) {
+		fence_obj = sync_file->fence;
+	} else {
+		vc_print(dev->index, PRINT_FENCE, "sync_file is NULL\n");
+		return 1;
+	}
+
+	if (fence_obj) {
+		vc_print(dev->index, PRINT_FENCE, "sync_file=%px, seqno=%lld\n",
+			sync_file, fence_obj->seqno);
+		timestamp = local_clock();
+		ret = dma_fence_wait_timeout(fence_obj,
+					     false, msecs_to_jiffies(3000));
+		if (ret == 0) {
+			vc_print(dev->index, PRINT_ERROR, "fence wait timeout\n");
+			return 0;
+		}
+
+		vc_print(dev->index, PRINT_FENCE,
+			 "wait fence, state: %d, wait cost time:%lldms\n",
+			 ret, div64_u64((local_clock() - timestamp), 1000000));
+	}
+
+	fput(fence_file);
+	return 1;
+}
+
 static void vframe_do_mosaic_22(struct composer_dev *dev)
 {
 	struct received_frames_t *received_frames = NULL;
@@ -2244,6 +2286,7 @@ static void vframe_composer(struct composer_dev *dev)
 	struct vframe_s *input_vf[MXA_LAYER_COUNT] = {NULL};
 	struct output_axis out_axis[MXA_LAYER_COUNT] = {0};
 	struct frame_info_t *vframe_info_cur = NULL;
+	struct file *fence_file;
 
 	if (IS_ERR_OR_NULL(dev)) {
 		vc_print(dev->index, PRINT_ERROR, "%s: invalid param.\n", __func__);
@@ -2363,7 +2406,16 @@ static void vframe_composer(struct composer_dev *dev)
 
 	for (i = 0; i < count; i++) {
 		file_vf = received_frames->file_vf[vf_dev[i]];
+		fence_file = received_frames->fence_file[vf_dev[i]];
+		if (video_wait_file_fence(dev, fence_file) == 0)
+			continue;
+
 		vframe_info_cur = vframe_info[vf_dev[i]];
+		if (!vframe_info_cur) {
+			vc_print(dev->index, PRINT_ERROR, "vframe_info_cur NULL\n");
+			return;
+		}
+
 		is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
 		is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
 		if (vframe_info[i]->transform != 0 || count != 1)
@@ -2639,6 +2691,11 @@ static void vframe_composer(struct composer_dev *dev)
 
 	if (is_fixtunnel)
 		dst_vf->flag |= VFRAME_FLAG_FIX_TUNNEL;
+
+	if (!vframe_info_cur) {
+		vc_print(dev->index, PRINT_ERROR, "vframe_info_cur NULL\n");
+		return;
+	}
 
 	if (vframe_info_cur->transform == VC_TRANSFORM_FLIP_H_ROT_90)
 		dst_vf->flag |= VFRAME_FLAG_MIRROR_H;
@@ -3034,6 +3091,7 @@ static void video_composer_task(struct composer_dev *dev)
 {
 	struct vframe_s *vf = NULL;
 	struct file *file_vf = NULL;
+	struct file *fence_file = NULL;
 	struct frame_info_t *frame_info = NULL;
 	struct received_frames_t *received_frames = NULL;
 	struct frames_info_t *frames_info = NULL;
@@ -3097,6 +3155,9 @@ static void video_composer_task(struct composer_dev *dev)
 		}
 	}
 	if (!need_composer && !do_mosaic_22) {
+		fence_file = received_frames->fence_file[0];
+		if (video_wait_file_fence(dev, fence_file) == 0)
+			return;
 		frames_info = &received_frames->frames_info;
 		frame_info = frames_info->frame_info;
 		phy_addr = received_frames->phy_addr[0];
@@ -3486,11 +3547,13 @@ static void video_composer_task(struct composer_dev *dev)
 						 "too time1=%lld, time2=%lld\n",
 						 delay_time1, delay_time2);
 			}
+
+			vc_print(dev->index, PRINT_FENCE,
+				"task: push to ready list: omx_index=%d\n", vf->omx_index);
+
 			video_dispaly_push_ready(dev, vf);
-			if (!kfifo_put(&dev->ready_q,
-				       (const struct vframe_s *)vf))
-				vc_print(dev->index, PRINT_ERROR,
-					 "by_pass ready_q is full\n");
+			if (!kfifo_put(&dev->ready_q, (const struct vframe_s *)vf))
+				vc_print(dev->index, PRINT_ERROR, "by_pass ready_q is full\n");
 			ready_count = kfifo_len(&dev->ready_q);
 			/* dev->video_render_index == 5 means T7 dual screen mode */
 			if (ready_count > 3 && dev->video_render_index == 5)
@@ -3772,17 +3835,14 @@ static void set_frames_info(struct composer_dev *dev,
 	if (!frames_info ||
 	    frames_info->frame_count <= 0 ||
 	    frames_info->frame_count > MXA_LAYER_COUNT) {
-		vc_print(dev->index, PRINT_ERROR,
-			 "%s: param is invalid.\n",
-			 __func__);
+		vc_print(dev->index, PRINT_ERROR, "%s: param is invalid.\n", __func__);
 		return;
 	}
 
 	if (!dev->composer_enabled) {
 		for (j = 0; j < frames_info->frame_count; j++)
 			frames_info->frame_info[j].composer_fen_fd = -1;
-		vc_print(dev->index, PRINT_ERROR,
-			 "set frame but not enable\n");
+		vc_print(dev->index, PRINT_ERROR, "set frame but not enable\n");
 		return;
 	}
 
@@ -3793,9 +3853,7 @@ static void set_frames_info(struct composer_dev *dev,
 				 i,
 				 frames_info->disp_zorder);
 			ready_len = kfifo_len(&dev->ready_q);
-			vc_print(dev->index, PRINT_OTHER,
-				 "sideband: ready_len =%d\n",
-				 ready_len);
+			vc_print(dev->index, PRINT_OTHER, "sideband: ready_len =%d\n", ready_len);
 			frames_info->frame_info[j].composer_fen_fd = -1;
 			sideband_type = frames_info->frame_info[j].sideband_type;
 			axis[0] = frames_info->frame_info[j].dst_x;
@@ -3828,14 +3886,12 @@ static void set_frames_info(struct composer_dev *dev,
 				set_sideband_type(sideband_type, 0);
 			}
 		}
-		vc_print(dev->index, PRINT_ERROR,
-			 "sideband_type =%d\n", sideband_type);
+		vc_print(dev->index, PRINT_ERROR, "sideband_type = %d\n", sideband_type);
 		dev->select_path_done = true;
 	}
 	if (current_is_sideband) {
 		if (frames_info->frame_count > 1)
-			vc_print(dev->index, PRINT_ERROR,
-				 "sideband count not 1\n");
+			vc_print(dev->index, PRINT_ERROR, "sideband count not 1\n");
 		return;
 	}
 
@@ -3843,14 +3899,11 @@ static void set_frames_info(struct composer_dev *dev,
 	    dev->received_count == 0) {
 		if (dev->is_sideband && !current_is_sideband) {
 			set_blackout_policy(1);
-			vc_print(dev->index, PRINT_OTHER,
-				 "sideband to non\n");
+			vc_print(dev->index, PRINT_OTHER, "sideband to non\n");
 		}
 		dev->is_sideband = false;
 		disable_video_layer(dev, 0);
-		sprintf(render_layer,
-			"video_render.%d",
-			dev->video_render_index);
+		sprintf(render_layer, "video_render.%d", dev->video_render_index);
 		set_video_path_select(render_layer, dev->index);
 	}
 	dev->is_sideband = false;
@@ -3942,29 +3995,38 @@ static void set_frames_info(struct composer_dev *dev,
 			vc_print(dev->index, PRINT_ERROR, "fget fd fail\n");
 			return;
 		}
+
+		fence_file = NULL;
+		if (frames_info->frame_info[j].disp_fen_fd >= 0) {
+			fence_file = fget(frames_info->frame_info[j].disp_fen_fd);
+			if (!fence_file)
+				vc_print(dev->index, PRINT_OTHER, "fget disp_fen_fd fail\n");
+		}
 		total_get_count++;
 		dev->received_frames[i].file_vf[j] = file_vf;
+		dev->received_frames[i].fence_file[j] = fence_file;
 		type = frames_info->frame_info[j].type;
-		is_dec_vf =
-		is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
-		is_v4l_vf =
-		is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+		is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
+		is_v4l_vf = is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
 
-		vc_print(dev->index, PRINT_FENCE, "receive:file=%px, dma=%px\n",
+		vc_print(dev->index, PRINT_FENCE, "receive:file=%px, dma=%px, file_count=%ld\n",
 			 file_vf,
-			 file_vf->private_data);
+			 file_vf->private_data,
+			 file_count(file_vf));
 
 		if (frames_info->frame_info[j].transform != 0 ||
 			frames_info->frame_count != 1)
 			need_dw = true;
 		if (type == 0 || type == 1) {
 			vc_print(dev->index, PRINT_FENCE,
-				 "received_cnt=%lld,new_cnt=%lld,i=%d,z=%d,DMA_fd=%d\n",
+				 "received_cnt=%lld,new_cnt=%lld,i=%d,z=%d,DMA_fd=%d, disp_fen_fd=%d, fence_file=%px\n",
 				 dev->received_count + 1,
 				 dev->received_new_count + 1,
 				 i,
 				 frames_info->frame_info[j].zorder,
-				 frames_info->frame_info[j].fd);
+				 frames_info->frame_info[j].fd,
+				 frames_info->frame_info[j].disp_fen_fd,
+				 fence_file);
 			if (!(is_dec_vf || is_v4l_vf)) {
 				if (type == 0) {
 					vc_print(dev->index, PRINT_ERROR,
@@ -3985,8 +4047,7 @@ static void set_frames_info(struct composer_dev *dev,
 				 __func__, type);
 
 			if (!vf) {
-				vc_print(dev->index, PRINT_ERROR,
-					 "received NULL vf!!\n");
+				vc_print(dev->index, PRINT_ERROR, "received NULL vf!!\n");
 				return;
 			}
 			if (((reset_drop >> dev->index) & 1) ||
@@ -3995,8 +4056,7 @@ static void set_frames_info(struct composer_dev *dev,
 				dev->received_count = vf->omx_index;
 				vpp_drop_count = 0;
 				reset_drop ^= 1 << dev->index;
-				vc_print(dev->index, PRINT_PATTERN,
-					 "drop cnt reset!!\n");
+				vc_print(dev->index, PRINT_PATTERN, "drop cnt reset!!\n");
 			}
 
 			if (last_index[dev->index][j] != vf->omx_index) {

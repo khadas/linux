@@ -40,6 +40,9 @@
 #include <linux/amlogic/media/di/di.h>
 #include "../../common/vfm/vfm.h"
 #include <linux/amlogic/media/utils/am_com.h>
+#include <linux/amlogic/media/di/di_interface.h>
+#include <linux/amlogic/media/video_processor/di_proc_buf_mgr.h>
+
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #endif
@@ -83,6 +86,9 @@ static unsigned int inactive_check_disp;
 bool di_bypass_p;
 /*dec set count mutex*/
 struct mutex mutex_dec_count;
+
+static int v4lvideo_instance_id;
+static DEFINE_MUTEX(v4lvideo_buf_mgr_mutex);
 
 #define MAX_KEEP_FRAME 64
 #define DI_NR_COUNT 1
@@ -156,6 +162,7 @@ const s32 num_vp9_videos = ARRAY_SIZE(cts_vp9_videos);
 #define PRINT_COUNT		0X0002
 #define PRINT_FILE		0X0004
 #define PRINT_OTHER		0X0040
+#define PRINT_UD		0X0080
 
 int v4l_print(int index, int debug_flag, const char *fmt, ...)
 {
@@ -562,6 +569,7 @@ void v4lvideo_keep_vf(struct file *file)
 	int keep_id_1 = 0;
 	int keep_head_id = 0;
 	int keep_dw_id = 0;
+	int inst_id;
 	struct file_private_data *file_private_data;
 
 	file_private_data = v4lvideo_get_file_private_data(file, false);
@@ -571,6 +579,8 @@ void v4lvideo_keep_vf(struct file *file)
 		return;
 	}
 
+	inst_id = file_private_data->v4l_inst_id;
+
 	file_private_data->vf.flag |= VFRAME_FLAG_KEEPED;
 	file_private_data->vf_ext.flag |= VFRAME_FLAG_KEEPED;
 
@@ -579,7 +589,7 @@ void v4lvideo_keep_vf(struct file *file)
 	if (file_private_data->flag & V4LVIDEO_FLAG_DI_NR) {
 		vf_ext_p = file_private_data->vf_ext_p;
 		if (!vf_ext_p) {
-			V4LVID_ERR("file_vf_keep error: vf_ext is NULL");
+			v4l_print(inst_id, PRINT_ERROR, "file_vf_keep error: vf_ext is NULL");
 			return;
 		}
 		vf_p = vf_ext_p;
@@ -602,6 +612,10 @@ void v4lvideo_keep_vf(struct file *file)
 	video_keeper_keep_mem(vf_p->mem_dw_handle, MEM_TYPE_CODEC_MM,
 		&keep_dw_id);
 
+	v4l_print(inst_id, PRINT_OTHER,
+			"%s: type=%x, flag=%d, omx_index=%d\n",
+			__func__, vf_p->type, file_private_data->flag, vf_p->omx_index);
+
 	file_private_data->keep_id = keep_id;
 	file_private_data->keep_id_1 = keep_id_1;
 	file_private_data->keep_head_id = keep_head_id;
@@ -615,6 +629,7 @@ static void vf_free(struct file_private_data *file_private_data)
 	struct vframe_s *vf;
 	u32 flag;
 	u32 inst_id;
+	struct di_buffer *buf;
 
 	inst_id = file_private_data->v4l_inst_id;
 	if (file_private_data->keep_id > 0) {
@@ -637,9 +652,17 @@ static void vf_free(struct file_private_data *file_private_data)
 	vf = &file_private_data->vf;
 	vf_p = file_private_data->vf_p;
 	flag = file_private_data->flag;
+	v4l_print(inst_id, PRINT_OTHER, "%s: type=%x, flag=%d, omx_index=%d\n",
+		__func__, vf->type, flag, vf->omx_index);
+
 	if (flag & V4LVIDEO_FLAG_DI_DEC) {
 		vf = &file_private_data->vf_ext;
 		vf_p = file_private_data->vf_ext_p;
+	} else if (flag & V4LVIDEO_FLAG_DI_V3) {
+		buf = (struct di_buffer *)file_private_data->private2;
+		di_release_keep_buf(buf);
+		pr_info("v4lvideo: %s: release di v3 buf\n", __func__);
+		return;
 	}
 
 	if (vf->type & VIDTYPE_DI_PW) {
@@ -652,6 +675,19 @@ static void vf_free(struct file_private_data *file_private_data)
 			total_get_count[inst_id], total_put_count[inst_id],
 			total_release_count[inst_id]);
 	}
+}
+
+void v4lvideo_free_vf(struct file *file)
+{
+	struct file_private_data *file_private_data;
+
+	file_private_data = v4lvideo_get_file_private_data(file, false);
+	if (!file_private_data) {
+		V4LVID_ERR("vf_keep error: file_private_data is NULL");
+		return;
+	}
+
+	vf_free(file_private_data);
 }
 
 static void vf_free_force(struct v4lvideo_file_s *v4lvideo_file)
@@ -689,6 +725,7 @@ void init_file_private_data(struct file_private_data *file_private_data)
 		file_private_data->file = NULL;
 		file_private_data->flag = 0;
 		file_private_data->cnt_file = NULL;
+		file_private_data->private = NULL;
 	} else {
 		V4LVID_ERR("%s is NULL!!", __func__);
 	}
@@ -1478,6 +1515,8 @@ static void v4lvideo_private_data_release(struct file_private_data *data)
 	v4lvideo_file = (struct v4lvideo_file_s *)data->private;
 	if (v4lvideo_file)
 		dev = v4lvideo_file->dev;
+
+	pr_info("v4lvideo: is_keep =%d\n", data->is_keep);
 	if (data->is_keep)
 		vf_free(data);
 	v4lvideo_release_sei_data(&data->vf);
@@ -1495,6 +1534,12 @@ static void v4lvideo_private_data_release(struct file_private_data *data)
 		vfree(data->md.p_comp);
 		data->md.p_comp = NULL;
 	}
+
+	if (data->p_ud_param) {
+		vfree(data->p_ud_param);
+		data->p_ud_param = NULL;
+	}
+
 	if (alloc_sei & 2)
 		pr_info("v4lvideo private data release\n");
 
@@ -1569,6 +1614,21 @@ struct file_private_data *v4lvideo_get_file_private_data(struct file *file_vf,
 		kfree((u8 *)file_private_data);
 		return NULL;
 	}
+
+	file_private_data->p_ud_param = vmalloc(VF_UD_MAX_SIZE);
+	if (!file_private_data->p_ud_param) {
+		if (file_private_data->md.p_md) {
+			vfree(file_private_data->md.p_md);
+			file_private_data->md.p_md = NULL;
+		}
+		if (file_private_data->md.p_comp) {
+			vfree(file_private_data->md.p_comp);
+			file_private_data->md.p_comp = NULL;
+		}
+		kfree((u8 *)file_private_data);
+		return NULL;
+	}
+
 	memset(&info, 0, sizeof(struct uvm_hook_mod_info));
 	info.type = VF_PROCESS_V4LVIDEO;
 	info.arg = file_private_data;
@@ -1740,8 +1800,13 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	 * Typical driver might need to wait here until dma engine stops.
 	 * In this case we can abort immediately, so it's just a noop.
 	 */
+	mutex_lock(&dev->mutex_input);
 	v4l2q_init(&dev->input_queue, V4LVIDEO_POOL_SIZE,
 		   (void **)&dev->v4lvideo_input_queue[0]);
+	mutex_unlock(&dev->mutex_input);
+#ifdef CONFIG_AMLOGIC_DI_PROCESS
+	buf_mgr_reset(dev->dp_buf_mgr);
+#endif
 	return 0;
 }
 
@@ -1763,6 +1828,8 @@ static int vidioc_g_parm(struct file *file, void *priv,
 
 	return 0;
 }
+
+void v4lvideo_recycle_vf(void *caller_data, struct file *file, int instance_id);
 
 /* ------------------------------------------------------------------
  * IOCTL vidioc handling
@@ -1798,6 +1865,15 @@ static int vidioc_open(struct file *file)
 	dev->opened = true;
 	mutex_unlock(&dev->mutex_opened);
 	v4l_print(dev->inst, PRINT_COUNT, "open\n");
+
+#ifdef CONFIG_AMLOGIC_DI_PROCESS
+	dev->dp_buf_mgr = buf_mgr_creat(DEC_TYPE_V4LVIDEO,
+		dev->inst,
+		(void *)dev, v4lvideo_recycle_vf);
+#else
+	dev->dp_buf_mgr = NULL;
+
+#endif
 	return 0;
 }
 
@@ -1832,6 +1908,9 @@ static int vidioc_close(struct file *file)
 		total_get_count[inst_id] - total_put_count[inst_id]
 		- total_release_count[inst_id]);
 
+#ifdef CONFIG_AMLOGIC_DI_PROCESS
+	buf_mgr_release(dev->dp_buf_mgr);
+#endif
 	return 0;
 }
 
@@ -2027,6 +2106,8 @@ static void v4lvideo_vf_put(struct v4lvideo_dev *dev, struct vframe_s *vf)
 	if (vf->type & VIDTYPE_DI_PW)
 		is_di_pw = true;
 
+	v4l_print(dev->inst, PRINT_OTHER, "put: omx_index=%d\n", vf->omx_index);
+
 	if (vf_put(vf, dev->vf_receiver_name) < 0) {
 		pr_err("v4lvideo: put err!!!\n");
 		if (is_di_pw) {
@@ -2043,7 +2124,7 @@ static void v4lvideo_vf_put(struct v4lvideo_dev *dev, struct vframe_s *vf)
 	}
 }
 
-static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
+static int vidioc_qbuf_1(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct v4lvideo_dev *dev = video_drvdata(file);
 	struct vframe_s *vf_p;
@@ -2128,6 +2209,135 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	return 0;
 }
 
+void v4lvideo_recycle_vf(void *caller_data, struct file *file, int instance_id)
+{
+	struct v4lvideo_dev *dev = (struct v4lvideo_dev *)caller_data;
+	struct file_private_data *file_private_data = NULL;
+	struct vframe_s *vf_p;
+	struct vframe_s *vf_ext_p;
+	u32 flag;
+	struct v4lvideo_file_s *v4lvideo_file;
+	struct v4l2_buffer *v4l2_buffer = NULL;
+
+	file_private_data = v4lvideo_get_file_private_data(file, false);
+	if (!file_private_data) {
+		pr_err("%s: file_private_data NULL\n", __func__);
+		return;
+	}
+
+	if (!dev) {
+		pr_err("%s: dev NULL\n", __func__);
+		return;
+	}
+	v4l_print(dev->inst, PRINT_OTHER, "recycle instance_id %d\n", instance_id);
+	vf_p = file_private_data->vf_p;
+	vf_ext_p = file_private_data->vf_ext_p;
+	flag = file_private_data->flag;
+	v4lvideo_file = (struct v4lvideo_file_s *)file_private_data->private;
+
+	mutex_lock(&dev->mutex_input);
+	if (vf_p) {
+		if (!v4lvideo_file) {
+			pr_err("%s: vf_p && v4lvideo_file is NULL\n", __func__);
+			mutex_unlock(&dev->mutex_input);
+			return;
+		}
+		if (file_private_data->is_keep) {
+			vf_free(file_private_data);
+		} else {
+			if (pop_specific_from_display_q(dev, v4lvideo_file)) {
+				active_file_list_pop(dev, file_private_data, false);
+				v4l_print(dev->inst, PRINT_OTHER, "pop from disp_q %px\n",
+					v4lvideo_file);
+				if (dev->receiver_register) {
+					if (flag & V4LVIDEO_FLAG_DI_DEC)
+						vf_p = vf_ext_p;
+					v4lvideo_vf_put(dev, vf_p);
+				} else {
+					vf_free(file_private_data);
+					pr_err("%s: vfm is unreg\n", __func__);
+				}
+			} else {
+				pr_err("%s: maybe in unreg, do nothing\n", __func__);
+			}
+		}
+	} else {
+		pr_err("%s: vf is NULL!!!\n", __func__);
+	}
+
+	v4l2_buffer = file_private_data->private2;
+
+	v4lvideo_release_sei_data(&file_private_data->vf);
+	init_file_private_data(file_private_data);
+
+	if (v4l2_buffer) {
+		v4l_print(dev->inst, PRINT_OTHER, "recycle 1.11 input_queue len=%d\n",
+			v4l2q_level(&dev->input_queue));
+		v4l2q_push(&dev->input_queue, v4l2_buffer);
+		v4l_print(dev->inst, PRINT_OTHER, "recycle 2 input_queue len=%d\n",
+			v4l2q_level(&dev->input_queue));
+	} else {
+		pr_err("%s: v4l2_buffer is NULL!!!\n", __func__);
+	}
+
+	mutex_unlock(&dev->mutex_input);
+}
+
+#ifdef CONFIG_AMLOGIC_DI_PROCESS
+static int vidioc_qbuf_2(struct file *file, void *priv, struct v4l2_buffer *p)
+{
+	struct v4lvideo_dev *dev = video_drvdata(file);
+	struct file_private_data *file_private_data = NULL;
+	struct file *file_vf = NULL;
+	u32 inst_id = dev->inst;
+	bool first_in = false;
+
+	dev->v4lvideo_input[p->index] = *p;
+
+	v4l_print(dev->inst, PRINT_OTHER, "qbuf q_count=%d, fd=%d\n", q_count[inst_id], p->m.fd);
+
+	q_count[inst_id]++;
+	file_vf = fget(p->m.fd);
+	if (!file_vf) {
+		pr_err("v4lvideo: qbuf fget fail, fd=%d\n", p->m.fd);
+		return 0;
+	}
+	file_private_data = v4lvideo_get_file_private_data(file_vf, false);
+	if (!file_private_data) {
+		v4l_print(dev->inst, PRINT_OTHER, "v4lvideo: qbuf first time in\n");
+		first_in = true;
+	}
+
+	file_private_data = v4lvideo_get_file_private_data(file_vf, true);
+	if (!file_private_data) {
+		pr_err("v4lvideo: qbuf file_private_data NULL\n");
+		fput(file_vf);
+		return 0;
+	}
+
+	if (first_in) {
+		v4l2q_push(&dev->input_queue, &dev->v4lvideo_input[p->index]);
+	} else {
+		if (buf_mgr_q_checkin(dev->dp_buf_mgr, file_vf)) {
+			v4l_print(dev->inst, PRINT_ERROR, "q_checkin fail\n");
+			v4lvideo_recycle_vf(dev, file_vf, dev->dp_buf_mgr->instance_id);
+		}
+	}
+
+	fput(file_vf);
+	return 0;
+}
+#endif
+
+static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
+{
+#ifdef CONFIG_AMLOGIC_DI_PROCESS
+	if (get_di_proc_enable())
+		return vidioc_qbuf_2(file, priv, p);
+#endif
+	return vidioc_qbuf_1(file, priv, p);
+}
+
 static void canvas_to_addr(struct vframe_s *vf)
 {
 	struct canvas_s src_cs0, src_cs1, src_cs2;
@@ -2207,6 +2417,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	char *provider_name = NULL;
 	struct vframe_s *vf_ext = NULL;
 	u32 inst_id = dev->inst;
+	struct userdata_param_t *ud_p;
 
 	mutex_lock(&dev->mutex_input);
 
@@ -2287,7 +2498,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	file_vf = fget(buf->m.fd);
 	if (!file_vf) {
 		mutex_unlock(&dev->mutex_input);
-		pr_err("v4lvideo: dqbuf fget fail\n");
+		pr_err("v4lvideo: dqbuf fget fail, fd=%d\n", buf->m.fd);
 		return -EAGAIN;
 	}
 
@@ -2331,6 +2542,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		canvas_to_addr(&file_private_data->vf);
 	}
 
+	file_private_data->private2 = buf;
 	file_private_data->vf.src_fmt.md_buf = file_private_data->md.p_md;
 	file_private_data->vf.src_fmt.comp_buf = file_private_data->md.p_comp;
 	file_private_data->v4l_inst_id = dev->inst;
@@ -2343,12 +2555,26 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		&file_private_data->vf,
 		dev->provider_name);
 
-	//pr_err("dqbuf: file_private_data=%p, vf=%p\n", file_private_data, vf);
+	ud_p = &file_private_data->vf.vf_ud_param.ud_param;
+	if (is_ud_param_valid(file_private_data->vf.vf_ud_param)) {
+		v4l_print(dev->inst, PRINT_UD, "has ud\n");
+		if (ud_p->pbuf_addr &&
+			ud_p->buf_len > 0 &&
+			ud_p->buf_len <= VF_UD_MAX_SIZE) {
+			memcpy(file_private_data->p_ud_param, ud_p->pbuf_addr, ud_p->buf_len);
+			v4l_print(dev->inst, PRINT_UD, "src_ud=%px, new_ud=%px\n",
+				ud_p->pbuf_addr, file_private_data->p_ud_param);
+			ud_p->pbuf_addr = file_private_data->p_ud_param;
+		} else {
+			v4l_print(dev->inst, PRINT_UD, "ud_p->buf_len=%d\n", ud_p->buf_len);
+		}
+	} else {
+		v4l_print(dev->inst, PRINT_UD, "no ud\n");
+	}
 
 	push_to_display_q(dev, file_private_data);
 	active_file_list_push(dev, file_private_data);
 
-	fput(file_vf);
 
 	if (vf->pts_us64) {
 		dev->first_frame = 1;
@@ -2396,13 +2622,24 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	if (vf->type_original & VIDTYPE_INTERLACE || vf->type & VIDTYPE_INTERLACE)
 		p->field = V4L2_FIELD_INTERLACED;
 
-	mutex_unlock(&dev->mutex_input);
 	//pr_err("dqbuf: frame_num=%d\n", p->sequence);
 	dq_count[inst_id]++;
 	v4l_print(dev->inst, PRINT_OTHER,
-		"v4lvideo: %s return vf:%p, index:%d, pts_us64:0x%llx video_id:%d\n",
-		__func__, vf, vf->index, vf->pts_us64,
-		vf->vf_ud_param.ud_param.instance_id);
+		"v4lvideo: %s return vf:%p, omx_index:%d, v->pts_us64: %lld, out_pts %lld video_id:%d, fd=%d\n",
+		__func__, vf, vf->omx_index, vf->pts_us64, pts_us64,
+		vf->vf_ud_param.ud_param.instance_id, buf->m.fd);
+
+	v4l_print(dev->inst, PRINT_OTHER, "w*h=%d, %d; %d, %d\n",
+		vf->width, vf->height, vf->compWidth, vf->compHeight);
+
+	mutex_unlock(&dev->mutex_input);
+
+#ifdef CONFIG_AMLOGIC_DI_PROCESS
+	if (buf_mgr_dq_checkin(dev->dp_buf_mgr, file_vf))
+		v4l_print(dev->inst, PRINT_OTHER, "dq_checkin fail\n");
+#endif
+	fput(file_vf);
+
 	return 0;
 }
 
@@ -2493,6 +2730,11 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 			/*pr_err("unreg:v4lvideo, keep last frame\n");*/
 		}
 		mutex_unlock(&dev->mutex_input);
+
+		mutex_lock(&v4lvideo_buf_mgr_mutex);
+		v4lvideo_instance_id++;
+		mutex_unlock(&v4lvideo_buf_mgr_mutex);
+
 		pr_err("unreg:v4lvideo inst=%d\n", dev->inst);
 		v4l_print(dev->inst, PRINT_COUNT,
 			"unreg get=%d, put=%d, release=%d\n",
@@ -2625,9 +2867,12 @@ static int v4lvideo_file_release(struct inode *inode, struct file *file)
 				vfree(file_private_data->md.p_md);
 			if (file_private_data->md.p_comp)
 				vfree(file_private_data->md.p_comp);
+			if (file_private_data->p_ud_param)
+				vfree(file_private_data->p_ud_param);
 		}
 		file_private_data->md.p_md = NULL;
 		file_private_data->md.p_comp = NULL;
+		file_private_data->p_ud_param = NULL;
 
 		memset(file_private_data, 0, sizeof(struct file_private_data));
 		v4lvideo_private_data_release(file_private_data);
@@ -2686,6 +2931,20 @@ struct file *v4lvideo_alloc_file(void)
 		return NULL;
 	}
 
+	private_data->p_ud_param = vmalloc(VF_UD_MAX_SIZE);
+	if (!private_data->p_ud_param) {
+		if (private_data->md.p_md) {
+			vfree(private_data->md.p_md);
+			private_data->md.p_md = NULL;
+		}
+		if (private_data->md.p_comp) {
+			vfree(private_data->md.p_comp);
+			private_data->md.p_comp = NULL;
+		}
+		kfree((u8 *)private_data);
+		return NULL;
+	}
+
 	return file;
 }
 
@@ -2731,6 +2990,22 @@ int v4lvideo_alloc_fd(int *fd)
 			vfree(private_data->md.p_md);
 			private_data->md.p_md = NULL;
 		}
+		kfree((u8 *)private_data);
+		put_unused_fd(file_fd);
+		return -ENOMEM;
+	}
+
+	private_data->p_ud_param = vmalloc(VF_UD_MAX_SIZE);
+	if (!private_data->p_ud_param) {
+		if (private_data->md.p_md) {
+			vfree(private_data->md.p_md);
+			private_data->md.p_md = NULL;
+		}
+		if (private_data->md.p_comp) {
+			vfree(private_data->md.p_comp);
+			private_data->md.p_comp = NULL;
+		}
+
 		kfree((u8 *)private_data);
 		put_unused_fd(file_fd);
 		return -ENOMEM;
@@ -2787,6 +3062,10 @@ static int v4lvideo_fd_link(int src_fd, int dst_fd)
 		if (private_data1->md.p_comp) {
 			vfree(private_data1->md.p_comp);
 			private_data1->md.p_comp = NULL;
+		}
+		if (private_data1->p_ud_param) {
+			vfree(private_data1->p_ud_param);
+			private_data1->p_ud_param = NULL;
 		}
 	}
 

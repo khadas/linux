@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+#
+# Amlogic di_process device configuration
+#
+
+menu "Amlogic di_process support"
+
+config AMLOGIC_DI_PROCESS
+	tristate "Amlogic di_process device support"
+	default n
+
+	help
+		Select to enable "Amlogic di_process device support.
+
+endmenu

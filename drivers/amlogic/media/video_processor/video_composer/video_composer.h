@@ -191,6 +191,7 @@ struct received_frames_t {
 	unsigned long phy_addr[MXA_LAYER_COUNT];
 	u64 time_us64;
 	bool is_tvp;
+	struct file *fence_file[MXA_LAYER_COUNT];
 };
 
 struct vd_prepare_s {

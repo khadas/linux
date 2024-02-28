@@ -55,6 +55,13 @@ struct ins_mng_s {	/*ary add*/
 	struct page	*pages;
 };
 
+struct caller_mng_s {	/*jintao add*/
+	bool queued;
+	bool dropped;
+	bool dummy;
+	struct file *src_file;
+};
+
 struct di_buffer {
 	/*header*/
 	struct ins_mng_s mng;
@@ -66,6 +73,7 @@ struct di_buffer {
 	u32 flag;
 	unsigned int crcout;
 	unsigned int nrcrcout;
+	struct caller_mng_s caller_mng;
 };
 
 enum DI_FLAG {
@@ -124,6 +132,8 @@ struct di_init_parm {
 	struct di_operations_s ops;
 	void *caller_data;
 	enum di_output_format output_format;
+	unsigned int buffer_keep	: 1,
+				rev	: 31;
 };
 
 struct di_status {
@@ -204,6 +214,15 @@ int di_write(struct di_buffer *buffer, struct composer_dst *dst);
  * @return      0 for success, or fail type if < 0
  */
 int di_release_keep_buf(struct di_buffer *buffer);
+
+/**
+ * @brief  di_set_buffer_num
+ *
+ * @param[in]  number pre/post
+ *
+ * @return      0 for success, or fail type if < 0
+ */
+int di_set_buffer_num(unsigned int post, unsigned int pre);
 
 /**
  * @brief  di_get_output_buffer_num  get output buffer num

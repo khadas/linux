@@ -592,6 +592,7 @@ int new_destroy_instance(int index);
 enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer);
 enum DI_ERRORTYPE new_fill_output_buffer(int index, struct di_buffer *buffer);
 int new_release_keep_buf(struct di_buffer *buffer);
+int set_buffer_num(unsigned int post, unsigned int pre);
 int new_get_output_buffer_num(int index);
 int new_get_input_buffer_num(int index);
 bool dim_get_overturn(void);
