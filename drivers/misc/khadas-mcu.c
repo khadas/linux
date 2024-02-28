@@ -536,9 +536,10 @@ static void create_mcu_attrs(void) {
 		return;
 	}
 	for (i = 0; i < ARRAY_SIZE(mcu_class_attrs); i++) {
-		if (class_create_file(g_mcu_data->mcu_class, &mcu_class_attrs[i]));
+		if (class_create_file(g_mcu_data->mcu_class, &mcu_class_attrs[i])) {
 			pr_err("create mcu attribute %s fail\n",
 							mcu_class_attrs[i].attr.name);
+        }
 	}
 
 	if (is_mcu_fan_control_supported()) {
@@ -626,10 +627,10 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	return 0;
 }
 
-static int mcu_remove(struct i2c_client *client)
+static void mcu_remove(struct i2c_client *client)
 {
 	kfree(g_mcu_data);
-	return 0;
+	return ;
 }
 
 static void khadas_fan_shutdown(struct i2c_client *client)
