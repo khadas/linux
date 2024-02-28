@@ -1112,11 +1112,18 @@ static bool dw_dp_bandwidth_ok(struct dw_dp *dp,
 static bool dw_dp_detect(struct dw_dp *dp)
 {
 	u32 value;
+	int ret;
 
 	if (dp->hpd_gpio)
 		return gpiod_get_value_cansleep(dp->hpd_gpio);
 
-	regmap_read(dp->regmap, DPTX_HPD_STATUS, &value);
+	ret = regmap_read_poll_timeout(dp->regmap, DPTX_HPD_STATUS, value,
+				       FIELD_GET(HPD_STATE, value) != SOURCE_STATE_UNPLUG,
+				       100, 3000);
+	if (ret) {
+		dev_err(dp->dev, "get hpd status timeout\n");
+		return false;
+	}
 
 	return FIELD_GET(HPD_STATE, value) == SOURCE_STATE_PLUG;
 }
