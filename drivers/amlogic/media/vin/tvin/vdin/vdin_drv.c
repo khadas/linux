@@ -1329,6 +1329,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 		}
 		#endif
 	} else {
+#endif
 		/*disable dv mdata write*/
 		vdin_dolby_mdata_write_en(devp->addr_offset, 0);
 		#ifndef VDIN_BRINGUP_NO_VF
@@ -1339,6 +1340,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 					   VFRAME_EVENT_PROVIDER_START, NULL);
 		}
 		#endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	}
 #endif
 	sts = vdin_write_done_check(devp->addr_offset, devp);
