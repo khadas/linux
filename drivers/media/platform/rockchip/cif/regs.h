@@ -1081,9 +1081,10 @@ enum cif_reg_index {
 #define RKCIF_SKIP_SHIFT	0X15
 #define RKCIF_SKIP_EN(x)	(0x1 << (8 + x))
 
-#define RKCIF_CAP_SHIFT_RK3576		0x12
-#define RKCIF_SKIP_SHIFT_RK3576		0x09
+#define RKCIF_CAP_SHIFT_RK3576		(0x0c)
+#define RKCIF_SKIP_SHIFT_RK3576		(0x09)
 #define RKCIF_SKIP_EN_RK3576		(0x1 << 2)
+#define RKCIF_SKIP_EN_TOTAL_RK3576	(0x1 << 8)
 
 /* CIF LVDS SAV EAV Define */
 #define SW_LVDS_EAV_ACT(code)	(((code) & 0xfff) << 16)

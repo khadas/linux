@@ -1750,11 +1750,14 @@ static void rkcif_enable_skip_frame(struct rkcif_stream *stream, int cap_m, int 
 {
 	struct rkcif_device *dev = stream->cifdev;
 	u32 val = 0;
+	u32 skip_mask = 0;
 
 	val = rkcif_read_register(dev, CIF_REG_MIPI_LVDS_CTRL);
 	if (dev->chip_id > CHIP_RK3562_CIF) {
-		val &= 0xc00fffff;
-		val |= cap_m << RKCIF_CAP_SHIFT_RK3576 | skip_n << RKCIF_SKIP_SHIFT_RK3576;
+		val &= 0xffffc0ff;
+		skip_mask = (cap_m << RKCIF_CAP_SHIFT_RK3576) | (skip_n << RKCIF_SKIP_SHIFT_RK3576) |
+			RKCIF_SKIP_EN_TOTAL_RK3576;
+		val |= skip_mask;
 	} else {
 		val &= 0xffff00ff;
 		val |= cap_m << RKCIF_CAP_SHIFT | skip_n << RKCIF_SKIP_SHIFT | RKCIF_SKIP_EN(stream->id);
@@ -7712,11 +7715,20 @@ void rkcif_set_fps(struct rkcif_stream *stream, struct rkcif_fps *fps)
 	max_common_div = rkcif_get_max_common_div(cap_m, skip_n);
 	cap_m /= max_common_div;
 	skip_n /= max_common_div;
-	if (cap_m > 64) {
-		skip_n = skip_n / (cap_m / 64);
-		if (skip_n == 0)
-			skip_n = 1;
-		cap_m = 64;
+	if (cif_dev->chip_id > CHIP_RK3562_CIF) {
+		if (cap_m > 3) {
+			skip_n = skip_n / (cap_m / 3);
+			if (skip_n == 0)
+				skip_n = 1;
+			cap_m = 3;
+		}
+	} else {
+		if (cap_m > 64) {
+			skip_n = skip_n / (cap_m / 64);
+			if (skip_n == 0)
+				skip_n = 1;
+			cap_m = 64;
+		}
 	}
 	if (skip_n > 7) {
 		cap_m = cap_m / (skip_n / 7);
