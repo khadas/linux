@@ -37,6 +37,8 @@
 #define WAIT_TIME_MS_MAX	10000
 #define QUIRK_ALWAYS_ON		BIT(0)
 
+#define MAX_LANES		4
+
 enum fpw_mode {
 	FPW_ONE_BCLK_WIDTH,
 	FPW_ONE_SLOT_WIDTH,
@@ -57,6 +59,8 @@ struct rk_sai_dev {
 	unsigned int wait_time[SNDRV_PCM_STREAM_LAST + 1];
 	unsigned int tx_lanes;
 	unsigned int rx_lanes;
+	unsigned int sdi[MAX_LANES];
+	unsigned int sdo[MAX_LANES];
 	unsigned int quirks;
 	unsigned int mclk_root_rate;
 	unsigned int mclk_root_initial_rate;
@@ -596,6 +600,104 @@ static int rockchip_sai_prepare(struct snd_pcm_substream *substream,
 	}
 
 	return 0;
+}
+
+static int rockchip_sai_path_check(struct rk_sai_dev *sai,
+				   int num, bool is_rx)
+{
+	unsigned int *data;
+	int i;
+
+	data = is_rx ? sai->sdi : sai->sdo;
+
+	for (i = 0; i < num; i++) {
+		if (data[i] >= MAX_LANES) {
+			dev_err(sai->dev, "%s[%d]: %d, Should less than: %d\n",
+				is_rx ? "RX" : "TX", i, data[i], MAX_LANES);
+
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static void rockchip_sai_path_config(struct rk_sai_dev *sai,
+				     int num, bool is_rx)
+{
+	int i;
+
+	if (is_rx)
+		for (i = 0; i < num; i++)
+			regmap_update_bits(sai->regmap, SAI_PATH_SEL,
+					   SAI_RX_PATH_MASK(i),
+					   SAI_RX_PATH(i, sai->sdi[i]));
+	else
+		for (i = 0; i < num; i++)
+			regmap_update_bits(sai->regmap, SAI_PATH_SEL,
+					   SAI_TX_PATH_MASK(i),
+					   SAI_TX_PATH(i, sai->sdo[i]));
+}
+
+static int rockchip_sai_path_prepare(struct rk_sai_dev *sai,
+				     struct device_node *np,
+				     bool is_rx)
+{
+	char *path_prop;
+	unsigned int *data;
+	int num, ret;
+
+	if (is_rx) {
+		path_prop = "rockchip,sai-rx-route";
+		data = sai->sdi;
+	} else {
+		path_prop = "rockchip,sai-tx-route";
+		data = sai->sdo;
+	}
+
+	num = of_count_phandle_with_args(np, path_prop, NULL);
+	if (num == -ENOENT) {
+		return 0;
+	} else if (num != MAX_LANES) {
+		dev_err(sai->dev, "The property size should be: %d, ret: %d\n",
+			MAX_LANES, num);
+		return -EINVAL;
+	}
+
+	ret = device_property_read_u32_array(sai->dev, path_prop, data, num);
+	if (ret < 0) {
+		dev_err(sai->dev, "Failed to read '%s': %d\n",
+			path_prop, ret);
+		return ret;
+	}
+
+	ret = rockchip_sai_path_check(sai, num, is_rx);
+	if (ret)
+		return ret;
+
+	rockchip_sai_path_config(sai, num, is_rx);
+
+	return 0;
+}
+
+static int rockchip_sai_parse_paths(struct rk_sai_dev *sai,
+				    struct device_node *np)
+{
+	int ret;
+
+	ret = rockchip_sai_path_prepare(sai, np, 0);
+	if (ret < 0) {
+		dev_err(sai->dev, "Failed to prepare TX path: %d\n", ret);
+		return ret;
+	}
+
+	ret = rockchip_sai_path_prepare(sai, np, 1);
+	if (ret < 0) {
+		dev_err(sai->dev, "Failed to prepare RX path: %d\n", ret);
+		return ret;
+	}
+
+	return ret;
 }
 
 static int rockchip_sai_trigger(struct snd_pcm_substream *substream,
@@ -1631,6 +1733,10 @@ static int rockchip_sai_probe(struct platform_device *pdev)
 	regmap_read(sai->regmap, SAI_VERSION, &sai->version);
 
 	ret = rockchip_sai_parse_quirks(sai);
+	if (ret)
+		goto err_disable_hclk;
+
+	ret = rockchip_sai_parse_paths(sai, node);
 	if (ret)
 		goto err_disable_hclk;
 

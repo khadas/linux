@@ -118,6 +118,14 @@
 #define SAI_INTSR_TXUI_INA		0
 #define SAI_INTSR_TXUI_ACT		BIT(1)
 
+/* PATH_SEL: Transfer / Receive Path Select Register */
+#define SAI_RX_PATH_SHIFT(x)		(8 + (x) * 2)
+#define SAI_RX_PATH_MASK(x)		(0x3 << SAI_RX_PATH_SHIFT(x))
+#define SAI_RX_PATH(x, v)		((v) << SAI_RX_PATH_SHIFT(x))
+#define SAI_TX_PATH_SHIFT(x)		(0 + (x) * 2)
+#define SAI_TX_PATH_MASK(x)		(0x3 << SAI_TX_PATH_SHIFT(x))
+#define SAI_TX_PATH(x, v)		((v) << SAI_TX_PATH_SHIFT(x))
+
 /* XSHIFT: Transfer / Receive Frame Sync Shift Register */
 #define SAI_XSHIFT_SEL_MASK		GENMASK(23, 0)
 #define SAI_XSHIFT_SEL(x)		(x)
