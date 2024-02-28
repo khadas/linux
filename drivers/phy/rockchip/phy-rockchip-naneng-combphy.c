@@ -153,6 +153,9 @@ static int rockchip_combphy_usb3_init(struct rockchip_combphy_priv *priv)
 		return ret;
 	} else if (device_property_present(priv->dev, "rockchip,dis-u3otg1-port")) {
 		ret = rockchip_combphy_param_write(priv->pipe_grf, &phy_cfg->grfcfg->u3otg1_port_en, false);
+		if (of_device_is_compatible(priv->dev->of_node, "rockchip,rk3576-naneng-combphy"))
+			rockchip_combphy_param_write(priv->phy_grf,
+						     &phy_cfg->grfcfg->usb_mode_set, true);
 		return ret;
 	}
 
@@ -244,7 +247,9 @@ static int rockchip_combphy_init(struct phy *phy)
 	if (cfg->pipe_phy_grf_reset.enable)
 		rockchip_combphy_param_write(priv->phy_grf, &cfg->pipe_phy_grf_reset, false);
 
-	if (priv->mode == PHY_TYPE_USB3) {
+	if (priv->mode == PHY_TYPE_USB3 &&
+	    !device_property_present(priv->dev, "rockchip,dis-u3otg0-port") &&
+	    !device_property_present(priv->dev, "rockchip,dis-u3otg1-port")) {
 		ret = readx_poll_timeout_atomic(rockchip_combphy_is_ready,
 						priv, val,
 						val == cfg->pipe_phy_status.enable,
@@ -360,10 +365,14 @@ static int rockchip_combphy_parse_dt(struct device *dev,
 		return PTR_ERR(priv->phy_grf);
 	}
 
-	if (device_property_present(dev, "rockchip,dis-u3otg0-port"))
+	if (device_property_present(dev, "rockchip,dis-u3otg0-port")) {
 		rockchip_combphy_param_write(priv->pipe_grf, &phy_cfg->grfcfg->u3otg0_port_en, false);
-	else if (device_property_present(dev, "rockchip,dis-u3otg1-port"))
+	} else if (device_property_present(dev, "rockchip,dis-u3otg1-port")) {
 		rockchip_combphy_param_write(priv->pipe_grf, &phy_cfg->grfcfg->u3otg1_port_en, false);
+		if (of_device_is_compatible(dev->of_node, "rockchip,rk3576-naneng-combphy"))
+			rockchip_combphy_param_write(priv->phy_grf,
+						     &phy_cfg->grfcfg->usb_mode_set, true);
+	}
 
 	if (!device_property_read_u32(dev, "rockchip,sgmii-mac-sel", &mac_id) &&
 	    (mac_id > 0))
