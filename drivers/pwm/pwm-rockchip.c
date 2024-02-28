@@ -1121,9 +1121,6 @@ static int rockchip_pwm_set_freq_meter_v4(struct pwm_chip *chip, struct pwm_devi
 	int ret;
 
 	if (enable) {
-		ret = clk_enable(pc->clk);
-		if (ret)
-			return ret;
 		pc->freq_res_valid = false;
 
 		arbiter = BIT(pc->channel_id) << FREQ_READ_LOCK_SHIFT |
@@ -1139,6 +1136,12 @@ static int rockchip_pwm_set_freq_meter_v4(struct pwm_chip *chip, struct pwm_devi
 		val = readl_relaxed(pc->base + FREQ_ARBITER);
 		if (!(val & arbiter))
 			return -EINVAL;
+	}
+
+	if (enable) {
+		ret = clk_enable(pc->clk);
+		if (ret)
+			return ret;
 	}
 
 	writel_relaxed(FREQ_INT_EN(enable), pc->base + INT_EN);
