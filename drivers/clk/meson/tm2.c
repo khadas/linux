@@ -463,7 +463,7 @@ static const struct pll_params_table tm2_gp0_pll_table[] = {
 	PLL_PARAMS(141, 1), /* DCO = 3384M OD = 2 PLL = 846M*/
 	PLL_PARAMS(132, 1), /* DCO = 3168M OD = 2 PLL = 792M */
 	PLL_PARAMS(248, 1), /* DCO = 5952M OD = 3 PLL = 744M */
-	{0, 0},
+	{/* sentinel */},
 };
 #endif
 
@@ -566,10 +566,19 @@ static struct clk_regmap tm2_gp0_pll = {
 };
 #endif
 
-static const struct pll_mult_range tm2_gp1_pll_mult_range = {
-	.min = 128,
-	.max = 250,
+#ifdef CONFIG_ARM
+static const struct pll_params_table tm2_gp1_pll_params_table[] = {
+	PLL_PARAMS(200, 1, 2), /*DCO=4800M OD=1200M*/
+	PLL_PARAMS(125, 1, 1), /*DCO=3000M OD=1500M*/
+	{ /* sentinel */ },
 };
+#else
+static const struct pll_params_table tm2_gp1_pll_params_table[] = {
+	PLL_PARAMS(200, 1), /*DCO=4800M OD=1200M*/
+	PLL_PARAMS(125, 1), /*DCO=3000M OD=1500M*/
+	{ /* sentinel */ },
+};
+#endif
 
 static struct clk_regmap tm2_gp1_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
@@ -588,11 +597,13 @@ static struct clk_regmap tm2_gp1_pll_dco = {
 			.shift   = 10,
 			.width   = 5,
 		},
-		.frac = {
-			.reg_off = HHI_GP1_PLL_CNTL1,
-			.shift   = 0,
-			.width   = 19,
+#ifdef CONFIG_ARM
+		.od = {
+			.reg_off = HHI_GP1_PLL_CNTL0,
+			.shift	 = 16,
+			.width	 = 3,
 		},
+#endif
 		.l = {
 			.reg_off = HHI_GP1_PLL_CNTL0,
 			.shift   = 31,
@@ -603,10 +614,11 @@ static struct clk_regmap tm2_gp1_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
+		.table = tm2_gp1_pll_params_table
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp1_pll_dco",
-		.ops = &meson_clk_pll_ro_ops,
+		.ops = &meson_clk_pll_ops,
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "xtal",
 		},
@@ -616,6 +628,19 @@ static struct clk_regmap tm2_gp1_pll_dco = {
 	},
 };
 
+#ifdef CONFIG_ARM
+static struct clk_regmap tm2_gp1_pll = {
+	.hw.init = &(struct clk_init_data){
+		.name = "gp1_pll",
+		.ops = &meson_pll_clk_no_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_gp1_pll_dco.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+#else
 static struct clk_regmap tm2_gp1_pll = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = HHI_GP1_PLL_CNTL0,
@@ -626,14 +651,20 @@ static struct clk_regmap tm2_gp1_pll = {
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp1_pll",
-		.ops = &clk_regmap_divider_ro_ops,
+		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&tm2_gp1_pll_dco.hw
 		},
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
+#endif
 
+static const struct pll_mult_range tm2_hifi_pll_mult_range = {
+	.min = 128,
+	.max = 250,
+};
 /*
  * Internal hifi pll emulation configuration parameters
  */
@@ -678,7 +709,7 @@ static struct clk_regmap tm2_hifi_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
-		.range = &tm2_gp1_pll_mult_range,
+		.range = &tm2_hifi_pll_mult_range,
 		.init_regs = tm2_hifi_init_regs,
 		.init_count = ARRAY_SIZE(tm2_hifi_init_regs),
 		.flags = CLK_MESON_PLL_ROUND_CLOSEST,
@@ -3676,7 +3707,7 @@ static struct clk_regmap tm2_dsu_clk = {
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "dsu_clk",
-		.ops = &clk_regmap_mux_ro_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&tm2_cpu_clk.hw,
 			&tm2_dsu_final_clk.hw,
