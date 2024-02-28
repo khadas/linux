@@ -358,7 +358,12 @@ static void RGA2_set_reg_src_info(u8 *base, struct rga2_req *msg)
 			vsd_scale_mode = 0;
 			break;
 		case RGA_INTERP_LINEAR:
-			vsd_scale_mode = 1;
+			if (sh > 4096)
+				/* force select average */
+				vsd_scale_mode = 0;
+			else
+				vsd_scale_mode = 1;
+
 			break;
 		}
 	}
