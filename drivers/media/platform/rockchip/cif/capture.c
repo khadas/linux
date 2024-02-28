@@ -5608,11 +5608,11 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		INIT_LIST_HEAD(&stream->vb_done_list);
 	}
 
+	if (mode == stream->cur_stream_mode)
+		rkcif_detach_sync_mode(dev);
 	stream->cur_stream_mode &= ~mode;
 	v4l2_info(&dev->v4l2_dev, "stream[%d] stopping finished, dma_en 0x%x\n", stream->id, stream->dma_en);
 	mutex_unlock(&dev->stream_lock);
-	if (mode == stream->cur_stream_mode)
-		rkcif_detach_sync_mode(dev);
 }
 
 static void rkcif_stop_streaming(struct vb2_queue *queue)
