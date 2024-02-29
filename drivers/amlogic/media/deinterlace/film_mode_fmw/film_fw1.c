@@ -741,14 +741,6 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		 *rFlmPstMod = 0;
 		nS1 = 0;
 	}
-	if (flm22_force) {
-		*rFlmSltPre = nDIF01[HISDIFNUM-1] > nDIF01[HISDIFNUM-2] ? 1 : 0;
-		/* Post-processing: film mode,00: global combing,
-		 * 01: 2-2 film, 10: 2-3 film, 11:-others
-		 */
-		*rFlmPstMod = 1;
-		nS1 = 300; /*increase flm22_force level from vlsi-yanling*///test
-	}
 	dif01_flag_pre = dif01_flag;
 	flm22_dif01_th = min(flm22_th, 1 << 14);
 	dif01_flag =  (nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2])
@@ -801,6 +793,10 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	if (max_dif02 / (nDIF02[HISDIFNUM - 1] + 1) > flm22_dif02_ratio) {
 		if (pd22224_dif02_flag == 0 && nDIF02[HISDIFNUM - 1]
 			< (1 << (pd_dif02_sel + 1))) {
+			if (pd22224_mcdi_cnt == 10)
+				pd22224_cnt = ((pd22224_cnt - 10) > 0) ? (pd22224_cnt - 10) : 0;
+			if (pRDat.pModXx[HISDETNUM - 1 - mDly] == 4)
+				pd22224_cnt = 0;
 			if ((pd22224_cnt < pd22224_th && nDIF02[HISDIFNUM - 1]
 				< (1 << pd_dif02_sel)) || pd22224_dif02_reset)
 				pd22224_mcdi_cnt = 0;
@@ -951,6 +947,16 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		else
 			stop_flag = 1;
 	}
+
+	if (((flm22_force >> 4) & 0x1) == 1 && (flm22_force & 0xF) < 12) {
+		*rFlmSltPre = nDIF01[HISDIFNUM - 1] > nDIF01[HISDIFNUM - 2] ? 1 : 0;
+		*rFlmPstMod = (flm22_force & 0xF);
+		nS1 = 300;
+	}
+	if (pr_pd)
+		pr_info("flm22_force = %d, rFlmPstMod = %d, nS1 = %d\n",
+			flm22_force, *rFlmPstMod, nS1);
+
 	if (pr_pd) {
 		pr_info("pd22224_cnt = %d, pd22224_th = %d, pd22224_mcdi_cnt = %d, pd22224_mcdi_flag = %d, pd22224_dif02_flag = %d, pd_dif01_flag = %d\n",
 			pd22224_cnt, pd22224_th, pd22224_mcdi_cnt,
