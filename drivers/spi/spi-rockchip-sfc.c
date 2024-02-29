@@ -959,8 +959,10 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 
 	if (sfc->use_dma) {
 		sfc->buffer = (u8 *)__get_free_pages(GFP_KERNEL | GFP_DMA32, get_order(sfc->max_iosize));
-		if (!sfc->buffer)
+		if (!sfc->buffer) {
 			return -ENOMEM;
+			goto err_dma;
+		}
 		sfc->dma_buffer = virt_to_phys(sfc->buffer);
 	}
 
@@ -975,6 +977,7 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 
 err_register:
 	free_pages((unsigned long)sfc->buffer, get_order(sfc->max_iosize));
+err_dma:
 	pm_runtime_disable(sfc->dev);
 	pm_runtime_set_suspended(sfc->dev);
 	pm_runtime_dont_use_autosuspend(sfc->dev);
