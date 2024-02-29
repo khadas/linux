@@ -4141,6 +4141,11 @@ static void vop2_initial(struct drm_crtc *crtc)
 			VOP_CTRL_SET(vop2, lut_use_axi1, 0);
 		}
 
+		/* disable immediately enable bit for dp */
+		VOP_CTRL_SET(vop2, dp0_regdone_imd_en, 0);
+		VOP_CTRL_SET(vop2, dp1_regdone_imd_en, 0);
+		VOP_CTRL_SET(vop2, dp2_regdone_imd_en, 0);
+
 		/* Set reg done every field for interlace */
 		VOP_CTRL_SET(vop2, reg_done_frm, 0);
 		VOP_CTRL_SET(vop2, cfg_done_en, 1);
