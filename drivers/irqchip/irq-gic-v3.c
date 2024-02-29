@@ -34,6 +34,10 @@
 
 #include "irq-gic-common.h"
 
+#ifdef CONFIG_ROCKCHIP_AMP
+#include <soc/rockchip/rockchip_amp.h>
+#endif
+
 #define GICD_INT_NMI_PRI	(GICD_INT_DEF_PRI & ~0x80)
 
 #define FLAGS_WORKAROUND_GICR_WAKER_MSM8996	(1ULL << 0)
@@ -361,6 +365,10 @@ static void gic_poke_irq(struct irq_data *d, u32 offset)
 
 static void gic_mask_irq(struct irq_data *d)
 {
+#ifdef CONFIG_ROCKCHIP_AMP
+	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+		return;
+#endif
 	gic_poke_irq(d, GICD_ICENABLER);
 	if (gic_irq_in_rdist(d))
 		gic_redist_wait_for_rwp();
@@ -385,6 +393,10 @@ static void gic_eoimode1_mask_irq(struct irq_data *d)
 
 static void gic_unmask_irq(struct irq_data *d)
 {
+#ifdef CONFIG_ROCKCHIP_AMP
+	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+		return;
+#endif
 	gic_poke_irq(d, GICD_ISENABLER);
 }
 
@@ -571,6 +583,10 @@ static bool gic_arm64_erratum_2941627_needed(struct irq_data *d)
 
 static void gic_eoi_irq(struct irq_data *d)
 {
+#ifdef CONFIG_ROCKCHIP_AMP
+	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+		return;
+#endif
 	write_gicreg(gic_irq(d), ICC_EOIR1_EL1);
 	isb();
 
@@ -908,6 +924,15 @@ void gic_v3_dist_init(void)
 	 */
 	affinity = gic_mpidr_to_affinity(cpu_logical_map(smp_processor_id()));
 	for (i = 32; i < GIC_LINE_NR; i++) {
+#ifdef CONFIG_ROCKCHIP_AMP
+		u64 affinity_amp;
+
+		if (rockchip_amp_need_init_amp_irq(i)) {
+			affinity_amp = rockchip_amp_get_irq_aff(i);
+			gic_write_irouter(affinity_amp, base + GICD_IROUTER + i * 8);
+			continue;
+		}
+#endif
 		trace_android_vh_gic_v3_affinity_init(i, GICD_IROUTER, &affinity);
 		gic_write_irouter(affinity, base + GICD_IROUTER + i * 8);
 	}
@@ -1359,6 +1384,10 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
 	int enabled;
 	u64 val;
 
+#ifdef CONFIG_ROCKCHIP_AMP
+	if (rockchip_amp_check_amp_irq(gic_irq(d)))
+		return -EINVAL;
+#endif
 	if (force)
 		cpu = cpumask_first(mask_val);
 	else
@@ -1992,6 +2021,9 @@ static int __init gic_init_bases(void __iomem *dist_base,
 
 	gic_update_rdist_properties();
 
+#ifdef CONFIG_ROCKCHIP_AMP
+	rockchip_amp_get_gic_info(GIC_LINE_NR, GIC_V3);
+#endif
 	gic_v3_dist_init();
 	gic_v3_cpu_init();
 	gic_smp_init();

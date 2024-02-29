@@ -46,8 +46,7 @@ static int rkisp_params_g_fmt_meta_out(struct file *file, void *fh,
 
 	memset(meta, 0, sizeof(*meta));
 	meta->dataformat = params_vdev->vdev_fmt.fmt.meta.dataformat;
-	meta->buffersize = params_vdev->vdev_fmt.fmt.meta.buffersize;
-
+	params_vdev->ops->get_param_size(params_vdev, &meta->buffersize);
 	return 0;
 }
 
@@ -349,11 +348,7 @@ static int rkisp_init_params_vdev(struct rkisp_isp_params_vdev *params_vdev)
 	else
 		ret = rkisp_init_params_vdev_v32(params_vdev);
 
-	params_vdev->vdev_fmt.fmt.meta.dataformat =
-		V4L2_META_FMT_RK_ISP1_PARAMS;
-	if (params_vdev->ops && params_vdev->ops->get_param_size)
-		params_vdev->ops->get_param_size(params_vdev,
-			&params_vdev->vdev_fmt.fmt.meta.buffersize);
+	params_vdev->vdev_fmt.fmt.meta.dataformat = V4L2_META_FMT_RK_ISP1_PARAMS;
 	return ret;
 }
 
@@ -485,6 +480,14 @@ int rkisp_params_info2ddr_cfg(struct rkisp_isp_params_vdev *params_vdev,
 		ret = params_vdev->ops->info2ddr_cfg(params_vdev, arg);
 
 	return ret;
+}
+
+void rkisp_params_get_bay3d_buffd(struct rkisp_isp_params_vdev *params_vdev,
+				  struct rkisp_bay3dbuf_info *bay3dbuf)
+{
+	memset(bay3dbuf, -1, sizeof(*bay3dbuf));
+	if (params_vdev->ops->get_bay3d_buffd)
+		params_vdev->ops->get_bay3d_buffd(params_vdev, bay3dbuf);
 }
 
 int rkisp_register_params_vdev(struct rkisp_isp_params_vdev *params_vdev,

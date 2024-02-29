@@ -42,6 +42,8 @@ struct rkisp_isp_params_ops {
 	void (*fop_release)(struct rkisp_isp_params_vdev *params_vdev);
 	bool (*check_bigmode)(struct rkisp_isp_params_vdev *params_vdev);
 	int (*info2ddr_cfg)(struct rkisp_isp_params_vdev *params_vdev, void *arg);
+	void (*get_bay3d_buffd)(struct rkisp_isp_params_vdev *params_vdev,
+				struct rkisp_bay3dbuf_info *bay3dbuf);
 };
 
 /*
@@ -147,4 +149,6 @@ void rkisp_params_meshbuf_free(struct rkisp_isp_params_vdev *params_vdev, u64 id
 void rkisp_params_stream_stop(struct rkisp_isp_params_vdev *params_vdev);
 bool rkisp_params_check_bigmode(struct rkisp_isp_params_vdev *params_vdev);
 int rkisp_params_info2ddr_cfg(struct rkisp_isp_params_vdev *params_vdev, void *arg);
+void rkisp_params_get_bay3d_buffd(struct rkisp_isp_params_vdev *params_vdev,
+				  struct rkisp_bay3dbuf_info *bay3dbuf);
 #endif /* _RKISP_ISP_PARAM_H */

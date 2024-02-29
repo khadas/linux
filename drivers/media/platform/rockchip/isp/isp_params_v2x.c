@@ -4196,6 +4196,7 @@ rkisp_get_param_size_v2x(struct rkisp_isp_params_vdev *params_vdev,
 			 unsigned int sizes[])
 {
 	sizes[0] = sizeof(struct isp2x_isp_params_cfg);
+	params_vdev->vdev_fmt.fmt.meta.buffersize = sizes[0];
 }
 
 static void

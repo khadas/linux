@@ -107,7 +107,7 @@ static const s64 link_freq_cphy_rgb_menu_items[] = {
 };
 
 struct lt8668sx {
-	struct v4l2_fwnode_bus_mipi_csi2 bus;
+	struct v4l2_mbus_config_mipi_csi2 bus;
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_ctrl_handler hdl;
@@ -960,15 +960,9 @@ static int lt8668sx_g_mbus_config(struct v4l2_subdev *sd,
 			unsigned int pad, struct v4l2_mbus_config *cfg)
 {
 	struct lt8668sx *lt8668sx = to_lt8668sx(sd);
-	u32 lane_num = lt8668sx->bus_cfg.bus.mipi_csi2.num_data_lanes;
-	u32 val = 0;
-
-	val = 1 << (lane_num - 1) |
-		V4L2_MBUS_CSI2_CHANNEL_0 |
-		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 
 	cfg->type = lt8668sx->bus_cfg.bus_type;
-	cfg->flags = val;
+	cfg->bus.mipi_csi2 = lt8668sx->bus_cfg.bus.mipi_csi2;
 
 	return 0;
 }
@@ -993,7 +987,7 @@ static int lt8668sx_s_stream(struct v4l2_subdev *sd, int on)
 }
 
 static int lt8668sx_enum_mbus_code(struct v4l2_subdev *sd,
-			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_state *sd_state,
 			struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct lt8668sx *lt8668sx = to_lt8668sx(sd);
@@ -1011,7 +1005,7 @@ static int lt8668sx_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int lt8668sx_enum_frame_sizes(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct lt8668sx *lt8668sx = to_lt8668sx(sd);
@@ -1031,7 +1025,7 @@ static int lt8668sx_enum_frame_sizes(struct v4l2_subdev *sd,
 }
 
 static int lt8668sx_get_fmt(struct v4l2_subdev *sd,
-			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_state *sd_state,
 			struct v4l2_subdev_format *format)
 {
 	struct lt8668sx *lt8668sx = to_lt8668sx(sd);
@@ -1066,7 +1060,7 @@ static int lt8668sx_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int lt8668sx_enum_frame_interval(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct lt8668sx *lt8668sx = to_lt8668sx(sd);
@@ -1084,7 +1078,7 @@ static int lt8668sx_enum_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int lt8668sx_set_fmt(struct v4l2_subdev *sd,
-			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_state *sd_state,
 			struct v4l2_subdev_format *format)
 {
 	struct lt8668sx *lt8668sx = to_lt8668sx(sd);
@@ -1092,7 +1086,7 @@ static int lt8668sx_set_fmt(struct v4l2_subdev *sd,
 
 	/* is overwritten by get_fmt */
 	u32 code = format->format.code;
-	int ret = lt8668sx_get_fmt(sd, cfg, format);
+	int ret = lt8668sx_get_fmt(sd, sd_state, format);
 
 	format->format.code = code;
 
@@ -1279,7 +1273,7 @@ static int lt8668sx_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct lt8668sx *lt8668sx = to_lt8668sx(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->pad, 0);
+				v4l2_subdev_get_try_format(sd, fh->state, 0);
 	const struct lt8668sx_mode *def_mode = &lt8668sx->support_modes[0];
 
 	mutex_lock(&lt8668sx->confctl_mutex);
@@ -1700,7 +1694,7 @@ static int lt8668sx_probe(struct i2c_client *client,
 	snprintf(sd->name, sizeof(sd->name), "m%02d_%s_%s %s",
 		 lt8668sx->module_index, facing,
 		 LT8668SX_NAME, dev_name(sd->dev));
-	err = v4l2_async_register_subdev_sensor_common(sd);
+	err = v4l2_async_register_subdev_sensor(sd);
 	if (err < 0) {
 		v4l2_err(sd, "v4l2 register subdev failed! err:%d\n", err);
 		goto err_clean_entity;
@@ -1735,7 +1729,7 @@ err_work_queues:
 	return err;
 }
 
-static int lt8668sx_remove(struct i2c_client *client)
+static void lt8668sx_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct lt8668sx *lt8668sx = to_lt8668sx(sd);
@@ -1754,8 +1748,6 @@ static int lt8668sx_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&lt8668sx->hdl);
 	mutex_destroy(&lt8668sx->confctl_mutex);
 	clk_disable_unprepare(lt8668sx->xvclk);
-
-	return 0;
 }
 
 #if IS_ENABLED(CONFIG_OF)

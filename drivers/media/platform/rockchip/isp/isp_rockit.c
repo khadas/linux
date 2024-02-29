@@ -159,17 +159,19 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 			isprk_buf->isp_buf.buff_addr[i] = isprk_buf->buff_addr;
 	}
 
-	if (ispdev->cap_dev.wrap_line && stream->id == RKISP_STREAM_MP && isprk_buf) {
-		val = isprk_buf->buff_addr;
-		reg = stream->config->mi.y_base_ad_init;
-		rkisp_write(ispdev, reg, val, false);
+	if (ispdev->cap_dev.wrap_line && stream->id == RKISP_STREAM_MP) {
+		if (isprk_buf) {
+			val = isprk_buf->buff_addr;
+			reg = stream->config->mi.y_base_ad_init;
+			rkisp_write(ispdev, reg, val, false);
 
-		bytesperline = stream->out_fmt.plane_fmt[0].bytesperline;
-		val += bytesperline * ispdev->cap_dev.wrap_line;
-		reg = stream->config->mi.cb_base_ad_init;
-		rkisp_write(ispdev, reg, val, false);
-		stream->dummy_buf.dma_addr = isprk_buf->buff_addr;
-		v4l2_info(&ispdev->v4l2_dev, "rockit wrap buf:0x%x\n", isprk_buf->buff_addr);
+			bytesperline = stream->out_fmt.plane_fmt[0].bytesperline;
+			val += bytesperline * ispdev->cap_dev.wrap_line;
+			reg = stream->config->mi.cb_base_ad_init;
+			rkisp_write(ispdev, reg, val, false);
+			stream->dummy_buf.dma_addr = isprk_buf->buff_addr;
+			v4l2_info(&ispdev->v4l2_dev, "rockit wrap buf:0x%x\n", isprk_buf->buff_addr);
+		}
 		return -EINVAL;
 	}
 

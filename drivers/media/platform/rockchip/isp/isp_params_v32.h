@@ -175,14 +175,14 @@ struct rkisp_isp_params_ops_v32 {
 struct rkisp_isp_params_val_v32 {
 	struct tasklet_struct lsc_tasklet;
 
-	struct rkisp_dummy_buffer buf_3dlut[ISP3_UNITE_MAX][ISP32_3DLUT_BUF_NUM];
-	u32 buf_3dlut_idx[ISP3_UNITE_MAX];
+	struct rkisp_dummy_buffer buf_3dlut[ISP_UNITE_MAX][ISP32_3DLUT_BUF_NUM];
+	u32 buf_3dlut_idx[ISP_UNITE_MAX];
 
-	struct rkisp_dummy_buffer buf_ldch[ISP3_UNITE_MAX][ISP3X_MESH_BUF_NUM];
-	u32 buf_ldch_idx[ISP3_UNITE_MAX];
+	struct rkisp_dummy_buffer buf_ldch[ISP_UNITE_MAX][ISP3X_MESH_BUF_NUM];
+	u32 buf_ldch_idx[ISP_UNITE_MAX];
 
-	struct rkisp_dummy_buffer buf_cac[ISP3_UNITE_MAX][ISP3X_MESH_BUF_NUM];
-	u32 buf_cac_idx[ISP3_UNITE_MAX];
+	struct rkisp_dummy_buffer buf_cac[ISP_UNITE_MAX][ISP3X_MESH_BUF_NUM];
+	u32 buf_cac_idx[ISP_UNITE_MAX];
 
 	struct rkisp_dummy_buffer buf_lsclut[ISP32_LSC_LUT_BUF_NUM];
 	u32 buf_lsclut_idx;

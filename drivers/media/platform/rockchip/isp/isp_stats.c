@@ -44,7 +44,7 @@ static int rkisp_stats_g_fmt_meta_cap(struct file *file, void *priv,
 
 	memset(meta, 0, sizeof(*meta));
 	meta->dataformat = stats_vdev->vdev_fmt.fmt.meta.dataformat;
-	meta->buffersize = stats_vdev->vdev_fmt.fmt.meta.buffersize;
+	stats_vdev->ops->get_stat_size(stats_vdev, &meta->buffersize);
 
 	return 0;
 }
@@ -132,8 +132,7 @@ static int rkisp_stats_vb2_queue_setup(struct vb2_queue *vq,
 
 	*num_buffers = clamp_t(u32, *num_buffers, RKISP_ISP_STATS_REQ_BUFS_MIN,
 			       RKISP_ISP_STATS_REQ_BUFS_MAX);
-
-	sizes[0] = stats_vdev->vdev_fmt.fmt.meta.buffersize;
+	stats_vdev->ops->get_stat_size(stats_vdev, sizes);
 	INIT_LIST_HEAD(&stats_vdev->stat);
 
 	return 0;
@@ -166,9 +165,9 @@ static void rkisp_stats_vb2_buf_queue(struct vb2_buffer *vb)
 			dev_info(dev->dev,
 				 "tb stat seq:%d meas_type:0x%x\n",
 				 buf->frame_id, buf->meas_type);
-			memcpy(stats_buf->vaddr[0], buf, sizeof(struct rkisp32_isp_stat_buffer));
+			memcpy(stats_buf->vaddr[0], buf, size);
 			buf->meas_type = 0;
-			vb2_set_plane_payload(vb, 0, sizeof(struct rkisp32_isp_stat_buffer));
+			vb2_set_plane_payload(vb, 0, size);
 			vbuf->sequence = buf->frame_id;
 			spin_unlock_irqrestore(&stats_dev->rd_lock, flags);
 			vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
@@ -286,6 +285,7 @@ static void rkisp_init_stats_vdev(struct rkisp_isp_stats_vdev *stats_vdev)
 	stats_vdev->rd_buf_idx = 0;
 	stats_vdev->wr_buf_idx = 0;
 	memset(stats_vdev->stats_buf, 0, sizeof(stats_vdev->stats_buf));
+	stats_vdev->vdev_fmt.fmt.meta.dataformat = V4L2_META_FMT_RK_ISP1_STAT_3A;
 
 	if (stats_vdev->dev->isp_ver <= ISP_V13)
 		rkisp_init_stats_vdev_v1x(stats_vdev);

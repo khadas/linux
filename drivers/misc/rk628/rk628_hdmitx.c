@@ -741,6 +741,17 @@ static int rk628_hdmi_bridge_attach(struct drm_bridge *bridge,
 		return ret;
 	}
 
+	if (rk628_input_is_bt1120(hdmi->rk628)) {
+		u32 bus_format = MEDIA_BUS_FMT_YUYV8_1X16;
+
+		ret = drm_display_info_set_bus_formats(&connector->display_info,
+						       &bus_format, 1);
+		if (ret) {
+			dev_err(hdmi->dev, "Failed to set bus formats\n");
+			return ret;
+		}
+	}
+
 	drm_connector_helper_add(connector,
 				 &rk628_hdmi_connector_helper_funcs);
 	drm_connector_attach_encoder(connector, bridge->encoder);
