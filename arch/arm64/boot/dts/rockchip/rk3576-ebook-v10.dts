@@ -121,6 +121,15 @@
 		};
 	};
 
+	vcc_sys: vcc-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3800000>;
+		regulator-max-microvolt = <3800000>;
+	};
+
 	vcc_2v0_pldo_s3: vcc-2v0-pldo-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_2v0_pldo_s3";
@@ -162,15 +171,6 @@
 		startup-delay-us = <10000>;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-	};
-
-	vcc_sys: vcc-sys {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_sys";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <3800000>;
-		regulator-max-microvolt = <3800000>;
 	};
 
 	wireless_bluetooth: wireless-bluetooth {
@@ -479,7 +479,7 @@
 				regulator-boot-on;
 				regulator-name = "vddq_ddr_s0";
 				regulator-state-mem {
-					regulator-on-in-suspend;
+					regulator-off-in-suspend;
 				};
 			};
 
@@ -946,7 +946,7 @@
 		pinctrl-0 = <&touch_gpio>;
 		t_irq_gpio = <&gpio0 RK_PC5 IRQ_TYPE_LEVEL_LOW>;
 		t_rst_gpio = <&gpio0 RK_PD0 GPIO_ACTIVE_HIGH>;
-		focaltech,display-coords =  <0 0 1200 1600>;
+		focaltech,display-coords =  <0 0 1404 1872>;
 		focaltech,have-key;
 		focaltech,key-number = <1>;
 		focaltech,keys = <158>;
