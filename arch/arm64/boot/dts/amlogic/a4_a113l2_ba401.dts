@@ -1078,6 +1078,7 @@
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
 	max-frequency = <200000000>;
+	sdr_core_phase = <2>;
 
 	non-removable;
 	disable-wp;
