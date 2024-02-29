@@ -134,6 +134,96 @@ module_param_named(always_on, pm_domain_always_on, bool, 0644);
 MODULE_PARM_DESC(always_on,
 		 "Always keep pm domains power on except for system suspend.");
 
+#if 0
+#define NAME_LEN 20
+
+static bool rockchip_pmu_domain_is_on(struct rockchip_pm_domain *pd);
+static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on);
+static void rockchip_pmu_lock(struct rockchip_pm_domain *pd);
+static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd);
+
+/*
+ * power on : echo gpu 1 > /sys/module/pm_domains/parameters/status
+ * power off: echo gpu 0 > /sys/module/pm_domains/parameters/status
+ */
+static int pd_set_status(const char *val, const struct kernel_param *kp)
+{
+	struct generic_pm_domain *genpd;
+	struct rockchip_pm_domain *pd;
+	char name[NAME_LEN] = { 0 };
+	int status = 0;
+	int i;
+	bool is_on;
+
+	if (!g_pmu)
+		return 0;
+
+	if (strlen(val) > (NAME_LEN - 2))
+		return -EINVAL;
+
+	if (sscanf(val, "%s %d", name, &status) != 2) {
+		pr_info("power on : echo gpu 1 > /sys/module/pm_domains/parameters/status\n");
+		pr_info("power off: echo gpu 0 > /sys/module/pm_domains/parameters/status\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < g_pmu->genpd_data.num_domains; i++) {
+		genpd = g_pmu->genpd_data.domains[i];
+		if (!genpd)
+			continue;
+		if (strncmp(genpd->name, name, strlen(name)))
+			continue;
+		pd = container_of(genpd, struct rockchip_pm_domain, genpd);
+		pr_info("set %s %d\n", genpd->name, status);
+		if (!rockchip_pd_power(pd, status)) {
+			rockchip_pmu_lock(pd);
+			is_on = rockchip_pmu_domain_is_on(pd);
+			rockchip_pmu_unlock(pd);
+			pr_info("get %s %d\n", genpd->name, is_on);
+		}
+		break;
+	}
+
+	return 0;
+}
+
+/*
+ * cat /sys/module/pm_domains/parameters/status
+ */
+static int pd_get_status(char *buffer, const struct kernel_param *kp)
+{
+	struct generic_pm_domain *genpd;
+	struct rockchip_pm_domain *pd;
+	int i;
+	int len = 0;
+	bool is_on;
+
+	if (!g_pmu)
+		return 0;
+
+	for (i = 0; i < g_pmu->genpd_data.num_domains; i++) {
+		genpd = g_pmu->genpd_data.domains[i];
+		if (!genpd)
+			continue;
+		pd = container_of(genpd, struct rockchip_pm_domain, genpd);
+		rockchip_pmu_lock(pd);
+		is_on = rockchip_pmu_domain_is_on(pd);
+		rockchip_pmu_unlock(pd);
+		len += sprintf(buffer + len, "%s %d\n", genpd->name, is_on);
+	}
+
+	return len;
+}
+
+static const struct kernel_param_ops pd_status_ops = {
+	.set = pd_set_status,
+	.get = pd_get_status,
+};
+
+module_param_cb(status, &pd_status_ops, NULL, 0600);
+MODULE_PARM_DESC(status, "Change pd status.");
+#endif
+
 static void rockchip_pmu_lock(struct rockchip_pm_domain *pd)
 {
 	mutex_lock(&pd->pmu->mutex);

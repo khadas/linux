@@ -299,23 +299,12 @@
 		#sound-dai-cells = <1>;
 		status = "okay";
 	};
-	gpio-keys {
-		compatible = "gpio-keys";
-		autorepeat;
 
-		reverse {
-			label = "GPIO Key Reverse";
-			linux,code = <KEY_CAMERA_DOWN>;
-			gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
-			debounce-interval = <100>;
-		};
-
-		park {
-			label = "GPIO Key Park";
-			linux,code = <KEY_CAMERA>;
-			gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_LOW>;
-			debounce-interval = <100>;
-		};
+	vehicle_dummy: vehicle_dummy {
+		status = "okay";
+		compatible = "rockchip,vehicle-dummy-gpio";
+		reverse-gpio = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
+		park-gpio = <&gpio0 RK_PB2 GPIO_ACTIVE_HIGH>;
 	};
 
 	vcc3v3_pcie_wifi: vcc3v3-pcie-wifi {

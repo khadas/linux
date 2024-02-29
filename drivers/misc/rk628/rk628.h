@@ -135,7 +135,8 @@
 #define DUAL_DATA_SWAP			BIT(6)
 #define DEC_DUALEDGE_EN			BIT(5)
 #define SW_PROGRESS_EN			BIT(4)
-#define SW_YC_SWAP			BIT(3)
+#define SW_BT1120_YC_SWAP		BIT(3)
+#define SW_BT1120_UV_SWAP		BIT(2)
 #define SW_CAP_EN_ASYNC			BIT(1)
 #define SW_CAP_EN_PSYNC			BIT(0)
 #define GRF_RGB_DEC_CON1		0x0044
@@ -541,6 +542,8 @@ struct rk628_combtxphy {
 struct rk628_rgb {
 	struct regulator *vccio_rgb;
 	bool bt1120_dual_edge;
+	bool bt1120_yc_swap;
+	bool bt1120_uv_swap;
 };
 
 struct rk628 {
