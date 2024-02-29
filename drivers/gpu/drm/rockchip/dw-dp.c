@@ -3458,34 +3458,28 @@ static void dw_dp_mst_encoder_atomic_enable(struct drm_encoder *encoder,
 	if (first_mst_stream) {
 		ret = phy_power_on(dp->phy);
 		if (ret)
-			return;
+			dev_err(dp->dev, "phy power on failed: %d\n", ret);
 
 		ret = dw_dp_link_power_up(dp);
 		if (ret < 0)
-			return;
+			dev_err(dp->dev, "link power up failed: %d\n", ret);
 
 		ret = dw_dp_link_train(dp);
-		if (ret < 0) {
+		if (ret < 0)
 			dev_err(dp->dev, "link training failed: %d\n", ret);
-			return;
-		}
 
 		dw_dp_mst_enable(dp);
 		dw_dp_clear_vcpid_table(dp);
 	}
 
 	ret = drm_dp_send_power_updown_phy(&dp->mst_mgr, mst_conn->port, true);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(dp->dev, "send power updown phy failed:%d\n", ret);
-		return;
-	}
 
 	payload = drm_atomic_get_mst_payload_state(mst_state, mst_conn->port);
 	ret = drm_dp_add_payload_part1(&dp->mst_mgr, mst_state, payload);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(dp->dev, "failed to create MST payload:%d\n", ret);
-		return;
-	}
 
 	dw_dp_set_vcpid_table_range(dp, payload->vc_start_slot, payload->time_slots,
 				    mst_enc->stream_id);
@@ -3495,16 +3489,12 @@ static void dw_dp_mst_encoder_atomic_enable(struct drm_encoder *encoder,
 		dev_warn(dp->dev, "failed to initial mst act:%d\n", ret);
 
 	ret = drm_dp_check_act_status(&dp->mst_mgr);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(dp->dev, "failed to check act status:%d\n", ret);
-		return;
-	}
 
 	ret = dw_dp_video_enable(dp, &mst_enc->video, mst_enc->stream_id);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(dp->dev, "failed to enable video: %d\n", ret);
-		return;
-	}
 
 	dw_dp_enable_vop_gate(dp, encoder->crtc, mst_enc->stream_id, true);
 	drm_dp_add_payload_part2(&dp->mst_mgr, state, payload);
