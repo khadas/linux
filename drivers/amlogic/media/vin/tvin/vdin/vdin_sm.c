@@ -208,12 +208,15 @@ void vdin_update_prop(struct vdin_dev_s *devp)
 
 static inline void vdin_update_parm(struct vdin_dev_s *devp)
 {
-	devp->parm.info.trans_fmt =
-		devp->prop.trans_fmt;
-	devp->parm.info.is_dvi =
-		devp->prop.dvi_info;
-	devp->parm.info.fps =
-		devp->prop.fps;
+	/* 3D interlaced signals are not supported default to 2D */
+	if (devp->fmt_info_p &&
+	    devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
+		devp->parm.info.trans_fmt = TVIN_TFMT_2D;
+	else
+		devp->parm.info.trans_fmt = devp->prop.trans_fmt;
+
+	devp->parm.info.is_dvi = devp->prop.dvi_info;
+	devp->parm.info.fps = devp->prop.fps;
 }
 
 /*
