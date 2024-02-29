@@ -184,12 +184,14 @@ union rkvenc2_dual_core_handshake_id {
 #define RKVENC2_REG_EXT_LINE_BUF_BASE	(22)
 
 #define RKVENC2_REG_ENC_PIC		(32)
+#define RKVENC510_REG_ENC_PIC		(36)
 #define RKVENC2_BIT_ENC_STND		BIT(0)
 #define RKVENC2_BIT_VAL_H264		0
 #define RKVENC2_BIT_VAL_H265		1
 #define RKVENC2_BIT_SLEN_FIFO		BIT(30)
 
 #define RKVENC2_REG_SLI_SPLIT		(56)
+#define RKVENC510_REG_SLI_SPLIT		(60)
 #define RKVENC2_BIT_SLI_SPLIT		BIT(0)
 #define RKVENC2_BIT_SLI_FLUSH		BIT(15)
 
@@ -983,17 +985,29 @@ static void rkvenc2_setup_task_id(u32 session_id, struct rkvenc_task *task)
 	task->dchs_id.rxe_map = task->dchs_id.rxe;
 }
 
-static void rkvenc2_check_split_task(struct rkvenc_task *task)
+static void rkvenc2_check_split_task(struct mpp_dev *mpp, struct rkvenc_task *task)
 {
-	u32 slen_fifo_en = 0;
-	u32 sli_split_en = 0;
+	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+	struct rkvenc_hw_info *hw = enc->hw_info;
+	u32 slen_fifo_en	= 0;
+	u32 sli_split_en	= 0;
+	u32 reg_enc_pic		= 0;
+	u32 reg_slt_split	= 0;
+
+	if (hw->vepu_type == RKVENC_VEPU_510) {
+		reg_enc_pic = RKVENC510_REG_ENC_PIC;
+		reg_slt_split = RKVENC510_REG_SLI_SPLIT;
+	} else {
+		reg_enc_pic = RKVENC2_REG_ENC_PIC;
+		reg_slt_split = RKVENC2_REG_SLI_SPLIT;
+	}
 
 	if (task->reg[RKVENC_CLASS_PIC].valid) {
 		u32 *reg = task->reg[RKVENC_CLASS_PIC].data;
-		u32 enc_stnd = reg[RKVENC2_REG_ENC_PIC] & RKVENC2_BIT_ENC_STND;
+		u32 enc_stnd = reg[reg_enc_pic] & RKVENC2_BIT_ENC_STND;
 
-		slen_fifo_en = (reg[RKVENC2_REG_ENC_PIC] & RKVENC2_BIT_SLEN_FIFO) ? 1 : 0;
-		sli_split_en = (reg[RKVENC2_REG_SLI_SPLIT] & RKVENC2_BIT_SLI_SPLIT) ? 1 : 0;
+		slen_fifo_en = (reg[reg_enc_pic] & RKVENC2_BIT_SLEN_FIFO) ? 1 : 0;
+		sli_split_en = (reg[reg_slt_split] & RKVENC2_BIT_SLI_SPLIT) ? 1 : 0;
 
 		/*
 		 * FIXUP: rkvenc2 hardware bug:
@@ -1003,7 +1017,7 @@ static void rkvenc2_check_split_task(struct rkvenc_task *task)
 		if (sli_split_en && slen_fifo_en &&
 		    enc_stnd == RKVENC2_BIT_VAL_H264 &&
 		    reg[RKVENC2_REG_EXT_LINE_BUF_BASE])
-			reg[RKVENC2_REG_SLI_SPLIT] &= ~RKVENC2_BIT_SLI_FLUSH;
+			reg[reg_slt_split] &= ~RKVENC2_BIT_SLI_FLUSH;
 	}
 
 	task->task_split = sli_split_en && slen_fifo_en;
@@ -1090,7 +1104,7 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 	}
 	rkvenc2_setup_task_id(session->index, task);
 	task->clk_mode = CLK_MODE_NORMAL;
-	rkvenc2_check_split_task(task);
+	rkvenc2_check_split_task(mpp, task);
 
 	mpp_debug_leave();
 
@@ -1418,7 +1432,7 @@ static void rkvenc2_read_slice_len(struct mpp_dev *mpp, struct rkvenc_task *task
 {
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 	struct rkvenc_hw_info *hw = enc->hw_info;
-	u32 sli_num = mpp_read_relaxed(mpp, RKVENC2_REG_SLICE_NUM_BASE);
+	u32 sli_num = mpp_read_relaxed(mpp, RKVENC2_REG_SLICE_NUM_BASE) & 0x3f;
 	u32 new_irq_status = mpp_read(mpp, hw->int_sta_base);
 	union rkvenc2_slice_len_info slice_info;
 	u32 task_id = task->mpp_task.task_id;
@@ -1428,7 +1442,7 @@ static void rkvenc2_read_slice_len(struct mpp_dev *mpp, struct rkvenc_task *task
 	/* Need update irq status and slice number when enc done ready with new status*/
 	if ((new_irq_status != *irq_status) && (new_irq_status & INT_STA_ENC_DONE_STA)) {
 		*irq_status |= new_irq_status;
-		sli_num = mpp_read_relaxed(mpp, RKVENC2_REG_SLICE_NUM_BASE);
+		sli_num = mpp_read_relaxed(mpp, RKVENC2_REG_SLICE_NUM_BASE) & 0x3f;
 		mpp_write(mpp, hw->int_clr_base, new_irq_status);
 	}
 
