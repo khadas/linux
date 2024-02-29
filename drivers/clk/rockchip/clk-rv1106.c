@@ -1007,12 +1007,16 @@ static void _cru_pvtpll_calibrate(int count_offset, int length_offset, int targe
 	writel_relaxed(val, rv1106_cru_base + length_offset);
 	usleep_range(2000, 2100);
 	rate1 = readl_relaxed(rv1106_cru_base + count_offset);
-	if ((rate1 < target_rate) || (rate1 >= rate0))
+	if (rate1 < target_rate)
 		return;
 	if (abs(rate1 - target_rate) < (target_rate >> 5))
 		return;
 
-	step = rate0 - rate1;
+	if (rate1 < rate0)
+		step = rate0 - rate1;
+	else
+		step = 5;
+	step = max_t(unsigned int, step, 5);
 	delta = rate1 - target_rate;
 	length += delta / step;
 	val = HIWORD_UPDATE(length, PVTPLL_LENGTH_SEL_MASK, PVTPLL_LENGTH_SEL_SHIFT);

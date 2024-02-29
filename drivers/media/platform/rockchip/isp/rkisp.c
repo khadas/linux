@@ -3480,7 +3480,8 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		rkisp_get_info(isp_dev, arg);
 		break;
 	case RKISP_CMD_GET_TB_HEAD_V32:
-		if (isp_dev->tb_head.complete != RKISP_TB_OK) {
+		if (isp_dev->tb_head.complete != RKISP_TB_OK ||
+		    (!isp_dev->is_rtt_suspend && !isp_dev->is_pre_on)) {
 			ret = -EINVAL;
 			break;
 		}
@@ -3489,6 +3490,11 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		       sizeof(struct rkisp_thunderboot_resmem_head));
 		memcpy(&tb_head_v32->cfg, isp_dev->params_vdev.isp32_params,
 		       sizeof(struct isp32_isp_params_cfg));
+		break;
+	case RKISP_CMD_SET_TB_HEAD_V32:
+		tb_head_v32 = arg;
+		memcpy(&isp_dev->tb_head, tb_head_v32,
+		       sizeof(struct rkisp_thunderboot_resmem_head));
 		break;
 	case RKISP_CMD_GET_SHARED_BUF:
 		if (!IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)) {

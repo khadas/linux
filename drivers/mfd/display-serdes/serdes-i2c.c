@@ -31,7 +31,7 @@ int serdes_i2c_set_sequence(struct serdes *serdes)
 
 		if (ret < 0) {
 			SERDES_DBG_MFD("%s failed to write reg %04x, ret %d, again now\n",
-				       serdes->dev,
+				       dev_name(serdes->dev),
 				       serdes->serdes_init_seq->reg_sequence[i].reg, ret);
 			ret = serdes_reg_write(serdes,
 					       serdes->serdes_init_seq->reg_sequence[i].reg,
@@ -111,7 +111,7 @@ static int serdes_i2c_set_sequence_backup(struct serdes *serdes)
 				       serdes->serdes_backup_seq->reg_sequence[i].def);
 		if (ret < 0) {
 			SERDES_DBG_MFD("%s failed to write reg %04x, ret %d, again now\n",
-				       serdes->dev,
+				       dev_name(serdes->dev),
 				       serdes->serdes_backup_seq->reg_sequence[i].reg, ret);
 			ret = serdes_reg_write(serdes,
 					       serdes->serdes_backup_seq->reg_sequence[i].reg,

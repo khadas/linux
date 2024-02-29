@@ -752,8 +752,7 @@ static int mp_config_mi(struct rkisp_stream *stream)
 
 	mi_frame_end_int_enable(stream);
 	/* set up first buffer */
-	if (!dev->cap_dev.wrap_line || stream->dummy_buf.mem_priv)
-		mi_frame_end(stream, FRAME_INIT);
+	mi_frame_end(stream, FRAME_INIT);
 
 	rkisp_unite_write(dev, stream->config->mi.y_offs_cnt_init, 0, false);
 	rkisp_unite_write(dev, stream->config->mi.cb_offs_cnt_init, 0, false);
@@ -1422,7 +1421,10 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 	struct rkisp_buffer *buf = NULL;
 	u32 i;
 
-	if (stream->id == RKISP_STREAM_VIR)
+	/* STREAM_VIR or STREAM_MP wrap buf from rockit */
+	if (stream->id == RKISP_STREAM_VIR ||
+	    (stream->id == RKISP_STREAM_MP && dev->cap_dev.wrap_line &&
+	     !stream->dummy_buf.mem_priv && stream->dummy_buf.dma_addr))
 		return 0;
 
 	if (dev->cap_dev.is_done_early &&
