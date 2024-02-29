@@ -602,6 +602,7 @@ struct mpp_dev_ops {
 	int (*free_session)(struct mpp_session *session);
 	int (*dump_session)(struct mpp_session *session, struct seq_file *seq);
 	int (*dump_dev)(struct mpp_dev *mpp);
+	int (*link_irq)(struct mpp_dev *mpp);
 };
 
 struct mpp_taskqueue *mpp_taskqueue_init(struct device *dev);
