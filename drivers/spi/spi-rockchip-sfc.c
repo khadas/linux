@@ -210,6 +210,7 @@ struct rockchip_sfc {
 	u16 version;
 	struct gpio_desc *rst_gpio;
 	struct gpio_desc **cs_gpiods;
+	struct spi_master *master;
 };
 
 static int rockchip_sfc_reset(struct rockchip_sfc *sfc)
@@ -887,6 +888,7 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 
 	sfc = spi_master_get_devdata(master);
 	sfc->dev = dev;
+	sfc->master = master;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	sfc->regbase = devm_ioremap_resource(dev, res);
@@ -1026,8 +1028,8 @@ err_hclk:
 
 static int rockchip_sfc_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = platform_get_drvdata(pdev);
 	struct rockchip_sfc *sfc = platform_get_drvdata(pdev);
+	struct spi_master *master = sfc->master;
 
 	free_pages((unsigned long)sfc->buffer, get_order(sfc->max_iosize));
 	spi_unregister_master(master);
