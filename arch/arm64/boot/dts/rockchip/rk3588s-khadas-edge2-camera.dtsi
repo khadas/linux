@@ -18,7 +18,7 @@
 			mipi_in_dcphy0: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&imx415b_out0>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 
 			mipi_in_dcphy2: endpoint@2 {
@@ -57,7 +57,7 @@
 			mipi_in_dcphy1: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&imx415f_out1>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 
 			mipi_in_dcphy3: endpoint@2 {
@@ -96,7 +96,7 @@
 			mipidphy0_in_ucam0: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&imx415c_out0>;
-				data-lanes = <1 2 3 4>;
+				data-lanes = <1 2>;
 			};
 
 			mipidphy0_in_ucam1: endpoint@2 {
@@ -151,8 +151,8 @@
 		pinctrl-names = "default", "camb_gpios";
 		pinctrl-0 = <&mipim1_camera1_clk>, <&camb_gpio>;
 		rockchip,grf = <&sys_grf>;
-		reset-gpios = <&gpio1 RK_PA0 GPIO_ACTIVE_LOW>;
-		pwdn-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio1 RK_PB3 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT2022-PX1";
@@ -220,8 +220,8 @@
 		pinctrl-names = "default", "camf_gpios";
 		pinctrl-0 = <&mipim1_camera2_clk>, <&camf_gpio>;
 		rockchip,grf = <&sys_grf>;
-		reset-gpios = <&gpio1 RK_PA1 GPIO_ACTIVE_LOW>;
-		pwdn-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
 		rockchip,camera-module-name = "CMK-OT2022-PX1";
@@ -288,8 +288,8 @@
 		pinctrl-names = "default", "camc_gpios";
 		pinctrl-0 = <&mipim1_camera3_clk>, <&camc_gpio>;
 		power-domains = <&power RK3588_PD_VI>;
-		reset-gpios = <&gpio1 RK_PA6 GPIO_ACTIVE_LOW>;	
-		pwdn-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <2>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-OT2022-PX1";
