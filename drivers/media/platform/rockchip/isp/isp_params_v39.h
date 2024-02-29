@@ -152,8 +152,6 @@ struct rkisp_isp_params_ops_v39 {
 };
 
 struct rkisp_isp_params_val_v39 {
-	struct tasklet_struct lsc_tasklet;
-
 	struct rkisp_dummy_buffer buf_3dlut[ISP_UNITE_MAX][ISP39_3DLUT_BUF_NUM];
 	u32 buf_3dlut_idx[ISP_UNITE_MAX];
 
@@ -167,6 +165,9 @@ struct rkisp_isp_params_val_v39 {
 
 	struct rkisp_dummy_buffer buf_cac[ISP_UNITE_MAX][ISP39_MESH_BUF_NUM];
 	u32 buf_cac_idx[ISP_UNITE_MAX];
+
+	struct rkisp_dummy_buffer buf_lsclut[ISP39_LSC_LUT_BUF_NUM];
+	u32 buf_lsclut_idx;
 
 	struct rkisp_dummy_buffer buf_info[RKISP_INFO2DDR_BUF_MAX];
 	u32 buf_info_owner;
@@ -184,12 +185,6 @@ struct rkisp_isp_params_val_v39 {
 
 	u32 dhaz_blk_num;
 
-	bool dhaz_en;
-	bool drc_en;
-	bool lsc_en;
-	bool mge_en;
-	bool lut3d_en;
-	bool bay3d_en;
 	bool is_bigmode;
 };
 

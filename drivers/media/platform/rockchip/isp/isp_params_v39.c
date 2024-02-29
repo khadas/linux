@@ -460,26 +460,16 @@ isp_lsc_matrix_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 			const struct isp3x_lsc_cfg *pconfig,
 			bool is_check, u32 id)
 {
-	struct rkisp_device *dev = params_vdev->dev;
 	u32 data = isp3_param_read(params_vdev, ISP3X_LSC_CTRL, id);
-	u32 sram_addr, table;
 	int i, j;
 
 	if (is_check && (data & ISP3X_LSC_LUT_EN || !(data & ISP_LSC_EN)))
 		return;
 
-	table = isp3_param_read_direct(params_vdev, ISP3X_LSC_STATUS);
-	table &= ISP3X_LSC_ACTIVE_TABLE;
-	/* default table 0 for multi device */
-	if (!dev->hw_dev->is_single)
-		table = ISP3X_LSC_ACTIVE_TABLE;
-
-	/* CIF_ISP_LSC_TABLE_ADDRESS_153 = ( 17 * 18 ) >> 1 */
-	sram_addr = table ? ISP3X_LSC_TABLE_ADDRESS_0 : CIF_ISP_LSC_TABLE_ADDRESS_153;
-	isp3_param_write_direct(params_vdev, sram_addr, ISP3X_LSC_R_TABLE_ADDR);
-	isp3_param_write_direct(params_vdev, sram_addr, ISP3X_LSC_GR_TABLE_ADDR);
-	isp3_param_write_direct(params_vdev, sram_addr, ISP3X_LSC_GB_TABLE_ADDR);
-	isp3_param_write_direct(params_vdev, sram_addr, ISP3X_LSC_B_TABLE_ADDR);
+	isp3_param_write_direct(params_vdev, 0, ISP3X_LSC_R_TABLE_ADDR);
+	isp3_param_write_direct(params_vdev, 0, ISP3X_LSC_GR_TABLE_ADDR);
+	isp3_param_write_direct(params_vdev, 0, ISP3X_LSC_GB_TABLE_ADDR);
+	isp3_param_write_direct(params_vdev, 0, ISP3X_LSC_B_TABLE_ADDR);
 
 	/* program data tables (table size is 9 * 17 = 153) */
 	for (i = 0; i < CIF_ISP_LSC_SECTORS_MAX * CIF_ISP_LSC_SECTORS_MAX;
@@ -518,35 +508,88 @@ isp_lsc_matrix_cfg_sram(struct rkisp_isp_params_vdev *params_vdev,
 		data = ISP_ISP_LSC_TABLE_DATA(pconfig->b_data_tbl[i + j], 0);
 		isp3_param_write_direct(params_vdev, data, ISP3X_LSC_B_TABLE_DATA);
 	}
-	isp3_param_write_direct(params_vdev, !table, ISP3X_LSC_TABLE_SEL);
 }
 
 static void
-isp_lsc_cfg_sram_task(unsigned long data)
+isp_lsc_matrix_cfg_ddr(struct rkisp_isp_params_vdev *params_vdev,
+		       const struct isp3x_lsc_cfg *pconfig)
 {
-	struct rkisp_isp_params_vdev *params_vdev =
-		(struct rkisp_isp_params_vdev *)data;
-	struct isp39_isp_params_cfg *params = params_vdev->isp39_params;
+	struct rkisp_isp_params_val_v39 *priv_val = params_vdev->priv_val;
+	u32 data, buf_idx, *vaddr[4], index[4];
+	void *buf_vaddr;
+	int i, j;
 
-	isp_lsc_matrix_cfg_sram(params_vdev, &params->others.lsc_cfg, true, 0);
+	memset(&index[0], 0, sizeof(index));
+	buf_idx = (priv_val->buf_lsclut_idx++) % ISP39_LSC_LUT_BUF_NUM;
+	buf_vaddr = priv_val->buf_lsclut[buf_idx].vaddr;
+
+	vaddr[0] = buf_vaddr;
+	vaddr[1] = buf_vaddr + ISP39_LSC_LUT_TBL_SIZE;
+	vaddr[2] = buf_vaddr + ISP39_LSC_LUT_TBL_SIZE * 2;
+	vaddr[3] = buf_vaddr + ISP39_LSC_LUT_TBL_SIZE * 3;
+
+	/* program data tables (table size is 9 * 17 = 153) */
+	for (i = 0; i < CIF_ISP_LSC_SECTORS_MAX * CIF_ISP_LSC_SECTORS_MAX;
+	     i += CIF_ISP_LSC_SECTORS_MAX) {
+		/*
+		 * 17 sectors with 2 values in one DWORD = 9
+		 * DWORDs (2nd value of last DWORD unused)
+		 */
+		for (j = 0; j < CIF_ISP_LSC_SECTORS_MAX - 1; j += 2) {
+			data = ISP_ISP_LSC_TABLE_DATA(pconfig->r_data_tbl[i + j],
+						      pconfig->r_data_tbl[i + j + 1]);
+			vaddr[0][index[0]++] = data;
+
+			data = ISP_ISP_LSC_TABLE_DATA(pconfig->gr_data_tbl[i + j],
+						      pconfig->gr_data_tbl[i + j + 1]);
+			vaddr[1][index[1]++] = data;
+
+			data = ISP_ISP_LSC_TABLE_DATA(pconfig->b_data_tbl[i + j],
+						      pconfig->b_data_tbl[i + j + 1]);
+			vaddr[2][index[2]++] = data;
+
+			data = ISP_ISP_LSC_TABLE_DATA(pconfig->gb_data_tbl[i + j],
+						      pconfig->gb_data_tbl[i + j + 1]);
+			vaddr[3][index[3]++] = data;
+		}
+
+		data = ISP_ISP_LSC_TABLE_DATA(pconfig->r_data_tbl[i + j], 0);
+		vaddr[0][index[0]++] = data;
+
+		data = ISP_ISP_LSC_TABLE_DATA(pconfig->gr_data_tbl[i + j], 0);
+		vaddr[1][index[1]++] = data;
+
+		data = ISP_ISP_LSC_TABLE_DATA(pconfig->b_data_tbl[i + j], 0);
+		vaddr[2][index[2]++] = data;
+
+		data = ISP_ISP_LSC_TABLE_DATA(pconfig->gb_data_tbl[i + j], 0);
+		vaddr[3][index[3]++] = data;
+	}
+	rkisp_prepare_buffer(params_vdev->dev, &priv_val->buf_lsclut[buf_idx]);
+	data = priv_val->buf_lsclut[buf_idx].dma_addr;
+	isp3_param_write(params_vdev, data, ISP3X_MI_LUT_LSC_RD_BASE, 0);
+	isp3_param_write(params_vdev, ISP39_LSC_LUT_TBL_SIZE, ISP3X_MI_LUT_LSC_RD_WSIZE, 0);
 }
 
 static void
 isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	       const struct isp3x_lsc_cfg *arg, u32 id)
 {
-	struct rkisp_isp_params_val_v39 *priv_val = params_vdev->priv_val;
 	struct isp39_isp_params_cfg *params_rec = params_vdev->isp39_params + id;
 	struct rkisp_device *dev = params_vdev->dev;
 	u32 data, lsc_ctrl;
 	int i;
 
 	lsc_ctrl = isp3_param_read(params_vdev, ISP3X_LSC_CTRL, id);
-	/* two lsc sram table */
-	params_rec->others.lsc_cfg = *arg;
-	if (dev->hw_dev->is_single && (lsc_ctrl & ISP_LSC_EN))
-		tasklet_schedule(&priv_val->lsc_tasklet);
-
+	/* one lsc sram table */
+	if (!IS_HDR_RDBK(dev->rd_mode)) {
+		lsc_ctrl |= ISP3X_LSC_LUT_EN;
+		isp_lsc_matrix_cfg_ddr(params_vdev, arg);
+	} else {
+		if (dev->hw_dev->is_single)
+			isp_lsc_matrix_cfg_sram(params_vdev, arg, false, id);
+		params_rec->others.lsc_cfg = *arg;
+	}
 	for (i = 0; i < ISP39_LSC_SIZE_TBL_SIZE / 4; i++) {
 		/* program x size tables */
 		data = CIF_ISP_LSC_SECT_SIZE(arg->x_size_tbl[i * 2], arg->x_size_tbl[i * 2 + 1]);
@@ -583,8 +626,6 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 static void
 isp_lsc_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 {
-	struct rkisp_device *dev = params_vdev->dev;
-	struct isp39_isp_params_cfg *params_rec = params_vdev->isp39_params + id;
 	u32 val = isp3_param_read(params_vdev, ISP3X_LSC_CTRL, id);
 
 	if (en == !!(val & ISP_LSC_EN))
@@ -593,12 +634,8 @@ isp_lsc_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 	if (en) {
 		val = ISP_LSC_EN | ISP39_SELF_FORCE_UPD;
 		isp3_param_set_bits(params_vdev, ISP3X_LSC_CTRL, val, id);
-		if (dev->hw_dev->is_single)
-			isp_lsc_matrix_cfg_sram(params_vdev,
-						&params_rec->others.lsc_cfg, false, id);
 	} else {
 		isp3_param_clear_bits(params_vdev, ISP3X_LSC_CTRL, ISP_LSC_EN, id);
-		isp3_param_clear_bits(params_vdev, ISP3X_GAIN_CTRL, BIT(8), id);
 	}
 }
 
@@ -2237,7 +2274,6 @@ isp_hdrdrc_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 		isp3_param_set_bits(params_vdev, ISP3X_ISP_CTRL1, ISP3X_ADRC_FST_FRAME, id);
 	} else {
 		value &= ~(ISP39_MODULE_EN | ISP39_SELF_FORCE_UPD);
-		isp3_param_clear_bits(params_vdev, ISP3X_GAIN_CTRL, BIT(12), id);
 	}
 	isp3_param_write(params_vdev, value, ISP3X_DRC_CTRL0, id);
 }
@@ -2488,7 +2524,6 @@ isp_dhaz_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 				    ISP3X_DHAZ_FST_FRAME, id);
 	} else {
 		value &= ~ISP3X_DHAZ_ENMUX;
-		isp3_param_clear_bits(params_vdev, ISP3X_GAIN_CTRL, BIT(16), id);
 	}
 	isp3_param_write(params_vdev, value, ISP3X_DHAZ_CTRL, id);
 }
@@ -2548,7 +2583,6 @@ isp_3dlut_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 	} else {
 		isp3_param_clear_bits(params_vdev, ISP3X_3DLUT_CTRL, 0x01, id);
 		isp3_param_clear_bits(params_vdev, ISP3X_3DLUT_UPDATE, 0x01, id);
-		isp3_param_clear_bits(params_vdev, ISP3X_GAIN_CTRL, BIT(20), id);
 	}
 }
 
@@ -3334,7 +3368,6 @@ isp_bay3d_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 	} else {
 		bay3d_ctrl &= ~ISP39_MODULE_EN;
 		isp3_param_write(params_vdev, bay3d_ctrl, ISP3X_BAY3D_CTRL, id);
-		isp3_param_clear_bits(params_vdev, ISP3X_GAIN_CTRL, BIT(4), id);
 	}
 }
 
@@ -3689,7 +3722,7 @@ isp_rgbir_config(struct rkisp_isp_params_vdev *params_vdev,
 			(arg->luma_point[i * 3 + 2] & 0x3ff) << 20;
 		isp3_param_write(params_vdev, value, ISP39_RGBIR_LUMA_POINT0 + i * 4, id);
 	}
-	value = (arg->luma_point[i * 3] & 0x3ff) | (arg->luma_point[i * 3 + 1] & 0x3ff) << 10;
+	value = (arg->luma_point[i * 3] & 0x3ff) | (arg->luma_point[i * 3 + 1] & 0x7ff) << 10;
 	isp3_param_write(params_vdev, value, ISP39_RGBIR_LUMA_POINT0 + i * 4, id);
 
 	for (i = 0; i < ISP39_RGBIR_SCALE_MAP_NUM / 3; i++) {
@@ -3906,10 +3939,8 @@ void __isp_isr_other_en(struct rkisp_isp_params_vdev *params_vdev,
 	if (module_en_update & ISP39_MODULE_SDG)
 		ops->sdg_enable(params_vdev, !!(module_ens & ISP39_MODULE_SDG), id);
 
-	if (module_en_update & ISP39_MODULE_LSC) {
+	if (module_en_update & ISP39_MODULE_LSC)
 		ops->lsc_enable(params_vdev, !!(module_ens & ISP39_MODULE_LSC), id);
-		priv_val->lsc_en = !!(module_ens & ISP39_MODULE_LSC);
-	}
 
 	if (module_en_update & ISP39_MODULE_AWB_GAIN)
 		ops->awbgain_enable(params_vdev, !!(module_ens & ISP39_MODULE_AWB_GAIN), id);
@@ -3929,28 +3960,20 @@ void __isp_isr_other_en(struct rkisp_isp_params_vdev *params_vdev,
 	if (module_en_update & ISP39_MODULE_IE)
 		ops->ie_enable(params_vdev, !!(module_ens & ISP39_MODULE_IE), id);
 
-	if (module_en_update & ISP39_MODULE_HDRMGE) {
+	if (module_en_update & ISP39_MODULE_HDRMGE)
 		ops->hdrmge_enable(params_vdev, !!(module_ens & ISP39_MODULE_HDRMGE), id);
-		priv_val->mge_en = !!(module_ens & ISP39_MODULE_HDRMGE);
-	}
 
-	if (module_en_update & ISP39_MODULE_DRC) {
+	if (module_en_update & ISP39_MODULE_DRC)
 		ops->hdrdrc_enable(params_vdev, !!(module_ens & ISP39_MODULE_DRC), id);
-		priv_val->drc_en = !!(module_ens & ISP39_MODULE_DRC);
-	}
 
 	if (module_en_update & ISP39_MODULE_GIC)
 		ops->gic_enable(params_vdev, !!(module_ens & ISP39_MODULE_GIC), id);
 
-	if (module_en_update & ISP39_MODULE_DHAZ) {
+	if (module_en_update & ISP39_MODULE_DHAZ)
 		ops->dhaz_enable(params_vdev, !!(module_ens & ISP39_MODULE_DHAZ), id);
-		priv_val->dhaz_en = !!(module_ens & ISP39_MODULE_DHAZ);
-	}
 
-	if (module_en_update & ISP39_MODULE_3DLUT) {
+	if (module_en_update & ISP39_MODULE_3DLUT)
 		ops->isp3dlut_enable(params_vdev, !!(module_ens & ISP39_MODULE_3DLUT), id);
-		priv_val->lut3d_en = !!(module_ens & ISP39_MODULE_3DLUT);
-	}
 
 	if (module_en_update & ISP39_MODULE_LDCH)
 		ops->ldch_enable(params_vdev, !!(module_ens & ISP39_MODULE_LDCH), id);
@@ -3967,10 +3990,8 @@ void __isp_isr_other_en(struct rkisp_isp_params_vdev *params_vdev,
 	if (module_en_update & ISP39_MODULE_SHARP)
 		ops->sharp_enable(params_vdev, !!(module_ens & ISP39_MODULE_SHARP), id);
 
-	if (module_en_update & ISP39_MODULE_BAY3D) {
+	if (module_en_update & ISP39_MODULE_BAY3D)
 		ops->bay3d_enable(params_vdev, !!(module_ens & ISP39_MODULE_BAY3D), id);
-		priv_val->bay3d_en = !!(module_ens & ISP39_MODULE_BAY3D);
-	}
 
 	if (module_en_update & ISP39_MODULE_YUVME)
 		ops->yuvme_enable(params_vdev, !!(module_ens & ISP39_MODULE_YUVME), id);
@@ -4208,7 +4229,23 @@ rkisp_alloc_internal_buf(struct rkisp_isp_params_vdev *params_vdev,
 			goto free_3dnr_cur;
 		}
 	}
+
+	priv_val->buf_lsclut_idx = 0;
+	for (i = 0; i < ISP39_LSC_LUT_BUF_NUM; i++) {
+		priv_val->buf_lsclut[i].is_need_vaddr = true;
+		priv_val->buf_lsclut[i].size = ISP39_LSC_LUT_BUF_SIZE;
+		ret = rkisp_alloc_buffer(dev, &priv_val->buf_lsclut[i]);
+		if (ret) {
+			dev_err(dev->dev, "alloc lsc buf fail:%d\n", ret);
+			goto err_lsc;
+		}
+	}
 	return 0;
+err_lsc:
+	if (priv_val->buf_frm.mem_priv)
+		rkisp_free_buffer(dev, &priv_val->buf_frm);
+	for (i -= 1; i >= 0; i--)
+		rkisp_free_buffer(dev, &priv_val->buf_lsclut[i]);
 free_3dnr_cur:
 	rkisp_free_buffer(dev, &priv_val->buf_3dnr_cur);
 free_gain:
@@ -4396,12 +4433,6 @@ rkisp_params_first_cfg_v39(struct rkisp_isp_params_vdev *params_vdev)
 
 	rkisp_params_check_bigmode_v39(params_vdev);
 	spin_lock(&params_vdev->config_lock);
-	priv_val->bay3d_en = 0;
-	priv_val->dhaz_en = 0;
-	priv_val->drc_en = 0;
-	priv_val->lsc_en = 0;
-	priv_val->mge_en = 0;
-	priv_val->lut3d_en = 0;
 	if (dev->is_bigmode)
 		rkisp_unite_set_bits(dev, ISP3X_ISP_CTRL1, 0,
 				     ISP3X_BIGMODE_MANUAL | ISP3X_BIGMODE_FORCE_EN, false);
@@ -4794,6 +4825,8 @@ rkisp_params_stream_stop_v39(struct rkisp_isp_params_vdev *params_vdev)
 	rkisp_free_buffer(ispdev, &priv_val->buf_gain);
 	rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_iir);
 	rkisp_free_buffer(ispdev, &priv_val->buf_3dnr_cur);
+	for (i = 0; i < ISP39_LSC_LUT_BUF_NUM; i++)
+		rkisp_free_buffer(ispdev, &priv_val->buf_lsclut[i]);
 	for (i = 0; i < RKISP_STATS_DDR_BUF_NUM; i++)
 		rkisp_free_buffer(ispdev, &ispdev->stats_vdev.stats_buf[i]);
 	for (id = 0; id < ispdev->unite_div; id++) {
@@ -5040,9 +5073,6 @@ int rkisp_init_params_vdev_v39(struct rkisp_isp_params_vdev *params_vdev)
 	params_vdev->ops = &rkisp_isp_params_ops_tbl;
 	params_vdev->priv_ops = &isp_params_ops_v39;
 	rkisp_clear_first_param_v39(params_vdev);
-	tasklet_init(&priv_val->lsc_tasklet,
-		     isp_lsc_cfg_sram_task,
-		     (unsigned long)params_vdev);
 	priv_val->buf_info_owner = 0;
 	priv_val->buf_info_cnt = 0;
 	priv_val->buf_info_idx = -1;
@@ -5056,7 +5086,6 @@ void rkisp_uninit_params_vdev_v39(struct rkisp_isp_params_vdev *params_vdev)
 	if (params_vdev->isp39_params)
 		vfree(params_vdev->isp39_params);
 	if (priv_val) {
-		tasklet_kill(&priv_val->lsc_tasklet);
 		kfree(priv_val);
 		params_vdev->priv_val = NULL;
 	}
