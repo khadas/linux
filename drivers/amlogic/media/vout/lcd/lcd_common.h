@@ -126,7 +126,6 @@ void lcd_mlvds_bit_rate_config(struct aml_lcd_drv_s *pdrv);
 void lcd_p2p_bit_rate_config(struct aml_lcd_drv_s *pdrv);
 void lcd_mipi_dsi_bit_rate_config(struct aml_lcd_drv_s *pdrv);
 void lcd_edp_bit_rate_config(struct aml_lcd_drv_s *pdrv);
-void lcd_fr_range_update(struct lcd_detail_timing_s *ptiming);
 void lcd_clk_frame_rate_init(struct lcd_detail_timing_s *ptiming);
 void lcd_default_to_basic_timing_init_config(struct aml_lcd_drv_s *pdrv);
 void lcd_enc_timing_init_config(struct aml_lcd_drv_s *pdrv);
