@@ -117,6 +117,7 @@ struct udphy_grf_cfg {
 	/* usbdpphy-grf */
 	struct udphy_grf_reg	low_pwrn;
 	struct udphy_grf_reg	rx_lfps;
+	struct udphy_grf_reg	clamp_phy;
 };
 
 struct udphy_vogrf_cfg {
@@ -994,6 +995,12 @@ static int udphy_parse_dt(struct rockchip_udphy *udphy, struct device *dev)
 		}
 	}
 
+	if (device_property_present(dev, "rockchip,usbdpphy-clamp")) {
+		grfreg_write(udphy->udphygrf, &udphy->cfgs->grfcfg.clamp_phy, true);
+		dev_warn(dev, "Failed to enable usbdpphy because clamp is set\n");
+		return -EOPNOTSUPP;
+	}
+
 	udphy->usbgrf = syscon_regmap_lookup_by_phandle(np, "rockchip,usb-grf");
 	if (IS_ERR(udphy->usbgrf)) {
 		if (PTR_ERR(udphy->usbgrf) == -ENODEV) {
@@ -1607,6 +1614,7 @@ static const struct rockchip_udphy_cfg rk3576_udphy_cfgs = {
 		/* usbdpphy-grf */
 		.low_pwrn		= { 0x0004, 13, 13, 0, 1 },
 		.rx_lfps		= { 0x0004, 14, 14, 0, 1 },
+		.clamp_phy		= { 0x0008, 15, 15, 0, 1 },
 	},
 	.vogrfcfg = {
 		{
