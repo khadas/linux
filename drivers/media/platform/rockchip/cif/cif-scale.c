@@ -678,6 +678,9 @@ static void rkcif_scale_vb2_buf_queue(struct vb2_buffer *vb)
 	spin_lock_irqsave(&scale_vdev->vbq_lock, lock_flags);
 	list_add_tail(&cifbuf->queue, &scale_vdev->buf_head);
 	spin_unlock_irqrestore(&scale_vdev->vbq_lock, lock_flags);
+	v4l2_dbg(3, rkcif_debug, &scale_vdev->cifdev->v4l2_dev,
+		 "sub_stream[%d] buf queue, index: %d, dma_addr 0x%x\n",
+		 scale_vdev->ch, vb->index, cifbuf->buff_addr[0]);
 }
 
 static int rkcif_scale_stop(struct rkcif_scale_vdev *scale_vdev)
@@ -1022,8 +1025,7 @@ static int rkcif_scale_channel_set_rk3576(struct rkcif_scale_vdev *scale_vdev)
 		val |= (scale_vdev->extrac_pattern << 10);
 	if (!scale_vdev->stream->is_compact)
 		val |= (1 << 12);
-	rkcif_write_register_or(dev, CIF_REG_SCL_CH_CTRL,
-				val);
+	rkcif_write_register(dev, CIF_REG_SCL_CH_CTRL, val);
 	return 0;
 }
 
@@ -1177,6 +1179,9 @@ static void rkcif_scale_vb_done_oneframe(struct rkcif_scale_vdev *scale_vdev,
 	vb_done->vb2_buf.timestamp = rkcif_time_get_ns(scale_vdev->cifdev);
 
 	vb2_buffer_done(&vb_done->vb2_buf, VB2_BUF_STATE_DONE);
+	v4l2_dbg(3, rkcif_debug, &scale_vdev->cifdev->v4l2_dev,
+		 "sub_stream[%d] vb done, index: %d, sequence %d\n", scale_vdev->ch,
+		 vb_done->vb2_buf.index, vb_done->sequence);
 }
 
 static void rkcif_scale_update_stream(struct rkcif_scale_vdev *scale_vdev, int ch)
