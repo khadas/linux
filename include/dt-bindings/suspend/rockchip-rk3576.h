@@ -61,7 +61,8 @@
 #define RKPM_VCCIO4_RET_EN		BIT(4)
 #define RKPM_VCCIO5_RET_EN		BIT(5)
 #define RKPM_VCCIO6_RET_EN		BIT(6)
-#define RKPM_PMUIO1_RET_EN		BIT(7)
+#define RKPM_VCCIO7_RET_EN		BIT(7)
+#define RKPM_PMUIO1_RET_EN		BIT(8)
 
 /* sleep pin */
 #define RKPM_SLEEP_PIN0_EN		BIT(0)	/* GPIO0_A3 */
