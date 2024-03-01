@@ -1076,7 +1076,7 @@ struct vop2_win_data {
 	uint8_t axi_id;
 	uint8_t axi_yrgb_id;
 	uint8_t axi_uv_id;
-	uint8_t possible_crtcs;
+	uint8_t possible_vp_mask;
 	uint8_t dci_rid_id;
 
 	uint32_t base;
